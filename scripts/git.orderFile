@@ -17,7 +17,7 @@ Documentation/*
 *.rst
 
 # git-specific
-.gitignore
+.gitiganalre
 scripts/git.orderFile
 
 # build system

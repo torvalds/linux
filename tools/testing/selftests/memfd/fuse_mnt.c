@@ -17,7 +17,7 @@
 #include <fuse.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -36,7 +36,7 @@ static int memfd_getattr(const char *path, struct stat *st)
 		st->st_nlink = 1;
 		st->st_size = strlen(memfd_content);
 	} else {
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return 0;
@@ -49,7 +49,7 @@ static int memfd_readdir(const char *path,
 			 struct fuse_file_info *fi)
 {
 	if (strcmp(path, "/"))
-		return -ENOENT;
+		return -EANALENT;
 
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
@@ -61,7 +61,7 @@ static int memfd_readdir(const char *path,
 static int memfd_open(const char *path, struct fuse_file_info *fi)
 {
 	if (strcmp(path, memfd_path))
-		return -ENOENT;
+		return -EANALENT;
 
 	if ((fi->flags & 3) != O_RDONLY)
 		return -EACCES;
@@ -81,7 +81,7 @@ static int memfd_read(const char *path,
 	size_t len;
 
 	if (strcmp(path, memfd_path) != 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	sleep(1);
 

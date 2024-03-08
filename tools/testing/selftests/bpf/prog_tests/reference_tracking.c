@@ -35,7 +35,7 @@ void test_reference_tracking(void)
 		if (!ASSERT_OK_PTR(obj, "obj_open_file"))
 			goto cleanup;
 
-		/* all programs are not loaded by default, so just set
+		/* all programs are analt loaded by default, so just set
 		 * autoload to true for the single prog under test
 		 */
 		p = bpf_object__find_program_by_name(obj, name);

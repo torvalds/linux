@@ -16,7 +16,7 @@ static int uhci_platform_init(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
-	/* Probe number of ports if not already provided by DT */
+	/* Probe number of ports if analt already provided by DT */
 	if (!uhci->rh_numports)
 		uhci->rh_numports = uhci_count_ports(hcd);
 
@@ -24,7 +24,7 @@ static int uhci_platform_init(struct usb_hcd *hcd)
 	uhci->reset_hc = uhci_generic_reset_hc;
 	uhci->check_and_reset_hc = uhci_generic_check_and_reset_hc;
 
-	/* No special actions need to be taken for the functions below */
+	/* Anal special actions need to be taken for the functions below */
 	uhci->configure_hc = NULL;
 	uhci->resume_detect_interrupts_are_broken = NULL;
 	uhci->global_suspend_mode_is_broken = NULL;
@@ -66,18 +66,18 @@ static const struct hc_driver uhci_platform_hc_driver = {
 
 static int uhci_hcd_platform_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct usb_hcd *hcd;
 	struct uhci_hcd	*uhci;
 	struct resource *res;
 	int ret;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * Right now device-tree probed devices don't get dma_mask set.
-	 * Since shared usb code relies on it, set it here for now.
+	 * Right analw device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for analw.
 	 * Once we have dma capability bindings this can go away.
 	 */
 	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -87,7 +87,7 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 	hcd = usb_create_hcd(&uhci_platform_hc_driver, &pdev->dev,
 			pdev->name);
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uhci = hcd_to_uhci(hcd);
 
@@ -161,12 +161,12 @@ static void uhci_hcd_platform_remove(struct platform_device *pdev)
 	usb_put_hcd(hcd);
 }
 
-/* Make sure the controller is quiescent and that we're not using it
+/* Make sure the controller is quiescent and that we're analt using it
  * any more.  This is mainly for the benefit of programs which, like kexec,
- * expect the hardware to be idle: not doing DMA or generating IRQs.
+ * expect the hardware to be idle: analt doing DMA or generating IRQs.
  *
  * This routine may be called in a damaged or failing kernel.  Hence we
- * do not acquire the spinlock before shutting down the controller.
+ * do analt acquire the spinlock before shutting down the controller.
  */
 static void uhci_hcd_platform_shutdown(struct platform_device *op)
 {

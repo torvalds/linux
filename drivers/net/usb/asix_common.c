@@ -22,13 +22,13 @@ int __must_check asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 	if (!in_pm)
 		fn = usbnet_read_cmd;
 	else
-		fn = usbnet_read_cmd_nopm;
+		fn = usbnet_read_cmd_analpm;
 
 	ret = fn(dev, cmd, USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 value, index, data, size);
 
 	if (unlikely(ret < size)) {
-		ret = ret < 0 ? ret : -ENODATA;
+		ret = ret < 0 ? ret : -EANALDATA;
 
 		netdev_warn(dev->net, "Failed to read reg index 0x%04x: %d\n",
 			    index, ret);
@@ -48,7 +48,7 @@ int asix_write_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 	if (!in_pm)
 		fn = usbnet_write_cmd;
 	else
-		fn = usbnet_write_cmd_nopm;
+		fn = usbnet_write_cmd_analpm;
 
 	ret = fn(dev, cmd, USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 value, index, data, size);
@@ -96,12 +96,12 @@ static int asix_check_host_enable(struct usbnet *dev, int in_pm)
 
 	for (i = 0; i < AX_HOST_EN_RETRIES; ++i) {
 		ret = asix_set_sw_mii(dev, in_pm);
-		if (ret == -ENODEV || ret == -ETIMEDOUT)
+		if (ret == -EANALDEV || ret == -ETIMEDOUT)
 			break;
 		usleep_range(1000, 1100);
 		ret = asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG,
 				    0, 0, 1, &smsr, in_pm);
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			break;
 		else if (ret < 0)
 			continue;
@@ -116,7 +116,7 @@ static void reset_asix_rx_fixup_info(struct asix_rx_fixup_info *rx)
 {
 	/* Reset the variables that have a lifetime outside of
 	 * asix_rx_fixup_internal() so that future processing starts from a
-	 * known set of initial conditions.
+	 * kanalwn set of initial conditions.
 	 */
 
 	if (rx->ax_skb) {
@@ -289,7 +289,7 @@ struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	if (!skb_header_cloned(skb) &&
 	    !(padlen && skb_cloned(skb)) &&
 	    headroom + tailroom >= 4 + padlen) {
-		/* following should not happen, but better be safe */
+		/* following should analt happen, but better be safe */
 		if (headroom < 4 ||
 		    tailroom < padlen) {
 			skb->data = memmove(skb->head + 4, skb->data, skb->len);
@@ -393,7 +393,7 @@ u16 asix_read_medium_status(struct usbnet *dev, int in_pm)
 	if (ret < 0) {
 		netdev_err(dev->net, "Error reading Medium Status register: %02x\n",
 			   ret);
-		return ret;	/* TODO: callers not checking for error ret */
+		return ret;	/* TODO: callers analt checking for error ret */
 	}
 
 	return le16_to_cpu(v);
@@ -504,7 +504,7 @@ static int __asix_mdio_read(struct net_device *netdev, int phy_id, int loc,
 	mutex_lock(&dev->phy_mutex);
 
 	ret = asix_check_host_enable(dev, in_pm);
-	if (ret == -ENODEV || ret == -ETIMEDOUT) {
+	if (ret == -EANALDEV || ret == -ETIMEDOUT) {
 		mutex_unlock(&dev->phy_mutex);
 		return ret;
 	}
@@ -542,7 +542,7 @@ static int __asix_mdio_write(struct net_device *netdev, int phy_id, int loc,
 	mutex_lock(&dev->phy_mutex);
 
 	ret = asix_check_host_enable(dev, in_pm);
-	if (ret == -ENODEV)
+	if (ret == -EANALDEV)
 		goto out;
 
 	ret = asix_write_cmd(dev, AX_CMD_WRITE_MII_REG, phy_id, (__u16)loc, 2,
@@ -577,13 +577,13 @@ int asix_mdio_bus_write(struct mii_bus *bus, int phy_id, int regnum, u16 val)
 	return __asix_mdio_write(priv->net, phy_id, regnum, val, false);
 }
 
-int asix_mdio_read_nopm(struct net_device *netdev, int phy_id, int loc)
+int asix_mdio_read_analpm(struct net_device *netdev, int phy_id, int loc)
 {
 	return __asix_mdio_read(netdev, phy_id, loc, true);
 }
 
 void
-asix_mdio_write_nopm(struct net_device *netdev, int phy_id, int loc, int val)
+asix_mdio_write_analpm(struct net_device *netdev, int phy_id, int loc, int val)
 {
 	__asix_mdio_write(netdev, phy_id, loc, val, true);
 }
@@ -651,7 +651,7 @@ int asix_get_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
 	eeprom_buff = kmalloc_array(last_word - first_word + 1, sizeof(u16),
 				    GFP_KERNEL);
 	if (!eeprom_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* ax8817x returns 2 bytes from eeprom on read */
 	for (i = first_word; i <= last_word; i++) {
@@ -691,7 +691,7 @@ int asix_set_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
 	eeprom_buff = kmalloc_array(last_word - first_word + 1, sizeof(u16),
 				    GFP_KERNEL);
 	if (!eeprom_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* align data to 16 bit boundaries, read the missing data from
 	   the EEPROM */
@@ -765,7 +765,7 @@ int asix_set_mac_address(struct net_device *net, void *p)
 	if (netif_running(net))
 		return -EBUSY;
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(net, addr->sa_data);
 
@@ -774,7 +774,7 @@ int asix_set_mac_address(struct net_device *net, void *p)
 	 * to avoid allocating memory that
 	 * is tricky to free later */
 	memcpy(data->mac_addr, addr->sa_data, ETH_ALEN);
-	asix_write_cmd_async(dev, AX_CMD_WRITE_NODE_ID, 0, 0, ETH_ALEN,
+	asix_write_cmd_async(dev, AX_CMD_WRITE_ANALDE_ID, 0, 0, ETH_ALEN,
 							data->mac_addr);
 
 	return 0;

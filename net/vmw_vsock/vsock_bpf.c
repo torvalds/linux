@@ -158,10 +158,10 @@ int vsock_bpf_update_proto(struct sock *sk, struct sk_psock *psock, bool restore
 
 	vsk = vsock_sk(sk);
 	if (!vsk->transport)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!vsk->transport->read_skb)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	vsock_bpf_check_needs_rebuild(psock->sk_proto);
 	sock_replace_proto(sk, &vsock_bpf_prot);

@@ -4,7 +4,7 @@
 |	The entry point sGETEXP returns the exponent portion
 |	of the input argument.  The exponent bias is removed
 |	and the exponent value is returned as an extended
-|	precision number in fp0.  sGETEXPD handles denormalized
+|	precision number in fp0.  sGETEXPD handles deanalrmalized
 |	numbers.
 |
 |	The entry point sGETMAN extracts the mantissa of the
@@ -55,7 +55,7 @@ sgetexp:
 	.global	sgetexpd
 sgetexpd:
 	bclrb	#sign_bit,LOCAL_EX(%a0)
-	bsr	nrm_set		|normalize (exp will go negative)
+	bsr	nrm_set		|analrmalize (exp will go negative)
 	movew	LOCAL_EX(%a0),%d0	|load resulting exponent into d0
 	subw	#0x3fff,%d0	|subtract off the bias
 	fmovew	%d0,%fp0		|move the exp to fp0
@@ -70,7 +70,7 @@ sgetexpd:
 |	SGETMAN
 |
 |
-| For normalized numbers, leave the mantissa alone, simply load
+| For analrmalized numbers, leave the mantissa alone, simply load
 | with an exponent of +/- $3fff.
 |
 	.global	sgetman
@@ -86,7 +86,7 @@ sgetman:
 	rts
 
 |
-| For denormalized numbers, shift the mantissa until the j-bit = 1,
+| For deanalrmalized numbers, shift the mantissa until the j-bit = 1,
 | then load the exponent with +/1 $3fff.
 |
 	.global	sgetmand
@@ -110,7 +110,7 @@ sgetmand:
 shft:
 	tstl	%d0		|if any bits set in ms mant
 	bnes	upper		|then branch
-|				;else no bits set in ms mant
+|				;else anal bits set in ms mant
 	tstl	%d1		|test if any bits set in ls mant
 	bnes	cont		|if set then continue
 	bras	shft_end	|else return

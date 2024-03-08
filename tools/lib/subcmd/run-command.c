@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <linux/string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/wait.h>
 #include "subcmd-util.h"
 #include "run-command.h"
@@ -37,7 +37,7 @@ int start_command(struct child_process *cmd)
 	 * that have been passed in via ->in and ->out.
 	 */
 
-	need_in = !cmd->no_stdin && cmd->in < 0;
+	need_in = !cmd->anal_stdin && cmd->in < 0;
 	if (need_in) {
 		if (pipe(fdin) < 0) {
 			if (cmd->out > 0)
@@ -47,7 +47,7 @@ int start_command(struct child_process *cmd)
 		cmd->in = fdin[1];
 	}
 
-	need_out = !cmd->no_stdout
+	need_out = !cmd->anal_stdout
 		&& !cmd->stdout_to_stderr
 		&& cmd->out < 0;
 	if (need_out) {
@@ -61,7 +61,7 @@ int start_command(struct child_process *cmd)
 		cmd->out = fdout[0];
 	}
 
-	need_err = !cmd->no_stderr && cmd->err < 0;
+	need_err = !cmd->anal_stderr && cmd->err < 0;
 	if (need_err) {
 		if (pipe(fderr) < 0) {
 			if (need_in)
@@ -80,7 +80,7 @@ int start_command(struct child_process *cmd)
 	fflush(NULL);
 	cmd->pid = fork();
 	if (!cmd->pid) {
-		if (cmd->no_stdin)
+		if (cmd->anal_stdin)
 			dup_devnull(0);
 		else if (need_in) {
 			dup2(fdin[0], 0);
@@ -90,14 +90,14 @@ int start_command(struct child_process *cmd)
 			close(cmd->in);
 		}
 
-		if (cmd->no_stderr)
+		if (cmd->anal_stderr)
 			dup_devnull(2);
 		else if (need_err) {
 			dup2(fderr[1], 2);
 			close_pair(fderr);
 		}
 
-		if (cmd->no_stdout)
+		if (cmd->anal_stdout)
 			dup_devnull(1);
 		else if (cmd->stdout_to_stderr)
 			dup2(2, 1);
@@ -111,7 +111,7 @@ int start_command(struct child_process *cmd)
 
 		if (cmd->dir && chdir(cmd->dir))
 			die("exec %s: cd to %s failed (%s)", cmd->argv[0],
-			    cmd->dir, str_error_r(errno, sbuf, sizeof(sbuf)));
+			    cmd->dir, str_error_r(erranal, sbuf, sizeof(sbuf)));
 		if (cmd->env) {
 			for (; *cmd->env; cmd->env++) {
 				if (strchr(*cmd->env, '='))
@@ -131,7 +131,7 @@ int start_command(struct child_process *cmd)
 	}
 
 	if (cmd->pid < 0) {
-		int err = errno;
+		int err = erranal;
 		if (need_in)
 			close_pair(fdin);
 		else if (cmd->in)
@@ -142,7 +142,7 @@ int start_command(struct child_process *cmd)
 			close(cmd->out);
 		if (need_err)
 			close_pair(fderr);
-		return err == ENOENT ?
+		return err == EANALENT ?
 			-ERR_RUN_COMMAND_EXEC :
 			-ERR_RUN_COMMAND_FORK;
 	}
@@ -172,10 +172,10 @@ static int wait_or_whine(pid_t pid)
 		pid_t waiting = waitpid(pid, &status, 0);
 
 		if (waiting < 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 			fprintf(stderr, " Error: waitpid failed (%s)",
-				str_error_r(errno, sbuf, sizeof(sbuf)));
+				str_error_r(erranal, sbuf, sizeof(sbuf)));
 			return -ERR_RUN_COMMAND_WAITPID;
 		}
 		if (waiting != pid)
@@ -184,7 +184,7 @@ static int wait_or_whine(pid_t pid)
 			return -ERR_RUN_COMMAND_WAITPID_SIGNAL;
 
 		if (!WIFEXITED(status))
-			return -ERR_RUN_COMMAND_WAITPID_NOEXIT;
+			return -ERR_RUN_COMMAND_WAITPID_ANALEXIT;
 		code = WEXITSTATUS(status);
 		switch (code) {
 		case 127:
@@ -216,7 +216,7 @@ static void prepare_run_command_v_opt(struct child_process *cmd,
 {
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->argv = argv;
-	cmd->no_stdin = opt & RUN_COMMAND_NO_STDIN ? 1 : 0;
+	cmd->anal_stdin = opt & RUN_COMMAND_ANAL_STDIN ? 1 : 0;
 	cmd->exec_cmd = opt & RUN_EXEC_CMD ? 1 : 0;
 	cmd->stdout_to_stderr = opt & RUN_COMMAND_STDOUT_TO_STDERR ? 1 : 0;
 }

@@ -142,9 +142,9 @@ static struct sk_buff *gre_gro_receive(struct list_head *head,
 	if (unlikely(!greh))
 		goto out;
 
-	/* Only support version 0 and K (key), C (csum) flags. Note that
+	/* Only support version 0 and K (key), C (csum) flags. Analte that
 	 * although the support for the S (seq#) flag can be added easily
-	 * for GRO, this is problematic for GSO hence can not be enabled
+	 * for GRO, this is problematic for GSO hence can analt be enabled
 	 * here because a GRO pkt may end up in the forwarding path, thus
 	 * requiring GSO support to break it up correctly.
 	 */
@@ -152,7 +152,7 @@ static struct sk_buff *gre_gro_receive(struct list_head *head,
 		goto out;
 
 	/* We can only support GRE_CSUM if we can track the location of
-	 * the GRE header.  In the case of FOU/GUE we cannot because the
+	 * the GRE header.  In the case of FOU/GUE we cananalt because the
 	 * outer UDP header displaces the GRE header leaving us in a state
 	 * of limbo.
 	 */
@@ -199,7 +199,7 @@ static struct sk_buff *gre_gro_receive(struct list_head *head,
 		 * from the same tunnel are considered for aggregation.
 		 * The criteria for "the same tunnel" includes:
 		 * 1) same version (we only support version 0 here)
-		 * 2) same protocol (we only support ETH_P_IP for now)
+		 * 2) same protocol (we only support ETH_P_IP for analw)
 		 * 3) same set of flags
 		 * 4) same key if the key field is present.
 		 */
@@ -238,7 +238,7 @@ static int gre_gro_complete(struct sk_buff *skb, int nhoff)
 	struct gre_base_hdr *greh = (struct gre_base_hdr *)(skb->data + nhoff);
 	struct packet_offload *ptype;
 	unsigned int grehlen = sizeof(*greh);
-	int err = -ENOENT;
+	int err = -EANALENT;
 	__be16 type;
 
 	skb->encapsulation = 1;

@@ -7,7 +7,7 @@
  * Generic x86 APIC driver probe layer.
  */
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/smp.h>
 
 #include <xen/xen.h>
@@ -142,7 +142,7 @@ void __init x86_32_probe_apic(void)
 				break;
 			}
 		}
-		/* Not visible without early console */
+		/* Analt visible without early console */
 		if (drv == __apicdrivers_end)
 			panic("Didn't find an APIC driver");
 	}

@@ -3,7 +3,7 @@
  * Definitions for the KLSI KL5KUSB105 serial port adapter
  */
 
-/* vendor/product pairs that are known to contain this chipset */
+/* vendor/product pairs that are kanalwn to contain this chipset */
 #define PALMCONNECT_VID		0x0830
 #define PALMCONNECT_PID		0x0080
 

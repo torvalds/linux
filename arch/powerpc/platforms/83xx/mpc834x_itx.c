@@ -10,7 +10,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/reboot.h>
 #include <linux/pci.h>
 #include <linux/kdev_t.h>

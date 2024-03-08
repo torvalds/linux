@@ -4,7 +4,7 @@
  *	TeVii S421, S480, S482, S600, S630, S632, S650, S660, S662,
  *	Prof 1100, 7500,
  *	Geniatech SU3000, T220,
- *	TechnoTrend S2-4600,
+ *	TechanalTrend S2-4600,
  *	Terratec Cinergy S2 cards
  * Copyright (C) 2008-2012 Igor M. Liplianin (liplianin@me.by)
  *
@@ -58,7 +58,7 @@
 #define P1100_FIRMWARE  "dvb-usb-p1100.fw"
 #define P7500_FIRMWARE  "dvb-usb-p7500.fw"
 
-#define	err_str "did not find the firmware file '%s'. You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware"
+#define	err_str "did analt find the firmware file '%s'. You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware"
 
 struct dw2102_state {
 	u8 initialized;
@@ -97,7 +97,7 @@ static int dw210x_op_rw(struct usb_device *dev, u8 request, u16 value,
 
 	u8buf = kmalloc(len, GFP_KERNEL);
 	if (!u8buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 
 	if (flags == DW210X_WRITE_MSG)
@@ -122,14 +122,14 @@ static int dw2102_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	u16 value;
 
 	if (!d)
-		return -ENODEV;
+		return -EANALDEV;
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
 	switch (num) {
 	case 2:
 		if (msg[0].len < 1) {
-			num = -EOPNOTSUPP;
+			num = -EOPANALTSUPP;
 			break;
 		}
 		/* read stv0299 register */
@@ -144,7 +144,7 @@ static int dw2102_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		switch (msg[0].addr) {
 		case 0x68:
 			if (msg[0].len < 2) {
-				num = -EOPNOTSUPP;
+				num = -EOPANALTSUPP;
 				break;
 			}
 			/* write to stv0299 register */
@@ -157,7 +157,7 @@ static int dw2102_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		case 0x60:
 			if (msg[0].flags == 0) {
 				if (msg[0].len < 4) {
-					num = -EOPNOTSUPP;
+					num = -EOPANALTSUPP;
 					break;
 				}
 			/* write to tuner pll */
@@ -172,7 +172,7 @@ static int dw2102_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 						buf6, 7, DW210X_WRITE_MSG);
 			} else {
 				if (msg[0].len < 1) {
-					num = -EOPNOTSUPP;
+					num = -EOPANALTSUPP;
 					break;
 				}
 			/* read from tuner */
@@ -183,7 +183,7 @@ static int dw2102_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			break;
 		case (DW2102_RC_QUERY):
 			if (msg[0].len < 2) {
-				num = -EOPNOTSUPP;
+				num = -EOPANALTSUPP;
 				break;
 			}
 			dw210x_op_rw(d->udev, 0xb8, 0, 0,
@@ -193,7 +193,7 @@ static int dw2102_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			break;
 		case (DW2102_VOLTAGE_CTRL):
 			if (msg[0].len < 1) {
-				num = -EOPNOTSUPP;
+				num = -EOPANALTSUPP;
 				break;
 			}
 			buf6[0] = 0x30;
@@ -217,23 +217,23 @@ static int dw2102_serit_i2c_transfer(struct i2c_adapter *adap,
 	u8 buf6[] = {0, 0, 0, 0, 0, 0, 0};
 
 	if (!d)
-		return -ENODEV;
+		return -EANALDEV;
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
 	switch (num) {
 	case 2:
 		if (msg[0].len != 1) {
-			warn("i2c rd: len=%d is not 1!\n",
+			warn("i2c rd: len=%d is analt 1!\n",
 			     msg[0].len);
-			num = -EOPNOTSUPP;
+			num = -EOPANALTSUPP;
 			break;
 		}
 
 		if (2 + msg[1].len > sizeof(buf6)) {
 			warn("i2c rd: len=%d is too big!\n",
 			     msg[1].len);
-			num = -EOPNOTSUPP;
+			num = -EOPANALTSUPP;
 			break;
 		}
 
@@ -255,7 +255,7 @@ static int dw2102_serit_i2c_transfer(struct i2c_adapter *adap,
 			if (2 + msg[0].len > sizeof(buf6)) {
 				warn("i2c wr: len=%d is too big!\n",
 				     msg[0].len);
-				num = -EOPNOTSUPP;
+				num = -EOPANALTSUPP;
 				break;
 			}
 
@@ -292,7 +292,7 @@ static int dw2102_earda_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg ms
 	int ret;
 
 	if (!d)
-		return -ENODEV;
+		return -EANALDEV;
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
@@ -303,16 +303,16 @@ static int dw2102_earda_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg ms
 		u8 ibuf[MAX_XFER_SIZE], obuf[3];
 
 		if (2 + msg[0].len != sizeof(obuf)) {
-			warn("i2c rd: len=%d is not 1!\n",
+			warn("i2c rd: len=%d is analt 1!\n",
 			     msg[0].len);
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto unlock;
 		}
 
 		if (2 + msg[1].len > sizeof(ibuf)) {
 			warn("i2c rd: len=%d is too big!\n",
 			     msg[1].len);
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto unlock;
 		}
 
@@ -337,7 +337,7 @@ static int dw2102_earda_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg ms
 			if (2 + msg[0].len > sizeof(obuf)) {
 				warn("i2c wr: len=%d is too big!\n",
 				     msg[1].len);
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 				goto unlock;
 			}
 
@@ -355,7 +355,7 @@ static int dw2102_earda_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg ms
 			if (2 + msg[0].len > sizeof(obuf)) {
 				warn("i2c wr: len=%d is too big!\n",
 				     msg[1].len);
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 				goto unlock;
 			}
 
@@ -398,7 +398,7 @@ static int dw2104_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[], i
 	int len, i, j, ret;
 
 	if (!d)
-		return -ENODEV;
+		return -EANALDEV;
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
@@ -431,7 +431,7 @@ static int dw2104_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[], i
 				if (2 + msg[j].len > sizeof(ibuf)) {
 					warn("i2c rd: len=%d is too big!\n",
 					     msg[j].len);
-					ret = -EOPNOTSUPP;
+					ret = -EOPANALTSUPP;
 					goto unlock;
 				}
 
@@ -468,7 +468,7 @@ static int dw2104_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[], i
 				if (2 + msg[j].len > sizeof(obuf)) {
 					warn("i2c wr: len=%d is too big!\n",
 					     msg[j].len);
-					ret = -EOPNOTSUPP;
+					ret = -EOPANALTSUPP;
 					goto unlock;
 				}
 
@@ -499,7 +499,7 @@ static int dw3101_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	int i;
 
 	if (!d)
-		return -ENODEV;
+		return -EANALDEV;
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
@@ -510,15 +510,15 @@ static int dw3101_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		u8 ibuf[MAX_XFER_SIZE], obuf[3];
 
 		if (2 + msg[0].len != sizeof(obuf)) {
-			warn("i2c rd: len=%d is not 1!\n",
+			warn("i2c rd: len=%d is analt 1!\n",
 			     msg[0].len);
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto unlock;
 		}
 		if (2 + msg[1].len > sizeof(ibuf)) {
 			warn("i2c rd: len=%d is too big!\n",
 			     msg[1].len);
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto unlock;
 		}
 		obuf[0] = msg[0].addr << 1;
@@ -543,7 +543,7 @@ static int dw3101_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			if (2 + msg[0].len > sizeof(obuf)) {
 				warn("i2c wr: len=%d is too big!\n",
 				     msg[0].len);
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 				goto unlock;
 			}
 			obuf[0] = msg[0].addr << 1;
@@ -585,7 +585,7 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	int len, i, j, ret;
 
 	if (!d)
-		return -ENODEV;
+		return -EANALDEV;
 	udev = d->udev;
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
@@ -634,7 +634,7 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				if (msg[j].len > sizeof(ibuf)) {
 					warn("i2c rd: len=%d is too big!\n",
 					     msg[j].len);
-					ret = -EOPNOTSUPP;
+					ret = -EOPANALTSUPP;
 					goto unlock;
 				}
 
@@ -669,7 +669,7 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				if (2 + msg[j].len > sizeof(obuf)) {
 					warn("i2c wr: len=%d is too big!\n",
 					     msg[j].len);
-					ret = -EOPNOTSUPP;
+					ret = -EOPANALTSUPP;
 					goto unlock;
 				}
 
@@ -689,7 +689,7 @@ static int s6x0_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				if (2 + msg[j].len > sizeof(obuf)) {
 					warn("i2c wr: len=%d is too big!\n",
 					     msg[j].len);
-					ret = -EOPNOTSUPP;
+					ret = -EOPANALTSUPP;
 					goto unlock;
 				}
 				obuf[0] = msg[j].len + 1;
@@ -718,7 +718,7 @@ static int su3000_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	struct dw2102_state *state;
 
 	if (!d)
-		return -ENODEV;
+		return -EANALDEV;
 
 	state = d->priv;
 
@@ -752,7 +752,7 @@ static int su3000_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			if (3 + msg[0].len > sizeof(state->data)) {
 				warn("i2c wr: len=%d is too big!\n",
 				     msg[0].len);
-				num = -EOPNOTSUPP;
+				num = -EOPANALTSUPP;
 				break;
 			}
 
@@ -774,13 +774,13 @@ static int su3000_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		if (4 + msg[0].len > sizeof(state->data)) {
 			warn("i2c rd: len=%d is too big!\n",
 			     msg[0].len);
-			num = -EOPNOTSUPP;
+			num = -EOPANALTSUPP;
 			break;
 		}
 		if (1 + msg[1].len > sizeof(state->data)) {
 			warn("i2c rd: len=%d is too big!\n",
 			     msg[1].len);
-			num = -EOPNOTSUPP;
+			num = -EOPANALTSUPP;
 			break;
 		}
 
@@ -797,7 +797,7 @@ static int su3000_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		memcpy(msg[1].buf, &state->data[1], msg[1].len);
 		break;
 	default:
-		warn("more than 2 i2c messages at a time is not handled yet.");
+		warn("more than 2 i2c messages at a time is analt handled yet.");
 		break;
 	}
 	mutex_unlock(&d->data_mutex);
@@ -909,14 +909,14 @@ static int s6x0_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 	return 0;
 };
 
-static int su3000_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int su3000_streaming_ctrl(struct dvb_usb_adapter *adap, int oanalff)
 {
 	static u8 command_start[] = {0x00};
 	static u8 command_stop[] = {0x01};
 	struct i2c_msg msg = {
 		.addr = SU3000_STREAM_CTRL,
 		.flags = 0,
-		.buf = onoff ? command_start : command_stop,
+		.buf = oanalff ? command_start : command_stop,
 		.len = 1
 	};
 
@@ -1560,7 +1560,7 @@ static int tt_s2_4600_frontend_attach_probe_demod(struct dvb_usb_device *d,
 		return 0;
 	}
 
-	if (state->data[0] != 8) /* fail(7) or error, no device at address */
+	if (state->data[0] != 8) /* fail(7) or error, anal device at address */
 		return 0;
 
 	/* probing successful */
@@ -1627,7 +1627,7 @@ static int tt_s2_4600_frontend_attach(struct dvb_usb_adapter *adap)
 
 	if (demod_addr < 0) {
 		err("probing for demodulator failed. Is the external power switched on?");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* attach demod */
@@ -1653,10 +1653,10 @@ static int tt_s2_4600_frontend_attach(struct dvb_usb_adapter *adap)
 	request_module("m88ds3103");
 	client = i2c_new_client_device(&d->i2c_adap, &board_info);
 	if (!i2c_client_has_driver(client))
-		return -ENODEV;
+		return -EANALDEV;
 	if (!try_module_get(client->dev.driver->owner)) {
 		i2c_unregister_device(client);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	adap->fe_adap[0].fe = m88ds3103_pdata.get_dvb_frontend(client);
 	i2c_adapter = m88ds3103_pdata.get_i2c_adapter(client);
@@ -1674,13 +1674,13 @@ static int tt_s2_4600_frontend_attach(struct dvb_usb_adapter *adap)
 
 	if (!i2c_client_has_driver(client)) {
 		dvb_frontend_detach(adap->fe_adap[0].fe);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!try_module_get(client->dev.driver->owner)) {
 		i2c_unregister_device(client);
 		dvb_frontend_detach(adap->fe_adap[0].fe);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* delegate signal strength measurement to tuner */
@@ -1727,7 +1727,7 @@ static int dw2102_rc_query(struct dvb_usb_device *d)
 		if (msg.buf[0] != 0xff) {
 			deb_rc("%s: rc code: %x, %x\n",
 					__func__, key[0], key[1]);
-			rc_keydown(d->rc_dev, RC_PROTO_UNKNOWN, key[0], 0);
+			rc_keydown(d->rc_dev, RC_PROTO_UNKANALWN, key[0], 0);
 		}
 	}
 
@@ -1748,7 +1748,7 @@ static int prof_rc_query(struct dvb_usb_device *d)
 		if (msg.buf[0] != 0xff) {
 			deb_rc("%s: rc code: %x, %x\n",
 					__func__, key[0], key[1]);
-			rc_keydown(d->rc_dev, RC_PROTO_UNKNOWN, key[0] ^ 0xff,
+			rc_keydown(d->rc_dev, RC_PROTO_UNKANALWN, key[0] ^ 0xff,
 				   0);
 		}
 	}
@@ -1804,7 +1804,7 @@ enum dw2102_table_entry {
 	TERRATEC_CINERGY_S2_2,
 	GOTVIEW_SAT_HD,
 	GENIATECH_T220,
-	TECHNOTREND_CONNECT_S2_4600,
+	TECHANALTREND_CONNECT_S2_4600,
 	TEVII_S482_1,
 	TEVII_S482_2,
 	TERRATEC_CINERGY_S2_BOX,
@@ -1837,7 +1837,7 @@ static struct usb_device_id dw2102_table[] = {
 	DVB_USB_DEV(TERRATEC_2, TERRATEC_CINERGY_S2_2),
 	DVB_USB_DEV(GOTVIEW, GOTVIEW_SAT_HD),
 	DVB_USB_DEV(GTEK, GENIATECH_T220),
-	DVB_USB_DEV(TECHNOTREND, TECHNOTREND_CONNECT_S2_4600),
+	DVB_USB_DEV(TECHANALTREND, TECHANALTREND_CONNECT_S2_4600),
 	DVB_USB_DEV(TEVII, TEVII_S482_1),
 	DVB_USB_DEV(TEVII, TEVII_S482_2),
 	DVB_USB_DEV(TERRATEC, TERRATEC_CINERGY_S2_BOX),
@@ -1890,12 +1890,12 @@ static int dw2102_load_firmware(struct usb_device *dev,
 		reset = 0;
 		if (ret || dw210x_op_rw(dev, 0xa0, 0x7f92, 0, &reset, 1,
 					DW210X_WRITE_MSG) != 1) {
-			err("could not restart the USB controller CPU.");
+			err("could analt restart the USB controller CPU.");
 			ret = -EINVAL;
 		}
 		if (ret || dw210x_op_rw(dev, 0xa0, 0xe600, 0, &reset, 1,
 					DW210X_WRITE_MSG) != 1) {
-			err("could not restart the USB controller CPU.");
+			err("could analt restart the USB controller CPU.");
 			ret = -EINVAL;
 		}
 		/* init registers */
@@ -1966,7 +1966,7 @@ static struct dvb_usb_device_properties dw2102_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = DW2102_FIRMWARE,
-	.no_reconnect = 1,
+	.anal_reconnect = 1,
 
 	.i2c_algo = &dw2102_serit_i2c_algo,
 
@@ -2022,7 +2022,7 @@ static struct dvb_usb_device_properties dw2104_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = DW2104_FIRMWARE,
-	.no_reconnect = 1,
+	.anal_reconnect = 1,
 
 	.i2c_algo = &dw2104_i2c_algo,
 	.rc.core = {
@@ -2073,7 +2073,7 @@ static struct dvb_usb_device_properties dw3101_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = DW3101_FIRMWARE,
-	.no_reconnect = 1,
+	.anal_reconnect = 1,
 
 	.i2c_algo = &dw3101_i2c_algo,
 	.rc.core = {
@@ -2122,7 +2122,7 @@ static struct dvb_usb_device_properties s6x0_properties = {
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.size_of_priv = sizeof(struct dw2102_state),
 	.firmware = S630_FIRMWARE,
-	.no_reconnect = 1,
+	.anal_reconnect = 1,
 
 	.i2c_algo = &s6x0_i2c_algo,
 	.rc.core = {
@@ -2169,7 +2169,7 @@ static struct dvb_usb_device_properties p1100_properties = {
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.size_of_priv = sizeof(struct dw2102_state),
 	.firmware = P1100_FIRMWARE,
-	.no_reconnect = 1,
+	.anal_reconnect = 1,
 
 	.i2c_algo = &s6x0_i2c_algo,
 	.rc.core = {
@@ -2216,7 +2216,7 @@ static struct dvb_usb_device_properties s660_properties = {
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.size_of_priv = sizeof(struct dw2102_state),
 	.firmware = S660_FIRMWARE,
-	.no_reconnect = 1,
+	.anal_reconnect = 1,
 
 	.i2c_algo = &s6x0_i2c_algo,
 	.rc.core = {
@@ -2271,7 +2271,7 @@ static struct dvb_usb_device_properties p7500_properties = {
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.size_of_priv = sizeof(struct dw2102_state),
 	.firmware = P7500_FIRMWARE,
-	.no_reconnect = 1,
+	.anal_reconnect = 1,
 
 	.i2c_algo = &s6x0_i2c_algo,
 	.rc.core = {
@@ -2359,7 +2359,7 @@ static struct dvb_usb_device_properties su3000_properties = {
 			{ &dw2102_table[GENIATECH_SU3000], NULL },
 			{ NULL },
 		},
-		{ "Hauppauge MAX S2 or WinTV NOVA HD USB2.0",
+		{ "Hauppauge MAX S2 or WinTV ANALVA HD USB2.0",
 			{ &dw2102_table[HAUPPAUGE_MAX_S2], NULL },
 			{ NULL },
 		},
@@ -2538,8 +2538,8 @@ static struct dvb_usb_device_properties tt_s2_4600_properties = {
 	},
 	.num_device_descs = 5,
 	.devices = {
-		{ "TechnoTrend TT-connect S2-4600",
-			{ &dw2102_table[TECHNOTREND_CONNECT_S2_4600], NULL },
+		{ "TechanalTrend TT-connect S2-4600",
+			{ &dw2102_table[TECHANALTREND_CONNECT_S2_4600], NULL },
 			{ NULL },
 		},
 		{ "TeVii S482 (tuner 1)",
@@ -2590,7 +2590,7 @@ static int dw2102_probe(struct usb_interface *intf,
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void dw2102_disconnect(struct usb_interface *intf)
@@ -2626,7 +2626,7 @@ static struct usb_driver dw2102_driver = {
 module_usb_driver(dw2102_driver);
 
 MODULE_AUTHOR("Igor M. Liplianin (c) liplianin@me.by");
-MODULE_DESCRIPTION("Driver for DVBWorld DVB-S 2101, 2102, DVB-S2 2104, DVB-C 3101 USB2.0, TeVii S421, S480, S482, S600, S630, S632, S650, TeVii S660, S662, Prof 1100, 7500 USB2.0, Geniatech SU3000, T220, TechnoTrend S2-4600, Terratec Cinergy S2 devices");
+MODULE_DESCRIPTION("Driver for DVBWorld DVB-S 2101, 2102, DVB-S2 2104, DVB-C 3101 USB2.0, TeVii S421, S480, S482, S600, S630, S632, S650, TeVii S660, S662, Prof 1100, 7500 USB2.0, Geniatech SU3000, T220, TechanalTrend S2-4600, Terratec Cinergy S2 devices");
 MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(DW2101_FIRMWARE);

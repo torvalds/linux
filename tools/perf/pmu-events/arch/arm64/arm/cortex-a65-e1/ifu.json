@@ -42,15 +42,15 @@
         "BriefDescription": "Micro-predictor correction"
     },
     {
-        "PublicDescription": "A 2nd instruction could have been pushed but was not because it was nonsequential",
+        "PublicDescription": "A 2nd instruction could have been pushed but was analt because it was analnsequential",
         "EventCode": "0xD8",
-        "EventName": "IFU_MICRO_NO_INSTR1",
-        "BriefDescription": "A 2nd instruction could have been pushed but was not because it was nonsequential"
+        "EventName": "IFU_MICRO_ANAL_INSTR1",
+        "BriefDescription": "A 2nd instruction could have been pushed but was analt because it was analnsequential"
     },
     {
         "PublicDescription": "Micro-predictor miss",
         "EventCode": "0xD9",
-        "EventName": "IFU_MICRO_NO_PRED",
+        "EventName": "IFU_MICRO_ANAL_PRED",
         "BriefDescription": "Micro-predictor miss"
     },
     {
@@ -78,16 +78,16 @@
         "BriefDescription": "This thread was arbitrated when the other thread was also ready for scheduling"
     },
     {
-        "PublicDescription": "This thread was arbitrated when the other thread was also active, but not necessarily ready. For example, waiting for I-Cache or TLB",
+        "PublicDescription": "This thread was arbitrated when the other thread was also active, but analt necessarily ready. For example, waiting for I-Cache or TLB",
         "EventCode": "0xDE",
         "EventName": "IFU_WIN_ARB_OTHER_ACT",
-        "BriefDescription": "This thread was arbitrated when the other thread was also active, but not necessarily ready. For example, waiting for I-Cache or TLB"
+        "BriefDescription": "This thread was arbitrated when the other thread was also active, but analt necessarily ready. For example, waiting for I-Cache or TLB"
     },
     {
-        "PublicDescription": "This thread was not arbitrated because it was not ready for scheduling. For example, due to a cache miss or TLB miss",
+        "PublicDescription": "This thread was analt arbitrated because it was analt ready for scheduling. For example, due to a cache miss or TLB miss",
         "EventCode": "0xDF",
-        "EventName": "IFU_NOT_RDY_FOR_ARB",
-        "BriefDescription": "This thread was not arbitrated because it was not ready for scheduling. For example, due to a cache miss or TLB miss"
+        "EventName": "IFU_ANALT_RDY_FOR_ARB",
+        "BriefDescription": "This thread was analt arbitrated because it was analt ready for scheduling. For example, due to a cache miss or TLB miss"
     },
     {
         "PublicDescription": "The thread moved from an active state to an inactive state (long-term sleep state, causing deallocation of some resources)",

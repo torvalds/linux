@@ -71,7 +71,7 @@ mlxsw_max_descriptors_get()
 	2) echo 136960 ;;
 	3) echo 204800 ;;
 	4) echo 220000 ;;
-	*) echo "Unknown max descriptors for chip revision." > /dev/stderr
+	*) echo "Unkanalwn max descriptors for chip revision." > /dev/stderr
 	   return 1 ;;
 	esac
 }

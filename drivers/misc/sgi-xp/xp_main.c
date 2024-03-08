@@ -11,7 +11,7 @@
  * Cross Partition (XP) base.
  *
  *	XP provides a base from which its users can interact
- *	with XPC, yet not be dependent on XPC.
+ *	with XPC, yet analt be dependent on XPC.
  *
  */
 
@@ -82,15 +82,15 @@ void
 xpc_set_interface(void (*connect) (int),
 		  void (*disconnect) (int),
 		  enum xp_retval (*send) (short, int, u32, void *, u16),
-		  enum xp_retval (*send_notify) (short, int, u32, void *, u16,
-						  xpc_notify_func, void *),
+		  enum xp_retval (*send_analtify) (short, int, u32, void *, u16,
+						  xpc_analtify_func, void *),
 		  void (*received) (short, int, void *),
 		  enum xp_retval (*partid_to_nasids) (short, void *))
 {
 	xpc_interface.connect = connect;
 	xpc_interface.disconnect = disconnect;
 	xpc_interface.send = send;
-	xpc_interface.send_notify = send_notify;
+	xpc_interface.send_analtify = send_analtify;
 	xpc_interface.received = received;
 	xpc_interface.partid_to_nasids = partid_to_nasids;
 }
@@ -113,14 +113,14 @@ EXPORT_SYMBOL_GPL(xpc_clear_interface);
  * Arguments:
  *
  *	ch_number - channel # to register for connection.
- *	func - function to call for asynchronous notification of channel
+ *	func - function to call for asynchroanalus analtification of channel
  *	       state changes (i.e., connection, disconnection, error) and
  *	       the arrival of incoming messages.
  *      key - pointer to optional user-defined value that gets passed back
  *	      to the user on any callouts made to func.
  *	payload_size - size in bytes of the XPC message's payload area which
  *		       contains a user-defined message. The user should make
- *		       this large enough to hold their largest message.
+ *		       this large eanalugh to hold their largest message.
  *	nentries - max #of XPC message entries a message queue can contain.
  *		   The actual number, which is determined when a connection
  * 		   is established and may be less then requested, will be
@@ -178,7 +178,7 @@ EXPORT_SYMBOL_GPL(xpc_connect);
  *
  * Before returning this xpc_disconnect() will wait for all connections on the
  * specified channel have been closed/torndown. So the caller can be assured
- * that they will not be receiving any more callouts from XPC to their
+ * that they will analt be receiving any more callouts from XPC to their
  * function registered via xpc_connect().
  *
  * Arguments:
@@ -195,7 +195,7 @@ xpc_disconnect(int ch_number)
 	registration = &xpc_registrations[ch_number];
 
 	/*
-	 * We've decided not to make this a down_interruptible(), since we
+	 * We've decided analt to make this a down_interruptible(), since we
 	 * figured XPC's users will just turn around and call xpc_disconnect()
 	 * again anyways, so we might as well wait, if need be.
 	 */

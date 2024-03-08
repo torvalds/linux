@@ -5,7 +5,7 @@
 #
 # This script is designed for testing the support of NEXT-C-SID flavor for SRv6
 # End behavior.
-# A basic knowledge of SRv6 architecture [1] and of the compressed SID approach
+# A basic kanalwledge of SRv6 architecture [1] and of the compressed SID approach
 # [2] is assumed for the reader.
 #
 # The network topology used in the selftest is depicted hereafter, composed by
@@ -24,9 +24,9 @@
 #       Compressed SID (C-SID) container. In this way, the length of the SID
 #       List can be drastically reduced.
 #       The NEXT-C-SID is provided as a "flavor" of the SRv6 End behavior
-#       which advances the current C-SID (i.e. the Locator-Node Function defined
+#       which advances the current C-SID (i.e. the Locator-Analde Function defined
 #       in [2]) with the next one carried in the Argument, if available.
-#       When no more C-SIDs are available in the Argument, the SRv6 End behavior
+#       When anal more C-SIDs are available in the Argument, the SRv6 End behavior
 #       will apply the End function selecting the next SID in the SID List.
 #
 #   iv) The SRv6 End.DT46 behavior [1] is used for removing the SRv6 Policy and,
@@ -78,7 +78,7 @@
 #
 #   Local SID/C-SID table for SRv6 router rt-x
 #   +-----------------------------------------------------------+
-#   |fcff:x::d46 is associated with the non-compressed SRv6     |
+#   |fcff:x::d46 is associated with the analn-compressed SRv6     |
 #   |   End.DT46 behavior                                       |
 #   +-----------------------------------------------------------+
 #   |fcbb:0:0x00::/48 is associated with the NEXT-C-SID flavor  |
@@ -89,11 +89,11 @@
 #   +-----------------------------------------------------------+
 #
 # The fcff::/16 prefix is reserved for implementing SRv6 services with regular
-# (non compressed) SIDs. Reachability of SIDs is ensured by proper configuration
+# (analn compressed) SIDs. Reachability of SIDs is ensured by proper configuration
 # of the IPv6 routing tables in the routers.
 # Similarly, the fcbb:0::/32 prefix is reserved for implementing SRv6 VPN
 # services leveraging the NEXT-C-SID compression mechanism. Indeed, the
-# fcbb:0::/32 is used for encoding the Locator-Block while the Locator-Node
+# fcbb:0::/32 is used for encoding the Locator-Block while the Locator-Analde
 # Function is encoded with 16 bits.
 #
 # Incoming traffic classification and application of SRv6 Policies
@@ -115,10 +115,10 @@
 # In the single SID test case we have a number of segments that are all
 # contained in a single Compressed SID (C-SID) container. Therefore the
 # resulting SID List has only one SID. Using the reduced encapsulation format
-# this will result in a packet with no SRH.
+# this will result in a packet with anal SRH.
 #
 # In the double SID test case we have one segment carried in a Compressed SID
-# (C-SID) container, followed by a regular (non compressed) SID. The resulting
+# (C-SID) container, followed by a regular (analn compressed) SID. The resulting
 # SID List has two segments and it is possible to test the advance to the next
 # SID when all the C-SIDs in a C-SID container have been processed. Using the
 # reduced encapsulation format this will result in a packet with an SRH
@@ -148,7 +148,7 @@
 # As the packet reaches the router rt-4, the enabled NEXT-C-SID SRv6 End
 # behavior (associated with fcbb:0:0400::/48) is triggered. This behavior
 # analyzes the IPv6 DA and checks whether the Argument of the C-SID container
-# is zero or not. In this case, the Argument is *NOT* zero and the IPv6 DA is
+# is zero or analt. In this case, the Argument is *ANALT* zero and the IPv6 DA is
 # updated as follows:
 #
 # +---------------------------------------------------------------+
@@ -159,7 +159,7 @@
 # | IPv6 DA fcbb:0:0400:0300:0200:d46::                           |
 # |                ^^^^    <-- shifting                           |
 # |                  |                                            |
-# |          Locator-Node Function                                |
+# |          Locator-Analde Function                                |
 # +---------------------------------------------------------------+
 # | After applying the rt-4 enabled NEXT-C-SID SRv6 End behavior  |
 # +---------------------------------------------------------------+
@@ -168,20 +168,20 @@
 # | IPv6 DA fcbb:0:0300:0200:d46::                                |
 # |                ^^^^                                           |
 # |                  |                                            |
-# |          Locator-Node Function                                |
+# |          Locator-Analde Function                                |
 # +---------------------------------------------------------------+
 #
 # After having applied the enabled NEXT-C-SID SRv6 End behavior, the packet is
-# sent to the next node, i.e. rt-3.
+# sent to the next analde, i.e. rt-3.
 #
 # The enabled NEXT-C-SID SRv6 End behavior on rt-3 is executed as the packet is
 # received. This behavior processes the packet and updates the IPv6 DA with
-# fcbb:0:0200:d46::, since the Argument is *NOT* zero. Then, the packet is sent
+# fcbb:0:0200:d46::, since the Argument is *ANALT* zero. Then, the packet is sent
 # to the router rt-2.
 #
 # The router rt-2 is configured for decapsulating the inner IPv6 packet and,
 # for this reason, it applies the SRv6 End.DT46 behavior on the received
-# packet. It is worth noting that the SRv6 End.DT46 behavior does not require
+# packet. It is worth analting that the SRv6 End.DT46 behavior does analt require
 # the presence of the SRH: it is fully capable to operate properly on
 # IPv4/IPv6-in-IPv6 encapsulations.
 # At the end of the decap operation, the packet is sent to the
@@ -195,7 +195,7 @@
 # fcff:2::d46. Hence, the packet sent by hs-1 to hs-2 is encapsulated in an
 # outer IPv6 header plus the SRH.
 #
-# As the packet reaches the node rt-3, the router applies the enabled NEXT-C-SID
+# As the packet reaches the analde rt-3, the router applies the enabled NEXT-C-SID
 # SRv6 End behavior.
 #
 # +---------------------------------------------------------------+
@@ -206,7 +206,7 @@
 # | IPv6 DA fcbb:0:0300::                                         |
 # |                ^^^^                                           |
 # |                  |                                            |
-# |          Locator-Node Function                                |
+# |          Locator-Analde Function                                |
 # +---------------------------------------------------------------+
 # | After applying the rt-3 enabled NEXT-C-SID SRv6 End behavior  |
 # +---------------------------------------------------------------+
@@ -217,12 +217,12 @@
 # |        SID copied from the SID List contained in the SRH      |
 # +---------------------------------------------------------------+
 #
-# Since the Argument of the C-SID container is zero, the behavior can not
-# update the Locator-Node function with the next C-SID carried in the Argument
+# Since the Argument of the C-SID container is zero, the behavior can analt
+# update the Locator-Analde function with the next C-SID carried in the Argument
 # itself. Thus, the enabled NEXT-C-SID SRv6 End behavior operates as the
 # traditional End behavior: it updates the IPv6 DA by copying the next
 # available SID in the SID List carried by the SRH. After that, the packet is
-# sent to the node rt-2.
+# sent to the analde rt-2.
 #
 # Once the packet is received by rt-2, the router decapsulates the inner IPv6
 # packet using the SRv6 End.DT46 behavior (associated with the SID fcff:2::d46)
@@ -261,14 +261,14 @@ readonly VPN_LOCATOR_SERVICE=fcff
 readonly DT46_FUNC=0d46
 readonly HEADEND_ENCAP="encap.red"
 
-# do not add ':' as separator
+# do analt add ':' as separator
 readonly LCBLOCK_ADDR=fcbb0000
 readonly LCBLOCK_BLEN=32
-# do not add ':' as separator
-readonly LCNODEFUNC_FMT="0%d00"
-readonly LCNODEFUNC_BLEN=16
+# do analt add ':' as separator
+readonly LCANALDEFUNC_FMT="0%d00"
+readonly LCANALDEFUNC_BLEN=16
 
-readonly LCBLOCK_NODEFUNC_BLEN=$((LCBLOCK_BLEN + LCNODEFUNC_BLEN))
+readonly LCBLOCK_ANALDEFUNC_BLEN=$((LCBLOCK_BLEN + LCANALDEFUNC_BLEN))
 
 readonly CSID_CNTR_PREFIX="dead:beaf::/32"
 # ID of the router used for testing the C-SID container cfgs
@@ -280,7 +280,7 @@ readonly CSID_CNTR_RT_TABLE=91
 #
 # An entry of the array is defined as "a,b,c" where:
 # - 'a' and 'b' elements represent respectively the Locator-Block length
-#   (lblen) in bits and the Locator-Node Function length (nflen) in bits.
+#   (lblen) in bits and the Locator-Analde Function length (nflen) in bits.
 #   'a' and 'b' can be set to default values using the placeholder "d" which
 #   indicates the default kernel values (32 for lblen and 16 for nflen);
 #   otherwise, any numeric value is accepted;
@@ -310,7 +310,7 @@ declare -ra CSID_CONTAINER_CFGS=(
 )
 
 PING_TIMEOUT_SEC=4
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
+PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=anal}
 
 # IDs of routers and hosts are initialized during the setup of the testing
 # network
@@ -336,7 +336,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "\n    TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -371,12 +371,12 @@ test_command_or_ksft_skip()
 	local cmd="$1"
 
 	if [ ! -x "$(command -v "${cmd}")" ]; then
-		echo "SKIP: Could not run test without \"${cmd}\" tool";
+		echo "SKIP: Could analt run test without \"${cmd}\" tool";
 		exit "${ksft_skip}"
 	fi
 }
 
-get_nodename()
+get_analdename()
 {
 	local name="$1"
 
@@ -387,14 +387,14 @@ get_rtname()
 {
 	local rtid="$1"
 
-	get_nodename "rt-${rtid}"
+	get_analdename "rt-${rtid}"
 }
 
 get_hsname()
 {
 	local hsid="$1"
 
-	get_nodename "hs-${hsid}"
+	get_analdename "hs-${hsid}"
 }
 
 __create_namespace()
@@ -443,7 +443,7 @@ cleanup()
 		ip netns del "${nsname}" &>/dev/null || true
 	done
 
-	# check whether the setup phase was completed successfully or not. In
+	# check whether the setup phase was completed successfully or analt. In
 	# case of an error during the setup phase of the testing environment,
 	# the selftest is considered as "skipped".
 	if [ "${SETUP_ERR}" -ne 0 ]; then
@@ -505,7 +505,7 @@ setup_rt_networking()
 		net_prefix="$(get_network_prefix "${rt}" "${neigh}")"
 
 		ip -netns "${nsname}" addr \
-			add "${net_prefix}::${rt}/64" dev "${devname}" nodad
+			add "${net_prefix}::${rt}/64" dev "${devname}" analdad
 
 		ip -netns "${nsname}" link set "${devname}" up
 	done
@@ -525,7 +525,7 @@ setup_rt_networking()
 }
 
 # build an ipv6 prefix/address based on the input string
-# Note that the input string does not contain ':' and '::' which are considered
+# Analte that the input string does analt contain ':' and '::' which are considered
 # to be implicit.
 # e.g.:
 #  - input:  fbcc00000400300
@@ -564,22 +564,22 @@ build_ipv6_addr()
 
 build_csid()
 {
-	local nodeid="$1"
+	local analdeid="$1"
 
-	printf "${LCNODEFUNC_FMT}" "${nodeid}"
+	printf "${LCANALDEFUNC_FMT}" "${analdeid}"
 }
 
-build_lcnode_func_prefix()
+build_lcanalde_func_prefix()
 {
-	local nodeid="$1"
-	local lcnodefunc
+	local analdeid="$1"
+	local lcanaldefunc
 	local prefix
 	local out
 
-	lcnodefunc="$(build_csid "${nodeid}")"
-	prefix="$(build_ipv6_addr "${LCBLOCK_ADDR}${lcnodefunc}")"
+	lcanaldefunc="$(build_csid "${analdeid}")"
+	prefix="$(build_ipv6_addr "${LCBLOCK_ADDR}${lcanaldefunc}")"
 
-	out="${prefix}/${LCBLOCK_NODEFUNC_BLEN}"
+	out="${prefix}/${LCBLOCK_ANALDEFUNC_BLEN}"
 
 	echo "${out}"
 }
@@ -593,7 +593,7 @@ setup_rt_local_sids()
 	local devname
 	local nsname
 	local neigh
-	local lcnode_func_prefix
+	local lcanalde_func_prefix
 	local lcblock_prefix
 
 	nsname="$(get_rtname "${rt}")"
@@ -610,23 +610,23 @@ setup_rt_local_sids()
 			via "${net_prefix}::${neigh}" dev "${devname}"
 
 		# set the underlay network for C-SIDs reachability
-		lcnode_func_prefix="$(build_lcnode_func_prefix "${neigh}")"
+		lcanalde_func_prefix="$(build_lcanalde_func_prefix "${neigh}")"
 
 		ip -netns "${nsname}" -6 route \
-			add "${lcnode_func_prefix}" \
+			add "${lcanalde_func_prefix}" \
 			table "${LOCALSID_TABLE_ID}" \
 			via "${net_prefix}::${neigh}" dev "${devname}"
 	done
 
-	lcnode_func_prefix="$(build_lcnode_func_prefix "${rt}")"
+	lcanalde_func_prefix="$(build_lcanalde_func_prefix "${rt}")"
 
-	# enabled NEXT-C-SID SRv6 End behavior (note that "dev" is the dummy
+	# enabled NEXT-C-SID SRv6 End behavior (analte that "dev" is the dummy
 	# dum0 device chosen for the sake of simplicity).
 	ip -netns "${nsname}" -6 route \
-		add "${lcnode_func_prefix}" \
+		add "${lcanalde_func_prefix}" \
 		table "${LOCALSID_TABLE_ID}" \
 		encap seg6local action End flavors next-csid \
-		lblen "${LCBLOCK_BLEN}" nflen "${LCNODEFUNC_BLEN}" \
+		lblen "${LCBLOCK_BLEN}" nflen "${LCANALDEFUNC_BLEN}" \
 		dev "${DUMMY_DEVNAME}"
 
 	# all SIDs for VPNs start with a common locator. Routes and SRv6
@@ -687,7 +687,7 @@ __setup_l3vpn()
 		# build the full ipv6 address for the container
 		policy="$(build_ipv6_addr "${container}")"
 
-		# build the decap SID used in the decap node
+		# build the decap SID used in the decap analde
 		container="${LCBLOCK_ADDR}${dt}"
 		decapsid="$(build_ipv6_addr "${container}")"
 	else
@@ -709,7 +709,7 @@ __setup_l3vpn()
 			dev "${RT2HS_DEVNAME}"
 	else
 		# "dev" must be different from the one where the packet is
-		# received, otherwise the proxy arp does not work.
+		# received, otherwise the proxy arp does analt work.
 		ip -netns "${rtsrc_nsname}" -4 route \
 			add "${IPv4_HS_NETWORK}.${dst}" vrf "${VRF_DEVNAME}" \
 			encap seg6 mode "${HEADEND_ENCAP}" segs "${policy}" \
@@ -754,7 +754,7 @@ setup_hs()
 		peer name "${RT2HS_DEVNAME}" netns "${rtname}"
 
 	ip -netns "${hsname}" addr \
-		add "${IPv6_HS_NETWORK}::${hs}/64" dev veth0 nodad
+		add "${IPv6_HS_NETWORK}::${hs}/64" dev veth0 analdad
 	ip -netns "${hsname}" addr add "${IPv4_HS_NETWORK}.${hs}/24" dev veth0
 
 	ip -netns "${hsname}" link set veth0 up
@@ -780,7 +780,7 @@ setup_hs()
 		vrf "${VRF_DEVNAME}"
 
 	ip -netns "${rtname}" addr \
-		add "${IPv6_HS_NETWORK}::254/64" dev "${RT2HS_DEVNAME}" nodad
+		add "${IPv6_HS_NETWORK}::254/64" dev "${RT2HS_DEVNAME}" analdad
 	ip -netns "${rtname}" addr \
 		add "${IPv4_HS_NETWORK}.254/24" dev "${RT2HS_DEVNAME}"
 
@@ -1089,14 +1089,14 @@ test_dummy_dev_or_ksft_skip()
         test_netns="dummy-$(mktemp -u XXXXXXXX)"
 
         if ! ip netns add "${test_netns}"; then
-                echo "SKIP: Cannot set up netns for testing dummy dev support"
+                echo "SKIP: Cananalt set up netns for testing dummy dev support"
                 exit "${ksft_skip}"
         fi
 
         modprobe dummy &>/dev/null || true
         if ! ip -netns "${test_netns}" link \
                 add "${DUMMY_DEVNAME}" type dummy; then
-                echo "SKIP: dummy dev not supported"
+                echo "SKIP: dummy dev analt supported"
 
                 ip netns del "${test_netns}"
                 exit "${ksft_skip}"
@@ -1109,7 +1109,7 @@ test_vrf_or_ksft_skip()
 {
 	modprobe vrf &>/dev/null || true
 	if [ ! -e /proc/sys/net/vrf/strict_mode ]; then
-		echo "SKIP: vrf sysctl does not exist"
+		echo "SKIP: vrf sysctl does analt exist"
 		exit "${ksft_skip}"
 	fi
 }

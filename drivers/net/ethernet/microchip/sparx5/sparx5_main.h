@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2021 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2021 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #ifndef __SPARX5_MAIN_H__
@@ -36,7 +36,7 @@ enum spx5_target_chiptype {
 };
 
 enum sparx5_port_max_tags {
-	SPX5_PORT_MAX_TAGS_NONE,  /* No extra tags allowed */
+	SPX5_PORT_MAX_TAGS_ANALNE,  /* Anal extra tags allowed */
 	SPX5_PORT_MAX_TAGS_ONE,   /* Single tag allowed */
 	SPX5_PORT_MAX_TAGS_TWO    /* Single and double tag allowed */
 };
@@ -88,11 +88,11 @@ enum sparx5_vlan_port_type {
 #define SPARX5_PHC_COUNT		3
 #define SPARX5_PHC_PORT			0
 
-#define IFH_REW_OP_NOOP			0x0
+#define IFH_REW_OP_ANALOP			0x0
 #define IFH_REW_OP_ONE_STEP_PTP		0x3
 #define IFH_REW_OP_TWO_STEP_PTP		0x4
 
-#define IFH_PDU_TYPE_NONE		0x0
+#define IFH_PDU_TYPE_ANALNE		0x0
 #define IFH_PDU_TYPE_PTP		0x5
 #define IFH_PDU_TYPE_IPV4_UDP_PTP	0x6
 #define IFH_PDU_TYPE_IPV6_UDP_PTP	0x7
@@ -167,13 +167,13 @@ struct sparx5_port_config {
 struct sparx5_port {
 	struct net_device *ndev;
 	struct sparx5 *sparx5;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	struct phy *serdes;
 	struct sparx5_port_config conf;
 	struct phylink_config phylink_config;
 	struct phylink *phylink;
 	struct phylink_pcs phylink_pcs;
-	u16 portno;
+	u16 portanal;
 	/* Ingress default VLAN (pvid) */
 	u16 pvid;
 	/* Egress default VLAN (vid) */
@@ -251,10 +251,10 @@ struct sparx5 {
 	struct mutex queue_stats_lock;
 	struct delayed_work stats_work;
 	struct workqueue_struct *stats_queue;
-	/* Notifiers */
-	struct notifier_block netdevice_nb;
-	struct notifier_block switchdev_nb;
-	struct notifier_block switchdev_blocking_nb;
+	/* Analtifiers */
+	struct analtifier_block netdevice_nb;
+	struct analtifier_block switchdev_nb;
+	struct analtifier_block switchdev_blocking_nb;
 	/* Switch state */
 	u8 base_mac[ETH_ALEN];
 	/* Associated bridge device (when bridged) */
@@ -300,8 +300,8 @@ struct sparx5 {
 };
 
 /* sparx5_switchdev.c */
-int sparx5_register_notifier_blocks(struct sparx5 *sparx5);
-void sparx5_unregister_notifier_blocks(struct sparx5 *sparx5);
+int sparx5_register_analtifier_blocks(struct sparx5 *sparx5);
+void sparx5_unregister_analtifier_blocks(struct sparx5 *sparx5);
 
 /* sparx5_packet.c */
 struct frame_info {
@@ -334,7 +334,7 @@ int sparx5_mact_forget(struct sparx5 *sparx5,
 		       const unsigned char mac[ETH_ALEN], u16 vid);
 int sparx5_add_mact_entry(struct sparx5 *sparx5,
 			  struct net_device *dev,
-			  u16 portno,
+			  u16 portanal,
 			  const unsigned char *addr, u16 vid);
 int sparx5_del_mact_entry(struct sparx5 *sparx5,
 			  const unsigned char *addr,
@@ -350,7 +350,7 @@ void sparx5_pgid_clear(struct sparx5 *spx5, int pgid);
 void sparx5_pgid_read_mask(struct sparx5 *sparx5, int pgid, u32 portmask[3]);
 void sparx5_update_fwd(struct sparx5 *sparx5);
 void sparx5_vlan_init(struct sparx5 *sparx5);
-void sparx5_vlan_port_setup(struct sparx5 *sparx5, int portno);
+void sparx5_vlan_port_setup(struct sparx5 *sparx5, int portanal);
 int sparx5_vlan_vid_add(struct sparx5_port *port, u16 vid, bool pvid,
 			bool untagged);
 int sparx5_vlan_vid_del(struct sparx5_port *port, u16 vid);
@@ -379,9 +379,9 @@ void sparx5_set_port_ifh_timestamp(void *ifh_hdr, u64 timestamp);
 void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op);
 void sparx5_set_port_ifh_pdu_type(void *ifh_hdr, u32 pdu_type);
 void sparx5_set_port_ifh_pdu_w16_offset(void *ifh_hdr, u32 pdu_w16_offset);
-void sparx5_set_port_ifh(void *ifh_hdr, u16 portno);
+void sparx5_set_port_ifh(void *ifh_hdr, u16 portanal);
 bool sparx5_netdevice_check(const struct net_device *dev);
-struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno);
+struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portanal);
 int sparx5_register_netdevs(struct sparx5 *sparx5);
 void sparx5_destroy_netdevs(struct sparx5 *sparx5);
 void sparx5_unregister_netdevs(struct sparx5 *sparx5);

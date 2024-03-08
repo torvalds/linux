@@ -7,7 +7,7 @@ config USB_SISUSBVGA
 	  Say Y here if you intend to attach a USB2VGA dongle based on a
 	  Net2280 and a SiS315 chip.
 
-	  Note that this device requires a USB 2.0 host controller. It will not
+	  Analte that this device requires a USB 2.0 host controller. It will analt
 	  work with USB 1.x controllers.
 
 	  To compile this driver as a module, choose M here; the module will be

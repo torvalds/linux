@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__LINUX_NETLINK_H
 #define _UAPI__LINUX_NETLINK_H
 
@@ -13,7 +13,7 @@
 #define NETLINK_SOCK_DIAG	4	/* socket monitoring				*/
 #define NETLINK_NFLOG		5	/* netfilter/iptables ULOG */
 #define NETLINK_XFRM		6	/* ipsec */
-#define NETLINK_SELINUX		7	/* SELinux event notifications */
+#define NETLINK_SELINUX		7	/* SELinux event analtifications */
 #define NETLINK_ISCSI		8	/* Open-iSCSI */
 #define NETLINK_AUDIT		9	/* auditing */
 #define NETLINK_FIB_LOOKUP	10	
@@ -66,12 +66,12 @@ struct nlmsghdr {
 
 /* Modifiers to NEW request */
 #define NLM_F_REPLACE	0x100	/* Override existing		*/
-#define NLM_F_EXCL	0x200	/* Do not touch, if it exists	*/
-#define NLM_F_CREATE	0x400	/* Create, if it does not exist	*/
+#define NLM_F_EXCL	0x200	/* Do analt touch, if it exists	*/
+#define NLM_F_CREATE	0x400	/* Create, if it does analt exist	*/
 #define NLM_F_APPEND	0x800	/* Add to end of list		*/
 
 /* Modifiers to DELETE request */
-#define NLM_F_NONREC	0x100	/* Do not delete recursively	*/
+#define NLM_F_ANALNREC	0x100	/* Do analt delete recursively	*/
 
 /* Flags for ACK message */
 #define NLM_F_CAPPED	0x100	/* request was capped */
@@ -99,7 +99,7 @@ struct nlmsghdr {
 			   (nlh)->nlmsg_len <= (len))
 #define NLMSG_PAYLOAD(nlh,len) ((nlh)->nlmsg_len - NLMSG_SPACE((len)))
 
-#define NLMSG_NOOP		0x1	/* Nothing.		*/
+#define NLMSG_ANALOP		0x1	/* Analthing.		*/
 #define NLMSG_ERROR		0x2	/* Error		*/
 #define NLMSG_DONE		0x3	/* End of a dump	*/
 #define NLMSG_OVERRUN		0x4	/* Data lost		*/
@@ -146,7 +146,7 @@ enum nlmsgerr_attrs {
 #define NETLINK_DROP_MEMBERSHIP		2
 #define NETLINK_PKTINFO			3
 #define NETLINK_BROADCAST_ERROR		4
-#define NETLINK_NO_ENOBUFS		5
+#define NETLINK_ANAL_EANALBUFS		5
 #ifndef __KERNEL__
 #define NETLINK_RX_RING			6
 #define NETLINK_TX_RING			7
@@ -221,7 +221,7 @@ struct nlattr {
  * N := Carries nested attributes
  * O := Payload stored in network byte order
  *
- * Note: The N and O flag are mutually exclusive.
+ * Analte: The N and O flag are mutually exclusive.
  */
 #define NLA_F_NESTED		(1 << 15)
 #define NLA_F_NET_BYTEORDER	(1 << 14)

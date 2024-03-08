@@ -72,8 +72,8 @@ static int x_tune_dvbt2_demod_setting(struct cxd2880_tnrdmd
 	static const u8 gtdofst[2] = { 0x3f, 0xff };
 
 	static const u8 bw8_gtdofst_a[2] = { 0x19, 0xd2 };
-	static const u8 bw8_nomi_ac[6] = { 0x15, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	static const u8 bw8_nomi_b[6] = { 0x14, 0x6a, 0xaa, 0xaa, 0xab, 0x00 };
+	static const u8 bw8_analmi_ac[6] = { 0x15, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	static const u8 bw8_analmi_b[6] = { 0x14, 0x6a, 0xaa, 0xaa, 0xab, 0x00 };
 	static const u8 bw8_sst_a[2] = { 0x06, 0x2a };
 	static const u8 bw8_sst_b[2] = { 0x06, 0x29 };
 	static const u8 bw8_sst_c[2] = { 0x06, 0x28 };
@@ -87,8 +87,8 @@ static int x_tune_dvbt2_demod_setting(struct cxd2880_tnrdmd
 		0x2e, 0xaa, 0x5d, 0x55, 0x70, 0x00, 0x00, 0xa8, 0x00
 	};
 
-	static const u8 bw7_nomi_ac[6] = { 0x18, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	static const u8 bw7_nomi_b[6] = { 0x17, 0x55, 0x55, 0x55, 0x55, 0x00 };
+	static const u8 bw7_analmi_ac[6] = { 0x18, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	static const u8 bw7_analmi_b[6] = { 0x17, 0x55, 0x55, 0x55, 0x55, 0x00 };
 	static const u8 bw7_sst_a[2] = { 0x06, 0x23 };
 	static const u8 bw7_sst_b[2] = { 0x06, 0x22 };
 	static const u8 bw7_sst_c[2] = { 0x06, 0x21 };
@@ -102,8 +102,8 @@ static int x_tune_dvbt2_demod_setting(struct cxd2880_tnrdmd
 		0x35, 0x55, 0x6a, 0xaa,	0x80, 0x00, 0x00, 0xc0, 0x00
 	};
 
-	static const u8 bw6_nomi_ac[6] = { 0x1c, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	static const u8 bw6_nomi_b[6] = { 0x1b, 0x38, 0xe3, 0x8e, 0x39, 0x00 };
+	static const u8 bw6_analmi_ac[6] = { 0x1c, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	static const u8 bw6_analmi_b[6] = { 0x1b, 0x38, 0xe3, 0x8e, 0x39, 0x00 };
 	static const u8 bw6_sst_a[2] = { 0x06, 0x1c };
 	static const u8 bw6_sst_b[2] = { 0x06, 0x1b };
 	static const u8 bw6_sst_c[2] = { 0x06, 0x1a };
@@ -117,8 +117,8 @@ static int x_tune_dvbt2_demod_setting(struct cxd2880_tnrdmd
 		0x3e, 0x38, 0x7c, 0x71,	0x95, 0x55, 0x00, 0xdf, 0xff
 	};
 
-	static const u8 bw5_nomi_ac[6] = { 0x21, 0x99, 0x99, 0x99, 0x9a, 0x00 };
-	static const u8 bw5_nomi_b[6] = { 0x20, 0xaa, 0xaa, 0xaa, 0xab, 0x00 };
+	static const u8 bw5_analmi_ac[6] = { 0x21, 0x99, 0x99, 0x99, 0x9a, 0x00 };
+	static const u8 bw5_analmi_b[6] = { 0x20, 0xaa, 0xaa, 0xaa, 0xab, 0x00 };
 	static const u8 bw5_sst_a[2] = { 0x06, 0x15 };
 	static const u8 bw5_sst_b[2] = { 0x06, 0x15 };
 	static const u8 bw5_sst_c[2] = { 0x06, 0x14 };
@@ -132,13 +132,13 @@ static int x_tune_dvbt2_demod_setting(struct cxd2880_tnrdmd
 		0x4a, 0xaa, 0x7c, 0x71, 0x95, 0x55, 0x01, 0x0c, 0xcc
 	};
 
-	static const u8 bw1_7_nomi_a[6] = {
+	static const u8 bw1_7_analmi_a[6] = {
 		0x68, 0x0f, 0xa2, 0x32, 0xcf, 0x03
 	};
-	static const u8 bw1_7_nomi_c[6] = {
+	static const u8 bw1_7_analmi_c[6] = {
 		0x68, 0x0f, 0xa2, 0x32, 0xcf, 0x03
 	};
-	static const u8 bw1_7_nomi_b[6] = {
+	static const u8 bw1_7_analmi_b[6] = {
 		0x65, 0x2b, 0xa4, 0xcd, 0xd8, 0x03
 	};
 	static const u8 bw1_7_sst_a[2] = { 0x06, 0x0c };
@@ -349,10 +349,10 @@ static int x_tune_dvbt2_demod_setting(struct cxd2880_tnrdmd
 		switch (clk_mode) {
 		case CXD2880_TNRDMD_CLOCKMODE_A:
 		case CXD2880_TNRDMD_CLOCKMODE_C:
-			data = bw8_nomi_ac;
+			data = bw8_analmi_ac;
 			break;
 		case CXD2880_TNRDMD_CLOCKMODE_B:
-			data = bw8_nomi_b;
+			data = bw8_analmi_b;
 			break;
 		default:
 			return -EINVAL;
@@ -435,10 +435,10 @@ static int x_tune_dvbt2_demod_setting(struct cxd2880_tnrdmd
 		switch (clk_mode) {
 		case CXD2880_TNRDMD_CLOCKMODE_A:
 		case CXD2880_TNRDMD_CLOCKMODE_C:
-			data = bw7_nomi_ac;
+			data = bw7_analmi_ac;
 			break;
 		case CXD2880_TNRDMD_CLOCKMODE_B:
-			data = bw7_nomi_b;
+			data = bw7_analmi_b;
 			break;
 		default:
 			return -EINVAL;
@@ -509,10 +509,10 @@ static int x_tune_dvbt2_demod_setting(struct cxd2880_tnrdmd
 		switch (clk_mode) {
 		case CXD2880_TNRDMD_CLOCKMODE_A:
 		case CXD2880_TNRDMD_CLOCKMODE_C:
-			data = bw6_nomi_ac;
+			data = bw6_analmi_ac;
 			break;
 		case CXD2880_TNRDMD_CLOCKMODE_B:
-			data = bw6_nomi_b;
+			data = bw6_analmi_b;
 			break;
 		default:
 			return -EINVAL;
@@ -583,10 +583,10 @@ static int x_tune_dvbt2_demod_setting(struct cxd2880_tnrdmd
 		switch (clk_mode) {
 		case CXD2880_TNRDMD_CLOCKMODE_A:
 		case CXD2880_TNRDMD_CLOCKMODE_C:
-			data = bw5_nomi_ac;
+			data = bw5_analmi_ac;
 			break;
 		case CXD2880_TNRDMD_CLOCKMODE_B:
-			data = bw5_nomi_b;
+			data = bw5_analmi_b;
 			break;
 		default:
 			return -EINVAL;
@@ -657,13 +657,13 @@ static int x_tune_dvbt2_demod_setting(struct cxd2880_tnrdmd
 
 		switch (clk_mode) {
 		case CXD2880_TNRDMD_CLOCKMODE_A:
-			data = bw1_7_nomi_a;
+			data = bw1_7_analmi_a;
 			break;
 		case CXD2880_TNRDMD_CLOCKMODE_C:
-			data = bw1_7_nomi_c;
+			data = bw1_7_analmi_c;
 			break;
 		case CXD2880_TNRDMD_CLOCKMODE_B:
-			data = bw1_7_nomi_b;
+			data = bw1_7_analmi_b;
 			break;
 		default:
 			return -EINVAL;
@@ -775,7 +775,7 @@ static int dvbt2_set_profile(struct cxd2880_tnrdmd *tnr_dmd,
 			     enum cxd2880_dvbt2_profile profile)
 {
 	u8 t2_mode_tune_mode = 0;
-	u8 seq_not2_dtime = 0;
+	u8 seq_analt2_dtime = 0;
 	u8 dtime1 = 0;
 	u8 dtime2 = 0;
 	int ret;
@@ -803,17 +803,17 @@ static int dvbt2_set_profile(struct cxd2880_tnrdmd *tnr_dmd,
 	switch (profile) {
 	case CXD2880_DVBT2_PROFILE_BASE:
 		t2_mode_tune_mode = 0x01;
-		seq_not2_dtime = dtime2;
+		seq_analt2_dtime = dtime2;
 		break;
 
 	case CXD2880_DVBT2_PROFILE_LITE:
 		t2_mode_tune_mode = 0x05;
-		seq_not2_dtime = dtime1;
+		seq_analt2_dtime = dtime1;
 		break;
 
 	case CXD2880_DVBT2_PROFILE_ANY:
 		t2_mode_tune_mode = 0x00;
-		seq_not2_dtime = dtime1;
+		seq_analt2_dtime = dtime1;
 		break;
 
 	default:
@@ -840,7 +840,7 @@ static int dvbt2_set_profile(struct cxd2880_tnrdmd *tnr_dmd,
 
 	return tnr_dmd->io->write_reg(tnr_dmd->io,
 				      CXD2880_IO_TGT_DMD,
-				      0x2c, seq_not2_dtime);
+				      0x2c, seq_analt2_dtime);
 }
 
 int cxd2880_tnrdmd_dvbt2_tune1(struct cxd2880_tnrdmd *tnr_dmd,
@@ -861,7 +861,7 @@ int cxd2880_tnrdmd_dvbt2_tune1(struct cxd2880_tnrdmd *tnr_dmd,
 
 	if (tnr_dmd->diver_mode == CXD2880_TNRDMD_DIVERMODE_MAIN &&
 	    tune_param->profile == CXD2880_DVBT2_PROFILE_ANY)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	ret =
 	    cxd2880_tnrdmd_common_tune_setting1(tnr_dmd, CXD2880_DTV_SYS_DVBT2,
@@ -1022,7 +1022,7 @@ int cxd2880_tnrdmd_dvbt2_check_demod_lock(struct cxd2880_tnrdmd
 		else if (unlock_detected)
 			*lock = CXD2880_TNRDMD_LOCK_RESULT_UNLOCKED;
 		else
-			*lock = CXD2880_TNRDMD_LOCK_RESULT_NOTDETECT;
+			*lock = CXD2880_TNRDMD_LOCK_RESULT_ANALTDETECT;
 
 		return 0;
 	}
@@ -1043,7 +1043,7 @@ int cxd2880_tnrdmd_dvbt2_check_demod_lock(struct cxd2880_tnrdmd
 	else if (unlock_detected && unlock_detected_sub)
 		*lock = CXD2880_TNRDMD_LOCK_RESULT_UNLOCKED;
 	else
-		*lock = CXD2880_TNRDMD_LOCK_RESULT_NOTDETECT;
+		*lock = CXD2880_TNRDMD_LOCK_RESULT_ANALTDETECT;
 
 	return 0;
 }
@@ -1082,7 +1082,7 @@ int cxd2880_tnrdmd_dvbt2_check_ts_lock(struct cxd2880_tnrdmd
 		else if (unlock_detected)
 			*lock = CXD2880_TNRDMD_LOCK_RESULT_UNLOCKED;
 		else
-			*lock = CXD2880_TNRDMD_LOCK_RESULT_NOTDETECT;
+			*lock = CXD2880_TNRDMD_LOCK_RESULT_ANALTDETECT;
 
 		return 0;
 	}
@@ -1091,7 +1091,7 @@ int cxd2880_tnrdmd_dvbt2_check_ts_lock(struct cxd2880_tnrdmd
 		*lock = CXD2880_TNRDMD_LOCK_RESULT_LOCKED;
 		return 0;
 	} else if (!unlock_detected) {
-		*lock = CXD2880_TNRDMD_LOCK_RESULT_NOTDETECT;
+		*lock = CXD2880_TNRDMD_LOCK_RESULT_ANALTDETECT;
 		return 0;
 	}
 
@@ -1104,7 +1104,7 @@ int cxd2880_tnrdmd_dvbt2_check_ts_lock(struct cxd2880_tnrdmd
 	if (unlock_detected && unlock_detected_sub)
 		*lock = CXD2880_TNRDMD_LOCK_RESULT_UNLOCKED;
 	else
-		*lock = CXD2880_TNRDMD_LOCK_RESULT_NOTDETECT;
+		*lock = CXD2880_TNRDMD_LOCK_RESULT_ANALTDETECT;
 
 	return 0;
 }

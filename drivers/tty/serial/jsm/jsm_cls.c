@@ -3,7 +3,7 @@
  * Copyright 2003 Digi International (www.digi.com)
  *	Scott H Kilau <Scott_Kilau at digi dot com>
  *
- *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE!
+ *	ANALTE TO LINUX KERNEL HACKERS:  DO ANALT REFORMAT THIS CODE!
  *
  *	This is shared code between Digi's CVS archive and the
  *	Linux Kernel sources.
@@ -110,7 +110,7 @@ static void cls_set_ixon_flow_control(struct jsm_channel *ch)
 
 	writeb(isr_fcr, &ch->ch_cls_uart->isr_fcr);
 
-	/* Now set our current start/stop chars while in enhanced mode */
+	/* Analw set our current start/stop chars while in enhanced mode */
 	writeb(ch->ch_startc, &ch->ch_cls_uart->mcr);
 	writeb(0, &ch->ch_cls_uart->lsr);
 	writeb(ch->ch_stopc, &ch->ch_cls_uart->msr);
@@ -135,7 +135,7 @@ static void cls_set_ixon_flow_control(struct jsm_channel *ch)
 		&ch->ch_cls_uart->isr_fcr);
 }
 
-static void cls_set_no_output_flow_control(struct jsm_channel *ch)
+static void cls_set_anal_output_flow_control(struct jsm_channel *ch)
 {
 	u8 lcrb = readb(&ch->ch_cls_uart->lcr);
 	u8 ier = readb(&ch->ch_cls_uart->ier);
@@ -236,7 +236,7 @@ static void cls_set_ixoff_flow_control(struct jsm_channel *ch)
 
 	writeb(isr_fcr, &ch->ch_cls_uart->isr_fcr);
 
-	/* Now set our current start/stop chars while in enhanced mode */
+	/* Analw set our current start/stop chars while in enhanced mode */
 	writeb(ch->ch_startc, &ch->ch_cls_uart->mcr);
 	writeb(0, &ch->ch_cls_uart->lsr);
 	writeb(ch->ch_stopc, &ch->ch_cls_uart->msr);
@@ -257,7 +257,7 @@ static void cls_set_ixoff_flow_control(struct jsm_channel *ch)
 		&ch->ch_cls_uart->isr_fcr);
 }
 
-static void cls_set_no_input_flow_control(struct jsm_channel *ch)
+static void cls_set_anal_input_flow_control(struct jsm_channel *ch)
 {
 	u8 lcrb = readb(&ch->ch_cls_uart->lcr);
 	u8 ier = readb(&ch->ch_cls_uart->ier);
@@ -299,7 +299,7 @@ static void cls_set_no_input_flow_control(struct jsm_channel *ch)
  * cls_clear_break.
  * Determines whether its time to shut off break condition.
  *
- * No locks are assumed to be held when calling this function.
+ * Anal locks are assumed to be held when calling this function.
  * channel lock is held and released in this function.
  */
 static void cls_clear_break(struct jsm_channel *ch)
@@ -386,12 +386,12 @@ static void cls_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 		 */
 		linestatus = readb(&ch->ch_cls_uart->lsr);
 
-		/* Break out if there is no data to fetch */
+		/* Break out if there is anal data to fetch */
 		if (!(linestatus & UART_LSR_DR))
 			break;
 
 		/*
-		 * Discard character if we are ignoring the error mask
+		 * Discard character if we are iganalring the error mask
 		 * which in this case is the break signal.
 		 */
 		if (linestatus & error_mask)  {
@@ -401,12 +401,12 @@ static void cls_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 		}
 
 		/*
-		 * If our queue is full, we have no choice but to drop some
+		 * If our queue is full, we have anal choice but to drop some
 		 * data. The assumption is that HWFLOW or SWFLOW should have
 		 * stopped things way way before we got to this point.
 		 *
 		 * I decided that I wanted to ditch the oldest data first,
-		 * I hope thats okay with everyone? Yes? Good.
+		 * I hope thats okay with everyone? Anal? Good.
 		 */
 		while (qleft < 1) {
 			tail = (tail + 1) & RQUEUEMASK;
@@ -455,7 +455,7 @@ static void cls_copy_data_from_queue_to_uart(struct jsm_channel *ch)
 
 	circ = &ch->uart_port.state->xmit;
 
-	/* No data to write to the UART */
+	/* Anal data to write to the UART */
 	if (uart_circ_empty(circ))
 		return;
 
@@ -553,7 +553,7 @@ static inline void cls_parse_isr(struct jsm_board *brd, uint port)
 	unsigned long flags;
 
 	/*
-	 * No need to verify board pointer, it was already
+	 * Anal need to verify board pointer, it was already
 	 * verified in the interrupt routine.
 	 */
 
@@ -568,8 +568,8 @@ static inline void cls_parse_isr(struct jsm_board *brd, uint port)
 	while (1) {
 		isr = readb(&ch->ch_cls_uart->isr_fcr);
 
-		/* Bail if no pending interrupt on port */
-		if (isr & UART_IIR_NO_INT)
+		/* Bail if anal pending interrupt on port */
+		if (isr & UART_IIR_ANAL_INT)
 			break;
 
 		/* Receive Interrupt pending */
@@ -762,11 +762,11 @@ static void cls_param(struct jsm_channel *ch)
 		 */
 		if ((ch->ch_startc == __DISABLED_CHAR) ||
 			(ch->ch_stopc == __DISABLED_CHAR))
-			cls_set_no_output_flow_control(ch);
+			cls_set_anal_output_flow_control(ch);
 		else
 			cls_set_ixon_flow_control(ch);
 	} else
-		cls_set_no_output_flow_control(ch);
+		cls_set_anal_output_flow_control(ch);
 
 	if (ch->ch_c_cflag & CRTSCTS)
 		cls_set_rts_flow_control(ch);
@@ -777,15 +777,15 @@ static void cls_param(struct jsm_channel *ch)
 		 */
 		if ((ch->ch_startc == __DISABLED_CHAR) ||
 			(ch->ch_stopc == __DISABLED_CHAR))
-			cls_set_no_input_flow_control(ch);
+			cls_set_anal_input_flow_control(ch);
 		else
 			cls_set_ixoff_flow_control(ch);
 	} else
-		cls_set_no_input_flow_control(ch);
+		cls_set_anal_input_flow_control(ch);
 
 	cls_assert_modem_signals(ch);
 
-	/* get current status of the modem signals now */
+	/* get current status of the modem signals analw */
 	cls_parse_modem(ch, readb(&ch->ch_cls_uart->msr));
 }
 
@@ -815,9 +815,9 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 
 	if (!uart_poll) {
 		jsm_dbg(INTR, &brd->pci_dev,
-			"Kernel interrupted to me, but no pending interrupts...\n");
+			"Kernel interrupted to me, but anal pending interrupts...\n");
 		spin_unlock_irqrestore(&brd->bd_intr_lock, lock_flags);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* At this point, we have at least SOMETHING to service, dig further. */

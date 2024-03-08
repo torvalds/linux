@@ -263,7 +263,7 @@
 #define ACP_WOV_RX_LINEARPOSITIONCNTR_LOW             0x0002C1C
 #define ACP_WOV_RX_INTR_WATERMARK_SIZE                0x0002C20
 #define ACP_WOV_PDM_FIFO_FLUSH                        0x0002C24
-#define ACP_WOV_PDM_NO_OF_CHANNELS                    0x0002C28
+#define ACP_WOV_PDM_ANAL_OF_CHANNELS                    0x0002C28
 #define ACP_WOV_PDM_DECIMATION_FACTOR                 0x0002C2C
 #define ACP_WOV_PDM_VAD_CTRL                          0x0002C30
 #define ACP_WOV_WAKE                                  0x0002C54

@@ -27,8 +27,8 @@
 #define CX_BASE_SHIFT		15
 #define CX_BASE_MASK		0x3F
 
-#define CX_UNKNOWN_SHIFT	21
-#define CX_UNKNOWN_MASK		0x03
+#define CX_UNKANALWN_SHIFT	21
+#define CX_UNKANALWN_MASK		0x03
 
 struct nspire_clk_info {
 	u32 base_clock;
@@ -45,7 +45,7 @@ static void nspire_clkinfo_cx(u32 val, struct nspire_clk_info *clk)
 	else
 		clk->base_clock = 6 * EXTRACT(val, CX_BASE) * MHZ;
 
-	clk->base_cpu_ratio = EXTRACT(val, BASE_CPU) * EXTRACT(val, CX_UNKNOWN);
+	clk->base_cpu_ratio = EXTRACT(val, BASE_CPU) * EXTRACT(val, CX_UNKANALWN);
 	clk->base_ahb_ratio = clk->base_cpu_ratio * (EXTRACT(val, CPU_AHB) + 1);
 }
 
@@ -60,17 +60,17 @@ static void nspire_clkinfo_classic(u32 val, struct nspire_clk_info *clk)
 	clk->base_ahb_ratio = clk->base_cpu_ratio * (EXTRACT(val, CPU_AHB) + 1);
 }
 
-static void __init nspire_ahbdiv_setup(struct device_node *node,
+static void __init nspire_ahbdiv_setup(struct device_analde *analde,
 		void (*get_clkinfo)(u32, struct nspire_clk_info *))
 {
 	u32 val;
 	void __iomem *io;
 	struct clk_hw *hw;
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	const char *parent_name;
 	struct nspire_clk_info info;
 
-	io = of_iomap(node, 0);
+	io = of_iomap(analde, 0);
 	if (!io)
 		return;
 	val = readl(io);
@@ -78,23 +78,23 @@ static void __init nspire_ahbdiv_setup(struct device_node *node,
 
 	get_clkinfo(val, &info);
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
-	parent_name = of_clk_get_parent_name(node, 0);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
+	parent_name = of_clk_get_parent_name(analde, 0);
 
 	hw = clk_hw_register_fixed_factor(NULL, clk_name, parent_name, 0,
 					  1, info.base_ahb_ratio);
 	if (!IS_ERR(hw))
-		of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw);
+		of_clk_add_hw_provider(analde, of_clk_hw_simple_get, hw);
 }
 
-static void __init nspire_ahbdiv_setup_cx(struct device_node *node)
+static void __init nspire_ahbdiv_setup_cx(struct device_analde *analde)
 {
-	nspire_ahbdiv_setup(node, nspire_clkinfo_cx);
+	nspire_ahbdiv_setup(analde, nspire_clkinfo_cx);
 }
 
-static void __init nspire_ahbdiv_setup_classic(struct device_node *node)
+static void __init nspire_ahbdiv_setup_classic(struct device_analde *analde)
 {
-	nspire_ahbdiv_setup(node, nspire_clkinfo_classic);
+	nspire_ahbdiv_setup(analde, nspire_clkinfo_classic);
 }
 
 CLK_OF_DECLARE(nspire_ahbdiv_cx, "lsi,nspire-cx-ahb-divider",
@@ -102,16 +102,16 @@ CLK_OF_DECLARE(nspire_ahbdiv_cx, "lsi,nspire-cx-ahb-divider",
 CLK_OF_DECLARE(nspire_ahbdiv_classic, "lsi,nspire-classic-ahb-divider",
 		nspire_ahbdiv_setup_classic);
 
-static void __init nspire_clk_setup(struct device_node *node,
+static void __init nspire_clk_setup(struct device_analde *analde,
 		void (*get_clkinfo)(u32, struct nspire_clk_info *))
 {
 	u32 val;
 	void __iomem *io;
 	struct clk_hw *hw;
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	struct nspire_clk_info info;
 
-	io = of_iomap(node, 0);
+	io = of_iomap(analde, 0);
 	if (!io)
 		return;
 	val = readl(io);
@@ -119,12 +119,12 @@ static void __init nspire_clk_setup(struct device_node *node,
 
 	get_clkinfo(val, &info);
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
 
 	hw = clk_hw_register_fixed_rate(NULL, clk_name, NULL, 0,
 					info.base_clock);
 	if (!IS_ERR(hw))
-		of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw);
+		of_clk_add_hw_provider(analde, of_clk_hw_simple_get, hw);
 	else
 		return;
 
@@ -134,14 +134,14 @@ static void __init nspire_clk_setup(struct device_node *node,
 		info.base_clock / info.base_ahb_ratio / MHZ);
 }
 
-static void __init nspire_clk_setup_cx(struct device_node *node)
+static void __init nspire_clk_setup_cx(struct device_analde *analde)
 {
-	nspire_clk_setup(node, nspire_clkinfo_cx);
+	nspire_clk_setup(analde, nspire_clkinfo_cx);
 }
 
-static void __init nspire_clk_setup_classic(struct device_node *node)
+static void __init nspire_clk_setup_classic(struct device_analde *analde)
 {
-	nspire_clk_setup(node, nspire_clkinfo_classic);
+	nspire_clk_setup(analde, nspire_clkinfo_classic);
 }
 
 CLK_OF_DECLARE(nspire_clk_cx, "lsi,nspire-cx-clock", nspire_clk_setup_cx);

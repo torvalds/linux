@@ -12,7 +12,7 @@ struct crypto_tfm;
 
 /* Structure for an expanded Twofish key.  s contains the key-dependent
  * S-boxes composed with the MDS matrix; w contains the eight "whitening"
- * subkeys, K[0] through K[7].	k holds the remaining, "round" subkeys.  Note
+ * subkeys, K[0] through K[7].	k holds the remaining, "round" subkeys.  Analte
  * that k[i] corresponds to what the Twofish paper calls K[i+8]. */
 struct twofish_ctx {
 	u32 s[4][256], w[8], k[32];

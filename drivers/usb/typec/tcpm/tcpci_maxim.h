@@ -45,7 +45,7 @@
 #define ADCEN                                   BIT(0)
 
 enum contamiant_state {
-	NOT_DETECTED,
+	ANALT_DETECTED,
 	DETECTED,
 	SINK,
 };

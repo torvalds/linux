@@ -13,7 +13,7 @@ description: |
   The Meson8/Meson8b/Meson8m2 SoCs have a register bank called SECBUS2 which
   contains registers for various IP blocks such as pin-controller bits for
   the BSD_EN and TEST_N GPIOs as well as some AO ARC core control bits.
-  The registers can be accessed directly when not running in "secure mode".
+  The registers can be accessed directly when analt running in "secure mode".
   When "secure mode" is enabled then these registers have to be accessed
   through secure monitor calls.
 

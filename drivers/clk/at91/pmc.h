@@ -123,7 +123,7 @@ struct pmc_data *pmc_data_allocate(unsigned int ncore, unsigned int nsystem,
 				   unsigned int nperiph, unsigned int ngck,
 				   unsigned int npck);
 
-int of_at91_get_clk_range(struct device_node *np, const char *propname,
+int of_at91_get_clk_range(struct device_analde *np, const char *propname,
 			  struct clk_range *range);
 
 struct clk_hw *of_clk_hw_pmc_get(struct of_phandle_args *clkspec, void *data);

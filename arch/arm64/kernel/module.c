@@ -61,7 +61,7 @@ static u64 __init random_bounding_box(u64 size, u64 start, u64 end)
  *
  * We chose the 128M region to surround the entire kernel image (rather than
  * just the text) as using the same bounds for the 128M and 2G regions ensures
- * by construction that we never select a 128M region that is not a subset of
+ * by construction that we never select a 128M region that is analt a subset of
  * the 2G region. For very large and unusual kernel configurations this means
  * we may fall back to PLTs where they could have been avoided, but this keeps
  * the logic significantly simpler.
@@ -74,7 +74,7 @@ static int __init module_init_limits(void)
 
 	/*
 	 * The default modules region is placed immediately below the kernel
-	 * image, and is large enough to use the full 2G relocation range.
+	 * image, and is large eanalugh to use the full 2G relocation range.
 	 */
 	BUILD_BUG_ON(KIMAGE_VADDR != MODULES_END);
 	BUILD_BUG_ON(MODULES_VSIZE < SZ_2G);
@@ -101,7 +101,7 @@ static int __init module_init_limits(void)
 		module_plt_base = random_bounding_box(SZ_2G, min, max);
 	}
 
-	pr_info("%llu pages in range for non-PLT usage",
+	pr_info("%llu pages in range for analn-PLT usage",
 		module_direct_base ? (SZ_128M - kernel_size) / PAGE_SIZE : 0);
 	pr_info("%llu pages in range for PLT usage",
 		module_plt_base ? (SZ_2G - kernel_size) / PAGE_SIZE : 0);
@@ -116,23 +116,23 @@ void *module_alloc(unsigned long size)
 
 	/*
 	 * Where possible, prefer to allocate within direct branch range of the
-	 * kernel such that no PLTs are necessary.
+	 * kernel such that anal PLTs are necessary.
 	 */
 	if (module_direct_base) {
-		p = __vmalloc_node_range(size, MODULE_ALIGN,
+		p = __vmalloc_analde_range(size, MODULE_ALIGN,
 					 module_direct_base,
 					 module_direct_base + SZ_128M,
-					 GFP_KERNEL | __GFP_NOWARN,
-					 PAGE_KERNEL, 0, NUMA_NO_NODE,
+					 GFP_KERNEL | __GFP_ANALWARN,
+					 PAGE_KERNEL, 0, NUMA_ANAL_ANALDE,
 					 __builtin_return_address(0));
 	}
 
 	if (!p && module_plt_base) {
-		p = __vmalloc_node_range(size, MODULE_ALIGN,
+		p = __vmalloc_analde_range(size, MODULE_ALIGN,
 					 module_plt_base,
 					 module_plt_base + SZ_2G,
-					 GFP_KERNEL | __GFP_NOWARN,
-					 PAGE_KERNEL, 0, NUMA_NO_NODE,
+					 GFP_KERNEL | __GFP_ANALWARN,
+					 PAGE_KERNEL, 0, NUMA_ANAL_ANALDE,
 					 __builtin_return_address(0));
 	}
 
@@ -151,7 +151,7 @@ void *module_alloc(unsigned long size)
 }
 
 enum aarch64_reloc_op {
-	RELOC_OP_NONE,
+	RELOC_OP_ANALNE,
 	RELOC_OP_ABS,
 	RELOC_OP_PREL,
 	RELOC_OP_PAGE,
@@ -166,11 +166,11 @@ static u64 do_reloc(enum aarch64_reloc_op reloc_op, __le32 *place, u64 val)
 		return val - (u64)place;
 	case RELOC_OP_PAGE:
 		return (val & ~0xfff) - ((u64)place & ~0xfff);
-	case RELOC_OP_NONE:
+	case RELOC_OP_ANALNE:
 		return 0;
 	}
 
-	pr_err("do_reloc: unknown relocation operation %d\n", reloc_op);
+	pr_err("do_reloc: unkanalwn relocation operation %d\n", reloc_op);
 	return 0;
 }
 
@@ -251,7 +251,7 @@ static int reloc_insn_movw(enum aarch64_reloc_op op, __le32 *place, u64 val,
 	if (imm_type == AARCH64_INSN_IMM_MOVNZ) {
 		/*
 		 * For signed MOVW relocations, we have to manipulate the
-		 * instruction encoding depending on whether or not the
+		 * instruction encoding depending on whether or analt the
 		 * immediate is less than zero.
 		 */
 		insn &= ~(3 << 29);
@@ -305,7 +305,7 @@ static int reloc_insn_imm(enum aarch64_reloc_op op, __le32 *place, u64 val,
 	sval = (s64)(sval & ~(imm_mask >> 1)) >> (len - 1);
 
 	/*
-	 * Overflow has occurred if the upper bits are not all equal to
+	 * Overflow has occurred if the upper bits are analt all equal to
 	 * the sign bit of the value.
 	 */
 	if ((u64)(sval + 1) >= 2)
@@ -332,9 +332,9 @@ static int reloc_insn_adrp(struct module *mod, Elf64_Shdr *sechdrs,
 		/* out of range for ADR -> emit a veneer */
 		val = module_emit_veneer_for_adrp(mod, sechdrs, place, val & ~0xfff);
 		if (!val)
-			return -ENOEXEC;
+			return -EANALEXEC;
 		insn = aarch64_insn_gen_branch_imm((u64)place, val,
-						   AARCH64_INSN_BRANCH_NOLINK);
+						   AARCH64_INSN_BRANCH_ANALLINK);
 	}
 
 	*place = cpu_to_le32(insn);
@@ -373,8 +373,8 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		/* Perform the static relocation. */
 		switch (ELF64_R_TYPE(rel[i].r_info)) {
 		/* Null relocations. */
-		case R_ARM_NONE:
-		case R_AARCH64_NONE:
+		case R_ARM_ANALNE:
+		case R_AARCH64_ANALNE:
 			ovf = 0;
 			break;
 
@@ -532,7 +532,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			if (ovf == -ERANGE) {
 				val = module_emit_plt_entry(me, sechdrs, loc, &rel[i], sym);
 				if (!val)
-					return -ENOEXEC;
+					return -EANALEXEC;
 				ovf = reloc_insn_imm(RELOC_OP_PREL, loc, val, 2,
 						     26, AARCH64_INSN_IMM_26);
 			}
@@ -541,7 +541,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		default:
 			pr_err("module %s: unsupported RELA relocation: %llu\n",
 			       me->name, ELF64_R_TYPE(rel[i].r_info));
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 
 		if (overflow_check && ovf == -ERANGE)
@@ -554,7 +554,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 overflow:
 	pr_err("module %s: overflow in relocation type %d val %Lx\n",
 	       me->name, (int)ELF64_R_TYPE(rel[i].r_info), val);
-	return -ENOEXEC;
+	return -EANALEXEC;
 }
 
 static inline void __init_plt(struct plt_entry *plt, unsigned long addr)
@@ -572,7 +572,7 @@ static int module_init_ftrace_plt(const Elf_Ehdr *hdr,
 
 	s = find_section(hdr, sechdrs, ".text.ftrace_trampoline");
 	if (!s)
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	plts = (void *)s->sh_addr;
 

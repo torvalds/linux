@@ -30,8 +30,8 @@
 			  0x6 0x0 0x0 0xfee00000 0x00040000
 			  0x7 0x0 0x0 0xfee80000 0x00040000>;
 
-		/* nor@0,0 is a mirror of part of the memory in nor@1,0
-		nor@0,0 {
+		/* analr@0,0 is a mirror of part of the memory in analr@1,0
+		analr@0,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "ge,imp3a-firmware-mirror", "cfi-flash";
@@ -47,7 +47,7 @@
 		};
 		*/
 
-		nor@1,0 {
+		analr@1,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "ge,imp3a-paged-flash", "cfi-flash";

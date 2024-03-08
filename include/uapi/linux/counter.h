@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Userspace ABI for Counter character devices
  * Copyright (C) 2020 William Breathitt Gray
@@ -11,7 +11,7 @@
 
 /* Component type definitions */
 enum counter_component_type {
-	COUNTER_COMPONENT_NONE,
+	COUNTER_COMPONENT_ANALNE,
 	COUNTER_COMPONENT_SIGNAL,
 	COUNTER_COMPONENT_COUNT,
 	COUNTER_COMPONENT_FUNCTION,
@@ -83,7 +83,7 @@ struct counter_watch {
 /*
  * Queues a Counter watch for the specified event.
  *
- * The queued watches will not be applied until COUNTER_ENABLE_EVENTS_IOCTL is
+ * The queued watches will analt be applied until COUNTER_ENABLE_EVENTS_IOCTL is
  * called.
  */
 #define COUNTER_ADD_WATCH_IOCTL _IOW(0x3E, 0x00, struct counter_watch)
@@ -103,7 +103,7 @@ struct counter_watch {
 
 /**
  * struct counter_event - Counter event data
- * @timestamp: best estimate of time of event occurrence, in nanoseconds
+ * @timestamp: best estimate of time of event occurrence, in naanalseconds
  * @value: component value
  * @watch: component watch configuration
  * @status: return status (system error number)
@@ -123,9 +123,9 @@ enum counter_count_direction {
 
 /* Count mode values */
 enum counter_count_mode {
-	COUNTER_COUNT_MODE_NORMAL,
+	COUNTER_COUNT_MODE_ANALRMAL,
 	COUNTER_COUNT_MODE_RANGE_LIMIT,
-	COUNTER_COUNT_MODE_NON_RECYCLE,
+	COUNTER_COUNT_MODE_ANALN_RECYCLE,
 	COUNTER_COUNT_MODE_MODULO_N,
 	COUNTER_COUNT_MODE_INTERRUPT_ON_TERMINAL_COUNT,
 	COUNTER_COUNT_MODE_HARDWARE_RETRIGGERABLE_ONESHOT,
@@ -155,7 +155,7 @@ enum counter_signal_level {
 
 /* Action mode values */
 enum counter_synapse_action {
-	COUNTER_SYNAPSE_ACTION_NONE,
+	COUNTER_SYNAPSE_ACTION_ANALNE,
 	COUNTER_SYNAPSE_ACTION_RISING_EDGE,
 	COUNTER_SYNAPSE_ACTION_FALLING_EDGE,
 	COUNTER_SYNAPSE_ACTION_BOTH_EDGES,

@@ -30,7 +30,7 @@ struct wtm_spec {
 
 
 /*
- *	2*ADC 6*DAC no1 ringbuffer r/w on i2c bus
+ *	2*ADC 6*DAC anal1 ringbuffer r/w on i2c bus
  */
 static inline void stac9460_put(struct snd_ice1712 *ice, int reg,
 						unsigned char val)
@@ -44,7 +44,7 @@ static inline unsigned char stac9460_get(struct snd_ice1712 *ice, int reg)
 }
 
 /*
- *	2*ADC 2*DAC no2 ringbuffer r/w on i2c bus
+ *	2*ADC 2*DAC anal2 ringbuffer r/w on i2c bus
  */
 static inline void stac9460_2_put(struct snd_ice1712 *ice, int reg,
 						unsigned char val)
@@ -108,7 +108,7 @@ static void stac9460_dac_mute_all(struct snd_ice1712 *ice, unsigned char mute,
 
 
 
-#define stac9460_dac_mute_info		snd_ctl_boolean_mono_info
+#define stac9460_dac_mute_info		snd_ctl_boolean_moanal_info
 
 static int stac9460_dac_mute_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -441,7 +441,7 @@ static void stac9460_set_rate_val(struct snd_ice1712 *ice, unsigned int rate)
 	unsigned short int changed;
 	struct wtm_spec *spec = ice->spec;
 
-	if (rate == 0)  /* no hint - S/PDIF input is master, simply return */
+	if (rate == 0)  /* anal hint - S/PDIF input is master, simply return */
 		return;
 	else if (rate <= 48000)
 		new = 0x08;     /* 256x, base rate mode */
@@ -583,7 +583,7 @@ static int wtm_init(struct snd_ice1712 *ice)
 	/*init mutex for dac mute conflict*/
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->spec = spec;
 	mutex_init(&spec->mute_mutex);
 

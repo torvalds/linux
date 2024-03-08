@@ -123,7 +123,7 @@ static int pcm3060_hw_params(struct snd_pcm_substream *substream,
 
 	rate = params_rate(params);
 	if (!rate) {
-		dev_err(comp->dev, "rate is not configured\n");
+		dev_err(comp->dev, "rate is analt configured\n");
 		return -EINVAL;
 	}
 
@@ -304,7 +304,7 @@ EXPORT_SYMBOL(pcm3060_regmap);
 
 /* device */
 
-static void pcm3060_parse_dt(const struct device_node *np,
+static void pcm3060_parse_dt(const struct device_analde *np,
 			     struct pcm3060_priv *priv)
 {
 	priv->out_se = of_property_read_bool(np, "ti,out-single-ended");
@@ -323,8 +323,8 @@ int pcm3060_probe(struct device *dev)
 		return rc;
 	}
 
-	if (dev->of_node)
-		pcm3060_parse_dt(dev->of_node, priv);
+	if (dev->of_analde)
+		pcm3060_parse_dt(dev->of_analde, priv);
 
 	if (priv->out_se)
 		regmap_update_bits(priv->regmap, PCM3060_REG64,

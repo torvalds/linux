@@ -98,7 +98,7 @@ struct hl_eq_sm_sei_data {
 };
 
 enum hl_fw_alive_severity {
-	FW_ALIVE_SEVERITY_MINOR,
+	FW_ALIVE_SEVERITY_MIANALR,
 	FW_ALIVE_SEVERITY_CRITICAL
 };
 
@@ -188,7 +188,7 @@ enum hl_hbm_sei_cause {
 #define HBM_ECC_DERR_CNTR_MASK		0xFF00
 #define HBM_RD_PARITY_CNTR_MASK		0xFF0000
 
-/* HBM index and MC index are known by the event_id */
+/* HBM index and MC index are kanalwn by the event_id */
 struct hl_hbm_sei_header {
 	union {
 		/* relevant only in case of HBM read error */
@@ -402,14 +402,14 @@ enum pq_init_status {
 	PQ_INIT_STATUS_READY_FOR_CP,
 	PQ_INIT_STATUS_READY_FOR_HOST,
 	PQ_INIT_STATUS_READY_FOR_CP_SINGLE_MSI,
-	PQ_INIT_STATUS_LEN_NOT_POWER_OF_TWO_ERR,
+	PQ_INIT_STATUS_LEN_ANALT_POWER_OF_TWO_ERR,
 	PQ_INIT_STATUS_ILLEGAL_Q_ADDR_ERR
 };
 
 /*
  * CpuCP Primary Queue Packets
  *
- * During normal operation, the host's kernel driver needs to send various
+ * During analrmal operation, the host's kernel driver needs to send various
  * messages to CpuCP, usually either to SET some value into a H/W periphery or
  * to GET the current value of some H/W periphery. For example, SET the
  * frequency of MME/TPC and GET the value of the thermal sensor.
@@ -417,14 +417,14 @@ enum pq_init_status {
  * These messages can be initiated either by the User application or by the
  * host's driver itself, e.g. power management code. In either case, the
  * communication from the host's driver to CpuCP will *always* be in
- * synchronous mode, meaning that the host will send a single message and poll
- * until the message was acknowledged and the results are ready (if results are
+ * synchroanalus mode, meaning that the host will send a single message and poll
+ * until the message was ackanalwledged and the results are ready (if results are
  * needed).
  *
  * This means that only a single message can be sent at a time and the host's
  * driver must wait for its result before sending the next message. Having said
  * that, because these are control messages which are sent in a relatively low
- * frequency, this limitation seems acceptable. It's important to note that
+ * frequency, this limitation seems acceptable. It's important to analte that
  * in case of multiple devices, messages to different devices *can* be sent
  * at the same time.
  *
@@ -454,12 +454,12 @@ enum pq_init_status {
  * To use QMAN packets, the opcode must be the QMAN opcode, shifted by 8
  * so the value being put by the host's driver matches the value read by CpuCP
  *
- * Non-QMAN packets should be limited to values 1 through (2^8 - 1)
+ * Analn-QMAN packets should be limited to values 1 through (2^8 - 1)
  *
  * Detailed description:
  *
  * CPUCP_PACKET_DISABLE_PCI_ACCESS -
- *       After receiving this packet the embedded CPU must NOT issue PCI
+ *       After receiving this packet the embedded CPU must ANALT issue PCI
  *       transactions (read/write) towards the Host CPU. This also include
  *       sending MSI-X interrupts.
  *       This packet is usually sent before the device is moved to D3Hot state.
@@ -638,7 +638,7 @@ enum pq_init_status {
  *       Check if the device is IDLE in regard to the DMA/compute engines
  *       and QMANs. The f/w will return a bitmask where each bit represents
  *       a different engine or QMAN according to enum cpucp_idle_mask.
- *       The bit will be 1 if the engine is NOT idle.
+ *       The bit will be 1 if the engine is ANALT idle.
  *
  * CPUCP_PACKET_HBM_REPLACED_ROWS_INFO_GET -
  *       Fetch all HBM replaced-rows and prending to be replaced rows data.
@@ -656,12 +656,12 @@ enum pq_init_status {
  * CPUCP_PACKET_SEC_ATTEST_GET -
  *       Get the attestaion data that is collected during various stages of the
  *       boot sequence. the attestation data is also hashed with some unique
- *       number (nonce) provided by the host to prevent replay attacks.
+ *       number (analnce) provided by the host to prevent replay attacks.
  *       public key and certificate also provided as part of the FW response.
  *
  * CPUCP_PACKET_INFO_SIGNED_GET -
  *       Get the device information signed by the Trusted Platform device.
- *       device info data is also hashed with some unique number (nonce) provided
+ *       device info data is also hashed with some unique number (analnce) provided
  *       by the host to prevent replay attacks. public key and certificate also
  *       provided as part of the FW response.
  *
@@ -735,22 +735,22 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_HBM_REPLACED_ROWS_INFO_GET,/* internal */
 	CPUCP_PACKET_HBM_PENDING_ROWS_STATUS,	/* internal */
 	CPUCP_PACKET_POWER_SET,			/* internal */
-	CPUCP_PACKET_RESERVED,			/* not used */
+	CPUCP_PACKET_RESERVED,			/* analt used */
 	CPUCP_PACKET_ENGINE_CORE_ASID_SET,	/* internal */
-	CPUCP_PACKET_RESERVED2,			/* not used */
+	CPUCP_PACKET_RESERVED2,			/* analt used */
 	CPUCP_PACKET_SEC_ATTEST_GET,		/* internal */
 	CPUCP_PACKET_INFO_SIGNED_GET,		/* internal */
-	CPUCP_PACKET_RESERVED4,			/* not used */
+	CPUCP_PACKET_RESERVED4,			/* analt used */
 	CPUCP_PACKET_MONITOR_DUMP_GET,		/* debugfs */
-	CPUCP_PACKET_RESERVED5,			/* not used */
-	CPUCP_PACKET_RESERVED6,			/* not used */
-	CPUCP_PACKET_RESERVED7,			/* not used */
+	CPUCP_PACKET_RESERVED5,			/* analt used */
+	CPUCP_PACKET_RESERVED6,			/* analt used */
+	CPUCP_PACKET_RESERVED7,			/* analt used */
 	CPUCP_PACKET_GENERIC_PASSTHROUGH,	/* IOCTL */
-	CPUCP_PACKET_RESERVED8,			/* not used */
+	CPUCP_PACKET_RESERVED8,			/* analt used */
 	CPUCP_PACKET_ACTIVE_STATUS_SET,		/* internal */
-	CPUCP_PACKET_RESERVED9,			/* not used */
-	CPUCP_PACKET_RESERVED10,		/* not used */
-	CPUCP_PACKET_RESERVED11,		/* not used */
+	CPUCP_PACKET_RESERVED9,			/* analt used */
+	CPUCP_PACKET_RESERVED10,		/* analt used */
+	CPUCP_PACKET_RESERVED11,		/* analt used */
 	CPUCP_PACKET_RESERVED12,		/* internal */
 	CPUCP_PACKET_RESERVED13,                /* internal */
 	CPUCP_PACKET_SOFT_RESET,		/* internal */
@@ -821,7 +821,7 @@ struct cpucp_packet {
 			__u8 i2c_addr;
 			__u8 i2c_reg;
 			/*
-			 * In legacy implemetations, i2c_len was not present,
+			 * In legacy implemetations, i2c_len was analt present,
 			 * was unused and just added as pad.
 			 * So if i2c_len is 0, it is treated as legacy
 			 * and r/w 1 Byte, else if i2c_len is specified,
@@ -850,12 +850,12 @@ struct cpucp_packet {
 
 		/*
 		 * For any general status bitmask. Shall be used whenever the
-		 * result cannot be used to hold general purpose data.
+		 * result cananalt be used to hold general purpose data.
 		 */
 		__le32 status_mask;
 
 		/* random, used once number, for security packets */
-		__le32 nonce;
+		__le32 analnce;
 	};
 
 	union {
@@ -998,7 +998,7 @@ enum cpucp_power_type {
  * MSI type enumeration table for all ASICs and future SW versions.
  * For future ASIC-LKD compatibility, we can only add new enumerations.
  * at the end of the table (before CPUCP_NUM_OF_MSI_TYPES).
- * Changing the order of entries or removing entries is not allowed.
+ * Changing the order of entries or removing entries is analt allowed.
  */
 enum cpucp_msi_type {
 	CPUCP_EVENT_QUEUE_MSI_TYPE,
@@ -1015,7 +1015,7 @@ enum cpucp_msi_type {
  * PLL enumeration table used for all ASICs and future SW versions.
  * For future ASIC-LKD compatibility, we can only add new enumerations.
  * at the end of the table.
- * Changing the order of entries or removing entries is not allowed.
+ * Changing the order of entries or removing entries is analt allowed.
  */
 enum pll_index {
 	CPU_PLL = 0,
@@ -1137,8 +1137,8 @@ struct cpucp_security_info {
  * @decoder_binning_mask: Decoder binning mask, 1 bit per decoder instance
  *                        (0 = functional, 1 = binned), maximum 1 per dcore
  * @sram_binning: Categorize SRAM functionality
- *                (0 = fully functional, 1 = lower-half is not functional,
- *                 2 = upper-half is not functional)
+ *                (0 = fully functional, 1 = lower-half is analt functional,
+ *                 2 = upper-half is analt functional)
  * @sec_info: security information
  * @pll_map: Bit map of supported PLLs for current ASIC version.
  * @mme_binning_mask: MME binning mask,
@@ -1148,7 +1148,7 @@ struct cpucp_security_info {
  *                    bits [21:27] <==> dcore1 mme ima
  *                    For each group, if the 6th bit is set then first 5 bits
  *                    represent the col's idx [0-31], otherwise these bits are
- *                    ignored, and col idx 32 is binned. 7th bit is don't care.
+ *                    iganalred, and col idx 32 is binned. 7th bit is don't care.
  * @dram_binning_mask: DRAM binning mask, 1 bit per dram instance
  *                     (0 = functional 1 = binned)
  * @memory_repair_flag: eFuse flag indicating memory repair
@@ -1205,7 +1205,7 @@ enum cpucp_serdes_type {
 	HLS2_SERDES_TYPE,
 	HLS2_TYPE_1_SERDES_TYPE,
 	MAX_NUM_SERDES_TYPE,		/* number of types */
-	UNKNOWN_SERDES_TYPE = 0xFFFF	/* serdes_type is u16 */
+	UNKANALWN_SERDES_TYPE = 0xFFFF	/* serdes_type is u16 */
 };
 
 struct cpucp_nic_info {
@@ -1331,7 +1331,7 @@ enum cpu_reset_status {
  * @pcr_data: raw values of the PCR registers
  * @pcr_num_reg: number of PCR registers in the pcr_data array
  * @pcr_reg_len: length of each PCR register in the pcr_data array (bytes)
- * @nonce: number only used once. random number provided by host. this also
+ * @analnce: number only used once. random number provided by host. this also
  *	    passed to the quote command as a qualifying data.
  * @pcr_quote_len: length of the attestation quote data (bytes)
  * @pcr_quote: attestation report data structure
@@ -1348,7 +1348,7 @@ struct cpucp_sec_attest_info {
 	__u8 pcr_num_reg;
 	__u8 pcr_reg_len;
 	__le16 pad0;
-	__le32 nonce;
+	__le32 analnce;
 	__le16 pcr_quote_len;
 	__u8 pcr_quote[SEC_PCR_QUOTE_BUF_SZ];
 	__u8 quote_sig_len;
@@ -1362,10 +1362,10 @@ struct cpucp_sec_attest_info {
 /*
  * struct cpucp_dev_info_signed - device information signed by a secured device
  * @info: device information structure as defined above
- * @nonce: number only used once. random number provided by host. this number is
+ * @analnce: number only used once. random number provided by host. this number is
  *	   hashed and signed along with the device information.
  * @info_sig_len: length of the attestation signature (bytes)
- * @info_sig: signature of the info + nonce data.
+ * @info_sig: signature of the info + analnce data.
  * @pub_data_len: length of the public data (bytes)
  * @public_data: public key info signed info data
  *		 (outPublic + name + qualifiedName)
@@ -1374,7 +1374,7 @@ struct cpucp_sec_attest_info {
  */
 struct cpucp_dev_info_signed {
 	struct cpucp_info info;	/* assumed to be 64bit aligned */
-	__le32 nonce;
+	__le32 analnce;
 	__le32 pad0;
 	__u8 info_sig_len;
 	__u8 info_sig[SEC_SIGNATURE_BUF_SZ];

@@ -39,7 +39,7 @@ void dm_audit_log_ti(int audit_type, const char *dm_msg_prefix, const char *op,
 	struct audit_buffer *ab = NULL;
 	struct mapped_device *md = dm_table_get_md(ti->table);
 	int dev_major = dm_disk(md)->major;
-	int dev_minor = dm_disk(md)->first_minor;
+	int dev_mianalr = dm_disk(md)->first_mianalr;
 
 	switch (audit_type) {
 	case AUDIT_DM_CTRL:
@@ -48,14 +48,14 @@ void dm_audit_log_ti(int audit_type, const char *dm_msg_prefix, const char *op,
 			return;
 		audit_log_task_info(ab);
 		audit_log_format(ab, " dev=%d:%d error_msg='%s'", dev_major,
-				 dev_minor, !result ? ti->error : "success");
+				 dev_mianalr, !result ? ti->error : "success");
 		break;
 	case AUDIT_DM_EVENT:
 		ab = dm_audit_log_start(audit_type, dm_msg_prefix, op);
 		if (unlikely(!ab))
 			return;
 		audit_log_format(ab, " dev=%d:%d sector=?", dev_major,
-				 dev_minor);
+				 dev_mianalr);
 		break;
 	default: /* unintended use */
 		return;
@@ -71,14 +71,14 @@ void dm_audit_log_bio(const char *dm_msg_prefix, const char *op,
 {
 	struct audit_buffer *ab;
 	int dev_major = MAJOR(bio->bi_bdev->bd_dev);
-	int dev_minor = MINOR(bio->bi_bdev->bd_dev);
+	int dev_mianalr = MIANALR(bio->bi_bdev->bd_dev);
 
 	ab = dm_audit_log_start(AUDIT_DM_EVENT, dm_msg_prefix, op);
 	if (unlikely(!ab))
 		return;
 
 	audit_log_format(ab, " dev=%d:%d sector=%llu res=%d",
-			 dev_major, dev_minor, sector, result);
+			 dev_major, dev_mianalr, sector, result);
 	audit_log_end(ab);
 }
 EXPORT_SYMBOL_GPL(dm_audit_log_bio);

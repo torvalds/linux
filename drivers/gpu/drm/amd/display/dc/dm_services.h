@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -136,7 +136,7 @@ void reg_sequence_wait_done(const struct dc_context *ctx);
 
 /*
  * return number of poll before condition is met
- * return 0 if condition is not meet after specified time out tries
+ * return 0 if condition is analt meet after specified time out tries
  */
 void generic_reg_wait(const struct dc_context *ctx,
 	uint32_t addr, uint32_t mask, uint32_t shift, uint32_t condition_value,
@@ -202,18 +202,18 @@ bool dm_pp_get_clock_levels_by_type_with_voltage(
 	enum dm_pp_clock_type clk_type,
 	struct dm_pp_clock_levels_with_voltage *clk_level_info);
 
-bool dm_pp_notify_wm_clock_changes(
+bool dm_pp_analtify_wm_clock_changes(
 	const struct dc_context *ctx,
 	struct dm_pp_wm_sets_with_clock_ranges *wm_with_clock_ranges);
 
 void dm_pp_get_funcs(struct dc_context *ctx,
 		struct pp_smu_funcs *funcs);
 
-/* DAL calls this function to notify PP about completion of Mode Set.
+/* DAL calls this function to analtify PP about completion of Mode Set.
  * For PP it means that current DCE clocks are those which were returned
  * by dc_service_pp_pre_dce_clock_change(), in the 'output' parameter.
  *
- * If the clocks are higher than before, then PP does nothing.
+ * If the clocks are higher than before, then PP does analthing.
  *
  * If the clocks are lower than before, then PP reduces the voltage.
  *

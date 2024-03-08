@@ -134,7 +134,7 @@
 #define TRIG_PULSE                (1<<15) /* generate a Pulse rather than a single edge */
 #define TRIG_PER                  (1<<14) /* generate a periodic signal */
 #define TRIG_IF_LATE              (1<<13) /* trigger immediately if already past */
-#define TRIG_NOTIFY               (1<<12) /* Trigger Notification Enable */
+#define TRIG_ANALTIFY               (1<<12) /* Trigger Analtification Enable */
 #define TRIG_GPIO_SHIFT           (8)     /* Trigger GPIO Connection, value 1-12 */
 #define TRIG_GPIO_MASK            (0xf)
 #define TRIG_TOGGLE               (1<<7)  /* Trigger Toggle Mode Enable */
@@ -156,7 +156,7 @@
 #define SYNC_1STEP                (1<<15) /* insert timestamp into transmit Sync Messages */
 #define DR_INSERT                 (1<<13) /* Insert Delay_Req Timestamp in Delay_Resp (dangerous) */
 #define NTP_TS_EN                 (1<<12) /* Enable Timestamping of NTP Packets */
-#define IGNORE_2STEP              (1<<11) /* Ignore Two_Step flag for One-Step operation */
+#define IGANALRE_2STEP              (1<<11) /* Iganalre Two_Step flag for One-Step operation */
 #define CRC_1STEP                 (1<<10) /* Disable checking of CRC for One-Step operation */
 #define CHK_1STEP                 (1<<9)  /* Enable UDP Checksum correction for One-Step Operation */
 #define IP1588_EN                 (1<<8)  /* Enable IEEE 1588 defined IP address filter */
@@ -223,7 +223,7 @@
 #define TS_SEC_EN                 (1<<14) /* Enable Timestamp Seconds */
 #define TS_SEC_LEN_SHIFT          (12)    /* Inserted Timestamp Seconds Length */
 #define TS_SEC_LEN_MASK           (0x3)
-#define RXTS_NS_OFF_SHIFT         (6)     /* Receive Timestamp Nanoseconds offset */
+#define RXTS_NS_OFF_SHIFT         (6)     /* Receive Timestamp Naanalseconds offset */
 #define RXTS_NS_OFF_MASK          (0x3f)
 #define RXTS_SEC_OFF_SHIFT        (0)     /* Receive Timestamp Seconds offset */
 #define RXTS_SEC_OFF_MASK         (0x3f)

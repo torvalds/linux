@@ -117,7 +117,7 @@ static bool rt298_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case 0 ... 0xff:
-	case RT298_GET_PARAM(AC_NODE_ROOT, AC_PAR_VENDOR_ID):
+	case RT298_GET_PARAM(AC_ANALDE_ROOT, AC_PAR_VENDOR_ID):
 	case RT298_GET_HP_SENSE:
 	case RT298_GET_MIC1_SENSE:
 	case RT298_PROC_COEF:
@@ -136,7 +136,7 @@ static bool rt298_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case 0 ... 0xff:
-	case RT298_GET_PARAM(AC_NODE_ROOT, AC_PAR_VENDOR_ID):
+	case RT298_GET_PARAM(AC_ANALDE_ROOT, AC_PAR_VENDOR_ID):
 	case RT298_GET_HP_SENSE:
 	case RT298_GET_MIC1_SENSE:
 	case RT298_SET_AUDIO_POWER:
@@ -512,7 +512,7 @@ static int rt298_adc_event(struct snd_soc_dapm_widget *w,
 			0x7080, 0x7000);
 		 /* If MCLK doesn't exist, reset AD filter */
 		if (!(snd_soc_component_read(component, RT298_VAD_CTRL) & 0x200)) {
-			pr_info("NO MCLK\n");
+			pr_info("ANAL MCLK\n");
 			switch (nid) {
 			case RT298_ADC_IN1:
 				snd_soc_component_update_bits(component,
@@ -588,7 +588,7 @@ static const struct snd_soc_dapm_widget rt298_dapm_widgets[] = {
 
 	SND_SOC_DAPM_SUPPLY("MCLK MODE", RT298_PLL_CTRL1,
 		5, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("MIC1 Input Buffer", SND_SOC_NOPM,
+	SND_SOC_DAPM_SUPPLY("MIC1 Input Buffer", SND_SOC_ANALPM,
 		0, 0, rt298_mic1_event, SND_SOC_DAPM_PRE_PMU |
 		SND_SOC_DAPM_POST_PMD),
 
@@ -605,16 +605,16 @@ static const struct snd_soc_dapm_widget rt298_dapm_widgets[] = {
 		SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_PGA("DMIC2", RT298_SET_POWER(RT298_DMIC2), 0, 1,
 		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("DMIC Receiver", SND_SOC_NOPM,
+	SND_SOC_DAPM_SUPPLY("DMIC Receiver", SND_SOC_ANALPM,
 		0, 0, NULL, 0),
 
 	/* REC Mixer */
-	SND_SOC_DAPM_MIXER("RECMIX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("RECMIX", SND_SOC_ANALPM, 0, 0,
 		rt298_rec_mix, ARRAY_SIZE(rt298_rec_mix)),
 
 	/* ADCs */
-	SND_SOC_DAPM_ADC("ADC 0", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("ADC 1", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC 0", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC 1", NULL, SND_SOC_ANALPM, 0, 0),
 
 	/* ADC Mux */
 	SND_SOC_DAPM_MUX_E("ADC 0 Mux", RT298_SET_POWER(RT298_ADC_IN1), 0, 1,
@@ -625,19 +625,19 @@ static const struct snd_soc_dapm_widget rt298_dapm_widgets[] = {
 		SND_SOC_DAPM_POST_PMU),
 
 	/* Audio Interface */
-	SND_SOC_DAPM_AIF_IN("AIF1RX", "AIF1 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF1TX", "AIF1 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("AIF2RX", "AIF2 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF2TX", "AIF2 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF1RX", "AIF1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF1TX", "AIF1 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF2RX", "AIF2 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF2TX", "AIF2 Capture", 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Output Side */
 	/* DACs */
-	SND_SOC_DAPM_DAC("DAC 0", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC 1", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC 0", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC 1", NULL, SND_SOC_ANALPM, 0, 0),
 
 	/* Output Mux */
-	SND_SOC_DAPM_MUX("SPK Mux", SND_SOC_NOPM, 0, 0, &rt298_spo_mux),
-	SND_SOC_DAPM_MUX("HPO Mux", SND_SOC_NOPM, 0, 0, &rt298_hpo_mux),
+	SND_SOC_DAPM_MUX("SPK Mux", SND_SOC_ANALPM, 0, 0, &rt298_spo_mux),
+	SND_SOC_DAPM_MUX("HPO Mux", SND_SOC_ANALPM, 0, 0, &rt298_hpo_mux),
 
 	SND_SOC_DAPM_SUPPLY("HP Power", RT298_SET_PIN_HPO,
 		RT298_SET_PIN_SFT, 0, NULL, 0),
@@ -649,12 +649,12 @@ static const struct snd_soc_dapm_widget rt298_dapm_widgets[] = {
 			NULL, 0),
 
 	/* Output Pga */
-	SND_SOC_DAPM_SWITCH_E("SPO", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH_E("SPO", SND_SOC_ANALPM, 0, 0,
 		&spo_enable_control, rt298_spk_event,
 		SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
-	SND_SOC_DAPM_SWITCH("HPO L", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("HPO L", SND_SOC_ANALPM, 0, 0,
 		&hpol_enable_control),
-	SND_SOC_DAPM_SWITCH("HPO R", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("HPO R", SND_SOC_ANALPM, 0, 0,
 		&hpor_enable_control),
 
 	/* Output Lines */
@@ -765,7 +765,7 @@ static int rt298_hw_params(struct snd_pcm_substream *substream,
 	case 12288000:
 	case 24576000:
 		if (params_rate(params) != 48000) {
-			dev_err(component->dev, "Sys_clk is not matched (%d %d)\n",
+			dev_err(component->dev, "Sys_clk is analt matched (%d %d)\n",
 					params_rate(params), rt298->sys_clk);
 			return -EINVAL;
 		}
@@ -773,7 +773,7 @@ static int rt298_hw_params(struct snd_pcm_substream *substream,
 	case 11289600:
 	case 22579200:
 		if (params_rate(params) != 44100) {
-			dev_err(component->dev, "Sys_clk is not matched (%d %d)\n",
+			dev_err(component->dev, "Sys_clk is analt matched (%d %d)\n",
 					params_rate(params), rt298->sys_clk);
 			return -EINVAL;
 		}
@@ -861,7 +861,7 @@ static int rt298_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	default:
 		return -EINVAL;
 	}
-	/* bit 15 Stream Type 0:PCM 1:Non-PCM */
+	/* bit 15 Stream Type 0:PCM 1:Analn-PCM */
 	snd_soc_component_update_bits(component, RT298_DAC_FORMAT, 0x8000, 0);
 	snd_soc_component_update_bits(component, RT298_ADC_FORMAT, 0x8000, 0);
 
@@ -891,7 +891,7 @@ static int rt298_set_dai_sysclk(struct snd_soc_dai *dai,
 	switch (freq) {
 	case 19200000:
 		if (RT298_SCLK_S_MCLK == clk_id) {
-			dev_err(component->dev, "Should not use MCLK\n");
+			dev_err(component->dev, "Should analt use MCLK\n");
 			return -EINVAL;
 		}
 		snd_soc_component_update_bits(component,
@@ -899,7 +899,7 @@ static int rt298_set_dai_sysclk(struct snd_soc_dai *dai,
 		break;
 	case 24000000:
 		if (RT298_SCLK_S_MCLK == clk_id) {
-			dev_err(component->dev, "Should not use MCLK\n");
+			dev_err(component->dev, "Should analt use MCLK\n");
 			return -EINVAL;
 		}
 		snd_soc_component_update_bits(component,
@@ -1186,7 +1186,7 @@ static int rt298_i2c_probe(struct i2c_client *i2c)
 	rt298 = devm_kzalloc(&i2c->dev,	sizeof(*rt298),
 				GFP_KERNEL);
 	if (NULL == rt298)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt298->regmap = devm_regmap_init(&i2c->dev, NULL, i2c, &rt298_regmap);
 	if (IS_ERR(rt298->regmap)) {
@@ -1197,17 +1197,17 @@ static int rt298_i2c_probe(struct i2c_client *i2c)
 	}
 
 	regmap_read(rt298->regmap,
-		RT298_GET_PARAM(AC_NODE_ROOT, AC_PAR_VENDOR_ID), &ret);
+		RT298_GET_PARAM(AC_ANALDE_ROOT, AC_PAR_VENDOR_ID), &ret);
 	if (ret != RT298_VENDOR_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %#x is not rt298\n", ret);
-		return -ENODEV;
+			"Device with ID register %#x is analt rt298\n", ret);
+		return -EANALDEV;
 	}
 
 	rt298->index_cache = devm_kmemdup(&i2c->dev, rt298_index_def,
 					  sizeof(rt298_index_def), GFP_KERNEL);
 	if (!rt298->index_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt298->index_cache_size = INDEX_CACHE_SIZE;
 	rt298->i2c = i2c;

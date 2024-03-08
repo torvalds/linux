@@ -534,7 +534,7 @@ static int video_cc_sm8350_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,sc8280xp-videocc")) {
+	if (of_device_is_compatible(pdev->dev.of_analde, "qcom,sc8280xp-videocc")) {
 		video_cc_sleep_clk_src.cmd_rcgr = 0xf38;
 		video_cc_sleep_clk.halt_reg = 0xf58;
 		video_cc_sleep_clk.clkr.enable_reg = 0xf58;
@@ -542,7 +542,7 @@ static int video_cc_sm8350_probe(struct platform_device *pdev)
 		video_cc_xo_clk_cbcr = 0xf34;
 
 		video_pll0.vco_table = video_pll1.vco_table = lucid_5lpe_vco_8280xp;
-		/* No change, but assign it for completeness */
+		/* Anal change, but assign it for completeness */
 		video_pll0.num_vco = video_pll1.num_vco = ARRAY_SIZE(lucid_5lpe_vco_8280xp);
 
 		video_cc_mvs0_clk_src.freq_tbl = ftbl_video_cc_mvs0_clk_src_8280xp;

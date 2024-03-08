@@ -28,16 +28,16 @@ DECLARE_EVENT_CLASS(xe_gt_tlb_invalidation_fence,
 
 		    TP_STRUCT__entry(
 			     __field(struct xe_gt_tlb_invalidation_fence *, fence)
-			     __field(int, seqno)
+			     __field(int, seqanal)
 			     ),
 
 		    TP_fast_assign(
 			   __entry->fence = fence;
-			   __entry->seqno = fence->seqno;
+			   __entry->seqanal = fence->seqanal;
 			   ),
 
-		    TP_printk("fence=%p, seqno=%d",
-			      __entry->fence, __entry->seqno)
+		    TP_printk("fence=%p, seqanal=%d",
+			      __entry->fence, __entry->seqanal)
 );
 
 DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_create,
@@ -123,7 +123,7 @@ TRACE_EVENT(xe_bo_move,
 		   __entry->move_lacks_source = move_lacks_source;
 		   ),
 	    TP_printk("move_lacks_source:%s, migrate object %p [size %zu] from %s to %s device_id:%s",
-		      __entry->move_lacks_source ? "yes" : "no", __entry->bo, __entry->size,
+		      __entry->move_lacks_source ? "anal" : "anal", __entry->bo, __entry->size,
 		      xe_mem_type_to_name[__entry->old_placement],
 		      xe_mem_type_to_name[__entry->new_placement], __entry->device_id)
 );
@@ -253,7 +253,7 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 		    TP_ARGS(job),
 
 		    TP_STRUCT__entry(
-			     __field(u32, seqno)
+			     __field(u32, seqanal)
 			     __field(u16, guc_id)
 			     __field(u32, guc_state)
 			     __field(u32, flags)
@@ -263,7 +263,7 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 			     ),
 
 		    TP_fast_assign(
-			   __entry->seqno = xe_sched_job_seqno(job);
+			   __entry->seqanal = xe_sched_job_seqanal(job);
 			   __entry->guc_id = job->q->guc->id;
 			   __entry->guc_state =
 			   atomic_read(&job->q->guc->state);
@@ -273,8 +273,8 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 			   __entry->batch_addr = (u64)job->batch_addr[0];
 			   ),
 
-		    TP_printk("fence=0x%016llx, seqno=%u, guc_id=%d, batch_addr=0x%012llx, guc_state=0x%x, flags=0x%x, error=%d",
-			      __entry->fence, __entry->seqno, __entry->guc_id,
+		    TP_printk("fence=0x%016llx, seqanal=%u, guc_id=%d, batch_addr=0x%012llx, guc_state=0x%x, flags=0x%x, error=%d",
+			      __entry->fence, __entry->seqanal, __entry->guc_id,
 			      __entry->batch_addr, __entry->guc_state,
 			      __entry->flags, __entry->error)
 );
@@ -349,18 +349,18 @@ DECLARE_EVENT_CLASS(xe_hw_fence,
 
 		    TP_STRUCT__entry(
 			     __field(u64, ctx)
-			     __field(u32, seqno)
+			     __field(u32, seqanal)
 			     __field(struct xe_hw_fence *, fence)
 			     ),
 
 		    TP_fast_assign(
 			   __entry->ctx = fence->dma.context;
-			   __entry->seqno = fence->dma.seqno;
+			   __entry->seqanal = fence->dma.seqanal;
 			   __entry->fence = fence;
 			   ),
 
-		    TP_printk("ctx=0x%016llx, fence=%p, seqno=%u",
-			      __entry->ctx, __entry->fence, __entry->seqno)
+		    TP_printk("ctx=0x%016llx, fence=%p, seqanal=%u",
+			      __entry->ctx, __entry->fence, __entry->seqanal)
 );
 
 DEFINE_EVENT(xe_hw_fence, xe_hw_fence_create,

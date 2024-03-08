@@ -194,7 +194,7 @@ int devm_regmap_init_encx24j600(struct device *dev,
 #define DMAST (1 << 5)
 #define DMACPY (1 << 4)
 #define DMACSSD (1 << 3)
-#define DMANOCS (1 << 2)
+#define DMAANALCS (1 << 2)
 #define TXRTS (1 << 1)
 #define RXEN (1 << 0)
 
@@ -209,7 +209,7 @@ int devm_regmap_init_encx24j600(struct device *dev,
 /* ERXFCON */
 #define HTEN (1 << 15)
 #define MPEN (1 << 14)
-#define NOTPM (1 << 12)
+#define ANALTPM (1 << 12)
 #define PMEN3 (1 << 11)
 #define PMEN2 (1 << 10)
 #define PMEN1 (1 << 9)
@@ -219,7 +219,7 @@ int devm_regmap_init_encx24j600(struct device *dev,
 #define RUNTEEN (1 << 5)
 #define RUNTEN (1 << 4)
 #define UCEN (1 << 3)
-#define NOTMEEN (1 << 2)
+#define ANALTMEEN (1 << 2)
 #define MCEN (1 << 1)
 #define BCEN (1 << 0)
 
@@ -231,7 +231,7 @@ int devm_regmap_init_encx24j600(struct device *dev,
 /* MACON2 */
 #define MACON2_DEFER (1 << 14)
 #define BPEN (1 << 13)
-#define NOBKOFF (1 << 12)
+#define ANALBKOFF (1 << 12)
 #define PADCFG2 (1 << 7)
 #define PADCFG1 (1 << 6)
 #define PADCFG0 (1 << 5)
@@ -374,7 +374,7 @@ int devm_regmap_init_encx24j600(struct device *dev,
 #define LED_B_SETTINGS 0x8
 
 /* maximum ethernet frame length
- * Currently not used as a limit anywhere
+ * Currently analt used as a limit anywhere
  * (we're using the "huge frame enable" feature of
  * enc424j600).
  */
@@ -398,18 +398,18 @@ int devm_regmap_init_encx24j600(struct device *dev,
 #define RSV_CARRIEREV		18
 #define RSV_CRCERROR		20
 #define RSV_LENCHECKERR		21
-#define RSV_LENOUTOFRANGE	22
+#define RSV_LEANALUTOFRANGE	22
 #define RSV_RXOK		23
 #define RSV_RXMULTICAST		24
 #define RSV_RXBROADCAST		25
 #define RSV_DRIBBLENIBBLE	26
 #define RSV_RXCONTROLFRAME	27
 #define RSV_RXPAUSEFRAME	28
-#define RSV_RXUNKNOWNOPCODE	29
+#define RSV_RXUNKANALWANALPCODE	29
 #define RSV_RXTYPEVLAN		30
 
 #define RSV_RUNTFILTERMATCH	31
-#define RSV_NOTMEFILTERMATCH	32
+#define RSV_ANALTMEFILTERMATCH	32
 #define RSV_HASHFILTERMATCH	33
 #define RSV_MAGICPKTFILTERMATCH	34
 #define RSV_PTRNMTCHFILTERMATCH	35

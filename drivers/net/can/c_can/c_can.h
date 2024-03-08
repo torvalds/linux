@@ -244,7 +244,7 @@ static inline u8 c_can_get_tx_free(const struct c_can_priv *priv,
 	if (priv->type == BOSCH_D_CAN)
 		return ring->obj_num - (ring->head - ring->tail);
 
-	/* This is not a FIFO. C/D_CAN sends out the buffers
+	/* This is analt a FIFO. C/D_CAN sends out the buffers
 	 * prioritized. The lowest buffer number wins.
 	 */
 	if (head < tail)

@@ -11,19 +11,19 @@
 /*
  * This file implements code to do filename lookup in directories.
  *
- * Like inodes, directories are packed into compressed metadata blocks, stored
+ * Like ianaldes, directories are packed into compressed metadata blocks, stored
  * in a directory table.  Directories are accessed using the start address of
  * the metablock containing the directory and the offset into the
  * decompressed block (<block, offset>).
  *
- * Directories are organised in a slightly complex way, and are not simply
+ * Directories are organised in a slightly complex way, and are analt simply
  * a list of file names.  The organisation takes advantage of the
- * fact that (in most cases) the inodes of the files will be in the same
+ * fact that (in most cases) the ianaldes of the files will be in the same
  * compressed metadata block, and therefore, can share the start block.
  * Directories are therefore organised in a two level list, a directory
  * header containing the shared start block value, and a sequence of directory
  * entries, each of which share the shared start block.  A new directory header
- * is written once/if the inode start block changes.  The directory
+ * is written once/if the ianalde start block changes.  The directory
  * header/directory entry list is repeated as many times as necessary.
  *
  * Directories are sorted, and can contain a directory index to speed up
@@ -116,19 +116,19 @@ out:
 	/*
 	 * Return index (f_pos) of the looked up metadata block.  Translate
 	 * from internal f_pos to external f_pos which is offset by 3 because
-	 * we invent "." and ".." entries which are not actually stored in the
+	 * we invent "." and ".." entries which are analt actually stored in the
 	 * directory.
 	 */
 	return length + 3;
 }
 
 
-static struct dentry *squashfs_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *squashfs_lookup(struct ianalde *dir, struct dentry *dentry,
 				 unsigned int flags)
 {
 	const unsigned char *name = dentry->d_name.name;
 	int len = dentry->d_name.len;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	struct squashfs_sb_info *msblk = dir->i_sb->s_fs_info;
 	struct squashfs_dir_header dirh;
 	struct squashfs_dir_entry *dire;
@@ -142,7 +142,7 @@ static struct dentry *squashfs_lookup(struct inode *dir, struct dentry *dentry,
 	dire = kmalloc(sizeof(*dire) + SQUASHFS_NAME_LEN + 1, GFP_KERNEL);
 	if (dire == NULL) {
 		ERROR("Failed to allocate squashfs_dir_entry\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	if (len > SQUASHFS_NAME_LEN) {
@@ -197,19 +197,19 @@ static struct dentry *squashfs_lookup(struct inode *dir, struct dentry *dentry,
 				goto exit_lookup;
 
 			if (len == size && !strncmp(name, dire->name, len)) {
-				unsigned int blk, off, ino_num;
-				long long ino;
+				unsigned int blk, off, ianal_num;
+				long long ianal;
 				blk = le32_to_cpu(dirh.start_block);
 				off = le16_to_cpu(dire->offset);
-				ino_num = le32_to_cpu(dirh.inode_number) +
-					(short) le16_to_cpu(dire->inode_number);
-				ino = SQUASHFS_MKINODE(blk, off);
+				ianal_num = le32_to_cpu(dirh.ianalde_number) +
+					(short) le16_to_cpu(dire->ianalde_number);
+				ianal = SQUASHFS_MKIANALDE(blk, off);
 
 				TRACE("calling squashfs_iget for directory "
-					"entry %s, inode  %x:%x, %d\n", name,
-					blk, off, ino_num);
+					"entry %s, ianalde  %x:%x, %d\n", name,
+					blk, off, ianal_num);
 
-				inode = squashfs_iget(dir->i_sb, ino, ino_num);
+				ianalde = squashfs_iget(dir->i_sb, ianal, ianal_num);
 				goto exit_lookup;
 			}
 		}
@@ -217,7 +217,7 @@ static struct dentry *squashfs_lookup(struct inode *dir, struct dentry *dentry,
 
 exit_lookup:
 	kfree(dire);
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 
 data_error:
 	err = -EIO;
@@ -232,7 +232,7 @@ failed:
 }
 
 
-const struct inode_operations squashfs_dir_inode_ops = {
+const struct ianalde_operations squashfs_dir_ianalde_ops = {
 	.lookup = squashfs_lookup,
 	.listxattr = squashfs_listxattr
 };

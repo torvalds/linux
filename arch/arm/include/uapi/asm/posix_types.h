@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  *  arch/arm/include/asm/posix_types.h
  *
@@ -16,7 +16,7 @@
 
 /*
  * This file is generally used by user-level software, so you need to
- * be a little careful about namespace pollution etc.  Also, we cannot
+ * be a little careful about namespace pollution etc.  Also, we cananalt
  * assume GCC is being used.
  */
 

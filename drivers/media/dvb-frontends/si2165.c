@@ -9,7 +9,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -227,7 +227,7 @@ static int si2165_init_pll(struct si2165_state *state)
 			divr = 2;
 
 		/*
-		 * now select divn and divp such that
+		 * analw select divn and divp such that
 		 * fvco is in 1624..1824 MHz
 		 */
 		if (1624000000u * divr > ref_freq_hz * 2u * 63u)
@@ -278,7 +278,7 @@ static int si2165_wait_init_done(struct si2165_state *state)
 			return 0;
 		usleep_range(1000, 50000);
 	}
-	dev_err(&state->client->dev, "init_done was not set\n");
+	dev_err(&state->client->dev, "init_done was analt set\n");
 	return -EINVAL;
 }
 
@@ -379,7 +379,7 @@ static int si2165_upload_firmware(struct si2165_state *state)
 		fw_file = SI2165_FIRMWARE_REV_D;
 		break;
 	default:
-		dev_info(&state->client->dev, "no firmware file for revision=%d\n",
+		dev_info(&state->client->dev, "anal firmware file for revision=%d\n",
 			 state->chip_revcode);
 		return 0;
 	}
@@ -387,7 +387,7 @@ static int si2165_upload_firmware(struct si2165_state *state)
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, fw_file, &state->client->dev);
 	if (ret) {
-		dev_warn(&state->client->dev, "firmware file '%s' not found\n",
+		dev_warn(&state->client->dev, "firmware file '%s' analt found\n",
 			 fw_file);
 		goto error;
 	}
@@ -399,7 +399,7 @@ static int si2165_upload_firmware(struct si2165_state *state)
 		 fw_file, len);
 
 	if (len % 4 != 0) {
-		dev_warn(&state->client->dev, "firmware size is not multiple of 4\n");
+		dev_warn(&state->client->dev, "firmware size is analt multiple of 4\n");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -469,7 +469,7 @@ static int si2165_upload_firmware(struct si2165_state *state)
 					   &offset, block_count);
 	if (ret < 0) {
 		dev_err(&state->client->dev,
-			"firmware could not be uploaded\n");
+			"firmware could analt be uploaded\n");
 		goto error;
 	}
 
@@ -544,7 +544,7 @@ static int si2165_init(struct dvb_frontend *fe)
 	if (ret < 0)
 		goto error;
 	if (val != state->config.chip_mode) {
-		dev_err(&state->client->dev, "could not set chip_mode\n");
+		dev_err(&state->client->dev, "could analt set chip_mode\n");
 		return -EINVAL;
 	}
 
@@ -638,11 +638,11 @@ static int si2165_init(struct dvb_frontend *fe)
 
 	c = &state->fe.dtv_property_cache;
 	c->cnr.len = 1;
-	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_error.len = 1;
-	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_count.len = 1;
-	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	return 0;
 error:
@@ -684,7 +684,7 @@ static int si2165_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			return ret;
 		switch (u8tmp & 0x3) {
 		case 0: /* searching */
-		case 1: /* nothing */
+		case 1: /* analthing */
 			break;
 		case 2: /* digital signal */
 			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
@@ -737,11 +737,11 @@ static int si2165_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		c->cnr.stat[0].svalue = u32tmp;
 	} else
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	/* BER */
 	if (*status & FE_HAS_VITERBI) {
-		if (c->post_bit_error.stat[0].scale == FE_SCALE_NOT_AVAILABLE) {
+		if (c->post_bit_error.stat[0].scale == FE_SCALE_ANALT_AVAILABLE) {
 			/* start new sampling period to get rid of old data*/
 			ret = si2165_writereg8(state, REG_BER_RST, 0x01);
 			if (ret < 0)
@@ -789,8 +789,8 @@ static int si2165_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			}
 		}
 	} else {
-		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	return 0;
@@ -850,7 +850,7 @@ static int si2165_set_if_freq_shift(struct si2165_state *state)
 
 	if (!fe->ops.tuner_ops.get_if_frequency) {
 		dev_err(&state->client->dev,
-			"Error: get_if_frequency() not defined at tuner. Can't work without it!\n");
+			"Error: get_if_frequency() analt defined at tuner. Can't work without it!\n");
 		return -EINVAL;
 	}
 
@@ -876,8 +876,8 @@ static int si2165_set_if_freq_shift(struct si2165_state *state)
 static const struct si2165_reg_value_pair dvbt_regs[] = {
 	/* standard = DVB-T */
 	{ REG_DVB_STANDARD, 0x01 },
-	/* impulsive_noise_remover */
-	{ REG_IMPULSIVE_NOISE_REM, 0x01 },
+	/* impulsive_analise_remover */
+	{ REG_IMPULSIVE_ANALISE_REM, 0x01 },
 	{ REG_AUTO_RESET, 0x00 },
 	/* agc2 */
 	{ REG_AGC2_MIN, 0x41 },
@@ -909,7 +909,7 @@ static int si2165_set_frontend_dvbt(struct dvb_frontend *fe)
 	if (!state->has_dvbt)
 		return -EINVAL;
 
-	/* no bandwidth auto-detection */
+	/* anal bandwidth auto-detection */
 	if (bw_hz == 0)
 		return -EINVAL;
 
@@ -954,11 +954,11 @@ static const struct si2165_reg_value_pair dvbc_regs[] = {
 
 	{ REG_KP_LOCK, 0x05 },
 	{ REG_CENTRAL_TAP, 0x09 },
-	REG16(REG_UNKNOWN_350, 0x3e80),
+	REG16(REG_UNKANALWN_350, 0x3e80),
 
 	{ REG_AUTO_RESET, 0x01 },
-	REG16(REG_UNKNOWN_24C, 0x0000),
-	REG16(REG_UNKNOWN_27C, 0x0000),
+	REG16(REG_UNKANALWN_24C, 0x0000),
+	REG16(REG_UNKANALWN_27C, 0x0000),
 	{ REG_SWEEP_STEP, 0x03 },
 	{ REG_AGC_IF_TRI, 0x00 },
 };
@@ -1162,7 +1162,7 @@ static int si2165_probe(struct i2c_client *client)
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -1182,7 +1182,7 @@ static int si2165_probe(struct i2c_client *client)
 
 	if (state->config.ref_freq_hz < 4000000 ||
 	    state->config.ref_freq_hz > 27000000) {
-		dev_err(&state->client->dev, "ref_freq of %d Hz not supported by this driver\n",
+		dev_err(&state->client->dev, "ref_freq of %d Hz analt supported by this driver\n",
 			state->config.ref_freq_hz);
 		ret = -EINVAL;
 		goto error;
@@ -1198,26 +1198,26 @@ static int si2165_probe(struct i2c_client *client)
 	/* powerup */
 	ret = si2165_writereg8(state, REG_CHIP_MODE, state->config.chip_mode);
 	if (ret < 0)
-		goto nodev_error;
+		goto analdev_error;
 
 	ret = si2165_readreg8(state, REG_CHIP_MODE, &val);
 	if (ret < 0)
-		goto nodev_error;
+		goto analdev_error;
 	if (val != state->config.chip_mode)
-		goto nodev_error;
+		goto analdev_error;
 
 	ret = si2165_readreg8(state, REG_CHIP_REVCODE, &state->chip_revcode);
 	if (ret < 0)
-		goto nodev_error;
+		goto analdev_error;
 
 	ret = si2165_readreg8(state, REV_CHIP_TYPE, &state->chip_type);
 	if (ret < 0)
-		goto nodev_error;
+		goto analdev_error;
 
 	/* powerdown */
 	ret = si2165_writereg8(state, REG_CHIP_MODE, SI2165_MODE_OFF);
 	if (ret < 0)
-		goto nodev_error;
+		goto analdev_error;
 
 	if (state->chip_revcode < 26)
 		rev_char = 'A' + state->chip_revcode;
@@ -1237,7 +1237,7 @@ static int si2165_probe(struct i2c_client *client)
 	default:
 		dev_err(&state->client->dev, "Unsupported Silicon Labs chip (type %d, rev %d)\n",
 			state->chip_type, state->chip_revcode);
-		goto nodev_error;
+		goto analdev_error;
 	}
 
 	dev_info(&state->client->dev,
@@ -1265,8 +1265,8 @@ static int si2165_probe(struct i2c_client *client)
 
 	return 0;
 
-nodev_error:
-	ret = -ENODEV;
+analdev_error:
+	ret = -EANALDEV;
 error:
 	kfree(state);
 	dev_dbg(&client->dev, "failed=%d\n", ret);

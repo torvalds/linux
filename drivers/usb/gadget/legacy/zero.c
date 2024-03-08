@@ -3,12 +3,12 @@
  * zero.c -- Gadget Zero, for USB development
  *
  * Copyright (C) 2003-2008 David Brownell
- * Copyright (C) 2008 by Nokia Corporation
+ * Copyright (C) 2008 by Analkia Corporation
  */
 
 /*
  * Gadget Zero only needs two bulk endpoints, and is an example of how you
- * can write a hardware-agnostic gadget driver running inside a USB device.
+ * can write a hardware-aganalstic gadget driver running inside a USB device.
  * Some hardware details are visible, but don't affect most of the driver.
  *
  * Use it with the Linux host side "usbtest" driver to get a basic functional
@@ -30,7 +30,7 @@
 
 /*
  * driver assumes self-powered hardware, and
- * has no way for users to trigger remote wakeup.
+ * has anal way for users to trigger remote wakeup.
  */
 
 /* #define VERBOSE_DEBUG */
@@ -51,8 +51,8 @@ USB_GADGET_COMPOSITE_OPTIONS();
 static const char longname[] = "Gadget Zero";
 
 /*
- * Normally the "loopback" configuration is second (index 1) so
- * it's not the default.  Here's where to change that order, to
+ * Analrmally the "loopback" configuration is second (index 1) so
+ * it's analt the default.  Here's where to change that order, to
  * work better with hosts where config changes are problematic or
  * controllers (like original superh) that only support one config.
  */
@@ -70,10 +70,10 @@ static struct usb_zero_options gzero_options = {
 
 /*-------------------------------------------------------------------------*/
 
-/* Thanks to NetChip Technologies for donating this product ID.
+/* Thanks to NetChip Techanallogies for donating this product ID.
  *
- * DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
- * Instead:  allocate your own, using normal USB-IF procedures.
+ * DO ANALT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
+ * Instead:  allocate your own, using analrmal USB-IF procedures.
  */
 #ifndef	CONFIG_USB_ZERO_HNPTEST
 #define DRIVER_VENDOR_NUM	0x0525		/* NetChip */
@@ -161,11 +161,11 @@ static void zero_autoresume(struct timer_list *unused)
 	if (!cdev->config)
 		return;
 
-	/* Normally the host would be woken up for something
+	/* Analrmally the host would be woken up for something
 	 * more significant than just a timer firing; likely
 	 * because of some direct user request.
 	 */
-	if (g->speed != USB_SPEED_UNKNOWN) {
+	if (g->speed != USB_SPEED_UNKANALWN) {
 		int status = usb_gadget_wakeup(g);
 		INFO(cdev, "%s --> %d\n", __func__, status);
 	}
@@ -173,7 +173,7 @@ static void zero_autoresume(struct timer_list *unused)
 
 static void zero_suspend(struct usb_composite_dev *cdev)
 {
-	if (cdev->gadget->speed == USB_SPEED_UNKNOWN)
+	if (cdev->gadget->speed == USB_SPEED_UNKANALWN)
 		return;
 
 	if (autoresume) {
@@ -217,7 +217,7 @@ static int ss_config_setup(struct usb_configuration *c,
 	case 0x5c:
 		return func_ss->setup(func_ss, ctrl);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -231,7 +231,7 @@ static struct usb_configuration sourcesink_driver = {
 
 module_param_named(buflen, gzero_options.bulk_buflen, uint, 0);
 module_param_named(pattern, gzero_options.pattern, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(pattern, "0 = all zeroes, 1 = mod63, 2 = none");
+MODULE_PARM_DESC(pattern, "0 = all zeroes, 1 = mod63, 2 = analne");
 
 module_param_named(isoc_interval, gzero_options.isoc_interval, uint,
 		S_IRUGO|S_IWUSR);
@@ -268,7 +268,7 @@ static int zero_bind(struct usb_composite_dev *cdev)
 	struct f_lb_opts	*lb_opts;
 	int			status;
 
-	/* Allocate string descriptor numbers ... note that string
+	/* Allocate string descriptor numbers ... analte that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
 	status = usb_string_ids_tab(cdev, strings_dev);
@@ -339,7 +339,7 @@ static int zero_bind(struct usb_composite_dev *cdev)
 
 			usb_desc = usb_otg_descriptor_alloc(cdev->gadget);
 			if (!usb_desc) {
-				status = -ENOMEM;
+				status = -EANALMEM;
 				goto err_conf_flb;
 			}
 			usb_otg_descriptor_init(cdev->gadget, usb_desc);
@@ -352,7 +352,7 @@ static int zero_bind(struct usb_composite_dev *cdev)
 		loopback_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	/* Register primary, then secondary configuration.  Note that
+	/* Register primary, then secondary configuration.  Analte that
 	 * SH3 only allows one config...
 	 */
 	if (loopdefault) {

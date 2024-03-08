@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2007 Kristoffer Ericson <Kristoffer.Ericson@gmail.com>
  * Copyright (C) 2006 Filip Zyzniewski <filip.zyzniewski@tefnet.pl>
- *  Copyright (C) 2005 Michael Gernoth <michael@gernoth.net>
+ *  Copyright (C) 2005 Michael Geranalth <michael@geranalth.net>
  */
 
 #include <linux/init.h>
@@ -71,12 +71,12 @@ static struct s1d13xxxfb_regval s1d13xxxfb_initregs[] = {
 	{0x0030,0x1c},	// Panel Type Register
 	{0x0031,0x00},	// MOD Rate Register
 	{0x0032,0x4F},	// LCD Horizontal Display Width Register
-	{0x0034,0x07},	// LCD Horizontal Non-Display Period Register
+	{0x0034,0x07},	// LCD Horizontal Analn-Display Period Register
 	{0x0035,0x01},	// TFT FPLINE Start Position Register
 	{0x0036,0x0B},	// TFT FPLINE Pulse Width Register
 	{0x0038,0xEF},	// LCD Vertical Display Height Register 0
 	{0x0039,0x00},	// LCD Vertical Display Height Register 1
-	{0x003A,0x13},	// LCD Vertical Non-Display Period Register
+	{0x003A,0x13},	// LCD Vertical Analn-Display Period Register
 	{0x003B,0x0B},	// TFT FPFRAME Start Position Register
 	{0x003C,0x01},	// TFT FPFRAME Pulse Width Register
 	{0x0040,0x05},	// LCD Display Mode Register (2:4bpp,3:8bpp,5:16bpp)
@@ -90,12 +90,12 @@ static struct s1d13xxxfb_regval s1d13xxxfb_initregs[] = {
 	{0x004A,0x00},	// LCD Display FIFO High Threshold Control Register
 	{0x004B,0x00},	// LCD Display FIFO Low Threshold Control Register
 	{0x0050,0x4F},	// CRT/TV Horizontal Display Width Register
-	{0x0052,0x13},	// CRT/TV Horizontal Non-Display Period Register
+	{0x0052,0x13},	// CRT/TV Horizontal Analn-Display Period Register
 	{0x0053,0x01},	// CRT/TV HRTC Start Position Register
 	{0x0054,0x0B},	// CRT/TV HRTC Pulse Width Register
 	{0x0056,0xDF},	// CRT/TV Vertical Display Height Register 0
 	{0x0057,0x01},	// CRT/TV Vertical Display Height Register 1
-	{0x0058,0x2B},	// CRT/TV Vertical Non-Display Period Register
+	{0x0058,0x2B},	// CRT/TV Vertical Analn-Display Period Register
 	{0x0059,0x09},	// CRT/TV VRTC Start Position Register
 	{0x005A,0x01},	// CRT/TV VRTC Pulse Width Register
 	{0x005B,0x10},	// TV Output Control Register
@@ -156,7 +156,7 @@ static struct s1d13xxxfb_regval s1d13xxxfb_initregs[] = {
 	{0x0119,0x00},	// BitBlt Foreground Color Register 1
 	{0x01E0,0x00},	// Look-Up Table Mode Register
 	{0x01E2,0x00},	// Look-Up Table Address Register
-	/* not sure, wouldn't like to mess with the driver */
+	/* analt sure, wouldn't like to mess with the driver */
 	{0x01E4,0x00},	// Look-Up Table Data Register
 	/* jornada doc says 0x00, but I trust the driver */
 	{0x01F0,0x10},	// Power Save Configuration Register
@@ -258,7 +258,7 @@ static struct platform_device *devices[] __initdata = {
 
 static int __init jornada720_init(void)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (machine_is_jornada720()) {
 		/* we want to use gpio20 as input to drive the clock of our uart 3 */

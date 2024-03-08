@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2020 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2020 Mellaanalx Techanallogies. All rights reserved.
  */
 
 #ifndef _RDMA_LAG_H_

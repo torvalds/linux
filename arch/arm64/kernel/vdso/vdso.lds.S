@@ -33,13 +33,13 @@ SECTIONS
 	.gnu.version_r	: { *(.gnu.version_r) }
 
 	/*
-	 * Discard .note.gnu.property sections which are unused and have
-	 * different alignment requirement from vDSO note sections.
+	 * Discard .analte.gnu.property sections which are unused and have
+	 * different alignment requirement from vDSO analte sections.
 	 */
 	/DISCARD/	: {
-		*(.note.GNU-stack .note.gnu.property)
+		*(.analte.GNU-stack .analte.gnu.property)
 	}
-	.note		: { *(.note.*) }		:text	:note
+	.analte		: { *(.analte.*) }		:text	:analte
 
 	. = ALIGN(16);
 
@@ -88,7 +88,7 @@ PHDRS
 {
 	text		PT_LOAD		FLAGS(5) FILEHDR PHDRS; /* PF_R|PF_X */
 	dynamic		PT_DYNAMIC	FLAGS(4);		/* PF_R */
-	note		PT_NOTE		FLAGS(4);		/* PF_R */
+	analte		PT_ANALTE		FLAGS(4);		/* PF_R */
 }
 
 /*

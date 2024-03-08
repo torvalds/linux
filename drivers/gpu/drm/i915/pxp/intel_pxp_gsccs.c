@@ -22,7 +22,7 @@ is_fw_err_platform_config(struct intel_pxp *pxp, u32 type)
 {
 	switch (type) {
 	case PXP_STATUS_ERROR_API_VERSION:
-	case PXP_STATUS_PLATFCONFIG_KF1_NOVERIF:
+	case PXP_STATUS_PLATFCONFIG_KF1_ANALVERIF:
 	case PXP_STATUS_PLATFCONFIG_KF1_BAD:
 		pxp->platform_cfg_is_bad = true;
 		return true;
@@ -38,9 +38,9 @@ fw_err_to_string(u32 type)
 	switch (type) {
 	case PXP_STATUS_ERROR_API_VERSION:
 		return "ERR_API_VERSION";
-	case PXP_STATUS_NOT_READY:
-		return "ERR_NOT_READY";
-	case PXP_STATUS_PLATFCONFIG_KF1_NOVERIF:
+	case PXP_STATUS_ANALT_READY:
+		return "ERR_ANALT_READY";
+	case PXP_STATUS_PLATFCONFIG_KF1_ANALVERIF:
 	case PXP_STATUS_PLATFCONFIG_KF1_BAD:
 		return "ERR_PLATFORM_CONFIG";
 	default:
@@ -60,23 +60,23 @@ gsccs_send_message(struct intel_pxp *pxp,
 	struct drm_i915_private *i915 = gt->i915;
 	struct gsccs_session_resources *exec_res =  &pxp->gsccs_res;
 	struct intel_gsc_mtl_header *header = exec_res->pkt_vaddr;
-	struct intel_gsc_heci_non_priv_pkt pkt;
+	struct intel_gsc_heci_analn_priv_pkt pkt;
 	size_t max_msg_size;
 	u32 reply_size;
 	int ret;
 
 	if (!exec_res->ce)
-		return -ENODEV;
+		return -EANALDEV;
 
-	max_msg_size = PXP43_MAX_HECI_INOUT_SIZE - sizeof(*header);
+	max_msg_size = PXP43_MAX_HECI_IANALUT_SIZE - sizeof(*header);
 
 	if (msg_in_size > max_msg_size || msg_out_size_max > max_msg_size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (!exec_res->pkt_vma || !exec_res->bb_vma)
-		return -ENOENT;
+		return -EANALENT;
 
-	GEM_BUG_ON(exec_res->pkt_vma->size < (2 * PXP43_MAX_HECI_INOUT_SIZE));
+	GEM_BUG_ON(exec_res->pkt_vma->size < (2 * PXP43_MAX_HECI_IANALUT_SIZE));
 
 	mutex_lock(&pxp->tee_mutex);
 
@@ -92,25 +92,25 @@ gsccs_send_message(struct intel_pxp *pxp,
 	/* copy caller provided gsc message handle if this is polling for a prior msg completion */
 	header->gsc_message_handle = *gsc_msg_handle_retry;
 
-	/* NOTE: zero size packets are used for session-cleanups */
+	/* ANALTE: zero size packets are used for session-cleanups */
 	if (msg_in && msg_in_size)
 		memcpy(exec_res->pkt_vaddr + sizeof(*header), msg_in, msg_in_size);
 
 	pkt.addr_in = i915_vma_offset(exec_res->pkt_vma);
 	pkt.size_in = header->message_size;
-	pkt.addr_out = pkt.addr_in + PXP43_MAX_HECI_INOUT_SIZE;
+	pkt.addr_out = pkt.addr_in + PXP43_MAX_HECI_IANALUT_SIZE;
 	pkt.size_out = msg_out_size_max + sizeof(*header);
 	pkt.heci_pkt_vma = exec_res->pkt_vma;
 	pkt.bb_vma = exec_res->bb_vma;
 
 	/*
 	 * Before submitting, let's clear-out the validity marker on the reply offset.
-	 * We use offset PXP43_MAX_HECI_INOUT_SIZE for reply location so point header there.
+	 * We use offset PXP43_MAX_HECI_IANALUT_SIZE for reply location so point header there.
 	 */
-	header = exec_res->pkt_vaddr + PXP43_MAX_HECI_INOUT_SIZE;
+	header = exec_res->pkt_vaddr + PXP43_MAX_HECI_IANALUT_SIZE;
 	header->validity_marker = 0;
 
-	ret = intel_gsc_uc_heci_cmd_submit_nonpriv(&gt->uc.gsc,
+	ret = intel_gsc_uc_heci_cmd_submit_analnpriv(&gt->uc.gsc,
 						   exec_res->ce, &pkt, exec_res->bb_vaddr,
 						   GSC_HECI_REPLY_LATENCY_MS);
 	if (ret) {
@@ -151,7 +151,7 @@ gsccs_send_message(struct intel_pxp *pxp,
 	}
 
 	if (msg_out)
-		memcpy(msg_out, exec_res->pkt_vaddr + PXP43_MAX_HECI_INOUT_SIZE + sizeof(*header),
+		memcpy(msg_out, exec_res->pkt_vaddr + PXP43_MAX_HECI_IANALUT_SIZE + sizeof(*header),
 		       reply_size);
 	if (msg_out_len)
 		*msg_out_len = reply_size;
@@ -327,7 +327,7 @@ gsccs_create_buffer(struct intel_gt *gt,
 	if (IS_ERR(obj)) {
 		drm_err(&i915->drm, "Failed to allocate gsccs backend %s.\n", bufname);
 		err = PTR_ERR(obj);
-		goto out_none;
+		goto out_analne;
 	}
 
 	*vma = i915_vma_instance(obj, gt->vm, NULL);
@@ -345,7 +345,7 @@ gsccs_create_buffer(struct intel_gt *gt,
 		goto out_put;
 	}
 
-	/* all PXP sessions commands are treated as non-privileged */
+	/* all PXP sessions commands are treated as analn-privileged */
 	err = i915_vma_pin(*vma, 0, 0, PIN_USER);
 	if (err) {
 		drm_err(&i915->drm, "Failed to vma-pin gsccs backend %s.\n", bufname);
@@ -358,7 +358,7 @@ out_unmap:
 	i915_gem_object_unpin_map(obj);
 out_put:
 	i915_gem_object_put(obj);
-out_none:
+out_analne:
 	*vma = NULL;
 	*map = NULL;
 
@@ -376,18 +376,18 @@ gsccs_allocate_execution_resource(struct intel_pxp *pxp)
 
 	/*
 	 * First, ensure the GSC engine is present.
-	 * NOTE: Backend would only be called with the correct gt.
+	 * ANALTE: Backend would only be called with the correct gt.
 	 */
 	if (!engine)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * Now, allocate, pin and map two objects, one for the heci message packet
-	 * and another for the batch buffer we submit into GSC engine (that includes the packet).
-	 * NOTE: GSC-CS backend is currently only supported on MTL, so we allocate shmem.
+	 * Analw, allocate, pin and map two objects, one for the heci message packet
+	 * and aanalther for the batch buffer we submit into GSC engine (that includes the packet).
+	 * ANALTE: GSC-CS backend is currently only supported on MTL, so we allocate shmem.
 	 */
 	err = gsccs_create_buffer(pxp->ctrl_gt, "Heci Packet",
-				  2 * PXP43_MAX_HECI_INOUT_SIZE,
+				  2 * PXP43_MAX_HECI_IANALUT_SIZE,
 				  &exec_res->pkt_vma, &exec_res->pkt_vaddr);
 	if (err)
 		return err;

@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -58,7 +58,7 @@ struct vmw_cmdbuf_res {
  * @list: List of committed command buffer resources.
  * @dev_priv: Pointer to a device private structure.
  *
- * @resources and @list are protected by the cmdbuf mutex for now.
+ * @resources and @list are protected by the cmdbuf mutex for analw.
  */
 struct vmw_cmdbuf_res_manager {
 	DECLARE_HASHTABLE(resources, VMW_CMDBUF_RES_MAN_HT_ORDER);
@@ -127,8 +127,8 @@ void vmw_cmdbuf_res_commit(struct list_head *list)
 
 	list_for_each_entry_safe(entry, next, list, head) {
 		list_del(&entry->head);
-		if (entry->res->func->commit_notify)
-			entry->res->func->commit_notify(entry->res,
+		if (entry->res->func->commit_analtify)
+			entry->res->func->commit_analtify(entry->res,
 							entry->state);
 		switch (entry->state) {
 		case VMW_CMDBUF_RES_ADD:
@@ -202,7 +202,7 @@ int vmw_cmdbuf_res_add(struct vmw_cmdbuf_res_manager *man,
 
 	cres = kzalloc(sizeof(*cres), GFP_KERNEL);
 	if (unlikely(!cres))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cres->hash.key = user_key | (res_type << 24);
 	hash_add_rcu(man->resources, &cres->hash.head, cres->hash.key);
@@ -224,7 +224,7 @@ int vmw_cmdbuf_res_add(struct vmw_cmdbuf_res_manager *man,
  * @list: The staging list.
  * @res_p: If the resource is in an already committed state, points to the
  * struct vmw_resource on successful return. The pointer will be
- * non ref-counted.
+ * analn ref-counted.
  *
  * This function looks up the struct vmw_cmdbuf_res entry from the manager
  * hash table and, if it exists, removes it. Depending on its current staging
@@ -286,7 +286,7 @@ vmw_cmdbuf_res_man_create(struct vmw_private *dev_priv)
 
 	man = kzalloc(sizeof(*man), GFP_KERNEL);
 	if (!man)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	man->dev_priv = dev_priv;
 	INIT_LIST_HEAD(&man->list);

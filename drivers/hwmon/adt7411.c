@@ -72,7 +72,7 @@
 #define ADT7411_DEVICE_ID			0x2
 #define ADT7411_MANUFACTURER_ID			0x41
 
-static const unsigned short normal_i2c[] = { 0x48, 0x4a, 0x4b, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x48, 0x4a, 0x4b, I2C_CLIENT_END };
 
 static const u8 adt7411_in_alarm_reg[] = {
 	ADT7411_REG_STAT_2,
@@ -200,12 +200,12 @@ static ssize_t adt7411_set_bit(struct device *dev,
 	SENSOR_DEVICE_ATTR_2(__name, S_IRUGO | S_IWUSR, adt7411_show_bit, \
 	adt7411_set_bit, __bit, __reg)
 
-static ADT7411_BIT_ATTR(no_average, ADT7411_REG_CFG2, ADT7411_CFG2_DISABLE_AVG);
+static ADT7411_BIT_ATTR(anal_average, ADT7411_REG_CFG2, ADT7411_CFG2_DISABLE_AVG);
 static ADT7411_BIT_ATTR(fast_sampling, ADT7411_REG_CFG3, ADT7411_CFG3_ADC_CLK_225);
 static ADT7411_BIT_ATTR(adc_ref_vdd, ADT7411_REG_CFG3, ADT7411_CFG3_REF_VDD);
 
 static struct attribute *adt7411_attrs[] = {
-	&sensor_dev_attr_no_average.dev_attr.attr,
+	&sensor_dev_attr_anal_average.dev_attr.attr,
 	&sensor_dev_attr_fast_sampling.dev_attr.attr,
 	&sensor_dev_attr_adc_ref_vdd.dev_attr.attr,
 	NULL
@@ -254,7 +254,7 @@ static int adt7411_read_in_vdd(struct device *dev, u32 attr, long *val)
 	case hwmon_in_alarm:
 		return adt7411_read_in_alarm(dev, 0, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -326,7 +326,7 @@ static int adt7411_read_in_chan(struct device *dev, u32 attr, int channel,
 		ret = adt7411_read_in_alarm(dev, channel, val);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
  exit_unlock:
@@ -368,7 +368,7 @@ static int adt7411_read_temp_alarm(struct device *dev, u32 attr, int channel,
 		bit = ADT7411_STAT_1_EXT_TEMP_FAULT;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	*val = !!(ret & bit);
@@ -410,7 +410,7 @@ static int adt7411_read_temp(struct device *dev, u32 attr, int channel,
 	case hwmon_temp_fault:
 		return adt7411_read_temp_alarm(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -423,7 +423,7 @@ static int adt7411_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return adt7411_read_temp(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -444,7 +444,7 @@ static int adt7411_write_in_vdd(struct device *dev, u32 attr, long val)
 		reg = ADT7411_REG_VDD_HIGH;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return i2c_smbus_write_byte_data(client, reg, val);
@@ -472,7 +472,7 @@ static int adt7411_write_in_chan(struct device *dev, u32 attr, int channel,
 		reg = ADT7411_REG_IN_HIGH(channel);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto exit_unlock;
 	}
 
@@ -509,7 +509,7 @@ static int adt7411_write_temp(struct device *dev, u32 attr, int channel,
 		reg = ADT7411_REG_TEMP_HIGH(channel);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return i2c_smbus_write_byte_data(client, reg, val);
@@ -524,7 +524,7 @@ static int adt7411_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return adt7411_write_temp(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -572,14 +572,14 @@ static int adt7411_detect(struct i2c_client *client,
 	int val;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	val = i2c_smbus_read_byte_data(client, ADT7411_REG_MANUFACTURER_ID);
 	if (val < 0 || val != ADT7411_MANUFACTURER_ID) {
 		dev_dbg(&client->dev,
 			"Wrong manufacturer ID. Got %d, expected %d\n",
 			val, ADT7411_MANUFACTURER_ID);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	val = i2c_smbus_read_byte_data(client, ADT7411_REG_DEVICE_ID);
@@ -587,7 +587,7 @@ static int adt7411_detect(struct i2c_client *client,
 		dev_dbg(&client->dev,
 			"Wrong device ID. Got %d, expected %d\n",
 			val, ADT7411_DEVICE_ID);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, "adt7411", I2C_NAME_SIZE);
@@ -675,7 +675,7 @@ static int adt7411_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	data->client = client;
@@ -709,7 +709,7 @@ static struct i2c_driver adt7411_driver = {
 	.probe = adt7411_probe,
 	.id_table = adt7411_id,
 	.detect = adt7411_detect,
-	.address_list = normal_i2c,
+	.address_list = analrmal_i2c,
 	.class = I2C_CLASS_HWMON,
 };
 

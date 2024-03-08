@@ -56,7 +56,7 @@ static __init int meth_devinit(void)
 
 	pd = platform_device_alloc("meth", -1);
 	if (!pd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_device_add(pd);
 	if (ret)
@@ -74,7 +74,7 @@ static __init int sgio2audio_devinit(void)
 
 	pd = platform_device_alloc("sgio2audio", -1);
 	if (!pd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_device_add(pd);
 	if (ret)
@@ -113,7 +113,7 @@ ip32_rtc_platform_data[] = {
 	{
 		.regstep = 0x100,
 		.bcd_mode = true,
-		.no_irq = false,
+		.anal_irq = false,
 		.uie_unsupported = false,
 		.access_type = ds1685_reg_direct,
 		.plat_prepare_poweroff = ip32_prepare_poweroff,

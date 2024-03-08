@@ -2,8 +2,8 @@
 /*
  * linux/drivers/video/omap2/dss/dss.c
  *
- * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2009 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -780,7 +780,7 @@ void dss_runtime_put(void)
 	DSSDBG("dss_runtime_put\n");
 
 	r = pm_runtime_put_sync(&dss.pdev->dev);
-	WARN_ON(r < 0 && r != -ENOSYS && r != -EBUSY);
+	WARN_ON(r < 0 && r != -EANALSYS && r != -EBUSY);
 }
 
 /* DEBUGFS */
@@ -814,7 +814,7 @@ static const enum omap_display_type dra7xx_ports[] = {
 static const struct dss_features omap24xx_dss_feats = {
 	/*
 	 * fck div max is really 16, but the divider range has gaps. The range
-	 * from 1 to 6 has no gaps, so let's use that as a max.
+	 * from 1 to 6 has anal gaps, so let's use that as a max.
 	 */
 	.fck_div_max		=	6,
 	.dss_fck_multiplier	=	2,
@@ -915,8 +915,8 @@ static void dss_uninit_ports(struct platform_device *pdev);
 
 static int dss_init_ports(struct platform_device *pdev)
 {
-	struct device_node *parent = pdev->dev.of_node;
-	struct device_node *port;
+	struct device_analde *parent = pdev->dev.of_analde;
+	struct device_analde *port;
 	int r, ret = 0;
 
 	if (parent == NULL)
@@ -963,8 +963,8 @@ static int dss_init_ports(struct platform_device *pdev)
 
 static void dss_uninit_ports(struct platform_device *pdev)
 {
-	struct device_node *parent = pdev->dev.of_node;
-	struct device_node *port;
+	struct device_analde *parent = pdev->dev.of_analde;
+	struct device_analde *port;
 
 	if (parent == NULL)
 		return;
@@ -1005,7 +1005,7 @@ static void dss_uninit_ports(struct platform_device *pdev)
 
 static int dss_video_pll_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct regulator *pll_regulator;
 	int r;
 
@@ -1034,7 +1034,7 @@ static int dss_video_pll_probe(struct platform_device *pdev)
 		r = PTR_ERR(pll_regulator);
 
 		switch (r) {
-		case -ENOENT:
+		case -EANALENT:
 			pll_regulator = NULL;
 			break;
 
@@ -1076,7 +1076,7 @@ static int dss_bind(struct device *dev)
 
 	dss.feat = dss_get_features();
 	if (!dss.feat)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dss_mem = platform_get_resource(dss.pdev, IORESOURCE_MEM, 0);
 	if (!dss_mem) {
@@ -1088,7 +1088,7 @@ static int dss_bind(struct device *dev)
 				resource_size(dss_mem));
 	if (!dss.base) {
 		DSSERR("can't ioremap DSS\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	r = dss_get_clocks();
@@ -1123,7 +1123,7 @@ static int dss_bind(struct device *dev)
 #ifdef CONFIG_FB_OMAP2_DSS_VENC
 	REG_FLD_MOD(DSS_CONTROL, 1, 4, 4);	/* venc dac demen */
 	REG_FLD_MOD(DSS_CONTROL, 1, 3, 3);	/* venc clock 4x enable */
-	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = normal */
+	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = analrmal */
 #endif
 	dss.dsi_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
 	dss.dsi_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
@@ -1248,7 +1248,7 @@ static int dss_runtime_resume(struct device *dev)
 	/*
 	 * Set an arbitrarily high tput request to ensure OPP100.
 	 * What we should really do is to make a request to stay in OPP100,
-	 * without any tput requirements, but that is not currently possible
+	 * without any tput requirements, but that is analt currently possible
 	 * via the PM layer.
 	 */
 

@@ -13,11 +13,11 @@ void test_stacktrace_map_raw_tp(void)
 	struct bpf_link *link = NULL;
 
 	err = bpf_prog_test_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
-	if (CHECK(err, "prog_load raw tp", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "prog_load raw tp", "err %d erranal %d\n", err, erranal))
 		return;
 
 	prog = bpf_object__find_program_by_name(obj, prog_name);
-	if (CHECK(!prog, "find_prog", "prog '%s' not found\n", prog_name))
+	if (CHECK(!prog, "find_prog", "prog '%s' analt found\n", prog_name))
 		goto close_prog;
 
 	link = bpf_program__attach_raw_tracepoint(prog, "sched_switch");
@@ -50,12 +50,12 @@ void test_stacktrace_map_raw_tp(void)
 	 */
 	err = compare_map_keys(stackid_hmap_fd, stackmap_fd);
 	if (CHECK(err, "compare_map_keys stackid_hmap vs. stackmap",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erranal %d\n", err, erranal))
 		goto close_prog;
 
 	err = compare_map_keys(stackmap_fd, stackid_hmap_fd);
 	if (CHECK(err, "compare_map_keys stackmap vs. stackid_hmap",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erranal %d\n", err, erranal))
 		goto close_prog;
 
 close_prog:

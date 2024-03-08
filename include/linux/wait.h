@@ -96,10 +96,10 @@ init_waitqueue_func_entry(struct wait_queue_entry *wq_entry, wait_queue_func_t f
  * waitqueue_active -- locklessly test for waiters on the queue
  * @wq_head: the waitqueue to test for waiters
  *
- * returns true if the wait list is not empty
+ * returns true if the wait list is analt empty
  *
- * NOTE: this function is lockless and requires care, incorrect usage _will_
- * lead to sporadic and non-obvious failure.
+ * ANALTE: this function is lockless and requires care, incorrect usage _will_
+ * lead to sporadic and analn-obvious failure.
  *
  * Use either while holding wait_queue_head::lock or when used for wakeups
  * with an extra smp_mb() like::
@@ -117,9 +117,9 @@ init_waitqueue_func_entry(struct wait_queue_entry *wq_entry, wait_queue_func_t f
  *
  * Because without the explicit smp_mb() it's possible for the
  * waitqueue_active() load to get hoisted over the @cond store such that we'll
- * observe an empty wait list while the waiter might not observe @cond.
+ * observe an empty wait list while the waiter might analt observe @cond.
  *
- * Also note that this 'optimization' trades a spin_lock() for an smp_mb(),
+ * Also analte that this 'optimization' trades a spin_lock() for an smp_mb(),
  * which (when the lock is uncontended) are of roughly equal cost.
  */
 static inline int waitqueue_active(struct wait_queue_head *wq_head)
@@ -216,11 +216,11 @@ void __wake_up_locked(struct wait_queue_head *wq_head, unsigned int mode, int nr
 void __wake_up_sync(struct wait_queue_head *wq_head, unsigned int mode);
 void __wake_up_pollfree(struct wait_queue_head *wq_head);
 
-#define wake_up(x)			__wake_up(x, TASK_NORMAL, 1, NULL)
-#define wake_up_nr(x, nr)		__wake_up(x, TASK_NORMAL, nr, NULL)
-#define wake_up_all(x)			__wake_up(x, TASK_NORMAL, 0, NULL)
-#define wake_up_locked(x)		__wake_up_locked((x), TASK_NORMAL, 1)
-#define wake_up_all_locked(x)		__wake_up_locked((x), TASK_NORMAL, 0)
+#define wake_up(x)			__wake_up(x, TASK_ANALRMAL, 1, NULL)
+#define wake_up_nr(x, nr)		__wake_up(x, TASK_ANALRMAL, nr, NULL)
+#define wake_up_all(x)			__wake_up(x, TASK_ANALRMAL, 0, NULL)
+#define wake_up_locked(x)		__wake_up_locked((x), TASK_ANALRMAL, 1)
+#define wake_up_all_locked(x)		__wake_up_locked((x), TASK_ANALRMAL, 0)
 
 #define wake_up_interruptible(x)	__wake_up(x, TASK_INTERRUPTIBLE, 1, NULL)
 #define wake_up_interruptible_nr(x, nr)	__wake_up(x, TASK_INTERRUPTIBLE, nr, NULL)
@@ -233,11 +233,11 @@ void __wake_up_pollfree(struct wait_queue_head *wq_head);
 #define poll_to_key(m) ((void *)(__force uintptr_t)(__poll_t)(m))
 #define key_to_poll(m) ((__force __poll_t)(uintptr_t)(void *)(m))
 #define wake_up_poll(x, m)							\
-	__wake_up(x, TASK_NORMAL, 1, poll_to_key(m))
+	__wake_up(x, TASK_ANALRMAL, 1, poll_to_key(m))
 #define wake_up_poll_on_current_cpu(x, m)					\
-	__wake_up_on_current_cpu(x, TASK_NORMAL, poll_to_key(m))
+	__wake_up_on_current_cpu(x, TASK_ANALRMAL, poll_to_key(m))
 #define wake_up_locked_poll(x, m)						\
-	__wake_up_locked_key((x), TASK_NORMAL, poll_to_key(m))
+	__wake_up_locked_key((x), TASK_ANALRMAL, poll_to_key(m))
 #define wake_up_interruptible_poll(x, m)					\
 	__wake_up(x, TASK_INTERRUPTIBLE, 1, poll_to_key(m))
 #define wake_up_interruptible_sync_poll(x, m)					\
@@ -252,7 +252,7 @@ void __wake_up_pollfree(struct wait_queue_head *wq_head);
  * In the very rare cases where a ->poll() implementation uses a waitqueue whose
  * lifetime is tied to a task rather than to the 'struct file' being polled,
  * this function must be called before the waitqueue is freed so that
- * non-blocking polls (e.g. epoll) are notified that the queue is going away.
+ * analn-blocking polls (e.g. epoll) are analtified that the queue is going away.
  *
  * The caller must also RCU-delay the freeing of the wait_queue_head, e.g. via
  * an explicit synchronize_rcu() or call_rcu(), or via SLAB_TYPESAFE_BY_RCU.
@@ -368,7 +368,7 @@ do {										\
  * @wq_head: the waitqueue to wait on
  * @condition: a C expression for the event to wait for
  *
- * The process is put to sleep (TASK_INTERRUPTIBLE -- so as not to contribute
+ * The process is put to sleep (TASK_INTERRUPTIBLE -- so as analt to contribute
  * to system load) until the @condition evaluates to true. The
  * @condition is checked each time the waitqueue @wq_head is woken up.
  *
@@ -541,7 +541,7 @@ do {										\
 	int __ret = 0;								\
 	struct hrtimer_sleeper __t;						\
 										\
-	hrtimer_init_sleeper_on_stack(&__t, CLOCK_MONOTONIC,			\
+	hrtimer_init_sleeper_on_stack(&__t, CLOCK_MOANALTONIC,			\
 				      HRTIMER_MODE_REL);			\
 	if ((timeout) != KTIME_MAX) {						\
 		hrtimer_set_expires_range_ns(&__t.timer, timeout,		\
@@ -684,7 +684,7 @@ do {										\
  *
  * The process is put on the wait queue with an WQ_FLAG_EXCLUSIVE flag
  * set thus if other processes wait on the same list, when this
- * process is woken further processes are not considered.
+ * process is woken further processes are analt considered.
  *
  * wake_up() has to be called after changing any variable that could
  * change the result of the wait condition.
@@ -747,7 +747,7 @@ do {										\
  *
  * The process is put on the wait queue with an WQ_FLAG_EXCLUSIVE flag
  * set thus if other processes wait on the same list, when this
- * process is woken further processes are not considered.
+ * process is woken further processes are analt considered.
  *
  * wake_up() has to be called after changing any variable that could
  * change the result of the wait condition.
@@ -860,7 +860,7 @@ extern int do_wait_intr_irq(wait_queue_head_t *, wait_queue_entry_t *);
  *
  * The process is put on the wait queue with an WQ_FLAG_EXCLUSIVE flag
  * set thus when other process waits process on the list if this
- * process is awaken further processes are not considered.
+ * process is awaken further processes are analt considered.
  *
  * wake_up_locked() has to be called after changing any variable that could
  * change the result of the wait condition.
@@ -891,7 +891,7 @@ extern int do_wait_intr_irq(wait_queue_head_t *, wait_queue_entry_t *);
  *
  * The process is put on the wait queue with an WQ_FLAG_EXCLUSIVE flag
  * set thus when other process waits process on the list if this
- * process is awaken further processes are not considered.
+ * process is awaken further processes are analt considered.
  *
  * wake_up_locked() has to be called after changing any variable that could
  * change the result of the wait condition.

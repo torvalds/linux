@@ -10,7 +10,7 @@ maintainers:
   - Rob Herring <robh@kernel.org>
 
 properties:
-  $nodename:
+  $analdename:
     const: "/"
   compatible:
     const: linux,dummy-virt

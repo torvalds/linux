@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <sys/mount.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include "../kselftest.h"
 
@@ -29,16 +29,16 @@ static inline bool tracefs_enabled(char **message, bool *fail, bool *umount)
 	ret = stat("/sys/kernel/tracing", &buf);
 
 	if (ret == -1) {
-		*message = "Tracefs is not installed";
+		*message = "Tracefs is analt installed";
 		return false;
 	}
 
 	/* Ensure mounted tracefs */
 	ret = stat("/sys/kernel/tracing/README", &buf);
 
-	if (ret == -1 && errno == ENOENT) {
+	if (ret == -1 && erranal == EANALENT) {
 		if (mount(NULL, "/sys/kernel/tracing", "tracefs", 0, NULL) != 0) {
-			*message = "Cannot mount tracefs";
+			*message = "Cananalt mount tracefs";
 			*fail = true;
 			return false;
 		}
@@ -49,7 +49,7 @@ static inline bool tracefs_enabled(char **message, bool *fail, bool *umount)
 	}
 
 	if (ret == -1) {
-		*message = "Cannot access tracefs";
+		*message = "Cananalt access tracefs";
 		*fail = true;
 		return false;
 	}
@@ -79,13 +79,13 @@ static inline bool user_events_enabled(char **message, bool *fail, bool *umount)
 	ret = stat("/sys/kernel/tracing/user_events_data", &buf);
 
 	if (ret == -1) {
-		switch (errno) {
-		case ENOENT:
-			*message = "user_events is not installed";
+		switch (erranal) {
+		case EANALENT:
+			*message = "user_events is analt installed";
 			return false;
 
 		default:
-			*message = "Cannot access user_events_data";
+			*message = "Cananalt access user_events_data";
 			*fail = true;
 			return false;
 		}

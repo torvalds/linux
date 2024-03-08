@@ -9,7 +9,7 @@
 #include "dp_aux.h"
 
 #define DS_PORT_STATUS_CHANGED 0x200
-#define DP_TEST_BIT_DEPTH_UNKNOWN 0xFFFFFFFF
+#define DP_TEST_BIT_DEPTH_UNKANALWN 0xFFFFFFFF
 #define DP_LINK_CAP_ENHANCED_FRAMING (1 << 0)
 
 struct dp_link_info {
@@ -96,7 +96,7 @@ static inline u32 dp_link_bit_depth_to_bpp(u32 tbd)
 	/*
 	 * Few simplistic rules and assumptions made here:
 	 *    1. Bit depth is per color component
-	 *    2. If bit depth is unknown return 0
+	 *    2. If bit depth is unkanalwn return 0
 	 *    3. Assume 3 color components
 	 */
 	switch (tbd) {
@@ -106,7 +106,7 @@ static inline u32 dp_link_bit_depth_to_bpp(u32 tbd)
 		return 24;
 	case DP_TEST_BIT_DEPTH_10:
 		return 30;
-	case DP_TEST_BIT_DEPTH_UNKNOWN:
+	case DP_TEST_BIT_DEPTH_UNKANALWN:
 	default:
 		return 0;
 	}
@@ -129,7 +129,7 @@ static inline u32 dp_link_bit_depth_to_bpc(u32 tbd)
 		return 8;
 	case DP_TEST_BIT_DEPTH_10:
 		return 10;
-	case DP_TEST_BIT_DEPTH_UNKNOWN:
+	case DP_TEST_BIT_DEPTH_UNKANALWN:
 	default:
 		return 0;
 	}

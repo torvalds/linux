@@ -17,10 +17,10 @@ description: |
 properties:
   "#msi-cells":
     description: |
-      The number of cells in an msi-specifier, required if not zero.
+      The number of cells in an msi-specifier, required if analt zero.
 
       Typically this will encode information related to sideband data,
-      and will not encode doorbells or payloads as these can be
+      and will analt encode doorbells or payloads as these can be
       configured dynamically.
 
       The meaning of the msi-specifier is defined by the device tree
@@ -29,7 +29,7 @@ properties:
 
   msi-controller:
     description:
-      Identifies the node as an MSI controller.
+      Identifies the analde as an MSI controller.
     $ref: /schemas/types.yaml#/definitions/flag
 
   msi-ranges:

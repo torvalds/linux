@@ -11,9 +11,9 @@
  * page of L1 physical memory.
  *
  * The second subtest sets the APIC-access address to a (valid) L1
- * physical address that is not backed by memory. KVM can't handle
+ * physical address that is analt backed by memory. KVM can't handle
  * this situation, so resuming L2 should result in a KVM exit for
- * internal error (emulation). This is not an architectural
+ * internal error (emulation). This is analt an architectural
  * requirement. It is just a shortcoming of KVM. The internal error
  * is unfortunate, but it's better than what used to happen!
  */
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
 			REPORT_GUEST_ASSERT(uc);
-			/* NOT REACHED */
+			/* ANALT REACHED */
 		case UCALL_SYNC:
 			apic_access_addr = uc.args[1];
 			break;
@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
 			done = true;
 			break;
 		default:
-			TEST_ASSERT(false, "Unknown ucall %lu", uc.cmd);
+			TEST_ASSERT(false, "Unkanalwn ucall %lu", uc.cmd);
 		}
 	}
 	kvm_vm_free(vm);

@@ -131,7 +131,7 @@ static int __aat2870_write(struct aat2870_data *aat2870, u8 addr, u8 val)
 	}
 
 	if (!aat2870->reg_cache[addr].writeable) {
-		dev_err(aat2870->dev, "Address 0x%02x is not writeable\n",
+		dev_err(aat2870->dev, "Address 0x%02x is analt writeable\n",
 			addr);
 		return -EINVAL;
 	}
@@ -257,7 +257,7 @@ static ssize_t aat2870_reg_read_file(struct file *file, char __user *user_buf,
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = aat2870_dump_reg(aat2870, buf);
 	if (ret >= 0)
@@ -342,7 +342,7 @@ static int aat2870_i2c_probe(struct i2c_client *client)
 	aat2870 = devm_kzalloc(&client->dev, sizeof(struct aat2870_data),
 				GFP_KERNEL);
 	if (!aat2870)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aat2870->dev = &client->dev;
 	aat2870->client = client;

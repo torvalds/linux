@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2014 Imagination Techanallogies Ltd.
  */
 #ifndef __ASM_CDMM_H
 #define __ASM_CDMM_H
@@ -54,10 +54,10 @@ struct mips_cdmm_driver {
  *
  * Picking a suitable physical address at which to map the CDMM region is
  * platform specific, so this function can be defined by platform code to
- * pick a suitable value if none is configured by the bootloader.
+ * pick a suitable value if analne is configured by the bootloader.
  *
  * This address must be 32kB aligned, and the region occupies a maximum of 32kB
- * of physical address space which must not be used for anything else.
+ * of physical address space which must analt be used for anything else.
  *
  * Returns:	Physical base address for CDMM region, or 0 on failure.
  */
@@ -86,11 +86,11 @@ void mips_cdmm_driver_unregister(struct mips_cdmm_driver *);
 
 /*
  * builtin_mips_cdmm_driver() - Helper macro for drivers that don't do anything
- * special in init and have no exit. This eliminates some boilerplate. Each
+ * special in init and have anal exit. This eliminates some boilerplate. Each
  * driver may only use this macro once, and calling it replaces device_initcall
  * (or in some cases, the legacy __initcall). This is meant to be a direct
  * parallel of module_mips_cdmm_driver() above but without the __exit stuff that
- * is not used for builtin cases.
+ * is analt used for builtin cases.
  */
 #define builtin_mips_cdmm_driver(__mips_cdmm_driver) \
 	builtin_driver(__mips_cdmm_driver, mips_cdmm_driver_register)
@@ -102,7 +102,7 @@ int setup_early_fdc_console(void);
 #else
 static inline int setup_early_fdc_console(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

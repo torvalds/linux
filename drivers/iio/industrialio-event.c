@@ -6,7 +6,7 @@
  * Based on elements of hwmon and input subsystems.
  */
 
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
@@ -55,7 +55,7 @@ bool iio_event_enabled(const struct iio_event_interface *ev_int)
  * @ev_code:		What event
  * @timestamp:		When the event occurred
  *
- * Note: The caller must make sure that this function is not running
+ * Analte: The caller must make sure that this function is analt running
  * concurrently for the same indio_dev more than once.
  *
  * This function may be safely used as soon as a valid reference to iio_dev has
@@ -93,7 +93,7 @@ EXPORT_SYMBOL(iio_push_event);
  * @filep:	File structure pointer to identify the device
  * @wait:	Poll table pointer to add the wait queue on
  *
- * Return: (EPOLLIN | EPOLLRDNORM) if data is available for reading
+ * Return: (EPOLLIN | EPOLLRDANALRM) if data is available for reading
  *	   or a negative error code on failure
  */
 static __poll_t iio_event_poll(struct file *filep,
@@ -110,7 +110,7 @@ static __poll_t iio_event_poll(struct file *filep,
 	poll_wait(filep, &ev_int->wait, wait);
 
 	if (!kfifo_is_empty(&ev_int->det_events))
-		events = EPOLLIN | EPOLLRDNORM;
+		events = EPOLLIN | EPOLLRDANALRM;
 
 	return events;
 }
@@ -127,14 +127,14 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 	int ret;
 
 	if (!indio_dev->info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (count < sizeof(struct iio_event_data))
 		return -EINVAL;
 
 	do {
 		if (kfifo_is_empty(&ev_int->det_events)) {
-			if (filep->f_flags & O_NONBLOCK)
+			if (filep->f_flags & O_ANALNBLOCK)
 				return -EAGAIN;
 
 			ret = wait_event_interruptible(ev_int->wait,
@@ -143,7 +143,7 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 			if (ret)
 				return ret;
 			if (indio_dev->info == NULL)
-				return -ENODEV;
+				return -EANALDEV;
 		}
 
 		if (mutex_lock_interruptible(&ev_int->read_lock))
@@ -157,10 +157,10 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 		/*
 		 * If we couldn't read anything from the fifo (a different
 		 * thread might have been faster) we either return -EAGAIN if
-		 * the file descriptor is non-blocking, otherwise we go back to
+		 * the file descriptor is analn-blocking, otherwise we go back to
 		 * sleep and wait for more data to arrive.
 		 */
-		if (copied == 0 && (filep->f_flags & O_NONBLOCK))
+		if (copied == 0 && (filep->f_flags & O_ANALNBLOCK))
 			return -EAGAIN;
 
 	} while (copied == 0);
@@ -168,7 +168,7 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 	return copied;
 }
 
-static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
+static int iio_event_chrdev_release(struct ianalde *ianalde, struct file *filep)
 {
 	struct iio_dev *indio_dev = filep->private_data;
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
@@ -186,7 +186,7 @@ static const struct file_operations iio_event_chrdev_fileops = {
 	.poll =  iio_event_poll,
 	.release = iio_event_chrdev_release,
 	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static int iio_event_getfd(struct iio_dev *indio_dev)
@@ -196,7 +196,7 @@ static int iio_event_getfd(struct iio_dev *indio_dev)
 	int fd;
 
 	if (ev_int == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	fd = mutex_lock_interruptible(&iio_dev_opaque->mlock);
 	if (fd)
@@ -209,7 +209,7 @@ static int iio_event_getfd(struct iio_dev *indio_dev)
 
 	iio_device_get(indio_dev);
 
-	fd = anon_inode_getfd("iio:event", &iio_event_chrdev_fileops,
+	fd = aanaln_ianalde_getfd("iio:event", &iio_event_chrdev_fileops,
 				indio_dev, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
@@ -388,7 +388,7 @@ static int iio_device_add_event(struct iio_dev *indio_dev,
 	for_each_set_bit(i, mask, sizeof(*mask)*8) {
 		if (i >= ARRAY_SIZE(iio_ev_info_text))
 			return -EINVAL;
-		if (dir != IIO_EV_DIR_NONE)
+		if (dir != IIO_EV_DIR_ANALNE)
 			postfix = kasprintf(GFP_KERNEL, "%s_%s_%s",
 					iio_ev_type_text[type],
 					iio_ev_dir_text[dir],
@@ -398,7 +398,7 @@ static int iio_device_add_event(struct iio_dev *indio_dev,
 					iio_ev_type_text[type],
 					iio_ev_info_text[i]);
 		if (postfix == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (i == IIO_EV_INFO_ENABLE) {
 			show = iio_ev_state_show;
@@ -439,7 +439,7 @@ static int iio_device_add_event_label(struct iio_dev *indio_dev,
 	if (!indio_dev->info->read_event_label)
 		return 0;
 
-	if (dir != IIO_EV_DIR_NONE)
+	if (dir != IIO_EV_DIR_ANALNE)
 		postfix = kasprintf(GFP_KERNEL, "%s_%s_label",
 				iio_ev_type_text[type],
 				iio_ev_dir_text[dir]);
@@ -447,7 +447,7 @@ static int iio_device_add_event_label(struct iio_dev *indio_dev,
 		postfix = kasprintf(GFP_KERNEL, "%s_label",
 				iio_ev_type_text[type]);
 	if (postfix == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = __iio_add_chan_devattr(postfix, chan, &iio_ev_label_show, NULL,
 				spec_index, IIO_SEPARATE, &indio_dev->dev, NULL,
@@ -574,7 +574,7 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 
 	ev_int = kzalloc(sizeof(struct iio_event_interface), GFP_KERNEL);
 	if (ev_int == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iio_dev_opaque->event_interface = ev_int;
 
@@ -599,7 +599,7 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 				      sizeof(ev_int->group.attrs[0]),
 				      GFP_KERNEL);
 	if (ev_int->group.attrs == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_free_setup_event_lines;
 	}
 	if (indio_dev->info->event_attrs)

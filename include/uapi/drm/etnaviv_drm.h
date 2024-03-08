@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2015 Etnaviv Project
  *
@@ -12,7 +12,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * this program.  If analt, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __ETNAVIV_DRM_H__
@@ -24,9 +24,9 @@
 extern "C" {
 #endif
 
-/* Please note that modifications to all structs defined here are
+/* Please analte that modifications to all structs defined here are
  * subject to backwards-compatibility constraints:
- *  1) Do not use pointers, use __u64 instead for 32 bit / 64 bit
+ *  1) Do analt use pointers, use __u64 instead for 32 bit / 64 bit
  *     user/kernel compatibility
  *  2) Keep fields aligned to their size
  *  3) Because of how drm_ioctl() works, we can add new fields at
@@ -37,13 +37,13 @@ extern "C" {
  *     fields.. so that has to be somehow ok.
  */
 
-/* timeouts are specified in clock-monotonic absolute times (to simplify
+/* timeouts are specified in clock-moanaltonic absolute times (to simplify
  * restarting interrupted ioctls).  The following struct is logically the
  * same as 'struct timespec' but 32/64b ABI safe.
  */
 struct drm_etnaviv_timespec {
 	__s64 tv_sec;          /* seconds */
-	__s64 tv_nsec;         /* nanoseconds */
+	__s64 tv_nsec;         /* naanalseconds */
 };
 
 #define ETNAVIV_PARAM_GPU_MODEL                     0x01
@@ -112,7 +112,7 @@ struct drm_etnaviv_gem_info {
 
 #define ETNA_PREP_READ        0x01
 #define ETNA_PREP_WRITE       0x02
-#define ETNA_PREP_NOSYNC      0x04
+#define ETNA_PREP_ANALSYNC      0x04
 
 struct drm_etnaviv_gem_cpu_prep {
 	__u32 handle;         /* in */
@@ -122,7 +122,7 @@ struct drm_etnaviv_gem_cpu_prep {
 
 struct drm_etnaviv_gem_cpu_fini {
 	__u32 handle;         /* in */
-	__u32 flags;          /* in, placeholder for now, no defined values */
+	__u32 flags;          /* in, placeholder for analw, anal defined values */
 };
 
 /*
@@ -132,14 +132,14 @@ struct drm_etnaviv_gem_cpu_fini {
 /* The value written into the cmdstream is logically:
  * relocbuf->gpuaddr + reloc_offset
  *
- * NOTE that reloc's must be sorted by order of increasing submit_offset,
+ * ANALTE that reloc's must be sorted by order of increasing submit_offset,
  * otherwise EINVAL.
  */
 struct drm_etnaviv_gem_submit_reloc {
 	__u32 submit_offset;  /* in, offset from submit_bo */
 	__u32 reloc_idx;      /* in, index of reloc_bo buffer */
 	__u64 reloc_offset;   /* in, offset from start of reloc_bo */
-	__u32 flags;          /* in, placeholder for now, no defined values */
+	__u32 flags;          /* in, placeholder for analw, anal defined values */
 };
 
 /* Each buffer referenced elsewhere in the cmdstream submit (ie. the
@@ -183,11 +183,11 @@ struct drm_etnaviv_gem_submit_pmr {
  * one or more cmdstream buffers.  This allows for conditional execution
  * (context-restore), and IB buffers needed for per tile/bin draw cmds.
  */
-#define ETNA_SUBMIT_NO_IMPLICIT         0x0001
+#define ETNA_SUBMIT_ANAL_IMPLICIT         0x0001
 #define ETNA_SUBMIT_FENCE_FD_IN         0x0002
 #define ETNA_SUBMIT_FENCE_FD_OUT        0x0004
 #define ETNA_SUBMIT_SOFTPIN             0x0008
-#define ETNA_SUBMIT_FLAGS		(ETNA_SUBMIT_NO_IMPLICIT | \
+#define ETNA_SUBMIT_FLAGS		(ETNA_SUBMIT_ANAL_IMPLICIT | \
 					 ETNA_SUBMIT_FENCE_FD_IN | \
 					 ETNA_SUBMIT_FENCE_FD_OUT| \
 					 ETNA_SUBMIT_SOFTPIN)
@@ -211,14 +211,14 @@ struct drm_etnaviv_gem_submit {
 	__u32 pad;
 };
 
-/* The normal way to synchronize with the GPU is just to CPU_PREP on
+/* The analrmal way to synchronize with the GPU is just to CPU_PREP on
  * a buffer if you need to access it from the CPU (other cmdstream
  * submission from same or other contexts, PAGE_FLIP ioctl, etc, all
  * handle the required synchronization under the hood).  This ioctl
  * mainly just exists as a way to implement the gallium pipe_fence
  * APIs without requiring a dummy bo to synchronize on.
  */
-#define ETNA_WAIT_NONBLOCK      0x01
+#define ETNA_WAIT_ANALNBLOCK      0x01
 struct drm_etnaviv_wait_fence {
 	__u32 pipe;           /* in */
 	__u32 fence;          /* in */
@@ -233,7 +233,7 @@ struct drm_etnaviv_gem_userptr {
 	__u64 user_ptr;	/* in, page aligned user pointer */
 	__u64 user_size;	/* in, page aligned user size */
 	__u32 flags;		/* in, flags */
-	__u32 handle;	/* out, non-zero handle */
+	__u32 handle;	/* out, analn-zero handle */
 };
 
 struct drm_etnaviv_gem_wait {

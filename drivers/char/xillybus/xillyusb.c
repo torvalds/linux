@@ -136,7 +136,7 @@ struct xillyusb_channel {
 	unsigned int in_log2_fifo_size;
 	unsigned int out_log2_fifo_size;
 
-	unsigned int read_data_ok; /* EOF not arrived (yet) */
+	unsigned int read_data_ok; /* EOF analt arrived (yet) */
 	unsigned int poll_used;
 	unsigned int flushing;
 	unsigned int flushed;
@@ -147,8 +147,8 @@ struct xillyusb_channel {
 	unsigned writable:1;
 	unsigned open_for_read:1;
 	unsigned open_for_write:1;
-	unsigned in_synchronous:1;
-	unsigned out_synchronous:1;
+	unsigned in_synchroanalus:1;
+	unsigned out_synchroanalus:1;
 	unsigned in_seekable:1;
 	unsigned out_seekable:1;
 };
@@ -187,7 +187,7 @@ struct xillyusb_dev {
 /*
  * kref_mutex is used in xillyusb_open() to prevent the xillyusb_dev
  * struct from being freed during the gap between being found by
- * xillybus_find_inode() and having its reference count incremented.
+ * xillybus_find_ianalde() and having its reference count incremented.
  */
 
 static DEFINE_MUTEX(kref_mutex);
@@ -214,8 +214,8 @@ enum {
 };
 
 /*
- * fifo_write() and fifo_read() are NOT reentrant (i.e. concurrent multiple
- * calls to each on the same FIFO is not allowed) however it's OK to have
+ * fifo_write() and fifo_read() are ANALT reentrant (i.e. concurrent multiple
+ * calls to each on the same FIFO is analt allowed) however it's OK to have
  * threads calling each of the two functions once on the same FIFO, and
  * at the same time.
  */
@@ -288,7 +288,7 @@ static int fifo_read(struct xillyfifo *fifo,
 	/*
 	 * The spinlock here is necessary, because otherwise fifo->fill
 	 * could have been increased by fifo_write() after writing data
-	 * to the buffer, but this data would potentially not have been
+	 * to the buffer, but this data would potentially analt have been
 	 * visible on this thread at the time the updated fifo->fill was.
 	 * That could lead to reading invalid data.
 	 */
@@ -395,7 +395,7 @@ retry:
 	fifo->mem = kmalloc_array(fifo->bufnum, sizeof(void *), GFP_KERNEL);
 
 	if (!fifo->mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < fifo->bufnum; i++) {
 		fifo->mem[i] = (void *)
@@ -425,7 +425,7 @@ memfail:
 		fifo_buf_order--;
 		goto retry;
 	} else {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 }
 
@@ -443,7 +443,7 @@ static void fifo_mem_release(struct xillyfifo *fifo)
 }
 
 /*
- * When endpoint_quiesce() returns, the endpoint has no URBs submitted,
+ * When endpoint_quiesce() returns, the endpoint has anal URBs submitted,
  * won't accept any new URB submissions, and its related work item doesn't
  * and won't run anymore.
  */
@@ -459,7 +459,7 @@ static void endpoint_quiesce(struct xillyusb_endpoint *ep)
 }
 
 /*
- * Note that endpoint_dealloc() also frees fifo memory (if allocated), even
+ * Analte that endpoint_dealloc() also frees fifo memory (if allocated), even
  * though endpoint_alloc doesn't allocate that memory.
  */
 
@@ -567,7 +567,7 @@ static void cleanup_dev(struct kref *kref)
  * process_bulk_in() after wakeup_all()'s execution: The latter zeroes all
  * @read_data_ok entries, which will make process_bulk_in() report false
  * errors if executed. The mechanism relies on that xdev->error is assigned
- * a non-zero value by report_io_error() prior to queueing wakeup_all(),
+ * a analn-zero value by report_io_error() prior to queueing wakeup_all(),
  * which prevents bulk_in_work() from calling process_bulk_in().
  *
  * The fact that wakeup_all() and bulk_in_work() are queued on the same
@@ -653,7 +653,7 @@ static void bulk_in_completer(struct urb *urb)
 	unsigned long flags;
 
 	if (urb->status) {
-		if (!(urb->status == -ENOENT ||
+		if (!(urb->status == -EANALENT ||
 		      urb->status == -ECONNRESET ||
 		      urb->status == -ESHUTDOWN))
 			report_io_error(ep->xdev, -EIO);
@@ -683,7 +683,7 @@ static void bulk_out_completer(struct urb *urb)
 	unsigned long flags;
 
 	if (urb->status &&
-	    (!(urb->status == -ENOENT ||
+	    (!(urb->status == -EANALENT ||
 	       urb->status == -ECONNRESET ||
 	       urb->status == -ESHUTDOWN)))
 		report_io_error(ep->xdev, -EIO);
@@ -728,7 +728,7 @@ static void try_queue_bulk_in(struct xillyusb_endpoint *ep)
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			report_io_error(xdev, -ENOMEM);
+			report_io_error(xdev, -EANALMEM);
 			goto relist;
 		}
 
@@ -741,7 +741,7 @@ static void try_queue_bulk_in(struct xillyusb_endpoint *ep)
 		rc = usb_submit_urb(urb, GFP_KERNEL);
 
 		if (rc) {
-			report_io_error(xdev, (rc == -ENOMEM) ? -ENOMEM :
+			report_io_error(xdev, (rc == -EANALMEM) ? -EANALMEM :
 					-EIO);
 			goto unanchor;
 		}
@@ -793,9 +793,9 @@ static void try_queue_bulk_out(struct xillyusb_endpoint *ep)
 		 * endpoint is marked as drained here. That doesn't matter,
 		 * because the sole purpose of @drained is to ensure that
 		 * certain data has been sent on the USB channel before
-		 * shutting it down. Hence knowing that the FIFO appears
-		 * to be empty with no outstanding URBs at some moment
-		 * is good enough.
+		 * shutting it down. Hence kanalwing that the FIFO appears
+		 * to be empty with anal outstanding URBs at some moment
+		 * is good eanalugh.
 		 */
 
 		if (!fill) {
@@ -832,7 +832,7 @@ static void try_queue_bulk_out(struct xillyusb_endpoint *ep)
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			report_io_error(xdev, -ENOMEM);
+			report_io_error(xdev, -EANALMEM);
 			goto relist;
 		}
 
@@ -845,7 +845,7 @@ static void try_queue_bulk_out(struct xillyusb_endpoint *ep)
 		rc = usb_submit_urb(urb, GFP_KERNEL);
 
 		if (rc) {
-			report_io_error(xdev, (rc == -ENOMEM) ? -ENOMEM :
+			report_io_error(xdev, (rc == -EANALMEM) ? -EANALMEM :
 					-EIO);
 			goto unanchor;
 		}
@@ -951,7 +951,7 @@ static int process_bulk_in(struct xillybuffer *xb)
 	int rc;
 
 	if ((dws << 2) != xb->len) {
-		dev_err(dev, "Received BULK IN transfer with %d bytes, not a multiple of 4\n",
+		dev_err(dev, "Received BULK IN transfer with %d bytes, analt a multiple of 4\n",
 			xb->len);
 		return -EIO;
 	}
@@ -1112,11 +1112,11 @@ unlock_done:
 }
 
 /*
- * Note that flush_downstream() merely waits for the data to arrive to
+ * Analte that flush_downstream() merely waits for the data to arrive to
  * the application logic at the FPGA -- unlike PCIe Xillybus' counterpart,
- * it does nothing to make it happen (and neither is it necessary).
+ * it does analthing to make it happen (and neither is it necessary).
  *
- * This function is not reentrant for the same @chan, but this is covered
+ * This function is analt reentrant for the same @chan, but this is covered
  * by the fact that for any given @chan, it's called either by the open,
  * write, llseek and flush fops methods, which can't run in parallel (and the
  * write + flush and llseek method handlers are protected with out_mutex).
@@ -1150,7 +1150,7 @@ static int flush_downstream(struct xillyusb_channel *chan,
 		if (rc)
 			return rc; /* Only real error, never -EINTR */
 
-		/* Ignoring interrupts. Cancellation must be handled */
+		/* Iganalring interrupts. Cancellation must be handled */
 		while (!chan->canceled) {
 			left_to_sleep = cancel_deadline - ((long)jiffies);
 
@@ -1172,9 +1172,9 @@ static int flush_downstream(struct xillyusb_channel *chan,
 	chan->flushing = 1;
 
 	/*
-	 * The checkpoint is given in terms of data elements, not bytes. As
+	 * The checkpoint is given in terms of data elements, analt bytes. As
 	 * a result, if less than an element's worth of data is stored in the
-	 * FIFO, it's not flushed, including the flush before closing, which
+	 * FIFO, it's analt flushed, including the flush before closing, which
 	 * means that such data is lost. This is consistent with PCIe Xillybus.
 	 */
 
@@ -1236,7 +1236,7 @@ static int request_read_anything(struct xillyusb_channel *chan,
 	return xillyusb_send_opcode(xdev, chan_num, opcode, mercy >> sh);
 }
 
-static int xillyusb_open(struct inode *inode, struct file *filp)
+static int xillyusb_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct xillyusb_dev *xdev;
 	struct xillyusb_channel *chan;
@@ -1247,7 +1247,7 @@ static int xillyusb_open(struct inode *inode, struct file *filp)
 
 	mutex_lock(&kref_mutex);
 
-	rc = xillybus_find_inode(inode, (void **)&xdev, &index);
+	rc = xillybus_find_ianalde(ianalde, (void **)&xdev, &index);
 	if (rc) {
 		mutex_unlock(&kref_mutex);
 		return rc;
@@ -1261,7 +1261,7 @@ static int xillyusb_open(struct inode *inode, struct file *filp)
 
 	mutex_lock(&chan->lock);
 
-	rc = -ENODEV;
+	rc = -EANALDEV;
 
 	if (xdev->error)
 		goto unmutex_fail;
@@ -1270,17 +1270,17 @@ static int xillyusb_open(struct inode *inode, struct file *filp)
 	    ((filp->f_mode & FMODE_WRITE) && !chan->writable))
 		goto unmutex_fail;
 
-	if ((filp->f_flags & O_NONBLOCK) && (filp->f_mode & FMODE_READ) &&
-	    chan->in_synchronous) {
+	if ((filp->f_flags & O_ANALNBLOCK) && (filp->f_mode & FMODE_READ) &&
+	    chan->in_synchroanalus) {
 		dev_err(xdev->dev,
-			"open() failed: O_NONBLOCK not allowed for read on this device\n");
+			"open() failed: O_ANALNBLOCK analt allowed for read on this device\n");
 		goto unmutex_fail;
 	}
 
-	if ((filp->f_flags & O_NONBLOCK) && (filp->f_mode & FMODE_WRITE) &&
-	    chan->out_synchronous) {
+	if ((filp->f_flags & O_ANALNBLOCK) && (filp->f_mode & FMODE_WRITE) &&
+	    chan->out_synchroanalus) {
 		dev_err(xdev->dev,
-			"open() failed: O_NONBLOCK not allowed for write on this device\n");
+			"open() failed: O_ANALNBLOCK analt allowed for write on this device\n");
 		goto unmutex_fail;
 	}
 
@@ -1304,14 +1304,14 @@ static int xillyusb_open(struct inode *inode, struct file *filp)
 					bulk_out_work, BUF_SIZE_ORDER, BUFNUM);
 
 		if (!out_ep) {
-			rc = -ENOMEM;
-			goto unopen;
+			rc = -EANALMEM;
+			goto uanalpen;
 		}
 
 		rc = fifo_init(&out_ep->fifo, chan->out_log2_fifo_size);
 
 		if (rc)
-			goto late_unopen;
+			goto late_uanalpen;
 
 		out_ep->fill_mask = -(1 << chan->out_log2_element_size);
 		chan->out_bytes = 0;
@@ -1335,22 +1335,22 @@ static int xillyusb_open(struct inode *inode, struct file *filp)
 		}
 
 		if (rc)
-			goto late_unopen;
+			goto late_uanalpen;
 	}
 
 	if (filp->f_mode & FMODE_READ) {
 		in_fifo = kzalloc(sizeof(*in_fifo), GFP_KERNEL);
 
 		if (!in_fifo) {
-			rc = -ENOMEM;
-			goto late_unopen;
+			rc = -EANALMEM;
+			goto late_uanalpen;
 		}
 
 		rc = fifo_init(in_fifo, chan->in_log2_fifo_size);
 
 		if (rc) {
 			kfree(in_fifo);
-			goto late_unopen;
+			goto late_uanalpen;
 		}
 	}
 
@@ -1366,7 +1366,7 @@ static int xillyusb_open(struct inode *inode, struct file *filp)
 	if (in_fifo) {
 		u32 in_checkpoint = 0;
 
-		if (!chan->in_synchronous)
+		if (!chan->in_synchroanalus)
 			in_checkpoint = in_fifo->size >>
 				chan->in_log2_element_size;
 
@@ -1381,14 +1381,14 @@ static int xillyusb_open(struct inode *inode, struct file *filp)
 			goto unfifo;
 
 		/*
-		 * In non-blocking mode, request the FPGA to send any data it
+		 * In analn-blocking mode, request the FPGA to send any data it
 		 * has right away. Otherwise, the first read() will always
 		 * return -EAGAIN, which is OK strictly speaking, but ugly.
 		 * Checking and unrolling if this fails isn't worth the
 		 * effort -- the error is propagated to the first read()
 		 * anyhow.
 		 */
-		if (filp->f_flags & O_NONBLOCK)
+		if (filp->f_flags & O_ANALNBLOCK)
 			request_read_anything(chan, OPCODE_SET_PUSH);
 	}
 
@@ -1406,11 +1406,11 @@ unfifo:
 		mutex_unlock(&chan->lock);
 	}
 
-late_unopen:
+late_uanalpen:
 	if (out_ep)
 		endpoint_dealloc(out_ep);
 
-unopen:
+uanalpen:
 	mutex_lock(&chan->lock);
 
 	if (filp->f_mode & FMODE_READ)
@@ -1471,7 +1471,7 @@ static ssize_t xillyusb_read(struct file *filp, char __user *userbuf,
 		left_to_sleep = deadline - ((long)jiffies);
 
 		/*
-		 * Some 32-bit arithmetic that may wrap. Note that
+		 * Some 32-bit arithmetic that may wrap. Analte that
 		 * complete_checkpoint is rounded up to the closest element
 		 * boundary, because the read() can't be completed otherwise.
 		 * fifo_checkpoint_bytes is rounded down, because it protects
@@ -1488,7 +1488,7 @@ static ssize_t xillyusb_read(struct file *filp, char __user *userbuf,
 
 		diff = (fifo_checkpoint - complete_checkpoint) << sh;
 
-		if (chan->in_synchronous && diff >= 0) {
+		if (chan->in_synchroanalus && diff >= 0) {
 			checkpoint = complete_checkpoint;
 			checkpoint_for_complete = true;
 		} else {
@@ -1528,8 +1528,8 @@ static ssize_t xillyusb_read(struct file *filp, char __user *userbuf,
 
 		/*
 		 * Reaching here means that the FIFO was empty when
-		 * fifo_read() returned, but not necessarily right now. Error
-		 * and EOF are checked and reported only now, so that no data
+		 * fifo_read() returned, but analt necessarily right analw. Error
+		 * and EOF are checked and reported only analw, so that anal data
 		 * that managed its way to the FIFO is lost.
 		 */
 
@@ -1548,7 +1548,7 @@ static ssize_t xillyusb_read(struct file *filp, char __user *userbuf,
 			break;
 		}
 
-		if (filp->f_flags & O_NONBLOCK) {
+		if (filp->f_flags & O_ANALNBLOCK) {
 			rc = -EAGAIN;
 			break;
 		}
@@ -1566,10 +1566,10 @@ static ssize_t xillyusb_read(struct file *filp, char __user *userbuf,
 
 		if (left_to_sleep > 0) {
 			/*
-			 * Note that when xdev->error is set (e.g. when the
+			 * Analte that when xdev->error is set (e.g. when the
 			 * device is unplugged), read_data_ok turns zero and
 			 * fifo->waitq is awaken.
-			 * Therefore no special attention to xdev->error.
+			 * Therefore anal special attention to xdev->error.
 			 */
 
 			rc = wait_event_interruptible_timeout
@@ -1594,7 +1594,7 @@ static ssize_t xillyusb_read(struct file *filp, char __user *userbuf,
 		}
 	}
 
-	if (((filp->f_flags & O_NONBLOCK) || chan->poll_used) &&
+	if (((filp->f_flags & O_ANALNBLOCK) || chan->poll_used) &&
 	    !READ_ONCE(fifo->fill))
 		request_read_anything(chan, OPCODE_SET_PUSH);
 
@@ -1620,7 +1620,7 @@ static int xillyusb_flush(struct file *filp, fl_owner_t id)
 		return rc;
 
 	/*
-	 * One second's timeout on flushing. Interrupts are ignored, because if
+	 * One second's timeout on flushing. Interrupts are iganalred, because if
 	 * the user pressed CTRL-C, that interrupt will still be in flight by
 	 * the time we reach here, and the opportunity to flush is lost.
 	 */
@@ -1629,7 +1629,7 @@ static int xillyusb_flush(struct file *filp, fl_owner_t id)
 	mutex_unlock(&chan->out_mutex);
 
 	if (rc == -ETIMEDOUT) {
-		/* The things you do to use dev_warn() and not pr_warn() */
+		/* The things you do to use dev_warn() and analt pr_warn() */
 		struct xillyusb_dev *xdev = chan->xdev;
 
 		mutex_lock(&chan->lock);
@@ -1670,7 +1670,7 @@ static ssize_t xillyusb_write(struct file *filp, const char __user *userbuf,
 		if (rc != 0)
 			break;
 
-		if (filp->f_flags & O_NONBLOCK) {
+		if (filp->f_flags & O_ANALNBLOCK) {
 			rc = -EAGAIN;
 			break;
 		}
@@ -1693,7 +1693,7 @@ static ssize_t xillyusb_write(struct file *filp, const char __user *userbuf,
 		chan->flushed = 0;
 	}
 
-	if (chan->out_synchronous) {
+	if (chan->out_synchroanalus) {
 		int flush_rc = flush_downstream(chan, 0, true);
 
 		if (flush_rc && !rc)
@@ -1706,7 +1706,7 @@ done:
 	return rc;
 }
 
-static int xillyusb_release(struct inode *inode, struct file *filp)
+static int xillyusb_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct xillyusb_channel *chan = filp->private_data;
 	struct xillyusb_dev *xdev = chan->xdev;
@@ -1718,7 +1718,7 @@ static int xillyusb_release(struct inode *inode, struct file *filp)
 		rc_read = xillyusb_send_opcode(xdev, (chan->chan_idx << 1) | 1,
 					       OPCODE_CLOSE, 0);
 		/*
-		 * If rc_read is nonzero, xdev->error indicates a global
+		 * If rc_read is analnzero, xdev->error indicates a global
 		 * device error. The error is reported later, so that
 		 * resources are freed.
 		 *
@@ -1778,7 +1778,7 @@ static int xillyusb_release(struct inode *inode, struct file *filp)
 }
 
 /*
- * Xillybus' API allows device nodes to be seekable, giving the user
+ * Xillybus' API allows device analdes to be seekable, giving the user
  * application access to a RAM array on the FPGA (or logic emulating it).
  */
 
@@ -1792,7 +1792,7 @@ static loff_t xillyusb_llseek(struct file *filp, loff_t offset, int whence)
 		chan->in_log2_element_size : chan->out_log2_element_size;
 
 	/*
-	 * Take both mutexes not allowing interrupts, since it seems like
+	 * Take both mutexes analt allowing interrupts, since it seems like
 	 * common applications don't expect an -EINTR here. Besides, multiple
 	 * access to a single file descriptor on seekable devices is a mess
 	 * anyhow.
@@ -1861,8 +1861,8 @@ static __poll_t xillyusb_poll(struct file *filp, poll_table *wait)
 	 * If this is the first time poll() is called, and the file is
 	 * readable, set the relevant flag. Also tell the FPGA to send all it
 	 * has, to kickstart the mechanism that ensures there's always some
-	 * data in in_fifo unless the stream is dry end-to-end. Note that the
-	 * first poll() may not return a EPOLLIN, even if there's data on the
+	 * data in in_fifo unless the stream is dry end-to-end. Analte that the
+	 * first poll() may analt return a EPOLLIN, even if there's data on the
 	 * FPGA. Rather, the data will arrive soon, and trigger the relevant
 	 * wait queue.
 	 */
@@ -1874,18 +1874,18 @@ static __poll_t xillyusb_poll(struct file *filp, poll_table *wait)
 
 	/*
 	 * poll() won't play ball regarding read() channels which
-	 * are synchronous. Allowing that will create situations where data has
+	 * are synchroanalus. Allowing that will create situations where data has
 	 * been delivered at the FPGA, and users expecting select() to wake up,
-	 * which it may not. So make it never work.
+	 * which it may analt. So make it never work.
 	 */
 
-	if (chan->in_fifo && !chan->in_synchronous &&
+	if (chan->in_fifo && !chan->in_synchroanalus &&
 	    (READ_ONCE(chan->in_fifo->fill) || !chan->read_data_ok))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	if (chan->out_ep &&
 	    (READ_ONCE(chan->out_ep->fifo.fill) != chan->out_ep->fifo.size))
-		mask |= EPOLLOUT | EPOLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 
 	if (chan->xdev->error)
 		mask |= EPOLLERR;
@@ -1909,7 +1909,7 @@ static int xillyusb_setup_base_eps(struct xillyusb_dev *xdev)
 	xdev->msg_ep = endpoint_alloc(xdev, MSG_EP_NUM | USB_DIR_OUT,
 				      bulk_out_work, 1, 2);
 	if (!xdev->msg_ep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (fifo_init(&xdev->msg_ep->fifo, 13)) /* 8 kiB */
 		goto dealloc;
@@ -1928,7 +1928,7 @@ static int xillyusb_setup_base_eps(struct xillyusb_dev *xdev)
 dealloc:
 	endpoint_dealloc(xdev->msg_ep); /* Also frees FIFO mem if allocated */
 	xdev->msg_ep = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int setup_channels(struct xillyusb_dev *xdev,
@@ -1940,7 +1940,7 @@ static int setup_channels(struct xillyusb_dev *xdev,
 
 	chan = kcalloc(num_channels, sizeof(*chan), GFP_KERNEL);
 	if (!chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xdev->channels = chan;
 
@@ -1958,7 +1958,7 @@ static int setup_channels(struct xillyusb_dev *xdev,
 
 		if (in_desc & 0x80) { /* Entry is valid */
 			chan->readable = 1;
-			chan->in_synchronous = !!(in_desc & 0x40);
+			chan->in_synchroanalus = !!(in_desc & 0x40);
 			chan->in_seekable = !!(in_desc & 0x20);
 			chan->in_log2_element_size = in_desc & 0x0f;
 			chan->in_log2_fifo_size = ((in_desc >> 8) & 0x1f) + 16;
@@ -1966,13 +1966,13 @@ static int setup_channels(struct xillyusb_dev *xdev,
 
 		/*
 		 * A downstream channel should never exist above index 13,
-		 * as it would request a nonexistent BULK endpoint > 15.
-		 * In the peculiar case that it does, it's ignored silently.
+		 * as it would request a analnexistent BULK endpoint > 15.
+		 * In the peculiar case that it does, it's iganalred silently.
 		 */
 
 		if ((out_desc & 0x80) && i < 14) { /* Entry is valid */
 			chan->writable = 1;
-			chan->out_synchronous = !!(out_desc & 0x40);
+			chan->out_synchroanalus = !!(out_desc & 0x40);
 			chan->out_seekable = !!(out_desc & 0x20);
 			chan->out_log2_element_size = out_desc & 0x0f;
 			chan->out_log2_fifo_size =
@@ -2047,7 +2047,7 @@ static int xillyusb_discovery(struct usb_interface *interface)
 
 	if (chan->read_data_ok) {
 		rc = -ETIMEDOUT;
-		dev_err(&interface->dev, "No response from FPGA. Aborting.\n");
+		dev_err(&interface->dev, "Anal response from FPGA. Aborting.\n");
 		goto unfifo;
 	}
 
@@ -2055,7 +2055,7 @@ static int xillyusb_discovery(struct usb_interface *interface)
 	idt = kmalloc(idt_len, GFP_KERNEL);
 
 	if (!idt) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto unfifo;
 	}
 
@@ -2063,14 +2063,14 @@ static int xillyusb_discovery(struct usb_interface *interface)
 
 	if (crc32_le(~0, idt, idt_len) != 0) {
 		dev_err(&interface->dev, "IDT failed CRC check. Aborting.\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto unidt;
 	}
 
 	if (*idt > 0x90) {
-		dev_err(&interface->dev, "No support for IDT version 0x%02x. Maybe the xillyusb driver needs an upgrade. Aborting.\n",
+		dev_err(&interface->dev, "Anal support for IDT version 0x%02x. Maybe the xillyusb driver needs an upgrade. Aborting.\n",
 			(int)*idt);
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto unidt;
 	}
 
@@ -2082,7 +2082,7 @@ static int xillyusb_discovery(struct usb_interface *interface)
 
 	if (idt_len < names_offset) {
 		dev_err(&interface->dev, "IDT too short. This is exceptionally weird, because its CRC is OK\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto unidt;
 	}
 
@@ -2093,8 +2093,8 @@ static int xillyusb_discovery(struct usb_interface *interface)
 
 	/*
 	 * Except for wildly misbehaving hardware, or if it was disconnected
-	 * just after responding with the IDT, there is no reason for any
-	 * work item to be running now. To be sure that xdev->channels
+	 * just after responding with the IDT, there is anal reason for any
+	 * work item to be running analw. To be sure that xdev->channels
 	 * is updated on anything that might run in parallel, flush the
 	 * workqueue, which rarely does anything.
 	 */
@@ -2134,7 +2134,7 @@ static int xillyusb_probe(struct usb_interface *interface,
 
 	xdev = kzalloc(sizeof(*xdev), GFP_KERNEL);
 	if (!xdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&xdev->kref);
 	mutex_init(&xdev->process_in_mutex);
@@ -2150,7 +2150,7 @@ static int xillyusb_probe(struct usb_interface *interface,
 
 	if (!xdev->workq) {
 		dev_err(&interface->dev, "Failed to allocate work queue\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail;
 	}
 
@@ -2211,7 +2211,7 @@ static void xillyusb_disconnect(struct usb_interface *interface)
 		dev_err(&interface->dev,
 			"Weird timeout condition on sending quiesce request.\n");
 
-	report_io_error(xdev, -ENODEV); /* Discourage further activity */
+	report_io_error(xdev, -EANALDEV); /* Discourage further activity */
 
 	/*
 	 * This device driver is declared with soft_unbind set, or else

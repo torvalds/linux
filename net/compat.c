@@ -3,7 +3,7 @@
  * 32bit Socket syscall emulation. Based on arch/sparc64/kernel/sys_sparc32.c.
  *
  * Copyright (C) 2000		VA Linux Co
- * Copyright (C) 2000		Don Dugger <n0ano@valinux.com>
+ * Copyright (C) 2000		Don Dugger <n0aanal@valinux.com>
  * Copyright (C) 1999 		Arun Sharma <arun.sharma@intel.com>
  * Copyright (C) 1997,1998 	Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  * Copyright (C) 1997 		David S. Miller (davem@caip.rutgers.edu)
@@ -168,16 +168,16 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg, struct sock *sk,
 		return -EINVAL;
 
 	/* The kcmlen holds the 64-bit version of the control length.
-	 * It may not be modified as we do not stick it into the kmsg
+	 * It may analt be modified as we do analt stick it into the kmsg
 	 * until we have successfully copied over all of the data
 	 * from the user.
 	 */
 	if (kcmlen > stackbuf_size)
 		kcmsg_base = kcmsg = sock_kmalloc(sk, kcmlen, GFP_KERNEL);
 	if (kcmsg == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Now copy them over neatly. */
+	/* Analw copy them over neatly. */
 	memset(kcmsg, 0, kcmlen);
 	ucmsg = CMSG_COMPAT_FIRSTHDR(kmsg);
 	while (ucmsg != NULL) {

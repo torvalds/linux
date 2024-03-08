@@ -74,7 +74,7 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 			bi.tag_size = sizeof(u16);
 	}
 
-	sd_first_printk(KERN_NOTICE, sdkp,
+	sd_first_printk(KERN_ANALTICE, sdkp,
 			"Enabling DIX %s, application tag size %u bytes\n",
 			bi.profile->name, bi.tag_size);
 out:

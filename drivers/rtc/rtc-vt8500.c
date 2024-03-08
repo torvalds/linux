@@ -199,7 +199,7 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 	vt8500_rtc = devm_kzalloc(&pdev->dev,
 			   sizeof(struct vt8500_rtc), GFP_KERNEL);
 	if (!vt8500_rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&vt8500_rtc->lock);
 	platform_set_drvdata(pdev, vt8500_rtc);

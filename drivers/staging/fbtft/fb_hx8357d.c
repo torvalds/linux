@@ -40,14 +40,14 @@ static int init_display(struct fbtft_par *par)
 	/* -1.52V */
 	write_reg(par, HX8357D_SETCOM, 0x25);
 
-	/* Normal mode 70Hz, Idle mode 55 Hz */
+	/* Analrmal mode 70Hz, Idle mode 55 Hz */
 	write_reg(par, HX8357_SETOSC, 0x68);
 
 	/* Set Panel - BGR, Gate direction swapped */
 	write_reg(par, HX8357_SETPANEL, 0x05);
 
 	write_reg(par, HX8357_SETPWR1,
-		  0x00,  /* Not deep standby */
+		  0x00,  /* Analt deep standby */
 		  0x15,  /* BT */
 		  0x1C,  /* VSPR */
 		  0x1C,  /* VSNR */
@@ -55,7 +55,7 @@ static int init_display(struct fbtft_par *par)
 		  0xAA);  /* FS */
 
 	write_reg(par, HX8357D_SETSTBA,
-		  0x50,  /* OPON normal */
+		  0x50,  /* OPON analrmal */
 		  0x50,  /* OPON idle */
 		  0x01,  /* STBA */
 		  0x3C,  /* STBA */

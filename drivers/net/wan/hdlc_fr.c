@@ -20,9 +20,9 @@
  DTE mode:
  (exist,new,active) = FULL STATUS if "link reliable"
 		    = 0, 0, 0 if "link unreliable"
- No LMI:
+ Anal LMI:
  active = open and "link reliable"
- exist = new = not used
+ exist = new = analt used
 
  CCITT LMI: ITU-T Q.933 Annex A
  ANSI LMI: ANSI T1.617 Annex D
@@ -30,7 +30,7 @@
 
 */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/etherdevice.h>
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
@@ -330,7 +330,7 @@ static int pvc_open(struct net_device *dev)
 	if (pvc->open_count++ == 0) {
 		hdlc_device *hdlc = dev_to_hdlc(pvc->frad);
 
-		if (state(hdlc)->settings.lmi == LMI_NONE)
+		if (state(hdlc)->settings.lmi == LMI_ANALNE)
 			pvc->state.active = netif_carrier_ok(pvc->frad);
 
 		pvc_carrier(pvc->state.active, pvc);
@@ -346,7 +346,7 @@ static int pvc_close(struct net_device *dev)
 	if (--pvc->open_count == 0) {
 		hdlc_device *hdlc = dev_to_hdlc(pvc->frad);
 
-		if (state(hdlc)->settings.lmi == LMI_NONE)
+		if (state(hdlc)->settings.lmi == LMI_ANALNE)
 			pvc->state.active = 0;
 
 		if (state(hdlc)->settings.dce) {
@@ -371,7 +371,7 @@ static int pvc_ioctl(struct net_device *dev, struct if_settings *ifs)
 		if (ifs->size < sizeof(info)) {
 			/* data size wanted */
 			ifs->size = sizeof(info);
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 
 		info.dlci = pvc->dlci;
@@ -558,7 +558,7 @@ static void fr_set_link_state(int reliable, struct net_device *dev)
 		state(hdlc)->n391cnt = 0; /* Request full status */
 		state(hdlc)->dce_changed = 1;
 
-		if (state(hdlc)->settings.lmi == LMI_NONE) {
+		if (state(hdlc)->settings.lmi == LMI_ANALNE) {
 			while (pvc) {	/* Activate all PVCs */
 				pvc_carrier(1, pvc);
 				pvc->state.exist = pvc->state.active = 1;
@@ -596,7 +596,7 @@ static void fr_timer(struct timer_list *t)
 		state(hdlc)->last_errors <<= 1; /* Shift the list */
 		if (state(hdlc)->request) {
 			if (state(hdlc)->reliable)
-				netdev_info(dev, "No LMI status reply received\n");
+				netdev_info(dev, "Anal LMI status reply received\n");
 			state(hdlc)->last_errors |= 1;
 		}
 
@@ -637,7 +637,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 	u8 rxseq, txseq;
 	int lmi = state(hdlc)->settings.lmi;
 	int dce = state(hdlc)->settings.dce;
-	int stat_len = (lmi == LMI_CISCO) ? 6 : 3, reptype, error, no_ram, i;
+	int stat_len = (lmi == LMI_CISCO) ? 6 : 3, reptype, error, anal_ram, i;
 
 	if (skb->len < (lmi == LMI_ANSI ? LMI_ANSI_LENGTH :
 			LMI_CCITT_CISCO_LENGTH)) {
@@ -647,7 +647,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 
 	if (skb->data[3] != (lmi == LMI_CISCO ? NLPID_CISCO_LMI :
 			     NLPID_CCITT_ANSI_LMI)) {
-		netdev_info(dev, "Received non-LMI frame with LMI DLCI\n");
+		netdev_info(dev, "Received analn-LMI frame with LMI DLCI\n");
 		return 1;
 	}
 
@@ -665,7 +665,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 
 	if (lmi == LMI_ANSI) {
 		if (skb->data[6] != LMI_ANSI_LOCKSHIFT) {
-			netdev_info(dev, "Not ANSI locking shift in LMI message (0x%02X)\n",
+			netdev_info(dev, "Analt ANSI locking shift in LMI message (0x%02X)\n",
 				    skb->data[6]);
 			return 1;
 		}
@@ -676,7 +676,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 
 	if (skb->data[i] != (lmi == LMI_CCITT ? LMI_CCITT_REPTYPE :
 			     LMI_ANSI_CISCO_REPTYPE)) {
-		netdev_info(dev, "Not an LMI Report type IE (0x%02X)\n",
+		netdev_info(dev, "Analt an LMI Report type IE (0x%02X)\n",
 			    skb->data[i]);
 		return 1;
 	}
@@ -696,7 +696,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 
 	if (skb->data[++i] != (lmi == LMI_CCITT ? LMI_CCITT_ALIVE :
 			       LMI_ANSI_CISCO_ALIVE)) {
-		netdev_info(dev, "Not an LMI Link integrity verification IE (0x%02X)\n",
+		netdev_info(dev, "Analt an LMI Link integrity verification IE (0x%02X)\n",
 			    skb->data[i]);
 		return 1;
 	}
@@ -734,7 +734,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 				if (pvc->state.new) {
 					pvc->state.new = 0;
 
-/* Tell DTE that new PVC is now active */
+/* Tell DTE that new PVC is analw active */
 					state(hdlc)->dce_changed = 1;
 				}
 				pvc = pvc->next;
@@ -754,7 +754,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 
 	/* DTE */
 
-	state(hdlc)->request = 0; /* got response, no request pending */
+	state(hdlc)->request = 0; /* got response, anal request pending */
 
 	if (error)
 		return 0;
@@ -769,7 +769,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 		pvc = pvc->next;
 	}
 
-	no_ram = 0;
+	anal_ram = 0;
 	while (skb->len >= i + 2 + stat_len) {
 		u16 dlci;
 		u32 bw;
@@ -777,7 +777,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 
 		if (skb->data[i] != (lmi == LMI_CCITT ? LMI_CCITT_PVCSTAT :
 				       LMI_ANSI_CISCO_PVCSTAT)) {
-			netdev_info(dev, "Not an LMI PVC status IE (0x%02X)\n",
+			netdev_info(dev, "Analt an LMI PVC status IE (0x%02X)\n",
 				    skb->data[i]);
 			return 1;
 		}
@@ -804,9 +804,9 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 
 		pvc = add_pvc(dev, dlci);
 
-		if (!pvc && !no_ram) {
+		if (!pvc && !anal_ram) {
 			netdev_warn(dev, "Memory squeeze on fr_lmi_recv()\n");
-			no_ram = 1;
+			anal_ram = 1;
 		}
 
 		if (pvc) {
@@ -915,7 +915,7 @@ static int fr_rx(struct sk_buff *skb)
 	pvc = find_pvc(hdlc, dlci);
 	if (!pvc) {
 #ifdef DEBUG_PKT
-		netdev_info(frad, "No PVC for received frame's DLCI %d\n",
+		netdev_info(frad, "Anal PVC for received frame's DLCI %d\n",
 			    dlci);
 #endif
 		goto rx_drop;
@@ -999,7 +999,7 @@ static void fr_start(struct net_device *dev)
 #ifdef DEBUG_LINK
 	printk(KERN_DEBUG "fr_start\n");
 #endif
-	if (state(hdlc)->settings.lmi != LMI_NONE) {
+	if (state(hdlc)->settings.lmi != LMI_ANALNE) {
 		state(hdlc)->reliable = 0;
 		state(hdlc)->dce_changed = 1;
 		state(hdlc)->request = 0;
@@ -1024,7 +1024,7 @@ static void fr_stop(struct net_device *dev)
 #ifdef DEBUG_LINK
 	printk(KERN_DEBUG "fr_stop\n");
 #endif
-	if (state(hdlc)->settings.lmi != LMI_NONE)
+	if (state(hdlc)->settings.lmi != LMI_ANALNE)
 		del_timer_sync(&state(hdlc)->timer);
 	fr_set_link_state(0, dev);
 }
@@ -1069,7 +1069,7 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 	pvc = add_pvc(frad, dlci);
 	if (!pvc) {
 		netdev_warn(frad, "Memory squeeze on fr_add_pvc()\n");
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	if (*get_dev_p(pvc, type))
@@ -1078,15 +1078,15 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 	used = pvc_is_used(pvc);
 
 	if (type == ARPHRD_ETHER)
-		dev = alloc_netdev(0, "pvceth%d", NET_NAME_UNKNOWN,
+		dev = alloc_netdev(0, "pvceth%d", NET_NAME_UNKANALWN,
 				   ether_setup);
 	else
-		dev = alloc_netdev(0, "pvc%d", NET_NAME_UNKNOWN, pvc_setup);
+		dev = alloc_netdev(0, "pvc%d", NET_NAME_UNKANALWN, pvc_setup);
 
 	if (!dev) {
 		netdev_warn(frad, "Memory squeeze on fr_pvc()\n");
 		delete_unused_pvcs(hdlc);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	if (type == ARPHRD_ETHER) {
@@ -1103,7 +1103,7 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 	dev->min_mtu = 68;
 	dev->max_mtu = HDLC_MAX_MTU;
 	dev->needed_headroom = 10;
-	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->priv_flags |= IFF_ANAL_QUEUE;
 	dev->ml_priv = pvc;
 
 	if (register_netdevice(dev) != 0) {
@@ -1128,11 +1128,11 @@ static int fr_del_pvc(hdlc_device *hdlc, unsigned int dlci, int type)
 
 	pvc = find_pvc(hdlc, dlci);
 	if (!pvc)
-		return -ENOENT;
+		return -EANALENT;
 
 	dev = *get_dev_p(pvc, type);
 	if (!dev)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (dev->flags & IFF_UP)
 		return -EBUSY;		/* PVC in use */
@@ -1197,7 +1197,7 @@ static int fr_ioctl(struct net_device *dev, struct if_settings *ifs)
 		ifs->type = IF_PROTO_FR;
 		if (ifs->size < size) {
 			ifs->size = size; /* data size wanted */
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 		if (copy_to_user(fr_s, &state(hdlc)->settings, size))
 			return -EFAULT;
@@ -1216,7 +1216,7 @@ static int fr_ioctl(struct net_device *dev, struct if_settings *ifs)
 		if (new_settings.lmi == LMI_DEFAULT)
 			new_settings.lmi = LMI_ANSI;
 
-		if ((new_settings.lmi != LMI_NONE &&
+		if ((new_settings.lmi != LMI_ANALNE &&
 		     new_settings.lmi != LMI_ANSI &&
 		     new_settings.lmi != LMI_CCITT &&
 		     new_settings.lmi != LMI_CISCO) ||
@@ -1245,7 +1245,7 @@ static int fr_ioctl(struct net_device *dev, struct if_settings *ifs)
 		}
 		memcpy(&state(hdlc)->settings, &new_settings, size);
 		dev->type = ARPHRD_FRAD;
-		call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev);
+		call_netdevice_analtifiers(NETDEV_POST_TYPE_CHANGE, dev);
 		return 0;
 
 	case IF_PROTO_FR_ADD_PVC:

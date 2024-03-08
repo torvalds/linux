@@ -34,7 +34,7 @@
 #define MAX1027_SCAN_0_N  (0x00 << 1)
 #define MAX1027_SCAN_N_M  (0x01 << 1)
 #define MAX1027_SCAN_N    (0x02 << 1)
-#define MAX1027_NOSCAN    (0x03 << 1)
+#define MAX1027_ANALSCAN    (0x03 << 1)
 #define MAX1027_CHAN(n)   ((n) << 3)
 
 /* setup register */
@@ -177,8 +177,8 @@ static const struct iio_chan_spec max1231_channels[] = {
 
 /*
  * These devices are able to scan from 0 to N, N being the highest voltage
- * channel requested by the user. The temperature can be included or not,
- * but cannot be retrieved alone. Based on the below
+ * channel requested by the user. The temperature can be included or analt,
+ * but cananalt be retrieved alone. Based on the below
  * ->available_scan_masks, the core will select the most appropriate
  * ->active_scan_mask and the "minimum" number of channels will be
  * scanned and pushed to the buffers.
@@ -342,7 +342,7 @@ static int max1027_read_single_value(struct iio_dev *indio_dev,
 
 	/* Configure conversion register with the requested chan */
 	st->reg = MAX1027_CONV_REG | MAX1027_CHAN(chan->channel) |
-		  MAX1027_NOSCAN;
+		  MAX1027_ANALSCAN;
 	if (chan->type == IIO_TEMP)
 		st->reg |= MAX1027_TEMP;
 	ret = spi_write(st->spi, &st->reg, 1);
@@ -353,7 +353,7 @@ static int max1027_read_single_value(struct iio_dev *indio_dev,
 	}
 
 	/*
-	 * For an unknown reason, when we use the mode "10" (write
+	 * For an unkanalwn reason, when we use the mode "10" (write
 	 * conversion register), the interrupt doesn't occur every time.
 	 * So we just wait the maximum conversion time and deliver the value.
 	 */
@@ -489,7 +489,7 @@ static irqreturn_t max1027_handler(int irq, void *private)
 	 * handler to the core which will then lookup through the interrupt tree
 	 * for the right handler registered with iio_triggered_buffer_setup()
 	 * to execute, as this trigger might very well be used in conjunction
-	 * with another device. The core will then call the relevant handler to
+	 * with aanalther device. The core will then call the relevant handler to
 	 * perform the data processing step.
 	 */
 	if (!iio_buffer_enabled(indio_dev))
@@ -521,9 +521,9 @@ static irqreturn_t max1027_trigger_handler(int irq, void *private)
 out:
 	if (ret)
 		dev_err(&indio_dev->dev,
-			"Cannot read scanned values (%d)\n", ret);
+			"Cananalt read scanned values (%d)\n", ret);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -547,7 +547,7 @@ static int max1027_probe(struct spi_device *spi)
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev) {
 		pr_err("Can't allocate iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	st = iio_priv(indio_dev);
@@ -568,7 +568,7 @@ static int max1027_probe(struct spi_device *spi)
 					indio_dev->num_channels, 2,
 					GFP_KERNEL);
 	if (!st->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Enable triggered buffers */
 	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
@@ -585,7 +585,7 @@ static int max1027_probe(struct spi_device *spi)
 		st->trig = devm_iio_trigger_alloc(&spi->dev, "%s-trigger",
 						  indio_dev->name);
 		if (!st->trig) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			dev_err(&indio_dev->dev,
 				"Failed to allocate iio trigger\n");
 			return ret;
@@ -626,7 +626,7 @@ static int max1027_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	/* Assume conversion on register write for now */
+	/* Assume conversion on register write for analw */
 	ret = max1027_enable_trigger(indio_dev, false);
 	if (ret)
 		return ret;

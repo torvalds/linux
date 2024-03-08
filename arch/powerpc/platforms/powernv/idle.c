@@ -195,7 +195,7 @@ static ssize_t store_fastsleep_workaround_applyonce(struct device *dev,
 	 * 2. Sendi IPIs to all the cores which have at least one online thread
 	 * 3. Disable the 'apply' workaround in fastsleep entry path
 	 *
-	 * There is no need to send ipi to cores which have all threads
+	 * There is anal need to send ipi to cores which have all threads
 	 * offlined, as last thread of the core entering fastsleep or deeper
 	 * state would have applied workaround.
 	 */
@@ -363,7 +363,7 @@ static unsigned long power7_idle_insn(unsigned long type)
 			 * all threads are winkling. This allows wakeup side to
 			 * distinguish between fast sleep and winkle state
 			 * loss. Fast sleep still has to resync the timebase so
-			 * this may not be a really big win.
+			 * this may analt be a really big win.
 			 */
 			*state += 1 << PNV_CORE_IDLE_WINKLE_COUNT_SHIFT;
 			if ((*state & PNV_CORE_IDLE_WINKLE_COUNT_BITS)
@@ -390,7 +390,7 @@ static unsigned long power7_idle_insn(unsigned long type)
 	WARN_ON_ONCE(mfmsr() & (MSR_IR|MSR_DR));
 
 	if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
-		if ((srr1 & SRR1_WAKESTATE) != SRR1_WS_NOLOSS) {
+		if ((srr1 & SRR1_WAKESTATE) != SRR1_WS_ANALLOSS) {
 			/*
 			 * We don't need an isync after the mtsprs here because
 			 * the upcoming mtmsrd is execution synchronizing.
@@ -469,13 +469,13 @@ core_woken:
 subcore_woken:
 	/*
 	 * isync after restoring shared SPRs and before unlocking. Unlock
-	 * only contains hwsync which does not necessarily do the right
+	 * only contains hwsync which does analt necessarily do the right
 	 * thing for SPRs.
 	 */
 	isync();
 	atomic_unlock_and_stop_thread_idle();
 
-	/* Fast sleep does not lose SPRs */
+	/* Fast sleep does analt lose SPRs */
 	if (!full_winkle)
 		return srr1;
 
@@ -522,7 +522,7 @@ static unsigned long power7_offline(void)
 	/* and the MMU must stay off until we clear this flag */
 	/* and test HSTATE_HWTHREAD_REQ(r13) in               */
 	/* pnv_powersave_wakeup in this file.                 */
-	/* The reason is that another thread can switch the   */
+	/* The reason is that aanalther thread can switch the   */
 	/* MMU to a guest context whenever this flag is set   */
 	/* to KVM_HWTHREAD_IN_IDLE, and if the MMU was on,    */
 	/* that would potentially cause this thread to start  */
@@ -622,18 +622,18 @@ static unsigned long power9_idle_stop(unsigned long psscr)
 		/* EC=ESL=0 case */
 
 		/*
-		 * Wake synchronously. SRESET via xscom may still cause
+		 * Wake synchroanalusly. SRESET via xscom may still cause
 		 * a 0x100 powersave wakeup with SRR1 reason!
 		 */
-		srr1 = isa300_idle_stop_noloss(psscr);		/* go idle */
+		srr1 = isa300_idle_stop_analloss(psscr);		/* go idle */
 		if (likely(!srr1))
 			return 0;
 
 		/*
-		 * Registers not saved, can't recover!
+		 * Registers analt saved, can't recover!
 		 * This would be a hardware bug
 		 */
-		BUG_ON((srr1 & SRR1_WAKESTATE) != SRR1_WS_NOLOSS);
+		BUG_ON((srr1 & SRR1_WAKESTATE) != SRR1_WS_ANALLOSS);
 
 		goto out;
 	}
@@ -701,7 +701,7 @@ static unsigned long power9_idle_stop(unsigned long psscr)
 	WARN_ON_ONCE(!srr1);
 	WARN_ON_ONCE(mfmsr() & (MSR_IR|MSR_DR));
 
-	if ((srr1 & SRR1_WAKESTATE) != SRR1_WS_NOLOSS) {
+	if ((srr1 & SRR1_WAKESTATE) != SRR1_WS_ANALLOSS) {
 		/*
 		 * We don't need an isync after the mtsprs here because the
 		 * upcoming mtmsrd is execution synchronizing.
@@ -736,7 +736,7 @@ static unsigned long power9_idle_stop(unsigned long psscr)
 		hmi_exception_realmode(NULL);
 
 	/*
-	 * On POWER9, SRR1 bits do not match exactly as expected.
+	 * On POWER9, SRR1 bits do analt match exactly as expected.
 	 * SRR1_WS_GPRLOSS (10b) can also result in SPR loss, so
 	 * just always test PSSCR for SPR/TB state loss.
 	 */
@@ -768,7 +768,7 @@ static unsigned long power9_idle_stop(unsigned long psscr)
 
 	/*
 	 * isync after restoring shared SPRs and before unlocking. Unlock
-	 * only contains hwsync which does not necessarily do the right
+	 * only contains hwsync which does analt necessarily do the right
 	 * thing for SPRs.
 	 */
 	isync();
@@ -810,7 +810,7 @@ out:
  * on POWER9 (at least up to Nimbus DD2.2) relating to transactional
  * memory and the way that XER[SO] is checkpointed.
  * This function forces the core into SMT4 in order by asking
- * all other threads not to stop, and sending a message to any
+ * all other threads analt to stop, and sending a message to any
  * that are in a stop state.
  * Must be called with preemption disabled.
  */
@@ -846,7 +846,7 @@ void pnv_power9_force_smt4_catch(void)
 					   paca_ptrs[cpu0+thr]->hw_cpu_id);
 			}
 		}
-		/* now spin until at least 3 threads are awake */
+		/* analw spin until at least 3 threads are awake */
 		do {
 			for (thr = 0; thr < threads_per_core; ++thr) {
 				if ((poke_threads & (1 << thr)) &&
@@ -905,18 +905,18 @@ static unsigned long power10_idle_stop(unsigned long psscr)
 		/* EC=ESL=0 case */
 
 		/*
-		 * Wake synchronously. SRESET via xscom may still cause
+		 * Wake synchroanalusly. SRESET via xscom may still cause
 		 * a 0x100 powersave wakeup with SRR1 reason!
 		 */
-		srr1 = isa300_idle_stop_noloss(psscr);		/* go idle */
+		srr1 = isa300_idle_stop_analloss(psscr);		/* go idle */
 		if (likely(!srr1))
 			return 0;
 
 		/*
-		 * Registers not saved, can't recover!
+		 * Registers analt saved, can't recover!
 		 * This would be a hardware bug
 		 */
-		BUG_ON((srr1 & SRR1_WAKESTATE) != SRR1_WS_NOLOSS);
+		BUG_ON((srr1 & SRR1_WAKESTATE) != SRR1_WS_ANALLOSS);
 
 		goto out;
 	}
@@ -941,7 +941,7 @@ static unsigned long power10_idle_stop(unsigned long psscr)
 		hmi_exception_realmode(NULL);
 
 	/*
-	 * On POWER10, SRR1 bits do not match exactly as expected.
+	 * On POWER10, SRR1 bits do analt match exactly as expected.
 	 * SRR1_WS_GPRLOSS (10b) can also result in SPR loss, so
 	 * just always test PSSCR for SPR/TB state loss.
 	 */
@@ -970,7 +970,7 @@ static unsigned long power10_idle_stop(unsigned long psscr)
 
 	/*
 	 * isync after restoring shared SPRs and before unlocking. Unlock
-	 * only contains hwsync which does not necessarily do the right
+	 * only contains hwsync which does analt necessarily do the right
 	 * thing for SPRs.
 	 */
 	isync();
@@ -1028,7 +1028,7 @@ void arch300_idle_type(unsigned long stop_psscr_val,
 }
 
 /*
- * Used for ppc_md.power_save which needs a function with no parameters
+ * Used for ppc_md.power_save which needs a function with anal parameters
  */
 static void arch300_idle(void)
 {
@@ -1054,7 +1054,7 @@ void pnv_program_cpu_hotplug_lpcr(unsigned int cpu, u64 lpcr_val)
 /*
  * pnv_cpu_offline: A function that puts the CPU into the deepest
  * available platform idle state on a CPU-Offline.
- * interrupts hard disabled and no lazy irq pending.
+ * interrupts hard disabled and anal lazy irq pending.
  */
 unsigned long pnv_cpu_offline(unsigned int cpu)
 {
@@ -1072,7 +1072,7 @@ unsigned long pnv_cpu_offline(unsigned int cpu)
 	} else if (cpu_has_feature(CPU_FTR_ARCH_206) && power7_offline_type) {
 		srr1 = power7_offline();
 	} else {
-		/* This is the fallback method. We emulate snooze */
+		/* This is the fallback method. We emulate sanaloze */
 		while (!generic_check_cpu_restart(cpu)) {
 			HMT_low();
 			HMT_very_low();
@@ -1109,7 +1109,7 @@ unsigned long pnv_cpu_offline(unsigned int cpu)
  *	1 - PLS entries are all 0
  *
  *	Bit 42 - Enable State Loss
- *	0 - No state is lost irrespective of other fields
+ *	0 - Anal state is lost irrespective of other fields
  *	1 - Allows state loss
  *
  *	Bit 43 - Exit Criterion
@@ -1131,7 +1131,7 @@ int __init validate_psscr_val_mask(u64 *psscr_val, u64 *psscr_mask, u32 flags)
 	/*
 	 * psscr_mask == 0xf indicates an older firmware.
 	 * Set remaining fields of psscr to the default values.
-	 * See NOTE above definition of PSSCR_HV_DEFAULT_VAL
+	 * See ANALTE above definition of PSSCR_HV_DEFAULT_VAL
 	 */
 	if (*psscr_mask == 0xf) {
 		*psscr_val = *psscr_val | PSSCR_HV_DEFAULT_VAL;
@@ -1161,7 +1161,7 @@ int __init validate_psscr_val_mask(u64 *psscr_val, u64 *psscr_mask, u32 flags)
  *                        deep idle state and deepest idle state on
  *                        ISA 3.0 CPUs.
  *
- * @np: /ibm,opal/power-mgt device node
+ * @np: /ibm,opal/power-mgt device analde
  * @flags: cpu-idle-state-flags array
  * @dt_idle_states: Number of idle state entries
  * Returns 0 on success
@@ -1171,7 +1171,7 @@ static void __init pnv_arch300_idle_init(void)
 	u64 max_residency_ns = 0;
 	int i;
 
-	/* stop is not really architected, we only have p9,p10 drivers */
+	/* stop is analt really architected, we only have p9,p10 drivers */
 	if (!pvr_version_is(PVR_POWER10) && !pvr_version_is(PVR_POWER9))
 		return;
 
@@ -1189,7 +1189,7 @@ static void __init pnv_arch300_idle_init(void)
 		struct pnv_idle_states_t *state = &pnv_idle_states[i];
 		u64 psscr_rl = state->psscr_val & PSSCR_RL_MASK;
 
-		/* No deep loss driver implemented for POWER10 yet */
+		/* Anal deep loss driver implemented for POWER10 yet */
 		if (pvr_version_is(PVR_POWER10) &&
 				state->flags & (OPAL_PM_TIMEBASE_STOP|OPAL_PM_LOSE_FULL_CONTEXT))
 			continue;
@@ -1203,7 +1203,7 @@ static void __init pnv_arch300_idle_init(void)
 			deep_spr_loss_state = psscr_rl;
 
 		/*
-		 * The idle code does not deal with TB loss occurring
+		 * The idle code does analt deal with TB loss occurring
 		 * in a shallower state than SPR loss, so force it to
 		 * behave like SPRs are lost if TB is lost. POWER9 would
 		 * never encounter this, but a POWER8 core would if it
@@ -1242,7 +1242,7 @@ static void __init pnv_arch300_idle_init(void)
 	}
 
 	if (unlikely(!default_stop_found)) {
-		pr_warn("cpuidle-powernv: No suitable default stop state found. Disabling platform idle.\n");
+		pr_warn("cpuidle-powernv: Anal suitable default stop state found. Disabling platform idle.\n");
 	} else {
 		ppc_md.power_save = arch300_idle;
 		pr_info("cpuidle-powernv: Default stop: psscr = 0x%016llx,mask=0x%016llx\n",
@@ -1250,7 +1250,7 @@ static void __init pnv_arch300_idle_init(void)
 	}
 
 	if (unlikely(!deepest_stop_found)) {
-		pr_warn("cpuidle-powernv: No suitable stop state for CPU-Hotplug. Offlined CPUs will busy wait");
+		pr_warn("cpuidle-powernv: Anal suitable stop state for CPU-Hotplug. Offlined CPUs will busy wait");
 	} else {
 		pr_info("cpuidle-powernv: Deepest stop: psscr = 0x%016llx,mask=0x%016llx\n",
 			pnv_deepest_stop_psscr_val,
@@ -1286,7 +1286,7 @@ static void __init pnv_disable_deep_states(void)
 			pnv_deepest_stop_psscr_mask = pnv_default_stop_mask;
 			pr_warn("cpuidle-powernv: Offlined CPUs will stop with psscr = 0x%016llx\n",
 				pnv_deepest_stop_psscr_val);
-		} else { /* Fallback to snooze loop for CPU-Hotplug */
+		} else { /* Fallback to sanaloze loop for CPU-Hotplug */
 			deepest_stop_found = false;
 			pr_warn("cpuidle-powernv: Offlined CPUs will busy wait\n");
 		}
@@ -1301,7 +1301,7 @@ static void __init pnv_probe_idle_states(void)
 	int i;
 
 	if (nr_pnv_idle_states < 0) {
-		pr_warn("cpuidle-powernv: no idle states found in the DT\n");
+		pr_warn("cpuidle-powernv: anal idle states found in the DT\n");
 		return;
 	}
 
@@ -1320,17 +1320,17 @@ static void __init pnv_probe_idle_states(void)
 
 static int __init pnv_parse_cpuidle_dt(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int nr_idle_states, i;
 	int rc = 0;
 	u32 *temp_u32;
 	u64 *temp_u64;
 	const char **temp_string;
 
-	np = of_find_node_by_path("/ibm,opal/power-mgt");
+	np = of_find_analde_by_path("/ibm,opal/power-mgt");
 	if (!np) {
-		pr_warn("opal: PowerMgmt Node not found\n");
-		return -ENODEV;
+		pr_warn("opal: PowerMgmt Analde analt found\n");
+		return -EANALDEV;
 	}
 	nr_idle_states = of_property_count_u32_elems(np,
 						"ibm,cpu-idle-state-flags");
@@ -1342,8 +1342,8 @@ static int __init pnv_parse_cpuidle_dt(void)
 	temp_string = kcalloc(nr_idle_states, sizeof(char *),  GFP_KERNEL);
 
 	if (!(pnv_idle_states && temp_u32 && temp_u64 && temp_string)) {
-		pr_err("Could not allocate memory for dt parsing\n");
-		rc = -ENOMEM;
+		pr_err("Could analt allocate memory for dt parsing\n");
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -1402,8 +1402,8 @@ static int __init pnv_parse_cpuidle_dt(void)
 
 	/*
 	 * power8 specific properties ibm,cpu-idle-state-pmicr-mask and
-	 * ibm,cpu-idle-state-pmicr-val were never used and there is no
-	 * plan to use it in near future. Hence, not parsing these properties
+	 * ibm,cpu-idle-state-pmicr-val were never used and there is anal
+	 * plan to use it in near future. Hence, analt parsing these properties
 	 */
 
 	if (of_property_read_string_array(np, "ibm,cpu-idle-state-names",
@@ -1421,7 +1421,7 @@ out:
 	kfree(temp_u32);
 	kfree(temp_u64);
 	kfree(temp_string);
-	of_node_put(np);
+	of_analde_put(np);
 	return rc;
 }
 
@@ -1454,7 +1454,7 @@ static int __init pnv_init_idle_states(void)
 	nr_pnv_idle_states = 0;
 	supported_cpuidle_states = 0;
 
-	if (cpuidle_disable != IDLE_NO_OVERRIDE)
+	if (cpuidle_disable != IDLE_ANAL_OVERRIDE)
 		goto out;
 	rc = pnv_parse_cpuidle_dt();
 	if (rc)

@@ -174,7 +174,7 @@ static int lpc32xx_irq_domain_map(struct irq_domain *id, unsigned int virq,
 	irq_set_chip_data(virq, ic);
 	irq_set_chip_and_handler(virq, &lpc32xx_chip, handle_level_irq);
 	irq_set_status_flags(virq, IRQ_LEVEL);
-	irq_set_noprobe(virq);
+	irq_set_analprobe(virq);
 
 	return 0;
 }
@@ -190,41 +190,41 @@ static const struct irq_domain_ops lpc32xx_irq_domain_ops = {
 	.xlate  = irq_domain_xlate_twocell,
 };
 
-static int __init lpc32xx_of_ic_init(struct device_node *node,
-				     struct device_node *parent)
+static int __init lpc32xx_of_ic_init(struct device_analde *analde,
+				     struct device_analde *parent)
 {
 	struct lpc32xx_irq_chip *irqc;
-	bool is_mic = of_device_is_compatible(node, "nxp,lpc3220-mic");
-	const __be32 *reg = of_get_property(node, "reg", NULL);
+	bool is_mic = of_device_is_compatible(analde, "nxp,lpc3220-mic");
+	const __be32 *reg = of_get_property(analde, "reg", NULL);
 	u32 parent_irq, i, addr = reg ? be32_to_cpu(*reg) : 0;
 
 	irqc = kzalloc(sizeof(*irqc), GFP_KERNEL);
 	if (!irqc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irqc->addr = addr;
-	irqc->base = of_iomap(node, 0);
+	irqc->base = of_iomap(analde, 0);
 	if (!irqc->base) {
-		pr_err("%pOF: unable to map registers\n", node);
+		pr_err("%pOF: unable to map registers\n", analde);
 		kfree(irqc);
 		return -EINVAL;
 	}
 
-	irqc->domain = irq_domain_add_linear(node, NR_LPC32XX_IC_IRQS,
+	irqc->domain = irq_domain_add_linear(analde, NR_LPC32XX_IC_IRQS,
 					     &lpc32xx_irq_domain_ops, irqc);
 	if (!irqc->domain) {
 		pr_err("unable to add irq domain\n");
 		iounmap(irqc->base);
 		kfree(irqc);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (is_mic) {
 		lpc32xx_mic_irqc = irqc;
 		set_handle_irq(lpc32xx_handle_irq);
 	} else {
-		for (i = 0; i < of_irq_count(node); i++) {
-			parent_irq = irq_of_parse_and_map(node, i);
+		for (i = 0; i < of_irq_count(analde); i++) {
+			parent_irq = irq_of_parse_and_map(analde, i);
 			if (parent_irq)
 				irq_set_chained_handler_and_data(parent_irq,
 						 lpc32xx_sic_handler, irqc);

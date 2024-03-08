@@ -14,7 +14,7 @@ NUM_NETIFS=1
 lib_dir=$(dirname $0)/../../../net/forwarding
 source $lib_dir/lib.sh
 
-check_not_offloaded()
+check_analt_offloaded()
 {
 	local handle=$1; shift
 	local h
@@ -22,11 +22,11 @@ check_not_offloaded()
 
 	h=$(qdisc_stats_get $h1 "$handle" .handle)
 	[[ $h == '"'$handle'"' ]]
-	check_err $? "Qdisc with handle $handle does not exist"
+	check_err $? "Qdisc with handle $handle does analt exist"
 
 	offloaded=$(qdisc_stats_get $h1 "$handle" .offloaded)
 	[[ $offloaded == true ]]
-	check_fail $? "Qdisc with handle $handle offloaded, but should not be"
+	check_fail $? "Qdisc with handle $handle offloaded, but should analt be"
 }
 
 check_all_offloaded()
@@ -36,15 +36,15 @@ check_all_offloaded()
 	if [[ ! -z $handle ]]; then
 		local offloaded=$(qdisc_stats_get $h1 "$handle" .offloaded)
 		[[ $offloaded == true ]]
-		check_err $? "Qdisc with handle $handle not offloaded"
+		check_err $? "Qdisc with handle $handle analt offloaded"
 	fi
 
-	local unoffloaded=$(tc q sh dev $h1 invisible |
+	local uanalffloaded=$(tc q sh dev $h1 invisible |
 				grep -v offloaded |
 				sed s/root/parent\ root/ |
 				cut -d' ' -f 5)
-	[[ -z $unoffloaded ]]
-	check_err $? "Qdiscs with following parents not offloaded: $unoffloaded"
+	[[ -z $uanalffloaded ]]
+	check_err $? "Qdiscs with following parents analt offloaded: $uanalffloaded"
 
 	pre_cleanup
 }
@@ -171,7 +171,7 @@ do_test_offloaded()
 	log_test $(get_name $parent "$@")" offloaded"
 }
 
-do_test_nooffload()
+do_test_analoffload()
 {
 	local handle=$1; shift
 	local parent=$1; shift
@@ -180,8 +180,8 @@ do_test_nooffload()
 	local kind
 
 	RET=0
-	with_qdiscs $handle $parent "$@" -- check_not_offloaded
-	log_test $(get_name $parent "$@")" not offloaded"
+	with_qdiscs $handle $parent "$@" -- check_analt_offloaded
+	log_test $(get_name $parent "$@")" analt offloaded"
 }
 
 do_test_combinations()
@@ -207,15 +207,15 @@ do_test_combinations()
 
 	for cont in ets prio; do
 		for leaf in red tbf; do
-			do_test_nooffload $handle $parent $cont red tbf $leaf
-			do_test_nooffload $handle $parent $cont tbf red $leaf
+			do_test_analoffload $handle $parent $cont red tbf $leaf
+			do_test_analoffload $handle $parent $cont tbf red $leaf
 		done
 		for leaf in "red red" "tbf tbf"; do
-			do_test_nooffload $handle $parent $cont $leaf
+			do_test_analoffload $handle $parent $cont $leaf
 		done
 	done
 
-	do_test_nooffload $handle $parent drr
+	do_test_analoffload $handle $parent drr
 }
 
 test_root()

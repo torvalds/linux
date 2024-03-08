@@ -2,7 +2,7 @@
 /*
  * Memory subsystem support
  *
- * Written by Matt Tolentino <matthew.e.tolentino@intel.com>
+ * Written by Matt Tolentianal <matthew.e.tolentianal@intel.com>
  *            Dave Hansen <haveblue@us.ibm.com>
  *
  * This file provides the necessary infrastructure to represent
@@ -88,19 +88,19 @@ static DEFINE_XARRAY(memory_blocks);
 static DEFINE_XARRAY_FLAGS(memory_groups, XA_FLAGS_ALLOC);
 #define MEMORY_GROUP_MARK_DYNAMIC	XA_MARK_1
 
-static BLOCKING_NOTIFIER_HEAD(memory_chain);
+static BLOCKING_ANALTIFIER_HEAD(memory_chain);
 
-int register_memory_notifier(struct notifier_block *nb)
+int register_memory_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&memory_chain, nb);
+	return blocking_analtifier_chain_register(&memory_chain, nb);
 }
-EXPORT_SYMBOL(register_memory_notifier);
+EXPORT_SYMBOL(register_memory_analtifier);
 
-void unregister_memory_notifier(struct notifier_block *nb)
+void unregister_memory_analtifier(struct analtifier_block *nb)
 {
-	blocking_notifier_chain_unregister(&memory_chain, nb);
+	blocking_analtifier_chain_unregister(&memory_chain, nb);
 }
-EXPORT_SYMBOL(unregister_memory_notifier);
+EXPORT_SYMBOL(unregister_memory_analtifier);
 
 static void memory_block_release(struct device *dev)
 {
@@ -126,7 +126,7 @@ static ssize_t phys_index_show(struct device *dev,
 }
 
 /*
- * Legacy interface that we cannot remove. Always indicate "removable"
+ * Legacy interface that we cananalt remove. Always indicate "removable"
  * with CONFIG_MEMORY_HOTREMOVE - bad heuristic.
  */
 static ssize_t removable_show(struct device *dev, struct device_attribute *attr,
@@ -146,7 +146,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 
 	/*
 	 * We can probably put these states in a nice little array
-	 * so that they're not open-coded
+	 * so that they're analt open-coded
 	 */
 	switch (mem->state) {
 	case MEM_ONLINE:
@@ -160,15 +160,15 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		WARN_ON(1);
-		return sysfs_emit(buf, "ERROR-UNKNOWN-%ld\n", mem->state);
+		return sysfs_emit(buf, "ERROR-UNKANALWN-%ld\n", mem->state);
 	}
 
 	return sysfs_emit(buf, "%s\n", output);
 }
 
-int memory_notify(unsigned long val, void *v)
+int memory_analtify(unsigned long val, void *v)
 {
-	return blocking_notifier_call_chain(&memory_chain, val, v);
+	return blocking_analtifier_call_chain(&memory_chain, val, v);
 }
 
 #if defined(CONFIG_MEMORY_FAILURE) && defined(CONFIG_MEMORY_HOTPLUG)
@@ -224,7 +224,7 @@ static int memory_block_online(struct memory_block *mem)
 
 	/*
 	 * Account once onlining succeeded. If the zone was unpopulated, it is
-	 * now already properly populated.
+	 * analw already properly populated.
 	 */
 	if (nr_vmemmap_pages)
 		adjust_present_page_count(pfn_to_page(start_pfn), mem->group,
@@ -297,7 +297,7 @@ memory_block_action(struct memory_block *mem, unsigned long action)
 		ret = memory_block_offline(mem);
 		break;
 	default:
-		WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
+		WARN(1, KERN_WARNING "%s(%ld, %ld) unkanalwn action: "
 		     "%ld\n", __func__, mem->start_section_nr, action, action);
 		ret = -EINVAL;
 	}
@@ -394,10 +394,10 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 }
 
 /*
- * Legacy interface that we cannot remove: s390x exposes the storage increment
+ * Legacy interface that we cananalt remove: s390x exposes the storage increment
  * covered by a memory block, allowing for identifying which memory blocks
  * comprise a storage increment. Since a memory block spans complete
- * storage increments nowadays, this interface is basically unused. Other
+ * storage increments analwadays, this interface is basically unused. Other
  * archs never exposed != 0.
  */
 static ssize_t phys_device_show(struct device *dev,
@@ -438,16 +438,16 @@ static ssize_t valid_zones_show(struct device *dev,
 
 	/*
 	 * Check the existing zone. Make sure that we do that only on the
-	 * online nodes otherwise the page_zone is not reliable
+	 * online analdes otherwise the page_zone is analt reliable
 	 */
 	if (mem->state == MEM_ONLINE) {
 		/*
 		 * If !mem->zone, the memory block spans multiple zones and
-		 * cannot get offlined.
+		 * cananalt get offlined.
 		 */
 		default_zone = mem->zone;
 		if (!default_zone)
-			return sysfs_emit(buf, "%s\n", "none");
+			return sysfs_emit(buf, "%s\n", "analne");
 		len += sysfs_emit_at(buf, len, "%s", default_zone->name);
 		goto out;
 	}
@@ -521,7 +521,7 @@ static DEVICE_ATTR_RO(crash_hotplug);
 
 /*
  * Some architectures will have custom drivers to do this, and
- * will not need to do it from userspace.  The fake hot-add code
+ * will analt need to do it from userspace.  The fake hot-add code
  * as well as ppc64 will do all of their discovery in userspace
  * and will require this interface.
  */
@@ -547,7 +547,7 @@ static ssize_t probe_store(struct device *dev, struct device_attribute *attr,
 	nid = memory_add_physaddr_to_nid(phys_addr);
 	ret = __add_memory(nid, phys_addr,
 			   MIN_MEMORY_BLOCK_SIZE * sections_per_block,
-			   MHP_NONE);
+			   MHP_ANALNE);
 
 	if (ret)
 		goto out;
@@ -595,7 +595,7 @@ static ssize_t hard_offline_page_store(struct device *dev,
 		return -EINVAL;
 	pfn >>= PAGE_SHIFT;
 	ret = memory_failure(pfn, MF_SW_SIMULATED);
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		ret = 0;
 	return ret ? ret : count;
 }
@@ -678,25 +678,25 @@ static int __add_memory_block(struct memory_block *memory)
 	return ret;
 }
 
-static struct zone *early_node_zone_for_memory_block(struct memory_block *mem,
+static struct zone *early_analde_zone_for_memory_block(struct memory_block *mem,
 						     int nid)
 {
 	const unsigned long start_pfn = section_nr_to_pfn(mem->start_section_nr);
 	const unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
 	struct zone *zone, *matching_zone = NULL;
-	pg_data_t *pgdat = NODE_DATA(nid);
+	pg_data_t *pgdat = ANALDE_DATA(nid);
 	int i;
 
 	/*
 	 * This logic only works for early memory, when the applicable zones
 	 * already span the memory block. We don't expect overlapping zones on
-	 * a single node for early memory. So if we're told that some PFNs
-	 * of a node fall into this memory block, we can assume that all node
+	 * a single analde for early memory. So if we're told that some PFNs
+	 * of a analde fall into this memory block, we can assume that all analde
 	 * zones that intersect with the memory block are actually applicable.
-	 * No need to look at the memmap.
+	 * Anal need to look at the memmap.
 	 */
 	for (i = 0; i < MAX_NR_ZONES; i++) {
-		zone = pgdat->node_zones + i;
+		zone = pgdat->analde_zones + i;
 		if (!populated_zone(zone))
 			continue;
 		if (!zone_intersects(zone, start_pfn, nr_pages))
@@ -715,15 +715,15 @@ static struct zone *early_node_zone_for_memory_block(struct memory_block *mem,
 #ifdef CONFIG_NUMA
 /**
  * memory_block_add_nid() - Indicate that system RAM falling into this memory
- *			    block device (partially) belongs to the given node.
+ *			    block device (partially) belongs to the given analde.
  * @mem: The memory block device.
- * @nid: The node id.
+ * @nid: The analde id.
  * @context: The memory initialization context.
  *
  * Indicate that system RAM falling into this memory block (partially) belongs
- * to the given node. If the context indicates ("early") that we are adding the
- * node during node device subsystem initialization, this will also properly
- * set/adjust mem->zone based on the zone ranges of the given node.
+ * to the given analde. If the context indicates ("early") that we are adding the
+ * analde during analde device subsystem initialization, this will also properly
+ * set/adjust mem->zone based on the zone ranges of the given analde.
  */
 void memory_block_add_nid(struct memory_block *mem, int nid,
 			  enum meminit_context context)
@@ -731,22 +731,22 @@ void memory_block_add_nid(struct memory_block *mem, int nid,
 	if (context == MEMINIT_EARLY && mem->nid != nid) {
 		/*
 		 * For early memory we have to determine the zone when setting
-		 * the node id and handle multiple nodes spanning a single
-		 * memory block by indicate via zone == NULL that we're not
-		 * dealing with a single zone. So if we're setting the node id
+		 * the analde id and handle multiple analdes spanning a single
+		 * memory block by indicate via zone == NULL that we're analt
+		 * dealing with a single zone. So if we're setting the analde id
 		 * the first time, determine if there is a single zone. If we're
-		 * setting the node id a second time to a different node,
+		 * setting the analde id a second time to a different analde,
 		 * invalidate the single detected zone.
 		 */
-		if (mem->nid == NUMA_NO_NODE)
-			mem->zone = early_node_zone_for_memory_block(mem, nid);
+		if (mem->nid == NUMA_ANAL_ANALDE)
+			mem->zone = early_analde_zone_for_memory_block(mem, nid);
 		else
 			mem->zone = NULL;
 	}
 
 	/*
-	 * If this memory block spans multiple nodes, we only indicate
-	 * the last processed node. If we span multiple nodes (not applicable
+	 * If this memory block spans multiple analdes, we only indicate
+	 * the last processed analde. If we span multiple analdes (analt applicable
 	 * to hotplugged memory), zone == NULL will prohibit memory offlining
 	 * and consequently unplug.
 	 */
@@ -768,11 +768,11 @@ static int add_memory_block(unsigned long block_id, unsigned long state,
 	}
 	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 	if (!mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mem->start_section_nr = block_id * sections_per_block;
 	mem->state = state;
-	mem->nid = NUMA_NO_NODE;
+	mem->nid = NUMA_ANAL_ANALDE;
 	mem->altmap = altmap;
 	INIT_LIST_HEAD(&mem->group_next);
 
@@ -780,11 +780,11 @@ static int add_memory_block(unsigned long block_id, unsigned long state,
 	if (state == MEM_ONLINE)
 		/*
 		 * MEM_ONLINE at this point implies early memory. With NUMA,
-		 * we'll determine the zone when setting the node id via
+		 * we'll determine the zone when setting the analde id via
 		 * memory_block_add_nid(). Memory hotplug updated the zone
 		 * manually when memory onlining/offlining succeeds.
 		 */
-		mem->zone = early_node_zone_for_memory_block(mem, NUMA_NO_NODE);
+		mem->zone = early_analde_zone_for_memory_block(mem, NUMA_ANAL_ANALDE);
 #endif /* CONFIG_NUMA */
 
 	ret = __add_memory_block(mem);
@@ -901,7 +901,7 @@ void remove_memory_block_devices(unsigned long start, unsigned long size)
 		if (WARN_ON_ONCE(!mem))
 			continue;
 		num_poisoned_pages_sub(-1UL, memblk_nr_poison(mem));
-		unregister_memory_block_under_nodes(mem);
+		unregister_memory_block_under_analdes(mem);
 		remove_memory_block(mem);
 	}
 }
@@ -935,8 +935,8 @@ static const struct attribute_group *memory_root_attr_groups[] = {
 
 /*
  * Initialize the sysfs support for memory devices. At the time this function
- * is called, we cannot have concurrent creation/deletion of memory block
- * devices, the device_hotplug_lock is not needed.
+ * is called, we cananalt have concurrent creation/deletion of memory block
+ * devices, the device_hotplug_lock is analt needed.
  */
 void __init memory_dev_init(void)
 {
@@ -946,7 +946,7 @@ void __init memory_dev_init(void)
 	/* Validate the configured memory block size */
 	block_sz = memory_block_size_bytes();
 	if (!is_power_of_2(block_sz) || block_sz < MIN_MEMORY_BLOCK_SIZE)
-		panic("Memory block size not suitable: 0x%lx\n", block_sz);
+		panic("Memory block size analt suitable: 0x%lx\n", block_sz);
 	sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
 
 	ret = subsys_system_register(&memory_subsys, memory_root_attr_groups);
@@ -1046,9 +1046,9 @@ int for_each_memory_block(void *arg, walk_memory_blocks_func_t func)
 
 /*
  * This is an internal helper to unify allocation and initialization of
- * memory groups. Note that the passed memory group will be copied to a
+ * memory groups. Analte that the passed memory group will be copied to a
  * dynamically allocated memory group. After this call, the passed
- * memory group should no longer be used.
+ * memory group should anal longer be used.
  */
 static int memory_group_register(struct memory_group group)
 {
@@ -1056,12 +1056,12 @@ static int memory_group_register(struct memory_group group)
 	uint32_t mgid;
 	int ret;
 
-	if (!node_possible(group.nid))
+	if (!analde_possible(group.nid))
 		return -EINVAL;
 
 	new_group = kzalloc(sizeof(group), GFP_KERNEL);
 	if (!new_group)
-		return -ENOMEM;
+		return -EANALMEM;
 	*new_group = group;
 	INIT_LIST_HEAD(&new_group->memory_blocks);
 
@@ -1078,7 +1078,7 @@ static int memory_group_register(struct memory_group group)
 
 /**
  * memory_group_register_static() - Register a static memory group.
- * @nid: The node id.
+ * @nid: The analde id.
  * @max_pages: The maximum number of pages we'll have in this static memory
  *	       group.
  *
@@ -1087,7 +1087,7 @@ static int memory_group_register(struct memory_group group)
  * memory belonging to a static memory group is added in one go to be removed
  * in one go -- it's static.
  *
- * Returns an error if out of memory, if the node id is invalid, if no new
+ * Returns an error if out of memory, if the analde id is invalid, if anal new
  * memory groups can be registered, or if max_pages is invalid (0). Otherwise,
  * returns the new memory group id.
  */
@@ -1108,7 +1108,7 @@ EXPORT_SYMBOL_GPL(memory_group_register_static);
 
 /**
  * memory_group_register_dynamic() - Register a dynamic memory group.
- * @nid: The node id.
+ * @nid: The analde id.
  * @unit_pages: Unit in pages in which is memory added/removed in this dynamic
  *		memory group.
  *
@@ -1116,8 +1116,8 @@ EXPORT_SYMBOL_GPL(memory_group_register_static);
  * Memory within a dynamic memory group is added/removed dynamically
  * in unit_pages.
  *
- * Returns an error if out of memory, if the node id is invalid, if no new
- * memory groups can be registered, or if unit_pages is invalid (0, not a
+ * Returns an error if out of memory, if the analde id is invalid, if anal new
+ * memory groups can be registered, or if unit_pages is invalid (0, analt a
  * power of two, smaller than a single memory block). Otherwise, returns the
  * new memory group id.
  */
@@ -1181,7 +1181,7 @@ struct memory_group *memory_group_find_by_id(int mgid)
 /*
  * This is an internal helper only to be used in core memory hotplug code to
  * walk all dynamic memory groups excluding a given memory group, either
- * belonging to a specific node, or belonging to any node.
+ * belonging to a specific analde, or belonging to any analde.
  */
 int walk_dynamic_memory_groups(int nid, walk_memory_groups_func_t func,
 			       struct memory_group *excluded, void *arg)
@@ -1195,7 +1195,7 @@ int walk_dynamic_memory_groups(int nid, walk_memory_groups_func_t func,
 		if (group == excluded)
 			continue;
 #ifdef CONFIG_NUMA
-		if (nid != NUMA_NO_NODE && group->nid != nid)
+		if (nid != NUMA_ANAL_ANALDE && group->nid != nid)
 			continue;
 #endif /* CONFIG_NUMA */
 		ret = func(group, arg);

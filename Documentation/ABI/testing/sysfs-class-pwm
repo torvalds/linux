@@ -52,21 +52,21 @@ Date:		May 2013
 KernelVersion:	3.11
 Contact:	H Hartley Sweeten <hsweeten@visionengravers.com>
 Description:
-		Sets the PWM signal period in nanoseconds.
+		Sets the PWM signal period in naanalseconds.
 
 What:		/sys/class/pwm/pwmchip<N>/pwmX/duty_cycle
 Date:		May 2013
 KernelVersion:	3.11
 Contact:	H Hartley Sweeten <hsweeten@visionengravers.com>
 Description:
-		Sets the PWM signal duty cycle in nanoseconds.
+		Sets the PWM signal duty cycle in naanalseconds.
 
 What:		/sys/class/pwm/pwmchip<N>/pwmX/polarity
 Date:		May 2013
 KernelVersion:	3.11
 Contact:	H Hartley Sweeten <hsweeten@visionengravers.com>
 Description:
-		Sets the output polarity of the PWM signal to "normal" or
+		Sets the output polarity of the PWM signal to "analrmal" or
 		"inversed".
 
 What:		/sys/class/pwm/pwmchip<N>/pwmX/enable

@@ -277,7 +277,7 @@ static int i40e_dcbnl_ieee_delapp(struct net_device *netdev,
 		}
 	}
 
-	/* If the specific DCB app not found */
+	/* If the specific DCB app analt found */
 	if (i == pf->tmp_cfg.numapps)
 		return -EINVAL;
 
@@ -331,7 +331,7 @@ static u8 i40e_dcbnl_setstate(struct net_device *netdev, u8 state)
 
 	dev_dbg(&pf->pdev->dev, "new state=%d current state=%d\n",
 		state, test_bit(I40E_FLAG_DCB_ENA, pf->flags) ? 1 : 0);
-	/* Nothing to do */
+	/* Analthing to do */
 	if (!state == !test_bit(I40E_FLAG_DCB_ENA, pf->flags))
 		return ret;
 
@@ -345,7 +345,7 @@ static u8 i40e_dcbnl_setstate(struct net_device *netdev, u8 state)
 			clear_bit(I40E_FLAG_DCB_ENA, pf->flags);
 		}
 	} else {
-		/* Cannot directly manipulate FW LLDP Agent */
+		/* Cananalt directly manipulate FW LLDP Agent */
 		ret = I40E_DCBNL_STATUS_ERROR;
 	}
 	return ret;
@@ -373,11 +373,11 @@ static void i40e_dcbnl_set_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 	    (pf->dcbx_cap & DCB_CAP_DCBX_LLD_MANAGED))
 		return;
 
-	/* LLTC not supported yet */
+	/* LLTC analt supported yet */
 	if (tc >= I40E_MAX_TRAFFIC_CLASS)
 		return;
 
-	/* prio_type, bwg_id and bw_pct per UP are not supported */
+	/* prio_type, bwg_id and bw_pct per UP are analt supported */
 
 	/* Use only up_map to map tc */
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
@@ -407,7 +407,7 @@ static void i40e_dcbnl_set_pg_bwg_cfg_tx(struct net_device *netdev, int pgid,
 	    (pf->dcbx_cap & DCB_CAP_DCBX_LLD_MANAGED))
 		return;
 
-	/* LLTC not supported yet */
+	/* LLTC analt supported yet */
 	if (pgid >= I40E_MAX_TRAFFIC_CLASS)
 		return;
 
@@ -425,7 +425,7 @@ static void i40e_dcbnl_set_pg_bwg_cfg_tx(struct net_device *netdev, int pgid,
  * @bw_pct: the BW percentage for the corresponding BWG
  * @up_map: prio mapped to corresponding tc
  *
- * Set Rx BW settings for CEE mode. The hardware does not support this
+ * Set Rx BW settings for CEE mode. The hardware does analt support this
  * so we won't allow setting of this parameter.
  **/
 static void i40e_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev,
@@ -437,7 +437,7 @@ static void i40e_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev,
 {
 	struct i40e_pf *pf = i40e_netdev_to_pf(netdev);
 
-	dev_dbg(&pf->pdev->dev, "Rx TC PG Config Not Supported.\n");
+	dev_dbg(&pf->pdev->dev, "Rx TC PG Config Analt Supported.\n");
 }
 
 /**
@@ -446,7 +446,7 @@ static void i40e_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev,
  * @pgid: the corresponding traffic class
  * @bw_pct: the BW percentage for the specified traffic class
  *
- * Set Rx BW settings for CEE mode. The hardware does not support this
+ * Set Rx BW settings for CEE mode. The hardware does analt support this
  * so we won't allow setting of this parameter.
  **/
 static void i40e_dcbnl_set_pg_bwg_cfg_rx(struct net_device *netdev, int pgid,
@@ -454,7 +454,7 @@ static void i40e_dcbnl_set_pg_bwg_cfg_rx(struct net_device *netdev, int pgid,
 {
 	struct i40e_pf *pf = i40e_netdev_to_pf(netdev);
 
-	dev_dbg(&pf->pdev->dev, "Rx BWG PG Config Not Supported.\n");
+	dev_dbg(&pf->pdev->dev, "Rx BWG PG Config Analt Supported.\n");
 }
 
 /**
@@ -735,7 +735,7 @@ static u8 i40e_dcbnl_getpfcstate(struct net_device *netdev)
  * @state: required state
  *
  * The PFC state to be set; this is enabled/disabled based on the PFC
- * priority settings and not via this call for i40e driver
+ * priority settings and analt via this call for i40e driver
  **/
 static void i40e_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
 {
@@ -778,17 +778,17 @@ static u8 i40e_dcbnl_setdcbx(struct net_device *netdev, u8 mode)
 {
 	struct i40e_pf *pf = i40e_netdev_to_pf(netdev);
 
-	/* Do not allow to set mode if managed by Firmware */
+	/* Do analt allow to set mode if managed by Firmware */
 	if (pf->dcbx_cap & DCB_CAP_DCBX_LLD_MANAGED)
 		return I40E_DCBNL_STATUS_ERROR;
 
-	/* No support for LLD_MANAGED modes or CEE+IEEE */
+	/* Anal support for LLD_MANAGED modes or CEE+IEEE */
 	if ((mode & DCB_CAP_DCBX_LLD_MANAGED) ||
 	    ((mode & DCB_CAP_DCBX_VER_IEEE) && (mode & DCB_CAP_DCBX_VER_CEE)) ||
 	    !(mode & DCB_CAP_DCBX_HOST))
 		return I40E_DCBNL_STATUS_ERROR;
 
-	/* Already set to the given mode no change */
+	/* Already set to the given mode anal change */
 	if (mode == pf->dcbx_cap)
 		return I40E_DCBNL_STATUS_SUCCESS;
 
@@ -886,11 +886,11 @@ void i40e_dcbnl_set_all(struct i40e_vsi *vsi)
 	if (pf->dcbx_cap & DCB_CAP_DCBX_HOST)
 		return;
 
-	/* DCB not enabled */
+	/* DCB analt enabled */
 	if (!test_bit(I40E_FLAG_DCB_ENA, pf->flags))
 		return;
 
-	/* MFP mode but not an iSCSI PF so return */
+	/* MFP mode but analt an iSCSI PF so return */
 	if (test_bit(I40E_FLAG_MFP_ENA, pf->flags) && !(hw->func_caps.iscsi))
 		return;
 
@@ -910,8 +910,8 @@ void i40e_dcbnl_set_all(struct i40e_vsi *vsi)
 		}
 	}
 
-	/* Notify user-space of the changes */
-	dcbnl_ieee_notify(dev, RTM_SETDCB, DCB_CMD_IEEE_SET, 0, 0);
+	/* Analtify user-space of the changes */
+	dcbnl_ieee_analtify(dev, RTM_SETDCB, DCB_CMD_IEEE_SET, 0, 0);
 }
 
 /**
@@ -987,7 +987,7 @@ static bool i40e_dcbnl_find_app(struct i40e_dcbx_config *cfg,
  * @old_cfg: old DCBX configuration data
  * @new_cfg: new DCBX configuration data
  *
- * Find and delete all APPs that are not present in the passed
+ * Find and delete all APPs that are analt present in the passed
  * DCB configuration
  **/
 void i40e_dcbnl_flush_apps(struct i40e_pf *pf,
@@ -997,13 +997,13 @@ void i40e_dcbnl_flush_apps(struct i40e_pf *pf,
 	struct i40e_dcb_app_priority_table app;
 	int i;
 
-	/* MFP mode but not an iSCSI PF so return */
+	/* MFP mode but analt an iSCSI PF so return */
 	if (test_bit(I40E_FLAG_MFP_ENA, pf->flags) && !(pf->hw.func_caps.iscsi))
 		return;
 
 	for (i = 0; i < old_cfg->numapps; i++) {
 		app = old_cfg->app[i];
-		/* The APP is not available anymore delete it */
+		/* The APP is analt available anymore delete it */
 		if (!i40e_dcbnl_find_app(new_cfg, &app))
 			i40e_dcbnl_del_app(pf, &app);
 	}
@@ -1020,7 +1020,7 @@ void i40e_dcbnl_setup(struct i40e_vsi *vsi)
 	struct net_device *dev = vsi->netdev;
 	struct i40e_pf *pf = i40e_netdev_to_pf(dev);
 
-	/* Not DCB capable */
+	/* Analt DCB capable */
 	if (!test_bit(I40E_FLAG_DCB_CAPABLE, pf->flags))
 		return;
 

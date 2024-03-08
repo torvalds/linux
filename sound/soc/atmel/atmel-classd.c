@@ -18,8 +18,8 @@
 #include "atmel-classd.h"
 
 struct atmel_classd_pdata {
-	bool non_overlap_enable;
-	int non_overlap_time;
+	bool analn_overlap_enable;
+	int analn_overlap_time;
 	int pwm_type;
 	const char *card_name;
 };
@@ -46,19 +46,19 @@ MODULE_DEVICE_TABLE(of, atmel_classd_of_match);
 
 static struct atmel_classd_pdata *atmel_classd_dt_init(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct atmel_classd_pdata *pdata;
 	const char *pwm_type_s;
 	int ret;
 
 	if (!np) {
-		dev_err(dev, "device node not found\n");
+		dev_err(dev, "device analde analt found\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = of_property_read_string(np, "atmel,pwm-type", &pwm_type_s);
 	if ((ret == 0) && (strcmp(pwm_type_s, "diff") == 0))
@@ -67,11 +67,11 @@ static struct atmel_classd_pdata *atmel_classd_dt_init(struct device *dev)
 		pdata->pwm_type = CLASSD_MR_PWMTYP_SINGLE;
 
 	ret = of_property_read_u32(np,
-			"atmel,non-overlap-time", &pdata->non_overlap_time);
+			"atmel,analn-overlap-time", &pdata->analn_overlap_time);
 	if (ret)
-		pdata->non_overlap_enable = false;
+		pdata->analn_overlap_enable = false;
 	else
-		pdata->non_overlap_enable = true;
+		pdata->analn_overlap_enable = true;
 
 	ret = of_property_read_string(np, "atmel,model", &pdata->card_name);
 	if (ret)
@@ -172,13 +172,13 @@ atmel_classd_dmaengine_pcm_config = {
 };
 
 /* codec */
-static const char * const mono_mode_text[] = {
+static const char * const moanal_mode_text[] = {
 	"mix", "sat", "left", "right"
 };
 
-static SOC_ENUM_SINGLE_DECL(classd_mono_mode_enum,
-			CLASSD_INTPMR, CLASSD_INTPMR_MONO_MODE_SHIFT,
-			mono_mode_text);
+static SOC_ENUM_SINGLE_DECL(classd_moanal_mode_enum,
+			CLASSD_INTPMR, CLASSD_INTPMR_MOANAL_MODE_SHIFT,
+			moanal_mode_text);
 
 static const char * const eqcfg_text[] = {
 	"Treble-12dB", "Treble-6dB",
@@ -214,11 +214,11 @@ SOC_DOUBLE_TLV("Playback Volume", CLASSD_INTPMR,
 SOC_SINGLE("Deemphasis Switch", CLASSD_INTPMR,
 		CLASSD_INTPMR_DEEMP_SHIFT, 1, 0),
 
-SOC_SINGLE("Mono Switch", CLASSD_INTPMR, CLASSD_INTPMR_MONO_SHIFT, 1, 0),
+SOC_SINGLE("Moanal Switch", CLASSD_INTPMR, CLASSD_INTPMR_MOANAL_SHIFT, 1, 0),
 
 SOC_SINGLE("Swap Switch", CLASSD_INTPMR, CLASSD_INTPMR_SWAP_SHIFT, 1, 0),
 
-SOC_ENUM("Mono Mode", classd_mono_mode_enum),
+SOC_ENUM("Moanal Mode", classd_moanal_mode_enum),
 
 SOC_ENUM("EQ", classd_eqcfg_enum),
 };
@@ -237,35 +237,35 @@ static int atmel_classd_component_probe(struct snd_soc_component *component)
 	mask = CLASSD_MR_PWMTYP_MASK;
 	val = pdata->pwm_type << CLASSD_MR_PWMTYP_SHIFT;
 
-	mask |= CLASSD_MR_NON_OVERLAP_MASK;
-	if (pdata->non_overlap_enable) {
-		val |= (CLASSD_MR_NON_OVERLAP_EN
-			<< CLASSD_MR_NON_OVERLAP_SHIFT);
+	mask |= CLASSD_MR_ANALN_OVERLAP_MASK;
+	if (pdata->analn_overlap_enable) {
+		val |= (CLASSD_MR_ANALN_OVERLAP_EN
+			<< CLASSD_MR_ANALN_OVERLAP_SHIFT);
 
-		mask |= CLASSD_MR_NOVR_VAL_MASK;
-		switch (pdata->non_overlap_time) {
+		mask |= CLASSD_MR_ANALVR_VAL_MASK;
+		switch (pdata->analn_overlap_time) {
 		case 5:
-			val |= (CLASSD_MR_NOVR_VAL_5NS
-				<< CLASSD_MR_NOVR_VAL_SHIFT);
+			val |= (CLASSD_MR_ANALVR_VAL_5NS
+				<< CLASSD_MR_ANALVR_VAL_SHIFT);
 			break;
 		case 10:
-			val |= (CLASSD_MR_NOVR_VAL_10NS
-				<< CLASSD_MR_NOVR_VAL_SHIFT);
+			val |= (CLASSD_MR_ANALVR_VAL_10NS
+				<< CLASSD_MR_ANALVR_VAL_SHIFT);
 			break;
 		case 15:
-			val |= (CLASSD_MR_NOVR_VAL_15NS
-				<< CLASSD_MR_NOVR_VAL_SHIFT);
+			val |= (CLASSD_MR_ANALVR_VAL_15NS
+				<< CLASSD_MR_ANALVR_VAL_SHIFT);
 			break;
 		case 20:
-			val |= (CLASSD_MR_NOVR_VAL_20NS
-				<< CLASSD_MR_NOVR_VAL_SHIFT);
+			val |= (CLASSD_MR_ANALVR_VAL_20NS
+				<< CLASSD_MR_ANALVR_VAL_SHIFT);
 			break;
 		default:
-			val |= (CLASSD_MR_NOVR_VAL_10NS
-				<< CLASSD_MR_NOVR_VAL_SHIFT);
+			val |= (CLASSD_MR_ANALVR_VAL_10NS
+				<< CLASSD_MR_ANALVR_VAL_SHIFT);
 			dev_warn(component->dev,
-				"non-overlapping value %d is invalid, the default value 10 is specified\n",
-				pdata->non_overlap_time);
+				"analn-overlapping value %d is invalid, the default value 10 is specified\n",
+				pdata->analn_overlap_time);
 			break;
 		}
 	}
@@ -273,9 +273,9 @@ static int atmel_classd_component_probe(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component, CLASSD_MR, mask, val);
 
 	dev_info(component->dev,
-		"PWM modulation type is %s, non-overlapping is %s\n",
+		"PWM modulation type is %s, analn-overlapping is %s\n",
 		pwm_type[pdata->pwm_type],
-		pdata->non_overlap_enable?"enabled":"disabled");
+		pdata->analn_overlap_enable?"enabled":"disabled");
 
 	return 0;
 }
@@ -436,7 +436,7 @@ static const struct snd_soc_dai_ops atmel_classd_cpu_dai_ops = {
 	.hw_params	= atmel_classd_cpu_dai_hw_params,
 	.prepare	= atmel_classd_cpu_dai_prepare,
 	.trigger	= atmel_classd_cpu_dai_trigger,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver atmel_classd_cpu_dai = {
@@ -471,11 +471,11 @@ static int atmel_classd_asoc_card_init(struct device *dev,
 
 	dai_link = devm_kzalloc(dev, sizeof(*dai_link), GFP_KERNEL);
 	if (!dai_link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
 	if (!comp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dai_link->cpus		= comp;
 	dai_link->codecs	= &snd_soc_dummy_dlc;
@@ -531,7 +531,7 @@ static int atmel_classd_probe(struct platform_device *pdev)
 
 	dd = devm_kzalloc(dev, sizeof(*dd), GFP_KERNEL);
 	if (!dd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dd->pdata = pdata;
 
@@ -572,7 +572,7 @@ static int atmel_classd_probe(struct platform_device *pdev)
 					&atmel_classd_cpu_dai_component,
 					&atmel_classd_cpu_dai, 1);
 	if (ret) {
-		dev_err(dev, "could not register CPU DAI: %d\n", ret);
+		dev_err(dev, "could analt register CPU DAI: %d\n", ret);
 		return ret;
 	}
 
@@ -580,14 +580,14 @@ static int atmel_classd_probe(struct platform_device *pdev)
 					&atmel_classd_dmaengine_pcm_config,
 					0);
 	if (ret) {
-		dev_err(dev, "could not register platform: %d\n", ret);
+		dev_err(dev, "could analt register platform: %d\n", ret);
 		return ret;
 	}
 
 	/* register sound card */
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unregister_codec;
 	}
 

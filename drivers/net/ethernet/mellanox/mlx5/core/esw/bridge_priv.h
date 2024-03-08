@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2021 Mellanox Technologies. */
+/* Copyright (c) 2021 Mellaanalx Techanallogies. */
 
 #ifndef _MLX5_ESW_BRIDGE_PRIVATE_
 #define _MLX5_ESW_BRIDGE_PRIVATE_
@@ -142,7 +142,7 @@ enum {
 
 struct mlx5_esw_bridge_fdb_entry {
 	struct mlx5_esw_bridge_fdb_key key;
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	struct net_device *dev;
 	struct list_head list;
 	struct list_head vlan_list;
@@ -159,7 +159,7 @@ struct mlx5_esw_bridge_fdb_entry {
 
 struct mlx5_esw_bridge_mdb_entry {
 	struct mlx5_esw_bridge_mdb_key key;
-	struct rhash_head ht_node;
+	struct rhash_head ht_analde;
 	struct list_head list;
 	struct xarray ports;
 	int num_ports;

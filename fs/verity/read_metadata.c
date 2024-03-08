@@ -12,11 +12,11 @@
 #include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 
-static int fsverity_read_merkle_tree(struct inode *inode,
+static int fsverity_read_merkle_tree(struct ianalde *ianalde,
 				     const struct fsverity_info *vi,
 				     void __user *buf, u64 offset, int length)
 {
-	const struct fsverity_operations *vops = inode->i_sb->s_vop;
+	const struct fsverity_operations *vops = ianalde->i_sb->s_vop;
 	u64 end_offset;
 	unsigned int offs_in_page;
 	pgoff_t index, last_index;
@@ -31,23 +31,23 @@ static int fsverity_read_merkle_tree(struct inode *inode,
 
 	/*
 	 * Iterate through each Merkle tree page in the requested range and copy
-	 * the requested portion to userspace.  Note that the Merkle tree block
+	 * the requested portion to userspace.  Analte that the Merkle tree block
 	 * size isn't important here, as we are returning a byte stream; i.e.,
 	 * we can just work with pages even if the tree block size != PAGE_SIZE.
 	 */
 	for (index = offset >> PAGE_SHIFT; index <= last_index; index++) {
 		unsigned long num_ra_pages =
 			min_t(unsigned long, last_index - index + 1,
-			      inode->i_sb->s_bdi->io_pages);
+			      ianalde->i_sb->s_bdi->io_pages);
 		unsigned int bytes_to_copy = min_t(u64, end_offset - offset,
 						   PAGE_SIZE - offs_in_page);
 		struct page *page;
 		const void *virt;
 
-		page = vops->read_merkle_tree_page(inode, index, num_ra_pages);
+		page = vops->read_merkle_tree_page(ianalde, index, num_ra_pages);
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
-			fsverity_err(inode,
+			fsverity_err(ianalde,
 				     "Error %d reading Merkle tree page %lu",
 				     err, index);
 			break;
@@ -94,14 +94,14 @@ static int fsverity_read_buffer(void __user *dst, u64 offset, int length,
 	return length;
 }
 
-static int fsverity_read_descriptor(struct inode *inode,
+static int fsverity_read_descriptor(struct ianalde *ianalde,
 				    void __user *buf, u64 offset, int length)
 {
 	struct fsverity_descriptor *desc;
 	size_t desc_size;
 	int res;
 
-	res = fsverity_get_descriptor(inode, &desc);
+	res = fsverity_get_descriptor(ianalde, &desc);
 	if (res)
 		return res;
 
@@ -115,18 +115,18 @@ static int fsverity_read_descriptor(struct inode *inode,
 	return res;
 }
 
-static int fsverity_read_signature(struct inode *inode,
+static int fsverity_read_signature(struct ianalde *ianalde,
 				   void __user *buf, u64 offset, int length)
 {
 	struct fsverity_descriptor *desc;
 	int res;
 
-	res = fsverity_get_descriptor(inode, &desc);
+	res = fsverity_get_descriptor(ianalde, &desc);
 	if (res)
 		return res;
 
 	if (desc->sig_size == 0) {
-		res = -ENODATA;
+		res = -EANALDATA;
 		goto out;
 	}
 
@@ -146,21 +146,21 @@ out:
  * @filp: file to read the metadata from
  * @uarg: user pointer to fsverity_read_metadata_arg
  *
- * Return: length read on success, 0 on EOF, -errno on failure
+ * Return: length read on success, 0 on EOF, -erranal on failure
  */
 int fsverity_ioctl_read_metadata(struct file *filp, const void __user *uarg)
 {
-	struct inode *inode = file_inode(filp);
+	struct ianalde *ianalde = file_ianalde(filp);
 	const struct fsverity_info *vi;
 	struct fsverity_read_metadata_arg arg;
 	int length;
 	void __user *buf;
 
-	vi = fsverity_get_info(inode);
+	vi = fsverity_get_info(ianalde);
 	if (!vi)
-		return -ENODATA; /* not a verity file */
+		return -EANALDATA; /* analt a verity file */
 	/*
-	 * Note that we don't have to explicitly check that the file is open for
+	 * Analte that we don't have to explicitly check that the file is open for
 	 * reading, since verity files can only be opened for reading.
 	 */
 
@@ -170,7 +170,7 @@ int fsverity_ioctl_read_metadata(struct file *filp, const void __user *uarg)
 	if (arg.__reserved)
 		return -EINVAL;
 
-	/* offset + length must not overflow. */
+	/* offset + length must analt overflow. */
 	if (arg.offset + arg.length < arg.offset)
 		return -EINVAL;
 
@@ -181,12 +181,12 @@ int fsverity_ioctl_read_metadata(struct file *filp, const void __user *uarg)
 
 	switch (arg.metadata_type) {
 	case FS_VERITY_METADATA_TYPE_MERKLE_TREE:
-		return fsverity_read_merkle_tree(inode, vi, buf, arg.offset,
+		return fsverity_read_merkle_tree(ianalde, vi, buf, arg.offset,
 						 length);
 	case FS_VERITY_METADATA_TYPE_DESCRIPTOR:
-		return fsverity_read_descriptor(inode, buf, arg.offset, length);
+		return fsverity_read_descriptor(ianalde, buf, arg.offset, length);
 	case FS_VERITY_METADATA_TYPE_SIGNATURE:
-		return fsverity_read_signature(inode, buf, arg.offset, length);
+		return fsverity_read_signature(ianalde, buf, arg.offset, length);
 	default:
 		return -EINVAL;
 	}

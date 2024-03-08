@@ -8,7 +8,7 @@
 #include <linux/bitfield.h>
 #include <linux/bitmap.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i3c/master.h>
 #include <linux/io.h>
 
@@ -56,19 +56,19 @@ static int hci_dat_v1_init(struct i3c_hci *hci)
 	if (!hci->DAT_regs) {
 		dev_err(&hci->master.dev,
 			"only DAT in register space is supported at the moment\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (hci->DAT_entry_size != 8) {
 		dev_err(&hci->master.dev,
 			"only 8-bytes DAT entries are supported at the moment\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!hci->DAT_data) {
 		/* use a bitmap for faster free slot search */
 		hci->DAT_data = bitmap_zalloc(hci->DAT_entries, GFP_KERNEL);
 		if (!hci->DAT_data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* clear them */
 		for (dat_idx = 0; dat_idx < hci->DAT_entries; dat_idx++) {
@@ -98,7 +98,7 @@ static int hci_dat_v1_alloc_entry(struct i3c_hci *hci)
 	}
 	dat_idx = find_first_zero_bit(hci->DAT_data, hci->DAT_entries);
 	if (dat_idx >= hci->DAT_entries)
-		return -ENOENT;
+		return -EANALENT;
 	__set_bit(dat_idx, hci->DAT_data);
 
 	/* default flags */
@@ -175,7 +175,7 @@ static int hci_dat_v1_get_index(struct i3c_hci *hci, u8 dev_addr)
 			return dat_idx;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 const struct hci_dat_ops mipi_i3c_hci_dat_v1 = {

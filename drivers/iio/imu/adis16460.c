@@ -329,7 +329,7 @@ static const struct iio_info adis16460_info = {
 static const char * const adis16460_status_error_msgs[] = {
 	[ADIS16460_DIAG_STAT_IN_CLK_OOS] = "Input clock out of sync",
 	[ADIS16460_DIAG_STAT_FLASH_MEM] = "Flash memory failure",
-	[ADIS16460_DIAG_STAT_SELF_TEST] = "Self test diagnostic failure",
+	[ADIS16460_DIAG_STAT_SELF_TEST] = "Self test diaganalstic failure",
 	[ADIS16460_DIAG_STAT_OVERRANGE] = "Sensor overrange",
 	[ADIS16460_DIAG_STAT_SPI_COMM] = "SPI communication failure",
 	[ADIS16460_DIAG_STAT_FLASH_UPT] = "Flash update failure",
@@ -371,7 +371,7 @@ static int adis16460_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 

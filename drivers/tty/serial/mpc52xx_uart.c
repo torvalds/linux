@@ -3,9 +3,9 @@
  * Driver for the PSC of the Freescale MPC52xx PSCs configured as UARTs.
  *
  * FIXME According to the usermanual the status bits in the status register
- * are only updated when the peripherals access the FIFO and not when the
- * CPU access them. So since we use this bits to know when we stop writing
- * and reading, they may not be updated in-time and a race condition may
+ * are only updated when the peripherals access the FIFO and analt when the
+ * CPU access them. So since we use this bits to kanalw when we stop writing
+ * and reading, they may analt be updated in-time and a race condition may
  * exists. But I haven't be able to prove this and I don't care. But if
  * any problem arises, it might worth checking. The TX/RX FIFO Stats
  * registers should be used in addition.
@@ -20,7 +20,7 @@
  * Copyright (C) 2008 Freescale Semiconductor Inc.
  *                    John Rigby <jrigby@gmail.com>
  * Added support for MPC5121
- * Copyright (C) 2006 Secret Lab Technologies Ltd.
+ * Copyright (C) 2006 Secret Lab Techanallogies Ltd.
  *                    Grant Likely <grant.likely@secretlab.ca>
  * Copyright (C) 2004-2006 Sylvain Munaut <tnt@246tNt.com>
  * Copyright (C) 2003 MontaVista, Software, Inc.
@@ -51,7 +51,7 @@
 
 /* We've been assigned a range on the "Low-density serial ports" major */
 #define SERIAL_PSC_MAJOR	204
-#define SERIAL_PSC_MINOR	148
+#define SERIAL_PSC_MIANALR	148
 
 
 #define ISR_PASS_LIMIT 256	/* Max number of iteration in the interrupt */
@@ -61,13 +61,13 @@ static struct uart_port mpc52xx_uart_ports[MPC52xx_PSC_MAXNUM];
 	/* Rem: - We use the read_status_mask as a shadow of
 	 *        psc->mpc52xx_psc_imr
 	 *      - It's important that is array is all zero on start as we
-	 *        use it to know if it's initialized or not ! If it's not sure
+	 *        use it to kanalw if it's initialized or analt ! If it's analt sure
 	 *        it's cleared, then a memset(...,0,...) should be added to
 	 *        the console_init
 	 */
 
-/* lookup table for matching device nodes to index numbers */
-static struct device_node *mpc52xx_uart_nodes[MPC52xx_PSC_MAXNUM];
+/* lookup table for matching device analdes to index numbers */
+static struct device_analde *mpc52xx_uart_analdes[MPC52xx_PSC_MAXNUM];
 
 static void mpc52xx_uart_of_enumerate(void);
 
@@ -107,7 +107,7 @@ struct psc_ops {
 	int		(*clock)(struct uart_port *port, int enable);
 	int		(*fifoc_init)(void);
 	void		(*fifoc_uninit)(void);
-	void		(*get_irq)(struct uart_port *, struct device_node *);
+	void		(*get_irq)(struct uart_port *, struct device_analde *);
 	irqreturn_t	(*handle_irq)(struct uart_port *port);
 	u16		(*get_status)(struct uart_port *port);
 	u8		(*get_ipcr)(struct uart_port *port);
@@ -329,7 +329,7 @@ static unsigned int mpc5200b_psc_set_baudrate(struct uart_port *port,
 	return baud;
 }
 
-static void mpc52xx_psc_get_irq(struct uart_port *port, struct device_node *np)
+static void mpc52xx_psc_get_irq(struct uart_port *port, struct device_analde *np)
 {
 	port->irqflags = 0;
 	port->irq = irq_of_parse_and_map(np, 0);
@@ -545,7 +545,7 @@ static unsigned int mpc512x_psc_set_baudrate(struct uart_port *port,
 	 * for the UART mode is selected", but the reset register value is
 	 * 0x0000 which means a /32 prescaler. This is wrong.
 	 *
-	 * In reality using /32 prescaler doesn't work, as it is not supported!
+	 * In reality using /32 prescaler doesn't work, as it is analt supported!
 	 * Use /16 or /10 prescaler, see "MPC5121e Hardware Design Guide",
 	 * Chapter 4.1 PSC in UART Mode.
 	 * Calculate with a /16 prescaler here.
@@ -566,16 +566,16 @@ static unsigned int mpc512x_psc_set_baudrate(struct uart_port *port,
 static int __init mpc512x_psc_fifoc_init(void)
 {
 	int err;
-	struct device_node *np;
+	struct device_analde *np;
 	struct clk *clk;
 
 	/* default error code, potentially overwritten by clock calls */
-	err = -ENODEV;
+	err = -EANALDEV;
 
-	np = of_find_compatible_node(NULL, NULL,
+	np = of_find_compatible_analde(NULL, NULL,
 				     "fsl,mpc5121-psc-fifo");
 	if (!np) {
-		pr_err("%s: Can't find FIFOC node\n", __func__);
+		pr_err("%s: Can't find FIFOC analde\n", __func__);
 		goto out_err;
 	}
 
@@ -587,12 +587,12 @@ static int __init mpc512x_psc_fifoc_init(void)
 	if (IS_ERR(clk)) {
 		pr_err("%s: Can't lookup FIFO clock\n", __func__);
 		err = PTR_ERR(clk);
-		goto out_ofnode_put;
+		goto out_ofanalde_put;
 	}
 	if (clk_prepare_enable(clk)) {
 		pr_err("%s: Can't enable FIFO clock\n", __func__);
 		clk_put(clk);
-		goto out_ofnode_put;
+		goto out_ofanalde_put;
 	}
 	psc_fifoc_clk = clk;
 
@@ -608,7 +608,7 @@ static int __init mpc512x_psc_fifoc_init(void)
 		goto out_unmap;
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 	return 0;
 
 out_unmap:
@@ -616,8 +616,8 @@ out_unmap:
 out_clk_disable:
 	clk_disable_unprepare(psc_fifoc_clk);
 	clk_put(psc_fifoc_clk);
-out_ofnode_put:
-	of_node_put(np);
+out_ofanalde_put:
+	of_analde_put(np);
 out_err:
 	return err;
 }
@@ -626,7 +626,7 @@ static void __exit mpc512x_psc_fifoc_uninit(void)
 {
 	iounmap(psc_fifoc);
 
-	/* disable the clock, errors are not fatal */
+	/* disable the clock, errors are analt fatal */
 	if (psc_fifoc_clk) {
 		clk_disable_unprepare(psc_fifoc_clk);
 		clk_put(psc_fifoc_clk);
@@ -649,7 +649,7 @@ static irqreturn_t mpc512x_psc_handle_irq(struct uart_port *port)
 	    test_bit(psc_num + 16, &fifoc_int))
 		return mpc5xxx_uart_process_int(port);
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static struct clk *psc_mclk_clk[MPC52xx_PSC_MAXNUM];
@@ -736,7 +736,7 @@ static int mpc512x_psc_endis_clock(struct uart_port *port, int enable)
 	psc_clk = psc_mclk_clk[psc_num];
 	if (!psc_clk) {
 		dev_err(port->dev, "Failed to get PSC clock entry!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(port->dev, "mclk %sable\n", enable ? "en" : "dis");
@@ -751,7 +751,7 @@ static int mpc512x_psc_endis_clock(struct uart_port *port, int enable)
 	}
 }
 
-static void mpc512x_psc_get_irq(struct uart_port *port, struct device_node *np)
+static void mpc512x_psc_get_irq(struct uart_port *port, struct device_analde *np)
 {
 	port->irqflags = IRQF_SHARED;
 	port->irq = psc_fifoc_irq;
@@ -902,7 +902,7 @@ static unsigned int mpc5125_psc_set_baudrate(struct uart_port *port,
 
 /*
  * MPC5125 have compatible PSC FIFO Controller.
- * Special init not needed.
+ * Special init analt needed.
  */
 static u16 mpc5125_psc_get_status(struct uart_port *port)
 {
@@ -1130,11 +1130,11 @@ mpc52xx_uart_startup(struct uart_port *port)
 	/*
 	 * According to Freescale's support the RST_TX command can produce a
 	 * spike on the TX pin. So they recommend to delay "for one character".
-	 * One millisecond should be enough for everyone.
+	 * One millisecond should be eanalugh for everyone.
 	 */
 	msleep(1);
 
-	psc_ops->set_sicr(port, 0);	/* UART mode DCD ignored */
+	psc_ops->set_sicr(port, 0);	/* UART mode DCD iganalred */
 
 	psc_ops->fifo_init(port);
 
@@ -1196,7 +1196,7 @@ mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
 		mr1 |= (new->c_cflag & PARODD) ?
 			MPC52xx_PSC_MODE_PARODD : MPC52xx_PSC_MODE_PAREVEN;
 	} else {
-		mr1 |= MPC52xx_PSC_MODE_PARNONE;
+		mr1 |= MPC52xx_PSC_MODE_PARANALNE;
 	}
 
 	mr2 = 0;
@@ -1220,7 +1220,7 @@ mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
 	/* But we don't wait indefinitely ! */
 	j = 5000000;	/* Maximum wait */
 	/* FIXME Can't receive chars since set_termios might be called at early
-	 * boot for the console, all stuff is not yet ready to receive at that
+	 * boot for the console, all stuff is analt yet ready to receive at that
 	 * time and that just makes the kernel oops */
 	/* while (j-- && mpc52xx_uart_int_rx_chars(port)); */
 	while (!mpc52xx_uart_tx_empty(port) && --j)
@@ -1258,7 +1258,7 @@ mpc52xx_uart_type(struct uart_port *port)
 {
 	/*
 	 * We keep using PORT_MPC52xx for historic reasons although it applies
-	 * for MPC512x, too, but print "MPC5xxx" to not irritate users
+	 * for MPC512x, too, but print "MPC5xxx" to analt irritate users
 	 */
 	return port->type == PORT_MPC52xx ? "MPC5xxx PSC" : NULL;
 }
@@ -1325,7 +1325,7 @@ mpc52xx_uart_config_port(struct uart_port *port, int flags)
 static int
 mpc52xx_uart_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_MPC52xx)
+	if (ser->type != PORT_UNKANALWN && ser->type != PORT_MPC52xx)
 		return -EINVAL;
 
 	if ((ser->irq != port->irq) ||
@@ -1351,7 +1351,7 @@ static const struct uart_ops mpc52xx_uart_ops = {
 	.startup	= mpc52xx_uart_startup,
 	.shutdown	= mpc52xx_uart_shutdown,
 	.set_termios	= mpc52xx_uart_set_termios,
-/*	.pm		= mpc52xx_uart_pm,		Not supported yet */
+/*	.pm		= mpc52xx_uart_pm,		Analt supported yet */
 	.type		= mpc52xx_uart_type,
 	.release_port	= mpc52xx_uart_release_port,
 	.request_port	= mpc52xx_uart_request_port,
@@ -1382,7 +1382,7 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 
 		/* Store it */
 
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		port->icount.rx++;
 
 		status = psc_ops->get_status(port);
@@ -1522,7 +1522,7 @@ mpc52xx_console_get_options(struct uart_port *port,
 		*bits = 8;
 	}
 
-	if (mr1 & MPC52xx_PSC_MODE_PARNONE)
+	if (mr1 & MPC52xx_PSC_MODE_PARANALNE)
 		*parity = 'n';
 	else
 		*parity = mr1 & MPC52xx_PSC_MODE_PARODD ? 'o' : 'e';
@@ -1566,7 +1566,7 @@ static int __init
 mpc52xx_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port = &mpc52xx_uart_ports[co->index];
-	struct device_node *np = mpc52xx_uart_nodes[co->index];
+	struct device_analde *np = mpc52xx_uart_analdes[co->index];
 	unsigned int uartclk;
 	struct resource res;
 	int ret;
@@ -1585,23 +1585,23 @@ mpc52xx_console_setup(struct console *co, char *options)
 	}
 
 	if (!np) {
-		pr_debug("PSC%x not found in device tree\n", co->index);
+		pr_debug("PSC%x analt found in device tree\n", co->index);
 		return -EINVAL;
 	}
 
 	pr_debug("Console on ttyPSC%x is %pOF\n",
-		 co->index, mpc52xx_uart_nodes[co->index]);
+		 co->index, mpc52xx_uart_analdes[co->index]);
 
 	/* Fetch register locations */
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret) {
-		pr_debug("Could not get resources for PSC%x\n", co->index);
+		pr_debug("Could analt get resources for PSC%x\n", co->index);
 		return ret;
 	}
 
-	uartclk = mpc5xxx_fwnode_get_bus_frequency(of_fwnode_handle(np));
+	uartclk = mpc5xxx_fwanalde_get_bus_frequency(of_fwanalde_handle(np));
 	if (uartclk == 0) {
-		pr_debug("Could not find uart clock frequency!\n");
+		pr_debug("Could analt find uart clock frequency!\n");
 		return -EINVAL;
 	}
 
@@ -1671,7 +1671,7 @@ static struct uart_driver mpc52xx_uart_driver = {
 	.driver_name	= "mpc52xx_psc_uart",
 	.dev_name	= "ttyPSC",
 	.major		= SERIAL_PSC_MAJOR,
-	.minor		= SERIAL_PSC_MINOR,
+	.mianalr		= SERIAL_PSC_MIANALR,
 	.nr		= MPC52xx_PSC_MAXNUM,
 	.cons		= MPC52xx_PSC_CONSOLE,
 };
@@ -1706,19 +1706,19 @@ static int mpc52xx_uart_of_probe(struct platform_device *op)
 
 	/* Check validity & presence */
 	for (idx = 0; idx < MPC52xx_PSC_MAXNUM; idx++)
-		if (mpc52xx_uart_nodes[idx] == op->dev.of_node)
+		if (mpc52xx_uart_analdes[idx] == op->dev.of_analde)
 			break;
 	if (idx >= MPC52xx_PSC_MAXNUM)
 		return -EINVAL;
 	pr_debug("Found %pOF assigned to ttyPSC%x\n",
-		 mpc52xx_uart_nodes[idx], idx);
+		 mpc52xx_uart_analdes[idx], idx);
 
 	/* set the uart clock to the input clock of the psc, the different
 	 * prescalers are taken into account in the set_baudrate() methods
 	 * of the respective chip */
 	uartclk = mpc5xxx_get_bus_frequency(&op->dev);
 	if (uartclk == 0) {
-		dev_dbg(&op->dev, "Could not find uart clock frequency!\n");
+		dev_dbg(&op->dev, "Could analt find uart clock frequency!\n");
 		return -EINVAL;
 	}
 
@@ -1737,19 +1737,19 @@ static int mpc52xx_uart_of_probe(struct platform_device *op)
 	port->dev	= &op->dev;
 
 	/* Search for IRQ and mapbase */
-	ret = of_address_to_resource(op->dev.of_node, 0, &res);
+	ret = of_address_to_resource(op->dev.of_analde, 0, &res);
 	if (ret)
 		return ret;
 
 	port->mapbase = res.start;
 	if (!port->mapbase) {
-		dev_dbg(&op->dev, "Could not allocate resources for PSC\n");
+		dev_dbg(&op->dev, "Could analt allocate resources for PSC\n");
 		return -EINVAL;
 	}
 
-	psc_ops->get_irq(port, op->dev.of_node);
+	psc_ops->get_irq(port, op->dev.of_analde);
 	if (port->irq == 0) {
-		dev_dbg(&op->dev, "Could not get irq\n");
+		dev_dbg(&op->dev, "Could analt get irq\n");
 		return -EINVAL;
 	}
 
@@ -1798,15 +1798,15 @@ mpc52xx_uart_of_resume(struct platform_device *op)
 #endif
 
 static void
-mpc52xx_uart_of_assign(struct device_node *np)
+mpc52xx_uart_of_assign(struct device_analde *np)
 {
 	int i;
 
 	/* Find the first free PSC number */
 	for (i = 0; i < MPC52xx_PSC_MAXNUM; i++) {
-		if (mpc52xx_uart_nodes[i] == NULL) {
-			of_node_get(np);
-			mpc52xx_uart_nodes[i] = np;
+		if (mpc52xx_uart_analdes[i] == NULL) {
+			of_analde_get(np);
+			mpc52xx_uart_analdes[i] = np;
 			return;
 		}
 	}
@@ -1816,7 +1816,7 @@ static void
 mpc52xx_uart_of_enumerate(void)
 {
 	static int enum_done;
-	struct device_node *np;
+	struct device_analde *np;
 	const struct  of_device_id *match;
 	int i;
 
@@ -1824,8 +1824,8 @@ mpc52xx_uart_of_enumerate(void)
 		return;
 
 	/* Assign index to each PSC in device tree */
-	for_each_matching_node(np, mpc52xx_uart_of_match) {
-		match = of_match_node(mpc52xx_uart_of_match, np);
+	for_each_matching_analde(np, mpc52xx_uart_of_match) {
+		match = of_match_analde(mpc52xx_uart_of_match, np);
 		psc_ops = match->data;
 		mpc52xx_uart_of_assign(np);
 	}
@@ -1833,9 +1833,9 @@ mpc52xx_uart_of_enumerate(void)
 	enum_done = 1;
 
 	for (i = 0; i < MPC52xx_PSC_MAXNUM; i++) {
-		if (mpc52xx_uart_nodes[i])
+		if (mpc52xx_uart_analdes[i])
 			pr_debug("%pOF assigned to ttyPSC%x\n",
-				 mpc52xx_uart_nodes[i], i);
+				 mpc52xx_uart_analdes[i], i);
 	}
 }
 

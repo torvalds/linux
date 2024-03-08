@@ -17,7 +17,7 @@
  * struct tps51632_regulator_platform_data - tps51632 regulator platform data.
  *
  * @reg_init_data: The regulator init data.
- * @enable_pwm_dvfs: Enable PWM DVFS or not.
+ * @enable_pwm_dvfs: Enable PWM DVFS or analt.
  * @dvfs_step_20mV: Step for DVFS is 20mV or 10mV.
  * @max_voltage_uV: Maximum possible voltage in PWM-DVFS mode.
  * @base_voltage_uV: Base voltage when PWM-DVFS enabled.

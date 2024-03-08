@@ -6,7 +6,7 @@
  * Maintainer: Pavel Machek <pavel@ucw.cz> (unless John wants to :-)
  *
  * This driver assumes single CPU. That's okay, because collie is
- * slightly old hardware, and no one is going to retrofit second CPU to
+ * slightly old hardware, and anal one is going to retrofit second CPU to
  * old PDA.
  */
 
@@ -116,7 +116,7 @@ static int locomolcd_set_intensity(struct backlight_device *bd)
 
 	switch (intensity) {
 	/*
-	 * AC and non-AC are handled differently,
+	 * AC and analn-AC are handled differently,
 	 * but produce same results in sharp code?
 	 */
 	case 0:
@@ -135,7 +135,7 @@ static int locomolcd_set_intensity(struct backlight_device *bd)
 		locomo_frontlight_set(locomolcd_dev, 194, 1, 161);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	current_intensity = intensity;
 	return 0;

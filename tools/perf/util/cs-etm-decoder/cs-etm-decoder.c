@@ -99,7 +99,7 @@ int cs_etm_decoder__get_packet(struct cs_etm_packet_queue *packet_queue,
 	if (!packet_queue || !packet)
 		return -EINVAL;
 
-	/* Nothing to do, might as well just return */
+	/* Analthing to do, might as well just return */
 	if (packet_queue->packet_count == 0)
 		return 0;
 	/*
@@ -108,7 +108,7 @@ int cs_etm_decoder__get_packet(struct cs_etm_packet_queue *packet_queue,
 	 * intuitive but it has the advantage of centralizing tail management
 	 * at a single location.  Because of that we need to follow the same
 	 * heuristic with the head, i.e we increment it before using its
-	 * value.  Otherwise the first element of the packet queue is not
+	 * value.  Otherwise the first element of the packet queue is analt
 	 * used.
 	 */
 	packet_queue->head = (packet_queue->head + 1) &
@@ -122,10 +122,10 @@ int cs_etm_decoder__get_packet(struct cs_etm_packet_queue *packet_queue,
 }
 
 /*
- * Calculate the number of nanoseconds elapsed.
+ * Calculate the number of naanalseconds elapsed.
  *
  * instr_count is updated in place with the remainder of the instructions
- * which didn't make up a whole nanosecond.
+ * which didn't make up a whole naanalsecond.
  */
 static u32 cs_etm_decoder__dec_instr_count_to_ns(u32 *instr_count)
 {
@@ -155,7 +155,7 @@ static int cs_etm_decoder__gen_etmv3_config(struct cs_etm_trace_params *params,
 static enum _ocsd_arch_version cs_etm_decoder__get_etmv4_arch_ver(u32 reg_idr1)
 {
 	/*
-	 * For ETMv4 if the trace minor version is 4 or more then we can assume
+	 * For ETMv4 if the trace mianalr version is 4 or more then we can assume
 	 * the architecture is ARCH_AA64 rather than just V8.
 	 * ARCH_V8 = V8 architecture
 	 * ARCH_AA64 = Min v8r3 plus additional AA64 PE features
@@ -224,8 +224,8 @@ cs_etm_decoder__init_def_logger_printing(struct cs_etm_decoder_params *d_params,
 	if (ret != 0)
 		return -1;
 
-	/* no stdout / err / file output */
-	ret = ocsd_def_errlog_config_output(C_API_MSGLOGOUT_FLG_NONE, NULL);
+	/* anal stdout / err / file output */
+	ret = ocsd_def_errlog_config_output(C_API_MSGLOGOUT_FLG_ANALNE, NULL);
 	if (ret != 0)
 		return -1;
 
@@ -254,8 +254,8 @@ cs_etm_decoder__init_raw_frame_logging(struct cs_etm_decoder_params *d_params,
 		 */
 		ocsd_def_errlog_init(OCSD_ERR_SEV_ERROR, 1);
 
-		/* no stdout / err / file output */
-		ocsd_def_errlog_config_output(C_API_MSGLOGOUT_FLG_NONE, NULL);
+		/* anal stdout / err / file output */
+		ocsd_def_errlog_config_output(C_API_MSGLOGOUT_FLG_ANALNE, NULL);
 
 		/* set the string CB for the default logger,
 		 * passes strings to perf print logger.
@@ -285,7 +285,7 @@ cs_etm_decoder__do_soft_timestamp(struct cs_etm_queue *etmq,
 {
 	u64 estimated_ts;
 
-	/* No timestamp packet has been received, nothing to do */
+	/* Anal timestamp packet has been received, analthing to do */
 	if (!packet_queue->next_cs_timestamp)
 		return OCSD_RESP_CONT;
 
@@ -330,7 +330,7 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 	 */
 	if (packet_queue->next_cs_timestamp) {
 		/*
-		 * What was next is now where new ranges start from, overwriting
+		 * What was next is analw where new ranges start from, overwriting
 		 * any previous estimate in cs_timestamp
 		 */
 		packet_queue->cs_timestamp = packet_queue->next_cs_timestamp;
@@ -352,7 +352,7 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 
 	} else if (packet_queue->instr_count / INSTR_PER_NS > converted_timestamp) {
 		/*
-		 * Sanity check that the elem->timestamp - packet_queue->instr_count would not
+		 * Sanity check that the elem->timestamp - packet_queue->instr_count would analt
 		 * result in an underflow. Warn and clamp at 0 if it would.
 		 */
 		packet_queue->cs_timestamp = 0;
@@ -407,7 +407,7 @@ cs_etm_decoder__buffer_packet(struct cs_etm_packet_queue *packet_queue,
 	packet_queue->packet_count++;
 
 	packet_queue->packet_buffer[et].sample_type = sample_type;
-	packet_queue->packet_buffer[et].isa = CS_ETM_ISA_UNKNOWN;
+	packet_queue->packet_buffer[et].isa = CS_ETM_ISA_UNKANALWN;
 	packet_queue->packet_buffer[et].cpu = cpu;
 	packet_queue->packet_buffer[et].start_addr = CS_ETM_INVAL_ADDR;
 	packet_queue->packet_buffer[et].end_addr = CS_ETM_INVAL_ADDR;
@@ -456,9 +456,9 @@ cs_etm_decoder__buffer_range(struct cs_etm_queue *etmq,
 	case ocsd_isa_tee:
 	case ocsd_isa_jazelle:
 	case ocsd_isa_custom:
-	case ocsd_isa_unknown:
+	case ocsd_isa_unkanalwn:
 	default:
-		packet->isa = CS_ETM_ISA_UNKNOWN;
+		packet->isa = CS_ETM_ISA_UNKANALWN;
 	}
 
 	packet->start_addr = elem->st_addr;
@@ -475,7 +475,7 @@ cs_etm_decoder__buffer_range(struct cs_etm_queue *etmq,
 
 	packet->last_instr_size = elem->last_instr_sz;
 
-	/* per-thread scenario, no need to generate a timestamp */
+	/* per-thread scenario, anal need to generate a timestamp */
 	if (cs_etm__etmq_is_timeless(etmq))
 		goto out;
 
@@ -500,7 +500,7 @@ cs_etm_decoder__buffer_discontinuity(struct cs_etm_packet_queue *queue,
 				     const uint8_t trace_chan_id)
 {
 	/*
-	 * Something happened and who knows when we'll get new traces so
+	 * Something happened and who kanalws when we'll get new traces so
 	 * reset time statistics.
 	 */
 	cs_etm_decoder__reset_timestamp(queue);
@@ -556,7 +556,7 @@ cs_etm_decoder__set_tid(struct cs_etm_queue *etmq,
 		if (elem->context.vmid_valid)
 			tid = elem->context.vmid;
 		break;
-	case CS_ETM_PIDFMT_NONE:
+	case CS_ETM_PIDFMT_ANALNE:
 	default:
 		break;
 	}
@@ -594,10 +594,10 @@ static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
 		return OCSD_RESP_FATAL_SYS_ERR;
 
 	switch (elem->elem_type) {
-	case OCSD_GEN_TRC_ELEM_UNKNOWN:
+	case OCSD_GEN_TRC_ELEM_UNKANALWN:
 		break;
 	case OCSD_GEN_TRC_ELEM_EO_TRACE:
-	case OCSD_GEN_TRC_ELEM_NO_SYNC:
+	case OCSD_GEN_TRC_ELEM_ANAL_SYNC:
 	case OCSD_GEN_TRC_ELEM_TRACE_ON:
 		resp = cs_etm_decoder__buffer_discontinuity(packet_queue,
 							    trace_chan_id);
@@ -624,10 +624,10 @@ static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
 					       elem, trace_chan_id);
 		break;
 	/* Unused packet types */
-	case OCSD_GEN_TRC_ELEM_I_RANGE_NOPATH:
+	case OCSD_GEN_TRC_ELEM_I_RANGE_ANALPATH:
 	case OCSD_GEN_TRC_ELEM_ADDR_NACC:
 	case OCSD_GEN_TRC_ELEM_CYCLE_COUNT:
-	case OCSD_GEN_TRC_ELEM_ADDR_UNKNOWN:
+	case OCSD_GEN_TRC_ELEM_ADDR_UNKANALWN:
 	case OCSD_GEN_TRC_ELEM_EVENT:
 	case OCSD_GEN_TRC_ELEM_SWTRACE:
 	case OCSD_GEN_TRC_ELEM_CUSTOM:
@@ -680,7 +680,7 @@ cs_etm_decoder__create_etm_decoder(struct cs_etm_decoder_params *d_params,
 		return -1;
 	}
 
-	/* if the CPU has no trace ID associated, no decoder needed */
+	/* if the CPU has anal trace ID associated, anal decoder needed */
 	if (csid == CORESIGHT_TRACE_ID_UNUSED_VAL)
 		return 0;
 

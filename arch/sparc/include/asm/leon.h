@@ -23,7 +23,7 @@
 #define LEON_MMUTLB_ENT_MAX	64
 
 /*
- * diagnostic access from mmutlb.vhd:
+ * diaganalstic access from mmutlb.vhd:
  * 0: pte address
  * 4: pte
  * 8: additional flags
@@ -56,7 +56,7 @@
 #define ASI_LEON3_SYSCTRL		0x02
 #define ASI_LEON3_SYSCTRL_ICFG		0x08
 #define ASI_LEON3_SYSCTRL_DCFG		0x0c
-#define ASI_LEON3_SYSCTRL_CFG_SNOOPING (1 << 27)
+#define ASI_LEON3_SYSCTRL_CFG_SANALOPING (1 << 27)
 #define ASI_LEON3_SYSCTRL_CFG_SSIZE(c) (1 << ((c >> 20) & 0xf))
 
 #ifndef __ASSEMBLY__
@@ -96,8 +96,8 @@ static inline unsigned long sparc_leon3_get_dcachecfg(void)
 	return retval;
 }
 
-/* enable snooping */
-static inline void sparc_leon3_enable_snooping(void)
+/* enable sanaloping */
+static inline void sparc_leon3_enable_sanaloping(void)
 {
 	__asm__ __volatile__ ("lda [%%g0] 2, %%l1\n\t"
 			  "set 0x800000, %%l2\n\t"
@@ -105,7 +105,7 @@ static inline void sparc_leon3_enable_snooping(void)
 			  "sta %%l2, [%%g0] 2\n\t" : : : "l1", "l2");
 };
 
-static inline int sparc_leon3_snooping_enabled(void)
+static inline int sparc_leon3_sanaloping_enabled(void)
 {
 	u32 cctrl;
 	__asm__ __volatile__("lda [%%g0] 2, %0\n\t" : "=r"(cctrl));
@@ -185,7 +185,7 @@ static inline int sparc_leon3_cpuid(void)
 #define LEON_PTE_SH    15
 #define LEON_PTE_M     0x3f
 #else
-#error cannot determine LEON_PAGE_SIZE_LEON
+#error cananalt determine LEON_PAGE_SIZE_LEON
 #endif
 
 #define LEON3_XCCR_SETS_MASK  0x07000000UL
@@ -216,7 +216,7 @@ struct leon3_cacheregs {
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 
-struct device_node;
+struct device_analde;
 struct task_struct;
 unsigned int leon_build_device_irq(unsigned int real_irq,
 				   irq_flow_handler_t flow_handler,
@@ -225,7 +225,7 @@ void leon_update_virq_handling(unsigned int virq,
 			       irq_flow_handler_t flow_handler,
 			       const char *name, int do_ack);
 void leon_init_timers(void);
-void leon_node_init(struct device_node *dp, struct device_node ***nextp);
+void leon_analde_init(struct device_analde *dp, struct device_analde ***nextp);
 void init_leon(void);
 void poke_leonsparc(void);
 void leon3_getCacheRegs(struct leon3_cacheregs *regs);

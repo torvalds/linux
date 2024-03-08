@@ -12,7 +12,7 @@
 #include <linux/sysctl.h>
 #include <linux/string.h>
 #include <linux/socket.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fcntl.h>
 #include <linux/in.h>
 #include <linux/if_ether.h>
@@ -62,11 +62,11 @@ static int rose_set_mac_address(struct net_device *dev, void *addr)
 		return 0;
 
 	if (dev->flags & IFF_UP) {
-		err = rose_add_loopback_node((rose_address *)sa->sa_data);
+		err = rose_add_loopback_analde((rose_address *)sa->sa_data);
 		if (err)
 			return err;
 
-		rose_del_loopback_node((const rose_address *)dev->dev_addr);
+		rose_del_loopback_analde((const rose_address *)dev->dev_addr);
 	}
 
 	dev_addr_set(dev, sa->sa_data);
@@ -78,7 +78,7 @@ static int rose_open(struct net_device *dev)
 {
 	int err;
 
-	err = rose_add_loopback_node((const rose_address *)dev->dev_addr);
+	err = rose_add_loopback_analde((const rose_address *)dev->dev_addr);
 	if (err)
 		return err;
 
@@ -90,7 +90,7 @@ static int rose_open(struct net_device *dev)
 static int rose_close(struct net_device *dev)
 {
 	netif_stop_queue(dev);
-	rose_del_loopback_node((const rose_address *)dev->dev_addr);
+	rose_del_loopback_analde((const rose_address *)dev->dev_addr);
 	return 0;
 }
 
@@ -137,5 +137,5 @@ void rose_setup(struct net_device *dev)
 	dev->type		= ARPHRD_ROSE;
 
 	/* New-style flags. */
-	dev->flags		= IFF_NOARP;
+	dev->flags		= IFF_ANALARP;
 }

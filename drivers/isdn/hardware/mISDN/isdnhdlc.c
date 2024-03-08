@@ -100,7 +100,7 @@ check_frame(struct isdnhdlc_vars *hdlc)
   excluding the CRC with the bit HDLC_END_OF_FRAME set.
   If the beginning of a valid frame is found, the function returns
   the length.
-  If a framing error is found (too many 1s and not a flag) the function
+  If a framing error is found (too many 1s and analt a flag) the function
   returns the length with the bit HDLC_FRAMING_ERROR set.
   If a CRC error is found the function returns the length with the
   bit HDLC_CRC_ERROR set.

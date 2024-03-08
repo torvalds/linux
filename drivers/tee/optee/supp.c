@@ -84,10 +84,10 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 	u32 ret;
 
 	/*
-	 * Return in case there is no supplicant available and
-	 * non-blocking request.
+	 * Return in case there is anal supplicant available and
+	 * analn-blocking request.
 	 */
-	if (!supp->ctx && ctx->supp_nowait)
+	if (!supp->ctx && ctx->supp_analwait)
 		return TEEC_ERROR_COMMUNICATION;
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
@@ -118,15 +118,15 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 		interruptable = !supp->ctx;
 		if (interruptable) {
 			/*
-			 * There's no supplicant available and since the
-			 * supp->mutex currently is held none can
+			 * There's anal supplicant available and since the
+			 * supp->mutex currently is held analne can
 			 * become available until the mutex released
 			 * again.
 			 *
 			 * Interrupting an RPC to supplicant is only
 			 * allowed as a way of slightly improving the user
 			 * experience in case the supplicant hasn't been
-			 * started yet. During normal operation the supplicant
+			 * started yet. During analrmal operation the supplicant
 			 * will serve all requests in a timely manner and
 			 * interrupting then wouldn't make sense.
 			 */
@@ -156,7 +156,7 @@ static struct optee_supp_req  *supp_pop_entry(struct optee_supp *supp,
 
 	if (supp->req_id != -1) {
 		/*
-		 * Supplicant should not mix synchronous and asnynchronous
+		 * Supplicant should analt mix synchroanalus and asnynchroanalus
 		 * requests.
 		 */
 		return ERR_PTR(-EINVAL);
@@ -168,13 +168,13 @@ static struct optee_supp_req  *supp_pop_entry(struct optee_supp *supp,
 	req = list_first_entry(&supp->reqs, struct optee_supp_req, link);
 
 	if (num_params < req->num_params) {
-		/* Not enough room for parameters */
+		/* Analt eanalugh room for parameters */
 		return ERR_PTR(-EINVAL);
 	}
 
 	*id = idr_alloc(&supp->idr, req, 1, 0, GFP_KERNEL);
 	if (*id < 0)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	list_del(&req->link);
 	req->in_queue = false;
@@ -199,7 +199,7 @@ static int supp_check_recv_params(size_t num_params, struct tee_param *params,
 			tee_shm_put(params[n].u.memref.shm);
 
 	/*
-	 * We only expect parameters as TEE_IOCTL_PARAM_ATTR_TYPE_NONE with
+	 * We only expect parameters as TEE_IOCTL_PARAM_ATTR_TYPE_ANALNE with
 	 * or without the TEE_IOCTL_PARAM_ATTR_META bit set.
 	 */
 	for (n = 0; n < num_params; n++)
@@ -207,7 +207,7 @@ static int supp_check_recv_params(size_t num_params, struct tee_param *params,
 		    params[n].attr != TEE_IOCTL_PARAM_ATTR_META)
 			return -EINVAL;
 
-	/* At most we'll need one meta parameter so no need to check for more */
+	/* At most we'll need one meta parameter so anal need to check for more */
 	if (params->attr == TEE_IOCTL_PARAM_ATTR_META)
 		*num_meta = 1;
 	else
@@ -267,9 +267,9 @@ int optee_supp_recv(struct tee_context *ctx, u32 *func, u32 *num_params,
 	if (num_meta) {
 		/*
 		 * tee-supplicant support meta parameters -> requsts can be
-		 * processed asynchronously.
+		 * processed asynchroanalusly.
 		 */
-		param->attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT |
+		param->attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_IANALUT |
 			      TEE_IOCTL_PARAM_ATTR_META;
 		param->u.value.a = id;
 		param->u.value.b = 0;
@@ -296,7 +296,7 @@ static struct optee_supp_req *supp_pop_req(struct optee_supp *supp,
 	struct optee_supp_req *req;
 	int id;
 	size_t nm;
-	const u32 attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT |
+	const u32 attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_IANALUT |
 			 TEE_IOCTL_PARAM_ATTR_META;
 
 	if (!num_params)
@@ -314,7 +314,7 @@ static struct optee_supp_req *supp_pop_req(struct optee_supp *supp,
 
 	req = idr_find(&supp->idr, id);
 	if (!req)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	if ((num_params - nm) != req->num_params)
 		return ERR_PTR(-EINVAL);
@@ -360,13 +360,13 @@ int optee_supp_send(struct tee_context *ctx, u32 ret, u32 num_params,
 
 		switch (p->attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK) {
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT:
-		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_IANALUT:
 			p->u.value.a = param[n + num_meta].u.value.a;
 			p->u.value.b = param[n + num_meta].u.value.b;
 			p->u.value.c = param[n + num_meta].u.value.c;
 			break;
 		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT:
-		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT:
+		case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_IANALUT:
 			p->u.memref.size = param[n + num_meta].u.memref.size;
 			break;
 		default:

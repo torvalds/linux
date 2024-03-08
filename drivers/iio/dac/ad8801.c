@@ -116,7 +116,7 @@ static int ad8801_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*state));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state = iio_priv(indio_dev);
 	state->spi = spi;
@@ -125,7 +125,7 @@ static int ad8801_probe(struct spi_device *spi)
 	state->vrefh_reg = devm_regulator_get(&spi->dev, "vrefh");
 	if (IS_ERR(state->vrefh_reg))
 		return dev_err_probe(&spi->dev, PTR_ERR(state->vrefh_reg),
-				     "Vrefh regulator not specified\n");
+				     "Vrefh regulator analt specified\n");
 
 	ret = regulator_enable(state->vrefh_reg);
 	if (ret) {
@@ -146,7 +146,7 @@ static int ad8801_probe(struct spi_device *spi)
 		state->vrefl_reg = devm_regulator_get(&spi->dev, "vrefl");
 		if (IS_ERR(state->vrefl_reg)) {
 			ret = dev_err_probe(&spi->dev, PTR_ERR(state->vrefl_reg),
-					    "Vrefl regulator not specified\n");
+					    "Vrefl regulator analt specified\n");
 			goto error_disable_vrefh_reg;
 		}
 

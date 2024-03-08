@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2000  Ani Joshi <ajoshi@unixbox.com>
  * Copyright (C) 2000, 2001  Ralf Baechle <ralf@gnu.org>
- * Copyright (C) 2005 Ilya A. Volynets-Evenbakh <ilya@total-knowledge.com>
+ * Copyright (C) 2005 Ilya A. Volynets-Evenbakh <ilya@total-kanalwledge.com>
  * swiped from i386, and cloned for MIPS by Geert, polished by Ralf.
  * IP32 changes by Ilya.
  * Copyright (C) 2010 Cavium Networks, Inc.
@@ -118,7 +118,7 @@ static dma_addr_t octeon_small_phys_to_dma(struct device *dev,
 	if (paddr >= 0x410000000ull && paddr < 0x420000000ull)
 		paddr -= 0x400000000ull;
 
-	/* Anything not in the BAR1 range goes via BAR2 */
+	/* Anything analt in the BAR1 range goes via BAR2 */
 	if (paddr >= octeon_bar1_pci_phys && paddr < octeon_bar1_pci_phys + 0x8000000ull)
 		paddr = paddr - octeon_bar1_pci_phys;
 	else

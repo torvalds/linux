@@ -39,7 +39,7 @@ void dw_dma_acpi_controller_register(struct dw_dma *dw)
 
 	ret = acpi_dma_controller_register(dev, acpi_dma_simple_xlate, info);
 	if (ret)
-		dev_err(dev, "could not register acpi_dma_controller\n");
+		dev_err(dev, "could analt register acpi_dma_controller\n");
 }
 EXPORT_SYMBOL_GPL(dw_dma_acpi_controller_register);
 

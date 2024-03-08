@@ -17,6 +17,6 @@ extern void inc_unaligned_kernel_access(void);
 
 extern unsigned int unaligned_user_action(void);
 
-extern void unaligned_fixups_notify(struct task_struct *, insn_size_t, struct pt_regs *);
+extern void unaligned_fixups_analtify(struct task_struct *, insn_size_t, struct pt_regs *);
 
 #endif /* __ASM_SH_ALIGNMENT_H */

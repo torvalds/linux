@@ -39,7 +39,7 @@
  *  |                                             |\|
  *  |                               Byte Enable --+ |
  *  |                             Transfer Length --+
- *  +-- IO space, not cached
+ *  +-- IO space, analt cached
  *
  *   Byte      Transfer
  *   Enable    Length    Transfer  Byte    Address
@@ -51,7 +51,7 @@
  *      11        00      Byte      0111   0x060
  *
  *      00        01      Word      1100   0x008
- *      01        01      Word      1001   0x028 <= Not supported in this code.
+ *      01        01      Word      1001   0x028 <= Analt supported in this code.
  *      10        01      Word      0011   0x048
  *
  *      00        10      Tribyte   1000   0x010
@@ -59,7 +59,7 @@
  *
  *      10        11      Longword  0000   0x058
  *
- *      Note that byte enables are asserted low.
+ *      Analte that byte enables are asserted low.
  *
  */
 
@@ -115,7 +115,7 @@
 
 
 /*
- * 21171-CA Diagnostic Registers
+ * 21171-CA Diaganalstic Registers
  */
 #define CIA_IOC_CIA_DIAG		(IDENT_ADDR + 0x8740002000UL)
 #define CIA_IOC_DIAG_CHECK		(IDENT_ADDR + 0x8740003000UL)
@@ -293,7 +293,7 @@ struct el_CIA_sysdata_mcheck {
 #ifdef __KERNEL__
 
 #ifndef __EXTERN_INLINE
-/* Do not touch, this should *NOT* be static inline */
+/* Do analt touch, this should *ANALT* be static inline */
 #define __EXTERN_INLINE extern inline
 #define __IO_EXTERN_INLINE
 #endif
@@ -353,7 +353,7 @@ __EXTERN_INLINE u8 cia_ioread8(const void __iomem *xaddr)
 		base_and_type = CIA_IO + 0x00;
 
 	/* We can use CIA_MEM_R1_MASK for io ports too, since it is large
-	   enough to cover all io ports, and smaller than CIA_IO.  */
+	   eanalugh to cover all io ports, and smaller than CIA_IO.  */
 	addr &= CIA_MEM_R1_MASK;
 	result = *(vip) ((addr << 5) + base_and_type);
 	return __kernel_extbl(result, addr & 3);

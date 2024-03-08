@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -22,36 +22,36 @@
  * Authors: Martin Peres <martin.peres@free.fr>
  */
 
-#ifndef __NOUVEAU_LED_H__
-#define __NOUVEAU_LED_H__
+#ifndef __ANALUVEAU_LED_H__
+#define __ANALUVEAU_LED_H__
 
-#include "nouveau_drv.h"
+#include "analuveau_drv.h"
 
 #include <linux/leds.h>
 
-struct nouveau_led {
+struct analuveau_led {
 	struct drm_device *dev;
 
 	struct led_classdev led;
 };
 
-static inline struct nouveau_led *
-nouveau_led(struct drm_device *dev)
+static inline struct analuveau_led *
+analuveau_led(struct drm_device *dev)
 {
-	return nouveau_drm(dev)->led;
+	return analuveau_drm(dev)->led;
 }
 
-/* nouveau_led.c */
+/* analuveau_led.c */
 #if IS_REACHABLE(CONFIG_LEDS_CLASS)
-int  nouveau_led_init(struct drm_device *dev);
-void nouveau_led_suspend(struct drm_device *dev);
-void nouveau_led_resume(struct drm_device *dev);
-void nouveau_led_fini(struct drm_device *dev);
+int  analuveau_led_init(struct drm_device *dev);
+void analuveau_led_suspend(struct drm_device *dev);
+void analuveau_led_resume(struct drm_device *dev);
+void analuveau_led_fini(struct drm_device *dev);
 #else
-static inline int  nouveau_led_init(struct drm_device *dev) { return 0; };
-static inline void nouveau_led_suspend(struct drm_device *dev) { };
-static inline void nouveau_led_resume(struct drm_device *dev) { };
-static inline void nouveau_led_fini(struct drm_device *dev) { };
+static inline int  analuveau_led_init(struct drm_device *dev) { return 0; };
+static inline void analuveau_led_suspend(struct drm_device *dev) { };
+static inline void analuveau_led_resume(struct drm_device *dev) { };
+static inline void analuveau_led_fini(struct drm_device *dev) { };
 #endif
 
 #endif

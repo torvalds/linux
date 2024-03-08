@@ -140,7 +140,7 @@
 #define DA732X_REG_DMA_DATA2		0xD8
 #define DA732X_REG_DMA_DATA3		0xD9
 #define DA732X_REG_DMA_STATUS		0xDA
-#define DA732X_REG_BROWNOUT		0xDF
+#define DA732X_REG_BROWANALUT		0xDF
 #define DA732X_REG_UNLOCK		0xE0
 
 #define	DA732X_MAX_REG			DA732X_REG_UNLOCK
@@ -496,7 +496,7 @@
 #define DA732X_AIFM_FRAME_64			(1 << 2)
 #define	DA732X_AIFM_SRC_SEL_AIFA		(1 << 6)
 #define	DA732X_CLK_GENERATION_AIF_A		(1 << 4)
-#define	DA732X_NO_CLK_GENERATION		0x0
+#define	DA732X_ANAL_CLK_GENERATION		0x0
 
 /* DA732X_REG_AIFA1 (addr=0x61) */
 #define	DA732X_AIF_WORD_MASK			(0x3 << 0)
@@ -504,7 +504,7 @@
 #define	DA732X_AIF_WORD_20			(1 << 0)
 #define	DA732X_AIF_WORD_24			(2 << 0)
 #define	DA732X_AIF_WORD_32			(3 << 0)
-#define	DA732X_AIF_TDM_MONO_SHIFT		(1 << 6)
+#define	DA732X_AIF_TDM_MOANAL_SHIFT		(1 << 6)
 #define	DA732X_AIF1_CLK_MASK			(1 << 7)
 #define	DA732X_AIF_SLAVE			(0 << 7)
 #define DA732X_AIF_CLK_FROM_SRC			(1 << 7)
@@ -525,7 +525,7 @@
 #define	DA732X_PC_PULSE_AIFA			(0 << 0)
 #define	DA732X_PC_PULSE_AIFB			(1 << 0)
 #define	DA732X_PC_RESYNC_AUT			(1 << 6)
-#define	DA732X_PC_RESYNC_NOT_AUT		(0 << 6)
+#define	DA732X_PC_RESYNC_ANALT_AUT		(0 << 6)
 #define	DA732X_PC_SAME				(1 << 7)
 
 /* DA732X_REG_DATA_ROUTE (addr=0x70) */
@@ -558,7 +558,7 @@
 #define DA732X_HP_LOOP_GAIN_CTRL		(1 << 3)
 
 /* DA732X_REG_ID (addr=0x81)*/
-#define DA732X_ID_MINOR_MASK			(0xF << 0)
+#define DA732X_ID_MIANALR_MASK			(0xF << 0)
 #define DA732X_ID_MAJOR_MASK			(0xF << 4)
 
 /* DA732X_REG_ADC1/2_PD (addr=0x90/0x98) */

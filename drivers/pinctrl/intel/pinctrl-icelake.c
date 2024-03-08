@@ -316,15 +316,15 @@ static const struct intel_padgroup icllp_community1_gpps[] = {
 
 static const struct intel_padgroup icllp_community4_gpps[] = {
 	ICL_GPP(0, 153, 176, 224),			/* GPP_C */
-	ICL_GPP(1, 177, 182, INTEL_GPIO_BASE_NOMAP),	/* HVCMOS */
+	ICL_GPP(1, 177, 182, INTEL_GPIO_BASE_ANALMAP),	/* HVCMOS */
 	ICL_GPP(2, 183, 206, 256),			/* GPP_E */
-	ICL_GPP(3, 207, 215, INTEL_GPIO_BASE_NOMAP),	/* JTAG */
+	ICL_GPP(3, 207, 215, INTEL_GPIO_BASE_ANALMAP),	/* JTAG */
 };
 
 static const struct intel_padgroup icllp_community5_gpps[] = {
 	ICL_GPP(0, 216, 223, 288),			/* GPP_R */
 	ICL_GPP(1, 224, 231, 320),			/* GPP_S */
-	ICL_GPP(2, 232, 240, INTEL_GPIO_BASE_NOMAP),	/* SPI */
+	ICL_GPP(2, 232, 240, INTEL_GPIO_BASE_ANALMAP),	/* SPI */
 };
 
 static const struct intel_community icllp_communities[] = {
@@ -632,7 +632,7 @@ static const struct pinctrl_pin_desc icln_pins[] = {
 };
 
 static const struct intel_padgroup icln_community0_gpps[] = {
-	ICL_GPP(0, 0, 8, INTEL_GPIO_BASE_NOMAP),	/* SPI */
+	ICL_GPP(0, 0, 8, INTEL_GPIO_BASE_ANALMAP),	/* SPI */
 	ICL_GPP(1, 9, 34, 32),				/* GPP_B */
 	ICL_GPP(2, 35, 55, 64),				/* GPP_A */
 	ICL_GPP(3, 56, 63, 96),				/* GPP_S */
@@ -647,7 +647,7 @@ static const struct intel_padgroup icln_community1_gpps[] = {
 };
 
 static const struct intel_padgroup icln_community4_gpps[] = {
-	ICL_GPP(0, 175, 180, INTEL_GPIO_BASE_NOMAP),	/* HVCMOS */
+	ICL_GPP(0, 175, 180, INTEL_GPIO_BASE_ANALMAP),	/* HVCMOS */
 	ICL_GPP(1, 181, 204, 288),			/* GPP_E */
 };
 

@@ -27,7 +27,7 @@ static const struct nf_loginfo default_loginfo = {
 	.type	= NF_LOG_TYPE_LOG,
 	.u = {
 		.log = {
-			.level	  = LOGLEVEL_NOTICE,
+			.level	  = LOGLEVEL_ANALTICE,
 			.logflags = NF_LOG_DEFAULT_MASK,
 		},
 	},
@@ -56,7 +56,7 @@ static void nf_log_dump_vlan(struct nf_log_buf *m, const struct sk_buff *skb)
 	vid = skb_vlan_tag_get(skb);
 	nf_log_buf_add(m, "VPROTO=%04x VID=%u ", ntohs(skb->vlan_proto), vid);
 }
-static void noinline_for_stack
+static void analinline_for_stack
 dump_arp_packet(struct nf_log_buf *m,
 		const struct nf_loginfo *info,
 		const struct sk_buff *skb, unsigned int nhoff)
@@ -179,7 +179,7 @@ static void nf_log_dump_sk_uid_gid(struct net *net, struct nf_log_buf *m,
 	read_unlock_bh(&sk->sk_callback_lock);
 }
 
-static noinline_for_stack int
+static analinline_for_stack int
 nf_log_dump_tcp_header(struct nf_log_buf *m,
 		       const struct sk_buff *skb,
 		       u8 proto, int fragment,
@@ -260,7 +260,7 @@ nf_log_dump_tcp_header(struct nf_log_buf *m,
 	return 0;
 }
 
-static noinline_for_stack int
+static analinline_for_stack int
 nf_log_dump_udp_header(struct nf_log_buf *m,
 		       const struct sk_buff *skb,
 		       u8 proto, int fragment,
@@ -295,7 +295,7 @@ out:
 }
 
 /* One level of recursion won't kill us */
-static noinline_for_stack void
+static analinline_for_stack void
 dump_ipv4_packet(struct net *net, struct nf_log_buf *m,
 		 const struct nf_loginfo *info,
 		 const struct sk_buff *skb, unsigned int iphoff)
@@ -522,14 +522,14 @@ dump_ipv4_packet(struct net *net, struct nf_log_buf *m,
 	/* ICMP:    11+max(25, 18+25+max(19,14,24+3+n+10,3+n+10)) = 91+n */
 	/* ESP:     10+max(25)+15 = 50 */
 	/* AH:	    9+max(25)+15 = 49 */
-	/* unknown: 10 */
+	/* unkanalwn: 10 */
 
 	/* (ICMP allows recursion one level deep) */
-	/* maxlen =  IP + ICMP +  IP + max(TCP,UDP,ICMP,unknown) */
+	/* maxlen =  IP + ICMP +  IP + max(TCP,UDP,ICMP,unkanalwn) */
 	/* maxlen = 230+   91  + 230 + 252 = 803 */
 }
 
-static noinline_for_stack void
+static analinline_for_stack void
 dump_ipv6_packet(struct net *net, struct nf_log_buf *m,
 		 const struct nf_loginfo *info,
 		 const struct sk_buff *skb, unsigned int ip6hoff,
@@ -567,7 +567,7 @@ dump_ipv6_packet(struct net *net, struct nf_log_buf *m,
 	fragment = 0;
 	ptr = ip6hoff + sizeof(struct ipv6hdr);
 	currenthdr = ih->nexthdr;
-	while (currenthdr != NEXTHDR_NONE && nf_ip6_ext_hdr(currenthdr)) {
+	while (currenthdr != NEXTHDR_ANALNE && nf_ip6_ext_hdr(currenthdr)) {
 		struct ipv6_opt_hdr _hdr;
 		const struct ipv6_opt_hdr *hp;
 
@@ -677,8 +677,8 @@ dump_ipv6_packet(struct net *net, struct nf_log_buf *m,
 			}
 			return;
 		default:
-			/* Max length: 20 "Unknown Ext Hdr 255" */
-			nf_log_buf_add(m, "Unknown Ext Hdr %u", currenthdr);
+			/* Max length: 20 "Unkanalwn Ext Hdr 255" */
+			nf_log_buf_add(m, "Unkanalwn Ext Hdr %u", currenthdr);
 			return;
 		}
 		if (logflags & NF_LOG_IPOPT)
@@ -898,7 +898,7 @@ static struct nf_logger nf_ip6_logger __read_mostly = {
 	.me		= THIS_MODULE,
 };
 
-static void nf_log_unknown_packet(struct net *net, u_int8_t pf,
+static void nf_log_unkanalwn_packet(struct net *net, u_int8_t pf,
 				  unsigned int hooknum,
 				  const struct sk_buff *skb,
 				  const struct net_device *in,
@@ -944,7 +944,7 @@ static void nf_log_netdev_packet(struct net *net, u_int8_t pf,
 		nf_log_arp_packet(net, pf, hooknum, skb, in, out, loginfo, prefix);
 		break;
 	default:
-		nf_log_unknown_packet(net, pf, hooknum, skb,
+		nf_log_unkanalwn_packet(net, pf, hooknum, skb,
 				      in, out, loginfo, prefix);
 		break;
 	}

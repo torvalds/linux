@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Google Gru-Scarlet Rev4+ (SKU-6/Innolux) board device tree source
+ * Google Gru-Scarlet Rev4+ (SKU-6/Inanallux) board device tree source
  *
  * Copyright 2018 Google, Inc
  */
@@ -39,7 +39,7 @@
 };
 
 &mipi_panel {
-	compatible = "innolux,p097pfg";
+	compatible = "inanallux,p097pfg";
 	avdd-supply = <&ppvarp_lcd>;
 	avee-supply = <&ppvarn_lcd>;
 };

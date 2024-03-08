@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2005 Andrey Panin <pazke@donpac.ru>
  *
- * Based on driver written by Pete Reynolds.
+ * Based on driver written by Pete Reyanallds.
  * Copyright (c) IBM Corporation, 1998-2004.
  *
  */
@@ -24,7 +24,7 @@
 
 
 enum {
-	ASMTYPE_UNKNOWN,
+	ASMTYPE_UNKANALWN,
 	ASMTYPE_TOPAZ,
 	ASMTYPE_JASPER,
 	ASMTYPE_PEARL,
@@ -59,7 +59,7 @@ enum {
 #define SPRUCE_ASR_TOGGLE_MASK	0x02	/* bit 0: 0, then 1, then 0 */
 
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 
 static unsigned long asr_is_open;
 static char asr_expect_close;
@@ -173,13 +173,13 @@ static int __init asr_get_base_address(void)
 		/* Suggested fix */
 		pdev = pci_get_bus_and_slot(0, DEVFN(0x1f, 0));
 		if (pdev == NULL)
-			return -ENODEV;
+			return -EANALDEV;
 		pci_read_config_dword(pdev, 0x58, &r);
 		asr_base = r & 0xFFFE;
 		pci_dev_put(pdev);
 #else
 		/* FIXME: need to use pci_config_lock here,
-		   but it's not exported */
+		   but it's analt exported */
 
 /*		spin_lock_irqsave(&pci_config_lock, flags);*/
 
@@ -247,7 +247,7 @@ static ssize_t asr_write(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
 	if (count) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t i;
 
 			/* In case it was set long ago */
@@ -303,18 +303,18 @@ static long asr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		asr_toggle();
 		return 0;
 	/*
-	 * The hardware has a fixed timeout value, so no WDIOC_SETTIMEOUT
+	 * The hardware has a fixed timeout value, so anal WDIOC_SETTIMEOUT
 	 * and WDIOC_GETTIMEOUT always returns 256.
 	 */
 	case WDIOC_GETTIMEOUT:
 		heartbeat = 256;
 		return put_user(heartbeat, p);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
-static int asr_open(struct inode *inode, struct file *file)
+static int asr_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(0, &asr_is_open))
 		return -EBUSY;
@@ -322,15 +322,15 @@ static int asr_open(struct inode *inode, struct file *file)
 	asr_toggle();
 	asr_enable();
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int asr_release(struct inode *inode, struct file *file)
+static int asr_release(struct ianalde *ianalde, struct file *file)
 {
 	if (asr_expect_close == 42)
 		asr_disable();
 	else {
-		pr_crit("unexpected close, not stopping watchdog!\n");
+		pr_crit("unexpected close, analt stopping watchdog!\n");
 		asr_toggle();
 	}
 	clear_bit(0, &asr_is_open);
@@ -340,7 +340,7 @@ static int asr_release(struct inode *inode, struct file *file)
 
 static const struct file_operations asr_fops = {
 	.owner =		THIS_MODULE,
-	.llseek =		no_llseek,
+	.llseek =		anal_llseek,
 	.write =		asr_write,
 	.unlocked_ioctl =	asr_ioctl,
 	.compat_ioctl =		compat_ptr_ioctl,
@@ -349,7 +349,7 @@ static const struct file_operations asr_fops = {
 };
 
 static struct miscdevice asr_miscdev = {
-	.minor =	WATCHDOG_MINOR,
+	.mianalr =	WATCHDOG_MIANALR,
 	.name =		"watchdog",
 	.fops =		&asr_fops,
 };
@@ -382,7 +382,7 @@ static int __init ibmasr_init(void)
 	}
 
 	if (!asr_type)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = asr_get_base_address();
 	if (rc)
@@ -400,7 +400,7 @@ static int __init ibmasr_init(void)
 
 static void __exit ibmasr_exit(void)
 {
-	if (!nowayout)
+	if (!analwayout)
 		asr_disable();
 
 	misc_deregister(&asr_miscdev);
@@ -411,10 +411,10 @@ static void __exit ibmasr_exit(void)
 module_init(ibmasr_init);
 module_exit(ibmasr_exit);
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+	"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 MODULE_DESCRIPTION("IBM Automatic Server Restart driver");
 MODULE_AUTHOR("Andrey Panin");

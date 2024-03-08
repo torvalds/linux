@@ -145,7 +145,7 @@ static struct pds_auxiliary_dev *pdsc_auxbus_dev_register(struct pdsc *cf,
 
 	padev = kzalloc(sizeof(*padev), GFP_KERNEL);
 	if (!padev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	padev->vf_pdev = cf->pdev;
 	padev->client_id = client_id;
@@ -212,8 +212,8 @@ int pdsc_auxbus_dev_add(struct pdsc *cf, struct pdsc *pf)
 	 * become a loop for several VIF types.
 	 */
 
-	/* Verify that the type is supported and enabled.  It is not
-	 * an error if there is no auxbus device support for this
+	/* Verify that the type is supported and enabled.  It is analt
+	 * an error if there is anal auxbus device support for this
 	 * VF, it just means something else needs to happen with it.
 	 */
 	vt = PDS_DEV_TYPE_VDPA;

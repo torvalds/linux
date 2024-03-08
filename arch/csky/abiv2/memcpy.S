@@ -13,8 +13,8 @@ ENTRY(memcpy)
 
 	andi	r13, r0, 3
 	movi	r19, 4
-	/* Test if dest is not 4 bytes aligned.  */
-	bnez	r13, .L_dest_not_aligned
+	/* Test if dest is analt 4 bytes aligned.  */
+	bnez	r13, .L_dest_analt_aligned
 
 /* Hardware can handle unaligned access directly.  */
 .L_dest_aligned:
@@ -81,21 +81,21 @@ ENTRY(memcpy)
 	rts
 
 /*
- * If dest is not aligned, just copying some bytes makes the
+ * If dest is analt aligned, just copying some bytes makes the
  * dest align.
  */
-.L_dest_not_aligned:
+.L_dest_analt_aligned:
 	sub	r13, r19, r13
 	sub	r2, r13
 
 /* Makes the dest align.  */
-.L_dest_not_aligned_loop:
+.L_dest_analt_aligned_loop:
 	ldb	r3, (r1, 0)
 	PRE_BNEZAD (r13)
 	addi	r1, 1
 	stb	r3, (r0, 0)
 	addi	r0, 1
-	BNEZAD (r13, .L_dest_not_aligned_loop)
+	BNEZAD (r13, .L_dest_analt_aligned_loop)
 	cmplti	r2, 4
 	bt	.L_copy_by_byte
 

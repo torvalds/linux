@@ -15,10 +15,10 @@
         "ArchStdEvent": "BR_PRED"
     },
     {
-        "PublicDescription": "Instruction architecturally executed, branch not taken",
+        "PublicDescription": "Instruction architecturally executed, branch analt taken",
         "EventCode": "0x8107",
         "EventName": "BR_SKIP_RETIRED",
-        "BriefDescription": "Instruction architecturally executed, branch not taken"
+        "BriefDescription": "Instruction architecturally executed, branch analt taken"
     },
     {
         "PublicDescription": "Instruction architecturally executed, immediate branch taken",
@@ -93,16 +93,16 @@
         "BriefDescription": "Instruction architecturally executed, mispredicted branch, taken"
     },
     {
-        "PublicDescription": "Instruction architecturally executed, predicted branch, not taken",
+        "PublicDescription": "Instruction architecturally executed, predicted branch, analt taken",
         "EventCode": "0x811a",
         "EventName": "BR_SKIP_PRED_RETIRED",
-        "BriefDescription": "Instruction architecturally executed, predicted branch, not taken"
+        "BriefDescription": "Instruction architecturally executed, predicted branch, analt taken"
     },
     {
-        "PublicDescription": "Instruction architecturally executed, mispredicted branch, not taken",
+        "PublicDescription": "Instruction architecturally executed, mispredicted branch, analt taken",
         "EventCode": "0x811b",
         "EventName": "BR_SKIP_MIS_PRED_RETIRED",
-        "BriefDescription": "Instruction architecturally executed, mispredicted branch, not taken"
+        "BriefDescription": "Instruction architecturally executed, mispredicted branch, analt taken"
     },
     {
         "PublicDescription": "Instruction architecturally executed, predicted branch",

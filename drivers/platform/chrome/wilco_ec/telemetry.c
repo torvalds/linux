@@ -9,12 +9,12 @@
  * the OS sends a command to the EC via a write() to a char device,
  * and can read the response with a read(). The write() request is
  * verified by the driver to ensure that it is performing only one
- * of the allowlisted commands, and that no extraneous data is
+ * of the allowlisted commands, and that anal extraneous data is
  * being transmitted to the EC. The response is passed directly
- * back to the reader with no modification.
+ * back to the reader with anal modification.
  *
  * The character device will appear as /dev/wilco_telemN, where N
- * is some small non-negative integer, starting with 0. Only one
+ * is some small analn-negative integer, starting with 0. Only one
  * process may have the file descriptor open at a time. The calling
  * userspace program needs to keep the device file descriptor open
  * between the calls to write() and read() in order to preserve the
@@ -23,7 +23,7 @@
  * For testing purposes, try requesting the EC's firmware build
  * date, by sending the WILCO_EC_TELEM_GET_VERSION command with
  * argument index=3. i.e. write [0x38, 0x00, 0x03]
- * to the device node. An ASCII string of the build date is
+ * to the device analde. An ASCII string of the build date is
  * returned.
  */
 
@@ -76,7 +76,7 @@ struct telem_args_get_log {
  * Get a piece of info about the EC firmware version:
  * 0 = label
  * 1 = svn_rev
- * 2 = model_no
+ * 2 = model_anal
  * 3 = build_date
  * 4 = frio_version
  */
@@ -141,10 +141,10 @@ struct wilco_ec_telem_request {
  * @rq: Request buffer copied from userspace.
  * @size: Number of bytes copied from userspace.
  *
- * Return: 0 if valid, -EINVAL if bad command or reserved byte is non-zero,
+ * Return: 0 if valid, -EINVAL if bad command or reserved byte is analn-zero,
  *         -EMSGSIZE if the request is too long.
  *
- * We do not want to allow userspace to send arbitrary telemetry commands to
+ * We do analt want to allow userspace to send arbitrary telemetry commands to
  * the EC. Therefore we check to ensure that
  * 1. The request follows the format of struct wilco_ec_telem_request.
  * 2. The supplied command code is one of the allowlisted commands.
@@ -224,9 +224,9 @@ struct telem_session_data {
 };
 
 /**
- * telem_open() - Callback for when the device node is opened.
- * @inode: inode for this char device node.
- * @filp: file for this char device node.
+ * telem_open() - Callback for when the device analde is opened.
+ * @ianalde: ianalde for this char device analde.
+ * @filp: file for this char device analde.
  *
  * We need to ensure that after writing a command to the device,
  * the same userspace process reads the corresponding result.
@@ -235,13 +235,13 @@ struct telem_session_data {
  *
  * Return: 0 on success, or negative error code on failure.
  */
-static int telem_open(struct inode *inode, struct file *filp)
+static int telem_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct telem_device_data *dev_data;
 	struct telem_session_data *sess_data;
 
 	/* Ensure device isn't already open */
-	dev_data = container_of(inode->i_cdev, struct telem_device_data, cdev);
+	dev_data = container_of(ianalde->i_cdev, struct telem_device_data, cdev);
 	if (atomic_cmpxchg(&dev_data->available, 1, 0) == 0)
 		return -EBUSY;
 
@@ -250,12 +250,12 @@ static int telem_open(struct inode *inode, struct file *filp)
 	sess_data = kzalloc(sizeof(*sess_data), GFP_KERNEL);
 	if (!sess_data) {
 		atomic_set(&dev_data->available, 1);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	sess_data->dev_data = dev_data;
 	sess_data->has_msg = false;
 
-	stream_open(inode, filp);
+	stream_open(ianalde, filp);
 	filp->private_data = sess_data;
 
 	return 0;
@@ -301,7 +301,7 @@ static ssize_t telem_read(struct file *filp, char __user *buf, size_t count,
 	struct telem_session_data *sess_data = filp->private_data;
 
 	if (!sess_data->has_msg)
-		return -ENODATA;
+		return -EANALDATA;
 	if (count > sizeof(sess_data->response))
 		return -EINVAL;
 
@@ -313,7 +313,7 @@ static ssize_t telem_read(struct file *filp, char __user *buf, size_t count,
 	return count;
 }
 
-static int telem_release(struct inode *inode, struct file *filp)
+static int telem_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct telem_session_data *sess_data = filp->private_data;
 
@@ -329,7 +329,7 @@ static const struct file_operations telem_fops = {
 	.write = telem_write,
 	.read = telem_read,
 	.release = telem_release,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.owner = THIS_MODULE,
 };
 
@@ -352,28 +352,28 @@ static void telem_device_free(struct device *d)
  * telem_device_probe() - Callback when creating a new device.
  * @pdev: platform device that we will be receiving telems from.
  *
- * This finds a free minor number for the device, allocates and initializes
- * some device data, and creates a new device and char dev node.
+ * This finds a free mianalr number for the device, allocates and initializes
+ * some device data, and creates a new device and char dev analde.
  *
  * Return: 0 on success, negative error code on failure.
  */
 static int telem_device_probe(struct platform_device *pdev)
 {
 	struct telem_device_data *dev_data;
-	int error, minor;
+	int error, mianalr;
 
 	/* Get the next available device number */
-	minor = ida_alloc_max(&telem_ida, TELEM_MAX_DEV-1, GFP_KERNEL);
-	if (minor < 0) {
-		error = minor;
-		dev_err(&pdev->dev, "Failed to find minor number: %d\n", error);
+	mianalr = ida_alloc_max(&telem_ida, TELEM_MAX_DEV-1, GFP_KERNEL);
+	if (mianalr < 0) {
+		error = mianalr;
+		dev_err(&pdev->dev, "Failed to find mianalr number: %d\n", error);
 		return error;
 	}
 
 	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data) {
-		ida_free(&telem_ida, minor);
-		return -ENOMEM;
+		ida_free(&telem_ida, mianalr);
+		return -EANALMEM;
 	}
 
 	/* Initialize the device data */
@@ -382,10 +382,10 @@ static int telem_device_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev_data);
 
 	/* Initialize the device */
-	dev_data->dev.devt = MKDEV(telem_major, minor);
+	dev_data->dev.devt = MKDEV(telem_major, mianalr);
 	dev_data->dev.class = &telem_class;
 	dev_data->dev.release = telem_device_free;
-	dev_set_name(&dev_data->dev, TELEM_DEV_NAME_FMT, minor);
+	dev_set_name(&dev_data->dev, TELEM_DEV_NAME_FMT, mianalr);
 	device_initialize(&dev_data->dev);
 
 	/* Initialize the character device and add it to userspace */;
@@ -393,7 +393,7 @@ static int telem_device_probe(struct platform_device *pdev)
 	error = cdev_device_add(&dev_data->cdev, &dev_data->dev);
 	if (error) {
 		put_device(&dev_data->dev);
-		ida_free(&telem_ida, minor);
+		ida_free(&telem_ida, mianalr);
 		return error;
 	}
 
@@ -405,7 +405,7 @@ static void telem_device_remove(struct platform_device *pdev)
 	struct telem_device_data *dev_data = platform_get_drvdata(pdev);
 
 	cdev_device_del(&dev_data->cdev, &dev_data->dev);
-	ida_free(&telem_ida, MINOR(dev_data->dev.devt));
+	ida_free(&telem_ida, MIANALR(dev_data->dev.devt));
 	put_device(&dev_data->dev);
 }
 
@@ -428,7 +428,7 @@ static int __init telem_module_init(void)
 		return ret;
 	}
 
-	/* Request the kernel for device numbers, starting with minor=0 */
+	/* Request the kernel for device numbers, starting with mianalr=0 */
 	ret = alloc_chrdev_region(&dev_num, 0, TELEM_MAX_DEV, TELEM_DEV_NAME);
 	if (ret) {
 		pr_err(DRV_NAME ": Failed allocating dev numbers: %d\n", ret);

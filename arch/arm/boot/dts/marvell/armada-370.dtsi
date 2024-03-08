@@ -8,7 +8,7 @@
  * Gregory CLEMENT <gregory.clement@free-electrons.com>
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  *
- * Contains definitions specific to the Armada 370 SoC that are not
+ * Contains definitions specific to the Armada 370 SoC that are analt
  * common to all Armada SoCs.
  */
 

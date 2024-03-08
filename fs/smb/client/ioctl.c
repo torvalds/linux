@@ -26,8 +26,8 @@
 static long cifs_ioctl_query_info(unsigned int xid, struct file *filep,
 				  unsigned long p)
 {
-	struct inode *inode = file_inode(filep);
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct ianalde *ianalde = file_ianalde(filep);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(ianalde->i_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	struct dentry *dentry = filep->f_path.dentry;
 	const unsigned char *path;
@@ -49,7 +49,7 @@ static long cifs_ioctl_query_info(unsigned int xid, struct file *filep,
 	} else {
 		utf16_path = cifs_convert_path_to_utf16(path + 1, cifs_sb);
 		if (!utf16_path) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto ici_exit;
 		}
 	}
@@ -59,7 +59,7 @@ static long cifs_ioctl_query_info(unsigned int xid, struct file *filep,
 				xid, tcon, cifs_sb, utf16_path,
 				filep->private_data ? 0 : 1, p);
 	else
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 
  ici_exit:
 	if (utf16_path != &root_path)
@@ -73,12 +73,12 @@ static long cifs_ioctl_copychunk(unsigned int xid, struct file *dst_file,
 {
 	int rc;
 	struct fd src_file;
-	struct inode *src_inode;
+	struct ianalde *src_ianalde;
 
 	cifs_dbg(FYI, "ioctl copychunk range\n");
 	/* the destination must be opened for writing */
 	if (!(dst_file->f_mode & FMODE_WRITE)) {
-		cifs_dbg(FYI, "file target not open for write\n");
+		cifs_dbg(FYI, "file target analt open for write\n");
 		return -EINVAL;
 	}
 
@@ -101,13 +101,13 @@ static long cifs_ioctl_copychunk(unsigned int xid, struct file *dst_file,
 		goto out_fput;
 	}
 
-	src_inode = file_inode(src_file.file);
+	src_ianalde = file_ianalde(src_file.file);
 	rc = -EINVAL;
-	if (S_ISDIR(src_inode->i_mode))
+	if (S_ISDIR(src_ianalde->i_mode))
 		goto out_fput;
 
 	rc = cifs_file_copychunk_range(xid, src_file.file, 0, dst_file, 0,
-					src_inode->i_size, 0);
+					src_ianalde->i_size, 0);
 	if (rc > 0)
 		rc = 0;
 out_fput:
@@ -139,7 +139,7 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 
 	fsinf = kzalloc(sizeof(struct smb_mnt_fs_info), GFP_KERNEL);
 	if (fsinf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fsinf->version = 1;
 	fsinf->protocol_id = tcon->ses->server->vals->protocol_id;
@@ -178,7 +178,7 @@ static int cifs_shutdown(struct super_block *sb, unsigned long arg)
 	if (get_user(flags, (__u32 __user *)arg))
 		return -EFAULT;
 
-	if (flags > CIFS_GOING_FLAGS_NOLOGFLUSH)
+	if (flags > CIFS_GOING_FLAGS_ANALLOGFLUSH)
 		return -EINVAL;
 
 	if (cifs_forced_shutdown(sbi))
@@ -197,18 +197,18 @@ static int cifs_shutdown(struct super_block *sb, unsigned long arg)
 	 * We could add support later for default flag which requires:
 	 *     "Flush all dirty data and metadata to disk"
 	 * would need to call syncfs or equivalent to flush page cache for
-	 * the mount and then issue fsync to server (if nostrictsync not set)
+	 * the mount and then issue fsync to server (if analstrictsync analt set)
 	 */
 	case CIFS_GOING_FLAGS_DEFAULT:
-		cifs_dbg(FYI, "shutdown with default flag not supported\n");
+		cifs_dbg(FYI, "shutdown with default flag analt supported\n");
 		return -EINVAL;
 	/*
-	 * FLAGS_LOGFLUSH is easy since it asks to write out metadata (not
-	 * data) but metadata writes are not cached on the client, so can treat
-	 * it similarly to NOLOGFLUSH
+	 * FLAGS_LOGFLUSH is easy since it asks to write out metadata (analt
+	 * data) but metadata writes are analt cached on the client, so can treat
+	 * it similarly to ANALLOGFLUSH
 	 */
 	case CIFS_GOING_FLAGS_LOGFLUSH:
-	case CIFS_GOING_FLAGS_NOLOGFLUSH:
+	case CIFS_GOING_FLAGS_ANALLOGFLUSH:
 		sbi->mnt_cifs_flags |= CIFS_MOUNT_SHUTDOWN;
 		return 0;
 	default:
@@ -226,7 +226,7 @@ static int cifs_dump_full_key(struct cifs_tcon *tcon, struct smb3_full_key_debug
 	u8 __user *end;
 
 	if (!smb3_encryption_required(tcon)) {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -263,7 +263,7 @@ static int cifs_dump_full_key(struct cifs_tcon *tcon, struct smb3_full_key_debug
 search_end:
 		spin_unlock(&cifs_tcp_ses_lock);
 		if (!found) {
-			rc = -ENOENT;
+			rc = -EANALENT;
 			goto out;
 		}
 	}
@@ -280,14 +280,14 @@ search_end:
 		out.server_in_key_length = out.server_out_key_length = SMB3_GCM256_CRYPTKEY_SIZE;
 		break;
 	default:
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto out;
 	}
 
-	/* check if user buffer is big enough to store all the keys */
+	/* check if user buffer is big eanalugh to store all the keys */
 	if (out.in_size < sizeof(out) + out.session_key_length + out.server_in_key_length
 	    + out.server_out_key_length) {
-		rc = -ENOBUFS;
+		rc = -EANALBUFS;
 		goto out;
 	}
 
@@ -327,9 +327,9 @@ out:
 
 long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 {
-	struct inode *inode = file_inode(filep);
+	struct ianalde *ianalde = file_ianalde(filep);
 	struct smb3_key_debug_info pkey_inf;
-	int rc = -ENOTTY; /* strange error - but the precedent */
+	int rc = -EANALTTY; /* strange error - but the precedent */
 	unsigned int xid;
 	struct cifsFileInfo *pSMBFile = filep->private_data;
 	struct cifs_tcon *tcon;
@@ -362,13 +362,13 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 					rc = put_user(ExtAttrBits &
 						FS_FL_USER_VISIBLE,
 						(int __user *)arg);
-				if (rc != -EOPNOTSUPP)
+				if (rc != -EOPANALTSUPP)
 					break;
 			}
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 #endif /* CONFIG_CIFS_POSIX */
 			rc = 0;
-			if (CIFS_I(inode)->cifsAttrs & ATTR_COMPRESSED) {
+			if (CIFS_I(ianalde)->cifsAttrs & ATTR_COMPRESSED) {
 				/* add in the compressed bit */
 				ExtAttrBits = FS_COMPR_FL;
 				rc = put_user(ExtAttrBits & FS_FL_USER_VISIBLE,
@@ -392,7 +392,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			 *		       pSMBFile->fid.netfid,
 			 *		       extAttrBits,
 			 *		       &ExtAttrMask);
-			 * if (rc != -EOPNOTSUPP)
+			 * if (rc != -EOPANALTSUPP)
 			 *	break;
 			 */
 
@@ -421,7 +421,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				rc = tcon->ses->server->ops->set_integrity(xid,
 						tcon, pSMBFile);
 			else
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 			break;
 		case CIFS_IOC_GET_MNT_INFO:
 			if (pSMBFile == NULL)
@@ -430,7 +430,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			rc = smb_mnt_get_fsinfo(xid, tcon, (void __user *)arg);
 			break;
 		case CIFS_IOC_GET_TCON_INFO:
-			cifs_sb = CIFS_SB(inode->i_sb);
+			cifs_sb = CIFS_SB(ianalde->i_sb);
 			tlink = cifs_sb_tlink(cifs_sb);
 			if (IS_ERR(tlink)) {
 				rc = PTR_ERR(tlink);
@@ -452,7 +452,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				rc = tcon->ses->server->ops->enum_snapshots(xid, tcon,
 						pSMBFile, (void __user *)arg);
 			else
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 			break;
 		case CIFS_DUMP_KEY:
 			/*
@@ -464,7 +464,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				break;
 			}
 
-			cifs_sb = CIFS_SB(inode->i_sb);
+			cifs_sb = CIFS_SB(ianalde->i_sb);
 			tlink = cifs_sb_tlink(cifs_sb);
 			if (IS_ERR(tlink)) {
 				rc = PTR_ERR(tlink);
@@ -472,7 +472,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			}
 			tcon = tlink_tcon(tlink);
 			if (!smb3_encryption_required(tcon)) {
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 				cifs_put_tlink(tlink);
 				break;
 			}
@@ -502,7 +502,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				rc = -EACCES;
 				break;
 			}
-			cifs_sb = CIFS_SB(inode->i_sb);
+			cifs_sb = CIFS_SB(ianalde->i_sb);
 			tlink = cifs_sb_tlink(cifs_sb);
 			if (IS_ERR(tlink)) {
 				rc = PTR_ERR(tlink);
@@ -513,52 +513,52 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			rc = cifs_dump_full_key(tcon, (void __user *)arg);
 			cifs_put_tlink(tlink);
 			break;
-		case CIFS_IOC_NOTIFY:
-			if (!S_ISDIR(inode->i_mode)) {
-				/* Notify can only be done on directories */
-				rc = -EOPNOTSUPP;
+		case CIFS_IOC_ANALTIFY:
+			if (!S_ISDIR(ianalde->i_mode)) {
+				/* Analtify can only be done on directories */
+				rc = -EOPANALTSUPP;
 				break;
 			}
-			cifs_sb = CIFS_SB(inode->i_sb);
+			cifs_sb = CIFS_SB(ianalde->i_sb);
 			tlink = cifs_sb_tlink(cifs_sb);
 			if (IS_ERR(tlink)) {
 				rc = PTR_ERR(tlink);
 				break;
 			}
 			tcon = tlink_tcon(tlink);
-			if (tcon && tcon->ses->server->ops->notify) {
-				rc = tcon->ses->server->ops->notify(xid,
+			if (tcon && tcon->ses->server->ops->analtify) {
+				rc = tcon->ses->server->ops->analtify(xid,
 						filep, (void __user *)arg,
-						false /* no ret data */);
-				cifs_dbg(FYI, "ioctl notify rc %d\n", rc);
+						false /* anal ret data */);
+				cifs_dbg(FYI, "ioctl analtify rc %d\n", rc);
 			} else
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 			cifs_put_tlink(tlink);
 			break;
-		case CIFS_IOC_NOTIFY_INFO:
-			if (!S_ISDIR(inode->i_mode)) {
-				/* Notify can only be done on directories */
-				rc = -EOPNOTSUPP;
+		case CIFS_IOC_ANALTIFY_INFO:
+			if (!S_ISDIR(ianalde->i_mode)) {
+				/* Analtify can only be done on directories */
+				rc = -EOPANALTSUPP;
 				break;
 			}
-			cifs_sb = CIFS_SB(inode->i_sb);
+			cifs_sb = CIFS_SB(ianalde->i_sb);
 			tlink = cifs_sb_tlink(cifs_sb);
 			if (IS_ERR(tlink)) {
 				rc = PTR_ERR(tlink);
 				break;
 			}
 			tcon = tlink_tcon(tlink);
-			if (tcon && tcon->ses->server->ops->notify) {
-				rc = tcon->ses->server->ops->notify(xid,
+			if (tcon && tcon->ses->server->ops->analtify) {
+				rc = tcon->ses->server->ops->analtify(xid,
 						filep, (void __user *)arg,
 						true /* return details */);
-				cifs_dbg(FYI, "ioctl notify info rc %d\n", rc);
+				cifs_dbg(FYI, "ioctl analtify info rc %d\n", rc);
 			} else
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 			cifs_put_tlink(tlink);
 			break;
 		case CIFS_IOC_SHUTDOWN:
-			rc = cifs_shutdown(inode->i_sb, arg);
+			rc = cifs_shutdown(ianalde->i_sb, arg);
 			break;
 		default:
 			cifs_dbg(FYI, "unsupported ioctl\n");

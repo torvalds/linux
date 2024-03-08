@@ -71,14 +71,14 @@ enum fcu_csr_4xxx {
 };
 
 enum fcu_cmd {
-	FCU_CTRL_CMD_NOOP  = 0,
+	FCU_CTRL_CMD_ANALOP  = 0,
 	FCU_CTRL_CMD_AUTH  = 1,
 	FCU_CTRL_CMD_LOAD  = 2,
 	FCU_CTRL_CMD_START = 3
 };
 
 enum fcu_sts {
-	FCU_STS_NO_STS    = 0,
+	FCU_STS_ANAL_STS    = 0,
 	FCU_STS_VERI_DONE = 1,
 	FCU_STS_LOAD_DONE = 2,
 	FCU_STS_VERI_FAIL = 3,
@@ -89,7 +89,7 @@ enum fcu_sts {
 #define ALL_AE_MASK                 0xFFFFFFFF
 #define UA_ECS                      (0x1 << 31)
 #define ACS_ABO_BITPOS              31
-#define ACS_ACNO                    0x7
+#define ACS_ACANAL                    0x7
 #define CE_ENABLE_BITPOS            0x8
 #define CE_LMADDR_0_GLOBAL_BITPOS   16
 #define CE_LMADDR_1_GLOBAL_BITPOS   17

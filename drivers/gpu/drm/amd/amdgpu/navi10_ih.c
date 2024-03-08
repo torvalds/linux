@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -226,7 +226,7 @@ static uint32_t navi10_ih_rb_cntl(struct amdgpu_ih_ring *ih, uint32_t ih_rb_cntl
 	 */
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL,
 				   WPTR_WRITEBACK_ENABLE, 1);
-	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, MC_SNOOP, 1);
+	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, MC_SANALOP, 1);
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, MC_RO, 0);
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, MC_VMID, 0);
 
@@ -289,7 +289,7 @@ static int navi10_ih_enable_ring(struct amdgpu_device *adev,
 	}
 
 	if (ih == &adev->irq.ih) {
-		/* set the ih ring 0 writeback address whether it's enabled or not */
+		/* set the ih ring 0 writeback address whether it's enabled or analt */
 		WREG32(ih_regs->ih_rb_wptr_addr_lo, lower_32_bits(ih->wptr_addr));
 		WREG32(ih_regs->ih_rb_wptr_addr_hi, upper_32_bits(ih->wptr_addr) & 0xFFFF);
 	}
@@ -388,7 +388,7 @@ static void navi10_ih_irq_disable(struct amdgpu_device *adev)
 	force_update_wptr_for_self_int(adev, 0, 8, false);
 	navi10_ih_toggle_interrupts(adev, false);
 
-	/* Wait and acknowledge irq */
+	/* Wait and ackanalwledge irq */
 	mdelay(1);
 }
 
@@ -424,13 +424,13 @@ static u32 navi10_ih_get_wptr(struct amdgpu_device *adev,
 	ih_regs = &ih->ih_regs;
 
 	/* Double check that the overflow wasn't already cleared. */
-	wptr = RREG32_NO_KIQ(ih_regs->ih_rb_wptr);
+	wptr = RREG32_ANAL_KIQ(ih_regs->ih_rb_wptr);
 	if (!REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW))
 		goto out;
 	wptr = REG_SET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW, 0);
 
 	/* When a ring buffer overflow happen start parsing interrupt
-	 * from the last not overwritten vector (wptr + 32). Hopefully
+	 * from the last analt overwritten vector (wptr + 32). Hopefully
 	 * this should allow us to catch up.
 	 */
 	tmp = (wptr + 32) & ih->ptr_mask;
@@ -439,15 +439,15 @@ static u32 navi10_ih_get_wptr(struct amdgpu_device *adev,
 		 wptr, ih->rptr, tmp);
 	ih->rptr = tmp;
 
-	tmp = RREG32_NO_KIQ(ih_regs->ih_rb_cntl);
+	tmp = RREG32_ANAL_KIQ(ih_regs->ih_rb_cntl);
 	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
-	WREG32_NO_KIQ(ih_regs->ih_rb_cntl, tmp);
+	WREG32_ANAL_KIQ(ih_regs->ih_rb_cntl, tmp);
 
 	/* Unset the CLEAR_OVERFLOW bit immediately so new overflows
 	 * can be detected.
 	 */
 	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 0);
-	WREG32_NO_KIQ(ih_regs->ih_rb_cntl, tmp);
+	WREG32_ANAL_KIQ(ih_regs->ih_rb_cntl, tmp);
 out:
 	return (wptr & ih->ptr_mask);
 }
@@ -470,7 +470,7 @@ static void navi10_ih_irq_rearm(struct amdgpu_device *adev,
 
 	/* Rearm IRQ / re-write doorbell if doorbell write is lost */
 	for (i = 0; i < MAX_REARM_RETRY; i++) {
-		v = RREG32_NO_KIQ(ih_regs->ih_rb_rptr);
+		v = RREG32_ANAL_KIQ(ih_regs->ih_rb_rptr);
 		if ((v < ih->ring_size) && (v != ih->rptr))
 			WDOORBELL32(ih->doorbell_index, ih->rptr);
 		else
@@ -732,7 +732,7 @@ const struct amdgpu_ip_block_version navi10_ih_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_IH,
 	.major = 5,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &navi10_ih_ip_funcs,
 };

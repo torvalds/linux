@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Support for the sensor part which is integrated (I think) into the
- * st6422 stv06xx alike bridge, as its integrated there are no i2c writes
+ * st6422 stv06xx alike bridge, as its integrated there are anal i2c writes
  * but instead direct bridge writes.
  *
  * Copyright (c) 2009 Hans de Goede <hdegoede@redhat.com>
@@ -25,7 +25,7 @@ static int st6422_stop(struct sd *sd);
 
 const struct stv06xx_sensor stv06xx_sensor_st6422 = {
 	.name = "ST6422",
-	/* No known way to lower framerate in case of less bandwidth */
+	/* Anal kanalwn way to lower framerate in case of less bandwidth */
 	.min_packet_size = { 300, 847 },
 	.max_packet_size = { 300, 847 },
 	.init = st6422_init,

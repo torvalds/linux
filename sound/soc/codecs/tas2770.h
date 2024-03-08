@@ -127,7 +127,7 @@
 #define ERROR_DIE_OVERTEMP  BIT(1)
 #define ERROR_OVER_VOLTAGE  BIT(2)
 #define ERROR_UNDER_VOLTAGE BIT(3)
-#define ERROR_BROWNOUT      BIT(4)
+#define ERROR_BROWANALUT      BIT(4)
 #define ERROR_CLASSD_PWR    BIT(5)
 
 struct tas2770_priv {

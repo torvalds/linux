@@ -46,7 +46,7 @@ dasd_alloc_erp_request(unsigned int magic, int cplength, int datasize,
 		dasd_alloc_chunk(&device->erp_chunks, size);
 	spin_unlock_irqrestore(&device->mem_lock, flags);
 	if (cqr == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	memset(cqr, 0, sizeof(struct dasd_ccw_req));
 	INIT_LIST_HEAD(&cqr->devlist);
 	INIT_LIST_HEAD(&cqr->blocklist);
@@ -91,7 +91,7 @@ dasd_default_erp_action(struct dasd_ccw_req *cqr)
 
 	device = cqr->startdev;
 
-        /* just retry - there is nothing to save ... I got no sense data.... */
+        /* just retry - there is analthing to save ... I got anal sense data.... */
         if (cqr->retries > 0) {
 		DBF_DEV_EVENT(DBF_DEBUG, device,
                              "default ERP called (%i retries left)",
@@ -112,8 +112,8 @@ dasd_default_erp_action(struct dasd_ccw_req *cqr)
  * DESCRIPTION
  *   Frees all ERPs of the current ERP Chain and set the status
  *   of the original CQR either to DASD_CQR_DONE if ERP was successful
- *   or to DASD_CQR_FAILED if ERP was NOT successful.
- *   NOTE: This function is only called if no discipline postaction
+ *   or to DASD_CQR_FAILED if ERP was ANALT successful.
+ *   ANALTE: This function is only called if anal discipline postaction
  *	   is available
  *
  * PARAMETER
@@ -135,7 +135,7 @@ struct dasd_ccw_req *dasd_default_erp_postaction(struct dasd_ccw_req *cqr)
 	stopclk = cqr->stopclk;
 	startdev = cqr->startdev;
 
-	/* free all ERPs - but NOT the original cqr */
+	/* free all ERPs - but ANALT the original cqr */
 	while (cqr->refers != NULL) {
 		struct dasd_ccw_req *refers;
 
@@ -173,7 +173,7 @@ dasd_log_sense(struct dasd_ccw_req *cqr, struct irb *irb)
 			"A timeout error occurred for cqr %p\n", cqr);
 		return;
 	}
-	if (cqr->intrc == -ENOLINK) {
+	if (cqr->intrc == -EANALLINK) {
 		dev_err(&device->cdev->dev,
 			"A transport error occurred for cqr %p\n", cqr);
 		return;

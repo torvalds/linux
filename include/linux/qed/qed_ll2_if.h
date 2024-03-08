@@ -49,7 +49,7 @@ enum qed_ll2_tx_dest {
 
 enum qed_ll2_error_handle {
 	QED_LL2_DROP_PACKET,
-	QED_LL2_DO_NOTHING,
+	QED_LL2_DO_ANALTHING,
 	QED_LL2_ASSERT,
 };
 
@@ -60,7 +60,7 @@ struct qed_ll2_stats {
 	u64 gsi_crcchksm_error;
 
 	u64 packet_too_big_discard;
-	u64 no_buff_discard;
+	u64 anal_buff_discard;
 
 	u64 rcv_ucast_bytes;
 	u64 rcv_mcast_bytes;
@@ -156,7 +156,7 @@ struct qed_ll2_acquire_data_inputs {
 	u8 tx_tc;
 	enum qed_ll2_tx_dest tx_dest;
 	enum qed_ll2_error_handle ai_err_packet_too_big;
-	enum qed_ll2_error_handle ai_err_no_buf;
+	enum qed_ll2_error_handle ai_err_anal_buf;
 	bool secondary_queue;
 	u8 gsi_enable;
 };

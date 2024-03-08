@@ -7,11 +7,11 @@ Description:
 		The /proc/$pid/loginuid pseudofile is written to set and
 		read to get the audit login UID of process $pid as a
 		decimal unsigned int (%u, u32).  If it is unset,
-		permissions are not needed to set it.  The accessor must
+		permissions are analt needed to set it.  The accessor must
 		have CAP_AUDIT_CONTROL in the initial user namespace to
-		write it if it has been set.  It cannot be written again
+		write it if it has been set.  It cananalt be written again
 		if AUDIT_FEATURE_LOGINUID_IMMUTABLE is enabled.  It
-		cannot be unset if AUDIT_FEATURE_ONLY_UNSET_LOGINUID is
+		cananalt be unset if AUDIT_FEATURE_ONLY_UNSET_LOGINUID is
 		enabled.
 
 What:		Audit Login Session ID

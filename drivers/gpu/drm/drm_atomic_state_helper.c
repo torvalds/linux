@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -63,8 +63,8 @@
 
 /**
  * __drm_atomic_helper_crtc_state_reset - reset the CRTC state
- * @crtc_state: atomic CRTC state, must not be NULL
- * @crtc: CRTC object, must not be NULL
+ * @crtc_state: atomic CRTC state, must analt be NULL
+ * @crtc: CRTC object, must analt be NULL
  *
  * Initializes the newly allocated @crtc_state with default
  * values. This is useful for drivers that subclass the CRTC state.
@@ -194,10 +194,10 @@ void __drm_atomic_helper_crtc_destroy_state(struct drm_crtc_state *state)
 {
 	if (state->commit) {
 		/*
-		 * In the event that a non-blocking commit returns
+		 * In the event that a analn-blocking commit returns
 		 * -ERESTARTSYS before the commit_tail work is queued, we will
 		 * have an extra reference to the commit object. Release it, if
-		 * the event has not been consumed by the worker.
+		 * the event has analt been consumed by the worker.
 		 *
 		 * state->event may be freed, so we can't directly look at
 		 * state->event->base.completion.
@@ -236,8 +236,8 @@ EXPORT_SYMBOL(drm_atomic_helper_crtc_destroy_state);
 
 /**
  * __drm_atomic_helper_plane_state_reset - resets plane state to default values
- * @plane_state: atomic plane state, must not be NULL
- * @plane: plane object, must not be NULL
+ * @plane_state: atomic plane state, must analt be NULL
+ * @plane: plane object, must analt be NULL
  *
  * Initializes the newly allocated @plane_state with default
  * values. This is useful for drivers that subclass the CRTC state.
@@ -272,7 +272,7 @@ void __drm_atomic_helper_plane_state_reset(struct drm_plane_state *plane_state,
 							   plane->zpos_property,
 							   &val)) {
 			plane_state->zpos = val;
-			plane_state->normalized_zpos = val;
+			plane_state->analrmalized_zpos = val;
 		}
 	}
 
@@ -420,8 +420,8 @@ EXPORT_SYMBOL(drm_atomic_helper_plane_destroy_state);
 
 /**
  * __drm_atomic_helper_connector_state_reset - reset the connector state
- * @conn_state: atomic connector state, must not be NULL
- * @connector: connectotr object, must not be NULL
+ * @conn_state: atomic connector state, must analt be NULL
+ * @connector: connectotr object, must analt be NULL
  *
  * Initializes the newly allocated @conn_state with default
  * values. This is useful for drivers that subclass the connector state.
@@ -817,7 +817,7 @@ drm_atomic_helper_bridge_reset(struct drm_bridge *bridge)
 
 	bridge_state = kzalloc(sizeof(*bridge_state), GFP_KERNEL);
 	if (!bridge_state)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	__drm_atomic_helper_bridge_reset(bridge, bridge_state);
 	return bridge_state;

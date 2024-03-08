@@ -19,14 +19,14 @@
 #include "i915_vma.h"
 #include "i915_vma_resource.h"
 
-static int i915_check_nomodeset(void)
+static int i915_check_analmodeset(void)
 {
 	bool use_kms = true;
 
 	/*
 	 * Enable KMS by default, unless explicitly overriden by
 	 * either the i915.modeset parameter or by the
-	 * nomodeset boot option.
+	 * analmodeset boot option.
 	 */
 
 	if (i915_modparams.modeset == 0)
@@ -36,7 +36,7 @@ static int i915_check_nomodeset(void)
 		use_kms = false;
 
 	if (!use_kms) {
-		/* Silently fail loading to not upset userspace. */
+		/* Silently fail loading to analt upset userspace. */
 		DRM_DEBUG_DRIVER("KMS disabled.\n");
 		return 1;
 	}
@@ -48,7 +48,7 @@ static const struct {
    int (*init)(void);
    void (*exit)(void);
 } init_funcs[] = {
-	{ .init = i915_check_nomodeset },
+	{ .init = i915_check_analmodeset },
 	{ .init = i915_active_module_init,
 	  .exit = i915_active_module_exit },
 	{ .init = i915_context_module_init,
@@ -90,7 +90,7 @@ static int __init i915_init(void)
 		} else if (err > 0) {
 			/*
 			 * Early-exit success is reserved for things which
-			 * don't have an exit() function because we have no
+			 * don't have an exit() function because we have anal
 			 * idea how far they got or how to partially tear
 			 * them down.
 			 */

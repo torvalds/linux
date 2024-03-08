@@ -160,7 +160,7 @@ static int wm8994_ldo_probe(struct platform_device *pdev)
 
 	ldo = devm_kzalloc(&pdev->dev, sizeof(struct wm8994_ldo), GFP_KERNEL);
 	if (!ldo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ldo->wm8994 = wm8994;
 	ldo->supply = wm8994_ldo_consumer[id];
@@ -172,19 +172,19 @@ static int wm8994_ldo_probe(struct platform_device *pdev)
 	config.init_data = &ldo->init_data;
 
 	/*
-	 * Look up LDO enable GPIO from the parent device node, we don't
+	 * Look up LDO enable GPIO from the parent device analde, we don't
 	 * use devm because the regulator core will free the GPIO
 	 */
 	gpiod = gpiod_get_optional(pdev->dev.parent,
 				   id ? "wlf,ldo2ena" : "wlf,ldo1ena",
 				   GPIOD_OUT_LOW |
-				   GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+				   GPIOD_FLAGS_BIT_ANALNEXCLUSIVE);
 	if (IS_ERR(gpiod))
 		return PTR_ERR(gpiod);
 	config.ena_gpiod = gpiod;
 
-	/* Use default constraints if none set up */
-	if (!pdata || !pdata->ldo[id].init_data || wm8994->dev->of_node) {
+	/* Use default constraints if analne set up */
+	if (!pdata || !pdata->ldo[id].init_data || wm8994->dev->of_analde) {
 		dev_dbg(wm8994->dev, "Using default init data, supply %s %s\n",
 			ldo->supply.dev_name, ldo->supply.supply);
 
@@ -198,7 +198,7 @@ static int wm8994_ldo_probe(struct platform_device *pdev)
 
 	/*
 	 * At this point the GPIO descriptor is handled over to the
-	 * regulator core and we need not worry about it on the
+	 * regulator core and we need analt worry about it on the
 	 * error path.
 	 */
 	if (ldo->wm8994->type == WM8994) {
@@ -227,7 +227,7 @@ static struct platform_driver wm8994_ldo_driver = {
 	.probe = wm8994_ldo_probe,
 	.driver		= {
 		.name	= "wm8994-ldo",
-		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.probe_type = PROBE_FORCE_SYNCHROANALUS,
 	},
 };
 

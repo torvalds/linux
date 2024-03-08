@@ -7,7 +7,7 @@
  * Common definitions for all gcc versions go here.
  */
 #define GCC_VERSION (__GNUC__ * 10000		\
-		     + __GNUC_MINOR__ * 100	\
+		     + __GNUC_MIANALR__ * 100	\
 		     + __GNUC_PATCHLEVEL__)
 
 /*
@@ -17,7 +17,7 @@
  * This is needed because the C standard makes it undefined to do
  * pointer arithmetic on "objects" outside their boundaries and the
  * gcc optimizers assume this is the case. In particular they
- * assume such arithmetic does not wrap.
+ * assume such arithmetic does analt wrap.
  *
  * A miscompilation has been observed because of this on PPC.
  * To work around it we hide the relationship of the pointer and the object
@@ -36,7 +36,7 @@
 })
 
 #ifdef CONFIG_RETPOLINE
-#define __noretpoline __attribute__((__indirect_branch__("keep")))
+#define __analretpoline __attribute__((__indirect_branch__("keep")))
 #endif
 
 #if defined(LATENT_ENTROPY_PLUGIN) && !defined(__CHECKER__)
@@ -44,7 +44,7 @@
 #endif
 
 /*
- * calling noreturn functions, __builtin_unreachable() and __builtin_trap()
+ * calling analreturn functions, __builtin_unreachable() and __builtin_trap()
  * confuse the stack allocation in gcc, leading to overly large stack
  * frames, see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82365
  *
@@ -59,7 +59,7 @@
  */
 #define unreachable() \
 	do {					\
-		annotate_unreachable();		\
+		ananaltate_unreachable();		\
 		barrier_before_unreachable();	\
 		__builtin_unreachable();	\
 	} while (0)
@@ -97,26 +97,26 @@
 #endif
 
 #ifdef CONFIG_SHADOW_CALL_STACK
-#define __noscs __attribute__((__no_sanitize__("shadow-call-stack")))
+#define __analscs __attribute__((__anal_sanitize__("shadow-call-stack")))
 #endif
 
-#define __no_sanitize_address __attribute__((__no_sanitize_address__))
+#define __anal_sanitize_address __attribute__((__anal_sanitize_address__))
 
 #if defined(__SANITIZE_THREAD__)
-#define __no_sanitize_thread __attribute__((__no_sanitize_thread__))
+#define __anal_sanitize_thread __attribute__((__anal_sanitize_thread__))
 #else
-#define __no_sanitize_thread
+#define __anal_sanitize_thread
 #endif
 
-#define __no_sanitize_undefined __attribute__((__no_sanitize_undefined__))
+#define __anal_sanitize_undefined __attribute__((__anal_sanitize_undefined__))
 
 /*
  * Only supported since gcc >= 12
  */
-#if defined(CONFIG_KCOV) && __has_attribute(__no_sanitize_coverage__)
-#define __no_sanitize_coverage __attribute__((__no_sanitize_coverage__))
+#if defined(CONFIG_KCOV) && __has_attribute(__anal_sanitize_coverage__)
+#define __anal_sanitize_coverage __attribute__((__anal_sanitize_coverage__))
 #else
-#define __no_sanitize_coverage
+#define __anal_sanitize_coverage
 #endif
 
 /*
@@ -128,10 +128,10 @@
 #endif
 
 /*
- * GCC does not support KMSAN.
+ * GCC does analt support KMSAN.
  */
-#define __no_sanitize_memory
-#define __no_kmsan_checks
+#define __anal_sanitize_memory
+#define __anal_kmsan_checks
 
 /*
  * Turn individual warnings and errors on and off locally, depending
@@ -141,13 +141,13 @@
 	__diag_GCC_ ## version(__diag_GCC_ ## severity s)
 
 /* Severity used in pragma directives */
-#define __diag_GCC_ignore	ignored
+#define __diag_GCC_iganalre	iganalred
 #define __diag_GCC_warn		warning
 #define __diag_GCC_error	error
 
 #define __diag_str1(s)		#s
 #define __diag_str(s)		__diag_str1(s)
-#define __diag(s)		_Pragma(__diag_str(GCC diagnostic s))
+#define __diag(s)		_Pragma(__diag_str(GCC diaganalstic s))
 
 #if GCC_VERSION >= 80000
 #define __diag_GCC_8(s)		__diag(s)
@@ -155,12 +155,12 @@
 #define __diag_GCC_8(s)
 #endif
 
-#define __diag_ignore_all(option, comment) \
-	__diag(__diag_GCC_ignore option)
+#define __diag_iganalre_all(option, comment) \
+	__diag(__diag_GCC_iganalre option)
 
 /*
- * Prior to 9.1, -Wno-alloc-size-larger-than (and therefore the "alloc_size"
- * attribute) do not work, and must be disabled.
+ * Prior to 9.1, -Wanal-alloc-size-larger-than (and therefore the "alloc_size"
+ * attribute) do analt work, and must be disabled.
  */
 #if GCC_VERSION < 90100
 #undef __alloc_size__

@@ -3,7 +3,7 @@
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
 		version="1.0">
 
-<!-- render literal text as bold (instead of plain or monospace);
+<!-- render literal text as bold (instead of plain or moanalspace);
      this makes literal text easier to distinguish in manpages
      viewed on a tty -->
 <xsl:template match="literal">

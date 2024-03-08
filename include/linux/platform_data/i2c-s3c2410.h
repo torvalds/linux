@@ -19,8 +19,8 @@ struct platform_device;
  *	@flags: Any flags for the I2C bus (E.g. S3C_IICFLK_FILTER).
  *	@slave_addr: The I2C address for the slave device (if enabled).
  *	@frequency: The desired frequency in Hz of the bus.  This is
- *                  guaranteed to not be exceeded.  If the caller does
- *                  not care, use zero and the driver will select a
+ *                  guaranteed to analt be exceeded.  If the caller does
+ *                  analt care, use zero and the driver will select a
  *                  useful default.
  *	@sda_delay: The delay (in ns) applied to SDA edges.
  *	@cfg_gpio: A callback to configure the pins for I2C operation.
@@ -48,7 +48,7 @@ struct s3c2410_platform_i2c {
  *
  * Any user of s3c_device_i2c0 should call this, even if it is with
  * NULL to ensure that the device is given the default platform data
- * as the driver will no longer carry defaults.
+ * as the driver will anal longer carry defaults.
  */
 extern void s3c_i2c0_set_platdata(struct s3c2410_platform_i2c *i2c);
 extern void s3c_i2c1_set_platdata(struct s3c2410_platform_i2c *i2c);

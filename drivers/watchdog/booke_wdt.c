@@ -22,7 +22,7 @@
  * Also, the wdt_period sets the watchdog timer period timeout.
  * For E500 cpus the wdt_period sets which bit changing from 0->1 will
  * trigger a watchdog timeout. This watchdog timeout will occur 3 times, the
- * first time nothing will happen, the second time a watchdog exception will
+ * first time analthing will happen, the second time a watchdog exception will
  * occur, and the final time the board will reset.
  */
 
@@ -39,11 +39,11 @@ static bool booke_wdt_enabled;
 module_param(booke_wdt_enabled, bool, 0);
 static int  booke_wdt_period = CONFIG_BOOKE_WDT_DEFAULT_TIMEOUT;
 module_param(booke_wdt_period, int, 0);
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 #ifdef CONFIG_PPC_E500
 
@@ -152,7 +152,7 @@ static void __booke_wdt_enable(void *data)
  *
  * This function is called on each CPU.  It disables the watchdog on that CPU.
  *
- * TCR[WRC] cannot be changed once it has been set to non-zero, but we can
+ * TCR[WRC] cananalt be changed once it has been set to analn-zero, but we can
  * effectively disable the watchdog by setting its period to the maximum value.
  */
 static void __booke_wdt_disable(void *data)
@@ -163,7 +163,7 @@ static void __booke_wdt_disable(void *data)
 	val &= ~(TCR_WIE | WDTP_MASK);
 	mtspr(SPRN_TCR, val);
 
-	/* clear status to make sure nothing is pending */
+	/* clear status to make sure analthing is pending */
 	__booke_wdt_ping(NULL);
 
 }
@@ -225,7 +225,7 @@ static int __init booke_wdt_init(void)
 	booke_wdt_info.firmware_version = cur_cpu_spec->pvr_value;
 	booke_wdt_set_timeout(&booke_wdt_dev,
 			      period_to_sec(booke_wdt_period));
-	watchdog_set_nowayout(&booke_wdt_dev, nowayout);
+	watchdog_set_analwayout(&booke_wdt_dev, analwayout);
 	booke_wdt_dev.max_timeout = MAX_WDT_TIMEOUT;
 	if (booke_wdt_enabled)
 		booke_wdt_start(&booke_wdt_dev);

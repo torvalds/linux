@@ -55,7 +55,7 @@ static int stm32_vrefbuf_enable(struct regulator_dev *rdev)
 	/*
 	 * Vrefbuf startup time depends on external capacitor: wait here for
 	 * VRR to be set. That means output has reached expected value.
-	 * ~650us sleep should be enough for caps up to 1.5uF. Use 10ms as
+	 * ~650us sleep should be eanalugh for caps up to 1.5uF. Use 10ms as
 	 * arbitrary timeout.
 	 */
 	ret = readl_poll_timeout(priv->base + STM32_VREFBUF_CSR, val,
@@ -179,7 +179,7 @@ static int stm32_vrefbuf_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->dev = &pdev->dev;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
@@ -190,7 +190,7 @@ static int stm32_vrefbuf_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk))
 		return PTR_ERR(priv->clk);
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev,
 					 STM32_VREFBUF_AUTO_SUSPEND_DELAY_MS);
@@ -205,9 +205,9 @@ static int stm32_vrefbuf_probe(struct platform_device *pdev)
 
 	config.dev = &pdev->dev;
 	config.driver_data = priv;
-	config.of_node = pdev->dev.of_node;
+	config.of_analde = pdev->dev.of_analde;
 	config.init_data = of_get_regulator_init_data(&pdev->dev,
-						      pdev->dev.of_node,
+						      pdev->dev.of_analde,
 						      &stm32_vrefbuf_regu);
 
 	rdev = regulator_register(&pdev->dev, &stm32_vrefbuf_regu, &config);
@@ -228,7 +228,7 @@ err_clk_dis:
 err_pm_stop:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 
 	return ret;
 }
@@ -243,7 +243,7 @@ static void stm32_vrefbuf_remove(struct platform_device *pdev)
 	clk_disable_unprepare(priv->clk);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 };
 
 static int __maybe_unused stm32_vrefbuf_runtime_suspend(struct device *dev)
@@ -283,7 +283,7 @@ static struct platform_driver stm32_vrefbuf_driver = {
 	.remove_new = stm32_vrefbuf_remove,
 	.driver = {
 		.name  = "stm32-vrefbuf",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(stm32_vrefbuf_of_match),
 		.pm = &stm32_vrefbuf_pm_ops,
 	},

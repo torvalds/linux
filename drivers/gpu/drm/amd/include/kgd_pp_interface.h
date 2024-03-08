@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -60,7 +60,7 @@ enum amd_dpm_forced_level {
 };
 
 enum amd_pm_state_type {
-	/* not used for dpm */
+	/* analt used for dpm */
 	POWER_STATE_TYPE_DEFAULT,
 	POWER_STATE_TYPE_POWERSAVE,
 	/* user selectable states */
@@ -92,7 +92,7 @@ enum amd_vce_level {
 };
 
 enum amd_fan_ctrl_mode {
-	AMD_FAN_CTRL_NONE = 0,
+	AMD_FAN_CTRL_ANALNE = 0,
 	AMD_FAN_CTRL_MANUAL = 1,
 	AMD_FAN_CTRL_AUTO = 2,
 };
@@ -179,7 +179,7 @@ extern const char * const amdgpu_pp_profile_name[PP_SMC_POWER_PROFILE_COUNT];
 
 
 enum {
-	PP_GROUP_UNKNOWN = 0,
+	PP_GROUP_UNKANALWN = 0,
 	PP_GROUP_GFX = 1,
 	PP_GROUP_SYS,
 	PP_GROUP_MAX
@@ -213,7 +213,7 @@ enum PP_HWMON_TEMP {
 };
 
 enum pp_mp1_state {
-	PP_MP1_STATE_NONE,
+	PP_MP1_STATE_ANALNE,
 	PP_MP1_STATE_SHUTDOWN,
 	PP_MP1_STATE_UNLOAD,
 	PP_MP1_STATE_RESET,
@@ -267,7 +267,7 @@ enum pp_power_type
 };
 
 enum pp_xgmi_plpd_mode {
-	XGMI_PLPD_NONE = -1,
+	XGMI_PLPD_ANALNE = -1,
 	XGMI_PLPD_DISALLOW,
 	XGMI_PLPD_DEFAULT,
 	XGMI_PLPD_OPTIMIZED,
@@ -416,7 +416,7 @@ struct amd_pm_funcs {
 				struct pp_display_clock_request *clock);
 	int (*get_display_mode_validation_clocks)(void *handle,
 		struct amd_pp_simple_clock_info *clocks);
-	int (*notify_smu_enable_pwe)(void *handle);
+	int (*analtify_smu_enable_pwe)(void *handle);
 	int (*enable_mgpu_fan_boost)(void *handle);
 	int (*set_active_display_count)(void *handle, uint32_t count);
 	int (*set_hard_min_dcefclk_by_freq)(void *handle, uint32_t clock);
@@ -446,7 +446,7 @@ struct amd_pm_funcs {
 				   struct dpm_clocks *clock_table);
 	int (*get_smu_prv_buf_details)(void *handle, void **addr, size_t *size);
 	void (*pm_compute_clocks)(void *handle);
-	int (*notify_rlc_state)(void *handle, bool en);
+	int (*analtify_rlc_state)(void *handle, bool en);
 };
 
 struct metrics_table_header {
@@ -456,7 +456,7 @@ struct metrics_table_header {
 };
 
 /*
- * gpu_metrics_v1_0 is not recommended as it's not naturally aligned.
+ * gpu_metrics_v1_0 is analt recommended as it's analt naturally aligned.
  * Use gpu_metrics_v1_1 or later instead.
  */
 struct gpu_metrics_v1_0 {
@@ -856,7 +856,7 @@ struct gpu_metrics_v1_5 {
 };
 
 /*
- * gpu_metrics_v2_0 is not recommended as it's not naturally aligned.
+ * gpu_metrics_v2_0 is analt recommended as it's analt naturally aligned.
  * Use gpu_metrics_v2_1 or later instead.
  */
 struct gpu_metrics_v2_0 {

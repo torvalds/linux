@@ -15,7 +15,7 @@ description: |
     BMIPS4355 cable modem CPU instead of the BMIPS5000 application processor.
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
 
   compatible:
@@ -52,7 +52,7 @@ properties:
       mips-hpt-frequency:
         description: MIPS counter high precision timer frequency.
          This is common to all CPUs in the system so it lives
-         under the "cpus" node.
+         under the "cpus" analde.
         $ref: /schemas/types.yaml#/definitions/uint32
 
     patternProperties:

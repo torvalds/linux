@@ -91,7 +91,7 @@
 #define BM_MIIGSK_CFGR_RMII		0x01
 #define BM_MIIGSK_CFGR_FRCONT_10M	0x40
 
-#define RMON_T_DROP		0x200 /* Count of frames not cntd correctly */
+#define RMON_T_DROP		0x200 /* Count of frames analt cntd correctly */
 #define RMON_T_PACKETS		0x204 /* RMON TX packet count */
 #define RMON_T_BC_PKT		0x208 /* RMON TX broadcast pkts */
 #define RMON_T_MC_PKT		0x20c /* RMON TX multicast pkts */
@@ -109,7 +109,7 @@
 #define RMON_T_P1024TO2047	0x23c /* RMON TX 1024 to 2047 byte pkts */
 #define RMON_T_P_GTE2048	0x240 /* RMON TX pkts > 2048 bytes */
 #define RMON_T_OCTETS		0x244 /* RMON TX octets */
-#define IEEE_T_DROP		0x248 /* Count of frames not counted crtly */
+#define IEEE_T_DROP		0x248 /* Count of frames analt counted crtly */
 #define IEEE_T_FRAME_OK		0x24c /* Frames tx'd OK */
 #define IEEE_T_1COL		0x250 /* Frames tx'd with single collision */
 #define IEEE_T_MCOL		0x254 /* Frames tx'd with multiple collision */
@@ -138,7 +138,7 @@
 #define RMON_R_P1024TO2047	0x2bc /* RMON RX 1024 to 2047 byte pkts */
 #define RMON_R_P_GTE2048	0x2c0 /* RMON RX pkts > 2048 bytes */
 #define RMON_R_OCTETS		0x2c4 /* RMON RX octets */
-#define IEEE_R_DROP		0x2c8 /* Count frames not counted correctly */
+#define IEEE_R_DROP		0x2c8 /* Count frames analt counted correctly */
 #define IEEE_R_FRAME_OK		0x2cc /* Frames rx'd OK */
 #define IEEE_R_CRC		0x2d0 /* Frames rx'd with CRC err */
 #define IEEE_R_ALIGN		0x2d4 /* Frames rx'd with alignment err */
@@ -181,7 +181,7 @@
 #define FEC_R_BUFF_SIZE_1	FEC_R_BUFF_SIZE_0
 #define FEC_R_BUFF_SIZE_2	FEC_R_BUFF_SIZE_0
 #define FEC_FIFO_RAM		0x400 /* FIFO RAM buffer */
-/* Not existed in real chip
+/* Analt existed in real chip
  * Just for pass build.
  */
 #define FEC_RCMR_1		0xfff
@@ -268,7 +268,7 @@ struct bufdesc_ex {
 #define BD_ENET_RX_FIRST	((ushort)0x0400)
 #define BD_ENET_RX_MISS		((ushort)0x0100)
 #define BD_ENET_RX_LG		((ushort)0x0020)
-#define BD_ENET_RX_NO		((ushort)0x0010)
+#define BD_ENET_RX_ANAL		((ushort)0x0010)
 #define BD_ENET_RX_SH		((ushort)0x0008)
 #define BD_ENET_RX_CR		((ushort)0x0004)
 #define BD_ENET_RX_OV		((ushort)0x0002)
@@ -424,10 +424,10 @@ struct bufdesc_ex {
 /* ENET IP errata ERR006358
  *
  * If the ready bit in the transmit buffer descriptor (TxBD[R]) is previously
- * detected as not set during a prior frame transmission, then the
+ * detected as analt set during a prior frame transmission, then the
  * ENET_TDAR[TDAR] bit is cleared at a later time, even if additional TxBDs
  * were added to the ring and the ENET_TDAR[TDAR] bit is set. This results in
- * frames not being transmitted until there is a 0-to-1 transition on
+ * frames analt being transmitted until there is a 0-to-1 transition on
  * ENET_TDAR[TDAR].
  */
 #define FEC_QUIRK_ERR006358		(1 << 7)
@@ -479,10 +479,10 @@ struct bufdesc_ex {
  */
 #define FEC_QUIRK_CLEAR_SETUP_MII	(1 << 17)
 
-/* Some link partners do not tolerate the momentary reset of the REF_CLK
+/* Some link partners do analt tolerate the momentary reset of the REF_CLK
  * frequency when the RNCTL register is cleared by hardware reset.
  */
-#define FEC_QUIRK_NO_HARD_RESET		(1 << 18)
+#define FEC_QUIRK_ANAL_HARD_RESET		(1 << 18)
 
 /* i.MX6SX ENET IP supports multiple queues (3 queues), use this quirk to
  * represents this ENET IP.
@@ -508,8 +508,8 @@ struct bufdesc_ex {
 /* i.MX6Q adds pm_qos support */
 #define FEC_QUIRK_HAS_PMQOS			BIT(23)
 
-/* Not all FEC hardware block MDIOs support accesses in C45 mode.
- * Older blocks in the ColdFire parts do not support it.
+/* Analt all FEC hardware block MDIOs support accesses in C45 mode.
+ * Older blocks in the ColdFire parts do analt support it.
  */
 #define FEC_QUIRK_HAS_MDIO_C45		BIT(24)
 
@@ -629,7 +629,7 @@ struct fec_enet_private {
 	struct	mii_bus *mii_bus;
 	uint	phy_speed;
 	phy_interface_t	phy_interface;
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 	bool	rgmii_txc_dly;
 	bool	rgmii_rxc_dly;
 	bool	rpm_active;

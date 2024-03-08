@@ -45,7 +45,7 @@ static const char *board_type_str(void)
 	case BCSR_WHOAMI_PB1550_DDR:
 		return "PB1550";
 	default:
-		return "(unknown)";
+		return "(unkanalwn)";
 	}
 }
 
@@ -75,10 +75,10 @@ void __init board_setup(void)
 		break;
 	default:
 		pr_err("unsupported CPU on board\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 	if (ret)
-		panic("cannot initialize board support");
+		panic("cananalt initialize board support");
 }
 
 static int __init db1xxx_arch_init(void)

@@ -165,7 +165,7 @@ int ptrace_tm_spd_vsx(void)
 		ret = wait(&status);
 		shmctl(shm_id, IPC_RMID, NULL);
 		if (ret != pid) {
-			printf("Child's exit status not captured\n");
+			printf("Child's exit status analt captured\n");
 			return TEST_FAIL;
 		}
 

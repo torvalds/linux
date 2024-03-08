@@ -4,8 +4,8 @@
 ALL_TESTS="standalone bridge"
 NUM_NETIFS=2
 PING_COUNT=1
-REQUIRE_MTOOLS=yes
-REQUIRE_MZ=no
+REQUIRE_MTOOLS=anal
+REQUIRE_MZ=anal
 
 source lib.sh
 
@@ -16,44 +16,44 @@ H2_IPV6="2001:db8:1::2"
 
 BRIDGE_ADDR="00:00:de:ad:be:ee"
 MACVLAN_ADDR="00:00:de:ad:be:ef"
-UNKNOWN_UC_ADDR1="de:ad:be:ef:ee:03"
-UNKNOWN_UC_ADDR2="de:ad:be:ef:ee:04"
-UNKNOWN_UC_ADDR3="de:ad:be:ef:ee:05"
+UNKANALWN_UC_ADDR1="de:ad:be:ef:ee:03"
+UNKANALWN_UC_ADDR2="de:ad:be:ef:ee:04"
+UNKANALWN_UC_ADDR3="de:ad:be:ef:ee:05"
 JOINED_IPV4_MC_ADDR="225.1.2.3"
-UNKNOWN_IPV4_MC_ADDR1="225.1.2.4"
-UNKNOWN_IPV4_MC_ADDR2="225.1.2.5"
-UNKNOWN_IPV4_MC_ADDR3="225.1.2.6"
+UNKANALWN_IPV4_MC_ADDR1="225.1.2.4"
+UNKANALWN_IPV4_MC_ADDR2="225.1.2.5"
+UNKANALWN_IPV4_MC_ADDR3="225.1.2.6"
 JOINED_IPV6_MC_ADDR="ff2e::0102:0304"
-UNKNOWN_IPV6_MC_ADDR1="ff2e::0102:0305"
-UNKNOWN_IPV6_MC_ADDR2="ff2e::0102:0306"
-UNKNOWN_IPV6_MC_ADDR3="ff2e::0102:0307"
+UNKANALWN_IPV6_MC_ADDR1="ff2e::0102:0305"
+UNKANALWN_IPV6_MC_ADDR2="ff2e::0102:0306"
+UNKANALWN_IPV6_MC_ADDR3="ff2e::0102:0307"
 
 JOINED_MACV4_MC_ADDR="01:00:5e:01:02:03"
-UNKNOWN_MACV4_MC_ADDR1="01:00:5e:01:02:04"
-UNKNOWN_MACV4_MC_ADDR2="01:00:5e:01:02:05"
-UNKNOWN_MACV4_MC_ADDR3="01:00:5e:01:02:06"
+UNKANALWN_MACV4_MC_ADDR1="01:00:5e:01:02:04"
+UNKANALWN_MACV4_MC_ADDR2="01:00:5e:01:02:05"
+UNKANALWN_MACV4_MC_ADDR3="01:00:5e:01:02:06"
 JOINED_MACV6_MC_ADDR="33:33:01:02:03:04"
-UNKNOWN_MACV6_MC_ADDR1="33:33:01:02:03:05"
-UNKNOWN_MACV6_MC_ADDR2="33:33:01:02:03:06"
-UNKNOWN_MACV6_MC_ADDR3="33:33:01:02:03:07"
+UNKANALWN_MACV6_MC_ADDR1="33:33:01:02:03:05"
+UNKANALWN_MACV6_MC_ADDR2="33:33:01:02:03:06"
+UNKANALWN_MACV6_MC_ADDR3="33:33:01:02:03:07"
 
-NON_IP_MC="01:02:03:04:05:06"
-NON_IP_PKT="00:04 48:45:4c:4f"
+ANALN_IP_MC="01:02:03:04:05:06"
+ANALN_IP_PKT="00:04 48:45:4c:4f"
 BC="ff:ff:ff:ff:ff:ff"
 
-# Disable promisc to ensure we don't receive unknown MAC DA packets
+# Disable promisc to ensure we don't receive unkanalwn MAC DA packets
 export TCPDUMP_EXTRA_FLAGS="-pl"
 
 h1=${NETIFS[p1]}
 h2=${NETIFS[p2]}
 
-send_non_ip()
+send_analn_ip()
 {
 	local if_name=$1
 	local smac=$2
 	local dmac=$3
 
-	$MZ -q $if_name "$dmac $smac $NON_IP_PKT"
+	$MZ -q $if_name "$dmac $smac $ANALN_IP_PKT"
 }
 
 send_uc_ipv4()
@@ -115,12 +115,12 @@ run_test()
 
 	send_uc_ipv4 $h1 $rcv_dmac
 	send_uc_ipv4 $h1 $MACVLAN_ADDR
-	send_uc_ipv4 $h1 $UNKNOWN_UC_ADDR1
+	send_uc_ipv4 $h1 $UNKANALWN_UC_ADDR1
 
 	ip link set dev $rcv_if_name promisc on
-	send_uc_ipv4 $h1 $UNKNOWN_UC_ADDR2
-	mc_send $h1 $UNKNOWN_IPV4_MC_ADDR2
-	mc_send $h1 $UNKNOWN_IPV6_MC_ADDR2
+	send_uc_ipv4 $h1 $UNKANALWN_UC_ADDR2
+	mc_send $h1 $UNKANALWN_IPV4_MC_ADDR2
+	mc_send $h1 $UNKANALWN_IPV6_MC_ADDR2
 	ip link set dev $rcv_if_name promisc off
 
 	mc_join $rcv_if_name $JOINED_IPV4_MC_ADDR
@@ -131,13 +131,13 @@ run_test()
 	mc_send $h1 $JOINED_IPV6_MC_ADDR
 	mc_leave
 
-	mc_send $h1 $UNKNOWN_IPV4_MC_ADDR1
-	mc_send $h1 $UNKNOWN_IPV6_MC_ADDR1
+	mc_send $h1 $UNKANALWN_IPV4_MC_ADDR1
+	mc_send $h1 $UNKANALWN_IPV6_MC_ADDR1
 
 	ip link set dev $rcv_if_name allmulticast on
-	send_uc_ipv4 $h1 $UNKNOWN_UC_ADDR3
-	mc_send $h1 $UNKNOWN_IPV4_MC_ADDR3
-	mc_send $h1 $UNKNOWN_IPV6_MC_ADDR3
+	send_uc_ipv4 $h1 $UNKANALWN_UC_ADDR3
+	mc_send $h1 $UNKANALWN_IPV4_MC_ADDR3
+	mc_send $h1 $UNKANALWN_IPV6_MC_ADDR3
 	ip link set dev $rcv_if_name allmulticast off
 
 	mc_route_destroy $rcv_if_name
@@ -155,48 +155,48 @@ run_test()
 		"$smac > $MACVLAN_ADDR, ethertype IPv4 (0x0800)" \
 		true
 
-	check_rcv $rcv_if_name "Unicast IPv4 to unknown MAC address" \
-		"$smac > $UNKNOWN_UC_ADDR1, ethertype IPv4 (0x0800)" \
+	check_rcv $rcv_if_name "Unicast IPv4 to unkanalwn MAC address" \
+		"$smac > $UNKANALWN_UC_ADDR1, ethertype IPv4 (0x0800)" \
 		false
 
-	check_rcv $rcv_if_name "Unicast IPv4 to unknown MAC address, promisc" \
-		"$smac > $UNKNOWN_UC_ADDR2, ethertype IPv4 (0x0800)" \
+	check_rcv $rcv_if_name "Unicast IPv4 to unkanalwn MAC address, promisc" \
+		"$smac > $UNKANALWN_UC_ADDR2, ethertype IPv4 (0x0800)" \
 		true
 
-	check_rcv $rcv_if_name "Unicast IPv4 to unknown MAC address, allmulti" \
-		"$smac > $UNKNOWN_UC_ADDR3, ethertype IPv4 (0x0800)" \
+	check_rcv $rcv_if_name "Unicast IPv4 to unkanalwn MAC address, allmulti" \
+		"$smac > $UNKANALWN_UC_ADDR3, ethertype IPv4 (0x0800)" \
 		false
 
 	check_rcv $rcv_if_name "Multicast IPv4 to joined group" \
 		"$smac > $JOINED_MACV4_MC_ADDR, ethertype IPv4 (0x0800)" \
 		true
 
-	check_rcv $rcv_if_name "Multicast IPv4 to unknown group" \
-		"$smac > $UNKNOWN_MACV4_MC_ADDR1, ethertype IPv4 (0x0800)" \
+	check_rcv $rcv_if_name "Multicast IPv4 to unkanalwn group" \
+		"$smac > $UNKANALWN_MACV4_MC_ADDR1, ethertype IPv4 (0x0800)" \
 		false
 
-	check_rcv $rcv_if_name "Multicast IPv4 to unknown group, promisc" \
-		"$smac > $UNKNOWN_MACV4_MC_ADDR2, ethertype IPv4 (0x0800)" \
+	check_rcv $rcv_if_name "Multicast IPv4 to unkanalwn group, promisc" \
+		"$smac > $UNKANALWN_MACV4_MC_ADDR2, ethertype IPv4 (0x0800)" \
 		true
 
-	check_rcv $rcv_if_name "Multicast IPv4 to unknown group, allmulti" \
-		"$smac > $UNKNOWN_MACV4_MC_ADDR3, ethertype IPv4 (0x0800)" \
+	check_rcv $rcv_if_name "Multicast IPv4 to unkanalwn group, allmulti" \
+		"$smac > $UNKANALWN_MACV4_MC_ADDR3, ethertype IPv4 (0x0800)" \
 		true
 
 	check_rcv $rcv_if_name "Multicast IPv6 to joined group" \
 		"$smac > $JOINED_MACV6_MC_ADDR, ethertype IPv6 (0x86dd)" \
 		true
 
-	check_rcv $rcv_if_name "Multicast IPv6 to unknown group" \
-		"$smac > $UNKNOWN_MACV6_MC_ADDR1, ethertype IPv6 (0x86dd)" \
+	check_rcv $rcv_if_name "Multicast IPv6 to unkanalwn group" \
+		"$smac > $UNKANALWN_MACV6_MC_ADDR1, ethertype IPv6 (0x86dd)" \
 		false
 
-	check_rcv $rcv_if_name "Multicast IPv6 to unknown group, promisc" \
-		"$smac > $UNKNOWN_MACV6_MC_ADDR2, ethertype IPv6 (0x86dd)" \
+	check_rcv $rcv_if_name "Multicast IPv6 to unkanalwn group, promisc" \
+		"$smac > $UNKANALWN_MACV6_MC_ADDR2, ethertype IPv6 (0x86dd)" \
 		true
 
-	check_rcv $rcv_if_name "Multicast IPv6 to unknown group, allmulti" \
-		"$smac > $UNKNOWN_MACV6_MC_ADDR3, ethertype IPv6 (0x86dd)" \
+	check_rcv $rcv_if_name "Multicast IPv6 to unkanalwn group, allmulti" \
+		"$smac > $UNKANALWN_MACV6_MC_ADDR3, ethertype IPv6 (0x86dd)" \
 		true
 
 	tcpdump_cleanup $rcv_if_name

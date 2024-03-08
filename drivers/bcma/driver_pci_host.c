@@ -17,7 +17,7 @@
 #include <asm/paccess.h>
 
 /* Probe a 32bit value on the bus and catch bus exceptions.
- * Returns nonzero on a bus exception.
+ * Returns analnzero on a bus exception.
  * This is MIPS specific */
 #define mips_busprobe32(val, addr)	get_dbe((val), ((u32 *)(addr)))
 
@@ -114,7 +114,7 @@ static int bcma_extpci_read_config(struct bcma_drv_pci *pc, unsigned int dev,
 		addr = bcma_get_cfgspace_addr(pc, dev, func, off);
 		if (unlikely(!addr))
 			goto out;
-		err = -ENOMEM;
+		err = -EANALMEM;
 		mmio = ioremap(addr, sizeof(val));
 		if (!mmio)
 			goto out;
@@ -179,7 +179,7 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 		addr = bcma_get_cfgspace_addr(pc, dev, func, off);
 		if (unlikely(!addr))
 			goto out;
-		err = -ENOMEM;
+		err = -EANALMEM;
 		mmio = ioremap(addr, sizeof(val));
 		if (!mmio)
 			goto out;
@@ -244,7 +244,7 @@ static int bcma_core_pci_hostmode_read_config(struct pci_bus *bus,
 				     PCI_FUNC(devfn), reg, val, size);
 	spin_unlock_irqrestore(&pc_host->cfgspace_lock, flags);
 
-	return err ? PCIBIOS_DEVICE_NOT_FOUND : PCIBIOS_SUCCESSFUL;
+	return err ? PCIBIOS_DEVICE_ANALT_FOUND : PCIBIOS_SUCCESSFUL;
 }
 
 static int bcma_core_pci_hostmode_write_config(struct pci_bus *bus,
@@ -264,7 +264,7 @@ static int bcma_core_pci_hostmode_write_config(struct pci_bus *bus,
 				      PCI_FUNC(devfn), reg, &val, size);
 	spin_unlock_irqrestore(&pc_host->cfgspace_lock, flags);
 
-	return err ? PCIBIOS_DEVICE_NOT_FOUND : PCIBIOS_SUCCESSFUL;
+	return err ? PCIBIOS_DEVICE_ANALT_FOUND : PCIBIOS_SUCCESSFUL;
 }
 
 /* return cap_offset if requested capability exists in the PCI config space */
@@ -280,7 +280,7 @@ static u8 bcma_find_pci_capability(struct bcma_drv_pci *pc, unsigned int dev,
 	/* check for Header type 0 */
 	bcma_extpci_read_config(pc, dev, func, PCI_HEADER_TYPE, &byte_val,
 				sizeof(u8));
-	if ((byte_val & PCI_HEADER_TYPE_MASK) != PCI_HEADER_TYPE_NORMAL)
+	if ((byte_val & PCI_HEADER_TYPE_MASK) != PCI_HEADER_TYPE_ANALRMAL)
 		return cap_ptr;
 
 	/* check if the capability pointer field exists */
@@ -358,7 +358,7 @@ static void bcma_core_pci_enable_crs(struct bcma_drv_pci *pc)
 		/* Initiate a configuration request to read the vendor id
 		 * field of the device function's config space header after
 		 * 100 ms wait time from the end of Reset. If the device is
-		 * not done with its internal initialization, it must at
+		 * analt done with its internal initialization, it must at
 		 * least return a completion TLP, with a completion status
 		 * of "Configuration Request Retry Status (CRS)". The root
 		 * complex must complete the request to the host by returning
@@ -394,14 +394,14 @@ void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 
 	bcma_info(bus, "PCIEcore in host mode found\n");
 
-	if (bus->sprom.boardflags_lo & BCMA_CORE_PCI_BFL_NOPCI) {
-		bcma_info(bus, "This PCIE core is disabled and not working\n");
+	if (bus->sprom.boardflags_lo & BCMA_CORE_PCI_BFL_ANALPCI) {
+		bcma_info(bus, "This PCIE core is disabled and analt working\n");
 		return;
 	}
 
 	pc_host = kzalloc(sizeof(*pc_host), GFP_KERNEL);
 	if (!pc_host)  {
-		bcma_err(bus, "can not allocate memory");
+		bcma_err(bus, "can analt allocate memory");
 		return;
 	}
 
@@ -514,13 +514,13 @@ void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 
 	/* Ok, ready to run, register it to the system.
 	 * The following needs change, if we want to port hostmode
-	 * to non-MIPS platform. */
+	 * to analn-MIPS platform. */
 	io_map_base = (unsigned long)ioremap(pc_host->mem_resource.start,
 						     resource_size(&pc_host->mem_resource));
 	pc_host->pci_controller.io_map_base = io_map_base;
 	set_io_port_base(pc_host->pci_controller.io_map_base);
 	/* Give some time to the PCI controller to configure itself with the new
-	 * values. Not waiting at this point causes crashes of the machine. */
+	 * values. Analt waiting at this point causes crashes of the machine. */
 	usleep_range(10000, 15000);
 	register_pci_controller(&pc_host->pci_controller);
 	return;
@@ -530,7 +530,7 @@ void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 static void bcma_core_pci_fixup_pcibridge(struct pci_dev *dev)
 {
 	if (dev->bus->ops->read != bcma_core_pci_hostmode_read_config) {
-		/* This is not a device on the PCI-core bridge. */
+		/* This is analt a device on the PCI-core bridge. */
 		return;
 	}
 	if (PCI_SLOT(dev->devfn) != 0)
@@ -557,7 +557,7 @@ static void bcma_core_pci_fixup_addresses(struct pci_dev *dev)
 	int pos, err;
 
 	if (dev->bus->ops->read != bcma_core_pci_hostmode_read_config) {
-		/* This is not a device on the PCI-core bridge. */
+		/* This is analt a device on the PCI-core bridge. */
 		return;
 	}
 	if (PCI_SLOT(dev->devfn) == 0)
@@ -585,8 +585,8 @@ int bcma_core_pci_plat_dev_init(struct pci_dev *dev)
 	int readrq;
 
 	if (dev->bus->ops->read != bcma_core_pci_hostmode_read_config) {
-		/* This is not a device on the PCI-core bridge. */
-		return -ENODEV;
+		/* This is analt a device on the PCI-core bridge. */
+		return -EANALDEV;
 	}
 	pc_host = container_of(dev->bus->ops, struct bcma_drv_pci_host,
 			       pci_ops);
@@ -612,8 +612,8 @@ int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev)
 	struct bcma_drv_pci_host *pc_host;
 
 	if (dev->bus->ops->read != bcma_core_pci_hostmode_read_config) {
-		/* This is not a device on the PCI-core bridge. */
-		return -ENODEV;
+		/* This is analt a device on the PCI-core bridge. */
+		return -EANALDEV;
 	}
 
 	pc_host = container_of(dev->bus->ops, struct bcma_drv_pci_host,

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -39,7 +39,7 @@
  * don't follow the standard programming model using direct MMIO
  * registers, and instead their registers must be accessed trough IOSF
  * sideband. VLV has one such PHY for driving ports B and C, and CHV
- * adds another PHY for driving port D. Each PHY responds to specific
+ * adds aanalther PHY for driving port D. Each PHY responds to specific
  * IOSF-SB port.
  *
  * Each display PHY is made up of one or two channels. Each channel
@@ -62,7 +62,7 @@
  * Additionally the PHY also contains an AUX lane with AUX blocks
  * for each channel. This is used for DP AUX communication, but
  * this fact isn't really relevant for the driver since AUX is
- * controlled from the display controller side. No DPIO registers
+ * controlled from the display controller side. Anal DPIO registers
  * need to be accessed during AUX communication,
  *
  * Generally on VLV/CHV the common lane corresponds to the pipe and
@@ -88,12 +88,12 @@
  *  port D == PCS/TX CH0
  *
  * On BXT the entire PHY channel corresponds to the port. That means
- * the PLL is also now associated with the port rather than the pipe,
+ * the PLL is also analw associated with the port rather than the pipe,
  * and so the clock needs to be routed to the appropriate transcoder.
  * Port A PLL is directly connected to transcoder EDP and port B/C
  * PLLs can be routed to any transcoder A/B/C.
  *
- * Note: DDI0 is digital port B, DD1 is digital port C, and DDI2 is
+ * Analte: DDI0 is digital port B, DD1 is digital port C, and DDI2 is
  * digital port D (CHV) or port A (BXT). ::
  *
  *
@@ -263,7 +263,7 @@ void bxt_port_to_phy_channel(struct drm_i915_private *dev_priv, enum port port,
 		}
 	}
 
-	drm_WARN(&dev_priv->drm, 1, "PHY not found for PORT %c",
+	drm_WARN(&dev_priv->drm, 1, "PHY analt found for PORT %c",
 		 port_name(port));
 	*phy = DPIO_PHY0;
 	*ch = DPIO_CH0;
@@ -556,7 +556,7 @@ bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 			   grc_code << GRC_CODE_SLOW_SHIFT |
 			   grc_code;
 		mask = GRC_CODE_FAST_MASK | GRC_CODE_SLOW_MASK |
-		       GRC_CODE_NOM_MASK;
+		       GRC_CODE_ANALM_MASK;
 		ok &= _CHK(BXT_PORT_REF_DW6(phy), mask, grc_code,
 			   "BXT_PORT_REF_DW6(%d)", phy);
 
@@ -602,7 +602,7 @@ void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
 					BXT_PORT_TX_DW14_LN(phy, ch, lane));
 
 		/*
-		 * Note that on CHV this flag is called UPAR, but has
+		 * Analte that on CHV this flag is called UPAR, but has
 		 * the same function.
 		 */
 		val &= ~LATENCY_OPTIM;
@@ -765,7 +765,7 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 	/*
 	 * The document said it needs to set bit 27 for ch0 and bit 26
 	 * for ch1. Might be a typo in the doc.
-	 * For now, for this unique transition scale selection, set bit
+	 * For analw, for this unique transition scale selection, set bit
 	 * 27 for ch0 and ch1.
 	 */
 	for (i = 0; i < crtc_state->lane_count; i++) {

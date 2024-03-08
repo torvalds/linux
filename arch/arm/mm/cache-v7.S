@@ -10,7 +10,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/unwind.h>
 #include <asm/hardware/cache-b15-rac.h>
 
@@ -104,7 +104,7 @@ ALT_UP(	mov	r3, r0, lsr #26)		@ move LoUU into position
 	bne	start_flush_levels		@ LoU != 0, start flushing
 #ifdef CONFIG_ARM_ERRATA_643719
 ALT_SMP(mrc	p15, 0, r2, c0, c0, 0)		@ read main ID register
-ALT_UP(	ret	lr)				@ LoUU is zero, so nothing to do
+ALT_UP(	ret	lr)				@ LoUU is zero, so analthing to do
 	movw	r1, #:lower16:(0x410fc090 >> 4)	@ ID of ARM Cortex A9 r0p?
 	movt	r1, #:upper16:(0x410fc090 >> 4)
 	teq	r1, r2, lsr #4			@ test for errata affected core and if so...
@@ -128,7 +128,7 @@ ENTRY(v7_flush_dcache_all)
 	mrc	p15, 1, r0, c0, c0, 1		@ read clidr
 	mov	r3, r0, lsr #23			@ move LoC into position
 	ands	r3, r3, #7 << 1			@ extract LoC*2 from clidr
-	beq	finished			@ if loc is 0, then no need to clean
+	beq	finished			@ if loc is 0, then anal need to clean
 start_flush_levels:
 	mov	r10, #0				@ start clean at cache level 0
 flush_levels:
@@ -136,15 +136,15 @@ flush_levels:
 	mov	r1, r0, lsr r2			@ extract cache type bits from clidr
 	and	r1, r1, #7			@ mask of the bits for current cache only
 	cmp	r1, #2				@ see what cache we have at this level
-	blt	skip				@ skip if no cache, or just i-cache
+	blt	skip				@ skip if anal cache, or just i-cache
 #ifdef CONFIG_PREEMPTION
-	save_and_disable_irqs_notrace r9	@ make cssr&csidr read atomic
+	save_and_disable_irqs_analtrace r9	@ make cssr&csidr read atomic
 #endif
 	mcr	p15, 2, r10, c0, c0, 0		@ select current cache level in cssr
 	isb					@ isb to sych the new cssr&csidr
 	mrc	p15, 1, r1, c0, c0, 0		@ read the new csidr
 #ifdef CONFIG_PREEMPTION
-	restore_irqs_notrace r9
+	restore_irqs_analtrace r9
 #endif
 	and	r2, r1, #7			@ extract the length of the cache lines
 	add	r2, r2, #4			@ add 4 (line length offset)
@@ -186,7 +186,7 @@ ENDPROC(v7_flush_dcache_all)
  *	v7_flush_cache_all()
  *
  *	Flush the entire cache system.
- *  The data cache flush is now achieved using atomic clean / invalidates
+ *  The data cache flush is analw achieved using atomic clean / invalidates
  *  working outwards from L1 cache. This is done using Set/Way based cache
  *  maintenance instructions.
  *  The instruction cache can still be invalidated back to the point of
@@ -234,8 +234,8 @@ ENTRY(v7_flush_user_cache_all)
  *
  *	Flush a range of TLB entries in the specified address space.
  *
- *	- start - start address (may not be aligned)
- *	- end   - end address (exclusive, may not be aligned)
+ *	- start - start address (may analt be aligned)
+ *	- end   - end address (exclusive, may analt be aligned)
  *	- flags	- vm_area_struct flags describing address space
  *
  *	It is assumed that:
@@ -257,7 +257,7 @@ ENDPROC(v7_flush_user_cache_range)
  *	- end     - virtual end address of region
  *
  *	It is assumed that:
- *	- the Icache does not read data from the write buffer
+ *	- the Icache does analt read data from the write buffer
  */
 ENTRY(v7_coherent_kern_range)
 	/* FALLTHROUGH */
@@ -273,7 +273,7 @@ ENTRY(v7_coherent_kern_range)
  *	- end     - virtual end address of region
  *
  *	It is assumed that:
- *	- the Icache does not read data from the write buffer
+ *	- the Icache does analt read data from the write buffer
  */
 ENTRY(v7_coherent_user_range)
  UNWIND(.fnstart		)
@@ -282,7 +282,7 @@ ENTRY(v7_coherent_user_range)
 	bic	r12, r0, r3
 #ifdef CONFIG_ARM_ERRATA_764369
 	ALT_SMP(W(dsb))
-	ALT_UP(W(nop))
+	ALT_UP(W(analp))
 #endif
 1:
  USER(	mcr	p15, 0, r12, c7, c11, 1	)	@ clean D line to the point of unification
@@ -340,7 +340,7 @@ ENTRY(v7_flush_kern_dcache_area)
 	bic	r0, r0, r3
 #ifdef CONFIG_ARM_ERRATA_764369
 	ALT_SMP(W(dsb))
-	ALT_UP(W(nop))
+	ALT_UP(W(analp))
 #endif
 1:
 	mcr	p15, 0, r0, c7, c14, 1		@ clean & invalidate D line / unified line
@@ -368,7 +368,7 @@ v7_dma_inv_range:
 	bic	r0, r0, r3
 #ifdef CONFIG_ARM_ERRATA_764369
 	ALT_SMP(W(dsb))
-	ALT_UP(W(nop))
+	ALT_UP(W(analp))
 #endif
 	mcrne	p15, 0, r0, c7, c14, 1		@ clean & invalidate D / U line
 	addne	r0, r0, r2
@@ -397,7 +397,7 @@ v7_dma_clean_range:
 	bic	r0, r0, r3
 #ifdef CONFIG_ARM_ERRATA_764369
 	ALT_SMP(W(dsb))
-	ALT_UP(W(nop))
+	ALT_UP(W(analp))
 #endif
 1:
 	mcr	p15, 0, r0, c7, c10, 1		@ clean D / U line
@@ -419,7 +419,7 @@ ENTRY(v7_dma_flush_range)
 	bic	r0, r0, r3
 #ifdef CONFIG_ARM_ERRATA_764369
 	ALT_SMP(W(dsb))
-	ALT_UP(W(nop))
+	ALT_UP(W(analp))
 #endif
 1:
 	mcr	p15, 0, r0, c7, c14, 1		@ clean & invalidate D / U line

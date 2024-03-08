@@ -24,21 +24,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -51,10 +51,10 @@
  *  S12xx Product Family.
  *
  *  Features supported by this driver:
- *  Hardware PEC                     yes
- *  Block buffer                     yes
- *  Block process call transaction   yes
- *  Slave mode                       no
+ *  Hardware PEC                     anal
+ *  Block buffer                     anal
+ *  Block process call transaction   anal
+ *  Slave mode                       anal
  */
 
 #include <linux/module.h>
@@ -67,7 +67,7 @@
 #include <linux/acpi.h>
 #include <linux/interrupt.h>
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 /* PCI Address Constants */
 #define SMBBAR		0
@@ -582,7 +582,7 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 	default:
 		dev_err(dev, "Unsupported transaction %d\n",
 			size);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* map the data buffer */
@@ -615,7 +615,7 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 	/* Add the descriptor */
 	ismt_submit_desc(priv);
 
-	/* Now we wait for interrupt completion, 1s */
+	/* Analw we wait for interrupt completion, 1s */
 	time_left = wait_for_completion_timeout(&priv->cmp, HZ*1);
 
 	/* unmap the data buffer */
@@ -684,13 +684,13 @@ static irqreturn_t ismt_do_interrupt(int vec, void *data)
 	struct ismt_priv *priv = data;
 
 	/*
-	 * check to see it's our interrupt, return IRQ_NONE if not ours
+	 * check to see it's our interrupt, return IRQ_ANALNE if analt ours
 	 * since we are sharing interrupt
 	 */
 	val = readl(priv->smba + ISMT_MSTR_MSTS);
 
 	if (!(val & (ISMT_MSTS_MIS | ISMT_MSTS_MEIS)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	else
 		writel(val | ISMT_MSTS_MIS | ISMT_MSTS_MEIS,
 		       priv->smba + ISMT_MSTR_MSTS);
@@ -804,7 +804,7 @@ static int ismt_dev_init(struct ismt_priv *priv)
 				       &priv->io_rng_dma,
 				       GFP_KERNEL);
 	if (!priv->hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->head = 0;
 	init_completion(&priv->cmp);
@@ -813,7 +813,7 @@ static int ismt_dev_init(struct ismt_priv *priv)
 					ISMT_LOG_ENTRIES * sizeof(u32),
 					&priv->log_dma, GFP_KERNEL);
 	if (!priv->log)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -856,7 +856,7 @@ intx:
 			       "ismt-intx",
 			       priv);
 	if (err) {
-		dev_err(&priv->pci_dev->dev, "no usable interrupts\n");
+		dev_err(&priv->pci_dev->dev, "anal usable interrupts\n");
 		return err;
 	}
 
@@ -879,7 +879,7 @@ ismt_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pdev, priv);
 
@@ -909,7 +909,7 @@ ismt_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!start || !len) {
 		dev_err(&pdev->dev,
 			"SMBus base address uninitialized, upgrade BIOS\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	snprintf(priv->adapter.name, sizeof(priv->adapter.name),
@@ -935,13 +935,13 @@ ismt_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	priv->smba = pcim_iomap(pdev, SMBBAR, len);
 	if (!priv->smba) {
 		dev_err(&pdev->dev, "Unable to ioremap SMBus BAR\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
 		dev_err(&pdev->dev, "dma_set_mask fail\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = ismt_dev_init(priv);
@@ -956,7 +956,7 @@ ismt_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	err = i2c_add_adapter(&priv->adapter);
 	if (err)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 

@@ -56,7 +56,7 @@ void hdmi_pll_compute(struct hdmi_pll_data *pll,
 	n = DIV_ROUND_UP(clkin, hw->fint_max);
 	fint = clkin / n;
 
-	/* adjust m2 so that the clkdco will be high enough */
+	/* adjust m2 so that the clkdco will be high eanalugh */
 	min_dco = roundup(hw->clkdco_min, fint);
 	m2 = DIV_ROUND_UP(min_dco, target_bitclk);
 	if (m2 == 0)
@@ -198,7 +198,7 @@ static int dsi_init_pll_data(struct platform_device *pdev, struct hdmi_pll_data 
 		break;
 
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pll->ops = &dsi_pll_ops;

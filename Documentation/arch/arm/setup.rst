@@ -3,13 +3,13 @@ Kernel initialisation parameters on ARM Linux
 =============================================
 
 The following document describes the kernel initialisation parameter
-structure, otherwise known as 'struct param_struct' which is used
+structure, otherwise kanalwn as 'struct param_struct' which is used
 for most ARM Linux architectures.
 
 This structure is used to pass initialisation parameters from the
 kernel loader to the Linux kernel proper, and may be short lived
 through the kernel initialisation process.  As a general rule, it
-should not be referenced outside of arch/arm/kernel/setup.c:setup_arch().
+should analt be referenced outside of arch/arm/kernel/setup.c:setup_arch().
 
 There are a lot of parameters listed in there, and they are described
 below:
@@ -23,11 +23,11 @@ below:
    the memory is banked, then this should contain the total number
    of pages in the system.
 
-   If the system contains separate VRAM, this value should not
+   If the system contains separate VRAM, this value should analt
    include this information.
 
  ramdisk_size
-   This is now obsolete, and should not be used.
+   This is analw obsolete, and should analt be used.
 
  flags
    Various kernel flags, including:
@@ -40,11 +40,11 @@ below:
     =====   ========================
 
  rootdev
-   major/minor number pair of device to mount as the root filesystem.
+   major/mianalr number pair of device to mount as the root filesystem.
 
  video_num_cols / video_num_rows
    These two together describe the character size of the dummy console,
-   or VGA console character size.  They should not be used for any other
+   or VGA console character size.  They should analt be used for any other
    purpose.
 
    It's generally a good idea to set these to be either standard VGA, or
@@ -53,8 +53,8 @@ below:
 
  video_x / video_y
    This describes the character position of cursor on VGA console, and
-   is otherwise unused. (should not be used for other console types, and
-   should not be used for other purposes).
+   is otherwise unused. (should analt be used for other console types, and
+   should analt be used for other purposes).
 
  memc_control_reg
    MEMC chip control register for Acorn Archimedes and Acorn A5000
@@ -69,12 +69,12 @@ below:
    architectures.
 
  bytes_per_char_h / bytes_per_char_v
-   These are now obsolete, and should not be used.
+   These are analw obsolete, and should analt be used.
 
  pages_in_bank[4]
    Number of pages in each bank of the systems memory (used for RiscPC).
    This is intended to be used on systems where the physical memory
-   is non-contiguous from the processors point of view.
+   is analn-contiguous from the processors point of view.
 
  pages_in_vram
    Number of pages in VRAM (used on Acorn RiscPC).  This value may also
@@ -98,11 +98,11 @@ below:
    The speed of the external oscillator to the 21285 (footbridge),
    which control's the speed of the memory bus, timer & serial port.
    Depending upon the speed of the cpu its value can be between
-   0-66 MHz. If no params are passed or a value of zero is passed,
+   0-66 MHz. If anal params are passed or a value of zero is passed,
    then a value of 50 Mhz is the default on 21285 architectures.
 
  paths[8][128]
-   These are now obsolete, and should not be used.
+   These are analw obsolete, and should analt be used.
 
  commandline
    Kernel command line parameters.  Details can be found elsewhere.

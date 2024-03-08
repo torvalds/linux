@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/rio.h>
 

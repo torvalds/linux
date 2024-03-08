@@ -7,7 +7,7 @@ Measures the operating system timer latency
 
 :Manual section: 1
 
-SYNOPSIS
+SYANALPSIS
 ========
 **rtla timerlat top** [*OPTIONS*] ...
 
@@ -18,7 +18,7 @@ DESCRIPTION
 
 The **rtla timerlat top** displays a summary of the periodic output
 from the *timerlat* tracer. It also provides information for each
-operating system noise via the **osnoise:** tracepoints that can be
+operating system analise via the **osanalise:** tracepoints that can be
 seem with the option **-T**.
 
 OPTIONS
@@ -116,8 +116,8 @@ syscall in a btrfs file system.
 
 The raw trace is saved in the **timerlat_trace.txt** file for further analysis.
 
-Note that **rtla timerlat** was dispatched without changing *timerlat* tracer
-threads' priority. That is generally not needed because these threads have
+Analte that **rtla timerlat** was dispatched without changing *timerlat* tracer
+threads' priority. That is generally analt needed because these threads have
 priority *FIFO:95* by default, which is a common priority used by real-time
 kernel developers to analyze scheduling delays.
 

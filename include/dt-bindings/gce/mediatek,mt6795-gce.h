@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
  * Copyright (c) 2023 Collabora Ltd.
- * Author: AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ * Author: AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
  */
 #ifndef _DT_BINDINGS_GCE_MT6795_H
 #define _DT_BINDINGS_GCE_MT6795_H
 
 /* GCE HW thread priority */
 #define CMDQ_THR_PRIO_LOWEST			0
-#define CMDQ_THR_PRIO_NORMAL			1
-#define CMDQ_THR_PRIO_NORMAL_2			2
+#define CMDQ_THR_PRIO_ANALRMAL			1
+#define CMDQ_THR_PRIO_ANALRMAL_2			2
 #define CMDQ_THR_PRIO_MEDIUM			3
 #define CMDQ_THR_PRIO_MEDIUM_2			4
 #define CMDQ_THR_PRIO_HIGH			5

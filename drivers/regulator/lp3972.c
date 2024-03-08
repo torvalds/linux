@@ -503,13 +503,13 @@ static int lp3972_i2c_probe(struct i2c_client *i2c)
 	u16 val;
 
 	if (!pdata) {
-		dev_dbg(&i2c->dev, "No platform init data supplied\n");
-		return -ENODEV;
+		dev_dbg(&i2c->dev, "Anal platform init data supplied\n");
+		return -EANALDEV;
 	}
 
 	lp3972 = devm_kzalloc(&i2c->dev, sizeof(struct lp3972), GFP_KERNEL);
 	if (!lp3972)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp3972->i2c = i2c;
 	lp3972->dev = &i2c->dev;
@@ -520,7 +520,7 @@ static int lp3972_i2c_probe(struct i2c_client *i2c)
 	ret = lp3972_i2c_read(i2c, LP3972_SYS_CONTROL1_REG, 1, &val);
 	if (ret == 0 &&
 		(val & SYS_CONTROL1_INIT_MASK) != SYS_CONTROL1_INIT_VAL) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(&i2c->dev, "chip reported: val = 0x%x\n", val);
 	}
 	if (ret < 0) {
@@ -545,7 +545,7 @@ MODULE_DEVICE_TABLE(i2c, lp3972_i2c_id);
 static struct i2c_driver lp3972_i2c_driver = {
 	.driver = {
 		.name = "lp3972",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = lp3972_i2c_probe,
 	.id_table = lp3972_i2c_id,

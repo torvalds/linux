@@ -126,8 +126,8 @@ static int tuner_attach_stv6110(struct ngene_channel *chan)
 
 	ctl = dvb_attach(stv6110x_attach, chan->fe, tunerconf, i2c);
 	if (ctl == NULL) {
-		dev_err(pdev, "No STV6110X found!\n");
-		return -ENODEV;
+		dev_err(pdev, "Anal STV6110X found!\n");
+		return -EANALDEV;
 	}
 
 	feconf->tuner_init          = ctl->tuner_init;
@@ -157,7 +157,7 @@ static int tuner_attach_stv6111(struct ngene_channel *chan)
 		fe = dvb_attach(stv6111_attach, chan->fe, i2c, adr & ~4);
 		if (!fe) {
 			dev_err(pdev, "stv6111_attach() failed!\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	return 0;
@@ -190,8 +190,8 @@ static int tuner_attach_tda18271(struct ngene_channel *chan)
 	if (chan->fe->ops.i2c_gate_ctrl)
 		chan->fe->ops.i2c_gate_ctrl(chan->fe, 0);
 	if (!fe) {
-		dev_err(pdev, "No TDA18271 found!\n");
-		return -ENODEV;
+		dev_err(pdev, "Anal TDA18271 found!\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -255,8 +255,8 @@ static int tuner_attach_tda18212(struct ngene_channel *chan, u32 dmdtype)
 
 	return 0;
 err:
-	dev_err(pdev, "TDA18212 tuner not found. Device is not fully operational.\n");
-	return -ENODEV;
+	dev_err(pdev, "TDA18212 tuner analt found. Device is analt fully operational.\n");
+	return -EANALDEV;
 }
 
 static int tuner_attach_probe(struct ngene_channel *chan)
@@ -290,8 +290,8 @@ static int demod_attach_stv0900(struct ngene_channel *chan)
 			(chan->number & 1) == 0 ? STV090x_DEMODULATOR_0
 						: STV090x_DEMODULATOR_1);
 	if (chan->fe == NULL) {
-		dev_err(pdev, "No STV0900 found!\n");
-		return -ENODEV;
+		dev_err(pdev, "Anal STV0900 found!\n");
+		return -EANALDEV;
 	}
 
 	/* store channel info */
@@ -300,10 +300,10 @@ static int demod_attach_stv0900(struct ngene_channel *chan)
 
 	if (!dvb_attach(lnbh24_attach, chan->fe, i2c, 0,
 			0, chan->dev->card_info->lnb[chan->number])) {
-		dev_err(pdev, "No LNBH24 found!\n");
+		dev_err(pdev, "Anal LNBH24 found!\n");
 		dvb_frontend_detach(chan->fe);
 		chan->fe = NULL;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -337,7 +337,7 @@ static int demod_attach_stv0910(struct ngene_channel *chan,
 	}
 	if (!chan->fe) {
 		dev_err(pdev, "stv0910_attach() failed!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -351,7 +351,7 @@ static int demod_attach_stv0910(struct ngene_channel *chan,
 			dev_err(pdev, "lnbh25_attach() failed!\n");
 			dvb_frontend_detach(chan->fe);
 			chan->fe = NULL;
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -363,14 +363,14 @@ static struct stv0367_config ddb_stv0367_config[] = {
 		.demod_address = 0x1f,
 		.xtal = 27000000,
 		.if_khz = 0,
-		.if_iq_mode = FE_TER_NORMAL_IF_TUNER,
+		.if_iq_mode = FE_TER_ANALRMAL_IF_TUNER,
 		.ts_mode = STV0367_SERIAL_PUNCT_CLOCK,
 		.clk_pol = STV0367_CLOCKPOLARITY_DEFAULT,
 	}, {
 		.demod_address = 0x1e,
 		.xtal = 27000000,
 		.if_khz = 0,
-		.if_iq_mode = FE_TER_NORMAL_IF_TUNER,
+		.if_iq_mode = FE_TER_ANALRMAL_IF_TUNER,
 		.ts_mode = STV0367_SERIAL_PUNCT_CLOCK,
 		.clk_pol = STV0367_CLOCKPOLARITY_DEFAULT,
 	},
@@ -386,7 +386,7 @@ static int demod_attach_stv0367(struct ngene_channel *chan,
 
 	if (!chan->fe) {
 		dev_err(pdev, "stv0367ddb_attach() failed!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	chan->fe->sec_priv = chan;
@@ -406,7 +406,7 @@ static int demod_attach_cxd28xx(struct ngene_channel *chan,
 
 	cfg.xtal = osc24 ? SONY_XTAL_24000 : SONY_XTAL_20500;
 	cfg.flags = CXD2841ER_AUTO_IFHZ | CXD2841ER_EARLY_TUNE |
-		CXD2841ER_NO_WAIT_LOCK | CXD2841ER_NO_AGCNEG |
+		CXD2841ER_ANAL_WAIT_LOCK | CXD2841ER_ANAL_AGCNEG |
 		CXD2841ER_TSBITS | CXD2841ER_TS_SERIAL;
 
 	/* attach frontend */
@@ -414,7 +414,7 @@ static int demod_attach_cxd28xx(struct ngene_channel *chan,
 
 	if (!chan->fe) {
 		dev_err(pdev, "CXD28XX attach failed!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	chan->fe->sec_priv = chan;
@@ -497,8 +497,8 @@ static int demod_attach_drxk(struct ngene_channel *chan,
 
 	chan->fe = dvb_attach(drxk_attach, &config, i2c);
 	if (!chan->fe) {
-		dev_err(pdev, "No DRXK found!\n");
-		return -ENODEV;
+		dev_err(pdev, "Anal DRXK found!\n");
+		return -EANALDEV;
 	}
 	chan->fe->sec_priv = chan;
 	chan->gate_ctrl = chan->fe->ops.i2c_gate_ctrl;
@@ -548,9 +548,9 @@ static int init_xo2(struct ngene_channel *chan, struct i2c_adapter *i2c)
 
 	/*
 	 * speed: 0=55,1=75,2=90,3=104 MBit/s
-	 * Note: The ngene hardware must be run at 75 MBit/s compared
+	 * Analte: The ngene hardware must be run at 75 MBit/s compared
 	 * to more modern ddbridge hardware which runs at 90 MBit/s,
-	 * else there will be issues with the data transport and non-
+	 * else there will be issues with the data transport and analn-
 	 * working secondary/slave demods/tuners.
 	 */
 	i2c_write_reg(i2c, addr, 0x09, 1);
@@ -570,7 +570,7 @@ static int port_has_xo2(struct i2c_adapter *i2c, u8 *type, u8 *id)
 	u8 probe[1] = { 0x00 }, data[4];
 	u8 addr = 0x10;
 
-	*type = NGENE_XO2_TYPE_NONE;
+	*type = NGENE_XO2_TYPE_ANALNE;
 
 	if (i2c_io(i2c, addr, probe, 1, data, 4))
 		return 0;
@@ -641,15 +641,15 @@ static int cineS2_probe(struct ngene_channel *chan)
 				dev_warn(pdev,
 					 "Unsupported XO2 module on channel %d\n",
 					 chan->number);
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			break;
 		case NGENE_XO2_TYPE_CI:
-			dev_info(pdev, "DuoFlex CI modules not supported\n");
-			return -ENODEV;
+			dev_info(pdev, "DuoFlex CI modules analt supported\n");
+			return -EANALDEV;
 		default:
 			dev_info(pdev, "Unsupported XO2 module type\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	} else if (port_has_stv0900(i2c, chan->number)) {
 		chan->demod_type = DEMOD_TYPE_STV090X;
@@ -673,11 +673,11 @@ static int cineS2_probe(struct ngene_channel *chan)
 			buf[2] = 0xcc;
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		rc = i2c_transfer(i2c, &i2c_msg, 1);
 		if (rc != 1) {
-			dev_err(pdev, "Could not setup DPNx\n");
+			dev_err(pdev, "Could analt setup DPNx\n");
 			return -EIO;
 		}
 	} else if (port_has_drxk(i2c, chan->number^2)) {
@@ -688,8 +688,8 @@ static int cineS2_probe(struct ngene_channel *chan)
 		dev_info(pdev, "STV0367 on channel %d\n", chan->number);
 		demod_attach_stv0367(chan, i2c);
 	} else {
-		dev_info(pdev, "No demod found on chan %d\n", chan->number);
-		return -ENODEV;
+		dev_info(pdev, "Anal demod found on chan %d\n", chan->number);
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -715,14 +715,14 @@ static int demod_attach_lg330x(struct ngene_channel *chan)
 	chan->fe = dvb_attach(lgdt330x_attach, &aver_m780,
 			      0xb2 >> 1, &chan->i2c_adapter);
 	if (chan->fe == NULL) {
-		dev_err(pdev, "No LGDT330x found!\n");
-		return -ENODEV;
+		dev_err(pdev, "Anal LGDT330x found!\n");
+		return -EANALDEV;
 	}
 
 	dvb_attach(mt2131_attach, chan->fe, &chan->i2c_adapter,
 		   &m780_tunerconfig, 0);
 
-	return (chan->fe) ? 0 : -ENODEV;
+	return (chan->fe) ? 0 : -EANALDEV;
 }
 
 static int demod_attach_drxd(struct ngene_channel *chan)
@@ -735,8 +735,8 @@ static int demod_attach_drxd(struct ngene_channel *chan)
 	chan->fe = dvb_attach(drxd_attach, feconf, chan,
 			&chan->i2c_adapter, &chan->dev->pci_dev->dev);
 	if (!chan->fe) {
-		dev_err(pdev, "No DRXD found!\n");
-		return -ENODEV;
+		dev_err(pdev, "Anal DRXD found!\n");
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -751,8 +751,8 @@ static int tuner_attach_dtt7520x(struct ngene_channel *chan)
 	if (!dvb_attach(dvb_pll_attach, chan->fe, feconf->pll_address,
 			&chan->i2c_adapter,
 			feconf->pll_type)) {
-		dev_err(pdev, "No pll(%d) found!\n", feconf->pll_type);
-		return -ENODEV;
+		dev_err(pdev, "Anal pll(%d) found!\n", feconf->pll_type);
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -884,7 +884,7 @@ static int WriteEEProm(struct i2c_adapter *adapter,
 
 	if (Length > EETag[2])
 		return -EINVAL;
-	/* Note: We write the data one byte at a time to avoid
+	/* Analte: We write the data one byte at a time to avoid
 	   issues with page sizes. (which are different for
 	   each manufacture and eeprom size)
 	 */
@@ -1101,7 +1101,7 @@ static const struct ngene_info ngene_info_m780 = {
 	.name           = "Aver M780 ATSC/QAM-B",
 
 	/* Channel 0 is analog, which is currently unsupported */
-	.io_type        = { NGENE_IO_NONE, NGENE_IO_TSIN },
+	.io_type        = { NGENE_IO_ANALNE, NGENE_IO_TSIN },
 	.demod_attach   = { NULL, demod_attach_lg330x },
 
 	/* Ensure these are NULL else the frame will call them (as funcs) */

@@ -7,7 +7,7 @@
 
 /* DPMAC Version */
 #define DPMAC_VER_MAJOR				4
-#define DPMAC_VER_MINOR				4
+#define DPMAC_VER_MIANALR				4
 #define DPMAC_CMD_BASE_VERSION			1
 #define DPMAC_CMD_2ND_VERSION			2
 #define DPMAC_CMD_ID_OFFSET			4
@@ -76,7 +76,7 @@ struct dpmac_rsp_get_counter {
 
 struct dpmac_rsp_get_api_version {
 	__le16 major;
-	__le16 minor;
+	__le16 mianalr;
 };
 
 struct dpmac_cmd_set_protocol {

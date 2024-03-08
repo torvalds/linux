@@ -50,10 +50,10 @@
 #define SOF_SSP_BT_OFFLOAD_PRESENT		BIT(22)
 
 /* HDMI capture*/
-#define SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT  27
+#define SOF_ANAL_OF_HDMI_CAPTURE_SSP_SHIFT  27
 #define SOF_SSP_HDMI_CAPTURE_PRESENT_MASK (GENMASK(30, 27))
 #define SOF_HDMI_CAPTURE_SSP_MASK(quirk)   \
-	(((quirk) << SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT) & SOF_SSP_HDMI_CAPTURE_PRESENT_MASK)
+	(((quirk) << SOF_ANAL_OF_HDMI_CAPTURE_SSP_SHIFT) & SOF_SSP_HDMI_CAPTURE_PRESENT_MASK)
 
 /* Default: MCLK on, MCLK 19.2M, SSP0  */
 static unsigned long sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
@@ -70,7 +70,7 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 		.callback = sof_rt5682_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Circuitco"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Max"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Minanalwboard Max"),
 		},
 		.driver_data = (void *)(SOF_RT5682_SSP_CODEC(2)),
 	},
@@ -247,8 +247,8 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 							RT5645_AD_STEREO_FILTER,
 							RT5645_CLK_SEL_I2S1_ASRC);
 				rt5645_sel_asrc_clk_src(component,
-							RT5645_DA_MONO_L_FILTER |
-							RT5645_DA_MONO_R_FILTER,
+							RT5645_DA_MOANAL_L_FILTER |
+							RT5645_DA_MOANAL_R_FILTER,
 							RT5645_CLK_SEL_I2S2_ASRC);
 				break;
 			case CODEC_RT5682:
@@ -273,12 +273,12 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 		if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
 			/*
 			 * The firmware might enable the clock at
-			 * boot (this information may or may not
+			 * boot (this information may or may analt
 			 * be reflected in the enable clock register).
 			 * To change the rate we must disable the clock
 			 * first to cover these cases. Due to common
-			 * clock framework restrictions that do not allow
-			 * to disable a clock that has not been enabled,
+			 * clock framework restrictions that do analt allow
+			 * to disable a clock that has analt been enabled,
 			 * we need to enable the clock first.
 			 */
 			ret = clk_prepare_enable(ctx->rt5682.mclk);
@@ -347,7 +347,7 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 			ret = clk_prepare_enable(ctx->rt5682.mclk);
 			if (ret < 0) {
 				dev_err(rtd->dev,
-					"could not configure MCLK state");
+					"could analt configure MCLK state");
 				return ret;
 			}
 		}
@@ -396,7 +396,7 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 
 	switch (ctx->codec_type) {
 	case CODEC_RT5650:
-		pll_id = 0; /* not used in codec driver */
+		pll_id = 0; /* analt used in codec driver */
 		clk_id = RT5645_SCLK_S_PLL1;
 		break;
 	case CODEC_RT5682:
@@ -414,7 +414,7 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 
 	pll_out = params_rate(params) * 512;
 
-	/* when MCLK is 512FS, no need to set PLL configuration additionally. */
+	/* when MCLK is 512FS, anal need to set PLL configuration additionally. */
 	if (pll_in == pll_out) {
 		switch (ctx->codec_type) {
 		case CODEC_RT5650:
@@ -497,7 +497,7 @@ static const struct snd_soc_dapm_widget sof_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route sof_map[] = {
-	/* HP jack connectors - unknown if we have jack detection */
+	/* HP jack connectors - unkanalwn if we have jack detection */
 	{ "Headphone Jack", NULL, "HPOL" },
 	{ "Headphone Jack", NULL, "HPOR" },
 
@@ -574,7 +574,7 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 		return ret;
 
 	if (!ctx->codec_link) {
-		dev_err(dev, "codec link not available");
+		dev_err(dev, "codec link analt available");
 		return -EINVAL;
 	}
 
@@ -606,19 +606,19 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 		 * Currently, On SKL+ platforms MCLK will be turned off in sof
 		 * runtime suspended, and it will go into runtime suspended
 		 * right after playback is stop. However, rt5682 will output
-		 * static noise if sysclk turns off during playback. Set
-		 * ignore_pmdown_time to power down rt5682 immediately and
-		 * avoid the noise.
+		 * static analise if sysclk turns off during playback. Set
+		 * iganalre_pmdown_time to power down rt5682 immediately and
+		 * avoid the analise.
 		 * It can be removed once we can control MCLK by driver.
 		 */
-		ctx->codec_link->ignore_pmdown_time = 1;
+		ctx->codec_link->iganalre_pmdown_time = 1;
 	}
 
-	if (ctx->amp_type == CODEC_NONE)
+	if (ctx->amp_type == CODEC_ANALNE)
 		return 0;
 
 	if (!ctx->amp_link) {
-		dev_err(dev, "amp link not available");
+		dev_err(dev, "amp link analt available");
 		return -EINVAL;
 	}
 
@@ -674,7 +674,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		sof_rt5682_quirk = (unsigned long)pdev->id_entry->driver_data;
@@ -689,14 +689,14 @@ static int sof_audio_probe(struct platform_device *pdev)
 							  GFP_KERNEL);
 
 		/* create speaker dai link also */
-		if (ctx->amp_type == CODEC_NONE)
+		if (ctx->amp_type == CODEC_ANALNE)
 			ctx->amp_type = CODEC_RT5650;
 	}
 
 	if (soc_intel_is_byt() || soc_intel_is_cht()) {
 		ctx->rt5682.is_legacy_cpu = true;
 		ctx->dmic_be_num = 0;
-		/* HDMI is not supported by SOF on Baytrail/CherryTrail */
+		/* HDMI is analt supported by SOF on Baytrail/CherryTrail */
 		ctx->hdmi_num = 0;
 		/* default quirk for legacy cpu */
 		sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
@@ -729,7 +729,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 		ret = clk_prepare_enable(ctx->rt5682.mclk);
 		if (ret < 0) {
 			dev_err(&pdev->dev,
-				"could not configure MCLK state");
+				"could analt configure MCLK state");
 			return ret;
 		}
 	}
@@ -738,7 +738,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	/* port number/mask of peripherals attached to ssp interface */
 	ctx->ssp_mask_hdmi_in = (sof_rt5682_quirk & SOF_SSP_HDMI_CAPTURE_PRESENT_MASK) >>
-			SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT;
+			SOF_ANAL_OF_HDMI_CAPTURE_SSP_SHIFT;
 
 	ctx->ssp_bt = (sof_rt5682_quirk & SOF_BT_OFFLOAD_SSP_MASK) >>
 			SOF_BT_OFFLOAD_SSP_SHIFT;
@@ -773,12 +773,12 @@ static int sof_audio_probe(struct platform_device *pdev)
 	case CODEC_RT1015P:
 		sof_rt1015p_codec_conf(&sof_audio_card_rt5682);
 		break;
-	case CODEC_NONE:
+	case CODEC_ANALNE:
 	case CODEC_MAX98357A:
 	case CODEC_MAX98360A:
 	case CODEC_RT1019P:
 	case CODEC_RT5650:
-		/* no codec conf required */
+		/* anal codec conf required */
 		break;
 	default:
 		dev_err(&pdev->dev, "invalid amp type %d\n", ctx->amp_type);

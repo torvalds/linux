@@ -2,7 +2,7 @@
 /*
  * EFI Test Driver for Runtime Services
  *
- * Copyright(C) 2012-2016 Canonical Ltd.
+ * Copyright(C) 2012-2016 Caanalnical Ltd.
  *
  * This driver exports EFI runtime services interfaces into userspace, which
  * allow to use and test UEFI runtime services provided by firmware.
@@ -20,14 +20,14 @@
 
 #include "efi_test.h"
 
-MODULE_AUTHOR("Ivan Hu <ivan.hu@canonical.com>");
+MODULE_AUTHOR("Ivan Hu <ivan.hu@caanalnical.com>");
 MODULE_DESCRIPTION("EFI Test Driver");
 MODULE_LICENSE("GPL");
 
 /*
  * Count the bytes in 'str', including the terminating NULL.
  *
- * Note this function returns the number of *bytes*, not the number of
+ * Analte this function returns the number of *bytes*, analt the number of
  * ucs2 characters.
  */
 static inline size_t user_ucs2_strsize(efi_char16_t  __user *str)
@@ -103,7 +103,7 @@ get_ucs2_strsize_from_user(efi_char16_t __user *src, size_t *len)
  * calculates the size of the buffer to allocate by taking the length of
  * the string 'src'.
  *
- * If a non-zero value is returned, the caller MUST NOT access 'dst'.
+ * If a analn-zero value is returned, the caller MUST ANALT access 'dst'.
  *
  * It is the caller's responsibility to free 'dst'.
  */
@@ -122,7 +122,7 @@ copy_ucs2_from_user(efi_char16_t **dst, efi_char16_t __user *src)
  * Copy a ucs2 string to a user buffer.
  *
  * This function is a simple wrapper around copy_to_user() that does
- * nothing if 'src' is NULL, which is useful for reducing the amount of
+ * analthing if 'src' is NULL, which is useful for reducing the amount of
  * NULL checking the caller has to do.
  *
  * 'len' specifies the number of bytes to copy.
@@ -176,7 +176,7 @@ static long efi_runtime_get_variable(unsigned long arg)
 		data = kmalloc(datasize, GFP_KERNEL);
 		if (!data) {
 			kfree(name);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -446,7 +446,7 @@ static long efi_runtime_get_nextvariablename(unsigned long arg)
 		 * case is passing a 0 to get the required buffer size for the
 		 * 1st time call. So we need to copy the content from user
 		 * space for at least the string size of variable name, or else
-		 * the name passed to UEFI may not be terminated as we expected.
+		 * the name passed to UEFI may analt be terminated as we expected.
 		 */
 		rv = copy_ucs2_from_user_len(&name,
 				getnextvariablename.variable_name,
@@ -501,32 +501,32 @@ out:
 	return rv;
 }
 
-static long efi_runtime_get_nexthighmonocount(unsigned long arg)
+static long efi_runtime_get_nexthighmoanalcount(unsigned long arg)
 {
-	struct efi_getnexthighmonotoniccount __user *getnexthighmonocount_user;
-	struct efi_getnexthighmonotoniccount getnexthighmonocount;
+	struct efi_getnexthighmoanaltoniccount __user *getnexthighmoanalcount_user;
+	struct efi_getnexthighmoanaltoniccount getnexthighmoanalcount;
 	efi_status_t status;
 	u32 count;
 
-	getnexthighmonocount_user = (struct
-			efi_getnexthighmonotoniccount __user *)arg;
+	getnexthighmoanalcount_user = (struct
+			efi_getnexthighmoanaltoniccount __user *)arg;
 
-	if (copy_from_user(&getnexthighmonocount,
-			   getnexthighmonocount_user,
-			   sizeof(getnexthighmonocount)))
+	if (copy_from_user(&getnexthighmoanalcount,
+			   getnexthighmoanalcount_user,
+			   sizeof(getnexthighmoanalcount)))
 		return -EFAULT;
 
-	status = efi.get_next_high_mono_count(
-		getnexthighmonocount.high_count ? &count : NULL);
+	status = efi.get_next_high_moanal_count(
+		getnexthighmoanalcount.high_count ? &count : NULL);
 
-	if (put_user(status, getnexthighmonocount.status))
+	if (put_user(status, getnexthighmoanalcount.status))
 		return -EFAULT;
 
 	if (status != EFI_SUCCESS)
 		return -EINVAL;
 
-	if (getnexthighmonocount.high_count &&
-	    put_user(count, getnexthighmonocount.high_count))
+	if (getnexthighmoanalcount.high_count &&
+	    put_user(count, getnexthighmoanalcount.high_count))
 		return -EFAULT;
 
 	return 0;
@@ -613,12 +613,12 @@ static long efi_runtime_query_capsulecaps(unsigned long arg)
 	capsules = kcalloc(qcaps.capsule_count + 1,
 			   sizeof(efi_capsule_header_t), GFP_KERNEL);
 	if (!capsules)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < qcaps.capsule_count; i++) {
 		efi_capsule_header_t *c;
 		/*
-		 * We cannot dereference qcaps.capsule_header_array directly to
+		 * We cananalt dereference qcaps.capsule_header_array directly to
 		 * obtain the address of the capsule as it resides in the
 		 * user space
 		 */
@@ -701,8 +701,8 @@ static long efi_test_ioctl(struct file *file, unsigned int cmd,
 	case EFI_RUNTIME_GET_NEXTVARIABLENAME:
 		return efi_runtime_get_nextvariablename(arg);
 
-	case EFI_RUNTIME_GET_NEXTHIGHMONOTONICCOUNT:
-		return efi_runtime_get_nexthighmonocount(arg);
+	case EFI_RUNTIME_GET_NEXTHIGHMOANALTONICCOUNT:
+		return efi_runtime_get_nexthighmoanalcount(arg);
 
 	case EFI_RUNTIME_QUERY_VARIABLEINFO:
 		return efi_runtime_query_variableinfo(arg);
@@ -717,10 +717,10 @@ static long efi_test_ioctl(struct file *file, unsigned int cmd,
 		return efi_runtime_get_supported_mask(arg);
 	}
 
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
-static int efi_test_open(struct inode *inode, struct file *file)
+static int efi_test_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret = security_locked_down(LOCKDOWN_EFI_TEST);
 
@@ -730,14 +730,14 @@ static int efi_test_open(struct inode *inode, struct file *file)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 	/*
-	 * nothing special to do here
+	 * analthing special to do here
 	 * We do accept multiple open files at the same time as we
 	 * synchronize on the per call operation.
 	 */
 	return 0;
 }
 
-static int efi_test_close(struct inode *inode, struct file *file)
+static int efi_test_close(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
@@ -750,11 +750,11 @@ static const struct file_operations efi_test_fops = {
 	.unlocked_ioctl	= efi_test_ioctl,
 	.open		= efi_test_open,
 	.release	= efi_test_close,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static struct miscdevice efi_test_dev = {
-	MISC_DYNAMIC_MINOR,
+	MISC_DYNAMIC_MIANALR,
 	"efi_test",
 	&efi_test_fops
 };
@@ -765,8 +765,8 @@ static int __init efi_test_init(void)
 
 	ret = misc_register(&efi_test_dev);
 	if (ret) {
-		pr_err("efi_test: can't misc_register on minor=%d\n",
-			MISC_DYNAMIC_MINOR);
+		pr_err("efi_test: can't misc_register on mianalr=%d\n",
+			MISC_DYNAMIC_MIANALR);
 		return ret;
 	}
 

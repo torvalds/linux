@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * h3xxx atmel micro companion support, notification LED subdevice
+ * h3xxx atmel micro companion support, analtification LED subdevice
  *
  * Author : Linus Walleij <linus.walleij@linaro.org>
  */
@@ -16,7 +16,7 @@
 
 #define LED_EN       (1 << 4) /* LED ON/OFF 0:off, 1:on                       */
 #define LED_AUTOSTOP (1 << 5) /* LED ON/OFF auto stop set 0:disable, 1:enable */
-#define LED_ALWAYS   (1 << 6) /* LED Interrupt Mask 0:No mask, 1:mask         */
+#define LED_ALWAYS   (1 << 6) /* LED Interrupt Mask 0:Anal mask, 1:mask         */
 
 static int micro_leds_brightness_set(struct led_classdev *led_cdev,
 				      enum led_brightness value)
@@ -26,7 +26,7 @@ static int micro_leds_brightness_set(struct led_classdev *led_cdev,
 	 * In this message:
 	 * Byte 0 = LED color: 0 = yellow, 1 = green
 	 *          yellow LED is always ~30 blinks per minute
-	 * Byte 1 = duration (flags?) appears to be ignored
+	 * Byte 1 = duration (flags?) appears to be iganalred
 	 * Byte 2 = green ontime in 1/10 sec (deciseconds)
 	 *          1 = 1/10 second
 	 *          0 = 256/10 second
@@ -35,7 +35,7 @@ static int micro_leds_brightness_set(struct led_classdev *led_cdev,
 	 *          0 = 256/10 seconds
 	 */
 	struct ipaq_micro_msg msg = {
-		.id = MSG_NOTIFY_LED,
+		.id = MSG_ANALTIFY_LED,
 		.tx_len = 4,
 	};
 
@@ -63,7 +63,7 @@ static int micro_leds_blink_set(struct led_classdev *led_cdev,
 	 * In this message:
 	 * Byte 0 = LED color: 0 = yellow, 1 = green
 	 *          yellow LED is always ~30 blinks per minute
-	 * Byte 1 = duration (flags?) appears to be ignored
+	 * Byte 1 = duration (flags?) appears to be iganalred
 	 * Byte 2 = green ontime in 1/10 sec (deciseconds)
 	 *          1 = 1/10 second
 	 *          0 = 256/10 second
@@ -72,7 +72,7 @@ static int micro_leds_blink_set(struct led_classdev *led_cdev,
 	 *          0 = 256/10 seconds
 	 */
 	struct ipaq_micro_msg msg = {
-		.id = MSG_NOTIFY_LED,
+		.id = MSG_ANALTIFY_LED,
 		.tx_len = 4,
 	};
 
@@ -114,7 +114,7 @@ static int micro_leds_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "registering led failed: %d\n", ret);
 		return ret;
 	}
-	dev_info(&pdev->dev, "iPAQ micro notification LED driver\n");
+	dev_info(&pdev->dev, "iPAQ micro analtification LED driver\n");
 
 	return 0;
 }

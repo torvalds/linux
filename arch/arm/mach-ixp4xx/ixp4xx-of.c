@@ -5,7 +5,7 @@
 #include <asm/mach/arch.h>
 
 /*
- * We handle 4 different SoC families. These compatible strings are enough
+ * We handle 4 different SoC families. These compatible strings are eanalugh
  * to provide the core so that different boards can add their more detailed
  * specifics.
  */

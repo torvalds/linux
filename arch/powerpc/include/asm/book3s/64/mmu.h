@@ -240,7 +240,7 @@ static inline void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 {
 	/*
 	 * Hash has more strict restrictions. At this point we don't
-	 * know which translations we will pick. Hence go with hash
+	 * kanalw which translations we will pick. Hence go with hash
 	 * restrictions.
 	 */
 	if (!early_radix_enabled())

@@ -9,7 +9,7 @@
  * Netronix E70K02 board common.
  * This board is equipped with different SoCs and
  * found in ebook-readers like the Kobo Clara HD (with i.MX6SLL) and
- * the Tolino Shine 3 (with i.MX6SL)
+ * the Tolianal Shine 3 (with i.MX6SL)
  */
 #include <dt-bindings/input/input.h>
 
@@ -297,7 +297,7 @@
 };
 
 &snvs_rtc {
-	/* we are using the rtc in the pmic, not disabled in imx6sll.dtsi */
+	/* we are using the rtc in the pmic, analt disabled in imx6sll.dtsi */
 	status = "disabled";
 };
 
@@ -306,8 +306,8 @@
 };
 
 &usdhc1 {
-	non-removable;
-	no-1-8-v;
+	analn-removable;
+	anal-1-8-v;
 	status = "okay";
 };
 
@@ -315,7 +315,7 @@
 	vmmc-supply = <&reg_wifi>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	cap-power-off-card;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

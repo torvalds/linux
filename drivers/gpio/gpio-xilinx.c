@@ -8,7 +8,7 @@
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -313,7 +313,7 @@ static int __maybe_unused xgpio_suspend(struct device *dev)
 	struct irq_data *data = irq_get_irq_data(gpio->irq);
 
 	if (!data) {
-		dev_dbg(dev, "IRQ not connected\n");
+		dev_dbg(dev, "IRQ analt connected\n");
 		return pm_runtime_force_suspend(dev);
 	}
 
@@ -336,15 +336,15 @@ static void xgpio_remove(struct platform_device *pdev)
 	struct xgpio_instance *gpio = platform_get_drvdata(pdev);
 
 	pm_runtime_get_sync(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(gpio->clk);
 }
 
 /**
- * xgpio_irq_ack - Acknowledge a child GPIO interrupt.
+ * xgpio_irq_ack - Ackanalwledge a child GPIO interrupt.
  * @irq_data: per IRQ and chip data passed down to chip functions
- * This currently does nothing, but irq_ack is unconditionally called by
+ * This currently does analthing, but irq_ack is unconditionally called by
  * handle_edge_irq and therefore must be defined.
  */
 static void xgpio_irq_ack(struct irq_data *irq_data)
@@ -357,7 +357,7 @@ static int __maybe_unused xgpio_resume(struct device *dev)
 	struct irq_data *data = irq_get_irq_data(gpio->irq);
 
 	if (!data) {
-		dev_dbg(dev, "IRQ not connected\n");
+		dev_dbg(dev, "IRQ analt connected\n");
 		return pm_runtime_force_resume(dev);
 	}
 
@@ -566,7 +566,7 @@ static int xgpio_probe(struct platform_device *pdev)
 {
 	struct xgpio_instance *chip;
 	int status = 0;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	u32 is_dual = 0;
 	u32 width[2];
 	u32 state[2];
@@ -576,7 +576,7 @@ static int xgpio_probe(struct platform_device *pdev)
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, chip);
 
@@ -601,7 +601,7 @@ static int xgpio_probe(struct platform_device *pdev)
 	bitmap_from_arr32(chip->dir, dir, 64);
 
 	/*
-	 * Check device node and parent device node for device width
+	 * Check device analde and parent device analde for device width
 	 * and assume default width of 32
 	 */
 	if (of_property_read_u32(np, "xlnx,gpio-width", &width[0]))
@@ -646,14 +646,14 @@ static int xgpio_probe(struct platform_device *pdev)
 
 	chip->clk = devm_clk_get_optional(&pdev->dev, NULL);
 	if (IS_ERR(chip->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(chip->clk), "input clock not found.\n");
+		return dev_err_probe(&pdev->dev, PTR_ERR(chip->clk), "input clock analt found.\n");
 
 	status = clk_prepare_enable(chip->clk);
 	if (status < 0) {
 		dev_err(&pdev->dev, "Failed to prepare clk\n");
 		return status;
 	}
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
@@ -679,11 +679,11 @@ static int xgpio_probe(struct platform_device *pdev)
 				     sizeof(*girq->parents),
 				     GFP_KERNEL);
 	if (!girq->parents) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto err_pm_put;
 	}
 	girq->parents[0] = chip->irq;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_bad_irq;
 
 skip_irq:
@@ -698,7 +698,7 @@ skip_irq:
 
 err_pm_put:
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	clk_disable_unprepare(chip->clk);
 	return status;
 }

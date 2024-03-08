@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 /*
  * nfp_resource.c
- * Author: Jakub Kicinski <jakub.kicinski@netronome.com>
- *         Jason McMullan <jason.mcmullan@netronome.com>
+ * Author: Jakub Kicinski <jakub.kicinski@netroanalme.com>
+ *         Jason McMullan <jason.mcmullan@netroanalme.com>
  */
 #include <linux/delay.h>
 #include <linux/kernel.h>
@@ -76,8 +76,8 @@ static int nfp_cpp_resource_find(struct nfp_cpp *cpp, struct nfp_resource *res)
 
 	/* Search for a matching entry */
 	if (!strcmp(res->name, NFP_RESOURCE_TBL_NAME)) {
-		nfp_err(cpp, "Grabbing device lock not supported\n");
-		return -EOPNOTSUPP;
+		nfp_err(cpp, "Grabbing device lock analt supported\n");
+		return -EOPANALTSUPP;
 	}
 	key = crc32_posix(res->name, NFP_RESOURCE_ENTRY_NAME_SZ);
 
@@ -105,7 +105,7 @@ static int nfp_cpp_resource_find(struct nfp_cpp *cpp, struct nfp_resource *res)
 		return 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int
@@ -142,7 +142,7 @@ err_unlock_dev:
  * @cpp:	NFP CPP handle
  * @name:	Name of the resource
  *
- * NOTE: This function locks the acquired resource
+ * ANALTE: This function locks the acquired resource
  *
  * Return: NFP Resource handle, or ERR_PTR()
  */
@@ -157,7 +157,7 @@ nfp_resource_acquire(struct nfp_cpp *cpp, const char *name)
 
 	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if (!res)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	strscpy(res->name, name, sizeof(res->name));
 
@@ -166,7 +166,7 @@ nfp_resource_acquire(struct nfp_cpp *cpp, const char *name)
 					NFP_RESOURCE_TBL_KEY);
 	if (!dev_mutex) {
 		kfree(res);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	for (;;) {
@@ -208,7 +208,7 @@ err_free:
  * nfp_resource_release() - Release a NFP Resource handle
  * @res:	NFP Resource handle
  *
- * NOTE: This function implictly unlocks the resource handle
+ * ANALTE: This function implictly unlocks the resource handle
  */
 void nfp_resource_release(struct nfp_resource *res)
 {
@@ -226,7 +226,7 @@ void nfp_resource_release(struct nfp_resource *res)
  * Wait for resource to appear in the resource table, grab and release
  * its lock.  The wait is jiffies-based, don't expect fine granularity.
  *
- * Return: 0 on success, errno otherwise.
+ * Return: 0 on success, erranal otherwise.
  */
 int nfp_resource_wait(struct nfp_cpp *cpp, const char *name, unsigned int secs)
 {
@@ -241,7 +241,7 @@ int nfp_resource_wait(struct nfp_cpp *cpp, const char *name, unsigned int secs)
 			return 0;
 		}
 
-		if (PTR_ERR(res) != -ENOENT) {
+		if (PTR_ERR(res) != -EANALENT) {
 			nfp_err(cpp, "error waiting for resource %s: %ld\n",
 				name, PTR_ERR(res));
 			return PTR_ERR(res);
@@ -313,7 +313,7 @@ u64 nfp_resource_size(struct nfp_resource *res)
  * Start-of-day init procedure for resource table.  Must be called before
  * any local resource table users may exist.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
 int nfp_resource_table_init(struct nfp_cpp *cpp)
 {
@@ -333,7 +333,7 @@ int nfp_resource_table_init(struct nfp_cpp *cpp)
 					NFP_RESOURCE_TBL_BASE,
 					NFP_RESOURCE_TBL_KEY);
 	if (!dev_mutex)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (nfp_cpp_mutex_lock(dev_mutex)) {
 		nfp_err(cpp, "Error: failed to claim resource table mutex\n");

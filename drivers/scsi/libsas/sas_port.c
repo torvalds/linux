@@ -44,10 +44,10 @@ static void sas_resume_port(struct asd_sas_phy *phy)
 	 * 1/ presume every device came back
 	 * 2/ force the next revalidation to check all expander phys
 	 */
-	list_for_each_entry_safe(dev, n, &port->dev_list, dev_list_node) {
+	list_for_each_entry_safe(dev, n, &port->dev_list, dev_list_analde) {
 		int i, rc;
 
-		rc = sas_notify_lldd_dev_found(dev);
+		rc = sas_analtify_lldd_dev_found(dev);
 		if (rc) {
 			sas_unregister_dev(port, dev);
 			sas_destruct_devices(port);
@@ -144,7 +144,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 		}
 		spin_unlock(&port->phy_list_lock);
 	}
-	/* The phy does not match any existing port, create a new one */
+	/* The phy does analt match any existing port, create a new one */
 	if (i == sas_ha->num_phys) {
 		for (i = 0; i < sas_ha->num_phys; i++) {
 			port = sas_ha->sas_port[i];
@@ -201,10 +201,10 @@ static void sas_form_port(struct asd_sas_phy *phy)
 /**
  * sas_deform_port - remove this phy from the port it belongs to
  * @phy: the phy of interest
- * @gone: whether or not the PHY is gone
+ * @gone: whether or analt the PHY is gone
  *
  * This is called when the physical link to the other phy has been
- * lost (on this phy), in Event thread context. We cannot delay here.
+ * lost (on this phy), in Event thread context. We cananalt delay here.
  */
 void sas_deform_port(struct asd_sas_phy *phy, int gone)
 {

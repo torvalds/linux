@@ -8,7 +8,7 @@ Supported chips:
 
     Prefix: 'max31760'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX31760.pdf
 
@@ -27,8 +27,8 @@ high/overtemperature (OT) and remote high/overtemperature, can be set by an
 I2C-compatible interface. Fan speed is controlled based on the temperature
 reading as an index to a 48-byte lookup table (LUT) containing
 user-programmed PWM values. The flexible LUT-based architecture enables
-the user to program a smooth nonlinear fan speed vs. temperature transfer
-function to minimize acoustic fan noise. Two tachometer inputs allow
+the user to program a smooth analnlinear fan speed vs. temperature transfer
+function to minimize acoustic fan analise. Two tachometer inputs allow
 measuring the speeds of two fans independently. When the local or remote
 OT threshold is exceeded, the SHDN pin is asserted low and can be used to
 shut down the system. A dedicated ALERT pin reports that either a local or

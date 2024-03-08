@@ -31,7 +31,7 @@
 .Lskip_hcrx_\@:
 .endm
 
-/* Check if running in host at EL2 mode, i.e., (h)VHE. Jump to fail if not. */
+/* Check if running in host at EL2 mode, i.e., (h)VHE. Jump to fail if analt. */
 .macro __check_hvhe fail, tmp
 	mrs	\tmp, hcr_el2
 	and	\tmp, \tmp, #HCR_E2H
@@ -39,10 +39,10 @@
 .endm
 
 /*
- * Allow Non-secure EL1 and EL0 to access physical timer and counter.
- * This is not necessary for VHE, since the host kernel runs in EL2,
+ * Allow Analn-secure EL1 and EL0 to access physical timer and counter.
+ * This is analt necessary for VHE, since the host kernel runs in EL2,
  * and EL0 accesses are configured in the later stage of boot process.
- * Note that when HCR_EL2.E2H == 1, CNTHCTL_EL2 has the same bit layout
+ * Analte that when HCR_EL2.E2H == 1, CNTHCTL_EL2 has the same bit layout
  * as CNTKCTL_EL1, and CNTKCTL_EL1 accessing instructions are redefined
  * to access CNTHCTL_EL2. This allows the kernel designed to run at EL1
  * to transparently mess with the EL0 bits via CNTKCTL_EL1 access in
@@ -61,7 +61,7 @@
 	mrs	x1, id_aa64dfr0_el1
 	sbfx	x0, x1, #ID_AA64DFR0_EL1_PMUVer_SHIFT, #4
 	cmp	x0, #1
-	b.lt	.Lskip_pmu_\@			// Skip if no PMU present
+	b.lt	.Lskip_pmu_\@			// Skip if anal PMU present
 	mrs	x0, pmcr_el0			// Disable debug access traps
 	ubfx	x0, x0, #11, #5			// to EL2 and allow access to
 .Lskip_pmu_\@:
@@ -69,7 +69,7 @@
 
 	/* Statistical profiling */
 	ubfx	x0, x1, #ID_AA64DFR0_EL1_PMSVer_SHIFT, #4
-	cbz	x0, .Lskip_spe_\@		// Skip if SPE not present
+	cbz	x0, .Lskip_spe_\@		// Skip if SPE analt present
 
 	mrs_s	x0, SYS_PMBIDR_EL1              // If SPE available at EL2,
 	and	x0, x0, #(1 << PMBIDR_EL1_P_SHIFT)
@@ -85,7 +85,7 @@
 .Lskip_spe_\@:
 	/* Trace buffer */
 	ubfx	x0, x1, #ID_AA64DFR0_EL1_TraceBuffer_SHIFT, #4
-	cbz	x0, .Lskip_trace_\@		// Skip if TraceBuffer is not present
+	cbz	x0, .Lskip_trace_\@		// Skip if TraceBuffer is analt present
 
 	mrs_s	x0, SYS_TRBIDR_EL1
 	and	x0, x0, TRBIDR_EL1_P
@@ -123,7 +123,7 @@
 	orr	x0, x0, #ICC_SRE_EL2_SRE	// Set ICC_SRE_EL2.SRE==1
 	orr	x0, x0, #ICC_SRE_EL2_ENABLE	// Set ICC_SRE_EL2.Enable==1
 	msr_s	SYS_ICC_SRE_EL2, x0
-	isb					// Make sure SRE is now set
+	isb					// Make sure SRE is analw set
 	mrs_s	x0, SYS_ICC_SRE_EL2		// Read SRE back,
 	tbz	x0, #0, .Lskip_gicv3_\@		// and check that it sticks
 	msr_s	SYS_ICH_HCR_EL2, xzr		// Reset ICH_HCR_EL2 to defaults
@@ -210,8 +210,8 @@
 
 /**
  * Initialize EL2 registers to sane values. This should be called early on all
- * cores that were booted in EL2. Note that everything gets initialised as
- * if VHE was not available. The kernel context will be upgraded to VHE
+ * cores that were booted in EL2. Analte that everything gets initialised as
+ * if VHE was analt available. The kernel context will be upgraded to VHE
  * if possible later on in the boot process
  *
  * Regs: x0, x1 and x2 are clobbered.
@@ -256,15 +256,15 @@
 .endm
 #else
 // This will clobber tmp
-.macro __check_override idreg, fld, width, pass, fail, tmp, ignore
+.macro __check_override idreg, fld, width, pass, fail, tmp, iganalre
 	ldr_l	\tmp, \idreg\()_el1_sys_val
 	ubfx	\tmp, \tmp, #\fld, #\width
 	cbnz	\tmp, \pass
 	b	\fail
 .endm
 
-.macro check_override idreg, fld, pass, fail, tmp, ignore
-	__check_override \idreg \fld 4 \pass \fail \tmp \ignore
+.macro check_override idreg, fld, pass, fail, tmp, iganalre
+	__check_override \idreg \fld 4 \pass \fail \tmp \iganalre
 .endm
 #endif
 

@@ -46,9 +46,9 @@ gen8_modify_rpcs(struct intel_context *ce, const struct intel_sseu sseu)
 	lockdep_assert_held(&ce->pin_mutex);
 
 	/*
-	 * If the context is not idle, we have to submit an ordered request to
+	 * If the context is analt idle, we have to submit an ordered request to
 	 * modify its context image via the kernel context (writing to our own
-	 * image, or into the registers directory, does not stick). Pristine
+	 * image, or into the registers directory, does analt stick). Pristine
 	 * and idle contexts will be configured on pinning.
 	 */
 	if (!intel_context_pin_if_active(ce))
@@ -83,7 +83,7 @@ intel_context_reconfigure_sseu(struct intel_context *ce,
 	if (ret)
 		return ret;
 
-	/* Nothing to do if unmodified. */
+	/* Analthing to do if unmodified. */
 	if (!memcmp(&ce->sseu, &sseu, sizeof(sseu)))
 		goto unlock;
 

@@ -12,7 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
@@ -134,7 +134,7 @@ static int osif_probe(struct usb_interface *interface,
 
 	priv = devm_kzalloc(&interface->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->usb_dev = usb_get_dev(interface_to_usbdev(interface));
 	priv->interface = interface;

@@ -236,7 +236,7 @@ enum hclge_evt_cause {
 };
 
 enum HCLGE_MAC_SPEED {
-	HCLGE_MAC_SPEED_UNKNOWN = 0,		/* unknown */
+	HCLGE_MAC_SPEED_UNKANALWN = 0,		/* unkanalwn */
 	HCLGE_MAC_SPEED_10M	= 10,		/* 10 Mbps */
 	HCLGE_MAC_SPEED_100M	= 100,		/* 100 Mbps */
 	HCLGE_MAC_SPEED_1G	= 1000,		/* 1000 Mbps   = 1 Gbps */
@@ -297,7 +297,7 @@ struct hclge_hw {
 };
 
 enum hclge_fc_mode {
-	HCLGE_FC_NONE,
+	HCLGE_FC_ANALNE,
 	HCLGE_FC_RX_PAUSE,
 	HCLGE_FC_TX_PAUSE,
 	HCLGE_FC_FULL,
@@ -322,7 +322,7 @@ enum hclge_vlan_fltr_cap {
 	HCLGE_VLAN_FLTR_CAN_MDF,
 };
 enum hclge_link_fail_code {
-	HCLGE_LF_NORMAL,
+	HCLGE_LF_ANALRMAL,
 	HCLGE_LF_REF_CLOCK_LOST,
 	HCLGE_LF_XSFP_TX_DISABLE,
 	HCLGE_LF_XSFP_ABSENT,
@@ -360,7 +360,7 @@ struct hclge_cfg {
 	u8 media_type;
 	u8 mac_addr[ETH_ALEN];
 	u8 default_speed;
-	u32 numa_node_map;
+	u32 numa_analde_map;
 	u32 tx_spare_buf_size;
 	u16 speed_ability;
 	u16 umv_space;
@@ -374,8 +374,8 @@ struct hclge_tm_info {
 	struct hclge_pg_info pg_info[HCLGE_PG_NUM];
 	struct hclge_tc_info tc_info[HNAE3_MAX_TC];
 	enum hclge_fc_mode fc_mode;
-	u8 hw_pfc_map; /* Allow for packet drop or not on this TC */
-	u8 pfc_en;	/* PFC enabled or not for user priority */
+	u8 hw_pfc_map; /* Allow for packet drop or analt on this TC */
+	u8 pfc_en;	/* PFC enabled or analt for user priority */
 };
 
 /* max number of mac statistics on each version */
@@ -554,7 +554,7 @@ enum HCLGE_FD_STAGE {
 
 /* OUTER_XXX indicates tuples in tunnel header of tunnel packet
  * INNER_XXX indicate tuples in tunneled header of tunnel packet or
- *           tuples of non-tunnel packet
+ *           tuples of analn-tunnel packet
  */
 enum HCLGE_FD_TUPLE {
 	OUTER_DST_MAC,
@@ -642,7 +642,7 @@ struct key_info {
 	hclge_comm_write_reg((a)->hw.io_base, reg, value)
 
 enum HCLGE_FD_ACTIVE_RULE_TYPE {
-	HCLGE_FD_RULE_NONE,
+	HCLGE_FD_RULE_ANALNE,
 	HCLGE_FD_ARFS_ACTIVE,
 	HCLGE_FD_EP_ACTIVE,
 	HCLGE_FD_TC_FLOWER_ACTIVE,
@@ -659,7 +659,7 @@ enum HCLGE_FD_ACTION {
 	HCLGE_FD_ACTION_SELECT_TC,
 };
 
-enum HCLGE_FD_NODE_STATE {
+enum HCLGE_FD_ANALDE_STATE {
 	HCLGE_FD_TO_ADD,
 	HCLGE_FD_TO_DEL,
 	HCLGE_FD_ACTIVE,
@@ -667,7 +667,7 @@ enum HCLGE_FD_NODE_STATE {
 };
 
 enum HCLGE_FD_USER_DEF_LAYER {
-	HCLGE_FD_USER_DEF_NONE,
+	HCLGE_FD_USER_DEF_ANALNE,
 	HCLGE_FD_USER_DEF_L2,
 	HCLGE_FD_USER_DEF_L3,
 	HCLGE_FD_USER_DEF_L4,
@@ -727,7 +727,7 @@ struct hclge_fd_rule_tuples {
 };
 
 struct hclge_fd_rule {
-	struct hlist_node rule_node;
+	struct hlist_analde rule_analde;
 	struct hclge_fd_rule_tuples tuples;
 	struct hclge_fd_rule_tuples tuples_mask;
 	u32 unused_tuple;
@@ -748,7 +748,7 @@ struct hclge_fd_rule {
 	u16 vf_id;
 	u16 location;
 	enum HCLGE_FD_ACTIVE_RULE_TYPE rule_type;
-	enum HCLGE_FD_NODE_STATE state;
+	enum HCLGE_FD_ANALDE_STATE state;
 	u8 action;
 };
 
@@ -767,15 +767,15 @@ struct hclge_fd_ad_data {
 	u8 override_tc;
 };
 
-enum HCLGE_MAC_NODE_STATE {
+enum HCLGE_MAC_ANALDE_STATE {
 	HCLGE_MAC_TO_ADD,
 	HCLGE_MAC_TO_DEL,
 	HCLGE_MAC_ACTIVE
 };
 
-struct hclge_mac_node {
-	struct list_head node;
-	enum HCLGE_MAC_NODE_STATE state;
+struct hclge_mac_analde {
+	struct list_head analde;
+	enum HCLGE_MAC_ANALDE_STATE state;
 	u8 mac_addr[ETH_ALEN];
 };
 
@@ -785,7 +785,7 @@ enum HCLGE_MAC_ADDR_TYPE {
 };
 
 struct hclge_vport_vlan_cfg {
-	struct list_head node;
+	struct list_head analde;
 	int hd_tbl_status;
 	u16 vlan_id;
 };
@@ -882,7 +882,7 @@ struct hclge_dev {
 
 	u16 fdir_pf_filter_count; /* Num of guaranteed filters for this PF */
 	u16 num_alloc_vport;		/* Num vports this driver supports */
-	u32 numa_node_mask;
+	u32 numa_analde_mask;
 	u16 rx_buf_len;
 	u16 num_tx_desc;		/* desc num of per tx queue */
 	u16 num_rx_desc;		/* desc num of per rx queue */
@@ -1007,9 +1007,9 @@ enum HCLGE_VPORT_STATE {
 	HCLGE_VPORT_STATE_MAX
 };
 
-enum HCLGE_VPORT_NEED_NOTIFY {
-	HCLGE_VPORT_NEED_NOTIFY_RESET,
-	HCLGE_VPORT_NEED_NOTIFY_VF_VLAN,
+enum HCLGE_VPORT_NEED_ANALTIFY {
+	HCLGE_VPORT_NEED_ANALTIFY_RESET,
+	HCLGE_VPORT_NEED_ANALTIFY_VF_VLAN,
 };
 
 struct hclge_vlan_info {
@@ -1058,7 +1058,7 @@ struct hclge_vport {
 	struct hnae3_handle roce;
 
 	unsigned long state;
-	unsigned long need_notify;
+	unsigned long need_analtify;
 	unsigned long last_active_jiffies;
 	u32 mps; /* Max packet size */
 	struct hclge_vf_info vf_info;
@@ -1102,7 +1102,7 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 struct hclge_vport *hclge_get_vport(struct hnae3_handle *handle);
 int hclge_bind_ring_with_vector(struct hclge_vport *vport,
 				int vector_id, bool en,
-				struct hnae3_ring_chain_node *ring_chain);
+				struct hnae3_ring_chain_analde *ring_chain);
 
 static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 {
@@ -1131,13 +1131,13 @@ int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu);
 int hclge_dbg_read_cmd(struct hnae3_handle *handle, enum hnae3_dbg_cmd cmd,
 		       char *buf, int len);
 u16 hclge_covert_handle_qid_global(struct hnae3_handle *handle, u16 queue_id);
-int hclge_notify_client(struct hclge_dev *hdev,
-			enum hnae3_reset_notify_type type);
+int hclge_analtify_client(struct hclge_dev *hdev,
+			enum hnae3_reset_analtify_type type);
 int hclge_update_mac_list(struct hclge_vport *vport,
-			  enum HCLGE_MAC_NODE_STATE state,
+			  enum HCLGE_MAC_ANALDE_STATE state,
 			  enum HCLGE_MAC_ADDR_TYPE mac_type,
 			  const unsigned char *addr);
-int hclge_update_mac_node_for_dev_addr(struct hclge_vport *vport,
+int hclge_update_mac_analde_for_dev_addr(struct hclge_vport *vport,
 				       const u8 *old_addr, const u8 *new_addr);
 void hclge_rm_vport_all_mac_table(struct hclge_vport *vport, bool is_del_list,
 				  enum HCLGE_MAC_ADDR_TYPE mac_type);

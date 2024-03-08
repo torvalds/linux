@@ -2,7 +2,7 @@
 /*
  * Virtual NCI device simulation driver
  *
- * Copyright (C) 2020 Samsung Electrnoics
+ * Copyright (C) 2020 Samsung Electranalics
  * Bongsu Jeon <bongsu.jeon@samsung.com>
  */
 
@@ -119,7 +119,7 @@ static ssize_t virtual_ncidev_write(struct file *file,
 
 	skb = alloc_skb(count, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(skb_put(skb, count), buf, count)) {
 		kfree_skb(skb);
@@ -130,19 +130,19 @@ static ssize_t virtual_ncidev_write(struct file *file,
 	return count;
 }
 
-static int virtual_ncidev_open(struct inode *inode, struct file *file)
+static int virtual_ncidev_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret = 0;
 	struct virtual_nci_dev *vdev;
 
 	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
 	if (!vdev)
-		return -ENOMEM;
+		return -EANALMEM;
 	vdev->ndev = nci_allocate_device(&virtual_nci_ops,
 		VIRTUAL_NFC_PROTOCOLS, 0, 0);
 	if (!vdev->ndev) {
 		kfree(vdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_init(&vdev->mtx);
@@ -161,7 +161,7 @@ static int virtual_ncidev_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int virtual_ncidev_close(struct inode *inode, struct file *file)
+static int virtual_ncidev_close(struct ianalde *ianalde, struct file *file)
 {
 	struct virtual_nci_dev *vdev = file->private_data;
 
@@ -181,7 +181,7 @@ static long virtual_ncidev_ioctl(struct file *file, unsigned int cmd,
 	void __user *p = (void __user *)arg;
 
 	if (cmd != IOCTL_GET_NCIDEV_IDX)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (copy_to_user(p, &nfc_dev->idx, sizeof(nfc_dev->idx)))
 		return -EFAULT;
@@ -199,7 +199,7 @@ static const struct file_operations virtual_ncidev_fops = {
 };
 
 static struct miscdevice miscdev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "virtual_nci",
 	.fops = &virtual_ncidev_fops,
 	.mode = 0600,

@@ -172,7 +172,7 @@ static const struct intel_pinctrl_soc_data lptlp_soc_data = {
 /* LP_CONFIG2 reg bits */
 #define GPINDIS_BIT	BIT(2) /* disable input sensing */
 #define GPIWP_MASK	GENMASK(1, 0)	/* weak pull options */
-#define GPIWP_NONE	0		/* none */
+#define GPIWP_ANALNE	0		/* analne */
 #define GPIWP_DOWN	1		/* weak pull down */
 #define GPIWP_UP	2		/* weak pull up */
 
@@ -296,7 +296,7 @@ static int lp_pinmux_set_mux(struct pinctrl_dev *pctldev,
 
 	guard(raw_spinlock_irqsave)(&lg->lock);
 
-	/* Now enable the mux setting for each pin in the group */
+	/* Analw enable the mux setting for each pin in the group */
 	for (i = 0; i < grp->grp.npins; i++) {
 		void __iomem *reg = lp_gpio_reg(&lg->chip, grp->grp.pins[i], LP_CONFIG1);
 		u32 value;
@@ -383,7 +383,7 @@ static int lp_gpio_set_direction(struct pinctrl_dev *pctldev,
 		/*
 		 * Before making any direction modifications, do a check if GPIO
 		 * is set for direct IRQ. On Lynxpoint, setting GPIO to output
-		 * does not make sense, so let's at least warn the caller before
+		 * does analt make sense, so let's at least warn the caller before
 		 * they shoot themselves in the foot.
 		 */
 		WARN(lp_gpio_ioxapic_use(&lg->chip, pin),
@@ -420,7 +420,7 @@ static int lp_pin_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
-		if (pull != GPIWP_NONE)
+		if (pull != GPIWP_ANALNE)
 			return -EINVAL;
 		arg = 0;
 		break;
@@ -437,7 +437,7 @@ static int lp_pin_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		arg = 1;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -464,7 +464,7 @@ static int lp_pin_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:
 			value &= ~GPIWP_MASK;
-			value |= GPIWP_NONE;
+			value |= GPIWP_ANALNE;
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			value &= ~GPIWP_MASK;
@@ -475,7 +475,7 @@ static int lp_pin_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			value |= GPIWP_UP;
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -713,11 +713,11 @@ static int lp_gpio_probe(struct platform_device *pdev)
 
 	soc = (const struct intel_pinctrl_soc_data *)device_get_match_data(dev);
 	if (!soc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	lg = devm_kzalloc(dev, sizeof(*lg), GFP_KERNEL);
 	if (!lg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lg->dev = dev;
 	lg->soc = soc;
@@ -726,7 +726,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	lg->communities = devm_kcalloc(dev, lg->ncommunities,
 				       sizeof(*lg->communities), GFP_KERNEL);
 	if (!lg->communities)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lg->pctldesc           = lptlp_pinctrl_desc;
 	lg->pctldesc.name      = dev_name(dev);
@@ -795,9 +795,9 @@ static int lp_gpio_probe(struct platform_device *pdev)
 					     sizeof(*girq->parents),
 					     GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
+			return -EANALMEM;
 		girq->parents[0] = irq;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_bad_irq;
 	}
 

@@ -47,7 +47,7 @@ config PHY_QCOM_PCIE2
 	depends on OF && COMMON_CLK && (ARCH_QCOM || COMPILE_TEST)
 	select GENERIC_PHY
 	help
-	  Enable this to support the Qualcomm PCIe PHY, used with the Synopsys
+	  Enable this to support the Qualcomm PCIe PHY, used with the Syanalpsys
 	  based PCIe controller.
 
 menuconfig PHY_QCOM_QMP
@@ -122,7 +122,7 @@ config PHY_QCOM_QUSB2
 	help
 	  Enable this to support the HighSpeed QUSB2 PHY transceiver for USB
 	  controllers on Qualcomm chips. This driver supports the high-speed
-	  PHY which is usually paired with either the ChipIdea or Synopsys DWC3
+	  PHY which is usually paired with either the ChipIdea or Syanalpsys DWC3
 	  USB IPs on MSM SOCs.
 
 config PHY_QCOM_SNPS_EUSB2
@@ -131,7 +131,7 @@ config PHY_QCOM_SNPS_EUSB2
 	select GENERIC_PHY
 	help
 	  Enable support for the USB high-speed SNPS eUSB2 phy on Qualcomm
-	  chipsets. The PHY is paired with a Synopsys DWC3 USB controller
+	  chipsets. The PHY is paired with a Syanalpsys DWC3 USB controller
 	  on Qualcomm SOCs.
 
 config PHY_QCOM_EUSB2_REPEATER
@@ -140,7 +140,7 @@ config PHY_QCOM_EUSB2_REPEATER
 	select GENERIC_PHY
 	help
 	  Enable support for the USB high-speed SNPS eUSB2 repeater on Qualcomm
-	  PMICs. The repeater is paired with a Synopsys eUSB2 Phy
+	  PMICs. The repeater is paired with a Syanalpsys eUSB2 Phy
 	  on Qualcomm SOCs.
 
 config PHY_QCOM_M31_USB
@@ -157,7 +157,7 @@ config PHY_QCOM_M31_USB
 config PHY_QCOM_USB_HS
 	tristate "Qualcomm USB HS PHY module"
 	depends on USB_ULPI_BUS
-	depends on EXTCON || !EXTCON # if EXTCON=m, this cannot be built-in
+	depends on EXTCON || !EXTCON # if EXTCON=m, this cananalt be built-in
 	select GENERIC_PHY
 	help
 	  Support for the USB high-speed ULPI compliant phy on Qualcomm
@@ -170,7 +170,7 @@ config PHY_QCOM_USB_SNPS_FEMTO_V2
 	help
 	  Enable support for the USB high-speed SNPS Femto phy on Qualcomm
 	  chipsets.  This PHY has differences in the register map compared
-	  to the V1 variants.  The PHY is paired with a Synopsys DWC3 USB
+	  to the V1 variants.  The PHY is paired with a Syanalpsys DWC3 USB
 	  controller on Qualcomm SOCs.
 
 config PHY_QCOM_USB_HSIC
@@ -183,18 +183,18 @@ config PHY_QCOM_USB_HSIC
 config PHY_QCOM_USB_HS_28NM
 	tristate "Qualcomm 28nm High-Speed PHY"
 	depends on OF && (ARCH_QCOM || COMPILE_TEST)
-	depends on EXTCON || !EXTCON # if EXTCON=m, this cannot be built-in
+	depends on EXTCON || !EXTCON # if EXTCON=m, this cananalt be built-in
 	select GENERIC_PHY
 	help
-	  Enable this to support the Qualcomm Synopsys DesignWare Core 28nm
+	  Enable this to support the Qualcomm Syanalpsys DesignWare Core 28nm
 	  High-Speed PHY driver. This driver supports the Hi-Speed PHY which
-	  is usually paired with either the ChipIdea or Synopsys DWC3 USB
+	  is usually paired with either the ChipIdea or Syanalpsys DWC3 USB
 	  IPs on MSM SOCs.
 
 config PHY_QCOM_USB_SS
 	tristate "Qualcomm USB Super-Speed PHY driver"
 	depends on OF && (ARCH_QCOM || COMPILE_TEST)
-	depends on EXTCON || !EXTCON # if EXTCON=m, this cannot be built-in
+	depends on EXTCON || !EXTCON # if EXTCON=m, this cananalt be built-in
 	select GENERIC_PHY
 	help
 	  Enable this to support the Super-Speed USB transceiver on various
@@ -206,7 +206,7 @@ config PHY_QCOM_IPQ806X_USB
 	depends on OF && (ARCH_QCOM || COMPILE_TEST)
 	select GENERIC_PHY
 	help
-	  This option enables support for the Synopsis PHYs present inside the
+	  This option enables support for the Syanalpsis PHYs present inside the
 	  Qualcomm USB3.0 DWC3 controller on ipq806x SoC. This driver supports
 	  both HS and SS PHY controllers.
 

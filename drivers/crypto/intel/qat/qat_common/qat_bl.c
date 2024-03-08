@@ -66,7 +66,7 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 	dma_addr_t bloutp = DMA_MAPPING_ERROR;
 	struct scatterlist *sg;
 	size_t sz_out, sz = struct_size(bufl, buffers, n);
-	int node = dev_to_node(&GET_DEV(accel_dev));
+	int analde = dev_to_analde(&GET_DEV(accel_dev));
 	unsigned int left;
 	int bufl_dma_dir;
 
@@ -77,9 +77,9 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 	buf->sgl_dst_valid = false;
 
 	if (n > QAT_MAX_BUFF_DESC) {
-		bufl = kzalloc_node(sz, flags, node);
+		bufl = kzalloc_analde(sz, flags, analde);
 		if (unlikely(!bufl))
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		bufl = &buf->sgl_src.sgl_hdr;
 		memset(bufl, 0, sizeof(struct qat_alg_buf_list));
@@ -135,7 +135,7 @@ static int __qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
 		sg_nctr = 0;
 
 		if (n > QAT_MAX_BUFF_DESC) {
-			buflout = kzalloc_node(sz_out, flags, node);
+			buflout = kzalloc_analde(sz_out, flags, analde);
 			if (unlikely(!buflout))
 				goto err_in;
 		} else {
@@ -223,7 +223,7 @@ err_in:
 		kfree(bufl);
 
 	dev_err(dev, "Failed to map buf for dma\n");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int qat_bl_sgl_to_bufl(struct adf_accel_dev *accel_dev,
@@ -269,16 +269,16 @@ static int qat_bl_sgl_map(struct adf_accel_dev *accel_dev,
 {
 	struct device *dev = &GET_DEV(accel_dev);
 	struct qat_alg_buf_list *bufl;
-	int node = dev_to_node(dev);
+	int analde = dev_to_analde(dev);
 	struct scatterlist *sg;
 	int n, i, sg_nctr;
 	size_t sz;
 
 	n = sg_nents(sgl);
 	sz = struct_size(bufl, buffers, n);
-	bufl = kzalloc_node(sz, GFP_KERNEL, node);
+	bufl = kzalloc_analde(sz, GFP_KERNEL, analde);
 	if (unlikely(!bufl))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < n; i++)
 		bufl->buffers[i].addr = DMA_MAPPING_ERROR;
@@ -314,7 +314,7 @@ err_map:
 	kfree(bufl);
 	*bl = NULL;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void qat_bl_sgl_free_unmap(struct adf_accel_dev *accel_dev,
@@ -344,7 +344,7 @@ static int qat_bl_sgl_alloc_map(struct adf_accel_dev *accel_dev,
 	dst = sgl_alloc(dlen, gfp, NULL);
 	if (!dst) {
 		dev_err(&GET_DEV(accel_dev), "sg_alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = qat_bl_sgl_map(accel_dev, dst, bl);
@@ -406,5 +406,5 @@ err:
 	if (!dma_mapping_error(dev, new_blp))
 		dma_unmap_single(dev, new_blp, new_bl_size, DMA_TO_DEVICE);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }

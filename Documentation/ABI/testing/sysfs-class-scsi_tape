@@ -18,7 +18,7 @@ Description:
                 reads, writes, and other SCSI commands issued to the tape
                 drive. An example of other SCSI commands would be tape
                 movement such as a rewind when a rewind tape device is
-                closed. This item is measured in nanoseconds.
+                closed. This item is measured in naanalseconds.
 
                 To determine the amount of time spent waiting for other I/O
                 to complete subtract read_ns and write_ns from this value.
@@ -61,7 +61,7 @@ Date:           Apr 2015
 KernelVersion:  4.2
 Contact:        Shane Seymour <shane.seymour@hp.com>
 Description:
-		Shows the total amount of time in nanoseconds waiting for
+		Shows the total amount of time in naanalseconds waiting for
 		read I/O requests to complete.
 Users:
 
@@ -92,7 +92,7 @@ Date:           Apr 2015
 KernelVersion:  4.2
 Contact:        Shane Seymour <shane.seymour@hp.com>
 Description:
-		Shows the total amount of time in nanoseconds waiting for
+		Shows the total amount of time in naanalseconds waiting for
 		write I/O requests to complete.
 Users:
 

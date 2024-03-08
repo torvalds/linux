@@ -58,7 +58,7 @@ static int stpmic1_onkey_probe(struct platform_device *pdev)
 
 	onkey = devm_kzalloc(dev, sizeof(*onkey), GFP_KERNEL);
 	if (!onkey)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	onkey->irq_falling = platform_get_irq_byname(pdev, "onkey-falling");
 	if (onkey->irq_falling < 0)
@@ -72,7 +72,7 @@ static int stpmic1_onkey_probe(struct platform_device *pdev)
 		if (val > 0 && val <= 16) {
 			dev_dbg(dev, "power-off-time=%d seconds\n", val);
 			reg |= PONKEY_PWR_OFF;
-			reg |= ((16 - val) & PONKEY_TURNOFF_TIMER_MASK);
+			reg |= ((16 - val) & PONKEY_TURANALFF_TIMER_MASK);
 		} else {
 			dev_err(dev, "power-off-time-sec out of range\n");
 			return -EINVAL;
@@ -82,10 +82,10 @@ static int stpmic1_onkey_probe(struct platform_device *pdev)
 	if (device_property_present(dev, "st,onkey-clear-cc-flag"))
 		reg |= PONKEY_CC_FLAG_CLEAR;
 
-	error = regmap_update_bits(pmic->regmap, PKEY_TURNOFF_CR,
-				   PONKEY_TURNOFF_MASK, reg);
+	error = regmap_update_bits(pmic->regmap, PKEY_TURANALFF_CR,
+				   PONKEY_TURANALFF_MASK, reg);
 	if (error) {
-		dev_err(dev, "PKEY_TURNOFF_CR write failed: %d\n", error);
+		dev_err(dev, "PKEY_TURANALFF_CR write failed: %d\n", error);
 		return error;
 	}
 
@@ -103,7 +103,7 @@ static int stpmic1_onkey_probe(struct platform_device *pdev)
 	input_dev = devm_input_allocate_device(dev);
 	if (!input_dev) {
 		dev_err(dev, "Can't allocate Pwr Onkey Input Device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_dev->name = "pmic_onkey";

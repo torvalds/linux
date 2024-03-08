@@ -16,9 +16,9 @@ static const struct rcar_sysc_area r8a7743_areas[] __initconst = {
 	{ "ca15-scu",	0x180, 0, R8A7743_PD_CA15_SCU,	R8A7743_PD_ALWAYS_ON,
 	  PD_SCU },
 	{ "ca15-cpu0",	 0x40, 0, R8A7743_PD_CA15_CPU0,	R8A7743_PD_CA15_SCU,
-	  PD_CPU_NOCR },
+	  PD_CPU_ANALCR },
 	{ "ca15-cpu1",	 0x40, 1, R8A7743_PD_CA15_CPU1,	R8A7743_PD_CA15_SCU,
-	  PD_CPU_NOCR },
+	  PD_CPU_ANALCR },
 	{ "sgx",	 0xc0, 0, R8A7743_PD_SGX,	R8A7743_PD_ALWAYS_ON },
 };
 

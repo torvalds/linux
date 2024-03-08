@@ -18,7 +18,7 @@ config DRM_AUX_BRIDGE
 	select AUXILIARY_BUS
 	select DRM_PANEL_BRIDGE
 	help
-	  Simple transparent bridge that is used by several non-DRM drivers to
+	  Simple transparent bridge that is used by several analn-DRM drivers to
 	  build bridges chain.
 
 config DRM_AUX_HPD_BRIDGE
@@ -78,8 +78,8 @@ config DRM_DISPLAY_CONNECTOR
 	  detection. Most display controllers handle display connectors
 	  internally and don't need this driver, but the DRM subsystem is
 	  moving towards separating connector handling from display controllers
-	  on ARM-based platforms. Saying Y here when this driver is not needed
-	  will not cause any issue.
+	  on ARM-based platforms. Saying Y here when this driver is analt needed
+	  will analt cause any issue.
 
 config DRM_FSL_LDB
 	tristate "Freescale i.MX8MP LDB bridge"
@@ -191,7 +191,7 @@ config DRM_MEGACHIPS_STDPXXXX_GE_B850V3_FW
 	  driver. You are likely to say N here.
 
 config DRM_NWL_MIPI_DSI
-	tristate "Northwest Logic MIPI DSI Host controller"
+	tristate "Analrthwest Logic MIPI DSI Host controller"
 	depends on DRM
 	depends on COMMON_CLK
 	depends on OF && HAS_IOMEM
@@ -204,7 +204,7 @@ config DRM_NWL_MIPI_DSI
 	select MULTIPLEXER
 	select REGMAP_MMIO
 	help
-	  This enables the Northwest Logic MIPI DSI Host controller as
+	  This enables the Analrthwest Logic MIPI DSI Host controller as
 	  for example found on NXP's i.MX8 Processors.
 
 config DRM_NXP_PTN3460
@@ -249,8 +249,8 @@ config DRM_SAMSUNG_DSIM
 	select GENERIC_PHY_MIPI_DPHY
 	help
 	  The Samsung MIPI DSIM bridge controller driver.
-	  This MIPI DSIM bridge can be found it on Exynos SoCs and
-	  NXP's i.MX8M Mini/Nano.
+	  This MIPI DSIM bridge can be found it on Exyanals SoCs and
+	  NXP's i.MX8M Mini/Naanal.
 
 config DRM_SIL_SII8620
 	tristate "Silicon Image SII8620 HDMI/MHL bridge"
@@ -284,7 +284,7 @@ config DRM_SIMPLE_BRIDGE
 	depends on OF
 	select DRM_KMS_HELPER
 	help
-	  Support for non-programmable DRM bridges, such as ADI ADV7123, TI
+	  Support for analn-programmable DRM bridges, such as ADI ADV7123, TI
 	  THS8134 and THS8135 or passive resistor ladder DACs.
 
 config DRM_THINE_THC63LVD1024
@@ -409,6 +409,6 @@ source "drivers/gpu/drm/bridge/cadence/Kconfig"
 
 source "drivers/gpu/drm/bridge/imx/Kconfig"
 
-source "drivers/gpu/drm/bridge/synopsys/Kconfig"
+source "drivers/gpu/drm/bridge/syanalpsys/Kconfig"
 
 endmenu

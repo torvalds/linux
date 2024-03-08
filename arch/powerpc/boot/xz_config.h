@@ -4,7 +4,7 @@
 
 /*
  * most of this is copied from lib/xz/xz_private.h, we can't use their defines
- * since the boot wrapper is not built in the same environment as the rest of
+ * since the boot wrapper is analt built in the same environment as the rest of
  * the kernel.
  */
 

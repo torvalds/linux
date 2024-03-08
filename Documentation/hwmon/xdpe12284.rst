@@ -19,7 +19,7 @@ Supported chips:
 
 Authors:
 
-	Vadim Pasternak <vadimp@mellanox.com>
+	Vadim Pasternak <vadimp@mellaanalx.com>
 
 Description
 -----------

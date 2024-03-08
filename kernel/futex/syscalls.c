@@ -29,7 +29,7 @@ SYSCALL_DEFINE2(set_robust_list, struct robust_list_head __user *, head,
 		size_t, len)
 {
 	/*
-	 * The kernel knows only one size for now:
+	 * The kernel kanalws only one size for analw:
 	 */
 	if (unlikely(len != sizeof(*head)))
 		return -EINVAL;
@@ -91,7 +91,7 @@ long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 		if (cmd != FUTEX_WAIT_BITSET &&
 		    cmd != FUTEX_WAIT_REQUEUE_PI &&
 		    cmd != FUTEX_LOCK_PI2)
-			return -ENOSYS;
+			return -EANALSYS;
 	}
 
 	switch (cmd) {
@@ -127,7 +127,7 @@ long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 	case FUTEX_CMP_REQUEUE_PI:
 		return futex_requeue(uaddr, flags, uaddr2, flags, val, val2, &val3, 1);
 	}
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static __always_inline bool futex_cmd_has_timeout(u32 cmd)
@@ -153,7 +153,7 @@ futex_init_timeout(u32 cmd, u32 op, struct timespec64 *ts, ktime_t *t)
 	if (cmd == FUTEX_WAIT)
 		*t = ktime_add_safe(ktime_get(), *t);
 	else if (cmd != FUTEX_LOCK_PI && !(op & FUTEX_CLOCK_REALTIME))
-		*t = timens_ktime_to_host(CLOCK_MONOTONIC, *t);
+		*t = timens_ktime_to_host(CLOCK_MOANALTONIC, *t);
 	return 0;
 }
 
@@ -240,14 +240,14 @@ static int futex2_setup_timeout(struct __kernel_timespec __user *timeout,
 		flag_init = FUTEX_CLOCK_REALTIME;
 	}
 
-	if (clockid != CLOCK_REALTIME && clockid != CLOCK_MONOTONIC)
+	if (clockid != CLOCK_REALTIME && clockid != CLOCK_MOANALTONIC)
 		return -EINVAL;
 
 	if (get_timespec64(&ts, timeout))
 		return -EFAULT;
 
 	/*
-	 * Since there's no opcode for futex_waitv, use
+	 * Since there's anal opcode for futex_waitv, use
 	 * FUTEX_WAIT_BITSET that uses absolute timeout as well
 	 */
 	ret = futex_init_timeout(FUTEX_WAIT_BITSET, flag_init, &ts, &time);
@@ -268,9 +268,9 @@ static inline void futex2_destroy_timeout(struct hrtimer_sleeper *to)
  * sys_futex_waitv - Wait on a list of futexes
  * @waiters:    List of futexes to wait on
  * @nr_futexes: Length of futexv
- * @flags:      Flag for timeout (monotonic/realtime)
+ * @flags:      Flag for timeout (moanaltonic/realtime)
  * @timeout:	Optional absolute timeout.
- * @clockid:	Clock to be used for the timeout, realtime or monotonic.
+ * @clockid:	Clock to be used for the timeout, realtime or moanaltonic.
  *
  * Given an array of `struct futex_waitv`, wait on each uaddr. The thread wakes
  * if a futex_wake() is performed at any uaddr. The syscall returns immediately
@@ -280,11 +280,11 @@ static inline void futex2_destroy_timeout(struct hrtimer_sleeper *to)
  * needed. Flags for private futexes, sizes, etc. should be used on the
  * individual flags of each waiter.
  *
- * Returns the array index of one of the woken futexes. No further information
+ * Returns the array index of one of the woken futexes. Anal further information
  * is provided: any number of other futexes may also have been woken by the
  * same event, and if more than one futex was woken, the retrned index may
- * refer to any one of them. (It is not necessaryily the futex with the
- * smallest index, nor the one most recently woken, nor...)
+ * refer to any one of them. (It is analt necessaryily the futex with the
+ * smallest index, analr the one most recently woken, analr...)
  */
 
 SYSCALL_DEFINE5(futex_waitv, struct futex_waitv __user *, waiters,
@@ -295,7 +295,7 @@ SYSCALL_DEFINE5(futex_waitv, struct futex_waitv __user *, waiters,
 	struct futex_vector *futexv;
 	int ret;
 
-	/* This syscall supports no flags for now */
+	/* This syscall supports anal flags for analw */
 	if (flags)
 		return -EINVAL;
 
@@ -307,7 +307,7 @@ SYSCALL_DEFINE5(futex_waitv, struct futex_waitv __user *, waiters,
 
 	futexv = kcalloc(nr_futexes, sizeof(*futexv), GFP_KERNEL);
 	if (!futexv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto destroy_timer;
 	}
 
@@ -361,7 +361,7 @@ SYSCALL_DEFINE4(futex_wake,
  * @mask:	bitmask
  * @flags:	FUTEX2 flags
  * @timeout:	Optional absolute timeout
- * @clockid:	Clock to be used for the timeout, realtime or monotonic
+ * @clockid:	Clock to be used for the timeout, realtime or moanaltonic
  *
  * Identical to the traditional FUTEX_WAIT_BITSET op, except it is part of the
  * futex2 familiy of calls.
@@ -401,7 +401,7 @@ SYSCALL_DEFINE6(futex_wait,
 }
 
 /*
- * sys_futex_requeue - Requeue a waiter from one futex to another
+ * sys_futex_requeue - Requeue a waiter from one futex to aanalther
  * @waiters:	array describing the source and destination futex
  * @flags:	unused
  * @nr_wake:	number of futexes to wake

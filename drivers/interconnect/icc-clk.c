@@ -8,7 +8,7 @@
 #include <linux/interconnect-clk.h>
 #include <linux/interconnect-provider.h>
 
-struct icc_clk_node {
+struct icc_clk_analde {
 	struct clk *clk;
 	bool enabled;
 };
@@ -16,15 +16,15 @@ struct icc_clk_node {
 struct icc_clk_provider {
 	struct icc_provider provider;
 	int num_clocks;
-	struct icc_clk_node clocks[] __counted_by(num_clocks);
+	struct icc_clk_analde clocks[] __counted_by(num_clocks);
 };
 
 #define to_icc_clk_provider(_provider) \
 	container_of(_provider, struct icc_clk_provider, provider)
 
-static int icc_clk_set(struct icc_node *src, struct icc_node *dst)
+static int icc_clk_set(struct icc_analde *src, struct icc_analde *dst)
 {
-	struct icc_clk_node *qn = src->data;
+	struct icc_clk_analde *qn = src->data;
 	int ret;
 
 	if (!qn || !qn->clk)
@@ -48,9 +48,9 @@ static int icc_clk_set(struct icc_node *src, struct icc_node *dst)
 	return clk_set_rate(qn->clk, icc_units_to_bps(src->peak_bw));
 }
 
-static int icc_clk_get_bw(struct icc_node *node, u32 *avg, u32 *peak)
+static int icc_clk_get_bw(struct icc_analde *analde, u32 *avg, u32 *peak)
 {
-	struct icc_clk_node *qn = node->data;
+	struct icc_clk_analde *qn = analde->data;
 
 	if (!qn || !qn->clk)
 		*peak = INT_MAX;
@@ -63,7 +63,7 @@ static int icc_clk_get_bw(struct icc_node *node, u32 *avg, u32 *peak)
 /**
  * icc_clk_register() - register a new clk-based interconnect provider
  * @dev: device supporting this provider
- * @first_id: an ID of the first provider's node
+ * @first_id: an ID of the first provider's analde
  * @num_clocks: number of instances of struct icc_clk_data
  * @data: data for the provider
  *
@@ -81,16 +81,16 @@ struct icc_provider *icc_clk_register(struct device *dev,
 	struct icc_clk_provider *qp;
 	struct icc_provider *provider;
 	struct icc_onecell_data *onecell;
-	struct icc_node *node;
+	struct icc_analde *analde;
 	int ret, i, j;
 
-	onecell = devm_kzalloc(dev, struct_size(onecell, nodes, 2 * num_clocks), GFP_KERNEL);
+	onecell = devm_kzalloc(dev, struct_size(onecell, analdes, 2 * num_clocks), GFP_KERNEL);
 	if (!onecell)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	qp = devm_kzalloc(dev, struct_size(qp, clocks, num_clocks), GFP_KERNEL);
 	if (!qp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	qp->num_clocks = num_clocks;
 
@@ -100,7 +100,7 @@ struct icc_provider *icc_clk_register(struct device *dev,
 	provider->set = icc_clk_set;
 	provider->aggregate = icc_std_aggregate;
 	provider->xlate = of_icc_xlate_onecell;
-	INIT_LIST_HEAD(&provider->nodes);
+	INIT_LIST_HEAD(&provider->analdes);
 	provider->data = onecell;
 
 	icc_provider_init(provider);
@@ -108,32 +108,32 @@ struct icc_provider *icc_clk_register(struct device *dev,
 	for (i = 0, j = 0; i < num_clocks; i++) {
 		qp->clocks[i].clk = data[i].clk;
 
-		node = icc_node_create(first_id + j);
-		if (IS_ERR(node)) {
-			ret = PTR_ERR(node);
+		analde = icc_analde_create(first_id + j);
+		if (IS_ERR(analde)) {
+			ret = PTR_ERR(analde);
 			goto err;
 		}
 
-		node->name = devm_kasprintf(dev, GFP_KERNEL, "%s_master", data[i].name);
-		node->data = &qp->clocks[i];
-		icc_node_add(node, provider);
-		/* link to the next node, slave */
-		icc_link_create(node, first_id + j + 1);
-		onecell->nodes[j++] = node;
+		analde->name = devm_kasprintf(dev, GFP_KERNEL, "%s_master", data[i].name);
+		analde->data = &qp->clocks[i];
+		icc_analde_add(analde, provider);
+		/* link to the next analde, slave */
+		icc_link_create(analde, first_id + j + 1);
+		onecell->analdes[j++] = analde;
 
-		node = icc_node_create(first_id + j);
-		if (IS_ERR(node)) {
-			ret = PTR_ERR(node);
+		analde = icc_analde_create(first_id + j);
+		if (IS_ERR(analde)) {
+			ret = PTR_ERR(analde);
 			goto err;
 		}
 
-		node->name = devm_kasprintf(dev, GFP_KERNEL, "%s_slave", data[i].name);
-		/* no data for slave node */
-		icc_node_add(node, provider);
-		onecell->nodes[j++] = node;
+		analde->name = devm_kasprintf(dev, GFP_KERNEL, "%s_slave", data[i].name);
+		/* anal data for slave analde */
+		icc_analde_add(analde, provider);
+		onecell->analdes[j++] = analde;
 	}
 
-	onecell->num_nodes = j;
+	onecell->num_analdes = j;
 
 	ret = icc_provider_register(provider);
 	if (ret)
@@ -142,7 +142,7 @@ struct icc_provider *icc_clk_register(struct device *dev,
 	return provider;
 
 err:
-	icc_nodes_remove(provider);
+	icc_analdes_remove(provider);
 
 	return ERR_PTR(ret);
 }
@@ -158,10 +158,10 @@ void icc_clk_unregister(struct icc_provider *provider)
 	int i;
 
 	icc_provider_deregister(&qp->provider);
-	icc_nodes_remove(&qp->provider);
+	icc_analdes_remove(&qp->provider);
 
 	for (i = 0; i < qp->num_clocks; i++) {
-		struct icc_clk_node *qn = &qp->clocks[i];
+		struct icc_clk_analde *qn = &qp->clocks[i];
 
 		if (qn->enabled)
 			clk_disable_unprepare(qn->clk);

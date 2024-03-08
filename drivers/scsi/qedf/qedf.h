@@ -77,7 +77,7 @@ struct qedf_els_cb_arg {
 };
 
 enum qedf_ioreq_event {
-	QEDF_IOREQ_EV_NONE,
+	QEDF_IOREQ_EV_ANALNE,
 	QEDF_IOREQ_EV_ABORT_SUCCESS,
 	QEDF_IOREQ_EV_ABORT_FAILED,
 	QEDF_IOREQ_EV_SEND_RRQ,
@@ -147,7 +147,7 @@ struct qedf_ioreq {
 	int idx;
 	int lun;
 /*
- * Need to allocate enough room for both sense data and FCP response data
+ * Need to allocate eanalugh room for both sense data and FCP response data
  * which has a max length of 8 bytes according to spec.
  */
 #define QEDF_SCSI_SENSE_BUFFERSIZE	(SCSI_SENSE_BUFFERSIZE + 8)
@@ -168,7 +168,7 @@ struct qedf_ioreq {
 	int fp_idx;
 	unsigned int cpu;
 	unsigned int int_cpu;
-#define QEDF_IOREQ_UNKNOWN_SGE		1
+#define QEDF_IOREQ_UNKANALWN_SGE		1
 #define QEDF_IOREQ_SLOW_SGE		2
 #define QEDF_IOREQ_FAST_SGE		3
 	u8 sge_type;
@@ -591,8 +591,8 @@ struct fip_vlan {
 /*
  * PCI function probe defines
  */
-/* Probe/remove called during normal PCI probe */
-#define	QEDF_MODE_NORMAL		0
+/* Probe/remove called during analrmal PCI probe */
+#define	QEDF_MODE_ANALRMAL		0
 /* Probe/remove called from qed error recovery */
 #define QEDF_MODE_RECOVERY		1
 

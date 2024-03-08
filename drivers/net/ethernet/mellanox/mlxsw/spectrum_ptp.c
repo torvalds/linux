@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/ptp_clock_kernel.h>
 #include <linux/clocksource.h>
@@ -59,7 +59,7 @@ struct mlxsw_sp1_ptp_key {
 
 struct mlxsw_sp1_ptp_unmatched {
 	struct mlxsw_sp1_ptp_key key;
-	struct rhlist_head ht_node;
+	struct rhlist_head ht_analde;
 	struct rcu_head rcu;
 	struct sk_buff *skb;
 	u64 timestamp;
@@ -69,7 +69,7 @@ struct mlxsw_sp1_ptp_unmatched {
 static const struct rhashtable_params mlxsw_sp1_ptp_unmatched_ht_params = {
 	.key_len = sizeof_field(struct mlxsw_sp1_ptp_unmatched, key),
 	.key_offset = offsetof(struct mlxsw_sp1_ptp_unmatched, key),
-	.head_offset = offsetof(struct mlxsw_sp1_ptp_unmatched, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp1_ptp_unmatched, ht_analde),
 };
 
 struct mlxsw_sp_ptp_clock {
@@ -83,7 +83,7 @@ struct mlxsw_sp1_ptp_clock {
 	spinlock_t lock; /* protect this structure */
 	struct cyclecounter cycles;
 	struct timecounter tc;
-	u32 nominal_c_mult;
+	u32 analminal_c_mult;
 	unsigned long overflow_period;
 	struct delayed_work overflow_work;
 };
@@ -195,7 +195,7 @@ static int mlxsw_sp1_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 
 	spin_lock_bh(&clock->lock);
 	timecounter_read(&clock->tc);
-	clock->cycles.mult = adjust_by_scaled_ppm(clock->nominal_c_mult,
+	clock->cycles.mult = adjust_by_scaled_ppm(clock->analminal_c_mult,
 						  scaled_ppm);
 	spin_unlock_bh(&clock->lock);
 
@@ -278,14 +278,14 @@ mlxsw_sp1_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev)
 
 	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
 	if (!clock)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&clock->lock);
 	clock->cycles.read = mlxsw_sp1_ptp_read_frc;
 	clock->cycles.shift = MLXSW_SP1_PTP_CLOCK_CYCLES_SHIFT;
 	clock->cycles.mult = clocksource_khz2mult(MLXSW_SP1_PTP_CLOCK_FREQ_KHZ,
 						  clock->cycles.shift);
-	clock->nominal_c_mult = clock->cycles.mult;
+	clock->analminal_c_mult = clock->cycles.mult;
 	clock->cycles.mask = CLOCKSOURCE_MASK(MLXSW_SP1_PTP_CLOCK_MASK);
 	clock->common.core = mlxsw_sp->core;
 
@@ -447,7 +447,7 @@ mlxsw_sp2_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev)
 
 	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
 	if (!clock)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	clock->core = mlxsw_sp->core;
 
@@ -525,14 +525,14 @@ mlxsw_sp1_ptp_unmatched_save(struct mlxsw_sp *mlxsw_sp,
 
 	unmatched = kzalloc(sizeof(*unmatched), GFP_ATOMIC);
 	if (!unmatched)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	unmatched->key = key;
 	unmatched->skb = skb;
 	unmatched->timestamp = timestamp;
 	unmatched->gc_cycle = ptp_state->gc_cycle + cycles;
 
-	err = rhltable_insert(&ptp_state->unmatched_ht, &unmatched->ht_node,
+	err = rhltable_insert(&ptp_state->unmatched_ht, &unmatched->ht_analde,
 			      mlxsw_sp1_ptp_unmatched_ht_params);
 	if (err)
 		kfree(unmatched);
@@ -551,7 +551,7 @@ mlxsw_sp1_ptp_unmatched_lookup(struct mlxsw_sp *mlxsw_sp,
 
 	list = rhltable_lookup(&ptp_state->unmatched_ht, &key,
 			       mlxsw_sp1_ptp_unmatched_ht_params);
-	rhl_for_each_entry_rcu(unmatched, tmp, list, ht_node) {
+	rhl_for_each_entry_rcu(unmatched, tmp, list, ht_analde) {
 		last = unmatched;
 		length++;
 	}
@@ -567,7 +567,7 @@ mlxsw_sp1_ptp_unmatched_remove(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp1_ptp_state *ptp_state = mlxsw_sp1_ptp_state(mlxsw_sp);
 
 	return rhltable_remove(&ptp_state->unmatched_ht,
-			       &unmatched->ht_node,
+			       &unmatched->ht_analde,
 			       mlxsw_sp1_ptp_unmatched_ht_params);
 }
 
@@ -599,7 +599,7 @@ static void mlxsw_sp1_ptp_packet_finish(struct mlxsw_sp *mlxsw_sp,
 	if (ingress) {
 		if (hwtstamps)
 			*skb_hwtstamps(skb) = *hwtstamps;
-		mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
+		mlxsw_sp_rx_listener_anal_mark_func(skb, local_port, mlxsw_sp);
 	} else {
 		/* skb_tstamp_tx() allows hwtstamps to be NULL. */
 		skb_tstamp_tx(skb, hwtstamps);
@@ -647,7 +647,7 @@ static void mlxsw_sp1_ptp_unmatched_free_fn(void *ptr, void *arg)
 {
 	struct mlxsw_sp1_ptp_unmatched *unmatched = ptr;
 
-	/* This is invoked at a point where the ports are gone already. Nothing
+	/* This is invoked at a point where the ports are gone already. Analthing
 	 * to do with whatever is left in the HT but to free it.
 	 */
 	if (unmatched->skb)
@@ -674,7 +674,7 @@ static void mlxsw_sp1_ptp_got_piece(struct mlxsw_sp *mlxsw_sp,
 	} else if (timestamp && unmatched && unmatched->skb) {
 		unmatched->timestamp = timestamp;
 	} else {
-		/* Either there is no entry to match, or one that is there is
+		/* Either there is anal entry to match, or one that is there is
 		 * incompatible.
 		 */
 		if (length < 100)
@@ -729,7 +729,7 @@ static void mlxsw_sp1_ptp_got_packet(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto immediate;
 
-	/* For packets whose timestamping was not enabled on this port, don't
+	/* For packets whose timestamping was analt enabled on this port, don't
 	 * bother trying to match the timestamp.
 	 */
 	if (!((1 << key.message_type) & types))
@@ -760,7 +760,7 @@ void mlxsw_sp1_ptp_got_timestamp(struct mlxsw_sp *mlxsw_sp, bool ingress,
 	types = ingress ? mlxsw_sp_port->ptp.ing_types :
 			  mlxsw_sp_port->ptp.egr_types;
 
-	/* For message types whose timestamping was not enabled on this port,
+	/* For message types whose timestamping was analt enabled on this port,
 	 * don't bother with the timestamp.
 	 */
 	if (!((1 << message_type) & types))
@@ -808,7 +808,7 @@ mlxsw_sp1_ptp_ht_gc_collect(struct mlxsw_sp1_ptp_state *ptp_state,
 	local_bh_disable();
 
 	spin_lock(&ptp_state->unmatched_lock);
-	err = rhltable_remove(&ptp_state->unmatched_ht, &unmatched->ht_node,
+	err = rhltable_remove(&ptp_state->unmatched_ht, &unmatched->ht_analde,
 			      mlxsw_sp1_ptp_unmatched_ht_params);
 	spin_unlock(&ptp_state->unmatched_lock);
 
@@ -831,7 +831,7 @@ mlxsw_sp1_ptp_ht_gc_collect(struct mlxsw_sp1_ptp_state *ptp_state,
 	 * the comment at that function states that it can only be called in
 	 * soft IRQ context, this pattern of local_bh_disable() +
 	 * netif_receive_skb(), in process context, is seen elsewhere in the
-	 * kernel, notably in pktgen.
+	 * kernel, analtably in pktgen.
 	 */
 	mlxsw_sp1_ptp_unmatched_finish(mlxsw_sp, unmatched);
 
@@ -1033,7 +1033,7 @@ struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 
 	ptp_state = kzalloc(sizeof(*ptp_state), GFP_KERNEL);
 	if (!ptp_state)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ptp_state->common.mlxsw_sp = mlxsw_sp;
 
 	spin_lock_init(&ptp_state->unmatched_lock);
@@ -1113,7 +1113,7 @@ mlxsw_sp1_ptp_get_message_types(const struct hwtstamp_config *config,
 	}
 
 	switch (rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		ing_types = 0x00;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
@@ -1160,7 +1160,7 @@ static int mlxsw_sp1_ptp_mtpppc_update(struct mlxsw_sp_port *mlxsw_sp_port,
 	int err;
 	int i;
 
-	/* MTPPPC configures timestamping globally, not per port. Find the
+	/* MTPPPC configures timestamping globally, analt per port. Find the
 	 * configuration that contains all configured timestamping requests.
 	 */
 	for (i = 1; i < mlxsw_core_max_ports(mlxsw_sp->core); i++) {
@@ -1269,7 +1269,7 @@ int mlxsw_sp1_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (err)
 		return err;
 
-	/* Notify the ioctl caller what we are actually timestamping. */
+	/* Analtify the ioctl caller what we are actually timestamping. */
 	config->rx_filter = rx_filter;
 
 	return 0;
@@ -1287,7 +1287,7 @@ int mlxsw_sp1_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) |
 			 BIT(HWTSTAMP_TX_ON);
 
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) |
 			   BIT(HWTSTAMP_FILTER_ALL);
 
 	return 0;
@@ -1354,7 +1354,7 @@ struct mlxsw_sp_ptp_state *mlxsw_sp2_ptp_init(struct mlxsw_sp *mlxsw_sp)
 
 	ptp_state = kzalloc(sizeof(*ptp_state), GFP_KERNEL);
 	if (!ptp_state)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ptp_state->common.mlxsw_sp = mlxsw_sp;
 
@@ -1431,7 +1431,7 @@ void mlxsw_sp2_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 	mlxsw_sp2_ptp_hwtstamp_fill(mlxsw_sp->core, mlxsw_skb_cb(skb),
 				    &hwtstamps);
 	*skb_hwtstamps(skb) = hwtstamps;
-	mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
+	mlxsw_sp_rx_listener_anal_mark_func(skb, local_port, mlxsw_sp);
 }
 
 void mlxsw_sp2_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
@@ -1472,7 +1472,7 @@ mlxsw_sp2_ptp_get_message_types(const struct hwtstamp_config *config,
 	*p_rx_filter = rx_filter;
 
 	switch (rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		ing_types = 0x00;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
@@ -1573,7 +1573,7 @@ static int mlxsw_sp2_ptp_configure_port(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	ptp_state = mlxsw_sp2_ptp_state(mlxsw_sp_port->mlxsw_sp);
 
-	if (refcount_inc_not_zero(&ptp_state->ptp_port_enabled_ref))
+	if (refcount_inc_analt_zero(&ptp_state->ptp_port_enabled_ref))
 		return 0;
 
 	err = mlxsw_sp2_ptp_enable(mlxsw_sp_port->mlxsw_sp, ing_types,
@@ -1647,7 +1647,7 @@ int mlxsw_sp2_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_port->ptp.ing_types = new_ing_types;
 	mlxsw_sp_port->ptp.egr_types = new_egr_types;
 
-	/* Notify the ioctl caller what we are actually timestamping. */
+	/* Analtify the ioctl caller what we are actually timestamping. */
 	config->rx_filter = rx_filter;
 	mutex_unlock(&ptp_state->lock);
 
@@ -1672,7 +1672,7 @@ int mlxsw_sp2_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) |
 			 BIT(HWTSTAMP_TX_ON);
 
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) |
 			   BIT(HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
 			   BIT(HWTSTAMP_FILTER_PTP_V2_EVENT);
 
@@ -1696,7 +1696,7 @@ int mlxsw_sp2_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
 	/* In Spectrum-2 and Spectrum-3, in order for PTP event packets to have
 	 * their correction field correctly set on the egress port they must be
 	 * transmitted as data packets. Such packets ingress the ASIC via the
-	 * CPU port and must have a VLAN tag, as the CPU port is not configured
+	 * CPU port and must have a VLAN tag, as the CPU port is analt configured
 	 * with a PVID. Push the default VLAN (4095), which is configured as
 	 * egress untagged on all the ports.
 	 */
@@ -1705,7 +1705,7 @@ int mlxsw_sp2_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
 						MLXSW_SP_DEFAULT_VID);
 		if (!skb) {
 			this_cpu_inc(mlxsw_sp_port->pcpu_stats->tx_dropped);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 

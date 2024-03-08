@@ -14,9 +14,9 @@ Optional Properties:
 - pdn-gpios:	Phandle for the GPIO connected to the PDN pin, if any.
 - reset-gpios:	Phandle for the GPIO connected to the RESETB pin, if any.
 
-The device node must contain one 'port' child node per device physical input
+The device analde must contain one 'port' child analde per device physical input
 and output port, in accordance with the video interface bindings defined in
-Documentation/devicetree/bindings/media/video-interfaces.txt. The port nodes
+Documentation/devicetree/bindings/media/video-interfaces.txt. The port analdes
 are numbered as follows
 
 	  Name		Type		Port
@@ -25,7 +25,7 @@ are numbered as follows
 	  AIP1B		sink		1
 	  Y-OUT		src		2
 
-The device node must contain at least one sink port and the src port. Each input
+The device analde must contain at least one sink port and the src port. Each input
 port must be linked to an endpoint defined in [1]. The port/connector layout is
 as follows
 
@@ -46,7 +46,7 @@ Required Endpoint Properties for parallel synchronization on output port:
 - field-even-active:	Field signal level during the even field data
 			transmission. Must be <0>.
 
-Note: Do not specify any of these properties if you want to use the embedded
+Analte: Do analt specify any of these properties if you want to use the embedded
       BT.656 synchronization.
 
 Optional Connector Properties:

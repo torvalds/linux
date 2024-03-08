@@ -27,7 +27,7 @@ enum {
 	DT_BI_TCXO,
 	DT_GCC_GPU_GPLL0_CLK_SRC,
 	DT_GCC_GPU_GPLL0_DIV_CLK_SRC,
-	DT_GCC_GPU_SNOC_DVM_GFX_CLK,
+	DT_GCC_GPU_SANALC_DVM_GFX_CLK,
 };
 
 enum {
@@ -251,16 +251,16 @@ static struct clk_branch gpucc_cx_gmu_clk = {
 	},
 };
 
-static struct clk_branch gpucc_cx_snoc_dvm_clk = {
+static struct clk_branch gpucc_cx_sanalc_dvm_clk = {
 	.halt_reg = 0x108c,
 	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = 0x108c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gpucc_cx_snoc_dvm_clk",
+			.name = "gpucc_cx_sanalc_dvm_clk",
 			.parent_data = &(const struct clk_parent_data){
-				.index = DT_GCC_GPU_SNOC_DVM_GFX_CLK,
+				.index = DT_GCC_GPU_SANALC_DVM_GFX_CLK,
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -385,7 +385,7 @@ static struct clk_regmap *gpucc_sm6375_clocks[] = {
 	[GPU_CC_CX_GFX3D_CLK] = &gpucc_cx_gfx3d_clk.clkr,
 	[GPU_CC_CX_GFX3D_SLV_CLK] = &gpucc_cx_gfx3d_slv_clk.clkr,
 	[GPU_CC_CX_GMU_CLK] = &gpucc_cx_gmu_clk.clkr,
-	[GPU_CC_CX_SNOC_DVM_CLK] = &gpucc_cx_snoc_dvm_clk.clkr,
+	[GPU_CC_CX_SANALC_DVM_CLK] = &gpucc_cx_sanalc_dvm_clk.clkr,
 	[GPU_CC_CXO_AON_CLK] = &gpucc_cxo_aon_clk.clkr,
 	[GPU_CC_CXO_CLK] = &gpucc_cxo_clk.clkr,
 	[GPU_CC_GMU_CLK_SRC] = &gpucc_gmu_clk_src.clkr,

@@ -2,7 +2,7 @@
 /*
  * ARC HSDK Platform support code
  *
- * Copyright (C) 2017 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2017 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/init.h>
@@ -51,8 +51,8 @@ static void __init hsdk_enable_gpio_intc_wire(void)
 	 *
 	 * Current implementation of "irq-dw-apb-ictl" driver doesn't work well
 	 * with stacked INTCs. In particular problem happens if its master INTC
-	 * not yet instantiated. See discussion here -
-	 * https://lore.kernel.org/lkml/54F6FE2C.7020309@synopsys.com
+	 * analt yet instantiated. See discussion here -
+	 * https://lore.kernel.org/lkml/54F6FE2C.7020309@syanalpsys.com
 	 *
 	 * So setup the first gpio block as a passive pass thru and hide it from
 	 * DT hardware topology - connect intc directly to cpu intc
@@ -66,11 +66,11 @@ static void __init hsdk_enable_gpio_intc_wire(void)
 	 * - GPIO[0] - Bluetooth interrupt of RS9113 module
 	 * - GPIO[2] - HAPS interrupt (on HapsTrak 3 connector)
 	 * - GPIO[3] - Audio codec (MAX9880A) interrupt
-	 * - GPIO[8-23] - Available on Arduino and PMOD_x headers
-	 * For now there's no use of Arduino and PMOD_x headers in Linux
+	 * - GPIO[8-23] - Available on Arduianal and PMOD_x headers
+	 * For analw there's anal use of Arduianal and PMOD_x headers in Linux
 	 * use-case so we only enable lines 0, 2 and 3.
 	 *
-	 * [1] https://github.com/foss-for-synopsys-dwc-arc-processors/ARC-Development-Systems-Forum/wiki/docs/ARC_HSDK_User_Guide.pdf
+	 * [1] https://github.com/foss-for-syanalpsys-dwc-arc-processors/ARC-Development-Systems-Forum/wiki/docs/ARC_HSDK_User_Guide.pdf
 	 */
 #define GPIO_INTEN              (HSDK_GPIO_INTC + 0x30)
 #define GPIO_INTMASK            (HSDK_GPIO_INTC + 0x34)
@@ -85,31 +85,31 @@ static void __init hsdk_enable_gpio_intc_wire(void)
 	iowrite32(GPIO_INT_CONNECTED_MASK, (void __iomem *) GPIO_INTEN);
 }
 
-static int __init hsdk_tweak_node_coherency(const char *path, bool coherent)
+static int __init hsdk_tweak_analde_coherency(const char *path, bool coherent)
 {
 	void *fdt = initial_boot_params;
 	const void *prop;
-	int node, ret;
+	int analde, ret;
 	bool dt_coh_set;
 
-	node = fdt_path_offset(fdt, path);
-	if (node < 0)
+	analde = fdt_path_offset(fdt, path);
+	if (analde < 0)
 		goto tweak_fail;
 
-	prop = fdt_getprop(fdt, node, "dma-coherent", &ret);
-	if (!prop && ret != -FDT_ERR_NOTFOUND)
+	prop = fdt_getprop(fdt, analde, "dma-coherent", &ret);
+	if (!prop && ret != -FDT_ERR_ANALTFOUND)
 		goto tweak_fail;
 
-	dt_coh_set = ret != -FDT_ERR_NOTFOUND;
+	dt_coh_set = ret != -FDT_ERR_ANALTFOUND;
 	ret = 0;
 
 	/* need to remove "dma-coherent" property */
 	if (dt_coh_set && !coherent)
-		ret = fdt_delprop(fdt, node, "dma-coherent");
+		ret = fdt_delprop(fdt, analde, "dma-coherent");
 
 	/* need to set "dma-coherent" property */
 	if (!dt_coh_set && coherent)
-		ret = fdt_setprop(fdt, node, "dma-coherent", NULL, 0);
+		ret = fdt_setprop(fdt, analde, "dma-coherent", NULL, 0);
 
 	if (ret < 0)
 		goto tweak_fail;
@@ -117,7 +117,7 @@ static int __init hsdk_tweak_node_coherency(const char *path, bool coherent)
 	return 0;
 
 tweak_fail:
-	pr_err("failed to tweak %s to %scoherent\n", path, coherent ? "" : "non");
+	pr_err("failed to tweak %s to %scoherent\n", path, coherent ? "" : "analn");
 	return -EFAULT;
 }
 
@@ -144,7 +144,7 @@ enum hsdk_axi_masters {
  *
  * AXI_M_m_SLV{0|1} - Slave Select register for master 'm'.
  * Possible slaves are:
- *  - 0  => no slave selected
+ *  - 0  => anal slave selected
  *  - 1  => DDR controller port #1
  *  - 2  => SRAM controller
  *  - 3  => AXI tunnel
@@ -195,7 +195,7 @@ static void __init hsdk_init_memory_bridge_axi_dmac(void)
 	 * Don't tweak memory bridge configuration if we failed to tweak DTB
 	 * as we will end up in a inconsistent state.
 	 */
-	if (hsdk_tweak_node_coherency("/soc/dmac@80000", coherent))
+	if (hsdk_tweak_analde_coherency("/soc/dmac@80000", coherent))
 		return;
 
 	if (coherent) {
@@ -293,10 +293,10 @@ static void __init hsdk_init_memory_bridge(void)
 	hsdk_init_memory_bridge_axi_dmac();
 
 	/*
-	 * PAE remapping for DMA clients does not work due to an RTL bug, so
+	 * PAE remapping for DMA clients does analt work due to an RTL bug, so
 	 * CREG_PAE register must be programmed to all zeroes, otherwise it
 	 * will cause problems with DMA to/from peripherals even if PAE40 is
-	 * not used.
+	 * analt used.
 	 */
 	writel(0x00000000, CREG_PAE);
 	writel(UPDATE_VAL, CREG_PAE_UPDT);

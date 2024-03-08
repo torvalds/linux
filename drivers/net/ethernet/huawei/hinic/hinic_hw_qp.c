@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/kernel.h>
@@ -10,7 +10,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sizes.h>
 #include <linux/atomic.h>
 #include <linux/skbuff.h>
@@ -62,7 +62,7 @@
 #define RQ_MASKED_IDX(rq, idx)  ((idx) & (rq)->wq->mask)
 
 enum sq_wqe_type {
-	SQ_NORMAL_WQE = 0,
+	SQ_ANALRMAL_WQE = 0,
 };
 
 enum rq_completion_fmt {
@@ -224,7 +224,7 @@ static int alloc_sq_skb_arr(struct hinic_sq *sq)
 	skb_arr_size = wq->q_depth * sizeof(*sq->saved_skb);
 	sq->saved_skb = vzalloc(skb_arr_size);
 	if (!sq->saved_skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -252,7 +252,7 @@ static int alloc_rq_skb_arr(struct hinic_rq *rq)
 	skb_arr_size = wq->q_depth * sizeof(*rq->saved_skb);
 	rq->saved_skb = vzalloc(skb_arr_size);
 	if (!rq->saved_skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -324,7 +324,7 @@ static int alloc_rq_cqe(struct hinic_rq *rq)
 	cqe_size = wq->q_depth * sizeof(*rq->cqe);
 	rq->cqe = vzalloc(cqe_size);
 	if (!rq->cqe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cqe_dma_size = wq->q_depth * sizeof(*rq->cqe_dma);
 	rq->cqe_dma = vzalloc(cqe_dma_size);
@@ -350,7 +350,7 @@ err_cqe_alloc:
 
 err_cqe_dma_arr_alloc:
 	vfree(rq->cqe);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -414,7 +414,7 @@ int hinic_init_rq(struct hinic_rq *rq, struct hinic_hwif *hwif,
 	rq->pi_virt_addr = dma_alloc_coherent(&pdev->dev, pi_size,
 					      &rq->pi_dma_addr, GFP_KERNEL);
 	if (!rq->pi_virt_addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_pi_virt;
 	}
 
@@ -483,7 +483,7 @@ static void sq_prepare_ctrl(struct hinic_sq_ctrl *ctrl, int nr_descs)
 
 	ctrl->ctrl_info = HINIC_SQ_CTRL_SET(bufdesc_size, BUFDESC_SECT_LEN) |
 			  HINIC_SQ_CTRL_SET(task_size, TASKSECT_LEN)        |
-			  HINIC_SQ_CTRL_SET(SQ_NORMAL_WQE, DATA_FORMAT)     |
+			  HINIC_SQ_CTRL_SET(SQ_ANALRMAL_WQE, DATA_FORMAT)     |
 			  HINIC_SQ_CTRL_SET(ctrl_size, LEN);
 
 	ctrl->queue_info = HINIC_SQ_CTRL_SET(HINIC_MSS_DEFAULT,
@@ -904,7 +904,7 @@ void hinic_rq_put_wqe(struct hinic_rq *rq, u16 cons_idx,
 
 	status = HINIC_RQ_CQE_STATUS_CLEAR(status, RXDONE);
 
-	/* Rx WQE size is 1 WQEBB, no wq shadow*/
+	/* Rx WQE size is 1 WQEBB, anal wq shadow*/
 	cqe->status = cpu_to_be32(status);
 
 	wmb();          /* clear done flag */

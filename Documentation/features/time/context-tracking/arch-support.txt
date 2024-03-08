@@ -1,7 +1,7 @@
 #
 # Feature name:          user-context-tracking
 #         Kconfig:       HAVE_CONTEXT_TRACKING_USER
-#         description:   arch supports user context tracking for NO_HZ_FULL
+#         description:   arch supports user context tracking for ANAL_HZ_FULL
 #
     -----------------------
     |         arch |status|

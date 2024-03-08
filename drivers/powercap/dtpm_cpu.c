@@ -2,7 +2,7 @@
 /*
  * Copyright 2020 Linaro Limited
  *
- * Author: Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Author: Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
  *
  * The DTPM CPU is based on the energy model. It hooks the CPU in the
  * DTPM tree which in turns update the power number by propagating the
@@ -182,7 +182,7 @@ static int __dtpm_cpu_setup(int cpu, struct dtpm *parent)
 	struct cpufreq_policy *policy;
 	struct em_perf_domain *pd;
 	char name[CPUFREQ_NAME_LEN];
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	dtpm_cpu = per_cpu(dtpm_per_cpu, cpu);
 	if (dtpm_cpu)
@@ -200,7 +200,7 @@ static int __dtpm_cpu_setup(int cpu, struct dtpm *parent)
 
 	dtpm_cpu = kzalloc(sizeof(*dtpm_cpu), GFP_KERNEL);
 	if (!dtpm_cpu) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_policy;
 	}
 
@@ -239,11 +239,11 @@ release_policy:
 	return ret;
 }
 
-static int dtpm_cpu_setup(struct dtpm *dtpm, struct device_node *np)
+static int dtpm_cpu_setup(struct dtpm *dtpm, struct device_analde *np)
 {
 	int cpu;
 
-	cpu = of_cpu_node_to_id(np);
+	cpu = of_cpu_analde_to_id(np);
 	if (cpu < 0)
 		return 0;
 
@@ -264,11 +264,11 @@ static int dtpm_cpu_init(void)
 	 * At CPUHP_AP_ONLINE_DYN, the CPU is present in the CPU
 	 * online mask when the cpuhp_dtpm_cpu_online function is
 	 * called, but the CPU is still in the online mask for the
-	 * tear down callback. So the power can not be updated when
+	 * tear down callback. So the power can analt be updated when
 	 * the CPU is unplugged.
 	 *
 	 * At CPUHP_AP_DTPM_CPU_DEAD, the situation is the opposite as
-	 * above. The CPU online mask is not up to date when the CPU
+	 * above. The CPU online mask is analt up to date when the CPU
 	 * is plugged in.
 	 *
 	 * For this reason, we need to call the online and offline
@@ -290,8 +290,8 @@ static int dtpm_cpu_init(void)
 
 static void dtpm_cpu_exit(void)
 {
-	cpuhp_remove_state_nocalls(CPUHP_AP_ONLINE_DYN);
-	cpuhp_remove_state_nocalls(CPUHP_AP_DTPM_CPU_DEAD);
+	cpuhp_remove_state_analcalls(CPUHP_AP_ONLINE_DYN);
+	cpuhp_remove_state_analcalls(CPUHP_AP_DTPM_CPU_DEAD);
 }
 
 struct dtpm_subsys_ops dtpm_cpu_ops = {

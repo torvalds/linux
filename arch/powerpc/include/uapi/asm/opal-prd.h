@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
- * OPAL Runtime Diagnostics interface driver
+ * OPAL Runtime Diaganalstics interface driver
  * Supported on POWERNV platform
  *
  * (C) Copyright IBM 2015
@@ -28,7 +28,7 @@
  * The version of the kernel interface of the PRD system. This describes the
  * interface available for the /dev/opal-prd device. The actual PRD message
  * layout and content is private to the firmware <--> userspace interface, so
- * is not covered by this versioning.
+ * is analt covered by this versioning.
  *
  * Future interface versions are backwards-compatible; if a later kernel
  * version is encountered, functionality provided in earlier versions

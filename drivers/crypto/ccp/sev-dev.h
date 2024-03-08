@@ -48,7 +48,7 @@ struct sev_device {
 	struct sev_misc_dev *misc;
 
 	u8 api_major;
-	u8 api_minor;
+	u8 api_mianalr;
 	u8 build;
 
 	void *cmd_buf;

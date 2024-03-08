@@ -73,8 +73,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description: |
       This means the registers of FlexCAN controller are big endian. This is
-      optional property.i.e. if this property is not present in device tree
-      node then controller is assumed to be little endian. If this property is
+      optional property.i.e. if this property is analt present in device tree
+      analde then controller is assumed to be little endian. If this property is
       present then controller is assumed to be big endian.
 
   fsl,stop-mode:
@@ -83,13 +83,13 @@ properties:
 
       The format should be as follows:
       <gpr req_gpr req_bit>
-      gpr is the phandle to general purpose register node.
+      gpr is the phandle to general purpose register analde.
       req_gpr is the gpr register offset of CAN stop request.
       req_bit is the bit offset of CAN stop request.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: The 'gpr' is the phandle to general purpose register node.
+          - description: The 'gpr' is the phandle to general purpose register analde.
           - description: The 'req_gpr' is the gpr register offset of CAN stop request.
             maximum: 0xff
           - description: The 'req_bit' is the bit offset of CAN stop request.
@@ -99,7 +99,7 @@ properties:
     description: |
       Select the clock source to the CAN Protocol Engine (PE). It's SoC
       implementation dependent. Refer to RM for detailed definition. If this
-      property is not set in device tree node then driver selects clock source 1
+      property is analt set in device tree analde then driver selects clock source 1
       by default.
       0: clock source 0 (oscillator clock)
       1: clock source 1 (peripheral clock)
@@ -118,7 +118,7 @@ properties:
       The scu index of CAN instance.
       For SoCs with SCU support, need setup stop mode via SCU firmware, so this
       property can help indicate a resource. It supports up to 3 CAN instances
-      now.
+      analw.
     $ref: /schemas/types.yaml#/definitions/uint8
     minimum: 0
     maximum: 2

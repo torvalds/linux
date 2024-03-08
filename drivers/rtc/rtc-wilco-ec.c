@@ -43,7 +43,7 @@ static struct ec_rtc_read_request read_rq = {
  * @year: Year value (full year % 100)
  * @century: Century value (full year / 100)
  *
- * All values are presented in binary (not BCD).
+ * All values are presented in binary (analt BCD).
  */
 struct ec_rtc_read_response {
 	u8 reserved;
@@ -110,7 +110,7 @@ static int wilco_ec_rtc_read(struct device *dev, struct rtc_time *tm)
 	tm->tm_mday	= rtc.day;
 	tm->tm_mon	= rtc.month - 1;
 	tm->tm_year	= rtc.year + (rtc.century * 100) - 1900;
-	/* Ignore other tm fields, man rtc says userspace shouldn't use them. */
+	/* Iganalre other tm fields, man rtc says userspace shouldn't use them. */
 
 	if (rtc_valid_tm(tm)) {
 		dev_err(dev, "Time from RTC is invalid: %ptRr\n", tm);

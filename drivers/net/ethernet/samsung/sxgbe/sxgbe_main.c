@@ -72,7 +72,7 @@ static irqreturn_t sxgbe_rx_interrupt(int irq, void *dev_id);
 /**
  * sxgbe_verify_args - verify the driver parameters.
  * Description: it verifies if some wrong parameter is passed to the driver.
- * Note that wrong parameters are replaced with the default values.
+ * Analte that wrong parameters are replaced with the default values.
  */
 static void sxgbe_verify_args(void)
 {
@@ -99,7 +99,7 @@ void sxgbe_disable_eee_mode(struct sxgbe_priv_data * const priv)
  * sxgbe_eee_ctrl_timer
  * @t: timer list containing a data
  * Description:
- *  If there is no data transfer and if we are not in LPI state,
+ *  If there is anal data transfer and if we are analt in LPI state,
  *  then MAC Transmitter can be moved to LPI state.
  */
 static void sxgbe_eee_ctrl_timer(struct timer_list *t)
@@ -209,8 +209,8 @@ static void sxgbe_adjust_link(struct net_device *dev)
 	if (!phydev)
 		return;
 
-	/* SXGBE is not supporting auto-negotiation and
-	 * half duplex mode. so, not handling duplex change
+	/* SXGBE is analt supporting auto-negotiation and
+	 * half duplex mode. so, analt handling duplex change
 	 * in this function. only handling speed and link status
 	 */
 	if (phydev->link) {
@@ -228,7 +228,7 @@ static void sxgbe_adjust_link(struct net_device *dev)
 				break;
 			default:
 				netif_err(priv, link, dev,
-					  "Speed (%d) not supported\n",
+					  "Speed (%d) analt supported\n",
 					  phydev->speed);
 			}
 
@@ -243,7 +243,7 @@ static void sxgbe_adjust_link(struct net_device *dev)
 	} else if (priv->oldlink) {
 		new_state = 1;
 		priv->oldlink = 0;
-		priv->speed = SPEED_UNKNOWN;
+		priv->speed = SPEED_UNKANALWN;
 	}
 
 	if (new_state & netif_msg_link(priv))
@@ -271,8 +271,8 @@ static int sxgbe_init_phy(struct net_device *ndev)
 
 	/* assign default link status */
 	priv->oldlink = 0;
-	priv->speed = SPEED_UNKNOWN;
-	priv->oldduplex = DUPLEX_UNKNOWN;
+	priv->speed = SPEED_UNKANALWN;
+	priv->oldduplex = DUPLEX_UNKANALWN;
 
 	if (priv->plat->phy_bus_name)
 		snprintf(bus_id, MII_BUS_ID_SIZE, "%s-%x",
@@ -288,18 +288,18 @@ static int sxgbe_init_phy(struct net_device *ndev)
 	phydev = phy_connect(ndev, phy_id_fmt, &sxgbe_adjust_link, phy_iface);
 
 	if (IS_ERR(phydev)) {
-		netdev_err(ndev, "Could not attach to PHY\n");
+		netdev_err(ndev, "Could analt attach to PHY\n");
 		return PTR_ERR(phydev);
 	}
 
-	/* Stop Advertising 1000BASE Capability if interface is not GMII */
+	/* Stop Advertising 1000BASE Capability if interface is analt GMII */
 	if ((phy_iface == PHY_INTERFACE_MODE_MII) ||
 	    (phy_iface == PHY_INTERFACE_MODE_RMII))
 		phy_set_max_speed(phydev, SPEED_1000);
 
 	if (phydev->phy_id == 0) {
 		phy_disconnect(phydev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	netdev_dbg(ndev, "%s: attached to PHY (UID 0x%x) Link = %d\n",
@@ -335,7 +335,7 @@ static void sxgbe_clear_descriptors(struct sxgbe_priv_data *priv)
 }
 
 static int sxgbe_init_rx_buffers(struct net_device *dev,
-				 struct sxgbe_rx_norm_desc *p, int i,
+				 struct sxgbe_rx_analrm_desc *p, int i,
 				 unsigned int dma_buf_sz,
 				 struct sxgbe_rx_queue *rx_ring)
 {
@@ -344,7 +344,7 @@ static int sxgbe_init_rx_buffers(struct net_device *dev,
 
 	skb = __netdev_alloc_skb_ip_align(dev, dma_buf_sz, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx_ring->rx_skbuff[i] = skb;
 	rx_ring->rx_skbuff_dma[i] = dma_map_single(priv->device, skb->data,
@@ -372,7 +372,7 @@ static int sxgbe_init_rx_buffers(struct net_device *dev,
  * Description:  this function initializes the DMA RX descriptor
  */
 static void sxgbe_free_rx_buffers(struct net_device *dev,
-				  struct sxgbe_rx_norm_desc *p, int i,
+				  struct sxgbe_rx_analrm_desc *p, int i,
 				  unsigned int dma_buf_sz,
 				  struct sxgbe_rx_queue *rx_ring)
 {
@@ -386,26 +386,26 @@ static void sxgbe_free_rx_buffers(struct net_device *dev,
 /**
  * init_tx_ring - init the TX descriptor ring
  * @dev: net device structure
- * @queue_no: queue
+ * @queue_anal: queue
  * @tx_ring: ring to be initialised
  * @tx_rsize: ring size
  * Description:  this function initializes the DMA TX descriptor
  */
-static int init_tx_ring(struct device *dev, u8 queue_no,
+static int init_tx_ring(struct device *dev, u8 queue_anal,
 			struct sxgbe_tx_queue *tx_ring,	int tx_rsize)
 {
-	/* TX ring is not allcoated */
+	/* TX ring is analt allcoated */
 	if (!tx_ring) {
-		dev_err(dev, "No memory for TX queue of SXGBE\n");
-		return -ENOMEM;
+		dev_err(dev, "Anal memory for TX queue of SXGBE\n");
+		return -EANALMEM;
 	}
 
 	/* allocate memory for TX descriptors */
 	tx_ring->dma_tx = dma_alloc_coherent(dev,
-					     tx_rsize * sizeof(struct sxgbe_tx_norm_desc),
+					     tx_rsize * sizeof(struct sxgbe_tx_analrm_desc),
 					     &tx_ring->dma_tx_phy, GFP_KERNEL);
 	if (!tx_ring->dma_tx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* allocate memory for TX skbuff array */
 	tx_ring->tx_skbuff_dma = devm_kcalloc(dev, tx_rsize,
@@ -420,7 +420,7 @@ static int init_tx_ring(struct device *dev, u8 queue_no,
 		goto dmamem_err;
 
 	/* assign queue number */
-	tx_ring->queue_no = queue_no;
+	tx_ring->queue_anal = queue_anal;
 
 	/* initialise counters */
 	tx_ring->dirty_tx = 0;
@@ -429,9 +429,9 @@ static int init_tx_ring(struct device *dev, u8 queue_no,
 	return 0;
 
 dmamem_err:
-	dma_free_coherent(dev, tx_rsize * sizeof(struct sxgbe_tx_norm_desc),
+	dma_free_coherent(dev, tx_rsize * sizeof(struct sxgbe_tx_analrm_desc),
 			  tx_ring->dma_tx, tx_ring->dma_tx_phy);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -444,7 +444,7 @@ dmamem_err:
 static void free_rx_ring(struct device *dev, struct sxgbe_rx_queue *rx_ring,
 			 int rx_rsize)
 {
-	dma_free_coherent(dev, rx_rsize * sizeof(struct sxgbe_rx_norm_desc),
+	dma_free_coherent(dev, rx_rsize * sizeof(struct sxgbe_rx_analrm_desc),
 			  rx_ring->dma_rx, rx_ring->dma_rx_phy);
 	kfree(rx_ring->rx_skbuff_dma);
 	kfree(rx_ring->rx_skbuff);
@@ -453,12 +453,12 @@ static void free_rx_ring(struct device *dev, struct sxgbe_rx_queue *rx_ring,
 /**
  * init_rx_ring - init the RX descriptor ring
  * @dev: net device structure
- * @queue_no: queue
+ * @queue_anal: queue
  * @rx_ring: ring to be initialised
  * @rx_rsize: ring size
  * Description:  this function initializes the DMA RX descriptor
  */
-static int init_rx_ring(struct net_device *dev, u8 queue_no,
+static int init_rx_ring(struct net_device *dev, u8 queue_anal,
 			struct sxgbe_rx_queue *rx_ring,	int rx_rsize)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
@@ -471,41 +471,41 @@ static int init_rx_ring(struct net_device *dev, u8 queue_no,
 
 	netif_dbg(priv, probe, dev, "%s: bfsize %d\n", __func__, bfsize);
 
-	/* RX ring is not allcoated */
+	/* RX ring is analt allcoated */
 	if (rx_ring == NULL) {
-		netdev_err(dev, "No memory for RX queue\n");
-		return -ENOMEM;
+		netdev_err(dev, "Anal memory for RX queue\n");
+		return -EANALMEM;
 	}
 
 	/* assign queue number */
-	rx_ring->queue_no = queue_no;
+	rx_ring->queue_anal = queue_anal;
 
 	/* allocate memory for RX descriptors */
 	rx_ring->dma_rx = dma_alloc_coherent(priv->device,
-					     rx_rsize * sizeof(struct sxgbe_rx_norm_desc),
+					     rx_rsize * sizeof(struct sxgbe_rx_analrm_desc),
 					     &rx_ring->dma_rx_phy, GFP_KERNEL);
 
 	if (rx_ring->dma_rx == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* allocate memory for RX skbuff array */
 	rx_ring->rx_skbuff_dma = kmalloc_array(rx_rsize,
 					       sizeof(dma_addr_t), GFP_KERNEL);
 	if (!rx_ring->rx_skbuff_dma) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_dma_rx;
 	}
 
 	rx_ring->rx_skbuff = kmalloc_array(rx_rsize,
 					   sizeof(struct sk_buff *), GFP_KERNEL);
 	if (!rx_ring->rx_skbuff) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_skbuff_dma;
 	}
 
 	/* initialise the buffers */
 	for (desc_index = 0; desc_index < rx_rsize; desc_index++) {
-		struct sxgbe_rx_norm_desc *p;
+		struct sxgbe_rx_analrm_desc *p;
 		p = rx_ring->dma_rx + desc_index;
 		ret = sxgbe_init_rx_buffers(dev, p, desc_index,
 					    bfsize, rx_ring);
@@ -522,7 +522,7 @@ static int init_rx_ring(struct net_device *dev, u8 queue_no,
 
 err_free_rx_buffers:
 	while (--desc_index >= 0) {
-		struct sxgbe_rx_norm_desc *p;
+		struct sxgbe_rx_analrm_desc *p;
 
 		p = rx_ring->dma_rx + desc_index;
 		sxgbe_free_rx_buffers(dev, p, desc_index, bfsize, rx_ring);
@@ -532,7 +532,7 @@ err_free_skbuff_dma:
 	kfree(rx_ring->rx_skbuff_dma);
 err_free_dma_rx:
 	dma_free_coherent(priv->device,
-			  rx_rsize * sizeof(struct sxgbe_rx_norm_desc),
+			  rx_rsize * sizeof(struct sxgbe_rx_analrm_desc),
 			  rx_ring->dma_rx, rx_ring->dma_rx_phy);
 
 	return ret;
@@ -547,7 +547,7 @@ err_free_dma_rx:
 static void free_tx_ring(struct device *dev, struct sxgbe_tx_queue *tx_ring,
 			 int tx_rsize)
 {
-	dma_free_coherent(dev, tx_rsize * sizeof(struct sxgbe_tx_norm_desc),
+	dma_free_coherent(dev, tx_rsize * sizeof(struct sxgbe_tx_analrm_desc),
 			  tx_ring->dma_tx, tx_ring->dma_tx_phy);
 }
 
@@ -617,7 +617,7 @@ static void tx_free_ring_skbufs(struct sxgbe_tx_queue *txqueue)
 	int tx_rsize = priv->dma_tx_size;
 
 	for (dma_desc = 0; dma_desc < tx_rsize; dma_desc++) {
-		struct sxgbe_tx_norm_desc *tdesc = txqueue->dma_tx + dma_desc;
+		struct sxgbe_tx_analrm_desc *tdesc = txqueue->dma_tx + dma_desc;
 
 		if (txqueue->tx_skbuff_dma[dma_desc])
 			dma_unmap_single(priv->device,
@@ -670,7 +670,7 @@ static int txring_mem_alloc(struct sxgbe_priv_data *priv)
 		priv->txq[queue_num] = devm_kmalloc(priv->device,
 						    sizeof(struct sxgbe_tx_queue), GFP_KERNEL);
 		if (!priv->txq[queue_num])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -684,7 +684,7 @@ static int rxring_mem_alloc(struct sxgbe_priv_data *priv)
 		priv->rxq[queue_num] = devm_kmalloc(priv->device,
 						    sizeof(struct sxgbe_rx_queue), GFP_KERNEL);
 		if (!priv->rxq[queue_num])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -737,9 +737,9 @@ static void sxgbe_tx_queue_clean(struct sxgbe_tx_queue *tqueue)
 	struct sxgbe_priv_data *priv = tqueue->priv_ptr;
 	unsigned int tx_rsize = priv->dma_tx_size;
 	struct netdev_queue *dev_txq;
-	u8 queue_no = tqueue->queue_no;
+	u8 queue_anal = tqueue->queue_anal;
 
-	dev_txq = netdev_get_tx_queue(priv->dev, queue_no);
+	dev_txq = netdev_get_tx_queue(priv->dev, queue_anal);
 
 	__netif_tx_lock(dev_txq, smp_processor_id());
 
@@ -747,7 +747,7 @@ static void sxgbe_tx_queue_clean(struct sxgbe_tx_queue *tqueue)
 	while (tqueue->dirty_tx != tqueue->cur_tx) {
 		unsigned int entry = tqueue->dirty_tx % tx_rsize;
 		struct sk_buff *skb = tqueue->tx_skbuff[entry];
-		struct sxgbe_tx_norm_desc *p;
+		struct sxgbe_tx_analrm_desc *p;
 
 		p = tqueue->dma_tx + entry;
 
@@ -855,7 +855,7 @@ static void sxgbe_reset_all_tx_queues(struct sxgbe_priv_data *priv)
 	int queue_num;
 
 	/* On TX timeout of net device, resetting of all queues
-	 * may not be proper way, revisit this later if needed
+	 * may analt be proper way, revisit this later if needed
 	 */
 	SXGBE_FOR_EACH_QUEUE(SXGBE_TX_QUEUES, queue_num)
 		sxgbe_restart_tx_queue(priv, queue_num);
@@ -950,7 +950,7 @@ static void sxgbe_check_ether_addr(struct sxgbe_priv_data *priv)
  * Description:
  * It inits the DMA invoking the specific SXGBE callback.
  * Some DMA parameters can be passed from the platform;
- * in case of these are not passed a default is kept for the MAC or GMAC.
+ * in case of these are analt passed a default is kept for the MAC or GMAC.
  */
 static int sxgbe_init_dma_engine(struct sxgbe_priv_data *priv)
 {
@@ -1055,7 +1055,7 @@ static void sxgbe_tx_del_timer(struct sxgbe_priv_data *priv)
  *  Description:
  *  This function is the open entry point of the driver.
  *  Return value:
- *  0 on success and an appropriate (-)ve integer as defined in errno.h
+ *  0 on success and an appropriate (-)ve integer as defined in erranal.h
  *  file on failure.
  */
 static int sxgbe_open(struct net_device *dev)
@@ -1070,7 +1070,7 @@ static int sxgbe_open(struct net_device *dev)
 	/* Init the phy */
 	ret = sxgbe_init_phy(dev);
 	if (ret) {
-		netdev_err(dev, "%s: Cannot attach to PHY (error: %d)\n",
+		netdev_err(dev, "%s: Cananalt attach to PHY (error: %d)\n",
 			   __func__, ret);
 		goto phy_error;
 	}
@@ -1128,7 +1128,7 @@ static int sxgbe_open(struct net_device *dev)
 	/* Request TX DMA irq lines */
 	SXGBE_FOR_EACH_QUEUE(SXGBE_TX_QUEUES, queue_num) {
 		ret = devm_request_irq(priv->device,
-				       (priv->txq[queue_num])->irq_no,
+				       (priv->txq[queue_num])->irq_anal,
 				       sxgbe_tx_interrupt, 0,
 				       dev->name, priv->txq[queue_num]);
 		if (unlikely(ret < 0)) {
@@ -1141,7 +1141,7 @@ static int sxgbe_open(struct net_device *dev)
 	/* Request RX DMA irq lines */
 	SXGBE_FOR_EACH_QUEUE(SXGBE_RX_QUEUES, queue_num) {
 		ret = devm_request_irq(priv->device,
-				       (priv->rxq[queue_num])->irq_no,
+				       (priv->rxq[queue_num])->irq_anal,
 				       sxgbe_rx_interrupt, 0,
 				       dev->name, priv->rxq[queue_num]);
 		if (unlikely(ret < 0)) {
@@ -1244,7 +1244,7 @@ static int sxgbe_release(struct net_device *dev)
 }
 /* Prepare first Tx descriptor for doing TSO operation */
 static void sxgbe_tso_prepare(struct sxgbe_priv_data *priv,
-			      struct sxgbe_tx_norm_desc *first_desc,
+			      struct sxgbe_tx_analrm_desc *first_desc,
 			      struct sk_buff *skb)
 {
 	unsigned int total_hdr_len, tcp_hdr_len;
@@ -1281,10 +1281,10 @@ static netdev_tx_t sxgbe_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
 	unsigned int tx_rsize = priv->dma_tx_size;
 	struct sxgbe_tx_queue *tqueue = priv->txq[txq_index];
-	struct sxgbe_tx_norm_desc *tx_desc, *first_desc;
+	struct sxgbe_tx_analrm_desc *tx_desc, *first_desc;
 	struct sxgbe_tx_ctxt_desc *ctxt_desc = NULL;
 	int nr_frags = skb_shinfo(skb)->nr_frags;
-	int no_pagedlen = skb_headlen(skb);
+	int anal_pagedlen = skb_headlen(skb);
 	int is_jumbo = 0;
 	u16 cur_mss = skb_shinfo(skb)->gso_size;
 	u32 ctxt_desc_req = 0;
@@ -1345,13 +1345,13 @@ static netdev_tx_t sxgbe_xmit(struct sk_buff *skb, struct net_device *dev)
 			sxgbe_tso_prepare(priv, first_desc, skb);
 		} else {
 			tx_desc->tdes01 = dma_map_single(priv->device,
-							 skb->data, no_pagedlen, DMA_TO_DEVICE);
+							 skb->data, anal_pagedlen, DMA_TO_DEVICE);
 			if (dma_mapping_error(priv->device, tx_desc->tdes01))
 				netdev_err(dev, "%s: TX dma mapping failed!!\n",
 					   __func__);
 
-			priv->hw->desc->prepare_tx_desc(tx_desc, 1, no_pagedlen,
-							no_pagedlen, cksum_flag);
+			priv->hw->desc->prepare_tx_desc(tx_desc, 1, anal_pagedlen,
+							anal_pagedlen, cksum_flag);
 		}
 	}
 
@@ -1444,7 +1444,7 @@ static void sxgbe_rx_refill(struct sxgbe_priv_data *priv)
 	for (; priv->rxq[qnum]->cur_rx - priv->rxq[qnum]->dirty_rx > 0;
 	     priv->rxq[qnum]->dirty_rx++) {
 		unsigned int entry = priv->rxq[qnum]->dirty_rx % rxsize;
-		struct sxgbe_rx_norm_desc *p;
+		struct sxgbe_rx_analrm_desc *p;
 
 		p = priv->rxq[qnum]->dma_rx + entry;
 
@@ -1492,7 +1492,7 @@ static int sxgbe_rx(struct sxgbe_priv_data *priv, int limit)
 	int status;
 
 	while (count < limit) {
-		struct sxgbe_rx_norm_desc *p;
+		struct sxgbe_rx_analrm_desc *p;
 		struct sk_buff *skb;
 		int frame_len;
 
@@ -1508,7 +1508,7 @@ static int sxgbe_rx(struct sxgbe_priv_data *priv, int limit)
 
 		/* Read the status of the incoming frame and also get checksum
 		 * value based on whether it is enabled in SXGBE hardware or
-		 * not.
+		 * analt.
 		 */
 		status = priv->hw->desc->rx_wbstatus(p, &priv->xstats,
 						     &checksum);
@@ -1517,12 +1517,12 @@ static int sxgbe_rx(struct sxgbe_priv_data *priv, int limit)
 			continue;
 		}
 		if (unlikely(!priv->rxcsum_insertion))
-			checksum = CHECKSUM_NONE;
+			checksum = CHECKSUM_ANALNE;
 
 		skb = priv->rxq[qnum]->rx_skbuff[entry];
 
 		if (unlikely(!skb))
-			netdev_err(priv->dev, "rx descriptor is not consistent\n");
+			netdev_err(priv->dev, "rx descriptor is analt consistent\n");
 
 		prefetch(skb->data - NET_IP_ALIGN);
 		priv->rxq[qnum]->rx_skbuff[entry] = NULL;
@@ -1532,7 +1532,7 @@ static int sxgbe_rx(struct sxgbe_priv_data *priv, int limit)
 		skb_put(skb, frame_len);
 
 		skb->ip_summed = checksum;
-		if (checksum == CHECKSUM_NONE)
+		if (checksum == CHECKSUM_ANALNE)
 			netif_receive_skb(skb);
 		else
 			napi_gro_receive(&priv->napi, skb);
@@ -1634,15 +1634,15 @@ static irqreturn_t sxgbe_tx_interrupt(int irq, void *dev_id)
 	struct sxgbe_priv_data *priv = txq->priv_ptr;
 
 	/* get the channel status */
-	status = priv->hw->dma->tx_dma_int_status(priv->ioaddr, txq->queue_no,
+	status = priv->hw->dma->tx_dma_int_status(priv->ioaddr, txq->queue_anal,
 						  &priv->xstats);
-	/* check for normal path */
+	/* check for analrmal path */
 	if (likely((status & handle_tx)))
 		napi_schedule(&priv->napi);
 
 	/* check for unrecoverable error */
 	if (unlikely((status & tx_hard_error)))
-		sxgbe_restart_tx_queue(priv, txq->queue_no);
+		sxgbe_restart_tx_queue(priv, txq->queue_anal);
 
 	/* check for TC configuration change */
 	if (unlikely((status & tx_bump_tc) &&
@@ -1651,7 +1651,7 @@ static irqreturn_t sxgbe_tx_interrupt(int irq, void *dev_id)
 		/* step of TX TC is 32 till 128, otherwise 64 */
 		priv->tx_tc += (priv->tx_tc < 128) ? 32 : 64;
 		priv->hw->mtl->set_tx_mtl_mode(priv->ioaddr,
-					       txq->queue_no, priv->tx_tc);
+					       txq->queue_anal, priv->tx_tc);
 		priv->xstats.tx_threshold = priv->tx_tc;
 	}
 
@@ -1671,11 +1671,11 @@ static irqreturn_t sxgbe_rx_interrupt(int irq, void *dev_id)
 	struct sxgbe_priv_data *priv = rxq->priv_ptr;
 
 	/* get the channel status */
-	status = priv->hw->dma->rx_dma_int_status(priv->ioaddr, rxq->queue_no,
+	status = priv->hw->dma->rx_dma_int_status(priv->ioaddr, rxq->queue_anal,
 						  &priv->xstats);
 
 	if (likely((status & handle_rx) && (napi_schedule_prep(&priv->napi)))) {
-		priv->hw->dma->disable_dma_irq(priv->ioaddr, rxq->queue_no);
+		priv->hw->dma->disable_dma_irq(priv->ioaddr, rxq->queue_anal);
 		__napi_schedule(&priv->napi);
 	}
 
@@ -1686,7 +1686,7 @@ static irqreturn_t sxgbe_rx_interrupt(int irq, void *dev_id)
 		/* step of TC is 32 */
 		priv->rx_tc += 32;
 		priv->hw->mtl->set_rx_mtl_mode(priv->ioaddr,
-					       rxq->queue_no, priv->rx_tc);
+					       rxq->queue_anal, priv->rx_tc);
 		priv->xstats.rx_threshold = priv->rx_tc;
 	}
 
@@ -1800,7 +1800,7 @@ static int sxgbe_set_features(struct net_device *dev,
  *  to drive packet transmission. Ethernet has an MTU of 1500 octets
  *  (ETH_DATA_LEN). This value can be changed with ifconfig.
  *  Return value:
- *  0 on success and an appropriate (-)ve integer as defined in errno.h
+ *  0 on success and an appropriate (-)ve integer as defined in erranal.h
  *  file on failure.
  */
 static int sxgbe_change_mtu(struct net_device *dev, int new_mtu)
@@ -1825,7 +1825,7 @@ static void sxgbe_set_umac_addr(void __iomem *ioaddr, unsigned char *addr,
 
 	data = (addr[5] << 8) | addr[4];
 	/* For MAC Addr registers se have to set the Address Enable (AE)
-	 * bit that has no effect on the High Reg 0 where the bit 31 (MO)
+	 * bit that has anal effect on the High Reg 0 where the bit 31 (MO)
 	 * is RO.
 	 */
 	writel(data | SXGBE_HI_REG_AE, ioaddr + SXGBE_ADDR_HIGH(reg_n));
@@ -1915,7 +1915,7 @@ static void sxgbe_set_rx_mode(struct net_device *dev)
  * sxgbe_poll_controller - entry point for polling receive by device
  * @dev : pointer to the device structure
  * Description:
- * This function is used by NETCONSOLE and other diagnostic tools
+ * This function is used by NETCONSOLE and other diaganalstic tools
  * to allow network I/O with interrupts disabled.
  * Return value:
  * Void.
@@ -1940,7 +1940,7 @@ static void sxgbe_poll_controller(struct net_device *dev)
  */
 static int sxgbe_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	if (!netif_running(dev))
 		return -EINVAL;
@@ -1987,7 +1987,7 @@ static void sxgbe_get_ops(struct sxgbe_ops * const ops_ptr)
 	ops_ptr->mii.data	= SXGBE_MDIO_SCMD_DATA_REG;
 
 	/* Assigning the default link settings
-	 * no SXGBE defined default values to be set in registers,
+	 * anal SXGBE defined default values to be set in registers,
 	 * so assigning as 0 for port and duplex
 	 */
 	ops_ptr->link.port	= 0;
@@ -2007,7 +2007,7 @@ static int sxgbe_hw_init(struct sxgbe_priv_data * const priv)
 
 	priv->hw = kmalloc(sizeof(*priv->hw), GFP_KERNEL);
 	if(!priv->hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* get the hardware ops */
 	sxgbe_get_ops(priv->hw);
@@ -2021,7 +2021,7 @@ static int sxgbe_hw_init(struct sxgbe_priv_data * const priv)
 
 	/* get the H/W features */
 	if (!sxgbe_get_hw_features(priv))
-		pr_info("Hardware features not found\n");
+		pr_info("Hardware features analt found\n");
 
 	if (priv->hw_cap.tx_csum_offload)
 		pr_info("TX Checksum offload supported\n");
@@ -2149,13 +2149,13 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 
 	priv->sxgbe_clk = clk_get(priv->device, SXGBE_RESOURCE_NAME);
 	if (IS_ERR(priv->sxgbe_clk)) {
-		netdev_warn(ndev, "%s: warning: cannot get CSR clock\n",
+		netdev_warn(ndev, "%s: warning: cananalt get CSR clock\n",
 			    __func__);
 		goto error_napi_del;
 	}
 
 	/* If a specific clk_csr value is passed from the platform
-	 * this means that the CSR Clock Range selection cannot be
+	 * this means that the CSR Clock Range selection cananalt be
 	 * changed at run-time and it is fixed. Viceversa the driver'll try to
 	 * set the MDC clock dynamically according to the csr actual
 	 * clock input.
@@ -2246,12 +2246,12 @@ int sxgbe_resume(struct net_device *ndev)
 
 int sxgbe_freeze(struct net_device *ndev)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 int sxgbe_restore(struct net_device *ndev)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif /* CONFIG_PM */
 
@@ -2304,7 +2304,7 @@ __setup("sxgbeeth=", sxgbe_cmdline_opt);
 
 MODULE_DESCRIPTION("Samsung 10G/2.5G/1G Ethernet PLATFORM driver");
 
-MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: no output, 16: all)");
+MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: anal output, 16: all)");
 MODULE_PARM_DESC(eee_timer, "EEE-LPI Default LS timer value");
 
 MODULE_AUTHOR("Siva Reddy Kallam <siva.kallam@samsung.com>");

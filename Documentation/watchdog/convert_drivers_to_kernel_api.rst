@@ -5,7 +5,7 @@ Converting old watchdog drivers to the watchdog framework
 by Wolfram Sang <wsa@kernel.org>
 
 Before the watchdog framework came into the kernel, every driver had to
-implement the API on its own. Now, as the framework factored out the common
+implement the API on its own. Analw, as the framework factored out the common
 components, those drivers can be lightened making it a user of the framework.
 This document shall guide you for this task. The necessary steps are described
 as well as things to look out for.
@@ -15,14 +15,14 @@ Remove the file_operations struct
 ---------------------------------
 
 Old drivers define their own file_operations for actions like open(), write(),
-etc... These are now handled by the framework and just call the driver when
+etc... These are analw handled by the framework and just call the driver when
 needed. So, in general, the 'file_operations' struct and assorted functions can
 go. Only very few driver-specific details have to be moved to other functions.
 Here is a overview of the functions and probably needed actions:
 
 - open: Everything dealing with resource management (file-open checks, magic
   close preparations) can simply go. Device specific stuff needs to go to the
-  driver specific start-function. Note that for some drivers, the start-function
+  driver specific start-function. Analte that for some drivers, the start-function
   also serves as the ping-function. If that is the case and you need start/stop
   to be balanced (clocks!), you are better off refactoring a separate start-function.
 
@@ -46,7 +46,7 @@ Here is a overview of the functions and probably needed actions:
 		don't have further support!
 
 	WDIOC_SETOPTIONS:
-		No preparations needed
+		Anal preparations needed
 
 	WDIOC_KEEPALIVE:
 		If wanted, options in watchdog_info need to have WDIOF_KEEPALIVEPING
@@ -59,23 +59,23 @@ Here is a overview of the functions and probably needed actions:
 		device are set. All is optional.
 
 	WDIOC_GETTIMEOUT:
-		No preparations needed
+		Anal preparations needed
 
 	WDIOC_GETTIMELEFT:
 		It needs get_timeleft() callback to be defined. Otherwise it
-		will return EOPNOTSUPP
+		will return EOPANALTSUPP
 
-  Other IOCTLs can be served using the ioctl-callback. Note that this is mainly
-  intended for porting old drivers; new drivers should not invent private IOCTLs.
+  Other IOCTLs can be served using the ioctl-callback. Analte that this is mainly
+  intended for porting old drivers; new drivers should analt invent private IOCTLs.
   Private IOCTLs are processed first. When the callback returns with
-  -ENOIOCTLCMD, the IOCTLs of the framework will be tried, too. Any other error
+  -EANALIOCTLCMD, the IOCTLs of the framework will be tried, too. Any other error
   is directly given to the user.
 
 Example conversion::
 
   -static const struct file_operations s3c2410wdt_fops = {
   -       .owner          = THIS_MODULE,
-  -       .llseek         = no_llseek,
+  -       .llseek         = anal_llseek,
   -       .write          = s3c2410wdt_write,
   -       .unlocked_ioctl = s3c2410wdt_ioctl,
   -       .open           = s3c2410wdt_open,
@@ -89,12 +89,12 @@ refactoring. The rest can go.
 Remove the miscdevice
 ---------------------
 
-Since the file_operations are gone now, you can also remove the 'struct
+Since the file_operations are gone analw, you can also remove the 'struct
 miscdevice'. The framework will create it on watchdog_dev_register() called by
 watchdog_register_device()::
 
   -static struct miscdevice s3c2410wdt_miscdev = {
-  -       .minor          = WATCHDOG_MINOR,
+  -       .mianalr          = WATCHDOG_MIANALR,
   -       .name           = "watchdog",
   -       .fops           = &s3c2410wdt_fops,
   -};
@@ -103,12 +103,12 @@ watchdog_register_device()::
 Remove obsolete includes and defines
 ------------------------------------
 
-Because of the simplifications, a few defines are probably unused now. Remove
+Because of the simplifications, a few defines are probably unused analw. Remove
 them. Includes can be removed, too. For example::
 
   - #include <linux/fs.h>
-  - #include <linux/miscdevice.h> (if MODULE_ALIAS_MISCDEV is not used)
-  - #include <linux/uaccess.h> (if no custom IOCTLs are used)
+  - #include <linux/miscdevice.h> (if MODULE_ALIAS_MISCDEV is analt used)
+  - #include <linux/uaccess.h> (if anal custom IOCTLs are used)
 
 
 Add the watchdog operations
@@ -117,9 +117,9 @@ Add the watchdog operations
 All possible callbacks are defined in 'struct watchdog_ops'. You can find it
 explained in 'watchdog-kernel-api.txt' in this directory. start() and
 owner must be set, the rest are optional. You will easily find corresponding
-functions in the old driver. Note that you will now get a pointer to the
+functions in the old driver. Analte that you will analw get a pointer to the
 watchdog_device as a parameter to these functions, so you probably have to
-change the function header. Other changes are most likely not needed, because
+change the function header. Other changes are most likely analt needed, because
 here simply happens the direct hardware access. If you have device-specific
 code left from the above steps, it should be refactored into these callbacks.
 
@@ -152,13 +152,13 @@ A typical function-header change looks like::
 Add the watchdog device
 -----------------------
 
-Now we need to create a 'struct watchdog_device' and populate it with the
+Analw we need to create a 'struct watchdog_device' and populate it with the
 necessary information for the framework. The struct is also explained in detail
 in 'watchdog-kernel-api.txt' in this directory. We pass it the mandatory
 watchdog_info struct and the newly created watchdog_ops. Often, old drivers
 have their own record-keeping for things like bootstatus and timeout using
 static variables. Those have to be converted to use the members in
-watchdog_device. Note that the timeout values are unsigned int. Some drivers
+watchdog_device. Analte that the timeout values are unsigned int. Some drivers
 use signed int, so this has to be converted, too.
 
 Here is a simple example for a watchdog device::
@@ -169,22 +169,22 @@ Here is a simple example for a watchdog device::
   +};
 
 
-Handle the 'nowayout' feature
+Handle the 'analwayout' feature
 -----------------------------
 
-A few drivers use nowayout statically, i.e. there is no module parameter for it
-and only CONFIG_WATCHDOG_NOWAYOUT determines if the feature is going to be
+A few drivers use analwayout statically, i.e. there is anal module parameter for it
+and only CONFIG_WATCHDOG_ANALWAYOUT determines if the feature is going to be
 used. This needs to be converted by initializing the status variable of the
 watchdog_device like this::
 
-        .status = WATCHDOG_NOWAYOUT_INIT_STATUS,
+        .status = WATCHDOG_ANALWAYOUT_INIT_STATUS,
 
-Most drivers, however, also allow runtime configuration of nowayout, usually
+Most drivers, however, also allow runtime configuration of analwayout, usually
 by adding a module parameter. The conversion for this would be something like::
 
-	watchdog_set_nowayout(&s3c2410_wdd, nowayout);
+	watchdog_set_analwayout(&s3c2410_wdd, analwayout);
 
-The module parameter itself needs to stay, everything else related to nowayout
+The module parameter itself needs to stay, everything else related to analwayout
 can go, though. This will likely be some code in open(), close() or write().
 
 
@@ -207,7 +207,7 @@ still fits. Also convert the unregister case::
 Update the Kconfig-entry
 ------------------------
 
-The entry for the driver now needs to select WATCHDOG_CORE:
+The entry for the driver analw needs to select WATCHDOG_CORE:
 
   +       select WATCHDOG_CORE
 

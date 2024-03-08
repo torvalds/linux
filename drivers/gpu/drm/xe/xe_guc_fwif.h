@@ -19,8 +19,8 @@
 
 #define GUC_CLIENT_PRIORITY_KMD_HIGH	0
 #define GUC_CLIENT_PRIORITY_HIGH	1
-#define GUC_CLIENT_PRIORITY_KMD_NORMAL	2
-#define GUC_CLIENT_PRIORITY_NORMAL	3
+#define GUC_CLIENT_PRIORITY_KMD_ANALRMAL	2
+#define GUC_CLIENT_PRIORITY_ANALRMAL	3
 #define GUC_CLIENT_PRIORITY_NUM		4
 
 #define GUC_RENDER_ENGINE		0
@@ -76,7 +76,7 @@ struct guc_update_exec_queue_policy {
 /* GUC_CTL_* - Parameters for loading the GuC */
 #define GUC_CTL_LOG_PARAMS		0
 #define   GUC_LOG_VALID			BIT(0)
-#define   GUC_LOG_NOTIFY_ON_HALF_FULL	BIT(1)
+#define   GUC_LOG_ANALTIFY_ON_HALF_FULL	BIT(1)
 #define   GUC_LOG_CAPTURE_ALLOC_UNITS	BIT(2)
 #define   GUC_LOG_LOG_ALLOC_UNITS	BIT(3)
 #define   GUC_LOG_CRASH_SHIFT		4
@@ -137,7 +137,7 @@ struct guc_policies {
 	/*
 	 * In micro seconds. How much time to allow before DPC processing is
 	 * called back via interrupt (to prevent DPC queue drain starving).
-	 * Typically 1000s of micro seconds (example only, not granularity).
+	 * Typically 1000s of micro seconds (example only, analt granularity).
 	 */
 	u32 dpc_promote_time;
 
@@ -337,7 +337,7 @@ struct xe_guc_acc_desc {
 	u32 dw0;
 #define ACC_TYPE	BIT(0)
 #define ACC_TRIGGER	0
-#define ACC_NOTIFY	1
+#define ACC_ANALTIFY	1
 #define ACC_SUBG_LO	GENMASK(31, 1)
 
 	u32 dw1;

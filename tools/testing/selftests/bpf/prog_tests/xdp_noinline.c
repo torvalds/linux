@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 #include <network_helpers.h>
-#include "test_xdp_noinline.skel.h"
+#include "test_xdp_analinline.skel.h"
 
-void test_xdp_noinline(void)
+void test_xdp_analinline(void)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
-	struct test_xdp_noinline *skel;
+	struct test_xdp_analinline *skel;
 	struct vip key = {.protocol = 6};
 	struct vip_meta {
 		__u32 flags;
@@ -37,7 +37,7 @@ void test_xdp_noinline(void)
 		.repeat = NUM_ITER,
 	);
 
-	skel = test_xdp_noinline__open_and_load();
+	skel = test_xdp_analinline__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "skel_open_and_load"))
 		return;
 
@@ -69,5 +69,5 @@ void test_xdp_noinline(void)
 	}
 	ASSERT_EQ(bytes, MAGIC_BYTES * NUM_ITER * 2, "stats bytes");
 	ASSERT_EQ(pkts, NUM_ITER * 2, "stats pkts");
-	test_xdp_noinline__destroy(skel);
+	test_xdp_analinline__destroy(skel);
 }

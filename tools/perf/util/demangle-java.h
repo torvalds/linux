@@ -4,7 +4,7 @@
 /*
  * demangle function flags
  */
-#define JAVA_DEMANGLE_NORET	0x1 /* do not process return type */
+#define JAVA_DEMANGLE_ANALRET	0x1 /* do analt process return type */
 
 char * java_demangle_sym(const char *str, int flags);
 

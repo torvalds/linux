@@ -29,12 +29,12 @@
  * "cached" data is always dirty. The end result is that we get thin
  * provisioning with very little additional code.
  *
- * Flash only volumes work but they're not production ready because the moving
+ * Flash only volumes work but they're analt production ready because the moving
  * garbage collector needs more work. More on that later.
  *
  * BUCKETS/ALLOCATION:
  *
- * Bcache is primarily designed for caching, which means that in normal
+ * Bcache is primarily designed for caching, which means that in analrmal
  * operation all of our available space will be allocated. Thus, we need an
  * efficient way of deleting things from the cache so we can write new things to
  * it.
@@ -60,7 +60,7 @@
  * this up).
  *
  * Bcache is entirely COW - we never write twice to a bucket, even buckets that
- * contain metadata (including btree nodes).
+ * contain metadata (including btree analdes).
  *
  * THE BTREE:
  *
@@ -72,15 +72,15 @@
  * number of pointers attached to them (potentially zero, which is handy for
  * invalidating the cache).
  *
- * The key itself is an inode:offset pair. The inode number corresponds to a
+ * The key itself is an ianalde:offset pair. The ianalde number corresponds to a
  * backing device or a flash only volume. The offset is the ending offset of the
- * extent within the inode - not the starting offset; this makes lookups
+ * extent within the ianalde - analt the starting offset; this makes lookups
  * slightly more convenient.
  *
  * Pointers contain the cache device id, the offset on that device, and an 8 bit
  * generation number. More on the gen later.
  *
- * Index lookups are not fully abstracted - cache lookups in particular are
+ * Index lookups are analt fully abstracted - cache lookups in particular are
  * still somewhat mixed in with the btree code, but things are headed in that
  * direction.
  *
@@ -92,41 +92,41 @@
  * used to update the index after a write.
  *
  * BTREE_REPLACE is really cmpxchg(); it inserts a key into the btree iff it is
- * overwriting a key that matches another given key. This is used for inserting
+ * overwriting a key that matches aanalther given key. This is used for inserting
  * data into the cache after a cache miss, and for background writeback, and for
  * the moving garbage collector.
  *
- * There is no "delete" operation; deleting things from the index is
+ * There is anal "delete" operation; deleting things from the index is
  * accomplished by either by invalidating pointers (by incrementing a bucket's
  * gen) or by inserting a key with 0 pointers - which will overwrite anything
  * previously present at that location in the index.
  *
  * This means that there are always stale/invalid keys in the btree. They're
- * filtered out by the code that iterates through a btree node, and removed when
- * a btree node is rewritten.
+ * filtered out by the code that iterates through a btree analde, and removed when
+ * a btree analde is rewritten.
  *
- * BTREE NODES:
+ * BTREE ANALDES:
  *
  * Our unit of allocation is a bucket, and we can't arbitrarily allocate and
- * free smaller than a bucket - so, that's how big our btree nodes are.
+ * free smaller than a bucket - so, that's how big our btree analdes are.
  *
- * (If buckets are really big we'll only use part of the bucket for a btree node
- * - no less than 1/4th - but a bucket still contains no more than a single
- * btree node. I'd actually like to change this, but for now we rely on the
- * bucket's gen for deleting btree nodes when we rewrite/split a node.)
+ * (If buckets are really big we'll only use part of the bucket for a btree analde
+ * - anal less than 1/4th - but a bucket still contains anal more than a single
+ * btree analde. I'd actually like to change this, but for analw we rely on the
+ * bucket's gen for deleting btree analdes when we rewrite/split a analde.)
  *
- * Anyways, btree nodes are big - big enough to be inefficient with a textbook
+ * Anyways, btree analdes are big - big eanalugh to be inefficient with a textbook
  * btree implementation.
  *
- * The way this is solved is that btree nodes are internally log structured; we
- * can append new keys to an existing btree node without rewriting it. This
- * means each set of keys we write is sorted, but the node is not.
+ * The way this is solved is that btree analdes are internally log structured; we
+ * can append new keys to an existing btree analde without rewriting it. This
+ * means each set of keys we write is sorted, but the analde is analt.
  *
  * We maintain this log structure in memory - keeping 1Mb of keys sorted would
  * be expensive, and we have to distinguish between the keys we have written and
- * the keys we haven't. So to do a lookup in a btree node, we have to search
+ * the keys we haven't. So to do a lookup in a btree analde, we have to search
  * each sorted set. But we do merge written sets together lazily, so the cost of
- * these extra searches is quite low (normally most of the keys in a btree node
+ * these extra searches is quite low (analrmally most of the keys in a btree analde
  * will be in one big set, and then there'll be one or two sets that are much
  * smaller).
  *
@@ -138,20 +138,20 @@
  *
  * We can't just invalidate any bucket - it might contain dirty data or
  * metadata. If it once contained dirty data, other writes might overwrite it
- * later, leaving no valid pointers into that bucket in the index.
+ * later, leaving anal valid pointers into that bucket in the index.
  *
  * Thus, the primary purpose of garbage collection is to find buckets to reuse.
  * It also counts how much valid data it each bucket currently contains, so that
  * allocation can reuse buckets sooner when they've been mostly overwritten.
  *
  * It also does some things that are really internal to the btree
- * implementation. If a btree node contains pointers that are stale by more than
- * some threshold, it rewrites the btree node to avoid the bucket's generation
- * wrapping around. It also merges adjacent btree nodes if they're empty enough.
+ * implementation. If a btree analde contains pointers that are stale by more than
+ * some threshold, it rewrites the btree analde to avoid the bucket's generation
+ * wrapping around. It also merges adjacent btree analdes if they're empty eanalugh.
  *
  * THE JOURNAL:
  *
- * Bcache's journal is not necessary for consistency; we always strictly
+ * Bcache's journal is analt necessary for consistency; we always strictly
  * order metadata writes so that the btree and everything else is consistent on
  * disk in the event of an unclean shutdown, and in fact bcache had writeback
  * caching (with recovery from unclean shutdown) before journalling was
@@ -161,19 +161,19 @@
  * write until we've updated the index on disk, otherwise the cache would be
  * inconsistent in the event of an unclean shutdown. This means that without the
  * journal, on random write workloads we constantly have to update all the leaf
- * nodes in the btree, and those writes will be mostly empty (appending at most
+ * analdes in the btree, and those writes will be mostly empty (appending at most
  * a few keys each) - highly inefficient in terms of amount of metadata writes,
  * and it puts more strain on the various btree resorting/compacting code.
  *
  * The journal is just a log of keys we've inserted; on startup we just reinsert
  * all the keys in the open journal entries. That means that when we're updating
- * a node in the btree, we can wait until a 4k block of keys fills up before
+ * a analde in the btree, we can wait until a 4k block of keys fills up before
  * writing them out.
  *
- * For simplicity, we only journal updates to leaf nodes; updates to parent
- * nodes are rare enough (since our leaf nodes are huge) that it wasn't worth
+ * For simplicity, we only journal updates to leaf analdes; updates to parent
+ * analdes are rare eanalugh (since our leaf analdes are huge) that it wasn't worth
  * the complexity to deal with journalling them (in particular, journal replay)
- * - updates to non leaf nodes just happen synchronously (see btree_split()).
+ * - updates to analn leaf analdes just happen synchroanalusly (see btree_split()).
  */
 
 #undef pr_fmt
@@ -207,7 +207,7 @@
 #include "bcachefs_format.h"
 #include "errcode.h"
 #include "fifo.h"
-#include "nocow_locking_types.h"
+#include "analcow_locking_types.h"
 #include "opts.h"
 #include "recovery_types.h"
 #include "sb-errors_types.h"
@@ -286,8 +286,8 @@ do {									\
 
 #define bch_info(c, fmt, ...) \
 	bch2_print(c, KERN_INFO bch2_fmt(c, fmt), ##__VA_ARGS__)
-#define bch_notice(c, fmt, ...) \
-	bch2_print(c, KERN_NOTICE bch2_fmt(c, fmt), ##__VA_ARGS__)
+#define bch_analtice(c, fmt, ...) \
+	bch2_print(c, KERN_ANALTICE bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_warn(c, fmt, ...) \
 	bch2_print(c, KERN_WARNING bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_warn_ratelimited(c, fmt, ...) \
@@ -357,19 +357,19 @@ do {									\
 		"Disables merging of extents")				\
 	BCH_DEBUG_PARAM(btree_gc_always_rewrite,			\
 		"Causes mark and sweep to compact and rewrite every "	\
-		"btree node it traverses")				\
+		"btree analde it traverses")				\
 	BCH_DEBUG_PARAM(btree_gc_rewrite_disabled,			\
-		"Disables rewriting of btree nodes during mark and sweep")\
+		"Disables rewriting of btree analdes during mark and sweep")\
 	BCH_DEBUG_PARAM(btree_shrinker_disabled,			\
-		"Disables the shrinker callback for the btree node cache")\
+		"Disables the shrinker callback for the btree analde cache")\
 	BCH_DEBUG_PARAM(verify_btree_ondisk,				\
-		"Reread btree nodes at various points to verify the "	\
+		"Reread btree analdes at various points to verify the "	\
 		"mergesort in the read path against modifications "	\
 		"done in memory")					\
 	BCH_DEBUG_PARAM(verify_all_btree_replicas,			\
-		"When reading btree nodes, read all replicas and "	\
+		"When reading btree analdes, read all replicas and "	\
 		"compare them")						\
-	BCH_DEBUG_PARAM(backpointers_no_use_write_buffer,		\
+	BCH_DEBUG_PARAM(backpointers_anal_use_write_buffer,		\
 		"Don't use the write buffer for backpointers, enabling "\
 		"extra runtime checks")
 
@@ -381,7 +381,7 @@ do {									\
 	BCH_DEBUG_PARAM(debug_check_iterators,				\
 		"Enables extra verification for btree iterators")	\
 	BCH_DEBUG_PARAM(debug_check_btree_accounting,			\
-		"Verify btree accounting for keys within a node")	\
+		"Verify btree accounting for keys within a analde")	\
 	BCH_DEBUG_PARAM(journal_seq_verify,				\
 		"Store the journal sequence number in the version "	\
 		"number of every btree key, and verify that btree "	\
@@ -392,7 +392,7 @@ do {									\
 		"update ordering is preserved during recovery")		\
 	BCH_DEBUG_PARAM(test_alloc_startup,				\
 		"Force allocator startup to use the slowpath where it"	\
-		"can't find enough free buckets without invalidating"	\
+		"can't find eanalugh free buckets without invalidating"	\
 		"cached data")						\
 	BCH_DEBUG_PARAM(force_reconstruct_read,				\
 		"Force reads to use the reconstruct path, when reading"	\
@@ -419,13 +419,13 @@ BCH_DEBUG_PARAMS_DEBUG()
 #endif
 
 #define BCH_TIME_STATS()			\
-	x(btree_node_mem_alloc)			\
-	x(btree_node_split)			\
-	x(btree_node_compact)			\
-	x(btree_node_merge)			\
-	x(btree_node_sort)			\
-	x(btree_node_read)			\
-	x(btree_node_read_done)			\
+	x(btree_analde_mem_alloc)			\
+	x(btree_analde_split)			\
+	x(btree_analde_compact)			\
+	x(btree_analde_merge)			\
+	x(btree_analde_sort)			\
+	x(btree_analde_read)			\
+	x(btree_analde_read_done)			\
 	x(btree_interior_update_foreground)	\
 	x(btree_interior_update_total)		\
 	x(btree_gc)				\
@@ -433,7 +433,7 @@ BCH_DEBUG_PARAMS_DEBUG()
 	x(data_read)				\
 	x(data_promote)				\
 	x(journal_flush_write)			\
-	x(journal_noflush_write)		\
+	x(journal_analflush_write)		\
 	x(journal_flush_seq)			\
 	x(blocked_journal_low_on_space)		\
 	x(blocked_journal_low_on_pin)		\
@@ -441,7 +441,7 @@ BCH_DEBUG_PARAMS_DEBUG()
 	x(blocked_allocate)			\
 	x(blocked_allocate_open_bucket)		\
 	x(blocked_write_buffer_full)		\
-	x(nocow_lock_contended)
+	x(analcow_lock_contended)
 
 enum bch_time_stats {
 #define x(name) BCH_TIME_##name,
@@ -467,27 +467,27 @@ enum bch_time_stats {
 #include "super_types.h"
 #include "thread_with_file_types.h"
 
-/* Number of nodes btree coalesce will try to coalesce at once */
-#define GC_MERGE_NODES		4U
+/* Number of analdes btree coalesce will try to coalesce at once */
+#define GC_MERGE_ANALDES		4U
 
-/* Maximum number of nodes we might need to allocate atomically: */
+/* Maximum number of analdes we might need to allocate atomically: */
 #define BTREE_RESERVE_MAX	(BTREE_MAX_DEPTH + (BTREE_MAX_DEPTH - 1))
 
-/* Size of the freelist we allocate btree nodes from: */
-#define BTREE_NODE_RESERVE	(BTREE_RESERVE_MAX * 4)
+/* Size of the freelist we allocate btree analdes from: */
+#define BTREE_ANALDE_RESERVE	(BTREE_RESERVE_MAX * 4)
 
-#define BTREE_NODE_OPEN_BUCKET_RESERVE	(BTREE_RESERVE_MAX * BCH_REPLICAS_MAX)
+#define BTREE_ANALDE_OPEN_BUCKET_RESERVE	(BTREE_RESERVE_MAX * BCH_REPLICAS_MAX)
 
 struct btree;
 
 enum gc_phase {
-	GC_PHASE_NOT_RUNNING,
+	GC_PHASE_ANALT_RUNNING,
 	GC_PHASE_START,
 	GC_PHASE_SB,
 
 	GC_PHASE_BTREE_stripes,
 	GC_PHASE_BTREE_extents,
-	GC_PHASE_BTREE_inodes,
+	GC_PHASE_BTREE_ianaldes,
 	GC_PHASE_BTREE_dirents,
 	GC_PHASE_BTREE_xattrs,
 	GC_PHASE_BTREE_alloc,
@@ -501,7 +501,7 @@ enum gc_phase {
 	GC_PHASE_BTREE_backpointers,
 	GC_PHASE_BTREE_bucket_gens,
 	GC_PHASE_BTREE_snapshot_trees,
-	GC_PHASE_BTREE_deleted_inodes,
+	GC_PHASE_BTREE_deleted_ianaldes,
 	GC_PHASE_BTREE_logged_ops,
 	GC_PHASE_BTREE_rebalance_work,
 
@@ -566,7 +566,7 @@ struct bch_dev {
 	struct bucket_array __rcu *buckets_gc;
 	struct bucket_gens __rcu *bucket_gens;
 	u8			*oldest_gen;
-	unsigned long		*buckets_nouse;
+	unsigned long		*buckets_analuse;
 	struct rw_semaphore	bucket_lock;
 
 	struct bch_dev_usage		*usage_base;
@@ -620,12 +620,12 @@ struct bch_dev {
 	x(clean_shutdown)		\
 	x(fsck_running)			\
 	x(initial_gc_unfixed)		\
-	x(need_another_gc)		\
+	x(need_aanalther_gc)		\
 	x(need_delete_dead_snapshots)	\
 	x(error)			\
 	x(topology_error)		\
 	x(errors_fixed)			\
-	x(errors_not_fixed)
+	x(errors_analt_fixed)
 
 enum bch_fs_flags {
 #define x(n)		BCH_FS_##n,
@@ -691,13 +691,13 @@ struct btree_trans_buf {
 #define REPLICAS_DELTA_LIST_MAX	(1U << 16)
 
 #define BCACHEFS_ROOT_SUBVOL_INUM					\
-	((subvol_inum) { BCACHEFS_ROOT_SUBVOL,	BCACHEFS_ROOT_INO })
+	((subvol_inum) { BCACHEFS_ROOT_SUBVOL,	BCACHEFS_ROOT_IANAL })
 
 #define BCH_WRITE_REFS()						\
 	x(trans)							\
 	x(write)							\
 	x(promote)							\
-	x(node_rewrite)							\
+	x(analde_rewrite)							\
 	x(stripe_create)						\
 	x(stripe_delete)						\
 	x(reflink)							\
@@ -727,7 +727,7 @@ struct bch_fs {
 	struct kobject		time_stats;
 	unsigned long		flags;
 
-	int			minor;
+	int			mianalr;
 	struct device		*chardev;
 	struct super_block	*vfs_sb;
 	dev_t			dev;
@@ -745,7 +745,7 @@ struct bch_fs {
 	struct percpu_ref	writes;
 #endif
 	/*
-	 * Analagous to c->writes, for asynchronous ops that don't necessarily
+	 * Analagous to c->writes, for asynchroanalus ops that don't necessarily
 	 * need fs to be read-write
 	 */
 	refcount_t		ro_ref;
@@ -817,20 +817,20 @@ struct bch_fs {
 	struct bio_set		btree_bio;
 	struct workqueue_struct	*io_complete_wq;
 
-	struct btree_root	btree_roots_known[BTREE_ID_NR];
+	struct btree_root	btree_roots_kanalwn[BTREE_ID_NR];
 	DARRAY(struct btree_root) btree_roots_extra;
 	struct mutex		btree_root_lock;
 
 	struct btree_cache	btree_cache;
 
 	/*
-	 * Cache of allocated btree nodes - if we allocate a btree node and
+	 * Cache of allocated btree analdes - if we allocate a btree analde and
 	 * don't use it, if we free it that space can't be reused until going
 	 * _all_ the way through the allocator (which exposes us to a livelock
 	 * when allocating btree reserves fail halfway through) - instead, we
 	 * can stick them here:
 	 */
-	struct btree_alloc	btree_reserve_cache[BTREE_NODE_RESERVE * 2];
+	struct btree_alloc	btree_reserve_cache[BTREE_ANALDE_RESERVE * 2];
 	unsigned		btree_reserve_cache_nr;
 	struct mutex		btree_reserve_cache_lock;
 
@@ -843,8 +843,8 @@ struct bch_fs {
 	struct workqueue_struct	*btree_interior_update_worker;
 	struct work_struct	btree_interior_update_work;
 
-	struct list_head	pending_node_rewrites;
-	struct mutex		pending_node_rewrites_lock;
+	struct list_head	pending_analde_rewrites;
+	struct mutex		pending_analde_rewrites_lock;
 
 	/* btree_io.c: */
 	spinlock_t		btree_write_error_lock;
@@ -965,7 +965,7 @@ struct bch_fs {
 
 	/*
 	 * The allocation code needs gc_mark in struct bucket to be correct, but
-	 * it's not while a gc is in progress.
+	 * it's analt while a gc is in progress.
 	 */
 	struct rw_semaphore	gc_lock;
 	struct mutex		gc_gens_lock;
@@ -977,8 +977,8 @@ struct bch_fs {
 	struct bio_set		bio_write;
 	struct mutex		bio_bounce_pages_lock;
 	mempool_t		bio_bounce_pages;
-	struct bucket_nocow_lock_table
-				nocow_locks;
+	struct bucket_analcow_lock_table
+				analcow_locks;
 	struct rhashtable	promote_table;
 
 	mempool_t		compression_bounce[2];
@@ -1039,14 +1039,14 @@ struct bch_fs {
 	size_t			reflink_gc_nr;
 
 	/* fs.c */
-	struct list_head	vfs_inodes_list;
-	struct mutex		vfs_inodes_lock;
+	struct list_head	vfs_ianaldes_list;
+	struct mutex		vfs_ianaldes_lock;
 
 	/* VFS IO PATH - fs-io.c */
 	struct bio_set		writepage_bioset;
 	struct bio_set		dio_write_bioset;
 	struct bio_set		dio_read_bioset;
-	struct bio_set		nocow_flush_bioset;
+	struct bio_set		analcow_flush_bioset;
 
 	/* QUOTAS */
 	struct bch_memquota_type quotas[QTYP_NR];
@@ -1059,7 +1059,7 @@ struct bch_fs {
 	 * "Has this fsck pass?" - i.e. should this type of error be an
 	 * emergency read-only
 	 * And, in certain situations fsck will rewind to an earlier pass: used
-	 * for signaling to the toplevel code which pass we want to run now.
+	 * for signaling to the toplevel code which pass we want to run analw.
 	 */
 	enum bch_recovery_pass	curr_recovery_pass;
 	/* bitmap of explicitly enabled recovery passes: */
@@ -1075,14 +1075,14 @@ struct bch_fs {
 	struct dentry		*btree_debug_dir;
 	struct btree_debug	btree_debug[BTREE_ID_NR];
 	struct btree		*verify_data;
-	struct btree_node	*verify_ondisk;
+	struct btree_analde	*verify_ondisk;
 	struct mutex		verify_lock;
 
-	u64			*unused_inode_hints;
-	unsigned		inode_shard_bits;
+	u64			*unused_ianalde_hints;
+	unsigned		ianalde_shard_bits;
 
 	/*
-	 * A btree node on disk could have too many bsets for an iterator to fit
+	 * A btree analde on disk could have too many bsets for an iterator to fit
 	 * on the stack - have to dynamically allocate them
 	 */
 	mempool_t		fill_iter;
@@ -1132,7 +1132,7 @@ static inline bool __bch2_write_ref_tryget(struct bch_fs *c, enum bch_write_ref 
 {
 #ifdef BCH_WRITE_REF_DEBUG
 	return !test_bit(BCH_FS_going_ro, &c->flags) &&
-		atomic_long_inc_not_zero(&c->writes[ref]);
+		atomic_long_inc_analt_zero(&c->writes[ref]);
 #else
 	return percpu_ref_tryget(&c->writes);
 #endif
@@ -1142,7 +1142,7 @@ static inline bool bch2_write_ref_tryget(struct bch_fs *c, enum bch_write_ref re
 {
 #ifdef BCH_WRITE_REF_DEBUG
 	return !test_bit(BCH_FS_going_ro, &c->flags) &&
-		atomic_long_inc_not_zero(&c->writes[ref]);
+		atomic_long_inc_analt_zero(&c->writes[ref]);
 #else
 	return percpu_ref_tryget_live(&c->writes);
 #endif
@@ -1172,7 +1172,7 @@ static inline bool bch2_ro_ref_tryget(struct bch_fs *c)
 	if (test_bit(BCH_FS_stopping, &c->flags))
 		return false;
 
-	return refcount_inc_not_zero(&c->ro_ref);
+	return refcount_inc_analt_zero(&c->ro_ref);
 }
 
 static inline void bch2_ro_ref_put(struct bch_fs *c)
@@ -1183,7 +1183,7 @@ static inline void bch2_ro_ref_put(struct bch_fs *c)
 
 static inline void bch2_set_ra_pages(struct bch_fs *c, unsigned ra_pages)
 {
-#ifndef NO_BCACHEFS_FS
+#ifndef ANAL_BCACHEFS_FS
 	if (c->vfs_sb)
 		c->vfs_sb->s_bdi->ra_pages = ra_pages;
 #endif
@@ -1229,10 +1229,10 @@ static inline s64 timespec_to_bch2_time(const struct bch_fs *c, struct timespec6
 
 static inline s64 bch2_current_time(const struct bch_fs *c)
 {
-	struct timespec64 now;
+	struct timespec64 analw;
 
-	ktime_get_coarse_real_ts64(&now);
-	return timespec_to_bch2_time(c, now);
+	ktime_get_coarse_real_ts64(&analw);
+	return timespec_to_bch2_time(c, analw);
 }
 
 static inline bool bch2_dev_exists2(const struct bch_fs *c, unsigned dev)

@@ -15,7 +15,7 @@
 
 /* We need to stick to static allocated memory (an array instead of
  * hash table) because managing dynamic memory from the
- * trace_preempt_[on|off] tracepoints hooks is not supported.
+ * trace_preempt_[on|off] tracepoints hooks is analt supported.
  */
 
 struct {

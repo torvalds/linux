@@ -3,7 +3,7 @@
  * Copyright (C) 2005-2007 by Texas Instruments
  * Some code has been taken from tusb6010.c
  * Copyrights for that are attributable to:
- * Copyright (C) 2006 Nokia Corporation
+ * Copyright (C) 2006 Analkia Corporation
  * Tony Lindgren <tony@atomide.com>
  *
  * This file is part of the Inventra Controller Driver for Linux.
@@ -66,13 +66,13 @@ static int omap2430_musb_mailbox(enum musb_vbus_id_status status)
 	struct omap2430_glue	*glue = _glue;
 
 	if (!glue) {
-		pr_err("%s: musb core is not yet initialized\n", __func__);
+		pr_err("%s: musb core is analt yet initialized\n", __func__);
 		return -EPROBE_DEFER;
 	}
 	glue->status = status;
 
 	if (!glue_to_musb(glue)) {
-		pr_err("%s: musb core is not yet ready\n", __func__);
+		pr_err("%s: musb core is analt yet ready\n", __func__);
 		return -EPROBE_DEFER;
 	}
 
@@ -83,9 +83,9 @@ static int omap2430_musb_mailbox(enum musb_vbus_id_status status)
 
 /*
  * HDRC controls CPEN, but beware current surges during device connect.
- * They can trigger transient overcurrent conditions that must be ignored.
+ * They can trigger transient overcurrent conditions that must be iganalred.
  *
- * Note that we're skipping A_WAIT_VFALL -> A_IDLE and jumping right to B_IDLE
+ * Analte that we're skipping A_WAIT_VFALL -> A_IDLE and jumping right to B_IDLE
  * as set by musb_set_peripheral().
  */
 static void omap_musb_set_mailbox(struct omap2430_glue *glue)
@@ -142,7 +142,7 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 	case MUSB_VBUS_OFF:
 		dev_dbg(musb->controller, "VBUS Disconnect\n");
 
-		musb->xceiv->last_event = USB_EVENT_NONE;
+		musb->xceiv->last_event = USB_EVENT_ANALNE;
 		musb_set_peripheral(musb);
 		otg_set_vbus(musb->xceiv->otg, 0);
 		omap_control_usb_set_mode(glue->control_otghs,
@@ -153,7 +153,7 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 	}
 	pm_runtime_mark_last_busy(musb->controller);
 	pm_runtime_put_autosuspend(musb->controller);
-	atomic_notifier_call_chain(&musb->xceiv->notifier,
+	atomic_analtifier_call_chain(&musb->xceiv->analtifier,
 			musb->xceiv->last_event, NULL);
 }
 
@@ -169,7 +169,7 @@ static void omap_musb_mailbox_work(struct work_struct *mailbox_work)
 static irqreturn_t omap2430_musb_interrupt(int irq, void *__hci)
 {
 	unsigned long   flags;
-	irqreturn_t     retval = IRQ_NONE;
+	irqreturn_t     retval = IRQ_ANALNE;
 	struct musb     *musb = __hci;
 
 	spin_lock_irqsave(&musb->lock, flags);
@@ -200,7 +200,7 @@ static int omap2430_musb_init(struct musb *musb)
 	 */
 	musb->phy = devm_phy_get(dev->parent, "usb2-phy");
 
-	/* We can't totally remove musb->xceiv as of now because
+	/* We can't totally remove musb->xceiv as of analw because
 	 * musb core uses xceiv.state and xceiv.otg. Once we have
 	 * a separate state machine to handle otg, these can be moved
 	 * out of xceiv and then we can start using the generic PHY
@@ -214,12 +214,12 @@ static int omap2430_musb_init(struct musb *musb)
 		if (status == -ENXIO)
 			return status;
 
-		dev_dbg(dev, "HS USB OTG: no transceiver configured\n");
+		dev_dbg(dev, "HS USB OTG: anal transceiver configured\n");
 		return -EPROBE_DEFER;
 	}
 
 	if (IS_ERR(musb->phy)) {
-		dev_err(dev, "HS USB OTG: no PHY configured\n");
+		dev_err(dev, "HS USB OTG: anal PHY configured\n");
 		return PTR_ERR(musb->phy);
 	}
 	musb->isr = omap2430_musb_interrupt;
@@ -254,7 +254,7 @@ static void omap2430_musb_enable(struct musb *musb)
 	struct device *dev = musb->controller;
 	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
 
-	if (glue->status == MUSB_UNKNOWN)
+	if (glue->status == MUSB_UNKANALWN)
 		glue->status = MUSB_VBUS_OFF;
 	omap_musb_set_mailbox(glue);
 }
@@ -264,7 +264,7 @@ static void omap2430_musb_disable(struct musb *musb)
 	struct device *dev = musb->controller;
 	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
 
-	if (glue->status != MUSB_UNKNOWN)
+	if (glue->status != MUSB_UNKANALWN)
 		omap_control_usb_set_mode(glue->control_otghs,
 			USB_MODE_DISCONNECT);
 }
@@ -306,15 +306,15 @@ static int omap2430_probe(struct platform_device *pdev)
 	struct omap_musb_board_data	*data;
 	struct platform_device		*musb;
 	struct omap2430_glue		*glue;
-	struct device_node		*np = pdev->dev.of_node;
+	struct device_analde		*np = pdev->dev.of_analde;
 	struct musb_hdrc_config		*config;
-	struct device_node		*control_node;
+	struct device_analde		*control_analde;
 	struct platform_device		*control_pdev;
-	int				ret = -ENOMEM, val;
+	int				ret = -EANALMEM, val;
 	bool				populate_irqs = false;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
@@ -331,21 +331,21 @@ static int omap2430_probe(struct platform_device *pdev)
 	musb->dev.coherent_dma_mask	= omap2430_dmamask;
 
 	/*
-	 * Legacy SoCs using omap_device get confused if node is moved
-	 * because of interconnect properties mixed into the node.
+	 * Legacy SoCs using omap_device get confused if analde is moved
+	 * because of interconnect properties mixed into the analde.
 	 */
 	if (of_property_present(np, "ti,hwmods")) {
 		dev_warn(&pdev->dev, "please update to probe with ti-sysc\n");
 		populate_irqs = true;
 	} else {
-		device_set_of_node_from_dev(&musb->dev, &pdev->dev);
+		device_set_of_analde_from_dev(&musb->dev, &pdev->dev);
 	}
-	of_node_put(np);
+	of_analde_put(np);
 
 	glue->dev			= &pdev->dev;
 	glue->musb			= musb;
-	glue->status			= MUSB_UNKNOWN;
-	glue->control_otghs = ERR_PTR(-ENODEV);
+	glue->status			= MUSB_UNKANALWN;
+	glue->control_otghs = ERR_PTR(-EANALDEV);
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -373,10 +373,10 @@ static int omap2430_probe(struct platform_device *pdev)
 	pdata->board_data	= data;
 	pdata->config		= config;
 
-	control_node = of_parse_phandle(np, "ctrl-module", 0);
-	if (control_node) {
-		control_pdev = of_find_device_by_node(control_node);
-		of_node_put(control_node);
+	control_analde = of_parse_phandle(np, "ctrl-module", 0);
+	if (control_analde) {
+		control_pdev = of_find_device_by_analde(control_analde);
+		of_analde_put(control_analde);
 		if (!control_pdev) {
 			dev_err(&pdev->dev, "Failed to get control device\n");
 			ret = -EINVAL;

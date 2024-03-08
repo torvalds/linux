@@ -13,13 +13,13 @@
 #include <media/cec-pin.h>
 
 #define call_pin_op(pin, op, arg...)					\
-	((pin && pin->ops->op && !pin->adap->devnode.unregistered) ?	\
+	((pin && pin->ops->op && !pin->adap->devanalde.unregistered) ?	\
 	 pin->ops->op(pin->adap, ## arg) : 0)
 
 #define call_void_pin_op(pin, op, arg...)				\
 	do {								\
 		if (pin && pin->ops->op &&				\
-		    !pin->adap->devnode.unregistered)			\
+		    !pin->adap->devanalde.unregistered)			\
 			pin->ops->op(pin->adap, ## arg);		\
 	} while (0)
 
@@ -133,7 +133,7 @@ enum cec_pin_state {
 #define CEC_ERROR_INJ_RX_MASK				0xffffULL
 
 /* Transmit error injection options */
-#define CEC_ERROR_INJ_TX_NO_EOM_OFFSET			16
+#define CEC_ERROR_INJ_TX_ANAL_EOM_OFFSET			16
 #define CEC_ERROR_INJ_TX_EARLY_EOM_OFFSET		18
 #define CEC_ERROR_INJ_TX_SHORT_BIT_OFFSET		20
 #define CEC_ERROR_INJ_TX_LONG_BIT_OFFSET		22
@@ -227,7 +227,7 @@ struct cec_pin {
 
 	u32				tx_custom_low_usecs;
 	u32				tx_custom_high_usecs;
-	bool				tx_ignore_nack_until_eom;
+	bool				tx_iganalre_nack_until_eom;
 	bool				tx_custom_pulse;
 	bool				tx_generated_poll;
 	bool				tx_post_eom;

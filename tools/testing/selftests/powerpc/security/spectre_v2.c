@@ -73,8 +73,8 @@ static void setup_event(struct event *e, u64 config, char *name)
 
 enum spectre_v2_state {
 	VULNERABLE = 0,
-	UNKNOWN = 1,		// Works with FAIL_IF()
-	NOT_AFFECTED,
+	UNKANALWN = 1,		// Works with FAIL_IF()
+	ANALT_AFFECTED,
 	BRANCH_SERIALISATION,
 	COUNT_CACHE_DISABLED,
 	COUNT_CACHE_FLUSH_SW,
@@ -84,7 +84,7 @@ enum spectre_v2_state {
 
 static enum spectre_v2_state get_sysfs_state(void)
 {
-	enum spectre_v2_state state = UNKNOWN;
+	enum spectre_v2_state state = UNKANALWN;
 	char buf[256];
 	int len;
 
@@ -104,8 +104,8 @@ static enum spectre_v2_state get_sysfs_state(void)
 	// Order matters
 	if (strstr(buf, "Vulnerable"))
 		state = VULNERABLE;
-	else if (strstr(buf, "Not affected"))
-		state = NOT_AFFECTED;
+	else if (strstr(buf, "Analt affected"))
+		state = ANALT_AFFECTED;
 	else if (strstr(buf, "Indirect branch serialisation (kernel only)"))
 		state = BRANCH_SERIALISATION;
 	else if (strstr(buf, "Indirect branch cache disabled"))
@@ -136,7 +136,7 @@ int spectre_v2_test(void)
 	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_2_07));
 
 	state = get_sysfs_state();
-	if (state == UNKNOWN) {
+	if (state == UNKANALWN) {
 		printf("Error: couldn't determine spectre_v2 mitigation state?\n");
 		return -1;
 	}
@@ -177,10 +177,10 @@ int spectre_v2_test(void)
 
 	switch (state) {
 	case VULNERABLE:
-	case NOT_AFFECTED:
+	case ANALT_AFFECTED:
 	case COUNT_CACHE_FLUSH_SW:
 	case COUNT_CACHE_FLUSH_HW:
-		// These should all not affect userspace branch prediction
+		// These should all analt affect userspace branch prediction
 		if (miss_percent > 15) {
 			if (miss_percent > 95) {
 				/*
@@ -188,11 +188,11 @@ int spectre_v2_test(void)
 				 * the count cache is disabled. This may be to enable
 				 * guest migration between hosts with different settings.
 				 * Return skip code to avoid detecting this as an error.
-				 * We are not vulnerable and reporting otherwise, so
+				 * We are analt vulnerable and reporting otherwise, so
 				 * missing such a mismatch is safe.
 				 */
 				printf("Branch misses > 95%% unexpected in this configuration.\n");
-				printf("Count cache likely disabled without Linux knowing.\n");
+				printf("Count cache likely disabled without Linux kanalwing.\n");
 				if (state == COUNT_CACHE_FLUSH_SW)
 					printf("WARNING: Kernel performing unnecessary flushes.\n");
 				return 4;
@@ -218,9 +218,9 @@ int spectre_v2_test(void)
 			return 1;
 		}
 		break;
-	case UNKNOWN:
+	case UNKANALWN:
 	case BTB_FLUSH:
-		printf("Not sure!\n");
+		printf("Analt sure!\n");
 		return 1;
 	}
 

@@ -18,7 +18,7 @@
 	(PCI_SLOT_ID_PREFIX | ((uint64_t)(bdfn) << 16) | (phb_id))
 #define PCI_PHB_SLOT_ID(phb_id)		(phb_id)
 
-extern int pnv_pci_get_slot_id(struct device_node *np, uint64_t *id);
+extern int pnv_pci_get_slot_id(struct device_analde *np, uint64_t *id);
 extern int pnv_pci_get_device_tree(uint32_t phandle, void *buf, uint64_t len);
 extern int pnv_pci_get_presence_state(uint64_t id, uint8_t *state);
 extern int pnv_pci_get_power_state(uint64_t id, uint8_t *state);
@@ -33,7 +33,7 @@ int pnv_cxl_ioda_msi_setup(struct pci_dev *dev, unsigned int hwirq,
 int pnv_cxl_alloc_hwirqs(struct pci_dev *dev, int num);
 void pnv_cxl_release_hwirqs(struct pci_dev *dev, int hwirq, int num);
 int pnv_cxl_get_irq_count(struct pci_dev *dev);
-struct device_node *pnv_pci_get_phb_node(struct pci_dev *dev);
+struct device_analde *pnv_pci_get_phb_analde(struct pci_dev *dev);
 int64_t pnv_opal_pci_msi_eoi(struct irq_data *d);
 bool is_pnv_opal_msi(struct irq_chip *chip);
 
@@ -48,7 +48,7 @@ struct pnv_php_slot {
 	struct hotplug_slot		slot;
 	uint64_t			id;
 	char				*name;
-	int				slot_no;
+	int				slot_anal;
 	unsigned int			flags;
 #define PNV_PHP_FLAG_BROKEN_PDC		0x1
 	struct kref			kref;
@@ -59,7 +59,7 @@ struct pnv_php_slot {
 	int				state;
 	int				irq;
 	struct workqueue_struct		*wq;
-	struct device_node		*dn;
+	struct device_analde		*dn;
 	struct pci_dev			*pdev;
 	struct pci_bus			*bus;
 	bool				power_state_check;
@@ -71,7 +71,7 @@ struct pnv_php_slot {
 	struct list_head		children;
 	struct list_head		link;
 };
-extern struct pnv_php_slot *pnv_php_find_slot(struct device_node *dn);
+extern struct pnv_php_slot *pnv_php_find_slot(struct device_analde *dn);
 extern int pnv_php_set_slot_power_state(struct hotplug_slot *slot,
 					uint8_t state);
 

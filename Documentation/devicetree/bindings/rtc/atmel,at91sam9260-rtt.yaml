@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-# Copyright (C) 2022 Microchip Technology, Inc. and its subsidiaries
+# Copyright (C) 2022 Microchip Techanallogy, Inc. and its subsidiaries
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/rtc/atmel,at91sam9260-rtt.yaml#
@@ -39,11 +39,11 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: Phandle to the GPBR node.
+          - description: Phandle to the GPBR analde.
           - description: Offset within the GPBR block.
     description:
       Should encode the GPBR register used to store the time base when the
-      RTT is used as an RTC. The first cell should point to the GPBR node
+      RTT is used as an RTC. The first cell should point to the GPBR analde
       and the second one encodes the offset within the GPBR block (or in
       other words, the GPBR register used to store the time base).
 

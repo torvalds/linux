@@ -78,7 +78,7 @@ static bool hip04_cluster_is_down(unsigned int cluster)
 	return true;
 }
 
-static void hip04_set_snoop_filter(unsigned int cluster, unsigned int on)
+static void hip04_set_sanalop_filter(unsigned int cluster, unsigned int on)
 {
 	unsigned long data;
 
@@ -106,7 +106,7 @@ static int hip04_boot_secondary(unsigned int l_cpu, struct task_struct *idle)
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 
 	if (!sysctrl)
-		return -ENODEV;
+		return -EANALDEV;
 	if (cluster >= HIP04_MAX_CLUSTERS || cpu >= HIP04_MAX_CPUS_PER_CLUSTER)
 		return -EINVAL;
 
@@ -124,7 +124,7 @@ static int hip04_boot_secondary(unsigned int l_cpu, struct task_struct *idle)
 			cpu_relax();
 			data = readl_relaxed(sys_status);
 		} while (data & CLUSTER_DEBUG_RESET_STATUS);
-		hip04_set_snoop_filter(cluster, 1);
+		hip04_set_sanalop_filter(cluster, 1);
 	}
 
 	data = CORE_RESET_BIT(cpu) | NEON_RESET_BIT(cpu) | \
@@ -136,7 +136,7 @@ static int hip04_boot_secondary(unsigned int l_cpu, struct task_struct *idle)
 
 	/*
 	 * We may fail to power up core again without this delay.
-	 * It's not mentioned in document. It's found by test.
+	 * It's analt mentioned in document. It's found by test.
 	 */
 	udelay(20);
 
@@ -227,7 +227,7 @@ static int hip04_cpu_kill(unsigned int l_cpu)
 	if (tries >= count)
 		goto err;
 	if (hip04_cluster_is_down(cluster))
-		hip04_set_snoop_filter(cluster, 0);
+		hip04_set_sanalop_filter(cluster, 0);
 	spin_unlock_irq(&boot_lock);
 	return 1;
 err:
@@ -257,19 +257,19 @@ static bool __init hip04_cpu_table_init(void)
 		pr_err("%s: boot CPU is out of bound!\n", __func__);
 		return false;
 	}
-	hip04_set_snoop_filter(cluster, 1);
+	hip04_set_sanalop_filter(cluster, 1);
 	hip04_cpu_table[cluster][cpu] = 1;
 	return true;
 }
 
 static int __init hip04_smp_init(void)
 {
-	struct device_node *np, *np_sctl, *np_fab;
+	struct device_analde *np, *np_sctl, *np_fab;
 	struct resource fab_res;
 	void __iomem *relocation;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
-	np = of_find_compatible_node(NULL, NULL, "hisilicon,hip04-bootwrapper");
+	np = of_find_compatible_analde(NULL, NULL, "hisilicon,hip04-bootwrapper");
 	if (!np)
 		goto err;
 	ret = of_property_read_u32_array(np, "boot-method",
@@ -277,11 +277,11 @@ static int __init hip04_smp_init(void)
 	if (ret)
 		goto err;
 
-	ret = -ENODEV;
-	np_sctl = of_find_compatible_node(NULL, NULL, "hisilicon,sysctrl");
+	ret = -EANALDEV;
+	np_sctl = of_find_compatible_analde(NULL, NULL, "hisilicon,sysctrl");
 	if (!np_sctl)
 		goto err;
-	np_fab = of_find_compatible_node(NULL, NULL, "hisilicon,hip04-fabric");
+	np_fab = of_find_compatible_analde(NULL, NULL, "hisilicon,hip04-fabric");
 	if (!np_fab)
 		goto err;
 
@@ -292,13 +292,13 @@ static int __init hip04_smp_init(void)
 	relocation = ioremap(hip04_boot_method[2], hip04_boot_method[3]);
 	if (!relocation) {
 		pr_err("failed to map relocation space\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_reloc;
 	}
 	sysctrl = of_iomap(np_sctl, 0);
 	if (!sysctrl) {
 		pr_err("failed to get sysctrl base\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_sysctrl;
 	}
 	ret = of_address_to_resource(np_fab, 0, &fab_res);
@@ -311,7 +311,7 @@ static int __init hip04_smp_init(void)
 	fabric = of_iomap(np_fab, 0);
 	if (!fabric) {
 		pr_err("failed to get fabric base\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_fabric;
 	}
 

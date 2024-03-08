@@ -13,8 +13,8 @@
 #include <asm/system_info.h>
 
 /*
- * Note: accesses outside of the kernel image and the identity map area
- * are not supported on any CPU using the idmap tables as its current
+ * Analte: accesses outside of the kernel image and the identity map area
+ * are analt supported on any CPU using the idmap tables as its current
  * page tables.
  */
 pgd_t *idmap_pgd __ro_after_init;
@@ -27,7 +27,7 @@ static void idmap_add_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 	pmd_t *pmd;
 	unsigned long next;
 
-	if (pud_none_or_clear_bad(pud) || (pud_val(*pud) & L_PGD_SWAPPER)) {
+	if (pud_analne_or_clear_bad(pud) || (pud_val(*pud) & L_PGD_SWAPPER)) {
 		pmd = pmd_alloc_one(&init_mm, addr);
 		if (!pmd) {
 			pr_warn("Failed to allocate identity pmd.\n");
@@ -37,7 +37,7 @@ static void idmap_add_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 		 * Copy the original PMD to ensure that the PMD entries for
 		 * the kernel image are preserved.
 		 */
-		if (!pud_none(*pud))
+		if (!pud_analne(*pud))
 			memcpy(pmd, pmd_offset(pud, 0),
 			       PTRS_PER_PMD * sizeof(pmd_t));
 		pud_populate(&init_mm, pud, pmd);
@@ -106,7 +106,7 @@ static int __init init_static_idmap(void)
 {
 	idmap_pgd = pgd_alloc(&init_mm);
 	if (!idmap_pgd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	identity_mapping_add(idmap_pgd, __idmap_text_start,
 			     __idmap_text_end, 0);

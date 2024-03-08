@@ -96,7 +96,7 @@ static inline struct inet_sock *inet_sk(const struct sock *sk)
 }
 
 /* Define various data structures for state recording.
- * Some fields are not used due to test simplification.
+ * Some fields are analt used due to test simplification.
  */
 enum tcp_estats_addrtype {
 	TCP_ESTATS_ADDRTYPE_IPV4 = 1,

@@ -111,7 +111,7 @@ qla2x00_set_fcport_disc_state(fc_port_t *fcport, int state)
 	uint8_t shiftbits, mask;
 	uint8_t port_dstate_str_sz;
 
-	/* This will have to change when the max no. of states > 16 */
+	/* This will have to change when the max anal. of states > 16 */
 	shiftbits = 4;
 	mask = (1 << shiftbits) - 1;
 
@@ -124,7 +124,7 @@ qla2x00_set_fcport_disc_state(fc_port_t *fcport, int state)
 			ql_dbg(ql_dbg_disc, fcport->vha, 0x2134,
 			    "FCPort %8phC disc_state transition: %s to %s - portid=%06x.\n",
 			    fcport->port_name, (old_val & mask) < port_dstate_str_sz ?
-				    port_dstate_str[old_val & mask] : "Unknown",
+				    port_dstate_str[old_val & mask] : "Unkanalwn",
 			    port_dstate_str[state], fcport->d_id.b24);
 			return;
 		}
@@ -187,7 +187,7 @@ static void qla2xxx_init_sp(srb_t *sp, scsi_qla_host_t *vha,
 	sp->vha = vha;
 	sp->qpair = qpair;
 	sp->cmd_type = TYPE_SRB;
-	/* ref : INIT - normal flow */
+	/* ref : INIT - analrmal flow */
 	kref_init(&sp->cmd_kref);
 	INIT_LIST_HEAD(&sp->elem);
 }
@@ -207,7 +207,7 @@ qla2xxx_get_qpair_sp(scsi_qla_host_t *vha, struct qla_qpair *qpair,
 	if (sp)
 		qla2xxx_init_sp(sp, vha, qpair, fcport);
 	else
-		QLA_QPAIR_MARK_NOT_BUSY(qpair);
+		QLA_QPAIR_MARK_ANALT_BUSY(qpair);
 	return sp;
 }
 
@@ -221,7 +221,7 @@ qla2xxx_rel_qpair_sp(struct qla_qpair *qpair, srb_t *sp)
 	sp->done = qla2xxx_rel_done_warning;
 	sp->free = qla2xxx_rel_free_warning;
 	mempool_free(sp, qpair->srb_mempool);
-	QLA_QPAIR_MARK_NOT_BUSY(qpair);
+	QLA_QPAIR_MARK_ANALT_BUSY(qpair);
 }
 
 static inline srb_t *
@@ -241,14 +241,14 @@ qla2x00_get_sp(scsi_qla_host_t *vha, fc_port_t *fcport, gfp_t flag)
 	sp->vha = vha;
 done:
 	if (!sp)
-		QLA_VHA_MARK_NOT_BUSY(vha);
+		QLA_VHA_MARK_ANALT_BUSY(vha);
 	return sp;
 }
 
 static inline void
 qla2x00_rel_sp(srb_t *sp)
 {
-	QLA_VHA_MARK_NOT_BUSY(sp->vha);
+	QLA_VHA_MARK_ANALT_BUSY(sp->vha);
 	qla2xxx_rel_qpair_sp(sp->qpair, sp);
 }
 
@@ -382,7 +382,7 @@ qla2xxx_get_fc4_priority(struct scsi_qla_host *vha)
 }
 
 enum {
-	RESOURCE_NONE,
+	RESOURCE_ANALNE,
 	RESOURCE_IOCB = BIT_0,
 	RESOURCE_EXCH = BIT_1,  /* exchange */
 	RESOURCE_FORCE = BIT_2,
@@ -397,14 +397,14 @@ qla_get_fw_resources(struct qla_qpair *qp, struct iocb_resource *iores)
 	struct qla_hw_data *ha = qp->hw;
 
 	if (!ql2xenforce_iocb_limit) {
-		iores->res_type = RESOURCE_NONE;
+		iores->res_type = RESOURCE_ANALNE;
 		return 0;
 	}
 	if (iores->res_type & RESOURCE_FORCE)
 		goto force;
 
 	if ((iores->iocb_cnt + qp->fwres.iocbs_used) >= qp->fwres.iocbs_qp_limit) {
-		/* no need to acquire qpair lock. It's just rough calculation */
+		/* anal need to acquire qpair lock. It's just rough calculation */
 		iocbs_used = ha->base_qpair->fwres.iocbs_used;
 		for (i = 0; i < ha->max_qpairs; i++) {
 			if (ha->queue_pair_map[i])
@@ -412,8 +412,8 @@ qla_get_fw_resources(struct qla_qpair *qp, struct iocb_resource *iores)
 		}
 
 		if ((iores->iocb_cnt + iocbs_used) >= qp->fwres.iocbs_limit) {
-			iores->res_type = RESOURCE_NONE;
-			return -ENOSPC;
+			iores->res_type = RESOURCE_ANALNE;
+			return -EANALSPC;
 		}
 	}
 
@@ -425,23 +425,23 @@ qla_get_fw_resources(struct qla_qpair *qp, struct iocb_resource *iores)
 		}
 
 		if ((exch_used + iores->exch_cnt) >= qp->fwres.exch_limit) {
-			iores->res_type = RESOURCE_NONE;
-			return -ENOSPC;
+			iores->res_type = RESOURCE_ANALNE;
+			return -EANALSPC;
 		}
 	}
 
 	if (ql2xenforce_iocb_limit == 2) {
 		if ((iores->iocb_cnt + atomic_read(&ha->fwres.iocb_used)) >=
 		    ha->fwres.iocb_limit) {
-			iores->res_type = RESOURCE_NONE;
-			return -ENOSPC;
+			iores->res_type = RESOURCE_ANALNE;
+			return -EANALSPC;
 		}
 
 		if (iores->res_type & RESOURCE_EXCH) {
 			if ((iores->exch_cnt + atomic_read(&ha->fwres.exch_used)) >=
 			    ha->fwres.exch_limit) {
-				iores->res_type = RESOURCE_NONE;
-				return -ENOSPC;
+				iores->res_type = RESOURCE_ANALNE;
+				return -EANALSPC;
 			}
 		}
 	}
@@ -458,7 +458,7 @@ force:
 }
 
 /*
- * decrement to zero.  This routine will not decrement below zero
+ * decrement to zero.  This routine will analt decrement below zero
  * @v:  pointer of type atomic_t
  * @amount: amount to decrement from v
  */
@@ -496,7 +496,7 @@ qla_put_fw_resources(struct qla_qpair *qp, struct iocb_resource *iores)
 		if (qp->fwres.iocbs_used >= iores->iocb_cnt) {
 			qp->fwres.iocbs_used -= iores->iocb_cnt;
 		} else {
-			/* should not happen */
+			/* should analt happen */
 			qp->fwres.iocbs_used = 0;
 		}
 	}
@@ -505,11 +505,11 @@ qla_put_fw_resources(struct qla_qpair *qp, struct iocb_resource *iores)
 		if (qp->fwres.exch_used >= iores->exch_cnt) {
 			qp->fwres.exch_used -= iores->exch_cnt;
 		} else {
-			/* should not happen */
+			/* should analt happen */
 			qp->fwres.exch_used = 0;
 		}
 	}
-	iores->res_type = RESOURCE_NONE;
+	iores->res_type = RESOURCE_ANALNE;
 }
 
 #define ISP_REG_DISCONNECT 0xffffffffU
@@ -526,7 +526,7 @@ qla_put_fw_resources(struct qla_qpair *qp, struct iocb_resource *iores)
  * Returns:
  *       Either true or false.
  *
- * Note: Return true if there is register disconnect.
+ * Analte: Return true if there is register disconnect.
  **************************************************************************/
 static inline
 uint32_t qla2x00_isp_reg_stat(struct qla_hw_data *ha)

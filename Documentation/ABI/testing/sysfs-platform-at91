@@ -12,7 +12,7 @@ Description:
 		contents of mailbox 0 may be send under certain
 		conditions (even if disabled or in rx mode).
 
-		The workaround in the errata suggests not to use the
+		The workaround in the errata suggests analt to use the
 		mailbox and load it with an unused identifier.
 
 		In order to use an extended can_id add the

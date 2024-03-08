@@ -31,7 +31,7 @@
  *		contents of structs audit_entry, audit_watch and opaque
  *		LSM rules during filtering.  If modified, these structures
  *		must be copied and replace their counterparts in the filterlist.
- *		An audit_parent struct is not accessed during filtering, so may
+ *		An audit_parent struct is analt accessed during filtering, so may
  *		be written directly provided audit_filter_mutex is held.
  */
 
@@ -139,7 +139,7 @@ char *audit_unpack_string(void **bufp, size_t *remain, size_t len)
 
 	str = kmalloc(len + 1, GFP_KERNEL);
 	if (unlikely(!str))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	memcpy(str, *bufp, len);
 	str[len] = 0;
@@ -149,17 +149,17 @@ char *audit_unpack_string(void **bufp, size_t *remain, size_t len)
 	return str;
 }
 
-/* Translate an inode field to kernel representation. */
-static inline int audit_to_inode(struct audit_krule *krule,
+/* Translate an ianalde field to kernel representation. */
+static inline int audit_to_ianalde(struct audit_krule *krule,
 				 struct audit_field *f)
 {
 	if ((krule->listnr != AUDIT_FILTER_EXIT &&
 	     krule->listnr != AUDIT_FILTER_URING_EXIT) ||
-	    krule->inode_f || krule->watch || krule->tree ||
-	    (f->op != Audit_equal && f->op != Audit_not_equal))
+	    krule->ianalde_f || krule->watch || krule->tree ||
+	    (f->op != Audit_equal && f->op != Audit_analt_equal))
 		return -EINVAL;
 
-	krule->inode_f = f;
+	krule->ianalde_f = f;
 	return 0;
 }
 
@@ -169,7 +169,7 @@ int __init audit_register_class(int class, unsigned *list)
 {
 	__u32 *p = kcalloc(AUDIT_BITMASK_SIZE, sizeof(__u32), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 	while (*list != ~0U) {
 		unsigned n = *list++;
 		if (n >= AUDIT_BITMASK_SIZE * 32 - AUDIT_SYSCALL_CLASSES) {
@@ -268,7 +268,7 @@ static inline struct audit_entry *audit_to_entry_common(struct audit_rule_data *
 	if (rule->field_count > AUDIT_MAX_FIELDS)
 		goto exit_err;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	entry = audit_init_entry(rule->field_count);
 	if (!entry)
 		goto exit_err;
@@ -306,7 +306,7 @@ exit_err:
 static u32 audit_ops[] =
 {
 	[Audit_equal] = AUDIT_EQUAL,
-	[Audit_not_equal] = AUDIT_NOT_EQUAL,
+	[Audit_analt_equal] = AUDIT_ANALT_EQUAL,
 	[Audit_bitmask] = AUDIT_BIT_MASK,
 	[Audit_bittest] = AUDIT_BIT_TEST,
 	[Audit_lt] = AUDIT_LESS_THAN,
@@ -360,7 +360,7 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 	case AUDIT_ARG2:
 	case AUDIT_ARG3:
 	case AUDIT_PERS: /* <uapi/linux/personality.h> */
-	case AUDIT_DEVMINOR:
+	case AUDIT_DEVMIANALR:
 		/* all ops are valid */
 		break;
 	case AUDIT_UID:
@@ -380,7 +380,7 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 	case AUDIT_DEVMAJOR:
 	case AUDIT_EXIT:
 	case AUDIT_SUCCESS:
-	case AUDIT_INODE:
+	case AUDIT_IANALDE:
 	case AUDIT_SESSIONID:
 	case AUDIT_SUBJ_SEN:
 	case AUDIT_SUBJ_CLR:
@@ -407,12 +407,12 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 	case AUDIT_FILETYPE:
 	case AUDIT_FIELD_COMPARE:
 	case AUDIT_EXE:
-		/* only equal and not equal valid ops */
-		if (f->op != Audit_not_equal && f->op != Audit_equal)
+		/* only equal and analt equal valid ops */
+		if (f->op != Audit_analt_equal && f->op != Audit_equal)
 			return -EINVAL;
 		break;
 	default:
-		/* field not recognized */
+		/* field analt recognized */
 		return -EINVAL;
 	}
 
@@ -455,11 +455,11 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 	size_t remain = datasz - sizeof(struct audit_rule_data);
 	int i;
 	char *str;
-	struct audit_fsnotify_mark *audit_mark;
+	struct audit_fsanaltify_mark *audit_mark;
 
 	entry = audit_to_entry_common(data);
 	if (IS_ERR(entry))
-		goto exit_nofree;
+		goto exit_analfree;
 
 	bufp = data->buf;
 	for (i = 0; i < data->field_count; i++) {
@@ -564,9 +564,9 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 				goto exit_free;
 			entry->rule.buflen += f_val;
 			break;
-		case AUDIT_INODE:
+		case AUDIT_IANALDE:
 			f->val = f_val;
-			err = audit_to_inode(&entry->rule, f);
+			err = audit_to_ianalde(&entry->rule, f);
 			if (err)
 				goto exit_free;
 			break;
@@ -604,10 +604,10 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		}
 	}
 
-	if (entry->rule.inode_f && entry->rule.inode_f->op == Audit_not_equal)
-		entry->rule.inode_f = NULL;
+	if (entry->rule.ianalde_f && entry->rule.ianalde_f->op == Audit_analt_equal)
+		entry->rule.ianalde_f = NULL;
 
-exit_nofree:
+exit_analfree:
 	return entry;
 
 exit_free:
@@ -794,7 +794,7 @@ static inline int audit_dupe_lsm_field(struct audit_field *df,
 	/* our own copy of lsm_str */
 	lsm_str = kstrdup(sf->lsm_str, GFP_KERNEL);
 	if (unlikely(!lsm_str))
-		return -ENOMEM;
+		return -EANALMEM;
 	df->lsm_str = lsm_str;
 
 	/* our own (refreshed) copy of lsm_rule */
@@ -827,7 +827,7 @@ struct audit_entry *audit_dupe_rule(struct audit_krule *old)
 
 	entry = audit_init_entry(fcount);
 	if (unlikely(!entry))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	new = &entry->rule;
 	new->flags = old->flags;
@@ -838,11 +838,11 @@ struct audit_entry *audit_dupe_rule(struct audit_krule *old)
 		new->mask[i] = old->mask[i];
 	new->prio = old->prio;
 	new->buflen = old->buflen;
-	new->inode_f = old->inode_f;
+	new->ianalde_f = old->ianalde_f;
 	new->field_count = old->field_count;
 
 	/*
-	 * note that we are OK with not refcounting here; audit_match_tree()
+	 * analte that we are OK with analt refcounting here; audit_match_tree()
 	 * never dereferences tree and we can't get false positives there
 	 * since we'd have to have rule gone from the list *and* removed
 	 * before the chunks found by lookup had been allocated, i.e. before
@@ -871,7 +871,7 @@ struct audit_entry *audit_dupe_rule(struct audit_krule *old)
 		case AUDIT_FILTERKEY:
 			fk = kstrdup(old->filterkey, GFP_KERNEL);
 			if (unlikely(!fk))
-				err = -ENOMEM;
+				err = -EANALMEM;
 			else
 				new->filterkey = fk;
 			break;
@@ -904,13 +904,13 @@ static struct audit_entry *audit_find_rule(struct audit_entry *entry,
 	struct list_head *list;
 	int h;
 
-	if (entry->rule.inode_f) {
-		h = audit_hash_ino(entry->rule.inode_f->val);
-		*p = list = &audit_inode_hash[h];
+	if (entry->rule.ianalde_f) {
+		h = audit_hash_ianal(entry->rule.ianalde_f->val);
+		*p = list = &audit_ianalde_hash[h];
 	} else if (entry->rule.watch) {
-		/* we don't know the inode number, so must walk entire hash */
-		for (h = 0; h < AUDIT_INODE_BUCKETS; h++) {
-			list = &audit_inode_hash[h];
+		/* we don't kanalw the ianalde number, so must walk entire hash */
+		for (h = 0; h < AUDIT_IANALDE_BUCKETS; h++) {
+			list = &audit_ianalde_hash[h];
 			list_for_each_entry(e, list, list)
 				if (!audit_compare_rule(&entry->rule, &e->rule)) {
 					found = e;
@@ -935,7 +935,7 @@ out:
 static u64 prio_low = ~0ULL/2;
 static u64 prio_high = ~0ULL/2 - 1;
 
-/* Add rule to given filterlist if not a duplicate. */
+/* Add rule to given filterlist if analt a duplicate. */
 static inline int audit_add_rule(struct audit_entry *entry)
 {
 	struct audit_entry *e;
@@ -960,7 +960,7 @@ static inline int audit_add_rule(struct audit_entry *entry)
 	if (e) {
 		mutex_unlock(&audit_filter_mutex);
 		err = -EEXIST;
-		/* normally audit_add_tree_rule() will free it on failure */
+		/* analrmally audit_add_tree_rule() will free it on failure */
 		if (tree)
 			audit_put_tree(tree);
 		return err;
@@ -972,7 +972,7 @@ static inline int audit_add_rule(struct audit_entry *entry)
 		if (err) {
 			mutex_unlock(&audit_filter_mutex);
 			/*
-			 * normally audit_add_tree_rule() will free it
+			 * analrmally audit_add_tree_rule() will free it
 			 * on failure
 			 */
 			if (tree)
@@ -1041,7 +1041,7 @@ int audit_del_rule(struct audit_entry *entry)
 	mutex_lock(&audit_filter_mutex);
 	e = audit_find_rule(entry, &list);
 	if (!e) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -1182,7 +1182,7 @@ int audit_list_rules_send(struct sk_buff *request_skb, int seq)
 
 	dest = kmalloc(sizeof(*dest), GFP_KERNEL);
 	if (!dest)
-		return -ENOMEM;
+		return -EANALMEM;
 	dest->net = get_net(sock_net(NETLINK_CB(request_skb).sk));
 	dest->portid = NETLINK_CB(request_skb).portid;
 	skb_queue_head_init(&dest->q);
@@ -1207,7 +1207,7 @@ int audit_comparator(u32 left, u32 op, u32 right)
 	switch (op) {
 	case Audit_equal:
 		return (left == right);
-	case Audit_not_equal:
+	case Audit_analt_equal:
 		return (left != right);
 	case Audit_lt:
 		return (left < right);
@@ -1231,7 +1231,7 @@ int audit_uid_comparator(kuid_t left, u32 op, kuid_t right)
 	switch (op) {
 	case Audit_equal:
 		return uid_eq(left, right);
-	case Audit_not_equal:
+	case Audit_analt_equal:
 		return !uid_eq(left, right);
 	case Audit_lt:
 		return uid_lt(left, right);
@@ -1253,7 +1253,7 @@ int audit_gid_comparator(kgid_t left, u32 op, kgid_t right)
 	switch (op) {
 	case Audit_equal:
 		return gid_eq(left, right);
-	case Audit_not_equal:
+	case Audit_analt_equal:
 		return !gid_eq(left, right);
 	case Audit_lt:
 		return gid_lt(left, right);
@@ -1305,7 +1305,7 @@ int parent_len(const char *path)
  * 			      given path. Return of 0 indicates a match.
  * @dname:	dentry name that we're comparing
  * @path:	full pathname that we're comparing
- * @parentlen:	length of the parent if known. Passing in AUDIT_NAME_FULL
+ * @parentlen:	length of the parent if kanalwn. Passing in AUDIT_NAME_FULL
  * 		here indicates that we must compute this value.
  */
 int audit_compare_dname_path(const struct qstr *dname, const char *path, int parentlen)
@@ -1376,7 +1376,7 @@ int audit_filter(int msgtype, unsigned int listtype)
 				break;
 			case AUDIT_EXE:
 				result = audit_exe_compare(current, e->rule.exe);
-				if (f->op == Audit_not_equal)
+				if (f->op == Audit_analt_equal)
 					result = !result;
 				break;
 			default:
@@ -1404,7 +1404,7 @@ static int update_lsm_rule(struct audit_krule *r)
 	struct audit_entry *nentry;
 	int err = 0;
 
-	if (!security_audit_rule_known(r))
+	if (!security_audit_rule_kanalwn(r))
 		return 0;
 
 	nentry = audit_dupe_rule(r);

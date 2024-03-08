@@ -41,7 +41,7 @@ u32 crc32c_le_vgfm_16(u32 crc, unsigned char const *buf, size_t size);
  *
  * Creates a function to perform a particular CRC-32 computation. Depending
  * on the message buffer, the hardware-accelerated or software implementation
- * is used.   Note that the message buffer is aligned to improve fetch
+ * is used.   Analte that the message buffer is aligned to improve fetch
  * operations of VECTOR LOAD MULTIPLE instructions.
  *
  */

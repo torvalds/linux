@@ -404,7 +404,7 @@ u32 cudbg_get_entity_length(struct adapter *adap, u32 entity)
 	case CUDBG_HMA:
 		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
 		if (value & HMA_MUX_F) {
-			/* In T6, there's no MC1.  So, HMA shares MC1
+			/* In T6, there's anal MC1.  So, HMA shares MC1
 			 * address space.
 			 */
 			value = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
@@ -460,7 +460,7 @@ static int cudbg_write_and_release_buff(struct cudbg_init *pdbg_init,
 {
 	int rc = 0;
 
-	if (pdbg_init->compress_type == CUDBG_COMPRESSION_NONE) {
+	if (pdbg_init->compress_type == CUDBG_COMPRESSION_ANALNE) {
 		cudbg_update_buff(pin_buff, dbg_buff);
 	} else {
 		rc = cudbg_do_compression(pdbg_init, pin_buff, dbg_buff);
@@ -624,8 +624,8 @@ int cudbg_fill_meminfo(struct adapter *padap,
 		}
 	}
 
-	if (!i) /* no memory available */
-		return CUDBG_STATUS_ENTITY_NOT_FOUND;
+	if (!i) /* anal memory available */
+		return CUDBG_STATUS_ENTITY_ANALT_FOUND;
 
 	meminfo_buff->avail_c = i;
 	sort(meminfo_buff->avail, i, sizeof(struct cudbg_mem_desc),
@@ -975,7 +975,7 @@ static int cudbg_read_cim_ibq(struct cudbg_init *pdbg_init,
 {
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
-	int no_of_read_words, rc = 0;
+	int anal_of_read_words, rc = 0;
 	u32 qsize;
 
 	/* collect CIM IBQ */
@@ -984,15 +984,15 @@ static int cudbg_read_cim_ibq(struct cudbg_init *pdbg_init,
 	if (rc)
 		return rc;
 
-	/* t4_read_cim_ibq will return no. of read words or error */
-	no_of_read_words = t4_read_cim_ibq(padap, qid,
+	/* t4_read_cim_ibq will return anal. of read words or error */
+	anal_of_read_words = t4_read_cim_ibq(padap, qid,
 					   (u32 *)temp_buff.data, qsize);
-	/* no_of_read_words is less than or equal to 0 means error */
-	if (no_of_read_words <= 0) {
-		if (!no_of_read_words)
+	/* anal_of_read_words is less than or equal to 0 means error */
+	if (anal_of_read_words <= 0) {
+		if (!anal_of_read_words)
 			rc = CUDBG_SYSTEM_ERROR;
 		else
-			rc = no_of_read_words;
+			rc = anal_of_read_words;
 		cudbg_err->sys_err = rc;
 		cudbg_put_buff(pdbg_init, &temp_buff);
 		return rc;
@@ -1059,7 +1059,7 @@ static int cudbg_read_cim_obq(struct cudbg_init *pdbg_init,
 {
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
-	int no_of_read_words, rc = 0;
+	int anal_of_read_words, rc = 0;
 	u32 qsize;
 
 	/* collect CIM OBQ */
@@ -1068,15 +1068,15 @@ static int cudbg_read_cim_obq(struct cudbg_init *pdbg_init,
 	if (rc)
 		return rc;
 
-	/* t4_read_cim_obq will return no. of read words or error */
-	no_of_read_words = t4_read_cim_obq(padap, qid,
+	/* t4_read_cim_obq will return anal. of read words or error */
+	anal_of_read_words = t4_read_cim_obq(padap, qid,
 					   (u32 *)temp_buff.data, qsize);
-	/* no_of_read_words is less than or equal to 0 means error */
-	if (no_of_read_words <= 0) {
-		if (!no_of_read_words)
+	/* anal_of_read_words is less than or equal to 0 means error */
+	if (anal_of_read_words <= 0) {
+		if (!anal_of_read_words)
 			rc = CUDBG_SYSTEM_ERROR;
 		else
-			rc = no_of_read_words;
+			rc = anal_of_read_words;
 		cudbg_err->sys_err = rc;
 		cudbg_put_buff(pdbg_init, &temp_buff);
 		return rc;
@@ -1164,7 +1164,7 @@ static int cudbg_meminfo_get_mem_index(struct adapter *padap,
 		flag = HMA_FLAG;
 		break;
 	default:
-		return CUDBG_STATUS_ENTITY_NOT_FOUND;
+		return CUDBG_STATUS_ENTITY_ANALT_FOUND;
 	}
 
 	for (i = 0; i < mem_info->avail_c; i++) {
@@ -1174,7 +1174,7 @@ static int cudbg_meminfo_get_mem_index(struct adapter *padap,
 		}
 	}
 
-	return CUDBG_STATUS_ENTITY_NOT_FOUND;
+	return CUDBG_STATUS_ENTITY_ANALT_FOUND;
 }
 
 /* Fetch the @region_name's start and end from @meminfo. */
@@ -1635,7 +1635,7 @@ int cudbg_collect_hw_sched(struct cudbg_init *pdbg_init,
 	int i, rc = 0;
 
 	if (!padap->params.vpd.cclk)
-		return CUDBG_STATUS_CCLK_NOT_DEFINED;
+		return CUDBG_STATUS_CCLK_ANALT_DEFINED;
 
 	rc = cudbg_get_buff(pdbg_init, dbg_buff, sizeof(struct cudbg_hw_sched),
 			    &temp_buff);
@@ -1968,7 +1968,7 @@ int cudbg_collect_clk_info(struct cudbg_init *pdbg_init,
 	int rc;
 
 	if (!padap->params.vpd.cclk)
-		return CUDBG_STATUS_CCLK_NOT_DEFINED;
+		return CUDBG_STATUS_CCLK_ANALT_DEFINED;
 
 	rc = cudbg_get_buff(pdbg_init, dbg_buff, sizeof(struct cudbg_clk_info),
 			    &temp_buff);
@@ -2141,7 +2141,7 @@ int cudbg_collect_tid(struct cudbg_init *pdbg_init,
 	tid1->ver_hdr.size = sizeof(struct cudbg_tid_info_region_rev1) -
 			     sizeof(struct cudbg_ver_hdr);
 
-	/* If firmware is not attached/alive, use backdoor register
+	/* If firmware is analt attached/alive, use backdoor register
 	 * access to collect dump.
 	 */
 	if (!is_fw_attached(pdbg_init))
@@ -2408,14 +2408,14 @@ int cudbg_collect_dump_context(struct cudbg_init *pdbg_init,
 
 	rc = cudbg_dump_context_size(padap);
 	if (rc <= 0)
-		return CUDBG_STATUS_ENTITY_NOT_FOUND;
+		return CUDBG_STATUS_ENTITY_ANALT_FOUND;
 
 	size = rc;
 	rc = cudbg_get_buff(pdbg_init, dbg_buff, size, &temp_buff);
 	if (rc)
 		return rc;
 
-	/* Get buffer with enough space to read the biggest context
+	/* Get buffer with eanalugh space to read the biggest context
 	 * region in memory.
 	 */
 	max_ctx_size = max(region_info[CTXT_EGRESS].end -
@@ -2426,7 +2426,7 @@ int cudbg_collect_dump_context(struct cudbg_init *pdbg_init,
 	ctx_buf = kvzalloc(max_ctx_size, GFP_KERNEL);
 	if (!ctx_buf) {
 		cudbg_put_buff(pdbg_init, &temp_buff);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	buff = (struct cudbg_ch_cntxt *)temp_buff.data;
@@ -2446,7 +2446,7 @@ int cudbg_collect_dump_context(struct cudbg_init *pdbg_init,
 		max_ctx_size = region_info[i].end - region_info[i].start + 1;
 		max_ctx_qid = max_ctx_size / SGE_CTXT_SIZE;
 
-		/* If firmware is not attached/alive, use backdoor register
+		/* If firmware is analt attached/alive, use backdoor register
 		 * access to collect dump.
 		 */
 		if (is_fw_attached(pdbg_init)) {
@@ -2598,7 +2598,7 @@ static int cudbg_collect_tcam_index(struct cudbg_init *pdbg_init,
 		tcamx = t4_read_reg64(padap, MPS_CLS_TCAM_X_L(idx));
 	}
 
-	/* If no entry, return */
+	/* If anal entry, return */
 	if (tcamx & tcamy)
 		return rc;
 
@@ -2624,7 +2624,7 @@ static int cudbg_collect_tcam_index(struct cudbg_init *pdbg_init,
 			htons(FW_LDST_CMD_FID_V(FW_LDST_MPS_RPLC) |
 			      FW_LDST_CMD_IDX_V(idx));
 
-		/* If firmware is not attached/alive, use backdoor register
+		/* If firmware is analt attached/alive, use backdoor register
 		 * access to collect dump.
 		 */
 		if (is_fw_attached(pdbg_init))
@@ -2633,7 +2633,7 @@ static int cudbg_collect_tcam_index(struct cudbg_init *pdbg_init,
 
 		if (rc || !is_fw_attached(pdbg_init)) {
 			cudbg_mps_rpl_backdoor(padap, &mps_rplc);
-			/* Ignore error since we collected directly from
+			/* Iganalre error since we collected directly from
 			 * reading registers.
 			 */
 			rc = 0;
@@ -2738,7 +2738,7 @@ int cudbg_collect_vpd_data(struct cudbg_init *pdbg_init,
 	vpd_data->scfg_vers = t4_read_reg(padap, PCIE_STATIC_SPARE2_A);
 	vpd_data->vpd_vers = vpd_vers;
 	vpd_data->fw_major = FW_HDR_FW_VER_MAJOR_G(fw_vers);
-	vpd_data->fw_minor = FW_HDR_FW_VER_MINOR_G(fw_vers);
+	vpd_data->fw_mianalr = FW_HDR_FW_VER_MIANALR_G(fw_vers);
 	vpd_data->fw_micro = FW_HDR_FW_VER_MICRO_G(fw_vers);
 	vpd_data->fw_build = FW_HDR_FW_VER_BUILD_G(fw_vers);
 	return cudbg_write_and_release_buff(pdbg_init, &temp_buff, dbg_buff);
@@ -2791,7 +2791,7 @@ static int cudbg_read_tid(struct cudbg_init *pdbg_init, u32 tid,
 
 static int cudbg_get_le_type(u32 tid, struct cudbg_tcam tcam_region)
 {
-	int type = LE_ET_UNKNOWN;
+	int type = LE_ET_UNKANALWN;
 
 	if (tid < tcam_region.server_start)
 		type = LE_ET_TCAM_CON;
@@ -2874,7 +2874,7 @@ void cudbg_fill_le_tcam_info(struct adapter *padap,
 			tcam_region->max_tid = value +
 					       tcam_region->tid_hash_base;
 		}
-	} else { /* hash not enabled */
+	} else { /* hash analt enabled */
 		if (is_t6(padap->params.chip))
 			tcam_region->max_tid = (value & ASLIPCOMPEN_F) ?
 					       CUDBG_MAX_TID_COMP_EN :
@@ -2971,7 +2971,7 @@ int cudbg_collect_ma_indirect(struct cudbg_init *pdbg_init,
 	u32 size, j;
 
 	if (CHELSIO_CHIP_VERSION(padap->params.chip) < CHELSIO_T6)
-		return CUDBG_STATUS_ENTITY_NOT_FOUND;
+		return CUDBG_STATUS_ENTITY_ANALT_FOUND;
 
 	n = sizeof(t6_ma_ireg_array) / (IREG_NUM_ELEM * sizeof(u32));
 	size = sizeof(struct ireg_buf) * n * 2;
@@ -3095,7 +3095,7 @@ int cudbg_collect_up_cim_indirect(struct cudbg_init *pdbg_init,
 		n = sizeof(t6_up_cim_reg_array) /
 		    ((IREG_NUM_ELEM + 1) * sizeof(u32));
 	else
-		return CUDBG_STATUS_NOT_IMPLEMENTED;
+		return CUDBG_STATUS_ANALT_IMPLEMENTED;
 
 	size = sizeof(struct ireg_buf) * n;
 	rc = cudbg_get_buff(pdbg_init, dbg_buff, size, &temp_buff);
@@ -3280,7 +3280,7 @@ int cudbg_collect_hma_indirect(struct cudbg_init *pdbg_init,
 	u32 size;
 
 	if (CHELSIO_CHIP_VERSION(padap->params.chip) < CHELSIO_T6)
-		return CUDBG_STATUS_ENTITY_NOT_FOUND;
+		return CUDBG_STATUS_ENTITY_ANALT_FOUND;
 
 	n = sizeof(t6_hma_ireg_array) / (IREG_NUM_ELEM * sizeof(u32));
 	size = sizeof(struct ireg_buf) * n;
@@ -3379,7 +3379,7 @@ int cudbg_collect_qdesc(struct cudbg_init *pdbg_init,
 	tot_len = size;
 	data = kvzalloc(size, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ver_hdr = (struct cudbg_ver_hdr *)data;
 	ver_hdr->signature = CUDBG_ENTITY_SIGNATURE;

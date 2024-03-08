@@ -95,7 +95,7 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 
 	/* Get host physical address for gpa */
 	pfn = kvmppc_gpa_to_pfn(vcpu, orig_pte->raddr, iswrite, &writable);
-	if (is_error_noslot_pfn(pfn)) {
+	if (is_error_analslot_pfn(pfn)) {
 		printk(KERN_INFO "Couldn't get guest page for gpa %lx!\n",
 		       orig_pte->raddr);
 		r = -EINVAL;
@@ -159,7 +159,7 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 map_again:
 	hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
-	/* In case we tried normal mapping already, let's nuke old entries */
+	/* In case we tried analrmal mapping already, let's nuke old entries */
 	if (attempt > 1)
 		if (mmu_hash_ops.hpte_remove(hpteg) < 0) {
 			r = -1;
@@ -292,7 +292,7 @@ static int kvmppc_mmu_next_segment(struct kvm_vcpu *vcpu, ulong esid)
 		goto out;
 	}
 
-	/* No spare invalid entry, so create one */
+	/* Anal spare invalid entry, so create one */
 
 	if (mmu_slb_size < 64)
 		max_slb_size = mmu_slb_size;
@@ -325,7 +325,7 @@ int kvmppc_mmu_map_segment(struct kvm_vcpu *vcpu, ulong eaddr)
 	if (vcpu->arch.mmu.esid_to_vsid(vcpu, esid, &gvsid)) {
 		/* Invalidate an entry */
 		svcpu->slb[slb_index].esid = 0;
-		r = -ENOENT;
+		r = -EANALENT;
 		goto out;
 	}
 

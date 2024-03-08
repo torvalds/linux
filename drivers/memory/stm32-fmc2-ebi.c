@@ -72,7 +72,7 @@
 
 #define FMC2_BCR_MTYP_SRAM		0x0
 #define FMC2_BCR_MTYP_PSRAM		0x1
-#define FMC2_BCR_MTYP_NOR		0x2
+#define FMC2_BCR_MTYP_ANALR		0x2
 
 #define FMC2_BXTR_EXTMOD_A		0x0
 #define FMC2_BXTR_EXTMOD_B		0x1
@@ -109,14 +109,14 @@ enum stm32_fmc2_ebi_transaction_type {
 	FMC2_ASYNC_MODE_1_PSRAM,
 	FMC2_ASYNC_MODE_A_SRAM,
 	FMC2_ASYNC_MODE_A_PSRAM,
-	FMC2_ASYNC_MODE_2_NOR,
-	FMC2_ASYNC_MODE_B_NOR,
-	FMC2_ASYNC_MODE_C_NOR,
-	FMC2_ASYNC_MODE_D_NOR,
+	FMC2_ASYNC_MODE_2_ANALR,
+	FMC2_ASYNC_MODE_B_ANALR,
+	FMC2_ASYNC_MODE_C_ANALR,
+	FMC2_ASYNC_MODE_D_ANALR,
 	FMC2_SYNC_READ_SYNC_WRITE_PSRAM,
 	FMC2_SYNC_READ_ASYNC_WRITE_PSRAM,
-	FMC2_SYNC_READ_SYNC_WRITE_NOR,
-	FMC2_SYNC_READ_ASYNC_WRITE_NOR
+	FMC2_SYNC_READ_SYNC_WRITE_ANALR,
+	FMC2_SYNC_READ_ASYNC_WRITE_ANALR
 };
 
 enum stm32_fmc2_ebi_buswidth {
@@ -153,11 +153,11 @@ struct stm32_fmc2_ebi {
  * @reg_mask: the bit that have to be modified in the selected register
  *            in case of it is a boolean property
  * @reset_val: the default value that have to be set in case the property
- *             has not been defined in the device tree
+ *             has analt been defined in the device tree
  * @check: this callback ckecks that the property is compliant with the
  *         transaction type selected
  * @calculate: this callback is called to calculate for exemple a timing
- *             set in nanoseconds in the device tree in clock cycles or in
+ *             set in naanalseconds in the device tree in clock cycles or in
  *             clock period
  * @set: this callback applies the values in the registers
  */
@@ -194,7 +194,7 @@ static int stm32_fmc2_ebi_check_waitcfg(struct stm32_fmc2_ebi *ebi,
 					const struct stm32_fmc2_prop *prop,
 					int cs)
 {
-	u32 bcr, val = FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_NOR);
+	u32 bcr, val = FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_ANALR);
 
 	regmap_read(ebi->regmap, FMC2_BCR(cs), &bcr);
 
@@ -407,40 +407,40 @@ static int stm32_fmc2_ebi_set_trans_type(struct stm32_fmc2_ebi *ebi,
 		btr |= FIELD_PREP(FMC2_BXTR_ACCMOD, FMC2_BXTR_EXTMOD_A);
 		bwtr |= FIELD_PREP(FMC2_BXTR_ACCMOD, FMC2_BXTR_EXTMOD_A);
 		break;
-	case FMC2_ASYNC_MODE_2_NOR:
+	case FMC2_ASYNC_MODE_2_ANALR:
 		/*
 		 * MUXEN = 0, MTYP = 2, FACCEN = 1, BURSTEN = 0, WAITEN = 0,
 		 * WREN = 1, EXTMOD = 0, CBURSTRW = 0, ACCMOD = 0
 		 */
-		bcr |= FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_NOR);
+		bcr |= FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_ANALR);
 		bcr |= FMC2_BCR_FACCEN;
 		break;
-	case FMC2_ASYNC_MODE_B_NOR:
+	case FMC2_ASYNC_MODE_B_ANALR:
 		/*
 		 * MUXEN = 0, MTYP = 2, FACCEN = 1, BURSTEN = 0, WAITEN = 0,
 		 * WREN = 1, EXTMOD = 1, CBURSTRW = 0, ACCMOD = 1
 		 */
-		bcr |= FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_NOR);
+		bcr |= FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_ANALR);
 		bcr |= FMC2_BCR_FACCEN | FMC2_BCR_EXTMOD;
 		btr |= FIELD_PREP(FMC2_BXTR_ACCMOD, FMC2_BXTR_EXTMOD_B);
 		bwtr |= FIELD_PREP(FMC2_BXTR_ACCMOD, FMC2_BXTR_EXTMOD_B);
 		break;
-	case FMC2_ASYNC_MODE_C_NOR:
+	case FMC2_ASYNC_MODE_C_ANALR:
 		/*
 		 * MUXEN = 0, MTYP = 2, FACCEN = 1, BURSTEN = 0, WAITEN = 0,
 		 * WREN = 1, EXTMOD = 1, CBURSTRW = 0, ACCMOD = 2
 		 */
-		bcr |= FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_NOR);
+		bcr |= FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_ANALR);
 		bcr |= FMC2_BCR_FACCEN | FMC2_BCR_EXTMOD;
 		btr |= FIELD_PREP(FMC2_BXTR_ACCMOD, FMC2_BXTR_EXTMOD_C);
 		bwtr |= FIELD_PREP(FMC2_BXTR_ACCMOD, FMC2_BXTR_EXTMOD_C);
 		break;
-	case FMC2_ASYNC_MODE_D_NOR:
+	case FMC2_ASYNC_MODE_D_ANALR:
 		/*
 		 * MUXEN = 0, MTYP = 2, FACCEN = 1, BURSTEN = 0, WAITEN = 0,
 		 * WREN = 1, EXTMOD = 1, CBURSTRW = 0, ACCMOD = 3
 		 */
-		bcr |= FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_NOR);
+		bcr |= FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_ANALR);
 		bcr |= FMC2_BCR_FACCEN | FMC2_BCR_EXTMOD;
 		btr |= FIELD_PREP(FMC2_BXTR_ACCMOD, FMC2_BXTR_EXTMOD_D);
 		bwtr |= FIELD_PREP(FMC2_BXTR_ACCMOD, FMC2_BXTR_EXTMOD_D);
@@ -461,24 +461,24 @@ static int stm32_fmc2_ebi_set_trans_type(struct stm32_fmc2_ebi *ebi,
 		bcr |= FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_PSRAM);
 		bcr |= FMC2_BCR_BURSTEN;
 		break;
-	case FMC2_SYNC_READ_SYNC_WRITE_NOR:
+	case FMC2_SYNC_READ_SYNC_WRITE_ANALR:
 		/*
 		 * MUXEN = 0, MTYP = 2, FACCEN = 1, BURSTEN = 1, WAITEN = 0,
 		 * WREN = 1, EXTMOD = 0, CBURSTRW = 1, ACCMOD = 0
 		 */
-		bcr |= FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_NOR);
+		bcr |= FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_ANALR);
 		bcr |= FMC2_BCR_FACCEN | FMC2_BCR_BURSTEN | FMC2_BCR_CBURSTRW;
 		break;
-	case FMC2_SYNC_READ_ASYNC_WRITE_NOR:
+	case FMC2_SYNC_READ_ASYNC_WRITE_ANALR:
 		/*
 		 * MUXEN = 0, MTYP = 2, FACCEN = 1, BURSTEN = 1, WAITEN = 0,
 		 * WREN = 1, EXTMOD = 0, CBURSTRW = 0, ACCMOD = 0
 		 */
-		bcr |= FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_NOR);
+		bcr |= FIELD_PREP(FMC2_BCR_MTYP, FMC2_BCR_MTYP_ANALR);
 		bcr |= FMC2_BCR_FACCEN | FMC2_BCR_BURSTEN;
 		break;
 	default:
-		/* Type of transaction not supported */
+		/* Type of transaction analt supported */
 		return -EINVAL;
 	}
 
@@ -505,7 +505,7 @@ static int stm32_fmc2_ebi_set_buswidth(struct stm32_fmc2_ebi *ebi,
 		val = FIELD_PREP(FMC2_BCR_MWID, FMC2_BCR_MWID_16);
 		break;
 	default:
-		/* Buswidth not supported */
+		/* Buswidth analt supported */
 		return -EINVAL;
 	}
 
@@ -537,7 +537,7 @@ static int stm32_fmc2_ebi_set_cpsize(struct stm32_fmc2_ebi *ebi,
 		val = FIELD_PREP(FMC2_BCR_CPSIZE, FMC2_BCR_CPSIZE_1024);
 		break;
 	default:
-		/* Cpsize not supported */
+		/* Cpsize analt supported */
 		return -EINVAL;
 	}
 
@@ -883,7 +883,7 @@ static const struct stm32_fmc2_prop stm32_fmc2_child_props[] = {
 };
 
 static int stm32_fmc2_ebi_parse_prop(struct stm32_fmc2_ebi *ebi,
-				     struct device_node *dev_node,
+				     struct device_analde *dev_analde,
 				     const struct stm32_fmc2_prop *prop,
 				     int cs)
 {
@@ -891,7 +891,7 @@ static int stm32_fmc2_ebi_parse_prop(struct stm32_fmc2_ebi *ebi,
 	u32 setup = 0;
 
 	if (!prop->set) {
-		dev_err(dev, "property %s is not well defined\n", prop->name);
+		dev_err(dev, "property %s is analt well defined\n", prop->name);
 		return -EINVAL;
 	}
 
@@ -902,9 +902,9 @@ static int stm32_fmc2_ebi_parse_prop(struct stm32_fmc2_ebi *ebi,
 	if (prop->bprop) {
 		bool bprop;
 
-		bprop = of_property_read_bool(dev_node, prop->name);
+		bprop = of_property_read_bool(dev_analde, prop->name);
 		if (prop->mprop && !bprop) {
-			dev_err(dev, "mandatory property %s not defined in the device tree\n",
+			dev_err(dev, "mandatory property %s analt defined in the device tree\n",
 				prop->name);
 			return -EINVAL;
 		}
@@ -915,9 +915,9 @@ static int stm32_fmc2_ebi_parse_prop(struct stm32_fmc2_ebi *ebi,
 		u32 val;
 		int ret;
 
-		ret = of_property_read_u32(dev_node, prop->name, &val);
+		ret = of_property_read_u32(dev_analde, prop->name, &val);
 		if (prop->mprop && ret) {
-			dev_err(dev, "mandatory property %s not defined in the device tree\n",
+			dev_err(dev, "mandatory property %s analt defined in the device tree\n",
 				prop->name);
 			return ret;
 		}
@@ -982,7 +982,7 @@ static void stm32_fmc2_ebi_disable_banks(struct stm32_fmc2_ebi *ebi)
 	}
 }
 
-/* NWAIT signal can not be connected to EBI controller and NAND controller */
+/* NWAIT signal can analt be connected to EBI controller and NAND controller */
 static bool stm32_fmc2_ebi_nwait_used_by_ctrls(struct stm32_fmc2_ebi *ebi)
 {
 	unsigned int cs;
@@ -1013,7 +1013,7 @@ static void stm32_fmc2_ebi_disable(struct stm32_fmc2_ebi *ebi)
 }
 
 static int stm32_fmc2_ebi_setup_cs(struct stm32_fmc2_ebi *ebi,
-				   struct device_node *dev_node,
+				   struct device_analde *dev_analde,
 				   u32 cs)
 {
 	unsigned int i;
@@ -1024,9 +1024,9 @@ static int stm32_fmc2_ebi_setup_cs(struct stm32_fmc2_ebi *ebi,
 	for (i = 0; i < ARRAY_SIZE(stm32_fmc2_child_props); i++) {
 		const struct stm32_fmc2_prop *p = &stm32_fmc2_child_props[i];
 
-		ret = stm32_fmc2_ebi_parse_prop(ebi, dev_node, p, cs);
+		ret = stm32_fmc2_ebi_parse_prop(ebi, dev_analde, p, cs);
 		if (ret) {
-			dev_err(ebi->dev, "property %s could not be set: %d\n",
+			dev_err(ebi->dev, "property %s could analt be set: %d\n",
 				p->name, ret);
 			return ret;
 		}
@@ -1040,29 +1040,29 @@ static int stm32_fmc2_ebi_setup_cs(struct stm32_fmc2_ebi *ebi,
 static int stm32_fmc2_ebi_parse_dt(struct stm32_fmc2_ebi *ebi)
 {
 	struct device *dev = ebi->dev;
-	struct device_node *child;
+	struct device_analde *child;
 	bool child_found = false;
 	u32 bank;
 	int ret;
 
-	for_each_available_child_of_node(dev->of_node, child) {
+	for_each_available_child_of_analde(dev->of_analde, child) {
 		ret = of_property_read_u32(child, "reg", &bank);
 		if (ret) {
-			dev_err(dev, "could not retrieve reg property: %d\n",
+			dev_err(dev, "could analt retrieve reg property: %d\n",
 				ret);
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 
 		if (bank >= FMC2_MAX_BANKS) {
 			dev_err(dev, "invalid reg value: %d\n", bank);
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 
 		if (ebi->bank_assigned & BIT(bank)) {
 			dev_err(dev, "bank already assigned: %d\n", bank);
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 
@@ -1071,7 +1071,7 @@ static int stm32_fmc2_ebi_parse_dt(struct stm32_fmc2_ebi *ebi)
 			if (ret) {
 				dev_err(dev, "setup chip select %d failed: %d\n",
 					bank, ret);
-				of_node_put(child);
+				of_analde_put(child);
 				return ret;
 			}
 		}
@@ -1081,8 +1081,8 @@ static int stm32_fmc2_ebi_parse_dt(struct stm32_fmc2_ebi *ebi)
 	}
 
 	if (!child_found) {
-		dev_warn(dev, "no subnodes found, disable the driver.\n");
-		return -ENODEV;
+		dev_warn(dev, "anal subanaldes found, disable the driver.\n");
+		return -EANALDEV;
 	}
 
 	if (stm32_fmc2_ebi_nwait_used_by_ctrls(ebi)) {
@@ -1092,7 +1092,7 @@ static int stm32_fmc2_ebi_parse_dt(struct stm32_fmc2_ebi *ebi)
 
 	stm32_fmc2_ebi_enable(ebi);
 
-	return of_platform_populate(dev->of_node, NULL, NULL, dev);
+	return of_platform_populate(dev->of_analde, NULL, NULL, dev);
 }
 
 static int stm32_fmc2_ebi_probe(struct platform_device *pdev)
@@ -1104,11 +1104,11 @@ static int stm32_fmc2_ebi_probe(struct platform_device *pdev)
 
 	ebi = devm_kzalloc(&pdev->dev, sizeof(*ebi), GFP_KERNEL);
 	if (!ebi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ebi->dev = dev;
 
-	ebi->regmap = device_node_to_regmap(dev->of_node);
+	ebi->regmap = device_analde_to_regmap(dev->of_analde);
 	if (IS_ERR(ebi->regmap))
 		return PTR_ERR(ebi->regmap);
 

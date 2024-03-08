@@ -1,17 +1,17 @@
-/* Synopsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
+/* Syanalpsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
  *
- * Copyright (c) 2017 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (c) 2017 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * This program is dual-licensed; you may select either version 2 of
  * the GNU General Public License ("GPL") or BSD license ("BSD").
  *
- * This Synopsys DWC XLGMAC software driver and associated documentation
+ * This Syanalpsys DWC XLGMAC software driver and associated documentation
  * (hereinafter the "Software") is an unsupported proprietary work of
- * Synopsys, Inc. unless otherwise expressly agreed to in writing between
- * Synopsys and you. The Software IS NOT an item of Licensed Software or a
+ * Syanalpsys, Inc. unless otherwise expressly agreed to in writing between
+ * Syanalpsys and you. The Software IS ANALT an item of Licensed Software or a
  * Licensed Product under any End User Software License Agreement or
- * Agreement for Licensed Products with Synopsys or any supplement thereto.
- * Synopsys is a registered trademark of Synopsys, Inc. Other names included
+ * Agreement for Licensed Products with Syanalpsys or any supplement thereto.
+ * Syanalpsys is a registered trademark of Syanalpsys, Inc. Other names included
  * in the SOFTWARE may be the trademarks of their respective owners.
  */
 
@@ -106,7 +106,7 @@ static void xlgmac_ethtool_get_drvinfo(struct net_device *netdev,
 	strscpy(drvinfo->version, pdata->drv_ver, sizeof(drvinfo->version));
 	strscpy(drvinfo->bus_info, dev_name(pdata->dev),
 		sizeof(drvinfo->bus_info));
-	/* S|SNPSVER: Synopsys-defined Version
+	/* S|SNPSVER: Syanalpsys-defined Version
 	 * D|DEVID: Indicates the Device family
 	 * U|USERVER: User-defined Version
 	 */
@@ -226,7 +226,7 @@ static int xlgmac_ethtool_get_sset_count(struct net_device *netdev,
 		break;
 
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;

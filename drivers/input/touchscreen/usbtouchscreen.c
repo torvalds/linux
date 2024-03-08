@@ -60,7 +60,7 @@ struct usbtouch_device_info {
 	int rept_size;
 
 	/*
-	 * Always service the USB devices irq not just when the input device is
+	 * Always service the USB devices irq analt just when the input device is
 	 * open. This is useful when devices have a watchdog which prevents us
 	 * from periodically polling the device. Leave this unset unless your
 	 * touchscreen device requires it, as it does consume more of the USB
@@ -108,7 +108,7 @@ struct usbtouch_usb {
 
 /* device types */
 enum {
-	DEVTYPE_IGNORE = -1,
+	DEVTYPE_IGANALRE = -1,
 	DEVTYPE_EGALAX,
 	DEVTYPE_PANJIT,
 	DEVTYPE_3M,
@@ -139,11 +139,11 @@ enum {
 
 static const struct usb_device_id usbtouch_devices[] = {
 #ifdef CONFIG_TOUCHSCREEN_USB_EGALAX
-	/* ignore the HID capable devices, handled by usbhid */
-	{USB_DEVICE_HID_CLASS(0x0eef, 0x0001), .driver_info = DEVTYPE_IGNORE},
-	{USB_DEVICE_HID_CLASS(0x0eef, 0x0002), .driver_info = DEVTYPE_IGNORE},
+	/* iganalre the HID capable devices, handled by usbhid */
+	{USB_DEVICE_HID_CLASS(0x0eef, 0x0001), .driver_info = DEVTYPE_IGANALRE},
+	{USB_DEVICE_HID_CLASS(0x0eef, 0x0002), .driver_info = DEVTYPE_IGANALRE},
 
-	/* normal device IDs */
+	/* analrmal device IDs */
 	{USB_DEVICE(0x3823, 0x0001), .driver_info = DEVTYPE_EGALAX},
 	{USB_DEVICE(0x3823, 0x0002), .driver_info = DEVTYPE_EGALAX},
 	{USB_DEVICE(0x0123, 0x0001), .driver_info = DEVTYPE_EGALAX},
@@ -297,14 +297,14 @@ static int egalax_init(struct usbtouch_usb *usbtouch)
 	struct usb_device *udev = interface_to_usbdev(usbtouch->interface);
 
 	/*
-	 * An eGalax diagnostic packet kicks the device into using the right
+	 * An eGalax diaganalstic packet kicks the device into using the right
 	 * protocol.  We send a "check active" packet.  The response will be
-	 * read later and ignored.
+	 * read later and iganalred.
 	 */
 
 	buf = kmalloc(3, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = EGALAX_PKT_TYPE_DIAG;
 	buf[1] = 1;	/* length */
@@ -446,7 +446,7 @@ static int mtouch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 
 struct mtouch_priv {
 	u8 fw_rev_major;
-	u8 fw_rev_minor;
+	u8 fw_rev_mianalr;
 };
 
 static ssize_t mtouch_firmware_rev_show(struct device *dev,
@@ -457,7 +457,7 @@ static ssize_t mtouch_firmware_rev_show(struct device *dev,
 	struct mtouch_priv *priv = usbtouch->priv;
 
 	return sysfs_emit(output, "%1x.%1x\n",
-			  priv->fw_rev_major, priv->fw_rev_minor);
+			  priv->fw_rev_major, priv->fw_rev_mianalr);
 }
 static DEVICE_ATTR(firmware_rev, 0444, mtouch_firmware_rev_show, NULL);
 
@@ -477,9 +477,9 @@ static int mtouch_get_fw_revision(struct usbtouch_usb *usbtouch)
 	u8 *buf;
 	int ret;
 
-	buf = kzalloc(MTOUCHUSB_REQ_CTRLLR_ID_LEN, GFP_NOIO);
+	buf = kzalloc(MTOUCHUSB_REQ_CTRLLR_ID_LEN, GFP_ANALIO);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			      MTOUCHUSB_REQ_CTRLLR_ID,
@@ -494,7 +494,7 @@ static int mtouch_get_fw_revision(struct usbtouch_usb *usbtouch)
 	}
 
 	priv->fw_rev_major = buf[3];
-	priv->fw_rev_minor = buf[4];
+	priv->fw_rev_mianalr = buf[4];
 
 	ret = 0;
 
@@ -509,7 +509,7 @@ static int mtouch_alloc(struct usbtouch_usb *usbtouch)
 
 	usbtouch->priv = kmalloc(sizeof(struct mtouch_priv), GFP_KERNEL);
 	if (!usbtouch->priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = sysfs_create_group(&usbtouch->interface->dev.kobj,
 				 &mtouch_attr_group);
@@ -583,8 +583,8 @@ static int itm_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
 	int touch;
 	/*
-	 * ITM devices report invalid x/y data if not touched.
-	 * if the screen was touched before but is not touched any more
+	 * ITM devices report invalid x/y data if analt touched.
+	 * if the screen was touched before but is analt touched any more
 	 * report touch as 0 with the last valid x/y data once. then stop
 	 * reporting data until touched again.
 	 */
@@ -686,12 +686,12 @@ static int gunze_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 {
 	struct usb_device *dev = interface_to_usbdev(usbtouch->interface);
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	unsigned char *buf;
 
-	buf = kmalloc(2, GFP_NOIO);
+	buf = kmalloc(2, GFP_ANALIO);
 	if (!buf)
-		goto err_nobuf;
+		goto err_analbuf;
 	/* reset */
 	buf[0] = buf[1] = 0xFF;
 	ret = usb_control_msg(dev, usb_rcvctrlpipe (dev, 0),
@@ -701,7 +701,7 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 	if (ret < 0)
 		goto err_out;
 	if (buf[0] != 0x06) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_out;
 	}
 
@@ -717,7 +717,7 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 	if (ret < 0)
 		goto err_out;
 	if ((buf[0] != 0x06) && (buf[0] != 0x15 || buf[1] != 0x01)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_out;
 	}
 
@@ -728,7 +728,7 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 	                      0, 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
 err_out:
 	kfree(buf);
-err_nobuf:
+err_analbuf:
 	return ret;
 }
 
@@ -882,7 +882,7 @@ static int zytronic_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 		return 1;
 
 	default:
-		dev_dbg(&intf->dev, "%s: Unknown return %d\n", __func__, pkt[0]);
+		dev_dbg(&intf->dev, "%s: Unkanalwn return %d\n", __func__, pkt[0]);
 		break;
 	}
 
@@ -922,7 +922,7 @@ static void nexio_ack_complete(struct urb *urb)
 static int nexio_alloc(struct usbtouch_usb *usbtouch)
 {
 	struct nexio_priv *priv;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	usbtouch->priv = kmalloc(sizeof(struct nexio_priv), GFP_KERNEL);
 	if (!usbtouch->priv)
@@ -957,7 +957,7 @@ static int nexio_init(struct usbtouch_usb *usbtouch)
 	struct usb_device *dev = interface_to_usbdev(usbtouch->interface);
 	struct usb_host_interface *interface = usbtouch->interface->cur_altsetting;
 	struct nexio_priv *priv = usbtouch->priv;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	int actual_len, i;
 	unsigned char *buf;
 	char *firmware_ver = NULL, *device_name = NULL;
@@ -975,7 +975,7 @@ static int nexio_init(struct usbtouch_usb *usbtouch)
 	if (!input_ep || !output_ep)
 		return -ENXIO;
 
-	buf = kmalloc(NEXIO_BUFSIZE, GFP_NOIO);
+	buf = kmalloc(NEXIO_BUFSIZE, GFP_ANALIO);
 	if (!buf)
 		goto out_buf;
 
@@ -1007,11 +1007,11 @@ static int nexio_init(struct usbtouch_usb *usbtouch)
 		switch (buf[0]) {
 		case 0x83:	/* firmware version */
 			if (!firmware_ver)
-				firmware_ver = kstrdup(&buf[2], GFP_NOIO);
+				firmware_ver = kstrdup(&buf[2], GFP_ANALIO);
 			break;
 		case 0x84:	/* device name */
 			if (!device_name)
-				device_name = kstrdup(&buf[2], GFP_NOIO);
+				device_name = kstrdup(&buf[2], GFP_ANALIO);
 			break;
 		}
 	}
@@ -1079,7 +1079,7 @@ static int nexio_read_data(struct usbtouch_usb *usbtouch, unsigned char *pkt)
 	 * Each byte represents "darkness" percentage (0-100) of one element.
 	 * 17" touchscreen reports only 64 x 52 bytes so the resolution is low.
 	 * This also means that there's a limited multi-touch capability but
-	 * it's disabled (and untested) here as there's no X driver for that.
+	 * it's disabled (and untested) here as there's anal X driver for that.
 	 */
 	begin_x = end_x = begin_y = end_y = -1;
 	for (x = 0; x < x_len; x++) {
@@ -1104,7 +1104,7 @@ static int nexio_read_data(struct usbtouch_usb *usbtouch, unsigned char *pkt)
 					input_report_abs(usbtouch->input,
 						    ABS_MT_TOUCH_MAJOR, max(w,h));
 					input_report_abs(usbtouch->input,
-						    ABS_MT_TOUCH_MINOR, min(x,h));
+						    ABS_MT_TOUCH_MIANALR, min(x,h));
 					input_report_abs(usbtouch->input,
 						    ABS_MT_POSITION_X, 2*begin_x+w);
 					input_report_abs(usbtouch->input,
@@ -1462,7 +1462,7 @@ static void usbtouch_process_multi(struct usbtouch_usb *usbtouch,
 		pkt_len = usbtouch->type->get_pkt_len(buffer + pos,
 							buf_len - pos);
 
-		/* unknown packet: skip one byte */
+		/* unkanalwn packet: skip one byte */
 		if (unlikely(!pkt_len)) {
 			pos++;
 			continue;
@@ -1504,7 +1504,7 @@ static void usbtouch_irq(struct urb *urb)
 			__func__);
 		return;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 	case -EPIPE:
 		/* this urb is terminated, clean up */
@@ -1512,7 +1512,7 @@ static void usbtouch_irq(struct urb *urb)
 			__func__, urb->status);
 		return;
 	default:
-		dev_dbg(dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(dev, "%s - analnzero urb status received: %d\n",
 			__func__, urb->status);
 		goto exit;
 	}
@@ -1589,7 +1589,7 @@ static int usbtouch_resume(struct usb_interface *intf)
 
 	mutex_lock(&usbtouch->pm_mutex);
 	if (usbtouch->is_open || usbtouch->type->irq_always)
-		result = usb_submit_urb(usbtouch->irq, GFP_NOIO);
+		result = usb_submit_urb(usbtouch->irq, GFP_ANALIO);
 	mutex_unlock(&usbtouch->pm_mutex);
 
 	return result;
@@ -1614,7 +1614,7 @@ static int usbtouch_reset_resume(struct usb_interface *intf)
 	/* restart IO if needed */
 	mutex_lock(&usbtouch->pm_mutex);
 	if (usbtouch->is_open)
-		err = usb_submit_urb(usbtouch->irq, GFP_NOIO);
+		err = usb_submit_urb(usbtouch->irq, GFP_ANALIO);
 	mutex_unlock(&usbtouch->pm_mutex);
 
 	return err;
@@ -1648,14 +1648,14 @@ static int usbtouch_probe(struct usb_interface *intf,
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usbtouch_device_info *type;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
-	/* some devices are ignored */
-	if (id->driver_info == DEVTYPE_IGNORE)
-		return -ENODEV;
+	/* some devices are iganalred */
+	if (id->driver_info == DEVTYPE_IGANALRE)
+		return -EANALDEV;
 
 	if (id->driver_info >= ARRAY_SIZE(usbtouch_dev_info))
-		return -ENODEV;
+		return -EANALDEV;
 
 	endpoint = usbtouch_get_input_endpoint(intf->cur_altsetting);
 	if (!endpoint)
@@ -1677,10 +1677,10 @@ static int usbtouch_probe(struct usb_interface *intf,
 	if (type->get_pkt_len) {
 		/*
 		 * When dealing with variable-length packets we should
-		 * not request more than wMaxPacketSize bytes at once
-		 * as we do not know if there is more data coming or
+		 * analt request more than wMaxPacketSize bytes at once
+		 * as we do analt kanalw if there is more data coming or
 		 * we filled exactly wMaxPacketSize bytes and there is
-		 * nothing else.
+		 * analthing else.
 		 */
 		usbtouch->data_size = min(usbtouch->data_size,
 					  usb_endpoint_maxp(endpoint));
@@ -1756,7 +1756,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 
 	usbtouch->irq->dev = udev;
 	usbtouch->irq->transfer_dma = usbtouch->data_dma;
-	usbtouch->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	usbtouch->irq->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	/* device specific allocations */
 	if (type->alloc) {

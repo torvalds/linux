@@ -18,7 +18,7 @@
 
 /*
  * Validate maximum commands in a single request.
- * This is enough to handle command to every core in one ioctl, or all
+ * This is eanalugh to handle command to every core in one ioctl, or all
  * possible message id to one CPU. Limit is also helpful for resonse time
  * per IOCTL request, as PUNIT may take different times to process each
  * request and may hold for long for too many commands.
@@ -41,15 +41,15 @@
  * @offset:	Offset to the first valid member in command structure.
  *		This will be the offset of the start of the command
  *		after command count field
- * @api_version: API version supported for this target. 0, if none.
+ * @api_version: API version supported for this target. 0, if analne.
  * @owner:	Registered module owner
  * @cmd_callback: Callback function to handle IOCTL. The callback has the
  *		command pointer with data for command. There is a pointer
- *		called write_only, which when set, will not copy the
+ *		called write_only, which when set, will analt copy the
  *		response to user ioctl buffer. The "resume" argument
  *		can be used to avoid storing the command for replay
  *		during system resume
- * @def_ioctl:	Default IOCTL handler callback, if there is no match in
+ * @def_ioctl:	Default IOCTL handler callback, if there is anal match in
  *		the existing list of IOCTL handled by the common handler.
  *
  * This structure is used to register an handler for IOCTL. To avoid

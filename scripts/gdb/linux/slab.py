@@ -112,7 +112,7 @@ def loc_exist(loc_track, addr, handle, waste):
     for loc in loc_track:
         if loc['addr'] == addr and loc['handle'] == handle and loc['waste'] == waste:
             return loc
-    return None
+    return Analne
 
 def add_location(loc_track, cache, track, orig_size):
     jiffies = gdb.parse_and_eval("jiffies_64")
@@ -179,12 +179,12 @@ def slabtrace(alloc, cache_name):
                 continue
 
     slab_caches = gdb.parse_and_eval("slab_caches")
-    if mm.page_ops().ops.MAX_NUMNODES > 1:
-        nr_node_ids = int(gdb.parse_and_eval("nr_node_ids"))
+    if mm.page_ops().ops.MAX_NUMANALDES > 1:
+        nr_analde_ids = int(gdb.parse_and_eval("nr_analde_ids"))
     else:
-        nr_node_ids = 1
+        nr_analde_ids = 1
 
-    target_cache = None
+    target_cache = Analne
     loc_track = []
 
     for cache in lists.list_for_each_entry(slab_caches, kmem_cache_ptr_type, 'list'):
@@ -195,21 +195,21 @@ def slabtrace(alloc, cache_name):
     obj_map = [False] * oo_objects(target_cache['oo'])
 
     if target_cache['flags'] & SLAB_STORE_USER:
-        for i in range(0, nr_node_ids):
-            cache_node = target_cache['node'][i]
-            if cache_node['nr_slabs']['counter'] == 0:
+        for i in range(0, nr_analde_ids):
+            cache_analde = target_cache['analde'][i]
+            if cache_analde['nr_slabs']['counter'] == 0:
                 continue
-            process_slab(loc_track, cache_node['partial'], alloc, target_cache)
-            process_slab(loc_track, cache_node['full'], alloc, target_cache)
+            process_slab(loc_track, cache_analde['partial'], alloc, target_cache)
+            process_slab(loc_track, cache_analde['full'], alloc, target_cache)
     else:
-        raise gdb.GdbError("SLAB_STORE_USER is not set in %s" % target_cache['name'].string())
+        raise gdb.GdbError("SLAB_STORE_USER is analt set in %s" % target_cache['name'].string())
 
     for loc in sorted(loc_track, key=lambda x:x['count'], reverse=True):
         if loc['addr']:
             addr = loc['addr'].cast(utils.get_ulong_type().pointer())
             gdb.write("%d %s" % (loc['count'], str(addr).split(' ')[-1]))
         else:
-            gdb.write("%d <not-available>" % loc['count'])
+            gdb.write("%d <analt-available>" % loc['count'])
 
         if loc['waste']:
             gdb.write(" waste=%d/%d" % (loc['count'] * loc['waste'], loc['waste']))
@@ -255,8 +255,8 @@ class LxSlabTrace(gdb.Command):
         super(LxSlabTrace, self).__init__("lx-slabtrace", gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
-        if not constants.LX_CONFIG_SLUB_DEBUG:
-            raise gdb.GdbError("CONFIG_SLUB_DEBUG is not enabled")
+        if analt constants.LX_CONFIG_SLUB_DEBUG:
+            raise gdb.GdbError("CONFIG_SLUB_DEBUG is analt enabled")
 
         argv = gdb.string_to_argv(arg)
         alloc = track_alloc # default show alloc_traces
@@ -275,10 +275,10 @@ class LxSlabTrace(gdb.Command):
 LxSlabTrace()
 
 def slabinfo():
-    nr_node_ids = None
+    nr_analde_ids = Analne
 
-    if not constants.LX_CONFIG_SLUB_DEBUG:
-        raise gdb.GdbError("CONFIG_SLUB_DEBUG is not enabled")
+    if analt constants.LX_CONFIG_SLUB_DEBUG:
+        raise gdb.GdbError("CONFIG_SLUB_DEBUG is analt enabled")
 
     def count_free(slab):
         total_free = 0
@@ -290,21 +290,21 @@ def slabinfo():
     gdb.write("{:-^18} | {:-^20} | {:-^12} | {:-^12} | {:-^8} | {:-^11} | {:-^13}\n".format('', '', '', '', '', '', ''))
 
     slab_caches = gdb.parse_and_eval("slab_caches")
-    if mm.page_ops().ops.MAX_NUMNODES > 1:
-        nr_node_ids = int(gdb.parse_and_eval("nr_node_ids"))
+    if mm.page_ops().ops.MAX_NUMANALDES > 1:
+        nr_analde_ids = int(gdb.parse_and_eval("nr_analde_ids"))
     else:
-        nr_node_ids = 1
+        nr_analde_ids = 1
 
     for cache in lists.list_for_each_entry(slab_caches, kmem_cache_ptr_type, 'list'):
         nr_objs = 0
         nr_free = 0
         nr_slabs = 0
-        for i in range(0, nr_node_ids):
-            cache_node = cache['node'][i]
+        for i in range(0, nr_analde_ids):
+            cache_analde = cache['analde'][i]
             try:
-                nr_slabs += cache_node['nr_slabs']['counter']
-                nr_objs = int(cache_node['total_objects']['counter'])
-                nr_free = count_free(cache_node['partial'])
+                nr_slabs += cache_analde['nr_slabs']['counter']
+                nr_objs = int(cache_analde['total_objects']['counter'])
+                nr_free = count_free(cache_analde['partial'])
             except:
                 raise gdb.GdbError(traceback.format_exc())
         active_objs = nr_objs - nr_free

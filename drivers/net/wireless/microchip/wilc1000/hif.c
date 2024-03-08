@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techanallogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -62,7 +62,7 @@ wilc_alloc_work(struct wilc_vif *vif, void (*work_fun)(struct work_struct *),
 
 	msg = kzalloc(sizeof(*msg), GFP_ATOMIC);
 	if (!msg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	msg->fn = work_fun;
 	msg->vif = vif;
 	msg->is_sync = is_sync;
@@ -378,7 +378,7 @@ wilc_parse_join_bss_param(struct cfg80211_bss *bss,
 			  struct cfg80211_crypto_settings *crypto)
 {
 	struct wilc_join_bss_param *param;
-	struct ieee80211_p2p_noa_attr noa_attr;
+	struct ieee80211_p2p_anala_attr anala_attr;
 	u8 rates_len = 0;
 	const u8 *tim_elm, *ssid_elm, *rates_ie, *supp_rates_ie;
 	const u8 *ht_ie, *wpa_ie, *wmm_ie, *rsn_ie;
@@ -439,25 +439,25 @@ wilc_parse_join_bss_param(struct cfg80211_bss *bss,
 		param->ht_capable = true;
 
 	ret = cfg80211_get_p2p_attr(ies->data, ies->len,
-				    IEEE80211_P2P_ATTR_ABSENCE_NOTICE,
-				    (u8 *)&noa_attr, sizeof(noa_attr));
+				    IEEE80211_P2P_ATTR_ABSENCE_ANALTICE,
+				    (u8 *)&anala_attr, sizeof(anala_attr));
 	if (ret > 0) {
 		param->tsf_lo = cpu_to_le32(ies->tsf);
-		param->noa_enabled = 1;
-		param->idx = noa_attr.index;
-		if (noa_attr.oppps_ctwindow & IEEE80211_P2P_OPPPS_ENABLE_BIT) {
+		param->anala_enabled = 1;
+		param->idx = anala_attr.index;
+		if (anala_attr.oppps_ctwindow & IEEE80211_P2P_OPPPS_ENABLE_BIT) {
 			param->opp_enabled = 1;
-			param->opp_en.ct_window = noa_attr.oppps_ctwindow;
-			param->opp_en.cnt = noa_attr.desc[0].count;
-			param->opp_en.duration = noa_attr.desc[0].duration;
-			param->opp_en.interval = noa_attr.desc[0].interval;
-			param->opp_en.start_time = noa_attr.desc[0].start_time;
+			param->opp_en.ct_window = anala_attr.oppps_ctwindow;
+			param->opp_en.cnt = anala_attr.desc[0].count;
+			param->opp_en.duration = anala_attr.desc[0].duration;
+			param->opp_en.interval = anala_attr.desc[0].interval;
+			param->opp_en.start_time = anala_attr.desc[0].start_time;
 		} else {
 			param->opp_enabled = 0;
-			param->opp_dis.cnt = noa_attr.desc[0].count;
-			param->opp_dis.duration = noa_attr.desc[0].duration;
-			param->opp_dis.interval = noa_attr.desc[0].interval;
-			param->opp_dis.start_time = noa_attr.desc[0].start_time;
+			param->opp_dis.cnt = anala_attr.desc[0].count;
+			param->opp_dis.duration = anala_attr.desc[0].duration;
+			param->opp_dis.interval = anala_attr.desc[0].interval;
+			param->opp_dis.start_time = anala_attr.desc[0].start_time;
 		}
 	}
 	wmm_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
@@ -592,7 +592,7 @@ static s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
 
 		ret_conn_info->resp_ies = kmemdup(ies, ies_len, GFP_KERNEL);
 		if (!ret_conn_info->resp_ies)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret_conn_info->resp_ies_len = ies_len;
 	}
@@ -659,7 +659,7 @@ void wilc_handle_disconnect(struct wilc_vif *vif)
 	}
 
 	if (hif_drv->conn_info.conn_result)
-		hif_drv->conn_info.conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF,
+		hif_drv->conn_info.conn_result(CONN_DISCONN_EVENT_DISCONN_ANALTIF,
 					       0, hif_drv->conn_info.priv);
 
 	eth_zero_addr(hif_drv->assoc_bssid);
@@ -741,7 +741,7 @@ int wilc_disconnect(struct wilc_vif *vif)
 		    hif_drv->hif_state == HOST_IF_EXTERNAL_AUTH)
 			del_timer(&hif_drv->connect_timer);
 
-		conn_info->conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF, 0,
+		conn_info->conn_result(CONN_DISCONN_EVENT_DISCONN_ANALTIF, 0,
 				       conn_info->priv);
 	} else {
 		netdev_err(vif->ndev, "%s: conn_result is NULL\n", __func__);
@@ -871,7 +871,7 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 	wid.size = 2;
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
 	if (!wid.val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wid.val[0] = remain_on_chan_flag;
 	wid.val[1] = (s8)hif_remain_ch->ch;
@@ -905,7 +905,7 @@ static int wilc_handle_roc_expired(struct wilc_vif *vif, u64 cookie)
 
 		wid.val = kmalloc(wid.size, GFP_KERNEL);
 		if (!wid.val)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		wid.val[0] = remain_on_chan_flag;
 		wid.val[1] = WILC_FALSE_FRMWR_CHANNEL;
@@ -922,7 +922,7 @@ static int wilc_handle_roc_expired(struct wilc_vif *vif, u64 cookie)
 						      cookie);
 		}
 	} else {
-		netdev_dbg(vif->ndev, "Not in listen state\n");
+		netdev_dbg(vif->ndev, "Analt in listen state\n");
 	}
 
 	return 0;
@@ -1109,7 +1109,7 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 
 		key_buf = kzalloc(sizeof(*key_buf) + t_key_len, GFP_KERNEL);
 		if (!key_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ether_addr_copy(key_buf->mac_addr, mac_addr);
 		key_buf->index = index;
@@ -1137,7 +1137,7 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 
 		key_buf = kzalloc(sizeof(*key_buf) + t_key_len, GFP_KERNEL);
 		if (!key_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ether_addr_copy(key_buf->mac_addr, mac_addr);
 		key_buf->key_len = t_key_len;
@@ -1172,7 +1172,7 @@ int wilc_add_igtk(struct wilc_vif *vif, const u8 *igtk, u8 igtk_key_len,
 
 	key_buf = kzalloc(sizeof(*key_buf) + t_key_len, GFP_KERNEL);
 	if (!key_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	key_buf->index = index;
 
@@ -1203,7 +1203,7 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 
 	gtk_key = kzalloc(sizeof(*gtk_key) + t_key_len, GFP_KERNEL);
 	if (!gtk_key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* fill bssid value only in station mode */
 	if (mode == WILC_STATION_MODE &&
@@ -1312,7 +1312,7 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ies,
 		conn_info->req_ies_len = ies_len;
 		conn_info->req_ies = kmemdup(ies, ies_len, GFP_KERNEL);
 		if (!conn_info->req_ies)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	result = wilc_send_connect_wid(vif);
@@ -1380,7 +1380,7 @@ s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac, u32 *out_val)
 	wid.size = ETH_ALEN;
 	wid.val = kzalloc(wid.size, GFP_KERNEL);
 	if (!wid.val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ether_addr_copy(wid.val, mac);
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
@@ -1502,7 +1502,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	hif_drv  = kzalloc(sizeof(*hif_drv), GFP_KERNEL);
 	if (!hif_drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*hif_drv_handler = hif_drv;
 
@@ -1568,7 +1568,7 @@ void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 	hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
-		netdev_err(vif->ndev, "driver not init[%p]\n", hif_drv);
+		netdev_err(vif->ndev, "driver analt init[%p]\n", hif_drv);
 		return;
 	}
 
@@ -1752,7 +1752,7 @@ int wilc_add_beacon(struct wilc_vif *vif, u32 interval, u32 dtim_period,
 	wid.size = params->head_len + params->tail_len + 16;
 	wid.val = kzalloc(wid.size, GFP_KERNEL);
 	if (!wid.val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cur_byte = wid.val;
 	put_unaligned_le32(interval, cur_byte);
@@ -1812,7 +1812,7 @@ int wilc_add_station(struct wilc_vif *vif, const u8 *mac,
 		   params->link_sta_params.supported_rates_len;
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
 	if (!wid.val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cur_byte = wid.val;
 	wilc_hif_pack_sta_param(cur_byte, mac, params);
@@ -1836,7 +1836,7 @@ int wilc_del_station(struct wilc_vif *vif, const u8 *mac_addr)
 	wid.size = ETH_ALEN;
 	wid.val = kzalloc(wid.size, GFP_KERNEL);
 	if (!wid.val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!mac_addr)
 		eth_broadcast_addr(wid.val);
@@ -1898,7 +1898,7 @@ int wilc_edit_station(struct wilc_vif *vif, const u8 *mac,
 		   params->link_sta_params.supported_rates_len;
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
 	if (!wid.val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cur_byte = wid.val;
 	wilc_hif_pack_sta_param(cur_byte, mac, params);
@@ -1921,7 +1921,7 @@ int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 	if (enabled)
 		power_mode = WILC_FW_MIN_FAST_PS;
 	else
-		power_mode = WILC_FW_NO_POWERSAVE;
+		power_mode = WILC_FW_ANAL_POWERSAVE;
 
 	wid.id = WID_POWER_MANAGEMENT;
 	wid.val = &power_mode;

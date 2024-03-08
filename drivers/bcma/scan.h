@@ -6,7 +6,7 @@
 #define BCMA_WRAP_BASE		0x18100000
 
 #define SCAN_ER_VALID		0x00000001
-#define SCAN_ER_TAGX		0x00000006 /* we have to ignore 0x8 bit when checking tag for SCAN_ER_TAG_ADDR */
+#define SCAN_ER_TAGX		0x00000006 /* we have to iganalre 0x8 bit when checking tag for SCAN_ER_TAG_ADDR */
 #define SCAN_ER_TAG		0x0000000E
 #define  SCAN_ER_TAG_CI		0x00000000
 #define  SCAN_ER_TAG_MP		0x00000002

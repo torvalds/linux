@@ -2,7 +2,7 @@
 /*
  * RTC driver for Nuvoton MA35D1
  *
- * Copyright (C) 2023 Nuvoton Technology Corp.
+ * Copyright (C) 2023 Nuvoton Techanallogy Corp.
  */
 
 #include <linux/bcd.h>
@@ -215,13 +215,13 @@ static int ma35d1_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->rtc_reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->rtc_reg))
 		return PTR_ERR(rtc->rtc_reg);
 
-	clk = of_clk_get(pdev->dev.of_node, 0);
+	clk = of_clk_get(pdev->dev.of_analde, 0);
 	if (IS_ERR(clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(clk), "failed to find rtc clock\n");
 
@@ -238,7 +238,7 @@ static int ma35d1_rtc_probe(struct platform_device *pdev)
 	rtc->irq_num = platform_get_irq(pdev, 0);
 
 	ret = devm_request_irq(&pdev->dev, rtc->irq_num, ma35d1_rtc_interrupt,
-			       IRQF_NO_SUSPEND, "ma35d1rtc", rtc);
+			       IRQF_ANAL_SUSPEND, "ma35d1rtc", rtc);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "Failed to request rtc irq\n");
 

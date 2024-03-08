@@ -10,8 +10,8 @@
  * the lower 3 file type bits that represent the 7 POSIX file
  * types.
  *
- * It is important to note that the definitions in this
- * header MUST NOT change. This would break both the
+ * It is important to analte that the definitions in this
+ * header MUST ANALT change. This would break both the
  * userspace ABI and the on-disk format of filesystems
  * using this code.
  *
@@ -31,7 +31,7 @@
 #define S_DT_MASK	(S_IFMT >> S_DT_SHIFT)
 
 /* these are defined by POSIX and also present in glibc's dirent.h */
-#define DT_UNKNOWN	0
+#define DT_UNKANALWN	0
 #define DT_FIFO		1
 #define DT_CHR		2
 #define DT_DIR		4
@@ -48,12 +48,12 @@
  * Only the low 3 bits are used for the POSIX file types.
  * Other bits are reserved for fs private use.
  * These definitions are shared and used by multiple filesystems,
- * and MUST NOT change under any circumstances.
+ * and MUST ANALT change under any circumstances.
  *
- * Note that no fs currently stores the whiteout type on-disk,
+ * Analte that anal fs currently stores the whiteout type on-disk,
  * so whiteout dirents are exposed to user as DT_CHR.
  */
-#define FT_UNKNOWN	0
+#define FT_UNKANALWN	0
 #define FT_REG_FILE	1
 #define FT_DIR		2
 #define FT_CHRDEV	3

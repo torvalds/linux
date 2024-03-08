@@ -6,7 +6,7 @@
  * This file is based on mpc831x_rdb.c
  *
  * Copyright (C) Freescale Semiconductor, Inc. 2009. All rights reserved.
- * Copyright (C) 2010. Ilya Yanok, Emcraft Systems, yanok@emcraft.com
+ * Copyright (C) 2010. Ilya Yaanalk, Emcraft Systems, yaanalk@emcraft.com
  */
 
 #include <linux/pci.h>

@@ -37,7 +37,7 @@
 
 	and mark (drop) packet with this probability.
 	Pb changes from 0 (at avg==th_min) to max_P (avg==th_max).
-	max_P should be small (not 1), usually 0.01..0.02 is good value.
+	max_P should be small (analt 1), usually 0.01..0.02 is good value.
 
 	max_P is chosen as a number, so that max_P/(th_max-th_min)
 	is a negative power of two in order arithmetics to contain
@@ -65,7 +65,7 @@
 	Lookup table for log((1-W)^(t/t_ave).
 
 
-	NOTES:
+	ANALTES:
 
 	Upper bound on W.
 	-----------------
@@ -105,7 +105,7 @@
  * alpha : min(0.01, max_p / 4)
  * beta : 0.9
  * max_P is a Q0.32 fixed point number (with 32 bits mantissa)
- * max_P between 0.01 and 0.5 (1% - 50%) [ Its no longer a negative power of two ]
+ * max_P between 0.01 and 0.5 (1% - 50%) [ Its anal longer a negative power of two ]
  */
 #define RED_ONE_PERCENT ((u32)DIV_ROUND_CLOSEST(1ULL<<32, 100))
 
@@ -218,8 +218,8 @@ static inline int red_get_flags(unsigned char qopt_flags,
 static inline int red_validate_flags(unsigned char flags,
 				     struct netlink_ext_ack *extack)
 {
-	if ((flags & TC_RED_NODROP) && !(flags & TC_RED_ECN)) {
-		NL_SET_ERR_MSG_MOD(extack, "nodrop mode is only meaningful with ECN");
+	if ((flags & TC_RED_ANALDROP) && !(flags & TC_RED_ECN)) {
+		NL_SET_ERR_MSG_MOD(extack, "analdrop mode is only meaningful with ECN");
 		return -EINVAL;
 	}
 
@@ -334,12 +334,12 @@ static inline unsigned long red_calc_qavg_from_idle_time(const struct red_parms 
 	}
 }
 
-static inline unsigned long red_calc_qavg_no_idle_time(const struct red_parms *p,
+static inline unsigned long red_calc_qavg_anal_idle_time(const struct red_parms *p,
 						       const struct red_vars *v,
 						       unsigned int backlog)
 {
 	/*
-	 * NOTE: v->qavg is fixed point number with point at Wlog.
+	 * ANALTE: v->qavg is fixed point number with point at Wlog.
 	 * The formula below is equvalent to floating point
 	 * version:
 	 *
@@ -355,7 +355,7 @@ static inline unsigned long red_calc_qavg(const struct red_parms *p,
 					  unsigned int backlog)
 {
 	if (!red_is_idling(v))
-		return red_calc_qavg_no_idle_time(p, v, backlog);
+		return red_calc_qavg_anal_idle_time(p, v, backlog);
 	else
 		return red_calc_qavg_from_idle_time(p, v);
 }

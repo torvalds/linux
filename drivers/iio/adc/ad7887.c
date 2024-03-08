@@ -68,7 +68,7 @@ struct ad7887_state {
 	/*
 	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
-	 * Buffer needs to be large enough to hold two 16 bit samples and a
+	 * Buffer needs to be large eanalugh to hold two 16 bit samples and a
 	 * 64 bit aligned 64 bit timestamp.
 	 */
 	unsigned char data[ALIGN(4, sizeof(s64)) + sizeof(s64)] __aligned(IIO_DMA_MINALIGN);
@@ -82,7 +82,7 @@ static int ad7887_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7887_state *st = iio_priv(indio_dev);
 
-	/* We know this is a single long so can 'cheat' */
+	/* We kanalw this is a single long so can 'cheat' */
 	switch (*indio_dev->active_scan_mask) {
 	case (1 << 0):
 		st->ring_msg = &st->msg[AD7887_CH0];
@@ -122,7 +122,7 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, st->data,
 		iio_get_time_ns(indio_dev));
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -242,13 +242,13 @@ static int ad7887_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
 	st->reg = devm_regulator_get_optional(&spi->dev, "vref");
 	if (IS_ERR(st->reg)) {
-		if (PTR_ERR(st->reg) != -ENODEV)
+		if (PTR_ERR(st->reg) != -EANALDEV)
 			return PTR_ERR(st->reg);
 
 		st->reg = NULL;

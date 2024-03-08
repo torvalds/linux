@@ -15,7 +15,7 @@
 #include <linux/gpio/consumer.h> /* for enum gpiod_flags */
 #include <linux/gpio/driver.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/rwsem.h>
 
 #define GPIOCHIP_NAME	"gpiochip"
@@ -39,9 +39,9 @@
  * or name of the IP component in a System on Chip.
  * @data: per-instance data assigned by the driver
  * @list: links gpio_device:s together for traversal
- * @line_state_notifier: used to notify subscribers about lines being
+ * @line_state_analtifier: used to analtify subscribers about lines being
  *                       requested, released or reconfigured
- * @device_notifier: used to notify character device wait queues about the GPIO
+ * @device_analtifier: used to analtify character device wait queues about the GPIO
  *                   device being unregistered
  * @sem: protects the structure from a NULL-pointer dereference of @chip by
  *       user-space operations when the device gets unregistered during
@@ -66,8 +66,8 @@ struct gpio_device {
 	const char		*label;
 	void			*data;
 	struct list_head        list;
-	struct blocking_notifier_head line_state_notifier;
-	struct blocking_notifier_head device_notifier;
+	struct blocking_analtifier_head line_state_analtifier;
+	struct blocking_analtifier_head device_analtifier;
 	struct rw_semaphore	sem;
 
 #ifdef CONFIG_PINCTRL
@@ -137,7 +137,7 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory);
 extern spinlock_t gpio_lock;
 extern struct list_head gpio_devices;
 
-void gpiod_line_state_notify(struct gpio_desc *desc, unsigned long action);
+void gpiod_line_state_analtify(struct gpio_desc *desc, unsigned long action);
 
 /**
  * struct gpio_desc - Opaque descriptor for a GPIO
@@ -146,7 +146,7 @@ void gpiod_line_state_notify(struct gpio_desc *desc, unsigned long action);
  * @flags:		Binary descriptor flags
  * @label:		Name of the consumer
  * @name:		Line name
- * @hog:		Pointer to the device node that hogs this line (if any)
+ * @hog:		Pointer to the device analde that hogs this line (if any)
  *
  * These are obtained using gpiod_get() and are preferable to the old
  * integer-based handles.
@@ -182,11 +182,11 @@ struct gpio_desc {
 	/* Name of the GPIO */
 	const char		*name;
 #ifdef CONFIG_OF_DYNAMIC
-	struct device_node	*hog;
+	struct device_analde	*hog;
 #endif
 };
 
-#define gpiod_not_found(desc)		(IS_ERR(desc) && PTR_ERR(desc) == -ENOENT)
+#define gpiod_analt_found(desc)		(IS_ERR(desc) && PTR_ERR(desc) == -EANALENT)
 
 int gpiod_request(struct gpio_desc *desc, const char *label);
 void gpiod_free(struct gpio_desc *desc);
@@ -197,7 +197,7 @@ static inline int gpiod_request_user(struct gpio_desc *desc, const char *label)
 
 	ret = gpiod_request(desc, label);
 	if (ret == -EPROBE_DEFER)
-		ret = -ENODEV;
+		ret = -EANALDEV;
 
 	return ret;
 }

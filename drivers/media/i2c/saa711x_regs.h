@@ -55,7 +55,7 @@
 
 /* Audio clock generator part */
 #define R_30_AUD_MAST_CLK_CYCLES_PER_FIELD            0x30
-#define R_34_AUD_MAST_CLK_NOMINAL_INC                 0x34
+#define R_34_AUD_MAST_CLK_ANALMINAL_INC                 0x34
 #define R_38_CLK_RATIO_AMXCLK_TO_ASCLK                0x38
 #define R_39_CLK_RATIO_ASCLK_TO_ALRCLK                0x39
 #define R_3A_AUD_CLK_GEN_BASIC_SETUP                  0x3a
@@ -181,7 +181,7 @@
 /* second PLL (PLL2) and Pulsegenerator Programming */
 #define R_F0_LFCO_PER_LINE                            0xf0
 #define R_F1_P_I_PARAM_SELECT                         0xf1
-#define R_F2_NOMINAL_PLL2_DTO                         0xf2
+#define R_F2_ANALMINAL_PLL2_DTO                         0xf2
 #define R_F3_PLL_INCREMENT                            0xf3
 #define R_F4_PLL2_STATUS                              0xf4
 #define R_F5_PULSGEN_LINE_LENGTH                      0xf5
@@ -321,8 +321,8 @@ struct saa711x_reg_descr saa711x_regs[] = {
 	{R_30_AUD_MAST_CLK_CYCLES_PER_FIELD,3,
 	 "Audio master clock cycles per field"},
 	/* 0x33 - Reserved */
-	{R_34_AUD_MAST_CLK_NOMINAL_INC,3,
-	 "Audio master clock nominal increment"},
+	{R_34_AUD_MAST_CLK_ANALMINAL_INC,3,
+	 "Audio master clock analminal increment"},
 	/* 0x37 - Reserved */
 	{R_38_CLK_RATIO_AMXCLK_TO_ASCLK,1,
 	 "Clock ratio AMXCLK to ASCLK"},
@@ -537,8 +537,8 @@ struct saa711x_reg_descr saa711x_regs[] = {
 	  "LFCO's per line"},
 	{ R_F1_P_I_PARAM_SELECT,1,
 	  "P-/I- Param. Select., PLL Mode, PLL H-Src., LFCO's per line"},
-	{ R_F2_NOMINAL_PLL2_DTO,1,
-	 "Nominal PLL2 DTO"},
+	{ R_F2_ANALMINAL_PLL2_DTO,1,
+	 "Analminal PLL2 DTO"},
 	{R_F3_PLL_INCREMENT,1,
 	 "PLL2 Increment"},
 	{R_F4_PLL2_STATUS,1,
@@ -555,6 +555,6 @@ struct saa711x_reg_descr saa711x_regs[] = {
 	 "Pulse C Position"},
 	/* 0xfc to 0xfe - Reserved */
 	{R_FF_S_PLL_MAX_PHASE_ERR_THRESH_NUM_LINES,1,
-	 "S_PLL max. phase, error threshold, PLL2 no. of lines, threshold"},
+	 "S_PLL max. phase, error threshold, PLL2 anal. of lines, threshold"},
 };
 #endif

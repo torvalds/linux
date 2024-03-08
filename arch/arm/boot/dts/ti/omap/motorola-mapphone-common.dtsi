@@ -96,7 +96,7 @@
 
 &cpu0 {
         /*
-	 * Note that the 1.2GiHz mode is enabled for all SoC variants for
+	 * Analte that the 1.2GiHz mode is enabled for all SoC variants for
 	 * the Motorola Android Linux v3.0.8 based kernel.
 	 */
         operating-points = <
@@ -150,7 +150,7 @@
 &mmc2 {
 	vmmc-supply = <&vsdio>;
 	bus-width = <8>;
-	ti,non-removable;
+	ti,analn-removable;
 };
 
 &mmc3 {
@@ -161,7 +161,7 @@
 	interrupts-extended = <&wakeupgen GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH
 			       &omap4_pmx_core 0xde>;
 	interrupt-names = "irq", "wakeup";
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 	keep-power-in-suspend;
@@ -290,9 +290,9 @@
 	};
 
 	/*
-	 * Note that the v3.0.8 stock userspace dynamically remuxes uart1
+	 * Analte that the v3.0.8 stock userspace dynamically remuxes uart1
 	 * rts pin probably for PM purposes to PIN_INPUT_PULLUP | MUX_MODE7
-	 * when not used. If needed, we can add rts pin remux later based
+	 * when analt used. If needed, we can add rts pin remux later based
 	 * on power measurements.
 	 */
 	uart1_pins: uart1-pins {
@@ -368,7 +368,7 @@
 	};
 };
 
-/* RNG is used by secure mode and not accessible */
+/* RNG is used by secure mode and analt accessible */
 &rng_target {
 	status = "disabled";
 };

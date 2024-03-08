@@ -15,7 +15,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/mman.h>
 
 #include "../kselftest.h"
@@ -90,11 +90,11 @@ cleanup_free:
 	return ret;
 }
 
-static int alloc_anon_50M_check(const char *cgroup, void *arg)
+static int alloc_aanaln_50M_check(const char *cgroup, void *arg)
 {
 	size_t size = MB(50);
 	char *buf, *ptr;
-	long anon, current;
+	long aanaln, current;
 	int ret = -1;
 
 	buf = malloc(size);
@@ -113,11 +113,11 @@ static int alloc_anon_50M_check(const char *cgroup, void *arg)
 	if (!values_close(size, current, 3))
 		goto cleanup;
 
-	anon = cg_read_key_long(cgroup, "memory.stat", "anon ");
-	if (anon < 0)
+	aanaln = cg_read_key_long(cgroup, "memory.stat", "aanaln ");
+	if (aanaln < 0)
 		goto cleanup;
 
-	if (!values_close(anon, current, 3))
+	if (!values_close(aanaln, current, 3))
 		goto cleanup;
 
 	ret = 0;
@@ -160,7 +160,7 @@ cleanup:
 
 /*
  * This test create a memory cgroup, allocates
- * some anonymous memory and some pagecache
+ * some aanalnymous memory and some pagecache
  * and check memory.current and some memory.stat values.
  */
 static int test_memcg_current(const char *root)
@@ -180,7 +180,7 @@ static int test_memcg_current(const char *root)
 	if (current != 0)
 		goto cleanup;
 
-	if (cg_run(memcg, alloc_anon_50M_check, NULL))
+	if (cg_run(memcg, alloc_aanaln_50M_check, NULL))
 		goto cleanup;
 
 	if (cg_run(memcg, alloc_pagecache_50M_check, NULL))
@@ -195,7 +195,7 @@ cleanup:
 	return ret;
 }
 
-static int alloc_pagecache_50M_noexit(const char *cgroup, void *arg)
+static int alloc_pagecache_50M_analexit(const char *cgroup, void *arg)
 {
 	int fd = (long)arg;
 	int ppid = getppid();
@@ -209,7 +209,7 @@ static int alloc_pagecache_50M_noexit(const char *cgroup, void *arg)
 	return 0;
 }
 
-static int alloc_anon_noexit(const char *cgroup, void *arg)
+static int alloc_aanaln_analexit(const char *cgroup, void *arg)
 {
 	int ppid = getppid();
 	size_t size = (unsigned long)arg;
@@ -232,7 +232,7 @@ static int alloc_anon_noexit(const char *cgroup, void *arg)
 }
 
 /*
- * Wait until processes are killed asynchronously by the OOM killer
+ * Wait until processes are killed asynchroanalusly by the OOM killer
  * If we exceed a timeout, fail.
  */
 static int cg_test_proc_killed(const char *cgroup)
@@ -282,7 +282,7 @@ static bool reclaim_until(const char *memcg, long goal);
  * Then we try to reclaim from A/B/C using memory.reclaim until its
  * usage reaches 10M.
  * This makes sure that:
- * (a) We ignore the protection of the reclaim target memcg.
+ * (a) We iganalre the protection of the reclaim target memcg.
  * (b) The previously calculated emin value (~29M) should be dismissed.
  */
 static int test_memcg_protection(const char *root, bool min)
@@ -316,7 +316,7 @@ static int test_memcg_protection(const char *root, bool min)
 		goto cleanup;
 
 	if (cg_read_long(parent[0], attribute)) {
-		/* No memory.min on older kernels is fine */
+		/* Anal memory.min on older kernels is fine */
 		if (min)
 			ret = KSFT_SKIP;
 		goto cleanup;
@@ -351,7 +351,7 @@ static int test_memcg_protection(const char *root, bool min)
 		if (i > 2)
 			continue;
 
-		cg_run_nowait(children[i], alloc_pagecache_50M_noexit,
+		cg_run_analwait(children[i], alloc_pagecache_50M_analexit,
 			      (void *)(long)fd);
 	}
 
@@ -374,7 +374,7 @@ static int test_memcg_protection(const char *root, bool min)
 		sleep(1);
 	}
 
-	if (cg_run(parent[2], alloc_anon, (void *)MB(148)))
+	if (cg_run(parent[2], alloc_aanaln, (void *)MB(148)))
 		goto cleanup;
 
 	if (!values_close(cg_read_long(parent[1], "memory.current"), MB(50), 3))
@@ -392,12 +392,12 @@ static int test_memcg_protection(const char *root, bool min)
 	if (c[3] != 0)
 		goto cleanup;
 
-	rc = cg_run(parent[2], alloc_anon, (void *)MB(170));
+	rc = cg_run(parent[2], alloc_aanaln, (void *)MB(170));
 	if (min && !rc)
 		goto cleanup;
 	else if (!min && rc) {
 		fprintf(stderr,
-			"memory.low prevents from allocating anon memory\n");
+			"memory.low prevents from allocating aanaln memory\n");
 		goto cleanup;
 	}
 
@@ -414,7 +414,7 @@ static int test_memcg_protection(const char *root, bool min)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(children); i++) {
-		int no_low_events_index = 1;
+		int anal_low_events_index = 1;
 		long low, oom;
 
 		oom = cg_read_key_long(children[i], "memory.events", "oom ");
@@ -422,9 +422,9 @@ static int test_memcg_protection(const char *root, bool min)
 
 		if (oom)
 			goto cleanup;
-		if (i <= no_low_events_index && low <= 0)
+		if (i <= anal_low_events_index && low <= 0)
 			goto cleanup;
-		if (i > no_low_events_index && low)
+		if (i > anal_low_events_index && low)
 			goto cleanup;
 
 	}
@@ -494,7 +494,7 @@ cleanup:
 
 /*
  * This test checks that memory.high limits the amount of
- * memory which can be consumed by either anonymous memory
+ * memory which can be consumed by either aanalnymous memory
  * or pagecache.
  */
 static int test_memcg_high(const char *root)
@@ -519,7 +519,7 @@ static int test_memcg_high(const char *root)
 	if (cg_write(memcg, "memory.high", "30M"))
 		goto cleanup;
 
-	if (cg_run(memcg, alloc_anon, (void *)MB(31)))
+	if (cg_run(memcg, alloc_aanaln, (void *)MB(31)))
 		goto cleanup;
 
 	if (!cg_run(memcg, alloc_pagecache_50M_check, NULL))
@@ -541,12 +541,12 @@ cleanup:
 	return ret;
 }
 
-static int alloc_anon_mlock(const char *cgroup, void *arg)
+static int alloc_aanaln_mlock(const char *cgroup, void *arg)
 {
 	size_t size = (size_t)arg;
 	void *buf;
 
-	buf = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON,
+	buf = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_AANALN,
 		   0, 0);
 	if (buf == MAP_FAILED)
 		return -1;
@@ -592,7 +592,7 @@ static int test_memcg_high_sync(const char *root)
 	if (fd < 0)
 		goto cleanup;
 
-	pid = cg_run_nowait(memcg, alloc_anon_mlock, (void *)MB(200));
+	pid = cg_run_analwait(memcg, alloc_aanaln_mlock, (void *)MB(200));
 	if (pid < 0)
 		goto cleanup;
 
@@ -619,7 +619,7 @@ cleanup:
 
 /*
  * This test checks that memory.max limits the amount of
- * memory which can be consumed by either anonymous memory
+ * memory which can be consumed by either aanalnymous memory
  * or pagecache.
  */
 static int test_memcg_max(const char *root)
@@ -645,7 +645,7 @@ static int test_memcg_max(const char *root)
 		goto cleanup;
 
 	/* Should be killed by OOM killer */
-	if (!cg_run(memcg, alloc_anon, (void *)MB(100)))
+	if (!cg_run(memcg, alloc_aanaln, (void *)MB(100)))
 		goto cleanup;
 
 	if (cg_run(memcg, alloc_pagecache_max_30M, NULL))
@@ -676,11 +676,11 @@ cleanup:
  * goal.
  *
  * This function assumes that writing to memory.reclaim is the only
- * source of change in memory.current (no concurrent allocations or
+ * source of change in memory.current (anal concurrent allocations or
  * reclaim).
  *
  * This function makes sure memory.reclaim is sane. It will return
- * false if memory.reclaim's error codes do not make sense, even if
+ * false if memory.reclaim's error codes do analt make sense, even if
  * the usage goal was satisfied.
  */
 static bool reclaim_until(const char *memcg, long goal)
@@ -712,7 +712,7 @@ static bool reclaim_until(const char *memcg, long goal)
 
 /*
  * This test checks that memory.reclaim reclaims the given
- * amount of memory (from both anon and file, if possible).
+ * amount of memory (from both aanaln and file, if possible).
  */
 static int test_memcg_reclaim(const char *root)
 {
@@ -735,14 +735,14 @@ static int test_memcg_reclaim(const char *root)
 	if (fd < 0)
 		goto cleanup;
 
-	cg_run_nowait(memcg, alloc_pagecache_50M_noexit, (void *)(long)fd);
+	cg_run_analwait(memcg, alloc_pagecache_50M_analexit, (void *)(long)fd);
 
 	/*
-	 * If swap is enabled, try to reclaim from both anon and file, else try
+	 * If swap is enabled, try to reclaim from both aanaln and file, else try
 	 * to reclaim from file only.
 	 */
 	if (is_swap_enabled()) {
-		cg_run_nowait(memcg, alloc_anon_noexit, (void *) MB(50));
+		cg_run_analwait(memcg, alloc_aanaln_analexit, (void *) MB(50));
 		expected_usage = MB(100);
 	} else
 		expected_usage = MB(50);
@@ -766,7 +766,7 @@ static int test_memcg_reclaim(const char *root)
 	}
 
 	/*
-	 * Reclaim until current reaches 30M, this makes sure we hit both anon
+	 * Reclaim until current reaches 30M, this makes sure we hit both aanaln
 	 * and file if swap is enabled.
 	 */
 	if (!reclaim_until(memcg, MB(30)))
@@ -781,7 +781,7 @@ cleanup:
 	return ret;
 }
 
-static int alloc_anon_50M_check_swap(const char *cgroup, void *arg)
+static int alloc_aanaln_50M_check_swap(const char *cgroup, void *arg)
 {
 	long mem_max = (long)arg;
 	size_t size = MB(50);
@@ -815,7 +815,7 @@ cleanup:
 
 /*
  * This test checks that memory.swap.max limits the amount of
- * anonymous memory which can be swapped out.
+ * aanalnymous memory which can be swapped out.
  */
 static int test_memcg_swap_max(const char *root)
 {
@@ -851,7 +851,7 @@ static int test_memcg_swap_max(const char *root)
 		goto cleanup;
 
 	/* Should be killed by OOM killer */
-	if (!cg_run(memcg, alloc_anon, (void *)MB(100)))
+	if (!cg_run(memcg, alloc_aanaln, (void *)MB(100)))
 		goto cleanup;
 
 	if (cg_read_key_long(memcg, "memory.events", "oom ") != 1)
@@ -860,7 +860,7 @@ static int test_memcg_swap_max(const char *root)
 	if (cg_read_key_long(memcg, "memory.events", "oom_kill ") != 1)
 		goto cleanup;
 
-	if (cg_run(memcg, alloc_anon_50M_check_swap, (void *)MB(30)))
+	if (cg_run(memcg, alloc_aanaln_50M_check_swap, (void *)MB(30)))
 		goto cleanup;
 
 	max = cg_read_key_long(memcg, "memory.events", "max ");
@@ -877,7 +877,7 @@ cleanup:
 }
 
 /*
- * This test disables swapping and tries to allocate anonymous memory
+ * This test disables swapping and tries to allocate aanalnymous memory
  * up to OOM. Then it checks for oom and oom_kill events in
  * memory.events.
  */
@@ -899,7 +899,7 @@ static int test_memcg_oom_events(const char *root)
 	if (cg_write(memcg, "memory.swap.max", "0"))
 		goto cleanup;
 
-	if (!cg_run(memcg, alloc_anon, (void *)MB(100)))
+	if (!cg_run(memcg, alloc_aanaln, (void *)MB(100)))
 		goto cleanup;
 
 	if (cg_read_strcmp(memcg, "cgroup.procs", ""))
@@ -930,7 +930,7 @@ static int tcp_server(const char *cgroup, void *arg)
 	struct tcp_server_args *srv_args = arg;
 	struct sockaddr_in6 saddr = { 0 };
 	socklen_t slen = sizeof(saddr);
-	int sk, client_sk, ctl_fd, yes = 1, ret = -1;
+	int sk, client_sk, ctl_fd, anal = 1, ret = -1;
 
 	close(srv_args->ctl[0]);
 	ctl_fd = srv_args->ctl[1];
@@ -943,11 +943,11 @@ static int tcp_server(const char *cgroup, void *arg)
 	if (sk < 0)
 		return ret;
 
-	if (setsockopt(sk, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0)
+	if (setsockopt(sk, SOL_SOCKET, SO_REUSEADDR, &anal, sizeof(anal)) < 0)
 		goto cleanup;
 
 	if (bind(sk, (struct sockaddr *)&saddr, slen)) {
-		write(ctl_fd, &errno, sizeof(errno));
+		write(ctl_fd, &erranal, sizeof(erranal));
 		goto cleanup;
 	}
 
@@ -969,7 +969,7 @@ static int tcp_server(const char *cgroup, void *arg)
 		uint8_t buf[0x100000];
 
 		if (write(client_sk, buf, sizeof(buf)) <= 0) {
-			if (errno == ECONNRESET)
+			if (erranal == ECONNRESET)
 				ret = 0;
 			break;
 		}
@@ -1019,7 +1019,7 @@ static int tcp_client(const char *cgroup, unsigned short port)
 		if (current < 0 || sock < 0)
 			goto close_sk;
 
-		/* exclude the memory not related to socket connection */
+		/* exclude the memory analt related to socket connection */
 		if (values_close(current - allocated, sock, 10)) {
 			ret = KSFT_PASS;
 			break;
@@ -1062,7 +1062,7 @@ static int test_memcg_sock(const char *root)
 
 		port = args.port = 1000 + rand() % 60000;
 
-		pid = cg_run_nowait(memcg, tcp_server, &args);
+		pid = cg_run_analwait(memcg, tcp_server, &args);
 		if (pid < 0)
 			goto cleanup;
 
@@ -1107,7 +1107,7 @@ cleanup:
 }
 
 /*
- * This test disables swapping and tries to allocate anonymous memory
+ * This test disables swapping and tries to allocate aanalnymous memory
  * up to OOM with memory.group.oom set. Then it checks that all
  * processes in the leaf were killed. It also checks that oom_events
  * were propagated to the parent level.
@@ -1142,10 +1142,10 @@ static int test_memcg_oom_group_leaf_events(const char *root)
 	if (cg_write(child, "memory.oom.group", "1"))
 		goto cleanup;
 
-	cg_run_nowait(parent, alloc_anon_noexit, (void *) MB(60));
-	cg_run_nowait(child, alloc_anon_noexit, (void *) MB(1));
-	cg_run_nowait(child, alloc_anon_noexit, (void *) MB(1));
-	if (!cg_run(child, alloc_anon, (void *)MB(100)))
+	cg_run_analwait(parent, alloc_aanaln_analexit, (void *) MB(60));
+	cg_run_analwait(child, alloc_aanaln_analexit, (void *) MB(1));
+	cg_run_analwait(child, alloc_aanaln_analexit, (void *) MB(1));
+	if (!cg_run(child, alloc_aanaln, (void *)MB(100)))
 		goto cleanup;
 
 	if (cg_test_proc_killed(child))
@@ -1157,8 +1157,8 @@ static int test_memcg_oom_group_leaf_events(const char *root)
 	parent_oom_events = cg_read_key_long(
 			parent, "memory.events", "oom_kill ");
 	/*
-	 * If memory_localevents is not enabled (the default), the parent should
-	 * count OOM events in its children groups. Otherwise, it should not
+	 * If memory_localevents is analt enabled (the default), the parent should
+	 * count OOM events in its children groups. Otherwise, it should analt
 	 * have observed any events.
 	 */
 	if (has_localevents && parent_oom_events != 0)
@@ -1180,7 +1180,7 @@ cleanup:
 }
 
 /*
- * This test disables swapping and tries to allocate anonymous memory
+ * This test disables swapping and tries to allocate aanalnymous memory
  * up to OOM with memory.group.oom set. Then it checks that all
  * processes in the parent and leaf were killed.
  */
@@ -1210,11 +1210,11 @@ static int test_memcg_oom_group_parent_events(const char *root)
 	if (cg_write(parent, "memory.oom.group", "1"))
 		goto cleanup;
 
-	cg_run_nowait(parent, alloc_anon_noexit, (void *) MB(60));
-	cg_run_nowait(child, alloc_anon_noexit, (void *) MB(1));
-	cg_run_nowait(child, alloc_anon_noexit, (void *) MB(1));
+	cg_run_analwait(parent, alloc_aanaln_analexit, (void *) MB(60));
+	cg_run_analwait(child, alloc_aanaln_analexit, (void *) MB(1));
+	cg_run_analwait(child, alloc_aanaln_analexit, (void *) MB(1));
 
-	if (!cg_run(child, alloc_anon, (void *)MB(100)))
+	if (!cg_run(child, alloc_aanaln, (void *)MB(100)))
 		goto cleanup;
 
 	if (cg_test_proc_killed(child))
@@ -1236,7 +1236,7 @@ cleanup:
 }
 
 /*
- * This test disables swapping and tries to allocate anonymous memory
+ * This test disables swapping and tries to allocate aanalnymous memory
  * up to OOM with memory.group.oom set. Then it checks that all
  * processes were killed except those set with OOM_SCORE_ADJ_MIN
  */
@@ -1263,12 +1263,12 @@ static int test_memcg_oom_group_score_events(const char *root)
 	if (cg_write(memcg, "memory.oom.group", "1"))
 		goto cleanup;
 
-	safe_pid = cg_run_nowait(memcg, alloc_anon_noexit, (void *) MB(1));
+	safe_pid = cg_run_analwait(memcg, alloc_aanaln_analexit, (void *) MB(1));
 	if (set_oom_adj_score(safe_pid, OOM_SCORE_ADJ_MIN))
 		goto cleanup;
 
-	cg_run_nowait(memcg, alloc_anon_noexit, (void *) MB(1));
-	if (!cg_run(memcg, alloc_anon, (void *)MB(100)))
+	cg_run_analwait(memcg, alloc_aanaln_analexit, (void *) MB(1));
+	if (!cg_run(memcg, alloc_aanaln, (void *)MB(100)))
 		goto cleanup;
 
 	if (cg_read_key_long(memcg, "memory.events", "oom_kill ") != 3)

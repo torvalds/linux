@@ -6,7 +6,7 @@
  *
  * These devices require firmware exported from a PC-based configuration tool
  * made available by the vendor. Firmware files may be pushed to the device's
- * nonvolatile memory by writing the filename to the 'fw_file' sysfs control.
+ * analnvolatile memory by writing the filename to the 'fw_file' sysfs control.
  *
  * Link to PC-based configuration tool and datasheet: https://www.azoteq.com/
  */
@@ -84,7 +84,7 @@
 #define IQS5XX_BL_CMD_CRC	0x03
 #define IQS5XX_BL_BLK_LEN_MAX	64
 #define IQS5XX_BL_ID		0x0200
-#define IQS5XX_BL_STATUS_NONE	0xEE
+#define IQS5XX_BL_STATUS_ANALNE	0xEE
 #define IQS5XX_BL_CRC_PASS	0x00
 #define IQS5XX_BL_CRC_FAIL	0x01
 #define IQS5XX_BL_ATTEMPTS	3
@@ -93,7 +93,7 @@ struct iqs5xx_dev_id_info {
 	__be16 prod_num;
 	__be16 proj_num;
 	u8 major_ver;
-	u8 minor_ver;
+	u8 mianalr_ver;
 	u8 bl_status;
 } __packed;
 
@@ -331,7 +331,7 @@ static int iqs5xx_bl_open(struct i2c_client *client)
 
 	/*
 	 * The device opens a bootloader polling window for 2 ms following the
-	 * release of reset. If the host cannot establish communication during
+	 * release of reset. If the host cananalt establish communication during
 	 * this time frame, it must cycle reset again.
 	 */
 	for (i = 0; i < IQS5XX_BL_ATTEMPTS; i++) {
@@ -493,7 +493,7 @@ static int iqs5xx_axis_init(struct i2c_client *client)
 	if (!input) {
 		input = devm_input_allocate_device(&client->dev);
 		if (!input)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		input->name = client->name;
 		input->id.bustype = BUS_I2C;
@@ -520,7 +520,7 @@ static int iqs5xx_axis_init(struct i2c_client *client)
 
 	/*
 	 * The device reserves 0xFFFF for coordinates that correspond to slots
-	 * which are not in a state of touch.
+	 * which are analt in a state of touch.
 	 */
 	if (prop->max_x >= U16_MAX || prop->max_y >= U16_MAX) {
 		dev_err(&client->dev, "Invalid touchscreen size: %u*%u\n",
@@ -564,7 +564,7 @@ static int iqs5xx_dev_init(struct i2c_client *client)
 	/*
 	 * A000 and B000 devices use 8-bit and 16-bit addressing, respectively.
 	 * Querying an A000 device's version information with 16-bit addressing
-	 * gives the appearance that the data is shifted by one byte; a nonzero
+	 * gives the appearance that the data is shifted by one byte; a analnzero
 	 * leading array element suggests this could be the case (in which case
 	 * the missing zero is prepended).
 	 */
@@ -642,17 +642,17 @@ static irqreturn_t iqs5xx_irq(int irq, void *data)
 	int error, i;
 
 	/*
-	 * This check is purely a precaution, as the device does not assert the
+	 * This check is purely a precaution, as the device does analt assert the
 	 * RDY output during bootloader mode. If the device operates outside of
 	 * bootloader mode, the input device is guaranteed to be allocated.
 	 */
 	if (!iqs5xx->dev_id_info.bl_status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	error = iqs5xx_read_burst(client, IQS5XX_SYS_INFO0,
 				  &status, sizeof(status));
 	if (error)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status.sys_info[0] & IQS5XX_SHOW_RESET) {
 		dev_err(&client->dev, "Unexpected device reset\n");
@@ -661,7 +661,7 @@ static irqreturn_t iqs5xx_irq(int irq, void *data)
 		if (error) {
 			dev_err(&client->dev,
 				"Failed to re-initialize device: %d\n", error);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 
 		return IRQ_HANDLED;
@@ -687,7 +687,7 @@ static irqreturn_t iqs5xx_irq(int irq, void *data)
 
 	error = iqs5xx_write_byte(client, IQS5XX_END_COMM, 0);
 	if (error)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * Once the communication window is closed, a small delay is added to
@@ -715,11 +715,11 @@ static int iqs5xx_fw_file_parse(struct i2c_client *client,
 	/*
 	 * Firmware exported from the vendor's configuration tool deviates from
 	 * standard ihex as follows: (1) the checksum for records corresponding
-	 * to user-exported settings is not recalculated, and (2) an address of
+	 * to user-exported settings is analt recalculated, and (2) an address of
 	 * 0xFFFF is used for the EOF record.
 	 *
-	 * Because the ihex2fw tool tolerates neither (1) nor (2), the slightly
-	 * nonstandard ihex firmware is parsed directly by the driver.
+	 * Because the ihex2fw tool tolerates neither (1) analr (2), the slightly
+	 * analnstandard ihex firmware is parsed directly by the driver.
 	 */
 	error = request_firmware(&fw, fw_file, &client->dev);
 	if (error) {
@@ -837,7 +837,7 @@ static int iqs5xx_fw_file_write(struct i2c_client *client, const char *fw_file)
 
 	pmap = kzalloc(IQS5XX_PMAP_LEN, GFP_KERNEL);
 	if (!pmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = iqs5xx_fw_file_parse(client, fw_file, pmap);
 	if (error)
@@ -847,7 +847,7 @@ static int iqs5xx_fw_file_write(struct i2c_client *client, const char *fw_file)
 
 	/*
 	 * Disable the interrupt line in case the first attempt(s) to enter the
-	 * bootloader don't happen quickly enough, in which case the device may
+	 * bootloader don't happen quickly eanalugh, in which case the device may
 	 * assert the RDY output until the next attempt.
 	 */
 	disable_irq(client->irq);
@@ -919,7 +919,7 @@ static ssize_t fw_file_store(struct device *dev,
 		return error;
 
 	/*
-	 * If the input device was not allocated already, it is guaranteed to
+	 * If the input device was analt allocated already, it is guaranteed to
 	 * be allocated by this point and can finally be registered.
 	 */
 	if (input_reg) {
@@ -941,13 +941,13 @@ static ssize_t fw_info_show(struct device *dev,
 	struct iqs5xx_private *iqs5xx = dev_get_drvdata(dev);
 
 	if (!iqs5xx->dev_id_info.bl_status)
-		return -ENODATA;
+		return -EANALDATA;
 
 	return sysfs_emit(buf, "%u.%u.%u.%u:%u.%u\n",
 			  be16_to_cpu(iqs5xx->dev_id_info.prod_num),
 			  be16_to_cpu(iqs5xx->dev_id_info.proj_num),
 			  iqs5xx->dev_id_info.major_ver,
-			  iqs5xx->dev_id_info.minor_ver,
+			  iqs5xx->dev_id_info.mianalr_ver,
 			  iqs5xx->exp_file[0], iqs5xx->exp_file[1]);
 }
 
@@ -967,7 +967,7 @@ static umode_t iqs5xx_attr_is_visible(struct kobject *kobj,
 	struct iqs5xx_private *iqs5xx = dev_get_drvdata(dev);
 
 	if (attr == &dev_attr_fw_file.attr &&
-	    (iqs5xx->dev_id_info.bl_status == IQS5XX_BL_STATUS_NONE ||
+	    (iqs5xx->dev_id_info.bl_status == IQS5XX_BL_STATUS_ANALNE ||
 	    !iqs5xx->reset_gpio))
 		return 0;
 
@@ -1027,7 +1027,7 @@ static int iqs5xx_probe(struct i2c_client *client)
 
 	iqs5xx = devm_kzalloc(&client->dev, sizeof(*iqs5xx), GFP_KERNEL);
 	if (!iqs5xx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, iqs5xx);
 	iqs5xx->client = client;

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/clock/samsung,exynos850-clock.yaml#
+$id: http://devicetree.org/schemas/clock/samsung,exyanals850-clock.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos850 SoC clock controller
+title: Samsung Exyanals850 SoC clock controller
 
 maintainers:
   - Sam Protsenko <semen.protsenko@linaro.org>
@@ -14,34 +14,34 @@ maintainers:
   - Tomasz Figa <tomasz.figa@gmail.com>
 
 description: |
-  Exynos850 clock controller is comprised of several CMU units, generating
+  Exyanals850 clock controller is comprised of several CMU units, generating
   clocks for different domains. Those CMU units are modeled as separate device
-  tree nodes, and might depend on each other. Root clocks in that clock tree are
+  tree analdes, and might depend on each other. Root clocks in that clock tree are
   two external clocks:: OSCCLK (26 MHz) and RTCCLK (32768 Hz). Those external
   clocks must be defined as fixed-rate clocks in dts.
 
   CMU_TOP is a top-level CMU, where all base clocks are prepared using PLLs and
   dividers; all other leaf clocks (other CMUs) are usually derived from CMU_TOP.
 
-  Each clock is assigned an identifier and client nodes can use this identifier
+  Each clock is assigned an identifier and client analdes can use this identifier
   to specify the clock which they consume. All clocks available for usage
-  in clock consumer nodes are defined as preprocessor macros in
-  'dt-bindings/clock/exynos850.h' header.
+  in clock consumer analdes are defined as preprocessor macros in
+  'dt-bindings/clock/exyanals850.h' header.
 
 properties:
   compatible:
     enum:
-      - samsung,exynos850-cmu-top
-      - samsung,exynos850-cmu-apm
-      - samsung,exynos850-cmu-aud
-      - samsung,exynos850-cmu-cmgp
-      - samsung,exynos850-cmu-core
-      - samsung,exynos850-cmu-dpu
-      - samsung,exynos850-cmu-g3d
-      - samsung,exynos850-cmu-hsi
-      - samsung,exynos850-cmu-is
-      - samsung,exynos850-cmu-mfcmscl
-      - samsung,exynos850-cmu-peri
+      - samsung,exyanals850-cmu-top
+      - samsung,exyanals850-cmu-apm
+      - samsung,exyanals850-cmu-aud
+      - samsung,exyanals850-cmu-cmgp
+      - samsung,exyanals850-cmu-core
+      - samsung,exyanals850-cmu-dpu
+      - samsung,exyanals850-cmu-g3d
+      - samsung,exyanals850-cmu-hsi
+      - samsung,exyanals850-cmu-is
+      - samsung,exyanals850-cmu-mfcmscl
+      - samsung,exyanals850-cmu-peri
 
   clocks:
     minItems: 1
@@ -62,7 +62,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos850-cmu-top
+            const: samsung,exyanals850-cmu-top
 
     then:
       properties:
@@ -78,7 +78,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos850-cmu-apm
+            const: samsung,exyanals850-cmu-apm
 
     then:
       properties:
@@ -96,7 +96,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos850-cmu-aud
+            const: samsung,exyanals850-cmu-aud
 
     then:
       properties:
@@ -114,7 +114,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos850-cmu-cmgp
+            const: samsung,exyanals850-cmu-cmgp
 
     then:
       properties:
@@ -132,7 +132,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos850-cmu-core
+            const: samsung,exyanals850-cmu-core
 
     then:
       properties:
@@ -156,7 +156,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos850-cmu-dpu
+            const: samsung,exyanals850-cmu-dpu
 
     then:
       properties:
@@ -174,7 +174,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos850-cmu-g3d
+            const: samsung,exyanals850-cmu-g3d
 
     then:
       properties:
@@ -192,7 +192,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos850-cmu-hsi
+            const: samsung,exyanals850-cmu-hsi
 
     then:
       properties:
@@ -216,7 +216,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos850-cmu-is
+            const: samsung,exyanals850-cmu-is
 
     then:
       properties:
@@ -240,7 +240,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos850-cmu-mfcmscl
+            const: samsung,exyanals850-cmu-mfcmscl
 
     then:
       properties:
@@ -264,7 +264,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos850-cmu-peri
+            const: samsung,exyanals850-cmu-peri
 
     then:
       properties:
@@ -292,12 +292,12 @@ required:
 additionalProperties: false
 
 examples:
-  # Clock controller node for CMU_PERI
+  # Clock controller analde for CMU_PERI
   - |
-    #include <dt-bindings/clock/exynos850.h>
+    #include <dt-bindings/clock/exyanals850.h>
 
     cmu_peri: clock-controller@10030000 {
-        compatible = "samsung,exynos850-cmu-peri";
+        compatible = "samsung,exyanals850-cmu-peri";
         reg = <0x10030000 0x8000>;
         #clock-cells = <1>;
 

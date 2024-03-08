@@ -21,7 +21,7 @@ mlx5_create_hash_flow_group(struct mlx5_flow_table *ft,
 
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	MLX5_SET(create_flow_group_in, in, match_definer_id,
 		 mlx5_get_match_definer_id(definer));
@@ -54,7 +54,7 @@ static int mlx5_lag_create_port_sel_table(struct mlx5_lag *ldev,
 	ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_PORT_SEL);
 	if (!ns) {
 		mlx5_core_warn(dev, "Failed to get port selection namespace\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	lag_definer->ft = mlx5_create_flow_table(ns, &ft_attr);
@@ -73,7 +73,7 @@ static int mlx5_lag_create_port_sel_table(struct mlx5_lag *ldev,
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_UPLINK;
 	dest.vport.flags |= MLX5_FLOW_DEST_VPORT_VHCA_ID;
-	flow_act.flags |= FLOW_ACT_NO_APPEND;
+	flow_act.flags |= FLOW_ACT_ANAL_APPEND;
 	for (i = 0; i < ldev->ports; i++) {
 		for (j = 0; j < ldev->buckets; j++) {
 			u8 affinity;
@@ -298,13 +298,13 @@ mlx5_lag_create_definer(struct mlx5_lag *ldev, enum netdev_lag_hash hash,
 
 	lag_definer = kzalloc(sizeof(*lag_definer), GFP_KERNEL);
 	if (!lag_definer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	match_definer_mask = kvzalloc(MLX5_FLD_SZ_BYTES(match_definer,
 							match_mask),
 				      GFP_KERNEL);
 	if (!match_definer_mask) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_lag_definer;
 	}
 
@@ -438,7 +438,7 @@ static void set_tt_map(struct mlx5_lag_port_sel *port_sel,
 	}
 }
 
-#define SET_IGNORE_DESTS_BITS(tt_map, dests)				\
+#define SET_IGANALRE_DESTS_BITS(tt_map, dests)				\
 	do {								\
 		int idx;						\
 									\
@@ -464,7 +464,7 @@ static void mlx5_lag_set_inner_ttc_params(struct mlx5_lag *ldev,
 			MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 		ttc_params->dests[tt].ft = port_sel->inner.definers[tt]->ft;
 	}
-	SET_IGNORE_DESTS_BITS(port_sel->tt_map, ttc_params->ignore_dests);
+	SET_IGANALRE_DESTS_BITS(port_sel->tt_map, ttc_params->iganalre_dests);
 }
 
 static void mlx5_lag_set_outer_ttc_params(struct mlx5_lag *ldev,
@@ -485,7 +485,7 @@ static void mlx5_lag_set_outer_ttc_params(struct mlx5_lag *ldev,
 			MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 		ttc_params->dests[tt].ft = port_sel->outer.definers[tt]->ft;
 	}
-	SET_IGNORE_DESTS_BITS(port_sel->tt_map, ttc_params->ignore_dests);
+	SET_IGANALRE_DESTS_BITS(port_sel->tt_map, ttc_params->iganalre_dests);
 
 	ttc_params->inner_ttc = port_sel->tunnel;
 	if (!port_sel->tunnel)

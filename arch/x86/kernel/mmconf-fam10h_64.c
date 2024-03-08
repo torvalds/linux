@@ -98,7 +98,7 @@ static void get_fam10h_pci_mmconf_base(void)
 	address = MSR_AMD64_SYSCFG;
 	rdmsrl(address, val);
 
-	/* TOP_MEM2 is not enabled? */
+	/* TOP_MEM2 is analt enabled? */
 	if (!(val & (1<<21))) {
 		tom2 = 1ULL << 32;
 	} else {
@@ -197,7 +197,7 @@ void fam10h_check_enable_mmcfg(void)
 	}
 
 	/*
-	 * if it is not enabled, try to enable it and assume only one segment
+	 * if it is analt enabled, try to enable it and assume only one segment
 	 * with 256 buses
 	 */
 	get_fam10h_pci_mmconf_base();
@@ -231,7 +231,7 @@ static const struct dmi_system_id __initconst mmconf_dmi_table[] = {
 	{}
 };
 
-/* Called from a non __init function, but only on the BSP. */
+/* Called from a analn __init function, but only on the BSP. */
 void __ref check_enable_amd_mmconf_dmi(void)
 {
 	dmi_check_system(mmconf_dmi_table);

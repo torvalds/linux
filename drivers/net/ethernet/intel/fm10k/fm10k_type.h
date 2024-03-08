@@ -62,14 +62,14 @@ struct fm10k_hw;
 #define FM10K_PCIE_SRIOV_CTRL_VFARI		0x10
 
 #define FM10K_ERR_PARAM				-2
-#define FM10K_ERR_NO_RESOURCES			-3
+#define FM10K_ERR_ANAL_RESOURCES			-3
 #define FM10K_ERR_REQUESTS_PENDING		-4
 #define FM10K_ERR_RESET_REQUESTED		-5
 #define FM10K_ERR_DMA_PENDING			-6
 #define FM10K_ERR_RESET_FAILED			-7
 #define FM10K_ERR_INVALID_MAC_ADDR		-8
 #define FM10K_ERR_INVALID_VALUE			-9
-#define FM10K_NOT_IMPLEMENTED			0x7FFFFFFF
+#define FM10K_ANALT_IMPLEMENTED			0x7FFFFFFF
 
 /* Start of PF registers */
 #define FM10K_CTRL		0x0000
@@ -84,7 +84,7 @@ struct fm10k_hw;
 #define FM10K_EICR_FAULT_MASK			0x0000003F
 #define FM10K_EICR_MAILBOX			0x00000040
 #define FM10K_EICR_SWITCHREADY			0x00000080
-#define FM10K_EICR_SWITCHNOTREADY		0x00000100
+#define FM10K_EICR_SWITCHANALTREADY		0x00000100
 #define FM10K_EICR_SWITCHINTERRUPT		0x00000200
 #define FM10K_EICR_VFLR				0x00000800
 #define FM10K_EICR_MAXHOLDTIME			0x00001000
@@ -94,7 +94,7 @@ struct fm10k_hw;
 #define FM10K_EIMR_FUM_FAULT			0x00000400
 #define FM10K_EIMR_MAILBOX			0x00001000
 #define FM10K_EIMR_SWITCHREADY			0x00004000
-#define FM10K_EIMR_SWITCHNOTREADY		0x00010000
+#define FM10K_EIMR_SWITCHANALTREADY		0x00010000
 #define FM10K_EIMR_SWITCHINTERRUPT		0x00040000
 #define FM10K_EIMR_SRAMERROR			0x00100000
 #define FM10K_EIMR_VFLR				0x00400000
@@ -128,7 +128,7 @@ struct fm10k_hw;
 #define FM10K_DGLORT_COUNT			8
 #define FM10K_DGLORTMAP_MASK_SHIFT		16
 #define FM10K_DGLORTMAP_ANY			0x00000000
-#define FM10K_DGLORTMAP_NONE			0x0000FFFF
+#define FM10K_DGLORTMAP_ANALNE			0x0000FFFF
 #define FM10K_DGLORTMAP_ZERO			0xFFFF0000
 #define FM10K_DGLORTDEC(_n)	((_n) + 0x0038)
 #define FM10K_DGLORTDEC_VSILENGTH_SHIFT		4
@@ -209,7 +209,7 @@ struct fm10k_hw;
 #define FM10K_STATS_XEC			0x3804
 #define FM10K_STATS_VLAN_DROP		0x3805
 #define FM10K_STATS_LOOPBACK_DROP	0x3806
-#define FM10K_STATS_NODESC_DROP		0x3807
+#define FM10K_STATS_ANALDESC_DROP		0x3807
 
 /* PCIe state registers */
 #define FM10K_PHYADDR		0x381C
@@ -253,10 +253,10 @@ struct fm10k_hw;
 #define FM10K_TDBAL(_n)		((0x40 * (_n)) + 0x8000)
 #define FM10K_TDBAH(_n)		((0x40 * (_n)) + 0x8001)
 #define FM10K_TDLEN(_n)		((0x40 * (_n)) + 0x8002)
-/* When fist initialized, VFs need to know the Interrupt Throttle Rate (ITR)
+/* When fist initialized, VFs need to kanalw the Interrupt Throttle Rate (ITR)
  * scale which is based on the PCIe speed but the speed information in the PCI
- * configuration space may not be accurate. The PF already knows the ITR scale
- * but there is no defined method to pass that information from the PF to the
+ * configuration space may analt be accurate. The PF already kanalws the ITR scale
+ * but there is anal defined method to pass that information from the PF to the
  * VF. This is accomplished during VF initialization by temporarily co-opting
  * the yet-to-be-used TDLEN register to have the PF store the ITR shift for
  * the VF to retrieve before the VF needs to use the TDLEN register for its
@@ -325,7 +325,7 @@ struct fm10k_hw;
 
 /* Switch manager interrupt registers */
 #define FM10K_IP		0x13000
-#define FM10K_IP_NOTINRESET			0x00000100
+#define FM10K_IP_ANALTINRESET			0x00000100
 
 /* VLAN registers */
 #define FM10K_VLAN_TABLE(_n, _m)	((0x80 * (_n)) + (_m) + 0x14000)
@@ -340,7 +340,7 @@ struct fm10k_hw;
 #define FM10K_VLAN_ALL \
 	((FM10K_VLAN_TABLE_VID_MAX - 1) << FM10K_VLAN_LENGTH_SHIFT)
 
-/* VF FLR event notification registers */
+/* VF FLR event analtification registers */
 #define FM10K_PFVFLRE(_n)	((0x1 * (_n)) + 0x18844)
 #define FM10K_PFVFLREC(_n)	((0x1 * (_n)) + 0x18846)
 
@@ -376,7 +376,7 @@ enum fm10k_int_source {
 
 /* PCIe bus speeds */
 enum fm10k_bus_speed {
-	fm10k_bus_speed_unknown	= 0,
+	fm10k_bus_speed_unkanalwn	= 0,
 	fm10k_bus_speed_2500	= 2500,
 	fm10k_bus_speed_5000	= 5000,
 	fm10k_bus_speed_8000	= 8000,
@@ -385,7 +385,7 @@ enum fm10k_bus_speed {
 
 /* PCIe bus widths */
 enum fm10k_bus_width {
-	fm10k_bus_width_unknown	= 0,
+	fm10k_bus_width_unkanalwn	= 0,
 	fm10k_bus_width_pcie_x1	= 1,
 	fm10k_bus_width_pcie_x2	= 2,
 	fm10k_bus_width_pcie_x4	= 4,
@@ -395,7 +395,7 @@ enum fm10k_bus_width {
 
 /* PCIe payload sizes */
 enum fm10k_bus_payload {
-	fm10k_bus_payload_unknown = 0,
+	fm10k_bus_payload_unkanalwn = 0,
 	fm10k_bus_payload_128	  = 1,
 	fm10k_bus_payload_256	  = 2,
 	fm10k_bus_payload_512	  = 3,
@@ -435,7 +435,7 @@ struct fm10k_hw_stats {
 	struct fm10k_hw_stat	xec;
 	struct fm10k_hw_stat	vlan_drop;
 	struct fm10k_hw_stat	loopback_drop;
-	struct fm10k_hw_stat	nodesc_drop;
+	struct fm10k_hw_stat	analdesc_drop;
 	struct fm10k_hw_stats_q q[FM10K_MAX_QUEUES_PF];
 };
 
@@ -460,12 +460,12 @@ struct fm10k_dglort_cfg {
 	u8  pc_l;	/* Priority Class indices */
 	u8  vsi_l;	/* Number of bits from GLORT used to determine VSI */
 	u8  queue_l;	/* Number of bits from GLORT used to determine queue */
-	u8  shared_l;	/* Ignored bits from GLORT resulting in shared VSI */
+	u8  shared_l;	/* Iganalred bits from GLORT resulting in shared VSI */
 	u8  inner_rss;	/* Boolean value if inner header is used for RSS */
 };
 
 enum fm10k_pca_fault {
-	PCA_NO_FAULT,
+	PCA_ANAL_FAULT,
 	PCA_UNMAPPED_ADDR,
 	PCA_BAD_QACCESS_PF,
 	PCA_BAD_QACCESS_VF,
@@ -476,13 +476,13 @@ enum fm10k_pca_fault {
 };
 
 enum fm10k_thi_fault {
-	THI_NO_FAULT,
+	THI_ANAL_FAULT,
 	THI_MAL_DIS_Q_FAULT,
 	__THI_MAX
 };
 
 enum fm10k_fum_fault {
-	FUM_NO_FAULT,
+	FUM_ANAL_FAULT,
 	FUM_UNMAPPED_ADDR,
 	FUM_POISONED_TLP,
 	FUM_BAD_VF_QACCESS,
@@ -530,7 +530,7 @@ struct fm10k_mac_ops {
 };
 
 enum fm10k_mac_type {
-	fm10k_mac_unknown = 0,
+	fm10k_mac_unkanalwn = 0,
 	fm10k_mac_pf,
 	fm10k_mac_vf,
 	fm10k_num_macs
@@ -568,7 +568,7 @@ enum fm10k_xcast_modes {
 	FM10K_XCAST_MODE_ALLMULTI	= 0,
 	FM10K_XCAST_MODE_MULTI		= 1,
 	FM10K_XCAST_MODE_PROMISC	= 2,
-	FM10K_XCAST_MODE_NONE		= 3,
+	FM10K_XCAST_MODE_ANALNE		= 3,
 	FM10K_XCAST_MODE_DISABLE	= 4
 };
 
@@ -597,12 +597,12 @@ struct fm10k_vf_info {
 #define FM10K_VF_FLAG_ALLMULTI_CAPABLE	(u8)(BIT(FM10K_XCAST_MODE_ALLMULTI))
 #define FM10K_VF_FLAG_MULTI_CAPABLE	(u8)(BIT(FM10K_XCAST_MODE_MULTI))
 #define FM10K_VF_FLAG_PROMISC_CAPABLE	(u8)(BIT(FM10K_XCAST_MODE_PROMISC))
-#define FM10K_VF_FLAG_NONE_CAPABLE	(u8)(BIT(FM10K_XCAST_MODE_NONE))
+#define FM10K_VF_FLAG_ANALNE_CAPABLE	(u8)(BIT(FM10K_XCAST_MODE_ANALNE))
 #define FM10K_VF_FLAG_CAPABLE(vf_info)	((vf_info)->vf_flags & (u8)0xF)
 #define FM10K_VF_FLAG_ENABLED(vf_info)	((vf_info)->vf_flags >> 4)
 #define FM10K_VF_FLAG_SET_MODE(mode)	((u8)0x10 << (mode))
-#define FM10K_VF_FLAG_SET_MODE_NONE \
-	FM10K_VF_FLAG_SET_MODE(FM10K_XCAST_MODE_NONE)
+#define FM10K_VF_FLAG_SET_MODE_ANALNE \
+	FM10K_VF_FLAG_SET_MODE(FM10K_XCAST_MODE_ANALNE)
 #define FM10K_VF_FLAG_MULTI_ENABLED \
 	(FM10K_VF_FLAG_SET_MODE(FM10K_XCAST_MODE_ALLMULTI) | \
 	 FM10K_VF_FLAG_SET_MODE(FM10K_XCAST_MODE_MULTI) | \
@@ -723,7 +723,7 @@ union fm10k_rx_desc {
 
 #define FM10K_RXD_RSSTYPE_MASK		0x000F
 enum fm10k_rdesc_rss_type {
-	FM10K_RSSTYPE_NONE	= 0x0,
+	FM10K_RSSTYPE_ANALNE	= 0x0,
 	FM10K_RSSTYPE_IPV4_TCP	= 0x1,
 	FM10K_RSSTYPE_IPV4	= 0x2,
 	FM10K_RSSTYPE_IPV6_TCP	= 0x3,
@@ -753,7 +753,7 @@ enum fm10k_rxdesc_xc {
 #define FM10K_RXD_STATUS_IPE		0x8000 /* IPv4 csum error */
 
 #define FM10K_RXD_ERR_SWITCH_ERROR	0x0001 /* Switch found bad packet */
-#define FM10K_RXD_ERR_NO_DESCRIPTOR	0x0002 /* No descriptor available */
+#define FM10K_RXD_ERR_ANAL_DESCRIPTOR	0x0002 /* Anal descriptor available */
 #define FM10K_RXD_ERR_PP_ERROR		0x0004 /* RAM error during processing */
 #define FM10K_RXD_ERR_SWITCH_READY	0x0008 /* Link transition mid-packet */
 #define FM10K_RXD_ERR_TOO_BIG		0x0010 /* Pkt too big for single buf */

@@ -87,7 +87,7 @@ static void surface3_spi_report_touch(struct surface3_ts_data *ts_data,
 				 ABS_MT_WIDTH_MAJOR,
 				 get_unaligned_le16(&finger->width));
 		input_report_abs(ts_data->input_dev,
-				 ABS_MT_WIDTH_MINOR,
+				 ABS_MT_WIDTH_MIANALR,
 				 get_unaligned_le16(&finger->height));
 	}
 }
@@ -106,7 +106,7 @@ static void surface3_spi_process_touch(struct surface3_ts_data *ts_data, u8 *dat
 		 * When bit 5 of status is 1, it marks the end of the report:
 		 * - touch present: 0xe7
 		 * - touch released: 0xe4
-		 * - nothing valuable: 0xff
+		 * - analthing valuable: 0xff
 		 */
 		if (finger->status & 0x10)
 			break;
@@ -174,7 +174,7 @@ static void surface3_spi_process(struct surface3_ts_data *ts_data)
 
 	if (memcmp(header, data, sizeof(header)))
 		dev_err(&ts_data->spi->dev,
-			"%s header error: %*ph, ignoring...\n",
+			"%s header error: %*ph, iganalring...\n",
 			__func__, (int)sizeof(header), data);
 
 	switch (data[9]) {
@@ -186,7 +186,7 @@ static void surface3_spi_process(struct surface3_ts_data *ts_data)
 		break;
 	default:
 		dev_err(&ts_data->spi->dev,
-			"%s unknown packet type: %x, ignoring...\n",
+			"%s unkanalwn packet type: %x, iganalring...\n",
 			__func__, data[9]);
 		break;
 	}
@@ -247,7 +247,7 @@ static int surface3_spi_create_touch_input(struct surface3_ts_data *data)
 
 	input = devm_input_allocate_device(&data->spi->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->input_dev = input;
 
@@ -256,7 +256,7 @@ static int surface3_spi_create_touch_input(struct surface3_ts_data *data)
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, 7200, 0, 0);
 	input_abs_set_res(input, ABS_MT_POSITION_Y, 48);
 	input_set_abs_params(input, ABS_MT_WIDTH_MAJOR, 0, 1024, 0, 0);
-	input_set_abs_params(input, ABS_MT_WIDTH_MINOR, 0, 1024, 0, 0);
+	input_set_abs_params(input, ABS_MT_WIDTH_MIANALR, 0, 1024, 0, 0);
 	input_mt_init_slots(input, 10, INPUT_MT_DIRECT);
 
 	input->name = "Surface3 SPI Capacitive TouchScreen";
@@ -283,7 +283,7 @@ static int surface3_spi_create_pen_input(struct surface3_ts_data *data)
 
 	input = devm_input_allocate_device(&data->spi->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->pen_input_dev = input;
 	data->pen_tool = BTN_TOOL_PEN;
@@ -331,7 +331,7 @@ static int surface3_spi_probe(struct spi_device *spi)
 
 	data = devm_kzalloc(&spi->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->spi = spi;
 	spi_set_drvdata(spi, data);

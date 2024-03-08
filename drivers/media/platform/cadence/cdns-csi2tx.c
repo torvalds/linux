@@ -18,7 +18,7 @@
 #include <media/mipi-csi2.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define CSI2TX_DEVICE_CONFIG_REG	0x00
@@ -135,7 +135,7 @@ static const struct v4l2_mbus_framefmt fmt_default = {
 	.width		= 1280,
 	.height		= 720,
 	.code		= MEDIA_BUS_FMT_RGB888_1X24,
-	.field		= V4L2_FIELD_NONE,
+	.field		= V4L2_FIELD_ANALNE,
 	.colorspace	= V4L2_COLORSPACE_DEFAULT,
 };
 
@@ -357,7 +357,7 @@ static int csi2tx_start(struct csi2tx_priv *csi2tx)
 		 * We use the stream ID there, but it's wrong.
 		 *
 		 * A stream could very well send a data type that is
-		 * not equal to its stream ID. We need to find a
+		 * analt equal to its stream ID. We need to find a
 		 * proper way to address it.
 		 */
 		writel(CSI2TX_DT_CFG_DT(fmt->dt),
@@ -396,7 +396,7 @@ static int csi2tx_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	if (enable) {
 		/*
-		 * If we're not the first users, there's no need to
+		 * If we're analt the first users, there's anal need to
 		 * enable the whole controller.
 		 */
 		if (!csi2tx->count) {
@@ -495,17 +495,17 @@ static int csi2tx_get_resources(struct csi2tx_priv *csi2tx,
 
 static int csi2tx_check_lanes(struct csi2tx_priv *csi2tx)
 {
-	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
-	struct device_node *ep;
+	struct v4l2_fwanalde_endpoint v4l2_ep = { .bus_type = 0 };
+	struct device_analde *ep;
 	int ret, i;
 
-	ep = of_graph_get_endpoint_by_regs(csi2tx->dev->of_node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(csi2tx->dev->of_analde, 0, 0);
 	if (!ep)
 		return -EINVAL;
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &v4l2_ep);
+	ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(ep), &v4l2_ep);
 	if (ret) {
-		dev_err(csi2tx->dev, "Could not parse v4l2 endpoint\n");
+		dev_err(csi2tx->dev, "Could analt parse v4l2 endpoint\n");
 		goto out;
 	}
 
@@ -537,7 +537,7 @@ static int csi2tx_check_lanes(struct csi2tx_priv *csi2tx)
 	       sizeof(csi2tx->lanes));
 
 out:
-	of_node_put(ep);
+	of_analde_put(ep);
 	return ret;
 }
 
@@ -575,7 +575,7 @@ static int csi2tx_probe(struct platform_device *pdev)
 
 	csi2tx = kzalloc(sizeof(*csi2tx), GFP_KERNEL);
 	if (!csi2tx)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, csi2tx);
 	mutex_init(&csi2tx->lock);
 	csi2tx->dev = &pdev->dev;
@@ -584,13 +584,13 @@ static int csi2tx_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_free_priv;
 
-	of_id = of_match_node(csi2tx_of_table, pdev->dev.of_node);
+	of_id = of_match_analde(csi2tx_of_table, pdev->dev.of_analde);
 	csi2tx->vops = (struct csi2tx_vops *)of_id->data;
 
 	v4l2_subdev_init(&csi2tx->subdev, &csi2tx_subdev_ops);
 	csi2tx->subdev.owner = THIS_MODULE;
 	csi2tx->subdev.dev = &pdev->dev;
-	csi2tx->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	csi2tx->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	snprintf(csi2tx->subdev.name, sizeof(csi2tx->subdev.name),
 		 "%s.%s", KBUILD_MODNAME, dev_name(&pdev->dev));
 
@@ -608,7 +608,7 @@ static int csi2tx_probe(struct platform_device *pdev)
 	 * Only the input pads are considered to have a format at the
 	 * moment. The CSI link can multiplex various streams with
 	 * different formats, and we can't expose this in v4l2 right
-	 * now.
+	 * analw.
 	 */
 	for (i = CSI2TX_PAD_SINK_STREAM0; i < CSI2TX_PAD_MAX; i++)
 		csi2tx->pad_fmts[i] = fmt_default;
@@ -625,7 +625,7 @@ static int csi2tx_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev,
 		 "Probed CSI2TX with %u/%u lanes, %u streams, %s D-PHY\n",
 		 csi2tx->num_lanes, csi2tx->max_lanes, csi2tx->max_streams,
-		 csi2tx->has_internal_dphy ? "internal" : "no");
+		 csi2tx->has_internal_dphy ? "internal" : "anal");
 
 	return 0;
 

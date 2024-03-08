@@ -2,11 +2,11 @@
 /* linux/arch/sparc64/kernel/sys_sparc.c
  *
  * This file contains various random system calls that
- * have a non-standard calling sequence on the Linux/sparc
+ * have a analn-standard calling sequence on the Linux/sparc
  * platform.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
@@ -96,7 +96,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 	struct vm_unmapped_area_info info;
 
 	if (flags & MAP_FIXED) {
-		/* We do not accept a shared mapping if it would violate
+		/* We do analt accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
 		if ((flags & MAP_SHARED) &&
@@ -108,7 +108,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 	if (test_thread_flag(TIF_32BIT))
 		task_size = STACK_TOP32;
 	if (unlikely(len > task_size || len >= VA_EXCLUDE_START))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	do_color_align = 0;
 	if (filp || (flags & MAP_SHARED))
@@ -135,7 +135,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 	addr = vm_unmapped_area(&info);
 
 	if ((addr & ~PAGE_MASK) && task_size > VA_EXCLUDE_END) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM_BUG_ON(addr != -EANALMEM);
 		info.low_limit = VA_EXCLUDE_END;
 		info.high_limit = task_size;
 		addr = vm_unmapped_area(&info);
@@ -160,7 +160,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	BUG_ON(!test_thread_flag(TIF_32BIT));
 
 	if (flags & MAP_FIXED) {
-		/* We do not accept a shared mapping if it would violate
+		/* We do analt accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
 		if ((flags & MAP_SHARED) &&
@@ -170,7 +170,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	}
 
 	if (unlikely(len > task_size))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	do_color_align = 0;
 	if (filp || (flags & MAP_SHARED))
@@ -204,7 +204,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	 * allocations.
 	 */
 	if (addr & ~PAGE_MASK) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM_BUG_ON(addr != -EANALMEM);
 		info.flags = 0;
 		info.low_limit = TASK_UNMAPPED_BASE;
 		info.high_limit = STACK_TOP32;
@@ -217,7 +217,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 /* Try to align mapping such that we align it as much as possible. */
 unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr, unsigned long len, unsigned long pgoff, unsigned long flags)
 {
-	unsigned long align_goal, addr = -ENOMEM;
+	unsigned long align_goal, addr = -EANALMEM;
 	unsigned long (*get_area)(struct file *, unsigned long,
 				  unsigned long, unsigned long, unsigned long);
 
@@ -252,7 +252,7 @@ unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr, u
 			align_goal = PAGE_SIZE;
 	} while ((addr & ~PAGE_MASK) && align_goal > PAGE_SIZE);
 
-	/* Mapping is smaller than 64K or larger areas could not
+	/* Mapping is smaller than 64K or larger areas could analt
 	 * be obtained.
 	 */
 	if (addr & ~PAGE_MASK)
@@ -294,7 +294,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 		mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
 		mm->get_unmapped_area = arch_get_unmapped_area;
 	} else {
-		/* We know it's 32-bit */
+		/* We kanalw it's 32-bit */
 		unsigned long task_size = STACK_TOP32;
 
 		if (gap < 128 * 1024 * 1024)
@@ -308,8 +308,8 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 }
 
 /*
- * sys_pipe() is the normal C calling standard for creating
- * a pipe. It's not the way unix traditionally does this, though.
+ * sys_pipe() is the analrmal C calling standard for creating
+ * a pipe. It's analt the way unix traditionally does this, though.
  */
 SYSCALL_DEFINE0(sparc_pipe)
 {
@@ -337,9 +337,9 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 	long err;
 
 	if (!IS_ENABLED(CONFIG_SYSVIPC))
-		return -ENOSYS;
+		return -EANALSYS;
 
-	/* No need for backward compatibility. We can start fresh... */
+	/* Anal need for backward compatibility. We can start fresh... */
 	if (call <= SEMTIMEDOP) {
 		switch (call) {
 		case SEMOP:
@@ -361,7 +361,7 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 			goto out;
 		}
 		default:
-			err = -ENOSYS;
+			err = -EANALSYS;
 			goto out;
 		}
 	}
@@ -382,7 +382,7 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 			err = ksys_old_msgctl(first, (int)second | IPC_64, ptr);
 			goto out;
 		default:
-			err = -ENOSYS;
+			err = -EANALSYS;
 			goto out;
 		}
 	}
@@ -408,11 +408,11 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 			err = ksys_old_shmctl(first, (int)second | IPC_64, ptr);
 			goto out;
 		default:
-			err = -ENOSYS;
+			err = -EANALSYS;
 			goto out;
 		}
 	} else {
-		err = -ENOSYS;
+		err = -EANALSYS;
 	}
 out:
 	return err;
@@ -491,14 +491,14 @@ SYSCALL_DEFINE0(nis_syscall)
 	
 	/* Don't make the system unusable, if someone goes stuck */
 	if (count++ > 5)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	printk ("Unimplemented SPARC system call %ld\n",regs->u_regs[1]);
 #ifdef DEBUG_UNIMP_SYSCALL	
 	show_regs (regs);
 #endif
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 /* #define DEBUG_SPARC_BREAKPOINT */
@@ -581,10 +581,10 @@ SYSCALL_DEFINE2(sparc_clock_adjtime, const clockid_t, which_clock,
 
 	if (!IS_ENABLED(CONFIG_POSIX_TIMERS)) {
 		pr_err_once("process %d (%s) attempted a POSIX timer syscall "
-		    "while CONFIG_POSIX_TIMERS is not set\n",
+		    "while CONFIG_POSIX_TIMERS is analt set\n",
 		    current->pid, current->comm);
 
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	/* Copy the user data space into the kernel copy
@@ -612,7 +612,7 @@ SYSCALL_DEFINE5(utrap_install, utrap_entry_t, type,
 {
 	if (type < UT_INSTRUCTION_EXCEPTION || type > UT_TRAP_INSTRUCTION_31)
 		return -EINVAL;
-	if (new_p == (utrap_handler_t)(long)UTH_NOCHANGE) {
+	if (new_p == (utrap_handler_t)(long)UTH_ANALCHANGE) {
 		if (old_p) {
 			if (!current_thread_info()->utraps) {
 				if (put_user(NULL, old_p))
@@ -633,7 +633,7 @@ SYSCALL_DEFINE5(utrap_install, utrap_entry_t, type,
 			kcalloc(UT_TRAP_INSTRUCTION_31 + 1, sizeof(long),
 				GFP_KERNEL);
 		if (!current_thread_info()->utraps)
-			return -ENOMEM;
+			return -EANALMEM;
 		current_thread_info()->utraps[0] = 1;
 	} else {
 		if ((utrap_handler_t)current_thread_info()->utraps[type] != new_p &&
@@ -646,7 +646,7 @@ SYSCALL_DEFINE5(utrap_install, utrap_entry_t, type,
 					      GFP_KERNEL);
 			if (!current_thread_info()->utraps) {
 				current_thread_info()->utraps = p;
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			p[0]--;
 			current_thread_info()->utraps[0] = 1;

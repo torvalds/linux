@@ -271,7 +271,7 @@ armada_overlay_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	state = drm_atomic_state_alloc(plane->dev);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->acquire_ctx = ctx;
 	plane_state = drm_atomic_get_plane_state(state, plane);
@@ -294,7 +294,7 @@ armada_overlay_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	plane_state->src_h = src_h;
 	plane_state->src_w = src_w;
 
-	ret = drm_atomic_nonblocking_commit(state);
+	ret = drm_atomic_analnblocking_commit(state);
 fail:
 	drm_atomic_state_put(state);
 	return ret;
@@ -533,7 +533,7 @@ static int armada_overlay_create_properties(struct drm_device *dev)
 				"saturation", 0, 0x7fff);
 
 	if (!priv->colorkey_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -551,7 +551,7 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 
 	overlay = kzalloc(sizeof(*overlay), GFP_KERNEL);
 	if (!overlay)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_plane_helper_add(overlay, &armada_overlay_plane_helper_funcs);
 

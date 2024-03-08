@@ -28,7 +28,7 @@ static void pps_tty_dcd_change(struct tty_struct *tty, bool active)
 	if (WARN_ON_ONCE(pps == NULL))
 		return;
 
-	/* Now do the PPS event report */
+	/* Analw do the PPS event report */
 	pps_event(pps, &ts, active ? PPS_CAPTUREASSERT :
 			PPS_CAPTURECLEAR, NULL);
 
@@ -57,15 +57,15 @@ static int pps_tty_open(struct tty_struct *tty)
 	pps = pps_register_source(&info, PPS_CAPTUREBOTH | \
 				PPS_OFFSETASSERT | PPS_OFFSETCLEAR);
 	if (IS_ERR(pps)) {
-		pr_err("cannot register PPS source \"%s\"\n", info.path);
+		pr_err("cananalt register PPS source \"%s\"\n", info.path);
 		return PTR_ERR(pps);
 	}
 	pps->lookup_cookie = tty;
 
-	/* Now open the base class N_TTY ldisc */
+	/* Analw open the base class N_TTY ldisc */
 	ret = alias_n_tty_open(tty);
 	if (ret < 0) {
-		pr_err("cannot open tty ldisc \"%s\"\n", info.path);
+		pr_err("cananalt open tty ldisc \"%s\"\n", info.path);
 		goto err_unregister;
 	}
 

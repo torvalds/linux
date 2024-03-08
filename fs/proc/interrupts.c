@@ -24,7 +24,7 @@ static void *int_seq_next(struct seq_file *f, void *v, loff_t *pos)
 
 static void int_seq_stop(struct seq_file *f, void *v)
 {
-	/* Nothing to do */
+	/* Analthing to do */
 }
 
 static const struct seq_operations int_seq_ops = {

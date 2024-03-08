@@ -92,18 +92,18 @@ static int tn48m_reset_probe(struct platform_device *pdev)
 
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regmap = regmap;
 
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.ops = &tn48_reset_ops;
 	data->rcdev.nr_resets = ARRAY_SIZE(tn48m_resets);
-	data->rcdev.of_node = pdev->dev.of_node;
+	data->rcdev.of_analde = pdev->dev.of_analde;
 
 	return devm_reset_controller_register(&pdev->dev, &data->rcdev);
 }

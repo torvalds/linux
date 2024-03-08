@@ -14,7 +14,7 @@ with the following generations.
 Features and Integration
 ========================
 
-Not much is currently known about SAM on 4th generation devices (Surface Pro
+Analt much is currently kanalwn about SAM on 4th generation devices (Surface Pro
 4, Surface Book 1), due to the use of a different communication interface
 between host and EC (as detailed below). On 5th (Surface Pro 2017, Surface
 Book 2, Surface Laptop 1) and later generation devices, SAM is responsible
@@ -29,10 +29,10 @@ restructured for 7th generation devices and on those, specifically Surface
 Laptop 3 and Surface Book 3, is responsible for all major HID input (i.e.
 keyboard and touchpad).
 
-While features have not changed much on a coarse level since the 5th
+While features have analt changed much on a coarse level since the 5th
 generation, internal interfaces have undergone some rather large changes. On
 5th and 6th generation devices, both battery and temperature information is
-exposed to ACPI via a shim driver (referred to as Surface ACPI Notify, or
+exposed to ACPI via a shim driver (referred to as Surface ACPI Analtify, or
 SAN), translating ACPI generic serial bus write-/read-accesses to SAM
 requests. On 7th generation devices, this additional layer is gone and these
 devices require a driver hooking directly into the SAM interface. Equally,
@@ -55,7 +55,7 @@ needed, we differentiate between both types of SAM by referring to them as
 SAM-over-SSH and SAM-over-HID.
 
 Currently, this subsystem only supports SAM-over-SSH. The SSH communication
-interface is described in more detail below. The HID interface has not been
+interface is described in more detail below. The HID interface has analt been
 reverse engineered yet and it is, at the moment, unclear how many (and
 which) concepts of the SSH interface detailed below can be transferred to
 it.
@@ -68,7 +68,7 @@ communication interface for SAM on 5th- and all later-generation Surface
 devices. On the highest level, communication can be separated into two main
 types: Requests, messages sent from host to EC that may trigger a direct
 response from the EC (explicitly associated with the request), and events
-(sometimes also referred to as notifications), sent from EC to host without
+(sometimes also referred to as analtifications), sent from EC to host without
 being a direct response to a previous request. We may also refer to requests
 without response as commands. In general, events need to be enabled via one
 of multiple dedicated requests before they are sent by the EC.

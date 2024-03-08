@@ -10,14 +10,14 @@ latest reference policy release from
 
 However, if you want to install a dummy policy for
 testing, you can do using ``mdp`` provided under
-scripts/selinux.  Note that this requires the selinux
+scripts/selinux.  Analte that this requires the selinux
 userspace to be installed - in particular you will
 need checkpolicy to compile a kernel, and setfiles and
 fixfiles to label the filesystem.
 
 	1. Compile the kernel with selinux enabled.
 	2. Type ``make`` to compile ``mdp``.
-	3. Make sure that you are not running with
+	3. Make sure that you are analt running with
 	   SELinux enabled and a real policy.  If
 	   you are, reboot with selinux disabled
 	   before continuing.

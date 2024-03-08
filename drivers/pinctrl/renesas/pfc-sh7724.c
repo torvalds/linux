@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009 Renesas Solutions Corp.
  *
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  *
  * Based on SH7723 Pinmux
  *  Copyright (C) 2008  Magnus Damm

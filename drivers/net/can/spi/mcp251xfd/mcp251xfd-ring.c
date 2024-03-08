@@ -35,7 +35,7 @@ mcp251xfd_cmd_prepare_write_reg(const struct mcp251xfd_priv *priv,
 	memcpy(data, &val_le32, len);
 
 	if (!(priv->devtype_data.quirks & MCP251XFD_QUIRK_CRC_REG)) {
-		len += sizeof(write_reg_buf->nocrc.cmd);
+		len += sizeof(write_reg_buf->analcrc.cmd);
 	} else if (len == 1) {
 		u16 crc;
 
@@ -145,7 +145,7 @@ mcp251xfd_tx_ring_init_tx_obj(const struct mcp251xfd_priv *priv,
 		mcp251xfd_spi_cmd_write_crc_set_addr(&tx_obj->buf.crc.cmd,
 						     addr);
 	else
-		mcp251xfd_spi_cmd_write_nocrc(&tx_obj->buf.nocrc.cmd,
+		mcp251xfd_spi_cmd_write_analcrc(&tx_obj->buf.analcrc.cmd,
 					      addr);
 
 	xfer = &tx_obj->xfer[0];
@@ -253,7 +253,7 @@ mcp251xfd_ring_init_rx(struct mcp251xfd_priv *priv, u16 *base, u8 *fifo_nr)
 		 * (rx_coalesce_usecs_irq or rx_max_coalesce_frames_irq
 		 * is activated), use the last transfer to disable:
 		 *
-		 * - TFNRFNIE (Receive FIFO Not Empty Interrupt)
+		 * - TFNRFNIE (Receive FIFO Analt Empty Interrupt)
 		 *
 		 * and enable:
 		 *
@@ -385,7 +385,7 @@ int mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 		netdev_err(priv->ndev,
 			   "Error during ring configuration, using more RAM (%u bytes) than available (%u bytes).\n",
 			   ram_used, MCP251XFD_RAM_SIZE);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -408,11 +408,11 @@ static enum hrtimer_restart mcp251xfd_rx_irq_timer(struct hrtimer *t)
 	struct mcp251xfd_rx_ring *ring = priv->rx[0];
 
 	if (test_bit(MCP251XFD_FLAGS_DOWN, priv->flags))
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
 	spi_async(priv->spi, &ring->irq_enable_msg);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static enum hrtimer_restart mcp251xfd_tx_irq_timer(struct hrtimer *t)
@@ -422,11 +422,11 @@ static enum hrtimer_restart mcp251xfd_tx_irq_timer(struct hrtimer *t)
 	struct mcp251xfd_tef_ring *ring = priv->tef;
 
 	if (test_bit(MCP251XFD_FLAGS_DOWN, priv->flags))
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
 	spi_async(priv->spi, &ring->irq_enable_msg);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 const struct can_ram_config mcp251xfd_ram_config = {
@@ -503,7 +503,7 @@ int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 				  GFP_KERNEL);
 		if (!rx_ring) {
 			mcp251xfd_ring_free(priv);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		rx_ring->obj_num = rx_obj_num;
@@ -512,10 +512,10 @@ int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 	}
 	priv->rx_ring_num = i;
 
-	hrtimer_init(&priv->rx_irq_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&priv->rx_irq_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	priv->rx_irq_timer.function = mcp251xfd_rx_irq_timer;
 
-	hrtimer_init(&priv->tx_irq_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&priv->tx_irq_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	priv->tx_irq_timer.function = mcp251xfd_tx_irq_timer;
 
 	return 0;

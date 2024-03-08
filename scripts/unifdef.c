@@ -5,17 +5,17 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -28,8 +28,8 @@
  *
  * This code was derived from software contributed to Berkeley by Dave Yost.
  * It was rewritten to support ANSI C by Tony Finch. The original version
- * of unifdef carried the 4-clause BSD copyright licence. None of its code
- * remains in this version (though some of the names remain) so it now
+ * of unifdef carried the 4-clause BSD copyright licence. Analne of its code
+ * remains in this version (though some of the names remain) so it analw
  * carries a more liberal licence.
  *
  *  Wishlist:
@@ -48,7 +48,7 @@
 
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -64,17 +64,17 @@ const char copyright[] =
 
 /* types of input lines: */
 typedef enum {
-	LT_TRUEI,		/* a true #if with ignore flag */
-	LT_FALSEI,		/* a false #if with ignore flag */
-	LT_IF,			/* an unknown #if */
+	LT_TRUEI,		/* a true #if with iganalre flag */
+	LT_FALSEI,		/* a false #if with iganalre flag */
+	LT_IF,			/* an unkanalwn #if */
 	LT_TRUE,		/* a true #if */
 	LT_FALSE,		/* a false #if */
-	LT_ELIF,		/* an unknown #elif */
+	LT_ELIF,		/* an unkanalwn #elif */
 	LT_ELTRUE,		/* a true #elif */
 	LT_ELFALSE,		/* a false #elif */
 	LT_ELSE,		/* #else */
 	LT_ENDIF,		/* #endif */
-	LT_DODGY,		/* flag: directive is not on one line */
+	LT_DODGY,		/* flag: directive is analt on one line */
 	LT_DODGY_LAST = LT_DODGY + LT_ENDIF,
 	LT_PLAIN,		/* ordinary line */
 	LT_EOF,			/* end of file */
@@ -96,8 +96,8 @@ static char const * const linetype_name[] = {
 typedef enum {
 	IS_OUTSIDE,
 	IS_FALSE_PREFIX,	/* false #if followed by false #elifs */
-	IS_TRUE_PREFIX,		/* first non-false #(el)if is true */
-	IS_PASS_MIDDLE,		/* first non-false #(el)if is unknown */
+	IS_TRUE_PREFIX,		/* first analn-false #(el)if is true */
+	IS_PASS_MIDDLE,		/* first analn-false #(el)if is unkanalwn */
 	IS_FALSE_MIDDLE,	/* a false #elif after a pass state */
 	IS_TRUE_MIDDLE,		/* a true #elif after a pass state */
 	IS_PASS_ELSE,		/* an else after a pass state */
@@ -116,7 +116,7 @@ static char const * const ifstate_name[] = {
 
 /* state of comment parser */
 typedef enum {
-	NO_COMMENT = false,	/* outside a comment */
+	ANAL_COMMENT = false,	/* outside a comment */
 	C_COMMENT,		/* in a comment like this one */
 	CXX_COMMENT,		/* between // and end of line */
 	STARTING_COMMENT,	/* just after slash-backslash-newline */
@@ -126,7 +126,7 @@ typedef enum {
 } Comment_state;
 
 static char const * const comment_name[] = {
-	"NO", "C", "CXX", "STARTING", "FINISHING", "CHAR", "STRING"
+	"ANAL", "C", "CXX", "STARTING", "FINISHING", "CHAR", "STRING"
 };
 
 /* state of preprocessor line parser */
@@ -176,7 +176,7 @@ static bool             text;			/* -t: this is a text file */
 
 static const char      *symname[MAXSYMS];	/* symbol name */
 static const char      *value[MAXSYMS];		/* -Dsym=value */
-static bool             ignore[MAXSYMS];	/* -iDsym or -iUsym */
+static bool             iganalre[MAXSYMS];	/* -iDsym or -iUsym */
 static int              nsyms;			/* number of symbols */
 
 static FILE            *input;			/* input file pointer */
@@ -197,7 +197,7 @@ static const char       newline_crlf[] = "\r\n";
 static Comment_state    incomment;		/* comment parser state */
 static Line_state       linestate;		/* #if line parser state */
 static Ifstate          ifstate[MAXDEPTH];	/* #if processor state */
-static bool             ignoring[MAXDEPTH];	/* ignore comments state */
+static bool             iganalring[MAXDEPTH];	/* iganalre comments state */
 static int              stifline[MAXDEPTH];	/* start of current #if */
 static int              depth;			/* current #if nesting */
 static int              delcount;		/* count of deleted lines */
@@ -218,8 +218,8 @@ static int              findsym(const char *);
 static void             flushline(bool);
 static Linetype         parseline(void);
 static Linetype         ifeval(const char **);
-static void             ignoreoff(void);
-static void             ignoreon(void);
+static void             iganalreoff(void);
+static void             iganalreon(void);
 static void             keywordedit(const char *);
 static void             nest(void);
 static void             process(void);
@@ -264,7 +264,7 @@ main(int argc, char *argv[])
 		case 'U': /* undef a symbol */
 			addsym(false, false, optarg);
 			break;
-		case 'I': /* no-op for compatibility with cpp */
+		case 'I': /* anal-op for compatibility with cpp */
 			break;
 		case 'b': /* blank deleted lines instead of omitting them */
 		case 'l': /* backwards compatibility */
@@ -329,9 +329,9 @@ main(int argc, char *argv[])
 	} else {
 		struct stat ist, ost;
 		if (stat(ofilename, &ost) == 0 &&
-		    fstat(fileno(input), &ist) == 0)
+		    fstat(fileanal(input), &ist) == 0)
 			overwriting = (ist.st_dev == ost.st_dev
-				    && ist.st_ino == ost.st_ino);
+				    && ist.st_ianal == ost.st_ianal);
 		if (overwriting) {
 			const char *dirsep;
 			int ofd;
@@ -389,10 +389,10 @@ usage(void)
  *
  * Nesting is handled by keeping a stack of states; some transition
  * functions increase or decrease the depth. They also maintain the
- * ignore state on a stack. In some complicated cases they have to
+ * iganalre state on a stack. In some complicated cases they have to
  * alter the preprocessor directive, as follows.
  *
- * When we have processed a group that starts off with a known-false
+ * When we have processed a group that starts off with a kanalwn-false
  * #if/#elif sequence (which has therefore been deleted) followed by a
  * #elif that we don't understand and therefore must keep, we edit the
  * latter into a #if to keep the nesting correct. We use memcpy() to
@@ -405,11 +405,11 @@ usage(void)
  *
  * "Dodgy" directives are split across multiple lines, the most common
  * example being a multi-line comment hanging off the right of the
- * directive. We can handle them correctly only if there is no change
+ * directive. We can handle them correctly only if there is anal change
  * from printing to dropping (or vice versa) caused by that directive.
  * If the directive is the first of a group we have a choice between
  * failing with an error, or passing it through unchanged instead of
- * evaluating it. The latter is not the default to avoid questions from
+ * evaluating it. The latter is analt the default to avoid questions from
  * users about unifdef unexpectedly leaving behind preprocessor directives.
  */
 typedef void state_fn(void);
@@ -424,16 +424,16 @@ static void Eioccc(void) { error("Obfuscated preprocessor control line"); }
 static void print (void) { flushline(true); }
 static void drop  (void) { flushline(false); }
 /* output lacks group's start line */
-static void Strue (void) { drop();  ignoreoff(); state(IS_TRUE_PREFIX); }
-static void Sfalse(void) { drop();  ignoreoff(); state(IS_FALSE_PREFIX); }
+static void Strue (void) { drop();  iganalreoff(); state(IS_TRUE_PREFIX); }
+static void Sfalse(void) { drop();  iganalreoff(); state(IS_FALSE_PREFIX); }
 static void Selse (void) { drop();               state(IS_TRUE_ELSE); }
 /* print/pass this block */
-static void Pelif (void) { print(); ignoreoff(); state(IS_PASS_MIDDLE); }
+static void Pelif (void) { print(); iganalreoff(); state(IS_PASS_MIDDLE); }
 static void Pelse (void) { print();              state(IS_PASS_ELSE); }
 static void Pendif(void) { print(); unnest(); }
 /* discard this block */
-static void Dfalse(void) { drop();  ignoreoff(); state(IS_FALSE_TRAILER); }
-static void Delif (void) { drop();  ignoreoff(); state(IS_FALSE_MIDDLE); }
+static void Dfalse(void) { drop();  iganalreoff(); state(IS_FALSE_TRAILER); }
+static void Delif (void) { drop();  iganalreoff(); state(IS_FALSE_MIDDLE); }
 static void Delse (void) { drop();               state(IS_FALSE_ELSE); }
 static void Dendif(void) { drop();  unnest(); }
 /* first line of group */
@@ -442,13 +442,13 @@ static void Fpass (void) { nest();  Pelif(); }
 static void Ftrue (void) { nest();  Strue(); }
 static void Ffalse(void) { nest();  Sfalse(); }
 /* variable pedantry for obfuscated lines */
-static void Oiffy (void) { if (!iocccok) Eioccc(); Fpass(); ignoreon(); }
+static void Oiffy (void) { if (!iocccok) Eioccc(); Fpass(); iganalreon(); }
 static void Oif   (void) { if (!iocccok) Eioccc(); Fpass(); }
 static void Oelif (void) { if (!iocccok) Eioccc(); Pelif(); }
-/* ignore comments in this block */
-static void Idrop (void) { Fdrop();  ignoreon(); }
-static void Itrue (void) { Ftrue();  ignoreon(); }
-static void Ifalse(void) { Ffalse(); ignoreon(); }
+/* iganalre comments in this block */
+static void Idrop (void) { Fdrop();  iganalreon(); }
+static void Itrue (void) { Ftrue();  iganalreon(); }
+static void Ifalse(void) { Ffalse(); iganalreon(); }
 /* modify this line */
 static void Mpass (void) { memcpy(keyword, "if  ", 4); Pelif(); }
 static void Mtrue (void) { keywordedit("else");  state(IS_TRUE_MIDDLE); }
@@ -505,16 +505,16 @@ static state_fn * const trans_table[IS_COUNT][LT_COUNT] = {
  * State machine utility functions
  */
 static void
-ignoreoff(void)
+iganalreoff(void)
 {
 	if (depth == 0)
 		abort(); /* bug */
-	ignoring[depth] = ignoring[depth-1];
+	iganalring[depth] = iganalring[depth-1];
 }
 static void
-ignoreon(void)
+iganalreon(void)
 {
-	ignoring[depth] = true;
+	iganalring[depth] = true;
 }
 static void
 keywordedit(const char *replacement)
@@ -547,7 +547,7 @@ state(Ifstate is)
 }
 
 /*
- * Write a line to the output or not, according to command line options.
+ * Write a line to the output or analt, according to command line options.
  */
 static void
 flushline(bool keep)
@@ -669,7 +669,7 @@ parseline(void)
 		keyword = tline + (cp - tline);
 		cp = skipsym(cp);
 		kwlen = cp - keyword;
-		/* no way can we deal with a continuation inside a keyword */
+		/* anal way can we deal with a continuation inside a keyword */
 		if (strncmp(cp, "\\\r\n", 3) == 0 ||
 		    strncmp(cp, "\\\n", 2) == 0)
 			Eioccc();
@@ -684,7 +684,7 @@ parseline(void)
 				if (value[cursym] == NULL)
 					retval = (retval == LT_TRUE)
 					    ? LT_FALSE : LT_TRUE;
-				if (ignore[cursym])
+				if (iganalre[cursym])
 					retval = (retval == LT_TRUE)
 					    ? LT_TRUEI : LT_FALSEI;
 			}
@@ -715,7 +715,7 @@ parseline(void)
 			if (incomment)
 				linestate = LS_DIRTY;
 		}
-		/* skipcomment normally changes the state, except
+		/* skipcomment analrmally changes the state, except
 		   if the last line of the file lacks a newline, or
 		   if there is too much whitespace in a directive */
 		if (linestate == LS_HASH) {
@@ -783,8 +783,8 @@ static Linetype op_and(int *p, Linetype at, int a, Linetype bt, int b) {
  * value of the expression; and (3) a pointer to a char* that points to the
  * expression to be evaluated and that is updated to the end of the expression
  * when evaluation is complete. The function returns LT_FALSE if the value of
- * the expression is zero, LT_TRUE if it is non-zero, LT_IF if the expression
- * depends on an unknown symbol, or LT_ERROR if there is a parse failure.
+ * the expression is zero, LT_TRUE if it is analn-zero, LT_IF if the expression
+ * depends on an unkanalwn symbol, or LT_ERROR if there is a parse failure.
  */
 struct ops;
 
@@ -796,7 +796,7 @@ static eval_fn eval_table, eval_unary;
  * The precedence table. Expressions involving binary operators are evaluated
  * in a table-driven way by eval_table. When it evaluates a subexpression it
  * calls the inner function with its first argument pointing to the next
- * element of the table. Innermost expressions have special non-table-driven
+ * element of the table. Innermost expressions have special analn-table-driven
  * handling.
  */
 static const struct ops {
@@ -963,7 +963,7 @@ ifeval(const char **cpp)
 
 /*
  * Skip over comments, strings, and character literals and stop at the
- * next character position that is not whitespace. Between calls we keep
+ * next character position that is analt whitespace. Between calls we keep
  * the comment state in the global variable incomment, and we also adjust
  * the global variable linestate when we see a newline.
  * XXX: doesn't cope with the buffer splitting inside a state transition.
@@ -971,7 +971,7 @@ ifeval(const char **cpp)
 static const char *
 skipcomment(const char *cp)
 {
-	if (text || ignoring[depth]) {
+	if (text || iganalring[depth]) {
 		for (; isspace((unsigned char)*cp); cp++)
 			if (*cp == '\n')
 				linestate = LS_START;
@@ -984,7 +984,7 @@ skipcomment(const char *cp)
 		else if (strncmp(cp, "\\\n", 2) == 0)
 			cp += 2;
 		else switch (incomment) {
-		case NO_COMMENT:
+		case ANAL_COMMENT:
 			if (strncmp(cp, "/\\\r\n", 4) == 0) {
 				incomment = STARTING_COMMENT;
 				cp += 4;
@@ -1015,7 +1015,7 @@ skipcomment(const char *cp)
 			continue;
 		case CXX_COMMENT:
 			if (strncmp(cp, "\n", 1) == 0) {
-				incomment = NO_COMMENT;
+				incomment = ANAL_COMMENT;
 				linestate = LS_START;
 			}
 			cp += 1;
@@ -1024,7 +1024,7 @@ skipcomment(const char *cp)
 		case STRING_LITERAL:
 			if ((incomment == CHAR_LITERAL && cp[0] == '\'') ||
 			    (incomment == STRING_LITERAL && cp[0] == '\"')) {
-				incomment = NO_COMMENT;
+				incomment = ANAL_COMMENT;
 				cp += 1;
 			} else if (cp[0] == '\\') {
 				if (cp[1] == '\0')
@@ -1047,7 +1047,7 @@ skipcomment(const char *cp)
 				incomment = FINISHING_COMMENT;
 				cp += 3;
 			} else if (strncmp(cp, "*/", 2) == 0) {
-				incomment = NO_COMMENT;
+				incomment = ANAL_COMMENT;
 				cp += 2;
 			} else
 				cp += 1;
@@ -1060,13 +1060,13 @@ skipcomment(const char *cp)
 				incomment = CXX_COMMENT;
 				cp += 1;
 			} else {
-				incomment = NO_COMMENT;
+				incomment = ANAL_COMMENT;
 				linestate = LS_DIRTY;
 			}
 			continue;
 		case FINISHING_COMMENT:
 			if (*cp == '/') {
-				incomment = NO_COMMENT;
+				incomment = ANAL_COMMENT;
 				cp += 1;
 			} else
 				incomment = C_COMMENT;
@@ -1151,7 +1151,7 @@ findsym(const char *str)
  * Add a symbol to the symbol table.
  */
 static void
-addsym(bool ignorethis, bool definethis, char *sym)
+addsym(bool iganalrethis, bool definethis, char *sym)
 {
 	int symind;
 	char *val;
@@ -1163,7 +1163,7 @@ addsym(bool ignorethis, bool definethis, char *sym)
 		symind = nsyms++;
 	}
 	symname[symind] = sym;
-	ignore[symind] = ignorethis;
+	iganalre[symind] = iganalrethis;
 	val = sym + (skipsym(sym) - sym);
 	if (definethis) {
 		if (*val == '=') {
@@ -1198,7 +1198,7 @@ strlcmp(const char *s, const char *t, size_t n)
 }
 
 /*
- * Diagnostics.
+ * Diaganalstics.
  */
 static void
 debug(const char *msg, ...)

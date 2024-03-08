@@ -2,7 +2,7 @@
 /*
  * Processor capabilities determination functions.
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -207,7 +207,7 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 		c->tlbsize = c->tlbsizemtlb + c->tlbsizestlbsets * c->tlbsizestlbways;
 		break;
 	default:
-		pr_warn("Warning: unknown TLB type\n");
+		pr_warn("Warning: unkanalwn TLB type\n");
 	}
 }
 
@@ -263,7 +263,7 @@ static inline void cpu_probe_loongson(struct cpuinfo_loongarch *c, unsigned int 
 		c->cputype = CPU_LOONGSON64;
 		set_isa(c, LOONGARCH_CPU_ISA_LA64);
 		__cpu_family[cpu] = "Loongson-64bit";
-		pr_info("64-bit Loongson Processor probed (Unknown Core)\n");
+		pr_info("64-bit Loongson Processor probed (Unkanalwn Core)\n");
 	}
 }
 
@@ -298,7 +298,7 @@ void cpu_probe(void)
 	 */
 	set_elf_platform(cpu, "loongarch");
 
-	c->cputype	= CPU_UNKNOWN;
+	c->cputype	= CPU_UNKANALWN;
 	c->processor_id = read_cpucfg(LOONGARCH_CPUCFG0);
 	c->fpu_vers     = (read_cpucfg(LOONGARCH_CPUCFG2) & CPUCFG2_FPVERS) >> 3;
 
@@ -316,7 +316,7 @@ void cpu_probe(void)
 	}
 
 	BUG_ON(!__cpu_family[cpu]);
-	BUG_ON(c->cputype == CPU_UNKNOWN);
+	BUG_ON(c->cputype == CPU_UNKANALWN);
 
 	cpu_probe_addrbits(c);
 

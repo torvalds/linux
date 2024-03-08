@@ -48,7 +48,7 @@ static void timing_setup(struct ata_port *ap, struct ata_device *adev, int offse
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct ata_device *peer = ata_dev_pair(adev);
-	int dn = ap->port_no * 2 + adev->devno;
+	int dn = ap->port_anal * 2 + adev->devanal;
 	struct ata_timing at, apeer;
 	int T, UT;
 	const int amd_clock = 33333;	/* KHz. */
@@ -60,7 +60,7 @@ static void timing_setup(struct ata_port *ap, struct ata_device *adev, int offse
 		UT = T / 2;
 
 	if (ata_timing_compute(adev, speed, &at, T, UT) < 0) {
-		dev_err(&pdev->dev, "unknown mode %d\n", speed);
+		dev_err(&pdev->dev, "unkanalwn mode %d\n", speed);
 		return;
 	}
 
@@ -78,7 +78,7 @@ static void timing_setup(struct ata_port *ap, struct ata_device *adev, int offse
 	if (speed == XFER_UDMA_6 && amd_clock <= 33333) at.udma = 15;
 
 	/*
-	 *	Now do the setup work
+	 *	Analw do the setup work
 	 */
 
 	/* Configure the address set up timing */
@@ -139,8 +139,8 @@ static int amd_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (!pci_test_config_bits(pdev, &amd_enable_bits[ap->port_no]))
-		return -ENOENT;
+	if (!pci_test_config_bits(pdev, &amd_enable_bits[ap->port_anal]))
+		return -EANALENT;
 
 	return ata_sff_prereset(link, deadline);
 }
@@ -159,7 +159,7 @@ static int amd_cable_detect(struct ata_port *ap)
 	u8 ata66;
 
 	pci_read_config_byte(pdev, 0x42, &ata66);
-	if (ata66 & bitmask[ap->port_no])
+	if (ata66 & bitmask[ap->port_anal])
 		return ATA_CBL_PATA80;
 	return ATA_CBL_PATA40;
 }
@@ -179,7 +179,7 @@ static void amd_fifo_setup(struct ata_port *ap)
 	struct ata_device *adev;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	static const u8 fifobit[2] = { 0xC0, 0x30};
-	u8 fifo = fifobit[ap->port_no];
+	u8 fifo = fifobit[ap->port_anal];
 	u8 r;
 
 
@@ -190,9 +190,9 @@ static void amd_fifo_setup(struct ata_port *ap)
 	if (pdev->device == PCI_DEVICE_ID_AMD_VIPER_7411) /* FIFO is broken */
 		fifo = 0;
 
-	/* On the later chips the read prefetch bits become no-op bits */
+	/* On the later chips the read prefetch bits become anal-op bits */
 	pci_read_config_byte(pdev, 0x41, &r);
-	r &= ~fifobit[ap->port_no];
+	r &= ~fifobit[ap->port_anal];
 	r |= fifo;
 	pci_write_config_byte(pdev, 0x41, r);
 }
@@ -259,7 +259,7 @@ static void amd133_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /* Both host-side and drive-side detection results are worthless on NV
- * PATAs.  Ignore them and just follow what BIOS configured.  Both the
+ * PATAs.  Iganalre them and just follow what BIOS configured.  Both the
  * current configuration in PCI config reg and ACPI GTM result are
  * cached during driver attach and are consulted to select transfer
  * mode.
@@ -279,9 +279,9 @@ static unsigned int nv_mode_filter(struct ata_device *dev,
 	/* find out what BIOS configured */
 	udma = saved_udma = (unsigned long)ap->host->private_data;
 
-	if (ap->port_no == 0)
+	if (ap->port_anal == 0)
 		udma >>= 16;
-	if (dev->devno == 0)
+	if (dev->devanal == 0)
 		udma >>= 8;
 
 	if ((udma & 0xc0) == 0xc0)
@@ -337,8 +337,8 @@ static int nv_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (!pci_test_config_bits(pdev, &nv_enable_bits[ap->port_no]))
-		return -ENOENT;
+	if (!pci_test_config_bits(pdev, &nv_enable_bits[ap->port_anal]))
+		return -EANALENT;
 
 	return ata_sff_prereset(link, deadline);
 }
@@ -406,14 +406,14 @@ static struct ata_port_operations amd33_port_ops = {
 
 static struct ata_port_operations amd66_port_ops = {
 	.inherits	= &amd_base_port_ops,
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= ata_cable_unkanalwn,
 	.set_piomode	= amd66_set_piomode,
 	.set_dmamode	= amd66_set_dmamode,
 };
 
 static struct ata_port_operations amd100_port_ops = {
 	.inherits	= &amd_base_port_ops,
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= ata_cable_unkanalwn,
 	.set_piomode	= amd100_set_piomode,
 	.set_dmamode	= amd100_set_dmamode,
 };
@@ -427,7 +427,7 @@ static struct ata_port_operations amd133_port_ops = {
 
 static const struct ata_port_operations nv_base_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
-	.cable_detect	= ata_cable_ignore,
+	.cable_detect	= ata_cable_iganalre,
 	.mode_filter	= nv_mode_filter,
 	.prereset	= nv_pre_reset,
 	.host_stop	= nv_host_stop,
@@ -458,14 +458,14 @@ static void amd_clear_fifo(struct pci_dev *pdev)
 static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info[10] = {
-		{	/* 0: AMD 7401 - no swdma */
+		{	/* 0: AMD 7401 - anal swdma */
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = ATA_PIO4,
 			.mwdma_mask = ATA_MWDMA2,
 			.udma_mask = ATA_UDMA2,
 			.port_ops = &amd33_port_ops
 		},
-		{	/* 1: Early AMD7409 - no swdma */
+		{	/* 1: Early AMD7409 - anal swdma */
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = ATA_PIO4,
 			.mwdma_mask = ATA_MWDMA2,
@@ -493,14 +493,14 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			.udma_mask = ATA_UDMA5,
 			.port_ops = &amd100_port_ops
 		},
-		{	/* 5: AMD 8111 - no swdma */
+		{	/* 5: AMD 8111 - anal swdma */
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = ATA_PIO4,
 			.mwdma_mask = ATA_MWDMA2,
 			.udma_mask = ATA_UDMA6,
 			.port_ops = &amd133_port_ops
 		},
-		{	/* 6: AMD 8111 UDMA 100 (Serenade) - no swdma */
+		{	/* 6: AMD 8111 UDMA 100 (Serenade) - anal swdma */
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = ATA_PIO4,
 			.mwdma_mask = ATA_MWDMA2,
@@ -514,7 +514,7 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			.udma_mask = ATA_UDMA5,
 			.port_ops = &nv100_port_ops
 		},
-		{	/* 8: Nvidia Nforce2 and later - no swdma */
+		{	/* 8: Nvidia Nforce2 and later - anal swdma */
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = ATA_PIO4,
 			.mwdma_mask = ATA_MWDMA2,
@@ -553,7 +553,7 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		type = 6;	/* UDMA 100 only */
 
 	/*
-	 * Okay, type is determined now.  Apply type-specific workarounds.
+	 * Okay, type is determined analw.  Apply type-specific workarounds.
 	 */
 	ppi[0] = &info[type];
 

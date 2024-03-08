@@ -36,7 +36,7 @@
  */
 #define ATAO_DIO_REG		0x00
 #define ATAO_CFG2_REG		0x02
-#define ATAO_CFG2_CALLD_NOP	(0 << 14)
+#define ATAO_CFG2_CALLD_ANALP	(0 << 14)
 #define ATAO_CFG2_CALLD(x)	((((x) >> 3) + 1) << 14)
 #define ATAO_CFG2_FFRTEN	BIT(13)
 #define ATAO_CFG2_DACS(x)	(1 << (((x) / 2) + 8))
@@ -252,7 +252,7 @@ static int atao_calib_insn_write(struct comedi_device *dev,
 
 		/* strobe the caldac to load the value */
 		outw(ATAO_CFG2_CALLD(chan), dev->iobase + ATAO_CFG2_REG);
-		outw(ATAO_CFG2_CALLD_NOP, dev->iobase + ATAO_CFG2_REG);
+		outw(ATAO_CFG2_CALLD_ANALP, dev->iobase + ATAO_CFG2_REG);
 
 		s->readback[chan] = val;
 	}
@@ -274,7 +274,7 @@ static void atao_reset(struct comedi_device *dev)
 	comedi_8254_set_mode(dev->pacer, 1, I8254_MODE4 | I8254_BINARY);
 	comedi_8254_write(dev->pacer, 0, 0x0003);
 
-	outw(ATAO_CFG2_CALLD_NOP, dev->iobase + ATAO_CFG2_REG);
+	outw(ATAO_CFG2_CALLD_ANALP, dev->iobase + ATAO_CFG2_REG);
 
 	devpriv->cfg3 = 0;
 	outw(devpriv->cfg3, dev->iobase + ATAO_CFG3_REG);
@@ -301,7 +301,7 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->pacer = comedi_8254_io_alloc(dev->iobase + ATAO_82C53_BASE,
 					  0, I8254_IO8, 0);

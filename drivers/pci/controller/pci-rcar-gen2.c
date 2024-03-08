@@ -145,7 +145,7 @@ static irqreturn_t rcar_pci_err_irq(int irq, void *pw)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static void rcar_pci_setup_errirq(struct rcar_pci *priv)
@@ -157,7 +157,7 @@ static void rcar_pci_setup_errirq(struct rcar_pci *priv)
 	ret = devm_request_irq(dev, priv->irq, rcar_pci_err_irq,
 			       IRQF_SHARED, "error irq", priv);
 	if (ret) {
-		dev_err(dev, "cannot claim IRQ for error handling\n");
+		dev_err(dev, "cananalt claim IRQ for error handling\n");
 		return;
 	}
 
@@ -220,7 +220,7 @@ static void rcar_pci_setup(struct rcar_pci *priv)
 		val |= RCAR_USBCTR_PCIAHB_WIN1_512M;
 		break;
 	default:
-		pr_warn("unknown window size %ld - defaulting to 256M\n",
+		pr_warn("unkanalwn window size %ld - defaulting to 256M\n",
 			window_size);
 		window_size = SZ_256M;
 		fallthrough;
@@ -285,7 +285,7 @@ static int rcar_pci_probe(struct platform_device *pdev)
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*priv));
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = pci_host_bridge_priv(bridge);
 	bridge->sysdata = priv;
@@ -296,7 +296,7 @@ static int rcar_pci_probe(struct platform_device *pdev)
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!mem_res || !mem_res->start)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (mem_res->start & 0xFFFF)
 		return -EINVAL;
@@ -309,7 +309,7 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	priv->dev = dev;
 
 	if (priv->irq < 0) {
-		dev_err(dev, "no valid irq found\n");
+		dev_err(dev, "anal valid irq found\n");
 		return priv->irq;
 	}
 

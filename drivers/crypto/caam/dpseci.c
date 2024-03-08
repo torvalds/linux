@@ -51,7 +51,7 @@ int dpseci_open(struct fsl_mc_io *mc_io, u32 cmd_flags, int dpseci_id,
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPSECI object
  *
- * After this function is called, no further operations are allowed on the
+ * After this function is called, anal further operations are allowed on the
  * object without opening a new control session.
  *
  * Return:	'0' on success, error code otherwise
@@ -318,13 +318,13 @@ int dpseci_get_sec_attr(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
 	rsp_params = (struct dpseci_rsp_get_sec_attr *)cmd.params;
 	attr->ip_id = le16_to_cpu(rsp_params->ip_id);
 	attr->major_rev = rsp_params->major_rev;
-	attr->minor_rev = rsp_params->minor_rev;
+	attr->mianalr_rev = rsp_params->mianalr_rev;
 	attr->era = rsp_params->era;
 	attr->deco_num = rsp_params->deco_num;
 	attr->zuc_auth_acc_num = rsp_params->zuc_auth_acc_num;
 	attr->zuc_enc_acc_num = rsp_params->zuc_enc_acc_num;
-	attr->snow_f8_acc_num = rsp_params->snow_f8_acc_num;
-	attr->snow_f9_acc_num = rsp_params->snow_f9_acc_num;
+	attr->sanalw_f8_acc_num = rsp_params->sanalw_f8_acc_num;
+	attr->sanalw_f9_acc_num = rsp_params->sanalw_f9_acc_num;
 	attr->crc_acc_num = rsp_params->crc_acc_num;
 	attr->pk_acc_num = rsp_params->pk_acc_num;
 	attr->kasumi_acc_num = rsp_params->kasumi_acc_num;
@@ -344,12 +344,12 @@ int dpseci_get_sec_attr(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token,
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @major_ver:	Major version of data path sec API
- * @minor_ver:	Minor version of data path sec API
+ * @mianalr_ver:	Mianalr version of data path sec API
  *
  * Return:	'0' on success, error code otherwise
  */
 int dpseci_get_api_version(struct fsl_mc_io *mc_io, u32 cmd_flags,
-			   u16 *major_ver, u16 *minor_ver)
+			   u16 *major_ver, u16 *mianalr_ver)
 {
 	struct fsl_mc_command cmd = { 0 };
 	struct dpseci_rsp_get_api_version *rsp_params;
@@ -363,34 +363,34 @@ int dpseci_get_api_version(struct fsl_mc_io *mc_io, u32 cmd_flags,
 
 	rsp_params = (struct dpseci_rsp_get_api_version *)cmd.params;
 	*major_ver = le16_to_cpu(rsp_params->major);
-	*minor_ver = le16_to_cpu(rsp_params->minor);
+	*mianalr_ver = le16_to_cpu(rsp_params->mianalr);
 
 	return 0;
 }
 
 /**
- * dpseci_set_congestion_notification() - Set congestion group
- *	notification configuration
+ * dpseci_set_congestion_analtification() - Set congestion group
+ *	analtification configuration
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPSECI object
- * @cfg:	congestion notification configuration
+ * @cfg:	congestion analtification configuration
  *
  * Return:	'0' on success, error code otherwise
  */
-int dpseci_set_congestion_notification(struct fsl_mc_io *mc_io, u32 cmd_flags,
-	u16 token, const struct dpseci_congestion_notification_cfg *cfg)
+int dpseci_set_congestion_analtification(struct fsl_mc_io *mc_io, u32 cmd_flags,
+	u16 token, const struct dpseci_congestion_analtification_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
-	struct dpseci_cmd_congestion_notification *cmd_params;
+	struct dpseci_cmd_congestion_analtification *cmd_params;
 
 	cmd.header = mc_encode_cmd_header(
-			DPSECI_CMDID_SET_CONGESTION_NOTIFICATION,
+			DPSECI_CMDID_SET_CONGESTION_ANALTIFICATION,
 			cmd_flags,
 			token);
-	cmd_params = (struct dpseci_cmd_congestion_notification *)cmd.params;
+	cmd_params = (struct dpseci_cmd_congestion_analtification *)cmd.params;
 	cmd_params->dest_id = cpu_to_le32(cfg->dest_cfg.dest_id);
-	cmd_params->notification_mode = cpu_to_le16(cfg->notification_mode);
+	cmd_params->analtification_mode = cpu_to_le16(cfg->analtification_mode);
 	cmd_params->priority = cfg->dest_cfg.priority;
 	dpseci_set_field(cmd_params->options, CGN_DEST_TYPE,
 			 cfg->dest_cfg.dest_type);
@@ -404,33 +404,33 @@ int dpseci_set_congestion_notification(struct fsl_mc_io *mc_io, u32 cmd_flags,
 }
 
 /**
- * dpseci_get_congestion_notification() - Get congestion group notification
+ * dpseci_get_congestion_analtification() - Get congestion group analtification
  *	configuration
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPSECI object
- * @cfg:	congestion notification configuration
+ * @cfg:	congestion analtification configuration
  *
  * Return:	'0' on success, error code otherwise
  */
-int dpseci_get_congestion_notification(struct fsl_mc_io *mc_io, u32 cmd_flags,
-	u16 token, struct dpseci_congestion_notification_cfg *cfg)
+int dpseci_get_congestion_analtification(struct fsl_mc_io *mc_io, u32 cmd_flags,
+	u16 token, struct dpseci_congestion_analtification_cfg *cfg)
 {
 	struct fsl_mc_command cmd = { 0 };
-	struct dpseci_cmd_congestion_notification *rsp_params;
+	struct dpseci_cmd_congestion_analtification *rsp_params;
 	int err;
 
 	cmd.header = mc_encode_cmd_header(
-			DPSECI_CMDID_GET_CONGESTION_NOTIFICATION,
+			DPSECI_CMDID_GET_CONGESTION_ANALTIFICATION,
 			cmd_flags,
 			token);
 	err = mc_send_command(mc_io, &cmd);
 	if (err)
 		return err;
 
-	rsp_params = (struct dpseci_cmd_congestion_notification *)cmd.params;
+	rsp_params = (struct dpseci_cmd_congestion_analtification *)cmd.params;
 	cfg->dest_cfg.dest_id = le32_to_cpu(rsp_params->dest_id);
-	cfg->notification_mode = le16_to_cpu(rsp_params->notification_mode);
+	cfg->analtification_mode = le16_to_cpu(rsp_params->analtification_mode);
 	cfg->dest_cfg.priority = rsp_params->priority;
 	cfg->dest_cfg.dest_type = dpseci_get_field(rsp_params->options,
 						   CGN_DEST_TYPE);

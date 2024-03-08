@@ -411,7 +411,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 
 	hlink = snd_hdac_ext_bus_get_hlink_by_name(hdev->bus, dev_name(&hdev->dev));
 	if (!hlink) {
-		dev_err(&hdev->dev, "hdac link not found\n");
+		dev_err(&hdev->dev, "hdac link analt found\n");
 		return -EIO;
 	}
 
@@ -430,7 +430,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 				       hdev->addr, hcodec, true);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "failed to create hda codec %d\n", ret);
-		goto error_no_pm;
+		goto error_anal_pm;
 	}
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
@@ -442,12 +442,12 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 		ret = request_firmware(&fw, loadable_patch[hda_pvt->dev_index],
 				       &hdev->dev);
 		if (ret < 0)
-			goto error_no_pm;
+			goto error_anal_pm;
 		if (fw) {
 			ret = snd_hda_load_patch(hcodec->bus, fw->size, fw->data);
 			if (ret < 0) {
 				dev_err(&hdev->dev, "failed to load hda patch %d\n", ret);
-				goto error_no_pm;
+				goto error_anal_pm;
 			}
 			release_firmware(fw);
 		}
@@ -464,7 +464,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 	 * snd_hda_codec_device_new decrements the usage count so call get pm
 	 * else the device will be powered off
 	 */
-	pm_runtime_get_noresume(&hdev->dev);
+	pm_runtime_get_analresume(&hdev->dev);
 
 	hcodec->bus->card = dapm->card->snd_card;
 
@@ -488,7 +488,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 			goto error_regmap;
 		}
 	} else {
-		dev_dbg(&hdev->dev, "no patch file found\n");
+		dev_dbg(&hdev->dev, "anal patch file found\n");
 	}
 
 	ret = snd_hda_codec_parse_pcms(hcodec);
@@ -518,7 +518,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 
 	/*
 	 * hdac_device core already sets the state to active and calls
-	 * get_noresume. So enable runtime and set the device to suspend.
+	 * get_analresume. So enable runtime and set the device to suspend.
 	 * pm_runtime_enable is also called during codec registeration
 	 */
 	pm_runtime_put(&hdev->dev);
@@ -533,7 +533,7 @@ error_regmap:
 	snd_hdac_regmap_exit(hdev);
 error_pm:
 	pm_runtime_put(&hdev->dev);
-error_no_pm:
+error_anal_pm:
 	snd_hdac_ext_bus_link_put(hdev->bus, hlink);
 	return ret;
 }
@@ -548,7 +548,7 @@ static void hdac_hda_codec_remove(struct snd_soc_component *component)
 
 	hlink = snd_hdac_ext_bus_get_hlink_by_name(hdev->bus, dev_name(&hdev->dev));
 	if (!hlink) {
-		dev_err(&hdev->dev, "hdac link not found\n");
+		dev_err(&hdev->dev, "hdac link analt found\n");
 		return;
 	}
 
@@ -574,17 +574,17 @@ static const struct snd_soc_dapm_route hdac_hda_dapm_routes[] = {
 static const struct snd_soc_dapm_widget hdac_hda_dapm_widgets[] = {
 	/* Audio Interface */
 	SND_SOC_DAPM_AIF_IN("AIF1RX", "Analog Codec Playback", 0,
-			    SND_SOC_NOPM, 0, 0),
+			    SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("AIF2RX", "Digital Codec Playback", 0,
-			    SND_SOC_NOPM, 0, 0),
+			    SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("AIF3RX", "Alt Analog Codec Playback", 0,
-			    SND_SOC_NOPM, 0, 0),
+			    SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("AIF1TX", "Analog Codec Capture", 0,
-			     SND_SOC_NOPM, 0, 0),
+			     SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("AIF2TX", "Digital Codec Capture", 0,
-			     SND_SOC_NOPM, 0, 0),
+			     SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("AIF3TX", "Alt Analog Codec Capture", 0,
-			     SND_SOC_NOPM, 0, 0),
+			     SND_SOC_ANALPM, 0, 0),
 
 	/* Input Pins */
 	SND_SOC_DAPM_INPUT("Codec Input Pin1"),
@@ -624,7 +624,7 @@ static int hdac_hda_dev_probe(struct hdac_device *hdev)
 	/* hold the ref while we probe */
 	hlink = snd_hdac_ext_bus_get_hlink_by_name(hdev->bus, dev_name(&hdev->dev));
 	if (!hlink) {
-		dev_err(&hdev->dev, "hdac link not found\n");
+		dev_err(&hdev->dev, "hdac link analt found\n");
 		return -EIO;
 	}
 	snd_hdac_ext_bus_link_get(hdev->bus, hlink);

@@ -150,7 +150,7 @@ static void plx_dma_process_desc(struct plx_dma_dev *plxdev)
 		res.residue = desc->orig_size - (flags & PLX_DESC_SIZE_MASK);
 
 		if (flags & PLX_DESC_WB_SUCCESS)
-			res.result = DMA_TRANS_NOERROR;
+			res.result = DMA_TRANS_ANALERROR;
 		else if (flags & PLX_DESC_WB_WR_FAIL)
 			res.result = DMA_TRANS_WRITE_FAILED;
 		else
@@ -363,7 +363,7 @@ static irqreturn_t plx_dma_isr(int irq, void *devid)
 	status = readw(plxdev->bar + PLX_REG_INTR_STATUS);
 
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status & PLX_REG_INTR_STATUS_DESC_DONE && plxdev->ring_active)
 		tasklet_schedule(&plxdev->desc_task);
@@ -381,7 +381,7 @@ static int plx_dma_alloc_desc(struct plx_dma_dev *plxdev)
 	plxdev->desc_ring = kcalloc(PLX_DMA_RING_COUNT,
 				    sizeof(*plxdev->desc_ring), GFP_KERNEL);
 	if (!plxdev->desc_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < PLX_DMA_RING_COUNT; i++) {
 		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
@@ -401,7 +401,7 @@ free_and_exit:
 	for (i = 0; i < PLX_DMA_RING_COUNT; i++)
 		kfree(plxdev->desc_ring[i]);
 	kfree(plxdev->desc_ring);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int plx_dma_alloc_chan_resources(struct dma_chan *chan)
@@ -414,7 +414,7 @@ static int plx_dma_alloc_chan_resources(struct dma_chan *chan)
 	plxdev->hw_ring = dma_alloc_coherent(plxdev->dma_dev.dev, ring_sz,
 					     &plxdev->hw_ring_dma, GFP_KERNEL);
 	if (!plxdev->hw_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = plx_dma_alloc_desc(plxdev);
 	if (rc)
@@ -423,7 +423,7 @@ static int plx_dma_alloc_chan_resources(struct dma_chan *chan)
 	rcu_read_lock();
 	if (!rcu_dereference(plxdev->pdev)) {
 		rcu_read_unlock();
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out_free_hw_ring;
 	}
 
@@ -503,7 +503,7 @@ static int plx_dma_create(struct pci_dev *pdev)
 
 	plxdev = kzalloc(sizeof(*plxdev), GFP_KERNEL);
 	if (!plxdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = request_irq(pci_irq_vector(pdev, 0), plx_dma_isr, 0,
 			 KBUILD_MODNAME, plxdev);
@@ -532,7 +532,7 @@ static int plx_dma_create(struct pci_dev *pdev)
 	chan = &plxdev->dma_chan;
 	chan->device = dma;
 	dma_cookie_init(chan);
-	list_add_tail(&chan->device_node, &dma->channels);
+	list_add_tail(&chan->device_analde, &dma->channels);
 
 	rc = dma_async_device_register(dma);
 	if (rc) {

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2021 Mellanox Technologies. */
+/* Copyright (c) 2021 Mellaanalx Techanallogies. */
 
 #ifndef __MLX5_ESW_FT_H__
 #define __MLX5_ESW_FT_H__
@@ -44,7 +44,7 @@ mlx5_esw_indir_table_get(struct mlx5_eswitch *esw,
 			 struct mlx5_flow_attr *attr,
 			 u16 vport, bool decap)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline void

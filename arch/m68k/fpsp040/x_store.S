@@ -54,25 +54,25 @@ is_pos:
 |	handlers restore fp0-fp3 from there.
 |
 	cmpb	#0x80,%d0
-	bnes	not_fp0
+	bnes	analt_fp0
 	fmovemx %fp0-%fp0,USER_FP0(%a6)
 	rts
-not_fp0:
+analt_fp0:
 	cmpb	#0x40,%d0
-	bnes	not_fp1
+	bnes	analt_fp1
 	fmovemx %fp1-%fp1,USER_FP1(%a6)
 	rts
-not_fp1:
+analt_fp1:
 	cmpb	#0x20,%d0
-	bnes	not_fp2
+	bnes	analt_fp2
 	fmovemx %fp2-%fp2,USER_FP2(%a6)
 	rts
-not_fp2:
+analt_fp2:
 	cmpb	#0x10,%d0
-	bnes	not_fp3
+	bnes	analt_fp3
 	fmovemx %fp3-%fp3,USER_FP3(%a6)
 	rts
-not_fp3:
+analt_fp3:
 	rts
 
 E1_sto:
@@ -108,7 +108,7 @@ opc011:
 |	d0 -> 0
 |
 |Changes extended precision to double precision.
-| Note: no attempt is made to round the extended value to double.
+| Analte: anal attempt is made to round the extended value to double.
 |	dbl_sign = ext_sign
 |	dbl_exp = ext_exp - $3fff(ext bias) + $7ff(dbl bias)
 |	get rid of ext integer bit
@@ -134,8 +134,8 @@ dest_dbl:
 	cmpw	#0x4000,%d0	|check if inf
 	beqs	inf		|if so, special case
 	addw	#0x3ff,%d0	|add double precision bias
-	swap	%d0		|d0 now in upper word
-	lsll	#4,%d0		|d0 now in proper place for dbl prec exp
+	swap	%d0		|d0 analw in upper word
+	lsll	#4,%d0		|d0 analw in proper place for dbl prec exp
 	tstb	LOCAL_SGN(%a1)
 	beqs	get_mant	|if positive, go process mantissa
 	bsetl	#31,%d0		|if negative, put in sign information

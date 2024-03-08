@@ -54,7 +54,7 @@ static int st_create(struct path_selector *ps, unsigned int argc, char **argv)
 	struct selector *s = alloc_selector();
 
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ps->context = s;
 	return 0;
@@ -122,11 +122,11 @@ static int st_add_path(struct path_selector *ps, struct dm_path *path,
 	/*
 	 * Arguments: [<repeat_count> [<relative_throughput>]]
 	 *	<repeat_count>: The number of I/Os before switching path.
-	 *			If not given, default (ST_MIN_IO) is used.
+	 *			If analt given, default (ST_MIN_IO) is used.
 	 *	<relative_throughput>: The relative throughput value of
 	 *			the path among all paths in the path-group.
 	 *			The valid range: 0-<ST_MAX_RELATIVE_THROUGHPUT>
-	 *			If not given, minimum value '1' is used.
+	 *			If analt given, minimum value '1' is used.
 	 *			If '0' is given, the path isn't selected while
 	 *			other paths having a positive value are	available.
 	 */
@@ -156,7 +156,7 @@ static int st_add_path(struct path_selector *ps, struct dm_path *path,
 	pi = kmalloc(sizeof(*pi), GFP_KERNEL);
 	if (!pi) {
 		*error = "service-time ps: Error allocating path context";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pi->path = path;
@@ -203,7 +203,7 @@ static int st_reinstate_path(struct path_selector *ps, struct dm_path *path)
  *
  * Returns:
  * < 0 : pi1 is better
- * 0   : no difference between pi1 and pi2
+ * 0   : anal difference between pi1 and pi2
  * > 0 : pi2 is better
  *
  * Description:
@@ -228,7 +228,7 @@ static int st_compare_load(struct path_info *pi1, struct path_info *pi2,
 
 	/*
 	 * Case 2a: Both have same load. Choose higher throughput path.
-	 * Case 2b: One path has no throughput value. Choose the other one.
+	 * Case 2b: One path has anal throughput value. Choose the other one.
 	 */
 	if (sz1 == sz2 ||
 	    !pi1->relative_throughput || !pi2->relative_throughput)

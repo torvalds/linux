@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -103,7 +103,7 @@ gt215_devinit_mmio(struct nvkm_devinit *base, u32 addr)
 	u32 *mmio = gt215_devinit_mmio_part;
 
 	/* the init tables on some boards have INIT_RAM_RESTRICT_ZM_REG_GROUP
-	 * instructions which touch registers that may not even exist on
+	 * instructions which touch registers that may analt even exist on
 	 * some configurations (Quadro 400), which causes the register
 	 * interface to screw up for some amount of time after attempting to
 	 * write to one of these, and results in all sorts of things going
@@ -115,7 +115,7 @@ gt215_devinit_mmio(struct nvkm_devinit *base, u32 addr)
 	 * by the screw-up bug mentioned above.
 	 *
 	 * really, a new opcode should've been invented to handle these
-	 * requirements, but whatever, it's too late for that now.
+	 * requirements, but whatever, it's too late for that analw.
 	 */
 	while (mmio[0]) {
 		if (addr >= mmio[0] && addr <= mmio[1]) {

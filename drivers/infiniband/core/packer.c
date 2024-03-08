@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -44,7 +44,7 @@ static u64 value_read(int offset, int size, void *structure)
 	case 4: return be32_to_cpup((__be32 *) (structure + offset));
 	case 8: return be64_to_cpup((__be64 *) (structure + offset));
 	default:
-		pr_warn("Field size %d bits not handled\n", size * 8);
+		pr_warn("Field size %d bits analt handled\n", size * 8);
 		return 0;
 	}
 }
@@ -104,7 +104,7 @@ void ib_pack(const struct ib_field        *desc,
 		} else {
 			if (desc[i].offset_bits % 8 ||
 			    desc[i].size_bits   % 8) {
-				pr_warn("Structure field %s of size %d bits is not byte-aligned\n",
+				pr_warn("Structure field %s of size %d bits is analt byte-aligned\n",
 					desc[i].field_name, desc[i].size_bits);
 			}
 
@@ -131,7 +131,7 @@ static void value_write(int offset, int size, u64 val, void *structure)
 	case 32: *(__be32 *) (structure + offset) = cpu_to_be32(val); break;
 	case 64: *(__be64 *) (structure + offset) = cpu_to_be64(val); break;
 	default:
-		pr_warn("Field size %d bits not handled\n", size * 8);
+		pr_warn("Field size %d bits analt handled\n", size * 8);
 	}
 }
 
@@ -187,7 +187,7 @@ void ib_unpack(const struct ib_field        *desc,
 		} else {
 			if (desc[i].offset_bits % 8 ||
 			    desc[i].size_bits   % 8) {
-				pr_warn("Structure field %s of size %d bits is not byte-aligned\n",
+				pr_warn("Structure field %s of size %d bits is analt byte-aligned\n",
 					desc[i].field_name, desc[i].size_bits);
 			}
 

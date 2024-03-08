@@ -9,7 +9,7 @@ title: Calxeda Highbank 10Gb XGMAC Ethernet controller
 description: |
   The Calxeda XGMAC Ethernet controllers are directly connected to the
   internal machine "network fabric", which is set up, initialised and
-  managed by the firmware. So there are no PHY properties in this
+  managed by the firmware. So there are anal PHY properties in this
   binding. Switches in the fabric take care of routing and mapping the
   traffic to external network ports.
 

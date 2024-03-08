@@ -20,7 +20,7 @@ setup monitoring limits etc. You can get them on their homepage
 http://www.lm-sensors.org/ or as a package from your Linux distribution.
 
 If from website:
-Get lm-sensors from project web site. Please note, you need only userspace
+Get lm-sensors from project web site. Please analte, you need only userspace
 part, so compile with "make user" and install with "make user_install".
 
 General hints to get things working:

@@ -60,8 +60,8 @@ static int m48t35_read_time(struct device *dev, struct rtc_time *tm)
 	/*
 	 * Only the values that we read from the RTC are set. We leave
 	 * tm_wday, tm_yday and tm_isdst untouched. Even though the
-	 * RTC has RTC_DAY_OF_WEEK, we ignore it, as it is only updated
-	 * by the RTC when initially set to a non-zero value.
+	 * RTC has RTC_DAY_OF_WEEK, we iganalre it, as it is only updated
+	 * by the RTC when initially set to a analn-zero value.
 	 */
 	spin_lock_irq(&priv->lock);
 	control = readb(&priv->reg->control);
@@ -154,10 +154,10 @@ static int m48t35_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct m48t35_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->size = resource_size(res);
 	if (!devm_request_mem_region(&pdev->dev, res->start, priv->size,
@@ -167,7 +167,7 @@ static int m48t35_probe(struct platform_device *pdev)
 	priv->baseaddr = res->start;
 	priv->reg = devm_ioremap(&pdev->dev, priv->baseaddr, priv->size);
 	if (!priv->reg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->lock);
 

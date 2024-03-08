@@ -70,8 +70,8 @@ static const struct regmap_range bme680_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table bme680_volatile_table = {
-	.yes_ranges	= bme680_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(bme680_volatile_ranges),
+	.anal_ranges	= bme680_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(bme680_volatile_ranges),
 };
 
 const struct regmap_config bme680_regmap_config = {
@@ -910,12 +910,12 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 	if (val != BME680_CHIP_ID_VAL) {
 		dev_err(dev, "Wrong chip ID, got %x expected %x\n",
 				val, BME680_CHIP_ID_VAL);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!name && ACPI_HANDLE(dev))
 		name = bme680_match_acpi_device(dev);

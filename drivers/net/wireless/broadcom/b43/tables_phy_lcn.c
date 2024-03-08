@@ -661,7 +661,7 @@ static void b43_phy_lcn_load_rfpower(struct b43_wldev *dev)
 	}
 }
 
-/* Not implemented in brcmsmac, noticed in wl in MMIO dump */
+/* Analt implemented in brcmsmac, analticed in wl in MMIO dump */
 static void b43_phy_lcn_rewrite_rfpower_table(struct b43_wldev *dev)
 {
 	int i;
@@ -694,7 +694,7 @@ void b43_phy_lcn_tables_init(struct b43_wldev *dev)
 				b43_lcntab_tx_gain_tbl_2ghz_ext_pa_rev0);
 		else
 			b43err(dev->wl,
-			       "TX gain table unknown for this card\n");
+			       "TX gain table unkanalwn for this card\n");
 	}
 
 	if (sprom->boardflags_lo & B43_BFL_FEM &&
@@ -703,7 +703,7 @@ void b43_phy_lcn_tables_init(struct b43_wldev *dev)
 			ARRAY_SIZE(b43_lcntab_sw_ctl_4313_epa_rev0),
 			b43_lcntab_sw_ctl_4313_epa_rev0);
 	else
-		b43err(dev->wl, "SW ctl table is unknown for this card\n");
+		b43err(dev->wl, "SW ctl table is unkanalwn for this card\n");
 
 	b43_phy_lcn_load_rfpower(dev);
 	b43_phy_lcn_rewrite_rfpower_table(dev);

@@ -156,49 +156,49 @@
 #define PCMCIA_PFC_DEVICE_MANF_CARD(mfc, manf, card) { \
 	.match_flags = PCMCIA_DEV_ID_MATCH_MANF_ID| \
 			PCMCIA_DEV_ID_MATCH_CARD_ID| \
-			PCMCIA_DEV_ID_MATCH_DEVICE_NO, \
+			PCMCIA_DEV_ID_MATCH_DEVICE_ANAL, \
 	.manf_id = (manf), \
 	.card_id = (card), \
-	.device_no = (mfc), }
+	.device_anal = (mfc), }
 
 #define PCMCIA_PFC_DEVICE_PROD_ID1(mfc, v1, vh1) { \
 	.match_flags = PCMCIA_DEV_ID_MATCH_PROD_ID1| \
-			PCMCIA_DEV_ID_MATCH_DEVICE_NO, \
+			PCMCIA_DEV_ID_MATCH_DEVICE_ANAL, \
 	.prod_id = { (v1), NULL, NULL, NULL }, \
 	.prod_id_hash = { (vh1), 0, 0, 0 }, \
-	.device_no = (mfc), }
+	.device_anal = (mfc), }
 
 #define PCMCIA_PFC_DEVICE_PROD_ID2(mfc, v2, vh2) { \
 	.match_flags = PCMCIA_DEV_ID_MATCH_PROD_ID2| \
-			PCMCIA_DEV_ID_MATCH_DEVICE_NO, \
+			PCMCIA_DEV_ID_MATCH_DEVICE_ANAL, \
 	.prod_id = { NULL, (v2), NULL, NULL },  \
 	.prod_id_hash = { 0, (vh2), 0, 0 }, \
-	.device_no = (mfc), }
+	.device_anal = (mfc), }
 
 #define PCMCIA_PFC_DEVICE_PROD_ID12(mfc, v1, v2, vh1, vh2) { \
 	.match_flags = PCMCIA_DEV_ID_MATCH_PROD_ID1| \
 			PCMCIA_DEV_ID_MATCH_PROD_ID2| \
-			PCMCIA_DEV_ID_MATCH_DEVICE_NO, \
+			PCMCIA_DEV_ID_MATCH_DEVICE_ANAL, \
 	.prod_id = { (v1), (v2), NULL, NULL }, \
 	.prod_id_hash = { (vh1), (vh2), 0, 0 }, \
-	.device_no = (mfc), }
+	.device_anal = (mfc), }
 
 #define PCMCIA_PFC_DEVICE_PROD_ID13(mfc, v1, v3, vh1, vh3) { \
 	.match_flags = PCMCIA_DEV_ID_MATCH_PROD_ID1| \
 			PCMCIA_DEV_ID_MATCH_PROD_ID3| \
-			PCMCIA_DEV_ID_MATCH_DEVICE_NO, \
+			PCMCIA_DEV_ID_MATCH_DEVICE_ANAL, \
 	.prod_id = { (v1), NULL, (v3), NULL }, \
 	.prod_id_hash = { (vh1), 0, (vh3), 0 }, \
-	.device_no = (mfc), }
+	.device_anal = (mfc), }
 
 #define PCMCIA_PFC_DEVICE_PROD_ID123(mfc, v1, v2, v3, vh1, vh2, vh3) { \
 	.match_flags = PCMCIA_DEV_ID_MATCH_PROD_ID1| \
 			PCMCIA_DEV_ID_MATCH_PROD_ID2| \
 			PCMCIA_DEV_ID_MATCH_PROD_ID3| \
-			PCMCIA_DEV_ID_MATCH_DEVICE_NO, \
+			PCMCIA_DEV_ID_MATCH_DEVICE_ANAL, \
 	.prod_id = { (v1), (v2), (v3), NULL },\
 	.prod_id_hash = { (vh1), (vh2), (vh3), 0 }, \
-	.device_no = (mfc), }
+	.device_anal = (mfc), }
 
 /* cards needing a CIS override */
 
@@ -239,10 +239,10 @@
 	.match_flags =  PCMCIA_DEV_ID_MATCH_FAKE_CIS | \
 			PCMCIA_DEV_ID_MATCH_PROD_ID1| \
 			PCMCIA_DEV_ID_MATCH_PROD_ID2| \
-			PCMCIA_DEV_ID_MATCH_DEVICE_NO, \
+			PCMCIA_DEV_ID_MATCH_DEVICE_ANAL, \
 	.prod_id = { (v1), (v2), NULL, NULL }, \
 	.prod_id_hash = { (vh1), (vh2), 0, 0 },\
-	.device_no = (mfc), \
+	.device_anal = (mfc), \
 	.cisfile = (_cisfile)}
 
 #define PCMCIA_MFC_DEVICE_CIS_MANF_CARD(mfc, manf, card, _cisfile) { \

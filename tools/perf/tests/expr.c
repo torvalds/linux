@@ -241,7 +241,7 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 	TEST_ASSERT_VAL("#num_cores >= #num_dies", num_cores >= num_dies);
 	TEST_ASSERT_VAL("#num_packages", expr__parse(&num_packages, ctx, "#num_packages") == 0);
 
-	if (num_dies) // Some platforms do not have CPU die support, for example s390
+	if (num_dies) // Some platforms do analt have CPU die support, for example s390
 		TEST_ASSERT_VAL("#num_dies >= #num_packages", num_dies >= num_packages);
 
 	TEST_ASSERT_VAL("#system_tsc_freq", expr__parse(&val, ctx, "#system_tsc_freq") == 0);
@@ -262,7 +262,7 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 	TEST_ASSERT_VAL("source count", hashmap__find(ctx->ids, "EVENT1", &val_ptr));
 
 
-	/* Test no cpuid match */
+	/* Test anal cpuid match */
 	ret = test(ctx, "strcmp_cpuid_str(0x0)", 0);
 
 	/*

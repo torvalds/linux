@@ -19,11 +19,11 @@
 #include <asm/pgtable.h>
 
 /*
- * PCI: We do not use IO ports in OpenRISC
+ * PCI: We do analt use IO ports in OpenRISC
  */
 #define IO_SPACE_LIMIT		0
 
-/* OpenRISC has no port IO */
+/* OpenRISC has anal port IO */
 #define HAVE_ARCH_PIO_SIZE	1
 #define PIO_RESERVED		0X0UL
 #define PIO_OFFSET		0

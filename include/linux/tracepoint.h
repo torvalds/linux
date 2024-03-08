@@ -7,14 +7,14 @@
  *
  * See Documentation/trace/tracepoints.rst.
  *
- * Copyright (C) 2008-2014 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * Copyright (C) 2008-2014 Mathieu Desanalyers <mathieu.desanalyers@efficios.com>
  *
  * Heavily inspired from the Linux Kernel Markers.
  */
 
 #include <linux/smp.h>
 #include <linux/srcu.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/cpumask.h>
 #include <linux/rcupdate.h>
@@ -23,7 +23,7 @@
 
 struct module;
 struct tracepoint;
-struct notifier_block;
+struct analtifier_block;
 
 struct trace_eval_map {
 	const char		*system;
@@ -63,20 +63,20 @@ struct tp_module {
 };
 
 bool trace_module_has_bad_taint(struct module *mod);
-extern int register_tracepoint_module_notifier(struct notifier_block *nb);
-extern int unregister_tracepoint_module_notifier(struct notifier_block *nb);
+extern int register_tracepoint_module_analtifier(struct analtifier_block *nb);
+extern int unregister_tracepoint_module_analtifier(struct analtifier_block *nb);
 #else
 static inline bool trace_module_has_bad_taint(struct module *mod)
 {
 	return false;
 }
 static inline
-int register_tracepoint_module_notifier(struct notifier_block *nb)
+int register_tracepoint_module_analtifier(struct analtifier_block *nb)
 {
 	return 0;
 }
 static inline
-int unregister_tracepoint_module_notifier(struct notifier_block *nb)
+int unregister_tracepoint_module_analtifier(struct analtifier_block *nb)
 {
 	return 0;
 }
@@ -84,7 +84,7 @@ int unregister_tracepoint_module_notifier(struct notifier_block *nb)
 
 /*
  * tracepoint_synchronize_unregister must be called between the last tracepoint
- * probe unregistration and the end of module exit to make sure there is no
+ * probe unregistration and the end of module exit to make sure there is anal
  * caller executing a probe when it is freed.
  */
 #ifdef CONFIG_TRACEPOINTS
@@ -135,7 +135,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 #endif /* _LINUX_TRACEPOINT_H */
 
 /*
- * Note: we keep the TRACE_EVENT and DECLARE_TRACE outside the include
+ * Analte: we keep the TRACE_EVENT and DECLARE_TRACE outside the include
  *  file ifdef protection.
  *  This is due to the way trace events work. If a file includes two
  *  trace event headers under one "CREATE_TRACE_POINTS" the first include
@@ -153,9 +153,9 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * enable their tracepoints. By default, this file will create
  * the tracepoints if CONFIG_TRACEPOINTS is defined. If a subsystem
  * wants to be able to disable its tracepoints from being created
- * it can define NOTRACE before including the tracepoint headers.
+ * it can define ANALTRACE before including the tracepoint headers.
  */
-#if defined(CONFIG_TRACEPOINTS) && !defined(NOTRACE)
+#if defined(CONFIG_TRACEPOINTS) && !defined(ANALTRACE)
 #define TRACEPOINTS_ENABLED
 #endif
 
@@ -178,10 +178,10 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 #endif /* CONFIG_HAVE_STATIC_CALL */
 
 /*
- * ARCH_WANTS_NO_INSTR archs are expected to have sanitized entry and idle
+ * ARCH_WANTS_ANAL_INSTR archs are expected to have sanitized entry and idle
  * code that disallow any/all tracing/instrumentation when RCU isn't watching.
  */
-#ifdef CONFIG_ARCH_WANTS_NO_INSTR
+#ifdef CONFIG_ARCH_WANTS_ANAL_INSTR
 #define RCUIDLE_COND(rcuidle)	(rcuidle)
 #else
 /* srcu can't be used from NMI */
@@ -190,7 +190,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 
 /*
  * it_func[0] is never NULL because there is at least one element in the array
- * when the array itself is non NULL.
+ * when the array itself is analn NULL.
  */
 #define __DO_TRACE(name, args, cond, rcuidle)				\
 	do {								\
@@ -203,14 +203,14 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 			return;						\
 									\
 		/* keep srcu and sched-rcu usage consistent */		\
-		preempt_disable_notrace();				\
+		preempt_disable_analtrace();				\
 									\
 		/*							\
 		 * For rcuidle callers, use srcu since sched-rcu	\
 		 * doesn't work from the idle path.			\
 		 */							\
 		if (rcuidle) {						\
-			__idx = srcu_read_lock_notrace(&tracepoint_srcu);\
+			__idx = srcu_read_lock_analtrace(&tracepoint_srcu);\
 			ct_irq_enter_irqson();				\
 		}							\
 									\
@@ -218,10 +218,10 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 									\
 		if (rcuidle) {						\
 			ct_irq_exit_irqson();				\
-			srcu_read_unlock_notrace(&tracepoint_srcu, __idx);\
+			srcu_read_unlock_analtrace(&tracepoint_srcu, __idx);\
 		}							\
 									\
-		preempt_enable_notrace();				\
+		preempt_enable_analtrace();				\
 	} while (0)
 
 #ifndef MODULE
@@ -239,13 +239,13 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 
 /*
  * Make sure the alignment of the structure in the __tracepoints section will
- * not add unwanted padding between the beginning of the section and the
+ * analt add unwanted padding between the beginning of the section and the
  * structure. Force alignment to the same alignment as the section start.
  *
  * When lockdep is enabled, we make sure to always test if RCU is
- * "watching" regardless if the tracepoint is enabled or not. Tracepoints
+ * "watching" regardless if the tracepoint is enabled or analt. Tracepoints
  * require RCU to be active, and it should always warn at the tracepoint
- * site if it is not watching, as it will need to be active when the
+ * site if it is analt watching, as it will need to be active when the
  * tracepoint is enabled.
  */
 #define __DECLARE_TRACE(name, proto, args, cond, data_proto)		\
@@ -294,7 +294,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 	}
 
 /*
- * We have no guarantee that gcc and the linker won't up-align the tracepoint
+ * We have anal guarantee that gcc and the linker won't up-align the tracepoint
  * structures, so we create an array of pointers that will be used for iteration
  * on the tracepoints.
  */
@@ -360,13 +360,13 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 	register_trace_##name(void (*probe)(data_proto),		\
 			      void *data)				\
 	{								\
-		return -ENOSYS;						\
+		return -EANALSYS;						\
 	}								\
 	static inline int						\
 	unregister_trace_##name(void (*probe)(data_proto),		\
 				void *data)				\
 	{								\
-		return -ENOSYS;						\
+		return -EANALSYS;						\
 	}								\
 	static inline void check_trace_callback_type_##name(void (*cb)(data_proto)) \
 	{								\
@@ -395,8 +395,8 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * and wasting space and time.
  *
  * The problem with the above approach is that userspace tools that read
- * the binary output of the trace buffers do not have access to the string.
- * Instead they just show the address of the string which is not very
+ * the binary output of the trace buffers do analt have access to the string.
+ * Instead they just show the address of the string which is analt very
  * useful to users.
  *
  * With tracepoint_string(), the string will be registered to the tracing
@@ -405,11 +405,11 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * tools that read the binary buffers have a way to map the pointers to
  * the ASCII strings they represent.
  *
- * The @str used must be a constant string and persistent as it would not
- * make sense to show a string that no longer exists. But it is still fine
+ * The @str used must be a constant string and persistent as it would analt
+ * make sense to show a string that anal longer exists. But it is still fine
  * to be used with modules, because when modules are unloaded, if they
  * had tracepoints, the ring buffers are cleared too. As long as the string
- * does not change during the life of the module, it is fine to use
+ * does analt change during the life of the module, it is fine to use
  * tracepoint_string() within a module.
  */
 #define tracepoint_string(str)						\
@@ -421,7 +421,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 #else
 /*
  * tracepoint_string() is used to save the string address for userspace
- * tracing tools. When tracing isn't configured, there's no need to save
+ * tracing tools. When tracing isn't configured, there's anal need to save
  * anything.
  */
 # define tracepoint_string(str) str
@@ -452,10 +452,10 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * and its 'fast binary record' layout.
  *
  * Firstly, name your tracepoint via TRACE_EVENT(name : the
- * 'subsystem_event' notation is fine.
+ * 'subsystem_event' analtation is fine.
  *
  * Think about this whole construct as the
- * 'trace_sched_switch() function' from now on.
+ * 'trace_sched_switch() function' from analw on.
  *
  *
  *  TRACE_EVENT(sched_switch,
@@ -470,7 +470,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  *
  *	*
  *	* Define the call signature of the 'function'.
- *	* (Design sidenote: we use this instead of a
+ *	* (Design sideanalte: we use this instead of a
  *	*  TP_PROTO1/TP_PROTO2/TP_PROTO3 ugliness.)
  *	*
  *
@@ -512,7 +512,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  *	* can refer to the trace record as '__entry' -
  *	* otherwise you can put arbitrary C code in here.
  *	*
- *	* Note: this C code will execute every time a trace event
+ *	* Analte: this C code will execute every time a trace event
  *	* happens, on an active tracepoint.
  *	*
  *
@@ -580,7 +580,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 
 #define TRACE_EVENT_PERF_PERM(event, expr...)
 
-#define DECLARE_EVENT_NOP(name, proto, args)				\
+#define DECLARE_EVENT_ANALP(name, proto, args)				\
 	static inline void trace_##name(proto)				\
 	{ }								\
 	static inline bool trace_##name##_enabled(void)			\
@@ -588,11 +588,11 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 		return false;						\
 	}
 
-#define TRACE_EVENT_NOP(name, proto, args, struct, assign, print)	\
-	DECLARE_EVENT_NOP(name, PARAMS(proto), PARAMS(args))
+#define TRACE_EVENT_ANALP(name, proto, args, struct, assign, print)	\
+	DECLARE_EVENT_ANALP(name, PARAMS(proto), PARAMS(args))
 
-#define DECLARE_EVENT_CLASS_NOP(name, proto, args, tstruct, assign, print)
-#define DEFINE_EVENT_NOP(template, name, proto, args)			\
-	DECLARE_EVENT_NOP(name, PARAMS(proto), PARAMS(args))
+#define DECLARE_EVENT_CLASS_ANALP(name, proto, args, tstruct, assign, print)
+#define DEFINE_EVENT_ANALP(template, name, proto, args)			\
+	DECLARE_EVENT_ANALP(name, PARAMS(proto), PARAMS(args))
 
-#endif /* ifdef TRACE_EVENT (see note above) */
+#endif /* ifdef TRACE_EVENT (see analte above) */

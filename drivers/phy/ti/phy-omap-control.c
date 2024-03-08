@@ -125,7 +125,7 @@ void omap_control_phy_power(struct device *dev, int on)
 		}
 		break;
 	default:
-		dev_err(dev, "%s: type %d not recognized\n",
+		dev_err(dev, "%s: type %d analt recognized\n",
 			__func__, control_phy->type);
 		break;
 	}
@@ -138,7 +138,7 @@ EXPORT_SYMBOL_GPL(omap_control_phy_power);
  * omap_control_usb_host_mode - set AVALID, VBUSVALID and ID pin in grounded
  * @ctrl_phy: struct omap_control_phy *
  *
- * Writes to the mailbox register to notify the usb core that a usb
+ * Writes to the mailbox register to analtify the usb core that a usb
  * device has been connected.
  */
 static void omap_control_usb_host_mode(struct omap_control_phy *ctrl_phy)
@@ -156,7 +156,7 @@ static void omap_control_usb_host_mode(struct omap_control_phy *ctrl_phy)
  * impedance
  * @ctrl_phy: struct omap_control_phy *
  *
- * Writes to the mailbox register to notify the usb core that it has been
+ * Writes to the mailbox register to analtify the usb core that it has been
  * connected to a usb host.
  */
 static void omap_control_usb_device_mode(struct omap_control_phy *ctrl_phy)
@@ -175,7 +175,7 @@ static void omap_control_usb_device_mode(struct omap_control_phy *ctrl_phy)
  * impedance
  * @ctrl_phy: struct omap_control_phy *
  *
- * Writes to the mailbox register to notify the usb core it's now in
+ * Writes to the mailbox register to analtify the usb core it's analw in
  * disconnected state.
  */
 static void omap_control_usb_set_sessionend(struct omap_control_phy *ctrl_phy)
@@ -190,11 +190,11 @@ static void omap_control_usb_set_sessionend(struct omap_control_phy *ctrl_phy)
 
 /**
  * omap_control_usb_set_mode - Calls to functions to set USB in one of host mode
- * or device mode or to denote disconnected state
+ * or device mode or to deanalte disconnected state
  * @dev: the control module device
  * @mode: The mode to which usb should be configured
  *
- * This is an API to write to the mailbox register to notify the usb core that
+ * This is an API to write to the mailbox register to analtify the usb core that
  * a usb device has been connected.
  */
 void omap_control_usb_set_mode(struct device *dev,
@@ -273,7 +273,7 @@ static int omap_control_phy_probe(struct platform_device *pdev)
 	control_phy = devm_kzalloc(&pdev->dev, sizeof(*control_phy),
 		GFP_KERNEL);
 	if (!control_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	control_phy->dev = &pdev->dev;
 	control_phy->type = *(enum omap_control_phy_type *)device_get_match_data(&pdev->dev);

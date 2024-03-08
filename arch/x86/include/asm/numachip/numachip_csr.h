@@ -17,17 +17,17 @@
 #include <linux/smp.h>
 #include <linux/io.h>
 
-#define CSR_NODE_SHIFT		16
-#define CSR_NODE_BITS(p)	(((unsigned long)(p)) << CSR_NODE_SHIFT)
-#define CSR_NODE_MASK		0x0fff		/* 4K nodes */
+#define CSR_ANALDE_SHIFT		16
+#define CSR_ANALDE_BITS(p)	(((unsigned long)(p)) << CSR_ANALDE_SHIFT)
+#define CSR_ANALDE_MASK		0x0fff		/* 4K analdes */
 
-/* 32K CSR space, b15 indicates geo/non-geo */
+/* 32K CSR space, b15 indicates geo/analn-geo */
 #define CSR_OFFSET_MASK	0x7fffUL
-#define CSR_G0_NODE_IDS (0x008 + (0 << 12))
+#define CSR_G0_ANALDE_IDS (0x008 + (0 << 12))
 #define CSR_G3_EXT_IRQ_GEN (0x030 + (3 << 12))
 
 /*
- * Local CSR space starts in global CSR space with "nodeid" = 0xfff0, however
+ * Local CSR space starts in global CSR space with "analdeid" = 0xfff0, however
  * when using the direct mapping on x86_64, both start and size needs to be
  * aligned with PMD_SIZE which is 2M
  */
@@ -39,7 +39,7 @@
 static inline void *lcsr_address(unsigned long offset)
 {
 	return __va(NUMACHIP_LCSR_BASE | (1UL << 15) |
-		CSR_NODE_BITS(0xfff0) | (offset & CSR_OFFSET_MASK));
+		CSR_ANALDE_BITS(0xfff0) | (offset & CSR_OFFSET_MASK));
 }
 
 static inline unsigned int read_lcsr(unsigned long offset)
@@ -61,7 +61,7 @@ static inline void write_lcsr(unsigned long offset, unsigned int val)
 #define NUMACHIP2_APIC_ICR        0x100000
 #define NUMACHIP2_TIMER_DEADLINE  0x200000
 #define NUMACHIP2_TIMER_INT       0x200008
-#define NUMACHIP2_TIMER_NOW       0x200018
+#define NUMACHIP2_TIMER_ANALW       0x200018
 #define NUMACHIP2_TIMER_RESET     0x200020
 
 static inline void __iomem *numachip2_lcsr_address(unsigned long offset)

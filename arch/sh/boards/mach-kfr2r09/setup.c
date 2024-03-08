@@ -48,7 +48,7 @@ static phys_addr_t ceu_dma_membase;
 #define CEU_MCLK_FREQ			25000000
 #define DRVCRB				0xA405018C
 
-static struct mtd_partition kfr2r09_nor_flash_partitions[] =
+static struct mtd_partition kfr2r09_analr_flash_partitions[] =
 {
 	{
 		.name = "boot",
@@ -63,27 +63,27 @@ static struct mtd_partition kfr2r09_nor_flash_partitions[] =
 	},
 };
 
-static struct physmap_flash_data kfr2r09_nor_flash_data = {
+static struct physmap_flash_data kfr2r09_analr_flash_data = {
 	.width		= 2,
-	.parts		= kfr2r09_nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(kfr2r09_nor_flash_partitions),
+	.parts		= kfr2r09_analr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(kfr2r09_analr_flash_partitions),
 };
 
-static struct resource kfr2r09_nor_flash_resources[] = {
+static struct resource kfr2r09_analr_flash_resources[] = {
 	[0] = {
-		.name		= "NOR Flash",
+		.name		= "ANALR Flash",
 		.start		= 0x00000000,
 		.end		= 0x03ffffff,
 		.flags		= IORESOURCE_MEM,
 	}
 };
 
-static struct platform_device kfr2r09_nor_flash_device = {
+static struct platform_device kfr2r09_analr_flash_device = {
 	.name		= "physmap-flash",
-	.resource	= kfr2r09_nor_flash_resources,
-	.num_resources	= ARRAY_SIZE(kfr2r09_nor_flash_resources),
+	.resource	= kfr2r09_analr_flash_resources,
+	.num_resources	= ARRAY_SIZE(kfr2r09_analr_flash_resources),
 	.dev		= {
-		.platform_data = &kfr2r09_nor_flash_data,
+		.platform_data = &kfr2r09_analr_flash_data,
 	},
 };
 
@@ -233,7 +233,7 @@ static struct platform_device kfr2r09_usb0_gadget_device = {
 	.name		= "r8a66597_udc",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= NULL,         /*  not use dma */
+		.dma_mask		= NULL,         /*  analt use dma */
 		.coherent_dma_mask	= 0xffffffff,
 		.platform_data	= &kfr2r09_usb0_gadget_data,
 	},
@@ -322,7 +322,7 @@ static struct tmio_mmc_data sh7724_sdhi0_data = {
 	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI0_TX,
 	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI0_RX,
 	.capabilities	= MMC_CAP_SDIO_IRQ,
-	.capabilities2	= MMC_CAP2_NO_WRITE_PROTECT,
+	.capabilities2	= MMC_CAP2_ANAL_WRITE_PROTECT,
 };
 
 static struct platform_device kfr2r09_sh_sdhi0_device = {
@@ -335,7 +335,7 @@ static struct platform_device kfr2r09_sh_sdhi0_device = {
 };
 
 static struct platform_device *kfr2r09_devices[] __initdata = {
-	&kfr2r09_nor_flash_device,
+	&kfr2r09_analr_flash_device,
 	&kfr2r09_nand_flash_device,
 	&kfr2r09_sh_keysc_device,
 	&kfr2r09_sh_lcdc_device,
@@ -358,7 +358,7 @@ static int kfr2r09_usb0_gadget_i2c_setup(void)
 
 	a = i2c_get_adapter(0);
 	if (!a)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* set bit 1 (the second bit) of chip at 0x09, register 0x13 */
 	buf[0] = 0x13;
@@ -368,7 +368,7 @@ static int kfr2r09_usb0_gadget_i2c_setup(void)
 	msg.flags = 0;
 	ret = i2c_transfer(a, &msg, 1);
 	if (ret != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	buf[0] = 0;
 	msg.addr = 0x09;
@@ -377,7 +377,7 @@ static int kfr2r09_usb0_gadget_i2c_setup(void)
 	msg.flags = I2C_M_RD;
 	ret = i2c_transfer(a, &msg, 1);
 	if (ret != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	buf[1] = buf[0] | (1 << 1);
 	buf[0] = 0x13;
@@ -387,7 +387,7 @@ static int kfr2r09_usb0_gadget_i2c_setup(void)
 	msg.flags = 0;
 	ret = i2c_transfer(a, &msg, 1);
 	if (ret != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -401,7 +401,7 @@ static int kfr2r09_serial_i2c_setup(void)
 
 	a = i2c_get_adapter(0);
 	if (!a)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* set bit 6 (the 7th bit) of chip at 0x09, register 0x13 */
 	buf[0] = 0x13;
@@ -411,7 +411,7 @@ static int kfr2r09_serial_i2c_setup(void)
 	msg.flags = 0;
 	ret = i2c_transfer(a, &msg, 1);
 	if (ret != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	buf[0] = 0;
 	msg.addr = 0x09;
@@ -420,7 +420,7 @@ static int kfr2r09_serial_i2c_setup(void)
 	msg.flags = I2C_M_RD;
 	ret = i2c_transfer(a, &msg, 1);
 	if (ret != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	buf[1] = buf[0] | (1 << 6);
 	buf[0] = 0x13;
@@ -430,19 +430,19 @@ static int kfr2r09_serial_i2c_setup(void)
 	msg.flags = 0;
 	ret = i2c_transfer(a, &msg, 1);
 	if (ret != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
 #else
 static int kfr2r09_usb0_gadget_i2c_setup(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int kfr2r09_serial_i2c_setup(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -454,10 +454,10 @@ static int kfr2r09_usb0_gadget_setup(void)
 	gpio_direction_input(GPIO_PTN4);
 	plugged_in = gpio_get_value(GPIO_PTN4);
 	if (!plugged_in)
-		return -ENODEV; /* no cable plugged in */
+		return -EANALDEV; /* anal cable plugged in */
 
 	if (kfr2r09_usb0_gadget_i2c_setup() != 0)
-		return -ENODEV; /* unable to configure using i2c */
+		return -EANALDEV; /* unable to configure using i2c */
 
 	__raw_writew((__raw_readw(PORT_MSELCRB) & ~0xc000) | 0x8000, PORT_MSELCRB);
 	gpio_request(GPIO_FN_PDSTATUS, NULL); /* R-standby disables USB clock */
@@ -497,7 +497,7 @@ static int __init kfr2r09_devices_setup(void)
 	gpio_request(GPIO_PTG3, NULL); /* HPON_ON */
 	gpio_direction_output(GPIO_PTG3, 1); /* HPON_ON = H */
 
-	/* setup NOR flash at CS0 */
+	/* setup ANALR flash at CS0 */
 	__raw_writel(0x36db0400, BSC_CS0BCR);
 	__raw_writel(0x00000500, BSC_CS0WCR);
 

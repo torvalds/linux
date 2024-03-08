@@ -47,7 +47,7 @@ Description:	Interface for making ib_srp connect to a new target.
 		  communicated from initiator to target via an additional RDMA
 		  transfer. Setting allow_ext_sg to 1 increases the maximum
 		  amount of data that can be transferred between initiator and
-		  target via a single SCSI command. Since not all SRP target
+		  target via a single SCSI command. Since analt all SRP target
 		  implementations support partial memory descriptor lists the
 		  default value for this option is 0.
 		* sg_tablesize, a number in the range 1..2048 specifying the
@@ -133,14 +133,14 @@ Description:	Eight-byte I/O controller GUID portion of the 16-byte target
 		port identifier.
 
 What:		/sys/class/scsi_host/host<n>/local_ib_device
-Date:		November 29, 2006
+Date:		Analvember 29, 2006
 KernelVersion:	2.6.19
 Contact:	linux-rdma@vger.kernel.org
 Description:	Name of the InfiniBand HCA used for communicating with the
 		SRP target.
 
 What:		/sys/class/scsi_host/host<n>/local_ib_port
-Date:		November 29, 2006
+Date:		Analvember 29, 2006
 KernelVersion:	2.6.19
 Contact:	linux-rdma@vger.kernel.org
 Description:	Number of the HCA port used for communicating with the

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2023. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2023. Huawei Techanallogies Co., Ltd */
 #include <linux/bpf.h>
 #include <time.h>
 #include <bpf/bpf_helpers.h>
@@ -49,7 +49,7 @@ static int acc_map_in_map(void *outer_map)
 	if ((bpf_get_current_pid_tgid() >> 32) != tgid)
 		return 0;
 
-	/* Find nonexistent inner map */
+	/* Find analnexistent inner map */
 	key = 1;
 	inner_map = bpf_map_lookup_elem(outer_map, &key);
 	if (inner_map)

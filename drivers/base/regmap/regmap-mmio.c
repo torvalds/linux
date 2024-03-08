@@ -167,7 +167,7 @@ static int regmap_mmio_write(void *context, unsigned int reg, unsigned int val)
 	return 0;
 }
 
-static int regmap_mmio_noinc_write(void *context, unsigned int reg,
+static int regmap_mmio_analinc_write(void *context, unsigned int reg,
 				   const void *val, size_t val_count)
 {
 	struct regmap_mmio_context *ctx = context;
@@ -181,9 +181,9 @@ static int regmap_mmio_noinc_write(void *context, unsigned int reg,
 	}
 
 	/*
-	 * There are no native, assembly-optimized write single register
+	 * There are anal native, assembly-optimized write single register
 	 * operations for big endian, so fall back to emulation if this
-	 * is needed. (Single bytes are fine, they are not affected by
+	 * is needed. (Single bytes are fine, they are analt affected by
 	 * endianness.)
 	 */
 	if (ctx->big_endian && (ctx->val_bytes > 1)) {
@@ -327,7 +327,7 @@ static int regmap_mmio_read(void *context, unsigned int reg, unsigned int *val)
 	return 0;
 }
 
-static int regmap_mmio_noinc_read(void *context, unsigned int reg,
+static int regmap_mmio_analinc_read(void *context, unsigned int reg,
 				  void *val, size_t val_count)
 {
 	struct regmap_mmio_context *ctx = context;
@@ -355,9 +355,9 @@ static int regmap_mmio_noinc_read(void *context, unsigned int reg,
 	}
 
 	/*
-	 * There are no native, assembly-optimized write single register
+	 * There are anal native, assembly-optimized write single register
 	 * operations for big endian, so fall back to emulation if this
-	 * is needed. (Single bytes are fine, they are not affected by
+	 * is needed. (Single bytes are fine, they are analt affected by
 	 * endianness.)
 	 */
 	if (ctx->big_endian && (ctx->val_bytes > 1)) {
@@ -398,8 +398,8 @@ static const struct regmap_bus regmap_mmio = {
 	.fast_io = true,
 	.reg_write = regmap_mmio_write,
 	.reg_read = regmap_mmio_read,
-	.reg_noinc_write = regmap_mmio_noinc_write,
-	.reg_noinc_read = regmap_mmio_noinc_read,
+	.reg_analinc_write = regmap_mmio_analinc_write,
+	.reg_analinc_read = regmap_mmio_analinc_read,
 	.free_context = regmap_mmio_free_context,
 	.val_format_endian_default = REGMAP_ENDIAN_LITTLE,
 };
@@ -432,11 +432,11 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ctx->regs = regs;
 	ctx->val_bytes = config->val_bits / 8;
-	ctx->clk = ERR_PTR(-ENODEV);
+	ctx->clk = ERR_PTR(-EANALDEV);
 
 	switch (regmap_get_val_endian(dev, &regmap_mmio, config)) {
 	case REGMAP_ENDIAN_DEFAULT:

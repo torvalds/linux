@@ -24,7 +24,7 @@
 #define HC_CFG_INDIVIDUAL	BIT(30)
 #define HC_CFG_NIO(x)		(((x) / 4) << 27)
 #define HC_CFG_TYPE(s, t)	((t) << (23 + ((s) * 2)))
-#define HC_CFG_TYPE_SPI_NOR	0
+#define HC_CFG_TYPE_SPI_ANALR	0
 #define HC_CFG_TYPE_SPI_NAND	1
 #define HC_CFG_TYPE_SPI_RAM	2
 #define HC_CFG_TYPE_RAW_NAND	3
@@ -52,9 +52,9 @@
 #define INT_LRD_DIS		BIT(11)
 #define INT_SDMA_INT		BIT(10)
 #define INT_DMA_FINISH		BIT(9)
-#define INT_RX_NOT_FULL		BIT(3)
-#define INT_RX_NOT_EMPTY	BIT(2)
-#define INT_TX_NOT_FULL		BIT(1)
+#define INT_RX_ANALT_FULL		BIT(3)
+#define INT_RX_ANALT_EMPTY	BIT(2)
+#define INT_TX_ANALT_FULL		BIT(1)
 #define INT_TX_EMPTY		BIT(0)
 
 #define HC_EN			0x10
@@ -289,7 +289,7 @@ static irqreturn_t mxic_nfc_isr(int irq, void *dev_id)
 	if (sts & INT_RDY_PIN)
 		complete(&nfc->complete);
 	else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	return IRQ_HANDLED;
 }
@@ -366,7 +366,7 @@ static int mxic_nfc_data_xfer(struct mxic_nand_ctlr *nfc, const void *txbuf,
 			return ret;
 
 		ret = readl_poll_timeout(nfc->regs + INT_STS, sts,
-					 sts & INT_RX_NOT_EMPTY, 0,
+					 sts & INT_RX_ANALT_EMPTY, 0,
 					 USEC_PER_SEC);
 		if (ret)
 			return ret;
@@ -376,8 +376,8 @@ static int mxic_nfc_data_xfer(struct mxic_nand_ctlr *nfc, const void *txbuf,
 			data >>= (8 * (4 - nbytes));
 			memcpy(rxbuf + pos, &data, nbytes);
 		}
-		if (readl(nfc->regs + INT_STS) & INT_RX_NOT_EMPTY)
-			dev_warn(nfc->dev, "RX FIFO not empty\n");
+		if (readl(nfc->regs + INT_STS) & INT_RX_ANALT_EMPTY)
+			dev_warn(nfc->dev, "RX FIFO analt empty\n");
 
 		pos += nbytes;
 	}
@@ -485,7 +485,7 @@ static const struct nand_controller_ops mxic_nand_controller_ops = {
 
 static int mxic_nfc_probe(struct platform_device *pdev)
 {
-	struct device_node *nand_np, *np = pdev->dev.of_node;
+	struct device_analde *nand_np, *np = pdev->dev.of_analde;
 	struct mtd_info *mtd;
 	struct mxic_nand_ctlr *nfc;
 	struct nand_chip *nand_chip;
@@ -495,7 +495,7 @@ static int mxic_nfc_probe(struct platform_device *pdev)
 	nfc = devm_kzalloc(&pdev->dev, sizeof(struct mxic_nand_ctlr),
 			   GFP_KERNEL);
 	if (!nfc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nfc->ps_clk = devm_clk_get(&pdev->dev, "ps");
 	if (IS_ERR(nfc->ps_clk))
@@ -517,8 +517,8 @@ static int mxic_nfc_probe(struct platform_device *pdev)
 	mtd = nand_to_mtd(nand_chip);
 	mtd->dev.parent = &pdev->dev;
 
-	for_each_child_of_node(np, nand_np)
-		nand_set_flash_node(nand_chip, nand_np);
+	for_each_child_of_analde(np, nand_np)
+		nand_set_flash_analde(nand_chip, nand_np);
 
 	nand_chip->priv = nfc;
 	nfc->dev = &pdev->dev;

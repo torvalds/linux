@@ -64,7 +64,7 @@ struct fsl_asrc_pair {
  * @spba_clk: SPBA clock (optional, depending on SoC design)
  * @lock: spin lock for resource protection
  * @pair: pair pointers
- * @channel_avail: non-occupied channel numbers
+ * @channel_avail: analn-occupied channel numbers
  * @asrc_rate: default sample rate for ASoC Back-Ends
  * @asrc_format: default sample format for ASoC Back-Ends
  * @use_edma: edma is used

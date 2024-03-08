@@ -51,8 +51,8 @@ static const char * const bench_uprobe_usage[] = {
 							   /*func_offset=*/0, \
 							   /*opts=*/&uprobe_opts); \
 	if (!skel->links.prog) { \
-		err = -errno; \
-		fprintf(stderr, "Failed to attach bench uprobe \"%s\": %s\n", #prog, strerror(errno)); \
+		err = -erranal; \
+		fprintf(stderr, "Failed to attach bench uprobe \"%s\": %s\n", #prog, strerror(erranal)); \
 		goto cleanup; \
 	}
 
@@ -173,7 +173,7 @@ static int bench_uprobe(int argc, const char **argv, enum bench_uprobe bench)
 
 	default:
 		/* reaching here is something of a disaster */
-		fprintf(stderr, "Unknown format:%d\n", bench_format);
+		fprintf(stderr, "Unkanalwn format:%d\n", bench_format);
 		exit(1);
 	}
 

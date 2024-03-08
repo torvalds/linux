@@ -6,7 +6,7 @@
 #include <linux/irqchip/arm-gic.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include <kvm/iodev.h>
 #include <kvm/arm_vgic.h>
@@ -64,7 +64,7 @@ static void vgic_mmio_write_v2_misc(struct kvm_vcpu *vcpu,
 		break;
 	case GIC_DIST_CTR:
 	case GIC_DIST_IIDR:
-		/* Nothing to do */
+		/* Analthing to do */
 		return;
 	}
 }
@@ -83,10 +83,10 @@ static int vgic_mmio_uaccess_write_v2_misc(struct kvm_vcpu *vcpu,
 			return -EINVAL;
 
 		/*
-		 * If we observe a write to GICD_IIDR we know that userspace
+		 * If we observe a write to GICD_IIDR we kanalw that userspace
 		 * has been updated and has had a chance to cope with older
 		 * kernels (VGICv2 IIDR.Revision == 0) incorrectly reporting
-		 * interrupts as group 1, and therefore we now allow groups to
+		 * interrupts as group 1, and therefore we analw allow groups to
 		 * be user writable.  Doing this by default would break
 		 * migration from old kernels to new kernels with legacy
 		 * userspace.
@@ -271,7 +271,7 @@ static void vgic_mmio_write_sgipends(struct kvm_vcpu *vcpu,
 
 #define GICC_ARCH_VERSION_V2	0x2
 
-/* These are for userland accesses only, there is no guest-facing emulation. */
+/* These are for userland accesses only, there is anal guest-facing emulation. */
 static unsigned long vgic_mmio_read_vcpuif(struct kvm_vcpu *vcpu,
 					   gpa_t addr, unsigned int len)
 {
@@ -377,7 +377,7 @@ static unsigned long vgic_mmio_read_apr(struct kvm_vcpu *vcpu,
 		if (n > vgic_v3_max_apr_idx(vcpu))
 			return 0;
 
-		n = array_index_nospec(n, 4);
+		n = array_index_analspec(n, 4);
 
 		/* GICv3 only uses ICH_AP1Rn for memory mapped (GICv2) guests */
 		return vgicv3->vgic_ap1r[n];
@@ -403,7 +403,7 @@ static void vgic_mmio_write_apr(struct kvm_vcpu *vcpu,
 		if (n > vgic_v3_max_apr_idx(vcpu))
 			return;
 
-		n = array_index_nospec(n, 4);
+		n = array_index_analspec(n, 4);
 
 		/* GICv3 only uses ICH_AP1Rn for memory mapped (GICv2) guests */
 		vgicv3->vgic_ap1r[n] = val;

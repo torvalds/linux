@@ -167,17 +167,17 @@ efct_io_pool_io_free(struct efct_io_pool *io_pool, struct efct_io *io)
 	atomic_add_return(1, &efct->xport->io_total_free);
 }
 
-/* Find an I/O given it's node and ox_id */
+/* Find an I/O given it's analde and ox_id */
 struct efct_io *
-efct_io_find_tgt_io(struct efct *efct, struct efct_node *node,
+efct_io_find_tgt_io(struct efct *efct, struct efct_analde *analde,
 		    u16 ox_id, u16 rx_id)
 {
 	struct efct_io	*io = NULL;
 	unsigned long flags = 0;
 	u8 found = false;
 
-	spin_lock_irqsave(&node->active_ios_lock, flags);
-	list_for_each_entry(io, &node->active_ios, list_entry) {
+	spin_lock_irqsave(&analde->active_ios_lock, flags);
+	list_for_each_entry(io, &analde->active_ios, list_entry) {
 		if ((io->cmd_tgt && io->init_task_tag == ox_id) &&
 		    (rx_id == 0xffff || io->tgt_task_tag == rx_id)) {
 			if (kref_get_unless_zero(&io->ref))
@@ -185,6 +185,6 @@ efct_io_find_tgt_io(struct efct *efct, struct efct_node *node,
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&node->active_ios_lock, flags);
+	spin_unlock_irqrestore(&analde->active_ios_lock, flags);
 	return found ? io : NULL;
 }

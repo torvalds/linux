@@ -376,161 +376,161 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 0",
         "EventCode": "0xD0",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR0",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR0",
         "PerPkg": "1",
         "UMask": "0x1",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 1",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 1",
         "EventCode": "0xD0",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR1",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR1",
         "PerPkg": "1",
         "UMask": "0x2",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 2",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 2",
         "EventCode": "0xD0",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR2",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR2",
         "PerPkg": "1",
         "UMask": "0x4",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 3",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 3",
         "EventCode": "0xD0",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR3",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR3",
         "PerPkg": "1",
         "UMask": "0x8",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 4",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 4",
         "EventCode": "0xD0",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR4",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR4",
         "PerPkg": "1",
         "UMask": "0x10",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 5",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 5",
         "EventCode": "0xD0",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR5",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR5",
         "PerPkg": "1",
         "UMask": "0x20",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 6",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 6",
         "EventCode": "0xD0",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR6",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR6",
         "PerPkg": "1",
         "UMask": "0x40",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 7",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 7",
         "EventCode": "0xD0",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD.TGR7",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR7",
         "PerPkg": "1",
         "UMask": "0x80",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0-7",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 0-7",
         "EventCode": "0xD1",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD_EXT.ANY_OF_TGR0_THRU_TGR7",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_AD_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
         "UMask": "0x2",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 8",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 8",
         "EventCode": "0xD1",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_AD_EXT.TGR8",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_AD_EXT.TGR8",
         "PerPkg": "1",
         "UMask": "0x1",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 0",
         "EventCode": "0xD4",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR0",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR0",
         "PerPkg": "1",
         "UMask": "0x1",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 1",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 1",
         "EventCode": "0xD4",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR1",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR1",
         "PerPkg": "1",
         "UMask": "0x2",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 2",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 2",
         "EventCode": "0xD4",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR2",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR2",
         "PerPkg": "1",
         "UMask": "0x4",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 3",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 3",
         "EventCode": "0xD4",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR3",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR3",
         "PerPkg": "1",
         "UMask": "0x8",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 4",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 4",
         "EventCode": "0xD4",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR4",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR4",
         "PerPkg": "1",
         "UMask": "0x10",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 5",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 5",
         "EventCode": "0xD4",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR5",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR5",
         "PerPkg": "1",
         "UMask": "0x20",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 6",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 6",
         "EventCode": "0xD4",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR6",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR6",
         "PerPkg": "1",
         "UMask": "0x40",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 7",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 7",
         "EventCode": "0xD4",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL.TGR7",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR7",
         "PerPkg": "1",
         "UMask": "0x80",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0-7",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 0-7",
         "EventCode": "0xD5",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL_EXT.ANY_OF_TGR0_THRU_TGR7",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_BL_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
         "UMask": "0x2",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 8",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 8",
         "EventCode": "0xD5",
-        "EventName": "UNC_H_AG0_STALL_NO_CRD_EGRESS_HORZ_BL_EXT.TGR8",
+        "EventName": "UNC_H_AG0_STALL_ANAL_CRD_EGRESS_HORZ_BL_EXT.TGR8",
         "PerPkg": "1",
         "UMask": "0x1",
         "Unit": "CHA"
@@ -856,161 +856,161 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 0",
         "EventCode": "0xD2",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR0",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR0",
         "PerPkg": "1",
         "UMask": "0x1",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 1",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 1",
         "EventCode": "0xD2",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR1",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR1",
         "PerPkg": "1",
         "UMask": "0x2",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 2",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 2",
         "EventCode": "0xD2",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR2",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR2",
         "PerPkg": "1",
         "UMask": "0x4",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 3",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 3",
         "EventCode": "0xD2",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR3",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR3",
         "PerPkg": "1",
         "UMask": "0x8",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 4",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 4",
         "EventCode": "0xD2",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR4",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR4",
         "PerPkg": "1",
         "UMask": "0x10",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 5",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 5",
         "EventCode": "0xD2",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR5",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR5",
         "PerPkg": "1",
         "UMask": "0x20",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 6",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 6",
         "EventCode": "0xD2",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR6",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR6",
         "PerPkg": "1",
         "UMask": "0x40",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 7",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 7",
         "EventCode": "0xD2",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD.TGR7",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_AD.TGR7",
         "PerPkg": "1",
         "UMask": "0x80",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0-7",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 0-7",
         "EventCode": "0xD3",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD_EXT.ANY_OF_TGR0_THRU_TGR7",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_AD_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
         "UMask": "0x2",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 8",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 8",
         "EventCode": "0xD3",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_AD_EXT.TGR8",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_AD_EXT.TGR8",
         "PerPkg": "1",
         "UMask": "0x1",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 0",
         "EventCode": "0xD6",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR0",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR0",
         "PerPkg": "1",
         "UMask": "0x1",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 1",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 1",
         "EventCode": "0xD6",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR1",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR1",
         "PerPkg": "1",
         "UMask": "0x2",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 2",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 2",
         "EventCode": "0xD6",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR2",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR2",
         "PerPkg": "1",
         "UMask": "0x4",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 3",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 3",
         "EventCode": "0xD6",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR3",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR3",
         "PerPkg": "1",
         "UMask": "0x8",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 4",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 4",
         "EventCode": "0xD6",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR4",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR4",
         "PerPkg": "1",
         "UMask": "0x10",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 5",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 5",
         "EventCode": "0xD6",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR5",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR5",
         "PerPkg": "1",
         "UMask": "0x20",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 6",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 6",
         "EventCode": "0xD6",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR6",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR6",
         "PerPkg": "1",
         "UMask": "0x40",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 7",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 7",
         "EventCode": "0xD6",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL.TGR7",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_BL.TGR7",
         "PerPkg": "1",
         "UMask": "0x80",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 0-7",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 0-7",
         "EventCode": "0xD7",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL_EXT.ANY_OF_TGR0_THRU_TGR7",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_BL_EXT.ANY_OF_TGR0_THRU_TGR7",
         "PerPkg": "1",
         "UMask": "0x2",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Stall on No AD Transgress Credits For Transgress 8",
+        "BriefDescription": "Stall on Anal AD Transgress Credits For Transgress 8",
         "EventCode": "0xD7",
-        "EventName": "UNC_H_AG1_STALL_NO_CRD_EGRESS_HORZ_BL_EXT.TGR8",
+        "EventName": "UNC_H_AG1_STALL_ANAL_CRD_EGRESS_HORZ_BL_EXT.TGR8",
         "PerPkg": "1",
         "UMask": "0x1",
         "Unit": "CHA"
@@ -1024,7 +1024,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Filters for any transaction originating from the IPQ or IRQ.  This does not include lookups originating from the ISMQ.",
+        "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Filters for any transaction originating from the IPQ or IRQ.  This does analt include lookups originating from the ISMQ.",
         "EventCode": "0x37",
         "EventName": "UNC_H_CACHE_LINES_VICTIMIZED.F_STATE",
         "PerPkg": "1",
@@ -1048,7 +1048,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Lines Victimized that Does Not Match NID",
+        "BriefDescription": "Lines Victimized that Does Analt Match NID",
         "EventCode": "0x37",
         "EventName": "UNC_H_CACHE_LINES_VICTIMIZED.REMOTE",
         "PerPkg": "1",
@@ -1056,7 +1056,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Filters for only snoop requests coming from the remote socket(s) through the IPQ.",
+        "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Filters for only sanalop requests coming from the remote socket(s) through the IPQ.",
         "EventCode": "0x37",
         "EventName": "UNC_H_CACHE_LINES_VICTIMIZED.S_STATE",
         "PerPkg": "1",
@@ -1159,7 +1159,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cycles CMS Horizontal Egress Queue is Not Empty AD",
+        "BriefDescription": "Cycles CMS Horizontal Egress Queue is Analt Empty AD",
         "EventCode": "0x97",
         "EventName": "UNC_H_EGRESS_HORZ_CYCLES_NE.AD",
         "PerPkg": "1",
@@ -1167,7 +1167,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cycles CMS Horizontal Egress Queue is Not Empty AK",
+        "BriefDescription": "Cycles CMS Horizontal Egress Queue is Analt Empty AK",
         "EventCode": "0x97",
         "EventName": "UNC_H_EGRESS_HORZ_CYCLES_NE.AK",
         "PerPkg": "1",
@@ -1175,7 +1175,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cycles CMS Horizontal Egress Queue is Not Empty BL",
+        "BriefDescription": "Cycles CMS Horizontal Egress Queue is Analt Empty BL",
         "EventCode": "0x97",
         "EventName": "UNC_H_EGRESS_HORZ_CYCLES_NE.BL",
         "PerPkg": "1",
@@ -1183,7 +1183,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cycles CMS Horizontal Egress Queue is Not Empty IV",
+        "BriefDescription": "Cycles CMS Horizontal Egress Queue is Analt Empty IV",
         "EventCode": "0x97",
         "EventName": "UNC_H_EGRESS_HORZ_CYCLES_NE.IV",
         "PerPkg": "1",
@@ -1495,7 +1495,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cycles CMS Vertical Egress Queue Is Not Empty AD - Agent 0",
+        "BriefDescription": "Cycles CMS Vertical Egress Queue Is Analt Empty AD - Agent 0",
         "EventCode": "0x93",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_NE.AD_AG0",
         "PerPkg": "1",
@@ -1503,7 +1503,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cycles CMS Vertical Egress Queue Is Not Empty AD - Agent 1",
+        "BriefDescription": "Cycles CMS Vertical Egress Queue Is Analt Empty AD - Agent 1",
         "EventCode": "0x93",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_NE.AD_AG1",
         "PerPkg": "1",
@@ -1511,7 +1511,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cycles CMS Vertical Egress Queue Is Not Empty AK - Agent 0",
+        "BriefDescription": "Cycles CMS Vertical Egress Queue Is Analt Empty AK - Agent 0",
         "EventCode": "0x93",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_NE.AK_AG0",
         "PerPkg": "1",
@@ -1519,7 +1519,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cycles CMS Vertical Egress Queue Is Not Empty AK - Agent 1",
+        "BriefDescription": "Cycles CMS Vertical Egress Queue Is Analt Empty AK - Agent 1",
         "EventCode": "0x93",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_NE.AK_AG1",
         "PerPkg": "1",
@@ -1527,7 +1527,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cycles CMS Vertical Egress Queue Is Not Empty BL - Agent 0",
+        "BriefDescription": "Cycles CMS Vertical Egress Queue Is Analt Empty BL - Agent 0",
         "EventCode": "0x93",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_NE.BL_AG0",
         "PerPkg": "1",
@@ -1535,7 +1535,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cycles CMS Vertical Egress Queue Is Not Empty BL - Agent 1",
+        "BriefDescription": "Cycles CMS Vertical Egress Queue Is Analt Empty BL - Agent 1",
         "EventCode": "0x93",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_NE.BL_AG1",
         "PerPkg": "1",
@@ -1543,7 +1543,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cycles CMS Vertical Egress Queue Is Not Empty IV - Agent 0",
+        "BriefDescription": "Cycles CMS Vertical Egress Queue Is Analt Empty IV - Agent 0",
         "EventCode": "0x93",
         "EventName": "UNC_H_EGRESS_VERT_CYCLES_NE.IV_AG0",
         "PerPkg": "1",
@@ -2032,7 +2032,7 @@
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
         "EventCode": "0x22",
-        "EventName": "UNC_H_INGRESS_RETRY_IPQ0_REJECT.AK_NON_UPI",
+        "EventName": "UNC_H_INGRESS_RETRY_IPQ0_REJECT.AK_ANALN_UPI",
         "PerPkg": "1",
         "UMask": "0x40",
         "Unit": "CHA"
@@ -2072,7 +2072,7 @@
     {
         "BriefDescription": "Ingress Probe Queue Rejects",
         "EventCode": "0x22",
-        "EventName": "UNC_H_INGRESS_RETRY_IPQ0_REJECT.IV_NON_UPI",
+        "EventName": "UNC_H_INGRESS_RETRY_IPQ0_REJECT.IV_ANALN_UPI",
         "PerPkg": "1",
         "UMask": "0x80",
         "Unit": "CHA"
@@ -2136,7 +2136,7 @@
     {
         "BriefDescription": "Ingress Request Queue Rejects",
         "EventCode": "0x18",
-        "EventName": "UNC_H_INGRESS_RETRY_IRQ0_REJECT.AK_NON_UPI",
+        "EventName": "UNC_H_INGRESS_RETRY_IRQ0_REJECT.AK_ANALN_UPI",
         "PerPkg": "1",
         "UMask": "0x40",
         "Unit": "CHA"
@@ -2176,7 +2176,7 @@
     {
         "BriefDescription": "Ingress Request Queue Rejects",
         "EventCode": "0x18",
-        "EventName": "UNC_H_INGRESS_RETRY_IRQ0_REJECT.IV_NON_UPI",
+        "EventName": "UNC_H_INGRESS_RETRY_IRQ0_REJECT.IV_ANALN_UPI",
         "PerPkg": "1",
         "UMask": "0x80",
         "Unit": "CHA"
@@ -2240,7 +2240,7 @@
     {
         "BriefDescription": "ISMQ Rejects",
         "EventCode": "0x24",
-        "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_REJECT.AK_NON_UPI",
+        "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_REJECT.AK_ANALN_UPI",
         "PerPkg": "1",
         "UMask": "0x40",
         "Unit": "CHA"
@@ -2280,7 +2280,7 @@
     {
         "BriefDescription": "ISMQ Rejects",
         "EventCode": "0x24",
-        "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_REJECT.IV_NON_UPI",
+        "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_REJECT.IV_ANALN_UPI",
         "PerPkg": "1",
         "UMask": "0x80",
         "Unit": "CHA"
@@ -2304,7 +2304,7 @@
     {
         "BriefDescription": "ISMQ Retries",
         "EventCode": "0x2C",
-        "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_RETRY.AK_NON_UPI",
+        "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_RETRY.AK_ANALN_UPI",
         "PerPkg": "1",
         "UMask": "0x40",
         "Unit": "CHA"
@@ -2344,7 +2344,7 @@
     {
         "BriefDescription": "ISMQ Retries",
         "EventCode": "0x2C",
-        "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_RETRY.IV_NON_UPI",
+        "EventName": "UNC_H_INGRESS_RETRY_ISMQ0_RETRY.IV_ANALN_UPI",
         "PerPkg": "1",
         "UMask": "0x80",
         "Unit": "CHA"
@@ -2368,7 +2368,7 @@
     {
         "BriefDescription": "Other Queue Retries",
         "EventCode": "0x2E",
-        "EventName": "UNC_H_INGRESS_RETRY_OTHER0_RETRY.AK_NON_UPI",
+        "EventName": "UNC_H_INGRESS_RETRY_OTHER0_RETRY.AK_ANALN_UPI",
         "PerPkg": "1",
         "UMask": "0x40",
         "Unit": "CHA"
@@ -2408,7 +2408,7 @@
     {
         "BriefDescription": "Other Queue Retries",
         "EventCode": "0x2E",
-        "EventName": "UNC_H_INGRESS_RETRY_OTHER0_RETRY.IV_NON_UPI",
+        "EventName": "UNC_H_INGRESS_RETRY_OTHER0_RETRY.IV_ANALN_UPI",
         "PerPkg": "1",
         "UMask": "0x80",
         "Unit": "CHA"
@@ -2472,7 +2472,7 @@
     {
         "BriefDescription": "Ingress Request Queue Rejects",
         "EventCode": "0x20",
-        "EventName": "UNC_H_INGRESS_RETRY_PRQ0_REJECT.AK_NON_UPI",
+        "EventName": "UNC_H_INGRESS_RETRY_PRQ0_REJECT.AK_ANALN_UPI",
         "PerPkg": "1",
         "UMask": "0x40",
         "Unit": "CHA"
@@ -2512,7 +2512,7 @@
     {
         "BriefDescription": "Ingress Request Queue Rejects",
         "EventCode": "0x20",
-        "EventName": "UNC_H_INGRESS_RETRY_PRQ0_REJECT.IV_NON_UPI",
+        "EventName": "UNC_H_INGRESS_RETRY_PRQ0_REJECT.IV_ANALN_UPI",
         "PerPkg": "1",
         "UMask": "0x80",
         "Unit": "CHA"
@@ -2576,7 +2576,7 @@
     {
         "BriefDescription": "REQUESTQ includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
         "EventCode": "0x2A",
-        "EventName": "UNC_H_INGRESS_RETRY_REQ_Q0_RETRY.AK_NON_UPI",
+        "EventName": "UNC_H_INGRESS_RETRY_REQ_Q0_RETRY.AK_ANALN_UPI",
         "PerPkg": "1",
         "UMask": "0x40",
         "Unit": "CHA"
@@ -2616,7 +2616,7 @@
     {
         "BriefDescription": "REQUESTQ includes:  IRQ, PRQ, IPQ, RRQ, WBQ (everything except for ISMQ)",
         "EventCode": "0x2A",
-        "EventName": "UNC_H_INGRESS_RETRY_REQ_Q0_RETRY.IV_NON_UPI",
+        "EventName": "UNC_H_INGRESS_RETRY_REQ_Q0_RETRY.IV_ANALN_UPI",
         "PerPkg": "1",
         "UMask": "0x80",
         "Unit": "CHA"
@@ -2686,7 +2686,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Miscellaneous events in the Cbo. Silent Snoop Eviction",
+        "BriefDescription": "Miscellaneous events in the Cbo. Silent Sanalop Eviction",
         "EventCode": "0x39",
         "EventName": "UNC_H_MISC.RSPI_WAS_FSE",
         "PerPkg": "1",
@@ -2710,7 +2710,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Number of incoming messages from the Horizontal ring that were bounced, by ring type - Acknowledgements to core",
+        "BriefDescription": "Number of incoming messages from the Horizontal ring that were bounced, by ring type - Ackanalwledgements to core",
         "EventCode": "0xA1",
         "EventName": "UNC_H_RING_BOUNCES_HORZ.AK",
         "PerPkg": "1",
@@ -2726,7 +2726,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Number of incoming messages from the Horizontal ring that were bounced, by ring type - Snoops of processor's cache.",
+        "BriefDescription": "Number of incoming messages from the Horizontal ring that were bounced, by ring type - Sanalops of processor's cache.",
         "EventCode": "0xA1",
         "EventName": "UNC_H_RING_BOUNCES_HORZ.IV",
         "PerPkg": "1",
@@ -2742,7 +2742,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Number of incoming messages from the Vertical ring that were bounced, by ring type - Acknowledgements to core",
+        "BriefDescription": "Number of incoming messages from the Vertical ring that were bounced, by ring type - Ackanalwledgements to core",
         "EventCode": "0xA0",
         "EventName": "UNC_H_RING_BOUNCES_VERT.AK",
         "PerPkg": "1",
@@ -2758,7 +2758,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Number of incoming messages from the Vertical ring that were bounced, by ring type - Snoops of processor's cache.",
+        "BriefDescription": "Number of incoming messages from the Vertical ring that were bounced, by ring type - Sanalops of processor's cache.",
         "EventCode": "0xA0",
         "EventName": "UNC_H_RING_BOUNCES_VERT.IV",
         "PerPkg": "1",
@@ -2837,7 +2837,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Filters for any transaction originating from the IPQ or IRQ.  This does not include lookups originating from the ISMQ.",
+        "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Filters for any transaction originating from the IPQ or IRQ.  This does analt include lookups originating from the ISMQ.",
         "EventCode": "0x34",
         "EventName": "UNC_H_SF_LOOKUP.ANY",
         "PerPkg": "1",
@@ -2853,9 +2853,9 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Filters for only snoop requests coming from the remote socket(s) through the IPQ.",
+        "BriefDescription": "Cache Lookups. Counts the number of times the LLC was accessed. Filters for only sanalop requests coming from the remote socket(s) through the IPQ.",
         "EventCode": "0x34",
-        "EventName": "UNC_H_SF_LOOKUP.REMOTE_SNOOP",
+        "EventName": "UNC_H_SF_LOOKUP.REMOTE_SANALOP",
         "PerPkg": "1",
         "UMask": "0x9",
         "Unit": "CHA"
@@ -2869,7 +2869,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, because a message from the other queue has higher priority",
+        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cananalt send a transaction onto the mesh for a long period of time.  In this case, because a message from the other queue has higher priority",
         "EventCode": "0xB4",
         "EventName": "UNC_H_TG_INGRESS_BUSY_STARVED.AD_BNC",
         "PerPkg": "1",
@@ -2877,7 +2877,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, because a message from the other queue has higher priority",
+        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cananalt send a transaction onto the mesh for a long period of time.  In this case, because a message from the other queue has higher priority",
         "EventCode": "0xB4",
         "EventName": "UNC_H_TG_INGRESS_BUSY_STARVED.AD_CRD",
         "PerPkg": "1",
@@ -2885,7 +2885,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, because a message from the other queue has higher priority",
+        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cananalt send a transaction onto the mesh for a long period of time.  In this case, because a message from the other queue has higher priority",
         "EventCode": "0xB4",
         "EventName": "UNC_H_TG_INGRESS_BUSY_STARVED.BL_BNC",
         "PerPkg": "1",
@@ -2893,7 +2893,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, because a message from the other queue has higher priority",
+        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cananalt send a transaction onto the mesh for a long period of time.  In this case, because a message from the other queue has higher priority",
         "EventCode": "0xB4",
         "EventName": "UNC_H_TG_INGRESS_BUSY_STARVED.BL_CRD",
         "PerPkg": "1",
@@ -2949,7 +2949,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
+        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cananalt send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
         "EventCode": "0xB3",
         "EventName": "UNC_H_TG_INGRESS_CRD_STARVED.AD_BNC",
         "PerPkg": "1",
@@ -2957,7 +2957,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
+        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cananalt send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
         "EventCode": "0xB3",
         "EventName": "UNC_H_TG_INGRESS_CRD_STARVED.AD_CRD",
         "PerPkg": "1",
@@ -2965,7 +2965,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
+        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cananalt send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
         "EventCode": "0xB3",
         "EventName": "UNC_H_TG_INGRESS_CRD_STARVED.AK_BNC",
         "PerPkg": "1",
@@ -2973,7 +2973,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
+        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cananalt send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
         "EventCode": "0xB3",
         "EventName": "UNC_H_TG_INGRESS_CRD_STARVED.BL_BNC",
         "PerPkg": "1",
@@ -2981,7 +2981,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
+        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cananalt send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
         "EventCode": "0xB3",
         "EventName": "UNC_H_TG_INGRESS_CRD_STARVED.BL_CRD",
         "PerPkg": "1",
@@ -2989,7 +2989,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
+        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cananalt send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
         "EventCode": "0xB3",
         "EventName": "UNC_H_TG_INGRESS_CRD_STARVED.IFV",
         "PerPkg": "1",
@@ -2997,7 +2997,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cannot send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
+        "BriefDescription": "Transgress Injection Starvation. Counts cycles under injection starvation mode.  This starvation is triggered when the CMS Ingress cananalt send a transaction onto the mesh for a long period of time.  In this case, the Ingress is unable to forward to the Egress due to a lack of credit.",
         "EventCode": "0xB3",
         "EventName": "UNC_H_TG_INGRESS_CRD_STARVED.IV_BNC",
         "PerPkg": "1",
@@ -3109,7 +3109,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -Hit (Not a Miss)",
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -Hit (Analt a Miss)",
         "EventCode": "0x35",
         "EventName": "UNC_H_TOR_INSERTS.HIT",
         "PerPkg": "1",
@@ -3157,7 +3157,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent -Hit (Not a Miss)",
+        "BriefDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent -Hit (Analt a Miss)",
         "EventCode": "0x36",
         "EventName": "UNC_H_TOR_OCCUPANCY.HIT",
         "PerPkg": "1",

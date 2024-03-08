@@ -114,7 +114,7 @@
 #define rOFDM0_XATxAFE			0xc84
 #define rOFDM0_XCTxIQImbalance		0xc90
 #define rOFDM0_RxHPParameter		0xce0
-#define rOFDM0_TxPseudoNoiseWgt		0xce4
+#define rOFDM0_TxPseudoAnaliseWgt		0xce4
 #define rOFDM0_FrameSync		0xcf0
 #define rOFDM0_DFSReport		0xcf4
 #define rOFDM0_TxCoeff1			0xca4
@@ -133,12 +133,12 @@
 #define rOFDM1_CFOTracking		0xd2c
 #define rOFDM1_TRxMesaure1		0xd34
 #define rOFDM1_IntfDet			0xd3c
-#define rOFDM1_PseudoNoiseStateAB	0xd50
-#define rOFDM1_PseudoNoiseStateCD	0xd54
-#define rOFDM1_RxPseudoNoiseWgt		0xd58
+#define rOFDM1_PseudoAnaliseStateAB	0xd50
+#define rOFDM1_PseudoAnaliseStateCD	0xd54
+#define rOFDM1_RxPseudoAnaliseWgt		0xd58
 #define rOFDM_PHYCounter1		0xda0 /* cca, parity fail */
 #define rOFDM_PHYCounter2		0xda4 /* rate illegal, crc8 fail */
-#define rOFDM_PHYCounter3		0xda8 /* MCS not supported */
+#define rOFDM_PHYCounter3		0xda8 /* MCS analt supported */
 #define rOFDM_ShortCFOAB		0xdac
 #define rOFDM_ShortCFOCD		0xdb0
 #define rOFDM_LongCFOAB			0xdb4
@@ -310,11 +310,11 @@
 /* Reset debug page and LWord */
 #define bDebugItem			0xff
 #define bAntL				0x10
-#define bAntNonHT			0x100
+#define bAntAnalnHT			0x100
 #define bAntHT1				0x1000
 #define bAntHT2				0x10000
 #define bAntHT1S1			0x100000
-#define bAntNonHTS1			0x1000000
+#define bAntAnalnHTS1			0x1000000
 
 /* Page a */
 #define bCCKBBMode			0x3
@@ -423,8 +423,8 @@
 #define bRXIQImb_B			0xfc00
 #define bRXIQImb_C			0x3f0000
 #define bRXIQImb_D			0xffc00000
-#define bDC_dc_Notch			0x60000
-#define bRxNBINotch			0x1f000000
+#define bDC_dc_Analtch			0x60000
+#define bRxNBIAnaltch			0x1f000000
 #define bPD_TH				0xf
 #define bPD_TH_Opt2			0xc000
 #define bPWED_TH			0x700
@@ -466,11 +466,11 @@
 #define bTxIDCOffset			0xff
 #define bTxQDCOffset			0xff00
 #define bTxDFIRMode			0x10000
-#define bTxPesudoNoiseOn		0x4000000
-#define bTxPesudoNoise_A		0xff
-#define bTxPesudoNoise_B		0xff00
-#define bTxPesudoNoise_C		0xff0000
-#define bTxPesudoNoise_D		0xff000000
+#define bTxPesudoAnaliseOn		0x4000000
+#define bTxPesudoAnalise_A		0xff
+#define bTxPesudoAnalise_B		0xff00
+#define bTxPesudoAnalise_C		0xff0000
+#define bTxPesudoAnalise_D		0xff000000
 #define bCCADropOption			0x20000
 #define bCCADropThres			0xfff00000
 #define bEDCCA_H			0xf
@@ -590,7 +590,7 @@
 #define bCounter_ParityFail	0xffff0000
 #define bCounter_RateIllegal	0xffff
 #define bCounter_CRC8Fail	0xffff0000
-#define bCounter_MCSNoSupport	0xffff
+#define bCounter_MCSAnalSupport	0xffff
 #define bCounter_FastSync	0xffff
 #define bShortCFO		0xfff
 #define bShortCFOTLength	12 /* total */
@@ -604,7 +604,7 @@
 
 #define bmax_en_pwdB		0xffff
 #define bCC_power_dB		0xffff0000
-#define bnoise_pwdB		0xffff
+#define banalise_pwdB		0xffff
 #define bPowerMeasTLength	10
 #define bPowerMeasFLength	3
 #define bRx_HT_BW		0x1
@@ -646,7 +646,7 @@
 #define bSFactorQAM9		0xf0000000
 #define bCSIScheme		0x100000
 
-#define bNoiseLvlTopSet		0x3
+#define bAnaliseLvlTopSet		0x3
 #define bChSmooth		0x4
 #define bChSmoothCfg1		0x38
 #define bChSmoothCfg2		0x1c0
@@ -681,15 +681,15 @@
 #define bTxAGCRateMCS11_MCS8	0x7f7f7f7f
 #define bTxAGCRateMCS15_MCS12	0x7f7f7f7f
 
-#define bRxPesudoNoiseOn	0x20000000 /* Rx Pseduo noise */
-#define bRxPesudoNoise_A	0xff
-#define bRxPesudoNoise_B	0xff00
-#define bRxPesudoNoise_C	0xff0000
-#define bRxPesudoNoise_D	0xff000000
-#define bPesudoNoiseState_A	0xffff
-#define bPesudoNoiseState_B	0xffff0000
-#define bPesudoNoiseState_C	0xffff
-#define bPesudoNoiseState_D	0xffff0000
+#define bRxPesudoAnaliseOn	0x20000000 /* Rx Pseduo analise */
+#define bRxPesudoAnalise_A	0xff
+#define bRxPesudoAnalise_B	0xff00
+#define bRxPesudoAnalise_C	0xff0000
+#define bRxPesudoAnalise_D	0xff000000
+#define bPesudoAnaliseState_A	0xffff
+#define bPesudoAnaliseState_B	0xffff0000
+#define bPesudoAnaliseState_C	0xffff
+#define bPesudoAnaliseState_D	0xffff0000
 
 /* RF Zebra 1 */
 #define bZebra1_HSSIEnable	0x8

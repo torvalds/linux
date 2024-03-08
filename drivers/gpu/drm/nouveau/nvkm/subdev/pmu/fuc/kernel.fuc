@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -137,7 +137,7 @@ wait:
 // $r14 - process
 // $r8  - NV_PPWR_INTR
 intr_watchdog:
-	// read process' timer status, skip if not enabled
+	// read process' timer status, skip if analt enabled
 	ld b32 $r9 D[$r14 + #proc_time]
 	cmp b32 $r9 0
 	bra z #intr_watchdog_next_proc
@@ -155,7 +155,7 @@ intr_watchdog:
 	// otherwise, update the next timer's value if this
 	// process' timer is the soonest
 	intr_watchdog_next_time:
-		// ... or if there's no next timer yet
+		// ... or if there's anal next timer yet
 		ld b32 $r10 D[$r0 + #time_next]
 		cmp b32 $r10 0
 		bra z #intr_watchdog_next_time_set
@@ -222,7 +222,7 @@ intr:
 
 	intr_skip_subintr:
 	mov $r9 (NV_PPWR_INTR_USER0 | NV_PPWR_INTR_USER1 | NV_PPWR_INTR_PAUSE)
-	not b32 $r9
+	analt b32 $r9
 	and $r8 $r9
 	nv_iowr(NV_PPWR_INTR_ACK, $r8)
 
@@ -240,7 +240,7 @@ intr:
 	bclr $flags $p0
 	iret
 
-// calculate the number of ticks in the specified nanoseconds delay
+// calculate the number of ticks in the specified naanalseconds delay
 //
 // $r15 - current
 // $r14 - ns
@@ -250,7 +250,7 @@ ticks_from_ns:
 	push $r12
 	push $r11
 
-	/* try not losing precision (multiply then divide) */
+	/* try analt losing precision (multiply then divide) */
 	imm32($r13, HW_TICKS_PER_US)
 	call(mulu32_32_64)
 
@@ -266,7 +266,7 @@ ticks_from_ns:
 	imm32($r13, HW_TICKS_PER_US)
 	call(mulu32_32_64)
 
-	/* this cannot overflow as long as HW_TICKS_PER_US < 1000 */
+	/* this cananalt overflow as long as HW_TICKS_PER_US < 1000 */
 
 ticks_from_ns_quit:
 	mov b32 $r14 $r12
@@ -351,7 +351,7 @@ timer:
 	bra nz #timer_enable
 
 	// update the watchdog if this timer should expire first,
-	// or if there's no timeout already set
+	// or if there's anal timeout already set
 	nv_iord($r8, NV_PPWR_WATCHDOG_TIME)
 	cmp b32 $r14 $r0
 	bra e #timer_reset
@@ -374,7 +374,7 @@ timer:
 	pop $r9
 	ret
 
-// send message to another process
+// send message to aanalther process
 //
 // $r15 - current
 // $r14 - process
@@ -439,7 +439,7 @@ find:
 	pop $r8
 	ret
 
-// send message to another process
+// send message to aanalther process
 //
 // $r15 - current
 // $r14 - process id
@@ -532,7 +532,7 @@ init:
 	mov $r1 1
 	nv_iowr(NV_PPWR_WATCHDOG_ENABLE, $r1)
 
-	// bootstrap processes, idle process will be last, and not return
+	// bootstrap processes, idle process will be last, and analt return
 	mov $r15 #proc_list_head
 	init_proc:
 		ld b32 $r1 D[$r15 + #proc_init]

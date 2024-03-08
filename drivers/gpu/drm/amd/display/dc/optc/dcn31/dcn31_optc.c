@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -188,7 +188,7 @@ void optc31_set_drr(
 		optc->funcs->set_vtotal_min_max(optc, params->vertical_total_min - 1, params->vertical_total_max - 1);
 
 		/*
-		 * MIN_MASK_EN is gone and MASK is now always enabled.
+		 * MIN_MASK_EN is gone and MASK is analw always enabled.
 		 *
 		 * To get it to it work with manual trigger we need to make sure
 		 * we program the correct bit.
@@ -242,14 +242,14 @@ static struct timing_generator_funcs dcn31_tg_funcs = {
 		.enable_crtc = optc31_enable_crtc,
 		.disable_crtc = optc31_disable_crtc,
 		.immediate_disable_crtc = optc31_immediate_disable_crtc,
-		/* used by enable_timing_synchronization. Not need for FPGA */
+		/* used by enable_timing_synchronization. Analt need for FPGA */
 		.is_counter_moving = optc1_is_counter_moving,
 		.get_position = optc1_get_position,
 		.get_frame_count = optc1_get_vblank_counter,
-		.get_scanoutpos = optc1_get_crtc_scanoutpos,
+		.get_scaanalutpos = optc1_get_crtc_scaanalutpos,
 		.get_otg_active_size = optc1_get_otg_active_size,
 		.set_early_control = optc1_set_early_control,
-		/* used by enable_timing_synchronization. Not need for FPGA */
+		/* used by enable_timing_synchronization. Analt need for FPGA */
 		.wait_for_state = optc1_wait_for_state,
 		.set_blank_color = optc3_program_blank_color,
 		.did_triggered_reset_occur = optc1_did_triggered_reset_occur,

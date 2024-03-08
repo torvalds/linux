@@ -19,7 +19,7 @@
 #include <linux/console.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/reboot.h>
 #include <linux/serial.h> /* ASYNC_* flags */
 #include <linux/slab.h>
@@ -45,12 +45,12 @@
 #define RAW3215_NR_CCWS	    3
 #define RAW3215_TIMEOUT	    HZ/10     /* time for delayed output */
 
-#define RAW3215_FIXED	    1	      /* 3215 console device is not be freed */
+#define RAW3215_FIXED	    1	      /* 3215 console device is analt be freed */
 #define RAW3215_WORKING	    4	      /* set if a request is being worked on */
 #define RAW3215_THROTTLED   8	      /* set if reading is disabled */
 #define RAW3215_STOPPED	    16	      /* set if writing is disabled */
 #define RAW3215_TIMER_RUNS  64	      /* set if the output delay timer is on */
-#define RAW3215_FLUSHING    128	      /* set to flush buffer (no delay) */
+#define RAW3215_FLUSHING    128	      /* set to flush buffer (anal delay) */
 
 #define TAB_STOP_SIZE	    8	      /* tab stop size */
 
@@ -148,7 +148,7 @@ static void raw3215_mk_read_req(struct raw3215_info *raw)
 	/* there can only be ONE read request at a time */
 	req = raw->queued_read;
 	if (req == NULL) {
-		/* no queued read request, use new req structure */
+		/* anal queued read request, use new req structure */
 		req = raw3215_alloc_req();
 		req->type = RAW3215_READ;
 		req->info = raw;
@@ -157,7 +157,7 @@ static void raw3215_mk_read_req(struct raw3215_info *raw)
 
 	ccw = req->ccws;
 	ccw->cmd_code = 0x0A; /* read inquiry */
-	ccw->flags = 0x20;    /* ignore incorrect length */
+	ccw->flags = 0x20;    /* iganalre incorrect length */
 	ccw->count = 160;
 	ccw->cda = (__u32)__pa(raw->inbuf);
 }
@@ -179,7 +179,7 @@ static void raw3215_mk_write_req(struct raw3215_info *raw)
 	/* check if there is a queued write request */
 	req = raw->queued_write;
 	if (req == NULL) {
-		/* no queued write request, use new req structure */
+		/* anal queued write request, use new req structure */
 		req = raw3215_alloc_req();
 		req->type = RAW3215_WRITE;
 		req->info = raw;
@@ -192,7 +192,7 @@ static void raw3215_mk_write_req(struct raw3215_info *raw)
 	req->start = (raw->head - raw->count + raw->written) &
 		     (RAW3215_BUFFER_SIZE - 1);
 	/*
-	 * now we have to count newlines. We can at max accept
+	 * analw we have to count newlines. We can at max accept
 	 * RAW3215_MAX_NEWLINE newlines in a single ssch due to
 	 * a restriction in VM
 	 */
@@ -217,7 +217,7 @@ static void raw3215_mk_write_req(struct raw3215_info *raw)
 		if (ccw > req->ccws)
 			ccw[-1].flags |= 0x40; /* use command chaining */
 		ccw->cmd_code = 0x01; /* write, auto carrier return */
-		ccw->flags = 0x20;    /* ignore incorrect length ind.  */
+		ccw->flags = 0x20;    /* iganalre incorrect length ind.  */
 		ccw->cda = (__u32)__pa(raw->buffer + ix);
 		count = len;
 		if (ix + count > RAW3215_BUFFER_SIZE)
@@ -228,13 +228,13 @@ static void raw3215_mk_write_req(struct raw3215_info *raw)
 		ccw++;
 	}
 	/*
-	 * Add a NOP to the channel program. 3215 devices are purely
+	 * Add a ANALP to the channel program. 3215 devices are purely
 	 * emulated and its much better to avoid the channel end
 	 * interrupt in this case.
 	 */
 	if (ccw > req->ccws)
 		ccw[-1].flags |= 0x40; /* use command chaining */
-	ccw->cmd_code = 0x03; /* NOP */
+	ccw->cmd_code = 0x03; /* ANALP */
 	ccw->flags = 0;
 	ccw->cda = 0;
 	ccw->count = 1;
@@ -303,7 +303,7 @@ static void raw3215_timeout(struct timer_list *t)
 /*
  * Function to conditionally start an IO. A read is started immediately,
  * a write is only started immediately if the flush flag is on or the
- * amount of data is bigger than RAW3215_MIN_WRITE. If a write is not
+ * amount of data is bigger than RAW3215_MIN_WRITE. If a write is analt
  * done immediately a timer is started with a delay of RAW3215_TIMEOUT.
  */
 static inline void raw3215_try_io(struct raw3215_info *raw)
@@ -359,7 +359,7 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 	if (cstat != 0)
 		raw3215_next_io(raw, tty);
 	if (dstat & 0x01) { /* we got a unit exception */
-		dstat &= ~0x01;	 /* we can ignore it */
+		dstat &= ~0x01;	 /* we can iganalre it */
 	}
 	switch (dstat) {
 	case 0x80:
@@ -397,11 +397,11 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 
 			case CTRLCHAR_CTRL:
 				tty_insert_flip_char(&raw->port, cchar,
-						TTY_NORMAL);
+						TTY_ANALRMAL);
 				tty_flip_buffer_push(&raw->port);
 				break;
 
-			case CTRLCHAR_NONE:
+			case CTRLCHAR_ANALNE:
 				if (count < 2 ||
 				    (strncmp(raw->inbuf+count-2, "\252n", 2) &&
 				     strncmp(raw->inbuf+count-2, "^n", 2)) ) {
@@ -493,10 +493,10 @@ static unsigned int raw3215_make_room(struct raw3215_info *raw,
 #ifdef CONFIG_TN3215_CONSOLE
 		ccw_device_wait_idle(raw->cdev);
 #endif
-		/* Enough room freed up ? */
+		/* Eanalugh room freed up ? */
 		if (RAW3215_BUFFER_SIZE - raw->count >= length)
 			break;
-		/* there might be another cpu waiting for the lock */
+		/* there might be aanalther cpu waiting for the lock */
 		spin_unlock(get_ccwdev_lock(raw->cdev));
 		udelay(100);
 		spin_lock(get_ccwdev_lock(raw->cdev));
@@ -515,8 +515,8 @@ static unsigned int raw3215_make_room(struct raw3215_info *raw,
  * RAW3215_COUNT: Get the size needed for the input string with
  *	proper tab replacement calculation.
  *	Return value is the number of bytes required to store the
- *	input. However no data is actually stored.
- *	The parameter todrop is not used.
+ *	input. However anal data is actually stored.
+ *	The parameter todrop is analt used.
  * RAW3215_STORE: Add data to the console buffer. The parameter todrop is
  *	valid and contains the number of bytes to be dropped from head of
  *	string	without blocking.
@@ -708,7 +708,7 @@ static int raw3215_probe(struct ccw_device *cdev)
 
 	raw = raw3215_alloc_info();
 	if (raw == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	raw->cdev = cdev;
 	dev_set_drvdata(&cdev->dev, raw);
@@ -724,7 +724,7 @@ static int raw3215_probe(struct ccw_device *cdev)
 	spin_unlock(&raw3215_device_lock);
 	if (line == NR_3215) {
 		raw3215_free_info(raw);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -755,7 +755,7 @@ static int raw3215_set_online(struct ccw_device *cdev)
 
 	raw = dev_get_drvdata(&cdev->dev);
 	if (!raw)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return raw3215_startup(raw);
 }
@@ -766,7 +766,7 @@ static int raw3215_set_offline(struct ccw_device *cdev)
 
 	raw = dev_get_drvdata(&cdev->dev);
 	if (!raw)
-		return -ENODEV;
+		return -EANALDEV;
 
 	raw3215_shutdown(raw);
 
@@ -851,14 +851,14 @@ static struct tty_driver *con3215_device(struct console *c, int *index)
 }
 
 /*
- * The below function is called as a panic/reboot notifier before the
+ * The below function is called as a panic/reboot analtifier before the
  * system enters a disabled, endless loop.
  *
- * Notice we must use the spin_trylock() alternative, to prevent lockups
+ * Analtice we must use the spin_trylock() alternative, to prevent lockups
  * in atomic context (panic routine runs with secondary CPUs, local IRQs
  * and preemption disabled).
  */
-static int con3215_notify(struct notifier_block *self,
+static int con3215_analtify(struct analtifier_block *self,
 			  unsigned long event, void *data)
 {
 	struct raw3215_info *raw;
@@ -866,20 +866,20 @@ static int con3215_notify(struct notifier_block *self,
 
 	raw = raw3215[0];  /* console 3215 is the first one */
 	if (!spin_trylock_irqsave(get_ccwdev_lock(raw->cdev), flags))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	raw3215_make_room(raw, RAW3215_BUFFER_SIZE, false);
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block on_panic_nb = {
-	.notifier_call = con3215_notify,
+static struct analtifier_block on_panic_nb = {
+	.analtifier_call = con3215_analtify,
 	.priority = INT_MIN + 1, /* run the callback late */
 };
 
-static struct notifier_block on_reboot_nb = {
-	.notifier_call = con3215_notify,
+static struct analtifier_block on_reboot_nb = {
+	.analtifier_call = con3215_analtify,
 	.priority = INT_MIN + 1, /* run the callback late */
 };
 
@@ -905,7 +905,7 @@ static int __init con3215_init(void)
 
 	/* Check if 3215 is to be the console */
 	if (!CONSOLE_IS_3215)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Set the console mode for VM */
 	if (MACHINE_IS_VM) {
@@ -918,14 +918,14 @@ static int __init con3215_init(void)
 	for (i = 0; i < NR_3215_REQ; i++) {
 		req = kzalloc(sizeof(struct raw3215_req), GFP_KERNEL | GFP_DMA);
 		if (!req)
-			return -ENOMEM;
+			return -EANALMEM;
 		req->next = raw3215_freelist;
 		raw3215_freelist = req;
 	}
 
 	cdev = ccw_device_create_console(&raw3215_ccw_driver);
 	if (IS_ERR(cdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	raw3215[0] = raw = raw3215_alloc_info();
 	raw->cdev = cdev;
@@ -937,17 +937,17 @@ static int __init con3215_init(void)
 		ccw_device_destroy_console(cdev);
 		raw3215_free_info(raw);
 		raw3215[0] = NULL;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Request the console irq */
 	if (raw3215_startup(raw) != 0) {
 		raw3215_free_info(raw);
 		raw3215[0] = NULL;
-		return -ENODEV;
+		return -EANALDEV;
 	}
-	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
-	register_reboot_notifier(&on_reboot_nb);
+	atomic_analtifier_chain_register(&panic_analtifier_list, &on_panic_nb);
+	register_reboot_analtifier(&on_reboot_nb);
 	register_console(&con3215);
 	return 0;
 }
@@ -960,7 +960,7 @@ static int tty3215_install(struct tty_driver *driver, struct tty_struct *tty)
 
 	raw = raw3215[tty->index];
 	if (raw == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	tty->driver_data = raw;
 
@@ -1164,14 +1164,14 @@ static int __init tty3215_init(void)
 	}
 	/*
 	 * Initialize the tty_driver structure
-	 * Entries in tty3215_driver that are NOT initialized:
+	 * Entries in tty3215_driver that are ANALT initialized:
 	 * proc_entry, set_termios, flush_buffer, set_ldisc, write_proc
 	 */
 
 	driver->driver_name = "tty3215";
 	driver->name = "ttyS";
 	driver->major = TTY_MAJOR;
-	driver->minor_start = 64;
+	driver->mianalr_start = 64;
 	driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	driver->subtype = SYSTEM_TYPE_TTY;
 	driver->init_termios = tty_std_termios;

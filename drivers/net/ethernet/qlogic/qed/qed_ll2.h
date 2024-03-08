@@ -48,7 +48,7 @@ struct qed_ll2_rx_packet {
 struct qed_ll2_tx_packet {
 	struct list_head list_entry;
 	u16 bd_used;
-	bool notify_fw;
+	bool analtify_fw;
 	void *cookie;
 	/* Flexible Array of bds_set determined by max_bds_per_packet */
 	struct {
@@ -150,14 +150,14 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle);
  * @addr: RX (physical address) buffers to submit.
  * @buf_len: Buffer Len.
  * @cookie: Cookie.
- * @notify_fw: Produce corresponding Rx BD immediately.
+ * @analtify_fw: Produce corresponding Rx BD immediately.
  *
  * Return: 0 on success, failure otherwise.
  */
 int qed_ll2_post_rx_buffer(void *cxt,
 			   u8 connection_handle,
 			   dma_addr_t addr,
-			   u16 buf_len, void *cookie, u8 notify_fw);
+			   u16 buf_len, void *cookie, u8 analtify_fw);
 
 /**
  * qed_ll2_prepare_tx_packet(): Request for start Tx BD
@@ -166,14 +166,14 @@ int qed_ll2_post_rx_buffer(void *cxt,
  * @cxt: Pointer to the hw-function [opaque to some].
  * @connection_handle: Connection handle.
  * @pkt: Info regarding the tx packet.
- * @notify_fw: Issue doorbell to fw for this packet.
+ * @analtify_fw: Issue doorbell to fw for this packet.
  *
  * Return: 0 on success, failure otherwise.
  */
 int qed_ll2_prepare_tx_packet(void *cxt,
 			      u8 connection_handle,
 			      struct qed_ll2_tx_pkt_info *pkt,
-			      bool notify_fw);
+			      bool analtify_fw);
 
 /**
  * qed_ll2_release_connection(): Releases resources allocated for LL2

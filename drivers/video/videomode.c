@@ -5,7 +5,7 @@
  * Copyright (c) 2012 Steffen Trumtrar <s.trumtrar@pengutronix.de>, Pengutronix
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <video/display_timing.h>
 #include <video/videomode.h>

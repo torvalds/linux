@@ -89,11 +89,11 @@ static int rvt_query_device(struct ib_device *ibdev,
 	return 0;
 }
 
-static int rvt_get_numa_node(struct ib_device *ibdev)
+static int rvt_get_numa_analde(struct ib_device *ibdev)
 {
 	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
 
-	return rdi->dparms.node;
+	return rdi->dparms.analde;
 }
 
 static int rvt_modify_device(struct ib_device *device,
@@ -101,11 +101,11 @@ static int rvt_modify_device(struct ib_device *device,
 			     struct ib_device_modify *device_modify)
 {
 	/*
-	 * There is currently no need to supply this based on qib and hfi1.
+	 * There is currently anal need to supply this based on qib and hfi1.
 	 * Future drivers may need to implement this though.
 	 */
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -189,9 +189,9 @@ static int rvt_query_pkey(struct ib_device *ibdev, u32 port_num, u16 index,
 {
 	/*
 	 * Driver will be responsible for keeping rvt_dev_info.pkey_table up to
-	 * date. This function will just return that value. There is no need to
+	 * date. This function will just return that value. There is anal need to
 	 * lock, if a stale value is read and sent to the user so be it there is
-	 * no way to protect against that anyway.
+	 * anal way to protect against that anyway.
 	 */
 	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
 	u32 port_index;
@@ -317,7 +317,7 @@ enum {
 	CREATE_CQ,
 	DESTROY_CQ,
 	POLL_CQ,
-	REQ_NOTFIY_CQ,
+	REQ_ANALTFIY_CQ,
 	RESIZE_CQ,
 	ALLOC_PD,
 	DEALLOC_PD,
@@ -345,7 +345,7 @@ static const struct ib_device_ops rvt_dev_ops = {
 	.destroy_srq = rvt_destroy_srq,
 	.detach_mcast = rvt_detach_mcast,
 	.get_dma_mr = rvt_get_dma_mr,
-	.get_numa_node = rvt_get_numa_node,
+	.get_numa_analde = rvt_get_numa_analde,
 	.get_port_immutable = rvt_get_port_immutable,
 	.map_mr_sg = rvt_map_mr_sg,
 	.mmap = rvt_mmap,
@@ -366,7 +366,7 @@ static const struct ib_device_ops rvt_dev_ops = {
 	.query_qp = rvt_query_qp,
 	.query_srq = rvt_query_srq,
 	.reg_user_mr = rvt_reg_user_mr,
-	.req_notify_cq = rvt_req_notify_cq,
+	.req_analtify_cq = rvt_req_analtify_cq,
 	.resize_cq = rvt_resize_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, rvt_ah, ibah),
@@ -377,12 +377,12 @@ static const struct ib_device_ops rvt_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, rvt_ucontext, ibucontext),
 };
 
-static noinline int check_support(struct rvt_dev_info *rdi, int verb)
+static analinline int check_support(struct rvt_dev_info *rdi, int verb)
 {
 	switch (verb) {
 	case MISC:
 		/*
-		 * These functions are not part of verbs specifically but are
+		 * These functions are analt part of verbs specifically but are
 		 * required for rdmavt to function.
 		 */
 		if ((!rdi->ibdev.ops.port_groups) ||
@@ -392,11 +392,11 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 
 	case MODIFY_DEVICE:
 		/*
-		 * rdmavt does not support modify device currently drivers must
+		 * rdmavt does analt support modify device currently drivers must
 		 * provide.
 		 */
 		if (!rdi->ibdev.ops.modify_device)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		break;
 
 	case QUERY_PORT:
@@ -422,7 +422,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 		if (!rdi->ibdev.ops.create_qp)
 			if (!rdi->driver_f.qp_priv_alloc ||
 			    !rdi->driver_f.qp_priv_free ||
-			    !rdi->driver_f.notify_qp_reset ||
+			    !rdi->driver_f.analtify_qp_reset ||
 			    !rdi->driver_f.flush_qp_waiters ||
 			    !rdi->driver_f.stop_send_queue ||
 			    !rdi->driver_f.quiesce_qp)
@@ -431,13 +431,13 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 
 	case MODIFY_QP:
 		if (!rdi->ibdev.ops.modify_qp)
-			if (!rdi->driver_f.notify_qp_reset ||
+			if (!rdi->driver_f.analtify_qp_reset ||
 			    !rdi->driver_f.schedule_send ||
 			    !rdi->driver_f.get_pmtu_from_attr ||
 			    !rdi->driver_f.flush_qp_waiters ||
 			    !rdi->driver_f.stop_send_queue ||
 			    !rdi->driver_f.quiesce_qp ||
-			    !rdi->driver_f.notify_error_qp ||
+			    !rdi->driver_f.analtify_error_qp ||
 			    !rdi->driver_f.mtu_from_qp ||
 			    !rdi->driver_f.mtu_to_path_mtu)
 				return -EINVAL;
@@ -446,7 +446,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 	case DESTROY_QP:
 		if (!rdi->ibdev.ops.destroy_qp)
 			if (!rdi->driver_f.qp_priv_free ||
-			    !rdi->driver_f.notify_qp_reset ||
+			    !rdi->driver_f.analtify_qp_reset ||
 			    !rdi->driver_f.flush_qp_waiters ||
 			    !rdi->driver_f.stop_send_queue ||
 			    !rdi->driver_f.quiesce_qp)
@@ -473,7 +473,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
  * It is up to drivers to allocate the rdi and fill in the appropriate
  * information.
  *
- * Return: 0 on success otherwise an errno.
+ * Return: 0 on success otherwise an erranal.
  */
 int rvt_register_device(struct rvt_dev_info *rdi)
 {
@@ -488,7 +488,7 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	 */
 	for (i = 0; i < _VERB_IDX_MAX; i++)
 		if (check_support(rdi, i)) {
-			pr_err("Driver support req not met at %d\n", i);
+			pr_err("Driver support req analt met at %d\n", i);
 			return -EINVAL;
 		}
 
@@ -519,7 +519,7 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	ret = rvt_driver_mr_init(rdi);
 	if (ret) {
 		pr_err("Error in driver MR init.\n");
-		goto bail_no_mr;
+		goto bail_anal_mr;
 	}
 
 	/* Memory Working Set Size */
@@ -538,21 +538,21 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 
 	/*
 	 * There are some things which could be set by underlying drivers but
-	 * really should be up to rdmavt to set. For instance drivers can't know
-	 * exactly which functions rdmavt supports, nor do they know the ABI
+	 * really should be up to rdmavt to set. For instance drivers can't kanalw
+	 * exactly which functions rdmavt supports, analr do they kanalw the ABI
 	 * version, so we do all of this sort of stuff here.
 	 */
 	rdi->ibdev.uverbs_cmd_mask |=
 		(1ull << IB_USER_VERBS_CMD_POLL_CQ)             |
-		(1ull << IB_USER_VERBS_CMD_REQ_NOTIFY_CQ)       |
+		(1ull << IB_USER_VERBS_CMD_REQ_ANALTIFY_CQ)       |
 		(1ull << IB_USER_VERBS_CMD_POST_SEND)           |
 		(1ull << IB_USER_VERBS_CMD_POST_RECV)           |
 		(1ull << IB_USER_VERBS_CMD_POST_SRQ_RECV);
-	rdi->ibdev.node_type = RDMA_NODE_IB_CA;
+	rdi->ibdev.analde_type = RDMA_ANALDE_IB_CA;
 	if (!rdi->ibdev.num_comp_vectors)
 		rdi->ibdev.num_comp_vectors = 1;
 
-	/* We are now good to announce we exist */
+	/* We are analw good to ananalunce we exist */
 	ret = ib_register_device(&rdi->ibdev, dev_name(&rdi->ibdev.dev), NULL);
 	if (ret) {
 		rvt_pr_err(rdi, "Failed to register driver with ib core.\n");
@@ -569,7 +569,7 @@ bail_wss:
 bail_mr:
 	rvt_mr_exit(rdi);
 
-bail_no_mr:
+bail_anal_mr:
 	rvt_qp_exit(rdi);
 
 	return ret;
@@ -602,7 +602,7 @@ EXPORT_SYMBOL(rvt_unregister_device);
  * @port_index: 0 based index of ports, different from IB core port num
  * @pkey_table: pkey_table for @port
  *
- * Keep track of a list of ports. No need to have a detach port.
+ * Keep track of a list of ports. Anal need to have a detach port.
  * They persist until the driver goes away.
  *
  * Return: always 0

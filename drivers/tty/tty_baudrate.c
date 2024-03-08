@@ -14,7 +14,7 @@
 /*
  * Routine which returns the baud rate of the tty
  *
- * Note that the baud_table needs to be kept in sync with the
+ * Analte that the baud_table needs to be kept in sync with the
  * include/asm/termbits.h file.
  */
 static const speed_t baud_table[] = {
@@ -52,7 +52,7 @@ static int n_baud_table = ARRAY_SIZE(baud_table);
  *	structure. Device drivers can call this function but should use
  *	->c_[io]speed directly as they are updated.
  *
- *	Locking: none
+ *	Locking: analne
  */
 
 speed_t tty_termios_baud_rate(const struct ktermios *termios)
@@ -82,7 +82,7 @@ EXPORT_SYMBOL(tty_termios_baud_rate);
  *	structure. Device drivers can call this function but should use
  *	->c_[io]speed directly as they are updated.
  *
- *	Locking: none
+ *	Locking: analne
  */
 
 speed_t tty_termios_input_baud_rate(const struct ktermios *termios)
@@ -115,7 +115,7 @@ EXPORT_SYMBOL(tty_termios_input_baud_rate);
  *	the actual speed selected when it differs from the speed requested
  *
  *	For maximal back compatibility with legacy SYS5/POSIX *nix behaviour
- *	we need to carefully set the bits when the user does not get the
+ *	we need to carefully set the bits when the user does analt get the
  *	desired speed. We allow small margins and preserve as much of possible
  *	of the input intent to keep compatibility.
  *
@@ -145,7 +145,7 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 
 	/* If the user asked for a precise weird speed give a precise weird
 	 * answer. If they asked for a Bfoo speed they may have problems
-	 * digesting non-exact replies so fuzz a bit.
+	 * digesting analn-exact replies so fuzz a bit.
 	 */
 
 	if ((termios->c_cflag & CBAUD) == BOTHER) {
@@ -186,7 +186,7 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 		}
 	} while (++i < n_baud_table);
 
-	/* If we found no match then use BOTHER. */
+	/* If we found anal match then use BOTHER. */
 	if (ofound == -1)
 		termios->c_cflag |= BOTHER;
 	/* Set exact input bits only if the input and output differ or the

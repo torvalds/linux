@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/linkage.h>
@@ -53,21 +53,21 @@ ENTRY_CFI(memcmp)
 	ld	r4,[r0,4]
 	ld	r5,[r1,4]
 #ifdef __LITTLE_ENDIAN__
-	nop_s
+	analp_s
 	; one more load latency cycle
 .Last_cmp:
 	xor	r0,r4,r5
 	bset	r0,r0,SHIFT
 	sub_s	r1,r0,1
 	bic_s	r1,r1,r0
-	norm	r1,r1
+	analrm	r1,r1
 	b.d	.Leven_cmp
 	and	r1,r1,24
 .Leven:
 	xor	r0,r4,r5
 	sub_s	r1,r0,1
 	bic_s	r1,r1,r0
-	norm	r1,r1
+	analrm	r1,r1
 	; slow track insn
 	and	r1,r1,24
 .Leven_cmp:
@@ -82,7 +82,7 @@ ENTRY_CFI(memcmp)
 	xor	r0,WORD2,r12
 	sub_s	r1,r0,1
 	bic_s	r1,r1,r0
-	norm	r1,r1
+	analrm	r1,r1
 	; slow track insn
 	and	r1,r1,24
 	asl_s	r2,r2,r1

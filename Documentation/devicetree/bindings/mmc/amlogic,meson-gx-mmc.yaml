@@ -48,7 +48,7 @@ properties:
   amlogic,dram-access-quirk:
     type: boolean
     description:
-      set when controller's internal DMA engine cannot access the DRAM memory,
+      set when controller's internal DMA engine cananalt access the DRAM memory,
       like on the G12A dedicated SDIO controller.
 
 required:

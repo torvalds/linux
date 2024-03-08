@@ -3,7 +3,7 @@
 #include <test_progs.h>
 #include <linux/nbd.h>
 
-/* NOTE: conflict with other tests. */
+/* ANALTE: conflict with other tests. */
 void serial_test_raw_tp_writable_test_run(void)
 {
 	__u32 duration = 0;
@@ -27,7 +27,7 @@ void serial_test_raw_tp_writable_test_run(void)
 				   trace_program, sizeof(trace_program) / sizeof(struct bpf_insn),
 				   &trace_opts);
 	if (CHECK(bpf_fd < 0, "bpf_raw_tracepoint_writable loaded",
-		  "failed: %d errno %d\n", bpf_fd, errno))
+		  "failed: %d erranal %d\n", bpf_fd, erranal))
 		return;
 
 	const struct bpf_insn skb_program[] = {
@@ -43,13 +43,13 @@ void serial_test_raw_tp_writable_test_run(void)
 	int filter_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL v2",
 				      skb_program, sizeof(skb_program) / sizeof(struct bpf_insn),
 				      &skb_opts);
-	if (CHECK(filter_fd < 0, "test_program_loaded", "failed: %d errno %d\n",
-		  filter_fd, errno))
+	if (CHECK(filter_fd < 0, "test_program_loaded", "failed: %d erranal %d\n",
+		  filter_fd, erranal))
 		goto out_bpffd;
 
 	int tp_fd = bpf_raw_tracepoint_open("bpf_test_finish", bpf_fd);
 	if (CHECK(tp_fd < 0, "bpf_raw_tracepoint_writable opened",
-		  "failed: %d errno %d\n", tp_fd, errno))
+		  "failed: %d erranal %d\n", tp_fd, erranal))
 		goto out_filterfd;
 
 	char test_skb[128] = {
@@ -63,17 +63,17 @@ void serial_test_raw_tp_writable_test_run(void)
 	);
 	int err = bpf_prog_test_run_opts(filter_fd, &topts);
 	CHECK(err != 42, "test_run",
-	      "tracepoint did not modify return value\n");
+	      "tracepoint did analt modify return value\n");
 	CHECK(topts.retval != 0, "test_run_ret",
-	      "socket_filter did not return 0\n");
+	      "socket_filter did analt return 0\n");
 
 	close(tp_fd);
 
 	err = bpf_prog_test_run_opts(filter_fd, &topts);
-	CHECK(err != 0, "test_run_notrace",
-	      "test_run failed with %d errno %d\n", err, errno);
-	CHECK(topts.retval != 0, "test_run_ret_notrace",
-	      "socket_filter did not return 0\n");
+	CHECK(err != 0, "test_run_analtrace",
+	      "test_run failed with %d erranal %d\n", err, erranal);
+	CHECK(topts.retval != 0, "test_run_ret_analtrace",
+	      "socket_filter did analt return 0\n");
 
 out_filterfd:
 	close(filter_fd);

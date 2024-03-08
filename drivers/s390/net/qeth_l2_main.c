@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/etherdevice.h>
@@ -39,21 +39,21 @@ static int qeth_l2_setdelmac_makerc(struct qeth_card *card, u16 retcode)
 		rc = 0;
 		break;
 	case IPA_RC_L2_UNSUPPORTED_CMD:
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		break;
 	case IPA_RC_L2_ADDR_TABLE_FULL:
-		rc = -ENOSPC;
+		rc = -EANALSPC;
 		break;
 	case IPA_RC_L2_DUP_MAC:
 	case IPA_RC_L2_DUP_LAYER3_MAC:
 		rc = -EADDRINUSE;
 		break;
-	case IPA_RC_L2_MAC_NOT_AUTH_BY_HYP:
-	case IPA_RC_L2_MAC_NOT_AUTH_BY_ADP:
-		rc = -EADDRNOTAVAIL;
+	case IPA_RC_L2_MAC_ANALT_AUTH_BY_HYP:
+	case IPA_RC_L2_MAC_ANALT_AUTH_BY_ADP:
+		rc = -EADDRANALTAVAIL;
 		break;
-	case IPA_RC_L2_MAC_NOT_FOUND:
-		rc = -ENOENT;
+	case IPA_RC_L2_MAC_ANALT_FOUND:
+		rc = -EANALENT;
 		break;
 	default:
 		rc = -EIO;
@@ -81,7 +81,7 @@ static int qeth_l2_send_setdelmac(struct qeth_card *card, const __u8 *mac,
 	iob = qeth_ipa_alloc_cmd(card, ipacmd, QETH_PROT_IPV4,
 				 IPA_DATA_SIZEOF(setdelmac));
 	if (!iob)
-		return -ENOMEM;
+		return -EANALMEM;
 	cmd = __ipa_cmd(iob);
 	cmd->data.setdelmac.mac_length = ETH_ALEN;
 	ether_addr_copy(cmd->data.setdelmac.mac, mac);
@@ -103,9 +103,9 @@ static int qeth_l2_send_setmac(struct qeth_card *card, const __u8 *mac)
 			dev_warn(&card->gdev->dev,
 				"MAC address %pM already exists\n", mac);
 			break;
-		case -EADDRNOTAVAIL:
+		case -EADDRANALTAVAIL:
 			dev_warn(&card->gdev->dev,
-				"MAC address %pM is not authorized\n", mac);
+				"MAC address %pM is analt authorized\n", mac);
 			break;
 		}
 	}
@@ -146,11 +146,11 @@ static int qeth_l2_remove_mac(struct qeth_card *card, u8 *mac)
 static void qeth_l2_drain_rx_mode_cache(struct qeth_card *card)
 {
 	struct qeth_mac *mac;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int i;
 
-	hash_for_each_safe(card->rx_mode_addrs, i, tmp, mac, hnode) {
-		hash_del(&mac->hnode);
+	hash_for_each_safe(card->rx_mode_addrs, i, tmp, mac, hanalde) {
+		hash_del(&mac->hanalde);
 		kfree(mac);
 	}
 }
@@ -201,9 +201,9 @@ static int qeth_l2_setdelvlan_makerc(struct qeth_card *card, u16 retcode)
 		return -EINVAL;
 	case IPA_RC_L2_DUP_VLAN_ID:
 		return -EEXIST;
-	case IPA_RC_L2_VLAN_ID_NOT_FOUND:
-		return -ENOENT;
-	case IPA_RC_L2_VLAN_ID_NOT_ALLOWED:
+	case IPA_RC_L2_VLAN_ID_ANALT_FOUND:
+		return -EANALENT;
+	case IPA_RC_L2_VLAN_ID_ANALT_ALLOWED:
 		return -EPERM;
 	default:
 		return -EIO;
@@ -236,7 +236,7 @@ static int qeth_l2_send_setdelvlan(struct qeth_card *card, __u16 i,
 	iob = qeth_ipa_alloc_cmd(card, ipacmd, QETH_PROT_IPV4,
 				 IPA_DATA_SIZEOF(setdelvlan));
 	if (!iob)
-		return -ENOMEM;
+		return -EANALMEM;
 	cmd = __ipa_cmd(iob);
 	cmd->data.setdelvlan.vlan_id = i;
 	return qeth_send_ipa_cmd(card, iob, qeth_l2_send_setdelvlan_cb, NULL);
@@ -273,13 +273,13 @@ static void qeth_l2_set_pnso_mode(struct qeth_card *card,
 	WRITE_ONCE(card->info.pnso_mode, mode);
 	spin_unlock_irq(get_ccwdev_lock(CARD_RDEV(card)));
 
-	if (mode == QETH_PNSO_NONE)
+	if (mode == QETH_PNSO_ANALNE)
 		drain_workqueue(card->event_wq);
 }
 
 static void qeth_l2_dev2br_fdb_flush(struct qeth_card *card)
 {
-	struct switchdev_notifier_fdb_info info = {};
+	struct switchdev_analtifier_fdb_info info = {};
 
 	QETH_CARD_TEXT(card, 2, "fdbflush");
 
@@ -289,7 +289,7 @@ static void qeth_l2_dev2br_fdb_flush(struct qeth_card *card)
 	info.added_by_user = false;
 	info.offloaded = true;
 
-	call_switchdev_notifiers(SWITCHDEV_FDB_FLUSH_TO_BRIDGE,
+	call_switchdev_analtifiers(SWITCHDEV_FDB_FLUSH_TO_BRIDGE,
 				 card->dev, &info.info, NULL);
 }
 
@@ -320,7 +320,7 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 	 * address:
 	 */
 	if (IS_OSM(card) || IS_OSX(card))
-		return (rc) ? rc : -EADDRNOTAVAIL;
+		return (rc) ? rc : -EADDRANALTAVAIL;
 	eth_hw_addr_random(card->dev);
 
 out:
@@ -346,7 +346,7 @@ static int qeth_l2_validate_addr(struct net_device *dev)
 	if (card->info.dev_addr_is_registered)
 		return eth_validate_addr(dev);
 
-	QETH_CARD_TEXT(card, 4, "nomacadr");
+	QETH_CARD_TEXT(card, 4, "analmacadr");
 	return -EPERM;
 }
 
@@ -361,11 +361,11 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 
 	if (IS_OSM(card) || IS_OSX(card)) {
 		QETH_CARD_TEXT(card, 3, "setmcTYP");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	QETH_CARD_HEX(card, 3, addr->sa_data, ETH_ALEN);
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	/* don't register the same address twice */
 	if (ether_addr_equal_64bits(dev->dev_addr, addr->sa_data) &&
@@ -398,7 +398,7 @@ static void qeth_l2_promisc_to_bridge(struct qeth_card *card, bool enable)
 		else
 			role = QETH_SBP_ROLE_SECONDARY;
 	} else
-		role = QETH_SBP_ROLE_NONE;
+		role = QETH_SBP_ROLE_ANALNE;
 
 	rc = qeth_bridgeport_setrole(card, role);
 	QETH_CARD_TEXT_(card, 2, "bpm%c%04x", enable ? '+' : '-', rc);
@@ -426,7 +426,7 @@ static void qeth_l2_set_promisc_mode(struct qeth_card *card)
 }
 
 /* New MAC address is added to the hash table and marked to be written on card
- * only if there is not in the hash table storage already
+ * only if there is analt in the hash table storage already
  *
 */
 static void qeth_l2_add_mac(struct qeth_card *card, struct netdev_hw_addr *ha)
@@ -434,9 +434,9 @@ static void qeth_l2_add_mac(struct qeth_card *card, struct netdev_hw_addr *ha)
 	u32 mac_hash = get_unaligned((u32 *)(&ha->addr[2]));
 	struct qeth_mac *mac;
 
-	hash_for_each_possible(card->rx_mode_addrs, mac, hnode, mac_hash) {
+	hash_for_each_possible(card->rx_mode_addrs, mac, hanalde, mac_hash) {
 		if (ether_addr_equal_64bits(ha->addr, mac->mac_addr)) {
-			mac->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
+			mac->disp_flag = QETH_DISP_ADDR_DO_ANALTHING;
 			return;
 		}
 	}
@@ -448,7 +448,7 @@ static void qeth_l2_add_mac(struct qeth_card *card, struct netdev_hw_addr *ha)
 	ether_addr_copy(mac->mac_addr, ha->addr);
 	mac->disp_flag = QETH_DISP_ADDR_ADD;
 
-	hash_add(card->rx_mode_addrs, &mac->hnode, mac_hash);
+	hash_add(card->rx_mode_addrs, &mac->hanalde, mac_hash);
 }
 
 static void qeth_l2_rx_mode_work(struct work_struct *work)
@@ -458,7 +458,7 @@ static void qeth_l2_rx_mode_work(struct work_struct *work)
 	struct net_device *dev = card->dev;
 	struct netdev_hw_addr *ha;
 	struct qeth_mac *mac;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int i;
 	int rc;
 
@@ -471,17 +471,17 @@ static void qeth_l2_rx_mode_work(struct work_struct *work)
 		qeth_l2_add_mac(card, ha);
 	netif_addr_unlock_bh(dev);
 
-	hash_for_each_safe(card->rx_mode_addrs, i, tmp, mac, hnode) {
+	hash_for_each_safe(card->rx_mode_addrs, i, tmp, mac, hanalde) {
 		switch (mac->disp_flag) {
 		case QETH_DISP_ADDR_DELETE:
 			qeth_l2_remove_mac(card, mac->mac_addr);
-			hash_del(&mac->hnode);
+			hash_del(&mac->hanalde);
 			kfree(mac);
 			break;
 		case QETH_DISP_ADDR_ADD:
 			rc = qeth_l2_write_mac(card, mac->mac_addr);
 			if (rc) {
-				hash_del(&mac->hnode);
+				hash_del(&mac->hanalde);
 				kfree(mac);
 				break;
 			}
@@ -537,13 +537,13 @@ static void qeth_l2_set_rx_mode(struct net_device *dev)
  *	qeth_l2_pnso() - perform network subchannel operation
  *	@card: qeth_card structure pointer
  *	@oc: Operation Code
- *	@cnc: Boolean Change-Notification Control
+ *	@cnc: Boolean Change-Analtification Control
  *	@cb: Callback function will be executed for each element
  *		of the address list
  *	@priv: Pointer to pass to the callback function.
  *
  *	Collects network information in a network address list and calls the
- *	callback function for every entry in the list. If "change-notification-
+ *	callback function for every entry in the list. If "change-analtification-
  *	control" is set, further changes in the address list will be reported
  *	via the IPA command.
  */
@@ -560,7 +560,7 @@ static int qeth_l2_pnso(struct qeth_card *card, u8 oc, int cnc,
 
 	rr = (struct chsc_pnso_area *)get_zeroed_page(GFP_KERNEL);
 	if (rr == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	do {
 		QETH_CARD_TEXT(card, 2, "PNSO");
 		/* on the first iteration, naihdr.resume_token will be zero */
@@ -591,7 +591,7 @@ static int qeth_l2_pnso(struct qeth_card *card, u8 oc, int cnc,
 		for (i = 0; i < elems; i++)
 			(*cb)(priv, &rr->entries[i]);
 	} while ((rc == -EBUSY) || (!rc && /* list stored */
-		   /* resume token is non-zero => list incomplete */
+		   /* resume token is analn-zero => list incomplete */
 		   (rr->naihdr.resume_token.t1 || rr->naihdr.resume_token.t2)));
 
 	if (rc)
@@ -604,7 +604,7 @@ static int qeth_l2_pnso(struct qeth_card *card, u8 oc, int cnc,
 static bool qeth_is_my_net_if_token(struct qeth_card *card,
 				    struct net_if_token *token)
 {
-	return ((card->info.ddev_devno == token->devnum) &&
+	return ((card->info.ddev_devanal == token->devnum) &&
 		(card->info.cssid == token->cssid) &&
 		(card->info.iid == token->iid) &&
 		(card->info.ssid == token->ssid) &&
@@ -613,7 +613,7 @@ static bool qeth_is_my_net_if_token(struct qeth_card *card,
 }
 
 /**
- *	qeth_l2_dev2br_fdb_notify() - update fdb of master bridge
+ *	qeth_l2_dev2br_fdb_analtify() - update fdb of master bridge
  *	@card:	qeth_card structure pointer
  *	@code:	event bitmask: high order bit 0x80 set to
  *				1 - removal of an object
@@ -624,21 +624,21 @@ static bool qeth_is_my_net_if_token(struct qeth_card *card,
  *		of the target
  *	@addr_lnid: structure with MAC address and VLAN ID of the target
  */
-static void qeth_l2_dev2br_fdb_notify(struct qeth_card *card, u8 code,
+static void qeth_l2_dev2br_fdb_analtify(struct qeth_card *card, u8 code,
 				      struct net_if_token *token,
 				      struct mac_addr_lnid *addr_lnid)
 {
-	struct switchdev_notifier_fdb_info info = {};
+	struct switchdev_analtifier_fdb_info info = {};
 	u8 ntfy_mac[ETH_ALEN];
 
 	ether_addr_copy(ntfy_mac, addr_lnid->mac);
-	/* Ignore VLAN only changes */
+	/* Iganalre VLAN only changes */
 	if (!(code & IPA_ADDR_CHANGE_CODE_MACADDR))
 		return;
-	/* Ignore mcast entries */
+	/* Iganalre mcast entries */
 	if (is_multicast_ether_addr(ntfy_mac))
 		return;
-	/* Ignore my own addresses */
+	/* Iganalre my own addresses */
 	if (qeth_is_my_net_if_token(card, token))
 		return;
 
@@ -649,13 +649,13 @@ static void qeth_l2_dev2br_fdb_notify(struct qeth_card *card, u8 code,
 	info.offloaded = true;
 
 	if (code & IPA_ADDR_CHANGE_CODE_REMOVAL) {
-		call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
+		call_switchdev_analtifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
 					 card->dev, &info.info, NULL);
 		QETH_CARD_TEXT(card, 4, "andelmac");
 		QETH_CARD_TEXT_(card, 4,
 				"mc%012llx", ether_addr_to_u64(ntfy_mac));
 	} else {
-		call_switchdev_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
+		call_switchdev_analtifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
 					 card->dev, &info.info, NULL);
 		QETH_CARD_TEXT(card, 4, "anaddmac");
 		QETH_CARD_TEXT_(card, 4,
@@ -671,20 +671,20 @@ static void qeth_l2_dev2br_an_set_cb(void *priv,
 
 	if (entry->addr_lnid.lnid < VLAN_N_VID)
 		code |= IPA_ADDR_CHANGE_CODE_VLANID;
-	qeth_l2_dev2br_fdb_notify(card, code,
+	qeth_l2_dev2br_fdb_analtify(card, code,
 				  (struct net_if_token *)&entry->nit,
 				  (struct mac_addr_lnid *)&entry->addr_lnid);
 }
 
 /**
  *	qeth_l2_dev2br_an_set() -
- *	Enable or disable 'dev to bridge network address notification'
+ *	Enable or disable 'dev to bridge network address analtification'
  *	@card: qeth_card structure pointer
- *	@enable: Enable or disable 'dev to bridge network address notification'
+ *	@enable: Enable or disable 'dev to bridge network address analtification'
  *
- *	Returns negative errno-compatible error indication or 0 on success.
+ *	Returns negative erranal-compatible error indication or 0 on success.
  *
- *	On enable, emits a series of address notifications for all
+ *	On enable, emits a series of address analtifications for all
  *	currently registered hosts.
  */
 static int qeth_l2_dev2br_an_set(struct qeth_card *card, bool enable)
@@ -696,8 +696,8 @@ static int qeth_l2_dev2br_an_set(struct qeth_card *card, bool enable)
 		rc = qeth_l2_pnso(card, PNSO_OC_NET_ADDR_INFO, 1,
 				  qeth_l2_dev2br_an_set_cb, card);
 		if (rc == -EAGAIN)
-			/* address notification enabled, but inconsistent
-			 * addresses reported -> disable address notification
+			/* address analtification enabled, but inconsistent
+			 * addresses reported -> disable address analtification
 			 */
 			qeth_l2_pnso(card, PNSO_OC_NET_ADDR_INFO, 0,
 				     NULL, NULL);
@@ -828,7 +828,7 @@ static int qeth_l2_br2dev_queue_work(struct net_device *brdev,
 
 	worker_data = kzalloc(sizeof(*worker_data), GFP_ATOMIC);
 	if (!worker_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_WORK(&worker_data->work, qeth_l2_br2dev_worker);
 	worker_data->br_dev = brdev;
 	worker_data->lsync_dev = lsyncdev;
@@ -846,26 +846,26 @@ static int qeth_l2_br2dev_queue_work(struct net_device *brdev,
 }
 
 /* Called under rtnl_lock */
-static int qeth_l2_switchdev_event(struct notifier_block *unused,
+static int qeth_l2_switchdev_event(struct analtifier_block *unused,
 				   unsigned long event, void *ptr)
 {
 	struct net_device *dstdev, *brdev, *lowerdev;
-	struct switchdev_notifier_fdb_info *fdb_info;
-	struct switchdev_notifier_info *info = ptr;
+	struct switchdev_analtifier_fdb_info *fdb_info;
+	struct switchdev_analtifier_info *info = ptr;
 	struct list_head *iter;
 	struct qeth_card *card;
 	int rc;
 
 	if (!(event == SWITCHDEV_FDB_ADD_TO_DEVICE ||
 	      event == SWITCHDEV_FDB_DEL_TO_DEVICE))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
-	dstdev = switchdev_notifier_info_to_dev(info);
+	dstdev = switchdev_analtifier_info_to_dev(info);
 	brdev = netdev_master_upper_dev_get_rcu(dstdev);
 	if (!brdev || !netif_is_bridge_master(brdev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	fdb_info = container_of(info,
-				struct switchdev_notifier_fdb_info,
+				struct switchdev_analtifier_fdb_info,
 				info);
 	iter = &brdev->adj_list.lower;
 	lowerdev = netdev_next_lower_dev_rcu(brdev, &iter);
@@ -878,38 +878,38 @@ static int qeth_l2_switchdev_event(struct notifier_block *unused,
 						       fdb_info->addr);
 			if (rc) {
 				QETH_CARD_TEXT(card, 2, "b2dqwerr");
-				return NOTIFY_BAD;
+				return ANALTIFY_BAD;
 			}
 		}
 		lowerdev = netdev_next_lower_dev_rcu(brdev, &iter);
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block qeth_l2_sw_notifier = {
-		.notifier_call = qeth_l2_switchdev_event,
+static struct analtifier_block qeth_l2_sw_analtifier = {
+		.analtifier_call = qeth_l2_switchdev_event,
 };
 
-static refcount_t qeth_l2_switchdev_notify_refcnt;
+static refcount_t qeth_l2_switchdev_analtify_refcnt;
 
 /* Called under rtnl_lock */
 static void qeth_l2_br2dev_get(void)
 {
 	int rc;
 
-	if (!refcount_inc_not_zero(&qeth_l2_switchdev_notify_refcnt)) {
-		rc = register_switchdev_notifier(&qeth_l2_sw_notifier);
+	if (!refcount_inc_analt_zero(&qeth_l2_switchdev_analtify_refcnt)) {
+		rc = register_switchdev_analtifier(&qeth_l2_sw_analtifier);
 		if (rc) {
 			QETH_DBF_MESSAGE(2,
-					 "failed to register qeth_l2_sw_notifier: %d\n",
+					 "failed to register qeth_l2_sw_analtifier: %d\n",
 					 rc);
 		} else {
-			refcount_set(&qeth_l2_switchdev_notify_refcnt, 1);
-			QETH_DBF_MESSAGE(2, "qeth_l2_sw_notifier registered\n");
+			refcount_set(&qeth_l2_switchdev_analtify_refcnt, 1);
+			QETH_DBF_MESSAGE(2, "qeth_l2_sw_analtifier registered\n");
 		}
 	}
 	QETH_DBF_TEXT_(SETUP, 2, "b2d+%04d",
-		       qeth_l2_switchdev_notify_refcnt.refs.counter);
+		       qeth_l2_switchdev_analtify_refcnt.refs.counter);
 }
 
 /* Called under rtnl_lock */
@@ -917,19 +917,19 @@ static void qeth_l2_br2dev_put(void)
 {
 	int rc;
 
-	if (refcount_dec_and_test(&qeth_l2_switchdev_notify_refcnt)) {
-		rc = unregister_switchdev_notifier(&qeth_l2_sw_notifier);
+	if (refcount_dec_and_test(&qeth_l2_switchdev_analtify_refcnt)) {
+		rc = unregister_switchdev_analtifier(&qeth_l2_sw_analtifier);
 		if (rc) {
 			QETH_DBF_MESSAGE(2,
-					 "failed to unregister qeth_l2_sw_notifier: %d\n",
+					 "failed to unregister qeth_l2_sw_analtifier: %d\n",
 					 rc);
 		} else {
 			QETH_DBF_MESSAGE(2,
-					 "qeth_l2_sw_notifier unregistered\n");
+					 "qeth_l2_sw_analtifier unregistered\n");
 		}
 	}
 	QETH_DBF_TEXT_(SETUP, 2, "b2d-%04d",
-		       qeth_l2_switchdev_notify_refcnt.refs.counter);
+		       qeth_l2_switchdev_analtify_refcnt.refs.counter);
 }
 
 static int qeth_l2_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
@@ -940,10 +940,10 @@ static int qeth_l2_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	struct qeth_card *card = dev->ml_priv;
 	u16 mode = BRIDGE_MODE_UNDEF;
 
-	/* Do not even show qeth devs that cannot do bridge_setlink */
+	/* Do analt even show qeth devs that cananalt do bridge_setlink */
 	if (!priv->brport_hw_features || !netif_device_present(dev) ||
 	    qeth_bridgeport_is_in_use(card))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev,
 				       mode, priv->brport_features,
@@ -976,7 +976,7 @@ static int qeth_l2_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 	int rc;
 
 	if (!netif_device_present(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	nlmsg_for_each_attr(attr, nlh, sizeof(struct ifinfomsg), rem1) {
 		if (nla_type(attr) == IFLA_PROTINFO) {
@@ -1004,13 +1004,13 @@ static int qeth_l2_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 		return -EINVAL;
 	if (!(priv->brport_hw_features & BR_LEARNING_SYNC)) {
 		NL_SET_ERR_MSG_ATTR(extack, bp_tb[IFLA_BRPORT_LEARNING_SYNC],
-				    "Operation not supported by HW");
-		return -EOPNOTSUPP;
+				    "Operation analt supported by HW");
+		return -EOPANALTSUPP;
 	}
 	if (!IS_ENABLED(CONFIG_NET_SWITCHDEV)) {
 		NL_SET_ERR_MSG_ATTR(extack, bp_tb[IFLA_BRPORT_LEARNING_SYNC],
 				    "Requires NET_SWITCHDEV");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	enable = !!nla_get_u8(bp_tb[IFLA_BRPORT_LEARNING_SYNC]);
 
@@ -1018,7 +1018,7 @@ static int qeth_l2_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 		return 0;
 
 	mutex_lock(&card->sbp_lock);
-	/* do not change anything if BridgePort is enabled */
+	/* do analt change anything if BridgePort is enabled */
 	if (qeth_bridgeport_is_in_use(card)) {
 		NL_SET_ERR_MSG(extack, "n/a (BridgePort)");
 		rc = -EBUSY;
@@ -1026,7 +1026,7 @@ static int qeth_l2_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 		qeth_l2_set_pnso_mode(card, QETH_PNSO_ADDR_INFO);
 		rc = qeth_l2_dev2br_an_set(card, true);
 		if (rc) {
-			qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
+			qeth_l2_set_pnso_mode(card, QETH_PNSO_ANALNE);
 		} else {
 			priv->brport_features |= BR_LEARNING_SYNC;
 			qeth_l2_br2dev_get();
@@ -1034,7 +1034,7 @@ static int qeth_l2_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 	} else {
 		rc = qeth_l2_dev2br_an_set(card, false);
 		if (!rc) {
-			qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
+			qeth_l2_set_pnso_mode(card, QETH_PNSO_ANALNE);
 			priv->brport_features ^= BR_LEARNING_SYNC;
 			qeth_l2_dev2br_fdb_flush(card);
 			qeth_l2_br2dev_put();
@@ -1102,7 +1102,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 
 	if (IS_OSD(card) && !IS_VM_NIC(card)) {
 		card->dev->features |= NETIF_F_SG;
-		/* OSA 3S and earlier has no RX/TX support */
+		/* OSA 3S and earlier has anal RX/TX support */
 		if (qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM)) {
 			card->dev->hw_features |= NETIF_F_IP_CSUM;
 			card->dev->vlan_features |= NETIF_F_IP_CSUM;
@@ -1152,23 +1152,23 @@ static void qeth_l2_trace_features(struct qeth_card *card)
 static void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card)
 {
 	if (!card->options.sbp.reflect_promisc &&
-	    card->options.sbp.role != QETH_SBP_ROLE_NONE) {
+	    card->options.sbp.role != QETH_SBP_ROLE_ANALNE) {
 		/* Conditional to avoid spurious error messages */
 		qeth_bridgeport_setrole(card, card->options.sbp.role);
 		/* Let the callback function refresh the stored role value. */
 		qeth_bridgeport_query_ports(card, &card->options.sbp.role,
 					    NULL);
 	}
-	if (card->options.sbp.hostnotification) {
+	if (card->options.sbp.hostanaltification) {
 		if (qeth_bridgeport_an_set(card, 1))
-			card->options.sbp.hostnotification = 0;
+			card->options.sbp.hostanaltification = 0;
 	}
 }
 
 /**
  *	qeth_l2_detect_dev2br_support() -
  *	Detect whether this card supports 'dev to bridge fdb network address
- *	change notification' and thus can support the learning_sync bridgeport
+ *	change analtification' and thus can support the learning_sync bridgeport
  *	attribute
  *	@card: qeth_card structure pointer
  */
@@ -1203,7 +1203,7 @@ static void qeth_l2_enable_brport_features(struct qeth_card *card)
 			rc = qeth_l2_dev2br_an_set(card, true);
 			if (rc == -EAGAIN) {
 				/* Recoverable error, retry once */
-				qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
+				qeth_l2_set_pnso_mode(card, QETH_PNSO_ANALNE);
 				qeth_l2_dev2br_fdb_flush(card);
 				qeth_l2_set_pnso_mode(card, QETH_PNSO_ADDR_INFO);
 				rc = qeth_l2_dev2br_an_set(card, true);
@@ -1212,26 +1212,26 @@ static void qeth_l2_enable_brport_features(struct qeth_card *card)
 				netdev_err(card->dev,
 					   "failed to enable bridge learning_sync: %d\n",
 					   rc);
-				qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
+				qeth_l2_set_pnso_mode(card, QETH_PNSO_ANALNE);
 				qeth_l2_dev2br_fdb_flush(card);
 				priv->brport_features ^= BR_LEARNING_SYNC;
 			}
 		} else {
 			dev_warn(&card->gdev->dev,
-				"bridge learning_sync not supported\n");
+				"bridge learning_sync analt supported\n");
 			priv->brport_features ^= BR_LEARNING_SYNC;
 		}
 	}
 }
 
-/* SETBRIDGEPORT support, async notifications */
+/* SETBRIDGEPORT support, async analtifications */
 
 enum qeth_an_event_type {anev_reg_unreg, anev_abort, anev_reset};
 
 /**
- * qeth_bridge_emit_host_event() - bridgeport address change notification
+ * qeth_bridge_emit_host_event() - bridgeport address change analtification
  * @card:  qeth_card structure pointer, for udev events.
- * @evtype:  "normal" register/unregister, or abort, or reset. For abort
+ * @evtype:  "analrmal" register/unregister, or abort, or reset. For abort
  *	      and reset token and addr_lnid are unused and may be NULL.
  * @code:  event bitmask: high order bit 0x80 value 1 means removal of an
  *			  object, 0 - addition of an object.
@@ -1240,7 +1240,7 @@ enum qeth_an_event_type {anev_reg_unreg, anev_abort, anev_reset};
  * @addr_lnid: pointer to structure with MAC address and VLAN ID.
  *
  * This function is called when registrations and deregistrations are
- * reported by the hardware, and also when notifications are enabled -
+ * reported by the hardware, and also when analtifications are enabled -
  * for all currently registered addresses.
  */
 static void qeth_bridge_emit_host_event(struct qeth_card *card,
@@ -1317,7 +1317,7 @@ static void qeth_bridge_state_change_worker(struct work_struct *work)
 
 	scnprintf(env_locrem, sizeof(env_locrem), "BRIDGEPORT=statechange");
 	scnprintf(env_role, sizeof(env_role), "ROLE=%s",
-		  (data->role == QETH_SBP_ROLE_NONE) ? "none" :
+		  (data->role == QETH_SBP_ROLE_ANALNE) ? "analne" :
 		  (data->role == QETH_SBP_ROLE_PRIMARY) ? "primary" :
 		  (data->role == QETH_SBP_ROLE_SECONDARY) ? "secondary" :
 		  "<INVALID>");
@@ -1382,7 +1382,7 @@ static void qeth_l2_dev2br_worker(struct work_struct *work)
 
 	QETH_CARD_TEXT(card, 4, "dev2brew");
 
-	if (READ_ONCE(card->info.pnso_mode) == QETH_PNSO_NONE)
+	if (READ_ONCE(card->info.pnso_mode) == QETH_PNSO_ANALNE)
 		goto free;
 
 	if (data->ac_event.lost_event_mask) {
@@ -1399,32 +1399,32 @@ static void qeth_l2_dev2br_worker(struct work_struct *work)
 		}
 
 		QETH_DBF_MESSAGE(3,
-				 "Address change notification overflow on device %x\n",
+				 "Address change analtification overflow on device %x\n",
 				 CARD_DEVID(card));
 		/* Card fdb and bridge fdb are out of sync, card has stopped
-		 * notifications (no need to drain_workqueue). Purge all
+		 * analtifications (anal need to drain_workqueue). Purge all
 		 * 'extern_learn' entries from the parent bridge and restart
-		 * the notifications.
+		 * the analtifications.
 		 */
 		qeth_l2_dev2br_fdb_flush(card);
 		rc = qeth_l2_dev2br_an_set(card, true);
 		if (rc) {
 			/* TODO: if we want to retry after -EAGAIN, be
 			 * aware there could be stale entries in the
-			 * workqueue now, that need to be drained.
-			 * For now we give up:
+			 * workqueue analw, that need to be drained.
+			 * For analw we give up:
 			 */
 			netdev_err(card->dev,
 				   "bridge learning_sync failed to recover: %d\n",
 				   rc);
 			WRITE_ONCE(card->info.pnso_mode,
-				   QETH_PNSO_NONE);
+				   QETH_PNSO_ANALNE);
 			/* To remove fdb entries reported by an_set: */
 			qeth_l2_dev2br_fdb_flush(card);
 			priv->brport_features ^= BR_LEARNING_SYNC;
 		} else {
 			QETH_DBF_MESSAGE(3,
-					 "Address Notification resynced on device %x\n",
+					 "Address Analtification resynced on device %x\n",
 					 CARD_DEVID(card));
 		}
 
@@ -1433,7 +1433,7 @@ static void qeth_l2_dev2br_worker(struct work_struct *work)
 		for (i = 0; i < data->ac_event.num_entries; i++) {
 			struct qeth_ipacmd_addr_change_entry *entry =
 					&data->ac_event.entry[i];
-			qeth_l2_dev2br_fdb_notify(card,
+			qeth_l2_dev2br_fdb_analtify(card,
 						  entry->change_code,
 						  &entry->token,
 						  &entry->addr_lnid);
@@ -1456,7 +1456,7 @@ static void qeth_addr_change_event_worker(struct work_struct *work)
 
 	QETH_CARD_TEXT(data->card, 4, "adrchgew");
 
-	if (READ_ONCE(card->info.pnso_mode) == QETH_PNSO_NONE)
+	if (READ_ONCE(card->info.pnso_mode) == QETH_PNSO_ANALNE)
 		goto free;
 
 	if (data->ac_event.lost_event_mask) {
@@ -1468,16 +1468,16 @@ static void qeth_addr_change_event_worker(struct work_struct *work)
 		}
 
 		dev_info(&data->card->gdev->dev,
-			 "Address change notification stopped on %s (%s)\n",
+			 "Address change analtification stopped on %s (%s)\n",
 			 netdev_name(card->dev),
 			(data->ac_event.lost_event_mask == 0x01)
 			? "Overflow"
 			: (data->ac_event.lost_event_mask == 0x02)
 			? "Bridge port state change"
-			: "Unknown reason");
+			: "Unkanalwn reason");
 
-		data->card->options.sbp.hostnotification = 0;
-		card->info.pnso_mode = QETH_PNSO_NONE;
+		data->card->options.sbp.hostanaltification = 0;
+		card->info.pnso_mode = QETH_PNSO_ANALNE;
 		mutex_unlock(&data->card->sbp_lock);
 		qeth_bridge_emit_host_event(data->card, anev_abort,
 					    0, NULL, NULL);
@@ -1504,7 +1504,7 @@ static void qeth_addr_change_event(struct qeth_card *card,
 	struct qeth_addr_change_data *data;
 	int extrasize;
 
-	if (card->info.pnso_mode == QETH_PNSO_NONE)
+	if (card->info.pnso_mode == QETH_PNSO_ANALNE)
 		return;
 
 	QETH_CARD_TEXT(card, 4, "adrchgev");
@@ -1568,13 +1568,13 @@ static int qeth_bridgeport_makerc(struct qeth_card *card,
 			break;
 		case IPA_RC_L2_UNSUPPORTED_CMD:
 		case IPA_RC_UNSUPPORTED_COMMAND:
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 			break;
-		case IPA_RC_SBP_OSA_NOT_CONFIGURED:
-		case IPA_RC_SBP_IQD_NOT_CONFIGURED:
-			rc = -ENODEV; /* maybe not the best code here? */
+		case IPA_RC_SBP_OSA_ANALT_CONFIGURED:
+		case IPA_RC_SBP_IQD_ANALT_CONFIGURED:
+			rc = -EANALDEV; /* maybe analt the best code here? */
 			dev_err(&card->gdev->dev,
-	"The device is not configured as a Bridge Port\n");
+	"The device is analt configured as a Bridge Port\n");
 			break;
 		case IPA_RC_SBP_OSA_OS_MISMATCH:
 		case IPA_RC_SBP_IQD_OS_MISMATCH:
@@ -1582,8 +1582,8 @@ static int qeth_bridgeport_makerc(struct qeth_card *card,
 			dev_err(&card->gdev->dev,
 	"A Bridge Port is already configured by a different operating system\n");
 			break;
-		case IPA_RC_SBP_OSA_ANO_DEV_PRIMARY:
-		case IPA_RC_SBP_IQD_ANO_DEV_PRIMARY:
+		case IPA_RC_SBP_OSA_AANAL_DEV_PRIMARY:
+		case IPA_RC_SBP_IQD_AANAL_DEV_PRIMARY:
 			switch (setcmd) {
 			case IPA_SBP_SET_PRIMARY_BRIDGE_PORT:
 				rc = -EEXIST;
@@ -1609,7 +1609,7 @@ static int qeth_bridgeport_makerc(struct qeth_card *card,
 		case IPA_RC_SBP_IQD_LIMIT_SECOND:
 			rc = -EEXIST;
 			dev_err(&card->gdev->dev,
-	"The LAN cannot have more secondary Bridge Ports\n");
+	"The LAN cananalt have more secondary Bridge Ports\n");
 			break;
 		case IPA_RC_SBP_OSA_CURRENT_PRIMARY:
 		case IPA_RC_SBP_IQD_CURRENT_PRIMARY:
@@ -1617,22 +1617,22 @@ static int qeth_bridgeport_makerc(struct qeth_card *card,
 			dev_err(&card->gdev->dev,
 	"The device is already a primary Bridge Port\n");
 			break;
-		case IPA_RC_SBP_OSA_NOT_AUTHD_BY_ZMAN:
-		case IPA_RC_SBP_IQD_NOT_AUTHD_BY_ZMAN:
+		case IPA_RC_SBP_OSA_ANALT_AUTHD_BY_ZMAN:
+		case IPA_RC_SBP_IQD_ANALT_AUTHD_BY_ZMAN:
 			rc = -EACCES;
 			dev_err(&card->gdev->dev,
-	"The device is not authorized to be a Bridge Port\n");
+	"The device is analt authorized to be a Bridge Port\n");
 			break;
 		default:
 			rc = -EIO;
 		}
 	} else {
 		switch (ipa_rc) {
-		case IPA_RC_NOTSUPP:
-			rc = -EOPNOTSUPP;
+		case IPA_RC_ANALTSUPP:
+			rc = -EOPANALTSUPP;
 			break;
 		case IPA_RC_UNSUPPORTED_COMMAND:
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 			break;
 		default:
 			rc = -EIO;
@@ -1655,7 +1655,7 @@ static struct qeth_cmd_buffer *qeth_sbp_build_cmd(struct qeth_card *card,
 	struct qeth_ipacmd_sbp_hdr *hdr;
 	struct qeth_cmd_buffer *iob;
 
-	iob = qeth_ipa_alloc_cmd(card, ipa_cmd, QETH_PROT_NONE,
+	iob = qeth_ipa_alloc_cmd(card, ipa_cmd, QETH_PROT_ANALNE,
 				 data_length +
 				 offsetof(struct qeth_ipacmd_setbridgeport,
 					  data));
@@ -1666,7 +1666,7 @@ static struct qeth_cmd_buffer *qeth_sbp_build_cmd(struct qeth_card *card,
 	hdr->cmdlength = sizeof(*hdr) + data_length;
 	hdr->command_code = sbp_cmd;
 	hdr->used_total = 1;
-	hdr->seq_no = 1;
+	hdr->seq_anal = 1;
 	return iob;
 }
 
@@ -1707,7 +1707,7 @@ static void qeth_bridgeport_query_support(struct qeth_card *card)
 
 	if (qeth_send_ipa_cmd(card, iob, qeth_bridgeport_query_support_cb,
 			      &cbctl)) {
-		card->options.sbp.role = QETH_SBP_ROLE_NONE;
+		card->options.sbp.role = QETH_SBP_ROLE_ANALNE;
 		card->options.sbp.supported_funcs = 0;
 		return;
 	}
@@ -1745,12 +1745,12 @@ static int qeth_bridgeport_query_ports_cb(struct qeth_card *card,
 /**
  * qeth_bridgeport_query_ports() - query local bridgeport status.
  * @card:			   qeth_card structure pointer.
- * @role:   Role of the port: 0-none, 1-primary, 2-secondary.
+ * @role:   Role of the port: 0-analne, 1-primary, 2-secondary.
  * @state:  State of the port: 0-inactive, 1-standby, 2-active.
  *
- * Returns negative errno-compatible error indication or 0 on success.
+ * Returns negative erranal-compatible error indication or 0 on success.
  *
- * 'role' and 'state' are not updated in case of hardware operation failure.
+ * 'role' and 'state' are analt updated in case of hardware operation failure.
  */
 int qeth_bridgeport_query_ports(struct qeth_card *card,
 	enum qeth_sbp_roles *role, enum qeth_sbp_states *state)
@@ -1767,10 +1767,10 @@ int qeth_bridgeport_query_ports(struct qeth_card *card,
 
 	QETH_CARD_TEXT(card, 2, "brqports");
 	if (!(card->options.sbp.supported_funcs & IPA_SBP_QUERY_BRIDGE_PORTS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	iob = qeth_sbp_build_cmd(card, IPA_SBP_QUERY_BRIDGE_PORTS, 0);
 	if (!iob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return qeth_send_ipa_cmd(card, iob, qeth_bridgeport_query_ports_cb,
 				 &cbctl);
@@ -1790,7 +1790,7 @@ static int qeth_bridgeport_set_cb(struct qeth_card *card,
  * @card:		       qeth_card structure pointer.
  * @role:		       Role to assign.
  *
- * Returns negative errno-compatible error indication or 0 on success.
+ * Returns negative erranal-compatible error indication or 0 on success.
  */
 int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role)
 {
@@ -1800,7 +1800,7 @@ int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role)
 
 	QETH_CARD_TEXT(card, 2, "brsetrol");
 	switch (role) {
-	case QETH_SBP_ROLE_NONE:
+	case QETH_SBP_ROLE_ANALNE:
 		setcmd = IPA_SBP_RESET_BRIDGE_PORT_ROLE;
 		break;
 	case QETH_SBP_ROLE_PRIMARY:
@@ -1814,10 +1814,10 @@ int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role)
 		return -EINVAL;
 	}
 	if (!(card->options.sbp.supported_funcs & setcmd))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	iob = qeth_sbp_build_cmd(card, setcmd, cmdlength);
 	if (!iob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return qeth_send_ipa_cmd(card, iob, qeth_bridgeport_set_cb, NULL);
 }
@@ -1837,13 +1837,13 @@ static void qeth_bridgeport_an_set_cb(void *priv,
 }
 
 /**
- * qeth_bridgeport_an_set() - Enable or disable bridgeport address notification
+ * qeth_bridgeport_an_set() - Enable or disable bridgeport address analtification
  * @card:		      qeth_card structure pointer.
- * @enable:		      0 - disable, non-zero - enable notifications
+ * @enable:		      0 - disable, analn-zero - enable analtifications
  *
- * Returns negative errno-compatible error indication or 0 on success.
+ * Returns negative erranal-compatible error indication or 0 on success.
  *
- * On enable, emits a series of address notifications udev events for all
+ * On enable, emits a series of address analtifications udev events for all
  * currently registered hosts.
  */
 int qeth_bridgeport_an_set(struct qeth_card *card, int enable)
@@ -1851,7 +1851,7 @@ int qeth_bridgeport_an_set(struct qeth_card *card, int enable)
 	int rc;
 
 	if (!card->options.sbp.supported_funcs)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (enable) {
 		qeth_bridge_emit_host_event(card, anev_reset, 0, NULL, NULL);
@@ -1859,10 +1859,10 @@ int qeth_bridgeport_an_set(struct qeth_card *card, int enable)
 		rc = qeth_l2_pnso(card, PNSO_OC_NET_BRIDGE_INFO, 1,
 				  qeth_bridgeport_an_set_cb, card);
 		if (rc)
-			qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
+			qeth_l2_set_pnso_mode(card, QETH_PNSO_ANALNE);
 	} else {
 		rc = qeth_l2_pnso(card, PNSO_OC_NET_BRIDGE_INFO, 0, NULL, NULL);
-		qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
+		qeth_l2_set_pnso_mode(card, QETH_PNSO_ANALNE);
 	}
 	return rc;
 }
@@ -1878,8 +1878,8 @@ static int qeth_l2_vnicc_makerc(struct qeth_card *card, u16 ipa_rc)
 	case IPA_RC_SUCCESS:
 		return ipa_rc;
 	case IPA_RC_L2_UNSUPPORTED_CMD:
-	case IPA_RC_NOTSUPP:
-		rc = -EOPNOTSUPP;
+	case IPA_RC_ANALTSUPP:
+		rc = -EOPANALTSUPP;
 		break;
 	case IPA_RC_VNICC_OOSEQ:
 		rc = -EALREADY;
@@ -1888,9 +1888,9 @@ static int qeth_l2_vnicc_makerc(struct qeth_card *card, u16 ipa_rc)
 		rc = -EBUSY;
 		break;
 	case IPA_RC_L2_ADDR_TABLE_FULL:
-		rc = -ENOSPC;
+		rc = -EANALSPC;
 		break;
-	case IPA_RC_L2_MAC_NOT_AUTH_BY_ADP:
+	case IPA_RC_L2_MAC_ANALT_AUTH_BY_ADP:
 		rc = -EACCES;
 		break;
 	default:
@@ -1932,7 +1932,7 @@ static struct qeth_cmd_buffer *qeth_l2_vnicc_build_cmd(struct qeth_card *card,
 	struct qeth_ipacmd_vnicc_hdr *hdr;
 	struct qeth_cmd_buffer *iob;
 
-	iob = qeth_ipa_alloc_cmd(card, IPA_CMD_VNICC, QETH_PROT_NONE,
+	iob = qeth_ipa_alloc_cmd(card, IPA_CMD_VNICC, QETH_PROT_ANALNE,
 				 data_length +
 				 offsetof(struct qeth_ipacmd_vnicc, data));
 	if (!iob)
@@ -1952,7 +1952,7 @@ static int qeth_l2_vnicc_query_chars(struct qeth_card *card)
 	QETH_CARD_TEXT(card, 2, "vniccqch");
 	iob = qeth_l2_vnicc_build_cmd(card, IPA_VNICC_QUERY_CHARS, 0);
 	if (!iob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return qeth_send_ipa_cmd(card, iob, qeth_l2_vnicc_request_cb, NULL);
 }
@@ -1967,7 +1967,7 @@ static int qeth_l2_vnicc_query_cmds(struct qeth_card *card, u32 vnic_char,
 	iob = qeth_l2_vnicc_build_cmd(card, IPA_VNICC_QUERY_CMDS,
 				      VNICC_DATA_SIZEOF(query_cmds));
 	if (!iob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__ipa_cmd(iob)->data.vnicc.data.query_cmds.vnic_char = vnic_char;
 
@@ -1983,7 +1983,7 @@ static int qeth_l2_vnicc_set_char(struct qeth_card *card, u32 vnic_char,
 	QETH_CARD_TEXT(card, 2, "vniccedc");
 	iob = qeth_l2_vnicc_build_cmd(card, cmd, VNICC_DATA_SIZEOF(set_char));
 	if (!iob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__ipa_cmd(iob)->data.vnicc.data.set_char.vnic_char = vnic_char;
 
@@ -2001,7 +2001,7 @@ static int qeth_l2_vnicc_getset_timeout(struct qeth_card *card, u32 vnicc,
 	iob = qeth_l2_vnicc_build_cmd(card, cmd,
 				      VNICC_DATA_SIZEOF(getset_timeout));
 	if (!iob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	getset_timeout = &__ipa_cmd(iob)->data.vnicc.data.getset_timeout;
 	getset_timeout->vnic_char = vnicc;
@@ -2036,7 +2036,7 @@ int qeth_l2_vnicc_set_state(struct qeth_card *card, u32 vnicc, bool state)
 	/* check if characteristic and enable/disable are supported */
 	if (!(card->options.vnicc.sup_chars & vnicc) ||
 	    !(card->options.vnicc.set_char_sup & vnicc))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (qeth_bridgeport_is_in_use(card))
 		return -EBUSY;
@@ -2054,7 +2054,7 @@ int qeth_l2_vnicc_set_state(struct qeth_card *card, u32 vnicc, bool state)
 	if (card->options.vnicc.cur_chars == card->options.vnicc.wanted_chars)
 		return rc;
 
-	/* if card is not ready, simply stop here */
+	/* if card is analt ready, simply stop here */
 	if (!qeth_card_hw_is_reachable(card)) {
 		if (state)
 			card->options.vnicc.cur_chars |= vnicc;
@@ -2088,7 +2088,7 @@ int qeth_l2_vnicc_get_state(struct qeth_card *card, u32 vnicc, bool *state)
 
 	/* check if characteristic is supported */
 	if (!(card->options.vnicc.sup_chars & vnicc))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (qeth_bridgeport_is_in_use(card))
 		return -EBUSY;
@@ -2113,7 +2113,7 @@ int qeth_l2_vnicc_set_timeout(struct qeth_card *card, u32 timeout)
 	/* check if characteristic and set_timeout are supported */
 	if (!(card->options.vnicc.sup_chars & QETH_VNICC_LEARNING) ||
 	    !(card->options.vnicc.getset_timeout_sup & QETH_VNICC_LEARNING))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (qeth_bridgeport_is_in_use(card))
 		return -EBUSY;
@@ -2122,7 +2122,7 @@ int qeth_l2_vnicc_set_timeout(struct qeth_card *card, u32 timeout)
 	if (card->options.vnicc.learning_timeout == timeout)
 		return rc;
 
-	/* if card is not ready, simply store the value internally and return */
+	/* if card is analt ready, simply store the value internally and return */
 	if (!qeth_card_hw_is_reachable(card)) {
 		card->options.vnicc.learning_timeout = timeout;
 		return rc;
@@ -2149,7 +2149,7 @@ int qeth_l2_vnicc_get_timeout(struct qeth_card *card, u32 *timeout)
 	/* check if characteristic and get_timeout are supported */
 	if (!(card->options.vnicc.sup_chars & QETH_VNICC_LEARNING) ||
 	    !(card->options.vnicc.getset_timeout_sup & QETH_VNICC_LEARNING))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (qeth_bridgeport_is_in_use(card))
 		return -EBUSY;
@@ -2169,7 +2169,7 @@ static bool _qeth_l2_vnicc_is_in_use(struct qeth_card *card)
 {
 	if (!card->options.vnicc.sup_chars)
 		return false;
-	/* default values are only OK if rx_bcast was not enabled by user
+	/* default values are only OK if rx_bcast was analt enabled by user
 	 * or the card is offline.
 	 */
 	if (card->options.vnicc.cur_chars == QETH_VNICC_DEFAULT) {
@@ -2185,7 +2185,7 @@ static bool _qeth_l2_vnicc_is_in_use(struct qeth_card *card)
  *	@card: qeth_card structure pointer
  *
  *	qeth_bridgeport functionality is mutually exclusive with usage of the
- *	VNIC Characteristics and dev2br address notifications
+ *	VNIC Characteristics and dev2br address analtifications
  */
 bool qeth_bridgeport_allowed(struct qeth_card *card)
 {
@@ -2416,7 +2416,7 @@ static void qeth_l2_set_offline(struct qeth_card *card)
 	if (card->state == CARD_STATE_SOFTSETUP)
 		card->state = CARD_STATE_DOWN;
 
-	qeth_l2_set_pnso_mode(card, QETH_PNSO_NONE);
+	qeth_l2_set_pnso_mode(card, QETH_PNSO_ANALNE);
 	if (priv->brport_features & BR_LEARNING_SYNC)
 		qeth_l2_dev2br_fdb_flush(card);
 }
@@ -2435,7 +2435,7 @@ static int qeth_l2_control_event(struct qeth_card *card,
 		}
 
 		return 1;
-	case IPA_CMD_ADDRESS_CHANGE_NOTIF:
+	case IPA_CMD_ADDRESS_CHANGE_ANALTIF:
 		qeth_addr_change_event(card, cmd);
 		return 0;
 	default:
@@ -2455,7 +2455,7 @@ EXPORT_SYMBOL_GPL(qeth_l2_discipline);
 static int __init qeth_l2_init(void)
 {
 	pr_info("register layer 2 discipline\n");
-	refcount_set(&qeth_l2_switchdev_notify_refcnt, 0);
+	refcount_set(&qeth_l2_switchdev_analtify_refcnt, 0);
 	return 0;
 }
 

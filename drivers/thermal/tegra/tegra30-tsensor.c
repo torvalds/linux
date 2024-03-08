@@ -12,7 +12,7 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -113,7 +113,7 @@ static int tegra_tsensor_hw_enable(const struct tegra_tsensor *ts)
 	}
 
 	/*
-	 * Sensors are enabled after reset by default, but not gauging
+	 * Sensors are enabled after reset by default, but analt gauging
 	 * until clock counter is programmed.
 	 *
 	 * M: number of reference clock pulses after which every
@@ -166,7 +166,7 @@ static int tegra_tsensor_get_temp(struct thermal_zone_device *tz, int *temp)
 	u32 val;
 
 	/*
-	 * Counter will be invalid if hardware is misprogrammed or not enough
+	 * Counter will be invalid if hardware is misprogrammed or analt eanalugh
 	 * time passed since the time when sensor was enabled.
 	 */
 	err = readl_relaxed_poll_timeout(tsc->regs + TSENSOR_SENSOR0_STATUS0, val,
@@ -274,7 +274,7 @@ static irqreturn_t tegra_tsensor_isr(int irq, void *data)
 	for (i = 0; i < ARRAY_SIZE(ts->ch); i++)
 		handled |= tegra_tsensor_handle_channel_interrupt(ts, i);
 
-	return handled ? IRQ_HANDLED : IRQ_NONE;
+	return handled ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static int tegra_tsensor_disable_hw_channel(const struct tegra_tsensor *ts,
@@ -332,7 +332,7 @@ static void tegra_tsensor_get_hw_channel_trips(struct thermal_zone_device *tzd,
 	*hot_trip = clamp(*hot_trip, 25000, 90000);
 
 	/*
-	 * Kernel will perform a normal system shut down if it will
+	 * Kernel will perform a analrmal system shut down if it will
 	 * see that critical temperature is breached, hence set the
 	 * hardware limit by 5C higher in order to allow system to
 	 * shut down gracefully before sending signal to the Power
@@ -381,7 +381,7 @@ static int tegra_tsensor_enable_hw_channel(const struct tegra_tsensor *ts,
 	 * Enable sensor, emergency shutdown, interrupts for level 1/2/3
 	 * breaches and counter overflow condition.
 	 *
-	 * Disable DIV2 throttle for now since we need to figure out how
+	 * Disable DIV2 throttle for analw since we need to figure out how
 	 * to integrate it properly with the thermal framework.
 	 *
 	 * Thermal levels supported by hardware:
@@ -432,7 +432,7 @@ static int tegra_tsensor_nvmem_setup(struct tegra_tsensor *ts)
 
 	if (ate_ver < 8) {
 		dev_info(ts->dev, "unsupported ATE version: %u\n", ate_ver);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -511,7 +511,7 @@ static int tegra_tsensor_register_channel(struct tegra_tsensor *ts,
 
 	tsc->tzd = devm_thermal_of_zone_register(ts->dev, id, tsc, &ops);
 	if (IS_ERR(tsc->tzd)) {
-		if (PTR_ERR(tsc->tzd) != -ENODEV)
+		if (PTR_ERR(tsc->tzd) != -EANALDEV)
 			return dev_err_probe(ts->dev, PTR_ERR(tsc->tzd),
 					     "failed to register thermal zone\n");
 
@@ -536,7 +536,7 @@ static int tegra_tsensor_probe(struct platform_device *pdev)
 
 	ts = devm_kzalloc(&pdev->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -581,7 +581,7 @@ static int tegra_tsensor_probe(struct platform_device *pdev)
 
 	/*
 	 * Enable the channels before setting the interrupt so
-	 * set_trips() can not be called while we are setting up the
+	 * set_trips() can analt be called while we are setting up the
 	 * register TSENSOR_SENSOR0_CONFIG1. With this we close a
 	 * potential race window where we are setting up the TH2 and
 	 * the temperature hits TH1 resulting to an update of the
@@ -648,7 +648,7 @@ static int __maybe_unused tegra_tsensor_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops tegra_tsensor_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(tegra_tsensor_suspend,
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(tegra_tsensor_suspend,
 				      tegra_tsensor_resume)
 };
 

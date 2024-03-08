@@ -97,7 +97,7 @@ void cobalt_cpld_status(struct cobalt *cobalt)
 		cpld_info_ver3(cobalt);
 		break;
 	default:
-		cobalt_info("CPLD revision %u is not supported!\n", rev);
+		cobalt_info("CPLD revision %u is analt supported!\n", rev);
 		break;
 	}
 }
@@ -126,7 +126,7 @@ struct multiplier {
 
 /* List all possible multipliers (= hsdiv * n1). There are lots of duplicates,
    which are all removed in this list to keep the list as short as possible.
-   The values for hsdiv and n1 are the actual values, not the register values.
+   The values for hsdiv and n1 are the actual values, analt the register values.
  */
 static const struct multiplier multipliers[] = {
 	{    4,  4,   1 }, {    5,  5,   1 }, {    6,  6,   1 },

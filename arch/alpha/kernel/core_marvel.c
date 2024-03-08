@@ -217,7 +217,7 @@ io7_init_hose(struct io7 *io7, int port)
 	 * We don't have an isa or legacy hose, but glibc expects to be
 	 * able to use the bus == 0 / dev == 0 form of the iobase syscall
 	 * to determine information about the i/o system. Since XFree86 
-	 * relies on glibc's determination to tell whether or not to use
+	 * relies on glibc's determination to tell whether or analt to use
 	 * sparse access, we need to point the pci_isa_hose at a real hose
 	 * so at least that determination is correct.
 	 */
@@ -287,7 +287,7 @@ io7_init_hose(struct io7 *io7, int port)
 	/*
 	 * Set up window 0 for scatter-gather 8MB at 8MB.
 	 */
-	hose->sg_isa = iommu_arena_new_node(0, hose, 0x00800000, 0x00800000, 0);
+	hose->sg_isa = iommu_arena_new_analde(0, hose, 0x00800000, 0x00800000, 0);
 	hose->sg_isa->align_entry = 8;	/* cache line boundary */
 	csrs->POx_WBASE[0].csr = 
 		hose->sg_isa->dma_base | wbase_m_ena | wbase_m_sg;
@@ -304,7 +304,7 @@ io7_init_hose(struct io7 *io7, int port)
 	/*
 	 * Set up window 2 for scatter-gather (up-to) 1GB at 3GB.
 	 */
-	hose->sg_pci = iommu_arena_new_node(0, hose, 0xc0000000, 0x40000000, 0);
+	hose->sg_pci = iommu_arena_new_analde(0, hose, 0xc0000000, 0x40000000, 0);
 	hose->sg_pci->align_entry = 8;	/* cache line boundary */
 	csrs->POx_WBASE[2].csr = 
 		hose->sg_pci->dma_base | wbase_m_ena | wbase_m_sg;
@@ -356,15 +356,15 @@ marvel_init_io7(struct io7 *io7)
 }
 
 void __init
-marvel_io7_present(gct6_node *node)
+marvel_io7_present(gct6_analde *analde)
 {
 	int pe;
 
-	if (node->type != GCT_TYPE_HOSE ||
-	    node->subtype != GCT_SUBTYPE_IO_PORT_MODULE) 
+	if (analde->type != GCT_TYPE_HOSE ||
+	    analde->subtype != GCT_SUBTYPE_IO_PORT_MODULE) 
 		return;
 
-	pe = (node->id >> 8) & 0xff;
+	pe = (analde->id >> 8) & 0xff;
 	printk("Found an IO7 at PID %d\n", pe);
 
 	alloc_io7(pe);
@@ -410,13 +410,13 @@ marvel_find_console_vga_hose(void)
 #endif
 }
 
-gct6_search_struct gct_wanted_node_list[] __initdata = {
+gct6_search_struct gct_wanted_analde_list[] __initdata = {
 	{ GCT_TYPE_HOSE, GCT_SUBTYPE_IO_PORT_MODULE, marvel_io7_present },
 	{ 0, 0, NULL }
 };
 
 /*
- * In case the GCT is not complete, let the user specify PIDs with IO7s
+ * In case the GCT is analt complete, let the user specify PIDs with IO7s
  * at boot time. Syntax is 'io7=a,b,c,...,n' where a-n are the PIDs (decimal)
  * where IO7s are connected
  */
@@ -456,7 +456,7 @@ marvel_init_arch(void)
 	__direct_map_size = 0x40000000;
 
 	/* Parse the config tree.  */
-	gct6_find_nodes(GCT_NODE_PTR(0), gct_wanted_node_list);
+	gct6_find_analdes(GCT_ANALDE_PTR(0), gct_wanted_analde_list);
 
 	/* Init the io7s.  */
 	for (io7 = NULL; NULL != (io7 = marvel_next_io7(io7)); ) 
@@ -489,7 +489,7 @@ marvel_kill_arch(int mode)
  *	10:8	function number
  *	 7:2	register number
  *  
- * Notes:
+ * Analtes:
  *	IO7 determines whether to use a type 0 or type 1 config cycle
  *	based on the bus number. Therefore the bus number must be set 
  *	to 0 for the root bus on any hose.
@@ -522,7 +522,7 @@ mk_conf_addr(struct pci_bus *pbus, unsigned int devfn, int where)
 	if (!io7_port->enabled)
 		return addr;
 
-	if (!pbus->parent) { /* No parent means peer PCI bus. */
+	if (!pbus->parent) { /* Anal parent means peer PCI bus. */
 		/* Don't support idsel > 20 on primary bus.  */
 		if (devfn >= PCI_DEVFN(21, 0))
 			return addr;
@@ -542,7 +542,7 @@ marvel_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 	unsigned long addr;
 	
 	if (0 == (addr = mk_conf_addr(bus, devfn, where)))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	switch(size) {
 	case 1:	
@@ -555,7 +555,7 @@ marvel_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 		*value = *(vuip)addr;
 		break;
 	default:
-		return PCIBIOS_FUNC_NOT_SUPPORTED;
+		return PCIBIOS_FUNC_ANALT_SUPPORTED;
 	}
 
 	return PCIBIOS_SUCCESSFUL;
@@ -568,7 +568,7 @@ marvel_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	unsigned long addr;
 	
 	if (0 == (addr = mk_conf_addr(bus, devfn, where)))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	switch (size) {
 	case 1:
@@ -587,7 +587,7 @@ marvel_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 		*(vuip)addr;
 		break;
 	default:
-		return PCIBIOS_FUNC_NOT_SUPPORTED;
+		return PCIBIOS_FUNC_ANALT_SUPPORTED;
 	}
 
 	return PCIBIOS_SUCCESSFUL;
@@ -748,7 +748,7 @@ marvel_ioremap(unsigned long addr, unsigned long size)
 		    baddr += PAGE_SIZE, vaddr += PAGE_SIZE) {
 			pfn = ptes[baddr >> PAGE_SHIFT];
 			if (!(pfn & 1)) {
-				printk("ioremap failed... pte not valid...\n");
+				printk("ioremap failed... pte analt valid...\n");
 				vfree(area->addr);
 				return NULL;
 			}
@@ -815,8 +815,8 @@ marvel_ioread8(const void __iomem *xaddr)
 		return __kernel_ldbu(*(vucp)addr);
 	else
 		/* this should catch other legacy addresses
-		   that would normally fail on MARVEL,
-		   because there really is nothing there...
+		   that would analrmally fail on MARVEL,
+		   because there really is analthing there...
 		*/
 		return ~0;
 }
@@ -862,10 +862,10 @@ marvel_agp_setup(alpha_agp_info *agp)
 	struct marvel_agp_aperture *aper;
 
 	if (!alpha_agpgart_size)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aper = kmalloc(sizeof(*aper), GFP_KERNEL);
-	if (aper == NULL) return -ENOMEM;
+	if (aper == NULL) return -EANALMEM;
 
 	aper->arena = agp->hose->sg_pci;
 	aper->pg_count = alpha_agpgart_size / PAGE_SIZE;
@@ -875,7 +875,7 @@ marvel_agp_setup(alpha_agp_info *agp)
 	if (aper->pg_start < 0) {
 		printk(KERN_ERR "Failed to reserve AGP memory\n");
 		kfree(aper);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	agp->aperture.bus_base = 
@@ -917,7 +917,7 @@ marvel_agp_configure(alpha_agp_info *agp)
 
 	/*
 	 * Check the requested mode against the PLL setting.
-	 * The agpgart_be code has not programmed the card yet,
+	 * The agpgart_be code has analt programmed the card yet,
 	 * so we can still tweak mode here.
 	 */
 	agp_pll = io7->csrs->POx_RST[IO7_AGP_PORT].csr;
@@ -942,10 +942,10 @@ marvel_agp_configure(alpha_agp_info *agp)
 
 	default:				/* ??????? */
 		/*
-		 * Don't know what this PLL setting is, take the requested
+		 * Don't kanalw what this PLL setting is, take the requested
 		 * rate, but warn the user.
 		 */
-		printk("%s: unknown PLL setting RNGB=%lx (PLL6_CTL=%016lx)\n",
+		printk("%s: unkanalwn PLL setting RNGB=%lx (PLL6_CTL=%016lx)\n",
 		       __func__, IO7_PLL_RNGB(agp_pll), agp_pll);
 		break;
 	}
@@ -954,7 +954,7 @@ marvel_agp_configure(alpha_agp_info *agp)
 	 * Set the new rate, if necessary.
 	 */
 	if (new_rate) {
-		printk("Requested AGP Rate %dX not compatible "
+		printk("Requested AGP Rate %dX analt compatible "
 		       "with PLL setting - using %dX\n",
 		       agp->mode.bits.rate,
 		       new_rate);
@@ -1002,7 +1002,7 @@ marvel_agp_translate(alpha_agp_info *agp, dma_addr_t addr)
 
 	pte = aper->arena->ptes[baddr >> PAGE_SHIFT];
 	if (!(pte & 1)) {
-		printk("%s: pte not valid\n", __func__);
+		printk("%s: pte analt valid\n", __func__);
 		return -EINVAL;
 	} 
 	return (pte >> 1) << PAGE_SHIFT;
@@ -1030,7 +1030,7 @@ marvel_agp_info(void)
 	 * Find the first IO7 with an AGP card.
 	 *
 	 * FIXME -- there should be a better way (we want to be able to
-	 * specify and what if the agp card is not video???)
+	 * specify and what if the agp card is analt video???)
 	 */
 	hose = NULL;
 	for (io7 = NULL; (io7 = marvel_next_io7(io7)) != NULL; ) {
@@ -1074,7 +1074,7 @@ marvel_agp_info(void)
 	agp->ops = &marvel_agp_ops;
 
 	/*
-	 * Aperture - not configured until ops.setup().
+	 * Aperture - analt configured until ops.setup().
 	 */
 	agp->aperture.bus_base = 0;
 	agp->aperture.size = 0;
@@ -1083,7 +1083,7 @@ marvel_agp_info(void)
 	/*
 	 * Capabilities.
 	 *
-	 * NOTE: IO7 reports through AGP_STAT that it can support a read queue
+	 * ANALTE: IO7 reports through AGP_STAT that it can support a read queue
 	 *       depth of 17 (rq = 0x10). It actually only supports a depth of
 	 * 	 16 (rq = 0xf).
 	 */

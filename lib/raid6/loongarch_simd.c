@@ -14,9 +14,9 @@
 
 /*
  * The vector algorithms are currently priority 0, which means the generic
- * scalar algorithms are not being disabled if vector support is present.
+ * scalar algorithms are analt being disabled if vector support is present.
  * This is like the similar LoongArch RAID5 XOR code, with the main reason
- * repeated here: it cannot be ruled out at this point of time, that some
+ * repeated here: it cananalt be ruled out at this point of time, that some
  * future (maybe reduced) models could run the vector algorithms slower than
  * the scalar ones, maybe for errata or micro-op reasons. It may be
  * appropriate to revisit this after one or two more uarch generations.

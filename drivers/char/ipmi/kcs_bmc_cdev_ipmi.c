@@ -5,7 +5,7 @@
 
 #define pr_fmt(fmt) "kcs-bmc: " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/ipmi_bmc.h>
 #include <linux/list.h>
@@ -21,7 +21,7 @@
 
 /* Different phases of the KCS BMC module.
  *  KCS_PHASE_IDLE:
- *            BMC should not be expecting nor sending any data.
+ *            BMC should analt be expecting analr sending any data.
  *  KCS_PHASE_WRITE_START:
  *            BMC is receiving a WRITE_START command from system software.
  *  KCS_PHASE_WRITE_DATA:
@@ -59,7 +59,7 @@ enum kcs_ipmi_phases {
 
 /* IPMI 2.0 - Table 9-4, KCS Interface Status Codes */
 enum kcs_ipmi_errors {
-	KCS_NO_ERROR                = 0x00,
+	KCS_ANAL_ERROR                = 0x00,
 	KCS_ABORTED_BY_COMMAND      = 0x01,
 	KCS_ILLEGAL_CONTROL_CODE    = 0x02,
 	KCS_LENGTH_ERROR            = 0x06,
@@ -222,7 +222,7 @@ static void kcs_bmc_ipmi_handle_cmd(struct kcs_bmc_ipmi *priv)
 	switch (cmd) {
 	case KCS_CMD_WRITE_START:
 		priv->phase = KCS_PHASE_WRITE_START;
-		priv->error = KCS_NO_ERROR;
+		priv->error = KCS_ANAL_ERROR;
 		priv->data_in_avail = false;
 		priv->data_in_idx = 0;
 		break;
@@ -237,7 +237,7 @@ static void kcs_bmc_ipmi_handle_cmd(struct kcs_bmc_ipmi *priv)
 		break;
 
 	case KCS_CMD_GET_STATUS_ABORT:
-		if (priv->error == KCS_NO_ERROR)
+		if (priv->error == KCS_ANAL_ERROR)
 			priv->error = KCS_ABORTED_BY_COMMAND;
 
 		priv->phase = KCS_PHASE_ABORT_ERROR1;
@@ -265,7 +265,7 @@ static irqreturn_t kcs_bmc_ipmi_event(struct kcs_bmc_client *client)
 
 	priv = client_to_kcs_bmc_ipmi(client);
 	if (!priv)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&priv->lock);
 
@@ -278,7 +278,7 @@ static irqreturn_t kcs_bmc_ipmi_event(struct kcs_bmc_client *client)
 
 		ret = IRQ_HANDLED;
 	} else {
-		ret = IRQ_NONE;
+		ret = IRQ_ANALNE;
 	}
 
 	spin_unlock(&priv->lock);
@@ -295,7 +295,7 @@ static inline struct kcs_bmc_ipmi *to_kcs_bmc(struct file *filp)
 	return container_of(filp->private_data, struct kcs_bmc_ipmi, miscdev);
 }
 
-static int kcs_bmc_ipmi_open(struct inode *inode, struct file *filp)
+static int kcs_bmc_ipmi_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct kcs_bmc_ipmi *priv = to_kcs_bmc(filp);
 
@@ -325,7 +325,7 @@ static ssize_t kcs_bmc_ipmi_read(struct file *filp, char __user *buf,
 	size_t data_len;
 	ssize_t ret;
 
-	if (!(filp->f_flags & O_NONBLOCK))
+	if (!(filp->f_flags & O_ANALNBLOCK))
 		wait_event_interruptible(priv->queue,
 					 priv->data_in_avail);
 
@@ -446,7 +446,7 @@ static long kcs_bmc_ipmi_ioctl(struct file *filp, unsigned int cmd,
 	return ret;
 }
 
-static int kcs_bmc_ipmi_release(struct inode *inode, struct file *filp)
+static int kcs_bmc_ipmi_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct kcs_bmc_ipmi *priv = to_kcs_bmc(filp);
 
@@ -476,7 +476,7 @@ static int kcs_bmc_ipmi_add_device(struct kcs_bmc_device *kcs_bmc)
 
 	priv = devm_kzalloc(kcs_bmc->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->lock);
 	mutex_init(&priv->mutex);
@@ -489,7 +489,7 @@ static int kcs_bmc_ipmi_add_device(struct kcs_bmc_device *kcs_bmc)
 	priv->data_out = devm_kmalloc(kcs_bmc->dev, KCS_MSG_BUFSIZ, GFP_KERNEL);
 	priv->kbuffer = devm_kmalloc(kcs_bmc->dev, KCS_MSG_BUFSIZ, GFP_KERNEL);
 
-	priv->miscdev.minor = MISC_DYNAMIC_MINOR;
+	priv->miscdev.mianalr = MISC_DYNAMIC_MIANALR;
 	priv->miscdev.name = devm_kasprintf(kcs_bmc->dev, GFP_KERNEL, "%s%u", DEVICE_NAME,
 					   kcs_bmc->channel);
 	if (!priv->data_in || !priv->data_out || !priv->kbuffer || !priv->miscdev.name)
@@ -527,7 +527,7 @@ static int kcs_bmc_ipmi_remove_device(struct kcs_bmc_device *kcs_bmc)
 	spin_unlock_irq(&kcs_bmc_ipmi_instances_lock);
 
 	if (!priv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	misc_deregister(&priv->miscdev);
 	kcs_bmc_disable_device(priv->client.dev, &priv->client);

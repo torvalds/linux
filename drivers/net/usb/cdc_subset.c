@@ -21,18 +21,18 @@
  * strict subset of CDC Ethernet, with three basic differences reflecting
  * the goal that almost any hardware should run it:
  *
- *  - Minimal runtime control:  one interface, no altsettings, and
- *    no vendor or class specific control requests.  If a device is
+ *  - Minimal runtime control:  one interface, anal altsettings, and
+ *    anal vendor or class specific control requests.  If a device is
  *    configured, it is allowed to exchange packets with the host.
- *    Fancier models would mean not working on some hardware.
+ *    Fancier models would mean analt working on some hardware.
  *
- *  - Minimal manufacturing control:  no IEEE "Organizationally
+ *  - Minimal manufacturing control:  anal IEEE "Organizationally
  *    Unique ID" required, or an EEPROMs to store one.  Each host uses
  *    one random "locally assigned" Ethernet address instead, which can
  *    of course be overridden using standard tools like "ifconfig".
  *    (With 2^46 such addresses, same-net collisions are quite rare.)
  *
- *  - There is no additional framing data for USB.  Packets are written
+ *  - There is anal additional framing data for USB.  Packets are written
  *    exactly as in CDC Ethernet, starting with an Ethernet header and
  *    terminated by a short packet.  However, the host will never send a
  *    zero length packet; some systems can't handle those robustly.
@@ -41,8 +41,8 @@
  * this protocol.  That includes both smart peripherals and quite a lot
  * of "host-to-host" USB cables (which embed two devices back-to-back).
  *
- * Note that although Linux may use many of those host-to-host links
- * with this "cdc_subset" framing, that doesn't mean there may not be a
+ * Analte that although Linux may use many of those host-to-host links
+ * with this "cdc_subset" framing, that doesn't mean there may analt be a
  * better approach.  Handling the "other end unplugs/replugs" scenario
  * well tends to require chip-specific vendor requests.  Also, Windows
  * peers at the other end of host-to-host cables may expect their own
@@ -64,11 +64,11 @@ static int always_connected (struct usbnet *dev)
  *
  * ALi M5632 driver ... does high speed
  *
- * NOTE that the MS-Windows drivers for this chip use some funky and
+ * ANALTE that the MS-Windows drivers for this chip use some funky and
  * (naturally) undocumented 7-byte prefix to each packet, so this is a
  * case where we don't currently interoperate.  Also, once you unplug
  * one end of the cable, you need to replug the other end too ... since
- * chip docs are unavailable, there's no way to reset the relevant state
+ * chip docs are unavailable, there's anal way to reset the relevant state
  * short of a power cycle.
  *
  *-------------------------------------------------------------------------*/
@@ -112,8 +112,8 @@ static const struct driver_info	ali_m5632_info = {
 static const struct driver_info	an2720_info = {
 	.description =	"AnchorChips/Cypress 2720",
 	.flags       = FLAG_POINTTOPOINT,
-	// no reset available!
-	// no check_connect available!
+	// anal reset available!
+	// anal check_connect available!
 
 	.in = 2, .out = 2,		// direction distinguishes these
 };
@@ -149,7 +149,7 @@ static const struct driver_info	belkin_info = {
  * EPSON USB clients
  *
  * This is the same idea as Linux PDAs (below) except the firmware in the
- * device might not be Tux-powered.  Epson provides reference firmware that
+ * device might analt be Tux-powered.  Epson provides reference firmware that
  * implements this interface.  Product developers can reuse or modify that
  * code, such as by using their own product and vendor codes.
  *
@@ -170,13 +170,13 @@ static const struct driver_info	epson2888_info = {
 
 /*-------------------------------------------------------------------------
  *
- * info from Jonathan McDowell <noodles@earth.li>
+ * info from Jonathan McDowell <analodles@earth.li>
  *
  *-------------------------------------------------------------------------*/
 #ifdef CONFIG_USB_KC2190
 #define HAVE_HARDWARE
 static const struct driver_info kc2190_info = {
-	.description =  "KC Technology KC-190",
+	.description =  "KC Techanallogy KC-190",
 	.flags = FLAG_POINTTOPOINT,
 };
 #endif /* CONFIG_USB_KC2190 */
@@ -230,8 +230,8 @@ static const struct driver_info	blob_info = {
 #endif
 
 /*
- * chip vendor names won't normally be on the cables, and
- * may not be on the device.
+ * chip vendor names won't analrmally be on the cables, and
+ * may analt be on the device.
  */
 
 static const struct usb_device_id	products [] = {
@@ -294,7 +294,7 @@ static const struct usb_device_id	products [] = {
  * the sa1100 one, but hardware uses different endpoint numbers.
  *
  * Or the Linux "Ethernet" gadget on hardware that can't talk
- * CDC Ethernet (e.g., no altsettings), in either of two modes:
+ * CDC Ethernet (e.g., anal altsettings), in either of two modes:
  *  - acting just like the old "usb-eth" firmware, though
  *    the implementation is different
  *  - supporting RNDIS as the first/default configuration for

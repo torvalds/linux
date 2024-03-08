@@ -10,7 +10,7 @@ description: |
   The STM32 DAC is a 12-bit voltage output digital-to-analog converter. The DAC
   may be configured in 8 or 12-bit mode. It has two output channels, each with
   its own converter.
-  It has built-in noise and triangle waveform generator and supports external
+  It has built-in analise and triangle waveform generator and supports external
   triggers for conversions. The DAC's output buffer allows a high drive output
   current.
 
@@ -60,7 +60,7 @@ patternProperties:
   "^dac@[1-2]+$":
     type: object
     description:
-      A DAC block node should contain at least one subnode, representing an
+      A DAC block analde should contain at least one subanalde, representing an
       DAC instance/channel available on the machine.
 
     properties:

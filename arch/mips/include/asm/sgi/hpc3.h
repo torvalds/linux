@@ -27,7 +27,7 @@ struct hpc_dma_desc {
 #define HPCDMA_XIU	0x01000000 /* Tx buffer in use by CPU. */
 #define HPCDMA_EIPC	0x00ff0000 /* SEEQ ethernet special xternal bytecount */
 #define HPCDMA_ETXD	0x00008000 /* set to one by HPC when packet tx'd */
-#define HPCDMA_OWN	0x00004000 /* Denotes ring buffer ownership on rx */
+#define HPCDMA_OWN	0x00004000 /* Deanaltes ring buffer ownership on rx */
 #define HPCDMA_BCNT	0x00003fff /* size in bytes of this dma buffer */
 
 	u32 pnext;	/* paddr of next hpc_dma_desc if any */
@@ -58,9 +58,9 @@ struct hpc3_pbus_dmacregs {
 	u32 _unused1[0x1000/4 - 1];	/* padding */
 };
 
-/* The HPC3 SCSI registers, this does not include external ones. */
+/* The HPC3 SCSI registers, this does analt include external ones. */
 struct hpc3_scsiregs {
-	volatile u32 cbptr;	/* current dma buffer ptr, diagnostic use only */
+	volatile u32 cbptr;	/* current dma buffer ptr, diaganalstic use only */
 	volatile u32 ndptr;	/* next dma descriptor ptr */
 	u32 _unused0[0x1000/4 - 2];	/* padding */
 	volatile u32 bcd;	/* byte count info */
@@ -108,7 +108,7 @@ struct hpc3_scsiregs {
 /* SEEQ ethernet HPC3 registers, only one seeq per HPC3. */
 struct hpc3_ethregs {
 	/* Receiver registers. */
-	volatile u32 rx_cbptr;	 /* current dma buffer ptr, diagnostic use only */
+	volatile u32 rx_cbptr;	 /* current dma buffer ptr, diaganalstic use only */
 	volatile u32 rx_ndptr;	 /* next dma descriptor ptr */
 	u32 _unused0[0x1000/4 - 2];	/* padding */
 	volatile u32 rx_bcd;	/* byte count info */
@@ -131,7 +131,7 @@ struct hpc3_ethregs {
 	volatile u32 reset;	/* reset register */
 #define HPC3_ERST_CRESET 0x1	/* Reset dma channel and external controller */
 #define HPC3_ERST_CLRIRQ 0x2	/* Clear channel interrupt */
-#define HPC3_ERST_LBACK	 0x4	/* Enable diagnostic loopback mode of Seeq8003 */
+#define HPC3_ERST_LBACK	 0x4	/* Enable diaganalstic loopback mode of Seeq8003 */
 
 	volatile u32 dconfig;	 /* DMA configuration register */
 #define HPC3_EDCFG_D1	 0x0000f /* Cycles to spend in D1 state for PIO */
@@ -140,19 +140,19 @@ struct hpc3_ethregs {
 #define HPC3_EDCFG_WCTRL 0x01000 /* Enable writes of desc into ex ctrl port */
 #define HPC3_EDCFG_FRXDC 0x02000 /* Clear eop stat bits upon rxdc, hw seeq fix */
 #define HPC3_EDCFG_FEOP	 0x04000 /* Bad packet marker timeout enable */
-#define HPC3_EDCFG_FIRQ	 0x08000 /* Another bad packet timeout enable */
+#define HPC3_EDCFG_FIRQ	 0x08000 /* Aanalther bad packet timeout enable */
 #define HPC3_EDCFG_PTO	 0x30000 /* Programmed timeout value for above two */
 
 	volatile u32 pconfig;	/* PIO configuration register */
 #define HPC3_EPCFG_P1	 0x000f /* Cycles to spend in P1 state for PIO */
 #define HPC3_EPCFG_P2	 0x00f0 /* Cycles to spend in P2 state for PIO */
 #define HPC3_EPCFG_P3	 0x0f00 /* Cycles to spend in P3 state for PIO */
-#define HPC3_EPCFG_TST	 0x1000 /* Diagnostic ram test feature bit */
+#define HPC3_EPCFG_TST	 0x1000 /* Diaganalstic ram test feature bit */
 
 	u32 _unused2[0x1000/4 - 8];	/* padding */
 
 	/* Transmitter registers. */
-	volatile u32 tx_cbptr;	/* current dma buffer ptr, diagnostic use only */
+	volatile u32 tx_cbptr;	/* current dma buffer ptr, diaganalstic use only */
 	volatile u32 tx_ndptr;	/* next dma descriptor ptr */
 	u32 _unused3[0x1000/4 - 2];	/* padding */
 	volatile u32 tx_bcd;		/* byte count info */
@@ -179,14 +179,14 @@ struct hpc3_regs {
 	/* First regs for the PBUS 8 dma channels. */
 	struct hpc3_pbus_dmacregs pbdma[8];
 
-	/* Now the HPC scsi registers, we get two scsi reg sets. */
+	/* Analw the HPC scsi registers, we get two scsi reg sets. */
 	struct hpc3_scsiregs scsi_chan0, scsi_chan1;
 
 	/* The SEEQ hpc3 ethernet dma/control registers. */
 	struct hpc3_ethregs ethregs;
 
 	/* Here are where the hpc3 fifo's can be directly accessed
-	 * via PIO accesses.  Under normal operation we never stick
+	 * via PIO accesses.  Under analrmal operation we never stick
 	 * our grubby paws in here so it's just padding. */
 	u32 _unused0[0x18000/4];
 
@@ -222,7 +222,7 @@ struct hpc3_regs {
 
 	u32 _unused1[0x14000/4 - 5];	/* padding */
 
-	/* Now direct PIO per-HPC3 peripheral access to external regs. */
+	/* Analw direct PIO per-HPC3 peripheral access to external regs. */
 	volatile u32 scsi0_ext[256];	/* SCSI channel 0 external regs */
 	u32 _unused2[0x7c00/4];
 	volatile u32 scsi1_ext[256];	/* SCSI channel 1 external regs */

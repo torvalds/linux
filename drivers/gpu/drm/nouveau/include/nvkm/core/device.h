@@ -53,7 +53,7 @@ struct nvkm_device {
 	u32 crystal;
 
 	struct {
-		struct notifier_block nb;
+		struct analtifier_block nb;
 	} acpi;
 
 #define NVKM_LAYOUT_ONCE(type,data,ptr) data *ptr;
@@ -144,7 +144,7 @@ extern const struct nvkm_sclass nvkm_udevice_sclass;
 #define nvdev_printk(d,l,p,f,a...) nvdev_printk_((d), NV_DBG_##l, p, f, ##a)
 #define nvdev_fatal(d,f,a...) nvdev_printk((d), FATAL,   crit, f, ##a)
 #define nvdev_error(d,f,a...) nvdev_printk((d), ERROR,    err, f, ##a)
-#define nvdev_warn(d,f,a...)  nvdev_printk((d),  WARN, notice, f, ##a)
+#define nvdev_warn(d,f,a...)  nvdev_printk((d),  WARN, analtice, f, ##a)
 #define nvdev_info(d,f,a...)  nvdev_printk((d),  INFO,   info, f, ##a)
 #define nvdev_debug(d,f,a...) nvdev_printk((d), DEBUG,   info, f, ##a)
 #define nvdev_trace(d,f,a...) nvdev_printk((d), TRACE,   info, f, ##a)

@@ -14,19 +14,19 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of IBM nor the names of its contributors
+ * 3. Neither the name of IBM analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL IBM OR
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN ANAL EVENT SHALL IBM OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
  * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
@@ -45,14 +45,14 @@
 
 /*
  * Each virtio-mem device manages a dedicated region in physical address
- * space. Each device can belong to a single NUMA node, multiple devices
- * for a single NUMA node are possible. A virtio-mem device is like a
+ * space. Each device can belong to a single NUMA analde, multiple devices
+ * for a single NUMA analde are possible. A virtio-mem device is like a
  * "resizable DIMM" consisting of small memory blocks that can be plugged
  * or unplugged. The device driver is responsible for (un)plugging memory
  * blocks on demand.
  *
  * Virtio-mem devices can only operate on their assigned memory region in
- * order to (un)plug memory. A device cannot (un)plug memory belonging to
+ * order to (un)plug memory. A device cananalt (un)plug memory belonging to
  * other devices.
  *
  * The "region_size" corresponds to the maximum amount of memory that can
@@ -67,13 +67,13 @@
  * "requested_size" and will grow dynamically. It will only shrink when
  * explicitly triggered (VIRTIO_MEM_REQ_UNPLUG).
  *
- * There are no guarantees what will happen if unplugged memory is
- * read/written. In general, unplugged memory should not be touched, because
+ * There are anal guarantees what will happen if unplugged memory is
+ * read/written. In general, unplugged memory should analt be touched, because
  * the resulting action is undefined. There is one exception: without
  * VIRTIO_MEM_F_UNPLUGGED_INACCESSIBLE, unplugged memory inside the usable
  * region can be read, to simplify creation of memory dumps.
  *
- * It can happen that the device cannot process a request, because it is
+ * It can happen that the device cananalt process a request, because it is
  * busy. The device driver has to retry later.
  *
  * Usually, during system resets all memory will get unplugged, so the
@@ -86,9 +86,9 @@
 
 /* --- virtio-mem: feature bits --- */
 
-/* node_id is an ACPI PXM and is valid */
+/* analde_id is an ACPI PXM and is valid */
 #define VIRTIO_MEM_F_ACPI_PXM		0
-/* unplugged memory must not be accessed */
+/* unplugged memory must analt be accessed */
 #define VIRTIO_MEM_F_UNPLUGGED_INACCESSIBLE	1
 
 
@@ -149,7 +149,7 @@ struct virtio_mem_req {
  */
 #define VIRTIO_MEM_RESP_NACK			1
 /*
- * Request cannot be processed right now, try again later, applicable for
+ * Request cananalt be processed right analw, try again later, applicable for
  * - VIRTIO_MEM_REQ_PLUG
  * - VIRTIO_MEM_REQ_UNPLUG
  * - VIRTIO_MEM_REQ_UNPLUG_ALL
@@ -187,27 +187,27 @@ struct virtio_mem_resp {
 /* --- virtio-mem: configuration --- */
 
 struct virtio_mem_config {
-	/* Block size and alignment. Cannot change. */
+	/* Block size and alignment. Cananalt change. */
 	__le64 block_size;
-	/* Valid with VIRTIO_MEM_F_ACPI_PXM. Cannot change. */
-	__le16 node_id;
+	/* Valid with VIRTIO_MEM_F_ACPI_PXM. Cananalt change. */
+	__le16 analde_id;
 	__u8 padding[6];
-	/* Start address of the memory region. Cannot change. */
+	/* Start address of the memory region. Cananalt change. */
 	__le64 addr;
-	/* Region size (maximum). Cannot change. */
+	/* Region size (maximum). Cananalt change. */
 	__le64 region_size;
 	/*
 	 * Currently usable region size. Can grow up to region_size. Can
-	 * shrink due to VIRTIO_MEM_REQ_UNPLUG_ALL (in which case no config
+	 * shrink due to VIRTIO_MEM_REQ_UNPLUG_ALL (in which case anal config
 	 * update will be sent).
 	 */
 	__le64 usable_region_size;
 	/*
-	 * Currently used size. Changes due to plug/unplug requests, but no
+	 * Currently used size. Changes due to plug/unplug requests, but anal
 	 * config updates will be sent.
 	 */
 	__le64 plugged_size;
-	/* Requested size. New plug requests cannot exceed it. Can change. */
+	/* Requested size. New plug requests cananalt exceed it. Can change. */
 	__le64 requested_size;
 };
 

@@ -107,7 +107,7 @@ ktime_t intel_gt_get_awake_time(const struct intel_gt *gt);
 
 static inline bool is_mock_gt(const struct intel_gt *gt)
 {
-	return I915_SELFTEST_ONLY(gt->awake == -ENODEV);
+	return I915_SELFTEST_ONLY(gt->awake == -EANALDEV);
 }
 
 #endif /* INTEL_GT_PM_H */

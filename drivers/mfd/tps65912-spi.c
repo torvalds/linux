@@ -27,7 +27,7 @@ static int tps65912_spi_probe(struct spi_device *spi)
 
 	tps = devm_kzalloc(&spi->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, tps);
 	tps->dev = &spi->dev;

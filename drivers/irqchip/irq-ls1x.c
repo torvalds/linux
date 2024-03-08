@@ -4,7 +4,7 @@
  *  Loongson-1 platform IRQ support
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -100,8 +100,8 @@ static int ls_intc_set_type(struct irq_data *data, unsigned int type)
 }
 
 
-static int __init ls1x_intc_of_init(struct device_node *node,
-				       struct device_node *parent)
+static int __init ls1x_intc_of_init(struct device_analde *analde,
+				       struct device_analde *parent)
 {
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
@@ -110,33 +110,33 @@ static int __init ls1x_intc_of_init(struct device_node *node,
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	priv->intc_base = of_iomap(node, 0);
+	priv->intc_base = of_iomap(analde, 0);
 	if (!priv->intc_base) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_free_priv;
 	}
 
-	parent_irq = irq_of_parse_and_map(node, 0);
+	parent_irq = irq_of_parse_and_map(analde, 0);
 	if (!parent_irq) {
 		pr_err("ls1x-irq: unable to get parent irq\n");
-		err =  -ENODEV;
+		err =  -EANALDEV;
 		goto out_iounmap;
 	}
 
 	/* Set up an IRQ domain */
-	priv->domain = irq_domain_add_linear(node, 32, &irq_generic_chip_ops,
+	priv->domain = irq_domain_add_linear(analde, 32, &irq_generic_chip_ops,
 					     NULL);
 	if (!priv->domain) {
-		pr_err("ls1x-irq: cannot add IRQ domain\n");
-		err = -ENOMEM;
+		pr_err("ls1x-irq: cananalt add IRQ domain\n");
+		err = -EANALMEM;
 		goto out_iounmap;
 	}
 
 	err = irq_alloc_domain_generic_chips(priv->domain, 32, 2,
-		node->full_name, handle_level_irq,
-		IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN, 0,
+		analde->full_name, handle_level_irq,
+		IRQ_ANALREQUEST | IRQ_ANALPROBE | IRQ_ANALAUTOEN, 0,
 		IRQ_GC_INIT_MASK_CACHE);
 	if (err) {
 		pr_err("ls1x-irq: unable to register IRQ domain\n");

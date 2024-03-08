@@ -18,7 +18,7 @@ enum hgpk_model_t {
 };
 
 enum hgpk_spew_flag {
-	NO_SPEW,
+	ANAL_SPEW,
 	MAYBE_SPEWING,
 	SPEW_DETECTED,
 	RECALIBRATING,

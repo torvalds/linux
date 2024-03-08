@@ -325,7 +325,7 @@ void rtsx_pci_add_cmd(struct rtsx_pcr *pcr,
 }
 EXPORT_SYMBOL_GPL(rtsx_pci_add_cmd);
 
-void rtsx_pci_send_cmd_no_wait(struct rtsx_pcr *pcr)
+void rtsx_pci_send_cmd_anal_wait(struct rtsx_pcr *pcr)
 {
 	u32 val = 1 << 31;
 
@@ -336,7 +336,7 @@ void rtsx_pci_send_cmd_no_wait(struct rtsx_pcr *pcr)
 	val |= 0x40000000;
 	rtsx_pci_writel(pcr, RTSX_HCBCTLR, val);
 }
-EXPORT_SYMBOL_GPL(rtsx_pci_send_cmd_no_wait);
+EXPORT_SYMBOL_GPL(rtsx_pci_send_cmd_anal_wait);
 
 int rtsx_pci_send_cmd(struct rtsx_pcr *pcr, int timeout)
 {
@@ -350,7 +350,7 @@ int rtsx_pci_send_cmd(struct rtsx_pcr *pcr, int timeout)
 
 	/* set up data structures for the wakeup system */
 	pcr->done = &trans_done;
-	pcr->trans_result = TRANS_NOT_READY;
+	pcr->trans_result = TRANS_ANALT_READY;
 	init_completion(&trans_done);
 
 	rtsx_pci_writel(pcr, RTSX_HCBAR, pcr->host_cmds_addr);
@@ -376,8 +376,8 @@ int rtsx_pci_send_cmd(struct rtsx_pcr *pcr, int timeout)
 		err = -EINVAL;
 	else if (pcr->trans_result == TRANS_RESULT_OK)
 		err = 0;
-	else if (pcr->trans_result == TRANS_NO_DEVICE)
-		err = -ENODEV;
+	else if (pcr->trans_result == TRANS_ANAL_DEVICE)
+		err = -EANALDEV;
 	spin_unlock_irqrestore(&pcr->lock, flags);
 
 finish_send_cmd:
@@ -385,7 +385,7 @@ finish_send_cmd:
 	pcr->done = NULL;
 	spin_unlock_irqrestore(&pcr->lock, flags);
 
-	if ((err < 0) && (err != -ENODEV))
+	if ((err < 0) && (err != -EANALDEV))
 		rtsx_pci_stop_cmd(pcr);
 
 	if (pcr->finish_me)
@@ -477,7 +477,7 @@ int rtsx_pci_dma_transfer(struct rtsx_pcr *pcr, struct scatterlist *sglist,
 	u8 dir = read ? DEVICE_TO_HOST : HOST_TO_DEVICE;
 
 	if (pcr->remove_pci)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((sglist == NULL) || (count < 1))
 		return -EINVAL;
@@ -493,7 +493,7 @@ int rtsx_pci_dma_transfer(struct rtsx_pcr *pcr, struct scatterlist *sglist,
 	spin_lock_irqsave(&pcr->lock, flags);
 
 	pcr->done = &trans_done;
-	pcr->trans_result = TRANS_NOT_READY;
+	pcr->trans_result = TRANS_ANALT_READY;
 	init_completion(&trans_done);
 	rtsx_pci_writel(pcr, RTSX_HDBAR, pcr->host_sg_tbl_addr);
 	rtsx_pci_writel(pcr, RTSX_HDBCTLR, val);
@@ -515,8 +515,8 @@ int rtsx_pci_dma_transfer(struct rtsx_pcr *pcr, struct scatterlist *sglist,
 			pcr->dma_error_count++;
 	}
 
-	else if (pcr->trans_result == TRANS_NO_DEVICE)
-		err = -ENODEV;
+	else if (pcr->trans_result == TRANS_ANAL_DEVICE)
+		err = -EANALDEV;
 	spin_unlock_irqrestore(&pcr->lock, flags);
 
 out:
@@ -524,7 +524,7 @@ out:
 	pcr->done = NULL;
 	spin_unlock_irqrestore(&pcr->lock, flags);
 
-	if ((err < 0) && (err != -ENODEV))
+	if ((err < 0) && (err != -EANALDEV))
 		rtsx_pci_stop_cmd(pcr);
 
 	if (pcr->finish_me)
@@ -762,7 +762,7 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 	if (mcu_cnt > 15)
 		mcu_cnt = 15;
 
-	/* Make sure that the SSC clock div_n is not less than MIN_DIV_N_PCR */
+	/* Make sure that the SSC clock div_n is analt less than MIN_DIV_N_PCR */
 	div = CLK_DIV_1;
 	while ((n < MIN_DIV_N_PCR) && (div < CLK_DIV_8)) {
 		if (pcr->ops->conv_clk_and_div_n) {
@@ -796,9 +796,9 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL1, SSC_RSTB, SSC_RSTB);
 	if (vpclk) {
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_VPCLK0_CTL,
-				PHASE_NOT_RESET, 0);
+				PHASE_ANALT_RESET, 0);
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_VPCLK0_CTL,
-				PHASE_NOT_RESET, PHASE_NOT_RESET);
+				PHASE_ANALT_RESET, PHASE_ANALT_RESET);
 	}
 
 	err = rtsx_pci_send_cmd(pcr, 2000);
@@ -842,8 +842,8 @@ int rtsx_pci_card_exclusive_check(struct rtsx_pcr *pcr, int card)
 	};
 
 	if (!(pcr->flags & PCR_MS_PMOS)) {
-		/* When using single PMOS, accessing card is not permitted
-		 * if the existing card is not the designated one.
+		/* When using single PMOS, accessing card is analt permitted
+		 * if the existing card is analt the designated one.
 		 */
 		if (pcr->card_exist & (~cd_mask[card]))
 			return -EIO;
@@ -951,7 +951,7 @@ static void rtsx_pci_process_ocp(struct rtsx_pcr *pcr)
 		if (!pcr->option.ocp_en)
 			return;
 		rtsx_pci_get_ocpstat(pcr, &pcr->ocp_stat);
-		if (pcr->ocp_stat & (SD_OC_NOW | SD_OC_EVER)) {
+		if (pcr->ocp_stat & (SD_OC_ANALW | SD_OC_EVER)) {
 			rtsx_pci_card_power_off(pcr, RTSX_SD_CARD);
 			rtsx_pci_write_register(pcr, CARD_OE, SD_OUTPUT_EN, 0);
 			rtsx_pci_clear_ocpstat(pcr);
@@ -974,7 +974,7 @@ static irqreturn_t rtsx_pci_isr(int irq, void *dev_id)
 	u32 int_reg;
 
 	if (!pcr)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&pcr->lock);
 
@@ -983,7 +983,7 @@ static irqreturn_t rtsx_pci_isr(int irq, void *dev_id)
 	rtsx_pci_writel(pcr, RTSX_BIPR, int_reg);
 	if ((int_reg & pcr->bier) == 0) {
 		spin_unlock(&pcr->lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	if (int_reg == 0xFFFFFFFF) {
 		spin_unlock(&pcr->lock);
@@ -1345,7 +1345,7 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	if (pcr->aspm_mode == ASPM_MODE_REG)
 		rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, 0x30, 0x30);
 
-	/* No CD interrupt if probing driver with card inserted.
+	/* Anal CD interrupt if probing driver with card inserted.
 	 * So we need to initialize pcr->card_exist here.
 	 */
 	if (pcr->ops->cd_deglitch)
@@ -1432,7 +1432,7 @@ static int rtsx_pci_init_chip(struct rtsx_pcr *pcr)
 	pcr->slots = kcalloc(pcr->num_slots, sizeof(struct rtsx_slot),
 			GFP_KERNEL);
 	if (!pcr->slots)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pcr->aspm_mode == ASPM_MODE_CFG) {
 		pcie_capability_read_word(pcr->pci, PCI_EXP_LNKCTL, &cfg_val);
@@ -1540,20 +1540,20 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 
 	pcr = kzalloc(sizeof(*pcr), GFP_KERNEL);
 	if (!pcr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_pci;
 	}
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_pcr;
 	}
 	handle->pcr = pcr;
 
 	idr_preload(GFP_KERNEL);
 	spin_lock(&rtsx_pci_lock);
-	ret = idr_alloc(&rtsx_pci_idr, pcr, 0, 0, GFP_NOWAIT);
+	ret = idr_alloc(&rtsx_pci_idr, pcr, 0, 0, GFP_ANALWAIT);
 	if (ret >= 0)
 		pcr->id = ret;
 	spin_unlock(&rtsx_pci_lock);
@@ -1570,7 +1570,7 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 	base = pci_resource_start(pcidev, bar);
 	pcr->remap_addr = ioremap(base, len);
 	if (!pcr->remap_addr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_idr;
 	}
 
@@ -1752,8 +1752,8 @@ static void rtsx_comm_pm_power_saving(struct rtsx_pcr *pcr)
 	if (option->ltr_enabled) {
 		u32 latency = option->ltr_l1off_latency;
 
-		if (rtsx_check_dev_flag(pcr, L1_SNOOZE_TEST_EN))
-			mdelay(option->l1_snooze_delay);
+		if (rtsx_check_dev_flag(pcr, L1_SANALOZE_TEST_EN))
+			mdelay(option->l1_sanaloze_delay);
 
 		rtsx_set_ltr_latency(pcr, latency);
 	}

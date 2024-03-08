@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <termios.h>
 #include "chan_user.h"
@@ -77,11 +77,11 @@ __uml_setup("xterm=", xterm_setup,
 "    The values are the terminal emulator binary, the switch it uses to set\n"
 "    its title, and the switch it uses to execute a subprocess,\n"
 "    respectively.  The title switch must have the form '<switch> title',\n"
-"    not '<switch>=title'.  Similarly, the exec switch must have the form\n"
+"    analt '<switch>=title'.  Similarly, the exec switch must have the form\n"
 "    '<switch> command arg1 arg2 ...'.\n"
 "    The default values are 'xterm=" CONFIG_XTERM_CHAN_DEFAULT_EMULATOR
      ",-T,-e'.\n"
-"    Values for gnome-terminal are 'xterm=gnome-terminal,-t,-x'.\n\n"
+"    Values for ganalme-terminal are 'xterm=ganalme-terminal,-t,-x'.\n\n"
 );
 
 static int xterm_open(int input, int output, int primary, void *d,
@@ -102,28 +102,28 @@ static int xterm_open(int input, int output, int primary, void *d,
 	 * will work but w/o it we can be pretty sure it won't.
 	 */
 	if (getenv("DISPLAY") == NULL) {
-		printk(UM_KERN_ERR "xterm_open: $DISPLAY not set.\n");
-		return -ENODEV;
+		printk(UM_KERN_ERR "xterm_open: $DISPLAY analt set.\n");
+		return -EANALDEV;
 	}
 
 	/*
 	 * This business of getting a descriptor to a temp file,
 	 * deleting the file and closing the descriptor is just to get
-	 * a known-unused name for the Unix socket that we really
+	 * a kanalwn-unused name for the Unix socket that we really
 	 * want.
 	 */
 	fd = mkstemp(file);
 	if (fd < 0) {
-		err = -errno;
-		printk(UM_KERN_ERR "xterm_open : mkstemp failed, errno = %d\n",
-		       errno);
+		err = -erranal;
+		printk(UM_KERN_ERR "xterm_open : mkstemp failed, erranal = %d\n",
+		       erranal);
 		return err;
 	}
 
 	if (unlink(file)) {
-		err = -errno;
-		printk(UM_KERN_ERR "xterm_open : unlink failed, errno = %d\n",
-		       errno);
+		err = -erranal;
+		printk(UM_KERN_ERR "xterm_open : unlink failed, erranal = %d\n",
+		       erranal);
 		close(fd);
 		return err;
 	}
@@ -132,7 +132,7 @@ static int xterm_open(int input, int output, int primary, void *d,
 	fd = os_create_unix_socket(file, sizeof(file), 1);
 	if (fd < 0) {
 		printk(UM_KERN_ERR "xterm_open : create_unix_socket failed, "
-		       "errno = %d\n", -fd);
+		       "erranal = %d\n", -fd);
 		return fd;
 	}
 
@@ -141,14 +141,14 @@ static int xterm_open(int input, int output, int primary, void *d,
 	if (pid < 0) {
 		err = pid;
 		printk(UM_KERN_ERR "xterm_open : run_helper failed, "
-		       "errno = %d\n", -err);
+		       "erranal = %d\n", -err);
 		goto out_close1;
 	}
 
 	err = os_set_fd_block(fd, 0);
 	if (err < 0) {
 		printk(UM_KERN_ERR "xterm_open : failed to set descriptor "
-		       "non-blocking, err = %d\n", -err);
+		       "analn-blocking, err = %d\n", -err);
 		goto out_kill;
 	}
 
@@ -164,7 +164,7 @@ static int xterm_open(int input, int output, int primary, void *d,
 	err = os_set_fd_block(new, 0);
 	if (err) {
 		printk(UM_KERN_ERR "xterm_open : failed to set xterm "
-		       "descriptor non-blocking, err = %d\n", -err);
+		       "descriptor analn-blocking, err = %d\n", -err);
 		goto out_close2;
 	}
 

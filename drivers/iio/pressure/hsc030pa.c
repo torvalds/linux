@@ -31,7 +31,7 @@
 
 /*
  * HSC_PRESSURE_TRIPLET_LEN - length for the string that defines the
- * pressure range, measurement unit and type as per the part nomenclature.
+ * pressure range, measurement unit and type as per the part analmenclature.
  * Consult honeywell,pressure-triplet in the bindings file for details.
  */
 #define HSC_PRESSURE_TRIPLET_LEN 6
@@ -134,7 +134,7 @@ static const char * const hsc_triplet_variants[HSC_VARIANTS_MAX] = {
 };
 
 /**
- * struct hsc_range_config - list of pressure ranges based on nomenclature
+ * struct hsc_range_config - list of pressure ranges based on analmenclature
  * @pmin: lowest pressure that can be measured
  * @pmax: highest pressure that can be measured
  */
@@ -271,10 +271,10 @@ static const struct hsc_range_config hsc_range_config[HSC_VARIANTS_MAX] = {
  * Return: true only if both status bits are zero
  *
  * the two MSB from the first transfered byte contain a status code
- *   00 - normal operation, valid data
+ *   00 - analrmal operation, valid data
  *   01 - device in factory programming mode
  *   10 - stale data
- *   11 - diagnostic condition
+ *   11 - diaganalstic condition
  */
 static bool hsc_measurement_is_valid(struct hsc_data *data)
 {
@@ -352,7 +352,7 @@ static int hsc_read_raw(struct iio_dev *indio_dev,
 		case IIO_PRESSURE:
 			*val = data->p_scale;
 			*val2 = data->p_scale_dec;
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		default:
 			return -EINVAL;
 		}
@@ -411,7 +411,7 @@ int hsc_common_probe(struct device *dev, hsc_recv_fn recv)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*hsc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hsc = iio_priv(indio_dev);
 
@@ -423,7 +423,7 @@ int hsc_common_probe(struct device *dev, hsc_recv_fn recv)
 				       &hsc->function);
 	if (ret)
 		return dev_err_probe(dev, ret,
-			    "honeywell,transfer-function could not be read\n");
+			    "honeywell,transfer-function could analt be read\n");
 	if (hsc->function > HSC_FUNCTION_F)
 		return dev_err_probe(dev, -EINVAL,
 				     "honeywell,transfer-function %d invalid\n",
@@ -433,20 +433,20 @@ int hsc_common_probe(struct device *dev, hsc_recv_fn recv)
 					  &triplet);
 	if (ret)
 		return dev_err_probe(dev, ret,
-			     "honeywell,pressure-triplet could not be read\n");
+			     "honeywell,pressure-triplet could analt be read\n");
 
 	if (str_has_prefix(triplet, "NA")) {
 		ret = device_property_read_u32(dev, "honeywell,pmin-pascal",
 					       &hsc->pmin);
 		if (ret)
 			return dev_err_probe(dev, ret,
-				  "honeywell,pmin-pascal could not be read\n");
+				  "honeywell,pmin-pascal could analt be read\n");
 
 		ret = device_property_read_u32(dev, "honeywell,pmax-pascal",
 					       &hsc->pmax);
 		if (ret)
 			return dev_err_probe(dev, ret,
-				  "honeywell,pmax-pascal could not be read\n");
+				  "honeywell,pmax-pascal could analt be read\n");
 	} else {
 		ret = device_property_match_property_string(dev,
 						  "honeywell,pressure-triplet",
@@ -473,7 +473,7 @@ int hsc_common_probe(struct device *dev, hsc_recv_fn recv)
 
 	tmp = div_s64(((s64)(hsc->pmax - hsc->pmin)) * MICRO,
 		      hsc->outmax - hsc->outmin);
-	hsc->p_scale = div_s64_rem(tmp, NANO, &hsc->p_scale_dec);
+	hsc->p_scale = div_s64_rem(tmp, NAANAL, &hsc->p_scale_dec);
 	tmp = div_s64(((s64)hsc->pmin * (s64)(hsc->outmax - hsc->outmin)) * MICRO,
 		      hsc->pmax - hsc->pmin);
 	tmp -= (s64)hsc->outmin * MICRO;

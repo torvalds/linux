@@ -282,7 +282,7 @@ static const struct caiaq_controller a8dj_controller[] = {
 	{ "Current input mode",			0 | CNT_INTVAL 	},
 	{ "GND lift for TC Vinyl mode", 	24 + 0 		},
 	{ "GND lift for TC CD/Line mode", 	24 + 1 		},
-	{ "GND lift for phono mode", 		24 + 2 		},
+	{ "GND lift for phoanal mode", 		24 + 2 		},
 	{ "Software lock", 			40 		}
 };
 
@@ -563,7 +563,7 @@ static const struct caiaq_controller maschine_controller[] = {
 	{ "LED: Top Button 7",			51 | CNT_INTVAL },
 	{ "LED: Top Button 8",			50 | CNT_INTVAL },
 
-	{ "LED: Note Repeat",			58 | CNT_INTVAL },
+	{ "LED: Analte Repeat",			58 | CNT_INTVAL },
 
 	{ "Backlight Display",			59 | CNT_INTVAL }
 };

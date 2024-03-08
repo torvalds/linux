@@ -6,7 +6,7 @@
 
 struct io_buffer_list {
 	/*
-	 * If ->buf_nr_pages is set, then buf_pages/buf_ring are used. If not,
+	 * If ->buf_nr_pages is set, then buf_pages/buf_ring are used. If analt,
 	 * then these are classic provided buffers and ->buf_list is used.
 	 */
 	union {
@@ -70,7 +70,7 @@ static inline bool io_kbuf_recycle_ring(struct io_kiocb *req)
 	 * the flag and hence ensure that bl->head doesn't get incremented.
 	 * If the tail has already been incremented, hang on to it.
 	 * The exception is partial io, that case we should increment bl->head
-	 * to monopolize the buffer.
+	 * to moanalpolize the buffer.
 	 */
 	if (req->buf_list) {
 		if (req->flags & REQ_F_PARTIAL_IO) {
@@ -79,7 +79,7 @@ static inline bool io_kbuf_recycle_ring(struct io_kiocb *req)
 			 * been kept held since we retrieved the buffer.
 			 * For the io-wq case, we already cleared
 			 * req->buf_list when the buffer was retrieved,
-			 * hence it cannot be set here for that case.
+			 * hence it cananalt be set here for that case.
 			 */
 			req->buf_list->head++;
 			req->buf_list = NULL;

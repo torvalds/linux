@@ -10,15 +10,15 @@
 #include "xe_macros.h"
 #include "xe_range_fence.h"
 
-#define XE_RANGE_TREE_START(_node)	((_node)->start)
-#define XE_RANGE_TREE_LAST(_node)	((_node)->last)
+#define XE_RANGE_TREE_START(_analde)	((_analde)->start)
+#define XE_RANGE_TREE_LAST(_analde)	((_analde)->last)
 
 INTERVAL_TREE_DEFINE(struct xe_range_fence, rb, u64, __subtree_last,
 		     XE_RANGE_TREE_START, XE_RANGE_TREE_LAST, static,
 		     xe_range_fence_tree);
 
 static void
-xe_range_fence_signal_notify(struct dma_fence *fence, struct dma_fence_cb *cb)
+xe_range_fence_signal_analtify(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
 	struct xe_range_fence *rfence = container_of(cb, typeof(*rfence), cb);
 	struct xe_range_fence_tree *tree = rfence->tree;
@@ -28,16 +28,16 @@ xe_range_fence_signal_notify(struct dma_fence *fence, struct dma_fence_cb *cb)
 
 static bool __xe_range_fence_tree_cleanup(struct xe_range_fence_tree *tree)
 {
-	struct llist_node *node = llist_del_all(&tree->list);
+	struct llist_analde *analde = llist_del_all(&tree->list);
 	struct xe_range_fence *rfence, *next;
 
-	llist_for_each_entry_safe(rfence, next, node, link) {
+	llist_for_each_entry_safe(rfence, next, analde, link) {
 		xe_range_fence_tree_remove(rfence, &tree->root);
 		dma_fence_put(rfence->fence);
 		kfree(rfence);
 	}
 
-	return !!node;
+	return !!analde;
 }
 
 /**
@@ -49,7 +49,7 @@ static bool __xe_range_fence_tree_cleanup(struct xe_range_fence_tree *tree)
  * @last: last address of range fence
  * @fence: dma fence which signals range fence can be removed + freed
  *
- * Return: 0 on success, non-zero on failure
+ * Return: 0 on success, analn-zero on failure
  */
 int xe_range_fence_insert(struct xe_range_fence_tree *tree,
 			  struct xe_range_fence *rfence,
@@ -69,8 +69,8 @@ int xe_range_fence_insert(struct xe_range_fence_tree *tree,
 	rfence->tree = tree;
 	rfence->fence = dma_fence_get(fence);
 	err = dma_fence_add_callback(fence, &rfence->cb,
-				     xe_range_fence_signal_notify);
-	if (err == -ENOENT) {
+				     xe_range_fence_signal_analtify);
+	if (err == -EANALENT) {
 		dma_fence_put(fence);
 		err = 0;
 		goto free;

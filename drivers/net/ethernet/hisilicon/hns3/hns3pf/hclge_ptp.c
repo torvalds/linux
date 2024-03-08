@@ -15,7 +15,7 @@ static int hclge_ptp_get_cycle(struct hclge_dev *hdev)
 	ptp->cycle.den = readl(hdev->ptp->io_base + HCLGE_PTP_CYCLE_DEN_REG);
 
 	if (ptp->cycle.den == 0) {
-		dev_err(&hdev->pdev->dev, "invalid ptp cycle denominator!\n");
+		dev_err(&hdev->pdev->dev, "invalid ptp cycle deanalminator!\n");
 		return -EINVAL;
 	}
 
@@ -34,8 +34,8 @@ static int hclge_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	adj_val = adjust_by_scaled_ppm(adj_base, scaled_ppm);
 
 	/* This clock cycle is defined by three part: quotient, numerator
-	 * and denominator. For example, 2.5ns, the quotient is 2,
-	 * denominator is fixed to ptp->cycle.den, and numerator
+	 * and deanalminator. For example, 2.5ns, the quotient is 2,
+	 * deanalminator is fixed to ptp->cycle.den, and numerator
 	 * is 0.5 * ptp->cycle.den.
 	 */
 	quo = div_u64_rem(adj_val, cycle->den, &numerator);
@@ -111,8 +111,8 @@ void hclge_ptp_get_rx_hwts(struct hnae3_handle *handle, struct sk_buff *skb,
 	if (!test_bit(HCLGE_PTP_FLAG_RX_EN, &hdev->ptp->flags))
 		return;
 
-	/* Since the BD does not have enough space for the higher 16 bits of
-	 * second, and this part will not change frequently, so read it
+	/* Since the BD does analt have eanalugh space for the higher 16 bits of
+	 * second, and this part will analt change frequently, so read it
 	 * from register.
 	 */
 	spin_lock_irqsave(&hdev->ptp->lock, flags);
@@ -203,7 +203,7 @@ static int hclge_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 int hclge_ptp_get_cfg(struct hclge_dev *hdev, struct ifreq *ifr)
 {
 	if (!test_bit(HCLGE_STATE_PTP_EN, &hdev->state))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return copy_to_user(ifr->ifr_data, &hdev->ptp->ts_cfg,
 		sizeof(struct hwtstamp_config)) ? -EFAULT : 0;
@@ -289,7 +289,7 @@ static int hclge_ptp_set_rx_mode(struct hwtstamp_config *cfg,
 	int rx_filter = cfg->rx_filter;
 
 	switch (cfg->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		clear_bit(HCLGE_PTP_FLAG_RX_EN, flags);
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
@@ -362,7 +362,7 @@ int hclge_ptp_set_cfg(struct hclge_dev *hdev, struct ifreq *ifr)
 
 	if (!test_bit(HCLGE_STATE_PTP_EN, &hdev->state)) {
 		dev_err(&hdev->pdev->dev, "phc is unsupported\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
@@ -385,7 +385,7 @@ int hclge_ptp_get_ts_info(struct hnae3_handle *handle,
 
 	if (!test_bit(HCLGE_STATE_PTP_EN, &hdev->state)) {
 		dev_err(&hdev->pdev->dev, "phc is unsupported\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
@@ -402,7 +402,7 @@ int hclge_ptp_get_ts_info(struct hnae3_handle *handle,
 
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON);
 
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) |
 			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
 			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
 			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ);
@@ -425,7 +425,7 @@ static int hclge_ptp_create_clock(struct hclge_dev *hdev)
 
 	ptp = devm_kzalloc(&hdev->pdev->dev, sizeof(*ptp), GFP_KERNEL);
 	if (!ptp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptp->hdev = hdev;
 	snprintf(ptp->info.name, sizeof(ptp->info.name), "%s",
@@ -445,15 +445,15 @@ static int hclge_ptp_create_clock(struct hclge_dev *hdev)
 		dev_err(&hdev->pdev->dev,
 			"%d failed to register ptp clock, ret = %ld\n",
 			ptp->info.n_alarm, PTR_ERR(ptp->clock));
-		return -ENODEV;
+		return -EANALDEV;
 	} else if (!ptp->clock) {
 		dev_err(&hdev->pdev->dev, "failed to register ptp clock\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spin_lock_init(&ptp->lock);
 	ptp->io_base = hdev->hw.hw.io_base + HCLGE_PTP_REG_OFFSET;
-	ptp->ts_cfg.rx_filter = HWTSTAMP_FILTER_NONE;
+	ptp->ts_cfg.rx_filter = HWTSTAMP_FILTER_ANALNE;
 	ptp->ts_cfg.tx_type = HWTSTAMP_TX_OFF;
 	hdev->ptp = ptp;
 
@@ -535,7 +535,7 @@ void hclge_ptp_uninit(struct hclge_dev *hdev)
 	hclge_ptp_int_en(hdev, false);
 	clear_bit(HCLGE_STATE_PTP_EN, &hdev->state);
 	clear_bit(HCLGE_PTP_FLAG_EN, &ptp->flags);
-	ptp->ts_cfg.rx_filter = HWTSTAMP_FILTER_NONE;
+	ptp->ts_cfg.rx_filter = HWTSTAMP_FILTER_ANALNE;
 	ptp->ts_cfg.tx_type = HWTSTAMP_TX_OFF;
 
 	if (hclge_ptp_set_ts_mode(hdev, &ptp->ts_cfg))

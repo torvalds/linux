@@ -18,7 +18,7 @@ static bool cross_area(u64 addr1, u64 addr2, int size)
 void branch_type_count(struct branch_type_stat *st, struct branch_flags *flags,
 		       u64 from, u64 to)
 {
-	if (flags->type == PERF_BR_UNKNOWN || from == 0)
+	if (flags->type == PERF_BR_UNKANALWN || from == 0)
 		return;
 
 	if (flags->type == PERF_BR_EXTEND_ABI)
@@ -88,7 +88,7 @@ const char *branch_type_name(int type)
 		"ERET",
 		"IRQ",
 		"SERROR",
-		"NO_TX",
+		"ANAL_TX",
 		"", // Needed for PERF_BR_EXTEND_ABI that ends up triggering some compiler warnings about NULL deref
 	};
 
@@ -100,7 +100,7 @@ const char *branch_type_name(int type)
 
 const char *get_branch_type(struct branch_entry *e)
 {
-	if (e->flags.type == PERF_BR_UNKNOWN)
+	if (e->flags.type == PERF_BR_UNKANALWN)
 		return "";
 
 	if (e->flags.type == PERF_BR_EXTEND_ABI)
@@ -218,7 +218,7 @@ const char *branch_spec_desc(int spec)
 	const char *branch_spec_outcomes[PERF_BR_SPEC_MAX] = {
 		"N/A",
 		"SPEC_WRONG_PATH",
-		"NON_SPEC_CORRECT_PATH",
+		"ANALN_SPEC_CORRECT_PATH",
 		"SPEC_CORRECT_PATH",
 	};
 

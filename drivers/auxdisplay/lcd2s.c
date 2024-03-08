@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *  Console driver for LCD2S 4x20 character displays connected through i2c.
- *  The display also has a SPI interface, but the driver does not support
+ *  The display also has a SPI interface, but the driver does analt support
  *  this yet.
  *
  *  This is a driver allowing you to use a LCD2S 4x20 from Modtronix
@@ -160,7 +160,7 @@ static int lcd2s_shift_display(struct charlcd *lcd, enum charlcd_shift_dir dir)
 	return 0;
 }
 
-static void lcd2s_backlight(struct charlcd *lcd, enum charlcd_onoff on)
+static void lcd2s_backlight(struct charlcd *lcd, enum charlcd_oanalff on)
 {
 	struct lcd2s_data *lcd2s = lcd->drvdata;
 
@@ -170,7 +170,7 @@ static void lcd2s_backlight(struct charlcd *lcd, enum charlcd_onoff on)
 		lcd2s_i2c_smbus_write_byte(lcd2s->i2c, LCD2S_CMD_BACKLIGHT_OFF);
 }
 
-static int lcd2s_display(struct charlcd *lcd, enum charlcd_onoff on)
+static int lcd2s_display(struct charlcd *lcd, enum charlcd_oanalff on)
 {
 	struct lcd2s_data *lcd2s = lcd->drvdata;
 
@@ -182,7 +182,7 @@ static int lcd2s_display(struct charlcd *lcd, enum charlcd_onoff on)
 	return 0;
 }
 
-static int lcd2s_cursor(struct charlcd *lcd, enum charlcd_onoff on)
+static int lcd2s_cursor(struct charlcd *lcd, enum charlcd_oanalff on)
 {
 	struct lcd2s_data *lcd2s = lcd->drvdata;
 
@@ -194,7 +194,7 @@ static int lcd2s_cursor(struct charlcd *lcd, enum charlcd_onoff on)
 	return 0;
 }
 
-static int lcd2s_blink(struct charlcd *lcd, enum charlcd_onoff on)
+static int lcd2s_blink(struct charlcd *lcd, enum charlcd_oanalff on)
 {
 	struct lcd2s_data *lcd2s = lcd->drvdata;
 
@@ -300,7 +300,7 @@ static int lcd2s_i2c_probe(struct i2c_client *i2c)
 
 	lcd2s = devm_kzalloc(&i2c->dev, sizeof(*lcd2s), GFP_KERNEL);
 	if (!lcd2s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Test, if the display is responding */
 	err = lcd2s_i2c_smbus_write_byte(i2c, LCD2S_CMD_DISPLAY_OFF);
@@ -309,7 +309,7 @@ static int lcd2s_i2c_probe(struct i2c_client *i2c)
 
 	lcd = charlcd_alloc();
 	if (!lcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lcd->drvdata = lcd2s;
 	lcd2s->i2c = i2c;

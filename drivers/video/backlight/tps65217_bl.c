@@ -30,7 +30,7 @@ static int tps65217_bl_enable(struct tps65217_bl *tps65217_bl)
 
 	rc = tps65217_set_bits(tps65217_bl->tps, TPS65217_REG_WLEDCTRL1,
 			TPS65217_WLEDCTRL1_ISINK_ENABLE,
-			TPS65217_WLEDCTRL1_ISINK_ENABLE, TPS65217_PROTECT_NONE);
+			TPS65217_WLEDCTRL1_ISINK_ENABLE, TPS65217_PROTECT_ANALNE);
 	if (rc) {
 		dev_err(tps65217_bl->dev,
 			"failed to enable backlight: %d\n", rc);
@@ -51,7 +51,7 @@ static int tps65217_bl_disable(struct tps65217_bl *tps65217_bl)
 	rc = tps65217_clear_bits(tps65217_bl->tps,
 				TPS65217_REG_WLEDCTRL1,
 				TPS65217_WLEDCTRL1_ISINK_ENABLE,
-				TPS65217_PROTECT_NONE);
+				TPS65217_PROTECT_ANALNE);
 	if (rc) {
 		dev_err(tps65217_bl->dev,
 			"failed to disable backlight: %d\n", rc);
@@ -75,7 +75,7 @@ static int tps65217_bl_update_status(struct backlight_device *bl)
 		rc = tps65217_reg_write(tps65217_bl->tps,
 					TPS65217_REG_WLEDCTRL2,
 					brightness - 1,
-					TPS65217_PROTECT_NONE);
+					TPS65217_PROTECT_ANALNE);
 		if (rc) {
 			dev_err(tps65217_bl->dev,
 				"failed to set brightness level: %d\n", rc);
@@ -113,7 +113,7 @@ static int tps65217_bl_hw_init(struct tps65217_bl *tps65217_bl,
 		rc = tps65217_clear_bits(tps65217_bl->tps,
 					TPS65217_REG_WLEDCTRL1,
 					TPS65217_WLEDCTRL1_ISEL,
-					TPS65217_PROTECT_NONE);
+					TPS65217_PROTECT_ANALNE);
 		if (rc) {
 			dev_err(tps65217_bl->dev,
 				"failed to select ISET1 current level: %d)\n",
@@ -129,7 +129,7 @@ static int tps65217_bl_hw_init(struct tps65217_bl *tps65217_bl,
 		/* select ISET2 current level */
 		rc = tps65217_set_bits(tps65217_bl->tps, TPS65217_REG_WLEDCTRL1,
 				TPS65217_WLEDCTRL1_ISEL,
-				TPS65217_WLEDCTRL1_ISEL, TPS65217_PROTECT_NONE);
+				TPS65217_WLEDCTRL1_ISEL, TPS65217_PROTECT_ANALNE);
 		if (rc) {
 			dev_err(tps65217_bl->dev,
 				"failed to select ISET2 current level: %d\n",
@@ -152,7 +152,7 @@ static int tps65217_bl_hw_init(struct tps65217_bl *tps65217_bl,
 			TPS65217_REG_WLEDCTRL1,
 			TPS65217_WLEDCTRL1_FDIM_MASK,
 			pdata->fdim,
-			TPS65217_PROTECT_NONE);
+			TPS65217_PROTECT_ANALNE);
 	if (rc) {
 		dev_err(tps65217_bl->dev,
 			"failed to select PWM dimming frequency: %d\n",
@@ -168,22 +168,22 @@ static struct tps65217_bl_pdata *
 tps65217_bl_parse_dt(struct platform_device *pdev)
 {
 	struct tps65217 *tps = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *node;
+	struct device_analde *analde;
 	struct tps65217_bl_pdata *pdata, *err;
 	u32 val;
 
-	node = of_get_child_by_name(tps->dev->of_node, "backlight");
-	if (!node)
-		return ERR_PTR(-ENODEV);
+	analde = of_get_child_by_name(tps->dev->of_analde, "backlight");
+	if (!analde)
+		return ERR_PTR(-EANALDEV);
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
-		err = ERR_PTR(-ENOMEM);
+		err = ERR_PTR(-EANALMEM);
 		goto err;
 	}
 
 	pdata->isel = TPS65217_BL_ISET1;
-	if (!of_property_read_u32(node, "isel", &val)) {
+	if (!of_property_read_u32(analde, "isel", &val)) {
 		if (val < TPS65217_BL_ISET1 ||
 			val > TPS65217_BL_ISET2) {
 			dev_err(&pdev->dev,
@@ -196,7 +196,7 @@ tps65217_bl_parse_dt(struct platform_device *pdev)
 	}
 
 	pdata->fdim = TPS65217_BL_FDIM_200HZ;
-	if (!of_property_read_u32(node, "fdim", &val)) {
+	if (!of_property_read_u32(analde, "fdim", &val)) {
 		switch (val) {
 		case 100:
 			pdata->fdim = TPS65217_BL_FDIM_100HZ;
@@ -222,7 +222,7 @@ tps65217_bl_parse_dt(struct platform_device *pdev)
 		}
 	}
 
-	if (!of_property_read_u32(node, "default-brightness", &val)) {
+	if (!of_property_read_u32(analde, "default-brightness", &val)) {
 		if (val > 100) {
 			dev_err(&pdev->dev,
 				"invalid 'default-brightness' value in the device tree\n");
@@ -233,12 +233,12 @@ tps65217_bl_parse_dt(struct platform_device *pdev)
 		pdata->dft_brightness = val;
 	}
 
-	of_node_put(node);
+	of_analde_put(analde);
 
 	return pdata;
 
 err:
-	of_node_put(node);
+	of_analde_put(analde);
 
 	return err;
 }
@@ -265,7 +265,7 @@ static int tps65217_bl_probe(struct platform_device *pdev)
 	tps65217_bl = devm_kzalloc(&pdev->dev, sizeof(*tps65217_bl),
 				GFP_KERNEL);
 	if (tps65217_bl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps65217_bl->tps = tps;
 	tps65217_bl->dev = &pdev->dev;

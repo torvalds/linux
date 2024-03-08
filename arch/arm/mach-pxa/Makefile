@@ -16,7 +16,7 @@ obj-$(CONFIG_PXA3xx)		+= mfp-pxa3xx.o pxa3xx.o smemc.o
 obj-$(CONFIG_CPU_PXA300)	+= pxa300.o
 obj-$(CONFIG_CPU_PXA320)	+= pxa320.o
 
-# NOTE: keep the order of boards in accordance to their order in Kconfig
+# ANALTE: keep the order of boards in accordance to their order in Kconfig
 
 # Device Tree support
 obj-$(CONFIG_MACH_PXA25X_DT)	+= pxa-dt.o

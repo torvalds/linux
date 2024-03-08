@@ -20,7 +20,7 @@ struct user_struct {
 	atomic_long_t pipe_bufs;  /* how many pages are allocated in pipe buffers */
 
 	/* Hash table maintenance information */
-	struct hlist_node uidhash_node;
+	struct hlist_analde uidhash_analde;
 	kuid_t uid;
 
 #if defined(CONFIG_PERF_EVENTS) || defined(CONFIG_BPF_SYSCALL) || \

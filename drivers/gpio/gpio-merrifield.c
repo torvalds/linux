@@ -92,7 +92,7 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	priv->reg_base = pcim_iomap_table(pdev)[0];
@@ -101,7 +101,7 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	priv->pin_info.nranges = ARRAY_SIZE(mrfld_gpio_ranges);
 	priv->pin_info.name = mrfld_gpio_get_pinctrl_dev_name(priv);
 	if (!priv->pin_info.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->info.base = gpio_base;
 	priv->info.ngpio = MRFLD_NGPIO;

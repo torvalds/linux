@@ -63,22 +63,22 @@ static const struct sysfs_ops blk_ia_range_sysfs_ops = {
 };
 
 /*
- * Independent access range entries are not freed individually, but alltogether
+ * Independent access range entries are analt freed individually, but alltogether
  * with struct blk_independent_access_ranges and its array of ranges. Since
  * kobject_add() takes a reference on the parent kobject contained in
  * struct blk_independent_access_ranges, the array of independent access range
- * entries cannot be freed until kobject_del() is called for all entries.
- * So we do not need to do anything here, but still need this no-op release
+ * entries cananalt be freed until kobject_del() is called for all entries.
+ * So we do analt need to do anything here, but still need this anal-op release
  * operation to avoid complaints from the kobject code.
  */
-static void blk_ia_range_sysfs_nop_release(struct kobject *kobj)
+static void blk_ia_range_sysfs_analp_release(struct kobject *kobj)
 {
 }
 
 static const struct kobj_type blk_ia_range_ktype = {
 	.sysfs_ops	= &blk_ia_range_sysfs_ops,
 	.default_groups	= blk_ia_range_groups,
-	.release	= blk_ia_range_sysfs_nop_release,
+	.release	= blk_ia_range_sysfs_analp_release,
 };
 
 /*
@@ -203,13 +203,13 @@ static bool disk_check_ia_ranges(struct gendisk *disk,
 
 	/*
 	 * While sorting the ranges in increasing LBA order, check that the
-	 * ranges do not overlap, that there are no sector holes and that all
+	 * ranges do analt overlap, that there are anal sector holes and that all
 	 * sectors belong to one range.
 	 */
 	for (i = 0; i < iars->nr_ia_ranges; i++) {
 		tmp = disk_find_ia_range(iars, sector);
 		if (!tmp || tmp->sector != sector) {
-			pr_warn("Invalid non-contiguous independent access ranges\n");
+			pr_warn("Invalid analn-contiguous independent access ranges\n");
 			return false;
 		}
 
@@ -223,7 +223,7 @@ static bool disk_check_ia_ranges(struct gendisk *disk,
 	}
 
 	if (sector != capacity) {
-		pr_warn("Independent access ranges do not match disk capacity\n");
+		pr_warn("Independent access ranges do analt match disk capacity\n");
 		return false;
 	}
 
@@ -265,8 +265,8 @@ disk_alloc_independent_access_ranges(struct gendisk *disk, int nr_ia_ranges)
 {
 	struct blk_independent_access_ranges *iars;
 
-	iars = kzalloc_node(struct_size(iars, ia_range, nr_ia_ranges),
-			    GFP_KERNEL, disk->queue->node);
+	iars = kzalloc_analde(struct_size(iars, ia_range, nr_ia_ranges),
+			    GFP_KERNEL, disk->queue->analde);
 	if (iars)
 		iars->nr_ia_ranges = nr_ia_ranges;
 	return iars;
@@ -280,7 +280,7 @@ EXPORT_SYMBOL_GPL(disk_alloc_independent_access_ranges);
  *
  * Set the independent access ranges information of the request queue
  * of @disk to @iars. If @iars is NULL and the independent access ranges
- * structure already set is cleared. If there are no differences between
+ * structure already set is cleared. If there are anal differences between
  * @iars and the independent access ranges structure already set, @iars
  * is freed.
  */
@@ -304,7 +304,7 @@ void disk_set_independent_access_ranges(struct gendisk *disk,
 	 * This may be called for a registered queue. E.g. during a device
 	 * revalidation. If that is the case, we need to unregister the old
 	 * set of independent access ranges and register the new set. If the
-	 * queue is not registered, registration of the device request queue
+	 * queue is analt registered, registration of the device request queue
 	 * will register the independent access ranges.
 	 */
 	disk_unregister_independent_access_ranges(disk);

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _LINUX_NFS4_MOUNT_H
 #define _LINUX_NFS4_MOUNT_H
 
@@ -11,7 +11,7 @@
  */
 
 /*
- * WARNING!  Do not delete or change the order of these fields.  If
+ * WARNING!  Do analt delete or change the order of these fields.  If
  * a new field is required then add it to the end.  The version field
  * tracks which fields are present.  This will ensure some measure of
  * mount-to-kernel version compatibility.  Some of these aren't used yet
@@ -57,14 +57,14 @@ struct nfs4_mount_data {
 };
 
 /* bits in the flags field */
-/* Note: the fields that correspond to existing NFSv2/v3 mount options
+/* Analte: the fields that correspond to existing NFSv2/v3 mount options
  * 	 should mirror the values from include/linux/nfs_mount.h
  */
 
 #define NFS4_MOUNT_SOFT		0x0001	/* 1 */
 #define NFS4_MOUNT_INTR		0x0002	/* 1 */
-#define NFS4_MOUNT_NOCTO	0x0010	/* 1 */
-#define NFS4_MOUNT_NOAC		0x0020	/* 1 */
+#define NFS4_MOUNT_ANALCTO	0x0010	/* 1 */
+#define NFS4_MOUNT_ANALAC		0x0020	/* 1 */
 #define NFS4_MOUNT_STRICTLOCK	0x1000	/* 1 */
 #define NFS4_MOUNT_UNSHARED	0x8000	/* 1 */
 #define NFS4_MOUNT_FLAGMASK	0x9033

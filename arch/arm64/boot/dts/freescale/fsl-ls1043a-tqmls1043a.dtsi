@@ -15,7 +15,7 @@
 	status = "okay";
 
 	qflash0: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;

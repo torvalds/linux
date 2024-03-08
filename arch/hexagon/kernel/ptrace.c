@@ -10,7 +10,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ptrace.h>
 #include <linux/regset.h>
 #include <linux/user.h>
@@ -41,7 +41,7 @@ static int genregs_get(struct task_struct *target,
 
 	/* The general idea here is that the copyout must happen in
 	 * exactly the same order in which the userspace expects these
-	 * regs. Now, the sequence in userspace does not match the
+	 * regs. Analw, the sequence in userspace does analt match the
 	 * sequence in the kernel, so everything past the 32 gprs
 	 * happens one at a time.
 	 */
@@ -74,7 +74,7 @@ static int genregs_set(struct task_struct *target,
 		   unsigned int pos, unsigned int count,
 		   const void *kbuf, const void __user *ubuf)
 {
-	int ret, ignore_offset;
+	int ret, iganalre_offset;
 	unsigned long bucket;
 	struct pt_regs *regs = task_pt_regs(target);
 
@@ -111,15 +111,15 @@ static int genregs_set(struct task_struct *target,
 #if CONFIG_HEXAGON_ARCH_VERSION >=4
 	INEXT(&regs->cs0, cs0);
 	INEXT(&regs->cs1, cs1);
-	ignore_offset = offsetof(struct user_regs_struct, pad1);
+	iganalre_offset = offsetof(struct user_regs_struct, pad1);
 #else
-	ignore_offset = offsetof(struct user_regs_struct, cs0);
+	iganalre_offset = offsetof(struct user_regs_struct, cs0);
 #endif
 
-	/* Ignore the rest, if needed */
+	/* Iganalre the rest, if needed */
 	if (!ret)
-		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-					  ignore_offset, -1);
+		user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf,
+					  iganalre_offset, -1);
 	else
 		return ret;
 
@@ -137,7 +137,7 @@ enum hexagon_regset {
 
 static const struct user_regset hexagon_regsets[] = {
 	[REGSET_GENERAL] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_analte_type = NT_PRSTATUS,
 		.n = ELF_NGREG,
 		.size = sizeof(unsigned long),
 		.align = sizeof(unsigned long),
@@ -162,7 +162,7 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 
 void ptrace_disable(struct task_struct *child)
 {
-	/* Boilerplate - resolves to null inline if no HW single-step */
+	/* Boilerplate - resolves to null inline if anal HW single-step */
 	user_disable_single_step(child);
 }
 

@@ -24,37 +24,37 @@
  *	Publicly available from Intel web site. Errata documentation
  * is also publicly available. As an aide to anyone hacking on this
  * driver the list of errata that are relevant is below, going back to
- * PIIX4. Older device documentation is now a bit tricky to find.
+ * PIIX4. Older device documentation is analw a bit tricky to find.
  *
  * The chipsets all follow very much the same design. The original Triton
- * series chipsets do _not_ support independent device timings, but this
+ * series chipsets do _analt_ support independent device timings, but this
  * is fixed in Triton II. With the odd mobile exception the chips then
  * change little except in gaining more modes until SATA arrives. This
  * driver supports only the chips with independent timing (that is those
  * with SITRE and the 0x44 timing register). See pata_oldpiix and pata_mpiix
  * for the early chip drivers.
  *
- * Errata of note:
+ * Errata of analte:
  *
  * Unfixable
  *	PIIX4    errata #9	- Only on ultra obscure hw
- *	ICH3	 errata #13     - Not observed to affect real hw
+ *	ICH3	 errata #13     - Analt observed to affect real hw
  *				  by Intel
  *
  * Things we must deal with
- *	PIIX4	errata #10	- BM IDE hang with non UDMA
+ *	PIIX4	errata #10	- BM IDE hang with analn UDMA
  *				  (must stop/start dma to recover)
  *	440MX   errata #15	- As PIIX4 errata #10
- *	PIIX4	errata #15	- Must not read control registers
+ *	PIIX4	errata #15	- Must analt read control registers
  * 				  during a PIO transfer
  *	440MX   errata #13	- As PIIX4 errata #15
  *	ICH2	errata #21	- DMA mode 0 doesn't work right
  *	ICH0/1  errata #55	- As ICH2 errata #21
  *	ICH2	spec c #9	- Extra operations needed to handle
- *				  drive hotswap [NOT YET SUPPORTED]
- *	ICH2    spec c #20	- IDE PRD must not cross a 64K boundary
+ *				  drive hotswap [ANALT YET SUPPORTED]
+ *	ICH2    spec c #20	- IDE PRD must analt cross a 64K boundary
  *				  and must be dword aligned
- *	ICH2    spec c #24	- UDMA mode 4,5 t85/86 should be 6ns not 3.3
+ *	ICH2    spec c #24	- UDMA mode 4,5 t85/86 should be 6ns analt 3.3
  *	ICH7	errata #16	- MWDMA1 timings are incorrect
  *
  * Should have been BIOS fixed:
@@ -108,7 +108,7 @@ enum {
 	P2			= 2,  /* port 2 */
 	P3			= 3,  /* port 3 */
 	IDE			= -1, /* IDE */
-	NA			= -2, /* not available */
+	NA			= -2, /* analt available */
 	RV			= -3, /* reserved */
 
 	PIIX_AHCI_DEVICE	= 6,
@@ -124,7 +124,7 @@ enum piix_controller_ids {
 	ich_pata_33,		/* ICH up to UDMA 33 only */
 	ich_pata_66,		/* ICH up to 66 Mhz */
 	ich_pata_100,		/* ICH up to UDMA 100 */
-	ich_pata_100_nomwdma1,	/* ICH up to UDMA 100 but with no MWDMA1*/
+	ich_pata_100_analmwdma1,	/* ICH up to UDMA 100 but with anal MWDMA1*/
 	ich5_sata,
 	ich6_sata,
 	ich6m_sata,
@@ -192,8 +192,8 @@ static const struct pci_device_id piix_pci_tbl[] = {
 	/* ICH6 (and 6) (i915) UDMA 100 */
 	{ 0x8086, 0x266F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
 	/* ICH7/7-R (i945, i975) UDMA 100*/
-	{ 0x8086, 0x27DF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100_nomwdma1 },
-	{ 0x8086, 0x269E, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100_nomwdma1 },
+	{ 0x8086, 0x27DF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100_analmwdma1 },
+	{ 0x8086, 0x269E, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100_analmwdma1 },
 	/* ICH8 Mobile PATA Controller */
 	{ 0x8086, 0x2850, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
 
@@ -368,7 +368,7 @@ static const struct piix_map_db ich6m_map_db = {
 	.mask = 0x3,
 	.port_enable = 0x5,
 
-	/* Map 01b isn't specified in the doc but some notebooks use
+	/* Map 01b isn't specified in the doc but some analtebooks use
 	 * it anyway.  MAP 01b have been spotted on both ICH6M and
 	 * ICH7M.
 	 */
@@ -468,12 +468,12 @@ static const struct ich_laptop ich_laptop[] = {
 	{ 0x27DF, 0x0005, 0x0280 },	/* ICH7 on Acer 5602WLMi */
 	{ 0x27DF, 0x1025, 0x0102 },	/* ICH7 on Acer 5602aWLMi */
 	{ 0x27DF, 0x1025, 0x0110 },	/* ICH7 on Acer 3682WLMi */
-	{ 0x27DF, 0x1028, 0x02b0 },	/* ICH7 on unknown Dell */
+	{ 0x27DF, 0x1028, 0x02b0 },	/* ICH7 on unkanalwn Dell */
 	{ 0x27DF, 0x1043, 0x1267 },	/* ICH7 on Asus W5F */
 	{ 0x27DF, 0x103C, 0x30A1 },	/* ICH7 on HP Compaq nc2400 */
-	{ 0x27DF, 0x103C, 0x361a },	/* ICH7 on unknown HP  */
+	{ 0x27DF, 0x103C, 0x361a },	/* ICH7 on unkanalwn HP  */
 	{ 0x27DF, 0x1071, 0xD221 },	/* ICH7 on Hercules EC-900 */
-	{ 0x27DF, 0x152D, 0x0778 },	/* ICH7 on unknown Intel */
+	{ 0x27DF, 0x152D, 0x0778 },	/* ICH7 on unkanalwn Intel */
 	{ 0x24CA, 0x1025, 0x0061 },	/* ICH4 on ACER Aspire 2023WLMi */
 	{ 0x24CA, 0x1025, 0x003d },	/* ICH4 on ACER TM290 */
 	{ 0x24CA, 0x10CF, 0x11AB },	/* ICH4M on Fujitsu-Siemens Lifebook S6120 */
@@ -497,10 +497,10 @@ static int piix_port_start(struct ata_port *ap)
  *	@ap: Port for which cable detect info is desired
  *
  *	Read 80c cable indicator from ATA PCI device's PCI config
- *	register.  This register is normally set by firmware (BIOS).
+ *	register.  This register is analrmally set by firmware (BIOS).
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static int ich_pata_cable_detect(struct ata_port *ap)
@@ -521,7 +521,7 @@ static int ich_pata_cable_detect(struct ata_port *ap)
 	}
 
 	/* check BIOS cable detect results */
-	mask = ap->port_no == 0 ? PIIX_80C_PRI : PIIX_80C_SEC;
+	mask = ap->port_anal == 0 ? PIIX_80C_PRI : PIIX_80C_SEC;
 	if ((hpriv->saved_iocfg & mask) == 0)
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
@@ -533,15 +533,15 @@ static int ich_pata_cable_detect(struct ata_port *ap)
  *	@deadline: deadline jiffies for the operation
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 static int piix_pata_prereset(struct ata_link *link, unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (!pci_test_config_bits(pdev, &piix_enable_bits[ap->port_no]))
-		return -ENOENT;
+	if (!pci_test_config_bits(pdev, &piix_enable_bits[ap->port_anal]))
+		return -EANALENT;
 	return ata_sff_prereset(link, deadline);
 }
 
@@ -552,8 +552,8 @@ static void piix_set_timings(struct ata_port *ap, struct ata_device *adev,
 {
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
 	unsigned long flags;
-	unsigned int is_slave	= (adev->devno != 0);
-	unsigned int master_port= ap->port_no ? 0x42 : 0x40;
+	unsigned int is_slave	= (adev->devanal != 0);
+	unsigned int master_port= ap->port_anal ? 0x42 : 0x40;
 	unsigned int slave_port	= 0x44;
 	u16 master_data;
 	u8 slave_data;
@@ -600,10 +600,10 @@ static void piix_set_timings(struct ata_port *ap, struct ata_device *adev,
 		/* enable PPE1, IE1 and TIME1 as needed */
 		master_data |= (control << 4);
 		pci_read_config_byte(dev, slave_port, &slave_data);
-		slave_data &= (ap->port_no ? 0x0f : 0xf0);
+		slave_data &= (ap->port_anal ? 0x0f : 0xf0);
 		/* Load the timing nibble for this slave */
 		slave_data |= ((timings[pio][0] << 2) | timings[pio][1])
-						<< (ap->port_no ? 4 : 0);
+						<< (ap->port_anal ? 4 : 0);
 	} else {
 		/* clear ISP|RCT|TIME0|IE0|PPE0|DTE0 */
 		master_data &= 0xccf0;
@@ -626,7 +626,7 @@ static void piix_set_timings(struct ata_port *ap, struct ata_device *adev,
 
 	if (ap->udma_mask) {
 		pci_read_config_byte(dev, 0x48, &udma_enable);
-		udma_enable &= ~(1 << (2 * ap->port_no + adev->devno));
+		udma_enable &= ~(1 << (2 * ap->port_anal + adev->devanal));
 		pci_write_config_byte(dev, 0x48, udma_enable);
 	}
 
@@ -641,7 +641,7 @@ static void piix_set_timings(struct ata_port *ap, struct ata_device *adev,
  *	Set PIO mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void piix_set_piomode(struct ata_port *ap, struct ata_device *adev)
@@ -658,7 +658,7 @@ static void piix_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	Set UDMA mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void do_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev, int isich)
@@ -666,7 +666,7 @@ static void do_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev, in
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
 	unsigned long flags;
 	u8 speed		= adev->dma_mode;
-	int devid		= adev->devno + 2 * ap->port_no;
+	int devid		= adev->devanal + 2 * ap->port_anal;
 	u8 udma_enable		= 0;
 
 	if (speed >= XFER_UDMA_0) {
@@ -736,7 +736,7 @@ static void do_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev, in
  *	Set MW/UDMA mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void piix_set_dmamode(struct ata_port *ap, struct ata_device *adev)
@@ -752,7 +752,7 @@ static void piix_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	Set MW/UDMA mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void ich_set_dmamode(struct ata_port *ap, struct ata_device *adev)
@@ -779,7 +779,7 @@ static void piix_sidpr_sel(struct ata_link *link, unsigned int reg)
 	struct ata_port *ap = link->ap;
 	struct piix_host_priv *hpriv = ap->host->private_data;
 
-	iowrite32(((ap->port_no * 2 + link->pmp) << 8) | piix_sidx_map[reg],
+	iowrite32(((ap->port_anal * 2 + link->pmp) << 8) | piix_sidx_map[reg],
 		  hpriv->sidpr + PIIX_SIDPR_IDX);
 }
 
@@ -1004,12 +1004,12 @@ static int piix_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 	if (piix_broken_suspend() && (mesg.event & PM_EVENT_SLEEP)) {
 		pci_save_state(pdev);
 
-		/* mark its power state as "unknown", since we don't
-		 * know if e.g. the BIOS will change its device state
+		/* mark its power state as "unkanalwn", since we don't
+		 * kanalw if e.g. the BIOS will change its device state
 		 * when we suspend.
 		 */
 		if (pdev->current_state == PCI_D0)
-			pdev->current_state = PCI_UNKNOWN;
+			pdev->current_state = PCI_UNKANALWN;
 
 		/* tell resume that it's waking up from broken suspend */
 		spin_lock_irqsave(&host->lock, flags);
@@ -1153,7 +1153,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &ich_pata_ops,
 	},
 
-	[ich_pata_100_nomwdma1] =
+	[ich_pata_100_analmwdma1] =
 	{
 		.flags		= PIIX_PATA_FLAGS | PIIX_FLAG_CHECKINTR,
 		.pio_mask	= ATA_PIO4,
@@ -1235,7 +1235,7 @@ static struct ata_port_info piix_port_info[] = {
 	},
 
 	/*
-	 * some Sandybridge chipsets have broken 32 mode up to now,
+	 * some Sandybridge chipsets have broken 32 mode up to analw,
 	 * see https://bugzilla.kernel.org/show_bug.cgi?id=40592
 	 */
 	[ich8_sata_snb] =
@@ -1277,7 +1277,7 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 	u32 tmp;
 	int rc = 0;
 
-	/* BUG: pci_enable_device has not yet been called.  This
+	/* BUG: pci_enable_device has analt yet been called.  This
 	 * works because this device is usually set up by BIOS.
 	 */
 
@@ -1287,7 +1287,7 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 
 	mmio = pci_iomap(pdev, AHCI_PCI_BAR, 64);
 	if (!mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmp = ioread32(mmio + AHCI_GLOBAL_CTL);
 	if (tmp & AHCI_ENABLE) {
@@ -1315,7 +1315,7 @@ static int piix_check_450nx_errata(struct pci_dev *ata_dev)
 {
 	struct pci_dev *pdev = NULL;
 	u16 cfg;
-	int no_piix_dma = 0;
+	int anal_piix_dma = 0;
 
 	while ((pdev = pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454NX, pdev)) != NULL) {
 		/* Look for 450NX PXB. Check for problem configurations
@@ -1323,18 +1323,18 @@ static int piix_check_450nx_errata(struct pci_dev *ata_dev)
 		pci_read_config_word(pdev, 0x41, &cfg);
 		/* Only on the original revision: IDE DMA can hang */
 		if (pdev->revision == 0x00)
-			no_piix_dma = 1;
+			anal_piix_dma = 1;
 		/* On all revisions below 5 PXB bus lock must be disabled for IDE */
 		else if (cfg & (1<<14) && pdev->revision < 5)
-			no_piix_dma = 2;
+			anal_piix_dma = 2;
 	}
-	if (no_piix_dma)
+	if (anal_piix_dma)
 		dev_warn(&ata_dev->dev,
 			 "450NX errata present, disabling IDE DMA%s\n",
-			 no_piix_dma == 2 ? " - a BIOS update may resolve this"
+			 anal_piix_dma == 2 ? " - a BIOS update may resolve this"
 			 : "");
 
-	return no_piix_dma;
+	return anal_piix_dma;
 }
 
 static void piix_init_pcs(struct ata_host *host,
@@ -1400,17 +1400,17 @@ static const int *piix_init_sata_map(struct pci_dev *pdev,
 	return map;
 }
 
-static bool piix_no_sidpr(struct ata_host *host)
+static bool piix_anal_sidpr(struct ata_host *host)
 {
 	struct pci_dev *pdev = to_pci_dev(host->dev);
 
 	/*
 	 * Samsung DB-P70 only has three ATA ports exposed and
 	 * curiously the unconnected first port reports link online
-	 * while not responding to SRST protocol causing excessive
+	 * while analt responding to SRST protocol causing excessive
 	 * detection delay.
 	 *
-	 * Unfortunately, the system doesn't carry enough DMI
+	 * Unfortunately, the system doesn't carry eanalugh DMI
 	 * information to identify the machine but does have subsystem
 	 * vendor and device set.  As it's unclear whether the
 	 * subsystem vendor/device is used only for this specific
@@ -1420,7 +1420,7 @@ static bool piix_no_sidpr(struct ata_host *host)
 	 *
 	 * This problem is reported in bnc#441240.
 	 *
-	 * https://bugzilla.novell.com/show_bug.cgi?id=441420
+	 * https://bugzilla.analvell.com/show_bug.cgi?id=441420
 	 */
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL && pdev->device == 0x2920 &&
 	    pdev->subsystem_vendor == PCI_VENDOR_ID_SAMSUNG &&
@@ -1447,7 +1447,7 @@ static int piix_init_sidpr(struct ata_host *host)
 			return 0;
 
 	/* is it blacklisted? */
-	if (piix_no_sidpr(host))
+	if (piix_anal_sidpr(host))
 		return 0;
 
 	if (!(host->ports[0]->flags & PIIX_FLAG_SIDPR))
@@ -1523,7 +1523,7 @@ static void piix_iocfg_bit18_quirk(struct ata_host *host)
 	if (!dmi_check_system(sysids))
 		return;
 
-	/* The datasheet says that bit 18 is NOOP but certain systems
+	/* The datasheet says that bit 18 is ANALOP but certain systems
 	 * seem to use it to disable a channel.  Clear the bit on the
 	 * affected systems.
 	 */
@@ -1576,16 +1576,16 @@ MODULE_PARM_DESC(prefer_ms_hyperv,
 	"0 - Use ATA drivers, "
 	"1 (Default) - Use the paravirtualization drivers.");
 
-static void piix_ignore_devices_quirk(struct ata_host *host)
+static void piix_iganalre_devices_quirk(struct ata_host *host)
 {
 #if IS_ENABLED(CONFIG_HYPERV_STORAGE)
-	static const struct dmi_system_id ignore_hyperv[] = {
+	static const struct dmi_system_id iganalre_hyperv[] = {
 		{
 			/* On Hyper-V hypervisors the disks are exposed on
 			 * both the emulated SATA controller and on the
 			 * paravirtualised drivers.  The CD/DVD devices
 			 * are only exposed on the emulated controller.
-			 * Request we ignore ATA devices on this host.
+			 * Request we iganalre ATA devices on this host.
 			 */
 			.ident = "Hyper-V Virtual Machine",
 			.matches = {
@@ -1614,13 +1614,13 @@ static void piix_ignore_devices_quirk(struct ata_host *host)
 		},
 		{ }	/* terminate list */
 	};
-	const struct dmi_system_id *ignore = dmi_first_match(ignore_hyperv);
+	const struct dmi_system_id *iganalre = dmi_first_match(iganalre_hyperv);
 	const struct dmi_system_id *allow = dmi_first_match(allow_virtual_pc);
 
-	if (ignore && !allow && prefer_ms_hyperv) {
-		host->flags |= ATA_HOST_IGNORE_ATA;
-		dev_info(host->dev, "%s detected, ATA device ignore set\n",
-			ignore->ident);
+	if (iganalre && !allow && prefer_ms_hyperv) {
+		host->flags |= ATA_HOST_IGANALRE_ATA;
+		dev_info(host->dev, "%s detected, ATA device iganalre set\n",
+			iganalre->ident);
 	}
 #endif
 }
@@ -1637,7 +1637,7 @@ static void piix_ignore_devices_quirk(struct ata_host *host)
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, or -ERRNO value.
+ *	Zero on success, or -ERRANAL value.
  */
 
 static int piix_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -1653,14 +1653,14 @@ static int piix_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
-	/* no hotplugging support for later devices (FIXME) */
+	/* anal hotplugging support for later devices (FIXME) */
 	if (!in_module_init && ent->driver_data >= ich5_sata)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (piix_broken_system_poweroff(pdev)) {
 		piix_port_info[ent->driver_data].flags |=
-				ATA_FLAG_NO_POWEROFF_SPINDOWN |
-					ATA_FLAG_NO_HIBERNATE_SPINDOWN;
+				ATA_FLAG_ANAL_POWEROFF_SPINDOWN |
+					ATA_FLAG_ANAL_HIBERNATE_SPINDOWN;
 		dev_info(&pdev->dev, "quirky BIOS, skipping spindown "
 				"on poweroff and hibernation\n");
 	}
@@ -1677,7 +1677,7 @@ static int piix_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Save IOCFG, this will be used for cable detection, quirk
 	 * detection and restoration on detach.  This is necessary
@@ -1729,7 +1729,7 @@ static int piix_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pci_intx(pdev, 1);
 
 	if (piix_check_450nx_errata(pdev)) {
-		/* This writes into the master table but it does not
+		/* This writes into the master table but it does analt
 		   really matter for this errata as we will apply it to
 		   all the PIIX devices on the board */
 		host->ports[0]->mwdma_mask = 0;
@@ -1739,8 +1739,8 @@ static int piix_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	host->flags |= ATA_HOST_PARALLEL_SCAN;
 
-	/* Allow hosts to specify device types to ignore when scanning. */
-	piix_ignore_devices_quirk(host);
+	/* Allow hosts to specify device types to iganalre when scanning. */
+	piix_iganalre_devices_quirk(host);
 
 	pci_set_master(pdev);
 	return ata_pci_sff_activate_host(host, ata_bmdma_interrupt, sht);

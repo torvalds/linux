@@ -168,14 +168,14 @@ static void handle_relocs(unsigned long offset)
 		r_type = ELF64_R_TYPE(rela->r_info);
 		rc = arch_kexec_do_relocs(r_type, (void *) loc, val, 0);
 		if (rc)
-			error("Unknown relocation type");
+			error("Unkanalwn relocation type");
 	}
 }
 
 /*
  * Merge information from several sources into a single ident_map_size value.
  * "ident_map_size" represents the upper limit of physical memory we may ever
- * reach. It might not be all online memory, but also include standby (offline)
+ * reach. It might analt be all online memory, but also include standby (offline)
  * memory. "ident_map_size" could be lower then actual standby or even online
  * memory present, due to limiting factors. We should never go above this limit.
  * It is the size of our identity mapping.
@@ -278,7 +278,7 @@ static unsigned long setup_kernel_memory_layout(void)
 }
 
 /*
- * This function clears the BSS section of the decompressed Linux kernel and NOT the decompressor's.
+ * This function clears the BSS section of the decompressed Linux kernel and ANALT the decompressor's.
  */
 static void clear_bss_section(unsigned long vmlinux_lma)
 {
@@ -356,7 +356,7 @@ void startup_kernel(void)
 	setup_ident_map_size(max_physmem_end);
 	setup_vmalloc_size();
 	asce_limit = setup_kernel_memory_layout();
-	/* got final ident_map_size, physmem allocations could be performed now */
+	/* got final ident_map_size, physmem allocations could be performed analw */
 	physmem_set_usable_limit(ident_map_size);
 	detect_physmem_online_ranges(max_physmem_end);
 	save_ipl_cert_comp_list();

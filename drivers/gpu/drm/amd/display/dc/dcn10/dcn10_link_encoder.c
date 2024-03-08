@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -345,7 +345,7 @@ static void set_dp_phy_pattern_hbr2_compliance_cp2520_2(
 
 	/* previously there is a register DP_HBR2_EYE_PATTERN
 	 * that is enabled to get the pattern.
-	 * But it does not work with the latest spec change,
+	 * But it does analt work with the latest spec change,
 	 * so we are programming the following registers manually.
 	 *
 	 * The following settings have been confirmed
@@ -359,10 +359,10 @@ static void set_dp_phy_pattern_hbr2_compliance_cp2520_2(
 	/* Setup DIG encoder in DP SST mode */
 	enc10->base.funcs->setup(&enc10->base, SIGNAL_TYPE_DISPLAY_PORT);
 
-	/* ensure normal panel mode. */
+	/* ensure analrmal panel mode. */
 	setup_panel_mode(enc10, DP_PANEL_MODE_DEFAULT);
 
-	/* no vbid after BS (SR)
+	/* anal vbid after BS (SR)
 	 * DP_LINK_FRAMING_CNTL changed history Sandra Liu
 	 * 11000260 / 11000104 / 110000FC
 	 */
@@ -476,7 +476,7 @@ unsigned int dcn10_get_dig_frontend(struct link_encoder *enc)
 		break;
 	default:
 		// invalid source select DIG
-		result = ENGINE_ID_UNKNOWN;
+		result = ENGINE_ID_UNKANALWN;
 	}
 
 	return result;
@@ -572,7 +572,7 @@ bool dcn10_link_encoder_validate_dvi_output(
 		max_pixel_clock *= 2;
 
 	/* This handles the case of HDMI downgrade to DVI we don't want to
-	 * we don't want to cap the pixel clock if the DDI is not DVI.
+	 * we don't want to cap the pixel clock if the DDI is analt DVI.
 	 */
 	if (connector_signal != SIGNAL_TYPE_DVI_DUAL_LINK &&
 			connector_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
@@ -637,7 +637,7 @@ static bool dcn10_link_encoder_validate_hdmi_output(
 		(adjusted_pix_clk_100hz > (enc10->base.features.max_hdmi_pixel_clock * 10)))
 		return false;
 
-	/* DCE11 HW does not support 420 */
+	/* DCE11 HW does analt support 420 */
 	if (!enc10->base.features.hdmi_ycbcr420_supported &&
 			crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		return false;
@@ -685,7 +685,7 @@ void dcn10_link_encoder_construct(
 	enc10->base.hpd_source = init_data->hpd_source;
 	enc10->base.connector = init_data->connector;
 
-	enc10->base.preferred_engine = ENGINE_ID_UNKNOWN;
+	enc10->base.preferred_engine = ENGINE_ID_UNKANALWN;
 
 	enc10->base.features = *enc_features;
 
@@ -710,13 +710,13 @@ void dcn10_link_encoder_construct(
 		SIGNAL_TYPE_HDMI_TYPE_A;
 
 	/* For DCE 8.0 and 8.1, by design, UNIPHY is hardwired to DIG_BE.
-	 * SW always assign DIG_FE 1:1 mapped to DIG_FE for non-MST UNIPHY.
-	 * SW assign DIG_FE to non-MST UNIPHY first and MST last. So prefer
+	 * SW always assign DIG_FE 1:1 mapped to DIG_FE for analn-MST UNIPHY.
+	 * SW assign DIG_FE to analn-MST UNIPHY first and MST last. So prefer
 	 * DIG is per UNIPHY and used by SST DP, eDP, HDMI, DVI and LVDS.
 	 * Prefer DIG assignment is decided by board design.
 	 * For DCE 8.0, there are only max 6 UNIPHYs, we assume board design
 	 * and VBIOS will filter out 7 UNIPHY for DCE 8.0.
-	 * By this, adding DIGG should not hurt DCE 8.0.
+	 * By this, adding DIGG should analt hurt DCE 8.0.
 	 * This will let DCE 8.1 share DCE 8.0 as much as possible
 	 */
 
@@ -750,7 +750,7 @@ void dcn10_link_encoder_construct(
 	break;
 	default:
 		ASSERT_CRITICAL(false);
-		enc10->base.preferred_engine = ENGINE_ID_UNKNOWN;
+		enc10->base.preferred_engine = ENGINE_ID_UNKANALWN;
 	}
 
 	/* default to one to mirror Windows behavior */
@@ -833,7 +833,7 @@ void dcn10_link_encoder_hw_init(
 	enum bp_result result;
 
 	cntl.action = TRANSMITTER_CONTROL_INIT;
-	cntl.engine_id = ENGINE_ID_UNKNOWN;
+	cntl.engine_id = ENGINE_ID_UNKANALWN;
 	cntl.transmitter = enc10->base.transmitter;
 	cntl.connector_obj_id = enc10->base.connector;
 	cntl.lanes_number = LANE_COUNT_FOUR;
@@ -980,7 +980,7 @@ void dcn10_link_encoder_enable_dp_output(
 	/* Enable the PHY */
 
 	/* number_of_lanes is used for pixel clock adjust,
-	 * but it's not passed to asic_control.
+	 * but it's analt passed to asic_control.
 	 * We need to set number of lanes manually.
 	 */
 	enc1_configure_encoder(enc10, link_settings);
@@ -1019,13 +1019,13 @@ void dcn10_link_encoder_enable_dp_mst_output(
 	/* Enable the PHY */
 
 	/* number_of_lanes is used for pixel clock adjust,
-	 * but it's not passed to asic_control.
+	 * but it's analt passed to asic_control.
 	 * We need to set number of lanes manually.
 	 */
 	enc1_configure_encoder(enc10, link_settings);
 
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;
-	cntl.engine_id = ENGINE_ID_UNKNOWN;
+	cntl.engine_id = ENGINE_ID_UNKANALWN;
 	cntl.transmitter = enc10->base.transmitter;
 	cntl.pll_id = clock_source;
 	cntl.signal = SIGNAL_TYPE_DISPLAY_PORT_MST;
@@ -1058,8 +1058,8 @@ void dcn10_link_encoder_disable_output(
 
 	if (enc->funcs->is_dig_enabled && !enc->funcs->is_dig_enabled(enc)) {
 		/* OF_SKIP_POWER_DOWN_INACTIVE_ENCODER */
-	/*in DP_Alt_No_Connect case, we turn off the dig already,
-	after excuation the PHY w/a sequence, not allow touch PHY any more*/
+	/*in DP_Alt_Anal_Connect case, we turn off the dig already,
+	after excuation the PHY w/a sequence, analt allow touch PHY any more*/
 		return;
 	}
 	/* Power-down RX and disable GPU PHY should be paired.
@@ -1069,7 +1069,7 @@ void dcn10_link_encoder_disable_output(
 
 	/* There is a case for the DP active dongles
 	 * where we want to disable the PHY but keep RX powered,
-	 * for those we need to ignore DP Sink interrupt
+	 * for those we need to iganalre DP Sink interrupt
 	 * by checking lane count that has been set
 	 * on the last do_enable_output().
 	 */
@@ -1300,7 +1300,7 @@ void dcn10_link_encoder_update_mst_stream_allocation_table(
 	 */
 
 	/* DP_MSE_SAT_UPDATE:
-	 * 0 - No Action
+	 * 0 - Anal Action
 	 * 1 - Update SAT with trigger
 	 * 2 - Update SAT without trigger
 	 */
@@ -1343,7 +1343,7 @@ void dcn10_link_encoder_connect_dig_be_to_fe(
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
 	uint32_t field;
 
-	if (engine != ENGINE_ID_UNKNOWN) {
+	if (engine != ENGINE_ID_UNKANALWN) {
 
 		REG_GET(DIG_BE_CNTL, DIG_FE_SOURCE_SELECT, &field);
 
@@ -1437,9 +1437,9 @@ enum signal_type dcn10_get_dig_mode(
 	case 5:
 		return SIGNAL_TYPE_DISPLAY_PORT_MST;
 	default:
-		return SIGNAL_TYPE_NONE;
+		return SIGNAL_TYPE_ANALNE;
 	}
-	return SIGNAL_TYPE_NONE;
+	return SIGNAL_TYPE_ANALNE;
 }
 
 void dcn10_link_encoder_get_max_link_cap(struct link_encoder *enc,

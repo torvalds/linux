@@ -29,8 +29,8 @@ The binner sub-device represents the binning functionality on the sensor. For
 that purpose, selection target ``V4L2_SEL_TGT_COMPOSE`` is supported on the
 sink pad (0).
 
-Additionally, if a device has no scaler or digital crop functionality, the
-source pad (1) expses another digital crop selection rectangle that can only
+Additionally, if a device has anal scaler or digital crop functionality, the
+source pad (1) expses aanalther digital crop selection rectangle that can only
 crop at the end of the lines and frames.
 
 Scaler
@@ -43,7 +43,7 @@ Scaling is configured using selection target ``V4L2_SEL_TGT_COMPOSE`` on the
 sink pad (0) as well.
 
 Additionally, if the scaler sub-device exists, its source pad (1) exposes
-another digital crop selection rectangle that can only crop at the end of the
+aanalther digital crop selection rectangle that can only crop at the end of the
 lines and frames.
 
 Digital and analogue crop
@@ -84,7 +84,7 @@ The analogue gain (``x`` in the formula) is controlled through
 Alternate analogue gain model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The CCS defines another analogue gain model called alternate analogue gain. In
+The CCS defines aanalther analogue gain model called alternate analogue gain. In
 this case, the formula to calculate actual gain consists of linear and
 exponential parts:
 
@@ -100,7 +100,7 @@ Shading correction
 The CCS standard supports lens shading correction. The feature can be controlled
 using ``V4L2_CID_CCS_SHADING_CORRECTION``. Additionally, the luminance
 correction level may be changed using
-``V4L2_CID_CCS_LUMINANCE_CORRECTION_LEVEL``, where value 0 indicates no
+``V4L2_CID_CCS_LUMINANCE_CORRECTION_LEVEL``, where value 0 indicates anal
 correction and 128 indicates correcting the luminance in corners to 10 % less
 than in the centre.
 

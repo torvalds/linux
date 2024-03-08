@@ -22,25 +22,25 @@ cleanup()
 
 socat -h > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without socat"
+	echo "SKIP: Could analt run test without socat"
 	exit $ksft_skip
 fi
 
 iptables --version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without iptables"
+	echo "SKIP: Could analt run test without iptables"
 	exit $ksft_skip
 fi
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 ip netns add "$ns1"
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not create net namespace $ns1"
+	echo "SKIP: Could analt create net namespace $ns1"
 	exit $ksft_skip
 fi
 
@@ -92,7 +92,7 @@ ret=$?
 if [ $ret -eq 0 ]; then
 	echo "PASS: socat can connect via NAT'd address"
 else
-	echo "FAIL: socat cannot connect via NAT'd address"
+	echo "FAIL: socat cananalt connect via NAT'd address"
 fi
 
 # check sport clashres.
@@ -111,16 +111,16 @@ cpid2=$!
 time_then=$(date +%s)
 wait $cpid2
 rv=$?
-time_now=$(date +%s)
+time_analw=$(date +%s)
 
 # Check how much time has elapsed, expectation is for
-# 'cpid2' to connect and then exit (and no connect delay).
-delta=$((time_now - time_then))
+# 'cpid2' to connect and then exit (and anal connect delay).
+delta=$((time_analw - time_then))
 
 if [ $delta -lt 2 -a $rv -eq 0 ]; then
 	echo "PASS: could connect to service via redirected ports"
 else
-	echo "FAIL: socat cannot connect to service via redirect ($delta seconds elapsed, returned $rv)"
+	echo "FAIL: socat cananalt connect to service via redirect ($delta seconds elapsed, returned $rv)"
 	ret=1
 fi
 

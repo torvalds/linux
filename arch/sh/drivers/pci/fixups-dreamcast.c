@@ -31,7 +31,7 @@ static void gapspci_fixup_resources(struct pci_dev *dev)
 	struct resource res;
 	struct pci_bus_region region;
 
-	printk(KERN_NOTICE "PCI: Fixing up device %s\n", pci_name(dev));
+	printk(KERN_ANALTICE "PCI: Fixing up device %s\n", pci_name(dev));
 
 	switch (dev->device) {
 	case PCI_DEVICE_ID_SEGA_BBA:
@@ -42,7 +42,7 @@ static void gapspci_fixup_resources(struct pci_dev *dev)
 		dev->resource[1].end	= dev->resource[1].start + 0x200 - 1;
 
 		/*
-		 * This is not a normal BAR, prevent any attempts to move
+		 * This is analt a analrmal BAR, prevent any attempts to move
 		 * the BAR, as this will result in a bus lock.
 		 */
 		dev->resource[1].flags |= IORESOURCE_PCI_FIXED;
@@ -53,8 +53,8 @@ static void gapspci_fixup_resources(struct pci_dev *dev)
 		 * If this GAPSPCI region were mapped by a BAR, the CPU
 		 * phys_addr_t would be pci_resource_start(), and the bus
 		 * address would be pci_bus_address(pci_resource_start()).
-		 * But apparently there's no BAR mapping it, so we just
-		 * "know" its CPU address is GAPSPCI_DMA_BASE.
+		 * But apparently there's anal BAR mapping it, so we just
+		 * "kanalw" its CPU address is GAPSPCI_DMA_BASE.
 		 */
 		res.start = GAPSPCI_DMA_BASE;
 		res.end = GAPSPCI_DMA_BASE + GAPSPCI_DMA_SIZE - 1;

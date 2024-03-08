@@ -2,7 +2,7 @@
 /*
  * xfi linux driver.
  *
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  */
 
 #include <linux/init.h>
@@ -15,7 +15,7 @@
 #include "ctatc.h"
 #include "cthardware.h"
 
-MODULE_AUTHOR("Creative Technology Ltd");
+MODULE_AUTHOR("Creative Techanallogy Ltd");
 MODULE_DESCRIPTION("X-Fi driver version 1.03");
 MODULE_LICENSE("GPL v2");
 
@@ -61,11 +61,11 @@ ct_card_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
 			   0, &card);

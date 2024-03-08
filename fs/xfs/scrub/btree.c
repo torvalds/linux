@@ -9,7 +9,7 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_btree.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -42,12 +42,12 @@ __xchk_btree_process_error(
 		break;
 	case -EFSBADCRC:
 	case -EFSCORRUPTED:
-		/* Note the badness but don't abort. */
+		/* Analte the badness but don't abort. */
 		sc->sm->sm_flags |= errflag;
 		*error = 0;
 		fallthrough;
 	default:
-		if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
+		if (cur->bc_flags & XFS_BTREE_ROOT_IN_IANALDE)
 			trace_xchk_ifork_btree_op_error(sc, cur, level,
 					*error, ret_ip);
 		else
@@ -91,7 +91,7 @@ __xchk_btree_set_corrupt(
 {
 	sc->sm->sm_flags |= errflag;
 
-	if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
+	if (cur->bc_flags & XFS_BTREE_ROOT_IN_IANALDE)
 		trace_xchk_ifork_btree_error(sc, cur, level,
 				ret_ip);
 	else
@@ -153,7 +153,7 @@ xchk_btree_rec(
 
 	/* Are all records across all record blocks in order? */
 	if (bs->lastrec_valid &&
-	    !cur->bc_ops->recs_inorder(cur, &bs->lastrec, rec))
+	    !cur->bc_ops->recs_ianalrder(cur, &bs->lastrec, rec))
 		xchk_btree_set_corrupt(bs->sc, cur, 0);
 	memcpy(&bs->lastrec, rec, cur->bc_ops->rec_len);
 	bs->lastrec_valid = true;
@@ -171,7 +171,7 @@ xchk_btree_rec(
 	if (!(cur->bc_flags & XFS_BTREE_OVERLAPPING))
 		return;
 
-	/* Is high_key(rec) no larger than the parent high key? */
+	/* Is high_key(rec) anal larger than the parent high key? */
 	cur->bc_ops->init_high_key_from_rec(&hkey, rec);
 	keyp = xfs_btree_high_key_addr(cur, cur->bc_levels[1].ptr, keyblock);
 	if (xfs_btree_keycmp_lt(cur, keyp, &hkey))
@@ -199,9 +199,9 @@ xchk_btree_key(
 
 	trace_xchk_btree_key(bs->sc, cur, level);
 
-	/* Are all low keys across all node blocks in order? */
+	/* Are all low keys across all analde blocks in order? */
 	if (bs->lastkey[level - 1].valid &&
-	    !cur->bc_ops->keys_inorder(cur, &bs->lastkey[level - 1].key, key))
+	    !cur->bc_ops->keys_ianalrder(cur, &bs->lastkey[level - 1].key, key))
 		xchk_btree_set_corrupt(bs->sc, cur, level);
 	memcpy(&bs->lastkey[level - 1].key, key, cur->bc_ops->key_len);
 	bs->lastkey[level - 1].valid = true;
@@ -218,7 +218,7 @@ xchk_btree_key(
 	if (!(cur->bc_flags & XFS_BTREE_OVERLAPPING))
 		return;
 
-	/* Is this block's high key no larger than the parent high key? */
+	/* Is this block's high key anal larger than the parent high key? */
 	key = xfs_btree_high_key_addr(cur, cur->bc_levels[level].ptr, block);
 	keyp = xfs_btree_high_key_addr(cur, cur->bc_levels[level + 1].ptr,
 			keyblock);
@@ -228,7 +228,7 @@ xchk_btree_key(
 
 /*
  * Check a btree pointer.  Returns true if it's ok to use this pointer.
- * Callers do not need to set the corrupt flag.
+ * Callers do analt need to set the corrupt flag.
  */
 static bool
 xchk_btree_ptr_ok(
@@ -238,8 +238,8 @@ xchk_btree_ptr_ok(
 {
 	bool			res;
 
-	/* A btree rooted in an inode has no block pointer to the root. */
-	if ((bs->cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
+	/* A btree rooted in an ianalde has anal block pointer to the root. */
+	if ((bs->cur->bc_flags & XFS_BTREE_ROOT_IN_IANALDE) &&
 	    level == bs->cur->bc_nlevels)
 		return true;
 
@@ -372,8 +372,8 @@ xchk_btree_check_block_owner(
 	int			level,
 	xfs_daddr_t		daddr)
 {
-	xfs_agnumber_t		agno;
-	xfs_agblock_t		agbno;
+	xfs_agnumber_t		aganal;
+	xfs_agblock_t		agbanal;
 	xfs_btnum_t		btnum;
 	bool			init_sa;
 	int			error = 0;
@@ -382,27 +382,27 @@ xchk_btree_check_block_owner(
 		return 0;
 
 	btnum = bs->cur->bc_btnum;
-	agno = xfs_daddr_to_agno(bs->cur->bc_mp, daddr);
-	agbno = xfs_daddr_to_agbno(bs->cur->bc_mp, daddr);
+	aganal = xfs_daddr_to_aganal(bs->cur->bc_mp, daddr);
+	agbanal = xfs_daddr_to_agbanal(bs->cur->bc_mp, daddr);
 
 	init_sa = bs->cur->bc_flags & XFS_BTREE_LONG_PTRS;
 	if (init_sa) {
-		error = xchk_ag_init_existing(bs->sc, agno, &bs->sc->sa);
+		error = xchk_ag_init_existing(bs->sc, aganal, &bs->sc->sa);
 		if (!xchk_btree_xref_process_error(bs->sc, bs->cur,
 				level, &error))
 			goto out_free;
 	}
 
-	xchk_xref_is_used_space(bs->sc, agbno, 1);
+	xchk_xref_is_used_space(bs->sc, agbanal, 1);
 	/*
-	 * The bnobt scrubber aliases bs->cur to bs->sc->sa.bno_cur, so we
+	 * The banalbt scrubber aliases bs->cur to bs->sc->sa.banal_cur, so we
 	 * have to nullify it (to shut down further block owner checks) if
 	 * self-xref encounters problems.
 	 */
-	if (!bs->sc->sa.bno_cur && btnum == XFS_BTNUM_BNO)
+	if (!bs->sc->sa.banal_cur && btnum == XFS_BTNUM_BANAL)
 		bs->cur = NULL;
 
-	xchk_xref_is_only_owned_by(bs->sc, agbno, 1, bs->oinfo);
+	xchk_xref_is_only_owned_by(bs->sc, agbanal, 1, bs->oinfo);
 	if (!bs->sc->sa.rmap_cur && btnum == XFS_BTNUM_RMAP)
 		bs->cur = NULL;
 
@@ -424,30 +424,30 @@ xchk_btree_check_owner(
 
 	/*
 	 * In theory, xfs_btree_get_block should only give us a null buffer
-	 * pointer for the root of a root-in-inode btree type, but we need
+	 * pointer for the root of a root-in-ianalde btree type, but we need
 	 * to check defensively here in case the cursor state is also screwed
 	 * up.
 	 */
 	if (bp == NULL) {
-		if (!(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE))
+		if (!(cur->bc_flags & XFS_BTREE_ROOT_IN_IANALDE))
 			xchk_btree_set_corrupt(bs->sc, bs->cur, level);
 		return 0;
 	}
 
 	/*
-	 * We want to cross-reference each btree block with the bnobt
-	 * and the rmapbt.  We cannot cross-reference the bnobt or
-	 * rmapbt while scanning the bnobt or rmapbt, respectively,
-	 * because we cannot alter the cursor and we'd prefer not to
+	 * We want to cross-reference each btree block with the banalbt
+	 * and the rmapbt.  We cananalt cross-reference the banalbt or
+	 * rmapbt while scanning the banalbt or rmapbt, respectively,
+	 * because we cananalt alter the cursor and we'd prefer analt to
 	 * duplicate cursors.  Therefore, save the buffer daddr for
 	 * later scanning.
 	 */
-	if (cur->bc_btnum == XFS_BTNUM_BNO || cur->bc_btnum == XFS_BTNUM_RMAP) {
+	if (cur->bc_btnum == XFS_BTNUM_BANAL || cur->bc_btnum == XFS_BTNUM_RMAP) {
 		struct check_owner	*co;
 
 		co = kmalloc(sizeof(struct check_owner), XCHK_GFP_FLAGS);
 		if (!co)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		INIT_LIST_HEAD(&co->list);
 		co->level = level;
@@ -459,7 +459,7 @@ xchk_btree_check_owner(
 	return xchk_btree_check_block_owner(bs, level, xfs_buf_daddr(bp));
 }
 
-/* Decide if we want to check minrecs of a btree block in the inode root. */
+/* Decide if we want to check minrecs of a btree block in the ianalde root. */
 static inline bool
 xchk_btree_check_iroot_minrecs(
 	struct xchk_btree	*bs)
@@ -468,16 +468,16 @@ xchk_btree_check_iroot_minrecs(
 	 * xfs_bmap_add_attrfork_btree had an implementation bug wherein it
 	 * would miscalculate the space required for the data fork bmbt root
 	 * when adding an attr fork, and promote the iroot contents to an
-	 * external block unnecessarily.  This went unnoticed for many years
-	 * until scrub found filesystems in this state.  Inode rooted btrees are
-	 * not supposed to have immediate child blocks that are small enough
-	 * that the contents could fit in the inode root, but we can't fail
+	 * external block unnecessarily.  This went unanalticed for many years
+	 * until scrub found filesystems in this state.  Ianalde rooted btrees are
+	 * analt supposed to have immediate child blocks that are small eanalugh
+	 * that the contents could fit in the ianalde root, but we can't fail
 	 * existing filesystems, so instead we disable the check for data fork
 	 * bmap btrees when there's an attr fork.
 	 */
 	if (bs->cur->bc_btnum == XFS_BTNUM_BMAP &&
-	    bs->cur->bc_ino.whichfork == XFS_DATA_FORK &&
-	    xfs_inode_has_attr_fork(bs->sc->ip))
+	    bs->cur->bc_ianal.whichfork == XFS_DATA_FORK &&
+	    xfs_ianalde_has_attr_fork(bs->sc->ip))
 		return false;
 
 	return true;
@@ -502,13 +502,13 @@ xchk_btree_check_minrecs(
 		return;
 
 	/*
-	 * For btrees rooted in the inode, it's possible that the root block
+	 * For btrees rooted in the ianalde, it's possible that the root block
 	 * contents spilled into a regular ondisk block because there wasn't
-	 * enough space in the inode root.  The number of records in that
+	 * eanalugh space in the ianalde root.  The number of records in that
 	 * child block might be less than the standard minrecs, but that's ok
 	 * provided that there's only one direct child of the root.
 	 */
-	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
+	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_IANALDE) &&
 	    level == cur->bc_nlevels - 2) {
 		struct xfs_btree_block	*root_block;
 		struct xfs_buf		*root_bp;
@@ -677,7 +677,7 @@ xchk_btree_block_keys(
 }
 
 /*
- * Visit all nodes and leaves of a btree.  Check that all pointers and
+ * Visit all analdes and leaves of a btree.  Check that all pointers and
  * records are in order, that the keys reflect the records, and use a callback
  * so that the caller can verify individual records.
  */
@@ -713,7 +713,7 @@ xchk_btree(
 	}
 	bs = kzalloc(cur_sz, XCHK_GFP_FLAGS);
 	if (!bs)
-		return -ENOMEM;
+		return -EANALMEM;
 	bs->cur = cur;
 	bs->scrub_rec = scrub_fn;
 	bs->oinfo = oinfo;
@@ -768,7 +768,7 @@ xchk_btree(
 			continue;
 		}
 
-		/* End of node, pop back towards the root. */
+		/* End of analde, pop back towards the root. */
 		if (cur->bc_levels[level].ptr >
 					be16_to_cpu(block->bb_numrecs)) {
 			xchk_btree_block_keys(bs, level, block);
@@ -781,7 +781,7 @@ xchk_btree(
 		/* Keys in order for scrub? */
 		xchk_btree_key(bs, level);
 
-		/* Drill another level deeper. */
+		/* Drill aanalther level deeper. */
 		pp = xfs_btree_ptr_addr(cur, cur->bc_levels[level].ptr, block);
 		if (!xchk_btree_ptr_ok(bs, level, pp)) {
 			cur->bc_levels[level].ptr++;

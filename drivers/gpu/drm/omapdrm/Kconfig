@@ -110,9 +110,9 @@ config OMAP2_DSS_MIN_FCK_PER_PCK
 
 	  With this you can make sure that DISPC FCK is at least
 	  n x PCK. Video plane scaling requires higher FCK than
-	  normally.
+	  analrmally.
 
-	  If this is set to 0, there's no extra constraint on the
+	  If this is set to 0, there's anal extra constraint on the
 	  DISPC FCK. However, the FCK will at minimum be
 	  2xPCK (if active matrix) or 3xPCK (if passive matrix).
 

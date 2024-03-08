@@ -31,7 +31,7 @@ MAGIC_MESSAGE = "THIS IS THE ORIGINAL MESSAGE, PLEASE REASSEMBLE ME"
 
 def print_header(f):
     f.write("// SPDX-License-Identifier: GPL-2.0\n")
-    f.write("/* DO NOT EDIT -- this file is generated */\n")
+    f.write("/* DO ANALT EDIT -- this file is generated */\n")
     f.write("\n")
     f.write("#ifndef _IP_CHECK_DEFRAG_FRAGS_H\n")
     f.write("#define _IP_CHECK_DEFRAG_FRAGS_H\n")

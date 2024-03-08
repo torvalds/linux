@@ -82,7 +82,7 @@ typedef struct prbs_cfg_s			prbs_cfg_t;
 
 /* MW: uint16_t should be sufficient */
 struct isp2400_input_system_cfg_s {
-	u32	no_side_band;
+	u32	anal_side_band;
 	u32	fmt_type;
 	u32	ch_id;
 	u32	input_mode;
@@ -122,7 +122,7 @@ typedef struct gpfifo_cfg_s		gpfifo_cfg_t;
 
 struct ib_buffer_s {
 	u32	mem_reg_size;
-	u32	nof_mem_regs;
+	u32	analf_mem_regs;
 	u32	mem_reg_addr;
 };
 
@@ -133,7 +133,7 @@ struct csi_cfg_s {
 	buffering_mode_t	buffering_mode;
 	isp2400_ib_buffer_t	csi_buffer;
 	isp2400_ib_buffer_t	acquisition_buffer;
-	u32			nof_xmem_buffers;
+	u32			analf_xmem_buffers;
 };
 
 typedef struct csi_cfg_s	 csi_cfg_t;

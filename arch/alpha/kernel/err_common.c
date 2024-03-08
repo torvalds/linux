@@ -22,25 +22,25 @@
  * err_print_prefix -- error handling print routines should prefix
  * all prints with this
  */
-char *err_print_prefix = KERN_NOTICE;
+char *err_print_prefix = KERN_ANALTICE;
 
 
 /*
  * Generic
  */
 void
-mchk_dump_mem(void *data, size_t length, char **annotation)
+mchk_dump_mem(void *data, size_t length, char **ananaltation)
 {
 	unsigned long *ldata = data;
 	size_t i;
 	
 	for (i = 0; (i * sizeof(*ldata)) < length; i++) {
-		if (annotation && !annotation[i]) 
-			annotation = NULL;
+		if (ananaltation && !ananaltation[i]) 
+			ananaltation = NULL;
 		printk("%s    %08x: %016lx    %s\n",
 		       err_print_prefix,
 		       (unsigned)(i * sizeof(*ldata)), ldata[i],
-		       annotation ? annotation[i] : "");
+		       ananaltation ? ananaltation[i] : "");
 	}
 }
 
@@ -83,13 +83,13 @@ mchk_dump_logout_frame(struct el_common *mchk_header)
  */
 /* Data */
 static struct el_subpacket_handler *subpacket_handler_list = NULL;
-static struct el_subpacket_annotation *subpacket_annotation_list = NULL;
+static struct el_subpacket_ananaltation *subpacket_ananaltation_list = NULL;
 
 static struct el_subpacket *
 el_process_header_subpacket(struct el_subpacket *header)
 {
 	union el_timestamp timestamp;
-	char *name = "UNKNOWN EVENT";
+	char *name = "UNKANALWN EVENT";
 	int packet_count = 0;
 	int length = 0;
 
@@ -128,8 +128,8 @@ el_process_header_subpacket(struct el_subpacket *header)
 		packet_count = 1;
 		timestamp.as_int = 0;
 		break;
-	default: /* Unknown */
-		printk("%s** Unknown header - CLASS %d TYPE %d, aborting\n",
+	default: /* Unkanalwn */
+		printk("%s** Unkanalwn header - CLASS %d TYPE %d, aborting\n",
 		       err_print_prefix,
 		       header->class, header->type);
 		return NULL;		
@@ -198,7 +198,7 @@ el_process_subpacket(struct el_subpacket *header)
 
 	switch(header->class) {
 	case EL_CLASS__TERMINATION:
-		/* Termination packet, there are no more */
+		/* Termination packet, there are anal more */
 		break;
 	case EL_CLASS__HEADER: 
 		next = el_process_header_subpacket(header);
@@ -217,25 +217,25 @@ el_process_subpacket(struct el_subpacket *header)
 }
 
 void 
-el_annotate_subpacket(struct el_subpacket *header)
+el_ananaltate_subpacket(struct el_subpacket *header)
 {
-	struct el_subpacket_annotation *a;
-	char **annotation = NULL;
+	struct el_subpacket_ananaltation *a;
+	char **ananaltation = NULL;
 
-	for (a = subpacket_annotation_list; a; a = a->next) {
+	for (a = subpacket_ananaltation_list; a; a = a->next) {
 		if (a->class == header->class &&
 		    a->type == header->type &&
 		    a->revision == header->revision) {
 			/*
-			 * We found the annotation
+			 * We found the ananaltation
 			 */
-			annotation = a->annotation;
+			ananaltation = a->ananaltation;
 			printk("%s  %s\n", err_print_prefix, a->description);
 			break;
 		}
 	}
 
-	mchk_dump_mem(header, header->length, annotation);
+	mchk_dump_mem(header, header->length, ananaltation);
 }
 
 static void __init
@@ -252,7 +252,7 @@ cdl_process_console_data_log(int cpu, struct percpu_struct *pcpu)
 	for (err = 0; header && (header->class != EL_CLASS__TERMINATION); err++)
 		header = el_process_subpacket(header);
 
-	/* let the console know it's ok to clear the error(s) at restart */
+	/* let the console kanalw it's ok to clear the error(s) at restart */
 	pcpu->console_data_log_pa = 0;
 
 	printk("%s*** %d total error(s) logged\n"
@@ -277,17 +277,17 @@ cdl_check_console_data_log(void)
 }
 
 int __init
-cdl_register_subpacket_annotation(struct el_subpacket_annotation *new)
+cdl_register_subpacket_ananaltation(struct el_subpacket_ananaltation *new)
 {
-	struct el_subpacket_annotation *a = subpacket_annotation_list;
+	struct el_subpacket_ananaltation *a = subpacket_ananaltation_list;
 
-	if (a == NULL) subpacket_annotation_list = new;
+	if (a == NULL) subpacket_ananaltation_list = new;
 	else {
 		for (; a->next != NULL; a = a->next) {
 			if ((a->class == new->class && a->type == new->type) ||
 			    a == new) {
 				printk("Attempted to re-register "
-				       "subpacket annotation\n");
+				       "subpacket ananaltation\n");
 				return -EINVAL;
 			}
 		}

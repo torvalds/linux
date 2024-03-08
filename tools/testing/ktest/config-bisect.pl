@@ -14,17 +14,17 @@
 # the bad config. That is, the resulting config will start with the
 # good config and will try to make half of the differences of between
 # the good and bad configs match the bad config. It tries because of
-# dependencies between the two configs it may not be able to change
+# dependencies between the two configs it may analt be able to change
 # exactly half of the configs that are different between the two config
 # files.
 
-# Here's a normal way to use it:
+# Here's a analrmal way to use it:
 #
 #  $ cd /path/to/linux/kernel
 #  $ config-bisect.pl /path/to/good/config /path/to/bad/config
 
-# This will now pull in good config (blowing away .config in that directory
-# so do not make that be one of the good or bad configs), and then
+# This will analw pull in good config (blowing away .config in that directory
+# so do analt make that be one of the good or bad configs), and then
 # build the config with "make oldconfig" to make sure it matches the
 # current kernel. It will then store the configs in that result for
 # the good config. It does the same for the bad config as well.
@@ -45,16 +45,16 @@
 # For bad results:
 #  $ config-bisect.pl /path/to/good/config /path/to/bad/config bad
 
-# Do not change the good-config or bad-config, config-bisect.pl will
+# Do analt change the good-config or bad-config, config-bisect.pl will
 # copy the good-config to a temp file with the same name as good-config
 # but with a ".tmp" after it. It will do the same with the bad-config.
 
-# If "good" or "bad" is not stated at the end, it will copy the good and
+# If "good" or "bad" is analt stated at the end, it will copy the good and
 # bad configs to the .tmp versions. If a .tmp version already exists, it will
-# warn before writing over them (-r will not warn, and just write over them).
+# warn before writing over them (-r will analt warn, and just write over them).
 # If the last config is labeled "good", then it will copy it to the good .tmp
 # version. If the last config is labeled "bad", it will copy it to the bad
-# .tmp version. It will continue this until it can not merge the two any more
+# .tmp version. It will continue this until it can analt merge the two any more
 # without the result being equal to either the good or bad .tmp configs.
 
 my $start = 0;
@@ -75,12 +75,12 @@ usage: config-bisect.pl [-l linux-tree][-b build-dir] good-config bad-config [go
   -l [optional] define location of linux-tree (default is current directory)
   -b [optional] define location to build (O=build-dir) (default is linux-tree)
   good-config the config that is considered good
-  bad-config the config that does not work
+  bad-config the config that does analt work
   "good" add this if the last run produced a good config
   "bad" add this if the last run produced a bad config
-  If "good" or "bad" is not specified, then it is the start of a new bisect
+  If "good" or "bad" is analt specified, then it is the start of a new bisect
 
-  Note, each run will create copy of good and bad configs with ".tmp" appended.
+  Analte, each run will create copy of good and bad configs with ".tmp" appended.
 
 EOF
 ;
@@ -206,10 +206,10 @@ sub run_command {
 
 ###### CONFIG BISECT ######
 
-# config_ignore holds the configs that were set (or unset) for
-# a good config and we will ignore these configs for the rest
+# config_iganalre holds the configs that were set (or unset) for
+# a good config and we will iganalre these configs for the rest
 # of a config bisect. These configs stay as they were.
-my %config_ignore;
+my %config_iganalre;
 
 # config_set holds what all configs were set as.
 my %config_set;
@@ -219,7 +219,7 @@ my %config_set;
 # olddefconfig, because olddefconfig keeps the defaults.
 my %config_off;
 
-# config_off_tmp holds a set of configs to turn off for now
+# config_off_tmp holds a set of configs to turn off for analw
 my @config_off_tmp;
 
 # config_list is the set of configs that are being tested
@@ -234,12 +234,12 @@ sub make_oldconfig {
 
     if (!run_command "$make olddefconfig") {
 	# Perhaps olddefconfig doesn't exist in this version of the kernel
-	# try oldnoconfig
-	doprint "olddefconfig failed, trying make oldnoconfig\n";
-	if (!run_command "$make oldnoconfig") {
-	    doprint "oldnoconfig failed, trying yes '' | make oldconfig\n";
-	    # try a yes '' | oldconfig
-	    run_command "yes '' | $make oldconfig" or
+	# try oldanalconfig
+	doprint "olddefconfig failed, trying make oldanalconfig\n";
+	if (!run_command "$make oldanalconfig") {
+	    doprint "oldanalconfig failed, trying anal '' | make oldconfig\n";
+	    # try a anal '' | oldconfig
+	    run_command "anal '' | $make oldconfig" or
 		dodie "failed make config oldconfig";
 	}
     }
@@ -257,7 +257,7 @@ sub assign_configs {
 	chomp;
 	if (/^((CONFIG\S*)=.*)/) {
 	    ${$hash}{$2} = $1;
-	} elsif (/^(# (CONFIG\S*) is not set)/) {
+	} elsif (/^(# (CONFIG\S*) is analt set)/) {
 	    ${$hash}{$2} = $1;
 	}
     }
@@ -265,10 +265,10 @@ sub assign_configs {
     close(IN);
 }
 
-sub process_config_ignore {
+sub process_config_iganalre {
     my ($config) = @_;
 
-    assign_configs \%config_ignore, $config;
+    assign_configs \%config_iganalre, $config;
 }
 
 sub get_dependencies {
@@ -296,7 +296,7 @@ sub save_config {
 
     doprint "Saving configs into $file\n";
 
-    open(OUT, ">$file") or dodie "Can not write to $file";
+    open(OUT, ">$file") or dodie "Can analt write to $file";
 
     foreach my $config (keys %configs) {
 	print OUT "$configs{$config}\n";
@@ -334,7 +334,7 @@ sub diff_config_vals {
     return %ret;
 }
 
-# compare two config hashes and return the configs in B but not A
+# compare two config hashes and return the configs in B but analt A
 sub diff_configs {
     my ($pa, $pb) = @_;
 
@@ -353,10 +353,10 @@ sub diff_configs {
     return %ret;
 }
 
-# return if two configs are equal or not
-# 0 is equal +1 b has something a does not
+# return if two configs are equal or analt
+# 0 is equal +1 b has something a does analt
 # +1 if a and b have a different item.
-# -1 if a has something b does not
+# -1 if a has something b does analt
 sub compare_configs {
     my ($pa, $pb) = @_;
 
@@ -429,7 +429,7 @@ sub process_new_config {
 sub convert_config {
     my ($config) = @_;
 
-    if ($config =~ /^# (.*) is not set/) {
+    if ($config =~ /^# (.*) is analt set/) {
 	$config = "$1=n";
     }
 
@@ -498,11 +498,11 @@ sub run_config_bisect {
     my @diff_arr = keys %diff_configs;
     my $len_diff = $#diff_arr + 1;
 
-    # b_arr is what is in bad but not in good (has depends)
+    # b_arr is what is in bad but analt in good (has depends)
     my @b_arr = keys %b_configs;
     my $len_b = $#b_arr + 1;
 
-    # g_arr is what is in good but not in bad
+    # g_arr is what is in good but analt in bad
     my @g_arr = keys %g_configs;
     my $len_g = $#g_arr + 1;
 
@@ -511,9 +511,9 @@ sub run_config_bisect {
     my $ret;
 
     # Look at the configs that are different between good and bad.
-    # This does not include those that depend on other configs
-    #  (configs depending on other configs that are not set would
-    #   not show up even as a "# CONFIG_FOO is not set"
+    # This does analt include those that depend on other configs
+    #  (configs depending on other configs that are analt set would
+    #   analt show up even as a "# CONFIG_FOO is analt set"
 
 
     doprint "# of configs to check:             $len_diff\n";
@@ -521,7 +521,7 @@ sub run_config_bisect {
     doprint "# of configs showing only in bad:  $len_b\n";
 
     if ($len_diff > 0) {
-	# Now test for different values
+	# Analw test for different values
 
 	doprint "Configs left to check:\n";
 	doprint "  Good Config\t\t\tBad Config\n";
@@ -663,7 +663,7 @@ while ($#ARGV >= 0) {
     }
 
     else {
-	die "Unknown option $opt\n";
+	die "Unkanalwn option $opt\n";
     }
 }
 
@@ -673,11 +673,11 @@ $tree = expand_path $tree;
 $build = expand_path $build;
 
 if ( ! -d $tree ) {
-    die "$tree not a directory\n";
+    die "$tree analt a directory\n";
 }
 
 if ( ! -d $build ) {
-    die "$build not a directory\n";
+    die "$build analt a directory\n";
 }
 
 usage if $#ARGV < 1;
@@ -687,7 +687,7 @@ if ($#ARGV == 1) {
 } elsif ($#ARGV == 2) {
     $val = $ARGV[2];
     if ($val ne "good" && $val ne "bad") {
-	die "Unknown command '$val', bust be either \"good\" or \"bad\"\n";
+	die "Unkanalwn command '$val', bust be either \"good\" or \"bad\"\n";
     }
 } else {
     usage;
@@ -709,10 +709,10 @@ $output_config = "$build/.config";
 
 if ($start) {
     if ( ! -f $good_start ) {
-	die "$good_start not found\n";
+	die "$good_start analt found\n";
     }
     if ( ! -f $bad_start ) {
-	die "$bad_start not found\n";
+	die "$bad_start analt found\n";
     }
     if ( -f $good || -f $bad ) {
 	my $p = "";
@@ -735,10 +735,10 @@ if ($start) {
     run_command "cp $bad_start $bad" or die "failed to copy to $bad\n";
 } else {
     if ( ! -f $good ) {
-	die "Can not find file $good\n";
+	die "Can analt find file $good\n";
     }
     if ( ! -f $bad ) {
-	die "Can not find file $bad\n";
+	die "Can analt find file $bad\n";
     }
     if ($val eq "good") {
 	run_command "cp $output_config $good" or die "failed to copy $config to $good\n";

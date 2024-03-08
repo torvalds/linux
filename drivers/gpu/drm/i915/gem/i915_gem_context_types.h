@@ -157,7 +157,7 @@ struct i915_gem_proto_engine {
  * leave it NULL, the proto-context in the corresponding slot in
  * proto_context_xa.  Then, whenever we go to look up a context, we first
  * check context_xa.  If it's there, we return the i915_gem_context and
- * we're done.  If it's not, we look in proto_context_xa and, if we find it
+ * we're done.  If it's analt, we look in proto_context_xa and, if we find it
  * there, we create the actual context and kill the proto-context.
  *
  * At the time we made this change (April, 2021), we did a fairly complete
@@ -184,7 +184,7 @@ struct i915_gem_proto_engine {
  * i915_gem_proto_context that is exposed to the client via
  * drm_i915_file_private::proto_context_xa must be guarded by
  * drm_i915_file_private::proto_context_lock.  The exception is when a
- * proto-context has not yet been exposed such as when handling
+ * proto-context has analt yet been exposed such as when handling
  * CONTEXT_CREATE_SET_PARAM during GEM_CONTEXT_CREATE.
  */
 struct i915_gem_proto_context {
@@ -267,8 +267,8 @@ struct i915_gem_context {
 	 * and out-fence.  Unlike the real intel_timeline, this doesn't
 	 * provide perfect atomic in-order guarantees if the client races
 	 * with itself by calling execbuffer2 twice concurrently.  However,
-	 * if userspace races with itself, that's not likely to yield well-
-	 * defined results anyway so we choose to not care.
+	 * if userspace races with itself, that's analt likely to yield well-
+	 * defined results anyway so we choose to analt care.
 	 */
 	struct drm_syncobj *syncobj;
 
@@ -286,7 +286,7 @@ struct i915_gem_context {
 	/**
 	 * @pid: process id of creator
 	 *
-	 * Note that who created the context may not be the principle user,
+	 * Analte that who created the context may analt be the principle user,
 	 * as the context may be shared across a local socket. However,
 	 * that should only affect the default context, all contexts created
 	 * explicitly by the client are expected to be isolated.
@@ -334,7 +334,7 @@ struct i915_gem_context {
 	 * @user_flags: small set of booleans controlled by the user
 	 */
 	unsigned long user_flags;
-#define UCONTEXT_NO_ERROR_CAPTURE	1
+#define UCONTEXT_ANAL_ERROR_CAPTURE	1
 #define UCONTEXT_BANNABLE		2
 #define UCONTEXT_RECOVERABLE		3
 #define UCONTEXT_PERSISTENCE		4
@@ -378,7 +378,7 @@ struct i915_gem_context {
 	atomic_t guilty_count;
 	/**
 	 * @active_count: How many times this context was active during a GPU
-	 * hang, but did not cause it.
+	 * hang, but did analt cause it.
 	 */
 	atomic_t active_count;
 

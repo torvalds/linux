@@ -1,5 +1,5 @@
 |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-|MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+|MOTOROLA MICROPROCESSOR & MEMORY TECHANALLOGY GROUP
 |M68000 Hi-Performance Microprocessor Division
 |M68060 Software Package
 |Production Release P1.00 -- October 10, 1994
@@ -14,16 +14,16 @@
 |(INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
 |
 |To the maximum extent permitted by applicable law,
-|IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+|IN ANAL EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
 |(INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 |BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 |ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-|Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+|Motorola assumes anal responsibility for the maintenance and support of the SOFTWARE.
 |
 |You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-|so long as this entire notice is retained without alteration in any modified and/or
+|so long as this entire analtice is retained without alteration in any modified and/or
 |redistributed versions, and that such modified versions are clearly identified as such.
-|No licenses are granted by implication, estoppel or otherwise under any patents
+|Anal licenses are granted by implication, estoppel or otherwise under any patents
 |or trademarks of Motorola, Inc.
 |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 | fskeleton.s
@@ -56,7 +56,7 @@
 | _060_fpsp_done():
 |
 | This is the main exit point for the 68060 Floating-Point
-| Software Package. For a normal exit, all 060FPSP routines call this
+| Software Package. For a analrmal exit, all 060FPSP routines call this
 | routine. The operating system can do system dependent clean-up or
 | simply execute an "rte" as with the sample code below.
 |
@@ -187,7 +187,7 @@ _060_real_inex:
 |
 | The sample routine below clears the exception status bit, clears the NaN
 | bit in the FPSR, and does an "rte". The instruction that caused the
-| bsun will now be re-executed but with the NaN FPSR bit cleared.
+| bsun will analw be re-executed but with the NaN FPSR bit cleared.
 |
 	.global		_060_real_bsun
 _060_real_bsun:

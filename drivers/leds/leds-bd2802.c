@@ -73,7 +73,7 @@ struct bd2802_led {
 	struct led_state		led[2];
 
 	/*
-	 * Making led_classdev as array is not recommended, because array
+	 * Making led_classdev as array is analt recommended, because array
 	 * members prevent using 'container_of' macro. So repetitive works
 	 * are needed.
 	 */
@@ -663,7 +663,7 @@ static int bd2802_probe(struct i2c_client *client)
 
 	led = devm_kzalloc(&client->dev, sizeof(struct bd2802_led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led->client = client;
 	i2c_set_clientdata(client, led);

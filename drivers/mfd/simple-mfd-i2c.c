@@ -11,7 +11,7 @@
  * (dev.parent) in order to reference it.
  *
  * Once the register map has been successfully initialised, any sub-devices
- * represented by child nodes in Device Tree or via the MFD cells in this file
+ * represented by child analdes in Device Tree or via the MFD cells in this file
  * will be subsequently registered.
  */
 
@@ -38,7 +38,7 @@ static int simple_mfd_i2c_probe(struct i2c_client *i2c)
 
 	simple_mfd_data = device_get_match_data(&i2c->dev);
 
-	/* If no regmap_config is specified, use the default 8reg and 8val bits */
+	/* If anal regmap_config is specified, use the default 8reg and 8val bits */
 	if (!simple_mfd_data || !simple_mfd_data->regmap_config)
 		regmap_config = &regmap_config_8r_8v;
 	else
@@ -48,7 +48,7 @@ static int simple_mfd_i2c_probe(struct i2c_client *i2c)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	/* If no MFD cells are specified, register using the DT child nodes instead */
+	/* If anal MFD cells are specified, register using the DT child analdes instead */
 	if (!simple_mfd_data || !simple_mfd_data->mfd_cell)
 		return devm_of_platform_populate(&i2c->dev);
 

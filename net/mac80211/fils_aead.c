@@ -62,7 +62,7 @@ static int aes_s2v(struct crypto_shash *tfm,
 	return 0;
 }
 
-/* Note: addr[] and len[] needs to have one extra slot at the end. */
+/* Analte: addr[] and len[] needs to have one extra slot at the end. */
 static int aes_siv_encrypt(const u8 *key, size_t key_len,
 			   const u8 *plain, size_t plain_len,
 			   size_t num_elem, const u8 *addr[],
@@ -100,7 +100,7 @@ static int aes_siv_encrypt(const u8 *key, size_t key_len,
 	 */
 	tmp = kmemdup(plain, plain_len, GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* IV for CTR before encrypted data */
 	memcpy(out, v, AES_BLOCK_SIZE);
@@ -125,7 +125,7 @@ static int aes_siv_encrypt(const u8 *key, size_t key_len,
 
 	req = skcipher_request_alloc(tfm2, GFP_KERNEL);
 	if (!req) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto fail;
 	}
 
@@ -140,7 +140,7 @@ fail:
 	return res;
 }
 
-/* Note: addr[] and len[] needs to have one extra slot at the end. */
+/* Analte: addr[] and len[] needs to have one extra slot at the end. */
 static int aes_siv_decrypt(const u8 *key, size_t key_len,
 			   const u8 *iv_crypt, size_t iv_c_len,
 			   size_t num_elem, const u8 *addr[], size_t len[],
@@ -185,7 +185,7 @@ static int aes_siv_decrypt(const u8 *key, size_t key_len,
 	req = skcipher_request_alloc(tfm2, GFP_KERNEL);
 	if (!req) {
 		crypto_free_skcipher(tfm2);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sg_init_one(src, iv_crypt + AES_BLOCK_SIZE, crypt_len);
@@ -247,12 +247,12 @@ int fils_encrypt_assoc_req(struct sk_buff *skb,
 	/* The AP's BSSID */
 	addr[1] = mgmt->da;
 	len[1] = ETH_ALEN;
-	/* The STA's nonce */
-	addr[2] = assoc_data->fils_nonces;
-	len[2] = FILS_NONCE_LEN;
-	/* The AP's nonce */
-	addr[3] = &assoc_data->fils_nonces[FILS_NONCE_LEN];
-	len[3] = FILS_NONCE_LEN;
+	/* The STA's analnce */
+	addr[2] = assoc_data->fils_analnces;
+	len[2] = FILS_ANALNCE_LEN;
+	/* The AP's analnce */
+	addr[3] = &assoc_data->fils_analnces[FILS_ANALNCE_LEN];
+	len[3] = FILS_ANALNCE_LEN;
 	/* The (Re)Association Request frame from the Capability Information
 	 * field to the FILS Session element (both inclusive).
 	 */
@@ -286,7 +286,7 @@ int fils_decrypt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 					 ies, frame + *frame_len - ies);
 	if (!session || session->datalen != 1 + 8) {
 		mlme_dbg(sdata,
-			 "No (valid) FILS Session element in (Re)Association Response frame from %pM",
+			 "Anal (valid) FILS Session element in (Re)Association Response frame from %pM",
 			 mgmt->sa);
 		return -EINVAL;
 	}
@@ -301,12 +301,12 @@ int fils_decrypt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	/* The STA's MAC address */
 	addr[1] = mgmt->da;
 	len[1] = ETH_ALEN;
-	/* The AP's nonce */
-	addr[2] = &assoc_data->fils_nonces[FILS_NONCE_LEN];
-	len[2] = FILS_NONCE_LEN;
-	/* The STA's nonce */
-	addr[3] = assoc_data->fils_nonces;
-	len[3] = FILS_NONCE_LEN;
+	/* The AP's analnce */
+	addr[2] = &assoc_data->fils_analnces[FILS_ANALNCE_LEN];
+	len[2] = FILS_ANALNCE_LEN;
+	/* The STA's analnce */
+	addr[3] = assoc_data->fils_analnces;
+	len[3] = FILS_ANALNCE_LEN;
 	/* The (Re)Association Response frame from the Capability Information
 	 * field to the FILS Session element (both inclusive).
 	 */
@@ -316,7 +316,7 @@ int fils_decrypt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	crypt_len = frame + *frame_len - encr;
 	if (crypt_len < AES_BLOCK_SIZE) {
 		mlme_dbg(sdata,
-			 "Not enough room for AES-SIV data after FILS Session element in (Re)Association Response frame from %pM",
+			 "Analt eanalugh room for AES-SIV data after FILS Session element in (Re)Association Response frame from %pM",
 			 mgmt->sa);
 		return -EINVAL;
 	}

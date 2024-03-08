@@ -32,7 +32,7 @@ int nfc_hci_hcp_message_tx(struct nfc_hci_dev *hdev, u8 pipe,
 
 	cmd = kzalloc(sizeof(struct hci_msg), GFP_KERNEL);
 	if (cmd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&cmd->msg_l);
 	skb_queue_head_init(&cmd->msg_frags);
@@ -60,7 +60,7 @@ int nfc_hci_hcp_message_tx(struct nfc_hci_dev *hdev, u8 pipe,
 
 		skb = alloc_skb(skb_len, GFP_KERNEL);
 		if (skb == NULL) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_skb_err;
 		}
 		skb_reserve(skb, ndev->tx_headroom);
@@ -128,7 +128,7 @@ void nfc_hci_hcp_message_rx(struct nfc_hci_dev *hdev, u8 pipe, u8 type,
 		nfc_hci_event_received(hdev, pipe, instruction, skb);
 		break;
 	default:
-		pr_err("UNKNOWN MSG Type %d, instruction=%d\n",
+		pr_err("UNKANALWN MSG Type %d, instruction=%d\n",
 		       type, instruction);
 		kfree_skb(skb);
 		break;

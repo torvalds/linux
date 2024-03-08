@@ -6,7 +6,7 @@
 
 #include <linux/clk.h>
 #include <linux/debugfs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hwspinlock.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -24,7 +24,7 @@
 #define SPINLOCK_BASE_ID	0 /* there is only one hwspinlock device per SoC */
 #define SPINLOCK_SYSSTATUS_REG	0x0000
 #define SPINLOCK_LOCK_REGN	0x0100
-#define SPINLOCK_NOTTAKEN	0
+#define SPINLOCK_ANALTTAKEN	0
 
 struct sun6i_hwspinlock_data {
 	struct hwspinlock_device *bank;
@@ -64,14 +64,14 @@ static int sun6i_hwspinlock_trylock(struct hwspinlock *lock)
 {
 	void __iomem *lock_addr = lock->priv;
 
-	return (readl(lock_addr) == SPINLOCK_NOTTAKEN);
+	return (readl(lock_addr) == SPINLOCK_ANALTTAKEN);
 }
 
 static void sun6i_hwspinlock_unlock(struct hwspinlock *lock)
 {
 	void __iomem *lock_addr = lock->priv;
 
-	writel(SPINLOCK_NOTTAKEN, lock_addr);
+	writel(SPINLOCK_ANALTTAKEN, lock_addr);
 }
 
 static const struct hwspinlock_ops sun6i_hwspinlock_ops = {
@@ -102,7 +102,7 @@ static int sun6i_hwspinlock_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->ahb_clk = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(priv->ahb_clk)) {
@@ -135,8 +135,8 @@ static int sun6i_hwspinlock_probe(struct platform_device *pdev)
 	 * to 0x4 represent 32, 64, 128 and 256 locks
 	 * but later datasheets (H5, H6) say 00, 01, 10, 11 represent 32, 64, 128 and 256 locks,
 	 * but that would mean H5 and H6 have 64 locks, while their datasheets talk about 32 locks
-	 * all the time, not a single mentioning of 64 locks
-	 * the 0x4 value is also not representable by 2 bits alone, so some datasheets are not
+	 * all the time, analt a single mentioning of 64 locks
+	 * the 0x4 value is also analt representable by 2 bits alone, so some datasheets are analt
 	 * correct
 	 * one thing have all in common, default value of the sysstatus register is 0x10000000,
 	 * which results in bit 28 being set
@@ -157,7 +157,7 @@ static int sun6i_hwspinlock_probe(struct platform_device *pdev)
 	priv->bank = devm_kzalloc(&pdev->dev, struct_size(priv->bank, lock, priv->nlocks),
 				  GFP_KERNEL);
 	if (!priv->bank) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto bank_fail;
 	}
 
@@ -166,7 +166,7 @@ static int sun6i_hwspinlock_probe(struct platform_device *pdev)
 		hwlock->priv = io_base + SPINLOCK_LOCK_REGN + sizeof(u32) * i;
 	}
 
-	/* failure of debugfs is considered non-fatal */
+	/* failure of debugfs is considered analn-fatal */
 	sun6i_hwspinlock_debugfs_init(priv);
 	if (IS_ERR(priv->debugfs))
 		priv->debugfs = NULL;

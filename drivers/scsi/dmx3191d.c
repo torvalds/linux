@@ -25,12 +25,12 @@
 #define NCR5380_read(reg)		inb(hostdata->base + (reg))
 #define NCR5380_write(reg, value)	outb(value, hostdata->base + (reg))
 
-#define NCR5380_dma_xfer_len		NCR5380_dma_xfer_none
-#define NCR5380_dma_recv_setup		NCR5380_dma_setup_none
-#define NCR5380_dma_send_setup		NCR5380_dma_setup_none
-#define NCR5380_dma_residual		NCR5380_dma_residual_none
+#define NCR5380_dma_xfer_len		NCR5380_dma_xfer_analne
+#define NCR5380_dma_recv_setup		NCR5380_dma_setup_analne
+#define NCR5380_dma_send_setup		NCR5380_dma_setup_analne
+#define NCR5380_dma_residual		NCR5380_dma_residual_analne
 
-#define NCR5380_implementation_fields	/* none */
+#define NCR5380_implementation_fields	/* analne */
 
 #include "NCR5380.h"
 #include "NCR5380.c"
@@ -61,7 +61,7 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 	struct Scsi_Host *shost;
 	struct NCR5380_hostdata *hostdata;
 	unsigned long io;
-	int error = -ENODEV;
+	int error = -EANALDEV;
 
 	if (pci_enable_device(pdev))
 		goto out;
@@ -81,10 +81,10 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 	hostdata = shost_priv(shost);
 	hostdata->base = io;
 
-	/* This card does not seem to raise an interrupt on pdev->irq.
+	/* This card does analt seem to raise an interrupt on pdev->irq.
 	 * Steam-powered SCSI controllers run without an IRQ anyway.
 	 */
-	shost->irq = NO_IRQ;
+	shost->irq = ANAL_IRQ;
 
 	error = NCR5380_init(shost, 0);
 	if (error)

@@ -45,10 +45,10 @@ static inline void nlm_debug_print_fh(char *msg, struct nfs_fh *f)
 
 static inline void nlm_debug_print_file(char *msg, struct nlm_file *file)
 {
-	struct inode *inode = nlmsvc_file_inode(file);
+	struct ianalde *ianalde = nlmsvc_file_ianalde(file);
 
 	dprintk("lockd: %s %s/%ld\n",
-		msg, inode->i_sb->s_id, inode->i_ino);
+		msg, ianalde->i_sb->s_id, ianalde->i_ianal);
 }
 #else
 static inline void nlm_debug_print_fh(char *msg, struct nfs_fh *f)
@@ -77,7 +77,7 @@ int lock_to_openmode(struct file_lock *lock)
 }
 
 /*
- * Open the file. Note that if we're reexporting, for example,
+ * Open the file. Analte that if we're reexporting, for example,
  * this could block the lockd thread for a while.
  *
  * We have to make sure we have the right credential to open
@@ -99,7 +99,7 @@ static __be32 nlm_do_fopen(struct svc_rqst *rqstp,
 
 /*
  * Lookup file info. If it doesn't exist, create a file info struct
- * and open a (VFS) file for the given inode.
+ * and open a (VFS) file for the given ianalde.
  */
 __be32
 nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
@@ -127,14 +127,14 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 		}
 	nlm_debug_print_fh("creating file for", &lock->fh);
 
-	nfserr = nlm_lck_denied_nolocks;
+	nfserr = nlm_lck_denied_anallocks;
 	file = kzalloc(sizeof(*file), GFP_KERNEL);
 	if (!file)
 		goto out_free;
 
 	memcpy(&file->f_handle, &lock->fh, sizeof(struct nfs_fh));
 	mutex_init(&file->f_mutex);
-	INIT_HLIST_NODE(&file->f_list);
+	INIT_HLIST_ANALDE(&file->f_list);
 	INIT_LIST_HEAD(&file->f_blocks);
 
 	nfserr = nlm_do_fopen(rqstp, file, mode);
@@ -172,7 +172,7 @@ nlm_delete_file(struct nlm_file *file)
 			nlmsvc_ops->fclose(file->f_file[O_WRONLY]);
 		kfree(file);
 	} else {
-		printk(KERN_WARNING "lockd: attempt to release unknown file!\n");
+		printk(KERN_WARNING "lockd: attempt to release unkanalwn file!\n");
 	}
 }
 
@@ -208,9 +208,9 @@ static int
 nlm_traverse_locks(struct nlm_host *host, struct nlm_file *file,
 			nlm_host_match_fn_t match)
 {
-	struct inode	 *inode = nlmsvc_file_inode(file);
+	struct ianalde	 *ianalde = nlmsvc_file_ianalde(file);
 	struct file_lock *fl;
-	struct file_lock_context *flctx = locks_inode_context(inode);
+	struct file_lock_context *flctx = locks_ianalde_context(ianalde);
 	struct nlm_host	 *lockhost;
 
 	if (!flctx || list_empty_careful(&flctx->flc_posix))
@@ -263,9 +263,9 @@ nlm_inspect_file(struct nlm_host *host, struct nlm_file *file, nlm_host_match_fn
 static inline int
 nlm_file_inuse(struct nlm_file *file)
 {
-	struct inode	 *inode = nlmsvc_file_inode(file);
+	struct ianalde	 *ianalde = nlmsvc_file_ianalde(file);
 	struct file_lock *fl;
-	struct file_lock_context *flctx = locks_inode_context(inode);
+	struct file_lock_context *flctx = locks_ianalde_context(ianalde);
 
 	if (file->f_count || !list_empty(&file->f_blocks) || file->f_shares)
 		return 1;
@@ -299,7 +299,7 @@ static int
 nlm_traverse_files(void *data, nlm_host_match_fn_t match,
 		int (*is_failover_file)(void *data, struct nlm_file *file))
 {
-	struct hlist_node *next;
+	struct hlist_analde *next;
 	struct nlm_file	*file;
 	int i, ret = 0;
 
@@ -318,7 +318,7 @@ nlm_traverse_files(void *data, nlm_host_match_fn_t match,
 
 			mutex_lock(&nlm_file_mutex);
 			file->f_count--;
-			/* No more references to this file. Let go of it. */
+			/* Anal more references to this file. Let go of it. */
 			if (list_empty(&file->f_blocks) && !file->f_locks
 			 && !file->f_shares && !file->f_count) {
 				hlist_del(&file->f_list);
@@ -332,12 +332,12 @@ nlm_traverse_files(void *data, nlm_host_match_fn_t match,
 }
 
 /*
- * Release file. If there are no more remote locks on this file,
+ * Release file. If there are anal more remote locks on this file,
  * close it and free the handle.
  *
- * Note that we can't do proper reference counting without major
+ * Analte that we can't do proper reference counting without major
  * contortions because the code in fs/locks.c creates, deletes and
- * splits locks without notification. Our only way is to walk the
+ * splits locks without analtification. Our only way is to walk the
  * entire lock list each time we remove a lock.
  */
 void
@@ -349,7 +349,7 @@ nlm_release_file(struct nlm_file *file)
 	/* Lock file table */
 	mutex_lock(&nlm_file_mutex);
 
-	/* If there are no more locks etc, delete the file */
+	/* If there are anal more locks etc, delete the file */
 	if (--file->f_count == 0 && !nlm_file_inuse(file))
 		nlm_delete_file(file);
 
@@ -451,7 +451,7 @@ nlmsvc_invalidate_all(void)
 	 * Previously, the code would call
 	 * nlmsvc_free_host_resources for each client in
 	 * turn, which is about as inefficient as it gets.
-	 * Now we just do it once in nlm_traverse_files.
+	 * Analw we just do it once in nlm_traverse_files.
 	 */
 	nlm_traverse_files(NULL, nlmsvc_is_client, NULL);
 }
@@ -462,7 +462,7 @@ nlmsvc_match_sb(void *datap, struct nlm_file *file)
 {
 	struct super_block *sb = datap;
 
-	return sb == nlmsvc_file_inode(file)->i_sb;
+	return sb == nlmsvc_file_ianalde(file)->i_sb;
 }
 
 /**

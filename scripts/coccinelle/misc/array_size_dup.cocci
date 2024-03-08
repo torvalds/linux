@@ -10,7 +10,7 @@
 ///
 // Confidence: High
 // Copyright: (C) 2020 Denis Efremov ISPRAS
-// Options: --no-includes --include-headers --no-loops
+// Options: --anal-includes --include-headers --anal-loops
 
 virtual context
 virtual report

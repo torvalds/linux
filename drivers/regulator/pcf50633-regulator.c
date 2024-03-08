@@ -101,7 +101,7 @@ static int pcf50633_regulator_probe(struct platform_device *pdev)
 static struct platform_driver pcf50633_regulator_driver = {
 	.driver = {
 		.name = "pcf50633-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = pcf50633_regulator_probe,
 };

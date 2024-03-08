@@ -2,7 +2,7 @@
 .. sectnum::
 
 ==========================
-Clang implementation notes
+Clang implementation analtes
 ==========================
 
 This document provides more details specific to the Clang/LLVM implementation of the eBPF instruction set.
@@ -24,7 +24,7 @@ Jump instructions
 =================
 
 If ``-O0`` is used, Clang will generate the ``BPF_CALL | BPF_X | BPF_JMP`` (0x8d)
-instruction, which is not supported by the Linux kernel verifier.
+instruction, which is analt supported by the Linux kernel verifier.
 
 Atomic operations
 =================

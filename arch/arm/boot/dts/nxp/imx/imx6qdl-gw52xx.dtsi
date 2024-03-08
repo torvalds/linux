@@ -8,7 +8,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
-	/* these are used by bootloader for disabling nodes */
+	/* these are used by bootloader for disabling analdes */
 	aliases {
 		led0 = &led0;
 		led1 = &led1;
@@ -568,7 +568,7 @@
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
 	cd-gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&reg_3p3v>;
-	no-1-8-v; /* firmware will remove if board revision supports */
+	anal-1-8-v; /* firmware will remove if board revision supports */
 	status = "okay";
 };
 

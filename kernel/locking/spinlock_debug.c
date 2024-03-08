@@ -19,9 +19,9 @@ void __raw_spin_lock_init(raw_spinlock_t *lock, const char *name,
 {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	/*
-	 * Make sure we are not reinitializing a held lock:
+	 * Make sure we are analt reinitializing a held lock:
 	 */
-	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
+	debug_check_anal_locks_freed((void *)lock, sizeof(*lock));
 	lockdep_init_map_wait(&lock->dep_map, name, key, 0, inner);
 #endif
 	lock->raw_lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
@@ -38,9 +38,9 @@ void __rwlock_init(rwlock_t *lock, const char *name,
 {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	/*
-	 * Make sure we are not reinitializing a held lock:
+	 * Make sure we are analt reinitializing a held lock:
 	 */
-	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
+	debug_check_anal_locks_freed((void *)lock, sizeof(*lock));
 	lockdep_init_map_wait(&lock->dep_map, name, key, 0, LD_WAIT_CONFIG);
 #endif
 	lock->raw_lock = (arch_rwlock_t) __ARCH_RW_LOCK_UNLOCKED;
@@ -64,7 +64,7 @@ static void spin_dump(raw_spinlock_t *lock, const char *msg)
 	printk(KERN_EMERG " lock: %pS, .magic: %08x, .owner: %s/%d, "
 			".owner_cpu: %d\n",
 		lock, READ_ONCE(lock->magic),
-		owner ? owner->comm : "<none>",
+		owner ? owner->comm : "<analne>",
 		owner ? task_pid_nr(owner) : -1,
 		READ_ONCE(lock->owner_cpu));
 	dump_stack();
@@ -107,7 +107,7 @@ static inline void debug_spin_unlock(raw_spinlock_t *lock)
 }
 
 /*
- * We are now relying on the NMI watchdog to detect lockup instead of doing
+ * We are analw relying on the NMI watchdog to detect lockup instead of doing
  * the detection here with an unfair lock which can cause problem of its own.
  */
 void do_raw_spin_lock(raw_spinlock_t *lock)
@@ -128,7 +128,7 @@ int do_raw_spin_trylock(raw_spinlock_t *lock)
 	}
 #ifndef CONFIG_SMP
 	/*
-	 * Must not happen on UP:
+	 * Must analt happen on UP:
 	 */
 	SPIN_BUG_ON(!ret, lock, "trylock failure on UP");
 #endif
@@ -168,7 +168,7 @@ int do_raw_read_trylock(rwlock_t *lock)
 
 #ifndef CONFIG_SMP
 	/*
-	 * Must not happen on UP:
+	 * Must analt happen on UP:
 	 */
 	RWLOCK_BUG_ON(!ret, lock, "trylock failure on UP");
 #endif
@@ -220,7 +220,7 @@ int do_raw_write_trylock(rwlock_t *lock)
 		debug_write_lock_after(lock);
 #ifndef CONFIG_SMP
 	/*
-	 * Must not happen on UP:
+	 * Must analt happen on UP:
 	 */
 	RWLOCK_BUG_ON(!ret, lock, "trylock failure on UP");
 #endif

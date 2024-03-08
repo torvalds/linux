@@ -166,7 +166,7 @@
 	status = "okay";
 
 	mt35xu512aba0: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;
@@ -177,7 +177,7 @@
 	};
 
 	mt35xu512aba1: flash@1 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <1>;

@@ -2,7 +2,7 @@
 /*
  * Marvell Berlin BG2 pinctrl driver.
  *
- * Copyright (C) 2014 Marvell Technology Group Ltd.
+ * Copyright (C) 2014 Marvell Techanallogy Group Ltd.
  *
  * Antoine Ténart <antoine.tenart@free-electrons.com>
  */
@@ -45,7 +45,7 @@ static const struct berlin_desc_group berlin2_soc_pinctrl_groups[] = {
 		/*
 		 * Mode 0x3 mux i2s2 mclk *and* i2s3 mclk:
 		 * add two functions so it can be used with other groups
-		 * within the same subnode in the device tree
+		 * within the same subanalde in the device tree
 		 */
 		BERLIN_PINCTRL_FUNCTION(0x3, "i2s2"),
 		BERLIN_PINCTRL_FUNCTION(0x3, "i2s3")),
@@ -97,7 +97,7 @@ static const struct berlin_desc_group berlin2_soc_pinctrl_groups[] = {
 		BERLIN_PINCTRL_FUNCTION(0x4, "sts1"),
 		BERLIN_PINCTRL_FUNCTION(0x7, "usb1_dbg")),
 	BERLIN_PINCTRL_GROUP("G14", 0x04, 0x1, 0x03,
-		BERLIN_PINCTRL_FUNCTION_UNKNOWN),
+		BERLIN_PINCTRL_FUNCTION_UNKANALWN),
 	BERLIN_PINCTRL_GROUP("G15", 0x04, 0x2, 0x04,
 		BERLIN_PINCTRL_FUNCTION(0x0, "gpio"),
 		BERLIN_PINCTRL_FUNCTION(0x2, "et"),

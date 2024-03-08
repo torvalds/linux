@@ -333,7 +333,7 @@ static int ks8995_get_revision(struct ks8995_switch *ks)
 	if (id0 != ks->chip->family_id) {
 		dev_err(&ks->spi->dev, "chip family id mismatch: expected 0x%02x but 0x%02x read\n",
 			ks->chip->family_id, id0);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out;
 	}
 
@@ -367,7 +367,7 @@ static int ks8995_get_revision(struct ks8995_switch *ks)
 		} else {
 			dev_err(&ks->spi->dev, "unsupported chip id for KS8995 family: 0x%02x\n",
 				id1);
-			err = -ENODEV;
+			err = -EANALDEV;
 		}
 		break;
 	case FAMILY_KSZ8795:
@@ -383,12 +383,12 @@ static int ks8995_get_revision(struct ks8995_switch *ks)
 		} else {
 			dev_err(&ks->spi->dev, "unsupported chip id for KSZ8795 family: 0x%02x\n",
 				id1);
-			err = -ENODEV;
+			err = -EANALDEV;
 		}
 		break;
 	default:
 		dev_err(&ks->spi->dev, "unsupported family id: 0x%02x\n", id0);
-		err = -ENODEV;
+		err = -EANALDEV;
 		break;
 	}
 err_out:
@@ -414,12 +414,12 @@ static int ks8995_probe(struct spi_device *spi)
 
 	if (variant >= max_variant) {
 		dev_err(&spi->dev, "bad chip variant %d\n", variant);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ks = devm_kzalloc(&spi->dev, sizeof(*ks), GFP_KERNEL);
 	if (!ks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&ks->lock);
 	ks->spi = spi;

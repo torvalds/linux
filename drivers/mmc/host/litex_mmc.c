@@ -51,11 +51,11 @@
 #define LITEX_IRQ_PENDING     0x04
 #define LITEX_IRQ_ENABLE      0x08
 
-#define SD_CTL_DATA_XFER_NONE  0
+#define SD_CTL_DATA_XFER_ANALNE  0
 #define SD_CTL_DATA_XFER_READ  1
 #define SD_CTL_DATA_XFER_WRITE 2
 
-#define SD_CTL_RESP_NONE       0
+#define SD_CTL_RESP_ANALNE       0
 #define SD_CTL_RESP_SHORT      1
 #define SD_CTL_RESP_LONG       2
 #define SD_CTL_RESP_SHORT_BUSY 3
@@ -116,7 +116,7 @@ static int litex_mmc_sdcard_wait_done(void __iomem *reg, struct device *dev)
 		return -ETIMEDOUT;
 	if (evt & SD_BIT_CRC_ERR)
 		return -EILSEQ;
-	dev_err(dev, "%s: unknown error (evt=%x)\n", __func__, evt);
+	dev_err(dev, "%s: unkanalwn error (evt=%x)\n", __func__, evt);
 	return -EINVAL;
 }
 
@@ -138,7 +138,7 @@ static int litex_mmc_send_cmd(struct litex_mmc_host *host,
 	 * data to be transferred, or if the card can report busy via DAT0.
 	 */
 	if (host->irq > 0 &&
-	    (transfer != SD_CTL_DATA_XFER_NONE ||
+	    (transfer != SD_CTL_DATA_XFER_ANALNE ||
 	     response_len == SD_CTL_RESP_SHORT_BUSY)) {
 		reinit_completion(&host->cmd_done);
 		litex_write32(host->sdirq + LITEX_IRQ_ENABLE,
@@ -152,9 +152,9 @@ static int litex_mmc_send_cmd(struct litex_mmc_host *host,
 		return ret;
 	}
 
-	if (response_len != SD_CTL_RESP_NONE) {
+	if (response_len != SD_CTL_RESP_ANALNE) {
 		/*
-		 * NOTE: this matches the semantics of litex_read32()
+		 * ANALTE: this matches the semantics of litex_read32()
 		 * regardless of underlying arch endianness!
 		 */
 		memcpy_fromio(host->resp,
@@ -166,7 +166,7 @@ static int litex_mmc_send_cmd(struct litex_mmc_host *host,
 
 	host->app_cmd = (cmd == MMC_APP_CMD);
 
-	if (transfer == SD_CTL_DATA_XFER_NONE)
+	if (transfer == SD_CTL_DATA_XFER_ANALNE)
 		return ret; /* OK from prior litex_mmc_sdcard_wait_done() */
 
 	ret = litex_mmc_sdcard_wait_done(host->sdcore + LITEX_CORE_DATEVT, dev);
@@ -190,13 +190,13 @@ static int litex_mmc_send_cmd(struct litex_mmc_host *host,
 static int litex_mmc_send_app_cmd(struct litex_mmc_host *host)
 {
 	return litex_mmc_send_cmd(host, MMC_APP_CMD, host->rca << 16,
-				  SD_CTL_RESP_SHORT, SD_CTL_DATA_XFER_NONE);
+				  SD_CTL_RESP_SHORT, SD_CTL_DATA_XFER_ANALNE);
 }
 
 static int litex_mmc_send_set_bus_w_cmd(struct litex_mmc_host *host, u32 width)
 {
 	return litex_mmc_send_cmd(host, SD_APP_SET_BUS_WIDTH, width,
-				  SD_CTL_RESP_SHORT, SD_CTL_DATA_XFER_NONE);
+				  SD_CTL_RESP_SHORT, SD_CTL_DATA_XFER_ANALNE);
 }
 
 static int litex_mmc_set_bus_width(struct litex_mmc_host *host)
@@ -255,7 +255,7 @@ static irqreturn_t litex_mmc_interrupt(int irq, void *arg)
 	struct mmc_host *mmc = arg;
 	struct litex_mmc_host *host = mmc_priv(mmc);
 	u32 pending = litex_read32(host->sdirq + LITEX_IRQ_PENDING);
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	/* Check for card change interrupt */
 	if (pending & SDIRQ_CARD_DETECT) {
@@ -282,7 +282,7 @@ static u32 litex_mmc_response_len(struct mmc_command *cmd)
 	if (cmd->flags & MMC_RSP_136)
 		return SD_CTL_RESP_LONG;
 	if (!(cmd->flags & MMC_RSP_PRESENT))
-		return SD_CTL_RESP_NONE;
+		return SD_CTL_RESP_ANALNE;
 	if (cmd->flags & MMC_RSP_BUSY)
 		return SD_CTL_RESP_SHORT_BUSY;
 	return SD_CTL_RESP_SHORT;
@@ -347,11 +347,11 @@ static void litex_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	unsigned int len = 0;
 	bool direct = false;
 	u32 response_len = litex_mmc_response_len(cmd);
-	u8 transfer = SD_CTL_DATA_XFER_NONE;
+	u8 transfer = SD_CTL_DATA_XFER_ANALNE;
 
 	/* First check that the card is still there */
 	if (!litex_mmc_get_cd(mmc)) {
-		cmd->error = -ENOMEDIUM;
+		cmd->error = -EANALMEDIUM;
 		mmc_request_done(mmc, mrq);
 		return;
 	}
@@ -360,7 +360,7 @@ static void litex_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (sbc) {
 		sbc->error = litex_mmc_send_cmd(host, sbc->opcode, sbc->arg,
 						litex_mmc_response_len(sbc),
-						SD_CTL_DATA_XFER_NONE);
+						SD_CTL_DATA_XFER_ANALNE);
 		if (sbc->error) {
 			host->is_bus_width_set = false;
 			mmc_request_done(mmc, mrq);
@@ -372,7 +372,7 @@ static void litex_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		/*
 		 * LiteSDCard only supports 4-bit bus width; therefore, we MUST
 		 * inject a SET_BUS_WIDTH (acmd6) before the very first data
-		 * transfer, earlier than when the mmc subsystem would normally
+		 * transfer, earlier than when the mmc subsystem would analrmally
 		 * get around to it!
 		 */
 		cmd->error = litex_mmc_set_bus_width(host);
@@ -410,7 +410,7 @@ static void litex_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (stop && (cmd->error || !sbc)) {
 		stop->error = litex_mmc_send_cmd(host, stop->opcode, stop->arg,
 						 litex_mmc_response_len(stop),
-						 SD_CTL_DATA_XFER_NONE);
+						 SD_CTL_DATA_XFER_ANALNE);
 		if (stop->error)
 			host->is_bus_width_set = false;
 	}
@@ -420,7 +420,7 @@ static void litex_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			     mmc_get_dma_dir(data));
 	}
 
-	if (!cmd->error && transfer != SD_CTL_DATA_XFER_NONE) {
+	if (!cmd->error && transfer != SD_CTL_DATA_XFER_ANALNE) {
 		data->bytes_xfered = min(len, mmc->max_req_size);
 		if (transfer == SD_CTL_DATA_XFER_READ && !direct) {
 			sg_copy_from_buffer(data->sg, sg_nents(data->sg),
@@ -450,9 +450,9 @@ static void litex_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct litex_mmc_host *host = mmc_priv(mmc);
 
 	/*
-	 * NOTE: Ignore any ios->bus_width updates; they occur right after
-	 * the mmc core sends its own acmd6 bus-width change notification,
-	 * which is redundant since we snoop on the command flow and inject
+	 * ANALTE: Iganalre any ios->bus_width updates; they occur right after
+	 * the mmc core sends its own acmd6 bus-width change analtification,
+	 * which is redundant since we sanalop on the command flow and inject
 	 * an early acmd6 before the first data transfer command is sent!
 	 */
 
@@ -520,14 +520,14 @@ static int litex_mmc_probe(struct platform_device *pdev)
 	int ret;
 
 	/*
-	 * NOTE: defaults to max_[req,seg]_size=PAGE_SIZE, max_blk_size=512,
+	 * ANALTE: defaults to max_[req,seg]_size=PAGE_SIZE, max_blk_size=512,
 	 * and max_blk_count accordingly set to 8;
 	 * If for some reason we need to modify max_blk_count, we must also
 	 * re-calculate `max_[req,seg]_size = max_blk_size * max_blk_count;`
 	 */
 	mmc = mmc_alloc_host(sizeof(struct litex_mmc_host), dev);
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_add_action_or_reset(dev, litex_mmc_free_host_wrapper, mmc);
 	if (ret)
@@ -547,7 +547,7 @@ static int litex_mmc_probe(struct platform_device *pdev)
 	/*
 	 * LiteSDCard only supports 4-bit bus width; therefore, we MUST inject
 	 * a SET_BUS_WIDTH (acmd6) before the very first data transfer, earlier
-	 * than when the mmc subsystem would normally get around to it!
+	 * than when the mmc subsystem would analrmally get around to it!
 	 */
 	host->is_bus_width_set = false;
 	host->app_cmd = false;
@@ -561,7 +561,7 @@ static int litex_mmc_probe(struct platform_device *pdev)
 	host->buffer = dmam_alloc_coherent(dev, host->buf_size,
 					   &host->dma, GFP_KERNEL);
 	if (host->buffer == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->sdphy = devm_platform_ioremap_resource_byname(pdev, "phy");
 	if (IS_ERR(host->sdphy))
@@ -615,9 +615,9 @@ static int litex_mmc_probe(struct platform_device *pdev)
 	mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY |
 		     MMC_CAP_DRIVER_TYPE_D |
 		     MMC_CAP_CMD23;
-	mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT |
-		      MMC_CAP2_NO_SDIO |
-		      MMC_CAP2_NO_MMC;
+	mmc->caps2 |= MMC_CAP2_ANAL_WRITE_PROTECT |
+		      MMC_CAP2_ANAL_SDIO |
+		      MMC_CAP2_ANAL_MMC;
 
 	platform_set_drvdata(pdev, host);
 
@@ -648,7 +648,7 @@ static struct platform_driver litex_mmc_driver = {
 	.driver = {
 		.name = "litex-mmc",
 		.of_match_table = litex_match,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 module_platform_driver(litex_mmc_driver);

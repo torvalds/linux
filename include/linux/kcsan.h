@@ -26,12 +26,12 @@ struct kcsan_ctx {
 
 	/*
 	 * We distinguish between: (a) nestable atomic regions that may contain
-	 * other nestable regions; and (b) flat atomic regions that do not keep
+	 * other nestable regions; and (b) flat atomic regions that do analt keep
 	 * track of nesting. Both (a) and (b) are entirely independent of each
 	 * other, and a flat region may be started in a nestable region or
 	 * vice-versa.
 	 *
-	 * This is required because, for example, in the annotations for
+	 * This is required because, for example, in the ananaltations for
 	 * seqlocks, we declare seqlock writer critical sections as (a) nestable
 	 * atomic regions, but reader critical sections as (b) flat atomic
 	 * regions, but have encountered cases where seqlock reader critical
@@ -45,7 +45,7 @@ struct kcsan_ctx {
 	bool in_flat_atomic;
 
 	/*
-	 * Access mask for all accesses if non-zero.
+	 * Access mask for all accesses if analn-zero.
 	 */
 	unsigned long access_mask;
 

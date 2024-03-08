@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 
 /*
  * Architecture-specific register access methods
@@ -20,7 +20,7 @@
  * CAAM's bus-addressable registers are 64 bits internally.
  * They have been wired to be safely accessible on 32-bit
  * architectures, however. Registers were organized such
- * that (a) they can be contained in 32 bits, (b) if not, then they
+ * that (a) they can be contained in 32 bits, (b) if analt, then they
  * can be treated as two 32-bit entities, or finally (c) if they
  * must be treated as a single 64-bit value, then this can safely
  * be done with two 32-bit cycles.
@@ -39,7 +39,7 @@
  * - Bits 63-32 are a 32-bit word at base+0x0000 (numerically-lower)
  * - Bits 31-0 are a 32-bit word at base+0x0004 (numerically-higher)
  *
- * (and on Power, the convention is 0-31, 32-63, I know...)
+ * (and on Power, the convention is 0-31, 32-63, I kanalw...)
  *
  * Assuming a 64-bit write to this MCFG to perform a software reset
  * would then require a write of 0 to base+0x0000, followed by a
@@ -54,7 +54,7 @@
  * clean transition to 64-bit is possible when it becomes necessary.
  *
  * There are limitations to this that the developer must recognize.
- * 32-bit architectures cannot enforce an atomic-64 operation,
+ * 32-bit architectures cananalt enforce an atomic-64 operation,
  * Therefore:
  *
  * - On writes, since the HW is assumed to latch the cycle on the
@@ -324,7 +324,7 @@ struct version_regs {
 #define CHA_VER_MISC_AES_GCM		BIT(1 + CHA_VER_MISC_SHIFT)
 
 /* CHA Miscellaneous Information - PKHA_MISC specific */
-#define CHA_VER_MISC_PKHA_NO_CRYPT	BIT(7 + CHA_VER_MISC_SHIFT)
+#define CHA_VER_MISC_PKHA_ANAL_CRYPT	BIT(7 + CHA_VER_MISC_SHIFT)
 
 /*
  * caam_perfmon - Performance Monitor/Secure Memory Status/
@@ -404,8 +404,8 @@ struct caam_perfmon {
 	u64 rsvd[13];
 
 	/* CAAM Hardware Instantiation Parameters		fa0-fbf */
-	u32 cha_rev_ms;		/* CRNR - CHA Rev No. Most significant half*/
-	u32 cha_rev_ls;		/* CRNR - CHA Rev No. Least significant half*/
+	u32 cha_rev_ms;		/* CRNR - CHA Rev Anal. Most significant half*/
+	u32 cha_rev_ls;		/* CRNR - CHA Rev Anal. Least significant half*/
 #define CTPR_MS_QI_SHIFT	25
 #define CTPR_MS_QI_MASK		(0x1ull << CTPR_MS_QI_SHIFT)
 #define CTPR_MS_PS		BIT(17)
@@ -456,7 +456,7 @@ struct caam_perfmon {
 #define MSTRID_LIODN_MASK	0x0fff
 struct masterid {
 	u32 liodn_ms;	/* lock and make-trusted control bits */
-	u32 liodn_ls;	/* LIODN for non-sequence and seq access */
+	u32 liodn_ls;	/* LIODN for analn-sequence and seq access */
 };
 
 /* RNGB test mode (replicated twice in some configurations) */
@@ -531,8 +531,8 @@ struct rng4tst {
 		u32 rtfrqcnt;	/* PRGM=0: freq. count register */
 	};
 	union {
-		u32 rtscmc;	/* statistical check run monobit count */
-		u32 rtscml;	/* statistical check run monobit limit */
+		u32 rtscmc;	/* statistical check run moanalbit count */
+		u32 rtscml;	/* statistical check run moanalbit limit */
 	};
 	union {
 		u32 rtscrc[6];	/* statistical check run length count */
@@ -592,12 +592,12 @@ struct caam_ctrl {
 	u32 rsvd6[182];
 
 	/* Key Encryption/Decryption Configuration              400-5ff */
-	/* Read/Writable only while in Non-secure mode                  */
+	/* Read/Writable only while in Analn-secure mode                  */
 	u32 kek[KEK_KEY_SIZE];	/* JDKEKR - Key Encryption Key */
 	u32 tkek[TKEK_KEY_SIZE];	/* TDKEKR - Trusted Desc KEK */
 	u32 tdsk[TDSK_KEY_SIZE];	/* TDSKR - Trusted Desc Signing Key */
 	u32 rsvd7[32];
-	u64 sknonce;			/* SKNR - Secure Key Nonce */
+	u64 skanalnce;			/* SKNR - Secure Key Analnce */
 	u32 rsvd8[70];
 
 	/* RNG Test/Verification/Debug Access                   600-7ff */
@@ -712,13 +712,13 @@ struct caam_job_ring {
 /*
  * jrstatus - Job Ring Output Status
  * All values in lo word
- * Also note, same values written out as status through QI
+ * Also analte, same values written out as status through QI
  * in the command/status field of a frame descriptor
  */
 #define JRSTA_SSRC_SHIFT            28
 #define JRSTA_SSRC_MASK             0xf0000000
 
-#define JRSTA_SSRC_NONE             0x00000000
+#define JRSTA_SSRC_ANALNE             0x00000000
 #define JRSTA_SSRC_CCB_ERROR        0x20000000
 #define JRSTA_SSRC_JUMP_HALT_USER   0x30000000
 #define JRSTA_SSRC_DECO             0x40000000
@@ -731,7 +731,7 @@ struct caam_job_ring {
 #define JRSTA_DECOERR_INDEX_MASK    0xff00
 #define JRSTA_DECOERR_ERROR_MASK    0x00ff
 
-#define JRSTA_DECOERR_NONE          0x00
+#define JRSTA_DECOERR_ANALNE          0x00
 #define JRSTA_DECOERR_LINKLEN       0x01
 #define JRSTA_DECOERR_LINKPTR       0x02
 #define JRSTA_DECOERR_JRCTRL        0x03
@@ -780,12 +780,12 @@ struct caam_job_ring {
 #define JRSTA_CCBERR_CHAID_ARC4     (0x03 << JRSTA_CCBERR_CHAID_SHIFT)
 #define JRSTA_CCBERR_CHAID_MD       (0x04 << JRSTA_CCBERR_CHAID_SHIFT)
 #define JRSTA_CCBERR_CHAID_RNG      (0x05 << JRSTA_CCBERR_CHAID_SHIFT)
-#define JRSTA_CCBERR_CHAID_SNOW     (0x06 << JRSTA_CCBERR_CHAID_SHIFT)
+#define JRSTA_CCBERR_CHAID_SANALW     (0x06 << JRSTA_CCBERR_CHAID_SHIFT)
 #define JRSTA_CCBERR_CHAID_KASUMI   (0x07 << JRSTA_CCBERR_CHAID_SHIFT)
 #define JRSTA_CCBERR_CHAID_PK       (0x08 << JRSTA_CCBERR_CHAID_SHIFT)
 #define JRSTA_CCBERR_CHAID_CRC      (0x09 << JRSTA_CCBERR_CHAID_SHIFT)
 
-#define JRSTA_CCBERR_ERRID_NONE     0x00
+#define JRSTA_CCBERR_ERRID_ANALNE     0x00
 #define JRSTA_CCBERR_ERRID_MODE     0x01
 #define JRSTA_CCBERR_ERRID_DATASIZ  0x02
 #define JRSTA_CCBERR_ERRID_KEYSIZ   0x03
@@ -1000,7 +1000,7 @@ struct caam_deco {
 	u32 op_status_hi;	/* DxOPSTA - DECO Operation Status */
 	u32 op_status_lo;
 	u32 rsvd24[2];
-	u32 liodn;		/* DxLSR - DECO LIODN Status - non-seq */
+	u32 liodn;		/* DxLSR - DECO LIODN Status - analn-seq */
 	u32 td_liodn;	/* DxLSR - DECO LIODN Status - trustdesc */
 	u32 rsvd26[6];
 	u64 math[4];		/* DxMTH - Math register */

@@ -6,7 +6,7 @@
 
 # The common_* event handler fields are the most useful fields common to
 # all events.  They don't necessarily correspond to the 'common_*' fields
-# in the status files.  Those fields not available as handler params can
+# in the status files.  Those fields analt available as handler params can
 # be retrieved via script functions of the form get_common_*().
 
 use 5.010000;

@@ -348,7 +348,7 @@ static inline int ep93xxfb_convert_color(int val, int width)
 	return ((val << width) + 0x7fff - val) >> 16;
 }
 
-static int ep93xxfb_setcolreg(unsigned int regno, unsigned int red,
+static int ep93xxfb_setcolreg(unsigned int reganal, unsigned int red,
 			      unsigned int green, unsigned int blue,
 			      unsigned int transp, struct fb_info *info)
 {
@@ -358,13 +358,13 @@ static int ep93xxfb_setcolreg(unsigned int regno, unsigned int red,
 
 	switch (info->fix.visual) {
 	case FB_VISUAL_PSEUDOCOLOR:
-		if (regno > 255)
+		if (reganal > 255)
 			return 1;
 		rgb = ((red & 0xff00) << 8) | (green & 0xff00) |
 			((blue & 0xff00) >> 8);
 
-		pal[regno] = rgb;
-		ep93xxfb_writel(fbi, rgb, (EP93XXFB_COLOR_LUT + (regno << 2)));
+		pal[reganal] = rgb;
+		ep93xxfb_writel(fbi, rgb, (EP93XXFB_COLOR_LUT + (reganal << 2)));
 		ctrl = ep93xxfb_readl(fbi, EP93XXFB_LUT_SW_CONTROL);
 		lut_stat = !!(ctrl & EP93XXFB_LUT_SW_CONTROL_SSTAT);
 		lut_current = !!(ctrl & EP93XXFB_LUT_SW_CONTROL_SWTCH);
@@ -382,7 +382,7 @@ static int ep93xxfb_setcolreg(unsigned int regno, unsigned int red,
 		break;
 
 	case FB_VISUAL_TRUECOLOR:
-		if (regno > 16)
+		if (reganal > 16)
 			return 1;
 
 		red = ep93xxfb_convert_color(red, info->var.red.length);
@@ -391,7 +391,7 @@ static int ep93xxfb_setcolreg(unsigned int regno, unsigned int red,
 		transp = ep93xxfb_convert_color(transp,
 						info->var.transp.length);
 
-		pal[regno] = (red << info->var.red.offset) |
+		pal[reganal] = (red << info->var.red.offset) |
 			(green << info->var.green.offset) |
 			(blue << info->var.blue.offset) |
 			(transp << info->var.transp.offset);
@@ -426,23 +426,23 @@ static int ep93xxfb_alloc_videomem(struct fb_info *info)
 
 	virt_addr = dma_alloc_wc(info->device, fb_size, &phys_addr, GFP_KERNEL);
 	if (!virt_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * There is a bug in the ep93xx framebuffer which causes problems
 	 * if bit 27 of the physical address is set.
 	 * See: https://marc.info/?l=linux-arm-kernel&m=110061245502000&w=2
-	 * There does not seem to be any official errata for this, but I
+	 * There does analt seem to be any official errata for this, but I
 	 * have confirmed the problem exists on my hardware (ep9315) at
 	 * least.
 	 */
 	if (check_screenpage_bug && phys_addr & (1 << 27)) {
 		fb_err(info, "ep93xx framebuffer bug. phys addr (0x%x) "
-		       "has bit 27 set: cannot init framebuffer\n",
+		       "has bit 27 set: cananalt init framebuffer\n",
 		       phys_addr);
 
 		dma_free_coherent(info->device, fb_size, virt_addr, phys_addr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	info->fix.smem_start = phys_addr;
@@ -473,7 +473,7 @@ static int ep93xxfb_probe(struct platform_device *pdev)
 
 	info = framebuffer_alloc(sizeof(struct ep93xx_fbi), &pdev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, info);
 	fbi = info->par;
@@ -499,7 +499,7 @@ static int ep93xxfb_probe(struct platform_device *pdev)
 	 * drivers/video/backlight/ep93xx_bl.c) and doing so will cause
 	 * the second loaded driver to return -EBUSY.
 	 *
-	 * NOTE: No locking is required; the backlight does not touch
+	 * ANALTE: Anal locking is required; the backlight does analt touch
 	 * any of the framebuffer registers.
 	 */
 	fbi->res = res;
@@ -513,10 +513,10 @@ static int ep93xxfb_probe(struct platform_device *pdev)
 	strcpy(info->fix.id, pdev->name);
 	info->fbops		= &ep93xxfb_ops;
 	info->fix.type		= FB_TYPE_PACKED_PIXELS;
-	info->fix.accel		= FB_ACCEL_NONE;
-	info->var.activate	= FB_ACTIVATE_NOW;
-	info->var.vmode		= FB_VMODE_NONINTERLACED;
-	info->node		= -1;
+	info->fix.accel		= FB_ACCEL_ANALNE;
+	info->var.activate	= FB_ACTIVATE_ANALW;
+	info->var.vmode		= FB_VMODE_ANALNINTERLACED;
+	info->analde		= -1;
 	info->state		= FBINFO_STATE_RUNNING;
 	info->pseudo_palette	= &fbi->pseudo_palette;
 
@@ -524,7 +524,7 @@ static int ep93xxfb_probe(struct platform_device *pdev)
 	err = fb_find_mode(&info->var, info, video_mode,
 			   NULL, 0, NULL, 16);
 	if (err == 0) {
-		fb_err(info, "No suitable video mode found\n");
+		fb_err(info, "Anal suitable video mode found\n");
 		err = -EINVAL;
 		goto failed_resource;
 	}

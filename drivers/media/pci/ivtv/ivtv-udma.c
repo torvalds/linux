@@ -133,7 +133,7 @@ int ivtv_udma_setup(struct ivtv *itv, unsigned long ivtv_dest_addr,
 	if (ivtv_udma_fill_sg_list(dma, &user_dma, 0) < 0) {
 		unpin_user_pages(dma->map, dma->page_count);
 		dma->page_count = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Map SG List */
@@ -156,7 +156,7 @@ void ivtv_udma_unmap(struct ivtv *itv)
 
 	IVTV_DEBUG_INFO("ivtv_unmap_user_dma\n");
 
-	/* Nothing to free */
+	/* Analthing to free */
 	if (dma->page_count == 0)
 		return;
 

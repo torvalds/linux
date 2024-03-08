@@ -3,7 +3,7 @@
 
 # Regression Test:
 #  When the bond is configured with down/updelay and the link state of
-#  slave members flaps if there are no remaining members up the bond
+#  slave members flaps if there are anal remaining members up the bond
 #  should immediately select a member to bring up. (from bonding.txt
 #  section 13.1 paragraph 4)
 #
@@ -19,8 +19,8 @@
 #     172.20.2.1           172.20.2.2
 
 
-REQUIRE_MZ=no
-REQUIRE_JQ=no
+REQUIRE_MZ=anal
+REQUIRE_JQ=anal
 NUM_NETIFS=0
 lib_dir=$(dirname "$0")
 source "$lib_dir"/net_forwarding_lib.sh

@@ -13,7 +13,7 @@
 #define _SPEAKUP_KEYINFO_H
 
 #define FIRST_SYNTH_VAR RATE
-/* 0 is reserved for no remap */
+/* 0 is reserved for anal remap */
 #define SPEAKUP_GOTO		0x01
 #define SPEECH_KILL		0x02
 #define SPEAKUP_QUIET		0x03

@@ -14,7 +14,7 @@
 
 	.text
 	.altmacro
-	.option norelax
+	.option analrelax
 
 SYM_FUNC_START(__cpu_suspend_enter)
 	/* Save registers (except A0 and T0-T6) */
@@ -52,7 +52,7 @@ SYM_FUNC_START(__cpu_suspend_enter)
 	csrr	t0, CSR_CAUSE
 	REG_S	t0, (SUSPEND_CONTEXT_REGS + PT_CAUSE)(a0)
 
-	/* Return non-zero value */
+	/* Return analn-zero value */
 	li	a0, 1
 
 	/* Return to C code */

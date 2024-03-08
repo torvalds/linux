@@ -18,7 +18,7 @@ fremovexattr
 fsetxattr
 futimesat
 getxattr
-inotify_add_watch
+ianaltify_add_watch
 lchown
 lgetxattr
 link
@@ -31,8 +31,8 @@ lstat
 memfd_create
 mkdir
 mkdirat
-mknod
-mknodat
+mkanald
+mkanaldat
 mq_open
 mq_timedsend
 mq_unlink

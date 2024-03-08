@@ -12,7 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -51,7 +51,7 @@ static const struct fb_videomode vfb_default = {
 	.lower_margin =	32,
 	.hsync_len =	64,
 	.vsync_len =	2,
-	.vmode =	FB_VMODE_NONINTERLACED,
+	.vmode =	FB_VMODE_ANALNINTERLACED,
 };
 
 static struct fb_fix_screeninfo vfb_fix = {
@@ -61,7 +61,7 @@ static struct fb_fix_screeninfo vfb_fix = {
 	.xpanstep =	1,
 	.ypanstep =	1,
 	.ywrapstep =	1,
-	.accel =	FB_ACCEL_NONE,
+	.accel =	FB_ACCEL_ANALNE,
 };
 
 static bool vfb_enable __initdata = 0;	/* disabled by default */
@@ -71,7 +71,7 @@ MODULE_PARM_DESC(vfb_enable, "Enable Virtual FB driver");
 static int vfb_check_var(struct fb_var_screeninfo *var,
 			 struct fb_info *info);
 static int vfb_set_par(struct fb_info *info);
-static int vfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int vfb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 			 u_int transp, struct fb_info *info);
 static int vfb_pan_display(struct fb_var_screeninfo *var,
 			   struct fb_info *info);
@@ -105,7 +105,7 @@ static u_long get_line_length(int xres_virtual, int bpp)
 
     /*
      *  Setting the video mode has been split into two parts.
-     *  First part, xxxfb_check_var, must not write anything
+     *  First part, xxxfb_check_var, must analt write anything
      *  to hardware, it should only verify and adjust var.
      *  This means it doesn't alter par but it does use hardware
      *  data from it to check this var.
@@ -162,12 +162,12 @@ static int vfb_check_var(struct fb_var_screeninfo *var,
 	line_length =
 	    get_line_length(var->xres_virtual, var->bits_per_pixel);
 	if (line_length * var->yres_virtual > videomemorysize)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Now that we checked it we alter var. The reason being is that the video
-	 * mode passed in might not work but slight changes to it might make it
-	 * work. This way we let the user know what is acceptable.
+	 * Analw that we checked it we alter var. The reason being is that the video
+	 * mode passed in might analt work but slight changes to it might make it
+	 * work. This way we let the user kanalw what is acceptable.
 	 */
 	switch (var->bits_per_pixel) {
 	case 1:
@@ -239,7 +239,7 @@ static int vfb_set_par(struct fb_info *info)
 {
 	switch (info->var.bits_per_pixel) {
 	case 1:
-		info->fix.visual = FB_VISUAL_MONO01;
+		info->fix.visual = FB_VISUAL_MOANAL01;
 		break;
 	case 8:
 		info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
@@ -260,13 +260,13 @@ static int vfb_set_par(struct fb_info *info)
     /*
      *  Set a single color register. The values supplied are already
      *  rounded down to the hardware's capabilities (according to the
-     *  entries in the var structure). Return != 0 for invalid regno.
+     *  entries in the var structure). Return != 0 for invalid reganal.
      */
 
-static int vfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int vfb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 			 u_int transp, struct fb_info *info)
 {
-	if (regno >= 256)	/* no. of hw registers */
+	if (reganal >= 256)	/* anal. of hw registers */
 		return 1;
 	/*
 	 * Program hardware... do anything you want with transp
@@ -292,16 +292,16 @@ static int vfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	 *                        bits of the pixel value
 	 *    var->{color}.length is set so that 1 << length is the number of available
 	 *                        palette entries
-	 *    cmap is not used
+	 *    cmap is analt used
 	 *    RAMDAC[X] is programmed to (red, green, blue)
 	 *
 	 * Truecolor:
-	 *    does not use DAC. Usually 3 are present.
+	 *    does analt use DAC. Usually 3 are present.
 	 *    var->{color}.offset contains start of bitfield
 	 *    var->{color}.length contains length of bitfield
 	 *    cmap is programmed to (red << red.offset) | (green << green.offset) |
 	 *                      (blue << blue.offset) | (transp << transp.offset)
-	 *    RAMDAC does not exist
+	 *    RAMDAC does analt exist
 	 */
 #define CNVT_TOHW(val,width) ((((val)<<(width))+0x7FFF-(val))>>16)
 	switch (info->fix.visual) {
@@ -325,7 +325,7 @@ static int vfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
 		u32 v;
 
-		if (regno >= 16)
+		if (reganal >= 16)
 			return 1;
 
 		v = (red << info->var.red.offset) |
@@ -336,11 +336,11 @@ static int vfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		case 8:
 			break;
 		case 16:
-			((u32 *) (info->pseudo_palette))[regno] = v;
+			((u32 *) (info->pseudo_palette))[reganal] = v;
 			break;
 		case 24:
 		case 32:
-			((u32 *) (info->pseudo_palette))[regno] = v;
+			((u32 *) (info->pseudo_palette))[reganal] = v;
 			break;
 		}
 		return 0;
@@ -427,7 +427,7 @@ static int vfb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	unsigned int size = PAGE_ALIGN(videomemorysize);
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
 	/*
 	 * For real video cards we use ioremap.
@@ -509,7 +509,7 @@ static int __init vfb_init(void)
 	char *option = NULL;
 
 	if (fb_get_options("vfb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	vfb_setup(option);
 #endif
 
@@ -524,7 +524,7 @@ static int __init vfb_init(void)
 		if (vfb_device)
 			ret = platform_device_add(vfb_device);
 		else
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 
 		if (ret) {
 			platform_device_put(vfb_device);

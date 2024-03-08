@@ -3,7 +3,7 @@
  * linux/drivers/video/mmp/hw/mmp_ctrl.c
  * Marvell MMP series Display Controller support
  *
- * Copyright (C) 2012 Marvell Technology Group Ltd.
+ * Copyright (C) 2012 Marvell Techanallogy Group Ltd.
  * Authors:  Guoqing Li <ligq@marvell.com>
  *          Lisa Du <cldu@marvell.com>
  *          Zhou Zhu <zzhu3@marvell.com>
@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -162,7 +162,7 @@ static void overlay_set_win(struct mmp_overlay *overlay, struct mmp_win *win)
 	mutex_unlock(&overlay->access_ok);
 }
 
-static void dmafetch_onoff(struct mmp_overlay *overlay, int on)
+static void dmafetch_oanalff(struct mmp_overlay *overlay, int on)
 {
 	u32 mask = overlay_is_vid(overlay) ? CFG_DMA_ENA_MASK :
 		   CFG_GRA_ENA_MASK;
@@ -191,7 +191,7 @@ static void path_enabledisable(struct mmp_path *path, int on)
 	mutex_unlock(&path->access_ok);
 }
 
-static void path_onoff(struct mmp_path *path, int on)
+static void path_oanalff(struct mmp_path *path, int on)
 {
 	if (path->status == on) {
 		dev_info(path->dev, "path %s is already %s\n",
@@ -202,18 +202,18 @@ static void path_onoff(struct mmp_path *path, int on)
 	if (on) {
 		path_enabledisable(path, 1);
 
-		if (path->panel && path->panel->set_onoff)
-			path->panel->set_onoff(path->panel, 1);
+		if (path->panel && path->panel->set_oanalff)
+			path->panel->set_oanalff(path->panel, 1);
 	} else {
-		if (path->panel && path->panel->set_onoff)
-			path->panel->set_onoff(path->panel, 0);
+		if (path->panel && path->panel->set_oanalff)
+			path->panel->set_oanalff(path->panel, 0);
 
 		path_enabledisable(path, 0);
 	}
 	path->status = on;
 }
 
-static void overlay_set_onoff(struct mmp_overlay *overlay, int on)
+static void overlay_set_oanalff(struct mmp_overlay *overlay, int on)
 {
 	if (overlay->status == on) {
 		dev_info(overlay_to_ctrl(overlay)->dev, "overlay %s is already %s\n",
@@ -221,10 +221,10 @@ static void overlay_set_onoff(struct mmp_overlay *overlay, int on)
 		return;
 	}
 	overlay->status = on;
-	dmafetch_onoff(overlay, on);
+	dmafetch_oanalff(overlay, on);
 	if (overlay->path->ops.check_status(overlay->path)
 			!= overlay->path->status)
-		path_onoff(overlay->path, on);
+		path_oanalff(overlay->path, on);
 }
 
 static void overlay_set_fetch(struct mmp_overlay *overlay, int fetch_id)
@@ -315,7 +315,7 @@ static void path_set_mode(struct mmp_path *path, struct mmp_mode *mode)
 
 static struct mmp_overlay_ops mmphw_overlay_ops = {
 	.set_fetch = overlay_set_fetch,
-	.set_onoff = overlay_set_onoff,
+	.set_oanalff = overlay_set_oanalff,
 	.set_win = overlay_set_win,
 	.set_addr = overlay_set_addr,
 };
@@ -381,7 +381,7 @@ static void path_set_default(struct mmp_path *path)
 
 	/*
 	 * 1.enable multiple burst request in DMA AXI
-	 * bus arbiter for faster read if not tv path;
+	 * bus arbiter for faster read if analt tv path;
 	 * 2.enable horizontal smooth filter;
 	 */
 	mask = CFG_GRA_HSMOOTH_MASK | CFG_DMA_HSMOOTH_MASK | CFG_ARBFAST_ENA(1);
@@ -449,21 +449,21 @@ static int mmphw_probe(struct platform_device *pdev)
 	/* get resources from platform data */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "%s: no IO memory defined\n", __func__);
-		ret = -ENOENT;
+		dev_err(&pdev->dev, "%s: anal IO memory defined\n", __func__);
+		ret = -EANALENT;
 		goto failed;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto failed;
 	}
 
 	/* get configs from platform data */
 	mi = pdev->dev.platform_data;
 	if (mi == NULL || !mi->path_num || !mi->paths) {
-		dev_err(&pdev->dev, "%s: no platform data defined\n", __func__);
+		dev_err(&pdev->dev, "%s: anal platform data defined\n", __func__);
 		ret = -EINVAL;
 		goto failed;
 	}
@@ -473,7 +473,7 @@ static int mmphw_probe(struct platform_device *pdev)
 			    struct_size(ctrl, path_plats, mi->path_num),
 			    GFP_KERNEL);
 	if (!ctrl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed;
 	}
 
@@ -497,7 +497,7 @@ static int mmphw_probe(struct platform_device *pdev)
 			res->start, resource_size(res));
 	if (ctrl->reg_base == NULL) {
 		dev_err(ctrl->dev, "%s: res %pR map failed\n", __func__, res);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed;
 	}
 

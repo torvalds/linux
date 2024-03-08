@@ -62,14 +62,14 @@
 #define PALETTE_ONLY			0x01
 #define DATA_ONLY			0x02
 
-#define LCD_MONO_8BIT_MODE		BIT(9)
+#define LCD_MOANAL_8BIT_MODE		BIT(9)
 #define LCD_RASTER_ORDER		BIT(8)
 #define LCD_TFT_MODE			BIT(7)
 #define LCD_V1_UNDERFLOW_INT_ENA	BIT(6)
 #define LCD_V2_UNDERFLOW_INT_ENA	BIT(5)
 #define LCD_V1_PL_INT_ENA		BIT(4)
 #define LCD_V2_PL_INT_ENA		BIT(6)
-#define LCD_MONOCHROME_MODE		BIT(1)
+#define LCD_MOANALCHROME_MODE		BIT(1)
 #define LCD_RASTER_ENABLE		BIT(0)
 #define LCD_TFT_ALT_ENABLE		BIT(23)
 #define LCD_STN_565_ENABLE		BIT(24)
@@ -162,7 +162,7 @@ struct da8xx_fb_par {
 	 */
 	unsigned int		which_dma_channel_done;
 #ifdef CONFIG_CPU_FREQ
-	struct notifier_block	freq_transition;
+	struct analtifier_block	freq_transition;
 #endif
 	unsigned int		lcdc_clk_rate;
 	struct regulator	*lcd_supply;
@@ -181,10 +181,10 @@ static struct fb_fix_screeninfo da8xx_fb_fix = {
 	.xpanstep = 0,
 	.ypanstep = 1,
 	.ywrapstep = 0,
-	.accel = FB_ACCEL_NONE
+	.accel = FB_ACCEL_ANALNE
 };
 
-static struct fb_videomode known_lcd_panels[] = {
+static struct fb_videomode kanalwn_lcd_panels[] = {
 	/* Sharp LCD035Q3DG01 */
 	[0] = {
 		.name           = "Sharp_LCD035Q3DG01",
@@ -266,7 +266,7 @@ static void lcd_enable_raster(void)
 		lcdc_write(0, LCD_CLK_RESET_REG);
 	mdelay(1);
 
-	/* Above reset sequence doesnot reset register context */
+	/* Above reset sequence doesanalt reset register context */
 	reg = lcdc_read(LCD_RASTER_CTRL_REG);
 	if (!(reg & LCD_RASTER_ENABLE))
 		lcdc_write(reg | LCD_RASTER_ENABLE, LCD_RASTER_CTRL_REG);
@@ -447,14 +447,14 @@ static int lcd_cfg_display(const struct lcd_ctrl_config *cfg,
 	u32 reg_int;
 
 	reg = lcdc_read(LCD_RASTER_CTRL_REG) & ~(LCD_TFT_MODE |
-						LCD_MONO_8BIT_MODE |
-						LCD_MONOCHROME_MODE);
+						LCD_MOANAL_8BIT_MODE |
+						LCD_MOANALCHROME_MODE);
 
 	switch (cfg->panel_shade) {
-	case MONOCHROME:
-		reg |= LCD_MONOCHROME_MODE;
-		if (cfg->mono_8bit_mode)
-			reg |= LCD_MONO_8BIT_MODE;
+	case MOANALCHROME:
+		reg |= LCD_MOANALCHROME_MODE;
+		if (cfg->moanal_8bit_mode)
+			reg |= LCD_MOANAL_8BIT_MODE;
 		break;
 	case COLOR_ACTIVE:
 		reg |= LCD_TFT_MODE;
@@ -589,7 +589,7 @@ static int lcd_cfg_frame_buffer(struct da8xx_fb_par *par, u32 width, u32 height,
 }
 
 #define CNVT_TOHW(val, width) ((((val) << (width)) + 0x7FFF - (val)) >> 16)
-static int fb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int fb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			      unsigned blue, unsigned transp,
 			      struct fb_info *info)
 {
@@ -598,7 +598,7 @@ static int fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	u_short pal;
 	int update_hw = 0;
 
-	if (regno > 255)
+	if (reganal > 255)
 		return 1;
 
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR)
@@ -616,11 +616,11 @@ static int fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	case FB_VISUAL_PSEUDOCOLOR:
 		switch (info->var.bits_per_pixel) {
 		case 4:
-			if (regno > 15)
+			if (reganal > 15)
 				return -EINVAL;
 
 			if (info->var.grayscale) {
-				pal = regno;
+				pal = reganal;
 			} else {
 				red >>= 4;
 				green >>= 8;
@@ -630,9 +630,9 @@ static int fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 				pal |= green & 0x00f0;
 				pal |= blue & 0x000f;
 			}
-			if (regno == 0)
+			if (reganal == 0)
 				pal |= 0x2000;
-			palette[regno] = pal;
+			palette[reganal] = pal;
 			break;
 
 		case 8:
@@ -644,9 +644,9 @@ static int fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			pal |= (green & 0x00f0);
 			pal |= (blue & 0x000f);
 
-			if (palette[regno] != pal) {
+			if (palette[reganal] != pal) {
 				update_hw = 1;
-				palette[regno] = pal;
+				palette[reganal] = pal;
 			}
 			break;
 		}
@@ -657,14 +657,14 @@ static int fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
 		u32 v;
 
-		if (regno > 15)
+		if (reganal > 15)
 			return -EINVAL;
 
 		v = (red << info->var.red.offset) |
 			(green << info->var.green.offset) |
 			(blue << info->var.blue.offset);
 
-		((u32 *) (info->pseudo_palette))[regno] = v;
+		((u32 *) (info->pseudo_palette))[reganal] = v;
 		if (palette[0] != 0x4000) {
 			update_hw = 1;
 			palette[0] = 0x4000;
@@ -824,7 +824,7 @@ static irqreturn_t lcdc_irq_handler_rev02(int irq, void *arg)
 	u32 stat = lcdc_read(LCD_MASKED_STAT_REG);
 
 	if ((stat & LCD_SYNC_LOST) && (stat & LCD_FIFO_UNDERFLOW)) {
-		lcd_disable_raster(DA8XX_FRAME_NOWAIT);
+		lcd_disable_raster(DA8XX_FRAME_ANALWAIT);
 		lcdc_write(stat, LCD_MASKED_STAT_REG);
 		lcd_enable_raster();
 	} else if (stat & LCD_PL_LOAD_DONE) {
@@ -834,7 +834,7 @@ static irqreturn_t lcdc_irq_handler_rev02(int irq, void *arg)
 		 * interrupt via the following write to the status register. If
 		 * this is done after then one gets multiple PL done interrupts.
 		 */
-		lcd_disable_raster(DA8XX_FRAME_NOWAIT);
+		lcd_disable_raster(DA8XX_FRAME_ANALWAIT);
 
 		lcdc_write(stat, LCD_MASKED_STAT_REG);
 
@@ -887,7 +887,7 @@ static irqreturn_t lcdc_irq_handler_rev01(int irq, void *arg)
 	u32 reg_ras;
 
 	if ((stat & LCD_SYNC_LOST) && (stat & LCD_FIFO_UNDERFLOW)) {
-		lcd_disable_raster(DA8XX_FRAME_NOWAIT);
+		lcd_disable_raster(DA8XX_FRAME_ANALWAIT);
 		lcdc_write(stat, LCD_STAT_REG);
 		lcd_enable_raster();
 	} else if (stat & LCD_PL_LOAD_DONE) {
@@ -897,7 +897,7 @@ static irqreturn_t lcdc_irq_handler_rev01(int irq, void *arg)
 		 * interrupt via the following write to the status register. If
 		 * this is done after then one gets multiple PL done interrupts.
 		 */
-		lcd_disable_raster(DA8XX_FRAME_NOWAIT);
+		lcd_disable_raster(DA8XX_FRAME_ANALWAIT);
 
 		lcdc_write(stat, LCD_STAT_REG);
 
@@ -957,7 +957,7 @@ static int fb_check_var(struct fb_var_screeninfo *var,
 		var->blue.length = 8;
 		var->transp.offset = 0;
 		var->transp.length = 0;
-		var->nonstd = 0;
+		var->analnstd = 0;
 		break;
 	case 4:
 		var->red.offset = 0;
@@ -968,7 +968,7 @@ static int fb_check_var(struct fb_var_screeninfo *var,
 		var->blue.length = 4;
 		var->transp.offset = 0;
 		var->transp.length = 0;
-		var->nonstd = FB_NONSTD_REV_PIX_IN_B;
+		var->analnstd = FB_ANALNSTD_REV_PIX_IN_B;
 		break;
 	case 16:		/* RGB 565 */
 		var->red.offset = 11;
@@ -979,7 +979,7 @@ static int fb_check_var(struct fb_var_screeninfo *var,
 		var->blue.length = 5;
 		var->transp.offset = 0;
 		var->transp.length = 0;
-		var->nonstd = 0;
+		var->analnstd = 0;
 		break;
 	case 24:
 		var->red.offset = 16;
@@ -988,7 +988,7 @@ static int fb_check_var(struct fb_var_screeninfo *var,
 		var->green.length = 8;
 		var->blue.offset = 0;
 		var->blue.length = 8;
-		var->nonstd = 0;
+		var->analnstd = 0;
 		break;
 	case 32:
 		var->transp.offset = 24;
@@ -999,7 +999,7 @@ static int fb_check_var(struct fb_var_screeninfo *var,
 		var->green.length = 8;
 		var->blue.offset = 0;
 		var->blue.length = 8;
-		var->nonstd = 0;
+		var->analnstd = 0;
 		break;
 	default:
 		err = -EINVAL;
@@ -1030,7 +1030,7 @@ static int fb_check_var(struct fb_var_screeninfo *var,
 }
 
 #ifdef CONFIG_CPU_FREQ
-static int lcd_da8xx_cpufreq_transition(struct notifier_block *nb,
+static int lcd_da8xx_cpufreq_transition(struct analtifier_block *nb,
 				     unsigned long val, void *data)
 {
 	struct da8xx_fb_par *par;
@@ -1051,16 +1051,16 @@ static int lcd_da8xx_cpufreq_transition(struct notifier_block *nb,
 
 static int lcd_da8xx_cpufreq_register(struct da8xx_fb_par *par)
 {
-	par->freq_transition.notifier_call = lcd_da8xx_cpufreq_transition;
+	par->freq_transition.analtifier_call = lcd_da8xx_cpufreq_transition;
 
-	return cpufreq_register_notifier(&par->freq_transition,
-					 CPUFREQ_TRANSITION_NOTIFIER);
+	return cpufreq_register_analtifier(&par->freq_transition,
+					 CPUFREQ_TRANSITION_ANALTIFIER);
 }
 
 static void lcd_da8xx_cpufreq_deregister(struct da8xx_fb_par *par)
 {
-	cpufreq_unregister_notifier(&par->freq_transition,
-				    CPUFREQ_TRANSITION_NOTIFIER);
+	cpufreq_unregister_analtifier(&par->freq_transition,
+				    CPUFREQ_TRANSITION_ANALTIFIER);
 }
 #endif
 
@@ -1107,8 +1107,8 @@ static int fb_wait_for_vsync(struct fb_info *info)
 	 * race condition here where the ISR could have occurred just before or
 	 * just after this set. But since we are just coarsely waiting for
 	 * a frame to complete then that's OK. i.e. if the frame completed
-	 * just before this code executed then we have to wait another full
-	 * frame time but there is no way to avoid such a situation. On the
+	 * just before this code executed then we have to wait aanalther full
+	 * frame time but there is anal way to avoid such a situation. On the
 	 * other hand if the frame completed just after then we don't need
 	 * to wait long at all. Either way we are guaranteed to return to the
 	 * user immediately after a frame completion which is all that is
@@ -1138,7 +1138,7 @@ static int fb_ioctl(struct fb_info *info, unsigned int cmd,
 	case FBIPUT_BRIGHTNESS:
 	case FBIGET_COLOR:
 	case FBIPUT_COLOR:
-		return -ENOTTY;
+		return -EANALTTY;
 	case FBIPUT_HSYNC:
 		if (copy_from_user(&sync_arg, (char *)arg,
 				sizeof(struct lcd_sync_arg)))
@@ -1182,7 +1182,7 @@ static int cfb_blank(int blank, struct fb_info *info)
 				return ret;
 		}
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_POWERDOWN:
@@ -1310,14 +1310,14 @@ static struct fb_videomode *da8xx_fb_get_videomode(struct platform_device *dev)
 	struct fb_videomode *lcdc_info;
 	int i;
 
-	for (i = 0, lcdc_info = known_lcd_panels;
-		i < ARRAY_SIZE(known_lcd_panels); i++, lcdc_info++) {
+	for (i = 0, lcdc_info = kanalwn_lcd_panels;
+		i < ARRAY_SIZE(kanalwn_lcd_panels); i++, lcdc_info++) {
 		if (strcmp(fb_pdata->type, lcdc_info->name) == 0)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(known_lcd_panels)) {
-		dev_err(&dev->dev, "no panel found\n");
+	if (i == ARRAY_SIZE(kanalwn_lcd_panels)) {
+		dev_err(&dev->dev, "anal panel found\n");
 		return NULL;
 	}
 	dev_info(&dev->dev, "found %s panel\n", lcdc_info->name);
@@ -1338,13 +1338,13 @@ static int fb_probe(struct platform_device *device)
 	unsigned long ulcm;
 
 	if (fb_pdata == NULL) {
-		dev_err(&device->dev, "Can not get platform data\n");
-		return -ENOENT;
+		dev_err(&device->dev, "Can analt get platform data\n");
+		return -EANALENT;
 	}
 
 	lcdc_info = da8xx_fb_get_videomode(device);
 	if (lcdc_info == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	da8xx_fb_reg_base = devm_platform_ioremap_resource(device, 0);
 	if (IS_ERR(da8xx_fb_reg_base))
@@ -1353,7 +1353,7 @@ static int fb_probe(struct platform_device *device)
 	tmp_lcdc_clk = devm_clk_get(&device->dev, "fck");
 	if (IS_ERR(tmp_lcdc_clk))
 		return dev_err_probe(&device->dev, PTR_ERR(tmp_lcdc_clk),
-				     "Can not get device clock\n");
+				     "Can analt get device clock\n");
 
 	pm_runtime_enable(&device->dev);
 	pm_runtime_get_sync(&device->dev);
@@ -1368,7 +1368,7 @@ static int fb_probe(struct platform_device *device)
 		lcd_revision = LCD_VERSION_2;
 		break;
 	default:
-		dev_warn(&device->dev, "Unknown PID Reg value 0x%x, "
+		dev_warn(&device->dev, "Unkanalwn PID Reg value 0x%x, "
 				"defaulting to LCD revision 1\n",
 				lcdc_read(LCD_PID_REG));
 		lcd_revision = LCD_VERSION_1;
@@ -1385,7 +1385,7 @@ static int fb_probe(struct platform_device *device)
 	da8xx_fb_info = framebuffer_alloc(sizeof(struct da8xx_fb_par),
 					&device->dev);
 	if (!da8xx_fb_info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pm_runtime_disable;
 	}
 
@@ -1452,12 +1452,12 @@ static int fb_probe(struct platform_device *device)
 
 	par->irq = platform_get_irq(device, 0);
 	if (par->irq < 0) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err_release_fb;
 	}
 
 	da8xx_fb_var.grayscale =
-	    lcd_cfg->panel_shade == MONOCHROME ? 1 : 0;
+	    lcd_cfg->panel_shade == MOANALCHROME ? 1 : 0;
 	da8xx_fb_var.bits_per_pixel = lcd_cfg->bpp;
 
 	/* Initialize fbinfo */

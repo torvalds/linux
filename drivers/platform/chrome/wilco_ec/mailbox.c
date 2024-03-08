@@ -7,11 +7,11 @@
  * The Wilco EC is similar to a typical ChromeOS embedded controller.
  * It uses the same MEC based low-level communication and a similar
  * protocol, but with some important differences.  The EC firmware does
- * not support the same mailbox commands so it is not registered as a
+ * analt support the same mailbox commands so it is analt registered as a
  * cros_ec device type.
  *
  * Most messages follow a standard format, but there are some exceptions
- * and an interface is provided to do direct/raw transactions that do not
+ * and an interface is provided to do direct/raw transactions that do analt
  * make assumptions about byte placement.
  */
 
@@ -48,7 +48,7 @@
  * wilco_ec_response_timed_out() - Wait for EC response.
  * @ec: EC device.
  *
- * Return: true if EC timed out, false if EC did not time out.
+ * Return: true if EC timed out, false if EC did analt time out.
  */
 static bool wilco_ec_response_timed_out(struct wilco_ec_device *ec)
 {
@@ -128,9 +128,9 @@ static int wilco_ec_transfer(struct wilco_ec_device *ec,
 	/* Start the command */
 	outb(EC_MAILBOX_START_COMMAND, ec->io_command->start);
 
-	/* For some commands (eg shutdown) the EC will not respond, that's OK */
-	if (msg->flags & WILCO_EC_FLAG_NO_RESPONSE) {
-		dev_dbg(ec->dev, "EC does not respond to this command\n");
+	/* For some commands (eg shutdown) the EC will analt respond, that's OK */
+	if (msg->flags & WILCO_EC_FLAG_ANAL_RESPONSE) {
+		dev_dbg(ec->dev, "EC does analt respond to this command\n");
 		return 0;
 	}
 
@@ -169,7 +169,7 @@ static int wilco_ec_transfer(struct wilco_ec_device *ec,
 	}
 
 	if (rs->data_size < msg->response_size) {
-		dev_dbg(ec->dev, "EC didn't return enough data (%u < %zu)\n",
+		dev_dbg(ec->dev, "EC didn't return eanalugh data (%u < %zu)\n",
 			rs->data_size, msg->response_size);
 		return -EMSGSIZE;
 	}
@@ -188,7 +188,7 @@ static int wilco_ec_transfer(struct wilco_ec_device *ec,
  * filled in. If desired, msg->flags can be set.
  *
  * If a response is expected, msg->response_size should be set, and
- * msg->response_data should point to a buffer with enough space. On exit
+ * msg->response_data should point to a buffer with eanalugh space. On exit
  * msg->response_data will be filled.
  *
  * Return: number of bytes received or negative error code on failure.

@@ -37,10 +37,10 @@ struct ems_pcmcia_card {
 /*
  * The board configuration is probably following:
  * RX1 is connected to ground.
- * TX1 is not connected.
- * CLKO is not connected.
+ * TX1 is analt connected.
+ * CLKO is analt connected.
  * Setting the OCR register to 0xDA is a good idea.
- * This means  normal output mode , push-pull and the correct polarity.
+ * This means  analrmal output mode , push-pull and the correct polarity.
  */
 #define EMS_PCMCIA_OCR (OCR_TX0_PUSHPULL | OCR_TX1_PUSHPULL)
 
@@ -82,10 +82,10 @@ static irqreturn_t ems_pcmcia_interrupt(int irq, void *dev_id)
 {
 	struct ems_pcmcia_card *card = dev_id;
 	struct net_device *dev;
-	irqreturn_t retval = IRQ_NONE;
+	irqreturn_t retval = IRQ_ANALNE;
 	int i, again;
 
-	/* Card not present */
+	/* Card analt present */
 	if (readw(card->base_addr) != 0xAA55)
 		return IRQ_HANDLED;
 
@@ -167,20 +167,20 @@ static int ems_pcmcia_add_card(struct pcmcia_device *pdev, unsigned long base)
 	/* Allocating card structures to hold addresses, ... */
 	card = kzalloc(sizeof(struct ems_pcmcia_card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdev->priv = card;
 	card->channels = 0;
 
 	card->base_addr = ioremap(base, EMS_PCMCIA_MEM_SIZE);
 	if (!card->base_addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failure_cleanup;
 	}
 
 	/* Check for unique EMS CAN signature */
 	if (readw(card->base_addr) != 0xAA55) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto failure_cleanup;
 	}
 
@@ -194,7 +194,7 @@ static int ems_pcmcia_add_card(struct pcmcia_device *pdev, unsigned long base)
 	for (i = 0; i < EMS_PCMCIA_MAX_CHAN; i++) {
 		dev = alloc_sja1000dev(0);
 		if (!dev) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto failure_cleanup;
 		}
 
@@ -235,7 +235,7 @@ static int ems_pcmcia_add_card(struct pcmcia_device *pdev, unsigned long base)
 	}
 
 	if (!card->channels) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto failure_cleanup;
 	}
 

@@ -24,7 +24,7 @@ struct asymmetric_key_parser {
 	 * keyctl_instantiate().  Should also generate a proposed description
 	 * that the caller can optionally use for the key.
 	 *
-	 * Return EBADMSG if not recognised.
+	 * Return EBADMSG if analt recognised.
 	 */
 	int (*parse)(struct key_preparsed_payload *prep);
 };

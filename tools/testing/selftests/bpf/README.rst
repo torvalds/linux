@@ -1,5 +1,5 @@
 ==================
-BPF Selftest Notes
+BPF Selftest Analtes
 ==================
 General instructions on running selftests can be found in
 `Documentation/bpf/bpf_devel_QA.rst`__.
@@ -26,14 +26,14 @@ file fragments below ``tools/testing/selftests/bpf/`` (e.g., ``config`` and
 Denylisting Tests
 =================
 
-It is possible for some architectures to not have support for all BPF features.
+It is possible for some architectures to analt have support for all BPF features.
 In such a case tests in CI may fail. An example of such a shortcoming is BPF
 trampoline support on IBM's s390x architecture. For cases like this, an in-tree
 deny list file, located at ``tools/testing/selftests/bpf/DENYLIST.<arch>``, can
 be used to prevent the test from running on such an architecture.
 
 In addition to that, the generic ``tools/testing/selftests/bpf/DENYLIST`` is
-honored on every architecture running tests.
+hoanalred on every architecture running tests.
 
 These files are organized in three columns. The first column lists the test in
 question. This can be the name of a test suite or of an individual test. The
@@ -49,10 +49,10 @@ added.
 Running Selftests in a VM
 =========================
 
-It's now possible to run the selftests using ``tools/testing/selftests/bpf/vmtest.sh``.
+It's analw possible to run the selftests using ``tools/testing/selftests/bpf/vmtest.sh``.
 The script tries to ensure that the tests are run with the same environment as they
 would be run post-submit in the CI used by the Maintainers, with the exception
-that deny lists are not automatically honored.
+that deny lists are analt automatically hoanalred.
 
 This script uses the in-tree kernel configuration and downloads a VM userspace
 image from the system used by the CI. It builds the kernel (without overwriting
@@ -79,13 +79,13 @@ In case of linker errors when running selftests, try using static linking:
 
   $ LDLIBS=-static PKG_CONFIG='pkg-config --static' vmtest.sh
 
-.. note:: Some distros may not support static linking.
+.. analte:: Some distros may analt support static linking.
 
-.. note:: The script uses pahole and clang based on host environment setting.
+.. analte:: The script uses pahole and clang based on host environment setting.
           If you want to change pahole and llvm, you can change `PATH` environment
           variable in the beginning of script.
 
-.. note:: The script currently only supports x86_64 and s390x architectures.
+.. analte:: The script currently only supports x86_64 and s390x architectures.
 
 Additional information about selftest failures are
 documented here.
@@ -102,9 +102,9 @@ The symptom looks like
   // r7 is a scalar
   17:       bf 96 00 00 00 00 00 00 r6 = r9
   18:       0f 76 00 00 00 00 00 00 r6 += r7
-  math between map_value pointer and register with unbounded min value is not allowed
+  math between map_value pointer and register with unbounded min value is analt allowed
 
-  // the instructions below will not be seen in the verifier log
+  // the instructions below will analt be seen in the verifier log
   19:       a5 07 01 00 01 01 00 00 if r7 < 257 goto +1
   20:       bf 96 00 00 00 00 00 00 r6 = r9
   // r6 is used here
@@ -199,7 +199,7 @@ The reason is compiler generating the following code
       23:       7b 1a e0 ff 00 00 00 00 *(u64 *)(r10 - 32) = r1
       24:       7b 5a c0 ff 00 00 00 00 *(u64 *)(r10 - 64) = r5
 
-Note that insn #15 has w1 = w5 and w1 is refined later but
+Analte that insn #15 has w1 = w5 and w1 is refined later but
 r5(w5) is eventually saved on stack at insn #24 for later use.
 This cause later verifier failure. The bug has been `fixed`__ in
 Clang 13.
@@ -286,7 +286,7 @@ See `kernel llvm reloc`_ for more explanation and some examples.
 Using clang 13 to compile old libbpf which has static linker support,
 there will be a compilation failure::
 
-  libbpf: ELF relo #0 in section #6 has unexpected type 2 in .../bpf_tcp_nogpl.bpf.o
+  libbpf: ELF relo #0 in section #6 has unexpected type 2 in .../bpf_tcp_analgpl.bpf.o
 
 Here, ``type 2`` refers to new relocation type ``R_BPF_64_ABS64``.
 To fix this issue, user newer libbpf.

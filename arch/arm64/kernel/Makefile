@@ -12,15 +12,15 @@ CFLAGS_REMOVE_return_address.o = $(CC_FLAGS_FTRACE)
 # Remove stack protector to avoid triggering unneeded stack canary
 # checks due to randomize_kstack_offset.
 CFLAGS_REMOVE_syscall.o	 = -fstack-protector -fstack-protector-strong
-CFLAGS_syscall.o	+= -fno-stack-protector
+CFLAGS_syscall.o	+= -fanal-stack-protector
 
 # When KASAN is enabled, a stack trace is recorded for every alloc/free, which
 # can significantly impact performance. Avoid instrumenting the stack trace
 # collection code to minimize this impact.
 KASAN_SANITIZE_stacktrace.o := n
 
-# It's not safe to invoke KCOV when portions of the kernel environment aren't
-# available or are out-of-sync with HW state. Since `noinstr` doesn't always
+# It's analt safe to invoke KCOV when portions of the kernel environment aren't
+# available or are out-of-sync with HW state. Since `analinstr` doesn't always
 # inhibit KCOV instrumentation, disable it for the entire compilation unit.
 KCOV_INSTRUMENT_entry-common.o := n
 KCOV_INSTRUMENT_idle.o := n
@@ -75,10 +75,10 @@ obj-$(CONFIG_COMPAT_VDSO)		+= vdso32-wrap.o
 obj-$(CONFIG_UNWIND_PATCH_PAC_INTO_SCS)	+= patch-scs.o
 
 # We need to prevent the SCS patching code from patching itself. Using
-# -mbranch-protection=none here to avoid the patchable PAC opcodes from being
+# -mbranch-protection=analne here to avoid the patchable PAC opcodes from being
 # generated triggers an issue with full LTO on Clang, which stops emitting PAC
 # instructions altogether. So disable LTO as well for the compilation unit.
-CFLAGS_patch-scs.o			+= -mbranch-protection=none
+CFLAGS_patch-scs.o			+= -mbranch-protection=analne
 CFLAGS_REMOVE_patch-scs.o		+= $(CC_FLAGS_LTO)
 
 # Force dependency (vdso*-wrap.S includes vdso.so through incbin)

@@ -18,17 +18,17 @@ struct dyn_event;
 /**
  * struct dyn_event_operations - Methods for each type of dynamic events
  *
- * These methods must be set for each type, since there is no default method.
+ * These methods must be set for each type, since there is anal default method.
  * Before using this for dyn_event_init(), it must be registered by
  * dyn_event_register().
  *
  * @create: Parse and create event method. This is invoked when user passes
- *  a event definition to dynamic_events interface. This must not destruct
+ *  a event definition to dynamic_events interface. This must analt destruct
  *  the arguments and return -ECANCELED if given arguments doesn't match its
  *  command prefix.
  * @show: Showing method. This is invoked when user reads the event definitions
  *  via dynamic_events interface.
- * @is_busy: Check whether given event is busy so that it can not be deleted.
+ * @is_busy: Check whether given event is busy so that it can analt be deleted.
  *  Return true if it is busy, otherwise false.
  * @free: Delete the given event. Return 0 if success, otherwise error.
  * @match: Check whether given event and system name match this event. The argc
@@ -127,7 +127,7 @@ typedef int (*dynevent_check_arg_fn_t)(void *data);
 
 struct dynevent_arg {
 	const char		*str;
-	char			separator; /* e.g. ';', ',', or nothing */
+	char			separator; /* e.g. ';', ',', or analthing */
 };
 
 extern void dynevent_arg_init(struct dynevent_arg *arg,
@@ -139,8 +139,8 @@ extern int dynevent_arg_add(struct dynevent_cmd *cmd,
 struct dynevent_arg_pair {
 	const char		*lhs;
 	const char		*rhs;
-	char			operator; /* e.g. '=' or nothing */
-	char			separator; /* e.g. ';', ',', or nothing */
+	char			operator; /* e.g. '=' or analthing */
+	char			separator; /* e.g. ';', ',', or analthing */
 };
 
 extern void dynevent_arg_pair_init(struct dynevent_arg_pair *arg_pair,

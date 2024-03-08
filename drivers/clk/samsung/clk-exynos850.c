@@ -3,7 +3,7 @@
  * Copyright (C) 2021 Linaro Ltd.
  * Author: Sam Protsenko <semen.protsenko@linaro.org>
  *
- * Common Clock Framework support for Exynos850 SoC.
+ * Common Clock Framework support for Exyanals850 SoC.
  */
 
 #include <linux/clk.h>
@@ -11,12 +11,12 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
-#include <dt-bindings/clock/exynos850.h>
+#include <dt-bindings/clock/exyanals850.h>
 
 #include "clk.h"
-#include "clk-exynos-arm64.h"
+#include "clk-exyanals-arm64.h"
 
-/* NOTE: Must be equal to the last clock ID increased by one */
+/* ANALTE: Must be equal to the last clock ID increased by one */
 #define CLKS_NR_TOP			(CLK_DOUT_G3D_SWITCH + 1)
 #define CLKS_NR_APM			(CLK_GOUT_SYSREG_APM_PCLK + 1)
 #define CLKS_NR_AUD			(CLK_GOUT_AUD_CMU_AUD_PCLK + 1)
@@ -199,7 +199,7 @@ static const unsigned long top_clk_regs[] __initconst = {
 };
 
 /*
- * Do not provide PLL tables to core PLLs, as MANUAL_PLL_CTRL bit is not set
+ * Do analt provide PLL tables to core PLLs, as MANUAL_PLL_CTRL bit is analt set
  * for those PLLs by default, so set_rate operation would fail.
  */
 static const struct samsung_pll_clock top_pll_clks[] __initconst = {
@@ -503,14 +503,14 @@ static const struct samsung_cmu_info top_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(top_clk_regs),
 };
 
-static void __init exynos850_cmu_top_init(struct device_node *np)
+static void __init exyanals850_cmu_top_init(struct device_analde *np)
 {
-	exynos_arm64_register_cmu(NULL, np, &top_cmu_info);
+	exyanals_arm64_register_cmu(NULL, np, &top_cmu_info);
 }
 
 /* Register CMU_TOP early, as it's a dependency for other early domains */
-CLK_OF_DECLARE(exynos850_cmu_top, "samsung,exynos850-cmu-top",
-	       exynos850_cmu_top_init);
+CLK_OF_DECLARE(exyanals850_cmu_top, "samsung,exyanals850-cmu-top",
+	       exyanals850_cmu_top_init);
 
 /* ---- CMU_APM ------------------------------------------------------------- */
 
@@ -621,7 +621,7 @@ static const struct samsung_gate_clock apm_gate_clks[] __initconst = {
 	     CLK_CON_GAT_GOUT_APM_SPEEDY_APM_PCLK, 21, 0, 0),
 	/* TODO: Should be enabled in GPIO driver (or made CLK_IS_CRITICAL) */
 	GATE(CLK_GOUT_GPIO_ALIVE_PCLK, "gout_gpio_alive_pclk", "dout_apm_bus",
-	     CLK_CON_GAT_GOUT_APM_APBIF_GPIO_ALIVE_PCLK, 21, CLK_IGNORE_UNUSED,
+	     CLK_CON_GAT_GOUT_APM_APBIF_GPIO_ALIVE_PCLK, 21, CLK_IGANALRE_UNUSED,
 	     0),
 	GATE(CLK_GOUT_PMU_ALIVE_PCLK, "gout_pmu_alive_pclk", "dout_apm_bus",
 	     CLK_CON_GAT_GOUT_APM_APBIF_PMU_ALIVE_PCLK, 21, CLK_IS_CRITICAL, 0),
@@ -774,7 +774,7 @@ PNAME(mout_aud_tick_usb_user_p)	= { "oscclk", "tick_usb" };
 PNAME(mout_aud_fm_p)		= { "oscclk", "dout_aud_fm_spdy" };
 
 /*
- * Do not provide PLL table to PLL_AUD, as MANUAL_PLL_CTRL bit is not set
+ * Do analt provide PLL table to PLL_AUD, as MANUAL_PLL_CTRL bit is analt set
  * for that PLL by default, so set_rate operation would fail.
  */
 static const struct samsung_pll_clock aud_pll_clks[] __initconst = {
@@ -864,7 +864,7 @@ static const struct samsung_div_clock aud_div_clks[] __initconst = {
 static const struct samsung_gate_clock aud_gate_clks[] __initconst = {
 	GATE(CLK_GOUT_AUD_CMU_AUD_PCLK, "gout_aud_cmu_aud_pclk",
 	     "dout_aud_busd",
-	     CLK_CON_GAT_CLK_AUD_CMU_AUD_PCLK, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_CLK_AUD_CMU_AUD_PCLK, 21, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_GOUT_AUD_CA32_CCLK, "gout_aud_ca32_cclk", "mout_aud_cpu_hch",
 	     CLK_CON_GAT_GOUT_AUD_ABOX_CCLK_CA32, 21, 0, 0),
 	GATE(CLK_GOUT_AUD_ASB_CCLK, "gout_aud_asb_cclk", "dout_aud_cpu_aclk",
@@ -873,7 +873,7 @@ static const struct samsung_gate_clock aud_gate_clks[] __initconst = {
 	     CLK_CON_GAT_GOUT_AUD_ABOX_CCLK_DAP, 21, 0, 0),
 	/* TODO: Should be enabled in ABOX driver (or made CLK_IS_CRITICAL) */
 	GATE(CLK_GOUT_AUD_ABOX_ACLK, "gout_aud_abox_aclk", "dout_aud_busd",
-	     CLK_CON_GAT_GOUT_AUD_ABOX_ACLK, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_GOUT_AUD_ABOX_ACLK, 21, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_GOUT_AUD_GPIO_PCLK, "gout_aud_gpio_pclk", "dout_aud_busd",
 	     CLK_CON_GAT_GOUT_AUD_GPIO_PCLK, 21, 0, 0),
 	GATE(CLK_GOUT_AUD_PPMU_ACLK, "gout_aud_ppmu_aclk", "dout_aud_busd",
@@ -999,7 +999,7 @@ static const struct samsung_gate_clock cmgp_gate_clks[] __initconst = {
 	/* TODO: Should be enabled in GPIO driver (or made CLK_IS_CRITICAL) */
 	GATE(CLK_GOUT_CMGP_GPIO_PCLK, "gout_gpio_cmgp_pclk",
 	     "gout_clkcmu_cmgp_bus",
-	     CLK_CON_GAT_GOUT_CMGP_GPIO_PCLK, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_GOUT_CMGP_GPIO_PCLK, 21, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_GOUT_CMGP_USI0_IPCLK, "gout_cmgp_usi0_ipclk", "dout_cmgp_usi0",
 	     CLK_CON_GAT_GOUT_CMGP_USI_CMGP0_IPCLK, 21, 0, 0),
 	GATE(CLK_GOUT_CMGP_USI0_PCLK, "gout_cmgp_usi0_pclk",
@@ -1069,7 +1069,7 @@ PNAME(mout_g3d_switch_user_p)	= { "oscclk", "dout_g3d_switch" };
 PNAME(mout_g3d_busd_p)		= { "mout_g3d_pll", "mout_g3d_switch_user" };
 
 /*
- * Do not provide PLL table to PLL_G3D, as MANUAL_PLL_CTRL bit is not set
+ * Do analt provide PLL table to PLL_G3D, as MANUAL_PLL_CTRL bit is analt set
  * for that PLL by default, so set_rate operation would fail.
  */
 static const struct samsung_pll_clock g3d_pll_clks[] __initconst = {
@@ -1095,7 +1095,7 @@ static const struct samsung_div_clock g3d_div_clks[] __initconst = {
 static const struct samsung_gate_clock g3d_gate_clks[] __initconst = {
 	GATE(CLK_GOUT_G3D_CMU_G3D_PCLK, "gout_g3d_cmu_g3d_pclk",
 	     "dout_g3d_busp",
-	     CLK_CON_GAT_CLK_G3D_CMU_G3D_PCLK, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_CLK_G3D_CMU_G3D_PCLK, 21, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_GOUT_G3D_GPU_CLK, "gout_g3d_gpu_clk", "mout_g3d_busd",
 	     CLK_CON_GAT_CLK_G3D_GPU_CLK, 21, 0, 0),
 	GATE(CLK_GOUT_G3D_TZPC_PCLK, "gout_g3d_tzpc_pclk", "dout_g3d_busp",
@@ -1188,7 +1188,7 @@ static const struct samsung_gate_clock hsi_gate_clks[] __initconst = {
 	/* TODO: Should be enabled in corresponding driver */
 	GATE(CLK_GOUT_HSI_CMU_HSI_PCLK, "gout_hsi_cmu_hsi_pclk",
 	     "mout_hsi_bus_user",
-	     CLK_CON_GAT_CLK_HSI_CMU_HSI_PCLK, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_CLK_HSI_CMU_HSI_PCLK, 21, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_GOUT_USB_RTC_CLK, "gout_usb_rtc", "mout_hsi_rtc",
 	     CLK_CON_GAT_HSI_USB20DRD_TOP_I_RTC_CLK__ALV, 21, 0, 0),
 	GATE(CLK_GOUT_USB_REF_CLK, "gout_usb_ref", "mout_hsi_usb20drd_user",
@@ -1197,7 +1197,7 @@ static const struct samsung_gate_clock hsi_gate_clks[] __initconst = {
 	     CLK_CON_GAT_HSI_USB20DRD_TOP_I_PHY_REFCLK_26, 21, 0, 0),
 	/* TODO: Should be enabled in GPIO driver (or made CLK_IS_CRITICAL) */
 	GATE(CLK_GOUT_GPIO_HSI_PCLK, "gout_gpio_hsi_pclk", "mout_hsi_bus_user",
-	     CLK_CON_GAT_GOUT_HSI_GPIO_HSI_PCLK, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_GOUT_HSI_GPIO_HSI_PCLK, 21, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_GOUT_MMC_CARD_ACLK, "gout_mmc_card_aclk", "mout_hsi_bus_user",
 	     CLK_CON_GAT_GOUT_HSI_MMC_CARD_I_ACLK, 21, 0, 0),
 	GATE(CLK_GOUT_MMC_CARD_SDCLKIN, "gout_mmc_card_sdclkin",
@@ -1305,7 +1305,7 @@ static const struct samsung_div_clock is_div_clks[] __initconst = {
 static const struct samsung_gate_clock is_gate_clks[] __initconst = {
 	/* TODO: Should be enabled in IS driver */
 	GATE(CLK_GOUT_IS_CMU_IS_PCLK, "gout_is_cmu_is_pclk", "dout_is_busp",
-	     CLK_CON_GAT_CLK_IS_CMU_IS_PCLK, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_CLK_IS_CMU_IS_PCLK, 21, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_GOUT_IS_CSIS0_ACLK, "gout_is_csis0_aclk", "mout_is_bus_user",
 	     CLK_CON_GAT_GOUT_IS_CSIS0_ACLK, 21, 0, 0),
 	GATE(CLK_GOUT_IS_CSIS1_ACLK, "gout_is_csis1_aclk", "mout_is_bus_user",
@@ -1426,7 +1426,7 @@ static const struct samsung_gate_clock mfcmscl_gate_clks[] __initconst = {
 	/* TODO: Should be enabled in MFC driver */
 	GATE(CLK_GOUT_MFCMSCL_CMU_MFCMSCL_PCLK, "gout_mfcmscl_cmu_mfcmscl_pclk",
 	     "dout_mfcmscl_busp", CLK_CON_GAT_CLK_MFCMSCL_CMU_MFCMSCL_PCLK,
-	     21, CLK_IGNORE_UNUSED, 0),
+	     21, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_GOUT_MFCMSCL_TZPC_PCLK, "gout_mfcmscl_tzpc_pclk",
 	     "dout_mfcmscl_busp", CLK_CON_GAT_GOUT_MFCMSCL_TZPC_PCLK,
 	     21, 0, 0),
@@ -1628,7 +1628,7 @@ static const struct samsung_gate_clock peri_gate_clks[] __initconst = {
 	/* TODO: Should be enabled in GPIO driver (or made CLK_IS_CRITICAL) */
 	GATE(CLK_GOUT_GPIO_PERI_PCLK, "gout_gpio_peri_pclk",
 	     "mout_peri_bus_user",
-	     CLK_CON_GAT_GOUT_PERI_GPIO_PERI_PCLK, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_GOUT_PERI_GPIO_PERI_PCLK, 21, CLK_IGANALRE_UNUSED, 0),
 };
 
 static const struct samsung_cmu_info peri_cmu_info __initconst = {
@@ -1644,14 +1644,14 @@ static const struct samsung_cmu_info peri_cmu_info __initconst = {
 	.clk_name		= "dout_peri_bus",
 };
 
-static void __init exynos850_cmu_peri_init(struct device_node *np)
+static void __init exyanals850_cmu_peri_init(struct device_analde *np)
 {
-	exynos_arm64_register_cmu(NULL, np, &peri_cmu_info);
+	exyanals_arm64_register_cmu(NULL, np, &peri_cmu_info);
 }
 
 /* Register CMU_PERI early, as it's needed for MCT timer */
-CLK_OF_DECLARE(exynos850_cmu_peri, "samsung,exynos850-cmu-peri",
-	       exynos850_cmu_peri_init);
+CLK_OF_DECLARE(exyanals850_cmu_peri, "samsung,exyanals850-cmu-peri",
+	       exyanals850_cmu_peri_init);
 
 /* ---- CMU_CORE ------------------------------------------------------------ */
 
@@ -1732,7 +1732,7 @@ static const struct samsung_gate_clock core_gate_clks[] __initconst = {
 	     CLK_CON_GAT_GOUT_CORE_SSS_I_PCLK, 21, 0, 0),
 	/* TODO: Should be enabled in GPIO driver (or made CLK_IS_CRITICAL) */
 	GATE(CLK_GOUT_GPIO_CORE_PCLK, "gout_gpio_core_pclk", "dout_core_busp",
-	     CLK_CON_GAT_GOUT_CORE_GPIO_CORE_PCLK, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_GOUT_CORE_GPIO_CORE_PCLK, 21, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_GOUT_SYSREG_CORE_PCLK, "gout_sysreg_core_pclk",
 	     "dout_core_busp",
 	     CLK_CON_GAT_GOUT_CORE_SYSREG_CORE_PCLK, 21, 0, 0),
@@ -1795,7 +1795,7 @@ static const struct samsung_gate_clock dpu_gate_clks[] __initconst = {
 	/* TODO: Should be enabled in DSIM driver */
 	GATE(CLK_GOUT_DPU_CMU_DPU_PCLK, "gout_dpu_cmu_dpu_pclk",
 	     "dout_dpu_busp",
-	     CLK_CON_GAT_CLK_DPU_CMU_DPU_PCLK, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_CLK_DPU_CMU_DPU_PCLK, 21, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_GOUT_DPU_DECON0_ACLK, "gout_dpu_decon0_aclk", "mout_dpu_user",
 	     CLK_CON_GAT_GOUT_DPU_ACLK_DECON0, 21, 0, 0),
 	GATE(CLK_GOUT_DPU_DMA_ACLK, "gout_dpu_dma_aclk", "mout_dpu_user",
@@ -1827,60 +1827,60 @@ static const struct samsung_cmu_info dpu_cmu_info __initconst = {
 
 /* ---- platform_driver ----------------------------------------------------- */
 
-static int __init exynos850_cmu_probe(struct platform_device *pdev)
+static int __init exyanals850_cmu_probe(struct platform_device *pdev)
 {
 	const struct samsung_cmu_info *info;
 	struct device *dev = &pdev->dev;
 
 	info = of_device_get_match_data(dev);
-	exynos_arm64_register_cmu(dev, dev->of_node, info);
+	exyanals_arm64_register_cmu(dev, dev->of_analde, info);
 
 	return 0;
 }
 
-static const struct of_device_id exynos850_cmu_of_match[] = {
+static const struct of_device_id exyanals850_cmu_of_match[] = {
 	{
-		.compatible = "samsung,exynos850-cmu-apm",
+		.compatible = "samsung,exyanals850-cmu-apm",
 		.data = &apm_cmu_info,
 	}, {
-		.compatible = "samsung,exynos850-cmu-aud",
+		.compatible = "samsung,exyanals850-cmu-aud",
 		.data = &aud_cmu_info,
 	}, {
-		.compatible = "samsung,exynos850-cmu-cmgp",
+		.compatible = "samsung,exyanals850-cmu-cmgp",
 		.data = &cmgp_cmu_info,
 	}, {
-		.compatible = "samsung,exynos850-cmu-g3d",
+		.compatible = "samsung,exyanals850-cmu-g3d",
 		.data = &g3d_cmu_info,
 	}, {
-		.compatible = "samsung,exynos850-cmu-hsi",
+		.compatible = "samsung,exyanals850-cmu-hsi",
 		.data = &hsi_cmu_info,
 	}, {
-		.compatible = "samsung,exynos850-cmu-is",
+		.compatible = "samsung,exyanals850-cmu-is",
 		.data = &is_cmu_info,
 	}, {
-		.compatible = "samsung,exynos850-cmu-mfcmscl",
+		.compatible = "samsung,exyanals850-cmu-mfcmscl",
 		.data = &mfcmscl_cmu_info,
 	}, {
-		.compatible = "samsung,exynos850-cmu-core",
+		.compatible = "samsung,exyanals850-cmu-core",
 		.data = &core_cmu_info,
 	}, {
-		.compatible = "samsung,exynos850-cmu-dpu",
+		.compatible = "samsung,exyanals850-cmu-dpu",
 		.data = &dpu_cmu_info,
 	}, {
 	},
 };
 
-static struct platform_driver exynos850_cmu_driver __refdata = {
+static struct platform_driver exyanals850_cmu_driver __refdata = {
 	.driver	= {
-		.name = "exynos850-cmu",
-		.of_match_table = exynos850_cmu_of_match,
+		.name = "exyanals850-cmu",
+		.of_match_table = exyanals850_cmu_of_match,
 		.suppress_bind_attrs = true,
 	},
-	.probe = exynos850_cmu_probe,
+	.probe = exyanals850_cmu_probe,
 };
 
-static int __init exynos850_cmu_init(void)
+static int __init exyanals850_cmu_init(void)
 {
-	return platform_driver_register(&exynos850_cmu_driver);
+	return platform_driver_register(&exyanals850_cmu_driver);
 }
-core_initcall(exynos850_cmu_init);
+core_initcall(exyanals850_cmu_init);

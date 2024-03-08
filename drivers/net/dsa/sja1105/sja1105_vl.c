@@ -18,7 +18,7 @@ static int sja1105_insert_gate_entry(struct sja1105_gating_config *gating_cfg,
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (!e)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	e->rule = rule;
 	e->gate_state = gate_state;
@@ -242,12 +242,12 @@ err:
  *  |       |             ----------------------------------------------
  *  |       |            /    Reception Window is open for this VL      \
  *  |       |           /    (the Schedule Table executes an entry i     \
- *  |       |          /   M <= i < N, for which these conditions hold):  \ no
+ *  |       |          /   M <= i < N, for which these conditions hold):  \ anal
  *  |       |    +----/                                                    \-+
- *  |       |    |yes \       WINST[M] == 1 && WINSTINDEX[M] == VLID       / |
+ *  |       |    |anal \       WINST[M] == 1 && WINSTINDEX[M] == VLID       / |
  *  |       |    |     \     WINEND[N] == 1 && WINSTINDEX[N] == VLID      /  |
  *  |       |    |      \                                                /   |
- *  |       |    |       \ (the VL window has opened and not yet closed)/    |
+ *  |       |    |       \ (the VL window has opened and analt yet closed)/    |
  *  |       |    |        ----------------------------------------------     |
  *  |       |    v                                                           v
  *  |       |  dispatch to DESTPORTS when the Schedule Table               drop
@@ -256,9 +256,9 @@ err:
  * dispatch immediately to DESTPORTS
  *
  * The per-port classification key is always composed of {DMAC, VID, PCP} and
- * is non-maskable. This 'looks like' the NULL stream identification function
+ * is analn-maskable. This 'looks like' the NULL stream identification function
  * from IEEE 802.1CB clause 6, except for the extra VLAN PCP. When the switch
- * ports operate as VLAN-unaware, we do allow the user to not specify the VLAN
+ * ports operate as VLAN-unaware, we do allow the user to analt specify the VLAN
  * ID and PCP, and then the port-based defaults will be used.
  *
  * In TTEthernet, routing is something that needs to be done manually for each
@@ -329,20 +329,20 @@ static int sja1105_init_virtual_links(struct sja1105_private *priv,
 		/* Each VL lookup entry matches on a single ingress port */
 		num_virtual_links += hweight_long(rule->port_mask);
 
-		if (rule->vl.type != SJA1105_VL_NONCRITICAL)
+		if (rule->vl.type != SJA1105_VL_ANALNCRITICAL)
 			have_critical_virtual_links = true;
 		if (max_sharindx < rule->vl.sharindx)
 			max_sharindx = rule->vl.sharindx;
 	}
 
 	if (num_virtual_links > SJA1105_MAX_VL_LOOKUP_COUNT) {
-		NL_SET_ERR_MSG_MOD(extack, "Not enough VL entries available");
-		return -ENOSPC;
+		NL_SET_ERR_MSG_MOD(extack, "Analt eanalugh VL entries available");
+		return -EANALSPC;
 	}
 
 	if (max_sharindx + 1 > SJA1105_MAX_VL_LOOKUP_COUNT) {
 		NL_SET_ERR_MSG_MOD(extack, "Policer index out of range");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	max_sharindx = max_t(int, num_virtual_links, max_sharindx) + 1;
@@ -375,7 +375,7 @@ static int sja1105_init_virtual_links(struct sja1105_private *priv,
 		table->entry_count = 0;
 	}
 
-	/* Nothing to do */
+	/* Analthing to do */
 	if (!num_virtual_links)
 		return 0;
 
@@ -387,7 +387,7 @@ static int sja1105_init_virtual_links(struct sja1105_private *priv,
 				 table->ops->unpacked_entry_size,
 				 GFP_KERNEL);
 	if (!table->entries)
-		return -ENOMEM;
+		return -EANALMEM;
 	table->entry_count = num_virtual_links;
 	vl_lookup = table->entries;
 
@@ -415,10 +415,10 @@ static int sja1105_init_virtual_links(struct sja1105_private *priv,
 				vl_lookup[k].vlanprior = 0;
 			}
 			/* For critical VLs, the DESTPORTS mask is taken from
-			 * the VL Forwarding Table, so no point in putting it
+			 * the VL Forwarding Table, so anal point in putting it
 			 * in the VL Lookup Table
 			 */
-			if (rule->vl.type == SJA1105_VL_NONCRITICAL)
+			if (rule->vl.type == SJA1105_VL_ANALNCRITICAL)
 				vl_lookup[k].destports = rule->vl.destports;
 			else
 				vl_lookup[k].iscritical = true;
@@ -455,7 +455,7 @@ static int sja1105_init_virtual_links(struct sja1105_private *priv,
 	table->entries = kcalloc(max_sharindx, table->ops->unpacked_entry_size,
 				 GFP_KERNEL);
 	if (!table->entries)
-		return -ENOMEM;
+		return -EANALMEM;
 	table->entry_count = max_sharindx;
 	vl_policing = table->entries;
 
@@ -464,7 +464,7 @@ static int sja1105_init_virtual_links(struct sja1105_private *priv,
 	table->entries = kcalloc(max_sharindx, table->ops->unpacked_entry_size,
 				 GFP_KERNEL);
 	if (!table->entries)
-		return -ENOMEM;
+		return -EANALMEM;
 	table->entry_count = max_sharindx;
 	vl_fwd = table->entries;
 
@@ -473,14 +473,14 @@ static int sja1105_init_virtual_links(struct sja1105_private *priv,
 	table->entries = kcalloc(1, table->ops->unpacked_entry_size,
 				 GFP_KERNEL);
 	if (!table->entries)
-		return -ENOMEM;
+		return -EANALMEM;
 	table->entry_count = 1;
 
 	for (i = 0; i < num_virtual_links; i++) {
 		unsigned long cookie = vl_lookup[i].flow_cookie;
 		struct sja1105_rule *rule = sja1105_rule_find(priv, cookie);
 
-		if (rule->vl.type == SJA1105_VL_NONCRITICAL)
+		if (rule->vl.type == SJA1105_VL_ANALNCRITICAL)
 			continue;
 		if (rule->vl.type == SJA1105_VL_TIME_TRIGGERED) {
 			int sharindx = rule->vl.sharindx;
@@ -516,17 +516,17 @@ int sja1105_vl_redirect(struct sja1105_private *priv, int port,
 	if (!vlan_aware && key->type != SJA1105_KEY_VLAN_UNAWARE_VL) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only redirect based on DMAC");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	} else if (vlan_aware && key->type != SJA1105_KEY_VLAN_AWARE_VL) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only redirect based on {DMAC, VID, PCP}");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!rule) {
 		rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 		if (!rule)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		rule->cookie = cookie;
 		rule->type = SJA1105_RULE_VL;
@@ -593,8 +593,8 @@ int sja1105_vl_gate(struct sja1105_private *priv, int port,
 
 	if (cycle_time_ext) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Cycle time extension not supported");
-		return -EOPNOTSUPP;
+				   "Cycle time extension analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	div_s64_rem(base_time, sja1105_delta_to_ns(1), &rem);
@@ -614,17 +614,17 @@ int sja1105_vl_gate(struct sja1105_private *priv, int port,
 	if (!vlan_aware && key->type != SJA1105_KEY_VLAN_UNAWARE_VL) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only gate based on DMAC");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	} else if (vlan_aware && key->type != SJA1105_KEY_VLAN_AWARE_VL) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only gate based on {DMAC, VID, PCP}");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!rule) {
 		rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 		if (!rule)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		list_add(&rule->list, &priv->flow_block.rules);
 		rule->cookie = cookie;
@@ -639,7 +639,7 @@ int sja1105_vl_gate(struct sja1105_private *priv, int port,
 					   sizeof(struct action_gate_entry),
 					   GFP_KERNEL);
 		if (!rule->vl.entries) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 
@@ -655,7 +655,7 @@ int sja1105_vl_gate(struct sja1105_private *priv, int port,
 
 			if (!entries[i].interval) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Interval cannot be zero");
+						   "Interval cananalt be zero");
 				rc = -ERANGE;
 				goto out;
 			}
@@ -670,8 +670,8 @@ int sja1105_vl_gate(struct sja1105_private *priv, int port,
 
 			if (entries[i].maxoctets != -1) {
 				NL_SET_ERR_MSG_MOD(extack,
-						   "Cannot offload IntervalOctetMax");
-				rc = -EOPNOTSUPP;
+						   "Cananalt offload IntervalOctetMax");
+				rc = -EOPANALTSUPP;
 				goto out;
 			}
 
@@ -680,7 +680,7 @@ int sja1105_vl_gate(struct sja1105_private *priv, int port,
 			} else if (ipv != entries[i].ipv) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Only support a single IPV per VL");
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 				goto out;
 			}
 

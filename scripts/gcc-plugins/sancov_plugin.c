@@ -57,15 +57,15 @@ static unsigned int sancov_execute(void)
 
 #define PASS_NAME sancov
 
-#define NO_GATE
-#define TODO_FLAGS_FINISH TODO_dump_func | TODO_verify_stmts | TODO_update_ssa_no_phi | TODO_verify_flow
+#define ANAL_GATE
+#define TODO_FLAGS_FINISH TODO_dump_func | TODO_verify_stmts | TODO_update_ssa_anal_phi | TODO_verify_flow
 
 #include "gcc-generate-gimple-pass.h"
 
 static void sancov_start_unit(void __unused *gcc_data, void __unused *user_data)
 {
-	tree leaf_attr, nothrow_attr;
-	tree BT_FN_VOID = build_function_type_list(void_type_node, NULL_TREE);
+	tree leaf_attr, analthrow_attr;
+	tree BT_FN_VOID = build_function_type_list(void_type_analde, NULL_TREE);
 
 	sancov_fndecl = build_fn_decl("__sanitizer_cov_trace_pc", BT_FN_VOID);
 
@@ -77,9 +77,9 @@ static void sancov_start_unit(void __unused *gcc_data, void __unused *user_data)
 	DECL_UNINLINABLE(sancov_fndecl) = 1;
 	TREE_USED(sancov_fndecl) = 1;
 
-	nothrow_attr = tree_cons(get_identifier("nothrow"), NULL, NULL);
-	decl_attributes(&sancov_fndecl, nothrow_attr, 0);
-	gcc_assert(TREE_NOTHROW(sancov_fndecl));
+	analthrow_attr = tree_cons(get_identifier("analthrow"), NULL, NULL);
+	decl_attributes(&sancov_fndecl, analthrow_attr, 0);
+	gcc_assert(TREE_ANALTHROW(sancov_fndecl));
 	leaf_attr = tree_cons(get_identifier("leaf"), NULL, NULL);
 	decl_attributes(&sancov_fndecl, leaf_attr, 0);
 }
@@ -97,8 +97,8 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 			.base = &sancov_fndecl,
 			.nelt = 1,
 			.stride = sizeof(sancov_fndecl),
-			.cb = &gt_ggc_mx_tree_node,
-			.pchw = &gt_pch_nx_tree_node
+			.cb = &gt_ggc_mx_tree_analde,
+			.pchw = &gt_pch_nx_tree_analde
 		},
 		LAST_GGC_ROOT_TAB
 	};
@@ -112,11 +112,11 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 	}
 
 	for (i = 0; i < argc; ++i) {
-		if (!strcmp(argv[i].key, "no-sancov")) {
+		if (!strcmp(argv[i].key, "anal-sancov")) {
 			enable = false;
 			continue;
 		}
-		error(G_("unknown option '-fplugin-arg-%s-%s'"), plugin_name, argv[i].key);
+		error(G_("unkanalwn option '-fplugin-arg-%s-%s'"), plugin_name, argv[i].key);
 	}
 
 	register_callback(plugin_name, PLUGIN_INFO, NULL, &sancov_plugin_info);

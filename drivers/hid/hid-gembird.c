@@ -34,7 +34,7 @@ static const __u8 gembird_jpd_faulty_rdesc[] = {
 
 /*
  * we fix the report descriptor by:
- * - marking the first Z axis as constant (so it is ignored by HID)
+ * - marking the first Z axis as constant (so it is iganalred by HID)
  * - assign the original second Z to Rx
  * - assign the original Rz to Ry
  */

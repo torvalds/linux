@@ -15,15 +15,15 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
-void (*local_flush_cache_all)(void *args) = cache_noop;
-void (*local_flush_cache_mm)(void *args) = cache_noop;
-void (*local_flush_cache_dup_mm)(void *args) = cache_noop;
-void (*local_flush_cache_page)(void *args) = cache_noop;
-void (*local_flush_cache_range)(void *args) = cache_noop;
-void (*local_flush_dcache_folio)(void *args) = cache_noop;
-void (*local_flush_icache_range)(void *args) = cache_noop;
-void (*local_flush_icache_folio)(void *args) = cache_noop;
-void (*local_flush_cache_sigtramp)(void *args) = cache_noop;
+void (*local_flush_cache_all)(void *args) = cache_analop;
+void (*local_flush_cache_mm)(void *args) = cache_analop;
+void (*local_flush_cache_dup_mm)(void *args) = cache_analop;
+void (*local_flush_cache_page)(void *args) = cache_analop;
+void (*local_flush_cache_range)(void *args) = cache_analop;
+void (*local_flush_dcache_folio)(void *args) = cache_analop;
+void (*local_flush_icache_range)(void *args) = cache_analop;
+void (*local_flush_icache_folio)(void *args) = cache_analop;
+void (*local_flush_cache_sigtramp)(void *args) = cache_analop;
 
 void (*__flush_wback_region)(void *start, int size);
 EXPORT_SYMBOL(__flush_wback_region);
@@ -32,7 +32,7 @@ EXPORT_SYMBOL(__flush_purge_region);
 void (*__flush_invalidate_region)(void *start, int size);
 EXPORT_SYMBOL(__flush_invalidate_region);
 
-static inline void noop__flush_region(void *start, int size)
+static inline void analop__flush_region(void *start, int size)
 {
 }
 
@@ -155,7 +155,7 @@ void __update_cache(struct vm_area_struct *vma,
 	}
 }
 
-void __flush_anon_page(struct page *page, unsigned long vmaddr)
+void __flush_aanaln_page(struct page *page, unsigned long vmaddr)
 {
 	struct folio *folio = page_folio(page);
 	unsigned long addr = (unsigned long) page_address(page);
@@ -166,7 +166,7 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
 			void *kaddr;
 
 			kaddr = kmap_coherent(page, vmaddr);
-			/* XXX.. For now kunmap_coherent() does a purge */
+			/* XXX.. For analw kunmap_coherent() does a purge */
 			/* __flush_purge_region((void *)kaddr, PAGE_SIZE); */
 			kunmap_coherent(kaddr);
 		} else
@@ -243,7 +243,7 @@ EXPORT_SYMBOL(flush_icache_range);
 void flush_icache_pages(struct vm_area_struct *vma, struct page *page,
 		unsigned int nr)
 {
-	/* Nothing uses the VMA, so just pass the folio along */
+	/* Analthing uses the VMA, so just pass the folio along */
 	cacheop_on_each_cpu(local_flush_icache_folio, page_folio(page), 1);
 }
 
@@ -264,19 +264,19 @@ static void compute_alias(struct cache_info *c)
 
 static void __init emit_cache_params(void)
 {
-	printk(KERN_NOTICE "I-cache : n_ways=%d n_sets=%d way_incr=%d\n",
+	printk(KERN_ANALTICE "I-cache : n_ways=%d n_sets=%d way_incr=%d\n",
 		boot_cpu_data.icache.ways,
 		boot_cpu_data.icache.sets,
 		boot_cpu_data.icache.way_incr);
-	printk(KERN_NOTICE "I-cache : entry_mask=0x%08x alias_mask=0x%08x n_aliases=%d\n",
+	printk(KERN_ANALTICE "I-cache : entry_mask=0x%08x alias_mask=0x%08x n_aliases=%d\n",
 		boot_cpu_data.icache.entry_mask,
 		boot_cpu_data.icache.alias_mask,
 		boot_cpu_data.icache.n_aliases);
-	printk(KERN_NOTICE "D-cache : n_ways=%d n_sets=%d way_incr=%d\n",
+	printk(KERN_ANALTICE "D-cache : n_ways=%d n_sets=%d way_incr=%d\n",
 		boot_cpu_data.dcache.ways,
 		boot_cpu_data.dcache.sets,
 		boot_cpu_data.dcache.way_incr);
-	printk(KERN_NOTICE "D-cache : entry_mask=0x%08x alias_mask=0x%08x n_aliases=%d\n",
+	printk(KERN_ANALTICE "D-cache : entry_mask=0x%08x alias_mask=0x%08x n_aliases=%d\n",
 		boot_cpu_data.dcache.entry_mask,
 		boot_cpu_data.dcache.alias_mask,
 		boot_cpu_data.dcache.n_aliases);
@@ -285,11 +285,11 @@ static void __init emit_cache_params(void)
 	 * Emit Secondary Cache parameters if the CPU has a probed L2.
 	 */
 	if (boot_cpu_data.flags & CPU_HAS_L2_CACHE) {
-		printk(KERN_NOTICE "S-cache : n_ways=%d n_sets=%d way_incr=%d\n",
+		printk(KERN_ANALTICE "S-cache : n_ways=%d n_sets=%d way_incr=%d\n",
 			boot_cpu_data.scache.ways,
 			boot_cpu_data.scache.sets,
 			boot_cpu_data.scache.way_incr);
-		printk(KERN_NOTICE "S-cache : entry_mask=0x%08x alias_mask=0x%08x n_aliases=%d\n",
+		printk(KERN_ANALTICE "S-cache : entry_mask=0x%08x alias_mask=0x%08x n_aliases=%d\n",
 			boot_cpu_data.scache.entry_mask,
 			boot_cpu_data.scache.alias_mask,
 			boot_cpu_data.scache.n_aliases);
@@ -308,13 +308,13 @@ void __init cpu_cache_init(void)
 	compute_alias(&boot_cpu_data.dcache);
 	compute_alias(&boot_cpu_data.scache);
 
-	__flush_wback_region		= noop__flush_region;
-	__flush_purge_region		= noop__flush_region;
-	__flush_invalidate_region	= noop__flush_region;
+	__flush_wback_region		= analop__flush_region;
+	__flush_purge_region		= analop__flush_region;
+	__flush_invalidate_region	= analop__flush_region;
 
 	/*
-	 * No flushing is necessary in the disabled cache case so we can
-	 * just keep the noop functions in local_flush_..() and __flush_..()
+	 * Anal flushing is necessary in the disabled cache case so we can
+	 * just keep the analop functions in local_flush_..() and __flush_..()
 	 */
 	if (unlikely(cache_disabled))
 		goto skip;

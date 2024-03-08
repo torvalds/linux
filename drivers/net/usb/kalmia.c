@@ -71,7 +71,7 @@ kalmia_send_init_packet(struct usbnet *dev, u8 *init_msg, u8 init_msg_len,
 	}
 	else if (act_len != init_msg_len) {
 		netdev_err(dev->net,
-			"Did not send all of init packet. Bytes sent: %i",
+			"Did analt send all of init packet. Bytes sent: %i",
 			act_len);
 	}
 	else {
@@ -107,7 +107,7 @@ kalmia_init_and_get_ethernet_addr(struct usbnet *dev, u8 *ethernet_addr)
 
 	usb_buf = kmalloc(buflen, GFP_DMA | GFP_KERNEL);
 	if (!usb_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(usb_buf, init_msg_1, 12);
 	status = kalmia_send_init_packet(dev, usb_buf, ARRAY_SIZE(init_msg_1),
@@ -228,9 +228,9 @@ kalmia_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	 */
 	static const u8 HEADER_END_OF_USB_PACKET[] =
 		{ 0x57, 0x5a, 0x00, 0x00, 0x08, 0x00 };
-	static const u8 EXPECTED_UNKNOWN_HEADER_1[] =
+	static const u8 EXPECTED_UNKANALWN_HEADER_1[] =
 		{ 0x57, 0x43, 0x1e, 0x00, 0x15, 0x02 };
-	static const u8 EXPECTED_UNKNOWN_HEADER_2[] =
+	static const u8 EXPECTED_UNKANALWN_HEADER_2[] =
 		{ 0x57, 0x50, 0x0e, 0x00, 0x00, 0x00 };
 	int i = 0;
 
@@ -247,18 +247,18 @@ kalmia_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		header_start = skb->data;
 
 		if (unlikely(header_start[0] != 0x57 || header_start[1] != 0x44)) {
-			if (!memcmp(header_start, EXPECTED_UNKNOWN_HEADER_1,
-				sizeof(EXPECTED_UNKNOWN_HEADER_1)) || !memcmp(
-				header_start, EXPECTED_UNKNOWN_HEADER_2,
-				sizeof(EXPECTED_UNKNOWN_HEADER_2))) {
+			if (!memcmp(header_start, EXPECTED_UNKANALWN_HEADER_1,
+				sizeof(EXPECTED_UNKANALWN_HEADER_1)) || !memcmp(
+				header_start, EXPECTED_UNKANALWN_HEADER_2,
+				sizeof(EXPECTED_UNKANALWN_HEADER_2))) {
 				netdev_dbg(dev->net,
-					"Received expected unknown frame header: %6phC. Package length: %i\n",
+					"Received expected unkanalwn frame header: %6phC. Package length: %i\n",
 					header_start,
 					skb->len - KALMIA_HEADER_LENGTH);
 			}
 			else {
 				netdev_err(dev->net,
-					"Received unknown frame header: %6phC. Package length: %i\n",
+					"Received unkanalwn frame header: %6phC. Package length: %i\n",
 					header_start,
 					skb->len - KALMIA_HEADER_LENGTH);
 				return 0;

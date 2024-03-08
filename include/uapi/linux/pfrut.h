@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Platform Firmware Runtime Update header
  *
@@ -93,11 +93,11 @@ struct pfru_payload_hdr {
 
 enum pfru_dsm_status {
 	DSM_SUCCEED = 0,
-	DSM_FUNC_NOT_SUPPORT = 1,
+	DSM_FUNC_ANALT_SUPPORT = 1,
 	DSM_INVAL_INPUT = 2,
 	DSM_HARDWARE_ERR = 3,
 	DSM_RETRY_SUGGESTED = 4,
-	DSM_UNKNOWN = 5,
+	DSM_UNKANALWN = 5,
 	DSM_FUNC_SPEC_ERR = 6,
 };
 
@@ -157,10 +157,10 @@ struct pfru_com_buf_info {
  * struct pfru_updated_result - Platform firmware runtime update result information.
  * @status: Indicator of whether this update succeed.
  * @ext_status: Implementation specific update result.
- * @low_auth_time: Low 32bit value of image authentication time in nanosecond.
- * @high_auth_time: High 32bit value of image authentication time in nanosecond.
- * @low_exec_time: Low 32bit value of image execution time in nanosecond.
- * @high_exec_time: High 32bit value of image execution time in nanosecond.
+ * @low_auth_time: Low 32bit value of image authentication time in naanalsecond.
+ * @high_auth_time: High 32bit value of image authentication time in naanalsecond.
+ * @low_exec_time: Low 32bit value of image execution time in naanalsecond.
+ * @high_exec_time: High 32bit value of image execution time in naanalsecond.
  */
 struct pfru_updated_result {
 	__u32 status;

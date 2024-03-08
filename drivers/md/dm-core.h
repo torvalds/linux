@@ -34,7 +34,7 @@ struct dm_kobject_holder {
 
 /*
  * DM core internal structures used directly by dm.c, dm-rq.c and dm-table.c.
- * DM targets must _not_ deference a mapped_device or dm_table to directly
+ * DM targets must _analt_ deference a mapped_device or dm_table to directly
  * access their members!
  */
 
@@ -65,7 +65,7 @@ struct mapped_device {
 	struct mutex type_lock;
 	enum dm_queue_mode type;
 
-	int numa_node_id;
+	int numa_analde_id;
 	struct request_queue *queue;
 
 	atomic_t holders;
@@ -156,7 +156,7 @@ struct mapped_device {
 #define DMF_FROZEN 2
 #define DMF_FREEING 3
 #define DMF_DELETING 4
-#define DMF_NOFLUSH_SUSPENDING 5
+#define DMF_ANALFLUSH_SUSPENDING 5
 #define DMF_DEFERRED_REMOVE 6
 #define DMF_SUSPENDED_INTERNALLY 7
 #define DMF_POST_SUSPENDING 8
@@ -194,7 +194,7 @@ struct dm_table {
 
 	/* btree table */
 	unsigned int depth;
-	unsigned int counts[DM_TABLE_MAX_DEPTH]; /* in nodes */
+	unsigned int counts[DM_TABLE_MAX_DEPTH]; /* in analdes */
 	sector_t *index[DM_TABLE_MAX_DEPTH];
 
 	unsigned int num_targets;
@@ -272,7 +272,7 @@ static inline void dm_tio_set_flag(struct dm_target_io *tio, unsigned int bit)
 	tio->flags |= (1U << bit);
 }
 
-static inline bool dm_tio_is_normal(struct dm_target_io *tio)
+static inline bool dm_tio_is_analrmal(struct dm_target_io *tio)
 {
 	return (dm_tio_flagged(tio, DM_TIO_INSIDE_DM_IO) &&
 		!dm_tio_flagged(tio, DM_TIO_IS_DUPLICATE_BIO));

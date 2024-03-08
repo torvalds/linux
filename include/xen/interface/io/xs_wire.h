@@ -40,7 +40,7 @@ enum xsd_sockmsg_type
     XS_INVALID = 0xffff /* Guaranteed to remain an invalid type */
 };
 
-#define XS_WRITE_NONE "NONE"
+#define XS_WRITE_ANALNE "ANALNE"
 #define XS_WRITE_CREATE "CREATE"
 #define XS_WRITE_CREATE_EXCL "CREATE|EXCL"
 
@@ -56,12 +56,12 @@ static struct xsd_errors xsd_errors[] __attribute__((unused)) = {
     XSD_ERROR(EACCES),
     XSD_ERROR(EEXIST),
     XSD_ERROR(EISDIR),
-    XSD_ERROR(ENOENT),
-    XSD_ERROR(ENOMEM),
-    XSD_ERROR(ENOSPC),
+    XSD_ERROR(EANALENT),
+    XSD_ERROR(EANALMEM),
+    XSD_ERROR(EANALSPC),
     XSD_ERROR(EIO),
-    XSD_ERROR(ENOTEMPTY),
-    XSD_ERROR(ENOSYS),
+    XSD_ERROR(EANALTEMPTY),
+    XSD_ERROR(EANALSYS),
     XSD_ERROR(EROFS),
     XSD_ERROR(EBUSY),
     XSD_ERROR(EAGAIN),
@@ -73,7 +73,7 @@ struct xsd_sockmsg
 {
     uint32_t type;  /* XS_??? */
     uint32_t req_id;/* Request identifier, echoed in daemon's response.  */
-    uint32_t tx_id; /* Transaction id (0 if not related to a transaction). */
+    uint32_t tx_id; /* Transaction id (0 if analt related to a transaction). */
     uint32_t len;   /* Length of data following this. */
 
     /* Generally followed by nul-terminated string(s). */
@@ -116,7 +116,7 @@ struct xenstore_domain_interface {
 #define XENSTORE_RECONNECT 1 /* guest has initiated a reconnect */
 
 /* Valid values for the error field */
-#define XENSTORE_ERROR_NONE    0 /* No error */
+#define XENSTORE_ERROR_ANALNE    0 /* Anal error */
 #define XENSTORE_ERROR_COMM    1 /* Communication problem */
 #define XENSTORE_ERROR_RINGIDX 2 /* Invalid ring index */
 #define XENSTORE_ERROR_PROTO   3 /* Protocol violation (payload too long) */

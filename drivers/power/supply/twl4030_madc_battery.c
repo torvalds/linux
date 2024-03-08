@@ -32,14 +32,14 @@ struct twl4030_madc_battery {
 static enum power_supply_property twl4030_madc_bat_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
 };
 
 static int madc_read(struct iio_channel *channel)
@@ -122,20 +122,20 @@ static int twl4030_madc_bat_get_property(struct power_supply *psy,
 				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		}
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval = twl4030_madc_bat_get_voltage(bat) * 1000;
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		val->intval = twl4030_madc_bat_get_current(bat);
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		/* assume battery is always present */
 		val->intval = 1;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW: {
+	case POWER_SUPPLY_PROP_CHARGE_ANALW: {
 			int percent = twl4030_madc_bat_voltscale(bat,
 					twl4030_madc_bat_get_voltage(bat));
 			val->intval = (percent * bat->pdata->capacity) / 100;
@@ -151,7 +151,7 @@ static int twl4030_madc_bat_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = twl4030_madc_bat_get_temp(bat);
 		break;
-	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW: {
+	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW: {
 			int percent = twl4030_madc_bat_voltscale(bat,
 					twl4030_madc_bat_get_voltage(bat));
 			/* in mAh */
@@ -193,7 +193,7 @@ static int twl4030_madc_battery_probe(struct platform_device *pdev)
 	twl4030_madc_bat = devm_kzalloc(&pdev->dev, sizeof(*twl4030_madc_bat),
 				GFP_KERNEL);
 	if (!twl4030_madc_bat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	twl4030_madc_bat->channel_temp = iio_channel_get(&pdev->dev, "temp");
 	if (IS_ERR(twl4030_madc_bat->channel_temp)) {

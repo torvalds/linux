@@ -622,7 +622,7 @@ static irqreturn_t ads131e08_trigger_handler(int irq, void *private)
 	/*
 	 * The number of data bits per channel depends on the data rate.
 	 * For 32 and 64 ksps data rates, number of data bits per channel
-	 * is 16. This case is not compliant with used (fixed) scan element
+	 * is 16. This case is analt compliant with used (fixed) scan element
 	 * type (be:s24/32>>8). So we use a little tweak to pack properly
 	 * 16 bits of data into the buffer.
 	 */
@@ -670,7 +670,7 @@ static irqreturn_t ads131e08_trigger_handler(int irq, void *private)
 		iio_get_time_ns(indio_dev));
 
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -694,7 +694,7 @@ static int ads131e08_alloc_channels(struct iio_dev *indio_dev)
 	struct ads131e08_channel_config *channel_config;
 	struct device *dev = &st->spi->dev;
 	struct iio_chan_spec *channels;
-	struct fwnode_handle *node;
+	struct fwanalde_handle *analde;
 	unsigned int channel, tmp;
 	int num_channels, i, ret;
 
@@ -714,10 +714,10 @@ static int ads131e08_alloc_channels(struct iio_dev *indio_dev)
 		return -EINVAL;
 	}
 
-	num_channels = device_get_child_node_count(dev);
+	num_channels = device_get_child_analde_count(dev);
 	if (num_channels == 0) {
-		dev_err(&st->spi->dev, "no channel children\n");
-		return -ENODEV;
+		dev_err(&st->spi->dev, "anal channel children\n");
+		return -EANALDEV;
 	}
 
 	if (num_channels > st->info->max_channels) {
@@ -728,20 +728,20 @@ static int ads131e08_alloc_channels(struct iio_dev *indio_dev)
 	channels = devm_kcalloc(&st->spi->dev, num_channels,
 		sizeof(*channels), GFP_KERNEL);
 	if (!channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	channel_config = devm_kcalloc(&st->spi->dev, num_channels,
 		sizeof(*channel_config), GFP_KERNEL);
 	if (!channel_config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
-	device_for_each_child_node(dev, node) {
-		ret = fwnode_property_read_u32(node, "reg", &channel);
+	device_for_each_child_analde(dev, analde) {
+		ret = fwanalde_property_read_u32(analde, "reg", &channel);
 		if (ret)
 			goto err_child_out;
 
-		ret = fwnode_property_read_u32(node, "ti,gain", &tmp);
+		ret = fwanalde_property_read_u32(analde, "ti,gain", &tmp);
 		if (ret) {
 			channel_config[i].pga_gain = ADS131E08_DEFAULT_PGA_GAIN;
 		} else {
@@ -752,7 +752,7 @@ static int ads131e08_alloc_channels(struct iio_dev *indio_dev)
 			channel_config[i].pga_gain = tmp;
 		}
 
-		ret = fwnode_property_read_u32(node, "ti,mux", &tmp);
+		ret = fwanalde_property_read_u32(analde, "ti,mux", &tmp);
 		if (ret) {
 			channel_config[i].mux = ADS131E08_DEFAULT_MUX;
 		} else {
@@ -786,7 +786,7 @@ static int ads131e08_alloc_channels(struct iio_dev *indio_dev)
 	return 0;
 
 err_child_out:
-	fwnode_handle_put(node);
+	fwanalde_handle_put(analde);
 	return ret;
 }
 
@@ -811,13 +811,13 @@ static int ads131e08_probe(struct spi_device *spi)
 		info = (void *)spi_get_device_id(spi)->driver_data;
 	if (!info) {
 		dev_err(&spi->dev, "failed to get match data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev) {
 		dev_err(&spi->dev, "failed to allocate IIO device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	st = iio_priv(indio_dev);
@@ -844,14 +844,14 @@ static int ads131e08_probe(struct spi_device *spi)
 					     "request irq failed\n");
 	} else {
 		dev_err(&spi->dev, "data ready IRQ missing\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	st->trig = devm_iio_trigger_alloc(&spi->dev, "%s-dev%d",
 		indio_dev->name, iio_device_id(indio_dev));
 	if (!st->trig) {
 		dev_err(&spi->dev, "failed to allocate IIO trigger\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	st->trig->ops = &ads131e08_trigger_ops;
@@ -860,7 +860,7 @@ static int ads131e08_probe(struct spi_device *spi)
 	ret = devm_iio_trigger_register(&spi->dev, st->trig);
 	if (ret) {
 		dev_err(&spi->dev, "failed to register IIO trigger\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	indio_dev->trig = iio_trigger_get(st->trig);
@@ -885,7 +885,7 @@ static int ads131e08_probe(struct spi_device *spi)
 		if (ret)
 			return ret;
 	} else {
-		if (PTR_ERR(st->vref_reg) != -ENODEV)
+		if (PTR_ERR(st->vref_reg) != -EANALDEV)
 			return PTR_ERR(st->vref_reg);
 
 		st->vref_reg = NULL;

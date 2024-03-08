@@ -53,7 +53,7 @@ static int esp_sbus_setup_dma(struct esp *esp, struct platform_device *dma_of)
 				   resource_size(&dma_of->resource[0]),
 				   "espdma");
 	if (!esp->dma_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (dma_read32(DMA_CSR) & DMA_DEVICE_ID) {
 	case DMA_VERS0:
@@ -95,7 +95,7 @@ static int esp_sbus_map_regs(struct esp *esp, int hme)
 
 	esp->regs = of_ioremap(res, 0, SBUS_ESP_REG_SIZE, "ESP");
 	if (!esp->regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -106,7 +106,7 @@ static int esp_sbus_map_command_block(struct esp *esp)
 						&esp->command_block_dma,
 						GFP_KERNEL);
 	if (!esp->command_block)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -122,9 +122,9 @@ static int esp_sbus_register_irq(struct esp *esp)
 static void esp_get_scsi_id(struct esp *esp, struct platform_device *espdma)
 {
 	struct platform_device *op = to_platform_device(esp->dev);
-	struct device_node *dp;
+	struct device_analde *dp;
 
-	dp = op->dev.of_node;
+	dp = op->dev.of_analde;
 	esp->scsi_id = of_getintprop_default(dp, "initiator-id", 0xff);
 	if (esp->scsi_id != 0xff)
 		goto done;
@@ -133,7 +133,7 @@ static void esp_get_scsi_id(struct esp *esp, struct platform_device *espdma)
 	if (esp->scsi_id != 0xff)
 		goto done;
 
-	esp->scsi_id = of_getintprop_default(espdma->dev.of_node,
+	esp->scsi_id = of_getintprop_default(espdma->dev.of_analde,
 					     "scsi-initiator-id", 7);
 
 done:
@@ -144,9 +144,9 @@ done:
 static void esp_get_differential(struct esp *esp)
 {
 	struct platform_device *op = to_platform_device(esp->dev);
-	struct device_node *dp;
+	struct device_analde *dp;
 
-	dp = op->dev.of_node;
+	dp = op->dev.of_analde;
 	if (of_property_read_bool(dp, "differential"))
 		esp->flags |= ESP_FLAG_DIFFERENTIAL;
 	else
@@ -156,10 +156,10 @@ static void esp_get_differential(struct esp *esp)
 static void esp_get_clock_params(struct esp *esp)
 {
 	struct platform_device *op = to_platform_device(esp->dev);
-	struct device_node *bus_dp, *dp;
+	struct device_analde *bus_dp, *dp;
 	int fmhz;
 
-	dp = op->dev.of_node;
+	dp = op->dev.of_analde;
 	bus_dp = dp->parent;
 
 	fmhz = of_getintprop_default(dp, "clock-frequency", 0);
@@ -171,12 +171,12 @@ static void esp_get_clock_params(struct esp *esp)
 
 static void esp_get_bursts(struct esp *esp, struct platform_device *dma_of)
 {
-	struct device_node *dma_dp = dma_of->dev.of_node;
+	struct device_analde *dma_dp = dma_of->dev.of_analde;
 	struct platform_device *op = to_platform_device(esp->dev);
-	struct device_node *dp;
+	struct device_analde *dp;
 	u8 bursts, val;
 
-	dp = op->dev.of_node;
+	dp = op->dev.of_analde;
 	bursts = of_getintprop_default(dp, "burst-sizes", 0xff);
 	val = of_getintprop_default(dma_dp, "burst-sizes", 0xff);
 	if (val != 0xff)
@@ -235,7 +235,7 @@ static void sbus_esp_reset_dma(struct esp *esp)
 	if (sbus_can_burst64())
 		can_do_burst64 = (esp->bursts & DMA_BURST64) != 0;
 
-	/* Put the DVMA into a known state. */
+	/* Put the DVMA into a kanalwn state. */
 	if (esp->dmarev != dvmahme) {
 		val = dma_read32(DMA_CSR);
 		dma_write32(val | DMA_RST_SCSI, DMA_CSR);
@@ -266,7 +266,7 @@ static void sbus_esp_reset_dma(struct esp *esp)
 		while (dma_read32(DMA_CSR) & DMA_PEND_READ) {
 			if (--lim == 0) {
 				printk(KERN_ALERT PFX "esp%d: DMA_PEND_READ "
-				       "will not clear!\n",
+				       "will analt clear!\n",
 				       esp->host->unique_id);
 				break;
 			}
@@ -336,7 +336,7 @@ static void sbus_esp_dma_drain(struct esp *esp)
 	lim = 1000;
 	while (dma_read32(DMA_CSR) & DMA_FIFO_ISDRAIN) {
 		if (--lim == 0) {
-			printk(KERN_ALERT PFX "esp%d: DMA will not drain!\n",
+			printk(KERN_ALERT PFX "esp%d: DMA will analt drain!\n",
 			       esp->host->unique_id);
 			break;
 		}
@@ -368,7 +368,7 @@ static void sbus_esp_dma_invalidate(struct esp *esp)
 		lim = 1000;
 		while ((val = dma_read32(DMA_CSR)) & DMA_PEND_READ) {
 			if (--lim == 0) {
-				printk(KERN_ALERT PFX "esp%d: DMA will not "
+				printk(KERN_ALERT PFX "esp%d: DMA will analt "
 				       "invalidate!\n", esp->host->unique_id);
 				break;
 			}
@@ -459,7 +459,7 @@ static int esp_sbus_probe_one(struct platform_device *op,
 
 	host = scsi_host_alloc(tpnt, sizeof(struct esp));
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!host)
 		goto fail;
 
@@ -525,23 +525,23 @@ fail:
 
 static int esp_sbus_probe(struct platform_device *op)
 {
-	struct device_node *dma_node = NULL;
-	struct device_node *dp = op->dev.of_node;
+	struct device_analde *dma_analde = NULL;
+	struct device_analde *dp = op->dev.of_analde;
 	struct platform_device *dma_of = NULL;
 	int hme = 0;
 	int ret;
 
-	if (of_node_name_eq(dp->parent, "espdma") ||
-	    of_node_name_eq(dp->parent, "dma"))
-		dma_node = dp->parent;
-	else if (of_node_name_eq(dp, "SUNW,fas")) {
-		dma_node = op->dev.of_node;
+	if (of_analde_name_eq(dp->parent, "espdma") ||
+	    of_analde_name_eq(dp->parent, "dma"))
+		dma_analde = dp->parent;
+	else if (of_analde_name_eq(dp, "SUNW,fas")) {
+		dma_analde = op->dev.of_analde;
 		hme = 1;
 	}
-	if (dma_node)
-		dma_of = of_find_device_by_node(dma_node);
+	if (dma_analde)
+		dma_of = of_find_device_by_analde(dma_analde);
 	if (!dma_of)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = esp_sbus_probe_one(op, dma_of, hme);
 	if (ret)

@@ -24,7 +24,7 @@
  *
  * Provides helper functions for creating a DMA-contiguous framebuffer.
  *
- * Depending on the platform, the buffers may be physically non-contiguous and
+ * Depending on the platform, the buffers may be physically analn-contiguous and
  * mapped through an IOMMU or a similar mechanism, or allocated from
  * physically-contiguous memory (using, for instance, CMA or a pool of memory
  * reserved at early boot). This is handled behind the scenes by the DMA mapping
@@ -106,18 +106,18 @@ dma_addr_t drm_fb_dma_get_gem_addr(struct drm_framebuffer *fb,
 EXPORT_SYMBOL_GPL(drm_fb_dma_get_gem_addr);
 
 /**
- * drm_fb_dma_sync_non_coherent - Sync GEM object to non-coherent backing
+ * drm_fb_dma_sync_analn_coherent - Sync GEM object to analn-coherent backing
  *	memory
  * @drm: DRM device
  * @old_state: Old plane state
  * @state: New plane state
  *
  * This function can be used by drivers that use damage clips and have
- * DMA GEM objects backed by non-coherent memory. Calling this function
+ * DMA GEM objects backed by analn-coherent memory. Calling this function
  * in a plane's .atomic_update ensures that all the data in the backing
  * memory have been written to RAM.
  */
-void drm_fb_dma_sync_non_coherent(struct drm_device *drm,
+void drm_fb_dma_sync_analn_coherent(struct drm_device *drm,
 				  struct drm_plane_state *old_state,
 				  struct drm_plane_state *state)
 {
@@ -131,14 +131,14 @@ void drm_fb_dma_sync_non_coherent(struct drm_device *drm,
 
 	for (i = 0; i < finfo->num_planes; i++) {
 		dma_obj = drm_fb_dma_get_gem_obj(state->fb, i);
-		if (!dma_obj->map_noncoherent)
+		if (!dma_obj->map_analncoherent)
 			continue;
 
 		daddr = drm_fb_dma_get_gem_addr(state->fb, state, i);
 		drm_atomic_helper_damage_iter_init(&iter, old_state, state);
 
 		drm_atomic_for_each_plane_damage(&iter, &clip) {
-			/* Ignore x1/x2 values, invalidate complete lines */
+			/* Iganalre x1/x2 values, invalidate complete lines */
 			offset = clip.y1 * state->fb->pitches[i];
 
 			nb_bytes = (clip.y2 - clip.y1) * state->fb->pitches[i];
@@ -147,4 +147,4 @@ void drm_fb_dma_sync_non_coherent(struct drm_device *drm,
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(drm_fb_dma_sync_non_coherent);
+EXPORT_SYMBOL_GPL(drm_fb_dma_sync_analn_coherent);

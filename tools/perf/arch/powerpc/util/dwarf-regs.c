@@ -6,7 +6,7 @@
  */
 
 #include <stddef.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <dwarf-regs.h>
 #include <linux/ptrace.h>
@@ -78,7 +78,7 @@ static const struct pt_regs_dwarfnum regdwarfnum_table[] = {
  * @n:	the DWARF register number
  *
  * get_arch_regstr() returns the name of the register in struct
- * regdwarfnum_table from it's DWARF register number. If the register is not
+ * regdwarfnum_table from it's DWARF register number. If the register is analt
  * found in the table, this returns NULL;
  */
 const char *get_arch_regstr(unsigned int n)

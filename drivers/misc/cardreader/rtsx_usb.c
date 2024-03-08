@@ -46,7 +46,7 @@ static int rtsx_usb_bulk_transfer_sglist(struct rtsx_ucr *ucr,
 	dev_dbg(&ucr->pusb_intf->dev, "%s: xfer %u bytes, %d entries\n",
 			__func__, length, num_sg);
 	ret = usb_sg_init(&ucr->current_sg, ucr->pusb_dev, pipe, 0,
-			sg, num_sg, length, GFP_NOIO);
+			sg, num_sg, length, GFP_ANALIO);
 	if (ret)
 		return ret;
 
@@ -193,7 +193,7 @@ int rtsx_usb_ep0_read_register(struct rtsx_ucr *ucr, u16 addr, u8 *data)
 
 	buf = kzalloc(sizeof(u8), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	addr |= EP0_READ_REG_CMD << EP0_OP_SHIFT;
 	value = swab16(addr);
@@ -294,7 +294,7 @@ int rtsx_usb_get_card_status(struct rtsx_ucr *ucr, u16 *status)
 	if (polling_pipe == 0) {
 		buf = kzalloc(sizeof(u16), GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = usb_control_msg(ucr->pusb_dev,
 				usb_rcvctrlpipe(ucr->pusb_dev, 0),
@@ -432,7 +432,7 @@ int rtsx_usb_switch_clock(struct rtsx_ucr *ucr, unsigned int card_clock,
 	if (mcu_cnt > 15)
 		mcu_cnt = 15;
 
-	/* Make sure that the SSC clock div_n is not less than MIN_DIV_N */
+	/* Make sure that the SSC clock div_n is analt less than MIN_DIV_N */
 
 	div = CLK_DIV_1;
 	while (n < MIN_DIV_N && div < CLK_DIV_4) {
@@ -458,9 +458,9 @@ int rtsx_usb_switch_clock(struct rtsx_ucr *ucr, unsigned int card_clock,
 	rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, SSC_CTL1, SSC_RSTB, SSC_RSTB);
 	if (vpclk) {
 		rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, SD_VPCLK0_CTL,
-				PHASE_NOT_RESET, 0);
+				PHASE_ANALT_RESET, 0);
 		rtsx_usb_add_cmd(ucr, WRITE_REG_CMD, SD_VPCLK0_CTL,
-				PHASE_NOT_RESET, PHASE_NOT_RESET);
+				PHASE_ANALT_RESET, PHASE_ANALT_RESET);
 	}
 
 	ret = rtsx_usb_send_cmd(ucr, MODE_C, 2000);
@@ -553,9 +553,9 @@ static int rtsx_usb_reset_chip(struct rtsx_ucr *ucr)
 	if (ret)
 		return ret;
 
-	/* config non-crystal mode */
+	/* config analn-crystal mode */
 	rtsx_usb_read_register(ucr, CFG_MODE, &val);
-	if ((val & XTAL_FREE) || ((val & CLK_MODE_MASK) == CLK_MODE_NON_XTAL)) {
+	if ((val & XTAL_FREE) || ((val & CLK_MODE_MASK) == CLK_MODE_ANALN_XTAL)) {
 		ret = rtsx_usb_write_phy_register(ucr, 0xC2, 0x7C);
 		if (ret)
 			return ret;
@@ -627,17 +627,17 @@ static int rtsx_usb_probe(struct usb_interface *intf,
 
 	ucr = devm_kzalloc(&intf->dev, sizeof(*ucr), GFP_KERNEL);
 	if (!ucr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ucr->pusb_dev = usb_dev;
 
 	ucr->cmd_buf = kmalloc(IOBUF_SIZE, GFP_KERNEL);
 	if (!ucr->cmd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ucr->rsp_buf = kmalloc(IOBUF_SIZE, GFP_KERNEL);
 	if (!ucr->rsp_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_cmd_buf;
 	}
 

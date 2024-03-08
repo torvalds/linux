@@ -96,7 +96,7 @@ ice_alloc_ctrlq_sq_ring(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 						 &cq->sq.desc_buf.pa,
 						 GFP_KERNEL | __GFP_ZERO);
 	if (!cq->sq.desc_buf.va)
-		return -ENOMEM;
+		return -EANALMEM;
 	cq->sq.desc_buf.size = size;
 
 	cq->sq.cmd_buf = devm_kcalloc(ice_hw_to_dev(hw), cq->num_sq_entries,
@@ -107,7 +107,7 @@ ice_alloc_ctrlq_sq_ring(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 		cq->sq.desc_buf.va = NULL;
 		cq->sq.desc_buf.pa = 0;
 		cq->sq.desc_buf.size = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -127,7 +127,7 @@ ice_alloc_ctrlq_rq_ring(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 						 &cq->rq.desc_buf.pa,
 						 GFP_KERNEL | __GFP_ZERO);
 	if (!cq->rq.desc_buf.va)
-		return -ENOMEM;
+		return -EANALMEM;
 	cq->rq.desc_buf.size = size;
 	return 0;
 }
@@ -165,7 +165,7 @@ ice_alloc_rq_bufs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 	cq->rq.dma_head = devm_kcalloc(ice_hw_to_dev(hw), cq->num_rq_entries,
 				       sizeof(cq->rq.desc_buf), GFP_KERNEL);
 	if (!cq->rq.dma_head)
-		return -ENOMEM;
+		return -EANALMEM;
 	cq->rq.r.rq_bi = (struct ice_dma_mem *)cq->rq.dma_head;
 
 	/* allocate the mapped buffers */
@@ -181,14 +181,14 @@ ice_alloc_rq_bufs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 			goto unwind_alloc_rq_bufs;
 		bi->size = cq->rq_buf_size;
 
-		/* now configure the descriptors for use */
+		/* analw configure the descriptors for use */
 		desc = ICE_CTL_Q_DESC(cq->rq, i);
 
 		desc->flags = cpu_to_le16(ICE_AQ_FLAG_BUF);
 		if (cq->rq_buf_size > ICE_AQ_LG_BUF)
 			desc->flags |= cpu_to_le16(ICE_AQ_FLAG_LB);
 		desc->opcode = 0;
-		/* This is in accordance with Admin queue design, there is no
+		/* This is in accordance with Admin queue design, there is anal
 		 * register for buffer size configuration
 		 */
 		desc->datalen = cpu_to_le16(bi->size);
@@ -218,7 +218,7 @@ unwind_alloc_rq_bufs:
 	devm_kfree(ice_hw_to_dev(hw), cq->rq.dma_head);
 	cq->rq.dma_head = NULL;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -231,11 +231,11 @@ ice_alloc_sq_bufs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 {
 	int i;
 
-	/* No mapped memory needed yet, just the buffer info structures */
+	/* Anal mapped memory needed yet, just the buffer info structures */
 	cq->sq.dma_head = devm_kcalloc(ice_hw_to_dev(hw), cq->num_sq_entries,
 				       sizeof(cq->sq.desc_buf), GFP_KERNEL);
 	if (!cq->sq.dma_head)
-		return -ENOMEM;
+		return -EANALMEM;
 	cq->sq.r.sq_bi = (struct ice_dma_mem *)cq->sq.dma_head;
 
 	/* allocate the mapped buffers */
@@ -266,7 +266,7 @@ unwind_alloc_sq_bufs:
 	devm_kfree(ice_hw_to_dev(hw), cq->sq.dma_head);
 	cq->sq.dma_head = NULL;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int
@@ -355,8 +355,8 @@ do {									\
  *     - cq->num_sq_entries
  *     - cq->sq_buf_size
  *
- * Do *NOT* hold the lock when calling this as the memory allocation routines
- * called are not going to be atomic context safe
+ * Do *ANALT* hold the lock when calling this as the memory allocation routines
+ * called are analt going to be atomic context safe
  */
 static int ice_init_sq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 {
@@ -415,8 +415,8 @@ init_ctrlq_exit:
  *     - cq->num_rq_entries
  *     - cq->rq_buf_size
  *
- * Do *NOT* hold the lock when calling this as the memory allocation routines
- * called are not going to be atomic context safe
+ * Do *ANALT* hold the lock when calling this as the memory allocation routines
+ * called are analt going to be atomic context safe
  */
 static int ice_init_rq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 {
@@ -516,10 +516,10 @@ static bool ice_aq_ver_check(struct ice_hw *hw)
 			 "The driver for the device stopped because the NVM image is newer than expected. You must install the most recent version of the network driver.\n");
 		return false;
 	} else if (hw->api_maj_ver == EXP_FW_API_VER_MAJOR) {
-		if (hw->api_min_ver > (EXP_FW_API_VER_MINOR + 2))
+		if (hw->api_min_ver > (EXP_FW_API_VER_MIANALR + 2))
 			dev_info(ice_hw_to_dev(hw),
 				 "The driver for the device detected a newer version of the NVM image than expected. Please install the most recent version of the network driver.\n");
-		else if ((hw->api_min_ver + 2) < EXP_FW_API_VER_MINOR)
+		else if ((hw->api_min_ver + 2) < EXP_FW_API_VER_MIANALR)
 			dev_info(ice_hw_to_dev(hw),
 				 "The driver for the device detected an older version of the NVM image than expected. Please update the NVM image.\n");
 	} else {
@@ -568,7 +568,7 @@ shutdown_rq_out:
 }
 
 /**
- * ice_init_check_adminq - Check version for Admin Queue to know if its alive
+ * ice_init_check_adminq - Check version for Admin Queue to kanalw if its alive
  * @hw: pointer to the hardware structure
  */
 static int ice_init_check_adminq(struct ice_hw *hw)
@@ -605,7 +605,7 @@ init_ctrlq_free_rq:
  *     - cq->rq_buf_size
  *     - cq->sq_buf_size
  *
- * NOTE: this function does not initialize the controlq locks
+ * ANALTE: this function does analt initialize the controlq locks
  */
 static int ice_init_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type)
 {
@@ -685,7 +685,7 @@ struct ice_ctl_q_info *ice_get_sbq(struct ice_hw *hw)
  * @hw: pointer to the hardware structure
  * @q_type: specific Control queue type
  *
- * NOTE: this function does not destroy the control queue locks.
+ * ANALTE: this function does analt destroy the control queue locks.
  */
 static void ice_shutdown_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type)
 {
@@ -715,7 +715,7 @@ static void ice_shutdown_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type)
  * ice_shutdown_all_ctrlq - shutdown routine for all control queues
  * @hw: pointer to the hardware structure
  *
- * NOTE: this function does not destroy the control queue locks. The driver
+ * ANALTE: this function does analt destroy the control queue locks. The driver
  * may call this at runtime to shutdown and later restart control queues, such
  * as in response to a reset event.
  */
@@ -741,7 +741,7 @@ void ice_shutdown_all_ctrlq(struct ice_hw *hw)
  *     - cq->rq_buf_size
  *     - cq->sq_buf_size
  *
- * NOTE: this function does not initialize the controlq locks.
+ * ANALTE: this function does analt initialize the controlq locks.
  */
 int ice_init_all_ctrlq(struct ice_hw *hw)
 {
@@ -765,7 +765,7 @@ int ice_init_all_ctrlq(struct ice_hw *hw)
 
 	if (status)
 		return status;
-	/* sideband control queue (SBQ) interface is not supported on some
+	/* sideband control queue (SBQ) interface is analt supported on some
 	 * devices. Initialize if supported, else fallback to the admin queue
 	 * interface
 	 */
@@ -976,7 +976,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	cq->sq_last_status = ICE_AQ_RC_OK;
 
 	if (!cq->sq.count) {
-		ice_debug(hw, ICE_DBG_AQ_MSG, "Control Send queue not initialized.\n");
+		ice_debug(hw, ICE_DBG_AQ_MSG, "Control Send queue analt initialized.\n");
 		status = -EIO;
 		goto sq_send_command_error;
 	}
@@ -1016,11 +1016,11 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	/* Call clean and check queue available function to reclaim the
 	 * descriptors that were processed by FW/MBX; the function returns the
 	 * number of desc available. The clean function called here could be
-	 * called in a separate thread in case of asynchronous completions.
+	 * called in a separate thread in case of asynchroanalus completions.
 	 */
 	if (ice_clean_sq(hw, cq) == 0) {
 		ice_debug(hw, ICE_DBG_AQ_MSG, "Error: Control Send Queue is full.\n");
-		status = -ENOSPC;
+		status = -EANALSPC;
 		goto sq_send_command_error;
 	}
 
@@ -1030,7 +1030,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	/* if the desc is available copy the temp desc to the right place */
 	memcpy(desc_on_ring, desc, sizeof(*desc_on_ring));
 
-	/* if buf is not NULL assume indirect command */
+	/* if buf is analt NULL assume indirect command */
 	if (buf) {
 		dma_buf = &cq->sq.r.sq_bi[cq->sq.next_to_use];
 		/* copy the user buf into the respective DMA buf */
@@ -1128,7 +1128,7 @@ sq_send_command_error:
 
 /**
  * ice_fill_dflt_direct_cmd_desc - AQ descriptor helper function
- * @desc: pointer to the temp descriptor (non DMA mem)
+ * @desc: pointer to the temp descriptor (analn DMA mem)
  * @opcode: the opcode can be used to decide which flags to turn off or on
  *
  * Fill the desc with default values
@@ -1173,7 +1173,7 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	mutex_lock(&cq->rq_lock);
 
 	if (!cq->rq.count) {
-		ice_debug(hw, ICE_DBG_AQ_MSG, "Control Receive queue not initialized.\n");
+		ice_debug(hw, ICE_DBG_AQ_MSG, "Control Receive queue analt initialized.\n");
 		ret_code = -EIO;
 		goto clean_rq_elem_err;
 	}
@@ -1182,12 +1182,12 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	ntu = (u16)(rd32(hw, cq->rq.head) & cq->rq.head_mask);
 
 	if (ntu == ntc) {
-		/* nothing to do - shouldn't need to update ring's values */
+		/* analthing to do - shouldn't need to update ring's values */
 		ret_code = -EALREADY;
 		goto clean_rq_elem_out;
 	}
 
-	/* now clean the next descriptor */
+	/* analw clean the next descriptor */
 	desc = ICE_CTL_Q_DESC(cq->rq, ntc);
 	desc_idx = ntc;
 

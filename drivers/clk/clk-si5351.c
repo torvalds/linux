@@ -9,7 +9,7 @@
  * [1] "Si5351A/B/C Data Sheet"
  *     https://www.skyworksinc.com/-/media/Skyworks/SL/documents/public/data-sheets/Si5351-B.pdf
  * [2] "AN619: Manually Generating an Si5351 Register Map"
- *     https://www.skyworksinc.com/-/media/Skyworks/SL/documents/public/application-notes/AN619.pdf
+ *     https://www.skyworksinc.com/-/media/Skyworks/SL/documents/public/application-analtes/AN619.pdf
  */
 
 #include <linux/module.h>
@@ -18,7 +18,7 @@
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/rational.h>
 #include <linux/i2c.h>
 #include <linux/of.h>
@@ -219,7 +219,7 @@ static int si5351_xtal_prepare(struct clk_hw *hw)
 {
 	struct si5351_driver_data *drvdata =
 		container_of(hw, struct si5351_driver_data, xtal);
-	si5351_set_bits(drvdata, SI5351_FANOUT_ENABLE,
+	si5351_set_bits(drvdata, SI5351_FAANALUT_ENABLE,
 			SI5351_XTAL_ENABLE, SI5351_XTAL_ENABLE);
 	return 0;
 }
@@ -228,7 +228,7 @@ static void si5351_xtal_unprepare(struct clk_hw *hw)
 {
 	struct si5351_driver_data *drvdata =
 		container_of(hw, struct si5351_driver_data, xtal);
-	si5351_set_bits(drvdata, SI5351_FANOUT_ENABLE,
+	si5351_set_bits(drvdata, SI5351_FAANALUT_ENABLE,
 			SI5351_XTAL_ENABLE, 0);
 }
 
@@ -244,7 +244,7 @@ static int si5351_clkin_prepare(struct clk_hw *hw)
 {
 	struct si5351_driver_data *drvdata =
 		container_of(hw, struct si5351_driver_data, clkin);
-	si5351_set_bits(drvdata, SI5351_FANOUT_ENABLE,
+	si5351_set_bits(drvdata, SI5351_FAANALUT_ENABLE,
 			SI5351_CLKIN_ENABLE, SI5351_CLKIN_ENABLE);
 	return 0;
 }
@@ -253,7 +253,7 @@ static void si5351_clkin_unprepare(struct clk_hw *hw)
 {
 	struct si5351_driver_data *drvdata =
 		container_of(hw, struct si5351_driver_data, clkin);
-	si5351_set_bits(drvdata, SI5351_FANOUT_ENABLE,
+	si5351_set_bits(drvdata, SI5351_FAANALUT_ENABLE,
 			SI5351_CLKIN_ENABLE, 0);
 }
 
@@ -448,7 +448,7 @@ static int si5351_pll_determine_rate(struct clk_hw *hw,
 	struct si5351_hw_data *hwdata =
 		container_of(hw, struct si5351_hw_data, hw);
 	unsigned long rate = req->rate;
-	unsigned long rfrac, denom, a, b, c;
+	unsigned long rfrac, deanalm, a, b, c;
 	unsigned long long lltmp;
 
 	if (rate < SI5351_PLL_VCO_MIN)
@@ -465,16 +465,16 @@ static int si5351_pll_determine_rate(struct clk_hw *hw,
 		rate = req->best_parent_rate * SI5351_PLL_A_MAX;
 
 	/* find best approximation for b/c = fVCO mod fIN */
-	denom = 1000 * 1000;
+	deanalm = 1000 * 1000;
 	lltmp = rate % (req->best_parent_rate);
-	lltmp *= denom;
+	lltmp *= deanalm;
 	do_div(lltmp, req->best_parent_rate);
 	rfrac = (unsigned long)lltmp;
 
 	b = 0;
 	c = 1;
 	if (rfrac)
-		rational_best_approximation(rfrac, denom,
+		rational_best_approximation(rfrac, deanalm,
 				    SI5351_PLL_B_MAX, SI5351_PLL_C_MAX, &b, &c);
 
 	/* calculate parameters */
@@ -559,7 +559,7 @@ static const struct clk_ops si5351_pll_ops = {
  * MSx_P3[19:0] = c
  *
  * MS[6,7] are integer (P1) divide only, P1 = divide value,
- * P2 and P3 are not applicable
+ * P2 and P3 are analt applicable
  *
  * for 150MHz < fOUT <= 160MHz:
  *
@@ -697,7 +697,7 @@ static int si5351_msynth_determine_rate(struct clk_hw *hw,
 		b = 0;
 		c = 1;
 	} else {
-		unsigned long rfrac, denom;
+		unsigned long rfrac, deanalm;
 
 		/* disable divby4 */
 		if (divby4) {
@@ -713,16 +713,16 @@ static int si5351_msynth_determine_rate(struct clk_hw *hw,
 			a = SI5351_MULTISYNTH_A_MAX;
 
 		/* find best approximation for b/c = fVCO mod fOUT */
-		denom = 1000 * 1000;
+		deanalm = 1000 * 1000;
 		lltmp = req->best_parent_rate % rate;
-		lltmp *= denom;
+		lltmp *= deanalm;
 		do_div(lltmp, rate);
 		rfrac = (unsigned long)lltmp;
 
 		b = 0;
 		c = 1;
 		if (rfrac)
-			rational_best_approximation(rfrac, denom,
+			rational_best_approximation(rfrac, deanalm,
 			    SI5351_MULTISYNTH_B_MAX, SI5351_MULTISYNTH_C_MAX,
 			    &b, &c);
 	}
@@ -918,7 +918,7 @@ static void _si5351_clkout_reset_pll(struct si5351_driver_data *drvdata, int num
 	switch (val & SI5351_CLK_INPUT_MASK) {
 	case SI5351_CLK_INPUT_XTAL:
 	case SI5351_CLK_INPUT_CLKIN:
-		return;  /* pll not used, no need to reset */
+		return;  /* pll analt used, anal need to reset */
 	}
 
 	si5351_reg_write(drvdata, SI5351_PLL_RESET, mask);
@@ -1173,7 +1173,7 @@ MODULE_DEVICE_TABLE(of, si5351_dt_ids);
 static int si5351_dt_parse(struct i2c_client *client,
 			   enum si5351_variant variant)
 {
-	struct device_node *child, *np = client->dev.of_node;
+	struct device_analde *child, *np = client->dev.of_analde;
 	struct si5351_platform_data *pdata;
 	struct property *prop;
 	const __be32 *p;
@@ -1185,7 +1185,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * property silabs,pll-source : <num src>, [<..>]
@@ -1264,7 +1264,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 	}
 
 	/* per clkout properties */
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		if (of_property_read_u32(child, "reg", &num)) {
 			dev_err(&client->dev, "missing reg property of %pOFn\n",
 				child);
@@ -1385,7 +1385,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 
 	return 0;
 put_child:
-	of_node_put(child);
+	of_analde_put(child);
 	return -EINVAL;
 }
 
@@ -1445,7 +1445,7 @@ static int si5351_i2c_probe(struct i2c_client *client)
 
 	drvdata = devm_kzalloc(&client->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, drvdata);
 	drvdata->client = client;
@@ -1625,7 +1625,7 @@ static int si5351_i2c_probe(struct i2c_client *client)
 	drvdata->num_clkout = num_clocks;
 
 	if (WARN_ON(!drvdata->msynth || !drvdata->clkout)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		return ret;
 	}
 
@@ -1683,7 +1683,7 @@ static int si5351_i2c_probe(struct i2c_client *client)
 			ret = clk_set_rate(drvdata->clkout[n].hw.clk,
 					   pdata->clkout[n].rate);
 			if (ret != 0) {
-				dev_err(&client->dev, "Cannot set rate : %d\n",
+				dev_err(&client->dev, "Cananalt set rate : %d\n",
 					ret);
 			}
 		}

@@ -231,11 +231,11 @@
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>, /* Physical Secure */
-			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>, /* Physical Non-Secure */
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>, /* Physical Analn-Secure */
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>, /* Virtual */
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>; /* Hypervisor */
 		clock-frequency = <8000000>;
-		arm,no-tick-in-suspend;
+		arm,anal-tick-in-suspend;
 	};
 
 	thermal-zones {
@@ -261,18 +261,18 @@
 				map0 {
 					trip = <&cpu_alert0>;
 					cooling-device =
-						<&A53_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A53_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A53_2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A53_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&A53_0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A53_1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A53_2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A53_3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
 	};
 
-	usbphynop1: usbphynop1 {
+	usbphyanalp1: usbphyanalp1 {
 		#phy-cells = <0>;
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		clocks = <&clk IMX8MM_CLK_USB_PHY_REF>;
 		assigned-clocks = <&clk IMX8MM_CLK_USB_PHY_REF>;
 		assigned-clock-parents = <&clk IMX8MM_SYS_PLL1_100M>;
@@ -280,9 +280,9 @@
 		power-domains = <&pgc_otg1>;
 	};
 
-	usbphynop2: usbphynop2 {
+	usbphyanalp2: usbphyanalp2 {
 		#phy-cells = <0>;
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		clocks = <&clk IMX8MM_CLK_USB_PHY_REF>;
 		assigned-clocks = <&clk IMX8MM_CLK_USB_PHY_REF>;
 		assigned-clock-parents = <&clk IMX8MM_SYS_PLL1_100M>;
@@ -562,7 +562,7 @@
 				compatible = "fsl,imx8mm-ocotp", "syscon";
 				reg = <0x30350000 0x10000>;
 				clocks = <&clk IMX8MM_CLK_OCOTP_ROOT>;
-				/* For nvmem subnodes */
+				/* For nvmem subanaldes */
 				#address-cells = <1>;
 				#size-cells = <1>;
 
@@ -573,7 +573,7 @@
 				 *   reg = <ADDR SIZE>;
 				 * then
 				 *   Fuse Address = (ADDR * 4) + 0x400
-				 * Note that if SIZE is greater than 4, then
+				 * Analte that if SIZE is greater than 4, then
 				 * each subsequent fuse is located at offset
 				 * +0x10 in Fusemap Description Table (e.g.
 				 * reg = <0x4 0x8> describes fuses 0x410 and
@@ -645,7 +645,7 @@
 					      "clk_ext3", "clk_ext4";
 				assigned-clocks = <&clk IMX8MM_CLK_A53_SRC>,
 						<&clk IMX8MM_CLK_A53_CORE>,
-						<&clk IMX8MM_CLK_NOC>,
+						<&clk IMX8MM_CLK_ANALC>,
 						<&clk IMX8MM_CLK_AUDIO_AHB>,
 						<&clk IMX8MM_CLK_IPG_AUDIO_ROOT>,
 						<&clk IMX8MM_SYS_PLL3>,
@@ -1256,7 +1256,7 @@
 				clock-names = "usb1_ctrl_root_clk";
 				assigned-clocks = <&clk IMX8MM_CLK_USB_BUS>;
 				assigned-clock-parents = <&clk IMX8MM_SYS_PLL2_500M>;
-				phys = <&usbphynop1>;
+				phys = <&usbphyanalp1>;
 				fsl,usbmisc = <&usbmisc1 0>;
 				power-domains = <&pgc_hsiomix>;
 				status = "disabled";
@@ -1277,7 +1277,7 @@
 				clock-names = "usb1_ctrl_root_clk";
 				assigned-clocks = <&clk IMX8MM_CLK_USB_BUS>;
 				assigned-clock-parents = <&clk IMX8MM_SYS_PLL2_500M>;
-				phys = <&usbphynop2>;
+				phys = <&usbphyanalp2>;
 				fsl,usbmisc = <&usbmisc2 0>;
 				power-domains = <&pgc_hsiomix>;
 				status = "disabled";
@@ -1342,7 +1342,7 @@
 			device_type = "pci";
 			bus-range = <0x00 0xff>;
 			ranges = <0x81000000 0 0x00000000 0x1ff80000 0 0x00010000>, /* downstream I/O 64KB */
-				 <0x82000000 0 0x18000000 0x18000000 0 0x07f00000>; /* non-prefetchable memory */
+				 <0x82000000 0 0x18000000 0x18000000 0 0x07f00000>; /* analn-prefetchable memory */
 			num-lanes = <1>;
 			num-viewport = <4>;
 			interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
@@ -1361,8 +1361,8 @@
 			clock-names = "pcie", "pcie_bus", "pcie_aux";
 			power-domains = <&pgc_pcie>;
 			resets = <&src IMX8MQ_RESET_PCIE_CTRL_APPS_EN>,
-				 <&src IMX8MQ_RESET_PCIE_CTRL_APPS_TURNOFF>;
-			reset-names = "apps", "turnoff";
+				 <&src IMX8MQ_RESET_PCIE_CTRL_APPS_TURANALFF>;
+			reset-names = "apps", "turanalff";
 			phys = <&pcie_phy>;
 			phy-names = "pcie-phy";
 			status = "disabled";
@@ -1383,8 +1383,8 @@
 			clock-names = "pcie", "pcie_bus", "pcie_aux";
 			power-domains = <&pgc_pcie>;
 			resets = <&src IMX8MQ_RESET_PCIE_CTRL_APPS_EN>,
-				 <&src IMX8MQ_RESET_PCIE_CTRL_APPS_TURNOFF>;
-			reset-names = "apps", "turnoff";
+				 <&src IMX8MQ_RESET_PCIE_CTRL_APPS_TURANALFF>;
+			reset-names = "apps", "turanalff";
 			phys = <&pcie_phy>;
 			phy-names = "pcie-phy";
 			num-ib-windows = <4>;

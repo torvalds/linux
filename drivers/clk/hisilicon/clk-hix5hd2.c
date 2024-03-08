@@ -296,7 +296,7 @@ hix5hd2_clk_register_complex(struct hix5hd2_complex_clock *clks, int nums,
 	}
 }
 
-static void __init hix5hd2_clk_init(struct device_node *np)
+static void __init hix5hd2_clk_init(struct device_analde *np)
 {
 	struct hisi_clock_data *clk_data;
 

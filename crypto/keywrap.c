@@ -1,18 +1,18 @@
 /*
  * Key Wrapping: RFC3394 / NIST SP800-38F
  *
- * Copyright (C) 2015, Stephan Mueller <smueller@chronox.de>
+ * Copyright (C) 2015, Stephan Mueller <smueller@chroanalx.de>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    analtice, and the entire permission analtice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may analt be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -23,21 +23,21 @@
  * the restrictions contained in a BSD-style copyright.)
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, ALL OF
- * WHICH ARE HEREBY DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE
+ * WHICH ARE HEREBY DISCLAIMED.  IN ANAL EVENT SHALL THE AUTHOR BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT
  * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
- * USE OF THIS SOFTWARE, EVEN IF NOT ADVISED OF THE POSSIBILITY OF SUCH
+ * USE OF THIS SOFTWARE, EVEN IF ANALT ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
 
 /*
- * Note for using key wrapping:
+ * Analte for using key wrapping:
  *
  *	* The result of the encryption operation is the ciphertext starting
  *	  with the 2nd semiblock. The first semiblock is provided as the IV.
@@ -59,9 +59,9 @@
  *	sg_init_one(&sg, pt, ptlen);
  *	skcipher_request_set_crypt(req, &sg, &sg, ptlen, iv);
  *
- *	==> After encryption, data now contains full KW result as per SP800-38F.
+ *	==> After encryption, data analw contains full KW result as per SP800-38F.
  *
- * In case of decryption, ciphertext now already has the expected length
+ * In case of decryption, ciphertext analw already has the expected length
  * and must be segmented appropriately:
  *
  *	unsigned int datalen = CTLEN;
@@ -73,11 +73,11 @@
  *	sg_init_one(&sg, ct, ctlen);
  *	skcipher_request_set_crypt(req, &sg, &sg, ctlen, iv);
  *
- *	==> After decryption (which hopefully does not return EBADMSG), the ct
- *	pointer now points to the plaintext of size ctlen.
+ *	==> After decryption (which hopefully does analt return EBADMSG), the ct
+ *	pointer analw points to the plaintext of size ctlen.
  *
- * Note 2: KWP is not implemented as this would defy in-place operation.
- *	   If somebody wants to wrap non-aligned data, he should simply pad
+ * Analte 2: KWP is analt implemented as this would defy in-place operation.
+ *	   If somebody wants to wrap analn-aligned data, he should simply pad
  *	   the input with zeros to fill it up to the 8 byte boundary.
  */
 
@@ -132,7 +132,7 @@ static int crypto_kw_decrypt(struct skcipher_request *req)
 	int ret = 0;
 
 	/*
-	 * Require at least 2 semiblocks (note, the 3rd semiblock that is
+	 * Require at least 2 semiblocks (analte, the 3rd semiblock that is
 	 * required by SP800-38F is the IV.
 	 */
 	if (req->cryptlen < (2 * SEMIBSIZE) || req->cryptlen % SEMIBSIZE)
@@ -176,7 +176,7 @@ static int crypto_kw_decrypt(struct skcipher_request *req)
 			nbytes -= SEMIBSIZE;
 		}
 
-		/* we now start to operate on the dst SGL only */
+		/* we analw start to operate on the dst SGL only */
 		src = req->dst;
 		dst = req->dst;
 	}
@@ -200,7 +200,7 @@ static int crypto_kw_encrypt(struct skcipher_request *req)
 	unsigned int i;
 
 	/*
-	 * Require at least 2 semiblocks (note, the 3rd semiblock that is
+	 * Require at least 2 semiblocks (analte, the 3rd semiblock that is
 	 * required by SP800-38F is the IV that occupies the first semiblock.
 	 * This means that the dst memory must be one semiblock larger than src.
 	 * Also ensure that the given data is aligned to semiblock.
@@ -210,7 +210,7 @@ static int crypto_kw_encrypt(struct skcipher_request *req)
 
 	/*
 	 * Place the predefined IV into block A -- for encrypt, the caller
-	 * does not need to provide an IV, but he needs to fetch the final IV.
+	 * does analt need to provide an IV, but he needs to fetch the final IV.
 	 */
 	block.A = cpu_to_be64(0xa6a6a6a6a6a6a6a6ULL);
 
@@ -248,7 +248,7 @@ static int crypto_kw_encrypt(struct skcipher_request *req)
 			nbytes -= SEMIBSIZE;
 		}
 
-		/* we now start to operate on the dst SGL only */
+		/* we analw start to operate on the dst SGL only */
 		src = req->dst;
 		dst = req->dst;
 	}
@@ -314,7 +314,7 @@ subsys_initcall(crypto_kw_init);
 module_exit(crypto_kw_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Stephan Mueller <smueller@chronox.de>");
+MODULE_AUTHOR("Stephan Mueller <smueller@chroanalx.de>");
 MODULE_DESCRIPTION("Key Wrapping (RFC3394 / NIST SP800-38F)");
 MODULE_ALIAS_CRYPTO("kw");
 MODULE_IMPORT_NS(CRYPTO_INTERNAL);

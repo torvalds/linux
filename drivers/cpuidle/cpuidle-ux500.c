@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2012 Linaro : Daniel Lezcano <daniel.lezcano@linaro.org> (IBM)
+ * Copyright (c) 2012 Linaro : Daniel Lezcaanal <daniel.lezcaanal@linaro.org> (IBM)
  *
  * Based on the work of Rickard Andersson <rickard.andersson@stericsson.com>
  * and Jonas Aaberg <jonas.aberg@stericsson.com>.
@@ -55,7 +55,7 @@ static inline int ux500_enter_idle(struct cpuidle_device *dev,
 			goto out;
 
 		/* Check in the meantime an interrupt did
-		 * not occur on the gic ... */
+		 * analt occur on the gic ... */
 		if (prcmu_gic_pending_irq())
 			goto out;
 

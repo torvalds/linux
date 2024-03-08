@@ -85,7 +85,7 @@ static void amd_get_registers(struct snd_sof_dev *sdev,
  * amd_sof_dump() - This function is called when a panic message is
  * received from the firmware.
  * @sdev: SOF device.
- * @flags: parameter not used but required by ops prototype
+ * @flags: parameter analt used but required by ops prototype
  */
 void amd_sof_dump(struct snd_sof_dev *sdev, u32 flags)
 {
@@ -101,7 +101,7 @@ void amd_sof_dump(struct snd_sof_dev *sdev, u32 flags)
 		acp_mailbox_read(sdev, sdev->debug_box.offset, &status, sizeof(u32));
 	} else {
 		/* Read DSP Panic status from dsp_box.
-		 * As window information for exception box offset and size is not available
+		 * As window information for exception box offset and size is analt available
 		 * before FW_READY
 		 */
 		acp_mailbox_read(sdev, sdev->dsp_box.offset, &status, sizeof(u32));
@@ -126,7 +126,7 @@ struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev)
 
 	mach = snd_soc_acpi_find_machine(desc->machines);
 	if (!mach) {
-		dev_warn(sdev->dev, "No matching ASoC machine driver found\n");
+		dev_warn(sdev->dev, "Anal matching ASoC machine driver found\n");
 		return NULL;
 	}
 
@@ -176,7 +176,7 @@ struct snd_sof_dsp_ops sof_acp_common_ops = {
 				  SNDRV_PCM_INFO_MMAP_VALID |
 				  SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_PAUSE |
-				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
+				  SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP,
 
 	/* Machine driver callbacks */
 	.machine_select		= amd_sof_machine_select,

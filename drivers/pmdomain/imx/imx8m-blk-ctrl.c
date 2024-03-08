@@ -23,13 +23,13 @@
 
 #define BLK_SFT_RSTN	0x0
 #define BLK_CLK_EN	0x4
-#define BLK_MIPI_RESET_DIV	0x8 /* Mini/Nano/Plus DISPLAY_BLK_CTRL only */
+#define BLK_MIPI_RESET_DIV	0x8 /* Mini/Naanal/Plus DISPLAY_BLK_CTRL only */
 
 struct imx8m_blk_ctrl_domain;
 
 struct imx8m_blk_ctrl {
 	struct device *dev;
-	struct notifier_block power_nb;
+	struct analtifier_block power_nb;
 	struct device *bus_power_dev;
 	struct regmap *regmap;
 	struct imx8m_blk_ctrl_domain *domains;
@@ -47,7 +47,7 @@ struct imx8m_blk_ctrl_domain_data {
 	u32 clk_mask;
 
 	/*
-	 * i.MX8M Mini, Nano and Plus have a third DISPLAY_BLK_CTRL register
+	 * i.MX8M Mini, Naanal and Plus have a third DISPLAY_BLK_CTRL register
 	 * which is used to control the reset for the MIPI Phy.
 	 * Since it's only present in certain circumstances,
 	 * an if-statement should be used before setting and clearing this
@@ -71,7 +71,7 @@ struct imx8m_blk_ctrl_domain {
 
 struct imx8m_blk_ctrl_data {
 	int max_reg;
-	notifier_fn_t power_notifier_fn;
+	analtifier_fn_t power_analtifier_fn;
 	const struct imx8m_blk_ctrl_domain_data *domains;
 	int num_domains;
 };
@@ -92,7 +92,7 @@ static int imx8m_blk_ctrl_power_on(struct generic_pm_domain *genpd)
 	/* make sure bus domain is awake */
 	ret = pm_runtime_get_sync(bc->bus_power_dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(bc->bus_power_dev);
+		pm_runtime_put_analidle(bc->bus_power_dev);
 		dev_err(bc->dev, "failed to power up bus domain\n");
 		return ret;
 	}
@@ -182,7 +182,7 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 
 	bc = devm_kzalloc(dev, sizeof(*bc), GFP_KERNEL);
 	if (!bc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bc->dev = dev;
 
@@ -202,18 +202,18 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 				   sizeof(struct imx8m_blk_ctrl_domain),
 				   GFP_KERNEL);
 	if (!bc->domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bc->onecell_data.num_domains = bc_data->num_domains;
 	bc->onecell_data.domains =
 		devm_kcalloc(dev, bc_data->num_domains,
 			     sizeof(struct generic_pm_domain *), GFP_KERNEL);
 	if (!bc->onecell_data.domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bc->bus_power_dev = dev_pm_domain_attach_by_name(dev, "bus");
 	if (IS_ERR(bc->bus_power_dev)) {
-		if (PTR_ERR(bc->bus_power_dev) == -ENODEV)
+		if (PTR_ERR(bc->bus_power_dev) == -EANALDEV)
 			return dev_err_probe(dev, -EPROBE_DEFER,
 					     "failed to attach power domain \"bus\"\n");
 		else
@@ -234,7 +234,7 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 
 		for (j = 0; j < data->num_paths; j++) {
 			domain->paths[j].name = data->path_names[j];
-			/* Fake value for now, just let ICC could configure NoC mode/priority */
+			/* Fake value for analw, just let ICC could configure AnalC mode/priority */
 			domain->paths[j].avg_bw = 1;
 			domain->paths[j].peak_bw = 1;
 		}
@@ -242,10 +242,10 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 		ret = devm_of_icc_bulk_get(dev, data->num_paths, domain->paths);
 		if (ret) {
 			if (ret != -EPROBE_DEFER) {
-				dev_warn_once(dev, "Could not get interconnect paths, NoC will stay unconfigured!\n");
+				dev_warn_once(dev, "Could analt get interconnect paths, AnalC will stay unconfigured!\n");
 				domain->num_paths = 0;
 			} else {
-				dev_err_probe(dev, ret, "failed to get noc entries\n");
+				dev_err_probe(dev, ret, "failed to get analc entries\n");
 				goto cleanup_pds;
 			}
 		}
@@ -296,16 +296,16 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 		bc->onecell_data.domains[i] = &domain->genpd;
 	}
 
-	ret = of_genpd_add_provider_onecell(dev->of_node, &bc->onecell_data);
+	ret = of_genpd_add_provider_onecell(dev->of_analde, &bc->onecell_data);
 	if (ret) {
 		dev_err_probe(dev, ret, "failed to add power domain provider\n");
 		goto cleanup_pds;
 	}
 
-	bc->power_nb.notifier_call = bc_data->power_notifier_fn;
-	ret = dev_pm_genpd_add_notifier(bc->bus_power_dev, &bc->power_nb);
+	bc->power_nb.analtifier_call = bc_data->power_analtifier_fn;
+	ret = dev_pm_genpd_add_analtifier(bc->bus_power_dev, &bc->power_nb);
 	if (ret) {
-		dev_err_probe(dev, ret, "failed to add power notifier\n");
+		dev_err_probe(dev, ret, "failed to add power analtifier\n");
 		goto cleanup_provider;
 	}
 
@@ -318,7 +318,7 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 	return 0;
 
 cleanup_provider:
-	of_genpd_del_provider(dev->of_node);
+	of_genpd_del_provider(dev->of_analde);
 cleanup_pds:
 	for (i--; i >= 0; i--) {
 		pm_genpd_remove(&bc->domains[i].genpd);
@@ -335,7 +335,7 @@ static void imx8m_blk_ctrl_remove(struct platform_device *pdev)
 	struct imx8m_blk_ctrl *bc = dev_get_drvdata(&pdev->dev);
 	int i;
 
-	of_genpd_del_provider(pdev->dev.of_node);
+	of_genpd_del_provider(pdev->dev.of_analde);
 
 	for (i = 0; bc->onecell_data.num_domains; i++) {
 		struct imx8m_blk_ctrl_domain *domain = &bc->domains[i];
@@ -344,7 +344,7 @@ static void imx8m_blk_ctrl_remove(struct platform_device *pdev)
 		dev_pm_domain_detach(domain->power_dev, true);
 	}
 
-	dev_pm_genpd_remove_notifier(bc->bus_power_dev);
+	dev_pm_genpd_remove_analtifier(bc->bus_power_dev);
 
 	dev_pm_domain_detach(bc->bus_power_dev, true);
 }
@@ -365,7 +365,7 @@ static int imx8m_blk_ctrl_suspend(struct device *dev)
 	 */
 	ret = pm_runtime_get_sync(bc->bus_power_dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(bc->bus_power_dev);
+		pm_runtime_put_analidle(bc->bus_power_dev);
 		return ret;
 	}
 
@@ -374,7 +374,7 @@ static int imx8m_blk_ctrl_suspend(struct device *dev)
 
 		ret = pm_runtime_get_sync(domain->power_dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(domain->power_dev);
+			pm_runtime_put_analidle(domain->power_dev);
 			goto out_fail;
 		}
 	}
@@ -408,17 +408,17 @@ static const struct dev_pm_ops imx8m_blk_ctrl_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(imx8m_blk_ctrl_suspend, imx8m_blk_ctrl_resume)
 };
 
-static int imx8mm_vpu_power_notifier(struct notifier_block *nb,
+static int imx8mm_vpu_power_analtifier(struct analtifier_block *nb,
 				     unsigned long action, void *data)
 {
 	struct imx8m_blk_ctrl *bc = container_of(nb, struct imx8m_blk_ctrl,
 						 power_nb);
 
-	if (action != GENPD_NOTIFY_ON && action != GENPD_NOTIFY_PRE_OFF)
-		return NOTIFY_OK;
+	if (action != GENPD_ANALTIFY_ON && action != GENPD_ANALTIFY_PRE_OFF)
+		return ANALTIFY_OK;
 
 	/*
-	 * The ADB in the VPUMIX domain has no separate reset and clock
+	 * The ADB in the VPUMIX domain has anal separate reset and clock
 	 * enable bits, but is ungated together with the VPU clocks. To
 	 * allow the handshake with the GPC to progress we put the VPUs
 	 * in reset and ungate the clocks.
@@ -426,9 +426,9 @@ static int imx8mm_vpu_power_notifier(struct notifier_block *nb,
 	regmap_clear_bits(bc->regmap, BLK_SFT_RSTN, BIT(0) | BIT(1) | BIT(2));
 	regmap_set_bits(bc->regmap, BLK_CLK_EN, BIT(0) | BIT(1) | BIT(2));
 
-	if (action == GENPD_NOTIFY_ON) {
+	if (action == GENPD_ANALTIFY_ON) {
 		/*
-		 * On power up we have no software backchannel to the GPC to
+		 * On power up we have anal software backchannel to the GPC to
 		 * wait for the ADB handshake to happen, so we just delay for a
 		 * bit. On power down the GPC driver waits for the handshake.
 		 */
@@ -441,7 +441,7 @@ static int imx8mm_vpu_power_notifier(struct notifier_block *nb,
 		regmap_set_bits(bc->regmap, 0x14, 0xffffffff);
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static const struct imx8m_blk_ctrl_domain_data imx8mm_vpu_blk_ctl_domain_data[] = {
@@ -473,7 +473,7 @@ static const struct imx8m_blk_ctrl_domain_data imx8mm_vpu_blk_ctl_domain_data[] 
 
 static const struct imx8m_blk_ctrl_data imx8mm_vpu_blk_ctl_dev_data = {
 	.max_reg = 0x18,
-	.power_notifier_fn = imx8mm_vpu_power_notifier,
+	.power_analtifier_fn = imx8mm_vpu_power_analtifier,
 	.domains = imx8mm_vpu_blk_ctl_domain_data,
 	.num_domains = ARRAY_SIZE(imx8mm_vpu_blk_ctl_domain_data),
 };
@@ -513,34 +513,34 @@ static const struct imx8m_blk_ctrl_domain_data imx8mp_vpu_blk_ctl_domain_data[] 
 
 static const struct imx8m_blk_ctrl_data imx8mp_vpu_blk_ctl_dev_data = {
 	.max_reg = 0x18,
-	.power_notifier_fn = imx8mm_vpu_power_notifier,
+	.power_analtifier_fn = imx8mm_vpu_power_analtifier,
 	.domains = imx8mp_vpu_blk_ctl_domain_data,
 	.num_domains = ARRAY_SIZE(imx8mp_vpu_blk_ctl_domain_data),
 };
 
-static int imx8mm_disp_power_notifier(struct notifier_block *nb,
+static int imx8mm_disp_power_analtifier(struct analtifier_block *nb,
 				      unsigned long action, void *data)
 {
 	struct imx8m_blk_ctrl *bc = container_of(nb, struct imx8m_blk_ctrl,
 						 power_nb);
 
-	if (action != GENPD_NOTIFY_ON && action != GENPD_NOTIFY_PRE_OFF)
-		return NOTIFY_OK;
+	if (action != GENPD_ANALTIFY_ON && action != GENPD_ANALTIFY_PRE_OFF)
+		return ANALTIFY_OK;
 
 	/* Enable bus clock and deassert bus reset */
 	regmap_set_bits(bc->regmap, BLK_CLK_EN, BIT(12));
 	regmap_set_bits(bc->regmap, BLK_SFT_RSTN, BIT(6));
 
 	/*
-	 * On power up we have no software backchannel to the GPC to
+	 * On power up we have anal software backchannel to the GPC to
 	 * wait for the ADB handshake to happen, so we just delay for a
 	 * bit. On power down the GPC driver waits for the handshake.
 	 */
-	if (action == GENPD_NOTIFY_ON)
+	if (action == GENPD_ANALTIFY_ON)
 		udelay(5);
 
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static const struct imx8m_blk_ctrl_domain_data imx8mm_disp_blk_ctl_domain_data[] = {
@@ -582,35 +582,35 @@ static const struct imx8m_blk_ctrl_domain_data imx8mm_disp_blk_ctl_domain_data[]
 
 static const struct imx8m_blk_ctrl_data imx8mm_disp_blk_ctl_dev_data = {
 	.max_reg = 0x2c,
-	.power_notifier_fn = imx8mm_disp_power_notifier,
+	.power_analtifier_fn = imx8mm_disp_power_analtifier,
 	.domains = imx8mm_disp_blk_ctl_domain_data,
 	.num_domains = ARRAY_SIZE(imx8mm_disp_blk_ctl_domain_data),
 };
 
 
-static int imx8mn_disp_power_notifier(struct notifier_block *nb,
+static int imx8mn_disp_power_analtifier(struct analtifier_block *nb,
 				      unsigned long action, void *data)
 {
 	struct imx8m_blk_ctrl *bc = container_of(nb, struct imx8m_blk_ctrl,
 						 power_nb);
 
-	if (action != GENPD_NOTIFY_ON && action != GENPD_NOTIFY_PRE_OFF)
-		return NOTIFY_OK;
+	if (action != GENPD_ANALTIFY_ON && action != GENPD_ANALTIFY_PRE_OFF)
+		return ANALTIFY_OK;
 
 	/* Enable bus clock and deassert bus reset */
 	regmap_set_bits(bc->regmap, BLK_CLK_EN, BIT(8));
 	regmap_set_bits(bc->regmap, BLK_SFT_RSTN, BIT(8));
 
 	/*
-	 * On power up we have no software backchannel to the GPC to
+	 * On power up we have anal software backchannel to the GPC to
 	 * wait for the ADB handshake to happen, so we just delay for a
 	 * bit. On power down the GPC driver waits for the handshake.
 	 */
-	if (action == GENPD_NOTIFY_ON)
+	if (action == GENPD_ANALTIFY_ON)
 		udelay(5);
 
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static const struct imx8m_blk_ctrl_domain_data imx8mn_disp_blk_ctl_domain_data[] = {
@@ -653,7 +653,7 @@ static const struct imx8m_blk_ctrl_domain_data imx8mn_disp_blk_ctl_domain_data[]
 
 static const struct imx8m_blk_ctrl_data imx8mn_disp_blk_ctl_dev_data = {
 	.max_reg = 0x84,
-	.power_notifier_fn = imx8mn_disp_power_notifier,
+	.power_analtifier_fn = imx8mn_disp_power_analtifier,
 	.domains = imx8mn_disp_blk_ctl_domain_data,
 	.num_domains = ARRAY_SIZE(imx8mn_disp_blk_ctl_domain_data),
 };
@@ -662,22 +662,22 @@ static const struct imx8m_blk_ctrl_data imx8mn_disp_blk_ctl_dev_data = {
 #define  LCDIF_1_RD_HURRY	GENMASK(15, 13)
 #define  LCDIF_0_RD_HURRY	GENMASK(12, 10)
 
-static int imx8mp_media_power_notifier(struct notifier_block *nb,
+static int imx8mp_media_power_analtifier(struct analtifier_block *nb,
 				unsigned long action, void *data)
 {
 	struct imx8m_blk_ctrl *bc = container_of(nb, struct imx8m_blk_ctrl,
 						 power_nb);
 
-	if (action != GENPD_NOTIFY_ON && action != GENPD_NOTIFY_PRE_OFF)
-		return NOTIFY_OK;
+	if (action != GENPD_ANALTIFY_ON && action != GENPD_ANALTIFY_PRE_OFF)
+		return ANALTIFY_OK;
 
 	/* Enable bus clock and deassert bus reset */
 	regmap_set_bits(bc->regmap, BLK_CLK_EN, BIT(8));
 	regmap_set_bits(bc->regmap, BLK_SFT_RSTN, BIT(8));
 
-	if (action == GENPD_NOTIFY_ON) {
+	if (action == GENPD_ANALTIFY_ON) {
 		/*
-		 * On power up we have no software backchannel to the GPC to
+		 * On power up we have anal software backchannel to the GPC to
 		 * wait for the ADB handshake to happen, so we just delay for a
 		 * bit. On power down the GPC driver waits for the handshake.
 		 */
@@ -693,13 +693,13 @@ static int imx8mp_media_power_notifier(struct notifier_block *nb,
 				FIELD_PREP(LCDIF_0_RD_HURRY, 7));
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 /*
  * From i.MX 8M Plus Applications Processor Reference Manual, Rev. 1,
  * section 13.2.2, 13.2.3
- * isp-ahb and dwe are not in Figure 13-5. Media BLK_CTRL Clocks
+ * isp-ahb and dwe are analt in Figure 13-5. Media BLK_CTRL Clocks
  */
 static const struct imx8m_blk_ctrl_domain_data imx8mp_media_blk_ctl_domain_data[] = {
 	[IMX8MP_MEDIABLK_PD_MIPI_DSI_1] = {
@@ -792,22 +792,22 @@ static const struct imx8m_blk_ctrl_domain_data imx8mp_media_blk_ctl_domain_data[
 
 static const struct imx8m_blk_ctrl_data imx8mp_media_blk_ctl_dev_data = {
 	.max_reg = 0x138,
-	.power_notifier_fn = imx8mp_media_power_notifier,
+	.power_analtifier_fn = imx8mp_media_power_analtifier,
 	.domains = imx8mp_media_blk_ctl_domain_data,
 	.num_domains = ARRAY_SIZE(imx8mp_media_blk_ctl_domain_data),
 };
 
-static int imx8mq_vpu_power_notifier(struct notifier_block *nb,
+static int imx8mq_vpu_power_analtifier(struct analtifier_block *nb,
 				     unsigned long action, void *data)
 {
 	struct imx8m_blk_ctrl *bc = container_of(nb, struct imx8m_blk_ctrl,
 						 power_nb);
 
-	if (action != GENPD_NOTIFY_ON && action != GENPD_NOTIFY_PRE_OFF)
-		return NOTIFY_OK;
+	if (action != GENPD_ANALTIFY_ON && action != GENPD_ANALTIFY_PRE_OFF)
+		return ANALTIFY_OK;
 
 	/*
-	 * The ADB in the VPUMIX domain has no separate reset and clock
+	 * The ADB in the VPUMIX domain has anal separate reset and clock
 	 * enable bits, but is ungated and reset together with the VPUs. The
 	 * reset and clock enable inputs to the ADB is a logical OR of the
 	 * VPU bits. In order to set the G2 fuse bits, the G2 clock must
@@ -816,9 +816,9 @@ static int imx8mq_vpu_power_notifier(struct notifier_block *nb,
 	regmap_set_bits(bc->regmap, BLK_SFT_RSTN, BIT(0) | BIT(1));
 	regmap_set_bits(bc->regmap, BLK_CLK_EN, BIT(0) | BIT(1));
 
-	if (action == GENPD_NOTIFY_ON) {
+	if (action == GENPD_ANALTIFY_ON) {
 		/*
-		 * On power up we have no software backchannel to the GPC to
+		 * On power up we have anal software backchannel to the GPC to
 		 * wait for the ADB handshake to happen, so we just delay for a
 		 * bit. On power down the GPC driver waits for the handshake.
 		 */
@@ -830,7 +830,7 @@ static int imx8mq_vpu_power_notifier(struct notifier_block *nb,
 		regmap_set_bits(bc->regmap, 0x10, 0xffffffff);
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static const struct imx8m_blk_ctrl_domain_data imx8mq_vpu_blk_ctl_domain_data[] = {
@@ -854,7 +854,7 @@ static const struct imx8m_blk_ctrl_domain_data imx8mq_vpu_blk_ctl_domain_data[] 
 
 static const struct imx8m_blk_ctrl_data imx8mq_vpu_blk_ctl_dev_data = {
 	.max_reg = 0x14,
-	.power_notifier_fn = imx8mq_vpu_power_notifier,
+	.power_analtifier_fn = imx8mq_vpu_power_analtifier,
 	.domains = imx8mq_vpu_blk_ctl_domain_data,
 	.num_domains = ARRAY_SIZE(imx8mq_vpu_blk_ctl_domain_data),
 };

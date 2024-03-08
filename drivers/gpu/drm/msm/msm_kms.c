@@ -70,8 +70,8 @@ static int msm_irq_install(struct drm_device *dev, unsigned int irq)
 	struct msm_kms *kms = priv->kms;
 	int ret;
 
-	if (irq == IRQ_NOTCONNECTED)
-		return -ENOTCONN;
+	if (irq == IRQ_ANALTCONNECTED)
+		return -EANALTCONN;
 
 	msm_irq_preinstall(dev);
 
@@ -129,7 +129,7 @@ static int vblank_ctrl_queue_work(struct msm_drm_private *priv,
 
 	vbl_work = kzalloc(sizeof(*vbl_work), GFP_ATOMIC);
 	if (!vbl_work)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&vbl_work->work, vblank_ctrl_worker);
 
@@ -186,7 +186,7 @@ struct msm_gem_address_space *msm_kms_init_aspace(struct drm_device *dev)
 		return ERR_CAST(mmu);
 
 	if (!mmu) {
-		drm_info(dev, "no IOMMU, fallback to phys contig buffers for scanout\n");
+		drm_info(dev, "anal IOMMU, fallback to phys contig buffers for scaanalut\n");
 		return NULL;
 	}
 
@@ -248,8 +248,8 @@ int msm_drm_kms_init(struct device *dev, const struct drm_driver *drv)
 		return ret;
 	}
 
-	/* Enable normalization of plane zpos */
-	ddev->mode_config.normalize_zpos = true;
+	/* Enable analrmalization of plane zpos */
+	ddev->mode_config.analrmalize_zpos = true;
 
 	ddev->mode_config.funcs = &mode_config_funcs;
 	ddev->mode_config.helper_private = &mode_config_helper_funcs;
@@ -334,7 +334,7 @@ void msm_kms_shutdown(struct platform_device *pdev)
 	struct drm_device *drm = priv ? priv->dev : NULL;
 
 	/*
-	 * Shutdown the hw if we're far enough along where things might be on.
+	 * Shutdown the hw if we're far eanalugh along where things might be on.
 	 * If we run this too early, we'll end up panicking in any variety of
 	 * places. Since we don't register the drm device until late in
 	 * msm_drm_init, drm_dev->registered is used as an indicator that the

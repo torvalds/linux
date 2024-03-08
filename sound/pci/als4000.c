@@ -7,13 +7,13 @@
  *
  *  Framework borrowed from Massimo Piccioni's card-als100.c.
  *
- * NOTES
+ * ANALTES
  *
- *  Since Avance does not provide any meaningful documentation, and I
+ *  Since Avance does analt provide any meaningful documentation, and I
  *  bought an ALS4000 based soundcard, I was forced to base this driver
  *  on reverse engineering.
  *
- *  Note: this is no longer true (thank you!):
+ *  Analte: this is anal longer true (thank you!):
  *  pretty verbose chip docu (ALS4000a.PDF) can be found on the ALSA web site.
  *  Page numbers stated anywhere below with the "SPECS_PAGE:" tag
  *  refer to: ALS4000a.PDF specs Ver 1.0, May 28th, 1998.
@@ -233,7 +233,7 @@ enum als4k_cr_t { /* all registers 8bit wide; SPECS_PAGE: 20 to 23 */
 	ALS4K_CR3_CONFIGURATION = 0x03,
 	ALS4K_CR17_FIFO_STATUS = 0x17,
 	ALS4K_CR18_ESP_MAJOR_VERSION = 0x18,
-	ALS4K_CR19_ESP_MINOR_VERSION = 0x19,
+	ALS4K_CR19_ESP_MIANALR_VERSION = 0x19,
 	ALS4K_CR1A_MPU401_UART_MODE_CONTROL = 0x1a,
 	ALS4K_CR1C_FIFO2_BLOCK_LENGTH_LO = 0x1c,
 	ALS4K_CR1D_FIFO2_BLOCK_LENGTH_HI = 0x1d,
@@ -256,7 +256,7 @@ static inline void snd_als4_cr_write(struct snd_sb *chip,
 					u8 data)
 {
 	/* Control Register is reg | 0xc0 (bit 7, 6 set) on sbmixer_index
-	 * NOTE: assumes chip->mixer_lock to be locked externally already!
+	 * ANALTE: assumes chip->mixer_lock to be locked externally already!
 	 * SPECS_PAGE: 6 */
 	snd_sbmixer_write(chip, reg | 0xc0, data);
 }
@@ -264,7 +264,7 @@ static inline void snd_als4_cr_write(struct snd_sb *chip,
 static inline u8 snd_als4_cr_read(struct snd_sb *chip,
 					enum als4k_cr_t reg)
 {
-	/* NOTE: assumes chip->mixer_lock to be locked externally already! */
+	/* ANALTE: assumes chip->mixer_lock to be locked externally already! */
 	return snd_sbmixer_read(chip, reg | 0xc0);
 }
 
@@ -319,14 +319,14 @@ static int snd_als4000_get_format(struct snd_pcm_runtime *runtime)
 static const struct {
 	unsigned char dsp_cmd, dma_on, dma_off, format;
 } playback_cmd_vals[]={
-/* ALS4000_FORMAT_U8_MONO */
-{ SB_DSP4_OUT8_AI, SB_DSP_DMA8_ON, SB_DSP_DMA8_OFF, SB_DSP4_MODE_UNS_MONO },
-/* ALS4000_FORMAT_S8_MONO */	
-{ SB_DSP4_OUT8_AI, SB_DSP_DMA8_ON, SB_DSP_DMA8_OFF, SB_DSP4_MODE_SIGN_MONO },
-/* ALS4000_FORMAT_U16L_MONO */
-{ SB_DSP4_OUT16_AI, SB_DSP_DMA16_ON, SB_DSP_DMA16_OFF, SB_DSP4_MODE_UNS_MONO },
-/* ALS4000_FORMAT_S16L_MONO */
-{ SB_DSP4_OUT16_AI, SB_DSP_DMA16_ON, SB_DSP_DMA16_OFF, SB_DSP4_MODE_SIGN_MONO },
+/* ALS4000_FORMAT_U8_MOANAL */
+{ SB_DSP4_OUT8_AI, SB_DSP_DMA8_ON, SB_DSP_DMA8_OFF, SB_DSP4_MODE_UNS_MOANAL },
+/* ALS4000_FORMAT_S8_MOANAL */	
+{ SB_DSP4_OUT8_AI, SB_DSP_DMA8_ON, SB_DSP_DMA8_OFF, SB_DSP4_MODE_SIGN_MOANAL },
+/* ALS4000_FORMAT_U16L_MOANAL */
+{ SB_DSP4_OUT16_AI, SB_DSP_DMA16_ON, SB_DSP_DMA16_OFF, SB_DSP4_MODE_UNS_MOANAL },
+/* ALS4000_FORMAT_S16L_MOANAL */
+{ SB_DSP4_OUT16_AI, SB_DSP_DMA16_ON, SB_DSP_DMA16_OFF, SB_DSP4_MODE_SIGN_MOANAL },
 /* ALS4000_FORMAT_U8_STEREO */
 { SB_DSP4_OUT8_AI, SB_DSP_DMA8_ON, SB_DSP_DMA8_OFF, SB_DSP4_MODE_UNS_STEREO },
 /* ALS4000_FORMAT_S8_STEREO */	
@@ -339,13 +339,13 @@ static const struct {
 #define playback_cmd(chip) (playback_cmd_vals[(chip)->playback_format])
 
 /* structure for setting up capture */
-enum { CMD_WIDTH8=0x04, CMD_SIGNED=0x10, CMD_MONO=0x80, CMD_STEREO=0xA0 };
+enum { CMD_WIDTH8=0x04, CMD_SIGNED=0x10, CMD_MOANAL=0x80, CMD_STEREO=0xA0 };
 static const unsigned char capture_cmd_vals[]=
 {
-CMD_WIDTH8|CMD_MONO,			/* ALS4000_FORMAT_U8_MONO */
-CMD_WIDTH8|CMD_SIGNED|CMD_MONO,		/* ALS4000_FORMAT_S8_MONO */	
-CMD_MONO,				/* ALS4000_FORMAT_U16L_MONO */
-CMD_SIGNED|CMD_MONO,			/* ALS4000_FORMAT_S16L_MONO */
+CMD_WIDTH8|CMD_MOANAL,			/* ALS4000_FORMAT_U8_MOANAL */
+CMD_WIDTH8|CMD_SIGNED|CMD_MOANAL,		/* ALS4000_FORMAT_S8_MOANAL */	
+CMD_MOANAL,				/* ALS4000_FORMAT_U16L_MOANAL */
+CMD_SIGNED|CMD_MOANAL,			/* ALS4000_FORMAT_S16L_MOANAL */
 CMD_WIDTH8|CMD_STEREO,			/* ALS4000_FORMAT_U8_STEREO */
 CMD_WIDTH8|CMD_SIGNED|CMD_STEREO,	/* ALS4000_FORMAT_S8_STEREO */	
 CMD_STEREO,				/* ALS4000_FORMAT_U16L_STEREO */
@@ -406,7 +406,7 @@ static int snd_als4000_playback_prepare(struct snd_pcm_substream *substream)
 	snd_als4000_set_rate(chip, runtime->rate);
 	snd_als4000_set_playback_dma(chip, runtime->dma_addr, size);
 	
-	/* SPEAKER_ON not needed, since dma_on seems to also enable speaker */
+	/* SPEAKER_ON analt needed, since dma_on seems to also enable speaker */
 	/* snd_sbdsp_command(chip, SB_DSP_SPEAKER_ON); */
 	snd_sbdsp_command(chip, playback_cmd(chip).dsp_cmd);
 	snd_sbdsp_command(chip, playback_cmd(chip).format);
@@ -424,10 +424,10 @@ static int snd_als4000_capture_trigger(struct snd_pcm_substream *substream, int 
 	int result = 0;
 	
 	/* FIXME race condition in here!!!
-	   chip->mode non-atomic update gets consistently protected
+	   chip->mode analn-atomic update gets consistently protected
 	   by reg_lock always, _except_ for this place!!
 	   Probably need to take reg_lock as outer (or inner??) lock, too.
-	   (or serialize both lock operations? probably not, though... - racy?)
+	   (or serialize both lock operations? probably analt, though... - racy?)
 	*/
 	spin_lock(&chip->mixer_lock);
 	switch (cmd) {
@@ -501,14 +501,14 @@ static snd_pcm_uframes_t snd_als4000_playback_pointer(struct snd_pcm_substream *
 }
 
 /* FIXME: this IRQ routine doesn't really support IRQ sharing (we always
- * return IRQ_HANDLED no matter whether we actually had an IRQ flag or not).
- * ALS4000a.PDF writes that while ACKing IRQ in PCI block will *not* ACK
+ * return IRQ_HANDLED anal matter whether we actually had an IRQ flag or analt).
+ * ALS4000a.PDF writes that while ACKing IRQ in PCI block will *analt* ACK
  * the IRQ in the SB core, ACKing IRQ in SB block *will* ACK the PCI IRQ
  * register (alt_port + ALS4K_IOB_0E_IRQTYPE_SB_CR1E_MPU). Probably something
  * could be optimized here to query/write one register only...
  * And even if both registers need to be queried, then there's still the
  * question of whether it's actually correct to ACK PCI IRQ before reading
- * SB IRQ like we do now, since ALS4000a.PDF mentions that PCI IRQ will *clear*
+ * SB IRQ like we do analw, since ALS4000a.PDF mentions that PCI IRQ will *clear*
  * SB IRQ status.
  * (hmm, SPECS_PAGE: 38 mentions it the other way around!)
  * And do we *really* need the lock here for *reading* SB_DSP4_IRQSTATUS??
@@ -713,7 +713,7 @@ static void snd_als4000_configure(struct snd_sb *chip)
 	tmp = snd_als4_cr_read(chip, ALS4K_CR0_SB_CONFIG);
 	snd_als4_cr_write(chip, ALS4K_CR0_SB_CONFIG,
 				tmp|ALS4K_CR0_MX80_81_REG_WRITE_ENABLE);
-	/* always select DMA channel 0, since we do not actually use DMA
+	/* always select DMA channel 0, since we do analt actually use DMA
 	 * SPECS_PAGE: 19/20 */
 	snd_sbmixer_write(chip, SB_DSP4_DMASETUP, SB_DMASETUP_DMA0);
 	snd_als4_cr_write(chip, ALS4K_CR0_SB_CONFIG,
@@ -742,7 +742,7 @@ static int snd_als4000_create_gameport(struct snd_card_als4000 *acard, int dev)
 	int io_port;
 
 	if (joystick_port[dev] == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (joystick_port[dev] == 1) { /* auto-detect */
 		for (io_port = 0x200; io_port <= 0x218; io_port += 8) {
@@ -758,14 +758,14 @@ static int snd_als4000_create_gameport(struct snd_card_als4000 *acard, int dev)
 	}
 
 	if (!r) {
-		dev_warn(&acard->pci->dev, "cannot reserve joystick ports\n");
+		dev_warn(&acard->pci->dev, "cananalt reserve joystick ports\n");
 		return -EBUSY;
 	}
 
 	acard->gameport = gp = gameport_allocate_port();
 	if (!gp) {
-		dev_err(&acard->pci->dev, "cannot allocate memory for gameport\n");
-		return -ENOMEM;
+		dev_err(&acard->pci->dev, "cananalt allocate memory for gameport\n");
+		return -EANALMEM;
 	}
 
 	gameport_set_name(gp, "ALS4000 Gameport");
@@ -792,7 +792,7 @@ static void snd_als4000_free_gameport(struct snd_card_als4000 *acard)
 	}
 }
 #else
-static inline int snd_als4000_create_gameport(struct snd_card_als4000 *acard, int dev) { return -ENOSYS; }
+static inline int snd_als4000_create_gameport(struct snd_card_als4000 *acard, int dev) { return -EANALSYS; }
 static inline void snd_als4000_free_gameport(struct snd_card_als4000 *acard) { }
 #endif
 
@@ -819,10 +819,10 @@ static int __snd_card_als4000_probe(struct pci_dev *pci,
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* enable PCI device */
@@ -832,7 +832,7 @@ static int __snd_card_als4000_probe(struct pci_dev *pci,
 
 	/* check, if we can restrict PCI DMA transfers to 24 bits */
 	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(24))) {
-		dev_err(&pci->dev, "architecture does not support 24bit PCI busmaster DMA\n");
+		dev_err(&pci->dev, "architecture does analt support 24bit PCI busmaster DMA\n");
 		return -ENXIO;
 	}
 
@@ -888,7 +888,7 @@ static int __snd_card_als4000_probe(struct pci_dev *pci,
 				  MPU401_INFO_IRQ_HOOK,
 				  -1, &chip->rmidi);
 	if (err < 0) {
-		dev_err(&pci->dev, "no MPU-401 device at 0x%lx?\n",
+		dev_err(&pci->dev, "anal MPU-401 device at 0x%lx?\n",
 				iobase + ALS4K_IOB_30_MIDI_DATA);
 		return err;
 	}
@@ -910,7 +910,7 @@ static int __snd_card_als4000_probe(struct pci_dev *pci,
 				iobase + ALS4K_IOB_10_ADLIB_ADDR0,
 				iobase + ALS4K_IOB_12_ADLIB_ADDR2,
 			    OPL3_HW_AUTO, 1, &opl3) < 0) {
-		dev_err(&pci->dev, "no OPL device at 0x%lx-0x%lx?\n",
+		dev_err(&pci->dev, "anal OPL device at 0x%lx-0x%lx?\n",
 			   iobase + ALS4K_IOB_10_ADLIB_ADDR0,
 			   iobase + ALS4K_IOB_12_ADLIB_ADDR2);
 	} else {

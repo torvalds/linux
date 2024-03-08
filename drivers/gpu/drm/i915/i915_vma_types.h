@@ -9,13 +9,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -39,11 +39,11 @@
  *
  * Historically objects could exists (be bound) in global GTT space only as
  * singular instances with a view representing all of the object's backing pages
- * in a linear fashion. This view will be called a normal view.
+ * in a linear fashion. This view will be called a analrmal view.
  *
  * To support multiple views of the same object, where the number of mapped
- * pages is not equal to the backing store, or where the layout of the pages
- * is not linear, concept of a GGTT view was added.
+ * pages is analt equal to the backing store, or where the layout of the pages
+ * is analt linear, concept of a GGTT view was added.
  *
  * One example of an alternative view is a stereo display driven by a single
  * image. In this case we would have a framebuffer looking like this
@@ -52,7 +52,7 @@
  *    12
  *    34
  *
- * Above would represent a normal GGTT view as normally mapped for GPU or CPU
+ * Above would represent a analrmal GGTT view as analrmally mapped for GPU or CPU
  * rendering. In contrast, fed to the display engine would be an alternative
  * view which could look something like this:
  *
@@ -60,7 +60,7 @@
  *   3434
  *
  * In this example both the size and layout of pages in the alternative view is
- * different from the normal view.
+ * different from the analrmal view.
  *
  * Implementation and usage
  *
@@ -72,10 +72,10 @@
  * renaming  in large amounts of code. They take the struct i915_gtt_view
  * parameter encapsulating all metadata required to implement a view.
  *
- * As a helper for callers which are only interested in the normal view,
- * globally const i915_gtt_view_normal singleton instance exists. All old core
- * GEM API functions, the ones not taking the view parameter, are operating on,
- * or with the normal GGTT view.
+ * As a helper for callers which are only interested in the analrmal view,
+ * globally const i915_gtt_view_analrmal singleton instance exists. All old core
+ * GEM API functions, the ones analt taking the view parameter, are operating on,
+ * or with the analrmal GGTT view.
  *
  * Code wanting to add or use a new GGTT view needs to:
  *
@@ -88,7 +88,7 @@
  * exists for the lifetime of an VMA.
  *
  * Core API is designed to have copy semantics which means that passed in
- * struct i915_gtt_view does not need to be persistent (left around after
+ * struct i915_gtt_view does analt need to be persistent (left around after
  * calling the core API functions).
  *
  */
@@ -129,7 +129,7 @@ struct intel_partial_info {
 } __packed;
 
 enum i915_gtt_view_type {
-	I915_GTT_VIEW_NORMAL = 0,
+	I915_GTT_VIEW_ANALRMAL = 0,
 	I915_GTT_VIEW_ROTATED = sizeof(struct intel_rotation_info),
 	I915_GTT_VIEW_PARTIAL = sizeof(struct intel_partial_info),
 	I915_GTT_VIEW_REMAPPED = sizeof(struct intel_remapped_info),
@@ -151,7 +151,7 @@ static inline void assert_i915_gem_gtt_types(void)
 	 * we have to be careful that each branch has a unique size.
 	 */
 	switch ((enum i915_gtt_view_type)0) {
-	case I915_GTT_VIEW_NORMAL:
+	case I915_GTT_VIEW_ANALRMAL:
 	case I915_GTT_VIEW_PARTIAL:
 	case I915_GTT_VIEW_ROTATED:
 	case I915_GTT_VIEW_REMAPPED:
@@ -163,7 +163,7 @@ static inline void assert_i915_gem_gtt_types(void)
 struct i915_gtt_view {
 	enum i915_gtt_view_type type;
 	union {
-		/* Members need to contain no holes/padding */
+		/* Members need to contain anal holes/padding */
 		struct intel_partial_info partial;
 		struct intel_rotation_info rotated;
 		struct intel_remapped_info remapped;
@@ -174,14 +174,14 @@ struct i915_gtt_view {
  * DOC: Virtual Memory Address
  *
  * A VMA represents a GEM BO that is bound into an address space. Therefore, a
- * VMA's presence cannot be guaranteed before binding, or after unbinding the
+ * VMA's presence cananalt be guaranteed before binding, or after unbinding the
  * object into/from the address space.
  *
- * To make things as simple as possible (ie. no refcounting), a VMA's lifetime
+ * To make things as simple as possible (ie. anal refcounting), a VMA's lifetime
  * will always be <= an objects lifetime. So object refcounting should cover us.
  */
 struct i915_vma {
-	struct drm_mm_node node;
+	struct drm_mm_analde analde;
 
 	struct i915_address_space *vm;
 	const struct i915_vma_ops *ops;
@@ -200,7 +200,7 @@ struct i915_vma {
 	/* mmap-offset associated with fencing for this vma */
 	struct i915_mmap_offset	*mmo;
 
-	u32 guard; /* padding allocated around vma->pages within the node */
+	u32 guard; /* padding allocated around vma->pages within the analde */
 	u32 fence_size;
 	u32 fence_alignment;
 	u32 display_alignment;
@@ -217,7 +217,7 @@ struct i915_vma {
 	 *
 	 * This is a tightly bound, fairly small number of users, so we
 	 * stuff inside the flags field so that we can both check for overflow
-	 * and detect a no-op i915_vma_pin() in a single check, while also
+	 * and detect a anal-op i915_vma_pin() in a single check, while also
 	 * pinning the vma.
 	 *
 	 * The worst case display setup would have the same vma pinned for
@@ -260,8 +260,8 @@ struct i915_vma {
 #define I915_VMA_USERFAULT	((int)BIT(I915_VMA_USERFAULT_BIT))
 #define I915_VMA_GGTT_WRITE	((int)BIT(I915_VMA_GGTT_WRITE_BIT))
 
-#define I915_VMA_SCANOUT_BIT	17
-#define I915_VMA_SCANOUT	((int)BIT(I915_VMA_SCANOUT_BIT))
+#define I915_VMA_SCAANALUT_BIT	17
+#define I915_VMA_SCAANALUT	((int)BIT(I915_VMA_SCAANALUT_BIT))
 
 	struct i915_active active;
 
@@ -280,8 +280,8 @@ struct i915_vma {
 	 * Support different GGTT views into the same object.
 	 * This means there can be multiple VMA mappings per object and per VM.
 	 * i915_gtt_view_type is used to distinguish between those entries.
-	 * The default one of zero (I915_GTT_VIEW_NORMAL) is default and also
-	 * assumed in GEM functions which take no ggtt view parameter.
+	 * The default one of zero (I915_GTT_VIEW_ANALRMAL) is default and also
+	 * assumed in GEM functions which take anal ggtt view parameter.
 	 */
 	struct i915_gtt_view gtt_view;
 
@@ -289,8 +289,8 @@ struct i915_vma {
 	struct list_head vm_link;
 
 	struct list_head obj_link; /* Link in the object's VMA list */
-	struct rb_node obj_node;
-	struct hlist_node obj_hash;
+	struct rb_analde obj_analde;
+	struct hlist_analde obj_hash;
 
 	/** This vma's place in the eviction list */
 	struct list_head evict_link;

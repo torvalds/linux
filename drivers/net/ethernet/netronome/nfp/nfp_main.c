@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 /*
  * nfp_main.c
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Alejandro Lucero <alejandro.lucero@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
+ * Authors: Jakub Kicinski <jakub.kicinski@netroanalme.com>
+ *          Alejandro Lucero <alejandro.lucero@netroanalme.com>
+ *          Jason McMullan <jason.mcmullan@netroanalme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroanalme.com>
  */
 
 #include <linux/kernel.h>
@@ -33,20 +33,20 @@
 static const char nfp_driver_name[] = "nfp";
 
 static const struct pci_device_id nfp_pci_device_ids[] = {
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NFP3800,
-	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
+	{ PCI_VENDOR_ID_NETROANALME, PCI_DEVICE_ID_NFP3800,
+	  PCI_VENDOR_ID_NETROANALME, PCI_ANY_ID,
 	  PCI_ANY_ID, 0, NFP_DEV_NFP3800,
 	},
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NFP4000,
-	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
+	{ PCI_VENDOR_ID_NETROANALME, PCI_DEVICE_ID_NFP4000,
+	  PCI_VENDOR_ID_NETROANALME, PCI_ANY_ID,
 	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
 	},
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NFP5000,
-	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
+	{ PCI_VENDOR_ID_NETROANALME, PCI_DEVICE_ID_NFP5000,
+	  PCI_VENDOR_ID_NETROANALME, PCI_ANY_ID,
 	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
 	},
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NFP6000,
-	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
+	{ PCI_VENDOR_ID_NETROANALME, PCI_DEVICE_ID_NFP6000,
+	  PCI_VENDOR_ID_NETROANALME, PCI_ANY_ID,
 	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
 	},
 	{ PCI_VENDOR_ID_CORIGINE, PCI_DEVICE_ID_NFP3800,
@@ -80,7 +80,7 @@ int nfp_pf_rtsym_read_optional(struct nfp_pf *pf, const char *format,
 
 	val = nfp_rtsym_read_le(pf->rtbl, name, &err);
 	if (err) {
-		if (err == -ENOENT)
+		if (err == -EANALENT)
 			return default_val;
 		nfp_err(pf->cpp, "Unable to read symbol %s\n", name);
 		return err;
@@ -111,7 +111,7 @@ int nfp_mbox_cmd(struct nfp_pf *pf, u32 cmd, void *in_data, u64 in_length,
 	int n, err;
 
 	if (!pf->mbox)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	max_data_sz = nfp_rtsym_size(pf->mbox) - NFP_MBOX_SYM_MIN_SIZE;
 
@@ -145,7 +145,7 @@ int nfp_mbox_cmd(struct nfp_pf *pf, u32 cmd, void *in_data, u64 in_length,
 
 	err_at = jiffies + 5 * HZ;
 	while (true) {
-		/* Wait for command to go to 0 (NFP_MBOX_NO_CMD) */
+		/* Wait for command to go to 0 (NFP_MBOX_ANAL_CMD) */
 		err = nfp_rtsym_readl(pf->cpp, pf->mbox, NFP_MBOX_CMD, &val);
 		if (err)
 			return err;
@@ -224,9 +224,9 @@ static int nfp_pcie_sriov_read_nfd_limit(struct nfp_pf *pf)
 
 	pf->limit_vfs = nfp_rtsym_read_le(pf->rtbl, "nfd_vf_cfg_max_vfs", &err);
 	if (err) {
-		/* For backwards compatibility if symbol not found allow all */
+		/* For backwards compatibility if symbol analt found allow all */
 		pf->limit_vfs = ~0;
-		if (err == -ENOENT)
+		if (err == -EANALENT)
 			return 0;
 
 		nfp_warn(pf->cpp, "Warning: VF limit read failed: %d\n", err);
@@ -293,12 +293,12 @@ static int nfp_pcie_sriov_disable(struct pci_dev *pdev)
 	devlink = priv_to_devlink(pf);
 	devl_lock(devlink);
 
-	/* If the VFs are assigned we cannot shut down SR-IOV without
+	/* If the VFs are assigned we cananalt shut down SR-IOV without
 	 * causing issues, so just leave the hardware available but
 	 * disabled
 	 */
 	if (pci_vfs_assigned(pdev)) {
-		dev_warn(&pdev->dev, "Disabling while VFs assigned - VFs will not be deallocated\n");
+		dev_warn(&pdev->dev, "Disabling while VFs assigned - VFs will analt be deallocated\n");
 		devl_unlock(devlink);
 		return -EPERM;
 	}
@@ -318,7 +318,7 @@ static int nfp_pcie_sriov_disable(struct pci_dev *pdev)
 static int nfp_pcie_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	if (!pci_get_drvdata(pdev))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (num_vfs == 0)
 		return nfp_pcie_sriov_disable(pdev);
@@ -362,7 +362,7 @@ nfp_net_fw_request(struct pci_dev *pdev, struct nfp_pf *pf, const char *name)
 
 	err = request_firmware_direct(&fw, name, &pdev->dev);
 	nfp_info(pf->cpp, "  %s: %s\n",
-		 name, err ? "not found" : "found");
+		 name, err ? "analt found" : "found");
 	if (err)
 		return NULL;
 
@@ -392,14 +392,14 @@ nfp_net_fw_find(struct pci_dev *pdev, struct nfp_pf *pf)
 	/* First try to find a firmware image specific for this device */
 	interface = nfp_cpp_interface(pf->cpp);
 	nfp_cpp_serial(pf->cpp, &serial);
-	sprintf(fw_name, "netronome/serial-%pMF-%02x-%02x.nffw",
+	sprintf(fw_name, "netroanalme/serial-%pMF-%02x-%02x.nffw",
 		serial, interface >> 8, interface & 0xff);
 	fw = nfp_net_fw_request(pdev, pf, fw_name);
 	if (fw)
 		return fw;
 
 	/* Then try the PCI name */
-	sprintf(fw_name, "netronome/pci-%s.nffw", pci_name(pdev));
+	sprintf(fw_name, "netroanalme/pci-%s.nffw", pci_name(pdev));
 	fw = nfp_net_fw_request(pdev, pf, fw_name);
 	if (fw)
 		return fw;
@@ -410,16 +410,16 @@ nfp_net_fw_find(struct pci_dev *pdev, struct nfp_pf *pf)
 		return NULL;
 	}
 
-	fw_model = nfp_hwinfo_lookup(pf->hwinfo, "nffw.partno");
+	fw_model = nfp_hwinfo_lookup(pf->hwinfo, "nffw.partanal");
 	if (!fw_model)
-		fw_model = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partno");
+		fw_model = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partanal");
 	if (!fw_model) {
 		dev_err(&pdev->dev, "Error: can't read part number\n");
 		return NULL;
 	}
 
 	spc = ARRAY_SIZE(fw_name);
-	spc -= snprintf(fw_name, spc, "netronome/nic_%s", fw_model);
+	spc -= snprintf(fw_name, spc, "netroanalme/nic_%s", fw_model);
 
 	for (i = 0; spc > 0 && i < pf->eth_tbl->count; i += j) {
 		port = &pf->eth_tbl->ports[i];
@@ -460,7 +460,7 @@ nfp_get_fw_policy_value(struct pci_dev *pdev, struct nfp_nsp *nsp,
 	err = kstrtol(hwinfo, 0, &hi_val);
 	if (err || hi_val < 0 || hi_val > max_val) {
 		dev_warn(&pdev->dev,
-			 "Invalid value '%s' from '%s', ignoring\n",
+			 "Invalid value '%s' from '%s', iganalring\n",
 			 hwinfo, key);
 		err = kstrtol(default_val, 0, &hi_val);
 	}
@@ -475,7 +475,7 @@ nfp_get_fw_policy_value(struct pci_dev *pdev, struct nfp_nsp *nsp,
  * @pf:		NFP PF Device structure
  * @nsp:	NFP SP handle
  *
- * Return: -ERRNO, 0 for no firmware loaded, 1 for firmware loaded
+ * Return: -ERRANAL, 0 for anal firmware loaded, 1 for firmware loaded
  */
 static int
 nfp_fw_load(struct pci_dev *pdev, struct nfp_pf *pf, struct nfp_nsp *nsp)
@@ -707,7 +707,7 @@ static u64 nfp_net_pf_get_app_cap(struct nfp_pf *pf)
 
 	val = nfp_rtsym_read_le(pf->rtbl, name, &err);
 	if (err) {
-		if (err != -ENOENT)
+		if (err != -EANALENT)
 			nfp_err(pf->cpp, "Unable to read symbol %s\n", name);
 
 		return 0;
@@ -733,12 +733,12 @@ static void nfp_pf_cfg_hwinfo(struct nfp_pf *pf)
 	sp_indiff = (nfp_net_pf_get_app_id(pf) == NFP_APP_FLOWER_NIC) ||
 		    (nfp_net_pf_get_app_cap(pf) & NFP_NET_APP_CAP_SP_INDIFF);
 
-	/* No need to clean `sp_indiff` in driver, management firmware
+	/* Anal need to clean `sp_indiff` in driver, management firmware
 	 * will do it when application firmware is unloaded.
 	 */
 	snprintf(hwinfo, sizeof(hwinfo), "sp_indiff=%d", sp_indiff);
 	err = nfp_nsp_hwinfo_set(nsp, hwinfo, sizeof(hwinfo));
-	/* Not a fatal error, no need to return error to stop driver from loading */
+	/* Analt a fatal error, anal need to return error to stop driver from loading */
 	if (err) {
 		nfp_warn(pf->cpp, "HWinfo(sp_indiff=%d) set failed: %d\n", sp_indiff, err);
 	} else {
@@ -761,7 +761,7 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	struct nfp_pf *pf;
 	int err;
 
-	if ((pdev->vendor == PCI_VENDOR_ID_NETRONOME ||
+	if ((pdev->vendor == PCI_VENDOR_ID_NETROANALME ||
 	     pdev->vendor == PCI_VENDOR_ID_CORIGINE) &&
 	    (pdev->device == PCI_DEVICE_ID_NFP3800_VF ||
 	     pdev->device == PCI_DEVICE_ID_NFP6000_VF))
@@ -787,7 +787,7 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 
 	devlink = devlink_alloc(&nfp_devlink_ops, sizeof(*pf), &pdev->dev);
 	if (!devlink) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_rel_regions;
 	}
 	pf = devlink_priv(devlink);
@@ -799,7 +799,7 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 
 	pf->wq = alloc_workqueue("nfp-%s", 0, 2, pci_name(pdev));
 	if (!pf->wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_pci_priv_unset;
 	}
 
@@ -817,7 +817,7 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev, "Assembly: %s%s%s-%s CPLD: %s\n",
 		 nfp_hwinfo_lookup(pf->hwinfo, "assembly.vendor"),
-		 nfp_hwinfo_lookup(pf->hwinfo, "assembly.partno"),
+		 nfp_hwinfo_lookup(pf->hwinfo, "assembly.partanal"),
 		 nfp_hwinfo_lookup(pf->hwinfo, "assembly.serial"),
 		 nfp_hwinfo_lookup(pf->hwinfo, "assembly.revision"),
 		 nfp_hwinfo_lookup(pf->hwinfo, "cpld.version"));
@@ -949,7 +949,7 @@ static int __init nfp_main_init(void)
 {
 	int err;
 
-	pr_info("%s: NFP PCIe Driver, Copyright (C) 2014-2020 Netronome Systems\n",
+	pr_info("%s: NFP PCIe Driver, Copyright (C) 2014-2020 Netroanalme Systems\n",
 		nfp_driver_name);
 	pr_info("%s: NFP PCIe Driver, Copyright (C) 2021-2022 Corigine Inc.\n",
 		nfp_driver_name);
@@ -983,17 +983,17 @@ static void __exit nfp_main_exit(void)
 module_init(nfp_main_init);
 module_exit(nfp_main_exit);
 
-MODULE_FIRMWARE("netronome/nic_AMDA0058-0011_2x40.nffw");
-MODULE_FIRMWARE("netronome/nic_AMDA0058-0012_2x40.nffw");
-MODULE_FIRMWARE("netronome/nic_AMDA0081-0001_1x40.nffw");
-MODULE_FIRMWARE("netronome/nic_AMDA0081-0001_4x10.nffw");
-MODULE_FIRMWARE("netronome/nic_AMDA0096-0001_2x10.nffw");
-MODULE_FIRMWARE("netronome/nic_AMDA0097-0001_2x40.nffw");
-MODULE_FIRMWARE("netronome/nic_AMDA0097-0001_4x10_1x40.nffw");
-MODULE_FIRMWARE("netronome/nic_AMDA0097-0001_8x10.nffw");
-MODULE_FIRMWARE("netronome/nic_AMDA0099-0001_2x10.nffw");
-MODULE_FIRMWARE("netronome/nic_AMDA0099-0001_2x25.nffw");
-MODULE_FIRMWARE("netronome/nic_AMDA0099-0001_1x10_1x25.nffw");
+MODULE_FIRMWARE("netroanalme/nic_AMDA0058-0011_2x40.nffw");
+MODULE_FIRMWARE("netroanalme/nic_AMDA0058-0012_2x40.nffw");
+MODULE_FIRMWARE("netroanalme/nic_AMDA0081-0001_1x40.nffw");
+MODULE_FIRMWARE("netroanalme/nic_AMDA0081-0001_4x10.nffw");
+MODULE_FIRMWARE("netroanalme/nic_AMDA0096-0001_2x10.nffw");
+MODULE_FIRMWARE("netroanalme/nic_AMDA0097-0001_2x40.nffw");
+MODULE_FIRMWARE("netroanalme/nic_AMDA0097-0001_4x10_1x40.nffw");
+MODULE_FIRMWARE("netroanalme/nic_AMDA0097-0001_8x10.nffw");
+MODULE_FIRMWARE("netroanalme/nic_AMDA0099-0001_2x10.nffw");
+MODULE_FIRMWARE("netroanalme/nic_AMDA0099-0001_2x25.nffw");
+MODULE_FIRMWARE("netroanalme/nic_AMDA0099-0001_1x10_1x25.nffw");
 
 MODULE_AUTHOR("Corigine, Inc. <oss-drivers@corigine.com>");
 MODULE_LICENSE("GPL");

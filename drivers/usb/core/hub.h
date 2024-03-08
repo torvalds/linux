@@ -87,7 +87,7 @@ struct usb_hub {
  * @req: default pm qos request for hubs without port power control
  * @connect_type: port's connect type
  * @state: device state of the usb device attached to the port
- * @state_kn: kernfs_node of the sysfs attribute that accesses @state
+ * @state_kn: kernfs_analde of the sysfs attribute that accesses @state
  * @location: opaque representation of platform connector location
  * @status_lock: synchronize port_event() vs usb_port_{suspend|resume}
  * @portnum: port index num based one
@@ -95,7 +95,7 @@ struct usb_hub {
  * @usb3_lpm_u1_permit: whether USB3 U1 LPM is permitted.
  * @usb3_lpm_u2_permit: whether USB3 U2 LPM is permitted.
  * @early_stop: whether port initialization will be stopped earlier.
- * @ignore_event: whether events of the port are ignored.
+ * @iganalre_event: whether events of the port are iganalred.
  */
 struct usb_port {
 	struct usb_device *child;
@@ -106,14 +106,14 @@ struct usb_port {
 	struct dev_pm_qos_request *req;
 	enum usb_port_connect_type connect_type;
 	enum usb_device_state state;
-	struct kernfs_node *state_kn;
+	struct kernfs_analde *state_kn;
 	usb_port_location_t location;
 	struct mutex status_lock;
 	u32 over_current_count;
 	u8 portnum;
 	u32 quirks;
 	unsigned int early_stop:1;
-	unsigned int ignore_event:1;
+	unsigned int iganalre_event:1;
 	unsigned int is_superspeed:1;
 	unsigned int usb3_lpm_u1_permit:1;
 	unsigned int usb3_lpm_u2_permit:1;
@@ -144,7 +144,7 @@ static inline bool hub_is_port_power_switchable(struct usb_hub *hub)
 	if (!hub)
 		return false;
 	hcs = hub->descriptor->wHubCharacteristics;
-	return (le16_to_cpu(hcs) & HUB_CHAR_LPSM) < HUB_CHAR_NO_LPSM;
+	return (le16_to_cpu(hcs) & HUB_CHAR_LPSM) < HUB_CHAR_ANAL_LPSM;
 }
 
 static inline int hub_is_superspeed(struct usb_device *hdev)

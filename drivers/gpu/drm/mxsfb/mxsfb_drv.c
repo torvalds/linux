@@ -123,7 +123,7 @@ static int mxsfb_attach_bridge(struct mxsfb_drm_private *mxsfb)
 	struct drm_bridge *bridge;
 	int ret;
 
-	ret = drm_of_find_panel_or_bridge(drm->dev->of_node, 0, 0, &panel,
+	ret = drm_of_find_panel_or_bridge(drm->dev->of_analde, 0, 0, &panel,
 					  &bridge);
 	if (ret)
 		return ret;
@@ -136,7 +136,7 @@ static int mxsfb_attach_bridge(struct mxsfb_drm_private *mxsfb)
 	}
 
 	if (!bridge)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = drm_bridge_attach(&mxsfb->encoder, bridge, NULL, 0);
 	if (ret)
@@ -193,8 +193,8 @@ static void mxsfb_irq_disable(struct drm_device *drm)
 
 static int mxsfb_irq_install(struct drm_device *dev, int irq)
 {
-	if (irq == IRQ_NOTCONNECTED)
-		return -ENOTCONN;
+	if (irq == IRQ_ANALTCONNECTED)
+		return -EANALTCONN;
 
 	mxsfb_irq_disable(dev);
 
@@ -219,7 +219,7 @@ static int mxsfb_load(struct drm_device *drm,
 
 	mxsfb = devm_kzalloc(&pdev->dev, sizeof(*mxsfb), GFP_KERNEL);
 	if (!mxsfb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mxsfb->drm = drm;
 	drm->dev_private = mxsfb;
@@ -268,7 +268,7 @@ static int mxsfb_load(struct drm_device *drm,
 
 	ret = mxsfb_attach_bridge(mxsfb);
 	if (ret) {
-		dev_err_probe(drm->dev, ret, "Cannot connect bridge\n");
+		dev_err_probe(drm->dev, ret, "Cananalt connect bridge\n");
 		goto err_vblank;
 	}
 
@@ -333,7 +333,7 @@ static const struct drm_driver mxsfb_driver = {
 	.desc	= "MXSFB Controller DRM",
 	.date	= "20160824",
 	.major	= 1,
-	.minor	= 0,
+	.mianalr	= 0,
 };
 
 static const struct of_device_id mxsfb_dt_ids[] = {

@@ -23,7 +23,7 @@ struct speed_string {
 };
 
 static const struct speed_string speed_strings[] = {
-	{ USB_SPEED_UNKNOWN, "unknown", "Unknown Speed"},
+	{ USB_SPEED_UNKANALWN, "unkanalwn", "Unkanalwn Speed"},
 	{ USB_SPEED_LOW,  "1.5", "Low Speed(1.5Mbps)"  },
 	{ USB_SPEED_FULL, "12",  "Full Speed(12Mbps)" },
 	{ USB_SPEED_HIGH, "480", "High Speed(480Mbps)" },
@@ -42,7 +42,7 @@ static struct portst_string portst_strings[] = {
 	{ SDEV_ST_USED,		"Device in Use" },
 	{ SDEV_ST_ERROR,	"Device Error"},
 	{ VDEV_ST_NULL,		"Port Available"},
-	{ VDEV_ST_NOTASSIGNED,	"Port Initializing"},
+	{ VDEV_ST_ANALTASSIGNED,	"Port Initializing"},
 	{ VDEV_ST_USED,		"Port in Use"},
 	{ VDEV_ST_ERROR,	"Port Error"},
 	{ 0, NULL}
@@ -54,7 +54,7 @@ const char *usbip_status_string(int32_t status)
 		if (portst_strings[i].num == status)
 			return portst_strings[i].desc;
 
-	return "Unknown Status";
+	return "Unkanalwn Status";
 }
 
 const char *usbip_speed_string(int num)
@@ -63,7 +63,7 @@ const char *usbip_speed_string(int num)
 		if (speed_strings[i].num == num)
 			return speed_strings[i].desc;
 
-	return "Unknown Speed";
+	return "Unkanalwn Speed";
 }
 
 struct op_common_status_string {
@@ -76,7 +76,7 @@ static struct op_common_status_string op_common_status_strings[] = {
 	{ ST_NA,	"Request Failed" },
 	{ ST_DEV_BUSY,	"Device busy (exported)" },
 	{ ST_DEV_ERR,	"Device in error state" },
-	{ ST_NODEV,	"Device not found" },
+	{ ST_ANALDEV,	"Device analt found" },
 	{ ST_ERROR,	"Unexpected response" },
 	{ 0, NULL}
 };
@@ -87,7 +87,7 @@ const char *usbip_op_common_status_string(int status)
 		if (op_common_status_strings[i].num == status)
 			return op_common_status_strings[i].desc;
 
-	return "Unknown Op Common Status";
+	return "Unkanalwn Op Common Status";
 }
 
 #define DBG_UDEV_INTEGER(name)\
@@ -154,9 +154,9 @@ int read_attr_value(struct udev_device *dev, const char *name,
 	/* The client chooses the device configuration
 	 * when attaching it so right after being bound
 	 * to usbip-host on the server the device will
-	 * have no configuration.
+	 * have anal configuration.
 	 * Therefore, attributes such as bConfigurationValue
-	 * and bNumInterfaces will not exist and sscanf will
+	 * and bNumInterfaces will analt exist and sscanf will
 	 * fail. Check for these cases and don't treat them
 	 * as errors.
 	 */
@@ -193,7 +193,7 @@ int read_attr_speed(struct udev_device *dev)
 
 err:
 
-	return USB_SPEED_UNKNOWN;
+	return USB_SPEED_UNKANALWN;
 }
 
 #define READ_ATTR(object, type, dev, name, format)			      \
@@ -282,12 +282,12 @@ void usbip_names_get_product(char *buff, size_t size, uint16_t vendor,
 
 	prod = names_product(vendor, product);
 	if (!prod)
-		prod = "unknown product";
+		prod = "unkanalwn product";
 
 
 	vend = names_vendor(vendor);
 	if (!vend)
-		vend = "unknown vendor";
+		vend = "unkanalwn vendor";
 
 	snprintf(buff, size, "%s : %s (%04x:%04x)", vend, prod, vendor, product);
 }
@@ -304,15 +304,15 @@ void usbip_names_get_class(char *buff, size_t size, uint8_t class,
 
 	p = names_protocol(class, subclass, protocol);
 	if (!p)
-		p = "unknown protocol";
+		p = "unkanalwn protocol";
 
 	s = names_subclass(class, subclass);
 	if (!s)
-		s = "unknown subclass";
+		s = "unkanalwn subclass";
 
 	c = names_class(class);
 	if (!c)
-		c = "unknown class";
+		c = "unkanalwn class";
 
 	snprintf(buff, size, "%s / %s / %s (%02x/%02x/%02x)", c, s, p, class, subclass, protocol);
 }

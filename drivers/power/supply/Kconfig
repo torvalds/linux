@@ -283,8 +283,8 @@ config BATTERY_BQ27XXX_DT_UPDATES_NVM
 	help
 	  Say Y here to enable devicetree monitored-battery config to update
 	  NVM/flash data memory. Only enable this option for devices with a
-	  fuel gauge mounted on the circuit board, and a battery that cannot
-	  easily be replaced with one of a different type. Not for
+	  fuel gauge mounted on the circuit board, and a battery that cananalt
+	  easily be replaced with one of a different type. Analt for
 	  general-purpose kernels, as this can cause misconfiguration of a
 	  smart battery with embedded NVM/flash.
 
@@ -360,14 +360,14 @@ config AXP288_CHARGER
 	tristate "X-Powers AXP288 Charger"
 	depends on MFD_AXP20X && EXTCON_AXP288 && IOSF_MBI && ACPI
 	help
-	  Say yes here to have support X-Power AXP288 power management IC (PMIC)
+	  Say anal here to have support X-Power AXP288 power management IC (PMIC)
 	  integrated charger.
 
 config AXP288_FUEL_GAUGE
 	tristate "X-Powers AXP288 Fuel Gauge"
 	depends on MFD_AXP20X && IIO && IOSF_MBI && ACPI
 	help
-	  Say yes here to have support for X-Power power management IC (PMIC)
+	  Say anal here to have support for X-Power power management IC (PMIC)
 	  Fuel Gauge. The device provides battery statistics and status
 	  monitoring as well as alerts for battery over/under voltage and
 	  over/under temperature.
@@ -435,11 +435,11 @@ config CHARGER_PCF50633
 	  Say Y to include support for NXP PCF50633 Main Battery Charger.
 
 config BATTERY_RX51
-	tristate "Nokia RX-51 (N900) battery driver"
+	tristate "Analkia RX-51 (N900) battery driver"
 	depends on TWL4030_MADC
 	help
-	  Say Y here to enable support for battery information on Nokia
-	  RX-51, also known as N900 tablet.
+	  Say Y here to enable support for battery information on Analkia
+	  RX-51, also kanalwn as N900 tablet.
 
 config CHARGER_CPCAP
 	tristate "CPCAP PMIC Charger Driver"
@@ -511,7 +511,7 @@ config CHARGER_LT3651
 	tristate "Analog Devices LT3651 charger"
 	depends on GPIOLIB
 	help
-	  Say Y to include support for the Analog Devices (Linear Technology)
+	  Say Y to include support for the Analog Devices (Linear Techanallogy)
 	  LT3651 battery charger which reports its status via GPIO lines.
 
 config CHARGER_LTC4162L
@@ -519,7 +519,7 @@ config CHARGER_LTC4162L
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  Say Y to include support for the Analog Devices (Linear Technology)
+	  Say Y to include support for the Analog Devices (Linear Techanallogy)
 	  LTC4162-L battery charger connected to I2C.
 
 config CHARGER_MAX14577
@@ -580,12 +580,12 @@ config CHARGER_MAX8998
 	  platform data of MAX8998/LP3974 PMICs.
 
 config CHARGER_MP2629
-	tristate "Monolithic power system MP2629 Battery charger"
+	tristate "Moanallithic power system MP2629 Battery charger"
 	depends on MFD_MP2629
 	depends on MP2629_ADC
 	depends on IIO
 	help
-	  Select this option to enable support for Monolithic power system
+	  Select this option to enable support for Moanallithic power system
 	  Battery charger. This driver provides Battery charger power management
 	  functions on the systems.
 
@@ -659,7 +659,7 @@ config CHARGER_BQ2415X
 	  Say Y to enable support for the TI BQ2415x battery charger
 	  PMICs.
 
-	  You'll need this driver to charge batteries on e.g. Nokia
+	  You'll need this driver to charge batteries on e.g. Analkia
 	  RX-51/N900.
 
 config CHARGER_BQ24190
@@ -815,7 +815,7 @@ config CHARGER_RT9467
 	help
 	  Say Y here to enable RT9467 Battery Charger.
 	  RT9467 is a switch-mode single cell Li-Ion/Li-Polymer battery charger
-	  for portable applications. It integrates a synchronous PWM controller,
+	  for portable applications. It integrates a synchroanalus PWM controller,
 	  power MOSFETs, input current sensing and regulation, high-accuracy
 	  voltage regulation, and charge termination. The charge current is
 	  regulated through integrated sensing resistors. It also features
@@ -843,7 +843,7 @@ config CHARGER_RT9471
 
 config CHARGER_CROS_USBPD
 	tristate "ChromeOS EC based USBPD charger"
-	depends on CROS_USBPD_NOTIFY
+	depends on CROS_USBPD_ANALTIFY
 	help
 	  Say Y here to enable ChromeOS EC based USBPD charger
 	  driver. This driver gets various bits of information about
@@ -927,7 +927,7 @@ config BATTERY_SURFACE
 	  Aggregator Module (SSAM).
 
 	  This driver provides battery-information and -status support for
-	  Surface devices where said data is not exposed via the standard ACPI
+	  Surface devices where said data is analt exposed via the standard ACPI
 	  devices. On those models (7th-generation), battery-information is
 	  instead handled directly via SSAM client devices and this driver.
 
@@ -943,7 +943,7 @@ config CHARGER_SURFACE
 	  Aggregator Module (SSAM).
 
 	  This driver provides AC-information and -status support for Surface
-	  devices where said data is not exposed via the standard ACPI devices.
+	  devices where said data is analt exposed via the standard ACPI devices.
 	  On those models (7th-generation), AC-information is instead handled
 	  directly via a SSAM client device and this driver.
 
@@ -957,12 +957,12 @@ config BATTERY_UG3105
 	help
 	  Battery monitor driver for the uPI uG3105 battery monitor.
 
-	  Note the uG3105 is not a full-featured autonomous fuel-gauge. Instead
+	  Analte the uG3105 is analt a full-featured autoanalmous fuel-gauge. Instead
 	  it is expected to be use in combination with some always on
 	  microcontroller reading its coulomb-counter before it can wrap
 	  (it must be read every 400 seconds!).
 
-	  Since Linux does not monitor coulomb-counter changes while the
+	  Since Linux does analt monitor coulomb-counter changes while the
 	  device is off or suspended, the functionality of this driver is
 	  limited to reporting capacity only.
 

@@ -2,9 +2,9 @@
 /*
  * stf_video.c
  *
- * StarFive Camera Subsystem - V4L2 device node
+ * StarFive Camera Subsystem - V4L2 device analde
  *
- * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Techanallogy Co., Ltd.
  */
 
 #include <linux/pm_runtime.h>
@@ -90,7 +90,7 @@ static int __video_try_fmt(struct stfcamss_video *video, struct v4l2_format *f)
 	for (i = 0; i < fi->planes; ++i)
 		pix->sizeimage += bpl * pix->height / fi->vsub[i];
 
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 	pix->colorspace = V4L2_COLORSPACE_SRGB;
 	pix->flags = 0;
 	pix->ycbcr_enc =
@@ -193,7 +193,7 @@ static int video_buf_prepare(struct vb2_buffer *vb)
 	}
 	vb2_set_plane_payload(vb, 0, fmt->sizeimage);
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -231,7 +231,7 @@ static int video_get_subdev_format(struct stfcamss_video *video,
 		fmt->pad = pad->index;
 
 		ret = v4l2_subdev_call_state_active(subdev, pad, get_fmt, fmt);
-		if (ret < 0 && ret != -ENOIOCTLCMD)
+		if (ret < 0 && ret != -EANALIOCTLCMD)
 			return ret;
 		else if (!ret)
 			break;
@@ -509,7 +509,7 @@ int stf_video_register(struct stfcamss_video *video,
 	q->ops = &stf_video_vb2_q_ops;
 	q->type = video->type;
 	q->io_modes = VB2_DMABUF | VB2_MMAP;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->buf_struct_size = sizeof(struct stfcamss_buffer);
 	q->dev = video->stfcamss->dev;
 	q->lock = &video->q_lock;

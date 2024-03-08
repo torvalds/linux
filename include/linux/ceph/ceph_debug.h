@@ -9,7 +9,7 @@
 #ifdef CONFIG_CEPH_LIB_PRETTYDEBUG
 
 /*
- * wrap pr_debug to include a filename:lineno prefix on each line.
+ * wrap pr_debug to include a filename:lineanal prefix on each line.
  * this incurs some overhead (kernel size and execution time) due to
  * the extra function call at each call site.
  */
@@ -52,8 +52,8 @@
 
 #endif
 
-#define pr_notice_client(client, fmt, ...)				\
-	pr_notice("[%pU %llu]: " fmt, &client->fsid,			\
+#define pr_analtice_client(client, fmt, ...)				\
+	pr_analtice("[%pU %llu]: " fmt, &client->fsid,			\
 		  client->monc.auth->global_id, ##__VA_ARGS__)
 #define pr_info_client(client, fmt, ...)				\
 	pr_info("[%pU %llu]: " fmt, &client->fsid,			\

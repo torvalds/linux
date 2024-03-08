@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/qcom,snps-eusb2-repeater.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Synopsis eUSB2 to USB 2.0 repeater
+title: Qualcomm Syanalpsis eUSB2 to USB 2.0 repeater
 
 maintainers:
   - Abel Vesa <abel.vesa@linaro.org>

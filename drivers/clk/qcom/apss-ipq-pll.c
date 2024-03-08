@@ -199,7 +199,7 @@ static int apss_ipq_pll_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (data->pll_type == CLK_ALPHA_PLL_TYPE_HUAYRA)
 		clk_alpha_pll_configure(data->pll, regmap, data->pll_config);
@@ -233,5 +233,5 @@ static struct platform_driver apss_ipq_pll_driver = {
 };
 module_platform_driver(apss_ipq_pll_driver);
 
-MODULE_DESCRIPTION("Qualcomm technology Inc APSS ALPHA PLL Driver");
+MODULE_DESCRIPTION("Qualcomm techanallogy Inc APSS ALPHA PLL Driver");
 MODULE_LICENSE("GPL v2");

@@ -18,13 +18,13 @@
 		led-2 {
 			label = "red";
 			gpios = <&gpiof 12 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 			default-state = "off";
 		};
 		led-3 {
 			label = "green";
 			gpios = <&gpioe 7 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 			default-state = "off";
 		};
 	};

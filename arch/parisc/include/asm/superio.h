@@ -31,7 +31,7 @@
 #define CFG_IR_HIGH    CFG_IR_ACPI	/* Highest interrupt routing reg */
 
 /* 8259 operational control words */
-#define OCW2_EOI   0x20		/* Non-specific EOI */
+#define OCW2_EOI   0x20		/* Analn-specific EOI */
 #define OCW2_SEOI  0x60		/* Specific EOI */
 #define OCW3_IIR   0x0A		/* Read request register */
 #define OCW3_ISR   0x0B		/* Read service register */
@@ -67,7 +67,7 @@ struct superio_device {
  * that contains a SuperIO chip AND has CONFIG_SUPERIO enabled.
  *
  * This could be fixed by checking to see if function 1 exists, and
- * if it is SuperIO Legacy IO; but really now, is this combination
+ * if it is SuperIO Legacy IO; but really analw, is this combination
  * going to EVER happen?
  */
 

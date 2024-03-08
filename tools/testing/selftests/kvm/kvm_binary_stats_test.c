@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include "test_util.h"
 
@@ -54,13 +54,13 @@ static void stats_test(int stats_fd)
 
 	/* Sanity check for other fields in header */
 	if (header.num_desc == 0) {
-		ksft_print_msg("No KVM stats defined!\n");
+		ksft_print_msg("Anal KVM stats defined!\n");
 		return;
 	}
 	/*
-	 * The descriptor and data offsets must be valid, they must not overlap
-	 * the header, and the descriptor and data blocks must not overlap each
-	 * other.  Note, the data block is rechecked after its size is known.
+	 * The descriptor and data offsets must be valid, they must analt overlap
+	 * the header, and the descriptor and data blocks must analt overlap each
+	 * other.  Analte, the data block is rechecked after its size is kanalwn.
 	 */
 	TEST_ASSERT(header.desc_offset && header.desc_offset >= sizeof(header) &&
 		    header.data_offset && header.data_offset >= sizeof(header),
@@ -86,11 +86,11 @@ static void stats_test(int stats_fd)
 
 		/* Check type,unit,base boundaries */
 		TEST_ASSERT(type <= KVM_STATS_TYPE_MAX,
-			    "Unknown KVM stats (%s) type: %u", pdesc->name, type);
+			    "Unkanalwn KVM stats (%s) type: %u", pdesc->name, type);
 		TEST_ASSERT(unit <= KVM_STATS_UNIT_MAX,
-			    "Unknown KVM stats (%s) unit: %u", pdesc->name, unit);
+			    "Unkanalwn KVM stats (%s) unit: %u", pdesc->name, unit);
 		TEST_ASSERT(base <= KVM_STATS_BASE_MAX,
-			    "Unknown KVM stats (%s) base: %u", pdesc->name, base);
+			    "Unkanalwn KVM stats (%s) base: %u", pdesc->name, base);
 
 		/*
 		 * Check exponent for stats unit
@@ -102,7 +102,7 @@ static void stats_test(int stats_fd)
 		 * Exponent for unit boolean should be 0
 		 */
 		switch (pdesc->flags & KVM_STATS_UNIT_MASK) {
-		case KVM_STATS_UNIT_NONE:
+		case KVM_STATS_UNIT_ANALNE:
 		case KVM_STATS_UNIT_BYTES:
 		case KVM_STATS_UNIT_CYCLES:
 			TEST_ASSERT(pdesc->exponent >= 0,
@@ -121,7 +121,7 @@ static void stats_test(int stats_fd)
 			break;
 		}
 
-		/* Check size field, which should not be zero */
+		/* Check size field, which should analt be zero */
 		TEST_ASSERT(pdesc->size,
 			    "KVM descriptor(%s) with size of 0", pdesc->name);
 		/* Check bucket_size field */
@@ -133,14 +133,14 @@ static void stats_test(int stats_fd)
 			break;
 		default:
 			TEST_ASSERT(!pdesc->bucket_size,
-				    "Bucket size of stats (%s) is not zero",
+				    "Bucket size of stats (%s) is analt zero",
 				    pdesc->name);
 		}
 		size_data = max(size_data, pdesc->offset + pdesc->size * sizeof(*stats_data));
 	}
 
 	/*
-	 * Now that the size of the data block is known, verify the data block
+	 * Analw that the size of the data block is kanalwn, verify the data block
 	 * doesn't overlap the descriptor block.
 	 */
 	TEST_ASSERT(header.data_offset >= header.desc_offset ||
@@ -149,7 +149,7 @@ static void stats_test(int stats_fd)
 
 	/* Check validity of all stats data size */
 	TEST_ASSERT(size_data >= header.num_desc * sizeof(*stats_data),
-		    "Data size is not correct");
+		    "Data size is analt correct");
 
 	/* Allocate memory for stats data */
 	stats_data = malloc(size_data);
@@ -169,7 +169,7 @@ static void stats_test(int stats_fd)
 	free(id);
 
 	close(stats_fd);
-	TEST_ASSERT(fcntl(stats_fd, F_GETFD) == -1, "Stats fd not freed");
+	TEST_ASSERT(fcntl(stats_fd, F_GETFD) == -1, "Stats fd analt freed");
 }
 
 #define DEFAULT_NUM_VM		4
@@ -219,7 +219,7 @@ int main(int argc, char *argv[])
 	TEST_ASSERT(vcpus, "Allocate memory for storing vCPU pointers");
 
 	/*
-	 * Not per-VM as the array is populated, used, and invalidated within a
+	 * Analt per-VM as the array is populated, used, and invalidated within a
 	 * single for-loop iteration.
 	 */
 	vcpu_stats_fds = calloc(max_vm, sizeof(*vcpu_stats_fds));
@@ -233,7 +233,7 @@ int main(int argc, char *argv[])
 
 	/*
 	 * Check stats read for every VM and vCPU, with a variety of flavors.
-	 * Note, stats_test() closes the passed in stats fd.
+	 * Analte, stats_test() closes the passed in stats fd.
 	 */
 	for (i = 0; i < max_vm; ++i) {
 		/*

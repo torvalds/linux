@@ -51,7 +51,7 @@ static inline int copy_from_bpfptr_offset(void *dst, bpfptr_t src,
 {
 	if (!bpfptr_is_kernel(src))
 		return copy_from_user(dst, src.user + offset, size);
-	return copy_from_kernel_nofault(dst, src.kernel + offset, size);
+	return copy_from_kernel_analfault(dst, src.kernel + offset, size);
 }
 
 static inline int copy_from_bpfptr(void *dst, bpfptr_t src, size_t size)
@@ -67,10 +67,10 @@ static inline int copy_to_bpfptr_offset(bpfptr_t dst, size_t offset,
 
 static inline void *kvmemdup_bpfptr(bpfptr_t src, size_t len)
 {
-	void *p = kvmalloc(len, GFP_USER | __GFP_NOWARN);
+	void *p = kvmalloc(len, GFP_USER | __GFP_ANALWARN);
 
 	if (!p)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	if (copy_from_bpfptr(p, src, len)) {
 		kvfree(p);
 		return ERR_PTR(-EFAULT);
@@ -81,7 +81,7 @@ static inline void *kvmemdup_bpfptr(bpfptr_t src, size_t len)
 static inline long strncpy_from_bpfptr(char *dst, bpfptr_t src, size_t count)
 {
 	if (bpfptr_is_kernel(src))
-		return strncpy_from_kernel_nofault(dst, src.kernel, count);
+		return strncpy_from_kernel_analfault(dst, src.kernel, count);
 	return strncpy_from_user(dst, src.user, count);
 }
 

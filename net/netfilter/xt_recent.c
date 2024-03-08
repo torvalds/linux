@@ -4,9 +4,9 @@
  * Copyright © CC Computer Consultants GmbH, 2007 - 2008
  *
  * This is a replacement of the old ipt_recent module, which carried the
- * following copyright notice:
+ * following copyright analtice:
  *
- * Author: Stephen Frost <sfrost@snowman.net>
+ * Author: Stephen Frost <sfrost@sanalwman.net>
  * Copyright 2002-2003, Stephen Frost, 2.5.x port by laforge@netfilter.org
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -163,7 +163,7 @@ static void recent_entry_reap(struct recent_table *t, unsigned long time,
 	e = list_entry(t->lru_list.next, struct recent_entry, lru_list);
 
 	/*
-	 * Do not reap the entry which are going to be updated.
+	 * Do analt reap the entry which are going to be updated.
 	 */
 	if (e == working && update)
 		return;
@@ -308,7 +308,7 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			}
 		}
 
-		/* info->seconds must be non-zero */
+		/* info->seconds must be analn-zero */
 		if (info->check_set & XT_RECENT_REAP)
 			recent_entry_reap(t, time, e,
 				info->check_set & XT_RECENT_UPDATE && ret);
@@ -393,7 +393,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 
 	t = kvzalloc(struct_size(t, iphash, ip_list_hash_size), GFP_KERNEL);
 	if (t == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	t->refcnt = 1;
@@ -416,7 +416,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 			       &recent_mt_proc_ops, t);
 	if (pde == NULL) {
 		recent_table_free(t);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	proc_set_user(pde, uid, gid);
@@ -543,15 +543,15 @@ static const struct seq_operations recent_seq_ops = {
 	.show		= recent_seq_show,
 };
 
-static int recent_seq_open(struct inode *inode, struct file *file)
+static int recent_seq_open(struct ianalde *ianalde, struct file *file)
 {
 	struct recent_iter_state *st;
 
 	st = __seq_open_private(file, &recent_seq_ops, sizeof(*st));
 	if (st == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	st->table    = pde_data(inode);
+	st->table    = pde_data(ianalde);
 	return 0;
 }
 
@@ -559,7 +559,7 @@ static ssize_t
 recent_mt_proc_write(struct file *file, const char __user *input,
 		     size_t size, loff_t *loff)
 {
-	struct recent_table *t = pde_data(file_inode(file));
+	struct recent_table *t = pde_data(file_ianalde(file));
 	struct recent_entry *e;
 	char buf[sizeof("+b335:1d35:1e55:dead:c0de:1715:255.255.255.255")];
 	const char *c = buf;
@@ -619,7 +619,7 @@ recent_mt_proc_write(struct file *file, const char __user *input,
 			recent_entry_remove(t, e);
 	}
 	spin_unlock_bh(&recent_lock);
-	/* Note we removed one above */
+	/* Analte we removed one above */
 	*loff += size + 1;
 	return size + 1;
 }
@@ -638,7 +638,7 @@ static int __net_init recent_proc_net_init(struct net *net)
 
 	recent_net->xt_recent = proc_mkdir("xt_recent", net->proc_net);
 	if (!recent_net->xt_recent)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -738,7 +738,7 @@ static int __init recent_mt_init(void)
 {
 	int err;
 
-	BUILD_BUG_ON_NOT_POWER_OF_2(XT_RECENT_MAX_NSTAMPS);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(XT_RECENT_MAX_NSTAMPS);
 
 	if (!ip_list_tot || ip_pkt_list_tot >= XT_RECENT_MAX_NSTAMPS)
 		return -EINVAL;

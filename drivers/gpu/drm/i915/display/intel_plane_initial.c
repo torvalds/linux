@@ -102,7 +102,7 @@ initial_plane_vma(struct drm_i915_private *i915,
 	size -= base;
 
 	/*
-	 * If the FB is too big, just don't use it since fbdev is not very
+	 * If the FB is too big, just don't use it since fbdev is analt very
 	 * important and we should probably use that space with FBC or other
 	 * features.
 	 */
@@ -123,10 +123,10 @@ initial_plane_vma(struct drm_i915_private *i915,
 	 * unbind there would get stuck waiting for rcu.
 	 */
 	i915_gem_object_set_cache_coherency(obj, HAS_WT(i915) ?
-					    I915_CACHE_WT : I915_CACHE_NONE);
+					    I915_CACHE_WT : I915_CACHE_ANALNE);
 
 	switch (plane_config->tiling) {
-	case I915_TILING_NONE:
+	case I915_TILING_ANALNE:
 		break;
 	case I915_TILING_X:
 	case I915_TILING_Y:
@@ -224,7 +224,7 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	/*
 	 * TODO:
 	 *   Disable planes if get_initial_plane_config() failed.
-	 *   Make sure things work if the surface base is not page aligned.
+	 *   Make sure things work if the surface base is analt page aligned.
 	 */
 	if (!plane_config->fb)
 		return;
@@ -237,7 +237,7 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 
 	/*
 	 * Failed to alloc the obj, check to see if we should share
-	 * an fb with another CRTC instead
+	 * an fb with aanalther CRTC instead
 	 */
 	if (intel_reuse_initial_plane_obj(dev_priv, plane_config, &fb, &vma))
 		goto valid_fb;
@@ -246,10 +246,10 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	 * We've failed to reconstruct the BIOS FB.  Current display state
 	 * indicates that the primary plane is visible, but has a NULL FB,
 	 * which will lead to problems later if we don't fix it up.  The
-	 * simplest solution is to just disable the primary plane now and
+	 * simplest solution is to just disable the primary plane analw and
 	 * pretend the BIOS never had it enabled.
 	 */
-	intel_plane_disable_noatomic(crtc, plane);
+	intel_plane_disable_analatomic(crtc, plane);
 
 	return;
 
@@ -291,7 +291,7 @@ static void plane_config_fini(struct intel_initial_plane_config *plane_config)
 	if (plane_config->fb) {
 		struct drm_framebuffer *fb = &plane_config->fb->base;
 
-		/* We may only have the stub and not a full framebuffer */
+		/* We may only have the stub and analt a full framebuffer */
 		if (drm_framebuffer_read_refcount(fb))
 			drm_framebuffer_put(fb);
 		else
@@ -308,11 +308,11 @@ void intel_crtc_initial_plane_config(struct intel_crtc *crtc)
 	struct intel_initial_plane_config plane_config = {};
 
 	/*
-	 * Note that reserving the BIOS fb up front prevents us
+	 * Analte that reserving the BIOS fb up front prevents us
 	 * from stuffing other stolen allocations like the ring
 	 * on top.  This prevents some ugliness at boot time, and
 	 * can even allow for smooth boot transitions if the BIOS
-	 * fb is large enough for the active pipe configuration.
+	 * fb is large eanalugh for the active pipe configuration.
 	 */
 	dev_priv->display.funcs.display->get_initial_plane_config(crtc, &plane_config);
 

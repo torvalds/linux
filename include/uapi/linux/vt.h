@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_VT_H
 #define _UAPI_LINUX_VT_H
 
@@ -9,7 +9,7 @@
  */
 #define MIN_NR_CONSOLES 1       /* must be at least 1 */
 #define MAX_NR_CONSOLES	63	/* serial lines start at 64 */
-		/* Note: the ioctl VT_GETSTATE does not work for
+		/* Analte: the ioctl VT_GETSTATE does analt work for
 		   consoles 16 and higher (since it returns a short) */
 
 /* 0x56 is 'V', to avoid collision with termios and kd */
@@ -18,7 +18,7 @@
 
 struct vt_mode {
 	char mode;		/* vt mode */
-	char waitv;		/* if set, hang on writes if not active */
+	char waitv;		/* if set, hang on writes if analt active */
 	short relsig;		/* signal to raise on release req */
 	short acqsig;		/* signal to raise on acquisition */
 	short frsig;		/* unused (set to 0) */
@@ -27,7 +27,7 @@ struct vt_mode {
 #define VT_SETMODE	0x5602	/* set mode of active vt */
 #define		VT_AUTO		0x00	/* auto vt switching */
 #define		VT_PROCESS	0x01	/* process controls switching */
-#define		VT_ACKACQ	0x02	/* acknowledge switch */
+#define		VT_ACKACQ	0x02	/* ackanalwledge switch */
 
 struct vt_stat {
 	unsigned short v_active;	/* active vt */

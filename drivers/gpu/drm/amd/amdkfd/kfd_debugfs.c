@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -28,9 +28,9 @@
 
 static struct dentry *debugfs_root;
 
-static int kfd_debugfs_open(struct inode *inode, struct file *file)
+static int kfd_debugfs_open(struct ianalde *ianalde, struct file *file)
 {
-	int (*show)(struct seq_file *, void *) = inode->i_private;
+	int (*show)(struct seq_file *, void *) = ianalde->i_private;
 
 	return single_open(file, show, NULL);
 }
@@ -43,7 +43,7 @@ static int kfd_debugfs_hang_hws_read(struct seq_file *m, void *data)
 static ssize_t kfd_debugfs_hang_hws_write(struct file *file,
 	const char __user *user_buf, size_t size, loff_t *ppos)
 {
-	struct kfd_node *dev;
+	struct kfd_analde *dev;
 	char tmp[16];
 	uint32_t gpu_id;
 	int ret = -EINVAL;
@@ -66,7 +66,7 @@ static ssize_t kfd_debugfs_hang_hws_write(struct file *file,
 		kfd_debugfs_hang_hws(dev);
 		ret = size;
 	} else
-		pr_err("Cannot find device %d.\n", gpu_id);
+		pr_err("Cananalt find device %d.\n", gpu_id);
 
 out:
 	return ret;

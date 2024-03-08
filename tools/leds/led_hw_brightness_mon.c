@@ -12,7 +12,7 @@
  * CTRL+C will exit.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <stdio.h>
@@ -46,8 +46,8 @@ int main(int argc, char const *argv[])
 	}
 
 	/*
-	 * read may fail if no hw brightness change has occurred so far,
-	 * but it is required to avoid spurious poll notifications in
+	 * read may fail if anal hw brightness change has occurred so far,
+	 * but it is required to avoid spurious poll analtifications in
 	 * the opposite case.
 	 */
 	read(fd, buf, sizeof(buf));
@@ -64,7 +64,7 @@ int main(int argc, char const *argv[])
 			break;
 		}
 
-		clock_gettime(CLOCK_MONOTONIC, &ts);
+		clock_gettime(CLOCK_MOANALTONIC, &ts);
 
 		ret = read(fd, buf, sizeof(buf));
 		if (ret < 0)

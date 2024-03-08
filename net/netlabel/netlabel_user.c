@@ -43,7 +43,7 @@
  * Description:
  * Call out to the NetLabel components so they can register their families and
  * commands with the Generic NETLINK mechanism.  Returns zero on success and
- * non-zero on failure.
+ * analn-zero on failure.
  *
  */
 int __init netlbl_netlink_init(void)

@@ -7,7 +7,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #include "sun6i_csi.h"
 #include "sun6i_csi_bridge.h"
@@ -230,7 +230,7 @@ sun6i_csi_bridge_configure_parallel(struct sun6i_csi_device *csi_dev)
 {
 	struct device *dev = csi_dev->dev;
 	struct regmap *regmap = csi_dev->regmap;
-	struct v4l2_fwnode_endpoint *endpoint =
+	struct v4l2_fwanalde_endpoint *endpoint =
 		&csi_dev->bridge.source_parallel.endpoint;
 	unsigned char bus_width = endpoint->bus.parallel.bus_width;
 	unsigned int flags = endpoint->bus.parallel.flags;
@@ -469,7 +469,7 @@ static int sun6i_csi_bridge_s_stream(struct v4l2_subdev *subdev, int on)
 	sun6i_csi_bridge_enable(csi_dev);
 
 	ret = v4l2_subdev_call(source_subdev, video, s_stream, 1);
-	if (ret && ret != -ENOIOCTLCMD)
+	if (ret && ret != -EANALIOCTLCMD)
 		goto disable;
 
 	return 0;
@@ -495,7 +495,7 @@ sun6i_csi_bridge_mbus_format_prepare(struct v4l2_mbus_framefmt *mbus_format)
 	if (!sun6i_csi_bridge_format_find(mbus_format->code))
 		mbus_format->code = sun6i_csi_bridge_formats[0].mbus_code;
 
-	mbus_format->field = V4L2_FIELD_NONE;
+	mbus_format->field = V4L2_FIELD_ANALNE;
 	mbus_format->colorspace = V4L2_COLORSPACE_RAW;
 	mbus_format->quantization = V4L2_QUANTIZATION_DEFAULT;
 	mbus_format->xfer_func = V4L2_XFER_FUNC_DEFAULT;
@@ -616,7 +616,7 @@ static int sun6i_csi_bridge_link(struct sun6i_csi_device *csi_dev,
 	int ret;
 
 	/* Get the first remote source pad. */
-	ret = media_entity_get_fwnode_pad(source_entity, remote_subdev->fwnode,
+	ret = media_entity_get_fwanalde_pad(source_entity, remote_subdev->fwanalde,
 					  MEDIA_PAD_FL_SOURCE);
 	if (ret < 0) {
 		dev_err(dev, "missing source pad in external entity %s\n",
@@ -643,13 +643,13 @@ static int sun6i_csi_bridge_link(struct sun6i_csi_device *csi_dev,
 }
 
 static int
-sun6i_csi_bridge_notifier_bound(struct v4l2_async_notifier *notifier,
+sun6i_csi_bridge_analtifier_bound(struct v4l2_async_analtifier *analtifier,
 				struct v4l2_subdev *remote_subdev,
 				struct v4l2_async_connection *async_subdev)
 {
 	struct sun6i_csi_device *csi_dev =
-		container_of(notifier, struct sun6i_csi_device,
-			     bridge.notifier);
+		container_of(analtifier, struct sun6i_csi_device,
+			     bridge.analtifier);
 	struct sun6i_csi_bridge_async_subdev *bridge_async_subdev =
 		container_of(async_subdev, struct sun6i_csi_bridge_async_subdev,
 			     async_subdev);
@@ -686,23 +686,23 @@ sun6i_csi_bridge_notifier_bound(struct v4l2_async_notifier *notifier,
 }
 
 static int
-sun6i_csi_bridge_notifier_complete(struct v4l2_async_notifier *notifier)
+sun6i_csi_bridge_analtifier_complete(struct v4l2_async_analtifier *analtifier)
 {
 	struct sun6i_csi_device *csi_dev =
-		container_of(notifier, struct sun6i_csi_device,
-			     bridge.notifier);
+		container_of(analtifier, struct sun6i_csi_device,
+			     bridge.analtifier);
 	struct v4l2_device *v4l2_dev = &csi_dev->v4l2.v4l2_dev;
 
 	if (csi_dev->isp_available)
 		return 0;
 
-	return v4l2_device_register_subdev_nodes(v4l2_dev);
+	return v4l2_device_register_subdev_analdes(v4l2_dev);
 }
 
-static const struct v4l2_async_notifier_operations
-sun6i_csi_bridge_notifier_ops = {
-	.bound		= sun6i_csi_bridge_notifier_bound,
-	.complete	= sun6i_csi_bridge_notifier_complete,
+static const struct v4l2_async_analtifier_operations
+sun6i_csi_bridge_analtifier_ops = {
+	.bound		= sun6i_csi_bridge_analtifier_bound,
+	.complete	= sun6i_csi_bridge_analtifier_complete,
 };
 
 /* Bridge */
@@ -713,17 +713,17 @@ static int sun6i_csi_bridge_source_setup(struct sun6i_csi_device *csi_dev,
 					 enum v4l2_mbus_type *bus_types)
 {
 	struct device *dev = csi_dev->dev;
-	struct v4l2_async_notifier *notifier = &csi_dev->bridge.notifier;
-	struct v4l2_fwnode_endpoint *endpoint = &source->endpoint;
+	struct v4l2_async_analtifier *analtifier = &csi_dev->bridge.analtifier;
+	struct v4l2_fwanalde_endpoint *endpoint = &source->endpoint;
 	struct sun6i_csi_bridge_async_subdev *bridge_async_subdev;
-	struct fwnode_handle *handle;
+	struct fwanalde_handle *handle;
 	int ret;
 
-	handle = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), port, 0, 0);
+	handle = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev), port, 0, 0);
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
-	ret = v4l2_fwnode_endpoint_parse(handle, endpoint);
+	ret = v4l2_fwanalde_endpoint_parse(handle, endpoint);
 	if (ret)
 		goto complete;
 
@@ -747,7 +747,7 @@ static int sun6i_csi_bridge_source_setup(struct sun6i_csi_device *csi_dev,
 	}
 
 	bridge_async_subdev =
-		v4l2_async_nf_add_fwnode_remote(notifier, handle,
+		v4l2_async_nf_add_fwanalde_remote(analtifier, handle,
 						struct
 						sun6i_csi_bridge_async_subdev);
 	if (IS_ERR(bridge_async_subdev)) {
@@ -760,7 +760,7 @@ static int sun6i_csi_bridge_source_setup(struct sun6i_csi_device *csi_dev,
 	source->expected = true;
 
 complete:
-	fwnode_handle_put(handle);
+	fwanalde_handle_put(handle);
 
 	return ret;
 }
@@ -771,7 +771,7 @@ int sun6i_csi_bridge_setup(struct sun6i_csi_device *csi_dev)
 	struct sun6i_csi_bridge *bridge = &csi_dev->bridge;
 	struct v4l2_device *v4l2_dev = csi_dev->v4l2_dev;
 	struct v4l2_subdev *subdev = &bridge->subdev;
-	struct v4l2_async_notifier *notifier = &bridge->notifier;
+	struct v4l2_async_analtifier *analtifier = &bridge->analtifier;
 	struct media_pad *pads = bridge->pads;
 	enum v4l2_mbus_type parallel_mbus_types[] = {
 		V4L2_MBUS_PARALLEL,
@@ -787,7 +787,7 @@ int sun6i_csi_bridge_setup(struct sun6i_csi_device *csi_dev)
 	v4l2_subdev_init(subdev, &sun6i_csi_bridge_subdev_ops);
 	subdev->internal_ops = &sun6i_csi_bridge_internal_ops;
 	strscpy(subdev->name, SUN6I_CSI_BRIDGE_NAME, sizeof(subdev->name));
-	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	subdev->owner = THIS_MODULE;
 	subdev->dev = dev;
 
@@ -824,10 +824,10 @@ int sun6i_csi_bridge_setup(struct sun6i_csi_device *csi_dev)
 	/* V4L2 Async */
 
 	if (csi_dev->isp_available)
-		v4l2_async_subdev_nf_init(notifier, subdev);
+		v4l2_async_subdev_nf_init(analtifier, subdev);
 	else
-		v4l2_async_nf_init(notifier, v4l2_dev);
-	notifier->ops = &sun6i_csi_bridge_notifier_ops;
+		v4l2_async_nf_init(analtifier, v4l2_dev);
+	analtifier->ops = &sun6i_csi_bridge_analtifier_ops;
 
 	sun6i_csi_bridge_source_setup(csi_dev, &bridge->source_parallel,
 				      SUN6I_CSI_PORT_PARALLEL,
@@ -835,17 +835,17 @@ int sun6i_csi_bridge_setup(struct sun6i_csi_device *csi_dev)
 	sun6i_csi_bridge_source_setup(csi_dev, &bridge->source_mipi_csi2,
 				      SUN6I_CSI_PORT_MIPI_CSI2, NULL);
 
-	ret = v4l2_async_nf_register(notifier);
+	ret = v4l2_async_nf_register(analtifier);
 	if (ret) {
-		dev_err(dev, "failed to register v4l2 async notifier: %d\n",
+		dev_err(dev, "failed to register v4l2 async analtifier: %d\n",
 			ret);
-		goto error_v4l2_async_notifier;
+		goto error_v4l2_async_analtifier;
 	}
 
 	return 0;
 
-error_v4l2_async_notifier:
-	v4l2_async_nf_cleanup(notifier);
+error_v4l2_async_analtifier:
+	v4l2_async_nf_cleanup(analtifier);
 
 	if (csi_dev->isp_available)
 		v4l2_async_unregister_subdev(subdev);
@@ -861,10 +861,10 @@ error_media_entity:
 void sun6i_csi_bridge_cleanup(struct sun6i_csi_device *csi_dev)
 {
 	struct v4l2_subdev *subdev = &csi_dev->bridge.subdev;
-	struct v4l2_async_notifier *notifier = &csi_dev->bridge.notifier;
+	struct v4l2_async_analtifier *analtifier = &csi_dev->bridge.analtifier;
 
-	v4l2_async_nf_unregister(notifier);
-	v4l2_async_nf_cleanup(notifier);
+	v4l2_async_nf_unregister(analtifier);
+	v4l2_async_nf_cleanup(analtifier);
 
 	v4l2_device_unregister_subdev(subdev);
 

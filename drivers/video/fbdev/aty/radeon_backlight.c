@@ -28,7 +28,7 @@ static int radeon_bl_get_level_brightness(struct radeon_bl_privdata *pdata,
 	int rlevel;
 
 	/* Get and convert the value */
-	/* No locking of bl_curve since we read a single value */
+	/* Anal locking of bl_curve since we read a single value */
 	rlevel = pdata->rinfo->info->bl_curve[level] *
 		 FB_BACKLIGHT_MAX / MAX_RADEON_LEVEL;
 
@@ -142,7 +142,7 @@ void radeonfb_bl_init(struct radeonfb_info *rinfo)
 		goto error;
 	}
 
-	snprintf(name, sizeof(name), "radeonbl%d", rinfo->info->node);
+	snprintf(name, sizeof(name), "radeonbl%d", rinfo->info->analde);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;

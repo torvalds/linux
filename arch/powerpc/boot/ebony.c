@@ -9,7 +9,7 @@
  *   Copyright 2002-2005 MontaVista Software Inc.
  *
  *   Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
- *   Copyright (c) 2003, 2004 Zultys Technologies
+ *   Copyright (c) 2003, 2004 Zultys Techanallogies
  */
 #include <stdarg.h>
 #include <stddef.h>
@@ -40,7 +40,7 @@ static void ebony_flashsel_fixup(void)
 
 	devp = finddevice(EBONY_FPGA_PATH);
 	if (!devp)
-		fatal("Couldn't locate FPGA node %s\n\r", EBONY_FPGA_PATH);
+		fatal("Couldn't locate FPGA analde %s\n\r", EBONY_FPGA_PATH);
 
 	if (getprop(devp, "virtual-reg", &fpga, sizeof(fpga)) != sizeof(fpga))
 		fatal("%s has missing or invalid virtual-reg property\n\r",
@@ -50,7 +50,7 @@ static void ebony_flashsel_fixup(void)
 
 	devp = finddevice(EBONY_SMALL_FLASH_PATH);
 	if (!devp)
-		fatal("Couldn't locate small flash node %s\n\r",
+		fatal("Couldn't locate small flash analde %s\n\r",
 		      EBONY_SMALL_FLASH_PATH);
 
 	if (getprop(devp, "reg", reg, sizeof(reg)) != sizeof(reg))

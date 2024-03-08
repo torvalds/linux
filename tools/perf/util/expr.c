@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdbool.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <string.h>
 #include "metricgroup.h"
@@ -45,7 +45,7 @@ struct expr_id_data {
 	enum {
 		/* Holding a double value. */
 		EXPR_ID_DATA__VALUE,
-		/* Reference to another metric. */
+		/* Reference to aanalther metric. */
 		EXPR_ID_DATA__REF,
 		/* A reference but the value has been computed. */
 		EXPR_ID_DATA__REF_VALUE,
@@ -167,7 +167,7 @@ int expr__add_id_val_source_count(struct expr_parse_ctx *ctx, const char *id,
 
 	data_ptr = malloc(sizeof(*data_ptr));
 	if (!data_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 	data_ptr->val.val = val;
 	data_ptr->val.source_count = source_count;
 	data_ptr->kind = EXPR_ID_DATA__VALUE;
@@ -189,18 +189,18 @@ int expr__add_ref(struct expr_parse_ctx *ctx, struct metric_ref *ref)
 
 	data_ptr = zalloc(sizeof(*data_ptr));
 	if (!data_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	name = strdup(ref->metric_name);
 	if (!name) {
 		free(data_ptr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
 	 * Intentionally passing just const char pointers,
 	 * originally from 'struct pmu_event' object.
-	 * We don't need to change them, so there's no
+	 * We don't need to change them, so there's anal
 	 * need to create our own copy.
 	 */
 	data_ptr->ref.metric_name = ref->metric_name;
@@ -246,7 +246,7 @@ int expr__resolve_id(struct expr_parse_ctx *ctx, const char *id,
 	struct expr_id_data *data;
 
 	if (expr__get_id(ctx, id, datap) || !*datap) {
-		pr_debug("%s not found\n", id);
+		pr_debug("%s analt found\n", id);
 		return -1;
 	}
 

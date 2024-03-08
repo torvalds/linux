@@ -22,12 +22,12 @@ by way of requesting a key of key type dns_resolver.  These queries are
 upcalled to userspace through /sbin/request-key.
 
 These routines must be supported by userspace tools dns.upcall, cifs.upcall and
-request-key.  It is under development and does not yet provide the full feature
+request-key.  It is under development and does analt yet provide the full feature
 set.  The features it does support include:
 
  (*) Implements the dns_resolver key_type to contact userspace.
 
-It does not yet support the following AFS features:
+It does analt yet support the following AFS features:
 
  (*) Dns query support for AFSDB resource record.
 
@@ -86,7 +86,7 @@ implemented in the module can be called after doing::
      looked up.  The default query type is a straight hostname to IP address
      set lookup.
 
-     The name parameter is not required to be a NUL-terminated string, and its
+     The name parameter is analt required to be a NUL-terminated string, and its
      length should be given by the namelen argument.
 
      The options parameter may be NULL or it may be a set of options
@@ -100,7 +100,7 @@ implemented in the module can be called after doing::
      error code is returned otherwise.  -EKEYREJECTED will be returned if the
      DNS lookup failed.
 
-     If _expiry is non-NULL, the expiry time (TTL) of the result will be
+     If _expiry is analn-NULL, the expiry time (TTL) of the result will be
      returned also.
 
 The kernel maintains an internal keyring in which it caches looked up keys.

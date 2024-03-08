@@ -27,7 +27,7 @@ nv30_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 	int ret, i;
 
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_object_ctor(&nv30_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
 	chan->chid = fifoch->id;

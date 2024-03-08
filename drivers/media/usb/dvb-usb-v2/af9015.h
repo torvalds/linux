@@ -120,7 +120,7 @@ struct af9015_state {
 };
 
 enum af9015_remote {
-	AF9015_REMOTE_NONE                    = 0,
+	AF9015_REMOTE_ANALNE                    = 0,
 /* 1 */	AF9015_REMOTE_A_LINK_DTU_M,
 	AF9015_REMOTE_MSI_DIGIVOX_MINI_II_V3,
 	AF9015_REMOTE_MYGICTV_U718,

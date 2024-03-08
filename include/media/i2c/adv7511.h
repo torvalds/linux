@@ -8,7 +8,7 @@
 #ifndef ADV7511_H
 #define ADV7511_H
 
-/* notify events */
+/* analtify events */
 #define ADV7511_MONITOR_DETECT 0
 #define ADV7511_EDID_DETECT 1
 

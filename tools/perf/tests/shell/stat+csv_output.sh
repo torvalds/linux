@@ -31,26 +31,26 @@ function commachecker()
 	local exp=0
 
 	case "$1"
-	in "--no-args")		exp=6
+	in "--anal-args")		exp=6
 	;; "--system-wide")	exp=6
 	;; "--event")		exp=6
 	;; "--interval")	exp=7
 	;; "--per-thread")	exp=7
-	;; "--system-wide-no-aggr")	exp=7
+	;; "--system-wide-anal-aggr")	exp=7
 				[ "$(uname -m)" = "s390x" ] && exp='^[6-7]$'
 	;; "--per-core")	exp=8
 	;; "--per-socket")	exp=8
-	;; "--per-node")	exp=8
+	;; "--per-analde")	exp=8
 	;; "--per-die")		exp=8
 	;; "--per-cache")	exp=8
 	esac
 
 	while read line
 	do
-		# Ignore initial "started on" comment.
+		# Iganalre initial "started on" comment.
 		x=${line:0:1}
 		[ "$x" = "#" ] && continue
-		# Ignore initial blank line.
+		# Iganalre initial blank line.
 		[ "$line" = "" ] && continue
 
 		# Count the number of commas
@@ -68,21 +68,21 @@ function commachecker()
 perf_cmd="-x$csv_sep -o ${stat_output}"
 
 skip_test=$(check_for_topology)
-check_no_args "CSV" "$perf_cmd"
+check_anal_args "CSV" "$perf_cmd"
 check_system_wide "CSV" "$perf_cmd"
 check_interval "CSV" "$perf_cmd"
 check_event "CSV" "$perf_cmd"
 check_per_thread "CSV" "$perf_cmd"
-check_per_node "CSV" "$perf_cmd"
+check_per_analde "CSV" "$perf_cmd"
 if [ $skip_test -ne 1 ]
 then
-	check_system_wide_no_aggr "CSV" "$perf_cmd"
+	check_system_wide_anal_aggr "CSV" "$perf_cmd"
 	check_per_core "CSV" "$perf_cmd"
 	check_per_cache_instance "CSV" "$perf_cmd"
 	check_per_die "CSV" "$perf_cmd"
 	check_per_socket "CSV" "$perf_cmd"
 else
-	echo "[Skip] Skipping tests for system_wide_no_aggr, per_core, per_die and per_socket since socket id exposed via topology is invalid"
+	echo "[Skip] Skipping tests for system_wide_anal_aggr, per_core, per_die and per_socket since socket id exposed via topology is invalid"
 fi
 cleanup
 exit 0

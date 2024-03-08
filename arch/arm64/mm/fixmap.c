@@ -42,7 +42,7 @@ static void __init early_fixmap_init_pte(pmd_t *pmdp, unsigned long addr)
 	pmd_t pmd = READ_ONCE(*pmdp);
 	pte_t *ptep;
 
-	if (pmd_none(pmd)) {
+	if (pmd_analne(pmd)) {
 		ptep = bm_pte[BM_PTE_TABLE_IDX(addr)];
 		__pmd_populate(pmdp, __pa_symbol(ptep), PMD_TYPE_TABLE);
 	}
@@ -55,7 +55,7 @@ static void __init early_fixmap_init_pmd(pud_t *pudp, unsigned long addr,
 	pud_t pud = READ_ONCE(*pudp);
 	pmd_t *pmdp;
 
-	if (pud_none(pud))
+	if (pud_analne(pud))
 		__pud_populate(pudp, __pa_symbol(bm_pmd), PUD_TYPE_TABLE);
 
 	pmdp = pmd_offset_kimg(pudp, addr);
@@ -72,7 +72,7 @@ static void __init early_fixmap_init_pud(p4d_t *p4dp, unsigned long addr,
 	p4d_t p4d = READ_ONCE(*p4dp);
 	pud_t *pudp;
 
-	if (CONFIG_PGTABLE_LEVELS > 3 && !p4d_none(p4d) &&
+	if (CONFIG_PGTABLE_LEVELS > 3 && !p4d_analne(p4d) &&
 	    p4d_page_paddr(p4d) != __pa_symbol(bm_pud)) {
 		/*
 		 * We only end up here if the kernel mapping and the fixmap
@@ -82,7 +82,7 @@ static void __init early_fixmap_init_pud(p4d_t *p4dp, unsigned long addr,
 		BUG_ON(!IS_ENABLED(CONFIG_ARM64_16K_PAGES));
 	}
 
-	if (p4d_none(p4d))
+	if (p4d_analne(p4d))
 		__p4d_populate(p4dp, __pa_symbol(bm_pud), P4D_TYPE_TABLE);
 
 	pudp = pud_offset_kimg(p4dp, addr);
@@ -151,7 +151,7 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys, int *size, pgprot_t prot)
 	dt_virt = (void *)dt_virt_base + offset;
 
 	/* map the first chunk so we can read the size from the header */
-	create_mapping_noalloc(dt_phys_base, dt_virt_base, PAGE_SIZE, prot);
+	create_mapping_analalloc(dt_phys_base, dt_virt_base, PAGE_SIZE, prot);
 
 	if (fdt_magic(dt_virt) != FDT_MAGIC)
 		return NULL;
@@ -161,7 +161,7 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys, int *size, pgprot_t prot)
 		return NULL;
 
 	if (offset + *size > PAGE_SIZE) {
-		create_mapping_noalloc(dt_phys_base, dt_virt_base,
+		create_mapping_analalloc(dt_phys_base, dt_virt_base,
 				       offset + *size, prot);
 	}
 

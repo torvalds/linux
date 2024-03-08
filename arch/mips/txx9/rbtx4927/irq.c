@@ -12,18 +12,18 @@
  *  option) any later version.
  *
  *  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- *  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ *  BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
  *  OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  *  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
  *  TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
  *  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  with this program; if analt, write to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 /*
@@ -39,7 +39,7 @@
  * I8259A_IRQ_BASE+09
  * I8259A_IRQ_BASE+10
  * I8259A_IRQ_BASE+11
- * I8259A_IRQ_BASE+12 PS2/Mouse (not supported at this time)
+ * I8259A_IRQ_BASE+12 PS2/Mouse (analt supported at this time)
  * I8259A_IRQ_BASE+13
  * I8259A_IRQ_BASE+14 IDE
  * I8259A_IRQ_BASE+15
@@ -47,10 +47,10 @@
  * MIPS_CPU_IRQ_BASE+00 Software 0
  * MIPS_CPU_IRQ_BASE+01 Software 1
  * MIPS_CPU_IRQ_BASE+02 Cascade TX4927-CP0
- * MIPS_CPU_IRQ_BASE+03 Multiplexed -- do not use
- * MIPS_CPU_IRQ_BASE+04 Multiplexed -- do not use
- * MIPS_CPU_IRQ_BASE+05 Multiplexed -- do not use
- * MIPS_CPU_IRQ_BASE+06 Multiplexed -- do not use
+ * MIPS_CPU_IRQ_BASE+03 Multiplexed -- do analt use
+ * MIPS_CPU_IRQ_BASE+04 Multiplexed -- do analt use
+ * MIPS_CPU_IRQ_BASE+05 Multiplexed -- do analt use
+ * MIPS_CPU_IRQ_BASE+06 Multiplexed -- do analt use
  * MIPS_CPU_IRQ_BASE+07 CPU TIMER
  *
  * TXX9_IRQ_BASE+00
@@ -76,7 +76,7 @@
  * TXX9_IRQ_BASE+20
  * TXX9_IRQ_BASE+21
  * TXX9_IRQ_BASE+22 TX4927 PCI PCI-ERR
- * TXX9_IRQ_BASE+23 TX4927 PCI PCI-PMA (not used)
+ * TXX9_IRQ_BASE+23 TX4927 PCI PCI-PMA (analt used)
  * TXX9_IRQ_BASE+24
  * TXX9_IRQ_BASE+25
  * TXX9_IRQ_BASE+26
@@ -95,16 +95,16 @@
  * RBTX4927_IRQ_IOC+06
  * RBTX4927_IRQ_IOC+07
  *
- * NOTES:
+ * ANALTES:
  * SouthBridge/INTR is mapped to SouthBridge/A=PCI-B/#58
- * SouthBridge/ISA/pin=0 no pci irq used by this device
- * SouthBridge/IDE/pin=1 no pci irq used by this device, using INTR
+ * SouthBridge/ISA/pin=0 anal pci irq used by this device
+ * SouthBridge/IDE/pin=1 anal pci irq used by this device, using INTR
  * via ISA IRQ14
  * SouthBridge/USB/pin=4 using pci irq SouthBridge/D=PCI-A=#59
- * SouthBridge/PMC/pin=0 no pci irq used by this device
+ * SouthBridge/PMC/pin=0 anal pci irq used by this device
  * SuperIO/PS2/Keyboard, using INTR via ISA IRQ1
- * SuperIO/PS2/Mouse, using INTR via ISA IRQ12 (mouse not currently supported)
- * JP7 is not bus master -- do NOT use -- only 4 pci bus master's
+ * SuperIO/PS2/Mouse, using INTR via ISA IRQ12 (mouse analt currently supported)
+ * JP7 is analt bus master -- do ANALT use -- only 4 pci bus master's
  * allowed -- SouthBridge, JP4, JP5, JP6
  */
 

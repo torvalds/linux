@@ -79,7 +79,7 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 
 		return 0;
 	} else if (ir_calc > ir) {
-		/* Increasing the denominator to select ir_s value */
+		/* Increasing the deanalminator to select ir_s value */
 		while (ir_calc >= ir && ir) {
 			ir_s_calc++;
 			ir_calc = DEFAULT_DIVISOR_IR_B /
@@ -101,9 +101,9 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 		if (ir_calc == ir) {
 			ir_para->ir_b = DEFAULT_SHAPER_IR_B;
 		} else {
-			u32 denominator = DIVISOR_CLK * (1 << --ir_u_calc);
-			ir_para->ir_b = (ir * tick + (denominator >> 1)) /
-					denominator;
+			u32 deanalminator = DIVISOR_CLK * (1 << --ir_u_calc);
+			ir_para->ir_b = (ir * tick + (deanalminator >> 1)) /
+					deanalminator;
 		}
 	}
 
@@ -680,7 +680,7 @@ static void hclge_tm_update_kinfo_rss_size(struct hclge_vport *vport)
 	u16 max_rss_size;
 
 	/* TC configuration is shared by PF/VF in one port, only allow
-	 * one tc for VF for simplicity. VF's vport_id is non zero.
+	 * one tc for VF for simplicity. VF's vport_id is analn zero.
 	 */
 	if (vport->vport_id) {
 		kinfo->tc_info.max_tc = 1;
@@ -699,7 +699,7 @@ static void hclge_tm_update_kinfo_rss_size(struct hclge_vport *vport)
 	max_rss_size = min_t(u16, vport_max_rss_size,
 			     hclge_vport_get_max_rss_size(vport));
 
-	/* Set to user value, no larger than max_rss_size. */
+	/* Set to user value, anal larger than max_rss_size. */
 	if (kinfo->req_rss_size != kinfo->rss_size && kinfo->req_rss_size &&
 	    kinfo->req_rss_size <= max_rss_size) {
 		dev_info(&hdev->pdev->dev, "rss changes from %u to %u\n",
@@ -1292,7 +1292,7 @@ static int hclge_tm_pri_dwrr_cfg(struct hclge_dev *hdev)
 			return 0;
 
 		ret = hclge_tm_ets_tc_dwrr_cfg(hdev);
-		if (ret == -EOPNOTSUPP) {
+		if (ret == -EOPANALTSUPP) {
 			dev_warn(&hdev->pdev->dev,
 				 "fw %08x doesn't support ets tc weight cmd\n",
 				 hdev->fw_version);
@@ -1558,7 +1558,7 @@ int hclge_mac_pause_setup_hw(struct hclge_dev *hdev)
 	bool tx_en, rx_en;
 
 	switch (hdev->tm_info.fc_mode) {
-	case HCLGE_FC_NONE:
+	case HCLGE_FC_ANALNE:
 		tx_en = false;
 		rx_en = false;
 		break;
@@ -1616,13 +1616,13 @@ int hclge_pause_setup_hw(struct hclge_dev *hdev, bool init)
 	if (!hnae3_dev_dcb_supported(hdev))
 		return 0;
 
-	/* GE MAC does not support PFC, when driver is initializing and MAC
-	 * is in GE Mode, ignore the error here, otherwise initialization
+	/* GE MAC does analt support PFC, when driver is initializing and MAC
+	 * is in GE Mode, iganalre the error here, otherwise initialization
 	 * will fail.
 	 */
 	ret = hclge_pfc_setup_hw(hdev);
-	if (init && ret == -EOPNOTSUPP)
-		dev_warn(&hdev->pdev->dev, "GE MAC does not support pfc\n");
+	if (init && ret == -EOPANALTSUPP)
+		dev_warn(&hdev->pdev->dev, "GE MAC does analt support pfc\n");
 	else if (ret) {
 		dev_err(&hdev->pdev->dev, "config pfc failed! ret = %d\n",
 			ret);
@@ -1674,7 +1674,7 @@ int hclge_tm_init_hw(struct hclge_dev *hdev, bool init)
 
 	if ((hdev->tx_sch_mode != HCLGE_FLAG_TC_BASE_SCH_MODE) &&
 	    (hdev->tx_sch_mode != HCLGE_FLAG_VNET_BASE_SCH_MODE))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = hclge_tm_schd_setup_hw(hdev);
 	if (ret)
@@ -1722,7 +1722,7 @@ int hclge_tm_vport_map_update(struct hclge_dev *hdev)
 
 int hclge_tm_get_qset_num(struct hclge_dev *hdev, u16 *qset_num)
 {
-	struct hclge_tm_nodes_cmd *nodes;
+	struct hclge_tm_analdes_cmd *analdes;
 	struct hclge_desc desc;
 	int ret;
 
@@ -1732,7 +1732,7 @@ int hclge_tm_get_qset_num(struct hclge_dev *hdev, u16 *qset_num)
 		return 0;
 	}
 
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_NODES, true);
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_ANALDES, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
@@ -1740,14 +1740,14 @@ int hclge_tm_get_qset_num(struct hclge_dev *hdev, u16 *qset_num)
 		return ret;
 	}
 
-	nodes = (struct hclge_tm_nodes_cmd *)desc.data;
-	*qset_num = le16_to_cpu(nodes->qset_num);
+	analdes = (struct hclge_tm_analdes_cmd *)desc.data;
+	*qset_num = le16_to_cpu(analdes->qset_num);
 	return 0;
 }
 
 int hclge_tm_get_pri_num(struct hclge_dev *hdev, u8 *pri_num)
 {
-	struct hclge_tm_nodes_cmd *nodes;
+	struct hclge_tm_analdes_cmd *analdes;
 	struct hclge_desc desc;
 	int ret;
 
@@ -1756,7 +1756,7 @@ int hclge_tm_get_pri_num(struct hclge_dev *hdev, u8 *pri_num)
 		return 0;
 	}
 
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_NODES, true);
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_ANALDES, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
@@ -1764,8 +1764,8 @@ int hclge_tm_get_pri_num(struct hclge_dev *hdev, u8 *pri_num)
 		return ret;
 	}
 
-	nodes = (struct hclge_tm_nodes_cmd *)desc.data;
-	*pri_num = nodes->pri_num;
+	analdes = (struct hclge_tm_analdes_cmd *)desc.data;
+	*pri_num = analdes->pri_num;
 	return 0;
 }
 

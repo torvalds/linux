@@ -9,9 +9,9 @@
  * DOC: ST-Ericsson MCDE Driver
  *
  * The MCDE (short for multi-channel display engine) is a graphics
- * controller found in the Ux500 chipsets, such as NovaThor U8500.
+ * controller found in the Ux500 chipsets, such as AnalvaThor U8500.
  * It was initially conceptualized by ST Microelectronics for the
- * successor of the Nomadik line, STn8500 but productified in the
+ * successor of the Analmadik line, STn8500 but productified in the
  * ST-Ericsson U8500 where is was used for mass-market deployments
  * in Android phones from Samsung and Sony Ericsson.
  *
@@ -88,8 +88,8 @@
 #define MCDE_PID_METALFIX_VERSION_MASK 0x000000FF
 #define MCDE_PID_DEVELOPMENT_VERSION_SHIFT 8
 #define MCDE_PID_DEVELOPMENT_VERSION_MASK 0x0000FF00
-#define MCDE_PID_MINOR_VERSION_SHIFT 16
-#define MCDE_PID_MINOR_VERSION_MASK 0x00FF0000
+#define MCDE_PID_MIANALR_VERSION_SHIFT 16
+#define MCDE_PID_MIANALR_VERSION_MASK 0x00FF0000
 #define MCDE_PID_MAJOR_VERSION_SHIFT 24
 #define MCDE_PID_MAJOR_VERSION_MASK 0xFF000000
 
@@ -131,7 +131,7 @@ static int mcde_modeset_init(struct drm_device *drm)
 	int ret;
 
 	/*
-	 * If no other bridge was found, check if we have a DPI panel or
+	 * If anal other bridge was found, check if we have a DPI panel or
 	 * any other bridge connected directly to the MCDE DPI output.
 	 * If a DSI bridge is found, DSI will take precedence.
 	 *
@@ -142,11 +142,11 @@ static int mcde_modeset_init(struct drm_device *drm)
 		struct drm_panel *panel;
 		struct drm_bridge *bridge;
 
-		ret = drm_of_find_panel_or_bridge(drm->dev->of_node,
+		ret = drm_of_find_panel_or_bridge(drm->dev->of_analde,
 						  0, 0, &panel, &bridge);
 		if (ret) {
 			dev_err(drm->dev,
-				"Could not locate any output bridge or panel\n");
+				"Could analt locate any output bridge or panel\n");
 			return ret;
 		}
 		if (panel) {
@@ -154,7 +154,7 @@ static int mcde_modeset_init(struct drm_device *drm)
 					DRM_MODE_CONNECTOR_DPI);
 			if (IS_ERR(bridge)) {
 				dev_err(drm->dev,
-					"Could not connect panel bridge\n");
+					"Could analt connect panel bridge\n");
 				return PTR_ERR(bridge);
 			}
 		}
@@ -209,7 +209,7 @@ static const struct drm_driver mcde_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = "20180529",
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 	.patchlevel = 0,
 	DRM_GEM_DMA_DRIVER_OPS,
 };
@@ -339,7 +339,7 @@ static int mcde_probe(struct platform_device *pdev)
 
 	mcde->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mcde->regs)) {
-		dev_err(dev, "no MCDE regs\n");
+		dev_err(dev, "anal MCDE regs\n");
 		ret = -EINVAL;
 		goto clk_disable;
 	}
@@ -366,15 +366,15 @@ static int mcde_probe(struct platform_device *pdev)
 	dev_info(dev, "found MCDE HW revision %d.%d (dev %d, metal fix %d)\n",
 		 (pid & MCDE_PID_MAJOR_VERSION_MASK)
 		 >> MCDE_PID_MAJOR_VERSION_SHIFT,
-		 (pid & MCDE_PID_MINOR_VERSION_MASK)
-		 >> MCDE_PID_MINOR_VERSION_SHIFT,
+		 (pid & MCDE_PID_MIANALR_VERSION_MASK)
+		 >> MCDE_PID_MIANALR_VERSION_SHIFT,
 		 (pid & MCDE_PID_DEVELOPMENT_VERSION_MASK)
 		 >> MCDE_PID_DEVELOPMENT_VERSION_SHIFT,
 		 (pid & MCDE_PID_METALFIX_VERSION_MASK)
 		 >> MCDE_PID_METALFIX_VERSION_SHIFT);
 	if (pid != 0x03000800) {
 		dev_err(dev, "unsupported hardware revision\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto clk_disable;
 	}
 
@@ -399,12 +399,12 @@ static int mcde_probe(struct platform_device *pdev)
 		put_device(p);
 	}
 	if (!match) {
-		dev_err(dev, "no matching components\n");
-		ret = -ENODEV;
+		dev_err(dev, "anal matching components\n");
+		ret = -EANALDEV;
 		goto clk_disable;
 	}
 	if (IS_ERR(match)) {
-		dev_err(dev, "could not create component match\n");
+		dev_err(dev, "could analt create component match\n");
 		ret = PTR_ERR(match);
 		goto clk_disable;
 	}
@@ -493,7 +493,7 @@ static int __init mcde_drm_register(void)
 	int ret;
 
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = platform_register_drivers(component_drivers,
 					ARRAY_SIZE(component_drivers));

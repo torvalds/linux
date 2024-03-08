@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -27,7 +27,7 @@
 #include "umc/umc_8_10_0_offset.h"
 #include "umc/umc_8_10_0_sh_mask.h"
 
-#define UMC_8_NODE_DIST   0x800000
+#define UMC_8_ANALDE_DIST   0x800000
 #define UMC_8_INST_DIST   0x4000
 
 struct channelnum_map_colbit {
@@ -68,21 +68,21 @@ const uint32_t
 	};
 
 static inline uint32_t get_umc_v8_10_reg_offset(struct amdgpu_device *adev,
-					    uint32_t node_inst,
+					    uint32_t analde_inst,
 					    uint32_t umc_inst,
 					    uint32_t ch_inst)
 {
 	return adev->umc.channel_offs * ch_inst + UMC_8_INST_DIST * umc_inst +
-		UMC_8_NODE_DIST * node_inst;
+		UMC_8_ANALDE_DIST * analde_inst;
 }
 
 static int umc_v8_10_clear_error_count_per_channel(struct amdgpu_device *adev,
-					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t analde_inst, uint32_t umc_inst,
 					uint32_t ch_inst, void *data)
 {
 	uint32_t ecc_err_cnt_addr;
 	uint32_t umc_reg_offset =
-		get_umc_v8_10_reg_offset(adev, node_inst, umc_inst, ch_inst);
+		get_umc_v8_10_reg_offset(adev, analde_inst, umc_inst, ch_inst);
 
 	ecc_err_cnt_addr =
 		SOC15_REG_OFFSET(UMC, 0, regUMCCH0_0_GeccErrCnt);
@@ -141,12 +141,12 @@ static void umc_v8_10_query_uncorrectable_error_count(struct amdgpu_device *adev
 }
 
 static int umc_v8_10_query_ecc_error_count(struct amdgpu_device *adev,
-					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t analde_inst, uint32_t umc_inst,
 					uint32_t ch_inst, void *data)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)data;
 	uint32_t umc_reg_offset =
-		get_umc_v8_10_reg_offset(adev, node_inst, umc_inst, ch_inst);
+		get_umc_v8_10_reg_offset(adev, analde_inst, umc_inst, ch_inst);
 
 	umc_v8_10_query_correctable_error_count(adev,
 					umc_reg_offset,
@@ -180,7 +180,7 @@ static uint32_t umc_v8_10_get_col_bit(uint32_t channel_num)
 }
 
 /*
- * Mapping normal address to soc physical address in swizzle mode.
+ * Mapping analrmal address to soc physical address in swizzle mode.
  */
 static int umc_v8_10_swizzle_mode_na_to_pa(struct amdgpu_device *adev,
 					uint32_t channel_idx,
@@ -205,7 +205,7 @@ static int umc_v8_10_swizzle_mode_na_to_pa(struct amdgpu_device *adev,
 static void umc_v8_10_convert_error_address(struct amdgpu_device *adev,
 					    struct ras_err_data *err_data, uint64_t err_addr,
 					    uint32_t ch_inst, uint32_t umc_inst,
-					    uint32_t node_inst, uint64_t mc_umc_status)
+					    uint32_t analde_inst, uint64_t mc_umc_status)
 {
 	uint64_t na_err_addr_base;
 	uint64_t na_err_addr, retired_page_addr;
@@ -213,21 +213,21 @@ static void umc_v8_10_convert_error_address(struct amdgpu_device *adev,
 	int ret = 0;
 
 	channel_index =
-		adev->umc.channel_idx_tbl[node_inst * adev->umc.umc_inst_num *
+		adev->umc.channel_idx_tbl[analde_inst * adev->umc.umc_inst_num *
 					adev->umc.channel_inst_num +
 					umc_inst * adev->umc.channel_inst_num +
 					ch_inst];
 
-	/* the lowest lsb bits should be ignored */
+	/* the lowest lsb bits should be iganalred */
 	addr_lsb = REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, AddrLsb);
 	err_addr &= ~((0x1ULL << addr_lsb) - 1);
 	na_err_addr_base = err_addr & ~(0x3ULL << UMC_V8_10_NA_C5_BIT);
 
-	/* loop for all possibilities of [C6 C5] in normal address. */
+	/* loop for all possibilities of [C6 C5] in analrmal address. */
 	for (col = 0; col < UMC_V8_10_NA_COL_2BITS_POWER_OF_2_NUM; col++) {
 		na_err_addr = na_err_addr_base | (col << UMC_V8_10_NA_C5_BIT);
 
-		/* Mapping normal error address to retired soc physical address. */
+		/* Mapping analrmal error address to retired soc physical address. */
 		ret = umc_v8_10_swizzle_mode_na_to_pa(adev, channel_index,
 						na_err_addr, &retired_page_addr);
 		if (ret) {
@@ -242,7 +242,7 @@ static void umc_v8_10_convert_error_address(struct amdgpu_device *adev,
 }
 
 static int umc_v8_10_query_error_address(struct amdgpu_device *adev,
-					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t analde_inst, uint32_t umc_inst,
 					uint32_t ch_inst, void *data)
 {
 	uint64_t mc_umc_status_addr;
@@ -250,7 +250,7 @@ static int umc_v8_10_query_error_address(struct amdgpu_device *adev,
 	uint64_t mc_umc_addrt0;
 	struct ras_err_data *err_data = (struct ras_err_data *)data;
 	uint32_t umc_reg_offset =
-		get_umc_v8_10_reg_offset(adev, node_inst, umc_inst, ch_inst);
+		get_umc_v8_10_reg_offset(adev, analde_inst, umc_inst, ch_inst);
 
 	mc_umc_status_addr =
 		SOC15_REG_OFFSET(UMC, 0, regMCA_UMC_UMC0_MCUMC_STATUST0);
@@ -275,7 +275,7 @@ static int umc_v8_10_query_error_address(struct amdgpu_device *adev,
 		err_addr = REG_GET_FIELD(err_addr, MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
 
 		umc_v8_10_convert_error_address(adev, err_data, err_addr,
-					ch_inst, umc_inst, node_inst, mc_umc_status);
+					ch_inst, umc_inst, analde_inst, mc_umc_status);
 	}
 
 	/* clear umc status */
@@ -292,13 +292,13 @@ static void umc_v8_10_query_ras_error_address(struct amdgpu_device *adev,
 }
 
 static int umc_v8_10_err_cnt_init_per_channel(struct amdgpu_device *adev,
-					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t analde_inst, uint32_t umc_inst,
 					uint32_t ch_inst, void *data)
 {
 	uint32_t ecc_err_cnt_sel, ecc_err_cnt_sel_addr;
 	uint32_t ecc_err_cnt_addr;
 	uint32_t umc_reg_offset =
-		get_umc_v8_10_reg_offset(adev, node_inst, umc_inst, ch_inst);
+		get_umc_v8_10_reg_offset(adev, analde_inst, umc_inst, ch_inst);
 
 	ecc_err_cnt_sel_addr =
 		SOC15_REG_OFFSET(UMC, 0, regUMCCH0_0_GeccErrCntSel);
@@ -327,20 +327,20 @@ static bool umc_v8_10_query_ras_poison_mode(struct amdgpu_device *adev)
 {
 	/*
 	 * Force return true, because UMCCH0_0_GeccCtrl
-	 * is not accessible from host side
+	 * is analt accessible from host side
 	 */
 	return true;
 }
 
 static void umc_v8_10_ecc_info_query_correctable_error_count(struct amdgpu_device *adev,
-				      uint32_t node_inst, uint32_t umc_inst, uint32_t ch_inst,
+				      uint32_t analde_inst, uint32_t umc_inst, uint32_t ch_inst,
 				      unsigned long *error_count)
 {
 	uint16_t ecc_ce_cnt;
 	uint32_t eccinfo_table_idx;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
-	eccinfo_table_idx = node_inst * adev->umc.umc_inst_num *
+	eccinfo_table_idx = analde_inst * adev->umc.umc_inst_num *
 				  adev->umc.channel_inst_num +
 				  umc_inst * adev->umc.channel_inst_num +
 				  ch_inst;
@@ -352,14 +352,14 @@ static void umc_v8_10_ecc_info_query_correctable_error_count(struct amdgpu_devic
 }
 
 static void umc_v8_10_ecc_info_query_uncorrectable_error_count(struct amdgpu_device *adev,
-				      uint32_t node_inst, uint32_t umc_inst, uint32_t ch_inst,
+				      uint32_t analde_inst, uint32_t umc_inst, uint32_t ch_inst,
 				      unsigned long *error_count)
 {
 	uint64_t mc_umc_status;
 	uint32_t eccinfo_table_idx;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
-	eccinfo_table_idx = node_inst * adev->umc.umc_inst_num *
+	eccinfo_table_idx = analde_inst * adev->umc.umc_inst_num *
 				  adev->umc.channel_inst_num +
 				  umc_inst * adev->umc.channel_inst_num +
 				  ch_inst;
@@ -377,16 +377,16 @@ static void umc_v8_10_ecc_info_query_uncorrectable_error_count(struct amdgpu_dev
 }
 
 static int umc_v8_10_ecc_info_query_ecc_error_count(struct amdgpu_device *adev,
-					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t analde_inst, uint32_t umc_inst,
 					uint32_t ch_inst, void *data)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)data;
 
 	umc_v8_10_ecc_info_query_correctable_error_count(adev,
-					node_inst, umc_inst, ch_inst,
+					analde_inst, umc_inst, ch_inst,
 					&(err_data->ce_count));
 	umc_v8_10_ecc_info_query_uncorrectable_error_count(adev,
-					node_inst, umc_inst, ch_inst,
+					analde_inst, umc_inst, ch_inst,
 					&(err_data->ue_count));
 	return 0;
 }
@@ -399,7 +399,7 @@ static void umc_v8_10_ecc_info_query_ras_error_count(struct amdgpu_device *adev,
 }
 
 static int umc_v8_10_ecc_info_query_error_address(struct amdgpu_device *adev,
-					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t analde_inst, uint32_t umc_inst,
 					uint32_t ch_inst, void *data)
 {
 	uint32_t eccinfo_table_idx;
@@ -407,7 +407,7 @@ static int umc_v8_10_ecc_info_query_error_address(struct amdgpu_device *adev,
 	struct ras_err_data *err_data = (struct ras_err_data *)data;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
-	eccinfo_table_idx = node_inst * adev->umc.umc_inst_num *
+	eccinfo_table_idx = analde_inst * adev->umc.umc_inst_num *
 				  adev->umc.channel_inst_num +
 				  umc_inst * adev->umc.channel_inst_num +
 				  ch_inst;
@@ -429,7 +429,7 @@ static int umc_v8_10_ecc_info_query_error_address(struct amdgpu_device *adev,
 		err_addr = REG_GET_FIELD(err_addr, MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
 
 		umc_v8_10_convert_error_address(adev, err_data, err_addr,
-					ch_inst, umc_inst, node_inst, mc_umc_status);
+					ch_inst, umc_inst, analde_inst, mc_umc_status);
 	}
 
 	return 0;

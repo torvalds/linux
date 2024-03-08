@@ -52,7 +52,7 @@ mt7601u_ampdu_stat_show(struct seq_file *file, void *data)
 	stat_printf(tx_stat, 4, tx_zero_len);
 	stat_printf(tx_stat, 5, tx_underflow);
 
-	stat_printf(aggr_stat, 0, non_aggr_tx);
+	stat_printf(aggr_stat, 0, analn_aggr_tx);
 	stat_printf(aggr_stat, 1, aggr_tx);
 
 	stat_printf(zero_len_del, 0, tx_zero_len_del);

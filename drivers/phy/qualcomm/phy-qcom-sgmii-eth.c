@@ -401,7 +401,7 @@ static int qcom_dwmac_sgmii_phy_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->speed = SPEED_10;
 

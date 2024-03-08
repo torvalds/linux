@@ -6,7 +6,7 @@
  * OMAP2/3 PRCM base and module definitions
  *
  * Copyright (C) 2007-2009, 2011 Texas Instruments, Inc.
- * Copyright (C) 2007-2009 Nokia Corporation
+ * Copyright (C) 2007-2009 Analkia Corporation
  *
  * Written by Paul Walmsley
  */
@@ -492,7 +492,7 @@ struct omap_prcm_irq {
  * @suspend_save_flag: set to true after IRQ masks have been saved and disabled
  *
  * @saved_mask, @priority_mask, @base_irq, @suspended, and
- * @suspend_save_flag are populated dynamically, and are not to be
+ * @suspend_save_flag are populated dynamically, and are analt to be
  * specified in static initializers.
  */
 struct omap_prcm_irq_setup {
@@ -537,7 +537,7 @@ struct omap_domain_base {
  * @flags: PRCM module init flags
  * @device_inst_offset: device instance offset within the module address space
  * @init: low level PRCM init function for this module
- * @np: device node for this PRCM module
+ * @np: device analde for this PRCM module
  */
 struct omap_prcm_init_data {
 	int index;
@@ -547,7 +547,7 @@ struct omap_prcm_init_data {
 	u16 flags;
 	s32 device_inst_offset;
 	int (*init)(const struct omap_prcm_init_data *data);
-	struct device_node *np;
+	struct device_analde *np;
 };
 
 extern int omap_prcm_register_chain_handler(

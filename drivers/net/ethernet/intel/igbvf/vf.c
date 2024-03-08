@@ -26,9 +26,9 @@ static s32 e1000_init_mac_params_vf(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 
-	/* VF's have no MTA Registers - PF feature only */
+	/* VF's have anal MTA Registers - PF feature only */
 	mac->mta_reg_count = 128;
-	/* VF's have no access to RAR entries  */
+	/* VF's have anal access to RAR entries  */
 	mac->rar_entry_count = 1;
 
 	/* Function pointers */
@@ -70,7 +70,7 @@ void e1000_init_function_pointers_vf(struct e1000_hw *hw)
  *  @speed: pointer to 16 bit value to store link speed.
  *  @duplex: pointer to 16 bit value to store duplex.
  *
- *  Since we cannot read the PHY and get accurate link info, we must rely upon
+ *  Since we cananalt read the PHY and get accurate link info, we must rely upon
  *  the status register's data which is often stale and inaccurate.
  **/
 static s32 e1000_get_link_up_info_vf(struct e1000_hw *hw, u16 *speed,
@@ -114,17 +114,17 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 	ctrl = er32(CTRL);
 	ew32(CTRL, ctrl | E1000_CTRL_RST);
 
-	/* we cannot initialize while the RSTI / RSTD bits are asserted */
+	/* we cananalt initialize while the RSTI / RSTD bits are asserted */
 	while (!mbx->ops.check_for_rst(hw) && timeout) {
 		timeout--;
 		udelay(5);
 	}
 
 	if (timeout) {
-		/* mailbox timeout can now become active */
+		/* mailbox timeout can analw become active */
 		mbx->timeout = E1000_VF_MBX_INIT_TIMEOUT;
 
-		/* notify PF of VF reset completion */
+		/* analtify PF of VF reset completion */
 		msgbuf[0] = E1000_VF_RESET;
 		mbx->ops.write_posted(hw, msgbuf, 1);
 
@@ -153,7 +153,7 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
  *  e1000_init_hw_vf - Inits the HW
  *  @hw: pointer to the HW structure
  *
- *  Not much to do here except clear the PF Reset indication if there is one.
+ *  Analt much to do here except clear the PF Reset indication if there is one.
  **/
 static s32 e1000_init_hw_vf(struct e1000_hw *hw)
 {
@@ -220,7 +220,7 @@ static void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
 	 * 16 bit words available in our HW msg buffer (minus 1 for the
 	 * msg type).  That's 30 hash values if we pack 'em right.  If
 	 * there are more than 30 MC addresses to add then punt the
-	 * extras for now and then add code to handle more than 30 later.
+	 * extras for analw and then add code to handle more than 30 later.
 	 * It would be unusual for a server to request that many multi-cast
 	 * addresses except for in large enterprise network environments.
 	 */
@@ -362,7 +362,7 @@ static s32 e1000_set_uc_addr_vf(struct e1000_hw *hw, u32 sub_cmd, u8 *addr)
 		msgbuf[0] &= ~E1000_VT_MSGTYPE_CTS;
 
 		if (msgbuf[0] == (msgbuf_chk | E1000_VT_MSGTYPE_NACK))
-			return -ENOSPC;
+			return -EANALSPC;
 	}
 
 	return ret_val;
@@ -395,7 +395,7 @@ static s32 e1000_check_for_link_vf(struct e1000_hw *hw)
 	if (!mac->get_link_status)
 		goto out;
 
-	/* if link status is down no point in checking to see if PF is up */
+	/* if link status is down anal point in checking to see if PF is up */
 	if (!(er32(STATUS) & E1000_STATUS_LU))
 		goto out;
 
@@ -407,7 +407,7 @@ static s32 e1000_check_for_link_vf(struct e1000_hw *hw)
 
 	/* if incoming message isn't clear to send we are waiting on response */
 	if (!(in_msg & E1000_VT_MSGTYPE_CTS)) {
-		/* msg is not CTS and is NACK we must have lost CTS status */
+		/* msg is analt CTS and is NACK we must have lost CTS status */
 		if (in_msg & E1000_VT_MSGTYPE_NACK)
 			ret_val = -E1000_ERR_MAC_INIT;
 		goto out;
@@ -419,7 +419,7 @@ static s32 e1000_check_for_link_vf(struct e1000_hw *hw)
 		goto out;
 	}
 
-	/* if we passed all the tests above then the link is up and we no
+	/* if we passed all the tests above then the link is up and we anal
 	 * longer need to check for link
 	 */
 	mac->get_link_status = false;

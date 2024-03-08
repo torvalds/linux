@@ -8,7 +8,7 @@
  * Author: Basavaraj Natikar <Basavaraj.Natikar@amd.com>
  */
 #include <linux/amd-pmf-io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/iopoll.h>
 
 #include "amd_sfh_interface.h"
@@ -95,7 +95,7 @@ static int amd_sfh_hpd_info(u8 *user_present)
 		return -EINVAL;
 
 	if (!emp2 || !emp2->dev_en.is_hpd_present)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hpdstatus.val = readl(emp2->mmio + AMD_C2P_MSG(4));
 	*user_present = hpdstatus.shpd.presence;
@@ -112,7 +112,7 @@ static int amd_sfh_als_info(u32 *ambient_light)
 		return -EINVAL;
 
 	if (!emp2 || !emp2->dev_en.is_als_present)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sensoraddr = emp2->vsbase +
 		(ALS_IDX * SENSOR_DATA_MEM_SIZE_DEFAULT) +

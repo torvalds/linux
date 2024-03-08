@@ -27,7 +27,7 @@ static u32 dpll_pin_xa_id;
 
 #define ASSERT_DPLL_REGISTERED(d)	\
 	WARN_ON_ONCE(!xa_get_mark(&dpll_device_xa, (d)->id, DPLL_REGISTERED))
-#define ASSERT_DPLL_NOT_REGISTERED(d)	\
+#define ASSERT_DPLL_ANALT_REGISTERED(d)	\
 	WARN_ON_ONCE(xa_get_mark(&dpll_device_xa, (d)->id, DPLL_REGISTERED))
 
 struct dpll_device_registration {
@@ -88,7 +88,7 @@ dpll_xa_ref_pin_add(struct xarray *xa_pins, struct dpll_pin *pin,
 	if (!ref_exists) {
 		ref = kzalloc(sizeof(*ref), GFP_KERNEL);
 		if (!ref)
-			return -ENOMEM;
+			return -EANALMEM;
 		ref->pin = pin;
 		INIT_LIST_HEAD(&ref->registration_list);
 		ret = xa_insert(xa_pins, pin->pin_idx, ref, GFP_KERNEL);
@@ -105,7 +105,7 @@ dpll_xa_ref_pin_add(struct xarray *xa_pins, struct dpll_pin *pin,
 			xa_erase(xa_pins, pin->pin_idx);
 			kfree(ref);
 		}
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	reg->ops = ops;
 	reg->priv = priv;
@@ -167,7 +167,7 @@ dpll_xa_ref_dpll_add(struct xarray *xa_dplls, struct dpll_device *dpll,
 	if (!ref_exists) {
 		ref = kzalloc(sizeof(*ref), GFP_KERNEL);
 		if (!ref)
-			return -ENOMEM;
+			return -EANALMEM;
 		ref->dpll = dpll;
 		INIT_LIST_HEAD(&ref->registration_list);
 		ret = xa_insert(xa_dplls, dpll->id, ref, GFP_KERNEL);
@@ -184,7 +184,7 @@ dpll_xa_ref_dpll_add(struct xarray *xa_dplls, struct dpll_device *dpll,
 			xa_erase(xa_dplls, dpll->id);
 			kfree(ref);
 		}
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	reg->ops = ops;
 	reg->priv = priv;
@@ -238,7 +238,7 @@ dpll_device_alloc(const u64 clock_id, u32 device_idx, struct module *module)
 
 	dpll = kzalloc(sizeof(*dpll), GFP_KERNEL);
 	if (!dpll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	refcount_set(&dpll->refcount, 1);
 	INIT_LIST_HEAD(&dpll->registration_list);
 	dpll->device_idx = device_idx;
@@ -305,7 +305,7 @@ void dpll_device_put(struct dpll_device *dpll)
 {
 	mutex_lock(&dpll_lock);
 	if (refcount_dec_and_test(&dpll->refcount)) {
-		ASSERT_DPLL_NOT_REGISTERED(dpll);
+		ASSERT_DPLL_ANALT_REGISTERED(dpll);
 		WARN_ON_ONCE(!xa_empty(&dpll->pin_refs));
 		xa_destroy(&dpll->pin_refs);
 		xa_erase(&dpll_device_xa, dpll->id);
@@ -368,7 +368,7 @@ int dpll_device_register(struct dpll_device *dpll, enum dpll_type type,
 	reg = kzalloc(sizeof(*reg), GFP_KERNEL);
 	if (!reg) {
 		mutex_unlock(&dpll_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	reg->ops = ops;
 	reg->priv = priv;
@@ -395,7 +395,7 @@ EXPORT_SYMBOL_GPL(dpll_device_register);
  * @priv: pointer to private information of owner
  *
  * Unregister device, make it unavailable for userspace.
- * Note: It does not free the memory
+ * Analte: It does analt free the memory
  * Context: Acquires a lock (dpll_lock)
  */
 void dpll_device_unregister(struct dpll_device *dpll,
@@ -441,7 +441,7 @@ static int dpll_pin_prop_dup(const struct dpll_pin_properties *src,
 		dst->freq_supported = kmemdup(src->freq_supported,
 					      freq_size, GFP_KERNEL);
 		if (!src->freq_supported)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	if (src->board_label) {
 		dst->board_label = kstrdup(src->board_label, GFP_KERNEL);
@@ -467,7 +467,7 @@ err_panel_label:
 	kfree(dst->board_label);
 err_board_label:
 	kfree(dst->freq_supported);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct dpll_pin *
@@ -479,7 +479,7 @@ dpll_pin_alloc(u64 clock_id, u32 pin_idx, struct module *module,
 
 	pin = kzalloc(sizeof(*pin), GFP_KERNEL);
 	if (!pin)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	pin->pin_idx = pin_idx;
 	pin->clock_id = clock_id;
 	pin->module = module;
@@ -664,7 +664,7 @@ __dpll_pin_unregister(struct dpll_device *dpll, struct dpll_pin *pin,
  * @ops: ops for a dpll pin
  * @priv: pointer to private information of owner
  *
- * Note: It does not free the memory
+ * Analte: It does analt free the memory
  * Context: Acquires a lock (dpll_lock)
  */
 void dpll_pin_unregister(struct dpll_device *dpll, struct dpll_pin *pin,
@@ -751,7 +751,7 @@ EXPORT_SYMBOL_GPL(dpll_pin_on_pin_register);
  * @priv: pointer to private information of owner
  *
  * Context: Acquires a lock (dpll_lock)
- * Note: It does not free the memory
+ * Analte: It does analt free the memory
  */
 void dpll_pin_on_pin_unregister(struct dpll_pin *parent, struct dpll_pin *pin,
 				const struct dpll_pin_ops *ops, void *priv)

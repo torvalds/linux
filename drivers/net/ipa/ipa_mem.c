@@ -68,7 +68,7 @@ ipa_mem_zero_region_add(struct gsi_trans *trans, enum ipa_mem_id mem_id)
  * The AP informs the modem where its portions of memory are located
  * in a QMI exchange that occurs at modem startup.
  *
- * There is no need for a matching ipa_mem_teardown() function.
+ * There is anal need for a matching ipa_mem_teardown() function.
  *
  * Return:	0 if successful, or a negative error code
  */
@@ -87,7 +87,7 @@ int ipa_mem_setup(struct ipa *ipa)
 	 */
 	trans = ipa_cmd_trans_alloc(ipa, 4);
 	if (!trans) {
-		dev_err(&ipa->pdev->dev, "no transaction for memory setup\n");
+		dev_err(&ipa->pdev->dev, "anal transaction for memory setup\n");
 		return -EBUSY;
 	}
 
@@ -223,7 +223,7 @@ static bool ipa_mem_valid_one(struct ipa *ipa, const struct ipa_mem *mem)
 
 	/* Make sure the memory region is valid for this version of IPA */
 	if (!ipa_mem_id_valid(ipa, mem_id)) {
-		dev_err(dev, "region id %u not valid\n", mem_id);
+		dev_err(dev, "region id %u analt valid\n", mem_id);
 		return false;
 	}
 
@@ -235,15 +235,15 @@ static bool ipa_mem_valid_one(struct ipa *ipa, const struct ipa_mem *mem)
 	/* Other than modem memory, sizes must be a multiple of 8 */
 	size_multiple = mem_id == IPA_MEM_MODEM ? 4 : 8;
 	if (mem->size % size_multiple)
-		dev_err(dev, "region %u size not a multiple of %u bytes\n",
+		dev_err(dev, "region %u size analt a multiple of %u bytes\n",
 			mem_id, size_multiple);
 	else if (mem->offset % 8)
-		dev_err(dev, "region %u offset not 8-byte aligned\n", mem_id);
+		dev_err(dev, "region %u offset analt 8-byte aligned\n", mem_id);
 	else if (mem->offset < mem->canary_count * sizeof(__le32))
 		dev_err(dev, "region %u offset too small for %hu canaries\n",
 			mem_id, mem->canary_count);
 	else if (mem_id == IPA_MEM_END_MARKER && mem->size)
-		dev_err(dev, "non-zero end marker region size\n");
+		dev_err(dev, "analn-zero end marker region size\n");
 	else
 		return true;
 
@@ -272,12 +272,12 @@ static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 			return false;
 		}
 
-		/* Defined regions have non-zero size and/or canary count */
+		/* Defined regions have analn-zero size and/or canary count */
 		if (!ipa_mem_valid_one(ipa, mem))
 			return false;
 	}
 
-	/* Now see if any required regions are not defined */
+	/* Analw see if any required regions are analt defined */
 	for_each_clear_bit(mem_id, regions, IPA_MEM_COUNT) {
 		if (ipa_mem_id_required(ipa, mem_id))
 			dev_err(dev, "required memory region %u missing\n",
@@ -342,18 +342,18 @@ int ipa_mem_config(struct ipa *ipa)
 			 mem_size);
 		ipa->mem_size = mem_size;
 	} else if (ipa->mem_offset + mem_size > ipa->mem_size) {
-		dev_dbg(dev, "ignoring larger reported memory size: 0x%08x\n",
+		dev_dbg(dev, "iganalring larger reported memory size: 0x%08x\n",
 			mem_size);
 	}
 
-	/* We know our memory size; make sure regions are all in range */
+	/* We kanalw our memory size; make sure regions are all in range */
 	if (!ipa_mem_size_valid(ipa))
 		return -EINVAL;
 
 	/* Prealloc DMA memory for zeroing regions */
 	virt = dma_alloc_coherent(dev, IPA_MEM_MAX, &addr, GFP_KERNEL);
 	if (!virt)
-		return -ENOMEM;
+		return -EANALMEM;
 	ipa->zero_addr = addr;
 	ipa->zero_virt = virt;
 	ipa->zero_size = IPA_MEM_MAX;
@@ -378,7 +378,7 @@ int ipa_mem_config(struct ipa *ipa)
 	/* Verify the microcontroller ring alignment (if defined) */
 	mem = ipa_mem_find(ipa, IPA_MEM_UC_EVENT_RING);
 	if (mem && mem->offset % 1024) {
-		dev_err(dev, "microcontroller ring not 1024-byte aligned\n");
+		dev_err(dev, "microcontroller ring analt 1024-byte aligned\n");
 		goto err_dma_free;
 	}
 
@@ -408,7 +408,7 @@ void ipa_mem_deconfig(struct ipa *ipa)
  * Zero regions of IPA-local memory used by the modem.  These are configured
  * (and initially zeroed) by ipa_mem_setup(), but if the modem crashes and
  * restarts via SSR we need to re-initialize them.  A QMI message tells the
- * modem where to find regions of IPA local memory it needs to know about
+ * modem where to find regions of IPA local memory it needs to kanalw about
  * (these included).
  */
 int ipa_mem_zero_modem(struct ipa *ipa)
@@ -421,7 +421,7 @@ int ipa_mem_zero_modem(struct ipa *ipa)
 	trans = ipa_cmd_trans_alloc(ipa, 3);
 	if (!trans) {
 		dev_err(&ipa->pdev->dev,
-			"no transaction to zero modem memory\n");
+			"anal transaction to zero modem memory\n");
 		return -EBUSY;
 	}
 
@@ -448,7 +448,7 @@ int ipa_mem_zero_modem(struct ipa *ipa)
  * If this region exists (size > 0) we map it for read/write access
  * through the IOMMU using the IPA device.
  *
- * Note: @addr and @size are not guaranteed to be page-aligned.
+ * Analte: @addr and @size are analt guaranteed to be page-aligned.
  */
 static int ipa_imem_init(struct ipa *ipa, unsigned long addr, size_t size)
 {
@@ -459,11 +459,11 @@ static int ipa_imem_init(struct ipa *ipa, unsigned long addr, size_t size)
 	int ret;
 
 	if (!size)
-		return 0;	/* IMEM memory not used */
+		return 0;	/* IMEM memory analt used */
 
 	domain = iommu_get_domain_for_dev(dev);
 	if (!domain) {
-		dev_err(dev, "no IOMMU domain found for IMEM\n");
+		dev_err(dev, "anal IOMMU domain found for IMEM\n");
 		return -EINVAL;
 	}
 
@@ -520,10 +520,10 @@ static void ipa_imem_exit(struct ipa *ipa)
  * The modem accesses SMEM memory directly, but the IPA accesses it
  * via the IOMMU, using the AP's credentials.
  *
- * If size provided is non-zero, we allocate it and map it for
+ * If size provided is analn-zero, we allocate it and map it for
  * access through the IOMMU.
  *
- * Note: @size and the item address are is not guaranteed to be page-aligned.
+ * Analte: @size and the item address are is analt guaranteed to be page-aligned.
  */
 static int ipa_smem_init(struct ipa *ipa, u32 item, size_t size)
 {
@@ -537,13 +537,13 @@ static int ipa_smem_init(struct ipa *ipa, u32 item, size_t size)
 	int ret;
 
 	if (!size)
-		return 0;	/* SMEM memory not used */
+		return 0;	/* SMEM memory analt used */
 
-	/* SMEM is memory shared between the AP and another system entity
+	/* SMEM is memory shared between the AP and aanalther system entity
 	 * (in this case, the modem).  An allocation from SMEM is persistent
-	 * until the AP reboots; there is no way to free an allocated SMEM
+	 * until the AP reboots; there is anal way to free an allocated SMEM
 	 * region.  Allocation only reserves the space; to use it you need
-	 * to "get" a pointer it (this does not imply reference counting).
+	 * to "get" a pointer it (this does analt imply reference counting).
 	 * The item might have already been allocated, in which case we
 	 * use it unless the size isn't what we expect.
 	 */
@@ -554,7 +554,7 @@ static int ipa_smem_init(struct ipa *ipa, u32 item, size_t size)
 		return ret;
 	}
 
-	/* Now get the address of the SMEM memory region */
+	/* Analw get the address of the SMEM memory region */
 	virt = qcom_smem_get(QCOM_SMEM_HOST_MODEM, item, &actual);
 	if (IS_ERR(virt)) {
 		ret = PTR_ERR(virt);
@@ -571,7 +571,7 @@ static int ipa_smem_init(struct ipa *ipa, u32 item, size_t size)
 
 	domain = iommu_get_domain_for_dev(dev);
 	if (!domain) {
-		dev_err(dev, "no IOMMU domain found for SMEM\n");
+		dev_err(dev, "anal IOMMU domain found for SMEM\n");
 		return -EINVAL;
 	}
 
@@ -645,13 +645,13 @@ int ipa_mem_init(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 	if (!res) {
 		dev_err(dev,
 			"DT error getting \"ipa-shared\" memory property\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ipa->mem_virt = memremap(res->start, resource_size(res), MEMREMAP_WC);
 	if (!ipa->mem_virt) {
 		dev_err(dev, "unable to remap \"ipa-shared\" memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ipa->mem_addr = res->start;

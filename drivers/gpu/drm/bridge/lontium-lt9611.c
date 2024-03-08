@@ -27,7 +27,7 @@
 #define EDID_LEN	32
 #define EDID_LOOP	8
 #define KEY_DDC_ACCS_DONE 0x02
-#define DDC_NO_ACK	0x50
+#define DDC_ANAL_ACK	0x50
 
 #define LT9611_4LANES	0
 
@@ -38,8 +38,8 @@ struct lt9611 {
 
 	struct regmap *regmap;
 
-	struct device_node *dsi0_node;
-	struct device_node *dsi1_node;
+	struct device_analde *dsi0_analde;
+	struct device_analde *dsi1_analde;
 	struct mipi_dsi_device *dsi0;
 	struct mipi_dsi_device *dsi1;
 	struct platform_device *audio_pdev;
@@ -99,7 +99,7 @@ static int lt9611_mipi_input_analog(struct lt9611 *lt9611)
 		{ 0x8115, 0xfe }, /* port B ldo voltage set */
 		{ 0x8116, 0xbf }, /* enable port B lprx */
 
-		{ 0x811c, 0x03 }, /* PortA clk lane no-LP mode */
+		{ 0x811c, 0x03 }, /* PortA clk lane anal-LP mode */
 		{ 0x8120, 0x03 }, /* PortB clk lane with-LP mode */
 	};
 
@@ -118,7 +118,7 @@ static int lt9611_mipi_input_digital(struct lt9611 *lt9611,
 		{ 0x8306, 0x0a },
 	};
 
-	if (lt9611->dsi1_node)
+	if (lt9611->dsi1_analde)
 		reg_cfg[1].def = 0x03;
 
 	return regmap_multi_reg_write(lt9611->regmap, reg_cfg, ARRAY_SIZE(reg_cfg));
@@ -200,7 +200,7 @@ static void lt9611_pcr_setup(struct lt9611 *lt9611, const struct drm_display_mod
 	regmap_write(lt9611->regmap, 0x831d, pol);
 
 	regmap_multi_reg_write(lt9611->regmap, reg_cfg, ARRAY_SIZE(reg_cfg));
-	if (lt9611->dsi1_node) {
+	if (lt9611->dsi1_analde) {
 		unsigned int hact = mode->hdisplay;
 
 		hact >>= 2;
@@ -635,13 +635,13 @@ static int lt9611_read_edid(struct lt9611 *lt9611)
 				lt9611->edid_buf[i * EDID_LEN + j] = temp;
 			}
 
-		} else if (temp & DDC_NO_ACK) { /* DDC No Ack or Abitration lost */
-			dev_err(lt9611->dev, "read edid failed: no ack\n");
+		} else if (temp & DDC_ANAL_ACK) { /* DDC Anal Ack or Abitration lost */
+			dev_err(lt9611->dev, "read edid failed: anal ack\n");
 			ret = -EIO;
 			goto end;
 
 		} else {
-			dev_err(lt9611->dev, "read edid failed: access not done\n");
+			dev_err(lt9611->dev, "read edid failed: access analt done\n");
 			ret = -EIO;
 			goto end;
 		}
@@ -751,15 +751,15 @@ lt9611_bridge_atomic_disable(struct drm_bridge *bridge,
 }
 
 static struct mipi_dsi_device *lt9611_attach_dsi(struct lt9611 *lt9611,
-						 struct device_node *dsi_node)
+						 struct device_analde *dsi_analde)
 {
-	const struct mipi_dsi_device_info info = { "lt9611", 0, lt9611->dev->of_node};
+	const struct mipi_dsi_device_info info = { "lt9611", 0, lt9611->dev->of_analde};
 	struct mipi_dsi_device *dsi;
 	struct mipi_dsi_host *host;
 	struct device *dev = lt9611->dev;
 	int ret;
 
-	host = of_find_mipi_dsi_host_by_node(dsi_node);
+	host = of_find_mipi_dsi_host_by_analde(dsi_analde);
 	if (!host) {
 		dev_err(lt9611->dev, "failed to find dsi host\n");
 		return ERR_PTR(-EPROBE_DEFER);
@@ -811,7 +811,7 @@ static enum drm_mode_status lt9611_bridge_mode_valid(struct drm_bridge *bridge,
 	    drm_mode_vrefresh(mode) > 30)
 		return MODE_CLOCK_HIGH;
 
-	if (mode->hdisplay > 2000 && !lt9611->dsi1_node)
+	if (mode->hdisplay > 2000 && !lt9611->dsi1_analde)
 		return MODE_PANEL;
 	else
 		return MODE_OK;
@@ -908,17 +908,17 @@ static const struct drm_bridge_funcs lt9611_bridge_funcs = {
 static int lt9611_parse_dt(struct device *dev,
 			   struct lt9611 *lt9611)
 {
-	lt9611->dsi0_node = of_graph_get_remote_node(dev->of_node, 0, -1);
-	if (!lt9611->dsi0_node) {
-		dev_err(lt9611->dev, "failed to get remote node for primary dsi\n");
-		return -ENODEV;
+	lt9611->dsi0_analde = of_graph_get_remote_analde(dev->of_analde, 0, -1);
+	if (!lt9611->dsi0_analde) {
+		dev_err(lt9611->dev, "failed to get remote analde for primary dsi\n");
+		return -EANALDEV;
 	}
 
-	lt9611->dsi1_node = of_graph_get_remote_node(dev->of_node, 1, -1);
+	lt9611->dsi1_analde = of_graph_get_remote_analde(dev->of_analde, 1, -1);
 
-	lt9611->ac_mode = of_property_read_bool(dev->of_node, "lt,ac-mode");
+	lt9611->ac_mode = of_property_read_bool(dev->of_analde, "lt,ac-mode");
 
-	return drm_of_find_panel_or_bridge(dev->of_node, 2, -1, NULL, &lt9611->next_bridge);
+	return drm_of_find_panel_or_bridge(dev->of_analde, 2, -1, NULL, &lt9611->next_bridge);
 }
 
 static int lt9611_gpio_init(struct lt9611 *lt9611)
@@ -1000,7 +1000,7 @@ static void lt9611_audio_shutdown(struct device *dev, void *data)
 }
 
 static int lt9611_hdmi_i2s_get_dai_id(struct snd_soc_component *component,
-				      struct device_node *endpoint)
+				      struct device_analde *endpoint)
 {
 	struct of_endpoint of_ep;
 	int ret;
@@ -1059,12 +1059,12 @@ static int lt9611_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(dev, "device doesn't support I2C\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	lt9611 = devm_kzalloc(dev, sizeof(*lt9611), GFP_KERNEL);
 	if (!lt9611)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lt9611->dev = dev;
 	lt9611->client = client;
@@ -1115,7 +1115,7 @@ static int lt9611_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, lt9611);
 
 	lt9611->bridge.funcs = &lt9611_bridge_funcs;
-	lt9611->bridge.of_node = client->dev.of_node;
+	lt9611->bridge.of_analde = client->dev.of_analde;
 	lt9611->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID |
 			     DRM_BRIDGE_OP_HPD | DRM_BRIDGE_OP_MODES;
 	lt9611->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
@@ -1123,15 +1123,15 @@ static int lt9611_probe(struct i2c_client *client)
 	drm_bridge_add(&lt9611->bridge);
 
 	/* Attach primary DSI */
-	lt9611->dsi0 = lt9611_attach_dsi(lt9611, lt9611->dsi0_node);
+	lt9611->dsi0 = lt9611_attach_dsi(lt9611, lt9611->dsi0_analde);
 	if (IS_ERR(lt9611->dsi0)) {
 		ret = PTR_ERR(lt9611->dsi0);
 		goto err_remove_bridge;
 	}
 
 	/* Attach secondary DSI, if specified */
-	if (lt9611->dsi1_node) {
-		lt9611->dsi1 = lt9611_attach_dsi(lt9611, lt9611->dsi1_node);
+	if (lt9611->dsi1_analde) {
+		lt9611->dsi1 = lt9611_attach_dsi(lt9611, lt9611->dsi1_analde);
 		if (IS_ERR(lt9611->dsi1)) {
 			ret = PTR_ERR(lt9611->dsi1);
 			goto err_remove_bridge;
@@ -1153,8 +1153,8 @@ err_disable_regulators:
 	regulator_bulk_disable(ARRAY_SIZE(lt9611->supplies), lt9611->supplies);
 
 err_of_put:
-	of_node_put(lt9611->dsi1_node);
-	of_node_put(lt9611->dsi0_node);
+	of_analde_put(lt9611->dsi1_analde);
+	of_analde_put(lt9611->dsi0_analde);
 
 	return ret;
 }
@@ -1169,8 +1169,8 @@ static void lt9611_remove(struct i2c_client *client)
 
 	regulator_bulk_disable(ARRAY_SIZE(lt9611->supplies), lt9611->supplies);
 
-	of_node_put(lt9611->dsi1_node);
-	of_node_put(lt9611->dsi0_node);
+	of_analde_put(lt9611->dsi1_analde);
+	of_analde_put(lt9611->dsi0_analde);
 }
 
 static struct i2c_device_id lt9611_id[] = {

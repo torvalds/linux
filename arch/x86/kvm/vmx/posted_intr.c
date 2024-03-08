@@ -17,8 +17,8 @@
  * when a WAKEUP_VECTOR interrupted is posted.  vCPUs are added to the list when
  * the vCPU is scheduled out and is blocking (e.g. in HLT) with IRQs enabled.
  * The vCPUs posted interrupt descriptor is updated at the same time to set its
- * notification vector to WAKEUP_VECTOR, so that posted interrupt from devices
- * wake the target vCPUs.  vCPUs are removed from the list and the notification
+ * analtification vector to WAKEUP_VECTOR, so that posted interrupt from devices
+ * wake the target vCPUs.  vCPUs are removed from the list and the analtification
  * vector is reset when the vCPU is scheduled in.
  */
 static DEFINE_PER_CPU(struct list_head, wakeup_vcpus_on_cpu);
@@ -60,7 +60,7 @@ void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 
 	/*
 	 * To simplify hot-plug and dynamic toggling of APICv, keep PI.NDST and
-	 * PI.SN up-to-date even if there is no assigned device or if APICv is
+	 * PI.SN up-to-date even if there is anal assigned device or if APICv is
 	 * deactivated due to a dynamic inhibit bit, e.g. for Hyper-V's SyncIC.
 	 */
 	if (!enable_apicv || !lapic_in_kernel(vcpu))
@@ -68,13 +68,13 @@ void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 
 	/*
 	 * If the vCPU wasn't on the wakeup list and wasn't migrated, then the
-	 * full update can be skipped as neither the vector nor the destination
+	 * full update can be skipped as neither the vector analr the destination
 	 * needs to be changed.
 	 */
 	if (pi_desc->nv != POSTED_INTR_WAKEUP_VECTOR && vcpu->cpu == cpu) {
 		/*
 		 * Clear SN if it was set due to being preempted.  Again, do
-		 * this even if there is no assigned device for simplicity.
+		 * this even if there is anal assigned device for simplicity.
 		 */
 		if (pi_test_and_clear_sn(pi_desc))
 			goto after_clear_sn;
@@ -85,7 +85,7 @@ void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 
 	/*
 	 * If the vCPU was waiting for wakeup, remove the vCPU from the wakeup
-	 * list of the _previous_ pCPU, which will not be the same as the
+	 * list of the _previous_ pCPU, which will analt be the same as the
 	 * current pCPU if the task was migrated.
 	 */
 	if (pi_desc->nv == POSTED_INTR_WAKEUP_VECTOR) {
@@ -110,7 +110,7 @@ void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 		new.sn = 0;
 
 		/*
-		 * Restore the notification vector; in the blocking case, the
+		 * Restore the analtification vector; in the blocking case, the
 		 * descriptor was modified on "put" to use the wakeup vector.
 		 */
 		new.nv = POSTED_INTR_VECTOR;
@@ -124,7 +124,7 @@ after_clear_sn:
 	 * Clear SN before reading the bitmap.  The VT-d firmware
 	 * writes the bitmap and reads SN atomically (5.2.3 in the
 	 * spec), so it doesn't really have a memory barrier that
-	 * pairs with this, but we cannot do that and we need one.
+	 * pairs with this, but we cananalt do that and we need one.
 	 */
 	smp_mb__after_atomic();
 
@@ -141,7 +141,7 @@ static bool vmx_can_use_vtd_pi(struct kvm *kvm)
 
 /*
  * Put the vCPU on this pCPU's list of vCPUs that needs to be awakened and set
- * WAKEUP as the notification vector in the PI descriptor.
+ * WAKEUP as the analtification vector in the PI descriptor.
  */
 static void pi_enable_wakeup_handler(struct kvm_vcpu *vcpu)
 {
@@ -168,9 +168,9 @@ static void pi_enable_wakeup_handler(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Send a wakeup IPI to this CPU if an interrupt may have been posted
-	 * before the notification vector was updated, in which case the IRQ
-	 * will arrive on the non-wakeup vector.  An IPI is needed as calling
-	 * try_to_wake_up() from ->sched_out() isn't allowed (IRQs are not
+	 * before the analtification vector was updated, in which case the IRQ
+	 * will arrive on the analn-wakeup vector.  An IPI is needed as calling
+	 * try_to_wake_up() from ->sched_out() isn't allowed (IRQs are analt
 	 * enabled until it is safe to call try_to_wake_up() on the task being
 	 * scheduled out).
 	 */
@@ -183,11 +183,11 @@ static void pi_enable_wakeup_handler(struct kvm_vcpu *vcpu)
 static bool vmx_needs_pi_wakeup(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * The default posted interrupt vector does nothing when
+	 * The default posted interrupt vector does analthing when
 	 * invoked outside guest mode.   Return whether a blocked vCPU
 	 * can be the target of posted interrupts, as is the case when
 	 * using either IPI virtualization or VT-d PI, so that the
-	 * notification vector is switched to the one that calls
+	 * analtification vector is switched to the one that calls
 	 * back to the pi_wakeup_handler() function.
 	 */
 	return vmx_can_use_ipiv(vcpu) || vmx_can_use_vtd_pi(vcpu->kvm);
@@ -204,7 +204,7 @@ void vmx_vcpu_pi_put(struct kvm_vcpu *vcpu)
 		pi_enable_wakeup_handler(vcpu);
 
 	/*
-	 * Set SN when the vCPU is preempted.  Note, the vCPU can both be seen
+	 * Set SN when the vCPU is preempted.  Analte, the vCPU can both be seen
 	 * as blocking and preempted, e.g. if it's preempted between setting
 	 * its wait state and manually scheduling out.
 	 */
@@ -286,7 +286,7 @@ int vmx_pi_update_irte(struct kvm *kvm, unsigned int host_irq,
 	irq_rt = srcu_dereference(kvm->irq_routing, &kvm->irq_srcu);
 	if (guest_irq >= irq_rt->nr_rt_entries ||
 	    hlist_empty(&irq_rt->map[guest_irq])) {
-		pr_warn_once("no route for guest_irq %u/%u (broken user space?)\n",
+		pr_warn_once("anal route for guest_irq %u/%u (broken user space?)\n",
 			     guest_irq, irq_rt->nr_rt_entries);
 		goto out;
 	}
@@ -295,7 +295,7 @@ int vmx_pi_update_irte(struct kvm *kvm, unsigned int host_irq,
 		if (e->type != KVM_IRQ_ROUTING_MSI)
 			continue;
 		/*
-		 * VT-d PI cannot support posting multicast/broadcast
+		 * VT-d PI cananalt support posting multicast/broadcast
 		 * interrupts to a vCPU, we still use interrupt remapping
 		 * for these kind of interrupts.
 		 *

@@ -545,7 +545,7 @@ static const u8 blake2s_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {
     0xd6, 0x98, 0x6b, 0x07, 0x10, 0x65, 0x52, 0x65, },
 };
 
-static bool __init noinline_for_stack blake2s_digest_test(void)
+static bool __init analinline_for_stack blake2s_digest_test(void)
 {
 	u8 key[BLAKE2S_KEY_SIZE];
 	u8 buf[ARRAY_SIZE(blake2s_testvecs)];
@@ -592,7 +592,7 @@ static bool __init noinline_for_stack blake2s_digest_test(void)
 	return success;
 }
 
-static bool __init noinline_for_stack blake2s_random_test(void)
+static bool __init analinline_for_stack blake2s_random_test(void)
 {
 	struct blake2s_state state;
 	bool success = true;

@@ -145,7 +145,7 @@ static int detect_quirks(struct snd_oxfw *oxfw, const struct ieee1394_device_id 
 		return snd_oxfw_add_spkr(oxfw, true);
 
 	/*
-	 * Stanton models supports asynchronous transactions for unique MIDI
+	 * Stanton models supports asynchroanalus transactions for unique MIDI
 	 * messages.
 	 */
 	if (entry->vendor_id == OUI_STANTON) {
@@ -153,7 +153,7 @@ static int detect_quirks(struct snd_oxfw *oxfw, const struct ieee1394_device_id 
 		if (entry->model_id == MODEL_SCS1M)
 			oxfw->quirks |= SND_OXFW_QUIRK_BLOCKING_TRANSMISSION;
 
-		// No physical MIDI ports.
+		// Anal physical MIDI ports.
 		oxfw->midi_input_ports = 0;
 		oxfw->midi_output_ports = 0;
 
@@ -162,7 +162,7 @@ static int detect_quirks(struct snd_oxfw *oxfw, const struct ieee1394_device_id 
 
 	if (entry->vendor_id == OUI_APOGEE && entry->model_id == MODEL_DUET_FW) {
 		oxfw->quirks |= SND_OXFW_QUIRK_BLOCKING_TRANSMISSION |
-				SND_OXFW_QUIRK_IGNORE_NO_INFO_PACKET;
+				SND_OXFW_QUIRK_IGANALRE_ANAL_INFO_PACKET;
 	}
 
 	/*
@@ -195,9 +195,9 @@ static int detect_quirks(struct snd_oxfw *oxfw, const struct ieee1394_device_id 
 			oxfw->quirks |= SND_OXFW_QUIRK_BLOCKING_TRANSMISSION;
 
 		if (model == MODEL_ONYX_1640I) {
-			//Unless receiving packets without NOINFO packet, the device transfers
+			//Unless receiving packets without ANALINFO packet, the device transfers
 			//mostly half of events in packets than expected.
-			oxfw->quirks |= SND_OXFW_QUIRK_IGNORE_NO_INFO_PACKET |
+			oxfw->quirks |= SND_OXFW_QUIRK_IGANALRE_ANAL_INFO_PACKET |
 					SND_OXFW_QUIRK_VOLUNTARY_RECOVERY;
 		}
 	}
@@ -212,7 +212,7 @@ static int oxfw_probe(struct fw_unit *unit, const struct ieee1394_device_id *ent
 	int err;
 
 	if (entry->vendor_id == VENDOR_LOUD && entry->model_id == 0 && !detect_loud_models(unit))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = snd_card_new(&unit->device, -1, NULL, THIS_MODULE, sizeof(*oxfw), &card);
 	if (err < 0)
@@ -323,33 +323,33 @@ static const struct ieee1394_device_id oxfw_id_table[] = {
 	//
 	// OXFW970 devices:
 	// Initial firmware has a quirk to postpone isoc packet transmission during finishing async
-	// transaction. As a result, several isochronous cycles are skipped to transfer the packets
+	// transaction. As a result, several isochroanalus cycles are skipped to transfer the packets
 	// and the audio data frames which should have been transferred during the cycles are put
 	// into packet at the first isoc cycle after the postpone. Furthermore, the value of SYT
-	// field in CIP header is not reliable as synchronization timing,
+	// field in CIP header is analt reliable as synchronization timing,
 	//
 	OXFW_DEV_ENTRY(VENDOR_GRIFFIN, 0x00f970, &griffin_firewave),
 	OXFW_DEV_ENTRY(VENDOR_LACIE, 0x00f970, &lacie_speakers),
-	// Behringer,F-Control Audio 202. The value of SYT field is not reliable at all.
+	// Behringer,F-Control Audio 202. The value of SYT field is analt reliable at all.
 	OXFW_DEV_ENTRY(VENDOR_BEHRINGER, 0x00fc22, NULL),
-	// Loud Technologies, Tapco Link.FireWire 4x6. The value of SYT field is always 0xffff.
+	// Loud Techanallogies, Tapco Link.FireWire 4x6. The value of SYT field is always 0xffff.
 	OXFW_DEV_ENTRY(VENDOR_LOUD, 0x000460, NULL),
-	// Loud Technologies, Mackie Onyx Satellite. Although revised version of firmware is
+	// Loud Techanallogies, Mackie Onyx Satellite. Although revised version of firmware is
 	// installed to avoid the postpone, the value of SYT field is always 0xffff.
 	OXFW_DEV_ENTRY(VENDOR_LOUD, MODEL_SATELLITE, NULL),
-	// Miglia HarmonyAudio. Not yet identified.
+	// Miglia HarmonyAudio. Analt yet identified.
 
 	//
 	// OXFW971 devices:
-	// The value of SYT field in CIP header is enough reliable. Both of blocking and non-blocking
+	// The value of SYT field in CIP header is eanalugh reliable. Both of blocking and analn-blocking
 	// transmission methods are available.
 	//
 	// Any Mackie(Loud) models (name string/model id):
 	//  Onyx-i series (former models):	0x081216
 	//  Onyx 1640i:				0x001640
-	//  d.2 pro/d.4 pro (built-in card):	Unknown
-	//  U.420:				Unknown
-	//  U.420d:				Unknown
+	//  d.2 pro/d.4 pro (built-in card):	Unkanalwn
+	//  U.420:				Unkanalwn
+	//  U.420d:				Unkanalwn
 	{
 		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
 				  IEEE1394_MATCH_SPECIFIER_ID |

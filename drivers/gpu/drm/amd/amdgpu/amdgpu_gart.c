@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -47,12 +47,12 @@
  *
  * Radeon GPUs support both an internal GART, as described above,
  * and AGP.  AGP works similarly, but the GART table is configured
- * and maintained by the northbridge rather than the driver.
+ * and maintained by the analrthbridge rather than the driver.
  * Radeon hw has a separate AGP aperture that is programmed to
- * point to the AGP aperture provided by the northbridge and the
- * requests are passed through to the northbridge aperture.
+ * point to the AGP aperture provided by the analrthbridge and the
+ * requests are passed through to the analrthbridge aperture.
  * Both AGP and internal GART can be used at the same time, however
- * that is not currently supported by the driver.
+ * that is analt currently supported by the driver.
  *
  * This file handles the common internal GART management.
  */
@@ -69,7 +69,7 @@
  * Allocate the dummy page used by the driver (all asics).
  * This dummy page is used by the driver as a filler for gart entries
  * when pages are taken out of the GART
- * Returns 0 on sucess, -ENOMEM on failure.
+ * Returns 0 on sucess, -EANALMEM on failure.
  */
 static int amdgpu_gart_dummy_page_init(struct amdgpu_device *adev)
 {
@@ -82,7 +82,7 @@ static int amdgpu_gart_dummy_page_init(struct amdgpu_device *adev)
 	if (dma_mapping_error(&adev->pdev->dev, adev->dummy_page_addr)) {
 		dev_err(&adev->pdev->dev, "Failed to DMA MAP the dummy page\n");
 		adev->dummy_page_addr = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -129,13 +129,13 @@ int amdgpu_gart_table_ram_alloc(struct amdgpu_device *adev)
 
 	p = alloc_pages(gfp_flags, order);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* assign pages to this device */
 	for (x = 0; x < (1UL << order); x++)
 		p[x].mapping = adev->mman.bdev.dev_mapping;
 
-	/* If the hardware does not support UTCL2 snooping of the CPU caches
+	/* If the hardware does analt support UTCL2 sanaloping of the CPU caches
 	 * then set_memory_wc() could be used as a workaround to mark the pages
 	 * as write combine memory.
 	 */
@@ -152,7 +152,7 @@ int amdgpu_gart_table_ram_alloc(struct amdgpu_device *adev)
 	/* Create SG table */
 	sg = kmalloc(sizeof(*sg), GFP_KERNEL);
 	if (!sg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 	ret = sg_alloc_table(sg, 1, GFP_KERNEL);

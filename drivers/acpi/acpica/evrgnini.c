@@ -67,7 +67,7 @@ acpi_ev_system_memory_region_setup(acpi_handle handle,
 	local_region_context =
 	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_mem_space_context));
 	if (!(local_region_context)) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Save the region length and address for use in the handler */
@@ -123,7 +123,7 @@ acpi_ev_io_space_region_setup(acpi_handle handle,
  *
  * DESCRIPTION: Setup a PCI_Config operation region
  *
- * MUTEX:       Assumes namespace is not locked
+ * MUTEX:       Assumes namespace is analt locked
  *
  ******************************************************************************/
 
@@ -136,9 +136,9 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	u64 pci_value;
 	struct acpi_pci_id *pci_id = *region_context;
 	union acpi_operand_object *handler_obj;
-	struct acpi_namespace_node *parent_node;
-	struct acpi_namespace_node *pci_root_node;
-	struct acpi_namespace_node *pci_device_node;
+	struct acpi_namespace_analde *parent_analde;
+	struct acpi_namespace_analde *pci_root_analde;
+	struct acpi_namespace_analde *pci_device_analde;
 	union acpi_operand_object *region_obj =
 	    (union acpi_operand_object *)handle;
 
@@ -147,13 +147,13 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	handler_obj = region_obj->region.handler;
 	if (!handler_obj) {
 		/*
-		 * No installed handler. This shouldn't happen because the dispatch
+		 * Anal installed handler. This shouldn't happen because the dispatch
 		 * routine checks before we get here, but we check again just in case.
 		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
-				  "Attempting to init a region %p, with no handler\n",
+				  "Attempting to init a region %p, with anal handler\n",
 				  region_obj));
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_ANALT_EXIST);
 	}
 
 	*region_context = NULL;
@@ -164,7 +164,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 		return_ACPI_STATUS(status);
 	}
 
-	parent_node = region_obj->region.node->parent;
+	parent_analde = region_obj->region.analde->parent;
 
 	/*
 	 * Get the _SEG and _BBN values from the device upon which the handler
@@ -175,24 +175,24 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	 */
 
 	/*
-	 * If the address_space.Node is still pointing to the root, we need
+	 * If the address_space.Analde is still pointing to the root, we need
 	 * to scan upward for a PCI Root bridge and re-associate the op_region
 	 * handlers with that device.
 	 */
-	if (handler_obj->address_space.node == acpi_gbl_root_node) {
+	if (handler_obj->address_space.analde == acpi_gbl_root_analde) {
 
 		/* Start search from the parent object */
 
-		pci_root_node = parent_node;
-		while (pci_root_node != acpi_gbl_root_node) {
+		pci_root_analde = parent_analde;
+		while (pci_root_analde != acpi_gbl_root_analde) {
 
 			/* Get the _HID/_CID in order to detect a root_bridge */
 
-			if (acpi_ev_is_pci_root_bridge(pci_root_node)) {
+			if (acpi_ev_is_pci_root_bridge(pci_root_analde)) {
 
 				/* Install a handler for this PCI root bridge */
 
-				status = acpi_install_address_space_handler((acpi_handle)pci_root_node, ACPI_ADR_SPACE_PCI_CONFIG, ACPI_DEFAULT_HANDLER, NULL, NULL);
+				status = acpi_install_address_space_handler((acpi_handle)pci_root_analde, ACPI_ADR_SPACE_PCI_CONFIG, ACPI_DEFAULT_HANDLER, NULL, NULL);
 				if (ACPI_FAILURE(status)) {
 					if (status == AE_SAME_HANDLER) {
 						/*
@@ -202,36 +202,36 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 						 */
 					} else {
 						ACPI_EXCEPTION((AE_INFO, status,
-								"Could not install PciConfig handler "
+								"Could analt install PciConfig handler "
 								"for Root Bridge %4.4s",
-								acpi_ut_get_node_name
-								(pci_root_node)));
+								acpi_ut_get_analde_name
+								(pci_root_analde)));
 					}
 				}
 				break;
 			}
 
-			pci_root_node = pci_root_node->parent;
+			pci_root_analde = pci_root_analde->parent;
 		}
 
-		/* PCI root bridge not found, use namespace root node */
+		/* PCI root bridge analt found, use namespace root analde */
 	} else {
-		pci_root_node = handler_obj->address_space.node;
+		pci_root_analde = handler_obj->address_space.analde;
 	}
 
 	/*
-	 * If this region is now initialized, we are done.
+	 * If this region is analw initialized, we are done.
 	 * (install_address_space_handler could have initialized it)
 	 */
 	if (region_obj->region.flags & AOPOBJ_SETUP_COMPLETE) {
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* Region is still not initialized. Create a new context */
+	/* Region is still analt initialized. Create a new context */
 
 	pci_id = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pci_id));
 	if (!pci_id) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/*
@@ -241,12 +241,12 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	 * Find the parent device object. (This allows the operation region to be
 	 * within a subscope under the device, such as a control method.)
 	 */
-	pci_device_node = region_obj->region.node;
-	while (pci_device_node && (pci_device_node->type != ACPI_TYPE_DEVICE)) {
-		pci_device_node = pci_device_node->parent;
+	pci_device_analde = region_obj->region.analde;
+	while (pci_device_analde && (pci_device_analde->type != ACPI_TYPE_DEVICE)) {
+		pci_device_analde = pci_device_analde->parent;
 	}
 
-	if (!pci_device_node) {
+	if (!pci_device_analde) {
 		ACPI_FREE(pci_id);
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
@@ -256,11 +256,11 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	 * contained in the parent's scope.
 	 */
 	status = acpi_ut_evaluate_numeric_object(METHOD_NAME__ADR,
-						 pci_device_node, &pci_value);
+						 pci_device_analde, &pci_value);
 
 	/*
 	 * The default is zero, and since the allocation above zeroed the data,
-	 * just do nothing on failure.
+	 * just do analthing on failure.
 	 */
 	if (ACPI_SUCCESS(status)) {
 		pci_id->device = ACPI_HIWORD(ACPI_LODWORD(pci_value));
@@ -270,7 +270,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	/* The PCI segment number comes from the _SEG method */
 
 	status = acpi_ut_evaluate_numeric_object(METHOD_NAME__SEG,
-						 pci_root_node, &pci_value);
+						 pci_root_analde, &pci_value);
 	if (ACPI_SUCCESS(status)) {
 		pci_id->segment = ACPI_LOWORD(pci_value);
 	}
@@ -278,7 +278,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	/* The PCI bus number comes from the _BBN method */
 
 	status = acpi_ut_evaluate_numeric_object(METHOD_NAME__BBN,
-						 pci_root_node, &pci_value);
+						 pci_root_analde, &pci_value);
 	if (ACPI_SUCCESS(status)) {
 		pci_id->bus = ACPI_LOWORD(pci_value);
 	}
@@ -286,8 +286,8 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	/* Complete/update the PCI ID for this device */
 
 	status =
-	    acpi_hw_derive_pci_id(pci_id, pci_root_node,
-				  region_obj->region.node);
+	    acpi_hw_derive_pci_id(pci_id, pci_root_analde,
+				  region_obj->region.analde);
 	if (ACPI_FAILURE(status)) {
 		ACPI_FREE(pci_id);
 		return_ACPI_STATUS(status);
@@ -301,7 +301,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
  *
  * FUNCTION:    acpi_ev_is_pci_root_bridge
  *
- * PARAMETERS:  node            - Device node being examined
+ * PARAMETERS:  analde            - Device analde being examined
  *
  * RETURN:      TRUE if device is a PCI/PCI-Express Root Bridge
  *
@@ -310,7 +310,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
  *
  ******************************************************************************/
 
-u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
+u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_analde *analde)
 {
 	acpi_status status;
 	struct acpi_pnp_device_id *hid;
@@ -320,7 +320,7 @@ u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
 
 	/* Get the _HID and check for a PCI Root Bridge */
 
-	status = acpi_ut_execute_HID(node, &hid);
+	status = acpi_ut_execute_HID(analde, &hid);
 	if (ACPI_FAILURE(status)) {
 		return (FALSE);
 	}
@@ -332,9 +332,9 @@ u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
 		return (TRUE);
 	}
 
-	/* The _HID did not match. Get the _CID and check for a PCI Root Bridge */
+	/* The _HID did analt match. Get the _CID and check for a PCI Root Bridge */
 
-	status = acpi_ut_execute_CID(node, &cid);
+	status = acpi_ut_execute_CID(analde, &cid);
 	if (ACPI_FAILURE(status)) {
 		return (FALSE);
 	}
@@ -365,7 +365,7 @@ u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
  *
  * DESCRIPTION: Setup a pci_BAR operation region
  *
- * MUTEX:       Assumes namespace is not locked
+ * MUTEX:       Assumes namespace is analt locked
  *
  ******************************************************************************/
 
@@ -392,7 +392,7 @@ acpi_ev_pci_bar_region_setup(acpi_handle handle,
  *
  * DESCRIPTION: Setup a CMOS operation region
  *
- * MUTEX:       Assumes namespace is not locked
+ * MUTEX:       Assumes namespace is analt locked
  *
  ******************************************************************************/
 
@@ -419,7 +419,7 @@ acpi_ev_cmos_region_setup(acpi_handle handle,
  *
  * DESCRIPTION: Setup a data_table_region
  *
- * MUTEX:       Assumes namespace is not locked
+ * MUTEX:       Assumes namespace is analt locked
  *
  ******************************************************************************/
 
@@ -447,7 +447,7 @@ acpi_ev_data_table_region_setup(acpi_handle handle,
 	local_region_context =
 	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_data_table_mapping));
 	if (!(local_region_context)) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Save the data table pointer for use in the handler */
@@ -511,7 +511,7 @@ acpi_ev_default_region_setup(acpi_handle handle,
  * MUTEX:       Interpreter should be unlocked, because we may run the _REG
  *              method for this region.
  *
- * NOTE:        Possible incompliance:
+ * ANALTE:        Possible incompliance:
  *              There is a behavior conflict in automatic _REG execution:
  *              1. When the interpreter is evaluating a method, we can only
  *                 automatically run _REG for the following case:
@@ -519,8 +519,8 @@ acpi_ev_default_region_setup(acpi_handle handle,
  *              2. When the interpreter is loading a table, we can also
  *                 automatically run _REG for the following case:
  *                   operation_region (OPR1, 0x80, 0x1000010, 0x4)
- *              Though this may not be compliant to the de-facto standard, the
- *              logic is kept in order not to trigger regressions. And keeping
+ *              Though this may analt be compliant to the de-facto standard, the
+ *              logic is kept in order analt to trigger regressions. And keeping
  *              this logic should be taken care by the caller of this function.
  *
  ******************************************************************************/
@@ -530,7 +530,7 @@ acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj)
 	union acpi_operand_object *handler_obj;
 	union acpi_operand_object *obj_desc;
 	acpi_adr_space_type space_id;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
 	ACPI_FUNCTION_TRACE(ev_initialize_region);
 
@@ -544,34 +544,34 @@ acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj)
 
 	region_obj->common.flags |= AOPOBJ_OBJECT_INITIALIZED;
 
-	node = region_obj->region.node->parent;
+	analde = region_obj->region.analde->parent;
 	space_id = region_obj->region.space_id;
 
 	/*
-	 * The following loop depends upon the root Node having no parent
-	 * ie: acpi_gbl_root_node->Parent being set to NULL
+	 * The following loop depends upon the root Analde having anal parent
+	 * ie: acpi_gbl_root_analde->Parent being set to NULL
 	 */
-	while (node) {
+	while (analde) {
 
 		/* Check to see if a handler exists */
 
 		handler_obj = NULL;
-		obj_desc = acpi_ns_get_attached_object(node);
+		obj_desc = acpi_ns_get_attached_object(analde);
 		if (obj_desc) {
 
 			/* Can only be a handler if the object exists */
 
-			switch (node->type) {
+			switch (analde->type) {
 			case ACPI_TYPE_DEVICE:
 			case ACPI_TYPE_PROCESSOR:
 			case ACPI_TYPE_THERMAL:
 
-				handler_obj = obj_desc->common_notify.handler;
+				handler_obj = obj_desc->common_analtify.handler;
 				break;
 
 			default:
 
-				/* Ignore other objects */
+				/* Iganalre other objects */
 
 				break;
 			}
@@ -602,18 +602,18 @@ acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj)
 			}
 		}
 
-		/* This node does not have the handler we need; Pop up one level */
+		/* This analde does analt have the handler we need; Pop up one level */
 
-		node = node->parent;
+		analde = analde->parent;
 	}
 
 	/*
-	 * If we get here, there is no handler for this region. This is not
+	 * If we get here, there is anal handler for this region. This is analt
 	 * fatal because many regions get created before a handler is installed
 	 * for said region.
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
-			  "No handler for RegionType %s(%X) (RegionObj %p)\n",
+			  "Anal handler for RegionType %s(%X) (RegionObj %p)\n",
 			  acpi_ut_get_region_name(space_id), space_id,
 			  region_obj));
 

@@ -3,9 +3,9 @@
  * This file is part of wl1271
  *
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
- * Copyright (C) 2008-2010 Nokia Corporation
+ * Copyright (C) 2008-2010 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #ifndef __IO_H__
@@ -32,7 +32,7 @@
 struct wl1271;
 
 void wlcore_disable_interrupts(struct wl1271 *wl);
-void wlcore_disable_interrupts_nosync(struct wl1271 *wl);
+void wlcore_disable_interrupts_analsync(struct wl1271 *wl);
 void wlcore_enable_interrupts(struct wl1271 *wl);
 void wlcore_synchronize_interrupts(struct wl1271 *wl);
 
@@ -40,7 +40,7 @@ void wl1271_io_reset(struct wl1271 *wl);
 void wl1271_io_init(struct wl1271 *wl);
 int wlcore_translate_addr(struct wl1271 *wl, int addr);
 
-/* Raw target IO, address is not translated */
+/* Raw target IO, address is analt translated */
 static inline int __must_check wlcore_raw_write(struct wl1271 *wl, int addr,
 						void *buf, size_t len,
 						bool fixed)

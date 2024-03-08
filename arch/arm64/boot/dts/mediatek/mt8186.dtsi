@@ -1174,15 +1174,15 @@
 			interrupts = <GIC_SPI 362 IRQ_TYPE_LEVEL_HIGH 0>;
 		};
 
-		nor_flash: spi@11000000 {
-			compatible = "mediatek,mt8186-nor";
+		analr_flash: spi@11000000 {
+			compatible = "mediatek,mt8186-analr";
 			reg = <0 0x11000000 0 0x1000>;
-			clocks = <&topckgen CLK_TOP_SPINOR>,
-				 <&infracfg_ao CLK_INFRA_AO_SPINOR>,
+			clocks = <&topckgen CLK_TOP_SPIANALR>,
+				 <&infracfg_ao CLK_INFRA_AO_SPIANALR>,
 				 <&infracfg_ao CLK_INFRA_AO_FLASHIF_133M>,
 				 <&infracfg_ao CLK_INFRA_AO_FLASHIF_66M>;
 			clock-names = "spi", "sf", "axi", "axi_s";
-			assigned-clocks = <&topckgen CLK_TOP_SPINOR>;
+			assigned-clocks = <&topckgen CLK_TOP_SPIANALR>;
 			assigned-clock-parents = <&topckgen CLK_TOP_UNIVPLL_D3_D8>;
 			interrupts = <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH 0>;
 			status = "disabled";

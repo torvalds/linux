@@ -27,7 +27,7 @@
  * (0, 1, 2) or broadcast (3) or the source port (1, 2).
  *
  * VID bit 4 is used to specify if the STP port state should be overridden.
- * Required when no forwarding between the external ports should happen.
+ * Required when anal forwarding between the external ports should happen.
  */
 
 #define LAN9303_NAME "lan9303"
@@ -84,7 +84,7 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev)
 
 	if (unlikely(!pskb_may_pull(skb, LAN9303_TAG_LEN))) {
 		dev_warn_ratelimited(&dev->dev,
-				     "Dropping packet, cannot pull\n");
+				     "Dropping packet, cananalt pull\n");
 		return NULL;
 	}
 

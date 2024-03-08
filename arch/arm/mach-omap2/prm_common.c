@@ -40,7 +40,7 @@
 
 /*
  * OMAP_PRCM_MAX_NR_PENDING_REG: maximum number of PRM_IRQ*_MPU regs
- * XXX this is technically not needed, since
+ * XXX this is technically analt needed, since
  * omap_prcm_register_chain_handler() could allocate this based on the
  * actual amount of memory needed for the SoC
  */
@@ -108,7 +108,7 @@ static void omap_prcm_irq_handler(struct irq_desc *desc)
 
 	/*
 	 * If we are suspended, mask all interrupts from PRCM level,
-	 * this does not ack them, and they will be pending until we
+	 * this does analt ack them, and they will be pending until we
 	 * re-enable the interrupts, at which point the
 	 * omap_prcm_irq_handler will be executed again.  The
 	 * _save_and_clear_irqen() function must ensure that the PRM
@@ -128,7 +128,7 @@ static void omap_prcm_irq_handler(struct irq_desc *desc)
 	while (!prcm_irq_setup->suspended) {
 		prcm_irq_setup->read_pending_irqs(pending);
 
-		/* No bit set, then all IRQs are handled */
+		/* Anal bit set, then all IRQs are handled */
 		if (find_first_bit(pending, nr_irq) >= nr_irq)
 			break;
 
@@ -136,14 +136,14 @@ static void omap_prcm_irq_handler(struct irq_desc *desc)
 
 		/*
 		 * Loop on all currently pending irqs so that new irqs
-		 * cannot starve previously pending irqs
+		 * cananalt starve previously pending irqs
 		 */
 
 		/* Serve priority events first */
 		for_each_set_bit(virtirq, priority_pending, nr_irq)
 			generic_handle_irq(prcm_irq_setup->base_irq + virtirq);
 
-		/* Serve normal events next */
+		/* Serve analrmal events next */
 		for_each_set_bit(virtirq, pending, nr_irq)
 			generic_handle_irq(prcm_irq_setup->base_irq + virtirq);
 	}
@@ -164,28 +164,28 @@ static void omap_prcm_irq_handler(struct irq_desc *desc)
  * @name: name of the PRCM interrupt bit to look up - see struct omap_prcm_irq
  *
  * Returns the Linux internal IRQ ID corresponding to @name upon success,
- * or -ENOENT upon failure.
+ * or -EANALENT upon failure.
  */
 int omap_prcm_event_to_irq(const char *name)
 {
 	int i;
 
 	if (!prcm_irq_setup || !name)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (i = 0; i < prcm_irq_setup->nr_irqs; i++)
 		if (!strcmp(prcm_irq_setup->irqs[i].name, name))
 			return prcm_irq_setup->base_irq +
 				prcm_irq_setup->irqs[i].offset;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /**
  * omap_prcm_irq_cleanup - reverses memory allocated and other steps
  * done by omap_prcm_register_chain_handler()
  *
- * No return value.
+ * Anal return value.
  */
 static void omap_prcm_irq_cleanup(void)
 {
@@ -193,7 +193,7 @@ static void omap_prcm_irq_cleanup(void)
 	int i;
 
 	if (!prcm_irq_setup) {
-		pr_err("PRCM: IRQ handler not initialized; cannot cleanup\n");
+		pr_err("PRCM: IRQ handler analt initialized; cananalt cleanup\n");
 		return;
 	}
 
@@ -232,7 +232,7 @@ void omap_prcm_irq_complete(void)
 {
 	prcm_irq_setup->suspended = false;
 
-	/* If we have not saved the masks, do not attempt to restore */
+	/* If we have analt saved the masks, do analt attempt to restore */
 	if (!prcm_irq_setup->suspend_save_flag)
 		return;
 
@@ -254,7 +254,7 @@ void omap_prcm_irq_complete(void)
  * Set up the PRCM chained interrupt handler on the PRCM IRQ.  Sets up
  * one generic IRQ chip per PRM interrupt status/enable register pair.
  * Returns 0 upon success, -EINVAL if called twice or if invalid
- * arguments are passed, or -ENOMEM on any other error.
+ * arguments are passed, or -EANALMEM on any other error.
  */
 int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 {
@@ -330,7 +330,7 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 		ct->regs.ack = irq_setup->ack + i * 4;
 		ct->regs.mask = irq_setup->mask + i * 4;
 
-		irq_setup_generic_chip(gc, mask[i], 0, IRQ_NOREQUEST, 0);
+		irq_setup_generic_chip(gc, mask[i], 0, IRQ_ANALREQUEST, 0);
 		prcm_irq_chips[i] = gc;
 	}
 
@@ -341,7 +341,7 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 
 err:
 	omap_prcm_irq_cleanup();
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -363,7 +363,7 @@ bool prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx)
 	if (prm_ll_data->was_any_context_lost_old)
 		ret = prm_ll_data->was_any_context_lost_old(part, inst, idx);
 	else
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: anal mapping function defined\n",
 			  __func__);
 
 	return ret;
@@ -376,7 +376,7 @@ bool prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx)
  * @idx: CONTEXT register offset
  *
  * Clear hardware context loss bits for the module identified by
- * (@part, @inst, @idx).  No return value.  XXX Deprecated; callers
+ * (@part, @inst, @idx).  Anal return value.  XXX Deprecated; callers
  * need to use a less-SoC-dependent way to identify hardware IP
  * blocks.
  */
@@ -385,7 +385,7 @@ void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx)
 	if (prm_ll_data->clear_context_loss_flags_old)
 		prm_ll_data->clear_context_loss_flags_old(part, inst, idx);
 	else
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: anal mapping function defined\n",
 			  __func__);
 }
 
@@ -401,7 +401,7 @@ void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx)
 int omap_prm_assert_hardreset(u8 shift, u8 part, s16 prm_mod, u16 offset)
 {
 	if (!prm_ll_data->assert_hardreset) {
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: anal mapping function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -424,7 +424,7 @@ int omap_prm_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 prm_mod,
 				u16 offset, u16 st_offset)
 {
 	if (!prm_ll_data->deassert_hardreset) {
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: anal mapping function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -440,12 +440,12 @@ int omap_prm_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 prm_mod,
  * @prm_mod: PRM submodule base or instance offset
  * @offset: register offset
  *
- * Checks if a hardware reset line for an IP block is enabled or not.
+ * Checks if a hardware reset line for an IP block is enabled or analt.
  */
 int omap_prm_is_hardreset_asserted(u8 shift, u8 part, s16 prm_mod, u16 offset)
 {
 	if (!prm_ll_data->is_hardreset_asserted) {
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: anal mapping function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -461,7 +461,7 @@ int omap_prm_is_hardreset_asserted(u8 shift, u8 part, s16 prm_mod, u16 offset)
 void omap_prm_reset_system(void)
 {
 	if (!prm_ll_data->reset_system) {
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: anal mapping function defined\n",
 			  __func__);
 		return;
 	}
@@ -487,7 +487,7 @@ void omap_prm_reset_system(void)
 int omap_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask)
 {
 	if (!prm_ll_data->clear_mod_irqs) {
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: anal mapping function defined\n",
 			  __func__);
 		return -EINVAL;
 	}
@@ -499,12 +499,12 @@ int omap_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask)
  * omap_prm_vp_check_txdone - check voltage processor TX done status
  *
  * Checks if voltage processor transmission has been completed.
- * Returns non-zero if a transmission has completed, 0 otherwise.
+ * Returns analn-zero if a transmission has completed, 0 otherwise.
  */
 u32 omap_prm_vp_check_txdone(u8 vp_id)
 {
 	if (!prm_ll_data->vp_check_txdone) {
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: anal mapping function defined\n",
 			  __func__);
 		return 0;
 	}
@@ -521,7 +521,7 @@ u32 omap_prm_vp_check_txdone(u8 vp_id)
 void omap_prm_vp_clear_txdone(u8 vp_id)
 {
 	if (!prm_ll_data->vp_clear_txdone) {
-		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+		WARN_ONCE(1, "prm: %s: anal mapping function defined\n",
 			  __func__);
 		return;
 	}
@@ -559,9 +559,9 @@ int prm_register(struct prm_ll_data *pld)
  *
  * Unregister per-SoC low-level OMAP PRM data and function pointers
  * that were previously registered with prm_register().  The
- * caller may not destroy any of the data pointed to by @pld until
+ * caller may analt destroy any of the data pointed to by @pld until
  * this function returns successfully.  Returns 0 upon success, or
- * -EINVAL if @pld is NULL or if @pld does not match the struct
+ * -EINVAL if @pld is NULL or if @pld does analt match the struct
  * prm_ll_data * previously registered by prm_register().
  */
 int prm_unregister(struct prm_ll_data *pld)
@@ -691,18 +691,18 @@ static const struct of_device_id omap_prcm_dt_match_table[] __initconst = {
  */
 static int __init omap2_prm_base_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const struct of_device_id *match;
 	struct omap_prcm_init_data *data;
 	struct resource res;
 	int ret;
 
-	for_each_matching_node_and_match(np, omap_prcm_dt_match_table, &match) {
+	for_each_matching_analde_and_match(np, omap_prcm_dt_match_table, &match) {
 		data = (struct omap_prcm_init_data *)match->data;
 
 		ret = of_address_to_resource(np, 0, &res);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 
@@ -741,17 +741,17 @@ int __init omap2_prcm_base_init(void)
  */
 int __init omap_prcm_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const struct of_device_id *match;
 	const struct omap_prcm_init_data *data;
 	int ret;
 
-	for_each_matching_node_and_match(np, omap_prcm_dt_match_table, &match) {
+	for_each_matching_analde_and_match(np, omap_prcm_dt_match_table, &match) {
 		data = match->data;
 
 		ret = omap2_clk_provider_init(np, data->index, NULL, data->mem);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			return ret;
 		}
 	}

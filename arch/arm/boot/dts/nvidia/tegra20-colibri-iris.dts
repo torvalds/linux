@@ -177,7 +177,7 @@
 		status = "okay";
 		bus-width = <4>;
 		cd-gpios = <&gpio TEGRA_GPIO(C, 7) GPIO_ACTIVE_LOW>; /* MMCD */
-		no-1-8-v;
+		anal-1-8-v;
 	};
 
 	backlight: backlight {

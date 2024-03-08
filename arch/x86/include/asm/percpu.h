@@ -173,7 +173,7 @@ do {									\
 
 /*
  * xchg is implemented using cmpxchg without a lock prefix. xchg is
- * expensive due to the implied lock prefix.  The processor cannot prefetch
+ * expensive due to the implied lock prefix.  The processor cananalt prefetch
  * cachelines if xchg is used.
  */
 #define percpu_xchg_op(size, qual, _var, _nval)				\
@@ -194,7 +194,7 @@ do {									\
 })
 
 /*
- * cmpxchg has no such implied lock semantics as a result it is much
+ * cmpxchg has anal such implied lock semantics as a result it is much
  * more efficient for cpu local operations.
  */
 #define percpu_cmpxchg_op(size, qual, _var, _oval, _nval)		\
@@ -394,7 +394,7 @@ do {									\
 #define raw_cpu_or_4(pcp, val)		percpu_to_op(4, , "or", (pcp), val)
 
 /*
- * raw_cpu_xchg() can use a load-store since it is not required to be
+ * raw_cpu_xchg() can use a load-store since it is analt required to be
  * IRQ-safe.
  */
 #define raw_percpu_xchg_op(var, nval)					\
@@ -570,7 +570,7 @@ DECLARE_PER_CPU_READ_MOSTLY(unsigned long, this_cpu_off);
 
 #define	early_per_cpu(_name, _cpu) per_cpu(_name, _cpu)
 #define	early_per_cpu_ptr(_name) NULL
-/* no early_per_cpu_map() */
+/* anal early_per_cpu_map() */
 
 #endif	/* !CONFIG_SMP */
 

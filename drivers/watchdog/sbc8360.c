@@ -20,14 +20,14 @@
  *	(c) Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *						All Rights Reserved.
  *
- *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
+ *	Neither Alan Cox analr CymruNet Ltd. admit liability analr provide
  *	warranty for any of this software. This material is provided
- *	"AS-IS" and at no charge.
+ *	"AS-IS" and at anal charge.
  *
  *	(c) Copyright 1995    Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *	14-Dec-2001 Matt Domsch <Matt_Domsch@dell.com>
- *	     Added nowayout module option to override CONFIG_WATCHDOG_NOWAYOUT
+ *	     Added analwayout module option to override CONFIG_WATCHDOG_ANALWAYOUT
  *	     Added timeout module option to override default
  *
  */
@@ -40,7 +40,7 @@
 #include <linux/watchdog.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/fs.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
@@ -111,7 +111,7 @@ static char expect_close;
  *	E |	7.5s	75s	750s	1500s
  *	F |	8s	80s	800s	1600s
  *
- * Another way to say the same things is:
+ * Aanalther way to say the same things is:
  *  For N=1, Timeout = (M+1) * 0.5s
  *  For N=2, Timeout = (M+1) * 5s
  *  For N=3, Timeout = (M+1) * 50s
@@ -192,14 +192,14 @@ static int wd_times[64][2] = {
 static int timeout = 27;
 static int wd_margin = 0xB;
 static int wd_multiplier = 2;
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Index into timeout table (0-63) (default=27 (60s))");
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		 "Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 /*
  *	Kernel methods.
@@ -216,7 +216,7 @@ static void sbc8360_activate(void)
 	/* Set timeout multiplier */
 	outb(wd_multiplier, SBC8360_ENABLE);
 	msleep_interruptible(100);
-	/* Nothing happens until first sbc8360_ping() */
+	/* Analthing happens until first sbc8360_ping() */
 }
 
 /* Kernel pings watchdog */
@@ -238,7 +238,7 @@ static ssize_t sbc8360_write(struct file *file, const char __user *buf,
 			     size_t count, loff_t *ppos)
 {
 	if (count) {
-		if (!nowayout) {
+		if (!analwayout) {
 			size_t i;
 
 			/* In case it was set long ago */
@@ -257,25 +257,25 @@ static ssize_t sbc8360_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static int sbc8360_open(struct inode *inode, struct file *file)
+static int sbc8360_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(0, &sbc8360_is_open))
 		return -EBUSY;
-	if (nowayout)
+	if (analwayout)
 		__module_get(THIS_MODULE);
 
 	/* Activate and ping once to start the countdown */
 	sbc8360_activate();
 	sbc8360_ping();
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int sbc8360_close(struct inode *inode, struct file *file)
+static int sbc8360_close(struct ianalde *ianalde, struct file *file)
 {
 	if (expect_close == 42)
 		sbc8360_stop();
 	else
-		pr_crit("SBC8360 device closed unexpectedly.  SBC8360 will not stop!\n");
+		pr_crit("SBC8360 device closed unexpectedly.  SBC8360 will analt stop!\n");
 
 	clear_bit(0, &sbc8360_is_open);
 	expect_close = 0;
@@ -283,16 +283,16 @@ static int sbc8360_close(struct inode *inode, struct file *file)
 }
 
 /*
- *	Notifier for system down
+ *	Analtifier for system down
  */
 
-static int sbc8360_notify_sys(struct notifier_block *this, unsigned long code,
+static int sbc8360_analtify_sys(struct analtifier_block *this, unsigned long code,
 			      void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		sbc8360_stop();	/* Disable the SBC8360 Watchdog */
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*
@@ -301,14 +301,14 @@ static int sbc8360_notify_sys(struct notifier_block *this, unsigned long code,
 
 static const struct file_operations sbc8360_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.write = sbc8360_write,
 	.open = sbc8360_open,
 	.release = sbc8360_close,
 };
 
 static struct miscdevice sbc8360_miscdev = {
-	.minor = WATCHDOG_MINOR,
+	.mianalr = WATCHDOG_MIANALR,
 	.name = "watchdog",
 	.fops = &sbc8360_fops,
 };
@@ -318,8 +318,8 @@ static struct miscdevice sbc8360_miscdev = {
  *	turn the timebomb registers off.
  */
 
-static struct notifier_block sbc8360_notifier = {
-	.notifier_call = sbc8360_notify_sys,
+static struct analtifier_block sbc8360_analtifier = {
+	.analtifier_call = sbc8360_analtify_sys,
 };
 
 static int __init sbc8360_init(void)
@@ -334,28 +334,28 @@ static int __init sbc8360_init(void)
 	}
 
 	if (!request_region(SBC8360_ENABLE, 1, "SBC8360")) {
-		pr_err("ENABLE method I/O %X is not available\n",
+		pr_err("ENABLE method I/O %X is analt available\n",
 		       SBC8360_ENABLE);
 		res = -EIO;
 		goto out;
 	}
 	if (!request_region(SBC8360_BASETIME, 1, "SBC8360")) {
-		pr_err("BASETIME method I/O %X is not available\n",
+		pr_err("BASETIME method I/O %X is analt available\n",
 		       SBC8360_BASETIME);
 		res = -EIO;
-		goto out_nobasetimereg;
+		goto out_analbasetimereg;
 	}
 
-	res = register_reboot_notifier(&sbc8360_notifier);
+	res = register_reboot_analtifier(&sbc8360_analtifier);
 	if (res) {
-		pr_err("Failed to register reboot notifier\n");
-		goto out_noreboot;
+		pr_err("Failed to register reboot analtifier\n");
+		goto out_analreboot;
 	}
 
 	res = misc_register(&sbc8360_miscdev);
 	if (res) {
 		pr_err("failed to register misc device\n");
-		goto out_nomisc;
+		goto out_analmisc;
 	}
 
 	wd_margin = wd_times[timeout][0];
@@ -375,11 +375,11 @@ static int __init sbc8360_init(void)
 
 	return 0;
 
-out_nomisc:
-	unregister_reboot_notifier(&sbc8360_notifier);
-out_noreboot:
+out_analmisc:
+	unregister_reboot_analtifier(&sbc8360_analtifier);
+out_analreboot:
 	release_region(SBC8360_BASETIME, 1);
-out_nobasetimereg:
+out_analbasetimereg:
 	release_region(SBC8360_ENABLE, 1);
 out:
 	return res;
@@ -388,7 +388,7 @@ out:
 static void __exit sbc8360_exit(void)
 {
 	misc_deregister(&sbc8360_miscdev);
-	unregister_reboot_notifier(&sbc8360_notifier);
+	unregister_reboot_analtifier(&sbc8360_analtifier);
 	release_region(SBC8360_ENABLE, 1);
 	release_region(SBC8360_BASETIME, 1);
 }

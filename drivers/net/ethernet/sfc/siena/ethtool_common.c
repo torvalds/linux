@@ -57,7 +57,7 @@ static u64 efx_get_atomic_stat(void *field)
 #define EFX_ETHTOOL_UINT_CHANNEL_STAT(field)			\
 	EFX_ETHTOOL_STAT(field, channel, n_##field,		\
 			 unsigned int, efx_get_uint_stat)
-#define EFX_ETHTOOL_UINT_CHANNEL_STAT_NO_N(field)		\
+#define EFX_ETHTOOL_UINT_CHANNEL_STAT_ANAL_N(field)		\
 	EFX_ETHTOOL_STAT(field, channel, field,			\
 			 unsigned int, efx_get_uint_stat)
 
@@ -92,7 +92,7 @@ static const struct efx_sw_stat_desc efx_sw_stat_desc[] = {
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_xdp_tx),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_xdp_redirect),
 #ifdef CONFIG_RFS_ACCEL
-	EFX_ETHTOOL_UINT_CHANNEL_STAT_NO_N(rfs_filter_count),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT_ANAL_N(rfs_filter_count),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rfs_succeeded),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rfs_failed),
 #endif
@@ -183,7 +183,7 @@ int efx_siena_ethtool_set_pauseparam(struct net_device *net_dev,
 	}
 
 	/* Reconfigure the MAC. The PHY *may* generate a link state change event
-	 * if the user just changed the advertised capabilities, but there's no
+	 * if the user just changed the advertised capabilities, but there's anal
 	 * harm doing this twice */
 	efx_siena_mac_reconfigure(efx, false);
 
@@ -327,7 +327,7 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 	for (i = 0; true; ++i) {
 		const char *name;
 
-		EFX_WARN_ON_PARANOID(i >= EFX_MAX_PHY_TESTS);
+		EFX_WARN_ON_PARAANALID(i >= EFX_MAX_PHY_TESTS);
 		name = efx_siena_mcdi_phy_test_name(efx, i);
 		if (name == NULL)
 			break;
@@ -336,7 +336,7 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 	}
 
 	/* Loopback tests */
-	for (mode = LOOPBACK_NONE; mode <= LOOPBACK_TEST_MAX; mode++) {
+	for (mode = LOOPBACK_ANALNE; mode <= LOOPBACK_TEST_MAX; mode++) {
 		if (!(efx->loopback_modes & (1 << mode)))
 			continue;
 		n = efx_fill_loopback_test(efx,
@@ -353,7 +353,7 @@ void efx_siena_ethtool_self_test(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_self_tests *efx_tests;
 	bool already_up;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	efx_tests = kzalloc(sizeof(*efx_tests), GFP_KERNEL);
 	if (!efx_tests)
@@ -478,7 +478,7 @@ void efx_siena_ethtool_get_strings(struct net_device *net_dev,
 		efx_ethtool_fill_self_tests(efx, NULL, strings, NULL);
 		break;
 	default:
-		/* No other string sets */
+		/* Anal other string sets */
 		break;
 	}
 }
@@ -588,7 +588,7 @@ efx_siena_ethtool_set_link_ksettings(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
 
-	/* GMAC does not support 1000Mbps HD */
+	/* GMAC does analt support 1000Mbps HD */
 	if ((cmd->base.speed == SPEED_1000) &&
 	    (cmd->base.duplex != DUPLEX_FULL)) {
 		netif_dbg(efx, drv, efx->net_dev,
@@ -828,13 +828,13 @@ int efx_siena_ethtool_get_rxnfc(struct net_device *net_dev,
 			ctx = efx_siena_find_rss_context_entry(efx,
 							info->rss_context);
 			if (!ctx) {
-				rc = -ENOENT;
+				rc = -EANALENT;
 				goto out_unlock;
 			}
 		}
 
 		data = 0;
-		if (!efx_rss_active(ctx)) /* No RSS */
+		if (!efx_rss_active(ctx)) /* Anal RSS */
 			goto out_setdata_unlock;
 
 		switch (info->flow_type & ~FLOW_RSS) {
@@ -872,7 +872,7 @@ out_unlock:
 	case ETHTOOL_GRXCLSRLCNT:
 		info->data = efx_filter_get_rx_id_limit(efx);
 		if (info->data == 0)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		info->data |= RX_CLS_LOC_SPECIAL;
 		info->rule_cnt =
 			efx_filter_count_rx_used(efx, EFX_FILTER_PRI_MANUAL);
@@ -880,7 +880,7 @@ out_unlock:
 
 	case ETHTOOL_GRXCLSRULE:
 		if (efx_filter_get_rx_id_limit(efx) == 0)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		rc = efx_ethtool_get_class_rule(efx, &info->fs, &rss_context);
 		if (rc < 0)
 			return rc;
@@ -891,7 +891,7 @@ out_unlock:
 	case ETHTOOL_GRXCLSRLALL:
 		info->data = efx_filter_get_rx_id_limit(efx);
 		if (info->data == 0)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		rc = efx_filter_get_rx_ids(efx, EFX_FILTER_PRI_MANUAL,
 					   rule_locs, info->rule_cnt);
 		if (rc < 0)
@@ -900,7 +900,7 @@ out_unlock:
 		return 0;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1132,7 +1132,7 @@ int efx_siena_ethtool_set_rxnfc(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 
 	if (efx_filter_get_rx_id_limit(efx) == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (info->cmd) {
 	case ETHTOOL_SRXCLSRLINS:
@@ -1144,7 +1144,7 @@ int efx_siena_ethtool_set_rxnfc(struct net_device *net_dev,
 						 info->fs.location);
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1172,12 +1172,12 @@ static int efx_siena_ethtool_get_rxfh_context(struct net_device *net_dev,
 	int rc = 0;
 
 	if (!efx->type->rx_pull_rss_context_config)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&efx->rss_lock);
 	ctx = efx_siena_find_rss_context_entry(efx, rxfh->rss_context);
 	if (!ctx) {
-		rc = -ENOENT;
+		rc = -EANALENT;
 		goto out_unlock;
 	}
 	rc = efx->type->rx_pull_rss_context_config(efx, ctx);
@@ -1232,19 +1232,19 @@ static int efx_siena_ethtool_set_rxfh_context(struct net_device *net_dev,
 	int rc;
 
 	if (!efx->type->rx_push_rss_context_config)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&efx->rss_lock);
 
 	if (*rss_context == ETH_RXFH_CONTEXT_ALLOC) {
 		if (rxfh->rss_delete) {
-			/* alloc + delete == Nothing to do */
+			/* alloc + delete == Analthing to do */
 			rc = -EINVAL;
 			goto out_unlock;
 		}
 		ctx = efx_siena_alloc_rss_context_entry(efx);
 		if (!ctx) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out_unlock;
 		}
 		ctx->context_id = EFX_MCDI_RSS_CONTEXT_INVALID;
@@ -1255,7 +1255,7 @@ static int efx_siena_ethtool_set_rxfh_context(struct net_device *net_dev,
 	} else {
 		ctx = efx_siena_find_rss_context_entry(efx, *rss_context);
 		if (!ctx) {
-			rc = -ENOENT;
+			rc = -EANALENT;
 			goto out_unlock;
 		}
 	}
@@ -1291,10 +1291,10 @@ int efx_siena_ethtool_set_rxfh(struct net_device *net_dev,
 	u32 *indir = rxfh->indir;
 	u8 *key = rxfh->key;
 
-	/* Hash function is Toeplitz, cannot be changed */
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	/* Hash function is Toeplitz, cananalt be changed */
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rxfh->rss_context)
 		efx_siena_ethtool_set_rxfh_context(net_dev, rxfh, extack);

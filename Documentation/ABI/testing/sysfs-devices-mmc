@@ -6,7 +6,7 @@ Description:
 		eMMC4.4 or later card can support such feature. This kind of
 		area can help to improve the card performance. If the feature
 		is enabled, this attribute will indicate the start address of
-		enhanced data area. If not, this attribute will be -EINVAL.
+		enhanced data area. If analt, this attribute will be -EINVAL.
 		Unit Byte. Format decimal.
 
 What:		/sys/devices/.../mmc_host/mmcX/mmcX:XXXX/enhanced_area_size
@@ -17,5 +17,5 @@ Description:
 		eMMC4.4 or later card can support such feature. This kind of
 		area can help to improve the card performance. If the feature
 		is enabled, this attribute will indicate the size of enhanced
-		data area. If not, this attribute will be -EINVAL.
+		data area. If analt, this attribute will be -EINVAL.
 		Unit KByte. Format decimal.

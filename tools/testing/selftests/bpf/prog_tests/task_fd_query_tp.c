@@ -14,7 +14,7 @@ static void test_task_fd_query_tp_core(const char *probe_name,
 	char buf[256];
 
 	err = bpf_prog_test_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
-	if (CHECK(err, "bpf_prog_test_load", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "bpf_prog_test_load", "err %d erranal %d\n", err, erranal))
 		goto close_prog;
 
 	if (access("/sys/kernel/tracing/trace", F_OK) == 0) {
@@ -25,12 +25,12 @@ static void test_task_fd_query_tp_core(const char *probe_name,
 			 "/sys/kernel/debug/tracing/events/%s/id", probe_name);
 	}
 	efd = open(buf, O_RDONLY, 0);
-	if (CHECK(efd < 0, "open", "err %d errno %d\n", efd, errno))
+	if (CHECK(efd < 0, "open", "err %d erranal %d\n", efd, erranal))
 		goto close_prog;
 	bytes = read(efd, buf, sizeof(buf));
 	close(efd);
 	if (CHECK(bytes <= 0 || bytes >= sizeof(buf), "read",
-		  "bytes %d errno %d\n", bytes, errno))
+		  "bytes %d erranal %d\n", bytes, erranal))
 		goto close_prog;
 
 	attr.config = strtol(buf, NULL, 0);
@@ -41,25 +41,25 @@ static void test_task_fd_query_tp_core(const char *probe_name,
 	pmu_fd = syscall(__NR_perf_event_open, &attr, -1 /* pid */,
 			 0 /* cpu 0 */, -1 /* group id */,
 			 0 /* flags */);
-	if (CHECK(err, "perf_event_open", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "perf_event_open", "err %d erranal %d\n", err, erranal))
 		goto close_pmu;
 
 	err = ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0);
-	if (CHECK(err, "perf_event_ioc_enable", "err %d errno %d\n", err,
-		  errno))
+	if (CHECK(err, "perf_event_ioc_enable", "err %d erranal %d\n", err,
+		  erranal))
 		goto close_pmu;
 
 	err = ioctl(pmu_fd, PERF_EVENT_IOC_SET_BPF, prog_fd);
-	if (CHECK(err, "perf_event_ioc_set_bpf", "err %d errno %d\n", err,
-		  errno))
+	if (CHECK(err, "perf_event_ioc_set_bpf", "err %d erranal %d\n", err,
+		  erranal))
 		goto close_pmu;
 
 	/* query (getpid(), pmu_fd) */
 	len = sizeof(buf);
 	err = bpf_task_fd_query(getpid(), pmu_fd, 0, buf, &len, &prog_id,
 				&fd_type, &probe_offset, &probe_addr);
-	if (CHECK(err < 0, "bpf_task_fd_query", "err %d errno %d\n", err,
-		  errno))
+	if (CHECK(err < 0, "bpf_task_fd_query", "err %d erranal %d\n", err,
+		  erranal))
 		goto close_pmu;
 
 	err = (fd_type == BPF_FD_TYPE_TRACEPOINT) && !strcmp(buf, tp_name);

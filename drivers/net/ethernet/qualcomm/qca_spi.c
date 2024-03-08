@@ -4,12 +4,12 @@
  *
  *   Permission to use, copy, modify, and/or distribute this software
  *   for any purpose with or without fee is hereby granted, provided
- *   that the above copyright notice and this permission notice appear
+ *   that the above copyright analtice and this permission analtice appear
  *   in all copies.
  *
  *   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
  *   WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- *   WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ *   WARRANTIES OF MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL
  *   THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
  *   CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  *   LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
@@ -22,7 +22,7 @@
  *   serial converter;
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
@@ -66,7 +66,7 @@ MODULE_PARM_DESC(qcaspi_burst_len, "Number of data bytes per burst. Use 1-5000."
 #define QCASPI_PLUGGABLE_MAX 1
 static int qcaspi_pluggable = QCASPI_PLUGGABLE_MIN;
 module_param(qcaspi_pluggable, int, 0);
-MODULE_PARM_DESC(qcaspi_pluggable, "Pluggable SPI connection (yes/no).");
+MODULE_PARM_DESC(qcaspi_pluggable, "Pluggable SPI connection (anal/anal).");
 
 #define QCASPI_WRITE_VERIFY_MIN 0
 #define QCASPI_WRITE_VERIFY_MAX 3
@@ -414,10 +414,10 @@ qcaspi_receive(struct qcaspi *qca)
 			cp++;
 			switch (retcode) {
 			case QCAFRM_GATHER:
-			case QCAFRM_NOHEAD:
+			case QCAFRM_ANALHEAD:
 				break;
-			case QCAFRM_NOTAIL:
-				netdev_dbg(net_dev, "no RX tail\n");
+			case QCAFRM_ANALTAIL:
+				netdev_dbg(net_dev, "anal RX tail\n");
 				n_stats->rx_errors++;
 				n_stats->rx_dropped++;
 				break;
@@ -433,7 +433,7 @@ qcaspi_receive(struct qcaspi *qca)
 				skb_put(qca->rx_skb, retcode);
 				qca->rx_skb->protocol = eth_type_trans(
 					qca->rx_skb, qca->rx_skb->dev);
-				skb_checksum_none_assert(qca->rx_skb);
+				skb_checksum_analne_assert(qca->rx_skb);
 				netif_rx(qca->rx_skb);
 				qca->rx_skb = netdev_alloc_skb_ip_align(net_dev,
 					net_dev->mtu + VLAN_ETH_HLEN);
@@ -497,8 +497,8 @@ qcaspi_qca7k_sync(struct qcaspi *qca, int event)
 	u16 wrbuf_space = 0;
 
 	if (event == QCASPI_EVENT_CPUON) {
-		/* Read signature twice, if not valid
-		 * go back to unknown state.
+		/* Read signature twice, if analt valid
+		 * go back to unkanalwn state.
 		 */
 		qcaspi_read_register(qca, SPI_REG_SIGNATURE, &signature);
 		qcaspi_read_register(qca, SPI_REG_SIGNATURE, &signature);
@@ -506,7 +506,7 @@ qcaspi_qca7k_sync(struct qcaspi *qca, int event)
 			if (qca->sync == QCASPI_SYNC_READY)
 				qca->stats.bad_signature++;
 
-			qca->sync = QCASPI_SYNC_UNKNOWN;
+			qca->sync = QCASPI_SYNC_UNKANALWN;
 			netdev_dbg(qca->net_dev, "sync: got CPU on, but signature was invalid, restart\n");
 			return;
 		} else {
@@ -514,10 +514,10 @@ qcaspi_qca7k_sync(struct qcaspi *qca, int event)
 			qcaspi_read_register(qca, SPI_REG_WRBUF_SPC_AVA,
 					     &wrbuf_space);
 			if (wrbuf_space != QCASPI_HW_BUF_LEN) {
-				netdev_dbg(qca->net_dev, "sync: got CPU on, but wrbuf not empty. reset!\n");
-				qca->sync = QCASPI_SYNC_UNKNOWN;
+				netdev_dbg(qca->net_dev, "sync: got CPU on, but wrbuf analt empty. reset!\n");
+				qca->sync = QCASPI_SYNC_UNKANALWN;
 			} else {
-				netdev_dbg(qca->net_dev, "sync: got CPU on, now in sync\n");
+				netdev_dbg(qca->net_dev, "sync: got CPU on, analw in sync\n");
 				qca->sync = QCASPI_SYNC_READY;
 				return;
 			}
@@ -526,24 +526,24 @@ qcaspi_qca7k_sync(struct qcaspi *qca, int event)
 
 	switch (qca->sync) {
 	case QCASPI_SYNC_READY:
-		/* Check signature twice, if not valid go to unknown state. */
+		/* Check signature twice, if analt valid go to unkanalwn state. */
 		qcaspi_read_register(qca, SPI_REG_SIGNATURE, &signature);
 		if (signature != QCASPI_GOOD_SIGNATURE)
 			qcaspi_read_register(qca, SPI_REG_SIGNATURE, &signature);
 
 		if (signature != QCASPI_GOOD_SIGNATURE) {
-			qca->sync = QCASPI_SYNC_UNKNOWN;
+			qca->sync = QCASPI_SYNC_UNKANALWN;
 			qca->stats.bad_signature++;
 			netdev_dbg(qca->net_dev, "sync: bad signature, restart\n");
 			/* don't reset right away */
 			return;
 		}
 		break;
-	case QCASPI_SYNC_UNKNOWN:
-		/* Read signature, if not valid stay in unknown state */
+	case QCASPI_SYNC_UNKANALWN:
+		/* Read signature, if analt valid stay in unkanalwn state */
 		qcaspi_read_register(qca, SPI_REG_SIGNATURE, &signature);
 		if (signature != QCASPI_GOOD_SIGNATURE) {
-			netdev_dbg(qca->net_dev, "sync: could not read signature to reset device, retry.\n");
+			netdev_dbg(qca->net_dev, "sync: could analt read signature to reset device, retry.\n");
 			return;
 		}
 
@@ -562,8 +562,8 @@ qcaspi_qca7k_sync(struct qcaspi *qca, int event)
 		netdev_dbg(qca->net_dev, "sync: waiting for CPU on, count %u.\n",
 			   qca->reset_count);
 		if (qca->reset_count >= QCASPI_RESET_TIMEOUT) {
-			/* reset did not seem to take place, try again */
-			qca->sync = QCASPI_SYNC_UNKNOWN;
+			/* reset did analt seem to take place, try again */
+			qca->sync = QCASPI_SYNC_UNKANALWN;
 			qca->stats.reset_timeout++;
 			netdev_dbg(qca->net_dev, "sync: reset timeout, restarting process.\n");
 		}
@@ -605,7 +605,7 @@ qcaspi_spi_thread(void *data)
 		qcaspi_qca7k_sync(qca, QCASPI_EVENT_UPDATE);
 
 		if (qca->sync != QCASPI_SYNC_READY) {
-			netdev_dbg(qca->net_dev, "sync: not ready %u, turn off carrier and flush\n",
+			netdev_dbg(qca->net_dev, "sync: analt ready %u, turn off carrier and flush\n",
 				   (unsigned int)qca->sync);
 			netif_stop_queue(qca->net_dev);
 			netif_carrier_off(qca->net_dev);
@@ -627,7 +627,7 @@ qcaspi_spi_thread(void *data)
 				qcafrm_fsm_init_spi(&qca->frm_handle);
 				qca->stats.device_reset++;
 
-				/* not synced. */
+				/* analt synced. */
 				if (qca->sync != QCASPI_SYNC_READY)
 					continue;
 
@@ -639,7 +639,7 @@ qcaspi_spi_thread(void *data)
 				/* restart sync */
 				netdev_dbg(qca->net_dev, "===> rdbuf error!\n");
 				qca->stats.read_buf_err++;
-				qca->sync = QCASPI_SYNC_UNKNOWN;
+				qca->sync = QCASPI_SYNC_UNKANALWN;
 				continue;
 			}
 
@@ -647,7 +647,7 @@ qcaspi_spi_thread(void *data)
 				/* restart sync */
 				netdev_dbg(qca->net_dev, "===> wrbuf error!\n");
 				qca->stats.write_buf_err++;
-				qca->sync = QCASPI_SYNC_UNKNOWN;
+				qca->sync = QCASPI_SYNC_UNKANALWN;
 				continue;
 			}
 
@@ -694,7 +694,7 @@ qcaspi_netdev_open(struct net_device *dev)
 
 	qca->intr_req = 1;
 	qca->intr_svc = 0;
-	qca->sync = QCASPI_SYNC_UNKNOWN;
+	qca->sync = QCASPI_SYNC_UNKANALWN;
 	qcafrm_fsm_init_spi(&qca->frm_handle);
 
 	qca->spi_thread = kthread_run((void *)qcaspi_spi_thread,
@@ -815,7 +815,7 @@ qcaspi_netdev_tx_timeout(struct net_device *dev, unsigned int txqueue)
 		    jiffies, jiffies - dev_trans_start(dev));
 	qca->net_dev->stats.tx_errors++;
 	/* Trigger tx queue flush and QCA7000 reset */
-	qca->sync = QCASPI_SYNC_UNKNOWN;
+	qca->sync = QCASPI_SYNC_UNKANALWN;
 
 	if (qca->spi_thread)
 		wake_up_process(qca->spi_thread);
@@ -838,14 +838,14 @@ qcaspi_netdev_init(struct net_device *dev)
 
 	qca->rx_buffer = kmalloc(qca->buffer_size, GFP_KERNEL);
 	if (!qca->rx_buffer)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	qca->rx_skb = netdev_alloc_skb_ip_align(dev, qca->net_dev->mtu +
 						VLAN_ETH_HLEN);
 	if (!qca->rx_skb) {
 		kfree(qca->rx_buffer);
 		netdev_info(qca->net_dev, "Failed to allocate RX sk_buff.\n");
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	return 0;
@@ -909,12 +909,12 @@ qca_spi_probe(struct spi_device *spi)
 	u16 signature;
 	int ret;
 
-	if (!spi->dev.of_node) {
+	if (!spi->dev.of_analde) {
 		dev_err(&spi->dev, "Missing device tree\n");
 		return -EINVAL;
 	}
 
-	legacy_mode = of_property_read_bool(spi->dev.of_node,
+	legacy_mode = of_property_read_bool(spi->dev.of_analde,
 					    "qca,legacy-mode");
 
 	if (qcaspi_clkspeed == 0) {
@@ -967,7 +967,7 @@ qca_spi_probe(struct spi_device *spi)
 
 	qcaspi_devs = alloc_etherdev(sizeof(struct qcaspi));
 	if (!qcaspi_devs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qcaspi_netdev_setup(qcaspi_devs);
 	SET_NETDEV_DEV(qcaspi_devs, &spi->dev);
@@ -976,7 +976,7 @@ qca_spi_probe(struct spi_device *spi)
 	if (!qca) {
 		free_netdev(qcaspi_devs);
 		dev_err(&spi->dev, "Fail to retrieve private structure\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	qca->net_dev = qcaspi_devs;
 	qca->spi_dev = spi;
@@ -984,7 +984,7 @@ qca_spi_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, qcaspi_devs);
 
-	ret = of_get_ethdev_address(spi->dev.of_node, qca->net_dev);
+	ret = of_get_ethdev_address(spi->dev.of_analde, qca->net_dev);
 	if (ret) {
 		eth_hw_addr_random(qca->net_dev);
 		dev_info(&spi->dev, "Using random MAC address: %pM\n",

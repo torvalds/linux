@@ -25,7 +25,7 @@ GETTYLINE=:2345:respawn:/sbin/mingetty
 INITTAB=$ROOT/etc/inittab
 NINITTAB=$ROOT/etc/NEWinittab
 OINITTAB=$ROOT/etc/OLDinittab
-ADDNOTE=\\"# Additional mingettys for the 3270/tty* driver, tub3270 ---\\"
+ADDANALTE=\\"# Additional mingettys for the 3270/tty* driver, tub3270 ---\\"
 
 if ! ls $P > /dev/null 2>&1; then
 	modprobe tub3270 > /dev/null 2>&1
@@ -41,31 +41,31 @@ if [ ! -d /dev/dasd ]; then
 	echo rm -rf "$D/$SUBD/*" >> $SCR
 fi
 echo "grep -v $TTY $INITTAB > $NINITTAB" > $SCRTMP || exit 1
-echo "echo $ADDNOTE >> $NINITTAB" >> $SCRTMP
+echo "echo $ADDANALTE >> $NINITTAB" >> $SCRTMP
 if [ ! -d /dev/dasd ]; then
 	echo mkdir -p $D/$SUBD >> $SCR
 fi
 
-# Now query the tub3270 driver for 3270 device information
-# and add appropriate mknod and mingetty lines to our files
+# Analw query the tub3270 driver for 3270 device information
+# and add appropriate mkanald and mingetty lines to our files
 echo what=config > $P
-while read devno maj min;do
+while read devanal maj min;do
 	if [ $min = 0 ]; then
 		fsmaj=$maj
 		if [ ! -d /dev/dasd ]; then
-			echo mknod $D/$TUB c $fsmaj 0 >> $SCR
+			echo mkanald $D/$TUB c $fsmaj 0 >> $SCR
 			echo chmod 666 $D/$TUB >> $SCR
 		fi
 	elif [ $maj = CONSOLE ]; then
 		if [ ! -d /dev/dasd ]; then
-			echo mknod $D/$TUB$devno c $fsmaj $min >> $SCR
+			echo mkanald $D/$TUB$devanal c $fsmaj $min >> $SCR
 		fi
 	else
 		if [ ! -d /dev/dasd ]; then
-			echo mknod $D/$TTY$devno c $maj $min >>$SCR
-			echo mknod $D/$TUB$devno c $fsmaj $min >> $SCR
+			echo mkanald $D/$TTY$devanal c $maj $min >>$SCR
+			echo mkanald $D/$TUB$devanal c $fsmaj $min >> $SCR
 		fi
-		echo "echo t$min$GETTYLINE $TTY$devno >> $NINITTAB" >> $SCRTMP
+		echo "echo t$min$GETTYLINE $TTY$devanal >> $NINITTAB" >> $SCRTMP
 	fi
 done < $P
 

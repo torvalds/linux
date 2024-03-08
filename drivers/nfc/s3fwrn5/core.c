@@ -2,7 +2,7 @@
 /*
  * NCI based driver for Samsung S3FWRN5 NFC chip
  *
- * Copyright (C) 2015 Samsung Electrnoics
+ * Copyright (C) 2015 Samsung Electranalics
  * Robert Baldyga <r.baldyga@samsung.com>
  */
 
@@ -165,7 +165,7 @@ int s3fwrn5_probe(struct nci_dev **ndev, void *phy_id, struct device *pdev,
 
 	info = devm_kzalloc(pdev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->phy_id = phy_id;
 	info->pdev = pdev;
@@ -177,7 +177,7 @@ int s3fwrn5_probe(struct nci_dev **ndev, void *phy_id, struct device *pdev,
 	info->ndev = nci_allocate_device(&s3fwrn5_nci_ops,
 		S3FWRN5_NFC_PROTOCOLS, 0, 0);
 	if (!info->ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nci_set_parent_dev(info->ndev, pdev);
 	nci_set_drvdata(info->ndev, info);
@@ -217,7 +217,7 @@ int s3fwrn5_recv_frame(struct nci_dev *ndev, struct sk_buff *skb,
 		return s3fwrn5_fw_recv_frame(ndev, skb);
 	default:
 		kfree_skb(skb);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 EXPORT_SYMBOL(s3fwrn5_recv_frame);

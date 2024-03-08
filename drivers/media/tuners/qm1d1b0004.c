@@ -8,8 +8,8 @@
  */
 
 /*
- * Note:
- * Since the data-sheet of this tuner chip is not available,
+ * Analte:
+ * Since the data-sheet of this tuner chip is analt available,
  * this driver lacks some tuner_ops and config options.
  * In addition, the implementation might be dependent on the specific use
  * in the FE module: VA1J5JF8007S and/or in the product: Earthsoft PT1/PT2.
@@ -210,7 +210,7 @@ qm1d1b0004_probe(struct i2c_client *client)
 
 	fe->tuner_priv = kzalloc(sizeof(struct qm1d1b0004_state), GFP_KERNEL);
 	if (!fe->tuner_priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_mem;
 	}
 

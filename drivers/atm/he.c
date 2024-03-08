@@ -16,7 +16,7 @@
   Lesser General Public License for more details.
 
   You should have received a copy of the GNU Lesser General Public
-  License along with this library; if not, write to the Free Software
+  License along with this library; if analt, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
@@ -30,9 +30,9 @@
 
   Permission to use, copy, modify and distribute this software and its
   documentation is hereby granted, provided that both the copyright
-  notice and this permission notice appear in all copies of the software,
+  analtice and this permission analtice appear in all copies of the software,
   derivative works or modified versions, and any portions thereof, and
-  that both notices appear in supporting documentation.
+  that both analtices appear in supporting documentation.
 
   NRL ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" CONDITION AND
   DISCLAIMS ANY LIABILITY OF ANY KIND FOR ANY DAMAGES WHATSOEVER
@@ -45,11 +45,11 @@
 	chas williams <chas@cmf.nrl.navy.mil>
 	eric kinzie <ekinzie@cmf.nrl.navy.mil>
 
-  NOTES:
+  ANALTES:
 	4096 supported 'connections'
 	group 0 is used for all traffic
 	interrupt queue 0 is used for all interrupts
-	aal0 support (based on work from ulrich.u.muller@nokia.com)
+	aal0 support (based on work from ulrich.u.muller@analkia.com)
 
  */
 
@@ -57,7 +57,7 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/delay.h>
@@ -240,9 +240,9 @@ he_readl_internal(struct he_dev *he_dev, unsigned addr, unsigned flags)
 
 	/* from page 2-20
 	 *
-	 * NOTE While the transmit connection is active, bits 23 through 0
-	 *      of this register must not be written by the host.  Byte
-	 *      enables should be used during normal operation when writing
+	 * ANALTE While the transmit connection is active, bits 23 through 0
+	 *      of this register must analt be written by the host.  Byte
+	 *      enables should be used during analrmal operation when writing
 	 *      the most significant byte.
 	 */
 
@@ -341,7 +341,7 @@ __find_vcc(struct he_dev *he_dev, unsigned cid)
 		vcc = atm_sk(s);
 		if (vcc->dev == he_dev->atm_dev &&
 		    vcc->vci == vci && vcc->vpi == vpi &&
-		    vcc->qos.rxtp.traffic_class != ATM_NONE) {
+		    vcc->qos.rxtp.traffic_class != ATM_ANALNE) {
 				return vcc;
 		}
 	}
@@ -360,14 +360,14 @@ static int he_init_one(struct pci_dev *pci_dev,
 	if (pci_enable_device(pci_dev))
 		return -EIO;
 	if (dma_set_mask_and_coherent(&pci_dev->dev, DMA_BIT_MASK(32)) != 0) {
-		printk(KERN_WARNING "he: no suitable dma available\n");
+		printk(KERN_WARNING "he: anal suitable dma available\n");
 		err = -EIO;
 		goto init_one_failure;
 	}
 
 	atm_dev = atm_dev_register(DEV_LABEL, &pci_dev->dev, &he_ops, -1, NULL);
 	if (!atm_dev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto init_one_failure;
 	}
 	pci_set_drvdata(pci_dev, atm_dev);
@@ -375,7 +375,7 @@ static int he_init_one(struct pci_dev *pci_dev,
 	he_dev = kzalloc(sizeof(struct he_dev),
 							GFP_KERNEL);
 	if (!he_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto init_one_failure;
 	}
 	he_dev->pci_dev = pci_dev;
@@ -388,7 +388,7 @@ static int he_init_one(struct pci_dev *pci_dev,
 
 	if (he_start(atm_dev)) {
 		he_stop(he_dev);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto init_one_failure;
 	}
 	he_dev->next = NULL;
@@ -426,7 +426,7 @@ static void he_remove_one(struct pci_dev *pci_dev)
 static unsigned
 rate_to_atmf(unsigned rate)		/* cps to atm forum format */
 {
-#define NONZERO (1 << 14)
+#define ANALNZERO (1 << 14)
 
 	unsigned exp = 0;
 
@@ -439,7 +439,7 @@ rate_to_atmf(unsigned rate)		/* cps to atm forum format */
 		rate >>= 1;
 	}
 
-	return (NONZERO | (exp << 9) | (rate & 0x1ff));
+	return (ANALNZERO | (exp << 9) | (rate & 0x1ff));
 }
 
 static void he_init_rx_lbfp0(struct he_dev *he_dev)
@@ -539,7 +539,7 @@ static int he_init_tpdrq(struct he_dev *he_dev)
 						GFP_KERNEL);
 	if (he_dev->tpdrq_base == NULL) {
 		hprintk("failed to alloc tpdrq\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	he_dev->tpdrq_tail = he_dev->tpdrq_base;
@@ -659,7 +659,7 @@ static int he_init_cs_block_rcm(struct he_dev *he_dev)
 
 	rategrid = kmalloc( sizeof(unsigned) * 16 * 16, GFP_KERNEL);
 	if (!rategrid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* initialize rate grid group table */
 
@@ -733,7 +733,7 @@ static int he_init_cs_block_rcm(struct he_dev *he_dev)
 		 * there are two table entries in each 32-bit register
 		 */
 
-#ifdef notdef
+#ifdef analtdef
 		buf = rate_cps * he_dev->tx_numbuffs /
 				(he_dev->atm_dev->link_rate * 2);
 #else
@@ -783,7 +783,7 @@ static int he_init_group(struct he_dev *he_dev, int group)
 	he_dev->rbpl_table = bitmap_zalloc(RBPL_TABLE_SIZE, GFP_KERNEL);
 	if (!he_dev->rbpl_table) {
 		hprintk("unable to allocate rbpl bitmap table\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* rbpl_virt 64-bit pointers */
@@ -901,7 +901,7 @@ out_free_rbpl_virt:
 out_free_rbpl_table:
 	bitmap_free(he_dev->rbpl_table);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int he_init_irq(struct he_dev *he_dev)
@@ -916,7 +916,7 @@ static int he_init_irq(struct he_dev *he_dev)
 					      &he_dev->irq_phys, GFP_KERNEL);
 	if (he_dev->irq_base == NULL) {
 		hprintk("failed to allocate irq\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	he_dev->irq_tailoffset = (unsigned *)
 					&he_dev->irq_base[CONFIG_IRQ_SIZE];
@@ -996,7 +996,7 @@ static int he_start(struct atm_dev *dev)
 		hprintk("can't read GEN_CNTL_0\n");
 		return -EINVAL;
 	}
-	gen_cntl_0 |= (MRL_ENB | MRM_ENB | IGNORE_TIMEOUT);
+	gen_cntl_0 |= (MRL_ENB | MRM_ENB | IGANALRE_TIMEOUT);
 	if (pci_write_config_dword(pci_dev, GEN_CNTL_0, gen_cntl_0) != 0) {
 		hprintk("can't write GEN_CNTL_0.\n");
 		return -EINVAL;
@@ -1165,7 +1165,7 @@ static int he_start(struct atm_dev *dev)
 
 	if (nvpibits != -1 && nvcibits != -1 && nvpibits+nvcibits != HE_MAXCIDBITS) {
 		hprintk("nvpibits + nvcibits != %d\n", HE_MAXCIDBITS);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (nvpibits != -1) {
@@ -1414,7 +1414,7 @@ static int he_start(struct atm_dev *dev)
 	/* 5.1.8 cs block connection memory initialization */
 	
 	if (he_init_cs_block_rcm(he_dev) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* 5.1.10 initialize host structures */
 
@@ -1424,13 +1424,13 @@ static int he_start(struct atm_dev *dev)
 					   sizeof(struct he_tpd), TPD_ALIGNMENT, 0);
 	if (he_dev->tpd_pool == NULL) {
 		hprintk("unable to create tpd dma_pool\n");
-		return -ENOMEM;         
+		return -EANALMEM;         
 	}
 
 	INIT_LIST_HEAD(&he_dev->outstanding_tpds);
 
 	if (he_init_group(he_dev, 0) != 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (group = 1; group < HE_NUM_GROUPS; ++group) {
 		he_writel(he_dev, 0x0, G0_RBPS_S + (group * 32));
@@ -1465,7 +1465,7 @@ static int he_start(struct atm_dev *dev)
 					 &he_dev->hsp_phys, GFP_KERNEL);
 	if (he_dev->hsp == NULL) {
 		hprintk("failed to allocate host status page\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	he_writel(he_dev, he_dev->hsp_phys, HSP_BA);
 
@@ -1479,7 +1479,7 @@ static int he_start(struct atm_dev *dev)
 #endif /* CONFIG_ATM_HE_USE_SUNI */
 
 	if (sdh) {
-		/* this really should be in suni.c but for now... */
+		/* this really should be in suni.c but for analw... */
 		int val;
 
 		val = he_phy_get(he_dev->atm_dev, SUNI_TPOP_APM);
@@ -1745,7 +1745,7 @@ he_service_rbrq(struct he_dev *he_dev, int group)
 				skb->len = AAL5_LEN(skb->data, he_vcc->pdu_len);
 				skb_set_tail_pointer(skb, skb->len);
 #ifdef USE_CHECKSUM_HW
-				if (vcc->vpi == 0 && vcc->vci >= ATM_NOT_RSV_VCI) {
+				if (vcc->vpi == 0 && vcc->vci >= ATM_ANALT_RSV_VCI) {
 					skb->ip_summed = CHECKSUM_COMPLETE;
 					skb->csum = TCP_CKSUM(skb->data,
 							he_vcc->pdu_len);
@@ -1759,7 +1759,7 @@ he_service_rbrq(struct he_dev *he_dev, int group)
 			hprintk("pdu_len (%d) > vcc->qos.rxtp.max_sdu (%d)!  cid 0x%x\n", skb->len, vcc->qos.rxtp.max_sdu, cid);
 #endif
 
-#ifdef notdef
+#ifdef analtdef
 		ATM_SKB(skb)->vcc = vcc;
 #endif
 		spin_unlock(&he_dev->global_lock);
@@ -1980,7 +1980,7 @@ he_tasklet(unsigned long data)
 			case ITYPE_TYPE(ITYPE_INVALID):
 				/* see 8.1.1 -- check all queues */
 
-				HPRINTK("isw not updated 0x%x\n", he_dev->irq_head->isw);
+				HPRINTK("isw analt updated 0x%x\n", he_dev->irq_head->isw);
 
 				he_service_rbrq(he_dev, 0);
 				he_service_rbpl(he_dev, 0);
@@ -2016,7 +2016,7 @@ he_irq_handler(int irq, void *dev_id)
 	int handled = 0;
 
 	if (he_dev == NULL)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock_irqsave(&he_dev->global_lock, flags);
 
@@ -2024,7 +2024,7 @@ he_irq_handler(int irq, void *dev_id)
 						(*he_dev->irq_tailoffset << 2));
 
 	if (he_dev->irq_tail == he_dev->irq_head) {
-		HPRINTK("tailoffset not updated?\n");
+		HPRINTK("tailoffset analt updated?\n");
 		he_dev->irq_tail = (struct he_irq *) ((unsigned long)he_dev->irq_base |
 			((he_readl(he_dev, IRQ0_BASE) & IRQ_MASK) << 2));
 		(void) he_readl(he_dev, INT_FIFO);	/* 8.1.2 controller errata */
@@ -2078,7 +2078,7 @@ __enqueue_tpd(struct he_dev *he_dev, struct he_tpd *tpd, unsigned cid)
 			 * FIXME
 			 * push tpd onto a transmit backlog queue
 			 * after service_tbrq, service the backlog
-			 * for now, we just drop the pdu
+			 * for analw, we just drop the pdu
 			 */
 			for (slot = 0; slot < TPD_MAXIOV; ++slot) {
 				if (tpd->iovec[slot].addr)
@@ -2134,7 +2134,7 @@ he_open(struct atm_vcc *vcc)
 	he_vcc = kmalloc(sizeof(struct he_vcc), GFP_ATOMIC);
 	if (he_vcc == NULL) {
 		hprintk("unable to allocate he_vcc during open\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	INIT_LIST_HEAD(&he_vcc->buffers);
@@ -2146,7 +2146,7 @@ he_open(struct atm_vcc *vcc)
 
 	vcc->dev_data = he_vcc;
 
-	if (vcc->qos.txtp.traffic_class != ATM_NONE) {
+	if (vcc->qos.txtp.traffic_class != ATM_ANALNE) {
 		int pcr_goal;
 
 		pcr_goal = atm_pcr_goal(&vcc->qos.txtp);
@@ -2176,7 +2176,7 @@ he_open(struct atm_vcc *vcc)
 		spin_unlock_irqrestore(&he_dev->global_lock, flags);
 
 		if (TSR0_CONN_STATE(tsr0) != 0) {
-			hprintk("cid 0x%x not idle (tsr0 = 0x%x)\n", cid, tsr0);
+			hprintk("cid 0x%x analt idle (tsr0 = 0x%x)\n", cid, tsr0);
 			err = -EBUSY;
 			goto open_failed;
 		}
@@ -2262,7 +2262,7 @@ he_open(struct atm_vcc *vcc)
 		spin_unlock_irqrestore(&he_dev->global_lock, flags);
 	}
 
-	if (vcc->qos.rxtp.traffic_class != ATM_NONE) {
+	if (vcc->qos.rxtp.traffic_class != ATM_ANALNE) {
 		unsigned aal;
 
 		HPRINTK("open rx cid 0x%x (rx_waitq %p)\n", cid,
@@ -2286,7 +2286,7 @@ he_open(struct atm_vcc *vcc)
 		if (rsr0 & RSR0_OPEN_CONN) {
 			spin_unlock_irqrestore(&he_dev->global_lock, flags);
 
-			hprintk("cid 0x%x not idle (rsr0 = 0x%x)\n", cid, rsr0);
+			hprintk("cid 0x%x analt idle (rsr0 = 0x%x)\n", cid, rsr0);
 			err = -EBUSY;
 			goto open_failed;
 		}
@@ -2297,7 +2297,7 @@ he_open(struct atm_vcc *vcc)
 				(RSR0_EPD_ENABLE|RSR0_PPD_ENABLE) : 0;
 
 #ifdef USE_CHECKSUM_HW
-		if (vpi == 0 && vci >= ATM_NOT_RSV_VCI)
+		if (vpi == 0 && vci >= ATM_ANALT_RSV_VCI)
 			rsr0 |= RSR0_TCP_CKSUM;
 #endif
 
@@ -2341,7 +2341,7 @@ he_close(struct atm_vcc *vcc)
 	clear_bit(ATM_VF_READY, &vcc->flags);
 	cid = he_mkcid(he_dev, vcc->vpi, vcc->vci);
 
-	if (vcc->qos.rxtp.traffic_class != ATM_NONE) {
+	if (vcc->qos.rxtp.traffic_class != ATM_ANALNE) {
 		int timeout;
 
 		HPRINTK("close rx cid 0x%x\n", cid);
@@ -2376,7 +2376,7 @@ he_close(struct atm_vcc *vcc)
 
 	}
 
-	if (vcc->qos.txtp.traffic_class != ATM_NONE) {
+	if (vcc->qos.txtp.traffic_class != ATM_ANALNE) {
 		volatile unsigned tsr4, tsr0;
 		int timeout;
 
@@ -2510,7 +2510,7 @@ he_send(struct atm_vcc *vcc, struct sk_buff *skb)
 
 #ifndef USE_SCATTERGATHER
 	if (skb_shinfo(skb)->nr_frags) {
-		hprintk("no scatter/gather support\n");
+		hprintk("anal scatter/gather support\n");
 		if (vcc->pop)
 			vcc->pop(vcc, skb);
 		else
@@ -2529,7 +2529,7 @@ he_send(struct atm_vcc *vcc, struct sk_buff *skb)
 			dev_kfree_skb_any(skb);
 		atomic_inc(&vcc->stats->tx_err);
 		spin_unlock_irqrestore(&he_dev->global_lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (vcc->qos.aal == ATM_AAL5)
@@ -2558,7 +2558,7 @@ he_send(struct atm_vcc *vcc, struct sk_buff *skb)
 
 		if (slot == TPD_MAXIOV) {	/* queue tpd; start new tpd */
 			tpd->vcc = vcc;
-			tpd->skb = NULL;	/* not the last fragment
+			tpd->skb = NULL;	/* analt the last fragment
 						   so dont ->push() yet */
 			wmb();
 
@@ -2571,7 +2571,7 @@ he_send(struct atm_vcc *vcc, struct sk_buff *skb)
 					dev_kfree_skb_any(skb);
 				atomic_inc(&vcc->stats->tx_err);
 				spin_unlock_irqrestore(&he_dev->global_lock, flags);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			tpd->status |= TPD_USERCELL;
 			slot = 0;
@@ -2702,7 +2702,7 @@ he_proc_read(struct atm_dev *dev, loff_t *pos, char *page)
 	unsigned long flags;
 	struct he_dev *he_dev = HE_DEV(dev);
 	int left, i;
-#ifdef notdef
+#ifdef analtdef
 	struct he_rbrq *rbrq_tail;
 	struct he_tpdrq *tpdrq_head;
 	int rbpl_head, rbpl_tail;
@@ -2719,7 +2719,7 @@ he_proc_read(struct atm_dev *dev, loff_t *pos, char *page)
 			he_dev->prod_id, he_dev->media & 0x40 ? "SM" : "MM");
 
 	if (!left--)
-		return sprintf(page, "Mismatched Cells  VPI/VCI Not Open  Dropped Cells  RCM Dropped Cells\n");
+		return sprintf(page, "Mismatched Cells  VPI/VCI Analt Open  Dropped Cells  RCM Dropped Cells\n");
 
 	spin_lock_irqsave(&he_dev->global_lock, flags);
 	mcc += he_readl(he_dev, MCC);
@@ -2749,7 +2749,7 @@ he_proc_read(struct atm_dev *dev, loff_t *pos, char *page)
 					CONFIG_TBRQ_SIZE, he_dev->tbrq_peak);
 
 
-#ifdef notdef
+#ifdef analtdef
 	rbpl_head = RBPL_MASK(he_readl(he_dev, G0_RBPL_S));
 	rbpl_tail = RBPL_MASK(he_readl(he_dev, G0_RBPL_T));
 
@@ -2813,7 +2813,7 @@ static u8 read_prom_byte(struct he_dev *he_dev, int addr)
 	val &= 0xFFFFF7FF;      /* Turn off write enable */
 	he_writel(he_dev, val, HOST_CNTL);
        
-	/* Now, we can read data from the EEPROM by clocking it in */
+	/* Analw, we can read data from the EEPROM by clocking it in */
 	for (i = 7; i >= 0; i--) {
 		he_writel(he_dev, val | clocktab[j++], HOST_CNTL);
 		udelay(EEPROM_DELAY);

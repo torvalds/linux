@@ -302,7 +302,7 @@ static int pci_bus_set_aer_ops(struct pci_bus *bus)
 
 	bus_ops = kmalloc(sizeof(*bus_ops), GFP_KERNEL);
 	if (!bus_ops)
-		return -ENOMEM;
+		return -EANALMEM;
 	ops = pci_bus_set_ops(bus, &aer_inj_pci_ops);
 	spin_lock_irqsave(&inject_lock, flags);
 	if (ops == &aer_inj_pci_ops)
@@ -331,21 +331,21 @@ static int aer_inject(struct aer_error_inj *einj)
 
 	dev = pci_get_domain_bus_and_slot(einj->domain, einj->bus, devfn);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	rpdev = pcie_find_root_port(dev);
-	/* If Root Port not found, try to find an RCEC */
+	/* If Root Port analt found, try to find an RCEC */
 	if (!rpdev)
 		rpdev = dev->rcec;
 	if (!rpdev) {
-		pci_err(dev, "Neither Root Port nor RCEC found\n");
-		ret = -ENODEV;
+		pci_err(dev, "Neither Root Port analr RCEC found\n");
+		ret = -EANALDEV;
 		goto out_put;
 	}
 
 	pos_cap_err = dev->aer_cap;
 	if (!pos_cap_err) {
 		pci_err(dev, "Device doesn't support AER\n");
-		ret = -EPROTONOSUPPORT;
+		ret = -EPROTOANALSUPPORT;
 		goto out_put;
 	}
 	pci_read_config_dword(dev, pos_cap_err + PCI_ERR_UNCOR_SEVER, &sever);
@@ -356,18 +356,18 @@ static int aer_inject(struct aer_error_inj *einj)
 	rp_pos_cap_err = rpdev->aer_cap;
 	if (!rp_pos_cap_err) {
 		pci_err(rpdev, "Root port doesn't support AER\n");
-		ret = -EPROTONOSUPPORT;
+		ret = -EPROTOANALSUPPORT;
 		goto out_put;
 	}
 
 	err_alloc =  kzalloc(sizeof(struct aer_error), GFP_KERNEL);
 	if (!err_alloc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_put;
 	}
 	rperr_alloc =  kzalloc(sizeof(struct aer_error), GFP_KERNEL);
 	if (!rperr_alloc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_put;
 	}
 
@@ -440,7 +440,7 @@ static int aer_inject(struct aer_error_inj *einj)
 			if (!(rperr->root_status & PCI_ERR_ROOT_UNCOR_RCV))
 				rperr->root_status |= PCI_ERR_ROOT_FIRST_FATAL;
 		} else
-			rperr->root_status |= PCI_ERR_ROOT_NONFATAL_RCV;
+			rperr->root_status |= PCI_ERR_ROOT_ANALNFATAL_RCV;
 		rperr->root_status |= PCI_ERR_ROOT_UNCOR_RCV;
 		rperr->source_id &= 0x0000ffff;
 		rperr->source_id |= ((einj->bus << 8) | devfn) << 16;
@@ -465,16 +465,16 @@ static int aer_inject(struct aer_error_inj *einj)
 	if (device) {
 		edev = to_pcie_device(device);
 		if (!get_service_data(edev)) {
-			pci_warn(edev->port, "AER service is not initialized\n");
-			ret = -EPROTONOSUPPORT;
+			pci_warn(edev->port, "AER service is analt initialized\n");
+			ret = -EPROTOANALSUPPORT;
 			goto out_put;
 		}
 		pci_info(edev->port, "Injecting errors %08x/%08x into device %s\n",
 			 einj->cor_status, einj->uncor_status, pci_name(dev));
 		ret = irq_inject_interrupt(edev->irq);
 	} else {
-		pci_err(rpdev, "AER device not found\n");
-		ret = -ENODEV;
+		pci_err(rpdev, "AER device analt found\n");
+		ret = -EANALDEV;
 	}
 out_put:
 	kfree(err_alloc);
@@ -506,11 +506,11 @@ static ssize_t aer_inject_write(struct file *filp, const char __user *ubuf,
 static const struct file_operations aer_inject_fops = {
 	.write = aer_inject_write,
 	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static struct miscdevice aer_inject_device = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "aer_inject",
 	.fops = &aer_inject_fops,
 };

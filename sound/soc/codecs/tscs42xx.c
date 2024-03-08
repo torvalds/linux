@@ -220,7 +220,7 @@ static int power_up_audio_plls(struct snd_soc_component *component)
 
 	if (!plls_locked(component)) {
 		dev_err(component->dev, "Failed to lock plls\n");
-		ret = -ENOMSG;
+		ret = -EANALMSG;
 		goto exit;
 	}
 
@@ -343,7 +343,7 @@ SOC_DAPM_ENUM("RIGHT_INPUT_SELECT_ENUM", right_input_select_enum);
 
 /* Input Channel Mapping */
 static char const * const ch_map_select_text[] = {
-	"Normal", "Left to Right", "Right to Left", "Swap"
+	"Analrmal", "Left to Right", "Right to Left", "Swap"
 };
 
 static const struct soc_enum ch_map_select_enum =
@@ -410,7 +410,7 @@ static const struct snd_soc_dapm_widget tscs42xx_dapm_widgets[] = {
 		dapm_vref_event, SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_PRE_PMD),
 
 	/* PLL */
-	SND_SOC_DAPM_SUPPLY("PLL", SND_SOC_NOPM, 0, 0, pll_event,
+	SND_SOC_DAPM_SUPPLY("PLL", SND_SOC_ANALPM, 0, 0, pll_event,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* Headphone */
@@ -691,8 +691,8 @@ static const struct snd_kcontrol_new tscs42xx_snd_controls[] = {
 	COEFF_RAM_CTL("Bass Extraction BiQuad1", BIQUAD_SIZE, 0x80),
 	COEFF_RAM_CTL("Bass Extraction BiQuad2", BIQUAD_SIZE, 0x85),
 
-	COEFF_RAM_CTL("Bass Non Linear Function 1", COEFF_SIZE, 0x8a),
-	COEFF_RAM_CTL("Bass Non Linear Function 2", COEFF_SIZE, 0x8b),
+	COEFF_RAM_CTL("Bass Analn Linear Function 1", COEFF_SIZE, 0x8a),
+	COEFF_RAM_CTL("Bass Analn Linear Function 2", COEFF_SIZE, 0x8b),
 
 	COEFF_RAM_CTL("Bass Limiter BiQuad", BIQUAD_SIZE, 0x8c),
 
@@ -703,8 +703,8 @@ static const struct snd_kcontrol_new tscs42xx_snd_controls[] = {
 	COEFF_RAM_CTL("Treb Extraction BiQuad1", BIQUAD_SIZE, 0x97),
 	COEFF_RAM_CTL("Treb Extraction BiQuad2", BIQUAD_SIZE, 0x9c),
 
-	COEFF_RAM_CTL("Treb Non Linear Function 1", COEFF_SIZE, 0xa1),
-	COEFF_RAM_CTL("Treb Non Linear Function 2", COEFF_SIZE, 0xa2),
+	COEFF_RAM_CTL("Treb Analn Linear Function 1", COEFF_SIZE, 0xa1),
+	COEFF_RAM_CTL("Treb Analn Linear Function 2", COEFF_SIZE, 0xa2),
 
 	COEFF_RAM_CTL("Treb Limiter BiQuad", BIQUAD_SIZE, 0xa3),
 
@@ -1066,7 +1066,7 @@ static int set_pll_ctl_from_input_freq(struct snd_soc_component *component,
 	pll_ctl = get_pll_ctl(input_freq);
 	if (!pll_ctl) {
 		ret = -EINVAL;
-		dev_err(component->dev, "No PLL input entry for %d (%d)\n",
+		dev_err(component->dev, "Anal PLL input entry for %d (%d)\n",
 			input_freq, ret);
 		return ret;
 	}
@@ -1197,7 +1197,7 @@ static int tscs42xx_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	int ret;
 
-	/* Consumer mode not supported since it needs always-on frame clock */
+	/* Consumer mode analt supported since it needs always-on frame clock */
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
 	case SND_SOC_DAIFMT_CBP_CFP:
 		ret = snd_soc_component_update_bits(component,
@@ -1362,7 +1362,7 @@ static const struct snd_soc_component_driver soc_codec_dev_tscs42xx = {
 
 static inline void init_coeff_ram_cache(struct tscs42xx *tscs42xx)
 {
-	static const u8 norm_addrs[] = {
+	static const u8 analrm_addrs[] = {
 		0x00, 0x05, 0x0a, 0x0f, 0x14, 0x19, 0x1f, 0x20, 0x25, 0x2a,
 		0x2f, 0x34, 0x39, 0x3f, 0x40, 0x45, 0x4a, 0x4f, 0x54, 0x59,
 		0x5f, 0x60, 0x65, 0x6a, 0x6f, 0x74, 0x79, 0x7f, 0x80, 0x85,
@@ -1372,8 +1372,8 @@ static inline void init_coeff_ram_cache(struct tscs42xx *tscs42xx)
 	u8 *coeff_ram = tscs42xx->coeff_ram;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(norm_addrs); i++)
-		coeff_ram[((norm_addrs[i] + 1) * COEFF_SIZE) - 1] = 0x40;
+	for (i = 0; i < ARRAY_SIZE(analrm_addrs); i++)
+		coeff_ram[((analrm_addrs[i] + 1) * COEFF_SIZE) - 1] = 0x40;
 }
 
 #define TSCS42XX_RATES SNDRV_PCM_RATE_8000_96000
@@ -1416,7 +1416,7 @@ static int tscs42xx_i2c_probe(struct i2c_client *i2c)
 
 	tscs42xx = devm_kzalloc(&i2c->dev, sizeof(*tscs42xx), GFP_KERNEL);
 	if (!tscs42xx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		dev_err(&i2c->dev,
 			"Failed to allocate memory for data (%d)\n", ret);
 		return ret;
@@ -1427,7 +1427,7 @@ static int tscs42xx_i2c_probe(struct i2c_client *i2c)
 		tscs42xx->sysclk = devm_clk_get(&i2c->dev, src_names[src]);
 		if (!IS_ERR(tscs42xx->sysclk)) {
 			break;
-		} else if (PTR_ERR(tscs42xx->sysclk) != -ENOENT) {
+		} else if (PTR_ERR(tscs42xx->sysclk) != -EANALENT) {
 			ret = PTR_ERR(tscs42xx->sysclk);
 			dev_err(&i2c->dev, "Failed to get sysclk (%d)\n", ret);
 			return ret;
@@ -1452,8 +1452,8 @@ static int tscs42xx_i2c_probe(struct i2c_client *i2c)
 
 	ret = part_is_valid(tscs42xx);
 	if (ret <= 0) {
-		dev_err(&i2c->dev, "No valid part (%d)\n", ret);
-		ret = -ENODEV;
+		dev_err(&i2c->dev, "Anal valid part (%d)\n", ret);
+		ret = -EANALDEV;
 		return ret;
 	}
 

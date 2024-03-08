@@ -42,7 +42,7 @@ struct mac_model
 	char floppy_type;
 };
 
-#define MAC_ADB_NONE		0
+#define MAC_ADB_ANALNE		0
 #define MAC_ADB_II		1
 #define MAC_ADB_EGRET		2
 #define MAC_ADB_CUDA		3
@@ -54,7 +54,7 @@ struct mac_model
 #define MAC_VIA_IICI		2
 #define MAC_VIA_QUADRA		3
 
-#define MAC_SCSI_NONE		0
+#define MAC_SCSI_ANALNE		0
 #define MAC_SCSI_OLD		1
 #define MAC_SCSI_QUADRA		2
 #define MAC_SCSI_QUADRA2	3
@@ -63,7 +63,7 @@ struct mac_model
 #define MAC_SCSI_DUO		6
 #define MAC_SCSI_LC		7
 
-#define MAC_IDE_NONE		0
+#define MAC_IDE_ANALNE		0
 #define MAC_IDE_QUADRA		1
 #define MAC_IDE_PB		2
 #define MAC_IDE_BABOON		3
@@ -73,11 +73,11 @@ struct mac_model
 #define MAC_SCC_QUADRA		3
 #define MAC_SCC_PSC		4
 
-#define MAC_ETHER_NONE		0
+#define MAC_ETHER_ANALNE		0
 #define MAC_ETHER_SONIC		1
 #define MAC_ETHER_MACE		2
 
-#define MAC_EXP_NONE		0
+#define MAC_EXP_ANALNE		0
 #define MAC_EXP_PDS		1 /* Accepts only a PDS card */
 #define MAC_EXP_NUBUS		2 /* Accepts only NuBus card(s) */
 #define MAC_EXP_PDS_NUBUS	3 /* Accepts PDS card and/or NuBus card(s) */

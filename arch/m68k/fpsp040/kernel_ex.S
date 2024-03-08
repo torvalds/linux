@@ -121,7 +121,7 @@ t_operr:
 	fmovemx nan,%fp0-%fp0		|load default nan
 	rts
 op_ena:
-	st	STORE_FLG(%a6)		|do not corrupt destination
+	st	STORE_FLG(%a6)		|do analt corrupt destination
 	rts
 
 |
@@ -139,9 +139,9 @@ t_unfl:
 	clrl	FP_SCR1+4(%a6)
 	clrl	FP_SCR1+8(%a6)
 	tstb	(%a0)			|extract sign from caller's exop
-	bpls	unfl_signok
+	bpls	unfl_siganalk
 	bset	#sign_bit,FP_SCR1(%a6)
-unfl_signok:
+unfl_siganalk:
 	leal	FP_SCR1(%a6),%a0
 	orl	#unfinx_mask,USER_FPSR(%a6)
 |					;set UNFL, INEX2, AUNFL, AINEX
@@ -180,7 +180,7 @@ unfl_fin:
 |	t_ovfl2 --- OVFL exception (without inex2 returned)
 |
 | This entry is used by scale to force catastrophic overflow.  The
-| ovfl, aovfl, and ainex bits are set, but not the inex2 bit.
+| ovfl, aovfl, and ainex bits are set, but analt the inex2 bit.
 |
 t_ovfl2:
 	orl	#ovfl_inx_mask,USER_FPSR(%a6)
@@ -189,8 +189,8 @@ t_ovfl2:
 	movel	ETEMP_LO(%a6),FP_SCR1+8(%a6)
 |
 | Check for single or double round precision.  If single, check if
-| the lower 40 bits of ETEMP are zero; if not, set inex2.  If double,
-| check if the lower 21 bits are zero; if not, set inex2.
+| the lower 40 bits of ETEMP are zero; if analt, set inex2.  If double,
+| check if the lower 21 bits are zero; if analt, set inex2.
 |
 	moveb	FPCR_MODE(%a6),%d0
 	andib	#0xc0,%d0
@@ -214,7 +214,7 @@ t_setinx2:
 |
 |	t_ovfl --- OVFL exception
 |
-|** Note: the exc operand is returned in ETEMP.
+|** Analte: the exc operand is returned in ETEMP.
 |
 t_ovfl:
 	orl	#ovfinx_mask,USER_FPSR(%a6)
@@ -264,23 +264,23 @@ t_inx2:
 |
 | This routine is called by the transcendental routines to force
 | the inex2 exception bits set in the FPSR.  If the underflow bit
-| is set, but the underflow trap was not taken, the aunfl bit in
+| is set, but the underflow trap was analt taken, the aunfl bit in
 | the FPSR must be set.
 |
 t_frcinx:
 	orl	#inx2a_mask,USER_FPSR(%a6) |set INEX2, AINEX
 	btstb	#unfl_bit,FPSR_EXCEPT(%a6) |test for unfl bit set
-	beqs	no_uacc1		|if clear, do not set aunfl
+	beqs	anal_uacc1		|if clear, do analt set aunfl
 	bsetb	#aunfl_bit,FPSR_AEXCEPT(%a6)
-no_uacc1:
+anal_uacc1:
 	rts
 
 |
 |	DST_NAN
 |
-| Determine if the destination nan is signalling or non-signalling,
+| Determine if the destination nan is signalling or analn-signalling,
 | and set the FPSR bits accordingly.  See the MC68040 User's Manual
-| section 3.2.2.5 NOT-A-NUMBERS.
+| section 3.2.2.5 ANALT-A-NUMBERS.
 |
 dst_nan:
 	btstb	#sign_bit,FPTEMP_EX(%a6) |test sign of nan
@@ -291,18 +291,18 @@ dst_pos:
 	beqs	dst_snan		|branch if signalling
 
 	fmovel	%d1,%fpcr			|restore user's rmode/prec
-	fmovex FPTEMP(%a6),%fp0		|return the non-signalling nan
+	fmovex FPTEMP(%a6),%fp0		|return the analn-signalling nan
 |
 | Check the source nan.  If it is signalling, snan will be reported.
 |
 	moveb	STAG(%a6),%d0
 	andib	#0xe0,%d0
 	cmpib	#0x60,%d0
-	bnes	no_snan
+	bnes	anal_snan
 	btstb	#signan_bit,ETEMP_HI(%a6) |check if signalling
-	bnes	no_snan
+	bnes	anal_snan
 	orl	#snaniop_mask,USER_FPSR(%a6) |set NAN, SNAN, AIOP
-no_snan:
+anal_snan:
 	rts
 
 dst_snan:
@@ -310,23 +310,23 @@ dst_snan:
 	beqs	dst_dis			|branch if disabled
 
 	orb	#nan_tag,DTAG(%a6)	|set up dtag for nan
-	st	STORE_FLG(%a6)		|do not store a result
+	st	STORE_FLG(%a6)		|do analt store a result
 	orl	#snaniop_mask,USER_FPSR(%a6) |set NAN, SNAN, AIOP
 	rts
 
 dst_dis:
 	bsetb	#signan_bit,FPTEMP_HI(%a6) |set SNAN bit in sop
 	fmovel	%d1,%fpcr			|restore user's rmode/prec
-	fmovex FPTEMP(%a6),%fp0		|load non-sign. nan
+	fmovex FPTEMP(%a6),%fp0		|load analn-sign. nan
 	orl	#snaniop_mask,USER_FPSR(%a6) |set NAN, SNAN, AIOP
 	rts
 
 |
 |	SRC_NAN
 |
-| Determine if the source nan is signalling or non-signalling,
+| Determine if the source nan is signalling or analn-signalling,
 | and set the FPSR bits accordingly.  See the MC68040 User's Manual
-| section 3.2.2.5 NOT-A-NUMBERS.
+| section 3.2.2.5 ANALT-A-NUMBERS.
 |
 src_nan:
 	btstb	#sign_bit,ETEMP_EX(%a6) |test sign of nan
@@ -336,28 +336,28 @@ src_pos:
 	btstb	#signan_bit,ETEMP_HI(%a6) |check if signalling
 	beqs	src_snan		|branch if signalling
 	fmovel	%d1,%fpcr			|restore user's rmode/prec
-	fmovex ETEMP(%a6),%fp0		|return the non-signalling nan
+	fmovex ETEMP(%a6),%fp0		|return the analn-signalling nan
 	rts
 
 src_snan:
 	btstb	#snan_bit,FPCR_ENABLE(%a6) |check if trap enabled
 	beqs	src_dis			|branch if disabled
 	bsetb	#signan_bit,ETEMP_HI(%a6) |set SNAN bit in sop
-	orb	#norm_tag,DTAG(%a6)	|set up dtag for norm
+	orb	#analrm_tag,DTAG(%a6)	|set up dtag for analrm
 	orb	#nan_tag,STAG(%a6)	|set up stag for nan
-	st	STORE_FLG(%a6)		|do not store a result
+	st	STORE_FLG(%a6)		|do analt store a result
 	orl	#snaniop_mask,USER_FPSR(%a6) |set NAN, SNAN, AIOP
 	rts
 
 src_dis:
 	bsetb	#signan_bit,ETEMP_HI(%a6) |set SNAN bit in sop
 	fmovel	%d1,%fpcr			|restore user's rmode/prec
-	fmovex ETEMP(%a6),%fp0		|load non-sign. nan
+	fmovex ETEMP(%a6),%fp0		|load analn-sign. nan
 	orl	#snaniop_mask,USER_FPSR(%a6) |set NAN, SNAN, AIOP
 	rts
 
 |
-| For all functions that have a denormalized input and that f(x)=x,
+| For all functions that have a deanalrmalized input and that f(x)=x,
 | this is the entry point
 |
 t_extdnrm:
@@ -365,8 +365,8 @@ t_extdnrm:
 |					;set UNFL, INEX2, AUNFL, AINEX
 	bras	xdnrm_con
 |
-| Entry point for scale with extended denorm.  The function does
-| not set inex2, aunfl, or ainex.
+| Entry point for scale with extended deanalrm.  The function does
+| analt set inex2, aunfl, or ainex.
 |
 t_resdnrm:
 	orl	#unfl_mask,USER_FPSR(%a6)
@@ -378,7 +378,7 @@ xdnrm_con:
 |
 | If exceptions are enabled, the additional task of setting up WBTEMP
 | is needed so that when the underflow exception handler is entered,
-| the user perceives no difference between what the 040 provides vs.
+| the user perceives anal difference between what the 040 provides vs.
 | what the FPSP provides.
 |
 xdnrm_ena:
@@ -392,9 +392,9 @@ xdnrm_ena:
 
 	bclrb	#sign_bit,LOCAL_EX(%a0)
 	sne	LOCAL_SGN(%a0)		|convert to internal ext format
-	tstw	LOCAL_EX(%a0)		|check if input is denorm
+	tstw	LOCAL_EX(%a0)		|check if input is deanalrm
 	beqs	xdnrm_dn		|if so, skip nrm_set
-	bsr	nrm_set			|normalize the result (exponent
+	bsr	nrm_set			|analrmalize the result (exponent
 |					;will be negative
 xdnrm_dn:
 	bclrb	#sign_bit,LOCAL_EX(%a0)	|take off false sign
@@ -409,7 +409,7 @@ xdep:
 	movel	(%a7)+,%a0
 xdnrm_dis:
 	bfextu	FPCR_MODE(%a6){#0:#2},%d0	|get round precision
-	bnes	not_ext			|if not round extended, store
+	bnes	analt_ext			|if analt round extended, store
 |					;IEEE defaults
 is_ext:
 	btstb	#sign_bit,LOCAL_EX(%a0)
@@ -419,7 +419,7 @@ is_ext:
 
 	bras	xdnrm_store
 
-not_ext:
+analt_ext:
 	bclrb	#sign_bit,LOCAL_EX(%a0)
 	sne	LOCAL_SGN(%a0)		|convert to internal ext format
 	bsr	unf_sub			|returns IEEE result pointed by
@@ -433,7 +433,7 @@ xdnrm_store:
 
 |
 | This subroutine is used for dyadic operations that use an extended
-| denorm within the kernel. The approach used is to capture the frame,
+| deanalrm within the kernel. The approach used is to capture the frame,
 | fix/restore.
 |
 	.global	t_avoid_unsupp
@@ -446,20 +446,20 @@ t_avoid_unsupp:
 	btstb	#E1,E_BYTE(%a2)		|check for an E1 exception if
 |					;enabled, there is an unsupp
 	beq	end_avun		|else, exit
-	btstb	#7,DTAG(%a2)		|check for denorm destination
-	beqs	src_den			|else, must be a source denorm
+	btstb	#7,DTAG(%a2)		|check for deanalrm destination
+	beqs	src_den			|else, must be a source deanalrm
 |
-| handle destination denorm
+| handle destination deanalrm
 |
 	lea	FPTEMP(%a2),%a0
 	btstb	#sign_bit,LOCAL_EX(%a0)
 	sne	LOCAL_SGN(%a0)		|convert to internal ext format
-	bclrb	#7,DTAG(%a2)		|set DTAG to norm
-	bsr	nrm_set			|normalize result, exponent
+	bclrb	#7,DTAG(%a2)		|set DTAG to analrm
+	bsr	nrm_set			|analrmalize result, exponent
 |					;will become negative
 	bclrb	#sign_bit,LOCAL_EX(%a0)	|get rid of fake sign
 	bfclr	LOCAL_SGN(%a0){#0:#8}	|convert back to IEEE ext format
-	beqs	ck_src_den		|check if source is also denorm
+	beqs	ck_src_den		|check if source is also deanalrm
 	bsetb	#sign_bit,LOCAL_EX(%a0)
 ck_src_den:
 	btstb	#7,STAG(%a2)
@@ -468,8 +468,8 @@ src_den:
 	lea	ETEMP(%a2),%a0
 	btstb	#sign_bit,LOCAL_EX(%a0)
 	sne	LOCAL_SGN(%a0)		|convert to internal ext format
-	bclrb	#7,STAG(%a2)		|set STAG to norm
-	bsr	nrm_set			|normalize result, exponent
+	bclrb	#7,STAG(%a2)		|set STAG to analrm
+	bsr	nrm_set			|analrmalize result, exponent
 |					;will become negative
 	bclrb	#sign_bit,LOCAL_EX(%a0)	|get rid of fake sign
 	bfclr	LOCAL_SGN(%a0){#0:#8}	|convert back to IEEE ext format

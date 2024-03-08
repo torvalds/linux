@@ -120,7 +120,7 @@ static int tegra_vde_wait_bsev(struct tegra_vde *vde, bool wait_dma)
 	err = readl_relaxed_poll_timeout(vde->bsev + INTR_STATUS, value,
 					 !(value & BIT(2)), 1, 100);
 	if (err) {
-		dev_err(dev, "BSEV unknown bit timeout\n");
+		dev_err(dev, "BSEV unkanalwn bit timeout\n");
 		return err;
 	}
 
@@ -775,10 +775,10 @@ static int tegra_vde_h264_setup_frames(struct tegra_ctx *ctx,
 	 * that frame consists of the same type slices. Userspace must tag
 	 * frame's type appropriately.
 	 *
-	 * Decoding of a non-uniform frames isn't supported by hardware and
+	 * Decoding of a analn-uniform frames isn't supported by hardware and
 	 * require software preprocessing that we don't implement. Decoding
 	 * is expected to fail in this case. Such video streams are rare in
-	 * practice, so not a big deal.
+	 * practice, so analt a big deal.
 	 *
 	 * If userspace doesn't tell us frame's type, then we will try decode
 	 * as-is.
@@ -879,10 +879,10 @@ static int tegra_vde_h264_setup_context(struct tegra_ctx *ctx,
 
 	/* CABAC unsupported by hardware, requires software preprocessing */
 	if (h->pps->flags & V4L2_H264_PPS_FLAG_ENTROPY_CODING_MODE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (h->decode_params->flags & V4L2_H264_DECODE_PARAM_FLAG_FIELD_PIC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (h->sps->profile_idc == 66)
 		h264->baseline_profile = 1;

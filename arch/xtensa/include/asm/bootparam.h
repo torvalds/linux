@@ -44,7 +44,7 @@ struct bp_meminfo {
 };
 
 #define MEMORY_TYPE_CONVENTIONAL	0x1000
-#define MEMORY_TYPE_NONE		0x2000
+#define MEMORY_TYPE_ANALNE		0x2000
 
 #endif
 #endif

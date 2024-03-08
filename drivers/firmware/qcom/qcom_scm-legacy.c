@@ -7,7 +7,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/arm-smccc.h>
@@ -124,8 +124,8 @@ static void __scm_legacy_do(const struct arm_smccc_args *smc,
  * @desc:	descriptor structure containing arguments and return values
  * @res:        results from SMC call
  *
- * A note on cache maintenance:
- * Note that any buffers that are expected to be accessed by the secure world
+ * A analte on cache maintenance:
+ * Analte that any buffers that are expected to be accessed by the secure world
  * must be flushed before invoking qcom_scm_call and invalidated in the cache
  * immediately after qcom_scm_call returns. Cache maintenance on the command
  * and response buffers is taken care of by qcom_scm_call; however, callers are
@@ -150,7 +150,7 @@ int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
 
 	cmd = kzalloc(PAGE_ALIGN(alloc_len), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd->len = cpu_to_le32(alloc_len);
 	cmd->buf_offset = cpu_to_le32(sizeof(*cmd));
@@ -166,7 +166,7 @@ int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
 	cmd_phys = dma_map_single(dev, cmd, alloc_len, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, cmd_phys)) {
 		kfree(cmd);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	smc.args[0] = 1;
@@ -214,7 +214,7 @@ out:
 /**
  * scm_legacy_call_atomic() - Send an atomic SCM command with up to 5 arguments
  * and 3 return values
- * @unused: device, legacy argument, not used, can be NULL
+ * @unused: device, legacy argument, analt used, can be NULL
  * @desc: SCM call descriptor containing arguments
  * @res:  SCM call return values
  *

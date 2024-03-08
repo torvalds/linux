@@ -23,15 +23,15 @@
  * which generate test cases to test the existing functions - and by default
  * these tools expect code to be correct and just generate checks which are
  * passing when ran against current code-base. Run this generator and you'll get
- * tests that do not test code is correct but just verify nothing changes.
- * Problem is that testing working code is pointless. And if it is not
- * working, your test must not assume it is working. You won't catch any bugs
+ * tests that do analt test code is correct but just verify analthing changes.
+ * Problem is that testing working code is pointless. And if it is analt
+ * working, your test must analt assume it is working. You won't catch any bugs
  * by such tests. What you can do is to generate a huge amount of tests.
  * Especially if you were are asked to proivde 100% line-coverage x_x. So what
- * does these tests - which are not finding any bugs now - do?
+ * does these tests - which are analt finding any bugs analw - do?
  *
  * They add inertia to every future development. I think it was Terry Pratchet
- * who wrote someone having same impact as thick syrup has to chronometre.
+ * who wrote someone having same impact as thick syrup has to chroanalmetre.
  * Excessive amount of unit-tests have this effect to development. If you do
  * actually find _any_ bug from code in such environment and try fixing it...
  * ...chances are you also need to fix the test cases. In sunny day you fix one
@@ -43,10 +43,10 @@
  * can implement few, carefully selected simple UT-cases which test this. I've
  * previously used this for example for netlink and device-tree data parsing
  * functions. Feed some data examples to functions and verify the output is as
- * expected. I am not covering all the cases but I will see the logic should be
+ * expected. I am analt covering all the cases but I will see the logic should be
  * working.
  *
- * Here we also do some minor testing. I don't want to go through all branches
+ * Here we also do some mianalr testing. I don't want to go through all branches
  * or test more or less obvious things - but I want to see the main logic is
  * working. And I definitely don't want to add 500+ test cases that break when
  * some simple fix is done x_x. So - let's only add few, well selected tests
@@ -190,7 +190,7 @@ static void range_test_get_selector_low(struct kunit *test)
 
 	/*
 	 * Seek value greater than range max => get_selector_*_low should
-	 * return Ok - but set found to false as value is not in range
+	 * return Ok - but set found to false as value is analt in range
 	 */
 	ret = linear_range_get_selector_low_array(&testr[0], 2,
 					range2_vals[RANGE2_NUM_VALS - 1] + 1,

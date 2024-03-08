@@ -73,7 +73,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	sigset_t set;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	frame = (struct rt_sigframe __user *)regs->usp;
 
@@ -114,7 +114,7 @@ static inline void __user *get_sigframe(struct ksignal *ksig,
 	struct pt_regs *regs, size_t framesize)
 {
 	unsigned long sp;
-	/* Default to using normal stack */
+	/* Default to using analrmal stack */
 	sp = regs->usp;
 
 	/*
@@ -187,7 +187,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		/* If so, check system call restarting.. */
 		switch (regs->a0) {
 		case -ERESTART_RESTARTBLOCK:
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 			regs->a0 = -EINTR;
 			break;
 
@@ -197,7 +197,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				break;
 			}
 			fallthrough;
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 			regs->a0 = regs->orig_a0;
 			regs->pc -= TRAP0_SIZE;
 			break;
@@ -225,11 +225,11 @@ static void do_signal(struct pt_regs *regs)
 		/* Avoid additional syscall restarting via ret_from_exception */
 		forget_syscall(regs);
 
-		/* Restart the system call - no handlers present */
+		/* Restart the system call - anal handlers present */
 		switch (regs->a0) {
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 		case -ERESTARTSYS:
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 			regs->a0 = regs->orig_a0;
 			regs->pc -= TRAP0_SIZE;
 			break;
@@ -242,26 +242,26 @@ static void do_signal(struct pt_regs *regs)
 	}
 
 	/*
-	 * If there is no signal to deliver, we just put the saved
+	 * If there is anal signal to deliver, we just put the saved
 	 * sigmask back.
 	 */
 	restore_saved_sigmask();
 }
 
 /*
- * notification of userspace execution resumption
+ * analtification of userspace execution resumption
  * - triggered by the _TIF_WORK_MASK flags
  */
-asmlinkage void do_notify_resume(struct pt_regs *regs,
+asmlinkage void do_analtify_resume(struct pt_regs *regs,
 	unsigned long thread_info_flags)
 {
 	if (thread_info_flags & _TIF_UPROBE)
-		uprobe_notify_resume(regs);
+		uprobe_analtify_resume(regs);
 
 	/* Handle pending signal delivery */
-	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
+	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_ANALTIFY_SIGNAL))
 		do_signal(regs);
 
-	if (thread_info_flags & _TIF_NOTIFY_RESUME)
+	if (thread_info_flags & _TIF_ANALTIFY_RESUME)
 		resume_user_mode_work(regs);
 }

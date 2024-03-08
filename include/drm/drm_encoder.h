@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -43,7 +43,7 @@ struct drm_encoder_funcs {
 	 *
 	 * Reset encoder hardware and software state to off. This function isn't
 	 * called by the core directly, only through drm_mode_config_reset().
-	 * It's not a helper hook only for historical reasons.
+	 * It's analt a helper hook only for historical reasons.
 	 */
 	void (*reset)(struct drm_encoder *encoder);
 
@@ -51,7 +51,7 @@ struct drm_encoder_funcs {
 	 * @destroy:
 	 *
 	 * Clean up encoder resources. This is only called at driver unload time
-	 * through drm_mode_config_cleanup() since an encoder cannot be
+	 * through drm_mode_config_cleanup() since an encoder cananalt be
 	 * hotplugged in DRM.
 	 */
 	void (*destroy)(struct drm_encoder *encoder);
@@ -150,8 +150,8 @@ struct drm_encoder {
 	 *
 	 * You will get a WARN if you get this wrong in the driver.
 	 *
-	 * Note that since CRTC objects can't be hotplugged the assigned indices
-	 * are stable and hence known before registering all objects.
+	 * Analte that since CRTC objects can't be hotplugged the assigned indices
+	 * are stable and hence kanalwn before registering all objects.
 	 */
 	uint32_t possible_crtcs;
 
@@ -163,7 +163,7 @@ struct drm_encoder {
 	 * drm_dev_register(). Drivers should set the bit representing the
 	 * encoder itself, too. Cloning bits should be set such that when two
 	 * encoders can be used in a cloned configuration, they both should have
-	 * each another bits set.
+	 * each aanalther bits set.
 	 *
 	 * As an exception to the above rule if the driver doesn't implement
 	 * any cloning it can leave @possible_clones set to 0. The core will
@@ -171,20 +171,20 @@ struct drm_encoder {
 	 *
 	 * You will get a WARN if you get this wrong in the driver.
 	 *
-	 * Note that since encoder objects can't be hotplugged the assigned indices
-	 * are stable and hence known before registering all objects.
+	 * Analte that since encoder objects can't be hotplugged the assigned indices
+	 * are stable and hence kanalwn before registering all objects.
 	 */
 	uint32_t possible_clones;
 
 	/**
-	 * @crtc: Currently bound CRTC, only really meaningful for non-atomic
+	 * @crtc: Currently bound CRTC, only really meaningful for analn-atomic
 	 * drivers.  Atomic drivers should instead check
 	 * &drm_connector_state.crtc.
 	 */
 	struct drm_crtc *crtc;
 
 	/**
-	 * @bridge_chain: Bridges attached to this encoder. Drivers shall not
+	 * @bridge_chain: Bridges attached to this encoder. Drivers shall analt
 	 * access this field directly.
 	 */
 	struct list_head bridge_chain;
@@ -252,7 +252,7 @@ void *__drmm_encoder_alloc(struct drm_device *dev,
  * @name: printf style format string for the encoder name, or NULL for default name
  *
  * This is a simplified version of drmm_encoder_alloc(), which only allocates
- * and returns a struct drm_encoder instance, with no subclassing.
+ * and returns a struct drm_encoder instance, with anal subclassing.
  *
  * Returns:
  * Pointer to the new drm_encoder struct, or ERR_PTR on failure.

@@ -13,7 +13,7 @@ IBM Virtual Management Channel Kernel Driver (IBMVMC)
 Introduction
 ============
 
-Note: Knowledge of virtualization technology is required to understand
+Analte: Kanalwledge of virtualization techanallogy is required to understand
 this document.
 
 A good reference document would be:
@@ -77,7 +77,7 @@ management partition sides of the channel are running prior to
 sending/receiving any of the protocol messages.
 
 This driver also utilizes Transport Event CRQs. CRQ messages are sent
-when the hypervisor detects one of the peer partitions has abnormally
+when the hypervisor detects one of the peer partitions has abanalrmally
 terminated, or one side has called H_FREE_CRQ to close their CRQ.
 Two new classes of CRQ messages are introduced for the VMC device. VMC
 Administrative messages are used for each partition using the VMC to
@@ -89,7 +89,7 @@ Interface CRQ message. Only the management partition drives RDMA
 operations; hypervisors never directly cause the movement of message data.
 
 
-Terminology
+Termianallogy
 -----------
 RDMA
         Remote Direct Memory Access is DMA transfer from the server to its
@@ -154,7 +154,7 @@ message to the hypervisor to establish the session over the VMC. After the
 hypervisor receives this information, it sends Add Buffer messages to the
 management partition to seed an initial pool of buffers for the new HMC
 connection. Finally, the hypervisor sends an Interface Open Response
-message, to indicate that it is ready for normal runtime messaging. The
+message, to indicate that it is ready for analrmal runtime messaging. The
 following illustrates this VMC flow:
 
 ::
@@ -174,19 +174,19 @@ following illustrates this VMC flow:
 VMC Interface Runtime
 ---------------------
 
-During normal runtime, the management application and the hypervisor
+During analrmal runtime, the management application and the hypervisor
 exchange HMC messages via the Signal VMC message and RDMA operations. When
 sending data to the hypervisor, the management application performs a
 write() to the VMC device, and the driver RDMA’s the data to the hypervisor
 and then sends a Signal Message. If a write() is attempted before VMC
-device buffers have been made available by the hypervisor, or no buffers
+device buffers have been made available by the hypervisor, or anal buffers
 are currently available, EBUSY is returned in response to the write(). A
 write() will return EIO for all other errors, such as an invalid device
 state. When the hypervisor sends a message to the management, the data is
 put into a VMC buffer and an Signal Message is sent to the VMC driver in
 the management partition. The driver RDMA’s the buffer into the partition
 and passes the data up to the appropriate management application via a
-read() to the VMC device. The read() request blocks if there is no buffer
+read() to the VMC device. The read() request blocks if there is anal buffer
 available to read. The management application may use select() to wait for
 the VMC device to become ready with data to read.
 

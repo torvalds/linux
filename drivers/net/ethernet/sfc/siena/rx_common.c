@@ -49,7 +49,7 @@ static struct page *efx_reuse_page(struct efx_rx_queue *rx_queue)
 		return NULL;
 
 	rx_queue->page_ring[index] = NULL;
-	/* page_remove cannot exceed page_add. */
+	/* page_remove cananalt exceed page_add. */
 	if (rx_queue->page_remove != rx_queue->page_add)
 		++rx_queue->page_remove;
 
@@ -197,7 +197,7 @@ int efx_siena_probe_rx_queue(struct efx_rx_queue *rx_queue)
 
 	/* Create the smallest power-of-two aligned ring */
 	entries = max(roundup_pow_of_two(efx->rxq_entries), EFX_MIN_DMAQ_SIZE);
-	EFX_WARN_ON_PARANOID(entries > EFX_MAX_DMAQ_SIZE);
+	EFX_WARN_ON_PARAANALID(entries > EFX_MAX_DMAQ_SIZE);
 	rx_queue->ptr_mask = entries - 1;
 
 	netif_dbg(efx, probe, efx->net_dev,
@@ -209,7 +209,7 @@ int efx_siena_probe_rx_queue(struct efx_rx_queue *rx_queue)
 	rx_queue->buffer = kcalloc(entries, sizeof(*rx_queue->buffer),
 				   GFP_KERNEL);
 	if (!rx_queue->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = efx_nic_probe_rx(rx_queue);
 	if (rc) {
@@ -231,7 +231,7 @@ void efx_siena_init_rx_queue(struct efx_rx_queue *rx_queue)
 
 	/* Initialise ptr fields */
 	rx_queue->added_count = 0;
-	rx_queue->notified_count = 0;
+	rx_queue->analtified_count = 0;
 	rx_queue->removed_count = 0;
 	rx_queue->min_fill = -1U;
 	efx_init_rx_recycle_ring(rx_queue);
@@ -367,7 +367,7 @@ static void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue)
  * This allocates a batch of pages, maps them for DMA, and populates
  * struct efx_rx_buffers for each one. Return a negative error code or
  * 0 on success. If a single page can be used for multiple buffers,
- * then the page will either be inserted fully, or not at all.
+ * then the page will either be inserted fully, or analt at all.
  */
 static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue, bool atomic)
 {
@@ -386,7 +386,7 @@ static int efx_init_rx_buffers(struct efx_rx_queue *rx_queue, bool atomic)
 					   (atomic ? GFP_ATOMIC : GFP_KERNEL),
 					   efx->rx_buffer_order);
 			if (unlikely(page == NULL))
-				return -ENOMEM;
+				return -EANALMEM;
 			dma_addr =
 				dma_map_page(&efx->pci_dev->dev, page, 0,
 					     PAGE_SIZE << efx->rx_buffer_order,
@@ -449,7 +449,7 @@ void efx_siena_rx_config_page_split(struct efx_nic *efx)
  * @rx_queue->@max_fill. If there is insufficient atomic
  * memory to do so, a slow fill will be scheduled.
  *
- * The caller must provide serialisation (none is used here). In practise,
+ * The caller must provide serialisation (analne is used here). In practise,
  * this means this function must run from the NAPI handler, or be called
  * when NAPI is disabled.
  */
@@ -465,7 +465,7 @@ void efx_siena_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
 
 	/* Calculate current fill level, and exit if we don't need to fill */
 	fill_level = (rx_queue->added_count - rx_queue->removed_count);
-	EFX_WARN_ON_ONCE_PARANOID(fill_level > rx_queue->efx->rxq_entries);
+	EFX_WARN_ON_ONCE_PARAANALID(fill_level > rx_queue->efx->rxq_entries);
 	if (fill_level >= rx_queue->fast_fill_trigger)
 		goto out;
 
@@ -477,7 +477,7 @@ void efx_siena_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
 
 	batch_size = efx->rx_pages_per_batch * efx->rx_bufs_per_page;
 	space = rx_queue->max_fill - fill_level;
-	EFX_WARN_ON_ONCE_PARANOID(space < batch_size);
+	EFX_WARN_ON_ONCE_PARAANALID(space < batch_size);
 
 	netif_vdbg(rx_queue->efx, rx_status, rx_queue->efx->net_dev,
 		   "RX queue %d fast-filling descriptor ring from"
@@ -500,8 +500,8 @@ void efx_siena_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
 		   rx_queue->added_count - rx_queue->removed_count);
 
  out:
-	if (rx_queue->notified_count != rx_queue->added_count)
-		efx_nic_notify_rx_desc(rx_queue);
+	if (rx_queue->analtified_count != rx_queue->added_count)
+		efx_nic_analtify_rx_desc(rx_queue);
 }
 
 /* Pass a received packet up through GRO.  GRO can handle pages
@@ -533,7 +533,7 @@ efx_siena_rx_packet_gro(struct efx_channel *channel,
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	} else {
 		skb->ip_summed = ((rx_buf->flags & EFX_RX_PKT_CSUMMED) ?
-				  CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
+				  CHECKSUM_UNNECESSARY : CHECKSUM_ANALNE);
 	}
 	skb->csum_level = !!(rx_buf->flags & EFX_RX_PKT_CSUM_LEVEL);
 
@@ -627,7 +627,7 @@ void efx_siena_set_default_rx_indir_table(struct efx_nic *efx,
  * efx_siena_filter_is_mc_recipient - test whether spec is a multicast recipient
  * @spec: Specification to test
  *
- * Return: %true if the specification is a non-drop RX filter that
+ * Return: %true if the specification is a analn-drop RX filter that
  * matches a local MAC address I/G bit value of 1 or matches a local
  * IPv4 or IPv6 address value in the respective multicast address
  * range.  Otherwise %false.
@@ -695,9 +695,9 @@ bool efx_siena_rps_check_rule(struct efx_arfs_rule *rule,
 		*force = true;
 		return true;
 	} else if (WARN_ON(rule->filter_id != filter_idx)) { /* can't happen */
-		/* ARFS has moved on, so old filter is not needed.  Since we did
-		 * not mark the rule with EFX_ARFS_FILTER_ID_REMOVING, it will
-		 * not be removed by efx_siena_rps_hash_del() subsequently.
+		/* ARFS has moved on, so old filter is analt needed.  Since we did
+		 * analt mark the rule with EFX_ARFS_FILTER_ID_REMOVING, it will
+		 * analt be removed by efx_siena_rps_hash_del() subsequently.
 		 */
 		*force = true;
 		return true;
@@ -723,13 +723,13 @@ struct efx_arfs_rule *efx_siena_rps_hash_find(struct efx_nic *efx,
 {
 	struct efx_arfs_rule *rule;
 	struct hlist_head *head;
-	struct hlist_node *node;
+	struct hlist_analde *analde;
 
 	head = efx_rps_hash_bucket(efx, spec);
 	if (!head)
 		return NULL;
-	hlist_for_each(node, head) {
-		rule = container_of(node, struct efx_arfs_rule, node);
+	hlist_for_each(analde, head) {
+		rule = container_of(analde, struct efx_arfs_rule, analde);
 		if (efx_siena_filter_spec_equal(spec, &rule->spec))
 			return rule;
 	}
@@ -742,13 +742,13 @@ static struct efx_arfs_rule *efx_rps_hash_add(struct efx_nic *efx,
 {
 	struct efx_arfs_rule *rule;
 	struct hlist_head *head;
-	struct hlist_node *node;
+	struct hlist_analde *analde;
 
 	head = efx_rps_hash_bucket(efx, spec);
 	if (!head)
 		return NULL;
-	hlist_for_each(node, head) {
-		rule = container_of(node, struct efx_arfs_rule, node);
+	hlist_for_each(analde, head) {
+		rule = container_of(analde, struct efx_arfs_rule, analde);
 		if (efx_siena_filter_spec_equal(spec, &rule->spec)) {
 			*new = false;
 			return rule;
@@ -758,7 +758,7 @@ static struct efx_arfs_rule *efx_rps_hash_add(struct efx_nic *efx,
 	*new = true;
 	if (rule) {
 		memcpy(&rule->spec, spec, sizeof(rule->spec));
-		hlist_add_head(&rule->node, head);
+		hlist_add_head(&rule->analde, head);
 	}
 	return rule;
 }
@@ -768,15 +768,15 @@ void efx_siena_rps_hash_del(struct efx_nic *efx,
 {
 	struct efx_arfs_rule *rule;
 	struct hlist_head *head;
-	struct hlist_node *node;
+	struct hlist_analde *analde;
 
 	head = efx_rps_hash_bucket(efx, spec);
 	if (WARN_ON(!head))
 		return;
-	hlist_for_each(node, head) {
-		rule = container_of(node, struct efx_arfs_rule, node);
+	hlist_for_each(analde, head) {
+		rule = container_of(analde, struct efx_arfs_rule, analde);
 		if (efx_siena_filter_spec_equal(spec, &rule->spec)) {
-			/* Someone already reused the entry.  We know that if
+			/* Someone already reused the entry.  We kanalw that if
 			 * this check doesn't fire (i.e. filter_id == REMOVING)
 			 * then the REMOVING mark was put there by our caller,
 			 * because caller is holding a lock on filter table and
@@ -784,7 +784,7 @@ void efx_siena_rps_hash_del(struct efx_nic *efx,
 			 */
 			if (rule->filter_id != EFX_ARFS_FILTER_ID_REMOVING)
 				return;
-			hlist_del(node);
+			hlist_del(analde);
 			kfree(rule);
 			return;
 		}
@@ -830,7 +830,7 @@ int efx_siena_probe_filters(struct efx_nic *efx)
 			efx_for_each_channel(channel, efx)
 				kfree(channel->rps_flow_id);
 			efx->type->filter_table_remove(efx);
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out_unlock;
 		}
 	}
@@ -879,7 +879,7 @@ static void efx_filter_rfs_work(struct work_struct *data)
 		rule = efx_siena_rps_hash_find(efx, &req->spec);
 		/* The rule might have already gone, if someone else's request
 		 * for the same spec was already worked and then expired before
-		 * we got around to our work.  In that case we have nothing
+		 * we got around to our work.  In that case we have analthing
 		 * tying us to an arfs_id, meaning that as soon as the filter
 		 * is considered for expiry it will be removed.
 		 */
@@ -970,16 +970,16 @@ int efx_siena_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 	}
 
 	if (!skb_flow_dissect_flow_keys(skb, &fk, 0)) {
-		rc = -EPROTONOSUPPORT;
+		rc = -EPROTOANALSUPPORT;
 		goto out_clear;
 	}
 
 	if (fk.basic.n_proto != htons(ETH_P_IP) && fk.basic.n_proto != htons(ETH_P_IPV6)) {
-		rc = -EPROTONOSUPPORT;
+		rc = -EPROTOANALSUPPORT;
 		goto out_clear;
 	}
 	if (fk.control.flags & FLOW_DIS_IS_FRAGMENT) {
-		rc = -EPROTONOSUPPORT;
+		rc = -EPROTOANALSUPPORT;
 		goto out_clear;
 	}
 
@@ -1012,11 +1012,11 @@ int efx_siena_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 		spin_lock(&efx->rps_hash_lock);
 		rule = efx_rps_hash_add(efx, &req->spec, &new);
 		if (!rule) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out_unlock;
 		}
 		if (new)
-			rule->arfs_id = efx->rps_next_id++ % RPS_NO_FILTER;
+			rule->arfs_id = efx->rps_next_id++ % RPS_ANAL_FILTER;
 		rc = rule->arfs_id;
 		/* Skip if existing or pending filter already does the right thing */
 		if (!new && rule->rxq_index == rxq_index &&

@@ -3,7 +3,7 @@
 #define __ASM_SH_LBOXRE2_H
 
 /*
- * Copyright (C) 2007 Nobuhiro Iwamatsu
+ * Copyright (C) 2007 Analbuhiro Iwamatsu
  *
  * NTT COMWARE L-BOX RE2 support
  */

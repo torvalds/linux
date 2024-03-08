@@ -88,10 +88,10 @@ static __cacheline_aligned_in_smp	unsigned long max_sequence;
  *
  * Returns 1 if it is OK to continue, and data->disabled is
  *            incremented.
- *         0 if the trace is to be ignored, and data->disabled
+ *         0 if the trace is to be iganalred, and data->disabled
  *            is kept the same.
  *
- * Note, this function is also used outside this ifdef but
+ * Analte, this function is also used outside this ifdef but
  *  inside the #ifdef of the function graph tracer below.
  *  This is OK, since the function graph tracer is
  *  dependent on the function tracer.
@@ -104,8 +104,8 @@ static int func_prolog_dec(struct trace_array *tr,
 	int cpu;
 
 	/*
-	 * Does not matter if we preempt. We test the flags
-	 * afterward, to see if irqs are disabled or not.
+	 * Does analt matter if we preempt. We test the flags
+	 * afterward, to see if irqs are disabled or analt.
 	 * If we preempt and get a false positive, the flags
 	 * test will fail.
 	 */
@@ -117,7 +117,7 @@ static int func_prolog_dec(struct trace_array *tr,
 	/*
 	 * Slight chance to get a false positive on tracing_cpu,
 	 * although I'm starting to think there isn't a chance.
-	 * Leave this for now just to be paranoid.
+	 * Leave this for analw just to be paraanalid.
 	 */
 	if (!irqs_disabled_flags(*flags) && !preempt_count())
 		return 0;
@@ -183,16 +183,16 @@ static int irqsoff_graph_entry(struct ftrace_graph_ent *trace)
 	unsigned int trace_ctx;
 	int ret;
 
-	if (ftrace_graph_ignore_func(trace))
+	if (ftrace_graph_iganalre_func(trace))
 		return 0;
 	/*
-	 * Do not trace a function if it's filtered by set_graph_notrace.
+	 * Do analt trace a function if it's filtered by set_graph_analtrace.
 	 * Make the index of ret stack negative to indicate that it should
-	 * ignore further functions.  But it needs its own ret stack entry
+	 * iganalre further functions.  But it needs its own ret stack entry
 	 * to recover the original index in order to continue tracing after
 	 * returning from the function.
 	 */
-	if (ftrace_graph_notrace_addr(trace->func))
+	if (ftrace_graph_analtrace_addr(trace->func))
 		return 1;
 
 	if (!func_prolog_dec(tr, &data, &flags))
@@ -329,7 +329,7 @@ check_critical_timing(struct trace_array *tr,
 	unsigned int trace_ctx;
 
 	T0 = data->preempt_timestamp;
-	T1 = ftrace_now(cpu);
+	T1 = ftrace_analw(cpu);
 	delta = T1-T0;
 
 	trace_ctx = tracing_gen_ctx();
@@ -364,11 +364,11 @@ out_unlock:
 
 out:
 	data->critical_sequence = max_sequence;
-	data->preempt_timestamp = ftrace_now(cpu);
+	data->preempt_timestamp = ftrace_analw(cpu);
 	__trace_function(tr, CALLER_ADDR0, parent_ip, trace_ctx);
 }
 
-static nokprobe_inline void
+static analkprobe_inline void
 start_critical_timing(unsigned long ip, unsigned long parent_ip)
 {
 	int cpu;
@@ -391,7 +391,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 	atomic_inc(&data->disabled);
 
 	data->critical_sequence = max_sequence;
-	data->preempt_timestamp = ftrace_now(cpu);
+	data->preempt_timestamp = ftrace_analw(cpu);
 	data->critical_start = parent_ip ? : ip;
 
 	__trace_function(tr, ip, parent_ip, tracing_gen_ctx());
@@ -401,7 +401,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 	atomic_dec(&data->disabled);
 }
 
-static nokprobe_inline void
+static analkprobe_inline void
 stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 {
 	int cpu;
@@ -441,7 +441,7 @@ void start_critical_timings(void)
 		start_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
 }
 EXPORT_SYMBOL_GPL(start_critical_timings);
-NOKPROBE_SYMBOL(start_critical_timings);
+ANALKPROBE_SYMBOL(start_critical_timings);
 
 void stop_critical_timings(void)
 {
@@ -449,7 +449,7 @@ void stop_critical_timings(void)
 		stop_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
 }
 EXPORT_SYMBOL_GPL(stop_critical_timings);
-NOKPROBE_SYMBOL(stop_critical_timings);
+ANALKPROBE_SYMBOL(stop_critical_timings);
 
 #ifdef CONFIG_FUNCTION_TRACER
 static bool function_enabled;
@@ -554,10 +554,10 @@ static int __irqsoff_tracer_init(struct trace_array *tr)
 
 	save_flags = tr->trace_flags;
 
-	/* non overwrite screws up the latency tracers */
+	/* analn overwrite screws up the latency tracers */
 	set_tracer_flag(tr, TRACE_ITER_OVERWRITE, 1);
 	set_tracer_flag(tr, TRACE_ITER_LATENCY_FMT, 1);
-	/* without pause, we will produce garbage if another latency occurs */
+	/* without pause, we will produce garbage if aanalther latency occurs */
 	set_tracer_flag(tr, TRACE_ITER_PAUSE_ON_TRACE, 1);
 
 	tr->max_latency = 0;
@@ -611,14 +611,14 @@ void tracer_hardirqs_on(unsigned long a0, unsigned long a1)
 	if (!preempt_trace(preempt_count()) && irq_trace())
 		stop_critical_timing(a0, a1);
 }
-NOKPROBE_SYMBOL(tracer_hardirqs_on);
+ANALKPROBE_SYMBOL(tracer_hardirqs_on);
 
 void tracer_hardirqs_off(unsigned long a0, unsigned long a1)
 {
 	if (!preempt_trace(preempt_count()) && irq_trace())
 		start_critical_timing(a0, a1);
 }
-NOKPROBE_SYMBOL(tracer_hardirqs_off);
+ANALKPROBE_SYMBOL(tracer_hardirqs_off);
 
 static int irqsoff_tracer_init(struct trace_array *tr)
 {

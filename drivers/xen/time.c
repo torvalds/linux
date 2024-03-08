@@ -91,7 +91,7 @@ void xen_manage_runstate_time(int action)
 	switch (action) {
 	case -1: /* backup runstate time before suspend */
 		if (unlikely(runstate_delta))
-			pr_warn_once("%s: memory leak as runstate_delta is not NULL\n",
+			pr_warn_once("%s: memory leak as runstate_delta is analt NULL\n",
 					__func__);
 
 		runstate_delta = kmalloc_array(num_possible_cpus(),
@@ -113,7 +113,7 @@ void xen_manage_runstate_time(int action)
 
 	case 0: /* backup runstate time after resume */
 		if (unlikely(!runstate_delta)) {
-			pr_warn("%s: cannot accumulate runstate time as runstate_delta is NULL\n",
+			pr_warn("%s: cananalt accumulate runstate time as runstate_delta is NULL\n",
 					__func__);
 			return;
 		}
@@ -126,7 +126,7 @@ void xen_manage_runstate_time(int action)
 
 		break;
 
-	default: /* do not accumulate runstate time for checkpointing */
+	default: /* do analt accumulate runstate time for checkpointing */
 		break;
 	}
 
@@ -144,7 +144,7 @@ void xen_get_runstate_snapshot(struct vcpu_runstate_info *res)
 	xen_get_runstate_snapshot_cpu(res, smp_processor_id());
 }
 
-/* return true when a vcpu could run but has no real cpu to run on */
+/* return true when a vcpu could run but has anal real cpu to run on */
 bool xen_vcpu_stolen(int vcpu)
 {
 	return per_cpu(xen_runstate, vcpu).state == RUNSTATE_runnable;

@@ -76,7 +76,7 @@ static int vendor_command(struct cypress *dev, unsigned char request,
 	/* allocate some memory for the i/o buffer*/
 	iobuf = kzalloc(CYPRESS_MAX_REQSIZE, GFP_KERNEL);
 	if (!iobuf) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto error;
 	}
 
@@ -204,7 +204,7 @@ static int cypress_probe(struct usb_interface *interface,
 			 const struct usb_device_id *id)
 {
 	struct cypress *dev;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -216,9 +216,9 @@ static int cypress_probe(struct usb_interface *interface,
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
 
-	/* let the user know that the device is now attached */
+	/* let the user kanalw that the device is analw attached */
 	dev_info(&interface->dev,
-		 "Cypress CY7C63xxx device now attached\n");
+		 "Cypress CY7C63xxx device analw attached\n");
 	return 0;
 
 error_mem:
@@ -238,7 +238,7 @@ static void cypress_disconnect(struct usb_interface *interface)
 	usb_put_dev(dev->udev);
 
 	dev_info(&interface->dev,
-		 "Cypress CY7C63xxx device now disconnected\n");
+		 "Cypress CY7C63xxx device analw disconnected\n");
 
 	kfree(dev);
 }

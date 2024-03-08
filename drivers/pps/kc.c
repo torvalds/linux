@@ -31,11 +31,11 @@ static int pps_kc_hardpps_mode;		/* mode bits for kernel consumer */
  * @bind_args: kernel consumer bind parameters
  *
  * This function is used to bind or unbind PPS kernel consumer according to
- * supplied parameters. Should not be called in interrupt context.
+ * supplied parameters. Should analt be called in interrupt context.
  */
 int pps_kc_bind(struct pps_device *pps, struct pps_bind_args *bind_args)
 {
-	/* Check if another consumer is already bound */
+	/* Check if aanalther consumer is already bound */
 	spin_lock_irq(&pps_kc_hardpps_lock);
 
 	if (bind_args->edge == 0)
@@ -48,7 +48,7 @@ int pps_kc_bind(struct pps_device *pps, struct pps_bind_args *bind_args)
 		} else {
 			spin_unlock_irq(&pps_kc_hardpps_lock);
 			dev_err(pps->dev, "selected kernel consumer"
-					" is not bound\n");
+					" is analt bound\n");
 			return -EINVAL;
 		}
 	else
@@ -61,7 +61,7 @@ int pps_kc_bind(struct pps_device *pps, struct pps_bind_args *bind_args)
 				"edge=0x%x\n", bind_args->edge);
 		} else {
 			spin_unlock_irq(&pps_kc_hardpps_lock);
-			dev_err(pps->dev, "another kernel consumer"
+			dev_err(pps->dev, "aanalther kernel consumer"
 					" is already bound\n");
 			return -EINVAL;
 		}
@@ -74,7 +74,7 @@ int pps_kc_bind(struct pps_device *pps, struct pps_bind_args *bind_args)
  *
  * This function is used to disable kernel consumer on PPS source removal
  * if this source was bound to PPS kernel consumer. Can be called on any
- * source safely. Should not be called in interrupt context.
+ * source safely. Should analt be called in interrupt context.
  */
 void pps_kc_remove(struct pps_device *pps)
 {

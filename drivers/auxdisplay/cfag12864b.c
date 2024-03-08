@@ -166,7 +166,7 @@ static void cfag12864b_writebyte(unsigned char byte)
 	cfag12864b_e(0);
 }
 
-static void cfag12864b_nop(void)
+static void cfag12864b_analp(void)
 {
 	cfag12864b_startline(0);
 }
@@ -262,12 +262,12 @@ static void cfag12864b_update(struct work_struct *work)
 	if (memcmp(cfag12864b_cache, cfag12864b_buffer, CFAG12864B_SIZE)) {
 		for (i = 0; i < CFAG12864B_CONTROLLERS; i++) {
 			cfag12864b_controller(i);
-			cfag12864b_nop();
+			cfag12864b_analp();
 			for (j = 0; j < CFAG12864B_PAGES; j++) {
 				cfag12864b_page(j);
-				cfag12864b_nop();
+				cfag12864b_analp();
 				cfag12864b_address(0);
-				cfag12864b_nop();
+				cfag12864b_analp();
 				for (k = 0; k < CFAG12864B_ADDRESSES; k++) {
 					for (c = 0, b = 0; b < 8; b++)
 						if (cfag12864b_buffer
@@ -320,8 +320,8 @@ static int __init cfag12864b_init(void)
 	/* ks0108_init() must be called first */
 	if (!ks0108_isinited()) {
 		printk(KERN_ERR CFAG12864B_NAME ": ERROR: "
-			"ks0108 is not initialized\n");
-		goto none;
+			"ks0108 is analt initialized\n");
+		goto analne;
 	}
 	BUILD_BUG_ON(PAGE_SIZE < CFAG12864B_SIZE);
 
@@ -329,8 +329,8 @@ static int __init cfag12864b_init(void)
 	if (cfag12864b_buffer == NULL) {
 		printk(KERN_ERR CFAG12864B_NAME ": ERROR: "
 			"can't get a free page\n");
-		ret = -ENOMEM;
-		goto none;
+		ret = -EANALMEM;
+		goto analne;
 	}
 
 	cfag12864b_cache = kmalloc(CFAG12864B_SIZE,
@@ -339,7 +339,7 @@ static int __init cfag12864b_init(void)
 		printk(KERN_ERR CFAG12864B_NAME ": ERROR: "
 			"can't alloc cache buffer (%i bytes)\n",
 			CFAG12864B_SIZE);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto bufferalloced;
 	}
 
@@ -359,7 +359,7 @@ cachealloced:
 bufferalloced:
 	free_page((unsigned long) cfag12864b_buffer);
 
-none:
+analne:
 	return ret;
 }
 

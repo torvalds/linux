@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -45,7 +45,7 @@
 #define mmUVD_GPCOM_VCPU_CMD_INTERNAL_OFFSET			0x0f
 #define mmUVD_GPCOM_VCPU_DATA0_INTERNAL_OFFSET			0x10
 #define mmUVD_GPCOM_VCPU_DATA1_INTERNAL_OFFSET			0x11
-#define mmUVD_NO_OP_INTERNAL_OFFSET				0x29
+#define mmUVD_ANAL_OP_INTERNAL_OFFSET				0x29
 #define mmUVD_GP_SCRATCH8_INTERNAL_OFFSET			0x66
 #define mmUVD_SCRATCH9_INTERNAL_OFFSET				0xc01d
 
@@ -98,7 +98,7 @@ static int vcn_v3_0_early_init(void *handle)
 		if (adev->vcn.harvest_config == (AMDGPU_VCN_HARVEST_VCN0 |
 						 AMDGPU_VCN_HARVEST_VCN1))
 			/* both instances are harvested, disable the block */
-			return -ENOENT;
+			return -EANALENT;
 
 		if (amdgpu_ip_version(adev, UVD_HWIP, 0) ==
 		    IP_VERSION(3, 0, 33))
@@ -139,7 +139,7 @@ static int vcn_v3_0_sw_init(void *handle)
 		return r;
 
 	/*
-	 * Note: doorbell assignment is fixed for SRIOV multiple VCN engines
+	 * Analte: doorbell assignment is fixed for SRIOV multiple VCN engines
 	 * Formula:
 	 *   vcn_db_base  = adev->doorbell_index.vcn.vcn_ring0_1 << 1;
 	 *   dec_ring_i   = vcn_db_base + i * (adev->vcn.num_enc_rings + 1)
@@ -172,8 +172,8 @@ static int vcn_v3_0_sw_init(void *handle)
 		adev->vcn.inst[i].external.data1 = SOC15_REG_OFFSET(VCN, i, mmUVD_GPCOM_VCPU_DATA1);
 		adev->vcn.internal.cmd = mmUVD_GPCOM_VCPU_CMD_INTERNAL_OFFSET;
 		adev->vcn.inst[i].external.cmd = SOC15_REG_OFFSET(VCN, i, mmUVD_GPCOM_VCPU_CMD);
-		adev->vcn.internal.nop = mmUVD_NO_OP_INTERNAL_OFFSET;
-		adev->vcn.inst[i].external.nop = SOC15_REG_OFFSET(VCN, i, mmUVD_NO_OP);
+		adev->vcn.internal.analp = mmUVD_ANAL_OP_INTERNAL_OFFSET;
+		adev->vcn.inst[i].external.analp = SOC15_REG_OFFSET(VCN, i, mmUVD_ANAL_OP);
 
 		/* VCN DEC TRAP */
 		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_vcns[i],
@@ -313,7 +313,7 @@ static int vcn_v3_0_hw_init(void *handle)
 			ring = &adev->vcn.inst[i].ring_dec;
 			if (amdgpu_vcn_is_disabled_vcn(adev, VCN_DECODE_RING, i)) {
 				ring->sched.ready = false;
-				ring->no_scheduler = true;
+				ring->anal_scheduler = true;
 				dev_info(adev->dev, "ring %s is disabled by hypervisor\n", ring->name);
 			} else {
 				ring->wptr = 0;
@@ -326,7 +326,7 @@ static int vcn_v3_0_hw_init(void *handle)
 				ring = &adev->vcn.inst[i].ring_enc[j];
 				if (amdgpu_vcn_is_disabled_vcn(adev, VCN_ENCODE_RING, i)) {
 					ring->sched.ready = false;
-					ring->no_scheduler = true;
+					ring->anal_scheduler = true;
 					dev_info(adev->dev, "ring %s is disabled by hypervisor\n", ring->name);
 				} else {
 					ring->wptr = 0;
@@ -372,7 +372,7 @@ done:
  *
  * @handle: amdgpu_device pointer
  *
- * Stop the VCN block, mark ring as not ready any more
+ * Stop the VCN block, mark ring as analt ready any more
  */
 static int vcn_v3_0_hw_fini(void *handle)
 {
@@ -445,7 +445,7 @@ static int vcn_v3_0_resume(void *handle)
  * @adev: amdgpu_device pointer
  * @inst: instance number
  *
- * Let the VCN memory controller know it's offsets
+ * Let the VCN memory controller kanalw it's offsets
  */
 static void vcn_v3_0_mc_resume(struct amdgpu_device *adev, int inst)
 {
@@ -487,13 +487,13 @@ static void vcn_v3_0_mc_resume(struct amdgpu_device *adev, int inst)
 	WREG32_SOC15(VCN, inst, mmUVD_VCPU_CACHE_OFFSET2, 0);
 	WREG32_SOC15(VCN, inst, mmUVD_VCPU_CACHE_SIZE2, AMDGPU_VCN_CONTEXT_SIZE);
 
-	/* non-cache window */
+	/* analn-cache window */
 	WREG32_SOC15(VCN, inst, mmUVD_LMI_VCPU_NC0_64BIT_BAR_LOW,
 		lower_32_bits(adev->vcn.inst[inst].fw_shared.gpu_addr));
 	WREG32_SOC15(VCN, inst, mmUVD_LMI_VCPU_NC0_64BIT_BAR_HIGH,
 		upper_32_bits(adev->vcn.inst[inst].fw_shared.gpu_addr));
-	WREG32_SOC15(VCN, inst, mmUVD_VCPU_NONCACHE_OFFSET0, 0);
-	WREG32_SOC15(VCN, inst, mmUVD_VCPU_NONCACHE_SIZE0,
+	WREG32_SOC15(VCN, inst, mmUVD_VCPU_ANALNCACHE_OFFSET0, 0);
+	WREG32_SOC15(VCN, inst, mmUVD_VCPU_ANALNCACHE_SIZE0,
 		AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_fw_shared)));
 }
 
@@ -575,7 +575,7 @@ static void vcn_v3_0_mc_resume_dpg_mode(struct amdgpu_device *adev, int inst_idx
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
 			VCN, inst_idx, mmUVD_VCPU_CACHE_SIZE2), AMDGPU_VCN_CONTEXT_SIZE, 0, indirect);
 
-	/* non-cache window */
+	/* analn-cache window */
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
 			VCN, inst_idx, mmUVD_LMI_VCPU_NC0_64BIT_BAR_LOW),
 			lower_32_bits(adev->vcn.inst[inst_idx].fw_shared.gpu_addr), 0, indirect);
@@ -583,9 +583,9 @@ static void vcn_v3_0_mc_resume_dpg_mode(struct amdgpu_device *adev, int inst_idx
 			VCN, inst_idx, mmUVD_LMI_VCPU_NC0_64BIT_BAR_HIGH),
 			upper_32_bits(adev->vcn.inst[inst_idx].fw_shared.gpu_addr), 0, indirect);
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
-			VCN, inst_idx, mmUVD_VCPU_NONCACHE_OFFSET0), 0, 0, indirect);
+			VCN, inst_idx, mmUVD_VCPU_ANALNCACHE_OFFSET0), 0, 0, indirect);
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
-			VCN, inst_idx, mmUVD_VCPU_NONCACHE_SIZE0),
+			VCN, inst_idx, mmUVD_VCPU_ANALNCACHE_SIZE0),
 			AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_fw_shared)), 0, indirect);
 
 	/* VCN global tiling registers */
@@ -1034,7 +1034,7 @@ static int vcn_v3_0_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, boo
 		VCN, inst_idx, mmUVD_MASTINT_EN),
 		UVD_MASTINT_EN__VCPU_EN_MASK, 0, indirect);
 
-	/* add nop to workaround PSP size check */
+	/* add analp to workaround PSP size check */
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
 		VCN, inst_idx, mmUVD_VCPU_CNTL), tmp, 0, indirect);
 
@@ -1046,8 +1046,8 @@ static int vcn_v3_0_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, boo
 	rb_bufsz = order_base_2(ring->ring_size);
 	tmp = REG_SET_FIELD(0, UVD_RBC_RB_CNTL, RB_BUFSZ, rb_bufsz);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_BLKSZ, 1);
-	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_FETCH, 1);
-	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_UPDATE, 1);
+	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_ANAL_FETCH, 1);
+	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_ANAL_UPDATE, 1);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_RPTR_WR_EN, 1);
 	WREG32_SOC15(VCN, inst_idx, mmUVD_RBC_RB_CNTL, tmp);
 
@@ -1200,7 +1200,7 @@ static int vcn_v3_0_start(struct amdgpu_device *adev)
 			if (status & 2)
 				break;
 
-			DRM_ERROR("VCN[%d] decode not responding, trying to reset the VCPU!!!\n", i);
+			DRM_ERROR("VCN[%d] decode analt responding, trying to reset the VCPU!!!\n", i);
 			WREG32_P(SOC15_REG_OFFSET(VCN, i, mmUVD_VCPU_CNTL),
 				UVD_VCPU_CNTL__BLK_RST_MASK,
 				~UVD_VCPU_CNTL__BLK_RST_MASK);
@@ -1213,7 +1213,7 @@ static int vcn_v3_0_start(struct amdgpu_device *adev)
 		}
 
 		if (r) {
-			DRM_ERROR("VCN[%d] decode not responding, giving up!!!\n", i);
+			DRM_ERROR("VCN[%d] decode analt responding, giving up!!!\n", i);
 			return r;
 		}
 
@@ -1233,8 +1233,8 @@ static int vcn_v3_0_start(struct amdgpu_device *adev)
 		rb_bufsz = order_base_2(ring->ring_size);
 		tmp = REG_SET_FIELD(0, UVD_RBC_RB_CNTL, RB_BUFSZ, rb_bufsz);
 		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_BLKSZ, 1);
-		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_FETCH, 1);
-		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_UPDATE, 1);
+		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_ANAL_FETCH, 1);
+		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_ANAL_UPDATE, 1);
 		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_RPTR_WR_EN, 1);
 		WREG32_SOC15(VCN, i, mmUVD_RBC_RB_CNTL, tmp);
 
@@ -1419,8 +1419,8 @@ static int vcn_v3_0_start_sriov(struct amdgpu_device *adev)
 		tmp = order_base_2(ring->ring_size);
 		tmp = REG_SET_FIELD(0, UVD_RBC_RB_CNTL, RB_BUFSZ, tmp);
 		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_BLKSZ, 1);
-		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_FETCH, 1);
-		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_UPDATE, 1);
+		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_ANAL_FETCH, 1);
+		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_ANAL_UPDATE, 1);
 		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_RPTR_WR_EN, 1);
 		MMSCH_V3_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCN, i,
 			mmUVD_RBC_RB_CNTL),
@@ -1456,7 +1456,7 @@ static int vcn_v3_0_start_sriov(struct amdgpu_device *adev)
 	tmp |= (0 << MMSCH_VF_VMID__VF_CTX_VMID__SHIFT);
 	WREG32_SOC15(VCN, 0, mmMMSCH_VF_VMID, tmp);
 
-	/* 3, notify mmsch about the size of this descriptor */
+	/* 3, analtify mmsch about the size of this descriptor */
 	size = header.total_size;
 	WREG32_SOC15(VCN, 0, mmMMSCH_VF_CTX_SIZE, size);
 
@@ -1464,7 +1464,7 @@ static int vcn_v3_0_start_sriov(struct amdgpu_device *adev)
 	WREG32_SOC15(VCN, 0, mmMMSCH_VF_MAILBOX_RESP, 0);
 
 	/* 5, kick off the initialization and wait until
-	 * MMSCH_VF_MAILBOX_RESP becomes non-zero
+	 * MMSCH_VF_MAILBOX_RESP becomes analn-zero
 	 */
 	param = 0x10000001;
 	WREG32_SOC15(VCN, 0, mmMMSCH_VF_MAILBOX_HOST, param);
@@ -1668,7 +1668,7 @@ static int vcn_v3_0_pause_dpg_mode(struct amdgpu_device *adev,
 					UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON, UVD_POWER_STATUS__UVD_POWER_STATUS_MASK);
 			}
 		} else {
-			/* unpause dpg, no need to wait */
+			/* unpause dpg, anal need to wait */
 			reg_data &= ~UVD_DPG_PAUSE__NJ_PAUSE_DPG_REQ_MASK;
 			WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_PAUSE, reg_data);
 		}
@@ -1740,7 +1740,7 @@ static void vcn_v3_0_dec_ring_set_wptr(struct amdgpu_ring *ring)
 static const struct amdgpu_ring_funcs vcn_v3_0_dec_sw_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCN_DEC,
 	.align_mask = 0x3f,
-	.nop = VCN_DEC_SW_CMD_NO_OP,
+	.analp = VCN_DEC_SW_CMD_ANAL_OP,
 	.secure_submission_supported = true,
 	.get_rptr = vcn_v3_0_dec_ring_get_rptr,
 	.get_wptr = vcn_v3_0_dec_ring_get_wptr,
@@ -1755,7 +1755,7 @@ static const struct amdgpu_ring_funcs vcn_v3_0_dec_sw_ring_vm_funcs = {
 	.emit_vm_flush = vcn_dec_sw_ring_emit_vm_flush,
 	.test_ring = amdgpu_vcn_dec_sw_ring_test_ring,
 	.test_ib = NULL,//amdgpu_vcn_dec_sw_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_analp = amdgpu_ring_insert_analp,
 	.insert_end = vcn_dec_sw_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vcn_ring_begin_use,
@@ -1918,7 +1918,7 @@ static const struct amdgpu_ring_funcs vcn_v3_0_dec_ring_vm_funcs = {
 	.emit_vm_flush = vcn_v2_0_dec_ring_emit_vm_flush,
 	.test_ring = vcn_v2_0_dec_ring_test_ring,
 	.test_ib = amdgpu_vcn_dec_ring_test_ib,
-	.insert_nop = vcn_v2_0_dec_ring_insert_nop,
+	.insert_analp = vcn_v2_0_dec_ring_insert_analp,
 	.insert_start = vcn_v2_0_dec_ring_insert_start,
 	.insert_end = vcn_v2_0_dec_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
@@ -2001,7 +2001,7 @@ static void vcn_v3_0_enc_ring_set_wptr(struct amdgpu_ring *ring)
 static const struct amdgpu_ring_funcs vcn_v3_0_enc_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCN_ENC,
 	.align_mask = 0x3f,
-	.nop = VCN_ENC_CMD_NO_OP,
+	.analp = VCN_ENC_CMD_ANAL_OP,
 	.get_rptr = vcn_v3_0_enc_ring_get_rptr,
 	.get_wptr = vcn_v3_0_enc_ring_get_wptr,
 	.set_wptr = vcn_v3_0_enc_ring_set_wptr,
@@ -2017,7 +2017,7 @@ static const struct amdgpu_ring_funcs vcn_v3_0_enc_ring_vm_funcs = {
 	.emit_vm_flush = vcn_v2_0_enc_ring_emit_vm_flush,
 	.test_ring = amdgpu_vcn_enc_ring_test_ring,
 	.test_ib = amdgpu_vcn_enc_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_analp = amdgpu_ring_insert_analp,
 	.insert_end = vcn_v2_0_enc_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vcn_ring_begin_use,
@@ -2124,7 +2124,7 @@ static int vcn_v3_0_set_powergating_state(void *handle,
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret;
 
-	/* for SRIOV, guest should not control VCN Power-gating
+	/* for SRIOV, guest should analt control VCN Power-gating
 	 * MMSCH FW should control Power-gating and clock-gating
 	 * guest should avoid touching CGC and PG
 	 */
@@ -2235,7 +2235,7 @@ static const struct amd_ip_funcs vcn_v3_0_ip_funcs = {
 const struct amdgpu_ip_block_version vcn_v3_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_VCN,
 	.major = 3,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &vcn_v3_0_ip_funcs,
 };

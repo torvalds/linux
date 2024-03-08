@@ -20,7 +20,7 @@ struct mtk_vcodec_dec_ctx;
  * @fw_abi_version : ABI version of the firmware.
  * @inst_id	: if fw_abi_version >= 2, contains the instance ID to be given
  *                in place of inst_addr in messages.
- * @signaled    : 1 - Host has received ack message from VPU, 0 - not received
+ * @signaled    : 1 - Host has received ack message from VPU, 0 - analt received
  * @ctx         : context for v4l2 layer integration
  * @dev		: platform device of VPU
  * @wq          : wait queue to wait VPU message ack
@@ -82,7 +82,7 @@ int vpu_dec_deinit(struct vdec_vpu_inst *vpu);
 
 /**
  * vpu_dec_reset - reset decoder, use for flush decoder when end of stream or
- *                 seek. Remainig non displayed frame will be pushed to display.
+ *                 seek. Remainig analn displayed frame will be pushed to display.
  *
  * @vpu: instance for vdec_vpu_inst
  */

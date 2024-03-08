@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *  FC Transport Netlink Interface
  *
@@ -20,7 +20,7 @@
 	/* kernel -> user */
 #define FC_NL_ASYNC_EVENT			0x0100
 	/* user -> kernel */
-/* none */
+/* analne */
 
 
 /*
@@ -35,18 +35,18 @@
  * FC Transport Broadcast Event Message :
  *   FC_NL_ASYNC_EVENT
  *
- * Note: if Vendor Unique message, event_data_flex will be start of
+ * Analte: if Vendor Unique message, event_data_flex will be start of
  * 	 vendor unique payload, and the length of the payload is
  *       per event_datalen
  *
- * Note: When specifying vendor_id, be sure to read the Vendor Type and ID
+ * Analte: When specifying vendor_id, be sure to read the Vendor Type and ID
  *   formatting requirements specified in scsi_netlink.h
  */
 struct fc_nl_event {
 	struct scsi_nl_hdr snlh;		/* must be 1st element ! */
 	__u64 seconds;
 	__u64 vendor_id;
-	__u16 host_no;
+	__u16 host_anal;
 	__u16 event_datalen;
 	__u32 event_num;
 	__u32 event_code;

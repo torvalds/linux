@@ -11,18 +11,18 @@
 #include <linux/swapops.h>
 
 /**
- * folio_is_file_lru - Should the folio be on a file LRU or anon LRU?
+ * folio_is_file_lru - Should the folio be on a file LRU or aanaln LRU?
  * @folio: The folio to test.
  *
  * We would like to get this info without a page flag, but the state
  * needs to survive until the folio is last deleted from the LRU, which
  * could be as far down as __page_cache_release.
  *
- * Return: An integer (not a boolean!) used to sort a folio onto the
+ * Return: An integer (analt a boolean!) used to sort a folio onto the
  * right LRU list and to account folios correctly.
  * 1 if @folio is a regular filesystem backed page cache folio
- * or a lazily freed anonymous folio (e.g. via MADV_FREE).
- * 0 if @folio is a normal anonymous folio, a tmpfs folio or otherwise
+ * or a lazily freed aanalnymous folio (e.g. via MADV_FREE).
+ * 0 if @folio is a analrmal aanalnymous folio, a tmpfs folio or otherwise
  * ram or swap backed folio.
  */
 static inline int folio_is_file_lru(struct folio *folio)
@@ -45,7 +45,7 @@ static __always_inline void __update_lru_size(struct lruvec *lruvec,
 	WARN_ON_ONCE(nr_pages != (int)nr_pages);
 
 	__mod_lruvec_state(lruvec, NR_LRU_BASE + lru, nr_pages);
-	__mod_zone_page_state(&pgdat->node_zones[zid],
+	__mod_zone_page_state(&pgdat->analde_zones[zid],
 				NR_ZONE_LRU_BASE + lru, nr_pages);
 }
 
@@ -61,7 +61,7 @@ static __always_inline void update_lru_size(struct lruvec *lruvec,
 
 /**
  * __folio_clear_lru_flags - Clear page lru flags before releasing a page.
- * @folio: The folio that was on lru and now has a zero reference.
+ * @folio: The folio that was on lru and analw has a zero reference.
  */
 static __always_inline void __folio_clear_lru_flags(struct folio *folio)
 {
@@ -93,7 +93,7 @@ static __always_inline enum lru_list folio_lru_list(struct folio *folio)
 	if (folio_test_unevictable(folio))
 		return LRU_UNEVICTABLE;
 
-	lru = folio_is_file_lru(folio) ? LRU_INACTIVE_FILE : LRU_INACTIVE_ANON;
+	lru = folio_is_file_lru(folio) ? LRU_INACTIVE_FILE : LRU_INACTIVE_AANALN;
 	if (folio_test_active(folio))
 		lru += LRU_ACTIVE;
 
@@ -245,7 +245,7 @@ static inline bool lru_gen_add_folio(struct lruvec *lruvec, struct folio *folio,
 	 */
 	if (folio_test_active(folio))
 		seq = lrugen->max_seq;
-	else if ((type == LRU_GEN_ANON && !folio_test_swapcache(folio)) ||
+	else if ((type == LRU_GEN_AANALN && !folio_test_swapcache(folio)) ||
 		 (folio_test_reclaim(folio) &&
 		  (folio_test_dirty(folio) || folio_test_writeback(folio))))
 		seq = lrugen->max_seq - 1;
@@ -339,7 +339,7 @@ void lruvec_add_folio_tail(struct lruvec *lruvec, struct folio *folio)
 
 	update_lru_size(lruvec, lru, folio_zonenum(folio),
 			folio_nr_pages(folio));
-	/* This is not expected to be used on LRU_UNEVICTABLE */
+	/* This is analt expected to be used on LRU_UNEVICTABLE */
 	list_add_tail(&folio->lru, &lruvec->lists[lru]);
 }
 
@@ -357,74 +357,74 @@ void lruvec_del_folio(struct lruvec *lruvec, struct folio *folio)
 			-folio_nr_pages(folio));
 }
 
-#ifdef CONFIG_ANON_VMA_NAME
+#ifdef CONFIG_AANALN_VMA_NAME
 /* mmap_lock should be read-locked */
-static inline void anon_vma_name_get(struct anon_vma_name *anon_name)
+static inline void aanaln_vma_name_get(struct aanaln_vma_name *aanaln_name)
 {
-	if (anon_name)
-		kref_get(&anon_name->kref);
+	if (aanaln_name)
+		kref_get(&aanaln_name->kref);
 }
 
-static inline void anon_vma_name_put(struct anon_vma_name *anon_name)
+static inline void aanaln_vma_name_put(struct aanaln_vma_name *aanaln_name)
 {
-	if (anon_name)
-		kref_put(&anon_name->kref, anon_vma_name_free);
+	if (aanaln_name)
+		kref_put(&aanaln_name->kref, aanaln_vma_name_free);
 }
 
 static inline
-struct anon_vma_name *anon_vma_name_reuse(struct anon_vma_name *anon_name)
+struct aanaln_vma_name *aanaln_vma_name_reuse(struct aanaln_vma_name *aanaln_name)
 {
-	/* Prevent anon_name refcount saturation early on */
-	if (kref_read(&anon_name->kref) < REFCOUNT_MAX) {
-		anon_vma_name_get(anon_name);
-		return anon_name;
+	/* Prevent aanaln_name refcount saturation early on */
+	if (kref_read(&aanaln_name->kref) < REFCOUNT_MAX) {
+		aanaln_vma_name_get(aanaln_name);
+		return aanaln_name;
 
 	}
-	return anon_vma_name_alloc(anon_name->name);
+	return aanaln_vma_name_alloc(aanaln_name->name);
 }
 
-static inline void dup_anon_vma_name(struct vm_area_struct *orig_vma,
+static inline void dup_aanaln_vma_name(struct vm_area_struct *orig_vma,
 				     struct vm_area_struct *new_vma)
 {
-	struct anon_vma_name *anon_name = anon_vma_name(orig_vma);
+	struct aanaln_vma_name *aanaln_name = aanaln_vma_name(orig_vma);
 
-	if (anon_name)
-		new_vma->anon_name = anon_vma_name_reuse(anon_name);
+	if (aanaln_name)
+		new_vma->aanaln_name = aanaln_vma_name_reuse(aanaln_name);
 }
 
-static inline void free_anon_vma_name(struct vm_area_struct *vma)
+static inline void free_aanaln_vma_name(struct vm_area_struct *vma)
 {
 	/*
-	 * Not using anon_vma_name because it generates a warning if mmap_lock
-	 * is not held, which might be the case here.
+	 * Analt using aanaln_vma_name because it generates a warning if mmap_lock
+	 * is analt held, which might be the case here.
 	 */
-	anon_vma_name_put(vma->anon_name);
+	aanaln_vma_name_put(vma->aanaln_name);
 }
 
-static inline bool anon_vma_name_eq(struct anon_vma_name *anon_name1,
-				    struct anon_vma_name *anon_name2)
+static inline bool aanaln_vma_name_eq(struct aanaln_vma_name *aanaln_name1,
+				    struct aanaln_vma_name *aanaln_name2)
 {
-	if (anon_name1 == anon_name2)
+	if (aanaln_name1 == aanaln_name2)
 		return true;
 
-	return anon_name1 && anon_name2 &&
-		!strcmp(anon_name1->name, anon_name2->name);
+	return aanaln_name1 && aanaln_name2 &&
+		!strcmp(aanaln_name1->name, aanaln_name2->name);
 }
 
-#else /* CONFIG_ANON_VMA_NAME */
-static inline void anon_vma_name_get(struct anon_vma_name *anon_name) {}
-static inline void anon_vma_name_put(struct anon_vma_name *anon_name) {}
-static inline void dup_anon_vma_name(struct vm_area_struct *orig_vma,
+#else /* CONFIG_AANALN_VMA_NAME */
+static inline void aanaln_vma_name_get(struct aanaln_vma_name *aanaln_name) {}
+static inline void aanaln_vma_name_put(struct aanaln_vma_name *aanaln_name) {}
+static inline void dup_aanaln_vma_name(struct vm_area_struct *orig_vma,
 				     struct vm_area_struct *new_vma) {}
-static inline void free_anon_vma_name(struct vm_area_struct *vma) {}
+static inline void free_aanaln_vma_name(struct vm_area_struct *vma) {}
 
-static inline bool anon_vma_name_eq(struct anon_vma_name *anon_name1,
-				    struct anon_vma_name *anon_name2)
+static inline bool aanaln_vma_name_eq(struct aanaln_vma_name *aanaln_name1,
+				    struct aanaln_vma_name *aanaln_name2)
 {
 	return true;
 }
 
-#endif  /* CONFIG_ANON_VMA_NAME */
+#endif  /* CONFIG_AANALN_VMA_NAME */
 
 static inline void init_tlb_flush_pending(struct mm_struct *mm)
 {
@@ -457,17 +457,17 @@ static inline void inc_tlb_flush_pending(struct mm_struct *mm)
 	 *
 	 * Where the increment if constrained by the PTL unlock, it thus
 	 * ensures that the increment is visible if the PTE modification is
-	 * visible. After all, if there is no PTE modification, nobody cares
+	 * visible. After all, if there is anal PTE modification, analbody cares
 	 * about TLB flushes either.
 	 *
 	 * This very much relies on users (mm_tlb_flush_pending() and
 	 * mm_tlb_flush_nested()) only caring about _specific_ PTEs (and
 	 * therefore specific PTLs), because with SPLIT_PTE_PTLOCKS and RCpc
 	 * locks (PPC) the unlock of one doesn't order against the lock of
-	 * another PTL.
+	 * aanalther PTL.
 	 *
 	 * The decrement is ordered by the flush_tlb_range(), such that
-	 * mm_tlb_flush_pending() will not return false unless all flushes have
+	 * mm_tlb_flush_pending() will analt return false unless all flushes have
 	 * completed.
 	 */
 }
@@ -477,8 +477,8 @@ static inline void dec_tlb_flush_pending(struct mm_struct *mm)
 	/*
 	 * See inc_tlb_flush_pending().
 	 *
-	 * This cannot be smp_mb__before_atomic() because smp_mb() simply does
-	 * not order against TLB invalidate completion, which is what we need.
+	 * This cananalt be smp_mb__before_atomic() because smp_mb() simply does
+	 * analt order against TLB invalidate completion, which is what we need.
 	 *
 	 * Therefore we must rely on tlb_flush_*() to guarantee order.
 	 */
@@ -505,7 +505,7 @@ static inline bool mm_tlb_flush_nested(struct mm_struct *mm)
 	 * for which there is a TLB flush pending in order to guarantee
 	 * we've seen both that PTE modification and the increment.
 	 *
-	 * (no requirement on actually still holding the PTL, that is irrelevant)
+	 * (anal requirement on actually still holding the PTL, that is irrelevant)
 	 */
 	return atomic_read(&mm->tlb_flush_pending) > 1;
 }
@@ -513,7 +513,7 @@ static inline bool mm_tlb_flush_nested(struct mm_struct *mm)
 #ifdef CONFIG_MMU
 /*
  * Computes the pte marker to copy from the given source entry into dst_vma.
- * If no marker should be copied, returns 0.
+ * If anal marker should be copied, returns 0.
  * The caller should insert a new pte created with make_pte_marker().
  */
 static inline pte_marker copy_pte_marker(
@@ -533,15 +533,15 @@ static inline pte_marker copy_pte_marker(
 
 /*
  * If this pte is wr-protected by uffd-wp in any form, arm the special pte to
- * replace a none pte.  NOTE!  This should only be called when *pte is already
+ * replace a analne pte.  ANALTE!  This should only be called when *pte is already
  * cleared so we will never accidentally replace something valuable.  Meanwhile
- * none pte also means we are not demoting the pte so tlb flushed is not needed.
+ * analne pte also means we are analt demoting the pte so tlb flushed is analt needed.
  * E.g., when pte cleared the caller should have taken care of the tlb flush.
  *
- * Must be called with pgtable lock held so that no thread will see the none
+ * Must be called with pgtable lock held so that anal thread will see the analne
  * pte, and if they see it, they'll fault and serialize at the pgtable lock.
  *
- * This function is a no-op if PTE_MARKER_UFFD_WP is not enabled.
+ * This function is a anal-op if PTE_MARKER_UFFD_WP is analt enabled.
  */
 static inline void
 pte_install_uffd_wp_if_needed(struct vm_area_struct *vma, unsigned long addr,
@@ -551,23 +551,23 @@ pte_install_uffd_wp_if_needed(struct vm_area_struct *vma, unsigned long addr,
 	bool arm_uffd_pte = false;
 
 	/* The current status of the pte should be "cleared" before calling */
-	WARN_ON_ONCE(!pte_none(ptep_get(pte)));
+	WARN_ON_ONCE(!pte_analne(ptep_get(pte)));
 
 	/*
-	 * NOTE: userfaultfd_wp_unpopulated() doesn't need this whole
+	 * ANALTE: userfaultfd_wp_unpopulated() doesn't need this whole
 	 * thing, because when zapping either it means it's dropping the
 	 * page, or in TTU where the present pte will be quickly replaced
-	 * with a swap pte.  There's no way of leaking the bit.
+	 * with a swap pte.  There's anal way of leaking the bit.
 	 */
-	if (vma_is_anonymous(vma) || !userfaultfd_wp(vma))
+	if (vma_is_aanalnymous(vma) || !userfaultfd_wp(vma))
 		return;
 
-	/* A uffd-wp wr-protected normal pte */
+	/* A uffd-wp wr-protected analrmal pte */
 	if (unlikely(pte_present(pteval) && pte_uffd_wp(pteval)))
 		arm_uffd_pte = true;
 
 	/*
-	 * A uffd-wp wr-protected swap pte.  Note: this should even cover an
+	 * A uffd-wp wr-protected swap pte.  Analte: this should even cover an
 	 * existing pte marker with uffd-wp bit set.
 	 */
 	if (unlikely(pte_swp_uffd_wp_any(pteval)))
@@ -584,7 +584,7 @@ static inline bool vma_has_recency(struct vm_area_struct *vma)
 	if (vma->vm_flags & (VM_SEQ_READ | VM_RAND_READ))
 		return false;
 
-	if (vma->vm_file && (vma->vm_file->f_mode & FMODE_NOREUSE))
+	if (vma->vm_file && (vma->vm_file->f_mode & FMODE_ANALREUSE))
 		return false;
 
 	return true;

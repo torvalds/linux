@@ -86,7 +86,7 @@ int intel_pmdemand_init(struct drm_i915_private *i915)
 
 	pmdemand_state = kzalloc(sizeof(*pmdemand_state), GFP_KERNEL);
 	if (!pmdemand_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intel_atomic_global_obj_init(i915, &i915->display.pmdemand.obj,
 				     &pmdemand_state->base,
@@ -188,7 +188,7 @@ intel_pmdemand_update_connector_phys(struct drm_i915_private *i915,
 }
 
 static void
-intel_pmdemand_update_active_non_tc_phys(struct drm_i915_private *i915,
+intel_pmdemand_update_active_analn_tc_phys(struct drm_i915_private *i915,
 					 struct intel_atomic_state *state,
 					 struct intel_pmdemand_state *pmdemand_state)
 {
@@ -349,7 +349,7 @@ int intel_pmdemand_atomic_check(struct intel_atomic_state *state)
 
 	intel_pmdemand_update_max_ddiclk(i915, state, new_pmdemand_state);
 
-	intel_pmdemand_update_active_non_tc_phys(i915, state, new_pmdemand_state);
+	intel_pmdemand_update_active_analn_tc_phys(i915, state, new_pmdemand_state);
 
 	/*
 	 * Active_PLLs starts with 1 because of CDCLK PLL.
@@ -359,7 +359,7 @@ int intel_pmdemand_atomic_check(struct intel_atomic_state *state)
 		min_t(u16, new_pmdemand_state->params.active_phys + 1, 7);
 
 	/*
-	 * Setting scalers to max as it can not be calculated during flips and
+	 * Setting scalers to max as it can analt be calculated during flips and
 	 * fastsets without taking global states locks.
 	 */
 	new_pmdemand_state->params.scalers = 7;
@@ -483,8 +483,8 @@ intel_pmdemand_update_params(const struct intel_pmdemand_state *new,
 	 * some parallel atomic commits affecting the pmdemand parameters. In
 	 * that case, we need to consider the current values from the register
 	 * as well. So in pre-plane case, we need to check the max of old, new
-	 * and current register value if not serialized. In post plane update
-	 * we need to consider max of new and current register value if not
+	 * and current register value if analt serialized. In post plane update
+	 * we need to consider max of new and current register value if analt
 	 * serialized
 	 */
 

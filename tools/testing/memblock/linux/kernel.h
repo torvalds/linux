@@ -3,7 +3,7 @@
 #define _MEMBLOCK_LINUX_KERNEL_H
 
 #include <../../include/linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <string.h>
 #include <linux/printk.h>
 #include <linux/linkage.h>

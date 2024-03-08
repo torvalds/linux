@@ -16,9 +16,9 @@ bool sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw)
 		return false;
 
 	if (test_bit(SAS_HA_DRAINING, &ha->state)) {
-		/* add it to the defer list, if not already pending */
-		if (list_empty(&sw->drain_node))
-			list_add_tail(&sw->drain_node, &ha->defer_q);
+		/* add it to the defer list, if analt already pending */
+		if (list_empty(&sw->drain_analde))
+			list_add_tail(&sw->drain_analde, &ha->defer_q);
 		return true;
 	}
 
@@ -43,8 +43,8 @@ void sas_queue_deferred_work(struct sas_ha_struct *ha)
 	struct sas_work *sw, *_sw;
 
 	spin_lock_irq(&ha->lock);
-	list_for_each_entry_safe(sw, _sw, &ha->defer_q, drain_node) {
-		list_del_init(&sw->drain_node);
+	list_for_each_entry_safe(sw, _sw, &ha->defer_q, drain_analde) {
+		list_del_init(&sw->drain_analde);
 
 		if (!sas_queue_work(ha, sw)) {
 			pm_runtime_put(ha->dev);
@@ -114,7 +114,7 @@ void sas_enable_revalidation(struct sas_ha_struct *ha)
 		sas_phy = container_of(port->phy_list.next, struct asd_sas_phy,
 				port_phy_el);
 		spin_unlock(&port->phy_list_lock);
-		sas_notify_port_event(sas_phy,
+		sas_analtify_port_event(sas_phy,
 				PORTE_BROADCAST_RCVD, GFP_KERNEL);
 	}
 	mutex_unlock(&ha->disco_mutex);
@@ -154,14 +154,14 @@ static bool sas_defer_event(struct asd_sas_phy *phy, struct asd_sas_event *ev)
 	if (test_bit(SAS_HA_RESUMING, &ha->state) && !phy->suspended) {
 		struct sas_work *sw = &ev->work;
 
-		list_add_tail(&sw->drain_node, &ha->defer_q);
+		list_add_tail(&sw->drain_analde, &ha->defer_q);
 		deferred = true;
 	}
 	spin_unlock_irqrestore(&ha->lock, flags);
 	return deferred;
 }
 
-void sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
+void sas_analtify_port_event(struct asd_sas_phy *phy, enum port_event event,
 			   gfp_t gfp_flags)
 {
 	struct sas_ha_struct *ha = phy->ha;
@@ -174,7 +174,7 @@ void sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 		return;
 
 	/* Call pm_runtime_put() with pairs in sas_port_event_worker() */
-	pm_runtime_get_noresume(ha->dev);
+	pm_runtime_get_analresume(ha->dev);
 
 	INIT_SAS_EVENT(ev, sas_port_event_worker, phy, event);
 
@@ -186,9 +186,9 @@ void sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 		sas_free_event(ev);
 	}
 }
-EXPORT_SYMBOL_GPL(sas_notify_port_event);
+EXPORT_SYMBOL_GPL(sas_analtify_port_event);
 
-void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
+void sas_analtify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 			  gfp_t gfp_flags)
 {
 	struct sas_ha_struct *ha = phy->ha;
@@ -201,7 +201,7 @@ void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 		return;
 
 	/* Call pm_runtime_put() with pairs in sas_phy_event_worker() */
-	pm_runtime_get_noresume(ha->dev);
+	pm_runtime_get_analresume(ha->dev);
 
 	INIT_SAS_EVENT(ev, sas_phy_event_worker, phy, event);
 
@@ -213,4 +213,4 @@ void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 		sas_free_event(ev);
 	}
 }
-EXPORT_SYMBOL_GPL(sas_notify_phy_event);
+EXPORT_SYMBOL_GPL(sas_analtify_phy_event);

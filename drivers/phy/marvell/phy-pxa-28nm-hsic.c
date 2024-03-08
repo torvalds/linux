@@ -77,7 +77,7 @@ static int mv_hsic_phy_init(struct phy *phy)
 	ret = wait_for_reg(base + PHY_28NM_HSIC_PLL_CTRL2,
 			   PHY_28NM_HSIC_H2S_PLL_LOCK, 100);
 	if (ret) {
-		dev_err(&pdev->dev, "HSIC PHY PLL not locked after 100mS.");
+		dev_err(&pdev->dev, "HSIC PHY PLL analt locked after 100mS.");
 		clk_disable_unprepare(mv_phy->clk);
 	}
 
@@ -111,7 +111,7 @@ static int mv_hsic_phy_power_on(struct phy *phy)
 	ret = wait_for_reg(base + PHY_28NM_HSIC_IMPCAL_CAL,
 			   PHY_28NM_HSIC_H2S_IMPCAL_DONE, 100);
 	if (ret) {
-		dev_warn(&pdev->dev, "HSIC PHY READY not set after 100mS.");
+		dev_warn(&pdev->dev, "HSIC PHY READY analt set after 100mS.");
 		return ret;
 	}
 
@@ -165,7 +165,7 @@ static int mv_hsic_phy_probe(struct platform_device *pdev)
 
 	mv_phy = devm_kzalloc(&pdev->dev, sizeof(*mv_phy), GFP_KERNEL);
 	if (!mv_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mv_phy->pdev = pdev;
 
@@ -179,7 +179,7 @@ static int mv_hsic_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(mv_phy->base))
 		return PTR_ERR(mv_phy->base);
 
-	mv_phy->phy = devm_phy_create(&pdev->dev, pdev->dev.of_node, &hsic_ops);
+	mv_phy->phy = devm_phy_create(&pdev->dev, pdev->dev.of_analde, &hsic_ops);
 	if (IS_ERR(mv_phy->phy))
 		return PTR_ERR(mv_phy->phy);
 

@@ -29,7 +29,7 @@
 
 #define TFC_SESS_DBG(lport, fmt, args...) \
 	pr_debug("host%u: rport %6.6x: " fmt,	   \
-		 (lport)->host->host_no,	   \
+		 (lport)->host->host_anal,	   \
 		 (lport)->port_id, ##args )
 
 static void ft_sess_delete_all(struct ft_tport *);
@@ -124,10 +124,10 @@ void ft_lport_del(struct fc_lport *lport, void *arg)
 }
 
 /*
- * Notification of local port change from libfc.
+ * Analtification of local port change from libfc.
  * Create or delete local port and associated tport.
  */
-int ft_lport_notify(struct notifier_block *nb, unsigned long event, void *arg)
+int ft_lport_analtify(struct analtifier_block *nb, unsigned long event, void *arg)
 {
 	struct fc_lport *lport = arg;
 
@@ -139,7 +139,7 @@ int ft_lport_notify(struct notifier_block *nb, unsigned long event, void *arg)
 		ft_lport_del(lport, NULL);
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*
@@ -160,12 +160,12 @@ static struct ft_sess *ft_sess_get(struct fc_lport *lport, u32 port_id)
 	struct ft_tport *tport;
 	struct hlist_head *head;
 	struct ft_sess *sess;
-	char *reason = "no session created";
+	char *reason = "anal session created";
 
 	rcu_read_lock();
 	tport = rcu_dereference(lport->prov[FC_TYPE_FCP]);
 	if (!tport) {
-		reason = "not an FCP port";
+		reason = "analt an FCP port";
 		goto out;
 	}
 
@@ -181,7 +181,7 @@ static struct ft_sess *ft_sess_get(struct fc_lport *lport, u32 port_id)
 	}
 out:
 	rcu_read_unlock();
-	TFC_SESS_DBG(lport, "port_id %x not found, %s\n",
+	TFC_SESS_DBG(lport, "port_id %x analt found, %s\n",
 		     port_id, reason);
 	return NULL;
 }
@@ -221,7 +221,7 @@ static struct ft_sess *ft_sess_create(struct ft_tport *tport, u32 port_id,
 
 	sess = kzalloc(sizeof(*sess), GFP_KERNEL);
 	if (!sess)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kref_init(&sess->kref); /* ref for table entry */
 	sess->tport = tport;
@@ -229,7 +229,7 @@ static struct ft_sess *ft_sess_create(struct ft_tport *tport, u32 port_id,
 
 	sess->se_sess = target_setup_session(se_tpg, TCM_FC_DEFAULT_TAGS,
 					     sizeof(struct ft_cmd),
-					     TARGET_PROT_NORMAL, &initiatorname[0],
+					     TARGET_PROT_ANALRMAL, &initiatorname[0],
 					     sess, ft_sess_alloc_cb);
 	if (IS_ERR(sess->se_sess)) {
 		int rc = PTR_ERR(sess->se_sess);
@@ -329,7 +329,7 @@ u32 ft_sess_get_index(struct se_session *se_sess)
 {
 	struct ft_sess *sess = se_sess->fabric_sess_ptr;
 
-	return sess->port_id;	/* XXX TBD probably not what is needed */
+	return sess->port_id;	/* XXX TBD probably analt what is needed */
 }
 
 u32 ft_sess_get_port_name(struct se_session *se_sess,
@@ -353,13 +353,13 @@ static int ft_prli_locked(struct fc_rport_priv *rdata, u32 spp_len,
 
 	tport = ft_tport_get(rdata->local_port);
 	if (!tport)
-		goto not_target;	/* not a target for this local port */
+		goto analt_target;	/* analt a target for this local port */
 
 	if (!rspp)
 		goto fill;
 
 	if (rspp->spp_flags & (FC_SPP_OPA_VAL | FC_SPP_RPA_VAL))
-		return FC_SPP_RESP_NO_PA;
+		return FC_SPP_RESP_ANAL_PA;
 
 	/*
 	 * If both target and initiator bits are off, the SPP is invalid.
@@ -402,7 +402,7 @@ fill:
 	spp->spp_params = htonl(fcp_parm | FCP_SPPF_TARG_FCN);
 	return FC_SPP_RESP_ACK;
 
-not_target:
+analt_target:
 	fcp_parm = ntohl(spp->spp_params);
 	fcp_parm &= ~FCP_SPPF_TARG_FCN;
 	spp->spp_params = htonl(fcp_parm);

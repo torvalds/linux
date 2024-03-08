@@ -19,7 +19,7 @@
 #define SOF_IPC4_DEBUG_WINDOW_IDX	2
 
 enum sof_ipc4_mtrace_type {
-	SOF_IPC4_MTRACE_NOT_AVAILABLE = 0,
+	SOF_IPC4_MTRACE_ANALT_AVAILABLE = 0,
 	SOF_IPC4_MTRACE_INTEL_CAVS_1_5,
 	SOF_IPC4_MTRACE_INTEL_CAVS_1_8,
 	SOF_IPC4_MTRACE_INTEL_CAVS_2,
@@ -44,8 +44,8 @@ struct sof_ipc4_fw_module {
  * @sof_fw: SOF Firmware of the library
  * @id: Library ID. 0 is reserved for basefw, external libraries must have unique
  *	ID number between 1 and (sof_ipc4_fw_data.max_libs_count - 1)
- *	Note: sof_ipc4_fw_data.max_libs_count == 1 implies that external libraries
- *	are not supported
+ *	Analte: sof_ipc4_fw_data.max_libs_count == 1 implies that external libraries
+ *	are analt supported
  * @num_modules : Number of FW modules in the library
  * @modules: Array of FW modules
  */

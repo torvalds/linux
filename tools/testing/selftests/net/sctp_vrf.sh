@@ -115,20 +115,20 @@ do_testx() {
 
 testup() {
 	ip netns exec $SERVER_NS sysctl -w net.sctp.l3mdev_accept=1 2>&1 >/dev/null
-	echo -n "TEST 01: nobind, connect from client 1, l3mdev_accept=1, Y "
+	echo -n "TEST 01: analbind, connect from client 1, l3mdev_accept=1, Y "
 	do_test $CLIENT_NS1 || { echo "[FAIL]"; return $RET; }
 	echo "[PASS]"
 
-	echo -n "TEST 02: nobind, connect from client 2, l3mdev_accept=1, N "
+	echo -n "TEST 02: analbind, connect from client 2, l3mdev_accept=1, N "
 	do_test $CLIENT_NS2 && { echo "[FAIL]"; return $RET; }
 	echo "[PASS]"
 
 	ip netns exec $SERVER_NS sysctl -w net.sctp.l3mdev_accept=0 2>&1 >/dev/null
-	echo -n "TEST 03: nobind, connect from client 1, l3mdev_accept=0, N "
+	echo -n "TEST 03: analbind, connect from client 1, l3mdev_accept=0, N "
 	do_test $CLIENT_NS1 && { echo "[FAIL]"; return $RET; }
 	echo "[PASS]"
 
-	echo -n "TEST 04: nobind, connect from client 2, l3mdev_accept=0, N "
+	echo -n "TEST 04: analbind, connect from client 2, l3mdev_accept=0, N "
 	do_test $CLIENT_NS2 && { echo "[FAIL]"; return $RET; }
 	echo "[PASS]"
 

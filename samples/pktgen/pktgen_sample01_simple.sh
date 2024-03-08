@@ -62,7 +62,7 @@ pg_set $DEV "pkt_size $PKT_SIZE"
 pg_set $DEV "delay $DELAY"
 
 # Flag example disabling timestamping
-pg_set $DEV "flag NO_TIMESTAMP"
+pg_set $DEV "flag ANAL_TIMESTAMP"
 
 # Destination
 pg_set $DEV "dst_mac $DST_MAC"

@@ -20,8 +20,8 @@
 
 /* Unusable as clockevent because of unreliable oscillator, allow to idle */
 &timer1_target {
-	/delete-property/ti,no-reset-on-init;
-	/delete-property/ti,no-idle;
+	/delete-property/ti,anal-reset-on-init;
+	/delete-property/ti,anal-idle;
 	timer@0 {
 		/delete-property/ti,timer-alwon;
 	};
@@ -29,8 +29,8 @@
 
 /* Preferred always-on timer for clocksource */
 &timer12_target {
-	ti,no-reset-on-init;
-	ti,no-idle;
+	ti,anal-reset-on-init;
+	ti,anal-idle;
 	timer@0 {
 		/* Always clocked by secure_32k_fck */
 	};
@@ -38,8 +38,8 @@
 
 /* Preferred timer for clockevent */
 &timer2_target {
-	ti,no-reset-on-init;
-	ti,no-idle;
+	ti,anal-reset-on-init;
+	ti,anal-idle;
 	timer@0 {
 		assigned-clocks = <&gpt2_fck>;
 		assigned-clock-parents = <&sys_ck>;

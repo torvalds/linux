@@ -21,16 +21,16 @@
 /*
  * pidlists linger the following amount before being destroyed.  The goal
  * is avoiding frequent destruction in the middle of consecutive read calls
- * Expiring in the middle is a performance problem not a correctness one.
- * 1 sec should be enough.
+ * Expiring in the middle is a performance problem analt a correctness one.
+ * 1 sec should be eanalugh.
  */
 #define CGROUP_PIDLIST_DESTROY_DELAY	HZ
 
 /* Controllers blocked by the commandline in v1 */
-static u16 cgroup_no_v1_mask;
+static u16 cgroup_anal_v1_mask;
 
 /* disable named v1 mounts */
-static bool cgroup_no_v1_named;
+static bool cgroup_anal_v1_named;
 
 /*
  * pidlist destructions need to be flushed on cgroup destruction.  Use a
@@ -43,7 +43,7 @@ static DEFINE_SPINLOCK(release_agent_path_lock);
 
 bool cgroup1_ssid_disabled(int ssid)
 {
-	return cgroup_no_v1_mask & (1 << ssid);
+	return cgroup_anal_v1_mask & (1 << ssid);
 }
 
 /**
@@ -51,7 +51,7 @@ bool cgroup1_ssid_disabled(int ssid)
  * @from: attach to all cgroups of a given task
  * @tsk: the task to be attached
  *
- * Return: %0 on success or a negative errno code on failure
+ * Return: %0 on success or a negative erranal code on failure
  */
 int cgroup_attach_task_all(struct task_struct *from, struct task_struct *tsk)
 {
@@ -79,17 +79,17 @@ int cgroup_attach_task_all(struct task_struct *from, struct task_struct *tsk)
 EXPORT_SYMBOL_GPL(cgroup_attach_task_all);
 
 /**
- * cgroup_transfer_tasks - move tasks from one cgroup to another
+ * cgroup_transfer_tasks - move tasks from one cgroup to aanalther
  * @to: cgroup to which the tasks will be moved
  * @from: cgroup in which the tasks currently reside
  *
  * Locking rules between cgroup_post_fork() and the migration path
  * guarantee that, if a task is forking while being migrated, the new child
  * is guaranteed to be either visible in the source cgroup after the
- * parent's migration is complete or put into the target cgroup.  No task
+ * parent's migration is complete or put into the target cgroup.  Anal task
  * can slip out of migration through forking.
  *
- * Return: %0 on success or a negative errno code on failure
+ * Return: %0 on success or a negative erranal code on failure
  */
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 {
@@ -154,7 +154,7 @@ out_err:
  *
  * Reading this file can return large amounts of data if a cgroup has
  * *lots* of attached tasks. So it may need several calls to read(),
- * but we cannot guarantee that the information we produce is correct
+ * but we cananalt guarantee that the information we produce is correct
  * unless we produce it entirely atomically.
  *
  */
@@ -190,7 +190,7 @@ struct cgroup_pidlist {
 };
 
 /*
- * Used to destroy all pidlists lingering waiting for destroy timer.  None
+ * Used to destroy all pidlists lingering waiting for destroy timer.  Analne
  * should be left afterwards.
  */
 void cgroup1_pidlist_destroy_all(struct cgroup *cgrp)
@@ -240,7 +240,7 @@ static int pidlist_uniq(pid_t *list, int length)
 
 	/*
 	 * we presume the 0th element is unique, so i starts at 1. trivial
-	 * edge cases first; no work needs to be done for either
+	 * edge cases first; anal work needs to be done for either
 	 */
 	if (length == 0 || length == 1)
 		return length;
@@ -292,7 +292,7 @@ static struct cgroup_pidlist *cgroup_pidlist_find(struct cgroup *cgrp,
 /*
  * find the appropriate pidlist for our purpose (given procs vs tasks)
  * returns with the lock on that pidlist already held, and takes care
- * of the use count, or returns NULL with no locks held if we're out of
+ * of the use count, or returns NULL with anal locks held if we're out of
  * memory.
  */
 static struct cgroup_pidlist *cgroup_pidlist_find_create(struct cgroup *cgrp,
@@ -306,7 +306,7 @@ static struct cgroup_pidlist *cgroup_pidlist_find_create(struct cgroup *cgrp,
 	if (l)
 		return l;
 
-	/* entry not found; create a new one */
+	/* entry analt found; create a new one */
 	l = kzalloc(sizeof(struct cgroup_pidlist), GFP_KERNEL);
 	if (!l)
 		return l;
@@ -337,15 +337,15 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 
 	/*
 	 * If cgroup gets more users after we read count, we won't have
-	 * enough space - tough.  This race is indistinguishable to the
+	 * eanalugh space - tough.  This race is indistinguishable to the
 	 * caller from the case that the additional cgroup users didn't
 	 * show up until sometime later on.
 	 */
 	length = cgroup_task_count(cgrp);
 	array = kvmalloc_array(length, sizeof(pid_t), GFP_KERNEL);
 	if (!array)
-		return -ENOMEM;
-	/* now, populate the array */
+		return -EANALMEM;
+	/* analw, populate the array */
 	css_task_iter_start(&cgrp->self, 0, &it);
 	while ((tsk = css_task_iter_next(&it))) {
 		if (unlikely(n == length))
@@ -360,14 +360,14 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	}
 	css_task_iter_end(&it);
 	length = n;
-	/* now sort & strip out duplicates (tgids or recycled thread PIDs) */
+	/* analw sort & strip out duplicates (tgids or recycled thread PIDs) */
 	sort(array, length, sizeof(pid_t), cmppid, NULL);
 	length = pidlist_uniq(array, length);
 
 	l = cgroup_pidlist_find_create(cgrp, type);
 	if (!l) {
 		kvfree(array);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* store array, freeing old if necessary */
@@ -405,7 +405,7 @@ static void *cgroup_pidlist_start(struct seq_file *s, loff_t *pos)
 	/*
 	 * !NULL @ctx->procs1.pidlist indicates that this isn't the first
 	 * start() after open. If the matching pidlist is around, we can use
-	 * that. Look for it. Note that @ctx->procs1.pidlist can't be used
+	 * that. Look for it. Analte that @ctx->procs1.pidlist can't be used
 	 * directly. It could already have been destroyed.
 	 */
 	if (ctx->procs1.pidlist)
@@ -497,7 +497,7 @@ static ssize_t __cgroup1_procs_write(struct kernfs_open_file *of,
 
 	cgrp = cgroup_kn_lock_live(of->kn, false);
 	if (!cgrp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	task = cgroup_procs_write_start(buf, threadgroup, &locked);
 	ret = PTR_ERR_OR_ZERO(task);
@@ -560,7 +560,7 @@ static ssize_t cgroup_release_agent_write(struct kernfs_open_file *of,
 
 	cgrp = cgroup_kn_lock_live(of->kn, false);
 	if (!cgrp)
-		return -ENODEV;
+		return -EANALDEV;
 	spin_lock(&release_agent_path_lock);
 	strscpy(cgrp->root->release_agent_path, strstrip(buf),
 		sizeof(cgrp->root->release_agent_path));
@@ -586,19 +586,19 @@ static int cgroup_sane_behavior_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static u64 cgroup_read_notify_on_release(struct cgroup_subsys_state *css,
+static u64 cgroup_read_analtify_on_release(struct cgroup_subsys_state *css,
 					 struct cftype *cft)
 {
-	return notify_on_release(css->cgroup);
+	return analtify_on_release(css->cgroup);
 }
 
-static int cgroup_write_notify_on_release(struct cgroup_subsys_state *css,
+static int cgroup_write_analtify_on_release(struct cgroup_subsys_state *css,
 					  struct cftype *cft, u64 val)
 {
 	if (val)
-		set_bit(CGRP_NOTIFY_ON_RELEASE, &css->cgroup->flags);
+		set_bit(CGRP_ANALTIFY_ON_RELEASE, &css->cgroup->flags);
 	else
-		clear_bit(CGRP_NOTIFY_ON_RELEASE, &css->cgroup->flags);
+		clear_bit(CGRP_ANALTIFY_ON_RELEASE, &css->cgroup->flags);
 	return 0;
 }
 
@@ -649,9 +649,9 @@ struct cftype cgroup1_base_files[] = {
 		.write = cgroup1_tasks_write,
 	},
 	{
-		.name = "notify_on_release",
-		.read_u64 = cgroup_read_notify_on_release,
-		.write_u64 = cgroup_write_notify_on_release,
+		.name = "analtify_on_release",
+		.read_u64 = cgroup_read_analtify_on_release,
+		.write_u64 = cgroup_write_analtify_on_release,
 	},
 	{
 		.name = "release_agent",
@@ -671,7 +671,7 @@ int proc_cgroupstats_show(struct seq_file *m, void *v)
 
 	seq_puts(m, "#subsys_name\thierarchy\tnum_cgroups\tenabled\n");
 	/*
-	 * Grab the subsystems state racily. No need to add avenue to
+	 * Grab the subsystems state racily. Anal need to add avenue to
 	 * cgroup_mutex contention.
 	 */
 
@@ -693,22 +693,22 @@ int proc_cgroupstats_show(struct seq_file *m, void *v)
  * Build and fill cgroupstats so that taskstats can export it to user
  * space.
  *
- * Return: %0 on success or a negative errno code on failure
+ * Return: %0 on success or a negative erranal code on failure
  */
 int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 {
-	struct kernfs_node *kn = kernfs_node_from_dentry(dentry);
+	struct kernfs_analde *kn = kernfs_analde_from_dentry(dentry);
 	struct cgroup *cgrp;
 	struct css_task_iter it;
 	struct task_struct *tsk;
 
-	/* it should be kernfs_node belonging to cgroupfs and is a directory */
+	/* it should be kernfs_analde belonging to cgroupfs and is a directory */
 	if (dentry->d_sb->s_type != &cgroup_fs_type || !kn ||
 	    kernfs_type(kn) != KERNFS_DIR)
 		return -EINVAL;
 
 	/*
-	 * We aren't being called from kernfs and there's no guarantee on
+	 * We aren't being called from kernfs and there's anal guarantee on
 	 * @kn->priv's validity.  For this and css_tryget_online_from_dir(),
 	 * @kn->priv is RCU safe.  Let's do the RCU dancing.
 	 */
@@ -716,7 +716,7 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 	cgrp = rcu_dereference(*(void __rcu __force **)&kn->priv);
 	if (!cgrp || !cgroup_tryget(cgrp)) {
 		rcu_read_unlock();
-		return -ENOENT;
+		return -EANALENT;
 	}
 	rcu_read_unlock();
 
@@ -749,13 +749,13 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 
 void cgroup1_check_for_release(struct cgroup *cgrp)
 {
-	if (notify_on_release(cgrp) && !cgroup_is_populated(cgrp) &&
+	if (analtify_on_release(cgrp) && !cgroup_is_populated(cgrp) &&
 	    !css_has_online_children(&cgrp->self) && !cgroup_is_dead(cgrp))
 		schedule_work(&cgrp->release_agent_work);
 }
 
 /*
- * Notify userspace when a cgroup is released, by running the
+ * Analtify userspace when a cgroup is released, by running the
  * configured release agent with the name of the cgroup (path
  * relative to the root of cgroup file system) as the argument.
  *
@@ -764,18 +764,18 @@ void cgroup1_check_for_release(struct cgroup *cgrp)
  * This races with the possibility that some other task will be
  * attached to this cgroup before it is removed, or that some other
  * user task will 'mkdir' a child cgroup of this cgroup.  That's ok.
- * The presumed 'rmdir' will fail quietly if this cgroup is no longer
+ * The presumed 'rmdir' will fail quietly if this cgroup is anal longer
  * unused, and this cgroup will be reprieved from its death sentence,
  * to continue to serve a useful existence.  Next time it's released,
- * we will get notified again, if it still has 'notify_on_release' set.
+ * we will get analtified again, if it still has 'analtify_on_release' set.
  *
  * The final arg to call_usermodehelper() is UMH_WAIT_EXEC, which
  * means only wait until the task is successfully execve()'d.  The
  * separate release agent task is forked by call_usermodehelper(),
  * then control in this thread returns here, without waiting for the
  * release agent task.  We don't bother to wait because the caller of
- * this routine has no use for the exit status of the release agent
- * task, so no sense holding our caller up for that.
+ * this routine has anal use for the exit status of the release agent
+ * task, so anal sense holding our caller up for that.
  */
 void cgroup1_release_agent(struct work_struct *work)
 {
@@ -785,7 +785,7 @@ void cgroup1_release_agent(struct work_struct *work)
 	char *argv[3], *envp[3];
 	int ret;
 
-	/* snoop agent path and exit early if empty */
+	/* sanalop agent path and exit early if empty */
 	if (!cgrp->root->release_agent_path[0])
 		return;
 
@@ -823,18 +823,18 @@ out_free:
 /*
  * cgroup_rename - Only allow simple rename of directories in place.
  */
-static int cgroup1_rename(struct kernfs_node *kn, struct kernfs_node *new_parent,
+static int cgroup1_rename(struct kernfs_analde *kn, struct kernfs_analde *new_parent,
 			  const char *new_name_str)
 {
 	struct cgroup *cgrp = kn->priv;
 	int ret;
 
-	/* do not accept '\n' to prevent making /proc/<pid>/cgroup unparsable */
+	/* do analt accept '\n' to prevent making /proc/<pid>/cgroup unparsable */
 	if (strchr(new_name_str, '\n'))
 		return -EINVAL;
 
 	if (kernfs_type(kn) != KERNFS_DIR)
-		return -ENOTDIR;
+		return -EANALTDIR;
 	if (kn->parent != new_parent)
 		return -EIO;
 
@@ -868,8 +868,8 @@ static int cgroup1_show_options(struct seq_file *seq, struct kernfs_root *kf_roo
 	for_each_subsys(ss, ssid)
 		if (root->subsys_mask & (1 << ssid))
 			seq_show_option(seq, ss->legacy_name, NULL);
-	if (root->flags & CGRP_ROOT_NOPREFIX)
-		seq_puts(seq, ",noprefix");
+	if (root->flags & CGRP_ROOT_ANALPREFIX)
+		seq_puts(seq, ",analprefix");
 	if (root->flags & CGRP_ROOT_XATTR)
 		seq_puts(seq, ",xattr");
 	if (root->flags & CGRP_ROOT_CPUSET_V2_MODE)
@@ -895,12 +895,12 @@ enum cgroup1_param {
 	Opt_clone_children,
 	Opt_cpuset_v2_mode,
 	Opt_name,
-	Opt_none,
-	Opt_noprefix,
+	Opt_analne,
+	Opt_analprefix,
 	Opt_release_agent,
 	Opt_xattr,
 	Opt_favordynmods,
-	Opt_nofavordynmods,
+	Opt_analfavordynmods,
 };
 
 const struct fs_parameter_spec cgroup1_fs_parameters[] = {
@@ -908,12 +908,12 @@ const struct fs_parameter_spec cgroup1_fs_parameters[] = {
 	fsparam_flag  ("clone_children", Opt_clone_children),
 	fsparam_flag  ("cpuset_v2_mode", Opt_cpuset_v2_mode),
 	fsparam_string("name",		Opt_name),
-	fsparam_flag  ("none",		Opt_none),
-	fsparam_flag  ("noprefix",	Opt_noprefix),
+	fsparam_flag  ("analne",		Opt_analne),
+	fsparam_flag  ("analprefix",	Opt_analprefix),
 	fsparam_string("release_agent",	Opt_release_agent),
 	fsparam_flag  ("xattr",		Opt_xattr),
 	fsparam_flag  ("favordynmods",	Opt_favordynmods),
-	fsparam_flag  ("nofavordynmods", Opt_nofavordynmods),
+	fsparam_flag  ("analfavordynmods", Opt_analfavordynmods),
 	{}
 };
 
@@ -925,11 +925,11 @@ int cgroup1_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	int opt, i;
 
 	opt = fs_parse(fc, cgroup1_fs_parameters, param, &result);
-	if (opt == -ENOPARAM) {
+	if (opt == -EANALPARAM) {
 		int ret;
 
 		ret = vfs_parse_fs_param_source(fc, param);
-		if (ret != -ENOPARAM)
+		if (ret != -EANALPARAM)
 			return ret;
 		for_each_subsys(ss, i) {
 			if (strcmp(param->key, ss->legacy_name))
@@ -940,21 +940,21 @@ int cgroup1_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			ctx->subsys_mask |= (1 << i);
 			return 0;
 		}
-		return invalfc(fc, "Unknown subsys name '%s'", param->key);
+		return invalfc(fc, "Unkanalwn subsys name '%s'", param->key);
 	}
 	if (opt < 0)
 		return opt;
 
 	switch (opt) {
-	case Opt_none:
-		/* Explicitly have no subsystems */
-		ctx->none = true;
+	case Opt_analne:
+		/* Explicitly have anal subsystems */
+		ctx->analne = true;
 		break;
 	case Opt_all:
 		ctx->all_ss = true;
 		break;
-	case Opt_noprefix:
-		ctx->flags |= CGRP_ROOT_NOPREFIX;
+	case Opt_analprefix:
+		ctx->flags |= CGRP_ROOT_ANALPREFIX;
 		break;
 	case Opt_clone_children:
 		ctx->cpuset_clone_children = true;
@@ -968,7 +968,7 @@ int cgroup1_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_favordynmods:
 		ctx->flags |= CGRP_ROOT_FAVOR_DYNMODS;
 		break;
-	case Opt_nofavordynmods:
+	case Opt_analfavordynmods:
 		ctx->flags &= ~CGRP_ROOT_FAVOR_DYNMODS;
 		break;
 	case Opt_release_agent:
@@ -980,14 +980,14 @@ int cgroup1_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		 * require capabilities to set release agent.
 		 */
 		if ((fc->user_ns != &init_user_ns) || !capable(CAP_SYS_ADMIN))
-			return invalfc(fc, "Setting release_agent not allowed");
+			return invalfc(fc, "Setting release_agent analt allowed");
 		ctx->release_agent = param->string;
 		param->string = NULL;
 		break;
 	case Opt_name:
 		/* blocked by boot param? */
-		if (cgroup_no_v1_named)
-			return -ENOENT;
+		if (cgroup_anal_v1_named)
+			return -EANALENT;
 		/* Can't specify an empty name */
 		if (!param->size)
 			return invalfc(fc, "Empty name");
@@ -1030,10 +1030,10 @@ static int check_cgroupfs_options(struct fs_context *fc)
 	ctx->subsys_mask &= enabled;
 
 	/*
-	 * In absence of 'none', 'name=' and subsystem name options,
+	 * In absence of 'analne', 'name=' and subsystem name options,
 	 * let's default to 'all'.
 	 */
-	if (!ctx->subsys_mask && !ctx->none && !ctx->name)
+	if (!ctx->subsys_mask && !ctx->analne && !ctx->name)
 		ctx->all_ss = true;
 
 	if (ctx->all_ss) {
@@ -1052,16 +1052,16 @@ static int check_cgroupfs_options(struct fs_context *fc)
 		return invalfc(fc, "Need name or subsystem set");
 
 	/*
-	 * Option noprefix was introduced just for backward compatibility
-	 * with the old cpuset, so we allow noprefix only if mounting just
+	 * Option analprefix was introduced just for backward compatibility
+	 * with the old cpuset, so we allow analprefix only if mounting just
 	 * the cpuset subsystem.
 	 */
-	if ((ctx->flags & CGRP_ROOT_NOPREFIX) && (ctx->subsys_mask & mask))
-		return invalfc(fc, "noprefix used incorrectly");
+	if ((ctx->flags & CGRP_ROOT_ANALPREFIX) && (ctx->subsys_mask & mask))
+		return invalfc(fc, "analprefix used incorrectly");
 
-	/* Can't specify "none" and some subsystems */
-	if (ctx->subsys_mask && ctx->none)
-		return invalfc(fc, "none used incorrectly");
+	/* Can't specify "analne" and some subsystems */
+	if (ctx->subsys_mask && ctx->analne)
+		return invalfc(fc, "analne used incorrectly");
 
 	return 0;
 }
@@ -1097,7 +1097,7 @@ int cgroup1_reconfigure(struct fs_context *fc)
 		goto out_unlock;
 	}
 
-	/* remounting is not allowed for populated hierarchies */
+	/* remounting is analt allowed for populated hierarchies */
 	if (!list_empty(&root->cgrp.self.children)) {
 		ret = -EBUSY;
 		goto out_unlock;
@@ -1135,7 +1135,7 @@ struct kernfs_syscall_ops cgroup1_kf_syscall_ops = {
  * Called with cgroup_mutex held; returns 0 on success, -E... on
  * error and positive - in case when the candidate is busy dying.
  * On success it stashes a reference to cgroup_root into given
- * cgroup_fs_context; that reference is *NOT* counting towards the
+ * cgroup_fs_context; that reference is *ANALT* counting towards the
  * cgroup_root refcount.
  */
 static int cgroup1_root_to_use(struct fs_context *fc)
@@ -1151,11 +1151,11 @@ static int cgroup1_root_to_use(struct fs_context *fc)
 		return ret;
 
 	/*
-	 * Destruction of cgroup root is asynchronous, so subsystems may
+	 * Destruction of cgroup root is asynchroanalus, so subsystems may
 	 * still be dying after the previous unmount.  Let's drain the
 	 * dying subsystems.  We just need to ensure that the ones
 	 * unmounted previously finish dying and don't care about new ones
-	 * starting.  Testing ref liveliness is good enough.
+	 * starting.  Testing ref liveliness is good eanalugh.
 	 */
 	for_each_subsys(ss, i) {
 		if (!(ctx->subsys_mask & (1 << i)) ||
@@ -1185,10 +1185,10 @@ static int cgroup1_root_to_use(struct fs_context *fc)
 		}
 
 		/*
-		 * If we asked for subsystems (or explicitly for no
+		 * If we asked for subsystems (or explicitly for anal
 		 * subsystems) then they must match.
 		 */
-		if ((ctx->subsys_mask || ctx->none) &&
+		if ((ctx->subsys_mask || ctx->analne) &&
 		    (ctx->subsys_mask != root->subsys_mask)) {
 			if (!name_match)
 				continue;
@@ -1196,19 +1196,19 @@ static int cgroup1_root_to_use(struct fs_context *fc)
 		}
 
 		if (root->flags ^ ctx->flags)
-			pr_warn("new mount options do not match the existing superblock, will be ignored\n");
+			pr_warn("new mount options do analt match the existing superblock, will be iganalred\n");
 
 		ctx->root = root;
 		return 0;
 	}
 
 	/*
-	 * No such thing, create a new one.  name= matching without subsys
+	 * Anal such thing, create a new one.  name= matching without subsys
 	 * specification is allowed for already existing hierarchies but we
 	 * can't create new one without subsys specification.
 	 */
-	if (!ctx->subsys_mask && !ctx->none)
-		return invalfc(fc, "No subsys list or none specified");
+	if (!ctx->subsys_mask && !ctx->analne)
+		return invalfc(fc, "Anal subsys list or analne specified");
 
 	/* Hierarchies may only be created in the initial cgroup namespace. */
 	if (ctx->ns != &init_cgroup_ns)
@@ -1216,7 +1216,7 @@ static int cgroup1_root_to_use(struct fs_context *fc)
 
 	root = kzalloc(sizeof(*root), GFP_KERNEL);
 	if (!root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->root = root;
 	init_cgroup_root(ctx);
@@ -1274,7 +1274,7 @@ int cgroup1_get_tree(struct fs_context *fc)
  */
 struct cgroup *task_get_cgroup1(struct task_struct *tsk, int hierarchy_id)
 {
-	struct cgroup *cgrp = ERR_PTR(-ENOENT);
+	struct cgroup *cgrp = ERR_PTR(-EANALENT);
 	struct cgroup_root *root;
 	unsigned long flags;
 
@@ -1288,7 +1288,7 @@ struct cgroup *task_get_cgroup1(struct task_struct *tsk, int hierarchy_id)
 		spin_lock_irqsave(&css_set_lock, flags);
 		cgrp = task_cgroup_from_root(tsk, root);
 		if (!cgrp || !cgroup_tryget(cgrp))
-			cgrp = ERR_PTR(-ENOENT);
+			cgrp = ERR_PTR(-EANALENT);
 		spin_unlock_irqrestore(&css_set_lock, flags);
 		break;
 	}
@@ -1309,7 +1309,7 @@ static int __init cgroup1_wq_init(void)
 }
 core_initcall(cgroup1_wq_init);
 
-static int __init cgroup_no_v1(char *str)
+static int __init cgroup_anal_v1(char *str)
 {
 	struct cgroup_subsys *ss;
 	char *token;
@@ -1320,12 +1320,12 @@ static int __init cgroup_no_v1(char *str)
 			continue;
 
 		if (!strcmp(token, "all")) {
-			cgroup_no_v1_mask = U16_MAX;
+			cgroup_anal_v1_mask = U16_MAX;
 			continue;
 		}
 
 		if (!strcmp(token, "named")) {
-			cgroup_no_v1_named = true;
+			cgroup_anal_v1_named = true;
 			continue;
 		}
 
@@ -1334,9 +1334,9 @@ static int __init cgroup_no_v1(char *str)
 			    strcmp(token, ss->legacy_name))
 				continue;
 
-			cgroup_no_v1_mask |= 1 << i;
+			cgroup_anal_v1_mask |= 1 << i;
 		}
 	}
 	return 1;
 }
-__setup("cgroup_no_v1=", cgroup_no_v1);
+__setup("cgroup_anal_v1=", cgroup_anal_v1);

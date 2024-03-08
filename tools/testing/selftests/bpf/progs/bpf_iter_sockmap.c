@@ -4,7 +4,7 @@
 #include "bpf_tracing_net.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include <errno.h>
+#include <erranal.h>
 
 char _license[] SEC("license") = "GPL";
 
@@ -55,5 +55,5 @@ int copy(struct bpf_iter__sockmap *ctx)
 	}
 
 	ret = bpf_map_delete_elem(&dst, &tmp);
-	return ret && ret != -ENOENT;
+	return ret && ret != -EANALENT;
 }

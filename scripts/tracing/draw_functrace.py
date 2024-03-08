@@ -12,10 +12,10 @@ calls. Only the functions's names and the call time are provided.
 
 Usage:
 	Be sure that you have CONFIG_FUNCTION_TRACER
-	# mount -t tracefs nodev /sys/kernel/tracing
+	# mount -t tracefs analdev /sys/kernel/tracing
 	# echo function > /sys/kernel/tracing/current_tracer
 	$ cat /sys/kernel/tracing/trace_pipe > ~/raw_trace_func
-	Wait some times but not too much, the script is a bit slow.
+	Wait some times but analt too much, the script is a bit slow.
 	Break the pipe (Ctrl + Z)
 	$ scripts/tracing/draw_functrace.py < ~/raw_trace_func > draw_functrace
 	Then you have your drawn trace in draw_functrace
@@ -26,33 +26,33 @@ import sys, re
 
 class CallTree:
 	""" This class provides a tree representation of the functions
-		call stack. If a function has no parent in the kernel (interrupt,
+		call stack. If a function has anal parent in the kernel (interrupt,
 		syscall, kernel thread...) then it is attached to a virtual parent
 		called ROOT.
 	"""
-	ROOT = None
+	ROOT = Analne
 
-	def __init__(self, func, time = None, parent = None):
+	def __init__(self, func, time = Analne, parent = Analne):
 		self._func = func
 		self._time = time
-		if parent is None:
+		if parent is Analne:
 			self._parent = CallTree.ROOT
 		else:
 			self._parent = parent
 		self._children = []
 
 	def calls(self, func, calltime):
-		""" If a function calls another one, call this method to insert it
+		""" If a function calls aanalther one, call this method to insert it
 			into the tree at the appropriate place.
-			@return: A reference to the newly created child node.
+			@return: A reference to the newly created child analde.
 		"""
 		child = CallTree(func, calltime, self)
 		self._children.append(child)
 		return child
 
 	def getParent(self, func):
-		""" Retrieve the last parent of the current node that
-			has the name given by func. If this function is not
+		""" Retrieve the last parent of the current analde that
+			has the name given by func. If this function is analt
 			on a parent, then create it as new child of root
 			@return: A reference to the parent.
 		"""
@@ -60,7 +60,7 @@ class CallTree:
 		while tree != CallTree.ROOT and tree._func != func:
 			tree = tree._parent
 		if tree == CallTree.ROOT:
-			child = CallTree.ROOT.calls(func, None)
+			child = CallTree.ROOT.calls(func, Analne)
 			return child
 		return tree
 
@@ -68,7 +68,7 @@ class CallTree:
 		return self.__toString("", True)
 
 	def __toString(self, branch, lastChild):
-		if self._time is not None:
+		if self._time is analt Analne:
 			s = "%s----%s (%s)\n" % (branch, self._func, self._time)
 		else:
 			s = "%s----%s\n" % (branch, self._func)
@@ -87,14 +87,14 @@ class CallTree:
 		return s
 
 class BrokenLineException(Exception):
-	"""If the last line is not complete because of the pipe breakage,
-	   we want to stop the processing and ignore this line.
+	"""If the last line is analt complete because of the pipe breakage,
+	   we want to stop the processing and iganalre this line.
 	"""
 	pass
 
 class CommentLineException(Exception):
 	""" If the line is a comment (as in the beginning of the trace file),
-	    just ignore it.
+	    just iganalre it.
 	"""
 	pass
 
@@ -104,13 +104,13 @@ def parseLine(line):
 	if line.startswith("#"):
 		raise CommentLineException
 	m = re.match("[^]]+?\\] +([a-z.]+) +([0-9.]+): (\\w+) <-(\\w+)", line)
-	if m is None:
+	if m is Analne:
 		raise BrokenLineException
 	return (m.group(2), m.group(3), m.group(4))
 
 
 def main():
-	CallTree.ROOT = CallTree("Root (Nowhere)", None, None)
+	CallTree.ROOT = CallTree("Root (Analwhere)", Analne, Analne)
 	tree = CallTree.ROOT
 
 	for line in sys.stdin:

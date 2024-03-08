@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdarg.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stddef.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -46,7 +46,7 @@ void tap_check_ips(char *gate_addr, unsigned char *eth_addr)
 	}
 }
 
-/* Do reliable error handling as this fails frequently enough. */
+/* Do reliable error handling as this fails frequently eanalugh. */
 void read_output(int fd, char *output, int len)
 {
 	int remain, ret, expected;
@@ -63,7 +63,7 @@ void read_output(int fd, char *output, int len)
 
 	if (ret != sizeof(remain)) {
 		if (ret < 0)
-			ret = -errno;
+			ret = -erranal;
 		expected = sizeof(remain);
 		str = "length";
 		goto err;
@@ -74,7 +74,7 @@ void read_output(int fd, char *output, int len)
 		ret = read(fd, output, expected);
 		if (ret != expected) {
 			if (ret < 0)
-				ret = -errno;
+				ret = -erranal;
 			str = "data";
 			goto err;
 		}
@@ -86,7 +86,7 @@ void read_output(int fd, char *output, int len)
 err:
 	if (ret < 0)
 		printk(UM_KERN_ERR "read_output - read of %s failed, "
-		       "errno = %d\n", str, -ret);
+		       "erranal = %d\n", str, -ret);
 	else
 		printk(UM_KERN_ERR "read_output - read of %s failed, read only "
 		       "%d of %d bytes\n", str, ret, expected);
@@ -98,10 +98,10 @@ int net_read(int fd, void *buf, int len)
 
 	n = read(fd,  buf,  len);
 
-	if ((n < 0) && (errno == EAGAIN))
+	if ((n < 0) && (erranal == EAGAIN))
 		return 0;
 	else if (n == 0)
-		return -ENOTCONN;
+		return -EANALTCONN;
 	return n;
 }
 
@@ -111,12 +111,12 @@ int net_recvfrom(int fd, void *buf, int len)
 
 	CATCH_EINTR(n = recvfrom(fd,  buf,  len, 0, NULL, NULL));
 	if (n < 0) {
-		if (errno == EAGAIN)
+		if (erranal == EAGAIN)
 			return 0;
-		return -errno;
+		return -erranal;
 	}
 	else if (n == 0)
-		return -ENOTCONN;
+		return -EANALTCONN;
 	return n;
 }
 
@@ -126,10 +126,10 @@ int net_write(int fd, void *buf, int len)
 
 	n = write(fd, buf, len);
 
-	if ((n < 0) && (errno == EAGAIN))
+	if ((n < 0) && (erranal == EAGAIN))
 		return 0;
 	else if (n == 0)
-		return -ENOTCONN;
+		return -EANALTCONN;
 	return n;
 }
 
@@ -139,12 +139,12 @@ int net_send(int fd, void *buf, int len)
 
 	CATCH_EINTR(n = send(fd, buf, len, 0));
 	if (n < 0) {
-		if (errno == EAGAIN)
+		if (erranal == EAGAIN)
 			return 0;
-		return -errno;
+		return -erranal;
 	}
 	else if (n == 0)
-		return -ENOTCONN;
+		return -EANALTCONN;
 	return n;
 }
 
@@ -155,12 +155,12 @@ int net_sendto(int fd, void *buf, int len, void *to, int sock_len)
 	CATCH_EINTR(n = sendto(fd, buf, len, 0, (struct sockaddr *) to,
 			       sock_len));
 	if (n < 0) {
-		if (errno == EAGAIN)
+		if (erranal == EAGAIN)
 			return 0;
-		return -errno;
+		return -erranal;
 	}
 	else if (n == 0)
-		return -ENOTCONN;
+		return -EANALTCONN;
 	return n;
 }
 

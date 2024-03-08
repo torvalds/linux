@@ -45,7 +45,7 @@ xfs_rui_item_free(
 
 /*
  * Freeing the RUI requires that we remove it from the AIL if it has already
- * been placed there. However, the RUI may not yet have been placed in the AIL
+ * been placed there. However, the RUI may analt yet have been placed in the AIL
  * when called by xfs_rui_release() from RUD processing due to the ordering of
  * committed vs unpin operations in bulk insert operations. Hence the reference
  * count to ensure only the last caller frees the RUI.
@@ -105,7 +105,7 @@ xfs_rui_item_format(
  * either case, the RUI transaction has been successfully committed to make it
  * this far. Therefore, we expect whoever committed the RUI to either construct
  * and commit the RUD or drop the RUD's reference in the event of error. Simply
- * drop the log's RUI reference now that the log is done with it.
+ * drop the log's RUI reference analw that the log is done with it.
  */
 STATIC void
 xfs_rui_item_unpin(
@@ -145,7 +145,7 @@ xfs_rui_init(
 		ruip = kmem_zalloc(xfs_rui_log_item_sizeof(nextents), 0);
 	else
 		ruip = kmem_cache_zalloc(xfs_rui_cache,
-					 GFP_KERNEL | __GFP_NOFAIL);
+					 GFP_KERNEL | __GFP_ANALFAIL);
 
 	xfs_log_item_init(mp, &ruip->rui_item, XFS_LI_RUI, &xfs_rui_item_ops);
 	ruip->rui_format.rui_nextents = nextents;
@@ -281,7 +281,7 @@ xfs_rmap_update_diff_items(
 	ra = container_of(a, struct xfs_rmap_intent, ri_list);
 	rb = container_of(b, struct xfs_rmap_intent, ri_list);
 
-	return ra->ri_pag->pag_agno - rb->ri_pag->pag_agno;
+	return ra->ri_pag->pag_aganal - rb->ri_pag->pag_aganal;
 }
 
 /* Log rmap updates in the intent item. */
@@ -340,7 +340,7 @@ xfs_rmap_update_create_done(
 	struct xfs_rui_log_item		*ruip = RUI_ITEM(intent);
 	struct xfs_rud_log_item		*rudp;
 
-	rudp = kmem_cache_zalloc(xfs_rud_cache, GFP_KERNEL | __GFP_NOFAIL);
+	rudp = kmem_cache_zalloc(xfs_rud_cache, GFP_KERNEL | __GFP_ANALFAIL);
 	xfs_log_item_init(tp->t_mountp, &rudp->rud_item, XFS_LI_RUD,
 			  &xfs_rud_item_ops);
 	rudp->rud_ruip = ruip;
@@ -355,10 +355,10 @@ xfs_rmap_update_get_group(
 	struct xfs_mount	*mp,
 	struct xfs_rmap_intent	*ri)
 {
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		aganal;
 
-	agno = XFS_FSB_TO_AGNO(mp, ri->ri_bmap.br_startblock);
-	ri->ri_pag = xfs_perag_intent_get(mp, agno);
+	aganal = XFS_FSB_TO_AGANAL(mp, ri->ri_bmap.br_startblock);
+	ri->ri_pag = xfs_perag_intent_get(mp, aganal);
 }
 
 /* Release a passive AG ref after finishing rmapping work. */
@@ -436,8 +436,8 @@ xfs_rui_validate_map(
 		return false;
 	}
 
-	if (!XFS_RMAP_NON_INODE_OWNER(map->me_owner) &&
-	    !xfs_verify_ino(mp, map->me_owner))
+	if (!XFS_RMAP_ANALN_IANALDE_OWNER(map->me_owner) &&
+	    !xfs_verify_ianal(mp, map->me_owner))
 		return false;
 
 	if (!xfs_verify_fileext(mp, map->me_startoff, map->me_len))
@@ -454,7 +454,7 @@ xfs_rui_recover_work(
 {
 	struct xfs_rmap_intent		*ri;
 
-	ri = kmem_cache_alloc(xfs_rmap_intent_cache, GFP_NOFS | __GFP_NOFAIL);
+	ri = kmem_cache_alloc(xfs_rmap_intent_cache, GFP_ANALFS | __GFP_ANALFAIL);
 
 	switch (map->me_flags & XFS_RMAP_EXTENT_TYPE_MASK) {
 	case XFS_RMAP_EXTENT_MAP:
@@ -493,7 +493,7 @@ xfs_rui_recover_work(
 	ri->ri_bmap.br_startoff = map->me_startoff;
 	ri->ri_bmap.br_blockcount = map->me_len;
 	ri->ri_bmap.br_state = (map->me_flags & XFS_RMAP_EXTENT_UNWRITTEN) ?
-			XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
+			XFS_EXT_UNWRITTEN : XFS_EXT_ANALRM;
 	xfs_rmap_update_get_group(mp, ri);
 
 	xfs_defer_add_item(dfp, &ri->ri_list);

@@ -57,7 +57,7 @@ struct vpu_decode_params {
 	u32 output_format;
 	u32 display_delay_enable;
 	u32 display_delay;
-	u32 b_non_frame;
+	u32 b_analn_frame;
 	u32 frame_count;
 	u32 end_flag;
 	struct {

@@ -196,7 +196,7 @@ static ssize_t master_attr_store(struct device *dev,
 	if (port >= 0) {
 		/* check if there's a driver for this port */
 		if (!gth->output[port].output) {
-			count = -ENODEV;
+			count = -EANALDEV;
 			goto unlock;
 		}
 
@@ -291,7 +291,7 @@ static int intel_th_gth_reset(struct gth_device *gth)
 	/* output ports */
 	for (port = 0; port < 8; port++) {
 		if (gth_output_parm_get(gth, port, TH_OUTPUT_PARM(port)) ==
-		    GTH_NONE)
+		    GTH_ANALNE)
 			continue;
 
 		gth_output_set(gth, port, 0);
@@ -372,13 +372,13 @@ static int intel_th_master_attributes(struct gth_device *gth)
 
 	attrs = devm_kcalloc(gth->dev, nattrs, sizeof(void *), GFP_KERNEL);
 	if (!attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	master_attrs = devm_kcalloc(gth->dev, nattrs,
 				    sizeof(struct master_attribute),
 				    GFP_KERNEL);
 	if (!master_attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < TH_CONFIGURABLE_MASTERS + 1; i++) {
 		char *name;
@@ -386,7 +386,7 @@ static int intel_th_master_attributes(struct gth_device *gth)
 		name = devm_kasprintf(gth->dev, GFP_KERNEL, "%d%s", i,
 				      i == TH_CONFIGURABLE_MASTERS ? "+" : "");
 		if (!name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		master_attrs[i].attr.attr.name = name;
 		master_attrs[i].attr.attr.mode = S_IRUGO | S_IWUSR;
@@ -410,21 +410,21 @@ static int intel_th_output_attributes(struct gth_device *gth)
 {
 	struct output_attribute *out_attrs;
 	struct attribute **attrs;
-	int i, j, nouts = TH_POSSIBLE_OUTPUTS;
+	int i, j, analuts = TH_POSSIBLE_OUTPUTS;
 	int nparms = ARRAY_SIZE(output_parms);
-	int nattrs = nouts * nparms + 1;
+	int nattrs = analuts * nparms + 1;
 
 	attrs = devm_kcalloc(gth->dev, nattrs, sizeof(void *), GFP_KERNEL);
 	if (!attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	out_attrs = devm_kcalloc(gth->dev, nattrs,
 				 sizeof(struct output_attribute),
 				 GFP_KERNEL);
 	if (!out_attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for (i = 0; i < nouts; i++) {
+	for (i = 0; i < analuts; i++) {
 		for (j = 0; j < nparms; j++) {
 			unsigned int idx = i * nparms + j;
 			char *name;
@@ -432,7 +432,7 @@ static int intel_th_output_attributes(struct gth_device *gth)
 			name = devm_kasprintf(gth->dev, GFP_KERNEL, "%d_%s", i,
 					      output_parms[j].name);
 			if (!name)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			out_attrs[idx].attr.attr.name = name;
 
@@ -465,7 +465,7 @@ static int intel_th_output_attributes(struct gth_device *gth)
  * intel_th_gth_stop() - stop tracing to an output device
  * @gth:		GTH device
  * @output:		output device's descriptor
- * @capture_done:	set when no more traces will be captured
+ * @capture_done:	set when anal more traces will be captured
  *
  * This will stop tracing using force storeEn off signal and wait for the
  * pipelines to be empty for the corresponding output port.
@@ -657,7 +657,7 @@ static void intel_th_gth_switch(struct intel_th_device *thdev,
  * output ports on the GTH and fill out relevant bits in output device's
  * descriptor.
  *
- * Return:	0 on success, -errno on error.
+ * Return:	0 on success, -erranal on error.
  */
 static int intel_th_gth_assign(struct intel_th_device *thdev,
 			       struct intel_th_device *othdev)
@@ -681,7 +681,7 @@ static int intel_th_gth_assign(struct intel_th_device *thdev,
 		id++;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 
 found:
 	spin_lock(&gth->gth_lock);
@@ -752,15 +752,15 @@ static int intel_th_gth_probe(struct intel_th_device *thdev)
 
 	res = intel_th_device_get_resource(thdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gth = devm_kzalloc(dev, sizeof(*gth), GFP_KERNEL);
 	if (!gth)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gth->dev = dev;
 	gth->base = base;
@@ -795,12 +795,12 @@ static int intel_th_gth_probe(struct intel_th_device *thdev)
 		gth->output[i].index = i;
 		gth->output[i].port_type =
 			gth_output_parm_get(gth, i, TH_OUTPUT_PARM(port));
-		if (gth->output[i].port_type == GTH_NONE)
+		if (gth->output[i].port_type == GTH_ANALNE)
 			continue;
 
 		ret = intel_th_output_enable(th, gth->output[i].port_type);
-		/* -ENODEV is ok, we just won't have that device enumerated */
-		if (ret && ret != -ENODEV)
+		/* -EANALDEV is ok, we just won't have that device enumerated */
+		if (ret && ret != -EANALDEV)
 			return ret;
 	}
 
@@ -810,7 +810,7 @@ static int intel_th_gth_probe(struct intel_th_device *thdev)
 
 		if (gth->output_group.attrs)
 			sysfs_remove_group(&gth->dev->kobj, &gth->output_group);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

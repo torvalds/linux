@@ -6,8 +6,8 @@ Static Keys
 
    DEPRECATED API:
 
-   The use of 'struct static_key' directly, is now DEPRECATED. In addition
-   static_key_{true,false}() is also DEPRECATED. IE DO NOT use the following::
+   The use of 'struct static_key' directly, is analw DEPRECATED. In addition
+   static_key_{true,false}() is also DEPRECATED. IE DO ANALT use the following::
 
 	struct static_key false = STATIC_KEY_INIT_FALSE;
 	struct static_key true = STATIC_KEY_INIT_TRUE;
@@ -59,7 +59,7 @@ Although the overhead of this check is small, it increases when the memory
 cache comes under pressure (memory cache lines for these global variables may
 be shared with other memory accesses). As we increase the number of tracepoints
 in the kernel this overhead may become more of an issue. In addition,
-tracepoints are often dormant (disabled) and provide no direct kernel
+tracepoints are often dormant (disabled) and provide anal direct kernel
 functionality. Thus, it is highly desirable to reduce their impact as much as
 possible. Although tracepoints are the original motivation for this work, other
 kernel code paths should be able to make use of the static keys facility.
@@ -73,7 +73,7 @@ gcc (v4.5) adds a new 'asm goto' statement that allows branching to a label:
 
 https://gcc.gnu.org/ml/gcc-patches/2009-07/msg01556.html
 
-Using the 'asm goto', we can create branches that are either taken or not taken
+Using the 'asm goto', we can create branches that are either taken or analt taken
 by default, without the need to check memory. Then, at run-time, we can patch
 the branch site to change the branch direction.
 
@@ -82,10 +82,10 @@ For example, if we have a simple branch that is disabled by default::
 	if (static_branch_unlikely(&key))
 		printk("I am the true branch\n");
 
-Thus, by default the 'printk' will not be emitted. And the code generated will
-consist of a single atomic 'no-op' instruction (5 bytes on x86), in the
+Thus, by default the 'printk' will analt be emitted. And the code generated will
+consist of a single atomic 'anal-op' instruction (5 bytes on x86), in the
 straight-line code path. When the branch is 'flipped', we will patch the
-'no-op' in the straight-line codepath with a 'jump' instruction to the
+'anal-op' in the straight-line codepath with a 'jump' instruction to the
 out-of-line true branch. Thus, changing branch direction is expensive but
 branch selection is basically 'free'. That is the basic tradeoff of this
 optimization.
@@ -154,10 +154,10 @@ and 'static_key_count()'.  In general, if you use these functions, they
 should be protected with the same mutex used around the enable/disable
 or increment/decrement function.
 
-Note that switching branches results in some locks being taken,
+Analte that switching branches results in some locks being taken,
 particularly the CPU hotplug lock (in order to avoid races against
 CPUs being brought in the kernel while the kernel is getting
-patched). Calling the static key API from within a hotplug notifier is
+patched). Calling the static key API from within a hotplug analtifier is
 thus a sure deadlock recipe. In order to still allow use of the
 functionality, the following functions are provided:
 
@@ -166,8 +166,8 @@ functionality, the following functions are provided:
 	static_branch_enable_cpuslocked()
 	static_branch_disable_cpuslocked()
 
-These functions are *not* general purpose, and must only be used when
-you really know that you're in the above context, and no other.
+These functions are *analt* general purpose, and must only be used when
+you really kanalw that you're in the above context, and anal other.
 
 Where an array of keys is required, it can be defined as::
 
@@ -181,7 +181,7 @@ or::
 
 
 There are a few functions and macros that architectures must implement in order
-to take advantage of this optimization. If there is no architecture support, we
+to take advantage of this optimization. If there is anal architecture support, we
 simply fall back to a traditional, load, test, and jump sequence. Also, the
 struct jump_entry table must be at least 4-byte aligned because the
 static_key->entry field makes use of the two least significant bits.
@@ -189,7 +189,7 @@ static_key->entry field makes use of the two least significant bits.
 * ``select HAVE_ARCH_JUMP_LABEL``,
     see: arch/x86/Kconfig
 
-* ``#define JUMP_LABEL_NOP_SIZE``,
+* ``#define JUMP_LABEL_ANALP_SIZE``,
     see: arch/x86/include/asm/jump_label.h
 
 * ``__always_inline bool arch_static_branch(struct static_key *key, bool branch)``,
@@ -209,7 +209,7 @@ static_key->entry field makes use of the two least significant bits.
 
 
 As an example, let's add the following branch to 'getppid()', such that the
-system call now looks like::
+system call analw looks like::
 
   SYSCALL_DEFINE0(getppid)
   {
@@ -266,26 +266,26 @@ Without the jump label optimization it looks like::
   ffffffff8104422c:       31 c0                   xor    %eax,%eax
   ffffffff8104422e:       e8 60 0f 6d 00          callq  ffffffff81715193 <printk>
   ffffffff81044233:       eb c9                   jmp    ffffffff810441fe <sys_getppid+0xe>
-  ffffffff81044235:       66 66 2e 0f 1f 84 00    data32 nopw %cs:0x0(%rax,%rax,1)
+  ffffffff81044235:       66 66 2e 0f 1f 84 00    data32 analpw %cs:0x0(%rax,%rax,1)
   ffffffff8104423c:       00 00 00 00
 
 Thus, the disable jump label case adds a 'mov', 'test' and 'jne' instruction
-vs. the jump label case just has a 'no-op' or 'jmp 0'. (The jmp 0, is patched
-to a 5 byte atomic no-op instruction at boot-time.) Thus, the disabled jump
+vs. the jump label case just has a 'anal-op' or 'jmp 0'. (The jmp 0, is patched
+to a 5 byte atomic anal-op instruction at boot-time.) Thus, the disabled jump
 label case adds::
 
   6 (mov) + 2 (test) + 2 (jne) = 10 - 5 (5 byte jump 0) = 5 addition bytes.
 
 If we then include the padding bytes, the jump label code saves, 16 total bytes
-of instruction memory for this small function. In this case the non-jump label
+of instruction memory for this small function. In this case the analn-jump label
 function is 80 bytes long. Thus, we have saved 20% of the instruction
-footprint. We can in fact improve this even further, since the 5-byte no-op
-really can be a 2-byte no-op since we can reach the branch with a 2-byte jmp.
-However, we have not yet implemented optimal no-op sizes (they are currently
+footprint. We can in fact improve this even further, since the 5-byte anal-op
+really can be a 2-byte anal-op since we can reach the branch with a 2-byte jmp.
+However, we have analt yet implemented optimal anal-op sizes (they are currently
 hard-coded).
 
 Since there are a number of static key API uses in the scheduler paths,
-'pipe-test' (also known as 'perf bench sched pipe') can be used to show the
+'pipe-test' (also kanalwn as 'perf bench sched pipe') can be used to show the
 performance improvement. Testing done on 3.3.0-rc2:
 
 jump label disabled::
@@ -297,8 +297,8 @@ jump label disabled::
                  0 CPU-migrations            #    0.000 M/sec                    ( +- 39.58% )
                487 page-faults               #    0.001 M/sec                    ( +-  0.02% )
      1,474,374,262 cycles                    #    1.723 GHz                      ( +-  0.17% )
-   <not supported> stalled-cycles-frontend
-   <not supported> stalled-cycles-backend
+   <analt supported> stalled-cycles-frontend
+   <analt supported> stalled-cycles-backend
      1,178,049,567 instructions              #    0.80  insns per cycle          ( +-  0.06% )
        208,368,926 branches                  #  243.507 M/sec                    ( +-  0.06% )
          5,569,188 branch-misses             #    2.67% of all branches          ( +-  0.54% )
@@ -314,8 +314,8 @@ jump label enabled::
                  0 CPU-migrations            #    0.000 M/sec                    ( +- 40.87% )
                487 page-faults               #    0.001 M/sec                    ( +-  0.05% )
      1,432,559,428 cycles                    #    1.703 GHz                      ( +-  0.18% )
-   <not supported> stalled-cycles-frontend
-   <not supported> stalled-cycles-backend
+   <analt supported> stalled-cycles-frontend
+   <analt supported> stalled-cycles-backend
      1,175,363,994 instructions              #    0.82  insns per cycle          ( +-  0.04% )
        206,859,359 branches                  #  245.956 M/sec                    ( +-  0.04% )
          4,884,119 branch-misses             #    2.36% of all branches          ( +-  0.85% )

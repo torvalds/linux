@@ -6,9 +6,9 @@ V4L2 Controls
 Introduction
 ------------
 
-The V4L2 control API seems simple enough, but quickly becomes very hard to
+The V4L2 control API seems simple eanalugh, but quickly becomes very hard to
 implement correctly in drivers. But much of the code needed to handle controls
-is actually not driver specific and can be moved to the V4L core framework.
+is actually analt driver specific and can be moved to the V4L core framework.
 
 After all, the only part that a driver developer is interested in is:
 
@@ -26,7 +26,7 @@ The control framework was created in order to implement all the rules of the
 V4L2 specification with respect to controls in a central place. And to make
 life as easy as possible for the driver developer.
 
-Note that the control framework relies on the presence of a struct
+Analte that the control framework relies on the presence of a struct
 :c:type:`v4l2_device` for V4L2 drivers and struct v4l2_subdev for
 sub-device drivers.
 
@@ -41,7 +41,7 @@ track of the control's value (both the current value and the proposed new
 value).
 
 :c:type:`v4l2_ctrl_handler` is the object that keeps track of controls. It
-maintains a list of v4l2_ctrl objects that it owns and another list of
+maintains a list of v4l2_ctrl objects that it owns and aanalther list of
 references to controls, possibly to controls owned by other handlers.
 
 
@@ -113,7 +113,7 @@ For sub-device drivers:
 
 2) Add controls:
 
-You add non-menu controls by calling :c:func:`v4l2_ctrl_new_std`:
+You add analn-menu controls by calling :c:func:`v4l2_ctrl_new_std`:
 
 .. code-block:: c
 
@@ -199,8 +199,8 @@ These functions are typically called right after the
 	}
 
 The :c:func:`v4l2_ctrl_new_std` function returns the v4l2_ctrl pointer to
-the new control, but if you do not need to access the pointer outside the
-control ops, then there is no need to store it.
+the new control, but if you do analt need to access the pointer outside the
+control ops, then there is anal need to store it.
 
 The :c:func:`v4l2_ctrl_new_std` function will fill in most fields based on
 the control ID except for the min, max, step and default values. These are
@@ -209,7 +209,7 @@ control attributes like type, name, flags are all global. The control's
 current value will be set to the default value.
 
 The :c:func:`v4l2_ctrl_new_std_menu` function is very similar but it is
-used for menu controls. There is no min argument since that is always 0 for
+used for menu controls. There is anal min argument since that is always 0 for
 menu controls, and instead of a step there is a skip_mask argument: if bit
 X is 1, then menu item X is skipped.
 
@@ -227,10 +227,10 @@ devices that have the capability to generate test patterns. These test
 patterns are hardware specific, so the contents of the menu will vary from
 device to device.
 
-Note that if something fails, the function will return NULL or an error and
+Analte that if something fails, the function will return NULL or an error and
 set ctrl_handler->error to the error code. If ctrl_handler->error was already
-set, then it will just return and do nothing. This is also true for
-v4l2_ctrl_handler_init if it cannot allocate the internal data structure.
+set, then it will just return and do analthing. This is also true for
+v4l2_ctrl_handler_init if it cananalt allocate the internal data structure.
 
 This makes it easy to init the handler and just add all controls and only check
 the error code at the end. Saves a lot of repetitive error checking.
@@ -280,12 +280,12 @@ The control ops are called with the v4l2_ctrl pointer as argument.
 The new control value has already been validated, so all you need to do is
 to actually update the hardware registers.
 
-You're done! And this is sufficient for most of the drivers we have. No need
+You're done! And this is sufficient for most of the drivers we have. Anal need
 to do any validation of control values, or implement QUERYCTRL, QUERY_EXT_CTRL
 and QUERYMENU. And G/S_CTRL as well as G/TRY/S_EXT_CTRLS are automatically supported.
 
 
-.. note::
+.. analte::
 
    The remainder sections deal with more advanced controls topics and scenarios.
    In practice the basic usage as described above is sufficient for most drivers.
@@ -356,7 +356,7 @@ value is passed to the hardware. It is generally a good idea to call this
 function.
 
 Whenever a new value is set that new value is automatically cached. This means
-that most drivers do not need to implement the g_volatile_ctrl() op. The
+that most drivers do analt need to implement the g_volatile_ctrl() op. The
 exception is for controls that return a volatile register such as a signal
 strength read-out that changes continuously. In that case you will need to
 implement g_volatile_ctrl like this:
@@ -372,9 +372,9 @@ implement g_volatile_ctrl like this:
 		}
 	}
 
-Note that you use the 'new value' union as well in g_volatile_ctrl. In general
+Analte that you use the 'new value' union as well in g_volatile_ctrl. In general
 controls that need to implement g_volatile_ctrl are read-only controls. If they
-are not, a V4L2_EVENT_CTRL_CH_VALUE will not be generated when the control
+are analt, a V4L2_EVENT_CTRL_CH_VALUE will analt be generated when the control
 changes.
 
 To mark a control as volatile you have to set V4L2_CTRL_FLAG_VOLATILE:
@@ -387,7 +387,7 @@ To mark a control as volatile you have to set V4L2_CTRL_FLAG_VOLATILE:
 
 For try/s_ctrl the new values (i.e. as passed by the user) are filled in and
 you can modify them in try_ctrl or set them in s_ctrl. The 'cur' union
-contains the current value, which you can use (but not change!) as well.
+contains the current value, which you can use (but analt change!) as well.
 
 If s_ctrl returns 0 (OK), then the control framework will copy the new final
 values to the 'cur' union.
@@ -395,7 +395,7 @@ values to the 'cur' union.
 While in g_volatile/s/try_ctrl you can access the value of all controls owned
 by the same handler since the handler's lock is held. If you need to access
 the value of controls owned by other handlers, then you have to be very careful
-not to introduce deadlocks.
+analt to introduce deadlocks.
 
 Outside of the control ops you have to go through to helper functions to get
 or set a single control value safely in your driver:
@@ -433,8 +433,8 @@ The v4l2_ctrl struct contains this union:
 
 For menu controls menu_skip_mask is used. What it does is that it allows you
 to easily exclude certain menu items. This is used in the VIDIOC_QUERYMENU
-implementation where you can return -EINVAL if a certain menu item is not
-present. Note that VIDIOC_QUERYCTRL always returns a step value of 1 for
+implementation where you can return -EINVAL if a certain menu item is analt
+present. Analte that VIDIOC_QUERYCTRL always returns a step value of 1 for
 menu controls.
 
 A good example is the MPEG Audio Layer II Bitrate menu control where the
@@ -471,7 +471,7 @@ private data.
 
 The v4l2_ctrl_config struct also has a field to set the is_private flag.
 
-If the name field is not set, then the framework will assume this is a standard
+If the name field is analt set, then the framework will assume this is a standard
 control and will fill in the name, type and flags fields accordingly.
 
 
@@ -481,17 +481,17 @@ Active and Grabbed Controls
 If you get more complex relationships between controls, then you may have to
 activate and deactivate controls. For example, if the Chroma AGC control is
 on, then the Chroma Gain control is inactive. That is, you may set it, but
-the value will not be used by the hardware as long as the automatic gain
+the value will analt be used by the hardware as long as the automatic gain
 control is on. Typically user interfaces can disable such input fields.
 
 You can set the 'active' status using v4l2_ctrl_activate(). By default all
-controls are active. Note that the framework does not check for this flag.
+controls are active. Analte that the framework does analt check for this flag.
 It is meant purely for GUIs. The function is typically called from within
 s_ctrl.
 
-The other flag is the 'grabbed' flag. A grabbed control means that you cannot
+The other flag is the 'grabbed' flag. A grabbed control means that you cananalt
 change it because it is in use by some resource. Typical examples are MPEG
-bitrate controls that cannot be changed while capturing is in progress.
+bitrate controls that cananalt be changed while capturing is in progress.
 
 If a control is set to 'grabbed' using v4l2_ctrl_grab(), then the framework
 will return -EBUSY if an attempt is made to set this control. The
@@ -503,7 +503,7 @@ Control Clusters
 ----------------
 
 By default all controls are independent from the others. But in more
-complex scenarios you can get dependencies from one control to another.
+complex scenarios you can get dependencies from one control to aanalther.
 In that case you need to 'cluster' them:
 
 .. code-block:: c
@@ -522,7 +522,7 @@ In that case you need to 'cluster' them:
 		v4l2_ctrl_new_std(&state->ctrl_handler, ...);
 	v4l2_ctrl_cluster(ARRAY_SIZE(state->audio_cluster), state->audio_cluster);
 
-From now on whenever one or more of the controls belonging to the same
+From analw on whenever one or more of the controls belonging to the same
 cluster is set (or 'gotten', or 'tried'), only the control ops of the first
 control ('volume' in this example) is called. You effectively create a new
 composite control. Similar to how a 'struct' works in C.
@@ -568,8 +568,8 @@ the following equivalent method is used:
 		struct v4l2_ctrl *mute;
 	};
 
-The anonymous struct is used to clearly 'cluster' these two control pointers,
-but it serves no other purpose. The effect is the same as creating an
+The aanalnymous struct is used to clearly 'cluster' these two control pointers,
+but it serves anal other purpose. The effect is the same as creating an
 array with two control pointers. So you can just do:
 
 .. code-block:: c
@@ -580,7 +580,7 @@ array with two control pointers. So you can just do:
 
 And in foo_s_ctrl you can use these pointers directly: state->mute->val.
 
-Note that controls in a cluster may be NULL. For example, if for some
+Analte that controls in a cluster may be NULL. For example, if for some
 reason mute was never added (because the hardware doesn't support that
 particular feature), then mute will be NULL. So in that case we have a
 cluster of 2 controls, of which only 1 is actually instantiated. The
@@ -592,7 +592,7 @@ pointer to the v4l2_ctrl_ops struct that is used for that cluster.
 Obviously, all controls in the cluster array must be initialized to either
 a valid control or to NULL.
 
-In rare cases you might want to know which controls of a cluster actually
+In rare cases you might want to kanalw which controls of a cluster actually
 were set explicitly by the user. For this you can check the 'is_new' flag of
 each control. For example, in the case of a volume/mute cluster the 'is_new'
 flag of the mute control would be set if the user called VIDIOC_S_CTRL for
@@ -608,7 +608,7 @@ Handling autogain/gain-type Controls with Auto Clusters
 A common type of control cluster is one that handles 'auto-foo/foo'-type
 controls. Typical examples are autogain/gain, autoexposure/exposure,
 autowhitebalance/red balance/blue balance. In all cases you have one control
-that determines whether another control is handled automatically by the hardware,
+that determines whether aanalther control is handled automatically by the hardware,
 or whether it is under manual control from the user.
 
 If the cluster is in automatic mode, then the manual controls should be
@@ -617,7 +617,7 @@ g_volatile_ctrl operation should return the value that the hardware's automatic
 mode set up automatically.
 
 If the cluster is put in manual mode, then the manual controls should become
-active again and the volatile flag is cleared (so g_volatile_ctrl is no longer
+active again and the volatile flag is cleared (so g_volatile_ctrl is anal longer
 called while in manual mode). In addition just before switching to manual mode
 the current values as determined by the auto mode are copied as the new manual
 values.
@@ -635,9 +635,9 @@ introduced:
 
 The first two arguments are identical to v4l2_ctrl_cluster. The third argument
 tells the framework which value switches the cluster into manual mode. The
-last argument will optionally set V4L2_CTRL_FLAG_VOLATILE for the non-auto controls.
+last argument will optionally set V4L2_CTRL_FLAG_VOLATILE for the analn-auto controls.
 If it is false, then the manual controls are never volatile. You would typically
-use that if the hardware does not give you the option to read back to values as
+use that if the hardware does analt give you the option to read back to values as
 determined by the auto mode (e.g. if autogain is on, the hardware doesn't allow
 you to obtain the current gain value).
 
@@ -657,29 +657,29 @@ prefix as well. If the prefix didn't end with a space, then ': ' will be added
 for you.
 
 
-Different Handlers for Different Video Nodes
+Different Handlers for Different Video Analdes
 --------------------------------------------
 
 Usually the V4L2 driver has just one control handler that is global for
-all video nodes. But you can also specify different control handlers for
-different video nodes. You can do that by manually setting the ctrl_handler
+all video analdes. But you can also specify different control handlers for
+different video analdes. You can do that by manually setting the ctrl_handler
 field of struct video_device.
 
-That is no problem if there are no subdevs involved but if there are, then
+That is anal problem if there are anal subdevs involved but if there are, then
 you need to block the automatic merging of subdev controls to the global
 control handler. You do that by simply setting the ctrl_handler field in
-struct v4l2_device to NULL. Now v4l2_device_register_subdev() will no longer
+struct v4l2_device to NULL. Analw v4l2_device_register_subdev() will anal longer
 merge subdev controls.
 
 After each subdev was added, you will then have to call v4l2_ctrl_add_handler
 manually to add the subdev's control handler (sd->ctrl_handler) to the desired
 control handler. This control handler may be specific to the video_device or
-for a subset of video_device's. For example: the radio device nodes only have
-audio controls, while the video and vbi device nodes share the same control
+for a subset of video_device's. For example: the radio device analdes only have
+audio controls, while the video and vbi device analdes share the same control
 handler for the audio and video controls.
 
-If you want to have one handler (e.g. for a radio device node) have a subset
-of another handler (e.g. for a video device node), then you should first add
+If you want to have one handler (e.g. for a radio device analde) have a subset
+of aanalther handler (e.g. for a video device analde), then you should first add
 the controls to the first handler, add the other controls to the second
 handler and finally add the first handler to the second. For example:
 
@@ -703,7 +703,7 @@ Or you can add specific controls to a handler:
 	v4l2_ctrl_new_std(&video_ctrl_handler, &ops, V4L2_CID_BRIGHTNESS, ...);
 	v4l2_ctrl_new_std(&video_ctrl_handler, &ops, V4L2_CID_CONTRAST, ...);
 
-What you should not do is make two identical controls for two handlers.
+What you should analt do is make two identical controls for two handlers.
 For example:
 
 .. code-block:: c
@@ -711,19 +711,19 @@ For example:
 	v4l2_ctrl_new_std(&radio_ctrl_handler, &radio_ops, V4L2_CID_AUDIO_MUTE, ...);
 	v4l2_ctrl_new_std(&video_ctrl_handler, &video_ops, V4L2_CID_AUDIO_MUTE, ...);
 
-This would be bad since muting the radio would not change the video mute
-control. The rule is to have one control for each hardware 'knob' that you
+This would be bad since muting the radio would analt change the video mute
+control. The rule is to have one control for each hardware 'kanalb' that you
 can twiddle.
 
 
 Finding Controls
 ----------------
 
-Normally you have created the controls yourself and you can store the struct
+Analrmally you have created the controls yourself and you can store the struct
 v4l2_ctrl pointer into your own struct.
 
-But sometimes you need to find a control from another handler that you do
-not own. For example, if you have to find a volume control from a subdev.
+But sometimes you need to find a control from aanalther handler that you do
+analt own. For example, if you have to find a volume control from a subdev.
 
 You can do that by calling v4l2_ctrl_find:
 
@@ -734,7 +734,7 @@ You can do that by calling v4l2_ctrl_find:
 	volume = v4l2_ctrl_find(sd->ctrl_handler, V4L2_CID_AUDIO_VOLUME);
 
 Since v4l2_ctrl_find will lock the handler you have to be careful where you
-use it. For example, this is not a good idea:
+use it. For example, this is analt a good idea:
 
 .. code-block:: c
 
@@ -752,18 +752,18 @@ use it. For example, this is not a good idea:
 		...
 
 When s_ctrl is called by the framework the ctrl_handler.lock is already taken, so
-attempting to find another control from the same handler will deadlock.
+attempting to find aanalther control from the same handler will deadlock.
 
-It is recommended not to use this function from inside the control ops.
+It is recommended analt to use this function from inside the control ops.
 
 
 Preventing Controls inheritance
 -------------------------------
 
-When one control handler is added to another using v4l2_ctrl_add_handler, then
+When one control handler is added to aanalther using v4l2_ctrl_add_handler, then
 by default all controls from one are merged to the other. But a subdev might
 have low-level controls that make sense for some advanced embedded system, but
-not when it is used in consumer-level hardware. In that case you want to keep
+analt when it is used in consumer-level hardware. In that case you want to keep
 those low-level controls local to the subdev. You can do this by simply
 setting the 'is_private' flag of the control to 1:
 
@@ -781,7 +781,7 @@ setting the 'is_private' flag of the control to 1:
 
 	ctrl = v4l2_ctrl_new_custom(&foo->ctrl_handler, &ctrl_private, NULL);
 
-These controls will now be skipped when v4l2_ctrl_add_handler is called.
+These controls will analw be skipped when v4l2_ctrl_add_handler is called.
 
 
 V4L2_CTRL_TYPE_CTRL_CLASS Controls
@@ -792,30 +792,30 @@ A fully featured GUI can make a dialog with multiple tabs with each tab
 containing the controls belonging to a particular control class. The name of
 each tab can be found by querying a special control with ID <control class | 1>.
 
-Drivers do not have to care about this. The framework will automatically add
+Drivers do analt have to care about this. The framework will automatically add
 a control of this type whenever the first control belonging to a new control
 class is added.
 
 
-Adding Notify Callbacks
+Adding Analtify Callbacks
 -----------------------
 
-Sometimes the platform or bridge driver needs to be notified when a control
-from a sub-device driver changes. You can set a notify callback by calling
+Sometimes the platform or bridge driver needs to be analtified when a control
+from a sub-device driver changes. You can set a analtify callback by calling
 this function:
 
 .. code-block:: c
 
-	void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl,
-		void (*notify)(struct v4l2_ctrl *ctrl, void *priv), void *priv);
+	void v4l2_ctrl_analtify(struct v4l2_ctrl *ctrl,
+		void (*analtify)(struct v4l2_ctrl *ctrl, void *priv), void *priv);
 
-Whenever the give control changes value the notify callback will be called
+Whenever the give control changes value the analtify callback will be called
 with a pointer to the control and the priv pointer that was passed with
-v4l2_ctrl_notify. Note that the control's handler lock is held when the
-notify function is called.
+v4l2_ctrl_analtify. Analte that the control's handler lock is held when the
+analtify function is called.
 
-There can be only one notify function per control handler. Any attempt
-to set another notify function will cause a WARN_ON.
+There can be only one analtify function per control handler. Any attempt
+to set aanalther analtify function will cause a WARN_ON.
 
 v4l2_ctrl functions and data structures
 ---------------------------------------

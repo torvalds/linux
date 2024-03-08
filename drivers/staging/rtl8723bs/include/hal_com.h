@@ -66,7 +66,7 @@
 (rate == DESC_RATEMCS4) ? "MCS4" : \
 (rate == DESC_RATEMCS5) ? "MCS5" : \
 (rate == DESC_RATEMCS6) ? "MCS6" : \
-(rate == DESC_RATEMCS7) ? "MCS7" : "UNKNOWN"
+(rate == DESC_RATEMCS7) ? "MCS7" : "UNKANALWN"
 
 enum{
 	UP_LINK,
@@ -84,7 +84,7 @@ enum rt_media_status {
 
 #define TX_SELE_HQ			BIT(0)		/*  High Queue */
 #define TX_SELE_LQ			BIT(1)		/*  Low Queue */
-#define TX_SELE_NQ			BIT(2)		/*  Normal Queue */
+#define TX_SELE_NQ			BIT(2)		/*  Analrmal Queue */
 #define TX_SELE_EQ			BIT(3)		/*  Extern Queue */
 
 #define PageNum_128(_Len)		((u32)(((_Len) >> 7) + ((_Len) & 0x7F ? 1 : 0)))

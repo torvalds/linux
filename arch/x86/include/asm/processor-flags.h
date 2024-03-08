@@ -8,7 +8,7 @@
 #ifdef CONFIG_VM86
 #define X86_VM_MASK	X86_EFLAGS_VM
 #else
-#define X86_VM_MASK	0 /* No VM86 support */
+#define X86_VM_MASK	0 /* Anal VM86 support */
 #endif
 
 /*
@@ -16,11 +16,11 @@
  *
  * If CR4.PCIDE is set (64-bit only), then CR3[11:0] is the address space ID.
  * If PAE is enabled, then CR3[11:5] is part of the PDPT address
- * (i.e. it's 32-byte aligned, not page-aligned) and CR3[4:0] is ignored.
- * Otherwise (non-PAE, non-PCID), CR3[3] is PWT, CR3[4] is PCD, and
- * CR3[2:0] and CR3[11:5] are ignored.
+ * (i.e. it's 32-byte aligned, analt page-aligned) and CR3[4:0] is iganalred.
+ * Otherwise (analn-PAE, analn-PCID), CR3[3] is PWT, CR3[4] is PCD, and
+ * CR3[2:0] and CR3[11:5] are iganalred.
  *
- * In all cases, Linux puts zeros in the low ignored bits and in PWT and PCD.
+ * In all cases, Linux puts zeros in the low iganalred bits and in PWT and PCD.
  *
  * CR3[63] is always read as zero.  If CR4.PCIDE is set, then CR3[63] may be
  * written as 1 to prevent the write to CR3 from flushing the TLB.
@@ -39,7 +39,7 @@
 /* Mask off the address space ID and SME encryption bits. */
 #define CR3_ADDR_MASK	__sme_clr(PHYSICAL_PAGE_MASK)
 #define CR3_PCID_MASK	0xFFFull
-#define CR3_NOFLUSH	BIT_ULL(63)
+#define CR3_ANALFLUSH	BIT_ULL(63)
 
 #else
 /*
@@ -48,7 +48,7 @@
  */
 #define CR3_ADDR_MASK	0xFFFFFFFFull
 #define CR3_PCID_MASK	0ull
-#define CR3_NOFLUSH	0
+#define CR3_ANALFLUSH	0
 #endif
 
 #ifdef CONFIG_PAGE_TABLE_ISOLATION

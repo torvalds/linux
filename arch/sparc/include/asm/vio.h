@@ -47,7 +47,7 @@ struct vio_rdx {
 struct vio_ver_info {
 	struct vio_msg_tag	tag;
 	u16			major;
-	u16			minor;
+	u16			mianalr;
 	u8			dev_class;
 #define VDEV_NETWORK		0x01
 #define VDEV_NETWORK_SWITCH	0x02
@@ -217,7 +217,7 @@ struct vio_net_attr_info {
 #define VNET_ADDR_ETHERMAC	0x01
 	u16			ack_freq;
 	u8			plnk_updt;
-#define PHYSLINK_UPDATE_NONE		0x00
+#define PHYSLINK_UPDATE_ANALNE		0x00
 #define PHYSLINK_UPDATE_STATE		0x01
 #define PHYSLINK_UPDATE_STATE_ACK	0x02
 #define PHYSLINK_UPDATE_STATE_NACK	0x03
@@ -331,47 +331,47 @@ static inline u32 vio_dring_prev(struct vio_dring_state *dr, u32 index)
 
 struct vio_dev {
 	u64			mp;
-	struct device_node	*dp;
+	struct device_analde	*dp;
 
-	char			node_name[VIO_MAX_NAME_LEN];
+	char			analde_name[VIO_MAX_NAME_LEN];
 	char			type[VIO_MAX_TYPE_LEN];
 	char			compat[VIO_MAX_COMPAT_LEN];
 	int			compat_len;
 
-	u64			dev_no;
+	u64			dev_anal;
 
 	unsigned long		port_id;
 	unsigned long		channel_id;
 
 	unsigned int		tx_irq;
 	unsigned int		rx_irq;
-	u64			rx_ino;
-	u64			tx_ino;
+	u64			rx_ianal;
+	u64			tx_ianal;
 
 	/* Handle to the root of "channel-devices" sub-tree in MDESC */
 	u64			cdev_handle;
 
 	/* MD specific data used to identify the vdev in MD */
-	union md_node_info	md_node_info;
+	union md_analde_info	md_analde_info;
 
 	struct device		dev;
 };
 
 struct vio_driver {
 	const char			*name;
-	struct list_head		node;
+	struct list_head		analde;
 	const struct vio_device_id	*id_table;
 	int (*probe)(struct vio_dev *dev, const struct vio_device_id *id);
 	void (*remove)(struct vio_dev *dev);
 	void (*shutdown)(struct vio_dev *dev);
 	unsigned long			driver_data;
 	struct device_driver		driver;
-	bool				no_irq;
+	bool				anal_irq;
 };
 
 struct vio_version {
 	u16		major;
-	u16		minor;
+	u16		mianalr;
 };
 
 struct vio_driver_state;
@@ -442,28 +442,28 @@ struct vio_driver_state {
 };
 
 static inline bool vio_version_before(struct vio_driver_state *vio,
-				      u16 major, u16 minor)
+				      u16 major, u16 mianalr)
 {
-	u32 have = (u32)vio->ver.major << 16 | vio->ver.minor;
-	u32 want = (u32)major << 16 | minor;
+	u32 have = (u32)vio->ver.major << 16 | vio->ver.mianalr;
+	u32 want = (u32)major << 16 | mianalr;
 
 	return have < want;
 }
 
 static inline bool vio_version_after(struct vio_driver_state *vio,
-				      u16 major, u16 minor)
+				      u16 major, u16 mianalr)
 {
-	u32 have = (u32)vio->ver.major << 16 | vio->ver.minor;
-	u32 want = (u32)major << 16 | minor;
+	u32 have = (u32)vio->ver.major << 16 | vio->ver.mianalr;
+	u32 want = (u32)major << 16 | mianalr;
 
 	return have > want;
 }
 
 static inline bool vio_version_after_eq(struct vio_driver_state *vio,
-					u16 major, u16 minor)
+					u16 major, u16 mianalr)
 {
-	u32 have = (u32)vio->ver.major << 16 | vio->ver.minor;
-	u32 want = (u32)major << 16 | minor;
+	u32 have = (u32)vio->ver.major << 16 | vio->ver.mianalr;
+	u32 want = (u32)major << 16 | mianalr;
 
 	return have >= want;
 }
@@ -506,7 +506,7 @@ int vio_driver_init(struct vio_driver_state *vio, struct vio_dev *vdev,
 		    char *name);
 
 void vio_port_up(struct vio_driver_state *vio);
-int vio_set_intr(unsigned long dev_ino, int state);
-u64 vio_vdev_node(struct mdesc_handle *hp, struct vio_dev *vdev);
+int vio_set_intr(unsigned long dev_ianal, int state);
+u64 vio_vdev_analde(struct mdesc_handle *hp, struct vio_dev *vdev);
 
 #endif /* _SPARC64_VIO_H */

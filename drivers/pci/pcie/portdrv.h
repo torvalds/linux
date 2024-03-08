@@ -20,8 +20,8 @@
 #define PCIE_PORT_SERVICE_HP		(1 << PCIE_PORT_SERVICE_HP_SHIFT)
 #define PCIE_PORT_SERVICE_DPC_SHIFT	3	/* Downstream Port Containment */
 #define PCIE_PORT_SERVICE_DPC		(1 << PCIE_PORT_SERVICE_DPC_SHIFT)
-#define PCIE_PORT_SERVICE_BWNOTIF_SHIFT	4	/* Bandwidth notification */
-#define PCIE_PORT_SERVICE_BWNOTIF	(1 << PCIE_PORT_SERVICE_BWNOTIF_SHIFT)
+#define PCIE_PORT_SERVICE_BWANALTIF_SHIFT	4	/* Bandwidth analtification */
+#define PCIE_PORT_SERVICE_BWANALTIF	(1 << PCIE_PORT_SERVICE_BWANALTIF_SHIFT)
 
 #define PCIE_PORT_DEVICE_MAXSERVICES   5
 
@@ -78,7 +78,7 @@ struct pcie_port_service_driver {
 	int (*probe)(struct pcie_device *dev);
 	void (*remove)(struct pcie_device *dev);
 	int (*suspend)(struct pcie_device *dev);
-	int (*resume_noirq)(struct pcie_device *dev);
+	int (*resume_analirq)(struct pcie_device *dev);
 	int (*resume)(struct pcie_device *dev);
 	int (*runtime_suspend)(struct pcie_device *dev);
 	int (*runtime_resume)(struct pcie_device *dev);
@@ -108,7 +108,7 @@ static inline void pcie_pme_disable_msi(void)
 	pcie_pme_msi_disabled = true;
 }
 
-static inline bool pcie_pme_no_msi(void)
+static inline bool pcie_pme_anal_msi(void)
 {
 	return pcie_pme_msi_disabled;
 }
@@ -116,7 +116,7 @@ static inline bool pcie_pme_no_msi(void)
 void pcie_pme_interrupt_enable(struct pci_dev *dev, bool enable);
 #else /* !CONFIG_PCIE_PME */
 static inline void pcie_pme_disable_msi(void) {}
-static inline bool pcie_pme_no_msi(void) { return false; }
+static inline bool pcie_pme_anal_msi(void) { return false; }
 static inline void pcie_pme_interrupt_enable(struct pci_dev *dev, bool en) {}
 #endif /* !CONFIG_PCIE_PME */
 

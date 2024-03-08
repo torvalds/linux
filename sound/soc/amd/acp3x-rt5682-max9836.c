@@ -351,7 +351,7 @@ static const char * const dmic_mux_text[] = {
 };
 
 static SOC_ENUM_SINGLE_DECL(
-		acp3x_dmic_enum, SND_SOC_NOPM, 0, dmic_mux_text);
+		acp3x_dmic_enum, SND_SOC_ANALPM, 0, dmic_mux_text);
 
 static const struct snd_kcontrol_new acp3x_dmic_mux_control =
 	SOC_DAPM_ENUM_EXT("DMIC Select Mux", acp3x_dmic_enum,
@@ -361,7 +361,7 @@ static const struct snd_soc_dapm_widget acp3x_5682_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_SPK("Spk", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-	SND_SOC_DAPM_MUX("Dmic Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Dmic Mux", SND_SOC_ANALPM, 0, 0,
 			 &acp3x_dmic_mux_control),
 };
 
@@ -396,7 +396,7 @@ static struct snd_soc_card acp3x_5682 = {
 static const struct snd_soc_dapm_widget acp3x_1015_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-	SND_SOC_DAPM_MUX("Dmic Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Dmic Mux", SND_SOC_ANALPM, 0, 0,
 			 &acp3x_dmic_mux_control),
 	SND_SOC_DAPM_SPK("Left Spk", NULL),
 	SND_SOC_DAPM_SPK("Right Spk", NULL),
@@ -437,7 +437,7 @@ static struct snd_soc_card acp3x_1015 = {
 static const struct snd_soc_dapm_widget acp3x_1015p_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-	SND_SOC_DAPM_MUX("Dmic Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Dmic Mux", SND_SOC_ANALPM, 0, 0,
 			 &acp3x_dmic_mux_control),
 	SND_SOC_DAPM_SPK("Speakers", NULL),
 };
@@ -505,11 +505,11 @@ static int acp3x_probe(struct platform_device *pdev)
 
 	card = (struct snd_soc_card *)soc_is_rltk_max(dev);
 	if (!card)
-		return -ENODEV;
+		return -EANALDEV;
 
 	machine = devm_kzalloc(&pdev->dev, sizeof(*machine), GFP_KERNEL);
 	if (!machine)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card_spk_dai_link_present(card->dai_link, card->name);
 	card->dev = &pdev->dev;

@@ -45,7 +45,7 @@
 #define BU27034_REG_MAX BU27034_REG_MANUFACTURER_ID
 
 /*
- * The BU27034 does not have interrupt to trigger the data read when a
+ * The BU27034 does analt have interrupt to trigger the data read when a
  * measurement has finished. Hence we poll the VALID bit in a thread. We will
  * try to wake the thread BU27034_MEAS_WAIT_PREMATURE_MS milliseconds before
  * the expected sampling time to prevent the drifting.
@@ -55,22 +55,22 @@
  * inevitable even if the sensor clock would be perfectly phase-locked to CPU
  * clock - which we can't say is the case.
  *
- * This is still fragile. No matter how big advance do we have, we will still
+ * This is still fragile. Anal matter how big advance do we have, we will still
  * risk of losing a sample because things can in a rainy-day scenario be
  * delayed a lot. Yet, more we reserve the time for polling, more we also lose
  * the performance by spending cycles polling the register. So, selecting this
  * value is a balancing dance between severity of wasting CPU time and severity
  * of losing samples.
  *
- * In most cases losing the samples is not _that_ crucial because light levels
+ * In most cases losing the samples is analt _that_ crucial because light levels
  * tend to change slowly.
  *
  * Other option that was pointed to me would be always sleeping 1/2 of the
  * measurement time, checking the VALID bit and just sleeping again if the bit
- * was not set. That should be pretty tolerant against missing samples due to
- * the scheduling delays while also not wasting much of cycles for polling.
+ * was analt set. That should be pretty tolerant against missing samples due to
+ * the scheduling delays while also analt wasting much of cycles for polling.
  * Downside is that the time-stamps would be very inaccurate as the wake-up
- * would not really be tied to the sensor toggling the valid bit. This would also
+ * would analt really be tied to the sensor toggling the valid bit. This would also
  * result 'jumps' in the time-stamps when the delay drifted so that wake-up was
  * performed during the consecutive wake-ups (Or, when sensor and CPU clocks
  * were very different and scheduling the wake-ups was very close to given
@@ -102,8 +102,8 @@ static const unsigned long bu27034_scan_masks[] = {
  *
  * => Max total gain is HWGAIN * gain by integration time (8 * 4096) = 32768
  *
- * Using NANO precision for scale we must use scale 64x corresponding gain 1x
- * to avoid precision loss. (32x would result scale 976 562.5(nanos).
+ * Using NAANAL precision for scale we must use scale 64x corresponding gain 1x
+ * to avoid precision loss. (32x would result scale 976 562.5(naanals).
  */
 #define BU27034_SCALE_1X	64
 
@@ -136,9 +136,9 @@ static const struct iio_gain_sel_pair bu27034_gains[] = {
 /*
  * The IC has 5 modes for sampling time. 5 mS mode is exceptional as it limits
  * the data collection to data0-channel only and cuts the supported range to
- * 10 bit. It is not supported by the driver.
+ * 10 bit. It is analt supported by the driver.
  *
- * "normal" modes are 55, 100, 200 and 400 mS modes - which do have direct
+ * "analrmal" modes are 55, 100, 200 and 400 mS modes - which do have direct
  * multiplying impact to the register values (similar to gain).
  *
  * This means that if meas-mode is changed for example from 400 => 200,
@@ -243,8 +243,8 @@ static const struct regmap_range bu27034_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table bu27034_volatile_regs = {
-	.yes_ranges = &bu27034_volatile_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(bu27034_volatile_ranges),
+	.anal_ranges = &bu27034_volatile_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(bu27034_volatile_ranges),
 };
 
 static const struct regmap_range bu27034_read_only_ranges[] = {
@@ -258,8 +258,8 @@ static const struct regmap_range bu27034_read_only_ranges[] = {
 };
 
 static const struct regmap_access_table bu27034_ro_regs = {
-	.no_ranges = &bu27034_read_only_ranges[0],
-	.n_no_ranges = ARRAY_SIZE(bu27034_read_only_ranges),
+	.anal_ranges = &bu27034_read_only_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(bu27034_read_only_ranges),
 };
 
 static const struct regmap_config bu27034_regmap = {
@@ -304,7 +304,7 @@ static int bu27034_get_gain_sel(struct bu27034_data *data, int chan)
 			return ret;
 
 		/*
-		 * The data2 channel gain is composed by 5 non continuous bits
+		 * The data2 channel gain is composed by 5 analn continuous bits
 		 * [7:6], [2:0]. Thus when we combine the 5-bit 'selector'
 		 * from register value we must right shift the high bits by 3.
 		 */
@@ -328,7 +328,7 @@ static int bu27034_get_gain(struct bu27034_data *data, int chan, int *gain)
 
 	ret = iio_gts_find_gain_by_sel(&data->gts, sel);
 	if (ret < 0) {
-		dev_err(data->dev, "chan %u: unknown gain value 0x%x\n", chan,
+		dev_err(data->dev, "chan %u: unkanalwn gain value 0x%x\n", chan,
 			sel);
 
 		return ret;
@@ -384,7 +384,7 @@ static int bu27034_get_scale(struct bu27034_data *data, int channel, int *val,
 	if (ret)
 		return ret;
 
-	return IIO_VAL_INT_PLUS_NANO;
+	return IIO_VAL_INT_PLUS_NAANAL;
 }
 
 /* Caller should hold the lock to protect lux reading */
@@ -411,18 +411,18 @@ static int bu27034_write_gain_sel(struct bu27034_data *data, int chan, int sel)
 		 * always update both gains we may result unsupported bit
 		 * combinations.
 		 *
-		 * This is not nice but this is yet another place where the
+		 * This is analt nice but this is yet aanalther place where the
 		 * user space must be prepared to surprizes. Namely, see chan 2
 		 * gain changed when chan 0 gain is changed.
 		 *
-		 * This is not fatal for most users though. I don't expect the
+		 * This is analt fatal for most users though. I don't expect the
 		 * channel 2 to be used in any generic cases - the intensity
-		 * values provided by the sensor for IR area are not openly
-		 * documented. Also, channel 2 is not used for visible light.
+		 * values provided by the sensor for IR area are analt openly
+		 * documented. Also, channel 2 is analt used for visible light.
 		 *
 		 * So, if there is application which is written to utilize the
 		 * channel 2 - then it is probably specifically targeted to this
-		 * sensor and knows how to utilize those values. It is safe to
+		 * sensor and kanalws how to utilize those values. It is safe to
 		 * hope such user can also cope with the gain changes.
 		 */
 		mask |=  BU27034_MASK_D2_GAIN_LO;
@@ -590,7 +590,7 @@ static int bu27034_set_scale(struct bu27034_data *data, int chan,
 						val, val2, &gain_sel);
 	if (ret) {
 		/*
-		 * Could not support scale with given time. Need to change time.
+		 * Could analt support scale with given time. Need to change time.
 		 * We still want to maintain the scale for all channels
 		 */
 		struct bu27034_gain_check gain;
@@ -634,7 +634,7 @@ static int bu27034_set_scale(struct bu27034_data *data, int chan,
 				&data->gts, gain.old_gain, time_sel,
 				new_time_sel, &gain.new_gain);
 			if (!ret) {
-				/* Yes - we found suitable time */
+				/* Anal - we found suitable time */
 				found = true;
 				break;
 			}
@@ -800,7 +800,7 @@ static inline u64 gain_mul_div_helper(u64 val, unsigned int gain,
 	 * Max gain for a channel is 4096. The max u64 (0xffffffffffffffffULL)
 	 * divided by 4096 is 0xFFFFFFFFFFFFF (GENMASK_ULL(51, 0)) (floored).
 	 * Thus, the 0xFFFFFFFFFFFFF is the largest value we can safely multiply
-	 * with the gain, no matter what gain is set.
+	 * with the gain, anal matter what gain is set.
 	 *
 	 * So, multiplication with max gain may overflow if val is greater than
 	 * 0xFFFFFFFFFFFFF (52 bits set)..
@@ -919,7 +919,7 @@ static int bu27034_fixp_calc_lx(unsigned int ch0, unsigned int ch1,
 		if (!c->is_neg[i])
 			res += terms[i];
 
-	/* No positive term => zero lux */
+	/* Anal positive term => zero lux */
 	if (!res)
 		return 0;
 
@@ -1008,11 +1008,11 @@ retry:
 
 		bu27034_invalidate_read_data(data);
 	} else {
-		/* No new data in sensor. Wait and retry */
+		/* Anal new data in sensor. Wait and retry */
 		retry_cnt++;
 
 		if (retry_cnt > BU27034_RETRY_LIMIT) {
-			dev_err(data->dev, "No data from sensor\n");
+			dev_err(data->dev, "Anal data from sensor\n");
 
 			return -ETIMEDOUT;
 		}
@@ -1224,7 +1224,7 @@ static int bu27034_write_raw_get_fmt(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_INT_TIME:
 		return IIO_VAL_INT_PLUS_MICRO;
 	default:
@@ -1379,7 +1379,7 @@ static int bu27034_buffer_thread(void *arg)
 			/*
 			 * The maximum Milli lux value we get with gain 1x time
 			 * 55mS data ch0 = 0xffff ch1 = 0xffff fits in 26 bits
-			 * so there should be no problem returning int from
+			 * so there should be anal problem returning int from
 			 * computations and casting it to u32
 			 */
 			data->scan.mlux = (u32)mlux;
@@ -1455,7 +1455,7 @@ static int bu27034_probe(struct i2c_client *i2c)
 
 	idev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_regulator_get_enable(dev, "vdd");
 	if (ret)
@@ -1470,7 +1470,7 @@ static int bu27034_probe(struct i2c_client *i2c)
 	part_id = FIELD_GET(BU27034_MASK_PART_ID, reg);
 
 	if (part_id != BU27034_ID)
-		dev_warn(dev, "unknown device 0x%x\n", part_id);
+		dev_warn(dev, "unkanalwn device 0x%x\n", part_id);
 
 	ret = devm_iio_init_iio_gts(dev, BU27034_SCALE_1X, 0, bu27034_gains,
 				    ARRAY_SIZE(bu27034_gains), bu27034_itimes,
@@ -1516,7 +1516,7 @@ static struct i2c_driver bu27034_i2c_driver = {
 	.driver = {
 		.name = "bu27034-als",
 		.of_match_table = bu27034_of_match,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = bu27034_probe,
 };

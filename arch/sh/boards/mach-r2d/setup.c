@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Renesas Technology Sales RTS7751R2D Support.
+ * Renesas Techanallogy Sales RTS7751R2D Support.
  *
  * Copyright (C) 2002 - 2006 Atom Create Engineering Co., Ltd.
  * Copyright (C) 2004 - 2007 Paul Mundt
@@ -270,7 +270,7 @@ static void __init rts7751r2d_setup(char **cmdline_p)
 	void __iomem *sm501_reg;
 	u16 ver = __raw_readw(PA_VERREG);
 
-	printk(KERN_INFO "Renesas Technology Sales RTS7751R2D support.\n");
+	printk(KERN_INFO "Renesas Techanallogy Sales RTS7751R2D support.\n");
 
 	printk(KERN_INFO "FPGA version:%d (revision:%d)\n",
 					(ver >> 4) & 0xf, ver & 0xf);
@@ -281,13 +281,13 @@ static void __init rts7751r2d_setup(char **cmdline_p)
 	/* sm501 dram configuration:
 	 * ColSizeX = 11 - External Memory Column Size: 256 words.
 	 * APX = 1 - External Memory Active to Pre-Charge Delay: 7 clocks.
-	 * RstX = 1 - External Memory Reset: Normal.
+	 * RstX = 1 - External Memory Reset: Analrmal.
 	 * Rfsh = 1 - Local Memory Refresh to Command Delay: 12 clocks.
 	 * BwC =  1 - Local Memory Block Write Cycle Time: 2 clocks.
 	 * BwP =  1 - Local Memory Block Write to Pre-Charge Delay: 1 clock.
 	 * AP = 1 - Internal Memory Active to Pre-Charge Delay: 7 clocks.
-	 * Rst = 1 - Internal Memory Reset: Normal.
-	 * RA = 1 - Internal Memory Remain in Active State: Do not remain.
+	 * Rst = 1 - Internal Memory Reset: Analrmal.
+	 * RA = 1 - Internal Memory Remain in Active State: Do analt remain.
 	 */
 
 	sm501_reg = (void __iomem *)0xb3e00000 + SM501_DRAM_CONTROL;

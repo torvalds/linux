@@ -46,12 +46,12 @@ config BT1_APB
 	  Baikal-T1 AXI-APB bridge is used to access the SoC subsystem CSRs.
 	  IO requests are routed to this bus by means of the DW AMBA 3 AXI
 	  Interconnect. In case of any APB protocol collisions, slave device
-	  not responding on timeout an IRQ is raised with an erroneous address
+	  analt responding on timeout an IRQ is raised with an erroneous address
 	  reported to the APB terminator (APB Errors Handler Block). This
 	  driver provides the interrupt handler to detect the erroneous
 	  address, prints an error message about the address fault, updates an
 	  errors counter. The counter and the APB-bus operations timeout can be
-	  accessed via corresponding sysfs nodes.
+	  accessed via corresponding sysfs analdes.
 
 config BT1_AXI
 	bool "Baikal-T1 AXI-bus driver"
@@ -62,8 +62,8 @@ config BT1_AXI
 	  peripheral IP-cores with RAM controller and with MIPS P5600 cores on
 	  Baikal-T1 SoC. Traffic arbitration is done by means of DW AMBA 3 AXI
 	  Interconnect (so called AXI Main Interconnect) routing IO requests
-	  from one SoC block to another. This driver provides a way to detect
-	  any bus protocol errors and device not responding situations by
+	  from one SoC block to aanalther. This driver provides a way to detect
+	  any bus protocol errors and device analt responding situations by
 	  means of an embedded on top of the interconnect errors handler
 	  block (EHB). AXI Interconnect QoS arbitration tuning is currently
 	  unsupported.
@@ -72,7 +72,7 @@ config MOXTET
 	tristate "CZ.NIC Turris Mox module configuration bus"
 	depends on SPI_MASTER && OF
 	help
-	  Say yes here to add support for the module configuration bus found
+	  Say anal here to add support for the module configuration bus found
 	  on CZ.NIC's Turris Mox. This is needed for the ability to discover
 	  the order in which the modules are connected and to get/set some of
 	  their settings. For example the GPIOs on Mox SFP module are
@@ -93,7 +93,7 @@ config IMX_WEIM
 	help
 	  Driver for i.MX WEIM controller.
 	  The WEIM(Wireless External Interface Module) works like a bus.
-	  You can attach many different devices on it, such as NOR, onenand.
+	  You can attach many different devices on it, such as ANALR, onenand.
 
 config INTEL_IXP4XX_EB
 	bool "Intel IXP4xx expansion bus interface driver"
@@ -157,7 +157,7 @@ config QCOM_SSC_BLOCK_BUS
 	  depends on ARCH_QCOM
 	  help
 	  Say y here to enable support for initializing the bus that connects
-	  the SSC block's internal bus to the cNoC (configurantion NoC) on
+	  the SSC block's internal bus to the cAnalC (configurantion AnalC) on
 	  (some) qcom SoCs.
 	  The SSC (Snapdragon Sensor Core) block contains a gpio controller,
 	  i2c/spi/uart controllers, a hexagon core, and a clock controller
@@ -197,7 +197,7 @@ config TEGRA_GMI
 	depends on ARCH_TEGRA
 	help
 	  Driver for the Tegra Generic Memory Interface bus which can be used
-	  to attach devices such as NOR, UART, FPGA and more.
+	  to attach devices such as ANALR, UART, FPGA and more.
 
 config  TI_PWMSS
 	bool
@@ -217,11 +217,11 @@ config TI_SYSC
 	  found on many TI SoCs.
 
 config TS_NBUS
-	tristate "Technologic Systems NBUS Driver"
+	tristate "Techanallogic Systems NBUS Driver"
 	depends on SOC_IMX28
 	depends on OF_GPIO && PWM
 	help
-	  Driver for the Technologic Systems NBUS which is used to interface
+	  Driver for the Techanallogic Systems NBUS which is used to interface
 	  with the peripherals in the FPGA of the TS-4600 SoM.
 
 config UNIPHIER_SYSTEM_BUS

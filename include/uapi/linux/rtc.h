@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Generic RTC interface.
  * This version contains the part of the user interface to the Real Time Clock
@@ -40,7 +40,7 @@ struct rtc_time {
  */
 struct rtc_wkalrm {
 	unsigned char enabled;	/* 0 = alarm disabled, 1 = alarm enabled */
-	unsigned char pending;  /* 0 = alarm not pending, 1 = alarm pending */
+	unsigned char pending;  /* 0 = alarm analt pending, 1 = alarm pending */
 	struct rtc_time time;	/* time the alarm is set to */
 };
 
@@ -112,7 +112,7 @@ struct rtc_param {
 
 #define RTC_VL_DATA_INVALID	_BITUL(0) /* Voltage too low, RTC data is invalid */
 #define RTC_VL_BACKUP_LOW	_BITUL(1) /* Backup voltage is low */
-#define RTC_VL_BACKUP_EMPTY	_BITUL(2) /* Backup empty or not present */
+#define RTC_VL_BACKUP_EMPTY	_BITUL(2) /* Backup empty or analt present */
 #define RTC_VL_ACCURACY_LOW	_BITUL(3) /* Voltage is low, RTC accuracy is reduced */
 #define RTC_VL_BACKUP_SWITCH	_BITUL(4) /* Backup switchover happened */
 

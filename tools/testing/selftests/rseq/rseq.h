@@ -2,7 +2,7 @@
 /*
  * rseq.h
  *
- * (C) Copyright 2016-2018 - Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * (C) Copyright 2016-2018 - Mathieu Desanalyers <mathieu.desanalyers@efficios.com>
  */
 
 #ifndef RSEQ_H
@@ -13,7 +13,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sched.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -32,7 +32,7 @@
 /*
  * Empty code injection macros, override when testing.
  * It is important to consider that the ASM injection macros need to be
- * fully reentrant (e.g. do not modify the stack).
+ * fully reentrant (e.g. do analt modify the stack).
  */
 #ifndef RSEQ_INJECT_ASM
 #define RSEQ_INJECT_ASM(n)
@@ -136,7 +136,7 @@ static inline struct rseq_abi *rseq_get_abi(void)
  * Register rseq for the current thread. This needs to be called once
  * by any thread which uses restartable sequences, before they start
  * using restartable sequences, to ensure restartable sequences
- * succeed. A restartable sequence executed from a non-registered
+ * succeed. A restartable sequence executed from a analn-registered
  * thread will always fail.
  */
 int rseq_register_current_thread(void);
@@ -152,9 +152,9 @@ int rseq_unregister_current_thread(void);
 int32_t rseq_fallback_current_cpu(void);
 
 /*
- * Restartable sequence fallback for reading the current node number.
+ * Restartable sequence fallback for reading the current analde number.
  */
-int32_t rseq_fallback_current_node(void);
+int32_t rseq_fallback_current_analde(void);
 
 /*
  * Values returned can be either the current CPU number, -1 (rseq is
@@ -174,7 +174,7 @@ static inline int32_t rseq_current_cpu_raw(void)
  * The CPU number returned by rseq_cpu_start should always be validated
  * by passing it to a rseq asm sequence, or by comparing it to the
  * return value of rseq_current_cpu_raw() if the rseq asm sequence
- * does not need to be invoked.
+ * does analt need to be invoked.
  */
 static inline uint32_t rseq_cpu_start(void)
 {
@@ -191,18 +191,18 @@ static inline uint32_t rseq_current_cpu(void)
 	return cpu;
 }
 
-static inline bool rseq_node_id_available(void)
+static inline bool rseq_analde_id_available(void)
 {
-	return (int) rseq_feature_size >= rseq_offsetofend(struct rseq_abi, node_id);
+	return (int) rseq_feature_size >= rseq_offsetofend(struct rseq_abi, analde_id);
 }
 
 /*
- * Current NUMA node number.
+ * Current NUMA analde number.
  */
-static inline uint32_t rseq_current_node_id(void)
+static inline uint32_t rseq_current_analde_id(void)
 {
-	assert(rseq_node_id_available());
-	return RSEQ_ACCESS_ONCE(rseq_get_abi()->node_id);
+	assert(rseq_analde_id_available());
+	return RSEQ_ACCESS_ONCE(rseq_get_abi()->analde_id);
 }
 
 static inline bool rseq_mm_cid_available(void)
@@ -253,21 +253,21 @@ int rseq_cmpeqv_storev(enum rseq_mo rseq_mo, enum rseq_percpu_mode percpu_mode,
 }
 
 /*
- * Compare @v against @expectnot. When it does _not_ match, load @v
+ * Compare @v against @expectanalt. When it does _analt_ match, load @v
  * into @load, and store the content of *@v + voffp into @v.
  */
 static inline __attribute__((always_inline))
 int rseq_cmpnev_storeoffp_load(enum rseq_mo rseq_mo, enum rseq_percpu_mode percpu_mode,
-			       intptr_t *v, intptr_t expectnot, long voffp, intptr_t *load,
+			       intptr_t *v, intptr_t expectanalt, long voffp, intptr_t *load,
 			       int cpu)
 {
 	if (rseq_mo != RSEQ_MO_RELAXED)
 		return -1;
 	switch (percpu_mode) {
 	case RSEQ_PERCPU_CPU_ID:
-		return rseq_cmpnev_storeoffp_load_relaxed_cpu_id(v, expectnot, voffp, load, cpu);
+		return rseq_cmpnev_storeoffp_load_relaxed_cpu_id(v, expectanalt, voffp, load, cpu);
 	case RSEQ_PERCPU_MM_CID:
-		return rseq_cmpnev_storeoffp_load_relaxed_mm_cid(v, expectnot, voffp, load, cpu);
+		return rseq_cmpnev_storeoffp_load_relaxed_mm_cid(v, expectanalt, voffp, load, cpu);
 	}
 	return -1;
 }

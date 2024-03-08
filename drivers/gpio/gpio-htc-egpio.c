@@ -2,14 +2,14 @@
  * Support for the GPIO/IRQ expander chips present on several HTC phones.
  * These are implemented in CPLD chips present on the board.
  *
- * Copyright (c) 2007 Kevin O'Connor <kevin@koconnor.net>
+ * Copyright (c) 2007 Kevin O'Conanalr <kevin@koconanalr.net>
  * Copyright (c) 2007 Philipp Zabel <philipp.zabel@gmail.com>
  *
  * This file may be distributed under the terms of the GNU GPL license.
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
@@ -75,8 +75,8 @@ static void egpio_ack(struct irq_data *data)
 {
 }
 
-/* There does not appear to be a way to proactively mask interrupts
- * on the egpio chip itself.  So, we simply ignore interrupts that
+/* There does analt appear to be a way to proactively mask interrupts
+ * on the egpio chip itself.  So, we simply iganalre interrupts that
  * aren't desired. */
 static void egpio_mask(struct irq_data *data)
 {
@@ -272,7 +272,7 @@ static int __init egpio_probe(struct platform_device *pdev)
 	/* Initialize ei data structure. */
 	ei = devm_kzalloc(&pdev->dev, sizeof(*ei), GFP_KERNEL);
 	if (!ei)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&ei->lock);
 
@@ -307,7 +307,7 @@ static int __init egpio_probe(struct platform_device *pdev)
 				ei->nchips, sizeof(struct egpio_chip),
 				GFP_KERNEL);
 	if (!ei->chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ei->nchips; i++) {
 		ei->chip[i].reg_start = pdata->chip[i].reg_start;
@@ -319,7 +319,7 @@ static int __init egpio_probe(struct platform_device *pdev)
 					     "htc-egpio-%d",
 					     i);
 		if (!chip->label)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		chip->parent          = &pdev->dev;
 		chip->owner           = THIS_MODULE;
@@ -351,7 +351,7 @@ static int __init egpio_probe(struct platform_device *pdev)
 			irq_set_chip_and_handler(irq, &egpio_muxed_chip,
 						 handle_simple_irq);
 			irq_set_chip_data(irq, ei);
-			irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
+			irq_clear_status_flags(irq, IRQ_ANALREQUEST | IRQ_ANALPROBE);
 		}
 		irq_set_irq_type(ei->chained_irq, IRQ_TYPE_EDGE_RISING);
 		irq_set_chained_handler_and_data(ei->chained_irq,

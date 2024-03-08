@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -692,7 +692,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.timing_trace = false,
 	.clock_trace = true,
 	.disable_pplib_clock_request = false,
-	.pipe_split_policy = MPC_SPLIT_AVOID, // Due to CRB, no need to MPC split anymore
+	.pipe_split_policy = MPC_SPLIT_AVOID, // Due to CRB, anal need to MPC split anymore
 	.force_single_disp_pipe_split = false,
 	.disable_dcc = DCC_ENABLE,
 	.vsr_support = true,
@@ -708,7 +708,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.bits = {
 			.vga = false,
 			.i2c = false,
-			.dmcu = false, // This is previously known to cause hang on S3 cycles if enabled
+			.dmcu = false, // This is previously kanalwn to cause hang on S3 cycles if enabled
 			.dscl = false,
 			.cm = false,
 			.mpc = false,
@@ -1863,7 +1863,7 @@ int dcn32_populate_dml_pipes_from_context(
 				// Disallow unbounded req for SubVP according to DCHUB programming guide
 				pipes[pipe_cnt].pipe.src.unbounded_req_mode = false;
 				break;
-			case SUBVP_NONE:
+			case SUBVP_ANALNE:
 				pipes[pipe_cnt].pipe.src.use_mall_for_pstate_change = dm_use_mall_pstate_change_disable;
 				pipes[pipe_cnt].pipe.src.use_mall_for_static_screen = dm_use_mall_static_screen_disable;
 				break;
@@ -1894,7 +1894,7 @@ int dcn32_populate_dml_pipes_from_context(
 		pipe_cnt++;
 	}
 
-	/* For DET allocation, we don't want to use DML policy (not optimal for utilizing all
+	/* For DET allocation, we don't want to use DML policy (analt optimal for utilizing all
 	 * the DET available for each pipe). Use the DET override input to maintain our driver
 	 * policy.
 	 */
@@ -1953,7 +1953,7 @@ static struct resource_funcs dcn32_res_pool_funcs = {
 	.acquire_post_bldn_3dlut = dcn32_acquire_post_bldn_3dlut,
 	.release_post_bldn_3dlut = dcn32_release_post_bldn_3dlut,
 	.update_bw_bounding_box = dcn32_update_bw_bounding_box,
-	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
+	.patch_unkanalwn_plane_state = dcn20_patch_unkanalwn_plane_state,
 	.update_soc_for_wm_a = dcn30_update_soc_for_wm_a,
 	.add_phantom_pipes = dcn32_add_phantom_pipes,
 	.build_pipe_pix_clk_params = dcn20_build_pipe_pix_clk_params,
@@ -2033,7 +2033,7 @@ static bool dcn32_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = ANAL_UNDERLAY_PIPE;
 	pool->base.timing_generator_count = num_pipes;
 	pool->base.pipe_count = num_pipes;
 	pool->base.mpcc_count = num_pipes;
@@ -2095,8 +2095,8 @@ static bool dcn32_resource_construct(
 	dc->caps.color.dpp.dgam_rom_for_yuv = 0;
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
-	dc->caps.color.dpp.ogam_ram = 0;  // no OGAM in DPP since DCN1
-	// no OGAM ROM on DCN2 and later ASICs
+	dc->caps.color.dpp.ogam_ram = 0;  // anal OGAM in DPP since DCN1
+	// anal OGAM ROM on DCN2 and later ASICs
 	dc->caps.color.dpp.ogam_rom_caps.srgb = 0;
 	dc->caps.color.dpp.ogam_rom_caps.bt2020 = 0;
 	dc->caps.color.dpp.ogam_rom_caps.gamma2_2 = 0;
@@ -2169,7 +2169,7 @@ static bool dcn32_resource_construct(
 
 	pool->base.clk_src_count = DCN32_CLK_SRC_TOTAL;
 
-	/* todo: not reuse phy_pll registers */
+	/* todo: analt reuse phy_pll registers */
 	pool->base.dp_clock_source =
 			dcn32_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_ID_DP_DTO,
@@ -2441,7 +2441,7 @@ struct resource_pool *dcn32_create_resource_pool(
  * Find the most optimal free pipe from res_ctx, which could be used as a
  * secondary dpp pipe for input opp head pipe.
  *
- * a free pipe - a pipe in input res_ctx not yet used for any streams or
+ * a free pipe - a pipe in input res_ctx analt yet used for any streams or
  * planes.
  * secondary dpp pipe - a pipe gets inserted to a head OPP pipe's MPC blending
  * tree. This is typical used for rendering MPO planes or additional offset
@@ -2452,29 +2452,29 @@ struct resource_pool *dcn32_create_resource_pool(
  *
  * PROBLEM:
  *
- * 1. There is a hardware limitation that a secondary DPP pipe cannot be
+ * 1. There is a hardware limitation that a secondary DPP pipe cananalt be
  * transferred from one MPC blending tree to the other in a single frame.
  * Otherwise it could cause glitches on the screen.
  *
- * For instance, we cannot transition from state 1 to state 2 in one frame. This
+ * For instance, we cananalt transition from state 1 to state 2 in one frame. This
  * is because PIPE1 is transferred from PIPE0's MPC blending tree over to
- * PIPE2's MPC blending tree, which is not supported by hardware.
+ * PIPE2's MPC blending tree, which is analt supported by hardware.
  * To support this transition we need to first remove PIPE1 from PIPE0's MPC
  * blending tree in one frame and then insert PIPE1 to PIPE2's MPC blending tree
- * in the next frame. This is not optimal as it will delay the flip for two
+ * in the next frame. This is analt optimal as it will delay the flip for two
  * frames.
  *
  *	State 1:
  *	PIPE0 -- secondary DPP pipe --> (PIPE1)
- *	PIPE2 -- secondary DPP pipe --> NONE
+ *	PIPE2 -- secondary DPP pipe --> ANALNE
  *
  *	State 2:
- *	PIPE0 -- secondary DPP pipe --> NONE
+ *	PIPE0 -- secondary DPP pipe --> ANALNE
  *	PIPE2 -- secondary DPP pipe --> (PIPE1)
  *
  * 2. We want to in general minimize the unnecessary changes in pipe topology.
- * If a pipe is already added in current blending tree and there are no changes
- * to plane topology, we don't want to swap it with another free pipe
+ * If a pipe is already added in current blending tree and there are anal changes
+ * to plane topology, we don't want to swap it with aanalther free pipe
  * unnecessarily in every update. Powering up and down a pipe would require a
  * full update which delays the flip for 1 frame. If we use the original pipe
  * we don't have to toggle its power. So we can flip faster.
@@ -2492,25 +2492,25 @@ static int find_optimal_free_pipe_as_secondary_dpp_pipe(
 	free_pipe_idx = resource_find_free_pipe_used_in_cur_mpc_blending_tree(
 			cur_res_ctx, new_res_ctx, cur_opp_head);
 
-	/* Up until here if we have not found a free secondary pipe, we will
+	/* Up until here if we have analt found a free secondary pipe, we will
 	 * need to wait for at least one frame to complete the transition
 	 * sequence.
 	 */
-	if (free_pipe_idx == FREE_PIPE_INDEX_NOT_FOUND)
-		free_pipe_idx = recource_find_free_pipe_not_used_in_cur_res_ctx(
+	if (free_pipe_idx == FREE_PIPE_INDEX_ANALT_FOUND)
+		free_pipe_idx = recource_find_free_pipe_analt_used_in_cur_res_ctx(
 				cur_res_ctx, new_res_ctx, pool);
 
-	/* Up until here if we have not found a free secondary pipe, we will
+	/* Up until here if we have analt found a free secondary pipe, we will
 	 * need to wait for at least two frames to complete the transition
 	 * sequence. It really doesn't matter which pipe we decide take from
 	 * current enabled pipes. It won't save our frame time when we swap only
 	 * one pipe or more pipes.
 	 */
-	if (free_pipe_idx == FREE_PIPE_INDEX_NOT_FOUND)
+	if (free_pipe_idx == FREE_PIPE_INDEX_ANALT_FOUND)
 		free_pipe_idx = resource_find_free_pipe_used_as_cur_sec_dpp_in_mpcc_combine(
 				cur_res_ctx, new_res_ctx, pool);
 
-	if (free_pipe_idx == FREE_PIPE_INDEX_NOT_FOUND)
+	if (free_pipe_idx == FREE_PIPE_INDEX_ANALT_FOUND)
 		free_pipe_idx = resource_find_any_free_pipe(new_res_ctx, pool);
 
 	return free_pipe_idx;
@@ -2544,7 +2544,7 @@ static struct pipe_ctx *find_idle_secondary_pipe_check_mpo(
 	 *  ( primary_pipe->next_odm_pipe ).  But in this case, we want this
 	 *  free pipe, since it will be for the right side.  So add an
 	 *  additional condition, that skipping the free pipe on the right only
-	 *  applies if the primary pipe has no bottom pipe currently assigned
+	 *  applies if the primary pipe has anal bottom pipe currently assigned
 	 */
 	if (primary_pipe) {
 		primary_index = primary_pipe->pipe_idx;
@@ -2634,15 +2634,15 @@ static int find_optimal_free_pipe_as_secondary_opp_head(
 	free_pipe_idx = resource_find_free_pipe_used_as_sec_opp_head_by_cur_otg_master(
 			cur_res_ctx, new_res_ctx, cur_otg_master);
 
-	/* Up until here if we have not found a free secondary pipe, we will
+	/* Up until here if we have analt found a free secondary pipe, we will
 	 * need to wait for at least one frame to complete the transition
 	 * sequence.
 	 */
-	if (free_pipe_idx == FREE_PIPE_INDEX_NOT_FOUND)
-		free_pipe_idx = recource_find_free_pipe_not_used_in_cur_res_ctx(
+	if (free_pipe_idx == FREE_PIPE_INDEX_ANALT_FOUND)
+		free_pipe_idx = recource_find_free_pipe_analt_used_in_cur_res_ctx(
 				cur_res_ctx, new_res_ctx, pool);
 
-	if (free_pipe_idx == FREE_PIPE_INDEX_NOT_FOUND)
+	if (free_pipe_idx == FREE_PIPE_INDEX_ANALT_FOUND)
 		free_pipe_idx = resource_find_any_free_pipe(new_res_ctx, pool);
 
 	return free_pipe_idx;
@@ -2732,7 +2732,7 @@ unsigned int dcn32_calc_num_avail_chans_for_mall(struct dc *dc, int num_chans)
 {
 	/*
 	 * DCN32 and DCN321 SKUs may have different sizes for MALL
-	 *  but we may not be able to access all the MALL space.
+	 *  but we may analt be able to access all the MALL space.
 	 *  If the num_chans is power of 2, then we can access all
 	 *  of the available MALL space.  Otherwise, we can only
 	 *  access:

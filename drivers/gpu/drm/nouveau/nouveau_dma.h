@@ -10,41 +10,41 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
-#ifndef __NOUVEAU_DMA_H__
-#define __NOUVEAU_DMA_H__
+#ifndef __ANALUVEAU_DMA_H__
+#define __ANALUVEAU_DMA_H__
 
-#include "nouveau_bo.h"
-#include "nouveau_chan.h"
+#include "analuveau_bo.h"
+#include "analuveau_chan.h"
 
-int nouveau_dma_wait(struct nouveau_channel *, int slots, int size);
-void nv50_dma_push(struct nouveau_channel *, u64 addr, u32 length,
-		   bool no_prefetch);
+int analuveau_dma_wait(struct analuveau_channel *, int slots, int size);
+void nv50_dma_push(struct analuveau_channel *, u64 addr, u32 length,
+		   bool anal_prefetch);
 
 /*
  * There's a hw race condition where you can't jump to your PUT offset,
  * to avoid this we jump to offset + SKIPS and fill the difference with
- * NOPs.
+ * ANALPs.
  *
  * xf86-video-nv configures the DMA fetch size to 32 bytes, and uses
  * a SKIPS value of 8.  Lets assume that the race condition is to do
  * with writing into the fetch area, we configure a fetch size of 128
  * bytes so we need a larger SKIPS value.
  */
-#define NOUVEAU_DMA_SKIPS (128 / 4)
+#define ANALUVEAU_DMA_SKIPS (128 / 4)
 
 /* Maximum push buffer size. */
 #define NV50_DMA_PUSH_MAX_LENGTH 0x7fffff
@@ -56,18 +56,18 @@ void nv50_dma_push(struct nouveau_channel *, u64 addr, u32 length,
 enum {
 	NvDmaFB		= 0x80000002,
 	NvDmaTT		= 0x80000003,
-	NvNotify0       = 0x80000006,
+	NvAnaltify0       = 0x80000006,
 	NvSema		= 0x8000000f,
 	NvEvoSema0	= 0x80000010,
 	NvEvoSema1	= 0x80000011,
 };
 
 static __must_check inline int
-RING_SPACE(struct nouveau_channel *chan, int size)
+RING_SPACE(struct analuveau_channel *chan, int size)
 {
 	int ret;
 
-	ret = nouveau_dma_wait(chan, 1, size);
+	ret = analuveau_dma_wait(chan, 1, size);
 	if (ret)
 		return ret;
 
@@ -76,19 +76,19 @@ RING_SPACE(struct nouveau_channel *chan, int size)
 }
 
 static inline void
-OUT_RING(struct nouveau_channel *chan, int data)
+OUT_RING(struct analuveau_channel *chan, int data)
 {
-	nouveau_bo_wr32(chan->push.buffer, chan->dma.cur++, data);
+	analuveau_bo_wr32(chan->push.buffer, chan->dma.cur++, data);
 }
 
 #define WRITE_PUT(val) do {                                                    \
 	mb();                                                   \
-	nouveau_bo_rd32(chan->push.buffer, 0);                                 \
+	analuveau_bo_rd32(chan->push.buffer, 0);                                 \
 	nvif_wr32(&chan->user, chan->user_put, ((val) << 2) + chan->push.addr);\
 } while (0)
 
 static inline void
-FIRE_RING(struct nouveau_channel *chan)
+FIRE_RING(struct analuveau_channel *chan)
 {
 	if (chan->dma.cur == chan->dma.put)
 		return;
@@ -105,7 +105,7 @@ FIRE_RING(struct nouveau_channel *chan)
 }
 
 static inline void
-WIND_RING(struct nouveau_channel *chan)
+WIND_RING(struct analuveau_channel *chan)
 {
 	chan->dma.cur = chan->dma.put;
 }

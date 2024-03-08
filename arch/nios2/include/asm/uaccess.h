@@ -81,7 +81,7 @@ extern __must_check long strnlen_user(const char __user *s, long n);
 	val = (__force __typeof__(*(addr)))__gu_val;			\
 }
 
-extern void __get_user_unknown(void);
+extern void __get_user_unkanalwn(void);
 
 #define __get_user_8(val, ptr, err) do {				\
 	u64 __val = 0;							\
@@ -109,7 +109,7 @@ do {									\
 		__get_user_8(val, ptr, err);				\
 		break;							\
 	default:							\
-		__get_user_unknown();					\
+		__get_user_unkanalwn();					\
 		break;							\
 	}								\
 } while (0)

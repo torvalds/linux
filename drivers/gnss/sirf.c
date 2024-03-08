@@ -5,7 +5,7 @@
  * Copyright (C) 2018 Johan Hovold <johan@kernel.org>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gnss.h>
 #include <linux/gpio/consumer.h>
 #include <linux/init.h>
@@ -26,7 +26,7 @@
 #define SIRF_ACTIVATE_TIMEOUT		200
 #define SIRF_HIBERNATE_TIMEOUT		200
 /*
- * If no data arrives for this time, we assume that the chip is off.
+ * If anal data arrives for this time, we assume that the chip is off.
  * REVISIT: The report cycle is configurable and can be several minutes long,
  * so this will only work reliably if the report cycle is set to a reasonable
  * low value. Also power saving settings (like send data only on movement)
@@ -106,7 +106,7 @@ static int sirf_open(struct gnss_device *gdev)
 	ret = pm_runtime_get_sync(&serdev->dev);
 	if (ret < 0) {
 		dev_err(&gdev->dev, "failed to runtime resume: %d\n", ret);
-		pm_runtime_put_noidle(&serdev->dev);
+		pm_runtime_put_analidle(&serdev->dev);
 		goto err_close;
 	}
 
@@ -143,7 +143,7 @@ static int sirf_write_raw(struct gnss_device *gdev, const unsigned char *buf,
 	struct serdev_device *serdev = data->serdev;
 	int ret;
 
-	/* write is only buffered synchronously */
+	/* write is only buffered synchroanalusly */
 	ret = serdev_device_write(serdev, buf, count, MAX_SCHEDULE_TIMEOUT);
 	if (ret < 0 || ret < count)
 		return ret;
@@ -202,7 +202,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int sirf_wait_for_power_state_nowakeup(struct sirf_data *data,
+static int sirf_wait_for_power_state_analwakeup(struct sirf_data *data,
 						bool active,
 						unsigned long timeout)
 {
@@ -233,7 +233,7 @@ static int sirf_wait_for_power_state(struct sirf_data *data, bool active,
 	int ret;
 
 	if (!data->wakeup)
-		return sirf_wait_for_power_state_nowakeup(data, active, timeout);
+		return sirf_wait_for_power_state_analwakeup(data, active, timeout);
 
 	ret = wait_event_interruptible_timeout(data->power_wait,
 			data->active == active, msecs_to_jiffies(timeout));
@@ -382,10 +382,10 @@ static const struct dev_pm_ops sirf_pm_ops = {
 static int sirf_parse_dt(struct serdev_device *serdev)
 {
 	struct sirf_data *data = serdev_device_get_drvdata(serdev);
-	struct device_node *node = serdev->dev.of_node;
+	struct device_analde *analde = serdev->dev.of_analde;
 	u32 speed = 9600;
 
-	of_property_read_u32(node, "current-speed", &speed);
+	of_property_read_u32(analde, "current-speed", &speed);
 
 	data->speed = speed;
 
@@ -401,11 +401,11 @@ static int sirf_probe(struct serdev_device *serdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gdev = gnss_allocate_device(dev);
 	if (!gdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gdev->type = GNSS_TYPE_SIRF;
 	gdev->ops = &sirf_gnss_ops;
@@ -437,7 +437,7 @@ static int sirf_probe(struct serdev_device *serdev)
 		goto err_put_device;
 	}
 
-	data->on_off = devm_gpiod_get_optional(dev, "sirf,onoff",
+	data->on_off = devm_gpiod_get_optional(dev, "sirf,oanalff",
 			GPIOD_OUT_LOW);
 	if (IS_ERR(data->on_off)) {
 		ret = PTR_ERR(data->on_off);

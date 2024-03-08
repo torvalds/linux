@@ -9,8 +9,8 @@ Required Properties:
 - clocks: reference to the master clock.
 - clock-names: shall be "mclk".
 
-The device node must contain one 'port' child node with one 'endpoint' child
-sub-node for its digital output video port, in accordance with the video
+The device analde must contain one 'port' child analde with one 'endpoint' child
+sub-analde for its digital output video port, in accordance with the video
 interface bindings defined in:
 Documentation/devicetree/bindings/media/video-interfaces.txt
 

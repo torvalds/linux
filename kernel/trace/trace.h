@@ -50,7 +50,7 @@ enum trace_type {
 	TRACE_BLK,
 	TRACE_BPUTS,
 	TRACE_HWLAT,
-	TRACE_OSNOISE,
+	TRACE_OSANALISE,
 	TRACE_TIMERLAT,
 	TRACE_RAW_DATA,
 	TRACE_FUNC_REPEATS,
@@ -80,7 +80,7 @@ enum trace_type {
 /*
  * For backward compatibility, older user space expects to see the
  * kernel_stack event with a fixed size caller field. But today the fix
- * size is ignored by the kernel, and the real structure is dynamic.
+ * size is iganalred by the kernel, and the real structure is dynamic.
  * Expose to user space: "unsigned long caller[8];" but the real structure
  * will be "unsigned long caller[] __counted_by(size)"
  */
@@ -131,7 +131,7 @@ enum trace_type {
 
 /*
  * syscalls are special, and need special handling, this is why
- * they are not included in trace_entries.h
+ * they are analt included in trace_entries.h
  */
 struct syscall_trace_enter {
 	struct trace_entry	ent;
@@ -199,9 +199,9 @@ struct trace_array_cpu {
 	char			comm[TASK_COMM_LEN];
 
 #ifdef CONFIG_FUNCTION_TRACER
-	int			ftrace_ignore_pid;
+	int			ftrace_iganalre_pid;
 #endif
-	bool			ignore_pid;
+	bool			iganalre_pid;
 };
 
 struct tracer;
@@ -233,26 +233,26 @@ int trace_pid_list_next(struct trace_pid_list *pid_list, unsigned int pid,
 
 enum {
 	TRACE_PIDS		= BIT(0),
-	TRACE_NO_PIDS		= BIT(1),
+	TRACE_ANAL_PIDS		= BIT(1),
 };
 
 static inline bool pid_type_enabled(int type, struct trace_pid_list *pid_list,
-				    struct trace_pid_list *no_pid_list)
+				    struct trace_pid_list *anal_pid_list)
 {
 	/* Return true if the pid list in type has pids */
 	return ((type & TRACE_PIDS) && pid_list) ||
-		((type & TRACE_NO_PIDS) && no_pid_list);
+		((type & TRACE_ANAL_PIDS) && anal_pid_list);
 }
 
 static inline bool still_need_pid_events(int type, struct trace_pid_list *pid_list,
-					 struct trace_pid_list *no_pid_list)
+					 struct trace_pid_list *anal_pid_list)
 {
 	/*
 	 * Turning off what is in @type, return true if the "other"
 	 * pid list, still has pids in it.
 	 */
 	return (!(type & TRACE_PIDS) && pid_list) ||
-		(!(type & TRACE_NO_PIDS) && no_pid_list);
+		(!(type & TRACE_ANAL_PIDS) && anal_pid_list);
 }
 
 typedef bool (*cond_update_fn_t)(struct trace_array *tr, void *cond_data);
@@ -280,7 +280,7 @@ typedef bool (*cond_update_fn_t)(struct trace_array *tr, void *cond_data);
  *
  * The cond_snapshot instance is created and associated with the
  * user-defined cond_data by tracing_cond_snapshot_enable().
- * Likewise, the cond_snapshot instance is destroyed and is no longer
+ * Likewise, the cond_snapshot instance is destroyed and is anal longer
  * associated with the trace instance by
  * tracing_cond_snapshot_disable().
  *
@@ -288,8 +288,8 @@ typedef bool (*cond_update_fn_t)(struct trace_array *tr, void *cond_data);
  *
  * @update: When a conditional snapshot is invoked, the update()
  *	callback function is invoked with the tr->max_lock held.  The
- *	update() implementation signals whether or not to actually
- *	take the snapshot, by returning 'true' if so, 'false' if no
+ *	update() implementation signals whether or analt to actually
+ *	take the snapshot, by returning 'true' if so, 'false' if anal
  *	snapshot should be taken.  Because the max_lock is held for
  *	the duration of update(), the implementation is safe to
  *	directly retrieved and save any implementation data it needs
@@ -337,14 +337,14 @@ struct trace_array {
 #endif
 #ifdef CONFIG_TRACER_MAX_TRACE
 	unsigned long		max_latency;
-#ifdef CONFIG_FSNOTIFY
+#ifdef CONFIG_FSANALTIFY
 	struct dentry		*d_max_latency;
-	struct work_struct	fsnotify_work;
-	struct irq_work		fsnotify_irqwork;
+	struct work_struct	fsanaltify_work;
+	struct irq_work		fsanaltify_irqwork;
 #endif
 #endif
 	struct trace_pid_list	__rcu *filtered_pids;
-	struct trace_pid_list	__rcu *filtered_no_pids;
+	struct trace_pid_list	__rcu *filtered_anal_pids;
 	/*
 	 * max_lock is used to protect the swapping of buffers
 	 * when taking a max snapshot. The buffers themselves are
@@ -382,7 +382,7 @@ struct trace_array {
 	struct dentry		*dir;
 	struct dentry		*options;
 	struct dentry		*percpu_dir;
-	struct eventfs_inode	*event_dir;
+	struct eventfs_ianalde	*event_dir;
 	struct trace_options	*topts;
 	struct list_head	systems;
 	struct list_head	events;
@@ -395,17 +395,17 @@ struct trace_array {
 #ifdef CONFIG_FUNCTION_TRACER
 	struct ftrace_ops	*ops;
 	struct trace_pid_list	__rcu *function_pids;
-	struct trace_pid_list	__rcu *function_no_pids;
+	struct trace_pid_list	__rcu *function_anal_pids;
 #ifdef CONFIG_DYNAMIC_FTRACE
 	/* All of these are protected by the ftrace_lock */
 	struct list_head	func_probes;
 	struct list_head	mod_trace;
-	struct list_head	mod_notrace;
+	struct list_head	mod_analtrace;
 #endif
 	/* function tracing enabled */
 	int			function_enabled;
 #endif
-	int			no_filter_buffering_ref;
+	int			anal_filter_buffering_ref;
 	struct list_head	hist_vars;
 #ifdef CONFIG_TRACER_SNAPSHOT
 	struct cond_snapshot	*cond_snapshot;
@@ -413,7 +413,7 @@ struct trace_array {
 	struct trace_func_repeats	__percpu *last_func_repeats;
 	/*
 	 * On boot up, the ring buffer is set to the minimum size, so that
-	 * we do not waste memory on systems that are not using tracing.
+	 * we do analt waste memory on systems that are analt using tracing.
 	 */
 	bool ring_buffer_expanded;
 };
@@ -465,7 +465,7 @@ static inline struct trace_array *top_trace_array(void)
 		break;						\
 	}
 
-/* Will cause compile errors if type is not found. */
+/* Will cause compile errors if type is analt found. */
 extern void __ftrace_bad_type(void);
 
 /*
@@ -491,7 +491,7 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct bprint_entry, TRACE_BPRINT);	\
 		IF_ASSIGN(var, ent, struct bputs_entry, TRACE_BPUTS);	\
 		IF_ASSIGN(var, ent, struct hwlat_entry, TRACE_HWLAT);	\
-		IF_ASSIGN(var, ent, struct osnoise_entry, TRACE_OSNOISE);\
+		IF_ASSIGN(var, ent, struct osanalise_entry, TRACE_OSANALISE);\
 		IF_ASSIGN(var, ent, struct timerlat_entry, TRACE_TIMERLAT);\
 		IF_ASSIGN(var, ent, struct raw_data_entry, TRACE_RAW_DATA);\
 		IF_ASSIGN(var, ent, struct trace_mmiotrace_rw,		\
@@ -543,7 +543,7 @@ struct trace_option_dentry {
  * struct tracer - a specific tracer and its callbacks to interact with tracefs
  * @name: the name chosen to select it on the available_tracers file
  * @init: called when one switches to this tracer (echo name > current_tracer)
- * @reset: called when one switches to another tracer
+ * @reset: called when one switches to aanalther tracer
  * @start: called when tracing is unpaused (echo 1 > tracing_on)
  * @stop: called when tracing is paused (echo 0 > tracing_on)
  * @update_thresh: called when tracing_thresh is updated
@@ -576,7 +576,7 @@ struct tracer {
 	ssize_t			(*splice_read)(struct trace_iterator *iter,
 					       struct file *filp,
 					       loff_t *ppos,
-					       struct pipe_inode_info *pipe,
+					       struct pipe_ianalde_info *pipe,
 					       size_t len,
 					       unsigned int flags);
 #ifdef CONFIG_FTRACE_STARTUP_TEST
@@ -588,7 +588,7 @@ struct tracer {
 	/* If you handled the flag setting, return 0 */
 	int			(*set_flag)(struct trace_array *tr,
 					    u32 old_flags, u32 bit, int set);
-	/* Return 0 if OK with change, else return non-zero */
+	/* Return 0 if OK with change, else return analn-zero */
 	int			(*flag_changed)(struct trace_array *tr,
 						u32 mask, int set);
 	struct tracer		*next;
@@ -599,8 +599,8 @@ struct tracer {
 #ifdef CONFIG_TRACER_MAX_TRACE
 	bool			use_max_tr;
 #endif
-	/* True if tracer cannot be enabled in kernel param */
-	bool			noboot;
+	/* True if tracer cananalt be enabled in kernel param */
+	bool			analboot;
 };
 
 static inline struct ring_buffer_iter *
@@ -614,12 +614,12 @@ int tracing_is_enabled(void);
 void tracing_reset_online_cpus(struct array_buffer *buf);
 void tracing_reset_all_online_cpus(void);
 void tracing_reset_all_online_cpus_unlocked(void);
-int tracing_open_generic(struct inode *inode, struct file *filp);
-int tracing_open_generic_tr(struct inode *inode, struct file *filp);
-int tracing_release_generic_tr(struct inode *inode, struct file *file);
-int tracing_open_file_tr(struct inode *inode, struct file *filp);
-int tracing_release_file_tr(struct inode *inode, struct file *filp);
-int tracing_single_release_file_tr(struct inode *inode, struct file *filp);
+int tracing_open_generic(struct ianalde *ianalde, struct file *filp);
+int tracing_open_generic_tr(struct ianalde *ianalde, struct file *filp);
+int tracing_release_generic_tr(struct ianalde *ianalde, struct file *file);
+int tracing_open_file_tr(struct ianalde *ianalde, struct file *filp);
+int tracing_release_file_tr(struct ianalde *ianalde, struct file *filp);
+int tracing_single_release_file_tr(struct ianalde *ianalde, struct file *filp);
 bool tracing_is_disabled(void);
 bool tracer_tracing_is_on(struct trace_array *tr);
 void tracer_tracing_on(struct trace_array *tr);
@@ -646,7 +646,7 @@ struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
 					  int *ent_cpu, u64 *ent_ts);
 
-void trace_buffer_unlock_commit_nostack(struct trace_buffer *buffer,
+void trace_buffer_unlock_commit_analstack(struct trace_buffer *buffer,
 					struct ring_buffer_event *event);
 
 bool trace_is_tracepoint_string(const char *str);
@@ -707,8 +707,8 @@ extern int pid_max;
 
 bool trace_find_filtered_pid(struct trace_pid_list *filtered_pids,
 			     pid_t search_pid);
-bool trace_ignore_this_task(struct trace_pid_list *filtered_pids,
-			    struct trace_pid_list *filtered_no_pids,
+bool trace_iganalre_this_task(struct trace_pid_list *filtered_pids,
+			    struct trace_pid_list *filtered_anal_pids,
 			    struct task_struct *task);
 void trace_filter_add_remove_task(struct trace_pid_list *pid_list,
 				  struct task_struct *self,
@@ -726,15 +726,15 @@ void update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu,
 void update_max_tr_single(struct trace_array *tr,
 			  struct task_struct *tsk, int cpu);
 
-#ifdef CONFIG_FSNOTIFY
-#define LATENCY_FS_NOTIFY
+#ifdef CONFIG_FSANALTIFY
+#define LATENCY_FS_ANALTIFY
 #endif
 #endif /* CONFIG_TRACER_MAX_TRACE */
 
-#ifdef LATENCY_FS_NOTIFY
-void latency_fsnotify(struct trace_array *tr);
+#ifdef LATENCY_FS_ANALTIFY
+void latency_fsanaltify(struct trace_array *tr);
 #else
-static inline void latency_fsnotify(struct trace_array *tr) { }
+static inline void latency_fsanaltify(struct trace_array *tr) { }
 #endif
 
 #ifdef CONFIG_STACKTRACE
@@ -750,7 +750,7 @@ void trace_last_func_repeats(struct trace_array *tr,
 			     struct trace_func_repeats *last_info,
 			     unsigned int trace_ctx);
 
-extern u64 ftrace_now(int cpu);
+extern u64 ftrace_analw(int cpu);
 
 extern void trace_find_cmdline(int pid, char comm[]);
 extern int trace_find_tgid(int pid);
@@ -787,7 +787,7 @@ extern int trace_selftest_startup_preemptirqsoff(struct tracer *trace,
 						 struct trace_array *tr);
 extern int trace_selftest_startup_wakeup(struct tracer *trace,
 					 struct trace_array *tr);
-extern int trace_selftest_startup_nop(struct tracer *trace,
+extern int trace_selftest_startup_analp(struct tracer *trace,
 					 struct trace_array *tr);
 extern int trace_selftest_startup_branch(struct tracer *trace,
 					 struct trace_array *tr);
@@ -894,7 +894,7 @@ extern void __trace_graph_return(struct trace_array *tr,
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 extern struct ftrace_hash __rcu *ftrace_graph_hash;
-extern struct ftrace_hash __rcu *ftrace_graph_notrace_hash;
+extern struct ftrace_hash __rcu *ftrace_graph_analtrace_hash;
 
 static inline int ftrace_graph_addr(struct ftrace_graph_ent *trace)
 {
@@ -902,11 +902,11 @@ static inline int ftrace_graph_addr(struct ftrace_graph_ent *trace)
 	int ret = 0;
 	struct ftrace_hash *hash;
 
-	preempt_disable_notrace();
+	preempt_disable_analtrace();
 
 	/*
 	 * Have to open code "rcu_dereference_sched()" because the
-	 * function graph tracer can be called when RCU is not
+	 * function graph tracer can be called when RCU is analt
 	 * "watching".
 	 * Protected with schedule_on_each_cpu(ftrace_sync)
 	 */
@@ -927,7 +927,7 @@ static inline int ftrace_graph_addr(struct ftrace_graph_ent *trace)
 		trace_recursion_set_depth(trace->depth);
 
 		/*
-		 * If no irqs are to be traced, but a set_graph_function
+		 * If anal irqs are to be traced, but a set_graph_function
 		 * is set, and called by an interrupt handler, we still
 		 * want to trace it.
 		 */
@@ -939,7 +939,7 @@ static inline int ftrace_graph_addr(struct ftrace_graph_ent *trace)
 	}
 
 out:
-	preempt_enable_notrace();
+	preempt_enable_analtrace();
 	return ret;
 }
 
@@ -950,26 +950,26 @@ static inline void ftrace_graph_addr_finish(struct ftrace_graph_ret *trace)
 		trace_recursion_clear(TRACE_GRAPH_BIT);
 }
 
-static inline int ftrace_graph_notrace_addr(unsigned long addr)
+static inline int ftrace_graph_analtrace_addr(unsigned long addr)
 {
 	int ret = 0;
-	struct ftrace_hash *notrace_hash;
+	struct ftrace_hash *analtrace_hash;
 
-	preempt_disable_notrace();
+	preempt_disable_analtrace();
 
 	/*
 	 * Have to open code "rcu_dereference_sched()" because the
-	 * function graph tracer can be called when RCU is not
+	 * function graph tracer can be called when RCU is analt
 	 * "watching".
 	 * Protected with schedule_on_each_cpu(ftrace_sync)
 	 */
-	notrace_hash = rcu_dereference_protected(ftrace_graph_notrace_hash,
+	analtrace_hash = rcu_dereference_protected(ftrace_graph_analtrace_hash,
 						 !preemptible());
 
-	if (ftrace_lookup_ip(notrace_hash, addr))
+	if (ftrace_lookup_ip(analtrace_hash, addr))
 		ret = 1;
 
-	preempt_enable_notrace();
+	preempt_enable_analtrace();
 	return ret;
 }
 #else
@@ -978,7 +978,7 @@ static inline int ftrace_graph_addr(struct ftrace_graph_ent *trace)
 	return 1;
 }
 
-static inline int ftrace_graph_notrace_addr(unsigned long addr)
+static inline int ftrace_graph_analtrace_addr(unsigned long addr)
 {
 	return 0;
 }
@@ -988,7 +988,7 @@ static inline void ftrace_graph_addr_finish(struct ftrace_graph_ret *trace)
 
 extern unsigned int fgraph_max_depth;
 
-static inline bool ftrace_graph_ignore_func(struct ftrace_graph_ent *trace)
+static inline bool ftrace_graph_iganalre_func(struct ftrace_graph_ent *trace)
 {
 	/* trace it when it is-nested-in or is a function enabled. */
 	return !(trace_recursion_test(TRACE_GRAPH_BIT) ||
@@ -1009,7 +1009,7 @@ extern struct list_head ftrace_pids;
 
 #ifdef CONFIG_FUNCTION_TRACER
 
-#define FTRACE_PID_IGNORE	-1
+#define FTRACE_PID_IGANALRE	-1
 #define FTRACE_PID_TRACE	-2
 
 struct ftrace_func_command {
@@ -1023,8 +1023,8 @@ struct ftrace_func_command {
 extern bool ftrace_filter_param __initdata;
 static inline int ftrace_trace_task(struct trace_array *tr)
 {
-	return this_cpu_read(tr->array_buffer.data->ftrace_ignore_pid) !=
-		FTRACE_PID_IGNORE;
+	return this_cpu_read(tr->array_buffer.data->ftrace_iganalre_pid) !=
+		FTRACE_PID_IGANALRE;
 }
 extern int ftrace_is_dead(void);
 int ftrace_create_function_files(struct trace_array *tr,
@@ -1067,7 +1067,7 @@ static inline void ftrace_init_tracefs_toplevel(struct trace_array *tr, struct d
 static inline void ftrace_clear_pids(struct trace_array *tr) { }
 static inline int init_function_trace(void) { return 0; }
 static inline void ftrace_pid_follow_fork(struct trace_array *tr, bool enable) { }
-/* ftace_func_t type is not defined, use macro instead of static inline */
+/* ftace_func_t type is analt defined, use macro instead of static inline */
 #define ftrace_init_array_ops(tr, func) do { } while (0)
 #endif /* CONFIG_FUNCTION_TRACER */
 
@@ -1122,7 +1122,7 @@ void ftrace_destroy_filter_files(struct ftrace_ops *ops);
 
 extern int ftrace_set_filter(struct ftrace_ops *ops, unsigned char *buf,
 			     int len, int reset);
-extern int ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
+extern int ftrace_set_analtrace(struct ftrace_ops *ops, unsigned char *buf,
 			      int len, int reset);
 #else
 struct ftrace_func_command;
@@ -1151,7 +1151,7 @@ bool ftrace_event_is_function(struct trace_event_call *call);
 
 /*
  * struct trace_parser - servers for reading the user input separated by spaces
- * @cont: set if the input is not complete - no final space char was found
+ * @cont: set if the input is analt complete - anal final space char was found
  * @buffer: holds the parsed user input
  * @idx: user input length
  * @size: buffer size
@@ -1223,7 +1223,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
  * trace_iterator_flags is an enumeration that defines bit
  * positions into trace_flags that controls the output.
  *
- * NOTE: These bits must match the trace_options array in
+ * ANALTE: These bits must match the trace_options array in
  *       trace.c (this macro guarantees it).
  */
 #define TRACE_FLAGS						\
@@ -1237,7 +1237,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(BLOCK,		"block"),		\
 		C(FIELDS,		"fields"),		\
 		C(PRINTK,		"trace_printk"),	\
-		C(ANNOTATE,		"annotate"),		\
+		C(ANANALTATE,		"ananaltate"),		\
 		C(USERSTACKTRACE,	"userstacktrace"),	\
 		C(SYM_USEROBJ,		"sym-userobj"),		\
 		C(PRINTK_MSGONLY,	"printk-msg-only"),	\
@@ -1286,7 +1286,7 @@ enum trace_iterator_flags { TRACE_FLAGS };
 #define TRACE_ITER_SYM_MASK \
 	(TRACE_ITER_PRINT_PARENT|TRACE_ITER_SYM_OFFSET|TRACE_ITER_SYM_ADDR)
 
-extern struct tracer nop_trace;
+extern struct tracer analp_trace;
 
 #ifdef CONFIG_BRANCH_TRACER
 extern int enable_branch_tracing(struct trace_array *tr);
@@ -1312,7 +1312,7 @@ static inline void trace_branch_disable(void)
 }
 #endif /* CONFIG_BRANCH_TRACER */
 
-/* set ring buffers to default size if not already done so */
+/* set ring buffers to default size if analt already done so */
 int tracing_update_buffers(struct trace_array *tr);
 
 union trace_synth_field {
@@ -1352,7 +1352,7 @@ struct trace_subsystem_dir {
 	struct list_head		list;
 	struct event_subsystem		*subsystem;
 	struct trace_array		*tr;
-	struct eventfs_inode		*ei;
+	struct eventfs_ianalde		*ei;
 	int				ref_count;
 	int				nr_events;
 };
@@ -1389,7 +1389,7 @@ __trace_event_discard_commit(struct trace_buffer *buffer,
 	if (this_cpu_read(trace_buffered_event) == event) {
 		/* Simply release the temp buffer and enable preemption */
 		this_cpu_dec(trace_buffered_event_cnt);
-		preempt_enable_notrace();
+		preempt_enable_analtrace();
 		return;
 	}
 	/* ring_buffer_discard_commit() enables preemption */
@@ -1402,10 +1402,10 @@ __trace_event_discard_commit(struct trace_buffer *buffer,
  * filtering against its fields, then they will be called as the
  * entry already holds the field information of the current event.
  *
- * It also checks if the event should be discarded or not.
+ * It also checks if the event should be discarded or analt.
  * It is to be discarded if the event is soft disabled and the
  * event was only recorded to process triggers, or if the event
- * filter is active and this event did not match the filters.
+ * filter is active and this event did analt match the filters.
  *
  * Returns true if the event is discarded, false otherwise.
  */
@@ -1434,7 +1434,7 @@ __event_trigger_test_discard(struct trace_event_file *file,
 		goto discard;
 
 	if ((file->flags & EVENT_FILE_FL_PID_FILTER) &&
-	    trace_event_ignore_this_pid(file))
+	    trace_event_iganalre_this_pid(file))
 		goto discard;
 
 	return false;
@@ -1461,7 +1461,7 @@ event_trigger_unlock_commit(struct trace_event_file *file,
 			    struct ring_buffer_event *event,
 			    void *entry, unsigned int trace_ctx)
 {
-	enum event_trigger_type tt = ETT_NONE;
+	enum event_trigger_type tt = ETT_ANALNE;
 
 	if (!__event_trigger_test_discard(file, buffer, event, entry, &tt))
 		trace_buffer_unlock_commit(file->tr, buffer, event, trace_ctx);
@@ -1479,7 +1479,7 @@ event_trigger_unlock_commit(struct trace_event_file *file,
  * two flags at the MSBs. One bit is used for both the IS_RIGHT
  * and FOLD flags. The other is reserved.
  *
- * 2^14 preds is way more than enough.
+ * 2^14 preds is way more than eanalugh.
  */
 #define MAX_FILTER_PRED		16384
 
@@ -1519,7 +1519,7 @@ static inline bool is_function_field(struct ftrace_event_field *field)
 }
 
 extern enum regex_type
-filter_parse_regex(char *buff, int len, char **search, int *not);
+filter_parse_regex(char *buff, int len, char **search, int *analt);
 extern void print_event_filter(struct trace_event_file *file,
 			       struct trace_seq *s);
 extern int apply_event_filter(struct trace_event_file *file,
@@ -1556,7 +1556,7 @@ extern struct trace_event_file *find_event_file(struct trace_array *tr,
 
 static inline void *event_file_data(struct file *filp)
 {
-	return READ_ONCE(file_inode(filp)->i_private);
+	return READ_ONCE(file_ianalde(filp)->i_private);
 }
 
 extern struct mutex event_mutex;
@@ -1784,7 +1784,7 @@ struct event_trigger_ops {
  *	event, and enables the event trigger itself, after
  *	initializing it (via the event_trigger_ops @init() function).
  *	This is also where commands can use the @trigger_type value to
- *	make the decision as to whether or not multiple instances of
+ *	make the decision as to whether or analt multiple instances of
  *	the trigger should be allowed.  This is usually implemented by
  *	the generic utility function @register_trigger() (see
  *	trace_event_triggers.c).
@@ -1800,9 +1800,9 @@ struct event_trigger_ops {
  *	when a trigger file is opened in truncate mode.
  *
  * @set_filter: An optional function called to parse and set a filter
- *	for the trigger.  If no @set_filter() method is set for the
+ *	for the trigger.  If anal @set_filter() method is set for the
  *	event command, filters set by the user for the command will be
- *	ignored.  This is usually implemented by the generic utility
+ *	iganalred.  This is usually implemented by the generic utility
  *	function @set_trigger_filter() (see trace_event_triggers.c).
  *
  * @get_trigger_ops: The callback function invoked to retrieve the
@@ -1837,7 +1837,7 @@ struct event_command {
 /**
  * enum event_command_flags - flags for struct event_command
  *
- * @POST_TRIGGER: A flag that says whether or not this command needs
+ * @POST_TRIGGER: A flag that says whether or analt this command needs
  *	to have its action delayed until after the current event has
  *	been closed.  Some triggers need to avoid being invoked while
  *	an event is currently in the process of being logged, since
@@ -1856,11 +1856,11 @@ struct event_command {
  *	itself logs to the trace buffer, this flag should be set,
  *	otherwise it can be left unspecified.
  *
- * @NEEDS_REC: A flag that says whether or not this command needs
+ * @NEEDS_REC: A flag that says whether or analt this command needs
  *	access to the trace record in order to perform its function,
- *	regardless of whether or not it has a filter associated with
+ *	regardless of whether or analt it has a filter associated with
  *	it (filters make a trigger require access to the trace record
- *	but are not always present).
+ *	but are analt always present).
  */
 enum event_command_flags {
 	EVENT_CMD_FL_POST_TRIGGER	= 1,
@@ -1918,7 +1918,7 @@ extern void tracing_log_err(struct trace_array *tr,
 			    const char **errs, u8 type, u16 pos);
 
 /*
- * Normal trace_printk() and friends allocates special buffers
+ * Analrmal trace_printk() and friends allocates special buffers
  * to do the manipulation, as well as saves the print formats
  * into sections to display. But the trace infrastructure wants
  * to use these without the added overhead at the price of being
@@ -1998,7 +1998,7 @@ static inline void tracer_hardirqs_off(unsigned long a0, unsigned long a1) { }
 
 /*
  * Reset the state of the trace_iterator so that it can read consumed data.
- * Normally, the trace_iterator is used for reading the data when it is not
+ * Analrmally, the trace_iterator is used for reading the data when it is analt
  * consumed, and must retain state.
  */
 static __always_inline void trace_iterator_reset(struct trace_iterator *iter)

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -86,13 +86,13 @@ static int parse_write_buffer_into_params(char *wr_buf, uint32_t wr_buf_size,
 
 	wr_buf_ptr = wr_buf;
 
-	/* r is bytes not be copied */
+	/* r is bytes analt be copied */
 	if (copy_from_user(wr_buf_ptr, buf, wr_buf_size)) {
-		DRM_DEBUG_DRIVER("user data could not be read successfully\n");
+		DRM_DEBUG_DRIVER("user data could analt be read successfully\n");
 		return -EFAULT;
 	}
 
-	/* check number of parameters. isspace could not differ space and \n */
+	/* check number of parameters. isspace could analt differ space and \n */
 	while ((*wr_buf_ptr != 0xa) && (wr_buf_count < wr_buf_size)) {
 		/* skip space*/
 		while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {
@@ -103,7 +103,7 @@ static int parse_write_buffer_into_params(char *wr_buf, uint32_t wr_buf_size,
 		if (wr_buf_count == wr_buf_size)
 			break;
 
-		/* skip non-space*/
+		/* skip analn-space*/
 		while ((!isspace(*wr_buf_ptr)) && (wr_buf_count < wr_buf_size)) {
 			wr_buf_ptr++;
 			wr_buf_count++;
@@ -171,9 +171,9 @@ static int parse_write_buffer_into_params(char *wr_buf, uint32_t wr_buf_size,
  * for example, to force to  2 lane, 2.7GHz,
  * echo 4 0xa > /sys/kernel/debug/dri/0/DP-x/link_settings
  *
- * spread_spectrum could not be changed dynamically.
+ * spread_spectrum could analt be changed dynamically.
  *
- * in case invalid lane count, link rate are force, no hw programming will be
+ * in case invalid lane count, link rate are force, anal hw programming will be
  * done. please check link settings after force operation to see if HW get
  * programming.
  *
@@ -185,7 +185,7 @@ static int parse_write_buffer_into_params(char *wr_buf, uint32_t wr_buf_size,
 static ssize_t dp_link_settings_read(struct file *f, char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_ianalde(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	char *rd_buf = NULL;
 	char *rd_buf_ptr = NULL;
@@ -253,7 +253,7 @@ static ssize_t dp_link_settings_read(struct file *f, char __user *buf,
 static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_ianalde(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	struct amdgpu_device *adev = drm_to_adev(connector->base.dev);
 	struct dc *dc = (struct dc *)link->dc;
@@ -271,7 +271,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 	if (!wr_buf)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
 					   (long *)param, buf,
@@ -283,7 +283,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 
 	if (param_nums <= 0) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("user data not be read\n");
+		DRM_DEBUG_DRIVER("user data analt be read\n");
 		return -EINVAL;
 	}
 
@@ -314,7 +314,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 
 	if (!valid_input) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("Invalid Input value No HW will be programmed\n");
+		DRM_DEBUG_DRIVER("Invalid Input value Anal HW will be programmed\n");
 		mutex_lock(&adev->dm.dc_lock);
 		dc_link_set_preferred_training_settings(dc, NULL, NULL, link, false);
 		mutex_unlock(&adev->dm.dc_lock);
@@ -322,7 +322,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	}
 
 	/* save user force lane_count, link_rate to preferred settings
-	 * spread spectrum will not be changed
+	 * spread spectrum will analt be changed
 	 */
 	prefer_link_settings.link_spread = link->cur_link_settings.link_spread;
 	prefer_link_settings.use_link_rate_set = false;
@@ -384,7 +384,7 @@ static bool dp_mst_is_end_device(struct amdgpu_dm_connector *aconnector)
 static ssize_t dp_mst_link_setting(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct dc_link *link = aconnector->dc_link;
 	struct amdgpu_device *adev = drm_to_adev(aconnector->base.dev);
 	struct dc *dc = (struct dc *)link->dc;
@@ -405,7 +405,7 @@ static ssize_t dp_mst_link_setting(struct file *f, const char __user *buf,
 
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 	if (!wr_buf)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
 					   (long *)param, buf,
@@ -417,7 +417,7 @@ static ssize_t dp_mst_link_setting(struct file *f, const char __user *buf,
 
 	if (param_nums <= 0) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("user data not be read\n");
+		DRM_DEBUG_DRIVER("user data analt be read\n");
 		return -EINVAL;
 	}
 
@@ -448,7 +448,7 @@ static ssize_t dp_mst_link_setting(struct file *f, const char __user *buf,
 
 	if (!valid_input) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("Invalid Input value No HW will be programmed\n");
+		DRM_DEBUG_DRIVER("Invalid Input value Anal HW will be programmed\n");
 		mutex_lock(&adev->dm.dc_lock);
 		dc_link_set_preferred_training_settings(dc, NULL, NULL, link, false);
 		mutex_unlock(&adev->dm.dc_lock);
@@ -456,7 +456,7 @@ static ssize_t dp_mst_link_setting(struct file *f, const char __user *buf,
 	}
 
 	/* save user force lane_count, link_rate to preferred settings
-	 * spread spectrum will not be changed
+	 * spread spectrum will analt be changed
 	 */
 	prefer_link_settings.link_spread = link->cur_link_settings.link_spread;
 	prefer_link_settings.use_link_rate_set = false;
@@ -522,13 +522,13 @@ static ssize_t dp_mst_link_setting(struct file *f, const char __user *buf,
  * In case invalid values are set by user, like
  * echo 1 4 0 > phy_settings
  *
- * HW will NOT be programmed by these settings.
+ * HW will ANALT be programmed by these settings.
  * cat phy_settings will show the previous valid settings.
  */
 static ssize_t dp_phy_settings_read(struct file *f, char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_ianalde(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	char *rd_buf = NULL;
 	const uint32_t rd_buf_size = 20;
@@ -575,7 +575,7 @@ static int dp_lttpr_status_show(struct seq_file *m, void *unused)
 	struct dc_lttpr_caps caps = aconnector->dc_link->dpcd_caps.lttpr_caps;
 
 	if (connector->status != connector_status_connected)
-		return -ENODEV;
+		return -EANALDEV;
 
 	seq_printf(m, "phy repeater count: %u (raw: 0x%x)\n",
 		   dp_parse_lttpr_repeater_count(caps.phy_repeater_cnt),
@@ -587,11 +587,11 @@ static int dp_lttpr_status_show(struct seq_file *m, void *unused)
 	case DP_PHY_REPEATER_MODE_TRANSPARENT:
 		seq_puts(m, "transparent");
 		break;
-	case DP_PHY_REPEATER_MODE_NON_TRANSPARENT:
-		seq_puts(m, "non-transparent");
+	case DP_PHY_REPEATER_MODE_ANALN_TRANSPARENT:
+		seq_puts(m, "analn-transparent");
 		break;
 	case 0x00:
-		seq_puts(m, "non lttpr");
+		seq_puts(m, "analn lttpr");
 		break;
 	default:
 		seq_printf(m, "read error (raw: 0x%x)", caps.mode);
@@ -605,7 +605,7 @@ static int dp_lttpr_status_show(struct seq_file *m, void *unused)
 static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_ianalde(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	struct dc *dc = (struct dc *)link->dc;
 	char *wr_buf = NULL;
@@ -623,7 +623,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 	if (!wr_buf)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
 					   (long *)param, buf,
@@ -635,7 +635,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 
 	if (param_nums <= 0) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("user data not be read\n");
+		DRM_DEBUG_DRIVER("user data analt be read\n");
 		return -EINVAL;
 	}
 
@@ -643,13 +643,13 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 			(param[1] > PRE_EMPHASIS_MAX_LEVEL) ||
 			(param[2] > POST_CURSOR2_MAX_LEVEL)) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("Invalid Input No HW will be programmed\n");
+		DRM_DEBUG_DRIVER("Invalid Input Anal HW will be programmed\n");
 		return size;
 	}
 
 	/* get link settings: lane count, link rate */
 	use_prefer_link_setting =
-		((link->preferred_link_setting.link_rate != LINK_RATE_UNKNOWN) &&
+		((link->preferred_link_setting.link_rate != LINK_RATE_UNKANALWN) &&
 		(link->test_pattern_enabled));
 
 	memset(&link_lane_settings, 0, sizeof(link_lane_settings));
@@ -691,7 +691,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
  *
  * set PHY layer or Link layer test pattern
  * PHY test pattern is used for PHY SI check.
- * Link layer test will not affect PHY SI.
+ * Link layer test will analt affect PHY SI.
  *
  * Reset Test Pattern:
  * 0 = DP_TEST_PATTERN_VIDEO_MODE
@@ -723,7 +723,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
  * --- set test pattern
  * echo <test pattern #> > test_pattern
  *
- * If test pattern # is not supported, NO HW programming will be done.
+ * If test pattern # is analt supported, ANAL HW programming will be done.
  * for DP_TEST_PATTERN_80BIT_CUSTOM, it needs extra 10 bytes of data
  * for the user pattern. input 10 bytes data are separated by space
  *
@@ -748,7 +748,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_ianalde(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	char *wr_buf = NULL;
 	uint32_t wr_buf_size = 100;
@@ -763,10 +763,10 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 			0x1f, 0x7c, 0xf0, 0xc1, 0x07,
 			0x1f, 0x7c, 0xf0, 0xc1, 0x07
 			};
-	struct dc_link_settings prefer_link_settings = {LANE_COUNT_UNKNOWN,
-			LINK_RATE_UNKNOWN, LINK_SPREAD_DISABLED};
-	struct dc_link_settings cur_link_settings = {LANE_COUNT_UNKNOWN,
-			LINK_RATE_UNKNOWN, LINK_SPREAD_DISABLED};
+	struct dc_link_settings prefer_link_settings = {LANE_COUNT_UNKANALWN,
+			LINK_RATE_UNKANALWN, LINK_SPREAD_DISABLED};
+	struct dc_link_settings cur_link_settings = {LANE_COUNT_UNKANALWN,
+			LINK_RATE_UNKANALWN, LINK_SPREAD_DISABLED};
 	struct link_training_settings link_training_settings;
 	int i;
 
@@ -775,7 +775,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 	if (!wr_buf)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
 					   (long *)param, buf,
@@ -787,7 +787,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 
 	if (param_nums <= 0) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("user data not be read\n");
+		DRM_DEBUG_DRIVER("user data analt be read\n");
 		return -EINVAL;
 	}
 
@@ -833,19 +833,19 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 		}
 
 		if (i < 10) {
-			/* not use default value */
+			/* analt use default value */
 			for (i = 0; i < 10; i++)
 				custom_pattern[i] = (uint8_t) param[i + 1];
 		}
 	}
 
-	/* Usage: set DP physical test pattern using debugfs with normal DP
+	/* Usage: set DP physical test pattern using debugfs with analrmal DP
 	 * panel. Then plug out DP panel and connect a scope to measure
-	 * For normal video mode and test pattern generated from CRCT,
-	 * they are visibile to user. So do not disable HPD.
+	 * For analrmal video mode and test pattern generated from CRCT,
+	 * they are visibile to user. So do analt disable HPD.
 	 * Video Mode is also set to clear the test pattern, so enable HPD
 	 * because it might have been disabled after a test pattern was set.
-	 * AUX depends on HPD * sequence dependent, do not move!
+	 * AUX depends on HPD * sequence dependent, do analt move!
 	 */
 	if (!disable_hpd)
 		dc_link_enable_hpd(link);
@@ -862,8 +862,8 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 
 
 	if (test_pattern != DP_TEST_PATTERN_VIDEO_MODE) {
-		if (prefer_link_settings.lane_count != LANE_COUNT_UNKNOWN &&
-			prefer_link_settings.link_rate !=  LINK_RATE_UNKNOWN &&
+		if (prefer_link_settings.lane_count != LANE_COUNT_UNKANALWN &&
+			prefer_link_settings.link_rate !=  LINK_RATE_UNKANALWN &&
 			(prefer_link_settings.lane_count != cur_link_settings.lane_count ||
 			prefer_link_settings.link_rate != cur_link_settings.link_rate))
 			link_training_settings.link_settings = prefer_link_settings;
@@ -880,7 +880,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 		custom_pattern,
 		10);
 
-	/* Usage: Set DP physical test pattern using AMDDP with normal DP panel
+	/* Usage: Set DP physical test pattern using AMDDP with analrmal DP panel
 	 * Then plug out DP panel and connect a scope to measure DP PHY signal.
 	 * Need disable interrupt to avoid SW driver disable DP output. This is
 	 * done after the test pattern is set.
@@ -963,16 +963,16 @@ static int dmub_fw_state_show(struct seq_file *m, void *data)
 /* psr_capability_show() - show eDP panel PSR capability
  *
  * The read function: sink_psr_capability_show
- * Shows if sink has PSR capability or not.
- * If yes - the PSR version is appended
+ * Shows if sink has PSR capability or analt.
+ * If anal - the PSR version is appended
  *
  *	cat /sys/kernel/debug/dri/0/eDP-X/psr_capability
  *
  * Expected output:
- * "Sink support: no\n" - if panel doesn't support PSR
- * "Sink support: yes [0x01]\n" - if panel supports PSR1
- * "Driver support: no\n" - if driver doesn't support PSR
- * "Driver support: yes [0x01]\n" - if driver supports PSR1
+ * "Sink support: anal\n" - if panel doesn't support PSR
+ * "Sink support: anal [0x01]\n" - if panel supports PSR1
+ * "Driver support: anal\n" - if driver doesn't support PSR
+ * "Driver support: anal [0x01]\n" - if driver supports PSR1
  */
 static int psr_capability_show(struct seq_file *m, void *data)
 {
@@ -981,20 +981,20 @@ static int psr_capability_show(struct seq_file *m, void *data)
 	struct dc_link *link = aconnector->dc_link;
 
 	if (!link)
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (link->type == dc_connection_none)
-		return -ENODEV;
+	if (link->type == dc_connection_analne)
+		return -EANALDEV;
 
 	if (!(link->connector_signal & SIGNAL_TYPE_EDP))
-		return -ENODEV;
+		return -EANALDEV;
 
-	seq_printf(m, "Sink support: %s", str_yes_no(link->dpcd_caps.psr_info.psr_version != 0));
+	seq_printf(m, "Sink support: %s", str_anal_anal(link->dpcd_caps.psr_info.psr_version != 0));
 	if (link->dpcd_caps.psr_info.psr_version)
 		seq_printf(m, " [0x%02x]", link->dpcd_caps.psr_info.psr_version);
 	seq_puts(m, "\n");
 
-	seq_printf(m, "Driver support: %s", str_yes_no(link->psr_settings.psr_feature_enabled));
+	seq_printf(m, "Driver support: %s", str_anal_anal(link->psr_settings.psr_feature_enabled));
 	if (link->psr_settings.psr_version)
 		seq_printf(m, " [0x%02x]", link->psr_settings.psr_version);
 	seq_puts(m, "\n");
@@ -1011,7 +1011,7 @@ static int amdgpu_current_bpc_show(struct seq_file *m, void *data)
 	struct drm_crtc *crtc = m->private;
 	struct drm_device *dev = crtc->dev;
 	struct dm_crtc_state *dm_crtc_state = NULL;
-	int res = -ENODEV;
+	int res = -EANALDEV;
 	unsigned int bpc;
 
 	mutex_lock(&dev->mode_config.mutex);
@@ -1063,7 +1063,7 @@ static int amdgpu_current_colorspace_show(struct seq_file *m, void *data)
 	struct drm_crtc *crtc = m->private;
 	struct drm_device *dev = crtc->dev;
 	struct dm_crtc_state *dm_crtc_state = NULL;
-	int res = -ENODEV;
+	int res = -EANALDEV;
 
 	mutex_lock(&dev->mode_config.mutex);
 	drm_modeset_lock(&crtc->mutex, NULL);
@@ -1111,7 +1111,7 @@ DEFINE_SHOW_ATTRIBUTE(amdgpu_current_colorspace);
 
 /*
  * Example usage:
- * Disable dsc passthrough, i.e.,: have dsc decoding at converver, not external RX
+ * Disable dsc passthrough, i.e.,: have dsc decoding at converver, analt external RX
  *   echo 1 /sys/kernel/debug/dri/0/DP-1/dsc_disable_passthrough
  * Enable dsc passthrough, i.e.,: have dsc passthrough to external RX
  *   echo 0 /sys/kernel/debug/dri/0/DP-1/dsc_disable_passthrough
@@ -1119,7 +1119,7 @@ DEFINE_SHOW_ATTRIBUTE(amdgpu_current_colorspace);
 static ssize_t dp_dsc_passthrough_set(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	char *wr_buf = NULL;
 	uint32_t wr_buf_size = 42;
 	int max_param_num = 1;
@@ -1132,8 +1132,8 @@ static ssize_t dp_dsc_passthrough_set(struct file *f, const char __user *buf,
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!wr_buf) {
-		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
-		return -ENOSPC;
+		DRM_DEBUG_DRIVER("anal memory to allocate write buffer\n");
+		return -EANALSPC;
 	}
 
 	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
@@ -1151,10 +1151,10 @@ static ssize_t dp_dsc_passthrough_set(struct file *f, const char __user *buf,
 }
 
 /*
- * Returns the HDCP capability of the Display (1.4 for now).
+ * Returns the HDCP capability of the Display (1.4 for analw).
  *
- * NOTE* Not all HDMI displays report their HDCP caps even when they are capable.
- * Since its rare for a display to not be HDCP 1.4 capable, we set HDMI as always capable.
+ * ANALTE* Analt all HDMI displays report their HDCP caps even when they are capable.
+ * Since its rare for a display to analt be HDCP 1.4 capable, we set HDMI as always capable.
  *
  * Example usage: cat /sys/kernel/debug/dri/0/DP-1/hdcp_sink_capability
  *		or cat /sys/kernel/debug/dri/0/HDMI-A-1/hdcp_sink_capability
@@ -1166,7 +1166,7 @@ static int hdcp_sink_capability_show(struct seq_file *m, void *data)
 	bool hdcp_cap, hdcp2_cap;
 
 	if (connector->status != connector_status_connected)
-		return -ENODEV;
+		return -EANALDEV;
 
 	seq_printf(m, "%s:%d HDCP version: ", connector->name, connector->base.id);
 
@@ -1180,7 +1180,7 @@ static int hdcp_sink_capability_show(struct seq_file *m, void *data)
 		seq_printf(m, "%s ", "HDCP2.2");
 
 	if (!hdcp_cap && !hdcp2_cap)
-		seq_printf(m, "%s ", "None");
+		seq_printf(m, "%s ", "Analne");
 
 	seq_puts(m, "\n");
 
@@ -1188,7 +1188,7 @@ static int hdcp_sink_capability_show(struct seq_file *m, void *data)
 }
 
 /*
- * Returns whether the connected display is internal and not hotpluggable.
+ * Returns whether the connected display is internal and analt hotpluggable.
  * Example usage: cat /sys/kernel/debug/dri/0/DP-1/internal_display
  */
 static int internal_display_show(struct seq_file *m, void *data)
@@ -1212,7 +1212,7 @@ static int odm_combine_segments_show(struct seq_file *m, void *unused)
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 	struct dc_link *link = aconnector->dc_link;
 	struct pipe_ctx *pipe_ctx = NULL;
-	int i, segments = -EOPNOTSUPP;
+	int i, segments = -EOPANALTSUPP;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
@@ -1222,7 +1222,7 @@ static int odm_combine_segments_show(struct seq_file *m, void *unused)
 	}
 
 	if (connector->status != connector_status_connected)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pipe_ctx != NULL && pipe_ctx->stream_res.tg->funcs->get_odm_combine_segments)
 		pipe_ctx->stream_res.tg->funcs->get_odm_combine_segments(pipe_ctx->stream_res.tg, &segments);
@@ -1250,12 +1250,12 @@ static ssize_t dp_sdp_message_debugfs_write(struct file *f, const char __user *b
 {
 	int r;
 	uint8_t data[36];
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_ianalde(f)->i_private;
 	struct dm_crtc_state *acrtc_state;
 	uint32_t write_size = 36;
 
 	if (connector->base.status != connector_status_connected)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (size == 0)
 		return 0;
@@ -1307,7 +1307,7 @@ static int dp_dsc_fec_support_show(struct seq_file *m, void *data)
 			break;
 		}
 		if (connector->status != connector_status_connected) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			break;
 		}
 		dpcd_caps = aconnector->dc_link->dpcd_caps;
@@ -1330,8 +1330,8 @@ static int dp_dsc_fec_support_show(struct seq_file *m, void *data)
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
-	seq_printf(m, "FEC_Sink_Support: %s\n", str_yes_no(is_fec_supported));
-	seq_printf(m, "DSC_Sink_Support: %s\n", str_yes_no(is_dsc_supported));
+	seq_printf(m, "FEC_Sink_Support: %s\n", str_anal_anal(is_fec_supported));
+	seq_printf(m, "DSC_Sink_Support: %s\n", str_anal_anal(is_dsc_supported));
 
 	return ret;
 }
@@ -1354,12 +1354,12 @@ static int dp_dsc_fec_support_show(struct seq_file *m, void *data)
 static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 							size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct drm_connector *connector = &aconnector->base;
 	struct dc_link *link = NULL;
 	struct drm_device *dev = connector->dev;
 	struct amdgpu_device *adev = drm_to_adev(dev);
-	enum dc_connection_type new_connection_type = dc_connection_none;
+	enum dc_connection_type new_connection_type = dc_connection_analne;
 	char *wr_buf = NULL;
 	uint32_t wr_buf_size = 42;
 	int max_param_num = 1;
@@ -1376,8 +1376,8 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!wr_buf) {
-		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
-		return -ENOSPC;
+		DRM_DEBUG_DRIVER("anal memory to allocate write buffer\n");
+		return -EANALSPC;
 	}
 
 	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
@@ -1391,7 +1391,7 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 	kfree(wr_buf);
 
 	if (param_nums <= 0) {
-		DRM_DEBUG_DRIVER("user data not be read\n");
+		DRM_DEBUG_DRIVER("user data analt be read\n");
 		return -EINVAL;
 	}
 
@@ -1406,7 +1406,7 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 	if (param[0] == 1) {
 
 		if (!dc_link_detect_connection_type(aconnector->dc_link, &new_connection_type) &&
-			new_connection_type != dc_connection_none)
+			new_connection_type != dc_connection_analne)
 			goto unlock;
 
 		mutex_lock(&adev->dm.dc_lock);
@@ -1435,12 +1435,12 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 		}
 
 		link->dpcd_sink_count = 0;
-		link->type = dc_connection_none;
+		link->type = dc_connection_analne;
 		link->dongle_max_pix_clk = 0;
 
 		amdgpu_dm_update_connector_after_detect(aconnector);
 
-		/* If the aconnector is the root node in mst topology */
+		/* If the aconnector is the root analde in mst topology */
 		if (aconnector->mst_mgr.mst_state == true)
 			dc_link_reset_cur_dp_mst_topology(link);
 
@@ -1477,7 +1477,7 @@ static ssize_t dp_dsc_clock_en_read(struct file *f, char __user *buf,
 {
 	char *rd_buf = NULL;
 	char *rd_buf_ptr = NULL;
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct display_stream_compressor *dsc;
 	struct dcn_dsc_state dsc_state = {0};
 	const uint32_t rd_buf_size = 10;
@@ -1488,7 +1488,7 @@ static ssize_t dp_dsc_clock_en_read(struct file *f, char __user *buf,
 	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!rd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rd_buf_ptr = rd_buf;
 
@@ -1556,7 +1556,7 @@ static ssize_t dp_dsc_clock_en_read(struct file *f, char __user *buf,
 static ssize_t dp_dsc_clock_en_write(struct file *f, const char __user *buf,
 				     size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct drm_connector *connector = &aconnector->base;
 	struct drm_device *dev = connector->dev;
 	struct drm_crtc *crtc = NULL;
@@ -1575,8 +1575,8 @@ static ssize_t dp_dsc_clock_en_write(struct file *f, const char __user *buf,
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!wr_buf) {
-		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
-		return -ENOSPC;
+		DRM_DEBUG_DRIVER("anal memory to allocate write buffer\n");
+		return -EANALSPC;
 	}
 
 	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
@@ -1588,7 +1588,7 @@ static ssize_t dp_dsc_clock_en_write(struct file *f, const char __user *buf,
 	}
 
 	if (param_nums <= 0) {
-		DRM_DEBUG_DRIVER("user data not be read\n");
+		DRM_DEBUG_DRIVER("user data analt be read\n");
 		kfree(wr_buf);
 		return -EINVAL;
 	}
@@ -1663,7 +1663,7 @@ static ssize_t dp_dsc_slice_width_read(struct file *f, char __user *buf,
 {
 	char *rd_buf = NULL;
 	char *rd_buf_ptr = NULL;
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct display_stream_compressor *dsc;
 	struct dcn_dsc_state dsc_state = {0};
 	const uint32_t rd_buf_size = 100;
@@ -1674,7 +1674,7 @@ static ssize_t dp_dsc_slice_width_read(struct file *f, char __user *buf,
 	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!rd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rd_buf_ptr = rd_buf;
 
@@ -1740,7 +1740,7 @@ static ssize_t dp_dsc_slice_width_read(struct file *f, char __user *buf,
 static ssize_t dp_dsc_slice_width_write(struct file *f, const char __user *buf,
 				     size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct pipe_ctx *pipe_ctx;
 	struct drm_connector *connector = &aconnector->base;
 	struct drm_device *dev = connector->dev;
@@ -1759,8 +1759,8 @@ static ssize_t dp_dsc_slice_width_write(struct file *f, const char __user *buf,
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!wr_buf) {
-		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
-		return -ENOSPC;
+		DRM_DEBUG_DRIVER("anal memory to allocate write buffer\n");
+		return -EANALSPC;
 	}
 
 	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
@@ -1772,7 +1772,7 @@ static ssize_t dp_dsc_slice_width_write(struct file *f, const char __user *buf,
 	}
 
 	if (param_nums <= 0) {
-		DRM_DEBUG_DRIVER("user data not be read\n");
+		DRM_DEBUG_DRIVER("user data analt be read\n");
 		kfree(wr_buf);
 		return -EINVAL;
 	}
@@ -1847,7 +1847,7 @@ static ssize_t dp_dsc_slice_height_read(struct file *f, char __user *buf,
 {
 	char *rd_buf = NULL;
 	char *rd_buf_ptr = NULL;
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct display_stream_compressor *dsc;
 	struct dcn_dsc_state dsc_state = {0};
 	const uint32_t rd_buf_size = 100;
@@ -1858,7 +1858,7 @@ static ssize_t dp_dsc_slice_height_read(struct file *f, char __user *buf,
 	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!rd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rd_buf_ptr = rd_buf;
 
@@ -1924,7 +1924,7 @@ static ssize_t dp_dsc_slice_height_read(struct file *f, char __user *buf,
 static ssize_t dp_dsc_slice_height_write(struct file *f, const char __user *buf,
 				     size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct drm_connector *connector = &aconnector->base;
 	struct drm_device *dev = connector->dev;
 	struct drm_crtc *crtc = NULL;
@@ -1943,8 +1943,8 @@ static ssize_t dp_dsc_slice_height_write(struct file *f, const char __user *buf,
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!wr_buf) {
-		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
-		return -ENOSPC;
+		DRM_DEBUG_DRIVER("anal memory to allocate write buffer\n");
+		return -EANALSPC;
 	}
 
 	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
@@ -1956,7 +1956,7 @@ static ssize_t dp_dsc_slice_height_write(struct file *f, const char __user *buf,
 	}
 
 	if (param_nums <= 0) {
-		DRM_DEBUG_DRIVER("user data not be read\n");
+		DRM_DEBUG_DRIVER("user data analt be read\n");
 		kfree(wr_buf);
 		return -EINVAL;
 	}
@@ -2027,7 +2027,7 @@ static ssize_t dp_dsc_bits_per_pixel_read(struct file *f, char __user *buf,
 {
 	char *rd_buf = NULL;
 	char *rd_buf_ptr = NULL;
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct display_stream_compressor *dsc;
 	struct dcn_dsc_state dsc_state = {0};
 	const uint32_t rd_buf_size = 100;
@@ -2038,7 +2038,7 @@ static ssize_t dp_dsc_bits_per_pixel_read(struct file *f, char __user *buf,
 	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!rd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rd_buf_ptr = rd_buf;
 
@@ -2101,7 +2101,7 @@ static ssize_t dp_dsc_bits_per_pixel_read(struct file *f, char __user *buf,
 static ssize_t dp_dsc_bits_per_pixel_write(struct file *f, const char __user *buf,
 				     size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct drm_connector *connector = &aconnector->base;
 	struct drm_device *dev = connector->dev;
 	struct drm_crtc *crtc = NULL;
@@ -2120,8 +2120,8 @@ static ssize_t dp_dsc_bits_per_pixel_write(struct file *f, const char __user *bu
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!wr_buf) {
-		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
-		return -ENOSPC;
+		DRM_DEBUG_DRIVER("anal memory to allocate write buffer\n");
+		return -EANALSPC;
 	}
 
 	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
@@ -2133,7 +2133,7 @@ static ssize_t dp_dsc_bits_per_pixel_write(struct file *f, const char __user *bu
 	}
 
 	if (param_nums <= 0) {
-		DRM_DEBUG_DRIVER("user data not be read\n");
+		DRM_DEBUG_DRIVER("user data analt be read\n");
 		kfree(wr_buf);
 		return -EINVAL;
 	}
@@ -2202,7 +2202,7 @@ static ssize_t dp_dsc_pic_width_read(struct file *f, char __user *buf,
 {
 	char *rd_buf = NULL;
 	char *rd_buf_ptr = NULL;
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct display_stream_compressor *dsc;
 	struct dcn_dsc_state dsc_state = {0};
 	const uint32_t rd_buf_size = 100;
@@ -2213,7 +2213,7 @@ static ssize_t dp_dsc_pic_width_read(struct file *f, char __user *buf,
 	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!rd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rd_buf_ptr = rd_buf;
 
@@ -2258,7 +2258,7 @@ static ssize_t dp_dsc_pic_height_read(struct file *f, char __user *buf,
 {
 	char *rd_buf = NULL;
 	char *rd_buf_ptr = NULL;
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct display_stream_compressor *dsc;
 	struct dcn_dsc_state dsc_state = {0};
 	const uint32_t rd_buf_size = 100;
@@ -2269,7 +2269,7 @@ static ssize_t dp_dsc_pic_height_read(struct file *f, char __user *buf,
 	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!rd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rd_buf_ptr = rd_buf;
 
@@ -2329,7 +2329,7 @@ static ssize_t dp_dsc_chunk_size_read(struct file *f, char __user *buf,
 {
 	char *rd_buf = NULL;
 	char *rd_buf_ptr = NULL;
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct display_stream_compressor *dsc;
 	struct dcn_dsc_state dsc_state = {0};
 	const uint32_t rd_buf_size = 100;
@@ -2340,7 +2340,7 @@ static ssize_t dp_dsc_chunk_size_read(struct file *f, char __user *buf,
 	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!rd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rd_buf_ptr = rd_buf;
 
@@ -2400,7 +2400,7 @@ static ssize_t dp_dsc_slice_bpg_offset_read(struct file *f, char __user *buf,
 {
 	char *rd_buf = NULL;
 	char *rd_buf_ptr = NULL;
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct display_stream_compressor *dsc;
 	struct dcn_dsc_state dsc_state = {0};
 	const uint32_t rd_buf_size = 100;
@@ -2411,7 +2411,7 @@ static ssize_t dp_dsc_slice_bpg_offset_read(struct file *f, char __user *buf,
 	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!rd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rd_buf_ptr = rd_buf;
 
@@ -2463,7 +2463,7 @@ static ssize_t dp_dsc_slice_bpg_offset_read(struct file *f, char __user *buf,
 static ssize_t dp_max_bpc_read(struct file *f, char __user *buf,
 		size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct drm_connector *connector = &aconnector->base;
 	struct drm_device *dev = connector->dev;
 	struct dm_connector_state *state;
@@ -2476,7 +2476,7 @@ static ssize_t dp_max_bpc_read(struct file *f, char __user *buf,
 	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!rd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&dev->mode_config.mutex);
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
@@ -2516,7 +2516,7 @@ unlock:
 /*
  * function description: Set max_requested_bpc property on the connector
  *
- * This function will not force the input BPC on connector, it will only
+ * This function will analt force the input BPC on connector, it will only
  * change the max value. This is equivalent to setting max_bpc through
  * xrandr.
  *
@@ -2538,7 +2538,7 @@ unlock:
 static ssize_t dp_max_bpc_write(struct file *f, const char __user *buf,
 				     size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *aconnector = file_ianalde(f)->i_private;
 	struct drm_connector *connector = &aconnector->base;
 	struct dm_connector_state *state;
 	struct drm_device *dev = connector->dev;
@@ -2554,8 +2554,8 @@ static ssize_t dp_max_bpc_write(struct file *f, const char __user *buf,
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 
 	if (!wr_buf) {
-		DRM_DEBUG_DRIVER("no memory to allocate write buffer\n");
-		return -ENOSPC;
+		DRM_DEBUG_DRIVER("anal memory to allocate write buffer\n");
+		return -EANALSPC;
 	}
 
 	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
@@ -2567,7 +2567,7 @@ static ssize_t dp_max_bpc_write(struct file *f, const char __user *buf,
 	}
 
 	if (param_nums <= 0) {
-		DRM_DEBUG_DRIVER("user data not be read\n");
+		DRM_DEBUG_DRIVER("user data analt be read\n");
 		kfree(wr_buf);
 		return -EINVAL;
 	}
@@ -2638,8 +2638,8 @@ static int target_backlight_show(struct seq_file *m, void *unused)
  * This function helps to determine whether a connector is a mst connector.
  * - "root" stands for the root connector of the topology
  * - "branch" stands for branch device of the topology
- * - "end" stands for leaf node connector of the topology
- * - "no" stands for the connector is not a device of a mst topology
+ * - "end" stands for leaf analde connector of the topology
+ * - "anal" stands for the connector is analt a device of a mst topology
  * Access it with the following command:
  *
  *	cat /sys/kernel/debug/dri/0/DP-X/is_mst_connector
@@ -2672,7 +2672,7 @@ static int dp_is_mst_connector_show(struct seq_file *m, void *unused)
 		drm_modeset_unlock(&mgr->base.lock);
 
 	} else {
-		role = "no";
+		role = "anal";
 	}
 
 	seq_printf(m, "%s\n", role);
@@ -2709,7 +2709,7 @@ static int dp_mst_progress_status_show(struct seq_file *m, void *unused)
 		for (i = 0; i < sizeof(mst_progress_status)/sizeof(char *); i++)
 			seq_printf(m, "%s:%s\n",
 				mst_progress_status[i],
-				aconnector->mst_status & BIT(i) ? "done" : "not_done");
+				aconnector->mst_status & BIT(i) ? "done" : "analt_done");
 	}
 
 	mutex_unlock(&adev->dm.dc_lock);
@@ -2729,10 +2729,10 @@ static int is_dpia_link_show(struct seq_file *m, void *data)
 	struct dc_link *link = aconnector->dc_link;
 
 	if (connector->status != connector_status_connected)
-		return -ENODEV;
+		return -EANALDEV;
 
-	seq_printf(m, "%s\n", (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) ? "yes" :
-				(link->ep_type == DISPLAY_ENDPOINT_PHY) ? "no" : "unknown");
+	seq_printf(m, "%s\n", (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) ? "anal" :
+				(link->ep_type == DISPLAY_ENDPOINT_PHY) ? "anal" : "unkanalwn");
 
 	return 0;
 }
@@ -3133,7 +3133,7 @@ static int edp_ilr_show(struct seq_file *m, void *unused)
 			seq_printf(m, "[%d] %d kHz\n", entry/2, link_rate_in_khz);
 		}
 	} else {
-		seq_puts(m, "ILR is not supported by this eDP panel.\n");
+		seq_puts(m, "ILR is analt supported by this eDP panel.\n");
 	}
 
 	return 0;
@@ -3151,7 +3151,7 @@ static int edp_ilr_show(struct seq_file *m, void *unused)
 static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_ianalde(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	struct amdgpu_device *adev = drm_to_adev(connector->base.dev);
 	struct dc *dc = (struct dc *)link->dc;
@@ -3169,7 +3169,7 @@ static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
 
 	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
 	if (!wr_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
 					   (long *)param, buf,
@@ -3199,7 +3199,7 @@ static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
 
 	if (!valid_input) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("Invalid Input value. No HW will be programmed\n");
+		DRM_DEBUG_DRIVER("Invalid Input value. Anal HW will be programmed\n");
 		prefer_link_settings.use_link_rate_set = false;
 		mutex_lock(&adev->dm.dc_lock);
 		dc_link_set_preferred_training_settings(dc, NULL, NULL, link, false);
@@ -3208,7 +3208,7 @@ static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
 	}
 
 	/* save user force lane_count, link_rate to preferred settings
-	 * spread spectrum will not be changed
+	 * spread spectrum will analt be changed
 	 */
 	prefer_link_settings.link_spread = link->cur_link_settings.link_spread;
 	prefer_link_settings.lane_count = param[0];
@@ -3225,9 +3225,9 @@ static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
 	return size;
 }
 
-static int edp_ilr_open(struct inode *inode, struct file *file)
+static int edp_ilr_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, edp_ilr_show, inode->i_private);
+	return single_open(file, edp_ilr_show, ianalde->i_private);
 }
 
 static const struct file_operations edp_ilr_debugfs_fops = {
@@ -3505,7 +3505,7 @@ static ssize_t dtn_log_read(
 	size_t size,
 	loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	struct dc *dc = adev->dm.dc;
 	struct dc_log_buffer_ctx log_ctx = { 0 };
 	ssize_t result = 0;
@@ -3544,7 +3544,7 @@ static ssize_t dtn_log_write(
 	size_t size,
 	loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	struct dc *dc = adev->dm.dc;
 
 	/* Write triggers log output via dmesg. */
@@ -3572,7 +3572,7 @@ static int mst_topo_show(struct seq_file *m, void *unused)
 
 		aconnector = to_amdgpu_dm_connector(connector);
 
-		/* Ensure we're only dumping the topology of a root mst node */
+		/* Ensure we're only dumping the topology of a root mst analde */
 		if (!aconnector->mst_mgr.mst_state)
 			continue;
 
@@ -3737,9 +3737,9 @@ static int capabilities_show(struct seq_file *m, void *unused)
 		subvp_in_use = dc->cap_funcs.get_subvp_en(dc, dc->current_state);
 
 	seq_printf(m, "mall supported: %s, enabled: %s\n",
-			   mall_supported ? "yes" : "no", mall_in_use ? "yes" : "no");
+			   mall_supported ? "anal" : "anal", mall_in_use ? "anal" : "anal");
 	seq_printf(m, "sub-viewport supported: %s, enabled: %s\n",
-			   subvp_supported ? "yes" : "no", subvp_in_use ? "yes" : "no");
+			   subvp_supported ? "anal" : "anal", subvp_in_use ? "anal" : "anal");
 
 	return 0;
 }
@@ -3772,27 +3772,27 @@ DEFINE_DEBUGFS_ATTRIBUTE(dp_set_mst_en_for_sst_ops, dp_force_sst_get,
 
 /*
  * Force DP2 sequence without VESA certified cable.
- * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_dp_ignore_cable_id
+ * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_dp_iganalre_cable_id
  */
-static int dp_ignore_cable_id_set(void *data, u64 val)
+static int dp_iganalre_cable_id_set(void *data, u64 val)
 {
 	struct amdgpu_device *adev = data;
 
-	adev->dm.dc->debug.ignore_cable_id = val;
+	adev->dm.dc->debug.iganalre_cable_id = val;
 
 	return 0;
 }
 
-static int dp_ignore_cable_id_get(void *data, u64 *val)
+static int dp_iganalre_cable_id_get(void *data, u64 *val)
 {
 	struct amdgpu_device *adev = data;
 
-	*val = adev->dm.dc->debug.ignore_cable_id;
+	*val = adev->dm.dc->debug.iganalre_cable_id;
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(dp_ignore_cable_id_ops, dp_ignore_cable_id_get,
-			 dp_ignore_cable_id_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(dp_iganalre_cable_id_ops, dp_iganalre_cable_id_get,
+			 dp_iganalre_cable_id_set, "%llu\n");
 
 /*
  * Sets the DC visual confirm debug option from the given string.
@@ -3868,7 +3868,7 @@ static ssize_t dcc_en_bits_read(
 	size_t size,
 	loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	struct dc *dc = adev->dm.dc;
 	char *rd_buf = NULL;
 	const uint32_t rd_buf_size = 32;
@@ -3880,7 +3880,7 @@ static ssize_t dcc_en_bits_read(
 
 	dcc_en_bits = kcalloc(num_pipes, sizeof(int), GFP_KERNEL);
 	if (!dcc_en_bits)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!dc->hwss.get_dcc_en_bits) {
 		kfree(dcc_en_bits);
@@ -3892,7 +3892,7 @@ static ssize_t dcc_en_bits_read(
 	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
 	if (!rd_buf) {
 		kfree(dcc_en_bits);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < num_pipes; i++)
@@ -3934,8 +3934,8 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 		.llseek = default_llseek
 	};
 
-	struct drm_minor *minor = adev_to_drm(adev)->primary;
-	struct dentry *root = minor->debugfs_root;
+	struct drm_mianalr *mianalr = adev_to_drm(adev)->primary;
+	struct dentry *root = mianalr->debugfs_root;
 
 	debugfs_create_file("amdgpu_mst_topology", 0444, root,
 			    adev, &mst_topo_fops);
@@ -3945,8 +3945,8 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 			    &dtn_log_fops);
 	debugfs_create_file("amdgpu_dm_dp_set_mst_en_for_sst", 0644, root, adev,
 				&dp_set_mst_en_for_sst_ops);
-	debugfs_create_file("amdgpu_dm_dp_ignore_cable_id", 0644, root, adev,
-				&dp_ignore_cable_id_ops);
+	debugfs_create_file("amdgpu_dm_dp_iganalre_cable_id", 0644, root, adev,
+				&dp_iganalre_cable_id_ops);
 
 	debugfs_create_file_unsafe("amdgpu_dm_visual_confirm", 0644, root, adev,
 				   &visual_confirm_fops);

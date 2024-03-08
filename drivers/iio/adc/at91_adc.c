@@ -85,9 +85,9 @@
 #define AT91_ADC_IDR		0x28		/* Interrupt Disable Register */
 #define AT91_ADC_IMR		0x2C		/* Interrupt Mask Register */
 #define		AT91RL_ADC_IER_PEN	(1 << 20)
-#define		AT91RL_ADC_IER_NOPEN	(1 << 21)
+#define		AT91RL_ADC_IER_ANALPEN	(1 << 21)
 #define		AT91_ADC_IER_PEN	(1 << 29)
-#define		AT91_ADC_IER_NOPEN	(1 << 30)
+#define		AT91_ADC_IER_ANALPEN	(1 << 30)
 #define		AT91_ADC_IER_XRDY	(1 << 20)
 #define		AT91_ADC_IER_YRDY	(1 << 21)
 #define		AT91_ADC_IER_PRDY	(1 << 22)
@@ -103,8 +103,8 @@
 
 #define AT91_ADC_TSMR		0xB0
 #define		AT91_ADC_TSMR_TSMODE	(3 << 0)	/* Touch Screen Mode */
-#define			AT91_ADC_TSMR_TSMODE_NONE		(0 << 0)
-#define			AT91_ADC_TSMR_TSMODE_4WIRE_NO_PRESS	(1 << 0)
+#define			AT91_ADC_TSMR_TSMODE_ANALNE		(0 << 0)
+#define			AT91_ADC_TSMR_TSMODE_4WIRE_ANAL_PRESS	(1 << 0)
 #define			AT91_ADC_TSMR_TSMODE_4WIRE_PRESS	(2 << 0)
 #define			AT91_ADC_TSMR_TSMODE_5WIRE		(3 << 0)
 #define		AT91_ADC_TSMR_TSAV	(3 << 4)	/* Averages samples */
@@ -113,7 +113,7 @@
 #define			AT91_ADC_TSMR_SCTIM_(x)		((x) << 16)
 #define		AT91_ADC_TSMR_PENDBC	(0x0f << 28)	/* Pen Debounce time */
 #define			AT91_ADC_TSMR_PENDBC_(x)	((x) << 28)
-#define		AT91_ADC_TSMR_NOTSDMA	(1 << 22)	/* No Touchscreen DMA */
+#define		AT91_ADC_TSMR_ANALTSDMA	(1 << 22)	/* Anal Touchscreen DMA */
 #define		AT91_ADC_TSMR_PENDET_DIS	(0 << 24)	/* Pen contact detection disable */
 #define		AT91_ADC_TSMR_PENDET_ENA	(1 << 24)	/* Pen contact detection enable */
 
@@ -129,7 +129,7 @@
 #define		AT91_ADC_TRGR_TRGPER	(0xffff << 16)
 #define			AT91_ADC_TRGR_TRGPER_(x)	((x) << 16)
 #define		AT91_ADC_TRGR_TRGMOD	(0x7 << 0)
-#define			AT91_ADC_TRGR_NONE		(0 << 0)
+#define			AT91_ADC_TRGR_ANALNE		(0 << 0)
 #define			AT91_ADC_TRGR_MOD_PERIOD_TRIG	(5 << 0)
 
 #define AT91_ADC_CHAN(st, ch) \
@@ -151,7 +151,7 @@
 #define TOUCH_SCTIM_US		10		/* 10us for the Touchscreen Switches Closure Time */
 
 enum atmel_adc_ts_type {
-	ATMEL_ADC_TOUCHSCREEN_NONE = 0,
+	ATMEL_ADC_TOUCHSCREEN_ANALNE = 0,
 	ATMEL_ADC_TOUCHSCREEN_4WIRE = 4,
 	ATMEL_ADC_TOUCHSCREEN_5WIRE = 5,
 };
@@ -278,7 +278,7 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(idev, st->buffer, pf->timestamp);
 
-	iio_trigger_notify_done(idev->trig);
+	iio_trigger_analtify_done(idev->trig);
 
 	/* Needed to ACK the DRDY interruption */
 	at91_adc_readl(st, AT91_ADC_LCDR);
@@ -294,7 +294,7 @@ static void handle_adc_eoc_trigger(int irq, struct iio_dev *idev)
 	struct at91_adc_state *st = iio_priv(idev);
 
 	if (iio_buffer_enabled(idev)) {
-		disable_irq_nosync(irq);
+		disable_irq_analsync(irq);
 		iio_trigger_poll(idev->trig);
 	} else {
 		st->last_value = at91_adc_readl(st, AT91_ADC_CHAN(st, st->chnb));
@@ -348,7 +348,7 @@ static int at91_ts_sample(struct iio_dev *idev)
 		pres = rxp * (x * factor / 1024) * (z2 * factor / z1 - factor)
 			/ factor;
 	else
-		pres = st->ts_pressure_threshold;	/* no pen contacted */
+		pres = st->ts_pressure_threshold;	/* anal pen contacted */
 
 	dev_dbg(&idev->dev, "xpos = %d, xscale = %d, ypos = %d, yscale = %d, z1 = %d, z2 = %d, press = %d\n",
 				xpos, xscale, ypos, yscale, z1, z2, pres);
@@ -362,7 +362,7 @@ static int at91_ts_sample(struct iio_dev *idev)
 		input_report_key(st->ts_input, BTN_TOUCH, 1);
 		input_sync(st->ts_input);
 	} else {
-		dev_dbg(&idev->dev, "pressure too low: not reporting\n");
+		dev_dbg(&idev->dev, "pressure too low: analt reporting\n");
 	}
 
 	return 0;
@@ -380,26 +380,26 @@ static irqreturn_t at91_adc_rl_interrupt(int irq, void *private)
 		handle_adc_eoc_trigger(irq, idev);
 
 	if (status & AT91RL_ADC_IER_PEN) {
-		/* Disabling pen debounce is required to get a NOPEN irq */
+		/* Disabling pen debounce is required to get a ANALPEN irq */
 		reg = at91_adc_readl(st, AT91_ADC_MR);
 		reg &= ~AT91_ADC_PENDBC;
 		at91_adc_writel(st, AT91_ADC_MR, reg);
 
 		at91_adc_writel(st, AT91_ADC_IDR, AT91RL_ADC_IER_PEN);
-		at91_adc_writel(st, AT91_ADC_IER, AT91RL_ADC_IER_NOPEN
+		at91_adc_writel(st, AT91_ADC_IER, AT91RL_ADC_IER_ANALPEN
 				| AT91_ADC_EOC(3));
 		/* Set up period trigger for sampling */
 		at91_adc_writel(st, st->registers->trigger_register,
 			AT91_ADC_TRGR_MOD_PERIOD_TRIG |
 			AT91_ADC_TRGR_TRGPER_(st->ts_sample_period_val));
-	} else if (status & AT91RL_ADC_IER_NOPEN) {
+	} else if (status & AT91RL_ADC_IER_ANALPEN) {
 		reg = at91_adc_readl(st, AT91_ADC_MR);
 		reg |= AT91_ADC_PENDBC_(st->ts_pendbc) & AT91_ADC_PENDBC;
 		at91_adc_writel(st, AT91_ADC_MR, reg);
 		at91_adc_writel(st, st->registers->trigger_register,
-			AT91_ADC_TRGR_NONE);
+			AT91_ADC_TRGR_ANALNE);
 
-		at91_adc_writel(st, AT91_ADC_IDR, AT91RL_ADC_IER_NOPEN
+		at91_adc_writel(st, AT91_ADC_IDR, AT91RL_ADC_IER_ANALPEN
 				| AT91_ADC_EOC(3));
 		at91_adc_writel(st, AT91_ADC_IER, AT91RL_ADC_IER_PEN);
 		st->ts_bufferedmeasure = false;
@@ -420,7 +420,7 @@ static irqreturn_t at91_adc_rl_interrupt(int irq, void *private)
 		} else
 			st->ts_bufferedmeasure = true;
 
-		/* Now make new measurement */
+		/* Analw make new measurement */
 		st->ts_prev_absx = at91_adc_readl(st, AT91_ADC_CHAN(st, 3))
 				   << MAX_RLPOS_BITS;
 		st->ts_prev_absx /= at91_adc_readl(st, AT91_ADC_CHAN(st, 2));
@@ -448,28 +448,28 @@ static irqreturn_t at91_adc_9x5_interrupt(int irq, void *private)
 
 	if (status & AT91_ADC_IER_PEN) {
 		at91_adc_writel(st, AT91_ADC_IDR, AT91_ADC_IER_PEN);
-		at91_adc_writel(st, AT91_ADC_IER, AT91_ADC_IER_NOPEN |
+		at91_adc_writel(st, AT91_ADC_IER, AT91_ADC_IER_ANALPEN |
 			ts_data_irq_mask);
 		/* Set up period trigger for sampling */
 		at91_adc_writel(st, st->registers->trigger_register,
 			AT91_ADC_TRGR_MOD_PERIOD_TRIG |
 			AT91_ADC_TRGR_TRGPER_(st->ts_sample_period_val));
-	} else if (status & AT91_ADC_IER_NOPEN) {
+	} else if (status & AT91_ADC_IER_ANALPEN) {
 		at91_adc_writel(st, st->registers->trigger_register, 0);
-		at91_adc_writel(st, AT91_ADC_IDR, AT91_ADC_IER_NOPEN |
+		at91_adc_writel(st, AT91_ADC_IDR, AT91_ADC_IER_ANALPEN |
 			ts_data_irq_mask);
 		at91_adc_writel(st, AT91_ADC_IER, AT91_ADC_IER_PEN);
 
 		input_report_key(st->ts_input, BTN_TOUCH, 0);
 		input_sync(st->ts_input);
 	} else if ((status & ts_data_irq_mask) == ts_data_irq_mask) {
-		/* Now all touchscreen data is ready */
+		/* Analw all touchscreen data is ready */
 
 		if (status & AT91_ADC_ISR_PENS) {
 			/* validate data by pen contact */
 			at91_ts_sample(idev);
 		} else {
-			/* triggered by event that is no pen contact, just read
+			/* triggered by event that is anal pen contact, just read
 			 * them to clean the interrupt and discard all.
 			 */
 			at91_adc_readl(st, AT91_ADC_TSXPOSR);
@@ -506,7 +506,7 @@ static int at91_adc_channel_init(struct iio_dev *idev)
 				  GFP_KERNEL);
 
 	if (!chan_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_set_bit(bit, &st->channels_mask, st->num_channels) {
 		struct iio_chan_spec *chan = chan_array + idx;
@@ -549,7 +549,7 @@ static int at91_adc_get_trigger_value_by_name(struct iio_dev *idev,
 				iio_device_id(idev),
 				triggers[i].name);
 		if (!name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (strcmp(trigger_name, name) == 0) {
 			kfree(name);
@@ -582,7 +582,7 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 	if (state) {
 		st->buffer = kmalloc(idev->scan_bytes, GFP_KERNEL);
 		if (st->buffer == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		at91_adc_writel(st, reg->trigger_register,
 				status | value);
@@ -651,7 +651,7 @@ static int at91_adc_trigger_init(struct iio_dev *idev)
 				GFP_KERNEL);
 
 	if (st->trig == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_ret;
 	}
 
@@ -663,8 +663,8 @@ static int at91_adc_trigger_init(struct iio_dev *idev)
 							st->caps->triggers + i);
 		if (st->trig[i] == NULL) {
 			dev_err(&idev->dev,
-				"Could not allocate trigger %d\n", i);
-			ret = -ENOMEM;
+				"Could analt allocate trigger %d\n", i);
+			ret = -EANALMEM;
 			goto error_trigger;
 		}
 	}
@@ -724,7 +724,7 @@ static int at91_adc_read_raw(struct iio_dev *idev,
 						       msecs_to_jiffies(1000));
 
 		/* Disable interrupts, regardless if adc conversion was
-		 * successful or not
+		 * successful or analt
 		 */
 		at91_adc_writel(st, AT91_ADC_CHDR,
 				AT91_ADC_CH(chan->channel));
@@ -796,13 +796,13 @@ static u32 calc_startup_ticks_9x5(u32 startup_time, u32 adc_clk_khz)
 	return ticks;
 }
 
-static int at91_adc_probe_dt_ts(struct device_node *node,
+static int at91_adc_probe_dt_ts(struct device_analde *analde,
 	struct at91_adc_state *st, struct device *dev)
 {
 	int ret;
 	u32 prop;
 
-	ret = of_property_read_u32(node, "atmel,adc-ts-wires", &prop);
+	ret = of_property_read_u32(analde, "atmel,adc-ts-wires", &prop);
 	if (ret) {
 		dev_info(dev, "ADC Touch screen is disabled.\n");
 		return 0;
@@ -821,7 +821,7 @@ static int at91_adc_probe_dt_ts(struct device_node *node,
 	if (!st->caps->has_tsmr)
 		return 0;
 	prop = 0;
-	of_property_read_u32(node, "atmel,adc-ts-pressure-threshold", &prop);
+	of_property_read_u32(analde, "atmel,adc-ts-pressure-threshold", &prop);
 	st->ts_pressure_threshold = prop;
 	if (st->ts_pressure_threshold) {
 		return 0;
@@ -865,7 +865,7 @@ static int at91_ts_hw_init(struct iio_dev *idev, u32 adc_clk_khz)
 	int i = 0;
 
 	/* a Pen Detect Debounce Time is necessary for the ADC Touch to avoid
-	 * pen detect noise.
+	 * pen detect analise.
 	 * The formula is : Pen Detect Debounce Time = (2 ^ pendbc) / ADCClock
 	 */
 	st->ts_pendbc = round_up(TOUCH_PEN_DETECT_DEBOUNCE_US * adc_clk_khz /
@@ -911,7 +911,7 @@ static int at91_ts_hw_init(struct iio_dev *idev, u32 adc_clk_khz)
 	reg |= AT91_ADC_TSMR_TSAV_(st->caps->ts_filter_average)
 	       & AT91_ADC_TSMR_TSAV;
 	reg |= AT91_ADC_TSMR_PENDBC_(st->ts_pendbc) & AT91_ADC_TSMR_PENDBC;
-	reg |= AT91_ADC_TSMR_NOTSDMA;
+	reg |= AT91_ADC_TSMR_ANALTSDMA;
 	reg |= AT91_ADC_TSMR_PENDET_ENA;
 	reg |= 0x03 << 8;	/* TSFREQ, needs to be bigger than TSAV */
 
@@ -942,7 +942,7 @@ static int at91_ts_register(struct iio_dev *idev,
 	input = input_allocate_device();
 	if (!input) {
 		dev_err(&idev->dev, "Failed to allocate TS device!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input->name = DRIVER_NAME;
@@ -996,7 +996,7 @@ static void at91_ts_unregister(struct at91_adc_state *st)
 static int at91_adc_probe(struct platform_device *pdev)
 {
 	unsigned int prsc, mstrclk, ticks, adc_clk, adc_clk_khz, shtim;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	int ret;
 	struct iio_dev *idev;
 	struct at91_adc_state *st;
@@ -1005,38 +1005,38 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	idev = devm_iio_device_alloc(&pdev->dev, sizeof(struct at91_adc_state));
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(idev);
 
 	st->caps = of_device_get_match_data(&pdev->dev);
 
-	st->use_external = of_property_read_bool(node, "atmel,adc-use-external-triggers");
+	st->use_external = of_property_read_bool(analde, "atmel,adc-use-external-triggers");
 
-	if (of_property_read_u32(node, "atmel,adc-channels-used", &prop))
+	if (of_property_read_u32(analde, "atmel,adc-channels-used", &prop))
 		return dev_err_probe(&idev->dev, -EINVAL,
 				     "Missing adc-channels-used property in the DT.\n");
 	st->channels_mask = prop;
 
-	st->sleep_mode = of_property_read_bool(node, "atmel,adc-sleep-mode");
+	st->sleep_mode = of_property_read_bool(analde, "atmel,adc-sleep-mode");
 
-	if (of_property_read_u32(node, "atmel,adc-startup-time", &prop))
+	if (of_property_read_u32(analde, "atmel,adc-startup-time", &prop))
 		return dev_err_probe(&idev->dev, -EINVAL,
 				     "Missing adc-startup-time property in the DT.\n");
 	st->startup_time = prop;
 
 	prop = 0;
-	of_property_read_u32(node, "atmel,adc-sample-hold-time", &prop);
+	of_property_read_u32(analde, "atmel,adc-sample-hold-time", &prop);
 	st->sample_hold_time = prop;
 
-	if (of_property_read_u32(node, "atmel,adc-vref", &prop))
+	if (of_property_read_u32(analde, "atmel,adc-vref", &prop))
 		return dev_err_probe(&idev->dev, -EINVAL,
 				     "Missing adc-vref property in the DT.\n");
 	st->vref_mv = prop;
 
 	st->res = st->caps->high_res_bits;
 	if (st->caps->low_res_bits &&
-	    !of_property_read_string(node, "atmel,adc-use-res", (const char **)&s)
+	    !of_property_read_string(analde, "atmel,adc-use-res", (const char **)&s)
 	    && !strcmp(s, "lowres"))
 		st->res = st->caps->low_res_bits;
 
@@ -1047,7 +1047,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	/* Check if touchscreen is supported. */
 	if (st->caps->has_ts) {
-		ret = at91_adc_probe_dt_ts(node, st, &idev->dev);
+		ret = at91_adc_probe_dt_ts(analde, st, &idev->dev);
 		if (ret)
 			return ret;
 	}
@@ -1060,7 +1060,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	st->irq = platform_get_irq(pdev, 0);
 	if (st->irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	st->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(st->reg_base))
@@ -1087,12 +1087,12 @@ static int at91_adc_probe(struct platform_device *pdev)
 	st->clk = devm_clk_get_enabled(&pdev->dev, "adc_clk");
 	if (IS_ERR(st->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(st->clk),
-				     "Could not prepare or enable the clock.\n");
+				     "Could analt prepare or enable the clock.\n");
 
 	st->adc_clk = devm_clk_get_enabled(&pdev->dev, "adc_op_clk");
 	if (IS_ERR(st->adc_clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(st->adc_clk),
-				     "Could not prepare or enable the ADC clock.\n");
+				     "Could analt prepare or enable the ADC clock.\n");
 
 	/*
 	 * Prescaler rate computation using the formula from the Atmel's
@@ -1110,7 +1110,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	if (!st->startup_time)
 		return dev_err_probe(&pdev->dev, -EINVAL,
-				     "No startup time available.\n");
+				     "Anal startup time available.\n");
 	ticks = (*st->caps->calc_startup_ticks)(st->startup_time, adc_clk_khz);
 
 	/*

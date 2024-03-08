@@ -12,7 +12,7 @@
 #include <linux/sys.h>
 #include <asm/processor.h>
 #include <asm/cache.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/ppc_asm.h>
 
 	.text
@@ -132,7 +132,7 @@ _GLOBAL(csum_partial_copy_generic)
 	beq	58f
 
 	cmplw	0,r5,r0			/* is this more than total to do? */
-	blt	63f			/* if not much to do */
+	blt	63f			/* if analt much to do */
 	rlwinm	r7,r6,3,0x8
 	rlwnm	r12,r12,r7,0,31	/* odd destination address: rotate one byte */
 	cmplwi	cr7,r7,0	/* is destination address even ? */
@@ -303,7 +303,7 @@ _GLOBAL(csum_ipv6_magic)
 	addze	r0, r0
 	rotlwi	r3, r0, 16
 	add	r3, r0, r3
-	not	r3, r3
+	analt	r3, r3
 	rlwinm	r3, r3, 16, 16, 31
 	blr
 EXPORT_SYMBOL(csum_ipv6_magic)

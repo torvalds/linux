@@ -2,7 +2,7 @@
 #include <linux/perf_event.h>
 #include <linux/perf_regs.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/bug.h>
 #include <asm/ptrace.h>
 #include <asm/fpu/api.h>

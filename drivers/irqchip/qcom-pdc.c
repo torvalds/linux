@@ -33,7 +33,7 @@
 
 #define PDC_VERSION_REG		0x1000
 
-/* Notable PDC versions */
+/* Analtable PDC versions */
 #define PDC_VERSION_3_2		0x30200
 
 struct pdc_pin_region {
@@ -102,17 +102,17 @@ static void qcom_pdc_gic_enable(struct irq_data *d)
 }
 
 /*
- * GIC does not handle falling edge or active low. To allow falling edge and
+ * GIC does analt handle falling edge or active low. To allow falling edge and
  * active low interrupts to be handled at GIC, PDC has an inverter that inverts
  * falling edge into a rising edge and active low into an active high.
  * For the inverter to work, the polarity bit in the IRQ_CONFIG register has to
  * set as per the table below.
  * Level sensitive active low    LOW
- * Rising edge sensitive         NOT USED
+ * Rising edge sensitive         ANALT USED
  * Falling edge sensitive        LOW
- * Dual Edge sensitive           NOT USED
+ * Dual Edge sensitive           ANALT USED
  * Level sensitive active High   HIGH
- * Falling Edge sensitive        NOT USED
+ * Falling Edge sensitive        ANALT USED
  * Rising edge sensitive         HIGH
  * Dual Edge sensitive           HIGH
  */
@@ -234,7 +234,7 @@ static int qcom_pdc_alloc(struct irq_domain *domain, unsigned int virq,
 	if (ret)
 		return ret;
 
-	if (hwirq == GPIO_NO_WAKE_IRQ)
+	if (hwirq == GPIO_ANAL_WAKE_IRQ)
 		return irq_domain_disconnect_hierarchy(domain, virq);
 
 	ret = irq_domain_set_hwirq_and_chip(domain, virq, hwirq,
@@ -252,7 +252,7 @@ static int qcom_pdc_alloc(struct irq_domain *domain, unsigned int virq,
 	if (type & IRQ_TYPE_LEVEL_MASK)
 		type = IRQ_TYPE_LEVEL_HIGH;
 
-	parent_fwspec.fwnode      = domain->parent->fwnode;
+	parent_fwspec.fwanalde      = domain->parent->fwanalde;
 	parent_fwspec.param_count = 3;
 	parent_fwspec.param[0]    = 0;
 	parent_fwspec.param[1]    = pin_to_hwirq(region, hwirq);
@@ -268,7 +268,7 @@ static const struct irq_domain_ops qcom_pdc_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-static int pdc_setup_pin_mapping(struct device_node *np)
+static int pdc_setup_pin_mapping(struct device_analde *np)
 {
 	int ret, n, i;
 
@@ -280,7 +280,7 @@ static int pdc_setup_pin_mapping(struct device_node *np)
 	pdc_region = kcalloc(pdc_region_cnt, sizeof(*pdc_region), GFP_KERNEL);
 	if (!pdc_region) {
 		pdc_region_cnt = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (n = 0; n < pdc_region_cnt; n++) {
@@ -309,7 +309,7 @@ static int pdc_setup_pin_mapping(struct device_node *np)
 
 #define QCOM_PDC_SIZE 0x30000
 
-static int qcom_pdc_init(struct device_node *node, struct device_node *parent)
+static int qcom_pdc_init(struct device_analde *analde, struct device_analde *parent)
 {
 	struct irq_domain *parent_domain, *pdc_domain;
 	resource_size_t res_size;
@@ -317,16 +317,16 @@ static int qcom_pdc_init(struct device_node *node, struct device_node *parent)
 	int ret;
 
 	/* compat with old sm8150 DT which had very small region for PDC */
-	if (of_address_to_resource(node, 0, &res))
+	if (of_address_to_resource(analde, 0, &res))
 		return -EINVAL;
 
 	res_size = max_t(resource_size_t, resource_size(&res), QCOM_PDC_SIZE);
 	if (res_size > resource_size(&res))
-		pr_warn("%pOF: invalid reg size, please fix DT\n", node);
+		pr_warn("%pOF: invalid reg size, please fix DT\n", analde);
 
 	pdc_base = ioremap(res.start, res_size);
 	if (!pdc_base) {
-		pr_err("%pOF: unable to map PDC registers\n", node);
+		pr_err("%pOF: unable to map PDC registers\n", analde);
 		return -ENXIO;
 	}
 
@@ -334,25 +334,25 @@ static int qcom_pdc_init(struct device_node *node, struct device_node *parent)
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%pOF: unable to find PDC's parent domain\n", node);
+		pr_err("%pOF: unable to find PDC's parent domain\n", analde);
 		ret = -ENXIO;
 		goto fail;
 	}
 
-	ret = pdc_setup_pin_mapping(node);
+	ret = pdc_setup_pin_mapping(analde);
 	if (ret) {
-		pr_err("%pOF: failed to init PDC pin-hwirq mapping\n", node);
+		pr_err("%pOF: failed to init PDC pin-hwirq mapping\n", analde);
 		goto fail;
 	}
 
 	pdc_domain = irq_domain_create_hierarchy(parent_domain,
 					IRQ_DOMAIN_FLAG_QCOM_PDC_WAKEUP,
 					PDC_MAX_GPIO_IRQS,
-					of_fwnode_handle(node),
+					of_fwanalde_handle(analde),
 					&qcom_pdc_ops, NULL);
 	if (!pdc_domain) {
-		pr_err("%pOF: PDC domain add failed\n", node);
-		ret = -ENOMEM;
+		pr_err("%pOF: PDC domain add failed\n", analde);
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -369,5 +369,5 @@ fail:
 IRQCHIP_PLATFORM_DRIVER_BEGIN(qcom_pdc)
 IRQCHIP_MATCH("qcom,pdc", qcom_pdc_init)
 IRQCHIP_PLATFORM_DRIVER_END(qcom_pdc)
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. Power Domain Controller");
+MODULE_DESCRIPTION("Qualcomm Techanallogies, Inc. Power Domain Controller");
 MODULE_LICENSE("GPL v2");

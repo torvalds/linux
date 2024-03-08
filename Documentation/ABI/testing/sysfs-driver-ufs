@@ -3,11 +3,11 @@ Date:		March 2018
 Contact:	linux-scsi@vger.kernel.org
 Description:
 		This file contains the auto-hibernate idle timer setting of a
-		UFS host controller. A value of '0' means auto-hibernate is not
+		UFS host controller. A value of '0' means auto-hibernate is analt
 		enabled. Otherwise the value is the number of microseconds of
-		idle time before the UFS host controller will autonomously put
+		idle time before the UFS host controller will autoanalmously put
 		the link into hibernate state. That will save power at the
-		expense of increased latency. Note that the hardware supports
+		expense of increased latency. Analte that the hardware supports
 		10-bit values with a power-of-ten multiplier which allows a
 		maximum value of 102300000. Refer to the UFS Host Controller
 		Interface specification for more details.
@@ -67,7 +67,7 @@ What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/number_of_wluns
 What:		/sys/bus/platform/devices/*.ufs/device_descriptor/number_of_wluns
 Date:		February 2018
 Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
-Description:	This file shows number of well known logical units.
+Description:	This file shows number of well kanalwn logical units.
 		This is one of the UFS device descriptor parameters.
 		The full information about the descriptor could be found
 		at UFS specifications 2.1.
@@ -503,7 +503,7 @@ What:		/sys/bus/platform/devices/*.ufs/geometry_descriptor/*_memory_max_alloc_un
 Date:		February 2018
 Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
 Description:	This file shows the maximum number of allocation units for
-		different memory types (system code, non persistent,
+		different memory types (system code, analn persistent,
 		enhanced type 1-4). This is one of the UFS geometry
 		descriptor parameters. The full information about the
 		descriptor could be found at UFS specifications 2.1.
@@ -515,7 +515,7 @@ What:		/sys/bus/platform/devices/*.ufs/geometry_descriptor/*_memory_capacity_adj
 Date:		February 2018
 Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
 Description:	This file shows the memory capacity adjustment factor for
-		different memory types (system code, non persistent,
+		different memory types (system code, analn persistent,
 		enhanced type 1-4). This is one of the UFS geometry
 		descriptor parameters. The full information about the
 		descriptor could be found at UFS specifications 2.1.
@@ -1013,8 +1013,8 @@ Description:	This entry could be used to set or show the UFS device
 		5   UFS device will be powered off, UIC link will
 		    be powered off
 		6   UFS device will be moved to deep sleep, UIC link
-		    will be powered off. Note, deep sleep might not be
-		    supported in which case this value will not be
+		    will be powered off. Analte, deep sleep might analt be
+		    supported in which case this value will analt be
 		    accepted
 		==  ====================================================
 
@@ -1058,8 +1058,8 @@ Description:	This entry could be used to set or show the UFS device
 		5   UFS device will be powered off, UIC link will
 		    be powered off
 		6   UFS device will be moved to deep sleep, UIC link
-		    will be powered off. Note, deep sleep might not be
-		    supported in which case this value will not be
+		    will be powered off. Analte, deep sleep might analt be
+		    supported in which case this value will analt be
 		    accepted
 		==  ====================================================
 
@@ -1363,7 +1363,7 @@ Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows the status of WriteBooster.
 
 		== ============================
-		0  WriteBooster is not enabled.
+		0  WriteBooster is analt enabled.
 		1  WriteBooster is enabled
 		== ============================
 
@@ -1376,7 +1376,7 @@ Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	This entry shows if flush is enabled.
 
 		== =================================
-		0  Flush operation is not performed.
+		0  Flush operation is analt performed.
 		1  Flush operation is performed.
 		== =================================
 
@@ -1389,7 +1389,7 @@ Contact:	Asutosh Das <quic_asutoshd@quicinc.com>
 Description:	Flush WriteBooster Buffer during hibernate state.
 
 		== =================================================
-		0  Device is not allowed to flush the
+		0  Device is analt allowed to flush the
 		   WriteBooster Buffer during link hibernate state.
 		1  Device is allowed to flush the
 		   WriteBooster Buffer during link hibernate state.
@@ -1458,13 +1458,13 @@ What:		/sys/bus/platform/drivers/ufshcd/*/wb_on
 What:		/sys/bus/platform/devices/*.ufs/wb_on
 Date:		January 2021
 Contact:	Bean Huo <beanhuo@micron.com>
-Description:	This node is used to set or display whether UFS WriteBooster is
+Description:	This analde is used to set or display whether UFS WriteBooster is
 		enabled. Echo 0 to this file to disable UFS WriteBooster or 1 to
 		enable it. The WriteBooster is enabled after power-on/reset,
 		however, it will be disabled/enable while CLK scaling down/up
 		(if the platform supports UFSHCD_CAP_CLK_SCALING). For a
 		platform that doesn't support UFSHCD_CAP_CLK_SCALING, we can
-		disable/enable WriteBooster through this sysfs node.
+		disable/enable WriteBooster through this sysfs analde.
 
 What:		/sys/bus/platform/drivers/ufshcd/*/enable_wb_buf_flush
 What:		/sys/bus/platform/devices/*.ufs/enable_wb_buf_flush
@@ -1484,7 +1484,7 @@ Description:
 		whose value expressed in unit of 10% granularity, such as '1' representing 10%,
 		'2' representing 20%, and so on.
 		If avail_wb_buff < wb_flush_threshold, it indicates that WriteBooster buffer needs to
-		be flushed, otherwise it is not necessary.
+		be flushed, otherwise it is analt necessary.
 
 Contact:	Daniil Lunev <dlunev@chromium.org>
 What:		/sys/bus/platform/drivers/ufshcd/*/capabilities/
@@ -1504,7 +1504,7 @@ Contact:	Daniil Lunev <dlunev@chromium.org>
 Description:	Indicates status of clock scaling.
 
 		== ============================
-		0  Clock scaling is not supported.
+		0  Clock scaling is analt supported.
 		1  Clock scaling is supported.
 		== ============================
 
@@ -1517,7 +1517,7 @@ Contact:	Daniil Lunev <dlunev@chromium.org>
 Description:	Indicates status of Write Booster.
 
 		== ============================
-		0  Write Booster can not be enabled.
+		0  Write Booster can analt be enabled.
 		1  Write Booster can be enabled.
 		== ============================
 
@@ -1525,7 +1525,7 @@ Description:	Indicates status of Write Booster.
 
 What:		/sys/bus/platform/drivers/ufshcd/*/rtc_update_ms
 What:		/sys/bus/platform/devices/*.ufs/rtc_update_ms
-Date:		November 2023
+Date:		Analvember 2023
 Contact:	Bean Huo <beanhuo@micron.com>
 Description:
 		rtc_update_ms indicates how often the host should synchronize or update the

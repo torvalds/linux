@@ -117,7 +117,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	struct ti_tscadc_dev *tscadc;
 	struct resource *res;
 	struct clk *clk;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct mfd_cell *cell;
 	struct property *prop;
 	const __be32 *cur;
@@ -130,27 +130,27 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	/* Allocate memory for device */
 	tscadc = devm_kzalloc(&pdev->dev, sizeof(*tscadc), GFP_KERNEL);
 	if (!tscadc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tscadc->dev = &pdev->dev;
 
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "Could not find valid DT data.\n");
+	if (!pdev->dev.of_analde) {
+		dev_err(&pdev->dev, "Could analt find valid DT data.\n");
 		return -EINVAL;
 	}
 
 	tscadc->data = of_device_get_match_data(&pdev->dev);
 
 	if (ti_adc_with_touchscreen(tscadc)) {
-		node = of_get_child_by_name(pdev->dev.of_node, "tsc");
-		of_property_read_u32(node, "ti,wires", &tscmag_wires);
-		err = of_property_read_u32(node, "ti,coordinate-readouts",
+		analde = of_get_child_by_name(pdev->dev.of_analde, "tsc");
+		of_property_read_u32(analde, "ti,wires", &tscmag_wires);
+		err = of_property_read_u32(analde, "ti,coordinate-readouts",
 					   &readouts);
 		if (err < 0)
-			of_property_read_u32(node, "ti,coordiante-readouts",
+			of_property_read_u32(analde, "ti,coordiante-readouts",
 					     &readouts);
 
-		of_node_put(node);
+		of_analde_put(analde);
 
 		if (tscmag_wires)
 			use_tsc = true;
@@ -158,7 +158,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 		/*
 		 * When adding support for the magnetic stripe reader, here is
 		 * the place to look for the number of tracks used from device
-		 * tree. Let's default to 0 for now.
+		 * tree. Let's default to 0 for analw.
 		 */
 		mag_tracks = 0;
 		tscmag_wires = mag_tracks * 2;
@@ -166,18 +166,18 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 			use_mag = true;
 	}
 
-	node = of_get_child_by_name(pdev->dev.of_node, "adc");
-	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
+	analde = of_get_child_by_name(pdev->dev.of_analde, "adc");
+	of_property_for_each_u32(analde, "ti,adc-channels", prop, cur, val) {
 		adc_channels++;
 		if (val > 7) {
-			dev_err(&pdev->dev, " PIN numbers are 0..7 (not %d)\n",
+			dev_err(&pdev->dev, " PIN numbers are 0..7 (analt %d)\n",
 				val);
-			of_node_put(node);
+			of_analde_put(analde);
 			return -EINVAL;
 		}
 	}
 
-	of_node_put(node);
+	of_analde_put(analde);
 
 	total_channels = tscmag_wires + adc_channels;
 	if (total_channels > 8) {
@@ -241,7 +241,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 
 	/*
 	 * Set the control register bits. tscadc->ctrl stores the configuration
-	 * of the CTRL register but not the subsystem enable bit which must be
+	 * of the CTRL register but analt the subsystem enable bit which must be
 	 * added manually when timely.
 	 */
 	tscadc->ctrl = CNTRLREG_STEPID;

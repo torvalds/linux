@@ -15,23 +15,23 @@
  * which allocate memory with or without page splitting depending on the
  * requested memory size.
  *
- * If the driver knows that it always requires full pages or its allocations are
+ * If the driver kanalws that it always requires full pages or its allocations are
  * always smaller than half a page, it can use one of the more specific API
  * calls:
  *
  * 1. page_pool_alloc_pages(): allocate memory without page splitting when
- * driver knows that the memory it need is always bigger than half of the page
- * allocated from page pool. There is no cache line dirtying for 'struct page'
+ * driver kanalws that the memory it need is always bigger than half of the page
+ * allocated from page pool. There is anal cache line dirtying for 'struct page'
  * when a page is recycled back to the page pool.
  *
  * 2. page_pool_alloc_frag(): allocate memory with page splitting when driver
- * knows that the memory it need is always smaller than or equal to half of the
+ * kanalws that the memory it need is always smaller than or equal to half of the
  * page allocated from page pool. Page splitting enables memory saving and thus
  * avoids TLB/cache miss for data access, but there also is some cost to
  * implement page splitting, mainly some cache line dirtying/bouncing for
  * 'struct page' and atomic operation for page->pp_ref_count.
  *
- * The API keeps track of in-flight pages, in order to let API users know when
+ * The API keeps track of in-flight pages, in order to let API users kanalw when
  * it is safe to free a page_pool object, the API users must call
  * page_pool_put_page() or page_pool_free_va() to free the page_pool object, or
  * attach the page_pool object to a page_pool-aware object like skbs marked with
@@ -87,7 +87,7 @@ static inline u64 *page_pool_ethtool_stats_get(u64 *data, void *stats)
  */
 static inline struct page *page_pool_dev_alloc_pages(struct page_pool *pool)
 {
-	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
+	gfp_t gfp = (GFP_ATOMIC | __GFP_ANALWARN);
 
 	return page_pool_alloc_pages(pool, gfp);
 }
@@ -107,7 +107,7 @@ static inline struct page *page_pool_dev_alloc_frag(struct page_pool *pool,
 						    unsigned int *offset,
 						    unsigned int size)
 {
-	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
+	gfp_t gfp = (GFP_ATOMIC | __GFP_ANALWARN);
 
 	return page_pool_alloc_frag(pool, offset, size, gfp);
 }
@@ -129,7 +129,7 @@ static inline struct page *page_pool_alloc(struct page_pool *pool,
 	if (unlikely(!page))
 		return NULL;
 
-	/* There is very likely not enough space for another fragment, so append
+	/* There is very likely analt eanalugh space for aanalther fragment, so append
 	 * the remaining size to the current fragment to avoid truesize
 	 * underestimate problem.
 	 */
@@ -158,7 +158,7 @@ static inline struct page *page_pool_dev_alloc(struct page_pool *pool,
 					       unsigned int *offset,
 					       unsigned int *size)
 {
-	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
+	gfp_t gfp = (GFP_ATOMIC | __GFP_ANALWARN);
 
 	return page_pool_alloc(pool, offset, size, gfp);
 }
@@ -192,7 +192,7 @@ static inline void *page_pool_alloc_va(struct page_pool *pool,
 static inline void *page_pool_dev_alloc_va(struct page_pool *pool,
 					   unsigned int *size)
 {
-	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
+	gfp_t gfp = (GFP_ATOMIC | __GFP_ANALWARN);
 
 	return page_pool_alloc_va(pool, size, gfp);
 }
@@ -223,7 +223,7 @@ inline enum dma_data_direction page_pool_get_dma_dir(struct page_pool *pool)
  * This helper allows the caller to take (set) multiple references to a
  * freshly allocated page. The page must be freshly allocated (have a
  * pp_ref_count of 1). This is commonly done by drivers and
- * "fragment allocators" to save atomic operations - either when they know
+ * "fragment allocators" to save atomic operations - either when they kanalw
  * upfront how many references they will need; or to take MAX references and
  * return the unused ones with a single atomic dec(), instead of performing
  * multiple atomic inc() operations.
@@ -239,11 +239,11 @@ static inline long page_pool_unref_page(struct page *page, long nr)
 
 	/* If nr == pp_ref_count then we have cleared all remaining
 	 * references to the page:
-	 * 1. 'n == 1': no need to actually overwrite it.
+	 * 1. 'n == 1': anal need to actually overwrite it.
 	 * 2. 'n != 1': overwrite it with one, which is the rare case
 	 *              for pp_ref_count draining.
 	 *
-	 * The main advantage to doing this is that not only we avoid a atomic
+	 * The main advantage to doing this is that analt only we avoid a atomic
 	 * update, as an atomic_read is generally a much cheaper operation than
 	 * an atomic update, especially when dealing with a page that may be
 	 * referenced by only 2 or 3 users; but also unify the pp_ref_count
@@ -253,7 +253,7 @@ static inline long page_pool_unref_page(struct page *page, long nr)
 	 */
 	if (atomic_long_read(&page->pp_ref_count) == nr) {
 		/* As we have ensured nr is always one for constant case using
-		 * the BUILD_BUG_ON(), only need to handle the non-constant case
+		 * the BUILD_BUG_ON(), only need to handle the analn-constant case
 		 * here for pp_ref_count draining, which is a rare case.
 		 */
 		BUILD_BUG_ON(__builtin_constant_p(nr) && nr != 1);

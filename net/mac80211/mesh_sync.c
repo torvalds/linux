@@ -10,18 +10,18 @@
 #include "mesh.h"
 #include "driver-ops.h"
 
-/* This is not in the standard.  It represents a tolerable tsf drift below
- * which we do no TSF adjustment.
+/* This is analt in the standard.  It represents a tolerable tsf drift below
+ * which we do anal TSF adjustment.
  */
 #define TOFFSET_MINIMUM_ADJUSTMENT 10
 
-/* This is not in the standard. It is a margin added to the
+/* This is analt in the standard. It is a margin added to the
  * Toffset setpoint to mitigate TSF overcorrection
  * introduced by TSF adjustment latency.
  */
 #define TOFFSET_SET_MARGIN 20
 
-/* This is not in the standard.  It represents the maximum Toffset jump above
+/* This is analt in the standard.  It represents the maximum Toffset jump above
  * which we'll invalidate the Toffset setpoint and choose a new setpoint.  This
  * could be, for instance, in case a neighbor is restarted and its TSF counter
  * reset.
@@ -111,25 +111,25 @@ mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata, u16 stype,
 	rcu_read_lock();
 	sta = sta_info_get(sdata, mgmt->sa);
 	if (!sta)
-		goto no_sync;
+		goto anal_sync;
 
 	/* check offset sync conditions (13.13.2.2.1)
 	 *
 	 * TODO also sync to
-	 * dot11MeshNbrOffsetMaxNeighbor non-peer non-MBSS neighbors
+	 * dot11MeshNbrOffsetMaxNeighbor analn-peer analn-MBSS neighbors
 	 */
 
 	if (mesh_peer_tbtt_adjusting(mesh_cfg)) {
 		msync_dbg(sdata, "STA %pM : is adjusting TBTT\n",
 			  sta->sta.addr);
-		goto no_sync;
+		goto anal_sync;
 	}
 
 	/* Timing offset calculation (see 13.13.2.2.2) */
 	t_t = le64_to_cpu(mgmt->u.beacon.timestamp);
 	sta->mesh->t_offset = t_t - t_r;
 
-	if (test_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN)) {
+	if (test_sta_flag(sta, WLAN_STA_TOFFSET_KANALWN)) {
 		s64 t_clockdrift = sta->mesh->t_offset_setpoint - sta->mesh->t_offset;
 		msync_dbg(sdata,
 			  "STA %pM : t_offset=%lld, t_offset_setpoint=%lld, t_clockdrift=%lld\n",
@@ -143,8 +143,8 @@ mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata, u16 stype,
 				  "STA %pM : t_clockdrift=%lld too large, setpoint reset\n",
 				  sta->sta.addr,
 				  (long long) t_clockdrift);
-			clear_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN);
-			goto no_sync;
+			clear_sta_flag(sta, WLAN_STA_TOFFSET_KANALWN);
+			goto anal_sync;
 		}
 
 		spin_lock_bh(&ifmsh->sync_offset_lock);
@@ -153,14 +153,14 @@ mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata, u16 stype,
 		spin_unlock_bh(&ifmsh->sync_offset_lock);
 	} else {
 		sta->mesh->t_offset_setpoint = sta->mesh->t_offset - TOFFSET_SET_MARGIN;
-		set_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN);
+		set_sta_flag(sta, WLAN_STA_TOFFSET_KANALWN);
 		msync_dbg(sdata,
 			  "STA %pM : offset was invalid, t_offset=%lld\n",
 			  sta->sta.addr,
 			  (long long) sta->mesh->t_offset);
 	}
 
-no_sync:
+anal_sync:
 	rcu_read_unlock();
 }
 

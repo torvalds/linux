@@ -59,7 +59,7 @@ int __kprobes aarch64_insn_read(void *addr, u32 *insnp)
 	int ret;
 	__le32 val;
 
-	ret = copy_from_kernel_nofault(&val, addr, AARCH64_INSN_SIZE);
+	ret = copy_from_kernel_analfault(&val, addr, AARCH64_INSN_SIZE);
 	if (!ret)
 		*insnp = le32_to_cpu(val);
 
@@ -75,7 +75,7 @@ static int __kprobes __aarch64_insn_write(void *addr, __le32 insn)
 	raw_spin_lock_irqsave(&patch_lock, flags);
 	waddr = patch_map(addr, FIX_TEXT_POKE0);
 
-	ret = copy_to_kernel_nofault(waddr, &insn, AARCH64_INSN_SIZE);
+	ret = copy_to_kernel_analfault(waddr, &insn, AARCH64_INSN_SIZE);
 
 	patch_unmap(FIX_TEXT_POKE0);
 	raw_spin_unlock_irqrestore(&patch_lock, flags);
@@ -88,7 +88,7 @@ int __kprobes aarch64_insn_write(void *addr, u32 insn)
 	return __aarch64_insn_write(addr, cpu_to_le32(insn));
 }
 
-noinstr int aarch64_insn_write_literal_u64(void *addr, u64 val)
+analinstr int aarch64_insn_write_literal_u64(void *addr, u64 val)
 {
 	u64 *waddr;
 	unsigned long flags;
@@ -97,7 +97,7 @@ noinstr int aarch64_insn_write_literal_u64(void *addr, u64 val)
 	raw_spin_lock_irqsave(&patch_lock, flags);
 	waddr = patch_map(addr, FIX_TEXT_POKE0);
 
-	ret = copy_to_kernel_nofault(waddr, &val, sizeof(val));
+	ret = copy_to_kernel_analfault(waddr, &val, sizeof(val));
 
 	patch_unmap(FIX_TEXT_POKE0);
 	raw_spin_unlock_irqrestore(&patch_lock, flags);
@@ -105,7 +105,7 @@ noinstr int aarch64_insn_write_literal_u64(void *addr, u64 val)
 	return ret;
 }
 
-int __kprobes aarch64_insn_patch_text_nosync(void *addr, u32 insn)
+int __kprobes aarch64_insn_patch_text_analsync(void *addr, u32 insn)
 {
 	u32 *tp = addr;
 	int ret;
@@ -137,9 +137,9 @@ static int __kprobes aarch64_insn_patch_text_cb(void *arg)
 	/* The last CPU becomes master */
 	if (atomic_inc_return(&pp->cpu_count) == num_online_cpus()) {
 		for (i = 0; ret == 0 && i < pp->insn_cnt; i++)
-			ret = aarch64_insn_patch_text_nosync(pp->text_addrs[i],
+			ret = aarch64_insn_patch_text_analsync(pp->text_addrs[i],
 							     pp->new_insns[i]);
-		/* Notify other processors with an additional increment. */
+		/* Analtify other processors with an additional increment. */
 		atomic_inc(&pp->cpu_count);
 	} else {
 		while (atomic_read(&pp->cpu_count) <= num_online_cpus())

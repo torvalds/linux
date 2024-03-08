@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1+ */
-/* Copyright (C) 2022, Linaro Ltd - Daniel Lezcano <daniel.lezcano@linaro.org> */
+/* Copyright (C) 2022, Linaro Ltd - Daniel Lezcaanal <daniel.lezcaanal@linaro.org> */
 #ifndef __LIBTHERMAL_H
 #define __LIBTHERMAL_H
 
@@ -49,7 +49,7 @@ struct thermal_zone {
 	int id;
 	int temp;
 	char name[THERMAL_NAME_LENGTH];
-	char governor[THERMAL_NAME_LENGTH];
+	char goveranalr[THERMAL_NAME_LENGTH];
 	struct thermal_trip *trip;
 };
 
@@ -118,7 +118,7 @@ LIBTHERMAL_API thermal_error_t thermal_cmd_get_cdev(struct thermal_handler *th,
 LIBTHERMAL_API thermal_error_t thermal_cmd_get_trip(struct thermal_handler *th,
 						    struct thermal_zone *tz);
 
-LIBTHERMAL_API thermal_error_t thermal_cmd_get_governor(struct thermal_handler *th,
+LIBTHERMAL_API thermal_error_t thermal_cmd_get_goveranalr(struct thermal_handler *th,
 							struct thermal_zone *tz);
 
 LIBTHERMAL_API thermal_error_t thermal_cmd_get_temp(struct thermal_handler *th,

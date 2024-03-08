@@ -84,7 +84,7 @@ TEST_F(bind_timewait, 1)
 
 	ret = bind(fd, (struct sockaddr *)&self->addr, self->addrlen);
 	ASSERT_EQ(ret, -1);
-	ASSERT_EQ(errno, EADDRINUSE);
+	ASSERT_EQ(erranal, EADDRINUSE);
 
 	close(fd);
 }

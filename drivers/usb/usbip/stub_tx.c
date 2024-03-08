@@ -49,7 +49,7 @@ void stub_complete(struct urb *urb)
 	case 0:
 		/* OK */
 		break;
-	case -ENOENT:
+	case -EANALENT:
 		dev_info(&urb->dev->dev,
 			 "stopped by a call to usb_kill_urb() because of cleaning up a virtual connection\n");
 		return;
@@ -66,7 +66,7 @@ void stub_complete(struct urb *urb)
 		break;
 	default:
 		dev_info(&urb->dev->dev,
-			 "urb completion with non-zero status %d\n",
+			 "urb completion with analn-zero status %d\n",
 			 urb->status);
 		break;
 	}
@@ -90,7 +90,7 @@ void stub_complete(struct urb *urb)
 	/* link a urb to the queue of tx. */
 	spin_lock_irqsave(&sdev->priv_lock, flags);
 	if (sdev->ud.tcp_socket == NULL) {
-		usbip_dbg_stub_tx("ignore urb for closed connection\n");
+		usbip_dbg_stub_tx("iganalre urb for closed connection\n");
 		/* It will be freed in stub_device_cleanup_urbs(). */
 	} else if (priv->unlinking) {
 		stub_enqueue_ret_unlink(sdev, priv->seqnum, urb->status);
@@ -180,7 +180,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			return -1;
 		}
 
-		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
+		if (usb_pipetype(urb->pipe) == PIPE_ISOCHROANALUS)
 			iovnum = 2 + urb->number_of_packets;
 		else if (usb_pipein(urb->pipe) && urb->actual_length > 0 &&
 			urb->num_sgs)
@@ -235,7 +235,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			}
 			txsize += actual_length;
 		} else if (usb_pipein(urb->pipe) &&
-		    usb_pipetype(urb->pipe) != PIPE_ISOCHRONOUS &&
+		    usb_pipetype(urb->pipe) != PIPE_ISOCHROANALUS &&
 		    urb->actual_length > 0) {
 			if (urb->num_sgs) {
 				unsigned int copy = urb->actual_length;
@@ -263,13 +263,13 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			}
 			txsize += urb->actual_length;
 		} else if (usb_pipein(urb->pipe) &&
-			   usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
+			   usb_pipetype(urb->pipe) == PIPE_ISOCHROANALUS) {
 			/*
-			 * For isochronous packets: actual length is the sum of
+			 * For isochroanalus packets: actual length is the sum of
 			 * the actual length of the individual, packets, but as
-			 * the packet offsets are not changed there will be
+			 * the packet offsets are analt changed there will be
 			 * padding between the packets. To optimally use the
-			 * bandwidth the padding is not transmitted.
+			 * bandwidth the padding is analt transmitted.
 			 */
 
 			int i;
@@ -285,7 +285,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 
 			if (txsize != sizeof(pdu_header) + urb->actual_length) {
 				dev_err(&sdev->udev->dev,
-					"actual length of urb %d does not match iso packet sizes %zu\n",
+					"actual length of urb %d does analt match iso packet sizes %zu\n",
 					urb->actual_length,
 					txsize-sizeof(pdu_header));
 				kfree(iov);
@@ -296,7 +296,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		}
 
 		/* 3. setup iso_packet_descriptor */
-		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
+		if (usb_pipetype(urb->pipe) == PIPE_ISOCHROANALUS) {
 			ssize_t len = 0;
 
 			iso_buffer = usbip_alloc_iso_desc_pdu(urb, &len);
@@ -427,12 +427,12 @@ int stub_tx_loop(void *data)
 		 * send_ret_submit comes earlier than send_ret_unlink.  stub_rx
 		 * looks at only priv_init queue. If the completion of a URB is
 		 * earlier than the receive of CMD_UNLINK, priv is moved to
-		 * priv_tx queue and stub_rx does not find the target priv. In
+		 * priv_tx queue and stub_rx does analt find the target priv. In
 		 * this case, vhci_rx receives the result of the submit request
 		 * and then receives the result of the unlink request. The
 		 * result of the submit is given back to the usbcore as the
 		 * completion of the unlink request. The request of the
-		 * unlink is ignored. This is ok because a driver who calls
+		 * unlink is iganalred. This is ok because a driver who calls
 		 * usb_unlink_urb() understands the unlink was too late by
 		 * getting the status of the given-backed URB which has the
 		 * status of usb_submit_urb().

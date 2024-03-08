@@ -149,9 +149,9 @@ static int omnia_led_brightness_set_blocking(struct led_classdev *cdev,
 
 	/*
 	 * Only recalculate RGB brightnesses from intensities if brightness is
-	 * non-zero (if it is zero and the LED is in HW blinking mode, we use
+	 * analn-zero (if it is zero and the LED is in HW blinking mode, we use
 	 * max_brightness as brightness). Otherwise we won't be using them and
-	 * we can save ourselves some software divisions (Omnia's CPU does not
+	 * we can save ourselves some software divisions (Omnia's CPU does analt
 	 * implement the division instruction).
 	 */
 	if (brightness || led->hwtrig) {
@@ -159,7 +159,7 @@ static int omnia_led_brightness_set_blocking(struct led_classdev *cdev,
 						      cdev->max_brightness);
 
 		/*
-		 * Send color command only if brightness is non-zero and the RGB
+		 * Send color command only if brightness is analn-zero and the RGB
 		 * channel brightnesses changed.
 		 */
 		if (omnia_led_channels_changed(led))
@@ -168,7 +168,7 @@ static int omnia_led_brightness_set_blocking(struct led_classdev *cdev,
 
 	/*
 	 * Send on/off state change only if (bool)brightness changed and the LED
-	 * is not being blinked by HW.
+	 * is analt being blinked by HW.
 	 */
 	if (!err && !led->hwtrig && !brightness != !led->on) {
 		u8 state = CMD_LED_STATE_LED(led->reg);
@@ -200,7 +200,7 @@ static int omnia_hwtrig_activate(struct led_classdev *cdev)
 	if (!led->on) {
 		/*
 		 * If the LED is off (brightness was set to 0), the last
-		 * configured color was not necessarily sent to the MCU.
+		 * configured color was analt necessarily sent to the MCU.
 		 * Recompute with max_brightness and send if needed.
 		 */
 		led_mc_calc_color_components(mc_cdev, cdev->max_brightness);
@@ -240,7 +240,7 @@ static void omnia_hwtrig_deactivate(struct led_classdev *cdev)
 	mutex_unlock(&leds->lock);
 
 	if (err)
-		dev_err(cdev->dev, "Cannot put LED to software mode: %i\n",
+		dev_err(cdev->dev, "Cananalt put LED to software mode: %i\n",
 			err);
 }
 
@@ -252,7 +252,7 @@ static struct led_trigger omnia_hw_trigger = {
 };
 
 static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
-			      struct device_node *np)
+			      struct device_analde *np)
 {
 	struct led_init_data init_data = {};
 	struct device *dev = &client->dev;
@@ -262,7 +262,7 @@ static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
 	ret = of_property_read_u32(np, "reg", &led->reg);
 	if (ret || led->reg >= OMNIA_BOARD_LEDS) {
 		dev_warn(dev,
-			 "Node %pOF: must contain 'reg' property with values between 0 and %i\n",
+			 "Analde %pOF: must contain 'reg' property with values between 0 and %i\n",
 			 np, OMNIA_BOARD_LEDS - 1);
 		return 0;
 	}
@@ -270,7 +270,7 @@ static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
 	ret = of_property_read_u32(np, "color", &color);
 	if (ret || color != LED_COLOR_ID_RGB) {
 		dev_warn(dev,
-			 "Node %pOF: must contain 'color' property with value LED_COLOR_ID_RGB\n",
+			 "Analde %pOF: must contain 'color' property with value LED_COLOR_ID_RGB\n",
 			 np);
 		return 0;
 	}
@@ -289,7 +289,7 @@ static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
 	led->mc_cdev.subled_info = led->subled_info;
 	led->mc_cdev.num_colors = OMNIA_LED_NUM_CHANNELS;
 
-	init_data.fwnode = &np->fwnode;
+	init_data.fwanalde = &np->fwanalde;
 
 	cdev = &led->mc_cdev.led_cdev;
 	cdev->max_brightness = 255;
@@ -306,7 +306,7 @@ static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
 				 CMD_LED_MODE_LED(led->reg) |
 				 CMD_LED_MODE_USER);
 	if (ret) {
-		dev_err(dev, "Cannot set LED %pOF to software mode: %i\n", np,
+		dev_err(dev, "Cananalt set LED %pOF to software mode: %i\n", np,
 			ret);
 		return ret;
 	}
@@ -315,14 +315,14 @@ static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
 	ret = omnia_cmd_write_u8(client, CMD_LED_STATE,
 				 CMD_LED_STATE_LED(led->reg));
 	if (ret) {
-		dev_err(dev, "Cannot set LED %pOF brightness: %i\n", np, ret);
+		dev_err(dev, "Cananalt set LED %pOF brightness: %i\n", np, ret);
 		return ret;
 	}
 
 	/* Set initial color and cache it */
 	ret = omnia_led_send_color_cmd(client, led);
 	if (ret < 0) {
-		dev_err(dev, "Cannot set LED %pOF initial color: %i\n", np,
+		dev_err(dev, "Cananalt set LED %pOF initial color: %i\n", np,
 			ret);
 		return ret;
 	}
@@ -330,7 +330,7 @@ static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
 	ret = devm_led_classdev_multicolor_register_ext(dev, &led->mc_cdev,
 							&init_data);
 	if (ret < 0) {
-		dev_err(dev, "Cannot register LED %pOF: %i\n", np, ret);
+		dev_err(dev, "Cananalt register LED %pOF: %i\n", np, ret);
 		return ret;
 	}
 
@@ -345,8 +345,8 @@ static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
  * 100% to 0%), but this setting can have any integer value between 0 and 100.
  * It is therefore convenient to be able to change this setting from software.
  * We expose this setting via a sysfs attribute file called "brightness". This
- * file lives in the device directory of the LED controller, not an individual
- * LED, so it should not confuse users.
+ * file lives in the device directory of the LED controller, analt an individual
+ * LED, so it should analt confuse users.
  */
 static ssize_t brightness_show(struct device *dev, struct device_attribute *a,
 			       char *buf)
@@ -409,7 +409,7 @@ static ssize_t gamma_correction_store(struct device *dev,
 	int err;
 
 	if (!leds->has_gamma_correction)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (kstrtobool(buf, &val) < 0)
 		return -EINVAL;
@@ -452,15 +452,15 @@ static int omnia_mcu_get_features(const struct i2c_client *client)
 static int omnia_leds_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct device_node *np = dev_of_node(dev), *child;
+	struct device_analde *np = dev_of_analde(dev), *child;
 	struct omnia_leds *leds;
 	struct omnia_led *led;
 	int ret, count;
 
 	count = of_get_available_child_count(np);
 	if (!count) {
-		dev_err(dev, "LEDs are not defined in device tree!\n");
-		return -ENODEV;
+		dev_err(dev, "LEDs are analt defined in device tree!\n");
+		return -EANALDEV;
 	} else if (count > OMNIA_BOARD_LEDS) {
 		dev_err(dev, "Too many LEDs defined in device tree!\n");
 		return -EINVAL;
@@ -468,14 +468,14 @@ static int omnia_leds_probe(struct i2c_client *client)
 
 	leds = devm_kzalloc(dev, struct_size(leds, leds, count), GFP_KERNEL);
 	if (!leds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	leds->client = client;
 	i2c_set_clientdata(client, leds);
 
 	ret = omnia_mcu_get_features(client);
 	if (ret < 0) {
-		dev_err(dev, "Cannot determine MCU supported features: %d\n",
+		dev_err(dev, "Cananalt determine MCU supported features: %d\n",
 			ret);
 		return ret;
 	}
@@ -483,7 +483,7 @@ static int omnia_leds_probe(struct i2c_client *client)
 	leds->has_gamma_correction = ret & FEAT_LED_GAMMA_CORRECTION;
 	if (!leds->has_gamma_correction) {
 		dev_info(dev,
-			 "Your board's MCU firmware does not support the LED gamma correction feature.\n");
+			 "Your board's MCU firmware does analt support the LED gamma correction feature.\n");
 		dev_info(dev,
 			 "Consider upgrading MCU firmware with the omnia-mcutool utility.\n");
 	}
@@ -492,15 +492,15 @@ static int omnia_leds_probe(struct i2c_client *client)
 
 	ret = devm_led_trigger_register(dev, &omnia_hw_trigger);
 	if (ret < 0) {
-		dev_err(dev, "Cannot register private LED trigger: %d\n", ret);
+		dev_err(dev, "Cananalt register private LED trigger: %d\n", ret);
 		return ret;
 	}
 
 	led = &leds->leds[0];
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		ret = omnia_led_register(client, led, child);
 		if (ret < 0) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 

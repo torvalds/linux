@@ -40,7 +40,7 @@ A consumer can enable its power supply by calling::
 
 	int regulator_enable(regulator);
 
-NOTE:
+ANALTE:
   The supply may already be enabled before regulator_enable() is called.
   This may happen if the consumer shares the regulator or the regulator has been
   previously enabled by bootloader or kernel board initialization code.
@@ -52,19 +52,19 @@ A consumer can determine if a regulator is enabled by calling::
 This will return > zero when the regulator is enabled.
 
 
-A consumer can disable its supply when no longer needed by calling::
+A consumer can disable its supply when anal longer needed by calling::
 
 	int regulator_disable(regulator);
 
-NOTE:
-  This may not disable the supply if it's shared with other consumers. The
+ANALTE:
+  This may analt disable the supply if it's shared with other consumers. The
   regulator will only be disabled when the enabled reference count is zero.
 
 Finally, a regulator can be forcefully disabled in the case of an emergency::
 
 	int regulator_force_disable(regulator);
 
-NOTE:
+ANALTE:
   this will immediately and forcefully shutdown the regulator output. All
   consumers will be powered off.
 
@@ -84,7 +84,7 @@ Consumers can control their supply voltage by calling::
 Where min_uV and max_uV are the minimum and maximum acceptable voltages in
 microvolts.
 
-NOTE: this can be called when the regulator is enabled or disabled. If called
+ANALTE: this can be called when the regulator is enabled or disabled. If called
 when enabled, then the voltage changes instantly, otherwise the voltage
 configuration changes and the voltage is physically set when the regulator is
 next enabled.
@@ -93,9 +93,9 @@ The regulators configured voltage output can be found by calling::
 
 	int regulator_get_voltage(regulator);
 
-NOTE:
+ANALTE:
   get_voltage() will return the configured output voltage whether the
-  regulator is enabled or disabled and should NOT be used to determine regulator
+  regulator is enabled or disabled and should ANALT be used to determine regulator
   output state. However this can be used in conjunction with is_enabled() to
   determine the regulator physical output voltage.
 
@@ -115,7 +115,7 @@ Consumers can control their supply current limit by calling::
 Where min_uA and max_uA are the minimum and maximum acceptable current limit in
 microamps.
 
-NOTE:
+ANALTE:
   this can be called when the regulator is enabled or disabled. If called
   when enabled, then the current limit changes instantly, otherwise the current
   limit configuration changes and the current limit is physically set when the
@@ -125,9 +125,9 @@ A regulators current limit can be found by calling::
 
 	int regulator_get_current_limit(regulator);
 
-NOTE:
+ANALTE:
   get_current_limit() will return the current limit whether the regulator
-  is enabled or disabled and should not be used to determine regulator current
+  is enabled or disabled and should analt be used to determine regulator current
   load.
 
 
@@ -155,8 +155,8 @@ The load_uA value can be determined from the consumer's datasheet. e.g. most
 datasheets have tables showing the maximum current consumed in certain
 situations.
 
-Most consumers will use indirect operating mode control since they have no
-knowledge of the regulator or whether the regulator is shared with other
+Most consumers will use indirect operating mode control since they have anal
+kanalwledge of the regulator or whether the regulator is shared with other
 consumers.
 
 Direct operating mode control.
@@ -169,34 +169,34 @@ calling::
 	int regulator_set_mode(struct regulator *regulator, unsigned int mode);
 	unsigned int regulator_get_mode(struct regulator *regulator);
 
-Direct mode will only be used by consumers that *know* about the regulator and
-are not sharing the regulator with other consumers.
+Direct mode will only be used by consumers that *kanalw* about the regulator and
+are analt sharing the regulator with other consumers.
 
 
 6. Regulator Events
 ===================
 
-Regulators can notify consumers of external events. Events could be received by
+Regulators can analtify consumers of external events. Events could be received by
 consumers under regulator stress or failure conditions.
 
 Consumers can register interest in regulator events by calling::
 
-	int regulator_register_notifier(struct regulator *regulator,
-					struct notifier_block *nb);
+	int regulator_register_analtifier(struct regulator *regulator,
+					struct analtifier_block *nb);
 
 Consumers can unregister interest by calling::
 
-	int regulator_unregister_notifier(struct regulator *regulator,
-					  struct notifier_block *nb);
+	int regulator_unregister_analtifier(struct regulator *regulator,
+					  struct analtifier_block *nb);
 
-Regulators use the kernel notifier framework to send event to their interested
+Regulators use the kernel analtifier framework to send event to their interested
 consumers.
 
 7. Regulator Direct Register Access
 ===================================
 
 Some kinds of power management hardware or firmware are designed such that
-they need to do low-level hardware access to regulators, with no involvement
+they need to do low-level hardware access to regulators, with anal involvement
 from the kernel. Examples of such devices are:
 
 - clocksource with a voltage-controlled oscillator and control logic to change

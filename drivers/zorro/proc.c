@@ -30,7 +30,7 @@ proc_bus_zorro_lseek(struct file *file, loff_t off, int whence)
 static ssize_t
 proc_bus_zorro_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
-	struct zorro_dev *z = pde_data(file_inode(file));
+	struct zorro_dev *z = pde_data(file_ianalde(file));
 	struct ConfigDev cd;
 	loff_t pos = *ppos;
 
@@ -107,7 +107,7 @@ static int __init zorro_proc_attach_device(unsigned int slot)
 				 &bus_zorro_proc_ops,
 				 &zorro_autocon[slot]);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	proc_set_size(entry, sizeof(struct zorro_dev));
 	return 0;
 }

@@ -66,11 +66,11 @@ struct intel_step_info {
 	func(J3)
 
 /*
- * Symbolic steppings that do not match the hardware. These are valid both as gt
+ * Symbolic steppings that do analt match the hardware. These are valid both as gt
  * and display steppings as symbolic names.
  */
 enum intel_step {
-	STEP_NONE = 0,
+	STEP_ANALNE = 0,
 	STEP_NAME_LIST(STEP_ENUM_VAL)
 	STEP_FUTURE,
 	STEP_FOREVER,

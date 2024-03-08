@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -44,7 +44,7 @@ struct transform {
 
 /* Colorimetry */
 enum colorimetry {
-	COLORIMETRY_NO_DATA = 0,
+	COLORIMETRY_ANAL_DATA = 0,
 	COLORIMETRY_ITU601 = 1,
 	COLORIMETRY_ITU709 = 2,
 	COLORIMETRY_EXTENDED = 3
@@ -62,7 +62,7 @@ enum colorimetry_ext {
 };
 
 enum active_format_info {
-	ACTIVE_FORMAT_NO_DATA = 0,
+	ACTIVE_FORMAT_ANAL_DATA = 0,
 	ACTIVE_FORMAT_VALID = 1
 };
 
@@ -75,7 +75,7 @@ enum active_format_aspect_ratio {
 };
 
 enum bar_info {
-	BAR_INFO_NOT_VALID = 0,
+	BAR_INFO_ANALT_VALID = 0,
 	BAR_INFO_VERTICAL_VALID = 1,
 	BAR_INFO_HORIZONTAL_VALID = 2,
 	BAR_INFO_BOTH_VALID = 3

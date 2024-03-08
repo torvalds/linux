@@ -193,7 +193,7 @@
 #define UARTCTRL_PE		0x00000002
 #define UARTCTRL_PT		0x00000001
 
-#define UARTDATA_NOISY		0x00008000
+#define UARTDATA_ANALISY		0x00008000
 #define UARTDATA_PARITYE	0x00004000
 #define UARTDATA_FRETSC		0x00002000
 #define UARTDATA_RXEMPT		0x00001000
@@ -508,7 +508,7 @@ static void lpuart_dma_tx(struct lpuart_port *sport)
 	if (!sport->dma_tx_desc) {
 		dma_unmap_sg(chan->device->dev, sgl, sport->dma_tx_nents,
 			      DMA_TO_DEVICE);
-		dev_err(dev, "Cannot prepare TX slave DMA!\n");
+		dev_err(dev, "Cananalt prepare TX slave DMA!\n");
 		return;
 	}
 
@@ -690,7 +690,7 @@ static void lpuart_poll_put_char(struct uart_port *port, unsigned char c)
 static int lpuart_poll_get_char(struct uart_port *port)
 {
 	if (!(readb(port->membase + UARTSR1) & UARTSR1_RDRF))
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	return readb(port->membase + UARTDR);
 }
@@ -738,7 +738,7 @@ static void lpuart32_poll_put_char(struct uart_port *port, unsigned char c)
 static int lpuart32_poll_get_char(struct uart_port *port)
 {
 	if (!(lpuart32_read(port, UARTWATER) >> UARTWATER_RXCNT_OFF))
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	return lpuart32_read(port, UARTDATA);
 }
@@ -838,7 +838,7 @@ lpuart_uart_pm(struct uart_port *port, unsigned int state, unsigned int oldstate
 	}
 }
 
-/* return TIOCSER_TEMT when transmitter is not busy */
+/* return TIOCSER_TEMT when transmitter is analt busy */
 static unsigned int lpuart_tx_empty(struct uart_port *port)
 {
 	struct lpuart_port *sport = container_of(port,
@@ -886,14 +886,14 @@ static void lpuart_txint(struct lpuart_port *sport)
 
 static void lpuart_rxint(struct lpuart_port *sport)
 {
-	unsigned int flg, ignored = 0, overrun = 0;
+	unsigned int flg, iganalred = 0, overrun = 0;
 	struct tty_port *port = &sport->port.state->port;
 	unsigned char rx, sr;
 
 	uart_port_lock(&sport->port);
 
 	while (!(readb(sport->port.membase + UARTSFIFO) & UARTSFIFO_RXEMPT)) {
-		flg = TTY_NORMAL;
+		flg = TTY_ANALRMAL;
 		sport->port.icount.rx++;
 		/*
 		 * to clear the FE, OR, NF, FE, PE flags,
@@ -914,8 +914,8 @@ static void lpuart_rxint(struct lpuart_port *sport)
 			if (sr & UARTSR1_OR)
 				overrun++;
 
-			if (sr & sport->port.ignore_status_mask) {
-				if (++ignored > 100)
+			if (sr & sport->port.iganalre_status_mask) {
+				if (++iganalred > 100)
 					goto out;
 				continue;
 			}
@@ -963,7 +963,7 @@ static void lpuart32_txint(struct lpuart_port *sport)
 
 static void lpuart32_rxint(struct lpuart_port *sport)
 {
-	unsigned int flg, ignored = 0;
+	unsigned int flg, iganalred = 0;
 	struct tty_port *port = &sport->port.state->port;
 	unsigned long rx, sr;
 	bool is_break;
@@ -971,7 +971,7 @@ static void lpuart32_rxint(struct lpuart_port *sport)
 	uart_port_lock(&sport->port);
 
 	while (!(lpuart32_read(&sport->port, UARTFIFO) & UARTFIFO_RXEMPT)) {
-		flg = TTY_NORMAL;
+		flg = TTY_ANALRMAL;
 		sport->port.icount.rx++;
 		/*
 		 * to clear the FE, OR, NF, FE, PE flags,
@@ -1006,8 +1006,8 @@ static void lpuart32_rxint(struct lpuart_port *sport)
 			if (sr & UARTSTAT_OR)
 				sport->port.icount.overrun++;
 
-			if (sr & sport->port.ignore_status_mask) {
-				if (++ignored > 100)
+			if (sr & sport->port.iganalre_status_mask) {
+				if (++iganalred > 100)
 					goto out;
 				continue;
 			}
@@ -1187,7 +1187,7 @@ static void lpuart_copy_rx_to_tty(struct lpuart_port *sport)
 	 * ring->head points to the end of data already written by the DMA.
 	 * ring->tail points to the beginning of data to be read by the
 	 * framework.
-	 * The current transfer size should not be larger than the dma buffer
+	 * The current transfer size should analt be larger than the dma buffer
 	 * length.
 	 */
 	ring->head = sport->rx_sgl.length - state.residue;
@@ -1305,7 +1305,7 @@ static irqreturn_t lpuart32_int(int irq, void *dev_id)
 /*
  * Timer function to simulate the hardware EOP (End Of Package) event.
  * The timer callback is to check for new RX data and copy to TTY buffer.
- * If no new data are received since last interval, the EOP condition is
+ * If anal new data are received since last interval, the EOP condition is
  * met, complete the DMA transfer by copying the data. Otherwise, just
  * restart timer.
  */
@@ -1375,7 +1375,7 @@ static inline int lpuart_start_rx_dma(struct lpuart_port *sport)
 
 	ring->buf = kzalloc(sport->rx_dma_rng_buf_len, GFP_ATOMIC);
 	if (!ring->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sg_init_one(&sport->rx_sgl, ring->buf, sport->rx_dma_rng_buf_len);
 	nent = dma_map_sg(chan->device->dev, &sport->rx_sgl, 1,
@@ -1405,7 +1405,7 @@ static inline int lpuart_start_rx_dma(struct lpuart_port *sport)
 				 DMA_DEV_TO_MEM,
 				 DMA_PREP_INTERRUPT);
 	if (!sport->dma_rx_desc) {
-		dev_err(sport->port.dev, "Cannot prepare cyclic DMA\n");
+		dev_err(sport->port.dev, "Cananalt prepare cyclic DMA\n");
 		return -EFAULT;
 	}
 
@@ -1468,7 +1468,7 @@ static int lpuart_config_rs485(struct uart_port *port, struct ktermios *termios,
 		 * The hardware defaults to RTS logic HIGH while transfer.
 		 * Switch polarity in case RTS shall be logic HIGH
 		 * after transfer.
-		 * Note: UART is assumed to be active high.
+		 * Analte: UART is assumed to be active high.
 		 */
 		if (rs485->flags & SER_RS485_RTS_ON_SEND)
 			modem |= UARTMODEM_TXRTSPOL;
@@ -1498,7 +1498,7 @@ static int lpuart32_config_rs485(struct uart_port *port, struct ktermios *termio
 		 * The hardware defaults to RTS logic HIGH while transfer.
 		 * Switch polarity in case RTS shall be logic HIGH
 		 * after transfer.
-		 * Note: UART is assumed to be active high.
+		 * Analte: UART is assumed to be active high.
 		 */
 		if (rs485->flags & SER_RS485_RTS_ON_SEND)
 			modem |= UARTMODIR_TXRTSPOL;
@@ -1581,11 +1581,11 @@ static void lpuart32_break_ctl(struct uart_port *port, int break_state)
 	temp = lpuart32_read(port, UARTCTRL);
 
 	/*
-	 * LPUART IP now has two known bugs, one is CTS has higher priority than the
+	 * LPUART IP analw has two kanalwn bugs, one is CTS has higher priority than the
 	 * break signal, which causes the break signal sending through UARTCTRL_SBK
 	 * may impacted by the CTS input if the HW flow control is enabled. It
 	 * exists on all platforms we support in this driver.
-	 * Another bug is i.MX8QM LPUART may have an additional break character
+	 * Aanalther bug is i.MX8QM LPUART may have an additional break character
 	 * being sent after SBK was cleared.
 	 * To avoid above two bugs, we use Transmit Data Inversion function to send
 	 * the break signal instead of UARTCTRL_SBK.
@@ -2077,18 +2077,18 @@ lpuart_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		sport->port.read_status_mask |= UARTSR1_FE;
 
-	/* characters to ignore */
-	sport->port.ignore_status_mask = 0;
+	/* characters to iganalre */
+	sport->port.iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		sport->port.ignore_status_mask |= UARTSR1_PE;
+		sport->port.iganalre_status_mask |= UARTSR1_PE;
 	if (termios->c_iflag & IGNBRK) {
-		sport->port.ignore_status_mask |= UARTSR1_FE;
+		sport->port.iganalre_status_mask |= UARTSR1_FE;
 		/*
-		 * if we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * if we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			sport->port.ignore_status_mask |= UARTSR1_OR;
+			sport->port.iganalre_status_mask |= UARTSR1_OR;
 	}
 
 	/* update the per-port timeout */
@@ -2136,7 +2136,7 @@ static void __lpuart32_serial_setbrg(struct uart_port *port,
 
 	/*
 	 * The idea is to use the best OSR (over-sampling rate) possible.
-	 * Note, OSR is typically hard-set to 16 in other LPUART instantiations.
+	 * Analte, OSR is typically hard-set to 16 in other LPUART instantiations.
 	 * Loop to find the best OSR value possible, one that generates minimum
 	 * baud_diff iterate through the rest of the supported values of OSR.
 	 *
@@ -2312,18 +2312,18 @@ lpuart32_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		sport->port.read_status_mask |= UARTSTAT_FE;
 
-	/* characters to ignore */
-	sport->port.ignore_status_mask = 0;
+	/* characters to iganalre */
+	sport->port.iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		sport->port.ignore_status_mask |= UARTSTAT_PE;
+		sport->port.iganalre_status_mask |= UARTSTAT_PE;
 	if (termios->c_iflag & IGNBRK) {
-		sport->port.ignore_status_mask |= UARTSTAT_FE;
+		sport->port.iganalre_status_mask |= UARTSTAT_FE;
 		/*
-		 * if we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * if we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			sport->port.ignore_status_mask |= UARTSTAT_OR;
+			sport->port.iganalre_status_mask |= UARTSTAT_OR;
 	}
 
 	/* update the per-port timeout */
@@ -2369,7 +2369,7 @@ static const char *lpuart_type(struct uart_port *port)
 
 static void lpuart_release_port(struct uart_port *port)
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 
 static int lpuart_request_port(struct uart_port *port)
@@ -2388,7 +2388,7 @@ static int lpuart_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
 	int ret = 0;
 
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_LPUART)
+	if (ser->type != PORT_UNKANALWN && ser->type != PORT_LPUART)
 		ret = -EINVAL;
 	if (port->irq != ser->irq)
 		ret = -EINVAL;
@@ -2645,7 +2645,7 @@ static int __init lpuart_console_setup(struct console *co, char *options)
 
 	sport = lpuart_ports[co->index];
 	if (sport == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -2702,7 +2702,7 @@ static int __init lpuart_early_console_setup(struct earlycon_device *device,
 					  const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = lpuart_early_write;
 	return 0;
@@ -2712,7 +2712,7 @@ static int __init lpuart32_early_console_setup(struct earlycon_device *device,
 					  const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (device->port.iotype != UPIO_MEM32)
 		device->port.iotype = UPIO_MEM32BE;
@@ -2727,7 +2727,7 @@ static int __init ls1028a_early_console_setup(struct earlycon_device *device,
 	u32 cr;
 
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->port.iotype = UPIO_MEM32;
 	device->con->write = lpuart32_early_write;
@@ -2749,7 +2749,7 @@ static int __init lpuart32_imx_early_console_setup(struct earlycon_device *devic
 						   const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->port.iotype = UPIO_MEM32;
 	device->port.membase += IMX_REG_OFF;
@@ -2784,7 +2784,7 @@ static struct uart_driver lpuart_reg = {
 
 static const struct serial_rs485 lpuart_rs485_supported = {
 	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND | SER_RS485_RTS_AFTER_SEND,
-	/* delay_rts_* and RX_DURING_TX are not supported */
+	/* delay_rts_* and RX_DURING_TX are analt supported */
 };
 
 static int lpuart_global_reset(struct lpuart_port *sport)
@@ -2838,7 +2838,7 @@ static int lpuart_global_reset(struct lpuart_port *sport)
 static int lpuart_probe(struct platform_device *pdev)
 {
 	const struct lpuart_soc_data *sdata = of_device_get_match_data(&pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct lpuart_port *sport;
 	struct resource *res;
 	irq_handler_t handler;
@@ -2846,7 +2846,7 @@ static int lpuart_probe(struct platform_device *pdev)
 
 	sport = devm_kzalloc(&pdev->dev, sizeof(*sport), GFP_KERNEL);
 	if (!sport)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sport->port.membase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(sport->port.membase))
@@ -2897,7 +2897,7 @@ static int lpuart_probe(struct platform_device *pdev)
 
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get alias id, errno %d\n", ret);
+		dev_err(&pdev->dev, "failed to get alias id, erranal %d\n", ret);
 		return ret;
 	}
 	if (ret >= ARRAY_SIZE(lpuart_ports)) {
@@ -3047,7 +3047,7 @@ static bool lpuart_uport_is_active(struct lpuart_port *sport)
 	return false;
 }
 
-static int lpuart_suspend_noirq(struct device *dev)
+static int lpuart_suspend_analirq(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
 	bool irq_wake = irqd_is_wakeup_set(irq_get_irq_data(sport->port.irq));
@@ -3060,7 +3060,7 @@ static int lpuart_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int lpuart_resume_noirq(struct device *dev)
+static int lpuart_resume_analirq(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
 	unsigned int val;
@@ -3105,9 +3105,9 @@ static int lpuart_suspend(struct device *dev)
 		if (sport->lpuart_dma_rx_use) {
 			/*
 			 * EDMA driver during suspend will forcefully release any
-			 * non-idle DMA channels. If port wakeup is enabled or if port
-			 * is console port or 'no_console_suspend' is set the Rx DMA
-			 * cannot resume as expected, hence gracefully release the
+			 * analn-idle DMA channels. If port wakeup is enabled or if port
+			 * is console port or 'anal_console_suspend' is set the Rx DMA
+			 * cananalt resume as expected, hence gracefully release the
 			 * Rx DMA path before suspend and start Rx DMA path on resume.
 			 */
 			lpuart_dma_rx_free(&sport->port);
@@ -3156,10 +3156,10 @@ static void lpuart_console_fixup(struct lpuart_port *sport)
 	struct ktermios termios;
 
 	/* i.MX7ULP enter VLLS mode that lpuart module power off and registers
-	 * all lost no matter the port is wakeup source.
+	 * all lost anal matter the port is wakeup source.
 	 * For console port, console baud rate setting lost and print messy
 	 * log when enable the console port as wakeup source. To avoid the
-	 * issue happen, user should not enable uart port as wakeup source
+	 * issue happen, user should analt enable uart port as wakeup source
 	 * in VLLS mode, or restore console setting here.
 	 */
 	if (is_imx7ulp_lpuart(sport) && lpuart_uport_is_active(sport) &&
@@ -3202,8 +3202,8 @@ static int lpuart_resume(struct device *dev)
 static const struct dev_pm_ops lpuart_pm_ops = {
 	RUNTIME_PM_OPS(lpuart_runtime_suspend,
 			   lpuart_runtime_resume, NULL)
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(lpuart_suspend_noirq,
-				      lpuart_resume_noirq)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(lpuart_suspend_analirq,
+				      lpuart_resume_analirq)
 	SYSTEM_SLEEP_PM_OPS(lpuart_suspend, lpuart_resume)
 };
 

@@ -2,7 +2,7 @@
 /*
  * StarFive JH7110 DPHY RX driver
  *
- * Copyright (C) 2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2023 StarFive Techanallogy Co., Ltd.
  * Author: Jack Zhu <jack.zhu@starfivetech.com>
  * Author: Changhuang Liang <changhuang.liang@starfivetech.com>
  */
@@ -158,7 +158,7 @@ static int stf_dphy_probe(struct platform_device *pdev)
 
 	dphy = devm_kzalloc(&pdev->dev, sizeof(*dphy), GFP_KERNEL);
 	if (!dphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dphy->info = of_device_get_match_data(&pdev->dev);
 

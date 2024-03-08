@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -789,7 +789,7 @@ static void trinity_force_level_0(struct radeon_device *rdev)
 
 static void trinity_unforce_levels(struct radeon_device *rdev)
 {
-	trinity_dpm_no_forced_level(rdev);
+	trinity_dpm_anal_forced_level(rdev);
 }
 
 static void trinity_program_power_levels_0_to_n(struct radeon_device *rdev,
@@ -1166,7 +1166,7 @@ int trinity_dpm_force_performance_level(struct radeon_device *rdev,
 		return 0;
 
 	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
-		/* not supported by the hw */
+		/* analt supported by the hw */
 		return -EINVAL;
 	} else if (level == RADEON_DPM_FORCED_LEVEL_LOW) {
 		ret = trinity_dpm_n_levels_disabled(rdev, ps->num_levels - 1);
@@ -1417,7 +1417,7 @@ static u32 trinity_get_uvd_clock_index(struct radeon_device *rdev,
 	}
 
 	if (i >= 4) {
-		DRM_ERROR("UVD clock index not found!\n");
+		DRM_ERROR("UVD clock index analt found!\n");
 		i = 3;
 	}
 	return i;
@@ -1480,7 +1480,7 @@ static int trinity_get_vce_clock_voltage(struct radeon_device *rdev,
 		}
 	}
 
-	/* if no match return the highest voltage */
+	/* if anal match return the highest voltage */
 	if (ret)
 		*voltage = table->entries[table->count - 1].v;
 
@@ -1633,20 +1633,20 @@ union pplib_power_state {
 	struct _ATOM_PPLIB_STATE_V2 v2;
 };
 
-static void trinity_parse_pplib_non_clock_info(struct radeon_device *rdev,
+static void trinity_parse_pplib_analn_clock_info(struct radeon_device *rdev,
 					       struct radeon_ps *rps,
-					       struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info,
+					       struct _ATOM_PPLIB_ANALNCLOCK_INFO *analn_clock_info,
 					       u8 table_rev)
 {
 	struct trinity_ps *ps = trinity_get_ps(rps);
 
-	rps->caps = le32_to_cpu(non_clock_info->ulCapsAndSettings);
-	rps->class = le16_to_cpu(non_clock_info->usClassification);
-	rps->class2 = le16_to_cpu(non_clock_info->usClassification2);
+	rps->caps = le32_to_cpu(analn_clock_info->ulCapsAndSettings);
+	rps->class = le16_to_cpu(analn_clock_info->usClassification);
+	rps->class2 = le16_to_cpu(analn_clock_info->usClassification2);
 
-	if (ATOM_PPLIB_NONCLOCKINFO_VER1 < table_rev) {
-		rps->vclk = le32_to_cpu(non_clock_info->ulVCLK);
-		rps->dclk = le32_to_cpu(non_clock_info->ulDCLK);
+	if (ATOM_PPLIB_ANALNCLOCKINFO_VER1 < table_rev) {
+		rps->vclk = le32_to_cpu(analn_clock_info->ulVCLK);
+		rps->dclk = le32_to_cpu(analn_clock_info->ulDCLK);
 	} else {
 		rps->vclk = 0;
 		rps->dclk = 0;
@@ -1685,13 +1685,13 @@ static void trinity_parse_pplib_clock_info(struct radeon_device *rdev,
 static int trinity_parse_power_table(struct radeon_device *rdev)
 {
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
-	struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info;
+	struct _ATOM_PPLIB_ANALNCLOCK_INFO *analn_clock_info;
 	union pplib_power_state *power_state;
-	int i, j, k, non_clock_array_index, clock_array_index;
+	int i, j, k, analn_clock_array_index, clock_array_index;
 	union pplib_clock_info *clock_info;
 	struct _StateArray *state_array;
 	struct _ClockInfoArray *clock_info_array;
-	struct _NonClockInfoArray *non_clock_info_array;
+	struct _AnalnClockInfoArray *analn_clock_info_array;
 	union power_info *power_info;
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
 	u16 data_offset;
@@ -1710,22 +1710,22 @@ static int trinity_parse_power_table(struct radeon_device *rdev)
 	clock_info_array = (struct _ClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usClockInfoArrayOffset));
-	non_clock_info_array = (struct _NonClockInfoArray *)
+	analn_clock_info_array = (struct _AnalnClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
-		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
+		 le16_to_cpu(power_info->pplib.usAnalnClockInfoArrayOffset));
 
 	rdev->pm.dpm.ps = kcalloc(state_array->ucNumEntries,
 				  sizeof(struct radeon_ps),
 				  GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
-		return -ENOMEM;
+		return -EANALMEM;
 	power_state_offset = (u8 *)state_array->states;
 	for (i = 0; i < state_array->ucNumEntries; i++) {
 		u8 *idx;
 		power_state = (union pplib_power_state *)power_state_offset;
-		non_clock_array_index = power_state->v2.nonClockInfoIndex;
-		non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
-			&non_clock_info_array->nonClockInfo[non_clock_array_index];
+		analn_clock_array_index = power_state->v2.analnClockInfoIndex;
+		analn_clock_info = (struct _ATOM_PPLIB_ANALNCLOCK_INFO *)
+			&analn_clock_info_array->analnClockInfo[analn_clock_array_index];
 		if (!rdev->pm.power_state[i].clock_info) {
 			kfree(rdev->pm.dpm.ps);
 			return -EINVAL;
@@ -1733,7 +1733,7 @@ static int trinity_parse_power_table(struct radeon_device *rdev)
 		ps = kzalloc(sizeof(struct sumo_ps), GFP_KERNEL);
 		if (ps == NULL) {
 			kfree(rdev->pm.dpm.ps);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		rdev->pm.dpm.ps[i].ps_priv = ps;
 		k = 0;
@@ -1752,9 +1752,9 @@ static int trinity_parse_power_table(struct radeon_device *rdev)
 						       clock_info);
 			k++;
 		}
-		trinity_parse_pplib_non_clock_info(rdev, &rdev->pm.dpm.ps[i],
-						   non_clock_info,
-						   non_clock_info_array->ucEntrySize);
+		trinity_parse_pplib_analn_clock_info(rdev, &rdev->pm.dpm.ps[i],
+						   analn_clock_info,
+						   analn_clock_info_array->ucEntrySize);
 		power_state_offset += 2 + power_state->v2.ucNumDPMLevels;
 	}
 	rdev->pm.dpm.num_ps = state_array->ucNumEntries;
@@ -1909,7 +1909,7 @@ int trinity_dpm_init(struct radeon_device *rdev)
 
 	pi = kzalloc(sizeof(struct trinity_power_info), GFP_KERNEL);
 	if (pi == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	rdev->pm.dpm.priv = pi;
 
 	for (i = 0; i < SUMO_MAX_HARDWARE_POWERLEVELS; i++)
@@ -1919,8 +1919,8 @@ int trinity_dpm_init(struct radeon_device *rdev)
 		/* There are stability issues reported on with
 		 * bapm enabled when switching between AC and battery
 		 * power.  At the same time, some MSI boards hang
-		 * if it's not enabled and dpm is enabled.  Just enable
-		 * it for MSI boards right now.
+		 * if it's analt enabled and dpm is enabled.  Just enable
+		 * it for MSI boards right analw.
 		 */
 		if (rdev->pdev->subsystem_vendor == 0x1462)
 			pi->enable_bapm = true;

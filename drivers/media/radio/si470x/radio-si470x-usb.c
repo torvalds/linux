@@ -71,7 +71,7 @@ static unsigned short max_rds_errors = 1;
 /* 0 means   0  errors requiring correction */
 /* 1 means 1-2  errors requiring correction (used by original USBRadio.exe) */
 /* 2 means 3-5  errors requiring correction */
-/* 3 means   6+ errors or errors in checkword, correction not possible */
+/* 3 means   6+ errors or errors in checkword, correction analt possible */
 module_param(max_rds_errors, ushort, 0644);
 MODULE_PARM_DESC(max_rds_errors, "RDS maximum block errors: *1*");
 
@@ -140,7 +140,7 @@ MODULE_PARM_DESC(max_rds_errors, "RDS maximum block errors: *1*");
  **************************************************************************/
 #define LED_COMMAND		0x35
 
-#define NO_CHANGE_LED		0x00
+#define ANAL_CHANGE_LED		0x00
 #define ALL_COLOR_LED		0x01	/* streaming state */
 #define BLINK_GREEN_LED		0x02	/* connect state */
 #define BLINK_RED_LED		0x04
@@ -370,13 +370,13 @@ static void si470x_int_in_callback(struct urb *urb)
 	unsigned char tmpbuf[3];
 
 	if (urb->status) {
-		if (urb->status == -ENOENT ||
+		if (urb->status == -EANALENT ||
 				urb->status == -ECONNRESET ||
 				urb->status == -ESHUTDOWN) {
 			return;
 		} else {
 			dev_warn(&radio->intf->dev,
-			 "non-zero urb status (%d)\n", urb->status);
+			 "analn-zero urb status (%d)\n", urb->status);
 			goto resubmit; /* Maybe we can recover. */
 		}
 	}
@@ -399,11 +399,11 @@ static void si470x_int_in_callback(struct urb *urb)
 				regnr * RADIO_REGISTER_SIZE + 1]);
 		/* get rds blocks */
 		if ((radio->registers[STATUSRSSI] & STATUSRSSI_RDSR) == 0) {
-			/* No RDS group ready, better luck next time */
+			/* Anal RDS group ready, better luck next time */
 			goto resubmit;
 		}
 		if ((radio->registers[STATUSRSSI] & STATUSRSSI_RDSS) == 0) {
-			/* RDS decoder not synchronized */
+			/* RDS decoder analt synchronized */
 			goto resubmit;
 		}
 		for (blocknum = 0; blocknum < 4; blocknum++) {
@@ -572,12 +572,12 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	/* private data allocation and initialization */
 	radio = kzalloc(sizeof(struct si470x_device), GFP_KERNEL);
 	if (!radio) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_initial;
 	}
 	radio->usb_buf = kmalloc(MAX_REPORT_SIZE, GFP_KERNEL);
 	if (radio->usb_buf == NULL) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_radio;
 	}
 	radio->usbdev = interface_to_usbdev(intf);
@@ -601,7 +601,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			radio->int_in_endpoint = endpoint;
 	}
 	if (!radio->int_in_endpoint) {
-		dev_info(&intf->dev, "could not find interrupt in endpoint\n");
+		dev_info(&intf->dev, "could analt find interrupt in endpoint\n");
 		retval = -EIO;
 		goto err_usbbuf;
 	}
@@ -610,14 +610,14 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 
 	radio->int_in_buffer = kmalloc(int_end_size, GFP_KERNEL);
 	if (!radio->int_in_buffer) {
-		dev_info(&intf->dev, "could not allocate int_in_buffer");
-		retval = -ENOMEM;
+		dev_info(&intf->dev, "could analt allocate int_in_buffer");
+		retval = -EANALMEM;
 		goto err_usbbuf;
 	}
 
 	radio->int_in_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!radio->int_in_urb) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_intbuffer;
 	}
 
@@ -625,7 +625,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 
 	/*
 	 * The si470x SiLabs reference design uses the same USB IDs as
-	 * 'Thanko's Raremono' si4734 based receiver. So check here which we
+	 * 'Thanko's Raremoanal' si4734 based receiver. So check here which we
 	 * have: attempt to read the device ID from the si470x: the lower 12
 	 * bits should be 0x0242 for the si470x.
 	 *
@@ -640,8 +640,8 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 				radio->usb_buf, 3, 500);
 		if (retval != 3 ||
 		    (get_unaligned_be16(&radio->usb_buf[1]) & 0xfff) != 0x0242) {
-			dev_info(&intf->dev, "this is not a si470x device.\n");
-			retval = -ENODEV;
+			dev_info(&intf->dev, "this is analt a si470x device.\n");
+			retval = -EANALDEV;
 			goto err_urb;
 		}
 	}
@@ -681,7 +681,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			radio->registers[DEVICEID], radio->registers[SI_CHIPID]);
 	if ((radio->registers[SI_CHIPID] & SI_CHIPID_FIRMWARE) < RADIO_FW_VERSION) {
 		dev_warn(&intf->dev,
-			"This driver is known to work with firmware version %u, but the device has firmware version %u.\n",
+			"This driver is kanalwn to work with firmware version %u, but the device has firmware version %u.\n",
 			RADIO_FW_VERSION,
 			radio->registers[SI_CHIPID] & SI_CHIPID_FIRMWARE);
 		version_warning = 1;
@@ -696,7 +696,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			radio->software_version, radio->hardware_version);
 	if (radio->hardware_version < RADIO_HW_VERSION) {
 		dev_warn(&intf->dev,
-			"This driver is known to work with hardware version %u, but the device has hardware version %u.\n",
+			"This driver is kanalwn to work with hardware version %u, but the device has hardware version %u.\n",
 			RADIO_HW_VERSION,
 			radio->hardware_version);
 		version_warning = 1;
@@ -739,7 +739,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	retval = video_register_device(&radio->videodev, VFL_TYPE_RADIO,
 			radio_nr);
 	if (retval) {
-		dev_err(&intf->dev, "Could not register video device\n");
+		dev_err(&intf->dev, "Could analt register video device\n");
 		goto err_all;
 	}
 
@@ -773,7 +773,7 @@ static int si470x_usb_driver_suspend(struct usb_interface *intf,
 {
 	struct si470x_device *radio = usb_get_intfdata(intf);
 
-	dev_info(&intf->dev, "suspending now...\n");
+	dev_info(&intf->dev, "suspending analw...\n");
 
 	/* shutdown interrupt handler */
 	if (radio->int_in_running) {
@@ -799,7 +799,7 @@ static int si470x_usb_driver_resume(struct usb_interface *intf)
 	struct si470x_device *radio = usb_get_intfdata(intf);
 	int ret;
 
-	dev_info(&intf->dev, "resuming now...\n");
+	dev_info(&intf->dev, "resuming analw...\n");
 
 	/* start radio */
 	ret = si470x_start_usb(radio);
@@ -830,7 +830,7 @@ static void si470x_usb_driver_disconnect(struct usb_interface *intf)
 /*
  * si470x_usb_driver - usb driver interface
  *
- * A note on suspend/resume: this driver had only empty suspend/resume
+ * A analte on suspend/resume: this driver had only empty suspend/resume
  * functions, and when I tried to test suspend/resume it always disconnected
  * instead of resuming (using my ADS InstantFM stick). So I've decided to
  * remove these callbacks until someone else with better hardware can

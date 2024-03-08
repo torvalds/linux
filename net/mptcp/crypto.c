@@ -2,7 +2,7 @@
 /* Multipath TCP cryptographic functions
  * Copyright (c) 2017 - 2019, Intel Corporation.
  *
- * Note: This code is based on mptcp_ctrl.c, mptcp_ipv4.c, and
+ * Analte: This code is based on mptcp_ctrl.c, mptcp_ipv4.c, and
  *       mptcp_ipv6 from multipath-tcp.org, authored by:
  *
  *       Sébastien Barré <sebastien.barre@uclouvain.be>

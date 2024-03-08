@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2021 Mellanox Technologies.
+// Copyright (c) 2021 Mellaanalx Techanallogies.
 
 #include "eswitch.h"
 
@@ -15,7 +15,7 @@ struct mlx5_vport_key {
 } __packed;
 
 struct mlx5_vport_table {
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	struct mlx5_flow_table *fdb;
 	u32 num_rules;
 	struct mlx5_vport_key key;
@@ -24,7 +24,7 @@ struct mlx5_vport_table {
 static void
 esw_vport_tbl_init(struct mlx5_eswitch *esw, struct esw_vport_tbl_namespace *ns)
 {
-	if (esw->offloads.encap != DEVLINK_ESWITCH_ENCAP_MODE_NONE)
+	if (esw->offloads.encap != DEVLINK_ESWITCH_ENCAP_MODE_ANALNE)
 		ns->flags |= (MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT |
 			      MLX5_FLOW_TABLE_TUNNEL_EN_DECAP);
 }
@@ -98,14 +98,14 @@ mlx5_esw_vporttbl_get(struct mlx5_eswitch *esw, struct mlx5_vport_tbl_attr *attr
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (!e) {
-		fdb = ERR_PTR(-ENOMEM);
+		fdb = ERR_PTR(-EANALMEM);
 		goto err_alloc;
 	}
 
 	ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_FDB);
 	if (!ns) {
 		esw_warn(dev, "Failed to get FDB namespace\n");
-		fdb = ERR_PTR(-ENOENT);
+		fdb = ERR_PTR(-EANALENT);
 		goto err_ns;
 	}
 

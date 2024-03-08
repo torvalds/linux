@@ -2,7 +2,7 @@
 .. sectnum::
 
 ==========================
-Linux implementation notes
+Linux implementation analtes
 ==========================
 
 This document provides more details specific to the Linux kernel implementation of the eBPF instruction set.
@@ -16,7 +16,7 @@ Jump instructions
 =================
 
 ``BPF_CALL | BPF_X | BPF_JMP`` (0x8d), where the helper function
-integer would be read from a specified register, is not currently supported
+integer would be read from a specified register, is analt currently supported
 by the verifier.  Any programs with this instruction will fail to load
 until such support is added.
 

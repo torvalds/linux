@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * ADIS16201 Dual-Axis Digital Inclinometer and Accelerometer
+ * ADIS16201 Dual-Axis Digital Inclianalmeter and Accelerometer
  *
  * Copyright 2010 Analog Devices Inc.
  */
@@ -59,7 +59,7 @@
 /* Data-ready line selection: 1 = DIO1, 0 = DIO0 */
 #define  ADIS16201_MSC_CTRL_DATA_RDY_DIO1		BIT(0)
 
-/* Diagnostics System Status Register Definition */
+/* Diaganalstics System Status Register Definition */
 #define ADIS16201_DIAG_STAT_REG				0x3C
 #define  ADIS16201_DIAG_STAT_ALARM2			BIT(9)
 #define  ADIS16201_DIAG_STAT_ALARM1			BIT(8)
@@ -134,7 +134,7 @@ static int adis16201_read_raw(struct iio_dev *indio_dev,
 			 */
 			*val = 0;
 			*val2 = IIO_G_TO_M_S_2(462400);
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		case IIO_INCLI:
 			*val = 0;
 			*val2 = 100000;
@@ -244,7 +244,7 @@ static const struct adis_data adis16201_data = {
 
 	.self_test_mask = ADIS16201_MSC_CTRL_SELF_TEST_EN,
 	.self_test_reg = ADIS16201_MSC_CTRL_REG,
-	.self_test_no_autoclear = true,
+	.self_test_anal_autoclear = true,
 	.timeouts = &adis16201_timeouts,
 
 	.status_error_msgs = adis16201_status_error_msgs,
@@ -262,7 +262,7 @@ static int adis16201_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -297,7 +297,7 @@ static struct spi_driver adis16201_driver = {
 module_spi_driver(adis16201_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
-MODULE_DESCRIPTION("Analog Devices ADIS16201 Dual-Axis Digital Inclinometer and Accelerometer");
+MODULE_DESCRIPTION("Analog Devices ADIS16201 Dual-Axis Digital Inclianalmeter and Accelerometer");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("spi:adis16201");
 MODULE_IMPORT_NS(IIO_ADISLIB);

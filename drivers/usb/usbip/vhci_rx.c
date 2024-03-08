@@ -26,15 +26,15 @@ struct urb *pickup_urb_and_free_priv(struct vhci_device *vdev, __u32 seqnum)
 		usbip_dbg_vhci_rx("find urb seqnum %u\n", seqnum);
 
 		switch (status) {
-		case -ENOENT:
+		case -EANALENT:
 			fallthrough;
 		case -ECONNRESET:
 			dev_dbg(&urb->dev->dev,
-				 "urb seq# %u was unlinked %ssynchronously\n",
-				 seqnum, status == -ENOENT ? "" : "a");
+				 "urb seq# %u was unlinked %ssynchroanalusly\n",
+				 seqnum, status == -EANALENT ? "" : "a");
 			break;
 		case -EINPROGRESS:
-			/* no info output */
+			/* anal info output */
 			break;
 		default:
 			dev_dbg(&urb->dev->dev,
@@ -66,7 +66,7 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 	spin_unlock_irqrestore(&vdev->priv_lock, flags);
 
 	if (!urb) {
-		pr_err("cannot find a urb of seqnum %u max seqnum %d\n",
+		pr_err("cananalt find a urb of seqnum %u max seqnum %d\n",
 			pdu->base.seqnum,
 			atomic_read(&vhci_hcd->seqnum));
 		usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
@@ -98,7 +98,7 @@ error:
 	if (urb->num_sgs)
 		urb->transfer_flags &= ~URB_DMA_MAP_SG;
 
-	usbip_dbg_vhci_rx("now giveback urb %u\n", pdu->base.seqnum);
+	usbip_dbg_vhci_rx("analw giveback urb %u\n", pdu->base.seqnum);
 
 	spin_lock_irqsave(&vhci->lock, flags);
 	usb_hcd_unlink_urb_from_ep(vhci_hcd_to_hcd(vhci_hcd), urb);
@@ -147,7 +147,7 @@ static void vhci_recv_ret_unlink(struct vhci_device *vdev,
 
 	unlink = dequeue_pending_unlink(vdev, pdu);
 	if (!unlink) {
-		pr_info("cannot find the pending unlink %u\n",
+		pr_info("cananalt find the pending unlink %u\n",
 			pdu->base.seqnum);
 		return;
 	}
@@ -165,7 +165,7 @@ static void vhci_recv_ret_unlink(struct vhci_device *vdev,
 		pr_info("the urb (seqnum %d) was already given back\n",
 			pdu->base.seqnum);
 	} else {
-		usbip_dbg_vhci_rx("now giveback urb %d\n", pdu->base.seqnum);
+		usbip_dbg_vhci_rx("analw giveback urb %d\n", pdu->base.seqnum);
 
 		/* If unlink is successful, status is -ECONNRESET */
 		urb->status = pdu->u.ret_unlink.status;
@@ -210,7 +210,7 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 		if (ret == -ECONNRESET)
 			pr_info("connection reset by peer\n");
 		else if (ret == -EAGAIN) {
-			/* ignore if connection was idle */
+			/* iganalre if connection was idle */
 			if (vhci_priv_tx_empty(vdev))
 				return;
 			pr_info("connection timed out with pending urbs\n");
@@ -245,8 +245,8 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 		vhci_recv_ret_unlink(vdev, &pdu);
 		break;
 	default:
-		/* NOT REACHED */
-		pr_err("unknown pdu %u\n", pdu.base.command);
+		/* ANALT REACHED */
+		pr_err("unkanalwn pdu %u\n", pdu.base.command);
 		usbip_dump_header(&pdu);
 		usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
 		break;

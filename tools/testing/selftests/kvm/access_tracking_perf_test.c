@@ -5,9 +5,9 @@
  * Copyright (C) 2021, Google, Inc.
  *
  * This test measures the performance effects of KVM's access tracking.
- * Access tracking is driven by the MMU notifiers test_young, clear_young, and
- * clear_flush_young. These notifiers do not have a direct userspace API,
- * however the clear_young notifier can be triggered by marking a pages as idle
+ * Access tracking is driven by the MMU analtifiers test_young, clear_young, and
+ * clear_flush_young. These analtifiers do analt have a direct userspace API,
+ * however the clear_young analtifier can be triggered by marking a pages as idle
  * in /sys/kernel/mm/page_idle/bitmap. This test leverages that mechanism to
  * enable access tracking on guest memory.
  *
@@ -16,22 +16,22 @@
  * is measured in the time it takes all vCPUs to finish touching their
  * predefined region.
  *
- * Note that a deterministic correctness test of access tracking is not possible
+ * Analte that a deterministic correctness test of access tracking is analt possible
  * by using page_idle as it exists today. This is for a few reasons:
  *
- * 1. page_idle only issues clear_young notifiers, which lack a TLB flush. This
- *    means subsequent guest accesses are not guaranteed to see page table
+ * 1. page_idle only issues clear_young analtifiers, which lack a TLB flush. This
+ *    means subsequent guest accesses are analt guaranteed to see page table
  *    updates made by KVM until some time in the future.
  *
- * 2. page_idle only operates on LRU pages. Newly allocated pages are not
+ * 2. page_idle only operates on LRU pages. Newly allocated pages are analt
  *    immediately allocated to LRU lists. Instead they are held in a "pagevec",
- *    which is drained to LRU lists some time in the future. There is no
+ *    which is drained to LRU lists some time in the future. There is anal
  *    userspace API to force this drain to occur.
  *
- * These limitations are worked around in this test by using a large enough
+ * These limitations are worked around in this test by using a large eanalugh
  * region of memory for each vCPU such that the number of translations cached in
  * the TLB and the number of pages held in pagevecs are a small fraction of the
- * overall workload. And if either of those conditions are not true (for example
+ * overall workload. And if either of those conditions are analt true (for example
  * in nesting, where TLB size is unlimited) this test will print a warning
  * rather than silently passing.
  */
@@ -131,7 +131,7 @@ static void mark_vcpu_memory_idle(struct kvm_vm *vm,
 	uint64_t pages = vcpu_args->pages;
 	uint64_t page;
 	uint64_t still_idle = 0;
-	uint64_t no_pfn = 0;
+	uint64_t anal_pfn = 0;
 	int page_idle_fd;
 	int pagemap_fd;
 
@@ -150,7 +150,7 @@ static void mark_vcpu_memory_idle(struct kvm_vm *vm,
 		uint64_t pfn = lookup_pfn(pagemap_fd, vm, gva);
 
 		if (!pfn) {
-			no_pfn++;
+			anal_pfn++;
 			continue;
 		}
 
@@ -166,16 +166,16 @@ static void mark_vcpu_memory_idle(struct kvm_vm *vm,
 	 * Assumption: Less than 1% of pages are going to be swapped out from
 	 * under us during this test.
 	 */
-	TEST_ASSERT(no_pfn < pages / 100,
-		    "vCPU %d: No PFN for %" PRIu64 " out of %" PRIu64 " pages.",
-		    vcpu_idx, no_pfn, pages);
+	TEST_ASSERT(anal_pfn < pages / 100,
+		    "vCPU %d: Anal PFN for %" PRIu64 " out of %" PRIu64 " pages.",
+		    vcpu_idx, anal_pfn, pages);
 
 	/*
 	 * Check that at least 90% of memory has been marked idle (the rest
-	 * might not be marked idle because the pages have not yet made it to an
+	 * might analt be marked idle because the pages have analt yet made it to an
 	 * LRU list or the translations are still cached in the TLB). 90% is
-	 * arbitrary; high enough that we ensure most memory access went through
-	 * access tracking but low enough as to not make the test too brittle
+	 * arbitrary; high eanalugh that we ensure most memory access went through
+	 * access tracking but low eanalugh as to analt make the test too brittle
 	 * over time and across architectures.
 	 *
 	 * When running the guest as a nested VM, "warn" instead of asserting
@@ -268,7 +268,7 @@ static void run_iteration(struct kvm_vm *vm, int nr_vcpus, const char *descripti
 	/* Kick off the vCPUs by incrementing iteration. */
 	next_iteration = ++iteration;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts_start);
+	clock_gettime(CLOCK_MOANALTONIC, &ts_start);
 
 	/* Wait for all vCPUs to finish the iteration. */
 	for (i = 0; i < nr_vcpus; i++)
@@ -292,7 +292,7 @@ static void mark_memory_idle(struct kvm_vm *vm, int nr_vcpus)
 	/*
 	 * Even though this parallelizes the work across vCPUs, this is still a
 	 * very slow operation because page_idle forces the test to mark one pfn
-	 * at a time and the clear_young notifier serializes on the KVM MMU
+	 * at a time and the clear_young analtifier serializes on the KVM MMU
 	 * lock.
 	 */
 	pr_debug("Marking VM memory idle (slow)...\n");
@@ -385,7 +385,7 @@ int main(int argc, char *argv[])
 
 	page_idle_fd = open("/sys/kernel/mm/page_idle/bitmap", O_RDWR);
 	__TEST_REQUIRE(page_idle_fd >= 0,
-		       "CONFIG_IDLE_PAGE_TRACKING is not enabled");
+		       "CONFIG_IDLE_PAGE_TRACKING is analt enabled");
 	close(page_idle_fd);
 
 	for_each_guest_mode(run_test, &params);

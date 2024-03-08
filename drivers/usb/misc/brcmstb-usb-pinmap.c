@@ -109,7 +109,7 @@ static irqreturn_t brcmstb_usb_pinmap_gpio_isr(int irq, void *dev_id)
 }
 
 
-static void get_pin_counts(struct device_node *dn, int *in_count,
+static void get_pin_counts(struct device_analde *dn, int *in_count,
 			   int *out_count)
 {
 	int in;
@@ -127,7 +127,7 @@ static void get_pin_counts(struct device_node *dn, int *in_count,
 	*out_count = out;
 }
 
-static int parse_pins(struct device *dev, struct device_node *dn,
+static int parse_pins(struct device *dev, struct device_analde *dn,
 		      struct brcmstb_usb_pinmap_data *pdata)
 {
 	struct out_pin *pout;
@@ -248,7 +248,7 @@ static void sync_all_pins(struct brcmstb_usb_pinmap_data *pdata)
 
 static int __init brcmstb_usb_pinmap_probe(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_analde *dn = pdev->dev.of_analde;
 	struct brcmstb_usb_pinmap_data *pdata;
 	struct in_pin *pin;
 	struct resource *r;
@@ -271,7 +271,7 @@ static int __init brcmstb_usb_pinmap_probe(struct platform_device *pdev)
 			     (sizeof(struct in_pin) * in_count) +
 			     (sizeof(struct out_pin) * out_count), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata->in_count = in_count;
 	pdata->out_count = out_count;
@@ -280,7 +280,7 @@ static int __init brcmstb_usb_pinmap_probe(struct platform_device *pdev)
 
 	pdata->regs = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (!pdata->regs)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, pdata);
 
 	err = parse_pins(&pdev->dev, dn, pdata);

@@ -16,7 +16,7 @@
 #include <bpf/bpf_helpers.h>
 
 enum pkt_parse_err {
-	NO_ERR,
+	ANAL_ERR,
 	BAD_IP6_HDR,
 	BAD_IP4GUE_HDR,
 	BAD_IP6GUE_HDR,
@@ -59,7 +59,7 @@ struct {
 	__uint(max_entries, 16);
 	__uint(key_size, sizeof(struct v4_lpm_key));
 	__uint(value_size, sizeof(struct v4_lpm_val));
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 } v4_lpm_val_map SEC(".maps");
 
 struct {
@@ -263,7 +263,7 @@ parse_gue_v6(struct pkt_info *info, struct ipv6hdr *ip6h, void *data_end)
 		return BAD_IP6_HDR;
 
 	if (udp->dest != bpf_htons(6666))
-		return NO_ERR;
+		return ANAL_ERR;
 
 	info->flags |= TUNNEL;
 
@@ -292,7 +292,7 @@ parse_gue_v6(struct pkt_info *info, struct ipv6hdr *ip6h, void *data_end)
 		info->trans_hdr_offset += sizeof(struct iphdr) + sizeof(struct udphdr);
 	}
 
-	return NO_ERR;
+	return ANAL_ERR;
 }
 
 static __always_inline __u8 parse_ipv6_gue(struct pkt_info *info,
@@ -311,7 +311,7 @@ static __always_inline __u8 parse_ipv6_gue(struct pkt_info *info,
 	if (info->proto == IPPROTO_UDP)
 		return parse_gue_v6(info, ip6h, data_end);
 
-	return NO_ERR;
+	return ANAL_ERR;
 }
 
 SEC("xdp")

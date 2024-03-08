@@ -9,13 +9,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -26,17 +26,17 @@
  *	    Ben Skeggs   <darktama@iinet.net.au>
  *	    Jeremy Kolb  <jkolb@brandeis.edu>
  */
-#include "nouveau_bo.h"
-#include "nouveau_dma.h"
-#include "nouveau_drv.h"
+#include "analuveau_bo.h"
+#include "analuveau_dma.h"
+#include "analuveau_drv.h"
 
 #include <nvif/push006c.h>
 
 #include <nvhw/class/cl0039.h>
 
 static inline uint32_t
-nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
-		      struct nouveau_channel *chan, struct ttm_resource *reg)
+analuveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
+		      struct analuveau_channel *chan, struct ttm_resource *reg)
 {
 	if (reg->mem_type == TTM_PL_TT)
 		return NvDmaTT;
@@ -44,13 +44,13 @@ nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
 }
 
 int
-nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
+nv04_bo_move_m2mf(struct analuveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_resource *old_reg, struct ttm_resource *new_reg)
 {
 	struct nvif_push *push = chan->chan.push;
-	u32 src_ctxdma = nouveau_bo_mem_ctxdma(bo, chan, old_reg);
+	u32 src_ctxdma = analuveau_bo_mem_ctxdma(bo, chan, old_reg);
 	u32 src_offset = old_reg->start << PAGE_SHIFT;
-	u32 dst_ctxdma = nouveau_bo_mem_ctxdma(bo, chan, new_reg);
+	u32 dst_ctxdma = analuveau_bo_mem_ctxdma(bo, chan, new_reg);
 	u32 dst_offset = new_reg->start << PAGE_SHIFT;
 	u32 page_count = PFN_UP(new_reg->size);
 	int ret;
@@ -81,9 +81,9 @@ nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 			  NVVAL(NV039, FORMAT, IN, 1) |
 			  NVVAL(NV039, FORMAT, OUT, 1),
 
-				       BUFFER_NOTIFY, NV039_BUFFER_NOTIFY_WRITE_ONLY);
+				       BUFFER_ANALTIFY, NV039_BUFFER_ANALTIFY_WRITE_ONLY);
 
-		PUSH_MTHD(push, NV039, NO_OPERATION, 0x00000000);
+		PUSH_MTHD(push, NV039, ANAL_OPERATION, 0x00000000);
 
 		page_count -= line_count;
 		src_offset += (PAGE_SIZE * line_count);
@@ -94,7 +94,7 @@ nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 }
 
 int
-nv04_bo_move_init(struct nouveau_channel *chan, u32 handle)
+nv04_bo_move_init(struct analuveau_channel *chan, u32 handle)
 {
 	struct nvif_push *push = chan->chan.push;
 	int ret;
@@ -104,6 +104,6 @@ nv04_bo_move_init(struct nouveau_channel *chan, u32 handle)
 		return ret;
 
 	PUSH_MTHD(push, NV039, SET_OBJECT, handle);
-	PUSH_MTHD(push, NV039, SET_CONTEXT_DMA_NOTIFIES, chan->drm->ntfy.handle);
+	PUSH_MTHD(push, NV039, SET_CONTEXT_DMA_ANALTIFIES, chan->drm->ntfy.handle);
 	return 0;
 }

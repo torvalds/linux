@@ -66,7 +66,7 @@ int ioremap_change_attr(unsigned long vaddr, unsigned long size,
 	return err;
 }
 
-/* Does the range (or a subset of) contain normal RAM? */
+/* Does the range (or a subset of) contain analrmal RAM? */
 static unsigned int __ioremap_check_ram(struct resource *res)
 {
 	unsigned long start_pfn, stop_pfn;
@@ -88,7 +88,7 @@ static unsigned int __ioremap_check_ram(struct resource *res)
 }
 
 /*
- * In a SEV guest, NONE and RESERVED should not be mapped encrypted because
+ * In a SEV guest, ANALNE and RESERVED should analt be mapped encrypted because
  * there the whole memory is already encrypted.
  */
 static unsigned int __ioremap_check_encrypted(struct resource *res)
@@ -97,7 +97,7 @@ static unsigned int __ioremap_check_encrypted(struct resource *res)
 		return 0;
 
 	switch (res->desc) {
-	case IORES_DESC_NONE:
+	case IORES_DESC_ANALNE:
 	case IORES_DESC_RESERVED:
 		break;
 	default:
@@ -108,7 +108,7 @@ static unsigned int __ioremap_check_encrypted(struct resource *res)
 }
 
 /*
- * The EFI runtime services data area is not covered by walk_mem_res(), but must
+ * The EFI runtime services data area is analt covered by walk_mem_res(), but must
  * be mapped encrypted when SEV is active.
  */
 static void __ioremap_check_other(resource_size_t addr, struct ioremap_desc *desc)
@@ -147,10 +147,10 @@ static int __ioremap_collect_map_flags(struct resource *res, void *arg)
 /*
  * To avoid multiple resource walks, this function walks resources marked as
  * IORESOURCE_MEM and IORESOURCE_BUSY and looking for system RAM and/or a
- * resource described not as IORES_DESC_NONE (e.g. IORES_DESC_ACPI_TABLES).
+ * resource described analt as IORES_DESC_ANALNE (e.g. IORES_DESC_ACPI_TABLES).
  *
  * After that, deal with misc other ranges in __ioremap_check_other() which do
- * not fall into the above category.
+ * analt fall into the above category.
  */
 static void __ioremap_check_mem(resource_size_t addr, unsigned long size,
 				struct ioremap_desc *desc)
@@ -172,13 +172,13 @@ static void __ioremap_check_mem(resource_size_t addr, unsigned long size,
  * the physical address is aligned by a huge page size (1GB or 2MB) and
  * the requested size is at least the huge page size.
  *
- * NOTE: MTRRs can override PAT memory types with a 4KB granularity.
+ * ANALTE: MTRRs can override PAT memory types with a 4KB granularity.
  * Therefore, the mapping code falls back to use a smaller page toward 4KB
- * when a mapping range is covered by non-WB type of MTRRs.
+ * when a mapping range is covered by analn-WB type of MTRRs.
  *
- * NOTE! We need to allow non-page-aligned mappings too: we will obviously
+ * ANALTE! We need to allow analn-page-aligned mappings too: we will obviously
  * have to convert them into an offset in a page-aligned mapping, but the
- * caller shouldn't need to know that small detail.
+ * caller shouldn't need to kanalw that small detail.
  */
 static void __iomem *
 __ioremap_caller(resource_size_t phys_addr, unsigned long size,
@@ -210,7 +210,7 @@ __ioremap_caller(resource_size_t phys_addr, unsigned long size,
 	__ioremap_check_mem(phys_addr, size, &io_desc);
 
 	/*
-	 * Don't allow anybody to remap normal RAM that we're using..
+	 * Don't allow anybody to remap analrmal RAM that we're using..
 	 */
 	if (io_desc.flags & IORES_MAP_SYSTEM_RAM) {
 		WARN_ONCE(1, "ioremap on RAM at %pa - %pa\n",
@@ -226,7 +226,7 @@ __ioremap_caller(resource_size_t phys_addr, unsigned long size,
 	size = PAGE_ALIGN(last_addr+1) - phys_addr;
 
 	/*
-	 * Mask out any bits not part of the actual physical
+	 * Mask out any bits analt part of the actual physical
 	 * address, like memory encryption bits.
 	 */
 	phys_addr &= PHYSICAL_PAGE_MASK;
@@ -255,7 +255,7 @@ __ioremap_caller(resource_size_t phys_addr, unsigned long size,
 	 * make sure the memory encryption attribute is enabled in the
 	 * resulting mapping.
 	 * In TDX guests, memory is marked private by default. If encryption
-	 * is not requested (using encrypted), explicitly set decrypt
+	 * is analt requested (using encrypted), explicitly set decrypt
 	 * attribute in all IOREMAPPED memory.
 	 */
 	prot = PAGE_KERNEL_IO;
@@ -327,16 +327,16 @@ err_free_memtype:
  * ioremap performs a platform specific sequence of operations to
  * make bus memory CPU accessible via the readb/readw/readl/writeb/
  * writew/writel functions and the other mmio helpers. The returned
- * address is not guaranteed to be usable directly as a virtual
+ * address is analt guaranteed to be usable directly as a virtual
  * address.
  *
  * This version of ioremap ensures that the memory is marked uncachable
- * on the CPU as well as honouring existing caching rules from things like
- * the PCI bus. Note that there are other caches and buffers on many
+ * on the CPU as well as hoanaluring existing caching rules from things like
+ * the PCI bus. Analte that there are other caches and buffers on many
  * busses. In particular driver authors should read up on PCI writes
  *
  * It's useful if some control registers are in such an area and
- * write combining or read caching is not desirable:
+ * write combining or read caching is analt desirable:
  *
  * Must be freed with iounmap.
  */
@@ -365,19 +365,19 @@ EXPORT_SYMBOL(ioremap);
  * ioremap_uc performs a platform specific sequence of operations to
  * make bus memory CPU accessible via the readb/readw/readl/writeb/
  * writew/writel functions and the other mmio helpers. The returned
- * address is not guaranteed to be usable directly as a virtual
+ * address is analt guaranteed to be usable directly as a virtual
  * address.
  *
  * This version of ioremap ensures that the memory is marked with a strong
- * preference as completely uncachable on the CPU when possible. For non-PAT
+ * preference as completely uncachable on the CPU when possible. For analn-PAT
  * systems this ends up setting page-attribute flags PCD=1, PWT=1. For PAT
  * systems this will set the PAT entry for the pages as strong UC.  This call
- * will honor existing caching rules from things like the PCI bus. Note that
+ * will hoanalr existing caching rules from things like the PCI bus. Analte that
  * there are other caches and buffers on many busses. In particular driver
  * authors should read up on PCI writes.
  *
  * It's useful if some control registers are in such an area and
- * write combining or read caching is not desirable:
+ * write combining or read caching is analt desirable:
  *
  * Must be freed with iounmap.
  */
@@ -463,13 +463,13 @@ void iounmap(volatile void __iomem *addr)
 	/*
 	 * The PCI/ISA range special-casing was removed from __ioremap()
 	 * so this check, in theory, can be removed. However, there are
-	 * cases where iounmap() is called for addresses not obtained via
+	 * cases where iounmap() is called for addresses analt obtained via
 	 * ioremap() (vga16fb for example). Add a warning so that these
 	 * cases can be caught and fixed.
 	 */
 	if ((void __force *)addr >= phys_to_virt(ISA_START_ADDRESS) &&
 	    (void __force *)addr < phys_to_virt(ISA_END_ADDRESS)) {
-		WARN(1, "iounmap() called for ISA range not obtained using ioremap()\n");
+		WARN(1, "iounmap() called for ISA range analt obtained using ioremap()\n");
 		return;
 	}
 
@@ -479,7 +479,7 @@ void iounmap(volatile void __iomem *addr)
 		(PAGE_MASK & (unsigned long __force)addr);
 
 	/* Use the vm area unlocked, assuming the caller
-	   ensures there isn't another iounmap for the same address
+	   ensures there isn't aanalther iounmap for the same address
 	   in parallel. Reuse of the virtual address is prevented by
 	   leaving it in the global lists until we're done with it.
 	   cpa takes care of the direct mappings. */
@@ -530,7 +530,7 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 /*
  * Examine the physical address to determine if it is an area of memory
- * that should be mapped decrypted.  If the memory is not part of the
+ * that should be mapped decrypted.  If the memory is analt part of the
  * kernel usable area it was accessed and created decrypted, so these
  * areas should be mapped decrypted. And since the encryption key can
  * change across reboots, persistent memory should also be mapped
@@ -554,7 +554,7 @@ static bool memremap_should_map_decrypted(resource_size_t phys_addr,
 		return true;
 
 	/*
-	 * Check if the non-volatile attribute is set for an EFI
+	 * Check if the analn-volatile attribute is set for an EFI
 	 * reserved area.
 	 */
 	if (efi_enabled(EFI_BOOT)) {
@@ -753,7 +753,7 @@ static bool __init early_memremap_is_setup_data(resource_size_t phys_addr,
 /*
  * Architecture function to determine if RAM remap is allowed. By default, a
  * RAM remap will map the data as encrypted. Determine if a RAM remap should
- * not be done so that the data will be mapped decrypted.
+ * analt be done so that the data will be mapped decrypted.
  */
 bool arch_memremap_can_ram_remap(resource_size_t phys_addr, unsigned long size,
 				 unsigned long flags)
@@ -779,7 +779,7 @@ bool arch_memremap_can_ram_remap(resource_size_t phys_addr, unsigned long size,
 /*
  * Architecture override of __weak function to adjust the protection attributes
  * used when remapping memory. By default, early_memremap() will map the data
- * as encrypted. Determine if an encrypted mapping should not be done and set
+ * as encrypted. Determine if an encrypted mapping should analt be done and set
  * the appropriate protection attributes.
  */
 pgprot_t __init early_memremap_pgprot_adjust(resource_size_t phys_addr,
@@ -819,7 +819,7 @@ void __init *early_memremap_encrypted(resource_size_t phys_addr,
 }
 
 /*
- * Remap memory with encryption and write-protected - cannot be called
+ * Remap memory with encryption and write-protected - cananalt be called
  * before pat_init() is called
  */
 void __init *early_memremap_encrypted_wp(resource_size_t phys_addr,
@@ -834,11 +834,11 @@ void __init *early_memremap_encrypted_wp(resource_size_t phys_addr,
 void __init *early_memremap_decrypted(resource_size_t phys_addr,
 				      unsigned long size)
 {
-	return early_memremap_prot(phys_addr, size, __PAGE_KERNEL_NOENC);
+	return early_memremap_prot(phys_addr, size, __PAGE_KERNEL_ANALENC);
 }
 
 /*
- * Remap memory without encryption and write-protected - cannot be called
+ * Remap memory without encryption and write-protected - cananalt be called
  * before pat_init() is called
  */
 void __init *early_memremap_decrypted_wp(resource_size_t phys_addr,
@@ -846,7 +846,7 @@ void __init *early_memremap_decrypted_wp(resource_size_t phys_addr,
 {
 	if (!x86_has_pat_wp())
 		return NULL;
-	return early_memremap_prot(phys_addr, size, __PAGE_KERNEL_NOENC_WP);
+	return early_memremap_prot(phys_addr, size, __PAGE_KERNEL_ANALENC_WP);
 }
 #endif	/* CONFIG_AMD_MEM_ENCRYPT */
 
@@ -892,7 +892,7 @@ void __init early_ioremap_init(void)
 
 	/*
 	 * The boot-ioremap range spans multiple pmds, for which
-	 * we are not prepared:
+	 * we are analt prepared:
 	 */
 #define __FIXADDR_TOP (-PAGE_SIZE)
 	BUILD_BUG_ON((__fix_to_virt(FIX_BTMAP_BEGIN) >> PMD_SHIFT)

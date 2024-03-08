@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -78,7 +78,7 @@
 
 /* Maximum size of a WR sent from the host, limited by the SGE.
  *
- * Note: WR coming from ULP or TP are only limited by CIM.
+ * Analte: WR coming from ULP or TP are only limited by CIM.
  */
 #define FW_WR_SIZE			128
 
@@ -119,7 +119,7 @@
 /* FW_OFLD_NUM corresponds to the number of supported OFFLOAD Queues. These
  * queues must start at SGE Egress Context FW_OFLD_SGEEC_START.
  *
- * Note: the 'uP Token' in the SGE Egress Context fields is irrelevant for
+ * Analte: the 'uP Token' in the SGE Egress Context fields is irrelevant for
  * OFFLOAD Queues, as the host is responsible for providing the correct TID in
  * every WR.
  *
@@ -162,11 +162,11 @@
 #define G_FW_VERSION_MAJOR(x)		\
     (((x) >> S_FW_VERSION_MAJOR) & M_FW_VERSION_MAJOR)
 
-#define S_FW_VERSION_MINOR		8
-#define M_FW_VERSION_MINOR		0xFF
-#define V_FW_VERSION_MINOR(x)		((x) << S_FW_VERSION_MINOR)
-#define G_FW_VERSION_MINOR(x)		\
-    (((x) >> S_FW_VERSION_MINOR) & M_FW_VERSION_MINOR)
+#define S_FW_VERSION_MIANALR		8
+#define M_FW_VERSION_MIANALR		0xFF
+#define V_FW_VERSION_MIANALR(x)		((x) << S_FW_VERSION_MIANALR)
+#define G_FW_VERSION_MIANALR(x)		\
+    (((x) >> S_FW_VERSION_MIANALR) & M_FW_VERSION_MIANALR)
 
 #define S_FW_VERSION_MICRO		0
 #define M_FW_VERSION_MICRO		0xFF

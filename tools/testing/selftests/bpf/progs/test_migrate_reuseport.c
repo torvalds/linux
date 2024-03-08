@@ -4,7 +4,7 @@
  *
  *   1. If reuse_md->migrating_sk is NULL (SYN packet),
  *        return SK_PASS without selecting a listener.
- *   2. If reuse_md->migrating_sk is not NULL (socket migration),
+ *   2. If reuse_md->migrating_sk is analt NULL (socket migration),
  *        select a listener (reuseport_map[migrate_map[cookie]])
  *
  * Author: Kuniyuki Iwashima <kuniyu@amazon.co.jp>

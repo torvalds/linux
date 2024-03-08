@@ -94,7 +94,7 @@ static const struct reg_default cs42l56_reg_defaults[] = {
 	{ 34, 0x00 },	/* r22	- ALC Enable & Attack Rate */
 	{ 35, 0xbf },	/* r23	- ALC Release Rate */
 	{ 36, 0x00 },	/* r24	- ALC Threshold */
-	{ 37, 0x00 },	/* r25	- Noise Gate Ctl */
+	{ 37, 0x00 },	/* r25	- Analise Gate Ctl */
 	{ 38, 0x00 },	/* r26	- ALC, Limiter, SFT, ZeroCross */
 	{ 39, 0x00 },	/* r27	- Analog Mute, LO & HP Mux */
 	{ 40, 0x00 },	/* r28	- HP A Volume */
@@ -361,7 +361,7 @@ static const char * const ng_delay_text[] = {
 };
 
 static const struct soc_enum ng_delay_enum =
-	SOC_ENUM_SINGLE(CS42L56_NOISE_GATE_CTL, 0,
+	SOC_ENUM_SINGLE(CS42L56_ANALISE_GATE_CTL, 0,
 			ARRAY_SIZE(ng_delay_text), ng_delay_text);
 
 static const struct snd_kcontrol_new cs42l56_snd_controls[] = {
@@ -452,12 +452,12 @@ static const struct snd_kcontrol_new cs42l56_snd_controls[] = {
 	SOC_SINGLE_TLV("Limiter Cushion", CS42L56_ALC_THRESHOLD,
 			2, 0x07, 1, alc_tlv),
 
-	SOC_SINGLE("NG Switch", CS42L56_NOISE_GATE_CTL, 6, 1, 1),
-	SOC_SINGLE("NG All Switch", CS42L56_NOISE_GATE_CTL, 7, 1, 1),
-	SOC_SINGLE("NG Boost Switch", CS42L56_NOISE_GATE_CTL, 5, 1, 1),
-	SOC_SINGLE_TLV("NG Unboost Threshold", CS42L56_NOISE_GATE_CTL,
+	SOC_SINGLE("NG Switch", CS42L56_ANALISE_GATE_CTL, 6, 1, 1),
+	SOC_SINGLE("NG All Switch", CS42L56_ANALISE_GATE_CTL, 7, 1, 1),
+	SOC_SINGLE("NG Boost Switch", CS42L56_ANALISE_GATE_CTL, 5, 1, 1),
+	SOC_SINGLE_TLV("NG Unboost Threshold", CS42L56_ANALISE_GATE_CTL,
 			2, 0x07, 1, ngnb_tlv),
-	SOC_SINGLE_TLV("NG Boost Threshold", CS42L56_NOISE_GATE_CTL,
+	SOC_SINGLE_TLV("NG Boost Threshold", CS42L56_ANALISE_GATE_CTL,
 			2, 0x07, 1, ngb_tlv),
 	SOC_ENUM("NG Delay", ng_delay_enum),
 
@@ -488,41 +488,41 @@ static const struct snd_soc_dapm_widget cs42l56_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("AIN3B"),
 
 	SND_SOC_DAPM_AIF_OUT("SDOUT", NULL,  0,
-			SND_SOC_NOPM, 0, 0),
+			SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_AIF_IN("SDIN", NULL,  0,
-			SND_SOC_NOPM, 0, 0),
+			SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_MUX("Digital Output Mux", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("Digital Output Mux", SND_SOC_ANALPM,
 			 0, 0, &dig_mux),
 
-	SND_SOC_DAPM_PGA("PGAA", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PGAB", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PGAA", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("PGAB", SND_SOC_ANALPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MUX("PGAA Input Mux",
-			SND_SOC_NOPM, 0, 0, &pgaa_mux),
+			SND_SOC_ANALPM, 0, 0, &pgaa_mux),
 	SND_SOC_DAPM_MUX("PGAB Input Mux",
-			SND_SOC_NOPM, 0, 0, &pgab_mux),
+			SND_SOC_ANALPM, 0, 0, &pgab_mux),
 
-	SND_SOC_DAPM_MUX("ADCA Mux", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("ADCA Mux", SND_SOC_ANALPM,
 			 0, 0, &adca_mux),
-	SND_SOC_DAPM_MUX("ADCB Mux", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("ADCB Mux", SND_SOC_ANALPM,
 			 0, 0, &adcb_mux),
 
 	SND_SOC_DAPM_ADC("ADCA", NULL, CS42L56_PWRCTL_1, 1, 1),
 	SND_SOC_DAPM_ADC("ADCB", NULL, CS42L56_PWRCTL_1, 2, 1),
 
-	SND_SOC_DAPM_MUX("ADCA Swap Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADCA Swap Mux", SND_SOC_ANALPM, 0, 0,
 		&adca_swap_mux),
-	SND_SOC_DAPM_MUX("ADCB Swap Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADCB Swap Mux", SND_SOC_ANALPM, 0, 0,
 		&adcb_swap_mux),
 
-	SND_SOC_DAPM_MUX("PCMA Swap Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PCMA Swap Mux", SND_SOC_ANALPM, 0, 0,
 		&pcma_swap_mux),
-	SND_SOC_DAPM_MUX("PCMB Swap Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PCMB Swap Mux", SND_SOC_ANALPM, 0, 0,
 		&pcmb_swap_mux),
 
-	SND_SOC_DAPM_DAC("DACA", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DACB", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DACA", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("DACB", NULL, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_OUTPUT("HPA"),
 	SND_SOC_DAPM_OUTPUT("LOA"),
@@ -539,13 +539,13 @@ static const struct snd_soc_dapm_widget cs42l56_dapm_widgets[] = {
 	SND_SOC_DAPM_SWITCH("Lineout Left",
 			    CS42L56_PWRCTL_2, 2, 1, &loa_switch),
 
-	SND_SOC_DAPM_MUX("LINEOUTA Input Mux", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("LINEOUTA Input Mux", SND_SOC_ANALPM,
 			 0, 0, &lineouta_input),
-	SND_SOC_DAPM_MUX("LINEOUTB Input Mux", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("LINEOUTB Input Mux", SND_SOC_ANALPM,
 			 0, 0, &lineoutb_input),
-	SND_SOC_DAPM_MUX("HPA Input Mux", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("HPA Input Mux", SND_SOC_ANALPM,
 			 0, 0, &hpa_input),
-	SND_SOC_DAPM_MUX("HPB Input Mux", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("HPB Input Mux", SND_SOC_ANALPM,
 			 0, 0, &hpb_input),
 
 };
@@ -932,7 +932,7 @@ static const struct snd_soc_dai_ops cs42l56_ops = {
 	.mute_stream	= cs42l56_mute,
 	.set_fmt	= cs42l56_set_dai_fmt,
 	.set_sysclk	= cs42l56_set_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs42l56_dai = {
@@ -994,7 +994,7 @@ static void cs42l56_beep_work(struct work_struct *work)
 }
 
 /* For usability define a way of injecting beep events for the device -
- * many systems will not have a keyboard.
+ * many systems will analt have a keyboard.
  */
 static int cs42l56_beep_event(struct input_dev *dev, unsigned int type,
 			     unsigned int code, int hz)
@@ -1131,7 +1131,7 @@ static const struct regmap_config cs42l56_regmap = {
 static int cs42l56_handle_of_data(struct i2c_client *i2c_client,
 				    struct cs42l56_platform_data *pdata)
 {
-	struct device_node *np = i2c_client->dev.of_node;
+	struct device_analde *np = i2c_client->dev.of_analde;
 	u32 val32;
 
 	if (of_property_read_bool(np, "cirrus,ain1a-reference-cfg"))
@@ -1178,7 +1178,7 @@ static int cs42l56_i2c_probe(struct i2c_client *i2c_client)
 
 	cs42l56 = devm_kzalloc(&i2c_client->dev, sizeof(*cs42l56), GFP_KERNEL);
 	if (cs42l56 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	cs42l56->dev = &i2c_client->dev;
 
 	cs42l56->regmap = devm_regmap_init_i2c(i2c_client, &cs42l56_regmap);
@@ -1191,7 +1191,7 @@ static int cs42l56_i2c_probe(struct i2c_client *i2c_client)
 	if (pdata) {
 		cs42l56->pdata = *pdata;
 	} else {
-		if (i2c_client->dev.of_node) {
+		if (i2c_client->dev.of_analde) {
 			ret = cs42l56_handle_of_data(i2c_client,
 						     &cs42l56->pdata);
 			if (ret != 0)

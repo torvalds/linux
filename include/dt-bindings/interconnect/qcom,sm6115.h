@@ -9,16 +9,16 @@
 
 /* BIMC */
 #define MASTER_AMPSS_M0				0
-#define MASTER_SNOC_BIMC_RT			1
-#define MASTER_SNOC_BIMC_NRT			2
-#define SNOC_BIMC_MAS				3
+#define MASTER_SANALC_BIMC_RT			1
+#define MASTER_SANALC_BIMC_NRT			2
+#define SANALC_BIMC_MAS				3
 #define MASTER_GRAPHICS_3D			4
 #define MASTER_TCU_0				5
 #define SLAVE_EBI_CH0				6
-#define BIMC_SNOC_SLV				7
+#define BIMC_SANALC_SLV				7
 
-/* CNOC */
-#define SNOC_CNOC_MAS				0
+/* CANALC */
+#define SANALC_CANALC_MAS				0
 #define MASTER_QDSS_DAP				1
 #define SLAVE_AHB2PHY_USB			2
 #define SLAVE_APSS_THROTTLE_CFG			3
@@ -45,7 +45,7 @@
 #define SLAVE_MAPSS				24
 #define SLAVE_MDSP_MPU_CFG			25
 #define SLAVE_MESSAGE_RAM			26
-#define SLAVE_CNOC_MSS				27
+#define SLAVE_CANALC_MSS				27
 #define SLAVE_PDM				28
 #define SLAVE_PIMEM_CFG				29
 #define SLAVE_PKA_CORE				30
@@ -59,21 +59,21 @@
 #define SLAVE_SDCC_1				38
 #define SLAVE_SDCC_2				39
 #define SLAVE_SECURITY				40
-#define SLAVE_SNOC_CFG				41
+#define SLAVE_SANALC_CFG				41
 #define SLAVE_TCSR				42
 #define SLAVE_TLMM				43
 #define SLAVE_USB3				44
 #define SLAVE_VENUS_CFG				45
 #define SLAVE_VENUS_THROTTLE_CFG		46
 #define SLAVE_VSENSE_CTRL_CFG			47
-#define SLAVE_SERVICE_CNOC			48
+#define SLAVE_SERVICE_CANALC			48
 
-/* SNOC */
+/* SANALC */
 #define MASTER_CRYPTO_CORE0			0
-#define MASTER_SNOC_CFG				1
+#define MASTER_SANALC_CFG				1
 #define MASTER_TIC				2
-#define MASTER_ANOC_SNOC			3
-#define BIMC_SNOC_MAS				4
+#define MASTER_AANALC_SANALC			3
+#define BIMC_SANALC_MAS				4
 #define MASTER_PIMEM				5
 #define MASTER_QDSS_BAM				6
 #define MASTER_QPIC				7
@@ -84,28 +84,28 @@
 #define MASTER_SDCC_2				12
 #define MASTER_USB3				13
 #define SLAVE_APPSS				14
-#define SNOC_CNOC_SLV				15
+#define SANALC_CANALC_SLV				15
 #define SLAVE_OCIMEM				16
 #define SLAVE_PIMEM				17
-#define SNOC_BIMC_SLV				18
-#define SLAVE_SERVICE_SNOC			19
+#define SANALC_BIMC_SLV				18
+#define SLAVE_SERVICE_SANALC			19
 #define SLAVE_QDSS_STM				20
 #define SLAVE_TCU				21
-#define SLAVE_ANOC_SNOC				22
+#define SLAVE_AANALC_SANALC				22
 
 /* CLK Virtual */
 #define MASTER_QUP_CORE_0			0
 #define SLAVE_QUP_CORE_0			1
 
 /* MMRT Virtual */
-#define MASTER_CAMNOC_HF			0
+#define MASTER_CAMANALC_HF			0
 #define MASTER_MDP_PORT0			1
-#define SLAVE_SNOC_BIMC_RT			2
+#define SLAVE_SANALC_BIMC_RT			2
 
 /* MMNRT Virtual */
-#define MASTER_CAMNOC_SF			0
+#define MASTER_CAMANALC_SF			0
 #define MASTER_VIDEO_P0				1
 #define MASTER_VIDEO_PROC			2
-#define SLAVE_SNOC_BIMC_NRT			3
+#define SLAVE_SANALC_BIMC_NRT			3
 
 #endif

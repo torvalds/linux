@@ -7,7 +7,7 @@
 #include <linux/ww_mutex.h>
 
 #define DRM_EXEC_INTERRUPTIBLE_WAIT	BIT(0)
-#define DRM_EXEC_IGNORE_DUPLICATES	BIT(1)
+#define DRM_EXEC_IGANALRE_DUPLICATES	BIT(1)
 
 struct drm_gem_object;
 
@@ -84,7 +84,7 @@ drm_exec_obj(struct drm_exec *exec, unsigned long index)
  * @obj: the current GEM object
  *
  * Iterate over all the locked GEM objects inside the drm_exec object in
- * reverse locking order. Note that @index may go below zero and wrap,
+ * reverse locking order. Analte that @index may go below zero and wrap,
  * but that will be caught by drm_exec_obj(), returning a NULL object.
  */
 #define drm_exec_for_each_locked_object_reverse(exec, index, obj)	\
@@ -96,8 +96,8 @@ drm_exec_obj(struct drm_exec *exec, unsigned long index)
  * @exec: drm_exec object
  *
  * Core functionality of the drm_exec object. Loops until all GEM objects are
- * locked and no more contention exists. At the beginning of the loop it is
- * guaranteed that no GEM object is locked.
+ * locked and anal more contention exists. At the beginning of the loop it is
+ * guaranteed that anal GEM object is locked.
  *
  * Since labels can't be defined local to the loops body we use a jump pointer
  * to make sure that the retry is only used from within the loops body.

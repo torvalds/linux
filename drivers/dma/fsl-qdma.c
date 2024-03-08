@@ -139,7 +139,7 @@
 /**
  * struct fsl_qdma_format - This is the struct holding describing compound
  *			    descriptor format with qDMA.
- * @status:		    Command status and enqueue status notification.
+ * @status:		    Command status and enqueue status analtification.
  * @cfg:		    Frame offset and frame format.
  * @addr_lo:		    Holding the compound descriptor of the lower
  *			    32-bits address in memory 40-bit address.
@@ -169,7 +169,7 @@ struct fsl_qdma_format {
 	};
 } __packed;
 
-/* qDMA status notification pre information */
+/* qDMA status analtification pre information */
 struct fsl_pre_status {
 	u64 addr;
 	u8 queue;
@@ -375,7 +375,7 @@ static void fsl_qdma_comp_fill_memcpy(struct fsl_qdma_comp *fsl_comp,
 	qdma_desc_addr_set64(ccdf, fsl_comp->bus_addr + 16);
 	qdma_ccdf_set_format(ccdf, qdma_ccdf_get_offset(ccdf));
 	qdma_ccdf_set_ser(ccdf, qdma_ccdf_get_status(ccdf));
-	/* Status notification is enqueued to status queue. */
+	/* Status analtification is enqueued to status queue. */
 	/* Compound Command Descriptor(Frame List Table) */
 	qdma_desc_addr_set64(csgf_desc, fsl_comp->desc_bus_addr);
 	/* It must be 32 as Compound S/G Descriptor */
@@ -446,7 +446,7 @@ err_alloc:
 		kfree(comp_temp);
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -544,7 +544,7 @@ static struct fsl_qdma_queue
 	int ret;
 	unsigned int status_size;
 	struct fsl_qdma_queue *status_head;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
 	ret = of_property_read_u32(np, "status-sizes", &status_size);
 	if (ret) {
@@ -999,7 +999,7 @@ static void fsl_qdma_enqueue_desc(struct fsl_qdma_chan *fsl_chan)
 	vdesc = vchan_next_desc(&fsl_chan->vchan);
 	if (!vdesc)
 		return;
-	list_del(&vdesc->node);
+	list_del(&vdesc->analde);
 	fsl_comp = to_fsl_qdma_comp(vdesc);
 
 	memcpy(fsl_queue->virt_head++,
@@ -1084,7 +1084,7 @@ static int fsl_qdma_alloc_chan_resources(struct dma_chan *chan)
 			FSL_QDMA_COMMAND_BUFFER_SIZE,
 			64, 0);
 	if (!fsl_queue->comp_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * The dma pool for Descriptor(SD/DD) buffer
@@ -1111,7 +1111,7 @@ err_mem:
 	dma_pool_destroy(fsl_queue->desc_pool);
 err_desc_pool:
 	dma_pool_destroy(fsl_queue->comp_pool);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int fsl_qdma_probe(struct platform_device *pdev)
@@ -1121,7 +1121,7 @@ static int fsl_qdma_probe(struct platform_device *pdev)
 	u32 len, chans, queues;
 	struct fsl_qdma_chan *fsl_chan;
 	struct fsl_qdma_engine *fsl_qdma;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
 	ret = of_property_read_u32(np, "dma-channels", &chans);
 	if (ret) {
@@ -1146,22 +1146,22 @@ static int fsl_qdma_probe(struct platform_device *pdev)
 	len = sizeof(*fsl_qdma);
 	fsl_qdma = devm_kzalloc(&pdev->dev, len, GFP_KERNEL);
 	if (!fsl_qdma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len = sizeof(*fsl_chan) * chans;
 	fsl_qdma->chans = devm_kzalloc(&pdev->dev, len, GFP_KERNEL);
 	if (!fsl_qdma->chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len = sizeof(struct fsl_qdma_queue *) * blk_num;
 	fsl_qdma->status = devm_kzalloc(&pdev->dev, len, GFP_KERNEL);
 	if (!fsl_qdma->status)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len = sizeof(int) * blk_num;
 	fsl_qdma->queue_irq = devm_kzalloc(&pdev->dev, len, GFP_KERNEL);
 	if (!fsl_qdma->queue_irq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32(np, "fsl,dma-queues", &queues);
 	if (ret) {
@@ -1180,7 +1180,7 @@ static int fsl_qdma_probe(struct platform_device *pdev)
 	for (i = 0; i < fsl_qdma->block_number; i++) {
 		fsl_qdma->status[i] = fsl_qdma_prep_status_queue(pdev);
 		if (!fsl_qdma->status[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	fsl_qdma->ctrl_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(fsl_qdma->ctrl_base))
@@ -1195,7 +1195,7 @@ static int fsl_qdma_probe(struct platform_device *pdev)
 		return PTR_ERR(fsl_qdma->block_base);
 	fsl_qdma->queue = fsl_qdma_alloc_queue_resources(pdev, fsl_qdma);
 	if (!fsl_qdma->queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fsl_qdma->irq_base = platform_get_irq_byname(pdev, "qdma-queue0");
 	if (fsl_qdma->irq_base < 0)
@@ -1259,15 +1259,15 @@ static void fsl_qdma_cleanup_vchan(struct dma_device *dmadev)
 	struct fsl_qdma_chan *chan, *_chan;
 
 	list_for_each_entry_safe(chan, _chan,
-				 &dmadev->channels, vchan.chan.device_node) {
-		list_del(&chan->vchan.chan.device_node);
+				 &dmadev->channels, vchan.chan.device_analde) {
+		list_del(&chan->vchan.chan.device_analde);
 		tasklet_kill(&chan->vchan.task);
 	}
 }
 
 static void fsl_qdma_remove(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct fsl_qdma_engine *fsl_qdma = platform_get_drvdata(pdev);
 
 	fsl_qdma_irq_exit(pdev, fsl_qdma);

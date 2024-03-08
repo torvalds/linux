@@ -52,7 +52,7 @@ struct bh1750_chip_info {
 	/*
 	 * For BH1710/BH1721 all possible integration time values won't fit
 	 * into one page so displaying is limited to every second one.
-	 * Note, that user can still write proper values which were not
+	 * Analte, that user can still write proper values which were analt
 	 * listed.
 	 */
 	int inc;
@@ -111,7 +111,7 @@ static int bh1750_read(struct bh1750_data *data, int *val)
 
 	/*
 	 * BH1721 will enter continuous mode on receiving this command.
-	 * Note, that this eliminates need for bh1750_resume().
+	 * Analte, that this eliminates need for bh1750_resume().
 	 */
 	ret = i2c_smbus_write_byte(data->client, BH1750_ONE_TIME_H_RES_MODE);
 	if (ret < 0)
@@ -237,11 +237,11 @@ static int bh1750_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
 				I2C_FUNC_SMBUS_WRITE_BYTE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);

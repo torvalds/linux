@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -85,7 +85,7 @@
 #define HNS_ROCE_FRMR_MAX_PA			512
 
 #define PKEY_ID					0xffff
-#define NODE_DESC_SIZE				64
+#define ANALDE_DESC_SIZE				64
 #define DB_REG_OFFSET				0x1000
 
 /* Configure to HW for PAGE_SIZE larger than 4KB */
@@ -158,7 +158,7 @@ enum {
 };
 
 enum hns_roce_reset_stage {
-	HNS_ROCE_STATE_NON_RST,
+	HNS_ROCE_STATE_ANALN_RST,
 	HNS_ROCE_STATE_RST_BEF_DOWN,
 	HNS_ROCE_STATE_RST_DOWN,
 	HNS_ROCE_STATE_RST_UNINIT,
@@ -167,7 +167,7 @@ enum hns_roce_reset_stage {
 };
 
 enum hns_roce_instance_state {
-	HNS_ROCE_STATE_NON_INIT,
+	HNS_ROCE_STATE_ANALN_INIT,
 	HNS_ROCE_STATE_INIT,
 	HNS_ROCE_STATE_INITED,
 	HNS_ROCE_STATE_UNINIT,
@@ -357,15 +357,15 @@ struct hns_roce_buf_list {
  * %HNS_ROCE_BUF_DIRECT indicates that the all memory must be in a continuous
  * dma address range.
  *
- * %HNS_ROCE_BUF_NOSLEEP indicates that the caller cannot sleep.
+ * %HNS_ROCE_BUF_ANALSLEEP indicates that the caller cananalt sleep.
  *
- * %HNS_ROCE_BUF_NOFAIL allocation only failed when allocated size is zero, even
+ * %HNS_ROCE_BUF_ANALFAIL allocation only failed when allocated size is zero, even
  * the allocated size is smaller than the required size.
  */
 enum {
 	HNS_ROCE_BUF_DIRECT = BIT(0),
-	HNS_ROCE_BUF_NOSLEEP = BIT(1),
-	HNS_ROCE_BUF_NOFAIL = BIT(2),
+	HNS_ROCE_BUF_ANALSLEEP = BIT(1),
+	HNS_ROCE_BUF_ANALFAIL = BIT(2),
 };
 
 struct hns_roce_buf {
@@ -423,7 +423,7 @@ struct hns_roce_cq {
 	struct list_head		sq_list; /* all qps on this send cq */
 	struct list_head		rq_list; /* all qps on this recv cq */
 	int				is_armed; /* cq is armed */
-	struct list_head		node; /* all armed cqs are on a list */
+	struct list_head		analde; /* all armed cqs are on a list */
 };
 
 struct hns_roce_idx_que {
@@ -531,7 +531,7 @@ struct hns_roce_cmd_context {
 };
 
 enum hns_roce_cmdq_state {
-	HNS_ROCE_CMDQ_STATE_NORMAL,
+	HNS_ROCE_CMDQ_STATE_ANALRMAL,
 	HNS_ROCE_CMDQ_STATE_FATAL_ERR,
 };
 
@@ -540,7 +540,7 @@ struct hns_roce_cmdq {
 	struct semaphore	poll_sem;
 	/*
 	 * Event mode: cmd register mutex protection,
-	 * ensure to not exceed max_cmds and user use limit region
+	 * ensure to analt exceed max_cmds and user use limit region
 	 */
 	struct semaphore	event_sem;
 	int			max_cmds;
@@ -548,10 +548,10 @@ struct hns_roce_cmdq {
 	int			free_head;
 	struct hns_roce_cmd_context *context;
 	/*
-	 * Process whether use event mode, init default non-zero
+	 * Process whether use event mode, init default analn-zero
 	 * After the event queue of cmd event ready,
 	 * can switch into event mode
-	 * close device, switch into poll mode(non event mode)
+	 * close device, switch into poll mode(analn event mode)
 	 */
 	u8			use_events;
 	enum hns_roce_cmdq_state state;
@@ -623,9 +623,9 @@ struct hns_roce_qp {
 	/* 0: flush needed, 1: unneeded */
 	unsigned long		flush_flag;
 	struct hns_roce_work	flush_work;
-	struct list_head	node; /* all qps are on a list */
-	struct list_head	rq_node; /* all recv qps are on a list */
-	struct list_head	sq_node; /* all send qps are on a list */
+	struct list_head	analde; /* all qps are on a list */
+	struct list_head	rq_analde; /* all recv qps are on a list */
+	struct list_head	sq_analde; /* all send qps are on a list */
 	struct hns_user_mmap_entry *dwqe_mmap_entry;
 	u32			config;
 };
@@ -633,7 +633,7 @@ struct hns_roce_qp {
 struct hns_roce_ib_iboe {
 	spinlock_t		lock;
 	struct net_device      *netdevs[HNS_ROCE_MAX_PORTS];
-	struct notifier_block	nb;
+	struct analtifier_block	nb;
 	u8			phy_port[HNS_ROCE_MAX_PORTS];
 };
 
@@ -683,7 +683,7 @@ struct hns_roce_eq {
 	int				eqe_size;
 	int				irq;
 	u32				cons_index;
-	int				over_ignore;
+	int				over_iganalre;
 	int				coalesce;
 	int				arm_st;
 	int				hop_num;
@@ -827,7 +827,7 @@ struct hns_roce_caps {
 	u32		gmv_hop_num;
 	u32		sl_num;
 	u32		llm_buf_pg_sz;
-	u32		chunk_sz; /* chunk size in non multihop mode */
+	u32		chunk_sz; /* chunk size in analn multihop mode */
 	u64		flags;
 	u16		default_ceq_max_cnt;
 	u16		default_ceq_period;
@@ -866,7 +866,7 @@ enum hns_roce_hw_pkt_stat_index {
 	HNS_ROCE_HW_TRP_RX_SOF_CNT,
 	HNS_ROCE_HW_CQ_CQE_CNT,
 	HNS_ROCE_HW_CQ_POE_CNT,
-	HNS_ROCE_HW_CQ_NOTIFY_CNT,
+	HNS_ROCE_HW_CQ_ANALTIFY_CNT,
 	HNS_ROCE_HW_CNT_TOTAL
 };
 

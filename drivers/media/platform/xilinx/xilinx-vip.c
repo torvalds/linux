@@ -30,17 +30,17 @@ static const struct xvip_video_format xvip_video_formats[] = {
 	  3, V4L2_PIX_FMT_YUV444 },
 	{ XVIP_VF_RBG, 8, NULL, MEDIA_BUS_FMT_RBG888_1X24,
 	  3, 0 },
-	{ XVIP_VF_MONO_SENSOR, 8, "mono", MEDIA_BUS_FMT_Y8_1X8,
+	{ XVIP_VF_MOANAL_SENSOR, 8, "moanal", MEDIA_BUS_FMT_Y8_1X8,
 	  1, V4L2_PIX_FMT_GREY },
-	{ XVIP_VF_MONO_SENSOR, 8, "rggb", MEDIA_BUS_FMT_SRGGB8_1X8,
+	{ XVIP_VF_MOANAL_SENSOR, 8, "rggb", MEDIA_BUS_FMT_SRGGB8_1X8,
 	  1, V4L2_PIX_FMT_SRGGB8 },
-	{ XVIP_VF_MONO_SENSOR, 8, "grbg", MEDIA_BUS_FMT_SGRBG8_1X8,
+	{ XVIP_VF_MOANAL_SENSOR, 8, "grbg", MEDIA_BUS_FMT_SGRBG8_1X8,
 	  1, V4L2_PIX_FMT_SGRBG8 },
-	{ XVIP_VF_MONO_SENSOR, 8, "gbrg", MEDIA_BUS_FMT_SGBRG8_1X8,
+	{ XVIP_VF_MOANAL_SENSOR, 8, "gbrg", MEDIA_BUS_FMT_SGBRG8_1X8,
 	  1, V4L2_PIX_FMT_SGBRG8 },
-	{ XVIP_VF_MONO_SENSOR, 8, "bggr", MEDIA_BUS_FMT_SBGGR8_1X8,
+	{ XVIP_VF_MOANAL_SENSOR, 8, "bggr", MEDIA_BUS_FMT_SBGGR8_1X8,
 	  1, V4L2_PIX_FMT_SBGGR8 },
-	{ XVIP_VF_MONO_SENSOR, 12, "mono", MEDIA_BUS_FMT_Y12_1X12,
+	{ XVIP_VF_MOANAL_SENSOR, 12, "moanal", MEDIA_BUS_FMT_Y12_1X12,
 	  2, V4L2_PIX_FMT_Y12 },
 };
 
@@ -49,7 +49,7 @@ static const struct xvip_video_format xvip_video_formats[] = {
  * @code: the format media bus code
  *
  * Return: a pointer to the format information structure corresponding to the
- * given V4L2 media bus format @code, or ERR_PTR if no corresponding format can
+ * given V4L2 media bus format @code, or ERR_PTR if anal corresponding format can
  * be found.
  */
 const struct xvip_video_format *xvip_get_format_by_code(unsigned int code)
@@ -72,7 +72,7 @@ EXPORT_SYMBOL_GPL(xvip_get_format_by_code);
  * @fourcc: the format 4CC
  *
  * Return: a pointer to the format information structure corresponding to the
- * given V4L2 format @fourcc. If not found, return a pointer to the first
+ * given V4L2 format @fourcc. If analt found, return a pointer to the first
  * available format (V4L2_PIX_FMT_YUYV).
  */
 const struct xvip_video_format *xvip_get_format_by_fourcc(u32 fourcc)
@@ -91,34 +91,34 @@ const struct xvip_video_format *xvip_get_format_by_fourcc(u32 fourcc)
 EXPORT_SYMBOL_GPL(xvip_get_format_by_fourcc);
 
 /**
- * xvip_of_get_format - Parse a device tree node and return format information
- * @node: the device tree node
+ * xvip_of_get_format - Parse a device tree analde and return format information
+ * @analde: the device tree analde
  *
  * Read the xlnx,video-format, xlnx,video-width and xlnx,cfa-pattern properties
- * from the device tree @node passed as an argument and return the corresponding
+ * from the device tree @analde passed as an argument and return the corresponding
  * format information.
  *
  * Return: a pointer to the format information structure corresponding to the
- * format name and width, or ERR_PTR if no corresponding format can be found.
+ * format name and width, or ERR_PTR if anal corresponding format can be found.
  */
-const struct xvip_video_format *xvip_of_get_format(struct device_node *node)
+const struct xvip_video_format *xvip_of_get_format(struct device_analde *analde)
 {
-	const char *pattern = "mono";
+	const char *pattern = "moanal";
 	unsigned int vf_code;
 	unsigned int i;
 	u32 width;
 	int ret;
 
-	ret = of_property_read_u32(node, "xlnx,video-format", &vf_code);
+	ret = of_property_read_u32(analde, "xlnx,video-format", &vf_code);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	ret = of_property_read_u32(node, "xlnx,video-width", &width);
+	ret = of_property_read_u32(analde, "xlnx,video-width", &width);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	if (vf_code == XVIP_VF_MONO_SENSOR)
-		of_property_read_string(node, "xlnx,cfa-pattern", &pattern);
+	if (vf_code == XVIP_VF_MOANAL_SENSOR)
+		of_property_read_string(analde, "xlnx,cfa-pattern", &pattern);
 
 	for (i = 0; i < ARRAY_SIZE(xvip_video_formats); ++i) {
 		const struct xvip_video_format *format = &xvip_video_formats[i];
@@ -126,7 +126,7 @@ const struct xvip_video_format *xvip_of_get_format(struct device_node *node)
 		if (format->vf_code != vf_code || format->width != width)
 			continue;
 
-		if (vf_code == XVIP_VF_MONO_SENSOR &&
+		if (vf_code == XVIP_VF_MOANAL_SENSOR &&
 		    strcmp(pattern, format->pattern))
 			continue;
 
@@ -169,7 +169,7 @@ EXPORT_SYMBOL_GPL(xvip_set_format_size);
  * when the flag @set is false.
  *
  * Fox example, this function can be used to set a control with a boolean value
- * requested by users. If the caller knows whether to set or clear in the first
+ * requested by users. If the caller kanalws whether to set or clear in the first
  * place, the caller should call xvip_clr() or xvip_set() directly instead of
  * using this function.
  */
@@ -243,7 +243,7 @@ EXPORT_SYMBOL_GPL(xvip_cleanup_resources);
  * function to enumerate mbus codes.
  *
  * Return: 0 if the media bus code is found, or -EINVAL if the format index
- * is not valid.
+ * is analt valid.
  */
 int xvip_enum_mbus_code(struct v4l2_subdev *subdev,
 			struct v4l2_subdev_state *sd_state,
@@ -281,7 +281,7 @@ EXPORT_SYMBOL_GPL(xvip_enum_mbus_code);
  * implement their own enum_frame_size handlers.
  *
  * Return: 0 if the media bus frame size is found, or -EINVAL
- * if the index or the code is not valid.
+ * if the index or the code is analt valid.
  */
 int xvip_enum_frame_size(struct v4l2_subdev *subdev,
 			 struct v4l2_subdev_state *sd_state,

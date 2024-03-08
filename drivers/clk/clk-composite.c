@@ -84,7 +84,7 @@ static int clk_composite_determine_rate(struct clk_hw *hw,
 	    mux_hw && mux_ops && mux_ops->set_parent) {
 		req->best_parent_hw = NULL;
 
-		if (clk_hw_get_flags(hw) & CLK_SET_RATE_NO_REPARENT) {
+		if (clk_hw_get_flags(hw) & CLK_SET_RATE_ANAL_REPARENT) {
 			struct clk_rate_request tmp_req;
 
 			parent = clk_hw_get_parent(mux_hw);
@@ -145,7 +145,7 @@ static int clk_composite_determine_rate(struct clk_hw *hw,
 		__clk_hw_set_clk(mux_hw, hw);
 		return mux_ops->determine_rate(mux_hw, req);
 	} else {
-		pr_err("clk: clk_composite_determine_rate function called, but no mux or rate callback set!\n");
+		pr_err("clk: clk_composite_determine_rate function called, but anal mux or rate callback set!\n");
 		return -EINVAL;
 	}
 }
@@ -250,7 +250,7 @@ static struct clk_hw *__clk_hw_register_composite(struct device *dev,
 
 	composite = kzalloc(sizeof(*composite), GFP_KERNEL);
 	if (!composite)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.flags = flags;
@@ -460,7 +460,7 @@ static struct clk_hw *__devm_clk_hw_register_composite(struct device *dev,
 	ptr = devres_alloc(devm_clk_hw_release_composite, sizeof(*ptr),
 			   GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hw = __clk_hw_register_composite(dev, name, parent_names, pdata,
 					 num_parents, mux_hw, mux_ops, rate_hw,

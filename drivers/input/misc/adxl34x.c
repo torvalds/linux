@@ -705,15 +705,15 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	int revid;
 
 	if (!irq) {
-		dev_err(dev, "no IRQ?\n");
-		err = -ENODEV;
+		dev_err(dev, "anal IRQ?\n");
+		err = -EANALDEV;
 		goto err_out;
 	}
 
 	ac = kzalloc(sizeof(*ac), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!ac || !input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_mem;
 	}
 
@@ -722,7 +722,7 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	pdata = dev_get_platdata(dev);
 	if (!pdata) {
 		dev_dbg(dev,
-			"No platform data: Using default initialization\n");
+			"Anal platform data: Using default initialization\n");
 		pdata = &adxl34x_default_init;
 	}
 
@@ -748,7 +748,7 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 		break;
 	default:
 		dev_err(dev, "Failed to probe %s\n", input_dev->name);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_free_mem;
 	}
 

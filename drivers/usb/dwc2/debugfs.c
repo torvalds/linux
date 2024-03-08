@@ -76,7 +76,7 @@ static int testmode_show(struct seq_file *s, void *unused)
 
 	switch (dctl) {
 	case 0:
-		seq_puts(s, "no test\n");
+		seq_puts(s, "anal test\n");
 		break;
 	case USB_TEST_J:
 		seq_puts(s, "test_j\n");
@@ -94,15 +94,15 @@ static int testmode_show(struct seq_file *s, void *unused)
 		seq_puts(s, "test_force_enable\n");
 		break;
 	default:
-		seq_printf(s, "UNKNOWN %d\n", dctl);
+		seq_printf(s, "UNKANALWN %d\n", dctl);
 	}
 
 	return 0;
 }
 
-static int testmode_open(struct inode *inode, struct file *file)
+static int testmode_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, testmode_show, inode->i_private);
+	return single_open(file, testmode_show, ianalde->i_private);
 }
 
 static const struct file_operations testmode_fops = {
@@ -187,7 +187,7 @@ static int fifo_show(struct seq_file *seq, void *v)
 	u32 val;
 	int idx;
 
-	seq_puts(seq, "Non-periodic FIFOs:\n");
+	seq_puts(seq, "Analn-periodic FIFOs:\n");
 	seq_printf(seq, "RXFIFO: Size %d\n", dwc2_readl(hsotg, GRXFSIZ));
 
 	val = dwc2_readl(hsotg, GNPTXFSIZ);
@@ -263,7 +263,7 @@ static int ep_show(struct seq_file *seq, void *v)
 
 	list_for_each_entry(req, &ep->queue, queue) {
 		if (--show_limit < 0) {
-			seq_puts(seq, "not showing more requests...\n");
+			seq_puts(seq, "analt showing more requests...\n");
 			break;
 		}
 
@@ -334,8 +334,8 @@ static const struct debugfs_reg32 dwc2_regs[] = {
 	/*
 	 * Accessing registers like this can trigger mode mismatch interrupt.
 	 * However, according to dwc2 databook, the register access, in this
-	 * case, is completed on the processor bus but is ignored by the core
-	 * and does not affect its operation.
+	 * case, is completed on the processor bus but is iganalred by the core
+	 * and does analt affect its operation.
 	 */
 	dump_register(GOTGCTL),
 	dump_register(GOTGINT),
@@ -782,13 +782,13 @@ int dwc2_debugfs_init(struct dwc2_hsotg *hsotg)
 	debugfs_create_file("hw_params", 0444, root, hsotg, &hw_params_fops);
 	debugfs_create_file("dr_mode", 0444, root, hsotg, &dr_mode_fops);
 
-	/* Add gadget debugfs nodes */
+	/* Add gadget debugfs analdes */
 	dwc2_hsotg_create_debug(hsotg);
 
 	hsotg->regset = devm_kzalloc(hsotg->dev, sizeof(*hsotg->regset),
 								GFP_KERNEL);
 	if (!hsotg->regset) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 

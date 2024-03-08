@@ -4,7 +4,7 @@
  *
  * Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  *
- * Copyright:   (C) 2009 Nokia Corporation
+ * Copyright:   (C) 2009 Analkia Corporation
  */
 
 #ifndef __TWL4030_CODEC_H__
@@ -13,7 +13,7 @@
 /* Codec registers */
 #define TWL4030_REG_CODEC_MODE		0x01
 #define TWL4030_REG_OPTION		0x02
-#define TWL4030_REG_UNKNOWN		0x03
+#define TWL4030_REG_UNKANALWN		0x03
 #define TWL4030_REG_MICBIAS_CTL		0x04
 #define TWL4030_REG_ANAMICL		0x05
 #define TWL4030_REG_ANAMICR		0x06
@@ -63,8 +63,8 @@
 #define TWL4030_REG_DTMF_TONEXT1L	0x32
 #define TWL4030_REG_DTMF_TONEXT2H	0x33
 #define TWL4030_REG_DTMF_TONEXT2L	0x34
-#define TWL4030_REG_DTMF_TONOFF		0x35
-#define TWL4030_REG_DTMF_WANONOFF	0x36
+#define TWL4030_REG_DTMF_TOANALFF		0x35
+#define TWL4030_REG_DTMF_WAANALANALFF	0x36
 #define TWL4030_REG_I2S_RX_SCRAMBLE_H	0x37
 #define TWL4030_REG_I2S_RX_SCRAMBLE_M	0x38
 #define TWL4030_REG_I2S_RX_SCRAMBLE_L	0x39

@@ -7,7 +7,7 @@
 #include <linux/extcon-provider.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
@@ -23,7 +23,7 @@ struct cros_ec_extcon_info {
 
 	struct cros_ec_device *ec;
 
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 
 	unsigned int dr; /* data role */
 	bool pr; /* power role (true if VBUS enabled) */
@@ -36,11 +36,11 @@ static const unsigned int usb_type_c_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
 	EXTCON_DISP_DP,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 enum usb_data_roles {
-	DR_NONE,
+	DR_ANALNE,
 	DR_HOST,
 	DR_DEVICE,
 };
@@ -70,7 +70,7 @@ static int cros_ec_pd_command(struct cros_ec_extcon_info *info,
 
 	msg = kzalloc(struct_size(msg, data, max(outsize, insize)), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->version = version;
 	msg->command = command;
@@ -138,7 +138,7 @@ static int cros_ec_usb_get_pd_mux_state(struct cros_ec_extcon_info *info)
  * @info: pointer to struct cros_ec_extcon_info
  * @polarity: pointer to cable polarity (return value)
  *
- * Return: role info on success, -ENOTCONN if no cable is connected, <0 on
+ * Return: role info on success, -EANALTCONN if anal cable is connected, <0 on
  * failure.
  */
 static int cros_ec_usb_get_role(struct cros_ec_extcon_info *info,
@@ -149,9 +149,9 @@ static int cros_ec_usb_get_role(struct cros_ec_extcon_info *info,
 	int ret;
 
 	pd_control.port = info->port_id;
-	pd_control.role = USB_PD_CTRL_ROLE_NO_CHANGE;
-	pd_control.mux = USB_PD_CTRL_MUX_NO_CHANGE;
-	pd_control.swap = USB_PD_CTRL_SWAP_NONE;
+	pd_control.role = USB_PD_CTRL_ROLE_ANAL_CHANGE;
+	pd_control.mux = USB_PD_CTRL_MUX_ANAL_CHANGE;
+	pd_control.swap = USB_PD_CTRL_SWAP_ANALNE;
 	ret = cros_ec_pd_command(info, EC_CMD_USB_PD_CONTROL, 1,
 				 &pd_control, sizeof(pd_control),
 				 &resp, sizeof(resp));
@@ -159,7 +159,7 @@ static int cros_ec_usb_get_role(struct cros_ec_extcon_info *info,
 		return ret;
 
 	if (!(resp.enabled & PD_CTRL_RESP_ENABLED_CONNECTED))
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	*polarity = resp.polarity;
 
@@ -187,15 +187,15 @@ static int cros_ec_pd_get_num_ports(struct cros_ec_extcon_info *info)
 
 static const char *cros_ec_usb_role_string(unsigned int role)
 {
-	return role == DR_NONE ? "DISCONNECTED" :
+	return role == DR_ANALNE ? "DISCONNECTED" :
 		(role == DR_HOST ? "DFP" : "UFP");
 }
 
 static const char *cros_ec_usb_power_type_string(unsigned int type)
 {
 	switch (type) {
-	case USB_CHG_TYPE_NONE:
-		return "USB_CHG_TYPE_NONE";
+	case USB_CHG_TYPE_ANALNE:
+		return "USB_CHG_TYPE_ANALNE";
 	case USB_CHG_TYPE_PD:
 		return "USB_CHG_TYPE_PD";
 	case USB_CHG_TYPE_PROPRIETARY:
@@ -212,10 +212,10 @@ static const char *cros_ec_usb_power_type_string(unsigned int type)
 		return "USB_CHG_TYPE_OTHER";
 	case USB_CHG_TYPE_VBUS:
 		return "USB_CHG_TYPE_VBUS";
-	case USB_CHG_TYPE_UNKNOWN:
-		return "USB_CHG_TYPE_UNKNOWN";
+	case USB_CHG_TYPE_UNKANALWN:
+		return "USB_CHG_TYPE_UNKANALWN";
 	default:
-		return "USB_CHG_TYPE_UNKNOWN";
+		return "USB_CHG_TYPE_UNKANALWN";
 	}
 }
 
@@ -237,8 +237,8 @@ static bool cros_ec_usb_power_type_is_wall_wart(unsigned int type,
 	case USB_CHG_TYPE_BC12_SDP:
 	case USB_CHG_TYPE_OTHER:
 	case USB_CHG_TYPE_VBUS:
-	case USB_CHG_TYPE_UNKNOWN:
-	case USB_CHG_TYPE_NONE:
+	case USB_CHG_TYPE_UNKANALWN:
+	case USB_CHG_TYPE_ANALNE:
 	default:
 		return false;
 	}
@@ -249,7 +249,7 @@ static int extcon_cros_ec_detect_cable(struct cros_ec_extcon_info *info,
 {
 	struct device *dev = info->dev;
 	int role, power_type;
-	unsigned int dr = DR_NONE;
+	unsigned int dr = DR_ANALNE;
 	bool pr = false;
 	bool polarity = false;
 	bool dp = false;
@@ -265,7 +265,7 @@ static int extcon_cros_ec_detect_cable(struct cros_ec_extcon_info *info,
 
 	role = cros_ec_usb_get_role(info, &polarity);
 	if (role < 0) {
-		if (role != -ENOTCONN) {
+		if (role != -EANALTCONN) {
 			dev_err(dev, "failed getting role err = %d\n", role);
 			return role;
 		}
@@ -289,12 +289,12 @@ static int extcon_cros_ec_detect_cable(struct cros_ec_extcon_info *info,
 	}
 
 	/*
-	 * When there is no USB host (e.g. USB PD charger),
-	 * we are not really a UFP for the AP.
+	 * When there is anal USB host (e.g. USB PD charger),
+	 * we are analt really a UFP for the AP.
 	 */
 	if (dr == DR_DEVICE &&
 	    cros_ec_usb_power_type_is_wall_wart(power_type, role))
-		dr = DR_NONE;
+		dr = DR_ANALNE;
 
 	if (force || info->dr != dr || info->pr != pr || info->dp != dp ||
 	    info->mux != mux || info->power_type != power_type) {
@@ -359,25 +359,25 @@ static int extcon_cros_ec_detect_cable(struct cros_ec_extcon_info *info,
 	return 0;
 }
 
-static int extcon_cros_ec_event(struct notifier_block *nb,
+static int extcon_cros_ec_event(struct analtifier_block *nb,
 				unsigned long queued_during_suspend,
-				void *_notify)
+				void *_analtify)
 {
 	struct cros_ec_extcon_info *info;
 	struct cros_ec_device *ec;
 	u32 host_event;
 
-	info = container_of(nb, struct cros_ec_extcon_info, notifier);
+	info = container_of(nb, struct cros_ec_extcon_info, analtifier);
 	ec = info->ec;
 
 	host_event = cros_ec_get_host_event(ec);
 	if (host_event & (EC_HOST_EVENT_MASK(EC_HOST_EVENT_PD_MCU) |
 			  EC_HOST_EVENT_MASK(EC_HOST_EVENT_USB_MUX))) {
 		extcon_cros_ec_detect_cable(info, false);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int extcon_cros_ec_probe(struct platform_device *pdev)
@@ -385,12 +385,12 @@ static int extcon_cros_ec_probe(struct platform_device *pdev)
 	struct cros_ec_extcon_info *info;
 	struct cros_ec_device *ec = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int numports, ret;
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = dev;
 	info->ec = ec;
@@ -417,13 +417,13 @@ static int extcon_cros_ec_probe(struct platform_device *pdev)
 
 	if (info->port_id >= numports) {
 		dev_err(dev, "This system only supports %d ports\n", numports);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	info->edev = devm_extcon_dev_allocate(dev, usb_type_c_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(dev, "failed to allocate extcon device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = devm_extcon_dev_register(dev, info->edev);
@@ -451,17 +451,17 @@ static int extcon_cros_ec_probe(struct platform_device *pdev)
 	extcon_set_property_capability(info->edev, EXTCON_DISP_DP,
 				       EXTCON_PROP_DISP_HPD);
 
-	info->dr = DR_NONE;
+	info->dr = DR_ANALNE;
 	info->pr = false;
 
 	platform_set_drvdata(pdev, info);
 
 	/* Get PD events from the EC */
-	info->notifier.notifier_call = extcon_cros_ec_event;
-	ret = blocking_notifier_chain_register(&info->ec->event_notifier,
-					       &info->notifier);
+	info->analtifier.analtifier_call = extcon_cros_ec_event;
+	ret = blocking_analtifier_chain_register(&info->ec->event_analtifier,
+					       &info->analtifier);
 	if (ret < 0) {
-		dev_err(dev, "failed to register notifier\n");
+		dev_err(dev, "failed to register analtifier\n");
 		return ret;
 	}
 
@@ -469,14 +469,14 @@ static int extcon_cros_ec_probe(struct platform_device *pdev)
 	ret = extcon_cros_ec_detect_cable(info, true);
 	if (ret < 0) {
 		dev_err(dev, "failed to detect initial cable state\n");
-		goto unregister_notifier;
+		goto unregister_analtifier;
 	}
 
 	return 0;
 
-unregister_notifier:
-	blocking_notifier_chain_unregister(&info->ec->event_notifier,
-					   &info->notifier);
+unregister_analtifier:
+	blocking_analtifier_chain_unregister(&info->ec->event_analtifier,
+					   &info->analtifier);
 	return ret;
 }
 
@@ -484,8 +484,8 @@ static int extcon_cros_ec_remove(struct platform_device *pdev)
 {
 	struct cros_ec_extcon_info *info = platform_get_drvdata(pdev);
 
-	blocking_notifier_chain_unregister(&info->ec->event_notifier,
-					   &info->notifier);
+	blocking_analtifier_chain_unregister(&info->ec->event_analtifier,
+					   &info->analtifier);
 
 	return 0;
 }

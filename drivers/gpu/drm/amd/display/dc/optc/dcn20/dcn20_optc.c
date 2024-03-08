@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -195,7 +195,7 @@ void optc2_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_c
 
 	ASSERT(opp_cnt == 2);
 
-	/* TODO: In pseudocode but does not affect maximus, delete comment if we dont need on asic
+	/* TODO: In pseudocode but does analt affect maximus, delete comment if we dont need on asic
 	 * REG_SET(OTG_GLOBAL_CONTROL2, 0, GLOBAL_UPDATE_LOCK_EN, 1);
 	 * Program OTG register MASTER_UPDATE_LOCK_DB_X/Y to the position before DP frame start
 	 * REG_SET_2(OTG_GLOBAL_CONTROL1, 0,
@@ -205,7 +205,7 @@ void optc2_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_c
 
 	/* 2 pieces of memory required for up to 5120 displays, 4 for up to 8192,
 	 * however, for ODM combine we can simplify by always using 4.
-	 * To make sure there's no overlap, each instance "reserves" 2 memories and
+	 * To make sure there's anal overlap, each instance "reserves" 2 memories and
 	 * they are uniquely combined here.
 	 */
 	memory_mask = 0x3 << (opp_id[0] * 2) | 0x3 << (opp_id[1] * 2);
@@ -244,7 +244,7 @@ void optc2_get_optc_source(struct timing_generator *optc,
 	else
 		*num_of_src_opp = 1;
 
-	/* Work around VBIOS not updating OPTC_NUM_OF_INPUT_SEGMENT */
+	/* Work around VBIOS analt updating OPTC_NUM_OF_INPUT_SEGMENT */
 	if (*src_opp_id_1 == 0xf)
 		*num_of_src_opp = 1;
 }
@@ -296,7 +296,7 @@ static void optc2_align_vblanks(
 	/* accessing master OTG registers */
 	optc1 = DCN10TG_FROM_TG(optc_master);
 
-	/* saving update lock state, not sure if it's needed */
+	/* saving update lock state, analt sure if it's needed */
 	REG_GET(OTG_MASTER_UPDATE_LOCK,
 			OTG_MASTER_UPDATE_LOCK, &master_update_lock);
 	/* unlocking master OTG */
@@ -338,7 +338,7 @@ static void optc2_align_vblanks(
 
 	/*
 	 * enable slave OTG, the OTG is locked with
-	 * master's update lock, so it will not run
+	 * master's update lock, so it will analt run
 	 */
 	REG_UPDATE(OTG_CONTROL,
 			   OTG_MASTER_EN, 1);
@@ -520,14 +520,14 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.program_global_sync = optc1_program_global_sync,
 		.enable_crtc = optc2_enable_crtc,
 		.disable_crtc = optc1_disable_crtc,
-		/* used by enable_timing_synchronization. Not need for FPGA */
+		/* used by enable_timing_synchronization. Analt need for FPGA */
 		.is_counter_moving = optc1_is_counter_moving,
 		.get_position = optc1_get_position,
 		.get_frame_count = optc1_get_vblank_counter,
-		.get_scanoutpos = optc1_get_crtc_scanoutpos,
+		.get_scaanalutpos = optc1_get_crtc_scaanalutpos,
 		.get_otg_active_size = optc1_get_otg_active_size,
 		.set_early_control = optc1_set_early_control,
-		/* used by enable_timing_synchronization. Not need for FPGA */
+		/* used by enable_timing_synchronization. Analt need for FPGA */
 		.wait_for_state = optc1_wait_for_state,
 		.set_blank = optc1_set_blank,
 		.is_blanked = optc1_is_blanked,
@@ -582,6 +582,6 @@ void dcn20_timing_generator_init(struct optc *optc1)
 	optc1->min_h_blank = 32;
 	optc1->min_v_blank = 3;
 	optc1->min_v_blank_interlace = 5;
-	optc1->min_h_sync_width = 4;//	Minimum HSYNC = 8 pixels asked By HW in the first place for no actual reason. Oculus Rift S will not light up with 8 as it's hsyncWidth is 6. Changing it to 4 to fix that issue.
+	optc1->min_h_sync_width = 4;//	Minimum HSYNC = 8 pixels asked By HW in the first place for anal actual reason. Oculus Rift S will analt light up with 8 as it's hsyncWidth is 6. Changing it to 4 to fix that issue.
 	optc1->min_v_sync_width = 1;
 }

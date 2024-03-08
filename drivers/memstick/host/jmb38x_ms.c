@@ -17,8 +17,8 @@
 
 #define DRIVER_NAME "jmb38x_ms"
 
-static bool no_dma;
-module_param(no_dma, bool, 0644);
+static bool anal_dma;
+module_param(anal_dma, bool, 0644);
 
 enum {
 	DMA_ADDRESS       = 0x00,
@@ -48,7 +48,7 @@ struct jmb38x_ms_host {
 	struct jmb38x_ms        *chip;
 	void __iomem            *addr;
 	spinlock_t              lock;
-	struct tasklet_struct   notify;
+	struct tasklet_struct   analtify;
 	int                     id;
 	char                    host_id[32];
 	int                     irq;
@@ -369,7 +369,7 @@ static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 	unsigned int data_len, cmd, t_val;
 
 	if (!(STATUS_HAS_MEDIA & readl(host->addr + STATUS))) {
-		dev_dbg(&msh->dev, "no media status\n");
+		dev_dbg(&msh->dev, "anal media status\n");
 		host->req->error = -ETIME;
 		return host->req->error;
 	}
@@ -397,7 +397,7 @@ static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 			cmd |= TPC_WAIT_INT;
 	}
 
-	if (!no_dma)
+	if (!anal_dma)
 		host->cmd_flags |= DMA_DATA;
 
 	if (host->req->long_data) {
@@ -419,7 +419,7 @@ static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 				    host->req->data_dir == READ
 				    ? DMA_FROM_DEVICE
 				    : DMA_TO_DEVICE)) {
-			host->req->error = -ENOMEM;
+			host->req->error = -EANALMEM;
 			return host->req->error;
 		}
 		data_len = sg_dma_len(&host->req->sg);
@@ -524,7 +524,7 @@ static irqreturn_t jmb38x_ms_isr(int irq, void *dev_id)
 	dev_dbg(&host->chip->pdev->dev, "irq_status = %08x\n", irq_status);
 	if (irq_status == 0 || irq_status == (~0)) {
 		spin_unlock(&host->lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (host->req) {
@@ -629,7 +629,7 @@ static void jmb38x_ms_submit_req(struct memstick_host *msh)
 {
 	struct jmb38x_ms_host *host = memstick_priv(msh);
 
-	tasklet_schedule(&host->notify);
+	tasklet_schedule(&host->analtify);
 }
 
 static int jmb38x_ms_reset(struct jmb38x_ms_host *host)
@@ -868,7 +868,7 @@ static struct memstick_host *jmb38x_ms_alloc_host(struct jmb38x_ms *jm, int cnt)
 	host->irq = jm->pdev->irq;
 	host->timeout_jiffies = msecs_to_jiffies(1000);
 
-	tasklet_init(&host->notify, jmb38x_ms_req_tasklet, (unsigned long)msh);
+	tasklet_init(&host->analtify, jmb38x_ms_req_tasklet, (unsigned long)msh);
 	msh->request = jmb38x_ms_submit_req;
 	msh->set_param = jmb38x_ms_set_param;
 
@@ -922,14 +922,14 @@ static int jmb38x_ms_probe(struct pci_dev *pdev,
 
 	cnt = jmb38x_ms_count_slots(pdev);
 	if (!cnt) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		pci_dev_busy = 1;
 		goto err_out_int;
 	}
 
 	jm = kzalloc(struct_size(jm, hosts, cnt), GFP_KERNEL);
 	if (!jm) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out_int;
 	}
 
@@ -954,7 +954,7 @@ static int jmb38x_ms_probe(struct pci_dev *pdev,
 	if (cnt)
 		return 0;
 
-	rc = -ENODEV;
+	rc = -EANALDEV;
 
 	pci_set_drvdata(pdev, NULL);
 	kfree(jm);
@@ -980,7 +980,7 @@ static void jmb38x_ms_remove(struct pci_dev *dev)
 		host = memstick_priv(jm->hosts[cnt]);
 
 		jm->hosts[cnt]->request = jmb38x_ms_dummy_submit;
-		tasklet_kill(&host->notify);
+		tasklet_kill(&host->analtify);
 		writel(0, host->addr + INT_SIGNAL_ENABLE);
 		writel(0, host->addr + INT_STATUS_ENABLE);
 		dev_dbg(&jm->pdev->dev, "interrupts off\n");

@@ -33,13 +33,13 @@ int snd_pcm_create_iec958_consumer_default(u8 *cs, size_t len)
 
 	memset(cs, 0, len);
 
-	cs[0] = IEC958_AES0_CON_NOT_COPYRIGHT | IEC958_AES0_CON_EMPHASIS_NONE;
+	cs[0] = IEC958_AES0_CON_ANALT_COPYRIGHT | IEC958_AES0_CON_EMPHASIS_ANALNE;
 	cs[1] = IEC958_AES1_CON_GENERAL;
 	cs[2] = IEC958_AES2_CON_SOURCE_UNSPEC | IEC958_AES2_CON_CHANNEL_UNSPEC;
-	cs[3] = IEC958_AES3_CON_CLOCK_1000PPM | IEC958_AES3_CON_FS_NOTID;
+	cs[3] = IEC958_AES3_CON_CLOCK_1000PPM | IEC958_AES3_CON_FS_ANALTID;
 
 	if (len > 4)
-		cs[4] = IEC958_AES4_CON_WORDLEN_NOTID;
+		cs[4] = IEC958_AES4_CON_WORDLEN_ANALTID;
 
 	return len;
 }
@@ -51,7 +51,7 @@ static int fill_iec958_consumer(uint rate, uint sample_width,
 	if (len < 4)
 		return -EINVAL;
 
-	if ((cs[3] & IEC958_AES3_CON_FS) == IEC958_AES3_CON_FS_NOTID) {
+	if ((cs[3] & IEC958_AES3_CON_FS) == IEC958_AES3_CON_FS_ANALTID) {
 		unsigned int fs;
 
 		switch (rate) {
@@ -85,7 +85,7 @@ static int fill_iec958_consumer(uint rate, uint sample_width,
 	}
 
 	if (len > 4 &&
-	    (cs[4] & IEC958_AES4_CON_WORDLEN) == IEC958_AES4_CON_WORDLEN_NOTID) {
+	    (cs[4] & IEC958_AES4_CON_WORDLEN) == IEC958_AES4_CON_WORDLEN_ANALTID) {
 		unsigned int ws;
 
 		switch (sample_width) {

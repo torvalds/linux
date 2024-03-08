@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /***************************************************************************
- *   Copyright (C) 2010-2012 by Bruno Prémont <bonbons@linux-vserver.org>  *
+ *   Copyright (C) 2010-2012 by Bruanal Prémont <bonbons@linux-vserver.org>  *
  *                                                                         *
  *   Based on Logitech G13 driver (v0.4)                                   *
  *     Copyright (C) 2009 by Rick L. Vinyard, Jr. <rvinyard@cs.nmsu.edu>   *
@@ -29,7 +29,7 @@
  * and header for 4x4 key matrix. The built-in keys are part of the matrix.
  */
 static const unsigned short def_keymap[PICOLCD_KEYS] = {
-	KEY_RESERVED,	/* none */
+	KEY_RESERVED,	/* analne */
 	KEY_BACK,	/* col 4 + row 1 */
 	KEY_HOMEPAGE,	/* col 3 + row 1 */
 	KEY_RESERVED,	/* col 2 + row 1 */
@@ -59,12 +59,12 @@ struct hid_report *picolcd_report(int id, struct hid_device *hdev, int dir)
 		if (report->id == id)
 			return report;
 	}
-	hid_warn(hdev, "No report with id 0x%x found\n", id);
+	hid_warn(hdev, "Anal report with id 0x%x found\n", id);
 	return NULL;
 }
 
 /* Submit a report and wait for a reply from device - if device fades away
- * or does not respond in time, return NULL */
+ * or does analt respond in time, return NULL */
 struct picolcd_pending *picolcd_send_and_wait(struct hid_device *hdev,
 		int report_id, const u8 *raw_data, int size)
 {
@@ -119,7 +119,7 @@ static int picolcd_raw_keypad(struct picolcd_data *data,
 	/*
 	 * Keypad event
 	 * First and second data bytes list currently pressed keys,
-	 * 0x00 means no key and at most 2 keys may be pressed at same time
+	 * 0x00 means anal key and at most 2 keys may be pressed at same time
 	 */
 	int i, j;
 
@@ -140,8 +140,8 @@ static int picolcd_raw_keypad(struct picolcd_data *data,
 		if (raw_data[i] < PICOLCD_KEYS)
 			key_code = data->keycode[raw_data[i]];
 		else
-			key_code = KEY_UNKNOWN;
-		if (key_code != KEY_UNKNOWN) {
+			key_code = KEY_UNKANALWN;
+		if (key_code != KEY_UNKANALWN) {
 			dbg_hid(PICOLCD_NAME " got key press for %u:%d",
 					raw_data[i], key_code);
 			input_report_key(data->input_keys, key_code, 1);
@@ -163,8 +163,8 @@ key_already_down:
 		if (data->pressed_keys[j] < PICOLCD_KEYS)
 			key_code = data->keycode[data->pressed_keys[j]];
 		else
-			key_code = KEY_UNKNOWN;
-		if (key_code != KEY_UNKNOWN) {
+			key_code = KEY_UNKANALWN;
+		if (key_code != KEY_UNKANALWN) {
 			dbg_hid(PICOLCD_NAME " got key release for %u:%d",
 					data->pressed_keys[j], key_code);
 			input_report_key(data->input_keys, key_code, 0);
@@ -184,12 +184,12 @@ static int picolcd_check_version(struct hid_device *hdev)
 	int ret = 0;
 
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	verinfo = picolcd_send_and_wait(hdev, REPORT_VERSION, NULL, 0);
 	if (!verinfo) {
-		hid_err(hdev, "no version response from PicoLCD\n");
-		return -ENODEV;
+		hid_err(hdev, "anal version response from PicoLCD\n");
+		return -EANALDEV;
 	}
 
 	if (verinfo->raw_size == 2) {
@@ -221,7 +221,7 @@ int picolcd_reset(struct hid_device *hdev)
 	int error;
 
 	if (!data || !report || report->maxfield != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irqsave(&data->lock, flags);
 	if (hdev->product == USB_DEVICE_ID_PICOLCD_BOOTLOADER)
@@ -231,7 +231,7 @@ int picolcd_reset(struct hid_device *hdev)
 	hid_set_field(report->field[0], 0, 1);
 	if (data->status & PICOLCD_FAILED) {
 		spin_unlock_irqrestore(&data->lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
 	spin_unlock_irqrestore(&data->lock, flags);
@@ -348,7 +348,7 @@ static int picolcd_raw_event(struct hid_device *hdev,
 		spin_lock_irqsave(&data->lock, flags);
 		/*
 		 * We let the caller of picolcd_send_and_wait() check if the
-		 * report we got is one of the expected ones or not.
+		 * report we got is one of the expected ones or analt.
 		 */
 		if (data->pending) {
 			memcpy(data->pending->raw_data, raw_data+1, size-1);
@@ -412,7 +412,7 @@ static int picolcd_init_keys(struct picolcd_data *data,
 	int error, i;
 
 	if (!report)
-		return -ENODEV;
+		return -EANALDEV;
 	if (report->maxfield != 1 || report->field[0]->report_count != 2 ||
 			report->field[0]->report_size != 8) {
 		hid_err(hdev, "unsupported KEY_STATE report\n");
@@ -422,7 +422,7 @@ static int picolcd_init_keys(struct picolcd_data *data,
 	idev = input_allocate_device();
 	if (idev == NULL) {
 		hid_err(hdev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	input_set_drvdata(idev, hdev);
 	memcpy(data->keycode, def_keymap, sizeof(def_keymap));
@@ -522,7 +522,7 @@ static int picolcd_probe(struct hid_device *hdev,
 		     const struct hid_device_id *id)
 {
 	struct picolcd_data *data;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	dbg_hid(PICOLCD_NAME " hardware probe...\n");
 
@@ -533,7 +533,7 @@ static int picolcd_probe(struct hid_device *hdev,
 	data = kzalloc(sizeof(struct picolcd_data), GFP_KERNEL);
 	if (data == NULL) {
 		hid_err(hdev, "can't allocate space for Minibox PicoLCD device data\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_init(&data->lock);

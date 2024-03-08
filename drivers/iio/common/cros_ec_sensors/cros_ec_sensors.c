@@ -74,8 +74,8 @@ static int cros_ec_sensors_read(struct iio_dev *indio_dev,
 		st->core.param.sensor_offset.flags = 0;
 
 		ret = cros_ec_motion_send_host_cmd(&st->core, 0);
-		if (ret == -EPROTO || ret == -EOPNOTSUPP) {
-			/* Reading calibscale is not supported on older EC. */
+		if (ret == -EPROTO || ret == -EOPANALTSUPP) {
+			/* Reading calibscale is analt supported on older EC. */
 			*val = 1;
 			*val2 = 0;
 			ret = IIO_VAL_INT_PLUS_MICRO;
@@ -96,7 +96,7 @@ static int cros_ec_sensors_read(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_SCALE:
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_RANGE;
-		st->core.param.sensor_range.data = EC_MOTION_SENSE_NO_VALUE;
+		st->core.param.sensor_range.data = EC_MOTION_SENSE_ANAL_VALUE;
 
 		ret = cros_ec_motion_send_host_cmd(&st->core, 0);
 		if (ret < 0)
@@ -107,7 +107,7 @@ static int cros_ec_sensors_read(struct iio_dev *indio_dev,
 		case MOTIONSENSE_TYPE_ACCEL:
 			/*
 			 * EC returns data in g, iio exepects m/s^2.
-			 * Do not use IIO_G_TO_M_S_2 to avoid precision loss.
+			 * Do analt use IIO_G_TO_M_S_2 to avoid precision loss.
 			 */
 			*val = div_s64(val64 * 980665, 10);
 			*val2 = 10000 << (CROS_EC_SENSOR_BITS - 1);
@@ -116,13 +116,13 @@ static int cros_ec_sensors_read(struct iio_dev *indio_dev,
 		case MOTIONSENSE_TYPE_GYRO:
 			/*
 			 * EC returns data in dps, iio expects rad/s.
-			 * Do not use IIO_DEGREE_TO_RAD to avoid precision
+			 * Do analt use IIO_DEGREE_TO_RAD to avoid precision
 			 * loss. Round to the nearest integer.
 			 */
 			*val = 0;
 			*val2 = div_s64(val64 * 3141592653ULL,
 					180 << (CROS_EC_SENSOR_BITS - 1));
-			ret = IIO_VAL_INT_PLUS_NANO;
+			ret = IIO_VAL_INT_PLUS_NAANAL;
 			break;
 		case MOTIONSENSE_TYPE_MAG:
 			/*
@@ -162,7 +162,7 @@ static int cros_ec_sensors_write(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_CALIBBIAS:
 		st->core.calib[idx].offset = val;
 
-		/* Send to EC for each axis, even if not complete */
+		/* Send to EC for each axis, even if analt complete */
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_OFFSET;
 		st->core.param.sensor_offset.flags =
 			MOTION_SENSE_SET_OFFSET;
@@ -176,7 +176,7 @@ static int cros_ec_sensors_write(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_CALIBSCALE:
 		st->core.calib[idx].scale = val;
-		/* Send to EC for each axis, even if not complete */
+		/* Send to EC for each axis, even if analt complete */
 
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_SCALE;
 		st->core.param.sensor_offset.flags =
@@ -233,7 +233,7 @@ static int cros_ec_sensors_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cros_ec_sensors_core_init(pdev, indio_dev, true,
 					cros_ec_sensors_capture);
@@ -274,7 +274,7 @@ static int cros_ec_sensors_probe(struct platform_device *pdev)
 			channel->type = IIO_MAGN;
 			break;
 		default:
-			dev_err(&pdev->dev, "Unknown motion sensor\n");
+			dev_err(&pdev->dev, "Unkanalwn motion sensor\n");
 			return -EINVAL;
 		}
 	}
@@ -290,7 +290,7 @@ static int cros_ec_sensors_probe(struct platform_device *pdev)
 	indio_dev->channels = state->channels;
 	indio_dev->num_channels = CROS_EC_SENSORS_MAX_CHANNELS;
 
-	/* There is only enough room for accel and gyro in the io space */
+	/* There is only eanalugh room for accel and gyro in the io space */
 	if ((state->core.ec->cmd_readmem != NULL) &&
 	    (state->core.type != MOTIONSENSE_TYPE_MAG))
 		state->core.read_ec_sensors_data = cros_ec_sensors_read_lpc;

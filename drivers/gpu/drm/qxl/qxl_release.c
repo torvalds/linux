@@ -8,13 +8,13 @@
  * license, and/or sell copies of the Software, and to permit persons to whom
  * the Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -29,12 +29,12 @@
 
 /*
  * drawable cmd cache - allocate a bunch of VRAM pages, suballocate
- * into 256 byte chunks for now - gives 16 cmds per page.
+ * into 256 byte chunks for analw - gives 16 cmds per page.
  *
  * use an ida to index into the chunks?
  */
 /* manage releaseables */
-/* stack them 16 high for now -drawable object is 191 */
+/* stack them 16 high for analw -drawable object is 191 */
 #define RELEASE_SIZE 256
 #define RELEASES_PER_BO (PAGE_SIZE / RELEASE_SIZE)
 /* put an alloc/dealloc surface cmd into one bo and round up to 128 */
@@ -64,7 +64,7 @@ static long qxl_fence_wait(struct dma_fence *fence, bool intr,
 
 	if (!wait_event_timeout(qdev->release_event,
 				(dma_fence_is_signaled(fence) ||
-				 (qxl_io_notify_oom(qdev), 0)),
+				 (qxl_io_analtify_oom(qdev), 0)),
 				timeout))
 		return 0;
 
@@ -91,7 +91,7 @@ qxl_release_alloc(struct qxl_device *qdev, int type,
 	release = kmalloc(size, GFP_KERNEL);
 	if (!release) {
 		DRM_ERROR("Out of memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	release->base.ops = NULL;
 	release->type = type;
@@ -101,8 +101,8 @@ qxl_release_alloc(struct qxl_device *qdev, int type,
 
 	idr_preload(GFP_KERNEL);
 	spin_lock(&qdev->release_idr_lock);
-	handle = idr_alloc(&qdev->release_idr, release, 1, 0, GFP_NOWAIT);
-	release->base.seqno = ++qdev->release_seqno;
+	handle = idr_alloc(&qdev->release_idr, release, 1, 0, GFP_ANALWAIT);
+	release->base.seqanal = ++qdev->release_seqanal;
 	spin_unlock(&qdev->release_idr_lock);
 	idr_preload_end();
 	if (handle < 0) {
@@ -179,7 +179,7 @@ int qxl_release_list_add(struct qxl_release *release, struct qxl_bo *bo)
 
 	entry = kmalloc(sizeof(struct qxl_bo_list), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qxl_bo_ref(bo);
 	entry->tv.bo = &bo->tbo;
@@ -211,18 +211,18 @@ static int qxl_release_validate_bo(struct qxl_bo *bo)
 	return 0;
 }
 
-int qxl_release_reserve_list(struct qxl_release *release, bool no_intr)
+int qxl_release_reserve_list(struct qxl_release *release, bool anal_intr)
 {
 	int ret;
 	struct qxl_bo_list *entry;
 
 	/* if only one object on the release its the release itself
-	   since these objects are pinned no need to reserve */
+	   since these objects are pinned anal need to reserve */
 	if (list_is_singular(&release->bos))
 		return 0;
 
 	ret = ttm_eu_reserve_buffers(&release->ticket, &release->bos,
-				     !no_intr, NULL);
+				     !anal_intr, NULL);
 	if (ret)
 		return ret;
 
@@ -241,7 +241,7 @@ int qxl_release_reserve_list(struct qxl_release *release, bool no_intr)
 void qxl_release_backoff_reserve_list(struct qxl_release *release)
 {
 	/* if only one object on the release its the release itself
-	   since these objects are pinned no need to reserve */
+	   since these objects are pinned anal need to reserve */
 	if (list_is_singular(&release->bos))
 		return;
 
@@ -410,7 +410,7 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 	struct qxl_device *qdev;
 
 	/* if only one object on the release its the release itself
-	   since these objects are pinned no need to reserve */
+	   since these objects are pinned anal need to reserve */
 	if (list_is_singular(&release->bos) || list_empty(&release->bos))
 		return;
 
@@ -423,7 +423,7 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 	 * set the highest bits. This will break if we really allow exporting of dma-bufs.
 	 */
 	dma_fence_init(&release->base, &qxl_fence_ops, &qdev->release_lock,
-		       release->id | 0xf0000000, release->base.seqno);
+		       release->id | 0xf0000000, release->base.seqanal);
 	trace_dma_fence_emit(&release->base);
 
 	list_for_each_entry(entry, &release->bos, head) {

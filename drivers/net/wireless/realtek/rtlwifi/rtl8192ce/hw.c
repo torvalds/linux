@@ -118,7 +118,7 @@ void rtl92ce_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HAL_DEF_WOWLAN:
 		break;
 	default:
-		pr_err("switch case %#x not processed\n", variable);
+		pr_err("switch case %#x analt processed\n", variable);
 		break;
 	}
 }
@@ -243,7 +243,7 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			break;
 		}
 	case HW_VAR_AMPDU_FACTOR:{
-			u8 regtoset_normal[4] = {0x41, 0xa8, 0x72, 0xb9};
+			u8 regtoset_analrmal[4] = {0x41, 0xa8, 0x72, 0xb9};
 			u8 regtoset_bt[4] = {0x31, 0x74, 0x42, 0x97};
 
 			u8 factor_toset;
@@ -255,7 +255,7 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			    BT_CSR_BC4))
 				p_regtoset = regtoset_bt;
 			else
-				p_regtoset = regtoset_normal;
+				p_regtoset = regtoset_analrmal;
 
 			factor_toset = *(val);
 			if (factor_toset <= 3) {
@@ -338,7 +338,7 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 					acm_ctrl &= (~ACMHW_VOQEN);
 					break;
 				default:
-					pr_err("switch case %#x not processed\n",
+					pr_err("switch case %#x analt processed\n",
 					       e_aci);
 					break;
 				}
@@ -525,7 +525,7 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		rtl92c_fill_h2c_cmd(hw, H2C_92C_KEEP_ALIVE_CTRL, 2, array);
 		break; }
 	default:
-		pr_err("switch case %d not processed\n", variable);
+		pr_err("switch case %d analt processed\n", variable);
 		break;
 	}
 }
@@ -542,7 +542,7 @@ static bool _rtl92ce_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 
 	do {
 		value = rtl_read_dword(rtlpriv, REG_LLT_INIT);
-		if (_LLT_NO_ACTIVE == _LLT_OP_VALUE(value))
+		if (_LLT_ANAL_ACTIVE == _LLT_OP_VALUE(value))
 			break;
 
 		if (count > POLLING_LLT_THRESHOLD) {
@@ -882,7 +882,7 @@ void rtl92ce_enable_hw_security_config(struct ieee80211_hw *hw)
 
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		rtl_dbg(rtlpriv, COMP_SEC, DBG_DMESG,
-			"not open hw encryption\n");
+			"analt open hw encryption\n");
 		return;
 	}
 
@@ -942,7 +942,7 @@ int rtl92ce_hw_init(struct ieee80211_hw *hw)
 	err = rtl92c_download_fw(hw);
 	if (err) {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
-			"Failed to download FW. Init HW without FW now..\n");
+			"Failed to download FW. Init HW without FW analw..\n");
 		err = 1;
 		goto exit;
 	}
@@ -1035,7 +1035,7 @@ static enum version_8192c _rtl92ce_read_chip_version(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-	enum version_8192c version = VERSION_UNKNOWN;
+	enum version_8192c version = VERSION_UNKANALWN;
 	u32 value32;
 	const char *versionid;
 
@@ -1051,7 +1051,7 @@ static enum version_8192c _rtl92ce_read_chip_version(struct ieee80211_hw *hw)
 		     CHIP_VER_RTL_MASK)) {
 			version = (enum version_8192c)(version |
 				   ((((value32 & CHIP_VER_RTL_MASK) == BIT(12))
-				   ? CHIP_VENDOR_UMC_B_CUT : CHIP_UNKNOWN) |
+				   ? CHIP_VENDOR_UMC_B_CUT : CHIP_UNKANALWN) |
 				   CHIP_VENDOR_UMC));
 		}
 		if (IS_92C_SERIAL(version)) {
@@ -1076,26 +1076,26 @@ static enum version_8192c _rtl92ce_read_chip_version(struct ieee80211_hw *hw)
 	case VERSION_A_CHIP_88C:
 		versionid = "A_CHIP_88C";
 		break;
-	case VERSION_NORMAL_UMC_CHIP_92C_1T2R_A_CUT:
+	case VERSION_ANALRMAL_UMC_CHIP_92C_1T2R_A_CUT:
 		versionid = "A_CUT_92C_1T2R";
 		break;
-	case VERSION_NORMAL_UMC_CHIP_92C_A_CUT:
+	case VERSION_ANALRMAL_UMC_CHIP_92C_A_CUT:
 		versionid = "A_CUT_92C";
 		break;
-	case VERSION_NORMAL_UMC_CHIP_88C_A_CUT:
+	case VERSION_ANALRMAL_UMC_CHIP_88C_A_CUT:
 		versionid = "A_CUT_88C";
 		break;
-	case VERSION_NORMAL_UMC_CHIP_92C_1T2R_B_CUT:
+	case VERSION_ANALRMAL_UMC_CHIP_92C_1T2R_B_CUT:
 		versionid = "B_CUT_92C_1T2R";
 		break;
-	case VERSION_NORMAL_UMC_CHIP_92C_B_CUT:
+	case VERSION_ANALRMAL_UMC_CHIP_92C_B_CUT:
 		versionid = "B_CUT_92C";
 		break;
-	case VERSION_NORMAL_UMC_CHIP_88C_B_CUT:
+	case VERSION_ANALRMAL_UMC_CHIP_88C_B_CUT:
 		versionid = "B_CUT_88C";
 		break;
 	default:
-		versionid = "Unknown. Bug?";
+		versionid = "Unkanalwn. Bug?";
 		break;
 	}
 
@@ -1128,16 +1128,16 @@ static int _rtl92ce_set_media_status(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 bt_msr = rtl_read_byte(rtlpriv, MSR);
-	enum led_ctl_mode ledaction = LED_CTL_NO_LINK;
-	u8 mode = MSR_NOLINK;
+	enum led_ctl_mode ledaction = LED_CTL_ANAL_LINK;
+	u8 mode = MSR_ANALLINK;
 
 	bt_msr &= 0xfc;
 
 	switch (type) {
 	case NL80211_IFTYPE_UNSPECIFIED:
-		mode = MSR_NOLINK;
+		mode = MSR_ANALLINK;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE,
-			"Set Network type to NO LINK!\n");
+			"Set Network type to ANAL LINK!\n");
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		mode = MSR_ADHOC;
@@ -1162,7 +1162,7 @@ static int _rtl92ce_set_media_status(struct ieee80211_hw *hw,
 			"Set Network type to Mesh Point!\n");
 		break;
 	default:
-		pr_err("Network type %d not supported!\n", type);
+		pr_err("Network type %d analt supported!\n", type);
 		return 1;
 
 	}
@@ -1171,14 +1171,14 @@ static int _rtl92ce_set_media_status(struct ieee80211_hw *hw,
 	 * MSR_ADHOC == Link in ad hoc network;
 	 * Therefore, check link state is necessary.
 	 *
-	 * MSR_AP == AP mode; link state does not matter here.
+	 * MSR_AP == AP mode; link state does analt matter here.
 	 */
 	if (mode != MSR_AP &&
 	    rtlpriv->mac80211.link_state < MAC80211_LINKED) {
-		mode = MSR_NOLINK;
-		ledaction = LED_CTL_NO_LINK;
+		mode = MSR_ANALLINK;
+		ledaction = LED_CTL_ANAL_LINK;
 	}
-	if (mode == MSR_NOLINK || mode == MSR_INFRA) {
+	if (mode == MSR_ANALLINK || mode == MSR_INFRA) {
 		_rtl92ce_stop_tx_beacon(hw);
 		_rtl92ce_enable_bcn_sub_func(hw);
 	} else if (mode == MSR_ADHOC || mode == MSR_AP) {
@@ -1186,7 +1186,7 @@ static int _rtl92ce_set_media_status(struct ieee80211_hw *hw,
 		_rtl92ce_disable_bcn_sub_func(hw);
 	} else {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
-			"Set HW_VAR_MEDIA_STATUS: No such media status(%x).\n",
+			"Set HW_VAR_MEDIA_STATUS: Anal such media status(%x).\n",
 			mode);
 	}
 	rtl_write_byte(rtlpriv, MSR, bt_msr | mode);
@@ -1228,7 +1228,7 @@ int rtl92ce_set_network_type(struct ieee80211_hw *hw, enum nl80211_iftype type)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (_rtl92ce_set_media_status(hw, type))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rtlpriv->mac80211.link_state == MAC80211_LINKED) {
 		if (type != NL80211_IFTYPE_AP &&
@@ -1340,7 +1340,7 @@ void rtl92ce_card_disable(struct ieee80211_hw *hw)
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	enum nl80211_iftype opmode;
 
-	mac->link_state = MAC80211_NOLINK;
+	mac->link_state = MAC80211_ANALLINK;
 	opmode = NL80211_IFTYPE_UNSPECIFIED;
 	_rtl92ce_set_media_status(hw, opmode);
 	if (rtlpci->driver_is_goingto_unload ||
@@ -1639,7 +1639,7 @@ static void _rtl92ce_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 	rtlefuse->eeprom_thermalmeter = (tempval & 0x1f);
 
 	if (rtlefuse->eeprom_thermalmeter == 0x1f || autoload_fail)
-		rtlefuse->apk_thermalmeterignore = true;
+		rtlefuse->apk_thermalmeteriganalre = true;
 
 	rtlefuse->thermalmeter[0] = rtlefuse->eeprom_thermalmeter;
 	RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
@@ -1709,7 +1709,7 @@ static void _rtl92ce_hal_customized_behavior(struct ieee80211_hw *hw)
 	case RT_CID_819X_HP:
 		rtlpriv->ledctl.led_opendrain = true;
 		break;
-	case RT_CID_819X_LENOVO:
+	case RT_CID_819X_LEANALVO:
 	case RT_CID_DEFAULT:
 	case RT_CID_TOSHIBA:
 	case RT_CID_CCX:
@@ -2122,7 +2122,7 @@ void rtl92ce_set_key(struct ieee80211_hw *hw, u32 key_index,
 			enc_algo = CAM_AES;
 			break;
 		default:
-			pr_err("switch case %#x not processed\n",
+			pr_err("switch case %#x analt processed\n",
 			       enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
@@ -2141,7 +2141,7 @@ void rtl92ce_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id = rtl_cam_get_free_entry(hw,
 								 p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						pr_err("Can not find free hw security cam entry\n");
+						pr_err("Can analt find free hw security cam entry\n");
 						return;
 					}
 				} else {
@@ -2184,7 +2184,7 @@ void rtl92ce_set_key(struct ieee80211_hw *hw, u32 key_index,
 
 				rtl_cam_add_one_entry(hw, macaddr, key_index,
 						      entry_id, enc_algo,
-						      CAM_CONFIG_NO_USEDK,
+						      CAM_CONFIG_ANAL_USEDK,
 						      rtlpriv->sec.
 						      key_buf[key_index]);
 			} else {
@@ -2197,14 +2197,14 @@ void rtl92ce_set_key(struct ieee80211_hw *hw, u32 key_index,
 						PAIRWISE_KEYIDX,
 						CAM_PAIRWISE_KEY_POSITION,
 						enc_algo,
-						CAM_CONFIG_NO_USEDK,
+						CAM_CONFIG_ANAL_USEDK,
 						rtlpriv->sec.key_buf
 						[entry_id]);
 				}
 
 				rtl_cam_add_one_entry(hw, macaddr, key_index,
 						entry_id, enc_algo,
-						CAM_CONFIG_NO_USEDK,
+						CAM_CONFIG_ANAL_USEDK,
 						rtlpriv->sec.key_buf[entry_id]);
 			}
 
@@ -2283,7 +2283,7 @@ void rtl8192ce_bt_reg_init(struct ieee80211_hw *hw)
 
 	/* 0:Low, 1:High, 2:From Efuse. */
 	rtlpriv->btcoexist.reg_bt_iso = 2;
-	/* 0:Idle, 1:None-SCO, 2:SCO, 3:From Counter. */
+	/* 0:Idle, 1:Analne-SCO, 2:SCO, 3:From Counter. */
 	rtlpriv->btcoexist.reg_bt_sco = 3;
 	/* 0:Disable BT control A-MPDU, 1:Enable BT control A-MPDU. */
 	rtlpriv->btcoexist.reg_bt_sco = 0;

@@ -10,13 +10,13 @@ struct bch_subvolume {
 	struct bch_val		v;
 	__le32			flags;
 	__le32			snapshot;
-	__le64			inode;
+	__le64			ianalde;
 	/*
-	 * Snapshot subvolumes form a tree, separate from the snapshot nodes
+	 * Snapshot subvolumes form a tree, separate from the snapshot analdes
 	 * tree - if this subvolume is a snapshot, this is the ID of the
 	 * subvolume it was created from:
 	 *
-	 * This is _not_ necessarily the subvolume of the directory containing
+	 * This is _analt_ necessarily the subvolume of the directory containing
 	 * this subvolume:
 	 */
 	__le32			parent;
@@ -26,7 +26,7 @@ struct bch_subvolume {
 
 LE32_BITMASK(BCH_SUBVOLUME_RO,		struct bch_subvolume, flags,  0,  1)
 /*
- * We need to know whether a subvolume is a snapshot so we can know whether we
+ * We need to kanalw whether a subvolume is a snapshot so we can kanalw whether we
  * can delete it (or whether it should just be rm -rf'd)
  */
 LE32_BITMASK(BCH_SUBVOLUME_SNAP,	struct bch_subvolume, flags,  1,  2)

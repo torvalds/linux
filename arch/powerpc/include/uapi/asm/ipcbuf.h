@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 #ifndef _ASM_POWERPC_IPCBUF_H
 #define _ASM_POWERPC_IPCBUF_H
 
 /*
  * The ipc64_perm structure for the powerpc is identical to
  * kern_ipc_perm as we have always had 32-bit UIDs and GIDs in the
- * kernel.  Note extra padding because this structure is passed back
+ * kernel.  Analte extra padding because this structure is passed back
  * and forth between kernel and user space.  Pad space is left for:
  *	- 1 32-bit value to fill up for 8-byte alignment
  *	- 2 miscellaneous 64-bit values

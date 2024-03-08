@@ -9,7 +9,7 @@
  *         ATMEL CORP.
  *
  * Based on at91-ssc.c by
- * Frank Mandarino <fmandarino@endrelia.com>
+ * Frank Mandarianal <fmandarianal@endrelia.com>
  * Based on pxa2xx Platform drivers by
  * Liam Girdwood <lrg@slimlogic.co.uk>
  */
@@ -56,7 +56,7 @@
 #define SSC_CKI_RISING		1
 
 /* CKO bit field values */
-#define SSC_CKO_NONE		0
+#define SSC_CKO_ANALNE		0
 #define SSC_CKO_CONTINUOUS	1
 #define SSC_CKO_TRANSFER	2
 
@@ -70,7 +70,7 @@
 #define SSC_FSEDGE_NEGATIVE	1
 
 /* FSOS bit field values */
-#define SSC_FSOS_NONE		0
+#define SSC_FSOS_ANALNE		0
 #define SSC_FSOS_NEGATIVE	1
 #define SSC_FSOS_POSITIVE	2
 #define SSC_FSOS_LOW		3

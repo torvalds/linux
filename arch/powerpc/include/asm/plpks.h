@@ -17,10 +17,10 @@
 // Object policy flags from supported_policies
 #define PLPKS_OSSECBOOTAUDIT	PPC_BIT32(1) // OS secure boot must be audit/enforce
 #define PLPKS_OSSECBOOTENFORCE	PPC_BIT32(2) // OS secure boot must be enforce
-#define PLPKS_PWSET		PPC_BIT32(3) // No access without password set
+#define PLPKS_PWSET		PPC_BIT32(3) // Anal access without password set
 #define PLPKS_WORLDREADABLE	PPC_BIT32(4) // Readable without authentication
-#define PLPKS_IMMUTABLE		PPC_BIT32(5) // Once written, object cannot be removed
-#define PLPKS_TRANSIENT		PPC_BIT32(6) // Object does not persist through reboot
+#define PLPKS_IMMUTABLE		PPC_BIT32(5) // Once written, object cananalt be removed
+#define PLPKS_TRANSIENT		PPC_BIT32(6) // Object does analt persist through reboot
 #define PLPKS_SIGNEDUPDATE	PPC_BIT32(7) // Object can only be modified by signed updates
 #define PLPKS_HVPROVISIONED	PPC_BIT32(28) // Hypervisor has provisioned this object
 
@@ -90,7 +90,7 @@ int plpks_remove_var(char *component, u8 varos,
  * Returns the data for the specified os variable.
  *
  * Caller must allocate a buffer in var->data with length in var->datalen.
- * If no buffer is provided, var->datalen will be populated with the object's
+ * If anal buffer is provided, var->datalen will be populated with the object's
  * size.
  */
 int plpks_read_os_var(struct plpks_var *var);
@@ -99,7 +99,7 @@ int plpks_read_os_var(struct plpks_var *var);
  * Returns the data for the specified firmware variable.
  *
  * Caller must allocate a buffer in var->data with length in var->datalen.
- * If no buffer is provided, var->datalen will be populated with the object's
+ * If anal buffer is provided, var->datalen will be populated with the object's
  * size.
  */
 int plpks_read_fw_var(struct plpks_var *var);
@@ -108,7 +108,7 @@ int plpks_read_fw_var(struct plpks_var *var);
  * Returns the data for the specified bootloader variable.
  *
  * Caller must allocate a buffer in var->data with length in var->datalen.
- * If no buffer is provided, var->datalen will be populated with the object's
+ * If anal buffer is provided, var->datalen will be populated with the object's
  * size.
  */
 int plpks_read_bootloader_var(struct plpks_var *var);
@@ -124,7 +124,7 @@ bool plpks_is_available(void);
 u8 plpks_get_version(void);
 
 /**
- * Returns hypervisor storage overhead per object, not including the size of
+ * Returns hypervisor storage overhead per object, analt including the size of
  * the object or label. Only valid for config version >= 2
  */
 u16 plpks_get_objoverhead(void);

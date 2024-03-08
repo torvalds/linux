@@ -6,15 +6,15 @@
 
 #include <linux/types.h>
 
-extern int nospec_disable;
+extern int analspec_disable;
 
-void nospec_init_branches(void);
-void nospec_auto_detect(void);
-void nospec_revert(s32 *start, s32 *end);
+void analspec_init_branches(void);
+void analspec_auto_detect(void);
+void analspec_revert(s32 *start, s32 *end);
 
-static inline bool nospec_uses_trampoline(void)
+static inline bool analspec_uses_trampoline(void)
 {
-	return __is_defined(CC_USING_EXPOLINE) && !nospec_disable;
+	return __is_defined(CC_USING_EXPOLINE) && !analspec_disable;
 }
 
 #endif /* __ASSEMBLY__ */

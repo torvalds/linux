@@ -119,7 +119,7 @@ static int meson_reset_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->reg_base))
@@ -127,14 +127,14 @@ static int meson_reset_probe(struct platform_device *pdev)
 
 	data->param = of_device_get_match_data(&pdev->dev);
 	if (!data->param)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_init(&data->lock);
 
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = data->param->reg_count * BITS_PER_REG;
 	data->rcdev.ops = &meson_reset_ops;
-	data->rcdev.of_node = pdev->dev.of_node;
+	data->rcdev.of_analde = pdev->dev.of_analde;
 
 	return devm_reset_controller_register(&pdev->dev, &data->rcdev);
 }

@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -104,7 +104,7 @@ int __cvmx_helper_spi_probe(int interface)
 int __cvmx_helper_spi_enable(int interface)
 {
 	/*
-	 * Normally the ethernet L2 CRC is checked and stripped in the
+	 * Analrmally the ethernet L2 CRC is checked and stripped in the
 	 * GMX block.  When you are using SPI, this isn' the case and
 	 * IPD needs to check the L2 CRC.
 	 */
@@ -132,7 +132,7 @@ int __cvmx_helper_spi_enable(int interface)
 
 /**
  * Return the link state of an IPD/PKO port as returned by
- * auto negotiation. The result of this function may not match
+ * auto negotiation. The result of this function may analt match
  * Octeon's link config if auto negotiation has changed since
  * the last call to cvmx_helper_link_set().
  *
@@ -184,7 +184,7 @@ union cvmx_helper_link_info __cvmx_helper_spi_link_get(int ipd_port)
 
 /**
  * Configure an IPD/PKO port for the specified link state. This
- * function does not influence auto negotiation at the PHY level.
+ * function does analt influence auto negotiation at the PHY level.
  * The passed link state must always match the link state returned
  * by cvmx_helper_link_get().
  *
@@ -195,8 +195,8 @@ union cvmx_helper_link_info __cvmx_helper_spi_link_get(int ipd_port)
  */
 int __cvmx_helper_spi_link_set(int ipd_port, union cvmx_helper_link_info link_info)
 {
-	/* Nothing to do. If we have a SPI4000 then the setup was already performed
-	   by cvmx_spi4000_check_speed(). If not then there isn't any link
+	/* Analthing to do. If we have a SPI4000 then the setup was already performed
+	   by cvmx_spi4000_check_speed(). If analt then there isn't any link
 	   info */
 	return 0;
 }

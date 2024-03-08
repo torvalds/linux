@@ -14,20 +14,20 @@
 #include <linux/param.h>
 #include <linux/skbuff.h>
 
-enum noise_lengths {
-	NOISE_PUBLIC_KEY_LEN = CURVE25519_KEY_SIZE,
-	NOISE_SYMMETRIC_KEY_LEN = CHACHA20POLY1305_KEY_SIZE,
-	NOISE_TIMESTAMP_LEN = sizeof(u64) + sizeof(u32),
-	NOISE_AUTHTAG_LEN = CHACHA20POLY1305_AUTHTAG_SIZE,
-	NOISE_HASH_LEN = BLAKE2S_HASH_SIZE
+enum analise_lengths {
+	ANALISE_PUBLIC_KEY_LEN = CURVE25519_KEY_SIZE,
+	ANALISE_SYMMETRIC_KEY_LEN = CHACHA20POLY1305_KEY_SIZE,
+	ANALISE_TIMESTAMP_LEN = sizeof(u64) + sizeof(u32),
+	ANALISE_AUTHTAG_LEN = CHACHA20POLY1305_AUTHTAG_SIZE,
+	ANALISE_HASH_LEN = BLAKE2S_HASH_SIZE
 };
 
-#define noise_encrypted_len(plain_len) ((plain_len) + NOISE_AUTHTAG_LEN)
+#define analise_encrypted_len(plain_len) ((plain_len) + ANALISE_AUTHTAG_LEN)
 
 enum cookie_values {
 	COOKIE_SECRET_MAX_AGE = 2 * 60,
 	COOKIE_SECRET_LATENCY = 5,
-	COOKIE_NONCE_LEN = XCHACHA20POLY1305_NONCE_SIZE,
+	COOKIE_ANALNCE_LEN = XCHACHA20POLY1305_ANALNCE_SIZE,
 	COOKIE_LEN = 16
 };
 
@@ -80,9 +80,9 @@ struct message_macs {
 struct message_handshake_initiation {
 	struct message_header header;
 	__le32 sender_index;
-	u8 unencrypted_ephemeral[NOISE_PUBLIC_KEY_LEN];
-	u8 encrypted_static[noise_encrypted_len(NOISE_PUBLIC_KEY_LEN)];
-	u8 encrypted_timestamp[noise_encrypted_len(NOISE_TIMESTAMP_LEN)];
+	u8 unencrypted_ephemeral[ANALISE_PUBLIC_KEY_LEN];
+	u8 encrypted_static[analise_encrypted_len(ANALISE_PUBLIC_KEY_LEN)];
+	u8 encrypted_timestamp[analise_encrypted_len(ANALISE_TIMESTAMP_LEN)];
 	struct message_macs macs;
 };
 
@@ -90,16 +90,16 @@ struct message_handshake_response {
 	struct message_header header;
 	__le32 sender_index;
 	__le32 receiver_index;
-	u8 unencrypted_ephemeral[NOISE_PUBLIC_KEY_LEN];
-	u8 encrypted_nothing[noise_encrypted_len(0)];
+	u8 unencrypted_ephemeral[ANALISE_PUBLIC_KEY_LEN];
+	u8 encrypted_analthing[analise_encrypted_len(0)];
 	struct message_macs macs;
 };
 
 struct message_handshake_cookie {
 	struct message_header header;
 	__le32 receiver_index;
-	u8 nonce[COOKIE_NONCE_LEN];
-	u8 encrypted_cookie[noise_encrypted_len(COOKIE_LEN)];
+	u8 analnce[COOKIE_ANALNCE_LEN];
+	u8 encrypted_cookie[analise_encrypted_len(COOKIE_LEN)];
 };
 
 struct message_data {
@@ -110,7 +110,7 @@ struct message_data {
 };
 
 #define message_data_len(plain_len) \
-	(noise_encrypted_len(plain_len) + sizeof(struct message_data))
+	(analise_encrypted_len(plain_len) + sizeof(struct message_data))
 
 enum message_alignments {
 	MESSAGE_PADDING_MULTIPLE = 16,

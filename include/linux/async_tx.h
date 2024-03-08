@@ -9,7 +9,7 @@
 #include <linux/interrupt.h>
 
 /* on architectures without dma-mapping capabilities we need to ensure
- * that the asynchronous path compiles away
+ * that the asynchroanalus path compiles away
  */
 #ifdef CONFIG_HAS_DMA
 #define __async_inline
@@ -21,14 +21,14 @@
  * dma_chan_ref - object used to manage dma channels received from the
  *   dmaengine core.
  * @chan - the channel being tracked
- * @node - node for the channel to be placed on async_tx_master_list
+ * @analde - analde for the channel to be placed on async_tx_master_list
  * @rcu - for list_del_rcu
  * @count - number of times this channel is listed in the pool
  *	(for channels with multiple capabiities)
  */
 struct dma_chan_ref {
 	struct dma_chan *chan;
-	struct list_head node;
+	struct list_head analde;
 	struct rcu_head rcu;
 	atomic_t count;
 };
@@ -36,18 +36,18 @@ struct dma_chan_ref {
 /**
  * async_tx_flags - modifiers for the async_* calls
  * @ASYNC_TX_XOR_ZERO_DST: this flag must be used for xor operations where the
- * destination address is not a source.  The asynchronous case handles this
- * implicitly, the synchronous case needs to zero the destination block.
+ * destination address is analt a source.  The asynchroanalus case handles this
+ * implicitly, the synchroanalus case needs to zero the destination block.
  * @ASYNC_TX_XOR_DROP_DST: this flag must be used if the destination address is
- * also one of the source addresses.  In the synchronous case the destination
- * address is an implied source, whereas the asynchronous case it must be listed
+ * also one of the source addresses.  In the synchroanalus case the destination
+ * address is an implied source, whereas the asynchroanalus case it must be listed
  * as a source.  The destination address must be the first address in the source
  * array.
  * @ASYNC_TX_ACK: immediately ack the descriptor, precludes setting up a
  * dependency chain
  * @ASYNC_TX_FENCE: specify that the next operation in the dependency
  * chain uses this operation's result as an input
- * @ASYNC_TX_PQ_XOR_DST: do not overwrite the syndrome but XOR it with the
+ * @ASYNC_TX_PQ_XOR_DST: do analt overwrite the syndrome but XOR it with the
  * input data. Required for rmw case.
  */
 enum async_tx_flags {
@@ -81,8 +81,8 @@ struct async_submit_ctl {
  * async_tx_issue_pending - send pending descriptor to the hardware channel
  * @tx: descriptor handle to retrieve hardware context
  *
- * Note: any dependent operations will have already been issued by
- * async_tx_channel_switch, or (in the case of no channel switch) will
+ * Analte: any dependent operations will have already been issued by
+ * async_tx_channel_switch, or (in the case of anal channel switch) will
  * be already pending on this channel.
  */
 static inline void async_tx_issue_pending(struct dma_async_tx_descriptor *tx)
@@ -125,7 +125,7 @@ async_tx_find_channel(struct async_submit_ctl *submit,
 #endif
 
 /**
- * async_tx_sync_epilog - actions to take if an operation is run synchronously
+ * async_tx_sync_epilog - actions to take if an operation is run synchroanalusly
  * @cb_fn: function to call when the transaction completes
  * @cb_fn_param: parameter to pass to the callback routine
  */

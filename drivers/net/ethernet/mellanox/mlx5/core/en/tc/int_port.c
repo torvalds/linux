@@ -71,7 +71,7 @@ mlx5e_int_port_create_rx_rule(struct mlx5_eswitch *esw,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	misc = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters_2);
 	MLX5_SET(fte_match_set_misc2, misc, metadata_reg_c_0,
@@ -109,7 +109,7 @@ mlx5e_int_port_lookup(struct mlx5e_tc_int_port_priv *priv,
 	struct mlx5e_tc_int_port *int_port;
 
 	if (!priv->ul_rep_rx_ready)
-		goto not_found;
+		goto analt_found;
 
 	list_for_each_entry(int_port, &priv->int_ports, list)
 		if (int_port->ifindex == ifindex && int_port->type == type) {
@@ -117,7 +117,7 @@ mlx5e_int_port_lookup(struct mlx5e_tc_int_port_priv *priv,
 			return int_port;
 		}
 
-not_found:
+analt_found:
 	return NULL;
 }
 
@@ -162,18 +162,18 @@ mlx5e_int_port_add(struct mlx5e_tc_int_port_priv *priv,
 	int err;
 
 	if (priv->num_ports == MLX5E_TC_MAX_INT_PORT_NUM) {
-		mlx5_core_dbg(priv->dev, "Cannot add a new int port, max supported %d",
+		mlx5_core_dbg(priv->dev, "Cananalt add a new int port, max supported %d",
 			      MLX5E_TC_MAX_INT_PORT_NUM);
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 	}
 
 	int_port = kzalloc(sizeof(*int_port), GFP_KERNEL);
 	if (!int_port)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = mlx5e_int_port_metadata_alloc(priv, ifindex, type, &match_metadata);
 	if (err) {
-		mlx5_core_warn(esw->dev, "Cannot add a new internal port, metadata allocation failed for ifindex %d",
+		mlx5_core_warn(esw->dev, "Cananalt add a new internal port, metadata allocation failed for ifindex %d",
 			       ifindex);
 		goto err_metadata;
 	}
@@ -234,7 +234,7 @@ mlx5e_int_port_remove(struct mlx5e_tc_int_port_priv *priv,
 
 	list_del_rcu(&int_port->list);
 
-	/* The following parameters are not used by the
+	/* The following parameters are analt used by the
 	 * rcu readers of this int_port object so it is
 	 * safe to release them.
 	 */
@@ -268,13 +268,13 @@ mlx5e_tc_int_port_get(struct mlx5e_tc_int_port_priv *priv,
 	struct mlx5e_tc_int_port *int_port;
 
 	if (!priv)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	mutex_lock(&priv->int_ports_lock);
 
-	/* Reject request if ul rep not ready */
+	/* Reject request if ul rep analt ready */
 	if (!priv->ul_rep_rx_ready) {
-		int_port = ERR_PTR(-EOPNOTSUPP);
+		int_port = ERR_PTR(-EOPANALTSUPP);
 		goto done;
 	}
 

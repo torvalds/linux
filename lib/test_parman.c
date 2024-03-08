@@ -1,17 +1,17 @@
 /*
  * lib/test_parman.c - Test module for parman
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2017 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2017 Jiri Pirko <jiri@mellaanalx.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -20,11 +20,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -83,7 +83,7 @@ struct test_parman {
 	struct rnd_state rnd;
 	unsigned long run_budget;
 	unsigned long bulk_budget;
-	bool bulk_noop;
+	bool bulk_analop;
 	unsigned int used_items;
 };
 
@@ -100,7 +100,7 @@ static int test_parman_resize(void *priv, unsigned long new_count)
 	if (new_count == 0)
 		return 0;
 	if (!prio_array)
-		return -ENOMEM;
+		return -EANALMEM;
 	old_count = test_parman->prio_array_limit;
 	if (new_count > old_count)
 		memset(&prio_array[old_count], 0,
@@ -221,13 +221,13 @@ static struct test_parman *test_parman_create(const struct parman_ops *ops)
 
 	test_parman = kzalloc(sizeof(*test_parman), GFP_KERNEL);
 	if (!test_parman)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	err = test_parman_resize(test_parman, TEST_PARMAN_BASE_COUNT);
 	if (err)
 		goto err_resize;
 	test_parman->parman = parman_create(ops, test_parman);
 	if (!test_parman->parman) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_parman_create;
 	}
 	test_parman_rnd_init(test_parman);
@@ -261,7 +261,7 @@ static bool test_parman_run_check_budgets(struct test_parman *test_parman)
 
 	test_parman->bulk_budget = test_parman_rnd_get(test_parman) &
 				   TEST_PARMAN_BULK_MAX_MASK;
-	test_parman->bulk_noop = test_parman_rnd_get(test_parman) & 1;
+	test_parman->bulk_analop = test_parman_rnd_get(test_parman) & 1;
 	return true;
 }
 
@@ -274,7 +274,7 @@ static int test_parman_run(struct test_parman *test_parman)
 		unsigned int item_index = i++ & TEST_PARMAN_ITEM_MASK;
 		struct test_parman_item *item = &test_parman->items[item_index];
 
-		if (test_parman->bulk_noop)
+		if (test_parman->bulk_analop)
 			continue;
 
 		if (!item->used) {
@@ -341,7 +341,7 @@ static int test_parman_check_array(struct test_parman *test_parman,
 	}
 
 	if (used_items != test_parman->used_items) {
-		pr_err("Number of used items in array does not match (%u != %u)\n",
+		pr_err("Number of used items in array does analt match (%u != %u)\n",
 		       used_items, test_parman->used_items);
 		return -EINVAL;
 	}
@@ -391,5 +391,5 @@ module_init(test_parman_init);
 module_exit(test_parman_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
+MODULE_AUTHOR("Jiri Pirko <jiri@mellaanalx.com>");
 MODULE_DESCRIPTION("Test module for parman");

@@ -2,7 +2,7 @@
 #ifndef _M68K_DIV64_H
 #define _M68K_DIV64_H
 
-#ifdef CONFIG_CPU_HAS_NO_MULDIV64
+#ifdef CONFIG_CPU_HAS_ANAL_MULDIV64
 #include <asm-generic/div64.h>
 #else
 
@@ -34,6 +34,6 @@
 /* defining this stops the unused helper function from being built */
 #define __div64_32 __div64_32
 
-#endif /* CONFIG_CPU_HAS_NO_MULDIV64 */
+#endif /* CONFIG_CPU_HAS_ANAL_MULDIV64 */
 
 #endif /* _M68K_DIV64_H */

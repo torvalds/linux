@@ -5,7 +5,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -74,7 +74,7 @@ struct pm8941_pwrkey {
 
 	unsigned int revision;
 	unsigned int subtype;
-	struct notifier_block reboot_notifier;
+	struct analtifier_block reboot_analtifier;
 
 	u32 code;
 	u32 sw_debounce_time_us;
@@ -83,11 +83,11 @@ struct pm8941_pwrkey {
 	const struct pm8941_data *data;
 };
 
-static int pm8941_reboot_notify(struct notifier_block *nb,
+static int pm8941_reboot_analtify(struct analtifier_block *nb,
 				unsigned long code, void *unused)
 {
 	struct pm8941_pwrkey *pwrkey = container_of(nb, struct pm8941_pwrkey,
-						    reboot_notifier);
+						    reboot_analtifier);
 	unsigned int enable_reg;
 	unsigned int reset_type;
 	int error;
@@ -142,7 +142,7 @@ static int pm8941_reboot_notify(struct notifier_block *nb,
 	if (error)
 		dev_err(pwrkey->dev, "unable to re-set enable: %d\n", error);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static irqreturn_t pm8941_pwrkey_irq(int irq, void *_data)
@@ -154,7 +154,7 @@ static irqreturn_t pm8941_pwrkey_irq(int irq, void *_data)
 	if (pwrkey->sw_debounce_time_us) {
 		if (ktime_before(ktime_get(), pwrkey->sw_debounce_end_time)) {
 			dev_dbg(pwrkey->dev,
-				"ignoring key event received before debounce end %llu us\n",
+				"iganalring key event received before debounce end %llu us\n",
 				pwrkey->sw_debounce_end_time);
 			return IRQ_HANDLED;
 		}
@@ -247,12 +247,12 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 	struct pm8941_pwrkey *pwrkey;
 	bool pull_up;
 	struct device *parent;
-	struct device_node *regmap_node;
+	struct device_analde *regmap_analde;
 	const __be32 *addr;
 	u32 req_delay, mask, delay_shift;
 	int error;
 
-	if (of_property_read_u32(pdev->dev.of_node, "debounce", &req_delay))
+	if (of_property_read_u32(pdev->dev.of_analde, "debounce", &req_delay))
 		req_delay = 15625;
 
 	if (req_delay > 2000000 || req_delay == 0) {
@@ -260,33 +260,33 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	pull_up = of_property_read_bool(pdev->dev.of_node, "bias-pull-up");
+	pull_up = of_property_read_bool(pdev->dev.of_analde, "bias-pull-up");
 
 	pwrkey = devm_kzalloc(&pdev->dev, sizeof(*pwrkey), GFP_KERNEL);
 	if (!pwrkey)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pwrkey->dev = &pdev->dev;
 	pwrkey->data = of_device_get_match_data(&pdev->dev);
 
 	parent = pdev->dev.parent;
-	regmap_node = pdev->dev.of_node;
+	regmap_analde = pdev->dev.of_analde;
 	pwrkey->regmap = dev_get_regmap(parent, NULL);
 	if (!pwrkey->regmap) {
-		regmap_node = parent->of_node;
+		regmap_analde = parent->of_analde;
 		/*
 		 * We failed to get regmap for parent. Let's see if we are
-		 * a child of pon node and read regmap and reg from its
+		 * a child of pon analde and read regmap and reg from its
 		 * parent.
 		 */
 		pwrkey->regmap = dev_get_regmap(parent->parent, NULL);
 		if (!pwrkey->regmap) {
 			dev_err(&pdev->dev, "failed to locate regmap\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
-	addr = of_get_address(regmap_node, 0, NULL, NULL);
+	addr = of_get_address(regmap_analde, 0, NULL, NULL);
 	if (!addr) {
 		dev_err(&pdev->dev, "reg property missing\n");
 		return -EINVAL;
@@ -295,7 +295,7 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 
 	if (pwrkey->data->has_pon_pbs) {
 		/* PON_PBS base address is optional */
-		addr = of_get_address(regmap_node, 1, NULL, NULL);
+		addr = of_get_address(regmap_analde, 1, NULL, NULL);
 		if (addr)
 			pwrkey->pon_pbs_baseaddr = be32_to_cpup(addr);
 	}
@@ -318,18 +318,18 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	error = of_property_read_u32(pdev->dev.of_node, "linux,code",
+	error = of_property_read_u32(pdev->dev.of_analde, "linux,code",
 				     &pwrkey->code);
 	if (error) {
 		dev_dbg(&pdev->dev,
-			"no linux,code assuming power (%d)\n", error);
+			"anal linux,code assuming power (%d)\n", error);
 		pwrkey->code = KEY_POWER;
 	}
 
 	pwrkey->input = devm_input_allocate_device(&pdev->dev);
 	if (!pwrkey->input) {
 		dev_dbg(&pdev->dev, "unable to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_set_capability(pwrkey->input, EV_KEY, pwrkey->code);
@@ -393,10 +393,10 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 	}
 
 	if (pwrkey->data->supports_ps_hold_poff_config) {
-		pwrkey->reboot_notifier.notifier_call = pm8941_reboot_notify;
-		error = register_reboot_notifier(&pwrkey->reboot_notifier);
+		pwrkey->reboot_analtifier.analtifier_call = pm8941_reboot_analtify;
+		error = register_reboot_analtifier(&pwrkey->reboot_analtifier);
 		if (error) {
-			dev_err(&pdev->dev, "failed to register reboot notifier: %d\n",
+			dev_err(&pdev->dev, "failed to register reboot analtifier: %d\n",
 				error);
 			return error;
 		}
@@ -413,7 +413,7 @@ static void pm8941_pwrkey_remove(struct platform_device *pdev)
 	struct pm8941_pwrkey *pwrkey = platform_get_drvdata(pdev);
 
 	if (pwrkey->data->supports_ps_hold_poff_config)
-		unregister_reboot_notifier(&pwrkey->reboot_notifier);
+		unregister_reboot_analtifier(&pwrkey->reboot_analtifier);
 }
 
 static const struct pm8941_data pwrkey_data = {

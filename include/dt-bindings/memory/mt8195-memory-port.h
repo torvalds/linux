@@ -13,7 +13,7 @@
  * 0 ~ 4G; 4G ~ 8G; 8G ~ 12G; 12G ~ 16G, we could adjust these masters
  * locate in anyone region. BUT:
  * a) Make sure all the ports inside a larb are in one range.
- * b) The iova of any master can NOT cross the 4G/8G/12G boundary.
+ * b) The iova of any master can ANALT cross the 4G/8G/12G boundary.
  *
  * This is the suggested mapping in this SoC:
  *
@@ -223,7 +223,7 @@
 #define M4U_PORT_L17_CAM_YUVCO_R1		MTK_M4U_ID(17, 2)
 #define M4U_PORT_L17_CAM_YUVO_R2		MTK_M4U_ID(17, 3)
 #define M4U_PORT_L17_CAM_RZH1N2TO_R1		MTK_M4U_ID(17, 4)
-#define M4U_PORT_L17_CAM_DRZS4NO_R1		MTK_M4U_ID(17, 5)
+#define M4U_PORT_L17_CAM_DRZS4ANAL_R1		MTK_M4U_ID(17, 5)
 #define M4U_PORT_L17_CAM_TNCSO_R1		MTK_M4U_ID(17, 6)
 
 /* larb18 */
@@ -384,7 +384,7 @@
 #define M4U_PORT_L28_CAM_YUVCO_R1		MTK_M4U_ID(28, 2)
 #define M4U_PORT_L28_CAM_YUVO_R2		MTK_M4U_ID(28, 3)
 #define M4U_PORT_L28_CAM_RZH1N2TO_R1		MTK_M4U_ID(28, 4)
-#define M4U_PORT_L28_CAM_DRZS4NO_R1		MTK_M4U_ID(28, 5)
+#define M4U_PORT_L28_CAM_DRZS4ANAL_R1		MTK_M4U_ID(28, 5)
 #define M4U_PORT_L28_CAM_TNCSO_R1		MTK_M4U_ID(28, 6)
 
 /* Infra iommu ports */

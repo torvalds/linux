@@ -44,7 +44,7 @@
 #define WL18XX_PMAC_CSR_BASE		(WL18XX_REGISTERS_BASE + 0x15400)
 
 #define WL18XX_REG_ECPU_CONTROL		(WL18XX_REGISTERS_BASE + 0x02004)
-#define WL18XX_REG_INTERRUPT_NO_CLEAR	(WL18XX_REGISTERS_BASE + 0x050E8)
+#define WL18XX_REG_INTERRUPT_ANAL_CLEAR	(WL18XX_REGISTERS_BASE + 0x050E8)
 #define WL18XX_REG_INTERRUPT_ACK	(WL18XX_REGISTERS_BASE + 0x050F0)
 #define WL18XX_REG_INTERRUPT_TRIG	(WL18XX_REGISTERS_BASE + 0x5074)
 #define WL18XX_REG_INTERRUPT_TRIG_H	(WL18XX_REGISTERS_BASE + 0x5078)
@@ -167,8 +167,8 @@
 #define WL18XX_INTR_TRIG_CMD       BIT(28)
 
 /*
- * Host Event Acknowlegde Interrupt. The host
- * sets this bit to acknowledge that it received
+ * Host Event Ackanalwlegde Interrupt. The host
+ * sets this bit to ackanalwledge that it received
  * the unsolicited information from the event
  * mailbox.
  */
@@ -181,14 +181,14 @@
 #define WL18XX_SCR_PAD8_PLT	0xBABABEBE
 
 enum {
-	COMPONENT_NO_SWITCH	= 0x0,
+	COMPONENT_ANAL_SWITCH	= 0x0,
 	COMPONENT_2_WAY_SWITCH	= 0x1,
 	COMPONENT_3_WAY_SWITCH	= 0x2,
 	COMPONENT_MATCHING	= 0x3,
 };
 
 enum {
-	FEM_NONE	= 0x0,
+	FEM_ANALNE	= 0x0,
 	FEM_VENDOR_1	= 0x1,
 	FEM_VENDOR_2	= 0x2,
 	FEM_VENDOR_3	= 0x3,
@@ -205,7 +205,7 @@ enum {
 };
 
 enum wl18xx_rdl_num {
-	RDL_NONE	= 0,
+	RDL_ANALNE	= 0,
 	RDL_1_HP	= 1,
 	RDL_2_SP	= 2,
 	RDL_3_HP	= 3,

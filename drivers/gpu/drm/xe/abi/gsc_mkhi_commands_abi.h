@@ -32,7 +32,7 @@ struct gsc_get_compatibility_version_out {
 	struct gsc_mkhi_header header;
 	u16 proj_major;
 	u16 compat_major;
-	u16 compat_minor;
+	u16 compat_mianalr;
 	u16 reserved[5];
 } __packed;
 

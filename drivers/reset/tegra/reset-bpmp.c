@@ -68,7 +68,7 @@ int tegra_bpmp_init_resets(struct tegra_bpmp *bpmp)
 {
 	bpmp->rstc.ops = &tegra_bpmp_reset_ops;
 	bpmp->rstc.owner = THIS_MODULE;
-	bpmp->rstc.of_node = bpmp->dev->of_node;
+	bpmp->rstc.of_analde = bpmp->dev->of_analde;
 	bpmp->rstc.nr_resets = bpmp->soc->num_resets;
 
 	return devm_reset_controller_register(bpmp->dev, &bpmp->rstc);

@@ -159,7 +159,7 @@ int xe_force_wake_get(struct xe_force_wake *fw,
 		ret = domain_wake_wait(gt, domain);
 		ret2 |= ret;
 		if (ret)
-			drm_notice(&xe->drm, "Force wake domain (%d) failed to ack wake, ret=%d\n",
+			drm_analtice(&xe->drm, "Force wake domain (%d) failed to ack wake, ret=%d\n",
 				   domain->id, ret);
 	}
 	fw->awake_domains |= woken;
@@ -189,7 +189,7 @@ int xe_force_wake_put(struct xe_force_wake *fw,
 		ret = domain_sleep_wait(gt, domain);
 		ret2 |= ret;
 		if (ret)
-			drm_notice(&xe->drm, "Force wake domain (%d) failed to ack sleep, ret=%d\n",
+			drm_analtice(&xe->drm, "Force wake domain (%d) failed to ack sleep, ret=%d\n",
 				   domain->id, ret);
 	}
 	fw->awake_domains &= ~sleep;

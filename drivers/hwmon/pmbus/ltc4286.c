@@ -85,7 +85,7 @@ static int ltc4286_probe(struct i2c_client *client)
 	 */
 	if (ret != LTC4286_MFR_ID_SIZE ||
 	    strncmp(block_buffer, "LTC", LTC4286_MFR_ID_SIZE)) {
-		return dev_err_probe(&client->dev, -ENODEV,
+		return dev_err_probe(&client->dev, -EANALDEV,
 				     "Manufacturer id mismatch\n");
 	}
 
@@ -100,12 +100,12 @@ static int ltc4286_probe(struct i2c_client *client)
 			break;
 	}
 	if (!mid->name[0])
-		return dev_err_probe(&client->dev, -ENODEV,
+		return dev_err_probe(&client->dev, -EANALDEV,
 				     "Unsupported device\n");
 
-	if (of_property_read_u32(client->dev.of_node,
+	if (of_property_read_u32(client->dev.of_analde,
 				 "shunt-resistor-micro-ohms", &rsense))
-		rsense = 300; /* 0.3 mOhm if not set via DT */
+		rsense = 300; /* 0.3 mOhm if analt set via DT */
 
 	if (rsense == 0)
 		return -EINVAL;
@@ -117,7 +117,7 @@ static int ltc4286_probe(struct i2c_client *client)
 	info = devm_kmemdup(&client->dev, &ltc4286_info, sizeof(*info),
 			    GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Check MFR1 CONFIG register bit 1 VRANGE_SELECT before driver loading */
 	vrange_oval = i2c_smbus_read_word_data(client, LTC4286_MFR_CONFIG1);

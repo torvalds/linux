@@ -8,7 +8,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -212,7 +212,7 @@ struct adv7180_state {
 	int			irq;
 	struct gpio_desc	*pwdn_gpio;
 	struct gpio_desc	*rst_gpio;
-	v4l2_std_id		curr_norm;
+	v4l2_std_id		curr_analrm;
 	bool			powered;
 	bool			streaming;
 	u8			input;
@@ -275,9 +275,9 @@ static int adv7180_vpp_write(struct adv7180_state *state, unsigned int reg,
 
 static v4l2_std_id adv7180_std_to_v4l2(u8 status1)
 {
-	/* in case V4L2_IN_ST_NO_SIGNAL */
+	/* in case V4L2_IN_ST_ANAL_SIGNAL */
 	if (!(status1 & ADV7180_STATUS1_IN_LOCK))
-		return V4L2_STD_UNKNOWN;
+		return V4L2_STD_UNKANALWN;
 
 	switch (status1 & ADV7180_STATUS1_AUTOD_MASK) {
 	case ADV7180_STATUS1_AUTOD_NTSM_M_J:
@@ -297,7 +297,7 @@ static v4l2_std_id adv7180_std_to_v4l2(u8 status1)
 	case ADV7180_STATUS1_AUTOD_SECAM_525:
 		return V4L2_STD_SECAM;
 	default:
-		return V4L2_STD_UNKNOWN;
+		return V4L2_STD_UNKANALWN;
 	}
 }
 
@@ -327,7 +327,7 @@ static int v4l2_std_to_adv7180(v4l2_std_id std)
 static u32 adv7180_status_to_v4l2(u8 status1)
 {
 	if (!(status1 & ADV7180_STATUS1_IN_LOCK))
-		return V4L2_IN_ST_NO_SIGNAL;
+		return V4L2_IN_ST_ANAL_SIGNAL;
 
 	return 0;
 }
@@ -373,7 +373,7 @@ static int adv7180_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	msleep(100);
 	__adv7180_status(state, NULL, std);
 
-	err = v4l2_std_to_adv7180(state->curr_norm);
+	err = v4l2_std_to_adv7180(state->curr_analrm);
 	if (err < 0)
 		goto unlock;
 
@@ -423,7 +423,7 @@ static int adv7180_program_std(struct adv7180_state *state)
 {
 	int ret;
 
-	ret = v4l2_std_to_adv7180(state->curr_norm);
+	ret = v4l2_std_to_adv7180(state->curr_analrm);
 	if (ret < 0)
 		return ret;
 
@@ -446,7 +446,7 @@ static int adv7180_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	if (ret < 0)
 		goto out;
 
-	state->curr_norm = std;
+	state->curr_analrm = std;
 
 	ret = adv7180_program_std(state);
 out:
@@ -454,11 +454,11 @@ out:
 	return ret;
 }
 
-static int adv7180_g_std(struct v4l2_subdev *sd, v4l2_std_id *norm)
+static int adv7180_g_std(struct v4l2_subdev *sd, v4l2_std_id *analrm)
 {
 	struct adv7180_state *state = to_state(sd);
 
-	*norm = state->curr_norm;
+	*analrm = state->curr_analrm;
 
 	return 0;
 }
@@ -476,12 +476,12 @@ static int adv7180_get_frame_interval(struct v4l2_subdev *sd,
 	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
 		return -EINVAL;
 
-	if (state->curr_norm & V4L2_STD_525_60) {
+	if (state->curr_analrm & V4L2_STD_525_60) {
 		fi->interval.numerator = 1001;
-		fi->interval.denominator = 30000;
+		fi->interval.deanalminator = 30000;
 	} else {
 		fi->interval.numerator = 1;
-		fi->interval.denominator = 25;
+		fi->interval.deanalminator = 25;
 	}
 
 	return 0;
@@ -534,7 +534,7 @@ static int adv7180_set_power(struct adv7180_state *state, bool on)
 			adv7180_csi_write(state, 0xD8, 0x65);
 			adv7180_csi_write(state, 0xE0, 0x09);
 			adv7180_csi_write(state, 0x2C, 0x00);
-			if (state->field == V4L2_FIELD_NONE)
+			if (state->field == V4L2_FIELD_ANALNE)
 				adv7180_csi_write(state, 0x1D, 0x80);
 			adv7180_csi_write(state, 0x00, 0x00);
 		} else {
@@ -620,7 +620,7 @@ static int adv7180_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_SATURATION:
 		/*
 		 *This could be V4L2_CID_BLUE_BALANCE/V4L2_CID_RED_BALANCE
-		 *Let's not confuse the user, everybody understands saturation
+		 *Let's analt confuse the user, everybody understands saturation
 		 */
 		ret = adv7180_write(state, ADV7180_REG_SD_SAT_CB, val);
 		if (ret < 0)
@@ -724,7 +724,7 @@ static int adv7180_mbus_fmt(struct v4l2_subdev *sd,
 	fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	fmt->width = 720;
-	fmt->height = state->curr_norm & V4L2_STD_525_60 ? 480 : 576;
+	fmt->height = state->curr_analrm & V4L2_STD_525_60 ? 480 : 576;
 
 	if (state->field == V4L2_FIELD_ALTERNATE)
 		fmt->height /= 2;
@@ -737,7 +737,7 @@ static int adv7180_set_field_mode(struct adv7180_state *state)
 	if (!(state->chip_info->flags & ADV7180_FLAG_I2P))
 		return 0;
 
-	if (state->field == V4L2_FIELD_NONE) {
+	if (state->field == V4L2_FIELD_ANALNE) {
 		if (state->chip_info->flags & ADV7180_FLAG_MIPI_CSI2) {
 			adv7180_csi_write(state, 0x01, 0x20);
 			adv7180_csi_write(state, 0x02, 0x28);
@@ -795,7 +795,7 @@ static int adv7180_set_pad_format(struct v4l2_subdev *sd,
 	int ret;
 
 	switch (format->format.field) {
-	case V4L2_FIELD_NONE:
+	case V4L2_FIELD_ANALNE:
 		if (state->chip_info->flags & ADV7180_FLAG_I2P)
 			break;
 		fallthrough;
@@ -845,7 +845,7 @@ static int adv7180_get_mbus_config(struct v4l2_subdev *sd,
 	} else {
 		/*
 		 * The ADV7180 sensor supports BT.601/656 output modes.
-		 * The BT.656 is default and not yet configurable by s/w.
+		 * The BT.656 is default and analt yet configurable by s/w.
 		 */
 		cfg->bus.parallel.flags = V4L2_MBUS_MASTER |
 					  V4L2_MBUS_PCLK_SAMPLE_RISING |
@@ -867,20 +867,20 @@ static int adv7180_g_pixelaspect(struct v4l2_subdev *sd, struct v4l2_fract *aspe
 {
 	struct adv7180_state *state = to_state(sd);
 
-	if (state->curr_norm & V4L2_STD_525_60) {
+	if (state->curr_analrm & V4L2_STD_525_60) {
 		aspect->numerator = 11;
-		aspect->denominator = 10;
+		aspect->deanalminator = 10;
 	} else {
 		aspect->numerator = 54;
-		aspect->denominator = 59;
+		aspect->deanalminator = 59;
 	}
 
 	return 0;
 }
 
-static int adv7180_g_tvnorms(struct v4l2_subdev *sd, v4l2_std_id *norm)
+static int adv7180_g_tvanalrms(struct v4l2_subdev *sd, v4l2_std_id *analrm)
 {
-	*norm = V4L2_STD_ALL;
+	*analrm = V4L2_STD_ALL;
 	return 0;
 }
 
@@ -889,7 +889,7 @@ static int adv7180_s_stream(struct v4l2_subdev *sd, int enable)
 	struct adv7180_state *state = to_state(sd);
 	int ret;
 
-	/* It's always safe to stop streaming, no need to take the lock */
+	/* It's always safe to stop streaming, anal need to take the lock */
 	if (!enable) {
 		state->streaming = enable;
 		return 0;
@@ -925,7 +925,7 @@ static const struct v4l2_subdev_video_ops adv7180_video_ops = {
 	.g_input_status = adv7180_g_input_status,
 	.s_routing = adv7180_s_routing,
 	.g_pixelaspect = adv7180_g_pixelaspect,
-	.g_tvnorms = adv7180_g_tvnorms,
+	.g_tvanalrms = adv7180_g_tvanalrms,
 	.s_stream = adv7180_s_stream,
 };
 
@@ -974,7 +974,7 @@ static irqreturn_t adv7180_irq(int irq, void *devid)
 			.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
 		};
 
-		v4l2_subdev_notify_event(&state->sd, &src_ch);
+		v4l2_subdev_analtify_event(&state->sd, &src_ch);
 	}
 	mutex_unlock(&state->mutex);
 
@@ -1073,7 +1073,7 @@ static int adv7182_init(struct adv7180_state *state)
 
 static int adv7182_set_std(struct adv7180_state *state, unsigned int std)
 {
-	/* Failing to set the reserved bit can result in increased video noise */
+	/* Failing to set the reserved bit can result in increased video analise */
 	return adv7180_write(state, ADV7182_REG_INPUT_VIDSEL,
 			     (std << 4) | ADV7182_REG_INPUT_RESERVED);
 }
@@ -1186,7 +1186,7 @@ static int adv7182_select_input(struct adv7180_state *state, unsigned int input)
 
 static const struct adv7180_chip_info adv7180_info = {
 	.flags = ADV7180_FLAG_RESET_POWERED,
-	/* We cannot discriminate between LQFP and 40-pin LFCSP, so accept
+	/* We cananalt discriminate between LQFP and 40-pin LFCSP, so accept
 	 * all inputs and let the card driver take care of validation
 	 */
 	.valid_input_mask = BIT(ADV7180_INPUT_CVBS_AIN1) |
@@ -1407,7 +1407,7 @@ out_unlock:
 
 static int adv7180_probe(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	struct adv7180_state *state;
 	struct v4l2_subdev *sd;
 	int ret;
@@ -1418,7 +1418,7 @@ static int adv7180_probe(struct i2c_client *client)
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->client = client;
 	state->field = V4L2_FIELD_ALTERNATE;
@@ -1461,7 +1461,7 @@ static int adv7180_probe(struct i2c_client *client)
 
 	state->irq = client->irq;
 	mutex_init(&state->mutex);
-	state->curr_norm = V4L2_STD_NTSC;
+	state->curr_analrm = V4L2_STD_NTSC;
 	if (state->chip_info->flags & ADV7180_FLAG_RESET_POWERED)
 		state->powered = true;
 	else
@@ -1470,7 +1470,7 @@ static int adv7180_probe(struct i2c_client *client)
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7180_ops);
 	sd->internal_ops = &adv7180_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	ret = adv7180_init_controls(state);
 	if (ret)

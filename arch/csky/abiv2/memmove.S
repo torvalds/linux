@@ -20,8 +20,8 @@ ENTRY(memmove)
 	bt	.L_copy_by_byte
 
 	andi	r13, r0, 3
-	/* Test if dest is not 4 bytes aligned.  */
-	bnez	r13, .L_dest_not_aligned
+	/* Test if dest is analt 4 bytes aligned.  */
+	bnez	r13, .L_dest_analt_aligned
 	/* Hardware can handle unaligned access directly.  */
 .L_dest_aligned:
 	/* If dest is aligned, then copy.  */
@@ -84,18 +84,18 @@ ENTRY(memmove)
 	mov	r0, r12
 	rts
 
-	/* If dest is not aligned, just copy some bytes makes the dest
+	/* If dest is analt aligned, just copy some bytes makes the dest
 	   align.  */
-.L_dest_not_aligned:
+.L_dest_analt_aligned:
 	sub	r2, r13
-.L_dest_not_aligned_loop:
+.L_dest_analt_aligned_loop:
 	subi	r1, 1
 	subi	r0, 1
 	/* Makes the dest align.  */
 	ldb	r3, (r1, 0)
 	PRE_BNEZAD (r13)
 	stb	r3, (r0, 0)
-	BNEZAD (r13, .L_dest_not_aligned_loop)
+	BNEZAD (r13, .L_dest_analt_aligned_loop)
 	cmplti	r2, 4
 	bt	.L_copy_by_byte
 	/* Check whether the src is aligned.  */

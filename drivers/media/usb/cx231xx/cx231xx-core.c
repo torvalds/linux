@@ -34,7 +34,7 @@ static unsigned int reg_debug;
 module_param(reg_debug, int, 0644);
 MODULE_PARM_DESC(reg_debug, "enable debug messages [URB reg]");
 
-static int alt = CX231XX_PINOUT;
+static int alt = CX231XX_PIANALUT;
 module_param(alt, int, 0644);
 MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 
@@ -146,22 +146,22 @@ int cx231xx_send_usb_command(struct cx231xx_i2c *i2c_bus,
 
 	u8 saddr_len = 0;
 	u8 _i2c_period = 0;
-	u8 _i2c_nostop = 0;
+	u8 _i2c_analstop = 0;
 	u8 _i2c_reserve = 0;
 
 	if (dev->state & DEV_DISCONNECTED)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* Get the I2C period, nostop and reserve parameters */
+	/* Get the I2C period, analstop and reserve parameters */
 	_i2c_period = i2c_bus->i2c_period;
-	_i2c_nostop = i2c_bus->i2c_nostop;
+	_i2c_analstop = i2c_bus->i2c_analstop;
 	_i2c_reserve = i2c_bus->i2c_reserve;
 
 	saddr_len = req_data->saddr_len;
 
 	/* Set wValue */
 	ven_req.wValue = (req_data->dev_addr << 9 | _i2c_period << 4 |
-			  saddr_len << 2 | _i2c_nostop << 1 | I2C_SYNC |
+			  saddr_len << 2 | _i2c_analstop << 1 | I2C_SYNC |
 			  _i2c_reserve << 6);
 
 	/* set channel number */
@@ -283,7 +283,7 @@ int cx231xx_read_ctrl_reg(struct cx231xx *dev, u8 req, u16 reg,
 	int pipe = usb_rcvctrlpipe(dev->udev, 0);
 
 	if (dev->state & DEV_DISCONNECTED)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (len > URB_MAX_CTRL_SIZE)
 		return -EINVAL;
@@ -323,7 +323,7 @@ int cx231xx_send_vendor_cmd(struct cx231xx *dev,
 	u8 *pdata;
 
 	if (dev->state & DEV_DISCONNECTED)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((ven_req->wLength > URB_MAX_CTRL_SIZE))
 		return -EINVAL;
@@ -401,7 +401,7 @@ int cx231xx_write_ctrl_reg(struct cx231xx *dev, u8 req, u16 reg, char *buf,
 	int pipe = usb_sndctrlpipe(dev->udev, 0);
 
 	if (dev->state & DEV_DISCONNECTED)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((len < 1) || (len > URB_MAX_CTRL_SIZE))
 		return -EINVAL;
@@ -503,7 +503,7 @@ int cx231xx_set_video_alternate(struct cx231xx *dev)
 				      dev->video_mode.alt);
 		if (errCode < 0) {
 			dev_err(dev->dev,
-				"cannot change alt number to %d (error=%i)\n",
+				"cananalt change alt number to %d (error=%i)\n",
 				dev->video_mode.alt, errCode);
 			return errCode;
 		}
@@ -552,7 +552,7 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 							     alt];
 		break;
 	case INDEX_VANC:
-		if (dev->board.no_alt_vanc)
+		if (dev->board.anal_alt_vanc)
 			return 0;
 		usb_interface_index =
 		    dev->current_pcb_config.hs_config_info[0].interface_info.
@@ -579,11 +579,11 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 
 	if (alt > 0 && max_pkt_size == 0) {
 		dev_err(dev->dev,
-			"can't change interface %d alt no. to %d: Max. Pkt size = 0\n",
+			"can't change interface %d alt anal. to %d: Max. Pkt size = 0\n",
 			usb_interface_index, alt);
 		/*To workaround error number=-71 on EP0 for videograbber,
 		 need add following codes.*/
-		if (dev->board.no_alt_vanc)
+		if (dev->board.anal_alt_vanc)
 			return -1;
 	}
 
@@ -595,7 +595,7 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 		status = usb_set_interface(dev->udev, usb_interface_index, alt);
 		if (status < 0) {
 			dev_err(dev->dev,
-				"can't change interface %d alt no. to %d (err=%i)\n",
+				"can't change interface %d alt anal. to %d (err=%i)\n",
 				usb_interface_index, alt, status);
 			return status;
 		}
@@ -748,12 +748,12 @@ int cx231xx_ep5_bulkout(struct cx231xx *dev, u8 *firmware, u16 size)
 {
 	int errCode = 0;
 	int actlen = -1;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	u32 *buffer;
 
 	buffer = kmemdup(firmware, EP5_BUF_SIZE, GFP_KERNEL);
 	if (buffer == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, 5),
 			buffer, EP5_BUF_SIZE, &actlen, EP5_TIMEOUT_MS);
@@ -790,7 +790,7 @@ static void cx231xx_isoc_irq_callback(struct urb *urb)
 	case -ETIMEDOUT:	/* NAK */
 		break;
 	case -ECONNRESET:	/* kill */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	default:		/* error */
@@ -835,7 +835,7 @@ static void cx231xx_bulk_irq_callback(struct urb *urb)
 	case -ETIMEDOUT:	/* NAK */
 		break;
 	case -ECONNRESET:	/* kill */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	case -EPIPE:		/* stall */
@@ -995,7 +995,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 
 	dma_q->p_left_data = kzalloc(EP5_BUF_SIZE, GFP_KERNEL);
 	if (dma_q->p_left_data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->video_mode.isoc_ctl.isoc_copy = isoc_copy;
 	dev->video_mode.isoc_ctl.num_bufs = num_bufs;
@@ -1022,19 +1022,19 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->video_mode.isoc_ctl.urb) {
 		dev_err(dev->dev,
-			"cannot alloc memory for usb buffers\n");
+			"cananalt alloc memory for usb buffers\n");
 		kfree(dma_q->p_left_data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev->video_mode.isoc_ctl.transfer_buffer =
 	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->video_mode.isoc_ctl.transfer_buffer) {
 		dev_err(dev->dev,
-			"cannot allocate memory for usbtransfer\n");
+			"cananalt allocate memory for usbtransfer\n");
 		kfree(dev->video_mode.isoc_ctl.urb);
 		kfree(dma_q->p_left_data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev->video_mode.isoc_ctl.max_pkt_size = max_pkt_size;
@@ -1053,7 +1053,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 		urb = usb_alloc_urb(max_packets, GFP_KERNEL);
 		if (!urb) {
 			cx231xx_uninit_isoc(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		dev->video_mode.isoc_ctl.urb[i] = urb;
 
@@ -1065,7 +1065,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 				"unable to allocate %i bytes for transfer buffer %i\n",
 				sb_size, i);
 			cx231xx_uninit_isoc(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		memset(dev->video_mode.isoc_ctl.transfer_buffer[i], 0, sb_size);
 
@@ -1077,7 +1077,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 				 sb_size, cx231xx_isoc_irq_callback, dma_q, 1);
 
 		urb->number_of_packets = max_packets;
-		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_ANAL_TRANSFER_DMA_MAP;
 
 		k = 0;
 		for (j = 0; j < max_packets; j++) {
@@ -1158,17 +1158,17 @@ int cx231xx_init_bulk(struct cx231xx *dev, int max_packets,
 	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->video_mode.bulk_ctl.urb) {
 		dev_err(dev->dev,
-			"cannot alloc memory for usb buffers\n");
-		return -ENOMEM;
+			"cananalt alloc memory for usb buffers\n");
+		return -EANALMEM;
 	}
 
 	dev->video_mode.bulk_ctl.transfer_buffer =
 	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->video_mode.bulk_ctl.transfer_buffer) {
 		dev_err(dev->dev,
-			"cannot allocate memory for usbtransfer\n");
+			"cananalt allocate memory for usbtransfer\n");
 		kfree(dev->video_mode.bulk_ctl.urb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev->video_mode.bulk_ctl.max_pkt_size = max_pkt_size;
@@ -1187,10 +1187,10 @@ int cx231xx_init_bulk(struct cx231xx *dev, int max_packets,
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
 			cx231xx_uninit_bulk(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		dev->video_mode.bulk_ctl.urb[i] = urb;
-		urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_flags = URB_ANAL_TRANSFER_DMA_MAP;
 
 		dev->video_mode.bulk_ctl.transfer_buffer[i] =
 		    usb_alloc_coherent(dev->udev, sb_size, GFP_KERNEL,
@@ -1200,7 +1200,7 @@ int cx231xx_init_bulk(struct cx231xx *dev, int max_packets,
 				"unable to allocate %i bytes for transfer buffer %i\n",
 				sb_size, i);
 			cx231xx_uninit_bulk(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		memset(dev->video_mode.bulk_ctl.transfer_buffer[i], 0, sb_size);
 
@@ -1294,25 +1294,25 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	dev->i2c_bus[0].nr = 0;
 	dev->i2c_bus[0].dev = dev;
 	dev->i2c_bus[0].i2c_period = I2C_SPEED_100K;	/* 100 KHz */
-	dev->i2c_bus[0].i2c_nostop = 0;
+	dev->i2c_bus[0].i2c_analstop = 0;
 	dev->i2c_bus[0].i2c_reserve = 0;
-	dev->i2c_bus[0].i2c_rc = -ENODEV;
+	dev->i2c_bus[0].i2c_rc = -EANALDEV;
 
 	/* External Master 2 Bus */
 	dev->i2c_bus[1].nr = 1;
 	dev->i2c_bus[1].dev = dev;
 	dev->i2c_bus[1].i2c_period = I2C_SPEED_100K;	/* 100 KHz */
-	dev->i2c_bus[1].i2c_nostop = 0;
+	dev->i2c_bus[1].i2c_analstop = 0;
 	dev->i2c_bus[1].i2c_reserve = 0;
-	dev->i2c_bus[1].i2c_rc = -ENODEV;
+	dev->i2c_bus[1].i2c_rc = -EANALDEV;
 
 	/* Internal Master 3 Bus */
 	dev->i2c_bus[2].nr = 2;
 	dev->i2c_bus[2].dev = dev;
 	dev->i2c_bus[2].i2c_period = I2C_SPEED_100K;	/* 100kHz */
-	dev->i2c_bus[2].i2c_nostop = 0;
+	dev->i2c_bus[2].i2c_analstop = 0;
 	dev->i2c_bus[2].i2c_reserve = 0;
-	dev->i2c_bus[2].i2c_rc = -ENODEV;
+	dev->i2c_bus[2].i2c_rc = -EANALDEV;
 
 	/* register I2C buses */
 	errCode = cx231xx_i2c_register(&dev->i2c_bus[0]);
@@ -1346,8 +1346,8 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	cx231xx_do_i2c_scan(dev, I2C_1_MUX_3);
 
 	/* init hardware */
-	/* Note : with out calling set power mode function,
-	afe can not be set up correctly */
+	/* Analte : with out calling set power mode function,
+	afe can analt be set up correctly */
 	if (dev->board.external_av) {
 		errCode = cx231xx_set_power_mode(dev,
 				 POLARIS_AVMODE_ENXTERNAL_AV);

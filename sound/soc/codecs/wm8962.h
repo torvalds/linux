@@ -44,7 +44,7 @@
 #define WM8962_ALC1                             0x11
 #define WM8962_ALC2                             0x12
 #define WM8962_ALC3                             0x13
-#define WM8962_NOISE_GATE                       0x14
+#define WM8962_ANALISE_GATE                       0x14
 #define WM8962_LEFT_ADC_VOLUME                  0x15
 #define WM8962_RIGHT_ADC_VOLUME                 0x16
 #define WM8962_ADDITIONAL_CONTROL_1             0x17
@@ -1541,7 +1541,7 @@
 #define WM8962_ALC_ATK_WIDTH                         4  /* ALC_ATK - [3:0] */
 
 /*
- * R20 (0x14) - Noise Gate
+ * R20 (0x14) - Analise Gate
  */
 #define WM8962_ALC_NGATE_DCY_MASK               0xF000  /* ALC_NGATE_DCY - [15:12] */
 #define WM8962_ALC_NGATE_DCY_SHIFT                  12  /* ALC_NGATE_DCY - [15:12] */
@@ -1967,10 +1967,10 @@
 /*
  * R51 (0x33) - Class D Control 2
  */
-#define WM8962_SPK_MONO                         0x0040  /* SPK_MONO */
-#define WM8962_SPK_MONO_MASK                    0x0040  /* SPK_MONO */
-#define WM8962_SPK_MONO_SHIFT                        6  /* SPK_MONO */
-#define WM8962_SPK_MONO_WIDTH                        1  /* SPK_MONO */
+#define WM8962_SPK_MOANAL                         0x0040  /* SPK_MOANAL */
+#define WM8962_SPK_MOANAL_MASK                    0x0040  /* SPK_MOANAL */
+#define WM8962_SPK_MOANAL_SHIFT                        6  /* SPK_MOANAL */
+#define WM8962_SPK_MOANAL_WIDTH                        1  /* SPK_MOANAL */
 #define WM8962_CLASSD_VOL_MASK                  0x0007  /* CLASSD_VOL - [2:0] */
 #define WM8962_CLASSD_VOL_SHIFT                      0  /* CLASSD_VOL - [2:0] */
 #define WM8962_CLASSD_VOL_WIDTH                      3  /* CLASSD_VOL - [2:0] */
@@ -1985,10 +1985,10 @@
 /*
  * R57 (0x39) - DAC DSP Mixing (1)
  */
-#define WM8962_DAC_MONOMIX                      0x0200  /* DAC_MONOMIX */
-#define WM8962_DAC_MONOMIX_MASK                 0x0200  /* DAC_MONOMIX */
-#define WM8962_DAC_MONOMIX_SHIFT                     9  /* DAC_MONOMIX */
-#define WM8962_DAC_MONOMIX_WIDTH                     1  /* DAC_MONOMIX */
+#define WM8962_DAC_MOANALMIX                      0x0200  /* DAC_MOANALMIX */
+#define WM8962_DAC_MOANALMIX_MASK                 0x0200  /* DAC_MOANALMIX */
+#define WM8962_DAC_MOANALMIX_SHIFT                     9  /* DAC_MOANALMIX */
+#define WM8962_DAC_MOANALMIX_WIDTH                     1  /* DAC_MOANALMIX */
 #define WM8962_ADCR_DAC_SVOL_MASK               0x00F0  /* ADCR_DAC_SVOL - [7:4] */
 #define WM8962_ADCR_DAC_SVOL_SHIFT                   4  /* ADCR_DAC_SVOL - [7:4] */
 #define WM8962_ADCR_DAC_SVOL_WIDTH                   4  /* ADCR_DAC_SVOL - [7:4] */
@@ -2821,10 +2821,10 @@
 /*
  * R268 (0x10C) - THREED1
  */
-#define WM8962_ADC_MONOMIX                      0x0040  /* ADC_MONOMIX */
-#define WM8962_ADC_MONOMIX_MASK                 0x0040  /* ADC_MONOMIX */
-#define WM8962_ADC_MONOMIX_SHIFT                     6  /* ADC_MONOMIX */
-#define WM8962_ADC_MONOMIX_WIDTH                     1  /* ADC_MONOMIX */
+#define WM8962_ADC_MOANALMIX                      0x0040  /* ADC_MOANALMIX */
+#define WM8962_ADC_MOANALMIX_MASK                 0x0040  /* ADC_MOANALMIX */
+#define WM8962_ADC_MOANALMIX_SHIFT                     6  /* ADC_MOANALMIX */
+#define WM8962_ADC_MOANALMIX_WIDTH                     1  /* ADC_MOANALMIX */
 #define WM8962_THREED_SIGN_L                    0x0020  /* THREED_SIGN_L */
 #define WM8962_THREED_SIGN_L_MASK               0x0020  /* THREED_SIGN_L */
 #define WM8962_THREED_SIGN_L_SHIFT                   5  /* THREED_SIGN_L */

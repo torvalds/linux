@@ -40,7 +40,7 @@
 		IMR(HOT_RESET)		|	\
 		IMR(CFG_TIMEOUT)	|	\
 		IMR(CORRECTABLE)	|	\
-		IMR(NONFATAL)		|	\
+		IMR(ANALNFATAL)		|	\
 		IMR(FATAL)		|	\
 		IMR(INTX)		|	\
 		IMR(MSI)		|	\
@@ -310,7 +310,7 @@ static const struct {
 	_IC(HOT_RESET,		"Hot reset"),
 	_IC(CFG_TIMEOUT,	"ECAM access timeout"),
 	_IC(CORRECTABLE,	"Correctable error message"),
-	_IC(NONFATAL,		"Non fatal error message"),
+	_IC(ANALNFATAL,		"Analn fatal error message"),
 	_IC(FATAL,		"Fatal error message"),
 	_IC(SLV_UNSUPP,		"Slave unsupported request"),
 	_IC(SLV_UNEXP,		"Slave unexpected completion"),
@@ -331,7 +331,7 @@ static irqreturn_t xilinx_pl_dma_pcie_intr_handler(int irq, void *dev_id)
 	d = irq_domain_get_irq_data(port->pldma_domain, irq);
 	switch (d->hwirq) {
 	case XILINX_PCIE_INTR_CORRECTABLE:
-	case XILINX_PCIE_INTR_NONFATAL:
+	case XILINX_PCIE_INTR_ANALNFATAL:
 	case XILINX_PCIE_INTR_FATAL:
 		xilinx_pl_dma_pcie_clear_err_interrupts(port);
 		fallthrough;
@@ -340,7 +340,7 @@ static irqreturn_t xilinx_pl_dma_pcie_intr_handler(int irq, void *dev_id)
 		if (intr_cause[d->hwirq].str)
 			dev_warn(dev, "%s\n", intr_cause[d->hwirq].str);
 		else
-			dev_warn(dev, "Unknown IRQ %ld\n", d->hwirq);
+			dev_warn(dev, "Unkanalwn IRQ %ld\n", d->hwirq);
 	}
 
 	return IRQ_HANDLED;
@@ -394,7 +394,7 @@ static int xilinx_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 				      get_count_order(nr_irqs));
 	if (bit < 0) {
 		mutex_unlock(&msi->lock);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	for (i = 0; i < nr_irqs; i++) {
@@ -450,14 +450,14 @@ static int xilinx_pl_dma_pcie_init_msi_irq_domain(struct pl_dma_pcie *port)
 	struct device *dev = port->dev;
 	struct xilinx_msi *msi = &port->msi;
 	int size = BITS_TO_LONGS(XILINX_NUM_MSI_IRQS) * sizeof(long);
-	struct fwnode_handle *fwnode = of_node_to_fwnode(port->dev->of_node);
+	struct fwanalde_handle *fwanalde = of_analde_to_fwanalde(port->dev->of_analde);
 
 	msi->dev_domain = irq_domain_add_linear(NULL, XILINX_NUM_MSI_IRQS,
 						&dev_msi_domain_ops, port);
 	if (!msi->dev_domain)
 		goto out;
 
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
+	msi->msi_domain = pci_msi_create_irq_domain(fwanalde,
 						    &xilinx_msi_domain_info,
 						    msi->dev_domain);
 	if (!msi->msi_domain)
@@ -477,13 +477,13 @@ out:
 	xilinx_pl_dma_pcie_free_irq_domains(port);
 	dev_err(dev, "Failed to allocate MSI IRQ domains\n");
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
  * INTx error interrupts are Xilinx controller specific interrupt, used to
- * notify user about errors such as cfg timeout, slave unsupported requests,
- * fatal and non fatal error etc.
+ * analtify user about errors such as cfg timeout, slave unsupported requests,
+ * fatal and analn fatal error etc.
  */
 
 static irqreturn_t xilinx_pl_dma_pcie_intx_flow(int irq, void *args)
@@ -554,29 +554,29 @@ static const struct irq_domain_ops event_domain_ops = {
 static int xilinx_pl_dma_pcie_init_irq_domain(struct pl_dma_pcie *port)
 {
 	struct device *dev = port->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *pcie_intc_node;
+	struct device_analde *analde = dev->of_analde;
+	struct device_analde *pcie_intc_analde;
 	int ret;
 
 	/* Setup INTx */
-	pcie_intc_node = of_get_child_by_name(node, "interrupt-controller");
-	if (!pcie_intc_node) {
-		dev_err(dev, "No PCIe Intc node found\n");
+	pcie_intc_analde = of_get_child_by_name(analde, "interrupt-controller");
+	if (!pcie_intc_analde) {
+		dev_err(dev, "Anal PCIe Intc analde found\n");
 		return -EINVAL;
 	}
 
-	port->pldma_domain = irq_domain_add_linear(pcie_intc_node, 32,
+	port->pldma_domain = irq_domain_add_linear(pcie_intc_analde, 32,
 						   &event_domain_ops, port);
 	if (!port->pldma_domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq_domain_update_bus_token(port->pldma_domain, DOMAIN_BUS_NEXUS);
 
-	port->intx_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
+	port->intx_domain = irq_domain_add_linear(pcie_intc_analde, PCI_NUM_INTX,
 						  &intx_domain_ops, port);
 	if (!port->intx_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irq_domain_update_bus_token(port->intx_domain, DOMAIN_BUS_WIRED);
@@ -584,10 +584,10 @@ static int xilinx_pl_dma_pcie_init_irq_domain(struct pl_dma_pcie *port)
 	ret = xilinx_pl_dma_pcie_init_msi_irq_domain(port);
 	if (ret != 0) {
 		irq_domain_remove(port->intx_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	of_node_put(pcie_intc_node);
+	of_analde_put(pcie_intc_analde);
 	raw_spin_lock_init(&port->lock);
 
 	return 0;
@@ -617,7 +617,7 @@ static int xilinx_pl_dma_pcie_setup_irq(struct pl_dma_pcie *port)
 
 		err = devm_request_irq(dev, irq,
 				       xilinx_pl_dma_pcie_intr_handler,
-				       IRQF_SHARED | IRQF_NO_THREAD,
+				       IRQF_SHARED | IRQF_ANAL_THREAD,
 				       intr_cause[i].sym, port);
 		if (err) {
 			dev_err(dev, "Failed to request IRQ %d\n", irq);
@@ -633,14 +633,14 @@ static int xilinx_pl_dma_pcie_setup_irq(struct pl_dma_pcie *port)
 	}
 
 	err = devm_request_irq(dev, port->intx_irq, xilinx_pl_dma_pcie_intx_flow,
-			       IRQF_SHARED | IRQF_NO_THREAD, NULL, port);
+			       IRQF_SHARED | IRQF_ANAL_THREAD, NULL, port);
 	if (err) {
 		dev_err(dev, "Failed to request INTx IRQ %d\n", port->intx_irq);
 		return err;
 	}
 
 	err = devm_request_irq(dev, port->irq, xilinx_pl_dma_pcie_event_flow,
-			       IRQF_SHARED | IRQF_NO_THREAD, NULL, port);
+			       IRQF_SHARED | IRQF_ANAL_THREAD, NULL, port);
 	if (err) {
 		dev_err(dev, "Failed to request event IRQ %d\n", port->irq);
 		return err;
@@ -688,7 +688,7 @@ static int xilinx_request_msi_irq(struct pl_dma_pcie *port)
 		return port->msi.irq_msi0;
 
 	ret = devm_request_irq(dev, port->msi.irq_msi0, xilinx_pl_dma_pcie_msi_handler_low,
-			       IRQF_SHARED | IRQF_NO_THREAD, "xlnx-pcie-dma-pl",
+			       IRQF_SHARED | IRQF_ANAL_THREAD, "xlnx-pcie-dma-pl",
 			       port);
 	if (ret) {
 		dev_err(dev, "Failed to register interrupt\n");
@@ -700,7 +700,7 @@ static int xilinx_request_msi_irq(struct pl_dma_pcie *port)
 		return port->msi.irq_msi1;
 
 	ret = devm_request_irq(dev, port->msi.irq_msi1, xilinx_pl_dma_pcie_msi_handler_high,
-			       IRQF_SHARED | IRQF_NO_THREAD, "xlnx-pcie-dma-pl",
+			       IRQF_SHARED | IRQF_ANAL_THREAD, "xlnx-pcie-dma-pl",
 			       port);
 	if (ret) {
 		dev_err(dev, "Failed to register interrupt\n");
@@ -750,7 +750,7 @@ static int xilinx_pl_dma_pcie_probe(struct platform_device *pdev)
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*port));
 	if (!bridge)
-		return -ENODEV;
+		return -EANALDEV;
 
 	port = pci_host_bridge_priv(bridge);
 
@@ -758,7 +758,7 @@ static int xilinx_pl_dma_pcie_probe(struct platform_device *pdev)
 
 	bus = resource_list_first_type(&bridge->windows, IORESOURCE_BUS);
 	if (!bus)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = xilinx_pl_dma_pcie_parse_dt(port, bus->res);
 	if (err) {

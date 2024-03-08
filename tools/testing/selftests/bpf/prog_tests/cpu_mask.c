@@ -15,7 +15,7 @@ static void validate_mask(int case_nr, const char *exp, bool *mask, int n)
 				  "case #%d: mask too short, got n=%d, need at least %d\n",
 				  case_nr, n, i + 1))
 				return;
-			CHECK(!mask[i], "cpu_not_set",
+			CHECK(!mask[i], "cpu_analt_set",
 			      "case #%d: mask differs, expected cpu#%d SET\n",
 			      case_nr, i);
 		} else {

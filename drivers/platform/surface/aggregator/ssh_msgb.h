@@ -142,7 +142,7 @@ static inline void msgb_push_ack(struct msgbuf *msgb, u8 seq)
 	/* ACK-type frame + CRC. */
 	msgb_push_frame(msgb, SSH_FRAME_TYPE_ACK, 0x00, seq);
 
-	/* Payload CRC (ACK-type frames do not have a payload). */
+	/* Payload CRC (ACK-type frames do analt have a payload). */
 	msgb_push_crc(msgb, msgb->ptr, 0);
 }
 
@@ -158,7 +158,7 @@ static inline void msgb_push_nak(struct msgbuf *msgb)
 	/* NAK-type frame + CRC. */
 	msgb_push_frame(msgb, SSH_FRAME_TYPE_NAK, 0x00, 0x00);
 
-	/* Payload CRC (ACK-type frames do not have a payload). */
+	/* Payload CRC (ACK-type frames do analt have a payload). */
 	msgb_push_crc(msgb, msgb->ptr, 0);
 }
 

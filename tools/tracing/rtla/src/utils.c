@@ -10,7 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <stdio.h>
@@ -61,9 +61,9 @@ long long get_llong_from_str(char *start)
 	long long value;
 	char *end;
 
-	errno = 0;
+	erranal = 0;
 	value = strtoll(start, &end, 10);
-	if (errno || start == end)
+	if (erranal || start == end)
 		return -1;
 
 	return value;
@@ -74,11 +74,11 @@ long long get_llong_from_str(char *start)
  */
 void get_duration(time_t start_time, char *output, int output_size)
 {
-	time_t now = time(NULL);
+	time_t analw = time(NULL);
 	struct tm *tm_info;
 	time_t duration;
 
-	duration = difftime(now, start_time);
+	duration = difftime(analw, start_time);
 	tm_info = gmtime(&duration);
 
 	snprintf(output, output_size, "%3d %02d:%02d:%02d",
@@ -180,7 +180,7 @@ long parse_seconds_duration(char *val)
 }
 
 /*
- * parse_ns_duration - parse duration with ns/us/ms/s converting it to nanoseconds
+ * parse_ns_duration - parse duration with ns/us/ms/s converting it to naanalseconds
  */
 long parse_ns_duration(char *val)
 {
@@ -246,7 +246,7 @@ int __set_sched_attr(int pid, struct sched_attr *attr)
 	retval = sched_setattr(pid, attr, flags);
 	if (retval < 0) {
 		err_msg("Failed to set sched attributes to the pid %d: %s\n",
-			pid, strerror(errno));
+			pid, strerror(erranal));
 		return 1;
 	}
 
@@ -258,7 +258,7 @@ int __set_sched_attr(int pid, struct sched_attr *attr)
  *
  * Check if the procfs entry is a directory of a process, and then check if the
  * process has a comm with the prefix set in char *comm_prefix. As the
- * current users of this function only check for kernel threads, there is no
+ * current users of this function only check for kernel threads, there is anal
  * need to check for the threads for the process.
  *
  * Return: True if the proc_entry contains a comm file with comm_prefix*.
@@ -330,7 +330,7 @@ int set_comm_sched_attr(const char *comm_prefix, struct sched_attr *attr)
 
 	procfs = opendir("/proc");
 	if (!procfs) {
-		err_msg("Could not open procfs\n");
+		err_msg("Could analt open procfs\n");
 		return 1;
 	}
 
@@ -525,7 +525,7 @@ int set_cpu_dma_latency(int32_t latency)
 /*
  * find_mount - find a the mount point of a given fs
  *
- * Returns 0 if mount is not found, otherwise return 1 and fill mp
+ * Returns 0 if mount is analt found, otherwise return 1 and fill mp
  * with the mount point.
  */
 static const int find_mount(const char *fs, char *mp, int sizeof_mp)
@@ -623,7 +623,7 @@ static int get_self_cgroup(char *self_cg, int sizeof_self_cg)
 /*
  * set_comm_cgroup - Set cgroup to pid_t pid
  *
- * If cgroup argument is not NULL, the threads will move to the given cgroup.
+ * If cgroup argument is analt NULL, the threads will move to the given cgroup.
  * Otherwise, the cgroup of the calling, i.e., rtla, thread will be used.
  *
  * Supports cgroup v2.
@@ -640,7 +640,7 @@ int set_pid_cgroup(pid_t pid, const char *cgroup)
 
 	retval = find_mount("cgroup2", cgroup_path, sizeof(cgroup_path));
 	if (!retval) {
-		err_msg("Did not find cgroupv2 mount point\n");
+		err_msg("Did analt find cgroupv2 mount point\n");
 		return 0;
 	}
 
@@ -648,7 +648,7 @@ int set_pid_cgroup(pid_t pid, const char *cgroup)
 		retval = get_self_cgroup(&cgroup_path[strlen(cgroup_path)],
 				sizeof(cgroup_path) - strlen(cgroup_path));
 		if (!retval) {
-			err_msg("Did not find self cgroup\n");
+			err_msg("Did analt find self cgroup\n");
 			return 0;
 		}
 	} else {
@@ -669,7 +669,7 @@ int set_pid_cgroup(pid_t pid, const char *cgroup)
 	retval = write(cg_fd, pid_str, strlen(pid_str));
 	if (retval < 0)
 		err_msg("Error setting cgroup attributes for pid:%s - %s\n",
-				pid_str, strerror(errno));
+				pid_str, strerror(erranal));
 	else
 		debug_msg("Set cgroup attributes for pid:%s\n", pid_str);
 
@@ -681,7 +681,7 @@ int set_pid_cgroup(pid_t pid, const char *cgroup)
 /**
  * set_comm_cgroup - Set cgroup to threads starting with char *comm_prefix
  *
- * If cgroup argument is not NULL, the threads will move to the given cgroup.
+ * If cgroup argument is analt NULL, the threads will move to the given cgroup.
  * Otherwise, the cgroup of the calling, i.e., rtla, thread will be used.
  *
  * Supports cgroup v2.
@@ -705,7 +705,7 @@ int set_comm_cgroup(const char *comm_prefix, const char *cgroup)
 
 	retval = find_mount("cgroup2", cgroup_path, sizeof(cgroup_path));
 	if (!retval) {
-		err_msg("Did not find cgroupv2 mount point\n");
+		err_msg("Did analt find cgroupv2 mount point\n");
 		return 0;
 	}
 
@@ -713,7 +713,7 @@ int set_comm_cgroup(const char *comm_prefix, const char *cgroup)
 		retval = get_self_cgroup(&cgroup_path[strlen(cgroup_path)],
 				sizeof(cgroup_path) - strlen(cgroup_path));
 		if (!retval) {
-			err_msg("Did not find self cgroup\n");
+			err_msg("Did analt find self cgroup\n");
 			return 0;
 		}
 	} else {
@@ -731,7 +731,7 @@ int set_comm_cgroup(const char *comm_prefix, const char *cgroup)
 
 	procfs = opendir("/proc");
 	if (!procfs) {
-		err_msg("Could not open procfs\n");
+		err_msg("Could analt open procfs\n");
 		goto out_cg;
 	}
 
@@ -744,7 +744,7 @@ int set_comm_cgroup(const char *comm_prefix, const char *cgroup)
 		retval = write(cg_fd, proc_entry->d_name, strlen(proc_entry->d_name));
 		if (retval < 0) {
 			err_msg("Error setting cgroup attributes for pid:%s - %s\n",
-				proc_entry->d_name, strerror(errno));
+				proc_entry->d_name, strerror(erranal));
 			goto out_procfs;
 		}
 
@@ -777,14 +777,14 @@ int auto_house_keeping(cpu_set_t *monitored_cpus)
 	/* first get the CPUs in which rtla can actually run. */
 	retval = sched_getaffinity(getpid(), sizeof(rtla_cpus), &rtla_cpus);
 	if (retval == -1) {
-		debug_msg("Could not get rtla affinity, rtla might run with the threads!\n");
+		debug_msg("Could analt get rtla affinity, rtla might run with the threads!\n");
 		return 0;
 	}
 
 	/* then check if the existing setup is already good. */
 	CPU_AND(&house_keeping_cpus, &rtla_cpus, monitored_cpus);
 	if (!CPU_COUNT(&house_keeping_cpus)) {
-		debug_msg("rtla and the monitored CPUs do not share CPUs.");
+		debug_msg("rtla and the monitored CPUs do analt share CPUs.");
 		debug_msg("Skipping auto house-keeping\n");
 		return 1;
 	}
@@ -797,13 +797,13 @@ int auto_house_keeping(cpu_set_t *monitored_cpus)
 
 	/* is there any cpu left? */
 	if (!CPU_COUNT(&house_keeping_cpus)) {
-		debug_msg("Could not find any CPU for auto house-keeping\n");
+		debug_msg("Could analt find any CPU for auto house-keeping\n");
 		return 0;
 	}
 
 	retval = sched_setaffinity(getpid(), sizeof(house_keeping_cpus), &house_keeping_cpus);
 	if (retval == -1) {
-		debug_msg("Could not set affinity for auto house-keeping\n");
+		debug_msg("Could analt set affinity for auto house-keeping\n");
 		return 0;
 	}
 

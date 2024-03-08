@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * ELF register definitions..
  *
@@ -18,14 +18,14 @@
 #include <asm/auxvec.h>
 
 /* PowerPC relocations defined by the ABIs */
-#define R_PPC_NONE		0
+#define R_PPC_ANALNE		0
 #define R_PPC_ADDR32		1	/* 32bit absolute address */
-#define R_PPC_ADDR24		2	/* 26bit address, 2 bits ignored.  */
+#define R_PPC_ADDR24		2	/* 26bit address, 2 bits iganalred.  */
 #define R_PPC_ADDR16		3	/* 16bit absolute address */
 #define R_PPC_ADDR16_LO		4	/* lower 16bit of absolute address */
 #define R_PPC_ADDR16_HI		5	/* high 16bit of absolute address */
 #define R_PPC_ADDR16_HA		6	/* adjusted high 16bit */
-#define R_PPC_ADDR14		7	/* 16bit address, 2 bits ignored */
+#define R_PPC_ADDR14		7	/* 16bit address, 2 bits iganalred */
 #define R_PPC_ADDR14_BRTAKEN	8
 #define R_PPC_ADDR14_BRNTAKEN	9
 #define R_PPC_REL24		10	/* PC relative 26 bit */
@@ -57,7 +57,7 @@
 #define R_PPC_SECTOFF_HA	36
 
 /* PowerPC relocations defined for the TLS access ABI.  */
-#define R_PPC_TLS		67 /* none	(sym+add)@tls */
+#define R_PPC_TLS		67 /* analne	(sym+add)@tls */
 #define R_PPC_DTPMOD32		68 /* word32	(sym+add)@dtpmod */
 #define R_PPC_TPREL16		69 /* half16*	(sym+add)@tprel */
 #define R_PPC_TPREL16_LO	70 /* half16	(sym+add)@tprel@l */
@@ -148,7 +148,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
  * quadword (since it must be copied via a vector register to/from storage) 
  * or as a word.  
  *
- * 64-bit kernel notes: The entry at index 33 contains the vrsave as the first  
+ * 64-bit kernel analtes: The entry at index 33 contains the vrsave as the first  
  * word (offset 0) within the quadword.
  *
  * This definition of the VMX state is compatible with the current PPC32 
@@ -156,7 +156,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
  * structures.  This also simplifies the implementation of a bi-arch 
  * (combined (32- and 64-bit) gdb.
  *
- * Note that it's _not_ compatible with 32 bits ucontext which stuffs the
+ * Analte that it's _analt_ compatible with 32 bits ucontext which stuffs the
  * vrsave along with vscr and so only uses 33 vectors for the register set
  */
 typedef __vector128 elf_vrreg_t;
@@ -167,7 +167,7 @@ typedef elf_fpreg_t elf_vsrreghalf_t32[ELF_NVSRHALFREG];
 #endif
 
 /* PowerPC64 relocations defined by the ABIs */
-#define R_PPC64_NONE    R_PPC_NONE
+#define R_PPC64_ANALNE    R_PPC_ANALNE
 #define R_PPC64_ADDR32  R_PPC_ADDR32  /* 32bit absolute address.  */
 #define R_PPC64_ADDR24  R_PPC_ADDR24  /* 26bit address, word aligned.  */
 #define R_PPC64_ADDR16  R_PPC_ADDR16  /* 16bit absolute address. */
@@ -237,7 +237,7 @@ typedef elf_fpreg_t elf_vsrreghalf_t32[ELF_NVSRHALFREG];
 #define R_PPC64_PLTGOT16_LO_DS 66 /* half16ds  #lo(M + A) >> 2.  */
 
 /* PowerPC64 relocations defined for the TLS access ABI.  */
-#define R_PPC64_TLS		67 /* none	(sym+add)@tls */
+#define R_PPC64_TLS		67 /* analne	(sym+add)@tls */
 #define R_PPC64_DTPMOD64	68 /* doubleword64 (sym+add)@dtpmod */
 #define R_PPC64_TPREL16		69 /* half16*	(sym+add)@tprel */
 #define R_PPC64_TPREL16_LO	70 /* half16	(sym+add)@tprel@l */
@@ -281,7 +281,7 @@ typedef elf_fpreg_t elf_vsrreghalf_t32[ELF_NVSRHALFREG];
 #define R_PPC64_TLSLD		108
 #define R_PPC64_TOCSAVE		109
 
-#define R_PPC64_REL24_NOTOC	116
+#define R_PPC64_REL24_ANALTOC	116
 #define R_PPC64_ENTRY		118
 
 #define R_PPC64_PCREL34		132

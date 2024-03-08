@@ -83,7 +83,7 @@ static int ci_ll_init(struct dvb_ringbuffer *cirbuf, struct dvb_ringbuffer *ciwb
 				vfree(p[0]->data);
 				p[0]->data = NULL;
 			}
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		dvb_ringbuffer_init(*p, data, size);
 	}
@@ -134,12 +134,12 @@ static ssize_t ci_ll_write(struct dvb_ringbuffer *cibuf, struct file *file,
 			   const char __user *buf, size_t count, loff_t *ppos)
 {
 	int free;
-	int non_blocking = file->f_flags & O_NONBLOCK;
+	int analn_blocking = file->f_flags & O_ANALNBLOCK;
 	u8 *page = (u8 *)__get_free_page(GFP_USER);
 	int res;
 
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = -EINVAL;
 	if (count > 2048)
@@ -152,7 +152,7 @@ static ssize_t ci_ll_write(struct dvb_ringbuffer *cibuf, struct file *file,
 	free = dvb_ringbuffer_free(cibuf);
 	if (count + 2 > free) {
 		res = -EWOULDBLOCK;
-		if (non_blocking)
+		if (analn_blocking)
 			goto out;
 		res = -ERESTARTSYS;
 		if (wait_event_interruptible(cibuf->queue,
@@ -173,12 +173,12 @@ static ssize_t ci_ll_read(struct dvb_ringbuffer *cibuf, struct file *file,
 			  char __user *buf, size_t count, loff_t *ppos)
 {
 	int avail;
-	int non_blocking = file->f_flags & O_NONBLOCK;
+	int analn_blocking = file->f_flags & O_ANALNBLOCK;
 	ssize_t len;
 
 	if (!cibuf->data || !count)
 		return 0;
-	if (non_blocking && (dvb_ringbuffer_empty(cibuf)))
+	if (analn_blocking && (dvb_ringbuffer_empty(cibuf)))
 		return -EWOULDBLOCK;
 	if (wait_event_interruptible(cibuf->queue,
 				     !dvb_ringbuffer_empty(cibuf)))
@@ -195,11 +195,11 @@ static ssize_t ci_ll_read(struct dvb_ringbuffer *cibuf, struct file *file,
 	return dvb_ringbuffer_read_user(cibuf, buf, len);
 }
 
-static int dvb_ca_open(struct inode *inode, struct file *file)
+static int dvb_ca_open(struct ianalde *ianalde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct av7110 *av7110 = dvbdev->priv;
-	int err = dvb_generic_open(inode, file);
+	int err = dvb_generic_open(ianalde, file);
 
 	dprintk(8, "av7110:%p\n",av7110);
 
@@ -223,10 +223,10 @@ static __poll_t dvb_ca_poll (struct file *file, poll_table *wait)
 	poll_wait(file, &wbuf->queue, wait);
 
 	if (!dvb_ringbuffer_empty(rbuf))
-		mask |= (EPOLLIN | EPOLLRDNORM);
+		mask |= (EPOLLIN | EPOLLRDANALRM);
 
 	if (dvb_ringbuffer_free(wbuf) > 1024)
-		mask |= (EPOLLOUT | EPOLLWRNORM);
+		mask |= (EPOLLOUT | EPOLLWRANALRM);
 
 	return mask;
 }

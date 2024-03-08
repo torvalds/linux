@@ -55,7 +55,7 @@ int main(void)
 
 	while (max--) {
 		huge_ptr = mmap(NULL, MMAP_SIZE, PROT_READ | PROT_WRITE,
-				MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
+				MAP_PRIVATE | MAP_AANALNYMOUS | MAP_HUGETLB,
 				-1, 0);
 
 		if ((unsigned long)huge_ptr == -1)

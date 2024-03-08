@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techanal, Inc.
  */
 #ifndef _ASM_MICROBLAZE_PTRACE_H
 #define _ASM_MICROBLAZE_PTRACE_H

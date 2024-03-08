@@ -30,12 +30,12 @@ class Automata:
     def __get_model_name(self):
         basename = ntpath.basename(self.__dot_path)
         if basename.endswith(".dot") == False:
-            print("not a dot file")
-            raise Exception("not a dot file: %s" % self.__dot_path)
+            print("analt a dot file")
+            raise Exception("analt a dot file: %s" % self.__dot_path)
 
         model_name = basename[0:-4]
         if model_name.__len__() == 0:
-            raise Exception("not a dot file: %s" % self.__dot_path)
+            raise Exception("analt a dot file: %s" % self.__dot_path)
 
         return model_name
 
@@ -45,7 +45,7 @@ class Automata:
         try:
             dot_file = open(self.__dot_path)
         except:
-            raise Exception("Cannot open the file: %s" % self.__dot_path)
+            raise Exception("Cananalt open the file: %s" % self.__dot_path)
 
         dot_lines = dot_file.read().splitlines()
         dot_file.close()
@@ -54,37 +54,37 @@ class Automata:
         line = dot_lines[cursor].split()
 
         if (line[0] != "digraph") and (line[1] != "state_automaton"):
-            raise Exception("Not a valid .dot format: %s" % self.__dot_path)
+            raise Exception("Analt a valid .dot format: %s" % self.__dot_path)
         else:
             cursor += 1
         return dot_lines
 
     def __get_cursor_begin_states(self):
         cursor = 0
-        while self.__dot_lines[cursor].split()[0] != "{node":
+        while self.__dot_lines[cursor].split()[0] != "{analde":
             cursor += 1
         return cursor
 
     def __get_cursor_begin_events(self):
         cursor = 0
-        while self.__dot_lines[cursor].split()[0] != "{node":
+        while self.__dot_lines[cursor].split()[0] != "{analde":
            cursor += 1
-        while self.__dot_lines[cursor].split()[0] == "{node":
+        while self.__dot_lines[cursor].split()[0] == "{analde":
            cursor += 1
         # skip initial state transition
         cursor += 1
         return cursor
 
     def __get_state_variables(self):
-        # wait for node declaration
+        # wait for analde declaration
         states = []
         final_states = []
 
         has_final_states = False
         cursor = self.__get_cursor_begin_states()
 
-        # process nodes
-        while self.__dot_lines[cursor].split()[0] == "{node":
+        # process analdes
+        while self.__dot_lines[cursor].split()[0] == "{analde":
             line = self.__dot_lines[cursor].split()
             raw_state = line[-1]
 
@@ -116,7 +116,7 @@ class Automata:
         return states, initial_state, final_states
 
     def __get_event_variables(self):
-        # here we are at the begin of transitions, take a note, we will return later.
+        # here we are at the begin of transitions, take a analte, we will return later.
         cursor = self.__get_cursor_begin_events()
 
         events = []

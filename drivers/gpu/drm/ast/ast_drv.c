@@ -10,14 +10,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -60,7 +60,7 @@ static const struct drm_driver ast_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 
 	DRM_GEM_SHMEM_DRIVER_OPS
@@ -103,7 +103,7 @@ static void ast_enable_vga(void __iomem *ioregs)
 }
 
 /*
- * Run this function as part of the HW device cleanup; not
+ * Run this function as part of the HW device cleanup; analt
  * when the DRM device gets released.
  */
 static void ast_enable_mmio_release(void *data)
@@ -136,7 +136,7 @@ static int ast_detect_chip(struct pci_dev *pdev,
 			   enum ast_config_mode *config_mode_out)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	enum ast_config_mode config_mode = ast_use_defaults;
 	uint32_t scu_rev = 0xffffffff;
 	enum ast_chip chip;
@@ -152,7 +152,7 @@ static int ast_detect_chip(struct pci_dev *pdev,
 		/* We do, disable P2A access */
 		config_mode = ast_use_dt;
 		scu_rev = data;
-	} else if (pdev->device == PCI_CHIP_AST2000) { // Not all families have a P2A bridge
+	} else if (pdev->device == PCI_CHIP_AST2000) { // Analt all families have a P2A bridge
 		/*
 		 * The BMC will set SCU 0x40 D[12] to 1 if the P2 bridge
 		 * is disabled. We force using P2A if VGA only mode bit
@@ -325,16 +325,16 @@ static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			return -EIO;
 		ioregs = regs + AST_IO_MM_OFFSET;
 
-		dev_info(dev, "Platform has no I/O space, using MMIO\n");
+		dev_info(dev, "Platform has anal I/O space, using MMIO\n");
 	}
 
 	if (!ast_is_vga_enabled(ioregs)) {
-		dev_info(dev, "VGA not enabled on entry, requesting chip POST\n");
+		dev_info(dev, "VGA analt enabled on entry, requesting chip POST\n");
 		need_post = true;
 	}
 
 	/*
-	 * If VGA isn't enabled, we need to enable now or subsequent
+	 * If VGA isn't enabled, we need to enable analw or subsequent
 	 * access to the scratch registers will fail.
 	 */
 	if (need_post)

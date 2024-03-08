@@ -201,7 +201,7 @@ static int zynqmp_sha_probe(struct platform_device *pdev)
 
 	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(ZYNQMP_DMA_BIT_MASK));
 	if (err < 0) {
-		dev_err(dev, "No usable DMA configuration\n");
+		dev_err(dev, "Anal usable DMA configuration\n");
 		return err;
 	}
 
@@ -216,13 +216,13 @@ static int zynqmp_sha_probe(struct platform_device *pdev)
 
 	ubuf = dma_alloc_coherent(dev, ZYNQMP_DMA_ALLOC_FIXED_SIZE, &update_dma_addr, GFP_KERNEL);
 	if (!ubuf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_shash;
 	}
 
 	fbuf = dma_alloc_coherent(dev, SHA3_384_DIGEST_SIZE, &final_dma_addr, GFP_KERNEL);
 	if (!fbuf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_mem;
 	}
 

@@ -13,10 +13,10 @@ description: |
   This module is part of the ROHM BD9576 MFD device. For more details
   see Documentation/devicetree/bindings/mfd/rohm,bd9576-pmic.yaml.
 
-  The regulator controller is represented as a sub-node of the PMIC node
+  The regulator controller is represented as a sub-analde of the PMIC analde
   on the device tree.
 
-  The valid names for BD9576 regulator nodes are
+  The valid names for BD9576 regulator analdes are
   regulator-vd50, regulator-vd18, regulator-vdddr, regulator-vd10,
   regulator-voutl1, regulator-vouts1
 

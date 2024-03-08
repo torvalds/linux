@@ -34,7 +34,7 @@ extern const struct drm_driver vc5_drm_driver;
  */
 enum vc4_kernel_bo_type {
 	/* Any kernel allocation (gem_create_object hook) before it
-	 * gets another type set.
+	 * gets aanalther type set.
 	 */
 	VC4_BO_TYPE_KERNEL,
 	VC4_BO_TYPE_V3D,
@@ -73,7 +73,7 @@ struct vc4_perfmon {
 	 * perf counter values every time the perfmon is attached to a GPU job.
 	 * This way, perfmon users don't have to retrieve the results after
 	 * each job if they want to track events covering several submissions.
-	 * Note that counter values can't be reset, but you can fake a reset by
+	 * Analte that counter values can't be reset, but you can fake a reset by
 	 * destroying the perfmon and creating a new one.
 	 */
 	u64 counters[] __counted_by(ncounters);
@@ -93,7 +93,7 @@ struct vc4_dev {
 	struct vc4_hang_state *hang_state;
 
 	/* The kernel-space BO cache.  Tracks buffers that have been
-	 * unreferenced by all other users (refcounts of 0!) but not
+	 * unreferenced by all other users (refcounts of 0!) but analt
 	 * yet freed, so we can do cheap allocations.
 	 */
 	struct vc4_bo_cache {
@@ -139,14 +139,14 @@ struct vc4_dev {
 	uint64_t dma_fence_context;
 
 	/* Sequence number for the last job queued in bin_job_list.
-	 * Starts at 0 (no jobs emitted).
+	 * Starts at 0 (anal jobs emitted).
 	 */
-	uint64_t emit_seqno;
+	uint64_t emit_seqanal;
 
 	/* Sequence number for the last completed job on the GPU.
-	 * Starts at 0 (no jobs completed).
+	 * Starts at 0 (anal jobs completed).
 	 */
-	uint64_t finished_seqno;
+	uint64_t finished_seqanal;
 
 	/* List of all struct vc4_exec_info for jobs to be executed in
 	 * the binner.  The first job in the list is the one currently
@@ -165,7 +165,7 @@ struct vc4_dev {
 	 * job_done_work.
 	 */
 	struct list_head job_done_list;
-	/* Spinlock used to synchronize the job_list and seqno
+	/* Spinlock used to synchronize the job_list and seqanal
 	 * accesses between the IRQ handler and GEM ioctls.
 	 */
 	spinlock_t job_lock;
@@ -177,10 +177,10 @@ struct vc4_dev {
 	 */
 	struct vc4_perfmon *active_perfmon;
 
-	/* List of struct vc4_seqno_cb for callbacks to be made from a
-	 * workqueue when the given seqno is passed.
+	/* List of struct vc4_seqanal_cb for callbacks to be made from a
+	 * workqueue when the given seqanal is passed.
 	 */
-	struct list_head seqno_cb_list;
+	struct list_head seqanal_cb_list;
 
 	/* The memory used for storing binner tile alloc, tile state,
 	 * and overflow memory allocations.  This is freed when V3D
@@ -238,15 +238,15 @@ struct vc4_dev {
 struct vc4_bo {
 	struct drm_gem_dma_object base;
 
-	/* seqno of the last job to render using this BO. */
-	uint64_t seqno;
+	/* seqanal of the last job to render using this BO. */
+	uint64_t seqanal;
 
-	/* seqno of the last job to use the RCL to write to this BO.
+	/* seqanal of the last job to use the RCL to write to this BO.
 	 *
-	 * Note that this doesn't include binner overflow memory
+	 * Analte that this doesn't include binner overflow memory
 	 * writes.
 	 */
-	uint64_t write_seqno;
+	uint64_t write_seqanal;
 
 	bool t_format;
 
@@ -272,7 +272,7 @@ struct vc4_bo {
 	int label;
 
 	/* Count the number of active users. This is needed to determine
-	 * whether we can move the BO to the purgeable list or not (when the BO
+	 * whether we can move the BO to the purgeable list or analt (when the BO
 	 * is used by the GPU or the display engine we can't purge it).
 	 */
 	refcount_t usecnt;
@@ -288,17 +288,17 @@ struct vc4_bo {
 struct vc4_fence {
 	struct dma_fence base;
 	struct drm_device *dev;
-	/* vc4 seqno for signaled() test */
-	uint64_t seqno;
+	/* vc4 seqanal for signaled() test */
+	uint64_t seqanal;
 };
 
 #define to_vc4_fence(_fence)					\
 	container_of_const(_fence, struct vc4_fence, base)
 
-struct vc4_seqno_cb {
+struct vc4_seqanal_cb {
 	struct work_struct work;
-	uint64_t seqno;
-	void (*func)(struct vc4_seqno_cb *cb);
+	uint64_t seqanal;
+	void (*func)(struct vc4_seqanal_cb *cb);
 };
 
 struct vc4_v3d {
@@ -327,7 +327,7 @@ struct vc4_hvs {
 	struct drm_mm lbm_mm;
 	spinlock_t mm_lock;
 
-	struct drm_mm_node mitchell_netravali_filter;
+	struct drm_mm_analde mitchell_netravali_filter;
 
 	struct debugfs_regset32 regset;
 
@@ -374,7 +374,7 @@ struct vc4_plane {
 	container_of_const(_plane, struct vc4_plane, base)
 
 enum vc4_scaling_mode {
-	VC4_SCALING_NONE,
+	VC4_SCALING_ANALNE,
 	VC4_SCALING_TPZ,
 	VC4_SCALING_PPF,
 };
@@ -419,16 +419,16 @@ struct vc4_plane_state {
 	u32 offsets[3];
 
 	/* Our allocation in LBM for temporary storage during scaling. */
-	struct drm_mm_node lbm;
+	struct drm_mm_analde lbm;
 
-	/* Set when the plane has per-pixel alpha content or does not cover
+	/* Set when the plane has per-pixel alpha content or does analt cover
 	 * the entire screen. This is a hint to the CRTC that it might need
 	 * to enable background color fill.
 	 */
 	bool needs_bg_fill;
 
 	/* Mark the dlist as initialized. Useful to avoid initializing it twice
-	 * when async update is not possible.
+	 * when async update is analt possible.
 	 */
 	bool dlist_initialized;
 
@@ -447,7 +447,7 @@ struct vc4_plane_state {
 	container_of_const(_state, struct vc4_plane_state, base)
 
 enum vc4_encoder_type {
-	VC4_ENCODER_TYPE_NONE,
+	VC4_ENCODER_TYPE_ANALNE,
 	VC4_ENCODER_TYPE_HDMI0,
 	VC4_ENCODER_TYPE_HDMI1,
 	VC4_ENCODER_TYPE_VEC,
@@ -593,7 +593,7 @@ struct drm_encoder *vc4_get_crtc_encoder(struct drm_crtc *crtc,
 struct vc4_crtc_state {
 	struct drm_crtc_state base;
 	/* Dlist area for this CRTC configuration. */
-	struct drm_mm_node mm;
+	struct drm_mm_analde mm;
 	bool txp_armed;
 	unsigned int assigned_channel;
 
@@ -645,10 +645,10 @@ struct vc4_exec_info {
 	struct vc4_dev *dev;
 
 	/* Sequence number for this bin/render job. */
-	uint64_t seqno;
+	uint64_t seqanal;
 
-	/* Latest write_seqno of any BO that binning depends on. */
-	uint64_t bin_dep_seqno;
+	/* Latest write_seqanal of any BO that binning depends on. */
+	uint64_t bin_dep_seqanal;
 
 	struct dma_fence *fence;
 
@@ -681,7 +681,7 @@ struct vc4_exec_info {
 	 */
 	struct list_head unref_list;
 
-	/* Current unvalidated indices into @bo loaded by the non-hardware
+	/* Current unvalidated indices into @bo loaded by the analn-hardware
 	 * VC4_PACKET_GEM_HANDLES.
 	 */
 	uint32_t bo_index[2];
@@ -805,7 +805,7 @@ vc4_last_render_job(struct vc4_dev *vc4)
  * This will be used at draw time to relocate the reference to the texture
  * contents in p0, and validate that the offset combined with
  * width/height/stride/etc. from p1 and p2/p3 doesn't sample outside the BO.
- * Note that the hardware treats unprovided config parameters as 0, so not all
+ * Analte that the hardware treats unprovided config parameters as 0, so analt all
  * of them need to be set up for every texure sample, and we'll store ~0 as
  * the offset to mark the unused ones.
  *
@@ -842,7 +842,7 @@ struct vc4_validated_shader_info {
 /**
  * __wait_for - magic wait macro
  *
- * Macro to help avoid open coding check/wait/timeout patterns. Note that it's
+ * Macro to help avoid open coding check/wait/timeout patterns. Analte that it's
  * important that we check the condition again after having timed out, since the
  * timeout could be due to preemption or similar and we've never had a chance to
  * check the condition before the timeout.
@@ -902,7 +902,7 @@ int vc4_bo_inc_usecnt(struct vc4_bo *bo);
 void vc4_bo_dec_usecnt(struct vc4_bo *bo);
 void vc4_bo_add_to_purgeable_pool(struct vc4_bo *bo);
 void vc4_bo_remove_from_purgeable_pool(struct vc4_bo *bo);
-int vc4_bo_debugfs_init(struct drm_minor *minor);
+int vc4_bo_debugfs_init(struct drm_mianalr *mianalr);
 
 /* vc4_crtc.c */
 extern struct platform_driver vc4_crtc_driver;
@@ -937,7 +937,7 @@ void vc4_crtc_get_margins(struct drm_crtc_state *state,
 			  unsigned int *top, unsigned int *bottom);
 
 /* vc4_debugfs.c */
-void vc4_debugfs_init(struct drm_minor *minor);
+void vc4_debugfs_init(struct drm_mianalr *mianalr);
 #ifdef CONFIG_DEBUG_FS
 void vc4_debugfs_add_regset32(struct drm_device *drm,
 			      const char *filename,
@@ -967,19 +967,19 @@ extern const struct dma_fence_ops vc4_fence_ops;
 int vc4_gem_init(struct drm_device *dev);
 int vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
-int vc4_wait_seqno_ioctl(struct drm_device *dev, void *data,
+int vc4_wait_seqanal_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
 void vc4_submit_next_bin_job(struct drm_device *dev);
 void vc4_submit_next_render_job(struct drm_device *dev);
 void vc4_move_job_to_render(struct drm_device *dev, struct vc4_exec_info *exec);
-int vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno,
+int vc4_wait_for_seqanal(struct drm_device *dev, uint64_t seqanal,
 		       uint64_t timeout_ns, bool interruptible);
 void vc4_job_handle_completed(struct vc4_dev *vc4);
-int vc4_queue_seqno_cb(struct drm_device *dev,
-		       struct vc4_seqno_cb *cb, uint64_t seqno,
-		       void (*func)(struct vc4_seqno_cb *cb));
+int vc4_queue_seqanal_cb(struct drm_device *dev,
+		       struct vc4_seqanal_cb *cb, uint64_t seqanal,
+		       void (*func)(struct vc4_seqanal_cb *cb));
 int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
 
@@ -1013,7 +1013,7 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *state)
 void vc4_hvs_dump_state(struct vc4_hvs *hvs);
 void vc4_hvs_unmask_underrun(struct vc4_hvs *hvs, int channel);
 void vc4_hvs_mask_underrun(struct vc4_hvs *hvs, int channel);
-int vc4_hvs_debugfs_init(struct drm_minor *minor);
+int vc4_hvs_debugfs_init(struct drm_mianalr *mianalr);
 
 /* vc4_kms.c */
 int vc4_kms_load(struct drm_device *dev);
@@ -1036,7 +1036,7 @@ int vc4_v3d_bin_bo_get(struct vc4_dev *vc4, bool *used);
 void vc4_v3d_bin_bo_put(struct vc4_dev *vc4);
 int vc4_v3d_pm_get(struct vc4_dev *vc4);
 void vc4_v3d_pm_put(struct vc4_dev *vc4);
-int vc4_v3d_debugfs_init(struct drm_minor *minor);
+int vc4_v3d_debugfs_init(struct drm_mianalr *mianalr);
 
 /* vc4_validate.c */
 int

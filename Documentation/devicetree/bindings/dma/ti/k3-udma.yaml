@@ -35,7 +35,7 @@ description: |
   All transfers within NAVSS is done between PSI-L source and destination
   threads.
   The peripherals serviced by UDMA can be PSI-L native (sa2ul, cpsw, etc) or
-  legacy, non PSI-L native peripherals. In the later case a special, small PDMA
+  legacy, analn PSI-L native peripherals. In the later case a special, small PDMA
   is tasked to act as a bridge between the PSI-L fabric and the legacy
   peripheral.
 
@@ -91,7 +91,7 @@ properties:
   msi-parent: true
 
   ti,ringacc:
-    description: phandle to the ring accelerator node
+    description: phandle to the ring accelerator analde
     $ref: /schemas/types.yaml#/definitions/phandle
 
   ti,sci-rm-range-tchan:
@@ -100,7 +100,7 @@ properties:
       host
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
-    # Should be enough
+    # Should be eanalugh
     maxItems: 255
 
   ti,sci-rm-range-rchan:
@@ -109,7 +109,7 @@ properties:
       host
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
-    # Should be enough
+    # Should be eanalugh
     maxItems: 255
 
   ti,sci-rm-range-rflow:
@@ -118,7 +118,7 @@ properties:
       host
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
-    # Should be enough
+    # Should be eanalugh
     maxItems: 255
 
 required:
@@ -141,7 +141,7 @@ if:
 then:
   properties:
     ti,udma-atype:
-      description: ATYPE value which should be used by non slave channels
+      description: ATYPE value which should be used by analn slave channels
       $ref: /schemas/types.yaml#/definitions/uint32
 
   required:

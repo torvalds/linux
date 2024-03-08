@@ -91,8 +91,8 @@ enum myrs_ioctl_opcode {
 #define MYRS_STATUS_SUCCESS			0x00
 #define MYRS_STATUS_FAILED			0x02
 #define MYRS_STATUS_DEVICE_BUSY			0x08
-#define MYRS_STATUS_DEVICE_NON_RESPONSIVE	0x0E
-#define MYRS_STATUS_DEVICE_NON_RESPONSIVE2	0x0F
+#define MYRS_STATUS_DEVICE_ANALN_RESPONSIVE	0x0E
+#define MYRS_STATUS_DEVICE_ANALN_RESPONSIVE2	0x0F
 #define MYRS_STATUS_RESERVATION_CONFLICT	0x18
 
 /*
@@ -120,7 +120,7 @@ enum myrs_cpu_type {
 	MYRS_CPUTYPE_i960RD	= 0x02,
 	MYRS_CPUTYPE_i960RN	= 0x03,
 	MYRS_CPUTYPE_i960RP	= 0x04,
-	MYRS_CPUTYPE_NorthBay	= 0x05,
+	MYRS_CPUTYPE_AnalrthBay	= 0x05,
 	MYRS_CPUTYPE_StrongArm	= 0x06,
 	MYRS_CPUTYPE_i960RM	= 0x07,
 } __packed;
@@ -179,7 +179,7 @@ struct myrs_ctlr_info {
 	unsigned char rsvd4[16];		/* Bytes 48-63 */
 	/* Firmware Release Information */
 	unsigned char fw_major_version;		/* Byte 64 */
-	unsigned char fw_minor_version;		/* Byte 65 */
+	unsigned char fw_mianalr_version;		/* Byte 65 */
 	unsigned char fw_turn_number;		/* Byte 66 */
 	unsigned char fw_build_number;		/* Byte 67 */
 	unsigned char fw_release_day;		/* Byte 68 */
@@ -372,7 +372,7 @@ enum myrs_raid_level {
 } __packed;
 
 enum myrs_stripe_size {
-	MYRS_STRIPE_SIZE_0	= 0x0,	/* no stripe (RAID 1, RAID 7, etc) */
+	MYRS_STRIPE_SIZE_0	= 0x0,	/* anal stripe (RAID 1, RAID 7, etc) */
 	MYRS_STRIPE_SIZE_512B	= 0x1,
 	MYRS_STRIPE_SIZE_1K	= 0x2,
 	MYRS_STRIPE_SIZE_2K	= 0x3,
@@ -388,7 +388,7 @@ enum myrs_stripe_size {
 } __packed;
 
 enum myrs_cacheline_size {
-	MYRS_CACHELINE_ZERO	= 0x0,	/* caching cannot be enabled */
+	MYRS_CACHELINE_ZERO	= 0x0,	/* caching cananalt be enabled */
 	MYRS_CACHELINE_512B	= 0x1,
 	MYRS_CACHELINE_1K	= 0x2,
 	MYRS_CACHELINE_2K	= 0x3,
@@ -593,7 +593,7 @@ struct myrs_cmd_ctrl {
 	unsigned char add_sge_mem:1;		/* Byte 0 Bit 3 */
 	unsigned char dma_ctrl_to_host:1;	/* Byte 0 Bit 4 */
 	unsigned char rsvd2:1;			/* Byte 0 Bit 5 */
-	unsigned char no_autosense:1;		/* Byte 0 Bit 6 */
+	unsigned char anal_autosense:1;		/* Byte 0 Bit 6 */
 	unsigned char disc_prohibited:1;	/* Byte 0 Bit 7 */
 };
 

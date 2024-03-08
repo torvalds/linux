@@ -117,8 +117,8 @@ static void mvebu_icu_write_msg(struct msi_desc *desc, struct msi_msg *msg)
 	 * port. The ahci sata driver supports only one irq interrupt
 	 * per SATA unit. To solve this conflict, we configure the 2
 	 * SATA wired interrupts in the south bridge into 1 GIC
-	 * interrupt in the north bridge. Even if only a single port
-	 * is enabled, if sata node is enabled, both interrupts are
+	 * interrupt in the analrth bridge. Even if only a single port
+	 * is enabled, if sata analde is enabled, both interrupts are
 	 * configured (regardless of which port is actually in use).
 	 */
 	if (d->hwirq == ICU_SATA0_ICU_ID || d->hwirq == ICU_SATA1_ICU_ID) {
@@ -177,7 +177,7 @@ mvebu_icu_irq_domain_translate(struct irq_domain *d, struct irq_fwspec *fwspec,
 		/*
 		 * The ICU receives level interrupts. While the NSR are also
 		 * level interrupts, SEI are edge interrupts. Force the type
-		 * here in this case. Please note that this makes the interrupt
+		 * here in this case. Please analte that this makes the interrupt
 		 * handling unreliable.
 		 */
 		if (msi_data->subset_data->icu_group == ICU_GRP_SEI)
@@ -206,7 +206,7 @@ mvebu_icu_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 
 	icu_irqd = kmalloc(sizeof(*icu_irqd), GFP_KERNEL);
 	if (!icu_irqd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mvebu_icu_irq_domain_translate(domain, fwspec, &hwirq,
 					     &icu_irqd->type);
@@ -227,7 +227,7 @@ mvebu_icu_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 		goto free_irqd;
 	}
 
-	/* Make sure there is no interrupt left pending by the firmware */
+	/* Make sure there is anal interrupt left pending by the firmware */
 	err = irq_set_irqchip_state(virq, IRQCHIP_STATE_PENDING, false);
 	if (err)
 		goto free_msi;
@@ -298,13 +298,13 @@ static const struct of_device_id mvebu_icu_subset_of_match[] = {
 static int mvebu_icu_subset_probe(struct platform_device *pdev)
 {
 	struct mvebu_icu_msi_data *msi_data;
-	struct device_node *msi_parent_dn;
+	struct device_analde *msi_parent_dn;
 	struct device *dev = &pdev->dev;
 	struct irq_domain *irq_domain;
 
 	msi_data = devm_kzalloc(dev, sizeof(*msi_data), GFP_KERNEL);
 	if (!msi_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (static_branch_unlikely(&legacy_bindings)) {
 		msi_data->icu = dev_get_drvdata(dev);
@@ -314,14 +314,14 @@ static int mvebu_icu_subset_probe(struct platform_device *pdev)
 		msi_data->subset_data = of_device_get_match_data(dev);
 	}
 
-	dev->msi.domain = of_msi_get_domain(dev, dev->of_node,
+	dev->msi.domain = of_msi_get_domain(dev, dev->of_analde,
 					    DOMAIN_BUS_PLATFORM_MSI);
 	if (!dev->msi.domain)
 		return -EPROBE_DEFER;
 
-	msi_parent_dn = irq_domain_get_of_node(dev->msi.domain);
+	msi_parent_dn = irq_domain_get_of_analde(dev->msi.domain);
 	if (!msi_parent_dn)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq_domain = platform_msi_create_device_tree_domain(dev, ICU_MAX_IRQS,
 							    mvebu_icu_write_msg,
@@ -329,7 +329,7 @@ static int mvebu_icu_subset_probe(struct platform_device *pdev)
 							    msi_data);
 	if (!irq_domain) {
 		dev_err(dev, "Failed to create ICU MSI domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -352,7 +352,7 @@ static int mvebu_icu_probe(struct platform_device *pdev)
 	icu = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_icu),
 			   GFP_KERNEL);
 	if (!icu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	icu->dev = &pdev->dev;
 
@@ -361,13 +361,13 @@ static int mvebu_icu_probe(struct platform_device *pdev)
 		return PTR_ERR(icu->base);
 
 	/*
-	 * Legacy bindings: ICU is one node with one MSI parent: force manually
+	 * Legacy bindings: ICU is one analde with one MSI parent: force manually
 	 *                  the probe of the NSR interrupts side.
-	 * New bindings: ICU node has children, one per interrupt controller
+	 * New bindings: ICU analde has children, one per interrupt controller
 	 *               having its own MSI parent: call platform_populate().
 	 * All ICU instances should use the same bindings.
 	 */
-	if (!of_get_child_count(pdev->dev.of_node))
+	if (!of_get_child_count(pdev->dev.of_analde))
 		static_branch_enable(&legacy_bindings);
 
 	/*

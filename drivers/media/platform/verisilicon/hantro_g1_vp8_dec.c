@@ -222,7 +222,7 @@ static void cfg_qp(struct hantro_ctx *ctx,
  *                                          v
  *                                       DCT size part
  *                                      (num_dct-1)*3B
- * Note:
+ * Analte:
  *   1. only key-frames have extra 7-bytes
  *   2. all offsets are base on src_dma
  *   3. number of DCT parts is 1, 2, 4 or 8
@@ -324,7 +324,7 @@ static void cfg_parts(struct hantro_ctx *ctx,
 
 /*
  * prediction filter taps
- * normal 6-tap filters
+ * analrmal 6-tap filters
  */
 static void cfg_tap(struct hantro_ctx *ctx,
 		    const struct v4l2_ctrl_vp8_frame *hdr)
@@ -338,7 +338,7 @@ static void cfg_tap(struct hantro_ctx *ctx,
 	reg.mask = 0xf;
 
 	if ((hdr->version & 0x03) != 0)
-		return; /* Tap filter not used. */
+		return; /* Tap filter analt used. */
 
 	for (i = 0; i < 8; i++) {
 		val = (hantro_vp8_dec_mc_filter[i][0] << 2) |
@@ -467,7 +467,7 @@ int hantro_g1_vp8_dec_run(struct hantro_ctx *ctx)
 	      G1_REG_DEC_CTRL0_DEC_AXI_AUTO;
 	if (!V4L2_VP8_FRAME_IS_KEY_FRAME(hdr))
 		reg |= G1_REG_DEC_CTRL0_PIC_INTER_E;
-	if (!(hdr->flags & V4L2_VP8_FRAME_FLAG_MB_NO_SKIP_COEFF))
+	if (!(hdr->flags & V4L2_VP8_FRAME_FLAG_MB_ANAL_SKIP_COEFF))
 		reg |= G1_REG_DEC_CTRL0_SKIP_MODE;
 	if (hdr->lf.level == 0)
 		reg |= G1_REG_DEC_CTRL0_FILTERING_DIS;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2023 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2023 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include "sparx5_main_regs.h"
@@ -46,7 +46,7 @@ int sparx5_pool_get(struct sparx5_pool_entry *pool, int size, u32 *id)
 		}
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /* Get resource from pool that matches index.
@@ -56,11 +56,11 @@ int sparx5_pool_get_with_idx(struct sparx5_pool_entry *pool, int size, u32 idx,
 			     u32 *id)
 {
 	struct sparx5_pool_entry *e_itr;
-	int i, ret = -ENOSPC;
+	int i, ret = -EANALSPC;
 
 	for (i = 0, e_itr = pool; i < size; i++, e_itr++) {
 		/* Pool index of first free entry */
-		if (e_itr->ref_cnt == 0 && ret == -ENOSPC)
+		if (e_itr->ref_cnt == 0 && ret == -EANALSPC)
 			ret = i;
 		/* Tc index already in use ? */
 		if (e_itr->idx == idx && e_itr->ref_cnt > 0) {

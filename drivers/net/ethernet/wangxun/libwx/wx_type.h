@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2015 - 2022 Beijing WangXun Technology Co., Ltd. */
+/* Copyright (c) 2015 - 2022 Beijing WangXun Techanallogy Co., Ltd. */
 
 #ifndef _WX_TYPE_H_
 #define _WX_TYPE_H_
@@ -71,7 +71,7 @@
 #define WX_RX_LEN_ERROR_FRAMES_L     0x11978
 #define WX_RX_UNDERSIZE_FRAMES_GOOD  0x11938
 #define WX_RX_OVERSIZE_FRAMES_GOOD   0x1193C
-#define WX_MAC_LXONOFFRXC            0x11E0C
+#define WX_MAC_LXOANALFFRXC            0x11E0C
 
 /*********************** Receive DMA registers **************************/
 #define WX_RDM_DRP_PKT               0x12500
@@ -185,7 +185,7 @@
 /* VM L2 contorl */
 #define WX_PSR_VM_L2CTL(_i)          (0x15600 + ((_i) * 4))
 #define WX_PSR_VM_L2CTL_UPE          BIT(4) /* unicast promiscuous */
-#define WX_PSR_VM_L2CTL_VACC         BIT(6) /* accept nomatched vlan */
+#define WX_PSR_VM_L2CTL_VACC         BIT(6) /* accept analmatched vlan */
 #define WX_PSR_VM_L2CTL_AUPE         BIT(8) /* accept untagged packets */
 #define WX_PSR_VM_L2CTL_ROMPE        BIT(9) /* accept packets in MTA tbl */
 #define WX_PSR_VM_L2CTL_ROPE         BIT(10) /* accept packets in UC tbl */
@@ -568,7 +568,7 @@ enum wx_dec_ptype_mac {
 /* wx_dec_ptype.[e]ip: outer&encaped ip */
 #define WX_DEC_PTYPE_IP_FRAG	0x4
 enum wx_dec_ptype_ip {
-	WX_DEC_PTYPE_IP_NONE = 0,
+	WX_DEC_PTYPE_IP_ANALNE = 0,
 	WX_DEC_PTYPE_IP_IPV4 = 1,
 	WX_DEC_PTYPE_IP_IPV6 = 2,
 	WX_DEC_PTYPE_IP_FGV4 = WX_DEC_PTYPE_IP_FRAG | WX_DEC_PTYPE_IP_IPV4,
@@ -577,7 +577,7 @@ enum wx_dec_ptype_ip {
 
 /* wx_dec_ptype.etype: encaped type */
 enum wx_dec_ptype_etype {
-	WX_DEC_PTYPE_ETYPE_NONE	= 0,
+	WX_DEC_PTYPE_ETYPE_ANALNE	= 0,
 	WX_DEC_PTYPE_ETYPE_IPIP	= 1,	/* IP+IP */
 	WX_DEC_PTYPE_ETYPE_IG	= 2,	/* IP+GRE */
 	WX_DEC_PTYPE_ETYPE_IGM	= 3,	/* IP+GRE+MAC */
@@ -586,7 +586,7 @@ enum wx_dec_ptype_etype {
 
 /* wx_dec_ptype.proto: payload proto */
 enum wx_dec_ptype_prot {
-	WX_DEC_PTYPE_PROT_NONE	= 0,
+	WX_DEC_PTYPE_PROT_ANALNE	= 0,
 	WX_DEC_PTYPE_PROT_UDP	= 1,
 	WX_DEC_PTYPE_PROT_TCP	= 2,
 	WX_DEC_PTYPE_PROT_SCTP	= 3,
@@ -596,14 +596,14 @@ enum wx_dec_ptype_prot {
 
 /* wx_dec_ptype.layer: payload layer */
 enum wx_dec_ptype_layer {
-	WX_DEC_PTYPE_LAYER_NONE = 0,
+	WX_DEC_PTYPE_LAYER_ANALNE = 0,
 	WX_DEC_PTYPE_LAYER_PAY2 = 1,
 	WX_DEC_PTYPE_LAYER_PAY3 = 2,
 	WX_DEC_PTYPE_LAYER_PAY4 = 3,
 };
 
 struct wx_dec_ptype {
-	u32 known:1;
+	u32 kanalwn:1;
 	u32 mac:2;	/* outer mac */
 	u32 ip:3;	/* outer ip*/
 	u32 etype:3;	/* encaped type */
@@ -681,20 +681,20 @@ struct wx_thermal_sensor_data {
 };
 
 enum wx_mac_type {
-	wx_mac_unknown = 0,
+	wx_mac_unkanalwn = 0,
 	wx_mac_sp,
 	wx_mac_em
 };
 
 enum sp_media_type {
-	sp_media_unknown = 0,
+	sp_media_unkanalwn = 0,
 	sp_media_fiber,
 	sp_media_copper,
 	sp_media_backplane
 };
 
 enum em_mac_type {
-	em_mac_type_unknown = 0,
+	em_mac_type_unkanalwn = 0,
 	em_mac_type_mdi,
 	em_mac_type_rgmii
 };
@@ -723,7 +723,7 @@ enum wx_eeprom_type {
 	wx_eeprom_uninitialized = 0,
 	wx_eeprom_spi,
 	wx_flash,
-	wx_eeprom_none /* No NVM support */
+	wx_eeprom_analne /* Anal NVM support */
 };
 
 struct wx_eeprom_info {
@@ -858,7 +858,7 @@ struct wx_tx_queue_stats {
 };
 
 struct wx_rx_queue_stats {
-	u64 non_eop_descs;
+	u64 analn_eop_descs;
 	u64 csum_good_cnt;
 	u64 csum_err;
 	u64 alloc_rx_buff_failed;
@@ -908,12 +908,12 @@ struct wx_ring {
 		struct wx_tx_queue_stats tx_stats;
 		struct wx_rx_queue_stats rx_stats;
 	};
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 struct wx_q_vector {
 	struct wx *wx;
 	int cpu;        /* CPU for DCA */
-	int numa_node;
+	int numa_analde;
 	u16 v_idx;      /* index of q_vector within array, also used for
 			 * finding the bit in EICR and friends that
 			 * represents the vector for this ring
@@ -926,7 +926,7 @@ struct wx_q_vector {
 	char name[IFNAMSIZ + 17];
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct wx_ring ring[] ____cacheline_internodealigned_in_smp;
+	struct wx_ring ring[] ____cacheline_interanaldealigned_in_smp;
 };
 
 struct wx_ring_feature {
@@ -937,7 +937,7 @@ struct wx_ring_feature {
 };
 
 enum wx_ring_f_enum {
-	RING_F_NONE = 0,
+	RING_F_ANALNE = 0,
 	RING_F_RSS,
 	RING_F_ARRAY_SIZE  /* must be last in enum set */
 };
@@ -969,7 +969,7 @@ struct wx_hw_stats {
 	u64 mptc;
 	u64 roc;
 	u64 ruc;
-	u64 lxonoffrxc;
+	u64 lxoanalffrxc;
 	u64 lxontxc;
 	u64 lxofftxc;
 	u64 o2bgptc;
@@ -1067,7 +1067,7 @@ struct wx {
 
 	struct wx_hw_stats stats;
 	u64 tx_busy;
-	u64 non_eop_descs;
+	u64 analn_eop_descs;
 	u64 restart_queue;
 	u64 hw_csum_rx_good;
 	u64 hw_csum_rx_error;
@@ -1116,7 +1116,7 @@ rd64(struct wx *wx, u32 reg)
 	return (lsb | msb << 32);
 }
 
-/* On some domestic CPU platforms, sometimes IO is not synchronized with
+/* On some domestic CPU platforms, sometimes IO is analt synchronized with
  * flushing memory, here use readl() to flush PCI read and write.
  */
 #define WX_WRITE_FLUSH(H) rd32(H, WX_MIS_PWR)

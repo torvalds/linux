@@ -10,30 +10,30 @@
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
 
 static inline struct pnfs_block_extent *
-ext_node(struct rb_node *node)
+ext_analde(struct rb_analde *analde)
 {
-	return rb_entry(node, struct pnfs_block_extent, be_node);
+	return rb_entry(analde, struct pnfs_block_extent, be_analde);
 }
 
 static struct pnfs_block_extent *
 ext_tree_first(struct rb_root *root)
 {
-	struct rb_node *node = rb_first(root);
-	return node ? ext_node(node) : NULL;
+	struct rb_analde *analde = rb_first(root);
+	return analde ? ext_analde(analde) : NULL;
 }
 
 static struct pnfs_block_extent *
 ext_tree_prev(struct pnfs_block_extent *be)
 {
-	struct rb_node *node = rb_prev(&be->be_node);
-	return node ? ext_node(node) : NULL;
+	struct rb_analde *analde = rb_prev(&be->be_analde);
+	return analde ? ext_analde(analde) : NULL;
 }
 
 static struct pnfs_block_extent *
 ext_tree_next(struct pnfs_block_extent *be)
 {
-	struct rb_node *node = rb_next(&be->be_node);
-	return node ? ext_node(node) : NULL;
+	struct rb_analde *analde = rb_next(&be->be_analde);
+	return analde ? ext_analde(analde) : NULL;
 }
 
 static inline sector_t
@@ -45,15 +45,15 @@ ext_f_end(struct pnfs_block_extent *be)
 static struct pnfs_block_extent *
 __ext_tree_search(struct rb_root *root, sector_t start)
 {
-	struct rb_node *node = root->rb_node;
+	struct rb_analde *analde = root->rb_analde;
 	struct pnfs_block_extent *be = NULL;
 
-	while (node) {
-		be = ext_node(node);
+	while (analde) {
+		be = ext_analde(analde);
 		if (start < be->be_f_offset)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (start >= ext_f_end(be))
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return be;
 	}
@@ -80,7 +80,7 @@ ext_can_merge(struct pnfs_block_extent *be1, struct pnfs_block_extent *be2)
 	if (be1->be_f_offset + be1->be_length != be2->be_f_offset)
 		return false;
 
-	if (be1->be_state != PNFS_BLOCK_NONE_DATA &&
+	if (be1->be_state != PNFS_BLOCK_ANALNE_DATA &&
 	    (be1->be_v_offset + be1->be_length != be2->be_v_offset))
 		return false;
 
@@ -98,8 +98,8 @@ ext_try_to_merge_left(struct rb_root *root, struct pnfs_block_extent *be)
 
 	if (left && ext_can_merge(left, be)) {
 		left->be_length += be->be_length;
-		rb_erase(&be->be_node, root);
-		nfs4_put_deviceid_node(be->be_device);
+		rb_erase(&be->be_analde, root);
+		nfs4_put_deviceid_analde(be->be_device);
 		kfree(be);
 		return left;
 	}
@@ -114,8 +114,8 @@ ext_try_to_merge_right(struct rb_root *root, struct pnfs_block_extent *be)
 
 	if (right && ext_can_merge(be, right)) {
 		be->be_length += right->be_length;
-		rb_erase(&right->be_node, root);
-		nfs4_put_deviceid_node(right->be_device);
+		rb_erase(&right->be_analde, root);
+		nfs4_put_deviceid_analde(right->be_device);
 		kfree(right);
 	}
 
@@ -127,7 +127,7 @@ static void __ext_put_deviceids(struct list_head *head)
 	struct pnfs_block_extent *be, *tmp;
 
 	list_for_each_entry_safe(be, tmp, head, be_list) {
-		nfs4_put_deviceid_node(be->be_device);
+		nfs4_put_deviceid_analde(be->be_device);
 		kfree(be);
 	}
 }
@@ -136,17 +136,17 @@ static void
 __ext_tree_insert(struct rb_root *root,
 		struct pnfs_block_extent *new, bool merge_ok)
 {
-	struct rb_node **p = &root->rb_node, *parent = NULL;
+	struct rb_analde **p = &root->rb_analde, *parent = NULL;
 	struct pnfs_block_extent *be;
 
 	while (*p) {
 		parent = *p;
-		be = ext_node(parent);
+		be = ext_analde(parent);
 
 		if (new->be_f_offset < be->be_f_offset) {
 			if (merge_ok && ext_can_merge(new, be)) {
 				be->be_f_offset = new->be_f_offset;
-				if (be->be_state != PNFS_BLOCK_NONE_DATA)
+				if (be->be_state != PNFS_BLOCK_ANALNE_DATA)
 					be->be_v_offset = new->be_v_offset;
 				be->be_length += new->be_length;
 				be = ext_try_to_merge_left(root, be);
@@ -165,11 +165,11 @@ __ext_tree_insert(struct rb_root *root,
 		}
 	}
 
-	rb_link_node(&new->be_node, parent, p);
-	rb_insert_color(&new->be_node, root);
+	rb_link_analde(&new->be_analde, parent, p);
+	rb_insert_color(&new->be_analde, root);
 	return;
 free_new:
-	nfs4_put_deviceid_node(new->be_device);
+	nfs4_put_deviceid_analde(new->be_device);
 	kfree(new);
 }
 
@@ -202,12 +202,12 @@ __ext_tree_remove(struct rb_root *root,
 
 			new = kzalloc(sizeof(*new), GFP_ATOMIC);
 			if (!new)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			be->be_length = len1;
 
 			new->be_f_offset = end;
-			if (be->be_state != PNFS_BLOCK_NONE_DATA) {
+			if (be->be_state != PNFS_BLOCK_ANALNE_DATA) {
 				new->be_v_offset =
 					orig_v_offset + orig_len - len2;
 			}
@@ -219,7 +219,7 @@ __ext_tree_remove(struct rb_root *root,
 			__ext_tree_insert(root, new, true);
 		} else {
 			be->be_f_offset = end;
-			if (be->be_state != PNFS_BLOCK_NONE_DATA) {
+			if (be->be_state != PNFS_BLOCK_ANALNE_DATA) {
 				be->be_v_offset =
 					orig_v_offset + orig_len - len2;
 			}
@@ -234,7 +234,7 @@ __ext_tree_remove(struct rb_root *root,
 		while (be && ext_f_end(be) <= end) {
 			struct pnfs_block_extent *next = ext_tree_next(be);
 
-			rb_erase(&be->be_node, root);
+			rb_erase(&be->be_analde, root);
 			list_add_tail(&be->be_list, tmp);
 			be = next;
 		}
@@ -242,7 +242,7 @@ __ext_tree_remove(struct rb_root *root,
 		if (be && be->be_f_offset < end) {
 			len1 = ext_f_end(be) - end;
 			be->be_f_offset = end;
-			if (be->be_state != PNFS_BLOCK_NONE_DATA)
+			if (be->be_state != PNFS_BLOCK_ANALNE_DATA)
 				be->be_v_offset += be->be_length - len1;
 			be->be_length = len1;
 		}
@@ -264,7 +264,7 @@ ext_tree_insert(struct pnfs_block_layout *bl, struct pnfs_block_extent *new)
 		root = &bl->bl_ext_rw;
 		break;
 	case PNFS_BLOCK_READ_DATA:
-	case PNFS_BLOCK_NONE_DATA:
+	case PNFS_BLOCK_ANALNE_DATA:
 		root = &bl->bl_ext_ro;
 		break;
 	default:
@@ -279,7 +279,7 @@ retry:
 		__ext_tree_insert(root, new, true);
 	} else if (new->be_f_offset >= be->be_f_offset) {
 		if (ext_f_end(new) <= ext_f_end(be)) {
-			nfs4_put_deviceid_node(new->be_device);
+			nfs4_put_deviceid_analde(new->be_device);
 			kfree(new);
 		} else {
 			sector_t new_len = ext_f_end(new) - ext_f_end(be);
@@ -322,16 +322,16 @@ static bool
 __ext_tree_lookup(struct rb_root *root, sector_t isect,
 		struct pnfs_block_extent *ret)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct pnfs_block_extent *be;
 
-	node = root->rb_node;
-	while (node) {
-		be = ext_node(node);
+	analde = root->rb_analde;
+	while (analde) {
+		be = ext_analde(analde);
 		if (isect < be->be_f_offset)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (isect >= ext_f_end(be))
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else {
 			*ret = *be;
 			return true;
@@ -385,12 +385,12 @@ ext_tree_split(struct rb_root *root, struct pnfs_block_extent *be,
 
 	new = kzalloc(sizeof(*new), GFP_ATOMIC);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	be->be_length = split - be->be_f_offset;
 
 	new->be_f_offset = split;
-	if (be->be_state != PNFS_BLOCK_NONE_DATA)
+	if (be->be_state != PNFS_BLOCK_ANALNE_DATA)
 		new->be_v_offset = be->be_v_offset + be->be_length;
 	new->be_length = orig_len - be->be_length;
 	new->be_state = be->be_state;
@@ -535,7 +535,7 @@ static int ext_tree_encode_commit(struct pnfs_block_layout *bl, __be32 *p,
 		(*count)++;
 		if (ext_tree_layoutupdate_size(bl, *count) > buffer_size) {
 			/* keep counting.. */
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 			continue;
 		}
 
@@ -555,16 +555,16 @@ static int ext_tree_encode_commit(struct pnfs_block_layout *bl, __be32 *p,
 int
 ext_tree_prepare_commit(struct nfs4_layoutcommit_args *arg)
 {
-	struct pnfs_block_layout *bl = BLK_LO2EXT(NFS_I(arg->inode)->layout);
+	struct pnfs_block_layout *bl = BLK_LO2EXT(NFS_I(arg->ianalde)->layout);
 	size_t count = 0, buffer_size = PAGE_SIZE;
 	__be32 *start_p;
 	int ret;
 
 	dprintk("%s enter\n", __func__);
 
-	arg->layoutupdate_page = alloc_page(GFP_NOFS);
+	arg->layoutupdate_page = alloc_page(GFP_ANALFS);
 	if (!arg->layoutupdate_page)
-		return -ENOMEM;
+		return -EANALMEM;
 	start_p = page_address(arg->layoutupdate_page);
 	arg->layoutupdate_pages = &arg->layoutupdate_page;
 
@@ -578,14 +578,14 @@ retry:
 
 		arg->layoutupdate_pages =
 			kcalloc(DIV_ROUND_UP(buffer_size, PAGE_SIZE),
-				sizeof(struct page *), GFP_NOFS);
+				sizeof(struct page *), GFP_ANALFS);
 		if (!arg->layoutupdate_pages)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		start_p = __vmalloc(buffer_size, GFP_NOFS);
+		start_p = __vmalloc(buffer_size, GFP_ANALFS);
 		if (!start_p) {
 			kfree(arg->layoutupdate_pages);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		goto retry;
@@ -614,7 +614,7 @@ retry:
 void
 ext_tree_mark_committed(struct nfs4_layoutcommit_args *arg, int status)
 {
-	struct pnfs_block_layout *bl = BLK_LO2EXT(NFS_I(arg->inode)->layout);
+	struct pnfs_block_layout *bl = BLK_LO2EXT(NFS_I(arg->ianalde)->layout);
 	struct rb_root *root = &bl->bl_ext_rw;
 	struct pnfs_block_extent *be;
 

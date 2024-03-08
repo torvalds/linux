@@ -20,7 +20,7 @@ allOf:
   - $ref: /schemas/leds/common.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     description:
       The unit-address is in the form of @<reg addr>,<bit offset>
     pattern: '^led@[0-9a-f]+,[0-9a-f]{1,2}$'

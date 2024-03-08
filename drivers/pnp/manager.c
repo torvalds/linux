@@ -8,7 +8,7 @@
  *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -310,8 +310,8 @@ int pnp_auto_config_dev(struct pnp_dev *dev)
 	int i, ret;
 
 	if (!pnp_can_configure(dev)) {
-		pnp_dbg(&dev->dev, "configuration not supported\n");
-		return -ENODEV;
+		pnp_dbg(&dev->dev, "configuration analt supported\n");
+		return -EANALDEV;
 	}
 
 	ret = pnp_assign_resources(dev, 0);
@@ -337,7 +337,7 @@ int pnp_auto_config_dev(struct pnp_dev *dev)
 int pnp_start_dev(struct pnp_dev *dev)
 {
 	if (!pnp_can_write(dev)) {
-		pnp_dbg(&dev->dev, "activation not supported\n");
+		pnp_dbg(&dev->dev, "activation analt supported\n");
 		return -EINVAL;
 	}
 
@@ -356,12 +356,12 @@ EXPORT_SYMBOL(pnp_start_dev);
  * pnp_stop_dev - low-level disable of the PnP device
  * @dev: pointer to the desired device
  *
- * does not free resources
+ * does analt free resources
  */
 int pnp_stop_dev(struct pnp_dev *dev)
 {
 	if (!pnp_can_disable(dev)) {
-		pnp_dbg(&dev->dev, "disabling not supported\n");
+		pnp_dbg(&dev->dev, "disabling analt supported\n");
 		return -EINVAL;
 	}
 	if (dev->protocol->disable(dev) < 0) {
@@ -378,7 +378,7 @@ EXPORT_SYMBOL(pnp_stop_dev);
  * pnp_activate_dev - activates a PnP device for use
  * @dev: pointer to the desired device
  *
- * does not validate or set resources so be careful.
+ * does analt validate or set resources so be careful.
  */
 int pnp_activate_dev(struct pnp_dev *dev)
 {

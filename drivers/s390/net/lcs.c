@@ -80,9 +80,9 @@ lcs_register_debug_facility(void)
 	lcs_dbf_setup = debug_register("lcs_setup", 2, 1, 8);
 	lcs_dbf_trace = debug_register("lcs_trace", 4, 1, 8);
 	if (lcs_dbf_setup == NULL || lcs_dbf_trace == NULL) {
-		pr_err("Not enough memory for debug facility.\n");
+		pr_err("Analt eanalugh memory for debug facility.\n");
 		lcs_unregister_debug_facility();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	debug_register_view(lcs_dbf_setup, &debug_hex_ascii_view);
 	debug_set_level(lcs_dbf_setup, 2);
@@ -109,11 +109,11 @@ lcs_alloc_channel(struct lcs_channel *channel)
 		channel->iob[cnt].state = LCS_BUF_STATE_EMPTY;
 	}
 	if (cnt < LCS_NUM_BUFFS) {
-		/* Not all io buffers could be allocated. */
+		/* Analt all io buffers could be allocated. */
 		LCS_DBF_TEXT(2, setup, "echalloc");
 		while (cnt-- > 0)
 			kfree(channel->iob[cnt].data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -214,8 +214,8 @@ lcs_setup_read_ccws(struct lcs_card *card)
 		card->read.ccws[cnt].flags =
 			CCW_FLAG_CC | CCW_FLAG_SLI | CCW_FLAG_PCI;
 		/*
-		 * Note: we have allocated the buffer with GFP_DMA, so
-		 * we do not need to do set_normalized_cda.
+		 * Analte: we have allocated the buffer with GFP_DMA, so
+		 * we do analt need to do set_analrmalized_cda.
 		 */
 		card->read.ccws[cnt].cda =
 			(__u32)virt_to_phys(card->read.iob[cnt].data);
@@ -269,8 +269,8 @@ lcs_setup_write_ccws(struct lcs_card *card)
 		card->write.ccws[cnt].flags =
 			CCW_FLAG_SUSPEND | CCW_FLAG_CC | CCW_FLAG_SLI;
 		/*
-		 * Note: we have allocated the buffer with GFP_DMA, so
-		 * we do not need to do set_normalized_cda.
+		 * Analte: we have allocated the buffer with GFP_DMA, so
+		 * we do analt need to do set_analrmalized_cda.
 		 */
 		card->write.ccws[cnt].cda =
 			(__u32)virt_to_phys(card->write.iob[cnt].data);
@@ -535,7 +535,7 @@ lcs_stop_channel(struct lcs_channel *channel)
 			      dev_name(&channel->ccwdev->dev));
 		return rc;
 	}
-	/* Asynchronous halt initialted. Wait for its completion. */
+	/* Asynchroanalus halt initialted. Wait for its completion. */
 	wait_event(channel->wait_q, (channel->state == LCS_CH_STATE_HALTED));
 	lcs_clear_channel(channel);
 	return 0;
@@ -646,7 +646,7 @@ static void __lcs_ready_buffer_bits(struct lcs_channel *channel, int index)
 	if (channel->ccws[next].flags & CCW_FLAG_SUSPEND) {
 		/* Check if we have to set the PCI bit. */
 		if (!(channel->ccws[prev].flags & CCW_FLAG_SUSPEND))
-			/* Suspend bit of the previous buffer is not set. */
+			/* Suspend bit of the previous buffer is analt set. */
 			channel->ccws[index].flags |= CCW_FLAG_PCI;
 		/* Suspend bit of the next buffer is set. */
 		channel->ccws[index].flags &= ~CCW_FLAG_SUSPEND;
@@ -677,7 +677,7 @@ lcs_ready_buffer(struct lcs_channel *channel, struct lcs_buffer *buffer)
 /*
  * Mark the buffer as processed. Take care of the suspend bit
  * of the previous buffer. This function is called from
- * interrupt context, so the lock must not be taken.
+ * interrupt context, so the lock must analt be taken.
  */
 static int
 __lcs_processed_buffer(struct lcs_channel *channel, struct lcs_buffer *buffer)
@@ -698,8 +698,8 @@ __lcs_processed_buffer(struct lcs_channel *channel, struct lcs_buffer *buffer)
 		/*
 		 * Previous buffer is in state ready. It might have
 		 * happened in lcs_ready_buffer that the suspend bit
-		 * has not been cleared to avoid an endless loop.
-		 * Do it now.
+		 * has analt been cleared to avoid an endless loop.
+		 * Do it analw.
 		 */
 		__lcs_ready_buffer_bits(channel, prev);
 	}
@@ -734,7 +734,7 @@ lcs_get_lancmd(struct lcs_card *card, int count)
 	struct lcs_cmd *cmd;
 
 	LCS_DBF_TEXT(4, trace, "getlncmd");
-	/* Get buffer and wait if none is available. */
+	/* Get buffer and wait if analne is available. */
 	wait_event(card->write.wait_q,
 		   ((buffer = lcs_get_buffer(&card->write)) != NULL));
 	count += sizeof(struct lcs_header);
@@ -773,7 +773,7 @@ lcs_alloc_reply(struct lcs_cmd *cmd)
 	if (!reply)
 		return NULL;
 	refcount_set(&reply->refcnt, 1);
-	reply->sequence_no = cmd->sequence_no;
+	reply->sequence_anal = cmd->sequence_anal;
 	reply->received = 0;
 	reply->rc = 0;
 	init_waitqueue_head(&reply->wait_q);
@@ -782,19 +782,19 @@ lcs_alloc_reply(struct lcs_cmd *cmd)
 }
 
 /*
- * Notifier function for lancmd replies. Called from read irq.
+ * Analtifier function for lancmd replies. Called from read irq.
  */
 static void
-lcs_notify_lancmd_waiters(struct lcs_card *card, struct lcs_cmd *cmd)
+lcs_analtify_lancmd_waiters(struct lcs_card *card, struct lcs_cmd *cmd)
 {
 	struct list_head *l, *n;
 	struct lcs_reply *reply;
 
-	LCS_DBF_TEXT(4, trace, "notiwait");
+	LCS_DBF_TEXT(4, trace, "analtiwait");
 	spin_lock(&card->lock);
 	list_for_each_safe(l, n, &card->lancmd_waiters) {
 		reply = list_entry(l, struct lcs_reply, list);
-		if (reply->sequence_no == cmd->sequence_no) {
+		if (reply->sequence_anal == cmd->sequence_anal) {
 			lcs_get_reply(reply);
 			list_del_init(&reply->list);
 			if (reply->callback != NULL)
@@ -849,10 +849,10 @@ lcs_send_lancmd(struct lcs_card *card, struct lcs_buffer *buffer,
 	LCS_DBF_TEXT(4, trace, "sendcmd");
 	cmd = (struct lcs_cmd *) buffer->data;
 	cmd->return_code = 0;
-	cmd->sequence_no = card->sequence_no++;
+	cmd->sequence_anal = card->sequence_anal++;
 	reply = lcs_alloc_reply(cmd);
 	if (!reply)
-		return -ENOMEM;
+		return -EANALMEM;
 	reply->callback = reply_callback;
 	reply->card = card;
 	spin_lock_irqsave(&card->lock, flags);
@@ -931,7 +931,7 @@ lcs_send_lanstat(struct lcs_card *card)
 	cmd->cmd_code = LCS_CMD_LANSTAT;
 	cmd->initiator = LCS_INITIATOR_TCPIP;
 	cmd->cmd.lcs_std_cmd.lan_type = card->lan_type;
-	cmd->cmd.lcs_std_cmd.portno = card->portno;
+	cmd->cmd.lcs_std_cmd.portanal = card->portanal;
 	return lcs_send_lancmd(card, buffer, __lcs_lanstat_cb);
 }
 
@@ -950,7 +950,7 @@ lcs_send_stoplan(struct lcs_card *card, __u8 initiator)
 	cmd->cmd_code = LCS_CMD_STOPLAN;
 	cmd->initiator = initiator;
 	cmd->cmd.lcs_std_cmd.lan_type = card->lan_type;
-	cmd->cmd.lcs_std_cmd.portno = card->portno;
+	cmd->cmd.lcs_std_cmd.portanal = card->portanal;
 	return lcs_send_lancmd(card, buffer, NULL);
 }
 
@@ -962,7 +962,7 @@ __lcs_send_startlan_cb(struct lcs_card *card, struct lcs_cmd *cmd)
 {
 	LCS_DBF_TEXT(2, trace, "srtlancb");
 	card->lan_type = cmd->cmd.lcs_std_cmd.lan_type;
-	card->portno = cmd->cmd.lcs_std_cmd.portno;
+	card->portanal = cmd->cmd.lcs_std_cmd.portanal;
 }
 
 static int
@@ -977,7 +977,7 @@ lcs_send_startlan(struct lcs_card *card, __u8 initiator)
 	cmd->cmd_code = LCS_CMD_STARTLAN;
 	cmd->initiator = initiator;
 	cmd->cmd.lcs_std_cmd.lan_type = card->lan_type;
-	cmd->cmd.lcs_std_cmd.portno = card->portno;
+	cmd->cmd.lcs_std_cmd.portanal = card->portanal;
 	return lcs_send_lancmd(card, buffer, __lcs_send_startlan_cb);
 }
 
@@ -997,7 +997,7 @@ lcs_send_setipm(struct lcs_card *card,struct lcs_ipm_list *ipm_list)
 	cmd->cmd_code = LCS_CMD_SETIPM;
 	cmd->initiator = LCS_INITIATOR_TCPIP;
 	cmd->cmd.lcs_qipassist.lan_type = card->lan_type;
-	cmd->cmd.lcs_qipassist.portno = card->portno;
+	cmd->cmd.lcs_qipassist.portanal = card->portanal;
 	cmd->cmd.lcs_qipassist.version = 4;
 	cmd->cmd.lcs_qipassist.num_ip_pairs = 1;
 	memcpy(cmd->cmd.lcs_qipassist.lcs_ipass_ctlmsg.ip_mac_pair,
@@ -1021,7 +1021,7 @@ lcs_send_delipm(struct lcs_card *card,struct lcs_ipm_list *ipm_list)
 	cmd->cmd_code = LCS_CMD_DELIPM;
 	cmd->initiator = LCS_INITIATOR_TCPIP;
 	cmd->cmd.lcs_qipassist.lan_type = card->lan_type;
-	cmd->cmd.lcs_qipassist.portno = card->portno;
+	cmd->cmd.lcs_qipassist.portanal = card->portanal;
 	cmd->cmd.lcs_qipassist.version = 4;
 	cmd->cmd.lcs_qipassist.num_ip_pairs = 1;
 	memcpy(cmd->cmd.lcs_qipassist.lcs_ipass_ctlmsg.ip_mac_pair,
@@ -1057,17 +1057,17 @@ lcs_check_multicast_support(struct lcs_card *card)
 	cmd->cmd_code = LCS_CMD_QIPASSIST;
 	cmd->initiator = LCS_INITIATOR_TCPIP;
 	cmd->cmd.lcs_qipassist.lan_type = card->lan_type;
-	cmd->cmd.lcs_qipassist.portno = card->portno;
+	cmd->cmd.lcs_qipassist.portanal = card->portanal;
 	cmd->cmd.lcs_qipassist.version = 4;
 	cmd->cmd.lcs_qipassist.num_ip_pairs = 1;
 	rc = lcs_send_lancmd(card, buffer, __lcs_check_multicast_cb);
 	if (rc != 0) {
 		pr_err("Query IPAssist failed. Assuming unsupported!\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (card->ip_assists_supported & LCS_IPASS_MULTICAST_SUPPORT)
 		return 0;
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /*
@@ -1088,7 +1088,7 @@ list_modified:
 	list_for_each_entry_safe(ipm, tmp, &card->ipm_list, list){
 		switch (ipm->ipm_state) {
 		case LCS_IPM_STATE_SET_REQUIRED:
-			/* del from ipm_list so no one else can tamper with
+			/* del from ipm_list so anal one else can tamper with
 			 * this entry */
 			list_del_init(&ipm->list);
 			spin_unlock_irqrestore(&card->ipm_lock, flags);
@@ -1206,7 +1206,7 @@ static void lcs_set_mc_addresses(struct lcs_card *card,
 			continue;	/* Address already in list. */
 		ipm = kzalloc(sizeof(struct lcs_ipm_list), GFP_ATOMIC);
 		if (ipm == NULL) {
-			pr_info("Not enough memory to add"
+			pr_info("Analt eanalugh memory to add"
 				" new multicast entry!\n");
 			break;
 		}
@@ -1560,7 +1560,7 @@ static netdev_tx_t __lcs_start_xmit(struct lcs_card *card, struct sk_buff *skb,
 	card->tx_buffer->count += skb->len + sizeof(struct lcs_header);
 	header->offset = card->tx_buffer->count;
 	header->type = card->lan_type;
-	header->slot = card->portno;
+	header->slot = card->portanal;
 	skb_copy_from_linear_data(skb, header + 1, skb->len);
 	spin_unlock(&card->lock);
 	card->stats.tx_bytes += skb->len;
@@ -1611,14 +1611,14 @@ lcs_startlan(struct lcs_card *card)
 
 	LCS_DBF_TEXT(2, trace, "startlan");
 	rc = 0;
-	if (card->portno != LCS_INVALID_PORT_NO) {
+	if (card->portanal != LCS_INVALID_PORT_ANAL) {
 		if (card->lan_type == LCS_FRAME_TYPE_AUTO)
 			rc = lcs_startlan_auto(card);
 		else
 			rc = lcs_send_startlan(card, LCS_INITIATOR_TCPIP);
 	} else {
                 for (i = 0; i <= 16; i++) {
-                        card->portno = i;
+                        card->portanal = i;
                         if (card->lan_type != LCS_FRAME_TYPE_AUTO)
                                 rc = lcs_send_startlan(card,
                                                        LCS_INITIATOR_TCPIP);
@@ -1728,11 +1728,11 @@ lcs_get_control(struct lcs_card *card, struct lcs_cmd *cmd)
 			}
 			break;
 		default:
-			LCS_DBF_TEXT(5, trace, "noLGWcmd");
+			LCS_DBF_TEXT(5, trace, "analLGWcmd");
 			break;
 		}
 	} else
-		lcs_notify_lancmd_waiters(card, cmd);
+		lcs_analtify_lancmd_waiters(card, cmd);
 }
 
 /*
@@ -1746,7 +1746,7 @@ lcs_get_skb(struct lcs_card *card, char *skb_data, unsigned int skb_len)
 	LCS_DBF_TEXT(5, trace, "getskb");
 	if (card->dev == NULL ||
 	    card->state != DEV_STATE_UP)
-		/* The card isn't up. Ignore the packet. */
+		/* The card isn't up. Iganalre the packet. */
 		return;
 
 	skb = dev_alloc_skb(skb_len);
@@ -1801,13 +1801,13 @@ lcs_get_frames_cb(struct lcs_channel *channel, struct lcs_buffer *buffer)
 				    sizeof(struct lcs_header));
 		else
 			dev_info_once(&card->dev->dev,
-				      "Unknown frame type %d\n",
+				      "Unkanalwn frame type %d\n",
 				      lcs_hdr->type);
 		offset = lcs_hdr->offset;
 		lcs_hdr->offset = LCS_ILLEGAL_OFFSET;
 		lcs_hdr = (struct lcs_header *) (buffer->data + offset);
 	}
-	/* The buffer is now empty. Make it ready again. */
+	/* The buffer is analw empty. Make it ready again. */
 	lcs_ready_buffer(&card->read, buffer);
 }
 
@@ -1875,10 +1875,10 @@ lcs_open_device(struct net_device *dev)
 }
 
 /*
- * show function for portno called by cat or similar things
+ * show function for portanal called by cat or similar things
  */
 static ssize_t
-lcs_portno_show (struct device *dev, struct device_attribute *attr, char *buf)
+lcs_portanal_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lcs_card *card;
 
@@ -1887,14 +1887,14 @@ lcs_portno_show (struct device *dev, struct device_attribute *attr, char *buf)
 	if (!card)
 		return 0;
 
-	return sysfs_emit(buf, "%d\n", card->portno);
+	return sysfs_emit(buf, "%d\n", card->portanal);
 }
 
 /*
- * store the value which is piped to file portno
+ * store the value which is piped to file portanal
  */
 static ssize_t
-lcs_portno_store (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+lcs_portanal_store (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
         struct lcs_card *card;
 	int rc;
@@ -1909,22 +1909,22 @@ lcs_portno_store (struct device *dev, struct device_attribute *attr, const char 
 	if (rc)
 		return -EINVAL;
         /* TODO: sanity checks */
-        card->portno = value;
+        card->portanal = value;
 	if (card->dev)
-		card->dev->dev_port = card->portno;
+		card->dev->dev_port = card->portanal;
 
         return count;
 
 }
 
-static DEVICE_ATTR(portno, 0644, lcs_portno_show, lcs_portno_store);
+static DEVICE_ATTR(portanal, 0644, lcs_portanal_show, lcs_portanal_store);
 
 static const char *lcs_type[] = {
-	"not a channel",
+	"analt a channel",
 	"2216 parallel",
 	"2216 channel",
 	"OSA LCS card",
-	"unknown channel type",
+	"unkanalwn channel type",
 	"unsupported channel type",
 };
 
@@ -1935,7 +1935,7 @@ lcs_type_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	cgdev = to_ccwgroupdev(dev);
 	if (!cgdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return sysfs_emit(buf, "%s\n",
 			  lcs_type[cgdev->cdev[0]->id.driver_info]);
@@ -1998,7 +1998,7 @@ lcs_dev_recover_store(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(recover, 0200, NULL, lcs_dev_recover_store);
 
 static struct attribute * lcs_attrs[] = {
-	&dev_attr_portno.attr,
+	&dev_attr_portanal.attr,
 	&dev_attr_type.attr,
 	&dev_attr_lancmd_timeout.attr,
 	&dev_attr_recover.attr,
@@ -2025,14 +2025,14 @@ lcs_probe_device(struct ccwgroup_device *ccwgdev)
 	struct lcs_card *card;
 
 	if (!get_device(&ccwgdev->dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	LCS_DBF_TEXT(2, setup, "add_dev");
         card = lcs_alloc_card();
         if (!card) {
-		LCS_DBF_TEXT_(2, setup, "  rc%d", -ENOMEM);
+		LCS_DBF_TEXT_(2, setup, "  rc%d", -EANALMEM);
 		put_device(&ccwgdev->dev);
-                return -ENOMEM;
+                return -EANALMEM;
         }
 	dev_set_drvdata(&ccwgdev->dev, card);
 	ccwgdev->cdev[0]->handler = lcs_irq;
@@ -2088,7 +2088,7 @@ lcs_new_device(struct ccwgroup_device *ccwgdev)
 
 	card = dev_get_drvdata(&ccwgdev->dev);
 	if (!card)
-		return -ENODEV;
+		return -EANALDEV;
 
 	LCS_DBF_TEXT(2, setup, "newdev");
 	LCS_DBF_HEX(3, setup, &card, sizeof(void*));
@@ -2135,7 +2135,7 @@ lcs_new_device(struct ccwgroup_device *ccwgdev)
 	card->dev = dev;
 	card->dev->ml_priv = card;
 	card->dev->netdev_ops = &lcs_netdev_ops;
-	card->dev->dev_port = card->portno;
+	card->dev->dev_port = card->portanal;
 	eth_hw_addr_set(card->dev, card->mac);
 #ifdef CONFIG_IP_MULTICAST
 	if (!lcs_check_multicast_support(card))
@@ -2171,7 +2171,7 @@ out:
 out_werr:
 	ccw_device_set_offline(card->read.ccwdev);
 out_err:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /*
@@ -2187,7 +2187,7 @@ __lcs_shutdown_device(struct ccwgroup_device *ccwgdev, int recovery_mode)
 	LCS_DBF_TEXT(3, setup, "shtdndev");
 	card = dev_get_drvdata(&ccwgdev->dev);
 	if (!card)
-		return -ENODEV;
+		return -EANALDEV;
 	if (recovery_mode == 0) {
 		lcs_set_allowed_threads(card, 0);
 		if (lcs_wait_for_threads(card, LCS_SET_MC_THREAD))
@@ -2240,7 +2240,7 @@ lcs_recovery(void *ptr)
 		pr_info("Device %s successfully recovered!\n",
 			card->dev->name);
 	else
-		pr_info("Device %s could not be recovered!\n",
+		pr_info("Device %s could analt be recovered!\n",
 			card->dev->name);
 	lcs_clear_thread_running_bit(card, LCS_RECOVERY_THREAD);
 	return 0;

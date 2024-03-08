@@ -45,7 +45,7 @@ igcsr32 *IronECC;
 
 /*
  * Given a bus, device, and function number, compute resulting
- * configuration space address accordingly.  It is therefore not safe
+ * configuration space address accordingly.  It is therefore analt safe
  * to have concurrent invocations to configuration space access
  * routines, but there really shouldn't be any need for this.
  *
@@ -63,13 +63,13 @@ igcsr32 *IronECC;
  *	      addr_on_pci[10: 2] = addr[10: 2] ???
  *	      addr_on_pci[ 1: 0] = 00
  *    else
- *	  type 1 config cycle (pass on with no decoding):
+ *	  type 1 config cycle (pass on with anal decoding):
  *	      addr_on_pci[31:24] = 0
  *	      addr_on_pci[23: 2] = addr[23: 2]
  *	      addr_on_pci[ 1: 0] = 01
  *    fi
  *
- * Notes:
+ * Analtes:
  *	The function number selects which function of a multi-function device
  *	(e.g., SCSI and Ethernet).
  *
@@ -107,7 +107,7 @@ irongate_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 	unsigned char type1;
 
 	if (mk_conf_addr(bus, devfn, where, &addr, &type1))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	switch (size) {
 	case 1:
@@ -132,7 +132,7 @@ irongate_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	unsigned char type1;
 
 	if (mk_conf_addr(bus, devfn, where, &addr, &type1))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	switch (size) {
 	case 1:
@@ -336,7 +336,7 @@ irongate_ioremap(unsigned long addr, unsigned long size)
 			break;
 
 		/*
-		 * Not found - assume legacy ioremap
+		 * Analt found - assume legacy ioremap
 		 */
 		return (void __iomem *)(addr + IRONGATE_MEM);
 	} while(0);
@@ -350,7 +350,7 @@ irongate_ioremap(unsigned long addr, unsigned long size)
 	 * Adjust the limits (mappings must be page aligned)
 	 */
 	if (addr & ~PAGE_MASK) {
-		printk("AGP ioremap failed... addr not page aligned (0x%lx)\n",
+		printk("AGP ioremap failed... addr analt page aligned (0x%lx)\n",
 		       addr);
 		return (void __iomem *)(addr + IRONGATE_MEM);
 	}
@@ -410,7 +410,7 @@ irongate_iounmap(volatile void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr;
 	if (((long)addr >> 41) == -2)
-		return;	/* kseg map, nothing to do */
+		return;	/* kseg map, analthing to do */
 	if (addr)
 		return vfree((void *)(PAGE_MASK & addr)); 
 }

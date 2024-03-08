@@ -9,7 +9,7 @@
 
 #define pr_fmt(fmt) "i2c-stub: " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -60,7 +60,7 @@ module_param_array(bank_end, byte, NULL, S_IRUGO);
 MODULE_PARM_DESC(bank_end, "Last banked register");
 
 struct smbus_block_data {
-	struct list_head node;
+	struct list_head analde;
 	u8 command;
 	u8 len;
 	u8 block[I2C_SMBUS_BLOCK_MAX];
@@ -92,7 +92,7 @@ static struct smbus_block_data *stub_find_block(struct device *dev,
 {
 	struct smbus_block_data *b, *rb = NULL;
 
-	list_for_each_entry(b, &chip->smbus_blocks, node) {
+	list_for_each_entry(b, &chip->smbus_blocks, analde) {
 		if (b->command == command) {
 			rb = b;
 			break;
@@ -103,7 +103,7 @@ static struct smbus_block_data *stub_find_block(struct device *dev,
 		if (rb == NULL)
 			return rb;
 		rb->command = command;
-		list_add(&rb->node, &chip->smbus_blocks);
+		list_add(&rb->analde, &chip->smbus_blocks);
 	}
 	return rb;
 }
@@ -119,7 +119,7 @@ static u16 *stub_get_wordp(struct stub_chip *chip, u8 offset)
 		return chip->words + offset;
 }
 
-/* Return negative errno on error. */
+/* Return negative erranal on error. */
 static s32 stub_xfer(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 	char read_write, u8 command, int size, union i2c_smbus_data *data)
 {
@@ -137,7 +137,7 @@ static s32 stub_xfer(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 		}
 	}
 	if (!chip)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (size) {
 
@@ -211,7 +211,7 @@ static s32 stub_xfer(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 
 	case I2C_SMBUS_I2C_BLOCK_DATA:
 		/*
-		 * We ignore banks here, because banked chips don't use I2C
+		 * We iganalre banks here, because banked chips don't use I2C
 		 * block transfers
 		 */
 		if (data->block[0] > 256 - command)	/* Avoid overrun */
@@ -240,7 +240,7 @@ static s32 stub_xfer(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 
 	case I2C_SMBUS_BLOCK_DATA:
 		/*
-		 * We ignore banks here, because chips typically don't use both
+		 * We iganalre banks here, because chips typically don't use both
 		 * banks and SMBus block transfers
 		 */
 		b = stub_find_block(&adap->dev, chip, command, false);
@@ -254,7 +254,7 @@ static s32 stub_xfer(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 				b = stub_find_block(&adap->dev, chip, command,
 						    true);
 				if (b == NULL) {
-					ret = -ENOMEM;
+					ret = -EANALMEM;
 					break;
 				}
 			}
@@ -271,8 +271,8 @@ static s32 stub_xfer(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 		} else {
 			if (b == NULL) {
 				dev_dbg(&adap->dev,
-					"SMBus block read command without prior block write not supported\n");
-				ret = -EOPNOTSUPP;
+					"SMBus block read command without prior block write analt supported\n");
+				ret = -EOPANALTSUPP;
 				break;
 			}
 			len = b->len;
@@ -289,7 +289,7 @@ static s32 stub_xfer(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 
 	default:
 		dev_dbg(&adap->dev, "Unsupported I2C/SMBus command\n");
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	} /* switch (size) */
 
@@ -333,7 +333,7 @@ static int __init i2c_stub_allocate_banks(int i)
 				   sizeof(u16),
 				   GFP_KERNEL);
 	if (!chip->bank_words)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_debug("Allocated %u banks of %u words each (registers 0x%02x to 0x%02x)\n",
 		 chip->bank_mask, chip->bank_size, chip->bank_start,
@@ -357,7 +357,7 @@ static int __init i2c_stub_init(void)
 
 	if (!chip_addr[0]) {
 		pr_err("Please specify a chip address\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < MAX_CHIPS && chip_addr[i]; i++) {
@@ -375,7 +375,7 @@ static int __init i2c_stub_init(void)
 	stub_chips = kcalloc(stub_chips_nr, sizeof(struct stub_chip),
 			     GFP_KERNEL);
 	if (!stub_chips)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < stub_chips_nr; i++) {
 		INIT_LIST_HEAD(&stub_chips[i].smbus_blocks);

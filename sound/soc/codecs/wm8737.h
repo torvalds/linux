@@ -24,7 +24,7 @@
 #define WM8737_CLOCKING                         0x08
 #define WM8737_MIC_PREAMP_CONTROL               0x09
 #define WM8737_MISC_BIAS_CONTROL                0x0A
-#define WM8737_NOISE_GATE                       0x0B
+#define WM8737_ANALISE_GATE                       0x0B
 #define WM8737_ALC1                             0x0C
 #define WM8737_ALC2                             0x0D
 #define WM8737_ALC3                             0x0E
@@ -135,9 +135,9 @@
 /*
  * R5 (0x05) - ADC Control
  */
-#define WM8737_MONOMIX_MASK                     0x0180  /* MONOMIX - [8:7] */
-#define WM8737_MONOMIX_SHIFT                         7  /* MONOMIX - [8:7] */
-#define WM8737_MONOMIX_WIDTH                         2  /* MONOMIX - [8:7] */
+#define WM8737_MOANALMIX_MASK                     0x0180  /* MOANALMIX - [8:7] */
+#define WM8737_MOANALMIX_SHIFT                         7  /* MOANALMIX - [8:7] */
+#define WM8737_MOANALMIX_WIDTH                         2  /* MOANALMIX - [8:7] */
 #define WM8737_POLARITY_MASK                    0x0060  /* POLARITY - [6:5] */
 #define WM8737_POLARITY_SHIFT                        5  /* POLARITY - [6:5] */
 #define WM8737_POLARITY_WIDTH                        2  /* POLARITY - [6:5] */
@@ -149,10 +149,10 @@
 #define WM8737_LP_MASK                          0x0004  /* LP */
 #define WM8737_LP_SHIFT                              2  /* LP */
 #define WM8737_LP_WIDTH                              1  /* LP */
-#define WM8737_MONOUT                           0x0002  /* MONOUT */
-#define WM8737_MONOUT_MASK                      0x0002  /* MONOUT */
-#define WM8737_MONOUT_SHIFT                          1  /* MONOUT */
-#define WM8737_MONOUT_WIDTH                          1  /* MONOUT */
+#define WM8737_MOANALUT                           0x0002  /* MOANALUT */
+#define WM8737_MOANALUT_MASK                      0x0002  /* MOANALUT */
+#define WM8737_MOANALUT_SHIFT                          1  /* MOANALUT */
+#define WM8737_MOANALUT_WIDTH                          1  /* MOANALUT */
 #define WM8737_ADCHPD                           0x0001  /* ADCHPD */
 #define WM8737_ADCHPD_MASK                      0x0001  /* ADCHPD */
 #define WM8737_ADCHPD_SHIFT                          0  /* ADCHPD */
@@ -265,7 +265,7 @@
 #define WM8737_RINPUT1_DC_BIAS_ENABLE_WIDTH          1  /* RINPUT1 DC BIAS ENABLE */
 
 /*
- * R11 (0x0B) - Noise Gate
+ * R11 (0x0B) - Analise Gate
  */
 #define WM8737_NGTH_MASK                        0x001C  /* NGTH - [4:2] */
 #define WM8737_NGTH_SHIFT                            2  /* NGTH - [4:2] */

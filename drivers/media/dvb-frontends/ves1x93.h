@@ -4,7 +4,7 @@
 
     Copyright (C) 1999 Convergence Integrated Media GmbH <ralph@convergence.de>
     Copyright (C) 2001 Ronny Strutz <3des@elitedvb.de>
-    Copyright (C) 2002 Dennis Noermann <dennis.noermann@noernet.de>
+    Copyright (C) 2002 Dennis Analermann <dennis.analermann@analernet.de>
     Copyright (C) 2002-2003 Andreas Oberritter <obi@linuxtv.org>
 
 

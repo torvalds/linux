@@ -4,11 +4,11 @@ PSC in UART mode
 ----------------
 
 For PSC in UART mode the needed PSC serial devices
-are specified by fsl,mpc5121-psc-uart nodes in the
-fsl,mpc5121-immr SoC node. Additionally the PSC FIFO
-Controller node fsl,mpc5121-psc-fifo is required there:
+are specified by fsl,mpc5121-psc-uart analdes in the
+fsl,mpc5121-immr SoC analde. Additionally the PSC FIFO
+Controller analde fsl,mpc5121-psc-fifo is required there:
 
-fsl,mpc512x-psc-uart nodes
+fsl,mpc512x-psc-uart analdes
 --------------------------
 
 Required properties :
@@ -29,10 +29,10 @@ PSC in SPI mode
 Similar to the UART mode a PSC can be operated in SPI mode. The compatible used
 for that is fsl,mpc5121-psc-spi. It requires a fsl,mpc5121-psc-fifo as well.
 The required and recommended properties are identical to the
-fsl,mpc5121-psc-uart nodes, just use spi instead of uart in the compatible
+fsl,mpc5121-psc-uart analdes, just use spi instead of uart in the compatible
 string.
 
-fsl,mpc512x-psc-fifo node
+fsl,mpc512x-psc-fifo analde
 -------------------------
 
 Required properties :

@@ -18,8 +18,8 @@
 #define guc_warn(_guc, _fmt, ...) \
 	guc_printk((_guc), warn, _fmt, ##__VA_ARGS__)
 
-#define guc_notice(_guc, _fmt, ...) \
-	guc_printk((_guc), notice, _fmt, ##__VA_ARGS__)
+#define guc_analtice(_guc, _fmt, ...) \
+	guc_printk((_guc), analtice, _fmt, ##__VA_ARGS__)
 
 #define guc_info(_guc, _fmt, ...) \
 	guc_printk((_guc), info, _fmt, ##__VA_ARGS__)
@@ -30,8 +30,8 @@
 #define guc_err_ratelimited(_guc, _fmt, ...) \
 	guc_printk((_guc), err_ratelimited, _fmt, ##__VA_ARGS__)
 
-#define guc_notice_ratelimited(_guc, _fmt, ...) \
-	guc_printk((_guc), notice_ratelimited, _fmt, ##__VA_ARGS__)
+#define guc_analtice_ratelimited(_guc, _fmt, ...) \
+	guc_printk((_guc), analtice_ratelimited, _fmt, ##__VA_ARGS__)
 
 #define guc_probe_error(_guc, _fmt, ...) \
 	guc_printk((_guc), probe_error, _fmt, ##__VA_ARGS__)

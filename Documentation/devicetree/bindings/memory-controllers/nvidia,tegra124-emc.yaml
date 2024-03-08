@@ -35,7 +35,7 @@ properties:
   nvidia,memory-controller:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      phandle of the memory controller node
+      phandle of the memory controller analde
 
   power-domains:
     maxItems: 1

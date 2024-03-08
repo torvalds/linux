@@ -12,12 +12,12 @@
 #ifndef _LINUX_KMSG_DUMP_H
 #define _LINUX_KMSG_DUMP_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 
 /*
  * Keep this list arranged in rough order of priority. Anything listed after
- * KMSG_DUMP_OOPS will not be logged by default unless printk.always_kmsg_dump
+ * KMSG_DUMP_OOPS will analt be logged by default unless printk.always_kmsg_dump
  * is passed to the kernel.
  */
 enum kmsg_dump_reason {

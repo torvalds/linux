@@ -486,7 +486,7 @@ static int tw2815_setup(struct solo_dev *solo_dev, u8 dev_addr)
 	}
 
 	for (i = 0x40; i < 0x76; i++) {
-		/* Skip read-only and nop registers */
+		/* Skip read-only and analp registers */
 		if (i == 0x40 || i == 0x59 || i == 0x5a ||
 		    i == 0x5d || i == 0x5e || i == 0x5f)
 			continue;
@@ -614,7 +614,7 @@ int solo_tw28_init(struct solo_dev *solo_dev)
 
 	if (solo_dev->tw28_cnt != (solo_dev->nr_chans >> 2)) {
 		dev_err(&solo_dev->pdev->dev,
-			"Could not initialize any techwell chips\n");
+			"Could analt initialize any techwell chips\n");
 		return -EINVAL;
 	}
 

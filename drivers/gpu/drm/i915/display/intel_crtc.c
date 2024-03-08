@@ -186,12 +186,12 @@ static struct intel_crtc *intel_crtc_alloc(void)
 
 	crtc = kzalloc(sizeof(*crtc), GFP_KERNEL);
 	if (!crtc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	crtc_state = intel_crtc_state_alloc(crtc);
 	if (!crtc_state) {
 		kfree(crtc);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	crtc->base.state = &crtc_state->uapi;
@@ -290,7 +290,7 @@ static const struct drm_crtc_funcs i915_crtc_funcs = {
 static const struct drm_crtc_funcs i8xx_crtc_funcs = {
 	INTEL_CRTC_FUNCS,
 
-	/* no hw vblank counter */
+	/* anal hw vblank counter */
 	.enable_vblank = i8xx_enable_vblank,
 	.disable_vblank = i8xx_disable_vblank,
 	.get_vblank_timestamp = intel_crtc_get_vblank_timestamp,
@@ -453,7 +453,7 @@ void intel_wait_for_vblank_workers(struct intel_atomic_state *state)
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			     int usecs)
 {
-	/* paranoia */
+	/* paraanalia */
 	if (!adjusted_mode->crtc_htotal)
 		return 1;
 
@@ -620,13 +620,13 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 	 * On VLV/CHV DSI the scanline counter would appear to
 	 * increment approx. 1/3 of a scanline before start of vblank.
 	 * The registers still get latched at start of vblank however.
-	 * This means we must not write any registers on the first
-	 * line of vblank (since not the whole line is actually in
+	 * This means we must analt write any registers on the first
+	 * line of vblank (since analt the whole line is actually in
 	 * vblank). And unfortunately we can't use the interrupt to
 	 * wait here since it will fire too soon. We could use the
 	 * frame start interrupt instead since it will fire after the
 	 * critical scanline, but that would require more changes
-	 * in the interrupt code. So for now we'll just do the nasty
+	 * in the interrupt code. So for analw we'll just do the nasty
 	 * thing and poll for the bad scanline to pass us by.
 	 *
 	 * FIXME figure out if BXT+ DSI suffers from this as well

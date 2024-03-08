@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020 Mellanox Technologies Ltd */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Ltd */
 
 #include <linux/mlx5/driver.h>
 #include "mlx5_ifc_vhca_event.h"
@@ -9,15 +9,15 @@
 #define CREATE_TRACE_POINTS
 #include "diag/vhca_tracepoint.h"
 
-struct mlx5_vhca_state_notifier {
+struct mlx5_vhca_state_analtifier {
 	struct mlx5_core_dev *dev;
 	struct mlx5_nb nb;
-	struct blocking_notifier_head n_head;
+	struct blocking_analtifier_head n_head;
 };
 
 struct mlx5_vhca_event_work {
 	struct work_struct work;
-	struct mlx5_vhca_state_notifier *notifier;
+	struct mlx5_vhca_state_analtifier *analtifier;
 	struct mlx5_vhca_state_event event;
 };
 
@@ -64,7 +64,7 @@ int mlx5_modify_vhca_sw_id(struct mlx5_core_dev *dev, u16 function_id, u32 sw_fn
 	MLX5_SET(modify_vhca_state_in, in, vhca_state_field_select.sw_function_id, 1);
 	MLX5_SET(modify_vhca_state_in, in, vhca_state_context.sw_function_id, sw_fn_id);
 
-	return mlx5_cmd_exec_inout(dev, modify_vhca_state, in, out);
+	return mlx5_cmd_exec_ianalut(dev, modify_vhca_state, in, out);
 }
 
 int mlx5_vhca_event_arm(struct mlx5_core_dev *dev, u16 function_id)
@@ -78,7 +78,7 @@ int mlx5_vhca_event_arm(struct mlx5_core_dev *dev, u16 function_id)
 }
 
 static void
-mlx5_vhca_event_notify(struct mlx5_core_dev *dev, struct mlx5_vhca_state_event *event)
+mlx5_vhca_event_analtify(struct mlx5_core_dev *dev, struct mlx5_vhca_state_event *event)
 {
 	u32 out[MLX5_ST_SZ_DW(query_vhca_state_out)] = {};
 	int err;
@@ -95,16 +95,16 @@ mlx5_vhca_event_notify(struct mlx5_core_dev *dev, struct mlx5_vhca_state_event *
 	mlx5_vhca_event_arm(dev, event->function_id);
 	trace_mlx5_sf_vhca_event(dev, event);
 
-	blocking_notifier_call_chain(&dev->priv.vhca_state_notifier->n_head, 0, event);
+	blocking_analtifier_call_chain(&dev->priv.vhca_state_analtifier->n_head, 0, event);
 }
 
 static void mlx5_vhca_state_work_handler(struct work_struct *_work)
 {
 	struct mlx5_vhca_event_work *work = container_of(_work, struct mlx5_vhca_event_work, work);
-	struct mlx5_vhca_state_notifier *notifier = work->notifier;
-	struct mlx5_core_dev *dev = notifier->dev;
+	struct mlx5_vhca_state_analtifier *analtifier = work->analtifier;
+	struct mlx5_core_dev *dev = analtifier->dev;
 
-	mlx5_vhca_event_notify(dev, &work->event);
+	mlx5_vhca_event_analtify(dev, &work->event);
 	kfree(work);
 }
 
@@ -114,23 +114,23 @@ void mlx5_vhca_events_work_enqueue(struct mlx5_core_dev *dev, int idx, struct wo
 }
 
 static int
-mlx5_vhca_state_change_notifier(struct notifier_block *nb, unsigned long type, void *data)
+mlx5_vhca_state_change_analtifier(struct analtifier_block *nb, unsigned long type, void *data)
 {
-	struct mlx5_vhca_state_notifier *notifier =
-				mlx5_nb_cof(nb, struct mlx5_vhca_state_notifier, nb);
+	struct mlx5_vhca_state_analtifier *analtifier =
+				mlx5_nb_cof(nb, struct mlx5_vhca_state_analtifier, nb);
 	struct mlx5_vhca_event_work *work;
 	struct mlx5_eqe *eqe = data;
 	int wq_idx;
 
 	work = kzalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	INIT_WORK(&work->work, &mlx5_vhca_state_work_handler);
-	work->notifier = notifier;
+	work->analtifier = analtifier;
 	work->event.function_id = be16_to_cpu(eqe->data.vhca_state.function_id);
 	wq_idx = work->event.function_id % MLX5_DEV_MAX_WQS;
-	mlx5_vhca_events_work_enqueue(notifier->dev, wq_idx, &work->work);
-	return NOTIFY_OK;
+	mlx5_vhca_events_work_enqueue(analtifier->dev, wq_idx, &work->work);
+	return ANALTIFY_OK;
 }
 
 void mlx5_vhca_state_cap_handle(struct mlx5_core_dev *dev, void *set_hca_cap)
@@ -147,7 +147,7 @@ void mlx5_vhca_state_cap_handle(struct mlx5_core_dev *dev, void *set_hca_cap)
 
 int mlx5_vhca_event_init(struct mlx5_core_dev *dev)
 {
-	struct mlx5_vhca_state_notifier *notifier;
+	struct mlx5_vhca_state_analtifier *analtifier;
 	char wq_name[MLX5_CMD_WQ_MAX_NAME];
 	struct mlx5_vhca_events *events;
 	int err, i;
@@ -157,7 +157,7 @@ int mlx5_vhca_event_init(struct mlx5_core_dev *dev)
 
 	events = kzalloc(sizeof(*events), GFP_KERNEL);
 	if (!events)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	events->dev = dev;
 	dev->priv.vhca_events = events;
@@ -165,24 +165,24 @@ int mlx5_vhca_event_init(struct mlx5_core_dev *dev)
 		snprintf(wq_name, MLX5_CMD_WQ_MAX_NAME, "mlx5_vhca_event%d", i);
 		events->handler[i].wq = create_singlethread_workqueue(wq_name);
 		if (!events->handler[i].wq) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_create_wq;
 		}
 	}
 
-	notifier = kzalloc(sizeof(*notifier), GFP_KERNEL);
-	if (!notifier) {
-		err = -ENOMEM;
-		goto err_notifier;
+	analtifier = kzalloc(sizeof(*analtifier), GFP_KERNEL);
+	if (!analtifier) {
+		err = -EANALMEM;
+		goto err_analtifier;
 	}
 
-	dev->priv.vhca_state_notifier = notifier;
-	notifier->dev = dev;
-	BLOCKING_INIT_NOTIFIER_HEAD(&notifier->n_head);
-	MLX5_NB_INIT(&notifier->nb, mlx5_vhca_state_change_notifier, VHCA_STATE_CHANGE);
+	dev->priv.vhca_state_analtifier = analtifier;
+	analtifier->dev = dev;
+	BLOCKING_INIT_ANALTIFIER_HEAD(&analtifier->n_head);
+	MLX5_NB_INIT(&analtifier->nb, mlx5_vhca_state_change_analtifier, VHCA_STATE_CHANGE);
 	return 0;
 
-err_notifier:
+err_analtifier:
 err_create_wq:
 	for (--i; i >= 0; i--)
 		destroy_workqueue(events->handler[i].wq);
@@ -211,8 +211,8 @@ void mlx5_vhca_event_cleanup(struct mlx5_core_dev *dev)
 	if (!mlx5_vhca_event_supported(dev))
 		return;
 
-	kfree(dev->priv.vhca_state_notifier);
-	dev->priv.vhca_state_notifier = NULL;
+	kfree(dev->priv.vhca_state_analtifier);
+	dev->priv.vhca_state_analtifier = NULL;
 	vhca_events = dev->priv.vhca_events;
 	for (i = 0; i < MLX5_DEV_MAX_WQS; i++)
 		destroy_workqueue(vhca_events->handler[i].wq);
@@ -221,34 +221,34 @@ void mlx5_vhca_event_cleanup(struct mlx5_core_dev *dev)
 
 void mlx5_vhca_event_start(struct mlx5_core_dev *dev)
 {
-	struct mlx5_vhca_state_notifier *notifier;
+	struct mlx5_vhca_state_analtifier *analtifier;
 
-	if (!dev->priv.vhca_state_notifier)
+	if (!dev->priv.vhca_state_analtifier)
 		return;
 
-	notifier = dev->priv.vhca_state_notifier;
-	mlx5_eq_notifier_register(dev, &notifier->nb);
+	analtifier = dev->priv.vhca_state_analtifier;
+	mlx5_eq_analtifier_register(dev, &analtifier->nb);
 }
 
 void mlx5_vhca_event_stop(struct mlx5_core_dev *dev)
 {
-	struct mlx5_vhca_state_notifier *notifier;
+	struct mlx5_vhca_state_analtifier *analtifier;
 
-	if (!dev->priv.vhca_state_notifier)
+	if (!dev->priv.vhca_state_analtifier)
 		return;
 
-	notifier = dev->priv.vhca_state_notifier;
-	mlx5_eq_notifier_unregister(dev, &notifier->nb);
+	analtifier = dev->priv.vhca_state_analtifier;
+	mlx5_eq_analtifier_unregister(dev, &analtifier->nb);
 }
 
-int mlx5_vhca_event_notifier_register(struct mlx5_core_dev *dev, struct notifier_block *nb)
+int mlx5_vhca_event_analtifier_register(struct mlx5_core_dev *dev, struct analtifier_block *nb)
 {
-	if (!dev->priv.vhca_state_notifier)
-		return -EOPNOTSUPP;
-	return blocking_notifier_chain_register(&dev->priv.vhca_state_notifier->n_head, nb);
+	if (!dev->priv.vhca_state_analtifier)
+		return -EOPANALTSUPP;
+	return blocking_analtifier_chain_register(&dev->priv.vhca_state_analtifier->n_head, nb);
 }
 
-void mlx5_vhca_event_notifier_unregister(struct mlx5_core_dev *dev, struct notifier_block *nb)
+void mlx5_vhca_event_analtifier_unregister(struct mlx5_core_dev *dev, struct analtifier_block *nb)
 {
-	blocking_notifier_chain_unregister(&dev->priv.vhca_state_notifier->n_head, nb);
+	blocking_analtifier_chain_unregister(&dev->priv.vhca_state_analtifier->n_head, nb);
 }

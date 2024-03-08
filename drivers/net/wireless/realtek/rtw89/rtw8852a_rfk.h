@@ -17,7 +17,7 @@ void rtw8852a_dpk_track(struct rtw89_dev *rtwdev);
 void rtw8852a_tssi(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy);
 void rtw8852a_tssi_scan(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy);
 void rtw8852a_tssi_track(struct rtw89_dev *rtwdev);
-void rtw8852a_wifi_scan_notify(struct rtw89_dev *rtwdev, bool scan_start,
+void rtw8852a_wifi_scan_analtify(struct rtw89_dev *rtwdev, bool scan_start,
 			       enum rtw89_phy_idx phy_idx);
 
 #endif

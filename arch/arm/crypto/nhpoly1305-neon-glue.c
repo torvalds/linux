@@ -60,7 +60,7 @@ static struct shash_alg nhpoly1305_alg = {
 static int __init nhpoly1305_mod_init(void)
 {
 	if (!(elf_hwcap & HWCAP_NEON))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return crypto_register_shash(&nhpoly1305_alg);
 }

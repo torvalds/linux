@@ -178,7 +178,7 @@ static int page_pool_init(struct page_pool *pool,
 	memcpy(&pool->p, &params->fast, sizeof(pool->p));
 	memcpy(&pool->slow, &params->slow, sizeof(pool->slow));
 
-	/* Validate only known flags were used */
+	/* Validate only kanalwn flags were used */
 	if (pool->p.flags & ~(PP_FLAG_ALL))
 		return -EINVAL;
 
@@ -219,14 +219,14 @@ static int page_pool_init(struct page_pool *pool,
 #ifdef CONFIG_PAGE_POOL_STATS
 	pool->recycle_stats = alloc_percpu(struct page_pool_recycle_stats);
 	if (!pool->recycle_stats)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
 	if (ptr_ring_init(&pool->ring, ring_qsize, GFP_KERNEL) < 0) {
 #ifdef CONFIG_PAGE_POOL_STATS
 		free_percpu(pool->recycle_stats);
 #endif
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	atomic_set(&pool->pages_state_release_cnt, 0);
@@ -261,9 +261,9 @@ struct page_pool *page_pool_create(const struct page_pool_params *params)
 	struct page_pool *pool;
 	int err;
 
-	pool = kzalloc_node(sizeof(*pool), GFP_KERNEL, params->nid);
+	pool = kzalloc_analde(sizeof(*pool), GFP_KERNEL, params->nid);
 	if (!pool)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = page_pool_init(pool, params);
 	if (err < 0)
@@ -278,7 +278,7 @@ struct page_pool *page_pool_create(const struct page_pool_params *params)
 err_uninit:
 	page_pool_uninit(pool);
 err_free:
-	pr_warn("%s() gave up with errno %d\n", __func__, err);
+	pr_warn("%s() gave up with erranal %d\n", __func__, err);
 	kfree(pool);
 	return ERR_PTR(err);
 }
@@ -286,12 +286,12 @@ EXPORT_SYMBOL(page_pool_create);
 
 static void page_pool_return_page(struct page_pool *pool, struct page *page);
 
-noinline
+analinline
 static struct page *page_pool_refill_alloc_cache(struct page_pool *pool)
 {
 	struct ptr_ring *r = &pool->ring;
 	struct page *page;
-	int pref_nid; /* preferred NUMA node */
+	int pref_nid; /* preferred NUMA analde */
 
 	/* Quicker fallback, avoid locks when ring is empty */
 	if (__ptr_ring_empty(r)) {
@@ -299,13 +299,13 @@ static struct page *page_pool_refill_alloc_cache(struct page_pool *pool)
 		return NULL;
 	}
 
-	/* Softirq guarantee CPU and thus NUMA node is stable. This,
+	/* Softirq guarantee CPU and thus NUMA analde is stable. This,
 	 * assumes CPU refilling driver RX-ring will also run RX-NAPI.
 	 */
 #ifdef CONFIG_NUMA
-	pref_nid = (pool->p.nid == NUMA_NO_NODE) ? numa_mem_id() : pool->p.nid;
+	pref_nid = (pool->p.nid == NUMA_ANAL_ANALDE) ? numa_mem_id() : pool->p.nid;
 #else
-	/* Ignore pool->p.nid setting if !CONFIG_NUMA, helps compiler */
+	/* Iganalre pool->p.nid setting if !CONFIG_NUMA, helps compiler */
 	pref_nid = numa_mem_id(); /* will be zero like page_to_nid() */
 #endif
 
@@ -320,7 +320,7 @@ static struct page *page_pool_refill_alloc_cache(struct page_pool *pool)
 		} else {
 			/* NUMA mismatch;
 			 * (1) release 1 page to page-allocator and
-			 * (2) break out to fallthrough to alloc_pages_node.
+			 * (2) break out to fallthrough to alloc_pages_analde.
 			 * This limit stress on page buddy alloactor.
 			 */
 			page_pool_return_page(pool, page);
@@ -344,7 +344,7 @@ static struct page *__page_pool_get_cached(struct page_pool *pool)
 {
 	struct page *page;
 
-	/* Caller MUST guarantee safe non-concurrent access, e.g. softirq */
+	/* Caller MUST guarantee safe analn-concurrent access, e.g. softirq */
 	if (likely(pool->alloc.count)) {
 		/* Fast-path */
 		page = pool->alloc.cache[--pool->alloc.count];
@@ -373,7 +373,7 @@ static bool page_pool_dma_map(struct page_pool *pool, struct page *page)
 	dma_addr_t dma;
 
 	/* Setup DMA mapping: use 'struct page' area for storing DMA-addr
-	 * since dma_addr_t can be either 32 or 64 bits and does not always fit
+	 * since dma_addr_t can be either 32 or 64 bits and does analt always fit
 	 * into page private data (i.e 32bit cpu with 64bit DMA caps)
 	 * This mapping is kept for lifetime of page, until leaving pool.
 	 */
@@ -429,7 +429,7 @@ static struct page *__page_pool_alloc_page_order(struct page_pool *pool,
 	struct page *page;
 
 	gfp |= __GFP_COMP;
-	page = alloc_pages_node(pool->p.nid, gfp, pool->p.order);
+	page = alloc_pages_analde(pool->p.nid, gfp, pool->p.order);
 	if (unlikely(!page))
 		return NULL;
 
@@ -449,7 +449,7 @@ static struct page *__page_pool_alloc_page_order(struct page_pool *pool,
 }
 
 /* slow path */
-noinline
+analinline
 static struct page *__page_pool_alloc_pages_slow(struct page_pool *pool,
 						 gfp_t gfp)
 {
@@ -470,13 +470,13 @@ static struct page *__page_pool_alloc_pages_slow(struct page_pool *pool,
 	/* Mark empty alloc.cache slots "empty" for alloc_pages_bulk_array */
 	memset(&pool->alloc.cache, 0, sizeof(void *) * bulk);
 
-	nr_pages = alloc_pages_bulk_array_node(gfp, pool->p.nid, bulk,
+	nr_pages = alloc_pages_bulk_array_analde(gfp, pool->p.nid, bulk,
 					       pool->alloc.cache);
 	if (unlikely(!nr_pages))
 		return NULL;
 
 	/* Pages have been filled into alloc.cache array, but count is zero and
-	 * page element have not been (possibly) DMA mapped.
+	 * page element have analt been (possibly) DMA mapped.
 	 */
 	for (i = 0; i < nr_pages; i++) {
 		page = pool->alloc.cache[i];
@@ -561,7 +561,7 @@ void __page_pool_release_page_dma(struct page_pool *pool, struct page *page)
 
 	dma = page_pool_get_dma_addr(page);
 
-	/* When page is unmapped, it cannot be returned to our pool */
+	/* When page is unmapped, it cananalt be returned to our pool */
 	dma_unmap_page_attrs(pool->p.dev, dma,
 			     PAGE_SIZE << pool->p.order, pool->p.dma_dir,
 			     DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING);
@@ -570,7 +570,7 @@ void __page_pool_release_page_dma(struct page_pool *pool, struct page *page)
 
 /* Disconnects a page (from a page_pool).  API users can have a need
  * to disconnect a page (from a page_pool), to allow it to be used as
- * a regular page (that will eventually be returned to the normal
+ * a regular page (that will eventually be returned to the analrmal
  * page-allocator via put_page).
  */
 void page_pool_return_page(struct page_pool *pool, struct page *page)
@@ -582,14 +582,14 @@ void page_pool_return_page(struct page_pool *pool, struct page *page)
 	page_pool_clear_pp_info(page);
 
 	/* This may be the last page returned, releasing the pool, so
-	 * it is not safe to reference pool afterwards.
+	 * it is analt safe to reference pool afterwards.
 	 */
 	count = atomic_inc_return_relaxed(&pool->pages_state_release_cnt);
 	trace_page_pool_state_release(pool, page, count);
 
 	put_page(page);
 	/* An optimization would be to call __free_pages(page, pool->p.order)
-	 * knowing page is not part of page-cache (thus avoiding a
+	 * kanalwing page is analt part of page-cache (thus avoiding a
 	 * __page_cache_release() call).
 	 */
 }
@@ -597,7 +597,7 @@ void page_pool_return_page(struct page_pool *pool, struct page *page)
 static bool page_pool_recycle_in_ring(struct page_pool *pool, struct page *page)
 {
 	int ret;
-	/* BH protection not needed if current is softirq */
+	/* BH protection analt needed if current is softirq */
 	if (in_softirq())
 		ret = ptr_ring_produce(&pool->ring, page);
 	else
@@ -624,7 +624,7 @@ static bool page_pool_recycle_in_cache(struct page *page,
 		return false;
 	}
 
-	/* Caller MUST have verified/know (page_ref_count(page) == 1) */
+	/* Caller MUST have verified/kanalw (page_ref_count(page) == 1) */
 	pool->alloc.cache[pool->alloc.count++] = page;
 	recycle_stat_inc(pool, cached);
 	return true;
@@ -640,7 +640,7 @@ static __always_inline struct page *
 __page_pool_put_page(struct page_pool *pool, struct page *page,
 		     unsigned int dma_sync_size, bool allow_direct)
 {
-	lockdep_assert_no_hardirq();
+	lockdep_assert_anal_hardirq();
 
 	/* This allocator is optimized for the XDP mode that uses
 	 * one-frame-per-page, but have fallbacks that act like the
@@ -648,7 +648,7 @@ __page_pool_put_page(struct page_pool *pool, struct page *page,
 	 *
 	 * refcnt == 1 means page_pool owns page, and can recycle it.
 	 *
-	 * page is NOT reusable when allocated when system is under
+	 * page is ANALT reusable when allocated when system is under
 	 * some pressure. (page_is_pfmemalloc)
 	 */
 	if (likely(page_ref_count(page) == 1 && !page_is_pfmemalloc(page))) {
@@ -665,17 +665,17 @@ __page_pool_put_page(struct page_pool *pool, struct page *page,
 		/* Page found as candidate for recycling */
 		return page;
 	}
-	/* Fallback/non-XDP mode: API user have elevated refcnt.
+	/* Fallback/analn-XDP mode: API user have elevated refcnt.
 	 *
 	 * Many drivers split up the page into fragments, and some
 	 * want to keep doing this to save memory and do refcnt based
 	 * recycling. Support this use case too, to ease drivers
-	 * switching between XDP/non-XDP.
+	 * switching between XDP/analn-XDP.
 	 *
 	 * In-case page_pool maintains the DMA mapping, API user must
 	 * call page_pool_put_page once.  In this elevated refcnt
 	 * case, the DMA is unmapped/released, as driver is likely
-	 * doing refcnt based recycle tricks, meaning another process
+	 * doing refcnt based recycle tricks, meaning aanalther process
 	 * will be invoking put_page.
 	 */
 	recycle_stat_inc(pool, released_refcnt);
@@ -708,7 +708,7 @@ EXPORT_SYMBOL(page_pool_put_unrefed_page);
  * page_pool_put_page_bulk() is suitable to be run inside the driver NAPI tx
  * completion loop for the XDP_REDIRECT use case.
  *
- * Please note the caller must not use data area after running
+ * Please analte the caller must analt use data area after running
  * page_pool_put_page_bulk(), as this function overwrites it.
  */
 void page_pool_put_page_bulk(struct page_pool *pool, void **data,
@@ -720,7 +720,7 @@ void page_pool_put_page_bulk(struct page_pool *pool, void **data,
 	for (i = 0; i < count; i++) {
 		struct page *page = virt_to_head_page(data[i]);
 
-		/* It is not the last user for the page frag case */
+		/* It is analt the last user for the page frag case */
 		if (!page_pool_is_last_ref(page))
 			continue;
 
@@ -868,7 +868,7 @@ static void page_pool_empty_alloc_cache_once(struct page_pool *pool)
 		return;
 
 	/* Empty alloc cache, assume caller made sure this is
-	 * no-longer in use, and page_pool_alloc_pages() cannot be
+	 * anal-longer in use, and page_pool_alloc_pages() cananalt be
 	 * call concurrently.
 	 */
 	while (pool->alloc.count) {
@@ -882,7 +882,7 @@ static void page_pool_scrub(struct page_pool *pool)
 	page_pool_empty_alloc_cache_once(pool);
 	pool->destroy_cnt++;
 
-	/* No more consumers should exist, but producers could still
+	/* Anal more consumers should exist, but producers could still
 	 * be in-flight.
 	 */
 	page_pool_empty_ring(pool);
@@ -922,7 +922,7 @@ static void page_pool_release_retry(struct work_struct *wq)
 		pool->defer_warn = jiffies + DEFER_WARN_INTERVAL;
 	}
 
-	/* Still not ready to be disconnected, retry later */
+	/* Still analt ready to be disconnected, retry later */
 	schedule_delayed_work(&pool->release_dw, DEFER_TIME);
 }
 
@@ -980,7 +980,7 @@ void page_pool_update_nid(struct page_pool *pool, int new_nid)
 	trace_page_pool_update_nid(pool, new_nid);
 	pool->p.nid = new_nid;
 
-	/* Flush pool alloc cache, as refill will check NUMA node */
+	/* Flush pool alloc cache, as refill will check NUMA analde */
 	while (pool->alloc.count) {
 		page = pool->alloc.cache[--pool->alloc.count];
 		page_pool_return_page(pool, page);

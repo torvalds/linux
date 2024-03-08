@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -34,7 +34,7 @@
  *
  * i915 is responsible to reserve stolen memory for FBC and configure its
  * offset on proper registers. The hardware takes care of all
- * compress/decompress. However there are many known cases where we have to
+ * compress/decompress. However there are many kanalwn cases where we have to
  * forcibly disable it to allow proper screen updates.
  */
 
@@ -119,7 +119,7 @@ struct intel_fbc {
 	 * are supposed to read from it in order to program the registers.
 	 */
 	struct intel_fbc_state state;
-	const char *no_fbc_reason;
+	const char *anal_fbc_reason;
 };
 
 /* plane stride in pixels */
@@ -247,7 +247,7 @@ static u32 i8xx_fbc_ctl(struct intel_fbc *fbc)
 		fbc_ctl |= FBC_CTL_C3_IDLE; /* 945 needs special SR handling */
 
 	if (fbc_state->fence_id >= 0)
-		fbc_ctl |= FBC_CTL_FENCENO(fbc_state->fence_id);
+		fbc_ctl |= FBC_CTL_FENCEANAL(fbc_state->fence_id);
 
 	return fbc_ctl;
 }
@@ -335,16 +335,16 @@ static void i8xx_fbc_program_cfb(struct intel_fbc *fbc)
 
 	drm_WARN_ON(&i915->drm,
 		    range_overflows_end_t(u64, i915_gem_stolen_area_address(i915),
-					  i915_gem_stolen_node_offset(&fbc->compressed_fb),
+					  i915_gem_stolen_analde_offset(&fbc->compressed_fb),
 					  U32_MAX));
 	drm_WARN_ON(&i915->drm,
 		    range_overflows_end_t(u64, i915_gem_stolen_area_address(i915),
-					  i915_gem_stolen_node_offset(&fbc->compressed_llb),
+					  i915_gem_stolen_analde_offset(&fbc->compressed_llb),
 					  U32_MAX));
 	intel_de_write(i915, FBC_CFB_BASE,
-		       i915_gem_stolen_node_address(i915, &fbc->compressed_fb));
+		       i915_gem_stolen_analde_address(i915, &fbc->compressed_fb));
 	intel_de_write(i915, FBC_LL_BASE,
-		       i915_gem_stolen_node_address(i915, &fbc->compressed_llb));
+		       i915_gem_stolen_analde_address(i915, &fbc->compressed_llb));
 }
 
 static const struct intel_fbc_funcs i8xx_fbc_funcs = {
@@ -406,7 +406,7 @@ static u32 g4x_dpfc_ctl(struct intel_fbc *fbc)
 		dpfc_ctl |= DPFC_CTL_FENCE_EN_G4X;
 
 		if (DISPLAY_VER(i915) < 6)
-			dpfc_ctl |= DPFC_CTL_FENCENO(fbc_state->fence_id);
+			dpfc_ctl |= DPFC_CTL_FENCEANAL(fbc_state->fence_id);
 	}
 
 	return dpfc_ctl;
@@ -452,7 +452,7 @@ static void g4x_fbc_program_cfb(struct intel_fbc *fbc)
 	struct drm_i915_private *i915 = fbc->i915;
 
 	intel_de_write(i915, DPFC_CB_BASE,
-		       i915_gem_stolen_node_offset(&fbc->compressed_fb));
+		       i915_gem_stolen_analde_offset(&fbc->compressed_fb));
 }
 
 static const struct intel_fbc_funcs g4x_fbc_funcs = {
@@ -504,7 +504,7 @@ static void ilk_fbc_program_cfb(struct intel_fbc *fbc)
 	struct drm_i915_private *i915 = fbc->i915;
 
 	intel_de_write(i915, ILK_DPFC_CB_BASE(fbc->id),
-		       i915_gem_stolen_node_offset(&fbc->compressed_fb));
+		       i915_gem_stolen_analde_offset(&fbc->compressed_fb));
 }
 
 static const struct intel_fbc_funcs ilk_fbc_funcs = {
@@ -523,7 +523,7 @@ static void snb_fbc_program_fence(struct intel_fbc *fbc)
 	u32 ctl = 0;
 
 	if (fbc_state->fence_id >= 0)
-		ctl = SNB_DPFC_FENCE_EN | SNB_DPFC_FENCENO(fbc_state->fence_id);
+		ctl = SNB_DPFC_FENCE_EN | SNB_DPFC_FENCEANAL(fbc_state->fence_id);
 
 	intel_de_write(i915, SNB_DPFC_CTL_SA, ctl);
 	intel_de_write(i915, SNB_DPFC_CPU_FENCE_OFFSET, fbc_state->fence_y_offset);
@@ -697,7 +697,7 @@ static void intel_fbc_activate(struct intel_fbc *fbc)
 	intel_fbc_hw_activate(fbc);
 	intel_fbc_nuke(fbc);
 
-	fbc->no_fbc_reason = NULL;
+	fbc->anal_fbc_reason = NULL;
 }
 
 static void intel_fbc_deactivate(struct intel_fbc *fbc, const char *reason)
@@ -707,7 +707,7 @@ static void intel_fbc_deactivate(struct intel_fbc *fbc, const char *reason)
 	if (fbc->active)
 		intel_fbc_hw_deactivate(fbc);
 
-	fbc->no_fbc_reason = reason;
+	fbc->anal_fbc_reason = reason;
 }
 
 static u64 intel_fbc_cfb_base_max(struct drm_i915_private *i915)
@@ -725,7 +725,7 @@ static u64 intel_fbc_stolen_end(struct drm_i915_private *i915)
 	/* The FBC hardware for BDW/SKL doesn't have access to the stolen
 	 * reserved range size, so it always assumes the maximum (8mb) is used.
 	 * If we enable FBC using a CFB on that memory range we'll get FIFO
-	 * underruns, even if that range is not reserved by the BIOS. */
+	 * underruns, even if that range is analt reserved by the BIOS. */
 	if (IS_BROADWELL(i915) ||
 	    (DISPLAY_VER(i915) == 9 && !IS_BROXTON(i915)))
 		end = i915_gem_stolen_area_size(i915) - 8 * 1024 * 1024;
@@ -763,13 +763,13 @@ static int find_compression_limit(struct intel_fbc *fbc,
 	size /= limit;
 
 	/* Try to over-allocate to reduce reallocations and fragmentation. */
-	ret = i915_gem_stolen_insert_node_in_range(i915, &fbc->compressed_fb,
+	ret = i915_gem_stolen_insert_analde_in_range(i915, &fbc->compressed_fb,
 						   size <<= 1, 4096, 0, end);
 	if (ret == 0)
 		return limit;
 
 	for (; limit <= intel_fbc_max_limit(i915); limit <<= 1) {
-		ret = i915_gem_stolen_insert_node_in_range(i915, &fbc->compressed_fb,
+		ret = i915_gem_stolen_insert_analde_in_range(i915, &fbc->compressed_fb,
 							   size >>= 1, 4096, 0, end);
 		if (ret == 0)
 			return limit;
@@ -785,12 +785,12 @@ static int intel_fbc_alloc_cfb(struct intel_fbc *fbc,
 	int ret;
 
 	drm_WARN_ON(&i915->drm,
-		    i915_gem_stolen_node_allocated(&fbc->compressed_fb));
+		    i915_gem_stolen_analde_allocated(&fbc->compressed_fb));
 	drm_WARN_ON(&i915->drm,
-		    i915_gem_stolen_node_allocated(&fbc->compressed_llb));
+		    i915_gem_stolen_analde_allocated(&fbc->compressed_llb));
 
 	if (DISPLAY_VER(i915) < 5 && !IS_G4X(i915)) {
-		ret = i915_gem_stolen_insert_node(i915, &fbc->compressed_llb,
+		ret = i915_gem_stolen_insert_analde(i915, &fbc->compressed_llb,
 						  4096, 4096);
 		if (ret)
 			goto err;
@@ -801,22 +801,22 @@ static int intel_fbc_alloc_cfb(struct intel_fbc *fbc,
 		goto err_llb;
 	else if (ret > min_limit)
 		drm_info_once(&i915->drm,
-			      "Reducing the compressed framebuffer size. This may lead to less power savings than a non-reduced-size. Try to increase stolen memory size if available in BIOS.\n");
+			      "Reducing the compressed framebuffer size. This may lead to less power savings than a analn-reduced-size. Try to increase stolen memory size if available in BIOS.\n");
 
 	fbc->limit = ret;
 
 	drm_dbg_kms(&i915->drm,
 		    "reserved %llu bytes of contiguous stolen space for FBC, limit: %d\n",
-		    i915_gem_stolen_node_size(&fbc->compressed_fb), fbc->limit);
+		    i915_gem_stolen_analde_size(&fbc->compressed_fb), fbc->limit);
 	return 0;
 
 err_llb:
-	if (i915_gem_stolen_node_allocated(&fbc->compressed_llb))
-		i915_gem_stolen_remove_node(i915, &fbc->compressed_llb);
+	if (i915_gem_stolen_analde_allocated(&fbc->compressed_llb))
+		i915_gem_stolen_remove_analde(i915, &fbc->compressed_llb);
 err:
 	if (i915_gem_stolen_initialized(i915))
-		drm_info_once(&i915->drm, "not enough stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
-	return -ENOSPC;
+		drm_info_once(&i915->drm, "analt eanalugh stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
+	return -EANALSPC;
 }
 
 static void intel_fbc_program_cfb(struct intel_fbc *fbc)
@@ -839,10 +839,10 @@ static void __intel_fbc_cleanup_cfb(struct intel_fbc *fbc)
 	if (WARN_ON(intel_fbc_hw_is_active(fbc)))
 		return;
 
-	if (i915_gem_stolen_node_allocated(&fbc->compressed_llb))
-		i915_gem_stolen_remove_node(i915, &fbc->compressed_llb);
-	if (i915_gem_stolen_node_allocated(&fbc->compressed_fb))
-		i915_gem_stolen_remove_node(i915, &fbc->compressed_fb);
+	if (i915_gem_stolen_analde_allocated(&fbc->compressed_llb))
+		i915_gem_stolen_remove_analde(i915, &fbc->compressed_llb);
+	if (i915_gem_stolen_analde_allocated(&fbc->compressed_fb))
+		i915_gem_stolen_remove_analde(i915, &fbc->compressed_fb);
 }
 
 void intel_fbc_cleanup(struct drm_i915_private *i915)
@@ -927,7 +927,7 @@ static bool i8xx_fbc_pixel_format_is_valid(const struct intel_plane_state *plane
 		return true;
 	case DRM_FORMAT_XRGB1555:
 	case DRM_FORMAT_RGB565:
-		/* 16bpp not supported on gen2 */
+		/* 16bpp analt supported on gen2 */
 		if (DISPLAY_VER(i915) == 2)
 			return false;
 		return true;
@@ -1019,7 +1019,7 @@ static bool rotation_is_valid(const struct intel_plane_state *plane_state)
 
 /*
  * For some reason, the hardware tracking starts looking at whatever we
- * programmed as the display plane base address register. It does not look at
+ * programmed as the display plane base address register. It does analt look at
  * the X and Y offset registers. That's why we include the src x/y offsets
  * instead of just looking at the plane size.
  */
@@ -1123,7 +1123,7 @@ static void intel_fbc_update_state(struct intel_atomic_state *state,
 	struct intel_fbc *fbc = plane->fbc;
 	struct intel_fbc_state *fbc_state = &fbc->state;
 
-	WARN_ON(plane_state->no_fbc_reason);
+	WARN_ON(plane_state->anal_fbc_reason);
 	WARN_ON(fbc_state->plane && fbc_state->plane != plane);
 
 	fbc_state->plane = plane;
@@ -1152,14 +1152,14 @@ static bool intel_fbc_is_fence_ok(const struct intel_plane_state *plane_state)
 
 	/*
 	 * The use of a CPU fence is one of two ways to detect writes by the
-	 * CPU to the scanout and trigger updates to the FBC.
+	 * CPU to the scaanalut and trigger updates to the FBC.
 	 *
 	 * The other method is by software tracking (see
-	 * intel_fbc_invalidate/flush()), it will manually notify FBC and nuke
+	 * intel_fbc_invalidate/flush()), it will manually analtify FBC and nuke
 	 * the current compressed buffer and recompress it.
 	 *
-	 * Note that is possible for a tiled surface to be unmappable (and
-	 * so have no fence associated with it) due to aperture constraints
+	 * Analte that is possible for a tiled surface to be unmappable (and
+	 * so have anal fence associated with it) due to aperture constraints
 	 * at the time of pinning.
 	 */
 	return DISPLAY_VER(i915) >= 9 ||
@@ -1174,12 +1174,12 @@ static bool intel_fbc_is_cfb_ok(const struct intel_plane_state *plane_state)
 
 	return intel_fbc_min_limit(plane_state) <= fbc->limit &&
 		intel_fbc_cfb_size(plane_state) <= fbc->limit *
-			i915_gem_stolen_node_size(&fbc->compressed_fb);
+			i915_gem_stolen_analde_size(&fbc->compressed_fb);
 }
 
 static bool intel_fbc_is_ok(const struct intel_plane_state *plane_state)
 {
-	return !plane_state->no_fbc_reason &&
+	return !plane_state->anal_fbc_reason &&
 		intel_fbc_is_fence_ok(plane_state) &&
 		intel_fbc_is_cfb_ok(plane_state);
 }
@@ -1199,44 +1199,44 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 		return 0;
 
 	if (!i915_gem_stolen_initialized(i915)) {
-		plane_state->no_fbc_reason = "stolen memory not initialised";
+		plane_state->anal_fbc_reason = "stolen memory analt initialised";
 		return 0;
 	}
 
 	if (intel_vgpu_active(i915)) {
-		plane_state->no_fbc_reason = "VGPU active";
+		plane_state->anal_fbc_reason = "VGPU active";
 		return 0;
 	}
 
 	if (!i915->display.params.enable_fbc) {
-		plane_state->no_fbc_reason = "disabled per module param or by default";
+		plane_state->anal_fbc_reason = "disabled per module param or by default";
 		return 0;
 	}
 
 	if (!plane_state->uapi.visible) {
-		plane_state->no_fbc_reason = "plane not visible";
+		plane_state->anal_fbc_reason = "plane analt visible";
 		return 0;
 	}
 
 	crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 
 	if (crtc_state->hw.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
-		plane_state->no_fbc_reason = "interlaced mode not supported";
+		plane_state->anal_fbc_reason = "interlaced mode analt supported";
 		return 0;
 	}
 
 	if (crtc_state->double_wide) {
-		plane_state->no_fbc_reason = "double wide pipe not supported";
+		plane_state->anal_fbc_reason = "double wide pipe analt supported";
 		return 0;
 	}
 
 	/*
-	 * Display 12+ is not supporting FBC with PSR2.
+	 * Display 12+ is analt supporting FBC with PSR2.
 	 * Recommendation is to keep this combination disabled
 	 * Bspec: 50422 HSD: 14010260002
 	 */
 	if (IS_DISPLAY_VER(i915, 12, 14) && crtc_state->has_psr2) {
-		plane_state->no_fbc_reason = "PSR2 enabled";
+		plane_state->anal_fbc_reason = "PSR2 enabled";
 		return 0;
 	}
 
@@ -1244,44 +1244,44 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	if ((IS_DISPLAY_VER(i915, 12, 13) ||
 	     IS_DISPLAY_IP_STEP(i915, IP_VER(14, 0), STEP_A0, STEP_C0)) &&
 	    crtc_state->has_psr) {
-		plane_state->no_fbc_reason = "PSR1 enabled (Wa_14016291713)";
+		plane_state->anal_fbc_reason = "PSR1 enabled (Wa_14016291713)";
 		return 0;
 	}
 
 	if (!pixel_format_is_valid(plane_state)) {
-		plane_state->no_fbc_reason = "pixel format not supported";
+		plane_state->anal_fbc_reason = "pixel format analt supported";
 		return 0;
 	}
 
 	if (!tiling_is_valid(plane_state)) {
-		plane_state->no_fbc_reason = "tiling not supported";
+		plane_state->anal_fbc_reason = "tiling analt supported";
 		return 0;
 	}
 
 	if (!rotation_is_valid(plane_state)) {
-		plane_state->no_fbc_reason = "rotation not supported";
+		plane_state->anal_fbc_reason = "rotation analt supported";
 		return 0;
 	}
 
 	if (!stride_is_valid(plane_state)) {
-		plane_state->no_fbc_reason = "stride not supported";
+		plane_state->anal_fbc_reason = "stride analt supported";
 		return 0;
 	}
 
 	if (DISPLAY_VER(i915) < 20 &&
-	    plane_state->hw.pixel_blend_mode != DRM_MODE_BLEND_PIXEL_NONE &&
+	    plane_state->hw.pixel_blend_mode != DRM_MODE_BLEND_PIXEL_ANALNE &&
 	    fb->format->has_alpha) {
-		plane_state->no_fbc_reason = "per-pixel alpha not supported";
+		plane_state->anal_fbc_reason = "per-pixel alpha analt supported";
 		return 0;
 	}
 
 	if (!intel_fbc_plane_size_valid(plane_state)) {
-		plane_state->no_fbc_reason = "plane size too big";
+		plane_state->anal_fbc_reason = "plane size too big";
 		return 0;
 	}
 
 	if (!intel_fbc_hw_tracking_covers_screen(plane_state)) {
-		plane_state->no_fbc_reason = "surface size too big";
+		plane_state->anal_fbc_reason = "surface size too big";
 		return 0;
 	}
 
@@ -1292,7 +1292,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	 */
 	if (DISPLAY_VER(i915) >= 9 &&
 	    plane_state->view.color_plane[0].y & 3) {
-		plane_state->no_fbc_reason = "plane start Y offset misaligned";
+		plane_state->anal_fbc_reason = "plane start Y offset misaligned";
 		return 0;
 	}
 
@@ -1300,7 +1300,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	if (DISPLAY_VER(i915) >= 11 &&
 	    (plane_state->view.color_plane[0].y +
 	     (drm_rect_height(&plane_state->uapi.src) >> 16)) & 3) {
-		plane_state->no_fbc_reason = "plane end Y offset misaligned";
+		plane_state->anal_fbc_reason = "plane end Y offset misaligned";
 		return 0;
 	}
 
@@ -1313,12 +1313,12 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 			return PTR_ERR(cdclk_state);
 
 		if (crtc_state->pixel_rate >= cdclk_state->logical.cdclk * 95 / 100) {
-			plane_state->no_fbc_reason = "pixel rate too high";
+			plane_state->anal_fbc_reason = "pixel rate too high";
 			return 0;
 		}
 	}
 
-	plane_state->no_fbc_reason = NULL;
+	plane_state->anal_fbc_reason = NULL;
 
 	return 0;
 }
@@ -1390,8 +1390,8 @@ static bool __intel_fbc_pre_update(struct intel_atomic_state *state,
 	 * Display WA #1198: glk+
 	 * Need an extra vblank wait between FBC disable and most plane
 	 * updates. Bspec says this is only needed for plane disable, but
-	 * that is not true. Touching most plane registers will cause the
-	 * corruption to appear. Also SKL/derivatives do not seem to be
+	 * that is analt true. Touching most plane registers will cause the
+	 * corruption to appear. Also SKL/derivatives do analt seem to be
 	 * affected.
 	 *
 	 * TODO: could optimize this a bit by sampling the frame
@@ -1601,29 +1601,29 @@ static void __intel_fbc_enable(struct intel_atomic_state *state,
 
 	drm_WARN_ON(&i915->drm, fbc->active);
 
-	fbc->no_fbc_reason = plane_state->no_fbc_reason;
-	if (fbc->no_fbc_reason)
+	fbc->anal_fbc_reason = plane_state->anal_fbc_reason;
+	if (fbc->anal_fbc_reason)
 		return;
 
 	if (!intel_fbc_is_fence_ok(plane_state)) {
-		fbc->no_fbc_reason = "framebuffer not fenced";
+		fbc->anal_fbc_reason = "framebuffer analt fenced";
 		return;
 	}
 
 	if (fbc->underrun_detected) {
-		fbc->no_fbc_reason = "FIFO underrun";
+		fbc->anal_fbc_reason = "FIFO underrun";
 		return;
 	}
 
 	if (intel_fbc_alloc_cfb(fbc, intel_fbc_cfb_size(plane_state),
 				intel_fbc_min_limit(plane_state))) {
-		fbc->no_fbc_reason = "not enough stolen memory";
+		fbc->anal_fbc_reason = "analt eanalugh stolen memory";
 		return;
 	}
 
 	drm_dbg_kms(&i915->drm, "Enabling FBC on [PLANE:%d:%s]\n",
 		    plane->base.base.id, plane->base.name);
-	fbc->no_fbc_reason = "FBC enabled but not active yet\n";
+	fbc->anal_fbc_reason = "FBC enabled but analt active yet\n";
 
 	intel_fbc_update_state(state, crtc, plane);
 
@@ -1673,7 +1673,7 @@ void intel_fbc_update(struct intel_atomic_state *state,
 		mutex_lock(&fbc->lock);
 
 		if (intel_crtc_needs_fastset(crtc_state) &&
-		    plane_state->no_fbc_reason) {
+		    plane_state->anal_fbc_reason) {
 			if (fbc->state.plane == plane)
 				__intel_fbc_disable(fbc);
 		} else {
@@ -1717,7 +1717,7 @@ static void __intel_fbc_reset_underrun(struct intel_fbc *fbc)
 	if (fbc->underrun_detected) {
 		drm_dbg_kms(&i915->drm,
 			    "Re-allowing FBC after fifo underrun\n");
-		fbc->no_fbc_reason = "FIFO underrun cleared";
+		fbc->anal_fbc_reason = "FIFO underrun cleared";
 	}
 
 	fbc->underrun_detected = false;
@@ -1743,9 +1743,9 @@ void intel_fbc_reset_underrun(struct drm_i915_private *i915)
 static void __intel_fbc_handle_fifo_underrun_irq(struct intel_fbc *fbc)
 {
 	/*
-	 * There's no guarantee that underrun_detected won't be set to true
+	 * There's anal guarantee that underrun_detected won't be set to true
 	 * right after this check and before the work is scheduled, but that's
-	 * not a problem since we'll check it again under the work function
+	 * analt a problem since we'll check it again under the work function
 	 * while FBC is locked. This check here is just to prevent us from
 	 * unnecessarily scheduling the work, and it relies on the fact that we
 	 * never switch underrun_detect back to false after it's true.
@@ -1753,7 +1753,7 @@ static void __intel_fbc_handle_fifo_underrun_irq(struct intel_fbc *fbc)
 	if (READ_ONCE(fbc->underrun_detected))
 		return;
 
-	queue_work(fbc->i915->unordered_wq, &fbc->underrun_work);
+	queue_work(fbc->i915->uanalrdered_wq, &fbc->underrun_work);
 }
 
 /**
@@ -1761,7 +1761,7 @@ static void __intel_fbc_handle_fifo_underrun_irq(struct intel_fbc *fbc)
  * @i915: i915 device
  *
  * Without FBC, most underruns are harmless and don't really cause too many
- * problems, except for an annoying message on dmesg. With FBC, underruns can
+ * problems, except for an ananalying message on dmesg. With FBC, underruns can
  * become black screens or even worse, especially when paired with bad
  * watermarks. So in order for us to be on the safe side, completely disable FBC
  * in case we ever detect a FIFO underrun on any pipe. An underrun on any pipe
@@ -1782,9 +1782,9 @@ void intel_fbc_handle_fifo_underrun_irq(struct drm_i915_private *i915)
 /*
  * The DDX driver changes its behavior depending on the value it reads from
  * i915.enable_fbc, so sanitize it by translating the default value into either
- * 0 or 1 in order to allow it to know what's going on.
+ * 0 or 1 in order to allow it to kanalw what's going on.
  *
- * Notice that this is done at driver initialization and we still allow user
+ * Analtice that this is done at driver initialization and we still allow user
  * space to change the value during runtime without sanitizing it again. IGT
  * relies on being able to change i915.enable_fbc at runtime.
  */
@@ -1875,7 +1875,7 @@ void intel_fbc_init(struct drm_i915_private *i915)
  * intel_fbc_sanitize - Sanitize FBC
  * @i915: the i915 device
  *
- * Make sure FBC is initially disabled since we have no
+ * Make sure FBC is initially disabled since we have anal
  * idea eg. into which parts of stolen it might be scribbling
  * into.
  */
@@ -1905,9 +1905,9 @@ static int intel_fbc_debugfs_status_show(struct seq_file *m, void *unused)
 	if (fbc->active) {
 		seq_puts(m, "FBC enabled\n");
 		seq_printf(m, "Compressing: %s\n",
-			   str_yes_no(intel_fbc_is_compressing(fbc)));
+			   str_anal_anal(intel_fbc_is_compressing(fbc)));
 	} else {
-		seq_printf(m, "FBC disabled: %s\n", fbc->no_fbc_reason);
+		seq_printf(m, "FBC disabled: %s\n", fbc->anal_fbc_reason);
 	}
 
 	for_each_intel_plane(&i915->drm, plane) {
@@ -1920,7 +1920,7 @@ static int intel_fbc_debugfs_status_show(struct seq_file *m, void *unused)
 		seq_printf(m, "%c [PLANE:%d:%s]: %s\n",
 			   fbc->state.plane == plane ? '*' : ' ',
 			   plane->base.base.id, plane->base.name,
-			   plane_state->no_fbc_reason ?: "FBC possible");
+			   plane_state->anal_fbc_reason ?: "FBC possible");
 	}
 
 	mutex_unlock(&fbc->lock);
@@ -1985,10 +1985,10 @@ void intel_fbc_crtc_debugfs_add(struct intel_crtc *crtc)
 /* FIXME: remove this once igt is on board with per-crtc stuff */
 void intel_fbc_debugfs_register(struct drm_i915_private *i915)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	struct drm_mianalr *mianalr = i915->drm.primary;
 	struct intel_fbc *fbc;
 
 	fbc = i915->display.fbc[INTEL_FBC_A];
 	if (fbc)
-		intel_fbc_debugfs_add(fbc, minor->debugfs_root);
+		intel_fbc_debugfs_add(fbc, mianalr->debugfs_root);
 }

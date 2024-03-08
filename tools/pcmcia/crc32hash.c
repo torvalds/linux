@@ -24,7 +24,7 @@ static unsigned int crc32(unsigned char const *p, unsigned int len)
 int main(int argc, char **argv) {
 	unsigned int result;
 	if (argc != 2) {
-		printf("no string passed as argument\n");
+		printf("anal string passed as argument\n");
 		return -1;
 	}
 	result = crc32((unsigned char const *)argv[1], strlen(argv[1]));

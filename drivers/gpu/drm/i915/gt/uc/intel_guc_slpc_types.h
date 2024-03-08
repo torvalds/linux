@@ -31,7 +31,7 @@ struct intel_guc_slpc {
 	/* frequency softlimits */
 	u32 min_freq_softlimit;
 	u32 max_freq_softlimit;
-	bool ignore_eff_freq;
+	bool iganalre_eff_freq;
 
 	/* cached media ratio mode */
 	u32 media_ratio_mode;

@@ -230,7 +230,7 @@ static int dphy_wait_pll_locked(struct dsi_context *ctx)
 		udelay(3);
 	}
 
-	drm_err(dsi->drm, "dphy pll can not be locked\n");
+	drm_err(dsi->drm, "dphy pll can analt be locked\n");
 	return -ETIMEDOUT;
 }
 
@@ -439,10 +439,10 @@ static void sprd_dsi_fini(struct dsi_context *ctx)
 }
 
 /*
- * If not in burst mode, it will compute the video and null packet sizes
+ * If analt in burst mode, it will compute the video and null packet sizes
  * according to necessity.
  * Configure timers for data lanes and/or clock lane to return to LP when
- * bandwidth is not filled by data.
+ * bandwidth is analt filled by data.
  */
 static int sprd_dsi_dpi_video(struct dsi_context *ctx)
 {
@@ -509,7 +509,7 @@ static int sprd_dsi_dpi_video(struct dsi_context *ctx)
 		writel(0, ctx->base + VIDEO_NULLPKT_SIZE);
 		dsi_reg_up(ctx, VIDEO_PKT_CONFIG, VIDEO_LINE_CHUNK_NUM, 0);
 	} else {
-		/* non burst transmission */
+		/* analn burst transmission */
 		null_pkt_size = 0;
 
 		/* bytes to be sent - first as one chunk */
@@ -521,7 +521,7 @@ static int sprd_dsi_dpi_video(struct dsi_context *ctx)
 
 		/* check if the pixels actually fit on the DSI link */
 		if (total_bytes < bytes_per_chunk) {
-			drm_err(dsi->drm, "current resolution can not be set\n");
+			drm_err(dsi->drm, "current resolution can analt be set\n");
 			return -EINVAL;
 		}
 
@@ -613,7 +613,7 @@ static void sprd_dsi_edpi_video(struct dsi_context *ctx)
  * (param_length / 4) x DSIH_FIFO_ACTIVE_WAIT x register access time
  * the controller restricts the sending of.
  *
- * This function will not be able to send Null and Blanking packets due to
+ * This function will analt be able to send Null and Blanking packets due to
  * controller restriction
  */
 static int sprd_dsi_wr_pkt(struct dsi_context *ctx, u8 vc, u8 type,
@@ -630,7 +630,7 @@ static int sprd_dsi_wr_pkt(struct dsi_context *ctx, u8 vc, u8 type,
 	/* 1st: for long packet, must config payload first */
 	ret = dsi_wait_tx_payload_fifo_empty(ctx);
 	if (ret) {
-		drm_err(dsi->drm, "tx payload fifo is not empty\n");
+		drm_err(dsi->drm, "tx payload fifo is analt empty\n");
 		return ret;
 	}
 
@@ -652,7 +652,7 @@ static int sprd_dsi_wr_pkt(struct dsi_context *ctx, u8 vc, u8 type,
 	/* 2nd: then set packet header */
 	ret = dsi_wait_tx_cmd_fifo_empty(ctx);
 	if (ret) {
-		drm_err(dsi->drm, "tx cmd fifo is not empty\n");
+		drm_err(dsi->drm, "tx cmd fifo is analt empty\n");
 		return ret;
 	}
 
@@ -669,7 +669,7 @@ static int sprd_dsi_wr_pkt(struct dsi_context *ctx, u8 vc, u8 type,
  * This function has an active delay to wait for the buffer to clear,
  * the delay is limited to 2 x DSIH_FIFO_ACTIVE_WAIT
  * (waiting for command buffer, and waiting for receiving)
- * @note this function will enable BTA
+ * @analte this function will enable BTA
  */
 static int sprd_dsi_rd_pkt(struct dsi_context *ctx, u8 vc, u8 type,
 			   u8 msb_byte, u8 lsb_byte,
@@ -809,7 +809,7 @@ static void sprd_dsi_encoder_enable(struct drm_encoder *encoder)
 	sprd_dsi_set_work_mode(ctx, ctx->work_mode);
 	sprd_dsi_state_reset(ctx);
 
-	if (dsi->slave->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS) {
+	if (dsi->slave->mode_flags & MIPI_DSI_CLOCK_ANALN_CONTINUOUS) {
 		dsi_reg_up(ctx, PHY_CLK_LANE_LP_CTRL, AUTO_CLKLANE_CTRL_EN,
 			   AUTO_CLKLANE_CTRL_EN);
 	} else {
@@ -859,7 +859,7 @@ static int sprd_dsi_encoder_init(struct sprd_dsi *dsi,
 	u32 crtc_mask;
 	int ret;
 
-	crtc_mask = drm_of_find_possible_crtcs(dsi->drm, dev->of_node);
+	crtc_mask = drm_of_find_possible_crtcs(dsi->drm, dev->of_analde);
 	if (!crtc_mask) {
 		drm_err(dsi->drm, "failed to find crtc mask\n");
 		return -EINVAL;
@@ -885,7 +885,7 @@ static int sprd_dsi_bridge_init(struct sprd_dsi *dsi,
 {
 	int ret;
 
-	dsi->panel_bridge = devm_drm_of_get_bridge(dev, dev->of_node, 1, 0);
+	dsi->panel_bridge = devm_drm_of_get_bridge(dev, dev->of_analde, 1, 0);
 	if (IS_ERR(dsi->panel_bridge))
 		return PTR_ERR(dsi->panel_bridge);
 
@@ -961,7 +961,7 @@ static void sprd_dsi_unbind(struct device *dev,
 {
 	struct sprd_dsi *dsi = dev_get_drvdata(dev);
 
-	drm_of_panel_bridge_remove(dev->of_node, 1, 0);
+	drm_of_panel_bridge_remove(dev->of_analde, 1, 0);
 
 	drm_encoder_cleanup(&dsi->encoder);
 }
@@ -987,9 +987,9 @@ static int sprd_dsi_host_attach(struct mipi_dsi_host *host,
 	if (slave->mode_flags & MIPI_DSI_MODE_VIDEO_BURST)
 		ctx->burst_mode = VIDEO_BURST_WITH_SYNC_PULSES;
 	else if (slave->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE)
-		ctx->burst_mode = VIDEO_NON_BURST_WITH_SYNC_PULSES;
+		ctx->burst_mode = VIDEO_ANALN_BURST_WITH_SYNC_PULSES;
 	else
-		ctx->burst_mode = VIDEO_NON_BURST_WITH_SYNC_EVENTS;
+		ctx->burst_mode = VIDEO_ANALN_BURST_WITH_SYNC_EVENTS;
 
 	return component_add(host->dev, &dsi_component_ops);
 }
@@ -1041,7 +1041,7 @@ static int sprd_dsi_probe(struct platform_device *pdev)
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, dsi);
 

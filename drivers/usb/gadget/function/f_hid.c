@@ -20,9 +20,9 @@
 #include "u_f.h"
 #include "u_hid.h"
 
-#define HIDG_MINORS	4
+#define HIDG_MIANALRS	4
 
-static int major, minors;
+static int major, mianalrs;
 
 static const struct class hidg_class = {
 	.name = "hidg",
@@ -53,7 +53,7 @@ struct f_hidg {
 	 * use_out_ep - if true, the OUT Endpoint (interrupt out method)
 	 *              will be used to receive reports from the host
 	 *              using functions with the "intout" suffix.
-	 *              Otherwise, the OUT Endpoint will not be configured
+	 *              Otherwise, the OUT Endpoint will analt be configured
 	 *              and the SETUP/SET_REPORT method ("ssreport" suffix)
 	 *              will be used to receive reports.
 	 */
@@ -308,7 +308,7 @@ static ssize_t f_hidg_intout_read(struct file *file, char __user *buffer,
 	/* wait for at least one buffer to complete */
 	while (!READ_COND_INTOUT) {
 		spin_unlock_irqrestore(&hidg->read_spinlock, flags);
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
 		if (wait_event_interruptible(hidg->read_queue, READ_COND_INTOUT))
@@ -377,7 +377,7 @@ static ssize_t f_hidg_ssreport_read(struct file *file, char __user *buffer,
 
 	while (!READ_COND_SSREPORT) {
 		spin_unlock_irqrestore(&hidg->read_spinlock, flags);
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
 		if (wait_event_interruptible(hidg->read_queue, READ_COND_SSREPORT))
@@ -396,7 +396,7 @@ static ssize_t f_hidg_ssreport_read(struct file *file, char __user *buffer,
 		count -= copy_to_user(buffer, tmp_buf, count);
 		kfree(tmp_buf);
 	} else {
-		count = -ENOMEM;
+		count = -EANALMEM;
 	}
 
 	wake_up(&hidg->read_queue);
@@ -437,7 +437,7 @@ static ssize_t f_hidg_write(struct file *file, const char __user *buffer,
 	struct f_hidg *hidg  = file->private_data;
 	struct usb_request *req;
 	unsigned long flags;
-	ssize_t status = -ENOMEM;
+	ssize_t status = -EANALMEM;
 
 	spin_lock_irqsave(&hidg->write_spinlock, flags);
 
@@ -451,7 +451,7 @@ try_again:
 	/* write queue */
 	while (!WRITE_COND) {
 		spin_unlock_irqrestore(&hidg->write_spinlock, flags);
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
 		if (wait_event_interruptible_exclusive(
@@ -533,14 +533,14 @@ static __poll_t f_hidg_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &hidg->write_queue, wait);
 
 	if (WRITE_COND)
-		ret |= EPOLLOUT | EPOLLWRNORM;
+		ret |= EPOLLOUT | EPOLLWRANALRM;
 
 	if (hidg->use_out_ep) {
 		if (READ_COND_INTOUT)
-			ret |= EPOLLIN | EPOLLRDNORM;
+			ret |= EPOLLIN | EPOLLRDANALRM;
 	} else {
 		if (READ_COND_SSREPORT)
-			ret |= EPOLLIN | EPOLLRDNORM;
+			ret |= EPOLLIN | EPOLLRDANALRM;
 	}
 
 	return ret;
@@ -550,16 +550,16 @@ static __poll_t f_hidg_poll(struct file *file, poll_table *wait)
 #undef READ_COND_SSREPORT
 #undef READ_COND_INTOUT
 
-static int f_hidg_release(struct inode *inode, struct file *fd)
+static int f_hidg_release(struct ianalde *ianalde, struct file *fd)
 {
 	fd->private_data = NULL;
 	return 0;
 }
 
-static int f_hidg_open(struct inode *inode, struct file *fd)
+static int f_hidg_open(struct ianalde *ianalde, struct file *fd)
 {
 	struct f_hidg *hidg =
-		container_of(inode->i_cdev, struct f_hidg, cdev);
+		container_of(ianalde->i_cdev, struct f_hidg, cdev);
 
 	fd->private_data = hidg;
 
@@ -747,7 +747,7 @@ static int hidg_setup(struct usb_function *f,
 			break;
 
 		default:
-			VDBG(cdev, "Unknown descriptor request 0x%x\n",
+			VDBG(cdev, "Unkanalwn descriptor request 0x%x\n",
 				 value >> 8);
 			goto stall;
 			break;
@@ -755,14 +755,14 @@ static int hidg_setup(struct usb_function *f,
 		break;
 
 	default:
-		VDBG(cdev, "Unknown request 0x%x\n",
+		VDBG(cdev, "Unkanalwn request 0x%x\n",
 			 ctrl->bRequest);
 		goto stall;
 		break;
 	}
 
 stall:
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 
 respond:
 	req->zero = 0;
@@ -832,7 +832,7 @@ static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 		req_in = hidg_alloc_ep_req(hidg->in_ep, hidg->report_length);
 		if (!req_in) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto disable_ep_in;
 		}
 	}
@@ -872,7 +872,7 @@ static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 					free_ep_req(hidg->out_ep, req);
 				}
 			} else {
-				status = -ENOMEM;
+				status = -EANALMEM;
 				goto disable_out_ep;
 			}
 		}
@@ -909,7 +909,7 @@ static const struct file_operations f_hidg_fops = {
 	.write		= f_hidg_write,
 	.read		= f_hidg_read,
 	.poll		= f_hidg_poll,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
@@ -933,7 +933,7 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 	hidg_interface_desc.bInterfaceNumber = status;
 
 	/* allocate instance-specific endpoints */
-	status = -ENODEV;
+	status = -EANALDEV;
 	ep = usb_ep_autoconfig(c->cdev->gadget, &hidg_fs_in_ep_desc);
 	if (!ep)
 		goto fail;
@@ -967,7 +967,7 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 	hidg_hs_out_ep_desc.wMaxPacketSize = cpu_to_le16(hidg->report_length);
 	hidg_fs_out_ep_desc.wMaxPacketSize = cpu_to_le16(hidg->report_length);
 	/*
-	 * We can use hidg_desc struct here but we should not relay
+	 * We can use hidg_desc struct here but we should analt relay
 	 * that its content won't change after returning from this function.
 	 */
 	hidg_desc.desc[0].bDescriptorType = HID_DT_REPORT;
@@ -1025,14 +1025,14 @@ fail:
 	return status;
 }
 
-static inline int hidg_get_minor(void)
+static inline int hidg_get_mianalr(void)
 {
 	int ret;
 
 	ret = ida_simple_get(&hidg_ida, 0, 0, GFP_KERNEL);
-	if (ret >= HIDG_MINORS) {
+	if (ret >= HIDG_MIANALRS) {
 		ida_simple_remove(&hidg_ida, ret);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	return ret;
@@ -1101,7 +1101,7 @@ CONFIGFS_ATTR(f_hid_opts_, name)
 
 F_HID_OPT(subclass, 8, 255);
 F_HID_OPT(protocol, 8, 255);
-F_HID_OPT(no_out_endpoint, 8, 1);
+F_HID_OPT(anal_out_endpoint, 8, 1);
 F_HID_OPT(report_length, 16, 65535);
 
 static ssize_t f_hid_opts_report_desc_show(struct config_item *item, char *page)
@@ -1129,12 +1129,12 @@ static ssize_t f_hid_opts_report_desc_store(struct config_item *item,
 	if (opts->refcnt)
 		goto end;
 	if (len > PAGE_SIZE) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto end;
 	}
 	d = kmemdup(page, len, GFP_KERNEL);
 	if (!d) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto end;
 	}
 	kfree(opts->report_desc);
@@ -1153,7 +1153,7 @@ static ssize_t f_hid_opts_dev_show(struct config_item *item, char *page)
 {
 	struct f_hid_opts *opts = to_f_hid_opts(item);
 
-	return sprintf(page, "%d:%d\n", major, opts->minor);
+	return sprintf(page, "%d:%d\n", major, opts->mianalr);
 }
 
 CONFIGFS_ATTR_RO(f_hid_opts_, dev);
@@ -1161,7 +1161,7 @@ CONFIGFS_ATTR_RO(f_hid_opts_, dev);
 static struct configfs_attribute *hid_attrs[] = {
 	&f_hid_opts_attr_subclass,
 	&f_hid_opts_attr_protocol,
-	&f_hid_opts_attr_no_out_endpoint,
+	&f_hid_opts_attr_anal_out_endpoint,
 	&f_hid_opts_attr_report_length,
 	&f_hid_opts_attr_report_desc,
 	&f_hid_opts_attr_dev,
@@ -1174,9 +1174,9 @@ static const struct config_item_type hid_func_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-static inline void hidg_put_minor(int minor)
+static inline void hidg_put_mianalr(int mianalr)
 {
-	ida_simple_remove(&hidg_ida, minor);
+	ida_simple_remove(&hidg_ida, mianalr);
 }
 
 static void hidg_free_inst(struct usb_function_instance *f)
@@ -1187,7 +1187,7 @@ static void hidg_free_inst(struct usb_function_instance *f)
 
 	mutex_lock(&hidg_ida_lock);
 
-	hidg_put_minor(opts->minor);
+	hidg_put_mianalr(opts->mianalr);
 	if (ida_is_empty(&hidg_ida))
 		ghid_cleanup();
 
@@ -1207,7 +1207,7 @@ static struct usb_function_instance *hidg_alloc_inst(void)
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = hidg_free_inst;
 	ret = &opts->func_inst;
@@ -1215,7 +1215,7 @@ static struct usb_function_instance *hidg_alloc_inst(void)
 	mutex_lock(&hidg_ida_lock);
 
 	if (ida_is_empty(&hidg_ida)) {
-		status = ghid_setup(NULL, HIDG_MINORS);
+		status = ghid_setup(NULL, HIDG_MIANALRS);
 		if (status)  {
 			ret = ERR_PTR(status);
 			kfree(opts);
@@ -1223,9 +1223,9 @@ static struct usb_function_instance *hidg_alloc_inst(void)
 		}
 	}
 
-	opts->minor = hidg_get_minor();
-	if (opts->minor < 0) {
-		ret = ERR_PTR(opts->minor);
+	opts->mianalr = hidg_get_mianalr();
+	if (opts->mianalr < 0) {
+		ret = ERR_PTR(opts->mianalr);
 		kfree(opts);
 		if (ida_is_empty(&hidg_ida))
 			ghid_cleanup();
@@ -1269,7 +1269,7 @@ static struct usb_function *hidg_alloc(struct usb_function_instance *fi)
 	/* allocate and initialize one new instance */
 	hidg = kzalloc(sizeof(*hidg), GFP_KERNEL);
 	if (!hidg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	opts = container_of(fi, struct f_hid_opts, func_inst);
 
@@ -1278,8 +1278,8 @@ static struct usb_function *hidg_alloc(struct usb_function_instance *fi)
 	device_initialize(&hidg->dev);
 	hidg->dev.release = hidg_release;
 	hidg->dev.class = &hidg_class;
-	hidg->dev.devt = MKDEV(major, opts->minor);
-	ret = dev_set_name(&hidg->dev, "hidg%d", opts->minor);
+	hidg->dev.devt = MKDEV(major, opts->mianalr);
+	ret = dev_set_name(&hidg->dev, "hidg%d", opts->mianalr);
 	if (ret)
 		goto err_unlock;
 
@@ -1292,11 +1292,11 @@ static struct usb_function *hidg_alloc(struct usb_function_instance *fi)
 					    opts->report_desc_length,
 					    GFP_KERNEL);
 		if (!hidg->report_desc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_put_device;
 		}
 	}
-	hidg->use_out_ep = !opts->no_out_endpoint;
+	hidg->use_out_ep = !opts->anal_out_endpoint;
 
 	++opts->refcnt;
 	mutex_unlock(&opts->lock);
@@ -1341,7 +1341,7 @@ int ghid_setup(struct usb_gadget *g, int count)
 	}
 
 	major = MAJOR(dev);
-	minors = count;
+	mianalrs = count;
 
 	return 0;
 }
@@ -1349,8 +1349,8 @@ int ghid_setup(struct usb_gadget *g, int count)
 void ghid_cleanup(void)
 {
 	if (major) {
-		unregister_chrdev_region(MKDEV(major, 0), minors);
-		major = minors = 0;
+		unregister_chrdev_region(MKDEV(major, 0), mianalrs);
+		major = mianalrs = 0;
 	}
 
 	class_unregister(&hidg_class);

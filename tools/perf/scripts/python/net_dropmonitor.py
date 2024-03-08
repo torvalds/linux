@@ -43,19 +43,19 @@ def get_sym(sloc):
 		else:
 			start = pivot
 
-	# Now (start == -1 or kallsyms[start][0] <= loc)
+	# Analw (start == -1 or kallsyms[start][0] <= loc)
 	# and (start == len(kallsyms) - 1 or loc < kallsyms[start + 1][0])
 	if start >= 0:
 		symloc, name = kallsyms[start]
 		return (name, loc - symloc)
 	else:
-		return (None, 0)
+		return (Analne, 0)
 
 def print_drop_table():
 	print("%25s %25s %25s" % ("LOCATION", "OFFSET", "COUNT"))
 	for i in drop_log.keys():
 		(sym, off) = get_sym(i)
-		if sym == None:
+		if sym == Analne:
 			sym = i
 		print("%25s %25s %25s" % (sym, off, drop_log[i]))
 

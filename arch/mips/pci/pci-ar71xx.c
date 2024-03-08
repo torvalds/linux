@@ -188,7 +188,7 @@ static int ar71xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 	err = ar71xx_pci_set_cfgaddr(bus, devfn, where, size,
 				     AR71XX_PCI_CFG_CMD_READ);
 	if (err)
-		ret = PCIBIOS_DEVICE_NOT_FOUND;
+		ret = PCIBIOS_DEVICE_ANALT_FOUND;
 	else
 		data = __raw_readl(base + AR71XX_PCI_REG_CFG_RDDATA);
 
@@ -211,7 +211,7 @@ static int ar71xx_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	err = ar71xx_pci_set_cfgaddr(bus, devfn, where, size,
 				     AR71XX_PCI_CFG_CMD_WRITE);
 	if (err)
-		ret = PCIBIOS_DEVICE_NOT_FOUND;
+		ret = PCIBIOS_DEVICE_ANALT_FOUND;
 	else
 		__raw_writel(value, base + AR71XX_PCI_REG_CFG_WRDATA);
 
@@ -334,7 +334,7 @@ static int ar71xx_pci_probe(struct platform_device *pdev)
 	apc = devm_kzalloc(&pdev->dev, sizeof(struct ar71xx_pci_controller),
 			   GFP_KERNEL);
 	if (!apc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	apc->cfg_base = devm_platform_ioremap_resource_byname(pdev,
 							      "cfg_base");

@@ -47,13 +47,13 @@ acpi_ex_resolve_to_value(union acpi_operand_object **stack_ptr,
 
 	if (!stack_ptr || !*stack_ptr) {
 		ACPI_ERROR((AE_INFO, "Internal - null pointer"));
-		return_ACPI_STATUS(AE_AML_NO_OPERAND);
+		return_ACPI_STATUS(AE_AML_ANAL_OPERAND);
 	}
 
 	/*
 	 * The entity pointed to by the stack_ptr can be either
 	 * 1) A valid union acpi_operand_object, or
-	 * 2) A struct acpi_namespace_node (named_obj)
+	 * 2) A struct acpi_namespace_analde (named_obj)
 	 */
 	if (ACPI_GET_DESCRIPTOR_TYPE(*stack_ptr) == ACPI_DESC_TYPE_OPERAND) {
 		status = acpi_ex_resolve_object_to_value(stack_ptr, walk_state);
@@ -63,7 +63,7 @@ acpi_ex_resolve_to_value(union acpi_operand_object **stack_ptr,
 
 		if (!*stack_ptr) {
 			ACPI_ERROR((AE_INFO, "Internal - null pointer"));
-			return_ACPI_STATUS(AE_AML_NO_OPERAND);
+			return_ACPI_STATUS(AE_AML_ANAL_OPERAND);
 		}
 	}
 
@@ -73,8 +73,8 @@ acpi_ex_resolve_to_value(union acpi_operand_object **stack_ptr,
 	 */
 	if (ACPI_GET_DESCRIPTOR_TYPE(*stack_ptr) == ACPI_DESC_TYPE_NAMED) {
 		status =
-		    acpi_ex_resolve_node_to_value(ACPI_CAST_INDIRECT_PTR
-						  (struct acpi_namespace_node,
+		    acpi_ex_resolve_analde_to_value(ACPI_CAST_INDIRECT_PTR
+						  (struct acpi_namespace_analde,
 						   stack_ptr), walk_state);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
@@ -124,7 +124,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 		case ACPI_REFCLASS_ARG:
 			/*
 			 * Get the local from the method's state info
-			 * Note: this increments the local's object reference count
+			 * Analte: this increments the local's object reference count
 			 */
 			status = acpi_ds_method_data_get_value(ref_type,
 							       stack_desc->
@@ -141,7 +141,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 					  obj_desc));
 
 			/*
-			 * Now we can delete the original Reference Object and
+			 * Analw we can delete the original Reference Object and
 			 * replace it with the resolved value
 			 */
 			acpi_ut_remove_reference(stack_desc);
@@ -153,12 +153,12 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 			switch (stack_desc->reference.target_type) {
 			case ACPI_TYPE_BUFFER_FIELD:
 
-				/* Just return - do not dereference */
+				/* Just return - do analt dereference */
 				break;
 
 			case ACPI_TYPE_PACKAGE:
 
-				/* If method call or copy_object - do not dereference */
+				/* If method call or copy_object - do analt dereference */
 
 				if ((walk_state->opcode ==
 				     AML_INT_METHODCALL_OP)
@@ -196,7 +196,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 				/* Invalid reference object */
 
 				ACPI_ERROR((AE_INFO,
-					    "Unknown TargetType 0x%X in Index/Reference object %p",
+					    "Unkanalwn TargetType 0x%X in Index/Reference object %p",
 					    stack_desc->reference.target_type,
 					    stack_desc));
 				status = AE_AML_INTERNAL;
@@ -208,7 +208,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 		case ACPI_REFCLASS_DEBUG:
 		case ACPI_REFCLASS_TABLE:
 
-			/* Just leave the object as-is, do not dereference */
+			/* Just leave the object as-is, do analt dereference */
 
 			break;
 
@@ -216,19 +216,19 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 
 			/* Dereference the name */
 
-			if ((stack_desc->reference.node->type ==
+			if ((stack_desc->reference.analde->type ==
 			     ACPI_TYPE_DEVICE)
-			    || (stack_desc->reference.node->type ==
+			    || (stack_desc->reference.analde->type ==
 				ACPI_TYPE_THERMAL)) {
 
-				/* These node types do not have 'real' subobjects */
+				/* These analde types do analt have 'real' subobjects */
 
-				*stack_ptr = (void *)stack_desc->reference.node;
+				*stack_ptr = (void *)stack_desc->reference.analde;
 			} else {
-				/* Get the object pointed to by the namespace node */
+				/* Get the object pointed to by the namespace analde */
 
 				*stack_ptr =
-				    (stack_desc->reference.node)->object;
+				    (stack_desc->reference.analde)->object;
 				acpi_ut_add_reference(*stack_ptr);
 			}
 
@@ -238,7 +238,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 		default:
 
 			ACPI_ERROR((AE_INFO,
-				    "Unknown Reference type 0x%X in %p",
+				    "Unkanalwn Reference type 0x%X in %p",
 				    ref_type, stack_desc));
 			status = AE_AML_INTERNAL;
 			break;
@@ -305,14 +305,14 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 			 union acpi_operand_object **return_desc)
 {
 	union acpi_operand_object *obj_desc = ACPI_CAST_PTR(void, operand);
-	struct acpi_namespace_node *node =
-	    ACPI_CAST_PTR(struct acpi_namespace_node, operand);
+	struct acpi_namespace_analde *analde =
+	    ACPI_CAST_PTR(struct acpi_namespace_analde, operand);
 	acpi_object_type type;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_ex_resolve_multiple);
 
-	/* Operand can be either a namespace node or an operand descriptor */
+	/* Operand can be either a namespace analde or an operand descriptor */
 
 	switch (ACPI_GET_DESCRIPTOR_TYPE(obj_desc)) {
 	case ACPI_DESC_TYPE_OPERAND:
@@ -322,15 +322,15 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 
 	case ACPI_DESC_TYPE_NAMED:
 
-		type = ((struct acpi_namespace_node *)obj_desc)->type;
-		obj_desc = acpi_ns_get_attached_object(node);
+		type = ((struct acpi_namespace_analde *)obj_desc)->type;
+		obj_desc = acpi_ns_get_attached_object(analde);
 
-		/* If we had an Alias node, use the attached object for type info */
+		/* If we had an Alias analde, use the attached object for type info */
 
 		if (type == ACPI_TYPE_LOCAL_ALIAS) {
-			type = ((struct acpi_namespace_node *)obj_desc)->type;
+			type = ((struct acpi_namespace_analde *)obj_desc)->type;
 			obj_desc = acpi_ns_get_attached_object((struct
-								acpi_namespace_node
+								acpi_namespace_analde
 								*)obj_desc);
 		}
 
@@ -338,7 +338,7 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 		case ACPI_TYPE_DEVICE:
 		case ACPI_TYPE_THERMAL:
 
-			/* These types have no attached subobject */
+			/* These types have anal attached subobject */
 			break;
 
 		default:
@@ -347,9 +347,9 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 
 			if (!obj_desc) {
 				ACPI_ERROR((AE_INFO,
-					    "[%4.4s] Node is unresolved or uninitialized",
-					    acpi_ut_get_node_name(node)));
-				return_ACPI_STATUS(AE_AML_UNINITIALIZED_NODE);
+					    "[%4.4s] Analde is unresolved or uninitialized",
+					    acpi_ut_get_analde_name(analde)));
+				return_ACPI_STATUS(AE_AML_UNINITIALIZED_ANALDE);
 			}
 			break;
 		}
@@ -379,31 +379,31 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 			/* Dereference the reference pointer */
 
 			if (obj_desc->reference.class == ACPI_REFCLASS_REFOF) {
-				node = obj_desc->reference.object;
+				analde = obj_desc->reference.object;
 			} else {	/* AML_INT_NAMEPATH_OP */
 
-				node = obj_desc->reference.node;
+				analde = obj_desc->reference.analde;
 			}
 
-			/* All "References" point to a NS node */
+			/* All "References" point to a NS analde */
 
-			if (ACPI_GET_DESCRIPTOR_TYPE(node) !=
+			if (ACPI_GET_DESCRIPTOR_TYPE(analde) !=
 			    ACPI_DESC_TYPE_NAMED) {
 				ACPI_ERROR((AE_INFO,
-					    "Not a namespace node %p [%s]",
-					    node,
-					    acpi_ut_get_descriptor_name(node)));
+					    "Analt a namespace analde %p [%s]",
+					    analde,
+					    acpi_ut_get_descriptor_name(analde)));
 				return_ACPI_STATUS(AE_AML_INTERNAL);
 			}
 
 			/* Get the attached object */
 
-			obj_desc = acpi_ns_get_attached_object(node);
+			obj_desc = acpi_ns_get_attached_object(analde);
 			if (!obj_desc) {
 
-				/* No object, use the NS node type */
+				/* Anal object, use the NS analde type */
 
-				type = acpi_ns_get_type(node);
+				type = acpi_ns_get_type(analde);
 				goto exit;
 			}
 
@@ -416,7 +416,7 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 
 		case ACPI_REFCLASS_INDEX:
 
-			/* Get the type of this reference (index into another object) */
+			/* Get the type of this reference (index into aanalther object) */
 
 			type = obj_desc->reference.target_type;
 			if (type != ACPI_TYPE_PACKAGE) {
@@ -428,7 +428,7 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 			 * of the individual package element that is referenced by
 			 * the index.
 			 *
-			 * This could of course in turn be another reference object.
+			 * This could of course in turn be aanalther reference object.
 			 */
 			obj_desc = *(obj_desc->reference.where);
 			if (!obj_desc) {
@@ -464,19 +464,19 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 				acpi_ut_remove_reference(obj_desc);
 			} else {
 				status =
-				    acpi_ds_method_data_get_node(obj_desc->
+				    acpi_ds_method_data_get_analde(obj_desc->
 								 reference.
 								 class,
 								 obj_desc->
 								 reference.
 								 value,
 								 walk_state,
-								 &node);
+								 &analde);
 				if (ACPI_FAILURE(status)) {
 					return_ACPI_STATUS(status);
 				}
 
-				obj_desc = acpi_ns_get_attached_object(node);
+				obj_desc = acpi_ns_get_attached_object(analde);
 				if (!obj_desc) {
 					type = ACPI_TYPE_ANY;
 					goto exit;
@@ -494,14 +494,14 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 		default:
 
 			ACPI_ERROR((AE_INFO,
-				    "Unknown Reference Class 0x%2.2X",
+				    "Unkanalwn Reference Class 0x%2.2X",
 				    obj_desc->reference.class));
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 	}
 
 	/*
-	 * Now we are guaranteed to have an object that has not been created
+	 * Analw we are guaranteed to have an object that has analt been created
 	 * via the ref_of or Index operators.
 	 */
 	type = obj_desc->common.type;
@@ -526,7 +526,7 @@ exit:
 
 	default:
 
-		/* No change to Type required */
+		/* Anal change to Type required */
 
 		break;
 	}

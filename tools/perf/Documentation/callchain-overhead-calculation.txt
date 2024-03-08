@@ -9,7 +9,7 @@ This is the value that perf shows traditionally and sum of all the
 The 'children' overhead is calculated by adding all period values of
 the child functions so that it can show the total overhead of the
 higher level functions even if they don't directly execute much.
-'Children' here means functions that are called from another (parent)
+'Children' here means functions that are called from aanalther (parent)
 function.
 
 It might be confusing that the sum of all the 'children' overhead
@@ -103,6 +103,6 @@ overhead) and they are the parents of 'foo' and 'bar'.
 
 Since v3.16 the 'children' overhead is shown by default and the output
 is sorted by its values. The 'children' overhead is disabled by
-specifying --no-children option on the command line or by adding
+specifying --anal-children option on the command line or by adding
 'report.children = false' or 'top.children = false' in the perf config
 file.

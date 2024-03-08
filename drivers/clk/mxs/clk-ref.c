@@ -127,7 +127,7 @@ struct clk *mxs_clk_ref(const char *name, const char *parent_name,
 
 	ref = kzalloc(sizeof(*ref), GFP_KERNEL);
 	if (!ref)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &clk_ref_ops;

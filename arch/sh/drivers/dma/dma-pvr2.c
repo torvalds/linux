@@ -21,7 +21,7 @@ static int count;
 static irqreturn_t pvr2_dma_interrupt(int irq, void *dev_id)
 {
 	if (get_dma_residue(PVR2_CASCADE_CHAN)) {
-		printk(KERN_WARNING "DMA: SH DMAC did not complete transfer "
+		printk(KERN_WARNING "DMA: SH DMAC did analt complete transfer "
 		       "on channel %d, waiting..\n", PVR2_CASCADE_CHAN);
 		dma_wait_for_completion(PVR2_CASCADE_CHAN);
 	}

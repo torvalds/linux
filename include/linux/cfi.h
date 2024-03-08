@@ -22,7 +22,7 @@ static inline int cfi_get_offset(void)
 enum bug_trap_type report_cfi_failure(struct pt_regs *regs, unsigned long addr,
 				      unsigned long *target, u32 type);
 
-static inline enum bug_trap_type report_cfi_failure_noaddr(struct pt_regs *regs,
+static inline enum bug_trap_type report_cfi_failure_analaddr(struct pt_regs *regs,
 							   unsigned long addr)
 {
 	return report_cfi_failure(regs, addr, NULL, 0);
@@ -46,8 +46,8 @@ static inline void module_cfi_finalize(const Elf_Ehdr *hdr,
 #endif /* CONFIG_ARCH_USES_CFI_TRAPS */
 #endif /* CONFIG_MODULES */
 
-#ifndef CFI_NOSEAL
-#define CFI_NOSEAL(x)
+#ifndef CFI_ANALSEAL
+#define CFI_ANALSEAL(x)
 #endif
 
 #endif /* _LINUX_CFI_H */

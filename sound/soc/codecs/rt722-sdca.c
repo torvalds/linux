@@ -102,7 +102,7 @@ static unsigned int rt722_sdca_button_detect(struct rt722_sdca_priv *rt722)
 	if (ret < 0)
 		return 0;
 
-	/* if owner is device then there is no button event from device */
+	/* if owner is device then there is anal button event from device */
 	if (owner == 1)
 		return 0;
 
@@ -293,15 +293,15 @@ static void rt722_sdca_jack_init(struct rt722_sdca_priv *rt722)
 	mutex_lock(&rt722->calibrate_mutex);
 	if (rt722->hs_jack) {
 		/* set SCP_SDCA_IntMask1[0]=1 */
-		sdw_write_no_pm(rt722->slave, SDW_SCP_SDCA_INTMASK1,
+		sdw_write_anal_pm(rt722->slave, SDW_SCP_SDCA_INTMASK1,
 			SDW_SCP_SDCA_INTMASK_SDCA_0 | SDW_SCP_SDCA_INTMASK_SDCA_6);
 		/* set SCP_SDCA_IntMask2[0]=1 */
-		sdw_write_no_pm(rt722->slave, SDW_SCP_SDCA_INTMASK2,
+		sdw_write_anal_pm(rt722->slave, SDW_SCP_SDCA_INTMASK2,
 			SDW_SCP_SDCA_INTMASK_SDCA_8);
 		dev_dbg(&rt722->slave->dev, "in %s enable\n", __func__);
 		rt722_sdca_index_write(rt722, RT722_VENDOR_HDA_CTL,
 			RT722_HDA_LEGACY_UNSOL_CTL, 0x016E);
-		/* set XU(et03h) & XU(et0Dh) to Not bypassed */
+		/* set XU(et03h) & XU(et0Dh) to Analt bypassed */
 		regmap_write(rt722->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_XU03,
 				RT722_SDCA_CTL_SELECTED_MODE, 0), 0);
@@ -329,8 +329,8 @@ static int rt722_sdca_set_jack_detect(struct snd_soc_component *component,
 			dev_err(component->dev, "%s: failed to resume %d\n", __func__, ret);
 			return ret;
 		}
-		/* pm_runtime not enabled yet */
-		dev_dbg(component->dev,	"%s: skipping jack init for now\n", __func__);
+		/* pm_runtime analt enabled yet */
+		dev_dbg(component->dev,	"%s: skipping jack init for analw\n", __func__);
 		return 0;
 	}
 
@@ -704,7 +704,7 @@ static const struct snd_kcontrol_new rt722_sdca_controls[] = {
 			RT722_SDCA_CTL_FU_VOLUME, CH_R), 0, 0x57, 0,
 		rt722_sdca_set_gain_get, rt722_sdca_set_gain_put, out_vol_tlv),
 	/* Headset mic capture settings */
-	SOC_DOUBLE_EXT("FU0F Capture Switch", SND_SOC_NOPM, 0, 1, 1, 0,
+	SOC_DOUBLE_EXT("FU0F Capture Switch", SND_SOC_ANALPM, 0, 1, 1, 0,
 		rt722_sdca_fu0f_capture_get, rt722_sdca_fu0f_capture_put),
 	SOC_DOUBLE_R_EXT_TLV("FU0F Capture Volume",
 		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_USER_FU0F,
@@ -824,13 +824,13 @@ static const char * const adc07_10_mux_text[] = {
 };
 
 static SOC_ENUM_SINGLE_DECL(
-	rt722_adc22_enum, SND_SOC_NOPM, 0, adc22_mux_text);
+	rt722_adc22_enum, SND_SOC_ANALPM, 0, adc22_mux_text);
 
 static SOC_ENUM_SINGLE_DECL(
-	rt722_adc24_enum, SND_SOC_NOPM, 0, adc07_10_mux_text);
+	rt722_adc24_enum, SND_SOC_ANALPM, 0, adc07_10_mux_text);
 
 static SOC_ENUM_SINGLE_DECL(
-	rt722_adc25_enum, SND_SOC_NOPM, 0, adc07_10_mux_text);
+	rt722_adc25_enum, SND_SOC_ANALPM, 0, adc07_10_mux_text);
 
 static const struct snd_kcontrol_new rt722_sdca_adc22_mux =
 	SOC_DAPM_ENUM_EXT("ADC 22 Mux", rt722_adc22_enum,
@@ -1043,42 +1043,42 @@ static const struct snd_soc_dapm_widget rt722_sdca_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("DMIC1_2"),
 	SND_SOC_DAPM_INPUT("DMIC3_4"),
 
-	SND_SOC_DAPM_SUPPLY("PDE 23", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("PDE 23", SND_SOC_ANALPM, 0, 0,
 		rt722_sdca_pde23_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_SUPPLY("PDE 47", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("PDE 47", SND_SOC_ANALPM, 0, 0,
 		rt722_sdca_pde47_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_SUPPLY("PDE 11", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("PDE 11", SND_SOC_ANALPM, 0, 0,
 		rt722_sdca_pde11_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_SUPPLY("PDE 12", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("PDE 12", SND_SOC_ANALPM, 0, 0,
 		rt722_sdca_pde12_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_DAC_E("FU 21", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_DAC_E("FU 21", NULL, SND_SOC_ANALPM, 0, 0,
 		rt722_sdca_fu21_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_DAC_E("FU 42", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_DAC_E("FU 42", NULL, SND_SOC_ANALPM, 0, 0,
 		rt722_sdca_fu42_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_ADC_E("FU 36", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("FU 36", NULL, SND_SOC_ANALPM, 0, 0,
 		rt722_sdca_fu36_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_ADC_E("FU 113", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("FU 113", NULL, SND_SOC_ANALPM, 0, 0,
 		rt722_sdca_fu113_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_MUX("ADC 22 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 22 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt722_sdca_adc22_mux),
-	SND_SOC_DAPM_MUX("ADC 24 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 24 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt722_sdca_adc24_mux),
-	SND_SOC_DAPM_MUX("ADC 25 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 25 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt722_sdca_adc25_mux),
 
-	SND_SOC_DAPM_AIF_IN("DP1RX", "DP1 Headphone Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP2TX", "DP2 Headset Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("DP3RX", "DP3 Speaker Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP6TX", "DP6 DMic Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DP1RX", "DP1 Headphone Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP2TX", "DP2 Headset Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DP3RX", "DP3 Speaker Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP6TX", "DP6 DMic Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route rt722_sdca_audio_map[] = {
@@ -1236,7 +1236,7 @@ static int rt722_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = RT722_SDCA_RATE_192000HZ;
 		break;
 	default:
-		dev_err(component->dev, "Rate %d is not supported\n",
+		dev_err(component->dev, "Rate %d is analt supported\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -1344,7 +1344,7 @@ int rt722_sdca_init(struct device *dev, struct regmap *regmap,
 
 	rt722 = devm_kzalloc(dev, sizeof(*rt722), GFP_KERNEL);
 	if (!rt722)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, rt722);
 	rt722->slave = slave;
@@ -1519,13 +1519,13 @@ int rt722_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(&slave->dev);
 
-		/* make sure the device does not suspend immediately */
+		/* make sure the device does analt suspend immediately */
 		pm_runtime_mark_last_busy(&slave->dev);
 
 		pm_runtime_enable(&slave->dev);
 	}
 
-	pm_runtime_get_noresume(&slave->dev);
+	pm_runtime_get_analresume(&slave->dev);
 
 	rt722_sdca_dmic_preset(rt722);
 	rt722_sdca_amp_preset(rt722);

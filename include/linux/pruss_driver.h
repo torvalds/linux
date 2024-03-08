@@ -18,9 +18,9 @@
  * enum pruss_gp_mux_sel - PRUSS GPI/O Mux modes for the
  * PRUSS_GPCFG0/1 registers
  *
- * NOTE: The below defines are the most common values, but there
+ * ANALTE: The below defines are the most common values, but there
  * are some exceptions like on 66AK2G, where the RESERVED and MII2
- * values are interchanged. Also, this bit-field does not exist on
+ * values are interchanged. Also, this bit-field does analt exist on
  * AM335x SoCs
  */
 enum pruss_gp_mux_sel {
@@ -123,7 +123,7 @@ int pruss_cfg_xfr_enable(struct pruss *pruss, enum pru_type pru_type,
 
 static inline struct pruss *pruss_get(struct rproc *rproc)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline void pruss_put(struct pruss *pruss) { }
@@ -132,44 +132,44 @@ static inline int pruss_request_mem_region(struct pruss *pruss,
 					   enum pruss_mem mem_id,
 					   struct pruss_mem_region *region)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int pruss_release_mem_region(struct pruss *pruss,
 					   struct pruss_mem_region *region)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int pruss_cfg_get_gpmux(struct pruss *pruss,
 				      enum pruss_pru_id pru_id, u8 *mux)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline int pruss_cfg_set_gpmux(struct pruss *pruss,
 				      enum pruss_pru_id pru_id, u8 mux)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline int pruss_cfg_gpimode(struct pruss *pruss,
 				    enum pruss_pru_id pru_id,
 				    enum pruss_gpi_mode mode)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline int pruss_cfg_miirt_enable(struct pruss *pruss, bool enable)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline int pruss_cfg_xfr_enable(struct pruss *pruss,
 				       enum pru_type pru_type,
 				       bool enable);
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 #endif /* CONFIG_TI_PRUSS */

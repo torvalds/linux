@@ -63,7 +63,7 @@ unsigned int msi_domain_get_virq(struct device *dev, unsigned int domid, unsigne
  * @dev:	Device for which the lookup happens
  * @index:	The MSI index to lookup
  *
- * Return: The Linux interrupt number on success (> 0), 0 if not found
+ * Return: The Linux interrupt number on success (> 0), 0 if analt found
  */
 static inline unsigned int msi_get_virq(struct device *dev, unsigned int index)
 {

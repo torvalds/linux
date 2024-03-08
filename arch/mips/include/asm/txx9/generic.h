@@ -44,11 +44,11 @@ extern struct txx9_board_vec *txx9_board_vec;
 extern int (*txx9_irq_dispatch)(int pending);
 const char *prom_getenv(const char *name);
 void txx9_wdt_init(unsigned long base);
-void txx9_wdt_now(unsigned long base);
+void txx9_wdt_analw(unsigned long base);
 void txx9_spi_init(int busid, unsigned long base, int irq);
 void txx9_ethaddr_init(unsigned int id, unsigned char *ethaddr);
 void txx9_sio_init(unsigned long baseaddr, int irq,
-		   unsigned int line, unsigned int sclk, int nocts);
+		   unsigned int line, unsigned int sclk, int analcts);
 #ifdef CONFIG_EARLY_PRINTK
 extern void (*txx9_prom_putchar)(char c);
 void txx9_sio_putchar_init(unsigned long baseaddr);
@@ -59,7 +59,7 @@ static inline void txx9_sio_putchar_init(unsigned long baseaddr)
 #endif
 
 struct physmap_flash_data;
-void txx9_physmap_flash_init(int no, unsigned long addr, unsigned long size,
+void txx9_physmap_flash_init(int anal, unsigned long addr, unsigned long size,
 			     const struct physmap_flash_data *pdata);
 
 /* 8 bit version of __fls(): find first bit set (returns 0..7) */

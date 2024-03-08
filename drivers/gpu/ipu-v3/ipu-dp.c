@@ -6,7 +6,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/err.h>
 
@@ -203,7 +203,7 @@ int ipu_dp_setup_channel(struct ipu_dp *dp,
 				flow->foreground.in_cs, flow->out_cs,
 				DP_COM_CONF_CSC_DEF_BOTH);
 	} else {
-		if (flow->foreground.in_cs == IPUV3_COLORSPACE_UNKNOWN ||
+		if (flow->foreground.in_cs == IPUV3_COLORSPACE_UNKANALWN ||
 		    flow->foreground.in_cs == flow->out_cs)
 			/*
 			 * foreground identical to output, apply color
@@ -272,7 +272,7 @@ void ipu_dp_disable_channel(struct ipu_dp *dp, bool sync)
 	struct ipu_dp_priv *priv = flow->priv;
 	u32 reg, csc;
 
-	dp->in_cs = IPUV3_COLORSPACE_UNKNOWN;
+	dp->in_cs = IPUV3_COLORSPACE_UNKANALWN;
 
 	if (!dp->foreground)
 		return;
@@ -348,7 +348,7 @@ int ipu_dp_init(struct ipu_soc *ipu, struct device *dev, unsigned long base)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->dev = dev;
 	priv->ipu = ipu;
 
@@ -356,13 +356,13 @@ int ipu_dp_init(struct ipu_soc *ipu, struct device *dev, unsigned long base)
 
 	priv->base = devm_ioremap(dev, base, PAGE_SIZE);
 	if (!priv->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->mutex);
 
 	for (i = 0; i < IPUV3_NUM_FLOWS; i++) {
-		priv->flow[i].background.in_cs = IPUV3_COLORSPACE_UNKNOWN;
-		priv->flow[i].foreground.in_cs = IPUV3_COLORSPACE_UNKNOWN;
+		priv->flow[i].background.in_cs = IPUV3_COLORSPACE_UNKANALWN;
+		priv->flow[i].foreground.in_cs = IPUV3_COLORSPACE_UNKANALWN;
 		priv->flow[i].foreground.foreground = true;
 		priv->flow[i].base = priv->base + ipu_dp_flow_base[i];
 		priv->flow[i].priv = priv;

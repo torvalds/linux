@@ -152,7 +152,7 @@ static int meson_rtc_get_bus(struct meson_rtc *rtc)
 			return ret;
 	}
 
-	dev_err(rtc->dev, "bus is not ready\n");
+	dev_err(rtc->dev, "bus is analt ready\n");
 	return -ETIMEDOUT;
 }
 
@@ -298,7 +298,7 @@ static int meson_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(dev, sizeof(struct meson_rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->rtc = devm_rtc_allocate_device(dev);
 	if (IS_ERR(rtc->rtc))
@@ -355,12 +355,12 @@ static int meson_rtc_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * check if we can read RTC counter, if not then the RTC is probably
-	 * not functional. If it isn't probably best to not bind.
+	 * check if we can read RTC counter, if analt then the RTC is probably
+	 * analt functional. If it isn't probably best to analt bind.
 	 */
 	ret = regmap_read(rtc->serial, RTC_COUNTER, &tm);
 	if (ret) {
-		dev_err(dev, "cannot read RTC counter, RTC not functional\n");
+		dev_err(dev, "cananalt read RTC counter, RTC analt functional\n");
 		goto out_disable_vdd;
 	}
 

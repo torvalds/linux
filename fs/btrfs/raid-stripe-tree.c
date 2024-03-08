@@ -32,7 +32,7 @@ int btrfs_delete_raid_extent(struct btrfs_trans_handle *trans, u64 start, u64 le
 
 	path = btrfs_alloc_path();
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (1) {
 		key.objectid = start;
@@ -49,7 +49,7 @@ int btrfs_delete_raid_extent(struct btrfs_trans_handle *trans, u64 start, u64 le
 			path->slots[0]--;
 		}
 
-		leaf = path->nodes[0];
+		leaf = path->analdes[0];
 		slot = path->slots[0];
 		btrfs_item_key_to_cpu(leaf, &key, slot);
 		found_start = key.objectid;
@@ -86,11 +86,11 @@ static int btrfs_insert_one_raid_extent(struct btrfs_trans_handle *trans,
 	const size_t item_size = struct_size(stripe_extent, strides, num_stripes);
 	int ret;
 
-	stripe_extent = kzalloc(item_size, GFP_NOFS);
+	stripe_extent = kzalloc(item_size, GFP_ANALFS);
 	if (!stripe_extent) {
-		btrfs_abort_transaction(trans, -ENOMEM);
+		btrfs_abort_transaction(trans, -EANALMEM);
 		btrfs_end_transaction(trans);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	trace_btrfs_insert_one_raid_extent(fs_info, bioc->logical, bioc->size,
@@ -174,7 +174,7 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 
 	path = btrfs_alloc_path();
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (stripe->is_scrub) {
 		path->skip_locking = 1;
@@ -190,7 +190,7 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 	}
 
 	while (1) {
-		leaf = path->nodes[0];
+		leaf = path->analdes[0];
 		slot = path->slots[0];
 
 		btrfs_item_key_to_cpu(leaf, &found_key, slot);
@@ -199,7 +199,7 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 		found_end = found_logical + found_length;
 
 		if (found_logical > end) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto out;
 		}
 
@@ -214,7 +214,7 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 	offset = logical - found_logical;
 
 	/*
-	 * If we have a logically contiguous, but physically non-continuous
+	 * If we have a logically contiguous, but physically analn-continuous
 	 * range, we need to split the bio. Record the length after which we
 	 * must split the bio.
 	 */
@@ -255,15 +255,15 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 	}
 
 	/* If we're here, we haven't found the requested devid in the stripe. */
-	ret = -ENOENT;
+	ret = -EANALENT;
 out:
 	if (ret > 0)
-		ret = -ENOENT;
+		ret = -EANALENT;
 	if (ret && ret != -EIO && !stripe->is_scrub) {
 		if (IS_ENABLED(CONFIG_BTRFS_DEBUG))
 			btrfs_print_tree(leaf, 1);
 		btrfs_err(fs_info,
-		"cannot find raid-stripe for logical [%llu, %llu] devid %llu, profile %s",
+		"cananalt find raid-stripe for logical [%llu, %llu] devid %llu, profile %s",
 			  logical, logical + *length, stripe->dev->devid,
 			  btrfs_bg_type_to_raid_name(map_type));
 	}

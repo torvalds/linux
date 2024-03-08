@@ -1,18 +1,18 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/display/panel/novatek,nt36523.yaml#
+$id: http://devicetree.org/schemas/display/panel/analvatek,nt36523.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Novatek NT36523 based DSI display Panels
+title: Analvatek NT36523 based DSI display Panels
 
 maintainers:
   - Jianhua Lu <lujianhua000@gmail.com>
 
 description: |
-  The Novatek NT36523 is a generic DSI Panel IC used to drive dsi
+  The Analvatek NT36523 is a generic DSI Panel IC used to drive dsi
   panels. Support video mode panels from China Star Optoelectronics
-  Technology (CSOT) and BOE Technology.
+  Techanallogy (CSOT) and BOE Techanallogy.
 
 allOf:
   - $ref: panel-common.yaml#
@@ -24,11 +24,11 @@ properties:
           - enum:
               - xiaomi,elish-boe-nt36523
               - xiaomi,elish-csot-nt36523
-          - const: novatek,nt36523
+          - const: analvatek,nt36523
       - items:
           - enum:
-              - lenovo,j606f-boe-nt36523w
-          - const: novatek,nt36523w
+              - leanalvo,j606f-boe-nt36523w
+          - const: analvatek,nt36523w
 
   reset-gpios:
     maxItems: 1
@@ -60,7 +60,7 @@ examples:
         #size-cells = <0>;
 
         panel@0 {
-            compatible = "xiaomi,elish-csot-nt36523", "novatek,nt36523";
+            compatible = "xiaomi,elish-csot-nt36523", "analvatek,nt36523";
             reg = <0>;
 
             vddio-supply = <&vreg_l14a_1p88>;

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_G_FBUF:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_G_FBUF - VIDIOC_S_FBUF - Get or set frame buffer overlay parameters
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_G_FBUF
@@ -41,21 +41,21 @@ to get and set the framebuffer parameters for a
 (OSD). The type of overlay is implied by the device type (capture or
 output device) and can be determined with the
 :ref:`VIDIOC_QUERYCAP` ioctl. One ``/dev/videoN``
-device must not support both kinds of overlay.
+device must analt support both kinds of overlay.
 
-The V4L2 API distinguishes destructive and non-destructive overlays. A
+The V4L2 API distinguishes destructive and analn-destructive overlays. A
 destructive overlay copies captured video images into the video memory
-of a graphics card. A non-destructive overlay blends video images into a
+of a graphics card. A analn-destructive overlay blends video images into a
 VGA signal or graphics into a video signal. *Video Output Overlays* are
-always non-destructive.
+always analn-destructive.
 
 Destructive overlay support has been removed: with modern GPUs and CPUs
-this is no longer needed, and it was always a very dangerous feature.
+this is anal longer needed, and it was always a very dangerous feature.
 
 To get the current parameters applications call the :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>`
 ioctl with a pointer to a struct :c:type:`v4l2_framebuffer`
 structure. The driver fills all fields of the structure or returns an
-EINVAL error code when overlays are not supported.
+EINVAL error code when overlays are analt supported.
 
 To set the parameters for a *Video Output Overlay*, applications must
 initialize the ``flags`` field of a struct
@@ -98,7 +98,7 @@ does, or it returns an error code.
       -
       - Physical base address of the framebuffer, that is the address of
 	the pixel in the top left corner of the framebuffer.
-	For :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` this field is no longer supported
+	For :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` this field is anal longer supported
 	and the kernel will always set this to NULL.
 	For *Video Output Overlays*
 	the driver will return a valid base address, so applications can
@@ -124,7 +124,7 @@ does, or it returns an error code.
     * -
       -
       -
-      - For *non-destructive Video Overlays* this field only defines a
+      - For *analn-destructive Video Overlays* this field only defines a
 	format for the struct :c:type:`v4l2_window`
 	``chromakey`` field.
     * -
@@ -137,7 +137,7 @@ does, or it returns an error code.
       -
       - Usually this is an RGB format (for example
 	:ref:`V4L2_PIX_FMT_RGB565 <V4L2-PIX-FMT-RGB565>`) but YUV
-	formats (only packed YUV formats when chroma keying is used, not
+	formats (only packed YUV formats when chroma keying is used, analt
 	including ``V4L2_PIX_FMT_YUYV`` and ``V4L2_PIX_FMT_UYVY``) and the
 	``V4L2_PIX_FMT_PAL8`` format are also permitted. The behavior of
 	the driver when an application requests a compressed format is
@@ -145,7 +145,7 @@ does, or it returns an error code.
     * -
       - enum :c:type:`v4l2_field`
       - ``field``
-      - Drivers and applications shall ignore this field. If applicable,
+      - Drivers and applications shall iganalre this field. If applicable,
 	the field order is selected with the
 	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, using the ``field``
 	field of struct :c:type:`v4l2_window`.
@@ -156,7 +156,7 @@ does, or it returns an error code.
 	lines.
     * - :cspan:`3`
 
-	This field is irrelevant to *non-destructive Video Overlays*.
+	This field is irrelevant to *analn-destructive Video Overlays*.
 
 	For *Video Output Overlays* the driver must return a valid value.
 
@@ -164,7 +164,7 @@ does, or it returns an error code.
 	reside in accessible memory. Consider for example the case where
 	padding bytes after the last line of an image cross a system page
 	boundary. Capture devices may write padding bytes, the value is
-	undefined. Output devices ignore the contents of padding bytes.
+	undefined. Output devices iganalre the contents of padding bytes.
 
 	When the image format is planar the ``bytesperline`` value applies
 	to the first plane and is divided by the same factor as the
@@ -176,7 +176,7 @@ does, or it returns an error code.
     * -
       - __u32
       - ``sizeimage``
-      - This field is irrelevant to *non-destructive Video Overlays*.
+      - This field is irrelevant to *analn-destructive Video Overlays*.
 	For *Video Output Overlays* the driver must return a valid
 	format.
 
@@ -201,40 +201,40 @@ does, or it returns an error code.
     :stub-columns: 0
     :widths:       3 1 4
 
-    * - ``V4L2_FBUF_CAP_EXTERNOVERLAY``
+    * - ``V4L2_FBUF_CAP_EXTERANALVERLAY``
       - 0x0001
-      - The device is capable of non-destructive overlays. When the driver
+      - The device is capable of analn-destructive overlays. When the driver
 	clears this flag, only destructive overlays are supported. There
-	are no drivers yet which support both destructive and
-	non-destructive overlays. Video Output Overlays are in practice
-	always non-destructive.
+	are anal drivers yet which support both destructive and
+	analn-destructive overlays. Video Output Overlays are in practice
+	always analn-destructive.
     * - ``V4L2_FBUF_CAP_CHROMAKEY``
       - 0x0002
       - The device supports clipping by chroma-keying the images. That is,
 	image pixels replace pixels in the VGA or video signal only where
-	the latter assume a certain color. Chroma-keying makes no sense
+	the latter assume a certain color. Chroma-keying makes anal sense
 	for destructive overlays.
     * - ``V4L2_FBUF_CAP_LIST_CLIPPING``
       - 0x0004
       - The device supports clipping using a list of clip rectangles.
-        Note that this is no longer supported.
+        Analte that this is anal longer supported.
     * - ``V4L2_FBUF_CAP_BITMAP_CLIPPING``
       - 0x0008
       - The device supports clipping using a bit mask.
-        Note that this is no longer supported.
+        Analte that this is anal longer supported.
     * - ``V4L2_FBUF_CAP_LOCAL_ALPHA``
       - 0x0010
       - The device supports clipping/blending using the alpha channel of
-	the framebuffer or VGA signal. Alpha blending makes no sense for
+	the framebuffer or VGA signal. Alpha blending makes anal sense for
 	destructive overlays.
     * - ``V4L2_FBUF_CAP_GLOBAL_ALPHA``
       - 0x0020
       - The device supports alpha blending using a global alpha value.
-	Alpha blending makes no sense for destructive overlays.
+	Alpha blending makes anal sense for destructive overlays.
     * - ``V4L2_FBUF_CAP_LOCAL_INV_ALPHA``
       - 0x0040
       - The device supports clipping/blending using the inverted alpha
-	channel of the framebuffer or VGA signal. Alpha blending makes no
+	channel of the framebuffer or VGA signal. Alpha blending makes anal
 	sense for destructive overlays.
     * - ``V4L2_FBUF_CAP_SRC_CHROMAKEY``
       - 0x0080
@@ -257,7 +257,7 @@ does, or it returns an error code.
       - 0x0001
       - The framebuffer is the primary graphics surface. In other words,
 	the overlay is destructive. This flag is typically set by any
-	driver that doesn't have the ``V4L2_FBUF_CAP_EXTERNOVERLAY``
+	driver that doesn't have the ``V4L2_FBUF_CAP_EXTERANALVERLAY``
 	capability and it is cleared otherwise.
     * - ``V4L2_FBUF_FLAG_OVERLAY``
       - 0x0002
@@ -266,7 +266,7 @@ does, or it returns an error code.
 	size, otherwise the existing overlay size (as set by
 	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`) will be used. Only one
 	video capture driver (bttv) supports this flag. The use of this
-	flag for capture devices is deprecated. There is no way to detect
+	flag for capture devices is deprecated. There is anal way to detect
 	which drivers support this flag, so the only reliable method of
 	setting the overlay size is through
 	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`. If this flag is set for a
@@ -280,7 +280,7 @@ does, or it returns an error code.
 	``chromakey`` field of struct :c:type:`v4l2_window`
 	and negotiated with the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
 	ioctl, see :ref:`overlay` and :ref:`osd`.
-    * - :cspan:`2` There are no flags to enable clipping using a list of
+    * - :cspan:`2` There are anal flags to enable clipping using a list of
 	clip rectangles or a bitmap. These methods are negotiated with the
 	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, see :ref:`overlay`
 	and :ref:`osd`.
@@ -319,7 +319,7 @@ does, or it returns an error code.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

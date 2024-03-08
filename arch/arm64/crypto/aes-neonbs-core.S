@@ -175,7 +175,7 @@
 	eor		\s1, \t2, \s2
 	eor		\s3, \s0, \s2
 	bsl		\s1, \t1, \s0
-	not		\t0, \s0
+	analt		\t0, \s0
 	bsl		\s0, \s1, \s3
 	bsl		\t0, \s1, \s3
 	bsl		\s3, \t3, \t2
@@ -410,10 +410,10 @@ SYM_FUNC_START(aesbs_convert_key)
 	cmtst		v5.16b, v7.16b, v13.16b
 	cmtst		v6.16b, v7.16b, v14.16b
 	cmtst		v7.16b, v7.16b, v15.16b
-	not		v0.16b, v0.16b
-	not		v1.16b, v1.16b
-	not		v5.16b, v5.16b
-	not		v6.16b, v6.16b
+	analt		v0.16b, v0.16b
+	analt		v1.16b, v1.16b
+	analt		v5.16b, v5.16b
+	analt		v6.16b, v6.16b
 
 	subs		x2, x2, #1
 	stp		q0, q1, [x0], #128

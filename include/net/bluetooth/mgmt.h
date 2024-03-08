@@ -1,7 +1,7 @@
 /*
    BlueZ - Bluetooth protocol stack for Linux
 
-   Copyright (C) 2010  Nokia Corporation
+   Copyright (C) 2010  Analkia Corporation
    Copyright (C) 2011-2012  Intel Corporation
 
    This program is free software; you can redistribute it and/or modify
@@ -9,9 +9,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -22,24 +22,24 @@
    SOFTWARE IS DISCLAIMED.
 */
 
-#define MGMT_INDEX_NONE			0xFFFF
+#define MGMT_INDEX_ANALNE			0xFFFF
 
 #define MGMT_STATUS_SUCCESS		0x00
-#define MGMT_STATUS_UNKNOWN_COMMAND	0x01
-#define MGMT_STATUS_NOT_CONNECTED	0x02
+#define MGMT_STATUS_UNKANALWN_COMMAND	0x01
+#define MGMT_STATUS_ANALT_CONNECTED	0x02
 #define MGMT_STATUS_FAILED		0x03
 #define MGMT_STATUS_CONNECT_FAILED	0x04
 #define MGMT_STATUS_AUTH_FAILED		0x05
-#define MGMT_STATUS_NOT_PAIRED		0x06
-#define MGMT_STATUS_NO_RESOURCES	0x07
+#define MGMT_STATUS_ANALT_PAIRED		0x06
+#define MGMT_STATUS_ANAL_RESOURCES	0x07
 #define MGMT_STATUS_TIMEOUT		0x08
 #define MGMT_STATUS_ALREADY_CONNECTED	0x09
 #define MGMT_STATUS_BUSY		0x0a
 #define MGMT_STATUS_REJECTED		0x0b
-#define MGMT_STATUS_NOT_SUPPORTED	0x0c
+#define MGMT_STATUS_ANALT_SUPPORTED	0x0c
 #define MGMT_STATUS_INVALID_PARAMS	0x0d
 #define MGMT_STATUS_DISCONNECTED	0x0e
-#define MGMT_STATUS_NOT_POWERED		0x0f
+#define MGMT_STATUS_ANALT_POWERED		0x0f
 #define MGMT_STATUS_CANCELLED		0x10
 #define MGMT_STATUS_INVALID_INDEX	0x11
 #define MGMT_STATUS_RFKILLED		0x12
@@ -158,7 +158,7 @@ struct mgmt_cp_set_discoverable {
 #define MGMT_OP_SET_DEV_CLASS		0x000E
 struct mgmt_cp_set_dev_class {
 	__u8	major;
-	__u8	minor;
+	__u8	mianalr;
 } __packed;
 #define MGMT_SET_DEV_CLASS_SIZE		2
 
@@ -359,7 +359,7 @@ struct mgmt_cp_stop_discovery {
 #define MGMT_OP_CONFIRM_NAME		0x0025
 struct mgmt_cp_confirm_name {
 	struct mgmt_addr_info addr;
-	__u8	name_known;
+	__u8	name_kanalwn;
 } __packed;
 #define MGMT_CONFIRM_NAME_SIZE		(MGMT_ADDR_INFO_SIZE + 1)
 struct mgmt_rp_confirm_name {
@@ -933,7 +933,7 @@ struct mgmt_ev_device_connected {
 	__u8	eir[];
 } __packed;
 
-#define MGMT_DEV_DISCONN_UNKNOWN	0x00
+#define MGMT_DEV_DISCONN_UNKANALWN	0x00
 #define MGMT_DEV_DISCONN_TIMEOUT	0x01
 #define MGMT_DEV_DISCONN_LOCAL_HOST	0x02
 #define MGMT_DEV_DISCONN_REMOTE		0x03
@@ -978,7 +978,7 @@ struct mgmt_ev_auth_failed {
 
 #define MGMT_DEV_FOUND_CONFIRM_NAME		BIT(0)
 #define MGMT_DEV_FOUND_LEGACY_PAIRING		BIT(1)
-#define MGMT_DEV_FOUND_NOT_CONNECTABLE		BIT(2)
+#define MGMT_DEV_FOUND_ANALT_CONNECTABLE		BIT(2)
 #define MGMT_DEV_FOUND_INITIATED_CONN		BIT(3)
 #define MGMT_DEV_FOUND_NAME_REQUEST_FAILED	BIT(4)
 #define MGMT_DEV_FOUND_SCAN_RSP			BIT(5)
@@ -1013,8 +1013,8 @@ struct mgmt_ev_device_unpaired {
 	struct mgmt_addr_info addr;
 } __packed;
 
-#define MGMT_EV_PASSKEY_NOTIFY		0x0017
-struct mgmt_ev_passkey_notify {
+#define MGMT_EV_PASSKEY_ANALTIFY		0x0017
+struct mgmt_ev_passkey_analtify {
 	struct mgmt_addr_info addr;
 	__le32	passkey;
 	__u8	entered;
@@ -1142,7 +1142,7 @@ struct mgmt_ev_controller_resume {
 	struct mgmt_addr_info addr;
 } __packed;
 
-#define MGMT_WAKE_REASON_NON_BT_WAKE		0x0
+#define MGMT_WAKE_REASON_ANALN_BT_WAKE		0x0
 #define MGMT_WAKE_REASON_UNEXPECTED		0x1
 #define MGMT_WAKE_REASON_REMOTE_WAKE		0x2
 

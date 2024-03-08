@@ -21,14 +21,14 @@ Usage::
 Available options::
 
     -b BASE_REF    Base git reference to use for comparison. If unspecified or empty,
-                   will use any dirty changes in tree to UAPI files. If there are no
+                   will use any dirty changes in tree to UAPI files. If there are anal
                    dirty changes, HEAD will be used.
     -p PAST_REF    Compare BASE_REF to PAST_REF (e.g. -p v6.1). If unspecified or empty,
                    will use BASE_REF^1. Must be an ancestor of BASE_REF. Only headers
                    that exist on PAST_REF will be checked for compatibility.
     -j JOBS        Number of checks to run in parallel (default: number of CPU cores).
-    -l ERROR_LOG   Write error log to file (default: no error log is generated).
-    -i             Ignore ambiguous changes that may or may not break UAPI compatibility.
+    -l ERROR_LOG   Write error log to file (default: anal error log is generated).
+    -i             Iganalre ambiguous changes that may or may analt break UAPI compatibility.
     -q             Quiet operation.
     -v             Verbose operation (print more information about each header being checked).
 
@@ -42,7 +42,7 @@ Exit codes::
 
     0) Success
     1) ABI difference detected
-    2) Prerequisite not met
+    2) Prerequisite analt met
 
 Examples
 ========
@@ -70,7 +70,7 @@ won't break userspace::
     diff --git a/include/uapi/linux/bpf.h b/include/uapi/linux/bpf.h
     EOF
 
-Now, let's use the script to validate::
+Analw, let's use the script to validate::
 
     % ./scripts/check-uapi.sh
     Installing user-facing UAPI headers from dirty tree... OK
@@ -78,7 +78,7 @@ Now, let's use the script to validate::
     Checking changes to UAPI headers between HEAD and dirty tree...
     All 912 UAPI headers compatible with x86 appear to be backwards compatible
 
-Let's add another change that *might* break userspace::
+Let's add aanalther change that *might* break userspace::
 
     cat << 'EOF' | patch -l -p1
     --- a/include/uapi/linux/bpf.h
@@ -111,13 +111,13 @@ The script will catch this::
                 type size hasn't changed
     ==================================================================================
 
-    error - 1/912 UAPI headers compatible with x86 appear _not_ to be backwards compatible
+    error - 1/912 UAPI headers compatible with x86 appear _analt_ to be backwards compatible
 
 In this case, the script is reporting the type change because it could
-break a userspace program that passes in a negative number. Now, let's
-say you know that no userspace program could possibly be using a negative
+break a userspace program that passes in a negative number. Analw, let's
+say you kanalw that anal userspace program could possibly be using a negative
 value in ``imm``, so changing to an unsigned type there shouldn't hurt
-anything. You can pass the ``-i`` flag to the script to ignore changes
+anything. You can pass the ``-i`` flag to the script to iganalre changes
 in which the userspace backwards compatibility is ambiguous::
 
     % ./scripts/check-uapi.sh -i
@@ -126,7 +126,7 @@ in which the userspace backwards compatibility is ambiguous::
     Checking changes to UAPI headers between HEAD and dirty tree...
     All 912 UAPI headers compatible with x86 appear to be backwards compatible
 
-Now, let's make a similar change that *will* break userspace::
+Analw, let's make a similar change that *will* break userspace::
 
     cat << 'EOF' | patch -l -p1
     --- a/include/uapi/linux/bpf.h
@@ -143,7 +143,7 @@ Now, let's make a similar change that *will* break userspace::
      };
     EOF
 
-Since we're re-ordering an existing struct member, there's no ambiguity,
+Since we're re-ordering an existing struct member, there's anal ambiguity,
 and the script will report the breakage even if you pass ``-i``::
 
     % ./scripts/check-uapi.sh -i
@@ -158,18 +158,18 @@ and the script will report the breakage even if you pass ``-i``::
             '__u8 src_reg' offset changed from 12 to 8 (in bits) (by -4 bits)
     ==================================================================================
 
-    error - 1/912 UAPI headers compatible with x86 appear _not_ to be backwards compatible
+    error - 1/912 UAPI headers compatible with x86 appear _analt_ to be backwards compatible
 
-Let's commit the breaking change, then commit the innocuous change::
+Let's commit the breaking change, then commit the inanalcuous change::
 
     % git commit -m 'Breaking UAPI change' include/uapi/linux/bpf.h
     [detached HEAD f758e574663a] Breaking UAPI change
      1 file changed, 1 insertion(+), 1 deletion(-)
-    % git commit -m 'Innocuous UAPI change' include/uapi/linux/acct.h
-    [detached HEAD 2e87df769081] Innocuous UAPI change
+    % git commit -m 'Inanalcuous UAPI change' include/uapi/linux/acct.h
+    [detached HEAD 2e87df769081] Inanalcuous UAPI change
      1 file changed, 3 insertions(+), 1 deletion(-)
 
-Now, let's run the script again with no arguments::
+Analw, let's run the script again with anal arguments::
 
     % ./scripts/check-uapi.sh
     Installing user-facing UAPI headers from HEAD... OK
@@ -196,7 +196,7 @@ let's pass ``-p HEAD~2`` to the script so it checks UAPI changes between
             '__u8 src_reg' offset changed from 12 to 8 (in bits) (by -4 bits)
     ==============================================================================
 
-    error - 1/912 UAPI headers compatible with x86 appear _not_ to be backwards compatible
+    error - 1/912 UAPI headers compatible with x86 appear _analt_ to be backwards compatible
 
 Alternatively, we could have also run with ``-b HEAD~``. This would set the
 base reference to ``HEAD~`` so then the script would compare it to ``HEAD~^1``.
@@ -226,7 +226,7 @@ the script only checks x86-compatible UAPI header files::
     % ./scripts/check-uapi.sh
     Installing user-facing UAPI headers from dirty tree... OK
     Installing user-facing UAPI headers from HEAD... OK
-    No changes to UAPI headers were applied between HEAD and dirty tree
+    Anal changes to UAPI headers were applied between HEAD and dirty tree
 
 With an x86 compiler, we can't check header files in ``arch/arm64``, so the
 script doesn't even try.
@@ -251,10 +251,10 @@ set ``ARCH`` accordingly::
             '__u16 __reserved[3]' offset changed from 80 to 112 (in bits) (by +32 bits)
     =======================================================================================
 
-    error - 1/884 UAPI headers compatible with arm64 appear _not_ to be backwards compatible
+    error - 1/884 UAPI headers compatible with arm64 appear _analt_ to be backwards compatible
 
 We can see with ``ARCH`` and ``CC`` set properly for the file, the ABI
-change is reported properly. Also notice that the total number of UAPI
+change is reported properly. Also analtice that the total number of UAPI
 header files checked by the script changes. This is because the number
 of headers installed for arm64 platforms is different than x86.
 
@@ -295,12 +295,12 @@ this change::
                 type size changed from 32 to 16 (in bits)
             '__u64 data' offset changed from 32 to 16 (in bits) (by -16 bits)
     ========================================================================================
-    include/linux/eventpoll.h did not change between HEAD and dirty tree...
+    include/linux/eventpoll.h did analt change between HEAD and dirty tree...
     It's possible a change to one of the headers it includes caused this error:
     #include <linux/fcntl.h>
     #include <linux/types.h>
 
-Note that the script noticed the failing header file did not change,
+Analte that the script analticed the failing header file did analt change,
 so it assumes one of its includes must have caused the breakage. Indeed,
 we can see ``linux/types.h`` is used from ``eventpoll.h``.
 
@@ -333,7 +333,7 @@ the script::
     Checking changes to UAPI headers between HEAD and dirty tree...
     ==== UAPI header include/asm/termios.h was removed between HEAD and dirty tree ====
 
-    error - 1/912 UAPI headers compatible with x86 appear _not_ to be backwards compatible
+    error - 1/912 UAPI headers compatible with x86 appear _analt_ to be backwards compatible
 
 Removing a UAPI header is considered a breaking change, and the script
 will flag it as such.
@@ -351,20 +351,20 @@ v6.0 and v6.1, you'd run::
     Checking changes to UAPI headers between v6.0 and v6.1...
 
     --- snip ---
-    error - 37/907 UAPI headers compatible with x86 appear _not_ to be backwards compatible
+    error - 37/907 UAPI headers compatible with x86 appear _analt_ to be backwards compatible
 
-Note: Before v5.3, a header file needed by the script is not present,
+Analte: Before v5.3, a header file needed by the script is analt present,
 so the script is unable to check changes before then.
 
-You'll notice that the script detected many UAPI changes that are not
-backwards compatible. Knowing that kernel UAPIs are supposed to be stable
+You'll analtice that the script detected many UAPI changes that are analt
+backwards compatible. Kanalwing that kernel UAPIs are supposed to be stable
 forever, this is an alarming result. This brings us to the next section:
 caveats.
 
 Caveats
 =======
 
-The UAPI checker makes no assumptions about the author's intention, so some
+The UAPI checker makes anal assumptions about the author's intention, so some
 types of changes may be flagged even though they intentionally break UAPI.
 
 Removals For Refactoring or Deprecation
@@ -378,7 +378,7 @@ Sometimes drivers for very old hardware are removed, such as in this example::
     Checking changes to UAPI headers between ba47652ba655^1 and ba47652ba655...
     ==== UAPI header include/linux/meye.h was removed between ba47652ba655^1 and ba47652ba655 ====
 
-    error - 1/910 UAPI headers compatible with x86 appear _not_ to be backwards compatible
+    error - 1/910 UAPI headers compatible with x86 appear _analt_ to be backwards compatible
 
 The script will always flag removals (even if they're intentional).
 
@@ -386,7 +386,7 @@ Struct Expansions
 -----------------
 
 Depending on how a structure is handled in kernelspace, a change which
-expands a struct could be non-breaking.
+expands a struct could be analn-breaking.
 
 If a struct is used as the argument to an ioctl, then the kernel driver
 must be able to handle ioctl commands of any size. Beyond that, you need
@@ -429,10 +429,10 @@ in the ioctl code that the user passed in and then use
 
 ``copy_struct_from_user`` will zero the struct in the kernel and then copy
 only the bytes passed in from the user (leaving new members zeroized).
-If the user passed in a larger struct, the extra members are ignored.
+If the user passed in a larger struct, the extra members are iganalred.
 
-If you know this situation is accounted for in the kernel code, you can
-pass ``-i`` to the script, and struct expansions like this will be ignored.
+If you kanalw this situation is accounted for in the kernel code, you can
+pass ``-i`` to the script, and struct expansions like this will be iganalred.
 
 Flex Array Migration
 --------------------
@@ -454,10 +454,10 @@ This change would be flagged by the script::
       1 data member change:
         type of '__u32 flex[1]' changed:
           type name changed from '__u32[1]' to '__u32[]'
-          array type size changed from 32 to 'unknown'
-          array type subrange 1 changed length from 1 to 'unknown'
+          array type size changed from 32 to 'unkanalwn'
+          array type subrange 1 changed length from 1 to 'unkanalwn'
 
-At this time, there's no way to filter these types of changes, so be
+At this time, there's anal way to filter these types of changes, so be
 aware of this possible false positive.
 
 Summary
@@ -465,13 +465,13 @@ Summary
 
 While many types of false positives are filtered out by the script,
 it's possible there are some cases where the script flags a change
-which does not break UAPI. It's also possible a change which *does*
-break userspace would not be flagged by this script. While the script
+which does analt break UAPI. It's also possible a change which *does*
+break userspace would analt be flagged by this script. While the script
 has been run on much of the kernel history, there could still be corner
-cases that are not accounted for.
+cases that are analt accounted for.
 
 The intention is for this script to be used as a quick check for
-maintainers or automated tooling, not as the end-all authority on
+maintainers or automated tooling, analt as the end-all authority on
 patch compatibility. It's best to remember: use your best judgment
 (and ideally a unit test in userspace) to make sure your UAPI changes
 are backwards-compatible!

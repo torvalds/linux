@@ -136,7 +136,7 @@ static void slimpro_i2c_rx_cb(struct mbox_client *cl, void *mssg)
 	 * Response message format:
 	 * mssg[0] is the return code of the operation
 	 * mssg[1] is the first data word
-	 * mssg[2] is NOT used
+	 * mssg[2] is ANALT used
 	 */
 	if (ctx->resp_msg)
 		*ctx->resp_msg = ((u32 *)mssg)[1];
@@ -197,9 +197,9 @@ static int start_i2c_msg_xfer(struct slimpro_i2c_dev *ctx)
 			return -ETIMEDOUT;
 	}
 
-	/* Check of invalid data or no device */
+	/* Check of invalid data or anal device */
 	if (*ctx->resp_msg == 0xffffffff)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -272,7 +272,7 @@ static int slimpro_i2c_blkrd(struct slimpro_i2c_dev *ctx, u32 chip, u32 addr,
 	if (dma_mapping_error(ctx->dev, paddr)) {
 		dev_err(&ctx->adapter.dev, "Error in mapping dma buffer %p\n",
 			ctx->dma_buffer);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	msg[0] = SLIMPRO_IIC_ENCODE_MSG(SLIMPRO_IIC_BUS, chip, SLIMPRO_IIC_READ,
@@ -309,7 +309,7 @@ static int slimpro_i2c_blkwr(struct slimpro_i2c_dev *ctx, u32 chip,
 	if (dma_mapping_error(ctx->dev, paddr)) {
 		dev_err(&ctx->adapter.dev, "Error in mapping dma buffer %p\n",
 			ctx->dma_buffer);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	msg[0] = SLIMPRO_IIC_ENCODE_MSG(SLIMPRO_IIC_BUS, chip, SLIMPRO_IIC_WRITE,
@@ -334,7 +334,7 @@ static int xgene_slimpro_i2c_xfer(struct i2c_adapter *adap, u16 addr,
 				  union i2c_smbus_data *data)
 {
 	struct slimpro_i2c_dev *ctx = i2c_get_adapdata(adap);
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 	u32 val;
 
 	switch (size) {
@@ -442,7 +442,7 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ctx);
@@ -452,7 +452,7 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 	cl->dev = &pdev->dev;
 	init_completion(&ctx->rd_complete);
 	cl->tx_tout = MAILBOX_OP_TIMEOUT;
-	cl->knows_txdone = false;
+	cl->kanalws_txdone = false;
 	if (acpi_disabled) {
 		cl->tx_block = true;
 		cl->rx_callback = slimpro_i2c_rx_cb;
@@ -489,8 +489,8 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 		ctx->mbox_chan = pcc_chan->mchan;
 
 		if (!ctx->mbox_chan->mbox->txdone_irq) {
-			dev_err(&pdev->dev, "PCC IRQ not supported\n");
-			rc = -ENOENT;
+			dev_err(&pdev->dev, "PCC IRQ analt supported\n");
+			rc = -EANALENT;
 			goto mbox_err;
 		}
 
@@ -512,14 +512,14 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 							MEMREMAP_WB);
 		} else {
 			dev_err(&pdev->dev, "Failed to get PCC comm region\n");
-			rc = -ENOENT;
+			rc = -EANALENT;
 			goto mbox_err;
 		}
 
 		if (!ctx->pcc_comm_addr) {
 			dev_err(&pdev->dev,
 				"Failed to ioremap PCC comm region\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto mbox_err;
 		}
 	}
@@ -533,7 +533,7 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 	adapter->algo = &xgene_slimpro_i2c_algorithm;
 	adapter->class = I2C_CLASS_HWMON;
 	adapter->dev.parent = &pdev->dev;
-	adapter->dev.of_node = pdev->dev.of_node;
+	adapter->dev.of_analde = pdev->dev.of_analde;
 	ACPI_COMPANION_SET(&adapter->dev, ACPI_COMPANION(&pdev->dev));
 	i2c_set_adapdata(adapter, ctx);
 	rc = i2c_add_adapter(adapter);

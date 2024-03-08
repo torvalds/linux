@@ -205,7 +205,7 @@ static const struct pinctrl_ops max77620_pinctrl_ops = {
 	.get_groups_count = max77620_pinctrl_get_groups_count,
 	.get_group_name = max77620_pinctrl_get_group_name,
 	.get_group_pins = max77620_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -310,8 +310,8 @@ static int max77620_pinconf_get(struct pinctrl_dev *pctldev,
 		break;
 
 	default:
-		dev_err(dev, "Properties not supported\n");
-		return -ENOTSUPP;
+		dev_err(dev, "Properties analt supported\n");
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, (u16)arg);
@@ -523,8 +523,8 @@ static int max77620_pinconf_set(struct pinctrl_dev *pctldev,
 			break;
 
 		default:
-			dev_err(dev, "Properties not supported\n");
-			return -ENOTSUPP;
+			dev_err(dev, "Properties analt supported\n");
+			return -EANALTSUPP;
 		}
 	}
 
@@ -553,11 +553,11 @@ static int max77620_pinctrl_probe(struct platform_device *pdev)
 	struct max77620_pctrl_info *mpci;
 	int i;
 
-	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
+	device_set_analde(&pdev->dev, dev_fwanalde(pdev->dev.parent));
 
 	mpci = devm_kzalloc(&pdev->dev, sizeof(*mpci), GFP_KERNEL);
 	if (!mpci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mpci->dev = &pdev->dev;
 	mpci->rmap = max77620->rmap;

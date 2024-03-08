@@ -1,18 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  linux/fs/pnode.h
+ *  linux/fs/panalde.h
  *
  * (C) Copyright IBM Corporation 2005.
  */
-#ifndef _LINUX_PNODE_H
-#define _LINUX_PNODE_H
+#ifndef _LINUX_PANALDE_H
+#define _LINUX_PANALDE_H
 
 #include <linux/list.h>
 #include "mount.h"
 
 #define IS_MNT_SHARED(m) ((m)->mnt.mnt_flags & MNT_SHARED)
 #define IS_MNT_SLAVE(m) ((m)->mnt_master)
-#define IS_MNT_NEW(m)  (!(m)->mnt_ns || is_anon_ns((m)->mnt_ns))
+#define IS_MNT_NEW(m)  (!(m)->mnt_ns || is_aanaln_ns((m)->mnt_ns))
 #define CLEAR_MNT_SHARED(m) ((m)->mnt.mnt_flags &= ~MNT_SHARED)
 #define IS_MNT_UNBINDABLE(m) ((m)->mnt.mnt_flags & MNT_UNBINDABLE)
 #define IS_MNT_MARKED(m) ((m)->mnt.mnt_flags & MNT_MARKED)
@@ -56,4 +56,4 @@ int count_mounts(struct mnt_namespace *ns, struct mount *mnt);
 bool propagation_would_overmount(const struct mount *from,
 				 const struct mount *to,
 				 const struct mountpoint *mp);
-#endif /* _LINUX_PNODE_H */
+#endif /* _LINUX_PANALDE_H */

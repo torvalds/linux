@@ -2,10 +2,10 @@
 /*
  * include/media/drv-intf/si476x.h -- Common definitions for si476x driver
  *
- * Copyright (C) 2012 Innovative Converged Devices(ICD)
- * Copyright (C) 2013 Andrey Smirnov
+ * Copyright (C) 2012 Inanalvative Converged Devices(ICD)
+ * Copyright (C) 2013 Andrey Smiranalv
  *
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiranalv <andrew.smiranalv@gmail.com>
  */
 
 #ifndef SI476X_H

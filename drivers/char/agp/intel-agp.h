@@ -71,7 +71,7 @@
 #define I810_GMS_DISABLE	0x00000000
 #define I810_PGETBL_CTL		0x2020
 #define I810_PGETBL_ENABLED	0x00000001
-/* Note: PGETBL_CTL2 has a different offset on G33. */
+/* Analte: PGETBL_CTL2 has a different offset on G33. */
 #define I965_PGETBL_CTL2	0x20c4
 #define I965_PGETBL_SIZE_MASK	0x0000000e
 #define I965_PGETBL_SIZE_512KB	(0 << 1)

@@ -35,7 +35,7 @@ struct tape_class_device {
  * device
  *	The pointer to the struct device of the physical (base) device.
  * dev
- *	The intended major/minor number. The major number may be 0 to
+ *	The intended major/mianalr number. The major number may be 0 to
  *	get a dynamic major number.
  * fops
  *	The pointer to the drivers file operations for the tape device.
@@ -52,7 +52,7 @@ struct tape_class_device *register_tape_dev(
 	dev_t			dev,
 	const struct file_operations *fops,
 	char *			device_name,
-	char *			node_name
+	char *			analde_name
 );
 void unregister_tape_dev(struct device *device, struct tape_class_device *tcd);
 

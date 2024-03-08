@@ -65,7 +65,7 @@ struct codec_priv {
  * @slot_width: Slot width of each frame
  * @slot_num: Number of slots of each frame
  *
- * Note: [1] for tx and [0] for rx
+ * Analte: [1] for tx and [0] for rx
  */
 struct cpu_priv {
 	unsigned long sysclk_freq[2];
@@ -77,7 +77,7 @@ struct cpu_priv {
 
 /**
  * struct fsl_asoc_card_priv - Freescale Generic ASOC card private data
- * @dai_link: DAI link structure including normal one and DPCM link
+ * @dai_link: DAI link structure including analrmal one and DPCM link
  * @hp_jack: Headphone Jack structure
  * @mic_jack: Microphone Jack structure
  * @pdev: platform device pointer
@@ -114,11 +114,11 @@ struct fsl_asoc_card_priv {
  * This dapm route map exists for DPCM link only.
  * The other routes shall go through Device Tree.
  *
- * Note: keep all ASRC routes in the second half
- *	 to drop them easily for non-ASRC cases.
+ * Analte: keep all ASRC routes in the second half
+ *	 to drop them easily for analn-ASRC cases.
  */
 static const struct snd_soc_dapm_route audio_map[] = {
-	/* 1st half -- Normal DAPM routes */
+	/* 1st half -- Analrmal DAPM routes */
 	{"Playback",  NULL, "CPU-Playback"},
 	{"CPU-Capture",  NULL, "Capture"},
 	/* 2nd half -- ASRC DAPM routes */
@@ -127,7 +127,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 };
 
 static const struct snd_soc_dapm_route audio_map_ac97[] = {
-	/* 1st half -- Normal DAPM routes */
+	/* 1st half -- Analrmal DAPM routes */
 	{"AC97 Playback",  NULL, "CPU AC97 Playback"},
 	{"CPU AC97 Capture",  NULL, "AC97 Capture"},
 	/* 2nd half -- ASRC DAPM routes */
@@ -136,14 +136,14 @@ static const struct snd_soc_dapm_route audio_map_ac97[] = {
 };
 
 static const struct snd_soc_dapm_route audio_map_tx[] = {
-	/* 1st half -- Normal DAPM routes */
+	/* 1st half -- Analrmal DAPM routes */
 	{"Playback",  NULL, "CPU-Playback"},
 	/* 2nd half -- ASRC DAPM routes */
 	{"CPU-Playback",  NULL, "ASRC-Playback"},
 };
 
 static const struct snd_soc_dapm_route audio_map_rx[] = {
-	/* 1st half -- Normal DAPM routes */
+	/* 1st half -- Analrmal DAPM routes */
 	{"CPU-Capture",  NULL, "Capture"},
 	/* 2nd half -- ASRC DAPM routes */
 	{"ASRC-Capture",  NULL, "CPU-Capture"},
@@ -188,7 +188,7 @@ static int fsl_asoc_card_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_dai_set_sysclk(snd_soc_rtd_to_cpu(rtd, 0), cpu_priv->sysclk_id[tx],
 				     cpu_priv->sysclk_freq[tx],
 				     cpu_priv->sysclk_dir[tx]);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(dev, "failed to set sysclk for cpu dai\n");
 		goto fail;
 	}
@@ -200,7 +200,7 @@ static int fsl_asoc_card_hw_params(struct snd_pcm_substream *substream,
 		ret = snd_soc_dai_set_tdm_slot(snd_soc_rtd_to_cpu(rtd, 0), 0x3, 0x3,
 					       cpu_priv->slot_num,
 					       cpu_priv->slot_width);
-		if (ret && ret != -ENOTSUPP) {
+		if (ret && ret != -EANALTSUPP) {
 			dev_err(dev, "failed to set TDM slot for cpu dai\n");
 			goto fail;
 		}
@@ -226,7 +226,7 @@ static int fsl_asoc_card_hw_params(struct snd_pcm_substream *substream,
 					     codec_priv->fll_id,
 					     pll_out, SND_SOC_CLOCK_IN);
 
-		if (ret && ret != -ENOTSUPP) {
+		if (ret && ret != -EANALTSUPP) {
 			dev_err(dev, "failed to set SYSCLK: %d\n", ret);
 			goto fail;
 		}
@@ -262,7 +262,7 @@ static int fsl_asoc_card_hw_free(struct snd_pcm_substream *substream)
 
 		ret = snd_soc_dai_set_pll(snd_soc_rtd_to_codec(rtd, 0),
 					  codec_priv->pll_id, 0, 0, 0);
-		if (ret && ret != -ENOTSUPP) {
+		if (ret && ret != -EANALTSUPP) {
 			dev_err(dev, "failed to stop FLL: %d\n", ret);
 			return ret;
 		}
@@ -287,7 +287,7 @@ static int be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	rate->max = rate->min = priv->asrc_rate;
 
 	mask = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
-	snd_mask_none(mask);
+	snd_mask_analne(mask);
 	snd_mask_set_format(mask, priv->asrc_format);
 
 	return 0;
@@ -331,12 +331,12 @@ static const struct snd_soc_dai_link fsl_asoc_card_dai[] = {
 		.ops = &fsl_asoc_card_ops,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		SND_SOC_DAILINK_REG(hifi_be),
 	},
 };
 
-static int fsl_asoc_card_audmux_init(struct device_node *np,
+static int fsl_asoc_card_audmux_init(struct device_analde *np,
 				     struct fsl_asoc_card_priv *priv)
 {
 	struct device *dev = &priv->pdev->dev;
@@ -363,9 +363,9 @@ static int fsl_asoc_card_audmux_init(struct device_node *np,
 	ext_port--;
 
 	/*
-	 * Use asynchronous mode (6 wires) for all cases except AC97.
+	 * Use asynchroanalus mode (6 wires) for all cases except AC97.
 	 * If only 4 wires are needed, just set SSI into
-	 * synchronous mode and enable 4 PADs in IOMUX.
+	 * synchroanalus mode and enable 4 PADs in IOMUX.
 	 */
 	switch (priv->dai_fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
 	case SND_SOC_DAIFMT_CBP_CFP:
@@ -422,7 +422,7 @@ static int fsl_asoc_card_audmux_init(struct device_node *np,
 			   IMX_AUDMUX_V2_PTCR_TFSDIR;
 	}
 
-	/* Asynchronous mode can not be set along with RCLKDIR */
+	/* Asynchroanalus mode can analt be set along with RCLKDIR */
 	if (!fsl_asoc_card_is_ac97(priv)) {
 		unsigned int pdcr =
 				IMX_AUDMUX_V2_PDCR_RXDSEL(ext_port);
@@ -464,7 +464,7 @@ static int fsl_asoc_card_audmux_init(struct device_node *np,
 	return 0;
 }
 
-static int hp_jack_event(struct notifier_block *nb, unsigned long event,
+static int hp_jack_event(struct analtifier_block *nb, unsigned long event,
 			 void *data)
 {
 	struct snd_soc_jack *jack = (struct snd_soc_jack *)data;
@@ -477,11 +477,11 @@ static int hp_jack_event(struct notifier_block *nb, unsigned long event,
 		return snd_soc_dapm_enable_pin(dapm, "Ext Spk");
 }
 
-static struct notifier_block hp_jack_nb = {
-	.notifier_call = hp_jack_event,
+static struct analtifier_block hp_jack_nb = {
+	.analtifier_call = hp_jack_event,
 };
 
-static int mic_jack_event(struct notifier_block *nb, unsigned long event,
+static int mic_jack_event(struct analtifier_block *nb, unsigned long event,
 			  void *data)
 {
 	struct snd_soc_jack *jack = (struct snd_soc_jack *)data;
@@ -494,8 +494,8 @@ static int mic_jack_event(struct notifier_block *nb, unsigned long event,
 		return snd_soc_dapm_enable_pin(dapm, "DMIC");
 }
 
-static struct notifier_block mic_jack_nb = {
-	.notifier_call = mic_jack_event,
+static struct analtifier_block mic_jack_nb = {
+	.analtifier_call = mic_jack_event,
 };
 
 static int fsl_asoc_card_late_probe(struct snd_soc_card *card)
@@ -527,7 +527,7 @@ static int fsl_asoc_card_late_probe(struct snd_soc_card *card)
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, codec_priv->mclk_id,
 				     codec_priv->mclk_freq, SND_SOC_CLOCK_IN);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(dev, "failed to set sysclk in %s\n", __func__);
 		return ret;
 	}
@@ -540,11 +540,11 @@ static int fsl_asoc_card_late_probe(struct snd_soc_card *card)
 
 static int fsl_asoc_card_probe(struct platform_device *pdev)
 {
-	struct device_node *cpu_np, *codec_np, *asrc_np;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *cpu_np, *codec_np, *asrc_np;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct platform_device *asrc_pdev = NULL;
-	struct device_node *bitclkprovider = NULL;
-	struct device_node *frameprovider = NULL;
+	struct device_analde *bitclkprovider = NULL;
+	struct device_analde *frameprovider = NULL;
 	struct platform_device *cpu_pdev;
 	struct fsl_asoc_card_priv *priv;
 	struct device *codec_dev = NULL;
@@ -556,7 +556,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpu_np = of_parse_phandle(np, "audio-cpu", 0);
 	/* Give a chance to old DT binding */
@@ -568,7 +568,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	cpu_pdev = of_find_device_by_node(cpu_np);
+	cpu_pdev = of_find_device_by_analde(cpu_np);
 	if (!cpu_pdev) {
 		dev_err(&pdev->dev, "failed to find CPU DAI device\n");
 		ret = -EINVAL;
@@ -580,13 +580,13 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		struct platform_device *codec_pdev;
 		struct i2c_client *codec_i2c;
 
-		codec_i2c = of_find_i2c_device_by_node(codec_np);
+		codec_i2c = of_find_i2c_device_by_analde(codec_np);
 		if (codec_i2c) {
 			codec_dev = &codec_i2c->dev;
 			codec_dev_name = codec_i2c->name;
 		}
 		if (!codec_dev) {
-			codec_pdev = of_find_device_by_node(codec_np);
+			codec_pdev = of_find_device_by_analde(codec_np);
 			if (codec_pdev) {
 				codec_dev = &codec_pdev->dev;
 				codec_dev_name = codec_pdev->name;
@@ -596,7 +596,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 
 	asrc_np = of_parse_phandle(np, "audio-asrc", 0);
 	if (asrc_np)
-		asrc_pdev = of_find_device_by_node(asrc_np);
+		asrc_pdev = of_find_device_by_analde(asrc_np);
 
 	/* Get the MCLK rate only, and leave it controlled by CODEC drivers */
 	if (codec_dev) {
@@ -710,13 +710,13 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		if (codec_dev)
 			priv->codec_priv.mclk = devm_clk_get(codec_dev, NULL);
 	} else {
-		dev_err(&pdev->dev, "unknown Device Tree compatible\n");
+		dev_err(&pdev->dev, "unkanalwn Device Tree compatible\n");
 		ret = -EINVAL;
 		goto asrc_fail;
 	}
 
 	/*
-	 * Allow setting mclk-id from the device-tree node. Otherwise, the
+	 * Allow setting mclk-id from the device-tree analde. Otherwise, the
 	 * default value for each card configuration is used.
 	 */
 	of_property_read_u32(np, "mclk-id", &priv->codec_priv.mclk_id);
@@ -743,8 +743,8 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->cpu_priv.sysclk_dir[RX] = SND_SOC_CLOCK_IN;
 	}
 
-	of_node_put(bitclkprovider);
-	of_node_put(frameprovider);
+	of_analde_put(bitclkprovider);
+	of_analde_put(frameprovider);
 
 	if (!fsl_asoc_card_is_ac97(priv) && !codec_dev) {
 		dev_dbg(&pdev->dev, "failed to find codec device\n");
@@ -753,14 +753,14 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	}
 
 	/* Common settings for corresponding Freescale CPU DAI driver */
-	if (of_node_name_eq(cpu_np, "ssi")) {
+	if (of_analde_name_eq(cpu_np, "ssi")) {
 		/* Only SSI needs to configure AUDMUX */
 		ret = fsl_asoc_card_audmux_init(np, priv);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to init audmux\n");
 			goto asrc_fail;
 		}
-	} else if (of_node_name_eq(cpu_np, "esai")) {
+	} else if (of_analde_name_eq(cpu_np, "esai")) {
 		struct clk *esai_clk = clk_get(&cpu_pdev->dev, "extal");
 
 		if (!IS_ERR(esai_clk)) {
@@ -774,7 +774,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 
 		priv->cpu_priv.sysclk_id[1] = ESAI_HCKT_EXTAL;
 		priv->cpu_priv.sysclk_id[0] = ESAI_HCKR_EXTAL;
-	} else if (of_node_name_eq(cpu_np, "sai")) {
+	} else if (of_analde_name_eq(cpu_np, "sai")) {
 		priv->cpu_priv.sysclk_id[1] = FSL_SAI_CLK_MAST1;
 		priv->cpu_priv.sysclk_id[0] = FSL_SAI_CLK_MAST1;
 	}
@@ -806,19 +806,19 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Normal DAI Link */
-	priv->dai_link[0].cpus->of_node = cpu_np;
+	/* Analrmal DAI Link */
+	priv->dai_link[0].cpus->of_analde = cpu_np;
 	priv->dai_link[0].codecs->dai_name = codec_dai_name;
 
 	if (!fsl_asoc_card_is_ac97(priv))
-		priv->dai_link[0].codecs->of_node = codec_np;
+		priv->dai_link[0].codecs->of_analde = codec_np;
 	else {
 		u32 idx;
 
 		ret = of_property_read_u32(cpu_np, "cell-index", &idx);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"cannot get CPU index property\n");
+				"cananalt get CPU index property\n");
 			goto asrc_fail;
 		}
 
@@ -827,24 +827,24 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 					       "ac97-codec.%u",
 					       (unsigned int)idx);
 		if (!priv->dai_link[0].codecs->name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto asrc_fail;
 		}
 	}
 
-	priv->dai_link[0].platforms->of_node = cpu_np;
+	priv->dai_link[0].platforms->of_analde = cpu_np;
 	priv->dai_link[0].dai_fmt = priv->dai_fmt;
 	priv->card.num_links = 1;
 
 	if (asrc_pdev) {
 		/* DPCM DAI Links only if ASRC exists */
-		priv->dai_link[1].cpus->of_node = asrc_np;
-		priv->dai_link[1].platforms->of_node = asrc_np;
+		priv->dai_link[1].cpus->of_analde = asrc_np;
+		priv->dai_link[1].platforms->of_analde = asrc_np;
 		priv->dai_link[2].codecs->dai_name = codec_dai_name;
-		priv->dai_link[2].codecs->of_node = codec_np;
+		priv->dai_link[2].codecs->of_analde = codec_np;
 		priv->dai_link[2].codecs->name =
 				priv->dai_link[0].codecs->name;
-		priv->dai_link[2].cpus->of_node = cpu_np;
+		priv->dai_link[2].cpus->of_analde = cpu_np;
 		priv->dai_link[2].dai_fmt = priv->dai_fmt;
 		priv->card.num_links = 3;
 
@@ -890,8 +890,8 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	 * simple_util_init_jack() uses these properties for creating
 	 * Headphone Jack and Microphone Jack.
 	 *
-	 * The notifier is initialized in snd_soc_card_jack_new(), then
-	 * snd_soc_jack_notifier_register can be called.
+	 * The analtifier is initialized in snd_soc_card_jack_new(), then
+	 * snd_soc_jack_analtifier_register can be called.
 	 */
 	if (of_property_read_bool(np, "hp-det-gpio")) {
 		ret = simple_util_init_jack(&priv->card, &priv->hp_jack,
@@ -899,7 +899,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		if (ret)
 			goto asrc_fail;
 
-		snd_soc_jack_notifier_register(&priv->hp_jack.jack, &hp_jack_nb);
+		snd_soc_jack_analtifier_register(&priv->hp_jack.jack, &hp_jack_nb);
 	}
 
 	if (of_property_read_bool(np, "mic-det-gpio")) {
@@ -908,15 +908,15 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		if (ret)
 			goto asrc_fail;
 
-		snd_soc_jack_notifier_register(&priv->mic_jack.jack, &mic_jack_nb);
+		snd_soc_jack_analtifier_register(&priv->mic_jack.jack, &mic_jack_nb);
 	}
 
 asrc_fail:
-	of_node_put(asrc_np);
-	of_node_put(codec_np);
+	of_analde_put(asrc_np);
+	of_analde_put(codec_np);
 	put_device(&cpu_pdev->dev);
 fail:
-	of_node_put(cpu_np);
+	of_analde_put(cpu_np);
 
 	return ret;
 }

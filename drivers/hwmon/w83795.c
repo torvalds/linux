@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *  w83795.c - Linux kernel driver for hardware monitoring
- *  Copyright (C) 2008 Nuvoton Technology Corp.
+ *  Copyright (C) 2008 Nuvoton Techanallogy Corp.
  *                Wei Song
  *  Copyright (C) 2010 Jean Delvare <jdelvare@suse.de>
  *
  *  Supports following chips:
  *
  *  Chip       #vin   #fanin #pwm #temp #dts wchipid  vendid  i2c  ISA
- *  w83795g     21     14     8     6     8    0x79   0x5ca3  yes   no
- *  w83795adg   18     14     2     6     8    0x79   0x5ca3  yes   no
+ *  w83795g     21     14     8     6     8    0x79   0x5ca3  anal   anal
+ *  w83795adg   18     14     2     6     8    0x79   0x5ca3  anal   anal
  */
 
 #include <linux/kernel.h>
@@ -25,14 +25,14 @@
 #include <linux/util_macros.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = {
+static const unsigned short analrmal_i2c[] = {
 	0x2c, 0x2d, 0x2e, 0x2f, I2C_CLIENT_END
 };
 
 
 static bool reset;
 module_param(reset, bool, 0);
-MODULE_PARM_DESC(reset, "Set to 1 to reset chip, not recommended");
+MODULE_PARM_DESC(reset, "Set to 1 to reset chip, analt recommended");
 
 
 #define W83795_REG_BANKSEL		0x00
@@ -122,7 +122,7 @@ static const u8 W83795_REG_IN_HL_LSB[] = {
 #define IN_LSB_SHIFT			0
 #define IN_LSB_IDX			1
 static const u8 IN_LSB_SHIFT_IDX[][2] = {
-	/* High/Low LSB shift, LSB No. */
+	/* High/Low LSB shift, LSB Anal. */
 	{0x00, 0x00},	/* VSEN1 */
 	{0x02, 0x00},	/* VSEN2 */
 	{0x04, 0x00},	/* VSEN3 */
@@ -183,7 +183,7 @@ static const u8 tss_map[4][6] = {
 #define PWM_OUTPUT			0
 #define PWM_FREQ			1
 #define PWM_START			2
-#define PWM_NONSTOP			3
+#define PWM_ANALNSTOP			3
 #define PWM_STOP_TIME			4
 #define W83795_REG_PWM(index, nr)	(0x210 + (nr) * 8 + (index))
 
@@ -325,17 +325,17 @@ struct w83795_data {
 
 	u8 bank;
 
-	u32 has_in;		/* Enable monitor VIN or not */
+	u32 has_in;		/* Enable monitor VIN or analt */
 	u8 has_dyn_in;		/* Only in2-0 can have this */
 	u16 in[21][3];		/* Register value, read/high/low */
 	u8 in_lsb[10][3];	/* LSB Register value, high/low */
 	u8 has_gain;		/* has gain: in17-20 * 8 */
 
-	u16 has_fan;		/* Enable fan14-1 or not */
+	u16 has_fan;		/* Enable fan14-1 or analt */
 	u16 fan[14];		/* Register value combine */
 	u16 fan_min[14];	/* Register value combine */
 
-	u8 has_temp;		/* Enable monitor temp6-1 or not */
+	u8 has_temp;		/* Enable monitor temp6-1 or analt */
 	s8 temp[6][5];		/* current, crit, crit_hyst, warn, warn_hyst */
 	u8 temp_read_vrlsb[6];
 	u8 temp_mode;		/* Bit vector, 0 = TR, 1 = TD */
@@ -353,12 +353,12 @@ struct w83795_data {
 
 	u8 has_pwm;		/*
 				 * 795g supports 8 pwm, 795adg only supports 2,
-				 * no config register, only affected by chip
+				 * anal config register, only affected by chip
 				 * type
 				 */
 	u8 pwm[8][5];		/*
 				 * Register value, output, freq, start,
-				 *  non stop, stop time
+				 *  analn stop, stop time
 				 */
 	u16 clkin;		/* CLKIN frequency in kHz */
 	u8 pwm_fcms[2];		/* Register value */
@@ -386,7 +386,7 @@ struct w83795_data {
 
 /*
  * Hardware access
- * We assume that nobdody can change the bank outside the driver.
+ * We assume that analbdody can change the bank outside the driver.
  */
 
 /* Must be called with data->update_lock held, except during initialization */
@@ -395,7 +395,7 @@ static int w83795_set_bank(struct i2c_client *client, u8 bank)
 	struct w83795_data *data = i2c_get_clientdata(client);
 	int err;
 
-	/* If the same bank is already set, nothing to do */
+	/* If the same bank is already set, analthing to do */
 	if ((data->bank & 0x07) == bank)
 		return 0;
 
@@ -932,7 +932,7 @@ store_pwm_enable(struct device *dev, struct device_attribute *attr,
 	if (val > 1) {
 		dev_warn(dev, "Automatic fan speed control support disabled\n");
 		dev_warn(dev, "Build with CONFIG_SENSORS_W83795_FANCTRL=y if you want it\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 #endif
 
@@ -1037,7 +1037,7 @@ store_temp_src(struct device *dev, struct device_attribute *attr,
 		if (tss_map[tmp][index] == channel - 1)
 			break;
 	}
-	if (tmp == 4)	/* No match */
+	if (tmp == 4)	/* Anal match */
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -1600,7 +1600,7 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 #endif
 
 
-#define NOT_USED			-1
+#define ANALT_USED			-1
 
 /*
  * Don't change the attribute order, _max, _min and _beep are accessed by index
@@ -1637,13 +1637,13 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 	SENSOR_ATTR_2(pwm##index, S_IWUSR | S_IRUGO, show_pwm,		\
 		store_pwm, PWM_OUTPUT, index - 1),			\
 	SENSOR_ATTR_2(pwm##index##_enable, S_IWUSR | S_IRUGO,		\
-		show_pwm_enable, store_pwm_enable, NOT_USED, index - 1), \
+		show_pwm_enable, store_pwm_enable, ANALT_USED, index - 1), \
 	SENSOR_ATTR_2(pwm##index##_mode, S_IRUGO,			\
-		show_pwm_mode, NULL, NOT_USED, index - 1),		\
+		show_pwm_mode, NULL, ANALT_USED, index - 1),		\
 	SENSOR_ATTR_2(pwm##index##_freq, S_IWUSR | S_IRUGO,		\
 		show_pwm, store_pwm, PWM_FREQ, index - 1),		\
-	SENSOR_ATTR_2(pwm##index##_nonstop, S_IWUSR | S_IRUGO,		\
-		show_pwm, store_pwm, PWM_NONSTOP, index - 1),		\
+	SENSOR_ATTR_2(pwm##index##_analnstop, S_IWUSR | S_IRUGO,		\
+		show_pwm, store_pwm, PWM_ANALNSTOP, index - 1),		\
 	SENSOR_ATTR_2(pwm##index##_start, S_IWUSR | S_IRUGO,		\
 		show_pwm, store_pwm, PWM_START, index - 1),		\
 	SENSOR_ATTR_2(pwm##index##_stop_time, S_IWUSR | S_IRUGO,	\
@@ -1657,17 +1657,17 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
  */
 #define SENSOR_ATTR_DTS(index) {					\
 	SENSOR_ATTR_2(temp##index##_type, S_IRUGO ,		\
-		show_dts_mode, NULL, NOT_USED, index - 7),	\
+		show_dts_mode, NULL, ANALT_USED, index - 7),	\
 	SENSOR_ATTR_2(temp##index##_input, S_IRUGO, show_dts,		\
-		NULL, NOT_USED, index - 7),				\
+		NULL, ANALT_USED, index - 7),				\
 	SENSOR_ATTR_2(temp##index##_crit, S_IRUGO | S_IWUSR, show_dts_ext, \
-		store_dts_ext, DTS_CRIT, NOT_USED),			\
+		store_dts_ext, DTS_CRIT, ANALT_USED),			\
 	SENSOR_ATTR_2(temp##index##_crit_hyst, S_IRUGO | S_IWUSR,	\
-		show_dts_ext, store_dts_ext, DTS_CRIT_HYST, NOT_USED),	\
+		show_dts_ext, store_dts_ext, DTS_CRIT_HYST, ANALT_USED),	\
 	SENSOR_ATTR_2(temp##index##_max, S_IRUGO | S_IWUSR, show_dts_ext, \
-		store_dts_ext, DTS_WARN, NOT_USED),			\
+		store_dts_ext, DTS_WARN, ANALT_USED),			\
 	SENSOR_ATTR_2(temp##index##_max_hyst, S_IRUGO | S_IWUSR,	\
-		show_dts_ext, store_dts_ext, DTS_WARN_HYST, NOT_USED),	\
+		show_dts_ext, store_dts_ext, DTS_WARN_HYST, ANALT_USED),	\
 	SENSOR_ATTR_2(temp##index##_alarm, S_IRUGO,			\
 		show_alarm_beep, NULL, ALARM_STATUS, index + 17),	\
 	SENSOR_ATTR_2(temp##index##_beep, S_IWUSR | S_IRUGO,		\
@@ -1679,7 +1679,7 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
  */
 #define SENSOR_ATTR_TEMP(index) {					\
 	SENSOR_ATTR_2(temp##index##_type, S_IRUGO | (index < 5 ? S_IWUSR : 0), \
-		show_temp_mode, store_temp_mode, NOT_USED, index - 1),	\
+		show_temp_mode, store_temp_mode, ANALT_USED, index - 1),	\
 	SENSOR_ATTR_2(temp##index##_input, S_IRUGO, show_temp,		\
 		NULL, TEMP_READ, index - 1),				\
 	SENSOR_ATTR_2(temp##index##_crit, S_IRUGO | S_IWUSR, show_temp,	\
@@ -1814,17 +1814,17 @@ static const struct sensor_device_attribute_2 w83795_pwm[][8] = {
 
 static const struct sensor_device_attribute_2 w83795_tss[6] = {
 	SENSOR_ATTR_2(temp1_source_sel, S_IWUSR | S_IRUGO,
-		      show_temp_src, store_temp_src, NOT_USED, 0),
+		      show_temp_src, store_temp_src, ANALT_USED, 0),
 	SENSOR_ATTR_2(temp2_source_sel, S_IWUSR | S_IRUGO,
-		      show_temp_src, store_temp_src, NOT_USED, 1),
+		      show_temp_src, store_temp_src, ANALT_USED, 1),
 	SENSOR_ATTR_2(temp3_source_sel, S_IWUSR | S_IRUGO,
-		      show_temp_src, store_temp_src, NOT_USED, 2),
+		      show_temp_src, store_temp_src, ANALT_USED, 2),
 	SENSOR_ATTR_2(temp4_source_sel, S_IWUSR | S_IRUGO,
-		      show_temp_src, store_temp_src, NOT_USED, 3),
+		      show_temp_src, store_temp_src, ANALT_USED, 3),
 	SENSOR_ATTR_2(temp5_source_sel, S_IWUSR | S_IRUGO,
-		      show_temp_src, store_temp_src, NOT_USED, 4),
+		      show_temp_src, store_temp_src, ANALT_USED, 4),
 	SENSOR_ATTR_2(temp6_source_sel, S_IWUSR | S_IRUGO,
-		      show_temp_src, store_temp_src, NOT_USED, 5),
+		      show_temp_src, store_temp_src, ANALT_USED, 5),
 };
 
 static const struct sensor_device_attribute_2 sda_single_files[] = {
@@ -1832,13 +1832,13 @@ static const struct sensor_device_attribute_2 sda_single_files[] = {
 		      store_chassis_clear, ALARM_STATUS, 46),
 #ifdef CONFIG_SENSORS_W83795_FANCTRL
 	SENSOR_ATTR_2(speed_cruise_tolerance, S_IWUSR | S_IRUGO, show_fanin,
-		store_fanin, FANIN_TOL, NOT_USED),
+		store_fanin, FANIN_TOL, ANALT_USED),
 	SENSOR_ATTR_2(pwm_default, S_IWUSR | S_IRUGO, show_sf_setup,
-		      store_sf_setup, SETUP_PWM_DEFAULT, NOT_USED),
+		      store_sf_setup, SETUP_PWM_DEFAULT, ANALT_USED),
 	SENSOR_ATTR_2(pwm_uptime, S_IWUSR | S_IRUGO, show_sf_setup,
-		      store_sf_setup, SETUP_PWM_UPTIME, NOT_USED),
+		      store_sf_setup, SETUP_PWM_UPTIME, ANALT_USED),
 	SENSOR_ATTR_2(pwm_downtime, S_IWUSR | S_IRUGO, show_sf_setup,
-		      store_sf_setup, SETUP_PWM_DOWNTIME, NOT_USED),
+		      store_sf_setup, SETUP_PWM_DOWNTIME, ANALT_USED),
 #endif
 };
 
@@ -1898,7 +1898,7 @@ static int w83795_get_device_id(struct i2c_client *client)
 	return device_id;
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int w83795_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
@@ -1908,13 +1908,13 @@ static int w83795_detect(struct i2c_client *client,
 	const char *chip_name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 	bank = i2c_smbus_read_byte_data(client, W83795_REG_BANKSEL);
 	if (bank < 0 || (bank & 0x7c)) {
 		dev_dbg(&adapter->dev,
 			"w83795: Detection failed at addr 0x%02hx, check %s\n",
 			address, "bank");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Check Nuvoton vendor ID */
@@ -1924,7 +1924,7 @@ static int w83795_detect(struct i2c_client *client,
 		dev_dbg(&adapter->dev,
 			"w83795: Detection failed at addr 0x%02hx, check %s\n",
 			address, "vendor id");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Check device ID */
@@ -1934,7 +1934,7 @@ static int w83795_detect(struct i2c_client *client,
 		dev_dbg(&adapter->dev,
 			"w83795: Detection failed at addr 0x%02hx, check %s\n",
 			address, "device id\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -1948,7 +1948,7 @@ static int w83795_detect(struct i2c_client *client,
 			dev_dbg(&adapter->dev,
 				"w83795: Detection failed at addr 0x%02hx, "
 				"check %s\n", address, "i2c addr");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -2146,7 +2146,7 @@ static int w83795_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct w83795_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	data->chip_type = i2c_match_id(w83795_id, client)->driver_data;
@@ -2261,7 +2261,7 @@ static struct i2c_driver w83795_driver = {
 
 	.class		= I2C_CLASS_HWMON,
 	.detect		= w83795_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(w83795_driver);

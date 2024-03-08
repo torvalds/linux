@@ -28,7 +28,7 @@ VMLINUX_BTF_PATHS ?= $(if $(O),$(O)/vmlinux)				\
 		     /boot/vmlinux-$(shell uname -r)
 VMLINUX_BTF ?= $(abspath $(firstword $(wildcard $(VMLINUX_BTF_PATHS))))
 ifeq ($(VMLINUX_BTF),)
-$(error Cannot find a vmlinux for VMLINUX_BTF at any of "$(VMLINUX_BTF_PATHS)")
+$(error Cananalt find a vmlinux for VMLINUX_BTF at any of "$(VMLINUX_BTF_PATHS)")
 endif
 
 ifeq ($(V),1)
@@ -36,8 +36,8 @@ Q =
 msg =
 else
 Q = @
-msg = @printf '  %-8s %s%s\n' "$(1)" "$(notdir $(2))" "$(if $(3), $(3))";
-MAKEFLAGS += --no-print-directory
+msg = @printf '  %-8s %s%s\n' "$(1)" "$(analtdir $(2))" "$(if $(3), $(3))";
+MAKEFLAGS += --anal-print-directory
 submake_extras := feature_display=0
 endif
 

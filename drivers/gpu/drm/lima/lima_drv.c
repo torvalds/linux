@@ -52,7 +52,7 @@ static int lima_ioctl_get_param(struct drm_device *dev, void *data, struct drm_f
 			args->value = DRM_LIMA_PARAM_GPU_ID_MALI450;
 			break;
 		default:
-			args->value = DRM_LIMA_PARAM_GPU_ID_UNKNOWN;
+			args->value = DRM_LIMA_PARAM_GPU_ID_UNKANALWN;
 			break;
 		}
 		break;
@@ -124,7 +124,7 @@ static int lima_ioctl_gem_submit(struct drm_device *dev, void *data, struct drm_
 
 	bos = kvcalloc(args->nr_bos, sizeof(*submit.bos) + sizeof(*submit.lbos), GFP_KERNEL);
 	if (!bos)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = args->nr_bos * sizeof(*submit.bos);
 	if (copy_from_user(bos, u64_to_user_ptr(args->bos), size)) {
@@ -134,7 +134,7 @@ static int lima_ioctl_gem_submit(struct drm_device *dev, void *data, struct drm_
 
 	task = kmem_cache_zalloc(pipe->task_slab, GFP_KERNEL);
 	if (!task) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out0;
 	}
 
@@ -150,7 +150,7 @@ static int lima_ioctl_gem_submit(struct drm_device *dev, void *data, struct drm_
 
 	ctx = lima_ctx_get(&priv->ctx_mgr, args->ctx);
 	if (!ctx) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out1;
 	}
 
@@ -217,11 +217,11 @@ static int lima_drm_driver_open(struct drm_device *dev, struct drm_file *file)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->vm = lima_vm_create(ldev);
 	if (!priv->vm) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out0;
 	}
 
@@ -273,7 +273,7 @@ static const struct drm_driver lima_drm_driver = {
 	.desc               = "lima DRM",
 	.date               = "20191231",
 	.major              = 1,
-	.minor              = 1,
+	.mianalr              = 1,
 	.patchlevel         = 0,
 
 	.gem_create_object  = lima_gem_create_object,
@@ -379,7 +379,7 @@ static int lima_pdev_probe(struct platform_device *pdev)
 
 	ldev = devm_kzalloc(&pdev->dev, sizeof(*ldev), GFP_KERNEL);
 	if (!ldev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out0;
 	}
 

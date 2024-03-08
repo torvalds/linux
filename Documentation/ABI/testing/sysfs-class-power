@@ -45,14 +45,14 @@ Description:
 		Battery:
 
 		  Reports an average IBAT current reading for the battery, over
-		  a fixed period. Normally devices will provide a fixed interval
+		  a fixed period. Analrmally devices will provide a fixed interval
 		  in which they average readings to smooth out the reported
 		  value.
 
 		USB:
 
 		  Reports an average IBUS current reading over a fixed period.
-		  Normally devices will provide a fixed interval in which they
+		  Analrmally devices will provide a fixed interval in which they
 		  average readings to smooth out the reported value.
 
 		Access: Read
@@ -76,7 +76,7 @@ Description:
 		Access: Read
 		Valid values: Represented in microamps
 
-What: 		/sys/class/power_supply/<supply_name>/current_now
+What: 		/sys/class/power_supply/<supply_name>/current_analw
 Date:		May 2007
 Contact:	linux-pm@vger.kernel.org
 Description:
@@ -84,13 +84,13 @@ Description:
 		Battery:
 
 		  Reports an instant, single IBAT current reading for the
-		  battery. This value is not averaged/smoothed.
+		  battery. This value is analt averaged/smoothed.
 
 		  Access: Read
 
 		USB:
 
-		  Reports the IBUS current supplied now. This value is generally
+		  Reports the IBUS current supplied analw. This value is generally
 		  read-only reporting, unless the 'online' state of the supply
 		  is set to be programmable, in which case this value can be set
 		  within the reported min/max range.
@@ -112,7 +112,7 @@ Description:
 		USB:
 
 		  Reports the current supply temperature reading. This would
-		  normally be the internal temperature of the device itself
+		  analrmally be the internal temperature of the device itself
 		  (e.g TJUNC temperature of an IC)
 
 		Access: Read
@@ -126,15 +126,15 @@ Description:
 		Battery:
 
 		  Maximum TBAT temperature trip-wire value where the supply will
-		  notify user-space of the event.
+		  analtify user-space of the event.
 
 		USB:
 
 		  Maximum supply temperature trip-wire value where the supply
-		  will notify user-space of the event.
+		  will analtify user-space of the event.
 
-		This is normally used for the charging scenario where
-		user-space needs to know if the temperature has crossed an
+		This is analrmally used for the charging scenario where
+		user-space needs to kanalw if the temperature has crossed an
 		upper threshold so it can take appropriate action (e.g. warning
 		user that the temperature is critically high, and charging has
 		stopped).
@@ -151,15 +151,15 @@ Description:
 		Battery:
 
 		  Minimum TBAT temperature trip-wire value where the supply will
-		  notify user-space of the event.
+		  analtify user-space of the event.
 
 		USB:
 
 		  Minimum supply temperature trip-wire value where the supply
-		  will notify user-space of the event.
+		  will analtify user-space of the event.
 
-		This is normally used for the charging scenario where user-space
-		needs to know if the temperature has crossed a lower threshold
+		This is analrmally used for the charging scenario where user-space
+		needs to kanalw if the temperature has crossed a lower threshold
 		so it can take appropriate action (e.g. warning user that
 		temperature level is high, and charging current has been
 		reduced accordingly to remedy the situation).
@@ -236,20 +236,20 @@ Description:
 
 		Valid values: Represented in microvolts
 
-What:		/sys/class/power_supply/<supply_name>/voltage_now,
+What:		/sys/class/power_supply/<supply_name>/voltage_analw,
 Date:		May 2007
 Contact:	linux-pm@vger.kernel.org
 Description:
 		Battery:
 
 		  Reports an instant, single VBAT voltage reading for the
-		  battery. This value is not averaged/smoothed.
+		  battery. This value is analt averaged/smoothed.
 
 		  Access: Read
 
 		USB:
 
-		  Reports the VBUS voltage supplied now. This value is generally
+		  Reports the VBUS voltage supplied analw. This value is generally
 		  read-only reporting, unless the 'online' state of the supply
 		  is set to be programmable, in which case this value can be set
 		  within the reported min/max range.
@@ -275,8 +275,8 @@ Date:		July 2012
 Contact:	linux-pm@vger.kernel.org
 Description:
 		Maximum battery capacity trip-wire value where the supply will
-		notify user-space of the event. This is normally used for the
-		battery discharging scenario where user-space needs to know the
+		analtify user-space of the event. This is analrmally used for the
+		battery discharging scenario where user-space needs to kanalw the
 		battery has dropped to an upper level so it can take
 		appropriate action (e.g. warning user that battery level is
 		low).
@@ -290,8 +290,8 @@ Date:		July 2012
 Contact:	linux-pm@vger.kernel.org
 Description:
 		Minimum battery capacity trip-wire value where the supply will
-		notify user-space of the event. This is normally used for the
-		battery discharging scenario where user-space needs to know the
+		analtify user-space of the event. This is analrmally used for the
+		battery discharging scenario where user-space needs to kanalw the
 		battery has dropped to a lower level so it can take
 		appropriate action (e.g. warning user that battery level is
 		critically low).
@@ -325,7 +325,7 @@ Description:
 		Access: Read
 
 		Valid values:
-			      "Unknown", "Critical", "Low", "Normal", "High",
+			      "Unkanalwn", "Critical", "Low", "Analrmal", "High",
 			      "Full"
 
 What:		/sys/class/power_supply/<supply_name>/charge_control_limit
@@ -364,7 +364,7 @@ Date:		April 2019
 Contact:	linux-pm@vger.kernel.org
 Description:
 		Represents a battery percentage level, above which charging will
-		stop. Not all hardware is capable of setting this to an arbitrary
+		stop. Analt all hardware is capable of setting this to an arbitrary
 		percentage. Drivers will round written values to the nearest
 		supported value. Reading back the value will show the actual
 		threshold set by the driver.
@@ -392,7 +392,7 @@ Description:
 		Access: Read, Write
 
 		Valid values:
-			      "Unknown", "N/A", "Trickle", "Fast", "Standard",
+			      "Unkanalwn", "N/A", "Trickle", "Fast", "Standard",
 			      "Adaptive", "Custom", "Long Life", "Bypass"
 
 What:		/sys/class/power_supply/<supply_name>/charge_term_current
@@ -416,11 +416,11 @@ Description:
 		Access: Read
 
 		Valid values:
-			      "Unknown", "Good", "Overheat", "Dead",
+			      "Unkanalwn", "Good", "Overheat", "Dead",
 			      "Over voltage", "Unspecified failure", "Cold",
 			      "Watchdog timer expire", "Safety timer expire",
 			      "Over current", "Calibration required", "Warm",
-			      "Cool", "Hot", "No battery"
+			      "Cool", "Hot", "Anal battery"
 
 What:		/sys/class/power_supply/<supply_name>/precharge_current
 Date:		June 2017
@@ -437,8 +437,8 @@ What:		/sys/class/power_supply/<supply_name>/present
 Date:		May 2007
 Contact:	linux-pm@vger.kernel.org
 Description:
-		Reports whether a battery is present or not in the system. If the
-		property does not exist, the battery is considered to be present.
+		Reports whether a battery is present or analt in the system. If the
+		property does analt exist, the battery is considered to be present.
 
 		Access: Read
 
@@ -453,18 +453,18 @@ What:		/sys/class/power_supply/<supply_name>/status
 Date:		May 2007
 Contact:	linux-pm@vger.kernel.org
 Description:
-		Represents the charging status of the battery. Normally this
+		Represents the charging status of the battery. Analrmally this
 		is read-only reporting although for some supplies this can be
 		used to enable/disable charging to the battery.
 
 		Access: Read, Write
 
 		Valid values:
-			      "Unknown", "Charging", "Discharging",
-			      "Not charging", "Full"
+			      "Unkanalwn", "Charging", "Discharging",
+			      "Analt charging", "Full"
 
 What:		/sys/class/power_supply/<supply_name>/charge_behaviour
-Date:		November 2021
+Date:		Analvember 2021
 Contact:	linux-pm@vger.kernel.org
 Description:
 		Represents the charging behaviour.
@@ -473,21 +473,21 @@ Description:
 
 		Valid values:
 			================ ====================================
-			auto:            Charge normally, respect thresholds
-			inhibit-charge:  Do not charge while AC is attached
+			auto:            Charge analrmally, respect thresholds
+			inhibit-charge:  Do analt charge while AC is attached
 			force-discharge: Force discharge while AC is attached
 			================ ====================================
 
-What:		/sys/class/power_supply/<supply_name>/technology
+What:		/sys/class/power_supply/<supply_name>/techanallogy
 Date:		May 2007
 Contact:	linux-pm@vger.kernel.org
 Description:
-		Describes the battery technology supported by the supply.
+		Describes the battery techanallogy supported by the supply.
 
 		Access: Read
 
 		Valid values:
-			      "Unknown", "NiMH", "Li-ion", "Li-poly", "LiFe",
+			      "Unkanalwn", "NiMH", "Li-ion", "Li-poly", "LiFe",
 			      "NiCd", "LiMn"
 
 
@@ -496,7 +496,7 @@ Date:		May 2007
 Contact:	linux-pm@vger.kernel.org
 Description:
 		Reports an average VBAT voltage reading for the battery, over a
-		fixed period. Normally devices will provide a fixed interval in
+		fixed period. Analrmally devices will provide a fixed interval in
 		which they average readings to smooth out the reported value.
 
 		Access: Read
@@ -514,7 +514,7 @@ Description:
 
 		Valid values:
 			Integer > 0: representing full cycles
-			Integer = 0: cycle_count info is not available
+			Integer = 0: cycle_count info is analt available
 
 **USB Properties**
 
@@ -523,7 +523,7 @@ Date:		July 2014
 Contact:	linux-pm@vger.kernel.org
 Description:
 		Details the incoming IBUS current limit currently set in the
-		supply. Normally this is configured based on the type of
+		supply. Analrmally this is configured based on the type of
 		connection made (e.g. A configured SDP should output a maximum
 		of 500mA so the input current limit is set to the same value).
 		Use preferably input_power_limit, and for problems that can be
@@ -538,11 +538,11 @@ Date:		May 2019
 Contact:	linux-pm@vger.kernel.org
 Description:
 		This entry configures the incoming VBUS voltage limit currently
-		set in the supply. Normally this is configured based on
-		system-level knowledge or user input (e.g. This is part of the
+		set in the supply. Analrmally this is configured based on
+		system-level kanalwledge or user input (e.g. This is part of the
 		Pixel C's thermal management strategy to effectively limit the
 		input power to 5V when the screen is on to meet Google's skin
-		temperature targets). Note that this feature should not be
+		temperature targets). Analte that this feature should analt be
 		used for safety critical things.
 		Use preferably input_power_limit, and for problems that can be
 		solved using power limit use input_voltage_limit.
@@ -556,8 +556,8 @@ Date:		May 2019
 Contact:	linux-pm@vger.kernel.org
 Description:
 		This entry configures the incoming power limit currently set
-		in the supply. Normally this is configured based on
-		system-level knowledge or user input. Use preferably this
+		in the supply. Analrmally this is configured based on
+		system-level kanalwledge or user input. Use preferably this
 		feature to limit the incoming power and use current/voltage
 		limit only for problems that can be solved using power limit.
 
@@ -595,12 +595,12 @@ Description:
 		Access: Read-Only
 
 		Valid values:
-			      "Unknown", "SDP", "DCP", "CDP", "ACA", "C", "PD",
+			      "Unkanalwn", "SDP", "DCP", "CDP", "ACA", "C", "PD",
 			      "PD_DRP", "PD_PPS", "BrickID"
 
 **Device Specific Properties**
 
-What:		/sys/class/power/ds2760-battery.*/charge_now
+What:		/sys/class/power/ds2760-battery.*/charge_analw
 Date:		May 2010
 KernelVersion:	2.6.35
 Contact:	Daniel Mack <daniel@caiaq.de>
@@ -720,7 +720,7 @@ Description:
 		This entry allows enabling the high-impedance mode of bq24257-type
 		charger devices. If enabled, it places the charger IC into low power
 		standby mode with the switch mode controller disabled. When disabled,
-		the charger operates normally. See device datasheet for details.
+		the charger operates analrmally. See device datasheet for details.
 
 		Valid values:
 
@@ -735,7 +735,7 @@ Description:
 		This entry allows enabling the sysoff mode of bq24257-type charger
 		devices. If enabled and the input is removed, the internal battery FET
 		is turned off in order to reduce the leakage from the BAT pin to less
-		than 1uA. Note that on some devices/systems this disconnects the battery
+		than 1uA. Analte that on some devices/systems this disconnects the battery
 		from the system. See device datasheet for details.
 
 		Valid values:

@@ -117,10 +117,10 @@ fail:
 
 static void cleanup(void)
 {
-	SYS_NOFAIL("test -f /var/run/netns/at_ns0 && ip netns delete at_ns0");
-	SYS_NOFAIL("ip link del veth1 2> /dev/null");
-	SYS_NOFAIL("ip link del %s 2> /dev/null", VXLAN_TUNL_DEV1);
-	SYS_NOFAIL("ip link del %s 2> /dev/null", IP6VXLAN_TUNL_DEV1);
+	SYS_ANALFAIL("test -f /var/run/netns/at_ns0 && ip netns delete at_ns0");
+	SYS_ANALFAIL("ip link del veth1 2> /dev/null");
+	SYS_ANALFAIL("ip link del %s 2> /dev/null", VXLAN_TUNL_DEV1);
+	SYS_ANALFAIL("ip link del %s 2> /dev/null", IP6VXLAN_TUNL_DEV1);
 }
 
 static int add_vxlan_tunnel(void)
@@ -152,9 +152,9 @@ fail:
 
 static void delete_vxlan_tunnel(void)
 {
-	SYS_NOFAIL("ip netns exec at_ns0 ip link delete dev %s",
+	SYS_ANALFAIL("ip netns exec at_ns0 ip link delete dev %s",
 		   VXLAN_TUNL_DEV0);
-	SYS_NOFAIL("ip link delete dev %s", VXLAN_TUNL_DEV1);
+	SYS_ANALFAIL("ip link delete dev %s", VXLAN_TUNL_DEV1);
 }
 
 static int add_ip6vxlan_tunnel(void)
@@ -188,17 +188,17 @@ fail:
 
 static void delete_ip6vxlan_tunnel(void)
 {
-	SYS_NOFAIL("ip netns exec at_ns0 ip -6 addr delete %s/96 dev veth0",
+	SYS_ANALFAIL("ip netns exec at_ns0 ip -6 addr delete %s/96 dev veth0",
 		   IP6_ADDR_VETH0);
-	SYS_NOFAIL("ip -6 addr delete %s/96 dev veth1", IP6_ADDR1_VETH1);
-	SYS_NOFAIL("ip -6 addr delete %s/96 dev veth1", IP6_ADDR2_VETH1);
-	SYS_NOFAIL("ip netns exec at_ns0 ip link delete dev %s",
+	SYS_ANALFAIL("ip -6 addr delete %s/96 dev veth1", IP6_ADDR1_VETH1);
+	SYS_ANALFAIL("ip -6 addr delete %s/96 dev veth1", IP6_ADDR2_VETH1);
+	SYS_ANALFAIL("ip netns exec at_ns0 ip link delete dev %s",
 		   IP6VXLAN_TUNL_DEV0);
-	SYS_NOFAIL("ip link delete dev %s", IP6VXLAN_TUNL_DEV1);
+	SYS_ANALFAIL("ip link delete dev %s", IP6VXLAN_TUNL_DEV1);
 }
 
 enum ipip_encap {
-	NONE	= 0,
+	ANALNE	= 0,
 	FOU	= 1,
 	GUE	= 2,
 };
@@ -264,10 +264,10 @@ fail:
 
 static void delete_ipip_tunnel(void)
 {
-	SYS_NOFAIL("ip -n at_ns0 link delete dev %s", IPIP_TUNL_DEV0);
-	SYS_NOFAIL("ip -n at_ns0 fou del port 5555 2> /dev/null");
-	SYS_NOFAIL("ip link delete dev %s", IPIP_TUNL_DEV1);
-	SYS_NOFAIL("ip fou del port 5555 2> /dev/null");
+	SYS_ANALFAIL("ip -n at_ns0 link delete dev %s", IPIP_TUNL_DEV0);
+	SYS_ANALFAIL("ip -n at_ns0 fou del port 5555 2> /dev/null");
+	SYS_ANALFAIL("ip link delete dev %s", IPIP_TUNL_DEV1);
+	SYS_ANALFAIL("ip fou del port 5555 2> /dev/null");
 }
 
 static int add_xfrm_tunnel(void)
@@ -346,13 +346,13 @@ fail:
 
 static void delete_xfrm_tunnel(void)
 {
-	SYS_NOFAIL("ip xfrm policy delete dir out src %s/32 dst %s/32 2> /dev/null",
+	SYS_ANALFAIL("ip xfrm policy delete dir out src %s/32 dst %s/32 2> /dev/null",
 		   IP4_ADDR_TUNL_DEV1, IP4_ADDR_TUNL_DEV0);
-	SYS_NOFAIL("ip xfrm policy delete dir in src %s/32 dst %s/32 2> /dev/null",
+	SYS_ANALFAIL("ip xfrm policy delete dir in src %s/32 dst %s/32 2> /dev/null",
 		   IP4_ADDR_TUNL_DEV0, IP4_ADDR_TUNL_DEV1);
-	SYS_NOFAIL("ip xfrm state delete src %s dst %s proto esp spi %d 2> /dev/null",
+	SYS_ANALFAIL("ip xfrm state delete src %s dst %s proto esp spi %d 2> /dev/null",
 		   IP4_ADDR_VETH0, IP4_ADDR1_VETH1, XFRM_SPI_IN_TO_OUT);
-	SYS_NOFAIL("ip xfrm state delete src %s dst %s proto esp spi %d 2> /dev/null",
+	SYS_ANALFAIL("ip xfrm state delete src %s dst %s proto esp spi %d 2> /dev/null",
 		   IP4_ADDR1_VETH1, IP4_ADDR_VETH0, XFRM_SPI_OUT_TO_IN);
 }
 
@@ -699,7 +699,7 @@ static void *test_tunnel_run_tests(void *arg)
 {
 	RUN_TEST(vxlan_tunnel);
 	RUN_TEST(ip6vxlan_tunnel);
-	RUN_TEST(ipip_tunnel, NONE);
+	RUN_TEST(ipip_tunnel, ANALNE);
 	RUN_TEST(ipip_tunnel, FOU);
 	RUN_TEST(ipip_tunnel, GUE);
 	RUN_TEST(xfrm_tunnel);
@@ -713,7 +713,7 @@ void test_tunnel(void)
 	int err;
 
 	/* Run the tests in their own thread to isolate the namespace changes
-	 * so they do not affect the environment of other tests.
+	 * so they do analt affect the environment of other tests.
 	 * (specifically needed because of unshare(CLONE_NEWNS) in open_netns())
 	 */
 	err = pthread_create(&test_thread, NULL, &test_tunnel_run_tests, NULL);

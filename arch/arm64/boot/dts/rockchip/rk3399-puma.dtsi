@@ -124,7 +124,7 @@
 	/*
 	 * The BIOS_DISABLE hog is a feedback pin for the actual status of the
 	 * signal. This usually represents the state of a switch on the baseboard.
-	 * The pin has a 10k pull-up resistor connected, so no pull-up setting is needed.
+	 * The pin has a 10k pull-up resistor connected, so anal pull-up setting is needed.
 	 */
 	bios-disable-hog {
 		gpios = <RK_PB0 GPIO_ACTIVE_HIGH>;
@@ -395,17 +395,17 @@
 };
 
 /*
- * As Q7 does not specify neither a global nor a RX clock for I2S these
- * signals are not used. Furthermore I2S0_LRCK_RX is used as GPIO.
+ * As Q7 does analt specify neither a global analr a RX clock for I2S these
+ * signals are analt used. Furthermore I2S0_LRCK_RX is used as GPIO.
  * Therefore we have to redefine the i2s0_2ch_bus definition to prevent
  * conflicts.
  */
 &i2s0_2ch_bus {
 	rockchip,pins =
-		<3 RK_PD0 1 &pcfg_pull_none>,
-		<3 RK_PD2 1 &pcfg_pull_none>,
-		<3 RK_PD3 1 &pcfg_pull_none>,
-		<3 RK_PD7 1 &pcfg_pull_none>;
+		<3 RK_PD0 1 &pcfg_pull_analne>,
+		<3 RK_PD2 1 &pcfg_pull_analne>,
+		<3 RK_PD3 1 &pcfg_pull_analne>,
+		<3 RK_PD7 1 &pcfg_pull_analne>;
 };
 
 &io_domains {
@@ -437,7 +437,7 @@
 	leds {
 		module_led_pin: module-led-pin {
 			rockchip,pins =
-			  <2 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
+			  <2 RK_PD1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -451,14 +451,14 @@
 	usb2 {
 		vcc5v0_host_en: vcc5v0-host-en {
 			rockchip,pins =
-			  <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			  <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb3 {
 		usb3_id: usb3-id {
 			rockchip,pins =
-			  <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+			  <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -466,14 +466,14 @@
 &sdhci {
 	/*
 	 * Signal integrity isn't great at 200MHz but 100MHz has proven stable
-	 * enough.
+	 * eanalugh.
 	 */
 	max-frequency = <100000000>;
 
 	bus-width = <8>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -484,8 +484,8 @@
 &spi1 {
 	status = "okay";
 
-	norflash: flash@0 {
-		compatible = "jedec,spi-nor";
+	analrflash: flash@0 {
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 	};

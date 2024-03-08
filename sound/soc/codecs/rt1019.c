@@ -95,8 +95,8 @@ static bool rt1019_readable_register(struct device *dev, unsigned int reg)
 	case RT1019_TDM_1:
 	case RT1019_TDM_2:
 	case RT1019_TDM_3:
-	case RT1019_DMIX_MONO_1:
-	case RT1019_DMIX_MONO_2:
+	case RT1019_DMIX_MOANAL_1:
+	case RT1019_DMIX_MOANAL_2:
 	case RT1019_BEEP_1:
 	case RT1019_BEEP_2:
 		return true;
@@ -113,13 +113,13 @@ static const char * const rt1019_din_source_select[] = {
 	"Left + Right average",
 };
 
-static SOC_ENUM_SINGLE_DECL(rt1019_mono_lr_sel, RT1019_IDS_CTRL, 0,
+static SOC_ENUM_SINGLE_DECL(rt1019_moanal_lr_sel, RT1019_IDS_CTRL, 0,
 	rt1019_din_source_select);
 
 static const struct snd_kcontrol_new rt1019_snd_controls[] = {
-	SOC_SINGLE_TLV("DAC Playback Volume", RT1019_DMIX_MONO_1, 0,
+	SOC_SINGLE_TLV("DAC Playback Volume", RT1019_DMIX_MOANAL_1, 0,
 		127, 0, dac_vol_tlv),
-	SOC_ENUM("Mono LR Select", rt1019_mono_lr_sel),
+	SOC_ENUM("Moanal LR Select", rt1019_moanal_lr_sel),
 };
 
 static int r1019_dac_event(struct snd_soc_dapm_widget *w,
@@ -142,8 +142,8 @@ static int r1019_dac_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget rt1019_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("AIFRX", "AIF Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_AIF_IN("AIFRX", "AIF Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_ANALPM, 0, 0,
 		r1019_dac_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_OUTPUT("SPO"),
 };
@@ -352,7 +352,7 @@ static int rt1019_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown PLL source %d\n", source);
+		dev_err(component->dev, "Unkanalwn PLL source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -438,7 +438,7 @@ static int rt1019_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	/* This is an assumption that the system sends stereo audio to the
 	 * amplifier typically. And the stereo audio is placed in slot 0/2/4/6
 	 * as the starting slot. The users could select the channel from
-	 * L/R/L+R by "Mono LR Select" control.
+	 * L/R/L+R by "Moanal LR Select" control.
 	 */
 	first_bit = __ffs(rx_mask);
 	switch (first_bit) {
@@ -568,7 +568,7 @@ static int rt1019_i2c_probe(struct i2c_client *i2c)
 	rt1019 = devm_kzalloc(&i2c->dev, sizeof(struct rt1019_priv),
 				GFP_KERNEL);
 	if (!rt1019)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, rt1019);
 
@@ -585,8 +585,8 @@ static int rt1019_i2c_probe(struct i2c_client *i2c)
 	dev_id = val << 8 | val2;
 	if (dev_id != RT1019_DEVICE_ID_VAL && dev_id != RT1019_DEVICE_ID_VAL2) {
 		dev_err(&i2c->dev,
-			"Device with ID register 0x%x is not rt1019\n", dev_id);
-		return -ENODEV;
+			"Device with ID register 0x%x is analt rt1019\n", dev_id);
+		return -EANALDEV;
 	}
 
 	return devm_snd_soc_register_component(&i2c->dev,

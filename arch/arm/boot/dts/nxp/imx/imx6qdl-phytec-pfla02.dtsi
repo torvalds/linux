@@ -70,7 +70,7 @@
 	cs-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
 
 	som_flash: flash@0 {
-		compatible = "m25p80", "jedec,spi-nor";
+		compatible = "m25p80", "jedec,spi-analr";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};
@@ -461,7 +461,7 @@
 &wdog1 {
 	/*
 	 * Rely on PMIC reboot handler. Internal i.MX6 watchdog, that is also
-	 * used for reboot, does not reset all external PMIC voltages on reset.
+	 * used for reboot, does analt reset all external PMIC voltages on reset.
 	 */
 	status = "disabled";
 };

@@ -26,7 +26,7 @@
 
 &cpu0 {
 	/*
-	 * Due to the design as a solderable SOM, there are no capacitors
+	 * Due to the design as a solderable SOM, there are anal capacitors
 	 * below the SoC, therefore higher voltages are required.
 	 */
 	operating-points = <
@@ -210,8 +210,8 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	bus-width = <4>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	keep-power-in-suspend;
 	pinctrl-0 = <&pinctrl_usdhc1_wifi>;
 	pinctrl-names = "default";

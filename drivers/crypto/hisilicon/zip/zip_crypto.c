@@ -394,17 +394,17 @@ static const struct hisi_zip_sqe_ops hisi_zip_ops = {
 	.get_dstlen		= hisi_zip_get_dstlen,
 };
 
-static int hisi_zip_ctx_init(struct hisi_zip_ctx *hisi_zip_ctx, u8 req_type, int node)
+static int hisi_zip_ctx_init(struct hisi_zip_ctx *hisi_zip_ctx, u8 req_type, int analde)
 {
 	struct hisi_qp *qps[HZIP_CTX_Q_NUM] = { NULL };
 	struct hisi_zip_qp_ctx *qp_ctx;
 	struct hisi_zip *hisi_zip;
 	int ret, i, j;
 
-	ret = zip_create_qps(qps, HZIP_CTX_Q_NUM, node);
+	ret = zip_create_qps(qps, HZIP_CTX_Q_NUM, analde);
 	if (ret) {
 		pr_err("failed to create zip qps (%d)!\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	hisi_zip = container_of(qps[0]->qm, struct hisi_zip, qm);
@@ -450,7 +450,7 @@ static int hisi_zip_create_req_q(struct hisi_zip_ctx *ctx)
 
 		req_q->req_bitmap = bitmap_zalloc(req_q->size, GFP_KERNEL);
 		if (!req_q->req_bitmap) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			if (i == 0)
 				return ret;
 
@@ -461,7 +461,7 @@ static int hisi_zip_create_req_q(struct hisi_zip_ctx *ctx)
 		req_q->q = kcalloc(req_q->size, sizeof(struct hisi_zip_req),
 				   GFP_KERNEL);
 		if (!req_q->q) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			if (i == 0)
 				goto err_free_comp_bitmap;
 			else
@@ -505,7 +505,7 @@ static int hisi_zip_create_sgl_pool(struct hisi_zip_ctx *ctx)
 		if (IS_ERR(tmp->sgl_pool)) {
 			if (i == 1)
 				goto err_free_sgl_pool0;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -514,7 +514,7 @@ static int hisi_zip_create_sgl_pool(struct hisi_zip_ctx *ctx)
 err_free_sgl_pool0:
 	hisi_acc_free_sgl_pool(&ctx->qp_ctx[HZIP_QPC_COMP].qp->qm->pdev->dev,
 			       ctx->qp_ctx[HZIP_QPC_COMP].sgl_pool);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void hisi_zip_release_sgl_pool(struct hisi_zip_ctx *ctx)
@@ -542,7 +542,7 @@ static int hisi_zip_acomp_init(struct crypto_acomp *tfm)
 	struct device *dev;
 	int ret;
 
-	ret = hisi_zip_ctx_init(ctx, COMP_NAME_TO_TYPE(alg_name), tfm->base.node);
+	ret = hisi_zip_ctx_init(ctx, COMP_NAME_TO_TYPE(alg_name), tfm->base.analde);
 	if (ret) {
 		pr_err("failed to init ctx (%d)!\n", ret);
 		return ret;

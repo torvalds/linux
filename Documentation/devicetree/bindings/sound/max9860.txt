@@ -1,4 +1,4 @@
-MAX9860 Mono Audio Voice Codec
+MAX9860 Moanal Audio Voice Codec
 
 Required properties:
 

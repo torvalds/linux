@@ -13,7 +13,7 @@
 #include <linux/pm_runtime.h>
 
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 /* Streaming Mode */
@@ -596,11 +596,11 @@ static void imx335_fill_pad_format(struct imx335 *imx335,
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.code = imx335->cur_mbus_code;
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 	fmt->format.colorspace = V4L2_COLORSPACE_RAW;
 	fmt->format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	fmt->format.quantization = V4L2_QUANTIZATION_DEFAULT;
-	fmt->format.xfer_func = V4L2_XFER_FUNC_NONE;
+	fmt->format.xfer_func = V4L2_XFER_FUNC_ANALNE;
 }
 
 /**
@@ -847,7 +847,7 @@ error_unlock:
  * imx335_detect() - Detect imx335 sensor
  * @imx335: pointer to imx335 device
  *
- * Return: 0 if successful, -EIO if sensor id does not match
+ * Return: 0 if successful, -EIO if sensor id does analt match
  */
 static int imx335_detect(struct imx335 *imx335)
 {
@@ -875,16 +875,16 @@ static int imx335_detect(struct imx335 *imx335)
  */
 static int imx335_parse_hw_config(struct imx335 *imx335)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(imx335->dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *fwanalde = dev_fwanalde(imx335->dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	unsigned long rate;
 	unsigned int i;
 	int ret;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -ENXIO;
 
 	/* Request optional reset pin */
@@ -910,7 +910,7 @@ static int imx335_parse_hw_config(struct imx335 *imx335)
 	/* Get sensor input clock */
 	imx335->inclk = devm_clk_get(imx335->dev, NULL);
 	if (IS_ERR(imx335->inclk)) {
-		dev_err(imx335->dev, "could not get inclk\n");
+		dev_err(imx335->dev, "could analt get inclk\n");
 		return PTR_ERR(imx335->inclk);
 	}
 
@@ -920,27 +920,27 @@ static int imx335_parse_hw_config(struct imx335 *imx335)
 		return -EINVAL;
 	}
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep) {
 		dev_err(imx335->dev, "Failed to get next endpoint\n");
 		return -ENXIO;
 	}
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != IMX335_NUM_DATA_LANES) {
 		dev_err(imx335->dev,
-			"number of CSI2 data lanes %d is not supported\n",
+			"number of CSI2 data lanes %d is analt supported\n",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto done_endpoint_free;
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(imx335->dev, "no link frequencies defined\n");
+		dev_err(imx335->dev, "anal link frequencies defined\n");
 		ret = -EINVAL;
 		goto done_endpoint_free;
 	}
@@ -949,12 +949,12 @@ static int imx335_parse_hw_config(struct imx335 *imx335)
 		if (bus_cfg.link_frequencies[i] == IMX335_LINK_FREQ)
 			goto done_endpoint_free;
 
-	dev_err(imx335->dev, "no compatible link frequencies found\n");
+	dev_err(imx335->dev, "anal compatible link frequencies found\n");
 
 	ret = -EINVAL;
 
 done_endpoint_free:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -1140,7 +1140,7 @@ static int imx335_probe(struct i2c_client *client)
 
 	imx335 = devm_kzalloc(&client->dev, sizeof(*imx335), GFP_KERNEL);
 	if (!imx335)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imx335->dev = &client->dev;
 
@@ -1150,7 +1150,7 @@ static int imx335_probe(struct i2c_client *client)
 
 	ret = imx335_parse_hw_config(imx335);
 	if (ret) {
-		dev_err(imx335->dev, "HW configuration is not supported\n");
+		dev_err(imx335->dev, "HW configuration is analt supported\n");
 		return ret;
 	}
 
@@ -1181,7 +1181,7 @@ static int imx335_probe(struct i2c_client *client)
 	}
 
 	/* Initialize subdev */
-	imx335->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	imx335->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	imx335->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	/* Initialize source pad */

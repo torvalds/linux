@@ -15,7 +15,7 @@ several times, preferably several times in a row, and separately for hibernation
 cases involves slightly different operations and different interactions with
 the machine's BIOS.
 
-Of course, for this purpose the test system has to be known to suspend and
+Of course, for this purpose the test system has to be kanalwn to suspend and
 resume without the driver being tested.  Thus, if possible, you should first
 resolve all suspend/resume-related problems in the test system before you start
 testing the new driver.  Please see Documentation/power/basic-pm-debugging.rst
@@ -41,12 +41,12 @@ d) Attempt to hibernate with the driver compiled directly into the kernel
 
 e) Try the test modes of suspend (see:
    Documentation/power/basic-pm-debugging.rst, 2).  [As far as the STR tests are
-   concerned, it should not matter whether or not the driver is built as a
+   concerned, it should analt matter whether or analt the driver is built as a
    module.]
 
 f) Attempt to suspend to RAM using the s2ram tool with the driver loaded
    (see: Documentation/power/basic-pm-debugging.rst, 2).
 
 Each of the above tests should be repeated several times and the STD tests
-should be mixed with the STR tests.  If any of them fails, the driver cannot be
+should be mixed with the STR tests.  If any of them fails, the driver cananalt be
 regarded as suspend/resume-safe.

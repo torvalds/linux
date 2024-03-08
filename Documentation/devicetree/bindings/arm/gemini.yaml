@@ -17,18 +17,18 @@ description: |
   produced and used for NAS and similar usecases. In 2014 Cortina Systems was
   in turn acquired by Inphi, who seem to have discontinued this product family.
 
-  Many of the IP blocks used in the SoC comes from Faraday Technology.
+  Many of the IP blocks used in the SoC comes from Faraday Techanallogy.
 
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
 
-      - description: Storlink Semiconductor Gemini324 EV-Board also known
+      - description: Storlink Semiconductor Gemini324 EV-Board also kanalwn
           as Storm Semiconductor SL93512R_BRD
         items:
           - const: storlink,gemini324

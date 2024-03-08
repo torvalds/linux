@@ -26,7 +26,7 @@ Date:		March 2016
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		Writing a non-zero argument to this attibute disables the
+		Writing a analn-zero argument to this attibute disables the
 		module's interfaces before physically ejecting it.
 
 What:		/sys/bus/greybus/devices/N-M/module_id
@@ -52,7 +52,7 @@ Description:
 		An Interface I on the bus N and module N-M, where I is the
 		1-byte interface ID.
 
-What:		/sys/bus/greybus/devices/N-M.I/current_now
+What:		/sys/bus/greybus/devices/N-M.I/current_analw
 Date:		March 2016
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -88,9 +88,9 @@ KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The type of a Greybus interface; "dummy", "unipro", "greybus",
-		or "unknown".
+		or "unkanalwn".
 
-What:		/sys/bus/greybus/devices/N-M.I/power_now
+What:		/sys/bus/greybus/devices/N-M.I/power_analw
 Date:		March 2016
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -105,11 +105,11 @@ Description:
 		This file reflects the power state of a Greybus interface. If
 		the value read from it is "on", then power is currently
 		supplied to the interface. Otherwise it will read "off" and
-		power is currently not supplied to the interface.
+		power is currently analt supplied to the interface.
 
 		If the value read is "off", then writing "on" (or '1', 'y',
 		'Y') to this file will enable power to the interface and an
-		attempt to boot and possibly enumerate it will be made. Note
+		attempt to boot and possibly enumerate it will be made. Analte
 		that on errors, the interface will again be powered down.
 
 		If the value read is "on", then writing "off" (or '0', 'n',
@@ -137,7 +137,7 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		Vendor ID of a Greybus interface.
 
-What:		/sys/bus/greybus/devices/N-M.I/voltage_now
+What:		/sys/bus/greybus/devices/N-M.I/voltage_analw
 Date:		March 2016
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -206,7 +206,7 @@ Description:
 		other Android HALs that the state of the bundle has
 		changed to a specific value.  When written to, any
 		process watching the file will be woken up, and the new
-		value can be read. It's a "poor-man's IPC", yes, but
+		value can be read. It's a "poor-man's IPC", anal, but
 		simplifies the Android userspace code immensely.
 
 What:		/sys/bus/greybus/devices/N-svc
@@ -221,7 +221,7 @@ Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		The AP interface ID, a 1-byte non-zero integer which
+		The AP interface ID, a 1-byte analn-zero integer which
 		defines the position of the AP module on the frame.
 		The interface positions are defined in the GMP
 		Module Developer Kit.
@@ -255,7 +255,7 @@ Date:		October 2016
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		If the SVC watchdog is enabled or not.  Writing 0 to this
+		If the SVC watchdog is enabled or analt.  Writing 0 to this
 		file will disable the watchdog, writing 1 will enable it.
 
 What:		/sys/bus/greybus/devices/N-svc/watchdog_action

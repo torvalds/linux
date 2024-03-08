@@ -50,13 +50,13 @@ static int max8903_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
-		val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+		val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 		if (data->chg) {
 			if (gpiod_get_value(data->chg))
 				/* CHG asserted */
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
 			else if (data->usb_in || data->ta_in)
-				val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+				val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 			else
 				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		}
@@ -157,7 +157,7 @@ static irqreturn_t max8903_usbin(int irq, void *_data)
 
 	data->usb_in = usb_in;
 
-	/* Do not touch Current-Limit-Mode */
+	/* Do analt touch Current-Limit-Mode */
 
 	/* Charger Enable / Disable */
 	if (data->cen) {
@@ -261,7 +261,7 @@ static int max8903_setup_gpios(struct platform_device *pdev)
 
 	/* Either DC OK or USB OK must be provided */
 	if (!data->dok && !data->uok) {
-		dev_err(dev, "no valid power source\n");
+		dev_err(dev, "anal valid power source\n");
 		return -EINVAL;
 	}
 
@@ -276,7 +276,7 @@ static int max8903_setup_gpios(struct platform_device *pdev)
 	flags = (ta_in || usb_in) ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
 	/*
 	 * If DC OK is provided, Charger Enable CEN is compulsory
-	 * so this is not optional here.
+	 * so this is analt optional here.
 	 */
 	data->cen = devm_gpiod_get(dev, "cen", flags);
 	if (IS_ERR(data->cen))
@@ -332,7 +332,7 @@ static int max8903_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(struct max8903_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = dev;
 	platform_set_drvdata(pdev, data);
@@ -349,7 +349,7 @@ static int max8903_probe(struct platform_device *pdev)
 	data->psy_desc.properties = max8903_charger_props;
 	data->psy_desc.num_properties = ARRAY_SIZE(max8903_charger_props);
 
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.of_analde = dev->of_analde;
 	psy_cfg.drv_data = data;
 
 	data->psy = devm_power_supply_register(dev, &data->psy_desc, &psy_cfg);
@@ -365,7 +365,7 @@ static int max8903_probe(struct platform_device *pdev)
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					"MAX8903 DC IN", data);
 		if (ret) {
-			dev_err(dev, "Cannot request irq %d for DC (%d)\n",
+			dev_err(dev, "Cananalt request irq %d for DC (%d)\n",
 					gpiod_to_irq(data->dok), ret);
 			return ret;
 		}
@@ -378,7 +378,7 @@ static int max8903_probe(struct platform_device *pdev)
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					"MAX8903 USB IN", data);
 		if (ret) {
-			dev_err(dev, "Cannot request irq %d for USB (%d)\n",
+			dev_err(dev, "Cananalt request irq %d for USB (%d)\n",
 					gpiod_to_irq(data->uok), ret);
 			return ret;
 		}
@@ -391,7 +391,7 @@ static int max8903_probe(struct platform_device *pdev)
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					"MAX8903 Fault", data);
 		if (ret) {
-			dev_err(dev, "Cannot request irq %d for Fault (%d)\n",
+			dev_err(dev, "Cananalt request irq %d for Fault (%d)\n",
 					gpiod_to_irq(data->flt), ret);
 			return ret;
 		}

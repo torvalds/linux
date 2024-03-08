@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPILINUX_KEXEC_H
 #define _UAPILINUX_KEXEC_H
 
 /* kexec system call -  It loads the new kernel to boot into.
- * kexec does not sync, or unmount filesystems so if you need
+ * kexec does analt sync, or unmount filesystems so if you need
  * that to happen you need to do that yourself.
  */
 
@@ -19,12 +19,12 @@
  * Kexec file load interface flags.
  * KEXEC_FILE_UNLOAD : Unload already loaded kexec/kdump image.
  * KEXEC_FILE_ON_CRASH : Load/unload operation belongs to kdump image.
- * KEXEC_FILE_NO_INITRAMFS : No initramfs is being loaded. Ignore the initrd
+ * KEXEC_FILE_ANAL_INITRAMFS : Anal initramfs is being loaded. Iganalre the initrd
  *                           fd field.
  */
 #define KEXEC_FILE_UNLOAD	0x00000001
 #define KEXEC_FILE_ON_CRASH	0x00000002
-#define KEXEC_FILE_NO_INITRAMFS	0x00000004
+#define KEXEC_FILE_ANAL_INITRAMFS	0x00000004
 #define KEXEC_FILE_DEBUG	0x00000008
 
 /* These values match the ELF architecture values.

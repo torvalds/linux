@@ -31,9 +31,9 @@ struct blk_mq_ctx {
 } ____cacheline_aligned_in_smp;
 
 enum {
-	BLK_MQ_NO_TAG		= -1U,
+	BLK_MQ_ANAL_TAG		= -1U,
 	BLK_MQ_TAG_MIN		= 1,
-	BLK_MQ_TAG_MAX		= BLK_MQ_NO_TAG - 1,
+	BLK_MQ_TAG_MAX		= BLK_MQ_ANAL_TAG - 1,
 };
 
 typedef unsigned int __bitwise blk_insert_t;
@@ -67,7 +67,7 @@ void blk_mq_free_map_and_rqs(struct blk_mq_tag_set *set,
 /*
  * CPU -> queue mappings
  */
-extern int blk_mq_hw_queue_to_node(struct blk_mq_queue_map *qmap, unsigned int);
+extern int blk_mq_hw_queue_to_analde(struct blk_mq_queue_map *qmap, unsigned int);
 
 /*
  * blk_mq_map_queue_type() - map (hctx_type,cpu) to hardware queue
@@ -133,9 +133,9 @@ static inline struct blk_mq_ctx *__blk_mq_get_ctx(struct request_queue *q,
 }
 
 /*
- * This assumes per-cpu software queueing queues. They could be per-node
- * as well, for instance. For now this is hardcoded as-is. Note that we don't
- * care about preemption, since we know the ctx's are persistent. This does
+ * This assumes per-cpu software queueing queues. They could be per-analde
+ * as well, for instance. For analw this is hardcoded as-is. Analte that we don't
+ * care about preemption, since we kanalw the ctx's are persistent. This does
  * mean that we can't rely on ctx always matching the currently running CPU.
  */
 static inline struct blk_mq_ctx *blk_mq_get_ctx(struct request_queue *q)
@@ -161,11 +161,11 @@ struct blk_mq_alloc_data {
 };
 
 struct blk_mq_tags *blk_mq_init_tags(unsigned int nr_tags,
-		unsigned int reserved_tags, int node, int alloc_policy);
+		unsigned int reserved_tags, int analde, int alloc_policy);
 void blk_mq_free_tags(struct blk_mq_tags *tags);
 int blk_mq_init_bitmaps(struct sbitmap_queue *bitmap_tags,
 		struct sbitmap_queue *breserved_tags, unsigned int queue_depth,
-		unsigned int reserved, int node, int alloc_policy);
+		unsigned int reserved, int analde, int alloc_policy);
 
 unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data);
 unsigned long blk_mq_get_tags(struct blk_mq_alloc_data *data, int nr_tags,
@@ -336,12 +336,12 @@ static inline void __blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
 {
 	blk_mq_dec_active_requests(hctx);
 	blk_mq_put_tag(hctx->tags, rq->mq_ctx, rq->tag);
-	rq->tag = BLK_MQ_NO_TAG;
+	rq->tag = BLK_MQ_ANAL_TAG;
 }
 
 static inline void blk_mq_put_driver_tag(struct request *rq)
 {
-	if (rq->tag == BLK_MQ_NO_TAG || rq->internal_tag == BLK_MQ_NO_TAG)
+	if (rq->tag == BLK_MQ_ANAL_TAG || rq->internal_tag == BLK_MQ_ANAL_TAG)
 		return;
 
 	__blk_mq_put_driver_tag(rq->mq_hctx, rq);
@@ -351,7 +351,7 @@ bool __blk_mq_alloc_driver_tag(struct request *rq);
 
 static inline bool blk_mq_get_driver_tag(struct request *rq)
 {
-	if (rq->tag == BLK_MQ_NO_TAG && !__blk_mq_alloc_driver_tag(rq))
+	if (rq->tag == BLK_MQ_ANAL_TAG && !__blk_mq_alloc_driver_tag(rq))
 		return false;
 
 	return true;
@@ -374,24 +374,24 @@ static inline void blk_mq_clear_mq_map(struct blk_mq_queue_map *qmap)
  * insertion order to change from the order in which submit_bio() is being
  * executed in the case of multiple contexts concurrently issuing BIOs to a
  * device, even if these context are synchronized to tightly control BIO issuing
- * order. While this is not a problem with regular block devices, this ordering
+ * order. While this is analt a problem with regular block devices, this ordering
  * change can cause write BIO failures with zoned block devices as these
  * require sequential write patterns to zones. Prevent this from happening by
- * ignoring the plug state of a BIO issuing context if it is for a zoned block
+ * iganalring the plug state of a BIO issuing context if it is for a zoned block
  * device and the BIO to plug is a write operation.
  *
  * Return current->plug if the bio can be plugged and NULL otherwise
  */
 static inline struct blk_plug *blk_mq_plug( struct bio *bio)
 {
-	/* Zoned block device write operation case: do not plug the BIO */
+	/* Zoned block device write operation case: do analt plug the BIO */
 	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED) &&
 	    bdev_op_is_zoned_write(bio->bi_bdev, bio_op(bio)))
 		return NULL;
 
 	/*
 	 * For regular block devices or read operations, use the context plug
-	 * which may be NULL if blk_start_plug() was not executed.
+	 * which may be NULL if blk_start_plug() was analt executed.
 	 */
 	return current->plug;
 }

@@ -339,7 +339,7 @@ static void ahci_platform_put_resources(struct device *dev, void *res)
 	}
 
 	/*
-	 * The regulators are tied to child node device and not to the
+	 * The regulators are tied to child analde device and analt to the
 	 * SATA device itself. So we can't use devm for automatically
 	 * releasing them. We have to do it manually here.
 	 */
@@ -351,39 +351,39 @@ static void ahci_platform_put_resources(struct device *dev, void *res)
 }
 
 static int ahci_platform_get_phy(struct ahci_host_priv *hpriv, u32 port,
-				struct device *dev, struct device_node *node)
+				struct device *dev, struct device_analde *analde)
 {
 	int rc;
 
-	hpriv->phys[port] = devm_of_phy_get(dev, node, NULL);
+	hpriv->phys[port] = devm_of_phy_get(dev, analde, NULL);
 
 	if (!IS_ERR(hpriv->phys[port]))
 		return 0;
 
 	rc = PTR_ERR(hpriv->phys[port]);
 	switch (rc) {
-	case -ENOSYS:
-		/* No PHY support. Check if PHY is required. */
-		if (of_property_present(node, "phys")) {
+	case -EANALSYS:
+		/* Anal PHY support. Check if PHY is required. */
+		if (of_property_present(analde, "phys")) {
 			dev_err(dev,
-				"couldn't get PHY in node %pOFn: ENOSYS\n",
-				node);
+				"couldn't get PHY in analde %pOFn: EANALSYS\n",
+				analde);
 			break;
 		}
 		fallthrough;
-	case -ENODEV:
-		/* continue normally */
+	case -EANALDEV:
+		/* continue analrmally */
 		hpriv->phys[port] = NULL;
 		rc = 0;
 		break;
 	case -EPROBE_DEFER:
-		/* Do not complain yet */
+		/* Do analt complain yet */
 		break;
 
 	default:
 		dev_err(dev,
-			"couldn't get PHY in node %pOFn: %d\n",
-			node, rc);
+			"couldn't get PHY in analde %pOFn: %d\n",
+			analde, rc);
 
 		break;
 	}
@@ -410,21 +410,21 @@ static int ahci_platform_get_regulator(struct ahci_host_priv *hpriv, u32 port,
 static int ahci_platform_get_firmware(struct ahci_host_priv *hpriv,
 				      struct device *dev)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	u32 port;
 
-	if (!of_property_read_u32(dev->of_node, "hba-cap", &hpriv->saved_cap))
+	if (!of_property_read_u32(dev->of_analde, "hba-cap", &hpriv->saved_cap))
 		hpriv->saved_cap &= (HOST_CAP_SSS | HOST_CAP_MPS);
 
-	of_property_read_u32(dev->of_node,
+	of_property_read_u32(dev->of_analde,
 			     "ports-implemented", &hpriv->saved_port_map);
 
-	for_each_child_of_node(dev->of_node, child) {
+	for_each_child_of_analde(dev->of_analde, child) {
 		if (!of_device_is_available(child))
 			continue;
 
 		if (of_property_read_u32(child, "reg", &port)) {
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 
@@ -446,8 +446,8 @@ static int ahci_platform_get_firmware(struct ahci_host_priv *hpriv,
  * 1) mmio registers (IORESOURCE_MEM 0, mandatory)
  * 2) regulator for controlling the targets power (optional)
  *    regulator for controlling the AHCI controller (optional)
- * 3) all clocks specified in the devicetree node, or a single
- *    clock for non-OF platforms (optional)
+ * 3) all clocks specified in the devicetree analde, or a single
+ *    clock for analn-OF platforms (optional)
  * 4) resets, if flags has AHCI_PLATFORM_GET_RESETS (optional)
  * 5) phys (optional)
  *
@@ -457,14 +457,14 @@ static int ahci_platform_get_firmware(struct ahci_host_priv *hpriv,
 struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 						   unsigned int flags)
 {
-	int child_nodes, rc = -ENOMEM, enabled_ports = 0;
+	int child_analdes, rc = -EANALMEM, enabled_ports = 0;
 	struct device *dev = &pdev->dev;
 	struct ahci_host_priv *hpriv;
-	struct device_node *child;
+	struct device_analde *child;
 	u32 mask_port_map = 0;
 
 	if (!devres_open_group(dev, NULL, GFP_KERNEL))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hpriv = devres_alloc(ahci_platform_put_resources, sizeof(*hpriv),
 			     GFP_KERNEL);
@@ -475,7 +475,7 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 
 	/*
 	 * If the DT provided an "ahci" named resource, use it. Otherwise,
-	 * fallback to using the default first resource for the device node.
+	 * fallback to using the default first resource for the device analde.
 	 */
 	if (platform_get_resource_byname(pdev, IORESOURCE_MEM, "ahci"))
 		hpriv->mmio = devm_platform_ioremap_resource_byname(pdev, "ahci");
@@ -488,7 +488,7 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 
 	/*
 	 * Bulk clocks getting procedure can fail to find any clock due to
-	 * running on a non-OF platform or due to the clocks being defined in
+	 * running on a analn-OF platform or due to the clocks being defined in
 	 * bypass of the DT firmware (like da850, spear13xx). In that case we
 	 * fallback to getting a single clock source right from the dev clocks
 	 * list.
@@ -502,12 +502,12 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 		hpriv->n_clks = rc;
 	} else {
 		/*
-		 * No clock bulk found: fallback to manually getting
+		 * Anal clock bulk found: fallback to manually getting
 		 * the optional clock.
 		 */
 		hpriv->clks = devm_kzalloc(dev, sizeof(*hpriv->clks), GFP_KERNEL);
 		if (!hpriv->clks) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err_out;
 		}
 		hpriv->clks->clk = devm_clk_get_optional(dev, NULL);
@@ -544,42 +544,42 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 	}
 
 	/*
-	 * Too many sub-nodes most likely means having something wrong with
+	 * Too many sub-analdes most likely means having something wrong with
 	 * the firmware.
 	 */
-	child_nodes = of_get_child_count(dev->of_node);
-	if (child_nodes > AHCI_MAX_PORTS) {
+	child_analdes = of_get_child_count(dev->of_analde);
+	if (child_analdes > AHCI_MAX_PORTS) {
 		rc = -EINVAL;
 		goto err_out;
 	}
 
 	/*
-	 * If no sub-node was found, we still need to set nports to
+	 * If anal sub-analde was found, we still need to set nports to
 	 * one in order to be able to use the
 	 * ahci_platform_[en|dis]able_[phys|regulators] functions.
 	 */
-	if (child_nodes)
-		hpriv->nports = child_nodes;
+	if (child_analdes)
+		hpriv->nports = child_analdes;
 	else
 		hpriv->nports = 1;
 
 	hpriv->phys = devm_kcalloc(dev, hpriv->nports, sizeof(*hpriv->phys), GFP_KERNEL);
 	if (!hpriv->phys) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out;
 	}
 	/*
-	 * We cannot use devm_ here, since ahci_platform_put_resources() uses
+	 * We cananalt use devm_ here, since ahci_platform_put_resources() uses
 	 * target_pwrs after devm_ have freed memory
 	 */
 	hpriv->target_pwrs = kcalloc(hpriv->nports, sizeof(*hpriv->target_pwrs), GFP_KERNEL);
 	if (!hpriv->target_pwrs) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out;
 	}
 
-	if (child_nodes) {
-		for_each_child_of_node(dev->of_node, child) {
+	if (child_analdes) {
+		for_each_child_of_analde(dev->of_analde, child) {
 			u32 port;
 			struct platform_device *port_dev __maybe_unused;
 
@@ -588,7 +588,7 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 
 			if (of_property_read_u32(child, "reg", &port)) {
 				rc = -EINVAL;
-				of_node_put(child);
+				of_analde_put(child);
 				goto err_out;
 			}
 
@@ -601,13 +601,13 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 #ifdef CONFIG_OF_ADDRESS
 			of_platform_device_create(child, NULL, NULL);
 
-			port_dev = of_find_device_by_node(child);
+			port_dev = of_find_device_by_analde(child);
 
 			if (port_dev) {
 				rc = ahci_platform_get_regulator(hpriv, port,
 								&port_dev->dev);
 				if (rc == -EPROBE_DEFER) {
-					of_node_put(child);
+					of_analde_put(child);
 					goto err_out;
 				}
 			}
@@ -615,15 +615,15 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 
 			rc = ahci_platform_get_phy(hpriv, port, dev, child);
 			if (rc) {
-				of_node_put(child);
+				of_analde_put(child);
 				goto err_out;
 			}
 
 			enabled_ports++;
 		}
 		if (!enabled_ports) {
-			dev_warn(dev, "No port enabled\n");
-			rc = -ENODEV;
+			dev_warn(dev, "Anal port enabled\n");
+			rc = -EANALDEV;
 			goto err_out;
 		}
 
@@ -631,10 +631,10 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 			hpriv->mask_port_map = mask_port_map;
 	} else {
 		/*
-		 * If no sub-node was found, keep this for device tree
+		 * If anal sub-analde was found, keep this for device tree
 		 * compatibility
 		 */
-		rc = ahci_platform_get_phy(hpriv, 0, dev, dev->of_node);
+		rc = ahci_platform_get_phy(hpriv, 0, dev, dev->of_analde);
 		if (rc)
 			goto err_out;
 
@@ -672,7 +672,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_get_resources);
  * @sht: scsi_host_template to use when registering
  *
  * This function does all the usual steps needed to bring up an
- * ahci-platform host, note any necessary resources (ie clks, phys, etc.)
+ * ahci-platform host, analte any necessary resources (ie clks, phys, etc.)
  * must be initialized / enabled before calling this.
  *
  * RETURNS:
@@ -719,11 +719,11 @@ int ahci_platform_init_host(struct platform_device *pdev,
 
 	host = ata_host_alloc_pinfo(dev, ppi, n_ports);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->private_data = hpriv;
 
-	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_ignore_sss)
+	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_iganalre_sss)
 		host->flags |= ATA_HOST_PARALLEL_SCAN;
 	else
 		dev_info(dev, "SSS flag set, parallel bus scan disabled\n");
@@ -736,13 +736,13 @@ int ahci_platform_init_host(struct platform_device *pdev,
 
 		ata_port_desc(ap, "mmio %pR",
 			      platform_get_resource(pdev, IORESOURCE_MEM, 0));
-		ata_port_desc(ap, "port 0x%x", 0x100 + ap->port_no * 0x80);
+		ata_port_desc(ap, "port 0x%x", 0x100 + ap->port_anal * 0x80);
 
 		/* set enclosure management message type */
 		if (ap->flags & ATA_FLAG_EM)
 			ap->em_message_type = hpriv->em_msg_type;
 
-		/* disabled/not-implemented port */
+		/* disabled/analt-implemented port */
 		if (!(hpriv->port_map & (1 << i)))
 			ap->ops = &ata_dummy_port_ops;
 	}
@@ -778,7 +778,7 @@ static void ahci_host_stop(struct ata_host *host)
  * @pdev: platform device pointer for the host
  *
  * This function is called during system shutdown and performs the minimal
- * deconfiguration required to ensure that an ahci_platform host cannot
+ * deconfiguration required to ensure that an ahci_platform host cananalt
  * corrupt or otherwise interfere with a new kernel being started with kexec.
  */
 void ahci_platform_shutdown(struct platform_device *pdev)
@@ -813,7 +813,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_shutdown);
  * @dev: device pointer for the host
  *
  * This function does all the usual steps needed to suspend an
- * ahci-platform host, note any necessary resources (ie clks, phys, etc.)
+ * ahci-platform host, analte any necessary resources (ie clks, phys, etc.)
  * must be disabled after calling this.
  *
  * RETURNS:
@@ -826,7 +826,7 @@ int ahci_platform_suspend_host(struct device *dev)
 	void __iomem *mmio = hpriv->mmio;
 	u32 ctl;
 
-	if (hpriv->flags & AHCI_HFLAG_NO_SUSPEND) {
+	if (hpriv->flags & AHCI_HFLAG_ANAL_SUSPEND) {
 		dev_err(dev, "firmware update required for suspend/resume\n");
 		return -EIO;
 	}
@@ -854,7 +854,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_suspend_host);
  * @dev: device pointer for the host
  *
  * This function does all the usual steps needed to resume an ahci-platform
- * host, note any necessary resources (ie clks, phys, etc.)  must be
+ * host, analte any necessary resources (ie clks, phys, etc.)  must be
  * initialized / enabled before calling this.
  *
  * RETURNS:

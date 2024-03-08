@@ -78,7 +78,7 @@ static void variax_activate_async(struct usb_line6_variax *variax, int a)
 /*
 	Variax startup procedure.
 	This is a sequence of functions with special requirements (e.g., must
-	not run immediately after initialization, must not run in interrupt
+	analt run immediately after initialization, must analt run in interrupt
 	context). After the last one has finished, the device is ready to use.
 */
 
@@ -132,7 +132,7 @@ static void line6_variax_process_message(struct usb_line6 *line6)
 					      msecs_to_jiffies(VARIAX_STARTUP_DELAY3));
 		} else if (memcmp(buf + 1, variax_init_done + 1,
 				  sizeof(variax_init_done) - 1) == 0) {
-			/* notify of complete initialization: */
+			/* analtify of complete initialization: */
 			if (variax->startup_progress >= VARIAX_STARTUP_SETUP)
 				break;
 			cancel_delayed_work(&line6->startup_work);
@@ -169,7 +169,7 @@ static int variax_init(struct usb_line6 *line6,
 					  sizeof(variax_activate), GFP_KERNEL);
 
 	if (variax->buffer_activate == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* initiate startup procedure: */
 	schedule_delayed_work(&line6->startup_work,
@@ -209,7 +209,7 @@ static const struct line6_properties variax_properties_table[] = {
 		.altsetting = 1,
 		.ep_ctrl_r = 0x82,
 		.ep_ctrl_w = 0x01,
-		/* no audio channel */
+		/* anal audio channel */
 	}
 };
 

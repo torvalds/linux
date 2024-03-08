@@ -75,7 +75,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     maxItems: 11
     description:
-      A list of GPIO configuration register values. If absent, no configuration
+      A list of GPIO configuration register values. If absent, anal configuration
       of these registers is performed. If any value is over 0xffff then the
       register will be left as default. If present 11 values must be supplied.
 

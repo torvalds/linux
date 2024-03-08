@@ -73,8 +73,8 @@ static void system_ctlreg_update(void *info)
 
 	if (system_state == SYSTEM_BOOTING) {
 		/*
-		 * For very early calls do not call on_each_cpu()
-		 * since not everything might be setup.
+		 * For very early calls do analt call on_each_cpu()
+		 * since analt everything might be setup.
 		 */
 		local_irq_save(flags);
 		ctlreg_callback(info);

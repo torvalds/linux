@@ -126,7 +126,7 @@ static int keembay_pcie_start_link(struct dw_pcie *pci)
 				 val, val & PHY0_MPLLA_STATE, 20,
 				 500 * USEC_PER_MSEC);
 	if (ret) {
-		dev_err(pci->dev, "MPLLA is not locked\n");
+		dev_err(pci->dev, "MPLLA is analt locked\n");
 		return ret;
 	}
 
@@ -226,7 +226,7 @@ static int keembay_pcie_pll_init(struct keembay_pcie *pcie)
 				 val, val & LJPLL_LOCK, 20,
 				 500 * USEC_PER_MSEC);
 	if (ret)
-		dev_err(pci->dev, "Low jitter PLL is not locked\n");
+		dev_err(pci->dev, "Low jitter PLL is analt locked\n");
 
 	return ret;
 }
@@ -288,28 +288,28 @@ static void keembay_pcie_ep_init(struct dw_pcie_ep *ep)
 	writel(EDMA_INT_EN, pcie->apb_base + PCIE_REGS_INTERRUPT_ENABLE);
 }
 
-static int keembay_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
+static int keembay_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_anal,
 				     unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
 	switch (type) {
 	case PCI_IRQ_INTX:
-		/* INTx interrupts are not supported in Keem Bay */
-		dev_err(pci->dev, "INTx IRQ is not supported\n");
+		/* INTx interrupts are analt supported in Keem Bay */
+		dev_err(pci->dev, "INTx IRQ is analt supported\n");
 		return -EINVAL;
 	case PCI_IRQ_MSI:
-		return dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
+		return dw_pcie_ep_raise_msi_irq(ep, func_anal, interrupt_num);
 	case PCI_IRQ_MSIX:
-		return dw_pcie_ep_raise_msix_irq(ep, func_no, interrupt_num);
+		return dw_pcie_ep_raise_msix_irq(ep, func_anal, interrupt_num);
 	default:
-		dev_err(pci->dev, "Unknown IRQ type %d\n", type);
+		dev_err(pci->dev, "Unkanalwn IRQ type %d\n", type);
 		return -EINVAL;
 	}
 }
 
 static const struct pci_epc_features keembay_pcie_epc_features = {
-	.linkup_notifier	= false,
+	.linkup_analtifier	= false,
 	.msi_capable		= true,
 	.msix_capable		= true,
 	.reserved_bar		= BIT(BAR_1) | BIT(BAR_3) | BIT(BAR_5),
@@ -342,7 +342,7 @@ static int keembay_pcie_add_pcie_port(struct keembay_pcie *pcie,
 	int ret;
 
 	pp->ops = &keembay_pcie_host_ops;
-	pp->msi_irq[0] = -ENODEV;
+	pp->msi_irq[0] = -EANALDEV;
 
 	ret = keembay_pcie_setup_msi_irq(pcie);
 	if (ret)
@@ -395,13 +395,13 @@ static int keembay_pcie_probe(struct platform_device *pdev)
 
 	data = device_get_match_data(dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mode = (enum dw_pcie_device_mode)data->mode;
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = &pcie->pci;
 	pci->dev = dev;
@@ -418,18 +418,18 @@ static int keembay_pcie_probe(struct platform_device *pdev)
 	switch (pcie->mode) {
 	case DW_PCIE_RC_TYPE:
 		if (!IS_ENABLED(CONFIG_PCIE_KEEMBAY_HOST))
-			return -ENODEV;
+			return -EANALDEV;
 
 		return keembay_pcie_add_pcie_port(pcie, pdev);
 	case DW_PCIE_EP_TYPE:
 		if (!IS_ENABLED(CONFIG_PCIE_KEEMBAY_EP))
-			return -ENODEV;
+			return -EANALDEV;
 
 		pci->ep.ops = &keembay_pcie_ep_ops;
 		return dw_pcie_ep_init(&pci->ep);
 	default:
 		dev_err(dev, "Invalid device type %d\n", pcie->mode);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 

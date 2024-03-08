@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <string.h>
@@ -33,10 +33,10 @@ static int __init make_uml_dir(void)
 	if (*uml_dir == '~') {
 		char *home = getenv("HOME");
 
-		err = -ENOENT;
+		err = -EANALENT;
 		if (home == NULL) {
 			printk(UM_KERN_ERR
-				"%s: no value in environment for $HOME\n",
+				"%s: anal value in environment for $HOME\n",
 				__func__);
 			goto err;
 		}
@@ -48,19 +48,19 @@ static int __init make_uml_dir(void)
 	if (len > 0 && dir[len - 1] != '/')
 		strlcat(dir, "/", sizeof(dir));
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	uml_dir = malloc(strlen(dir) + 1);
 	if (uml_dir == NULL) {
-		printk(UM_KERN_ERR "%s : malloc failed, errno = %d\n",
-			__func__, errno);
+		printk(UM_KERN_ERR "%s : malloc failed, erranal = %d\n",
+			__func__, erranal);
 		goto err;
 	}
 	strcpy(uml_dir, dir);
 
-	if ((mkdir(uml_dir, 0777) < 0) && (errno != EEXIST)) {
+	if ((mkdir(uml_dir, 0777) < 0) && (erranal != EEXIST)) {
 		printk(UM_KERN_ERR "Failed to mkdir '%s': %s\n",
-			uml_dir, strerror(errno));
-		err = -errno;
+			uml_dir, strerror(erranal));
+		err = -erranal;
 		goto err_free;
 	}
 	return 0;
@@ -74,8 +74,8 @@ err:
 
 /*
  * Unlinks the files contained in @dir and then removes @dir.
- * Doesn't handle directory trees, so it's not like rm -rf, but almost such. We
- * ignore ENOENT errors for anything (they happen, strangely enough - possibly
+ * Doesn't handle directory trees, so it's analt like rm -rf, but almost such. We
+ * iganalre EANALENT errors for anything (they happen, strangely eanalugh - possibly
  * due to races between multiple dying UML threads).
  */
 static int remove_files_and_dir(char *dir)
@@ -88,8 +88,8 @@ static int remove_files_and_dir(char *dir)
 
 	directory = opendir(dir);
 	if (directory == NULL) {
-		if (errno != ENOENT)
-			return -errno;
+		if (erranal != EANALENT)
+			return -erranal;
 		else
 			return 0;
 	}
@@ -104,14 +104,14 @@ static int remove_files_and_dir(char *dir)
 		}
 
 		sprintf(file, "%s/%s", dir, ent->d_name);
-		if (unlink(file) < 0 && errno != ENOENT) {
-			ret = -errno;
+		if (unlink(file) < 0 && erranal != EANALENT) {
+			ret = -erranal;
 			goto out;
 		}
 	}
 
-	if (rmdir(dir) < 0 && errno != ENOENT) {
-		ret = -errno;
+	if (rmdir(dir) < 0 && erranal != EANALENT) {
+		ret = -erranal;
 		goto out;
 	}
 
@@ -141,14 +141,14 @@ static inline int is_umdir_used(char *dir)
 
 	file = malloc(filelen);
 	if (!file)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(file, filelen, "%s/pid", dir);
 
 	fd = open(file, O_RDONLY);
 	if (fd < 0) {
-		fd = -errno;
-		if (fd != -ENOENT) {
+		fd = -erranal;
+		if (fd != -EANALENT) {
 			printk(UM_KERN_ERR "is_umdir_used : couldn't open pid "
 			       "file '%s', err = %d\n", file, -fd);
 		}
@@ -159,7 +159,7 @@ static inline int is_umdir_used(char *dir)
 	n = read(fd, pid, sizeof(pid));
 	if (n < 0) {
 		printk(UM_KERN_ERR "is_umdir_used : couldn't read pid file "
-		       "'%s', err = %d\n", file, errno);
+		       "'%s', err = %d\n", file, erranal);
 		goto out_close;
 	} else if (n == 0) {
 		printk(UM_KERN_ERR "is_umdir_used : couldn't read pid file "
@@ -170,11 +170,11 @@ static inline int is_umdir_used(char *dir)
 	p = strtoul(pid, &end, 0);
 	if (end == pid) {
 		printk(UM_KERN_ERR "is_umdir_used : couldn't parse pid file "
-		       "'%s', errno = %d\n", file, errno);
+		       "'%s', erranal = %d\n", file, erranal);
 		goto out_close;
 	}
 
-	if ((kill(p, 0) == 0) || (errno != ESRCH)) {
+	if ((kill(p, 0) == 0) || (erranal != ESRCH)) {
 		printk(UM_KERN_ERR "umid \"%s\" is already in use by pid %d\n",
 		       umid, p);
 		return 1;
@@ -223,7 +223,7 @@ static void __init create_pid_file(void)
 	fd = open(file, O_RDWR | O_CREAT | O_EXCL, 0644);
 	if (fd < 0) {
 		printk(UM_KERN_ERR "Open of machine pid file \"%s\" failed: "
-		       "%s\n", file, strerror(errno));
+		       "%s\n", file, strerror(erranal));
 		goto out;
 	}
 
@@ -231,7 +231,7 @@ static void __init create_pid_file(void)
 	n = write(fd, pid, strlen(pid));
 	if (n != strlen(pid))
 		printk(UM_KERN_ERR "Write of pid file failed - err = %d\n",
-		       errno);
+		       erranal);
 
 	close(fd);
 out:
@@ -267,8 +267,8 @@ static int __init make_umid(void)
 		fd = mkstemp(tmp);
 		if (fd < 0) {
 			printk(UM_KERN_ERR "make_umid - mkstemp(%s) failed: "
-			       "%s\n", tmp, strerror(errno));
-			err = -errno;
+			       "%s\n", tmp, strerror(erranal));
+			err = -erranal;
 			goto err;
 		}
 
@@ -282,7 +282,7 @@ static int __init make_umid(void)
 		 * for directories.
 		 */
 		if (unlink(tmp)) {
-			err = -errno;
+			err = -erranal;
 			goto err;
 		}
 	}
@@ -290,7 +290,7 @@ static int __init make_umid(void)
 	snprintf(tmp, sizeof(tmp), "%s%s", uml_dir, umid);
 	err = mkdir(tmp, 0777);
 	if (err < 0) {
-		err = -errno;
+		err = -erranal;
 		if (err != -EEXIST)
 			goto err;
 
@@ -300,9 +300,9 @@ static int __init make_umid(void)
 		err = mkdir(tmp, 0777);
 	}
 	if (err) {
-		err = -errno;
+		err = -erranal;
 		printk(UM_KERN_ERR "Failed to create '%s' - err = %d\n", umid,
-		       errno);
+		       erranal);
 		goto err;
 	}
 
@@ -370,7 +370,7 @@ static int __init set_uml_dir(char *name, int *add)
 
 	uml_dir = malloc(strlen(name) + 2);
 	if (uml_dir == NULL) {
-		os_warn("Failed to malloc uml_dir - error = %d\n", errno);
+		os_warn("Failed to malloc uml_dir - error = %d\n", erranal);
 
 		/*
 		 * Return 0 here because do_initcalls doesn't look at

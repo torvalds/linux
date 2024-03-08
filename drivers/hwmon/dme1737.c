@@ -43,10 +43,10 @@ MODULE_PARM_DESC(force_id, "Override the detected device ID");
 static bool probe_all_addr;
 module_param(probe_all_addr, bool, 0);
 MODULE_PARM_DESC(probe_all_addr,
-		 "Include probing of non-standard LPC addresses");
+		 "Include probing of analn-standard LPC addresses");
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = {0x2c, 0x2d, 0x2e, I2C_CLIENT_END};
+static const unsigned short analrmal_i2c[] = {0x2c, 0x2d, 0x2e, I2C_CLIENT_END};
 
 enum chips { dme1737, sch5027, sch311x, sch5127 };
 
@@ -207,7 +207,7 @@ struct dme1737_data {
 	unsigned long last_update;	/* in jiffies */
 	unsigned long last_vbat;	/* in jiffies */
 	enum chips type;
-	const int *in_nominal;		/* pointer to IN_NOMINAL array */
+	const int *in_analminal;		/* pointer to IN_ANALMINAL array */
 
 	u8 vid;
 	u8 pwm_rr_en;
@@ -240,39 +240,39 @@ struct dme1737_data {
 	u32 alarms;
 };
 
-/* Nominal voltage values */
-static const int IN_NOMINAL_DME1737[] = {5000, 2250, 3300, 5000, 12000, 3300,
+/* Analminal voltage values */
+static const int IN_ANALMINAL_DME1737[] = {5000, 2250, 3300, 5000, 12000, 3300,
 					 3300};
-static const int IN_NOMINAL_SCH311x[] = {2500, 1500, 3300, 5000, 12000, 3300,
+static const int IN_ANALMINAL_SCH311x[] = {2500, 1500, 3300, 5000, 12000, 3300,
 					 3300};
-static const int IN_NOMINAL_SCH5027[] = {5000, 2250, 3300, 1125, 1125, 3300,
+static const int IN_ANALMINAL_SCH5027[] = {5000, 2250, 3300, 1125, 1125, 3300,
 					 3300};
-static const int IN_NOMINAL_SCH5127[] = {2500, 2250, 3300, 1125, 1125, 3300,
+static const int IN_ANALMINAL_SCH5127[] = {2500, 2250, 3300, 1125, 1125, 3300,
 					 3300, 1500};
-#define IN_NOMINAL(type)	((type) == sch311x ? IN_NOMINAL_SCH311x : \
-				 (type) == sch5027 ? IN_NOMINAL_SCH5027 : \
-				 (type) == sch5127 ? IN_NOMINAL_SCH5127 : \
-				 IN_NOMINAL_DME1737)
+#define IN_ANALMINAL(type)	((type) == sch311x ? IN_ANALMINAL_SCH311x : \
+				 (type) == sch5027 ? IN_ANALMINAL_SCH5027 : \
+				 (type) == sch5127 ? IN_ANALMINAL_SCH5127 : \
+				 IN_ANALMINAL_DME1737)
 
 /*
  * Voltage input
  * Voltage inputs have 16 bits resolution, limit values have 8 bits
  * resolution.
  */
-static inline int IN_FROM_REG(int reg, int nominal, int res)
+static inline int IN_FROM_REG(int reg, int analminal, int res)
 {
-	return (reg * nominal + (3 << (res - 3))) / (3 << (res - 2));
+	return (reg * analminal + (3 << (res - 3))) / (3 << (res - 2));
 }
 
-static inline int IN_TO_REG(long val, int nominal)
+static inline int IN_TO_REG(long val, int analminal)
 {
-	val = clamp_val(val, 0, 255 * nominal / 192);
-	return DIV_ROUND_CLOSEST(val * 192, nominal);
+	val = clamp_val(val, 0, 255 * analminal / 192);
+	return DIV_ROUND_CLOSEST(val * 192, analminal);
 }
 
 /*
  * Temperature input
- * The register values represent temperatures in 2's complement notation from
+ * The register values represent temperatures in 2's complement analtation from
  * -127 degrees C to +127 degrees C. Temp inputs have 16 bits resolution, limit
  * values have 8 bits resolution.
  */
@@ -350,7 +350,7 @@ static inline int FAN_TO_REG(long val, int tpc)
 /*
  * Fan TPC (tach pulse count)
  * Converts a register value to a TPC multiplier or returns 0 if the tachometer
- * is configured in legacy (non-tpc) mode
+ * is configured in legacy (analn-tpc) mode
  */
 static inline int FAN_TPC_FROM_REG(int reg)
 {
@@ -544,7 +544,7 @@ static inline int PWM_OFF_TO_REG(int val, int ix, int reg)
  * Device I/O access
  *
  * ISA access is performed through an index/data register pair and needs to
- * be protected by a mutex during runtime (not required for initialization).
+ * be protected by a mutex during runtime (analt required for initialization).
  * We use data->update_lock for this and need to ensure that we acquire it
  * before calling dme1737_read or dme1737_write.
  * --------------------------------------------------------------------- */
@@ -677,7 +677,7 @@ static struct dme1737_data *dme1737_update_device(struct device *dev)
 		/* Fan registers */
 		for (ix = 0; ix < ARRAY_SIZE(data->fan); ix++) {
 			/*
-			 * Skip reading registers if optional fans are not
+			 * Skip reading registers if optional fans are analt
 			 * present
 			 */
 			if (!(data->has_features & HAS_FAN(ix)))
@@ -702,7 +702,7 @@ static struct dme1737_data *dme1737_update_device(struct device *dev)
 		/* PWM registers */
 		for (ix = 0; ix < ARRAY_SIZE(data->pwm); ix++) {
 			/*
-			 * Skip reading registers if optional PWMs are not
+			 * Skip reading registers if optional PWMs are analt
 			 * present
 			 */
 			if (!(data->has_features & HAS_PWM(ix)))
@@ -726,7 +726,7 @@ static struct dme1737_data *dme1737_update_device(struct device *dev)
 
 		/* Thermal zone registers */
 		for (ix = 0; ix < ARRAY_SIZE(data->zone_low); ix++) {
-			/* Skip reading registers if zone3 is not present */
+			/* Skip reading registers if zone3 is analt present */
 			if ((ix == 2) && !(data->has_features & HAS_ZONE3))
 				continue;
 			/* sch5127 zone2 registers are special */
@@ -753,7 +753,7 @@ static struct dme1737_data *dme1737_update_device(struct device *dev)
 		data->alarms = dme1737_read(data,
 						DME1737_REG_ALARM1);
 		/*
-		 * Bit 7 tells us if the other alarm registers are non-zero and
+		 * Bit 7 tells us if the other alarm registers are analn-zero and
 		 * therefore also need to be read
 		 */
 		if (data->alarms & 0x80) {
@@ -808,20 +808,20 @@ static ssize_t show_in(struct device *dev, struct device_attribute *attr,
 
 	switch (fn) {
 	case SYS_IN_INPUT:
-		res = IN_FROM_REG(data->in[ix], data->in_nominal[ix], 16);
+		res = IN_FROM_REG(data->in[ix], data->in_analminal[ix], 16);
 		break;
 	case SYS_IN_MIN:
-		res = IN_FROM_REG(data->in_min[ix], data->in_nominal[ix], 8);
+		res = IN_FROM_REG(data->in_min[ix], data->in_analminal[ix], 8);
 		break;
 	case SYS_IN_MAX:
-		res = IN_FROM_REG(data->in_max[ix], data->in_nominal[ix], 8);
+		res = IN_FROM_REG(data->in_max[ix], data->in_analminal[ix], 8);
 		break;
 	case SYS_IN_ALARM:
 		res = (data->alarms >> DME1737_BIT_ALARM_IN[ix]) & 0x01;
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown function %d.\n", fn);
+		dev_dbg(dev, "Unkanalwn function %d.\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -845,17 +845,17 @@ static ssize_t set_in(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&data->update_lock);
 	switch (fn) {
 	case SYS_IN_MIN:
-		data->in_min[ix] = IN_TO_REG(val, data->in_nominal[ix]);
+		data->in_min[ix] = IN_TO_REG(val, data->in_analminal[ix]);
 		dme1737_write(data, DME1737_REG_IN_MIN(ix),
 			      data->in_min[ix]);
 		break;
 	case SYS_IN_MAX:
-		data->in_max[ix] = IN_TO_REG(val, data->in_nominal[ix]);
+		data->in_max[ix] = IN_TO_REG(val, data->in_analminal[ix]);
 		dme1737_write(data, DME1737_REG_IN_MAX(ix),
 			      data->in_max[ix]);
 		break;
 	default:
-		dev_dbg(dev, "Unknown function %d.\n", fn);
+		dev_dbg(dev, "Unkanalwn function %d.\n", fn);
 	}
 	mutex_unlock(&data->update_lock);
 
@@ -905,7 +905,7 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown function %d.\n", fn);
+		dev_dbg(dev, "Unkanalwn function %d.\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -944,7 +944,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *attr,
 			      data->temp_offset[ix]);
 		break;
 	default:
-		dev_dbg(dev, "Unknown function %d.\n", fn);
+		dev_dbg(dev, "Unkanalwn function %d.\n", fn);
 	}
 	mutex_unlock(&data->update_lock);
 
@@ -974,7 +974,7 @@ static ssize_t show_zone(struct device *dev, struct device_attribute *attr,
 
 	switch (fn) {
 	case SYS_ZONE_AUTO_CHANNELS_TEMP:
-		/* check config2 for non-standard temp-to-zone mapping */
+		/* check config2 for analn-standard temp-to-zone mapping */
 		if ((ix == 1) && (data->config2 & 0x02))
 			res = 4;
 		else
@@ -997,7 +997,7 @@ static ssize_t show_zone(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown function %d.\n", fn);
+		dev_dbg(dev, "Unkanalwn function %d.\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -1059,7 +1059,7 @@ static ssize_t set_zone(struct device *dev, struct device_attribute *attr,
 			      data->zone_abs[ix]);
 		break;
 	default:
-		dev_dbg(dev, "Unknown function %d.\n", fn);
+		dev_dbg(dev, "Unkanalwn function %d.\n", fn);
 	}
 	mutex_unlock(&data->update_lock);
 
@@ -1111,7 +1111,7 @@ static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown function %d.\n", fn);
+		dev_dbg(dev, "Unkanalwn function %d.\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -1161,7 +1161,7 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
 		if (!(val == 1 || val == 2 || val == 4)) {
 			count = -EINVAL;
 			dev_warn(dev,
-				 "Fan type value %ld not supported. Choose one of 1, 2, or 4.\n",
+				 "Fan type value %ld analt supported. Choose one of 1, 2, or 4.\n",
 				 val);
 			goto exit;
 		}
@@ -1171,7 +1171,7 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
 			      data->fan_opt[ix]);
 		break;
 	default:
-		dev_dbg(dev, "Unknown function %d.\n", fn);
+		dev_dbg(dev, "Unkanalwn function %d.\n", fn);
 	}
 exit:
 	mutex_unlock(&data->update_lock);
@@ -1247,7 +1247,7 @@ static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown function %d.\n", fn);
+		dev_dbg(dev, "Unkanalwn function %d.\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -1288,7 +1288,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		if (val < 0 || val > 2) {
 			count = -EINVAL;
 			dev_warn(dev,
-				 "PWM enable %ld not supported. Choose one of 0, 1, or 2.\n",
+				 "PWM enable %ld analt supported. Choose one of 0, 1, or 2.\n",
 				 val);
 			goto exit;
 		}
@@ -1296,7 +1296,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		data->pwm_config[ix] = dme1737_read(data,
 						DME1737_REG_PWM_CONFIG(ix));
 		if (val == PWM_EN_FROM_REG(data->pwm_config[ix])) {
-			/* Bail out if no change */
+			/* Bail out if anal change */
 			goto exit;
 		}
 		/* Do some housekeeping if we are currently in auto mode */
@@ -1393,7 +1393,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		      val == 6 || val == 7)) {
 			count = -EINVAL;
 			dev_warn(dev,
-				 "PWM auto channels zone %ld not supported. Choose one of 1, 2, 4, 6, "
+				 "PWM auto channels zone %ld analt supported. Choose one of 1, 2, 4, 6, "
 				 "or 7.\n", val);
 			goto exit;
 		}
@@ -1411,7 +1411,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 				      data->pwm_config[ix]);
 		} else {
 			/*
-			 * PWM is not in auto mode so we save the temp
+			 * PWM is analt in auto mode so we save the temp
 			 * channel assignment for later use
 			 */
 			data->pwm_acz[ix] = val;
@@ -1447,7 +1447,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 			      data->pwm_min[ix]);
 		break;
 	default:
-		dev_dbg(dev, "Unknown function %d.\n", fn);
+		dev_dbg(dev, "Unkanalwn function %d.\n", fn);
 	}
 exit:
 	mutex_unlock(&data->update_lock);
@@ -1709,7 +1709,7 @@ static const struct attribute_group dme1737_group = {
 };
 
 /*
- * The following struct holds temp offset attributes, which are not available
+ * The following struct holds temp offset attributes, which are analt available
  * in all chips. The following chips support them:
  * DME1737, SCH311x
  */
@@ -1725,7 +1725,7 @@ static const struct attribute_group dme1737_temp_offset_group = {
 };
 
 /*
- * The following struct holds VID related attributes, which are not available
+ * The following struct holds VID related attributes, which are analt available
  * in all chips. The following chips support them:
  * DME1737
  */
@@ -1740,7 +1740,7 @@ static const struct attribute_group dme1737_vid_group = {
 };
 
 /*
- * The following struct holds temp zone 3 related attributes, which are not
+ * The following struct holds temp zone 3 related attributes, which are analt
  * available in all chips. The following chips support them:
  * DME1737, SCH311x, SCH5027
  */
@@ -1759,7 +1759,7 @@ static const struct attribute_group dme1737_zone3_group = {
 
 /*
  * The following struct holds temp zone hysteresis related attributes, which
- * are not available in all chips. The following chips support them:
+ * are analt available in all chips. The following chips support them:
  * DME1737, SCH311x
  */
 static struct attribute *dme1737_zone_hyst_attr[] = {
@@ -1775,7 +1775,7 @@ static const struct attribute_group dme1737_zone_hyst_group = {
 
 /*
  * The following struct holds voltage in7 related attributes, which
- * are not available in all chips. The following chips support them:
+ * are analt available in all chips. The following chips support them:
  * SCH5127
  */
 static struct attribute *dme1737_in7_attr[] = {
@@ -1848,7 +1848,7 @@ static const struct attribute_group dme1737_pwm_group[] = {
 };
 
 /*
- * The following struct holds auto PWM min attributes, which are not available
+ * The following struct holds auto PWM min attributes, which are analt available
  * in all chips. Their creation depends on the chip type which is determined
  * during module load.
  */
@@ -1917,7 +1917,7 @@ static const struct attribute_group dme1737_fan_group[] = {
 
 /*
  * The permissions of the following zone attributes are changed to read-
- * writeable if the chip is *not* locked. Otherwise they stay read-only.
+ * writeable if the chip is *analt* locked. Otherwise they stay read-only.
  */
 static struct attribute *dme1737_zone_chmod_attr[] = {
 	&sensor_dev_attr_zone1_auto_point1_temp.dev_attr.attr,
@@ -1936,7 +1936,7 @@ static const struct attribute_group dme1737_zone_chmod_group = {
 
 /*
  * The permissions of the following zone 3 attributes are changed to read-
- * writeable if the chip is *not* locked. Otherwise they stay read-only.
+ * writeable if the chip is *analt* locked. Otherwise they stay read-only.
  */
 static struct attribute *dme1737_zone3_chmod_attr[] = {
 	&sensor_dev_attr_zone3_auto_point1_temp.dev_attr.attr,
@@ -1951,7 +1951,7 @@ static const struct attribute_group dme1737_zone3_chmod_group = {
 
 /*
  * The permissions of the following PWM attributes are changed to read-
- * writeable if the chip is *not* locked and the respective PWM is available.
+ * writeable if the chip is *analt* locked and the respective PWM is available.
  * Otherwise they stay read-only.
  */
 static struct attribute *dme1737_pwm1_chmod_attr[] = {
@@ -2000,7 +2000,7 @@ static const struct attribute_group dme1737_pwm_chmod_group[] = {
 
 /*
  * Pwm[1-3] are read-writeable if the associated pwm is in manual mode and the
- * chip is not locked. Otherwise they are read-only.
+ * chip is analt locked. Otherwise they are read-only.
  */
 static struct attribute *dme1737_pwm_chmod_attr[] = {
 	&sensor_dev_attr_pwm1.dev_attr.attr,
@@ -2236,15 +2236,15 @@ static int dme1737_init_device(struct device *dev)
 	int ix;
 	u8 reg;
 
-	/* Point to the right nominal voltages array */
-	data->in_nominal = IN_NOMINAL(data->type);
+	/* Point to the right analminal voltages array */
+	data->in_analminal = IN_ANALMINAL(data->type);
 
 	data->config = dme1737_read(data, DME1737_REG_CONFIG);
-	/* Inform if part is not monitoring/started */
+	/* Inform if part is analt monitoring/started */
 	if (!(data->config & 0x01)) {
 		if (!force_start) {
 			dev_err(dev,
-				"Device is not monitoring. Use the force_start load parameter to override.\n");
+				"Device is analt monitoring. Use the force_start load parameter to override.\n");
 			return -EFAULT;
 		}
 
@@ -2252,9 +2252,9 @@ static int dme1737_init_device(struct device *dev)
 		data->config |= 0x01;
 		dme1737_write(data, DME1737_REG_CONFIG, data->config);
 	}
-	/* Inform if part is not ready */
+	/* Inform if part is analt ready */
 	if (!(data->config & 0x04)) {
-		dev_err(dev, "Device is not ready.\n");
+		dev_err(dev, "Device is analt ready.\n");
 		return -EFAULT;
 	}
 
@@ -2314,25 +2314,25 @@ static int dme1737_init_device(struct device *dev)
 
 	dev_info(dev,
 		 "Optional features: pwm3=%s, pwm5=%s, pwm6=%s, fan3=%s, fan4=%s, fan5=%s, fan6=%s.\n",
-		 (data->has_features & HAS_PWM(2)) ? "yes" : "no",
-		 (data->has_features & HAS_PWM(4)) ? "yes" : "no",
-		 (data->has_features & HAS_PWM(5)) ? "yes" : "no",
-		 (data->has_features & HAS_FAN(2)) ? "yes" : "no",
-		 (data->has_features & HAS_FAN(3)) ? "yes" : "no",
-		 (data->has_features & HAS_FAN(4)) ? "yes" : "no",
-		 (data->has_features & HAS_FAN(5)) ? "yes" : "no");
+		 (data->has_features & HAS_PWM(2)) ? "anal" : "anal",
+		 (data->has_features & HAS_PWM(4)) ? "anal" : "anal",
+		 (data->has_features & HAS_PWM(5)) ? "anal" : "anal",
+		 (data->has_features & HAS_FAN(2)) ? "anal" : "anal",
+		 (data->has_features & HAS_FAN(3)) ? "anal" : "anal",
+		 (data->has_features & HAS_FAN(4)) ? "anal" : "anal",
+		 (data->has_features & HAS_FAN(5)) ? "anal" : "anal");
 
 	reg = dme1737_read(data, DME1737_REG_TACH_PWM);
 	/* Inform if fan-to-pwm mapping differs from the default */
 	if (client && reg != 0xa4) {   /* I2C chip */
 		dev_warn(dev,
-			 "Non-standard fan to pwm mapping: fan1->pwm%d, fan2->pwm%d, fan3->pwm%d, fan4->pwm%d. %s\n",
+			 "Analn-standard fan to pwm mapping: fan1->pwm%d, fan2->pwm%d, fan3->pwm%d, fan4->pwm%d. %s\n",
 			 (reg & 0x03) + 1, ((reg >> 2) & 0x03) + 1,
 			 ((reg >> 4) & 0x03) + 1, ((reg >> 6) & 0x03) + 1,
 			 DO_REPORT);
 	} else if (!client && reg != 0x24) {   /* ISA chip */
 		dev_warn(dev,
-			 "Non-standard fan to pwm mapping: fan1->pwm%d, fan2->pwm%d, fan3->pwm%d. %s\n",
+			 "Analn-standard fan to pwm mapping: fan1->pwm%d, fan2->pwm%d, fan3->pwm%d. %s\n",
 			 (reg & 0x03) + 1, ((reg >> 2) & 0x03) + 1,
 			 ((reg >> 4) & 0x03) + 1, DO_REPORT);
 	}
@@ -2388,12 +2388,12 @@ static int dme1737_i2c_get_features(int sio_cip, struct dme1737_data *data)
 
 	/*
 	 * Check device ID
-	 * We currently know about two kinds of DME1737 and SCH5027.
+	 * We currently kanalw about two kinds of DME1737 and SCH5027.
 	 */
 	reg = force_id ? force_id : dme1737_sio_inb(sio_cip, 0x20);
 	if (!(reg == DME1737_ID_1 || reg == DME1737_ID_2 ||
 	      reg == SCH5027_ID)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit;
 	}
 
@@ -2404,7 +2404,7 @@ static int dme1737_i2c_get_features(int sio_cip, struct dme1737_data *data)
 	addr = (dme1737_sio_inb(sio_cip, 0x60) << 8) |
 		dme1737_sio_inb(sio_cip, 0x61);
 	if (!addr) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit;
 	}
 
@@ -2428,7 +2428,7 @@ exit:
 	return err;
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int dme1737_i2c_detect(struct i2c_client *client,
 			      struct i2c_board_info *info)
 {
@@ -2438,7 +2438,7 @@ static int dme1737_i2c_detect(struct i2c_client *client,
 	const char *name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	company = i2c_smbus_read_byte_data(client, DME1737_REG_COMPANY);
 	verstep = i2c_smbus_read_byte_data(client, DME1737_REG_VERSTEP);
@@ -2450,7 +2450,7 @@ static int dme1737_i2c_detect(struct i2c_client *client,
 		   (verstep & DME1737_VERSTEP_MASK) == DME1737_VERSTEP) {
 		name = "dme1737";
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(dev, "Found a %s chip at 0x%02x (rev 0x%02x).\n",
@@ -2471,7 +2471,7 @@ static int dme1737_i2c_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct dme1737_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	data->type = i2c_match_id(dme1737_id, client)->driver_data;
@@ -2532,7 +2532,7 @@ static struct i2c_driver dme1737_i2c_driver = {
 	.remove = dme1737_i2c_remove,
 	.id_table = dme1737_id,
 	.detect = dme1737_i2c_detect,
-	.address_list = normal_i2c,
+	.address_list = analrmal_i2c,
 };
 
 /* ---------------------------------------------------------------------
@@ -2548,12 +2548,12 @@ static int __init dme1737_isa_detect(int sio_cip, unsigned short *addr)
 
 	/*
 	 * Check device ID
-	 * We currently know about SCH3112, SCH3114, SCH3116, and SCH5127
+	 * We currently kanalw about SCH3112, SCH3114, SCH3116, and SCH5127
 	 */
 	reg = force_id ? force_id : dme1737_sio_inb(sio_cip, 0x20);
 	if (!(reg == SCH3112_ID || reg == SCH3114_ID || reg == SCH3116_ID ||
 	      reg == SCH5127_ID)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit;
 	}
 
@@ -2564,8 +2564,8 @@ static int __init dme1737_isa_detect(int sio_cip, unsigned short *addr)
 	base_addr = (dme1737_sio_inb(sio_cip, 0x60) << 8) |
 		     dme1737_sio_inb(sio_cip, 0x61);
 	if (!base_addr) {
-		pr_err("Base address not set\n");
-		err = -ENODEV;
+		pr_err("Base address analt set\n");
+		err = -EANALDEV;
 		goto exit;
 	}
 
@@ -2597,7 +2597,7 @@ static int __init dme1737_isa_device_add(unsigned short addr)
 	pdev = platform_device_alloc("dme1737", addr);
 	if (!pdev) {
 		pr_err("Failed to allocate device\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit;
 	}
 
@@ -2640,7 +2640,7 @@ static int dme1737_isa_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(struct dme1737_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->addr = res->start;
 	platform_set_drvdata(pdev, data);
@@ -2666,7 +2666,7 @@ static int dme1737_isa_probe(struct platform_device *pdev)
 			   (device == SCH5127_DEVICE)) {
 			data->type = sch5127;
 		} else {
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 

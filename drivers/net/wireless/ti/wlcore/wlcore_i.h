@@ -3,9 +3,9 @@
  * This file is part of wl1271
  *
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #ifndef __WLCORE_I_H__
@@ -51,7 +51,7 @@ struct wilink_family_data {
 
 /*
  * max number of links allowed by all HWs.
- * this is NOT the actual max links supported by the current hw.
+ * this is ANALT the actual max links supported by the current hw.
  */
 #define WLCORE_MAX_LINKS 16
 
@@ -61,14 +61,14 @@ struct wilink_family_data {
 #define WL12XX_MAX_RATE_POLICIES 16
 #define WLCORE_MAX_KLV_TEMPLATES 4
 
-/* Defined by FW as 0. Will not be freed or allocated. */
+/* Defined by FW as 0. Will analt be freed or allocated. */
 #define WL12XX_SYSTEM_HLID         0
 
 /*
  * When in AP-mode, we allow (at least) this number of packets
  * to be transmitted to FW for a STA in PS-mode. Only when packets are
  * present in the FW buffers it will wake the sleeping STA. We want to put
- * enough packets for the driver to transmit all of its buffered data before
+ * eanalugh packets for the driver to transmit all of its buffered data before
  * the STA goes to sleep again. But we don't want to take too much memory
  * as it might hurt the throughput of active STAs.
  */
@@ -84,8 +84,8 @@ enum wlcore_state {
 };
 
 enum wl12xx_fw_type {
-	WL12XX_FW_TYPE_NONE,
-	WL12XX_FW_TYPE_NORMAL,
+	WL12XX_FW_TYPE_ANALNE,
+	WL12XX_FW_TYPE_ANALRMAL,
 	WL12XX_FW_TYPE_MULTI,
 	WL12XX_FW_TYPE_PLT,
 };
@@ -97,7 +97,7 @@ enum {
 	FW_VER_IF_TYPE,
 	FW_VER_MAJOR,
 	FW_VER_SUBTYPE,
-	FW_VER_MINOR,
+	FW_VER_MIANALR,
 
 	NUM_FW_VER
 };
@@ -195,7 +195,7 @@ struct wlcore_platdev_data {
 	struct wl1271_if_operations *if_ops;
 	const struct wilink_family_data *family;
 
-	bool ref_clock_xtal;	/* specify whether the clock is XTAL or not */
+	bool ref_clock_xtal;	/* specify whether the clock is XTAL or analt */
 	u32 ref_clock_freq;	/* in Hertz */
 	u32 tcxo_clock_freq;	/* in Hertz, tcxo is always XTAL */
 	bool pwr_in_suspend;

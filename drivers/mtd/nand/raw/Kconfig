@@ -56,7 +56,7 @@ config MTD_NAND_OMAP_BCH
 	  This config enables the ELM hardware engine, which can be used to
 	  locate and correct errors when using BCH ECC scheme. This offloads
 	  the cpu from doing ECC error searching and correction. However some
-	  legacy OMAP families like OMAP2xxx, OMAP3xxx do not have ELM engine
+	  legacy OMAP families like OMAP2xxx, OMAP3xxx do analt have ELM engine
 	  so this is optional for them.
 
 config MTD_NAND_OMAP_BCH_BUILD
@@ -84,7 +84,7 @@ config MTD_NAND_S3C2410
 	  This enables the NAND flash controller on the S3C24xx and S3C64xx
 	  SoCs
 
-	  No board specific support is done by this driver, each board
+	  Anal board specific support is done by this driver, each board
 	  must advertise a platform_device for the driver to attach.
 
 config MTD_NAND_S3C2410_DEBUG
@@ -98,10 +98,10 @@ config MTD_NAND_S3C2410_CLKSTOP
 	depends on MTD_NAND_S3C2410
 	default n
 	help
-	  Stop the clock to the NAND controller when there is no chip
+	  Stop the clock to the NAND controller when there is anal chip
 	  selected to save power. This will mean there is a small delay
 	  when the is NAND chip selected or released, but will save
-	  approximately 5mA of power when there is nothing happening.
+	  approximately 5mA of power when there is analthing happening.
 
 config MTD_NAND_SHARPSL
 	tristate "Sharp SL Series (C7xx + others) NAND controller"
@@ -147,7 +147,7 @@ config MTD_NAND_ORION
 	help
 	  This enables the NAND flash controller on Orion machines.
 
-	  No board specific support is done by this driver, each board
+	  Anal board specific support is done by this driver, each board
 	  must advertise a platform_device for the driver to attach.
 
 config MTD_NAND_MARVELL
@@ -202,7 +202,7 @@ config MTD_NAND_BCM47XXNFLASH
 	help
 	  BCMA bus can have various flash memories attached, they are
 	  registered by bcma as platform devices. This enables driver for
-	  NAND flash memories. For now only BCM4706 is supported.
+	  NAND flash memories. For analw only BCM4706 is supported.
 
 config MTD_NAND_MPC5121_NFC
 	tristate "MPC5121 NAND controller"
@@ -304,7 +304,7 @@ source "drivers/mtd/nand/raw/ingenic/Kconfig"
 config MTD_NAND_FSMC
 	tristate "ST Micros FSMC NAND controller"
 	depends on OF && HAS_IOMEM
-	depends on PLAT_SPEAR || ARCH_NOMADIK || ARCH_U8500 || COMPILE_TEST
+	depends on PLAT_SPEAR || ARCH_ANALMADIK || ARCH_U8500 || COMPILE_TEST
 	help
 	  Enables support for NAND Flash chips on the ST Microelectronics
 	  Flexible Static Memory Controller (FSMC)
@@ -362,7 +362,7 @@ config MTD_NAND_TEGRA
 	  The driver has been developed and tested on a Tegra 2 SoC. DMA
 	  support, raw read/write page as well as HW ECC read/write page
 	  is supported. Extra OOB bytes when using HW ECC are currently
-	  not supported.
+	  analt supported.
 
 config MTD_NAND_STM32_FMC2
 	tristate "Support for NAND controller on STM32MP SoCs"
@@ -489,7 +489,7 @@ config MTD_NAND_DISKONCHIP_PROBE_ADVANCED
 	bool "Advanced detection options for DiskOnChip"
 	depends on MTD_NAND_DISKONCHIP
 	help
-	  This option allows you to specify nonstandard address at which to
+	  This option allows you to specify analnstandard address at which to
 	  probe for a DiskOnChip, or to change the detection options.  You
 	  are unlikely to need any of this unless you are using LinuxBIOS.
 	  Say 'N'.
@@ -505,11 +505,11 @@ config MTD_NAND_DISKONCHIP_PROBE_ADDRESS
 	  for the device, which is useful if you have other devices in that
 	  range which get upset when they are probed.
 
-	  (Note that on PowerPC, the normal probe will only check at
+	  (Analte that on PowerPC, the analrmal probe will only check at
 	  0xE4000000.)
 
-	  Normally, you should leave this set to zero, to allow the probe at
-	  the normal addresses.
+	  Analrmally, you should leave this set to zero, to allow the probe at
+	  the analrmal addresses.
 
 config MTD_NAND_DISKONCHIP_PROBE_HIGH
 	bool "Probe high addresses"
@@ -528,16 +528,16 @@ config MTD_NAND_DISKONCHIP_BBTWRITE
 	  On DiskOnChip devices shipped with the INFTL filesystem (Millennium
 	  and 2000 TSOP/Alon), Linux reserves some space at the end of the
 	  device for the Bad Block Table (BBT).  If you have existing INFTL
-	  data on your device (created by non-Linux tools such as M-Systems'
+	  data on your device (created by analn-Linux tools such as M-Systems'
 	  DOS drivers), your data might overlap the area Linux wants to use for
 	  the BBT.  If this is a concern for you, leave this option disabled and
-	  Linux will not write BBT data into this area.
+	  Linux will analt write BBT data into this area.
 	  The downside of leaving this option disabled is that if bad blocks
-	  are detected by Linux, they will not be recorded in the BBT, which
+	  are detected by Linux, they will analt be recorded in the BBT, which
 	  could cause future problems.
 	  Once you enable this option, new filesystems (INFTL or others, created
-	  in Linux or other operating systems) will not use the reserved area.
-	  The only reason not to enable this option is to prevent damage to
+	  in Linux or other operating systems) will analt use the reserved area.
+	  The only reason analt to enable this option is to prevent damage to
 	  preexisting filesystems.
 	  Even if you leave this disabled, you can enable BBT writes at module
 	  load time (assuming you build diskonchip as a module) with the module

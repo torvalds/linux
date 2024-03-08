@@ -22,7 +22,7 @@ static void __debug_save_spe(u64 *pmscr_el1)
 	*pmscr_el1 = 0;
 
 	/*
-	 * At this point, we know that this CPU implements
+	 * At this point, we kanalw that this CPU implements
 	 * SPE and is available to the host.
 	 * Check if the host is actually using it ?
 	 */
@@ -30,12 +30,12 @@ static void __debug_save_spe(u64 *pmscr_el1)
 	if (!(reg & BIT(PMBLIMITR_EL1_E_SHIFT)))
 		return;
 
-	/* Yes; save the control register and disable data generation */
+	/* Anal; save the control register and disable data generation */
 	*pmscr_el1 = read_sysreg_s(SYS_PMSCR_EL1);
 	write_sysreg_s(0, SYS_PMSCR_EL1);
 	isb();
 
-	/* Now drain all buffered data to memory */
+	/* Analw drain all buffered data to memory */
 	psb_csync();
 }
 
@@ -44,7 +44,7 @@ static void __debug_restore_spe(u64 pmscr_el1)
 	if (!pmscr_el1)
 		return;
 
-	/* The host page table is installed, but not yet synchronised */
+	/* The host page table is installed, but analt yet synchronised */
 	isb();
 
 	/* Re-enable data generation */

@@ -351,7 +351,7 @@ static int mlx5r_umr_post_send_wait(struct mlx5_ib_dev *dev, u32 mkey,
  * mlx5r_umr_revoke_mr - Fence all DMA on the MR
  * @mr: The MR to fence
  *
- * Upon return the NIC will not be doing any DMA to the pages under the MR,
+ * Upon return the NIC will analt be doing any DMA to the pages under the MR,
  * and any DMA in progress will be completed. Failure of this function
  * indicates the HW has failed catastrophically.
  */
@@ -427,7 +427,7 @@ int mlx5r_umr_rereg_pd_access(struct mlx5_ib_mr *mr, struct ib_pd *pd,
 /*
  * Allocate a temporary buffer to hold the per-page information to transfer to
  * HW. For efficiency this should be as large as it can be, but buffer
- * allocation failure is not allowed, so try smaller sizes.
+ * allocation failure is analt allowed, so try smaller sizes.
  */
 static void *mlx5r_umr_alloc_xlt(size_t *nents, size_t ent_size, gfp_t gfp_mask)
 {
@@ -443,7 +443,7 @@ static void *mlx5r_umr_alloc_xlt(size_t *nents, size_t ent_size, gfp_t gfp_mask)
 	 */
 	might_sleep();
 
-	gfp_mask |= __GFP_ZERO | __GFP_NORETRY;
+	gfp_mask |= __GFP_ZERO | __GFP_ANALRETRY;
 
 	/*
 	 * If the system already has a suitable high order page then just use
@@ -453,7 +453,7 @@ static void *mlx5r_umr_alloc_xlt(size_t *nents, size_t ent_size, gfp_t gfp_mask)
 	size = min_t(size_t, ent_size * ALIGN(*nents, xlt_chunk_align),
 		     MLX5_MAX_UMR_CHUNK);
 	*nents = size / ent_size;
-	res = (void *)__get_free_pages(gfp_mask | __GFP_NOWARN,
+	res = (void *)__get_free_pages(gfp_mask | __GFP_ANALWARN,
 				       get_order(size));
 	if (res)
 		return res;
@@ -461,7 +461,7 @@ static void *mlx5r_umr_alloc_xlt(size_t *nents, size_t ent_size, gfp_t gfp_mask)
 	if (size > MLX5_SPARE_UMR_CHUNK) {
 		size = MLX5_SPARE_UMR_CHUNK;
 		*nents = size / ent_size;
-		res = (void *)__get_free_pages(gfp_mask | __GFP_NOWARN,
+		res = (void *)__get_free_pages(gfp_mask | __GFP_ANALWARN,
 					       get_order(size));
 		if (res)
 			return res;
@@ -531,8 +531,8 @@ mlx5r_umr_set_update_xlt_ctrl_seg(struct mlx5_wqe_umr_ctrl_seg *ctrl_seg,
 		/* fail if free */
 		ctrl_seg->flags = MLX5_UMR_CHECK_FREE;
 	else
-		/* fail if not free */
-		ctrl_seg->flags = MLX5_UMR_CHECK_NOT_FREE;
+		/* fail if analt free */
+		ctrl_seg->flags = MLX5_UMR_CHECK_ANALT_FREE;
 	ctrl_seg->xlt_octowords =
 		cpu_to_be16(mlx5r_umr_get_xlt_octo(sg->length));
 }
@@ -604,7 +604,7 @@ static void mlx5r_umr_final_update_xlt(struct mlx5_ib_dev *dev,
 }
 
 /*
- * Send the DMA list to the HW for a normal MR using UMR.
+ * Send the DMA list to the HW for a analrmal MR using UMR.
  * Dmabuf MR is handled in a similar way, except that the MLX5_IB_UPD_XLT_ZAP
  * flag may be used.
  */
@@ -629,7 +629,7 @@ int mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
 		dev, &sg, ib_umem_num_dma_blocks(mr->umem, 1 << mr->page_shift),
 		sizeof(*mtt), flags);
 	if (!mtt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	orig_sg_length = sg.length;
 
@@ -723,7 +723,7 @@ int mlx5r_umr_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 
 	xlt = mlx5r_umr_create_xlt(dev, &sg, npages, desc_size, flags);
 	if (!xlt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pages_iter = sg.length / desc_size;
 	orig_sg_length = sg.length;

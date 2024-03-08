@@ -14,7 +14,7 @@
 #if 0
 #define DEBUGP(fmt, ...) printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #else
-#define DEBUGP(fmt, ...) no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+#define DEBUGP(fmt, ...) anal_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 #ifdef CONFIG_MODULES
@@ -36,7 +36,7 @@ int apply_relocate(Elf32_Shdr *sechdrs,
 		/* This is where to make the change */
 		location = (void *)sechdrs[sechdrs[relsec].sh_info].sh_addr
 			+ rel[i].r_offset;
-		/* This is the symbol it is referring to.  Note that all
+		/* This is the symbol it is referring to.  Analte that all
 		   undefined symbols have been resolved.  */
 		sym = (Elf32_Sym *)sechdrs[symindex].sh_addr
 			+ ELF32_R_SYM(rel[i].r_info);
@@ -51,9 +51,9 @@ int apply_relocate(Elf32_Shdr *sechdrs,
 			*location += sym->st_value - (uint32_t)location;
 			break;
 		default:
-			pr_err("module %s: Unknown relocation: %u\n", me->name,
+			pr_err("module %s: Unkanalwn relocation: %u\n", me->name,
 			       ELF32_R_TYPE(rel[i].r_info));
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 	}
 	return 0;
@@ -76,7 +76,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 		/* This is where to make the change */
 		location = (void *)sechdrs[sechdrs[relsec].sh_info].sh_addr
 			+ rel[i].r_offset;
-		/* This is the symbol it is referring to.  Note that all
+		/* This is the symbol it is referring to.  Analte that all
 		   undefined symbols have been resolved.  */
 		sym = (Elf32_Sym *)sechdrs[symindex].sh_addr
 			+ ELF32_R_SYM(rel[i].r_info);
@@ -91,9 +91,9 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			*location = rel[i].r_addend + sym->st_value - (uint32_t)location;
 			break;
 		default:
-			pr_err("module %s: Unknown relocation: %u\n", me->name,
+			pr_err("module %s: Unkanalwn relocation: %u\n", me->name,
 			       ELF32_R_TYPE(rel[i].r_info));
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 	}
 	return 0;
@@ -120,8 +120,8 @@ void module_fixup(struct module *mod, struct m68k_fixup_info *start,
 		case m68k_fixup_memoffset:
 			*(u32 *)fixup->addr = m68k_memoffset;
 			break;
-		case m68k_fixup_vnode_shift:
-			*(u16 *)fixup->addr += m68k_virt_to_node_shift;
+		case m68k_fixup_vanalde_shift:
+			*(u16 *)fixup->addr += m68k_virt_to_analde_shift;
 			break;
 		}
 	}

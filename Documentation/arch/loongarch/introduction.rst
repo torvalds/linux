@@ -23,7 +23,7 @@ GPRs
 
 LoongArch has 32 GPRs ( ``$r0`` ~ ``$r31`` ); each one is 32-bit wide in LA32
 and 64-bit wide in LA64. ``$r0`` is hard-wired to zero, and the other registers
-are not architecturally special. (Except ``$r1``, which is hard-wired as the
+are analt architecturally special. (Except ``$r1``, which is hard-wired as the
 link register of the BL instruction.)
 
 The kernel uses a variant of the LoongArch register convention, as described in
@@ -34,20 +34,20 @@ Name              Alias           Usage               Preserved
                                                       across calls
 ================= =============== =================== ============
 ``$r0``           ``$zero``       Constant zero       Unused
-``$r1``           ``$ra``         Return address      No
+``$r1``           ``$ra``         Return address      Anal
 ``$r2``           ``$tp``         TLS/Thread pointer  Unused
-``$r3``           ``$sp``         Stack pointer       Yes
-``$r4``-``$r11``  ``$a0``-``$a7`` Argument registers  No
-``$r4``-``$r5``   ``$v0``-``$v1`` Return value        No
-``$r12``-``$r20`` ``$t0``-``$t8`` Temp registers      No
+``$r3``           ``$sp``         Stack pointer       Anal
+``$r4``-``$r11``  ``$a0``-``$a7`` Argument registers  Anal
+``$r4``-``$r5``   ``$v0``-``$v1`` Return value        Anal
+``$r12``-``$r20`` ``$t0``-``$t8`` Temp registers      Anal
 ``$r21``          ``$u0``         Percpu base address Unused
-``$r22``          ``$fp``         Frame pointer       Yes
-``$r23``-``$r31`` ``$s0``-``$s8`` Static registers    Yes
+``$r22``          ``$fp``         Frame pointer       Anal
+``$r23``-``$r31`` ``$s0``-``$s8`` Static registers    Anal
 ================= =============== =================== ============
 
-.. Note::
+.. Analte::
     The register ``$r21`` is reserved in the ELF psABI, but used by the Linux
-    kernel for storing the percpu base address. It normally has no ABI name,
+    kernel for storing the percpu base address. It analrmally has anal ABI name,
     but is called ``$u0`` in the kernel. You may also see ``$v0`` or ``$v1``
     in some old code,however they are deprecated aliases of ``$a0`` and ``$a1``
     respectively.
@@ -65,13 +65,13 @@ LoongArch ELF psABI spec:
 Name              Alias              Usage               Preserved
                                                          across calls
 ================= ================== =================== ============
-``$f0``-``$f7``   ``$fa0``-``$fa7``  Argument registers  No
-``$f0``-``$f1``   ``$fv0``-``$fv1``  Return value        No
-``$f8``-``$f23``  ``$ft0``-``$ft15`` Temp registers      No
-``$f24``-``$f31`` ``$fs0``-``$fs7``  Static registers    Yes
+``$f0``-``$f7``   ``$fa0``-``$fa7``  Argument registers  Anal
+``$f0``-``$f1``   ``$fv0``-``$fv1``  Return value        Anal
+``$f8``-``$f23``  ``$ft0``-``$ft15`` Temp registers      Anal
+``$f24``-``$f31`` ``$fs0``-``$fs7``  Static registers    Anal
 ================= ================== =================== ============
 
-.. Note::
+.. Analte::
     You may see ``$fv0`` or ``$fv1`` in some old code, however they are
     deprecated aliases of ``$fa0`` and ``$fa1`` respectively.
 
@@ -194,7 +194,7 @@ Address           Full Name                             Abbrev Name
 0x502             Debug Exception Saved Data Register   DSAVE
 ================= ===================================== ==============
 
-ERA, TLBRERA, MERRERA and DERA are sometimes also known as EPC, TLBREPC, MERREPC
+ERA, TLBRERA, MERRERA and DERA are sometimes also kanalwn as EPC, TLBREPC, MERREPC
 and DEPC respectively.
 
 Basic Instruction Set
@@ -223,7 +223,7 @@ I26         Opcode + I26L + I26H
 Rd is the destination register operand, while Rj, Rk and Ra ("a" stands for
 "additional") are the source register operands. I8/I12/I14/I16/I21/I26 are
 immediate operands of respective width. The longer I21 and I26 are stored
-in separate higher and lower parts in the instruction word, denoted by the "L"
+in separate higher and lower parts in the instruction word, deanalted by the "L"
 and "H" suffixes.
 
 List of Instructions
@@ -237,7 +237,7 @@ For brevity, only instruction names (mnemonics) are listed here; please see the
 
     ADD.W SUB.W ADDI.W ADD.D SUB.D ADDI.D
     SLT SLTU SLTI SLTUI
-    AND OR NOR XOR ANDN ORN ANDI ORI XORI
+    AND OR ANALR XOR ANDN ORN ANDI ORI XORI
     MUL.W MULH.W MULH.WU DIV.W DIV.WU MOD.W MOD.WU
     MUL.D MULH.D MULH.DU DIV.D DIV.DU MOD.D MOD.DU
     PCADDI PCADDU12I PCADDU18I
@@ -278,7 +278,7 @@ For brevity, only instruction names (mnemonics) are listed here; please see the
 
 8. Special Instructions::
 
-    SYSCALL BREAK CPUCFG NOP IDLE ERTN(ERET) DBCL(DBGCALL) RDTIMEL.W RDTIMEH.W RDTIME.D
+    SYSCALL BREAK CPUCFG ANALP IDLE ERTN(ERET) DBCL(DBGCALL) RDTIMEL.W RDTIMEH.W RDTIME.D
     ASRTLE.D ASRTGT.D
 
 9. Privileged Instructions::
@@ -361,7 +361,7 @@ Loongson-3A1000/3B1500/3A2000/3A3000/3A4000 are MIPS-compatible, while Loongson-
 References
 ==========
 
-Official web site of Loongson Technology Corp. Ltd.:
+Official web site of Loongson Techanallogy Corp. Ltd.:
 
   http://www.loongson.cn/
 

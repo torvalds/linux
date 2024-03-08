@@ -21,15 +21,15 @@
  * When reading the bytes are 0x00 0x20, or 0x00 0x10, there is an strange
  * situation, when too much data arrives to the device because it sends the data
  * but with out the header. I will use a simply hack to override this situation,
- * if there is data coming that does not contain any header, then that is data
- * that must go directly to the tty, as there is no documentation about if there
+ * if there is data coming that does analt contain any header, then that is data
+ * that must go directly to the tty, as there is anal documentation about if there
  * is any other control code, I will simply check for the first
  * one.
  *
  * I have taken some info from a Greg Kroah-Hartman article:
  * http://www.linuxjournal.com/article/6573
  * And from Linux Device Driver Kit CD, which is a great work, the authors taken
- * the work to recompile lots of information an knowledge in drivers development
+ * the work to recompile lots of information an kanalwledge in drivers development
  * and made it all available inside a cd.
  * URL: http://kernel.org/pub/linux/kernel/people/gregkh/ddk/
  *
@@ -87,11 +87,11 @@ static int aircable_prepare_write_buffer(struct usb_serial_port *port,
 static int aircable_calc_num_ports(struct usb_serial *serial,
 					struct usb_serial_endpoints *epds)
 {
-	/* Ignore the first interface, which has no bulk endpoints. */
+	/* Iganalre the first interface, which has anal bulk endpoints. */
 	if (epds->num_bulk_out == 0) {
 		dev_dbg(&serial->interface->dev,
-			"ignoring interface with no bulk-out endpoints\n");
-		return -ENODEV;
+			"iganalring interface with anal bulk-out endpoints\n");
+		return -EANALDEV;
 	}
 
 	return 1;

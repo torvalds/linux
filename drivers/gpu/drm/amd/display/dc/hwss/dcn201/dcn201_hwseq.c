@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -70,7 +70,7 @@ static bool patch_address_for_sbs_tb_stereo(
 			plane_state->address.grph_stereo.right_addr;
 		return true;
 	} else {
-		if (pipe_ctx->stream->view_format != VIEW_3D_FORMAT_NONE &&
+		if (pipe_ctx->stream->view_format != VIEW_3D_FORMAT_ANALNE &&
 			plane_state->address.type != PLN_ADDR_TYPE_GRPH_STEREO) {
 			plane_state->address.type = PLN_ADDR_TYPE_GRPH_STEREO;
 			plane_state->address.grph_stereo.right_addr =
@@ -470,16 +470,16 @@ void dcn201_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 	/*
 	 * TODO: remove hack
-	 * Note: currently there is a bug in init_hw such that
+	 * Analte: currently there is a bug in init_hw such that
 	 * on resume from hibernate, BIOS sets up MPCC0, and
-	 * we do mpcc_remove but the mpcc cannot go to idle
+	 * we do mpcc_remove but the mpcc cananalt go to idle
 	 * after remove. This cause us to pick mpcc1 here,
-	 * which causes a pstate hang for yet unknown reason.
+	 * which causes a pstate hang for yet unkanalwn reason.
 	 */
 	dpp_id = hubp->inst;
 	mpcc_id = dpp_id;
 
-	/* If there is no full update, don't need to touch MPC tree*/
+	/* If there is anal full update, don't need to touch MPC tree*/
 	if (!pipe_ctx->plane_state->update_flags.bits.full_update) {
 		dc->hwss.update_visual_confirm_color(dc, pipe_ctx, mpcc_id);
 		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);

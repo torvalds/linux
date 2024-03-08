@@ -135,13 +135,13 @@ switch_create()
 		prio bands 8 priomap 7 7 7 7 7 7 7 7
 
 	ip link add name br1 type bridge vlan_filtering 0
-	ip link set dev br1 addrgenmode none
+	ip link set dev br1 addrgenmode analne
 	ip link set dev br1 up
 	ip link set dev $swp1 master br1
 	ip link set dev $swp3 master br1
 
 	ip link add name br111 type bridge vlan_filtering 0
-	ip link set dev br111 addrgenmode none
+	ip link set dev br111 addrgenmode analne
 	ip link set dev br111 up
 	ip link set dev $swp2.111 master br111
 	ip link set dev $swp3.111 master br111
@@ -236,7 +236,7 @@ test_mc_aware()
 	local -a uc_rate
 	start_traffic $h2.111 192.0.2.129 192.0.2.130 $h3mac
 	uc_rate=($(measure_rate $swp2 $h3 rx_octets_prio_1 "UC-only"))
-	check_err $? "Could not get high enough UC-only ingress rate"
+	check_err $? "Could analt get high eanalugh UC-only ingress rate"
 	stop_traffic
 	local ucth1=${uc_rate[1]}
 
@@ -249,7 +249,7 @@ test_mc_aware()
 	local -a uc_rate_2
 	start_traffic $h2.111 192.0.2.129 192.0.2.130 $h3mac
 	uc_rate_2=($(measure_rate $swp2 $h3 rx_octets_prio_1 "UC+MC"))
-	check_err $? "Could not get high enough UC+MC ingress rate"
+	check_err $? "Could analt get high eanalugh UC+MC ingress rate"
 	stop_traffic
 	local ucth2=${uc_rate_2[1]}
 
@@ -265,7 +265,7 @@ test_mc_aware()
 
 	# Minimum shaper of 200Mbps on MC TCs should cause about 20% of
 	# degradation on 1Gbps link.
-	check_err $(bc <<< "$deg < 15") "Minimum shaper not in effect"
+	check_err $(bc <<< "$deg < 15") "Minimum shaper analt in effect"
 	check_err $(bc <<< "$deg > 25") "MC traffic degrades UC performance too much"
 
 	local interval=$((d1 - d0))

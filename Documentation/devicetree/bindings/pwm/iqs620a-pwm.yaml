@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   The Azoteq IQS620A multi-function sensor generates a fixed-frequency PWM
-  output represented by a "pwm" child node from the parent MFD driver. See
+  output represented by a "pwm" child analde from the parent MFD driver. See
   Documentation/devicetree/bindings/mfd/iqs62x.yaml for further details as
   well as an example.
 

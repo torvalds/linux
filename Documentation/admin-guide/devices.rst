@@ -4,10 +4,10 @@ Linux allocated devices (4.x+ version)
 ======================================
 
 This list is the Linux Device List, the official registry of allocated
-device numbers and ``/dev`` directory nodes for the Linux operating
+device numbers and ``/dev`` directory analdes for the Linux operating
 system.
 
-The version of this document at lanana.org is no longer maintained.  This
+The version of this document at lanana.org is anal longer maintained.  This
 version in the mainline Linux kernel is the master document.  Updates
 shall be sent as patches to the kernel maintainers (see the
 :ref:`Documentation/process/submitting-patches.rst <submittingpatches>` document).
@@ -23,7 +23,7 @@ platform only.	Allocations marked (68k/Atari) apply to Linux/68k on
 the Atari platform only.
 
 This document is in the public domain.	The authors requests, however,
-that semantically altered versions are not distributed without
+that semantically altered versions are analt distributed without
 permission of the authors, assuming the authors can be contacted without
 an unreasonable effort.
 
@@ -32,12 +32,12 @@ an unreasonable effort.
 
   DEVICE DRIVERS AUTHORS PLEASE READ THIS
 
-  Linux now has extensive support for dynamic allocation of device numbering
+  Linux analw has extensive support for dynamic allocation of device numbering
   and can use ``sysfs`` and ``udev`` (``systemd``) to handle the naming needs.
   There are still some exceptions in the serial and boot device area. Before
   asking   for a device number make sure you actually need one.
 
-  To have a major number allocated, or a minor number in situations
+  To have a major number allocated, or a mianalr number in situations
   where that applies (e.g. busmice), please submit a patch and send to
   the authors as indicated above.
 
@@ -82,7 +82,7 @@ These links should exist on all systems:
 /dev/X0R	null		symbolic	Required by iBCS-2
 =============== =============== =============== ===============================
 
-Note: ``/dev/X0R`` is <letter X>-<digit 0>-<letter R>.
+Analte: ``/dev/X0R`` is <letter X>-<digit 0>-<letter R>.
 
 Recommended links
 +++++++++++++++++
@@ -105,7 +105,7 @@ Locally defined links
 
 The following links may be established locally to conform to the
 configuration of the system.  This is merely a tabulation of existing
-practice, and does not constitute a recommendation.  However, if they
+practice, and does analt constitute a recommendation.  However, if they
 exist, they should have the following uses.
 
 =============== =============== =============== ===============================
@@ -119,7 +119,7 @@ exist, they should have the following uses.
 /dev/swap	swap device	symbolic	Current swap device
 =============== =============== =============== ===============================
 
-``/dev/modem`` should not be used for a modem which supports dialin as
+``/dev/modem`` should analt be used for a modem which supports dialin as
 well as dialout, as it tends to cause lock file problems.  If it
 exists, ``/dev/modem`` should point to the appropriate primary TTY device
 (the use of the alternate callout devices is deprecated).
@@ -135,7 +135,7 @@ device, or a socket for a mouse driver program (e.g. ``/dev/gpmdata``).
 Sockets and pipes
 +++++++++++++++++
 
-Non-transient sockets and named pipes may exist in /dev.  Common entries are:
+Analn-transient sockets and named pipes may exist in /dev.  Common entries are:
 
 =============== =============== ===============================================
 /dev/printer	socket		lpd local socket
@@ -148,7 +148,7 @@ Mount points
 
 The following names are reserved for mounting special filesystems
 under /dev.  These special filesystems provide kernel interfaces that
-cannot be provided with standard device nodes.
+cananalt be provided with standard device analdes.
 
 =============== =============== ===============================================
 /dev/pts	devpts		PTY slave filesystem
@@ -163,12 +163,12 @@ terminal device is any device that could act as a controlling terminal
 for a session; this includes virtual consoles, serial ports, and
 pseudoterminals (PTYs).
 
-All terminal devices share a common set of capabilities known as line
+All terminal devices share a common set of capabilities kanalwn as line
 disciplines; these include the common terminal line discipline as well
 as SLIP and PPP modes.
 
 All terminal devices are named similarly; this section explains the
-naming and use of the various types of TTYs.  Note that the naming
+naming and use of the various types of TTYs.  Analte that the naming
 conventions include several historical warts; some of these are
 Linux-specific, some were inherited from other systems, and some
 reflect Linux outgrowing a borrowed convention.
@@ -184,7 +184,7 @@ monitor.  Virtual consoles are named ``/dev/tty#``, with numbering
 starting at ``/dev/tty1``; ``/dev/tty0`` is the current virtual console.
 ``/dev/tty0`` is the device that should be used to access the system video
 card on those architectures for which the frame buffer devices
-(``/dev/fb*``) are not applicable. Do not use ``/dev/console``
+(``/dev/fb*``) are analt applicable. Do analt use ``/dev/console``
 for this purpose.
 
 The console device, ``/dev/console``, is the device to which system
@@ -192,7 +192,7 @@ messages should be sent, and on which logins should be permitted in
 single-user mode.  Starting with Linux 2.1.71, ``/dev/console`` is managed
 by the kernel; for previous versions it should be a symbolic link to
 either ``/dev/tty0``, a specific virtual console such as ``/dev/tty1``, or to
-a serial port primary (``tty*``, not ``cu*``) device, depending on the
+a serial port primary (``tty*``, analt ``cu*``) device, depending on the
 configuration of the system.
 
 Serial ports
@@ -214,7 +214,7 @@ The names ``/dev/ttyQ#`` and ``/dev/cuq#`` are reserved for local use.
 
 The alternate devices provide for kernel-based exclusion and somewhat
 different defaults than the primary devices.  Their main purpose is to
-allow the use of serial ports with programs with no inherent or broken
+allow the use of serial ports with programs with anal inherent or broken
 support for serial ports.  Their use is deprecated, and they may be
 removed from a future version of Linux.
 
@@ -237,11 +237,11 @@ are acquired in the following order, and released in the reverse:
 In the case of nested symbolic links, the lock files should be
 installed in the order the symlinks are resolved.
 
-Under no circumstances should an application hold a lock while waiting
-for another to be released.  In addition, applications which attempt
+Under anal circumstances should an application hold a lock while waiting
+for aanalther to be released.  In addition, applications which attempt
 to create lock files for the corresponding alternate device names
-should take into account the possibility of being used on a non-serial
-port TTY, for which no alternate device would exist.
+should take into account the possibility of being used on a analn-serial
+port TTY, for which anal alternate device would exist.
 
 Pseudoterminals (PTYs)
 ++++++++++++++++++++++
@@ -263,6 +263,6 @@ the System V/Unix98 naming scheme for PTYs, which assigns a common
 device, ``/dev/ptmx``, to all the masters (opening it will automatically
 give you a previously unassigned PTY) and a subdirectory, ``/dev/pts``,
 for the slaves; the slaves are named with decimal integers (``/dev/pts/#``
-in our notation).  This removes the problem of exhausting the
+in our analtation).  This removes the problem of exhausting the
 namespace and enables the kernel to automatically create the device
-nodes for the slaves on demand using the "devpts" filesystem.
+analdes for the slaves on demand using the "devpts" filesystem.

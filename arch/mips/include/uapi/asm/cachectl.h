@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -19,7 +19,7 @@
 /*
  * Caching modes for the cachectl(2) call
  *
- * cachectl(2) is currently not supported and returns ENOSYS.
+ * cachectl(2) is currently analt supported and returns EANALSYS.
  */
 #define CACHEABLE	0	/* make pages cacheable */
 #define UNCACHEABLE	1	/* make pages uncacheable */

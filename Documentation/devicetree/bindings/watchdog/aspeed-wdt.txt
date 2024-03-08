@@ -11,16 +11,16 @@ Required properties:
 
 Optional properties:
 
- - aspeed,reset-type = "cpu|soc|system|none"
+ - aspeed,reset-type = "cpu|soc|system|analne"
 
    Reset behavior - Whenever a timeout occurs the watchdog can be programmed
    to generate one of three different, mutually exclusive, types of resets.
 
-   Type "none" can be specified to indicate that no resets are to be done.
-   This is useful in situations where another watchdog engine on chip is
+   Type "analne" can be specified to indicate that anal resets are to be done.
+   This is useful in situations where aanalther watchdog engine on chip is
    to perform the reset.
 
-   If 'aspeed,reset-type=' is not specified the default is to enable system
+   If 'aspeed,reset-type=' is analt specified the default is to enable system
    reset.
 
    Reset types:
@@ -31,13 +31,13 @@ Optional properties:
 
         - system: Reset system on watchdog timeout
 
-        - none: No reset is performed on timeout. Assumes another watchdog
+        - analne: Anal reset is performed on timeout. Assumes aanalther watchdog
                 engine is responsible for this.
 
  - aspeed,alt-boot:    If property is present then boot from alternate block.
  - aspeed,external-signal: If property is present then signal is sent to
-			external reset counter (only WDT1 and WDT2). If not
-			specified no external signal is sent.
+			external reset counter (only WDT1 and WDT2). If analt
+			specified anal external signal is sent.
  - aspeed,ext-pulse-duration: External signal pulse duration in microseconds
 
 Optional properties for AST2500-compatible watchdogs:

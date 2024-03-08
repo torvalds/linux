@@ -52,22 +52,22 @@ extern int kgdb_fault_expected;
  * way to leave space for future architecture changes. So to translate a
  * little for people who don't spend their spare time reading ARM architecture
  * manuals, what "is a 32-bit register" actually means in this context is
- * "is a 64-bit register but one with no meaning allocated to any of the
+ * "is a 64-bit register but one with anal meaning allocated to any of the
  * upper 32-bits... *yet*".
  *
- * Perhaps then we should not be surprised that this has led to some
+ * Perhaps then we should analt be surprised that this has led to some
  * confusion. Specifically a patch, influenced by the above translation,
  * that extended PSTATE to 64-bit was accepted into gdb-7.7 but the patch
  * was reverted in gdb-7.8.1 and all later releases, when this was
  * discovered to be an undocumented protocol change.
  *
- * So... it is *not* wrong for us to only allocate 32-bits to PSTATE
+ * So... it is *analt* wrong for us to only allocate 32-bits to PSTATE
  * here even though the kernel itself allocates 64-bits for the same
  * state. That is because this bit of code tells the kernel how the gdb
  * remote protocol (well most versions of it) describes the register state.
  *
- * Note that if you are using one of the versions of gdb that supports
- * the gdb-7.7 version of the protocol you cannot use kgdb directly
+ * Analte that if you are using one of the versions of gdb that supports
+ * the gdb-7.7 version of the protocol you cananalt use kgdb directly
  * without providing a custom register description (gdb can load new
  * protocol descriptions at runtime).
  */

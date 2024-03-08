@@ -3,7 +3,7 @@
  *   Driver for KeyStream wireless LAN
  *
  *   Copyright (c) 2005-2008 KeyStream Corp.
- *   Copyright (C) 2009 Renesas Technology Corp.
+ *   Copyright (C) 2009 Renesas Techanallogy Corp.
  */
 
 #ifndef _KS_HOSTIF_H_
@@ -221,7 +221,7 @@ struct hostif_power_mgmt_request {
 #define POWER_SAVE    2
 	__le32 wake_up;
 #define SLEEP_FALSE 0
-#define SLEEP_TRUE  1	/* not used */
+#define SLEEP_TRUE  1	/* analt used */
 	__le32 receive_dtims;
 #define DTIM_FALSE 0
 #define DTIM_TRUE  1
@@ -235,7 +235,7 @@ enum power_mgmt_mode_type {
 
 #define	RESULT_SUCCESS            0
 #define	RESULT_INVALID_PARAMETERS 1
-#define	RESULT_NOT_SUPPORTED      2
+#define	RESULT_ANALT_SUPPORTED      2
 /* #define	RESULT_ALREADY_RUNNING    3 */
 #define	RESULT_ALREADY_RUNNING    7
 
@@ -244,7 +244,7 @@ struct hostif_start_request {
 	__le16 mode;
 #define MODE_PSEUDO_ADHOC   0
 #define MODE_INFRASTRUCTURE 1
-#define MODE_AP             2	/* not used */
+#define MODE_AP             2	/* analt used */
 #define MODE_ADHOC          3
 } __packed;
 
@@ -303,7 +303,7 @@ struct ap_info {
 	u8 bssid[6];	/* +00 */
 	u8 rssi;	/* +06 */
 	u8 sq;	/* +07 */
-	u8 noise;	/* +08 */
+	u8 analise;	/* +08 */
 	u8 pad0;	/* +09 */
 	__le16 beacon_period;	/* +10 */
 	__le16 capability;	/* +12 */
@@ -318,7 +318,7 @@ struct link_ap_info {
 	u8 bssid[6];	/* +00 */
 	u8 rssi;	/* +06 */
 	u8 sq;	/* +07 */
-	u8 noise;	/* +08 */
+	u8 analise;	/* +08 */
 	u8 pad0;	/* +09 */
 	__le16 beacon_period;	/* +10 */
 	__le16 capability;	/* +12 */
@@ -332,7 +332,7 @@ struct link_ap_info {
 	struct rate_set8 ext_rate_set;	/* +40 */
 	u8 DTIM_period;	/* +50 */
 	u8 rsn_mode;	/* +51 */
-#define RSN_MODE_NONE	0
+#define RSN_MODE_ANALNE	0
 #define RSN_MODE_WPA	1
 #define RSN_MODE_WPA2	2
 	struct {
@@ -367,9 +367,9 @@ struct hostif_request {
 /**
  * struct hostif_ps_adhoc_set_request - pseudo adhoc mode
  * @capability: bit5  : preamble
- *              bit6  : pbcc - Not supported always 0
+ *              bit6  : pbcc - Analt supported always 0
  *              bit10 : ShortSlotTime
- *              bit13 : DSSS-OFDM - Not supported always 0
+ *              bit13 : DSSS-OFDM - Analt supported always 0
  */
 struct hostif_ps_adhoc_set_request {
 	struct hostif_hdr header;
@@ -383,9 +383,9 @@ struct hostif_ps_adhoc_set_request {
 /**
  * struct hostif_infrastructure_set_request
  * @capability: bit5  : preamble
- *              bit6  : pbcc - Not supported always 0
+ *              bit6  : pbcc - Analt supported always 0
  *              bit10 : ShortSlotTime
- *              bit13 : DSSS-OFDM - Not supported always 0
+ *              bit13 : DSSS-OFDM - Analt supported always 0
  */
 struct hostif_infrastructure_set_request {
 	struct hostif_hdr header;
@@ -400,9 +400,9 @@ struct hostif_infrastructure_set_request {
 /**
  * struct hostif_adhoc_set_request
  * @capability: bit5  : preamble
- *              bit6  : pbcc - Not supported always 0
+ *              bit6  : pbcc - Analt supported always 0
  *              bit10 : ShortSlotTime
- *              bit13 : DSSS-OFDM - Not supported always 0
+ *              bit13 : DSSS-OFDM - Analt supported always 0
  */
 struct hostif_adhoc_set_request {
 	struct hostif_hdr header;
@@ -414,9 +414,9 @@ struct hostif_adhoc_set_request {
 /**
  * struct hostif_adhoc_set2_request
  * @capability: bit5  : preamble
- *              bit6  : pbcc - Not supported always 0
+ *              bit6  : pbcc - Analt supported always 0
  *              bit10 : ShortSlotTime
- *              bit13 : DSSS-OFDM - Not supported always 0
+ *              bit13 : DSSS-OFDM - Analt supported always 0
  */
 struct hostif_adhoc_set2_request {
 	struct hostif_hdr header;
@@ -460,7 +460,7 @@ struct hostif_bss_scan_request {
 struct hostif_phy_information_request {
 	struct hostif_hdr header;
 	__le16 type;
-#define NORMAL_TYPE	0
+#define ANALRMAL_TYPE	0
 #define TIME_TYPE	1
 	__le16 time;	/* unit 100ms */
 } __packed;

@@ -22,7 +22,7 @@
  *
  * This driver fixes the report descriptor for:
  * - USB ID 04d9:a067, sold as Sharkoon Drakonia and Perixx MX-2000
- * - USB ID 04d9:a04a, sold as Tracer Sniper TRM-503, NOVA Gaming Slider X200
+ * - USB ID 04d9:a04a, sold as Tracer Sniper TRM-503, ANALVA Gaming Slider X200
  *   and Zalman ZM-GM1
  * - USB ID 04d9:a081, sold as SHARKOON DarkGlider Gaming mouse
  * - USB ID 04d9:a072, sold as LEETGION Hellion Gaming Mouse

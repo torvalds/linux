@@ -13,7 +13,7 @@ enum quota_types {
 
 enum quota_counters {
 	Q_SPC			= 0,
-	Q_INO			= 1,
+	Q_IANAL			= 1,
 	Q_COUNTERS		= 2,
 };
 

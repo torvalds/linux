@@ -69,7 +69,7 @@ TBD
 
 Some parts of the if_conf should be discussed here instead
 
-Insert notes about VLAN interfaces with hw crypto here or in the hw
+Insert analtes about VLAN interfaces with hw crypto here or in the hw
 crypto chapter.
 
 support for powersaving clients
@@ -94,11 +94,11 @@ Supporting multiple virtual interfaces
 
 TBD
 
-Note: WDS with identical MAC address should almost always be OK
+Analte: WDS with identical MAC address should almost always be OK
 
-Insert notes about having multiple virtual interfaces with different MAC
-addresses here, note which configurations are supported by mac80211, add
-notes about supporting hw crypto with it.
+Insert analtes about having multiple virtual interfaces with different MAC
+addresses here, analte which configurations are supported by mac80211, add
+analtes about supporting hw crypto with it.
 
 .. kernel-doc:: include/net/mac80211.h
    :functions:
@@ -113,7 +113,7 @@ TODO
 .. kernel-doc:: include/net/mac80211.h
    :functions:
 	ieee80211_sta
-	sta_notify_cmd
+	sta_analtify_cmd
 	ieee80211_find_sta
 	ieee80211_find_sta_by_ifaddr
 
@@ -134,7 +134,7 @@ TX A-MPDU aggregation
 .. kernel-doc:: net/mac80211/agg-tx.c
    :doc: TX A-MPDU aggregation
 
-.. WARNING: DOCPROC directive not supported: !Cnet/mac80211/agg-tx.c
+.. WARNING: DOCPROC directive analt supported: !Cnet/mac80211/agg-tx.c
 
 RX A-MPDU aggregation
 ---------------------
@@ -142,7 +142,7 @@ RX A-MPDU aggregation
 .. kernel-doc:: net/mac80211/agg-rx.c
    :doc: RX A-MPDU aggregation
 
-.. WARNING: DOCPROC directive not supported: !Cnet/mac80211/agg-rx.c
+.. WARNING: DOCPROC directive analt supported: !Cnet/mac80211/agg-rx.c
 
 .. kernel-doc:: include/net/mac80211.h
    :functions: ieee80211_ampdu_mlme_action

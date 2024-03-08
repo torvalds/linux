@@ -17,7 +17,7 @@
 #include <linux/miscdevice.h>
 #include <linux/vtpm_proxy.h>
 #include <linux/file.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/poll.h>
 #include <linux/compat.h>
 
@@ -180,7 +180,7 @@ static __poll_t vtpm_proxy_fops_poll(struct file *filp, poll_table *wait)
 	mutex_lock(&proxy_dev->buf_lock);
 
 	if (proxy_dev->req_len)
-		ret |= EPOLLIN | EPOLLRDNORM;
+		ret |= EPOLLIN | EPOLLRDANALRM;
 
 	if (!(proxy_dev->state & STATE_OPENED_FLAG))
 		ret |= EPOLLHUP;
@@ -195,7 +195,7 @@ static __poll_t vtpm_proxy_fops_poll(struct file *filp, poll_table *wait)
  *
  * @filp: file pointer
  *
- * Called when setting up the anonymous file descriptor
+ * Called when setting up the aanalnymous file descriptor
  */
 static void vtpm_proxy_fops_open(struct file *filp)
 {
@@ -218,19 +218,19 @@ static void vtpm_proxy_fops_undo_open(struct proxy_dev *proxy_dev)
 
 	mutex_unlock(&proxy_dev->buf_lock);
 
-	/* no more TPM responses -- wake up anyone waiting for them */
+	/* anal more TPM responses -- wake up anyone waiting for them */
 	wake_up_interruptible(&proxy_dev->wq);
 }
 
 /*
  * vtpm_proxy_fops_release - Close 'server side'
  *
- * @inode: inode
+ * @ianalde: ianalde
  * @filp: file pointer
  * Return:
  *      Always returns 0.
  */
-static int vtpm_proxy_fops_release(struct inode *inode, struct file *filp)
+static int vtpm_proxy_fops_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct proxy_dev *proxy_dev = filp->private_data;
 
@@ -243,7 +243,7 @@ static int vtpm_proxy_fops_release(struct inode *inode, struct file *filp)
 
 static const struct file_operations vtpm_proxy_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.read = vtpm_proxy_fops_read,
 	.write = vtpm_proxy_fops_write,
 	.poll = vtpm_proxy_fops_poll,
@@ -365,7 +365,7 @@ static int vtpm_proxy_tpm_op_send(struct tpm_chip *chip, u8 *buf, size_t count)
 
 static void vtpm_proxy_tpm_op_cancel(struct tpm_chip *chip)
 {
-	/* not supported */
+	/* analt supported */
 }
 
 static u8 vtpm_proxy_tpm_op_status(struct tpm_chip *chip)
@@ -492,7 +492,7 @@ static struct proxy_dev *vtpm_proxy_create_proxy_dev(void)
 
 	proxy_dev = kzalloc(sizeof(*proxy_dev), GFP_KERNEL);
 	if (proxy_dev == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init_waitqueue_head(&proxy_dev->wq);
 	mutex_init(&proxy_dev->buf_lock);
@@ -538,7 +538,7 @@ static struct file *vtpm_proxy_create_device(
 	struct file *file;
 
 	if (vtpm_new_dev->flags & ~VTPM_PROXY_FLAGS_ALL)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	proxy_dev = vtpm_proxy_create_proxy_dev();
 	if (IS_ERR(proxy_dev))
@@ -546,21 +546,21 @@ static struct file *vtpm_proxy_create_device(
 
 	proxy_dev->flags = vtpm_new_dev->flags;
 
-	/* setup an anonymous file for the server-side */
+	/* setup an aanalnymous file for the server-side */
 	fd = get_unused_fd_flags(O_RDWR);
 	if (fd < 0) {
 		rc = fd;
 		goto err_delete_proxy_dev;
 	}
 
-	file = anon_inode_getfile("[vtpms]", &vtpm_proxy_fops, proxy_dev,
+	file = aanaln_ianalde_getfile("[vtpms]", &vtpm_proxy_fops, proxy_dev,
 				  O_RDWR);
 	if (IS_ERR(file)) {
 		rc = PTR_ERR(file);
 		goto err_put_unused_fd;
 	}
 
-	/* from now on we can unwind with put_unused_fd() + fput() */
+	/* from analw on we can unwind with put_unused_fd() + fput() */
 	/* simulate an open() on the server side */
 	vtpm_proxy_fops_open(file);
 
@@ -571,7 +571,7 @@ static struct file *vtpm_proxy_create_device(
 
 	vtpm_new_dev->fd = fd;
 	vtpm_new_dev->major = MAJOR(proxy_dev->chip->dev.devt);
-	vtpm_new_dev->minor = MINOR(proxy_dev->chip->dev.devt);
+	vtpm_new_dev->mianalr = MIANALR(proxy_dev->chip->dev.devt);
 	vtpm_new_dev->tpm_num = proxy_dev->chip->dev_num;
 
 	return file;
@@ -593,7 +593,7 @@ static void vtpm_proxy_delete_device(struct proxy_dev *proxy_dev)
 	vtpm_proxy_work_stop(proxy_dev);
 
 	/*
-	 * A client may hold the 'ops' lock, so let it know that the server
+	 * A client may hold the 'ops' lock, so let it kanalw that the server
 	 * side shuts down before we try to grab the 'ops' lock when
 	 * unregistering the chip.
 	 */
@@ -615,11 +615,11 @@ static void vtpm_proxy_delete_device(struct proxy_dev *proxy_dev)
  * @ioctl:	the ioctl number
  * @arg:	pointer to the struct vtpmx_proxy_new_dev
  *
- * Creates an anonymous file that is used by the process acting as a TPM to
+ * Creates an aanalnymous file that is used by the process acting as a TPM to
  * communicate with the client processes. The function will also add a new TPM
  * device through which data is proxied to this TPM acting process. The caller
  * will be provided with a file descriptor to communicate with the clients and
- * major and minor numbers for the TPM device.
+ * major and mianalr numbers for the TPM device.
  */
 static long vtpmx_ioc_new_dev(struct file *file, unsigned int ioctl,
 			      unsigned long arg)
@@ -666,7 +666,7 @@ static long vtpmx_fops_ioctl(struct file *f, unsigned int ioctl,
 	case VTPM_PROXY_IOC_NEW_DEV:
 		return vtpmx_ioc_new_dev(f, ioctl, arg);
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -674,11 +674,11 @@ static const struct file_operations vtpmx_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = vtpmx_fops_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static struct miscdevice vtpmx_miscdev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "vtpmx",
 	.fops = &vtpmx_fops,
 };
@@ -690,7 +690,7 @@ static int __init vtpm_module_init(void)
 	workqueue = create_workqueue("tpm-vtpm");
 	if (!workqueue) {
 		pr_err("couldn't create workqueue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = misc_register(&vtpmx_miscdev);

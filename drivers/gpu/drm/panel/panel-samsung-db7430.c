@@ -22,10 +22,10 @@
 #include <video/mipi_display.h>
 
 #define DB7430_ACCESS_PROT_OFF		0xb0
-#define DB7430_UNKNOWN_B4		0xb4
+#define DB7430_UNKANALWN_B4		0xb4
 #define DB7430_USER_SELECT		0xb5
-#define DB7430_UNKNOWN_B7		0xb7
-#define DB7430_UNKNOWN_B8		0xb8
+#define DB7430_UNKANALWN_B7		0xb7
+#define DB7430_UNKANALWN_B8		0xb8
 #define DB7430_PANEL_DRIVING		0xc0
 #define DB7430_SOURCE_CONTROL		0xc1
 #define DB7430_GATE_INTERFACE		0xc4
@@ -37,11 +37,11 @@
 #define DB7430_BIAS_CURRENT_CTRL	0xd1
 #define DB7430_DDV_CTRL			0xd2
 #define DB7430_GAMMA_CTRL_REF		0xd3
-#define DB7430_UNKNOWN_D4		0xd4
+#define DB7430_UNKANALWN_D4		0xd4
 #define DB7430_DCDC_CTRL		0xd5
 #define DB7430_VCL_CTRL			0xd6
-#define DB7430_UNKNOWN_F8		0xf8
-#define DB7430_UNKNOWN_FC		0xfc
+#define DB7430_UNKANALWN_F8		0xf8
+#define DB7430_UNKANALWN_FC		0xfc
 
 #define DATA_MASK	0x100
 
@@ -111,8 +111,8 @@ static int db7430_power_on(struct db7430 *db)
 
 	/*
 	 * This is set to 0x0a (RGB/BGR order + horizontal flip) in order
-	 * to make the display behave normally. If this is not set the displays
-	 * normal output behaviour is horizontally flipped and BGR ordered. Do
+	 * to make the display behave analrmally. If this is analt set the displays
+	 * analrmal output behaviour is horizontally flipped and BGR ordered. Do
 	 * it twice because the first message doesn't always "take".
 	 */
 	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, 0x0a);
@@ -201,17 +201,17 @@ static int db7430_enable(struct drm_panel *panel)
 	mipi_dbi_command(dbi, MIPI_DCS_EXIT_SLEEP_MODE);
 	msleep(20);
 
-	/* NVM (non-volatile memory) load sequence */
-	mipi_dbi_command(dbi, DB7430_UNKNOWN_D4, 0x52, 0x5e);
-	mipi_dbi_command(dbi, DB7430_UNKNOWN_F8, 0x01, 0xf5, 0xf2, 0x71, 0x44);
-	mipi_dbi_command(dbi, DB7430_UNKNOWN_FC, 0x00, 0x08);
+	/* NVM (analn-volatile memory) load sequence */
+	mipi_dbi_command(dbi, DB7430_UNKANALWN_D4, 0x52, 0x5e);
+	mipi_dbi_command(dbi, DB7430_UNKANALWN_F8, 0x01, 0xf5, 0xf2, 0x71, 0x44);
+	mipi_dbi_command(dbi, DB7430_UNKANALWN_FC, 0x00, 0x08);
 	msleep(150);
 
 	/* CABC turn on sequence (BC = backlight control) */
-	mipi_dbi_command(dbi, DB7430_UNKNOWN_B4, 0x0f, 0x00, 0x50);
+	mipi_dbi_command(dbi, DB7430_UNKANALWN_B4, 0x0f, 0x00, 0x50);
 	mipi_dbi_command(dbi, DB7430_USER_SELECT, 0x80);
-	mipi_dbi_command(dbi, DB7430_UNKNOWN_B7, 0x24);
-	mipi_dbi_command(dbi, DB7430_UNKNOWN_B8, 0x01);
+	mipi_dbi_command(dbi, DB7430_UNKANALWN_B7, 0x24);
+	mipi_dbi_command(dbi, DB7430_UNKANALWN_B8, 0x01);
 
 	/* Turn on display */
 	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_ON);
@@ -234,7 +234,7 @@ static int db7430_get_modes(struct drm_panel *panel,
 	mode = drm_mode_duplicate(connector->dev, &db7430_480_800_mode);
 	if (!mode) {
 		dev_err(db->dev, "failed to add mode\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	connector->display_info.bpc = 8;
@@ -269,7 +269,7 @@ static int db7430_probe(struct spi_device *spi)
 
 	db = devm_kzalloc(dev, sizeof(*db), GFP_KERNEL);
 	if (!db)
-		return -ENOMEM;
+		return -EANALMEM;
 	db->dev = dev;
 
 	/*
@@ -287,7 +287,7 @@ static int db7430_probe(struct spi_device *spi)
 	db->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(db->reset)) {
 		ret = PTR_ERR(db->reset);
-		return dev_err_probe(dev, ret, "no RESET GPIO\n");
+		return dev_err_probe(dev, ret, "anal RESET GPIO\n");
 	}
 
 	ret = mipi_dbi_spi_init(spi, &db->dbi, NULL);
@@ -297,7 +297,7 @@ static int db7430_probe(struct spi_device *spi)
 	drm_panel_init(&db->panel, dev, &db7430_drm_funcs,
 		       DRM_MODE_CONNECTOR_DPI);
 
-	/* FIXME: if no external backlight, use internal backlight */
+	/* FIXME: if anal external backlight, use internal backlight */
 	ret = drm_panel_of_backlight(&db->panel);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to add backlight\n");

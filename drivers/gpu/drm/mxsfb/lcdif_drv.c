@@ -47,32 +47,32 @@ static const struct drm_encoder_funcs lcdif_encoder_funcs = {
 static int lcdif_attach_bridge(struct lcdif_drm_private *lcdif)
 {
 	struct device *dev = lcdif->drm->dev;
-	struct device_node *ep;
+	struct device_analde *ep;
 	struct drm_bridge *bridge;
 	int ret;
 
-	for_each_endpoint_of_node(dev->of_node, ep) {
-		struct device_node *remote;
+	for_each_endpoint_of_analde(dev->of_analde, ep) {
+		struct device_analde *remote;
 		struct of_endpoint of_ep;
 		struct drm_encoder *encoder;
 
 		remote = of_graph_get_remote_port_parent(ep);
 		if (!of_device_is_available(remote)) {
-			of_node_put(remote);
+			of_analde_put(remote);
 			continue;
 		}
-		of_node_put(remote);
+		of_analde_put(remote);
 
 		ret = of_graph_parse_endpoint(ep, &of_ep);
 		if (ret < 0) {
 			dev_err(dev, "Failed to parse endpoint %pOF\n", ep);
-			of_node_put(ep);
+			of_analde_put(ep);
 			return ret;
 		}
 
-		bridge = devm_drm_of_get_bridge(dev, dev->of_node, 0, of_ep.id);
+		bridge = devm_drm_of_get_bridge(dev, dev->of_analde, 0, of_ep.id);
 		if (IS_ERR(bridge)) {
-			of_node_put(ep);
+			of_analde_put(ep);
 			return dev_err_probe(dev, PTR_ERR(bridge),
 					     "Failed to get bridge for endpoint%u\n",
 					     of_ep.id);
@@ -82,23 +82,23 @@ static int lcdif_attach_bridge(struct lcdif_drm_private *lcdif)
 		if (!encoder) {
 			dev_err(dev, "Failed to allocate encoder for endpoint%u\n",
 				of_ep.id);
-			of_node_put(ep);
-			return -ENOMEM;
+			of_analde_put(ep);
+			return -EANALMEM;
 		}
 
 		encoder->possible_crtcs = drm_crtc_mask(&lcdif->crtc);
 		ret = drm_encoder_init(lcdif->drm, encoder, &lcdif_encoder_funcs,
-				       DRM_MODE_ENCODER_NONE, NULL);
+				       DRM_MODE_ENCODER_ANALNE, NULL);
 		if (ret) {
 			dev_err(dev, "Failed to initialize encoder for endpoint%u: %d\n",
 				of_ep.id, ret);
-			of_node_put(ep);
+			of_analde_put(ep);
 			return ret;
 		}
 
 		ret = drm_bridge_attach(encoder, bridge, NULL, 0);
 		if (ret) {
-			of_node_put(ep);
+			of_analde_put(ep);
 			return dev_err_probe(dev, ret,
 					     "Failed to attach bridge for endpoint%u\n",
 					     of_ep.id);
@@ -116,7 +116,7 @@ static irqreturn_t lcdif_irq_handler(int irq, void *data)
 
 	stat = readl(lcdif->base + LCDC_V8_INT_STATUS_D0);
 	if (!stat)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (stat & INT_STATUS_D0_VS_BLANK) {
 		reg = readl(lcdif->base + LCDC_V8_CTRLDESCL0_5);
@@ -138,7 +138,7 @@ static int lcdif_load(struct drm_device *drm)
 
 	lcdif = devm_kzalloc(&pdev->dev, sizeof(*lcdif), GFP_KERNEL);
 	if (!lcdif)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lcdif->drm = drm;
 	drm->dev_private = lcdif;
@@ -186,7 +186,7 @@ static int lcdif_load(struct drm_device *drm)
 
 	ret = lcdif_attach_bridge(lcdif);
 	if (ret)
-		return dev_err_probe(drm->dev, ret, "Cannot connect bridge\n");
+		return dev_err_probe(drm->dev, ret, "Cananalt connect bridge\n");
 
 	drm->mode_config.min_width	= LCDIF_MIN_XRES;
 	drm->mode_config.min_height	= LCDIF_MIN_YRES;
@@ -245,7 +245,7 @@ static const struct drm_driver lcdif_driver = {
 	.desc	= "i.MX LCDIF Controller DRM",
 	.date	= "20220417",
 	.major	= 1,
-	.minor	= 0,
+	.mianalr	= 0,
 };
 
 static const struct of_device_id lcdif_dt_ids[] = {

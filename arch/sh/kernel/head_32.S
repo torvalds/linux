@@ -47,11 +47,11 @@ ENTRY(empty_zero_page)
  * Condition at the entry of _stext:
  *
  *   BSC has already been initialized.
- *   INTC may or may not be initialized.
- *   VBR may or may not be initialized.
- *   MMU may or may not be initialized.
- *   Cache may or may not be initialized.
- *   Hardware (including on-chip modules) may or may not be initialized. 
+ *   INTC may or may analt be initialized.
+ *   VBR may or may analt be initialized.
+ *   MMU may or may analt be initialized.
+ *   Cache may or may analt be initialized.
+ *   Hardware (including on-chip modules) may or may analt be initialized. 
  *
  */
 ENTRY(_stext)
@@ -99,7 +99,7 @@ ENTRY(_stext)
  *   1	    0xA0000000 0x00000000   1  512MB	0	0	0
  *
  * But we reprogram them here because we want complete control over
- * our address space and the initial mappings may not map PAGE_OFFSET
+ * our address space and the initial mappings may analt map PAGE_OFFSET
  * to __MEMORY_START (or even map all of our RAM).
  *
  * Once we've setup cached and uncached mappings we clear the rest of the
@@ -158,7 +158,7 @@ ENTRY(_stext)
 	 * don't bother setting up new entries here, and let the late PMB
 	 * initialization take care of things instead.
 	 *
-	 * Note that we may need to coalesce and merge entries in order
+	 * Analte that we may need to coalesce and merge entries in order
 	 * to reclaim more available PMB slots, which is much more than
 	 * we want to do at this early stage.
 	 */
@@ -256,7 +256,7 @@ ENTRY(_stext)
 
 #ifdef CONFIG_UNCACHED_MAPPING
 	/*
-	 * Now that we can access it, update cached_to_uncached and
+	 * Analw that we can access it, update cached_to_uncached and
 	 * uncached_size.
 	 */
 	mov.l	.Lcached_to_uncached, r0
@@ -291,7 +291,7 @@ ENTRY(_stext)
 .Lpmb_done:
 #endif /* CONFIG_PMB */
 
-#ifndef CONFIG_SH_NO_BSS_INIT
+#ifndef CONFIG_SH_ANAL_BSS_INIT
 	/*
 	 * Don't clear BSS if running on slow platforms such as an RTL simulation,
 	 * remote memory via SHdebug link, etc.  For these the memory can be guaranteed
@@ -324,14 +324,14 @@ ENTRY(_stext)
 	!			Additional CPU initialization
 	mov.l	6f, r0
 	jsr	@r0
-	 nop
+	 analp
 
 	SYNCO()			! Wait for pending instructions..
 	
 	!			Start kernel
 	mov.l	5f, r0
 	jmp	@r0
-	 nop
+	 analp
 
 	.balign 4
 #if defined(CONFIG_CPU_SH2)

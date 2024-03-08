@@ -21,7 +21,7 @@ Free Pages Reporting [3]_ based memory over-commit virtualization systems are
 good example of the cases.  In such systems, the guest VMs reports their free
 memory to host, and the host reallocates the reported memory to other guests.
 As a result, the memory of the systems are fully utilized.  However, the
-guests could be not so memory-frugal, mainly because some kernel subsystems and
+guests could be analt so memory-frugal, mainly because some kernel subsystems and
 user-space applications are designed to use as much memory as available.  Then,
 guests could report only small amount of memory as free to host, results in
 memory utilization drop of the systems.  Running the proactive reclamation in
@@ -56,8 +56,8 @@ enabled
 Enable or disable DAMON_RECLAIM.
 
 You can enable DAMON_RCLAIM by setting the value of this parameter as ``Y``.
-Setting it as ``N`` disables DAMON_RECLAIM.  Note that DAMON_RECLAIM could do
-no real monitoring and reclamation due to the watermarks-based activation
+Setting it as ``N`` disables DAMON_RECLAIM.  Analte that DAMON_RECLAIM could do
+anal real monitoring and reclamation due to the watermarks-based activation
 condition.  Refer to below descriptions for the watermarks parameter for this.
 
 commit_inputs
@@ -65,7 +65,7 @@ commit_inputs
 
 Make DAMON_RECLAIM reads the input parameters again, except ``enabled``.
 
-Input parameters that updated while DAMON_RECLAIM is running are not applied
+Input parameters that updated while DAMON_RECLAIM is running are analt applied
 by default.  Once this parameter is set as ``Y``, DAMON_RECLAIM reads values
 of parametrs except ``enabled`` again.  Once the re-reading is done, this
 parameter is set as ``N``.  If invalid parameters are found while the
@@ -76,7 +76,7 @@ min_age
 
 Time threshold for cold memory regions identification in microseconds.
 
-If a memory region is not accessed for this or longer time, DAMON_RECLAIM
+If a memory region is analt accessed for this or longer time, DAMON_RECLAIM
 identifies the region as cold, and reclaims it.
 
 120 seconds by default.
@@ -99,7 +99,7 @@ quota_sz
 Limit of size of memory for the reclamation in bytes.
 
 DAMON_RECLAIM charges amount of memory which it tried to reclaim within a time
-window (quota_reset_interval_ms) and makes no more than this limit is tried.
+window (quota_reset_interval_ms) and makes anal more than this limit is tried.
 This can be used for limiting consumption of CPU and IO.  If this value is
 zero, the limit is disabled.
 
@@ -111,7 +111,7 @@ quota_reset_interval_ms
 The time/size quota charge reset interval in milliseconds.
 
 The charget reset interval for the quota of time (quota_ms) and size
-(quota_sz).  That is, DAMON_RECLAIM does not try reclamation for more than
+(quota_sz).  That is, DAMON_RECLAIM does analt try reclamation for more than
 quota_ms milliseconds or quota_sz bytes within quota_reset_interval_ms
 milliseconds.
 
@@ -129,7 +129,7 @@ wmarks_high
 Free memory rate (per thousand) for the high watermark.
 
 If free memory of the system in bytes per thousand bytes is higher than this,
-DAMON_RECLAIM becomes inactive, so it does nothing but only periodically checks
+DAMON_RECLAIM becomes inactive, so it does analthing but only periodically checks
 the watermarks.
 
 wmarks_mid
@@ -147,7 +147,7 @@ wmarks_low
 Free memory rate (per thousand) for the low watermark.
 
 If free memory of the system in bytes per thousand bytes is lower than this,
-DAMON_RECLAIM becomes inactive, so it does nothing but periodically checks the
+DAMON_RECLAIM becomes inactive, so it does analthing but periodically checks the
 watermarks.  In the case, the system falls back to the LRU-list based page
 granularity reclamation logic.
 
@@ -205,12 +205,12 @@ The end physical address of memory region that DAMON_RECLAIM will do work
 against.  That is, DAMON_RECLAIM will find cold memory regions in this region
 and reclaims.  By default, biggest System RAM is used as the region.
 
-skip_anon
+skip_aanaln
 ---------
 
-Skip anonymous pages reclamation.
+Skip aanalnymous pages reclamation.
 
-If this parameter is set as ``Y``, DAMON_RECLAIM does not reclaim anonymous
+If this parameter is set as ``Y``, DAMON_RECLAIM does analt reclaim aanalnymous
 pages.  By default, ``N``.
 
 
@@ -251,13 +251,13 @@ Example
 =======
 
 Below runtime example commands make DAMON_RECLAIM to find memory regions that
-not accessed for 30 seconds or more and pages out.  The reclamation is limited
+analt accessed for 30 seconds or more and pages out.  The reclamation is limited
 to be done only up to 1 GiB per second to avoid DAMON_RECLAIM consuming too
 much CPU time for the paging out operation.  It also asks DAMON_RECLAIM to do
-nothing if the system's free memory rate is more than 50%, but start the real
+analthing if the system's free memory rate is more than 50%, but start the real
 works if it becomes lower than 40%.  If DAMON_RECLAIM doesn't make progress and
 therefore the free memory rate becomes lower than 20%, it asks DAMON_RECLAIM to
-do nothing again, so that we can fall back to the LRU-list based page
+do analthing again, so that we can fall back to the LRU-list based page
 granularity reclamation. ::
 
     # cd /sys/module/damon_reclaim/parameters

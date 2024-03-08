@@ -42,7 +42,7 @@ const u32 ixgbe_mvals_8259X[IXGBE_MVALS_IDX_LIMIT] = {
  *  control
  *  @hw: pointer to hardware structure
  *
- *  There are several phys that do not support autoneg flow control. This
+ *  There are several phys that do analt support autoneg flow control. This
  *  function check the device id to see if the associated phy supports
  *  autoneg flow control.
  **/
@@ -99,7 +99,7 @@ bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 	}
 
 	if (!supported)
-		hw_dbg(hw, "Device %x does not support flow control autoneg\n",
+		hw_dbg(hw, "Device %x does analt support flow control autoneg\n",
 		       hw->device_id);
 
 	return supported;
@@ -119,16 +119,16 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw)
 	bool locked = false;
 
 	/*
-	 * Validate the requested mode.  Strict IEEE mode does not allow
+	 * Validate the requested mode.  Strict IEEE mode does analt allow
 	 * ixgbe_fc_rx_pause because it will cause us to fail at UNH.
 	 */
 	if (hw->fc.strict_ieee && hw->fc.requested_mode == ixgbe_fc_rx_pause) {
-		hw_dbg(hw, "ixgbe_fc_rx_pause not valid in strict IEEE mode\n");
+		hw_dbg(hw, "ixgbe_fc_rx_pause analt valid in strict IEEE mode\n");
 		return -EINVAL;
 	}
 
 	/*
-	 * 10gig parts do not have a word in the EEPROM to determine the
+	 * 10gig parts do analt have a word in the EEPROM to determine the
 	 * default flow control setting, so we explicitly set it to full.
 	 */
 	if (hw->fc.requested_mode == ixgbe_fc_default)
@@ -163,14 +163,14 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw)
 	 * The possible values of fc.requested_mode are:
 	 * 0: Flow control is completely disabled
 	 * 1: Rx flow control is enabled (we can receive pause frames,
-	 *    but not send pause frames).
+	 *    but analt send pause frames).
 	 * 2: Tx flow control is enabled (we can send pause frames but
-	 *    we do not support receiving pause frames).
+	 *    we do analt support receiving pause frames).
 	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
 	 * other: Invalid.
 	 */
 	switch (hw->fc.requested_mode) {
-	case ixgbe_fc_none:
+	case ixgbe_fc_analne:
 		/* Flow control completely disabled by software override. */
 		reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
 		if (hw->phy.media_type == ixgbe_media_type_backplane)
@@ -236,7 +236,7 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw)
 
 	/*
 	 * AUTOC restart handles negotiation of 1G and 10G on backplane
-	 * and copper. There is no need to set the PCS1GCTL register.
+	 * and copper. There is anal need to set the PCS1GCTL register.
 	 *
 	 */
 	if (hw->phy.media_type == ixgbe_media_type_backplane) {
@@ -285,7 +285,7 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 	/* Clear statistics registers */
 	hw->mac.ops.clear_hw_cntrs(hw);
 
-	/* Set No Snoop Disable */
+	/* Set Anal Sanalop Disable */
 	ctrl_ext = IXGBE_READ_REG(hw, IXGBE_CTRL_EXT);
 	ctrl_ext |= IXGBE_CTRL_EXT_NS_DIS;
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL_EXT, ctrl_ext);
@@ -304,7 +304,7 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_x550em_a:
 		hw->mac.ops.get_device_caps(hw, &device_caps);
-		if (device_caps & IXGBE_DEVICE_CAPS_NO_CROSSTALK_WR)
+		if (device_caps & IXGBE_DEVICE_CAPS_ANAL_CROSSTALK_WR)
 			hw->need_crosstalk_fix = false;
 		else
 			hw->need_crosstalk_fix = true;
@@ -516,17 +516,17 @@ s32 ixgbe_read_pba_string_generic(struct ixgbe_hw *hw, u8 *pba_num,
 	}
 
 	/*
-	 * if data is not ptr guard the PBA must be in legacy format which
+	 * if data is analt ptr guard the PBA must be in legacy format which
 	 * means pba_ptr is actually our second data word for the PBA number
 	 * and we can decode it into an ascii string
 	 */
 	if (data != IXGBE_PBANUM_PTR_GUARD) {
-		hw_dbg(hw, "NVM PBA number is not stored as string\n");
+		hw_dbg(hw, "NVM PBA number is analt stored as string\n");
 
 		/* we will need 11 characters to store the PBA */
 		if (pba_num_size < 11) {
 			hw_dbg(hw, "PBA string buffer too small\n");
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 
 		/* extract hex string from data and pba_ptr */
@@ -566,10 +566,10 @@ s32 ixgbe_read_pba_string_generic(struct ixgbe_hw *hw, u8 *pba_num,
 		return -EIO;
 	}
 
-	/* check if pba_num buffer is big enough */
+	/* check if pba_num buffer is big eanalugh */
 	if (pba_num_size  < (((u32)length * 2) - 1)) {
 		hw_dbg(hw, "PBA string buffer too small\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	/* trim pba length from start of string */
@@ -629,7 +629,7 @@ enum ixgbe_bus_width ixgbe_convert_bus_width(u16 link_status)
 	case IXGBE_PCI_LINK_WIDTH_8:
 		return ixgbe_bus_width_pcie_x8;
 	default:
-		return ixgbe_bus_width_unknown;
+		return ixgbe_bus_width_unkanalwn;
 	}
 }
 
@@ -643,7 +643,7 @@ enum ixgbe_bus_speed ixgbe_convert_bus_speed(u16 link_status)
 	case IXGBE_PCI_LINK_SPEED_8000:
 		return ixgbe_bus_speed_8000;
 	default:
-		return ixgbe_bus_speed_unknown;
+		return ixgbe_bus_speed_unkanalwn;
 	}
 }
 
@@ -707,7 +707,7 @@ void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw)
  *  Sets the adapter_stopped flag within ixgbe_hw struct. Clears interrupts,
  *  disables transmit and receive units. The adapter_stopped flag is used by
  *  the shared code and drivers to determine if the adapter is in a stopped
- *  state and should not touch the hardware.
+ *  state and should analt touch the hardware.
  **/
 s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 {
@@ -747,7 +747,7 @@ s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 
 	/*
 	 * Prevent the PCI-E bus from hanging by disabling PCI-E primary
-	 * access and verify no pending requests
+	 * access and verify anal pending requests
 	 */
 	return ixgbe_disable_pcie_primary(hw);
 }
@@ -778,8 +778,8 @@ s32 ixgbe_init_led_link_act_generic(struct ixgbe_hw *hw)
 		}
 	}
 
-	/* If LEDCTL register does not have the LED link active set, then use
-	 * known MAC defaults.
+	/* If LEDCTL register does analt have the LED link active set, then use
+	 * kanalwn MAC defaults.
 	 */
 	switch (hw->mac.type) {
 	case ixgbe_mac_x550em_a:
@@ -851,7 +851,7 @@ s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw)
 	u16 eeprom_size;
 
 	if (eeprom->type == ixgbe_eeprom_uninitialized) {
-		eeprom->type = ixgbe_eeprom_none;
+		eeprom->type = ixgbe_eeprom_analne;
 		/* Set default semaphore delay to 10ms which is a well
 		 * tested value */
 		eeprom->semaphore_delay = 10;
@@ -860,7 +860,7 @@ s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw)
 
 		/*
 		 * Check for EEPROM present first.
-		 * If not present leave as none
+		 * If analt present leave as analne
 		 */
 		eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 		if (eec & IXGBE_EEC_PRES) {
@@ -868,7 +868,7 @@ s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw)
 
 			/*
 			 * SPI EEPROM is assumed here.  This code would need to
-			 * change if a future EEPROM is not SPI.
+			 * change if a future EEPROM is analt SPI.
 			 */
 			eeprom_size = FIELD_GET(IXGBE_EEC_SIZE, eec);
 			eeprom->word_size = BIT(eeprom_size +
@@ -907,7 +907,7 @@ s32 ixgbe_write_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
 		return -EINVAL;
 
 	/*
-	 * The EEPROM page size cannot be queried from the chip. We do lazy
+	 * The EEPROM page size cananalt be queried from the chip. We do lazy
 	 * initialization. It is worth to do that when we write large buffer.
 	 */
 	if ((hw->eeprom.word_page_size == 0) &&
@@ -915,7 +915,7 @@ s32 ixgbe_write_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
 		ixgbe_detect_eeprom_page_size_generic(hw, offset);
 
 	/*
-	 * We cannot hold synchronization semaphores for too long
+	 * We cananalt hold synchronization semaphores for too long
 	 * to avoid other entity starvation. However it is more efficient
 	 * to read in bursts than synchronizing access for each word.
 	 */
@@ -939,7 +939,7 @@ s32 ixgbe_write_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
  *  @words: number of word(s)
  *  @data: 16 bit word(s) to be written to the EEPROM
  *
- *  If ixgbe_eeprom_update_checksum is not called after this function, the
+ *  If ixgbe_eeprom_update_checksum is analt called after this function, the
  *  EEPROM will most likely contain an invalid checksum.
  **/
 static s32 ixgbe_write_eeprom_buffer_bit_bang(struct ixgbe_hw *hw, u16 offset,
@@ -995,7 +995,7 @@ static s32 ixgbe_write_eeprom_buffer_bit_bang(struct ixgbe_hw *hw, u16 offset,
 			if (page_size == 0)
 				break;
 
-			/* do not wrap around page */
+			/* do analt wrap around page */
 			if (((offset + i) & (page_size - 1)) ==
 			    (page_size - 1))
 				break;
@@ -1016,7 +1016,7 @@ static s32 ixgbe_write_eeprom_buffer_bit_bang(struct ixgbe_hw *hw, u16 offset,
  *  @offset: offset within the EEPROM to be written to
  *  @data: 16 bit word to be written to the EEPROM
  *
- *  If ixgbe_eeprom_update_checksum is not called after this function, the
+ *  If ixgbe_eeprom_update_checksum is analt called after this function, the
  *  EEPROM will most likely contain an invalid checksum.
  **/
 s32 ixgbe_write_eeprom_generic(struct ixgbe_hw *hw, u16 offset, u16 data)
@@ -1050,7 +1050,7 @@ s32 ixgbe_read_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
 		return -EINVAL;
 
 	/*
-	 * We cannot hold synchronization semaphores for too long
+	 * We cananalt hold synchronization semaphores for too long
 	 * to avoid other entity starvation. However it is more efficient
 	 * to read in bursts than synchronizing access for each word.
 	 */
@@ -1346,11 +1346,11 @@ static s32 ixgbe_acquire_eeprom(struct ixgbe_hw *hw)
 		udelay(5);
 	}
 
-	/* Release if grant not acquired */
+	/* Release if grant analt acquired */
 	if (!(eec & IXGBE_EEC_GNT)) {
 		eec &= ~IXGBE_EEC_REQ;
 		IXGBE_WRITE_REG(hw, IXGBE_EEC(hw), eec);
-		hw_dbg(hw, "Could not acquire EEPROM grant\n");
+		hw_dbg(hw, "Could analt acquire EEPROM grant\n");
 
 		hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
 		return -EIO;
@@ -1390,7 +1390,7 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 	}
 
 	if (i == timeout) {
-		hw_dbg(hw, "Driver can't access the Eeprom - SMBI Semaphore not granted.\n");
+		hw_dbg(hw, "Driver can't access the Eeprom - SMBI Semaphore analt granted.\n");
 		/* this release is particularly important because our attempts
 		 * above to get the semaphore may have succeeded, and if there
 		 * was a timeout, we should unconditionally clear the semaphore
@@ -1405,12 +1405,12 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 		 */
 		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM(hw));
 		if (swsm & IXGBE_SWSM_SMBI) {
-			hw_dbg(hw, "Software semaphore SMBI between device drivers not granted.\n");
+			hw_dbg(hw, "Software semaphore SMBI between device drivers analt granted.\n");
 			return -EIO;
 		}
 	}
 
-	/* Now get the semaphore between SW/FW through the SWESMBI bit */
+	/* Analw get the semaphore between SW/FW through the SWESMBI bit */
 	for (i = 0; i < timeout; i++) {
 		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM(hw));
 
@@ -1429,10 +1429,10 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 	}
 
 	/* Release semaphores and return error if SW EEPROM semaphore
-	 * was not granted because we don't have access to the EEPROM
+	 * was analt granted because we don't have access to the EEPROM
 	 */
 	if (i >= timeout) {
-		hw_dbg(hw, "SWESMBI Software EEPROM semaphore not granted.\n");
+		hw_dbg(hw, "SWESMBI Software EEPROM semaphore analt granted.\n");
 		ixgbe_release_eeprom_semaphore(hw);
 		return -EIO;
 	}
@@ -1470,7 +1470,7 @@ static s32 ixgbe_ready_eeprom(struct ixgbe_hw *hw)
 	/*
 	 * Read "Status Register" repeatedly until the LSB is cleared.  The
 	 * EEPROM will signal that the command has been completed by clearing
-	 * bit 0 of the internal status register.  If it's not cleared within
+	 * bit 0 of the internal status register.  If it's analt cleared within
 	 * 5 milliseconds, then error out.
 	 */
 	for (i = 0; i < IXGBE_EEPROM_MAX_RETRY_SPI; i += 5) {
@@ -1737,7 +1737,7 @@ s32 ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw)
  *  @checksum_val: calculated checksum
  *
  *  Performs checksum calculation and validates the EEPROM checksum.  If the
- *  caller does not need checksum_val, the value can be NULL.
+ *  caller does analt need checksum_val, the value can be NULL.
  **/
 s32 ixgbe_validate_eeprom_checksum_generic(struct ixgbe_hw *hw,
 					   u16 *checksum_val)
@@ -1748,7 +1748,7 @@ s32 ixgbe_validate_eeprom_checksum_generic(struct ixgbe_hw *hw,
 
 	/*
 	 * Read the first word from the EEPROM. If this times out or fails, do
-	 * not continue or we could be in for a very long wait while every
+	 * analt continue or we could be in for a very long wait while every
 	 * EEPROM read fails
 	 */
 	status = hw->eeprom.ops.read(hw, 0, &checksum);
@@ -1793,7 +1793,7 @@ s32 ixgbe_update_eeprom_checksum_generic(struct ixgbe_hw *hw)
 
 	/*
 	 * Read the first word from the EEPROM. If this times out or fails, do
-	 * not continue or we could be in for a very long wait while every
+	 * analt continue or we could be in for a very long wait while every
 	 * EEPROM read fails
 	 */
 	status = hw->eeprom.ops.read(hw, 0, &checksum);
@@ -2161,14 +2161,14 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw)
 	 * The possible values of fc.current_mode are:
 	 * 0: Flow control is completely disabled
 	 * 1: Rx flow control is enabled (we can receive pause frames,
-	 *    but not send pause frames).
+	 *    but analt send pause frames).
 	 * 2: Tx flow control is enabled (we can send pause frames but
-	 *    we do not support receiving pause frames).
+	 *    we do analt support receiving pause frames).
 	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
 	 * other: Invalid.
 	 */
 	switch (hw->fc.current_mode) {
-	case ixgbe_fc_none:
+	case ixgbe_fc_analne:
 		/*
 		 * Flow control is disabled by software override or autoneg.
 		 * The code below will actually disable it in the HW.
@@ -2260,10 +2260,10 @@ s32 ixgbe_negotiate_fc(struct ixgbe_hw *hw, u32 adv_reg, u32 lp_reg,
 
 	if ((adv_reg & adv_sym) && (lp_reg & lp_sym)) {
 		/*
-		 * Now we need to check if the user selected Rx ONLY
+		 * Analw we need to check if the user selected Rx ONLY
 		 * of pause frames.  In this case, we had to advertise
-		 * FULL flow control because we could not advertise RX
-		 * ONLY. Hence, we must now check to see if we need to
+		 * FULL flow control because we could analt advertise RX
+		 * ONLY. Hence, we must analw check to see if we need to
 		 * turn OFF the TRANSMISSION of PAUSE frames.
 		 */
 		if (hw->fc.requested_mode == ixgbe_fc_full) {
@@ -2282,8 +2282,8 @@ s32 ixgbe_negotiate_fc(struct ixgbe_hw *hw, u32 adv_reg, u32 lp_reg,
 		hw->fc.current_mode = ixgbe_fc_rx_pause;
 		hw_dbg(hw, "Flow Control = RX PAUSE frames only.\n");
 	} else {
-		hw->fc.current_mode = ixgbe_fc_none;
-		hw_dbg(hw, "Flow Control = NONE.\n");
+		hw->fc.current_mode = ixgbe_fc_analne;
+		hw_dbg(hw, "Flow Control = ANALNE.\n");
 	}
 	return 0;
 }
@@ -2301,7 +2301,7 @@ static s32 ixgbe_fc_autoneg_fiber(struct ixgbe_hw *hw)
 
 	/*
 	 * On multispeed fiber at 1g, bail out if
-	 * - link is up but AN did not complete, or if
+	 * - link is up but AN did analt complete, or if
 	 * - link is up and AN completed but timed out
 	 */
 
@@ -2335,8 +2335,8 @@ static s32 ixgbe_fc_autoneg_backplane(struct ixgbe_hw *hw)
 
 	/*
 	 * On backplane, bail out if
-	 * - backplane autoneg was not completed, or if
-	 * - we are 82599 and link partner is not AN enabled
+	 * - backplane autoneg was analt completed, or if
+	 * - we are 82599 and link partner is analt AN enabled
 	 */
 	links = IXGBE_READ_REG(hw, IXGBE_LINKS);
 	if ((links & IXGBE_LINKS_KX_AN_COMP) == 0)
@@ -2369,18 +2369,18 @@ static s32 ixgbe_fc_autoneg_backplane(struct ixgbe_hw *hw)
  **/
 static s32 ixgbe_fc_autoneg_copper(struct ixgbe_hw *hw)
 {
-	u16 technology_ability_reg = 0;
-	u16 lp_technology_ability_reg = 0;
+	u16 techanallogy_ability_reg = 0;
+	u16 lp_techanallogy_ability_reg = 0;
 
 	hw->phy.ops.read_reg(hw, MDIO_AN_ADVERTISE,
 			     MDIO_MMD_AN,
-			     &technology_ability_reg);
+			     &techanallogy_ability_reg);
 	hw->phy.ops.read_reg(hw, MDIO_AN_LPA,
 			     MDIO_MMD_AN,
-			     &lp_technology_ability_reg);
+			     &lp_techanallogy_ability_reg);
 
-	return ixgbe_negotiate_fc(hw, (u32)technology_ability_reg,
-				  (u32)lp_technology_ability_reg,
+	return ixgbe_negotiate_fc(hw, (u32)techanallogy_ability_reg,
+				  (u32)lp_techanallogy_ability_reg,
 				  IXGBE_TAF_SYM_PAUSE, IXGBE_TAF_ASM_PAUSE,
 				  IXGBE_TAF_SYM_PAUSE, IXGBE_TAF_ASM_PAUSE);
 }
@@ -2402,9 +2402,9 @@ void ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 	 * AN should have completed when the cable was plugged in.
 	 * Look for reasons to bail out.  Bail out if:
 	 * - FC autoneg is disabled, or if
-	 * - link is not up.
+	 * - link is analt up.
 	 *
-	 * Since we're being called from an LSC, link is already known to be up.
+	 * Since we're being called from an LSC, link is already kanalwn to be up.
 	 * So use link_up_wait_to_complete=false.
 	 */
 	if (hw->fc.disable_fc_autoneg)
@@ -2496,7 +2496,7 @@ static u32 ixgbe_pcie_timeout_poll(struct ixgbe_hw *hw)
  *  ixgbe_disable_pcie_primary - Disable PCI-express primary access
  *  @hw: pointer to hardware structure
  *
- *  Disables PCI-Express primary access and verifies there are no pending
+ *  Disables PCI-Express primary access and verifies there are anal pending
  *  requests. -EALREADY is returned if primary disable
  *  bit hasn't caused the primary requests to be disabled, else 0
  *  is returned signifying primary requests disabled.
@@ -2516,7 +2516,7 @@ static s32 ixgbe_disable_pcie_primary(struct ixgbe_hw *hw)
 		usleep_range(100, 120);
 	}
 	if (i >= IXGBE_PCI_PRIMARY_DISABLE_TIMEOUT) {
-		hw_dbg(hw, "GIO disable did not set - requesting resets\n");
+		hw_dbg(hw, "GIO disable did analt set - requesting resets\n");
 		goto gio_disable_fail;
 	}
 
@@ -2548,7 +2548,7 @@ gio_disable_fail:
 		return 0;
 
 	/*
-	 * Before proceeding, make sure that the PCIe block does not have
+	 * Before proceeding, make sure that the PCIe block does analt have
 	 * transactions pending.
 	 */
 	poll = ixgbe_pcie_timeout_poll(hw);
@@ -2561,7 +2561,7 @@ gio_disable_fail:
 			return 0;
 	}
 
-	hw_dbg(hw, "PCIe transaction pending bit also did not clear.\n");
+	hw_dbg(hw, "PCIe transaction pending bit also did analt clear.\n");
 	return -EALREADY;
 }
 
@@ -2584,7 +2584,7 @@ s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u32 mask)
 	for (i = 0; i < timeout; i++) {
 		/*
 		 * SW NVM semaphore bit is used for access to all
-		 * SW_FW_SYNC bits (not just NVM)
+		 * SW_FW_SYNC bits (analt just NVM)
 		 */
 		if (ixgbe_get_eeprom_semaphore(hw))
 			return -EBUSY;
@@ -2639,7 +2639,7 @@ void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u32 mask)
  * @locked: bool to indicate whether the SW/FW lock should be taken.  Never
  *	    true in this the generic case.
  *
- * The default case requires no protection so just to the register read.
+ * The default case requires anal protection so just to the register read.
  **/
 s32 prot_autoc_read_generic(struct ixgbe_hw *hw, bool *locked, u32 *reg_val)
 {
@@ -2846,8 +2846,8 @@ static s32 ixgbe_get_san_mac_addr_offset(struct ixgbe_hw *hw,
  *
  *  Reads the SAN MAC address from the EEPROM, if it's available.  This is
  *  per-port, so set_lan_id() must be called before reading the addresses.
- *  set_lan_id() is called by identify_sfp(), but this cannot be relied
- *  upon for non-SFP connections, so we must call it here.
+ *  set_lan_id() is called by identify_sfp(), but this cananalt be relied
+ *  upon for analn-SFP connections, so we must call it here.
  **/
 s32 ixgbe_get_san_mac_addr_generic(struct ixgbe_hw *hw, u8 *san_mac_addr)
 {
@@ -2857,14 +2857,14 @@ s32 ixgbe_get_san_mac_addr_generic(struct ixgbe_hw *hw, u8 *san_mac_addr)
 
 	/*
 	 * First read the EEPROM pointer to see if the MAC addresses are
-	 * available.  If they're not, no point in calling set_lan_id() here.
+	 * available.  If they're analt, anal point in calling set_lan_id() here.
 	 */
 	ret_val = ixgbe_get_san_mac_addr_offset(hw, &san_mac_offset);
 	if (ret_val || san_mac_offset == 0 || san_mac_offset == 0xFFFF)
 
 		goto san_mac_addr_clr;
 
-	/* make sure we know which port we need to program */
+	/* make sure we kanalw which port we need to program */
 	hw->mac.ops.set_lan_id(hw);
 	/* apply the port offset to the address offset */
 	(hw->bus.func) ? (san_mac_offset += IXGBE_SAN_MAC_ADDR_PORT1_OFFSET) :
@@ -2884,7 +2884,7 @@ s32 ixgbe_get_san_mac_addr_generic(struct ixgbe_hw *hw, u8 *san_mac_addr)
 	return 0;
 
 san_mac_addr_clr:
-	/* No addresses available in this EEPROM.  It's not necessarily an
+	/* Anal addresses available in this EEPROM.  It's analt necessarily an
 	 * error though, so just wipe the local address and return.
 	 */
 	for (i = 0; i < 6; i++)
@@ -3023,7 +3023,7 @@ s32 ixgbe_set_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
  *
  *  This function should only be involved in the IOV mode.
  *  In IOV mode, Default pool is next pool after the number of
- *  VFs advertized and not 0.
+ *  VFs advertized and analt 0.
  *  MPSAR table needs to be updated for SAN_MAC RAR [hw->mac.san_mac_rar_index]
  **/
 s32 ixgbe_set_vmdq_san_mac_generic(struct ixgbe_hw *hw, u32 vmdq)
@@ -3060,7 +3060,7 @@ s32 ixgbe_init_uta_tables_generic(struct ixgbe_hw *hw)
  *  @hw: pointer to hardware structure
  *  @vlan: VLAN id to write to VLAN filter
  *  @vlvf_bypass: true to find vlanid only, false returns first empty slot if
- *		  vlanid not found
+ *		  vlanid analt found
  *
  *  return the VLVF index where this VLAN id should be placed
  *
@@ -3075,10 +3075,10 @@ static s32 ixgbe_find_vlvf_slot(struct ixgbe_hw *hw, u32 vlan, bool vlvf_bypass)
 		return 0;
 
 	/* if vlvf_bypass is set we don't want to use an empty slot, we
-	 * will simply bypass the VLVF if there are no entries present in the
+	 * will simply bypass the VLVF if there are anal entries present in the
 	 * VLVF that contain our VLAN
 	 */
-	first_empty_slot = vlvf_bypass ? -ENOSPC : 0;
+	first_empty_slot = vlvf_bypass ? -EANALSPC : 0;
 
 	/* add VLAN enable bit for comparison */
 	vlan |= IXGBE_VLVF_VIEN;
@@ -3100,9 +3100,9 @@ static s32 ixgbe_find_vlvf_slot(struct ixgbe_hw *hw, u32 vlan, bool vlvf_bypass)
 	 * slot we found during our search, else error.
 	 */
 	if (!first_empty_slot)
-		hw_dbg(hw, "No space in VLVF.\n");
+		hw_dbg(hw, "Anal space in VLVF.\n");
 
-	return first_empty_slot ? : -ENOSPC;
+	return first_empty_slot ? : -EANALSPC;
 }
 
 /**
@@ -3127,7 +3127,7 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	/*
 	 * this is a 2 part operation - first the VFTA, then the
 	 * VLVF and VLVFB if VT Mode is set
-	 * We don't write the VFTA until we know the VLVF part succeeded.
+	 * We don't write the VFTA until we kanalw the VLVF part succeeded.
 	 */
 
 	/* Part 1
@@ -3196,11 +3196,11 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	 * caller is requesting that we clear the VFTA entry bit.
 	 * If the caller has requested that we clear the VFTA
 	 * entry bit but there are still pools/VFs using this VLAN
-	 * ID entry then ignore the request.  We're not worried
+	 * ID entry then iganalre the request.  We're analt worried
 	 * about the case where we're turning the VFTA VLAN ID
 	 * entry bit on, only when requested to turn it off as
 	 * there may be multiple pools and/or VFs using the
-	 * VLAN ID entry.  In that case we cannot clear the
+	 * VLAN ID entry.  In that case we cananalt clear the
 	 * VFTA bit until all pools/VFs using that VLAN ID have also
 	 * been cleared.  This will be indicated by "bits" being
 	 * zero.
@@ -3208,12 +3208,12 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	vfta_delta = 0;
 
 vlvf_update:
-	/* record pool change and enable VLAN ID if not already enabled */
+	/* record pool change and enable VLAN ID if analt already enabled */
 	IXGBE_WRITE_REG(hw, IXGBE_VLVFB(vlvf_index * 2 + vind / 32), bits);
 	IXGBE_WRITE_REG(hw, IXGBE_VLVF(vlvf_index), IXGBE_VLVF_VIEN | vlan);
 
 vfta_update:
-	/* Update VFTA now that we are ready for traffic */
+	/* Update VFTA analw that we are ready for traffic */
 	if (vfta_delta)
 		IXGBE_WRITE_REG(hw, IXGBE_VFTA(regidx), vfta);
 
@@ -3272,7 +3272,7 @@ static bool ixgbe_need_crosstalk_fix(struct ixgbe_hw *hw)
  *  @hw: pointer to hardware structure
  *  @speed: pointer to link speed
  *  @link_up: true when link is up
- *  @link_up_wait_to_complete: bool used to wait for link up or not
+ *  @link_up_wait_to_complete: bool used to wait for link up or analt
  *
  *  Reads the links register to determine if link is up and the current speed
  **/
@@ -3300,14 +3300,14 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 					IXGBE_ESDP_SDP0;
 			break;
 		default:
-			/* sanity check - No SFP+ devices here */
+			/* sanity check - Anal SFP+ devices here */
 			sfp_cage_full = false;
 			break;
 		}
 
 		if (!sfp_cage_full) {
 			*link_up = false;
-			*speed = IXGBE_LINK_SPEED_UNKNOWN;
+			*speed = IXGBE_LINK_SPEED_UNKANALWN;
 			return 0;
 		}
 	}
@@ -3338,13 +3338,13 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 			if (crosstalk_fix_active) {
 				/* Check the link state again after a delay
 				 * to filter out spurious link up
-				 * notifications.
+				 * analtifications.
 				 */
 				mdelay(5);
 				links_reg = IXGBE_READ_REG(hw, IXGBE_LINKS);
 				if (!(links_reg & IXGBE_LINKS_UP)) {
 					*link_up = false;
-					*speed = IXGBE_LINK_SPEED_UNKNOWN;
+					*speed = IXGBE_LINK_SPEED_UNKANALWN;
 					return 0;
 				}
 			}
@@ -3357,7 +3357,7 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	switch (links_reg & IXGBE_LINKS_SPEED_82599) {
 	case IXGBE_LINKS_SPEED_10G_82599:
 		if ((hw->mac.type >= ixgbe_mac_X550) &&
-		    (links_reg & IXGBE_LINKS_SPEED_NON_STD))
+		    (links_reg & IXGBE_LINKS_SPEED_ANALN_STD))
 			*speed = IXGBE_LINK_SPEED_2_5GB_FULL;
 		else
 			*speed = IXGBE_LINK_SPEED_10GB_FULL;
@@ -3367,20 +3367,20 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 		break;
 	case IXGBE_LINKS_SPEED_100_82599:
 		if ((hw->mac.type >= ixgbe_mac_X550) &&
-		    (links_reg & IXGBE_LINKS_SPEED_NON_STD))
+		    (links_reg & IXGBE_LINKS_SPEED_ANALN_STD))
 			*speed = IXGBE_LINK_SPEED_5GB_FULL;
 		else
 			*speed = IXGBE_LINK_SPEED_100_FULL;
 		break;
 	case IXGBE_LINKS_SPEED_10_X550EM_A:
-		*speed = IXGBE_LINK_SPEED_UNKNOWN;
+		*speed = IXGBE_LINK_SPEED_UNKANALWN;
 		if (hw->device_id == IXGBE_DEV_ID_X550EM_A_1G_T ||
 		    hw->device_id == IXGBE_DEV_ID_X550EM_A_1G_T_L) {
 			*speed = IXGBE_LINK_SPEED_10_FULL;
 		}
 		break;
 	default:
-		*speed = IXGBE_LINK_SPEED_UNKNOWN;
+		*speed = IXGBE_LINK_SPEED_UNKANALWN;
 	}
 
 	return 0;
@@ -3628,7 +3628,7 @@ s32 ixgbe_hic_unlocked(struct ixgbe_hw *hw, u32 *buffer, u32 length,
 
 	/* Calculate length in DWORDs. We must be DWORD aligned */
 	if (length % sizeof(u32)) {
-		hw_dbg(hw, "Buffer length failure, not aligned to dword");
+		hw_dbg(hw, "Buffer length failure, analt aligned to dword");
 		return -EINVAL;
 	}
 
@@ -3666,10 +3666,10 @@ s32 ixgbe_hic_unlocked(struct ixgbe_hw *hw, u32 *buffer, u32 length,
  *           be placed
  *  @length: length of buffer, must be multiple of 4 bytes
  *  @timeout: time in ms to wait for command completion
- *  @return_data: read and return data from the buffer (true) or not (false)
+ *  @return_data: read and return data from the buffer (true) or analt (false)
  *  Needed because FW structures are big endian and decoding of
  *  these fields can be 8 bit or 16 bit based on command. Decoding
- *  is not easily understood without making a table of commands.
+ *  is analt easily understood without making a table of commands.
  *  So we will leave this up to the caller to read back the data
  *  in these cases.
  *
@@ -3706,7 +3706,7 @@ s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, void *buffer,
 	/* Calculate length in DWORDs */
 	dword_len = hdr_size >> 2;
 
-	/* first pull in the header so we know the buffer length */
+	/* first pull in the header so we kanalw the buffer length */
 	for (bi = 0; bi < dword_len; bi++) {
 		u32arr[bi] = IXGBE_READ_REG_ARRAY(hw, IXGBE_FLEX_MNG, bi);
 		le32_to_cpus(&u32arr[bi]);
@@ -3718,7 +3718,7 @@ s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, void *buffer,
 		goto rel_out;
 
 	if (length < round_up(buf_len, 4) + hdr_size) {
-		hw_dbg(hw, "Buffer not large enough for reply message.\n");
+		hw_dbg(hw, "Buffer analt large eanalugh for reply message.\n");
 		status = -EIO;
 		goto rel_out;
 	}
@@ -3742,7 +3742,7 @@ rel_out:
  *  ixgbe_set_fw_drv_ver_generic - Sends driver version to firmware
  *  @hw: pointer to the HW structure
  *  @maj: driver version major number
- *  @min: driver version minor number
+ *  @min: driver version mianalr number
  *  @build: driver version build number
  *  @sub: driver version sub build number
  *  @len: length of driver_ver string
@@ -3809,8 +3809,8 @@ void ixgbe_clear_tx_pending(struct ixgbe_hw *hw)
 	u16 value;
 
 	/*
-	 * If double reset is not requested then all transactions should
-	 * already be clear and as such there is no work to do
+	 * If double reset is analt requested then all transactions should
+	 * already be clear and as such there is anal work to do
 	 */
 	if (!(hw->mac.flags & IXGBE_FLAGS_DOUBLE_RESET_REQUIRED))
 		return;
@@ -3827,7 +3827,7 @@ void ixgbe_clear_tx_pending(struct ixgbe_hw *hw)
 	IXGBE_WRITE_FLUSH(hw);
 	usleep_range(3000, 6000);
 
-	/* Before proceeding, make sure that the PCIe block does not have
+	/* Before proceeding, make sure that the PCIe block does analt have
 	 * transactions pending.
 	 */
 	poll = ixgbe_pcie_timeout_poll(hw);
@@ -3885,14 +3885,14 @@ static s32 ixgbe_get_ets_data(struct ixgbe_hw *hw, u16 *ets_cfg,
 		return status;
 
 	if ((*ets_offset == 0x0000) || (*ets_offset == 0xFFFF))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	status = hw->eeprom.ops.read(hw, *ets_offset, ets_cfg);
 	if (status)
 		return status;
 
 	if ((*ets_cfg & IXGBE_ETS_TYPE_MASK) != IXGBE_ETS_TYPE_EMC_SHIFTED)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -3915,7 +3915,7 @@ s32 ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw)
 
 	/* Only support thermal sensors attached to physical port 0 */
 	if ((IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	status = ixgbe_get_ets_data(hw, &ets_cfg, &ets_offset);
 	if (status)
@@ -3975,7 +3975,7 @@ s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw)
 
 	/* Only support thermal sensors attached to physical port 0 */
 	if ((IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	status = ixgbe_get_ets_data(hw, &ets_cfg, &ets_offset);
 	if (status)
@@ -4031,7 +4031,7 @@ void ixgbe_get_orom_version(struct ixgbe_hw *hw,
 	u16 offset, eeprom_cfg_blkh, eeprom_cfg_blkl;
 
 	nvm_ver->or_valid = false;
-	/* Option Rom may or may not be present.  Start with pointer */
+	/* Option Rom may or may analt be present.  Start with pointer */
 	hw->eeprom.ops.read(hw, NVM_OROM_OFFSET, &offset);
 
 	/* make sure offset is valid */
@@ -4092,7 +4092,7 @@ void ixgbe_get_oem_prod_version(struct ixgbe_hw *hw,
 		return;
 
 	nvm_ver->oem_major = prod_ver >> NVM_VER_SHIFT;
-	nvm_ver->oem_minor = prod_ver & NVM_VER_MASK;
+	nvm_ver->oem_mianalr = prod_ver & NVM_VER_MASK;
 	nvm_ver->oem_release = rel_num;
 	nvm_ver->oem_valid = true;
 }
@@ -4196,14 +4196,14 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 					  ixgbe_link_speed speed,
 					  bool autoneg_wait_to_complete)
 {
-	ixgbe_link_speed link_speed = IXGBE_LINK_SPEED_UNKNOWN;
-	ixgbe_link_speed highest_link_speed = IXGBE_LINK_SPEED_UNKNOWN;
+	ixgbe_link_speed link_speed = IXGBE_LINK_SPEED_UNKANALWN;
+	ixgbe_link_speed highest_link_speed = IXGBE_LINK_SPEED_UNKANALWN;
 	s32 status = 0;
 	u32 speedcnt = 0;
 	u32 i = 0;
 	bool autoneg, link_up = false;
 
-	/* Mask off requested but non-supported speeds */
+	/* Mask off requested but analn-supported speeds */
 	status = hw->mac.ops.get_link_capabilities(hw, &link_speed, &autoneg);
 	if (status)
 		return status;
@@ -4240,7 +4240,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 		if (status)
 			return status;
 
-		/* Flap the Tx laser if it has not already been done */
+		/* Flap the Tx laser if it has analt already been done */
 		if (hw->mac.ops.flap_tx_laser)
 			hw->mac.ops.flap_tx_laser(hw);
 
@@ -4265,7 +4265,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 
 	if (speed & IXGBE_LINK_SPEED_1GB_FULL) {
 		speedcnt++;
-		if (highest_link_speed == IXGBE_LINK_SPEED_UNKNOWN)
+		if (highest_link_speed == IXGBE_LINK_SPEED_UNKANALWN)
 			highest_link_speed = IXGBE_LINK_SPEED_1GB_FULL;
 
 		/* Set the module link speed */
@@ -4291,7 +4291,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 		if (status)
 			return status;
 
-		/* Flap the Tx laser if it has not already been done */
+		/* Flap the Tx laser if it has analt already been done */
 		if (hw->mac.ops.flap_tx_laser)
 			hw->mac.ops.flap_tx_laser(hw);
 

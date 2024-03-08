@@ -43,8 +43,8 @@ static const char *kyber_domain_names[] = {
 
 enum {
 	/*
-	 * In order to prevent starvation of synchronous requests by a flood of
-	 * asynchronous requests, we reserve 25% of requests for synchronous
+	 * In order to prevent starvation of synchroanalus requests by a flood of
+	 * asynchroanalus requests, we reserve 25% of requests for synchroanalus
 	 * operations.
 	 */
 	KYBER_ASYNC_PERCENT = 75,
@@ -174,7 +174,7 @@ struct kyber_queue_data {
 
 	int domain_p99[KYBER_OTHER];
 
-	/* Target latencies in nanoseconds. */
+	/* Target latencies in naanalseconds. */
 	u64 latency_targets[KYBER_OTHER];
 };
 
@@ -221,7 +221,7 @@ static void flush_latency_buckets(struct kyber_queue_data *kqd,
 
 /*
  * Calculate the histogram bucket with the given percentile rank, or -1 if there
- * aren't enough samples yet.
+ * aren't eanalugh samples yet.
  */
 static int calculate_percentile(struct kyber_queue_data *kqd,
 				unsigned int sched_domain, unsigned int type,
@@ -296,7 +296,7 @@ static void kyber_timer_fn(struct timer_list *t)
 
 	/*
 	 * Check if any domains have a high I/O latency, which might indicate
-	 * congestion in the device. Note that we use the p90; we don't want to
+	 * congestion in the device. Analte that we use the p90; we don't want to
 	 * be too sensitive to outliers here.
 	 */
 	for (sched_domain = 0; sched_domain < KYBER_OTHER; sched_domain++) {
@@ -320,8 +320,8 @@ static void kyber_timer_fn(struct timer_list *t)
 		p99 = calculate_percentile(kqd, sched_domain,
 					   KYBER_TOTAL_LATENCY, 99);
 		/*
-		 * This is kind of subtle: different domains will not
-		 * necessarily have enough samples to calculate the latency
+		 * This is kind of subtle: different domains will analt
+		 * necessarily have eanalugh samples to calculate the latency
 		 * percentiles during the same window, so we have to remember
 		 * the p99 for the next time we observe congestion; once we do,
 		 * we don't want to throttle again until we get more data, so we
@@ -357,10 +357,10 @@ static void kyber_timer_fn(struct timer_list *t)
 static struct kyber_queue_data *kyber_queue_data_alloc(struct request_queue *q)
 {
 	struct kyber_queue_data *kqd;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	int i;
 
-	kqd = kzalloc_node(sizeof(*kqd), GFP_KERNEL, q->node);
+	kqd = kzalloc_analde(sizeof(*kqd), GFP_KERNEL, q->analde);
 	if (!kqd)
 		goto err;
 
@@ -377,9 +377,9 @@ static struct kyber_queue_data *kyber_queue_data_alloc(struct request_queue *q)
 	for (i = 0; i < KYBER_NUM_DOMAINS; i++) {
 		WARN_ON(!kyber_depth[i]);
 		WARN_ON(!kyber_batch_size[i]);
-		ret = sbitmap_queue_init_node(&kqd->domain_tokens[i],
+		ret = sbitmap_queue_init_analde(&kqd->domain_tokens[i],
 					      kyber_depth[i], -1, false,
-					      GFP_KERNEL, q->node);
+					      GFP_KERNEL, q->analde);
 		if (ret) {
 			while (--i >= 0)
 				sbitmap_queue_free(&kqd->domain_tokens[i]);
@@ -409,7 +409,7 @@ static int kyber_init_sched(struct request_queue *q, struct elevator_type *e)
 
 	eq = elevator_alloc(q, e);
 	if (!eq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kqd = kyber_queue_data_alloc(q);
 	if (IS_ERR(kqd)) {
@@ -466,13 +466,13 @@ static int kyber_init_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_idx)
 	struct kyber_hctx_data *khd;
 	int i;
 
-	khd = kmalloc_node(sizeof(*khd), GFP_KERNEL, hctx->numa_node);
+	khd = kmalloc_analde(sizeof(*khd), GFP_KERNEL, hctx->numa_analde);
 	if (!khd)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	khd->kcqs = kmalloc_array_node(hctx->nr_ctx,
+	khd->kcqs = kmalloc_array_analde(hctx->nr_ctx,
 				       sizeof(struct kyber_ctx_queue),
-				       GFP_KERNEL, hctx->numa_node);
+				       GFP_KERNEL, hctx->numa_analde);
 	if (!khd->kcqs)
 		goto err_khd;
 
@@ -480,8 +480,8 @@ static int kyber_init_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_idx)
 		kyber_ctx_queue_init(&khd->kcqs[i]);
 
 	for (i = 0; i < KYBER_NUM_DOMAINS; i++) {
-		if (sbitmap_init_node(&khd->kcq_map[i], hctx->nr_ctx,
-				      ilog2(8), GFP_KERNEL, hctx->numa_node,
+		if (sbitmap_init_analde(&khd->kcq_map[i], hctx->nr_ctx,
+				      ilog2(8), GFP_KERNEL, hctx->numa_analde,
 				      false, false)) {
 			while (--i >= 0)
 				sbitmap_free(&khd->kcq_map[i]);
@@ -513,7 +513,7 @@ err_kcqs:
 	kfree(khd->kcqs);
 err_khd:
 	kfree(khd);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void kyber_exit_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_idx)
@@ -636,7 +636,7 @@ static void add_latency_sample(struct kyber_cpu_latency *cpu_latency,
 	atomic_inc(&cpu_latency->buckets[sched_domain][type][bucket]);
 }
 
-static void kyber_completed_request(struct request *rq, u64 now)
+static void kyber_completed_request(struct request *rq, u64 analw)
 {
 	struct kyber_queue_data *kqd = rq->q->elevator->elevator_data;
 	struct kyber_cpu_latency *cpu_latency;
@@ -650,9 +650,9 @@ static void kyber_completed_request(struct request *rq, u64 now)
 	cpu_latency = get_cpu_ptr(kqd->cpu_latency);
 	target = kqd->latency_targets[sched_domain];
 	add_latency_sample(cpu_latency, sched_domain, KYBER_TOTAL_LATENCY,
-			   target, now - rq->start_time_ns);
+			   target, analw - rq->start_time_ns);
 	add_latency_sample(cpu_latency, sched_domain, KYBER_IO_LATENCY, target,
-			   now - rq->io_start_time_ns);
+			   analw - rq->io_start_time_ns);
 	put_cpu_ptr(kqd->cpu_latency);
 
 	timer_reduce(&kqd->timer, jiffies + HZ / 10);
@@ -717,7 +717,7 @@ static int kyber_get_domain_token(struct kyber_queue_data *kqd,
 
 	/*
 	 * If we failed to get a domain token, make sure the hardware queue is
-	 * run when one becomes available. Note that this is serialized on
+	 * run when one becomes available. Analte that this is serialized on
 	 * khd->lock, but we still need to be careful about the waker.
 	 */
 	if (nr < 0 && list_empty_careful(&wait->wait.entry)) {
@@ -764,8 +764,8 @@ kyber_dispatch_cur_domain(struct kyber_queue_data *kqd,
 	/*
 	 * If we already have a flushed request, then we just need to get a
 	 * token for it. Otherwise, if there are pending requests in the kcqs,
-	 * flush the kcqs, but only if we can get a token. If not, we should
-	 * leave the requests in the kcqs so that they can be merged. Note that
+	 * flush the kcqs, but only if we can get a token. If analt, we should
+	 * leave the requests in the kcqs so that they can be merged. Analte that
 	 * khd->lock serializes the flushes, so if we observed any bit set in
 	 * the kcq_map, we will always get a request.
 	 */
@@ -796,7 +796,7 @@ kyber_dispatch_cur_domain(struct kyber_queue_data *kqd,
 		}
 	}
 
-	/* There were either no pending requests or no tokens. */
+	/* There were either anal pending requests or anal tokens. */
 	return NULL;
 }
 
@@ -821,12 +821,12 @@ static struct request *kyber_dispatch_request(struct blk_mq_hw_ctx *hctx)
 
 	/*
 	 * Either,
-	 * 1. We were no longer entitled to a batch.
+	 * 1. We were anal longer entitled to a batch.
 	 * 2. The domain we were batching didn't have any requests.
 	 * 3. The domain we were batching was out of tokens.
 	 *
-	 * Start another batch. Note that this wraps back around to the original
-	 * domain if no other domains have requests or tokens.
+	 * Start aanalther batch. Analte that this wraps back around to the original
+	 * domain if anal other domains have requests or tokens.
 	 */
 	khd->batching = 0;
 	for (i = 0; i < KYBER_NUM_DOMAINS; i++) {

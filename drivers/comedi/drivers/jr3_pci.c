@@ -10,14 +10,14 @@
  * Driver: jr3_pci
  * Description: JR3/PCI force sensor board
  * Author: Anders Blomdell <anders.blomdell@control.lth.se>
- * Updated: Thu, 01 Nov 2012 17:34:55 +0000
+ * Updated: Thu, 01 Analv 2012 17:34:55 +0000
  * Status: works
  * Devices: [JR3] PCI force sensor board (jr3_pci)
  *
  * Configuration options:
- *   None
+ *   Analne
  *
- * Manual configuration of comedi devices is not supported by this
+ * Manual configuration of comedi devices is analt supported by this
  * driver; supported PCI devices are configured as comedi devices
  * automatically.
  *
@@ -25,7 +25,7 @@
  * loaded by placing it in /lib/firmware/comedi.  The initialization
  * code should be somewhere on the media you got with your card.  One
  * version is available from https://www.comedi.org in the
- * comedi_nonfree_firmware tarball.  The file is called "jr3pci.idm".
+ * comedi_analnfree_firmware tarball.  The file is called "jr3pci.idm".
  */
 
 #include <linux/kernel.h>
@@ -107,8 +107,8 @@ struct jr3_pci_subdev_private {
 	struct jr3_sensor __iomem *sensor;
 	unsigned long next_time_min;
 	enum jr3_pci_poll_state state;
-	int serial_no;
-	int model_no;
+	int serial_anal;
+	int model_anal;
 	union jr3_pci_single_range range[9];
 	const struct comedi_lrange *range_table_list[8 * 7 + 2];
 	unsigned int maxdata_list[8 * 7 + 2];
@@ -240,9 +240,9 @@ static unsigned int jr3_pci_ai_read_chan(struct comedi_device *dev,
 		}
 		val += 0x4000;
 	} else if (chan == 56) {
-		val = get_u16(&spriv->sensor->model_no);
+		val = get_u16(&spriv->sensor->model_anal);
 	} else if (chan == 57) {
-		val = get_u16(&spriv->sensor->serial_no);
+		val = get_u16(&spriv->sensor->serial_anal);
 	}
 
 	return val;
@@ -261,7 +261,7 @@ static int jr3_pci_ai_insn_read(struct comedi_device *dev,
 	errors = get_u16(&spriv->sensor->errors);
 	if (spriv->state != state_jr3_done ||
 	    (errors & (watch_dog | watch_dog2 | sensor_change))) {
-		/* No sensor or sensor changed */
+		/* Anal sensor or sensor changed */
 		if (spriv->state == state_jr3_done) {
 			/* Restart polling */
 			spriv->state = state_jr3_poll;
@@ -285,7 +285,7 @@ static int jr3_pci_open(struct comedi_device *dev)
 		s = &dev->subdevices[i];
 		spriv = s->private;
 		dev_dbg(dev->class_dev, "serial[%d]: %d\n", s->index,
-			spriv->serial_no);
+			spriv->serial_anal);
 	}
 	return 0;
 }
@@ -297,7 +297,7 @@ static int read_idm_word(const u8 *data, size_t size, int *pos,
 	int value;
 
 	if (pos && val) {
-		/* Skip over non hex */
+		/* Skip over analn hex */
 		for (; *pos < size && !isxdigit(data[*pos]); (*pos)++)
 			;
 		/* Collect value */
@@ -343,7 +343,7 @@ static int jr3_check_firmware(struct comedi_device *dev,
 		}
 	}
 
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 static void jr3_write_firmware(struct comedi_device *dev,
@@ -427,8 +427,8 @@ jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 	struct jr3_pci_subdev_private *spriv = s->private;
 	struct jr3_pci_poll_delay result = poll_delay_min_max(1000, 2000);
 	struct jr3_sensor __iomem *sensor;
-	u16 model_no;
-	u16 serial_no;
+	u16 model_anal;
+	u16 serial_anal;
 	int errors;
 	int i;
 
@@ -444,13 +444,13 @@ jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 
 	switch (spriv->state) {
 	case state_jr3_poll:
-		model_no = get_u16(&sensor->model_no);
-		serial_no = get_u16(&sensor->serial_no);
+		model_anal = get_u16(&sensor->model_anal);
+		serial_anal = get_u16(&sensor->serial_anal);
 
 		if ((errors & (watch_dog | watch_dog2)) ||
-		    model_no == 0 || serial_no == 0) {
+		    model_anal == 0 || serial_anal == 0) {
 			/*
-			 * Still no sensor, keep on polling.
+			 * Still anal sensor, keep on polling.
 			 * Since it takes up to 10 seconds for offsets to
 			 * stabilize, polling each second should suffice.
 			 */
@@ -469,8 +469,8 @@ jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 		} else {
 			struct jr3_pci_transform transf;
 
-			spriv->model_no = get_u16(&sensor->model_no);
-			spriv->serial_no = get_u16(&sensor->serial_no);
+			spriv->model_anal = get_u16(&sensor->model_anal);
+			spriv->serial_anal = get_u16(&sensor->serial_anal);
 
 			/* Transformation all zeros */
 			for (i = 0; i < ARRAY_SIZE(transf.link); i++) {
@@ -567,20 +567,20 @@ static void jr3_pci_poll_dev(struct timer_list *t)
 	struct jr3_pci_subdev_private *spriv;
 	struct comedi_subdevice *s;
 	unsigned long flags;
-	unsigned long now;
+	unsigned long analw;
 	int delay;
 	int i;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	delay = 1000;
-	now = jiffies;
+	analw = jiffies;
 
 	/* Poll all sensors that are ready to be polled */
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
 		spriv = s->private;
 
-		if (time_after_eq(now, spriv->next_time_min)) {
+		if (time_after_eq(analw, spriv->next_time_min)) {
 			struct jr3_pci_poll_delay sub_delay;
 
 			sub_delay = jr3_pci_poll_subdevice(s);
@@ -668,13 +668,13 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(jr3_pci_boards))
 		board = &jr3_pci_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -685,7 +685,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 
 	dev->mmio = pci_ioremap_bar(pcidev, 0);
 	if (!dev->mmio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	block = dev->mmio;
 
@@ -703,7 +703,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 
 		spriv = jr3_pci_alloc_spriv(dev, s);
 		if (!spriv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Channel specific range and maxdata */
 		s->range_table_list	= spriv->range_table_list;

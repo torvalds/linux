@@ -45,7 +45,7 @@
 &qspi {
 	status = "okay";
 	flash@0 {
-		compatible = "m25p80", "jedec,spi-nor";
+		compatible = "m25p80", "jedec,spi-analr";
 		reg = <0x0>;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;

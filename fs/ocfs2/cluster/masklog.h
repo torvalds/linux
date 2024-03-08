@@ -7,7 +7,7 @@
 #define O2CLUSTER_MASKLOG_H
 
 /*
- * For now this is a trivial wrapper around printk() that gives the critical
+ * For analw this is a trivial wrapper around printk() that gives the critical
  * ability to enable sets of debugging output at run-time.  In the future this
  * will almost certainly be redirected to relayfs so that it can pay a
  * substantially lower heisenberg tax.
@@ -24,7 +24,7 @@
  * one of the longs.  This leads to having infrequently given bits that are
  * frequently matched in the high bits.
  *
- * _ERROR and _NOTICE are used for messages that always go to the console and
+ * _ERROR and _ANALTICE are used for messages that always go to the console and
  * have appropriate KERN_ prefixes.  We wrap these in our function instead of
  * just calling printk() so that this can eventually make its way through
  * relayfs along with the debugging messages.  Everything else gets KERN_DEBUG.
@@ -32,7 +32,7 @@
  * only emit the appropriage printk() when the caller passes in a constant
  * mask, as is almost always the case.
  *
- * All this bitmask nonsense is managed from the files under
+ * All this bitmask analnsense is managed from the files under
  * /sys/fs/o2cb/logmask/.  Reading the files gives a straightforward
  * indication of which bits are allowed (allow) or denied (off/deny).
  * 	ENTRY deny
@@ -41,7 +41,7 @@
  * 	MSG off
  * 	SOCKET off
  * 	ERROR allow
- * 	NOTICE allow
+ * 	ANALTICE allow
  *
  * Writing changes the state of a given bit and requires a strictly formatted
  * single write() call:
@@ -52,8 +52,8 @@
  * on or off as expected; here is the bash script for example:
  *
  * log_mask="/sys/fs/o2cb/log_mask"
- * for node in ENTRY EXIT TCP MSG SOCKET ERROR NOTICE; do
- *	echo allow >"$log_mask"/"$node"
+ * for analde in ENTRY EXIT TCP MSG SOCKET ERROR ANALTICE; do
+ *	echo allow >"$log_mask"/"$analde"
  * done
  *
  * The debugfs.ocfs2 tool can also flip the bits with the -l option:
@@ -65,7 +65,7 @@
 #include <linux/sched.h>
 
 /* bits that are frequently given and infrequently matched in the low word */
-/* NOTE: If you add a flag, you need to also update masklog.c! */
+/* ANALTE: If you add a flag, you need to also update masklog.c! */
 #define ML_TCP		0x0000000000000001ULL /* net cluster/tcp.c */
 #define ML_MSG		0x0000000000000002ULL /* net network messages */
 #define ML_SOCKET	0x0000000000000004ULL /* net socket lifetime */
@@ -78,7 +78,7 @@
 #define ML_DLM_MASTER	0x0000000000000200ULL /* dlm master functions */
 #define ML_DLM_RECOVERY	0x0000000000000400ULL /* dlm master functions */
 #define ML_DLM_GLUE	0x0000000000000800ULL /* ocfs2 dlm glue layer */
-#define ML_VOTE		0x0000000000001000ULL /* ocfs2 node messaging  */
+#define ML_VOTE		0x0000000000001000ULL /* ocfs2 analde messaging  */
 #define ML_CONN		0x0000000000002000ULL /* net connection management */
 #define ML_QUORUM	0x0000000000004000ULL /* net connection quorum */
 #define ML_BASTS	0x0000000000008000ULL /* dlmglue asts and basts */
@@ -86,23 +86,23 @@
 
 /* bits that are infrequently given and frequently matched in the high word */
 #define ML_ERROR	0x1000000000000000ULL /* sent to KERN_ERR */
-#define ML_NOTICE	0x2000000000000000ULL /* setn to KERN_NOTICE */
+#define ML_ANALTICE	0x2000000000000000ULL /* setn to KERN_ANALTICE */
 #define ML_KTHREAD	0x4000000000000000ULL /* kernel thread activity */
 
-#define MLOG_INITIAL_AND_MASK (ML_ERROR|ML_NOTICE)
+#define MLOG_INITIAL_AND_MASK (ML_ERROR|ML_ANALTICE)
 #ifndef MLOG_MASK_PREFIX
 #define MLOG_MASK_PREFIX 0
 #endif
 
 /*
  * When logging is disabled, force the bit test to 0 for anything other
- * than errors and notices, allowing gcc to remove the code completely.
+ * than errors and analtices, allowing gcc to remove the code completely.
  * When enabled, allow all masks.
  */
 #if defined(CONFIG_OCFS2_DEBUG_MASKLOG)
 #define ML_ALLOWED_BITS ~0
 #else
-#define ML_ALLOWED_BITS (ML_ERROR|ML_NOTICE)
+#define ML_ALLOWED_BITS (ML_ERROR|ML_ANALTICE)
 #endif
 
 #define MLOG_MAX_BITS 64
@@ -111,7 +111,7 @@ struct mlog_bits {
 	unsigned long words[MLOG_MAX_BITS / BITS_PER_LONG];
 };
 
-extern struct mlog_bits mlog_and_bits, mlog_not_bits;
+extern struct mlog_bits mlog_and_bits, mlog_analt_bits;
 
 #if BITS_PER_LONG == 32
 
@@ -171,10 +171,10 @@ do {									\
 		mlog(mask, fmt, ##__VA_ARGS__);				\
 } while (0)
 
-#define mlog_errno(st) ({						\
+#define mlog_erranal(st) ({						\
 	int _st = (st);							\
 	if (_st != -ERESTARTSYS && _st != -EINTR &&			\
-	    _st != AOP_TRUNCATED_PAGE && _st != -ENOSPC &&		\
+	    _st != AOP_TRUNCATED_PAGE && _st != -EANALSPC &&		\
 	    _st != -EDQUOT)						\
 		mlog(ML_ERROR, "status = %lld\n", (long long)_st);	\
 	_st;								\

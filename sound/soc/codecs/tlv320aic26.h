@@ -3,7 +3,7 @@
  * Texas Instruments TLV320AIC26 low power audio CODEC
  * register definitions
  *
- * Copyright (C) 2008 Secret Lab Technologies Ltd.
+ * Copyright (C) 2008 Secret Lab Techanallogies Ltd.
  */
 
 #ifndef _TLV320AIC26_H_

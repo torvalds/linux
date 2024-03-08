@@ -23,7 +23,7 @@ int remap_io_mapping(struct vm_area_struct *vma,
 		     unsigned long addr, unsigned long pfn, unsigned long size,
 		     struct io_mapping *iomap)
 {
-	WARN_ONCE(1, "Architecture has no drm_cache.c support\n");
+	WARN_ONCE(1, "Architecture has anal drm_cache.c support\n");
 	return 0;
 }
 #endif

@@ -85,7 +85,7 @@
 #define IQS7222_REG_OFFSET			0x100
 
 enum iqs7222_reg_key_id {
-	IQS7222_REG_KEY_NONE,
+	IQS7222_REG_KEY_ANALNE,
 	IQS7222_REG_KEY_PROX,
 	IQS7222_REG_KEY_TOUCH,
 	IQS7222_REG_KEY_DEBOUNCE,
@@ -94,7 +94,7 @@ enum iqs7222_reg_key_id {
 	IQS7222_REG_KEY_AXIAL,
 	IQS7222_REG_KEY_AXIAL_LEGACY,
 	IQS7222_REG_KEY_WHEEL,
-	IQS7222_REG_KEY_NO_WHEEL,
+	IQS7222_REG_KEY_ANAL_WHEEL,
 	IQS7222_REG_KEY_RESERVED
 };
 
@@ -293,7 +293,7 @@ struct iqs7222_reg_grp_desc {
 struct iqs7222_dev_desc {
 	u16 prod_num;
 	u16 fw_major;
-	u16 fw_minor;
+	u16 fw_mianalr;
 	u16 sldr_res;
 	u16 touch_link;
 	u16 wheel_enable;
@@ -308,7 +308,7 @@ static const struct iqs7222_dev_desc iqs7222_devs[] = {
 	{
 		.prod_num = IQS7222_PROD_NUM_A,
 		.fw_major = 1,
-		.fw_minor = 13,
+		.fw_mianalr = 13,
 		.sldr_res = U8_MAX * 16,
 		.touch_link = 1768,
 		.allow_offset = 9,
@@ -365,7 +365,7 @@ static const struct iqs7222_dev_desc iqs7222_devs[] = {
 	{
 		.prod_num = IQS7222_PROD_NUM_A,
 		.fw_major = 1,
-		.fw_minor = 12,
+		.fw_mianalr = 12,
 		.sldr_res = U8_MAX * 16,
 		.touch_link = 1768,
 		.allow_offset = 9,
@@ -423,7 +423,7 @@ static const struct iqs7222_dev_desc iqs7222_devs[] = {
 	{
 		.prod_num = IQS7222_PROD_NUM_B,
 		.fw_major = 1,
-		.fw_minor = 43,
+		.fw_mianalr = 43,
 		.event_offset = 10,
 		.comms_offset = 11,
 		.reg_grps = {
@@ -467,7 +467,7 @@ static const struct iqs7222_dev_desc iqs7222_devs[] = {
 	{
 		.prod_num = IQS7222_PROD_NUM_B,
 		.fw_major = 1,
-		.fw_minor = 27,
+		.fw_mianalr = 27,
 		.reg_grps = {
 			[IQS7222_REG_GRP_STAT] = {
 				.base = IQS7222_SYS_STATUS,
@@ -509,7 +509,7 @@ static const struct iqs7222_dev_desc iqs7222_devs[] = {
 	{
 		.prod_num = IQS7222_PROD_NUM_C,
 		.fw_major = 2,
-		.fw_minor = 6,
+		.fw_mianalr = 6,
 		.sldr_res = U16_MAX,
 		.touch_link = 1686,
 		.wheel_enable = BIT(3),
@@ -566,7 +566,7 @@ static const struct iqs7222_dev_desc iqs7222_devs[] = {
 	{
 		.prod_num = IQS7222_PROD_NUM_C,
 		.fw_major = 1,
-		.fw_minor = 13,
+		.fw_mianalr = 13,
 		.sldr_res = U16_MAX,
 		.touch_link = 1674,
 		.wheel_enable = BIT(3),
@@ -623,7 +623,7 @@ static const struct iqs7222_dev_desc iqs7222_devs[] = {
 	{
 		.prod_num = IQS7222_PROD_NUM_D,
 		.fw_major = 0,
-		.fw_minor = 37,
+		.fw_mianalr = 37,
 		.touch_link = 1770,
 		.allow_offset = 9,
 		.event_offset = 10,
@@ -988,7 +988,7 @@ static const struct iqs7222_prop_desc iqs7222_props[] = {
 		.reg_offset = 0,
 		.reg_shift = 8,
 		.reg_width = 4,
-		.label = "normal-power mode long-term average beta",
+		.label = "analrmal-power mode long-term average beta",
 	},
 	{
 		.name = "azoteq,counts-beta-lp",
@@ -1004,7 +1004,7 @@ static const struct iqs7222_prop_desc iqs7222_props[] = {
 		.reg_offset = 0,
 		.reg_shift = 0,
 		.reg_width = 4,
-		.label = "normal-power mode counts beta",
+		.label = "analrmal-power mode counts beta",
 	},
 	{
 		.name = "azoteq,lta-fast-beta-lp",
@@ -1020,7 +1020,7 @@ static const struct iqs7222_prop_desc iqs7222_props[] = {
 		.reg_offset = 1,
 		.reg_shift = 0,
 		.reg_width = 4,
-		.label = "normal-power mode long-term average fast beta",
+		.label = "analrmal-power mode long-term average fast beta",
 	},
 	{
 		.name = "azoteq,lower-cal",
@@ -1033,7 +1033,7 @@ static const struct iqs7222_prop_desc iqs7222_props[] = {
 	{
 		.name = "azoteq,static-beta",
 		.reg_grp = IQS7222_REG_GRP_SLDR,
-		.reg_key = IQS7222_REG_KEY_NO_WHEEL,
+		.reg_key = IQS7222_REG_KEY_ANAL_WHEEL,
 		.reg_offset = 0,
 		.reg_shift = 6,
 		.reg_width = 1,
@@ -1041,7 +1041,7 @@ static const struct iqs7222_prop_desc iqs7222_props[] = {
 	{
 		.name = "azoteq,bottom-beta",
 		.reg_grp = IQS7222_REG_GRP_SLDR,
-		.reg_key = IQS7222_REG_KEY_NO_WHEEL,
+		.reg_key = IQS7222_REG_KEY_ANAL_WHEEL,
 		.reg_offset = 0,
 		.reg_shift = 3,
 		.reg_width = 3,
@@ -1307,7 +1307,7 @@ static const struct iqs7222_prop_desc iqs7222_props[] = {
 		.reg_offset = 3,
 		.reg_shift = 0,
 		.reg_width = 16,
-		.label = "normal-power mode timeout",
+		.label = "analrmal-power mode timeout",
 	},
 	{
 		.name = "azoteq,rate-np-ms",
@@ -1316,7 +1316,7 @@ static const struct iqs7222_prop_desc iqs7222_props[] = {
 		.reg_shift = 0,
 		.reg_width = 16,
 		.val_max = 3000,
-		.label = "normal-power mode report rate",
+		.label = "analrmal-power mode report rate",
 	},
 	{
 		.name = "azoteq,timeout-lp-ms",
@@ -1457,9 +1457,9 @@ static int iqs7222_force_comms(struct iqs7222_private *iqs7222)
 	int ret;
 
 	/*
-	 * The device cannot communicate until it asserts its interrupt (RDY)
+	 * The device cananalt communicate until it asserts its interrupt (RDY)
 	 * pin. Attempts to do so while RDY is deasserted return an ACK; how-
-	 * ever all write data is ignored, and all read data returns 0xEE.
+	 * ever all write data is iganalred, and all read data returns 0xEE.
 	 *
 	 * Unsolicited communication must be preceded by a special force com-
 	 * munication command, after which the device eventually asserts its
@@ -1537,7 +1537,7 @@ static int iqs7222_read_burst(struct iqs7222_private *iqs7222,
 		}
 
 		if (get_unaligned_le16(msg[1].buf) == IQS7222_COMMS_ERROR) {
-			ret = -ENODATA;
+			ret = -EANALDATA;
 			continue;
 		}
 
@@ -1584,7 +1584,7 @@ static int iqs7222_write_burst(struct iqs7222_private *iqs7222,
 
 	msg_buf = kzalloc(msg_len, GFP_KERNEL);
 	if (!msg_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (reg > U8_MAX)
 		put_unaligned_be16(reg, msg_buf);
@@ -1658,7 +1658,7 @@ static int iqs7222_ati_trigger(struct iqs7222_private *iqs7222)
 
 	for (i = 0; i < IQS7222_NUM_RETRIES; i++) {
 		/*
-		 * Trigger ATI from streaming and normal-power modes so that
+		 * Trigger ATI from streaming and analrmal-power modes so that
 		 * the RDY pin continues to be asserted during ATI.
 		 */
 		error = iqs7222_write_word(iqs7222, IQS7222_SYS_SETUP,
@@ -1718,7 +1718,7 @@ static int iqs7222_dev_init(struct iqs7222_private *iqs7222, int dir)
 	int error, i, j, k;
 
 	/*
-	 * Acknowledge reset before writing any registers in case the device
+	 * Ackanalwledge reset before writing any registers in case the device
 	 * suffers a spurious reset during initialization. Because this step
 	 * may change the reserved fields of the second filter beta register,
 	 * its cache must be updated.
@@ -1782,7 +1782,7 @@ static int iqs7222_dev_init(struct iqs7222_private *iqs7222, int dir)
 
 		val_buf = kcalloc(num_col, sizeof(__le16), GFP_KERNEL);
 		if (!val_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (j = 0; j < num_row; j++) {
 			switch (dir) {
@@ -1863,7 +1863,7 @@ static int iqs7222_dev_info(struct iqs7222_private *iqs7222)
 		if (le16_to_cpu(dev_id[1]) < iqs7222_devs[i].fw_major)
 			continue;
 
-		if (le16_to_cpu(dev_id[2]) < iqs7222_devs[i].fw_minor)
+		if (le16_to_cpu(dev_id[2]) < iqs7222_devs[i].fw_mianalr)
 			continue;
 
 		iqs7222->dev_desc = &iqs7222_devs[i];
@@ -1881,7 +1881,7 @@ static int iqs7222_dev_info(struct iqs7222_private *iqs7222)
 }
 
 static int iqs7222_gpio_select(struct iqs7222_private *iqs7222,
-			       struct fwnode_handle *child_node,
+			       struct fwanalde_handle *child_analde,
 			       int child_enable, u16 child_link)
 {
 	const struct iqs7222_dev_desc *dev_desc = iqs7222->dev_desc;
@@ -1893,26 +1893,26 @@ static int iqs7222_gpio_select(struct iqs7222_private *iqs7222,
 	if (!num_gpio)
 		return 0;
 
-	if (!fwnode_property_present(child_node, "azoteq,gpio-select"))
+	if (!fwanalde_property_present(child_analde, "azoteq,gpio-select"))
 		return 0;
 
-	count = fwnode_property_count_u32(child_node, "azoteq,gpio-select");
+	count = fwanalde_property_count_u32(child_analde, "azoteq,gpio-select");
 	if (count > num_gpio) {
 		dev_err(&client->dev, "Invalid number of %s GPIOs\n",
-			fwnode_get_name(child_node));
+			fwanalde_get_name(child_analde));
 		return -EINVAL;
 	} else if (count < 0) {
 		dev_err(&client->dev, "Failed to count %s GPIOs: %d\n",
-			fwnode_get_name(child_node), count);
+			fwanalde_get_name(child_analde), count);
 		return count;
 	}
 
-	error = fwnode_property_read_u32_array(child_node,
+	error = fwanalde_property_read_u32_array(child_analde,
 					       "azoteq,gpio-select",
 					       gpio_sel, count);
 	if (error) {
 		dev_err(&client->dev, "Failed to read %s GPIOs: %d\n",
-			fwnode_get_name(child_node), error);
+			fwanalde_get_name(child_analde), error);
 		return error;
 	}
 
@@ -1921,7 +1921,7 @@ static int iqs7222_gpio_select(struct iqs7222_private *iqs7222,
 
 		if (gpio_sel[i] >= num_gpio) {
 			dev_err(&client->dev, "Invalid %s GPIO: %u\n",
-				fwnode_get_name(child_node), gpio_sel[i]);
+				fwanalde_get_name(child_analde), gpio_sel[i]);
 			return -EINVAL;
 		}
 
@@ -1943,7 +1943,7 @@ static int iqs7222_gpio_select(struct iqs7222_private *iqs7222,
 }
 
 static int iqs7222_parse_props(struct iqs7222_private *iqs7222,
-			       struct fwnode_handle *reg_grp_node,
+			       struct fwanalde_handle *reg_grp_analde,
 			       int reg_grp_index,
 			       enum iqs7222_reg_grp_id reg_grp,
 			       enum iqs7222_reg_key_id reg_key)
@@ -1987,7 +1987,7 @@ static int iqs7222_parse_props(struct iqs7222_private *iqs7222,
 				setup[reg_offset] &= ~BIT(reg_shift);
 		}
 
-		if (!fwnode_property_present(reg_grp_node, name))
+		if (!fwanalde_property_present(reg_grp_analde, name))
 			continue;
 
 		if (reg_width == 1) {
@@ -1999,10 +1999,10 @@ static int iqs7222_parse_props(struct iqs7222_private *iqs7222,
 			continue;
 		}
 
-		error = fwnode_property_read_u32(reg_grp_node, name, &val);
+		error = fwanalde_property_read_u32(reg_grp_analde, name, &val);
 		if (error) {
 			dev_err(&client->dev, "Failed to read %s %s: %d\n",
-				fwnode_get_name(reg_grp_node), label, error);
+				fwanalde_get_name(reg_grp_analde), label, error);
 			return error;
 		}
 
@@ -2011,7 +2011,7 @@ static int iqs7222_parse_props(struct iqs7222_private *iqs7222,
 
 		if (val < val_min || val > val_max) {
 			dev_err(&client->dev, "Invalid %s %s: %u\n",
-				fwnode_get_name(reg_grp_node), label, val);
+				fwanalde_get_name(reg_grp_analde), label, val);
 			return -EINVAL;
 		}
 
@@ -2024,7 +2024,7 @@ static int iqs7222_parse_props(struct iqs7222_private *iqs7222,
 }
 
 static int iqs7222_parse_event(struct iqs7222_private *iqs7222,
-			       struct fwnode_handle *event_node,
+			       struct fwanalde_handle *event_analde,
 			       int reg_grp_index,
 			       enum iqs7222_reg_grp_id reg_grp,
 			       enum iqs7222_reg_key_id reg_key,
@@ -2035,22 +2035,22 @@ static int iqs7222_parse_event(struct iqs7222_private *iqs7222,
 	struct i2c_client *client = iqs7222->client;
 	int error;
 
-	error = iqs7222_parse_props(iqs7222, event_node, reg_grp_index,
+	error = iqs7222_parse_props(iqs7222, event_analde, reg_grp_index,
 				    reg_grp, reg_key);
 	if (error)
 		return error;
 
-	error = iqs7222_gpio_select(iqs7222, event_node, event_enable,
+	error = iqs7222_gpio_select(iqs7222, event_analde, event_enable,
 				    event_link);
 	if (error)
 		return error;
 
-	error = fwnode_property_read_u32(event_node, "linux,code", event_code);
+	error = fwanalde_property_read_u32(event_analde, "linux,code", event_code);
 	if (error == -EINVAL) {
 		return 0;
 	} else if (error) {
 		dev_err(&client->dev, "Failed to read %s code: %d\n",
-			fwnode_get_name(event_node), error);
+			fwanalde_get_name(event_analde), error);
 		return error;
 	}
 
@@ -2059,17 +2059,17 @@ static int iqs7222_parse_event(struct iqs7222_private *iqs7222,
 		return 0;
 	}
 
-	error = fwnode_property_read_u32(event_node, "linux,input-type",
+	error = fwanalde_property_read_u32(event_analde, "linux,input-type",
 					 event_type);
 	if (error == -EINVAL) {
 		*event_type = EV_KEY;
 	} else if (error) {
 		dev_err(&client->dev, "Failed to read %s input type: %d\n",
-			fwnode_get_name(event_node), error);
+			fwanalde_get_name(event_analde), error);
 		return error;
 	} else if (*event_type != EV_KEY && *event_type != EV_SW) {
 		dev_err(&client->dev, "Invalid %s input type: %d\n",
-			fwnode_get_name(event_node), *event_type);
+			fwanalde_get_name(event_analde), *event_type);
 		return -EINVAL;
 	}
 
@@ -2079,7 +2079,7 @@ static int iqs7222_parse_event(struct iqs7222_private *iqs7222,
 }
 
 static int iqs7222_parse_cycle(struct iqs7222_private *iqs7222,
-			       struct fwnode_handle *cycle_node, int cycle_index)
+			       struct fwanalde_handle *cycle_analde, int cycle_index)
 {
 	u16 *cycle_setup = iqs7222->cycle_setup[cycle_index];
 	struct i2c_client *client = iqs7222->client;
@@ -2095,25 +2095,25 @@ static int iqs7222_parse_cycle(struct iqs7222_private *iqs7222,
 	 * based on channel number, any cycle can claim any of the device's 9
 	 * CTx pins (CTx0-8).
 	 */
-	if (!fwnode_property_present(cycle_node, "azoteq,tx-enable"))
+	if (!fwanalde_property_present(cycle_analde, "azoteq,tx-enable"))
 		return 0;
 
-	count = fwnode_property_count_u32(cycle_node, "azoteq,tx-enable");
+	count = fwanalde_property_count_u32(cycle_analde, "azoteq,tx-enable");
 	if (count < 0) {
 		dev_err(&client->dev, "Failed to count %s CTx pins: %d\n",
-			fwnode_get_name(cycle_node), count);
+			fwanalde_get_name(cycle_analde), count);
 		return count;
 	} else if (count > ARRAY_SIZE(pins)) {
 		dev_err(&client->dev, "Invalid number of %s CTx pins\n",
-			fwnode_get_name(cycle_node));
+			fwanalde_get_name(cycle_analde));
 		return -EINVAL;
 	}
 
-	error = fwnode_property_read_u32_array(cycle_node, "azoteq,tx-enable",
+	error = fwanalde_property_read_u32_array(cycle_analde, "azoteq,tx-enable",
 					       pins, count);
 	if (error) {
 		dev_err(&client->dev, "Failed to read %s CTx pins: %d\n",
-			fwnode_get_name(cycle_node), error);
+			fwanalde_get_name(cycle_analde), error);
 		return error;
 	}
 
@@ -2122,7 +2122,7 @@ static int iqs7222_parse_cycle(struct iqs7222_private *iqs7222,
 	for (i = 0; i < count; i++) {
 		if (pins[i] > 8) {
 			dev_err(&client->dev, "Invalid %s CTx pin: %u\n",
-				fwnode_get_name(cycle_node), pins[i]);
+				fwanalde_get_name(cycle_analde), pins[i]);
 			return -EINVAL;
 		}
 
@@ -2133,7 +2133,7 @@ static int iqs7222_parse_cycle(struct iqs7222_private *iqs7222,
 }
 
 static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
-			      struct fwnode_handle *chan_node, int chan_index)
+			      struct fwanalde_handle *chan_analde, int chan_index)
 {
 	const struct iqs7222_dev_desc *dev_desc = iqs7222->dev_desc;
 	struct i2c_client *client = iqs7222->client;
@@ -2145,7 +2145,7 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 	unsigned int val;
 
 	if (dev_desc->allow_offset &&
-	    fwnode_property_present(chan_node, "azoteq,ulp-allow"))
+	    fwanalde_property_present(chan_analde, "azoteq,ulp-allow"))
 		sys_setup[dev_desc->allow_offset] &= ~BIT(chan_index);
 
 	chan_setup[0] |= IQS7222_CHAN_SETUP_0_CHAN_EN;
@@ -2155,22 +2155,22 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 	 * and is only available in the case of IQS7222A or IQS7222C.
 	 */
 	if (dev_desc->reg_grps[IQS7222_REG_GRP_CHAN].num_col > 4 &&
-	    fwnode_property_present(chan_node, "azoteq,ref-select")) {
+	    fwanalde_property_present(chan_analde, "azoteq,ref-select")) {
 		u16 *ref_setup;
 
-		error = fwnode_property_read_u32(chan_node, "azoteq,ref-select",
+		error = fwanalde_property_read_u32(chan_analde, "azoteq,ref-select",
 						 &val);
 		if (error) {
 			dev_err(&client->dev,
 				"Failed to read %s reference channel: %d\n",
-				fwnode_get_name(chan_node), error);
+				fwanalde_get_name(chan_analde), error);
 			return error;
 		}
 
 		if (val >= ext_chan) {
 			dev_err(&client->dev,
 				"Invalid %s reference channel: %u\n",
-				fwnode_get_name(chan_node), val);
+				fwanalde_get_name(chan_analde), val);
 			return -EINVAL;
 		}
 
@@ -2183,13 +2183,13 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 		chan_setup[0] |= IQS7222_CHAN_SETUP_0_REF_MODE_FOLLOW;
 		chan_setup[4] = val * 42 + 1048;
 
-		error = fwnode_property_read_u32(chan_node, "azoteq,ref-weight",
+		error = fwanalde_property_read_u32(chan_analde, "azoteq,ref-weight",
 						 &val);
 		if (!error) {
 			if (val > U16_MAX) {
 				dev_err(&client->dev,
 					"Invalid %s reference weight: %u\n",
-					fwnode_get_name(chan_node), val);
+					fwanalde_get_name(chan_analde), val);
 				return -EINVAL;
 			}
 
@@ -2197,7 +2197,7 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 		} else if (error != -EINVAL) {
 			dev_err(&client->dev,
 				"Failed to read %s reference weight: %d\n",
-				fwnode_get_name(chan_node), error);
+				fwanalde_get_name(chan_analde), error);
 			return error;
 		}
 
@@ -2209,10 +2209,10 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 		ref_setup[5] |= BIT(chan_index);
 
 		ref_setup[4] = dev_desc->touch_link;
-		if (fwnode_property_present(chan_node, "azoteq,use-prox"))
+		if (fwanalde_property_present(chan_analde, "azoteq,use-prox"))
 			ref_setup[4] -= 2;
 	} else if (dev_desc->reg_grps[IQS7222_REG_GRP_TPAD].num_row &&
-		   fwnode_property_present(chan_node,
+		   fwanalde_property_present(chan_analde,
 					   "azoteq,counts-filt-enable")) {
 		/*
 		 * In the case of IQS7222D, however, the reference mode field
@@ -2221,7 +2221,7 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 		chan_setup[0] |= IQS7222_CHAN_SETUP_0_REF_MODE_REF;
 	}
 
-	if (fwnode_property_present(chan_node, "azoteq,rx-enable")) {
+	if (fwanalde_property_present(chan_analde, "azoteq,rx-enable")) {
 		/*
 		 * Each channel can claim up to 4 CRx pins. The first half of
 		 * the channels can use CRx0-3, while the second half can use
@@ -2230,27 +2230,27 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 		unsigned int pins[4];
 		int count;
 
-		count = fwnode_property_count_u32(chan_node,
+		count = fwanalde_property_count_u32(chan_analde,
 						  "azoteq,rx-enable");
 		if (count < 0) {
 			dev_err(&client->dev,
 				"Failed to count %s CRx pins: %d\n",
-				fwnode_get_name(chan_node), count);
+				fwanalde_get_name(chan_analde), count);
 			return count;
 		} else if (count > ARRAY_SIZE(pins)) {
 			dev_err(&client->dev,
 				"Invalid number of %s CRx pins\n",
-				fwnode_get_name(chan_node));
+				fwanalde_get_name(chan_analde));
 			return -EINVAL;
 		}
 
-		error = fwnode_property_read_u32_array(chan_node,
+		error = fwanalde_property_read_u32_array(chan_analde,
 						       "azoteq,rx-enable",
 						       pins, count);
 		if (error) {
 			dev_err(&client->dev,
 				"Failed to read %s CRx pins: %d\n",
-				fwnode_get_name(chan_node), error);
+				fwanalde_get_name(chan_analde), error);
 			return error;
 		}
 
@@ -2262,7 +2262,7 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 			if (pins[i] < min_crx || pins[i] > min_crx + 3) {
 				dev_err(&client->dev,
 					"Invalid %s CRx pin: %u\n",
-					fwnode_get_name(chan_node), pins[i]);
+					fwanalde_get_name(chan_analde), pins[i]);
 				return -EINVAL;
 			}
 
@@ -2273,13 +2273,13 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 	for (i = 0; i < ARRAY_SIZE(iqs7222_kp_events); i++) {
 		const char *event_name = iqs7222_kp_events[i].name;
 		u16 event_enable = iqs7222_kp_events[i].enable;
-		struct fwnode_handle *event_node;
+		struct fwanalde_handle *event_analde;
 
-		event_node = fwnode_get_named_child_node(chan_node, event_name);
-		if (!event_node)
+		event_analde = fwanalde_get_named_child_analde(chan_analde, event_name);
+		if (!event_analde)
 			continue;
 
-		error = fwnode_property_read_u32(event_node,
+		error = fwanalde_property_read_u32(event_analde,
 						 "azoteq,timeout-press-ms",
 						 &val);
 		if (!error) {
@@ -2295,8 +2295,8 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 			if (val > U8_MAX * 500) {
 				dev_err(&client->dev,
 					"Invalid %s press timeout: %u\n",
-					fwnode_get_name(event_node), val);
-				fwnode_handle_put(event_node);
+					fwanalde_get_name(event_analde), val);
+				fwanalde_handle_put(event_analde);
 				return -EINVAL;
 			}
 
@@ -2305,19 +2305,19 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 		} else if (error != -EINVAL) {
 			dev_err(&client->dev,
 				"Failed to read %s press timeout: %d\n",
-				fwnode_get_name(event_node), error);
-			fwnode_handle_put(event_node);
+				fwanalde_get_name(event_analde), error);
+			fwanalde_handle_put(event_analde);
 			return error;
 		}
 
-		error = iqs7222_parse_event(iqs7222, event_node, chan_index,
+		error = iqs7222_parse_event(iqs7222, event_analde, chan_index,
 					    IQS7222_REG_GRP_BTN,
 					    iqs7222_kp_events[i].reg_key,
 					    BIT(chan_index),
 					    dev_desc->touch_link - (i ? 0 : 2),
 					    &iqs7222->kp_type[chan_index][i],
 					    &iqs7222->kp_code[chan_index][i]);
-		fwnode_handle_put(event_node);
+		fwanalde_handle_put(event_analde);
 		if (error)
 			return error;
 
@@ -2329,15 +2329,15 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 
 	/*
 	 * The following call handles a special pair of properties that apply
-	 * to a channel node, but reside within the button (event) group.
+	 * to a channel analde, but reside within the button (event) group.
 	 */
-	return iqs7222_parse_props(iqs7222, chan_node, chan_index,
+	return iqs7222_parse_props(iqs7222, chan_analde, chan_index,
 				   IQS7222_REG_GRP_BTN,
 				   IQS7222_REG_KEY_DEBOUNCE);
 }
 
 static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
-			      struct fwnode_handle *sldr_node, int sldr_index)
+			      struct fwanalde_handle *sldr_analde, int sldr_index)
 {
 	const struct iqs7222_dev_desc *dev_desc = iqs7222->dev_desc;
 	struct i2c_client *client = iqs7222->client;
@@ -2353,28 +2353,28 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 	 * select only 2 channels, but doing so prevents the slider from using
 	 * the specified resolution.
 	 */
-	count = fwnode_property_count_u32(sldr_node, "azoteq,channel-select");
+	count = fwanalde_property_count_u32(sldr_analde, "azoteq,channel-select");
 	if (count < 0) {
 		dev_err(&client->dev, "Failed to count %s channels: %d\n",
-			fwnode_get_name(sldr_node), count);
+			fwanalde_get_name(sldr_analde), count);
 		return count;
 	} else if (count < 3 || count > ARRAY_SIZE(chan_sel)) {
 		dev_err(&client->dev, "Invalid number of %s channels\n",
-			fwnode_get_name(sldr_node));
+			fwanalde_get_name(sldr_analde));
 		return -EINVAL;
 	}
 
-	error = fwnode_property_read_u32_array(sldr_node,
+	error = fwanalde_property_read_u32_array(sldr_analde,
 					       "azoteq,channel-select",
 					       chan_sel, count);
 	if (error) {
 		dev_err(&client->dev, "Failed to read %s channels: %d\n",
-			fwnode_get_name(sldr_node), error);
+			fwanalde_get_name(sldr_analde), error);
 		return error;
 	}
 
 	/*
-	 * Resolution and top speed, if small enough, are packed into a single
+	 * Resolution and top speed, if small eanalugh, are packed into a single
 	 * register. Otherwise, each occupies its own register and the rest of
 	 * the slider-related register addresses are offset by one.
 	 */
@@ -2390,7 +2390,7 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 
 		if (chan_sel[i] >= ext_chan) {
 			dev_err(&client->dev, "Invalid %s channel: %u\n",
-				fwnode_get_name(sldr_node), chan_sel[i]);
+				fwanalde_get_name(sldr_analde), chan_sel[i]);
 			return -EINVAL;
 		}
 
@@ -2403,14 +2403,14 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 	}
 
 	sldr_setup[4 + reg_offset] = dev_desc->touch_link;
-	if (fwnode_property_present(sldr_node, "azoteq,use-prox"))
+	if (fwanalde_property_present(sldr_analde, "azoteq,use-prox"))
 		sldr_setup[4 + reg_offset] -= 2;
 
-	error = fwnode_property_read_u32(sldr_node, "azoteq,slider-size", &val);
+	error = fwanalde_property_read_u32(sldr_analde, "azoteq,slider-size", &val);
 	if (!error) {
 		if (val > dev_desc->sldr_res) {
 			dev_err(&client->dev, "Invalid %s size: %u\n",
-				fwnode_get_name(sldr_node), val);
+				fwanalde_get_name(sldr_analde), val);
 			return -EINVAL;
 		}
 
@@ -2423,22 +2423,22 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 		}
 	} else if (error != -EINVAL) {
 		dev_err(&client->dev, "Failed to read %s size: %d\n",
-			fwnode_get_name(sldr_node), error);
+			fwanalde_get_name(sldr_analde), error);
 		return error;
 	}
 
 	if (!(reg_offset ? sldr_setup[3]
 			 : sldr_setup[2] & IQS7222_SLDR_SETUP_2_RES_MASK)) {
 		dev_err(&client->dev, "Undefined %s size\n",
-			fwnode_get_name(sldr_node));
+			fwanalde_get_name(sldr_analde));
 		return -EINVAL;
 	}
 
-	error = fwnode_property_read_u32(sldr_node, "azoteq,top-speed", &val);
+	error = fwanalde_property_read_u32(sldr_analde, "azoteq,top-speed", &val);
 	if (!error) {
 		if (val > (reg_offset ? U16_MAX : U8_MAX * 4)) {
 			dev_err(&client->dev, "Invalid %s top speed: %u\n",
-				fwnode_get_name(sldr_node), val);
+				fwanalde_get_name(sldr_analde), val);
 			return -EINVAL;
 		}
 
@@ -2450,11 +2450,11 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 		}
 	} else if (error != -EINVAL) {
 		dev_err(&client->dev, "Failed to read %s top speed: %d\n",
-			fwnode_get_name(sldr_node), error);
+			fwanalde_get_name(sldr_analde), error);
 		return error;
 	}
 
-	error = fwnode_property_read_u32(sldr_node, "linux,axis", &val);
+	error = fwanalde_property_read_u32(sldr_analde, "linux,axis", &val);
 	if (!error) {
 		u16 sldr_max = sldr_setup[3] - 1;
 
@@ -2471,7 +2471,7 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 		iqs7222->sl_axis[sldr_index] = val;
 	} else if (error != -EINVAL) {
 		dev_err(&client->dev, "Failed to read %s axis: %d\n",
-			fwnode_get_name(sldr_node), error);
+			fwanalde_get_name(sldr_analde), error);
 		return error;
 	}
 
@@ -2492,16 +2492,16 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 
 	for (i = 0; i < ARRAY_SIZE(iqs7222_sl_events); i++) {
 		const char *event_name = iqs7222_sl_events[i].name;
-		struct fwnode_handle *event_node;
+		struct fwanalde_handle *event_analde;
 		enum iqs7222_reg_key_id reg_key;
 
-		event_node = fwnode_get_named_child_node(sldr_node, event_name);
-		if (!event_node)
+		event_analde = fwanalde_get_named_child_analde(sldr_analde, event_name);
+		if (!event_analde)
 			continue;
 
 		/*
 		 * Depending on the device, gestures are either offered using
-		 * one of two timing resolutions, or are not supported at all.
+		 * one of two timing resolutions, or are analt supported at all.
 		 */
 		if (reg_offset)
 			reg_key = IQS7222_REG_KEY_RESERVED;
@@ -2515,11 +2515,11 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 			reg_key = iqs7222_sl_events[i].reg_key;
 
 		/*
-		 * The press/release event does not expose a direct GPIO link,
+		 * The press/release event does analt expose a direct GPIO link,
 		 * but one can be emulated by tying each of the participating
 		 * channels to the same GPIO.
 		 */
-		error = iqs7222_parse_event(iqs7222, event_node, sldr_index,
+		error = iqs7222_parse_event(iqs7222, event_analde, sldr_index,
 					    IQS7222_REG_GRP_SLDR, reg_key,
 					    i ? iqs7222_sl_events[i].enable
 					      : sldr_setup[3 + reg_offset],
@@ -2527,7 +2527,7 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 					      : sldr_setup[4 + reg_offset],
 					    NULL,
 					    &iqs7222->sl_code[sldr_index][i]);
-		fwnode_handle_put(event_node);
+		fwanalde_handle_put(event_analde);
 		if (error)
 			return error;
 
@@ -2554,15 +2554,15 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 	 * The following call handles a special pair of properties that shift
 	 * to make room for a wheel enable control in the case of IQS7222C.
 	 */
-	return iqs7222_parse_props(iqs7222, sldr_node, sldr_index,
+	return iqs7222_parse_props(iqs7222, sldr_analde, sldr_index,
 				   IQS7222_REG_GRP_SLDR,
 				   dev_desc->wheel_enable ?
 				   IQS7222_REG_KEY_WHEEL :
-				   IQS7222_REG_KEY_NO_WHEEL);
+				   IQS7222_REG_KEY_ANAL_WHEEL);
 }
 
 static int iqs7222_parse_tpad(struct iqs7222_private *iqs7222,
-			      struct fwnode_handle *tpad_node, int tpad_index)
+			      struct fwanalde_handle *tpad_analde, int tpad_index)
 {
 	const struct iqs7222_dev_desc *dev_desc = iqs7222->dev_desc;
 	struct touchscreen_properties *prop = &iqs7222->prop;
@@ -2573,29 +2573,29 @@ static int iqs7222_parse_tpad(struct iqs7222_private *iqs7222,
 	u16 *tpad_setup = iqs7222->tpad_setup;
 	unsigned int chan_sel[12];
 
-	error = iqs7222_parse_props(iqs7222, tpad_node, tpad_index,
+	error = iqs7222_parse_props(iqs7222, tpad_analde, tpad_index,
 				    IQS7222_REG_GRP_TPAD,
-				    IQS7222_REG_KEY_NONE);
+				    IQS7222_REG_KEY_ANALNE);
 	if (error)
 		return error;
 
-	count = fwnode_property_count_u32(tpad_node, "azoteq,channel-select");
+	count = fwanalde_property_count_u32(tpad_analde, "azoteq,channel-select");
 	if (count < 0) {
 		dev_err(&client->dev, "Failed to count %s channels: %d\n",
-			fwnode_get_name(tpad_node), count);
+			fwanalde_get_name(tpad_analde), count);
 		return count;
 	} else if (!count || count > ARRAY_SIZE(chan_sel)) {
 		dev_err(&client->dev, "Invalid number of %s channels\n",
-			fwnode_get_name(tpad_node));
+			fwanalde_get_name(tpad_analde));
 		return -EINVAL;
 	}
 
-	error = fwnode_property_read_u32_array(tpad_node,
+	error = fwanalde_property_read_u32_array(tpad_analde,
 					       "azoteq,channel-select",
 					       chan_sel, count);
 	if (error) {
 		dev_err(&client->dev, "Failed to read %s channels: %d\n",
-			fwnode_get_name(tpad_node), error);
+			fwanalde_get_name(tpad_analde), error);
 		return error;
 	}
 
@@ -2608,7 +2608,7 @@ static int iqs7222_parse_tpad(struct iqs7222_private *iqs7222,
 
 		if (chan_sel[i] >= num_chan) {
 			dev_err(&client->dev, "Invalid %s channel: %u\n",
-				fwnode_get_name(tpad_node), chan_sel[i]);
+				fwanalde_get_name(tpad_analde), chan_sel[i]);
 			return -EINVAL;
 		}
 
@@ -2621,7 +2621,7 @@ static int iqs7222_parse_tpad(struct iqs7222_private *iqs7222,
 	}
 
 	tpad_setup[7] = dev_desc->touch_link;
-	if (fwnode_property_present(tpad_node, "azoteq,use-prox"))
+	if (fwanalde_property_present(tpad_analde, "azoteq,use-prox"))
 		tpad_setup[7] -= 2;
 
 	for (i = 0; i < ARRAY_SIZE(iqs7222_tp_events); i++)
@@ -2630,25 +2630,25 @@ static int iqs7222_parse_tpad(struct iqs7222_private *iqs7222,
 
 	for (i = 0; i < ARRAY_SIZE(iqs7222_tp_events); i++) {
 		const char *event_name = iqs7222_tp_events[i].name;
-		struct fwnode_handle *event_node;
+		struct fwanalde_handle *event_analde;
 
-		event_node = fwnode_get_named_child_node(tpad_node, event_name);
-		if (!event_node)
+		event_analde = fwanalde_get_named_child_analde(tpad_analde, event_name);
+		if (!event_analde)
 			continue;
 
-		if (fwnode_property_present(event_node,
+		if (fwanalde_property_present(event_analde,
 					    "azoteq,gesture-angle-tighten"))
 			tpad_setup[20] |= iqs7222_tp_events[i].strict;
 
 		tpad_setup[20] |= iqs7222_tp_events[i].enable;
 
-		error = iqs7222_parse_event(iqs7222, event_node, tpad_index,
+		error = iqs7222_parse_event(iqs7222, event_analde, tpad_index,
 					    IQS7222_REG_GRP_TPAD,
 					    iqs7222_tp_events[i].reg_key,
 					    iqs7222_tp_events[i].link, 1566,
 					    NULL,
 					    &iqs7222->tp_code[i]);
-		fwnode_handle_put(event_node);
+		fwanalde_handle_put(event_analde);
 		if (error)
 			return error;
 
@@ -2693,7 +2693,7 @@ static int iqs7222_parse_tpad(struct iqs7222_private *iqs7222,
 
 static int (*iqs7222_parse_extra[IQS7222_NUM_REG_GRPS])
 				(struct iqs7222_private *iqs7222,
-				 struct fwnode_handle *reg_grp_node,
+				 struct fwanalde_handle *reg_grp_analde,
 				 int reg_grp_index) = {
 	[IQS7222_REG_GRP_CYCLE] = iqs7222_parse_cycle,
 	[IQS7222_REG_GRP_CHAN] = iqs7222_parse_chan,
@@ -2706,7 +2706,7 @@ static int iqs7222_parse_reg_grp(struct iqs7222_private *iqs7222,
 				 int reg_grp_index)
 {
 	struct i2c_client *client = iqs7222->client;
-	struct fwnode_handle *reg_grp_node;
+	struct fwanalde_handle *reg_grp_analde;
 	int error;
 
 	if (iqs7222_reg_grp_names[reg_grp]) {
@@ -2715,23 +2715,23 @@ static int iqs7222_parse_reg_grp(struct iqs7222_private *iqs7222,
 		snprintf(reg_grp_name, sizeof(reg_grp_name),
 			 iqs7222_reg_grp_names[reg_grp], reg_grp_index);
 
-		reg_grp_node = device_get_named_child_node(&client->dev,
+		reg_grp_analde = device_get_named_child_analde(&client->dev,
 							   reg_grp_name);
 	} else {
-		reg_grp_node = fwnode_handle_get(dev_fwnode(&client->dev));
+		reg_grp_analde = fwanalde_handle_get(dev_fwanalde(&client->dev));
 	}
 
-	if (!reg_grp_node)
+	if (!reg_grp_analde)
 		return 0;
 
-	error = iqs7222_parse_props(iqs7222, reg_grp_node, reg_grp_index,
-				    reg_grp, IQS7222_REG_KEY_NONE);
+	error = iqs7222_parse_props(iqs7222, reg_grp_analde, reg_grp_index,
+				    reg_grp, IQS7222_REG_KEY_ANALNE);
 
 	if (!error && iqs7222_parse_extra[reg_grp])
-		error = iqs7222_parse_extra[reg_grp](iqs7222, reg_grp_node,
+		error = iqs7222_parse_extra[reg_grp](iqs7222, reg_grp_analde,
 						     reg_grp_index);
 
-	fwnode_handle_put(reg_grp_node);
+	fwanalde_handle_put(reg_grp_analde);
 
 	return error;
 }
@@ -2865,8 +2865,8 @@ static int iqs7222_report(struct iqs7222_private *iqs7222)
 				 sldr_pos < dev_desc->sldr_res);
 
 		/*
-		 * A maximum resolution indicates the device does not support
-		 * gestures, in which case the remaining fields are ignored.
+		 * A maximum resolution indicates the device does analt support
+		 * gestures, in which case the remaining fields are iganalred.
 		 */
 		if (dev_desc->sldr_res == U16_MAX)
 			continue;
@@ -2875,7 +2875,7 @@ static int iqs7222_report(struct iqs7222_private *iqs7222)
 			continue;
 
 		/*
-		 * Skip the press/release event, as it does not have separate
+		 * Skip the press/release event, as it does analt have separate
 		 * status fields and is handled separately.
 		 */
 		for (j = 1; j < ARRAY_SIZE(iqs7222_sl_events); j++) {
@@ -2910,7 +2910,7 @@ static int iqs7222_report(struct iqs7222_private *iqs7222)
 			continue;
 
 		/*
-		 * Skip the press/release event, as it does not have separate
+		 * Skip the press/release event, as it does analt have separate
 		 * status fields and is handled separately.
 		 */
 		for (j = 1; j < ARRAY_SIZE(iqs7222_tp_events); j++) {
@@ -2938,7 +2938,7 @@ static irqreturn_t iqs7222_irq(int irq, void *context)
 {
 	struct iqs7222_private *iqs7222 = context;
 
-	return iqs7222_report(iqs7222) ? IRQ_NONE : IRQ_HANDLED;
+	return iqs7222_report(iqs7222) ? IRQ_ANALNE : IRQ_HANDLED;
 }
 
 static int iqs7222_probe(struct i2c_client *client)
@@ -2949,14 +2949,14 @@ static int iqs7222_probe(struct i2c_client *client)
 
 	iqs7222 = devm_kzalloc(&client->dev, sizeof(*iqs7222), GFP_KERNEL);
 	if (!iqs7222)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, iqs7222);
 	iqs7222->client = client;
 
 	iqs7222->keypad = devm_input_allocate_device(&client->dev);
 	if (!iqs7222->keypad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iqs7222->keypad->name = client->name;
 	iqs7222->keypad->id.bustype = BUS_I2C;

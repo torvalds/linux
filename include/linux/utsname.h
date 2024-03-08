@@ -70,9 +70,9 @@ static inline void uts_ns_init(void)
 #endif
 
 #ifdef CONFIG_PROC_SYSCTL
-extern void uts_proc_notify(enum uts_proc proc);
+extern void uts_proc_analtify(enum uts_proc proc);
 #else
-static inline void uts_proc_notify(enum uts_proc proc)
+static inline void uts_proc_analtify(enum uts_proc proc)
 {
 }
 #endif

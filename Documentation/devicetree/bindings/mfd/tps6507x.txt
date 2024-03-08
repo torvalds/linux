@@ -3,9 +3,9 @@ TPS6507x Power Management Integrated Circuit
 Required properties:
 - compatible: "ti,tps6507x"
 - reg: I2C slave address
-- regulators: This is the list of child nodes that specify the regulator
-  initialization data for defined regulators. Not all regulators for the
-  given device need to be present. The definition for each of these nodes
+- regulators: This is the list of child analdes that specify the regulator
+  initialization data for defined regulators. Analt all regulators for the
+  given device need to be present. The definition for each of these analdes
   is defined using the standard binding for regulators found at
   Documentation/devicetree/bindings/regulator/regulator.txt.
   The regulator is matched with the regulator-compatible.
@@ -18,7 +18,7 @@ Required properties:
   fails.
   If some of input supply is powered through battery or always-on
   supply then also it is require to have these parameters with proper
-  node handle of always on power supply.
+  analde handle of always on power supply.
   tps6507x:
        vindcdc1_2-supply: VDCDC1 and VDCDC2 input.
        vindcdc3-supply  : VDCDC3 input.
@@ -28,7 +28,7 @@ Regulator Optional properties:
 - defdcdc_default: It's property of DCDC2 and DCDC3 regulators.
 			0: If defdcdc pin of DCDC2/DCDC3 is pulled to GND.
 			1: If defdcdc pin of DCDC2/DCDC3 is driven HIGH.
-  If this property is not defined, it defaults to 0 (not enabled).
+  If this property is analt defined, it defaults to 0 (analt enabled).
 
 Example:
 

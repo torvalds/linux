@@ -3,7 +3,7 @@
  *  sst_pci.c - SST (LPE) driver init file for pci enumeration.
  *
  *  Copyright (C) 2008-14	Intel Corp
- *  Authors:	Vinod Koul <vinod.koul@intel.com>
+ *  Authors:	Vianald Koul <vianald.koul@intel.com>
  *		Harsha Priya <priya.harsha@intel.com>
  *		Dharageswari R <dharageswari.r@intel.com>
  *		KP Jeeja <jeeja.kp@intel.com>
@@ -43,7 +43,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 		}
 		if (ddr_base != ctx->pdata->lib_info->mod_base) {
 			dev_err(ctx->dev,
-					"FW LSP DDR BASE does not match with IFWI\n");
+					"FW LSP DDR BASE does analt match with IFWI\n");
 			ret = -EINVAL;
 			goto do_release_regions;
 		}
@@ -192,7 +192,7 @@ static struct pci_driver sst_driver = {
 module_pci_driver(sst_driver);
 
 MODULE_DESCRIPTION("Intel (R) SST(R) Audio Engine PCI Driver");
-MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");
+MODULE_AUTHOR("Vianald Koul <vianald.koul@intel.com>");
 MODULE_AUTHOR("Harsha Priya <priya.harsha@intel.com>");
 MODULE_AUTHOR("Dharageswari R <dharageswari.r@intel.com>");
 MODULE_AUTHOR("KP Jeeja <jeeja.kp@intel.com>");

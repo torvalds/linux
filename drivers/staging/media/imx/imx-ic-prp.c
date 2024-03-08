@@ -189,7 +189,7 @@ static int prp_set_fmt(struct v4l2_subdev *sd,
 		}
 
 		if (sdformat->format.field == V4L2_FIELD_ANY)
-			sdformat->format.field = V4L2_FIELD_NONE;
+			sdformat->format.field = V4L2_FIELD_ANALNE;
 		break;
 	case PRP_SRC_PAD_PRPENC:
 	case PRP_SRC_PAD_PRPVF:
@@ -310,7 +310,7 @@ static int prp_link_validate(struct v4l2_subdev *sd,
 
 	if (priv->src_sd->grp_id & IMX_MEDIA_GRP_ID_IPU_VDIC) {
 		/*
-		 * the ->PRPENC link cannot be enabled if the source
+		 * the ->PRPENC link cananalt be enabled if the source
 		 * is the VDIC
 		 */
 		if (priv->sink_sd_prpenc) {
@@ -377,7 +377,7 @@ static int prp_s_stream(struct v4l2_subdev *sd, int enable)
 
 	/* start/stop upstream */
 	ret = v4l2_subdev_call(priv->src_sd, video, s_stream, enable);
-	ret = (ret && ret != -ENOIOCTLCMD) ? ret : 0;
+	ret = (ret && ret != -EANALIOCTLCMD) ? ret : 0;
 	if (ret) {
 		if (enable)
 			prp_stop(priv);
@@ -434,8 +434,8 @@ static int prp_set_frame_interval(struct v4l2_subdev *sd,
 
 	mutex_lock(&priv->lock);
 
-	/* No limits on valid frame intervals */
-	if (fi->interval.numerator == 0 || fi->interval.denominator == 0)
+	/* Anal limits on valid frame intervals */
+	if (fi->interval.numerator == 0 || fi->interval.deanalminator == 0)
 		fi->interval = priv->frame_interval;
 	else
 		priv->frame_interval = fi->interval;
@@ -452,7 +452,7 @@ static int prp_registered(struct v4l2_subdev *sd)
 
 	/* init default frame interval */
 	priv->frame_interval.numerator = 1;
-	priv->frame_interval.denominator = 30;
+	priv->frame_interval.deanalminator = 30;
 
 	/* set a default mbus format  */
 	imx_media_enum_ipu_formats(&code, 0, PIXFMT_SEL_YUV);
@@ -460,7 +460,7 @@ static int prp_registered(struct v4l2_subdev *sd)
 	return imx_media_init_mbus_fmt(&priv->format_mbus,
 				       IMX_MEDIA_DEF_PIX_WIDTH,
 				       IMX_MEDIA_DEF_PIX_HEIGHT, code,
-				       V4L2_FIELD_NONE, NULL);
+				       V4L2_FIELD_ANALNE, NULL);
 }
 
 static const struct v4l2_subdev_pad_ops prp_pad_ops = {
@@ -498,7 +498,7 @@ static int prp_init(struct imx_ic_priv *ic_priv)
 
 	priv = devm_kzalloc(ic_priv->ipu_dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->lock);
 	ic_priv->task_priv = priv;

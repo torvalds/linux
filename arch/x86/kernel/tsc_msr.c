@@ -19,13 +19,13 @@
 #define MAX_NUM_FREQS	16 /* 4 bits to select the frequency */
 
 /*
- * The frequency numbers in the SDM are e.g. 83.3 MHz, which does not contain a
- * lot of accuracy which leads to clock drift. As far as we know Bay Trail SoCs
+ * The frequency numbers in the SDM are e.g. 83.3 MHz, which does analt contain a
+ * lot of accuracy which leads to clock drift. As far as we kanalw Bay Trail SoCs
  * use a 25 MHz crystal and Cherry Trail uses a 19.2 MHz crystal, the crystal
  * is the source clk for a root PLL which outputs 1600 and 100 MHz. It is
  * unclear if the root PLL outputs are used directly by the CPU clock PLL or
- * if there is another PLL in between.
- * This does not matter though, we can model the chain of PLLs as a single PLL
+ * if there is aanalther PLL in between.
+ * This does analt matter though, we can model the chain of PLLs as a single PLL
  * with a quotient equal to the quotients of all PLLs in the chain multiplied.
  * So we can create a simplified model of the CPU clock setup using a reference
  * clock of 100 MHz plus a quotient which gets us as close to the frequency
@@ -51,7 +51,7 @@ struct freq_desc {
 	bool use_msr_plat;
 	struct muldiv muldiv[MAX_NUM_FREQS];
 	/*
-	 * Some CPU frequencies in the SDM do not map to known PLL freqs, in
+	 * Some CPU frequencies in the SDM do analt map to kanalwn PLL freqs, in
 	 * that case the muldiv array is empty and the freqs array is used.
 	 */
 	u32 freqs[MAX_NUM_FREQS];
@@ -60,7 +60,7 @@ struct freq_desc {
 
 /*
  * Penwell and Clovertrail use spread spectrum clock,
- * so the freq number is not exactly the same as reported
+ * so the freq number is analt exactly the same as reported
  * by MSR based on SDM.
  */
 static const struct freq_desc freq_desc_pnw = {
@@ -191,7 +191,7 @@ unsigned long cpu_khz_from_msr(void)
 	md = &freq_desc->muldiv[index];
 
 	/*
-	 * Note this also catches cases where the index points to an unpopulated
+	 * Analte this also catches cases where the index points to an unpopulated
 	 * part of muldiv, in that case the else will set freq and res to 0.
 	 */
 	if (md->divider) {
@@ -208,26 +208,26 @@ unsigned long cpu_khz_from_msr(void)
 	}
 
 	if (freq == 0)
-		pr_err("Error MSR_FSB_FREQ index %d is unknown\n", index);
+		pr_err("Error MSR_FSB_FREQ index %d is unkanalwn\n", index);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	lapic_timer_period = (freq * 1000) / HZ;
 #endif
 
 	/*
-	 * TSC frequency determined by MSR is always considered "known"
+	 * TSC frequency determined by MSR is always considered "kanalwn"
 	 * because it is reported by HW.
-	 * Another fact is that on MSR capable platforms, PIT/HPET is
-	 * generally not available so calibration won't work at all.
+	 * Aanalther fact is that on MSR capable platforms, PIT/HPET is
+	 * generally analt available so calibration won't work at all.
 	 */
-	setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
+	setup_force_cpu_cap(X86_FEATURE_TSC_KANALWN_FREQ);
 
 	/*
-	 * Unfortunately there is no way for hardware to tell whether the
+	 * Unfortunately there is anal way for hardware to tell whether the
 	 * TSC is reliable.  We were told by silicon design team that TSC
 	 * on Atom SoCs are always "reliable". TSC is also the only
-	 * reliable clocksource on these SoCs (HPET is either not present
-	 * or not functional) so mark TSC reliable which removes the
+	 * reliable clocksource on these SoCs (HPET is either analt present
+	 * or analt functional) so mark TSC reliable which removes the
 	 * requirement for a watchdog clocksource.
 	 */
 	setup_force_cpu_cap(X86_FEATURE_TSC_RELIABLE);

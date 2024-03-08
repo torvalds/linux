@@ -118,7 +118,7 @@ mlxsw_sp_pgt_entry_create(struct mlxsw_sp_pgt *pgt, u16 mid, u16 smpe)
 
 	pgt_entry = kzalloc(sizeof(*pgt_entry), GFP_KERNEL);
 	if (!pgt_entry)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = idr_replace(&pgt->pgt_idr, pgt_entry, mid);
 	if (IS_ERR(ret)) {
@@ -189,7 +189,7 @@ mlxsw_sp_pgt_entry_port_write(struct mlxsw_sp *mlxsw_sp,
 
 	smid2_pl = kmalloc(MLXSW_REG_SMID2_LEN, GFP_KERNEL);
 	if (!smid2_pl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlxsw_reg_smid2_pack(smid2_pl, pgt_entry->index, 0, 0,
 			     mlxsw_sp->pgt->smpe_index_valid,
@@ -213,7 +213,7 @@ mlxsw_sp_pgt_entry_port_create(struct mlxsw_sp *mlxsw_sp,
 
 	pgt_entry_port = kzalloc(sizeof(*pgt_entry_port), GFP_KERNEL);
 	if (!pgt_entry_port)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = mlxsw_sp_pgt_entry_port_write(mlxsw_sp, pgt_entry, local_port,
 					    true);
@@ -317,7 +317,7 @@ int mlxsw_sp_pgt_init(struct mlxsw_sp *mlxsw_sp)
 
 	pgt = kzalloc(sizeof(*mlxsw_sp->pgt), GFP_KERNEL);
 	if (!pgt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idr_init(&pgt->pgt_idr);
 	pgt->end_index = MLXSW_CORE_RES_GET(mlxsw_sp->core, PGT_SIZE);

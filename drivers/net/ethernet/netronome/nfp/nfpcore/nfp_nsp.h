@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 #ifndef NSP_NSP_H
 #define NSP_NSP_H 1
@@ -14,7 +14,7 @@ struct nfp_nsp;
 struct nfp_nsp *nfp_nsp_open(struct nfp_cpp *cpp);
 void nfp_nsp_close(struct nfp_nsp *state);
 u16 nfp_nsp_get_abi_ver_major(struct nfp_nsp *state);
-u16 nfp_nsp_get_abi_ver_minor(struct nfp_nsp *state);
+u16 nfp_nsp_get_abi_ver_mianalr(struct nfp_nsp *state);
 int nfp_nsp_wait(struct nfp_nsp *state);
 int nfp_nsp_device_soft_reset(struct nfp_nsp *state);
 int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw);
@@ -32,46 +32,46 @@ int nfp_nsp_read_module_eeprom(struct nfp_nsp *state, int eth_index,
 
 static inline bool nfp_nsp_has_mac_reinit(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 20;
+	return nfp_nsp_get_abi_ver_mianalr(state) > 20;
 }
 
 static inline bool nfp_nsp_has_stored_fw_load(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 23;
+	return nfp_nsp_get_abi_ver_mianalr(state) > 23;
 }
 
 static inline bool nfp_nsp_has_hwinfo_lookup(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 24;
+	return nfp_nsp_get_abi_ver_mianalr(state) > 24;
 }
 
 static inline bool nfp_nsp_has_hwinfo_set(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 25;
+	return nfp_nsp_get_abi_ver_mianalr(state) > 25;
 }
 
 static inline bool nfp_nsp_has_fw_loaded(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 25;
+	return nfp_nsp_get_abi_ver_mianalr(state) > 25;
 }
 
 static inline bool nfp_nsp_has_versions(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 27;
+	return nfp_nsp_get_abi_ver_mianalr(state) > 27;
 }
 
 static inline bool nfp_nsp_has_read_module_eeprom(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 28;
+	return nfp_nsp_get_abi_ver_mianalr(state) > 28;
 }
 
 static inline bool nfp_nsp_has_read_media(struct nfp_nsp *state)
 {
-	return nfp_nsp_get_abi_ver_minor(state) > 33;
+	return nfp_nsp_get_abi_ver_mianalr(state) > 33;
 }
 
 enum nfp_eth_interface {
-	NFP_INTERFACE_NONE	= 0,
+	NFP_INTERFACE_ANALNE	= 0,
 	NFP_INTERFACE_SFP	= 1,
 	NFP_INTERFACE_SFPP	= 10,
 	NFP_INTERFACE_SFP28	= 28,
@@ -102,7 +102,7 @@ enum nfp_eth_fec {
 	NFP_FEC_DISABLED_BIT,
 };
 
-/* link modes about RJ45 haven't been used, so there's no mapping to them */
+/* link modes about RJ45 haven't been used, so there's anal mapping to them */
 enum nfp_ethtool_link_mode_list {
 	NFP_MEDIA_W0_RJ45_10M,
 	NFP_MEDIA_W0_RJ45_10M_HD,
@@ -326,7 +326,7 @@ struct nfp_eth_media_buf {
 
 int nfp_nsp_read_media(struct nfp_nsp *state, void *buf, unsigned int size);
 
-#define NFP_NSP_VERSION_BUFSZ	1024 /* reasonable size, not in the ABI */
+#define NFP_NSP_VERSION_BUFSZ	1024 /* reasonable size, analt in the ABI */
 
 enum nfp_nsp_versions {
 	NFP_VERSIONS_BSP,

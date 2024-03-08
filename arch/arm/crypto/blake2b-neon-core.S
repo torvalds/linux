@@ -238,8 +238,8 @@
 //			      const u8 *block, size_t nblocks, u32 inc);
 //
 // Only the first three fields of struct blake2b_state are used:
-//	u64 h[8];	(inout)
-//	u64 t[2];	(inout)
+//	u64 h[8];	(ianalut)
+//	u64 t[2];	(ianalut)
 //	u64 f[2];	(in)
 //
 	.align		5
@@ -271,7 +271,7 @@ ENTRY(blake2b_compress_neon)
 .Linc_ctr_done:
 
 	// Load the next message block and finish initializing the state matrix
-	// 'v'.  Fortunately, there are exactly enough NEON registers to fit the
+	// 'v'.  Fortunately, there are exactly eanalugh NEON registers to fit the
 	// entire state matrix in q0-q7 and the entire message block in q8-15.
 	//
 	// However, _blake2b_round also needs some extra registers for rotates,

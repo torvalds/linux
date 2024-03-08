@@ -30,7 +30,7 @@ SECTIONS
 
 	/DISCARD/ : {
 		*(.comment*)
-		*(.note*)
+		*(.analte*)
 		*(.debug*)
 		*(.eh_frame*)
 		*(.dyn*)
@@ -38,4 +38,4 @@ SECTIONS
 	}
 }
 
-ASSERT(!DEFINED(_GLOBAL_OFFSET_TABLE_), "Libcalls through GOT are not supported in enclaves")
+ASSERT(!DEFINED(_GLOBAL_OFFSET_TABLE_), "Libcalls through GOT are analt supported in enclaves")

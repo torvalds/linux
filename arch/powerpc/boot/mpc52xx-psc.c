@@ -4,7 +4,7 @@
  *
  * Author: Grant Likely <grant.likely@secretlab.ca>
  *
- * Copyright (c) 2007 Secret Lab Technologies Ltd.
+ * Copyright (c) 2007 Secret Lab Techanallogies Ltd.
  * Copyright (c) 2007 Freescale Semiconductor, Inc.
  *
  * It is assumed that the firmware (or the platform file) has already set

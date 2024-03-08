@@ -76,18 +76,18 @@ static int mtk_adsp_ipc_probe(struct platform_device *pdev)
 	int ret;
 	int i, j;
 
-	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
+	device_set_of_analde_from_dev(&pdev->dev, pdev->dev.parent);
 
 	adsp_ipc = devm_kzalloc(dev, sizeof(*adsp_ipc), GFP_KERNEL);
 	if (!adsp_ipc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < MTK_ADSP_MBOX_NUM; i++) {
 		adsp_chan = &adsp_ipc->chans[i];
 		cl = &adsp_chan->cl;
 		cl->dev = dev->parent;
 		cl->tx_block = false;
-		cl->knows_txdone = false;
+		cl->kanalws_txdone = false;
 		cl->tx_prepare = NULL;
 		cl->rx_callback = mtk_adsp_ipc_recv;
 

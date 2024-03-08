@@ -5,7 +5,7 @@
  * Generic driver for MIPI CCS/SMIA/SMIA++ compliant camera sensors
  *
  * Copyright (C) 2020 Intel Corporation
- * Copyright (C) 2010--2012 Nokia Corporation
+ * Copyright (C) 2010--2012 Analkia Corporation
  * Contact: Sakari Ailus <sakari.ailus@linux.intel.com>
  *
  * Based on smiapp driver by Vimarsh Zutshi
@@ -27,7 +27,7 @@
 #include <linux/v4l2-mediabus.h>
 #include <media/v4l2-cci.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <uapi/linux/ccs.h>
 
 #include "ccs.h"
@@ -169,7 +169,7 @@ static int ccs_read_all_limits(struct ccs_sensor *sensor)
 
 	alloc = kzalloc(ccs_limit_offsets[CCS_L_LAST].lim, GFP_KERNEL);
 	if (!alloc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	end = alloc + ccs_limit_offsets[CCS_L_LAST].lim;
 
@@ -192,13 +192,13 @@ static int ccs_read_all_limits(struct ccs_sensor *sensor)
 			char str[16] = "";
 			u32 val;
 
-			ret = ccs_read_addr_noconv(sensor, reg, &val);
+			ret = ccs_read_addr_analconv(sensor, reg, &val);
 			if (ret)
 				goto out_err;
 
 			if (ptr + width > end) {
 				dev_err(&client->dev,
-					"internal error --- no room for regs\n");
+					"internal error --- anal room for regs\n");
 				ret = -EINVAL;
 				goto out_err;
 			}
@@ -394,7 +394,7 @@ static int ccs_pll_configure(struct ccs_sensor *sensor)
 
 	if (!(CCS_LIM(sensor, PHY_CTRL_CAPABILITY) &
 	      CCS_PHY_CTRL_CAPABILITY_AUTO_PHY_CTL)) {
-		/* Lane op clock ratio does not apply here. */
+		/* Lane op clock ratio does analt apply here. */
 		rval = ccs_write(sensor, REQUESTED_LINK_RATE,
 				 DIV_ROUND_UP(pll->op_bk.sys_clk_freq_hz,
 					      1000000 / 256 / 256) *
@@ -406,7 +406,7 @@ static int ccs_pll_configure(struct ccs_sensor *sensor)
 			return rval;
 	}
 
-	if (sensor->pll.flags & CCS_PLL_FLAG_NO_OP_CLOCKS)
+	if (sensor->pll.flags & CCS_PLL_FLAG_ANAL_OP_CLOCKS)
 		return 0;
 
 	rval = ccs_write(sensor, OP_PIX_CLK_DIV, pll->op_bk.pix_clk_div);
@@ -802,7 +802,7 @@ static const struct v4l2_ctrl_ops ccs_ctrl_ops = {
 static int ccs_init_controls(struct ccs_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	int rval;
 
 	rval = v4l2_ctrl_handler_init(&sensor->pixel_array->ctrl_handler, 19);
@@ -811,11 +811,11 @@ static int ccs_init_controls(struct ccs_sensor *sensor)
 
 	sensor->pixel_array->ctrl_handler.lock = &sensor->mutex;
 
-	rval = v4l2_fwnode_device_parse(&client->dev, &props);
+	rval = v4l2_fwanalde_device_parse(&client->dev, &props);
 	if (rval)
 		return rval;
 
-	rval = v4l2_ctrl_new_fwnode_properties(&sensor->pixel_array->ctrl_handler,
+	rval = v4l2_ctrl_new_fwanalde_properties(&sensor->pixel_array->ctrl_handler,
 					       &ccs_ctrl_ops, &props);
 	if (rval)
 		return rval;
@@ -1083,8 +1083,8 @@ static int ccs_get_mbus_formats(struct ccs_sensor *sensor)
 		pixel_order_str[pixel_order]);
 
 	switch (type) {
-	case CCS_DATA_FORMAT_MODEL_TYPE_NORMAL:
-		n = SMIAPP_DATA_FORMAT_MODEL_TYPE_NORMAL_N;
+	case CCS_DATA_FORMAT_MODEL_TYPE_ANALRMAL:
+		n = SMIAPP_DATA_FORMAT_MODEL_TYPE_ANALRMAL_N;
 		break;
 	case CCS_DATA_FORMAT_MODEL_TYPE_EXTENDED:
 		n = CCS_LIM_DATA_FORMAT_DESCRIPTOR_MAX_N + 1;
@@ -1142,7 +1142,7 @@ static int ccs_get_mbus_formats(struct ccs_sensor *sensor)
 		compressed_max_bpp - sensor->compressed_min_bpp + 1,
 		sizeof(*sensor->valid_link_freqs), GFP_KERNEL);
 	if (!sensor->valid_link_freqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(ccs_csi_data_formats); i++) {
 		const struct ccs_csi_data_format *f =
@@ -1163,7 +1163,7 @@ static int ccs_get_mbus_formats(struct ccs_sensor *sensor)
 			rval = ccs_pll_try(sensor, pll);
 			dev_dbg(&client->dev, "link freq %u Hz, bpp %u %s\n",
 				pll->link_freq, pll->bits_per_pixel,
-				rval ? "not ok" : "ok");
+				rval ? "analt ok" : "ok");
 			if (rval)
 				continue;
 
@@ -1172,7 +1172,7 @@ static int ccs_get_mbus_formats(struct ccs_sensor *sensor)
 
 		if (!*valid_link_freqs) {
 			dev_info(&client->dev,
-				 "no valid link frequencies for %u bpp\n",
+				 "anal valid link frequencies for %u bpp\n",
 				 f->compressed);
 			sensor->default_mbus_frame_fmts &= ~BIT(i);
 			continue;
@@ -1188,7 +1188,7 @@ static int ccs_get_mbus_formats(struct ccs_sensor *sensor)
 	}
 
 	if (!sensor->csi_format) {
-		dev_err(&client->dev, "no supported mbus code found\n");
+		dev_err(&client->dev, "anal supported mbus code found\n");
 		return -EINVAL;
 	}
 
@@ -1286,7 +1286,7 @@ static int ccs_read_nvm_page(struct ccs_sensor *sensor, u32 p, u8 *nvm,
 
 	if (s & CCS_DATA_TRANSFER_IF_1_STATUS_IMPROPER_IF_USAGE) {
 		*status = s;
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	if (CCS_LIM(sensor, DATA_TRANSFER_IF_CAPABILITY) &
@@ -1330,7 +1330,7 @@ static int ccs_read_nvm(struct ccs_sensor *sensor, unsigned char *nvm,
 		nvm += CCS_LIM_DATA_TRANSFER_IF_1_DATA_MAX_P + 1;
 	}
 
-	if (rval == -ENODATA &&
+	if (rval == -EANALDATA &&
 	    status & CCS_DATA_TRANSFER_IF_1_STATUS_IMPROPER_IF_USAGE)
 		rval = 0;
 
@@ -1367,7 +1367,7 @@ static int ccs_change_cci_addr(struct ccs_sensor *sensor)
 		return rval;
 
 	if (val != sensor->hwcfg.i2c_addr_alt << 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -1390,7 +1390,7 @@ static int ccs_setup_flash_strobe(struct ccs_sensor *sensor)
 
 	/*
 	 * How to calculate registers related to strobe length. Please
-	 * do not change, or if you do at least know what you're
+	 * do analt change, or if you do at least kanalw what you're
 	 * doing. :-)
 	 *
 	 * Sakari Ailus <sakari.ailus@linux.intel.com> 2010-10-25
@@ -1533,7 +1533,7 @@ static int ccs_update_phy_ctrl(struct ccs_sensor *sensor)
 		   CCS_PHY_CTRL_CAPABILITY_UI_PHY_CTL) {
 		val = CCS_PHY_CTRL_UI;
 	} else {
-		dev_err(&client->dev, "manual PHY control not supported\n");
+		dev_err(&client->dev, "manual PHY control analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1581,7 +1581,7 @@ static int ccs_power_on(struct device *dev)
 	}
 
 	/*
-	 * Failures to respond to the address change command have been noticed.
+	 * Failures to respond to the address change command have been analticed.
 	 * Those failures seem to be caused by the sensor requiring a longer
 	 * boot time than advertised. An additional 10ms delay seems to work
 	 * around the issue, but the SMIA++ I2C write retry hack makes the delay
@@ -1697,7 +1697,7 @@ static int ccs_power_off(struct device *dev)
 	/*
 	 * Currently power/clock to lens are enable/disabled separately
 	 * but they are essentially the same signals. So if the sensor is
-	 * powered off while the lens is powered on the sensor does not
+	 * powered off while the lens is powered on the sensor does analt
 	 * really see a power off and next time the cci address change
 	 * will fail. So do a soft reset explicitly here.
 	 */
@@ -1779,7 +1779,7 @@ static int ccs_start_streaming(struct ccs_sensor *sensor)
 
 	/*
 	 * Output from pixel array, including blanking, is set using
-	 * controls below. No need to set here.
+	 * controls below. Anal need to set here.
 	 */
 
 	/* Digital crop */
@@ -1808,7 +1808,7 @@ static int ccs_start_streaming(struct ccs_sensor *sensor)
 
 	/* Scaling */
 	if (CCS_LIM(sensor, SCALING_CAPABILITY)
-	    != CCS_SCALING_CAPABILITY_NONE) {
+	    != CCS_SCALING_CAPABILITY_ANALNE) {
 		rval = ccs_write(sensor, SCALING_MODE, sensor->scaling_mode);
 		if (rval < 0)
 			goto out;
@@ -1881,7 +1881,7 @@ static int ccs_pm_get_init(struct ccs_sensor *sensor)
 	/*
 	 * It can't use pm_runtime_resume_and_get() here, as the driver
 	 * relies at the returned value to detect if the device was already
-	 * active or not.
+	 * active or analt.
 	 */
 	rval = pm_runtime_get_sync(&client->dev);
 	if (rval < 0)
@@ -2099,7 +2099,7 @@ static void ccs_propagate(struct v4l2_subdev *subdev,
 			if (ssd == sensor->scaler) {
 				sensor->scale_m = CCS_LIM(sensor, SCALER_N_MIN);
 				sensor->scaling_mode =
-					CCS_SCALING_MODE_NO_SCALING;
+					CCS_SCALING_MODE_ANAL_SCALING;
 				sensor->scaler_sink = *comp;
 			} else if (ssd == sensor->binner) {
 				sensor->binning_horizontal = 1;
@@ -2211,7 +2211,7 @@ static int ccs_set_format(struct v4l2_subdev *subdev,
 	fmt->format.code = __ccs_get_mbus_code(subdev, fmt->pad);
 	fmt->format.width &= ~1;
 	fmt->format.height &= ~1;
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 
 	fmt->format.width =
 		clamp(fmt->format.width,
@@ -2499,7 +2499,7 @@ static int ccs_sel_supported(struct v4l2_subdev *subdev,
 		if (ssd == sensor->binner)
 			return 0;
 		if (ssd == sensor->scaler && CCS_LIM(sensor, SCALING_CAPABILITY)
-		    != CCS_SCALING_CAPABILITY_NONE)
+		    != CCS_SCALING_CAPABILITY_ANALNE)
 			return 0;
 		fallthrough;
 	default:
@@ -2672,13 +2672,13 @@ nvm_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	rval = ccs_pm_get_init(sensor);
 	if (rval < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rval = ccs_read_nvm(sensor, buf, PAGE_SIZE);
 	if (rval < 0) {
 		pm_runtime_put(&client->dev);
 		dev_err(&client->dev, "nvm read failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pm_runtime_mark_last_busy(&client->dev);
@@ -2686,7 +2686,7 @@ nvm_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	/*
 	 * NVM is still way below a PAGE_SIZE, so we can safely
-	 * assume this for now.
+	 * assume this for analw.
 	 */
 	return rval;
 }
@@ -2733,7 +2733,7 @@ static int ccs_identify_module(struct ccs_sensor *sensor)
 	if (!rval)
 		rval = ccs_read(sensor, MODULE_REVISION_NUMBER_MAJOR, &rev);
 	if (!rval) {
-		rval = ccs_read(sensor, MODULE_REVISION_NUMBER_MINOR,
+		rval = ccs_read(sensor, MODULE_REVISION_NUMBER_MIANALR,
 				&minfo->revision_number);
 		minfo->revision_number |= rev << 8;
 	}
@@ -2777,7 +2777,7 @@ static int ccs_identify_module(struct ccs_sensor *sensor)
 
 	if (rval) {
 		dev_err(&client->dev, "sensor detection failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (minfo->mipi_manufacturer_id)
@@ -2809,7 +2809,7 @@ static int ccs_identify_module(struct ccs_sensor *sensor)
 		dev_dbg(&client->dev, "MIPI CCS version %u.%u",
 			(minfo->ccs_version & CCS_MIPI_CCS_VERSION_MAJOR_MASK)
 			>> CCS_MIPI_CCS_VERSION_MAJOR_SHIFT,
-			(minfo->ccs_version & CCS_MIPI_CCS_VERSION_MINOR_MASK));
+			(minfo->ccs_version & CCS_MIPI_CCS_VERSION_MIANALR_MASK));
 		minfo->name = CCS_NAME;
 	} else {
 		dev_dbg(&client->dev,
@@ -2859,7 +2859,7 @@ static int ccs_identify_module(struct ccs_sensor *sensor)
 
 	if (i >= ARRAY_SIZE(ccs_module_idents))
 		dev_warn(&client->dev,
-			 "no quirks for this module; let's hope it's fully compliant\n");
+			 "anal quirks for this module; let's hope it's fully compliant\n");
 
 	dev_dbg(&client->dev, "the sensor is called %s\n", minfo->name);
 
@@ -2968,7 +2968,7 @@ static int ccs_init_subdev(struct ccs_sensor *sensor,
 	if (ssd != sensor->src)
 		v4l2_subdev_init(&ssd->sd, &ccs_ops);
 
-	ssd->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ssd->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	ssd->sd.entity.function = function;
 	ssd->sensor = sensor;
 
@@ -3024,7 +3024,7 @@ static int ccs_init_state(struct v4l2_subdev *sd,
 	fmt->width = crop->width;
 	fmt->height = crop->height;
 	fmt->code = sensor->internal_csi_format->code;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 
 	if (ssd == sensor->pixel_array) {
 		if (is_active)
@@ -3037,7 +3037,7 @@ static int ccs_init_state(struct v4l2_subdev *sd,
 	fmt = v4l2_subdev_state_get_format(sd_state, CCS_PAD_SRC);
 	fmt->code = ssd == sensor->src ?
 		sensor->csi_format->code : sensor->internal_csi_format->code;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 
 	ccs_propagate(sd, sd_state, is_active, V4L2_SEL_TGT_CROP);
 
@@ -3088,22 +3088,22 @@ static const struct v4l2_subdev_internal_ops ccs_internal_src_ops = {
 static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 {
 	struct ccs_hwconfig *hwcfg = &sensor->hwcfg;
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = V4L2_MBUS_UNKNOWN };
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = { .bus_type = V4L2_MBUS_UNKANALWN };
+	struct fwanalde_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
 	unsigned int i;
 	int rval;
 
-	ep = fwnode_graph_get_endpoint_by_id(fwnode, 0, 0,
-					     FWNODE_GRAPH_ENDPOINT_NEXT);
+	ep = fwanalde_graph_get_endpoint_by_id(fwanalde, 0, 0,
+					     FWANALDE_GRAPH_ENDPOINT_NEXT);
 	if (!ep)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * Note that we do need to rely on detecting the bus type between CSI-2
-	 * D-PHY and CCP2 as the old bindings did not require it.
+	 * Analte that we do need to rely on detecting the bus type between CSI-2
+	 * D-PHY and CCP2 as the old bindings did analt require it.
 	 */
-	rval = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+	rval = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
 	if (rval)
 		goto out_err;
 
@@ -3129,7 +3129,7 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 		goto out_err;
 	}
 
-	rval = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+	rval = fwanalde_property_read_u32(dev_fwanalde(dev), "clock-frequency",
 					&hwcfg->ext_clk);
 	if (rval)
 		dev_info(dev, "can't get clock-frequency\n");
@@ -3138,7 +3138,7 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 		hwcfg->csi_signalling_mode);
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_warn(dev, "no link frequencies defined\n");
+		dev_warn(dev, "anal link frequencies defined\n");
 		rval = -EINVAL;
 		goto out_err;
 	}
@@ -3147,7 +3147,7 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 		dev, bus_cfg.nr_of_link_frequencies + 1 /* guardian */,
 		sizeof(*hwcfg->op_sys_clock), GFP_KERNEL);
 	if (!hwcfg->op_sys_clock) {
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto out_err;
 	}
 
@@ -3156,14 +3156,14 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 		dev_dbg(dev, "freq %u: %lld\n", i, hwcfg->op_sys_clock[i]);
 	}
 
-	v4l2_fwnode_endpoint_free(&bus_cfg);
-	fwnode_handle_put(ep);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
+	fwanalde_handle_put(ep);
 
 	return 0;
 
 out_err:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
-	fwnode_handle_put(ep);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
+	fwanalde_handle_put(ep);
 
 	return rval;
 }
@@ -3180,8 +3180,8 @@ static int ccs_firmware_name(struct i2c_client *client,
 	u16 revision_number;
 
 	/*
-	 * Old SMIA is module-agnostic. Its sensor identification is based on
-	 * what now are those of the module.
+	 * Old SMIA is module-aganalstic. Its sensor identification is based on
+	 * what analw are those of the module.
 	 */
 	if (is_module || (!is_ccs && !is_smiapp)) {
 		manufacturer_id = is_ccs ?
@@ -3219,7 +3219,7 @@ static int ccs_probe(struct i2c_client *client)
 
 	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
 	if (sensor == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rval = ccs_get_hwconfig(sensor, &client->dev);
 	if (rval)
@@ -3235,7 +3235,7 @@ static int ccs_probe(struct i2c_client *client)
 					  sizeof(*sensor->regulators),
 					  GFP_KERNEL);
 	if (!sensor->regulators)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(ccs_regulators); i++)
 		sensor->regulators[i].supply = ccs_regulators[i];
@@ -3243,16 +3243,16 @@ static int ccs_probe(struct i2c_client *client)
 	rval = devm_regulator_bulk_get(&client->dev, ARRAY_SIZE(ccs_regulators),
 				       sensor->regulators);
 	if (rval) {
-		dev_err(&client->dev, "could not get regulators\n");
+		dev_err(&client->dev, "could analt get regulators\n");
 		return rval;
 	}
 
 	sensor->ext_clk = devm_clk_get(&client->dev, NULL);
-	if (PTR_ERR(sensor->ext_clk) == -ENOENT) {
-		dev_info(&client->dev, "no clock defined, continuing...\n");
+	if (PTR_ERR(sensor->ext_clk) == -EANALENT) {
+		dev_info(&client->dev, "anal clock defined, continuing...\n");
 		sensor->ext_clk = NULL;
 	} else if (IS_ERR(sensor->ext_clk)) {
-		dev_err(&client->dev, "could not get clock (%ld)\n",
+		dev_err(&client->dev, "could analt get clock (%ld)\n",
 			PTR_ERR(sensor->ext_clk));
 		return -EPROBE_DEFER;
 	}
@@ -3291,7 +3291,7 @@ static int ccs_probe(struct i2c_client *client)
 	}
 
 	if (!sensor->hwcfg.ext_clk) {
-		dev_err(&client->dev, "cannot work with xclk frequency 0\n");
+		dev_err(&client->dev, "cananalt work with xclk frequency 0\n");
 		return -EINVAL;
 	}
 
@@ -3322,14 +3322,14 @@ static int ccs_probe(struct i2c_client *client)
 
 	rval = ccs_identify_module(sensor);
 	if (rval) {
-		rval = -ENODEV;
+		rval = -EANALDEV;
 		goto out_power_off;
 	}
 
 	rval = ccs_firmware_name(client, sensor, filename, sizeof(filename),
 				 false);
 	if (rval >= sizeof(filename)) {
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto out_power_off;
 	}
 
@@ -3345,7 +3345,7 @@ static int ccs_probe(struct i2c_client *client)
 		rval = ccs_firmware_name(client, sensor, filename,
 					 sizeof(filename), true);
 		if (rval >= sizeof(filename)) {
-			rval = -ENOMEM;
+			rval = -EANALMEM;
 			goto out_release_sdata;
 		}
 
@@ -3363,7 +3363,7 @@ static int ccs_probe(struct i2c_client *client)
 
 	rval = ccs_read_frame_fmt(sensor);
 	if (rval) {
-		rval = -ENODEV;
+		rval = -EANALDEV;
 		goto out_free_ccs_limits;
 	}
 
@@ -3400,7 +3400,7 @@ static int ccs_probe(struct i2c_client *client)
 
 	if (device_create_file(&client->dev, &dev_attr_ident) != 0) {
 		dev_err(&client->dev, "sysfs ident entry creation failed\n");
-		rval = -ENOENT;
+		rval = -EANALENT;
 		goto out_free_ccs_limits;
 	}
 
@@ -3418,10 +3418,10 @@ static int ccs_probe(struct i2c_client *client)
 	    !CCS_LIM(sensor, MAX_OP_SYS_CLK_DIV) ||
 	    !CCS_LIM(sensor, MIN_OP_PIX_CLK_DIV) ||
 	    !CCS_LIM(sensor, MAX_OP_PIX_CLK_DIV)) {
-		/* No OP clock branch */
-		sensor->pll.flags |= CCS_PLL_FLAG_NO_OP_CLOCKS;
+		/* Anal OP clock branch */
+		sensor->pll.flags |= CCS_PLL_FLAG_ANAL_OP_CLOCKS;
 	} else if (CCS_LIM(sensor, SCALING_CAPABILITY)
-		   != CCS_SCALING_CAPABILITY_NONE ||
+		   != CCS_SCALING_CAPABILITY_ANALNE ||
 		   CCS_LIM(sensor, DIGITAL_CROP_CAPABILITY)
 		   == CCS_DIGITAL_CROP_CAPABILITY_INPUT_CROP) {
 		/* We have a scaler or digital crop. */
@@ -3495,7 +3495,7 @@ static int ccs_probe(struct i2c_client *client)
 
 	rval = ccs_get_mbus_formats(sensor);
 	if (rval) {
-		rval = -ENODEV;
+		rval = -EANALDEV;
 		goto out_cleanup;
 	}
 
@@ -3525,7 +3525,7 @@ static int ccs_probe(struct i2c_client *client)
 
 	rval = ccs_init_late_controls(sensor);
 	if (rval) {
-		rval = -ENODEV;
+		rval = -EANALDEV;
 		goto out_cleanup;
 	}
 
@@ -3546,7 +3546,7 @@ static int ccs_probe(struct i2c_client *client)
 		goto out_cleanup;
 
 	pm_runtime_set_active(&client->dev);
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_analresume(&client->dev);
 	pm_runtime_enable(&client->dev);
 
 	rval = v4l2_async_register_subdev_sensor(&sensor->src->sd);
@@ -3560,7 +3560,7 @@ static int ccs_probe(struct i2c_client *client)
 	return 0;
 
 out_disable_runtime_pm:
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_analidle(&client->dev);
 	pm_runtime_disable(&client->dev);
 
 out_cleanup:
@@ -3620,7 +3620,7 @@ static const struct of_device_id ccs_of_table[] = {
 	{ .compatible = "mipi-ccs-1.1", .data = &ccs_device },
 	{ .compatible = "mipi-ccs-1.0", .data = &ccs_device },
 	{ .compatible = "mipi-ccs", .data = &ccs_device },
-	{ .compatible = "nokia,smia", .data = &smia_device },
+	{ .compatible = "analkia,smia", .data = &smia_device },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ccs_of_table);

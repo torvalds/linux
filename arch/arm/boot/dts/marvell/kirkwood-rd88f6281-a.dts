@@ -5,7 +5,7 @@
  * Andrew Lunn <andrew@lunn.ch>
  *
  * This file contains the definitions for the board with the A0 or
- * higher stepping of the SoC. The ethernet switch does not have a
+ * higher stepping of the SoC. The ethernet switch does analt have a
  * "wan" port.
  */
 

@@ -202,7 +202,7 @@ static int opt4001_read_lux_value(struct iio_dev *indio_dev,
 	*val = div_u64_rem(lux_raw, chip->chip_info->div, val2);
 	*val2 = *val2 * 100;
 
-	return IIO_VAL_INT_PLUS_NANO;
+	return IIO_VAL_INT_PLUS_NAANAL;
 }
 
 static int opt4001_set_conf(struct opt4001_chip *chip)
@@ -314,7 +314,7 @@ static int opt4001_read_available(struct iio_dev *indio_dev,
 	}
 }
 
-static const struct iio_info opt4001_info_no_irq = {
+static const struct iio_info opt4001_info_anal_irq = {
 	.read_raw = opt4001_read_raw,
 	.write_raw = opt4001_write_raw,
 	.read_avail = opt4001_read_available,
@@ -382,7 +382,7 @@ static int opt4001_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = iio_priv(indio_dev);
 
@@ -396,7 +396,7 @@ static int opt4001_probe(struct i2c_client *client)
 				     "regmap initialization failed\n");
 	chip->client = client;
 
-	indio_dev->info = &opt4001_info_no_irq;
+	indio_dev->info = &opt4001_info_anal_irq;
 
 	ret = regmap_reinit_cache(chip->regmap, &opt4001_regmap_config);
 	if (ret)
@@ -410,7 +410,7 @@ static int opt4001_probe(struct i2c_client *client)
 
 	dev_id = FIELD_GET(OPT4001_DEVICE_ID_MASK, dev_id);
 	if (dev_id != OPT4001_DEVICE_ID_VAL)
-		dev_warn(&client->dev, "Device ID: %#04x unknown\n", dev_id);
+		dev_warn(&client->dev, "Device ID: %#04x unkanalwn\n", dev_id);
 
 	chip->chip_info = i2c_get_match_data(client);
 

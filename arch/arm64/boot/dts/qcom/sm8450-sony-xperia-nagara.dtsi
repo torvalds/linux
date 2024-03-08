@@ -13,9 +13,9 @@
 #include "pmk8350.dtsi"
 #include "pmr735a.dtsi"
 
-/delete-node/ &adsp_mem;
-/delete-node/ &rmtfs_mem;
-/delete-node/ &video_mem;
+/delete-analde/ &adsp_mem;
+/delete-analde/ &rmtfs_mem;
+/delete-analde/ &video_mem;
 
 / {
 	chassis-type = "handset";
@@ -66,18 +66,18 @@
 	reserved-memory {
 		adsp_mem: memory@85700000 {
 			reg = <0x0 0x85700000 0x0 0x2800000>;
-			no-map;
+			anal-map;
 		};
 
 		video_mem: memory@9fd00000 {
 			reg = <0x0 0x9fd00000 0x0 0x700000>;
-			no-map;
+			anal-map;
 		};
 
 		rmtfs_mem: memory@f3300000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0xf3300000 0x0 0x280000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
@@ -89,11 +89,11 @@
 			console-size = <0x40000>;
 			record-size = <0x1000>;
 			ecc-size = <16>;
-			no-map;
+			anal-map;
 		};
 	};
 
-	/* Sadly, the voltages for these GPIO regulators are unknown. */
+	/* Sadly, the voltages for these GPIO regulators are unkanalwn. */
 	imx650_vana_regulator: imx650-vana-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "imx650_vana_regulator";
@@ -573,7 +573,7 @@
 		interrupts = <182 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&tlmm 183 GPIO_ACTIVE_HIGH>;
 		cirrus,boost-peak-milliamp = <4000>;
-		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-ind-naanalhenry = <1000>;
 		cirrus,boost-cap-microfarad = <15>;
 		cirrus,gpio2-src-select = <2>;
 		cirrus,gpio2-output-enable;
@@ -588,7 +588,7 @@
 		interrupts = <182 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&tlmm 183 GPIO_ACTIVE_HIGH>;
 		cirrus,boost-peak-milliamp = <4000>;
-		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-ind-naanalhenry = <1000>;
 		cirrus,boost-cap-microfarad = <15>;
 		cirrus,gpio2-src-select = <2>;
 		cirrus,gpio2-output-enable;
@@ -636,7 +636,7 @@
 
 	vol_down_n: vol-down-n-state {
 		pins = "gpio6";
-		function = "normal";
+		function = "analrmal";
 		power-source = <1>;
 		bias-pull-up;
 		input-enable;
@@ -646,7 +646,7 @@
 &pm8350b_gpios {
 	cam_pwr_a_cs: cam-pwr-a-cs-state {
 		pins = "gpio1";
-		function = "normal";
+		function = "analrmal";
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 		power-source = <1>;
 		drive-push-pull;
@@ -655,7 +655,7 @@
 
 	snapshot_n: snapshot-n-state {
 		pins = "gpio5";
-		function = "normal";
+		function = "analrmal";
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;
@@ -663,7 +663,7 @@
 
 	focus_n: focus-n-state {
 		pins = "gpio8";
-		function = "normal";
+		function = "analrmal";
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;
@@ -727,8 +727,8 @@
 	pinctrl-1 = <&sdc2_sleep_state &sdc2_card_det_n>;
 	vmmc-supply = <&pm8350c_l9>;
 	vqmmc-supply = <&pm8350c_l6>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	status = "okay";
 };
 

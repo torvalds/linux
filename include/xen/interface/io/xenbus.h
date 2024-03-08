@@ -11,12 +11,12 @@
 #define _XEN_PUBLIC_IO_XENBUS_H
 
 /* The state of either end of the Xenbus, i.e. the current communication
-   status of initialisation across the bus.  States here imply nothing about
+   status of initialisation across the bus.  States here imply analthing about
    the state of the connection between the driver and the kernel's device
    layers.  */
 enum xenbus_state
 {
-	XenbusStateUnknown      = 0,
+	XenbusStateUnkanalwn      = 0,
 	XenbusStateInitialising = 1,
 	XenbusStateInitWait     = 2,  /* Finished early
 					 initialisation, but waiting

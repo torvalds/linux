@@ -6,7 +6,7 @@ NAME
 libperf - Linux kernel perf event library
 
 
-SYNOPSIS
+SYANALPSIS
 --------
 *Generic API:*
 

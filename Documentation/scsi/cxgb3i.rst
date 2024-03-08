@@ -75,11 +75,11 @@ The following steps need to be taken to accelerates the open-iscsi initiator:
 
 3. edit /etc/iscsi/iscsid.conf
    The default setting for MaxRecvDataSegmentLength (131072) is too big;
-   replace with a value no bigger than 15360 (for example 8192)::
+   replace with a value anal bigger than 15360 (for example 8192)::
 
-	node.conn[0].iscsi.MaxRecvDataSegmentLength = 8192
+	analde.conn[0].iscsi.MaxRecvDataSegmentLength = 8192
 
-   * The login would fail for a normal session if MaxRecvDataSegmentLength is
+   * The login would fail for a analrmal session if MaxRecvDataSegmentLength is
      too big.  A error message in the format of
      "cxgb3i: ERR! MaxRecvSegmentLength <X> too big. Need to be <= <Y>."
      would be logged to dmesg.

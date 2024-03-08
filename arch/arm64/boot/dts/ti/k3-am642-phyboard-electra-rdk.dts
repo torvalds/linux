@@ -271,7 +271,7 @@
 	bus-width = <4>;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
-	no-1-8-v;
+	anal-1-8-v;
 };
 
 &serdes0 {

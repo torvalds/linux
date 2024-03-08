@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* 
  * linux/mtio.h header file for Linux. Written by H. Bergman
  *
@@ -22,7 +22,7 @@ struct	mtop {
 	int	mt_count;	/* how many of them */
 };
 
-/* Magnetic Tape operations [Not all operations supported by all drivers]: */
+/* Magnetic Tape operations [Analt all operations supported by all drivers]: */
 #define MTRESET 0	/* +reset drive in case of problems */
 #define MTFSF	1	/* forward space over FileMark,
 			 * position at first record of next file 
@@ -33,17 +33,17 @@ struct	mtop {
 #define MTWEOF	5	/* write an end-of-file record (mark) */
 #define MTREW	6	/* rewind */
 #define MTOFFL	7	/* rewind and put the drive offline (eject?) */
-#define MTNOP	8	/* no op, set status only (read with MTIOCGET) */
+#define MTANALP	8	/* anal op, set status only (read with MTIOCGET) */
 #define MTRETEN 9	/* retension tape */
 #define MTBSFM	10	/* +backward space FileMark, position at FM */
 #define MTFSFM  11	/* +forward space FileMark, position at FM */
 #define MTEOM	12	/* goto end of recorded media (for appending files).
 			 * MTEOM positions after the last FM, ready for
-			 * appending another file.
+			 * appending aanalther file.
 			 */
 #define MTERASE 13	/* erase tape -- be careful! */
 
-#define MTRAS1  14	/* run self test 1 (nondestructive) */
+#define MTRAS1  14	/* run self test 1 (analndestructive) */
 #define MTRAS2	15	/* run self test 2 (destructive) */
 #define MTRAS3  16	/* reserved for self test 3 */
 
@@ -70,27 +70,27 @@ struct	mtop {
 
 struct	mtget {
 	long	mt_type;	/* type of magtape device */
-	long	mt_resid;	/* residual count: (not sure)
-				 *	number of bytes ignored, or
-				 *	number of files not skipped, or
-				 *	number of records not skipped.
+	long	mt_resid;	/* residual count: (analt sure)
+				 *	number of bytes iganalred, or
+				 *	number of files analt skipped, or
+				 *	number of records analt skipped.
 				 */
 	/* the following registers are device dependent */
 	long	mt_dsreg;	/* status register */
 	long	mt_gstat;	/* generic (device independent) status */
 	long	mt_erreg;	/* error register */
-	/* The next two fields are not always used */
-	__kernel_daddr_t mt_fileno;	/* number of current file on tape */
-	__kernel_daddr_t mt_blkno;	/* current block number */
+	/* The next two fields are analt always used */
+	__kernel_daddr_t mt_fileanal;	/* number of current file on tape */
+	__kernel_daddr_t mt_blkanal;	/* current block number */
 };
 
 
 
 /*
- * Constants for mt_type. Not all of these are supported,
- * and these are not all of the ones that are supported.
+ * Constants for mt_type. Analt all of these are supported,
+ * and these are analt all of the ones that are supported.
  */
-#define MT_ISUNKNOWN		0x01
+#define MT_ISUNKANALWN		0x01
 #define MT_ISQIC02		0x02	/* Generic QIC-02 tape streamer */
 #define MT_ISWT5150		0x03	/* Wangtek 5150EQ, QIC-150, QIC-02 */
 #define MT_ISARCHIVE_5945L2	0x04	/* Archive 5945L-2, QIC-24, QIC-02? */
@@ -114,14 +114,14 @@ struct	mtget {
 /* QIC-40/80/3010/3020 ftape supported drives.
  * 20bit vendor ID + 0x800000 (see ftape-vendors.h)
  */
-#define MT_ISFTAPE_UNKNOWN	0x800000 /* obsolete */
+#define MT_ISFTAPE_UNKANALWN	0x800000 /* obsolete */
 #define MT_ISFTAPE_FLAG	0x800000
 
 
 /* structure for MTIOCPOS - mag tape get position command */
 
 struct	mtpos {
-	long 	mt_blkno;	/* current block number */
+	long 	mt_blkanal;	/* current block number */
 };
 
 
@@ -134,7 +134,7 @@ struct	mtpos {
 /* Generic Mag Tape (device independent) status macros for examining
  * mt_gstat -- HP-UX compatible.
  * There is room for more generic status bits here, but I don't
- * know which of them are reserved. At least three or so should
+ * kanalw which of them are reserved. At least three or so should
  * be added to make this really useful.
  */
 #define GMT_EOF(x)              ((x) & 0x80000000)
@@ -150,7 +150,7 @@ struct	mtpos {
 #define GMT_D_800(x)            ((x) & 0x00200000)
 /* #define GMT_ ? 		((x) & 0x00100000) */
 /* #define GMT_ ? 		((x) & 0x00080000) */
-#define GMT_DR_OPEN(x)          ((x) & 0x00040000)  /* door open (no tape) */
+#define GMT_DR_OPEN(x)          ((x) & 0x00040000)  /* door open (anal tape) */
 /* #define GMT_ ? 		((x) & 0x00020000) */
 #define GMT_IM_REP_EN(x)        ((x) & 0x00010000)  /* immediate report mode */
 #define GMT_CLN(x)              ((x) & 0x00008000)  /* cleaning requested */
@@ -189,13 +189,13 @@ struct	mtpos {
 #define MT_ST_AUTO_LOCK		0x40
 #define MT_ST_DEF_WRITES	0x80
 #define MT_ST_CAN_BSR		0x100
-#define MT_ST_NO_BLKLIMS	0x200
+#define MT_ST_ANAL_BLKLIMS	0x200
 #define MT_ST_CAN_PARTITIONS    0x400
 #define MT_ST_SCSI2LOGICAL      0x800
 #define MT_ST_SYSV              0x1000
-#define MT_ST_NOWAIT            0x2000
+#define MT_ST_ANALWAIT            0x2000
 #define MT_ST_SILI		0x4000
-#define MT_ST_NOWAIT_EOF	0x8000
+#define MT_ST_ANALWAIT_EOF	0x8000
 
 /* The mode parameters to be controlled. Parameter chosen with bits 20-28 */
 #define MT_ST_CLEAR_DEFAULT	0xfffff

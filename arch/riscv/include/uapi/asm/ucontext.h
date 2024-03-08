@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2012 ARM Ltd.
  * Copyright (C) 2017 SiFive, Inc.
@@ -28,7 +28,7 @@ struct ucontext {
 	 * vector ISA extension will almost certainly add ISA state.  We want
 	 * to ensure all user-visible ISA state can be saved and restored via a
 	 * ucontext, so we're putting this at the end in order to allow for
-	 * infinite extensibility.  Since we know this will be extended and we
+	 * infinite extensibility.  Since we kanalw this will be extended and we
 	 * assume sigset_t won't be extended an extreme amount, we're
 	 * prioritizing this.
 	 */

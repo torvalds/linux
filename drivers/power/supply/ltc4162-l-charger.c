@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Driver for Analog Devices (Linear Technology) LTC4162-L charger IC.
+ *  Driver for Analog Devices (Linear Techanallogy) LTC4162-L charger IC.
  *  Copyright (C) 2020, Topic Embedded Products
  */
 
@@ -52,7 +52,7 @@ enum ltc4162l_state {
 	battery_detection = 2048,
 	charger_suspended = 256,
 	precharge = 128,   /* trickle on low bat voltage */
-	cc_cv_charge = 64, /* normal charge */
+	cc_cv_charge = 64, /* analrmal charge */
 	ntc_pause = 32,
 	timer_term = 16,
 	c_over_x_term = 8, /* battery is full */
@@ -81,7 +81,7 @@ struct ltc4162l_info {
 	struct power_supply	*charger;
 	u32 rsnsb;	/* Series resistor that sets charge current, microOhm */
 	u32 rsnsi;	/* Series resistor to measure input current, microOhm */
-	u8 cell_count;	/* Number of connected cells, 0 while unknown */
+	u8 cell_count;	/* Number of connected cells, 0 while unkanalwn */
 };
 
 static u8 ltc4162l_get_cell_count(struct ltc4162l_info *info)
@@ -97,7 +97,7 @@ static u8 ltc4162l_get_cell_count(struct ltc4162l_info *info)
 	if (ret)
 		return 0;
 
-	/* Lower 4 bits is the cell count, or 0 if the chip doesn't know yet */
+	/* Lower 4 bits is the cell count, or 0 if the chip doesn't kanalw yet */
 	val &= 0x0f;
 	if (!val)
 		return 0;
@@ -119,9 +119,9 @@ static int ltc4162l_state_decode(enum ltc4162l_state value)
 		return POWER_SUPPLY_STATUS_FULL;
 	case bat_missing_fault:
 	case bat_short_fault:
-		return POWER_SUPPLY_STATUS_UNKNOWN;
+		return POWER_SUPPLY_STATUS_UNKANALWN;
 	default:
-		return POWER_SUPPLY_STATUS_NOT_CHARGING;
+		return POWER_SUPPLY_STATUS_ANALT_CHARGING;
 	}
 };
 
@@ -145,13 +145,13 @@ static int ltc4162l_get_status(struct ltc4162l_info *info,
 static int ltc4162l_charge_status_decode(enum ltc4162l_charge_status value)
 {
 	if (!value)
-		return POWER_SUPPLY_CHARGE_TYPE_NONE;
+		return POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 
 	/* constant voltage/current and input_current limit are "fast" modes */
 	if (value <= iin_limit_active)
 		return POWER_SUPPLY_CHARGE_TYPE_FAST;
 
-	/* Anything that's not fast we'll return as trickle */
+	/* Anything that's analt fast we'll return as trickle */
 	return POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
 }
 
@@ -365,7 +365,7 @@ static int ltc4162l_set_vcharge(struct ltc4162l_info *info,
 	u8 cell_count = ltc4162l_get_cell_count(info);
 
 	if (!cell_count)
-		return -EBUSY; /* Not available yet, try again later */
+		return -EBUSY; /* Analt available yet, try again later */
 
 	value /= cell_count;
 
@@ -691,9 +691,9 @@ static int ltc4162l_get_property(struct power_supply *psy,
 		return ltc4162l_get_health(info, val);
 	case POWER_SUPPLY_PROP_ONLINE:
 		return ltc4162l_get_online(info, val);
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		return ltc4162l_get_input_voltage(info, val);
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		return ltc4162l_get_input_current(info, val);
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 		return ltc4162l_get_icharge(info,
@@ -760,8 +760,8 @@ static enum power_supply_property ltc4162l_properties[] = {
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
@@ -813,7 +813,7 @@ static const struct regmap_config ltc4162l_regmap_config = {
 
 static void ltc4162l_clear_interrupts(struct ltc4162l_info *info)
 {
-	/* Acknowledge interrupt to chip by clearing all events */
+	/* Ackanalwledge interrupt to chip by clearing all events */
 	regmap_write(info->regmap, LTC4162L_LIMIT_ALERTS_REG, 0);
 	regmap_write(info->regmap, LTC4162L_CHARGER_STATE_ALERTS_REG, 0);
 	regmap_write(info->regmap, LTC4162L_CHARGE_STATUS_ALERTS_REG, 0);
@@ -829,12 +829,12 @@ static int ltc4162l_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA)) {
-		dev_err(dev, "No support for SMBUS_WORD_DATA\n");
-		return -ENODEV;
+		dev_err(dev, "Anal support for SMBUS_WORD_DATA\n");
+		return -EANALDEV;
 	}
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->client = client;
 	i2c_set_clientdata(client, info);
@@ -866,7 +866,7 @@ static int ltc4162l_probe(struct i2c_client *client)
 	if (!device_property_read_u32(dev, "lltc,cell-count", &value))
 		info->cell_count = value;
 
-	ltc4162l_config.of_node = dev->of_node;
+	ltc4162l_config.of_analde = dev->of_analde;
 	ltc4162l_config.drv_data = info;
 	ltc4162l_config.attr_grp = ltc4162l_attr_groups;
 
@@ -877,7 +877,7 @@ static int ltc4162l_probe(struct i2c_client *client)
 		return PTR_ERR(info->charger);
 	}
 
-	/* Disable the threshold alerts, we're not using them */
+	/* Disable the threshold alerts, we're analt using them */
 	regmap_write(info->regmap, LTC4162L_EN_LIMIT_ALERTS_REG, 0);
 
 	/* Enable interrupts on all status changes */

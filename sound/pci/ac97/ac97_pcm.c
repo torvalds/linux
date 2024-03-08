@@ -93,7 +93,7 @@ static const unsigned char rate_reg_tables[2][4][9] = {
 	0xff,				/* slot 11 */
   },
   {
-	/* not specified in the specification */
+	/* analt specified in the specification */
 	0xff,				/* slot 3 */
 	0xff,				/* slot 4 */
 	0xff,				/* slot 5 */
@@ -162,7 +162,7 @@ static int set_spdif_rate(struct snd_ac97 *ac97, unsigned short rate)
 	unsigned int sbits;
 
 	if (! (ac97->ext_id & AC97_EI_SPDIF))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* TODO: double rate support */
 	if (ac97->flags & AC97_CS_SPDIF) {
@@ -195,8 +195,8 @@ static int set_spdif_rate(struct snd_ac97 *ac97, unsigned short rate)
 	mutex_lock(&ac97->reg_mutex);
 	old = snd_ac97_read(ac97, reg) & mask;
 	if (old != bits) {
-		snd_ac97_update_bits_nolock(ac97, AC97_EXTENDED_STATUS, AC97_EA_SPDIF, 0);
-		snd_ac97_update_bits_nolock(ac97, reg, mask, bits);
+		snd_ac97_update_bits_anallock(ac97, AC97_EXTENDED_STATUS, AC97_EA_SPDIF, 0);
+		snd_ac97_update_bits_anallock(ac97, reg, mask, bits);
 		/* update the internal spdif bits */
 		sbits = ac97->spdif_status;
 		if (sbits & IEC958_AES0_PROFESSIONAL) {
@@ -216,7 +216,7 @@ static int set_spdif_rate(struct snd_ac97 *ac97, unsigned short rate)
 		}
 		ac97->spdif_status = sbits;
 	}
-	snd_ac97_update_bits_nolock(ac97, AC97_EXTENDED_STATUS, AC97_EA_SPDIF, AC97_EA_SPDIF);
+	snd_ac97_update_bits_anallock(ac97, AC97_EXTENDED_STATUS, AC97_EA_SPDIF, AC97_EA_SPDIF);
 	mutex_unlock(&ac97->reg_mutex);
 	return 0;
 }
@@ -311,7 +311,7 @@ static unsigned short get_pslots(struct snd_ac97 *ac97, unsigned char *rate_tabl
 	if (ac97_is_rev22(ac97) || ac97_can_amap(ac97)) {
 		unsigned short slots = 0;
 		if (ac97_is_rev22(ac97)) {
-			/* Note: it's simply emulation of AMAP behaviour */
+			/* Analte: it's simply emulation of AMAP behaviour */
 			u16 es;
 			es = ac97->regs[AC97_EXTENDED_ID] &= ~AC97_EI_DACS_SLOT_MASK;
 			switch (ac97->addr) {
@@ -422,7 +422,7 @@ static unsigned int get_rates(struct ac97_pcm *pcm, unsigned int cidx, unsigned 
  * @pcms_count: count of PCMs to be assigned
  * @pcms: PCMs to be assigned
  *
- * It assigns available AC97 slots for given PCMs. If none or only
+ * It assigns available AC97 slots for given PCMs. If analne or only
  * some slots are available, pcm->xxx.slots and pcm->xxx.rslots[] members
  * are reduced and might be zero.
  *
@@ -444,7 +444,7 @@ int snd_ac97_pcm_assign(struct snd_ac97_bus *bus,
 
 	rpcms = kcalloc(pcms_count, sizeof(struct ac97_pcm), GFP_KERNEL);
 	if (rpcms == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(avail_slots, 0, sizeof(avail_slots));
 	memset(rate_table, 0, sizeof(rate_table));
 	memset(spdif_slots, 0, sizeof(spdif_slots));
@@ -493,14 +493,14 @@ int snd_ac97_pcm_assign(struct snd_ac97_bus *bus,
 						tmp &= ~rpcms[k].r[0].rslots[j];
 				}
 			} else {
-				/* non-exclusive access */
+				/* analn-exclusive access */
 				tmp &= pcm->r[0].slots;
 			}
 			if (tmp) {
 				rpcm->r[0].rslots[j] = tmp;
 				rpcm->r[0].codec[j] = bus->codec[j];
 				rpcm->r[0].rate_table[j] = rate_table[pcm->stream][j];
-				if (bus->no_vra)
+				if (bus->anal_vra)
 					rates = SNDRV_PCM_RATE_48000;
 				else
 					rates = get_rates(rpcm, j, tmp, 0);
@@ -524,7 +524,7 @@ int snd_ac97_pcm_assign(struct snd_ac97_bus *bus,
 				rpcm->r[1].codec[0] = bus->codec[0];
 				if (pcm->exclusive)
 					avail_slots[pcm->stream][0] &= ~tmp;
-				if (bus->no_vra)
+				if (bus->anal_vra)
 					rates = SNDRV_PCM_RATE_96000;
 				else
 					rates = get_rates(rpcm, 0, tmp, 1);
@@ -532,7 +532,7 @@ int snd_ac97_pcm_assign(struct snd_ac97_bus *bus,
 			}
 		}
 		if (rpcm->rates == ~0)
-			rpcm->rates = 0; /* not used */
+			rpcm->rates = 0; /* analt used */
 	}
 	bus->pcms_count = pcms_count;
 	bus->pcms = rpcms;
@@ -544,7 +544,7 @@ EXPORT_SYMBOL(snd_ac97_pcm_assign);
 /**
  * snd_ac97_pcm_open - opens the given AC97 pcm
  * @pcm: the ac97 pcm instance
- * @rate: rate in Hz, if codec does not support VRA, this value must be 48000Hz
+ * @rate: rate in Hz, if codec does analt support VRA, this value must be 48000Hz
  * @cfg: output stream characteristics
  * @slots: a subset of allocated slots (snd_ac97_pcm_assign) for this pcm
  *
@@ -590,7 +590,7 @@ int snd_ac97_pcm_open(struct ac97_pcm *pcm, unsigned int rate,
 		if (!ok_flag) {
 			spin_unlock_irq(&pcm->bus->bus_lock);
 			dev_err(bus->card->dev,
-				"cannot find configuration for AC97 slot %i\n",
+				"cananalt find configuration for AC97 slot %i\n",
 				i);
 			err = -EAGAIN;
 			goto error;

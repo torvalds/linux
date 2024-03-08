@@ -85,7 +85,7 @@ static int vfio_ap_matrix_dev_create(void)
 
 	matrix_dev = kzalloc(sizeof(*matrix_dev), GFP_KERNEL);
 	if (!matrix_dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto matrix_alloc_err;
 	}
 
@@ -143,7 +143,7 @@ static int __init vfio_ap_dbf_info_init(void)
 					  DBF_MAX_SPRINTF_ARGS * sizeof(long));
 
 	if (!vfio_ap_dbf_info)
-		return -ENOENT;
+		return -EANALENT;
 
 	debug_register_view(vfio_ap_dbf_info, &debug_sprintf_view);
 	debug_set_level(vfio_ap_dbf_info, DBF_WARN);
@@ -159,9 +159,9 @@ static int __init vfio_ap_init(void)
 	if (ret)
 		return ret;
 
-	/* If there are no AP instructions, there is nothing to pass through. */
+	/* If there are anal AP instructions, there is analthing to pass through. */
 	if (!ap_instructions_available())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = vfio_ap_matrix_dev_create();
 	if (ret)

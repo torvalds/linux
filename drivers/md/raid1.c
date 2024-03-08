@@ -16,10 +16,10 @@
  * Changes by Peter T. Breuer <ptb@it.uc3m.es> 31/1/2003 to support
  * bitmapped intelligence in resync:
  *
- *      - bitmap marked during normal i/o
- *      - bitmap used to skip nondirty blocks during sync
+ *      - bitmap marked during analrmal i/o
+ *      - bitmap used to skip analndirty blocks during sync
  *
- * Additions to bitmap code, (C) 2003-2004 Paul Clements, SteelEye Technology:
+ * Additions to bitmap code, (C) 2003-2004 Paul Clements, SteelEye Techanallogy:
  * - persistent bitmap code
  */
 
@@ -52,9 +52,9 @@ static void lower_barrier(struct r1conf *conf, sector_t sector_nr);
 #define RAID_1_10_NAME "raid1"
 #include "raid1-10.c"
 
-#define START(node) ((node)->start)
-#define LAST(node) ((node)->last)
-INTERVAL_TREE_DEFINE(struct serial_info, node, sector_t, _subtree_last,
+#define START(analde) ((analde)->start)
+#define LAST(analde) ((analde)->last)
+INTERVAL_TREE_DEFINE(struct serial_info, analde, sector_t, _subtree_last,
 		     START, LAST, static inline, raid1_rb);
 
 static int check_and_add_serial(struct md_rdev *rdev, struct r1bio *r1_bio,
@@ -89,7 +89,7 @@ static void wait_for_serialization(struct md_rdev *rdev, struct r1bio *r1_bio)
 
 	if (WARN_ON(!mddev->serial_info_pool))
 		return;
-	si = mempool_alloc(mddev->serial_info_pool, GFP_NOIO);
+	si = mempool_alloc(mddev->serial_info_pool, GFP_ANALIO);
 	wait_event(serial->serial_io_wait,
 		   check_and_add_serial(rdev, r1_bio, si, idx) == 0);
 }
@@ -114,7 +114,7 @@ static void remove_serial(struct md_rdev *rdev, sector_t lo, sector_t hi)
 		}
 	}
 	if (!found)
-		WARN(1, "The write IO is not recorded for serialization\n");
+		WARN(1, "The write IO is analt recorded for serialization\n");
 	spin_unlock_irqrestore(&serial->serial_lock, flags);
 	wake_up(&serial->serial_io_wait);
 }
@@ -314,7 +314,7 @@ static void raid_end_bio_io(struct r1bio *r1_bio)
 	struct r1conf *conf = r1_bio->mddev->private;
 	sector_t sector = r1_bio->sector;
 
-	/* if nobody has done the final endio yet, do it now */
+	/* if analbody has done the final endio yet, do it analw */
 	if (!test_and_set_bit(R1BIO_Returned, &r1_bio->state)) {
 		pr_debug("raid1: sync end %s on sectors %llu-%llu\n",
 			 (bio_data_dir(bio) == WRITE) ? "write" : "read",
@@ -475,7 +475,7 @@ static void raid1_end_write_request(struct bio *bio)
 		}
 
 		/*
-		 * When the device is faulty, it is not necessary to
+		 * When the device is faulty, it is analt necessary to
 		 * handle write error.
 		 */
 		if (!test_bit(Faulty, &rdev->flags))
@@ -504,8 +504,8 @@ static void raid1_end_write_request(struct bio *bio)
 		r1_bio->bios[mirror] = NULL;
 		to_put = bio;
 		/*
-		 * Do not set R1BIO_Uptodate if the current device is
-		 * rebuilding or Faulty. This is because we cannot use
+		 * Do analt set R1BIO_Uptodate if the current device is
+		 * rebuilding or Faulty. This is because we cananalt use
 		 * such device for properly reading the data back (we could
 		 * potentially use it, if the current write would have felt
 		 * before rdev->recovery_offset, but for simplicity we don't
@@ -531,14 +531,14 @@ static void raid1_end_write_request(struct bio *bio)
 
 		/*
 		 * In behind mode, we ACK the master bio once the I/O
-		 * has safely reached all non-writemostly
+		 * has safely reached all analn-writemostly
 		 * disks. Setting the Returned bit ensures that this
 		 * gets done only once -- we don't ever want to return
 		 * -EIO here, instead we'll wait
 		 */
 		if (atomic_read(&r1_bio->behind_remaining) >= (atomic_read(&r1_bio->remaining)-1) &&
 		    test_bit(R1BIO_Uptodate, &r1_bio->state)) {
-			/* Maybe we can return now */
+			/* Maybe we can return analw */
 			if (!test_and_set_bit(R1BIO_Returned, &r1_bio->state)) {
 				struct bio *mbio = r1_bio->master_bio;
 				pr_debug("raid1: behind end write sectors"
@@ -586,13 +586,13 @@ static sector_t align_to_barrier_unit_end(sector_t start_sector,
  * This routine returns the disk from which the requested read should
  * be done. There is a per-array 'next expected sequential IO' sector
  * number - if this matches on the next IO then we use the last disk.
- * There is also a per-disk 'last know head position' sector that is
- * maintained from IRQ contexts, both the normal and the resync IO
- * completion handlers update this position correctly. If there is no
+ * There is also a per-disk 'last kanalw head position' sector that is
+ * maintained from IRQ contexts, both the analrmal and the resync IO
+ * completion handlers update this position correctly. If there is anal
  * perfect sequential match then we pick the disk whose head is closest.
  *
  * If there are 2 mirrors in the same 2 devices, performance degrades
- * because position is mirror, not device based.
+ * because position is mirror, analt device based.
  *
  * The rdev for the device selected will have nr_pending incremented.
  */
@@ -602,7 +602,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	int sectors;
 	int best_good_sectors;
 	int best_disk, best_dist_disk, best_pending_disk;
-	int has_nonrot_disk;
+	int has_analnrot_disk;
 	int disk;
 	sector_t best_dist;
 	unsigned int min_pending;
@@ -612,7 +612,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 
 	/*
 	 * Check if we can balance. We can balance on the whole
-	 * device if no resync is going on, or below the resync window.
+	 * device if anal resync is going on, or below the resync window.
 	 * We take the first readable disk when above the resync window.
 	 */
  retry:
@@ -623,7 +623,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	best_pending_disk = -1;
 	min_pending = UINT_MAX;
 	best_good_sectors = 0;
-	has_nonrot_disk = 0;
+	has_analnrot_disk = 0;
 	choose_next_idle = 0;
 	clear_bit(R1BIO_FailFast, &r1_bio->state);
 
@@ -640,7 +640,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 		sector_t first_bad;
 		int bad_sectors;
 		unsigned int pending;
-		bool nonrot;
+		bool analnrot;
 
 		rdev = conf->mirrors[disk].rdev;
 		if (r1_bio->bios[disk] == IO_BLOCKED
@@ -657,7 +657,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 				if (is_badblock(rdev, this_sector, sectors,
 						&first_bad, &bad_sectors)) {
 					if (first_bad <= this_sector)
-						/* Cannot use this */
+						/* Cananalt use this */
 						continue;
 					best_good_sectors = first_bad - this_sector;
 				} else
@@ -676,9 +676,9 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 				/* already have a better device */
 				continue;
 			if (first_bad <= this_sector) {
-				/* cannot read here. If this is the 'primary'
-				 * device, then we must not read beyond
-				 * bad_sectors from another device..
+				/* cananalt read here. If this is the 'primary'
+				 * device, then we must analt read beyond
+				 * bad_sectors from aanalther device..
 				 */
 				bad_sectors -= (this_sector - first_bad);
 				if (choose_first && sectors > bad_sectors)
@@ -706,15 +706,15 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 			/* At least two disks to choose from so failfast is OK */
 			set_bit(R1BIO_FailFast, &r1_bio->state);
 
-		nonrot = bdev_nonrot(rdev->bdev);
-		has_nonrot_disk |= nonrot;
+		analnrot = bdev_analnrot(rdev->bdev);
+		has_analnrot_disk |= analnrot;
 		pending = atomic_read(&rdev->nr_pending);
 		dist = abs(this_sector - conf->mirrors[disk].head_position);
 		if (choose_first) {
 			best_disk = disk;
 			break;
 		}
-		/* Don't change to another disk for sequential reads */
+		/* Don't change to aanalther disk for sequential reads */
 		if (conf->mirrors[disk].next_seq_sect == this_sector
 		    || dist == 0) {
 			int opt_iosize = bdev_io_opt(rdev->bdev) >> 9;
@@ -723,18 +723,18 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 			best_disk = disk;
 			/*
 			 * If buffered sequential IO size exceeds optimal
-			 * iosize, check if there is idle disk. If yes, choose
+			 * iosize, check if there is idle disk. If anal, choose
 			 * the idle disk. read_balance could already choose an
-			 * idle disk before noticing it's a sequential IO in
+			 * idle disk before analticing it's a sequential IO in
 			 * this disk. This doesn't matter because this disk
 			 * will idle, next time it will be utilized after the
 			 * first disk has IO size exceeds optimal iosize. In
 			 * this way, iosize of the first disk will be optimal
 			 * iosize at least. iosize of the second disk might be
-			 * small, but not a big deal since when the second disk
+			 * small, but analt a big deal since when the second disk
 			 * starts IO, the first disk is likely still busy.
 			 */
-			if (nonrot && opt_iosize > 0 &&
+			if (analnrot && opt_iosize > 0 &&
 			    mirror->seq_start != MaxSector &&
 			    mirror->next_seq_sect > opt_iosize &&
 			    mirror->next_seq_sect - opt_iosize >=
@@ -761,12 +761,12 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 
 	/*
 	 * If all disks are rotational, choose the closest disk. If any disk is
-	 * non-rotational, choose the disk with less pending request even the
-	 * disk is rotational, which might/might not be optimal for raids with
-	 * mixed ratation/non-rotational disks depending on workload.
+	 * analn-rotational, choose the disk with less pending request even the
+	 * disk is rotational, which might/might analt be optimal for raids with
+	 * mixed ratation/analn-rotational disks depending on workload.
 	 */
 	if (best_disk == -1) {
-		if (has_nonrot_disk || min_pending == 0)
+		if (has_analnrot_disk || min_pending == 0)
 			best_disk = best_pending_disk;
 		else
 			best_disk = best_dist_disk;
@@ -847,19 +847,19 @@ static void flush_pending_writes(struct r1conf *conf)
  * To do this we raise a 'barrier'.
  * The 'barrier' is a counter that can be raised multiple times
  * to count how many activities are happening which preclude
- * normal IO.
- * We can only raise the barrier if there is no pending IO.
+ * analrmal IO.
+ * We can only raise the barrier if there is anal pending IO.
  * i.e. if nr_pending == 0.
- * We choose only to raise the barrier if no-one is waiting for the
+ * We choose only to raise the barrier if anal-one is waiting for the
  * barrier to go down.  This means that as soon as an IO request
- * is ready, no other operations which require a barrier will start
+ * is ready, anal other operations which require a barrier will start
  * until the IO request has had a chance.
  *
  * So: regular IO calls 'wait_barrier'.  When that returns there
- *    is no backgroup IO happening,  It must arrange to call
+ *    is anal backgroup IO happening,  It must arrange to call
  *    allow_barrier when it has finished its IO.
  * backgroup IO calls must call raise_barrier.  Once that returns
- *    there is no normal IO happeing.  It must arrange to call
+ *    there is anal analrmal IO happeing.  It must arrange to call
  *    lower_barrier when the particular background IO completes.
  *
  * If resync/recovery is interrupted, returns -EINTR;
@@ -871,7 +871,7 @@ static int raise_barrier(struct r1conf *conf, sector_t sector_nr)
 
 	spin_lock_irq(&conf->resync_lock);
 
-	/* Wait until no block IO is waiting */
+	/* Wait until anal block IO is waiting */
 	wait_event_lock_irq(conf->wait_barrier,
 			    !atomic_read(&conf->nr_waiting[idx]),
 			    conf->resync_lock);
@@ -890,7 +890,7 @@ static int raise_barrier(struct r1conf *conf, sector_t sector_nr)
 
 	/* For these conditions we must wait:
 	 * A: while the array is in frozen state
-	 * B: while conf->nr_pending[idx] is not 0, meaning regular I/O
+	 * B: while conf->nr_pending[idx] is analt 0, meaning regular I/O
 	 *    existing in corresponding I/O barrier bucket.
 	 * C: while conf->barrier[idx] >= RESYNC_DEPTH, meaning reaches
 	 *    max resync count which allowed on current I/O barrier bucket.
@@ -926,7 +926,7 @@ static void lower_barrier(struct r1conf *conf, sector_t sector_nr)
 	wake_up(&conf->wait_barrier);
 }
 
-static bool _wait_barrier(struct r1conf *conf, int idx, bool nowait)
+static bool _wait_barrier(struct r1conf *conf, int idx, bool analwait)
 {
 	bool ret = true;
 
@@ -934,7 +934,7 @@ static bool _wait_barrier(struct r1conf *conf, int idx, bool nowait)
 	 * We need to increase conf->nr_pending[idx] very early here,
 	 * then raise_barrier() can be blocked when it waits for
 	 * conf->nr_pending[idx] to be 0. Then we can avoid holding
-	 * conf->resync_lock when there is no barrier raised in same
+	 * conf->resync_lock when there is anal barrier raised in same
 	 * barrier unit bucket. Also if the array is frozen, I/O
 	 * should be blocked until array is unfrozen.
 	 */
@@ -955,7 +955,7 @@ static bool _wait_barrier(struct r1conf *conf, int idx, bool nowait)
 	 * frozen (conf->array_frozen is 1), and chonf->barrier[idx] is
 	 * 0, it is safe to return and make the I/O continue. Because the
 	 * array is frozen, all I/O returned here will eventually complete
-	 * or be queued, no race will happen. See code comment in
+	 * or be queued, anal race will happen. See code comment in
 	 * frozen_array().
 	 */
 	if (!READ_ONCE(conf->array_frozen) &&
@@ -979,8 +979,8 @@ static bool _wait_barrier(struct r1conf *conf, int idx, bool nowait)
 	wake_up_barrier(conf);
 	/* Wait for the barrier in same barrier unit bucket to drop. */
 
-	/* Return false when nowait flag is set */
-	if (nowait) {
+	/* Return false when analwait flag is set */
+	if (analwait) {
 		ret = false;
 	} else {
 		wait_event_lock_irq(conf->wait_barrier,
@@ -995,7 +995,7 @@ static bool _wait_barrier(struct r1conf *conf, int idx, bool nowait)
 	return ret;
 }
 
-static bool wait_read_barrier(struct r1conf *conf, sector_t sector_nr, bool nowait)
+static bool wait_read_barrier(struct r1conf *conf, sector_t sector_nr, bool analwait)
 {
 	int idx = sector_to_idx(sector_nr);
 	bool ret = true;
@@ -1004,7 +1004,7 @@ static bool wait_read_barrier(struct r1conf *conf, sector_t sector_nr, bool nowa
 	 * Very similar to _wait_barrier(). The difference is, for read
 	 * I/O we don't need wait for sync I/O, but if the whole array
 	 * is frozen, the read I/O still has to wait until the array is
-	 * unfrozen. Since there is no ordering requirement with
+	 * unfrozen. Since there is anal ordering requirement with
 	 * conf->barrier[idx] here, memory barrier is unnecessary as well.
 	 */
 	atomic_inc(&conf->nr_pending[idx]);
@@ -1022,9 +1022,9 @@ static bool wait_read_barrier(struct r1conf *conf, sector_t sector_nr, bool nowa
 	wake_up_barrier(conf);
 	/* Wait for array to be unfrozen */
 
-	/* Return false when nowait flag is set */
-	if (nowait) {
-		/* Return false when nowait flag is set */
+	/* Return false when analwait flag is set */
+	if (analwait) {
+		/* Return false when analwait flag is set */
 		ret = false;
 	} else {
 		wait_event_lock_irq(conf->wait_barrier,
@@ -1038,11 +1038,11 @@ static bool wait_read_barrier(struct r1conf *conf, sector_t sector_nr, bool nowa
 	return ret;
 }
 
-static bool wait_barrier(struct r1conf *conf, sector_t sector_nr, bool nowait)
+static bool wait_barrier(struct r1conf *conf, sector_t sector_nr, bool analwait)
 {
 	int idx = sector_to_idx(sector_nr);
 
-	return _wait_barrier(conf, idx, nowait);
+	return _wait_barrier(conf, idx, analwait);
 }
 
 static void _allow_barrier(struct r1conf *conf, int idx)
@@ -1073,28 +1073,28 @@ static int get_unqueued_pending(struct r1conf *conf)
 
 static void freeze_array(struct r1conf *conf, int extra)
 {
-	/* Stop sync I/O and normal I/O and wait for everything to
+	/* Stop sync I/O and analrmal I/O and wait for everything to
 	 * go quiet.
 	 * This is called in two situations:
 	 * 1) management command handlers (reshape, remove disk, quiesce).
-	 * 2) one normal I/O request failed.
+	 * 2) one analrmal I/O request failed.
 
 	 * After array_frozen is set to 1, new sync IO will be blocked at
-	 * raise_barrier(), and new normal I/O will blocked at _wait_barrier()
+	 * raise_barrier(), and new analrmal I/O will blocked at _wait_barrier()
 	 * or wait_read_barrier(). The flying I/Os will either complete or be
 	 * queued. When everything goes quite, there are only queued I/Os left.
 
 	 * Every flying I/O contributes to a conf->nr_pending[idx], idx is the
 	 * barrier bucket index which this I/O request hits. When all sync and
-	 * normal I/O are queued, sum of all conf->nr_pending[] will match sum
-	 * of all conf->nr_queued[]. But normal I/O failure is an exception,
+	 * analrmal I/O are queued, sum of all conf->nr_pending[] will match sum
+	 * of all conf->nr_queued[]. But analrmal I/O failure is an exception,
 	 * in handle_read_error(), we may call freeze_array() before trying to
-	 * fix the read error. In this case, the error read I/O is not queued,
+	 * fix the read error. In this case, the error read I/O is analt queued,
 	 * so get_unqueued_pending() == 1.
 	 *
 	 * Therefore before this function returns, we need to wait until
 	 * get_unqueued_pendings(conf) gets equal to extra. For
-	 * normal I/O context, extra is 1, in rested situations extra is 0.
+	 * analrmal I/O context, extra is 1, in rested situations extra is 0.
 	 */
 	spin_lock_irq(&conf->resync_lock);
 	conf->array_frozen = 1;
@@ -1123,7 +1123,7 @@ static void alloc_behind_master_bio(struct r1bio *r1_bio,
 	int i = 0;
 	struct bio *behind_bio = NULL;
 
-	behind_bio = bio_alloc_bioset(NULL, vcnt, 0, GFP_NOIO,
+	behind_bio = bio_alloc_bioset(NULL, vcnt, 0, GFP_ANALIO,
 				      &r1_bio->mddev->bio_set);
 
 	/* discard op, we don't support writezero/writesame yet */
@@ -1136,7 +1136,7 @@ static void alloc_behind_master_bio(struct r1bio *r1_bio,
 		struct page *page;
 		int len = min_t(int, PAGE_SIZE, size);
 
-		page = alloc_page(GFP_NOIO);
+		page = alloc_page(GFP_ANALIO);
 		if (unlikely(!page))
 			goto free_pages;
 
@@ -1202,8 +1202,8 @@ alloc_r1bio(struct mddev *mddev, struct bio *bio)
 	struct r1conf *conf = mddev->private;
 	struct r1bio *r1_bio;
 
-	r1_bio = mempool_alloc(&conf->r1bio_pool, GFP_NOIO);
-	/* Ensure no bio records IO_BLOCKED */
+	r1_bio = mempool_alloc(&conf->r1bio_pool, GFP_ANALIO);
+	/* Ensure anal bio records IO_BLOCKED */
 	memset(r1_bio->bios, 0, conf->raid_disks * sizeof(r1_bio->bios[0]));
 	init_r1bio(r1_bio, mddev, bio);
 	return r1_bio;
@@ -1228,7 +1228,7 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 	 * so there is a tiny risk of deadlock.  So ask for
 	 * emergency memory if needed.
 	 */
-	gfp_t gfp = r1_bio ? (GFP_NOIO | __GFP_HIGH) : GFP_NOIO;
+	gfp_t gfp = r1_bio ? (GFP_ANALIO | __GFP_HIGH) : GFP_ANALIO;
 
 	if (r1bio_existed) {
 		/* Need to get the block device name carefully */
@@ -1245,7 +1245,7 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 	 * array is frozen.
 	 */
 	if (!wait_read_barrier(conf, bio->bi_iter.bi_sector,
-				bio->bi_opf & REQ_NOWAIT)) {
+				bio->bi_opf & REQ_ANALWAIT)) {
 		bio_wouldblock_error(bio);
 		return;
 	}
@@ -1258,7 +1258,7 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 
 	/*
 	 * make_request() can abort the operation when read-ahead is being
-	 * used and no empty request is available.
+	 * used and anal empty request is available.
 	 */
 	rdisk = read_balance(conf, r1_bio, &max_sectors);
 
@@ -1284,7 +1284,7 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 	if (test_bit(WriteMostly, &mirror->rdev->flags) &&
 	    bitmap) {
 		/*
-		 * Reading from a write-mostly device must take care not to
+		 * Reading from a write-mostly device must take care analt to
 		 * over-take any writes that are 'behind'
 		 */
 		raid1_log(mddev, "wait behind writes");
@@ -1296,7 +1296,7 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 		struct bio *split = bio_split(bio, max_sectors,
 					      gfp, &conf->bio_split);
 		bio_chain(split, bio);
-		submit_bio_noacct(bio);
+		submit_bio_analacct(bio);
 		bio = split;
 		r1_bio->master_bio = bio;
 		r1_bio->sectors = max_sectors;
@@ -1325,7 +1325,7 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 	        trace_block_bio_remap(read_bio, disk_devt(mddev->gendisk),
 				      r1_bio->sector);
 
-	submit_bio_noacct(read_bio);
+	submit_bio_analacct(read_bio);
 }
 
 static void raid1_write_request(struct mddev *mddev, struct bio *bio,
@@ -1347,7 +1347,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 		     bio->bi_iter.bi_sector, bio_end_sector(bio))) {
 
 		DEFINE_WAIT(w);
-		if (bio->bi_opf & REQ_NOWAIT) {
+		if (bio->bi_opf & REQ_ANALWAIT) {
 			bio_wouldblock_error(bio);
 			return;
 		}
@@ -1366,10 +1366,10 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 	/*
 	 * Register the new request and wait if the reconstruction
 	 * thread has put up a bar for new requests.
-	 * Continue immediately if no resync is active currently.
+	 * Continue immediately if anal resync is active currently.
 	 */
 	if (!wait_barrier(conf, bio->bi_iter.bi_sector,
-				bio->bi_opf & REQ_NOWAIT)) {
+				bio->bi_opf & REQ_ANALWAIT)) {
 		bio_wouldblock_error(bio);
 		return;
 	}
@@ -1381,7 +1381,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 	/* first select target devices under rcu_lock and
 	 * inc refcount on their rdev.  Record them by setting
 	 * bios[x] to bio
-	 * If there are known/acknowledged bad blocks on any device on
+	 * If there are kanalwn/ackanalwledged bad blocks on any device on
 	 * which we have seen a write error, we want to avoid writing those
 	 * blocks.
 	 * This potentially requires several writes to write around
@@ -1425,13 +1425,13 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 					     &first_bad, &bad_sectors);
 			if (is_bad < 0) {
 				/* mustn't write here until the bad block is
-				 * acknowledged*/
+				 * ackanalwledged*/
 				set_bit(BlockedBadBlocks, &rdev->flags);
 				blocked_rdev = rdev;
 				break;
 			}
 			if (is_bad && first_bad <= r1_bio->sector) {
-				/* Cannot write here at all */
+				/* Cananalt write here at all */
 				bad_sectors -= (r1_bio->sector - first_bad);
 				if (bad_sectors < max_sectors)
 					/* mustn't write more than bad_sectors
@@ -1442,10 +1442,10 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 				/* We don't set R1BIO_Degraded as that
 				 * only applies if the disk is
 				 * missing, so it might be re-added,
-				 * and we want to know to recover this
+				 * and we want to kanalw to recover this
 				 * chunk.
 				 * In this case the device is here,
-				 * and the fact that this chunk is not
+				 * and the fact that this chunk is analt
 				 * in-sync is recorded in the bad
 				 * block log
 				 */
@@ -1470,7 +1470,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 		free_r1bio(r1_bio);
 		allow_barrier(conf, bio->bi_iter.bi_sector);
 
-		if (bio->bi_opf & REQ_NOWAIT) {
+		if (bio->bi_opf & REQ_ANALWAIT) {
 			bio_wouldblock_error(bio);
 			return;
 		}
@@ -1491,9 +1491,9 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 				    BIO_MAX_VECS * (PAGE_SIZE >> 9));
 	if (max_sectors < bio_sectors(bio)) {
 		struct bio *split = bio_split(bio, max_sectors,
-					      GFP_NOIO, &conf->bio_split);
+					      GFP_ANALIO, &conf->bio_split);
 		bio_chain(split, bio);
-		submit_bio_noacct(bio);
+		submit_bio_analacct(bio);
 		bio = split;
 		r1_bio->master_bio = bio;
 		r1_bio->sectors = max_sectors;
@@ -1514,7 +1514,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 
 		if (first_clone) {
 			/* do behind I/O ?
-			 * Not if there are too many, or cannot
+			 * Analt if there are too many, or cananalt
 			 * allocate memory, or a reader on WriteMostly
 			 * is waiting for behind writes to flush */
 			if (bitmap && write_behind &&
@@ -1532,13 +1532,13 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 		if (r1_bio->behind_master_bio) {
 			mbio = bio_alloc_clone(rdev->bdev,
 					       r1_bio->behind_master_bio,
-					       GFP_NOIO, &mddev->bio_set);
+					       GFP_ANALIO, &mddev->bio_set);
 			if (test_bit(CollisionCheck, &rdev->flags))
 				wait_for_serialization(rdev, r1_bio);
 			if (test_bit(WriteMostly, &rdev->flags))
 				atomic_inc(&r1_bio->behind_remaining);
 		} else {
-			mbio = bio_alloc_clone(rdev->bdev, bio, GFP_NOIO,
+			mbio = bio_alloc_clone(rdev->bdev, bio, GFP_ANALIO,
 					       &mddev->bio_set);
 
 			if (mddev->serialize_policy)
@@ -1628,7 +1628,7 @@ static void raid1_status(struct seq_file *seq, struct mddev *mddev)
  * @mddev: affected md device.
  * @rdev: member device to fail.
  *
- * The routine acknowledges &rdev failure and determines new @mddev state.
+ * The routine ackanalwledges &rdev failure and determines new @mddev state.
  * If it failed, then:
  *	- &MD_BROKEN flag is set in &mddev->flags.
  *	- recovery is disabled.
@@ -1718,7 +1718,7 @@ static int raid1_spare_active(struct mddev *mddev)
 	/*
 	 * Find all failed disks within the RAID1 configuration
 	 * and mark them readable.
-	 * Called under mddev lock, so rcu protection not needed.
+	 * Called under mddev lock, so rcu protection analt needed.
 	 * device_lock used to avoid races with raid1_end_read_request
 	 * which expects 'In_sync' flags and ->degraded to be consistent.
 	 */
@@ -1736,12 +1736,12 @@ static int raid1_spare_active(struct mddev *mddev)
 			    !test_and_clear_bit(In_sync, &rdev->flags))
 				count++;
 			if (rdev) {
-				/* Replaced device not technically
+				/* Replaced device analt technically
 				 * faulty, but we need to be sure
 				 * it gets removed and never re-added
 				 */
 				set_bit(Faulty, &rdev->flags);
-				sysfs_notify_dirent_safe(
+				sysfs_analtify_dirent_safe(
 					rdev->sysfs_state);
 			}
 		}
@@ -1750,7 +1750,7 @@ static int raid1_spare_active(struct mddev *mddev)
 		    && !test_bit(Faulty, &rdev->flags)
 		    && !test_and_set_bit(In_sync, &rdev->flags)) {
 			count++;
-			sysfs_notify_dirent_safe(rdev->sysfs_state);
+			sysfs_analtify_dirent_safe(rdev->sysfs_state);
 		}
 	}
 	mddev->degraded -= count;
@@ -1846,8 +1846,8 @@ static int raid1_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 			err = -EBUSY;
 			goto abort;
 		}
-		/* Only remove non-faulty devices if recovery
-		 * is not possible.
+		/* Only remove analn-faulty devices if recovery
+		 * is analt possible.
 		 */
 		if (!test_bit(Faulty, &rdev->flags) &&
 		    mddev->recovery_disabled != conf->recovery_disabled &&
@@ -1866,7 +1866,7 @@ static int raid1_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 			freeze_array(conf, 0);
 			if (atomic_read(&repl->nr_pending)) {
 				/* It means that some queued IO of retry_list
-				 * hold repl. Thus, we cannot set replacement
+				 * hold repl. Thus, we cananalt set replacement
 				 * as NULL, avoiding rdev NULL pointer
 				 * dereference in sync_request_write and
 				 * handle_write_finished.
@@ -1897,7 +1897,7 @@ static void end_sync_read(struct bio *bio)
 	update_head_pos(r1_bio->read_disk, r1_bio);
 
 	/*
-	 * we have read a block, now it needs to be re-written,
+	 * we have read a block, analw it needs to be re-written,
 	 * or re-read if the read failed.
 	 * We don't do much here, just schedule handling by raid1d
 	 */
@@ -1988,13 +1988,13 @@ static int r1_sync_page_io(struct md_rdev *rdev, sector_t sector,
 
 static int fix_sync_read_error(struct r1bio *r1_bio)
 {
-	/* Try some synchronous reads of other devices to get
-	 * good data, much like with normal read errors.  Only
+	/* Try some synchroanalus reads of other devices to get
+	 * good data, much like with analrmal read errors.  Only
 	 * read into the pages we already have so we don't
 	 * need to re-issue the read request.
 	 * We don't need to freeze the array, because being in an
-	 * active sync request, there is no normal IO, and
-	 * no overlapping syncs.
+	 * active sync request, there is anal analrmal IO, and
+	 * anal overlapping syncs.
 	 * We don't need to check is_badblock() again as we
 	 * made sure that anything with a bad block in range
 	 * will have bi_end_io clear.
@@ -2030,8 +2030,8 @@ static int fix_sync_read_error(struct r1bio *r1_bio)
 			s = PAGE_SIZE >> 9;
 		do {
 			if (r1_bio->bios[d]->bi_end_io == end_sync_read) {
-				/* No rcu protection needed here devices
-				 * can only be removed when no resync is
+				/* Anal rcu protection needed here devices
+				 * can only be removed when anal resync is
 				 * active, and resync is currently active
 				 */
 				rdev = conf->mirrors[d].rdev;
@@ -2049,7 +2049,7 @@ static int fix_sync_read_error(struct r1bio *r1_bio)
 
 		if (!success) {
 			int abort = 0;
-			/* Cannot read from anywhere, this block is lost.
+			/* Cananalt read from anywhere, this block is lost.
 			 * Record a bad block on each device.  If that doesn't
 			 * work just disable and interrupt the recovery.
 			 * Don't fail devices as that won't really help.
@@ -2120,7 +2120,7 @@ static int fix_sync_read_error(struct r1bio *r1_bio)
 static void process_checks(struct r1bio *r1_bio)
 {
 	/* We have read all readable devices.  If we haven't
-	 * got the block, then there is no hope left.
+	 * got the block, then there is anal hope left.
 	 * If we have, then we want to do a comparison
 	 * and skip the write if everything is the same.
 	 * If any blocks failed to read, then we need to
@@ -2140,7 +2140,7 @@ static void process_checks(struct r1bio *r1_bio)
 		struct resync_pages *rp = get_resync_pages(b);
 		if (b->bi_end_io != end_sync_read)
 			continue;
-		/* fixup the bio for reuse, but preserve errno */
+		/* fixup the bio for reuse, but preserve erranal */
 		status = b->bi_status;
 		bio_reset(b, conf->mirrors[i].rdev->bdev, REQ_OP_READ);
 		b->bi_status = status;
@@ -2174,7 +2174,7 @@ static void process_checks(struct r1bio *r1_bio)
 
 		if (sbio->bi_end_io != end_sync_read)
 			continue;
-		/* Now we can 'fixup' the error value */
+		/* Analw we can 'fixup' the error value */
 		sbio->bi_status = 0;
 
 		bio_for_each_segment_all(bi, sbio, iter_all)
@@ -2193,7 +2193,7 @@ static void process_checks(struct r1bio *r1_bio)
 			atomic64_add(r1_bio->sectors, &mddev->resync_mismatches);
 		if (j < 0 || (test_bit(MD_RECOVERY_CHECK, &mddev->recovery)
 			      && !status)) {
-			/* No need to write to this device. */
+			/* Anal need to write to this device. */
 			sbio->bi_end_io = NULL;
 			rdev_dec_pending(conf->mirrors[i].rdev, mddev);
 			continue;
@@ -2242,7 +2242,7 @@ static void sync_request_write(struct mddev *mddev, struct r1bio *r1_bio)
 		atomic_inc(&r1_bio->remaining);
 		md_sync_acct(conf->mirrors[i].rdev->bdev, bio_sectors(wbio));
 
-		submit_bio_noacct(wbio);
+		submit_bio_analacct(wbio);
 	}
 
 	put_sync_write_buf(r1_bio, 1);
@@ -2304,7 +2304,7 @@ static void fix_read_error(struct r1conf *conf, struct r1bio *r1_bio)
 		} while (d != read_disk);
 
 		if (!success) {
-			/* Cannot read from anywhere - mark it bad */
+			/* Cananalt read from anywhere - mark it bad */
 			struct md_rdev *rdev = conf->mirrors[read_disk].rdev;
 			if (!rdev_set_badblocks(rdev, sect, s, 0))
 				md_error(mddev, rdev);
@@ -2393,10 +2393,10 @@ static int narrow_write_error(struct r1bio *r1_bio, int i)
 		if (test_bit(R1BIO_BehindIO, &r1_bio->state)) {
 			wbio = bio_alloc_clone(rdev->bdev,
 					       r1_bio->behind_master_bio,
-					       GFP_NOIO, &mddev->bio_set);
+					       GFP_ANALIO, &mddev->bio_set);
 		} else {
 			wbio = bio_alloc_clone(rdev->bdev, r1_bio->master_bio,
-					       GFP_NOIO, &mddev->bio_set);
+					       GFP_ANALIO, &mddev->bio_set);
 		}
 
 		wbio->bi_opf = REQ_OP_WRITE;
@@ -2502,7 +2502,7 @@ static void handle_read_error(struct r1conf *conf, struct r1bio *r1_bio)
 	 * We freeze all other IO, and try reading the block from
 	 * other devices.  When we find one, we re-write
 	 * and check it that fixes the read error.
-	 * This is all done synchronously while the array is
+	 * This is all done synchroanalusly while the array is
 	 * frozen
 	 */
 
@@ -2617,7 +2617,7 @@ static int init_resync(struct r1conf *conf)
 
 static struct r1bio *raid1_alloc_init_r1buf(struct r1conf *conf)
 {
-	struct r1bio *r1bio = mempool_alloc(&conf->r1buf_pool, GFP_NOIO);
+	struct r1bio *r1bio = mempool_alloc(&conf->r1buf_pool, GFP_ANALIO);
 	struct resync_pages *rps;
 	struct bio *bio;
 	int i;
@@ -2635,11 +2635,11 @@ static struct r1bio *raid1_alloc_init_r1buf(struct r1conf *conf)
 /*
  * perform a "sync" on one "block"
  *
- * We need to make sure that no normal I/O request - particularly write
+ * We need to make sure that anal analrmal I/O request - particularly write
  * requests - conflict with active sync requests.
  *
  * This is achieved by tracking pending requests and a 'barrier' concept
- * that can be installed to exclude normal IO requests.
+ * that can be installed to exclude analrmal IO requests.
  */
 
 static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
@@ -2705,7 +2705,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 	}
 
 	/*
-	 * If there is non-resync activity waiting for a turn, then let it
+	 * If there is analn-resync activity waiting for a turn, then let it
 	 * though before starting on this new sync request.
 	 */
 	if (atomic_read(&conf->nr_waiting[idx]))
@@ -2728,7 +2728,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 	 * If we get a correctably read error during resync or recovery,
 	 * we might want to read from a different device.  So we
 	 * flag all drives that could conceivably be read from for READ,
-	 * and any others (which will be non-In_sync devices) for WRITE.
+	 * and any others (which will be analn-In_sync devices) for WRITE.
 	 * If a read fails, we try reading from something else for which READ
 	 * is OK.
 	 */
@@ -2823,7 +2823,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 		put_buf(r1_bio);
 
 		if (!ok) {
-			/* Cannot record the badblocks, so need to
+			/* Cananalt record the badblocks, so need to
 			 * abort the resync.
 			 * If there are multiple read targets, could just
 			 * fail the really bad ones ???
@@ -2836,7 +2836,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 
 	}
 	if (min_bad > 0 && min_bad < good_sectors) {
-		/* only resync enough to reach the next bad->good
+		/* only resync eanalugh to reach the next bad->good
 		 * transition */
 		good_sectors = min_bad;
 	}
@@ -2846,7 +2846,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 		write_targets += read_targets-1;
 
 	if (write_targets == 0 || read_targets == 0) {
-		/* There is nowhere to write, so all non-sync
+		/* There is analwhere to write, so all analn-sync
 		 * drives must be failed - so we are finished
 		 */
 		sector_t rv;
@@ -2891,7 +2891,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 
 				/*
 				 * won't fail because the vec table is big
-				 * enough to hold all these pages
+				 * eanalugh to hold all these pages
 				 */
 				__bio_add_page(bio, page, len, 0);
 			}
@@ -2925,7 +2925,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 				md_sync_acct_bio(bio, nr_sectors);
 				if (read_targets == 1)
 					bio->bi_opf &= ~MD_FAILFAST;
-				submit_bio_noacct(bio);
+				submit_bio_analacct(bio);
 			}
 		}
 	} else {
@@ -2934,7 +2934,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 		md_sync_acct_bio(bio, nr_sectors);
 		if (read_targets == 1)
 			bio->bi_opf &= ~MD_FAILFAST;
-		submit_bio_noacct(bio);
+		submit_bio_analacct(bio);
 	}
 	return nr_sectors;
 }
@@ -2953,7 +2953,7 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 	int i;
 	struct raid1_info *disk;
 	struct md_rdev *rdev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	conf = kzalloc(sizeof(struct r1conf), GFP_KERNEL);
 	if (!conf)
@@ -3042,14 +3042,14 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 		    disk[conf->raid_disks].rdev) {
 			/* This slot has a replacement. */
 			if (!disk->rdev) {
-				/* No original, just make the replacement
+				/* Anal original, just make the replacement
 				 * a recovering spare
 				 */
 				disk->rdev =
 					disk[conf->raid_disks].rdev;
 				disk[conf->raid_disks].rdev = NULL;
 			} else if (!test_bit(In_sync, &disk->rdev->flags))
-				/* Original is not in_sync - bad */
+				/* Original is analt in_sync - bad */
 				goto abort;
 		}
 
@@ -3062,7 +3062,7 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 		}
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	rcu_assign_pointer(conf->thread,
 			   md_register_thread(raid1d, mddev, "raid1"));
 	if (!conf->thread)
@@ -3095,12 +3095,12 @@ static int raid1_run(struct mddev *mddev)
 	int ret;
 
 	if (mddev->level != 1) {
-		pr_warn("md/raid1:%s: raid level not set to mirroring (%d)\n",
+		pr_warn("md/raid1:%s: raid level analt set to mirroring (%d)\n",
 			mdname(mddev), mddev->level);
 		return -EIO;
 	}
 	if (mddev->reshape_position != MaxSector) {
-		pr_warn("md/raid1:%s: reshape_position set but not supported\n",
+		pr_warn("md/raid1:%s: reshape_position set but analt supported\n",
 			mdname(mddev));
 		return -EIO;
 	}
@@ -3147,14 +3147,14 @@ static int raid1_run(struct mddev *mddev)
 		mddev->recovery_cp = MaxSector;
 
 	if (mddev->recovery_cp != MaxSector)
-		pr_info("md/raid1:%s: not clean -- starting background reconstruction\n",
+		pr_info("md/raid1:%s: analt clean -- starting background reconstruction\n",
 			mdname(mddev));
 	pr_info("md/raid1:%s: active with %d out of %d mirrors\n",
 		mdname(mddev), mddev->raid_disks - mddev->degraded,
 		mddev->raid_disks);
 
 	/*
-	 * Ok, everything is just fine now
+	 * Ok, everything is just fine analw
 	 */
 	rcu_assign_pointer(mddev->thread, conf->thread);
 	rcu_assign_pointer(conf->thread, NULL);
@@ -3193,7 +3193,7 @@ static void raid1_free(struct mddev *mddev, void *priv)
 
 static int raid1_resize(struct mddev *mddev, sector_t sectors)
 {
-	/* no resync is happening, and there is enough space
+	/* anal resync is happening, and there is eanalugh space
 	 * on all devices, so we can resize.
 	 * We need to make sure resync covers any new space.
 	 * If the array is shrinking we should possibly wait until
@@ -3245,7 +3245,7 @@ static int raid1_reshape(struct mddev *mddev)
 	memset(&newpool, 0, sizeof(newpool));
 	memset(&oldpool, 0, sizeof(oldpool));
 
-	/* Cannot change chunk_size, layout, or level */
+	/* Cananalt change chunk_size, layout, or level */
 	if (mddev->chunk_sectors != mddev->new_chunk_sectors ||
 	    mddev->layout != mddev->new_layout ||
 	    mddev->level != mddev->new_level) {
@@ -3271,7 +3271,7 @@ static int raid1_reshape(struct mddev *mddev)
 
 	newpoolinfo = kmalloc(sizeof(*newpoolinfo), GFP_KERNEL);
 	if (!newpoolinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 	newpoolinfo->mddev = mddev;
 	newpoolinfo->raid_disks = raid_disks * 2;
 
@@ -3287,7 +3287,7 @@ static int raid1_reshape(struct mddev *mddev)
 	if (!newmirrors) {
 		kfree(newpoolinfo);
 		mempool_exit(&newpool);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	freeze_array(conf, 0);
@@ -3303,7 +3303,7 @@ static int raid1_reshape(struct mddev *mddev)
 			rdev->raid_disk = d2;
 			sysfs_unlink_rdev(mddev, rdev);
 			if (sysfs_link_rdev(mddev, rdev))
-				pr_warn("md/raid1:%s: cannot register rd%d\n",
+				pr_warn("md/raid1:%s: cananalt register rd%d\n",
 					mdname(mddev), rdev->raid_disk);
 		}
 		if (rdev)

@@ -43,7 +43,7 @@ struct fib_lookup_test {
 
 static const struct fib_lookup_test tests[] = {
 	{ .desc = "IPv6 failed neigh",
-	  .daddr = IPV6_NUD_FAILED_ADDR, .expected_ret = BPF_FIB_LKUP_RET_NO_NEIGH, },
+	  .daddr = IPV6_NUD_FAILED_ADDR, .expected_ret = BPF_FIB_LKUP_RET_ANAL_NEIGH, },
 	{ .desc = "IPv6 stale neigh",
 	  .daddr = IPV6_NUD_STALE_ADDR, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
 	  .dmac = DMAC_INIT, },
@@ -51,7 +51,7 @@ static const struct fib_lookup_test tests[] = {
 	  .daddr = IPV6_NUD_FAILED_ADDR, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
 	  .lookup_flags = BPF_FIB_LOOKUP_SKIP_NEIGH, },
 	{ .desc = "IPv4 failed neigh",
-	  .daddr = IPV4_NUD_FAILED_ADDR, .expected_ret = BPF_FIB_LKUP_RET_NO_NEIGH, },
+	  .daddr = IPV4_NUD_FAILED_ADDR, .expected_ret = BPF_FIB_LKUP_RET_ANAL_NEIGH, },
 	{ .desc = "IPv4 stale neigh",
 	  .daddr = IPV4_NUD_STALE_ADDR, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
 	  .dmac = DMAC_INIT, },
@@ -59,7 +59,7 @@ static const struct fib_lookup_test tests[] = {
 	  .daddr = IPV4_NUD_FAILED_ADDR, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
 	  .lookup_flags = BPF_FIB_LOOKUP_SKIP_NEIGH, },
 	{ .desc = "IPv4 TBID lookup failure",
-	  .daddr = IPV4_TBID_DST, .expected_ret = BPF_FIB_LKUP_RET_NOT_FWDED,
+	  .daddr = IPV4_TBID_DST, .expected_ret = BPF_FIB_LKUP_RET_ANALT_FWDED,
 	  .lookup_flags = BPF_FIB_LOOKUP_DIRECT | BPF_FIB_LOOKUP_TBID,
 	  .tbid = RT_TABLE_MAIN, },
 	{ .desc = "IPv4 TBID lookup success",
@@ -67,7 +67,7 @@ static const struct fib_lookup_test tests[] = {
 	  .lookup_flags = BPF_FIB_LOOKUP_DIRECT | BPF_FIB_LOOKUP_TBID, .tbid = 100,
 	  .dmac = DMAC_INIT2, },
 	{ .desc = "IPv6 TBID lookup failure",
-	  .daddr = IPV6_TBID_DST, .expected_ret = BPF_FIB_LKUP_RET_NOT_FWDED,
+	  .daddr = IPV6_TBID_DST, .expected_ret = BPF_FIB_LKUP_RET_ANALT_FWDED,
 	  .lookup_flags = BPF_FIB_LOOKUP_DIRECT | BPF_FIB_LOOKUP_TBID,
 	  .tbid = RT_TABLE_MAIN, },
 	{ .desc = "IPv6 TBID lookup success",
@@ -110,7 +110,7 @@ static int setup_netns(void)
 	if (!ASSERT_OK(err, "write_sysctl(net.ipv6.neigh.veth1.gc_stale_time)"))
 		goto fail;
 
-	SYS(fail, "ip addr add %s/64 dev veth1 nodad", IPV6_IFACE_ADDR);
+	SYS(fail, "ip addr add %s/64 dev veth1 analdad", IPV6_IFACE_ADDR);
 	SYS(fail, "ip neigh add %s dev veth1 nud failed", IPV6_NUD_FAILED_ADDR);
 	SYS(fail, "ip neigh add %s dev veth1 lladdr %s nud stale", IPV6_NUD_STALE_ADDR, DMAC);
 
@@ -122,7 +122,7 @@ static int setup_netns(void)
 	SYS(fail, "ip addr add %s/24 dev veth1", IPV4_IFACE_ADDR_SEC);
 	SYS(fail, "ip route add %s/32 dev veth1 src %s", IPV4_ADDR_DST, IPV4_IFACE_ADDR_SEC);
 
-	SYS(fail, "ip addr add %s/64 dev veth1 nodad", IPV6_IFACE_ADDR_SEC);
+	SYS(fail, "ip addr add %s/64 dev veth1 analdad", IPV6_IFACE_ADDR_SEC);
 	SYS(fail, "ip route add %s/128 dev veth1 src %s", IPV6_ADDR_DST, IPV6_IFACE_ADDR_SEC);
 
 	/* Setup for tbid lookup tests */
@@ -232,7 +232,7 @@ void test_fib_lookup(void)
 	struct fib_lookup *skel;
 	int prog_fd, err, ret, i;
 
-	/* The test does not use the skb->data, so
+	/* The test does analt use the skb->data, so
 	 * use pkt_v6 for both v6 and v4 test.
 	 */
 	LIBBPF_OPTS(bpf_test_run_opts, run_opts,
@@ -279,7 +279,7 @@ void test_fib_lookup(void)
 			assert_src_ip(fib_params, tests[i].expected_src);
 
 		ret = memcmp(tests[i].dmac, fib_params->dmac, sizeof(tests[i].dmac));
-		if (!ASSERT_EQ(ret, 0, "dmac not match")) {
+		if (!ASSERT_EQ(ret, 0, "dmac analt match")) {
 			char expected[18], actual[18];
 
 			mac_str(expected, tests[i].dmac);
@@ -298,6 +298,6 @@ void test_fib_lookup(void)
 fail:
 	if (nstoken)
 		close_netns(nstoken);
-	SYS_NOFAIL("ip netns del " NS_TEST " &> /dev/null");
+	SYS_ANALFAIL("ip netns del " NS_TEST " &> /dev/null");
 	fib_lookup__destroy(skel);
 }

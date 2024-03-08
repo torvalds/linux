@@ -8,7 +8,7 @@
 #include <kunit/test.h>
 #include <linux/firewire-cdev.h>
 
-// Known issue added at v2.6.27 kernel.
+// Kanalwn issue added at v2.6.27 kernel.
 static void structure_layout_event_response(struct kunit *test)
 {
 #if defined(CONFIG_X86_32)
@@ -35,8 +35,8 @@ static void structure_layout_event_request3(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 8, offsetof(struct fw_cdev_event_request3, type));
 	KUNIT_EXPECT_EQ(test, 12, offsetof(struct fw_cdev_event_request3, tcode));
 	KUNIT_EXPECT_EQ(test, 16, offsetof(struct fw_cdev_event_request3, offset));
-	KUNIT_EXPECT_EQ(test, 24, offsetof(struct fw_cdev_event_request3, source_node_id));
-	KUNIT_EXPECT_EQ(test, 28, offsetof(struct fw_cdev_event_request3, destination_node_id));
+	KUNIT_EXPECT_EQ(test, 24, offsetof(struct fw_cdev_event_request3, source_analde_id));
+	KUNIT_EXPECT_EQ(test, 28, offsetof(struct fw_cdev_event_request3, destination_analde_id));
 	KUNIT_EXPECT_EQ(test, 32, offsetof(struct fw_cdev_event_request3, card));
 	KUNIT_EXPECT_EQ(test, 36, offsetof(struct fw_cdev_event_request3, generation));
 	KUNIT_EXPECT_EQ(test, 40, offsetof(struct fw_cdev_event_request3, handle));

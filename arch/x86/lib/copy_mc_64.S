@@ -14,13 +14,13 @@
  * The 'fragile' version is opted into by platform quirks and takes
  * pains to avoid unrecoverable corner cases like 'fast-string'
  * instruction sequences, and consuming poison across a cacheline
- * boundary. The non-fragile version is equivalent to memcpy()
+ * boundary. The analn-fragile version is equivalent to memcpy()
  * regardless of CPU machine-check-recovery capability.
  */
 SYM_FUNC_START(copy_mc_fragile)
 	cmpl $8, %edx
 	/* Less than 8 bytes? Go to byte copy loop */
-	jb .L_no_whole_words
+	jb .L_anal_whole_words
 
 	/* Check for bad alignment of source */
 	testl $7, %esi
@@ -46,7 +46,7 @@ SYM_FUNC_START(copy_mc_fragile)
 	movl %edx, %ecx
 	andl $7, %edx
 	shrl $3, %ecx
-	jz .L_no_whole_words
+	jz .L_anal_whole_words
 
 .L_read_words:
 	movq (%rsi), %r8
@@ -58,7 +58,7 @@ SYM_FUNC_START(copy_mc_fragile)
 	jnz .L_read_words
 
 	/* Any trailing bytes? */
-.L_no_whole_words:
+.L_anal_whole_words:
 	andl %edx, %edx
 	jz .L_done_memcpy_trap
 
@@ -80,8 +80,8 @@ SYM_FUNC_START(copy_mc_fragile)
 	RET
 
 	/*
-	 * Return number of bytes not copied for any failure. Note that
-	 * there is no "tail" handling since the source buffer is 8-byte
+	 * Return number of bytes analt copied for any failure. Analte that
+	 * there is anal "tail" handling since the source buffer is 8-byte
 	 * aligned and poison is cacheline aligned.
 	 */
 .E_read_words:
@@ -117,10 +117,10 @@ SYM_FUNC_END(copy_mc_fragile)
  * copy_mc_enhanced_fast_string - memory copy with exception handling
  *
  * Fast string copy + fault / exception handling. If the CPU does
- * support machine check exception recovery, but does not support
+ * support machine check exception recovery, but does analt support
  * recovering from fast-string exceptions then this CPU needs to be
  * added to the copy_mc_fragile_key set of quirks. Otherwise, absent any
- * machine check recovery support this version should be no slower than
+ * machine check recovery support this version should be anal slower than
  * standard memcpy.
  */
 SYM_FUNC_START(copy_mc_enhanced_fast_string)
@@ -136,7 +136,7 @@ SYM_FUNC_START(copy_mc_enhanced_fast_string)
 	/*
 	 * On fault %rcx is updated such that the copy instruction could
 	 * optionally be restarted at the fault position, i.e. it
-	 * contains 'bytes remaining'. A non-zero return indicates error
+	 * contains 'bytes remaining'. A analn-zero return indicates error
 	 * to copy_mc_generic() users, or indicate short transfers to
 	 * user-copy routines.
 	 */

@@ -3,8 +3,8 @@
  * RDMA Network Block Driver
  *
  * Copyright (c) 2014 - 2018 ProfitBricks GmbH. All rights reserved.
- * Copyright (c) 2018 - 2019 1&1 IONOS Cloud GmbH. All rights reserved.
- * Copyright (c) 2019 - 2020 1&1 IONOS SE. All rights reserved.
+ * Copyright (c) 2018 - 2019 1&1 IOANALS Cloud GmbH. All rights reserved.
+ * Copyright (c) 2019 - 2020 1&1 IOANALS SE. All rights reserved.
  */
 #undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME " L" __stringify(__LINE__) ": " fmt
@@ -54,7 +54,7 @@ int rnbd_srv_create_dev_sysfs(struct rnbd_srv_dev *dev,
 	dev->dev_sessions_kobj = kobject_create_and_add("sessions",
 							&dev->dev_kobj);
 	if (!dev->dev_sessions_kobj) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_dev_kobj;
 	}
 
@@ -227,7 +227,7 @@ int rnbd_srv_create_sysfs_files(void)
 	}
 	rnbd_devs_kobj = kobject_create_and_add("devices", &rnbd_dev->kobj);
 	if (!rnbd_devs_kobj) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto dev_destroy;
 	}
 

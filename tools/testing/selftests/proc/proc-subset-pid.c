@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -19,7 +19,7 @@
  */
 #undef NDEBUG
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sched.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -40,7 +40,7 @@ static inline bool streq(const char *a, const char *b)
 static void make_private_proc(void)
 {
 	if (unshare(CLONE_NEWNS) == -1) {
-		if (errno == ENOSYS || errno == EPERM) {
+		if (erranal == EANALSYS || erranal == EPERM) {
 			exit(4);
 		}
 		exit(1);
@@ -112,10 +112,10 @@ int main(void)
 
 	char c;
 	int rv = readlink("/proc/cpuinfo", &c, 1);
-	assert(rv == -1 && errno == ENOENT);
+	assert(rv == -1 && erranal == EANALENT);
 
 	int fd = open("/proc/cpuinfo", O_RDONLY);
-	assert(fd == -1 && errno == ENOENT);
+	assert(fd == -1 && erranal == EANALENT);
 
 	return 0;
 }

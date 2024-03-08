@@ -14,7 +14,7 @@ void rtw_bf_disassoc(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 	struct rtw_bfee *bfee = &rtwvif->bfee;
 	struct rtw_bf_info *bfinfo = &rtwdev->bf_info;
 
-	if (bfee->role == RTW_BFEE_NONE)
+	if (bfee->role == RTW_BFEE_ANALNE)
 		return;
 
 	if (bfee->role == RTW_BFEE_MU)
@@ -24,7 +24,7 @@ void rtw_bf_disassoc(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 
 	rtw_chip_config_bfee(rtwdev, rtwvif, bfee, false);
 
-	bfee->role = RTW_BFEE_NONE;
+	bfee->role = RTW_BFEE_ANALNE;
 }
 
 void rtw_bf_assoc(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
@@ -262,8 +262,8 @@ void rtw_bf_enable_bfee_mu(struct rtw_dev *rtwdev, struct rtw_vif *vif,
 	bf_info->cur_csi_rpt_rate = DESC_RATE6M;
 	rtw_bf_cfg_sounding(rtwdev, vif, DESC_RATE6M);
 
-	/* accept action_no_ack */
-	rtw_write16_set(rtwdev, REG_RXFLTMAP0, BIT_RXFLTMAP0_ACTIONNOACK);
+	/* accept action_anal_ack */
+	rtw_write16_set(rtwdev, REG_RXFLTMAP0, BIT_RXFLTMAP0_ACTIONANALACK);
 
 	/* accept NDPA and BF report poll */
 	rtw_write16_set(rtwdev, REG_RXFLTMAP1, BIT_RXFLTMAP1_BF);
@@ -320,7 +320,7 @@ void rtw_bf_set_gid_table(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 	struct cfg_mumimo_para param;
 
 	if (bfee->role != RTW_BFEE_MU) {
-		rtw_dbg(rtwdev, RTW_DBG_BF, "this vif is not mu bfee\n");
+		rtw_dbg(rtwdev, RTW_DBG_BF, "this vif is analt mu bfee\n");
 		return;
 	}
 

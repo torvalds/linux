@@ -120,7 +120,7 @@ static unsigned int max77857_get_mode(struct regulator_dev *rdev)
 		return -EINVAL;
 	}
 
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static int max77857_set_mode(struct regulator_dev *rdev, unsigned int mode)
@@ -146,7 +146,7 @@ static int max77857_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
 		return regmap_set_bits(rdev->regmap, reg, val);
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		return regmap_clear_bits(rdev->regmap, reg, val);
 	default:
 		return -EINVAL;
@@ -379,7 +379,7 @@ static int max77857_probe(struct i2c_client *client)
 	regmap = devm_regmap_init_i2c(client, &max77857_regmap_config);
 	if (IS_ERR(regmap))
 		return dev_err_probe(dev, PTR_ERR(regmap),
-				     "cannot initialize regmap\n");
+				     "cananalt initialize regmap\n");
 
 	device_property_read_u32(dev, "adi,switch-frequency-hz", &switch_freq);
 	if (switch_freq) {
@@ -414,15 +414,15 @@ static int max77857_probe(struct i2c_client *client)
 	cfg.dev = dev;
 	cfg.driver_data = (void *)id;
 	cfg.regmap = regmap;
-	cfg.init_data = of_get_regulator_init_data(dev, dev->of_node,
+	cfg.init_data = of_get_regulator_init_data(dev, dev->of_analde,
 						   &max77857_regulator_desc);
 	if (!cfg.init_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdev = devm_regulator_register(dev, &max77857_regulator_desc, &cfg);
 	if (IS_ERR(rdev))
 		return dev_err_probe(dev, PTR_ERR(rdev),
-				     "cannot register regulator\n");
+				     "cananalt register regulator\n");
 
 	return 0;
 }

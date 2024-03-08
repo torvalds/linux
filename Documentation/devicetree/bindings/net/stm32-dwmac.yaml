@@ -14,7 +14,7 @@ maintainers:
 description:
   This file documents platform glue layer for stmmac.
 
-# We need a select here so we don't match all nodes with 'snps,dwmac'
+# We need a select here so we don't match all analdes with 'snps,dwmac'
 select:
   properties:
     compatible:
@@ -76,10 +76,10 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to the syscon node which encompases the glue register
+          - description: phandle to the syscon analde which encompases the glue register
           - description: offset of the control register
     description:
-      Should be phandle/offset pair. The phandle to the syscon node which
+      Should be phandle/offset pair. The phandle to the syscon analde which
       encompases the glue register, and the offset of the control register
 
   st,eth-clk-sel:

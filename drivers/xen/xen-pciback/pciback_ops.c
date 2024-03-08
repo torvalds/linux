@@ -32,7 +32,7 @@ static void xen_pcibk_control_isr(struct pci_dev *dev, int reset)
 		return;
 
 	/* We don't deal with bridges */
-	if (dev->hdr_type != PCI_HEADER_TYPE_NORMAL)
+	if (dev->hdr_type != PCI_HEADER_TYPE_ANALRMAL)
 		return;
 
 	if (reset) {
@@ -53,7 +53,7 @@ static void xen_pcibk_control_isr(struct pci_dev *dev, int reset)
 		dev_data->irq = dev->irq;
 
 	/*
-	 * SR-IOV devices in all use MSI-X and have no legacy
+	 * SR-IOV devices in all use MSI-X and have anal legacy
 	 * interrupts, so inhibit creating a fake IRQ handler for them.
 	 */
 	if (dev_data->irq == 0)
@@ -70,7 +70,7 @@ static void xen_pcibk_control_isr(struct pci_dev *dev, int reset)
 
 	if (enable) {
 		/*
-		 * The MSI or MSI-X should not have an IRQ handler. Otherwise
+		 * The MSI or MSI-X should analt have an IRQ handler. Otherwise
 		 * if the guest terminates we BUG_ON in free_msi_irqs.
 		 */
 		if (dev->msi_enabled || dev->msix_enabled)
@@ -112,8 +112,8 @@ void xen_pcibk_reset_device(struct pci_dev *dev)
 
 	xen_pcibk_control_isr(dev, 1 /* reset device */);
 
-	/* Disable devices (but not bridges) */
-	if (dev->hdr_type == PCI_HEADER_TYPE_NORMAL) {
+	/* Disable devices (but analt bridges) */
+	if (dev->hdr_type == PCI_HEADER_TYPE_ANALRMAL) {
 #ifdef CONFIG_PCI_MSI
 		/* The guest could have been abruptly killed without
 		 * disabling MSI/MSI-X interrupts.*/
@@ -159,7 +159,7 @@ int xen_pcibk_enable_msi(struct xen_pcibk_device *pdev,
 		return XEN_PCI_ERR_op_failed;
 	}
 
-	/* The value the guest needs is actually the IDT vector, not
+	/* The value the guest needs is actually the IDT vector, analt
 	 * the local domain's IRQ number. */
 
 	op->value = dev->irq ? xen_pirq_from_irq(dev->irq) : 0;
@@ -211,7 +211,7 @@ int xen_pcibk_enable_msix(struct xen_pcibk_device *pdev,
 		return -EALREADY;
 
 	/*
-	 * PCI_COMMAND_MEMORY must be enabled, otherwise we may not be able
+	 * PCI_COMMAND_MEMORY must be enabled, otherwise we may analt be able
 	 * to access the BARs where the MSI-X entries reside.
 	 * But VF devices are unique in which the PF needs to be checked.
 	 */
@@ -221,7 +221,7 @@ int xen_pcibk_enable_msix(struct xen_pcibk_device *pdev,
 
 	entries = kmalloc_array(op->value, sizeof(*entries), GFP_KERNEL);
 	if (entries == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < op->value; i++) {
 		entries[i].entry = op->msix_entries[i].entry;
@@ -285,7 +285,7 @@ static inline bool xen_pcibk_test_op_pending(struct xen_pcibk_device *pdev)
 }
 
 /*
-* Now the same evtchn is used for both pcifront conf_read_write request
+* Analw the same evtchn is used for both pcifront conf_read_write request
 * as well as pcie aer front end ack. We use a new work_queue to schedule
 * xen_pcibk conf_read_write service for avoiding confict with aer_core
 * do_recovery job which also use the system default work_queue
@@ -294,7 +294,7 @@ static void xen_pcibk_test_and_schedule_op(struct xen_pcibk_device *pdev)
 {
 	bool eoi = true;
 
-	/* Check that frontend is requesting an operation and that we are not
+	/* Check that frontend is requesting an operation and that we are analt
 	 * already processing a request */
 	if (xen_pcibk_test_op_pending(pdev)) {
 		schedule_work(&pdev->op_work);
@@ -308,12 +308,12 @@ static void xen_pcibk_test_and_schedule_op(struct xen_pcibk_device *pdev)
 		eoi = false;
 	}
 
-	/* EOI if there was nothing to do. */
+	/* EOI if there was analthing to do. */
 	if (eoi)
 		xen_pcibk_lateeoi(pdev, XEN_EOI_FLAG_SPURIOUS);
 }
 
-/* Performing the configuration space reads/writes must not be done in atomic
+/* Performing the configuration space reads/writes must analt be done in atomic
  * context because some of the pci_* functions can sleep (mostly due to ACPI
  * use of semaphores). This function is intended to be called from a work
  * queue in process context taking a struct xen_pcibk_device as a parameter */
@@ -333,7 +333,7 @@ static void xen_pcibk_do_one_op(struct xen_pcibk_device *pdev)
 	dev = xen_pcibk_get_pci_dev(pdev, op->domain, op->bus, op->devfn);
 
 	if (dev == NULL)
-		op->err = XEN_PCI_ERR_dev_not_found;
+		op->err = XEN_PCI_ERR_dev_analt_found;
 	else {
 		dev_data = pci_get_drvdata(dev);
 		if (dev_data)
@@ -363,14 +363,14 @@ static void xen_pcibk_do_one_op(struct xen_pcibk_device *pdev)
 			break;
 #endif
 		default:
-			op->err = XEN_PCI_ERR_not_implemented;
+			op->err = XEN_PCI_ERR_analt_implemented;
 			break;
 		}
 	}
 	if (!op->err && dev && dev_data) {
 		/* Transition detected */
 		if ((dev_data->enable_intx != test_intx))
-			xen_pcibk_control_isr(dev, 0 /* no reset */);
+			xen_pcibk_control_isr(dev, 0 /* anal reset */);
 	}
 	pdev->sh_info->op.err = op->err;
 	pdev->sh_info->op.value = op->value;
@@ -386,7 +386,7 @@ static void xen_pcibk_do_one_op(struct xen_pcibk_device *pdev)
 	/* Tell the driver domain that we're done. */
 	wmb();
 	clear_bit(_XEN_PCIF_active, (unsigned long *)&pdev->sh_info->flags);
-	notify_remote_via_irq(pdev->evtchn_irq);
+	analtify_remote_via_irq(pdev->evtchn_irq);
 
 	/* Mark that we're done. */
 	smp_mb__before_atomic(); /* /after/ clearing PCIF_active */
@@ -431,7 +431,7 @@ static irqreturn_t xen_pcibk_guest_interrupt(int irq, void *dev_id)
 		dev_data->handled++;
 		if ((dev_data->handled % 1000) == 0) {
 			if (xen_test_irq_shared(irq)) {
-				dev_info(&dev->dev, "%s IRQ line is not shared "
+				dev_info(&dev->dev, "%s IRQ line is analt shared "
 					"with other domains. Turning ISR off\n",
 					 dev_data->irq_name);
 				dev_data->ack_intr = 0;
@@ -439,5 +439,5 @@ static irqreturn_t xen_pcibk_guest_interrupt(int irq, void *dev_id)
 		}
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }

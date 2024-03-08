@@ -37,7 +37,7 @@
 #define CAFE_NAND_TIMING1	0x24
 #define CAFE_NAND_TIMING2	0x28
 #define CAFE_NAND_TIMING3	0x2c
-#define CAFE_NAND_NONMEM	0x30
+#define CAFE_NAND_ANALNMEM	0x30
 #define CAFE_NAND_ECC_RESULT	0x3C
 #define CAFE_NAND_DMA_CTRL	0x40
 #define CAFE_NAND_DMA_ADDR0	0x44
@@ -110,7 +110,7 @@ static int cafe_device_ready(struct nand_chip *chip)
 	cafe_writel(cafe, irqs, NAND_IRQ);
 
 	cafe_dev_dbg(&cafe->pdev->dev, "NAND device is%s ready, IRQ %x (%x) (%x,%x)\n",
-		result?"":" not", irqs, cafe_readl(cafe, NAND_IRQ),
+		result?"":" analt", irqs, cafe_readl(cafe, NAND_IRQ),
 		cafe_readl(cafe, GLOBAL_IRQ), cafe_readl(cafe, GLOBAL_IRQ_MASK));
 
 	return result;
@@ -214,14 +214,14 @@ static void cafe_nand_cmdfunc(struct nand_chip *chip, unsigned command,
 	/* Set RD or WR bits as appropriate */
 	if (command == NAND_CMD_READID || command == NAND_CMD_STATUS) {
 		ctl1 |= (1<<26); /* rd */
-		/* Always 5 bytes, for now */
+		/* Always 5 bytes, for analw */
 		cafe->datalen = 4;
 		/* And one address cycle -- even for STATUS, since the controller doesn't work without */
 		adrbytes = 1;
 	} else if (command == NAND_CMD_READ0 || command == NAND_CMD_READ1 ||
 		   command == NAND_CMD_READOOB || command == NAND_CMD_RNDOUT) {
 		ctl1 |= 1<<26; /* rd */
-		/* For now, assume just read to end of page */
+		/* For analw, assume just read to end of page */
 		cafe->datalen = mtd->writesize + mtd->oobsize - column;
 	} else if (command == NAND_CMD_SEQIN)
 		ctl1 |= 1<<25; /* wr */
@@ -231,7 +231,7 @@ static void cafe_nand_cmdfunc(struct nand_chip *chip, unsigned command,
 		ctl1 |= ((adrbytes-1)|8) << 27;
 
 	if (command == NAND_CMD_SEQIN || command == NAND_CMD_ERASE1) {
-		/* Ignore the first command of a pair; the hardware
+		/* Iganalre the first command of a pair; the hardware
 		   deals with them both at once, later */
 		cafe->ctl1 = ctl1;
 		cafe_dev_dbg(&cafe->pdev->dev, "Setup for delayed command, ctl1 %08x, dlen %x\n",
@@ -257,7 +257,7 @@ static void cafe_nand_cmdfunc(struct nand_chip *chip, unsigned command,
 		if (ctl1 & (1<<26)) {
 			/* It's a read */
 			dmactl |= (1<<29);
-			/* ... so it's done when the DMA is done, not just
+			/* ... so it's done when the DMA is done, analt just
 			   the command. */
 			doneint = 0x10000000;
 		}
@@ -336,7 +336,7 @@ static irqreturn_t cafe_nand_interrupt(int irq, void *id)
 	uint32_t irqs = cafe_readl(cafe, NAND_IRQ);
 	cafe_writel(cafe, irqs & ~0x90000000, NAND_IRQ);
 	if (!irqs)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	cafe_dev_dbg(&cafe->pdev->dev, "irq, bits %x (%x)\n", irqs, cafe_readl(cafe, NAND_IRQ));
 	return IRQ_HANDLED;
@@ -350,7 +350,7 @@ static int cafe_nand_write_oob(struct nand_chip *chip, int page)
 				 mtd->oobsize);
 }
 
-/* Don't use -- use nand_read_oob_std for now */
+/* Don't use -- use nand_read_oob_std for analw */
 static int cafe_nand_read_oob(struct nand_chip *chip, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
@@ -406,7 +406,7 @@ static int cafe_nand_read_page(struct nand_chip *chip, uint8_t *buf,
 				/* out of range */
 				n = -1374;
 			} else if (p == 0) {
-				/* high four bits do not correspond to data */
+				/* high four bits do analt correspond to data */
 				if (pat[i] > 0xff)
 					n = -2048;
 				else
@@ -597,7 +597,7 @@ static int cafe_nand_attach_chip(struct nand_chip *chip)
 	cafe->dmabuf = dma_alloc_coherent(&cafe->pdev->dev, 2112,
 					  &cafe->dmaaddr, GFP_KERNEL);
 	if (!cafe->dmabuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set up DMA address */
 	cafe_writel(cafe, lower_32_bits(cafe->dmaaddr), NAND_DMA_ADDR0);
@@ -625,7 +625,7 @@ static int cafe_nand_attach_chip(struct nand_chip *chip)
 		dev_warn(&cafe->pdev->dev,
 			 "Unexpected NAND flash writesize %d. Aborting\n",
 			 mtd->writesize);
-		err = -ENOTSUPP;
+		err = -EANALTSUPP;
 		goto out_free_dma;
 	}
 
@@ -670,7 +670,7 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	/* Very old versions shared the same PCI ident for all three
 	   functions on the chip. Verify the class too... */
 	if ((pdev->class >> 8) != PCI_CLASS_MEMORY_FLASH)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -680,7 +680,7 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 
 	cafe = kzalloc(sizeof(*cafe), GFP_KERNEL);
 	if (!cafe) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_disable_device;
 	}
 
@@ -692,13 +692,13 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	cafe->mmio = pci_iomap(pdev, 0, 0);
 	if (!cafe->mmio) {
 		dev_warn(&pdev->dev, "failed to iomap\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free_mtd;
 	}
 
-	cafe->rs = init_rs_non_canonical(12, &cafe_mul, 0, 1, 8);
+	cafe->rs = init_rs_analn_caanalnical(12, &cafe_mul, 0, 1, 8);
 	if (!cafe->rs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_ior;
 	}
 
@@ -708,8 +708,8 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	cafe->nand.legacy.read_buf = cafe_read_buf;
 	cafe->nand.legacy.write_buf = cafe_write_buf;
 	cafe->nand.legacy.select_chip = cafe_select_chip;
-	cafe->nand.legacy.set_features = nand_get_set_features_notsupp;
-	cafe->nand.legacy.get_features = nand_get_set_features_notsupp;
+	cafe->nand.legacy.set_features = nand_get_set_features_analtsupp;
+	cafe->nand.legacy.get_features = nand_get_set_features_analtsupp;
 
 	cafe->nand.legacy.chip_delay = 0;
 
@@ -717,10 +717,10 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	cafe->nand.bbt_options = NAND_BBT_USE_FLASH;
 
 	if (skipbbt)
-		cafe->nand.options |= NAND_SKIP_BBTSCAN | NAND_NO_BBM_QUIRK;
+		cafe->nand.options |= NAND_SKIP_BBTSCAN | NAND_ANAL_BBM_QUIRK;
 
 	if (numtimings && numtimings != 3) {
-		dev_warn(&cafe->pdev->dev, "%d timing register values ignored; precisely three are required\n", numtimings);
+		dev_warn(&cafe->pdev->dev, "%d timing register values iganalred; precisely three are required\n", numtimings);
 	}
 
 	if (numtimings == 3) {
@@ -752,7 +752,7 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	err = request_irq(pdev->irq, &cafe_nand_interrupt, IRQF_SHARED,
 			  "CAFE NAND", mtd);
 	if (err) {
-		dev_warn(&pdev->dev, "Could not register IRQ %d\n", pdev->irq);
+		dev_warn(&pdev->dev, "Could analt register IRQ %d\n", pdev->irq);
 		goto out_free_rs;
 	}
 
@@ -773,7 +773,7 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 		cafe_readl(cafe, GLOBAL_CTRL),
 		cafe_readl(cafe, GLOBAL_IRQ_MASK));
 
-	/* Do not use the DMA during the NAND identification */
+	/* Do analt use the DMA during the NAND identification */
 	cafe->usedma = 0;
 
 	/* Scan to find existence of the device */

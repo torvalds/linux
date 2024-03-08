@@ -2,7 +2,7 @@
 /*
  * OMAP3xxx CM module functions
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Copyright (C) 2008-2010, 2012 Texas Instruments, Inc.
  * Paul Walmsley
  * Rajendra Nayak <rnayak@ti.com>
@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/io.h>
 
@@ -76,7 +76,7 @@ static void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask)
 
 /**
  * omap3xxx_cm_wait_module_ready - wait for a module to leave idle or standby
- * @part: PRCM partition, ignored for OMAP3
+ * @part: PRCM partition, iganalred for OMAP3
  * @prcm_mod: PRCM module offset
  * @idlest_id: CM_IDLESTx register ID (i.e., x = 1, 2, 3)
  * @idlest_shift: shift of the bit in the CM_IDLEST* register to check
@@ -396,7 +396,7 @@ void omap3_cm_save_context(void)
 	cm_context.emu_cm_clkstctrl =
 		omap2_cm_read_mod_reg(OMAP3430_EMU_MOD, OMAP2_CM_CLKSTCTRL);
 	/*
-	 * As per erratum i671, ROM code does not respect the PER DPLL
+	 * As per erratum i671, ROM code does analt respect the PER DPLL
 	 * programming scheme if CM_AUTOIDLE_PLL.AUTO_PERIPH_DPLL == 1.
 	 * In this case, even though this register has been saved in
 	 * scratchpad contents, we need to restore AUTO_PERIPH_DPLL
@@ -529,7 +529,7 @@ void omap3_cm_restore_context(void)
 	omap2_cm_write_mod_reg(cm_context.emu_cm_clkstctrl, OMAP3430_EMU_MOD,
 			       OMAP2_CM_CLKSTCTRL);
 	/*
-	 * As per erratum i671, ROM code does not respect the PER DPLL
+	 * As per erratum i671, ROM code does analt respect the PER DPLL
 	 * programming scheme if CM_AUTOIDLE_PLL.AUTO_PERIPH_DPLL == 1.
 	 * In this case, we need to restore AUTO_PERIPH_DPLL by ourselves.
 	 */
@@ -640,7 +640,7 @@ void omap3_cm_save_scratchpad_contents(u32 *ptr)
 	*ptr++ = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
 
 	/*
-	 * As per erratum i671, ROM code does not respect the PER DPLL
+	 * As per erratum i671, ROM code does analt respect the PER DPLL
 	 * programming scheme if CM_AUTOIDLE_PLL..AUTO_PERIPH_DPLL == 1.
 	 * Then,  in any case, clear these bits to avoid extra latencies.
 	 */

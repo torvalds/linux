@@ -16,15 +16,15 @@
 	x(btree_cache_cannibalize_lock,			10)	\
 	x(btree_cache_cannibalize_lock_fail,		11)	\
 	x(btree_cache_cannibalize_unlock,		12)	\
-	x(btree_node_write,				13)	\
-	x(btree_node_read,				14)	\
-	x(btree_node_compact,				15)	\
-	x(btree_node_merge,				16)	\
-	x(btree_node_split,				17)	\
-	x(btree_node_rewrite,				18)	\
-	x(btree_node_alloc,				19)	\
-	x(btree_node_free,				20)	\
-	x(btree_node_set_root,				21)	\
+	x(btree_analde_write,				13)	\
+	x(btree_analde_read,				14)	\
+	x(btree_analde_compact,				15)	\
+	x(btree_analde_merge,				16)	\
+	x(btree_analde_split,				17)	\
+	x(btree_analde_rewrite,				18)	\
+	x(btree_analde_alloc,				19)	\
+	x(btree_analde_free,				20)	\
+	x(btree_analde_set_root,				21)	\
 	x(btree_path_relock_fail,			22)	\
 	x(btree_path_upgrade_fail,			23)	\
 	x(btree_reserve_get_fail,			24)	\
@@ -48,8 +48,8 @@
 	x(gc_gens_end,					42)	\
 	x(gc_gens_start,				43)	\
 	x(trans_blocked_journal_reclaim,		44)	\
-	x(trans_restart_btree_node_reused,		45)	\
-	x(trans_restart_btree_node_split,		46)	\
+	x(trans_restart_btree_analde_reused,		45)	\
+	x(trans_restart_btree_analde_split,		46)	\
 	x(trans_restart_fault_inject,			47)	\
 	x(trans_restart_iter_upgrade,			48)	\
 	x(trans_restart_journal_preres_get,		49)	\
@@ -63,7 +63,7 @@
 	x(trans_restart_relock,				57)	\
 	x(trans_restart_relock_after_fill,		58)	\
 	x(trans_restart_relock_key_cache_fill,		59)	\
-	x(trans_restart_relock_next_node,		60)	\
+	x(trans_restart_relock_next_analde,		60)	\
 	x(trans_restart_relock_parent_for_fill,		61)	\
 	x(trans_restart_relock_path,			62)	\
 	x(trans_restart_relock_path_intent,		63)	\

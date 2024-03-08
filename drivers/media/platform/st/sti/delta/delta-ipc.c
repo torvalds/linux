@@ -120,7 +120,7 @@ int delta_ipc_open(struct delta_ctx *pctx, const char *name,
 
 	if (!rpmsg_device) {
 		dev_err(delta->dev,
-			"%s   ipc: failed to open, rpmsg is not initialized\n",
+			"%s   ipc: failed to open, rpmsg is analt initialized\n",
 			pctx->name);
 		pctx->sys_errors++;
 		return -EINVAL;
@@ -128,7 +128,7 @@ int delta_ipc_open(struct delta_ctx *pctx, const char *name,
 
 	if (!name) {
 		dev_err(delta->dev,
-			"%s   ipc: failed to open, no name given\n",
+			"%s   ipc: failed to open, anal name given\n",
 			pctx->name);
 		return -EINVAL;
 	}
@@ -142,7 +142,7 @@ int delta_ipc_open(struct delta_ctx *pctx, const char *name,
 
 	if (!ipc_buf_size) {
 		dev_err(delta->dev,
-			"%s   ipc: failed to open, no size given for ipc buffer\n",
+			"%s   ipc: failed to open, anal size given for ipc buffer\n",
 			pctx->name);
 		return -EINVAL;
 	}
@@ -191,7 +191,7 @@ int delta_ipc_open(struct delta_ctx *pctx, const char *name,
 		goto err;
 	}
 
-	/* wait for acknowledge */
+	/* wait for ackanalwledge */
 	if (!wait_for_completion_timeout
 	    (&ctx->done, msecs_to_jiffies(IPC_TIMEOUT))) {
 		dev_err(delta->dev,
@@ -243,7 +243,7 @@ int delta_ipc_set_stream(void *hdl, struct delta_ipc_param *param)
 
 	if (!rpmsg_device) {
 		dev_err(delta->dev,
-			"%s   ipc: failed to set stream, rpmsg is not initialized\n",
+			"%s   ipc: failed to set stream, rpmsg is analt initialized\n",
 			pctx->name);
 		return -EINVAL;
 	}
@@ -265,7 +265,7 @@ int delta_ipc_set_stream(void *hdl, struct delta_ipc_param *param)
 
 	if (!is_valid_data(ctx, param->data, param->size)) {
 		dev_err(delta->dev,
-			"%s   ipc: failed to set stream, parameter is not in expected address range (size=%d, data=%p not in %p..%p)\n",
+			"%s   ipc: failed to set stream, parameter is analt in expected address range (size=%d, data=%p analt in %p..%p)\n",
 			pctx->name,
 			param->size,
 			param->data,
@@ -291,7 +291,7 @@ int delta_ipc_set_stream(void *hdl, struct delta_ipc_param *param)
 		return ret;
 	}
 
-	/* wait for acknowledge */
+	/* wait for ackanalwledge */
 	if (!wait_for_completion_timeout
 	    (&ctx->done, msecs_to_jiffies(IPC_TIMEOUT))) {
 		dev_err(delta->dev,
@@ -334,7 +334,7 @@ int delta_ipc_decode(void *hdl, struct delta_ipc_param *param,
 
 	if (!rpmsg_device) {
 		dev_err(delta->dev,
-			"%s   ipc: failed to decode, rpmsg is not initialized\n",
+			"%s   ipc: failed to decode, rpmsg is analt initialized\n",
 			pctx->name);
 		return -EINVAL;
 	}
@@ -365,7 +365,7 @@ int delta_ipc_decode(void *hdl, struct delta_ipc_param *param,
 
 	if (!is_valid_data(ctx, param->data, param->size)) {
 		dev_err(delta->dev,
-			"%s   ipc: failed to decode, parameter is not in expected address range (size=%d, data=%p not in %p..%p)\n",
+			"%s   ipc: failed to decode, parameter is analt in expected address range (size=%d, data=%p analt in %p..%p)\n",
 			pctx->name,
 			param->size,
 			param->data,
@@ -376,7 +376,7 @@ int delta_ipc_decode(void *hdl, struct delta_ipc_param *param,
 
 	if (!is_valid_data(ctx, status->data, status->size)) {
 		dev_err(delta->dev,
-			"%s   ipc: failed to decode, status is not in expected address range (size=%d, data=%p not in %p..%p)\n",
+			"%s   ipc: failed to decode, status is analt in expected address range (size=%d, data=%p analt in %p..%p)\n",
 			pctx->name,
 			status->size,
 			status->data,
@@ -405,7 +405,7 @@ int delta_ipc_decode(void *hdl, struct delta_ipc_param *param,
 		return ret;
 	}
 
-	/* wait for acknowledge */
+	/* wait for ackanalwledge */
 	if (!wait_for_completion_timeout
 	    (&ctx->done, msecs_to_jiffies(IPC_TIMEOUT))) {
 		dev_err(delta->dev,
@@ -452,7 +452,7 @@ void delta_ipc_close(void *hdl)
 
 	if (!rpmsg_device) {
 		dev_err(delta->dev,
-			"%s   ipc: failed to close, rpmsg is not initialized\n",
+			"%s   ipc: failed to close, rpmsg is analt initialized\n",
 			pctx->name);
 		return;
 	}
@@ -470,7 +470,7 @@ void delta_ipc_close(void *hdl)
 		return;
 	}
 
-	/* wait for acknowledge */
+	/* wait for ackanalwledge */
 	if (!wait_for_completion_timeout
 	    (&ctx->done, msecs_to_jiffies(IPC_TIMEOUT))) {
 		dev_err(delta->dev,
@@ -531,7 +531,7 @@ static int delta_ipc_cb(struct rpmsg_device *rpdev, void *data,
 	}
 
 	/*
-	 * if not already known, save copro instance context
+	 * if analt already kanalwn, save copro instance context
 	 * to ensure re-entrance on copro side
 	 */
 	if (!ctx->copro_hdl)

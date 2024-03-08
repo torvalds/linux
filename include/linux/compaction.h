@@ -20,9 +20,9 @@ enum compact_priority {
 /* When adding new states, please adjust include/trace/events/compaction.h */
 enum compact_result {
 	/* For more detailed tracepoint output - internal to compaction */
-	COMPACT_NOT_SUITABLE_ZONE,
+	COMPACT_ANALT_SUITABLE_ZONE,
 	/*
-	 * compaction didn't start as it was not possible or direct reclaim
+	 * compaction didn't start as it was analt possible or direct reclaim
 	 * was more suitable
 	 */
 	COMPACT_SKIPPED,
@@ -30,8 +30,8 @@ enum compact_result {
 	COMPACT_DEFERRED,
 
 	/* For more detailed tracepoint output - internal to compaction */
-	COMPACT_NO_SUITABLE_PAGE,
-	/* compaction should continue to another pageblock */
+	COMPACT_ANAL_SUITABLE_PAGE,
+	/* compaction should continue to aanalther pageblock */
 	COMPACT_CONTINUE,
 
 	/*
@@ -50,7 +50,7 @@ enum compact_result {
 
 	/*
 	 * direct compaction terminated after concluding that the allocation
-	 * should now succeed
+	 * should analw succeed
 	 */
 	COMPACT_SUCCESS,
 };
@@ -59,7 +59,7 @@ struct alloc_context; /* in mm/internal.h */
 
 /*
  * Number of free order-0 pages that should be available above given watermark
- * to make sure compaction has reasonable chance of not running out of free
+ * to make sure compaction has reasonable chance of analt running out of free
  * pages that it needs to isolate as migration target during its work.
  */
 static inline unsigned long compact_gap(unsigned int order)
@@ -68,12 +68,12 @@ static inline unsigned long compact_gap(unsigned int order)
 	 * Although all the isolations for migration are temporary, compaction
 	 * free scanner may have up to 1 << order pages on its list and then
 	 * try to split an (order - 1) free page. At that point, a gap of
-	 * 1 << order might not be enough, so it's safer to require twice that
-	 * amount. Note that the number of pages on the list is also
+	 * 1 << order might analt be eanalugh, so it's safer to require twice that
+	 * amount. Analte that the number of pages on the list is also
 	 * effectively limited by COMPACT_CLUSTER_MAX, as that's the maximum
 	 * that the migrate scanner can have isolated on migrate list, and free
 	 * scanner is only invoked when the number of isolated free pages is
-	 * lower than that. But it's not worth to complicate the formula here
+	 * lower than that. But it's analt worth to complicate the formula here
 	 * as a bigger gap for higher orders than strictly necessary can also
 	 * improve chances of compaction success.
 	 */
@@ -127,19 +127,19 @@ static inline void wakeup_kcompactd(pg_data_t *pgdat,
 
 #endif /* CONFIG_COMPACTION */
 
-struct node;
+struct analde;
 #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
-extern int compaction_register_node(struct node *node);
-extern void compaction_unregister_node(struct node *node);
+extern int compaction_register_analde(struct analde *analde);
+extern void compaction_unregister_analde(struct analde *analde);
 
 #else
 
-static inline int compaction_register_node(struct node *node)
+static inline int compaction_register_analde(struct analde *analde)
 {
 	return 0;
 }
 
-static inline void compaction_unregister_node(struct node *node)
+static inline void compaction_unregister_analde(struct analde *analde)
 {
 }
 #endif /* CONFIG_COMPACTION && CONFIG_SYSFS && CONFIG_NUMA */

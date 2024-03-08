@@ -108,7 +108,7 @@ static int pch_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
 	u16 hi, id;
 	u32 lo;
 
-	if (ptp_classify_raw(skb) == PTP_CLASS_NONE)
+	if (ptp_classify_raw(skb) == PTP_CLASS_ANALNE)
 		return 0;
 
 	offset = ETH_HLEN + IPV4_HLEN(data) + UDP_HLEN;
@@ -215,7 +215,7 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		return -ERANGE;
 
 	switch (cfg.rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		adapter->hwts_rx_en = 0;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
@@ -291,7 +291,7 @@ static void pch_gbe_wait_clr_bit(void __iomem *reg, u32 bit)
 
 	/* wait busy */
 	if (readx_poll_timeout_atomic(ioread32, reg, tmp, !(tmp & bit), 0, 10))
-		pr_err("Error: busy bit is not cleared\n");
+		pr_err("Error: busy bit is analt cleared\n");
 }
 
 /**
@@ -400,7 +400,7 @@ s32 pch_gbe_mac_force_mac_fc(struct pch_gbe_hw *hw)
 	rx_fctrl = ioread32(&hw->reg->RX_FCTRL);
 
 	switch (mac->fc) {
-	case PCH_GBE_FC_NONE:
+	case PCH_GBE_FC_ANALNE:
 		rx_fctrl &= ~PCH_GBE_FL_CTRL_EN;
 		mac->tx_fc_enable = false;
 		break;
@@ -483,7 +483,7 @@ u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
 				      data_out & PCH_GBE_MIIM_OPER_READY, 20, 2000)) {
 		netdev_err(adapter->netdev, "pch-gbe.miim won't go Ready\n");
 		spin_unlock_irqrestore(&hw->miim_lock, flags);
-		return 0;	/* No way to indicate timeout error */
+		return 0;	/* Anal way to indicate timeout error */
 	}
 	iowrite32(((reg << PCH_GBE_MIIM_REG_ADDR_SHIFT) |
 		  (addr << PCH_GBE_MIIM_PHY_ADDR_SHIFT) |
@@ -550,12 +550,12 @@ static int pch_gbe_alloc_queues(struct pch_gbe_adapter *adapter)
 	adapter->tx_ring = devm_kzalloc(&adapter->pdev->dev,
 					sizeof(*adapter->tx_ring), GFP_KERNEL);
 	if (!adapter->tx_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->rx_ring = devm_kzalloc(&adapter->pdev->dev,
 					sizeof(*adapter->rx_ring), GFP_KERNEL);
 	if (!adapter->rx_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -638,7 +638,7 @@ static int pch_gbe_mdio_read(struct net_device *netdev, int addr, int reg)
 /**
  * pch_gbe_mdio_write - The write function for mii
  * @netdev: Network interface device structure
- * @addr:   Phy ID (not used)
+ * @addr:   Phy ID (analt used)
  * @reg:    Access location
  * @data:   Write data
  */
@@ -1019,7 +1019,7 @@ static void pch_gbe_watchdog(struct timer_list *t)
 	struct net_device *netdev = adapter->netdev;
 	struct pch_gbe_hw *hw = &adapter->hw;
 
-	netdev_dbg(netdev, "right now = %ld\n", jiffies);
+	netdev_dbg(netdev, "right analw = %ld\n", jiffies);
 
 	pch_gbe_update_stats(adapter);
 	if ((mii_link_ok(&adapter->mii)) && (!netif_carrier_ok(netdev))) {
@@ -1074,15 +1074,15 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 	frame_ctrl = 0;
 	if (unlikely(skb->len < PCH_GBE_SHORT_PKT))
 		frame_ctrl |= PCH_GBE_TXD_CTRL_APAD;
-	if (skb->ip_summed == CHECKSUM_NONE)
+	if (skb->ip_summed == CHECKSUM_ANALNE)
 		frame_ctrl |= PCH_GBE_TXD_CTRL_TCPIP_ACC_OFF;
 
 	/* Performs checksum processing */
 	/*
-	 * It is because the hardware accelerator does not support a checksum,
+	 * It is because the hardware accelerator does analt support a checksum,
 	 * when the received data size is less than 64 bytes.
 	 */
-	if (skb->len < PCH_GBE_SHORT_PKT && skb->ip_summed != CHECKSUM_NONE) {
+	if (skb->len < PCH_GBE_SHORT_PKT && skb->ip_summed != CHECKSUM_ANALNE) {
 		frame_ctrl |= PCH_GBE_TXD_CTRL_APAD |
 			      PCH_GBE_TXD_CTRL_TCPIP_ACC_OFF;
 		if (skb->protocol == htons(ETH_P_IP)) {
@@ -1185,7 +1185,7 @@ void pch_gbe_update_stats(struct pch_gbe_adapter *adapter)
 	 * Prevent stats update while adapter is being reset, or if the pci
 	 * connection is down.
 	 */
-	if ((pdev->error_state) && (pdev->error_state != pci_channel_io_normal))
+	if ((pdev->error_state) && (pdev->error_state != pci_channel_io_analrmal))
 		return;
 
 	spin_lock_irqsave(&adapter->stats_lock, flags);
@@ -1244,7 +1244,7 @@ static void pch_gbe_enable_dma_rx(struct pch_gbe_hw *hw)
  * @data:  Pointer to a network interface device structure
  * Returns:
  *	- IRQ_HANDLED:	Our interrupt
- *	- IRQ_NONE:	Not our interrupt
+ *	- IRQ_ANALNE:	Analt our interrupt
  */
 static irqreturn_t pch_gbe_intr(int irq, void *data)
 {
@@ -1257,9 +1257,9 @@ static irqreturn_t pch_gbe_intr(int irq, void *data)
 	/* Check request status */
 	int_st = ioread32(&hw->reg->INT_ST);
 	int_st = int_st & ioread32(&hw->reg->INT_EN);
-	/* When request status is no interruption factor */
+	/* When request status is anal interruption factor */
 	if (unlikely(!int_st))
-		return IRQ_NONE;	/* Not our interrupt. End processing. */
+		return IRQ_ANALNE;	/* Analt our interrupt. End processing. */
 	netdev_dbg(netdev, "%s occur int_st = 0x%08x\n", __func__, int_st);
 	if (int_st & PCH_GBE_INT_RX_FRAME_ERR)
 		adapter->stats.intr_rx_frame_err_count++;
@@ -1400,7 +1400,7 @@ pch_gbe_alloc_rx_buffers_pool(struct pch_gbe_adapter *adapter,
 		dma_alloc_coherent(&pdev->dev, size,
 				   &rx_ring->rx_buff_pool_logic, GFP_KERNEL);
 	if (!rx_ring->rx_buff_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx_ring->rx_buff_pool_size = size;
 	for (i = 0; i < rx_ring->count; i++) {
@@ -1445,7 +1445,7 @@ static void pch_gbe_alloc_tx_buffers(struct pch_gbe_adapter *adapter,
  * @tx_ring:   Tx descriptor ring
  * Returns:
  *	true:  Cleaned the descriptor
- *	false: Not cleaned the descriptor
+ *	false: Analt cleaned the descriptor
  */
 static bool
 pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
@@ -1554,7 +1554,7 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 	netdev_dbg(adapter->netdev,
 		   "called pch_gbe_unmap_and_free_tx_resource() %d count\n",
 		   cleaned_count);
-	if (cleaned_count > 0)  { /*skip this if nothing cleaned*/
+	if (cleaned_count > 0)  { /*skip this if analthing cleaned*/
 		/* Recover from running out of Tx resources in xmit_frame */
 		netif_tx_lock(adapter->netdev);
 		if (unlikely(cleaned && (netif_queue_stopped(adapter->netdev))))
@@ -1581,7 +1581,7 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
  * @work_to_do:  Request count
  * Returns:
  *	true:  Cleaned the descriptor
- *	false: Not cleaned the descriptor
+ *	false: Analt cleaned the descriptor
  */
 static bool
 pch_gbe_clean_rx(struct pch_gbe_adapter *adapter,
@@ -1625,13 +1625,13 @@ pch_gbe_clean_rx(struct pch_gbe_adapter *adapter,
 		buffer_info->mapped = false;
 
 		netdev_dbg(netdev,
-			   "RxDecNo = 0x%04x  Status[DMA:0x%02x GBE:0x%04x TCP:0x%08x]  BufInf = 0x%p\n",
+			   "RxDecAnal = 0x%04x  Status[DMA:0x%02x GBE:0x%04x TCP:0x%08x]  BufInf = 0x%p\n",
 			   i, dma_status, gbec_status, tcp_ip_status,
 			   buffer_info);
 		/* Error check */
-		if (unlikely(gbec_status & PCH_GBE_RXD_GMAC_STAT_NOTOCTAL)) {
+		if (unlikely(gbec_status & PCH_GBE_RXD_GMAC_STAT_ANALTOCTAL)) {
 			adapter->stats.rx_frame_errors++;
-			netdev_err(netdev, "Receive Not Octal Error\n");
+			netdev_err(netdev, "Receive Analt Octal Error\n");
 		} else if (unlikely(gbec_status &
 				PCH_GBE_RXD_GMAC_STAT_NBLERR)) {
 			adapter->stats.rx_frame_errors++;
@@ -1666,7 +1666,7 @@ pch_gbe_clean_rx(struct pch_gbe_adapter *adapter,
 			if (tcp_ip_status & PCH_GBE_RXD_ACC_STAT_TCPIPOK)
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 			else
-				skb->ip_summed = CHECKSUM_NONE;
+				skb->ip_summed = CHECKSUM_ANALNE;
 
 			napi_gro_receive(&adapter->napi, skb);
 			(*work_done)++;
@@ -1703,12 +1703,12 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 	struct pch_gbe_tx_desc *tx_desc;
 	int size;
-	int desNo;
+	int desAnal;
 
 	size = (int)sizeof(struct pch_gbe_buffer) * tx_ring->count;
 	tx_ring->buffer_info = vzalloc(size);
 	if (!tx_ring->buffer_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx_ring->size = tx_ring->count * (int)sizeof(struct pch_gbe_tx_desc);
 
@@ -1716,14 +1716,14 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
 					   &tx_ring->dma, GFP_KERNEL);
 	if (!tx_ring->desc) {
 		vfree(tx_ring->buffer_info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
 
-	for (desNo = 0; desNo < tx_ring->count; desNo++) {
-		tx_desc = PCH_GBE_TX_DESC(*tx_ring, desNo);
+	for (desAnal = 0; desAnal < tx_ring->count; desAnal++) {
+		tx_desc = PCH_GBE_TX_DESC(*tx_ring, desAnal);
 		tx_desc->gbec_status = DSC_INIT16;
 	}
 	netdev_dbg(adapter->netdev,
@@ -1747,24 +1747,24 @@ int pch_gbe_setup_rx_resources(struct pch_gbe_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 	struct pch_gbe_rx_desc *rx_desc;
 	int size;
-	int desNo;
+	int desAnal;
 
 	size = (int)sizeof(struct pch_gbe_buffer) * rx_ring->count;
 	rx_ring->buffer_info = vzalloc(size);
 	if (!rx_ring->buffer_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx_ring->size = rx_ring->count * (int)sizeof(struct pch_gbe_rx_desc);
 	rx_ring->desc =	dma_alloc_coherent(&pdev->dev, rx_ring->size,
 						  &rx_ring->dma, GFP_KERNEL);
 	if (!rx_ring->desc) {
 		vfree(rx_ring->buffer_info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rx_ring->next_to_clean = 0;
 	rx_ring->next_to_use = 0;
-	for (desNo = 0; desNo < rx_ring->count; desNo++) {
-		rx_desc = PCH_GBE_RX_DESC(*rx_ring, desNo);
+	for (desAnal = 0; desAnal < rx_ring->count; desAnal++) {
+		rx_desc = PCH_GBE_RX_DESC(*rx_ring, desAnal);
 		rx_desc->gbec_status = DSC_INIT16;
 	}
 	netdev_dbg(adapter->netdev,
@@ -1908,7 +1908,7 @@ void pch_gbe_down(struct pch_gbe_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	struct pch_gbe_rx_ring *rx_ring = adapter->rx_ring;
 
-	/* signal that we're down so the interrupt handler does not
+	/* signal that we're down so the interrupt handler does analt
 	 * reschedule our watchdog timer */
 	napi_disable(&adapter->napi);
 	atomic_set(&adapter->irq_sem, 0);
@@ -1922,7 +1922,7 @@ void pch_gbe_down(struct pch_gbe_adapter *adapter)
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
-	if ((pdev->error_state) && (pdev->error_state != pci_channel_io_normal))
+	if ((pdev->error_state) && (pdev->error_state != pci_channel_io_analrmal))
 		pch_gbe_reset(adapter);
 	pch_gbe_clean_tx_ring(adapter, adapter->tx_ring);
 	pch_gbe_clean_rx_ring(adapter, adapter->rx_ring);
@@ -1953,7 +1953,7 @@ static int pch_gbe_sw_init(struct pch_gbe_adapter *adapter)
 
 	if (pch_gbe_alloc_queues(adapter)) {
 		netdev_err(netdev, "Unable to allocate memory for queues\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	spin_lock_init(&adapter->hw.miim_lock);
 	spin_lock_init(&adapter->stats_lock);
@@ -2034,7 +2034,7 @@ static int pch_gbe_stop(struct net_device *netdev)
  * @skb:     Socket buffer structure
  * @netdev:  Network interface device structure
  * Returns:
- *	- NETDEV_TX_OK:   Normal end
+ *	- NETDEV_TX_OK:   Analrmal end
  *	- NETDEV_TX_BUSY: Error end
  */
 static netdev_tx_t pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
@@ -2050,7 +2050,7 @@ static netdev_tx_t pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *ne
 		return NETDEV_TX_BUSY;
 	}
 
-	/* CRC,ITAG no support */
+	/* CRC,ITAG anal support */
 	pch_gbe_tx_queue(adapter, tx_ring, skb);
 	return NETDEV_TX_OK;
 }
@@ -2086,7 +2086,7 @@ static void pch_gbe_set_multi(struct net_device *netdev)
 
 	iowrite32(rctl, &hw->reg->RX_MODE);
 
-	/* If we're not using multicast filtering then there's no point
+	/* If we're analt using multicast filtering then there's anal point
 	 * configuring the unused MAC address registers.
 	 */
 	if (!(rctl & PCH_GBE_MLT_FIL_EN))
@@ -2122,7 +2122,7 @@ static void pch_gbe_set_multi(struct net_device *netdev)
  * @addr:   Pointer to an address structure
  * Returns:
  *	0:		Successfully
- *	-EADDRNOTAVAIL:	Failed
+ *	-EADDRANALTAVAIL:	Failed
  */
 static int pch_gbe_set_mac(struct net_device *netdev, void *addr)
 {
@@ -2131,7 +2131,7 @@ static int pch_gbe_set_mac(struct net_device *netdev, void *addr)
 	int ret_val;
 
 	if (!is_valid_ether_addr(skaddr->sa_data)) {
-		ret_val = -EADDRNOTAVAIL;
+		ret_val = -EADDRANALTAVAIL;
 	} else {
 		eth_hw_addr_set(netdev, skaddr->sa_data);
 		memcpy(adapter->hw.mac.addr, skaddr->sa_data, netdev->addr_len);
@@ -2277,7 +2277,7 @@ static int pch_gbe_napi_poll(struct napi_struct *napi, int budget)
 
 	if (cleaned)
 		work_done = budget;
-	/* If no Tx and not enough Rx work done,
+	/* If anal Tx and analt eanalugh Rx work done,
 	 * exit the polling mode
 	 */
 	if (work_done < budget)
@@ -2351,7 +2351,7 @@ static pci_ers_result_t pch_gbe_io_slot_reset(struct pci_dev *pdev)
 	struct pch_gbe_hw *hw = &adapter->hw;
 
 	if (pci_enable_device(pdev)) {
-		netdev_err(netdev, "Cannot re-enable PCI device after reset\n");
+		netdev_err(netdev, "Cananalt re-enable PCI device after reset\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 	pci_set_master(pdev);
@@ -2425,7 +2425,7 @@ static int pch_gbe_resume(struct device *device)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		netdev_err(netdev, "Cannot enable PCI device from suspend\n");
+		netdev_err(netdev, "Cananalt enable PCI device from suspend\n");
 		return err;
 	}
 	pci_set_master(pdev);
@@ -2479,7 +2479,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
 		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret) {
-			dev_err(&pdev->dev, "ERR: No usable DMA configuration, aborting\n");
+			dev_err(&pdev->dev, "ERR: Anal usable DMA configuration, aborting\n");
 			return ret;
 		}
 	}
@@ -2494,7 +2494,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 
 	netdev = alloc_etherdev((int)sizeof(struct pch_gbe_adapter));
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	pci_set_drvdata(pdev, netdev);
@@ -2555,7 +2555,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		/*
 		 * If the MAC is invalid (or just missing), display a warning
-		 * but do not abort setting up the device. pch_gbe_up will
+		 * but do analt abort setting up the device. pch_gbe_up will
 		 * prevent the interface from being brought up until a valid MAC
 		 * is set.
 		 */
@@ -2611,7 +2611,7 @@ static int pch_gbe_gpio_add_table(struct device *dev, void *table)
 	return devm_add_action_or_reset(dev, pch_gbe_gpio_remove_table, table);
 }
 
-static struct gpiod_lookup_table pch_gbe_minnow_gpio_table = {
+static struct gpiod_lookup_table pch_gbe_minanalw_gpio_table = {
 	.dev_id		= "0000:02:00.1",
 	.table		= {
 		GPIO_LOOKUP("sch_gpio.33158", 13, NULL, GPIO_ACTIVE_LOW),
@@ -2619,15 +2619,15 @@ static struct gpiod_lookup_table pch_gbe_minnow_gpio_table = {
 	},
 };
 
-/* The AR803X PHY on the MinnowBoard requires a physical pin to be toggled to
+/* The AR803X PHY on the MinanalwBoard requires a physical pin to be toggled to
  * ensure it is awake for probe and init. Request the line and reset the PHY.
  */
-static int pch_gbe_minnow_platform_init(struct pci_dev *pdev)
+static int pch_gbe_minanalw_platform_init(struct pci_dev *pdev)
 {
 	struct gpio_desc *gpiod;
 	int ret;
 
-	ret = pch_gbe_gpio_add_table(&pdev->dev, &pch_gbe_minnow_gpio_table);
+	ret = pch_gbe_gpio_add_table(&pdev->dev, &pch_gbe_minanalw_gpio_table);
 	if (ret)
 		return ret;
 
@@ -2644,20 +2644,20 @@ static int pch_gbe_minnow_platform_init(struct pci_dev *pdev)
 	return ret;
 }
 
-static struct pch_gbe_privdata pch_gbe_minnow_privdata = {
+static struct pch_gbe_privdata pch_gbe_minanalw_privdata = {
 	.phy_tx_clk_delay = true,
 	.phy_disable_hibernate = true,
-	.platform_init = pch_gbe_minnow_platform_init,
+	.platform_init = pch_gbe_minanalw_platform_init,
 };
 
 static const struct pci_device_id pch_gbe_pcidev_id[] = {
 	{.vendor = PCI_VENDOR_ID_INTEL,
 	 .device = PCI_DEVICE_ID_INTEL_IOH1_GBE,
 	 .subvendor = PCI_VENDOR_ID_CIRCUITCO,
-	 .subdevice = PCI_SUBSYSTEM_ID_CIRCUITCO_MINNOWBOARD,
+	 .subdevice = PCI_SUBSYSTEM_ID_CIRCUITCO_MINANALWBOARD,
 	 .class = (PCI_CLASS_NETWORK_ETHERNET << 8),
 	 .class_mask = (0xFFFF00),
-	 .driver_data = (kernel_ulong_t)&pch_gbe_minnow_privdata
+	 .driver_data = (kernel_ulong_t)&pch_gbe_minanalw_privdata
 	 },
 	{.vendor = PCI_VENDOR_ID_INTEL,
 	 .device = PCI_DEVICE_ID_INTEL_IOH1_GBE,

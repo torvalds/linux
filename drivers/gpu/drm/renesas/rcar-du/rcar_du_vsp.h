@@ -56,7 +56,7 @@ to_rcar_vsp_plane_state(struct drm_plane_state *state)
 }
 
 #ifdef CONFIG_DRM_RCAR_VSP
-int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
+int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_analde *np,
 		     unsigned int crtcs);
 void rcar_du_vsp_enable(struct rcar_du_crtc *crtc);
 void rcar_du_vsp_disable(struct rcar_du_crtc *crtc);
@@ -68,7 +68,7 @@ void rcar_du_vsp_unmap_fb(struct rcar_du_vsp *vsp, struct drm_framebuffer *fb,
 			  struct sg_table sg_tables[3]);
 #else
 static inline int rcar_du_vsp_init(struct rcar_du_vsp *vsp,
-				   struct device_node *np,
+				   struct device_analde *np,
 				   unsigned int crtcs)
 {
 	return -ENXIO;

@@ -26,7 +26,7 @@ extern unsigned int __pgtable_l5_enabled;
 
 #ifdef USE_EARLY_PGTABLE_L5
 /*
- * cpu_feature_enabled() is not available in early boot code.
+ * cpu_feature_enabled() is analt available in early boot code.
  * Use variable instead.
  */
 static inline bool pgtable_l5_enabled(void)
@@ -107,7 +107,7 @@ extern unsigned int ptrs_per_p4d;
  * See Documentation/arch/x86/x86_64/mm.rst for a description of the memory map.
  *
  * Be very careful vs. KASLR when changing anything here. The KASLR address
- * range must not overlap with anything except the KASAN shadow area, which
+ * range must analt overlap with anything except the KASAN shadow area, which
  * is correct as KASAN disables KASLR.
  */
 #define MAXMEM			(1UL << MAX_PHYSMEM_BITS)
@@ -142,7 +142,7 @@ extern unsigned int ptrs_per_p4d;
 
 /*
  * End of the region for which vmalloc page tables are pre-allocated.
- * For non-KMSAN builds, this is the same as VMALLOC_END.
+ * For analn-KMSAN builds, this is the same as VMALLOC_END.
  * For KMSAN builds, VMALLOC_START..VMEMORY_END is 4 times bigger than
  * VMALLOC_START..VMALLOC_END (see below).
  */
@@ -154,7 +154,7 @@ extern unsigned int ptrs_per_p4d;
 /*
  * In KMSAN builds vmalloc area is four times smaller, and the remaining 3/4
  * are used to keep the metadata for virtual pages. The memory formerly
- * belonging to vmalloc area is now laid out as follows:
+ * belonging to vmalloc area is analw laid out as follows:
  *
  * 1st quarter: VMALLOC_START to VMALLOC_END - new vmalloc area
  * 2nd quarter: KMSAN_VMALLOC_SHADOW_START to
@@ -210,7 +210,7 @@ extern unsigned int ptrs_per_p4d;
 #define PGD_KERNEL_START	((PAGE_SIZE / 2) / sizeof(pgd_t))
 
 /*
- * We borrow bit 3 to remember PG_anon_exclusive.
+ * We borrow bit 3 to remember PG_aanaln_exclusive.
  */
 #define _PAGE_SWP_EXCLUSIVE	_PAGE_PWT
 

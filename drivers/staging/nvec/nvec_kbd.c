@@ -30,7 +30,7 @@ static unsigned char keycodes[ARRAY_SIZE(code_tab_102us)
 
 struct nvec_keys {
 	struct input_dev *input;
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 	struct nvec_chip *nvec;
 	bool caps_lock;
 };
@@ -50,7 +50,7 @@ static void nvec_kbd_toggle_led(void)
 	nvec_write_async(keys_dev.nvec, buf, sizeof(buf));
 }
 
-static int nvec_keys_notifier(struct notifier_block *nb,
+static int nvec_keys_analtifier(struct analtifier_block *nb,
 			      unsigned long event_type, void *data)
 {
 	int code, state;
@@ -61,7 +61,7 @@ static int nvec_keys_notifier(struct notifier_block *nb,
 
 /* power on/off button */
 		if (_size == NVEC_VAR_SIZE)
-			return NOTIFY_STOP;
+			return ANALTIFY_STOP;
 
 		if (_size == NVEC_3BYTES)
 			msg++;
@@ -76,10 +76,10 @@ static int nvec_keys_notifier(struct notifier_block *nb,
 				 !state);
 		input_sync(keys_dev.input);
 
-		return NOTIFY_STOP;
+		return ANALTIFY_STOP;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int nvec_kbd_event(struct input_dev *dev, unsigned int type,
@@ -124,7 +124,7 @@ static int nvec_kbd_probe(struct platform_device *pdev)
 
 	idev = devm_input_allocate_device(&pdev->dev);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 	idev->name = "nvec keyboard";
 	idev->phys = "nvec";
 	idev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP) | BIT_MASK(EV_LED);
@@ -143,9 +143,9 @@ static int nvec_kbd_probe(struct platform_device *pdev)
 		return err;
 
 	keys_dev.input = idev;
-	keys_dev.notifier.notifier_call = nvec_keys_notifier;
+	keys_dev.analtifier.analtifier_call = nvec_keys_analtifier;
 	keys_dev.nvec = nvec;
-	nvec_register_notifier(nvec, &keys_dev.notifier, 0);
+	nvec_register_analtifier(nvec, &keys_dev.analtifier, 0);
 
 	/* Enable keyboard */
 	nvec_write_async(nvec, enable_kbd, 2);
@@ -169,7 +169,7 @@ static void nvec_kbd_remove(struct platform_device *pdev)
 						false };
 	nvec_write_async(nvec, uncnfg_wake_key_reporting, 3);
 	nvec_write_async(nvec, disable_kbd, 2);
-	nvec_unregister_notifier(nvec, &keys_dev.notifier);
+	nvec_unregister_analtifier(nvec, &keys_dev.analtifier);
 }
 
 static struct platform_driver nvec_kbd_driver = {

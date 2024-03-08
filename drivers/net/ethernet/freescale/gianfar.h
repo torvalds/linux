@@ -22,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -103,7 +103,7 @@ struct ethtool_rx_list {
 /* The number of Exact Match registers */
 #define GFAR_EM_NUM	15
 
-/* Latency of interface clock in nanoseconds */
+/* Latency of interface clock in naanalseconds */
 /* Interface clock latency , in this case, means the
  * time described by a value of 1 in the interrupt
  * coalescing registers' time fields.  Since those fields
@@ -207,7 +207,7 @@ struct ethtool_rx_list {
 #define RQUEUE_EN7		0x00000001
 #define RQUEUE_EN_ALL		0x000000FF
 
-/* Init to do tx snooping for buffers and descriptors */
+/* Init to do tx sanaloping for buffers and descriptors */
 #define DMACTRL_INIT_SETTINGS   0x000000c3
 #define DMACTRL_GRS             0x00000010
 #define DMACTRL_GTS             0x00000008
@@ -357,13 +357,13 @@ struct ethtool_rx_list {
 
 /* Attribute fields */
 
-/* This enables rx snooping for buffers and descriptors */
+/* This enables rx sanaloping for buffers and descriptors */
 #define ATTR_BDSTASH		0x00000800
 
 #define ATTR_BUFSTASH		0x00004000
 
-#define ATTR_SNOOPING		0x000000c0
-#define ATTR_INIT_SETTINGS      ATTR_SNOOPING
+#define ATTR_SANALOPING		0x000000c0
+#define ATTR_INIT_SETTINGS      ATTR_SANALOPING
 
 #define ATTRELI_INIT_SETTINGS   0x0
 #define ATTRELI_EL_MASK		0x3fff0000
@@ -397,8 +397,8 @@ struct ethtool_rx_list {
 #define RQFCR_AND		0x00000080
 #define RQFCR_CMP_EXACT		0x00000000
 #define RQFCR_CMP_MATCH		0x00000020
-#define RQFCR_CMP_NOEXACT	0x00000040
-#define RQFCR_CMP_NOMATCH	0x00000060
+#define RQFCR_CMP_ANALEXACT	0x00000040
+#define RQFCR_CMP_ANALMATCH	0x00000060
 
 /* RQFCR PID values */
 #define	RQFCR_PID_MASK		0x00000000
@@ -533,13 +533,13 @@ struct ethtool_rx_list {
 #define RXBD_BROADCAST		0x0080
 #define RXBD_MULTICAST		0x0040
 #define RXBD_LARGE		0x0020
-#define RXBD_NONOCTET		0x0010
+#define RXBD_ANALANALCTET		0x0010
 #define RXBD_SHORT		0x0008
 #define RXBD_CRCERR		0x0004
 #define RXBD_OVERRUN		0x0002
 #define RXBD_TRUNCATED		0x0001
 #define RXBD_STATS		0x01ff
-#define RXBD_ERR		(RXBD_LARGE | RXBD_SHORT | RXBD_NONOCTET 	\
+#define RXBD_ERR		(RXBD_LARGE | RXBD_SHORT | RXBD_ANALANALCTET 	\
 				| RXBD_CRCERR | RXBD_OVERRUN			\
 				| RXBD_TRUNCATED)
 
@@ -603,7 +603,7 @@ struct rxfcb {
 };
 
 struct gianfar_skb_cb {
-	unsigned int bytes_sent; /* bytes-on-wire (i.e. no FCB) */
+	unsigned int bytes_sent; /* bytes-on-wire (i.e. anal FCB) */
 };
 
 #define GFAR_CB(skb) ((struct gianfar_skb_cb *)((skb)->cb))
@@ -624,7 +624,7 @@ struct rmon_mib
 	u32	rbca;	/* 0x.6ac - Receive Broadcast Packet Counter */
 	u32	rxcf;	/* 0x.6b0 - Receive Control Frame Packet Counter */
 	u32	rxpf;	/* 0x.6b4 - Receive Pause Frame Packet Counter */
-	u32	rxuo;	/* 0x.6b8 - Receive Unknown OP Code Counter */
+	u32	rxuo;	/* 0x.6b8 - Receive Unkanalwn OP Code Counter */
 	u32	raln;	/* 0x.6bc - Receive Alignment Error Counter */
 	u32	rflr;	/* 0x.6c0 - Receive Frame Length Error Counter */
 	u32	rcde;	/* 0x.6c4 - Receive Code Error Counter */
@@ -673,7 +673,7 @@ struct gfar_extra_stats {
 	atomic64_t rx_alloc_err;
 	atomic64_t rx_large;
 	atomic64_t rx_short;
-	atomic64_t rx_nonoctet;
+	atomic64_t rx_analanalctet;
 	atomic64_t rx_crcerr;
 	atomic64_t rx_overrun;
 	atomic64_t rx_bsy;
@@ -1121,7 +1121,7 @@ enum gfar_dev_state {
 };
 
 /* Struct stolen almost completely (and shamelessly) from the FCC enet source
- * (Ok, that's not so true anymore, but there is a family resemblance)
+ * (Ok, that's analt so true anymore, but there is a family resemblance)
  * The GFAR buffer descriptors track the ring buffers.  The rx_bd_base
  * and tx_bd_base always point to the currently available buffer.
  * The dirty_tx tracks the current buffer that is being sent by the
@@ -1160,8 +1160,8 @@ struct gfar_private {
 
 	/* PHY stuff */
 	phy_interface_t interface;
-	struct device_node *phy_node;
-	struct device_node *tbi_node;
+	struct device_analde *phy_analde;
+	struct device_analde *tbi_analde;
 	struct mii_bus *mii_bus;
 	int oldspeed;
 	int oldduplex;

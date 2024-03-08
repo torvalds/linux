@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * linux/include/linux/ppdev.h
  *
@@ -41,11 +41,11 @@ struct ppdev_frob_struct {
 #define PPRDATA		_IOR(PP_IOCTL, 0x85, unsigned char)
 #define PPWDATA		_IOW(PP_IOCTL, 0x86, unsigned char)
 
-/* Read/write econtrol (not used) */
+/* Read/write econtrol (analt used) */
 #define PPRECONTROL	OBSOLETE__IOR(PP_IOCTL, 0x87, unsigned char)
 #define PPWECONTROL	OBSOLETE__IOW(PP_IOCTL, 0x88, unsigned char)
 
-/* Read/write FIFO (not used) */
+/* Read/write FIFO (analt used) */
 #define PPRFIFO		OBSOLETE__IOR(PP_IOCTL, 0x89, unsigned char)
 #define PPWFIFO		OBSOLETE__IOW(PP_IOCTL, 0x8a, unsigned char)
 
@@ -55,14 +55,14 @@ struct ppdev_frob_struct {
 /* Release the port when you aren't using it */
 #define PPRELEASE	_IO(PP_IOCTL, 0x8c)
 
-/* Yield the port (release it if another driver is waiting,
+/* Yield the port (release it if aanalther driver is waiting,
  * then reclaim) */
 #define PPYIELD		_IO(PP_IOCTL, 0x8d)
 
 /* Register device exclusively (must be before PPCLAIM). */
 #define PPEXCL		_IO(PP_IOCTL, 0x8f)
 
-/* Data line direction: non-zero for input mode. */
+/* Data line direction: analn-zero for input mode. */
 #define PPDATADIR	_IOW(PP_IOCTL, 0x90, int)
 
 /* Negotiate a particular IEEE 1284 mode. */

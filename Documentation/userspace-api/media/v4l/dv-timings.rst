@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _dv-timings:
 
@@ -11,7 +11,7 @@ and the corresponding video timings. Today there are many more different
 hardware interfaces such as High Definition TV interfaces (HDMI), VGA,
 DVI connectors etc., that carry video signals and there is a need to
 extend the API to select the video timings for these interfaces. Since
-it is not possible to extend the :ref:`v4l2_std_id <v4l2-std-id>`
+it is analt possible to extend the :ref:`v4l2_std_id <v4l2-std-id>`
 due to the limited bits available, a new set of ioctls was added to
 set/get video timings at the input and output.
 
@@ -44,15 +44,15 @@ streaming, free all buffers, and call the :ref:`VIDIOC_QUERY_DV_TIMINGS`
 to obtain the new video timings, and if they are valid, it can set
 those by calling the :ref:`ioctl VIDIOC_S_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>`.
 This will also update the format, so use the :ref:`ioctl VIDIOC_G_FMT <VIDIOC_G_FMT>`
-to obtain the new format. Now the application can allocate new buffers
+to obtain the new format. Analw the application can allocate new buffers
 and start streaming again.
 
 The :ref:`VIDIOC_QUERY_DV_TIMINGS` will just report what the
 hardware detects, it will never change the configuration. If the
 currently set timings and the actually detected timings differ, then
-typically this will mean that you will not be able to capture any
+typically this will mean that you will analt be able to capture any
 video. The correct approach is to rely on the `V4L2_EVENT_SOURCE_CHANGE`
-event so you know when something changed.
+event so you kanalw when something changed.
 
 Applications can make use of the :ref:`input-capabilities` and
 :ref:`output-capabilities` flags to determine whether the digital

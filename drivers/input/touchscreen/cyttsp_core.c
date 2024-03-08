@@ -239,7 +239,7 @@ static void cyttsp_hard_reset(struct cyttsp *ts)
 	if (ts->reset_gpio) {
 		/*
 		 * According to the CY8CTMA340 datasheet page 21, the external
-		 * reset pulse width should be >= 1 ms. The datasheet does not
+		 * reset pulse width should be >= 1 ms. The datasheet does analt
 		 * specify how long we have to wait after reset but a vendor
 		 * tree specifies 5 ms here.
 		 */
@@ -395,7 +395,7 @@ static irqreturn_t cyttsp_irq(int irq, void *handle)
 		error = cyttsp_exit_bl_mode(ts);
 		if (error) {
 			dev_err(ts->dev,
-				"Could not return to operational mode, err: %d\n",
+				"Could analt return to operational mode, err: %d\n",
 				error);
 			ts->state = CY_IDLE_STATE;
 		}
@@ -430,7 +430,7 @@ static int cyttsp_power_on(struct cyttsp *ts)
 
 	if (GET_HSTMODE(ts->bl_data.bl_file) != CY_OPERATE_MODE ||
 	    IS_OPERATIONAL_ERR(ts->bl_data.bl_status)) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	error = cyttsp_set_sysinfo_mode(ts);
@@ -554,7 +554,7 @@ static int cyttsp_parse_properties(struct cyttsp *ts)
 
 	ts->bl_keys = devm_kzalloc(dev, CY_NUM_BL_KEYS, GFP_KERNEL);
 	if (!ts->bl_keys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set some default values */
 	ts->use_hndshk = false;
@@ -567,7 +567,7 @@ static int cyttsp_parse_properties(struct cyttsp *ts)
 					    ts->bl_keys, CY_NUM_BL_KEYS);
 	if (ret) {
 		dev_err(dev,
-			"bootloader-key property could not be retrieved\n");
+			"bootloader-key property could analt be retrieved\n");
 		return ret;
 	}
 
@@ -632,11 +632,11 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 
 	ts = devm_kzalloc(dev, sizeof(*ts) + xfer_buf_size, GFP_KERNEL);
 	if (!ts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	input_dev = devm_input_allocate_device(dev);
 	if (!input_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ts->dev = dev;
 	ts->input = input_dev;
@@ -659,7 +659,7 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 	error = regulator_bulk_enable(ARRAY_SIZE(ts->regulators),
 				      ts->regulators);
 	if (error) {
-		dev_err(dev, "Cannot enable regulators: %d\n", error);
+		dev_err(dev, "Cananalt enable regulators: %d\n", error);
 		return ERR_PTR(error);
 	}
 
@@ -705,7 +705,7 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 	}
 
 	error = devm_request_threaded_irq(dev, ts->irq, NULL, cyttsp_irq,
-					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
+					  IRQF_ONESHOT | IRQF_ANAL_AUTOEN,
 					  "cyttsp", ts);
 	if (error) {
 		dev_err(ts->dev, "failed to request IRQ %d, err: %d\n",

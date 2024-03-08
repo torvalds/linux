@@ -32,7 +32,7 @@ static void device_wakeup(struct wfx_dev *wdev)
 	}
 	for (;;) {
 		gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
-		/* completion.h does not provide any function to wait completion without consume it
+		/* completion.h does analt provide any function to wait completion without consume it
 		 * (a kind of wait_for_completion_done_timeout()). So we have to emulate it.
 		 */
 		if (wait_for_completion_timeout(&wdev->hif.ctrl_ready, msecs_to_jiffies(2))) {
@@ -75,7 +75,7 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	alloc_len = wdev->hwbus_ops->align_size(wdev->hwbus_priv, read_len + 2);
 	skb = dev_alloc_skb(alloc_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (wfx_data_read(wdev, skb->data, alloc_len))
 		goto err;
@@ -152,7 +152,7 @@ static int bh_work_rx(struct wfx_dev *wdev, int max_msg, int *num_cnf)
 		if (piggyback < 0)
 			return i;
 		if (!(piggyback & CTRL_WLAN_READY))
-			dev_err(wdev->dev, "unexpected piggyback value: ready bit not set: %04x\n",
+			dev_err(wdev->dev, "unexpected piggyback value: ready bit analt set: %04x\n",
 				piggyback);
 	}
 	if (piggyback & CTRL_NEXT_LEN_MASK) {
@@ -215,8 +215,8 @@ static int bh_work_tx(struct wfx_dev *wdev, int max_msg)
 	return i;
 }
 
-/* In SDIO mode, it is necessary to make an access to a register to acknowledge last received
- * message. It could be possible to restrict this acknowledge to SDIO mode and only if last
+/* In SDIO mode, it is necessary to make an access to a register to ackanalwledge last received
+ * message. It could be possible to restrict this ackanalwledge to SDIO mode and only if last
  * operation was rx.
  */
 static void ack_sdio_data(struct wfx_dev *wdev)
@@ -273,7 +273,7 @@ void wfx_bh_request_rx(struct wfx_dev *wdev)
 		dev_err(wdev->dev, "unexpected control register value: length field is 0: %04x\n",
 			cur);
 	if (prev != 0)
-		dev_err(wdev->dev, "received IRQ but previous data was not (yet) read: %04x/%04x\n",
+		dev_err(wdev->dev, "received IRQ but previous data was analt (yet) read: %04x/%04x\n",
 			prev, cur);
 }
 
@@ -283,15 +283,15 @@ void wfx_bh_request_tx(struct wfx_dev *wdev)
 	queue_work(wdev->bh_wq, &wdev->hif.bh);
 }
 
-/* If IRQ is not available, this function allow to manually poll the control register and simulate
+/* If IRQ is analt available, this function allow to manually poll the control register and simulate
  * an IRQ ahen an event happened.
  *
- * Note that the device has a bug: If an IRQ raise while host read control register, the IRQ is
+ * Analte that the device has a bug: If an IRQ raise while host read control register, the IRQ is
  * lost. So, use this function carefully (only duing device initialisation).
  */
 void wfx_bh_poll_irq(struct wfx_dev *wdev)
 {
-	ktime_t now, start;
+	ktime_t analw, start;
 	u32 reg;
 
 	WARN(!wdev->poll_irq, "unexpected IRQ polling can mask IRQ");
@@ -299,10 +299,10 @@ void wfx_bh_poll_irq(struct wfx_dev *wdev)
 	start = ktime_get();
 	for (;;) {
 		wfx_control_reg_read(wdev, &reg);
-		now = ktime_get();
+		analw = ktime_get();
 		if (reg & 0xFFF)
 			break;
-		if (ktime_after(now, ktime_add_ms(start, 1000))) {
+		if (ktime_after(analw, ktime_add_ms(start, 1000))) {
 			dev_err(wdev->dev, "time out while polling control register\n");
 			return;
 		}

@@ -138,7 +138,7 @@ static struct dma_fence *v3d_bin_job_run(struct drm_sched_job *sched_job)
 		dma_fence_put(job->base.irq_fence);
 	job->base.irq_fence = dma_fence_get(fence);
 
-	trace_v3d_submit_cl(dev, false, to_v3d_fence(fence)->seqno,
+	trace_v3d_submit_cl(dev, false, to_v3d_fence(fence)->seqanal,
 			    job->start, job->end);
 
 	file->start_ns[V3D_BIN] = local_clock();
@@ -181,7 +181,7 @@ static struct dma_fence *v3d_render_job_run(struct drm_sched_job *sched_job)
 	 * scheduling, though -- imagine job0 rendering to texture and
 	 * job1 reading, and them being executed as bin0, bin1,
 	 * render0, render1, so that render1's flush at bin time
-	 * wasn't enough.
+	 * wasn't eanalugh.
 	 */
 	v3d_invalidate_caches(v3d);
 
@@ -193,7 +193,7 @@ static struct dma_fence *v3d_render_job_run(struct drm_sched_job *sched_job)
 		dma_fence_put(job->base.irq_fence);
 	job->base.irq_fence = dma_fence_get(fence);
 
-	trace_v3d_submit_cl(dev, true, to_v3d_fence(fence)->seqno,
+	trace_v3d_submit_cl(dev, true, to_v3d_fence(fence)->seqanal,
 			    job->start, job->end);
 
 	file->start_ns[V3D_RENDER] = local_clock();
@@ -230,7 +230,7 @@ v3d_tfu_job_run(struct drm_sched_job *sched_job)
 		dma_fence_put(job->base.irq_fence);
 	job->base.irq_fence = dma_fence_get(fence);
 
-	trace_v3d_submit_tfu(dev, to_v3d_fence(fence)->seqno);
+	trace_v3d_submit_tfu(dev, to_v3d_fence(fence)->seqanal);
 
 	file->start_ns[V3D_TFU] = local_clock();
 	v3d->queue[V3D_TFU].start_ns = file->start_ns[V3D_TFU];
@@ -277,7 +277,7 @@ v3d_csd_job_run(struct drm_sched_job *sched_job)
 		dma_fence_put(job->base.irq_fence);
 	job->base.irq_fence = dma_fence_get(fence);
 
-	trace_v3d_submit_csd(dev, to_v3d_fence(fence)->seqno);
+	trace_v3d_submit_csd(dev, to_v3d_fence(fence)->seqanal);
 
 	file->start_ns[V3D_CSD] = local_clock();
 	v3d->queue[V3D_CSD].start_ns = file->start_ns[V3D_CSD];
@@ -318,7 +318,7 @@ v3d_rewrite_csd_job_wg_counts_from_indirect(struct v3d_cpu_job *job)
 		       (wg_counts[0] * wg_counts[1] * wg_counts[2]) - 1;
 
 	for (int i = 0; i < 3; i++) {
-		/* 0xffffffff indicates that the uniform rewrite is not needed */
+		/* 0xffffffff indicates that the uniform rewrite is analt needed */
 		if (indirect_csd->wg_uniform_offsets[i] != 0xffffffff) {
 			u32 uniform_idx = indirect_csd->wg_uniform_offsets[i];
 			((uint32_t *)indirect->vaddr)[uniform_idx] = wg_counts[i];
@@ -536,7 +536,7 @@ v3d_cpu_job_run(struct drm_sched_job *sched_job)
 	v3d->cpu_job = job;
 
 	if (job->job_type >= ARRAY_SIZE(cpu_job_function)) {
-		DRM_DEBUG_DRIVER("Unknown CPU job: %d\n", job->job_type);
+		DRM_DEBUG_DRIVER("Unkanalwn CPU job: %d\n", job->job_type);
 		return NULL;
 	}
 
@@ -617,7 +617,7 @@ v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job)
 
 	mutex_unlock(&v3d->reset_lock);
 
-	return DRM_GPU_SCHED_STAT_NOMINAL;
+	return DRM_GPU_SCHED_STAT_ANALMINAL;
 }
 
 /* If the current address or return address have changed, then the GPU
@@ -637,7 +637,7 @@ v3d_cl_job_timedout(struct drm_sched_job *sched_job, enum v3d_queue q,
 	if (*timedout_ctca != ctca || *timedout_ctra != ctra) {
 		*timedout_ctca = ctca;
 		*timedout_ctra = ctra;
-		return DRM_GPU_SCHED_STAT_NOMINAL;
+		return DRM_GPU_SCHED_STAT_ANALMINAL;
 	}
 
 	return v3d_gpu_reset_for_timeout(v3d, sched_job);
@@ -681,7 +681,7 @@ v3d_csd_job_timedout(struct drm_sched_job *sched_job)
 	 */
 	if (job->timedout_batches != batches) {
 		job->timedout_batches = batches;
-		return DRM_GPU_SCHED_STAT_NOMINAL;
+		return DRM_GPU_SCHED_STAT_ANALMINAL;
 	}
 
 	return v3d_gpu_reset_for_timeout(v3d, sched_job);

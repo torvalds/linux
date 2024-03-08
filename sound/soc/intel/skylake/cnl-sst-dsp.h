@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Cannonlake SST DSP Support
+ * Cananalnlake SST DSP Support
  *
  * Copyright (C) 2016-17, Intel Corporation.
  */

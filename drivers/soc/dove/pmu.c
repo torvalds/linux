@@ -28,7 +28,7 @@
 
 struct pmu_data {
 	spinlock_t lock;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	void __iomem *pmc_base;
 	void __iomem *pmu_base;
 	struct irq_chip_generic *irq_gc;
@@ -105,7 +105,7 @@ static void __init pmu_reset_init(struct pmu_data *pmu)
 	int ret;
 
 	pmu->reset = pmu_reset;
-	pmu->reset.of_node = pmu->of_node;
+	pmu->reset.of_analde = pmu->of_analde;
 
 	ret = reset_controller_register(&pmu->reset);
 	if (ret)
@@ -135,7 +135,7 @@ struct pmu_domain {
  * isolators, assert repair signal, enable SRMA clock, enable AXI clock,
  * enable module clock, deassert reset.
  *
- * Note: reading the assembly, it seems that the IO accessors have an
+ * Analte: reading the assembly, it seems that the IO accessors have an
  * unfortunate side-effect - they cause memory already read into registers
  * for the if () to be re-read for the bit-set or bit-clear operation.
  * The code is written to avoid this.
@@ -209,7 +209,7 @@ static int pmu_domain_power_on(struct generic_pm_domain *domain)
 }
 
 static void __pmu_domain_register(struct pmu_domain *domain,
-	struct device_node *np)
+	struct device_analde *np)
 {
 	unsigned int val = readl_relaxed(domain->pmu->pmu_base + PMU_PWR);
 
@@ -247,11 +247,11 @@ static void pmu_irq_handler(struct irq_desc *desc)
 	}
 
 	/*
-	 * The PMU mask register is not RW0C: it is RW.  This means that
+	 * The PMU mask register is analt RW0C: it is RW.  This means that
 	 * the bits take whatever value is written to them; if you write
 	 * a '1', you will set the interrupt.
 	 *
-	 * Unfortunately this means there is NO race free way to clear
+	 * Unfortunately this means there is ANAL race free way to clear
 	 * these interrupts.
 	 *
 	 * So, let's structure the code so that the window is as small as
@@ -274,16 +274,16 @@ static int __init dove_init_pmu_irq(struct pmu_data *pmu, int irq)
 	writel(0, pmu->pmc_base + PMC_IRQ_MASK);
 	writel(0, pmu->pmc_base + PMC_IRQ_CAUSE);
 
-	domain = irq_domain_add_linear(pmu->of_node, NR_PMU_IRQS,
+	domain = irq_domain_add_linear(pmu->of_analde, NR_PMU_IRQS,
 				       &irq_generic_chip_ops, NULL);
 	if (!domain) {
 		pr_err("%s: unable to add irq domain\n", name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = irq_alloc_domain_generic_chips(domain, NR_PMU_IRQS, 1, name,
 					     handle_level_irq,
-					     IRQ_NOREQUEST | IRQ_NOPROBE, 0,
+					     IRQ_ANALREQUEST | IRQ_ANALPROBE, 0,
 					     IRQ_GC_INIT_MASK_CACHE);
 	if (ret) {
 		pr_err("%s: unable to alloc irq domain gc: %d\n", name, ret);
@@ -314,7 +314,7 @@ int __init dove_init_pmu_legacy(const struct dove_pmu_initdata *initdata)
 
 	pmu = kzalloc(sizeof(*pmu), GFP_KERNEL);
 	if (!pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&pmu->lock);
 	pmu->pmc_base = initdata->pmc_base;
@@ -372,46 +372,46 @@ int __init dove_init_pmu_legacy(const struct dove_pmu_initdata *initdata)
  */
 int __init dove_init_pmu(void)
 {
-	struct device_node *np_pmu, *domains_node, *np;
+	struct device_analde *np_pmu, *domains_analde, *np;
 	struct pmu_data *pmu;
 	int ret, parent_irq;
 
-	/* Lookup the PMU node */
-	np_pmu = of_find_compatible_node(NULL, NULL, "marvell,dove-pmu");
+	/* Lookup the PMU analde */
+	np_pmu = of_find_compatible_analde(NULL, NULL, "marvell,dove-pmu");
 	if (!np_pmu)
 		return 0;
 
-	domains_node = of_get_child_by_name(np_pmu, "domains");
-	if (!domains_node) {
-		pr_err("%pOFn: failed to find domains sub-node\n", np_pmu);
+	domains_analde = of_get_child_by_name(np_pmu, "domains");
+	if (!domains_analde) {
+		pr_err("%pOFn: failed to find domains sub-analde\n", np_pmu);
 		return 0;
 	}
 
 	pmu = kzalloc(sizeof(*pmu), GFP_KERNEL);
 	if (!pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&pmu->lock);
-	pmu->of_node = np_pmu;
-	pmu->pmc_base = of_iomap(pmu->of_node, 0);
-	pmu->pmu_base = of_iomap(pmu->of_node, 1);
+	pmu->of_analde = np_pmu;
+	pmu->pmc_base = of_iomap(pmu->of_analde, 0);
+	pmu->pmu_base = of_iomap(pmu->of_analde, 1);
 	if (!pmu->pmc_base || !pmu->pmu_base) {
 		pr_err("%pOFn: failed to map PMU\n", np_pmu);
 		iounmap(pmu->pmu_base);
 		iounmap(pmu->pmc_base);
 		kfree(pmu);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pmu_reset_init(pmu);
 
-	for_each_available_child_of_node(domains_node, np) {
+	for_each_available_child_of_analde(domains_analde, np) {
 		struct of_phandle_args args;
 		struct pmu_domain *domain;
 
 		domain = kzalloc(sizeof(*domain), GFP_KERNEL);
 		if (!domain) {
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 
@@ -419,7 +419,7 @@ int __init dove_init_pmu(void)
 		domain->base.name = kasprintf(GFP_KERNEL, "%pOFn", np);
 		if (!domain->base.name) {
 			kfree(domain);
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 
@@ -431,23 +431,23 @@ int __init dove_init_pmu(void)
 		/*
 		 * We parse the reset controller property directly here
 		 * to ensure that we can operate when the reset controller
-		 * support is not configured into the kernel.
+		 * support is analt configured into the kernel.
 		 */
 		ret = of_parse_phandle_with_args(np, "resets", "#reset-cells",
 						 0, &args);
 		if (ret == 0) {
-			if (args.np == pmu->of_node)
+			if (args.np == pmu->of_analde)
 				domain->rst_mask = BIT(args.args[0]);
-			of_node_put(args.np);
+			of_analde_put(args.np);
 		}
 
 		__pmu_domain_register(domain, np);
 	}
 
-	/* Loss of the interrupt controller is not a fatal error. */
-	parent_irq = irq_of_parse_and_map(pmu->of_node, 0);
+	/* Loss of the interrupt controller is analt a fatal error. */
+	parent_irq = irq_of_parse_and_map(pmu->of_analde, 0);
 	if (!parent_irq) {
-		pr_err("%pOFn: no interrupt specified\n", np_pmu);
+		pr_err("%pOFn: anal interrupt specified\n", np_pmu);
 	} else {
 		ret = dove_init_pmu_irq(pmu, parent_irq);
 		if (ret)

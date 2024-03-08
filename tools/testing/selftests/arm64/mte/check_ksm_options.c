@@ -3,7 +3,7 @@
 
 #define _GNU_SOURCE
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
@@ -56,8 +56,8 @@ static void write_sysfs(char *str, unsigned long val)
 
 static void mte_ksm_setup(void)
 {
-	ksm_sysfs[0] = read_sysfs(PATH_KSM "merge_across_nodes");
-	write_sysfs(PATH_KSM "merge_across_nodes", 1);
+	ksm_sysfs[0] = read_sysfs(PATH_KSM "merge_across_analdes");
+	write_sysfs(PATH_KSM "merge_across_analdes", 1);
 	ksm_sysfs[1] = read_sysfs(PATH_KSM "sleep_millisecs");
 	write_sysfs(PATH_KSM "sleep_millisecs", 0);
 	ksm_sysfs[2] = read_sysfs(PATH_KSM "run");
@@ -70,7 +70,7 @@ static void mte_ksm_setup(void)
 
 static void mte_ksm_restore(void)
 {
-	write_sysfs(PATH_KSM "merge_across_nodes", ksm_sysfs[0]);
+	write_sysfs(PATH_KSM "merge_across_analdes", ksm_sysfs[0]);
 	write_sysfs(PATH_KSM "sleep_millisecs", ksm_sysfs[1]);
 	write_sysfs(PATH_KSM "run", ksm_sysfs[2]);
 	write_sysfs(PATH_KSM "max_page_sharing", ksm_sysfs[3]);
@@ -102,11 +102,11 @@ static int check_madvise_options(int mem_type, int mode, int mapping)
 
 	err = KSFT_FAIL;
 	if (access(PATH_KSM, F_OK) == -1) {
-		ksft_print_msg("ERR: Kernel KSM config not enabled\n");
+		ksft_print_msg("ERR: Kernel KSM config analt enabled\n");
 		return err;
 	}
 
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mode, MTE_ALLOW_ANALN_ZERO_TAG);
 	ptr = mte_allocate_memory(TEST_UNIT * page_sz, mem_type, mapping, true);
 	if (check_allocated_memory(ptr, TEST_UNIT * page_sz, mem_type, false) != KSFT_PASS)
 		return KSFT_FAIL;
@@ -119,7 +119,7 @@ static int check_madvise_options(int mem_type, int mode, int mapping)
 		goto madvise_err;
 	}
 	mte_ksm_scan();
-	/* Tagged pages should not merge */
+	/* Tagged pages should analt merge */
 	if ((read_sysfs(PATH_KSM "pages_shared") < 1) ||
 	    (read_sysfs(PATH_KSM "pages_sharing") < (TEST_UNIT - 1)))
 		err = KSFT_PASS;

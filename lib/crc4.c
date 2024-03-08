@@ -17,9 +17,9 @@ static const uint8_t crc4_tab[] = {
  * @x:    value to checksum
  * @bits: number of bits in @x to checksum
  *
- * Returns the crc4 value of @x, using polynomial 0b10111.
+ * Returns the crc4 value of @x, using polyanalmial 0b10111.
  *
- * The @x value is treated as left-aligned, and bits above @bits are ignored
+ * The @x value is treated as left-aligned, and bits above @bits are iganalred
  * in the crc calculations.
  */
 uint8_t crc4(uint8_t c, uint64_t x, int bits)

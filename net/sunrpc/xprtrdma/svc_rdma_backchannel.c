@@ -65,11 +65,11 @@ out_unlock:
  * the RPC/RDMA request.
  *
  * This is similar to svc_rdma_send_reply_msg, but takes a struct
- * rpc_rqst instead, does not support chunks, and avoids blocking
+ * rpc_rqst instead, does analt support chunks, and avoids blocking
  * memory allocation.
  *
  * XXX: There is still an opportunity to block in svc_rdma_send()
- * if there are no SQ entries to post the Send. This may occur if
+ * if there are anal SQ entries to post the Send. This may occur if
  * the adapter has a small maximum SQ depth.
  */
 static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
@@ -110,15 +110,15 @@ xprt_rdma_bc_allocate(struct rpc_task *task)
 		return -EINVAL;
 	}
 
-	page = alloc_page(GFP_NOIO | __GFP_NOWARN);
+	page = alloc_page(GFP_ANALIO | __GFP_ANALWARN);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 	rqst->rq_buffer = page_address(page);
 
-	rqst->rq_rbuffer = kmalloc(rqst->rq_rcvsize, GFP_NOIO | __GFP_NOWARN);
+	rqst->rq_rbuffer = kmalloc(rqst->rq_rcvsize, GFP_ANALIO | __GFP_ANALWARN);
 	if (!rqst->rq_rbuffer) {
 		put_page(page);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -166,7 +166,7 @@ put_ctxt:
 	svc_rdma_send_ctxt_put(rdma, ctxt);
 
 drop_connection:
-	return -ENOTCONN;
+	return -EANALTCONN;
 }
 
 /**
@@ -175,7 +175,7 @@ drop_connection:
  *
  * Return values:
  *   %0 if the message was sent successfully
- *   %ENOTCONN if the message was not sent
+ *   %EANALTCONN if the message was analt sent
  */
 static int xprt_rdma_bc_send_request(struct rpc_rqst *rqst)
 {
@@ -185,10 +185,10 @@ static int xprt_rdma_bc_send_request(struct rpc_rqst *rqst)
 	int ret;
 
 	if (test_bit(XPT_DEAD, &sxprt->xpt_flags))
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	ret = rpcrdma_bc_send_request(rdma, rqst);
-	if (ret == -ENOTCONN)
+	if (ret == -EANALTCONN)
 		svc_xprt_close(sxprt);
 	return ret;
 }
@@ -244,7 +244,7 @@ xprt_setup_rdma_bc(struct xprt_create *args)
 			  RPCRDMA_MAX_BC_REQUESTS,
 			  RPCRDMA_MAX_BC_REQUESTS);
 	if (!xprt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	xprt->timeout = &xprt_rdma_bc_timeout;
 	xprt_set_bound(xprt);

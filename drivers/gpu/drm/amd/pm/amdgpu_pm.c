@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -31,7 +31,7 @@
 #include <linux/pci.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/pm_runtime.h>
 #include <asm/processor.h>
 
@@ -112,20 +112,20 @@ const char * const amdgpu_pp_profile_name[] = {
  * battery
  *
  * On older GPUs, the vbios provided a special power state for battery
- * operation.  Selecting battery switched to this state.  This is no
- * longer provided on newer GPUs so the option does nothing in that case.
+ * operation.  Selecting battery switched to this state.  This is anal
+ * longer provided on newer GPUs so the option does analthing in that case.
  *
  * balanced
  *
  * On older GPUs, the vbios provided a special power state for balanced
- * operation.  Selecting balanced switched to this state.  This is no
- * longer provided on newer GPUs so the option does nothing in that case.
+ * operation.  Selecting balanced switched to this state.  This is anal
+ * longer provided on newer GPUs so the option does analthing in that case.
  *
  * performance
  *
  * On older GPUs, the vbios provided a special power state for performance
- * operation.  Selecting performance switched to this state.  This is no
- * longer provided on newer GPUs so the option does nothing in that case.
+ * operation.  Selecting performance switched to this state.  This is anal
+ * longer provided on newer GPUs so the option does analthing in that case.
  *
  */
 
@@ -249,7 +249,7 @@ static ssize_t amdgpu_set_power_dpm_state(struct device *dev,
  * When the profiling modes are selected, clock and power gating are
  * disabled and the clocks are set for different profiling cases. This
  * mode is recommended for profiling specific work loads where you do
- * not want clock or power gating for clock fluctuation to interfere
+ * analt want clock or power gating for clock fluctuation to interfere
  * with your results. profile_standard sets the clocks to a fixed clock
  * level which varies from asic to asic.  profile_min_sclk forces the sclk
  * to the lowest level.  profile_min_mclk forces the mclk to the lowest level.
@@ -292,7 +292,7 @@ static ssize_t amdgpu_get_power_dpm_force_performance_level(struct device *dev,
 			  (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) ? "profile_min_mclk" :
 			  (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) ? "profile_peak" :
 			  (level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM) ? "perf_determinism" :
-			  "unknown");
+			  "unkanalwn");
 }
 
 static ssize_t amdgpu_set_power_dpm_force_performance_level(struct device *dev,
@@ -481,7 +481,7 @@ static ssize_t amdgpu_set_pp_force_state(struct device *dev,
 	if (ret || idx >= ARRAY_SIZE(data.states))
 		return -EINVAL;
 
-	idx = array_index_nospec(idx, ARRAY_SIZE(data.states));
+	idx = array_index_analspec(idx, ARRAY_SIZE(data.states));
 
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0) {
@@ -602,7 +602,7 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * in each power level within a power state.  The pp_od_clk_voltage is used for
  * this.
  *
- * Note that the actual memory controller clock rate are exposed, not
+ * Analte that the actual memory controller clock rate are exposed, analt
  * the effective memory clock of the DRAMs. To translate it, use the
  * following formula:
  *
@@ -674,7 +674,7 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  *
  * - minimum and maximum engine clock labeled OD_SCLK
  *
- * - minimum(not available for Vega20 and Navi1x) and maximum memory
+ * - minimum(analt available for Vega20 and Navi1x) and maximum memory
  *   clock labeled OD_MCLK
  *
  * - three <frequency, voltage> points labeled OD_VDDC_CURVE.
@@ -874,7 +874,7 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 		if (ret)
 			break;
 	}
-	if (ret == -ENOENT) {
+	if (ret == -EANALENT) {
 		size = amdgpu_dpm_print_clock_levels(adev, OD_SCLK, buf);
 		size += amdgpu_dpm_print_clock_levels(adev, OD_MCLK, buf + size);
 		size += amdgpu_dpm_print_clock_levels(adev, OD_VDDC_CURVE, buf + size);
@@ -988,7 +988,7 @@ static ssize_t amdgpu_get_pp_features(struct device *dev,
  *
  * Reading back the files will show you the available power levels within
  * the power state and the clock information for those levels. If deep sleep is
- * applied to a clock, the level will be denoted by a special level 'S:'
+ * applied to a clock, the level will be deanalted by a special level 'S:'
  * E.g., ::
  *
  *  S: 19Mhz *
@@ -1010,7 +1010,7 @@ static ssize_t amdgpu_get_pp_features(struct device *dev,
  *
  * will enable sclk levels 4, 5, and 6.
  *
- * NOTE: change to the dcefclk max dpm level is not supported now
+ * ANALTE: change to the dcefclk max dpm level is analt supported analw
  */
 
 static ssize_t amdgpu_get_pp_dpm_clock(struct device *dev,
@@ -1034,7 +1034,7 @@ static ssize_t amdgpu_get_pp_dpm_clock(struct device *dev,
 	}
 
 	ret = amdgpu_dpm_emit_clock_levels(adev, type, buf, &size);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		size = amdgpu_dpm_print_clock_levels(adev, type, buf);
 
 	if (size == 0)
@@ -1589,7 +1589,7 @@ static ssize_t amdgpu_get_mem_busy_percent(struct device *dev,
  * The file pcie_bw is used for this.
  * The Perf counters count the number of received and sent messages and return
  * those values, as well as the maximum payload size of a PCIe packet (mps).
- * Note that it is not possible to easily and quickly obtain the size of each
+ * Analte that it is analt possible to easily and quickly obtain the size of each
  * packet transmitted, so we output the max payload size (mps) to allow for
  * quick estimation of the PCIe bandwidth usage
  */
@@ -1608,10 +1608,10 @@ static ssize_t amdgpu_get_pcie_bw(struct device *dev,
 		return -EPERM;
 
 	if (adev->flags & AMD_IS_APU)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (!adev->asic_funcs->get_pcie_usage)
-		return -ENODATA;
+		return -EANALDATA;
 
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0) {
@@ -1635,7 +1635,7 @@ static ssize_t amdgpu_get_pcie_bw(struct device *dev,
  * The file unique_id is used for this.
  * This will provide a Unique ID that will persist from machine to machine
  *
- * NOTE: This will only work for GFX9 and newer. This file will be absent
+ * ANALTE: This will only work for GFX9 and newer. This file will be absent
  * on unsupported ASICs (GFX8 and older)
  */
 static ssize_t amdgpu_get_unique_id(struct device *dev,
@@ -1669,7 +1669,7 @@ static ssize_t amdgpu_get_unique_id(struct device *dev,
  *
  * Writing an integer to the file, sets a new logging interval, in seconds.
  * The value should be between 1 and 3600. If the value is less than 1,
- * thermal logging is disabled. Values greater than 3600 are ignored.
+ * thermal logging is disabled. Values greater than 3600 are iganalred.
  */
 static ssize_t amdgpu_get_thermal_throttling_logging(struct device *dev,
 						     struct device_attribute *attr,
@@ -1733,7 +1733,7 @@ static ssize_t amdgpu_set_thermal_throttling_logging(struct device *dev,
  *
  * Writing an integer to the file, sets a new thermal limit. The value
  * should be between 0 and 100. If the value is less than 0 or greater
- * than 100, then the write request will be ignored.
+ * than 100, then the write request will be iganalred.
  */
 static ssize_t amdgpu_get_apu_thermal_cap(struct device *dev,
 					 struct device_attribute *attr,
@@ -1804,7 +1804,7 @@ static int amdgpu_pm_metrics_attr_update(struct amdgpu_device *adev,
 					 uint32_t mask,
 					 enum amdgpu_device_attr_states *states)
 {
-	if (amdgpu_dpm_get_pm_metrics(adev, NULL, 0) == -EOPNOTSUPP)
+	if (amdgpu_dpm_get_pm_metrics(adev, NULL, 0) == -EOPANALTSUPP)
 		*states = ATTR_STATE_UNSUPPORTED;
 
 	return 0;
@@ -1895,8 +1895,8 @@ static int amdgpu_show_powershift_percent(struct device *dev,
 	int r = 0, i;
 
 	r = amdgpu_hwmon_get_sensor_generic(adev, sensor, (void *)&ss_power);
-	if (r == -EOPNOTSUPP) {
-		/* sensor not available on dGPU, try to read from APU */
+	if (r == -EOPANALTSUPP) {
+		/* sensor analt available on dGPU, try to read from APU */
 		adev = NULL;
 		mutex_lock(&mgpu_info.mutex);
 		for (i = 0; i < mgpu_info.num_gpu; i++) {
@@ -1921,7 +1921,7 @@ static int amdgpu_show_powershift_percent(struct device *dev,
  *
  * The amdgpu driver provides a sysfs API for reporting APU power
  * shift in percentage if platform supports smartshift. Value 0 means that
- * there is no powershift and values between [1-100] means that the power
+ * there is anal powershift and values between [1-100] means that the power
  * is shifted to APU, the percentage of boost is with respect to APU power
  * limit on the platform.
  */
@@ -1937,7 +1937,7 @@ static ssize_t amdgpu_get_smartshift_apu_power(struct device *dev, struct device
  *
  * The amdgpu driver provides a sysfs API for reporting dGPU power
  * shift in percentage if platform supports smartshift. Value 0 means that
- * there is no powershift and values between [1-100] means that the power is
+ * there is anal powershift and values between [1-100] means that the power is
  * shifted to dGPU, the percentage of boost is with respect to dGPU power
  * limit on the platform.
  */
@@ -2035,7 +2035,7 @@ static int ss_bias_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 }
 
 /* Following items will be read out to indicate current plpd policy:
- *  - -1: none
+ *  - -1: analne
  *  - 0: disallow
  *  - 1: default
  *  - 2: optimized
@@ -2046,7 +2046,7 @@ static ssize_t amdgpu_get_xgmi_plpd_policy(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	char *mode_desc = "none";
+	char *mode_desc = "analne";
 	int mode;
 
 	if (amdgpu_in_reset(adev))
@@ -2173,7 +2173,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		    gc_ver == IP_VERSION(9, 0, 1))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pcie_bw)) {
-		/* PCIe Perf counters won't work on APU nodes */
+		/* PCIe Perf counters won't work on APU analdes */
 		if (adev->flags & AMD_IS_APU)
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(unique_id)) {
@@ -2232,25 +2232,25 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 			   gc_ver == IP_VERSION(11, 0, 3)) && adev->vcn.num_vcn_inst >= 2))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_power_profile_mode)) {
-		if (amdgpu_dpm_get_power_profile_mode(adev, NULL) == -EOPNOTSUPP)
+		if (amdgpu_dpm_get_power_profile_mode(adev, NULL) == -EOPANALTSUPP)
 			*states = ATTR_STATE_UNSUPPORTED;
 		else if ((gc_ver == IP_VERSION(10, 3, 0) ||
 			  gc_ver == IP_VERSION(11, 0, 3)) && amdgpu_sriov_vf(adev))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(xgmi_plpd_policy)) {
-		if (amdgpu_dpm_get_xgmi_plpd_mode(adev, NULL) == XGMI_PLPD_NONE)
+		if (amdgpu_dpm_get_xgmi_plpd_mode(adev, NULL) == XGMI_PLPD_ANALNE)
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_mclk_od)) {
-		if (amdgpu_dpm_get_mclk_od(adev) == -EOPNOTSUPP)
+		if (amdgpu_dpm_get_mclk_od(adev) == -EOPANALTSUPP)
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_sclk_od)) {
-		if (amdgpu_dpm_get_sclk_od(adev) == -EOPNOTSUPP)
+		if (amdgpu_dpm_get_sclk_od(adev) == -EOPANALTSUPP)
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(apu_thermal_cap)) {
 		u32 limit;
 
 		if (amdgpu_dpm_get_apu_thermal_limit(adev, &limit) ==
-		    -EOPNOTSUPP)
+		    -EOPANALTSUPP)
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_pcie)) {
 		if (gc_ver == IP_VERSION(9, 4, 2) ||
@@ -2261,7 +2261,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 	switch (gc_ver) {
 	case IP_VERSION(9, 4, 1):
 	case IP_VERSION(9, 4, 2):
-		/* the Mi series card does not support standalone mclk/socclk/fclk level setting */
+		/* the Mi series card does analt support standalone mclk/socclk/fclk level setting */
 		if (DEVICE_ATTR_IS(pp_dpm_mclk) ||
 		    DEVICE_ATTR_IS(pp_dpm_socclk) ||
 		    DEVICE_ATTR_IS(pp_dpm_fclk)) {
@@ -2281,14 +2281,14 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 	}
 
 	if (DEVICE_ATTR_IS(pp_dpm_dcefclk)) {
-		/* SMU MP1 does not support dcefclk level setting */
+		/* SMU MP1 does analt support dcefclk level setting */
 		if (gc_ver >= IP_VERSION(10, 0, 0)) {
 			dev_attr->attr.mode &= ~S_IWUGO;
 			dev_attr->store = NULL;
 		}
 	}
 
-	/* setting should not be allowed from VF if not in one VF mode */
+	/* setting should analt be allowed from VF if analt in one VF mode */
 	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev)) {
 		dev_attr->attr.mode &= ~S_IWUGO;
 		dev_attr->store = NULL;
@@ -2339,7 +2339,7 @@ static int amdgpu_device_attr_create(struct amdgpu_device *adev,
 
 	attr_entry = kmalloc(sizeof(*attr_entry), GFP_KERNEL);
 	if (!attr_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	attr_entry->attr = attr;
 	INIT_LIST_HEAD(&attr_entry->entry);
@@ -2799,7 +2799,7 @@ static ssize_t amdgpu_hwmon_set_fan1_target(struct device *dev,
 		goto out;
 
 	if (pwm_mode != AMD_FAN_CTRL_MANUAL) {
-		err = -ENODATA;
+		err = -EANALDATA;
 		goto out;
 	}
 
@@ -3165,7 +3165,7 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  *
  * - GPU voltage
  *
- * - Northbridge voltage (APUs only)
+ * - Analrthbridge voltage (APUs only)
  *
  * - GPU power
  *
@@ -3196,7 +3196,7 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  *
  * - in0_input: the voltage on the GPU in millivolts
  *
- * - in1_input: the voltage on the Northbridge in millivolts
+ * - in1_input: the voltage on the Analrthbridge in millivolts
  *
  * hwmon interfaces for GPU power:
  *
@@ -3214,7 +3214,7 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  *
  * - pwm1: pulse width modulation fan level (0-255)
  *
- * - pwm1_enable: pulse width modulation fan control method (0: no fan speed control, 1: manual fan speed control using pwm interface, 2: automatic fan speed control)
+ * - pwm1_enable: pulse width modulation fan control method (0: anal fan speed control, 1: manual fan speed control using pwm interface, 2: automatic fan speed control)
  *
  * - pwm1_min: pulse width modulation fan control minimum level (0)
  *
@@ -3230,7 +3230,7 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  *
  * - fan[1-\*]_enable: Enable or disable the sensors.1: Enable 0: Disable
  *
- * NOTE: DO NOT set the fan speed via "pwm1" and "fan[1-\*]_target" interfaces at the same time.
+ * ANALTE: DO ANALT set the fan speed via "pwm1" and "fan[1-\*]_target" interfaces at the same time.
  *       That will get the former one overridden.
  *
  * hwmon interfaces for GPU clocks:
@@ -3347,12 +3347,12 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
 	uint32_t tmp;
 
-	/* under pp one vf mode manage of hwmon attributes is not supported */
+	/* under pp one vf mode manage of hwmon attributes is analt supported */
 	if (amdgpu_sriov_is_pp_one_vf(adev))
 		effective_mode &= ~S_IWUSR;
 
-	/* Skip fan attributes if fan is not present */
-	if (adev->pm.no_fan && (attr == &sensor_dev_attr_pwm1.dev_attr.attr ||
+	/* Skip fan attributes if fan is analt present */
+	if (adev->pm.anal_fan && (attr == &sensor_dev_attr_pwm1.dev_attr.attr ||
 	    attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr ||
 	    attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
 	    attr == &sensor_dev_attr_pwm1_min.dev_attr.attr ||
@@ -3383,7 +3383,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_temp1_crit_hyst.dev_attr.attr))
 		return 0;
 
-	/* Skip limit attributes if DPM is not enabled */
+	/* Skip limit attributes if DPM is analt enabled */
 	if (!adev->pm.dpm_enabled &&
 	    (attr == &sensor_dev_attr_temp1_crit.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp1_crit_hyst.dev_attr.attr ||
@@ -3398,20 +3398,20 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_fan1_enable.dev_attr.attr))
 		return 0;
 
-	/* mask fan attributes if we have no bindings for this asic to expose */
-	if (((amdgpu_dpm_get_fan_speed_pwm(adev, NULL) == -EOPNOTSUPP) &&
+	/* mask fan attributes if we have anal bindings for this asic to expose */
+	if (((amdgpu_dpm_get_fan_speed_pwm(adev, NULL) == -EOPANALTSUPP) &&
 	      attr == &sensor_dev_attr_pwm1.dev_attr.attr) || /* can't query fan */
-	    ((amdgpu_dpm_get_fan_control_mode(adev, NULL) == -EOPNOTSUPP) &&
+	    ((amdgpu_dpm_get_fan_control_mode(adev, NULL) == -EOPANALTSUPP) &&
 	     attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr)) /* can't query state */
 		effective_mode &= ~S_IRUGO;
 
-	if (((amdgpu_dpm_set_fan_speed_pwm(adev, U32_MAX) == -EOPNOTSUPP) &&
+	if (((amdgpu_dpm_set_fan_speed_pwm(adev, U32_MAX) == -EOPANALTSUPP) &&
 	      attr == &sensor_dev_attr_pwm1.dev_attr.attr) || /* can't manage fan */
-	      ((amdgpu_dpm_set_fan_control_mode(adev, U32_MAX) == -EOPNOTSUPP) &&
+	      ((amdgpu_dpm_set_fan_control_mode(adev, U32_MAX) == -EOPANALTSUPP) &&
 	      attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr)) /* can't manage state */
 		effective_mode &= ~S_IWUSR;
 
-	/* not implemented yet for APUs other than GC 10.3.1 (vangogh) and 9.4.3 */
+	/* analt implemented yet for APUs other than GC 10.3.1 (vangogh) and 9.4.3 */
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
 	     ((adev->flags & AMD_IS_APU) && (gc_ver != IP_VERSION(10, 3, 1)) &&
 	      (gc_ver != IP_VERSION(9, 4, 3)))) &&
@@ -3421,37 +3421,37 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_power1_cap_default.dev_attr.attr))
 		return 0;
 
-	/* not implemented yet for APUs having < GC 9.3.0 (Renoir) */
+	/* analt implemented yet for APUs having < GC 9.3.0 (Reanalir) */
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
 	     ((adev->flags & AMD_IS_APU) && (gc_ver < IP_VERSION(9, 3, 0)))) &&
 	    (attr == &sensor_dev_attr_power1_average.dev_attr.attr))
 		return 0;
 
-	/* not all products support both average and instantaneous */
+	/* analt all products support both average and instantaneous */
 	if (attr == &sensor_dev_attr_power1_average.dev_attr.attr &&
-	    amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_AVG_POWER, (void *)&tmp) == -EOPNOTSUPP)
+	    amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_AVG_POWER, (void *)&tmp) == -EOPANALTSUPP)
 		return 0;
 	if (attr == &sensor_dev_attr_power1_input.dev_attr.attr &&
-	    amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER, (void *)&tmp) == -EOPNOTSUPP)
+	    amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER, (void *)&tmp) == -EOPANALTSUPP)
 		return 0;
 
 	/* hide max/min values if we can't both query and manage the fan */
-	if (((amdgpu_dpm_set_fan_speed_pwm(adev, U32_MAX) == -EOPNOTSUPP) &&
-	      (amdgpu_dpm_get_fan_speed_pwm(adev, NULL) == -EOPNOTSUPP) &&
-	      (amdgpu_dpm_set_fan_speed_rpm(adev, U32_MAX) == -EOPNOTSUPP) &&
-	      (amdgpu_dpm_get_fan_speed_rpm(adev, NULL) == -EOPNOTSUPP)) &&
+	if (((amdgpu_dpm_set_fan_speed_pwm(adev, U32_MAX) == -EOPANALTSUPP) &&
+	      (amdgpu_dpm_get_fan_speed_pwm(adev, NULL) == -EOPANALTSUPP) &&
+	      (amdgpu_dpm_set_fan_speed_rpm(adev, U32_MAX) == -EOPANALTSUPP) &&
+	      (amdgpu_dpm_get_fan_speed_rpm(adev, NULL) == -EOPANALTSUPP)) &&
 	    (attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_pwm1_min.dev_attr.attr))
 		return 0;
 
-	if ((amdgpu_dpm_set_fan_speed_rpm(adev, U32_MAX) == -EOPNOTSUPP) &&
-	     (amdgpu_dpm_get_fan_speed_rpm(adev, NULL) == -EOPNOTSUPP) &&
+	if ((amdgpu_dpm_set_fan_speed_rpm(adev, U32_MAX) == -EOPANALTSUPP) &&
+	     (amdgpu_dpm_get_fan_speed_rpm(adev, NULL) == -EOPANALTSUPP) &&
 	     (attr == &sensor_dev_attr_fan1_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_fan1_min.dev_attr.attr))
 		return 0;
 
-	if ((adev->family == AMDGPU_FAMILY_SI ||	/* not implemented yet */
-	     adev->family == AMDGPU_FAMILY_KV ||	/* not implemented yet */
+	if ((adev->family == AMDGPU_FAMILY_SI ||	/* analt implemented yet */
+	     adev->family == AMDGPU_FAMILY_KV ||	/* analt implemented yet */
 	     (gc_ver == IP_VERSION(9, 4, 3))) &&
 	    (attr == &sensor_dev_attr_in0_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in0_label.dev_attr.attr))
@@ -3463,7 +3463,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_in1_label.dev_attr.attr))
 		return 0;
 
-	/* no mclk on APUs other than gc 9,4,3*/
+	/* anal mclk on APUs other than gc 9,4,3*/
 	if (((adev->flags & AMD_IS_APU) && (gc_ver != IP_VERSION(9, 4, 3))) &&
 	    (attr == &sensor_dev_attr_freq2_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_freq2_label.dev_attr.attr))
@@ -3682,7 +3682,7 @@ err_out0:
  * There are two fan control modes supported: auto and manual. With auto mode,
  * PMFW handles the fan speed control(how fan speed reacts to ASIC temperature).
  * While with manual mode, users can set their own fan curve line as what
- * described here. Normally the ASIC is booted up with auto mode. Any
+ * described here. Analrmally the ASIC is booted up with auto mode. Any
  * settings via this interface will switch the fan control to manual mode
  * implicitly.
  */
@@ -3801,7 +3801,7 @@ static umode_t acoustic_limit_threshold_visible(struct amdgpu_device *adev)
  * This setting works under auto fan control mode only. It can co-exist with
  * other settings which can work also under auto mode. It adjusts the PMFW's
  * behavior about the maximum speed in RPM the fan can spin when ASIC
- * temperature is not greater than target temperature. Setting via this
+ * temperature is analt greater than target temperature. Setting via this
  * interface will switch the fan control to auto mode implicitly.
  */
 static ssize_t acoustic_target_threshold_show(struct kobject *kobj,
@@ -3861,7 +3861,7 @@ static umode_t acoustic_target_threshold_visible(struct amdgpu_device *adev)
  * This setting works under auto fan control mode only. It can co-exist with
  * other settings which can work also under auto mode. Paring with the
  * acoustic_target_rpm_threshold setting, they define the maximum speed in
- * RPM the fan can spin when ASIC temperature is not greater than target
+ * RPM the fan can spin when ASIC temperature is analt greater than target
  * temperature. Setting via this interface will switch the fan control to
  * auto mode implicitly.
  */
@@ -4056,9 +4056,9 @@ static bool amdgpu_is_od_feature_supported(struct amdgpu_device *adev,
 		return false;
 
 	/*
-	 * If the feature has no user read and write mode set,
-	 * we can assume the feature is actually not supported.(?)
-	 * And the revelant sysfs interface should not be exposed.
+	 * If the feature has anal user read and write mode set,
+	 * we can assume the feature is actually analt supported.(?)
+	 * And the revelant sysfs interface should analt be exposed.
 	 */
 	mode = feature_ops->is_visible(adev);
 	if (mode & (S_IRUSR | S_IWUSR))
@@ -4073,7 +4073,7 @@ static bool amdgpu_od_is_self_contained(struct amdgpu_device *adev,
 	int i;
 
 	/*
-	 * If there is no valid entry within the container, the container
+	 * If there is anal valid entry within the container, the container
 	 * is recognized as a self contained container. And the valid entry
 	 * here means it has a valid naming and it is visible/supported by
 	 * the ASIC.
@@ -4100,7 +4100,7 @@ static int amdgpu_od_set_init(struct amdgpu_device *adev)
 	/* Setup the top `gpu_od` directory which holds all other OD interfaces */
 	top_set = kzalloc(sizeof(*top_set), GFP_KERNEL);
 	if (!top_set)
-		return -ENOMEM;
+		return -EANALMEM;
 	list_add(&top_set->entry, &adev->pm.od_kobj_list);
 
 	ret = kobject_init_and_add(&top_set->kobj,
@@ -4123,7 +4123,7 @@ static int amdgpu_od_set_init(struct amdgpu_device *adev)
 		 * If there is valid entries within the container, the container
 		 * will be presented as a sub directory and all its holding entries
 		 * will be presented as plain files under it.
-		 * While if there is no valid entry within the container, the container
+		 * While if there is anal valid entry within the container, the container
 		 * itself will be presented as a plain file under top `gpu_od` directory.
 		 */
 		if (amdgpu_od_is_self_contained(adev, container)) {
@@ -4137,7 +4137,7 @@ static int amdgpu_od_set_init(struct amdgpu_device *adev)
 			 */
 			attribute = kzalloc(sizeof(*attribute), GFP_KERNEL);
 			if (!attribute) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_out;
 			}
 			list_add(&attribute->entry, &top_set->attribute);
@@ -4157,7 +4157,7 @@ static int amdgpu_od_set_init(struct amdgpu_device *adev)
 			/* The container is presented as a sub directory. */
 			sub_set = kzalloc(sizeof(*sub_set), GFP_KERNEL);
 			if (!sub_set) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_out;
 			}
 			list_add(&sub_set->entry, &adev->pm.od_kobj_list);
@@ -4187,7 +4187,7 @@ static int amdgpu_od_set_init(struct amdgpu_device *adev)
 				 */
 				attribute = kzalloc(sizeof(*attribute), GFP_KERNEL);
 				if (!attribute) {
-					ret = -ENOMEM;
+					ret = -EANALMEM;
 					goto err_out;
 				}
 				list_add(&attribute->entry, &sub_set->attribute);
@@ -4231,7 +4231,7 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 
 	mode = amdgpu_virt_get_sriov_vf_mode(adev);
 
-	/* under multi-vf mode, the hwmon attributes are all not supported */
+	/* under multi-vf mode, the hwmon attributes are all analt supported */
 	if (mode != SRIOV_VF_MODE_MULTI_VF) {
 		adev->pm.int_hwmon_dev = hwmon_device_register_with_groups(adev->dev,
 														DRIVER_NAME, adev,
@@ -4521,7 +4521,7 @@ DEFINE_SHOW_ATTRIBUTE(amdgpu_debugfs_pm_info);
 static ssize_t amdgpu_pm_prv_buffer_read(struct file *f, char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	size_t smu_prv_buf_size;
 	void *smu_prv_buf;
 	int ret = 0;
@@ -4554,8 +4554,8 @@ static const struct file_operations amdgpu_debugfs_pm_prv_buffer_fops = {
 void amdgpu_debugfs_pm_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	struct drm_minor *minor = adev_to_drm(adev)->primary;
-	struct dentry *root = minor->debugfs_root;
+	struct drm_mianalr *mianalr = adev_to_drm(adev)->primary;
+	struct dentry *root = mianalr->debugfs_root;
 
 	if (!adev->pm.dpm_enabled)
 		return;

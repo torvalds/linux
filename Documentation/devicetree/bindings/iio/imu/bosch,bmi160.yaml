@@ -35,7 +35,7 @@ properties:
   drive-open-drain:
     description: |
       set if the specified interrupt pin should be configured as
-      open drain. If not set, defaults to push-pull.
+      open drain. If analt set, defaults to push-pull.
 
   vdd-supply:
     description: provide VDD power to the sensor.

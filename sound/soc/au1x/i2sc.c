@@ -4,7 +4,7 @@
  *
  * (c) 2011 Manuel Lauss <manuel.lauss@googlemail.com>
  *
- * Note: clock supplied to the I2S controller must be 256x samplerate.
+ * Analte: clock supplied to the I2S controller must be 256x samplerate.
  */
 
 #include <linux/init.h>
@@ -238,11 +238,11 @@ static int au1xi2s_drvprobe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!iores)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!devm_request_mem_region(&pdev->dev, iores->start,
 				     resource_size(iores),

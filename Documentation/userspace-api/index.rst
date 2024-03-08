@@ -13,7 +13,7 @@ place where this information is gathered.
    :caption: Table of contents
    :maxdepth: 2
 
-   no_new_privs
+   anal_new_privs
    seccomp_filter
    landlock
    unshare

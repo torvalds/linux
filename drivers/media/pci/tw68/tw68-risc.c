@@ -5,9 +5,9 @@
  *
  *  Much of this code is derived from the cx88 and sa7134 drivers, which
  *  were in turn derived from the bt87x driver.  The original work was by
- *  Gerd Knorr; more recently the code was enhanced by Mauro Carvalho Chehab,
+ *  Gerd Kanalrr; more recently the code was enhanced by Mauro Carvalho Chehab,
  *  Hans Verkuil, Andy Walls and many others.  Their work is gratefully
- *  acknowledged.  Full credit goes to them - any problems within this code
+ *  ackanalwledged.  Full credit goes to them - any problems within this code
  *  are mine.
  *
  *  Copyright (C) 2009  William M. Brack
@@ -24,7 +24,7 @@
  *  @rp:	pointer to current risc program position
  *  @sglist:	pointer to "scatter-gather list" of buffer pointers
  *  @offset:	offset to target memory buffer
- *  @sync_line:	0 -> no sync, 1 -> odd sync, 2 -> even sync
+ *  @sync_line:	0 -> anal sync, 1 -> odd sync, 2 -> even sync
  *  @bpl:	number of bytes per scan line
  *  @padding:	number of bytes of padding to add
  *  @lines:	number of lines in field
@@ -80,7 +80,7 @@ static __le32 *tw68_risc_field(__le32 *rp, struct scatterlist *sglist,
 			*(rp++) = cpu_to_le32(sg_dma_address(sg) + offset);
 			todo -= done;
 			sg = sg_next(sg);
-			/* succeeding fragments have no offset */
+			/* succeeding fragments have anal offset */
 			while (todo > sg_dma_len(sg)) {
 				*(rp++) = cpu_to_le32(RISC_INLINE |
 						(done << 12) |
@@ -154,7 +154,7 @@ int tw68_risc_buffer(struct pci_dev *pci,
 	buf->cpu = dma_alloc_coherent(&pci->dev, buf->size, &buf->dma,
 				      GFP_KERNEL);
 	if (buf->cpu == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* write risc instructions */
 	rp = buf->cpu;

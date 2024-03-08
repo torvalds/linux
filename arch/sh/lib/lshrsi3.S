@@ -31,7 +31,7 @@
 !
 ! Destroys:
 !
-! (none)
+! (analne)
 !
 ! __lshrsi3_r0
 !
@@ -46,7 +46,7 @@
 !
 ! Destroys:
 !
-! (none)
+! (analne)
 !
 	.global	__lshrsi3
 	.global	__lshrsi3_r0
@@ -185,4 +185,4 @@ lshrsi3_25:
 
 lshrsi3_0:
 	rts
-	nop
+	analp

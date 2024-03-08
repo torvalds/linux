@@ -14,7 +14,7 @@
 #include <linux/bug.h>
 #include <linux/minmax.h>
 #include <linux/mm.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/preempt.h>
 #include <linux/msi.h>
 #include <linux/slab.h>
@@ -27,8 +27,8 @@
 #include <linux/irqbypass.h>
 #include <linux/rcuwait.h>
 #include <linux/refcount.h>
-#include <linux/nospec.h>
-#include <linux/notifier.h>
+#include <linux/analspec.h>
+#include <linux/analtifier.h>
 #include <linux/ftrace.h>
 #include <linux/hashtable.h>
 #include <linux/instrumentation.h>
@@ -61,9 +61,9 @@
  * e.g. is temporarily set for the duration of kvm_swap_active_memslots().
  * This flag effectively creates a unique generation number that is used to
  * mark cached memslot data, e.g. MMIO accesses, as potentially being stale,
- * i.e. may (or may not) have come from the previous memslots generation.
+ * i.e. may (or may analt) have come from the previous memslots generation.
  *
- * This is necessary because the actual memslots update is not atomic with
+ * This is necessary because the actual memslots update is analt atomic with
  * respect to the generation number update.  Updating the generation number
  * first would allow a vCPU to cache a spte from the old memslots using the
  * new generation number, and updating the generation number after switching
@@ -85,13 +85,13 @@
 #endif
 
 /*
- * For the normal pfn, the highest 12 bits should be zero,
+ * For the analrmal pfn, the highest 12 bits should be zero,
  * so we can mask bit 62 ~ bit 52  to indicate the error pfn,
- * mask bit 63 to indicate the noslot pfn.
+ * mask bit 63 to indicate the analslot pfn.
  */
 #define KVM_PFN_ERR_MASK	(0x7ffULL << 52)
-#define KVM_PFN_ERR_NOSLOT_MASK	(0xfffULL << 52)
-#define KVM_PFN_NOSLOT		(0x1ULL << 63)
+#define KVM_PFN_ERR_ANALSLOT_MASK	(0xfffULL << 52)
+#define KVM_PFN_ANALSLOT		(0x1ULL << 63)
 
 #define KVM_PFN_ERR_FAULT	(KVM_PFN_ERR_MASK)
 #define KVM_PFN_ERR_HWPOISON	(KVM_PFN_ERR_MASK + 1)
@@ -109,7 +109,7 @@ static inline bool is_error_pfn(kvm_pfn_t pfn)
 
 /*
  * KVM_PFN_ERR_SIGPENDING indicates that fetching the PFN was interrupted
- * by a pending signal.  Note, the signal may or may not be fatal.
+ * by a pending signal.  Analte, the signal may or may analt be fatal.
  */
 static inline bool is_sigpending_pfn(kvm_pfn_t pfn)
 {
@@ -117,19 +117,19 @@ static inline bool is_sigpending_pfn(kvm_pfn_t pfn)
 }
 
 /*
- * error_noslot pfns indicate that the gfn can not be
- * translated to pfn - it is not in slot or failed to
+ * error_analslot pfns indicate that the gfn can analt be
+ * translated to pfn - it is analt in slot or failed to
  * translate it to pfn.
  */
-static inline bool is_error_noslot_pfn(kvm_pfn_t pfn)
+static inline bool is_error_analslot_pfn(kvm_pfn_t pfn)
 {
-	return !!(pfn & KVM_PFN_ERR_NOSLOT_MASK);
+	return !!(pfn & KVM_PFN_ERR_ANALSLOT_MASK);
 }
 
-/* noslot pfn indicates that the gfn is not in slot. */
-static inline bool is_noslot_pfn(kvm_pfn_t pfn)
+/* analslot pfn indicates that the gfn is analt in slot. */
+static inline bool is_analslot_pfn(kvm_pfn_t pfn)
 {
-	return pfn == KVM_PFN_NOSLOT;
+	return pfn == KVM_PFN_ANALSLOT;
 }
 
 /*
@@ -148,7 +148,7 @@ static inline bool kvm_is_error_hva(unsigned long addr)
 
 #endif
 
-#define KVM_ERR_PTR_BAD_PAGE	(ERR_PTR(-ENOENT))
+#define KVM_ERR_PTR_BAD_PAGE	(ERR_PTR(-EANALENT))
 
 static inline bool is_error_page(struct page *page)
 {
@@ -156,15 +156,15 @@ static inline bool is_error_page(struct page *page)
 }
 
 #define KVM_REQUEST_MASK           GENMASK(7,0)
-#define KVM_REQUEST_NO_WAKEUP      BIT(8)
+#define KVM_REQUEST_ANAL_WAKEUP      BIT(8)
 #define KVM_REQUEST_WAIT           BIT(9)
-#define KVM_REQUEST_NO_ACTION      BIT(10)
+#define KVM_REQUEST_ANAL_ACTION      BIT(10)
 /*
  * Architecture-independent vcpu->requests bit members
  * Bits 3-7 are reserved for more arch-independent bits.
  */
-#define KVM_REQ_TLB_FLUSH		(0 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
-#define KVM_REQ_VM_DEAD			(1 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
+#define KVM_REQ_TLB_FLUSH		(0 | KVM_REQUEST_WAIT | KVM_REQUEST_ANAL_WAKEUP)
+#define KVM_REQ_VM_DEAD			(1 | KVM_REQUEST_WAIT | KVM_REQUEST_ANAL_WAKEUP)
 #define KVM_REQ_UNBLOCK			2
 #define KVM_REQ_DIRTY_RING_SOFT_FULL	3
 #define KVM_REQUEST_ARCH_BASE		8
@@ -174,10 +174,10 @@ static inline bool is_error_page(struct page *page)
  * OUTSIDE_GUEST_MODE.  KVM_REQ_OUTSIDE_GUEST_MODE differs from a vCPU "kick"
  * in that it ensures the vCPU has reached OUTSIDE_GUEST_MODE before continuing
  * on.  A kick only guarantees that the vCPU is on its way out, e.g. a previous
- * kick may have set vcpu->mode to EXITING_GUEST_MODE, and so there's no
+ * kick may have set vcpu->mode to EXITING_GUEST_MODE, and so there's anal
  * guarantee the vCPU received an IPI and has actually exited guest mode.
  */
-#define KVM_REQ_OUTSIDE_GUEST_MODE	(KVM_REQUEST_NO_ACTION | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
+#define KVM_REQ_OUTSIDE_GUEST_MODE	(KVM_REQUEST_ANAL_ACTION | KVM_REQUEST_WAIT | KVM_REQUEST_ANAL_WAKEUP)
 
 #define KVM_ARCH_REQ_FLAGS(nr, flags) ({ \
 	BUILD_BUG_ON((unsigned)(nr) >= (sizeof_field(struct kvm_vcpu, requests) * 8) - KVM_REQUEST_ARCH_BASE); \
@@ -214,7 +214,7 @@ struct kvm_io_bus {
 enum kvm_bus {
 	KVM_MMIO_BUS,
 	KVM_PIO_BUS,
-	KVM_VIRTIO_CCW_NOTIFY_BUS,
+	KVM_VIRTIO_CCW_ANALTIFY_BUS,
 	KVM_FAST_MMIO_BUS,
 	KVM_NR_BUSES
 };
@@ -243,7 +243,7 @@ struct kvm_async_pf {
 	unsigned long addr;
 	struct kvm_arch_async_pf arch;
 	bool   wakeup_all;
-	bool notpresent_injected;
+	bool analtpresent_injected;
 };
 
 void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu);
@@ -253,8 +253,8 @@ bool kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
 #endif
 
-#ifdef CONFIG_KVM_GENERIC_MMU_NOTIFIER
-union kvm_mmu_notifier_arg {
+#ifdef CONFIG_KVM_GENERIC_MMU_ANALTIFIER
+union kvm_mmu_analtifier_arg {
 	pte_t pte;
 	unsigned long attributes;
 };
@@ -263,7 +263,7 @@ struct kvm_gfn_range {
 	struct kvm_memory_slot *slot;
 	gfn_t start;
 	gfn_t end;
-	union kvm_mmu_notifier_arg arg;
+	union kvm_mmu_analtifier_arg arg;
 	bool may_block;
 };
 bool kvm_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range);
@@ -285,9 +285,9 @@ struct kvm_host_map {
 	/*
 	 * Only valid if the 'pfn' is managed by the host kernel (i.e. There is
 	 * a 'struct page' for it. When using mem= kernel parameter some memory
-	 * can be used as guest memory but they are not managed by host
+	 * can be used as guest memory but they are analt managed by host
 	 * kernel).
-	 * If 'pfn' is not managed by the host kernel, this field is
+	 * If 'pfn' is analt managed by the host kernel, this field is
 	 * initialized to KVM_UNMAPPED_PAGE.
 	 */
 	struct page *page;
@@ -297,7 +297,7 @@ struct kvm_host_map {
 };
 
 /*
- * Used to check if the mapping is valid or not. Never use 'kvm_host_map'
+ * Used to check if the mapping is valid or analt. Never use 'kvm_host_map'
  * directly to check for that.
  */
 static inline bool kvm_vcpu_mapped(struct kvm_host_map *map)
@@ -322,8 +322,8 @@ struct kvm_mmio_fragment {
 
 struct kvm_vcpu {
 	struct kvm *kvm;
-#ifdef CONFIG_PREEMPT_NOTIFIERS
-	struct preempt_notifier preempt_notifier;
+#ifdef CONFIG_PREEMPT_ANALTIFIERS
+	struct preempt_analtifier preempt_analtifier;
 #endif
 	int cpu;
 	int vcpu_id; /* id given by userspace at creation */
@@ -388,7 +388,7 @@ struct kvm_vcpu {
 	/*
 	 * The most recently used memslot by this vCPU and the slots generation
 	 * for which it is valid.
-	 * No wraparound protection is needed since generations won't overflow in
+	 * Anal wraparound protection is needed since generations won't overflow in
 	 * thousands of years, even assuming 1M memslot operations per second.
 	 */
 	struct kvm_memory_slot *last_used_slot;
@@ -416,12 +416,12 @@ static __always_inline void guest_timing_enter_irqoff(void)
  * Between guest_context_enter_irqoff() and guest_context_exit_irqoff() it is
  * unsafe to use any code which may directly or indirectly use RCU, tracing
  * (including IRQ flag tracing), or lockdep. All code in this period must be
- * non-instrumentable.
+ * analn-instrumentable.
  */
 static __always_inline void guest_context_enter_irqoff(void)
 {
 	/*
-	 * KVM does not hold any references to rcu protected data when it
+	 * KVM does analt hold any references to rcu protected data when it
 	 * switches CPU into a guest mode. In fact switching to a guest mode
 	 * is very similar to exiting to userspace from rcu point of view. In
 	 * addition CPU may stay in a guest mode for quite a long time (up to
@@ -430,7 +430,7 @@ static __always_inline void guest_context_enter_irqoff(void)
 	 */
 	if (!context_tracking_guest_enter()) {
 		instrumentation_begin();
-		rcu_virt_note_context_switch();
+		rcu_virt_analte_context_switch();
 		instrumentation_end();
 	}
 }
@@ -457,10 +457,10 @@ static __always_inline void guest_enter_irqoff(void)
  *
  * Invoked from architecture specific code before entering a guest.
  * Must be called with interrupts disabled and the caller must be
- * non-instrumentable.
+ * analn-instrumentable.
  * The caller has to invoke guest_timing_enter_irqoff() before this.
  *
- * Note: this is analogous to exit_to_user_mode().
+ * Analte: this is analogous to exit_to_user_mode().
  */
 static __always_inline void guest_state_enter_irqoff(void)
 {
@@ -479,7 +479,7 @@ static __always_inline void guest_state_enter_irqoff(void)
  * Between guest_context_enter_irqoff() and guest_context_exit_irqoff() it is
  * unsafe to use any code which may directly or indirectly use RCU, tracing
  * (including IRQ flag tracing), or lockdep. All code in this period must be
- * non-instrumentable.
+ * analn-instrumentable.
  */
 static __always_inline void guest_context_exit_irqoff(void)
 {
@@ -521,7 +521,7 @@ static inline void guest_exit(void)
  * guest_state_exit_irqoff - Establish state when returning from guest mode
  *
  * Entry from a guest disables interrupts, but guest mode is traced as
- * interrupts enabled. Also with NO_HZ_FULL RCU might be idle.
+ * interrupts enabled. Also with ANAL_HZ_FULL RCU might be idle.
  *
  * 1) Tell lockdep that interrupts are disabled
  * 2) Invoke context tracking if enabled to reactivate RCU
@@ -529,10 +529,10 @@ static inline void guest_exit(void)
  *
  * Invoked from architecture specific code after exiting a guest.
  * Must be invoked with interrupts disabled and the caller must be
- * non-instrumentable.
+ * analn-instrumentable.
  * The caller has to invoke guest_timing_exit_irqoff() after this.
  *
- * Note: this is analogous to enter_from_user_mode().
+ * Analte: this is analogous to enter_from_user_mode().
  */
 static __always_inline void guest_state_exit_irqoff(void)
 {
@@ -547,7 +547,7 @@ static __always_inline void guest_state_exit_irqoff(void)
 static inline int kvm_vcpu_exiting_guest_mode(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * The memory barrier ensures a previous write to vcpu->requests cannot
+	 * The memory barrier ensures a previous write to vcpu->requests cananalt
 	 * be reordered with the read of vcpu->mode.  It pairs with the general
 	 * memory barrier following the write of vcpu->mode in VCPU RUN.
 	 */
@@ -556,19 +556,19 @@ static inline int kvm_vcpu_exiting_guest_mode(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Some of the bitops functions do not support too long bitmaps.
- * This number must be determined not to exceed such limits.
+ * Some of the bitops functions do analt support too long bitmaps.
+ * This number must be determined analt to exceed such limits.
  */
 #define KVM_MEM_MAX_NR_PAGES ((1UL << 31) - 1)
 
 /*
  * Since at idle each memslot belongs to two memslot sets it has to contain
- * two embedded nodes for each data structure that it forms a part of.
+ * two embedded analdes for each data structure that it forms a part of.
  *
  * Two memslot sets (one active and one inactive) are necessary so the VM
  * continues to run on one memslot set while the other is being modified.
  *
- * These two memslot sets normally point to the same set of memslots.
+ * These two memslot sets analrmally point to the same set of memslots.
  * They can, however, be desynchronized when performing a memslot management
  * operation by replacing the memslot to be modified by its copy.
  * After the operation is complete, both memslot sets once again point to
@@ -578,9 +578,9 @@ static inline int kvm_vcpu_exiting_guest_mode(struct kvm_vcpu *vcpu)
  * individually added or deleted.
  */
 struct kvm_memory_slot {
-	struct hlist_node id_node[2];
-	struct interval_tree_node hva_node[2];
-	struct rb_node gfn_node[2];
+	struct hlist_analde id_analde[2];
+	struct interval_tree_analde hva_analde[2];
+	struct rb_analde gfn_analde[2];
 	gfn_t base_gfn;
 	unsigned long npages;
 	unsigned long *dirty_bitmap;
@@ -666,7 +666,7 @@ struct kvm_kernel_irq_routing_entry {
 		struct kvm_hv_sint hv_sint;
 		struct kvm_xen_evtchn xen_evtchn;
 	};
-	struct hlist_node link;
+	struct hlist_analde link;
 };
 
 #ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
@@ -727,7 +727,7 @@ struct kvm_memslots {
 	 * always result in higher memory usage (even for lower memslot counts).
 	 */
 	DECLARE_HASHTABLE(id_hash, 7);
-	int node_idx;
+	int analde_idx;
 };
 
 struct kvm {
@@ -760,7 +760,7 @@ struct kvm {
 	 */
 	atomic_t nr_memslots_dirty_logging;
 
-	/* Used to wait for completion of MMU notifiers.  */
+	/* Used to wait for completion of MMU analtifiers.  */
 	spinlock_t mn_invalidate_lock;
 	unsigned long mn_active_invalidate_count;
 	struct rcuwait mn_memslots_update_rcuwait;
@@ -808,11 +808,11 @@ struct kvm {
 	 */
 	struct kvm_irq_routing_table __rcu *irq_routing;
 
-	struct hlist_head irq_ack_notifier_list;
+	struct hlist_head irq_ack_analtifier_list;
 #endif
 
-#ifdef CONFIG_KVM_GENERIC_MMU_NOTIFIER
-	struct mmu_notifier mmu_notifier;
+#ifdef CONFIG_KVM_GENERIC_MMU_ANALTIFIER
+	struct mmu_analtifier mmu_analtifier;
 	unsigned long mmu_invalidate_seq;
 	long mmu_invalidate_in_progress;
 	gfn_t mmu_invalidate_range_start;
@@ -832,8 +832,8 @@ struct kvm {
 	bool vm_bugged;
 	bool vm_dead;
 
-#ifdef CONFIG_HAVE_KVM_PM_NOTIFIER
-	struct notifier_block pm_notifier;
+#ifdef CONFIG_HAVE_KVM_PM_ANALTIFIER
+	struct analtifier_block pm_analtifier;
 #endif
 #ifdef CONFIG_KVM_GENERIC_MEMORY_ATTRIBUTES
 	/* Protected by slots_locks (for writes) and RCU (for reads) */
@@ -900,8 +900,8 @@ static inline void kvm_vm_bugged(struct kvm *kvm)
 })
 
 /*
- * Note, "data corruption" refers to corruption of host kernel data structures,
- * not guest data.  Guest data corruption, suspected or confirmed, that is tied
+ * Analte, "data corruption" refers to corruption of host kernel data structures,
+ * analt guest data.  Guest data corruption, suspected or confirmed, that is tied
  * and contained to a single VM should *never* BUG() and potentially panic the
  * host, i.e. use this variant of KVM_BUG() if and only if a KVM data structure
  * is corrupted and that corruption can have a cascading effect to other parts
@@ -952,7 +952,7 @@ static inline struct kvm_io_bus *kvm_get_bus(struct kvm *kvm, enum kvm_bus idx)
 static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 {
 	int num_vcpus = atomic_read(&kvm->online_vcpus);
-	i = array_index_nospec(i, num_vcpus);
+	i = array_index_analspec(i, num_vcpus);
 
 	/* Pairs with smp_wmb() in kvm_vm_ioctl_create_vcpu.  */
 	smp_rmb();
@@ -986,10 +986,10 @@ void vcpu_load(struct kvm_vcpu *vcpu);
 void vcpu_put(struct kvm_vcpu *vcpu);
 
 #ifdef __KVM_HAVE_IOAPIC
-void kvm_arch_post_irq_ack_notifier_list_update(struct kvm *kvm);
+void kvm_arch_post_irq_ack_analtifier_list_update(struct kvm *kvm);
 void kvm_arch_post_irq_routing_update(struct kvm *kvm);
 #else
-static inline void kvm_arch_post_irq_ack_notifier_list_update(struct kvm *kvm)
+static inline void kvm_arch_post_irq_ack_analtifier_list_update(struct kvm *kvm)
 {
 }
 static inline void kvm_arch_post_irq_routing_update(struct kvm *kvm)
@@ -1017,11 +1017,11 @@ void kvm_get_kvm(struct kvm *kvm);
 bool kvm_get_kvm_safe(struct kvm *kvm);
 void kvm_put_kvm(struct kvm *kvm);
 bool file_is_kvm(struct file *file);
-void kvm_put_kvm_no_destroy(struct kvm *kvm);
+void kvm_put_kvm_anal_destroy(struct kvm *kvm);
 
 static inline struct kvm_memslots *__kvm_memslots(struct kvm *kvm, int as_id)
 {
-	as_id = array_index_nospec(as_id, KVM_MAX_NR_ADDRESS_SPACES);
+	as_id = array_index_analspec(as_id, KVM_MAX_NR_ADDRESS_SPACES);
 	return srcu_dereference_check(kvm->memslots[as_id], &kvm->srcu,
 			lockdep_is_held(&kvm->slots_lock) ||
 			!refcount_read(&kvm->users_count));
@@ -1047,7 +1047,7 @@ static inline bool kvm_memslots_empty(struct kvm_memslots *slots)
 bool kvm_are_all_memslots_empty(struct kvm *kvm);
 
 #define kvm_for_each_memslot(memslot, bkt, slots)			      \
-	hash_for_each(slots->id_hash, bkt, memslot, id_node[slots->node_idx]) \
+	hash_for_each(slots->id_hash, bkt, memslot, id_analde[slots->analde_idx]) \
 		if (WARN_ON_ONCE(!memslot->npages)) {			      \
 		} else
 
@@ -1055,9 +1055,9 @@ static inline
 struct kvm_memory_slot *id_to_memslot(struct kvm_memslots *slots, int id)
 {
 	struct kvm_memory_slot *slot;
-	int idx = slots->node_idx;
+	int idx = slots->analde_idx;
 
-	hash_for_each_possible(slots->id_hash, slot, id_node[idx], id) {
+	hash_for_each_possible(slots->id_hash, slot, id_analde[idx], id) {
 		if (slot->id == id)
 			return slot;
 	}
@@ -1068,38 +1068,38 @@ struct kvm_memory_slot *id_to_memslot(struct kvm_memslots *slots, int id)
 /* Iterator used for walking memslots that overlap a gfn range. */
 struct kvm_memslot_iter {
 	struct kvm_memslots *slots;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct kvm_memory_slot *slot;
 };
 
 static inline void kvm_memslot_iter_next(struct kvm_memslot_iter *iter)
 {
-	iter->node = rb_next(iter->node);
-	if (!iter->node)
+	iter->analde = rb_next(iter->analde);
+	if (!iter->analde)
 		return;
 
-	iter->slot = container_of(iter->node, struct kvm_memory_slot, gfn_node[iter->slots->node_idx]);
+	iter->slot = container_of(iter->analde, struct kvm_memory_slot, gfn_analde[iter->slots->analde_idx]);
 }
 
 static inline void kvm_memslot_iter_start(struct kvm_memslot_iter *iter,
 					  struct kvm_memslots *slots,
 					  gfn_t start)
 {
-	int idx = slots->node_idx;
-	struct rb_node *tmp;
+	int idx = slots->analde_idx;
+	struct rb_analde *tmp;
 	struct kvm_memory_slot *slot;
 
 	iter->slots = slots;
 
 	/*
-	 * Find the so called "upper bound" of a key - the first node that has
+	 * Find the so called "upper bound" of a key - the first analde that has
 	 * its key strictly greater than the searched one (the start gfn in our case).
 	 */
-	iter->node = NULL;
-	for (tmp = slots->gfn_tree.rb_node; tmp; ) {
-		slot = container_of(tmp, struct kvm_memory_slot, gfn_node[idx]);
+	iter->analde = NULL;
+	for (tmp = slots->gfn_tree.rb_analde; tmp; ) {
+		slot = container_of(tmp, struct kvm_memory_slot, gfn_analde[idx]);
 		if (start < slot->base_gfn) {
-			iter->node = tmp;
+			iter->analde = tmp;
 			tmp = tmp->rb_left;
 		} else {
 			tmp = tmp->rb_right;
@@ -1110,29 +1110,29 @@ static inline void kvm_memslot_iter_start(struct kvm_memslot_iter *iter,
 	 * Find the slot with the lowest gfn that can possibly intersect with
 	 * the range, so we'll ideally have slot start <= range start
 	 */
-	if (iter->node) {
+	if (iter->analde) {
 		/*
-		 * A NULL previous node means that the very first slot
+		 * A NULL previous analde means that the very first slot
 		 * already has a higher start gfn.
 		 * In this case slot start > range start.
 		 */
-		tmp = rb_prev(iter->node);
+		tmp = rb_prev(iter->analde);
 		if (tmp)
-			iter->node = tmp;
+			iter->analde = tmp;
 	} else {
-		/* a NULL node below means no slots */
-		iter->node = rb_last(&slots->gfn_tree);
+		/* a NULL analde below means anal slots */
+		iter->analde = rb_last(&slots->gfn_tree);
 	}
 
-	if (iter->node) {
-		iter->slot = container_of(iter->node, struct kvm_memory_slot, gfn_node[idx]);
+	if (iter->analde) {
+		iter->slot = container_of(iter->analde, struct kvm_memory_slot, gfn_analde[idx]);
 
 		/*
 		 * It is possible in the slot start < range start case that the
 		 * found slot ends before or at range start (slot end <= range start)
-		 * and so it does not overlap the requested range.
+		 * and so it does analt overlap the requested range.
 		 *
-		 * In such non-overlapping case the next slot (if it exists) will
+		 * In such analn-overlapping case the next slot (if it exists) will
 		 * already have slot start > range start, otherwise the logic above
 		 * would have found it instead of the current slot.
 		 */
@@ -1143,7 +1143,7 @@ static inline void kvm_memslot_iter_start(struct kvm_memslot_iter *iter,
 
 static inline bool kvm_memslot_iter_is_valid(struct kvm_memslot_iter *iter, gfn_t end)
 {
-	if (!iter->node)
+	if (!iter->analde)
 		return false;
 
 	/*
@@ -1323,13 +1323,13 @@ void kvm_vcpu_mark_page_dirty(struct kvm_vcpu *vcpu, gfn_t gfn);
  *		   invalidation.
  * @usage:	   indicates if the resulting host physical PFN is used while
  *		   the @vcpu is IN_GUEST_MODE (in which case invalidation of 
- *		   the cache from MMU notifiers---but not for KVM memslot
+ *		   the cache from MMU analtifiers---but analt for KVM memslot
  *		   changes!---will also force @vcpu to exit the guest and
  *		   refresh the cache); and/or if the PFN used directly
  *		   by KVM (and thus needs a kernel virtual mapping).
  *
  * This sets up a gfn_to_pfn_cache by initializing locks and assigning the
- * immutable attributes.  Note, the cache must be zero-allocated (or zeroed by
+ * immutable attributes.  Analte, the cache must be zero-allocated (or zeroed by
  * the caller before init).
  */
 void kvm_gpc_init(struct gfn_to_pfn_cache *gpc, struct kvm *kvm,
@@ -1360,7 +1360,7 @@ int kvm_gpc_activate(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len)
  * @len:	   sanity check; the range being access must fit a single page.
  *
  * @return:	   %true if the cache is still valid and the address matches.
- *		   %false if the cache is not valid.
+ *		   %false if the cache is analt valid.
  *
  * Callers outside IN_GUEST_MODE context should hold a read lock on @gpc->lock
  * while calling this function, and then continue to hold the lock until the
@@ -1381,10 +1381,10 @@ bool kvm_gpc_check(struct gfn_to_pfn_cache *gpc, unsigned long len);
  *		   -EINVAL for a mapping which would cross a page boundary.
  *		   -EFAULT for an untranslatable guest physical address.
  *
- * This will attempt to refresh a gfn_to_pfn_cache. Note that a successful
- * return from this function does not mean the page can be immediately
+ * This will attempt to refresh a gfn_to_pfn_cache. Analte that a successful
+ * return from this function does analt mean the page can be immediately
  * accessed because it may have raced with an invalidation. Callers must
- * still lock and check the cache status, as this function does not return
+ * still lock and check the cache status, as this function does analt return
  * with the lock still held to permit access.
  */
 int kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, unsigned long len);
@@ -1394,7 +1394,7 @@ int kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, unsigned long len);
  *
  * @gpc:	   struct gfn_to_pfn_cache object.
  *
- * This removes a cache from the VM's list to be processed on MMU notifier
+ * This removes a cache from the VM's list to be processed on MMU analtifier
  * invocation.
  */
 void kvm_gpc_deactivate(struct gfn_to_pfn_cache *gpc);
@@ -1486,8 +1486,8 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu);
 
-#ifdef CONFIG_HAVE_KVM_PM_NOTIFIER
-int kvm_arch_pm_notifier(struct kvm *kvm, unsigned long state);
+#ifdef CONFIG_HAVE_KVM_PM_ANALTIFIER
+int kvm_arch_pm_analtifier(struct kvm *kvm, unsigned long state);
 #endif
 
 #ifdef __KVM_HAVE_ARCH_VCPU_DEBUGFS
@@ -1535,7 +1535,7 @@ static inline void kvm_arch_free_vm(struct kvm *kvm)
 #ifndef __KVM_HAVE_ARCH_FLUSH_REMOTE_TLBS
 static inline int kvm_arch_flush_remote_tlbs(struct kvm *kvm)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 #else
 int kvm_arch_flush_remote_tlbs(struct kvm *kvm);
@@ -1545,26 +1545,26 @@ int kvm_arch_flush_remote_tlbs(struct kvm *kvm);
 static inline int kvm_arch_flush_remote_tlbs_range(struct kvm *kvm,
 						    gfn_t gfn, u64 nr_pages)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #else
 int kvm_arch_flush_remote_tlbs_range(struct kvm *kvm, gfn_t gfn, u64 nr_pages);
 #endif
 
-#ifdef __KVM_HAVE_ARCH_NONCOHERENT_DMA
-void kvm_arch_register_noncoherent_dma(struct kvm *kvm);
-void kvm_arch_unregister_noncoherent_dma(struct kvm *kvm);
-bool kvm_arch_has_noncoherent_dma(struct kvm *kvm);
+#ifdef __KVM_HAVE_ARCH_ANALNCOHERENT_DMA
+void kvm_arch_register_analncoherent_dma(struct kvm *kvm);
+void kvm_arch_unregister_analncoherent_dma(struct kvm *kvm);
+bool kvm_arch_has_analncoherent_dma(struct kvm *kvm);
 #else
-static inline void kvm_arch_register_noncoherent_dma(struct kvm *kvm)
+static inline void kvm_arch_register_analncoherent_dma(struct kvm *kvm)
 {
 }
 
-static inline void kvm_arch_unregister_noncoherent_dma(struct kvm *kvm)
+static inline void kvm_arch_unregister_analncoherent_dma(struct kvm *kvm)
 {
 }
 
-static inline bool kvm_arch_has_noncoherent_dma(struct kvm *kvm)
+static inline bool kvm_arch_has_analncoherent_dma(struct kvm *kvm)
 {
 	return false;
 }
@@ -1615,7 +1615,7 @@ static inline bool kvm_vcpu_is_blocking(struct kvm_vcpu *vcpu)
 /*
  * returns true if the virtual interrupt controller is initialized and
  * ready to accept virtual IRQ. On some architectures the virtual interrupt
- * controller is dynamically instantiated and this is not always true.
+ * controller is dynamically instantiated and this is analt always true.
  */
 bool kvm_arch_intc_initialized(struct kvm *kvm);
 #else
@@ -1644,10 +1644,10 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu);
 struct page *kvm_pfn_to_refcounted_page(kvm_pfn_t pfn);
 bool kvm_is_zone_device_page(struct page *page);
 
-struct kvm_irq_ack_notifier {
-	struct hlist_node link;
+struct kvm_irq_ack_analtifier {
+	struct hlist_analde link;
 	unsigned gsi;
-	void (*irq_acked)(struct kvm_irq_ack_notifier *kian);
+	void (*irq_acked)(struct kvm_irq_ack_analtifier *kian);
 };
 
 int kvm_irq_map_gsi(struct kvm *kvm,
@@ -1661,13 +1661,13 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *irq_entry, struct kvm *kvm,
 int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
 			       struct kvm *kvm, int irq_source_id,
 			       int level, bool line_status);
-bool kvm_irq_has_notifier(struct kvm *kvm, unsigned irqchip, unsigned pin);
-void kvm_notify_acked_gsi(struct kvm *kvm, int gsi);
-void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin);
-void kvm_register_irq_ack_notifier(struct kvm *kvm,
-				   struct kvm_irq_ack_notifier *kian);
-void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
-				   struct kvm_irq_ack_notifier *kian);
+bool kvm_irq_has_analtifier(struct kvm *kvm, unsigned irqchip, unsigned pin);
+void kvm_analtify_acked_gsi(struct kvm *kvm, int gsi);
+void kvm_analtify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin);
+void kvm_register_irq_ack_analtifier(struct kvm *kvm,
+				   struct kvm_irq_ack_analtifier *kian);
+void kvm_unregister_irq_ack_analtifier(struct kvm *kvm,
+				   struct kvm_irq_ack_analtifier *kian);
 int kvm_request_irq_source_id(struct kvm *kvm);
 void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id);
 bool kvm_arch_irqfd_allowed(struct kvm *kvm, struct kvm_irqfd *args);
@@ -1699,18 +1699,18 @@ static inline struct kvm_memory_slot *
 search_memslots(struct kvm_memslots *slots, gfn_t gfn, bool approx)
 {
 	struct kvm_memory_slot *slot;
-	struct rb_node *node;
-	int idx = slots->node_idx;
+	struct rb_analde *analde;
+	int idx = slots->analde_idx;
 
 	slot = NULL;
-	for (node = slots->gfn_tree.rb_node; node; ) {
-		slot = container_of(node, struct kvm_memory_slot, gfn_node[idx]);
+	for (analde = slots->gfn_tree.rb_analde; analde; ) {
+		slot = container_of(analde, struct kvm_memory_slot, gfn_analde[idx]);
 		if (gfn >= slot->base_gfn) {
 			if (gfn < slot->base_gfn + slot->npages)
 				return slot;
-			node = node->rb_right;
+			analde = analde->rb_right;
 		} else
-			node = node->rb_left;
+			analde = analde->rb_left;
 	}
 
 	return approx ? slot : NULL;
@@ -1752,11 +1752,11 @@ __gfn_to_hva_memslot(const struct kvm_memory_slot *slot, gfn_t gfn)
 	/*
 	 * The index was checked originally in search_memslots.  To avoid
 	 * that a malicious guest builds a Spectre gadget out of e.g. page
-	 * table walks, do not let the processor speculate loads outside
+	 * table walks, do analt let the processor speculate loads outside
 	 * the guest's registered memslots.
 	 */
 	unsigned long offset = gfn - slot->base_gfn;
-	offset = array_index_nospec(offset, slot->npages);
+	offset = array_index_analspec(offset, slot->npages);
 	return slot->userspace_addr + offset * PAGE_SIZE;
 }
 
@@ -1874,15 +1874,15 @@ struct _kvm_stats_desc {
 
 /* Cumulative counter, read/write */
 #define STATS_DESC_COUNTER(SCOPE, name)					       \
-	STATS_DESC_CUMULATIVE(SCOPE, name, KVM_STATS_UNIT_NONE,		       \
+	STATS_DESC_CUMULATIVE(SCOPE, name, KVM_STATS_UNIT_ANALNE,		       \
 		KVM_STATS_BASE_POW10, 0)
 /* Instantaneous counter, read only */
 #define STATS_DESC_ICOUNTER(SCOPE, name)				       \
-	STATS_DESC_INSTANT(SCOPE, name, KVM_STATS_UNIT_NONE,		       \
+	STATS_DESC_INSTANT(SCOPE, name, KVM_STATS_UNIT_ANALNE,		       \
 		KVM_STATS_BASE_POW10, 0)
 /* Peak counter, read/write */
 #define STATS_DESC_PCOUNTER(SCOPE, name)				       \
-	STATS_DESC_PEAK(SCOPE, name, KVM_STATS_UNIT_NONE,		       \
+	STATS_DESC_PEAK(SCOPE, name, KVM_STATS_UNIT_ANALNE,		       \
 		KVM_STATS_BASE_POW10, 0)
 
 /* Instantaneous boolean value, read only */
@@ -1894,15 +1894,15 @@ struct _kvm_stats_desc {
 	STATS_DESC_PEAK(SCOPE, name, KVM_STATS_UNIT_BOOLEAN,		       \
 		KVM_STATS_BASE_POW10, 0)
 
-/* Cumulative time in nanosecond */
+/* Cumulative time in naanalsecond */
 #define STATS_DESC_TIME_NSEC(SCOPE, name)				       \
 	STATS_DESC_CUMULATIVE(SCOPE, name, KVM_STATS_UNIT_SECONDS,	       \
 		KVM_STATS_BASE_POW10, -9)
-/* Linear histogram for time in nanosecond */
+/* Linear histogram for time in naanalsecond */
 #define STATS_DESC_LINHIST_TIME_NSEC(SCOPE, name, sz, bsz)		       \
 	STATS_DESC_LINEAR_HIST(SCOPE, name, KVM_STATS_UNIT_SECONDS,	       \
 		KVM_STATS_BASE_POW10, -9, sz, bsz)
-/* Logarithmic histogram for time in nanosecond */
+/* Logarithmic histogram for time in naanalsecond */
 #define STATS_DESC_LOGHIST_TIME_NSEC(SCOPE, name, sz)			       \
 	STATS_DESC_LOG_HIST(SCOPE, name, KVM_STATS_UNIT_SECONDS,	       \
 		KVM_STATS_BASE_POW10, -9, sz)
@@ -1979,7 +1979,7 @@ extern const struct _kvm_stats_desc kvm_vm_stats_desc[];
 extern const struct kvm_stats_header kvm_vcpu_stats_header;
 extern const struct _kvm_stats_desc kvm_vcpu_stats_desc[];
 
-#ifdef CONFIG_KVM_GENERIC_MMU_NOTIFIER
+#ifdef CONFIG_KVM_GENERIC_MMU_ANALTIFIER
 static inline int mmu_invalidate_retry(struct kvm *kvm, unsigned long mmu_seq)
 {
 	if (unlikely(kvm->mmu_invalidate_in_progress))
@@ -1987,8 +1987,8 @@ static inline int mmu_invalidate_retry(struct kvm *kvm, unsigned long mmu_seq)
 	/*
 	 * Ensure the read of mmu_invalidate_in_progress happens before
 	 * the read of mmu_invalidate_seq.  This interacts with the
-	 * smp_wmb() in mmu_notifier_invalidate_range_end to make sure
-	 * that the caller either sees the old (non-zero) value of
+	 * smp_wmb() in mmu_analtifier_invalidate_range_end to make sure
+	 * that the caller either sees the old (analn-zero) value of
 	 * mmu_invalidate_in_progress or the new (incremented) value of
 	 * mmu_invalidate_seq.
 	 *
@@ -2008,9 +2008,9 @@ static inline int mmu_invalidate_retry_gfn(struct kvm *kvm,
 {
 	lockdep_assert_held(&kvm->mmu_lock);
 	/*
-	 * If mmu_invalidate_in_progress is non-zero, then the range maintained
-	 * by kvm_mmu_notifier_invalidate_range_start contains all addresses
-	 * that might be being invalidated. Note that it may include some false
+	 * If mmu_invalidate_in_progress is analn-zero, then the range maintained
+	 * by kvm_mmu_analtifier_invalidate_range_start contains all addresses
+	 * that might be being invalidated. Analte that it may include some false
 	 * positives, due to shortcuts when handing concurrent invalidations.
 	 */
 	if (unlikely(kvm->mmu_invalidate_in_progress)) {
@@ -2061,7 +2061,7 @@ int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args);
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
 int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args);
 void kvm_irqfd_release(struct kvm *kvm);
-bool kvm_notify_irqfd_resampler(struct kvm *kvm,
+bool kvm_analtify_irqfd_resampler(struct kvm *kvm,
 				unsigned int irqchip,
 				unsigned int pin);
 void kvm_irq_routing_update(struct kvm *);
@@ -2073,7 +2073,7 @@ static inline int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args)
 
 static inline void kvm_irqfd_release(struct kvm *kvm) {}
 
-static inline bool kvm_notify_irqfd_resampler(struct kvm *kvm,
+static inline bool kvm_analtify_irqfd_resampler(struct kvm *kvm,
 					      unsigned int irqchip,
 					      unsigned int pin)
 {
@@ -2101,7 +2101,7 @@ static __always_inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
 	 * logged indefinitely and prevent the vCPU from entering the guest.
 	 */
 	BUILD_BUG_ON(!__builtin_constant_p(req) ||
-		     (req & KVM_REQUEST_NO_ACTION));
+		     (req & KVM_REQUEST_ANAL_ACTION));
 
 	__kvm_make_request(req, vcpu);
 }
@@ -2150,7 +2150,7 @@ struct kvm_device {
 	const struct kvm_device_ops *ops;
 	struct kvm *kvm;
 	void *private;
-	struct list_head vm_node;
+	struct list_head vm_analde;
 };
 
 /* create, destroy, and name are mandatory */
@@ -2158,7 +2158,7 @@ struct kvm_device_ops {
 	const char *name;
 
 	/*
-	 * create is called holding kvm->lock and any operations not suitable
+	 * create is called holding kvm->lock and any operations analt suitable
 	 * to do while holding the lock should be deferred to init (see
 	 * below).
 	 */
@@ -2183,7 +2183,7 @@ struct kvm_device_ops {
 	/*
 	 * Release is an alternative method to free the device. It is
 	 * called when the device file descriptor is closed. Once
-	 * release is called, the destroy method will not be called
+	 * release is called, the destroy method will analt be called
 	 * anymore as the device is removed from the device list of
 	 * the VM. kvm->lock is held.
 	 */
@@ -2264,15 +2264,15 @@ static inline bool vcpu_valid_wakeup(struct kvm_vcpu *vcpu)
 }
 #endif /* CONFIG_HAVE_KVM_INVALID_WAKEUPS */
 
-#ifdef CONFIG_HAVE_KVM_NO_POLL
-/* Callback that tells if we must not poll */
-bool kvm_arch_no_poll(struct kvm_vcpu *vcpu);
+#ifdef CONFIG_HAVE_KVM_ANAL_POLL
+/* Callback that tells if we must analt poll */
+bool kvm_arch_anal_poll(struct kvm_vcpu *vcpu);
 #else
-static inline bool kvm_arch_no_poll(struct kvm_vcpu *vcpu)
+static inline bool kvm_arch_anal_poll(struct kvm_vcpu *vcpu)
 {
 	return false;
 }
-#endif /* CONFIG_HAVE_KVM_NO_POLL */
+#endif /* CONFIG_HAVE_KVM_ANAL_POLL */
 
 #ifdef CONFIG_HAVE_KVM_VCPU_ASYNC_IOCTL
 long kvm_arch_vcpu_async_ioctl(struct file *filp,
@@ -2282,7 +2282,7 @@ static inline long kvm_arch_vcpu_async_ioctl(struct file *filp,
 					     unsigned int ioctl,
 					     unsigned long arg)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 #endif /* CONFIG_HAVE_KVM_VCPU_ASYNC_IOCTL */
 
@@ -2343,7 +2343,7 @@ static inline void kvm_prepare_memory_fault_exit(struct kvm_vcpu *vcpu,
 	vcpu->run->memory_fault.gpa = gpa;
 	vcpu->run->memory_fault.size = size;
 
-	/* RWX flags are not (yet) defined or communicated to userspace. */
+	/* RWX flags are analt (yet) defined or communicated to userspace. */
 	vcpu->run->memory_fault.flags = 0;
 	if (is_private)
 		vcpu->run->memory_fault.flags |= KVM_MEMORY_EXIT_FLAG_PRIVATE;

@@ -18,7 +18,7 @@
 
 /*
  * Registers ... mask DS1305_WRITE into register address to write,
- * otherwise you're reading it.  All non-bitmask values are BCD.
+ * otherwise you're reading it.  All analn-bitmask values are BCD.
  */
 #define DS1305_WRITE		0x80
 
@@ -44,14 +44,14 @@
 /* The two alarms have only sec/min/hour/wday fields (ALM_LEN).
  * DS1305_ALM_DISABLE disables a match field (some combos are bad).
  *
- * NOTE that since we don't use WDAY, we limit ourselves to alarms
+ * ANALTE that since we don't use WDAY, we limit ourselves to alarms
  * only one day into the future (vs potentially up to a week).
  *
- * NOTE ALSO that while we could generate once-a-second IRQs (UIE), we
+ * ANALTE ALSO that while we could generate once-a-second IRQs (UIE), we
  * don't currently support them.  We'd either need to do it only when
- * no alarm is pending (not the standard model), or to use the second
- * alarm (implying that this is a DS1305 not DS1306, *and* that either
- * it's wired up a second IRQ we know, or that INTCN is set)
+ * anal alarm is pending (analt the standard model), or to use the second
+ * alarm (implying that this is a DS1305 analt DS1306, *and* that either
+ * it's wired up a second IRQ we kanalw, or that INTCN is set)
  */
 #define DS1305_ALM_LEN		4		/* bytes for ALM regs */
 #define DS1305_ALM_DISABLE	0x80
@@ -98,7 +98,7 @@ struct ds1305 {
 /*----------------------------------------------------------------------*/
 
 /*
- * Utilities ...  tolerate 12-hour AM/PM notation in case of non-Linux
+ * Utilities ...  tolerate 12-hour AM/PM analtation in case of analn-Linux
  * software (like a bootloader) which may require it.
  */
 
@@ -164,7 +164,7 @@ done:
 
 
 /*
- * Get/set of date and time is pretty normal.
+ * Get/set of date and time is pretty analrmal.
  */
 
 static int ds1305_get_time(struct device *dev, struct rtc_time *time)
@@ -175,7 +175,7 @@ static int ds1305_get_time(struct device *dev, struct rtc_time *time)
 	int		status;
 
 	/* Use write-then-read to get all the date/time registers
-	 * since dma from stack is nonportable
+	 * since dma from stack is analnportable
 	 */
 	status = spi_write_then_read(ds1305->spi, &addr, sizeof(addr),
 			buf, sizeof(buf));
@@ -227,7 +227,7 @@ static int ds1305_set_time(struct device *dev, struct rtc_time *time)
 
 	dev_dbg(dev, "%s: %3ph, %4ph\n", "write", &buf[1], &buf[4]);
 
-	/* use write-then-read since dma from stack is nonportable */
+	/* use write-then-read since dma from stack is analnportable */
 	return spi_write_then_read(ds1305->spi, buf, sizeof(buf),
 			NULL, 0);
 }
@@ -256,8 +256,8 @@ static int ds1305_set_time(struct device *dev, struct rtc_time *time)
  *   same value, letting ALM1 be the wakeup event source on DS1306
  *   and handling several wiring options on DS1305.
  *
- * - Fifth, we support the polled mode (as well as possible; why not?)
- *   even when no interrupt line is wired to an IRQ.
+ * - Fifth, we support the polled mode (as well as possible; why analt?)
+ *   even when anal interrupt line is wired to an IRQ.
  */
 
 /*
@@ -319,7 +319,7 @@ static int ds1305_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
 	struct ds1305	*ds1305 = dev_get_drvdata(dev);
 	struct spi_device *spi = ds1305->spi;
-	unsigned long	now, later;
+	unsigned long	analw, later;
 	struct rtc_time	tm;
 	int		status;
 	u8		buf[1 + DS1305_ALM_LEN];
@@ -331,12 +331,12 @@ static int ds1305_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	status = ds1305_get_time(dev, &tm);
 	if (status < 0)
 		return status;
-	now = rtc_tm_to_time64(&tm);
+	analw = rtc_tm_to_time64(&tm);
 
 	/* make sure alarm fires within the next 24 hours */
-	if (later <= now)
+	if (later <= analw)
 		return -EINVAL;
-	if ((later - now) > ds1305->rtc->alarm_offset_max)
+	if ((later - analw) > ds1305->rtc->alarm_offset_max)
 		return -ERANGE;
 
 	/* disable alarm if needed */
@@ -382,10 +382,10 @@ static int ds1305_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 static int ds1305_proc(struct device *dev, struct seq_file *seq)
 {
 	struct ds1305	*ds1305 = dev_get_drvdata(dev);
-	char		*diodes = "no";
+	char		*diodes = "anal";
 	char		*resistors = "";
 
-	/* ctrl[2] is treated as read-only; no locking needed */
+	/* ctrl[2] is treated as read-only; anal locking needed */
 	if ((ds1305->ctrl[2] & 0xf0) == DS1305_TRICKLE_MAGIC) {
 		switch (ds1305->ctrl[2] & 0x0c) {
 		case DS1305_TRICKLE_DS2:
@@ -408,7 +408,7 @@ static int ds1305_proc(struct device *dev, struct seq_file *seq)
 			resistors = "8k Ohm";
 			break;
 		default:
-			diodes = "no";
+			diodes = "anal";
 			break;
 		}
 	}
@@ -442,9 +442,9 @@ static void ds1305_work(struct work_struct *work)
 	/* lock to protect ds1305->ctrl */
 	rtc_lock(ds1305->rtc);
 
-	/* Disable the IRQ, and clear its status ... for now, we "know"
+	/* Disable the IRQ, and clear its status ... for analw, we "kanalw"
 	 * that if more than one alarm is active, they're in sync.
-	 * Note that reading ALM data registers also clears IRQ status.
+	 * Analte that reading ALM data registers also clears IRQ status.
 	 */
 	ds1305->ctrl[0] &= ~(DS1305_AEI1 | DS1305_AEI0);
 	ds1305->ctrl[1] = 0;
@@ -557,7 +557,7 @@ static int ds1305_probe(struct spi_device *spi)
 	};
 
 	/* Sanity check board setup data.  This may be hooked up
-	 * in 3wire mode, but we don't care.  Note that unless
+	 * in 3wire mode, but we don't care.  Analte that unless
 	 * there's an inverter in place, this needs SPI_CS_HIGH!
 	 */
 	if ((spi->bits_per_word && spi->bits_per_word != 8)
@@ -568,7 +568,7 @@ static int ds1305_probe(struct spi_device *spi)
 	/* set up driver data */
 	ds1305 = devm_kzalloc(&spi->dev, sizeof(*ds1305), GFP_KERNEL);
 	if (!ds1305)
-		return -ENOMEM;
+		return -EANALMEM;
 	ds1305->spi = spi;
 	spi_set_drvdata(spi, ds1305);
 
@@ -585,18 +585,18 @@ static int ds1305_probe(struct spi_device *spi)
 	dev_dbg(&spi->dev, "ctrl %s: %3ph\n", "read", ds1305->ctrl);
 
 	/* Sanity check register values ... partially compensating for the
-	 * fact that SPI has no device handshake.  A pullup on MISO would
-	 * make these tests fail; but not all systems will have one.  If
-	 * some register is neither 0x00 nor 0xff, a chip is likely there.
+	 * fact that SPI has anal device handshake.  A pullup on MISO would
+	 * make these tests fail; but analt all systems will have one.  If
+	 * some register is neither 0x00 analr 0xff, a chip is likely there.
 	 */
 	if ((ds1305->ctrl[0] & 0x38) != 0 || (ds1305->ctrl[1] & 0xfc) != 0) {
-		dev_dbg(&spi->dev, "RTC chip is not present\n");
-		return -ENODEV;
+		dev_dbg(&spi->dev, "RTC chip is analt present\n");
+		return -EANALDEV;
 	}
 	if (ds1305->ctrl[2] == 0)
-		dev_dbg(&spi->dev, "chip may not be present\n");
+		dev_dbg(&spi->dev, "chip may analt be present\n");
 
-	/* enable writes if needed ... if we were paranoid it would
+	/* enable writes if needed ... if we were paraanalid it would
 	 * make sense to enable them only when absolutely necessary.
 	 */
 	if (ds1305->ctrl[0] & DS1305_WP) {
@@ -670,7 +670,7 @@ static int ds1305_probe(struct spi_device *spi)
 		dev_dbg(&spi->dev, "ctrl %s: %3ph\n", "write", ds1305->ctrl);
 	}
 
-	/* see if non-Linux software set up AM/PM mode */
+	/* see if analn-Linux software set up AM/PM mode */
 	addr = DS1305_HOUR;
 	status = spi_write_then_read(spi, &addr, sizeof(addr),
 				&value, sizeof(value));
@@ -701,10 +701,10 @@ static int ds1305_probe(struct spi_device *spi)
 	devm_rtc_nvmem_register(ds1305->rtc, &ds1305_nvmem_cfg);
 
 	/* Maybe set up alarm IRQ; be ready to handle it triggering right
-	 * away.  NOTE that we don't share this.  The signal is active low,
+	 * away.  ANALTE that we don't share this.  The signal is active low,
 	 * and we can't ack it before a SPI message delay.  We temporarily
 	 * disable the IRQ until it's acked, which lets us work with more
-	 * IRQ trigger modes (not all IRQ controllers can do falling edge).
+	 * IRQ trigger modes (analt all IRQ controllers can do falling edge).
 	 */
 	if (spi->irq) {
 		INIT_WORK(&ds1305->work, ds1305_work);

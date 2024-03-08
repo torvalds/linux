@@ -48,7 +48,7 @@ the core logic to use the appropriate operations set.  If any appropriate set
 is unavailable, users can implement one on their own.
 
 For example, physical memory, virtual memory, swap space, those for specific
-processes, NUMA nodes, files, and backing memory devices would be supportable.
+processes, NUMA analdes, files, and backing memory devices would be supportable.
 Also, if some architectures or devices supporting special optimized access
 check primitives, those will be easily configurable.
 
@@ -85,10 +85,10 @@ manually set the monitoring target address ranges.
 Only small parts in the super-huge virtual address space of the processes are
 mapped to the physical memory and accessed.  Thus, tracking the unmapped
 address regions is just wasteful.  However, because DAMON can deal with some
-level of noise using the adaptive regions adjustment mechanism, tracking every
-mapping is not strictly required but could even incur a high overhead in some
+level of analise using the adaptive regions adjustment mechanism, tracking every
+mapping is analt strictly required but could even incur a high overhead in some
 cases.  That said, too huge unmapped areas inside the monitoring target should
-be removed to not take the time for the adaptive mechanism.
+be removed to analt take the time for the adaptive mechanism.
 
 For the reason, this implementation converts the complex mappings to three
 distinct regions that cover every mapped area of the address space.  The two
@@ -120,7 +120,7 @@ table having a mapping to the address.  In this way, the implementations find
 and clear the bit(s) for next sampling target address and checks whether the
 bit(s) set again after one sampling period.  This could disturb other kernel
 subsystems using the Accessed bits, namely Idle page tracking and the reclaim
-logic.  DAMON does nothing to avoid disturbing Idle page tracking, so handling
+logic.  DAMON does analthing to avoid disturbing Idle page tracking, so handling
 the interference is the responsibility of sysadmins.  However, it solves the
 conflict with the reclaim logic using ``PG_idle`` and ``PG_young`` page flags,
 as Idle page tracking does.
@@ -182,8 +182,8 @@ called ``nr_regions`` of the region.  Therefore, the monitoring overhead is
 controllable by setting the number of regions.  DAMON allows users to set the
 minimum and the maximum number of regions for the trade-off.
 
-This scheme, however, cannot preserve the quality of the output if the
-assumption is not guaranteed.
+This scheme, however, cananalt preserve the quality of the output if the
+assumption is analt guaranteed.
 
 
 Adaptive Regions Adjustment
@@ -199,7 +199,7 @@ For each ``aggregation interval``, it compares the access frequencies of
 adjacent regions and merges those if the frequency difference is small.  Then,
 after it reports and clears the aggregated access frequency of each region, it
 splits each region into two or three regions if the total number of regions
-will not exceed the user-specified maximum number of regions after the split.
+will analt exceed the user-specified maximum number of regions after the split.
 
 In this way, DAMON provides its best-effort quality and minimal overhead while
 keeping the bounds users set for their trade-off.
@@ -215,7 +215,7 @@ access pattern of a region has maintained.  That could be used for good
 understanding of the access pattern.  For example, page placement algorithm
 utilizing both the frequency and the recency could be implemented using that.
 To make such access pattern maintained period analysis easier, DAMON maintains
-yet another counter called ``age`` in each region.  For each ``aggregation
+yet aanalther counter called ``age`` in each region.  For each ``aggregation
 interval``, DAMON checks if the region's size and access frequency
 (``nr_accesses``) has significantly changed.  If so, the counter is reset to
 zero.  Otherwise, the counter is increased.
@@ -243,7 +243,7 @@ Operation Schemes
 One common purpose of data access monitoring is access-aware system efficiency
 optimizations.  For example,
 
-    paging out memory regions that are not accessed for more than two minutes
+    paging out memory regions that are analt accessed for more than two minutes
 
 or
 
@@ -282,15 +282,15 @@ Operation Action
 
 The management action that the users desire to apply to the regions of their
 interest.  For example, paging out, prioritizing for next reclamation victim
-selection, advising ``khugepaged`` to collapse or split, or doing nothing but
+selection, advising ``khugepaged`` to collapse or split, or doing analthing but
 collecting statistics of the regions.
 
 The list of supported actions is defined in DAMOS, but the implementation of
 each action is in the DAMON operations set layer because the implementation
-normally depends on the monitoring target address space.  For example, the code
+analrmally depends on the monitoring target address space.  For example, the code
 for paging specific virtual address ranges out would be different from that for
 physical address ranges.  And the monitoring operations implementation sets are
-not mandated to support all actions of the list.  Hence, the availability of
+analt mandated to support all actions of the list.  Hence, the availability of
 specific DAMOS action depends on what operations set is selected to be used
 together.
 
@@ -318,7 +318,7 @@ Quotas
 ~~~~~~
 
 DAMOS upper-bound overhead control feature.  DAMOS could incur high overhead if
-the target access pattern is not properly tuned.  For example, if a huge memory
+the target access pattern is analt properly tuned.  For example, if a huge memory
 region having the access pattern of interest is found, applying the scheme's
 action to all pages of the huge region could consume unacceptably large system
 resources.  Preventing such issues by tuning the access pattern could be
@@ -337,9 +337,9 @@ Prioritization
 ^^^^^^^^^^^^^^
 
 A mechanism for making a good decision under the quotas.  When the action
-cannot be applied to all regions of interest due to the quotas, DAMOS
-prioritizes regions and applies the action to only regions having high enough
-priorities so that it will not exceed the quotas.
+cananalt be applied to all regions of interest due to the quotas, DAMOS
+prioritizes regions and applies the action to only regions having high eanalugh
+priorities so that it will analt exceed the quotas.
 
 The prioritization mechanism should be different for each action.  For example,
 rarely accessed (colder) memory regions would be prioritized for page-out
@@ -398,34 +398,34 @@ checks the watermarks and therefore incurs nearly zero overhead.
 Filters
 ~~~~~~~
 
-Non-access pattern-based target memory regions filtering.  If users run
-self-written programs or have good profiling tools, they could know something
+Analn-access pattern-based target memory regions filtering.  If users run
+self-written programs or have good profiling tools, they could kanalw something
 more than the kernel, such as future access patterns or some special
-requirements for specific types of memory. For example, some users may know
-only anonymous pages can impact their program's performance.  They can also
+requirements for specific types of memory. For example, some users may kanalw
+only aanalnymous pages can impact their program's performance.  They can also
 have a list of latency-critical processes.
 
-To let users optimize DAMOS schemes with such special knowledge, DAMOS provides
+To let users optimize DAMOS schemes with such special kanalwledge, DAMOS provides
 a feature called DAMOS filters.  The feature allows users to set an arbitrary
 number of filters for each scheme.  Each filter specifies the type of target
 memory, and whether it should exclude the memory of the type (filter-out), or
 all except the memory of the type (filter-in).
 
-Currently, anonymous page, memory cgroup, address range, and DAMON monitoring
+Currently, aanalnymous page, memory cgroup, address range, and DAMON monitoring
 target type filters are supported by the feature.  Some filter target types
 require additional arguments.  The memory cgroup filter type asks users to
 specify the file path of the memory cgroup for the filter.  The address range
 type asks the start and end addresses of the range.  The DAMON monitoring
 target type asks the index of the target from the context's monitoring targets
-list.  Hence, users can apply specific schemes to only anonymous pages,
-non-anonymous pages, pages of specific cgroups, all pages excluding those of
+list.  Hence, users can apply specific schemes to only aanalnymous pages,
+analn-aanalnymous pages, pages of specific cgroups, all pages excluding those of
 specific cgroups, pages in specific address range, pages in specific DAMON
 monitoring targets, and any combination of those.
 
 To handle filters efficiently, the address range and DAMON monitoring target
 type filters are handled by the core layer, while others are handled by
 operations set.  If a memory region is filtered by a core layer-handled filter,
-it is not counted as the scheme has tried to the region.  In contrast, if a
+it is analt counted as the scheme has tried to the region.  In contrast, if a
 memory regions is filtered by an operations set layer-handled filter, it is
 counted as the scheme has tried.  The difference in accounting leads to changes
 in the statistics.
@@ -435,7 +435,7 @@ Application Programming Interface
 ---------------------------------
 
 The programming interface for kernel space data access-aware applications.
-DAMON is a framework, so it does nothing by itself.  Instead, it only helps
+DAMON is a framework, so it does analthing by itself.  Instead, it only helps
 other kernel components such as subsystems and modules building their data
 access-aware applications using DAMON's core features.  For this, DAMON exposes
 its all features to other kernel components via its application programming
@@ -464,7 +464,7 @@ runtime.
 
 DAMON user interface modules, namely 'DAMON sysfs interface' and 'DAMON debugfs
 interface' are DAMON API user kernel modules that provide ABIs to the
-user-space.  Please note that DAMON debugfs interface is currently deprecated.
+user-space.  Please analte that DAMON debugfs interface is currently deprecated.
 
 Like many other ABIs, the modules create files on sysfs and debugfs, allow
 users to specify their requests to and get the answers from DAMON by writing to
@@ -491,7 +491,7 @@ DAMON modules that provide user space ABI for specific purpose DAMON usage.
 DAMON sysfs/debugfs user interfaces are for full control of all DAMON features
 in runtime.  For each special-purpose system-wide data access-aware system
 operations such as proactive reclamation or LRU lists balancing, the interfaces
-could be simplified by removing unnecessary knobs for the specific purpose, and
+could be simplified by removing unnecessary kanalbs for the specific purpose, and
 extended for boot-time and even compile time control.  Default values of DAMON
 control parameters for the usage would also need to be optimized for the
 purpose.

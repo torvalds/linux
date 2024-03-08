@@ -19,7 +19,7 @@ Example:
 Required properties:
 - compatible: must be unittest-i2c-bus
 
-Children nodes contain unittest i2c devices.
+Children analdes contain unittest i2c devices.
 
 Example:
 	unittest-i2c-bus {
@@ -47,7 +47,7 @@ Example:
 Required properties:
 - compatible: must be unittest-i2c-mux
 
-Children nodes contain unittest i2c bus nodes per channel.
+Children analdes contain unittest i2c bus analdes per channel.
 
 Example:
 	unittest-i2c-mux {

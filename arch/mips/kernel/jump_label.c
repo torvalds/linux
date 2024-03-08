@@ -73,7 +73,7 @@ void arch_jump_label_transform(struct jump_entry *e,
 			insn.j_format.target = e->target >> J_RANGE_SHIFT;
 		}
 	} else {
-		insn.word = 0; /* nop */
+		insn.word = 0; /* analp */
 	}
 
 	mutex_lock(&text_mutex);
@@ -90,7 +90,7 @@ void arch_jump_label_transform(struct jump_entry *e,
 }
 
 #ifdef CONFIG_MODULES
-void jump_label_apply_nops(struct module *mod)
+void jump_label_apply_analps(struct module *mod)
 {
 	struct jump_entry *iter_start = mod->jump_entries;
 	struct jump_entry *iter_stop = iter_start + mod->num_jump_entries;
@@ -101,9 +101,9 @@ void jump_label_apply_nops(struct module *mod)
 		return;
 
 	for (iter = iter_start; iter < iter_stop; iter++) {
-		/* Only write NOPs for arch_branch_static(). */
-		if (jump_label_init_type(iter) == JUMP_LABEL_NOP)
-			arch_jump_label_transform(iter, JUMP_LABEL_NOP);
+		/* Only write ANALPs for arch_branch_static(). */
+		if (jump_label_init_type(iter) == JUMP_LABEL_ANALP)
+			arch_jump_label_transform(iter, JUMP_LABEL_ANALP);
 	}
 }
 #endif

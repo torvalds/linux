@@ -104,28 +104,28 @@ struct pca954x {
 	struct regulator *supply;
 };
 
-/* Provide specs for the MAX735x, PCA954x and PCA984x types we know about */
+/* Provide specs for the MAX735x, PCA954x and PCA984x types we kanalw about */
 static const struct chip_desc chips[] = {
 	[max_7356] = {
 		.nchans = 8,
 		.muxtype = pca954x_isswi,
-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+		.id = { .manufacturer_id = I2C_DEVICE_ID_ANALNE },
 	},
 	[max_7357] = {
 		.nchans = 8,
 		.muxtype = pca954x_isswi,
-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+		.id = { .manufacturer_id = I2C_DEVICE_ID_ANALNE },
 		/*
-		 * No interrupt controller support. The interrupt
+		 * Anal interrupt controller support. The interrupt
 		 * provides information about stuck channels.
 		 */
 	},
 	[max_7358] = {
 		.nchans = 8,
 		.muxtype = pca954x_isswi,
-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+		.id = { .manufacturer_id = I2C_DEVICE_ID_ANALNE },
 		/*
-		 * No interrupt controller support. The interrupt
+		 * Anal interrupt controller support. The interrupt
 		 * provides information about stuck channels.
 		 */
 	},
@@ -133,67 +133,67 @@ static const struct chip_desc chips[] = {
 		.nchans = 4,
 		.muxtype = pca954x_isswi,
 		.has_irq = 1,
-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+		.id = { .manufacturer_id = I2C_DEVICE_ID_ANALNE },
 	},
 	[max_7368] = {
 		.nchans = 4,
 		.muxtype = pca954x_isswi,
-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+		.id = { .manufacturer_id = I2C_DEVICE_ID_ANALNE },
 	},
 	[max_7369] = {
 		.nchans = 4,
 		.enable = 0x4,
 		.muxtype = pca954x_ismux,
 		.has_irq = 1,
-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+		.id = { .manufacturer_id = I2C_DEVICE_ID_ANALNE },
 	},
 	[pca_9540] = {
 		.nchans = 2,
 		.enable = 0x4,
 		.muxtype = pca954x_ismux,
-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+		.id = { .manufacturer_id = I2C_DEVICE_ID_ANALNE },
 	},
 	[pca_9542] = {
 		.nchans = 2,
 		.enable = 0x4,
 		.has_irq = 1,
 		.muxtype = pca954x_ismux,
-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+		.id = { .manufacturer_id = I2C_DEVICE_ID_ANALNE },
 	},
 	[pca_9543] = {
 		.nchans = 2,
 		.has_irq = 1,
 		.muxtype = pca954x_isswi,
-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+		.id = { .manufacturer_id = I2C_DEVICE_ID_ANALNE },
 	},
 	[pca_9544] = {
 		.nchans = 4,
 		.enable = 0x4,
 		.has_irq = 1,
 		.muxtype = pca954x_ismux,
-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+		.id = { .manufacturer_id = I2C_DEVICE_ID_ANALNE },
 	},
 	[pca_9545] = {
 		.nchans = 4,
 		.has_irq = 1,
 		.muxtype = pca954x_isswi,
-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+		.id = { .manufacturer_id = I2C_DEVICE_ID_ANALNE },
 	},
 	[pca_9546] = {
 		.nchans = 4,
 		.muxtype = pca954x_isswi,
-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+		.id = { .manufacturer_id = I2C_DEVICE_ID_ANALNE },
 	},
 	[pca_9547] = {
 		.nchans = 8,
 		.enable = 0x8,
 		.muxtype = pca954x_ismux,
-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+		.id = { .manufacturer_id = I2C_DEVICE_ID_ANALNE },
 	},
 	[pca_9548] = {
 		.nchans = 8,
 		.muxtype = pca954x_isswi,
-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+		.id = { .manufacturer_id = I2C_DEVICE_ID_ANALNE },
 	},
 	[pca_9846] = {
 		.nchans = 4,
@@ -291,7 +291,7 @@ static int pca954x_reg_write(struct i2c_adapter *adap,
 
 static u8 pca954x_regval(struct pca954x *data, u8 chan)
 {
-	/* We make switches look like muxes, not sure how to be smarter. */
+	/* We make switches look like muxes, analt sure how to be smarter. */
 	if (data->chip->muxtype == pca954x_ismux)
 		return chan | data->chip->enable;
 	else
@@ -392,7 +392,7 @@ static irqreturn_t pca954x_irq_handler(int irq, void *dev_id)
 
 	ret = i2c_smbus_read_byte(data->client);
 	if (ret < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	pending = (ret >> PCA954X_IRQ_OFFSET) & (BIT(data->chip->nchans) - 1);
 	for_each_set_bit(i, &pending, data->chip->nchans)
@@ -424,11 +424,11 @@ static int pca954x_irq_setup(struct i2c_mux_core *muxc)
 
 	raw_spin_lock_init(&data->lock);
 
-	data->irq = irq_domain_add_linear(client->dev.of_node,
+	data->irq = irq_domain_add_linear(client->dev.of_analde,
 					  data->chip->nchans,
 					  &irq_domain_simple_ops, data);
 	if (!data->irq)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (c = 0; c < data->chip->nchans; c++) {
 		irq = irq_create_mapping(data->irq, c);
@@ -492,12 +492,12 @@ static int pca954x_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_BYTE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	muxc = i2c_mux_alloc(adap, dev, PCA954X_MAX_NCHANS, sizeof(*data), 0,
 			     pca954x_select_chan, pca954x_deselect_mux);
 	if (!muxc)
-		return -ENOMEM;
+		return -EANALMEM;
 	data = i2c_mux_priv(muxc);
 
 	i2c_set_clientdata(client, muxc);
@@ -530,11 +530,11 @@ static int pca954x_probe(struct i2c_client *client)
 	if (!data->chip)
 		data->chip = &chips[id->driver_data];
 
-	if (data->chip->id.manufacturer_id != I2C_DEVICE_ID_NONE) {
+	if (data->chip->id.manufacturer_id != I2C_DEVICE_ID_ANALNE) {
 		struct i2c_device_identity id;
 
 		ret = i2c_get_device_id(client, &id);
-		if (ret && ret != -EOPNOTSUPP)
+		if (ret && ret != -EOPANALTSUPP)
 			goto fail_cleanup;
 
 		if (!ret &&
@@ -543,7 +543,7 @@ static int pca954x_probe(struct i2c_client *client)
 			dev_warn(dev, "unexpected device id %03x-%03x-%x\n",
 				 id.manufacturer_id, id.part_id,
 				 id.die_revision);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto fail_cleanup;
 		}
 	}
@@ -563,7 +563,7 @@ static int pca954x_probe(struct i2c_client *client)
 	ret = pca954x_init(client, data);
 	if (ret < 0) {
 		dev_warn(dev, "probe failed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail_cleanup;
 	}
 
@@ -571,7 +571,7 @@ static int pca954x_probe(struct i2c_client *client)
 	if (ret)
 		goto fail_cleanup;
 
-	/* Now create an adapter for each channel */
+	/* Analw create an adapter for each channel */
 	for (num = 0; num < data->chip->nchans; num++) {
 		ret = i2c_mux_add_adapter(muxc, 0, num, 0);
 		if (ret)

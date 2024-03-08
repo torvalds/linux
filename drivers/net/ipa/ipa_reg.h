@@ -34,7 +34,7 @@ struct ipa;
  *
  * Each version of IPA implements an array of ipa_reg structures indexed
  * by register ID.  Each entry in the array specifies the base offset and
- * (for parameterized registers) a non-zero stride value.  Not all versions
+ * (for parameterized registers) a analn-zero stride value.  Analt all versions
  * of IPA define all registers.  The offset for a register is returned by
  * reg_offset() when the register's ipa_reg structure is supplied;
  * zero is returned for an undefined register (this should never happen).
@@ -61,13 +61,13 @@ enum ipa_reg_id {
 	QSB_MAX_WRITES,
 	QSB_MAX_READS,
 	FILT_ROUT_HASH_EN,				/* IPA v4.2 */
-	FILT_ROUT_HASH_FLUSH,			/* Not IPA v4.2 nor IPA v5.0+ */
+	FILT_ROUT_HASH_FLUSH,			/* Analt IPA v4.2 analr IPA v5.0+ */
 	FILT_ROUT_CACHE_FLUSH,				/* IPA v5.0+ */
 	STATE_AGGR_ACTIVE,
-	IPA_BCR,					/* Not IPA v4.5+ */
+	IPA_BCR,					/* Analt IPA v4.5+ */
 	LOCAL_PKT_PROC_CNTXT,
 	AGGR_FORCE_CLOSE,
-	COUNTER_CFG,					/* Not IPA v4.5+ */
+	COUNTER_CFG,					/* Analt IPA v4.5+ */
 	IPA_TX_CFG,					/* IPA v3.5+ */
 	FLAVOR_0,					/* IPA v3.5+ */
 	IDLE_INDICATION_CFG,				/* IPA v3.5+ */
@@ -76,13 +76,13 @@ enum ipa_reg_id {
 	TIMERS_PULSE_GRAN_CFG,				/* IPA v4.5+ */
 	SRC_RSRC_GRP_01_RSRC_TYPE,
 	SRC_RSRC_GRP_23_RSRC_TYPE,
-	SRC_RSRC_GRP_45_RSRC_TYPE,	/* Not IPA v3.5+; IPA v4.5, IPA v5.0 */
-	SRC_RSRC_GRP_67_RSRC_TYPE,		/* Not IPA v3.5+; IPA v5.0 */
+	SRC_RSRC_GRP_45_RSRC_TYPE,	/* Analt IPA v3.5+; IPA v4.5, IPA v5.0 */
+	SRC_RSRC_GRP_67_RSRC_TYPE,		/* Analt IPA v3.5+; IPA v5.0 */
 	DST_RSRC_GRP_01_RSRC_TYPE,
 	DST_RSRC_GRP_23_RSRC_TYPE,
-	DST_RSRC_GRP_45_RSRC_TYPE,	/* Not IPA v3.5+; IPA v4.5, IPA v5.0 */
-	DST_RSRC_GRP_67_RSRC_TYPE,		/* Not IPA v3.5+; IPA v5.0 */
-	ENDP_INIT_CTRL,		/* Not IPA v4.2+ for TX, not IPA v4.0+ for RX */
+	DST_RSRC_GRP_45_RSRC_TYPE,	/* Analt IPA v3.5+; IPA v4.5, IPA v5.0 */
+	DST_RSRC_GRP_67_RSRC_TYPE,		/* Analt IPA v3.5+; IPA v5.0 */
+	ENDP_INIT_CTRL,		/* Analt IPA v4.2+ for TX, analt IPA v4.0+ for RX */
 	ENDP_INIT_CFG,
 	ENDP_INIT_NAT,			/* TX only */
 	ENDP_INIT_HDR,
@@ -96,7 +96,7 @@ enum ipa_reg_id {
 	ENDP_INIT_RSRC_GRP,
 	ENDP_INIT_SEQ,			/* TX only */
 	ENDP_STATUS,
-	ENDP_FILTER_ROUTER_HSH_CFG,			/* Not IPA v4.2 */
+	ENDP_FILTER_ROUTER_HSH_CFG,			/* Analt IPA v4.2 */
 	ENDP_FILTER_CACHE_CFG,				/* IPA v5.0+ */
 	ENDP_ROUTER_CACHE_CFG,				/* IPA v5.0+ */
 	/* The IRQ registers that follow are only used for GSI_EE_AP */
@@ -107,27 +107,27 @@ enum ipa_reg_id {
 	IRQ_SUSPEND_INFO,
 	IRQ_SUSPEND_EN,					/* IPA v3.1+ */
 	IRQ_SUSPEND_CLR,				/* IPA v3.1+ */
-	IPA_REG_ID_COUNT,				/* Last; not an ID */
+	IPA_REG_ID_COUNT,				/* Last; analt an ID */
 };
 
 /* COMP_CFG register */
 enum ipa_reg_comp_cfg_field_id {
-	COMP_CFG_ENABLE,				/* Not IPA v4.0+ */
+	COMP_CFG_ENABLE,				/* Analt IPA v4.0+ */
 	RAM_ARB_PRI_CLIENT_SAMP_FIX_DIS,		/* IPA v4.7+ */
-	GSI_SNOC_BYPASS_DIS,
-	GEN_QMB_0_SNOC_BYPASS_DIS,
-	GEN_QMB_1_SNOC_BYPASS_DIS,
-	IPA_DCMP_FAST_CLK_EN,				/* Not IPA v4.5+ */
+	GSI_SANALC_BYPASS_DIS,
+	GEN_QMB_0_SANALC_BYPASS_DIS,
+	GEN_QMB_1_SANALC_BYPASS_DIS,
+	IPA_DCMP_FAST_CLK_EN,				/* Analt IPA v4.5+ */
 	IPA_QMB_SELECT_CONS_EN,				/* IPA v4.0+ */
 	IPA_QMB_SELECT_PROD_EN,				/* IPA v4.0+ */
-	GSI_MULTI_INORDER_RD_DIS,			/* IPA v4.0+ */
-	GSI_MULTI_INORDER_WR_DIS,			/* IPA v4.0+ */
-	GEN_QMB_0_MULTI_INORDER_RD_DIS,			/* IPA v4.0+ */
-	GEN_QMB_1_MULTI_INORDER_RD_DIS,			/* IPA v4.0+ */
-	GEN_QMB_0_MULTI_INORDER_WR_DIS,			/* IPA v4.0+ */
-	GEN_QMB_1_MULTI_INORDER_WR_DIS,			/* IPA v4.0+ */
-	GEN_QMB_0_SNOC_CNOC_LOOP_PROT_DIS,		/* IPA v4.0+ */
-	GSI_SNOC_CNOC_LOOP_PROT_DISABLE,		/* IPA v4.0+ */
+	GSI_MULTI_IANALRDER_RD_DIS,			/* IPA v4.0+ */
+	GSI_MULTI_IANALRDER_WR_DIS,			/* IPA v4.0+ */
+	GEN_QMB_0_MULTI_IANALRDER_RD_DIS,			/* IPA v4.0+ */
+	GEN_QMB_1_MULTI_IANALRDER_RD_DIS,			/* IPA v4.0+ */
+	GEN_QMB_0_MULTI_IANALRDER_WR_DIS,			/* IPA v4.0+ */
+	GEN_QMB_1_MULTI_IANALRDER_WR_DIS,			/* IPA v4.0+ */
+	GEN_QMB_0_SANALC_CANALC_LOOP_PROT_DIS,		/* IPA v4.0+ */
+	GSI_SANALC_CANALC_LOOP_PROT_DISABLE,		/* IPA v4.0+ */
 	GSI_MULTI_AXI_MASTERS_DIS,			/* IPA v4.0+ */
 	IPA_QMB_SELECT_GLOBAL_EN,			/* IPA v4.0+ */
 	QMB_RAM_RD_CACHE_DISABLE,			/* IPA v4.9+ */
@@ -221,14 +221,14 @@ enum ipa_reg_filt_rout_cache_field_id {
 
 /* BCR register */
 enum ipa_bcr_compat {
-	BCR_CMDQ_L_LACK_ONE_ENTRY		= 0x0,	/* Not IPA v4.2+ */
-	BCR_TX_NOT_USING_BRESP			= 0x1,	/* Not IPA v4.2+ */
-	BCR_TX_SUSPEND_IRQ_ASSERT_ONCE		= 0x2,	/* Not IPA v4.0+ */
-	BCR_SUSPEND_L2_IRQ			= 0x3,	/* Not IPA v4.2+ */
-	BCR_HOLB_DROP_L2_IRQ			= 0x4,	/* Not IPA v4.2+ */
+	BCR_CMDQ_L_LACK_ONE_ENTRY		= 0x0,	/* Analt IPA v4.2+ */
+	BCR_TX_ANALT_USING_BRESP			= 0x1,	/* Analt IPA v4.2+ */
+	BCR_TX_SUSPEND_IRQ_ASSERT_ONCE		= 0x2,	/* Analt IPA v4.0+ */
+	BCR_SUSPEND_L2_IRQ			= 0x3,	/* Analt IPA v4.2+ */
+	BCR_HOLB_DROP_L2_IRQ			= 0x4,	/* Analt IPA v4.2+ */
 	BCR_DUAL_TX				= 0x5,	/* IPA v3.5+ */
 	BCR_ENABLE_FILTER_DATA_CACHE		= 0x6,	/* IPA v3.5+ */
-	BCR_NOTIF_PRIORITY_OVER_ZLT		= 0x7,	/* IPA v3.5+ */
+	BCR_ANALTIF_PRIORITY_OVER_ZLT		= 0x7,	/* IPA v3.5+ */
 	BCR_FILTER_PREFETCH_EN			= 0x8,	/* IPA v3.5+ */
 	BCR_ROUTER_PREFETCH_EN			= 0x9,	/* IPA v3.5+ */
 };
@@ -240,15 +240,15 @@ enum ipa_reg_local_pkt_proc_cntxt_field_id {
 
 /* COUNTER_CFG register */
 enum ipa_reg_counter_cfg_field_id {
-	EOT_COAL_GRANULARITY,				/* Not IPA v3.5+ */
+	EOT_COAL_GRANULARITY,				/* Analt IPA v3.5+ */
 	AGGR_GRANULARITY,
 };
 
 /* IPA_TX_CFG register */
 enum ipa_reg_ipa_tx_cfg_field_id {
-	TX0_PREFETCH_DISABLE,				/* Not IPA v4.0+ */
-	TX1_PREFETCH_DISABLE,				/* Not IPA v4.0+ */
-	PREFETCH_ALMOST_EMPTY_SIZE,			/* Not IPA v4.0+ */
+	TX0_PREFETCH_DISABLE,				/* Analt IPA v4.0+ */
+	TX1_PREFETCH_DISABLE,				/* Analt IPA v4.0+ */
+	PREFETCH_ALMOST_EMPTY_SIZE,			/* Analt IPA v4.0+ */
 	PREFETCH_ALMOST_EMPTY_SIZE_TX0,			/* IPA v4.0+ */
 	DMAW_SCND_OUTSD_PRED_THRESHOLD,			/* IPA v4.0+ */
 	DMAW_SCND_OUTSD_PRED_EN,			/* IPA v4.0+ */
@@ -256,8 +256,8 @@ enum ipa_reg_ipa_tx_cfg_field_id {
 	PA_MASK_EN,					/* IPA v4.0+ */
 	PREFETCH_ALMOST_EMPTY_SIZE_TX1,			/* IPA v4.0+ */
 	DUAL_TX_ENABLE,					/* IPA v4.5+ */
-	SSPND_PA_NO_START_STATE,		/* IPA v4,2+, not IPA v4.5 */
-	SSPND_PA_NO_BQ_STATE,				/* IPA v4.2 only */
+	SSPND_PA_ANAL_START_STATE,		/* IPA v4,2+, analt IPA v4.5 */
+	SSPND_PA_ANAL_BQ_STATE,				/* IPA v4.2 only */
 	HOLB_STICKY_DROP_EN,				/* IPA v5.0+ */
 };
 
@@ -272,13 +272,13 @@ enum ipa_reg_flavor_0_field_id {
 /* IDLE_INDICATION_CFG register */
 enum ipa_reg_idle_indication_cfg_field_id {
 	ENTER_IDLE_DEBOUNCE_THRESH,
-	CONST_NON_IDLE_ENABLE,
+	CONST_ANALN_IDLE_ENABLE,
 };
 
 /* QTIME_TIMESTAMP_CFG register */
 enum ipa_reg_qtime_timestamp_cfg_field_id {
-	DPL_TIMESTAMP_LSB,				/* Not IPA v5.5+ */
-	DPL_TIMESTAMP_SEL,				/* Not IPA v5.5+ */
+	DPL_TIMESTAMP_LSB,				/* Analt IPA v5.5+ */
+	DPL_TIMESTAMP_SEL,				/* Analt IPA v5.5+ */
 	TAG_TIMESTAMP_LSB,
 	NAT_TIMESTAMP_LSB,
 };
@@ -319,8 +319,8 @@ enum ipa_reg_rsrc_grp_rsrc_type_field_id {
 
 /* ENDP_INIT_CTRL register */
 enum ipa_reg_endp_init_ctrl_field_id {
-	ENDP_SUSPEND,					/* Not IPA v4.0+ */
-	ENDP_DELAY,					/* Not IPA v4.2+ */
+	ENDP_SUSPEND,					/* Analt IPA v4.0+ */
+	ENDP_DELAY,					/* Analt IPA v4.2+ */
 };
 
 /* ENDP_INIT_CFG register */
@@ -334,9 +334,9 @@ enum ipa_reg_endp_init_cfg_field_id {
 
 /** enum ipa_cs_offload_en - ENDP_INIT_CFG register CS_OFFLOAD_EN field value */
 enum ipa_cs_offload_en {
-	IPA_CS_OFFLOAD_NONE			= 0x0,
-	IPA_CS_OFFLOAD_UL	/* TX */	= 0x1,	/* Not IPA v4.5+ */
-	IPA_CS_OFFLOAD_DL	/* RX */	= 0x2,	/* Not IPA v4.5+ */
+	IPA_CS_OFFLOAD_ANALNE			= 0x0,
+	IPA_CS_OFFLOAD_UL	/* TX */	= 0x1,	/* Analt IPA v4.5+ */
+	IPA_CS_OFFLOAD_DL	/* RX */	= 0x2,	/* Analt IPA v4.5+ */
 	IPA_CS_OFFLOAD_INLINE	/* TX and RX */	= 0x1,	/* IPA v4.5+ */
 };
 
@@ -360,9 +360,9 @@ enum ipa_reg_endp_init_hdr_field_id {
 	HDR_ADDITIONAL_CONST_LEN,
 	HDR_OFST_PKT_SIZE_VALID,
 	HDR_OFST_PKT_SIZE,
-	HDR_A5_MUX,					/* Not IPA v4.9+ */
+	HDR_A5_MUX,					/* Analt IPA v4.9+ */
 	HDR_LEN_INC_DEAGG_HDR,
-	HDR_METADATA_REG_VALID,				/* Not IPA v4.5+ */
+	HDR_METADATA_REG_VALID,				/* Analt IPA v4.5+ */
 	HDR_LEN_MSB,					/* IPA v4.5+ */
 	HDR_OFST_METADATA_MSB,				/* IPA v4.5+ */
 };
@@ -388,7 +388,7 @@ enum ipa_reg_endp_init_mode_field_id {
 	DCPH_ENABLE,					/* IPA v4.5+ */
 	DEST_PIPE_INDEX,
 	BYTE_THRESHOLD,
-	PIPE_REPLICATION_EN,				/* Not IPA v5.5+ */
+	PIPE_REPLICATION_EN,				/* Analt IPA v5.5+ */
 	PAD_EN,
 	HDR_FTCH_DISABLE,				/* IPA v4.5+ */
 	DRBIP_ACL_ENABLE,				/* IPA v4.9+ */
@@ -441,7 +441,7 @@ enum ipa_reg_endp_init_hol_block_en_field_id {
 
 /* ENDP_INIT_HOL_BLOCK_TIMER register */
 enum ipa_reg_endp_init_hol_block_timer_field_id {
-	TIMER_BASE_VALUE,				/* Not IPA v4.5+ */
+	TIMER_BASE_VALUE,				/* Analt IPA v4.5+ */
 	TIMER_SCALE,					/* IPA v4.2 only */
 	TIMER_LIMIT,					/* IPA v4.5+ */
 	TIMER_GRAN_SEL,					/* IPA v4.5+ */
@@ -453,7 +453,7 @@ enum ipa_reg_endp_deaggr_field_id {
 	SYSPIPE_ERR_DETECTION,
 	PACKET_OFFSET_VALID,
 	PACKET_OFFSET_LOCATION,
-	IGNORE_MIN_PKT_ERR,
+	IGANALRE_MIN_PKT_ERR,
 	MAX_PACKET_LEN,
 };
 
@@ -465,7 +465,7 @@ enum ipa_reg_endp_init_rsrc_grp_field_id {
 /* ENDP_INIT_SEQ register */
 enum ipa_reg_endp_init_seq_field_id {
 	SEQ_TYPE,
-	SEQ_REP_TYPE,					/* Not IPA v4.5+ */
+	SEQ_REP_TYPE,					/* Analt IPA v4.5+ */
 };
 
 /**
@@ -483,7 +483,7 @@ enum ipa_reg_endp_init_seq_field_id {
  * optionally skip the microprocessor.  Deciphering is optional for all types;
  * if enabled, an additional mask (two bits) is added to the type value.
  *
- * Note: not all combinations of ipa_seq_type and ipa_seq_rep_type are
+ * Analte: analt all combinations of ipa_seq_type and ipa_seq_rep_type are
  * supported (or meaningful).
  */
 enum ipa_seq_type {
@@ -503,7 +503,7 @@ enum ipa_seq_type {
  *
  * This goes in the second byte of the endpoint sequencer type register.
  *
- * Note: not all combinations of ipa_seq_type and ipa_seq_rep_type are
+ * Analte: analt all combinations of ipa_seq_type and ipa_seq_rep_type are
  * supported (or meaningful).
  */
 enum ipa_seq_rep_type {
@@ -514,7 +514,7 @@ enum ipa_seq_rep_type {
 enum ipa_reg_endp_status_field_id {
 	STATUS_EN,
 	STATUS_ENDP,
-	STATUS_LOCATION,				/* Not IPA v4.5+ */
+	STATUS_LOCATION,				/* Analt IPA v4.5+ */
 	STATUS_PKT_SUPPRESS,				/* IPA v4.0+ */
 };
 
@@ -558,53 +558,53 @@ enum ipa_reg_endp_cache_cfg_field_id {
  * @IPA_IRQ_TX_SUSPEND:	Data ready interrupt
  * @IPA_IRQ_COUNT:	Number of IRQ ids (must be last)
  *
- * IRQ types not described above are not currently used.
+ * IRQ types analt described above are analt currently used.
  *
- * @IPA_IRQ_BAD_SNOC_ACCESS:		(Not currently used)
- * @IPA_IRQ_EOT_COAL:			(Not currently used)
- * @IPA_IRQ_UC_2:			(Not currently used)
- * @IPA_IRQ_UC_3:			(Not currently used)
- * @IPA_IRQ_UC_IN_Q_NOT_EMPTY:		(Not currently used)
- * @IPA_IRQ_UC_RX_CMD_Q_NOT_FULL:	(Not currently used)
- * @IPA_IRQ_PROC_UC_ACK_Q_NOT_EMPTY:	(Not currently used)
- * @IPA_IRQ_RX_ERR:			(Not currently used)
- * @IPA_IRQ_DEAGGR_ERR:			(Not currently used)
- * @IPA_IRQ_TX_ERR:			(Not currently used)
- * @IPA_IRQ_STEP_MODE:			(Not currently used)
- * @IPA_IRQ_PROC_ERR:			(Not currently used)
- * @IPA_IRQ_TX_HOLB_DROP:		(Not currently used)
- * @IPA_IRQ_BAM_GSI_IDLE:		(Not currently used)
- * @IPA_IRQ_PIPE_YELLOW_BELOW:		(Not currently used)
- * @IPA_IRQ_PIPE_RED_BELOW:		(Not currently used)
- * @IPA_IRQ_PIPE_YELLOW_ABOVE:		(Not currently used)
- * @IPA_IRQ_PIPE_RED_ABOVE:		(Not currently used)
- * @IPA_IRQ_UCP:			(Not currently used)
- * @IPA_IRQ_DCMP:			(Not currently used)
- * @IPA_IRQ_GSI_EE:			(Not currently used)
- * @IPA_IRQ_GSI_IPA_IF_TLV_RCVD:	(Not currently used)
- * @IPA_IRQ_GSI_UC:			(Not currently used)
- * @IPA_IRQ_TLV_LEN_MIN_DSM:		(Not currently used)
- * @IPA_IRQ_DRBIP_PKT_EXCEED_MAX_SIZE_EN: (Not currently used)
- * @IPA_IRQ_DRBIP_DATA_SCTR_CFG_ERROR_EN: (Not currently used)
- * @IPA_IRQ_DRBIP_IMM_CMD_NO_FLSH_HZRD_EN: (Not currently used)
- * @IPA_IRQ_ERROR_NON_FATAL:		(Not currently used)
- * @IPA_IRQ_ERROR_FATAL:		(Not currently used)
+ * @IPA_IRQ_BAD_SANALC_ACCESS:		(Analt currently used)
+ * @IPA_IRQ_EOT_COAL:			(Analt currently used)
+ * @IPA_IRQ_UC_2:			(Analt currently used)
+ * @IPA_IRQ_UC_3:			(Analt currently used)
+ * @IPA_IRQ_UC_IN_Q_ANALT_EMPTY:		(Analt currently used)
+ * @IPA_IRQ_UC_RX_CMD_Q_ANALT_FULL:	(Analt currently used)
+ * @IPA_IRQ_PROC_UC_ACK_Q_ANALT_EMPTY:	(Analt currently used)
+ * @IPA_IRQ_RX_ERR:			(Analt currently used)
+ * @IPA_IRQ_DEAGGR_ERR:			(Analt currently used)
+ * @IPA_IRQ_TX_ERR:			(Analt currently used)
+ * @IPA_IRQ_STEP_MODE:			(Analt currently used)
+ * @IPA_IRQ_PROC_ERR:			(Analt currently used)
+ * @IPA_IRQ_TX_HOLB_DROP:		(Analt currently used)
+ * @IPA_IRQ_BAM_GSI_IDLE:		(Analt currently used)
+ * @IPA_IRQ_PIPE_YELLOW_BELOW:		(Analt currently used)
+ * @IPA_IRQ_PIPE_RED_BELOW:		(Analt currently used)
+ * @IPA_IRQ_PIPE_YELLOW_ABOVE:		(Analt currently used)
+ * @IPA_IRQ_PIPE_RED_ABOVE:		(Analt currently used)
+ * @IPA_IRQ_UCP:			(Analt currently used)
+ * @IPA_IRQ_DCMP:			(Analt currently used)
+ * @IPA_IRQ_GSI_EE:			(Analt currently used)
+ * @IPA_IRQ_GSI_IPA_IF_TLV_RCVD:	(Analt currently used)
+ * @IPA_IRQ_GSI_UC:			(Analt currently used)
+ * @IPA_IRQ_TLV_LEN_MIN_DSM:		(Analt currently used)
+ * @IPA_IRQ_DRBIP_PKT_EXCEED_MAX_SIZE_EN: (Analt currently used)
+ * @IPA_IRQ_DRBIP_DATA_SCTR_CFG_ERROR_EN: (Analt currently used)
+ * @IPA_IRQ_DRBIP_IMM_CMD_ANAL_FLSH_HZRD_EN: (Analt currently used)
+ * @IPA_IRQ_ERROR_ANALN_FATAL:		(Analt currently used)
+ * @IPA_IRQ_ERROR_FATAL:		(Analt currently used)
  */
 enum ipa_irq_id {
-	IPA_IRQ_BAD_SNOC_ACCESS			= 0x0,	/* Not IPA v5.5+ */
-	IPA_IRQ_EOT_COAL			= 0x1,	/* Not IPA v3.5+ */
+	IPA_IRQ_BAD_SANALC_ACCESS			= 0x0,	/* Analt IPA v5.5+ */
+	IPA_IRQ_EOT_COAL			= 0x1,	/* Analt IPA v3.5+ */
 	IPA_IRQ_UC_0				= 0x2,
 	IPA_IRQ_UC_1				= 0x3,
 	IPA_IRQ_UC_2				= 0x4,
 	IPA_IRQ_UC_3				= 0x5,
-	IPA_IRQ_UC_IN_Q_NOT_EMPTY		= 0x6,
-	IPA_IRQ_UC_RX_CMD_Q_NOT_FULL		= 0x7,
-	IPA_IRQ_PROC_UC_ACK_Q_NOT_EMPTY		= 0x8,
-	IPA_IRQ_RX_ERR				= 0x9,	/* Not IPA v5.5+ */
-	IPA_IRQ_DEAGGR_ERR			= 0xa,	/* Not IPA v5.5+ */
-	IPA_IRQ_TX_ERR				= 0xb,	/* Not IPA v5.5+ */
-	IPA_IRQ_STEP_MODE			= 0xc,	/* Not IPA v5.5+ */
-	IPA_IRQ_PROC_ERR			= 0xd,	/* Not IPA v5.5+ */
+	IPA_IRQ_UC_IN_Q_ANALT_EMPTY		= 0x6,
+	IPA_IRQ_UC_RX_CMD_Q_ANALT_FULL		= 0x7,
+	IPA_IRQ_PROC_UC_ACK_Q_ANALT_EMPTY		= 0x8,
+	IPA_IRQ_RX_ERR				= 0x9,	/* Analt IPA v5.5+ */
+	IPA_IRQ_DEAGGR_ERR			= 0xa,	/* Analt IPA v5.5+ */
+	IPA_IRQ_TX_ERR				= 0xb,	/* Analt IPA v5.5+ */
+	IPA_IRQ_STEP_MODE			= 0xc,	/* Analt IPA v5.5+ */
+	IPA_IRQ_PROC_ERR			= 0xd,	/* Analt IPA v5.5+ */
 	IPA_IRQ_TX_SUSPEND			= 0xe,
 	IPA_IRQ_TX_HOLB_DROP			= 0xf,
 	IPA_IRQ_BAM_GSI_IDLE			= 0x10,
@@ -613,17 +613,17 @@ enum ipa_irq_id {
 	IPA_IRQ_PIPE_YELLOW_ABOVE		= 0x13,
 	IPA_IRQ_PIPE_RED_ABOVE			= 0x14,
 	IPA_IRQ_UCP				= 0x15,
-	IPA_IRQ_DCMP				= 0x16,	/* Not IPA v4.5+ */
+	IPA_IRQ_DCMP				= 0x16,	/* Analt IPA v4.5+ */
 	IPA_IRQ_GSI_EE				= 0x17,
 	IPA_IRQ_GSI_IPA_IF_TLV_RCVD		= 0x18,
 	IPA_IRQ_GSI_UC				= 0x19,
 	IPA_IRQ_TLV_LEN_MIN_DSM			= 0x1a,	/* IPA v4.5-v5.2 */
 	IPA_IRQ_DRBIP_PKT_EXCEED_MAX_SIZE_EN	= 0x1b,	/* IPA v4.9-v5.2 */
 	IPA_IRQ_DRBIP_DATA_SCTR_CFG_ERROR_EN	= 0x1c,	/* IPA v4.9-v5.2 */
-	IPA_IRQ_DRBIP_IMM_CMD_NO_FLSH_HZRD_EN	= 0x1d,	/* IPA v4.9-v5.2 */
-	IPA_IRQ_ERROR_NON_FATAL			= 0x1e,	/* IPA v5.5+ */
+	IPA_IRQ_DRBIP_IMM_CMD_ANAL_FLSH_HZRD_EN	= 0x1d,	/* IPA v4.9-v5.2 */
+	IPA_IRQ_ERROR_ANALN_FATAL			= 0x1e,	/* IPA v5.5+ */
 	IPA_IRQ_ERROR_FATAL			= 0x1f,	/* IPA v5.5+ */
-	IPA_IRQ_COUNT,				/* Last; not an id */
+	IPA_IRQ_COUNT,				/* Last; analt an id */
 };
 
 /* IPA_IRQ_UC register */

@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/sound/fsl,sai.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Freescale Synchronous Audio Interface (SAI).
+title: Freescale Synchroanalus Audio Interface (SAI).
 
 maintainers:
   - Shengjiu Wang <shengjiu.wang@nxp.com>
 
 description: |
   The SAI is based on I2S module that used communicating with audio codecs,
-  which provides a synchronous audio interface that supports fullduplex
+  which provides a synchroanalus audio interface that supports fullduplex
   serial interfaces with frame synchronization such as I2S, AC97, TDM, and
   codec/DSP interfaces.
 
@@ -110,20 +110,20 @@ properties:
     description: SAI will output the SAI MCLK clock.
     type: boolean
 
-  fsl,sai-synchronous-rx:
+  fsl,sai-synchroanalus-rx:
     description: |
-      SAI will work in the synchronous mode (sync Tx with Rx) which means
+      SAI will work in the synchroanalus mode (sync Tx with Rx) which means
       both the transmitter and the receiver will send and receive data by
       following receiver's bit clocks and frame sync clocks.
     type: boolean
 
-  fsl,sai-asynchronous:
+  fsl,sai-asynchroanalus:
     description: |
-      SAI will work in the asynchronous mode, which means both transmitter
+      SAI will work in the asynchroanalus mode, which means both transmitter
       and receiver will send and receive data by following their own bit clocks
       and frame sync clocks separately.
-      If both fsl,sai-asynchronous and fsl,sai-synchronous-rx are absent, the
-      default synchronous mode (sync Rx with Tx) will be used, which means both
+      If both fsl,sai-asynchroanalus and fsl,sai-synchroanalus-rx are absent, the
+      default synchroanalus mode (sync Rx with Tx) will be used, which means both
       transmitter and receiver will send and receive data by following clocks
       of transmitter.
     type: boolean
@@ -142,16 +142,16 @@ properties:
 
   "#sound-dai-cells":
     const: 0
-    description: optional, some dts node didn't add it.
+    description: optional, some dts analde didn't add it.
 
 allOf:
   - $ref: dai-common.yaml#
   - if:
       required:
-        - fsl,sai-asynchronous
+        - fsl,sai-asynchroanalus
     then:
       properties:
-        fsl,sai-synchronous-rx: false
+        fsl,sai-synchroanalus-rx: false
 
 required:
   - compatible

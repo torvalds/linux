@@ -31,11 +31,11 @@ struct iovec;
 	printk(KERN_DEBUG "   "FMT"\n", ##__VA_ARGS__)
 #else
 #define kenter(FMT, ...) \
-	no_printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
+	anal_printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
 #define kleave(FMT, ...) \
-	no_printk(KERN_DEBUG "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
+	anal_printk(KERN_DEBUG "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
 #define kdebug(FMT, ...) \
-	no_printk(KERN_DEBUG FMT"\n", ##__VA_ARGS__)
+	anal_printk(KERN_DEBUG FMT"\n", ##__VA_ARGS__)
 #endif
 
 extern struct key_type key_type_dead;
@@ -52,7 +52,7 @@ extern struct key_type key_type_logon;
  * We also keep track of keys under request from userspace for this UID here.
  */
 struct key_user {
-	struct rb_node		node;
+	struct rb_analde		analde;
 	struct mutex		cons_lock;	/* construction initiation lock */
 	spinlock_t		lock;
 	refcount_t		usage;		/* for accessing qnkeys & qnbytes */
@@ -114,12 +114,12 @@ struct keyring_search_context {
 	const struct cred	*cred;
 	struct key_match_data	match_data;
 	unsigned		flags;
-#define KEYRING_SEARCH_NO_STATE_CHECK	0x0001	/* Skip state checks */
-#define KEYRING_SEARCH_DO_STATE_CHECK	0x0002	/* Override NO_STATE_CHECK */
-#define KEYRING_SEARCH_NO_UPDATE_TIME	0x0004	/* Don't update times */
-#define KEYRING_SEARCH_NO_CHECK_PERM	0x0008	/* Don't check permissions */
+#define KEYRING_SEARCH_ANAL_STATE_CHECK	0x0001	/* Skip state checks */
+#define KEYRING_SEARCH_DO_STATE_CHECK	0x0002	/* Override ANAL_STATE_CHECK */
+#define KEYRING_SEARCH_ANAL_UPDATE_TIME	0x0004	/* Don't update times */
+#define KEYRING_SEARCH_ANAL_CHECK_PERM	0x0008	/* Don't check permissions */
 #define KEYRING_SEARCH_DETECT_TOO_DEEP	0x0010	/* Give an error on excessive depth */
-#define KEYRING_SEARCH_SKIP_EXPIRED	0x0020	/* Ignore expired keys (intention to replace) */
+#define KEYRING_SEARCH_SKIP_EXPIRED	0x0020	/* Iganalre expired keys (intention to replace) */
 #define KEYRING_SEARCH_RECURSE		0x0040	/* Search child keyrings also */
 
 	int (*iterator)(const void *object, void *iterator_data);
@@ -128,7 +128,7 @@ struct keyring_search_context {
 	int			skipped_ret;
 	bool			possessed;
 	key_ref_t		result;
-	time64_t		now;
+	time64_t		analw;
 };
 
 extern bool key_default_cmp(const struct key *key,
@@ -176,19 +176,19 @@ extern int key_task_permission(const key_ref_t key_ref,
 			       const struct cred *cred,
 			       enum key_need_perm need_perm);
 
-static inline void notify_key(struct key *key,
-			      enum key_notification_subtype subtype, u32 aux)
+static inline void analtify_key(struct key *key,
+			      enum key_analtification_subtype subtype, u32 aux)
 {
-#ifdef CONFIG_KEY_NOTIFICATIONS
-	struct key_notification n = {
-		.watch.type	= WATCH_TYPE_KEY_NOTIFY,
+#ifdef CONFIG_KEY_ANALTIFICATIONS
+	struct key_analtification n = {
+		.watch.type	= WATCH_TYPE_KEY_ANALTIFY,
 		.watch.subtype	= subtype,
 		.watch.info	= watch_sizeof(n),
 		.key_id		= key_serial(key),
 		.aux		= aux,
 	};
 
-	post_watch_notification(key->watchers, &n.watch, current_cred(),
+	post_watch_analtification(key->watchers, &n.watch, current_cred(),
 				n.key_id);
 #endif
 }
@@ -271,7 +271,7 @@ extern unsigned persistent_keyring_expiry;
 #else
 static inline long keyctl_get_persistent(uid_t uid, key_serial_t destring)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -292,7 +292,7 @@ static inline long keyctl_dh_compute(struct keyctl_dh_params __user *params,
 				     char __user *buffer, size_t buflen,
 				     struct keyctl_kdf_params __user *kdf)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #ifdef CONFIG_COMPAT
@@ -301,7 +301,7 @@ static inline long compat_keyctl_dh_compute(
 				char __user *buffer, size_t buflen,
 				struct keyctl_kdf_params __user *kdf)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 #endif
@@ -324,7 +324,7 @@ static inline long keyctl_pkey_query(key_serial_t id,
 				     const char __user *_info,
 				     struct keyctl_pkey_query __user *_res)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline long keyctl_pkey_verify(const struct keyctl_pkey_params __user *params,
@@ -332,7 +332,7 @@ static inline long keyctl_pkey_verify(const struct keyctl_pkey_params __user *pa
 				      const void __user *_in,
 				      const void __user *_in2)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline long keyctl_pkey_e_d_s(int op,
@@ -341,18 +341,18 @@ static inline long keyctl_pkey_e_d_s(int op,
 				     const void __user *_in,
 				     void __user *_out)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
 extern long keyctl_capabilities(unsigned char __user *_buffer, size_t buflen);
 
-#ifdef CONFIG_KEY_NOTIFICATIONS
+#ifdef CONFIG_KEY_ANALTIFICATIONS
 extern long keyctl_watch_key(key_serial_t, int, int);
 #else
 static inline long keyctl_watch_key(key_serial_t key_id, int watch_fd, int watch_id)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 

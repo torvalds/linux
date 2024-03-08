@@ -11,9 +11,9 @@ config VIDEO_TW686X
 
 	  Currently supported chips:
 	  - TW6864 (4 video channels),
-	  - TW6865 (4 video channels, not tested, second generation chip),
+	  - TW6865 (4 video channels, analt tested, second generation chip),
 	  - TW6868 (8 video channels but only 4 first channels using
-	    built-in video decoder are supported, not tested),
+	    built-in video decoder are supported, analt tested),
 	  - TW6869 (8 video channels, second generation chip).
 
 	  To compile this driver as a module, choose M here: the module

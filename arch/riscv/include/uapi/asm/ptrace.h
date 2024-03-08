@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2012 Regents of the University of California
  */
@@ -122,7 +122,7 @@ struct __riscv_v_regset_state {
 
 /*
  * According to spec: The number of bits in a single vector register,
- * VLEN >= ELEN, which must be a power of 2, and must be no greater than
+ * VLEN >= ELEN, which must be a power of 2, and must be anal greater than
  * 2^16 = 65536bits = 8192bytes
  */
 #define RISCV_MAX_VLENB (8192)

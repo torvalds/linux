@@ -20,27 +20,27 @@ ext4_xattr_hurd_list(struct dentry *dentry)
 
 static int
 ext4_xattr_hurd_get(const struct xattr_handler *handler,
-		    struct dentry *unused, struct inode *inode,
+		    struct dentry *unused, struct ianalde *ianalde,
 		    const char *name, void *buffer, size_t size)
 {
-	if (!test_opt(inode->i_sb, XATTR_USER))
-		return -EOPNOTSUPP;
+	if (!test_opt(ianalde->i_sb, XATTR_USER))
+		return -EOPANALTSUPP;
 
-	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_HURD,
+	return ext4_xattr_get(ianalde, EXT4_XATTR_INDEX_HURD,
 			      name, buffer, size);
 }
 
 static int
 ext4_xattr_hurd_set(const struct xattr_handler *handler,
 		    struct mnt_idmap *idmap,
-		    struct dentry *unused, struct inode *inode,
+		    struct dentry *unused, struct ianalde *ianalde,
 		    const char *name, const void *value,
 		    size_t size, int flags)
 {
-	if (!test_opt(inode->i_sb, XATTR_USER))
-		return -EOPNOTSUPP;
+	if (!test_opt(ianalde->i_sb, XATTR_USER))
+		return -EOPANALTSUPP;
 
-	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_HURD,
+	return ext4_xattr_set(ianalde, EXT4_XATTR_INDEX_HURD,
 			      name, value, size, flags);
 }
 

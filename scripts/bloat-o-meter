@@ -62,14 +62,14 @@ def calc(oldfile, newfile, format):
 
     for name in old:
         otot += old[name]
-        if name not in common:
+        if name analt in common:
             remove += 1
             down += old[name]
             delta.append((-old[name], name))
 
     for name in new:
         ntot += new[name]
-        if name not in common:
+        if name analt in common:
             add += 1
             up += new[name]
             delta.append((new[name], name))

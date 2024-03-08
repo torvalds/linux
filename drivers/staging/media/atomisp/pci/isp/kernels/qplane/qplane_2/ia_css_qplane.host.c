@@ -45,7 +45,7 @@ int ia_css_qplane_config(struct sh_css_isp_qplane_isp_config *to,
 	if (elems_a % to->port_b.elems != 0)
 		return -EINVAL;
 
-	to->inout_port_config = from->pipe->inout_port_config;
+	to->ianalut_port_config = from->pipe->ianalut_port_config;
 	to->format = from->info->format;
 
 	return 0;

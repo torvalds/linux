@@ -1,32 +1,32 @@
 # SPDX-License-Identifier: GPL-2.0
 
-# Ignore header name
-ignore define __LINUX_MEDIA_H
+# Iganalre header name
+iganalre define __LINUX_MEDIA_H
 
-# Ignore macros
-ignore define MEDIA_API_VERSION
-ignore define MEDIA_ENT_F_BASE
-ignore define MEDIA_ENT_F_OLD_BASE
-ignore define MEDIA_ENT_F_OLD_SUBDEV_BASE
-ignore define MEDIA_ENT_F_DTV_DECODER
-ignore define MEDIA_INTF_T_DVB_BASE
-ignore define MEDIA_INTF_T_V4L_BASE
-ignore define MEDIA_INTF_T_ALSA_BASE
-#ignore legacy entity type macros
-ignore define MEDIA_ENT_TYPE_SHIFT
-ignore define MEDIA_ENT_TYPE_MASK
-ignore define MEDIA_ENT_SUBTYPE_MASK
-ignore define MEDIA_ENT_T_DEVNODE_UNKNOWN
-ignore define MEDIA_ENT_T_DEVNODE
-ignore define MEDIA_ENT_T_DEVNODE_V4L
-ignore define MEDIA_ENT_T_DEVNODE_FB
-ignore define MEDIA_ENT_T_DEVNODE_ALSA
-ignore define MEDIA_ENT_T_DEVNODE_DVB
-ignore define MEDIA_ENT_T_UNKNOWN
-ignore define MEDIA_ENT_T_V4L2_VIDEO
-ignore define MEDIA_ENT_T_V4L2_SUBDEV
-ignore define MEDIA_ENT_T_V4L2_SUBDEV_SENSOR
-ignore define MEDIA_ENT_T_V4L2_SUBDEV_FLASH
-ignore define MEDIA_ENT_T_V4L2_SUBDEV_LENS
-ignore define MEDIA_ENT_T_V4L2_SUBDEV_DECODER
-ignore define MEDIA_ENT_T_V4L2_SUBDEV_TUNER
+# Iganalre macros
+iganalre define MEDIA_API_VERSION
+iganalre define MEDIA_ENT_F_BASE
+iganalre define MEDIA_ENT_F_OLD_BASE
+iganalre define MEDIA_ENT_F_OLD_SUBDEV_BASE
+iganalre define MEDIA_ENT_F_DTV_DECODER
+iganalre define MEDIA_INTF_T_DVB_BASE
+iganalre define MEDIA_INTF_T_V4L_BASE
+iganalre define MEDIA_INTF_T_ALSA_BASE
+#iganalre legacy entity type macros
+iganalre define MEDIA_ENT_TYPE_SHIFT
+iganalre define MEDIA_ENT_TYPE_MASK
+iganalre define MEDIA_ENT_SUBTYPE_MASK
+iganalre define MEDIA_ENT_T_DEVANALDE_UNKANALWN
+iganalre define MEDIA_ENT_T_DEVANALDE
+iganalre define MEDIA_ENT_T_DEVANALDE_V4L
+iganalre define MEDIA_ENT_T_DEVANALDE_FB
+iganalre define MEDIA_ENT_T_DEVANALDE_ALSA
+iganalre define MEDIA_ENT_T_DEVANALDE_DVB
+iganalre define MEDIA_ENT_T_UNKANALWN
+iganalre define MEDIA_ENT_T_V4L2_VIDEO
+iganalre define MEDIA_ENT_T_V4L2_SUBDEV
+iganalre define MEDIA_ENT_T_V4L2_SUBDEV_SENSOR
+iganalre define MEDIA_ENT_T_V4L2_SUBDEV_FLASH
+iganalre define MEDIA_ENT_T_V4L2_SUBDEV_LENS
+iganalre define MEDIA_ENT_T_V4L2_SUBDEV_DECODER
+iganalre define MEDIA_ENT_T_V4L2_SUBDEV_TUNER

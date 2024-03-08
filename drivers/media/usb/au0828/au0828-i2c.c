@@ -27,7 +27,7 @@ static inline int i2c_slave_did_read_ack(struct i2c_adapter *i2c_adap)
 {
 	struct au0828_dev *dev = i2c_adap->algo_data;
 	return au0828_read(dev, AU0828_I2C_STATUS_201) &
-		AU0828_I2C_STATUS_NO_READ_ACK ? 0 : 1;
+		AU0828_I2C_STATUS_ANAL_READ_ACK ? 0 : 1;
 }
 
 static int i2c_wait_read_ack(struct i2c_adapter *i2c_adap)
@@ -218,7 +218,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 	au0828_write(dev, AU0828_I2C_MULTIBYTE_MODE_2FF, 0x01);
 
 	/*
-	 * Due to xc5000c clock stretch, we cannot use full speed at
+	 * Due to xc5000c clock stretch, we cananalt use full speed at
 	 * readings from xc5000, as otherwise they'll fail.
 	 */
 	if (((dev->board.tuner_type == TUNER_XC5000) ||

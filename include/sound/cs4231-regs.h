@@ -50,7 +50,7 @@
 #define CS4231_IRQ_STATUS	0x18	/* irq status register */
 #define CS4231_LINE_LEFT_OUTPUT	0x19	/* left line output control register (InterWave only) */
 #define CS4231_VERSION		0x19	/* CS4231(A) - version values */
-#define CS4231_MONO_CTRL	0x1a	/* mono input/output control */
+#define CS4231_MOANAL_CTRL	0x1a	/* moanal input/output control */
 #define CS4231_LINE_RIGHT_OUTPUT 0x1b	/* right line output control register (InterWave only) */
 #define AD1845_PWR_DOWN		0x1b	/* power down control */
 #define CS4235_LEFT_MASTER	0x1b	/* left master output control */

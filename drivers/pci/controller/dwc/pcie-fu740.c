@@ -184,9 +184,9 @@ static int fu740_pcie_start_link(struct dw_pcie *pci)
 	u32 orig, tmp;
 
 	/*
-	 * Force 2.5GT/s when starting the link, due to some devices not
+	 * Force 2.5GT/s when starting the link, due to some devices analt
 	 * probing at higher speeds. This happens with the PCIe switch
-	 * on the Unmatched board when U-Boot has not initialised the PCIe.
+	 * on the Unmatched board when U-Boot has analt initialised the PCIe.
 	 * The fix in U-Boot is to force 2.5GT/s, which then gets cleared
 	 * by the soft reset done by this driver.
 	 */
@@ -204,7 +204,7 @@ static int fu740_pcie_start_link(struct dw_pcie *pci)
 
 	ret = dw_pcie_wait_for_link(pci);
 	if (ret) {
-		dev_err(dev, "error: link did not start\n");
+		dev_err(dev, "error: link did analt start\n");
 		goto err;
 	}
 
@@ -222,7 +222,7 @@ static int fu740_pcie_start_link(struct dw_pcie *pci)
 
 		ret = dw_pcie_wait_for_link(pci);
 		if (ret) {
-			dev_err(dev, "error: link did not start at new speed\n");
+			dev_err(dev, "error: link did analt start at new speed\n");
 			goto err;
 		}
 	}
@@ -294,7 +294,7 @@ static int fu740_pcie_probe(struct platform_device *pdev)
 
 	afp = devm_kzalloc(dev, sizeof(*afp), GFP_KERNEL);
 	if (!afp)
-		return -ENOMEM;
+		return -EANALMEM;
 	pci = &afp->pci;
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;

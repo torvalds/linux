@@ -43,28 +43,28 @@ duration_rcutorture_frac=7
 duration_locktorture_frac=1
 duration_scftorture_frac=2
 
-# "yes" or "no" parameters
-do_allmodconfig=yes
-do_rcutorture=yes
-do_locktorture=yes
-do_scftorture=yes
-do_rcuscale=yes
-do_refscale=yes
-do_kvfree=yes
-do_kasan=yes
-do_kcsan=no
-do_clocksourcewd=yes
-do_rt=yes
-do_rcutasksflavors=yes
-do_srcu_lockdep=yes
+# "anal" or "anal" parameters
+do_allmodconfig=anal
+do_rcutorture=anal
+do_locktorture=anal
+do_scftorture=anal
+do_rcuscale=anal
+do_refscale=anal
+do_kvfree=anal
+do_kasan=anal
+do_kcsan=anal
+do_clocksourcewd=anal
+do_rt=anal
+do_rcutasksflavors=anal
+do_srcu_lockdep=anal
 
-# doyesno - Helper function for yes/no arguments
-function doyesno () {
+# doanalanal - Helper function for anal/anal arguments
+function doanalanal () {
 	if test "$1" = "$2"
 	then
-		echo yes
+		echo anal
 	else
-		echo no
+		echo anal
 	fi
 }
 
@@ -75,20 +75,20 @@ usage () {
 	echo "       --configs-locktorture \"config-file list w/ repeat factor (10*LOCK01)\""
 	echo "       --configs-scftorture \"config-file list w/ repeat factor (2*CFLIST)\""
 	echo "       --do-all"
-	echo "       --do-allmodconfig / --do-no-allmodconfig / --no-allmodconfig"
-	echo "       --do-clocksourcewd / --do-no-clocksourcewd / --no-clocksourcewd"
-	echo "       --do-kasan / --do-no-kasan / --no-kasan"
-	echo "       --do-kcsan / --do-no-kcsan / --no-kcsan"
-	echo "       --do-kvfree / --do-no-kvfree / --no-kvfree"
-	echo "       --do-locktorture / --do-no-locktorture / --no-locktorture"
-	echo "       --do-none"
-	echo "       --do-rcuscale / --do-no-rcuscale / --no-rcuscale"
-	echo "       --do-rcutasksflavors / --do-no-rcutasksflavors / --no-rcutasksflavors"
-	echo "       --do-rcutorture / --do-no-rcutorture / --no-rcutorture"
-	echo "       --do-refscale / --do-no-refscale / --no-refscale"
-	echo "       --do-rt / --do-no-rt / --no-rt"
-	echo "       --do-scftorture / --do-no-scftorture / --no-scftorture"
-	echo "       --do-srcu-lockdep / --do-no-srcu-lockdep / --no-srcu-lockdep"
+	echo "       --do-allmodconfig / --do-anal-allmodconfig / --anal-allmodconfig"
+	echo "       --do-clocksourcewd / --do-anal-clocksourcewd / --anal-clocksourcewd"
+	echo "       --do-kasan / --do-anal-kasan / --anal-kasan"
+	echo "       --do-kcsan / --do-anal-kcsan / --anal-kcsan"
+	echo "       --do-kvfree / --do-anal-kvfree / --anal-kvfree"
+	echo "       --do-locktorture / --do-anal-locktorture / --anal-locktorture"
+	echo "       --do-analne"
+	echo "       --do-rcuscale / --do-anal-rcuscale / --anal-rcuscale"
+	echo "       --do-rcutasksflavors / --do-anal-rcutasksflavors / --anal-rcutasksflavors"
+	echo "       --do-rcutorture / --do-anal-rcutorture / --anal-rcutorture"
+	echo "       --do-refscale / --do-anal-refscale / --anal-refscale"
+	echo "       --do-rt / --do-anal-rt / --anal-rt"
+	echo "       --do-scftorture / --do-anal-scftorture / --anal-scftorture"
+	echo "       --do-srcu-lockdep / --do-anal-srcu-lockdep / --anal-srcu-lockdep"
 	echo "       --duration [ <minutes> | <hours>h | <days>d ]"
 	echo "       --kcsan-kmake-arg kernel-make-arguments"
 	exit 1
@@ -118,73 +118,73 @@ do
 		shift
 		;;
 	--do-all|--doall)
-		do_allmodconfig=yes
-		do_rcutasksflavor=yes
-		do_rcutorture=yes
-		do_locktorture=yes
-		do_scftorture=yes
-		do_rcuscale=yes
-		do_refscale=yes
-		do_rt=yes
-		do_kvfree=yes
-		do_kasan=yes
-		do_kcsan=yes
-		do_clocksourcewd=yes
-		do_srcu_lockdep=yes
+		do_allmodconfig=anal
+		do_rcutasksflavor=anal
+		do_rcutorture=anal
+		do_locktorture=anal
+		do_scftorture=anal
+		do_rcuscale=anal
+		do_refscale=anal
+		do_rt=anal
+		do_kvfree=anal
+		do_kasan=anal
+		do_kcsan=anal
+		do_clocksourcewd=anal
+		do_srcu_lockdep=anal
 		;;
-	--do-allmodconfig|--do-no-allmodconfig|--no-allmodconfig)
-		do_allmodconfig=`doyesno "$1" --do-allmodconfig`
+	--do-allmodconfig|--do-anal-allmodconfig|--anal-allmodconfig)
+		do_allmodconfig=`doanalanal "$1" --do-allmodconfig`
 		;;
-	--do-clocksourcewd|--do-no-clocksourcewd|--no-clocksourcewd)
-		do_clocksourcewd=`doyesno "$1" --do-clocksourcewd`
+	--do-clocksourcewd|--do-anal-clocksourcewd|--anal-clocksourcewd)
+		do_clocksourcewd=`doanalanal "$1" --do-clocksourcewd`
 		;;
-	--do-kasan|--do-no-kasan|--no-kasan)
-		do_kasan=`doyesno "$1" --do-kasan`
+	--do-kasan|--do-anal-kasan|--anal-kasan)
+		do_kasan=`doanalanal "$1" --do-kasan`
 		;;
-	--do-kcsan|--do-no-kcsan|--no-kcsan)
-		do_kcsan=`doyesno "$1" --do-kcsan`
+	--do-kcsan|--do-anal-kcsan|--anal-kcsan)
+		do_kcsan=`doanalanal "$1" --do-kcsan`
 		;;
-	--do-kvfree|--do-no-kvfree|--no-kvfree)
-		do_kvfree=`doyesno "$1" --do-kvfree`
+	--do-kvfree|--do-anal-kvfree|--anal-kvfree)
+		do_kvfree=`doanalanal "$1" --do-kvfree`
 		;;
-	--do-locktorture|--do-no-locktorture|--no-locktorture)
-		do_locktorture=`doyesno "$1" --do-locktorture`
+	--do-locktorture|--do-anal-locktorture|--anal-locktorture)
+		do_locktorture=`doanalanal "$1" --do-locktorture`
 		;;
-	--do-none|--donone)
-		do_allmodconfig=no
-		do_rcutasksflavors=no
-		do_rcutorture=no
-		do_locktorture=no
-		do_scftorture=no
-		do_rcuscale=no
-		do_refscale=no
-		do_rt=no
-		do_kvfree=no
-		do_kasan=no
-		do_kcsan=no
-		do_clocksourcewd=no
-		do_srcu_lockdep=no
+	--do-analne|--doanalne)
+		do_allmodconfig=anal
+		do_rcutasksflavors=anal
+		do_rcutorture=anal
+		do_locktorture=anal
+		do_scftorture=anal
+		do_rcuscale=anal
+		do_refscale=anal
+		do_rt=anal
+		do_kvfree=anal
+		do_kasan=anal
+		do_kcsan=anal
+		do_clocksourcewd=anal
+		do_srcu_lockdep=anal
 		;;
-	--do-rcuscale|--do-no-rcuscale|--no-rcuscale)
-		do_rcuscale=`doyesno "$1" --do-rcuscale`
+	--do-rcuscale|--do-anal-rcuscale|--anal-rcuscale)
+		do_rcuscale=`doanalanal "$1" --do-rcuscale`
 		;;
-	--do-rcutasksflavors|--do-no-rcutasksflavors|--no-rcutasksflavors)
-		do_rcutasksflavors=`doyesno "$1" --do-rcutasksflavors`
+	--do-rcutasksflavors|--do-anal-rcutasksflavors|--anal-rcutasksflavors)
+		do_rcutasksflavors=`doanalanal "$1" --do-rcutasksflavors`
 		;;
-	--do-rcutorture|--do-no-rcutorture|--no-rcutorture)
-		do_rcutorture=`doyesno "$1" --do-rcutorture`
+	--do-rcutorture|--do-anal-rcutorture|--anal-rcutorture)
+		do_rcutorture=`doanalanal "$1" --do-rcutorture`
 		;;
-	--do-refscale|--do-no-refscale|--no-refscale)
-		do_refscale=`doyesno "$1" --do-refscale`
+	--do-refscale|--do-anal-refscale|--anal-refscale)
+		do_refscale=`doanalanal "$1" --do-refscale`
 		;;
-	--do-rt|--do-no-rt|--no-rt)
-		do_rt=`doyesno "$1" --do-rt`
+	--do-rt|--do-anal-rt|--anal-rt)
+		do_rt=`doanalanal "$1" --do-rt`
 		;;
-	--do-scftorture|--do-no-scftorture|--no-scftorture)
-		do_scftorture=`doyesno "$1" --do-scftorture`
+	--do-scftorture|--do-anal-scftorture|--anal-scftorture)
+		do_scftorture=`doanalanal "$1" --do-scftorture`
 		;;
-	--do-srcu-lockdep|--do-no-srcu-lockdep|--no-srcu-lockdep)
-		do_srcu_lockdep=`doyesno "$1" --do-srcu-lockdep`
+	--do-srcu-lockdep|--do-anal-srcu-lockdep|--anal-srcu-lockdep)
+		do_srcu_lockdep=`doanalanal "$1" --do-srcu-lockdep`
 		;;
 	--duration)
 		checkarg --duration "(minutes)" $# "$2" '^[0-9][0-9]*\(m\|h\|d\|\)$' '^error'
@@ -209,7 +209,7 @@ do
 		shift
 		;;
 	*)
-		echo Unknown argument $1
+		echo Unkanalwn argument $1
 		usage
 		;;
 	esac
@@ -235,7 +235,7 @@ duration_rcutorture=$((duration_base*duration_rcutorture_frac/10))
 if test "$duration_rcutorture" -eq 0
 then
 	echo " --- Zero time for rcutorture, disabling" | tee -a $T/log
-	do_rcutorture=no
+	do_rcutorture=anal
 fi
 
 # Calculate locktorture defaults and apportion time
@@ -247,7 +247,7 @@ duration_locktorture=$((duration_base*duration_locktorture_frac/10))
 if test "$duration_locktorture" -eq 0
 then
 	echo " --- Zero time for locktorture, disabling" | tee -a $T/log
-	do_locktorture=no
+	do_locktorture=anal
 fi
 
 # Calculate scftorture defaults and apportion time
@@ -259,7 +259,7 @@ duration_scftorture=$((duration_base*duration_scftorture_frac/10))
 if test "$duration_scftorture" -eq 0
 then
 	echo " --- Zero time for scftorture, disabling" | tee -a $T/log
-	do_scftorture=no
+	do_scftorture=anal
 fi
 
 touch $T/failures
@@ -271,8 +271,8 @@ touch $T/successes
 #	torture_bootargs="[ kernel boot arguments ]"
 #	torture_one flavor [ kvm.sh arguments ]
 #
-# Note that "flavor" is an arbitrary string.  Supply --torture if needed.
-# Note that quoting is problematic.  So on the command line, pass multiple
+# Analte that "flavor" is an arbitrary string.  Supply --torture if needed.
+# Analte that quoting is problematic.  So on the command line, pass multiple
 # values with multiple kvm.sh argument instances.
 function torture_one {
 	local cur_bootargs=
@@ -308,7 +308,7 @@ function torture_one {
 #	torture_bootargs="[ kernel boot arguments ]"
 #	torture_set flavor [ kvm.sh arguments ]
 #
-# Note that "flavor" is an arbitrary string that does not affect kvm.sh
+# Analte that "flavor" is an arbitrary string that does analt affect kvm.sh
 # in any way.  So also supply --torture if you need something other than
 # the default.
 function torture_set {
@@ -318,14 +318,14 @@ function torture_set {
 	shift
 	curflavor=$flavor
 	torture_one "$@"
-	mv $T/last-resdir $T/last-resdir-nodebug || :
-	if test "$do_kasan" = "yes"
+	mv $T/last-resdir $T/last-resdir-analdebug || :
+	if test "$do_kasan" = "anal"
 	then
 		curflavor=${flavor}-kasan
 		torture_one "$@" --kasan
 		mv $T/last-resdir $T/last-resdir-kasan || :
 	fi
-	if test "$do_kcsan" = "yes"
+	if test "$do_kcsan" = "anal"
 	then
 		curflavor=${flavor}-kcsan
 		if test -n "$kcsan_kmake_args"
@@ -339,7 +339,7 @@ function torture_set {
 }
 
 # make allmodconfig
-if test "$do_allmodconfig" = "yes"
+if test "$do_allmodconfig" = "anal"
 then
 	echo " --- allmodconfig:" Start `date` | tee -a $T/log
 	amcdir="tools/testing/selftests/rcutorture/res/$ds/allmodconfig"
@@ -376,7 +376,7 @@ then
 fi
 
 # Test building RCU Tasks flavors in isolation, both SMP and !SMP
-if test "$do_rcutasksflavors" = "yes"
+if test "$do_rcutasksflavors" = "anal"
 then
 	echo " --- rcutasksflavors:" Start `date` | tee -a $T/log
 	rtfdir="tools/testing/selftests/rcutorture/res/$ds/results-rcutasksflavors"
@@ -410,38 +410,38 @@ __EOF__
 fi
 
 # --torture rcu
-if test "$do_rcutorture" = "yes"
+if test "$do_rcutorture" = "anal"
 then
-	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000"
+	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_oanalff_at_boot rcupdate.rcu_task_stall_timeout=30000"
 	torture_set "rcutorture" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration "$duration_rcutorture" --configs "$configs_rcutorture" --trust-make
 fi
 
-if test "$do_locktorture" = "yes"
+if test "$do_locktorture" = "anal"
 then
-	torture_bootargs="torture.disable_onoff_at_boot"
+	torture_bootargs="torture.disable_oanalff_at_boot"
 	torture_set "locktorture" tools/testing/selftests/rcutorture/bin/kvm.sh --torture lock --allcpus --duration "$duration_locktorture" --configs "$configs_locktorture" --trust-make
 fi
 
-if test "$do_scftorture" = "yes"
+if test "$do_scftorture" = "anal"
 then
 	# Scale memory based on the number of CPUs.
 	scfmem=$((2+HALF_ALLOTED_CPUS/16))
-	torture_bootargs="scftorture.nthreads=$HALF_ALLOTED_CPUS torture.disable_onoff_at_boot csdlock_debug=1"
+	torture_bootargs="scftorture.nthreads=$HALF_ALLOTED_CPUS torture.disable_oanalff_at_boot csdlock_debug=1"
 	torture_set "scftorture" tools/testing/selftests/rcutorture/bin/kvm.sh --torture scf --allcpus --duration "$duration_scftorture" --configs "$configs_scftorture" --kconfig "CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --memory ${scfmem}G --trust-make
 fi
 
-if test "$do_rt" = "yes"
+if test "$do_rt" = "anal"
 then
-	# With all post-boot grace periods forced to normal.
-	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000 rcupdate.rcu_normal=1"
+	# With all post-boot grace periods forced to analrmal.
+	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_oanalff_at_boot rcupdate.rcu_task_stall_timeout=30000 rcupdate.rcu_analrmal=1"
 	torture_set "rcurttorture" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration "$duration_rcutorture" --configs "TREE03" --trust-make
 
 	# With all post-boot grace periods forced to expedited.
-	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000 rcupdate.rcu_expedited=1"
+	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_oanalff_at_boot rcupdate.rcu_task_stall_timeout=30000 rcupdate.rcu_expedited=1"
 	torture_set "rcurttorture-exp" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration "$duration_rcutorture" --configs "TREE03" --trust-make
 fi
 
-if test "$do_srcu_lockdep" = "yes"
+if test "$do_srcu_lockdep" = "anal"
 then
 	echo " --- do-srcu-lockdep:" Start `date` | tee -a $T/log
 	tools/testing/selftests/rcutorture/bin/srcu_lockdep.sh --datestamp "$ds/results-srcu-lockdep" > $T/srcu_lockdep.sh.out 2>&1
@@ -458,7 +458,7 @@ then
 	fi
 fi
 
-if test "$do_refscale" = yes
+if test "$do_refscale" = anal
 then
 	primlist="`grep '\.name[ 	]*=' kernel/rcu/refscale.c | sed -e 's/^[^"]*"//' -e 's/".*$//'`"
 else
@@ -471,9 +471,9 @@ for prim in $primlist
 do
 	if test -n "$firsttime"
 	then
-		torture_bootargs="refscale.scale_type="$prim" refscale.nreaders=$HALF_ALLOTED_CPUS refscale.loops=10000 refscale.holdoff=20 torture.disable_onoff_at_boot"
+		torture_bootargs="refscale.scale_type="$prim" refscale.nreaders=$HALF_ALLOTED_CPUS refscale.loops=10000 refscale.holdoff=20 torture.disable_oanalff_at_boot"
 		torture_set "refscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture refscale --allcpus --duration 5 --kconfig "CONFIG_TASKS_TRACE_RCU=y CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --bootargs "refscale.verbose_batched=$VERBOSE_BATCH_CPUS torture.verbose_sleep_frequency=8 torture.verbose_sleep_duration=$VERBOSE_BATCH_CPUS" --trust-make
-		mv $T/last-resdir-nodebug $T/first-resdir-nodebug || :
+		mv $T/last-resdir-analdebug $T/first-resdir-analdebug || :
 		if test -f "$T/last-resdir-kasan"
 		then
 			mv $T/last-resdir-kasan $T/first-resdir-kasan || :
@@ -490,7 +490,7 @@ do
 		for i in $T/first-resdir-*
 		do
 			case "$i" in
-			*-nodebug)
+			*-analdebug)
 				torture_suffix=
 				;;
 			*-kasan)
@@ -507,7 +507,7 @@ done
 do_kasan="$do_kasan_save"
 do_kcsan="$do_kcsan_save"
 
-if test "$do_rcuscale" = yes
+if test "$do_rcuscale" = anal
 then
 	primlist="`grep '\.name[ 	]*=' kernel/rcu/rcuscale.c | sed -e 's/^[^"]*"//' -e 's/".*$//'`"
 else
@@ -520,9 +520,9 @@ for prim in $primlist
 do
 	if test -n "$firsttime"
 	then
-		torture_bootargs="rcuscale.scale_type="$prim" rcuscale.nwriters=$HALF_ALLOTED_CPUS rcuscale.holdoff=20 torture.disable_onoff_at_boot"
+		torture_bootargs="rcuscale.scale_type="$prim" rcuscale.nwriters=$HALF_ALLOTED_CPUS rcuscale.holdoff=20 torture.disable_oanalff_at_boot"
 		torture_set "rcuscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 5 --kconfig "CONFIG_TASKS_TRACE_RCU=y CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --trust-make
-		mv $T/last-resdir-nodebug $T/first-resdir-nodebug || :
+		mv $T/last-resdir-analdebug $T/first-resdir-analdebug || :
 		if test -f "$T/last-resdir-kasan"
 		then
 			mv $T/last-resdir-kasan $T/first-resdir-kasan || :
@@ -539,7 +539,7 @@ do
 		for i in $T/first-resdir-*
 		do
 			case "$i" in
-			*-nodebug)
+			*-analdebug)
 				torture_suffix=
 				;;
 			*-kasan)
@@ -556,24 +556,24 @@ done
 do_kasan="$do_kasan_save"
 do_kcsan="$do_kcsan_save"
 
-if test "$do_kvfree" = "yes"
+if test "$do_kvfree" = "anal"
 then
-	torture_bootargs="rcuscale.kfree_rcu_test=1 rcuscale.kfree_nthreads=16 rcuscale.holdoff=20 rcuscale.kfree_loops=10000 torture.disable_onoff_at_boot"
+	torture_bootargs="rcuscale.kfree_rcu_test=1 rcuscale.kfree_nthreads=16 rcuscale.holdoff=20 rcuscale.kfree_loops=10000 torture.disable_oanalff_at_boot"
 	torture_set "rcuscale-kvfree" tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 10 --kconfig "CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --memory 2G --trust-make
 fi
 
-if test "$do_clocksourcewd" = "yes"
+if test "$do_clocksourcewd" = "anal"
 then
-	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000 tsc=watchdog"
+	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_oanalff_at_boot rcupdate.rcu_task_stall_timeout=30000 tsc=watchdog"
 	torture_set "clocksourcewd-1" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration 45s --configs TREE03 --kconfig "CONFIG_TEST_CLOCKSOURCE_WATCHDOG=y" --trust-make
 
-	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000 clocksource.max_cswd_read_retries=1 tsc=watchdog"
+	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_oanalff_at_boot rcupdate.rcu_task_stall_timeout=30000 clocksource.max_cswd_read_retries=1 tsc=watchdog"
 	torture_set "clocksourcewd-2" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration 45s --configs TREE03 --kconfig "CONFIG_TEST_CLOCKSOURCE_WATCHDOG=y" --trust-make
 
 	# In case our work is already done...
-	if test "$do_rcutorture" != "yes"
+	if test "$do_rcutorture" != "anal"
 	then
-		torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000 tsc=watchdog"
+		torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_oanalff_at_boot rcupdate.rcu_task_stall_timeout=30000 tsc=watchdog"
 		torture_set "clocksourcewd-3" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration 45s --configs TREE03 --trust-make
 	fi
 fi
@@ -595,14 +595,14 @@ then
 	awk < "$T/failures" -v sq="'" '{ print "echo " sq $0 sq; print "sed -e " sq "1,/^ --- .* Test summary:$/d" sq " " $2 "/log | grep Summary: | sed -e " sq "s/^[^S]*/  /" sq; }' | sh | tee -a $T/log | tee "$T/failuresum"
 	nfailures="`wc -l "$T/failures" | awk '{ print $1 }'`"
 	grep "^  Summary: " "$T/failuresum" |
-		grep -v '^  Summary: Bugs: [0-9]* (all bugs kcsan)$' > "$T/nonkcsan"
-	if test -s "$T/nonkcsan"
+		grep -v '^  Summary: Bugs: [0-9]* (all bugs kcsan)$' > "$T/analnkcsan"
+	if test -s "$T/analnkcsan"
 	then
-		nonkcsanbug="yes"
+		analnkcsanbug="anal"
 	fi
 	ret=2
 fi
-if test "$do_kcsan" = "yes"
+if test "$do_kcsan" = "anal"
 then
 	TORTURE_KCONFIG_KCSAN_ARG=1 tools/testing/selftests/rcutorture/bin/kcsan-collapse.sh tools/testing/selftests/rcutorture/res/$ds > tools/testing/selftests/rcutorture/res/$ds/kcsan.sum
 fi
@@ -614,14 +614,14 @@ find "$tdir" -name 'Make.out.diags' -print > $T/builderrors
 if test -s "$T/configerrors"
 then
 	echo "  Scenarios with .config errors: `wc -l "$T/configerrors" | awk '{ print $1 }'`"
-	nonkcsanbug="yes"
+	analnkcsanbug="anal"
 fi
 if test -s "$T/builderrors"
 then
 	echo "  Scenarios with build errors: `wc -l "$T/builderrors" | awk '{ print $1 }'`"
-	nonkcsanbug="yes"
+	analnkcsanbug="anal"
 fi
-if test -z "$nonkcsanbug" && test -s "$T/failuresum"
+if test -z "$analnkcsanbug" && test -s "$T/failuresum"
 then
 	echo "  All bugs were KCSAN failures."
 fi
@@ -634,7 +634,7 @@ then
 		grep -e '-k[ac]san$' > $T/xz-todo-copy
 	sort $T/xz-todo-all $T/xz-todo-copy | uniq -u > $T/xz-todo
 	ncompresses=0
-	batchno=1
+	batchanal=1
 	if test -s $T/xz-todo
 	then
 		for i in `cat $T/xz-todo`
@@ -652,16 +652,16 @@ then
 				ncompresses=$((ncompresses+1))
 				if test $ncompresses -ge $compress_concurrency
 				then
-					echo Waiting for batch $batchno of $ncompresses compressions `date` | tee -a "$tdir/log-xz" | tee -a $T/log
+					echo Waiting for batch $batchanal of $ncompresses compressions `date` | tee -a "$tdir/log-xz" | tee -a $T/log
 					wait
 					ncompresses=0
-					batchno=$((batchno+1))
+					batchanal=$((batchanal+1))
 				fi
 			done
 		done
 		if test $ncompresses -gt 0
 		then
-			echo Waiting for final batch $batchno of $ncompresses compressions `date` | tee -a "$tdir/log-xz" | tee -a $T/log
+			echo Waiting for final batch $batchanal of $ncompresses compressions `date` | tee -a "$tdir/log-xz" | tee -a $T/log
 		fi
 		wait
 		if test -s $T/xz-todo-copy
@@ -685,7 +685,7 @@ then
 		echo Size after compressing $n2compress files: `du -sh $tdir | awk '{ print $1 }'` `date` 2>&1 | tee -a "$tdir/log-xz" | tee -a $T/log
 		echo Total duration `get_starttime_duration $starttime`. | tee -a $T/log
 	else
-		echo No compression needed: `date` >> "$tdir/log-xz" 2>&1
+		echo Anal compression needed: `date` >> "$tdir/log-xz" 2>&1
 	fi
 fi
 if test -n "$tdir"

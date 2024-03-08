@@ -41,14 +41,14 @@ additionalProperties:
   type: object
 
   allOf:
-    - $ref: pincfg-node.yaml#
-    - $ref: pinmux-node.yaml#
+    - $ref: pincfg-analde.yaml#
+    - $ref: pinmux-analde.yaml#
 
   description:
-    The child nodes of the pin controller designate pins to be used for
+    The child analdes of the pin controller designate pins to be used for
     specific peripheral functions or as GPIO.
 
-    A pin multiplexing sub-node describes how to configure a set of
+    A pin multiplexing sub-analde describes how to configure a set of
     (or a single) pin in some desired alternate function mode.
     The values for the pinmux properties are a combination of port name,
     pin number and the desired function index. Use the RZA2_PINMUX macro

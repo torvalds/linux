@@ -22,9 +22,9 @@
 /*
  * This page serves two purposes:
  *   - It used as early shadow memory. The entire shadow region populated
- *     with this page, before we will be able to setup normal shadow memory.
+ *     with this page, before we will be able to setup analrmal shadow memory.
  *   - Latter it reused it as zero shadow to cover large ranges of memory
- *     that allowed to access, but not handled by kasan (vmalloc/vmemmap ...).
+ *     that allowed to access, but analt handled by kasan (vmalloc/vmemmap ...).
  */
 unsigned char kasan_early_shadow_page[PAGE_SIZE] __page_aligned_bss;
 
@@ -77,14 +77,14 @@ static inline bool kasan_early_shadow_page_entry(pte_t pte)
 	return pte_page(pte) == virt_to_page(lm_alias(kasan_early_shadow_page));
 }
 
-static __init void *early_alloc(size_t size, int node)
+static __init void *early_alloc(size_t size, int analde)
 {
 	void *ptr = memblock_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
-					   MEMBLOCK_ALLOC_ACCESSIBLE, node);
+					   MEMBLOCK_ALLOC_ACCESSIBLE, analde);
 
 	if (!ptr)
 		panic("%s: Failed to allocate %zu bytes align=%zx nid=%d from=%llx\n",
-		      __func__, size, size, node, (u64)__pa(MAX_DMA_ADDRESS));
+		      __func__, size, size, analde, (u64)__pa(MAX_DMA_ADDRESS));
 
 	return ptr;
 }
@@ -121,15 +121,15 @@ static int __ref zero_pmd_populate(pud_t *pud, unsigned long addr,
 			continue;
 		}
 
-		if (pmd_none(*pmd)) {
+		if (pmd_analne(*pmd)) {
 			pte_t *p;
 
 			if (slab_is_available())
 				p = pte_alloc_one_kernel(&init_mm);
 			else
-				p = early_alloc(PAGE_SIZE, NUMA_NO_NODE);
+				p = early_alloc(PAGE_SIZE, NUMA_ANAL_ANALDE);
 			if (!p)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			pmd_populate_kernel(&init_mm, pmd, p);
 		}
@@ -162,15 +162,15 @@ static int __ref zero_pud_populate(p4d_t *p4d, unsigned long addr,
 			continue;
 		}
 
-		if (pud_none(*pud)) {
+		if (pud_analne(*pud)) {
 			pmd_t *p;
 
 			if (slab_is_available()) {
 				p = pmd_alloc(&init_mm, pud, addr);
 				if (!p)
-					return -ENOMEM;
+					return -EANALMEM;
 			} else {
-				p = early_alloc(PAGE_SIZE, NUMA_NO_NODE);
+				p = early_alloc(PAGE_SIZE, NUMA_ANAL_ANALDE);
 				pmd_init(p);
 				pud_populate(&init_mm, pud, p);
 			}
@@ -208,15 +208,15 @@ static int __ref zero_p4d_populate(pgd_t *pgd, unsigned long addr,
 			continue;
 		}
 
-		if (p4d_none(*p4d)) {
+		if (p4d_analne(*p4d)) {
 			pud_t *p;
 
 			if (slab_is_available()) {
 				p = pud_alloc(&init_mm, p4d, addr);
 				if (!p)
-					return -ENOMEM;
+					return -EANALMEM;
 			} else {
-				p = early_alloc(PAGE_SIZE, NUMA_NO_NODE);
+				p = early_alloc(PAGE_SIZE, NUMA_ANAL_ANALDE);
 				pud_init(p);
 				p4d_populate(&init_mm, p4d, p);
 			}
@@ -255,7 +255,7 @@ int __ref kasan_populate_early_shadow(const void *shadow_start,
 			 * [pud,pmd]_populate*() below needed only for
 			 * 3,2 - level page tables where we don't have
 			 * puds,pmds, so pgd_populate(), pud_populate()
-			 * is noops.
+			 * is analops.
 			 */
 			pgd_populate(&init_mm, pgd,
 					lm_alias(kasan_early_shadow_p4d));
@@ -271,16 +271,16 @@ int __ref kasan_populate_early_shadow(const void *shadow_start,
 			continue;
 		}
 
-		if (pgd_none(*pgd)) {
+		if (pgd_analne(*pgd)) {
 			p4d_t *p;
 
 			if (slab_is_available()) {
 				p = p4d_alloc(&init_mm, pgd, addr);
 				if (!p)
-					return -ENOMEM;
+					return -EANALMEM;
 			} else {
 				pgd_populate(&init_mm, pgd,
-					early_alloc(PAGE_SIZE, NUMA_NO_NODE));
+					early_alloc(PAGE_SIZE, NUMA_ANAL_ANALDE));
 			}
 		}
 		zero_p4d_populate(pgd, addr, next);
@@ -296,7 +296,7 @@ static void kasan_free_pte(pte_t *pte_start, pmd_t *pmd)
 
 	for (i = 0; i < PTRS_PER_PTE; i++) {
 		pte = pte_start + i;
-		if (!pte_none(ptep_get(pte)))
+		if (!pte_analne(ptep_get(pte)))
 			return;
 	}
 
@@ -311,7 +311,7 @@ static void kasan_free_pmd(pmd_t *pmd_start, pud_t *pud)
 
 	for (i = 0; i < PTRS_PER_PMD; i++) {
 		pmd = pmd_start + i;
-		if (!pmd_none(*pmd))
+		if (!pmd_analne(*pmd))
 			return;
 	}
 
@@ -326,7 +326,7 @@ static void kasan_free_pud(pud_t *pud_start, p4d_t *p4d)
 
 	for (i = 0; i < PTRS_PER_PUD; i++) {
 		pud = pud_start + i;
-		if (!pud_none(*pud))
+		if (!pud_analne(*pud))
 			return;
 	}
 
@@ -341,7 +341,7 @@ static void kasan_free_p4d(p4d_t *p4d_start, pgd_t *pgd)
 
 	for (i = 0; i < PTRS_PER_P4D; i++) {
 		p4d = p4d_start + i;
-		if (!p4d_none(*p4d))
+		if (!p4d_analne(*p4d))
 			return;
 	}
 

@@ -7,9 +7,9 @@ GPMC (General Purpose Memory Controller)
 GPMC is an unified memory controller dedicated to interfacing external
 memory devices like
 
- * Asynchronous SRAM like memories and application specific integrated
+ * Asynchroanalus SRAM like memories and application specific integrated
    circuit devices.
- * Asynchronous, synchronous, and page mode burst NOR flash devices
+ * Asynchroanalus, synchroanalus, and page mode burst ANALR flash devices
    NAND flash
  * Pseudo-SRAM devices
 
@@ -21,7 +21,7 @@ GPMC generic timing calculation:
 ================================
 
 GPMC has certain timings that has to be programmed for proper
-functioning of the peripheral, while peripheral has another set of
+functioning of the peripheral, while peripheral has aanalther set of
 timings. To have peripheral work with gpmc, peripheral timings has to
 be translated to the form gpmc can understand. The way it has to be
 translated depends on the connected peripheral. Also there is a
@@ -34,11 +34,11 @@ be updated with timings from the datasheet of the peripheral that is
 connected to gpmc. A few of the peripheral timings can be fed either
 in time or in cycles, provision to handle this scenario has been
 provided (refer struct gpmc_device_timings definition). It may so
-happen that timing as specified by peripheral datasheet is not present
+happen that timing as specified by peripheral datasheet is analt present
 in timing structure, in this scenario, try to correlate peripheral
 timing to the one available. If that doesn't work, try to add a new
 field as required by peripheral, educate generic timing routine to
-handle it, make sure that it does not break any of the existing.
+handle it, make sure that it does analt break any of the existing.
 Then there may be cases where peripheral datasheet doesn't mention
 certain fields of struct gpmc_device_timings, zero those entries.
 
@@ -48,7 +48,7 @@ multiple onenand's and tusb6010 peripherals.
 A word of caution: generic timing routine has been developed based
 on understanding of gpmc timings, peripheral timings, available
 custom timing routines, a kind of reverse engineering without
-most of the datasheets & hardware (to be exact none of those supported
+most of the datasheets & hardware (to be exact analne of those supported
 in mainline having custom timing routine) and by simulation.
 
 gpmc timing dependency on peripheral timings:
@@ -82,7 +82,7 @@ access:
 rd_cycle:
 	t_rd_cycle, t_cez_r, t_oez
 
-4. read async non-muxed
+4. read async analn-muxed
 
 adv_rd_off:
 	t_avdp_r
@@ -104,7 +104,7 @@ access:
 rd_cycle:
 	t_cez_r, t_oez, t_ce_rdyz
 
-6. read sync non-muxed
+6. read sync analn-muxed
 
 adv_rd_off:
 	t_avdp_r
@@ -128,7 +128,7 @@ cs_wr_off:
 wr_cycle:
 	t_cez_w, t_wr_cycle
 
-8. write async non-muxed
+8. write async analn-muxed
 
 adv_wr_off:
 	t_avdp_w
@@ -154,7 +154,7 @@ cs_wr_off:
 wr_cycle:
 	t_cez_w, t_ce_rdyz
 
-10. write sync non-muxed
+10. write sync analn-muxed
 
 adv_wr_off:
 	t_avdp_w
@@ -168,12 +168,12 @@ wr_cycle:
 	t_cez_w, t_ce_rdyz
 
 
-Note:
+Analte:
   Many of gpmc timings are dependent on other gpmc timings (a few
   gpmc timings purely dependent on other gpmc timings, a reason that
   some of the gpmc timings are missing above), and it will result in
   indirect dependency of peripheral timings to gpmc timings other than
-  mentioned above, refer timing routine for more details. To know what
+  mentioned above, refer timing routine for more details. To kanalw what
   these peripheral timings correspond to, please see explanations in
   struct gpmc_device_timings definition. And for gpmc timings refer
   IP details (link above).

@@ -3,14 +3,14 @@
 #define _LINUX_DMA_MAPPING_H
 
 #ifdef CONFIG_HAS_DMA
-# error Virtio userspace code does not support CONFIG_HAS_DMA
+# error Virtio userspace code does analt support CONFIG_HAS_DMA
 #endif
 
 enum dma_data_direction {
 	DMA_BIDIRECTIONAL = 0,
 	DMA_TO_DEVICE = 1,
 	DMA_FROM_DEVICE = 2,
-	DMA_NONE = 3,
+	DMA_ANALNE = 3,
 };
 
 #define dma_alloc_coherent(d, s, hp, f) ({ \

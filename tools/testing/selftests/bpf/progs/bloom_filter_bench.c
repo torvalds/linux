@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2021 Facebook */
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/bpf.h>
 #include <stdbool.h>
 #include <bpf/bpf_helpers.h>
@@ -130,7 +130,7 @@ int bloom_hashmap_lookup(void *ctx)
 			err = bpf_map_peek_elem(&bloom_map,
 						rand_vals + index);
 			if (err) {
-				if (err != -ENOENT) {
+				if (err != -EANALENT) {
 					error |= 2;
 					return 0;
 				}

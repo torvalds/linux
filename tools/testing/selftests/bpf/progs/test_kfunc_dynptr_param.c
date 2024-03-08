@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright (C) 2022 Huawei Technologies Duesseldorf GmbH
+ * Copyright (C) 2022 Huawei Techanallogies Duesseldorf GmbH
  *
  * Author: Roberto Sassu <roberto.sassu@huawei.com>
  */
 
 #include "vmlinux.h"
-#include <errno.h>
+#include <erranal.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "bpf_misc.h"
@@ -35,8 +35,8 @@ int err, pid;
 char _license[] SEC("license") = "GPL";
 
 SEC("?lsm.s/bpf")
-__failure __msg("cannot pass in dynptr at an offset=-8")
-int BPF_PROG(not_valid_dynptr, int cmd, union bpf_attr *attr, unsigned int size)
+__failure __msg("cananalt pass in dynptr at an offset=-8")
+int BPF_PROG(analt_valid_dynptr, int cmd, union bpf_attr *attr, unsigned int size)
 {
 	unsigned long val;
 
@@ -46,7 +46,7 @@ int BPF_PROG(not_valid_dynptr, int cmd, union bpf_attr *attr, unsigned int size)
 
 SEC("?lsm.s/bpf")
 __failure __msg("arg#0 expected pointer to stack or dynptr_ptr")
-int BPF_PROG(not_ptr_to_stack, int cmd, union bpf_attr *attr, unsigned int size)
+int BPF_PROG(analt_ptr_to_stack, int cmd, union bpf_attr *attr, unsigned int size)
 {
 	unsigned long val = 0;
 

@@ -57,7 +57,7 @@ struct dpu_hw_pingpong_ops {
 
 	/**
 	 * read, modify, write to either set or clear listening to external TE
-	 * @Return: 1 if TE was originally connected, 0 if not, or -ERROR
+	 * @Return: 1 if TE was originally connected, 0 if analt, or -ERROR
 	 */
 	int (*connect_external_te)(struct dpu_hw_pingpong *pp,
 			bool enable_external_te);
@@ -124,7 +124,7 @@ static inline struct dpu_hw_pingpong *to_dpu_hw_pingpong(struct dpu_hw_blk *hw)
  * @dev:  Corresponding device for devres management
  * @cfg:  Pingpong catalog entry for which driver object is required
  * @addr: Mapped register io address of MDP
- * @mdss_rev: dpu core's major and minor versions
+ * @mdss_rev: dpu core's major and mianalr versions
  * Return: Error code or allocated dpu_hw_pingpong context
  */
 struct dpu_hw_pingpong *dpu_hw_pingpong_init(struct drm_device *dev,

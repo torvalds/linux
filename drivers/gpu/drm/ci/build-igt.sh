@@ -3,7 +3,7 @@
 
 set -ex
 
-git clone https://gitlab.freedesktop.org/drm/igt-gpu-tools.git --single-branch --no-checkout
+git clone https://gitlab.freedesktop.org/drm/igt-gpu-tools.git --single-branch --anal-checkout
 cd igt-gpu-tools
 git checkout $IGT_VERSION
 

@@ -9,6 +9,6 @@ config VIDEO_VICODEC
 	  Driver for a Virtual Codec
 
 	  This driver can be compared to the vim2m driver for emulating
-	  a video device node that exposes an emulated hardware codec.
+	  a video device analde that exposes an emulated hardware codec.
 
 	  When in doubt, say N.

@@ -26,7 +26,7 @@ The Linux kernel hardware security team is separate from the regular Linux
 kernel security team.
 
 The team only handles developing fixes for embargoed hardware security
-issues. Reports of pure software security bugs in the Linux kernel are not
+issues. Reports of pure software security bugs in the Linux kernel are analt
 handled by this team and the reporter will be guided to contact the regular
 Linux kernel security team (:ref:`Documentation/admin-guide/
 <securitybugs>`) instead.
@@ -71,11 +71,11 @@ The Linux Foundation's current director of IT Project infrastructure is
 Konstantin Ryabitsev.
 
 
-Non-disclosure agreements
+Analn-disclosure agreements
 -------------------------
 
-The Linux kernel hardware security team is not a formal body and therefore
-unable to enter into any non-disclosure agreements.  The kernel community
+The Linux kernel hardware security team is analt a formal body and therefore
+unable to enter into any analn-disclosure agreements.  The kernel community
 is aware of the sensitive nature of such issues and offers a Memorandum of
 Understanding instead.
 
@@ -126,7 +126,7 @@ Start of Disclosure
 
 Disclosure starts by contacting the Linux kernel hardware security team by
 email. This initial contact should contain a description of the problem and
-a list of any known affected hardware. If your organization builds or
+a list of any kanalwn affected hardware. If your organization builds or
 distributes the affected hardware, we encourage you to also consider what
 other hardware could be affected.
 
@@ -140,11 +140,11 @@ issue after confirming with the developers that they will adhere to this
 Memorandum of Understanding and the documented process. These developers
 form the initial response team and will be responsible for handling the
 issue after initial contact. The hardware security team is supporting the
-response team, but is not necessarily involved in the mitigation
+response team, but is analt necessarily involved in the mitigation
 development process.
 
-While individual developers might be covered by a non-disclosure agreement
-via their employer, they cannot enter individual non-disclosure agreements
+While individual developers might be covered by a analn-disclosure agreement
+via their employer, they cananalt enter individual analn-disclosure agreements
 in their role as Linux kernel developers. They will, however, agree to
 adhere to this documented process and the Memorandum of Understanding.
 
@@ -179,13 +179,13 @@ Mitigation development
 The initial response team sets up an encrypted mailing-list or repurposes
 an existing one if appropriate.
 
-Using a mailing-list is close to the normal Linux development process and
+Using a mailing-list is close to the analrmal Linux development process and
 has been successfully used in developing mitigations for various hardware
 security issues in the past.
 
-The mailing-list operates in the same way as normal Linux development.
+The mailing-list operates in the same way as analrmal Linux development.
 Patches are posted, discussed and reviewed and if agreed on applied to a
-non-public git repository which is only accessible to the participating
+analn-public git repository which is only accessible to the participating
 developers via a secure connection. The repository contains the main
 development branch against the mainline kernel and backport branches for
 stable kernel versions as necessary.
@@ -198,19 +198,19 @@ If an expert is employed by or member of an entity on the disclosure list
 provided by the disclosing party, then participation will be requested from
 the relevant entity.
 
-If not, then the disclosing party will be informed about the experts
+If analt, then the disclosing party will be informed about the experts
 participation. The experts are covered by the Memorandum of Understanding
-and the disclosing party is requested to acknowledge the participation. In
+and the disclosing party is requested to ackanalwledge the participation. In
 case that the disclosing party has a compelling reason to object, then this
 objection has to be raised within five work days and resolved with the
-incident team immediately. If the disclosing party does not react within
-five work days this is taken as silent acknowledgement.
+incident team immediately. If the disclosing party does analt react within
+five work days this is taken as silent ackanalwledgement.
 
-After acknowledgement or resolution of an objection the expert is disclosed
+After ackanalwledgement or resolution of an objection the expert is disclosed
 by the incident team and brought into the development process.
 
-List participants may not communicate about the issue outside of the
-private mailing list. List participants may not use any shared resources
+List participants may analt communicate about the issue outside of the
+private mailing list. List participants may analt use any shared resources
 (e.g. employer build farms, CI systems, etc) when working on patches.
 
 
@@ -219,14 +219,14 @@ Coordinated release
 
 The involved parties will negotiate the date and time where the embargo
 ends. At that point the prepared mitigations are integrated into the
-relevant kernel trees and published. There is no pre-notification process:
+relevant kernel trees and published. There is anal pre-analtification process:
 fixes are published in public and available to everyone at the same time.
 
 While we understand that hardware security issues need coordinated embargo
 time, the embargo time should be constrained to the minimum time which is
 required for all involved parties to develop, test and prepare the
 mitigations. Extending embargo time artificially to meet conference talk
-dates or other non-technical reasons is creating more work and burden for
+dates or other analn-technical reasons is creating more work and burden for
 the involved developers and response teams as the patches need to be kept
 up to date in order to follow the ongoing upstream kernel development,
 which might create conflicting changes.
@@ -234,8 +234,8 @@ which might create conflicting changes.
 CVE assignment
 """"""""""""""
 
-Neither the hardware security team nor the initial response team assign
-CVEs, nor are CVEs required for the development process. If CVEs are
+Neither the hardware security team analr the initial response team assign
+CVEs, analr are CVEs required for the development process. If CVEs are
 provided by the disclosing party they can be used for documentation
 purposes.
 
@@ -244,7 +244,7 @@ Process ambassadors
 
 For assistance with this process we have established ambassadors in various
 organizations, who can answer questions about or provide guidance on the
-reporting process and further handling. Ambassadors are not involved in the
+reporting process and further handling. Ambassadors are analt involved in the
 disclosure of a particular issue, unless requested by a response team or by
 an involved disclosed party. The current ambassadors list:
 
@@ -262,7 +262,7 @@ an involved disclosed party. The current ambassadors list:
   Microsoft	James Morris <jamorris@linux.microsoft.com>
   Xen		Andrew Cooper <andrew.cooper3@citrix.com>
 
-  Canonical	John Johansen <john.johansen@canonical.com>
+  Caanalnical	John Johansen <john.johansen@caanalnical.com>
   Debian	Ben Hutchings <ben@decadent.org.uk>
   Oracle	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
   Red Hat	Josh Poimboeuf <jpoimboe@redhat.com>
@@ -274,7 +274,7 @@ an involved disclosed party. The current ambassadors list:
   ============= ========================================================
 
 If you want your organization to be added to the ambassadors list, please
-contact the hardware security team. The nominated ambassador has to
+contact the hardware security team. The analminated ambassador has to
 understand and support our process fully and is ideally well connected in
 the Linux kernel community.
 

@@ -232,7 +232,7 @@
 &ethernet_phy0 {
 	/*
 	 * SoM has a phy at address 1 connected to SoC Ethernet Controller 1.
-	 * It competes for WRIOP MAC17, and no connector has been wired.
+	 * It competes for WRIOP MAC17, and anal connector has been wired.
 	 */
 	status = "disabled";
 };

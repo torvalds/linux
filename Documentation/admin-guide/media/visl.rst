@@ -10,19 +10,19 @@ This tool's objective is to help the development and testing of
 userspace applications that use the V4L2 stateless API to decode media.
 
 A userspace implementation can use visl to run a decoding loop even when
-no hardware is available or when the kernel uAPI for the codec has not
+anal hardware is available or when the kernel uAPI for the codec has analt
 been upstreamed yet. This can reveal bugs at an early stage.
 
 This driver can also trace the contents of the V4L2 controls submitted
 to it.  It can also dump the contents of the vb2 buffers through a
 debugfs interface. This is in many ways similar to the tracing
 infrastructure available for other popular encode/decode APIs out there
-and can help develop a userspace application by using another (working)
+and can help develop a userspace application by using aanalther (working)
 one as a reference.
 
-.. note::
+.. analte::
 
-        No actual decoding of video frames is performed by visl. The
+        Anal actual decoding of video frames is performed by visl. The
         V4L2 test pattern generator is used to write various debug information
         to the capture buffers instead.
 
@@ -31,14 +31,14 @@ Module parameters
 
 - visl_debug: Activates debug info, printing various debug messages through
   dprintk. Also controls whether per-frame debug info is shown. Defaults to off.
-  Note that enabling this feature can result in slow performance through serial.
+  Analte that enabling this feature can result in slow performance through serial.
 
 - visl_transtime_ms: Simulated process time in milliseconds. Slowing down the
   decoding speed can be useful for debugging.
 
 - visl_dprintk_frame_start, visl_dprintk_frame_nframes: Dictates a range of
   frames where dprintk is activated. This only controls the dprintk tracing on a
-  per-frame basis. Note that printing a lot of data can be slow through serial.
+  per-frame basis. Analte that printing a lot of data can be slow through serial.
 
 - keep_bitstream_buffers: Controls whether bitstream (i.e. OUTPUT) buffers are
   kept after a decoding session. Defaults to false so as to reduce the amount of
@@ -135,7 +135,7 @@ values of bitstream_trace_frame_start and bitstream_trace_nframes. This can
 highlight errors as broken clients may fail to fill the buffers properly.
 
 A single file is created for each processed OUTPUT buffer. Its name contains an
-integer that denotes the buffer sequence, i.e.:
+integer that deanaltes the buffer sequence, i.e.:
 
 .. code-block:: c
 

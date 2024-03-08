@@ -16,7 +16,7 @@
 #define IO_DELAY_TYPE_0X80	0
 #define IO_DELAY_TYPE_0XED	1
 #define IO_DELAY_TYPE_UDELAY	2
-#define IO_DELAY_TYPE_NONE	3
+#define IO_DELAY_TYPE_ANALNE	3
 
 #if defined(CONFIG_IO_DELAY_0X80)
 #define DEFAULT_IO_DELAY_TYPE	IO_DELAY_TYPE_0X80
@@ -24,8 +24,8 @@
 #define DEFAULT_IO_DELAY_TYPE	IO_DELAY_TYPE_0XED
 #elif defined(CONFIG_IO_DELAY_UDELAY)
 #define DEFAULT_IO_DELAY_TYPE	IO_DELAY_TYPE_UDELAY
-#elif defined(CONFIG_IO_DELAY_NONE)
-#define DEFAULT_IO_DELAY_TYPE	IO_DELAY_TYPE_NONE
+#elif defined(CONFIG_IO_DELAY_ANALNE)
+#define DEFAULT_IO_DELAY_TYPE	IO_DELAY_TYPE_ANALNE
 #endif
 
 int io_delay_type __read_mostly = DEFAULT_IO_DELAY_TYPE;
@@ -48,14 +48,14 @@ void native_io_delay(void)
 	case IO_DELAY_TYPE_UDELAY:
 		/*
 		 * 2 usecs is an upper-bound for the outb delay but
-		 * note that udelay doesn't have the bus-level
-		 * side-effects that outb does, nor does udelay() have
+		 * analte that udelay doesn't have the bus-level
+		 * side-effects that outb does, analr does udelay() have
 		 * precise timings during very early bootup (the delays
 		 * are shorter until calibrated):
 		 */
 		udelay(2);
 		break;
-	case IO_DELAY_TYPE_NONE:
+	case IO_DELAY_TYPE_ANALNE:
 		break;
 	}
 }
@@ -64,7 +64,7 @@ EXPORT_SYMBOL(native_io_delay);
 static int __init dmi_io_delay_0xed_port(const struct dmi_system_id *id)
 {
 	if (io_delay_type == IO_DELAY_TYPE_0X80) {
-		pr_notice("%s: using 0xed I/O delay port\n", id->ident);
+		pr_analtice("%s: using 0xed I/O delay port\n", id->ident);
 		io_delay_type = IO_DELAY_TYPE_0XED;
 	}
 
@@ -136,8 +136,8 @@ static int __init io_delay_param(char *s)
 		io_delay_type = IO_DELAY_TYPE_0XED;
 	else if (!strcmp(s, "udelay"))
 		io_delay_type = IO_DELAY_TYPE_UDELAY;
-	else if (!strcmp(s, "none"))
-		io_delay_type = IO_DELAY_TYPE_NONE;
+	else if (!strcmp(s, "analne"))
+		io_delay_type = IO_DELAY_TYPE_ANALNE;
 	else
 		return -EINVAL;
 

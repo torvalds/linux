@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -77,7 +77,7 @@ static void ath6kl_hif_dump_fw_crash(struct ath6kl *ar)
 	address = ath6kl_get_hi_item_addr(ar, HI_ITEM(hi_failure_state));
 	address = TARG_VTOP(ar->target_type, address);
 
-	/* read RAM location through diagnostic window */
+	/* read RAM location through diaganalstic window */
 	ret = ath6kl_diag_read32(ar, address, &regdump_addr);
 
 	if (ret || !regdump_addr) {
@@ -132,7 +132,7 @@ static int ath6kl_hif_proc_dbg_intr(struct ath6kl_device *dev)
 
 	ath6kl_hif_dump_fw_crash(dev->ar);
 	ath6kl_read_fwlogs(dev->ar);
-	ath6kl_recovery_err_notify(dev->ar, ATH6KL_FW_ASSERT);
+	ath6kl_recovery_err_analtify(dev->ar, ATH6KL_FW_ASSERT);
 
 	return ret;
 }
@@ -286,7 +286,7 @@ static int ath6kl_hif_proc_counter_intr(struct ath6kl_device *dev)
 		counter_int_status);
 
 	/*
-	 * NOTE: other modules like GMBOX may use the counter interrupt for
+	 * ANALTE: other modules like GMBOX may use the counter interrupt for
 	 * credit flow control on other counters, we only need to check for
 	 * the debug assertion counter interrupt.
 	 */
@@ -371,7 +371,7 @@ static int ath6kl_hif_proc_cpu_intr(struct ath6kl_device *dev)
 
 	/* set W1C value to clear the interrupt, this hits the register first */
 	reg_buf[0] = cpu_int_status;
-	/* the remaining are set to zero which have no-effect  */
+	/* the remaining are set to zero which have anal-effect  */
 	reg_buf[1] = 0;
 	reg_buf[2] = 0;
 	reg_buf[3] = 0;
@@ -384,7 +384,7 @@ static int ath6kl_hif_proc_cpu_intr(struct ath6kl_device *dev)
 	return status;
 }
 
-/* process pending interrupts synchronously */
+/* process pending interrupts synchroanalusly */
 static int proc_pending_irqs(struct ath6kl_device *dev, bool *done)
 {
 	struct ath6kl_irq_proc_registers *rg;
@@ -396,8 +396,8 @@ static int proc_pending_irqs(struct ath6kl_device *dev, bool *done)
 	ath6kl_dbg(ATH6KL_DBG_IRQ, "proc_pending_irqs: (dev: 0x%p)\n", dev);
 
 	/*
-	 * NOTE: HIF implementation guarantees that the context of this
-	 * call allows us to perform SYNCHRONOUS I/O, that is we can block,
+	 * ANALTE: HIF implementation guarantees that the context of this
+	 * call allows us to perform SYNCHROANALUS I/O, that is we can block,
 	 * sleep or call any API that can block or switch thread/task
 	 * contexts. This is a fully schedulable context.
 	 */
@@ -481,13 +481,13 @@ static int proc_pending_irqs(struct ath6kl_device *dev, bool *done)
 
 		if (!fetched)
 			/*
-			 * HTC could not pull any messages out due to lack
+			 * HTC could analt pull any messages out due to lack
 			 * of resources.
 			 */
 			dev->htc_cnxt->chk_irq_status_cnt = 0;
 	}
 
-	/* now handle the rest of them */
+	/* analw handle the rest of them */
 	ath6kl_dbg(ATH6KL_DBG_IRQ,
 		   "valid interrupt source(s) for other interrupts: 0x%x\n",
 		   host_int_status);
@@ -515,11 +515,11 @@ out:
 	 * An optimization to bypass reading the IRQ status registers
 	 * unecessarily which can re-wake the target, if upper layers
 	 * determine that we are in a low-throughput mode, we can rely on
-	 * taking another interrupt rather than re-checking the status
+	 * taking aanalther interrupt rather than re-checking the status
 	 * registers which can re-wake the target.
 	 *
-	 * NOTE : for host interfaces that makes use of detecting pending
-	 * mbox messages at hif can not use this optimization due to
+	 * ANALTE : for host interfaces that makes use of detecting pending
+	 * mbox messages at hif can analt use this optimization due to
 	 * possible side effects, SPI requires the host to drain all
 	 * messages from the mailbox before exiting the ISR routine.
 	 */
@@ -551,7 +551,7 @@ int ath6kl_hif_intr_bh_handler(struct ath6kl *ar)
 	dev->htc_cnxt->chk_irq_status_cnt = 0;
 
 	/*
-	 * IRQ processing is synchronous, interrupt status registers can be
+	 * IRQ processing is synchroanalus, interrupt status registers can be
 	 * re-read.
 	 */
 	timeout = jiffies + msecs_to_jiffies(ATH6KL_HIF_COMMUNICATION_TIMEOUT);
@@ -579,8 +579,8 @@ static int ath6kl_hif_enable_intrs(struct ath6kl_device *dev)
 			SM(INT_STATUS_ENABLE_COUNTER, 0x01);
 
 	/*
-	 * NOTE: There are some cases where HIF can do detection of
-	 * pending mbox messages which is disabled now.
+	 * ANALTE: There are some cases where HIF can do detection of
+	 * pending mbox messages which is disabled analw.
 	 */
 	dev->irq_en_reg.int_status_en |= SM(INT_STATUS_ENABLE_MBOX_DATA, 0x01);
 
@@ -673,7 +673,7 @@ int ath6kl_hif_setup(struct ath6kl_device *dev)
 	spin_lock_init(&dev->lock);
 
 	/*
-	 * NOTE: we actually get the block size of a mailbox other than 0,
+	 * ANALTE: we actually get the block size of a mailbox other than 0,
 	 * for SDIO the block size on mailbox 0 is artificially set to 1.
 	 * So we use the block size that is set for the other 3 mailboxes.
 	 */

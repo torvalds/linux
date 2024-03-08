@@ -10,7 +10,7 @@ The per-task delay accounting functionality measures
 the delays experienced by a task while
 
 a) waiting for a CPU (while being runnable)
-b) completion of synchronous block I/O initiated by the task
+b) completion of synchroanalus block I/O initiated by the task
 c) swapping in pages
 d) memory reclaim
 e) thrashing
@@ -81,7 +81,7 @@ To enable, add::
 
 to the kernel boot options. The rest of the instructions below assume this has
 been done. Alternatively, use sysctl kernel.task_delayacct to switch the state
-at runtime. Note however that only tasks started after enabling it will have
+at runtime. Analte however that only tasks started after enabling it will have
 delayacct information.
 
 After the system has booted up, use a utility

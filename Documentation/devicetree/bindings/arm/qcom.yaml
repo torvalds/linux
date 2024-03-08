@@ -105,8 +105,8 @@ description: |
         sbc
         x100
 
-  The 'soc_version' and 'board_version' elements take the form of v<Major>.<Minor>
-  where the minor number may be omitted when it's zero, i.e.  v1.0 is the same
+  The 'soc_version' and 'board_version' elements take the form of v<Major>.<Mianalr>
+  where the mianalr number may be omitted when it's zero, i.e.  v1.0 is the same
   as v1. If all versions of the 'board_version' elements match, then a
   wildcard '*' should be used, e.g. 'v*'.
 
@@ -126,11 +126,11 @@ description: |
 
   There are many devices in the list below that run the standard ChromeOS
   bootloader setup and use the open source depthcharge bootloader to boot the
-  OS. These devices do not use the scheme described above. For details, see:
+  OS. These devices do analt use the scheme described above. For details, see:
   https://docs.kernel.org/arch/arm/google/chromebook-boot-flow.html
 
 properties:
-  $nodename:
+  $analdename:
     const: "/"
   compatible:
     oneOf:
@@ -143,7 +143,7 @@ properties:
           - enum:
               - asus,sparrow
               - huawei,sturgeon
-              - lg,lenok
+              - lg,leanalk
               - samsung,matisse-wifi
           - const: qcom,apq8026
 
@@ -249,7 +249,7 @@ properties:
               - samsung,gt58
               - samsung,j5
               - samsung,j5x
-              - samsung,serranove
+              - samsung,serraanalve
               - thwc,uf896
               - thwc,ufi001c
               - wingtech,wt88047
@@ -320,10 +320,10 @@ properties:
 
       - items:
           - enum:
-              - asus,novago-tp370ql
+              - asus,analvago-tp370ql
               - fxtec,pro1
               - hp,envy-x2
-              - lenovo,miix-630
+              - leanalvo,miix-630
               - oneplus,cheeseburger
               - oneplus,dumpling
               - qcom,msm8998-mtp
@@ -335,7 +335,7 @@ properties:
 
       - items:
           - enum:
-              - 8dev,jalapeno
+              - 8dev,jalapeanal
               - alfa-network,ap120c-ac
           - const: qcom,ipq4018
 
@@ -389,7 +389,7 @@ properties:
           - const: swir,wp8548
           - const: qcom,mdm9615
 
-      - description: Qualcomm Technologies, Inc. Robotics RB1
+      - description: Qualcomm Techanallogies, Inc. Robotics RB1
         items:
           - enum:
               - qcom,qrb2210-rb1
@@ -403,14 +403,14 @@ properties:
               - qcom,qcs6490-rb3gen2
           - const: qcom,qcm6490
 
-      - description: Qualcomm Technologies, Inc. Distributed Unit 1000 platform
+      - description: Qualcomm Techanallogies, Inc. Distributed Unit 1000 platform
         items:
           - enum:
               - qcom,qdu1000-idp
               - qcom,qdu1000-x100
           - const: qcom,qdu1000
 
-      - description: Qualcomm Technologies, Inc. Radio Unit 1000 platform
+      - description: Qualcomm Techanallogies, Inc. Radio Unit 1000 platform
         items:
           - enum:
               - qcom,qru1000-idp
@@ -444,18 +444,18 @@ properties:
           - const: google,coachz-sku0
           - const: qcom,sc7180
 
-      - description: Lenovo Chromebook Duet 5 13 (rev2)
+      - description: Leanalvo Chromebook Duet 5 13 (rev2)
         items:
           - const: google,homestar-rev2
           - const: google,homestar-rev23
           - const: qcom,sc7180
 
-      - description: Lenovo Chromebook Duet 5 13 (rev3)
+      - description: Leanalvo Chromebook Duet 5 13 (rev3)
         items:
           - const: google,homestar-rev3
           - const: qcom,sc7180
 
-      - description: Lenovo Chromebook Duet 5 13 (newest rev)
+      - description: Leanalvo Chromebook Duet 5 13 (newest rev)
         items:
           - const: google,homestar
           - const: qcom,sc7180
@@ -706,37 +706,37 @@ properties:
           - const: google,trogdor-sku0
           - const: qcom,sc7180
 
-      - description: Lenovo IdeaPad Chromebook Duet 3 with BOE panel (rev0)
+      - description: Leanalvo IdeaPad Chromebook Duet 3 with BOE panel (rev0)
         items:
           - const: google,wormdingler-rev0-sku16
           - const: qcom,sc7180
 
-      - description: Lenovo IdeaPad Chromebook Duet 3 with BOE panel (newest rev)
+      - description: Leanalvo IdeaPad Chromebook Duet 3 with BOE panel (newest rev)
         items:
           - const: google,wormdingler-sku1024
           - const: qcom,sc7180
 
-      - description: Lenovo IdeaPad Chromebook Duet 3 with BOE panel and rt5682s (newest rev)
+      - description: Leanalvo IdeaPad Chromebook Duet 3 with BOE panel and rt5682s (newest rev)
         items:
           - const: google,wormdingler-sku1025
           - const: qcom,sc7180
 
-      - description: Lenovo IdeaPad Chromebook Duet 3 with INX panel (rev0)
+      - description: Leanalvo IdeaPad Chromebook Duet 3 with INX panel (rev0)
         items:
           - const: google,wormdingler-rev0-sku0
           - const: qcom,sc7180
 
-      - description: Lenovo IdeaPad Chromebook Duet 3 with INX panel (newest rev)
+      - description: Leanalvo IdeaPad Chromebook Duet 3 with INX panel (newest rev)
         items:
           - const: google,wormdingler-sku0
           - const: qcom,sc7180
 
-      - description: Lenovo IdeaPad Chromebook Duet 3 with INX panel and rt5682s (newest rev)
+      - description: Leanalvo IdeaPad Chromebook Duet 3 with INX panel and rt5682s (newest rev)
         items:
           - const: google,wormdingler-sku1
           - const: qcom,sc7180
 
-      - description: Qualcomm Technologies, Inc. sc7280 CRD platform (rev3 - 4)
+      - description: Qualcomm Techanallogies, Inc. sc7280 CRD platform (rev3 - 4)
         items:
           - const: qcom,sc7280-crd
           - const: google,hoglin-rev3
@@ -745,25 +745,25 @@ properties:
           - const: google,piglin-rev4
           - const: qcom,sc7280
 
-      - description: Qualcomm Technologies, Inc. sc7280 CRD platform (newest rev)
+      - description: Qualcomm Techanallogies, Inc. sc7280 CRD platform (newest rev)
         items:
           - const: google,zoglin
           - const: google,hoglin
           - const: qcom,sc7280
 
-      - description: Qualcomm Technologies, Inc. sc7280 CRD Pro platform (newest rev)
+      - description: Qualcomm Techanallogies, Inc. sc7280 CRD Pro platform (newest rev)
         items:
           - const: google,zoglin-sku1536
           - const: google,hoglin-sku1536
           - const: qcom,sc7280
 
-      - description: Qualcomm Technologies, Inc. sc7280 IDP SKU1 platform
+      - description: Qualcomm Techanallogies, Inc. sc7280 IDP SKU1 platform
         items:
           - const: qcom,sc7280-idp
-          - const: google,senor
+          - const: google,seanalr
           - const: qcom,sc7280
 
-      - description: Qualcomm Technologies, Inc. sc7280 IDP SKU2 platform
+      - description: Qualcomm Techanallogies, Inc. sc7280 IDP SKU2 platform
         items:
           - const: qcom,sc7280-idp2
           - const: google,piglin
@@ -823,14 +823,14 @@ properties:
 
       - items:
           - enum:
-              - lenovo,flex-5g
+              - leanalvo,flex-5g
               - microsoft,surface-prox
               - qcom,sc8180x-primus
           - const: qcom,sc8180x
 
       - items:
           - enum:
-              - lenovo,thinkpad-x13s
+              - leanalvo,thinkpad-x13s
               - qcom,sc8280xp-crd
               - qcom,sc8280xp-qrd
           - const: qcom,sc8280xp
@@ -925,7 +925,7 @@ properties:
               - google,cheza
               - google,cheza-rev1
               - google,cheza-rev2
-              - lenovo,yoga-c630
+              - leanalvo,yoga-c630
               - lg,judyln
               - lg,judyp
               - oneplus,enchilada
@@ -966,7 +966,7 @@ properties:
 
       - items:
           - enum:
-              - lenovo,j606f
+              - leanalvo,j606f
           - const: qcom,sm6115p
           - const: qcom,sm6115
 
@@ -1073,7 +1073,7 @@ properties:
       can optionally be an array of these to indicate multiple hardware that
       use the same device tree.  It is expected that the bootloader will use
       this information at boot-up to decide which device tree to use when given
-      multiple device trees, some of which may not be compatible with the
+      multiple device trees, some of which may analt be compatible with the
       actual hardware.  It is the bootloader's responsibility to pass the
       correct device tree to the kernel.
       The property is deprecated.
@@ -1089,10 +1089,10 @@ properties:
                   Board ID consisting of three bitfields::
                     - bits 31-24 - Unused
                     - bits 23-16 - Platform Version Major
-                    - bits 15-8  - Platform Version Minor
+                    - bits 15-8  - Platform Version Mianalr
                     - bits 7-0   - Platform Type
                   Platform Type field is an exact match value.  The
-                  Platform Major/Minor field is a best match.  The bootloader will
+                  Platform Major/Mianalr field is a best match.  The bootloader will
                   look for the closest possible match.
               - description: |
                   Subtype ID unique to a Platform Type/Chipset ID.  For a given
@@ -1112,13 +1112,13 @@ properties:
       of these to indicate multiple boards that use the same device tree.  It
       is expected that the bootloader will use this information at boot-up to
       decide which device tree to use when given multiple device trees, some of
-      which may not be compatible with the actual hardware.  It is the
+      which may analt be compatible with the actual hardware.  It is the
       bootloader's responsibility to pass the correct device tree to the
       kernel
       The property is deprecated.
 
 allOf:
-  # Explicit allow-list for older SoCs. The legacy properties are not allowed
+  # Explicit allow-list for older SoCs. The legacy properties are analt allowed
   # on newer SoCs.
   - if:
       properties:

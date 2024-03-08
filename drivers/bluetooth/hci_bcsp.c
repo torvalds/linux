@@ -19,7 +19,7 @@
 
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/signal.h>
 #include <linux/ioctl.h>
@@ -61,7 +61,7 @@ struct bcsp_struct {
 	} rx_state;
 
 	enum {
-		BCSP_ESCSTATE_NOESC,
+		BCSP_ESCSTATE_ANALESC,
 		BCSP_ESCSTATE_ESC
 	} rx_esc_state;
 
@@ -75,7 +75,7 @@ struct bcsp_struct {
 
 /* ---- BCSP CRC calculation ---- */
 
-/* Table for calculating CRC for polynomial 0x1021, LSB processed first,
+/* Table for calculating CRC for polyanalmial 0x1021, LSB processed first,
  * initial value 0xffff, bits shifted in reverse order.
  */
 
@@ -91,7 +91,7 @@ static const u16 crc_table[] = {
 
 /* Update crc with next data byte
  *
- * Implementation note
+ * Implementation analte
  *     The data byte is treated as two nibbles.  The crc is generated
  *     in reverse, i.e., bits are fed into the register from the top.
  */
@@ -152,7 +152,7 @@ static int bcsp_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		break;
 
 	default:
-		BT_ERR("Unknown packet type");
+		BT_ERR("Unkanalwn packet type");
 		kfree_skb(skb);
 		break;
 	}
@@ -190,7 +190,7 @@ static struct sk_buff *bcsp_prepare_pkt(struct bcsp_struct *bcsp, u8 *data,
 		rel = 0;	/* unreliable channel */
 		break;
 	default:
-		BT_ERR("Unknown packet type");
+		BT_ERR("Unkanalwn packet type");
 		return NULL;
 	}
 
@@ -225,11 +225,11 @@ static struct sk_buff *bcsp_prepare_pkt(struct bcsp_struct *bcsp, u8 *data,
 
 	hdr[0] = bcsp->rxseq_txack << 3;
 	bcsp->txack_req = 0;
-	BT_DBG("We request packet no %u to card", bcsp->rxseq_txack);
+	BT_DBG("We request packet anal %u to card", bcsp->rxseq_txack);
 
 	if (rel) {
 		hdr[0] |= 0x80 + bcsp->msgq_txseq;
-		BT_DBG("Sending packet with seqno %u", bcsp->msgq_txseq);
+		BT_DBG("Sending packet with seqanal %u", bcsp->msgq_txseq);
 		bcsp->msgq_txseq = (bcsp->msgq_txseq + 1) & 0x07;
 	}
 
@@ -289,12 +289,12 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 			return nskb;
 		} else {
 			skb_queue_head(&bcsp->unrel, skb);
-			BT_ERR("Could not dequeue pkt because alloc_skb failed");
+			BT_ERR("Could analt dequeue pkt because alloc_skb failed");
 		}
 	}
 
-	/* Now, try to send a reliable pkt. We can only send a
-	 * reliable packet if the number of packets sent but not yet ack'ed
+	/* Analw, try to send a reliable pkt. We can only send a
+	 * reliable packet if the number of packets sent but analt yet ack'ed
 	 * is < than the winsize
 	 */
 
@@ -314,16 +314,16 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 				return nskb;
 			} else {
 				skb_queue_head(&bcsp->rel, skb);
-				BT_ERR("Could not dequeue pkt because alloc_skb failed");
+				BT_ERR("Could analt dequeue pkt because alloc_skb failed");
 			}
 		}
 	}
 
 	spin_unlock_irqrestore(&bcsp->unack.lock, flags);
 
-	/* We could not send a reliable packet, either because there are
-	 * none or because there are too many unack'ed pkts. Did we receive
-	 * any packets we have not acknowledged yet ?
+	/* We could analt send a reliable packet, either because there are
+	 * analne or because there are too many unack'ed pkts. Did we receive
+	 * any packets we have analt ackanalwledged yet ?
 	 */
 
 	if (bcsp->txack_req) {
@@ -334,7 +334,7 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 		return nskb;
 	}
 
-	/* We have nothing to send */
+	/* We have analthing to send */
 	return NULL;
 }
 
@@ -350,26 +350,26 @@ static void bcsp_pkt_cull(struct bcsp_struct *bcsp)
 	struct sk_buff *skb, *tmp;
 	unsigned long flags;
 	int i, pkts_to_be_removed;
-	u8 seqno;
+	u8 seqanal;
 
 	spin_lock_irqsave(&bcsp->unack.lock, flags);
 
 	pkts_to_be_removed = skb_queue_len(&bcsp->unack);
-	seqno = bcsp->msgq_txseq;
+	seqanal = bcsp->msgq_txseq;
 
 	while (pkts_to_be_removed) {
-		if (bcsp->rxack == seqno)
+		if (bcsp->rxack == seqanal)
 			break;
 		pkts_to_be_removed--;
-		seqno = (seqno - 1) & 0x07;
+		seqanal = (seqanal - 1) & 0x07;
 	}
 
-	if (bcsp->rxack != seqno)
+	if (bcsp->rxack != seqanal)
 		BT_ERR("Peer acked invalid packet");
 
-	BT_DBG("Removing %u pkts out of %u, up to seqno %u",
+	BT_DBG("Removing %u pkts out of %u, up to seqanal %u",
 	       pkts_to_be_removed, skb_queue_len(&bcsp->unack),
-	       (seqno - 1) & 0x07);
+	       (seqanal - 1) & 0x07);
 
 	i = 0;
 	skb_queue_walk_safe(&bcsp->unack, skb, tmp) {
@@ -392,7 +392,7 @@ static void bcsp_pkt_cull(struct bcsp_struct *bcsp)
 
 /* Handle BCSP link-establishment packets. When we
  * detect a "sync" packet, symptom that the BT module has reset,
- * we do nothing :) (yet)
+ * we do analthing :) (yet)
  */
 static void bcsp_handle_le_pkt(struct hci_uart *hu)
 {
@@ -427,7 +427,7 @@ static inline void bcsp_unslip_one_byte(struct bcsp_struct *bcsp, unsigned char 
 	const u8 c0 = 0xc0, db = 0xdb;
 
 	switch (bcsp->rx_esc_state) {
-	case BCSP_ESCSTATE_NOESC:
+	case BCSP_ESCSTATE_ANALESC:
 		switch (byte) {
 		case 0xdb:
 			bcsp->rx_esc_state = BCSP_ESCSTATE_ESC;
@@ -448,7 +448,7 @@ static inline void bcsp_unslip_one_byte(struct bcsp_struct *bcsp, unsigned char 
 			if ((bcsp->rx_skb->data[0] & 0x40) != 0 &&
 			    bcsp->rx_state != BCSP_W4_CRC)
 				bcsp_crc_update(&bcsp->message_crc, 0xc0);
-			bcsp->rx_esc_state = BCSP_ESCSTATE_NOESC;
+			bcsp->rx_esc_state = BCSP_ESCSTATE_ANALESC;
 			bcsp->rx_count--;
 			break;
 
@@ -457,7 +457,7 @@ static inline void bcsp_unslip_one_byte(struct bcsp_struct *bcsp, unsigned char 
 			if ((bcsp->rx_skb->data[0] & 0x40) != 0 &&
 			    bcsp->rx_state != BCSP_W4_CRC)
 				bcsp_crc_update(&bcsp->message_crc, 0xdb);
-			bcsp->rx_esc_state = BCSP_ESCSTATE_NOESC;
+			bcsp->rx_esc_state = BCSP_ESCSTATE_ANALESC;
 			bcsp->rx_count--;
 			break;
 
@@ -477,7 +477,7 @@ static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 	int pass_up = 0;
 
 	if (bcsp->rx_skb->data[0] & 0x80) {	/* reliable pkt */
-		BT_DBG("Received seqno %u from card", bcsp->rxseq_txack);
+		BT_DBG("Received seqanal %u from card", bcsp->rxseq_txack);
 
 		/* check the rx sequence number is as expected */
 		if ((bcsp->rx_skb->data[0] & 0x07) == bcsp->rxseq_txack) {
@@ -490,7 +490,7 @@ static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 			BT_ERR("Out-of-order packet arrived, got %u expected %u",
 			       bcsp->rx_skb->data[0] & 0x07, bcsp->rxseq_txack);
 
-			/* do not process out-of-order packet payload */
+			/* do analt process out-of-order packet payload */
 			pass_up = 2;
 		}
 
@@ -547,7 +547,7 @@ static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 
 				hci_recv_frame(hu->hdev, bcsp->rx_skb);
 			} else {
-				BT_ERR("Packet for unknown channel (%u %s)",
+				BT_ERR("Packet for unkanalwn channel (%u %s)",
 				       bcsp->rx_skb->data[1] & 0x0f,
 				       bcsp->rx_skb->data[0] & 0x80 ?
 				       "reliable" : "unreliable");
@@ -561,7 +561,7 @@ static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 
 		hci_recv_frame(hu->hdev, bcsp->rx_skb);
 	} else {
-		/* ignore packet payload of already ACKed re-transmitted
+		/* iganalre packet payload of already ACKed re-transmitted
 		 * packets or when a packet was missed in the BCSP window
 		 */
 		kfree_skb(bcsp->rx_skb);
@@ -647,7 +647,7 @@ static int bcsp_recv(struct hci_uart *hu, const void *data, int count)
 				bcsp->rx_state = BCSP_W4_PKT_START;
 				break;
 			default:
-				/*BT_ERR("Ignoring byte %02x", *ptr);*/
+				/*BT_ERR("Iganalring byte %02x", *ptr);*/
 				break;
 			}
 			ptr++; count--;
@@ -662,10 +662,10 @@ static int bcsp_recv(struct hci_uart *hu, const void *data, int count)
 			default:
 				bcsp->rx_state = BCSP_W4_BCSP_HDR;
 				bcsp->rx_count = 4;
-				bcsp->rx_esc_state = BCSP_ESCSTATE_NOESC;
+				bcsp->rx_esc_state = BCSP_ESCSTATE_ANALESC;
 				BCSP_CRC_INIT(bcsp->message_crc);
 
-				/* Do not increment ptr or decrement count
+				/* Do analt increment ptr or decrement count
 				 * Allocate packet. Max len of a BCSP pkt=
 				 * 0xFFF (payload) +4 (header) +2 (crc)
 				 */
@@ -715,7 +715,7 @@ static int bcsp_open(struct hci_uart *hu)
 
 	bcsp = kzalloc(sizeof(*bcsp), GFP_KERNEL);
 	if (!bcsp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hu->priv = bcsp;
 	bcsp->hu = hu;

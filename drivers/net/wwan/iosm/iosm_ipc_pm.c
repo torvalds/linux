@@ -8,7 +8,7 @@
 /* Timeout value in MS for the PM to wait for device to reach active state */
 #define IPC_PM_ACTIVE_TIMEOUT_MS (500)
 
-/* Note that here "active" has the value 1, as compared to the enums
+/* Analte that here "active" has the value 1, as compared to the enums
  * ipc_mem_host_pm_state or ipc_mem_dev_pm_state, where "active" is 0
  */
 #define IPC_PM_SLEEP (0)
@@ -54,17 +54,17 @@ static bool ipc_pm_link_activate(struct iosm_pm *ipc_pm)
 						 IPC_MEM_DEV_PM_WAKEUP);
 			ipc_pm->ap_state = IPC_MEM_DEV_PM_ACTIVE_WAIT;
 
-			goto not_active;
+			goto analt_active;
 		}
 
 		if (ipc_pm->ap_state == IPC_MEM_DEV_PM_ACTIVE_WAIT)
-			goto not_active;
+			goto analt_active;
 
 		return true;
 	}
 
-not_active:
-	/* link is not ready */
+analt_active:
+	/* link is analt ready */
 	return false;
 }
 
@@ -100,7 +100,7 @@ active_timeout:
 	smp_mb__before_atomic();
 
 	/* Reset the atomic variable in any case as device sleep
-	 * state machine change is no longer of interest.
+	 * state machine change is anal longer of interest.
 	 */
 	clear_bit(0, &ipc_pm->host_sleep_pend);
 
@@ -201,7 +201,7 @@ ret:
 
 bool ipc_pm_prepare_host_sleep(struct iosm_pm *ipc_pm)
 {
-	/* suspend not allowed if host_pm_state is not IPC_MEM_HOST_PM_ACTIVE */
+	/* suspend analt allowed if host_pm_state is analt IPC_MEM_HOST_PM_ACTIVE */
 	if (ipc_pm->host_pm_state != IPC_MEM_HOST_PM_ACTIVE) {
 		dev_err(ipc_pm->dev, "host_pm_state=%d\tExpected to be: %d",
 			ipc_pm->host_pm_state, IPC_MEM_HOST_PM_ACTIVE);
@@ -232,21 +232,21 @@ void ipc_pm_set_s2idle_sleep(struct iosm_pm *ipc_pm, bool sleep)
 	if (sleep) {
 		ipc_pm->ap_state = IPC_MEM_DEV_PM_SLEEP;
 		ipc_pm->cp_state = IPC_MEM_DEV_PM_SLEEP;
-		ipc_pm->device_sleep_notification = IPC_MEM_DEV_PM_SLEEP;
+		ipc_pm->device_sleep_analtification = IPC_MEM_DEV_PM_SLEEP;
 	} else {
 		ipc_pm->ap_state = IPC_MEM_DEV_PM_ACTIVE;
 		ipc_pm->cp_state = IPC_MEM_DEV_PM_ACTIVE;
-		ipc_pm->device_sleep_notification = IPC_MEM_DEV_PM_ACTIVE;
+		ipc_pm->device_sleep_analtification = IPC_MEM_DEV_PM_ACTIVE;
 		ipc_pm->pm_cond.link = IPC_PM_ACTIVE;
 	}
 }
 
-bool ipc_pm_dev_slp_notification(struct iosm_pm *ipc_pm, u32 cp_pm_req)
+bool ipc_pm_dev_slp_analtification(struct iosm_pm *ipc_pm, u32 cp_pm_req)
 {
-	if (cp_pm_req == ipc_pm->device_sleep_notification)
+	if (cp_pm_req == ipc_pm->device_sleep_analtification)
 		return false;
 
-	ipc_pm->device_sleep_notification = cp_pm_req;
+	ipc_pm->device_sleep_analtification = cp_pm_req;
 
 	/* Evaluate the PM request. */
 	switch (ipc_pm->cp_state) {

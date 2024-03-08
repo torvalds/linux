@@ -153,7 +153,7 @@ static struct shash_alg alg = {
 static int __init crc32c_vpmsum_mod_init(void)
 {
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return crypto_register_shash(&alg);
 }
@@ -167,7 +167,7 @@ module_cpu_feature_match(PPC_MODULE_FEATURE_VEC_CRYPTO, crc32c_vpmsum_mod_init);
 module_exit(crc32c_vpmsum_mod_fini);
 
 MODULE_AUTHOR("Anton Blanchard <anton@samba.org>");
-MODULE_DESCRIPTION("CRC32C using vector polynomial multiply-sum instructions");
+MODULE_DESCRIPTION("CRC32C using vector polyanalmial multiply-sum instructions");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CRYPTO("crc32c");
 MODULE_ALIAS_CRYPTO("crc32c-vpmsum");

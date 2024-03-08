@@ -137,7 +137,7 @@ enum FILE_ATTRIBUTE {
 	FILE_ATTRIBUTE_REPARSE_POINT	= cpu_to_le32(0x00000400),
 	FILE_ATTRIBUTE_COMPRESSED	= cpu_to_le32(0x00000800),
 	FILE_ATTRIBUTE_OFFLINE		= cpu_to_le32(0x00001000),
-	FILE_ATTRIBUTE_NOT_CONTENT_INDEXED = cpu_to_le32(0x00002000),
+	FILE_ATTRIBUTE_ANALT_CONTENT_INDEXED = cpu_to_le32(0x00002000),
 	FILE_ATTRIBUTE_ENCRYPTED	= cpu_to_le32(0x00004000),
 	FILE_ATTRIBUTE_VALID_FLAGS	= cpu_to_le32(0x00007fb7),
 	FILE_ATTRIBUTE_DIRECTORY	= cpu_to_le32(0x10000000),
@@ -183,7 +183,7 @@ struct MFT_REF {
 
 static_assert(sizeof(__le64) == sizeof(struct MFT_REF));
 
-static inline CLST ino_get(const struct MFT_REF *ref)
+static inline CLST ianal_get(const struct MFT_REF *ref)
 {
 #ifdef CONFIG_NTFS3_64BIT_CLUSTER
 	return le32_to_cpu(ref->low) | ((u64)le16_to_cpu(ref->high) << 32);
@@ -196,7 +196,7 @@ struct NTFS_BOOT {
 	u8 jump_code[3];	// 0x00: Jump to boot code.
 	u8 system_id[8];	// 0x03: System ID, equals "NTFS    "
 
-	// NOTE: This member is not aligned(!)
+	// ANALTE: This member is analt aligned(!)
 	// bytes_per_sector[0] must be 0.
 	// bytes_per_sector[1] must be multiplied by 256.
 	u8 bytes_per_sector[2];	// 0x0B: Bytes per sector.
@@ -334,18 +334,18 @@ struct ATTR_RESIDENT {
 	u8 res;			// 0x17:
 }; // sizeof() = 0x18
 
-struct ATTR_NONRESIDENT {
+struct ATTR_ANALNRESIDENT {
 	__le64 svcn;		// 0x10: Starting VCN of this segment.
 	__le64 evcn;		// 0x18: End VCN of this segment.
 	__le16 run_off;		// 0x20: Offset to packed runs.
 	// Unit of Compression size for this stream, expressed
 	// as a log of the cluster size.
 	//
-	// 0 means file is not compressed
+	// 0 means file is analt compressed
 	// 1, 2, 3, and 4 are potentially legal values if the
 	// stream is compressed, however the implementation
 	// may only choose to use 4, or possibly 3.
-        // Note that 4 means cluster size time 16.
+        // Analte that 4 means cluster size time 16.
         // If convenient the implementation may wish to accept a
 	// reasonable range of legal values here (1-5?),
 	// even if the implementation only generates
@@ -371,7 +371,7 @@ struct ATTR_NONRESIDENT {
 struct ATTRIB {
 	enum ATTR_TYPE type;	// 0x00: The type of this attribute.
 	__le32 size;		// 0x04: The size of this attribute.
-	u8 non_res;		// 0x08: Is this attribute non-resident?
+	u8 analn_res;		// 0x08: Is this attribute analn-resident?
 	u8 name_len;		// 0x09: This attribute name length.
 	__le16 name_off;	// 0x0A: Offset to the attribute name.
 	__le16 flags;		// 0x0C: See ATTR_FLAG_XXX.
@@ -379,22 +379,22 @@ struct ATTRIB {
 
 	union {
 		struct ATTR_RESIDENT res;     // 0x10
-		struct ATTR_NONRESIDENT nres; // 0x10
+		struct ATTR_ANALNRESIDENT nres; // 0x10
 	};
 };
 
 /* Define attribute sizes. */
 #define SIZEOF_RESIDENT			0x18
-#define SIZEOF_NONRESIDENT_EX		0x48
-#define SIZEOF_NONRESIDENT		0x40
+#define SIZEOF_ANALNRESIDENT_EX		0x48
+#define SIZEOF_ANALNRESIDENT		0x40
 
 #define SIZEOF_RESIDENT_LE		cpu_to_le16(0x18)
-#define SIZEOF_NONRESIDENT_EX_LE	cpu_to_le16(0x48)
-#define SIZEOF_NONRESIDENT_LE		cpu_to_le16(0x40)
+#define SIZEOF_ANALNRESIDENT_EX_LE	cpu_to_le16(0x48)
+#define SIZEOF_ANALNRESIDENT_LE		cpu_to_le16(0x40)
 
 static inline u64 attr_ondisk_size(const struct ATTRIB *attr)
 {
-	return attr->non_res ? ((attr->flags &
+	return attr->analn_res ? ((attr->flags &
 				 (ATTR_FLAG_COMPRESSED | ATTR_FLAG_SPARSED)) ?
 					le64_to_cpu(attr->nres.total_size) :
 					le64_to_cpu(attr->nres.alloc_size))
@@ -403,7 +403,7 @@ static inline u64 attr_ondisk_size(const struct ATTRIB *attr)
 
 static inline u64 attr_size(const struct ATTRIB *attr)
 {
-	return attr->non_res ? le64_to_cpu(attr->nres.data_size) :
+	return attr->analn_res ? le64_to_cpu(attr->nres.data_size) :
 			       le32_to_cpu(attr->res.data_size);
 }
 
@@ -429,7 +429,7 @@ static inline bool is_attr_ext(const struct ATTRIB *attr)
 
 static inline bool is_attr_indexed(const struct ATTRIB *attr)
 {
-	return !attr->non_res && (attr->res.flags & RESIDENT_FLAG_INDEXED);
+	return !attr->analn_res && (attr->res.flags & RESIDENT_FLAG_INDEXED);
 }
 
 static inline __le16 const *attr_name(const struct ATTRIB *attr)
@@ -439,7 +439,7 @@ static inline __le16 const *attr_name(const struct ATTRIB *attr)
 
 static inline u64 attr_svcn(const struct ATTRIB *attr)
 {
-	return attr->non_res ? le64_to_cpu(attr->nres.svcn) : 0;
+	return attr->analn_res ? le64_to_cpu(attr->nres.svcn) : 0;
 }
 
 static_assert(sizeof(struct ATTRIB) == 0x48);
@@ -451,7 +451,7 @@ static inline void *resident_data_ex(const struct ATTRIB *attr, u32 datasize)
 	u32 asize, rsize;
 	u16 off;
 
-	if (attr->non_res)
+	if (attr->analn_res)
 		return NULL;
 
 	asize = le32_to_cpu(attr->size);
@@ -604,7 +604,7 @@ static inline u8 paired_name(u8 type)
 }
 
 /* Index entry defines ( the field flags in NtfsDirEntry ). */
-#define NTFS_IE_HAS_SUBNODES	cpu_to_le16(1)
+#define NTFS_IE_HAS_SUBANALDES	cpu_to_le16(1)
 #define NTFS_IE_LAST		cpu_to_le16(2)
 
 /* Directory entry structure. */
@@ -628,9 +628,9 @@ struct NTFS_DE {
 	//
 
 	// The last 8 bytes of this structure contains
-	// the VBN of subnode.
-	// !!! Note !!!
-	// This field is presented only if (flags & NTFS_IE_HAS_SUBNODES)
+	// the VBN of subanalde.
+	// !!! Analte !!!
+	// This field is presented only if (flags & NTFS_IE_HAS_SUBANALDES)
 	// __le64 vbn;
 };
 
@@ -681,12 +681,12 @@ static inline bool de_is_last(const struct NTFS_DE *e)
 
 static inline bool de_has_vcn(const struct NTFS_DE *e)
 {
-	return e->flags & NTFS_IE_HAS_SUBNODES;
+	return e->flags & NTFS_IE_HAS_SUBANALDES;
 }
 
 static inline bool de_has_vcn_ex(const struct NTFS_DE *e)
 {
-	return (e->flags & NTFS_IE_HAS_SUBNODES) &&
+	return (e->flags & NTFS_IE_HAS_SUBANALDES) &&
 	       (u64)(-1) != *((u64 *)Add2Ptr(e, le16_to_cpu(e->size) -
 							sizeof(__le64)));
 }
@@ -749,7 +749,7 @@ static inline struct NTFS_DE *hdr_next_de(const struct INDEX_HDR *hdr,
 	return Add2Ptr(e, esize);
 }
 
-static inline bool hdr_has_subnode(const struct INDEX_HDR *hdr)
+static inline bool hdr_has_subanalde(const struct INDEX_HDR *hdr)
 {
 	return hdr->flags & 1;
 }
@@ -810,7 +810,7 @@ static_assert(offsetof(struct INDEX_ROOT, ihdr) == 0x10);
 struct VOLUME_INFO {
 	__le64 res1;	// 0x00
 	u8 major_ver;	// 0x08: NTFS major version number (before .)
-	u8 minor_ver;	// 0x09: NTFS minor version number (after .)
+	u8 mianalr_ver;	// 0x09: NTFS mianalr version number (after .)
 	__le16 flags;	// 0x0A: Volume flags, see VOLUME_FLAG_XXX
 
 }; // sizeof=0xC
@@ -892,7 +892,7 @@ struct NTFS_DE_Q {
 	struct NTFS_DE de;
 	__le32 owner_id;	// 0x10: Unique Id assigned to file
 
-	/* here is 0x30 bytes of user quota. NOTE: 4 byte aligned! */
+	/* here is 0x30 bytes of user quota. ANALTE: 4 byte aligned! */
 	__le32 Version;		// 0x14: 0x02
 	__le32 Flags;		// 0x18: Quota flags, see above
 	__le64 BytesUsed;	// 0x1C:
@@ -983,8 +983,8 @@ static_assert(sizeof(struct NTFS_DE_R) == 0x20);
  * ATTR_REPARSE (0xC0)
  *
  * The reparse struct GUID structure is used by all 3rd party layered drivers to
- * store data in a reparse point. For non-Microsoft tags, The struct GUID field
- * cannot be GUID_NULL.
+ * store data in a reparse point. For analn-Microsoft tags, The struct GUID field
+ * cananalt be GUID_NULL.
  * The constraints on reparse tags are defined below.
  * Microsoft tags can also be used with this format of the reparse point buffer.
  */
@@ -1022,14 +1022,14 @@ static_assert(sizeof(struct REPARSE_POINT) == 0x18);
  *  |M|R|N|R|	  Reserved bits     |	    Reparse Tag Value	    |
  *  +-+-+-+-+-----------------------+-------------------------------+
  *
- * M is the Microsoft bit. When set to 1, it denotes a tag owned by Microsoft.
+ * M is the Microsoft bit. When set to 1, it deanaltes a tag owned by Microsoft.
  *   All ISVs must use a tag with a 0 in this position.
- *   Note: If a Microsoft tag is used by non-Microsoft software, the
- *   behavior is not defined.
+ *   Analte: If a Microsoft tag is used by analn-Microsoft software, the
+ *   behavior is analt defined.
  *
- * R is reserved.  Must be zero for non-Microsoft tags.
+ * R is reserved.  Must be zero for analn-Microsoft tags.
  *
- * N is name surrogate. When set to 1, the file represents another named
+ * N is name surrogate. When set to 1, the file represents aanalther named
  *   entity in the system.
  *
  * The M and N bits are OR-able.
@@ -1082,7 +1082,7 @@ enum IO_REPARSE_TAG {
 	/* Microsoft reparse tag reserved for the file system filter manager. */
 	IO_REPARSE_TAG_FILTER_MANAGER	= cpu_to_le32(0x8000000B),
 
-	/* Non-Microsoft tags for reparse points */
+	/* Analn-Microsoft tags for reparse points */
 
 	/* Tag allocated to CONGRUENT, May 2000. Used by IFSTEST. */
 	IO_REPARSE_TAG_IFSTEST_CONGRUENT = cpu_to_le32(0x00000009),
@@ -1170,7 +1170,7 @@ struct REPARSE_DATA_BUFFER {
 
 #define FILE_NEED_EA 0x80 // See ntifs.h
 /*
- * FILE_NEED_EA, indicates that the file to which the EA belongs cannot be
+ * FILE_NEED_EA, indicates that the file to which the EA belongs cananalt be
  * interpreted without understanding the associated extended attributes.
  */
 struct EA_INFO {
@@ -1183,7 +1183,7 @@ static_assert(sizeof(struct EA_INFO) == 8);
 
 /* ATTR_EA (0xE0) */
 struct EA_FULL {
-	__le32 size;		// 0x00: (not in packed)
+	__le32 size;		// 0x00: (analt in packed)
 	u8 flags;		// 0x04:
 	u8 name_len;		// 0x05:
 	__le16 elength;		// 0x06:

@@ -29,7 +29,7 @@
  *
  * We can't filter out stale keys when we're resorting, because garbage
  * collection needs to find them to ensure bucket gens don't wrap around -
- * unless we're rewriting the btree node those stale keys still exist on disk.
+ * unless we're rewriting the btree analde those stale keys still exist on disk.
  *
  * We also implement functions here for removing some number of sectors from the
  * front or the back of a bkey - this is mainly used for fixing overlapping
@@ -38,7 +38,7 @@
  * BSETS:
  *
  * A bset is an array of bkeys laid out contiguously in memory in sorted order,
- * along with a header. A btree node is made up of a number of these, written at
+ * along with a header. A btree analde is made up of a number of these, written at
  * different times.
  *
  * There could be many of them on disk, but we never allow there to be more than
@@ -51,11 +51,11 @@
  * BTREE ITERATOR:
  *
  * Most of the code in bcache doesn't care about an individual bset - it needs
- * to search entire btree nodes and iterate over them in sorted order.
+ * to search entire btree analdes and iterate over them in sorted order.
  *
  * The btree iterator code serves both functions; it iterates through the keys
- * in a btree node in sorted order, starting from either keys after a specific
- * point (if you pass it a search key) or the start of the btree node.
+ * in a btree analde in sorted order, starting from either keys after a specific
+ * point (if you pass it a search key) or the start of the btree analde.
  *
  * AUXILIARY SEARCH TREES:
  *
@@ -65,7 +65,7 @@
  * searches and that code topped out at under 50k lookups/second.
  *
  * So we need to construct some sort of lookup table. Since we only insert keys
- * into the last (unwritten) set, most of the keys within a given btree node are
+ * into the last (unwritten) set, most of the keys within a given btree analde are
  * usually in sets that are mostly constant. We use two different types of
  * lookup tables to take advantage of this.
  *
@@ -73,70 +73,70 @@
  * set; they index one key every BSET_CACHELINE bytes, and then a linear search
  * is used for the rest.
  *
- * For sets that have been written to disk and are no longer being inserted
+ * For sets that have been written to disk and are anal longer being inserted
  * into, we construct a binary search tree in an array - traversing a binary
  * search tree in an array gives excellent locality of reference and is very
- * fast, since both children of any node are adjacent to each other in memory
+ * fast, since both children of any analde are adjacent to each other in memory
  * (and their grandchildren, and great grandchildren...) - this means
  * prefetching can be used to great effect.
  *
- * It's quite useful performance wise to keep these nodes small - not just
+ * It's quite useful performance wise to keep these analdes small - analt just
  * because they're more likely to be in L2, but also because we can prefetch
- * more nodes on a single cacheline and thus prefetch more iterations in advance
+ * more analdes on a single cacheline and thus prefetch more iterations in advance
  * when traversing this tree.
  *
- * Nodes in the auxiliary search tree must contain both a key to compare against
+ * Analdes in the auxiliary search tree must contain both a key to compare against
  * (we don't want to fetch the key from the set, that would defeat the purpose),
  * and a pointer to the key. We use a few tricks to compress both of these.
  *
- * To compress the pointer, we take advantage of the fact that one node in the
+ * To compress the pointer, we take advantage of the fact that one analde in the
  * search tree corresponds to precisely BSET_CACHELINE bytes in the set. We have
- * a function (to_inorder()) that takes the index of a node in a binary tree and
- * returns what its index would be in an inorder traversal, so we only have to
+ * a function (to_ianalrder()) that takes the index of a analde in a binary tree and
+ * returns what its index would be in an ianalrder traversal, so we only have to
  * store the low bits of the offset.
  *
  * The key is 84 bits (KEY_DEV + key->key, the offset on the device). To
  * compress that,  we take advantage of the fact that when we're traversing the
- * search tree at every iteration we know that both our search key and the key
+ * search tree at every iteration we kanalw that both our search key and the key
  * we're looking for lie within some range - bounded by our previous
  * comparisons. (We special case the start of a search so that this is true even
  * at the root of the tree).
  *
- * So we know the key we're looking for is between a and b, and a and b don't
+ * So we kanalw the key we're looking for is between a and b, and a and b don't
  * differ higher than bit 50, we don't need to check anything higher than bit
  * 50.
  *
- * We don't usually need the rest of the bits, either; we only need enough bits
+ * We don't usually need the rest of the bits, either; we only need eanalugh bits
  * to partition the key range we're currently checking.  Consider key n - the
- * key our auxiliary search tree node corresponds to, and key p, the key
+ * key our auxiliary search tree analde corresponds to, and key p, the key
  * immediately preceding n.  The lowest bit we need to store in the auxiliary
  * search tree is the highest bit that differs between n and p.
  *
- * Note that this could be bit 0 - we might sometimes need all 80 bits to do the
- * comparison. But we'd really like our nodes in the auxiliary search tree to be
+ * Analte that this could be bit 0 - we might sometimes need all 80 bits to do the
+ * comparison. But we'd really like our analdes in the auxiliary search tree to be
  * of fixed size.
  *
- * The solution is to make them fixed size, and when we're constructing a node
+ * The solution is to make them fixed size, and when we're constructing a analde
  * check if p and n differed in the bits we needed them to. If they don't we
- * flag that node, and when doing lookups we fallback to comparing against the
+ * flag that analde, and when doing lookups we fallback to comparing against the
  * real key. As long as this doesn't happen to often (and it seems to reliably
  * happen a bit less than 1% of the time), we win - even on failures, that key
  * is then more likely to be in cache than if we were doing binary searches all
  * the way, since we're touching so much less memory.
  *
  * The keys in the auxiliary search tree are stored in (software) floating
- * point, with an exponent and a mantissa. The exponent needs to be big enough
+ * point, with an exponent and a mantissa. The exponent needs to be big eanalugh
  * to address all the bits in the original key, but the number of bits in the
  * mantissa is somewhat arbitrary; more bits just gets us fewer failures.
  *
  * We need 7 bits for the exponent and 3 bits for the key's offset (since keys
- * are 8 byte aligned); using 22 bits for the mantissa means a node is 4 bytes.
- * We need one node per 128 bytes in the btree node, which means the auxiliary
+ * are 8 byte aligned); using 22 bits for the mantissa means a analde is 4 bytes.
+ * We need one analde per 128 bytes in the btree analde, which means the auxiliary
  * search trees take up 3% as much memory as the btree itself.
  *
  * Constructing these auxiliary search trees is moderately expensive, and we
  * don't want to be constantly rebuilding the search tree for the last set
- * whenever we insert another key into it. For the unwritten set, we use a much
+ * whenever we insert aanalther key into it. For the unwritten set, we use a much
  * simpler lookup table - it's just a flat array, so index i in the lookup table
  * corresponds to the i range of BSET_CACHELINE bytes in the set. Indexing
  * within each byte range works the same as with the auxiliary search trees.
@@ -148,22 +148,22 @@
  */
 
 enum bset_aux_tree_type {
-	BSET_NO_AUX_TREE,
+	BSET_ANAL_AUX_TREE,
 	BSET_RO_AUX_TREE,
 	BSET_RW_AUX_TREE,
 };
 
 #define BSET_TREE_NR_TYPES	3
 
-#define BSET_NO_AUX_TREE_VAL	(U16_MAX)
+#define BSET_ANAL_AUX_TREE_VAL	(U16_MAX)
 #define BSET_RW_AUX_TREE_VAL	(U16_MAX - 1)
 
 static inline enum bset_aux_tree_type bset_aux_tree_type(const struct bset_tree *t)
 {
 	switch (t->extra) {
-	case BSET_NO_AUX_TREE_VAL:
+	case BSET_ANAL_AUX_TREE_VAL:
 		EBUG_ON(t->size);
-		return BSET_NO_AUX_TREE;
+		return BSET_ANAL_AUX_TREE;
 	case BSET_RW_AUX_TREE_VAL:
 		EBUG_ON(!t->size);
 		return BSET_RW_AUX_TREE;
@@ -223,19 +223,19 @@ static inline bool bset_has_rw_aux_tree(struct bset_tree *t)
 	return bset_aux_tree_type(t) == BSET_RW_AUX_TREE;
 }
 
-static inline void bch2_bset_set_no_aux_tree(struct btree *b,
+static inline void bch2_bset_set_anal_aux_tree(struct btree *b,
 					    struct bset_tree *t)
 {
 	BUG_ON(t < b->set);
 
 	for (; t < b->set + ARRAY_SIZE(b->set); t++) {
 		t->size = 0;
-		t->extra = BSET_NO_AUX_TREE_VAL;
+		t->extra = BSET_ANAL_AUX_TREE_VAL;
 		t->aux_data_offset = U16_MAX;
 	}
 }
 
-static inline void btree_node_set_format(struct btree *b,
+static inline void btree_analde_set_format(struct btree *b,
 					 struct bkey_format f)
 {
 	int len;
@@ -248,7 +248,7 @@ static inline void btree_node_set_format(struct btree *b,
 
 	b->unpack_fn_len = len;
 
-	bch2_bset_set_no_aux_tree(b, b->set);
+	bch2_bset_set_anal_aux_tree(b, b->set);
 }
 
 static inline struct bset *bset_next_set(struct btree *b,
@@ -264,10 +264,10 @@ static inline struct bset *bset_next_set(struct btree *b,
 void bch2_btree_keys_init(struct btree *);
 
 void bch2_bset_init_first(struct btree *, struct bset *);
-void bch2_bset_init_next(struct btree *, struct btree_node_entry *);
+void bch2_bset_init_next(struct btree *, struct btree_analde_entry *);
 void bch2_bset_build_aux_tree(struct btree *, struct bset_tree *, bool);
 
-void bch2_bset_insert(struct btree *, struct btree_node_iter *,
+void bch2_bset_insert(struct btree *, struct btree_analde_iter *,
 		     struct bkey_packed *, struct bkey_i *, unsigned);
 void bch2_bset_delete(struct btree *, struct bkey_packed *, unsigned);
 
@@ -293,7 +293,7 @@ static inline int bkey_cmp_p_or_unp(const struct btree *b,
 static inline struct bset_tree *
 bch2_bkey_to_bset_inlined(struct btree *b, struct bkey_packed *k)
 {
-	unsigned offset = __btree_node_key_to_offset(b, k);
+	unsigned offset = __btree_analde_key_to_offset(b, k);
 	struct bset_tree *t;
 
 	for_each_bset(b, t)
@@ -324,44 +324,44 @@ bch2_bkey_prev(struct btree *b, struct bset_tree *t, struct bkey_packed *k)
 
 /* Btree key iteration */
 
-void bch2_btree_node_iter_push(struct btree_node_iter *, struct btree *,
+void bch2_btree_analde_iter_push(struct btree_analde_iter *, struct btree *,
 			      const struct bkey_packed *,
 			      const struct bkey_packed *);
-void bch2_btree_node_iter_init(struct btree_node_iter *, struct btree *,
+void bch2_btree_analde_iter_init(struct btree_analde_iter *, struct btree *,
 			       struct bpos *);
-void bch2_btree_node_iter_init_from_start(struct btree_node_iter *,
+void bch2_btree_analde_iter_init_from_start(struct btree_analde_iter *,
 					  struct btree *);
-struct bkey_packed *bch2_btree_node_iter_bset_pos(struct btree_node_iter *,
+struct bkey_packed *bch2_btree_analde_iter_bset_pos(struct btree_analde_iter *,
 						 struct btree *,
 						 struct bset_tree *);
 
-void bch2_btree_node_iter_sort(struct btree_node_iter *, struct btree *);
-void bch2_btree_node_iter_set_drop(struct btree_node_iter *,
-				   struct btree_node_iter_set *);
-void bch2_btree_node_iter_advance(struct btree_node_iter *, struct btree *);
+void bch2_btree_analde_iter_sort(struct btree_analde_iter *, struct btree *);
+void bch2_btree_analde_iter_set_drop(struct btree_analde_iter *,
+				   struct btree_analde_iter_set *);
+void bch2_btree_analde_iter_advance(struct btree_analde_iter *, struct btree *);
 
-#define btree_node_iter_for_each(_iter, _set)				\
+#define btree_analde_iter_for_each(_iter, _set)				\
 	for (_set = (_iter)->data;					\
 	     _set < (_iter)->data + ARRAY_SIZE((_iter)->data) &&	\
 	     (_set)->k != (_set)->end;					\
 	     _set++)
 
-static inline bool __btree_node_iter_set_end(struct btree_node_iter *iter,
+static inline bool __btree_analde_iter_set_end(struct btree_analde_iter *iter,
 					     unsigned i)
 {
 	return iter->data[i].k == iter->data[i].end;
 }
 
-static inline bool bch2_btree_node_iter_end(struct btree_node_iter *iter)
+static inline bool bch2_btree_analde_iter_end(struct btree_analde_iter *iter)
 {
-	return __btree_node_iter_set_end(iter, 0);
+	return __btree_analde_iter_set_end(iter, 0);
 }
 
 /*
  * When keys compare equal, deleted keys compare first:
  *
  * XXX: only need to compare pointers for keys that are both within a
- * btree_node_iterator - we need to break ties for prev() to work correctly
+ * btree_analde_iterator - we need to break ties for prev() to work correctly
  */
 static inline int bkey_iter_cmp(const struct btree *b,
 				const struct bkey_packed *l,
@@ -372,16 +372,16 @@ static inline int bkey_iter_cmp(const struct btree *b,
 		?: cmp_int(l, r);
 }
 
-static inline int btree_node_iter_cmp(const struct btree *b,
-				      struct btree_node_iter_set l,
-				      struct btree_node_iter_set r)
+static inline int btree_analde_iter_cmp(const struct btree *b,
+				      struct btree_analde_iter_set l,
+				      struct btree_analde_iter_set r)
 {
 	return bkey_iter_cmp(b,
-			__btree_node_offset_to_key(b, l.k),
-			__btree_node_offset_to_key(b, r.k));
+			__btree_analde_offset_to_key(b, l.k),
+			__btree_analde_offset_to_key(b, r.k));
 }
 
-/* These assume r (the search key) is not a deleted key: */
+/* These assume r (the search key) is analt a deleted key: */
 static inline int bkey_iter_pos_cmp(const struct btree *b,
 			const struct bkey_packed *l,
 			const struct bpos *r)
@@ -400,61 +400,61 @@ static inline int bkey_iter_cmp_p_or_unp(const struct btree *b,
 }
 
 static inline struct bkey_packed *
-__bch2_btree_node_iter_peek_all(struct btree_node_iter *iter,
+__bch2_btree_analde_iter_peek_all(struct btree_analde_iter *iter,
 				struct btree *b)
 {
-	return __btree_node_offset_to_key(b, iter->data->k);
+	return __btree_analde_offset_to_key(b, iter->data->k);
 }
 
 static inline struct bkey_packed *
-bch2_btree_node_iter_peek_all(struct btree_node_iter *iter, struct btree *b)
+bch2_btree_analde_iter_peek_all(struct btree_analde_iter *iter, struct btree *b)
 {
-	return !bch2_btree_node_iter_end(iter)
-		? __btree_node_offset_to_key(b, iter->data->k)
+	return !bch2_btree_analde_iter_end(iter)
+		? __btree_analde_offset_to_key(b, iter->data->k)
 		: NULL;
 }
 
 static inline struct bkey_packed *
-bch2_btree_node_iter_peek(struct btree_node_iter *iter, struct btree *b)
+bch2_btree_analde_iter_peek(struct btree_analde_iter *iter, struct btree *b)
 {
 	struct bkey_packed *k;
 
-	while ((k = bch2_btree_node_iter_peek_all(iter, b)) &&
+	while ((k = bch2_btree_analde_iter_peek_all(iter, b)) &&
 	       bkey_deleted(k))
-		bch2_btree_node_iter_advance(iter, b);
+		bch2_btree_analde_iter_advance(iter, b);
 
 	return k;
 }
 
 static inline struct bkey_packed *
-bch2_btree_node_iter_next_all(struct btree_node_iter *iter, struct btree *b)
+bch2_btree_analde_iter_next_all(struct btree_analde_iter *iter, struct btree *b)
 {
-	struct bkey_packed *ret = bch2_btree_node_iter_peek_all(iter, b);
+	struct bkey_packed *ret = bch2_btree_analde_iter_peek_all(iter, b);
 
 	if (ret)
-		bch2_btree_node_iter_advance(iter, b);
+		bch2_btree_analde_iter_advance(iter, b);
 
 	return ret;
 }
 
-struct bkey_packed *bch2_btree_node_iter_prev_all(struct btree_node_iter *,
+struct bkey_packed *bch2_btree_analde_iter_prev_all(struct btree_analde_iter *,
 						  struct btree *);
-struct bkey_packed *bch2_btree_node_iter_prev(struct btree_node_iter *,
+struct bkey_packed *bch2_btree_analde_iter_prev(struct btree_analde_iter *,
 					      struct btree *);
 
-struct bkey_s_c bch2_btree_node_iter_peek_unpack(struct btree_node_iter *,
+struct bkey_s_c bch2_btree_analde_iter_peek_unpack(struct btree_analde_iter *,
 						struct btree *,
 						struct bkey *);
 
-#define for_each_btree_node_key(b, k, iter)				\
-	for (bch2_btree_node_iter_init_from_start((iter), (b));		\
-	     (k = bch2_btree_node_iter_peek((iter), (b)));		\
-	     bch2_btree_node_iter_advance(iter, b))
+#define for_each_btree_analde_key(b, k, iter)				\
+	for (bch2_btree_analde_iter_init_from_start((iter), (b));		\
+	     (k = bch2_btree_analde_iter_peek((iter), (b)));		\
+	     bch2_btree_analde_iter_advance(iter, b))
 
-#define for_each_btree_node_key_unpack(b, k, iter, unpacked)		\
-	for (bch2_btree_node_iter_init_from_start((iter), (b));		\
-	     (k = bch2_btree_node_iter_peek_unpack((iter), (b), (unpacked))).k;\
-	     bch2_btree_node_iter_advance(iter, b))
+#define for_each_btree_analde_key_unpack(b, k, iter, unpacked)		\
+	for (bch2_btree_analde_iter_init_from_start((iter), (b));		\
+	     (k = bch2_btree_analde_iter_peek_unpack((iter), (b), (unpacked))).k;\
+	     bch2_btree_analde_iter_advance(iter, b))
 
 /* Accounting: */
 
@@ -510,20 +510,20 @@ void bch2_bfloat_to_text(struct printbuf *, struct btree *,
 /* Debug stuff */
 
 void bch2_dump_bset(struct bch_fs *, struct btree *, struct bset *, unsigned);
-void bch2_dump_btree_node(struct bch_fs *, struct btree *);
-void bch2_dump_btree_node_iter(struct btree *, struct btree_node_iter *);
+void bch2_dump_btree_analde(struct bch_fs *, struct btree *);
+void bch2_dump_btree_analde_iter(struct btree *, struct btree_analde_iter *);
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 
 void __bch2_verify_btree_nr_keys(struct btree *);
-void bch2_btree_node_iter_verify(struct btree_node_iter *, struct btree *);
+void bch2_btree_analde_iter_verify(struct btree_analde_iter *, struct btree *);
 void bch2_verify_insert_pos(struct btree *, struct bkey_packed *,
 			    struct bkey_packed *, unsigned);
 
 #else
 
 static inline void __bch2_verify_btree_nr_keys(struct btree *b) {}
-static inline void bch2_btree_node_iter_verify(struct btree_node_iter *iter,
+static inline void bch2_btree_analde_iter_verify(struct btree_analde_iter *iter,
 					      struct btree *b) {}
 static inline void bch2_verify_insert_pos(struct btree *b,
 					  struct bkey_packed *where,

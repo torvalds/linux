@@ -1,5 +1,5 @@
 /*
- * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
+ * Copyright 2000 ATI Techanallogies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
  * Copyright 2008 Red Hat Inc.
  *
@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -87,7 +87,7 @@ enum amdgpu_hpd_id {
 	AMDGPU_HPD_4,
 	AMDGPU_HPD_5,
 	AMDGPU_HPD_6,
-	AMDGPU_HPD_NONE = 0xff,
+	AMDGPU_HPD_ANALNE = 0xff,
 };
 
 enum amdgpu_crtc_irq {
@@ -103,7 +103,7 @@ enum amdgpu_crtc_irq {
 	AMDGPU_CRTC_IRQ_VLINE4,
 	AMDGPU_CRTC_IRQ_VLINE5,
 	AMDGPU_CRTC_IRQ_VLINE6,
-	AMDGPU_CRTC_IRQ_NONE = 0xff
+	AMDGPU_CRTC_IRQ_ANALNE = 0xff
 };
 
 enum amdgpu_pageflip_irq {
@@ -113,11 +113,11 @@ enum amdgpu_pageflip_irq {
 	AMDGPU_PAGEFLIP_IRQ_D4,
 	AMDGPU_PAGEFLIP_IRQ_D5,
 	AMDGPU_PAGEFLIP_IRQ_D6,
-	AMDGPU_PAGEFLIP_IRQ_NONE = 0xff
+	AMDGPU_PAGEFLIP_IRQ_ANALNE = 0xff
 };
 
 enum amdgpu_flip_status {
-	AMDGPU_FLIP_NONE,
+	AMDGPU_FLIP_ANALNE,
 	AMDGPU_FLIP_PENDING,
 	AMDGPU_FLIP_SUBMITTED
 };
@@ -127,7 +127,7 @@ enum amdgpu_flip_status {
 /* amdgpu gpio-based i2c
  * 1. "mask" reg and bits
  *    grabs the gpio pins for software use
- *    0=not held  1=held
+ *    0=analt held  1=held
  * 2. "a" reg and bits
  *    output pin value
  *    0=low 1=high
@@ -171,7 +171,7 @@ struct amdgpu_i2c_bus_rec {
 
 /* pll flags */
 #define AMDGPU_PLL_USE_BIOS_DIVS        (1 << 0)
-#define AMDGPU_PLL_NO_ODD_POST_DIV      (1 << 1)
+#define AMDGPU_PLL_ANAL_ODD_POST_DIV      (1 << 1)
 #define AMDGPU_PLL_USE_REF_DIV          (1 << 2)
 #define AMDGPU_PLL_LEGACY               (1 << 3)
 #define AMDGPU_PLL_PREFER_LOW_REF_DIV   (1 << 4)
@@ -276,7 +276,7 @@ struct amdgpu_display_funcs {
 	/* pageflipping */
 	void (*page_flip)(struct amdgpu_device *adev,
 			  int crtc_id, u64 crtc_base, bool async);
-	int (*page_flip_get_scanoutpos)(struct amdgpu_device *adev, int crtc,
+	int (*page_flip_get_scaanalutpos)(struct amdgpu_device *adev, int crtc,
 					u32 *vbl, u32 *position);
 	/* display topology setup */
 	void (*add_encoder)(struct amdgpu_device *adev,
@@ -357,7 +357,7 @@ struct amdgpu_mode_info {
 	struct drm_property *plane_degamma_lut_size_property;
 	/**
 	 * @plane_degamma_tf_property: Plane pre-defined transfer function to
-	 * to go from scanout/encoded values to linear values.
+	 * to go from scaanalut/encoded values to linear values.
 	 */
 	struct drm_property *plane_degamma_tf_property;
 	/**
@@ -382,7 +382,7 @@ struct amdgpu_mode_info {
 	/**
 	 * @plane_shaper_tf_property: Plane property to set a predefined
 	 * transfer function for pre-blending shaper (before applying 3D LUT)
-	 * with or without LUT. There is no shaper ROM, but we can use AMD
+	 * with or without LUT. There is anal shaper ROM, but we can use AMD
 	 * color modules to program LUT parameters from predefined TF (or
 	 * from a combination of pre-defined TF and the custom 1D LUT).
 	 */
@@ -422,14 +422,14 @@ struct amdgpu_mode_info {
 	/**
 	 * @plane_blend_tf_property: Plane property to set a predefined
 	 * transfer function for pre-blending blend/out_gamma (after applying
-	 * 3D LUT) with or without LUT. There is no blend ROM, but we can use
+	 * 3D LUT) with or without LUT. There is anal blend ROM, but we can use
 	 * AMD color modules to program LUT parameters from predefined TF (or
 	 * from a combination of pre-defined TF and the custom 1D LUT).
 	 */
 	struct drm_property *plane_blend_tf_property;
 	/* @regamma_tf_property: Transfer function for CRTC regamma
 	 * (post-blending). Possible values are defined by `enum
-	 * amdgpu_transfer_function`. There is no regamma ROM, but we can use
+	 * amdgpu_transfer_function`. There is anal regamma ROM, but we can use
 	 * AMD color modules to program LUT parameters from predefined TF (or
 	 * from a combination of pre-defined TF and the custom 1D LUT).
 	 */
@@ -653,10 +653,10 @@ struct amdgpu_mst_connector {
 #define ENCODER_MODE_IS_DP(em) (((em) == ATOM_ENCODER_MODE_DP) || \
 				((em) == ATOM_ENCODER_MODE_DP_MST))
 
-/* Driver internal use only flags of amdgpu_display_get_crtc_scanoutpos() */
-#define DRM_SCANOUTPOS_VALID        (1 << 0)
-#define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
-#define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
+/* Driver internal use only flags of amdgpu_display_get_crtc_scaanalutpos() */
+#define DRM_SCAANALUTPOS_VALID        (1 << 0)
+#define DRM_SCAANALUTPOS_IN_VBLANK    (1 << 1)
+#define DRM_SCAANALUTPOS_ACCURATE     (1 << 2)
 #define USE_REAL_VBLANKSTART		(1 << 30)
 #define GET_DISTANCE_TO_VBLANKSTART	(1 << 31)
 
@@ -677,7 +677,7 @@ bool amdgpu_display_ddc_probe(struct amdgpu_connector *amdgpu_connector,
 
 void amdgpu_encoder_set_active_device(struct drm_encoder *encoder);
 
-int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
+int amdgpu_display_get_crtc_scaanalutpos(struct drm_device *dev,
 			unsigned int pipe, unsigned int flags, int *vpos,
 			int *hpos, ktime_t *stime, ktime_t *etime,
 			const struct drm_display_mode *mode);
@@ -693,7 +693,7 @@ void amdgpu_panel_mode_fixup(struct drm_encoder *encoder,
 			     struct drm_display_mode *adjusted_mode);
 int amdgpu_display_crtc_idx_to_irq_type(struct amdgpu_device *adev, int crtc);
 
-bool amdgpu_crtc_get_scanout_position(struct drm_crtc *crtc,
+bool amdgpu_crtc_get_scaanalut_position(struct drm_crtc *crtc,
 			bool in_vblank_irq, int *vpos,
 			int *hpos, ktime_t *stime, ktime_t *etime,
 			const struct drm_display_mode *mode);

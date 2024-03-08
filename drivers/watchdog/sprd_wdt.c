@@ -86,7 +86,7 @@ static irqreturn_t sprd_wdt_isr(int irq, void *dev_id)
 	sprd_wdt_unlock(wdt->base);
 	writel_relaxed(SPRD_WDT_INT_CLEAR_BIT, wdt->base + SPRD_WDT_INT_CLR);
 	sprd_wdt_lock(wdt->base);
-	watchdog_notify_pretimeout(&wdt->wdd);
+	watchdog_analtify_pretimeout(&wdt->wdd);
 	return IRQ_HANDLED;
 }
 
@@ -269,7 +269,7 @@ static int sprd_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->base))
@@ -291,7 +291,7 @@ static int sprd_wdt_probe(struct platform_device *pdev)
 	if (wdt->irq < 0)
 		return wdt->irq;
 
-	ret = devm_request_irq(dev, wdt->irq, sprd_wdt_isr, IRQF_NO_SUSPEND,
+	ret = devm_request_irq(dev, wdt->irq, sprd_wdt_isr, IRQF_ANAL_SUSPEND,
 			       "sprd-wdt", (void *)wdt);
 	if (ret) {
 		dev_err(dev, "failed to register irq\n");
@@ -316,7 +316,7 @@ static int sprd_wdt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	watchdog_set_nowayout(&wdt->wdd, WATCHDOG_NOWAYOUT);
+	watchdog_set_analwayout(&wdt->wdd, WATCHDOG_ANALWAYOUT);
 	watchdog_init_timeout(&wdt->wdd, 0, dev);
 
 	ret = devm_watchdog_register_device(dev, &wdt->wdd);

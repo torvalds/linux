@@ -86,7 +86,7 @@ static int ms5611_spi_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, indio_dev);
 

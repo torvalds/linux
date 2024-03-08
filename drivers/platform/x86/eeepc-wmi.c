@@ -80,7 +80,7 @@ static const struct key_entry eeepc_wmi_keymap[] = {
 	{ KE_END, 0},
 };
 
-static struct quirk_entry quirk_asus_unknown = {
+static struct quirk_entry quirk_asus_unkanalwn = {
 };
 
 static struct quirk_entry quirk_asus_1000h = {
@@ -144,7 +144,7 @@ static const struct dmi_system_id asus_quirks[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer INC."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "ET2012"),
 		},
-		.driver_data = &quirk_asus_unknown,
+		.driver_data = &quirk_asus_unkanalwn,
 	},
 	{}
 };
@@ -158,7 +158,7 @@ static void eeepc_wmi_key_filter(struct asus_wmi_driver *asus_wmi, int *code,
 		*autorelease = 0;
 		break;
 	case HOME_HOLD:
-		*code = ASUS_WMI_KEY_IGNORE;
+		*code = ASUS_WMI_KEY_IGANALRE;
 		break;
 	case HOME_RELEASE:
 		*code = HOME_PRESS;
@@ -185,7 +185,7 @@ static int eeepc_wmi_probe(struct platform_device *pdev)
 
 static void eeepc_wmi_quirks(struct asus_wmi_driver *driver)
 {
-	quirks = &quirk_asus_unknown;
+	quirks = &quirk_asus_unkanalwn;
 	quirks->hotplug_wireless = hotplug_wireless;
 
 	dmi_check_system(asus_quirks);

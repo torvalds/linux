@@ -16,8 +16,8 @@
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_inode.h"
-#include "xfs_inode_fork.h"
+#include "xfs_ianalde.h"
+#include "xfs_ianalde_fork.h"
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_quota.h"
@@ -39,7 +39,7 @@
  * ============
  *
  * Quota repairs are fairly simplistic; we fix everything that the dquot
- * verifiers complain about, cap any counters or limits that make no sense,
+ * verifiers complain about, cap any counters or limits that make anal sense,
  * and schedule a quotacheck if we had to fix anything.  We also repair any
  * data fork extent records that don't apply to metadata files.
  */
@@ -78,14 +78,14 @@ xrep_quota_item_fill_bmap_hole(
 	if (error)
 		return error;
 	if (nmaps != 1)
-		return -ENOSPC;
+		return -EANALSPC;
 
-	dq->q_blkno = XFS_FSB_TO_DADDR(mp, irec->br_startblock);
+	dq->q_blkanal = XFS_FSB_TO_DADDR(mp, irec->br_startblock);
 
 	trace_xrep_dquot_item_fill_bmap_hole(sc->mp, dq->q_type, dq->q_id);
 
 	/* Initialize the new block. */
-	error = xfs_trans_get_buf(sc->tp, mp->m_ddev_targp, dq->q_blkno,
+	error = xfs_trans_get_buf(sc->tp, mp->m_ddev_targp, dq->q_blkanal,
 			mp->m_quotainfo->qi_dqchunklen, 0, &bp);
 	if (error)
 		return error;
@@ -134,17 +134,17 @@ xrep_quota_item_bmap(
 		error = xrep_quota_item_fill_bmap_hole(sc, dq, &irec);
 		if (error)
 			return error;
-	} else if (irec.br_state != XFS_EXT_NORM) {
+	} else if (irec.br_state != XFS_EXT_ANALRM) {
 		/* Unwritten extent, which we already took care of? */
-		ASSERT(irec.br_state == XFS_EXT_NORM);
+		ASSERT(irec.br_state == XFS_EXT_ANALRM);
 		return -EFSCORRUPTED;
-	} else if (dq->q_blkno != XFS_FSB_TO_DADDR(mp, irec.br_startblock)) {
+	} else if (dq->q_blkanal != XFS_FSB_TO_DADDR(mp, irec.br_startblock)) {
 		/*
 		 * If the cached daddr is incorrect, repair probably punched a
 		 * hole out of the quota file and filled it back in with a new
 		 * block.  Update the block mapping in the dquot.
 		 */
-		dq->q_blkno = XFS_FSB_TO_DADDR(mp, irec.br_startblock);
+		dq->q_blkanal = XFS_FSB_TO_DADDR(mp, irec.br_startblock);
 	}
 
 	*dirty = true;
@@ -176,7 +176,7 @@ xrep_quota_item(
 {
 	struct xfs_scrub	*sc = rqi->sc;
 	struct xfs_mount	*mp = sc->mp;
-	xfs_ino_t		fs_icount;
+	xfs_ianal_t		fs_icount;
 	bool			dirty = false;
 	int			error = 0;
 
@@ -205,8 +205,8 @@ xrep_quota_item(
 		dirty = true;
 	}
 
-	if (dq->q_ino.softlimit > dq->q_ino.hardlimit) {
-		dq->q_ino.softlimit = dq->q_ino.hardlimit;
+	if (dq->q_ianal.softlimit > dq->q_ianal.hardlimit) {
+		dq->q_ianal.softlimit = dq->q_ianal.hardlimit;
 		dirty = true;
 	}
 
@@ -218,7 +218,7 @@ xrep_quota_item(
 	/*
 	 * Check that usage doesn't exceed physical limits.  However, on
 	 * a reflink filesystem we're allowed to exceed physical space
-	 * if there are no quota limits.  We don't know what the real number
+	 * if there are anal quota limits.  We don't kanalw what the real number
 	 * is, but we can make quotacheck find out for us.
 	 */
 	if (!xfs_has_reflink(mp) && dq->q_blk.count > mp->m_sb.sb_dblocks) {
@@ -229,10 +229,10 @@ xrep_quota_item(
 		dirty = true;
 	}
 	fs_icount = percpu_counter_sum(&mp->m_icount);
-	if (dq->q_ino.count > fs_icount) {
-		dq->q_ino.reserved -= dq->q_ino.count;
-		dq->q_ino.reserved += fs_icount;
-		dq->q_ino.count = fs_icount;
+	if (dq->q_ianal.count > fs_icount) {
+		dq->q_ianal.reserved -= dq->q_ianal.count;
+		dq->q_ianal.reserved += fs_icount;
+		dq->q_ianal.count = fs_icount;
 		rqi->need_quotacheck = true;
 		dirty = true;
 	}
@@ -245,7 +245,7 @@ xrep_quota_item(
 	}
 
 	xrep_quota_item_timer(sc, &dq->q_blk, &dirty);
-	xrep_quota_item_timer(sc, &dq->q_ino, &dirty);
+	xrep_quota_item_timer(sc, &dq->q_ianal, &dirty);
 	xrep_quota_item_timer(sc, &dq->q_rtb, &dirty);
 
 	if (!dirty)
@@ -271,12 +271,12 @@ xrep_quota_fix_timer(
 	struct xfs_mount	*mp,
 	const struct xfs_disk_dquot *ddq,
 	__be64			softlimit,
-	__be64			countnow,
+	__be64			countanalw,
 	__be32			*timer,
 	time64_t		timelimit)
 {
 	uint64_t		soft = be64_to_cpu(softlimit);
-	uint64_t		count = be64_to_cpu(countnow);
+	uint64_t		count = be64_to_cpu(countanalw);
 	time64_t		new_timer;
 	uint32_t		t;
 
@@ -315,7 +315,7 @@ xrep_quota_block(
 	switch (error) {
 	case -EFSBADCRC:
 	case -EFSCORRUPTED:
-		/* Failed verifier, retry read with no ops. */
+		/* Failed verifier, retry read with anal ops. */
 		error = xfs_trans_read_buf(sc->mp, sc->tp,
 				sc->mp->m_ddev_targp, daddr, qi->qi_dqchunklen,
 				0, &bp, NULL);
@@ -327,7 +327,7 @@ xrep_quota_block(
 		ddq = &dqblk[0].dd_diskdq;
 
 		/*
-		 * If there's nothing that would impede a dqiterate, we're
+		 * If there's analthing that would impede a dqiterate, we're
 		 * done.
 		 */
 		if ((ddq->d_type & XFS_DQTYPE_REC_MASK) != dqtype ||
@@ -360,9 +360,9 @@ xrep_quota_block(
 				ddq->d_bcount, &ddq->d_btimer,
 				defq->blk.time);
 
-		xrep_quota_fix_timer(sc->mp, ddq, ddq->d_ino_softlimit,
+		xrep_quota_fix_timer(sc->mp, ddq, ddq->d_ianal_softlimit,
 				ddq->d_icount, &ddq->d_itimer,
-				defq->ino.time);
+				defq->ianal.time);
 
 		xrep_quota_fix_timer(sc->mp, ddq, ddq->d_rtb_softlimit,
 				ddq->d_rtbcount, &ddq->d_rtbtimer,
@@ -391,7 +391,7 @@ xrep_quota_block(
 }
 
 /*
- * Repair a quota file's data fork.  The function returns with the inode
+ * Repair a quota file's data fork.  The function returns with the ianalde
  * joined.
  */
 STATIC int
@@ -405,12 +405,12 @@ xrep_quota_data_fork(
 	struct xfs_ifork	*ifp;
 	xfs_fileoff_t		max_dqid_off;
 	xfs_fileoff_t		off;
-	xfs_fsblock_t		fsbno;
+	xfs_fsblock_t		fsbanal;
 	bool			truncate = false;
 	bool			joined = false;
 	int			error = 0;
 
-	error = xrep_metadata_inode_forks(sc);
+	error = xrep_metadata_ianalde_forks(sc);
 	if (error)
 		goto out;
 
@@ -445,7 +445,7 @@ xrep_quota_data_fork(
 			if (error)
 				goto out;
 			if (nmap != 1) {
-				error = -ENOSPC;
+				error = -EANALSPC;
 				goto out;
 			}
 			ASSERT(nrec.br_startoff == irec.br_startoff);
@@ -478,20 +478,20 @@ xrep_quota_data_fork(
 		sc->ip->i_diflags2 &= ~XFS_DIFLAG2_REFLINK;
 
 		/*
-		 * Always re-log the inode so that our permanent transaction
+		 * Always re-log the ianalde so that our permanent transaction
 		 * can keep on rolling it forward in the log.
 		 */
-		xfs_trans_log_inode(sc->tp, sc->ip, XFS_ILOG_CORE);
+		xfs_trans_log_ianalde(sc->tp, sc->ip, XFS_ILOG_CORE);
 	}
 
-	/* Now go fix anything that fails the verifiers. */
+	/* Analw go fix anything that fails the verifiers. */
 	for_each_xfs_iext(ifp, &icur, &irec) {
-		for (fsbno = irec.br_startblock, off = irec.br_startoff;
-		     fsbno < irec.br_startblock + irec.br_blockcount;
-		     fsbno += XFS_DQUOT_CLUSTER_SIZE_FSB,
+		for (fsbanal = irec.br_startblock, off = irec.br_startoff;
+		     fsbanal < irec.br_startblock + irec.br_blockcount;
+		     fsbanal += XFS_DQUOT_CLUSTER_SIZE_FSB,
 				off += XFS_DQUOT_CLUSTER_SIZE_FSB) {
 			error = xrep_quota_block(sc,
-					XFS_FSB_TO_DADDR(sc->mp, fsbno),
+					XFS_FSB_TO_DADDR(sc->mp, fsbanal),
 					dqtype, off * qi->qi_dqperchunk);
 			if (error)
 				goto out;
@@ -503,8 +503,8 @@ out:
 }
 
 /*
- * Go fix anything in the quota items that we could have been mad about.  Now
- * that we've checked the quota inode data fork we have to drop ILOCK_EXCL to
+ * Go fix anything in the quota items that we could have been mad about.  Analw
+ * that we've checked the quota ianalde data fork we have to drop ILOCK_EXCL to
  * use the regular dquot functions.
  */
 STATIC int
@@ -555,8 +555,8 @@ xrep_quota(
 
 	/*
 	 * Finish deferred items and roll the transaction to unjoin the quota
-	 * inode from transaction so that we can unlock the quota inode; we
-	 * play only with dquots from now on.
+	 * ianalde from transaction so that we can unlock the quota ianalde; we
+	 * play only with dquots from analw on.
 	 */
 	error = xrep_defer_finish(sc);
 	if (error)

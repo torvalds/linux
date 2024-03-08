@@ -83,7 +83,7 @@ static const struct regmap_config lan9303_mdio_regmap_config = {
 	.val_bits = 32,
 	.reg_stride = 1,
 	.can_multi_write = true,
-	.max_register = 0x0ff, /* address bits 0..1 are not used */
+	.max_register = 0x0ff, /* address bits 0..1 are analt used */
 	.reg_format_endian = REGMAP_ENDIAN_LITTLE,
 
 	.volatile_table = &lan9303_register_set,
@@ -93,7 +93,7 @@ static const struct regmap_config lan9303_mdio_regmap_config = {
 	.reg_read = lan9303_mdio_read,
 	.reg_write = lan9303_mdio_write,
 
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static int lan9303_mdio_probe(struct mdio_device *mdiodev)
@@ -104,7 +104,7 @@ static int lan9303_mdio_probe(struct mdio_device *mdiodev)
 	sw_dev = devm_kzalloc(&mdiodev->dev, sizeof(struct lan9303_mdio),
 			      GFP_KERNEL);
 	if (!sw_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sw_dev->chip.regmap = devm_regmap_init(&mdiodev->dev, NULL, sw_dev,
 					       &lan9303_mdio_regmap_config);
@@ -121,7 +121,7 @@ static int lan9303_mdio_probe(struct mdio_device *mdiodev)
 
 	sw_dev->chip.ops = &lan9303_mdio_phy_ops;
 
-	ret = lan9303_probe(&sw_dev->chip, mdiodev->dev.of_node);
+	ret = lan9303_probe(&sw_dev->chip, mdiodev->dev.of_analde);
 	if (ret != 0)
 		return ret;
 

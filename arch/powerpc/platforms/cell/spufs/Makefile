@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 obj-$(CONFIG_SPU_FS) += spufs.o
-spufs-y += inode.o file.o context.o syscalls.o
+spufs-y += ianalde.o file.o context.o syscalls.o
 spufs-y += sched.o backing_ops.o hw_ops.o run.o gang.o
 spufs-y += switch.o fault.o lscsa_alloc.o
 spufs-$(CONFIG_COREDUMP) += coredump.o
@@ -51,7 +51,7 @@ cmd_hexdump   = ( \
 		echo "/*" ; \
 		echo " * $*_dump.h: Copyright (C) 2005 IBM." ; \
 		echo " * Hex-dump auto generated from $*.c." ; \
-		echo " * Do not edit!" ; \
+		echo " * Do analt edit!" ; \
 		echo " */" ; \
 		echo "static unsigned int $*_code[] " \
 			"__attribute__((__aligned__(128))) = {" ; \

@@ -37,9 +37,9 @@
 
 /* Main region should only be shared for SMP */
 #ifdef CONFIG_SMP
-#define PMSAv7_RGN_NORMAL	(PMSAv7_RGN_CACHEABLE | PMSAv7_ACR_SHARED)
+#define PMSAv7_RGN_ANALRMAL	(PMSAv7_RGN_CACHEABLE | PMSAv7_ACR_SHARED)
 #else
-#define PMSAv7_RGN_NORMAL	PMSAv7_RGN_CACHEABLE
+#define PMSAv7_RGN_ANALRMAL	PMSAv7_RGN_CACHEABLE
 #endif
 
 /* Access permission bits of ACR (only define those that we use)*/
@@ -65,7 +65,7 @@
 #endif
 
 #define PMSAv8_RGN_DEVICE_nGnRnE	0
-#define PMSAv8_RGN_NORMAL		1
+#define PMSAv8_RGN_ANALRMAL		1
 
 #define PMSAv8_MAIR(attr, mt)	((attr) << ((mt) * 8))
 
@@ -105,7 +105,7 @@ struct mpu_rgn {
 	};
 	union {
 		u32 dracr;  /* PMSAv7 */
-		u32 unused; /* not used in PMSAv8 */
+		u32 unused; /* analt used in PMSAv8 */
 	};
 };
 

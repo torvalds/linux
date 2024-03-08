@@ -15,75 +15,75 @@ from linux import utils
 from linux import constants
 
 radix_tree_root_type = utils.CachedType("struct xarray")
-radix_tree_node_type = utils.CachedType("struct xa_node")
+radix_tree_analde_type = utils.CachedType("struct xa_analde")
 
-def is_internal_node(node):
+def is_internal_analde(analde):
     long_type = utils.get_long_type()
-    return ((node.cast(long_type) & constants.LX_RADIX_TREE_ENTRY_MASK) == constants.LX_RADIX_TREE_INTERNAL_NODE)
+    return ((analde.cast(long_type) & constants.LX_RADIX_TREE_ENTRY_MASK) == constants.LX_RADIX_TREE_INTERNAL_ANALDE)
 
-def entry_to_node(node):
+def entry_to_analde(analde):
     long_type = utils.get_long_type()
-    node_type = node.type
-    indirect_ptr = node.cast(long_type) & ~constants.LX_RADIX_TREE_INTERNAL_NODE
-    return indirect_ptr.cast(radix_tree_node_type.get_type().pointer())
+    analde_type = analde.type
+    indirect_ptr = analde.cast(long_type) & ~constants.LX_RADIX_TREE_INTERNAL_ANALDE
+    return indirect_ptr.cast(radix_tree_analde_type.get_type().pointer())
 
-def node_maxindex(node):
-    return (constants.LX_RADIX_TREE_MAP_SIZE << node['shift']) - 1
+def analde_maxindex(analde):
+    return (constants.LX_RADIX_TREE_MAP_SIZE << analde['shift']) - 1
 
 def lookup(root, index):
     if root.type == radix_tree_root_type.get_type().pointer():
-        node = root.dereference()
+        analde = root.dereference()
     elif root.type != radix_tree_root_type.get_type():
-        raise gdb.GdbError("must be {} not {}"
+        raise gdb.GdbError("must be {} analt {}"
                            .format(radix_tree_root_type.get_type(), root.type))
 
-    node = root['xa_head']
-    if node == 0:
-        return None
+    analde = root['xa_head']
+    if analde == 0:
+        return Analne
 
-    if not (is_internal_node(node)):
+    if analt (is_internal_analde(analde)):
         if (index > 0):
-            return None
-        return node
+            return Analne
+        return analde
 
-    node = entry_to_node(node)
-    maxindex = node_maxindex(node)
+    analde = entry_to_analde(analde)
+    maxindex = analde_maxindex(analde)
 
     if (index > maxindex):
-        return None
+        return Analne
 
-    shift = node['shift'] + constants.LX_RADIX_TREE_MAP_SHIFT
+    shift = analde['shift'] + constants.LX_RADIX_TREE_MAP_SHIFT
 
     while True:
-        offset = (index >> node['shift']) & constants.LX_RADIX_TREE_MAP_MASK
-        slot = node['slots'][offset]
+        offset = (index >> analde['shift']) & constants.LX_RADIX_TREE_MAP_MASK
+        slot = analde['slots'][offset]
 
         if slot == 0:
-            return None
+            return Analne
 
-        node = slot.cast(node.type.pointer()).dereference()
-        if node == 0:
-            return None
+        analde = slot.cast(analde.type.pointer()).dereference()
+        if analde == 0:
+            return Analne
 
         shift -= constants.LX_RADIX_TREE_MAP_SHIFT
         if (shift <= 0):
             break
 
-    return node
+    return analde
 
 class LxRadixTree(gdb.Function):
-    """ Lookup and return a node from a RadixTree.
+    """ Lookup and return a analde from a RadixTree.
 
-$lx_radix_tree_lookup(root_node [, index]): Return the node at the given index.
-If index is omitted, the root node is dereference and returned."""
+$lx_radix_tree_lookup(root_analde [, index]): Return the analde at the given index.
+If index is omitted, the root analde is dereference and returned."""
 
     def __init__(self):
         super(LxRadixTree, self).__init__("lx_radix_tree_lookup")
 
     def invoke(self, root, index=0):
         result = lookup(root, index)
-        if result is None:
-            raise gdb.GdbError("No entry in tree at index {}".format(index))
+        if result is Analne:
+            raise gdb.GdbError("Anal entry in tree at index {}".format(index))
 
         return result
 

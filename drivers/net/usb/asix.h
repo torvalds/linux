@@ -48,11 +48,11 @@
 #define AX_CMD_READ_IPG012		0x11
 #define AX_CMD_WRITE_IPG0		0x12
 #define AX_CMD_WRITE_IPG1		0x13
-#define AX_CMD_READ_NODE_ID		0x13
-#define AX_CMD_WRITE_NODE_ID		0x14
+#define AX_CMD_READ_ANALDE_ID		0x13
+#define AX_CMD_WRITE_ANALDE_ID		0x14
 #define AX_CMD_WRITE_IPG2		0x14
 #define AX_CMD_WRITE_MULTI_FILTER	0x16
-#define AX88172_CMD_READ_NODE_ID	0x17
+#define AX88172_CMD_READ_ANALDE_ID	0x17
 #define AX_CMD_READ_PHY_ID		0x19
 #define AX_CMD_READ_MEDIUM_STATUS	0x1a
 #define AX_CMD_WRITE_MEDIUM_MODE	0x1b
@@ -160,7 +160,7 @@
 
 #define AX_EMBD_PHY_ADDR	0x10
 
-/* This structure cannot exceed sizeof(unsigned long [5]) AKA 20 bytes */
+/* This structure cananalt exceed sizeof(unsigned long [5]) AKA 20 bytes */
 struct asix_data {
 	u8 multi_filter[AX_MCAST_FILTER_SIZE];
 	u8 mac_addr[ETH_ALEN];
@@ -236,8 +236,8 @@ void asix_mdio_write(struct net_device *netdev, int phy_id, int loc, int val);
 int asix_mdio_bus_read(struct mii_bus *bus, int phy_id, int regnum);
 int asix_mdio_bus_write(struct mii_bus *bus, int phy_id, int regnum, u16 val);
 
-int asix_mdio_read_nopm(struct net_device *netdev, int phy_id, int loc);
-void asix_mdio_write_nopm(struct net_device *netdev, int phy_id, int loc,
+int asix_mdio_read_analpm(struct net_device *netdev, int phy_id, int loc);
+void asix_mdio_write_analpm(struct net_device *netdev, int phy_id, int loc,
 			  int val);
 
 void asix_get_wol(struct net_device *net, struct ethtool_wolinfo *wolinfo);

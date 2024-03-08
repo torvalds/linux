@@ -446,11 +446,11 @@ static void odm_RefreshRateAdaptiveMaskCE(struct dm_odm_t *pDM_Odm)
 *
 * Overview:	Update rate table mask according to rssi
 *
-* Input:		NONE
+* Input:		ANALNE
 *
-* Output:		NONE
+* Output:		ANALNE
 *
-* Return:		NONE
+* Return:		ANALNE
 *
 * Revised History:
 *When		Who		Remark
@@ -483,7 +483,7 @@ bool ODM_RAStateCheck(
 	u8 RATRState;
 
 	/*  Threshold Adjustment: */
-	/*  when RSSI state trends to go up one or two levels, make sure RSSI is high enough. */
+	/*  when RSSI state trends to go up one or two levels, make sure RSSI is high eanalugh. */
 	/*  Here GoUpGap is added to solve the boundary's level alternation issue. */
 	switch (*pRATRState) {
 	case DM_RATR_STA_INIT:
@@ -637,10 +637,10 @@ static void odm_SwAntDetectInit(struct dm_odm_t *pDM_Odm)
 {
 	struct swat_t *pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
 
-	pDM_SWAT_Table->SWAS_NoLink_BK_Reg92c = rtw_read32(pDM_Odm->Adapter, rDPDT_control);
+	pDM_SWAT_Table->SWAS_AnalLink_BK_Reg92c = rtw_read32(pDM_Odm->Adapter, rDPDT_control);
 	pDM_SWAT_Table->PreAntenna = MAIN_ANT;
 	pDM_SWAT_Table->CurAntenna = MAIN_ANT;
-	pDM_SWAT_Table->SWAS_NoLink_State = 0;
+	pDM_SWAT_Table->SWAS_AnalLink_State = 0;
 }
 
 /* 3 ============================================================ */
@@ -761,7 +761,7 @@ void ODM_DMInit(struct dm_odm_t *pDM_Odm)
 
 /*  */
 /*  2011/09/20 MH This is the entry pointer for all team to execute HW out source DM. */
-/*  You can not add any dummy function here, be care, you can only use DM structure */
+/*  You can analt add any dummy function here, be care, you can only use DM structure */
 /*  to perform any new ODM_DM. */
 /*  */
 void ODM_DMWatchdog(struct dm_odm_t *pDM_Odm)
@@ -806,7 +806,7 @@ void ODM_DMWatchdog(struct dm_odm_t *pDM_Odm)
 
 	/* odm_EdcaTurboCheck(pDM_Odm); */
 
-	/* 2010.05.30 LukeLee: For CE platform, files in IC subfolders may not be included to be compiled, */
+	/* 2010.05.30 LukeLee: For CE platform, files in IC subfolders may analt be included to be compiled, */
 	/*  so compile flags must be left here to prevent from compile errors */
 	pDM_Odm->PhyDbgInfo.NumQryBeaconPkt = 0;
 }
@@ -900,7 +900,7 @@ void ODM_CmnInfoInit(struct dm_odm_t *pDM_Odm, enum odm_cmninfo_e CmnInfo, u32 V
 
 	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 
@@ -1024,7 +1024,7 @@ void ODM_CmnInfoHook(struct dm_odm_t *pDM_Odm, enum odm_cmninfo_e CmnInfo, void 
 	/* break; */
 	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 
@@ -1050,7 +1050,7 @@ void ODM_CmnInfoPtrArrayHook(
 		break;
 	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 
@@ -1058,7 +1058,7 @@ void ODM_CmnInfoPtrArrayHook(
 
 
 /*  */
-/*  Update Band/CHannel/.. The values are dynamic but non-per-packet. */
+/*  Update Band/CHannel/.. The values are dynamic but analn-per-packet. */
 /*  */
 void ODM_CmnInfoUpdate(struct dm_odm_t *pDM_Odm, u32 CmnInfo, u64 Value)
 {
@@ -1152,7 +1152,7 @@ void ODM_CmnInfoUpdate(struct dm_odm_t *pDM_Odm, u32 CmnInfo, u64 Value)
 		break;
 */
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 
@@ -1167,11 +1167,11 @@ void ODM_CmnInfoUpdate(struct dm_odm_t *pDM_Odm, u32 CmnInfo, u64 Value)
  *
  * Overview:	Set DIG scheme init value.
  *
- * Input:		NONE
+ * Input:		ANALNE
  *
- * Output:		NONE
+ * Output:		ANALNE
  *
- * Return:		NONE
+ * Return:		ANALNE
  *
  * Revised History:
  *When		Who		Remark

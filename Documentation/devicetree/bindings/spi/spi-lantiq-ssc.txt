@@ -1,4 +1,4 @@
-Lantiq Synchronous Serial Controller (SSC) SPI master driver
+Lantiq Synchroanalus Serial Controller (SSC) SPI master driver
 
 Required properties:
 - compatible: "lantiq,ase-spi", "lantiq,falcon-spi", "lantiq,xrx100-spi",

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,19 +36,19 @@ nvkm_uhead_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_
 	if (!uevent)
 		return 0;
 	if (argc != sizeof(args->vn))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return nvkm_uevent_add(uevent, &head->disp->vblank, head->id,
 			       NVKM_DISP_HEAD_EVENT_VBLANK, NULL);
 }
 
 static int
-nvkm_uhead_mthd_scanoutpos(struct nvkm_head *head, void *argv, u32 argc)
+nvkm_uhead_mthd_scaanalutpos(struct nvkm_head *head, void *argv, u32 argc)
 {
-	union nvif_head_scanoutpos_args *args = argv;
+	union nvif_head_scaanalutpos_args *args = argv;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	head->func->state(head, &head->arm);
 	args->v0.vtotal  = head->arm.vtotal;
@@ -63,7 +63,7 @@ nvkm_uhead_mthd_scanoutpos(struct nvkm_head *head, void *argv, u32 argc)
 	 * fallback in the drm core.
 	 */
 	if (!args->v0.vtotal || !args->v0.htotal)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	args->v0.time[0] = ktime_to_ns(ktime_get());
 	head->func->rgpos(head, &args->v0.hline, &args->v0.vline);
@@ -77,7 +77,7 @@ nvkm_uhead_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 	struct nvkm_head *head = nvkm_uhead(object);
 
 	switch (mthd) {
-	case NVIF_HEAD_V0_SCANOUTPOS: return nvkm_uhead_mthd_scanoutpos(head, argv, argc);
+	case NVIF_HEAD_V0_SCAANALUTPOS: return nvkm_uhead_mthd_scaanalutpos(head, argv, argc);
 	default:
 		return -EINVAL;
 	}
@@ -111,7 +111,7 @@ nvkm_uhead_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	int ret;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 	if (!(head = nvkm_head_find(disp, args->v0.id)))
 		return -EINVAL;
 

@@ -4,13 +4,13 @@
 
 set -e
 
-ParanoidAndNotRoot()
+ParaanalidAndAnaltRoot()
 {
-  [ "$(id -u)" != 0 ] && [ "$(cat /proc/sys/kernel/perf_event_paranoid)" -gt $1 ]
+  [ "$(id -u)" != 0 ] && [ "$(cat /proc/sys/kernel/perf_event_paraanalid)" -gt $1 ]
 }
 
 system_wide_flag="-a"
-if ParanoidAndNotRoot 0
+if ParaanalidAndAnaltRoot 0
 then
   system_wide_flag=""
 fi

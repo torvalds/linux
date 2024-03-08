@@ -51,10 +51,10 @@ static const struct xe_rtp_entry_sr engine_tunings[] = {
 };
 
 static const struct xe_rtp_entry_sr lrc_tunings[] = {
-	{ XE_RTP_NAME("Tuning: ganged timer, also known as 16011163337"),
+	{ XE_RTP_NAME("Tuning: ganged timer, also kanalwn as 16011163337"),
 	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1210), ENGINE_CLASS(RENDER)),
-	  /* read verification is ignored due to 1608008084. */
-	  XE_RTP_ACTIONS(FIELD_SET_NO_READ_MASK(FF_MODE2,
+	  /* read verification is iganalred due to 1608008084. */
+	  XE_RTP_ACTIONS(FIELD_SET_ANAL_READ_MASK(FF_MODE2,
 						FF_MODE2_GS_TIMER_MASK,
 						FF_MODE2_GS_TIMER_224))
 	},
@@ -68,8 +68,8 @@ static const struct xe_rtp_entry_sr lrc_tunings[] = {
 	},
 	{ XE_RTP_NAME("Tuning: TDS gang timer"),
 	  XE_RTP_RULES(PLATFORM(DG2), ENGINE_CLASS(RENDER)),
-	  /* read verification is ignored as in i915 - need to check enabling */
-	  XE_RTP_ACTIONS(FIELD_SET_NO_READ_MASK(XEHP_FF_MODE2,
+	  /* read verification is iganalred as in i915 - need to check enabling */
+	  XE_RTP_ACTIONS(FIELD_SET_ANAL_READ_MASK(XEHP_FF_MODE2,
 						FF_MODE2_TDS_TIMER_MASK,
 						FF_MODE2_TDS_TIMER_128))
 	},

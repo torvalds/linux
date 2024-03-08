@@ -24,7 +24,7 @@
 enum LED_CTL_MODE {
 	LED_CTL_POWER_ON = 1,
 	LED_CTL_LINK = 2,
-	LED_CTL_NO_LINK = 3,
+	LED_CTL_ANAL_LINK = 3,
 	LED_CTL_TX = 4,
 	LED_CTL_RX = 5,
 	LED_CTL_SITE_SURVEY = 6,
@@ -80,12 +80,12 @@ struct LED_871x {
 	u8			bLedOn; /* true if LED is ON */
 	u8			bSWLedCtrl;
 	u8			bLedBlinkInProgress; /*true if blinking */
-	u8			bLedNoLinkBlinkInProgress;
+	u8			bLedAnalLinkBlinkInProgress;
 	u8			bLedLinkBlinkInProgress;
 	u8			bLedStartToLinkBlinkInProgress;
 	u8			bLedScanBlinkInProgress;
 	u8			bLedWPSBlinkInProgress;
-	u32			BlinkTimes; /* No. times to toggle for blink.*/
+	u32			BlinkTimes; /* Anal. times to toggle for blink.*/
 	u32			BlinkingLedState; /* Next state for blinking,
 						   * either LED_ON or OFF.
 						   */

@@ -50,7 +50,7 @@ int delta_ipc_open(struct delta_ctx *ctx, const char *name,
 int delta_ipc_set_stream(void *hdl, struct delta_ipc_param *param);
 
 /*
- * delta_ipc_decode - frame decoding synchronous request, returns only
+ * delta_ipc_decode - frame decoding synchroanalus request, returns only
  *		      after decoding completion on firmware side.
  * @hdl:		(in) handle of decoding instance.
  * @param:		(in) decode command parameters specific to decoder

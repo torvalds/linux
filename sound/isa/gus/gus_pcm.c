@@ -24,7 +24,7 @@
 
 #define SNDRV_GF1_PCM_RATE		48000
 
-#define SNDRV_GF1_PCM_PFLG_NONE		0
+#define SNDRV_GF1_PCM_PFLG_ANALNE		0
 #define SNDRV_GF1_PCM_PFLG_ACTIVE	(1<<0)
 #define SNDRV_GF1_PCM_PFLG_NEUTRAL	(2<<0)
 
@@ -178,13 +178,13 @@ static void snd_gf1_pcm_interrupt_wave(struct snd_gus_card * gus,
 	unsigned int end, step;
 
 	if (!pvoice->private_data) {
-		snd_printd("snd_gf1_pcm: unknown wave irq?\n");
+		snd_printd("snd_gf1_pcm: unkanalwn wave irq?\n");
 		snd_gf1_smart_stop_voice(gus, pvoice->number);
 		return;
 	}
 	pcmp = pvoice->private_data;
 	if (pcmp == NULL) {
-		snd_printd("snd_gf1_pcm: unknown wave irq?\n");
+		snd_printd("snd_gf1_pcm: unkanalwn wave irq?\n");
 		snd_gf1_smart_stop_voice(gus, pvoice->number);
 		return;
 	}		
@@ -420,14 +420,14 @@ static int snd_gf1_pcm_playback_hw_params(struct snd_pcm_substream *substream,
 					  runtime->dma_bytes, 1, 32,
 					  NULL);
 		if (!block)
-			return -ENOMEM;
+			return -EANALMEM;
 		pcmp->memory = block->ptr;
 	}
 	pcmp->voices = params_channels(hw_params);
 	if (pcmp->pvoices[0] == NULL) {
 		pcmp->pvoices[0] = snd_gf1_alloc_voice(pcmp->gus, SNDRV_GF1_VOICE_TYPE_PCM, 0, 0);
 		if (!pcmp->pvoices[0])
-			return -ENOMEM;
+			return -EANALMEM;
 		pcmp->pvoices[0]->handler_wave = snd_gf1_pcm_interrupt_wave;
 		pcmp->pvoices[0]->handler_volume = snd_gf1_pcm_interrupt_volume;
 		pcmp->pvoices[0]->volume_change = snd_gf1_pcm_volume_change;
@@ -436,7 +436,7 @@ static int snd_gf1_pcm_playback_hw_params(struct snd_pcm_substream *substream,
 	if (pcmp->voices > 1 && pcmp->pvoices[1] == NULL) {
 		pcmp->pvoices[1] = snd_gf1_alloc_voice(pcmp->gus, SNDRV_GF1_VOICE_TYPE_PCM, 0, 0);
 		if (!pcmp->pvoices[1])
-			return -ENOMEM;
+			return -EANALMEM;
 		pcmp->pvoices[1]->handler_wave = snd_gf1_pcm_interrupt_wave;
 		pcmp->pvoices[1]->handler_volume = snd_gf1_pcm_interrupt_volume;
 		pcmp->pvoices[1]->volume_change = snd_gf1_pcm_volume_change;
@@ -615,7 +615,7 @@ static void snd_gf1_pcm_interrupt_dma_read(struct snd_gus_card * gus)
 
 static const struct snd_pcm_hardware snd_gf1_pcm_playback =
 {
-	.info =			SNDRV_PCM_INFO_NONINTERLEAVED,
+	.info =			SNDRV_PCM_INFO_ANALNINTERLEAVED,
 	.formats		= (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U8 |
 				 SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_U16_LE),
 	.rates =		SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000,
@@ -663,7 +663,7 @@ static int snd_gf1_pcm_playback_open(struct snd_pcm_substream *substream)
 
 	pcmp = kzalloc(sizeof(*pcmp), GFP_KERNEL);
 	if (pcmp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	pcmp->gus = gus;
 	spin_lock_init(&pcmp->lock);
 	init_waitqueue_head(&pcmp->sleep);
@@ -679,7 +679,7 @@ static int snd_gf1_pcm_playback_open(struct snd_pcm_substream *substream)
 	err = snd_gf1_dma_init(gus);
 	if (err < 0)
 		return err;
-	pcmp->flags = SNDRV_GF1_PCM_PFLG_NONE;
+	pcmp->flags = SNDRV_GF1_PCM_PFLG_ANALNE;
 	pcmp->substream = substream;
 	runtime->hw = snd_gf1_pcm_playback;
 	snd_pcm_limit_isa_dma_size(gus->gf1.dma1, &runtime->hw.buffer_bytes_max);

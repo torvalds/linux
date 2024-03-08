@@ -2,7 +2,7 @@
 |	sacos.sa 3.3 12/19/90
 |
 |	Description: The entry point sAcos computes the inverse cosine of
-|		an input argument; sAcosd does the same except for denormalized
+|		an input argument; sAcosd does the same except for deanalrmalized
 |		input.
 |
 |	Input: Double-extended number X in location pointed to
@@ -10,10 +10,10 @@
 |
 |	Output: The value arccos(X) returned in floating-point register Fp0.
 |
-|	Accuracy and Monotonicity: The returned result is within 3 ulps in
+|	Accuracy and Moanaltonicity: The returned result is within 3 ulps in
 |		64 significant bit, i.e. within 0.5001 ulp to 53 bits if the
 |		result is subsequently rounded to double precision. The
-|		result is provably monotonic in double precision.
+|		result is provably moanaltonic in double precision.
 |
 |	Speed: The program sCOS takes approximately 310 cycles.
 |
@@ -54,7 +54,7 @@ PIBY2:	.long 0x3FFF0000,0xC90FDAA2,0x2168C235,0x00000000
 
 	.global	sacosd
 sacosd:
-|--ACOS(X) = PI/2 FOR DENORMALIZED X
+|--ACOS(X) = PI/2 FOR DEANALRMALIZED X
 	fmovel		%d1,%fpcr		| ...load user's rounding mode/precision
 	fmovex		PIBY2,%fp0
 	bra		t_frcinx
@@ -102,7 +102,7 @@ ACOSBIG:
 	fmovex		PI,%fp0
 	fmovel		%d1,%FPCR
 	fadds		#0x00800000,%fp0	|cause an inexact exception to be put
-|					;into the 040 - will not trap until next
+|					;into the 040 - will analt trap until next
 |					;fp inst.
 	bra		t_frcinx
 

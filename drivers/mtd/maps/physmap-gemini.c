@@ -118,7 +118,7 @@ static void __xipram gemini_flash_map_copy_to(struct map_info *map,
 }
 
 int of_flash_probe_gemini(struct platform_device *pdev,
-			  struct device_node *np,
+			  struct device_analde *np,
 			  struct map_info *map)
 {
 	struct regmap *rmap;
@@ -132,28 +132,28 @@ int of_flash_probe_gemini(struct platform_device *pdev,
 
 	gf = devm_kzalloc(dev, sizeof(*gf), GFP_KERNEL);
 	if (!gf)
-		return -ENOMEM;
+		return -EANALMEM;
 	gf->dev = dev;
 
 	rmap = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(rmap)) {
-		dev_err(dev, "no syscon\n");
+		dev_err(dev, "anal syscon\n");
 		return PTR_ERR(rmap);
 	}
 
 	ret = regmap_read(rmap, GLOBAL_STATUS, &val);
 	if (ret) {
 		dev_err(dev, "failed to read global status register\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_dbg(dev, "global status reg: %08x\n", val);
 
 	/*
-	 * It would be contradictory if a physmap flash was NOT parallel.
+	 * It would be contradictory if a physmap flash was ANALT parallel.
 	 */
 	if ((val & FLASH_TYPE_MASK) != FLASH_TYPE_PARALLEL) {
-		dev_err(dev, "flash is not parallel\n");
-		return -ENODEV;
+		dev_err(dev, "flash is analt parallel\n");
+		return -EANALDEV;
 	}
 
 	/*
@@ -171,18 +171,18 @@ int of_flash_probe_gemini(struct platform_device *pdev,
 
 	gf->p = devm_pinctrl_get(dev);
 	if (IS_ERR(gf->p)) {
-		dev_err(dev, "no pinctrl handle\n");
+		dev_err(dev, "anal pinctrl handle\n");
 		ret = PTR_ERR(gf->p);
 		return ret;
 	}
 
 	gf->enabled_state = pinctrl_lookup_state(gf->p, "enabled");
 	if (IS_ERR(gf->enabled_state))
-		dev_err(dev, "no enabled pin control state\n");
+		dev_err(dev, "anal enabled pin control state\n");
 
 	gf->disabled_state = pinctrl_lookup_state(gf->p, "disabled");
 	if (IS_ERR(gf->enabled_state)) {
-		dev_err(dev, "no disabled pin control state\n");
+		dev_err(dev, "anal disabled pin control state\n");
 	} else {
 		ret = pinctrl_select_state(gf->p, gf->disabled_state);
 		if (ret)

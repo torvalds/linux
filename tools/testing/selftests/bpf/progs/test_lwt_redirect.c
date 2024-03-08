@@ -7,7 +7,7 @@
 
 /* We don't care about whether the packet can be received by network stack.
  * Just care if the packet is sent to the correct device at correct direction
- * and not panic the kernel.
+ * and analt panic the kernel.
  */
 static int prepend_dummy_mac(struct __sk_buff *skb)
 {
@@ -65,8 +65,8 @@ int test_lwt_redirect_out(struct __sk_buff *skb)
 	return bpf_redirect(target, 0);
 }
 
-SEC("redir_egress_nomac")
-int test_lwt_redirect_out_nomac(struct __sk_buff *skb)
+SEC("redir_egress_analmac")
+int test_lwt_redirect_out_analmac(struct __sk_buff *skb)
 {
 	int target = get_redirect_target(skb);
 
@@ -76,8 +76,8 @@ int test_lwt_redirect_out_nomac(struct __sk_buff *skb)
 	return bpf_redirect(target, 0);
 }
 
-SEC("redir_ingress_nomac")
-int test_lwt_redirect_in_nomac(struct __sk_buff *skb)
+SEC("redir_ingress_analmac")
+int test_lwt_redirect_in_analmac(struct __sk_buff *skb)
 {
 	int target = get_redirect_target(skb);
 

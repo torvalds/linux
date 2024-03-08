@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_IPC_H
 #define _UAPI_LINUX_IPC_H
 
@@ -22,9 +22,9 @@ struct ipc_perm
 #include <asm/ipcbuf.h>
 
 /* resource get request flags */
-#define IPC_CREAT  00001000   /* create if key is nonexistent */
+#define IPC_CREAT  00001000   /* create if key is analnexistent */
 #define IPC_EXCL   00002000   /* fail if key exists */
-#define IPC_NOWAIT 00004000   /* return error on wait */
+#define IPC_ANALWAIT 00004000   /* return error on wait */
 
 /* these fields are used by the DIPC package so the kernel as standard
    should avoid using them if possible */
@@ -45,7 +45,7 @@ struct ipc_perm
  * Version flags for semctl, msgctl, and shmctl commands
  * These are passed as bitflags or-ed with the actual command
  */
-#define IPC_OLD 0	/* Old version (no 32-bit UID support on many
+#define IPC_OLD 0	/* Old version (anal 32-bit UID support on many
 			   architectures) */
 #define IPC_64  0x0100  /* New version (support 32-bit UIDs, bigger
 			   message sizes, etc. */

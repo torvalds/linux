@@ -39,10 +39,10 @@ static int msm_snd_hw_params(struct snd_pcm_substream *substream,
 
 	ret = snd_soc_dai_get_channel_map(codec_dai,
 				&tx_ch_cnt, tx_ch, &rx_ch_cnt, rx_ch);
-	if (ret != 0 && ret != -ENOTSUPP) {
+	if (ret != 0 && ret != -EANALTSUPP) {
 		pr_err("failed to get codec chan map, err:%d\n", ret);
 		goto end;
-	} else if (ret == -ENOTSUPP) {
+	} else if (ret == -EANALTSUPP) {
 		return 0;
 	}
 
@@ -52,9 +52,9 @@ static int msm_snd_hw_params(struct snd_pcm_substream *substream,
 	else
 		ret = snd_soc_dai_set_channel_map(cpu_dai, tx_ch_cnt, tx_ch,
 						  0, NULL);
-	if (ret != 0 && ret != -ENOTSUPP)
+	if (ret != 0 && ret != -EANALTSUPP)
 		pr_err("Failed to set cpu chan map, err:%d\n", ret);
-	else if (ret == -ENOTSUPP)
+	else if (ret == -EANALTSUPP)
 		ret = 0;
 end:
 	return ret;
@@ -95,7 +95,7 @@ static void apq8096_add_be_ops(struct snd_soc_card *card)
 	int i;
 
 	for_each_card_prelinks(card, i, link) {
-		if (link->no_pcm == 1) {
+		if (link->anal_pcm == 1) {
 			link->be_hw_params_fixup = apq8096_be_hw_params_fixup;
 			link->init = apq8096_init;
 			link->ops = &apq8096_ops;
@@ -111,7 +111,7 @@ static int apq8096_platform_probe(struct platform_device *pdev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->driver_name = "apq8096";
 	card->dev = dev;

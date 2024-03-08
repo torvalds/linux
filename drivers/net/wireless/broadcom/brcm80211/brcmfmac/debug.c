@@ -23,11 +23,11 @@ int brcmf_debug_create_memdump(struct brcmf_bus *bus, const void *data,
 
 	ramsize = brcmf_bus_get_ramsize(bus);
 	if (!ramsize)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	dump = vzalloc(len + ramsize);
 	if (!dump)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (data && len > 0)
 		memcpy(dump, data, len);
@@ -50,7 +50,7 @@ struct dentry *brcmf_debugfs_get_devdir(struct brcmf_pub *drvr)
 void brcmf_debugfs_add_entry(struct brcmf_pub *drvr, const char *fn,
 			    int (*read_fn)(struct seq_file *seq, void *data))
 {
-	WARN(!drvr->wiphy->debugfsdir, "wiphy not (yet) registered\n");
+	WARN(!drvr->wiphy->debugfsdir, "wiphy analt (yet) registered\n");
 	debugfs_create_devm_seqfile(drvr->bus_if->dev, fn,
 				    drvr->wiphy->debugfsdir, read_fn);
 }

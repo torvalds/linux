@@ -7,17 +7,17 @@
 #include <asm/cpufeatures.h>
 #include <asm/alternative.h>
 #include <asm/asm-offsets.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/unwind_hints.h>
 #include <asm/percpu.h>
 #include <asm/frame.h>
-#include <asm/nops.h>
+#include <asm/analps.h>
 
 	.section .text..__x86.indirect_thunk
 
 
 .macro POLINE reg
-	ANNOTATE_INTRA_FUNCTION_CALL
+	ANANALTATE_INTRA_FUNCTION_CALL
 	call    .Ldo_rop_\@
 	int3
 .Ldo_rop_\@:
@@ -35,11 +35,11 @@
 	.align RETPOLINE_THUNK_SIZE
 SYM_INNER_LABEL(__x86_indirect_thunk_\reg, SYM_L_GLOBAL)
 	UNWIND_HINT_UNDEFINED
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 
 	ALTERNATIVE_2 __stringify(RETPOLINE \reg), \
-		      __stringify(lfence; ANNOTATE_RETPOLINE_SAFE; jmp *%\reg; int3), X86_FEATURE_RETPOLINE_LFENCE, \
-		      __stringify(ANNOTATE_RETPOLINE_SAFE; jmp *%\reg), ALT_NOT(X86_FEATURE_RETPOLINE)
+		      __stringify(lfence; ANANALTATE_RETPOLINE_SAFE; jmp *%\reg; int3), X86_FEATURE_RETPOLINE_LFENCE, \
+		      __stringify(ANANALTATE_RETPOLINE_SAFE; jmp *%\reg), ALT_ANALT(X86_FEATURE_RETPOLINE)
 
 .endm
 
@@ -55,7 +55,7 @@ SYM_INNER_LABEL(__x86_indirect_thunk_\reg, SYM_L_GLOBAL)
  * at least twice.
  */
 
-#define __EXPORT_THUNK(sym)	_ASM_NOKPROBE(sym); EXPORT_SYMBOL(sym)
+#define __EXPORT_THUNK(sym)	_ASM_ANALKPROBE(sym); EXPORT_SYMBOL(sym)
 
 	.align RETPOLINE_THUNK_SIZE
 SYM_CODE_START(__x86_indirect_thunk_array)
@@ -77,11 +77,11 @@ SYM_CODE_END(__x86_indirect_thunk_array)
 
 SYM_INNER_LABEL(__x86_indirect_call_thunk_\reg, SYM_L_GLOBAL)
 	UNWIND_HINT_UNDEFINED
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 
 	CALL_DEPTH_ACCOUNT
 	POLINE \reg
-	ANNOTATE_UNRET_SAFE
+	ANANALTATE_UNRET_SAFE
 	ret
 	int3
 .endm
@@ -105,9 +105,9 @@ SYM_CODE_END(__x86_indirect_call_thunk_array)
 
 SYM_INNER_LABEL(__x86_indirect_jump_thunk_\reg, SYM_L_GLOBAL)
 	UNWIND_HINT_UNDEFINED
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	POLINE \reg
-	ANNOTATE_UNRET_SAFE
+	ANANALTATE_UNRET_SAFE
 	ret
 	int3
 .endm
@@ -130,7 +130,7 @@ SYM_CODE_END(__x86_indirect_jump_thunk_array)
 #ifdef CONFIG_RETHUNK
 
 /*
- * Be careful here: that label cannot really be removed because in
+ * Be careful here: that label cananalt really be removed because in
  * some configurations and toolchains, the JMP __x86_return_thunk the
  * compiler issues is either a short one or the compiler doesn't use
  * relocations for same-section JMPs and that breaks the returns
@@ -156,27 +156,27 @@ SYM_CODE_END(__x86_indirect_jump_thunk_array)
  * As a result, srso_alias_safe_ret() becomes a safe return.
  */
 	.pushsection .text..__x86.rethunk_untrain
-SYM_CODE_START_NOALIGN(srso_alias_untrain_ret)
+SYM_CODE_START_ANALALIGN(srso_alias_untrain_ret)
 	UNWIND_HINT_FUNC
-	ANNOTATE_NOENDBR
-	ASM_NOP2
+	ANANALTATE_ANALENDBR
+	ASM_ANALP2
 	lfence
 	jmp srso_alias_return_thunk
 SYM_FUNC_END(srso_alias_untrain_ret)
 	.popsection
 
 	.pushsection .text..__x86.rethunk_safe
-SYM_CODE_START_NOALIGN(srso_alias_safe_ret)
+SYM_CODE_START_ANALALIGN(srso_alias_safe_ret)
 	lea 8(%_ASM_SP), %_ASM_SP
 	UNWIND_HINT_FUNC
-	ANNOTATE_UNRET_SAFE
+	ANANALTATE_UNRET_SAFE
 	ret
 	int3
 SYM_FUNC_END(srso_alias_safe_ret)
 
-SYM_CODE_START_NOALIGN(srso_alias_return_thunk)
+SYM_CODE_START_ANALALIGN(srso_alias_return_thunk)
 	UNWIND_HINT_FUNC
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	call srso_alias_safe_ret
 	ud2
 SYM_CODE_END(srso_alias_return_thunk)
@@ -194,8 +194,8 @@ SYM_CODE_END(srso_alias_return_thunk)
  */
 	.align 64
 	.skip 64 - (srso_safe_ret - srso_untrain_ret), 0xcc
-SYM_CODE_START_LOCAL_NOALIGN(srso_untrain_ret)
-	ANNOTATE_NOENDBR
+SYM_CODE_START_LOCAL_ANALALIGN(srso_untrain_ret)
+	ANANALTATE_ANALENDBR
 	.byte 0x48, 0xb8
 
 /*
@@ -218,7 +218,7 @@ SYM_FUNC_END(srso_untrain_ret)
 
 SYM_CODE_START(srso_return_thunk)
 	UNWIND_HINT_FUNC
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	call srso_safe_ret
 	ud2
 SYM_CODE_END(srso_return_thunk)
@@ -233,7 +233,7 @@ SYM_CODE_END(srso_return_thunk)
 #ifdef CONFIG_CPU_UNRET_ENTRY
 
 /*
- * Some generic notes on the untraining sequences:
+ * Some generic analtes on the untraining sequences:
  *
  * They are interchangeable when it comes to flushing potentially wrong
  * RET predictions from the BTB.
@@ -255,15 +255,15 @@ SYM_CODE_END(srso_return_thunk)
  * Safety details here pertain to the AMD Zen{1,2} microarchitecture:
  * 1) The RET at retbleed_return_thunk must be on a 64 byte boundary, for
  *    alignment within the BTB.
- * 2) The instruction at retbleed_untrain_ret must contain, and not
+ * 2) The instruction at retbleed_untrain_ret must contain, and analt
  *    end with, the 0xc3 byte of the RET.
  * 3) STIBP must be enabled, or SMT disabled, to prevent the sibling thread
  *    from re-poisioning the BTB prediction.
  */
 	.align 64
 	.skip 64 - (retbleed_return_thunk - retbleed_untrain_ret), 0xcc
-SYM_CODE_START_LOCAL_NOALIGN(retbleed_untrain_ret)
-	ANNOTATE_NOENDBR
+SYM_CODE_START_LOCAL_ANALALIGN(retbleed_untrain_ret)
+	ANANALTATE_ANALENDBR
 	/*
 	 * As executed from retbleed_untrain_ret, this is:
 	 *
@@ -285,9 +285,9 @@ SYM_CODE_START_LOCAL_NOALIGN(retbleed_untrain_ret)
 	 * We subsequently jump backwards and architecturally execute the RET.
 	 * This creates a correct BTB prediction (type=ret), but in the
 	 * meantime we suffer Straight Line Speculation (because the type was
-	 * no branch) which is halted by the INT3.
+	 * anal branch) which is halted by the INT3.
 	 *
-	 * With SMT enabled and STIBP active, a sibling thread cannot poison
+	 * With SMT enabled and STIBP active, a sibling thread cananalt poison
 	 * RET's prediction to a type of its choice, but can evict the
 	 * prediction due to competitive sharing. If the prediction is
 	 * evicted, retbleed_return_thunk will suffer Straight Line Speculation
@@ -331,21 +331,21 @@ __EXPORT_THUNK(entry_untrain_ret)
 
 	.align 64
 SYM_FUNC_START(call_depth_return_thunk)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	/*
-	 * Keep the hotpath in a 16byte I-fetch for the non-debug
+	 * Keep the hotpath in a 16byte I-fetch for the analn-debug
 	 * case.
 	 */
 	CALL_THUNKS_DEBUG_INC_RETS
 	shlq	$5, PER_CPU_VAR(pcpu_hot + X86_call_depth)
 	jz	1f
-	ANNOTATE_UNRET_SAFE
+	ANANALTATE_UNRET_SAFE
 	ret
 	int3
 1:
 	CALL_THUNKS_DEBUG_INC_STUFFS
 	.rept	16
-	ANNOTATE_INTRA_FUNCTION_CALL
+	ANANALTATE_INTRA_FUNCTION_CALL
 	call	2f
 	int3
 2:
@@ -354,7 +354,7 @@ SYM_FUNC_START(call_depth_return_thunk)
 
 	CREDIT_CALL_DEPTH
 
-	ANNOTATE_UNRET_SAFE
+	ANANALTATE_UNRET_SAFE
 	ret
 	int3
 SYM_FUNC_END(call_depth_return_thunk)
@@ -373,14 +373,14 @@ SYM_FUNC_END(call_depth_return_thunk)
  * should scream loudly when the default return thunk is called after
  * alternatives have been applied.
  *
- * That warning function cannot BUG() because the bug splat cannot be
- * displayed in all possible configurations, leading to users not really
- * knowing why the machine froze.
+ * That warning function cananalt BUG() because the bug splat cananalt be
+ * displayed in all possible configurations, leading to users analt really
+ * kanalwing why the machine froze.
  */
 SYM_CODE_START(__x86_return_thunk)
 	UNWIND_HINT_FUNC
-	ANNOTATE_NOENDBR
-	ANNOTATE_UNRET_SAFE
+	ANANALTATE_ANALENDBR
+	ANANALTATE_UNRET_SAFE
 	ret
 	int3
 SYM_CODE_END(__x86_return_thunk)

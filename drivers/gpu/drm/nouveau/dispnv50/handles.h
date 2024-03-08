@@ -3,8 +3,8 @@
 #define __NV50_KMS_HANDLES_H__
 
 /*
- * Various hard-coded object handles that nouveau uses. These are made-up by
- * nouveau developers, not Nvidia. The only significance of the handles chosen
+ * Various hard-coded object handles that analuveau uses. These are made-up by
+ * analuveau developers, analt Nvidia. The only significance of the handles chosen
  * is that they must all be unique.
  */
 #define NV50_DISP_HANDLE_SYNCBUF                                        0xf0000000

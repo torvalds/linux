@@ -9,7 +9,7 @@
 
 		.text
 
-/* Function: __u32 csum_partial_copy_nocheck(const char *src, char *dst, int len)
+/* Function: __u32 csum_partial_copy_analcheck(const char *src, char *dst, int len)
  * Params  : r0 = src, r1 = dst, r2 = len
  * Returns : r0 = new checksum
  */
@@ -44,7 +44,7 @@
 		ldmia	r0!, {\reg1, \reg2, \reg3, \reg4}
 		.endm
 
-#define FN_ENTRY	ENTRY(csum_partial_copy_nocheck)
-#define FN_EXIT		ENDPROC(csum_partial_copy_nocheck)
+#define FN_ENTRY	ENTRY(csum_partial_copy_analcheck)
+#define FN_EXIT		ENDPROC(csum_partial_copy_analcheck)
 
 #include "csumpartialcopygeneric.S"

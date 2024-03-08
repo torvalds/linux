@@ -7,7 +7,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/crash_dump.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -31,20 +31,20 @@ int optee_pool_op_alloc_helper(struct tee_shm_pool *pool, struct tee_shm *shm,
 	int rc = 0;
 
 	/*
-	 * Ignore alignment since this is already going to be page aligned
-	 * and there's no need for any larger alignment.
+	 * Iganalre alignment since this is already going to be page aligned
+	 * and there's anal need for any larger alignment.
 	 */
 	shm->kaddr = alloc_pages_exact(nr_pages * PAGE_SIZE,
 				       GFP_KERNEL | __GFP_ZERO);
 	if (!shm->kaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	shm->paddr = virt_to_phys(shm->kaddr);
 	shm->size = nr_pages * PAGE_SIZE;
 
 	pages = kcalloc(nr_pages, sizeof(*pages), GFP_KERNEL);
 	if (!pages) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -93,7 +93,7 @@ int optee_open(struct tee_context *ctx, bool cap_memref_null)
 
 	ctxdata = kzalloc(sizeof(*ctxdata), GFP_KERNEL);
 	if (!ctxdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (teedev == optee->supp_teedev) {
 		bool busy = true;
@@ -136,8 +136,8 @@ static void optee_release_helper(struct tee_context *ctx,
 		return;
 
 	list_for_each_entry_safe(sess, sess_tmp, &ctxdata->sess_list,
-				 list_node) {
-		list_del(&sess->list_node);
+				 list_analde) {
+		list_del(&sess->list_analde);
 		close_session(ctx, sess->session_id, sess->use_sys_thread);
 		kfree(sess);
 	}
@@ -164,7 +164,7 @@ void optee_remove_common(struct optee *optee)
 	/* Unregister OP-TEE specific client devices on TEE bus */
 	optee_unregister_devices();
 
-	optee_notif_uninit(optee);
+	optee_analtif_uninit(optee);
 	optee_shm_arg_cache_uninit(optee);
 	teedev_close_context(optee->ctx);
 	/*
@@ -186,18 +186,18 @@ static int __init optee_core_init(void)
 {
 	/*
 	 * The kernel may have crashed at the same time that all available
-	 * secure world threads were suspended and we cannot reschedule the
+	 * secure world threads were suspended and we cananalt reschedule the
 	 * suspended threads without access to the crashed kernel's wait_queue.
-	 * Therefore, we cannot reliably initialize the OP-TEE driver in the
+	 * Therefore, we cananalt reliably initialize the OP-TEE driver in the
 	 * kdump kernel.
 	 */
 	if (is_kdump_kernel())
-		return -ENODEV;
+		return -EANALDEV;
 
 	smc_abi_rc = optee_smc_abi_register();
 	ffa_abi_rc = optee_ffa_abi_register();
 
-	/* If both failed there's no point with this module */
+	/* If both failed there's anal point with this module */
 	if (smc_abi_rc && ffa_abi_rc)
 		return smc_abi_rc;
 	return 0;

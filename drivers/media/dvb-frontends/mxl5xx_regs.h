@@ -44,7 +44,7 @@
 
 #define FW_DL_SIGN_ADDR                     0x3FFFEAE0
 
-/* Register to check if FW is running or not */
+/* Register to check if FW is running or analt */
 #define HYDRA_HEAR_BEAT                     0x3FFFEDDC
 
 /* Firmware version */
@@ -133,8 +133,8 @@
 #define HYDRA_TUNER_SPECTRUM_ADDRESS_OFFSET               0x3FFFCE5C
 #define HYDRA_TUNER_ENABLE_COMPLETE                       0x3FFFEB78
 
-#define HYDRA_DEMOD_STATUS_LOCK(devId, demodId)   write_register(devId, (HYDRA_DMD_STATUS_LOCK_ADDR_OFFSET + HYDRA_DMD_STATUS_OFFSET(demodId)), MXL_YES)
-#define HYDRA_DEMOD_STATUS_UNLOCK(devId, demodId) write_register(devId, (HYDRA_DMD_STATUS_LOCK_ADDR_OFFSET + HYDRA_DMD_STATUS_OFFSET(demodId)), MXL_NO)
+#define HYDRA_DEMOD_STATUS_LOCK(devId, demodId)   write_register(devId, (HYDRA_DMD_STATUS_LOCK_ADDR_OFFSET + HYDRA_DMD_STATUS_OFFSET(demodId)), MXL_ANAL)
+#define HYDRA_DEMOD_STATUS_UNLOCK(devId, demodId) write_register(devId, (HYDRA_DMD_STATUS_LOCK_ADDR_OFFSET + HYDRA_DMD_STATUS_OFFSET(demodId)), MXL_ANAL)
 
 #define HYDRA_VERSION                                     0x3FFFEDB8
 #define HYDRA_DEMOD0_VERSION                              0x3FFFEDBC
@@ -211,13 +211,13 @@
 
 #define   XPT_PID_REMAP_BASEADDR                                 0x90708004
 
-#define   XPT_KNOWN_PID_BASEADDR                                 0x90709000
+#define   XPT_KANALWN_PID_BASEADDR                                 0x90709000
 
 #define   XPT_PID_BASEADDR1                                      0x9070A000
 
 #define   XPT_PID_REMAP_BASEADDR1                                0x9070A004
 
-#define   XPT_KNOWN_PID_BASEADDR1                                0x9070B000
+#define   XPT_KANALWN_PID_BASEADDR1                                0x9070B000
 
 #define   XPT_BERT_LOCK_BASEADDR                                 0x907000B8
 

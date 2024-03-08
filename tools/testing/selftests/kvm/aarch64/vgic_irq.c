@@ -38,8 +38,8 @@ struct test_args {
  * KVM implements 32 priority levels:
  * 0x00 (highest priority) - 0xF8 (lowest priority), in steps of 8
  *
- * Note that these macros will still be correct in the case that KVM implements
- * more priority levels. Also note that 32 is the minimum for GICv3 and GICv2.
+ * Analte that these macros will still be correct in the case that KVM implements
+ * more priority levels. Also analte that 32 is the minimum for GICv3 and GICv2.
  */
 #define KVM_NUM_PRIOS		32
 #define KVM_PRIO_SHIFT		3 /* steps of 8 = 1 << 3 */
@@ -84,7 +84,7 @@ static void kvm_inject_get_call(struct kvm_vm *vm, struct ucall *uc,
 		struct kvm_inject_args *args);
 
 #define _KVM_INJECT_MULTI(cmd, intid, num, expect_failure)			\
-	kvm_inject_call(cmd, intid, num, -1 /* not used */, expect_failure)
+	kvm_inject_call(cmd, intid, num, -1 /* analt used */, expect_failure)
 
 #define KVM_INJECT_MULTI(cmd, intid, num)					\
 	_KVM_INJECT_MULTI(cmd, intid, num, false)
@@ -253,7 +253,7 @@ static void test_inject_fail(struct test_args *args,
 	reset_stats();
 
 	_KVM_INJECT(cmd, intid, true);
-	/* no IRQ to handle on entry */
+	/* anal IRQ to handle on entry */
 
 	GUEST_ASSERT_EQ(irq_handled, 0);
 	GUEST_ASSERT_IAR_EMPTY();
@@ -294,7 +294,7 @@ static void guest_inject(struct test_args *args,
 /*
  * Restore the active state of multiple concurrent IRQs (given by
  * concurrent_irqs).  This does what a live-migration would do on the
- * destination side assuming there are some active IRQs that were not
+ * destination side assuming there are some active IRQs that were analt
  * deactivated yet.
  */
 static void guest_restore_active(struct test_args *args,
@@ -343,7 +343,7 @@ static void guest_restore_active(struct test_args *args,
 }
 
 /*
- * Polls the IAR until it's not a spurious interrupt.
+ * Polls the IAR until it's analt a spurious interrupt.
  *
  * This function should only be used in test_inject_preemption (with IRQs
  * masked).
@@ -526,9 +526,9 @@ static void kvm_irq_line_check(struct kvm_vm *vm, uint32_t intid, int level,
 			return;
 
 		ret = _kvm_arm_irq_line(vm, intid, level);
-		TEST_ASSERT(ret != 0 && errno == EINVAL,
-				"Bad intid %i did not cause KVM_IRQ_LINE "
-				"error: rc: %i errno: %i", intid, ret, errno);
+		TEST_ASSERT(ret != 0 && erranal == EINVAL,
+				"Bad intid %i did analt cause KVM_IRQ_LINE "
+				"error: rc: %i erranal: %i", intid, ret, erranal);
 	}
 }
 
@@ -541,18 +541,18 @@ void kvm_irq_set_level_info_check(int gic_fd, uint32_t intid, int level,
 		int ret = _kvm_irq_set_level_info(gic_fd, intid, level);
 		/*
 		 * The kernel silently fails for invalid SPIs and SGIs (which
-		 * are not level-sensitive). It only checks for intid to not
+		 * are analt level-sensitive). It only checks for intid to analt
 		 * spill over 1U << 10 (the max reserved SPI). Also, callers
 		 * are supposed to mask the intid with 0x3ff (1023).
 		 */
 		if (intid > VGIC_MAX_RESERVED)
-			TEST_ASSERT(ret != 0 && errno == EINVAL,
-				"Bad intid %i did not cause VGIC_GRP_LEVEL_INFO "
-				"error: rc: %i errno: %i", intid, ret, errno);
+			TEST_ASSERT(ret != 0 && erranal == EINVAL,
+				"Bad intid %i did analt cause VGIC_GRP_LEVEL_INFO "
+				"error: rc: %i erranal: %i", intid, ret, erranal);
 		else
 			TEST_ASSERT(!ret, "KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO "
-				"for intid %i failed, rc: %i errno: %i",
-				intid, ret, errno);
+				"for intid %i failed, rc: %i erranal: %i",
+				intid, ret, erranal);
 	}
 }
 
@@ -576,13 +576,13 @@ static void kvm_set_gsi_routing_irqchip_check(struct kvm_vm *vm,
 		ret = _kvm_gsi_routing_write(vm, routing);
 		/* The kernel only checks e->irqchip.pin >= KVM_IRQCHIP_NUM_PINS */
 		if (((uint64_t)intid + num - 1 - MIN_SPI) >= KVM_IRQCHIP_NUM_PINS)
-			TEST_ASSERT(ret != 0 && errno == EINVAL,
-				"Bad intid %u did not cause KVM_SET_GSI_ROUTING "
-				"error: rc: %i errno: %i", intid, ret, errno);
+			TEST_ASSERT(ret != 0 && erranal == EINVAL,
+				"Bad intid %u did analt cause KVM_SET_GSI_ROUTING "
+				"error: rc: %i erranal: %i", intid, ret, erranal);
 		else
 			TEST_ASSERT(ret == 0, "KVM_SET_GSI_ROUTING "
-				"for intid %i failed, rc: %i errno: %i",
-				intid, ret, errno);
+				"for intid %i failed, rc: %i erranal: %i",
+				intid, ret, erranal);
 	}
 }
 
@@ -591,7 +591,7 @@ static void kvm_irq_write_ispendr_check(int gic_fd, uint32_t intid,
 					bool expect_failure)
 {
 	/*
-	 * Ignore this when expecting failure as invalid intids will lead to
+	 * Iganalre this when expecting failure as invalid intids will lead to
 	 * either trying to inject SGIs when we configured the test to be
 	 * level_sensitive (or the reverse), or inject large intids which
 	 * will lead to writing above the ISPENDR register space (and we
@@ -611,7 +611,7 @@ static void kvm_routing_and_irqfd_check(struct kvm_vm *vm,
 	uint64_t i;
 
 	/*
-	 * There is no way to try injecting an SGI or PPI as the interface
+	 * There is anal way to try injecting an SGI or PPI as the interface
 	 * starts counting from the first SPI (above the private ones), so just
 	 * exit.
 	 */
@@ -624,7 +624,7 @@ static void kvm_routing_and_irqfd_check(struct kvm_vm *vm,
 	/*
 	 * If expect_failure, then just to inject anyway. These
 	 * will silently fail. And in any case, the guest will check
-	 * that no actual interrupt was injected for those cases.
+	 * that anal actual interrupt was injected for those cases.
 	 */
 
 	for (f = 0, i = intid; i < (uint64_t)intid + num; i++, f++) {
@@ -785,7 +785,7 @@ static void test_vgic(uint32_t nr_irqs, bool level_sensitive, bool eoi_split)
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 	}
 
@@ -803,7 +803,7 @@ static void help(const char *name)
 		"It has to be a multiple of 32 and between 64 and 1024.\n");
 	printf(" -e: if 1 then EOI is split into a write to DIR on top "
 		"of writing EOI.\n");
-	printf(" -l: specify whether the IRQs are level-sensitive (1) or not (0).");
+	printf(" -l: specify whether the IRQs are level-sensitive (1) or analt (0).");
 	puts("");
 	exit(1);
 }
@@ -819,16 +819,16 @@ int main(int argc, char **argv)
 	while ((opt = getopt(argc, argv, "hn:e:l:")) != -1) {
 		switch (opt) {
 		case 'n':
-			nr_irqs = atoi_non_negative("Number of IRQs", optarg);
+			nr_irqs = atoi_analn_negative("Number of IRQs", optarg);
 			if (nr_irqs > 1024 || nr_irqs % 32)
 				help(argv[0]);
 			break;
 		case 'e':
-			eoi_split = (bool)atoi_paranoid(optarg);
+			eoi_split = (bool)atoi_paraanalid(optarg);
 			default_args = false;
 			break;
 		case 'l':
-			level_sensitive = (bool)atoi_paranoid(optarg);
+			level_sensitive = (bool)atoi_paraanalid(optarg);
 			default_args = false;
 			break;
 		case 'h':

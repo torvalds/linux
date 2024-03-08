@@ -374,7 +374,7 @@ static inline void _tlbiel_pid_multicast(struct mm_struct *mm,
 	on_each_cpu_mask(cpus, do_tlbiel_pid, &t, 1);
 	/*
 	 * Always want the CPU translations to be invalidated with tlbiel in
-	 * these paths, so while coprocessors must use tlbie, we can not
+	 * these paths, so while coprocessors must use tlbie, we can analt
 	 * optimise away the tlbiel component.
 	 */
 	if (atomic_read(&mm->context.copros) > 0)
@@ -583,7 +583,7 @@ void radix__local_flush_tlb_mm(struct mm_struct *mm)
 {
 	unsigned long pid = mm->context.id;
 
-	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_ANAL_CONTEXT))
 		return;
 
 	preempt_disable();
@@ -597,7 +597,7 @@ void radix__local_flush_all_mm(struct mm_struct *mm)
 {
 	unsigned long pid = mm->context.id;
 
-	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_ANAL_CONTEXT))
 		return;
 
 	preempt_disable();
@@ -617,7 +617,7 @@ void radix__local_flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmadd
 {
 	unsigned long pid = mm->context.id;
 
-	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_ANAL_CONTEXT))
 		return;
 
 	preempt_disable();
@@ -628,7 +628,7 @@ void radix__local_flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmadd
 void radix__local_flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 {
 #ifdef CONFIG_HUGETLB_PAGE
-	/* need the return fix for nohash.c */
+	/* need the return fix for analhash.c */
 	if (is_vm_hugetlb_page(vma))
 		return radix__local_flush_hugetlb_page(vma, vmaddr);
 #endif
@@ -640,14 +640,14 @@ static bool mm_needs_flush_escalation(struct mm_struct *mm)
 {
 	/*
 	 * The P9 nest MMU has issues with the page walk cache caching PTEs
-	 * and not flushing them when RIC = 0 for a PID/LPID invalidate.
+	 * and analt flushing them when RIC = 0 for a PID/LPID invalidate.
 	 *
 	 * This may have been fixed in shipping firmware (by disabling PWC
 	 * or preventing it from caching PTEs), but until that is confirmed,
 	 * this workaround is required - escalate all RIC=0 IS=1/2/3 flushes
 	 * to RIC=2.
 	 *
-	 * POWER10 (and P9P) does not have this problem.
+	 * POWER10 (and P9P) does analt have this problem.
 	 */
 	if (cpu_has_feature(CPU_FTR_ARCH_31))
 		return false;
@@ -666,7 +666,7 @@ void exit_lazy_flush_tlb(struct mm_struct *mm, bool always_flush)
 	int cpu = smp_processor_id();
 
 	/*
-	 * A kthread could have done a mmget_not_zero() after the flushing CPU
+	 * A kthread could have done a mmget_analt_zero() after the flushing CPU
 	 * checked mm_cpumask, and be in the process of kthread_use_mm when
 	 * interrupted here. In that case, current->mm will be set to mm,
 	 * because kthread_use_mm() setting ->mm and switching to the mm is
@@ -681,7 +681,7 @@ void exit_lazy_flush_tlb(struct mm_struct *mm, bool always_flush)
 		WARN_ON_ONCE(current->mm != NULL);
 		/*
 		 * It is a kernel thread and is using mm as the lazy tlb, so
-		 * switch it to init_mm. This is not always called from IPI
+		 * switch it to init_mm. This is analt always called from IPI
 		 * (e.g., flush_type_needed), so must disable irqs.
 		 */
 		local_irq_save(flags);
@@ -693,11 +693,11 @@ void exit_lazy_flush_tlb(struct mm_struct *mm, bool always_flush)
 	}
 
 	/*
-	 * This IPI may be initiated from any source including those not
+	 * This IPI may be initiated from any source including those analt
 	 * running the mm, so there may be a racing IPI that comes after
 	 * this one which finds the cpumask already clear. Check and avoid
 	 * underflowing the active_cpus count in that case. The race should
-	 * not otherwise be a problem, but the TLB must be flushed because
+	 * analt otherwise be a problem, but the TLB must be flushed because
 	 * that's what the caller expects.
 	 */
 	if (cpumask_test_cpu(cpu, mm_cpumask(mm))) {
@@ -722,10 +722,10 @@ static void exit_flush_lazy_tlbs(struct mm_struct *mm)
 {
 	/*
 	 * Would be nice if this was async so it could be run in
-	 * parallel with our local flush, but generic code does not
+	 * parallel with our local flush, but generic code does analt
 	 * give a good API for it. Could extend the generic code or
 	 * make a special powerpc IPI for flushing TLBs.
-	 * For now it's not too performance critical.
+	 * For analw it's analt too performance critical.
 	 */
 	smp_call_function_many(mm_cpumask(mm), do_exit_flush_lazy_tlb,
 				(void *)mm, 1);
@@ -739,9 +739,9 @@ static DEFINE_PER_CPU(unsigned int, mm_cpumask_trim_clock);
 
 /*
  * Interval between flushes at which we send out IPIs to check whether the
- * mm_cpumask can be trimmed for the case where it's not a single-threaded
+ * mm_cpumask can be trimmed for the case where it's analt a single-threaded
  * process flushing its own mm. The intent is to reduce the cost of later
- * flushes. Don't want this to be so low that it adds noticable cost to TLB
+ * flushes. Don't want this to be so low that it adds analticable cost to TLB
  * flushing, or so high that it doesn't help reduce global TLBIEs.
  */
 static unsigned long tlb_mm_cpumask_trim_timer = 1073;
@@ -757,7 +757,7 @@ static bool tick_and_test_trim_clock(void)
 }
 
 enum tlb_flush_type {
-	FLUSH_TYPE_NONE,
+	FLUSH_TYPE_ANALNE,
 	FLUSH_TYPE_LOCAL,
 	FLUSH_TYPE_GLOBAL,
 };
@@ -768,17 +768,17 @@ static enum tlb_flush_type flush_type_needed(struct mm_struct *mm, bool fullmm)
 	int cpu = smp_processor_id();
 
 	if (active_cpus == 0)
-		return FLUSH_TYPE_NONE;
+		return FLUSH_TYPE_ANALNE;
 	if (active_cpus == 1 && cpumask_test_cpu(cpu, mm_cpumask(mm))) {
 		if (current->mm != mm) {
 			/*
-			 * Asynchronous flush sources may trim down to nothing
-			 * if the process is not running, so occasionally try
+			 * Asynchroanalus flush sources may trim down to analthing
+			 * if the process is analt running, so occasionally try
 			 * to trim.
 			 */
 			if (tick_and_test_trim_clock()) {
 				exit_lazy_flush_tlb(mm, true);
-				return FLUSH_TYPE_NONE;
+				return FLUSH_TYPE_ANALNE;
 			}
 		}
 		return FLUSH_TYPE_LOCAL;
@@ -789,7 +789,7 @@ static enum tlb_flush_type flush_type_needed(struct mm_struct *mm, bool fullmm)
 		return FLUSH_TYPE_GLOBAL;
 
 	/*
-	 * In the fullmm case there's no point doing the exit_flush_lazy_tlbs
+	 * In the fullmm case there's anal point doing the exit_flush_lazy_tlbs
 	 * because the mm is being taken down anyway, and a TLBIE tends to
 	 * be faster than an IPI+TLBIEL.
 	 */
@@ -816,7 +816,7 @@ static enum tlb_flush_type flush_type_needed(struct mm_struct *mm, bool fullmm)
 
 	/*
 	 * Occasionally try to trim down the cpumask. It's possible this can
-	 * bring the mask to zero, which results in no flush.
+	 * bring the mask to zero, which results in anal flush.
 	 */
 	if (tick_and_test_trim_clock()) {
 		exit_flush_lazy_tlbs(mm);
@@ -824,7 +824,7 @@ static enum tlb_flush_type flush_type_needed(struct mm_struct *mm, bool fullmm)
 			return FLUSH_TYPE_LOCAL;
 		if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
 			exit_lazy_flush_tlb(mm, true);
-		return FLUSH_TYPE_NONE;
+		return FLUSH_TYPE_ANALNE;
 	}
 
 	return FLUSH_TYPE_GLOBAL;
@@ -837,7 +837,7 @@ void radix__flush_tlb_mm(struct mm_struct *mm)
 	enum tlb_flush_type type;
 
 	pid = mm->context.id;
-	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_ANAL_CONTEXT))
 		return;
 
 	preempt_disable();
@@ -868,7 +868,7 @@ void radix__flush_tlb_mm(struct mm_struct *mm)
 		}
 	}
 	preempt_enable();
-	mmu_notifier_arch_invalidate_secondary_tlbs(mm, 0, -1UL);
+	mmu_analtifier_arch_invalidate_secondary_tlbs(mm, 0, -1UL);
 }
 EXPORT_SYMBOL(radix__flush_tlb_mm);
 
@@ -878,7 +878,7 @@ static void __flush_all_mm(struct mm_struct *mm, bool fullmm)
 	enum tlb_flush_type type;
 
 	pid = mm->context.id;
-	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_ANAL_CONTEXT))
 		return;
 
 	preempt_disable();
@@ -902,7 +902,7 @@ static void __flush_all_mm(struct mm_struct *mm, bool fullmm)
 			_tlbiel_pid_multicast(mm, pid, RIC_FLUSH_ALL);
 	}
 	preempt_enable();
-	mmu_notifier_arch_invalidate_secondary_tlbs(mm, 0, -1UL);
+	mmu_analtifier_arch_invalidate_secondary_tlbs(mm, 0, -1UL);
 }
 
 void radix__flush_all_mm(struct mm_struct *mm)
@@ -918,7 +918,7 @@ void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 	enum tlb_flush_type type;
 
 	pid = mm->context.id;
-	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_ANAL_CONTEXT))
 		return;
 
 	preempt_disable();
@@ -1008,7 +1008,7 @@ EXPORT_SYMBOL(radix__flush_tlb_kernel_range);
  * flush individual pages, for local and global flushes respectively.
  *
  * tlbie goes out to the interconnect and individual ops are more costly.
- * It also does not iterate over sets like the local tlbiel variant when
+ * It also does analt iterate over sets like the local tlbiel variant when
  * invalidating a full PID, so it has a far lower threshold to change from
  * individual page flushes to full-pid flushes.
  */
@@ -1026,7 +1026,7 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 	enum tlb_flush_type type;
 
 	pid = mm->context.id;
-	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_ANAL_CONTEXT))
 		return;
 
 	WARN_ON_ONCE(end == TLB_FLUSH_ALL);
@@ -1034,7 +1034,7 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 	preempt_disable();
 	smp_mb(); /* see radix__flush_tlb_mm */
 	type = flush_type_needed(mm, false);
-	if (type == FLUSH_TYPE_NONE)
+	if (type == FLUSH_TYPE_ANALNE)
 		goto out;
 
 	if (type == FLUSH_TYPE_GLOBAL)
@@ -1042,7 +1042,7 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 	else
 		flush_pid = nr_pages > tlb_local_single_page_flush_ceiling;
 	/*
-	 * full pid flush already does the PWC flush. if it is not full pid
+	 * full pid flush already does the PWC flush. if it is analt full pid
 	 * flush check the range is more than PMD and force a pwc flush
 	 * mremap() depends on this behaviour.
 	 */
@@ -1063,7 +1063,7 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 		pseries_rpt_invalidate(pid, tgt, type, pg_sizes, start, end);
 	} else if (flush_pid) {
 		/*
-		 * We are now flushing a range larger than PMD size force a RIC_FLUSH_ALL
+		 * We are analw flushing a range larger than PMD size force a RIC_FLUSH_ALL
 		 */
 		if (type == FLUSH_TYPE_LOCAL) {
 			_tlbiel_pid(pid, RIC_FLUSH_ALL);
@@ -1111,7 +1111,7 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
 	}
 out:
 	preempt_enable();
-	mmu_notifier_arch_invalidate_secondary_tlbs(mm, start, end);
+	mmu_analtifier_arch_invalidate_secondary_tlbs(mm, start, end);
 }
 
 void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
@@ -1190,7 +1190,7 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 	unsigned long end = tlb->end;
 
 	/*
-	 * if page size is not something we understand, do a full mm flush
+	 * if page size is analt something we understand, do a full mm flush
 	 *
 	 * A "fullmm" flush must always do a flush_all_mm (RIC=2) flush
 	 * that flushes the process table entry cache upon process teardown.
@@ -1202,7 +1202,7 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 			 * Shootdown based lazy tlb mm refcounting means we
 			 * have to IPI everyone in the mm_cpumask anyway soon
 			 * when the mm goes away, so might as well do it as
-			 * part of the final flush now.
+			 * part of the final flush analw.
 			 *
 			 * If lazy shootdown was improved to reduce IPIs (e.g.,
 			 * by batching), then it may end up being better to use
@@ -1244,7 +1244,7 @@ static void __radix__flush_tlb_range_psize(struct mm_struct *mm,
 	enum tlb_flush_type type;
 
 	pid = mm->context.id;
-	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_ANAL_CONTEXT))
 		return;
 
 	WARN_ON_ONCE(end == TLB_FLUSH_ALL);
@@ -1252,7 +1252,7 @@ static void __radix__flush_tlb_range_psize(struct mm_struct *mm,
 	preempt_disable();
 	smp_mb(); /* see radix__flush_tlb_mm */
 	type = flush_type_needed(mm, false);
-	if (type == FLUSH_TYPE_NONE)
+	if (type == FLUSH_TYPE_ANALNE)
 		goto out;
 
 	if (type == FLUSH_TYPE_GLOBAL)
@@ -1297,7 +1297,7 @@ static void __radix__flush_tlb_range_psize(struct mm_struct *mm,
 	}
 out:
 	preempt_enable();
-	mmu_notifier_arch_invalidate_secondary_tlbs(mm, start, end);
+	mmu_analtifier_arch_invalidate_secondary_tlbs(mm, start, end);
 }
 
 void radix__flush_tlb_range_psize(struct mm_struct *mm, unsigned long start,
@@ -1319,7 +1319,7 @@ void radix__flush_tlb_collapsed_pmd(struct mm_struct *mm, unsigned long addr)
 	enum tlb_flush_type type;
 
 	pid = mm->context.id;
-	if (WARN_ON_ONCE(pid == MMU_NO_CONTEXT))
+	if (WARN_ON_ONCE(pid == MMU_ANAL_CONTEXT))
 		return;
 
 	/* 4k page size, just blow the world */
@@ -1386,12 +1386,12 @@ void radix__flush_tlb_all(void)
 
 	asm volatile("ptesync": : :"memory");
 	/*
-	 * now flush guest entries by passing PRS = 1 and LPID != 0
+	 * analw flush guest entries by passing PRS = 1 and LPID != 0
 	 */
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(1), "i"(ric), "r"(rs) : "memory");
 	/*
-	 * now flush host entires by passing PRS = 0 and LPID == 0
+	 * analw flush host entires by passing PRS = 0 and LPID == 0
 	 */
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(0) : "memory");
@@ -1561,7 +1561,7 @@ void do_h_rpt_invalidate_prt(unsigned long pid, unsigned long lpid,
 		 * If the number of pages spanning the range is above
 		 * the ceiling, convert the request into a full PID flush.
 		 * And since PID flush takes out all the page sizes, there
-		 * is no need to consider remaining page sizes.
+		 * is anal need to consider remaining page sizes.
 		 */
 		if (flush_pid) {
 			_tlbie_pid_lpid(pid, lpid, RIC_FLUSH_TLB);

@@ -50,7 +50,7 @@ static irqreturn_t pipe_interrupt(int irq, void *data)
 	fd = os_rcv_fd(conn->socket[0], &conn->helper_pid);
 	if (fd < 0) {
 		if (fd == -EAGAIN)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 		printk(KERN_ERR "pipe_interrupt : os_rcv_fd returned %d\n",
 		       -fd);
@@ -66,9 +66,9 @@ static irqreturn_t pipe_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-#define NO_WAITER_MSG \
+#define ANAL_WAITER_MSG \
     "****\n" \
-    "There are currently no UML consoles waiting for port connections.\n" \
+    "There are currently anal UML consoles waiting for port connections.\n" \
     "Either disconnect from one to make it available or activate some more\n" \
     "by enabling more consoles in the UML /etc/inittab.\n" \
     "****\n"
@@ -107,8 +107,8 @@ static int port_accept(struct port_list *port)
 	}
 
 	if (atomic_read(&port->wait_count) == 0) {
-		os_write_file(fd, NO_WAITER_MSG, sizeof(NO_WAITER_MSG));
-		printk(KERN_ERR "No one waiting for port\n");
+		os_write_file(fd, ANAL_WAITER_MSG, sizeof(ANAL_WAITER_MSG));
+		printk(KERN_ERR "Anal one waiting for port\n");
 	}
 	list_add(&conn->list, &port->pending);
 	return 1;
@@ -176,7 +176,7 @@ void *port_data(int port_num)
 
 	fd = port_listen_fd(port_num);
 	if (fd < 0) {
-		printk(KERN_ERR "binding to port %d failed, errno = %d\n",
+		printk(KERN_ERR "binding to port %d failed, erranal = %d\n",
 		       port_num, -fd);
 		goto out_free;
 	}

@@ -10,7 +10,7 @@
 
 struct compat_sigcontext {
 	/* We always set these two fields to 0 */
-	compat_ulong_t			trap_no;
+	compat_ulong_t			trap_anal;
 	compat_ulong_t			error_code;
 
 	compat_ulong_t			oldmask;
@@ -65,13 +65,13 @@ void compat_setup_restart_syscall(struct pt_regs *regs);
 static inline int compat_setup_frame(int usid, struct ksignal *ksig,
 				     sigset_t *set, struct pt_regs *regs)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int compat_setup_rt_frame(int usig, struct ksignal *ksig, sigset_t *set,
 					struct pt_regs *regs)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline void compat_setup_restart_syscall(struct pt_regs *regs)

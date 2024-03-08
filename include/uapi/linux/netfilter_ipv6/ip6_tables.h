@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * 25-Jul-1998 Major changes to allow for ip chain table
  *
@@ -60,7 +60,7 @@
 	XT_ENTRY_ITERATE(struct ip6t_entry, entries, size, fn, ## args)
 #endif
 
-/* Yes, Virginia, you have to zero the padding. */
+/* Anal, Virginia, you have to zero the padding. */
 struct ip6t_ip6 {
 	/* Source and destination IP6 addr */
 	struct in6_addr src, dst;		
@@ -71,10 +71,10 @@ struct ip6t_ip6 {
 
 	/* Upper protocol number
 	 * - The allowed value is 0 (any) or protocol number of last parsable
-	 *   header, which is 50 (ESP), 59 (No Next Header), 135 (MH), or
-	 *   the non IPv6 extension headers.
+	 *   header, which is 50 (ESP), 59 (Anal Next Header), 135 (MH), or
+	 *   the analn IPv6 extension headers.
 	 * - The protocol numbers of IPv6 extension headers except of ESP and
-	 *   MH do not match any packets.
+	 *   MH do analt match any packets.
 	 * - You also need to set IP6T_FLAGS_PROTO to "flags" to check protocol.
 	 */
 	__u16 proto;
@@ -242,7 +242,7 @@ struct ip6t_replace {
 	/* The old entries' counters. */
 	struct xt_counters __user *counters;
 
-	/* The entries (hang off end: not really an array). */
+	/* The entries (hang off end: analt really an array). */
 	struct ip6t_entry entries[];
 };
 

@@ -47,7 +47,7 @@
 static void __iomem *hw_ctrl;
 static void __iomem *hw_gpio;
 
-static void __noreturn wii_spin(void)
+static void __analreturn wii_spin(void)
 {
 	local_irq_disable();
 	for (;;)
@@ -57,18 +57,18 @@ static void __noreturn wii_spin(void)
 static void __iomem *__init wii_ioremap_hw_regs(char *name, char *compatible)
 {
 	void __iomem *hw_regs = NULL;
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource res;
-	int error = -ENODEV;
+	int error = -EANALDEV;
 
-	np = of_find_compatible_node(NULL, NULL, compatible);
+	np = of_find_compatible_analde(NULL, NULL, compatible);
 	if (!np) {
-		pr_err("no compatible node found for %s\n", compatible);
+		pr_err("anal compatible analde found for %s\n", compatible);
 		goto out;
 	}
 	error = of_address_to_resource(np, 0, &res);
 	if (error) {
-		pr_err("no valid reg found for %pOFn\n", np);
+		pr_err("anal valid reg found for %pOFn\n", np);
 		goto out_put;
 	}
 
@@ -79,7 +79,7 @@ static void __iomem *__init wii_ioremap_hw_regs(char *name, char *compatible)
 	}
 
 out_put:
-	of_node_put(np);
+	of_analde_put(np);
 out:
 	return hw_regs;
 }
@@ -95,7 +95,7 @@ static void __init wii_setup_arch(void)
 	}
 }
 
-static void __noreturn wii_restart(char *cmd)
+static void __analreturn wii_restart(char *cmd)
 {
 	local_irq_disable();
 
@@ -126,7 +126,7 @@ static void wii_power_off(void)
 	wii_spin();
 }
 
-static void __noreturn wii_halt(void)
+static void __analreturn wii_halt(void)
 {
 	if (ppc_md.restart)
 		ppc_md.restart(NULL);

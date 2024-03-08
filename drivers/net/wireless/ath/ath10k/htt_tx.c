@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/etherdevice.h>
@@ -247,7 +247,7 @@ static int ath10k_htt_tx_alloc_cont_txbuf_32(struct ath10k_htt *htt)
 							&htt->txbuf.paddr,
 							GFP_KERNEL);
 	if (!htt->txbuf.vaddr_txbuff_32)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	htt->txbuf.size = size;
 
@@ -280,7 +280,7 @@ static int ath10k_htt_tx_alloc_cont_txbuf_64(struct ath10k_htt *htt)
 							&htt->txbuf.paddr,
 							GFP_KERNEL);
 	if (!htt->txbuf.vaddr_txbuff_64)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	htt->txbuf.size = size;
 
@@ -320,7 +320,7 @@ static int ath10k_htt_tx_alloc_cont_frag_desc_32(struct ath10k_htt *htt)
 							  GFP_KERNEL);
 	if (!htt->frag_desc.vaddr_desc_32) {
 		ath10k_err(ar, "failed to alloc fragment desc memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	htt->frag_desc.size = size;
 
@@ -361,7 +361,7 @@ static int ath10k_htt_tx_alloc_cont_frag_desc_64(struct ath10k_htt *htt)
 							  GFP_KERNEL);
 	if (!htt->frag_desc.vaddr_desc_64) {
 		ath10k_err(ar, "failed to alloc fragment desc memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	htt->frag_desc.size = size;
 
@@ -400,7 +400,7 @@ static int ath10k_htt_tx_alloc_txq(struct ath10k_htt *htt)
 	size = sizeof(*htt->tx_q_state.vaddr);
 	htt->tx_q_state.vaddr = kzalloc(size, GFP_KERNEL);
 	if (!htt->tx_q_state.vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	htt->tx_q_state.paddr = dma_map_single(ar->dev, htt->tx_q_state.vaddr,
 					       size, DMA_TO_DEVICE);
@@ -613,7 +613,7 @@ int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt)
 
 	skb = ath10k_htc_alloc_skb(ar, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, len);
 	cmd = (struct htt_cmd *)skb->data;
@@ -642,7 +642,7 @@ int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u32 mask, u32 reset_mask,
 
 	skb = ath10k_htc_alloc_skb(ar, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, len);
 	cmd = (struct htt_cmd *)skb->data;
@@ -652,7 +652,7 @@ int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u32 mask, u32 reset_mask,
 
 	memset(req, 0, sizeof(*req));
 
-	/* currently we support only max 24 bit masks so no need to worry
+	/* currently we support only max 24 bit masks so anal need to worry
 	 * about endian support
 	 */
 	memcpy(req->upload_types, &mask, 3);
@@ -692,7 +692,7 @@ static int ath10k_htt_send_frag_desc_bank_cfg_32(struct ath10k_htt *htt)
 	size = sizeof(cmd->hdr) + sizeof(cmd->frag_desc_bank_cfg32);
 	skb = ath10k_htc_alloc_skb(ar, size);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, size);
 	cmd = (struct htt_cmd *)skb->data;
@@ -754,7 +754,7 @@ static int ath10k_htt_send_frag_desc_bank_cfg_64(struct ath10k_htt *htt)
 	size = sizeof(cmd->hdr) + sizeof(cmd->frag_desc_bank_cfg64);
 	skb = ath10k_htc_alloc_skb(ar, size);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, size);
 	cmd = (struct htt_cmd *)skb->data;
@@ -832,7 +832,7 @@ static int ath10k_htt_send_rx_ring_cfg_32(struct ath10k_htt *htt)
 	    + (sizeof(*ring) * num_rx_ring);
 	skb = ath10k_htc_alloc_skb(ar, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, len);
 
@@ -904,7 +904,7 @@ static int ath10k_htt_send_rx_ring_cfg_64(struct ath10k_htt *htt)
 	    + (sizeof(*ring) * num_rx_ring);
 	skb = ath10k_htc_alloc_skb(ar, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, len);
 
@@ -973,7 +973,7 @@ static int ath10k_htt_send_rx_ring_cfg_hl(struct ath10k_htt *htt)
 	    + (sizeof(*ring) * num_rx_ring);
 	skb = ath10k_htc_alloc_skb(ar, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, len);
 
@@ -1026,7 +1026,7 @@ static int ath10k_htt_h2t_aggr_cfg_msg_32(struct ath10k_htt *htt,
 
 	skb = ath10k_htc_alloc_skb(ar, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, len);
 	cmd = (struct htt_cmd *)skb->data;
@@ -1073,7 +1073,7 @@ static int ath10k_htt_h2t_aggr_cfg_msg_v2(struct ath10k_htt *htt,
 
 	skb = ath10k_htc_alloc_skb(ar, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, len);
 	cmd = (struct htt_cmd *)skb->data;
@@ -1118,7 +1118,7 @@ int ath10k_htt_tx_fetch_resp(struct ath10k *ar,
 
 	skb = ath10k_htc_alloc_skb(ar, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, len);
 	cmd = (struct htt_cmd *)skb->data;
@@ -1173,7 +1173,7 @@ static u8 ath10k_htt_tx_get_tid(struct sk_buff *skb, bool is_eth)
 	else if (cb->flags & ATH10K_SKB_F_QOS)
 		return skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 	else
-		return HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST;
+		return HTT_DATA_TX_EXT_TID_ANALN_QOS_MCAST_BCAST;
 }
 
 int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
@@ -1217,7 +1217,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 
 	txdesc = ath10k_htc_alloc_skb(ar, len);
 	if (!txdesc) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto err_free_msdu_id;
 	}
 
@@ -1312,8 +1312,8 @@ static int ath10k_htt_tx_hl(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txm
 		break;
 	}
 
-	if (skb_cb->flags & ATH10K_SKB_F_NO_HWCRYPT)
-		flags0 |= HTT_DATA_TX_DESC_FLAGS0_NO_ENCRYPT;
+	if (skb_cb->flags & ATH10K_SKB_F_ANAL_HWCRYPT)
+		flags0 |= HTT_DATA_TX_DESC_FLAGS0_ANAL_ENCRYPT;
 
 	flags1 |= SM((u16)vdev_id, HTT_DATA_TX_DESC_FLAGS1_VDEV_ID);
 	flags1 |= SM((u16)tid, HTT_DATA_TX_DESC_FLAGS1_EXT_TID);
@@ -1324,19 +1324,19 @@ static int ath10k_htt_tx_hl(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txm
 	}
 
 	/* Prepend the HTT header and TX desc struct to the data message
-	 * and realloc the skb if it does not have enough headroom.
+	 * and realloc the skb if it does analt have eanalugh headroom.
 	 */
 	if (skb_headroom(msdu) < HTT_TX_HL_NEEDED_HEADROOM) {
 		tmp_skb = msdu;
 
 		ath10k_dbg(htt->ar, ATH10K_DBG_HTT,
-			   "Not enough headroom in skb. Current headroom: %u, needed: %u. Reallocating...\n",
+			   "Analt eanalugh headroom in skb. Current headroom: %u, needed: %u. Reallocating...\n",
 			   skb_headroom(msdu), HTT_TX_HL_NEEDED_HEADROOM);
 		msdu = skb_realloc_headroom(msdu, HTT_TX_HL_NEEDED_HEADROOM);
 		kfree_skb(tmp_skb);
 		if (!msdu) {
 			ath10k_warn(htt->ar, "htt hl tx: Unable to realloc skb!\n");
-			res = -ENOMEM;
+			res = -EANALMEM;
 			goto out;
 		}
 	}
@@ -1369,7 +1369,7 @@ static int ath10k_htt_tx_hl(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txm
 	tx_desc->len = __cpu_to_le16(data_len);
 	tx_desc->id = __cpu_to_le16(msdu_id);
 	tx_desc->frags_paddr = 0; /* always zero */
-	/* Initialize peer_id to INVALID_PEER because this is NOT
+	/* Initialize peer_id to INVALID_PEER because this is ANALT
 	 * Reinjection path
 	 */
 	tx_desc->peerid = __cpu_to_le32(HTT_INVALID_PEERID);
@@ -1425,7 +1425,7 @@ static int ath10k_htt_tx_32(struct ath10k_htt *htt,
 		     ieee80211_is_disassoc(hdr->frame_control)) &&
 		     ieee80211_has_protected(hdr->frame_control)) {
 			skb_put(msdu, IEEE80211_CCMP_MIC_LEN);
-		} else if (!(skb_cb->flags & ATH10K_SKB_F_NO_HWCRYPT) &&
+		} else if (!(skb_cb->flags & ATH10K_SKB_F_ANAL_HWCRYPT) &&
 			   txmode == ATH10K_HW_TXRX_RAW &&
 			   ieee80211_has_protected(hdr->frame_control)) {
 			skb_put(msdu, IEEE80211_CCMP_MIC_LEN);
@@ -1484,18 +1484,18 @@ static int ath10k_htt_tx_32(struct ath10k_htt *htt,
 		break;
 	}
 
-	/* Normally all commands go through HTC which manages tx credits for
-	 * each endpoint and notifies when tx is completed.
+	/* Analrmally all commands go through HTC which manages tx credits for
+	 * each endpoint and analtifies when tx is completed.
 	 *
-	 * HTT endpoint is creditless so there's no need to care about HTC
+	 * HTT endpoint is creditless so there's anal need to care about HTC
 	 * flags. In that case it is trivial to fill the HTC header here.
 	 *
 	 * MSDU transmission is considered completed upon HTT event. This
-	 * implies no relevant resources can be freed until after the event is
-	 * received. That's why HTC tx completion handler itself is ignored by
+	 * implies anal relevant resources can be freed until after the event is
+	 * received. That's why HTC tx completion handler itself is iganalred by
 	 * setting NULL to transfer_context for all sg items.
 	 *
-	 * There is simply no point in pushing HTT TX_FRM through HTC tx path
+	 * There is simply anal point in pushing HTT TX_FRM through HTC tx path
 	 * as it's a waste of resources. By bypassing HTC it is possible to
 	 * avoid extra memory allocations, compress data structures and thus
 	 * improve performance.
@@ -1507,8 +1507,8 @@ static int ath10k_htt_tx_32(struct ath10k_htt *htt,
 					   prefetch_len);
 	txbuf->htc_hdr.flags = 0;
 
-	if (skb_cb->flags & ATH10K_SKB_F_NO_HWCRYPT)
-		flags0 |= HTT_DATA_TX_DESC_FLAGS0_NO_ENCRYPT;
+	if (skb_cb->flags & ATH10K_SKB_F_ANAL_HWCRYPT)
+		flags0 |= HTT_DATA_TX_DESC_FLAGS0_ANAL_ENCRYPT;
 
 	flags1 |= SM((u16)vdev_id, HTT_DATA_TX_DESC_FLAGS1_VDEV_ID);
 	flags1 |= SM((u16)tid, HTT_DATA_TX_DESC_FLAGS1_EXT_TID);
@@ -1521,7 +1521,7 @@ static int ath10k_htt_tx_32(struct ath10k_htt *htt,
 	}
 
 	/* Prevent firmware from sending up tx inspection requests. There's
-	 * nothing ath10k can do with frames requested for inspection so force
+	 * analthing ath10k can do with frames requested for inspection so force
 	 * it to simply rely a regular tx completion with discard status.
 	 */
 	flags1 |= HTT_DATA_TX_DESC_FLAGS1_POSTPONED;
@@ -1630,7 +1630,7 @@ static int ath10k_htt_tx_64(struct ath10k_htt *htt,
 		     ieee80211_is_disassoc(hdr->frame_control)) &&
 		     ieee80211_has_protected(hdr->frame_control)) {
 			skb_put(msdu, IEEE80211_CCMP_MIC_LEN);
-		} else if (!(skb_cb->flags & ATH10K_SKB_F_NO_HWCRYPT) &&
+		} else if (!(skb_cb->flags & ATH10K_SKB_F_ANAL_HWCRYPT) &&
 			   txmode == ATH10K_HW_TXRX_RAW &&
 			   ieee80211_has_protected(hdr->frame_control)) {
 			skb_put(msdu, IEEE80211_CCMP_MIC_LEN);
@@ -1691,18 +1691,18 @@ static int ath10k_htt_tx_64(struct ath10k_htt *htt,
 		break;
 	}
 
-	/* Normally all commands go through HTC which manages tx credits for
-	 * each endpoint and notifies when tx is completed.
+	/* Analrmally all commands go through HTC which manages tx credits for
+	 * each endpoint and analtifies when tx is completed.
 	 *
-	 * HTT endpoint is creditless so there's no need to care about HTC
+	 * HTT endpoint is creditless so there's anal need to care about HTC
 	 * flags. In that case it is trivial to fill the HTC header here.
 	 *
 	 * MSDU transmission is considered completed upon HTT event. This
-	 * implies no relevant resources can be freed until after the event is
-	 * received. That's why HTC tx completion handler itself is ignored by
+	 * implies anal relevant resources can be freed until after the event is
+	 * received. That's why HTC tx completion handler itself is iganalred by
 	 * setting NULL to transfer_context for all sg items.
 	 *
-	 * There is simply no point in pushing HTT TX_FRM through HTC tx path
+	 * There is simply anal point in pushing HTT TX_FRM through HTC tx path
 	 * as it's a waste of resources. By bypassing HTC it is possible to
 	 * avoid extra memory allocations, compress data structures and thus
 	 * improve performance.
@@ -1714,8 +1714,8 @@ static int ath10k_htt_tx_64(struct ath10k_htt *htt,
 					   prefetch_len);
 	txbuf->htc_hdr.flags = 0;
 
-	if (skb_cb->flags & ATH10K_SKB_F_NO_HWCRYPT)
-		flags0 |= HTT_DATA_TX_DESC_FLAGS0_NO_ENCRYPT;
+	if (skb_cb->flags & ATH10K_SKB_F_ANAL_HWCRYPT)
+		flags0 |= HTT_DATA_TX_DESC_FLAGS0_ANAL_ENCRYPT;
 
 	flags1 |= SM((u16)vdev_id, HTT_DATA_TX_DESC_FLAGS1_VDEV_ID);
 	flags1 |= SM((u16)tid, HTT_DATA_TX_DESC_FLAGS1_EXT_TID);
@@ -1731,7 +1731,7 @@ static int ath10k_htt_tx_64(struct ath10k_htt *htt,
 	}
 
 	/* Prevent firmware from sending up tx inspection requests. There's
-	 * nothing ath10k can do with frames requested for inspection so force
+	 * analthing ath10k can do with frames requested for inspection so force
 	 * it to simply rely a regular tx completion with discard status.
 	 */
 	flags1 |= HTT_DATA_TX_DESC_FLAGS1_POSTPONED;

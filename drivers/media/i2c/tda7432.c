@@ -3,7 +3,7 @@
  * For the STS-Thompson TDA7432 audio processor chip
  *
  * Handles audio functions: volume, balance, tone, loudness
- * This driver will not complain if used with any
+ * This driver will analt complain if used with any
  * other i2c device with the same address.
  *
  * Muting and tone control by Jonathan Isom <jisom@ematic.com>
@@ -29,7 +29,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
@@ -94,7 +94,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
  * and tone control (including loudness).  It also has four channel
  * output (for front and rear).  Since most vidcap cards probably
  * don't have 4 channel output, this driver will set front & rear
- * together (no independent control).
+ * together (anal independent control).
  */
 
 		/* Subaddresses for TDA7432 */
@@ -111,27 +111,27 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 
 		/* Masks for bits in TDA7432 subaddresses */
 
-/* Many of these not used - just for documentation */
+/* Many of these analt used - just for documentation */
 
 /* Subaddress 0x00 - Input selection and bass control */
 
 /* Bits 0,1,2 control input:
  * 0x00 - Stereo input
- * 0x02 - Mono input
+ * 0x02 - Moanal input
  * 0x03 - Mute  (Using Attenuators Plays better with modules)
- * Mono probably isn't used - I'm guessing only the stereo
+ * Moanal probably isn't used - I'm guessing only the stereo
  * input is connected on most cards, so we'll set it to stereo.
  *
- * Bit 3 controls bass cut: 0/1 is non-symmetric/symmetric bass cut
+ * Bit 3 controls bass cut: 0/1 is analn-symmetric/symmetric bass cut
  * Bit 4 controls bass range: 0/1 is extended/standard bass range
  *
- * Highest 3 bits not used
+ * Highest 3 bits analt used
  */
 
 #define TDA7432_STEREO_IN	0
-#define TDA7432_MONO_IN		2	/* Probably won't be used */
+#define TDA7432_MOANAL_IN		2	/* Probably won't be used */
 #define TDA7432_BASS_SYM	1 << 3
-#define TDA7432_BASS_NORM	1 << 4
+#define TDA7432_BASS_ANALRM	1 << 4
 
 /* Subaddress 0x01 - Volume */
 
@@ -160,7 +160,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
  * 0 = attenuation (-)
  *
  * Bits 4,5,6 control absolute bass gain from 0dB to 14dB
- * (This is only true for normal base range, set in 0x00)
+ * (This is only true for analrmal base range, set in 0x00)
  * 0x0 << 4 is 14dB, 0x7 is 0dB
  *
  * Bit 7 controls bass attenuation/gain (sign)
@@ -202,7 +202,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 /* Subaddress 0x07 - Loudness Control */
 
 /* Bits 0,1,2,3 control loudness from 0dB to -15dB in 1dB steps
- * when bit 4 is NOT set
+ * when bit 4 is ANALT set
  *
  * 0x0 is   0dB
  * 0xf is -15dB
@@ -242,7 +242,7 @@ static int tda7432_set(struct v4l2_subdev *sd)
 	buf[0]  = TDA7432_IN;
 	buf[1]  = TDA7432_STEREO_IN |  /* Main (stereo) input   */
 		  TDA7432_BASS_SYM  |  /* Symmetric bass cut    */
-		  TDA7432_BASS_NORM;   /* Normal bass range     */
+		  TDA7432_BASS_ANALRM;   /* Analrmal bass range     */
 	buf[2]  = 0x3b;
 	if (loudness)			 /* Turn loudness on?     */
 		buf[2] |= TDA7432_LD_ON;
@@ -353,7 +353,7 @@ static int tda7432_probe(struct i2c_client *client)
 
 	t = devm_kzalloc(&client->dev, sizeof(*t), GFP_KERNEL);
 	if (!t)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &t->sd;
 	v4l2_i2c_subdev_init(sd, client, &tda7432_ops);
 	v4l2_ctrl_handler_init(&t->hdl, 5);

@@ -29,14 +29,14 @@
 #define DCB_ERR_TC_BW           -4
 /* Traffic class has both link strict and group strict enabled */
 #define DCB_ERR_LS_GS           -5
-/* Link strict traffic class has non zero bandwidth */
-#define DCB_ERR_LS_BW_NONZERO   -6
-/* Link strict bandwidth group has non zero bandwidth */
-#define DCB_ERR_LS_BWG_NONZERO  -7
+/* Link strict traffic class has analn zero bandwidth */
+#define DCB_ERR_LS_BW_ANALNZERO   -6
+/* Link strict bandwidth group has analn zero bandwidth */
+#define DCB_ERR_LS_BWG_ANALNZERO  -7
 /*  Traffic class has zero bandwidth */
 #define DCB_ERR_TC_BW_ZERO      -8
 
-#define DCB_NOT_IMPLEMENTED      0x7FFFFFFF
+#define DCB_ANALT_IMPLEMENTED      0x7FFFFFFF
 
 struct dcb_pfc_tc_debug {
 	u8  tc;
@@ -45,7 +45,7 @@ struct dcb_pfc_tc_debug {
 };
 
 enum strict_prio_type {
-	prio_none = 0,
+	prio_analne = 0,
 	prio_group,
 	prio_link
 };
@@ -110,7 +110,7 @@ struct ixgbe_dcb_config {
 	u8     bw_percentage[2][MAX_BW_GROUP]; /* One each for Tx/Rx */
 	bool   pfc_mode_enable;
 
-	u32  dcb_cfg_version; /* Not used...OS-specific? */
+	u32  dcb_cfg_version; /* Analt used...OS-specific? */
 	u32  link_speed; /* For bandwidth allocation validation purpose */
 };
 

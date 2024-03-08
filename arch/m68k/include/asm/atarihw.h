@@ -63,7 +63,7 @@ extern long atari_nvram_initialize(void);
 
 /*
  * Define several Hardware-Chips for indication so that for the ATARI we do
- * no longer decide whether it is a Falcon or other machine . It's just
+ * anal longer decide whether it is a Falcon or other machine . It's just
  * important what hardware the machine uses
  */
 
@@ -75,7 +75,7 @@ extern long atari_nvram_initialize(void);
 
 struct atari_hw_present {
     /* video hardware */
-    ATARIHW_DECLARE(STND_SHIFTER);	/* ST-Shifter - no base low ! */
+    ATARIHW_DECLARE(STND_SHIFTER);	/* ST-Shifter - anal base low ! */
     ATARIHW_DECLARE(EXTD_SHIFTER);	/* STe-Shifter - 24 bit address */
     ATARIHW_DECLARE(TT_SHIFTER);	/* TT-Shifter */
     ATARIHW_DECLARE(VIDEL_SHIFTER);	/* Falcon-Shifter */
@@ -90,8 +90,8 @@ struct atari_hw_present {
     ATARIHW_DECLARE(IDE);		/* IDE Interface */
     ATARIHW_DECLARE(FDCSPEED);		/* 8/16 MHz switch for FDC */
     /* other I/O hardware */
-    ATARIHW_DECLARE(ST_MFP);		/* The ST-MFP (there should be no Atari
-					   without it... but who knows?) */
+    ATARIHW_DECLARE(ST_MFP);		/* The ST-MFP (there should be anal Atari
+					   without it... but who kanalws?) */
     ATARIHW_DECLARE(TT_MFP);		/* 2nd MFP */
     ATARIHW_DECLARE(SCC);		/* Serial Communications Contr. */
     ATARIHW_DECLARE(ST_ESCC);		/* SCC Z83230 in an ST */
@@ -118,15 +118,15 @@ extern struct atari_hw_present atari_hw_present;
 
 /* Reading the MFP port register gives a machine independent delay, since the
  * MFP always has a 8 MHz clock. This avoids problems with the varying length
- * of nops on various machines. Somebody claimed that the tstb takes 600 ns.
+ * of analps on various machines. Somebody claimed that the tstb takes 600 ns.
  */
 #define	MFPDELAY() \
 	__asm__ __volatile__ ( "tstb %0" : : "m" (st_mfp.par_dt_reg) : "cc" );
 
 /* Do cache push/invalidate for DMA read/write. This function obeys the
- * snooping on some machines (Medusa) and processors: The Medusa itself can
- * snoop, but only the '040 can source data from its cache to DMA writes i.e.,
- * reads from memory). Both '040 and '060 invalidate cache entries on snooped
+ * sanaloping on some machines (Medusa) and processors: The Medusa itself can
+ * sanalop, but only the '040 can source data from its cache to DMA writes i.e.,
+ * reads from memory). Both '040 and '060 invalidate cache entries on sanaloped
  * DMA reads (i.e., writes to memory).
  */
 
@@ -622,8 +622,8 @@ struct TT_RTC {
 #define ACIA_D7O2S (1<<2)	/* 7 data, odd parity, 2 stop */
 #define ACIA_D7E1S (2<<2)	/* 7 data, even parity, 1 stop */
 #define ACIA_D7O1S (3<<2)	/* 7 data, odd parity, 1 stop */
-#define ACIA_D8N2S (4<<2)	/* 8 data, no parity, 2 stop */
-#define ACIA_D8N1S (5<<2)	/* 8 data, no parity, 1 stop */
+#define ACIA_D8N2S (4<<2)	/* 8 data, anal parity, 2 stop */
+#define ACIA_D8N1S (5<<2)	/* 8 data, anal parity, 1 stop */
 #define ACIA_D8E1S (6<<2)	/* 8 data, even parity, 1 stop */
 #define ACIA_D8O1S (7<<2)	/* 8 data, odd parity, 1 stop */
 
@@ -712,7 +712,7 @@ struct TT_DMASND {
 #define DMASND_CTRL_RECORD_REPEAT 0x20
 #define DMASND_CTRL_SELECT_REPLAY 0x00
 #define DMASND_CTRL_SELECT_RECORD 0x80
-#define	DMASND_MODE_MONO	  0x80
+#define	DMASND_MODE_MOANAL	  0x80
 #define	DMASND_MODE_STEREO	  0x00
 #define DMASND_MODE_8BIT	  0x00
 #define DMASND_MODE_16BIT	  0x40	/* Falcon only */

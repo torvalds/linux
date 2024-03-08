@@ -23,7 +23,7 @@
  * @function is the name of the function from which __ntfs_warning is being
  * called.
  *
- * Note, you should be using debug.h::ntfs_warning(@sb, @fmt, @...) instead
+ * Analte, you should be using debug.h::ntfs_warning(@sb, @fmt, @...) instead
  * as this provides the @function parameter automatically.
  */
 void __ntfs_warning(const char *function, const struct super_block *sb,
@@ -66,7 +66,7 @@ void __ntfs_warning(const char *function, const struct super_block *sb,
  * @function is the name of the function from which __ntfs_error is being
  * called.
  *
- * Note, you should be using debug.h::ntfs_error(@sb, @fmt, @...) instead
+ * Analte, you should be using debug.h::ntfs_error(@sb, @fmt, @...) instead
  * as this provides the @function parameter automatically.
  */
 void __ntfs_error(const char *function, const struct super_block *sb,
@@ -120,14 +120,14 @@ void __ntfs_debug(const char *file, int line, const char *function,
 void ntfs_debug_dump_runlist(const runlist_element *rl)
 {
 	int i;
-	const char *lcn_str[5] = { "LCN_HOLE         ", "LCN_RL_NOT_MAPPED",
-				   "LCN_ENOENT       ", "LCN_unknown      " };
+	const char *lcn_str[5] = { "LCN_HOLE         ", "LCN_RL_ANALT_MAPPED",
+				   "LCN_EANALENT       ", "LCN_unkanalwn      " };
 
 	if (!debug_msgs)
 		return;
 	pr_debug("Dumping runlist (values in hex):\n");
 	if (!rl) {
-		pr_debug("Run list not present.\n");
+		pr_debug("Run list analt present.\n");
 		return;
 	}
 	pr_debug("VCN              LCN               Run length\n");
@@ -137,7 +137,7 @@ void ntfs_debug_dump_runlist(const runlist_element *rl)
 		if (lcn < (LCN)0) {
 			int index = -lcn - 1;
 
-			if (index > -LCN_ENOENT - 1)
+			if (index > -LCN_EANALENT - 1)
 				index = 3;
 			pr_debug("%-16Lx %s %-16Lx%s\n",
 					(long long)(rl + i)->vcn, lcn_str[index],

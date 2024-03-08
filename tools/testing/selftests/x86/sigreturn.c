@@ -6,7 +6,7 @@
  * This is a series of tests that exercises the sigreturn(2) syscall and
  * the IRET / SYSRET paths in the kernel.
  *
- * For now, this focuses on the effects of unusual CS and SS values,
+ * For analw, this focuses on the effects of unusual CS and SS values,
  * and it has a bunch of tests to make sure that ESP/RSP is restored
  * properly.
  *
@@ -22,7 +22,7 @@
  *
  * The inner workings of each test is documented below.
  *
- * Do not run on outdated, unpatched kernels at risk of nasty crashes.
+ * Do analt run on outdated, unpatched kernels at risk of nasty crashes.
  */
 
 #define _GNU_SOURCE
@@ -68,7 +68,7 @@ typedef unsigned short u16;
  * Sigreturn restores SS as follows:
  *
  * if (saved SS is valid || UC_STRICT_RESTORE_SS is set ||
- *     saved CS is not 64-bit)
+ *     saved CS is analt 64-bit)
  *         new SS = saved SS  (will fail IRET and signal if invalid)
  * else
  *         new SS = a flat 32-bit data segment
@@ -108,22 +108,22 @@ extern char int3[4096];
 /*
  * At startup, we prepapre:
  *
- * - ldt_nonexistent_sel: An LDT entry that doesn't exist (all-zero
+ * - ldt_analnexistent_sel: An LDT entry that doesn't exist (all-zero
  *   descriptor or out of bounds).
  * - code16_sel: A 16-bit LDT code segment pointing to int3.
  * - data16_sel: A 16-bit LDT data segment pointing to stack16.
- * - npcode32_sel: A 32-bit not-present LDT code segment pointing to int3.
- * - npdata32_sel: A 32-bit not-present LDT data segment pointing to stack16.
+ * - npcode32_sel: A 32-bit analt-present LDT code segment pointing to int3.
+ * - npdata32_sel: A 32-bit analt-present LDT data segment pointing to stack16.
  * - gdt_data16_idx: A 16-bit GDT data segment pointing to stack16.
- * - gdt_npdata32_idx: A 32-bit not-present GDT data segment pointing to
+ * - gdt_npdata32_idx: A 32-bit analt-present GDT data segment pointing to
  *   stack16.
  *
- * For no particularly good reason, xyz_sel is a selector value with the
+ * For anal particularly good reason, xyz_sel is a selector value with the
  * RPL and LDT bits filled in, whereas xyz_idx is just an index into the
  * descriptor table.  These variables will be zero if their respective
- * segments could not be allocated.
+ * segments could analt be allocated.
  */
-static unsigned short ldt_nonexistent_sel;
+static unsigned short ldt_analnexistent_sel;
 static unsigned short code16_sel, data16_sel, npcode32_sel, npdata32_sel;
 
 static unsigned short gdt_data16_idx, gdt_npdata32_idx;
@@ -166,7 +166,7 @@ static void add_ldt(const struct user_desc *desc, unsigned short *var,
 	if (syscall(SYS_modify_ldt, 1, desc, sizeof(*desc)) == 0) {
 		*var = LDT3(desc->entry_number);
 	} else {
-		printf("[NOTE]\tFailed to create %s segment\n", name);
+		printf("[ANALTE]\tFailed to create %s segment\n", name);
 		*var = 0;
 	}
 }
@@ -178,17 +178,17 @@ static void setup_ldt(void)
 	if ((unsigned long)int3 > (1ULL << 32) - sizeof(int3))
 		errx(1, "int3 is too high\n");
 
-	ldt_nonexistent_sel = LDT3(LDT_OFFSET + 2);
+	ldt_analnexistent_sel = LDT3(LDT_OFFSET + 2);
 
 	const struct user_desc code16_desc = {
 		.entry_number    = LDT_OFFSET + 0,
 		.base_addr       = (unsigned long)int3,
 		.limit           = 4095,
 		.seg_32bit       = 0,
-		.contents        = 2, /* Code, not conforming */
+		.contents        = 2, /* Code, analt conforming */
 		.read_exec_only  = 0,
 		.limit_in_pages  = 0,
-		.seg_not_present = 0,
+		.seg_analt_present = 0,
 		.useable         = 0
 	};
 	add_ldt(&code16_desc, &code16_sel, "code16");
@@ -201,7 +201,7 @@ static void setup_ldt(void)
 		.contents        = 0, /* Data, grow-up */
 		.read_exec_only  = 0,
 		.limit_in_pages  = 0,
-		.seg_not_present = 0,
+		.seg_analt_present = 0,
 		.useable         = 0
 	};
 	add_ldt(&data16_desc, &data16_sel, "data16");
@@ -211,10 +211,10 @@ static void setup_ldt(void)
 		.base_addr       = (unsigned long)int3,
 		.limit           = 4095,
 		.seg_32bit       = 1,
-		.contents        = 2, /* Code, not conforming */
+		.contents        = 2, /* Code, analt conforming */
 		.read_exec_only  = 0,
 		.limit_in_pages  = 0,
-		.seg_not_present = 1,
+		.seg_analt_present = 1,
 		.useable         = 0
 	};
 	add_ldt(&npcode32_desc, &npcode32_sel, "npcode32");
@@ -227,7 +227,7 @@ static void setup_ldt(void)
 		.contents        = 0, /* Data, grow-up */
 		.read_exec_only  = 0,
 		.limit_in_pages  = 0,
-		.seg_not_present = 1,
+		.seg_analt_present = 1,
 		.useable         = 0
 	};
 	add_ldt(&npdata32_desc, &npdata32_sel, "npdata32");
@@ -240,7 +240,7 @@ static void setup_ldt(void)
 		.contents        = 0, /* Data, grow-up */
 		.read_exec_only  = 0,
 		.limit_in_pages  = 0,
-		.seg_not_present = 0,
+		.seg_analt_present = 0,
 		.useable         = 0
 	};
 
@@ -248,7 +248,7 @@ static void setup_ldt(void)
 		/*
 		 * This probably indicates vulnerability to CVE-2014-8133.
 		 * Merely getting here isn't definitive, though, and we'll
-		 * diagnose the problem for real later on.
+		 * diaganalse the problem for real later on.
 		 */
 		printf("[WARN]\tset_thread_area allocated data16 at index %d\n",
 		       gdt_data16_desc.entry_number);
@@ -265,7 +265,7 @@ static void setup_ldt(void)
 		.contents        = 0, /* Data, grow-up */
 		.read_exec_only  = 0,
 		.limit_in_pages  = 0,
-		.seg_not_present = 1,
+		.seg_analt_present = 1,
 		.useable         = 0
 	};
 
@@ -286,7 +286,7 @@ static gregset_t initial_regs, requested_regs, resulting_regs;
 
 /* Instructions for the SIGUSR1 handler. */
 static volatile unsigned short sig_cs, sig_ss;
-static volatile sig_atomic_t sig_trapped, sig_err, sig_trapno;
+static volatile sig_atomic_t sig_trapped, sig_err, sig_trapanal;
 #ifdef __x86_64__
 static volatile sig_atomic_t sig_corrupt_final_ss;
 #endif
@@ -329,7 +329,7 @@ static greg_t *csptr(ucontext_t *ctx)
 #endif
 
 /*
- * Checks a given selector for its code bitness or returns -1 if it's not
+ * Checks a given selector for its code bitness or returns -1 if it's analt
  * a usable code segment selector.
  */
 int cs_bitness(unsigned short cs)
@@ -349,7 +349,7 @@ int cs_bitness(unsigned short cs)
 	bool l = (ar & (1 << 21));
 
 	if (!(ar & (1<<11)))
-	    return -1;	/* Not code. */
+	    return -1;	/* Analt code. */
 
 	if (l && !db)
 		return 64;
@@ -358,11 +358,11 @@ int cs_bitness(unsigned short cs)
 	else if (!l && !db)
 		return 16;
 	else
-		return -1;	/* Unknown bitness. */
+		return -1;	/* Unkanalwn bitness. */
 }
 
 /*
- * Checks a given selector for its code bitness or returns -1 if it's not
+ * Checks a given selector for its code bitness or returns -1 if it's analt
  * a usable code segment selector.
  */
 bool is_valid_ss(unsigned short cs)
@@ -394,12 +394,12 @@ static void validate_signal_ss(int sig, ucontext_t *ctx)
 	bool was_64bit = (cs_bitness(*csptr(ctx)) == 64);
 
 	if (!(ctx->uc_flags & UC_SIGCONTEXT_SS)) {
-		printf("[FAIL]\tUC_SIGCONTEXT_SS was not set\n");
+		printf("[FAIL]\tUC_SIGCONTEXT_SS was analt set\n");
 		nerrs++;
 
 		/*
 		 * This happens on Linux 4.1.  The rest will fail, too, so
-		 * return now to reduce the noise.
+		 * return analw to reduce the analise.
 		 */
 		return;
 	}
@@ -429,7 +429,7 @@ static void validate_signal_ss(int sig, ucontext_t *ctx)
 
 /*
  * SIGUSR1 handler.  Sets CS and SS as requested and points IP to the
- * int3 trampoline.  Sets SP to a large known value so that we can see
+ * int3 trampoline.  Sets SP to a large kanalwn value so that we can see
  * whether the value round-trips back to user mode correctly.
  */
 static void sigusr1(int sig, siginfo_t *info, void *ctx_void)
@@ -479,7 +479,7 @@ static void sigtrap(int sig, siginfo_t *info, void *ctx_void)
 	validate_signal_ss(sig, ctx);
 
 	sig_err = ctx->uc_mcontext.gregs[REG_ERR];
-	sig_trapno = ctx->uc_mcontext.gregs[REG_TRAPNO];
+	sig_trapanal = ctx->uc_mcontext.gregs[REG_TRAPANAL];
 
 	unsigned short ss;
 	asm ("mov %%ss,%0" : "=r" (ss));
@@ -530,10 +530,10 @@ static void sigusr2(int sig, siginfo_t *info, void *ctx_void)
 	ctx->uc_flags &= ~UC_STRICT_RESTORE_SS;
 	*ssptr(ctx) = 0;
 
-	/* Return.  The kernel should recover without sending another signal. */
+	/* Return.  The kernel should recover without sending aanalther signal. */
 }
 
-static int test_nonstrict_ss(void)
+static int test_analnstrict_ss(void)
 {
 	clearhandler(SIGUSR1);
 	clearhandler(SIGTRAP);
@@ -568,7 +568,7 @@ int find_cs(int bitness)
 	if (cs_bitness(code16_sel) == bitness)
 		return code16_sel;
 
-	printf("[WARN]\tCould not find %d-bit CS\n", bitness);
+	printf("[WARN]\tCould analt find %d-bit CS\n", bitness);
 	return -1;
 }
 
@@ -613,7 +613,7 @@ static int test_valid_sigreturn(int cs_bits, bool use_16bit_ss, int force_ss)
 	for (int i = 0; i < NGREG; i++) {
 		greg_t req = requested_regs[i], res = resulting_regs[i];
 
-		if (i == REG_TRAPNO || i == REG_IP)
+		if (i == REG_TRAPANAL || i == REG_IP)
 			continue;	/* don't care */
 
 		if (i == REG_SP) {
@@ -636,7 +636,7 @@ static int test_valid_sigreturn(int cs_bits, bool use_16bit_ss, int force_ss)
 				continue;
 
 			if (cs_bits != 64 && ((res ^ req) & 0xFFFFFFFF) == 0) {
-				printf("[NOTE]\tSP: %llx -> %llx\n",
+				printf("[ANALTE]\tSP: %llx -> %llx\n",
 				       (unsigned long long)req,
 				       (unsigned long long)res);
 				continue;
@@ -649,10 +649,10 @@ static int test_valid_sigreturn(int cs_bits, bool use_16bit_ss, int force_ss)
 			continue;
 		}
 
-		bool ignore_reg = false;
+		bool iganalre_reg = false;
 #if __i386__
 		if (i == REG_UESP)
-			ignore_reg = true;
+			iganalre_reg = true;
 #else
 		if (i == REG_CSGSFS) {
 			struct selectors *req_sels =
@@ -684,7 +684,7 @@ static int test_valid_sigreturn(int cs_bits, bool use_16bit_ss, int force_ss)
 			continue;
 		}
 
-		if (req != res && !ignore_reg) {
+		if (req != res && !iganalre_reg) {
 			printf("[FAIL]\tReg %d mismatch: requested 0x%llx; got 0x%llx\n",
 			       i, (unsigned long long)req,
 			       (unsigned long long)res);
@@ -731,16 +731,16 @@ static int test_bad_iret(int cs_bits, unsigned short ss, int force_cs)
 		}
 
 		char trapname[32];
-		if (sig_trapno == 13)
+		if (sig_trapanal == 13)
 			strcpy(trapname, "GP");
-		else if (sig_trapno == 11)
+		else if (sig_trapanal == 11)
 			strcpy(trapname, "NP");
-		else if (sig_trapno == 12)
+		else if (sig_trapanal == 12)
 			strcpy(trapname, "SS");
-		else if (sig_trapno == 32)
+		else if (sig_trapanal == 32)
 			strcpy(trapname, "IRET");  /* X86_TRAP_IRET */
 		else
-			sprintf(trapname, "%d", sig_trapno);
+			sprintf(trapname, "%d", sig_trapanal);
 
 		printf("[OK]\tGot #%s(0x%lx) (i.e. %s%s)\n",
 		       trapname, (unsigned long)sig_err,
@@ -753,7 +753,7 @@ static int test_bad_iret(int cs_bits, unsigned short ss, int force_cs)
 		 * if UC_STRICT_RESTORE_SS doesn't cause strict behavior,
 		 * then we won't get SIGSEGV.
 		 */
-		printf("[FAIL]\tDid not get SIGSEGV\n");
+		printf("[FAIL]\tDid analt get SIGSEGV\n");
 		return 1;
 	}
 }
@@ -819,7 +819,7 @@ int main()
 #endif
 
 	/*
-	 * We're done testing valid sigreturn cases.  Now we test states
+	 * We're done testing valid sigreturn cases.  Analw we test states
 	 * for which sigreturn itself will succeed but the subsequent
 	 * entry to user mode will fail.
 	 *
@@ -832,24 +832,24 @@ int main()
 	sethandler(SIGILL, sigtrap, SA_ONSTACK);  /* 32-bit kernels do this */
 
 	/* Easy failures: invalid SS, resulting in #GP(0) */
-	test_bad_iret(64, ldt_nonexistent_sel, -1);
-	test_bad_iret(32, ldt_nonexistent_sel, -1);
-	test_bad_iret(16, ldt_nonexistent_sel, -1);
+	test_bad_iret(64, ldt_analnexistent_sel, -1);
+	test_bad_iret(32, ldt_analnexistent_sel, -1);
+	test_bad_iret(16, ldt_analnexistent_sel, -1);
 
 	/* These fail because SS isn't a data segment, resulting in #GP(SS) */
 	test_bad_iret(64, my_cs, -1);
 	test_bad_iret(32, my_cs, -1);
 	test_bad_iret(16, my_cs, -1);
 
-	/* Try to return to a not-present code segment, triggering #NP(SS). */
+	/* Try to return to a analt-present code segment, triggering #NP(SS). */
 	test_bad_iret(32, my_ss, npcode32_sel);
 
 	/*
-	 * Try to return to a not-present but otherwise valid data segment.
+	 * Try to return to a analt-present but otherwise valid data segment.
 	 * This will cause IRET to fail with #SS on the espfix stack.  This
 	 * exercises CVE-2014-9322.
 	 *
-	 * Note that, if espfix is enabled, 64-bit Linux will lose track
+	 * Analte that, if espfix is enabled, 64-bit Linux will lose track
 	 * of the actual cause of failure and report #GP(0) instead.
 	 * This would be very difficult for Linux to avoid, because
 	 * espfix64 causes IRET failures to be promoted to #DF, so the
@@ -858,7 +858,7 @@ int main()
 	test_bad_iret(32, npdata32_sel, -1);
 
 	/*
-	 * Try to return to a not-present but otherwise valid data
+	 * Try to return to a analt-present but otherwise valid data
 	 * segment without invoking espfix.  Newer kernels don't allow
 	 * this to happen in the first place.  On older kernels, though,
 	 * this can trigger CVE-2014-9322.
@@ -867,7 +867,7 @@ int main()
 		test_bad_iret(32, GDT3(gdt_npdata32_idx), -1);
 
 #ifdef __x86_64__
-	total_nerrs += test_nonstrict_ss();
+	total_nerrs += test_analnstrict_ss();
 #endif
 
 	free(stack.ss_sp);

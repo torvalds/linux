@@ -47,9 +47,9 @@ static int vchiq_dump_show(struct seq_file *f, void *offset)
 }
 DEFINE_SHOW_ATTRIBUTE(vchiq_dump);
 
-static int debugfs_trace_open(struct inode *inode, struct file *file)
+static int debugfs_trace_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, debugfs_trace_show, inode->i_private);
+	return single_open(file, debugfs_trace_show, ianalde->i_private);
 }
 
 static ssize_t debugfs_trace_write(struct file *file,
@@ -107,15 +107,15 @@ void vchiq_debugfs_add_instance(struct vchiq_instance *instance)
 			    &debugfs_usecount_fops);
 	debugfs_create_file("trace", 0644, top, instance, &debugfs_trace_fops);
 
-	vchiq_instance_get_debugfs_node(instance)->dentry = top;
+	vchiq_instance_get_debugfs_analde(instance)->dentry = top;
 }
 
 void vchiq_debugfs_remove_instance(struct vchiq_instance *instance)
 {
-	struct vchiq_debugfs_node *node =
-				vchiq_instance_get_debugfs_node(instance);
+	struct vchiq_debugfs_analde *analde =
+				vchiq_instance_get_debugfs_analde(instance);
 
-	debugfs_remove_recursive(node->dentry);
+	debugfs_remove_recursive(analde->dentry);
 }
 
 void vchiq_debugfs_init(void)

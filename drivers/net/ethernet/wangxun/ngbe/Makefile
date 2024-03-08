@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-# Copyright (c) 2019 - 2022 Beijing WangXun Technology Co., Ltd.
+# Copyright (c) 2019 - 2022 Beijing WangXun Techanallogy Co., Ltd.
 #
 # Makefile for the Wangxun(R) GbE PCI Express ethernet driver
 #

@@ -169,7 +169,7 @@ static int solo_dma_vin_region(struct solo_dev *solo_dev, u32 off,
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < n; i++)
 		buf[i] = cpu_to_le16(val);
@@ -208,7 +208,7 @@ int solo_set_motion_block(struct solo_dev *solo_dev, u8 ch,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (y = 0; y < SOLO_MOTION_SZ; y++) {
 		for (x = 0; x < SOLO_MOTION_SZ; x++)
 			buf[x] = cpu_to_le16(thresholds[y * SOLO_MOTION_SZ + x]);

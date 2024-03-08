@@ -4,7 +4,7 @@
       By: YOKOTA Hiroshi <yokota@netlab.is.tsukuba.ac.jp>
 
     Ver.2.8   Support 32bit MMIO mode
-              Support Synchronous Data Transfer Request (SDTR) mode
+              Support Synchroanalus Data Transfer Request (SDTR) mode
     Ver.2.0   Support 32bit PIO mode
     Ver.1.1.2 Fix for scatter list buffer exceeds
     Ver.1.1   Support scatter list
@@ -68,7 +68,7 @@ MODULE_PARM_DESC(nsp_burst_mode, "Burst transfer mode (0=io8, 1=io32, 2=mem32(de
 /* Release IO ports after configuration? */
 static bool       free_ports = 0;
 module_param(free_ports, bool, 0);
-MODULE_PARM_DESC(free_ports, "Release IO ports after configuration? (default: 0 (=no))");
+MODULE_PARM_DESC(free_ports, "Release IO ports after configuration? (default: 0 (=anal))");
 
 static struct scsi_pointer *nsp_priv(struct scsi_cmnd *cmd)
 {
@@ -118,7 +118,7 @@ static nsp_hw_data nsp_data_base; /* attach <-> detect glue */
 #define NSP_DEBUG_BUSFREE		BIT(5)
 #define NSP_DEBUG_CDB_CONTENTS		BIT(6)
 #define NSP_DEBUG_RESELECTION		BIT(7)
-#define NSP_DEBUG_MSGINOCCUR		BIT(8)
+#define NSP_DEBUG_MSGIANALCCUR		BIT(8)
 #define NSP_DEBUG_EEPROM		BIT(9)
 #define NSP_DEBUG_MSGOUTOCCUR		BIT(10)
 #define NSP_DEBUG_BUSRESET		BIT(11)
@@ -226,7 +226,7 @@ static int nsp_queuecommand_lck(struct scsi_cmnd *const SCpnt)
 
 	scsi_pointer->Status	   = SAM_STAT_CHECK_CONDITION;
 	scsi_pointer->Message	   = 0;
-	scsi_pointer->have_data_in = IO_UNKNOWN;
+	scsi_pointer->have_data_in = IO_UNKANALWN;
 	scsi_pointer->sent_command = 0;
 	scsi_pointer->phase	   = PH_UNDETERMINED;
 	scsi_set_resid(SCpnt, scsi_bufflen(SCpnt));
@@ -289,7 +289,7 @@ static void nsp_setup_fifo(nsp_hw_data *data, bool enabled)
 
 static void nsphw_init_sync(nsp_hw_data *data)
 {
-	sync_data tmp_sync = { .SyncNegotiation = SYNC_NOT_YET,
+	sync_data tmp_sync = { .SyncNegotiation = SYNC_ANALT_YET,
 			       .SyncPeriod      = 0,
 			       .SyncOffset      = 0
 	};
@@ -440,7 +440,7 @@ static struct nsp_sync_table nsp_sync_table_20M[] = {
 };
 
 /*
- * setup synchronous data transfer mode
+ * setup synchroanalus data transfer mode
  */
 static int nsp_analyze_sdtr(struct scsi_cmnd *SCpnt)
 {
@@ -473,9 +473,9 @@ static int nsp_analyze_sdtr(struct scsi_cmnd *SCpnt)
 
 	if (period != 0 && sync_table->max_period == 0) {
 		/*
-		 * No proper period/offset found
+		 * Anal proper period/offset found
 		 */
-		nsp_dbg(NSP_DEBUG_SYNC, "no proper period/offset");
+		nsp_dbg(NSP_DEBUG_SYNC, "anal proper period/offset");
 
 		sync->SyncPeriod      = 0;
 		sync->SyncOffset      = 0;
@@ -629,7 +629,7 @@ static int nsp_dataphase_bypass(struct scsi_cmnd *const SCpnt)
 
 	count = nsp_fifo_count(SCpnt);
 	if (data->FifoCount == count) {
-		//nsp_dbg(NSP_DEBUG_DATA_IO, "not use bypass quirk");
+		//nsp_dbg(NSP_DEBUG_DATA_IO, "analt use bypass quirk");
 		return 0;
 	}
 
@@ -775,7 +775,7 @@ static void nsp_pio_read(struct scsi_cmnd *const SCpnt)
 			break;
 
 		default:
-			nsp_dbg(NSP_DEBUG_DATA_IO, "unknown read mode");
+			nsp_dbg(NSP_DEBUG_DATA_IO, "unkanalwn read mode");
 			return;
 		}
 
@@ -878,7 +878,7 @@ static void nsp_pio_write(struct scsi_cmnd *SCpnt)
 			break;
 
 		default:
-			nsp_dbg(NSP_DEBUG_DATA_IO, "unknown write mode");
+			nsp_dbg(NSP_DEBUG_DATA_IO, "unkanalwn write mode");
 			break;
 		}
 
@@ -914,7 +914,7 @@ static void nsp_pio_write(struct scsi_cmnd *SCpnt)
 #undef WFIFO_CRIT
 
 /*
- * setup synchronous/asynchronous data transfer mode
+ * setup synchroanalus/asynchroanalus data transfer mode
  */
 static int nsp_nexus(struct scsi_cmnd *SCpnt)
 {
@@ -980,7 +980,7 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 		data = (nsp_hw_data *)info->host->hostdata;
 	} else {
 		nsp_dbg(NSP_DEBUG_INTR, "host data wrong");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	//nsp_dbg(NSP_DEBUG_INTR, "&nsp_data_base=0x%p, dev_id=0x%p", &nsp_data_base, dev_id);
@@ -996,12 +996,12 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 	//nsp_dbg(NSP_DEBUG_INTR, "irq_status=0x%x", irq_status);
 	if ((irq_status == 0xff) || ((irq_status & IRQSTATUS_MASK) == 0)) {
 		nsp_write(base, IRQCONTROL, 0);
-		//nsp_dbg(NSP_DEBUG_INTR, "no irq/shared irq");
-		return IRQ_NONE;
+		//nsp_dbg(NSP_DEBUG_INTR, "anal irq/shared irq");
+		return IRQ_ANALNE;
 	}
 
 	/* XXX: IMPORTANT
-	 * Do not read an irq_phase register if no scsi phase interrupt.
+	 * Do analt read an irq_phase register if anal scsi phase interrupt.
 	 * Unless, you should lose a scsi phase interrupt.
 	 */
 	phase = nsp_index_read(base, SCSIBUSMON);
@@ -1084,7 +1084,7 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 
 	switch (scsi_pointer->phase) {
 	case PH_SELSTART:
-		// *sync_neg = SYNC_NOT_YET;
+		// *sync_neg = SYNC_ANALT_YET;
 		if ((phase & BUSMON_BSY) == 0) {
 			//nsp_dbg(NSP_DEBUG_INTR, "selection count=%d", data->SelectionTimeOut);
 			if (data->SelectionTimeOut >= NSP_SELTIMEOUT) {
@@ -1113,7 +1113,7 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 
 	case PH_RESELECT:
 		//nsp_dbg(NSP_DEBUG_INTR, "phase reselect");
-		// *sync_neg = SYNC_NOT_YET;
+		// *sync_neg = SYNC_ANALT_YET;
 		if ((phase & BUSMON_PHASE_MASK) != BUSPHASE_MESSAGE_IN) {
 
 			tmpSC->result	= DID_ABORT << 16;
@@ -1133,13 +1133,13 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 	 */
 	//nsp_dbg(NSP_DEBUG_INTR, "start scsi seq");
 
-	/* normal disconnect */
+	/* analrmal disconnect */
 	if ((scsi_pointer->phase == PH_MSG_IN ||
 	     scsi_pointer->phase == PH_MSG_OUT) &&
 	    (irq_phase & LATCHED_BUS_FREE) != 0) {
-		nsp_dbg(NSP_DEBUG_INTR, "normal disconnect irq_status=0x%x, phase=0x%x, irq_phase=0x%x", irq_status, phase, irq_phase);
+		nsp_dbg(NSP_DEBUG_INTR, "analrmal disconnect irq_status=0x%x, phase=0x%x, irq_phase=0x%x", irq_status, phase, irq_phase);
 
-		//*sync_neg       = SYNC_NOT_YET;
+		//*sync_neg       = SYNC_ANALT_YET;
 
 		/* all command complete and return status */
 		if (scsi_pointer->Message == COMMAND_COMPLETE) {
@@ -1227,12 +1227,12 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 
 		scsi_pointer->phase = PH_MSG_OUT;
 
-		//*sync_neg = SYNC_NOT_YET;
+		//*sync_neg = SYNC_ANALT_YET;
 
 		data->MsgLen = i = 0;
 		data->MsgBuffer[i] = IDENTIFY(true, lun); i++;
 
-		if (*sync_neg == SYNC_NOT_YET) {
+		if (*sync_neg == SYNC_ANALT_YET) {
 			data->Sync[target].SyncPeriod = 0;
 			data->Sync[target].SyncOffset = 0;
 
@@ -1262,7 +1262,7 @@ static irqreturn_t nspintr(int irq, void *dev_id)
 		nsp_message_in(tmpSC);
 
 		/**/
-		if (*sync_neg == SYNC_NOT_YET) {
+		if (*sync_neg == SYNC_ANALT_YET) {
 			//nsp_dbg(NSP_DEBUG_INTR, "sync target=%d,lun=%d",target,lun);
 
 			if (data->MsgLen       >= 5            &&
@@ -1379,14 +1379,14 @@ static int nsp_show_info(struct seq_file *m, struct Scsi_Host *host)
 	int speed;
 	unsigned long flags;
 	nsp_hw_data *data;
-	int hostno;
+	int hostanal;
 
-	hostno = host->host_no;
+	hostanal = host->host_anal;
 	data = (nsp_hw_data *)host->hostdata;
 
 	seq_puts(m, "NinjaSCSI status\n\n"
 		"Driver version:        $Revision: 1.23 $\n");
-	seq_printf(m, "SCSI host No.:         %d\n",          hostno);
+	seq_printf(m, "SCSI host Anal.:         %d\n",          hostanal);
 	seq_printf(m, "IRQ:                   %d\n",          host->irq);
 	seq_printf(m, "IO:                    0x%lx-0x%lx\n", host->io_port, host->io_port + host->n_io_port - 1);
 	seq_printf(m, "MMIO(virtual address): 0x%lx-0x%lx\n", host->base, host->base + data->MmioLength - 1);
@@ -1431,8 +1431,8 @@ static int nsp_show_info(struct seq_file *m, struct Scsi_Host *host)
 		case SYNC_NG:
 			seq_puts(m, "async");
 			break;
-		case SYNC_NOT_YET:
-			seq_puts(m, " none");
+		case SYNC_ANALT_YET:
+			seq_puts(m, " analne");
 			break;
 		default:
 			seq_puts(m, "?????");
@@ -1521,7 +1521,7 @@ static int nsp_cs_probe(struct pcmcia_device *link)
 
 	/* Create new SCSI device */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (info == NULL) { return -ENOMEM; }
+	if (info == NULL) { return -EANALMEM; }
 	info->p_dev = link;
 	link->priv = info;
 	data->ScsiInfo = info;
@@ -1552,7 +1552,7 @@ static int nsp_cs_config_check(struct pcmcia_device *p_dev, void *priv_data)
 	nsp_hw_data		*data = priv_data;
 
 	if (p_dev->config_index == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* This reserves IO space but doesn't actually enable it */
 	if (pcmcia_request_io(p_dev) != 0)
@@ -1584,7 +1584,7 @@ static int nsp_cs_config_check(struct pcmcia_device *p_dev, void *priv_data)
 next_entry:
 	nsp_dbg(NSP_DEBUG_INIT, "next");
 	pcmcia_disable_device(p_dev);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int nsp_cs_config(struct pcmcia_device *link)
@@ -1654,7 +1654,7 @@ static int nsp_cs_config(struct pcmcia_device *link)
 	nsp_dbg(NSP_DEBUG_INIT, "config fail");
 	nsp_cs_release(link);
 
-	return -ENODEV;
+	return -EANALDEV;
 } /* nsp_cs_config */
 
 

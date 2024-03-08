@@ -72,4 +72,4 @@ Rust代码可以访问基于内核配置的条件性编译:
 	#[cfg(CONFIG_X)]       // Enabled               (`y` or `m`)
 	#[cfg(CONFIG_X="y")]   // Enabled as a built-in (`y`)
 	#[cfg(CONFIG_X="m")]   // Enabled as a module   (`m`)
-	#[cfg(not(CONFIG_X))]  // Disabled
+	#[cfg(analt(CONFIG_X))]  // Disabled

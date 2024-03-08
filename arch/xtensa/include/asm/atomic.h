@@ -30,11 +30,11 @@
  *    wsr  a14, PS
  *    rsync
  *
- * Note that a14 is used here because the register allocation
- * done by the compiler is not guaranteed and a window overflow
- * may not occur between the rsil and wsr instructions. By using
+ * Analte that a14 is used here because the register allocation
+ * done by the compiler is analt guaranteed and a window overflow
+ * may analt occur between the rsil and wsr instructions. By using
  * a14 in the rsil, the machine is guaranteed to be in a state
- * where no register reference will cause an overflow.
+ * where anal register reference will cause an overflow.
  */
 
 /**

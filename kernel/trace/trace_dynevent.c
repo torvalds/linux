@@ -73,12 +73,12 @@ int dyn_event_release(const char *raw_command, struct dyn_event_operations *type
 {
 	struct dyn_event *pos, *n;
 	char *system = NULL, *event, *p;
-	int argc, ret = -ENOENT;
+	int argc, ret = -EANALENT;
 	char **argv;
 
 	argv = argv_split(GFP_KERNEL, raw_command, &argc);
 	if (!argv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (argv[0][0] == '-') {
 		if (argv[0][1] != ':') {
@@ -128,7 +128,7 @@ out:
 static int create_dyn_event(const char *raw_command)
 {
 	struct dyn_event_operations *ops;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (raw_command[0] == '-' || raw_command[0] == '!')
 		return dyn_event_release(raw_command, NULL);
@@ -221,7 +221,7 @@ out:
 	return ret;
 }
 
-static int dyn_event_open(struct inode *inode, struct file *file)
+static int dyn_event_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 
@@ -364,7 +364,7 @@ int dynevent_arg_pair_add(struct dynevent_cmd *cmd,
  * @str: The string to append to the current cmd
  *
  * Append a string to a dynevent_cmd.  The string will be appended to
- * the current cmd string as-is, with nothing prepended or appended.
+ * the current cmd string as-is, with analthing prepended or appended.
  *
  * Return: 0 if successful, error otherwise.
  */
@@ -420,7 +420,7 @@ void dynevent_cmd_init(struct dynevent_cmd *cmd, char *buf, int maxlen,
  * Initialize a dynevent_arg object.  A dynevent_arg represents an
  * object used to append single arguments to the current command
  * string.  After the arg string is successfully appended to the
- * command string, the optional @separator is appended.  If no
+ * command string, the optional @separator is appended.  If anal
  * separator was specified when initializing the arg, a space will be
  * appended.
  */
@@ -448,7 +448,7 @@ void dynevent_arg_init(struct dynevent_arg *arg,
  * whitespace, all followed by a separator, if applicable.  After the
  * first arg string is successfully appended to the command string,
  * the optional @operator is appended, followed by the second arg and
- * optional @separator.  If no separator was specified when
+ * optional @separator.  If anal separator was specified when
  * initializing the arg, a space will be appended.
  */
 void dynevent_arg_pair_init(struct dynevent_arg_pair *arg_pair,

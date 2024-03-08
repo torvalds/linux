@@ -43,7 +43,7 @@ struct vb2_dc_buf {
 	struct dma_buf_attachment	*db_attach;
 
 	struct vb2_buffer		*vb;
-	bool				non_coherent_mem;
+	bool				analn_coherent_mem;
 };
 
 /*********************************************/
@@ -84,11 +84,11 @@ static void *vb2_dc_cookie(struct vb2_buffer *vb, void *buf_priv)
  *   E.g. due to lack of virtual mapping address space, or due to
  *   dmabuf->ops misconfiguration.
  *
- * - dma_vmap_noncontiguous() fails
+ * - dma_vmap_analncontiguous() fails
  *   For instance, when requested buffer size is larger than totalram_pages().
- *   Relevant for buffers that use non-coherent memory.
+ *   Relevant for buffers that use analn-coherent memory.
  *
- * - Queue DMA attrs have DMA_ATTR_NO_KERNEL_MAPPING set
+ * - Queue DMA attrs have DMA_ATTR_ANAL_KERNEL_MAPPING set
  *   Relevant for buffers that use coherent memory.
  */
 static void *vb2_dc_vaddr(struct vb2_buffer *vb, void *buf_priv)
@@ -107,8 +107,8 @@ static void *vb2_dc_vaddr(struct vb2_buffer *vb, void *buf_priv)
 		return buf->vaddr;
 	}
 
-	if (buf->non_coherent_mem)
-		buf->vaddr = dma_vmap_noncontiguous(buf->dev, buf->size,
+	if (buf->analn_coherent_mem)
+		buf->vaddr = dma_vmap_analncontiguous(buf->dev, buf->size,
 						    buf->dma_sgt);
 	return buf->vaddr;
 }
@@ -129,14 +129,14 @@ static void vb2_dc_prepare(void *buf_priv)
 	if (buf->vb->skip_cache_sync_on_prepare)
 		return;
 
-	if (!buf->non_coherent_mem)
+	if (!buf->analn_coherent_mem)
 		return;
 
-	/* Non-coherent MMAP only */
+	/* Analn-coherent MMAP only */
 	if (buf->vaddr)
 		flush_kernel_vmap_range(buf->vaddr, buf->size);
 
-	/* For both USERPTR and non-coherent MMAP */
+	/* For both USERPTR and analn-coherent MMAP */
 	dma_sync_sgtable_for_device(buf->dev, sgt, buf->dma_dir);
 }
 
@@ -149,14 +149,14 @@ static void vb2_dc_finish(void *buf_priv)
 	if (buf->vb->skip_cache_sync_on_finish)
 		return;
 
-	if (!buf->non_coherent_mem)
+	if (!buf->analn_coherent_mem)
 		return;
 
-	/* Non-coherent MMAP only */
+	/* Analn-coherent MMAP only */
 	if (buf->vaddr)
 		invalidate_kernel_vmap_range(buf->vaddr, buf->size);
 
-	/* For both USERPTR and non-coherent MMAP */
+	/* For both USERPTR and analn-coherent MMAP */
 	dma_sync_sgtable_for_cpu(buf->dev, sgt, buf->dma_dir);
 }
 
@@ -171,10 +171,10 @@ static void vb2_dc_put(void *buf_priv)
 	if (!refcount_dec_and_test(&buf->refcount))
 		return;
 
-	if (buf->non_coherent_mem) {
+	if (buf->analn_coherent_mem) {
 		if (buf->vaddr)
-			dma_vunmap_noncontiguous(buf->dev, buf->vaddr);
-		dma_free_noncontiguous(buf->dev, buf->size,
+			dma_vunmap_analncontiguous(buf->dev, buf->vaddr);
+		dma_free_analncontiguous(buf->dev, buf->size,
 				       buf->dma_sgt, buf->dma_dir);
 	} else {
 		if (buf->sgt_base) {
@@ -198,31 +198,31 @@ static int vb2_dc_alloc_coherent(struct vb2_dc_buf *buf)
 				      GFP_KERNEL | q->gfp_flags,
 				      buf->attrs);
 	if (!buf->cookie)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (q->dma_attrs & DMA_ATTR_NO_KERNEL_MAPPING)
+	if (q->dma_attrs & DMA_ATTR_ANAL_KERNEL_MAPPING)
 		return 0;
 
 	buf->vaddr = buf->cookie;
 	return 0;
 }
 
-static int vb2_dc_alloc_non_coherent(struct vb2_dc_buf *buf)
+static int vb2_dc_alloc_analn_coherent(struct vb2_dc_buf *buf)
 {
 	struct vb2_queue *q = buf->vb->vb2_queue;
 
-	buf->dma_sgt = dma_alloc_noncontiguous(buf->dev,
+	buf->dma_sgt = dma_alloc_analncontiguous(buf->dev,
 					       buf->size,
 					       buf->dma_dir,
 					       GFP_KERNEL | q->gfp_flags,
 					       buf->attrs);
 	if (!buf->dma_sgt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->dma_addr = sg_dma_address(buf->dma_sgt->sgl);
 
 	/*
-	 * For non-coherent buffers the kernel mapping is created on demand
+	 * For analn-coherent buffers the kernel mapping is created on demand
 	 * in vb2_dc_vaddr().
 	 */
 	return 0;
@@ -240,26 +240,26 @@ static void *vb2_dc_alloc(struct vb2_buffer *vb,
 
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	buf->attrs = vb->vb2_queue->dma_attrs;
 	buf->dma_dir = vb->vb2_queue->dma_dir;
 	buf->vb = vb;
-	buf->non_coherent_mem = vb->vb2_queue->non_coherent_mem;
+	buf->analn_coherent_mem = vb->vb2_queue->analn_coherent_mem;
 
 	buf->size = size;
 	/* Prevent the device from being released while the buffer is used */
 	buf->dev = get_device(dev);
 
-	if (buf->non_coherent_mem)
-		ret = vb2_dc_alloc_non_coherent(buf);
+	if (buf->analn_coherent_mem)
+		ret = vb2_dc_alloc_analn_coherent(buf);
 	else
 		ret = vb2_dc_alloc_coherent(buf);
 
 	if (ret) {
 		dev_err(dev, "dma alloc of size %lu failed\n", size);
 		kfree(buf);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	buf->handler.refcount = &buf->refcount;
@@ -277,12 +277,12 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 	int ret;
 
 	if (!buf) {
-		printk(KERN_ERR "No buffer to map\n");
+		printk(KERN_ERR "Anal buffer to map\n");
 		return -EINVAL;
 	}
 
-	if (buf->non_coherent_mem)
-		ret = dma_mmap_noncontiguous(buf->dev, vma, buf->size,
+	if (buf->analn_coherent_mem)
+		ret = dma_mmap_analncontiguous(buf->dev, vma, buf->size,
 					     buf->dma_sgt);
 	else
 		ret = dma_mmap_attrs(buf->dev, vma, buf->cookie, buf->dma_addr,
@@ -326,7 +326,7 @@ static int vb2_dc_dmabuf_ops_attach(struct dma_buf *dbuf,
 
 	attach = kzalloc(sizeof(*attach), GFP_KERNEL);
 	if (!attach)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sgt = &attach->sgt;
 	/* Copy the buf->base_sgt scatter list to the attachment, as we can't
@@ -335,7 +335,7 @@ static int vb2_dc_dmabuf_ops_attach(struct dma_buf *dbuf,
 	ret = sg_alloc_table(sgt, buf->sgt_base->orig_nents, GFP_KERNEL);
 	if (ret) {
 		kfree(attach);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rd = buf->sgt_base->sgl;
@@ -346,7 +346,7 @@ static int vb2_dc_dmabuf_ops_attach(struct dma_buf *dbuf,
 		wr = sg_next(wr);
 	}
 
-	attach->dma_dir = DMA_NONE;
+	attach->dma_dir = DMA_ANALNE;
 	dbuf_attach->priv = attach;
 
 	return 0;
@@ -364,11 +364,11 @@ static void vb2_dc_dmabuf_ops_detach(struct dma_buf *dbuf,
 	sgt = &attach->sgt;
 
 	/* release the scatterlist cache */
-	if (attach->dma_dir != DMA_NONE)
+	if (attach->dma_dir != DMA_ANALNE)
 		/*
 		 * Cache sync can be skipped here, as the vb2_dc memory is
 		 * allocated from device coherent memory, which means the
-		 * memory locations do not require any explicit cache
+		 * memory locations do analt require any explicit cache
 		 * maintenance prior or after being used by the device.
 		 */
 		dma_unmap_sgtable(db_attach->dev, sgt, attach->dma_dir,
@@ -390,14 +390,14 @@ static struct sg_table *vb2_dc_dmabuf_ops_map(
 		return sgt;
 
 	/* release any previous cache */
-	if (attach->dma_dir != DMA_NONE) {
+	if (attach->dma_dir != DMA_ANALNE) {
 		dma_unmap_sgtable(db_attach->dev, sgt, attach->dma_dir,
 				  DMA_ATTR_SKIP_CPU_SYNC);
-		attach->dma_dir = DMA_NONE;
+		attach->dma_dir = DMA_ANALNE;
 	}
 
 	/*
-	 * mapping to the client with new direction, no cache sync
+	 * mapping to the client with new direction, anal cache sync
 	 * required see comment in vb2_dc_dmabuf_ops_detach()
 	 */
 	if (dma_map_sgtable(db_attach->dev, sgt, dma_dir,
@@ -414,7 +414,7 @@ static struct sg_table *vb2_dc_dmabuf_ops_map(
 static void vb2_dc_dmabuf_ops_unmap(struct dma_buf_attachment *db_attach,
 	struct sg_table *sgt, enum dma_data_direction dma_dir)
 {
-	/* nothing to be done here */
+	/* analthing to be done here */
 }
 
 static void vb2_dc_dmabuf_ops_release(struct dma_buf *dbuf)
@@ -475,7 +475,7 @@ static struct sg_table *vb2_dc_get_base_sgt(struct vb2_dc_buf *buf)
 	int ret;
 	struct sg_table *sgt;
 
-	if (buf->non_coherent_mem)
+	if (buf->analn_coherent_mem)
 		return buf->dma_sgt;
 
 	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
@@ -537,7 +537,7 @@ static void vb2_dc_put_userptr(void *buf_priv)
 
 	if (sgt) {
 		/*
-		 * No need to sync to CPU, it's already synced to the CPU
+		 * Anal need to sync to CPU, it's already synced to the CPU
 		 * since the finish() memop will have been called before this.
 		 */
 		dma_unmap_sgtable(buf->dev, sgt, buf->dma_dir,
@@ -588,7 +588,7 @@ static void *vb2_dc_get_userptr(struct vb2_buffer *vb, struct device *dev,
 
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	buf->dev = dev;
 	buf->dma_dir = vb->vb2_queue->dma_dir;
@@ -617,7 +617,7 @@ static void *vb2_dc_get_userptr(struct vb2_buffer *vb, struct device *dev,
 		buf->dma_addr = dma_map_resource(buf->dev,
 				__pfn_to_phys(nums[0]), size, buf->dma_dir, 0);
 		if (dma_mapping_error(buf->dev, buf->dma_addr)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail_pfnvec;
 		}
 		goto out;
@@ -626,7 +626,7 @@ static void *vb2_dc_get_userptr(struct vb2_buffer *vb, struct device *dev,
 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt) {
 		pr_err("failed to allocate sg table\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_pfnvec;
 	}
 
@@ -638,7 +638,7 @@ static void *vb2_dc_get_userptr(struct vb2_buffer *vb, struct device *dev,
 	}
 
 	/*
-	 * No need to sync to the device, this will happen later when the
+	 * Anal need to sync to the device, this will happen later when the
 	 * prepare() memop is called.
 	 */
 	if (dma_map_sgtable(buf->dev, sgt, buf->dma_dir,
@@ -658,7 +658,7 @@ static void *vb2_dc_get_userptr(struct vb2_buffer *vb, struct device *dev,
 
 	buf->dma_addr = sg_dma_address(sgt->sgl);
 	buf->dma_sgt = sgt;
-	buf->non_coherent_mem = 1;
+	buf->analn_coherent_mem = 1;
 
 out:
 	buf->size = size;
@@ -694,7 +694,7 @@ static int vb2_dc_map_dmabuf(void *mem_priv)
 	unsigned long contig_size;
 
 	if (WARN_ON(!buf->db_attach)) {
-		pr_err("trying to pin a non attached buffer\n");
+		pr_err("trying to pin a analn attached buffer\n");
 		return -EINVAL;
 	}
 
@@ -710,7 +710,7 @@ static int vb2_dc_map_dmabuf(void *mem_priv)
 		return -EINVAL;
 	}
 
-	/* checking if dmabuf is big enough to store contiguous chunk */
+	/* checking if dmabuf is big eanalugh to store contiguous chunk */
 	contig_size = vb2_dc_get_contiguous_size(sgt);
 	if (contig_size < buf->size) {
 		pr_err("contiguous chunk is too small %lu/%lu\n",
@@ -734,7 +734,7 @@ static void vb2_dc_unmap_dmabuf(void *mem_priv)
 	struct iosys_map map = IOSYS_MAP_INIT_VADDR(buf->vaddr);
 
 	if (WARN_ON(!buf->db_attach)) {
-		pr_err("trying to unpin a not attached buffer\n");
+		pr_err("trying to unpin a analt attached buffer\n");
 		return;
 	}
 
@@ -780,7 +780,7 @@ static void *vb2_dc_attach_dmabuf(struct vb2_buffer *vb, struct device *dev,
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	buf->dev = dev;
 	buf->vb = vb;
@@ -840,9 +840,9 @@ EXPORT_SYMBOL_GPL(vb2_dma_contig_memops);
  * an IOMMU is available and enabled).
  * Ideally, this parameter should be set by the generic bus code, but it
  * is left with the default 64KiB value due to historical litmiations in
- * other subsystems (like limited USB host drivers) and there no good
+ * other subsystems (like limited USB host drivers) and there anal good
  * place to set it to the proper value.
- * This function should be called from the drivers, which are known to
+ * This function should be called from the drivers, which are kanalwn to
  * operate on platforms with IOMMU and provide access to shared buffers
  * (either USERPTR or DMABUF). This should be done before initializing
  * videobuf2 queue.
@@ -851,7 +851,7 @@ int vb2_dma_contig_set_max_seg_size(struct device *dev, unsigned int size)
 {
 	if (!dev->dma_parms) {
 		dev_err(dev, "Failed to set max_seg_size: dma_parms is NULL\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (dma_get_max_seg_size(dev) < size)
 		return dma_set_max_seg_size(dev, size);

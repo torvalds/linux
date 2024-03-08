@@ -151,8 +151,8 @@
 #define ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_RD			0x0060
 #define ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_WR			0x0061
 #define ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_SHARED			0x0062
-#define ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_NOT_SHARED		0x0063
-#define ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_NORMAL			0x0064
+#define ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_ANALT_SHARED		0x0063
+#define ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_ANALRMAL			0x0064
 #define ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_PERIPH			0x0065
 #define ARMV8_IMPDEF_PERFCTR_MEM_ACCESS_RD			0x0066
 #define ARMV8_IMPDEF_PERFCTR_MEM_ACCESS_WR			0x0067
@@ -215,7 +215,7 @@
 #define ARMV8_PMU_PMCR_C	(1 << 2) /* Cycle counter reset */
 #define ARMV8_PMU_PMCR_D	(1 << 3) /* CCNT counts every 64th cpu cycle */
 #define ARMV8_PMU_PMCR_X	(1 << 4) /* Export to ETM */
-#define ARMV8_PMU_PMCR_DP	(1 << 5) /* Disable CCNT if non-invasive debug*/
+#define ARMV8_PMU_PMCR_DP	(1 << 5) /* Disable CCNT if analn-invasive debug*/
 #define ARMV8_PMU_PMCR_LC	(1 << 6) /* Overflow on 64 bit cycle counter */
 #define ARMV8_PMU_PMCR_LP	(1 << 7) /* Long event counter enable */
 #define ARMV8_PMU_PMCR_N	GENMASK(15, 11) /* Number of counters supported */

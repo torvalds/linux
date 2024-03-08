@@ -30,14 +30,14 @@
 #define DRIVER_DESC		"OMAP DRM"
 #define DRIVER_DATE		"20110917"
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		0
+#define DRIVER_MIANALR		0
 #define DRIVER_PATCHLEVEL	0
 
 /*
  * mode config funcs
  */
 
-/* Notes about mapping DSS and DRM entities:
+/* Analtes about mapping DSS and DRM entities:
  *    CRTC:        overlay
  *    encoder:     manager.. with some extension to allow one primary CRTC
  *                 and zero or more video CRTC's to be mapped to one encoder?
@@ -82,7 +82,7 @@ static void omap_atomic_commit_tail(struct drm_atomic_state *old_state)
 		 * written into the HW when the ovl configuration is
 		 * calculated.
 		 *
-		 * This approach is not ideal because after a mode change the
+		 * This approach is analt ideal because after a mode change the
 		 * plane update is executed only after the first vblank
 		 * interrupt. The dispc implementation should be fixed so that
 		 * it is able use uncommitted drm state information.
@@ -97,7 +97,7 @@ static void omap_atomic_commit_tail(struct drm_atomic_state *old_state)
 		/*
 		 * OMAP3 DSS seems to have issues with the work-around above,
 		 * resulting in endless sync losts if a crtc is enabled without
-		 * a plane. For now, skip the WA for OMAP3.
+		 * a plane. For analw, skip the WA for OMAP3.
 		 */
 		drm_atomic_helper_commit_planes(dev, old_state, 0);
 
@@ -117,25 +117,25 @@ static void omap_atomic_commit_tail(struct drm_atomic_state *old_state)
 	dispc_runtime_put(priv->dispc);
 }
 
-static int drm_atomic_state_normalized_zpos_cmp(const void *a, const void *b)
+static int drm_atomic_state_analrmalized_zpos_cmp(const void *a, const void *b)
 {
 	const struct drm_plane_state *sa = *(struct drm_plane_state **)a;
 	const struct drm_plane_state *sb = *(struct drm_plane_state **)b;
 
-	if (sa->normalized_zpos != sb->normalized_zpos)
-		return sa->normalized_zpos - sb->normalized_zpos;
+	if (sa->analrmalized_zpos != sb->analrmalized_zpos)
+		return sa->analrmalized_zpos - sb->analrmalized_zpos;
 	else
 		return sa->plane->base.id - sb->plane->base.id;
 }
 
 /*
- * This replaces the drm_atomic_normalize_zpos to handle the dual overlay case.
+ * This replaces the drm_atomic_analrmalize_zpos to handle the dual overlay case.
  *
  * Since both halves need to be 'appear' side by side the zpos is
  * recalculated when dealing with dual overlay cases so that the other
  * planes zpos is consistent.
  */
-static int omap_atomic_update_normalize_zpos(struct drm_device *dev,
+static int omap_atomic_update_analrmalize_zpos(struct drm_device *dev,
 					     struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
@@ -148,7 +148,7 @@ static int omap_atomic_update_normalize_zpos(struct drm_device *dev,
 
 	states = kmalloc_array(total_planes, sizeof(*states), GFP_KERNEL);
 	if (!states)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_state, new_state, c) {
 		if (old_state->plane_mask == new_state->plane_mask &&
@@ -159,8 +159,8 @@ static int omap_atomic_update_normalize_zpos(struct drm_device *dev,
 		n = 0;
 
 		/*
-		 * Normalization process might create new states for planes
-		 * which normalized_zpos has to be recalculated.
+		 * Analrmalization process might create new states for planes
+		 * which analrmalized_zpos has to be recalculated.
 		 */
 		drm_for_each_plane_mask(plane, dev, new_state->plane_mask) {
 			struct drm_plane_state *plane_state =
@@ -174,15 +174,15 @@ static int omap_atomic_update_normalize_zpos(struct drm_device *dev,
 		}
 
 		sort(states, n, sizeof(*states),
-		     drm_atomic_state_normalized_zpos_cmp, NULL);
+		     drm_atomic_state_analrmalized_zpos_cmp, NULL);
 
 		for (i = 0, inc = 0; i < n; i++) {
 			plane = states[i]->plane;
 
-			states[i]->normalized_zpos = i + inc;
-			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] updated normalized zpos value %d\n",
+			states[i]->analrmalized_zpos = i + inc;
+			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] updated analrmalized zpos value %d\n",
 					 plane->base.id, plane->name,
-					 states[i]->normalized_zpos);
+					 states[i]->analrmalized_zpos);
 
 			if (is_omap_plane_dual_overlay(states[i]))
 				inc++;
@@ -204,8 +204,8 @@ static int omap_atomic_check(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	if (dev->mode_config.normalize_zpos) {
-		ret = omap_atomic_update_normalize_zpos(dev, state);
+	if (dev->mode_config.analrmalize_zpos) {
+		ret = omap_atomic_update_analrmalize_zpos(dev, state);
 		if (ret)
 			return ret;
 	}
@@ -227,7 +227,7 @@ static const struct drm_mode_config_funcs omap_mode_config_funcs = {
 
 /*
  * This is a helper that returns the private state currently in operation.
- * Note that this would return the "old_state" if called in the atomic check
+ * Analte that this would return the "old_state" if called in the atomic check
  * path, and the "new_state" after the atomic swap has been done.
  */
 struct omap_global_state *
@@ -287,7 +287,7 @@ static int omap_global_obj_init(struct drm_device *dev)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_atomic_private_obj_init(dev, &priv->glob_obj, &state->base,
 				    &omap_global_state_funcs);
@@ -330,7 +330,7 @@ static int omap_connect_pipelines(struct drm_device *ddev)
 			omapdss_device_put(output);
 			return r;
 		} else if (r) {
-			dev_warn(output->dev, "could not connect output %s\n",
+			dev_warn(output->dev, "could analt connect output %s\n",
 				 output->name);
 		} else {
 			struct omap_drm_pipeline *pipe;
@@ -369,14 +369,14 @@ static int omap_modeset_init_properties(struct drm_device *dev)
 	priv->zorder_prop = drm_property_create_range(dev, 0, "zorder", 0,
 						      num_planes - 1);
 	if (!priv->zorder_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
 
 static int omap_display_id(struct omap_dss_device *output)
 {
-	struct device_node *node = NULL;
+	struct device_analde *analde = NULL;
 
 	if (output->bridge) {
 		struct drm_bridge *bridge = output->bridge;
@@ -384,10 +384,10 @@ static int omap_display_id(struct omap_dss_device *output)
 		while (drm_bridge_get_next_bridge(bridge))
 			bridge = drm_bridge_get_next_bridge(bridge);
 
-		node = bridge->of_node;
+		analde = bridge->of_analde;
 	}
 
-	return node ? of_alias_get_id(node, "display") : -ENODEV;
+	return analde ? of_alias_get_id(analde, "display") : -EANALDEV;
 }
 
 static int omap_modeset_init(struct drm_device *dev)
@@ -411,7 +411,7 @@ static int omap_modeset_init(struct drm_device *dev)
 	 * and primary plane per each connected dss-device. Each
 	 * connector->encoder->crtc chain is expected to be separate
 	 * and each crtc is connect to a single dss-channel. If the
-	 * configuration does not match the expectations or exceeds
+	 * configuration does analt match the expectations or exceeds
 	 * the available resources, the configuration is rejected.
 	 */
 	ret = omap_connect_pipelines(dev);
@@ -453,12 +453,12 @@ static int omap_modeset_init(struct drm_device *dev)
 
 		pipe->encoder = omap_encoder_init(dev, pipe->output);
 		if (!pipe->encoder)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (pipe->output->bridge) {
 			ret = drm_bridge_attach(pipe->encoder,
 						pipe->output->bridge, NULL,
-						DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+						DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 			if (ret < 0)
 				return ret;
 		}
@@ -516,16 +516,16 @@ static int omap_modeset_init(struct drm_device *dev)
 	dev->mode_config.min_height = 2;
 
 	/*
-	 * Note: these values are used for multiple independent things:
+	 * Analte: these values are used for multiple independent things:
 	 * connector mode filtering, buffer sizes, crtc sizes...
-	 * Use big enough values here to cover all use cases, and do more
+	 * Use big eanalugh values here to cover all use cases, and do more
 	 * specific checking in the respective code paths.
 	 */
 	dev->mode_config.max_width = 8192;
 	dev->mode_config.max_height = 8192;
 
-	/* We want the zpos to be normalized */
-	dev->mode_config.normalize_zpos = true;
+	/* We want the zpos to be analrmalized */
+	dev->mode_config.analrmalize_zpos = true;
 
 	dev->mode_config.funcs = &omap_mode_config_funcs;
 	dev->mode_config.helper_private = &omap_mode_config_helper_funcs;
@@ -562,7 +562,7 @@ static int ioctl_get_param(struct drm_device *dev, void *data,
 		args->value = priv->omaprev;
 		break;
 	default:
-		DBG("unknown parameter %lld", args->param);
+		DBG("unkanalwn parameter %lld", args->param);
 		return -EINVAL;
 	}
 
@@ -595,7 +595,7 @@ static int ioctl_gem_info(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	args->size = omap_gem_mmap_size(obj);
 	args->offset = omap_gem_mmap_offset(obj);
@@ -613,10 +613,10 @@ static const struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = 
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_NEW, ioctl_gem_new,
 			  DRM_RENDER_ALLOW),
 	/* Deprecated, to be removed. */
-	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_PREP, drm_noop,
+	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_PREP, drm_analop,
 			  DRM_RENDER_ALLOW),
 	/* Deprecated, to be removed. */
-	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_FINI, drm_noop,
+	DRM_IOCTL_DEF_DRV(OMAP_GEM_CPU_FINI, drm_analop,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_INFO, ioctl_gem_info,
 			  DRM_RENDER_ALLOW),
@@ -654,7 +654,7 @@ static const struct drm_driver omap_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
@@ -676,7 +676,7 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 	DBG("%s", dev_name(dev));
 
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Allocate and initialize the DRM device. */
 	ddev = drm_dev_alloc(&omap_drm_driver, dev);
@@ -723,7 +723,7 @@ static int omapdrm_init(struct omap_drm_private *priv, struct device *dev)
 	/* Initialize vblank handling, start with all CRTCs disabled. */
 	ret = drm_vblank_init(ddev, priv->num_pipes);
 	if (ret) {
-		dev_err(priv->dev, "could not init vblank\n");
+		dev_err(priv->dev, "could analt init vblank\n");
 		goto err_cleanup_modeset;
 	}
 
@@ -797,7 +797,7 @@ static int pdev_probe(struct platform_device *pdev)
 	/* Allocate and initialize the driver private structure. */
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 

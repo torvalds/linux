@@ -16,13 +16,13 @@
  * modify its behavior for each frame
  *
  * @HWSIM_TX_CTL_REQ_TX_STATUS: require TX status callback for this frame.
- * @HWSIM_TX_CTL_NO_ACK: tell the wmediumd not to wait for an ack
- * @HWSIM_TX_STAT_ACK: Frame was acknowledged
+ * @HWSIM_TX_CTL_ANAL_ACK: tell the wmediumd analt to wait for an ack
+ * @HWSIM_TX_STAT_ACK: Frame was ackanalwledged
  *
  */
 enum hwsim_tx_control_flags {
 	HWSIM_TX_CTL_REQ_TX_STATUS		= BIT(0),
-	HWSIM_TX_CTL_NO_ACK			= BIT(1),
+	HWSIM_TX_CTL_ANAL_ACK			= BIT(1),
 	HWSIM_TX_STAT_ACK			= BIT(2),
 };
 
@@ -34,7 +34,7 @@ enum hwsim_tx_control_flags {
  * frames from a mac80211_hwsim radio device.
  *
  * This allow user space applications to decide if the frame should be
- * dropped or not and implement a wireless medium simulator at user space.
+ * dropped or analt and implement a wireless medium simulator at user space.
  *
  * Registration is done by sending a register message to the driver and
  * will be automatically unregistered if the user application doesn't
@@ -69,7 +69,7 @@ enum hwsim_tx_control_flags {
  *	then multicast the result, uses optional parameter:
  *	%HWSIM_ATTR_REG_STRICT_REG, %HWSIM_ATTR_SUPPORT_P2P_DEVICE,
  *	%HWSIM_ATTR_DESTROY_RADIO_ON_CLOSE, %HWSIM_ATTR_CHANNELS,
- *	%HWSIM_ATTR_NO_VIF, %HWSIM_ATTR_RADIO_NAME, %HWSIM_ATTR_USE_CHANCTX,
+ *	%HWSIM_ATTR_ANAL_VIF, %HWSIM_ATTR_RADIO_NAME, %HWSIM_ATTR_USE_CHANCTX,
  *	%HWSIM_ATTR_REG_HINT_ALPHA2, %HWSIM_ATTR_REG_CUSTOM_REG,
  *	%HWSIM_ATTR_PERM_ADDR
  * @HWSIM_CMD_DEL_RADIO: destroy a radio, reply is multicasted
@@ -82,7 +82,7 @@ enum hwsim_tx_control_flags {
  * @HWSIM_CMD_DEL_MAC_ADDR: remove the MAC address again, the attributes
  *	are the same as to @HWSIM_CMD_ADD_MAC_ADDR.
  * @HWSIM_CMD_START_PMSR: request to start peer measurement with the
- *	%HWSIM_ATTR_PMSR_REQUEST. Result will be sent back asynchronously
+ *	%HWSIM_ATTR_PMSR_REQUEST. Result will be sent back asynchroanalusly
  *	with %HWSIM_CMD_REPORT_PMSR.
  * @__HWSIM_CMD_MAX: enum limit
  */
@@ -139,8 +139,8 @@ enum hwsim_commands {
  * @HWSIM_ATTR_DESTROY_RADIO_ON_CLOSE: used with the %HWSIM_CMD_CREATE_RADIO
  *	command to force radio removal when process that created the radio dies
  * @HWSIM_ATTR_RADIO_NAME: Name of radio, e.g. phy666
- * @HWSIM_ATTR_NO_VIF:  Do not create vif (wlanX) when creating radio.
- * @HWSIM_ATTR_PAD: padding attribute for 64-bit values, ignore
+ * @HWSIM_ATTR_ANAL_VIF:  Do analt create vif (wlanX) when creating radio.
+ * @HWSIM_ATTR_PAD: padding attribute for 64-bit values, iganalre
  * @HWSIM_ATTR_FREQ: Frequency at which packet is transmitted or received.
  * @HWSIM_ATTR_TX_INFO_FLAGS: additional flags for corresponding
  *	rates of %HWSIM_ATTR_TX_INFO
@@ -176,7 +176,7 @@ enum hwsim_attrs {
 	HWSIM_ATTR_USE_CHANCTX,
 	HWSIM_ATTR_DESTROY_RADIO_ON_CLOSE,
 	HWSIM_ATTR_RADIO_NAME,
-	HWSIM_ATTR_NO_VIF,
+	HWSIM_ATTR_ANAL_VIF,
 	HWSIM_ATTR_FREQ,
 	HWSIM_ATTR_PAD,
 	HWSIM_ATTR_TX_INFO_FLAGS,
@@ -198,7 +198,7 @@ enum hwsim_attrs {
  * @count: number of tries in this rate before going to the next rate
  *
  * A value of -1 for @idx indicates an invalid rate and, if used
- * in an array of retry rates, that no more rates should be tried.
+ * in an array of retry rates, that anal more rates should be tried.
  *
  * When used for transmit status reporting, the driver should
  * always report the rate and number of retries used.
@@ -212,7 +212,7 @@ struct hwsim_tx_rate {
 /**
  * enum hwsim_tx_rate_flags - per-rate flags set by the rate control algorithm.
  *	Inspired by structure mac80211_rate_control_flags. New flags may be
- *	appended, but old flags not deleted, to keep compatibility for
+ *	appended, but old flags analt deleted, to keep compatibility for
  *	userspace.
  *
  * These flags are set by the Rate control algorithm for each rate during tx,
@@ -261,7 +261,7 @@ enum hwsim_tx_rate_flags {
  * @flags: the rate flags according to &enum hwsim_tx_rate_flags
  *
  * A value of -1 for @idx indicates an invalid rate and, if used
- * in an array of retry rates, that no more rates should be tried.
+ * in an array of retry rates, that anal more rates should be tried.
  *
  * When used for transmit status reporting, the driver should
  * always report the rate and number of retries used.

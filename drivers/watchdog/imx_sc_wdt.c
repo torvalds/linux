@@ -16,8 +16,8 @@
 #define DEFAULT_TIMEOUT 60
 /*
  * Software timer tick implemented in scfw side, support 10ms to 0xffffffff ms
- * in theory, but for normal case, 1s~128s is enough, you can change this max
- * value in case it's not enough.
+ * in theory, but for analrmal case, 1s~128s is eanalugh, you can change this max
+ * value in case it's analt eanalugh.
  */
 #define MAX_TIMEOUT 128
 
@@ -36,14 +36,14 @@
 #define SC_IRQ_GROUP_WDOG		1
 #define SC_TIMER_ERR_BUSY		10
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0000);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0000);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 struct imx_sc_wdt_device {
 	struct watchdog_device wdd;
-	struct notifier_block wdt_notifier;
+	struct analtifier_block wdt_analtifier;
 };
 
 static int imx_sc_wdt_ping(struct watchdog_device *wdog)
@@ -63,7 +63,7 @@ static int imx_sc_wdt_start(struct watchdog_device *wdog)
 	arm_smccc_smc(IMX_SIP_TIMER, IMX_SIP_TIMER_START_WDOG,
 		      0, 0, 0, 0, 0, 0, &res);
 
-	/* Ignore if already enabled(SC_TIMER_ERR_BUSY) */
+	/* Iganalre if already enabled(SC_TIMER_ERR_BUSY) */
 	if (res.a0 && res.a0 != SC_TIMER_ERR_BUSY)
 		return -EACCES;
 
@@ -116,26 +116,26 @@ static int imx_sc_wdt_set_pretimeout(struct watchdog_device *wdog,
 	return 0;
 }
 
-static int imx_sc_wdt_notify(struct notifier_block *nb,
+static int imx_sc_wdt_analtify(struct analtifier_block *nb,
 			     unsigned long event, void *group)
 {
 	struct imx_sc_wdt_device *imx_sc_wdd =
 				 container_of(nb,
 					      struct imx_sc_wdt_device,
-					      wdt_notifier);
+					      wdt_analtifier);
 
 	if (event & SC_IRQ_WDOG &&
 	    *(u8 *)group == SC_IRQ_GROUP_WDOG)
-		watchdog_notify_pretimeout(&imx_sc_wdd->wdd);
+		watchdog_analtify_pretimeout(&imx_sc_wdd->wdd);
 
 	return 0;
 }
 
 static void imx_sc_wdt_action(void *data)
 {
-	struct notifier_block *wdt_notifier = data;
+	struct analtifier_block *wdt_analtifier = data;
 
-	imx_scu_irq_unregister_notifier(wdt_notifier);
+	imx_scu_irq_unregister_analtifier(wdt_analtifier);
 	imx_scu_irq_group_enable(SC_IRQ_GROUP_WDOG,
 				 SC_IRQ_WDOG,
 				 false);
@@ -165,7 +165,7 @@ static int imx_sc_wdt_probe(struct platform_device *pdev)
 
 	imx_sc_wdd = devm_kzalloc(dev, sizeof(*imx_sc_wdd), GFP_KERNEL);
 	if (!imx_sc_wdd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, imx_sc_wdd);
 
@@ -190,27 +190,27 @@ static int imx_sc_wdt_probe(struct platform_device *pdev)
 				       SC_IRQ_WDOG,
 				       true);
 	if (ret) {
-		dev_warn(dev, "Enable irq failed, pretimeout NOT supported\n");
+		dev_warn(dev, "Enable irq failed, pretimeout ANALT supported\n");
 		goto register_device;
 	}
 
-	imx_sc_wdd->wdt_notifier.notifier_call = imx_sc_wdt_notify;
-	ret = imx_scu_irq_register_notifier(&imx_sc_wdd->wdt_notifier);
+	imx_sc_wdd->wdt_analtifier.analtifier_call = imx_sc_wdt_analtify;
+	ret = imx_scu_irq_register_analtifier(&imx_sc_wdd->wdt_analtifier);
 	if (ret) {
 		imx_scu_irq_group_enable(SC_IRQ_GROUP_WDOG,
 					 SC_IRQ_WDOG,
 					 false);
 		dev_warn(dev,
-			 "Register irq notifier failed, pretimeout NOT supported\n");
+			 "Register irq analtifier failed, pretimeout ANALT supported\n");
 		goto register_device;
 	}
 
 	ret = devm_add_action_or_reset(dev, imx_sc_wdt_action,
-				       &imx_sc_wdd->wdt_notifier);
+				       &imx_sc_wdd->wdt_analtifier);
 	if (!ret)
 		imx_sc_wdt_info.options |= WDIOF_PRETIMEOUT;
 	else
-		dev_warn(dev, "Add action failed, pretimeout NOT supported\n");
+		dev_warn(dev, "Add action failed, pretimeout ANALT supported\n");
 
 register_device:
 	return devm_watchdog_register_device(dev, wdog);

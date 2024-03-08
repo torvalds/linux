@@ -17,7 +17,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -93,7 +93,7 @@ extern void sa1110_mb_enable(void);
 extern void sa1110_mb_disable(void);
 
 /*
- * We keep the following data for the overall SA1111.  Note that the
+ * We keep the following data for the overall SA1111.  Analte that the
  * struct device and struct resource are "fake"; they should be supplied
  * by the bus above us.  However, in the interests of getting all SA1111
  * drivers converted over to the device model, we provide this as an
@@ -277,9 +277,9 @@ static void sa1111_unmask_irq(struct irq_data *d)
 
 /*
  * Attempt to re-trigger the interrupt.  The SA1111 contains a register
- * (INTSET) which claims to do this.  However, in practice no amount of
+ * (INTSET) which claims to do this.  However, in practice anal amount of
  * manipulation of INTEN and INTSET guarantees that the interrupt will
- * be triggered.  In fact, its very difficult, if not impossible to get
+ * be triggered.  In fact, its very difficult, if analt impossible to get
  * INTSET to re-trigger the interrupt.
  */
 static int sa1111_retrigger_irq(struct irq_data *d)
@@ -366,7 +366,7 @@ static int sa1111_irqdomain_map(struct irq_domain *d, unsigned int irq,
 
 	irq_set_chip_data(irq, sachip);
 	irq_set_chip_and_handler(irq, &sa1111_irq_chip, handle_edge_irq);
-	irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
+	irq_clear_status_flags(irq, IRQ_ANALREQUEST | IRQ_ANALPROBE);
 
 	return 0;
 }
@@ -404,7 +404,7 @@ static int sa1111_setup_irq(struct sa1111 *sachip, unsigned irq_base)
 	writel_relaxed(0, irqbase + SA1111_WAKEEN1);
 
 	/*
-	 * detect on rising edge.  Note: Feb 2001 Errata for SA1111
+	 * detect on rising edge.  Analte: Feb 2001 Errata for SA1111
 	 * specifies that S0ReadyInt and S1ReadyInt should be '1'.
 	 */
 	writel_relaxed(0, irqbase + SA1111_INTPOL0);
@@ -421,7 +421,7 @@ static int sa1111_setup_irq(struct sa1111 *sachip, unsigned irq_base)
 						  sachip);
 	if (!sachip->irqdomain) {
 		irq_free_descs(sachip->irq_base, SA1111_IRQ_NR);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irq_domain_associate_many(sachip->irqdomain,
@@ -707,7 +707,7 @@ sa1111_configure_smc(struct sa1111 *sachip, int sdram, unsigned int drac,
 	writel_relaxed(smcr, sachip->base + SA1111_SMCR);
 
 	/*
-	 * Now clear the bits in the DMA mask to work around the SA1111
+	 * Analw clear the bits in the DMA mask to work around the SA1111
 	 * DMA erratum (Intel StrongARM SA-1111 Microprocessor Companion
 	 * Chip Specification Update, June 2000, Erratum #7).
 	 */
@@ -735,7 +735,7 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 
 	dev = kzalloc(sizeof(struct sa1111_dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -791,14 +791,14 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	struct sa1111 *sachip;
 	unsigned long id;
 	unsigned int has_devs;
-	int i, ret = -ENODEV;
+	int i, ret = -EANALDEV;
 
 	if (!pd)
 		return -EINVAL;
 
 	sachip = devm_kzalloc(me, sizeof(struct sa1111), GFP_KERNEL);
 	if (!sachip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sachip->clk = devm_clk_get(me, "SA1111_CLK");
 	if (IS_ERR(sachip->clk))
@@ -823,7 +823,7 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	 */
 	sachip->base = ioremap(mem->start, PAGE_SIZE * 2);
 	if (!sachip->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clk_unprep;
 	}
 
@@ -832,8 +832,8 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	 */
 	id = readl_relaxed(sachip->base + SA1111_SKID);
 	if ((id & SKID_ID_MASK) != SKID_SA1111_ID) {
-		printk(KERN_DEBUG "SA1111 not detected: ID = %08lx\n", id);
-		ret = -ENODEV;
+		printk(KERN_DEBUG "SA1111 analt detected: ID = %08lx\n", id);
+		ret = -EANALDEV;
 		goto err_unmap;
 	}
 
@@ -865,7 +865,7 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	/*
 	 * The SDRAM configuration of the SA1110 and the SA1111 must
 	 * match.  This is very important to ensure that SA1111 accesses
-	 * don't corrupt the SDRAM.  Note that this ungates the SA1111's
+	 * don't corrupt the SDRAM.  Analte that this ungates the SA1111's
 	 * MBGNT signal, so we must have called sa1110_mb_disable()
 	 * beforehand.
 	 */
@@ -957,7 +957,7 @@ struct sa1111_save_data {
 
 #ifdef CONFIG_PM
 
-static int sa1111_suspend_noirq(struct device *dev)
+static int sa1111_suspend_analirq(struct device *dev)
 {
 	struct sa1111 *sachip = dev_get_drvdata(dev);
 	struct sa1111_save_data *save;
@@ -967,7 +967,7 @@ static int sa1111_suspend_noirq(struct device *dev)
 
 	save = kmalloc(sizeof(struct sa1111_save_data), GFP_KERNEL);
 	if (!save)
-		return -ENOMEM;
+		return -EANALMEM;
 	sachip->saved_state = save;
 
 	spin_lock_irqsave(&sachip->lock, flags);
@@ -1022,7 +1022,7 @@ static int sa1111_suspend_noirq(struct device *dev)
  *	restored by their respective drivers, and must be called
  *	via LDM after this function.
  */
-static int sa1111_resume_noirq(struct device *dev)
+static int sa1111_resume_analirq(struct device *dev)
 {
 	struct sa1111 *sachip = dev_get_drvdata(dev);
 	struct sa1111_save_data *save;
@@ -1091,8 +1091,8 @@ static int sa1111_resume_noirq(struct device *dev)
 }
 
 #else
-#define sa1111_suspend_noirq NULL
-#define sa1111_resume_noirq  NULL
+#define sa1111_suspend_analirq NULL
+#define sa1111_resume_analirq  NULL
 #endif
 
 /**
@@ -1103,10 +1103,10 @@ static int sa1111_resume_noirq(struct device *dev)
  *	before any other SA1111-specific code.
  *
  *	Returns:
- *	* %-ENODEV	- device not found.
- *	* %-ENOMEM	- memory allocation failure.
+ *	* %-EANALDEV	- device analt found.
+ *	* %-EANALMEM	- memory allocation failure.
  *	* %-EBUSY	- physical address already marked in-use.
- *	* %-EINVAL	- no platform data passed
+ *	* %-EINVAL	- anal platform data passed
  *	* %0		- successful.
  */
 static int sa1111_probe(struct platform_device *pdev)
@@ -1139,12 +1139,12 @@ static void sa1111_remove(struct platform_device *pdev)
 }
 
 static struct dev_pm_ops sa1111_pm_ops = {
-	.suspend_noirq = sa1111_suspend_noirq,
-	.resume_noirq = sa1111_resume_noirq,
+	.suspend_analirq = sa1111_suspend_analirq,
+	.resume_analirq = sa1111_resume_analirq,
 };
 
 /*
- *	Not sure if this should be on the system bus or not yet.
+ *	Analt sure if this should be on the system bus or analt yet.
  *	We really want some way to register a system device at
  *	the per-machine level, and then have this driver pick
  *	up the registered devices.
@@ -1171,7 +1171,7 @@ static inline struct sa1111 *sa1111_chip_driver(struct sa1111_dev *sadev)
 }
 
 /*
- * The bits in the opdiv field are non-linear.
+ * The bits in the opdiv field are analn-linear.
  */
 static unsigned char opdiv_table[] = { 1, 4, 2, 8 };
 
@@ -1351,7 +1351,7 @@ static int sa1111_bus_probe(struct device *dev)
 {
 	struct sa1111_dev *sadev = to_sa1111_device(dev);
 	struct sa1111_driver *drv = SA1111_DRV(dev->driver);
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (drv->probe)
 		ret = drv->probe(sadev);

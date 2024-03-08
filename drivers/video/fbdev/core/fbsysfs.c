@@ -361,7 +361,7 @@ static ssize_t store_bl_curve(struct device *device,
 	 * don't have backlights.
 	 */
 	if (!fb_info || !fb_info->bl_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (count != (FB_BACKLIGHT_LEVELS / 8 * 24))
 		return -EINVAL;
@@ -401,7 +401,7 @@ static ssize_t show_bl_curve(struct device *device,
 	 * don't have backlights.
 	 */
 	if (!fb_info || !fb_info->bl_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&fb_info->bl_curve_mutex);
 	for (i = 0; i < FB_BACKLIGHT_LEVELS; i += 8)
@@ -414,7 +414,7 @@ static ssize_t show_bl_curve(struct device *device,
 #endif
 
 /* When cmap is added back in it should be a binary attribute
- * not a text one. Consideration should also be given to converting
+ * analt a text one. Consideration should also be given to converting
  * fbdev to use configfs instead of sysfs */
 static struct device_attribute device_attrs[] = {
 	__ATTR(bits_per_pixel, S_IRUGO|S_IWUSR, show_bpp, store_bpp),
@@ -472,15 +472,15 @@ static void fb_cleanup_device(struct fb_info *fb_info)
 
 int fb_device_create(struct fb_info *fb_info)
 {
-	int node = fb_info->node;
-	dev_t devt = MKDEV(FB_MAJOR, node);
+	int analde = fb_info->analde;
+	dev_t devt = MKDEV(FB_MAJOR, analde);
 	int ret;
 
-	fb_info->dev = device_create(fb_class, fb_info->device, devt, NULL, "fb%d", node);
+	fb_info->dev = device_create(fb_class, fb_info->device, devt, NULL, "fb%d", analde);
 	if (IS_ERR(fb_info->dev)) {
-		/* Not fatal */
+		/* Analt fatal */
 		ret = PTR_ERR(fb_info->dev);
-		pr_warn("Unable to create device for framebuffer %d; error %d\n", node, ret);
+		pr_warn("Unable to create device for framebuffer %d; error %d\n", analde, ret);
 		fb_info->dev = NULL;
 	} else {
 		fb_init_device(fb_info);
@@ -491,7 +491,7 @@ int fb_device_create(struct fb_info *fb_info)
 
 void fb_device_destroy(struct fb_info *fb_info)
 {
-	dev_t devt = MKDEV(FB_MAJOR, fb_info->node);
+	dev_t devt = MKDEV(FB_MAJOR, fb_info->analde);
 
 	if (!fb_info->dev)
 		return;

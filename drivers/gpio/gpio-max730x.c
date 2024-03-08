@@ -7,7 +7,7 @@
  * The Maxim MAX7300/1 device is an I2C/SPI driven GPIO expander. There are
  * 28 GPIOs. 8 of them can trigger an interrupt. See datasheet for more
  * details
- * Note:
+ * Analte:
  * - DIN must be stable at the rising edge of clock.
  * - when writing:
  *   - always clock in 16 clocks at once
@@ -199,7 +199,7 @@ int __max730x_probe(struct max7301 *ts)
 		 * initialize port_config with "0xAA", which means
 		 * input with internal pullup disabled. This is needed
 		 * to avoid writing zeros (in the inner for loop),
-		 * which is not allowed according to the datasheet.
+		 * which is analt allowed according to the datasheet.
 		 */
 		ts->port_config[i] = 0xAA;
 		for (j = 0; j < 4; j++) {

@@ -2,7 +2,7 @@
 //
 // mix.c
 //
-// Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Copyright (c) 2015 Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 
 /*
  *		    CTUn	MIXn
@@ -205,7 +205,7 @@ static int rsnd_mix_pcm_new(struct rsnd_mod *mod,
 		rsnd_flags_set(mix, HAS_VOLD);
 		break;
 	default:
-		dev_err(dev, "unknown SRC is connected\n");
+		dev_err(dev, "unkanalwn SRC is connected\n");
 		return -EINVAL;
 	}
 
@@ -287,8 +287,8 @@ struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id)
 
 int rsnd_mix_probe(struct rsnd_priv *priv)
 {
-	struct device_node *node;
-	struct device_node *np;
+	struct device_analde *analde;
+	struct device_analde *np;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_mix *mix;
 	struct clk *clk;
@@ -299,11 +299,11 @@ int rsnd_mix_probe(struct rsnd_priv *priv)
 	if (rsnd_is_gen1(priv))
 		return 0;
 
-	node = rsnd_mix_of_node(priv);
-	if (!node)
-		return 0; /* not used is not error */
+	analde = rsnd_mix_of_analde(priv);
+	if (!analde)
+		return 0; /* analt used is analt error */
 
-	nr = of_get_child_count(node);
+	nr = of_get_child_count(analde);
 	if (!nr) {
 		ret = -EINVAL;
 		goto rsnd_mix_probe_done;
@@ -311,7 +311,7 @@ int rsnd_mix_probe(struct rsnd_priv *priv)
 
 	mix	= devm_kcalloc(dev, nr, sizeof(*mix), GFP_KERNEL);
 	if (!mix) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto rsnd_mix_probe_done;
 	}
 
@@ -320,7 +320,7 @@ int rsnd_mix_probe(struct rsnd_priv *priv)
 
 	i = 0;
 	ret = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_analde(analde, np) {
 		mix = rsnd_mix_get(priv, i);
 
 		snprintf(name, MIX_NAME_SIZE, "%s.%d",
@@ -329,14 +329,14 @@ int rsnd_mix_probe(struct rsnd_priv *priv)
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
-			of_node_put(np);
+			of_analde_put(np);
 			goto rsnd_mix_probe_done;
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(mix), &rsnd_mix_ops,
 				    clk, RSND_MOD_MIX, i);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			goto rsnd_mix_probe_done;
 		}
 
@@ -344,7 +344,7 @@ int rsnd_mix_probe(struct rsnd_priv *priv)
 	}
 
 rsnd_mix_probe_done:
-	of_node_put(node);
+	of_analde_put(analde);
 
 	return ret;
 }

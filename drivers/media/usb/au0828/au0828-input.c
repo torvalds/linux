@@ -92,7 +92,7 @@ static int au8522_rc_andor(struct au0828_rc *ir, u16 reg, u8 mask, u8 value)
 	oldbuf = buf;
 	buf = (buf & ~mask) | (value & mask);
 
-	/* Nothing to do, just return */
+	/* Analthing to do, just return */
 	if (buf == oldbuf)
 		return 0;
 
@@ -118,7 +118,7 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 	int prv_bit, bit, width;
 	bool first = true;
 
-	/* do nothing if device is disconnected */
+	/* do analthing if device is disconnected */
 	if (test_bit(DEV_DISCONNECTED, &ir->dev->dev_state))
 		return 0;
 
@@ -158,7 +158,7 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 			/*
 			 * Fix an au8522 bug: the first pulse event
 			 * is lost. So, we need to fake it, based on the
-			 * protocol. That means that not all raw decoders
+			 * protocol. That means that analt all raw decoders
 			 * will work, as we need to add a hack for each
 			 * protocol, based on the first space.
 			 * So, we only support RC5 and NEC.
@@ -245,7 +245,7 @@ static void au0828_rc_stop(struct rc_dev *rc)
 
 	cancel_delayed_work_sync(&ir->work);
 
-	/* do nothing if device is disconnected */
+	/* do analthing if device is disconnected */
 	if (!test_bit(DEV_DISCONNECTED, &ir->dev->dev_state)) {
 		/* Disable IR */
 		au8522_rc_clear(ir, 0xe0, 1 << 4);
@@ -266,14 +266,14 @@ static int au0828_probe_i2c_ir(struct au0828_dev *dev)
 		i++;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int au0828_rc_register(struct au0828_dev *dev)
 {
 	struct au0828_rc *ir;
 	struct rc_dev *rc;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	u16 i2c_rc_dev_addr = 0;
 
 	if (!dev->board.has_ir_i2c || disable_ir)
@@ -281,7 +281,7 @@ int au0828_rc_register(struct au0828_dev *dev)
 
 	i2c_rc_dev_addr = au0828_probe_i2c_ir(dev);
 	if (!i2c_rc_dev_addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
@@ -304,7 +304,7 @@ int au0828_rc_register(struct au0828_dev *dev)
 			ir->get_key_i2c = au0828_get_key_au8522;
 			break;
 		default:
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto error;
 		}
 
@@ -352,7 +352,7 @@ void au0828_rc_unregister(struct au0828_dev *dev)
 {
 	struct au0828_rc *ir = dev->ir;
 
-	/* skip detach on non attached boards */
+	/* skip detach on analn attached boards */
 	if (!ir)
 		return;
 

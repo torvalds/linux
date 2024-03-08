@@ -5,8 +5,8 @@
  * This file contains AppArmor functions for unpacking policy loaded from
  * userspace.
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  *
  * AppArmor uses a serialized binary format for loading policy. To find
  * policy format documentation see Documentation/admin-guide/LSM/apparmor.rst
@@ -16,7 +16,7 @@
 #include <asm/unaligned.h>
 #include <kunit/visibility.h>
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/zstd.h>
 
 #include "include/apparmor.h"
@@ -64,7 +64,7 @@ static int audit_iface(struct aa_profile *new, const char *ns_name,
 		       int error)
 {
 	struct aa_profile *profile = labels_profile(aa_current_raw_label());
-	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE, NULL);
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_ANALNE, AA_CLASS_ANALNE, NULL);
 	if (e)
 		ad.iface.pos = e->pos - e->start;
 	ad.iface.ns = ns_name;
@@ -87,13 +87,13 @@ void __aa_loaddata_update(struct aa_loaddata *data, long revision)
 
 	data->revision = revision;
 	if ((data->dents[AAFS_LOADDATA_REVISION])) {
-		struct inode *inode;
+		struct ianalde *ianalde;
 
-		inode = d_inode(data->dents[AAFS_LOADDATA_DIR]);
-		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
+		ianalde = d_ianalde(data->dents[AAFS_LOADDATA_DIR]);
+		ianalde_set_mtime_to_ts(ianalde, ianalde_set_ctime_current(ianalde));
 
-		inode = d_inode(data->dents[AAFS_LOADDATA_REVISION]);
-		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
+		ianalde = d_ianalde(data->dents[AAFS_LOADDATA_REVISION]);
+		ianalde_set_mtime_to_ts(ianalde, ianalde_set_ctime_current(ianalde));
 	}
 }
 
@@ -109,7 +109,7 @@ bool aa_rawdata_eq(struct aa_loaddata *l, struct aa_loaddata *r)
 }
 
 /*
- * need to take the ns mutex lock which is NOT safe most places that
+ * need to take the ns mutex lock which is ANALT safe most places that
  * put_loaddata is called, so we have to delay freeing it
  */
 static void do_loaddata_free(struct work_struct *work)
@@ -146,11 +146,11 @@ struct aa_loaddata *aa_loaddata_alloc(size_t size)
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (d == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	d->data = kvzalloc(size, GFP_KERNEL);
 	if (!d->data) {
 		kfree(d);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	kref_init(&d->count);
 	INIT_LIST_HEAD(&d->list);
@@ -167,8 +167,8 @@ EXPORT_SYMBOL_IF_KUNIT(aa_inbounds);
 
 /**
  * aa_unpack_u16_chunk - test and do bounds checking for a u16 size based chunk
- * @e: serialized data read head (NOT NULL)
- * @chunk: start address for chunk of data (NOT NULL)
+ * @e: serialized data read head (ANALT NULL)
+ * @chunk: start address for chunk of data (ANALT NULL)
  *
  * Returns: the size of chunk found with the read head at the end of the chunk.
  */
@@ -207,7 +207,7 @@ EXPORT_SYMBOL_IF_KUNIT(aa_unpack_X);
 
 /**
  * aa_unpack_nameX - check is the next element is of type X with a name of @name
- * @e: serialized data extent information  (NOT NULL)
+ * @e: serialized data extent information  (ANALT NULL)
  * @code: type code
  * @name: name to match to the serialized element.  (MAYBE NULL)
  *
@@ -219,7 +219,7 @@ EXPORT_SYMBOL_IF_KUNIT(aa_unpack_X);
  * Returns true on success (both type code and name tests match) and the read
  * head is advanced past the headers
  *
- * Returns: false if either match fails, the read head does not move
+ * Returns: false if either match fails, the read head does analt move
  */
 VISIBLE_IF_KUNIT bool aa_unpack_nameX(struct aa_ext *e, enum aa_code code, const char *name)
 {
@@ -238,11 +238,11 @@ VISIBLE_IF_KUNIT bool aa_unpack_nameX(struct aa_ext *e, enum aa_code code, const
 		if (name && (!size || tag[size-1] != '\0' || strcmp(name, tag)))
 			goto fail;
 	} else if (name) {
-		/* if a name is specified and there is no name tag fail */
+		/* if a name is specified and there is anal name tag fail */
 		goto fail;
 	}
 
-	/* now check if type code matches */
+	/* analw check if type code matches */
 	if (aa_unpack_X(e, code))
 		return true;
 
@@ -416,10 +416,10 @@ EXPORT_SYMBOL_IF_KUNIT(aa_unpack_strdup);
 
 /**
  * unpack_dfa - unpack a file rule dfa
- * @e: serialized data extent information (NOT NULL)
+ * @e: serialized data extent information (ANALT NULL)
  * @flags: dfa flags to check
  *
- * returns dfa or ERR_PTR or NULL if no dfa
+ * returns dfa or ERR_PTR or NULL if anal dfa
  */
 static struct aa_dfa *unpack_dfa(struct aa_ext *e, int flags)
 {
@@ -437,7 +437,7 @@ static struct aa_dfa *unpack_dfa(struct aa_ext *e, int flags)
 		size_t sz = blob - (char *) e->start -
 			((e->pos - e->start) & 7);
 		size_t pad = ALIGN(sz, 8) - sz;
-		if (aa_g_paranoid_load)
+		if (aa_g_paraanalid_load)
 			flags |= DFA_FLAG_VERIFY_STATES;
 		dfa = aa_dfa_unpack(blob + pad, size - pad, flags);
 
@@ -451,10 +451,10 @@ static struct aa_dfa *unpack_dfa(struct aa_ext *e, int flags)
 
 /**
  * unpack_trans_table - unpack a profile transition table
- * @e: serialized data extent information  (NOT NULL)
- * @strs: str table to unpack to (NOT NULL)
+ * @e: serialized data extent information  (ANALT NULL)
+ * @strs: str table to unpack to (ANALT NULL)
  *
- * Returns: true if table successfully unpacked or not present
+ * Returns: true if table successfully unpacked or analt present
  */
 static bool unpack_trans_table(struct aa_ext *e, struct aa_str_table *strs)
 {
@@ -468,9 +468,9 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_str_table *strs)
 
 		if (!aa_unpack_array(e, NULL, &size))
 			/*
-			 * Note: index into trans table array is a max
+			 * Analte: index into trans table array is a max
 			 * of 2^24, but unpack array can only unpack
-			 * an array of 2^16 in size atm so no need
+			 * an array of 2^16 in size atm so anal need
 			 * for size check here
 			 */
 			goto fail;
@@ -716,7 +716,7 @@ static int unpack_pdb(struct aa_ext *e, struct aa_policydb **policy,
 
 	pdb = aa_alloc_pdb(GFP_KERNEL);
 	if (!pdb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = unpack_perms_table(e, &pdb->perms);
 	if (size < 0) {
@@ -801,10 +801,10 @@ static int datacmp(struct rhashtable_compare_arg *arg, const void *obj)
 
 /**
  * unpack_profile - unpack a serialized profile
- * @e: serialized data extent information (NOT NULL)
+ * @e: serialized data extent information (ANALT NULL)
  * @ns_name: pointer of newly allocated copy of %NULL in case of error
  *
- * NOTE: unpack profile sets audit struct if there is a failure
+ * ANALTE: unpack profile sets audit struct if there is a failure
  */
 static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 {
@@ -839,7 +839,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		*ns_name = kstrndup(tmpns, ns_len, GFP_KERNEL);
 		if (!*ns_name) {
 			info = "out of memory";
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto fail;
 		}
 		name = tmpname;
@@ -848,7 +848,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	profile = aa_alloc_profile(name, NULL, GFP_KERNEL);
 	if (!profile) {
 		info = "out of memory";
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail;
 	}
 	rules = list_first_entry(&profile->rules, typeof(*rules), list);
@@ -866,7 +866,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		goto fail;
 	}
 
-	/* neither xmatch_len not xmatch_perms are optional if xmatch is set */
+	/* neither xmatch_len analt xmatch_perms are optional if xmatch is set */
 	if (profile->attach.xmatch->dfa) {
 		if (!aa_unpack_u32(e, &tmp, NULL)) {
 			info = "missing xmatch len";
@@ -930,7 +930,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		profile->path_flags |= profile->label.flags &
 			PATH_MEDIATE_DELETED;
 	else
-		/* set a default value if path_flags field is not present */
+		/* set a default value if path_flags field is analt present */
 		profile->path_flags = PATH_MEDIATE_DELETED;
 
 	info = "failed to unpack profile capabilities";
@@ -1036,7 +1036,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		info = "out of memory";
 		profile->data = kzalloc(sizeof(*profile->data), GFP_KERNEL);
 		if (!profile->data) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto fail;
 		}
 		params.nelem_hint = 3;
@@ -1055,7 +1055,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 			data = kzalloc(sizeof(*data), GFP_KERNEL);
 			if (!data) {
 				kfree_sensitive(key);
-				error = -ENOMEM;
+				error = -EANALMEM;
 				goto fail;
 			}
 
@@ -1065,7 +1065,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 			if (data->size && !data->data) {
 				kfree_sensitive(data->key);
 				kfree_sensitive(data);
-				error = -ENOMEM;
+				error = -EANALMEM;
 				goto fail;
 			}
 
@@ -1102,7 +1102,7 @@ fail:
 	if (profile)
 		name = NULL;
 	else if (!name)
-		name = "unknown";
+		name = "unkanalwn";
 	audit_iface(profile, NULL, name, info, e, error);
 	aa_free_profile(profile);
 
@@ -1111,15 +1111,15 @@ fail:
 
 /**
  * verify_header - unpack serialized stream header
- * @e: serialized data read head (NOT NULL)
+ * @e: serialized data read head (ANALT NULL)
  * @required: whether the header is required or optional
- * @ns: Returns - namespace if one is specified else NULL (NOT NULL)
+ * @ns: Returns - namespace if one is specified else NULL (ANALT NULL)
  *
  * Returns: error or 0 if header is good
  */
 static int verify_header(struct aa_ext *e, int required, const char **ns)
 {
-	int error = -EPROTONOSUPPORT;
+	int error = -EPROTOANALSUPPORT;
 	const char *name = NULL;
 	*ns = NULL;
 
@@ -1133,8 +1133,8 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
 	}
 
 	/* Check that the interface version is currently supported.
-	 * if not specified use previous version
-	 * Mask off everything that is not kernel abi version
+	 * if analt specified use previous version
+	 * Mask off everything that is analt kernel abi version
 	 */
 	if (VERSION_LT(e->version, v5) || VERSION_GT(e->version, v9)) {
 		audit_iface(NULL, NULL, NULL, "unsupported interface version",
@@ -1155,7 +1155,7 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
 		} else if (!*ns) {
 			*ns = kstrdup(name, GFP_KERNEL);
 			if (!*ns)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 
@@ -1223,7 +1223,7 @@ static bool verify_perms(struct aa_policydb *pdb)
 
 /**
  * verify_profile - Do post unpack analysis to verify profile consistency
- * @profile: profile to verify (NOT NULL)
+ * @profile: profile to verify (ANALT NULL)
  *
  * Returns: 0 if passes verification else error
  *
@@ -1303,13 +1303,13 @@ static int compress_zstd(const char *src, size_t slen, char **dst, size_t *dlen)
 
 	out = kvzalloc(out_len, GFP_KERNEL);
 	if (!out) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
 	wksp = kvzalloc(wksp_len, GFP_KERNEL);
 	if (!wksp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -1342,7 +1342,7 @@ static int compress_zstd(const char *src, size_t slen, char **dst, size_t *dlen)
 	}
 
 	if (!*dst) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -1367,7 +1367,7 @@ static int compress_loaddata(struct aa_loaddata *data)
 	AA_BUG(data->compressed_size > 0);
 
 	/*
-	 * Shortcut the no compression case, else we increase the amount of
+	 * Shortcut the anal compression case, else we increase the amount of
 	 * storage required by a small amount
 	 */
 	if (aa_g_rawdata_compression_level != 0) {
@@ -1388,9 +1388,9 @@ static int compress_loaddata(struct aa_loaddata *data)
 
 /**
  * aa_unpack - unpack packed binary profile(s) data loaded from user space
- * @udata: user data copied to kmem  (NOT NULL)
+ * @udata: user data copied to kmem  (ANALT NULL)
  * @lh: list to place unpacked profiles in a aa_repl_ws
- * @ns: Returns namespace profile is in if specified else NULL (NOT NULL)
+ * @ns: Returns namespace profile is in if specified else NULL (ANALT NULL)
  *
  * Unpack user data and return refcounted allocated profile(s) stored in
  * @lh in order of discovery, with the list chain stored in base.list
@@ -1437,7 +1437,7 @@ int aa_unpack(struct aa_loaddata *udata, struct list_head *lh,
 
 		ent = aa_load_ent_alloc();
 		if (!ent) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto fail_profile;
 		}
 

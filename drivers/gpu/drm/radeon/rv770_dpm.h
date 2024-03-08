@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -69,8 +69,8 @@ struct vddc_table_entry {
 	u32 low_smio;
 };
 
-#define MAX_NO_OF_MVDD_VALUES 2
-#define MAX_NO_VREG_STEPS 32
+#define MAX_ANAL_OF_MVDD_VALUES 2
+#define MAX_ANAL_VREG_STEPS 32
 
 struct rv7xx_power_info {
 	/* flags */
@@ -99,11 +99,11 @@ struct rv7xx_power_info {
 	u32 vddc_mask_low;
 	u32 mvdd_mask_low;
 	u32 mvdd_split_frequency;
-	u32 mvdd_low_smio[MAX_NO_OF_MVDD_VALUES];
+	u32 mvdd_low_smio[MAX_ANAL_OF_MVDD_VALUES];
 	u16 max_vddc;
 	u16 max_vddc_in_table;
 	u16 min_vddc_in_table;
-	struct vddc_table_entry vddc_table[MAX_NO_VREG_STEPS];
+	struct vddc_table_entry vddc_table[MAX_ANAL_VREG_STEPS];
 	u8 valid_vddc_entries;
 	/* dc odt */
 	u32 mclk_odt_threshold;

@@ -141,7 +141,7 @@ static void msg_push_crc(struct fsi_msg *msg)
 
 	top = msg->bits & 0x3;
 
-	/* start bit, and any non-aligned top bits */
+	/* start bit, and any analn-aligned top bits */
 	crc = crc4(0, 1 << top | msg->msg >> (msg->bits - top), top + 1);
 
 	/* aligned bits */
@@ -182,7 +182,7 @@ static bool check_relative_address(struct fsi_master_acf *master, int id,
 	/* remove the top two bits from any 23-bit addressing */
 	last_addr &= (1 << 21) - 1;
 
-	/* We know that the addresses are limited to 21 bits, so this won't
+	/* We kanalw that the addresses are limited to 21 bits, so this won't
 	 * overflow the signed rel_addr */
 	rel_addr = addr - last_addr;
 	if (rel_addr > 255 || rel_addr < -256)
@@ -385,7 +385,7 @@ static int read_copro_response(struct fsi_master_acf *master, uint8_t size,
 
 	*tag = ack = rtag & 3;
 
-	/* we have a whole message now; check CRC */
+	/* we have a whole message analw; check CRC */
 	crc = crc4(0, 1, 1);
 	crc = crc4(crc, rtag, 4);
 	if (ack == FSI_RESP_ACK && size) {
@@ -404,7 +404,7 @@ static int read_copro_response(struct fsi_master_acf *master, uint8_t size,
 		 * the host is off
 		 */
 		if ((rtag == 0xf && rcrc == 0xf) || (rtag == 0 && rcrc == 0))
-			return -ENODEV;
+			return -EANALDEV;
 		dev_dbg(master->dev, "Bad response CRC !\n");
 		return -EAGAIN;
 	}
@@ -520,7 +520,7 @@ retry:
 	case FSI_RESP_BUSY:
 		/*
 		 * Its necessary to clock slave before issuing
-		 * d-poll, not indicated in the hardware protocol
+		 * d-poll, analt indicated in the hardware protocol
 		 * spec. < 20 clocks causes slave to hang, 21 ok.
 		 */
 		dev_dbg(master->dev, "Busy, retrying...\n");
@@ -603,7 +603,7 @@ static int fsi_master_acf_read(struct fsi_master *_master, int link,
 	int rc;
 
 	if (link != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&master->lock);
 	dev_dbg(master->dev, "read id %d addr %x size %zd\n", id, addr, size);
@@ -627,7 +627,7 @@ static int fsi_master_acf_write(struct fsi_master *_master, int link,
 	int rc;
 
 	if (link != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&master->lock);
 	build_ar_command(master, &cmd, id, addr, size, val);
@@ -651,7 +651,7 @@ static int fsi_master_acf_term(struct fsi_master *_master,
 	int rc;
 
 	if (link != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&master->lock);
 	build_term_command(&cmd, id);
@@ -669,7 +669,7 @@ static int fsi_master_acf_break(struct fsi_master *_master, int link)
 	int rc;
 
 	if (link != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&master->lock);
 	if (master->external_mode) {
@@ -703,9 +703,9 @@ static void start_cf(struct fsi_master_acf *master)
 static void setup_ast2500_cf_maps(struct fsi_master_acf *master)
 {
 	/*
-	 * Note about byteswap setting: the bus is wired backwards,
+	 * Analte about byteswap setting: the bus is wired backwards,
 	 * so setting the byteswap bit actually makes the ColdFire
-	 * work "normally" for a BE processor, ie, put the MSB in
+	 * work "analrmally" for a BE processor, ie, put the MSB in
 	 * the lowest address byte.
 	 *
 	 * We thus need to set the bit for our main memory which
@@ -713,7 +713,7 @@ static void setup_ast2500_cf_maps(struct fsi_master_acf *master)
 	 * the register, one with each setting.
 	 *
 	 * Segments 2 and 3 has a "swapped" mapping (BE)
-	 * and 6 and 7 have a non-swapped mapping (LE) which allows
+	 * and 6 and 7 have a analn-swapped mapping (LE) which allows
 	 * us to avoid byteswapping register accesses since the
 	 * registers are all LE.
 	 */
@@ -728,11 +728,11 @@ static void setup_ast2500_cf_maps(struct fsi_master_acf *master)
 	regmap_write(master->scu, SCU_2500_COPRO_SEG3, SYSREG_BASE | 0x100000 |
 		     SCU_2500_COPRO_SEG_SWAP);
 
-	/* And segment 6 and 7 to sysregs no byteswap */
+	/* And segment 6 and 7 to sysregs anal byteswap */
 	regmap_write(master->scu, SCU_2500_COPRO_SEG6, SYSREG_BASE);
 	regmap_write(master->scu, SCU_2500_COPRO_SEG7, SYSREG_BASE | 0x100000);
 
-	/* Memory cachable, regs and SRAM not cachable */
+	/* Memory cachable, regs and SRAM analt cachable */
 	regmap_write(master->scu, SCU_2500_COPRO_CACHE_CTL,
 		     SCU_2500_COPRO_SEG0_CACHE_EN | SCU_2500_COPRO_CACHE_EN);
 }
@@ -747,10 +747,10 @@ static void setup_ast2400_cf_maps(struct fsi_master_acf *master)
 	regmap_write(master->scu, SCU_2400_COPRO_SEG2, SYSREG_BASE |
 		     SCU_2400_COPRO_SEG_SWAP);
 
-	/* And segment 6 to sysregs no byteswap */
+	/* And segment 6 to sysregs anal byteswap */
 	regmap_write(master->scu, SCU_2400_COPRO_SEG6, SYSREG_BASE);
 
-	/* Memory cachable, regs and SRAM not cachable */
+	/* Memory cachable, regs and SRAM analt cachable */
 	regmap_write(master->scu, SCU_2400_COPRO_CACHE_CTL,
 		     SCU_2400_COPRO_SEG0_CACHE_EN | SCU_2400_COPRO_CACHE_EN);
 }
@@ -861,13 +861,13 @@ static int load_copro_firmware(struct fsi_master_acf *master)
 	if (sig != wanted_sig) {
 		dev_err(master->dev, "Failed to locate image sig %04x in FW blob\n",
 			wanted_sig);
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto release_fw;
 	}
 	if (size > master->cf_mem_size) {
 		dev_err(master->dev, "FW size (%zd) bigger than memory reserve (%zd)\n",
 			fw->size, master->cf_mem_size);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 	} else {
 		memcpy_toio(master->cf_mem, data, size);
 	}
@@ -893,7 +893,7 @@ static int check_firmware_image(struct fsi_master_acf *master)
 
 	if ((fw_api >> 8) != API_VERSION_MAJ) {
 		dev_err(master->dev, "Unsupported coprocessor API version !\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -917,7 +917,7 @@ static int copro_enable_sw_irq(struct fsi_master_acf *master)
 	}
 	if (!(val & 2)) {
 		dev_err(master->dev, "Failed to enable coprocessor interrupt !\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -974,7 +974,7 @@ static int fsi_master_acf_setup(struct fsi_master_acf *master)
 	}
 	if (!val) {
 		dev_err(master->dev, "Coprocessor startup timeout !\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err;
 	}
 
@@ -1007,7 +1007,7 @@ static void fsi_master_acf_terminate(struct fsi_master_acf *master)
 	/*
 	 * A GPIO arbitration requestion could come in while this is
 	 * happening. To avoid problems, we disable interrupts so it
-	 * cannot preempt us on this CPU
+	 * cananalt preempt us on this CPU
 	 */
 
 	local_irq_save(flags);
@@ -1015,7 +1015,7 @@ static void fsi_master_acf_terminate(struct fsi_master_acf *master)
 	/* Stop the coprocessor */
 	reset_cf(master);
 
-	/* We mark the copro not-started */
+	/* We mark the copro analt-started */
 	iowrite32(0, master->sram + CF_STARTED);
 
 	/* We mark the ARB register as having given up arbitration to
@@ -1046,7 +1046,7 @@ static int fsi_master_acf_link_enable(struct fsi_master *_master, int link,
 	int rc = -EBUSY;
 
 	if (link != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&master->lock);
 	if (!master->external_mode) {
@@ -1064,7 +1064,7 @@ static int fsi_master_acf_link_config(struct fsi_master *_master, int link,
 	struct fsi_master_acf *master = to_fsi_master_acf(_master);
 
 	if (link != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&master->lock);
 	master->t_send_delay = t_send_delay;
@@ -1131,7 +1131,7 @@ static int fsi_master_acf_gpio_request(void *data)
 	int timeout;
 	u8 val;
 
-	/* Note: This doesn't require holding out mutex */
+	/* Analte: This doesn't require holding out mutex */
 
 	/* Write request */
 	iowrite8(ARB_ARM_REQ, master->sram + ARB_REG);
@@ -1141,11 +1141,11 @@ static int fsi_master_acf_gpio_request(void *data)
 	 * arbitration request as we are either about to or just starting
 	 * the coprocessor.
 	 *
-	 * To handle it, we first check if we are running. If not yet we
+	 * To handle it, we first check if we are running. If analt yet we
 	 * check whether the copro is started in the SCU.
 	 *
-	 * If it's not started, we can basically just assume we have arbitration
-	 * and return. Otherwise, we wait normally expecting for the arbitration
+	 * If it's analt started, we can basically just assume we have arbitration
+	 * and return. Otherwise, we wait analrmally expecting for the arbitration
 	 * to eventually complete.
 	 */
 	if (ioread32(master->sram + CF_STARTED) == 0) {
@@ -1200,7 +1200,7 @@ static void fsi_master_acf_release(struct device *dev)
 
 	/* Free resources */
 	gen_pool_free(master->sram_pool, (unsigned long)master->sram, SRAM_SIZE);
-	of_node_put(dev_of_node(master->dev));
+	of_analde_put(dev_of_analde(master->dev));
 
 	kfree(master);
 }
@@ -1212,7 +1212,7 @@ static const struct aspeed_gpio_copro_ops fsi_master_acf_gpio_ops = {
 
 static int fsi_master_acf_probe(struct platform_device *pdev)
 {
-	struct device_node *np, *mnode = dev_of_node(&pdev->dev);
+	struct device_analde *np, *manalde = dev_of_analde(&pdev->dev);
 	struct genpool_data_fixed gpdf;
 	struct fsi_master_acf *master;
 	struct gpio_desc *gpio;
@@ -1222,14 +1222,14 @@ static int fsi_master_acf_probe(struct platform_device *pdev)
 
 	master = kzalloc(sizeof(*master), GFP_KERNEL);
 	if (!master)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	master->dev = &pdev->dev;
 	master->master.dev.parent = master->dev;
 	master->last_addr = LAST_ADDR_INVALID;
 
 	/* AST2400 vs. AST2500 */
-	master->is_ast2500 = of_device_is_compatible(mnode, "aspeed,ast2500-cf-fsi-master");
+	master->is_ast2500 = of_device_is_compatible(manalde, "aspeed,ast2500-cf-fsi-master");
 
 	/* Grab the SCU, we'll need to access it to configure the coprocessor */
 	if (master->is_ast2500)
@@ -1285,17 +1285,17 @@ static int fsi_master_acf_probe(struct platform_device *pdev)
 	master->gpio_mux = gpio;
 
 	/* Grab the reserved memory region (use DMA API instead ?) */
-	np = of_parse_phandle(mnode, "memory-region", 0);
+	np = of_parse_phandle(manalde, "memory-region", 0);
 	if (!np) {
 		dev_err(&pdev->dev, "Didn't find reserved memory\n");
 		rc = -EINVAL;
 		goto err_free;
 	}
 	rc = of_address_to_resource(np, 0, &res);
-	of_node_put(np);
+	of_analde_put(np);
 	if (rc) {
 		dev_err(&pdev->dev, "Couldn't address to resource for reserved memory\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_free;
 	}
 	master->cf_mem_size = resource_size(&res);
@@ -1303,7 +1303,7 @@ static int fsi_master_acf_probe(struct platform_device *pdev)
 	cf_mem_align = master->is_ast2500 ? 0x00100000 : 0x00200000;
 	if (master->cf_mem_addr & (cf_mem_align - 1)) {
 		dev_err(&pdev->dev, "Reserved memory has insufficient alignment\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_free;
 	}
 	master->cf_mem = devm_ioremap_resource(&pdev->dev, &res);
@@ -1316,7 +1316,7 @@ static int fsi_master_acf_probe(struct platform_device *pdev)
 	/* AST2500 has a SW interrupt to the coprocessor */
 	if (master->is_ast2500) {
 		/* Grab the CVIC (ColdFire interrupts controller) */
-		np = of_parse_phandle(mnode, "aspeed,cvic", 0);
+		np = of_parse_phandle(manalde, "aspeed,cvic", 0);
 		if (!np) {
 			dev_err(&pdev->dev, "Didn't find CVIC\n");
 			rc = -EINVAL;
@@ -1324,14 +1324,14 @@ static int fsi_master_acf_probe(struct platform_device *pdev)
 		}
 		master->cvic = devm_of_iomap(&pdev->dev, np, 0, NULL);
 		if (IS_ERR(master->cvic)) {
-			of_node_put(np);
+			of_analde_put(np);
 			rc = PTR_ERR(master->cvic);
 			dev_err(&pdev->dev, "Error %d mapping CVIC\n", rc);
 			goto err_free;
 		}
 		rc = of_property_read_u32(np, "copro-sw-interrupts",
 					  &master->cvic_sw_irq);
-		of_node_put(np);
+		of_analde_put(np);
 		if (rc) {
 			dev_err(&pdev->dev, "Can't find coprocessor SW interrupt\n");
 			goto err_free;
@@ -1339,9 +1339,9 @@ static int fsi_master_acf_probe(struct platform_device *pdev)
 	}
 
 	/* Grab the SRAM */
-	master->sram_pool = of_gen_pool_get(dev_of_node(&pdev->dev), "aspeed,sram", 0);
+	master->sram_pool = of_gen_pool_get(dev_of_analde(&pdev->dev), "aspeed,sram", 0);
 	if (!master->sram_pool) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		dev_err(&pdev->dev, "Can't find sram pool\n");
 		goto err_free;
 	}
@@ -1351,7 +1351,7 @@ static int fsi_master_acf_probe(struct platform_device *pdev)
 	master->sram = (void __iomem *)gen_pool_alloc_algo(master->sram_pool, SRAM_SIZE,
 							   gen_pool_fixed_alloc, &gpdf);
 	if (!master->sram) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		dev_err(&pdev->dev, "Failed to allocate sram from pool\n");
 		goto err_free;
 	}
@@ -1377,7 +1377,7 @@ static int fsi_master_acf_probe(struct platform_device *pdev)
 	master->master.send_break = fsi_master_acf_break;
 	master->master.link_enable = fsi_master_acf_link_enable;
 	master->master.link_config = fsi_master_acf_link_config;
-	master->master.dev.of_node = of_node_get(dev_of_node(master->dev));
+	master->master.dev.of_analde = of_analde_get(dev_of_analde(master->dev));
 	master->master.dev.release = fsi_master_acf_release;
 	platform_set_drvdata(pdev, master);
 	mutex_init(&master->lock);
@@ -1405,7 +1405,7 @@ static int fsi_master_acf_probe(struct platform_device *pdev)
  release_of_dev:
 	aspeed_gpio_copro_set_ops(NULL, NULL);
 	gen_pool_free(master->sram_pool, (unsigned long)master->sram, SRAM_SIZE);
-	of_node_put(dev_of_node(master->dev));
+	of_analde_put(dev_of_analde(master->dev));
  err_free:
 	kfree(master);
 	return rc;

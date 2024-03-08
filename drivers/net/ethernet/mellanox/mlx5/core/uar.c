@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -41,7 +41,7 @@ static int mlx5_cmd_alloc_uar(struct mlx5_core_dev *dev, u32 *uarn)
 	int err;
 
 	MLX5_SET(alloc_uar_in, in, opcode, MLX5_CMD_OP_ALLOC_UAR);
-	err = mlx5_cmd_exec_inout(dev, alloc_uar, in, out);
+	err = mlx5_cmd_exec_ianalut(dev, alloc_uar, in, out);
 	if (err)
 		return err;
 
@@ -95,36 +95,36 @@ static struct mlx5_uars_page *alloc_uars_page(struct mlx5_core_dev *mdev,
 					      bool map_wc)
 {
 	struct mlx5_uars_page *up;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	phys_addr_t pfn;
 	int bfregs;
-	int node;
+	int analde;
 	int i;
 
 	bfregs = uars_per_sys_page(mdev) * MLX5_BFREGS_PER_UAR;
-	node = mdev->priv.numa_node;
-	up = kzalloc_node(sizeof(*up), GFP_KERNEL, node);
+	analde = mdev->priv.numa_analde;
+	up = kzalloc_analde(sizeof(*up), GFP_KERNEL, analde);
 	if (!up)
 		return ERR_PTR(err);
 
 	up->mdev = mdev;
-	up->reg_bitmap = bitmap_zalloc_node(bfregs, GFP_KERNEL, node);
+	up->reg_bitmap = bitmap_zalloc_analde(bfregs, GFP_KERNEL, analde);
 	if (!up->reg_bitmap)
 		goto error1;
 
-	up->fp_bitmap = bitmap_zalloc_node(bfregs, GFP_KERNEL, node);
+	up->fp_bitmap = bitmap_zalloc_analde(bfregs, GFP_KERNEL, analde);
 	if (!up->fp_bitmap)
 		goto error1;
 
 	for (i = 0; i < bfregs; i++)
-		if ((i % MLX5_BFREGS_PER_UAR) < MLX5_NON_FP_BFREGS_PER_UAR)
+		if ((i % MLX5_BFREGS_PER_UAR) < MLX5_ANALN_FP_BFREGS_PER_UAR)
 			set_bit(i, up->reg_bitmap);
 		else
 			set_bit(i, up->fp_bitmap);
 
 	up->bfregs = bfregs;
 	up->fp_avail = bfregs * MLX5_FP_BFREGS_PER_UAR / MLX5_BFREGS_PER_UAR;
-	up->reg_avail = bfregs * MLX5_NON_FP_BFREGS_PER_UAR / MLX5_BFREGS_PER_UAR;
+	up->reg_avail = bfregs * MLX5_ANALN_FP_BFREGS_PER_UAR / MLX5_BFREGS_PER_UAR;
 
 	err = mlx5_cmd_alloc_uar(mdev, &up->index);
 	if (err) {
@@ -142,7 +142,7 @@ static struct mlx5_uars_page *alloc_uars_page(struct mlx5_core_dev *mdev,
 	} else {
 		up->map = ioremap(pfn << PAGE_SHIFT, PAGE_SIZE);
 		if (!up->map) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error2;
 		}
 	}
@@ -307,7 +307,7 @@ void mlx5_free_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg)
 	}
 	up = bfreg->up;
 	dbi = addr_to_dbi_in_syspage(mdev, up, bfreg);
-	fp = (dbi % MLX5_BFREGS_PER_UAR) >= MLX5_NON_FP_BFREGS_PER_UAR;
+	fp = (dbi % MLX5_BFREGS_PER_UAR) >= MLX5_ANALN_FP_BFREGS_PER_UAR;
 	if (fp) {
 		avail = &up->fp_avail;
 		bitmap = up->fp_bitmap;

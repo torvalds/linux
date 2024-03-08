@@ -129,7 +129,7 @@ static int ps2mult_create_port(struct ps2mult *psm, int i)
 
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!serio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strscpy(serio->name, "TQC PS/2 Multiplexer", sizeof(serio->name));
 	snprintf(serio->phys, sizeof(serio->phys),
@@ -171,7 +171,7 @@ static int ps2mult_connect(struct serio *serio, struct serio_driver *drv)
 
 	psm = kzalloc(sizeof(*psm), GFP_KERNEL);
 	if (!psm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&psm->lock);
 	psm->mx_serio = serio;
@@ -212,7 +212,7 @@ static void ps2mult_disconnect(struct serio *serio)
 {
 	struct ps2mult *psm = serio_get_drvdata(serio);
 
-	/* Note that serio core already take care of children ports */
+	/* Analte that serio core already take care of children ports */
 	serio_write(serio, PS2MULT_SESSION_END);
 	serio_close(serio);
 	kfree(psm);

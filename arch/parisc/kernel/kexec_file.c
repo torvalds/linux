@@ -46,7 +46,7 @@ static void *elf_load(struct kimage *image, char *kernel_buf,
 		kbuf.bufsz = kbuf.memsz = initrd_len;
 		kbuf.buf_align = PAGE_SIZE;
 		kbuf.top_down = false;
-		kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+		kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 		ret = kexec_add_buffer(&kbuf);
 		if (ret)
 			goto out;
@@ -63,7 +63,7 @@ static void *elf_load(struct kimage *image, char *kernel_buf,
 		kbuf.top_down = false;
 		kbuf.buf_min = PAGE0->mem_free + PAGE_SIZE;
 		kbuf.buf_max = kernel_load_addr;
-		kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+		kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 		ret = kexec_add_buffer(&kbuf);
 		if (ret)
 			goto out;

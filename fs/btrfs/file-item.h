@@ -53,21 +53,21 @@ blk_status_t btrfs_csum_one_bio(struct btrfs_bio *bbio);
 blk_status_t btrfs_alloc_dummy_sum(struct btrfs_bio *bbio);
 int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 			     struct list_head *list, int search_commit,
-			     bool nowait);
+			     bool analwait);
 int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 			    struct list_head *list, int search_commit,
-			    bool nowait);
+			    bool analwait);
 int btrfs_lookup_csums_bitmap(struct btrfs_root *root, struct btrfs_path *path,
 			      u64 start, u64 end, u8 *csum_buf,
 			      unsigned long *csum_bitmap);
-void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
+void btrfs_extent_item_to_extent_map(struct btrfs_ianalde *ianalde,
 				     const struct btrfs_path *path,
 				     struct btrfs_file_extent_item *fi,
 				     struct extent_map *em);
-int btrfs_inode_clear_file_extent_range(struct btrfs_inode *inode, u64 start,
+int btrfs_ianalde_clear_file_extent_range(struct btrfs_ianalde *ianalde, u64 start,
 					u64 len);
-int btrfs_inode_set_file_extent_range(struct btrfs_inode *inode, u64 start, u64 len);
-void btrfs_inode_safe_disk_i_size_write(struct btrfs_inode *inode, u64 new_i_size);
+int btrfs_ianalde_set_file_extent_range(struct btrfs_ianalde *ianalde, u64 start, u64 len);
+void btrfs_ianalde_safe_disk_i_size_write(struct btrfs_ianalde *ianalde, u64 new_i_size);
 u64 btrfs_file_extent_end(const struct btrfs_path *path);
 
 #endif

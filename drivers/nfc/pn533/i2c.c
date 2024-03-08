@@ -2,7 +2,7 @@
 /*
  * Driver for NXP PN533 NFC Chip - I2C transport layer
  *
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Analkia de Tecanallogia
  * Copyright (C) 2012-2013 Tieto Poland
  * Copyright (C) 2016 HALE electronic
  */
@@ -30,7 +30,7 @@ struct pn533_i2c_phy {
 
 	int hard_fault;		/*
 				 * < 0 if hardware error occurred (e.g. i2c err)
-				 * and prevents normal operation.
+				 * and prevents analrmal operation.
 				 */
 };
 
@@ -59,7 +59,7 @@ static int pn533_i2c_send_frame(struct pn533 *dev,
 
 	phy->aborted = false;
 
-	print_hex_dump_debug("PN533_i2c TX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_debug("PN533_i2c TX: ", DUMP_PREFIX_ANALNE, 16, 1,
 			     out->data, out->len, false);
 
 	rc = i2c_master_send(client, out->data, out->len);
@@ -89,7 +89,7 @@ static void pn533_i2c_abort_cmd(struct pn533 *dev, gfp_t flags)
 	pn533_i2c_send_ack(dev, flags);
 
 	/* schedule cmd_complete_work to finish current command execution */
-	pn533_recv_frame(phy->priv, NULL, -ENOENT);
+	pn533_recv_frame(phy->priv, NULL, -EANALENT);
 }
 
 static int pn533_i2c_read(struct pn533_i2c_phy *phy, struct sk_buff **skb)
@@ -102,17 +102,17 @@ static int pn533_i2c_read(struct pn533_i2c_phy *phy, struct sk_buff **skb)
 
 	*skb = alloc_skb(len, GFP_KERNEL);
 	if (*skb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = i2c_master_recv(client, skb_put(*skb, len), len);
 	if (r != len) {
-		nfc_err(&client->dev, "cannot read. r=%d len=%d\n", r, len);
+		nfc_err(&client->dev, "cananalt read. r=%d len=%d\n", r, len);
 		kfree_skb(*skb);
 		return -EREMOTEIO;
 	}
 
 	if (!((*skb)->data[0] & 0x01)) {
-		nfc_err(&client->dev, "READY flag not set");
+		nfc_err(&client->dev, "READY flag analt set");
 		kfree_skb(*skb);
 		return -EBUSY;
 	}
@@ -133,7 +133,7 @@ static irqreturn_t pn533_i2c_irq_thread_fn(int irq, void *data)
 
 	if (!phy || irq != phy->i2c_dev->irq) {
 		WARN_ON_ONCE(1);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (phy->hard_fault != 0)
@@ -146,7 +146,7 @@ static irqreturn_t pn533_i2c_irq_thread_fn(int irq, void *data)
 		pn533_recv_frame(phy->priv, NULL, -EREMOTEIO);
 
 		return IRQ_HANDLED;
-	} else if ((r == -ENOMEM) || (r == -EBADMSG) || (r == -EBUSY)) {
+	} else if ((r == -EANALMEM) || (r == -EBADMSG) || (r == -EBUSY)) {
 		return IRQ_HANDLED;
 	}
 
@@ -171,13 +171,13 @@ static int pn533_i2c_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		nfc_err(&client->dev, "Need I2C_FUNC_I2C\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	phy = devm_kzalloc(&client->dev, sizeof(struct pn533_i2c_phy),
 			   GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->i2c_dev = client;
 	i2c_set_clientdata(client, phy);
@@ -191,7 +191,7 @@ static int pn533_i2c_probe(struct i2c_client *client)
 		return PTR_ERR(priv);
 
 	phy->priv = priv;
-	r = pn532_i2c_nfc_alloc(priv, PN533_NO_TYPE_B_PROTOCOLS, &client->dev);
+	r = pn532_i2c_nfc_alloc(priv, PN533_ANAL_TYPE_B_PROTOCOLS, &client->dev);
 	if (r)
 		goto nfc_alloc_err;
 
@@ -239,7 +239,7 @@ static void pn533_i2c_remove(struct i2c_client *client)
 static const struct of_device_id of_pn533_i2c_match[] __maybe_unused = {
 	{ .compatible = "nxp,pn532", },
 	/*
-	 * NOTE: The use of the compatibles with the trailing "...-i2c" is
+	 * ANALTE: The use of the compatibles with the trailing "...-i2c" is
 	 * deprecated and will be removed.
 	 */
 	{ .compatible = "nxp,pn533-i2c", },

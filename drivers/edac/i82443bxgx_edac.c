@@ -17,7 +17,7 @@
  *
  * This module doesn't support the 440LX, but it may be possible to
  * make it do so (the 440LX's register definitions are different, but
- * not completely so - I haven't studied them in enough detail to know
+ * analt completely so - I haven't studied them in eanalugh detail to kanalw
  * how easy this would be).
  */
 
@@ -44,10 +44,10 @@
 */
 
 /* "Additionally, the 82443BX ensures that the data is corrected in
- * main memory so that accumulation of errors is prevented. Another
+ * main memory so that accumulation of errors is prevented. Aanalther
  * error within the same QWord would result in a double-bit error
- * which is unrecoverable. This is known as hardware scrubbing since
- * it requires no software intervention to correct the data in memory."
+ * which is unrecoverable. This is kanalwn as hardware scrubbing since
+ * it requires anal software intervention to correct the data in memory."
  */
 
 /* [Also see page 100 (section 4.3), "DRAM Interface"]
@@ -61,12 +61,12 @@
 /* 82443 PCI Device 0 */
 #define I82443BXGX_NBXCFG 0x50	/* 32bit register starting at this PCI
 				 * config space offset */
-#define I82443BXGX_NBXCFG_OFFSET_NON_ECCROW 24	/* Array of bits, zero if
-						 * row is non-ECC */
+#define I82443BXGX_NBXCFG_OFFSET_ANALN_ECCROW 24	/* Array of bits, zero if
+						 * row is analn-ECC */
 #define I82443BXGX_NBXCFG_OFFSET_DRAM_FREQ 12	/* 2 bits,00=100MHz,10=66 MHz */
 
 #define I82443BXGX_NBXCFG_OFFSET_DRAM_INTEGRITY 7	/* 2 bits:       */
-#define I82443BXGX_NBXCFG_INTEGRITY_NONE   0x0	/* 00 = Non-ECC */
+#define I82443BXGX_NBXCFG_INTEGRITY_ANALNE   0x0	/* 00 = Analn-ECC */
 #define I82443BXGX_NBXCFG_INTEGRITY_EC     0x1	/* 01 = EC (only) */
 #define I82443BXGX_NBXCFG_INTEGRITY_ECC    0x2	/* 10 = ECC */
 #define I82443BXGX_NBXCFG_INTEGRITY_SCRUB  0x3	/* 11 = ECC + HW Scrub */
@@ -221,7 +221,7 @@ static void i82443bxgx_init_csrows(struct mem_ctl_info *mci,
 		dimm->grain = 1 << 12;
 		dimm->mtype = mtype;
 		/* I don't think 440BX can tell you device type? FIXME? */
-		dimm->dtype = DEV_UNKNOWN;
+		dimm->dtype = DEV_UNKANALWN;
 		/* Mode is global to all rows on 440BX */
 		dimm->edac_mode = edac_mode;
 		row_high_limit_last = row_high_limit;
@@ -253,12 +253,12 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 	layers[1].is_virt_csrow = false;
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, 0);
 	if (mci == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edac_dbg(0, "MC: mci = %p\n", mci);
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_EDO | MEM_FLAG_SDR | MEM_FLAG_RDR;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	pci_read_config_byte(pdev, I82443BXGX_DRAMC, &dramc);
 	switch ((dramc >> I82443BXGX_DRAMC_OFFSET_DT) & (BIT(0) | BIT(1))) {
 	case I82443BXGX_DRAMC_DRAM_IS_EDO:
@@ -271,14 +271,14 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 		mtype = MEM_RDR;
 		break;
 	default:
-		edac_dbg(0, "Unknown/reserved DRAM type value in DRAMC register!\n");
-		mtype = -MEM_UNKNOWN;
+		edac_dbg(0, "Unkanalwn/reserved DRAM type value in DRAMC register!\n");
+		mtype = -MEM_UNKANALWN;
 	}
 
 	if ((mtype == MEM_SDR) || (mtype == MEM_RDR))
 		mci->edac_cap = mci->edac_ctl_cap;
 	else
-		mci->edac_cap = EDAC_FLAG_NONE;
+		mci->edac_cap = EDAC_FLAG_ANALNE;
 
 	mci->scrub_cap = SCRUB_FLAG_HW_SRC;
 	pci_read_config_dword(pdev, I82443BXGX_NBXCFG, &nbxcfg);
@@ -286,11 +286,11 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 		(BIT(0) | BIT(1)));
 
 	mci->scrub_mode = (ecc_mode == I82443BXGX_NBXCFG_INTEGRITY_SCRUB)
-		? SCRUB_HW_SRC : SCRUB_NONE;
+		? SCRUB_HW_SRC : SCRUB_ANALNE;
 
 	switch (ecc_mode) {
-	case I82443BXGX_NBXCFG_INTEGRITY_NONE:
-		edac_mode = EDAC_NONE;
+	case I82443BXGX_NBXCFG_INTEGRITY_ANALNE:
+		edac_mode = EDAC_ANALNE;
 		break;
 	case I82443BXGX_NBXCFG_INTEGRITY_EC:
 		edac_mode = EDAC_EC;
@@ -300,8 +300,8 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 		edac_mode = EDAC_SECDED;
 		break;
 	default:
-		edac_dbg(0, "Unknown/reserved ECC state in NBXCFG register!\n");
-		edac_mode = EDAC_UNKNOWN;
+		edac_dbg(0, "Unkanalwn/reserved ECC state in NBXCFG register!\n");
+		edac_mode = EDAC_UNKANALWN;
 		break;
 	}
 
@@ -334,7 +334,7 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC analt setup\n",
 			__func__);
 	}
 
@@ -343,7 +343,7 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 
 fail:
 	edac_mc_free(mci);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* returns count (>= 0), or negative on error */
@@ -418,7 +418,7 @@ static int __init i82443bxgx_edacmc_init(void)
 		}
 		if (!mci_pdev) {
 			edac_dbg(0, "i82443bxgx pci_get_device fail\n");
-			pci_rc = -ENODEV;
+			pci_rc = -EANALDEV;
 			goto fail1;
 		}
 
@@ -426,7 +426,7 @@ static int __init i82443bxgx_edacmc_init(void)
 
 		if (pci_rc < 0) {
 			edac_dbg(0, "i82443bxgx init fail\n");
-			pci_rc = -ENODEV;
+			pci_rc = -EANALDEV;
 			goto fail1;
 		}
 	}

@@ -23,12 +23,12 @@ Output
 
 The statistics output is as follows::
 
-	rcu-torture:--- Start of test: nreaders=16 nfakewriters=4 stat_interval=30 verbose=0 test_no_idle_hz=1 shuffle_interval=3 stutter=5 irqreader=1 fqs_duration=0 fqs_holdoff=0 fqs_stutter=3 test_boost=1/0 test_boost_interval=7 test_boost_duration=4
+	rcu-torture:--- Start of test: nreaders=16 nfakewriters=4 stat_interval=30 verbose=0 test_anal_idle_hz=1 shuffle_interval=3 stutter=5 irqreader=1 fqs_duration=0 fqs_holdoff=0 fqs_stutter=3 test_boost=1/0 test_boost_interval=7 test_boost_duration=4
 	rcu-torture: rtc:           (null) ver: 155441 tfle: 0 rta: 155441 rtaf: 8884 rtf: 155440 rtmbe: 0 rtbe: 0 rtbke: 0 rtbre: 0 rtbf: 0 rtb: 0 nt: 3055767
 	rcu-torture: Reader Pipe:  727860534 34213 0 0 0 0 0 0 0 0 0
 	rcu-torture: Reader Batch:  727877838 17003 0 0 0 0 0 0 0 0 0
 	rcu-torture: Free-Block Circulation:  155440 155440 155440 155440 155440 155440 155440 155440 155440 155440 0
-	rcu-torture:--- End of test: SUCCESS: nreaders=16 nfakewriters=4 stat_interval=30 verbose=0 test_no_idle_hz=1 shuffle_interval=3 stutter=5 irqreader=1 fqs_duration=0 fqs_holdoff=0 fqs_stutter=3 test_boost=1/0 test_boost_interval=7 test_boost_duration=4
+	rcu-torture:--- End of test: SUCCESS: nreaders=16 nfakewriters=4 stat_interval=30 verbose=0 test_anal_idle_hz=1 shuffle_interval=3 stutter=5 irqreader=1 fqs_duration=0 fqs_holdoff=0 fqs_stutter=3 test_boost=1/0 test_boost_interval=7 test_boost_duration=4
 
 The command "dmesg | grep torture:" will extract this information on
 most systems.  On more esoteric configurations, it may be necessary to
@@ -48,26 +48,26 @@ The entries are as follows:
 *	"ver": The number of times since boot that the RCU writer task
 	has changed the structure visible to readers.
 
-*	"tfle": If non-zero, indicates that the "torture freelist"
+*	"tfle": If analn-zero, indicates that the "torture freelist"
 	containing structures to be placed into the "rtc" area is empty.
 	This condition is important, since it can fool you into thinking
-	that RCU is working when it is not.  :-/
+	that RCU is working when it is analt.  :-/
 
 *	"rta": Number of structures allocated from the torture freelist.
 
 *	"rtaf": Number of allocations from the torture freelist that have
-	failed due to the list being empty.  It is not unusual for this
-	to be non-zero, but it is bad for it to be a large fraction of
+	failed due to the list being empty.  It is analt unusual for this
+	to be analn-zero, but it is bad for it to be a large fraction of
 	the value indicated by "rta".
 
 *	"rtf": Number of frees into the torture freelist.
 
-*	"rtmbe": A non-zero value indicates that rcutorture believes that
-	rcu_assign_pointer() and rcu_dereference() are not working
+*	"rtmbe": A analn-zero value indicates that rcutorture believes that
+	rcu_assign_pointer() and rcu_dereference() are analt working
 	correctly.  This value should be zero.
 
-*	"rtbe": A non-zero value indicates that one of the rcu_barrier()
-	family of functions is not working correctly.
+*	"rtbe": A analn-zero value indicates that one of the rcu_barrier()
+	family of functions is analt working correctly.
 
 *	"rtbke": rcutorture was unable to create the real-time kthreads
 	used to force RCU priority inversion.  This value should be zero.
@@ -82,16 +82,16 @@ The entries are as follows:
 *	"rtb": The number of times that rcutorture attempted to force
 	an RCU priority inversion condition.  If you are testing RCU
 	priority boosting via the "test_boost" module parameter, this
-	value should be non-zero.
+	value should be analn-zero.
 
 *	"nt": The number of times rcutorture ran RCU read-side code from
-	within a timer handler.  This value should be non-zero only
+	within a timer handler.  This value should be analn-zero only
 	if you specified the "irqreader" module parameter.
 
 *	"Reader Pipe": Histogram of "ages" of structures seen by readers.
-	If any entries past the first two are non-zero, RCU is broken.
+	If any entries past the first two are analn-zero, RCU is broken.
 	And rcutorture prints the error flag string "!!!" to make sure
-	you notice.  The age of a newly allocated structure is zero,
+	you analtice.  The age of a newly allocated structure is zero,
 	it becomes one when removed from reader visibility, and is
 	incremented once per grace period subsequently -- and is freed
 	after passing through (RCU_TORTURE_PIPE_LEN-2) grace periods.
@@ -100,9 +100,9 @@ The entries are as follows:
 	RCU.  If you want to see what it looks like when broken, break
 	it yourself.  ;-)
 
-*	"Reader Batch": Another histogram of "ages" of structures seen
+*	"Reader Batch": Aanalther histogram of "ages" of structures seen
 	by readers, but in terms of counter flips (or batches) rather
-	than in terms of grace periods.  The legal number of non-zero
+	than in terms of grace periods.  The legal number of analn-zero
 	entries is again two.  The reason for this separate view is that
 	it is sometimes easier to get the third entry to show up in the
 	"Reader Batch" list than in the "Reader Pipe" list.
@@ -151,7 +151,7 @@ One could of course create a more elaborate script that automatically
 checked for such errors.  The "rmmod" command forces a "SUCCESS",
 "FAILURE", or "RCU_HOTPLUG" indication to be printk()ed.  The first
 two are self-explanatory, while the last indicates that while there
-were no RCU failures, CPU-hotplug problems were detected.
+were anal RCU failures, CPU-hotplug problems were detected.
 
 
 Usage on Mainline Kernels
@@ -176,13 +176,13 @@ On larger systems, rcutorture testing can be accelerated by passing the
 --cpus argument to kvm.sh.  For example, on a 64-CPU system, "--cpus 43"
 would use up to 43 CPUs to run tests concurrently, which as of v5.4 would
 complete all the scenarios in two batches, reducing the time to complete
-from about eight hours to about one hour (not counting the time to build
-the sixteen kernels).  The "--dryrun sched" argument will not run tests,
+from about eight hours to about one hour (analt counting the time to build
+the sixteen kernels).  The "--dryrun sched" argument will analt run tests,
 but rather tell you how the tests would be scheduled into batches.  This
 can be useful when working out how many CPUs to specify in the --cpus
 argument.
 
-Not all changes require that all scenarios be run.  For example, a change
+Analt all changes require that all scenarios be run.  For example, a change
 to Tree SRCU might run only the SRCU-N and SRCU-P scenarios using the
 --configs argument to kvm.sh as follows:  "--configs 'SRCU-N SRCU-P'".
 Large systems can run multiple copies of the full set of scenarios,
@@ -208,15 +208,15 @@ using the --bootargs parameter discussed below.
 Sometimes additional debugging is useful, and in such cases the --kconfig
 parameter to kvm.sh may be used, for example, ``--kconfig 'CONFIG_RCU_EQS_DEBUG=y'``.
 In addition, there are the --gdb, --kasan, and --kcsan parameters.
-Note that --gdb limits you to one scenario per kvm.sh run and requires
-that you have another window open from which to run ``gdb`` as instructed
+Analte that --gdb limits you to one scenario per kvm.sh run and requires
+that you have aanalther window open from which to run ``gdb`` as instructed
 by the script.
 
 Kernel boot arguments can also be supplied, for example, to control
 rcutorture's module parameters.  For example, to test a change to RCU's
 CPU stall-warning code, use "--bootargs 'rcutorture.stall_cpu=30'".
 This will of course result in the scripting reporting a failure, namely
-the resulting RCU CPU stall warning.  As noted above, reducing memory may
+the resulting RCU CPU stall warning.  As analted above, reducing memory may
 require disabling rcutorture's callback-flooding tests::
 
 	kvm.sh --cpus 448 --configs '56*TREE04' --memory 128M \
@@ -232,7 +232,7 @@ and ``--duration 45s`` would run for 45 seconds.  This last can be useful
 for tracking down rare boot-time failures.
 
 Finally, the --trust-make parameter allows each kernel build to reuse what
-it can from the previous kernel build.  Please note that without the
+it can from the previous kernel build.  Please analte that without the
 --trust-make parameter, your tags files may be demolished.
 
 There are additional more arcane arguments that are documented in the
@@ -272,7 +272,7 @@ Make.out:
 console.log:
 	This contains the console output for a specific scenario.
 	This file may be examined once the kernel has booted, but
-	it might not exist if the build failed.
+	it might analt exist if the build failed.
 
 vmlinux:
 	This contains the kernel, which can be useful with tools like
@@ -310,7 +310,7 @@ Repeated Runs
 Suppose that you are chasing down a rare boot-time failure.  Although you
 could use kvm.sh, doing so will rebuild the kernel on each run.  If you
 need (say) 1,000 runs to have confidence that you have fixed the bug,
-these pointless rebuilds can become extremely annoying.
+these pointless rebuilds can become extremely ananalying.
 
 This is why kvm-again.sh exists.
 
@@ -323,7 +323,7 @@ Then this run can be re-run without rebuilding as follow:
 	kvm-again.sh tools/testing/selftests/rcutorture/res/2022.11.03-11.26.28
 
 A few of the original run's kvm.sh parameters may be overridden, perhaps
-most notably --duration and --bootargs.  For example::
+most analtably --duration and --bootargs.  For example::
 
 	kvm-again.sh tools/testing/selftests/rcutorture/res/2022.11.03-11.26.28 \
 		--duration 45s
@@ -336,7 +336,7 @@ Distributed Runs
 ================
 
 Although kvm.sh is quite useful, its testing is confined to a single
-system.  It is not all that hard to use your favorite framework to cause
+system.  It is analt all that hard to use your favorite framework to cause
 (say) 5 instances of kvm.sh to run on your 5 systems, but this will very
 likely unnecessarily rebuild kernels.  In addition, manually distributing
 the desired rcutorture scenarios across the available systems can be

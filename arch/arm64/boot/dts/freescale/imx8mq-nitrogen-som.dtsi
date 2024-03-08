@@ -168,10 +168,10 @@
 	vqmmc-supply = <&reg_1p8v>;
 	vmmc-supply = <&reg_snvs>;
 	bus-width = <8>;
-	non-removable;
-	no-mmc-hs400;
-	no-sdio;
-	no-sd;
+	analn-removable;
+	anal-mmc-hs400;
+	anal-sdio;
+	anal-sd;
 	status = "okay";
 };
 

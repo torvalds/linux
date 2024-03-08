@@ -5,7 +5,7 @@
  */
 
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -27,7 +27,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/stat.h>
@@ -74,7 +74,7 @@ int ax25_uid_ioctl(int cmd, struct sockaddr_ax25 *sax)
 
 	switch (cmd) {
 	case SIOCAX25GETUID:
-		res = -ENOENT;
+		res = -EANALENT;
 		read_lock(&ax25_uid_lock);
 		ax25_uid_for_each(ax25_uid, &ax25_uid_list) {
 			if (ax25cmp(&sax->sax25_call, &ax25_uid->call) == 0) {
@@ -102,14 +102,14 @@ int ax25_uid_ioctl(int cmd, struct sockaddr_ax25 *sax)
 		if (sax->sax25_uid == 0)
 			return -EINVAL;
 		if ((ax25_uid = kmalloc(sizeof(*ax25_uid), GFP_KERNEL)) == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		refcount_set(&ax25_uid->refcount, 1);
 		ax25_uid->uid  = sax25_kuid;
 		ax25_uid->call = sax->sax25_call;
 
 		write_lock(&ax25_uid_lock);
-		hlist_add_head(&ax25_uid->uid_node, &ax25_uid_list);
+		hlist_add_head(&ax25_uid->uid_analde, &ax25_uid_list);
 		write_unlock(&ax25_uid_lock);
 
 		return 0;
@@ -126,9 +126,9 @@ int ax25_uid_ioctl(int cmd, struct sockaddr_ax25 *sax)
 		}
 		if (ax25_uid == NULL) {
 			write_unlock(&ax25_uid_lock);
-			return -ENOENT;
+			return -EANALENT;
 		}
-		hlist_del_init(&ax25_uid->uid_node);
+		hlist_del_init(&ax25_uid->uid_analde);
 		ax25_uid_put(ax25_uid);
 		write_unlock(&ax25_uid_lock);
 
@@ -138,7 +138,7 @@ int ax25_uid_ioctl(int cmd, struct sockaddr_ax25 *sax)
 		return -EINVAL;
 	}
 
-	return -EINVAL;	/*NOTREACHED */
+	return -EINVAL;	/*ANALTREACHED */
 }
 
 #ifdef CONFIG_PROC_FS
@@ -170,7 +170,7 @@ static int ax25_uid_seq_show(struct seq_file *seq, void *v)
 	else {
 		struct ax25_uid_assoc *pt;
 
-		pt = hlist_entry(v, struct ax25_uid_assoc, uid_node);
+		pt = hlist_entry(v, struct ax25_uid_assoc, uid_analde);
 		seq_printf(seq, "%6d %s\n",
 			from_kuid_munged(seq_user_ns(seq), pt->uid),
 			ax2asc(buf, &pt->call));
@@ -196,7 +196,7 @@ void __exit ax25_uid_free(void)
 	write_lock(&ax25_uid_lock);
 again:
 	ax25_uid_for_each(ax25_uid, &ax25_uid_list) {
-		hlist_del_init(&ax25_uid->uid_node);
+		hlist_del_init(&ax25_uid->uid_analde);
 		ax25_uid_put(ax25_uid);
 		goto again;
 	}

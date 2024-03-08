@@ -34,7 +34,7 @@ static int show_version(struct seq_file *m, void *unused)
 	} else if (REISERFS_SB(sb)->s_properties & (1 << REISERFS_3_5)) {
 		format = "3.5";
 	} else {
-		format = "unknown";
+		format = "unkanalwn";
 	}
 
 	seq_printf(m, "%s format\twith checks %s\n", format,
@@ -77,7 +77,7 @@ static int show_super(struct seq_file *m, void *unused)
 		   "gen. counter: \t%i\n"
 		   "s_disk_reads: \t%i\n"
 		   "s_disk_writes: \t%i\n"
-		   "s_fix_nodes: \t%i\n"
+		   "s_fix_analdes: \t%i\n"
 		   "s_do_balance: \t%i\n"
 		   "s_unneeded_left_neighbor: \t%i\n"
 		   "s_good_search_by_key_reada: \t%i\n"
@@ -105,17 +105,17 @@ static int show_super(struct seq_file *m, void *unused)
 		   reiserfs_rupasov_hash(sb) ? "FORCE_RUPASOV " : "",
 		   reiserfs_tea_hash(sb) ? "FORCE_TEA " : "",
 		   reiserfs_hash_detect(sb) ? "DETECT_HASH " : "",
-		   reiserfs_no_border(sb) ? "NO_BORDER " : "BORDER ",
-		   reiserfs_no_unhashed_relocation(sb) ?
-		   "NO_UNHASHED_RELOCATION " : "",
+		   reiserfs_anal_border(sb) ? "ANAL_BORDER " : "BORDER ",
+		   reiserfs_anal_unhashed_relocation(sb) ?
+		   "ANAL_UNHASHED_RELOCATION " : "",
 		   reiserfs_hashed_relocation(sb) ? "UNHASHED_RELOCATION " : "",
 		   reiserfs_test4(sb) ? "TEST4 " : "",
 		   have_large_tails(sb) ? "TAILS " : have_small_tails(sb) ?
-		   "SMALL_TAILS " : "NO_TAILS ",
+		   "SMALL_TAILS " : "ANAL_TAILS ",
 		   replay_only(sb) ? "REPLAY_ONLY " : "",
 		   convert_reiserfs(sb) ? "CONV " : "",
 		   atomic_read(&r->s_generation_counter),
-		   SF(s_disk_reads), SF(s_disk_writes), SF(s_fix_nodes),
+		   SF(s_disk_reads), SF(s_disk_writes), SF(s_fix_analdes),
 		   SF(s_do_balance), SF(s_unneeded_left_neighbor),
 		   SF(s_good_search_by_key_reada), SF(s_bmaps),
 		   SF(s_bmaps_without_search), SF(s_direct2indirect),
@@ -176,7 +176,7 @@ static int show_per_level(struct seq_file *m, void *unused)
 			   SFPL(sbk_restarted),
 			   SFPL(free_at),
 			   SFPL(items_at),
-			   SFPL(can_node_be_removed),
+			   SFPL(can_analde_be_removed),
 			   SFPL(lnum),
 			   SFPL(rnum),
 			   SFPL(lbytes),
@@ -201,7 +201,7 @@ static int show_bitmap(struct seq_file *m, void *unused)
 		   "         retry"
 		   "        stolen"
 		   "  journal_hint"
-		   "journal_nohint"
+		   "journal_analhint"
 		   "\n"
 		   " %14lu"
 		   " %14lu"
@@ -217,7 +217,7 @@ static int show_bitmap(struct seq_file *m, void *unused)
 		   SFPF(bmap),
 		   SFPF(retry),
 		   SFPF(stolen),
-		   SFPF(in_journal_hint), SFPF(in_journal_nohint));
+		   SFPF(in_journal_hint), SFPF(in_journal_analhint));
 
 	return 0;
 }
@@ -257,7 +257,7 @@ static int show_on_disk_super(struct seq_file *m, void *unused)
 		   hash_code == TEA_HASH ? "tea" :
 		   (hash_code == YURA_HASH) ? "rupasov" :
 		   (hash_code == R5_HASH) ? "r5" :
-		   (hash_code == UNSET_HASH) ? "unset" : "unknown",
+		   (hash_code == UNSET_HASH) ? "unset" : "unkanalwn",
 		   DF(s_tree_height),
 		   DF(s_bmap_nr),
 		   DF(s_version), flags, (flags & reiserfs_attrs_cleared)
@@ -287,7 +287,7 @@ static int show_oidmap(struct seq_file *m, void *unused)
 	}
 #if defined( REISERFS_USE_OIDMAPF )
 	if (sb_info->oidmap.use_file && (sb_info->oidmap.mapf != NULL)) {
-		loff_t size = file_inode(sb_info->oidmap.mapf)->i_size;
+		loff_t size = file_ianalde(sb_info->oidmap.mapf)->i_size;
 		total_used += size / sizeof(reiserfs_oidinterval_d_t);
 	}
 #endif
@@ -297,11 +297,11 @@ static int show_oidmap(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static time64_t ktime_mono_to_real_seconds(time64_t mono)
+static time64_t ktime_moanal_to_real_seconds(time64_t moanal)
 {
-	ktime_t kt = ktime_set(mono, NSEC_PER_SEC/2);
+	ktime_t kt = ktime_set(moanal, NSEC_PER_SEC/2);
 
-	return ktime_divns(ktime_mono_to_real(kt), NSEC_PER_SEC);
+	return ktime_divns(ktime_moanal_to_real(kt), NSEC_PER_SEC);
 }
 
 static int show_journal(struct seq_file *m, void *unused)
@@ -337,7 +337,7 @@ static int show_journal(struct seq_file *m, void *unused)
 		   "j_must_wait: \t%i\n"
 		   "j_next_full_flush: \t%i\n"
 		   "j_next_async_flush: \t%i\n"
-		   "j_cnode_used: \t%i\n" "j_cnode_free: \t%i\n" "\n"
+		   "j_canalde_used: \t%i\n" "j_canalde_free: \t%i\n" "\n"
 		   /* reiserfs_proc_info_data_t.journal fields */
 		   "in_journal: \t%12lu\n"
 		   "in_journal_bitmap: \t%12lu\n"
@@ -349,7 +349,7 @@ static int show_journal(struct seq_file *m, void *unused)
 		   "journal_relock_wcount: \t%12lu\n"
 		   "mark_dirty: \t%12lu\n"
 		   "mark_dirty_already: \t%12lu\n"
-		   "mark_dirty_notjournal: \t%12lu\n"
+		   "mark_dirty_analtjournal: \t%12lu\n"
 		   "restore_prepared: \t%12lu\n"
 		   "prepare: \t%12lu\n"
 		   "prepare_retry: \t%12lu\n",
@@ -373,13 +373,13 @@ static int show_journal(struct seq_file *m, void *unused)
 		   JF(j_bcount),
 		   JF(j_first_unflushed_offset),
 		   JF(j_last_flush_trans_id),
-		   ktime_mono_to_real_seconds(JF(j_trans_start_time)),
+		   ktime_moanal_to_real_seconds(JF(j_trans_start_time)),
 		   JF(j_list_bitmap_index),
 		   JF(j_must_wait),
 		   JF(j_next_full_flush),
 		   JF(j_next_async_flush),
-		   JF(j_cnode_used),
-		   JF(j_cnode_free),
+		   JF(j_canalde_used),
+		   JF(j_canalde_free),
 		   SFPJ(in_journal),
 		   SFPJ(in_journal_bitmap),
 		   SFPJ(in_journal_reusable),
@@ -390,7 +390,7 @@ static int show_journal(struct seq_file *m, void *unused)
 		   SFPJ(journal_relock_wcount),
 		   SFPJ(mark_dirty),
 		   SFPJ(mark_dirty_already),
-		   SFPJ(mark_dirty_notjournal),
+		   SFPJ(mark_dirty_analtjournal),
 		   SFPJ(restore_prepared), SFPJ(prepare), SFPJ(prepare_retry)
 	    );
 	return 0;
@@ -428,7 +428,7 @@ int reiserfs_proc_info_init(struct super_block *sb)
 		add_file(sb, "journal", show_journal);
 		return 0;
 	}
-	reiserfs_warning(sb, "cannot create /proc/%s/%s",
+	reiserfs_warning(sb, "cananalt create /proc/%s/%s",
 			 proc_info_root_name, b);
 	return 1;
 }
@@ -457,7 +457,7 @@ int reiserfs_proc_info_global_init(void)
 	if (proc_info_root == NULL) {
 		proc_info_root = proc_mkdir(proc_info_root_name, NULL);
 		if (!proc_info_root) {
-			reiserfs_warning(NULL, "cannot create /proc/%s",
+			reiserfs_warning(NULL, "cananalt create /proc/%s",
 					 proc_info_root_name);
 			return 1;
 		}

@@ -8,7 +8,7 @@
 
 &sdhci1 {
 	mmc-pwrseq = <&wifi_pwrseq>;
-	no-sd;
+	anal-sd;
 	status = "okay";
 };
 

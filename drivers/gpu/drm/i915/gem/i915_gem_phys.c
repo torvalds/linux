@@ -45,7 +45,7 @@ static int i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 				   roundup_pow_of_two(obj->base.size),
 				   &dma, GFP_KERNEL);
 	if (!vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
@@ -79,7 +79,7 @@ static int i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 
 	intel_gt_chipset_flush(to_gt(i915));
 
-	/* We're no longer struct page backed */
+	/* We're anal longer struct page backed */
 	obj->mem_flags &= ~I915_BO_FLAG_STRUCT_PAGE;
 	__i915_gem_object_set_pages(obj, st);
 
@@ -91,7 +91,7 @@ err_pci:
 	dma_free_coherent(obj->base.dev->dev,
 			  roundup_pow_of_two(obj->base.size),
 			  vaddr, dma);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void

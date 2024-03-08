@@ -1129,10 +1129,10 @@ int wm5100_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 #define WM5100_ISRC1_DEC4_ENA_MASK              0x0040  /* ISRC1_DEC4_ENA */
 #define WM5100_ISRC1_DEC4_ENA_SHIFT                  6  /* ISRC1_DEC4_ENA */
 #define WM5100_ISRC1_DEC4_ENA_WIDTH                  1  /* ISRC1_DEC4_ENA */
-#define WM5100_ISRC1_NOTCH_ENA                  0x0001  /* ISRC1_NOTCH_ENA */
-#define WM5100_ISRC1_NOTCH_ENA_MASK             0x0001  /* ISRC1_NOTCH_ENA */
-#define WM5100_ISRC1_NOTCH_ENA_SHIFT                 0  /* ISRC1_NOTCH_ENA */
-#define WM5100_ISRC1_NOTCH_ENA_WIDTH                 1  /* ISRC1_NOTCH_ENA */
+#define WM5100_ISRC1_ANALTCH_ENA                  0x0001  /* ISRC1_ANALTCH_ENA */
+#define WM5100_ISRC1_ANALTCH_ENA_MASK             0x0001  /* ISRC1_ANALTCH_ENA */
+#define WM5100_ISRC1_ANALTCH_ENA_SHIFT                 0  /* ISRC1_ANALTCH_ENA */
+#define WM5100_ISRC1_ANALTCH_ENA_WIDTH                 1  /* ISRC1_ANALTCH_ENA */
 
 /*
  * R323 (0x143) - ISRC 2 CTRL1
@@ -1186,10 +1186,10 @@ int wm5100_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 #define WM5100_ISRC2_DEC4_ENA_MASK              0x0040  /* ISRC2_DEC4_ENA */
 #define WM5100_ISRC2_DEC4_ENA_SHIFT                  6  /* ISRC2_DEC4_ENA */
 #define WM5100_ISRC2_DEC4_ENA_WIDTH                  1  /* ISRC2_DEC4_ENA */
-#define WM5100_ISRC2_NOTCH_ENA                  0x0001  /* ISRC2_NOTCH_ENA */
-#define WM5100_ISRC2_NOTCH_ENA_MASK             0x0001  /* ISRC2_NOTCH_ENA */
-#define WM5100_ISRC2_NOTCH_ENA_SHIFT                 0  /* ISRC2_NOTCH_ENA */
-#define WM5100_ISRC2_NOTCH_ENA_WIDTH                 1  /* ISRC2_NOTCH_ENA */
+#define WM5100_ISRC2_ANALTCH_ENA                  0x0001  /* ISRC2_ANALTCH_ENA */
+#define WM5100_ISRC2_ANALTCH_ENA_MASK             0x0001  /* ISRC2_ANALTCH_ENA */
+#define WM5100_ISRC2_ANALTCH_ENA_SHIFT                 0  /* ISRC2_ANALTCH_ENA */
+#define WM5100_ISRC2_ANALTCH_ENA_WIDTH                 1  /* ISRC2_ANALTCH_ENA */
 
 /*
  * R386 (0x182) - FLL1 Control 1
@@ -1912,10 +1912,10 @@ int wm5100_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 #define WM5100_OUT1_OSR_MASK                    0x2000  /* OUT1_OSR */
 #define WM5100_OUT1_OSR_SHIFT                       13  /* OUT1_OSR */
 #define WM5100_OUT1_OSR_WIDTH                        1  /* OUT1_OSR */
-#define WM5100_OUT1_MONO                        0x1000  /* OUT1_MONO */
-#define WM5100_OUT1_MONO_MASK                   0x1000  /* OUT1_MONO */
-#define WM5100_OUT1_MONO_SHIFT                      12  /* OUT1_MONO */
-#define WM5100_OUT1_MONO_WIDTH                       1  /* OUT1_MONO */
+#define WM5100_OUT1_MOANAL                        0x1000  /* OUT1_MOANAL */
+#define WM5100_OUT1_MOANAL_MASK                   0x1000  /* OUT1_MOANAL */
+#define WM5100_OUT1_MOANAL_SHIFT                      12  /* OUT1_MOANAL */
+#define WM5100_OUT1_MOANAL_WIDTH                       1  /* OUT1_MOANAL */
 #define WM5100_OUT1L_ANC_SRC                    0x0800  /* OUT1L_ANC_SRC */
 #define WM5100_OUT1L_ANC_SRC_MASK               0x0800  /* OUT1L_ANC_SRC */
 #define WM5100_OUT1L_ANC_SRC_SHIFT                  11  /* OUT1L_ANC_SRC */
@@ -1956,10 +1956,10 @@ int wm5100_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 #define WM5100_OUT2_OSR_MASK                    0x2000  /* OUT2_OSR */
 #define WM5100_OUT2_OSR_SHIFT                       13  /* OUT2_OSR */
 #define WM5100_OUT2_OSR_WIDTH                        1  /* OUT2_OSR */
-#define WM5100_OUT2_MONO                        0x1000  /* OUT2_MONO */
-#define WM5100_OUT2_MONO_MASK                   0x1000  /* OUT2_MONO */
-#define WM5100_OUT2_MONO_SHIFT                      12  /* OUT2_MONO */
-#define WM5100_OUT2_MONO_WIDTH                       1  /* OUT2_MONO */
+#define WM5100_OUT2_MOANAL                        0x1000  /* OUT2_MOANAL */
+#define WM5100_OUT2_MOANAL_MASK                   0x1000  /* OUT2_MOANAL */
+#define WM5100_OUT2_MOANAL_SHIFT                      12  /* OUT2_MOANAL */
+#define WM5100_OUT2_MOANAL_WIDTH                       1  /* OUT2_MOANAL */
 #define WM5100_OUT2L_ANC_SRC                    0x0800  /* OUT2L_ANC_SRC */
 #define WM5100_OUT2L_ANC_SRC_MASK               0x0800  /* OUT2L_ANC_SRC */
 #define WM5100_OUT2L_ANC_SRC_SHIFT                  11  /* OUT2L_ANC_SRC */
@@ -2000,10 +2000,10 @@ int wm5100_detect(struct snd_soc_component *component, struct snd_soc_jack *jack
 #define WM5100_OUT3_OSR_MASK                    0x2000  /* OUT3_OSR */
 #define WM5100_OUT3_OSR_SHIFT                       13  /* OUT3_OSR */
 #define WM5100_OUT3_OSR_WIDTH                        1  /* OUT3_OSR */
-#define WM5100_OUT3_MONO                        0x1000  /* OUT3_MONO */
-#define WM5100_OUT3_MONO_MASK                   0x1000  /* OUT3_MONO */
-#define WM5100_OUT3_MONO_SHIFT                      12  /* OUT3_MONO */
-#define WM5100_OUT3_MONO_WIDTH                       1  /* OUT3_MONO */
+#define WM5100_OUT3_MOANAL                        0x1000  /* OUT3_MOANAL */
+#define WM5100_OUT3_MOANAL_MASK                   0x1000  /* OUT3_MOANAL */
+#define WM5100_OUT3_MOANAL_SHIFT                      12  /* OUT3_MOANAL */
+#define WM5100_OUT3_MOANAL_WIDTH                       1  /* OUT3_MOANAL */
 #define WM5100_OUT3L_ANC_SRC                    0x0800  /* OUT3L_ANC_SRC */
 #define WM5100_OUT3L_ANC_SRC_MASK               0x0800  /* OUT3L_ANC_SRC */
 #define WM5100_OUT3L_ANC_SRC_SHIFT                  11  /* OUT3L_ANC_SRC */

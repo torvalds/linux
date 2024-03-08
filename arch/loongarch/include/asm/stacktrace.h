@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_STACKTRACE_H
 #define _ASM_STACKTRACE_H
@@ -11,7 +11,7 @@
 #include <linux/stringify.h>
 
 enum stack_type {
-	STACK_TYPE_UNKNOWN,
+	STACK_TYPE_UNKANALWN,
 	STACK_TYPE_IRQ,
 	STACK_TYPE_TASK,
 };

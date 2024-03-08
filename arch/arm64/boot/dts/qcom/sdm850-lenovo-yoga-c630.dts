@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Lenovo Yoga C630
+ * Leanalvo Yoga C630
  *
  * Copyright (c) 2019, Linaro Ltd.
  */
@@ -21,15 +21,15 @@
  * memory mappings for firmware loading to succeed
  * and enable the IPA device.
  */
-/delete-node/ &ipa_fw_mem;
-/delete-node/ &ipa_gsi_mem;
-/delete-node/ &gpu_mem;
-/delete-node/ &adsp_mem;
-/delete-node/ &wlan_msa_mem;
+/delete-analde/ &ipa_fw_mem;
+/delete-analde/ &ipa_gsi_mem;
+/delete-analde/ &gpu_mem;
+/delete-analde/ &adsp_mem;
+/delete-analde/ &wlan_msa_mem;
 
 / {
-	model = "Lenovo Yoga C630";
-	compatible = "lenovo,yoga-c630", "qcom,sdm845";
+	model = "Leanalvo Yoga C630";
+	compatible = "leanalvo,yoga-c630", "qcom,sdm845";
 	chassis-type = "convertible";
 
 	aliases {
@@ -62,22 +62,22 @@
 	reserved-memory {
 		wlan_msa_mem: memory@8c400000 {
 			reg = <0 0x8c400000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		gpu_mem: memory@8c515000 {
 			reg = <0 0x8c515000 0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_fw_mem: memory@8c517000 {
 			reg = <0 0x8c517000 0 0x5a000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: memory@8c600000 {
 			reg = <0 0x8c600000 0 0x1a00000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -131,7 +131,7 @@
 };
 
 &adsp_pas {
-	firmware-name = "qcom/sdm850/LENOVO/81JL/qcadsp850.mbn";
+	firmware-name = "qcom/sdm850/LEANALVO/81JL/qcadsp850.mbn";
 	status = "okay";
 };
 
@@ -343,14 +343,14 @@
 };
 
 &cdsp_pas {
-	firmware-name = "qcom/sdm850/LENOVO/81JL/qccdsp850.mbn";
+	firmware-name = "qcom/sdm850/LEANALVO/81JL/qccdsp850.mbn";
 	status = "okay";
 };
 
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 			   <GCC_QSPI_CORE_CLK_SRC>,
-			   <GCC_QSPI_CNOC_PERIPH_AHB_CLK>,
+			   <GCC_QSPI_CANALC_PERIPH_AHB_CLK>,
 			   <GCC_LPASS_Q6_AXI_CLK>,
 			   <GCC_LPASS_SWAY_CLK>;
 };
@@ -363,7 +363,7 @@
 	status = "okay";
 	zap-shader {
 		memory-region = <&gpu_mem>;
-		firmware-name = "qcom/sdm850/LENOVO/81JL/qcdxkmsuc850.mbn";
+		firmware-name = "qcom/sdm850/LEANALVO/81JL/qcdxkmsuc850.mbn";
 	};
 };
 
@@ -435,7 +435,7 @@
 		clocks = <&sn65dsi86_refclk>;
 		clock-names = "refclk";
 
-		no-hpd;
+		anal-hpd;
 		#pwm-cells = <1>;
 
 		ports {
@@ -522,14 +522,14 @@
 
 &mss_pil {
 	status = "okay";
-	firmware-name = "qcom/sdm850/LENOVO/81JL/qcdsp1v2850.mbn", "qcom/sdm850/LENOVO/81JL/qcdsp2850.mbn";
+	firmware-name = "qcom/sdm850/LEANALVO/81JL/qcdsp1v2850.mbn", "qcom/sdm850/LEANALVO/81JL/qcdsp2850.mbn";
 };
 
 &pm8998_gpios {
 	/* This pin is pulled down by a fixed resistor */
 	sw_edp_1p2_en: pm8998-gpio9-state {
 		pins = "gpio9";
-		function = "normal";
+		function = "analrmal";
 		bias-disable;
 		qcom,drive-strength = <0>;
 	};
@@ -568,8 +568,8 @@
 };
 
 &sound {
-	compatible = "lenovo,yoga-c630-sndcard", "qcom,sdm845-sndcard";
-	model = "Lenovo-YOGA-C630-13Q50";
+	compatible = "leanalvo,yoga-c630-sndcard", "qcom,sdm845-sndcard";
+	model = "Leanalvo-YOGA-C630-13Q50";
 
 	audio-routing =
 		"RX_BIAS", "MCLK",
@@ -788,7 +788,7 @@
 };
 
 &venus {
-	firmware-name = "qcom/sdm850/LENOVO/81JL/qcvss850.mbn";
+	firmware-name = "qcom/sdm850/LEANALVO/81JL/qcvss850.mbn";
 	status = "okay";
 };
 
@@ -833,7 +833,7 @@
 	vdd-3.3-ch0-supply = <&vreg_l25a_3p3>;
 	vdd-3.3-ch1-supply = <&vreg_l23a_3p3>;
 
-	qcom,snoc-host-cap-8bit-quirk;
+	qcom,sanalc-host-cap-8bit-quirk;
 };
 
 &crypto {

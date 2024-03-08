@@ -30,7 +30,7 @@
 /* RBCPR Version Register */
 #define REG_RBCPR_VERSION		0
 #define RBCPR_VER_2			0x02
-#define FLAGS_IGNORE_1ST_IRQ_STATUS	BIT(0)
+#define FLAGS_IGANALRE_1ST_IRQ_STATUS	BIT(0)
 
 /* RBCPR Gate Count and Target Registers */
 #define REG_RBCPR_GCNT_TARGET(n)	(0x60 + 4 * (n))
@@ -121,10 +121,10 @@
 
 #define CPR_FUSE_MIN_QUOT_DIFF		50
 
-#define FUSE_REVISION_UNKNOWN		(-1)
+#define FUSE_REVISION_UNKANALWN		(-1)
 
 enum voltage_change_dir {
-	NO_CHANGE,
+	ANAL_CHANGE,
 	DOWN,
 	UP,
 };
@@ -483,7 +483,7 @@ static int cpr_scale(struct cpr_drv *drv, enum voltage_change_dir dir)
 		if (desc->clamp_timer_interval &&
 		    error_steps < desc->up_threshold) {
 			/*
-			 * Handle the case where another measurement started
+			 * Handle the case where aanalther measurement started
 			 * after the interrupt was triggered due to a core
 			 * exiting from power collapse.
 			 */
@@ -520,7 +520,7 @@ static int cpr_scale(struct cpr_drv *drv, enum voltage_change_dir dir)
 		if (desc->clamp_timer_interval &&
 		    error_steps < desc->down_threshold) {
 			/*
-			 * Handle the case where another measurement started
+			 * Handle the case where aanalther measurement started
 			 * after the interrupt was triggered due to a core
 			 * exiting from power collapse.
 			 */
@@ -595,22 +595,22 @@ static irqreturn_t cpr_irq_handler(int irq, void *dev)
 	mutex_lock(&drv->lock);
 
 	val = cpr_read(drv, REG_RBIF_IRQ_STATUS);
-	if (drv->flags & FLAGS_IGNORE_1ST_IRQ_STATUS)
+	if (drv->flags & FLAGS_IGANALRE_1ST_IRQ_STATUS)
 		val = cpr_read(drv, REG_RBIF_IRQ_STATUS);
 
 	dev_dbg(drv->dev, "IRQ_STATUS = %#02x\n", val);
 
 	if (!cpr_ctl_is_enabled(drv)) {
 		dev_dbg(drv->dev, "CPR is disabled\n");
-		ret = IRQ_NONE;
+		ret = IRQ_ANALNE;
 	} else if (cpr_ctl_is_busy(drv) && !desc->clamp_timer_interval) {
-		dev_dbg(drv->dev, "CPR measurement is not ready\n");
+		dev_dbg(drv->dev, "CPR measurement is analt ready\n");
 	} else if (!cpr_is_allowed(drv)) {
 		val = cpr_read(drv, REG_RBCPR_CTL);
 		dev_err_ratelimited(drv->dev,
 				    "Interrupt broken? RBCPR_CTL = %#02x\n",
 				    val);
-		ret = IRQ_NONE;
+		ret = IRQ_ANALNE;
 	} else {
 		/*
 		 * Following sequence of handling is as per each IRQ's
@@ -629,7 +629,7 @@ static irqreturn_t cpr_irq_handler(int irq, void *dev)
 			dev_dbg(drv->dev, "IRQ occurred for Mid Flag\n");
 		} else {
 			dev_dbg(drv->dev,
-				"IRQ occurred for unknown flag (%#08x)\n", val);
+				"IRQ occurred for unkanalwn flag (%#08x)\n", val);
 		}
 
 		/* Save register values for the corner */
@@ -736,7 +736,7 @@ static int cpr_config(struct cpr_drv *drv)
 
 	val = cpr_read(drv, REG_RBCPR_VERSION);
 	if (val <= RBCPR_VER_2)
-		drv->flags |= FLAGS_IGNORE_1ST_IRQ_STATUS;
+		drv->flags |= FLAGS_IGANALRE_1ST_IRQ_STATUS;
 
 	return 0;
 }
@@ -771,7 +771,7 @@ static int cpr_set_performance_state(struct generic_pm_domain *domain,
 	else if (drv->corner < corner)
 		dir = UP;
 	else
-		dir = NO_CHANGE;
+		dir = ANAL_CHANGE;
 
 	if (cpr_is_allowed(drv))
 		new_uV = corner->last_uV;
@@ -834,7 +834,7 @@ static int cpr_read_fuse_uV(const struct cpr_desc *desc,
 		return ret;
 
 	steps = bits & ~BIT(desc->cpr_fuses.init_voltage_width - 1);
-	/* Not two's complement.. instead highest bit is sign bit */
+	/* Analt two's complement.. instead highest bit is sign bit */
 	if (bits & BIT(desc->cpr_fuses.init_voltage_width - 1))
 		steps = -steps;
 
@@ -928,7 +928,7 @@ static int cpr_fuse_corner_init(struct cpr_drv *drv)
 						     fuse->min_uV);
 		if (!ret) {
 			dev_err(drv->dev,
-				"min uV: %d (fuse corner: %d) not supported by regulator\n",
+				"min uV: %d (fuse corner: %d) analt supported by regulator\n",
 				fuse->min_uV, i);
 			return -EINVAL;
 		}
@@ -938,7 +938,7 @@ static int cpr_fuse_corner_init(struct cpr_drv *drv)
 						     fuse->max_uV);
 		if (!ret) {
 			dev_err(drv->dev,
-				"max uV: %d (fuse corner: %d) not supported by regulator\n",
+				"max uV: %d (fuse corner: %d) analt supported by regulator\n",
 				fuse->max_uV, i);
 			return -EINVAL;
 		}
@@ -1024,15 +1024,15 @@ static int cpr_interpolate(const struct corner *corner, int step_volt,
 
 static unsigned int cpr_get_fuse_corner(struct dev_pm_opp *opp)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned int fuse_corner = 0;
 
-	np = dev_pm_opp_get_of_node(opp);
+	np = dev_pm_opp_get_of_analde(opp);
 	if (of_property_read_u32(np, "qcom,opp-fuse-level", &fuse_corner))
 		pr_err("%s: missing 'qcom,opp-fuse-level' property\n",
 		       __func__);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	return fuse_corner;
 }
@@ -1041,21 +1041,21 @@ static unsigned long cpr_get_opp_hz_for_req(struct dev_pm_opp *ref,
 					    struct device *cpu_dev)
 {
 	u64 rate = 0;
-	struct device_node *ref_np;
-	struct device_node *desc_np;
-	struct device_node *child_np = NULL;
-	struct device_node *child_req_np = NULL;
+	struct device_analde *ref_np;
+	struct device_analde *desc_np;
+	struct device_analde *child_np = NULL;
+	struct device_analde *child_req_np = NULL;
 
-	desc_np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
+	desc_np = dev_pm_opp_of_get_opp_desc_analde(cpu_dev);
 	if (!desc_np)
 		return 0;
 
-	ref_np = dev_pm_opp_get_of_node(ref);
+	ref_np = dev_pm_opp_get_of_analde(ref);
 	if (!ref_np)
 		goto out_ref;
 
 	do {
-		of_node_put(child_req_np);
+		of_analde_put(child_req_np);
 		child_np = of_get_next_available_child(desc_np, child_np);
 		child_req_np = of_parse_phandle(child_np, "required-opps", 0);
 	} while (child_np && child_req_np != ref_np);
@@ -1063,11 +1063,11 @@ static unsigned long cpr_get_opp_hz_for_req(struct dev_pm_opp *ref,
 	if (child_np && child_req_np == ref_np)
 		of_property_read_u64(child_np, "opp-hz", &rate);
 
-	of_node_put(child_req_np);
-	of_node_put(child_np);
-	of_node_put(ref_np);
+	of_analde_put(child_req_np);
+	of_analde_put(child_np);
+	of_analde_put(ref_np);
 out_ref:
-	of_node_put(desc_np);
+	of_analde_put(desc_np);
 
 	return (unsigned long) rate;
 }
@@ -1099,7 +1099,7 @@ static int cpr_corner_init(struct cpr_drv *drv)
 			     sizeof(struct corner_data),
 			     GFP_KERNEL);
 	if (!cdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Store maximum frequency for each fuse corner based on the frequency
@@ -1233,7 +1233,7 @@ static const struct cpr_fuse *cpr_get_fuses(struct cpr_drv *drv)
 			     sizeof(struct cpr_fuse),
 			     GFP_KERNEL);
 	if (!fuses)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < desc->num_fuse_corners; i++) {
 		char tbuf[32];
@@ -1241,24 +1241,24 @@ static const struct cpr_fuse *cpr_get_fuses(struct cpr_drv *drv)
 		snprintf(tbuf, 32, "cpr_ring_osc%d", i + 1);
 		fuses[i].ring_osc = devm_kstrdup(drv->dev, tbuf, GFP_KERNEL);
 		if (!fuses[i].ring_osc)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		snprintf(tbuf, 32, "cpr_init_voltage%d", i + 1);
 		fuses[i].init_voltage = devm_kstrdup(drv->dev, tbuf,
 						     GFP_KERNEL);
 		if (!fuses[i].init_voltage)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		snprintf(tbuf, 32, "cpr_quotient%d", i + 1);
 		fuses[i].quotient = devm_kstrdup(drv->dev, tbuf, GFP_KERNEL);
 		if (!fuses[i].quotient)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		snprintf(tbuf, 32, "cpr_quotient_offset%d", i + 1);
 		fuses[i].quotient_offset = devm_kstrdup(drv->dev, tbuf,
 							GFP_KERNEL);
 		if (!fuses[i].quotient_offset)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	return fuses;
@@ -1303,7 +1303,7 @@ static int cpr_find_initial_corner(struct cpr_drv *drv)
 	unsigned int i = 0;
 
 	if (!drv->cpu_clk) {
-		dev_err(drv->dev, "cannot get rate from NULL clk\n");
+		dev_err(drv->dev, "cananalt get rate from NULL clk\n");
 		return -EINVAL;
 	}
 
@@ -1311,7 +1311,7 @@ static int cpr_find_initial_corner(struct cpr_drv *drv)
 	rate = clk_get_rate(drv->cpu_clk);
 
 	/*
-	 * Some bootloaders set a CPU clock frequency that is not defined
+	 * Some bootloaders set a CPU clock frequency that is analt defined
 	 * in the OPP table. When running at an unlisted frequency,
 	 * cpufreq_online() will change to the OPP which has the lowest
 	 * frequency, at or above the unlisted frequency.
@@ -1334,7 +1334,7 @@ static int cpr_find_initial_corner(struct cpr_drv *drv)
 	}
 
 	if (!drv->corner) {
-		dev_err(drv->dev, "boot up corner not found\n");
+		dev_err(drv->dev, "boot up corner analt found\n");
 		return -EINVAL;
 	}
 
@@ -1453,7 +1453,7 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 	 * This driver only supports scaling voltage for a CPU cluster
 	 * where all CPUs in the cluster share a single regulator.
 	 * Therefore, save the struct device pointer only for the first
-	 * CPU device that gets attached. There is no need to do any
+	 * CPU device that gets attached. There is anal need to do any
 	 * additional initialization when further CPUs get attached.
 	 */
 	if (drv->attached_cpu_dev)
@@ -1462,7 +1462,7 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 	/*
 	 * cpr_scale_voltage() requires the direction (if we are changing
 	 * to a higher or lower OPP). The first time
-	 * cpr_set_performance_state() is called, there is no previous
+	 * cpr_set_performance_state() is called, there is anal previous
 	 * performance state defined. Therefore, we call
 	 * cpr_find_initial_corner() that gets the CPU clock frequency
 	 * set by the bootloader, so that we can determine the direction
@@ -1472,7 +1472,7 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 	if (IS_ERR(drv->cpu_clk)) {
 		ret = PTR_ERR(drv->cpu_clk);
 		if (ret != -EPROBE_DEFER)
-			dev_err(drv->dev, "could not get cpu clk: %d\n", ret);
+			dev_err(drv->dev, "could analt get cpu clk: %d\n", ret);
 		goto unlock;
 	}
 	drv->attached_cpu_dev = dev;
@@ -1482,15 +1482,15 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 
 	/*
 	 * Everything related to (virtual) corners has to be initialized
-	 * here, when attaching to the power domain, since we need to know
+	 * here, when attaching to the power domain, since we need to kanalw
 	 * the maximum frequency for each fuse corner, and this is only
 	 * available after the cpufreq driver has attached to us.
-	 * The reason for this is that we need to know the highest
+	 * The reason for this is that we need to kanalw the highest
 	 * frequency associated with each fuse corner.
 	 */
 	ret = dev_pm_opp_get_opp_count(&drv->pd.dev);
 	if (ret < 0) {
-		dev_err(drv->dev, "could not get OPP count\n");
+		dev_err(drv->dev, "could analt get OPP count\n");
 		goto unlock;
 	}
 	drv->num_corners = ret;
@@ -1505,7 +1505,7 @@ static int cpr_pd_attach_dev(struct generic_pm_domain *domain,
 				    sizeof(*drv->corners),
 				    GFP_KERNEL);
 	if (!drv->corners) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -1611,8 +1611,8 @@ static int cpr_probe(struct platform_device *pdev)
 	struct cpr_drv *drv;
 	int irq, ret;
 	const struct cpr_acc_desc *data;
-	struct device_node *np;
-	u32 cpr_rev = FUSE_REVISION_UNKNOWN;
+	struct device_analde *np;
+	u32 cpr_rev = FUSE_REVISION_UNKANALWN;
 
 	data = of_device_get_match_data(dev);
 	if (!data || !data->cpr_desc || !data->acc_desc)
@@ -1620,7 +1620,7 @@ static int cpr_probe(struct platform_device *pdev)
 
 	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
-		return -ENOMEM;
+		return -EANALMEM;
 	drv->dev = dev;
 	drv->desc = data->cpr_desc;
 	drv->acc_desc = data->acc_desc;
@@ -1629,14 +1629,14 @@ static int cpr_probe(struct platform_device *pdev)
 					 sizeof(*drv->fuse_corners),
 					 GFP_KERNEL);
 	if (!drv->fuse_corners)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	np = of_parse_phandle(dev->of_node, "acc-syscon", 0);
+	np = of_parse_phandle(dev->of_analde, "acc-syscon", 0);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
-	drv->tcsr = syscon_node_to_regmap(np);
-	of_node_put(np);
+	drv->tcsr = syscon_analde_to_regmap(np);
+	of_analde_put(np);
 	if (IS_ERR(drv->tcsr))
 		return PTR_ERR(drv->tcsr);
 
@@ -1684,7 +1684,7 @@ static int cpr_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	drv->pd.name = devm_kstrdup_const(dev, dev->of_node->full_name,
+	drv->pd.name = devm_kstrdup_const(dev, dev->of_analde->full_name,
 					  GFP_KERNEL);
 	if (!drv->pd.name)
 		return -EINVAL;
@@ -1698,7 +1698,7 @@ static int cpr_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = of_genpd_add_provider_simple(dev->of_node, &drv->pd);
+	ret = of_genpd_add_provider_simple(dev->of_analde, &drv->pd);
 	if (ret)
 		goto err_remove_genpd;
 
@@ -1721,7 +1721,7 @@ static void cpr_remove(struct platform_device *pdev)
 		cpr_irq_set(drv, 0);
 	}
 
-	of_genpd_del_provider(pdev->dev.of_node);
+	of_genpd_del_provider(pdev->dev.of_analde);
 	pm_genpd_remove(&drv->pd);
 
 	debugfs_remove_recursive(drv->debugfs);

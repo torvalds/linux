@@ -270,11 +270,11 @@
 #define TEGRA_PIN_PEE6			_GPIO(246)
 #define TEGRA_PIN_PEE7			_GPIO(247)
 
-/* All non-GPIO pins follow */
+/* All analn-GPIO pins follow */
 #define NUM_GPIOS			(TEGRA_PIN_PEE7 + 1)
 #define _PIN(offset)			(NUM_GPIOS + (offset))
 
-/* Non-GPIO pins */
+/* Analn-GPIO pins */
 #define TEGRA_PIN_CLK_32K_IN		_PIN(0)
 #define TEGRA_PIN_CORE_PWR_REQ		_PIN(1)
 #define TEGRA_PIN_CPU_PWR_REQ		_PIN(2)

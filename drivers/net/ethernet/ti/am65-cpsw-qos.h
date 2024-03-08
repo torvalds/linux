@@ -107,7 +107,7 @@ static inline int am65_cpsw_qos_ndo_setup_tc(struct net_device *ndev,
 					     enum tc_setup_type type,
 					     void *type_data)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void am65_cpsw_qos_link_up(struct net_device *ndev,
@@ -209,7 +209,7 @@ static inline void am65_cpsw_iet_common_enable(struct am65_cpsw_common *common)
 #define AM65_CPSW_FETCH_ALLOW_MSK		GENMASK(7, 0)
 #define AM65_CPSW_FETCH_ALLOW_MAX		AM65_CPSW_FETCH_ALLOW_MSK
 
-/* AM65_CPSW_PN_REG_MAX_BLKS fields for IET and No IET cases */
+/* AM65_CPSW_PN_REG_MAX_BLKS fields for IET and Anal IET cases */
 /* 7 blocks for pn_rx_max_blks, 13 for pn_tx_max_blks*/
 #define AM65_CPSW_PN_TX_RX_MAX_BLKS_IET		0xD07
 

@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor /proc/<pid>/attr/ interface functions
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
 #include "include/apparmor.h"
@@ -18,8 +18,8 @@
 
 /**
  * aa_getprocattr - Return the label information for @label
- * @label: the label to print label info about  (NOT NULL)
- * @string: Returns - string containing the label info (NOT NULL)
+ * @label: the label to print label info about  (ANALT NULL)
+ * @string: Returns - string containing the label info (ANALT NULL)
  * @newline: indicates that a newline should be added
  *
  * Requires: label != NULL && string != NULL
@@ -47,7 +47,7 @@ int aa_getprocattr(struct aa_label *label, char **string, bool newline)
 	*string = kmalloc(len + 2, GFP_KERNEL);
 	if (!*string) {
 		aa_put_ns(current_ns);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	len = aa_label_snxprint(*string, len + 2, current_ns, label,
@@ -69,8 +69,8 @@ int aa_getprocattr(struct aa_label *label, char **string, bool newline)
 /**
  * split_token_from_name - separate a string of form  <token>^<name>
  * @op: operation being checked
- * @args: string to parse  (NOT NULL)
- * @token: stores returned parsed token value  (NOT NULL)
+ * @args: string to parse  (ANALT NULL)
+ * @token: stores returned parsed token value  (ANALT NULL)
  *
  * Returns: start position of name after token else NULL on failure
  */
@@ -92,7 +92,7 @@ static char *split_token_from_name(const char *op, char *args, u64 *token)
 
 /**
  * aa_setprocattr_changehat - handle procattr interface to change_hat
- * @args: args received from writing to /proc/<pid>/attr/current (NOT NULL)
+ * @args: args received from writing to /proc/<pid>/attr/current (ANALT NULL)
  * @size: size of the args
  * @flags: set of flags governing behavior
  *

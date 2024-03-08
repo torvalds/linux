@@ -17,7 +17,7 @@ struct usb_mixer_interface {
 	struct snd_usb_audio *chip;
 	struct usb_host_interface *hostif;
 	struct list_head list;
-	unsigned int ignore_ctl_error;
+	unsigned int iganalre_ctl_error;
 	struct urb *urb;
 	/* array[MAX_ID_ELEMS], indexed by unit id */
 	struct usb_mixer_elem_list **id_elems;
@@ -55,7 +55,7 @@ enum {
 	USB_MIXER_U16,
 	USB_MIXER_S32,
 	USB_MIXER_U32,
-	USB_MIXER_BESPOKEN,	/* non-standard type */
+	USB_MIXER_BESPOKEN,	/* analn-standard type */
 };
 
 typedef void (*usb_mixer_elem_dump_func_t)(struct snd_info_buffer *buffer,
@@ -99,7 +99,7 @@ struct usb_mixer_elem_info {
 int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif);
 void snd_usb_mixer_disconnect(struct usb_mixer_interface *mixer);
 
-void snd_usb_mixer_notify_id(struct usb_mixer_interface *mixer, int unitid);
+void snd_usb_mixer_analtify_id(struct usb_mixer_interface *mixer, int unitid);
 
 int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 				int request, int validx, int value_set);

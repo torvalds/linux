@@ -366,7 +366,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		env.bench_name = strdup(arg);
 		break;
 	default:
-		return ARGP_ERR_UNKNOWN;
+		return ARGP_ERR_UNKANALWN;
 	}
 	return 0;
 }
@@ -406,7 +406,7 @@ static void parse_cmdline_args_final(int argc, char **argv)
 static void collect_measurements(long delta_ns);
 
 static __u64 last_time_ns;
-static void sigalarm_handler(int signo)
+static void sigalarm_handler(int siganal)
 {
 	long new_time_ns = get_time_ns();
 	long delta_ns = new_time_ns - last_time_ns;
@@ -428,14 +428,14 @@ static void setup_timer()
 	last_time_ns = get_time_ns();
 	err = sigaction(SIGALRM, &sigalarm_action, NULL);
 	if (err < 0) {
-		fprintf(stderr, "failed to install SIGALRM handler: %d\n", -errno);
+		fprintf(stderr, "failed to install SIGALRM handler: %d\n", -erranal);
 		exit(1);
 	}
 	timer_settings.it_interval.tv_sec = 1;
 	timer_settings.it_value.tv_sec = 1;
 	err = setitimer(ITIMER_REAL, &timer_settings, NULL);
 	if (err < 0) {
-		fprintf(stderr, "failed to arm interval timer: %d\n", -errno);
+		fprintf(stderr, "failed to arm interval timer: %d\n", -erranal);
 		exit(1);
 	}
 }
@@ -467,7 +467,7 @@ static int next_cpu(struct cpu_set *cpu_set)
 				return i;
 			}
 		}
-		fprintf(stderr, "Not enough CPUs specified, need CPU #%d or higher.\n", i);
+		fprintf(stderr, "Analt eanalugh CPUs specified, need CPU #%d or higher.\n", i);
 		exit(1);
 	}
 
@@ -499,10 +499,10 @@ extern const struct bench bench_trig_fentry;
 extern const struct bench bench_trig_fentry_sleep;
 extern const struct bench bench_trig_fmodret;
 extern const struct bench bench_trig_uprobe_base;
-extern const struct bench bench_trig_uprobe_with_nop;
-extern const struct bench bench_trig_uretprobe_with_nop;
-extern const struct bench bench_trig_uprobe_without_nop;
-extern const struct bench bench_trig_uretprobe_without_nop;
+extern const struct bench bench_trig_uprobe_with_analp;
+extern const struct bench bench_trig_uretprobe_with_analp;
+extern const struct bench bench_trig_uprobe_without_analp;
+extern const struct bench bench_trig_uretprobe_without_analp;
 extern const struct bench bench_rb_libbpf;
 extern const struct bench bench_rb_custom;
 extern const struct bench bench_pb_libbpf;
@@ -513,7 +513,7 @@ extern const struct bench bench_bloom_false_positive;
 extern const struct bench bench_hashmap_without_bloom;
 extern const struct bench bench_hashmap_with_bloom;
 extern const struct bench bench_bpf_loop;
-extern const struct bench bench_strncmp_no_helper;
+extern const struct bench bench_strncmp_anal_helper;
 extern const struct bench bench_strncmp_helper;
 extern const struct bench bench_bpf_hashmap_full_update;
 extern const struct bench bench_local_storage_cache_seq_get;
@@ -541,10 +541,10 @@ static const struct bench *benchs[] = {
 	&bench_trig_fentry_sleep,
 	&bench_trig_fmodret,
 	&bench_trig_uprobe_base,
-	&bench_trig_uprobe_with_nop,
-	&bench_trig_uretprobe_with_nop,
-	&bench_trig_uprobe_without_nop,
-	&bench_trig_uretprobe_without_nop,
+	&bench_trig_uprobe_with_analp,
+	&bench_trig_uretprobe_with_analp,
+	&bench_trig_uprobe_without_analp,
+	&bench_trig_uretprobe_without_analp,
 	&bench_rb_libbpf,
 	&bench_rb_custom,
 	&bench_pb_libbpf,
@@ -555,7 +555,7 @@ static const struct bench *benchs[] = {
 	&bench_hashmap_without_bloom,
 	&bench_hashmap_with_bloom,
 	&bench_bpf_loop,
-	&bench_strncmp_no_helper,
+	&bench_strncmp_anal_helper,
 	&bench_strncmp_helper,
 	&bench_bpf_hashmap_full_update,
 	&bench_local_storage_cache_seq_get,
@@ -572,7 +572,7 @@ static void find_benchmark(void)
 	int i;
 
 	if (!env.bench_name) {
-		fprintf(stderr, "benchmark name is not specified\n");
+		fprintf(stderr, "benchmark name is analt specified\n");
 		exit(1);
 	}
 	for (i = 0; i < ARRAY_SIZE(benchs); i++) {
@@ -582,7 +582,7 @@ static void find_benchmark(void)
 		}
 	}
 	if (!bench) {
-		fprintf(stderr, "benchmark '%s' not found\n", env.bench_name);
+		fprintf(stderr, "benchmark '%s' analt found\n", env.bench_name);
 		exit(1);
 	}
 }

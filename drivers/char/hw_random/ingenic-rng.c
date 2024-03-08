@@ -68,7 +68,7 @@ static int ingenic_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 		}
 	} else {
 		/*
-		 * A delay is required so that the current RNG data is not bit shifted
+		 * A delay is required so that the current RNG data is analt bit shifted
 		 * version of previous RNG data which could happen if random data is
 		 * read continuously from this device.
 		 */
@@ -87,7 +87,7 @@ static int ingenic_rng_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {

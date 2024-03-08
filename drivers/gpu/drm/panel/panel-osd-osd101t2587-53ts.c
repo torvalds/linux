@@ -117,7 +117,7 @@ static int osd101t2587_panel_get_modes(struct drm_panel *panel,
 			osd101t2587->default_mode->hdisplay,
 			osd101t2587->default_mode->vdisplay,
 			drm_mode_vrefresh(osd101t2587->default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -175,20 +175,20 @@ static int osd101t2587_panel_probe(struct mipi_dsi_device *dsi)
 	const struct of_device_id *id;
 	int ret;
 
-	id = of_match_node(osd101t2587_of_match, dsi->dev.of_node);
+	id = of_match_analde(osd101t2587_of_match, dsi->dev.of_analde);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO |
 			  MIPI_DSI_MODE_VIDEO_BURST |
 			  MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-			  MIPI_DSI_MODE_NO_EOT_PACKET;
+			  MIPI_DSI_MODE_ANAL_EOT_PACKET;
 
 	osd101t2587 = devm_kzalloc(&dsi->dev, sizeof(*osd101t2587), GFP_KERNEL);
 	if (!osd101t2587)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, osd101t2587);
 

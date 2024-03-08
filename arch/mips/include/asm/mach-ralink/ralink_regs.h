@@ -13,7 +13,7 @@
 #include <linux/io.h>
 
 enum ralink_soc_type {
-	RALINK_UNKNOWN = 0,
+	RALINK_UNKANALWN = 0,
 	RT2880_SOC,
 	RT3883_SOC,
 	RT305X_SOC_RT3050,

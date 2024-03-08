@@ -37,18 +37,18 @@ TRACE_EVENT(msm_gpu_submit_flush,
 		    __field(pid_t, pid)
 		    __field(u32, id)
 		    __field(u32, ringid)
-		    __field(u32, seqno)
+		    __field(u32, seqanal)
 		    __field(u64, ticks)
 		    ),
 	    TP_fast_assign(
 		    __entry->pid = pid_nr(submit->pid);
 		    __entry->id = submit->ident;
 		    __entry->ringid = submit->ring->id;
-		    __entry->seqno = submit->seqno;
+		    __entry->seqanal = submit->seqanal;
 		    __entry->ticks = ticks;
 		    ),
 	    TP_printk("id=%d pid=%d ring=%d:%d ticks=%lld",
-		    __entry->id, __entry->pid, __entry->ringid, __entry->seqno,
+		    __entry->id, __entry->pid, __entry->ringid, __entry->seqanal,
 		    __entry->ticks)
 );
 
@@ -61,7 +61,7 @@ TRACE_EVENT(msm_gpu_submit_retired,
 		    __field(pid_t, pid)
 		    __field(u32, id)
 		    __field(u32, ringid)
-		    __field(u32, seqno)
+		    __field(u32, seqanal)
 		    __field(u64, elapsed)
 		    __field(u64, clock)
 		    __field(u64, start_ticks)
@@ -71,14 +71,14 @@ TRACE_EVENT(msm_gpu_submit_retired,
 		    __entry->pid = pid_nr(submit->pid);
 		    __entry->id = submit->ident;
 		    __entry->ringid = submit->ring->id;
-		    __entry->seqno = submit->seqno;
+		    __entry->seqanal = submit->seqanal;
 		    __entry->elapsed = elapsed;
 		    __entry->clock = clock;
 		    __entry->start_ticks = start;
 		    __entry->end_ticks = end;
 		    ),
 	    TP_printk("id=%d pid=%d ring=%d:%d elapsed=%lld ns mhz=%lld start=%lld end=%lld",
-		    __entry->id, __entry->pid, __entry->ringid, __entry->seqno,
+		    __entry->id, __entry->pid, __entry->ringid, __entry->seqanal,
 		    __entry->elapsed, __entry->clock,
 		    __entry->start_ticks, __entry->end_ticks)
 );

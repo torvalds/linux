@@ -11,7 +11,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/mod_devicetable.h>
@@ -27,7 +27,7 @@
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
@@ -69,7 +69,7 @@
 
 /* Monitor registers */
 #define MT9M114_MON_MAJOR_VERSION			CCI_REG16(0x8000)
-#define MT9M114_MON_MINOR_VERSION			CCI_REG16(0x8002)
+#define MT9M114_MON_MIANALR_VERSION			CCI_REG16(0x8002)
 #define MT9M114_MON_RELEASE_VERSION			CCI_REG16(0x8004)
 
 /* Auto-Exposure Track registers */
@@ -101,12 +101,12 @@
 #define MT9M114_CAM_SENSOR_CONTROL_READ_MODE		CCI_REG16(0xc834)
 #define MT9M114_CAM_SENSOR_CONTROL_HORZ_MIRROR_EN		BIT(0)
 #define MT9M114_CAM_SENSOR_CONTROL_VERT_FLIP_EN			BIT(1)
-#define MT9M114_CAM_SENSOR_CONTROL_X_READ_OUT_NORMAL		(0 << 4)
+#define MT9M114_CAM_SENSOR_CONTROL_X_READ_OUT_ANALRMAL		(0 << 4)
 #define MT9M114_CAM_SENSOR_CONTROL_X_READ_OUT_SKIPPING		(1 << 4)
 #define MT9M114_CAM_SENSOR_CONTROL_X_READ_OUT_AVERAGE		(2 << 4)
 #define MT9M114_CAM_SENSOR_CONTROL_X_READ_OUT_SUMMING		(3 << 4)
 #define MT9M114_CAM_SENSOR_CONTROL_X_READ_OUT_MASK		(3 << 4)
-#define MT9M114_CAM_SENSOR_CONTROL_Y_READ_OUT_NORMAL		(0 << 8)
+#define MT9M114_CAM_SENSOR_CONTROL_Y_READ_OUT_ANALRMAL		(0 << 8)
 #define MT9M114_CAM_SENSOR_CONTROL_Y_READ_OUT_SKIPPING		(1 << 8)
 #define MT9M114_CAM_SENSOR_CONTROL_Y_READ_OUT_SUMMING		(3 << 8)
 #define MT9M114_CAM_SENSOR_CONTROL_Y_READ_OUT_MASK		(3 << 8)
@@ -114,7 +114,7 @@
 #define MT9M114_CAM_SENSOR_CONTROL_COARSE_INTEGRATION_TIME	CCI_REG16(0xc83c)
 #define MT9M114_CAM_SENSOR_CONTROL_FINE_INTEGRATION_TIME	CCI_REG16(0xc83e)
 #define MT9M114_CAM_MODE_SELECT				CCI_REG8(0xc84c)
-#define MT9M114_CAM_MODE_SELECT_NORMAL				(0 << 0)
+#define MT9M114_CAM_MODE_SELECT_ANALRMAL				(0 << 0)
 #define MT9M114_CAM_MODE_SELECT_LENS_CALIBRATION		(1 << 0)
 #define MT9M114_CAM_MODE_SELECT_TEST_PATTERN			(2 << 0)
 #define MT9M114_CAM_MODE_TEST_PATTERN_SELECT		CCI_REG8(0xc84d)
@@ -139,14 +139,14 @@
 #define MT9M114_CAM_OUTPUT_FORMAT			CCI_REG16(0xc86c)
 #define MT9M114_CAM_OUTPUT_FORMAT_SWAP_RED_BLUE			BIT(0)
 #define MT9M114_CAM_OUTPUT_FORMAT_SWAP_BYTES			BIT(1)
-#define MT9M114_CAM_OUTPUT_FORMAT_MONO_ENABLE			BIT(2)
+#define MT9M114_CAM_OUTPUT_FORMAT_MOANAL_ENABLE			BIT(2)
 #define MT9M114_CAM_OUTPUT_FORMAT_BT656_ENABLE			BIT(3)
 #define MT9M114_CAM_OUTPUT_FORMAT_BT656_CROP_SCALE_DISABLE	BIT(4)
 #define MT9M114_CAM_OUTPUT_FORMAT_FVLV_DISABLE			BIT(5)
 #define MT9M114_CAM_OUTPUT_FORMAT_FORMAT_YUV			(0 << 8)
 #define MT9M114_CAM_OUTPUT_FORMAT_FORMAT_RGB			(1 << 8)
 #define MT9M114_CAM_OUTPUT_FORMAT_FORMAT_BAYER			(2 << 8)
-#define MT9M114_CAM_OUTPUT_FORMAT_FORMAT_NONE			(3 << 8)
+#define MT9M114_CAM_OUTPUT_FORMAT_FORMAT_ANALNE			(3 << 8)
 #define MT9M114_CAM_OUTPUT_FORMAT_FORMAT_MASK			(3 << 8)
 #define MT9M114_CAM_OUTPUT_FORMAT_BAYER_FORMAT_RAWR10		(0 << 10)
 #define MT9M114_CAM_OUTPUT_FORMAT_BAYER_FORMAT_PRELSC_8_2	(1 << 10)
@@ -162,7 +162,7 @@
 #define MT9M114_CAM_OUTPUT_FORMAT_YUV_CLIP			BIT(5)
 #define MT9M114_CAM_OUTPUT_FORMAT_YUV_AUV_OFFSET		BIT(4)
 #define MT9M114_CAM_OUTPUT_FORMAT_YUV_SELECT_601		BIT(3)
-#define MT9M114_CAM_OUTPUT_FORMAT_YUV_NORMALISE			BIT(2)
+#define MT9M114_CAM_OUTPUT_FORMAT_YUV_ANALRMALISE			BIT(2)
 #define MT9M114_CAM_OUTPUT_FORMAT_YUV_SAMPLING_EVEN_UV		(0 << 0)
 #define MT9M114_CAM_OUTPUT_FORMAT_YUV_SAMPLING_ODD_UV		(1 << 0)
 #define MT9M114_CAM_OUTPUT_FORMAT_YUV_SAMPLING_EVENU_ODDV	(2 << 0)
@@ -316,9 +316,9 @@
 #define MT9M114_SYS_STATE_LEAVE_STANDBY			0x54
 
 /* Result status of last SET_STATE comamnd */
-#define MT9M114_SET_STATE_RESULT_ENOERR			0x00
+#define MT9M114_SET_STATE_RESULT_EANALERR			0x00
 #define MT9M114_SET_STATE_RESULT_EINVAL			0x0c
-#define MT9M114_SET_STATE_RESULT_ENOSPC			0x0d
+#define MT9M114_SET_STATE_RESULT_EANALSPC			0x0d
 
 /*
  * The minimum amount of horizontal and vertical blanking is undocumented. The
@@ -339,7 +339,7 @@
 #define MT9M114_PIXEL_ARRAY_HEIGHT			976U
 
 /*
- * These values are not well documented and are semi-arbitrary. The pixel array
+ * These values are analt well documented and are semi-arbitrary. The pixel array
  * minimum output size is 8 pixels larger than the minimum scaler cropped input
  * width to account for the demosaicing.
  */
@@ -376,7 +376,7 @@ struct mt9m114 {
 	struct clk *clk;
 	struct gpio_desc *reset;
 	struct regulator_bulk_data supplies[3];
-	struct v4l2_fwnode_endpoint bus_cfg;
+	struct v4l2_fwanalde_endpoint bus_cfg;
 
 	struct {
 		unsigned int m;
@@ -760,7 +760,7 @@ static int mt9m114_initialize(struct mt9m114 *sensor)
 		      | MT9M114_CAM_PORT_CHAN_NUM(0)
 		      | 0x8000;
 		if (!(sensor->bus_cfg.bus.mipi_csi2.flags &
-		      V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK))
+		      V4L2_MBUS_CSI2_ANALNCONTINUOUS_CLOCK))
 			value |= MT9M114_CAM_PORT_CONT_MIPI_CLK;
 	} else {
 		value = MT9M114_CAM_PORT_PORT_SELECT_PARALLEL
@@ -849,7 +849,7 @@ static int mt9m114_configure(struct mt9m114 *sensor,
 	 * Color pipeline (IFP) cropping and scaling. Subtract 4 from the left
 	 * and top coordinates to compensate for the lines and columns removed
 	 * by demosaicing that are taken into account in the crop rectangle but
-	 * not in the hardware.
+	 * analt in the hardware.
 	 */
 	cci_write(sensor->regmap, MT9M114_CAM_CROP_WINDOW_XOFFSET,
 		  ifp_crop->left - 4, &ret);
@@ -1170,11 +1170,11 @@ static int mt9m114_pa_init_state(struct v4l2_subdev *sd,
 	format->width = MT9M114_PIXEL_ARRAY_WIDTH;
 	format->height = MT9M114_PIXEL_ARRAY_HEIGHT;
 	format->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	format->field = V4L2_FIELD_NONE;
+	format->field = V4L2_FIELD_ANALNE;
 	format->colorspace = V4L2_COLORSPACE_RAW;
 	format->ycbcr_enc = V4L2_YCBCR_ENC_601;
 	format->quantization = V4L2_QUANTIZATION_FULL_RANGE;
-	format->xfer_func = V4L2_XFER_FUNC_NONE;
+	format->xfer_func = V4L2_XFER_FUNC_ANALNE;
 
 	return 0;
 }
@@ -1280,7 +1280,7 @@ static int mt9m114_pa_set_selection(struct v4l2_subdev *sd,
 	 *
 	 * FIXME: The horizontal coordinates must be a multiple of 8 when
 	 * binning, but binning is configured after setting the selection, so
-	 * we can't know tell here if it will be used.
+	 * we can't kanalw tell here if it will be used.
 	 */
 	crop->left = ALIGN(sel->r.left, 4);
 	crop->top = ALIGN(sel->r.top, 2);
@@ -1335,7 +1335,7 @@ static int mt9m114_pa_init(struct mt9m114 *sensor)
 	sd->internal_ops = &mt9m114_pa_internal_ops;
 	v4l2_i2c_subdev_set_name(sd, sensor->client, NULL, " pixel array");
 
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	sd->owner = THIS_MODULE;
 	sd->dev = &sensor->client->dev;
 	v4l2_set_subdevdata(sd, sensor->client);
@@ -1524,12 +1524,12 @@ static int mt9m114_ifp_s_ctrl(struct v4l2_ctrl *ctrl)
 				  sensor->ifp.tpg[MT9M114_TPG_BLUE]->val, &ret);
 		} else {
 			cci_write(sensor->regmap, MT9M114_CAM_MODE_SELECT,
-				  MT9M114_CAM_MODE_SELECT_NORMAL, &ret);
+				  MT9M114_CAM_MODE_SELECT_ANALRMAL, &ret);
 		}
 
 		/*
 		 * A Config-Change needs to be issued for the change to take
-		 * effect. If we're not streaming ignore this, the change will
+		 * effect. If we're analt streaming iganalre this, the change will
 		 * be applied when the stream is started.
 		 */
 		if (ret || !sensor->streaming)
@@ -1602,7 +1602,7 @@ static int mt9m114_ifp_get_frame_interval(struct v4l2_subdev *sd,
 	mutex_lock(sensor->ifp.hdl.lock);
 
 	ival->numerator = 1;
-	ival->denominator = sensor->ifp.frame_rate;
+	ival->deanalminator = sensor->ifp.frame_rate;
 
 	mutex_unlock(sensor->ifp.hdl.lock);
 
@@ -1626,15 +1626,15 @@ static int mt9m114_ifp_set_frame_interval(struct v4l2_subdev *sd,
 
 	mutex_lock(sensor->ifp.hdl.lock);
 
-	if (ival->numerator != 0 && ival->denominator != 0)
+	if (ival->numerator != 0 && ival->deanalminator != 0)
 		sensor->ifp.frame_rate = min_t(unsigned int,
-					       ival->denominator / ival->numerator,
+					       ival->deanalminator / ival->numerator,
 					       MT9M114_MAX_FRAME_RATE);
 	else
 		sensor->ifp.frame_rate = MT9M114_MAX_FRAME_RATE;
 
 	ival->numerator = 1;
-	ival->denominator = sensor->ifp.frame_rate;
+	ival->deanalminator = sensor->ifp.frame_rate;
 
 	if (sensor->streaming)
 		ret = mt9m114_set_frame_rate(sensor);
@@ -1657,11 +1657,11 @@ static int mt9m114_ifp_init_state(struct v4l2_subdev *sd,
 	format->width = MT9M114_PIXEL_ARRAY_WIDTH;
 	format->height = MT9M114_PIXEL_ARRAY_HEIGHT;
 	format->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	format->field = V4L2_FIELD_NONE;
+	format->field = V4L2_FIELD_ANALNE;
 	format->colorspace = V4L2_COLORSPACE_RAW;
 	format->ycbcr_enc = V4L2_YCBCR_ENC_601;
 	format->quantization = V4L2_QUANTIZATION_FULL_RANGE;
-	format->xfer_func = V4L2_XFER_FUNC_NONE;
+	format->xfer_func = V4L2_XFER_FUNC_ANALNE;
 
 	crop = v4l2_subdev_state_get_crop(state, 0);
 
@@ -1682,7 +1682,7 @@ static int mt9m114_ifp_init_state(struct v4l2_subdev *sd,
 	format->width = compose->width;
 	format->height = compose->height;
 	format->code = mt9m114_default_format_info(sensor)->code;
-	format->field = V4L2_FIELD_NONE;
+	format->field = V4L2_FIELD_ANALNE;
 	format->colorspace = V4L2_COLORSPACE_SRGB;
 	format->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	format->quantization = V4L2_QUANTIZATION_DEFAULT;
@@ -1785,7 +1785,7 @@ static int mt9m114_ifp_enum_frameintervals(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	fie->interval.numerator = 1;
-	fie->interval.denominator = MT9M114_MAX_FRAME_RATE;
+	fie->interval.deanalminator = MT9M114_MAX_FRAME_RATE;
 
 	return 0;
 }
@@ -2020,7 +2020,7 @@ static int mt9m114_ifp_init(struct mt9m114 *sensor)
 	v4l2_i2c_subdev_init(sd, sensor->client, &mt9m114_ifp_ops);
 	v4l2_i2c_subdev_set_name(sd, sensor->client, NULL, " ifp");
 
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	sd->internal_ops = &mt9m114_ifp_internal_ops;
 
 	/* Initialize the media entity. */
@@ -2266,7 +2266,7 @@ static int mt9m114_clk_init(struct mt9m114 *sensor)
 
 static int mt9m114_identify(struct mt9m114 *sensor)
 {
-	u64 major, minor, release, customer;
+	u64 major, mianalr, release, customer;
 	u64 value;
 	int ret;
 
@@ -2283,7 +2283,7 @@ static int mt9m114_identify(struct mt9m114 *sensor)
 	}
 
 	cci_read(sensor->regmap, MT9M114_MON_MAJOR_VERSION, &major, &ret);
-	cci_read(sensor->regmap, MT9M114_MON_MINOR_VERSION, &minor, &ret);
+	cci_read(sensor->regmap, MT9M114_MON_MIANALR_VERSION, &mianalr, &ret);
 	cci_read(sensor->regmap, MT9M114_MON_RELEASE_VERSION, &release, &ret);
 	cci_read(sensor->regmap, MT9M114_CUSTOMER_REV, &customer, &ret);
 	if (ret) {
@@ -2293,26 +2293,26 @@ static int mt9m114_identify(struct mt9m114 *sensor)
 
 	dev_dbg(&sensor->client->dev,
 		"monitor v%llu.%llu.%04llx customer rev 0x%04llx\n",
-		major, minor, release, customer);
+		major, mianalr, release, customer);
 
 	return 0;
 }
 
 static int mt9m114_parse_dt(struct mt9m114 *sensor)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(&sensor->client->dev);
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(&sensor->client->dev);
+	struct fwanalde_handle *ep;
 	int ret;
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep) {
-		dev_err(&sensor->client->dev, "No endpoint found\n");
+		dev_err(&sensor->client->dev, "Anal endpoint found\n");
 		return -EINVAL;
 	}
 
-	sensor->bus_cfg.bus_type = V4L2_MBUS_UNKNOWN;
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &sensor->bus_cfg);
-	fwnode_handle_put(ep);
+	sensor->bus_cfg.bus_type = V4L2_MBUS_UNKANALWN;
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &sensor->bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret < 0) {
 		dev_err(&sensor->client->dev, "Failed to parse endpoint\n");
 		goto error;
@@ -2333,7 +2333,7 @@ static int mt9m114_parse_dt(struct mt9m114 *sensor)
 	return 0;
 
 error:
-	v4l2_fwnode_endpoint_free(&sensor->bus_cfg);
+	v4l2_fwanalde_endpoint_free(&sensor->bus_cfg);
 	return ret;
 }
 
@@ -2345,14 +2345,14 @@ static int mt9m114_probe(struct i2c_client *client)
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensor->client = client;
 
 	sensor->regmap = devm_cci_regmap_init_i2c(client, 16);
 	if (IS_ERR(sensor->regmap)) {
 		dev_err(dev, "Unable to initialize I2C\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = mt9m114_parse_dt(sensor);
@@ -2397,7 +2397,7 @@ static int mt9m114_probe(struct i2c_client *client)
 	 */
 	ret = mt9m114_power_on(sensor);
 	if (ret < 0) {
-		dev_err_probe(dev, ret, "Could not power on the device\n");
+		dev_err_probe(dev, ret, "Could analt power on the device\n");
 		goto error_ep_free;
 	}
 
@@ -2415,7 +2415,7 @@ static int mt9m114_probe(struct i2c_client *client)
 	 * resuming the device.
 	 */
 	pm_runtime_set_active(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
@@ -2448,11 +2448,11 @@ error_pa_cleanup:
 	mt9m114_pa_cleanup(sensor);
 error_pm_cleanup:
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 error_power_off:
 	mt9m114_power_off(sensor);
 error_ep_free:
-	v4l2_fwnode_endpoint_free(&sensor->bus_cfg);
+	v4l2_fwanalde_endpoint_free(&sensor->bus_cfg);
 	return ret;
 }
 
@@ -2466,7 +2466,7 @@ static void mt9m114_remove(struct i2c_client *client)
 
 	mt9m114_ifp_cleanup(sensor);
 	mt9m114_pa_cleanup(sensor);
-	v4l2_fwnode_endpoint_free(&sensor->bus_cfg);
+	v4l2_fwanalde_endpoint_free(&sensor->bus_cfg);
 
 	/*
 	 * Disable runtime PM. In case runtime PM is disabled in the kernel,

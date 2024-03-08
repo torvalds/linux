@@ -169,7 +169,7 @@ static int fill_req_raw(struct nsm *nsm, struct nsm_data_req *req,
 static int parse_resp_raw(struct nsm *nsm, struct nsm_data_resp *resp,
 			  struct nsm_raw *raw)
 {
-	/* Truncate any message that does not fit. */
+	/* Truncate any message that does analt fit. */
 	raw->response.len = min_t(u64, raw->response.len, resp->len);
 
 	/* Copy the response content to user space */
@@ -217,7 +217,7 @@ static int nsm_sendrecv_msg_locked(struct nsm *nsm)
 
 	kicked = virtqueue_kick(vq);
 	if (!kicked) {
-		/* Cannot kick the virtqueue. */
+		/* Cananalt kick the virtqueue. */
 		rc = -EIO;
 		goto cleanup;
 	}
@@ -232,14 +232,14 @@ static int nsm_sendrecv_msg_locked(struct nsm *nsm)
 	queue_buf = virtqueue_get_buf(vq, &len);
 	if (!queue_buf || (queue_buf != msg->req.data)) {
 		dev_err(dev, "wrong request buffer.");
-		rc = -ENODATA;
+		rc = -EANALDATA;
 		goto cleanup;
 	}
 
 	queue_buf = virtqueue_get_buf(vq, &len);
 	if (!queue_buf || (queue_buf != msg->resp.data)) {
 		dev_err(dev, "wrong response buffer.");
-		rc = -ENODATA;
+		rc = -EANALDATA;
 		goto cleanup;
 	}
 
@@ -426,7 +426,7 @@ static int nsm_device_probe(struct virtio_device *vdev)
 
 	nsm = devm_kzalloc(&vdev->dev, sizeof(*nsm), GFP_KERNEL);
 	if (!nsm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdev->priv = nsm;
 	nsm->vdev = vdev;
@@ -452,9 +452,9 @@ static int nsm_device_probe(struct virtio_device *vdev)
 		goto err_hwrng;
 	}
 
-	/* Register /dev/nsm device node */
+	/* Register /dev/nsm device analde */
 	nsm->misc = (struct miscdevice) {
-		.minor	= MISC_DYNAMIC_MINOR,
+		.mianalr	= MISC_DYNAMIC_MIANALR,
 		.name	= "nsm",
 		.fops	= &nsm_dev_fops,
 		.mode	= 0666,

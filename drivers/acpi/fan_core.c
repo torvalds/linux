@@ -54,7 +54,7 @@ int acpi_fan_get_fst(struct acpi_device *device, struct acpi_fan_fst *fst)
 	status = acpi_evaluate_object(device->handle, "_FST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		dev_err(&device->dev, "Get fan state failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	obj = buffer.pointer;
@@ -174,7 +174,7 @@ static int fan_set_state_acpi4(struct acpi_device *device, unsigned long state)
 	status = acpi_execute_simple_method(device->handle, "_FSL", value);
 	if (ACPI_FAILURE(status)) {
 		dev_dbg(&device->dev, "Failed to set state by _FSL\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -242,7 +242,7 @@ static int acpi_fan_get_fif(struct acpi_device *device)
 	fan->fif.revision = fields[0];
 	fan->fif.fine_grain_ctrl = fields[1];
 	fan->fif.step_size = fields[2];
-	fan->fif.low_speed_notification = fields[3];
+	fan->fif.low_speed_analtification = fields[3];
 
 	/* If there is a bug in step size and set as 0, change to 1 */
 	if (!fan->fif.step_size)
@@ -286,8 +286,8 @@ static int acpi_fan_get_fps(struct acpi_device *device)
 				fan->fps_count, sizeof(struct acpi_fan_fps),
 				GFP_KERNEL);
 	if (!fan->fps) {
-		dev_err(&device->dev, "Not enough memory\n");
-		status = -ENOMEM;
+		dev_err(&device->dev, "Analt eanalugh memory\n");
+		status = -EANALMEM;
 		goto err;
 	}
 	for (i = 0; i < fan->fps_count; i++) {
@@ -321,8 +321,8 @@ static int acpi_fan_probe(struct platform_device *pdev)
 
 	fan = devm_kzalloc(&pdev->dev, sizeof(*fan), GFP_KERNEL);
 	if (!fan) {
-		dev_err(&device->dev, "No memory for fan\n");
-		return -ENOMEM;
+		dev_err(&device->dev, "Anal memory for fan\n");
+		return -EANALMEM;
 	}
 	device->driver_data = fan;
 	platform_set_drvdata(pdev, fan);

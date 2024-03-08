@@ -21,7 +21,7 @@ void ice_release_rx_desc(struct ice_rx_ring *rx_ring, u16 val)
 	/* update next to alloc since we have filled the ring */
 	rx_ring->next_to_alloc = val;
 
-	/* QRX_TAIL will be updated with any tail value, but hardware ignores
+	/* QRX_TAIL will be updated with any tail value, but hardware iganalres
 	 * the lower 3 bits. This makes it so we only bump tail on meaningful
 	 * boundaries. Also, this allows us to bump tail on intervals of 8 up to
 	 * the budget depending on the current traffic load.
@@ -29,7 +29,7 @@ void ice_release_rx_desc(struct ice_rx_ring *rx_ring, u16 val)
 	val &= ~0x7;
 	if (prev_ntu != val) {
 		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch. (Only
+		 * kanalw there are new descriptors to fetch. (Only
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64).
 		 */
@@ -50,8 +50,8 @@ static enum pkt_hash_types ice_ptype_to_htype(u16 ptype)
 {
 	struct ice_rx_ptype_decoded decoded = ice_decode_rx_desc_ptype(ptype);
 
-	if (!decoded.known)
-		return PKT_HASH_TYPE_NONE;
+	if (!decoded.kanalwn)
+		return PKT_HASH_TYPE_ANALNE;
 	if (decoded.payload_layer == ICE_RX_PTYPE_PAYLOAD_LAYER_PAY4)
 		return PKT_HASH_TYPE_L4;
 	if (decoded.payload_layer == ICE_RX_PTYPE_PAYLOAD_LAYER_PAY3)
@@ -59,7 +59,7 @@ static enum pkt_hash_types ice_ptype_to_htype(u16 ptype)
 	if (decoded.outer_ip == ICE_RX_PTYPE_OUTER_L2)
 		return PKT_HASH_TYPE_L2;
 
-	return PKT_HASH_TYPE_NONE;
+	return PKT_HASH_TYPE_ANALNE;
 }
 
 /**
@@ -123,9 +123,9 @@ ice_rx_csum(struct ice_rx_ring *ring, struct sk_buff *skb,
 
 	decoded = ice_decode_rx_desc_ptype(ptype);
 
-	/* Start with CHECKSUM_NONE and by default csum_level = 0 */
-	skb->ip_summed = CHECKSUM_NONE;
-	skb_checksum_none_assert(skb);
+	/* Start with CHECKSUM_ANALNE and by default csum_level = 0 */
+	skb->ip_summed = CHECKSUM_ANALNE;
+	skb_checksum_analne_assert(skb);
 
 	/* check if Rx checksum is enabled */
 	if (!(ring->netdev->features & NETIF_F_RXCSUM))
@@ -135,7 +135,7 @@ ice_rx_csum(struct ice_rx_ring *ring, struct sk_buff *skb,
 	if (!(rx_status0 & BIT(ICE_RX_FLEX_DESC_STATUS0_L3L4P_S)))
 		return;
 
-	if (!(decoded.known && decoded.outer_ip))
+	if (!(decoded.kanalwn && decoded.outer_ip))
 		return;
 
 	ipv4 = (decoded.outer_ip == ICE_RX_PTYPE_OUTER_IP) &&
@@ -150,7 +150,7 @@ ice_rx_csum(struct ice_rx_ring *ring, struct sk_buff *skb,
 	if (ipv6 && (rx_status0 & (BIT(ICE_RX_FLEX_DESC_STATUS0_IPV6EXADD_S))))
 		goto checksum_fail;
 
-	/* check for L4 errors and handle packets that were not able to be
+	/* check for L4 errors and handle packets that were analt able to be
 	 * checksummed due to arrival speed
 	 */
 	if (rx_status0 & BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_L4E_S))
@@ -518,7 +518,7 @@ static int ice_xdp_rx_hw_ts(const struct xdp_md *ctx, u64 *ts_ns)
 	*ts_ns = ice_ptp_get_rx_hwts(xdp_ext->eop_desc,
 				     xdp_ext->pkt_ctx);
 	if (!*ts_ns)
-		return -ENODATA;
+		return -EANALDATA;
 
 	return 0;
 }
@@ -535,14 +535,14 @@ static int ice_xdp_rx_hw_ts(const struct xdp_md *ctx, u64 *ts_ns)
 
 #define ICE_PTT_UNUSED_ENTRY(PTYPE) [PTYPE] = 0
 
-/* A few supplementary definitions for when XDP hash types do not coincide
+/* A few supplementary definitions for when XDP hash types do analt coincide
  * with what can be generated from ptype definitions
  * by means of preprocessor concatenation.
  */
-#define XDP_RSS_L3_NONE		XDP_RSS_TYPE_NONE
-#define XDP_RSS_L4_NONE		XDP_RSS_TYPE_NONE
+#define XDP_RSS_L3_ANALNE		XDP_RSS_TYPE_ANALNE
+#define XDP_RSS_L4_ANALNE		XDP_RSS_TYPE_ANALNE
 #define XDP_RSS_TYPE_PAY2	XDP_RSS_TYPE_L2
-#define XDP_RSS_TYPE_PAY3	XDP_RSS_TYPE_NONE
+#define XDP_RSS_TYPE_PAY3	XDP_RSS_TYPE_ANALNE
 #define XDP_RSS_TYPE_PAY4	XDP_RSS_L4
 
 static const enum xdp_rss_hash_type
@@ -550,8 +550,8 @@ ice_ptype_to_xdp_hash[ICE_NUM_DEFINED_PTYPES] = {
 	ICE_PTYPES
 };
 
-#undef XDP_RSS_L3_NONE
-#undef XDP_RSS_L4_NONE
+#undef XDP_RSS_L3_ANALNE
+#undef XDP_RSS_L4_ANALNE
 #undef XDP_RSS_TYPE_PAY2
 #undef XDP_RSS_TYPE_PAY3
 #undef XDP_RSS_TYPE_PAY4
@@ -590,7 +590,7 @@ static int ice_xdp_rx_hash(const struct xdp_md *ctx, u32 *hash,
 	*hash = ice_get_rx_hash(xdp_ext->eop_desc);
 	*rss_type = ice_xdp_rx_hash_type(xdp_ext->eop_desc);
 	if (!likely(*hash))
-		return -ENODATA;
+		return -EANALDATA;
 
 	return 0;
 }
@@ -611,11 +611,11 @@ static int ice_xdp_rx_vlan_tag(const struct xdp_md *ctx, __be16 *vlan_proto,
 
 	*vlan_proto = xdp_ext->pkt_ctx->vlan_proto;
 	if (!*vlan_proto)
-		return -ENODATA;
+		return -EANALDATA;
 
 	*vlan_tci = ice_get_vlan_tci(xdp_ext->eop_desc);
 	if (!*vlan_tci)
-		return -ENODATA;
+		return -EANALDATA;
 
 	return 0;
 }

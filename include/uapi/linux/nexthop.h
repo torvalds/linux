@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_NEXTHOP_H
 #define _UAPI_LINUX_NEXTHOP_H
 
@@ -22,7 +22,7 @@ struct nexthop_grp {
 
 enum {
 	NEXTHOP_GRP_TYPE_MPATH,  /* hash-threshold nexthop group
-				  * default type if not specified
+				  * default type if analt specified
 				  */
 	NEXTHOP_GRP_TYPE_RES,    /* resilient nexthop group */
 	__NEXTHOP_GRP_TYPE_MAX,
@@ -36,10 +36,10 @@ enum {
 
 	NHA_GROUP,	/* array of nexthop_grp */
 	NHA_GROUP_TYPE,	/* u16 one of NEXTHOP_GRP_TYPE */
-	/* if NHA_GROUP attribute is added, no other attributes can be set */
+	/* if NHA_GROUP attribute is added, anal other attributes can be set */
 
 	NHA_BLACKHOLE,	/* flag; nexthop used to blackhole packets */
-	/* if NHA_BLACKHOLE is added, OIF, GATEWAY, ENCAP can not be set */
+	/* if NHA_BLACKHOLE is added, OIF, GATEWAY, ENCAP can analt be set */
 
 	NHA_OIF,	/* u32; nexthop device */
 	NHA_GATEWAY,	/* be32 (IPv4) or in6_addr (IPv6) gw address */
@@ -53,7 +53,7 @@ enum {
 	NHA_MASTER,	/* u32;  only return nexthops with given master dev */
 
 	NHA_FDB,	/* flag; nexthop belongs to a bridge fdb */
-	/* if NHA_FDB is added, OIF, BLACKHOLE, ENCAP cannot be set */
+	/* if NHA_FDB is added, OIF, BLACKHOLE, ENCAP cananalt be set */
 
 	/* nested; resilient nexthop group attributes */
 	NHA_RES_GROUP,

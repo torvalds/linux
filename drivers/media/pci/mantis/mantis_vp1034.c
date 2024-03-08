@@ -99,7 +99,7 @@ struct mantis_hwconfig vp1034_config = {
 	.ts_size	= MANTIS_TS_204,
 
 	.baud_rate	= MANTIS_BAUD_9600,
-	.parity		= MANTIS_PARITY_NONE,
+	.parity		= MANTIS_PARITY_ANALNE,
 	.bytes		= 0,
 
 	.frontend_init	= vp1034_frontend_init,

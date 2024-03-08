@@ -10,7 +10,7 @@
  * ETS makes it easy to configure a set of strict and bandwidth-sharing bands to
  * implement the transmission selection described in 802.1Qaz.
  *
- * Although ETS is technically classful, it's not possible to add and remove
+ * Although ETS is technically classful, it's analt possible to add and remove
  * classes at will. Instead one specifies number of classes, how many are
  * PRIO-like and how many DRR-like, and quanta for the latter.
  *
@@ -18,12 +18,12 @@
  * ---------
  *
  * The strict classes, if any, are tried for traffic first: first band 0, if it
- * has no traffic then band 1, etc.
+ * has anal traffic then band 1, etc.
  *
- * When there is no traffic in any of the strict queues, the bandwidth-sharing
+ * When there is anal traffic in any of the strict queues, the bandwidth-sharing
  * ones are tried next. Each band is assigned a deficit counter, initialized to
  * "quantum" of that band. ETS maintains a list of active bandwidth-sharing
- * bands whose qdiscs are non-empty. A packet is dequeued from the band at the
+ * bands whose qdiscs are analn-empty. A packet is dequeued from the band at the
  * head of the list if the packet size is smaller or equal to the deficit
  * counter. If the counter is too small, it is increased by "quantum" and the
  * scheduler moves on to the next band in the active list.
@@ -80,7 +80,7 @@ static int ets_quantum_parse(struct Qdisc *sch, const struct nlattr *attr,
 {
 	*quantum = nla_get_u32(attr);
 	if (!*quantum) {
-		NL_SET_ERR_MSG(extack, "ETS quantum cannot be zero");
+		NL_SET_ERR_MSG(extack, "ETS quantum cananalt be zero");
 		return -EINVAL;
 	}
 	return 0;
@@ -209,8 +209,8 @@ static int ets_class_change(struct Qdisc *sch, u32 classid, u32 parentid,
 	 * interface.
 	 */
 	if (!cl) {
-		NL_SET_ERR_MSG(extack, "Fine-grained class addition and removal is not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "Fine-grained class addition and removal is analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (!opt) {
@@ -223,11 +223,11 @@ static int ets_class_change(struct Qdisc *sch, u32 classid, u32 parentid,
 		return err;
 
 	if (!tb[TCA_ETS_QUANTA_BAND])
-		/* Nothing to configure. */
+		/* Analthing to configure. */
 		return 0;
 
 	if (ets_class_is_strict(q, cl)) {
-		NL_SET_ERR_MSG(extack, "Strict bands do not have a configurable quantum");
+		NL_SET_ERR_MSG(extack, "Strict bands do analt have a configurable quantum");
 		return -EINVAL;
 	}
 
@@ -254,7 +254,7 @@ static int ets_class_graft(struct Qdisc *sch, unsigned long arg,
 		new = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 					ets_class_id(sch, cl), NULL);
 		if (!new)
-			new = &noop_qdisc;
+			new = &analop_qdisc;
 		else
 			qdisc_hash_add(new, true);
 	}
@@ -281,12 +281,12 @@ static unsigned long ets_class_find(struct Qdisc *sch, u32 classid)
 	return band;
 }
 
-static void ets_class_qlen_notify(struct Qdisc *sch, unsigned long arg)
+static void ets_class_qlen_analtify(struct Qdisc *sch, unsigned long arg)
 {
 	struct ets_class *cl = ets_class_from_arg(sch, arg);
 	struct ets_sched *q = qdisc_priv(sch);
 
-	/* We get notified about zero-length child Qdiscs as well if they are
+	/* We get analtified about zero-length child Qdiscs as well if they are
 	 * offloaded. Those aren't on the active list though, so don't attempt
 	 * to remove them.
 	 */
@@ -305,7 +305,7 @@ static int ets_class_dump(struct Qdisc *sch, unsigned long arg,
 	tcm->tcm_handle = ets_class_id(sch, cl);
 	tcm->tcm_info = cl->qdisc->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (!nest)
 		goto nla_put_failure;
 	if (!ets_class_is_strict(q, cl)) {
@@ -475,7 +475,7 @@ static struct sk_buff *ets_qdisc_dequeue(struct Qdisc *sch)
 		cl = list_first_entry(&q->active, struct ets_class, alist);
 		skb = cl->qdisc->ops->peek(cl->qdisc);
 		if (!skb) {
-			qdisc_warn_nonwc(__func__, cl->qdisc);
+			qdisc_warn_analnwc(__func__, cl->qdisc);
 			goto out;
 		}
 
@@ -640,7 +640,7 @@ static int ets_qdisc_change(struct Qdisc *sch, struct nlattr *opt,
 		if (!queues[i]) {
 			while (i > oldbands)
 				qdisc_put(queues[--i]);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -666,7 +666,7 @@ static int ets_qdisc_change(struct Qdisc *sch, struct nlattr *opt,
 
 	for (i = oldbands; i < q->nbands; i++) {
 		q->classes[i].qdisc = queues[i];
-		if (q->classes[i].qdisc != &noop_qdisc)
+		if (q->classes[i].qdisc != &analop_qdisc)
 			qdisc_hash_add(q->classes[i].qdisc, true);
 	}
 
@@ -741,7 +741,7 @@ static int ets_qdisc_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (err)
 		return err;
 
-	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	opts = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (!opts)
 		goto nla_err;
 
@@ -789,7 +789,7 @@ static const struct Qdisc_class_ops ets_class_ops = {
 	.graft		= ets_class_graft,
 	.leaf		= ets_class_leaf,
 	.find		= ets_class_find,
-	.qlen_notify	= ets_class_qlen_notify,
+	.qlen_analtify	= ets_class_qlen_analtify,
 	.dump		= ets_class_dump,
 	.dump_stats	= ets_class_dump_stats,
 	.walk		= ets_qdisc_walk,

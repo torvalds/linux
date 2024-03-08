@@ -82,11 +82,11 @@ static int apci2032_int_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -108,7 +108,7 @@ static int apci2032_int_cmdtest(struct comedi_device *dev,
 					   cmd->chanlist_len);
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -168,12 +168,12 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 	unsigned int val;
 
 	if (!dev->attached)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Check if VCC OR CC interrupt has occurred */
 	val = inl(dev->iobase + APCI2032_STATUS_REG) & APCI2032_STATUS_IRQ;
 	if (!val)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	subpriv = s->private;
 	spin_lock(&subpriv->spinlock);
@@ -182,7 +182,7 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 	/* Disable triggered interrupt sources. */
 	outl(~val & 3, dev->iobase + APCI2032_INT_CTRL_REG);
 	/*
-	 * Note: We don't reenable the triggered interrupt sources because they
+	 * Analte: We don't reenable the triggered interrupt sources because they
 	 * are level-sensitive, hardware error status interrupt sources and
 	 * they'd keep triggering interrupts repeatedly.
 	 */
@@ -276,7 +276,7 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 		dev->read_subdev = s;
 		subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
 		if (!subpriv)
-			return -ENOMEM;
+			return -EANALMEM;
 		spin_lock_init(&subpriv->spinlock);
 		s->private	= subpriv;
 		s->subdev_flags	= SDF_READABLE | SDF_CMD_READ | SDF_PACKED;

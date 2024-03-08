@@ -13,7 +13,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/stat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/unistd.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/stats.h>
@@ -34,16 +34,16 @@
 
 /*
  * Set the superblock root dentry.
- * Note that this function frees the inode in case of error.
+ * Analte that this function frees the ianalde in case of error.
  */
-static int nfs_superblock_set_dummy_root(struct super_block *sb, struct inode *inode)
+static int nfs_superblock_set_dummy_root(struct super_block *sb, struct ianalde *ianalde)
 {
 	/* The mntroot acts as the dummy root dentry for this superblock */
 	if (sb->s_root == NULL) {
-		sb->s_root = d_make_root(inode);
+		sb->s_root = d_make_root(ianalde);
 		if (sb->s_root == NULL)
-			return -ENOMEM;
-		ihold(inode);
+			return -EANALMEM;
+		ihold(ianalde);
 		/*
 		 * Ensure that this dentry is invisible to d_find_alias().
 		 * Otherwise, it may be spliced into the tree by
@@ -52,11 +52,11 @@ static int nfs_superblock_set_dummy_root(struct super_block *sb, struct inode *i
 		 * This again causes shrink_dcache_for_umount_subtree() to
 		 * Oops, since the test for IS_ROOT() will fail.
 		 */
-		spin_lock(&d_inode(sb->s_root)->i_lock);
+		spin_lock(&d_ianalde(sb->s_root)->i_lock);
 		spin_lock(&sb->s_root->d_lock);
 		hlist_del_init(&sb->s_root->d_u.d_alias);
 		spin_unlock(&sb->s_root->d_lock);
-		spin_unlock(&d_inode(sb->s_root)->i_lock);
+		spin_unlock(&d_ianalde(sb->s_root)->i_lock);
 	}
 	return 0;
 }
@@ -70,9 +70,9 @@ int nfs_get_root(struct super_block *s, struct fs_context *fc)
 	struct nfs_server *server = NFS_SB(s), *clone_server;
 	struct nfs_fsinfo fsinfo;
 	struct dentry *root;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	char *name;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 	unsigned long kflags = 0, kflags_out = 0;
 
 	name = kstrdup(fc->source, GFP_KERNEL);
@@ -91,23 +91,23 @@ int nfs_get_root(struct super_block *s, struct fs_context *fc)
 		goto out_fattr;
 	}
 
-	inode = nfs_fhget(s, ctx->mntfh, fsinfo.fattr);
-	if (IS_ERR(inode)) {
-		dprintk("nfs_get_root: get root inode failed\n");
-		error = PTR_ERR(inode);
-		nfs_errorf(fc, "NFS: Couldn't get root inode");
+	ianalde = nfs_fhget(s, ctx->mntfh, fsinfo.fattr);
+	if (IS_ERR(ianalde)) {
+		dprintk("nfs_get_root: get root ianalde failed\n");
+		error = PTR_ERR(ianalde);
+		nfs_errorf(fc, "NFS: Couldn't get root ianalde");
 		goto out_fattr;
 	}
 
-	error = nfs_superblock_set_dummy_root(s, inode);
+	error = nfs_superblock_set_dummy_root(s, ianalde);
 	if (error != 0)
 		goto out_fattr;
 
-	/* root dentries normally start off anonymous and get spliced in later
+	/* root dentries analrmally start off aanalnymous and get spliced in later
 	 * if the dentry tree reaches them; however if the dentry already
 	 * exists, we'll pick it up at this point and use it as the root
 	 */
-	root = d_obtain_root(inode);
+	root = d_obtain_root(ianalde);
 	if (IS_ERR(root)) {
 		dprintk("nfs_get_root: get root dentry failed\n");
 		error = PTR_ERR(root);
@@ -115,7 +115,7 @@ int nfs_get_root(struct super_block *s, struct fs_context *fc)
 		goto out_fattr;
 	}
 
-	security_d_instantiate(root, inode);
+	security_d_instantiate(root, ianalde);
 	spin_lock(&root->d_lock);
 	if (IS_ROOT(root) && !root->d_fsdata &&
 	    !(root->d_flags & DCACHE_NFSFS_RENAMED)) {
@@ -127,7 +127,7 @@ int nfs_get_root(struct super_block *s, struct fs_context *fc)
 	if (server->caps & NFS_CAP_SECURITY_LABEL)
 		kflags |= SECURITY_LSM_NATIVE_LABELS;
 	if (ctx->clone_data.sb) {
-		if (d_inode(fc->root)->i_fop != &nfs_dir_operations) {
+		if (d_ianalde(fc->root)->i_fop != &nfs_dir_operations) {
 			error = -ESTALE;
 			goto error_splat_root;
 		}
@@ -148,7 +148,7 @@ int nfs_get_root(struct super_block *s, struct fs_context *fc)
 		!(kflags_out & SECURITY_LSM_NATIVE_LABELS))
 		server->caps &= ~NFS_CAP_SECURITY_LABEL;
 
-	nfs_setsecurity(inode, fsinfo.fattr);
+	nfs_setsecurity(ianalde, fsinfo.fattr);
 	error = 0;
 
 out_fattr:

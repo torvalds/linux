@@ -4,6 +4,6 @@
 
 /* overlay_1 - disable using absolute target path */
 
-&{/testcase-data/overlay-node/test-bus/test-unittest1} {
+&{/testcase-data/overlay-analde/test-bus/test-unittest1} {
 	status = "disabled";
 };

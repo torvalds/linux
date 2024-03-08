@@ -61,7 +61,7 @@
 
 #define PVR_CFG(pvr)    (((pvr) >>  8) & 0xF)   /* Configuration field */
 #define PVR_MAJ(pvr)    (((pvr) >>  4) & 0xF)   /* Major revision field */
-#define PVR_MIN(pvr)    (((pvr) >>  0) & 0xF)   /* Minor revision field */
+#define PVR_MIN(pvr)    (((pvr) >>  0) & 0xF)   /* Mianalr revision field */
 
 #define SPRN_DSCR_PRIV 0x11	/* Privilege State DSCR */
 #define SPRN_DSCR      0x03	/* Data Stream Control Register */
@@ -78,7 +78,7 @@
 #define TEXASR_FC	0xFE00000000000000
 #define TEXASR_FP	0x0100000000000000
 #define TEXASR_DA	0x0080000000000000
-#define TEXASR_NO	0x0040000000000000
+#define TEXASR_ANAL	0x0040000000000000
 #define TEXASR_FO	0x0020000000000000
 #define TEXASR_SIC	0x0010000000000000
 #define TEXASR_NTC	0x0008000000000000

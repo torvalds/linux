@@ -18,7 +18,7 @@
  * @reg_init_data: The regulator init data.
  * @en_discharge: Enable discharge the output capacitor via internal
  *                register.
- * @en_internal_pulldn: internal pull down enable or not.
+ * @en_internal_pulldn: internal pull down enable or analt.
  * @vsel0_def_state: Default state of vsel0. 1 if it is high else 0.
  * @vsel1_def_state: Default state of vsel1. 1 if it is high else 0.
  */

@@ -17,4 +17,4 @@ config PDS_VFIO_PCI
 	  To compile this driver as a module, choose M here. The module
 	  will be called pds-vfio-pci.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.

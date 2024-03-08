@@ -49,7 +49,7 @@ static int mvebu_cortex_a9_boot_secondary(unsigned int cpu,
 
 	ret = mvebu_cpu_reset_deassert(hw_cpu);
 	if (ret) {
-		pr_err("Could not start the secondary CPU: %d\n", ret);
+		pr_err("Could analt start the secondary CPU: %d\n", ret);
 		return ret;
 	}
 
@@ -79,8 +79,8 @@ static void armada_38x_cpu_die(unsigned int cpu)
 }
 
 /*
- * We need a dummy function, so that platform_can_cpu_hotplug() knows
- * we support CPU hotplug. However, the function does not need to do
+ * We need a dummy function, so that platform_can_cpu_hotplug() kanalws
+ * we support CPU hotplug. However, the function does analt need to do
  * anything, because CPUs going offline can enter the deep idle state
  * by themselves, without any help from a still alive CPU.
  */

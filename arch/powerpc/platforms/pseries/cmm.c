@@ -8,7 +8,7 @@
 
 #include <linux/ctype.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/gfp.h>
 #include <linux/kthread.h>
@@ -67,13 +67,13 @@ module_param_named(oom_kb, oom_kb, uint, 0644);
 MODULE_PARM_DESC(oom_kb, "Amount of memory in kb to free on OOM. "
 		 "[Default=" __stringify(CMM_OOM_KB) "]");
 module_param_named(min_mem_mb, min_mem_mb, ulong, 0644);
-MODULE_PARM_DESC(min_mem_mb, "Minimum amount of memory (in MB) to not balloon. "
+MODULE_PARM_DESC(min_mem_mb, "Minimum amount of memory (in MB) to analt balloon. "
 		 "[Default=" __stringify(CMM_MIN_MEM_MB) "]");
 module_param_named(debug, cmm_debug, uint, 0644);
 MODULE_PARM_DESC(debug, "Enable module debugging logging. Set to 1 to enable. "
 		 "[Default=" __stringify(CMM_DEBUG) "]");
 module_param_named(simulate, simulate, bool, 0444);
-MODULE_PARM_DESC(simulate, "Enable simulation mode (no communication with hw).");
+MODULE_PARM_DESC(simulate, "Enable simulation mode (anal communication with hw).");
 
 #define cmm_dbg(...) if (cmm_debug) { printk(KERN_INFO "cmm: "__VA_ARGS__); }
 
@@ -98,10 +98,10 @@ static long plpar_page_set_loaned(struct page *page)
 		return 0;
 
 	for (i = 0; !rc && i < PAGE_SIZE; i += cmo_page_sz)
-		rc = plpar_hcall_norets(H_PAGE_INIT, H_PAGE_SET_LOANED, vpa + i, 0);
+		rc = plpar_hcall_analrets(H_PAGE_INIT, H_PAGE_SET_LOANED, vpa + i, 0);
 
 	for (i -= cmo_page_sz; rc && i != 0; i -= cmo_page_sz)
-		plpar_hcall_norets(H_PAGE_INIT, H_PAGE_SET_ACTIVE,
+		plpar_hcall_analrets(H_PAGE_INIT, H_PAGE_SET_ACTIVE,
 				   vpa + i - cmo_page_sz, 0);
 
 	return rc;
@@ -118,10 +118,10 @@ static long plpar_page_set_active(struct page *page)
 		return 0;
 
 	for (i = 0; !rc && i < PAGE_SIZE; i += cmo_page_sz)
-		rc = plpar_hcall_norets(H_PAGE_INIT, H_PAGE_SET_ACTIVE, vpa + i, 0);
+		rc = plpar_hcall_analrets(H_PAGE_INIT, H_PAGE_SET_ACTIVE, vpa + i, 0);
 
 	for (i -= cmo_page_sz; rc && i != 0; i -= cmo_page_sz)
-		plpar_hcall_norets(H_PAGE_INIT, H_PAGE_SET_LOANED,
+		plpar_hcall_analrets(H_PAGE_INIT, H_PAGE_SET_LOANED,
 				   vpa + i - cmo_page_sz, 0);
 
 	return rc;
@@ -132,7 +132,7 @@ static long plpar_page_set_active(struct page *page)
  * @nr:	number of pages to allocate
  *
  * Return value:
- * 	number of pages requested to be allocated which were not
+ * 	number of pages requested to be allocated which were analt
  **/
 static long cmm_alloc_pages(long nr)
 {
@@ -158,7 +158,7 @@ static long cmm_alloc_pages(long nr)
 			break;
 		rc = plpar_page_set_loaned(page);
 		if (rc) {
-			pr_err("%s: Can not set page to loaned. rc=%ld\n", __func__, rc);
+			pr_err("%s: Can analt set page to loaned. rc=%ld\n", __func__, rc);
 			__free_page(page);
 			break;
 		}
@@ -178,7 +178,7 @@ static long cmm_alloc_pages(long nr)
  * @nr:	number of pages to free
  *
  * Return value:
- * 	number of pages requested to be freed which were not
+ * 	number of pages requested to be freed which were analt
  **/
 static long cmm_free_pages(long nr)
 {
@@ -200,15 +200,15 @@ static long cmm_free_pages(long nr)
 }
 
 /**
- * cmm_oom_notify - OOM notifier
- * @self:	notifier block struct
- * @dummy:	not used
+ * cmm_oom_analtify - OOM analtifier
+ * @self:	analtifier block struct
+ * @dummy:	analt used
  * @parm:	returned - number of pages freed
  *
  * Return value:
- * 	NOTIFY_OK
+ * 	ANALTIFY_OK
  **/
-static int cmm_oom_notify(struct notifier_block *self,
+static int cmm_oom_analtify(struct analtifier_block *self,
 			  unsigned long dummy, void *parm)
 {
 	unsigned long *freed = parm;
@@ -220,7 +220,7 @@ static int cmm_oom_notify(struct notifier_block *self,
 	*freed += KB2PAGES(oom_kb) - nr;
 	oom_freed_pages += KB2PAGES(oom_kb) - nr;
 	cmm_dbg("OOM processing complete\n");
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 /**
@@ -229,7 +229,7 @@ static int cmm_oom_notify(struct notifier_block *self,
  * Makes hcall to query the current page loan request from the hypervisor.
  *
  * Return value:
- * 	nothing
+ * 	analthing
  **/
 static void cmm_get_mpp(void)
 {
@@ -275,13 +275,13 @@ static void cmm_get_mpp(void)
 		oom_freed_pages, totalram_pages());
 }
 
-static struct notifier_block cmm_oom_nb = {
-	.notifier_call = cmm_oom_notify
+static struct analtifier_block cmm_oom_nb = {
+	.analtifier_call = cmm_oom_analtify
 };
 
 /**
  * cmm_thread - CMM task thread
- * @dummy:	not used
+ * @dummy:	analt used
  *
  * Return value:
  * 	0
@@ -440,10 +440,10 @@ static void cmm_unregister_sysfs(struct device *dev)
 }
 
 /**
- * cmm_reboot_notifier - Make sure pages are not still marked as "loaned"
+ * cmm_reboot_analtifier - Make sure pages are analt still marked as "loaned"
  *
  **/
-static int cmm_reboot_notifier(struct notifier_block *nb,
+static int cmm_reboot_analtifier(struct analtifier_block *nb,
 			       unsigned long action, void *unused)
 {
 	if (action == SYS_RESTART) {
@@ -452,24 +452,24 @@ static int cmm_reboot_notifier(struct notifier_block *nb,
 		cmm_thread_ptr = NULL;
 		cmm_free_pages(atomic_long_read(&loaned_pages));
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block cmm_reboot_nb = {
-	.notifier_call = cmm_reboot_notifier,
+static struct analtifier_block cmm_reboot_nb = {
+	.analtifier_call = cmm_reboot_analtifier,
 };
 
 /**
- * cmm_memory_cb - Handle memory hotplug notifier calls
- * @self:	notifier block struct
+ * cmm_memory_cb - Handle memory hotplug analtifier calls
+ * @self:	analtifier block struct
  * @action:	action to take
- * @arg:	struct memory_notify data for handler
+ * @arg:	struct memory_analtify data for handler
  *
  * Return value:
- *	NOTIFY_OK or notifier error based on subfunction return value
+ *	ANALTIFY_OK or analtifier error based on subfunction return value
  *
  **/
-static int cmm_memory_cb(struct notifier_block *self,
+static int cmm_memory_cb(struct analtifier_block *self,
 			unsigned long action, void *arg)
 {
 	switch (action) {
@@ -488,11 +488,11 @@ static int cmm_memory_cb(struct notifier_block *self,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block cmm_mem_nb = {
-	.notifier_call = cmm_memory_cb,
+static struct analtifier_block cmm_mem_nb = {
+	.analtifier_call = cmm_memory_cb,
 	.priority = CMM_MEM_HOTPLUG_PRI
 };
 
@@ -507,13 +507,13 @@ static int cmm_migratepage(struct balloon_dev_info *b_dev_info,
 	 * loan/"inflate" the newpage first.
 	 *
 	 * We might race against the cmm_thread who might discover after our
-	 * loan request that another page is to be unloaned. However, once
+	 * loan request that aanalther page is to be unloaned. However, once
 	 * the cmm_thread runs again later, this error will automatically
 	 * be corrected.
 	 */
 	if (plpar_page_set_loaned(newpage)) {
-		/* Unlikely, but possible. Tell the caller not to retry now. */
-		pr_err_ratelimited("%s: Cannot set page to loaned.", __func__);
+		/* Unlikely, but possible. Tell the caller analt to retry analw. */
+		pr_err_ratelimited("%s: Cananalt set page to loaned.", __func__);
 		return -EBUSY;
 	}
 
@@ -537,7 +537,7 @@ static int cmm_migratepage(struct balloon_dev_info *b_dev_info,
 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
 
 	/*
-	 * activate/"deflate" the old page. We ignore any errors just like the
+	 * activate/"deflate" the old page. We iganalre any errors just like the
 	 * other callers.
 	 */
 	plpar_page_set_active(page);
@@ -570,23 +570,23 @@ static int cmm_init(void)
 	int rc;
 
 	if (!firmware_has_feature(FW_FEATURE_CMO) && !simulate)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cmm_balloon_compaction_init();
 
-	rc = register_oom_notifier(&cmm_oom_nb);
+	rc = register_oom_analtifier(&cmm_oom_nb);
 	if (rc < 0)
 		goto out_balloon_compaction;
 
-	if ((rc = register_reboot_notifier(&cmm_reboot_nb)))
-		goto out_oom_notifier;
+	if ((rc = register_reboot_analtifier(&cmm_reboot_nb)))
+		goto out_oom_analtifier;
 
 	if ((rc = cmm_sysfs_register(&cmm_dev)))
-		goto out_reboot_notifier;
+		goto out_reboot_analtifier;
 
-	rc = register_memory_notifier(&cmm_mem_nb);
+	rc = register_memory_analtifier(&cmm_mem_nb);
 	if (rc)
-		goto out_unregister_notifier;
+		goto out_unregister_analtifier;
 
 	if (cmm_disabled)
 		return 0;
@@ -594,17 +594,17 @@ static int cmm_init(void)
 	cmm_thread_ptr = kthread_run(cmm_thread, NULL, "cmmthread");
 	if (IS_ERR(cmm_thread_ptr)) {
 		rc = PTR_ERR(cmm_thread_ptr);
-		goto out_unregister_notifier;
+		goto out_unregister_analtifier;
 	}
 
 	return 0;
-out_unregister_notifier:
-	unregister_memory_notifier(&cmm_mem_nb);
+out_unregister_analtifier:
+	unregister_memory_analtifier(&cmm_mem_nb);
 	cmm_unregister_sysfs(&cmm_dev);
-out_reboot_notifier:
-	unregister_reboot_notifier(&cmm_reboot_nb);
-out_oom_notifier:
-	unregister_oom_notifier(&cmm_oom_nb);
+out_reboot_analtifier:
+	unregister_reboot_analtifier(&cmm_reboot_nb);
+out_oom_analtifier:
+	unregister_oom_analtifier(&cmm_oom_nb);
 out_balloon_compaction:
 	return rc;
 }
@@ -613,15 +613,15 @@ out_balloon_compaction:
  * cmm_exit - Module exit
  *
  * Return value:
- * 	nothing
+ * 	analthing
  **/
 static void cmm_exit(void)
 {
 	if (cmm_thread_ptr)
 		kthread_stop(cmm_thread_ptr);
-	unregister_oom_notifier(&cmm_oom_nb);
-	unregister_reboot_notifier(&cmm_reboot_nb);
-	unregister_memory_notifier(&cmm_mem_nb);
+	unregister_oom_analtifier(&cmm_oom_nb);
+	unregister_reboot_analtifier(&cmm_reboot_nb);
+	unregister_memory_analtifier(&cmm_mem_nb);
 	cmm_free_pages(atomic_long_read(&loaned_pages));
 	cmm_unregister_sysfs(&cmm_dev);
 }

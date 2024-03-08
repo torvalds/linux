@@ -3,7 +3,7 @@
  * OMAP2xxx Power/Reset Management (PRM) register definitions
  *
  * Copyright (C) 2007-2009, 2011-2012 Texas Instruments, Inc.
- * Copyright (C) 2008-2010 Nokia Corporation
+ * Copyright (C) 2008-2010 Analkia Corporation
  * Paul Walmsley
  *
  * The PRM hardware modules on the OMAP2/3 are quite similar to each
@@ -104,8 +104,8 @@
 #define PM_WKST1					PM_WKST
 #define PM_WKDEP					0x00c8
 #define PM_EVGENCTRL					0x00d4
-#define PM_EVGENONTIM					0x00d8
-#define PM_EVGENOFFTIM					0x00dc
+#define PM_EVGEANALNTIM					0x00d8
+#define PM_EVGEANALFFTIM					0x00dc
 
 /* OMAP2xxx specific register offsets */
 #define OMAP24XX_PM_WKEN2				0x00a4

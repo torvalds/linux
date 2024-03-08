@@ -149,7 +149,7 @@ static void st_clk_disable_unprepare(void *data)
 static int st_wdog_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct st_wdog *st_wdog;
 	struct regmap *regmap;
 	struct clk *clk;
@@ -165,11 +165,11 @@ static int st_wdog_probe(struct platform_device *pdev)
 
 	/* LPC can either run as a Clocksource or in RTC or WDT mode */
 	if (mode != ST_LPC_MODE_WDT)
-		return -ENODEV;
+		return -EANALDEV;
 
 	st_wdog = devm_kzalloc(dev, sizeof(*st_wdog), GFP_KERNEL);
 	if (!st_wdog)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st_wdog->syscfg	= (struct st_wdog_syscfg *)device_get_match_data(dev);
 
@@ -179,7 +179,7 @@ static int st_wdog_probe(struct platform_device *pdev)
 
 	regmap = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
 	if (IS_ERR(regmap)) {
-		dev_err(dev, "No syscfg phandle specified\n");
+		dev_err(dev, "Anal syscfg phandle specified\n");
 		return PTR_ERR(regmap);
 	}
 
@@ -213,7 +213,7 @@ static int st_wdog_probe(struct platform_device *pdev)
 		return ret;
 
 	watchdog_set_drvdata(&st_wdog_dev, st_wdog);
-	watchdog_set_nowayout(&st_wdog_dev, WATCHDOG_NOWAYOUT);
+	watchdog_set_analwayout(&st_wdog_dev, WATCHDOG_ANALWAYOUT);
 
 	/* Init Watchdog timeout with value in DT */
 	ret = watchdog_init_timeout(&st_wdog_dev, 0, dev);

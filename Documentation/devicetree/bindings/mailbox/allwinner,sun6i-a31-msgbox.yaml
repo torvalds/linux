@@ -12,8 +12,8 @@ maintainers:
 description: |
   The hardware message box on sun6i, sun8i, sun9i, and sun50i SoCs is a
   two-user mailbox controller containing 8 unidirectional FIFOs. An interrupt
-  is raised for received messages, but software must poll to know when a
-  transmitted message has been acknowledged by the remote user. Each FIFO can
+  is raised for received messages, but software must poll to kanalw when a
+  transmitted message has been ackanalwledged by the remote user. Each FIFO can
   hold four 32-bit messages; when a FIFO is full, clients must wait before
   attempting more transmissions.
 

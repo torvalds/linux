@@ -2,7 +2,7 @@
 Understanding fbdev's cmap
 ==========================
 
-These notes explain how X's dix layer uses fbdev's cmap structures.
+These analtes explain how X's dix layer uses fbdev's cmap structures.
 
 -  example of relevant structures in fbdev as used for a 3-bit grayscale cmap::
 

@@ -5,7 +5,7 @@
  * Copyright (C) 1996,97,98 Ralph Metzler (rjkm@thp.uni-koeln.de)
  *		  2001 Michael Eskin
  *		  2002 Yurij Sysoev <yurij@naturesoft.net>
- *		  2003 Gerd Knorr <kraxel@bytesex.org>
+ *		  2003 Gerd Kanalrr <kraxel@bytesex.org>
  */
 
 #ifndef _CX88_REG_H_
@@ -377,8 +377,8 @@
 #define AUD_DEEMPHGAIN_R         0x320538
 #define AUD_DEEMPHNUMER1_R       0x32053c
 #define AUD_DEEMPHNUMER2_R       0x320540
-#define AUD_DEEMPHDENOM1_R       0x320544
-#define AUD_DEEMPHDENOM2_R       0x320548
+#define AUD_DEEMPHDEANALM1_R       0x320544
+#define AUD_DEEMPHDEANALM2_R       0x320548
 #define AUD_ERRLOGPERIOD_R       0x32054c
 #define AUD_ERRINTRPTTHSHLD1_R   0x320550
 #define AUD_ERRINTRPTTHSHLD2_R   0x320554
@@ -563,7 +563,7 @@
 #define RISC_IRQ2		 0x02000000
 #define RISC_IRQ1		 0x01000000
 
-#define RISC_CNT_NONE		 0x00000000
+#define RISC_CNT_ANALNE		 0x00000000
 #define RISC_CNT_INC		 0x00010000
 #define RISC_CNT_RSVR		 0x00020000
 #define RISC_CNT_RESET		 0x00030000
@@ -606,7 +606,7 @@
 #define AUD_INT_DN_RISCI1	(1 <<  0)
 #define AUD_INT_UP_RISCI1	(1 <<  1)
 #define AUD_INT_RDS_DN_RISCI1	(1 <<  2)
-#define AUD_INT_DN_RISCI2	(1 <<  4) /* yes, 3 is skipped */
+#define AUD_INT_DN_RISCI2	(1 <<  4) /* anal, 3 is skipped */
 #define AUD_INT_UP_RISCI2	(1 <<  5)
 #define AUD_INT_RDS_DN_RISCI2	(1 <<  6)
 #define AUD_INT_DN_SYNC		(1 << 12)
@@ -616,31 +616,31 @@
 #define AUD_INT_BER_IRQ		(1 << 20)
 #define AUD_INT_MCHG_IRQ	(1 << 21)
 
-#define EN_BTSC_FORCE_MONO      0
+#define EN_BTSC_FORCE_MOANAL      0
 #define EN_BTSC_FORCE_STEREO    1
 #define EN_BTSC_FORCE_SAP       2
 #define EN_BTSC_AUTO_STEREO     3
 #define EN_BTSC_AUTO_SAP        4
 
-#define EN_A2_FORCE_MONO1       8
-#define EN_A2_FORCE_MONO2       9
+#define EN_A2_FORCE_MOANAL1       8
+#define EN_A2_FORCE_MOANAL2       9
 #define EN_A2_FORCE_STEREO      10
-#define EN_A2_AUTO_MONO2        11
+#define EN_A2_AUTO_MOANAL2        11
 #define EN_A2_AUTO_STEREO       12
 
-#define EN_EIAJ_FORCE_MONO1     16
-#define EN_EIAJ_FORCE_MONO2     17
+#define EN_EIAJ_FORCE_MOANAL1     16
+#define EN_EIAJ_FORCE_MOANAL2     17
 #define EN_EIAJ_FORCE_STEREO    18
-#define EN_EIAJ_AUTO_MONO2      19
+#define EN_EIAJ_AUTO_MOANAL2      19
 #define EN_EIAJ_AUTO_STEREO     20
 
-#define EN_NICAM_FORCE_MONO1    32
-#define EN_NICAM_FORCE_MONO2    33
+#define EN_NICAM_FORCE_MOANAL1    32
+#define EN_NICAM_FORCE_MOANAL2    33
 #define EN_NICAM_FORCE_STEREO   34
-#define EN_NICAM_AUTO_MONO2     35
+#define EN_NICAM_AUTO_MOANAL2     35
 #define EN_NICAM_AUTO_STEREO    36
 
-#define EN_FMRADIO_FORCE_MONO   24
+#define EN_FMRADIO_FORCE_MOANAL   24
 #define EN_FMRADIO_FORCE_STEREO 25
 #define EN_FMRADIO_AUTO_STEREO  26
 
@@ -655,7 +655,7 @@
 #define EN_DMTRX_SUMDIFF        (0 << 7)
 #define EN_DMTRX_SUMR           (1 << 7)
 #define EN_DMTRX_LR             (2 << 7)
-#define EN_DMTRX_MONO           (3 << 7)
+#define EN_DMTRX_MOANAL           (3 << 7)
 #define EN_DMTRX_BYPASS         (1 << 11)
 
 // Video
@@ -713,12 +713,12 @@
 #define VideoFormatPAL6027MHz		 0x18
 #define VideoFormatSECAM27MHz		 0x19
 
-#define NominalUSECAM	 0x87
-#define NominalVSECAM	 0x85
-#define NominalUNTSC	 0xFE
-#define NominalVNTSC	 0xB4
+#define AnalminalUSECAM	 0x87
+#define AnalminalVSECAM	 0x85
+#define AnalminalUNTSC	 0xFE
+#define AnalminalVNTSC	 0xB4
 
-#define NominalContrast  0xD8
+#define AnalminalContrast  0xD8
 
 #define HFilterAutoFormat	 0x0
 #define HFilterCIF		 0x1
@@ -729,10 +729,10 @@
 #define VFilter3TapInterpolate  1
 #define VFilter4TapInterpolate  2
 #define VFilter5TapInterpolate  3
-#define VFilter2TapNoInterpolate  4
-#define VFilter3TapNoInterpolate  5
-#define VFilter4TapNoInterpolate  6
-#define VFilter5TapNoInterpolate  7
+#define VFilter2TapAnalInterpolate  4
+#define VFilter3TapAnalInterpolate  5
+#define VFilter4TapAnalInterpolate  6
+#define VFilter5TapAnalInterpolate  7
 
 #define ColorFormatRGB32	 0x0000
 #define ColorFormatRGB24	 0x0011
@@ -754,7 +754,7 @@
 #define ColorFormatGamma         0x1000
 
 #define Interlaced		 0x1
-#define NonInterlaced		 0x0
+#define AnalnInterlaced		 0x0
 
 #define FieldEven		 0x1
 #define FieldOdd		 0x0
@@ -788,7 +788,7 @@
 #define CHANNEL_FIRST		 0x1
 #define CHANNEL_LAST		 0xC
 
-#define GP_COUNT_CONTROL_NONE		 0x0
+#define GP_COUNT_CONTROL_ANALNE		 0x0
 #define GP_COUNT_CONTROL_INC		 0x1
 #define GP_COUNT_CONTROL_RESERVED	 0x2
 #define GP_COUNT_CONTROL_RESET		 0x3
@@ -798,10 +798,10 @@
 #define PLL_PRESCALE_BY_4  4
 #define PLL_PRESCALE_BY_5  5
 
-#define HLNotchFilter4xFsc	 0
-#define HLNotchFilterSquare	 1
-#define HLNotchFilter135NTSC	 2
-#define HLNotchFilter135PAL	 3
+#define HLAnaltchFilter4xFsc	 0
+#define HLAnaltchFilterSquare	 1
+#define HLAnaltchFilter135NTSC	 2
+#define HLAnaltchFilter135PAL	 3
 
 #define NTSC_8x_SUB_CARRIER  28.63636E6
 #define PAL_8x_SUB_CARRIER  35.46895E6

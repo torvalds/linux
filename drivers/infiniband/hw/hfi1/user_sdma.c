@@ -106,7 +106,7 @@ static void activate_packet_queue(struct iowait *wait, int reason)
 int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 				struct hfi1_filedata *fd)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	char buf[64];
 	struct hfi1_devdata *dd;
 	struct hfi1_user_sdma_comp_q *cq;
@@ -122,7 +122,7 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 
 	pq = kzalloc(sizeof(*pq), GFP_KERNEL);
 	if (!pq)
-		return -ENOMEM;
+		return -EANALMEM;
 	pq->dd = dd;
 	pq->ctxt = uctxt->ctxt;
 	pq->subctxt = fd->subctxt;
@@ -139,11 +139,11 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 			   sizeof(*pq->reqs),
 			   GFP_KERNEL);
 	if (!pq->reqs)
-		goto pq_reqs_nomem;
+		goto pq_reqs_analmem;
 
 	pq->req_in_use = bitmap_zalloc(hfi1_sdma_comp_ring_size, GFP_KERNEL);
 	if (!pq->req_in_use)
-		goto pq_reqs_no_in_use;
+		goto pq_reqs_anal_in_use;
 
 	snprintf(buf, 64, "txreq-kmem-cache-%u-%u-%u", dd->unit, uctxt->ctxt,
 		 fd->subctxt);
@@ -155,17 +155,17 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 	if (!pq->txreq_cache) {
 		dd_dev_err(dd, "[%u] Failed to allocate TxReq cache\n",
 			   uctxt->ctxt);
-		goto pq_txreq_nomem;
+		goto pq_txreq_analmem;
 	}
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq)
-		goto cq_nomem;
+		goto cq_analmem;
 
 	cq->comps = vmalloc_user(PAGE_ALIGN(sizeof(*cq->comps)
 				 * hfi1_sdma_comp_ring_size));
 	if (!cq->comps)
-		goto cq_comps_nomem;
+		goto cq_comps_analmem;
 
 	cq->nentries = hfi1_sdma_comp_ring_size;
 
@@ -180,15 +180,15 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 
 pq_mmu_fail:
 	vfree(cq->comps);
-cq_comps_nomem:
+cq_comps_analmem:
 	kfree(cq);
-cq_nomem:
+cq_analmem:
 	kmem_cache_destroy(pq->txreq_cache);
-pq_txreq_nomem:
+pq_txreq_analmem:
 	bitmap_free(pq->req_in_use);
-pq_reqs_no_in_use:
+pq_reqs_anal_in_use:
 	kfree(pq->reqs);
-pq_reqs_nomem:
+pq_reqs_analmem:
 	kfree(pq);
 
 	return ret;
@@ -223,7 +223,7 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd,
 		rcu_assign_pointer(fd->pq, NULL);
 		spin_unlock(&fd->pq_rcu_lock);
 		synchronize_srcu(&fd->pq_srcu);
-		/* at this point there can be no more new requests */
+		/* at this point there can be anal more new requests */
 		iowait_sdma_drain(&pq->busy);
 		/* Wait until all requests have been freed. */
 		wait_event_interruptible(
@@ -297,7 +297,7 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 	if (iovec[idx].iov_len < sizeof(info) + sizeof(req->hdr)) {
 		hfi1_cdbg(
 		   SDMA,
-		   "[%u:%u:%u] First vector not big enough for header %lu/%lu",
+		   "[%u:%u:%u] First vector analt big eanalugh for header %lu/%lu",
 		   dd->unit, uctxt->ctxt, fd->subctxt,
 		   iovec[idx].iov_len, sizeof(info) + sizeof(req->hdr));
 		return -EINVAL;
@@ -320,7 +320,7 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 
 	/*
 	 * Sanity check the header io vector count.  Need at least 1 vector
-	 * (header) and cannot be larger than the actual io vector count.
+	 * (header) and cananalt be larger than the actual io vector count.
 	 */
 	if (req_iovcnt(info.ctrl) < 1 || req_iovcnt(info.ctrl) > dim) {
 		hfi1_cdbg(SDMA,
@@ -332,7 +332,7 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 
 	if (!info.fragsize) {
 		hfi1_cdbg(SDMA,
-			  "[%u:%u:%u:%u] Request does not specify fragsize",
+			  "[%u:%u:%u:%u] Request does analt specify fragsize",
 			  dd->unit, uctxt->ctxt, fd->subctxt, info.comp_idx);
 		return -EINVAL;
 	}
@@ -373,7 +373,7 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 		/* expected must have a TID info and at least one data vector */
 		if (req->data_iovs < 2) {
 			SDMA_DBG(req,
-				 "Not enough vectors for expected request");
+				 "Analt eanalugh vectors for expected request");
 			ret = -EINVAL;
 			goto free_req;
 		}
@@ -396,11 +396,11 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 		goto free_req;
 	}
 
-	/* If Static rate control is not enabled, sanitize the header. */
+	/* If Static rate control is analt enabled, sanitize the header. */
 	if (!HFI1_CAP_IS_USET(STATIC_RATE_CTRL))
 		req->hdr.pbc[2] = 0;
 
-	/* Validate the opcode. Do not trust packets from user space blindly. */
+	/* Validate the opcode. Do analt trust packets from user space blindly. */
 	opcode = (be32_to_cpu(req->hdr.bth[0]) >> 24) & 0xff;
 	if ((opcode & USER_OPCODE_CHECK_MASK) !=
 	     USER_OPCODE_CHECK_VAL) {
@@ -409,7 +409,7 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 		goto free_req;
 	}
 	/*
-	 * Validate the vl. Do not trust packets from user space blindly.
+	 * Validate the vl. Do analt trust packets from user space blindly.
 	 * VL comes from PBC, SC comes from LRH, and the VL needs to
 	 * match the SC look up.
 	 */
@@ -490,8 +490,8 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 
 		/*
 		 * We have to copy all of the tids because they may vary
-		 * in size and, therefore, the TID count might not be
-		 * equal to the pkt count. However, there is no way to
+		 * in size and, therefore, the TID count might analt be
+		 * equal to the pkt count. However, there is anal way to
 		 * tell at this point.
 		 */
 		tmp = memdup_array_user(iovec[idx].iov_base,
@@ -529,7 +529,7 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 	 * This is a somewhat blocking send implementation.
 	 * The driver will block the caller until all packets of the
 	 * request have been submitted to the SDMA engine. However, it
-	 * will not wait for send completions.
+	 * will analt wait for send completions.
 	 */
 	while (req->seqsubmitted != req->info.npkts) {
 		ret = user_sdma_send_pkts(req, pcount);
@@ -608,7 +608,7 @@ static inline u32 compute_data_length(struct user_sdma_request *req,
 		}
 		/*
 		 * Since the TID pairs map entire pages, make sure that we
-		 * are not going to try to send more data that we have
+		 * are analt going to try to send more data that we have
 		 * remaining.
 		 */
 		len = min(len, req->data_len - req->sent);
@@ -707,7 +707,7 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, u16 maxpkts)
 
 		/*
 		 * Check whether any of the completions have come back
-		 * with errors. If so, we are not going to process any
+		 * with errors. If so, we are analt going to process any
 		 * more packets from this request.
 		 */
 		if (READ_ONCE(req->has_error))
@@ -715,7 +715,7 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, u16 maxpkts)
 
 		tx = kmem_cache_alloc(pq->txreq_cache, GFP_KERNEL);
 		if (!tx)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		tx->flags = 0;
 		tx->req = req;
@@ -752,8 +752,8 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, u16 maxpkts)
 			 * If there is an uncorrectable error in the receive
 			 * data FIFO when the received payload size is less than
 			 * or equal to 8DWS then the RxDmaDataFifoRdUncErr is
-			 * not reported.There is set RHF.EccErr if the header
-			 * is not suppressed.
+			 * analt reported.There is set RHF.EccErr if the header
+			 * is analt suppressed.
 			 */
 			if (!datalen) {
 				SDMA_DBG(req,
@@ -787,7 +787,7 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, u16 maxpkts)
 				goto free_tx;
 			/*
 			 * Modify the header for this packet. This only needs
-			 * to be done if we are not going to use AHG. Otherwise,
+			 * to be done if we are analt going to use AHG. Otherwise,
 			 * the HW will do it based on the changes we gave it
 			 * during sdma_txinit_ahg().
 			 */
@@ -824,7 +824,7 @@ dosend:
 	if (req->seqsubmitted == req->info.npkts) {
 		/*
 		 * The txreq has already been submitted to the HW queue
-		 * so we can free the AHG entry now. Corruption will not
+		 * so we can free the AHG entry analw. Corruption will analt
 		 * happen due to the sequential manner in which
 		 * descriptors are processed.
 		 */
@@ -848,7 +848,7 @@ static int check_header_template(struct user_sdma_request *req,
 	 * Perform safety checks for any type of packet:
 	 *    - transfer size is multiple of 64bytes
 	 *    - packet length is multiple of 4 bytes
-	 *    - packet length is not larger than MTU size
+	 *    - packet length is analt larger than MTU size
 	 *
 	 * These checks are only done for the first packet of the
 	 * transfer since the header is "given" to us by user space.
@@ -878,7 +878,7 @@ static int check_header_template(struct user_sdma_request *req,
 		/*
 		 * Expected receive packets have the following
 		 * additional checks:
-		 *     - offset is not larger than the TID size
+		 *     - offset is analt larger than the TID size
 		 *     - TIDCtrl values match between header and TID array
 		 *     - TID indexes match between header and TID array
 		 */
@@ -951,7 +951,7 @@ static int set_txreq_header(struct user_sdma_request *req,
 		}
 	}
 	/*
-	 * We only have to modify the header if this is not the
+	 * We only have to modify the header if this is analt the
 	 * first packet in the request. Otherwise, we use the
 	 * header given to us.
 	 */
@@ -1146,7 +1146,7 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
  * @txreq: valid sdma tx request
  * @status: success/failure of request
  *
- * Called when the SDMA progress state machine gets notification that
+ * Called when the SDMA progress state machine gets analtification that
  * the SDMA descriptors for this tx request have been processed by the
  * DMA engine. Called in interrupt context.
  * Only do work on completed sequences.

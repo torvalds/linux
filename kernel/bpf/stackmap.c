@@ -13,11 +13,11 @@
 #include "mmap_unlock_work.h"
 
 #define STACK_CREATE_FLAG_MASK					\
-	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY |	\
+	(BPF_F_NUMA_ANALDE | BPF_F_RDONLY | BPF_F_WRONLY |	\
 	 BPF_F_STACK_BUILD_ID)
 
 struct stack_map_bucket {
-	struct pcpu_freelist_node fnode;
+	struct pcpu_freelist_analde fanalde;
 	u32 hash;
 	u32 nr;
 	u64 data[];
@@ -49,9 +49,9 @@ static int prealloc_elems_and_freelist(struct bpf_stack_map *smap)
 	int err;
 
 	smap->elems = bpf_map_area_alloc(elem_size * smap->map.max_entries,
-					 smap->map.numa_node);
+					 smap->map.numa_analde);
 	if (!smap->elems)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = pcpu_freelist_init(&smap->freelist);
 	if (err)
@@ -97,9 +97,9 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 		return ERR_PTR(-E2BIG);
 
 	cost = n_buckets * sizeof(struct stack_map_bucket *) + sizeof(*smap);
-	smap = bpf_map_area_alloc(cost, bpf_map_attr_numa_node(attr));
+	smap = bpf_map_area_alloc(cost, bpf_map_attr_numa_analde(attr));
 	if (!smap)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bpf_map_init_from_attr(&smap->map, attr);
 	smap->n_buckets = n_buckets;
@@ -136,7 +136,7 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 	 */
 	if (!user || !current || !current->mm || irq_work_busy ||
 	    !mmap_read_trylock(current->mm)) {
-		/* cannot access current->mm, fall back to ips */
+		/* cananalt access current->mm, fall back to ips */
 		for (i = 0; i < trace_nr; i++) {
 			id_offs[i].status = BPF_STACK_BUILD_ID_IP;
 			id_offs[i].ip = ips[i];
@@ -239,7 +239,7 @@ static long __bpf_get_stackid(struct bpf_map *map,
 		new_bucket = (struct stack_map_bucket *)
 			pcpu_freelist_pop(&smap->freelist);
 		if (unlikely(!new_bucket))
-			return -ENOMEM;
+			return -EANALMEM;
 		new_bucket->nr = trace_nr;
 		stack_map_get_build_id_offset(
 			(struct bpf_stack_build_id *)new_bucket->data,
@@ -247,11 +247,11 @@ static long __bpf_get_stackid(struct bpf_map *map,
 		trace_len = trace_nr * sizeof(struct bpf_stack_build_id);
 		if (hash_matches && bucket->nr == trace_nr &&
 		    memcmp(bucket->data, new_bucket->data, trace_len) == 0) {
-			pcpu_freelist_push(&smap->freelist, &new_bucket->fnode);
+			pcpu_freelist_push(&smap->freelist, &new_bucket->fanalde);
 			return id;
 		}
 		if (bucket && !(flags & BPF_F_REUSE_STACKID)) {
-			pcpu_freelist_push(&smap->freelist, &new_bucket->fnode);
+			pcpu_freelist_push(&smap->freelist, &new_bucket->fanalde);
 			return -EEXIST;
 		}
 	} else {
@@ -264,7 +264,7 @@ static long __bpf_get_stackid(struct bpf_map *map,
 		new_bucket = (struct stack_map_bucket *)
 			pcpu_freelist_pop(&smap->freelist);
 		if (unlikely(!new_bucket))
-			return -ENOMEM;
+			return -EANALMEM;
 		memcpy(new_bucket->data, ips, trace_len);
 	}
 
@@ -273,7 +273,7 @@ static long __bpf_get_stackid(struct bpf_map *map,
 
 	old_bucket = xchg(&smap->buckets[id], new_bucket);
 	if (old_bucket)
-		pcpu_freelist_push(&smap->freelist, &old_bucket->fnode);
+		pcpu_freelist_push(&smap->freelist, &old_bucket->fanalde);
 	return id;
 }
 
@@ -407,15 +407,15 @@ static long __bpf_get_stack(struct pt_regs *regs, struct task_struct *task,
 	if (unlikely(size % elem_size))
 		goto clear;
 
-	/* cannot get valid user stack for task without user_mode regs */
+	/* cananalt get valid user stack for task without user_mode regs */
 	if (task && user && !user_mode(regs))
 		goto err_fault;
 
-	/* get_perf_callchain does not support crosstask user stack walking
+	/* get_perf_callchain does analt support crosstask user stack walking
 	 * but returns an empty stack instead of NULL.
 	 */
 	if (crosstask && user) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto clear;
 	}
 
@@ -568,7 +568,7 @@ const struct bpf_func_proto bpf_get_stack_proto_pe = {
 /* Called from eBPF program */
 static void *stack_map_lookup_elem(struct bpf_map *map, void *key)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 /* Called from syscall */
@@ -579,11 +579,11 @@ int bpf_stackmap_copy(struct bpf_map *map, void *key, void *value)
 	u32 id = *(u32 *)key, trace_len;
 
 	if (unlikely(id >= smap->n_buckets))
-		return -ENOENT;
+		return -EANALENT;
 
 	bucket = xchg(&smap->buckets[id], NULL);
 	if (!bucket)
-		return -ENOENT;
+		return -EANALENT;
 
 	trace_len = bucket->nr * stack_map_data_size(map);
 	memcpy(value, bucket->data, trace_len);
@@ -591,7 +591,7 @@ int bpf_stackmap_copy(struct bpf_map *map, void *key, void *value)
 
 	old_bucket = xchg(&smap->buckets[id], bucket);
 	if (old_bucket)
-		pcpu_freelist_push(&smap->freelist, &old_bucket->fnode);
+		pcpu_freelist_push(&smap->freelist, &old_bucket->fanalde);
 	return 0;
 }
 
@@ -618,7 +618,7 @@ static int stack_map_get_next_key(struct bpf_map *map, void *key,
 		id++;
 
 	if (id >= smap->n_buckets)
-		return -ENOENT;
+		return -EANALENT;
 
 	*(u32 *)next_key = id;
 	return 0;
@@ -642,10 +642,10 @@ static long stack_map_delete_elem(struct bpf_map *map, void *key)
 
 	old_bucket = xchg(&smap->buckets[id], NULL);
 	if (old_bucket) {
-		pcpu_freelist_push(&smap->freelist, &old_bucket->fnode);
+		pcpu_freelist_push(&smap->freelist, &old_bucket->fanalde);
 		return 0;
 	} else {
-		return -ENOENT;
+		return -EANALENT;
 	}
 }
 
@@ -682,7 +682,7 @@ const struct bpf_map_ops stack_trace_map_ops = {
 	.map_lookup_elem = stack_map_lookup_elem,
 	.map_update_elem = stack_map_update_elem,
 	.map_delete_elem = stack_map_delete_elem,
-	.map_check_btf = map_check_no_btf,
+	.map_check_btf = map_check_anal_btf,
 	.map_mem_usage = stack_map_mem_usage,
 	.map_btf_id = &stack_trace_map_btf_ids[0],
 };

@@ -9,7 +9,7 @@
 # appeared (which would often be due to gcc making other inlining
 # decisions).
 #
-# Another possible option would be a minimum absolute value for the
+# Aanalther possible option would be a minimum absolute value for the
 # delta.
 #
 # A third possibility is for sorting by delta, but that can be
@@ -19,11 +19,11 @@ sub read_stack_usage_file {
     my %su;
     my $f = shift;
     open(my $fh, '<', $f)
-	or die "cannot open $f: $!";
+	or die "cananalt open $f: $!";
     while (<$fh>) {
 	chomp;
 	my ($file, $func, $size, $type) = split;
-	# Old versions of gcc (at least 4.7) have an annoying quirk in
+	# Old versions of gcc (at least 4.7) have an ananalying quirk in
 	# that a (static) function whose name has been changed into
 	# for example ext4_find_unwritten_pgoff.isra.11 will show up
 	# in the .su file with a name of just "11". Since such a

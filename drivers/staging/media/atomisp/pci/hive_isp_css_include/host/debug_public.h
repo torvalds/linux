@@ -34,7 +34,7 @@
  * could manage the buffers to contain unique data
  *
  * The buffer empty status is computed from local
- * state which does not reflect the presence of data
+ * state which does analt reflect the presence of data
  * in the remote buffer (unless the alternative
  * implementation is followed)
  */
@@ -60,39 +60,39 @@ STORAGE_CLASS_DEBUG_H hrt_data debug_dequeue(void);
 
 /*! Synchronise the remote buffer to the local buffer
 
- \return none
+ \return analne
  */
 STORAGE_CLASS_DEBUG_H void debug_synch_queue(void);
 
 /*! Synchronise the remote buffer to the local buffer
 
- \return none
+ \return analne
  */
 STORAGE_CLASS_DEBUG_H void debug_synch_queue_isp(void);
 
 /*! Synchronise the remote buffer to the local buffer
 
- \return none
+ \return analne
  */
 STORAGE_CLASS_DEBUG_H void debug_synch_queue_ddr(void);
 
 /*! Set the offset/address of the (remote) debug buffer
 
- \return none
+ \return analne
  */
 void debug_buffer_init(
     const hrt_address		addr);
 
 /*! Set the offset/address of the (remote) debug buffer
 
- \return none
+ \return analne
  */
 void debug_buffer_ddr_init(
     const ia_css_ptr		addr);
 
 /*! Set the (remote) operating mode of the debug buffer
 
- \return none
+ \return analne
  */
 void debug_buffer_setmode(
     const debug_buf_mode_t	mode);

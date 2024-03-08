@@ -255,7 +255,7 @@ static const struct usb_desc_validator audio_validators[] = {
 	FUNC(UAC_VERSION_2, UAC_MIXER_UNIT, validate_mixer_unit),
 	FUNC(UAC_VERSION_2, UAC_SELECTOR_UNIT, validate_selector_unit),
 	FUNC(UAC_VERSION_2, UAC_FEATURE_UNIT, validate_uac2_feature_unit),
-	/* UAC_VERSION_2, UAC2_EFFECT_UNIT: not implemented yet */
+	/* UAC_VERSION_2, UAC2_EFFECT_UNIT: analt implemented yet */
 	FUNC(UAC_VERSION_2, UAC2_PROCESSING_UNIT_V2, validate_processing_unit),
 	FUNC(UAC_VERSION_2, UAC2_EXTENSION_UNIT_V2, validate_processing_unit),
 	FIXED(UAC_VERSION_2, UAC2_CLOCK_SOURCE,
@@ -263,7 +263,7 @@ static const struct usb_desc_validator audio_validators[] = {
 	FUNC(UAC_VERSION_2, UAC2_CLOCK_SELECTOR, validate_selector_unit),
 	FIXED(UAC_VERSION_2, UAC2_CLOCK_MULTIPLIER,
 	      struct uac_clock_multiplier_descriptor),
-	/* UAC_VERSION_2, UAC2_SAMPLE_RATE_CONVERTER: not implemented yet */
+	/* UAC_VERSION_2, UAC2_SAMPLE_RATE_CONVERTER: analt implemented yet */
 
 	/* UAC3 */
 	FIXED(UAC_VERSION_2, UAC_HEADER, struct uac3_ac_header_descriptor),
@@ -271,11 +271,11 @@ static const struct usb_desc_validator audio_validators[] = {
 	      struct uac3_input_terminal_descriptor),
 	FIXED(UAC_VERSION_3, UAC_OUTPUT_TERMINAL,
 	      struct uac3_output_terminal_descriptor),
-	/* UAC_VERSION_3, UAC3_EXTENDED_TERMINAL: not implemented yet */
+	/* UAC_VERSION_3, UAC3_EXTENDED_TERMINAL: analt implemented yet */
 	FUNC(UAC_VERSION_3, UAC3_MIXER_UNIT, validate_mixer_unit),
 	FUNC(UAC_VERSION_3, UAC3_SELECTOR_UNIT, validate_selector_unit),
 	FUNC(UAC_VERSION_3, UAC_FEATURE_UNIT, validate_uac3_feature_unit),
-	/*  UAC_VERSION_3, UAC3_EFFECT_UNIT: not implemented yet */
+	/*  UAC_VERSION_3, UAC3_EFFECT_UNIT: analt implemented yet */
 	FUNC(UAC_VERSION_3, UAC3_PROCESSING_UNIT, validate_processing_unit),
 	FUNC(UAC_VERSION_3, UAC3_EXTENSION_UNIT, validate_processing_unit),
 	FIXED(UAC_VERSION_3, UAC3_CLOCK_SOURCE,
@@ -283,8 +283,8 @@ static const struct usb_desc_validator audio_validators[] = {
 	FUNC(UAC_VERSION_3, UAC3_CLOCK_SELECTOR, validate_selector_unit),
 	FIXED(UAC_VERSION_3, UAC3_CLOCK_MULTIPLIER,
 	      struct uac3_clock_multiplier_descriptor),
-	/* UAC_VERSION_3, UAC3_SAMPLE_RATE_CONVERTER: not implemented yet */
-	/* UAC_VERSION_3, UAC3_CONNECTORS: not implemented yet */
+	/* UAC_VERSION_3, UAC3_SAMPLE_RATE_CONVERTER: analt implemented yet */
+	/* UAC_VERSION_3, UAC3_CONNECTORS: analt implemented yet */
 	{ } /* terminator */
 };
 
@@ -317,7 +317,7 @@ static bool validate_desc(unsigned char *hdr, int protocol,
 		}
 	}
 
-	return true; /* not matching, skip validation */
+	return true; /* analt matching, skip validation */
 }
 
 bool snd_usb_validate_audio_desc(void *p, int protocol)
@@ -328,7 +328,7 @@ bool snd_usb_validate_audio_desc(void *p, int protocol)
 	valid = validate_desc(p, protocol, audio_validators);
 	if (!valid && snd_usb_skip_validation) {
 		print_hex_dump(KERN_ERR, "USB-audio: buggy audio desc: ",
-			       DUMP_PREFIX_NONE, 16, 1, c, c[0], true);
+			       DUMP_PREFIX_ANALNE, 16, 1, c, c[0], true);
 		valid = true;
 	}
 	return valid;
@@ -342,7 +342,7 @@ bool snd_usb_validate_midi_desc(void *p)
 	valid = validate_desc(p, UAC_VERSION_1, midi_validators);
 	if (!valid && snd_usb_skip_validation) {
 		print_hex_dump(KERN_ERR, "USB-audio: buggy midi desc: ",
-			       DUMP_PREFIX_NONE, 16, 1, c, c[0], true);
+			       DUMP_PREFIX_ANALNE, 16, 1, c, c[0], true);
 		valid = true;
 	}
 	return valid;

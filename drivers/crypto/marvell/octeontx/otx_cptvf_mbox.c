@@ -15,7 +15,7 @@
 
 static char *get_mbox_opcode_str(int msg_opcode)
 {
-	char *str = "Unknown";
+	char *str = "Unkanalwn";
 
 	switch (msg_opcode) {
 	case OTX_CPT_MSG_VF_UP:

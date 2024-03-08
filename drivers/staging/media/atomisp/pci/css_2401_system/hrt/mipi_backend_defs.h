@@ -20,7 +20,7 @@
 
 #define MIPI_BACKEND_REG_ALIGN                    4 // assuming 32 bit control bus width
 
-#define _HRT_MIPI_BACKEND_NOF_IRQS                         3 // sid_lut
+#define _HRT_MIPI_BACKEND_ANALF_IRQS                         3 // sid_lut
 
 // SH Backend Register IDs
 #define _HRT_MIPI_BACKEND_ENABLE_REG_IDX                   0
@@ -60,7 +60,7 @@
 #define _HRT_MIPI_BACKEND_SP_LUT_ENTRY_2_REG_IDX          30
 #define _HRT_MIPI_BACKEND_SP_LUT_ENTRY_3_REG_IDX          31
 
-#define _HRT_MIPI_BACKEND_NOF_REGISTERS                   32 // excluding the LP LUT entries
+#define _HRT_MIPI_BACKEND_ANALF_REGISTERS                   32 // excluding the LP LUT entries
 
 #define _HRT_MIPI_BACKEND_LP_LUT_ENTRY_0_REG_IDX          32
 
@@ -72,7 +72,7 @@
 #define _HRT_MIPI_BACKEND_RAW16_CONFIG_REG_WIDTH           7
 #define _HRT_MIPI_BACKEND_RAW18_CONFIG_REG_WIDTH           9
 #define _HRT_MIPI_BACKEND_FORCE_RAW8_REG_WIDTH             8
-#define _HRT_MIPI_BACKEND_IRQ_STATUS_REG_WIDTH            _HRT_MIPI_BACKEND_NOF_IRQS
+#define _HRT_MIPI_BACKEND_IRQ_STATUS_REG_WIDTH            _HRT_MIPI_BACKEND_ANALF_IRQS
 #define _HRT_MIPI_BACKEND_IRQ_CLEAR_REG_WIDTH              0
 #define _HRT_MIPI_BACKEND_GLOBAL_LUT_DISREGARD_REG_WIDTH   1
 #define _HRT_MIPI_BACKEND_PKT_STALL_STATUS_REG_WIDTH       1 + 2 + 6
@@ -84,9 +84,9 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define _HRT_MIPI_BACKEND_NOF_SP_LUT_ENTRIES               4
+#define _HRT_MIPI_BACKEND_ANALF_SP_LUT_ENTRIES               4
 
-//#define _HRT_MIPI_BACKEND_MAX_NOF_LP_LUT_ENTRIES           16  // to satisfy hss model static array declaration
+//#define _HRT_MIPI_BACKEND_MAX_ANALF_LP_LUT_ENTRIES           16  // to satisfy hss model static array declaration
 
 #define _HRT_MIPI_BACKEND_CHANNEL_ID_WIDTH                 2
 #define _HRT_MIPI_BACKEND_FORMAT_TYPE_WIDTH                6
@@ -131,14 +131,14 @@
 
 #define _HRT_MIPI_BACKEND_CUST_PIX_EXT_WIDTH              30    /* was 29 */
 
-/* Pixel Valid & EoP config = {[eop,valid](especial), [eop,valid](normal)} */
+/* Pixel Valid & EoP config = {[eop,valid](especial), [eop,valid](analrmal)} */
 #define _HRT_MIPI_BACKEND_CUST_PIX_VALID_EOP_P0_IDX        0    /* 4bits */
 #define _HRT_MIPI_BACKEND_CUST_PIX_VALID_EOP_P1_IDX        4    /* 4bits */
 #define _HRT_MIPI_BACKEND_CUST_PIX_VALID_EOP_P2_IDX        8    /* 4bits */
 #define _HRT_MIPI_BACKEND_CUST_PIX_VALID_EOP_P3_IDX        12   /* 4bits */
 #define _HRT_MIPI_BACKEND_CUST_PIX_VALID_EOP_WIDTH         16
-#define _HRT_MIPI_BACKEND_CUST_PIX_VALID_EOP_NOR_VALID_IDX 0    /* Normal (NO less get_bits case) Valid - 1bits */
-#define _HRT_MIPI_BACKEND_CUST_PIX_VALID_EOP_NOR_EOP_IDX   1    /* Normal (NO less get_bits case) EoP - 1bits */
+#define _HRT_MIPI_BACKEND_CUST_PIX_VALID_EOP_ANALR_VALID_IDX 0    /* Analrmal (ANAL less get_bits case) Valid - 1bits */
+#define _HRT_MIPI_BACKEND_CUST_PIX_VALID_EOP_ANALR_EOP_IDX   1    /* Analrmal (ANAL less get_bits case) EoP - 1bits */
 #define _HRT_MIPI_BACKEND_CUST_PIX_VALID_EOP_ESP_VALID_IDX 2    /* Especial (less get_bits case) Valid - 1bits */
 #define _HRT_MIPI_BACKEND_CUST_PIX_VALID_EOP_ESP_EOP_IDX   3    /* Especial (less get_bits case) EoP - 1bits */
 

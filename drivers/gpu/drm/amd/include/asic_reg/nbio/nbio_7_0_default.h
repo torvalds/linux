@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -9380,7 +9380,7 @@
 #define smnP_DMA_DROPPED_LOG_UPPER_DEFAULT                                        0x00000000
 #define smnNP_DMA_DROPPED_LOG_LOWER_DEFAULT                                       0x00000000
 #define smnNP_DMA_DROPPED_LOG_UPPER_DEFAULT                                       0x00000000
-#define smnPCIE_VDM_NODE0_CTRL4_DEFAULT                                           0x00000000
+#define smnPCIE_VDM_ANALDE0_CTRL4_DEFAULT                                           0x00000000
 #define smnPCIE_VDM_CNTL2_DEFAULT                                                 0x00000000
 #define smnPCIE_VDM_CNTL3_DEFAULT                                                 0x00000000
 #define smnSTALL_CONTROL_XBARPORT0_0_DEFAULT                                      0x00000000
@@ -9794,78 +9794,78 @@
 #define smnErrEvent_ACTION_CONTROL_DEFAULT                                        0x00000000
 #define smnParitySerr_ACTION_CONTROL_DEFAULT                                      0x00000000
 #define smnParityFatal_ACTION_CONTROL_DEFAULT                                     0x00000000
-#define smnParityNonFatal_ACTION_CONTROL_DEFAULT                                  0x00000000
+#define smnParityAnalnFatal_ACTION_CONTROL_DEFAULT                                  0x00000000
 #define smnParityCorr_ACTION_CONTROL_DEFAULT                                      0x00000000
 #define smnPCIE0PortASerr_ACTION_CONTROL_DEFAULT                                  0x00000000
 #define smnPCIE0PortAIntFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnPCIE0PortAIntNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnPCIE0PortAIntAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnPCIE0PortAIntCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnPCIE0PortAExtFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnPCIE0PortAExtNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnPCIE0PortAExtAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnPCIE0PortAExtCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnPCIE0PortAParityErr_ACTION_CONTROL_DEFAULT                             0x00000000
 #define smnPCIE0PortBSerr_ACTION_CONTROL_DEFAULT                                  0x00000000
 #define smnPCIE0PortBIntFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnPCIE0PortBIntNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnPCIE0PortBIntAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnPCIE0PortBIntCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnPCIE0PortBExtFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnPCIE0PortBExtNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnPCIE0PortBExtAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnPCIE0PortBExtCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnPCIE0PortBParityErr_ACTION_CONTROL_DEFAULT                             0x00000000
 #define smnPCIE0PortCSerr_ACTION_CONTROL_DEFAULT                                  0x00000000
 #define smnPCIE0PortCIntFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnPCIE0PortCIntNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnPCIE0PortCIntAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnPCIE0PortCIntCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnPCIE0PortCExtFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnPCIE0PortCExtNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnPCIE0PortCExtAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnPCIE0PortCExtCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnPCIE0PortCParityErr_ACTION_CONTROL_DEFAULT                             0x00000000
 #define smnPCIE0PortDSerr_ACTION_CONTROL_DEFAULT                                  0x00000000
 #define smnPCIE0PortDIntFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnPCIE0PortDIntNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnPCIE0PortDIntAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnPCIE0PortDIntCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnPCIE0PortDExtFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnPCIE0PortDExtNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnPCIE0PortDExtAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnPCIE0PortDExtCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnPCIE0PortDParityErr_ACTION_CONTROL_DEFAULT                             0x00000000
 #define smnPCIE0PortESerr_ACTION_CONTROL_DEFAULT                                  0x00000000
 #define smnPCIE0PortEIntFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnPCIE0PortEIntNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnPCIE0PortEIntAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnPCIE0PortEIntCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnPCIE0PortEExtFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnPCIE0PortEExtNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnPCIE0PortEExtAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnPCIE0PortEExtCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnPCIE0PortEParityErr_ACTION_CONTROL_DEFAULT                             0x00000000
 #define smnPCIE0PortFSerr_ACTION_CONTROL_DEFAULT                                  0x00000000
 #define smnPCIE0PortFIntFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnPCIE0PortFIntNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnPCIE0PortFIntAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnPCIE0PortFIntCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnPCIE0PortFExtFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnPCIE0PortFExtNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnPCIE0PortFExtAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnPCIE0PortFExtCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnPCIE0PortFParityErr_ACTION_CONTROL_DEFAULT                             0x00000000
 #define smnPCIE0PortGSerr_ACTION_CONTROL_DEFAULT                                  0x00000000
 #define smnPCIE0PortGIntFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnPCIE0PortGIntNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnPCIE0PortGIntAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnPCIE0PortGIntCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnPCIE0PortGExtFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnPCIE0PortGExtNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnPCIE0PortGExtAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnPCIE0PortGExtCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnPCIE0PortGParityErr_ACTION_CONTROL_DEFAULT                             0x00000000
 #define smnNBIF1PortASerr_ACTION_CONTROL_DEFAULT                                  0x00000000
 #define smnNBIF1PortAIntFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnNBIF1PortAIntNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnNBIF1PortAIntAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnNBIF1PortAIntCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnNBIF1PortAExtFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnNBIF1PortAExtNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnNBIF1PortAExtAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnNBIF1PortAExtCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnNBIF1PortAParityErr_ACTION_CONTROL_DEFAULT                             0x00000000
 #define smnNBIF1PortBSerr_ACTION_CONTROL_DEFAULT                                  0x00000000
 #define smnNBIF1PortBIntFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnNBIF1PortBIntNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnNBIF1PortBIntAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnNBIF1PortBIntCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnNBIF1PortBExtFatal_ACTION_CONTROL_DEFAULT                              0x00000000
-#define smnNBIF1PortBExtNonFatal_ACTION_CONTROL_DEFAULT                           0x00000000
+#define smnNBIF1PortBExtAnalnFatal_ACTION_CONTROL_DEFAULT                           0x00000000
 #define smnNBIF1PortBExtCorr_ACTION_CONTROL_DEFAULT                               0x00000000
 #define smnNBIF1PortBParityErr_ACTION_CONTROL_DEFAULT                             0x00000000
 #define smnSYNCFLOOD_STATUS_DEFAULT                                               0x00000000
@@ -9918,7 +9918,7 @@
 #define smnPSP_PARITY_COUNTER_CORR_GRP4_DEFAULT                                   0x00000000
 #define smnPSP_ParitySerr_ACTION_CONTROL_DEFAULT                                  0x00000000
 #define smnPSP_ParityFatal_ACTION_CONTROL_DEFAULT                                 0x00000000
-#define smnPSP_ParityNonFatal_ACTION_CONTROL_DEFAULT                              0x00000000
+#define smnPSP_ParityAnalnFatal_ACTION_CONTROL_DEFAULT                              0x00000000
 #define smnPSP_ParityCorr_ACTION_CONTROL_DEFAULT                                  0x00000000
 
 

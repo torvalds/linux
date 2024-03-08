@@ -41,12 +41,12 @@ if [ $(id -u) -ne 0 ]; then
 fi
 
 if [ -z "$BPF_FS" ]; then
-	echo "selftests: $TESTNAME [SKIP] Could not run test without bpffs mounted"
+	echo "selftests: $TESTNAME [SKIP] Could analt run test without bpffs mounted"
 	exit $ksft_skip
 fi
 
 if ! bpftool version > /dev/null 2>&1; then
-	echo "selftests: $TESTNAME [SKIP] Could not run test without bpftool"
+	echo "selftests: $TESTNAME [SKIP] Could analt run test without bpftool"
 	exit $ksft_skip
 fi
 

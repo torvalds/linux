@@ -218,7 +218,7 @@ static int hmc425a_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	st->type = (uintptr_t)device_get_match_data(&pdev->dev);
@@ -237,7 +237,7 @@ static int hmc425a_probe(struct platform_device *pdev)
 	if (st->gpios->ndescs != st->chip_info->num_gpios) {
 		dev_err(&pdev->dev, "%d GPIOs needed to operate\n",
 			st->chip_info->num_gpios);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = devm_regulator_get_enable(&pdev->dev, "vcc-supply");

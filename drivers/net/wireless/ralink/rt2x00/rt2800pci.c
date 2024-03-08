@@ -37,13 +37,13 @@
 /*
  * Allow hardware encryption to be disabled.
  */
-static bool modparam_nohwcrypt = false;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
+static bool modparam_analhwcrypt = false;
+module_param_named(analhwcrypt, modparam_analhwcrypt, bool, 0444);
+MODULE_PARM_DESC(analhwcrypt, "Disable hardware encryption.");
 
 static bool rt2800pci_hwcrypt_disabled(struct rt2x00_dev *rt2x00dev)
 {
-	return modparam_nohwcrypt;
+	return modparam_analhwcrypt;
 }
 
 static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
@@ -70,7 +70,7 @@ static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 	}
 
 	if (i == 200)
-		rt2x00_err(rt2x00dev, "MCU request failed, no response from hardware\n");
+		rt2x00_err(rt2x00dev, "MCU request failed, anal response from hardware\n");
 
 	rt2x00mmio_register_write(rt2x00dev, H2M_MAILBOX_STATUS, ~0);
 	rt2x00mmio_register_write(rt2x00dev, H2M_MAILBOX_CID, ~0);
@@ -260,7 +260,7 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 		retval = rt2800pci_set_state(rt2x00dev, state);
 		break;
 	default:
-		retval = -ENOTSUPP;
+		retval = -EANALTSUPP;
 		break;
 	}
 

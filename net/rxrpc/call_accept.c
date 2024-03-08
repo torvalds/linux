@@ -22,7 +22,7 @@
 #include <net/ip.h>
 #include "ar-internal.h"
 
-static void rxrpc_dummy_notify(struct sock *sk, struct rxrpc_call *call,
+static void rxrpc_dummy_analtify(struct sock *sk, struct rxrpc_call *call,
 			       unsigned long user_call_ID)
 {
 }
@@ -33,14 +33,14 @@ static void rxrpc_dummy_notify(struct sock *sk, struct rxrpc_call *call,
  */
 static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 				      struct rxrpc_backlog *b,
-				      rxrpc_notify_rx_t notify_rx,
+				      rxrpc_analtify_rx_t analtify_rx,
 				      rxrpc_user_attach_call_t user_attach_call,
 				      unsigned long user_call_ID, gfp_t gfp,
 				      unsigned int debug_id)
 {
 	struct rxrpc_call *call, *xcall;
 	struct rxrpc_net *rxnet = rxrpc_net(sock_net(&rx->sk));
-	struct rb_node *parent, **pp;
+	struct rb_analde *parent, **pp;
 	int max, tmp;
 	unsigned int size = RXRPC_BACKLOG_MAX;
 	unsigned int head, tail, call_head, call_tail;
@@ -48,8 +48,8 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	max = rx->sk.sk_max_ack_backlog;
 	tmp = rx->sk.sk_ack_backlog;
 	if (tmp >= max) {
-		_leave(" = -ENOBUFS [full %u]", max);
-		return -ENOBUFS;
+		_leave(" = -EANALBUFS [full %u]", max);
+		return -EANALBUFS;
 	}
 	max -= tmp;
 
@@ -61,8 +61,8 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	call_tail = READ_ONCE(b->call_backlog_tail);
 	tmp = CIRC_CNT(call_head, call_tail, size);
 	if (tmp >= max) {
-		_leave(" = -ENOBUFS [enough %u]", tmp);
-		return -ENOBUFS;
+		_leave(" = -EANALBUFS [eanalugh %u]", tmp);
+		return -EANALBUFS;
 	}
 	max = tmp + 1;
 
@@ -73,7 +73,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 
 		peer = rxrpc_alloc_peer(rx->local, gfp, rxrpc_peer_new_prealloc);
 		if (!peer)
-			return -ENOMEM;
+			return -EANALMEM;
 		b->peer_backlog[head] = peer;
 		smp_store_release(&b->peer_backlog_head,
 				  (head + 1) & (size - 1));
@@ -86,18 +86,18 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 
 		conn = rxrpc_prealloc_service_connection(rxnet, gfp);
 		if (!conn)
-			return -ENOMEM;
+			return -EANALMEM;
 		b->conn_backlog[head] = conn;
 		smp_store_release(&b->conn_backlog_head,
 				  (head + 1) & (size - 1));
 	}
 
-	/* Now it gets complicated, because calls get registered with the
+	/* Analw it gets complicated, because calls get registered with the
 	 * socket here, with a user ID preassigned by the user.
 	 */
 	call = rxrpc_alloc_call(rx, gfp, debug_id);
 	if (!call)
-		return -ENOMEM;
+		return -EANALMEM;
 	call->flags |= (1 << RXRPC_CALL_IS_SERVICE);
 	rxrpc_set_call_state(call, RXRPC_CALL_SERVER_PREALLOC);
 	__set_bit(RXRPC_CALL_EV_INITIAL_PING, &call->events);
@@ -108,11 +108,11 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	write_lock(&rx->call_lock);
 
 	/* Check the user ID isn't already in use */
-	pp = &rx->calls.rb_node;
+	pp = &rx->calls.rb_analde;
 	parent = NULL;
 	while (*pp) {
 		parent = *pp;
-		xcall = rb_entry(parent, struct rxrpc_call, sock_node);
+		xcall = rb_entry(parent, struct rxrpc_call, sock_analde);
 		if (user_call_ID < xcall->user_call_ID)
 			pp = &(*pp)->rb_left;
 		else if (user_call_ID > xcall->user_call_ID)
@@ -122,15 +122,15 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	}
 
 	call->user_call_ID = user_call_ID;
-	call->notify_rx = notify_rx;
+	call->analtify_rx = analtify_rx;
 	if (user_attach_call) {
 		rxrpc_get_call(call, rxrpc_call_get_kernel_service);
 		user_attach_call(call, user_call_ID);
 	}
 
 	rxrpc_get_call(call, rxrpc_call_get_userid);
-	rb_link_node(&call->sock_node, parent, pp);
-	rb_insert_color(&call->sock_node, &rx->calls);
+	rb_link_analde(&call->sock_analde, parent, pp);
+	rb_insert_color(&call->sock_analde, &rx->calls);
 	set_bit(RXRPC_CALL_HAS_USERID, &call->flags);
 
 	list_add(&call->sock_link, &rx->sock_calls);
@@ -165,7 +165,7 @@ int rxrpc_service_prealloc(struct rxrpc_sock *rx, gfp_t gfp)
 	if (!b) {
 		b = kzalloc(sizeof(struct rxrpc_backlog), gfp);
 		if (!b)
-			return -ENOMEM;
+			return -EANALMEM;
 		rx->backlog = b;
 	}
 
@@ -222,8 +222,8 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 		if (rx->discard_new_call) {
 			_debug("discard %lx", call->user_call_ID);
 			rx->discard_new_call(call, call->user_call_ID);
-			if (call->notify_rx)
-				call->notify_rx = rxrpc_dummy_notify;
+			if (call->analtify_rx)
+				call->analtify_rx = rxrpc_dummy_analtify;
 			rxrpc_put_call(call, rxrpc_call_put_kernel);
 		}
 		rxrpc_call_completed(call);
@@ -283,7 +283,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 			rxrpc_new_incoming_peer(local, peer);
 		}
 
-		/* Now allocate and set up the connection */
+		/* Analw allocate and set up the connection */
 		conn = b->conn_backlog[conn_tail];
 		b->conn_backlog[conn_tail] = NULL;
 		smp_store_release(&b->conn_backlog_tail,
@@ -297,7 +297,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 		atomic_inc(&conn->active);
 	}
 
-	/* And now we can allocate and set up a new call */
+	/* And analw we can allocate and set up a new call */
 	call = b->call_backlog[call_tail];
 	b->call_backlog[call_tail] = NULL;
 	smp_store_release(&b->call_backlog_tail,
@@ -341,11 +341,11 @@ bool rxrpc_new_incoming_call(struct rxrpc_local *local,
 
 	/* Don't set up a call for anything other than a DATA packet. */
 	if (sp->hdr.type != RXRPC_PACKET_TYPE_DATA)
-		return rxrpc_protocol_error(skb, rxrpc_eproto_no_service_call);
+		return rxrpc_protocol_error(skb, rxrpc_eproto_anal_service_call);
 
 	read_lock(&local->services_lock);
 
-	/* Weed out packets to services we're not offering.  Packets that would
+	/* Weed out packets to services we're analt offering.  Packets that would
 	 * begin a call are explicitly rejected and the rest are just
 	 * discarded.
 	 */
@@ -370,14 +370,14 @@ bool rxrpc_new_incoming_call(struct rxrpc_local *local,
 	    rx->sk.sk_state == RXRPC_CLOSE) {
 		rxrpc_direct_abort(skb, rxrpc_abort_shut_down,
 				   RX_INVALID_OPERATION, -ESHUTDOWN);
-		goto no_call;
+		goto anal_call;
 	}
 
 	call = rxrpc_alloc_incoming_call(rx, local, peer, conn, sec, peer_srx,
 					 skb);
 	if (!call) {
 		skb->mark = RXRPC_SKB_MARK_REJECT_BUSY;
-		goto no_call;
+		goto anal_call;
 	}
 
 	trace_rxrpc_receive(call, rxrpc_receive_incoming,
@@ -387,8 +387,8 @@ bool rxrpc_new_incoming_call(struct rxrpc_local *local,
 	rxrpc_incoming_call(rx, call, skb);
 	conn = call->conn;
 
-	if (rx->notify_new_call)
-		rx->notify_new_call(&rx->sk, call, call->user_call_ID);
+	if (rx->analtify_new_call)
+		rx->analtify_new_call(&rx->sk, call, call->user_call_ID);
 
 	spin_lock(&conn->state_lock);
 	if (conn->state == RXRPC_CONN_SERVICE_UNSECURED) {
@@ -414,13 +414,13 @@ bool rxrpc_new_incoming_call(struct rxrpc_local *local,
 
 unsupported_service:
 	read_unlock(&local->services_lock);
-	return rxrpc_direct_abort(skb, rxrpc_abort_service_not_offered,
-				  RX_INVALID_OPERATION, -EOPNOTSUPP);
+	return rxrpc_direct_abort(skb, rxrpc_abort_service_analt_offered,
+				  RX_INVALID_OPERATION, -EOPANALTSUPP);
 unsupported_security:
 	read_unlock(&local->services_lock);
-	return rxrpc_direct_abort(skb, rxrpc_abort_service_not_offered,
+	return rxrpc_direct_abort(skb, rxrpc_abort_service_analt_offered,
 				  RX_INVALID_OPERATION, -EKEYREJECTED);
-no_call:
+anal_call:
 	spin_unlock(&rx->incoming_lock);
 	read_unlock(&local->services_lock);
 	_leave(" = f [%u]", skb->mark);
@@ -448,7 +448,7 @@ int rxrpc_user_charge_accept(struct rxrpc_sock *rx, unsigned long user_call_ID)
 /*
  * rxrpc_kernel_charge_accept - Charge up socket with preallocated calls
  * @sock: The socket on which to preallocate
- * @notify_rx: Event notification function for the call
+ * @analtify_rx: Event analtification function for the call
  * @user_attach_call: Func to attach call to user_call_ID
  * @user_call_ID: The tag to attach to the preallocated call
  * @gfp: The allocation conditions.
@@ -458,10 +458,10 @@ int rxrpc_user_charge_accept(struct rxrpc_sock *rx, unsigned long user_call_ID)
  * function should be provided to effect the attachment from the user's side.
  * The user is given a ref to hold on the call.
  *
- * Note that the call may be come connected before this function returns.
+ * Analte that the call may be come connected before this function returns.
  */
 int rxrpc_kernel_charge_accept(struct socket *sock,
-			       rxrpc_notify_rx_t notify_rx,
+			       rxrpc_analtify_rx_t analtify_rx,
 			       rxrpc_user_attach_call_t user_attach_call,
 			       unsigned long user_call_ID, gfp_t gfp,
 			       unsigned int debug_id)
@@ -472,7 +472,7 @@ int rxrpc_kernel_charge_accept(struct socket *sock,
 	if (sock->sk->sk_state == RXRPC_CLOSE)
 		return -ESHUTDOWN;
 
-	return rxrpc_service_prealloc_one(rx, b, notify_rx,
+	return rxrpc_service_prealloc_one(rx, b, analtify_rx,
 					  user_attach_call, user_call_ID,
 					  gfp, debug_id);
 }

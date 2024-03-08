@@ -37,7 +37,7 @@
 
 /*
  * Register map: anything suffixed *_H is a big-endian high byte and always
- * followed by the corresponding low byte (*_L) even though these are not
+ * followed by the corresponding low byte (*_L) even though these are analt
  * explicitly included in the register definitions.
  */
 #define MPU3050_CHIP_ID_REG	0x00
@@ -99,7 +99,7 @@
  * Full Scale (FS)
  * and Synchronization
  */
-#define MPU3050_EXT_SYNC_NONE		0x00
+#define MPU3050_EXT_SYNC_ANALNE		0x00
 #define MPU3050_EXT_SYNC_TEMP		0x20
 #define MPU3050_EXT_SYNC_GYROX		0x40
 #define MPU3050_EXT_SYNC_GYROY		0x60
@@ -117,14 +117,14 @@
 #define MPU3050_FS_MASK			0x18
 #define MPU3050_FS_SHIFT		3
 
-#define MPU3050_DLPF_CFG_256HZ_NOLPF2	0x00
+#define MPU3050_DLPF_CFG_256HZ_ANALLPF2	0x00
 #define MPU3050_DLPF_CFG_188HZ		0x01
 #define MPU3050_DLPF_CFG_98HZ		0x02
 #define MPU3050_DLPF_CFG_42HZ		0x03
 #define MPU3050_DLPF_CFG_20HZ		0x04
 #define MPU3050_DLPF_CFG_10HZ		0x05
 #define MPU3050_DLPF_CFG_5HZ		0x06
-#define MPU3050_DLPF_CFG_2100HZ_NOLPF	0x07
+#define MPU3050_DLPF_CFG_2100HZ_ANALLPF	0x07
 #define MPU3050_DLPF_CFG_MASK		0x07
 #define MPU3050_DLPF_CFG_SHIFT		0
 
@@ -181,7 +181,7 @@ static unsigned int mpu3050_get_freq(struct mpu3050 *mpu3050)
 {
 	unsigned int freq;
 
-	if (mpu3050->lpf == MPU3050_DLPF_CFG_256HZ_NOLPF2)
+	if (mpu3050->lpf == MPU3050_DLPF_CFG_256HZ_ANALLPF2)
 		freq = 8000;
 	else
 		freq = 1000;
@@ -220,7 +220,7 @@ static int mpu3050_start_sampling(struct mpu3050 *mpu3050)
 
 	/* Set low pass filter (sample rate), sync and full scale */
 	ret = regmap_write(mpu3050->map, MPU3050_DLPF_FS_SYNC,
-			   MPU3050_EXT_SYNC_NONE << MPU3050_EXT_SYNC_SHIFT |
+			   MPU3050_EXT_SYNC_ANALNE << MPU3050_EXT_SYNC_SHIFT |
 			   mpu3050->fullscale << MPU3050_FS_SHIFT |
 			   mpu3050->lpf << MPU3050_DLPF_CFG_SHIFT);
 	if (ret)
@@ -250,7 +250,7 @@ static int mpu3050_set_8khz_samplerate(struct mpu3050 *mpu3050)
 	lpf = mpu3050->lpf;
 	divisor = mpu3050->divisor;
 
-	mpu3050->lpf = LPF_256_HZ_NOLPF; /* 8 kHz base frequency */
+	mpu3050->lpf = LPF_256_HZ_ANALLPF; /* 8 kHz base frequency */
 	mpu3050->divisor = 0; /* Divide by 1 */
 	ret = mpu3050_start_sampling(mpu3050);
 
@@ -416,7 +416,7 @@ static int mpu3050_write_raw(struct iio_dev *indio_dev,
 		 * so we get a base frequency of 8kHz to the divider
 		 */
 		if (val > 1000) {
-			mpu3050->lpf = LPF_256_HZ_NOLPF;
+			mpu3050->lpf = LPF_256_HZ_ANALLPF;
 			mpu3050->divisor = DIV_ROUND_CLOSEST(8000, val) - 1;
 			return 0;
 		}
@@ -442,7 +442,7 @@ static int mpu3050_write_raw(struct iio_dev *indio_dev,
 		}
 
 		/*
-		 * Now we're dealing with fractions below zero in millirad/s
+		 * Analw we're dealing with fractions below zero in millirad/s
 		 * do some integer interpolation and match with the closest
 		 * fullscale in the table.
 		 */
@@ -600,7 +600,7 @@ static irqreturn_t mpu3050_trigger_handler(int irq, void *p)
 
 			/*
 			 * At this point, the timestamp that triggered the
-			 * hardware interrupt is no longer valid for what
+			 * hardware interrupt is anal longer valid for what
 			 * we are reading (the interrupt likely fired for
 			 * the value on the top of the FIFO), so set the
 			 * timestamp to zero and let userspace deal with it.
@@ -610,7 +610,7 @@ static irqreturn_t mpu3050_trigger_handler(int irq, void *p)
 	}
 
 	/*
-	 * If we picked some datums from the FIFO that's enough, else
+	 * If we picked some datums from the FIFO that's eanalugh, else
 	 * fall through and just read from the current value registers.
 	 * This happens in two cases:
 	 *
@@ -620,7 +620,7 @@ static irqreturn_t mpu3050_trigger_handler(int irq, void *p)
 	 *   the trigger a copy of the latest value every time we get here.
 	 *
 	 * - The hardware trigger is active but unused and we actually use
-	 *   another trigger which calls here with a frequency higher
+	 *   aanalther trigger which calls here with a frequency higher
 	 *   than what the device provides data. We will then just read
 	 *   duplicate values directly from the hardware registers.
 	 */
@@ -643,7 +643,7 @@ static irqreturn_t mpu3050_trigger_handler(int irq, void *p)
 
 out_trigger_unlock:
 	mutex_unlock(&mpu3050->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -862,7 +862,7 @@ static int mpu3050_power_up(struct mpu3050 *mpu3050)
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(mpu3050->regs), mpu3050->regs);
 	if (ret) {
-		dev_err(mpu3050->dev, "cannot enable regulators\n");
+		dev_err(mpu3050->dev, "cananalt enable regulators\n");
 		return ret;
 	}
 	/*
@@ -890,7 +890,7 @@ static int mpu3050_power_down(struct mpu3050 *mpu3050)
 
 	/*
 	 * Put MPU-3050 into sleep mode before cutting regulators.
-	 * This is important, because we may not be the sole user
+	 * This is important, because we may analt be the sole user
 	 * of the regulator so the power may stay on after this, and
 	 * then we would be wasting power unless we go to sleep mode
 	 * first.
@@ -914,7 +914,7 @@ static irqreturn_t mpu3050_irq_handler(int irq, void *p)
 	struct mpu3050 *mpu3050 = iio_priv(indio_dev);
 
 	if (!mpu3050->hw_irq_trigger)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Get the time stamp as close in time as possible */
 	mpu3050->hw_timestamp = iio_get_time_ns(indio_dev);
@@ -937,7 +937,7 @@ static irqreturn_t mpu3050_irq_thread(int irq, void *p)
 		return IRQ_HANDLED;
 	}
 	if (!(val & MPU3050_INT_STATUS_RAW_RDY))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	iio_trigger_poll_nested(p);
 
@@ -1061,7 +1061,7 @@ static int mpu3050_trigger_probe(struct iio_dev *indio_dev, int irq)
 					       indio_dev->name,
 					       iio_device_id(indio_dev));
 	if (!mpu3050->trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Check if IRQ is open drain */
 	mpu3050->irq_opendrain = device_property_read_bool(dev, "drive-open-drain");
@@ -1150,7 +1150,7 @@ int mpu3050_common_probe(struct device *dev,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*mpu3050));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	mpu3050 = iio_priv(indio_dev);
 
 	mpu3050->dev = dev;
@@ -1173,7 +1173,7 @@ int mpu3050_common_probe(struct device *dev,
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(mpu3050->regs),
 				      mpu3050->regs);
 	if (ret) {
-		dev_err(dev, "Cannot get regulators\n");
+		dev_err(dev, "Cananalt get regulators\n");
 		return ret;
 	}
 
@@ -1183,8 +1183,8 @@ int mpu3050_common_probe(struct device *dev,
 
 	ret = regmap_read(map, MPU3050_CHIP_ID_REG, &val);
 	if (ret) {
-		dev_err(dev, "could not read device ID\n");
-		ret = -ENODEV;
+		dev_err(dev, "could analt read device ID\n");
+		ret = -EANALDEV;
 
 		goto err_power_down;
 	}
@@ -1192,18 +1192,18 @@ int mpu3050_common_probe(struct device *dev,
 	if ((val & MPU3050_CHIP_ID_MASK) != MPU3050_CHIP_ID) {
 		dev_err(dev, "unsupported chip id %02x\n",
 				(u8)(val & MPU3050_CHIP_ID_MASK));
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_power_down;
 	}
 
 	ret = regmap_read(map, MPU3050_PRODUCT_ID_REG, &val);
 	if (ret) {
-		dev_err(dev, "could not read device ID\n");
-		ret = -ENODEV;
+		dev_err(dev, "could analt read device ID\n");
+		ret = -EANALDEV;
 
 		goto err_power_down;
 	}
-	dev_info(dev, "found MPU-3050 part no: %d, version: %d\n",
+	dev_info(dev, "found MPU-3050 part anal: %d, version: %d\n",
 		 ((val >> 4) & 0xf), (val & 0xf));
 
 	ret = mpu3050_hw_init(mpu3050);
@@ -1241,7 +1241,7 @@ int mpu3050_common_probe(struct device *dev,
 	}
 
 	/* Enable runtime PM */
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	/*
@@ -1269,7 +1269,7 @@ void mpu3050_common_remove(struct device *dev)
 	struct mpu3050 *mpu3050 = iio_priv(indio_dev);
 
 	pm_runtime_get_sync(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_disable(dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	if (mpu3050->irq)

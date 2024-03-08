@@ -12,7 +12,7 @@
 
 #define DPU_DBG_NAME			"dpu"
 
-#define DPU_NONE                        0
+#define DPU_ANALNE                        0
 
 #ifndef DPU_CSC_MATRIX_COEFF_SIZE
 #define DPU_CSC_MATRIX_COEFF_SIZE	9
@@ -103,7 +103,7 @@ enum dpu_hw_blk_type {
 };
 
 enum dpu_sspp {
-	SSPP_NONE,
+	SSPP_ANALNE,
 	SSPP_VIG0,
 	SSPP_VIG1,
 	SSPP_VIG2,
@@ -176,7 +176,7 @@ enum dpu_ctl {
 };
 
 enum dpu_dsc {
-	DSC_NONE = 0,
+	DSC_ANALNE = 0,
 	DSC_0,
 	DSC_1,
 	DSC_2,
@@ -192,7 +192,7 @@ enum dpu_cdm {
 };
 
 enum dpu_pingpong {
-	PINGPONG_NONE,
+	PINGPONG_ANALNE,
 	PINGPONG_0,
 	PINGPONG_1,
 	PINGPONG_2,
@@ -232,11 +232,11 @@ enum dpu_intf {
 /*
  * Historically these values correspond to the values written to the
  * DISP_INTF_SEL register, which had to programmed manually. On newer MDP
- * generations this register is NOP, but we keep the values for historical
+ * generations this register is ANALP, but we keep the values for historical
  * reasons.
  */
 enum dpu_intf_type {
-	INTF_NONE = 0x0,
+	INTF_ANALNE = 0x0,
 	INTF_DSI = 0x1,
 	INTF_HDMI = 0x3,
 	INTF_LCDC = 0x5,
@@ -250,7 +250,7 @@ enum dpu_intf_type {
 };
 
 enum dpu_intf_mode {
-	INTF_MODE_NONE = 0,
+	INTF_MODE_ANALNE = 0,
 	INTF_MODE_CMD,
 	INTF_MODE_VIDEO,
 	INTF_MODE_WB_BLOCK,
@@ -314,7 +314,7 @@ enum dpu_plane_type {
 
 /**
  * enum dpu_chroma_samp_type - chroma sub-samplng type
- * @DPU_CHROMA_RGB   : No chroma subsampling
+ * @DPU_CHROMA_RGB   : Anal chroma subsampling
  * @DPU_CHROMA_H2V1  : Chroma pixels are horizontally subsampled
  * @DPU_CHROMA_H1V2  : Chroma pixels are vertically subsampled
  * @DPU_CHROMA_420   : 420 subsampling
@@ -346,7 +346,7 @@ enum {
 	COLOR_ALPHA_1BIT = 0,
 	COLOR_ALPHA_4BIT = 1,
 	COLOR_4BIT = 0,
-	COLOR_5BIT = 1, /* No 5-bit Alpha */
+	COLOR_5BIT = 1, /* Anal 5-bit Alpha */
 	COLOR_6BIT = 2, /* 6-Bit Alpha also = 2 */
 	COLOR_8BIT = 3, /* 8-Bit Alpha also = 3 */
 };
@@ -354,7 +354,7 @@ enum {
 /**
  * enum dpu_3d_blend_mode
  * Desribes how the 3d data is blended
- * @BLEND_3D_NONE      : 3d blending not enabled
+ * @BLEND_3D_ANALNE      : 3d blending analt enabled
  * @BLEND_3D_FRAME_INT : Frame interleaving
  * @BLEND_3D_H_ROW_INT : Horizontal row interleaving
  * @BLEND_3D_V_ROW_INT : vertical row interleaving
@@ -362,7 +362,7 @@ enum {
  * @BLEND_3D_MAX       :
  */
 enum dpu_3d_blend_mode {
-	BLEND_3D_NONE = 0,
+	BLEND_3D_ANALNE = 0,
 	BLEND_3D_FRAME_INT,
 	BLEND_3D_H_ROW_INT,
 	BLEND_3D_V_ROW_INT,
@@ -455,7 +455,7 @@ struct dpu_mdss_color {
 /*
  * Define bit masks for h/w logging.
  */
-#define DPU_DBG_MASK_NONE     (1 << 0)
+#define DPU_DBG_MASK_ANALNE     (1 << 0)
 #define DPU_DBG_MASK_INTF     (1 << 1)
 #define DPU_DBG_MASK_LM       (1 << 2)
 #define DPU_DBG_MASK_CTL      (1 << 3)
@@ -474,7 +474,7 @@ struct dpu_mdss_color {
  * tear-effect module. This structure is used to configure tear-check
  * logic present either in ping-pong or in interface module.
  * @vsync_count:        Ratio of MDP VSYNC clk freq(Hz) to refresh rate divided
- *                      by no of lines
+ *                      by anal of lines
  * @sync_cfg_height:    Total vertical lines (display height - 1)
  * @vsync_init_val:     Init value to which the read pointer gets loaded at
  *                      vsync edge
@@ -488,7 +488,7 @@ struct dpu_mdss_color {
 struct dpu_hw_tear_check {
 	/*
 	 * This is ratio of MDP VSYNC clk freq(Hz) to
-	 * refresh rate divided by no of lines
+	 * refresh rate divided by anal of lines
 	 */
 	u32 vsync_count;
 	u32 sync_cfg_height;

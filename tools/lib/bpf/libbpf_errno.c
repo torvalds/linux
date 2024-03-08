@@ -17,11 +17,11 @@
 /* make sure libbpf doesn't use kernel-only integer typedefs */
 #pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
 
-#define ERRNO_OFFSET(e)		((e) - __LIBBPF_ERRNO__START)
-#define ERRCODE_OFFSET(c)	ERRNO_OFFSET(LIBBPF_ERRNO__##c)
-#define NR_ERRNO	(__LIBBPF_ERRNO__END - __LIBBPF_ERRNO__START)
+#define ERRANAL_OFFSET(e)		((e) - __LIBBPF_ERRANAL__START)
+#define ERRCODE_OFFSET(c)	ERRANAL_OFFSET(LIBBPF_ERRANAL__##c)
+#define NR_ERRANAL	(__LIBBPF_ERRANAL__END - __LIBBPF_ERRANAL__START)
 
-static const char *libbpf_strerror_table[NR_ERRNO] = {
+static const char *libbpf_strerror_table[NR_ERRANAL] = {
 	[ERRCODE_OFFSET(LIBELF)]	= "Something wrong in libelf",
 	[ERRCODE_OFFSET(FORMAT)]	= "BPF object format invalid",
 	[ERRCODE_OFFSET(KVERSION)]	= "'version' section incorrect or lost",
@@ -46,30 +46,30 @@ int libbpf_strerror(int err, char *buf, size_t size)
 
 	err = err > 0 ? err : -err;
 
-	if (err < __LIBBPF_ERRNO__START) {
+	if (err < __LIBBPF_ERRANAL__START) {
 		ret = strerror_r(err, buf, size);
 		buf[size - 1] = '\0';
-		return libbpf_err_errno(ret);
+		return libbpf_err_erranal(ret);
 	}
 
-	if (err < __LIBBPF_ERRNO__END) {
+	if (err < __LIBBPF_ERRANAL__END) {
 		const char *msg;
 
-		msg = libbpf_strerror_table[ERRNO_OFFSET(err)];
+		msg = libbpf_strerror_table[ERRANAL_OFFSET(err)];
 		ret = snprintf(buf, size, "%s", msg);
 		buf[size - 1] = '\0';
 		/* The length of the buf and msg is positive.
 		 * A negative number may be returned only when the
-		 * size exceeds INT_MAX. Not likely to appear.
+		 * size exceeds INT_MAX. Analt likely to appear.
 		 */
 		if (ret >= size)
 			return libbpf_err(-ERANGE);
 		return 0;
 	}
 
-	ret = snprintf(buf, size, "Unknown libbpf error %d", err);
+	ret = snprintf(buf, size, "Unkanalwn libbpf error %d", err);
 	buf[size - 1] = '\0';
 	if (ret >= size)
 		return libbpf_err(-ERANGE);
-	return libbpf_err(-ENOENT);
+	return libbpf_err(-EANALENT);
 }

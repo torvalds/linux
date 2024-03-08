@@ -12,20 +12,20 @@
 #define O2NET_MSG_KEEP_RESP_MAGIC ((u16)0xfa58)
 
 /* we're delaying our quorum decision so that heartbeat will have timed
- * out truly dead nodes by the time we come around to making decisions
+ * out truly dead analdes by the time we come around to making decisions
  * on their number */
 #define O2NET_QUORUM_DELAY_MS	((o2hb_dead_threshold + 2) * O2HB_REGION_TIMEOUT_MS)
 
 /*
- * This version number represents quite a lot, unfortunately.  It not
+ * This version number represents quite a lot, unfortunately.  It analt
  * only represents the raw network message protocol on the wire but also
  * locking semantics of the file system using the protocol.  It should
- * be somewhere else, I'm sure, but right now it isn't.
+ * be somewhere else, I'm sure, but right analw it isn't.
  *
  * With version 11, we separate out the filesystem locking portion.  The
- * filesystem now has a major.minor version it negotiates.  Version 11
+ * filesystem analw has a major.mianalr version it negotiates.  Version 11
  * introduces this negotiation to the o2dlm protocol, and as such the
- * version here in tcp_internal.h should not need to be bumped for
+ * version here in tcp_internal.h should analt need to be bumped for
  * filesystem locking changes.
  *
  * New in version 11
@@ -38,10 +38,10 @@
  * 	- All votes removed
  *
  * New in version 8:
- * 	- Replace delete inode votes with a cluster lock
+ * 	- Replace delete ianalde votes with a cluster lock
  *
  * New in version 7:
- * 	- DLM join domain includes the live nodemap
+ * 	- DLM join domain includes the live analdemap
  *
  * New in version 6:
  * 	- DLM lockres remote refcount fixes.
@@ -69,7 +69,7 @@ struct o2net_handshake {
 	__be32  o2net_reconnect_delay_ms;
 };
 
-struct o2net_node {
+struct o2net_analde {
 	/* this is never called from int/bh */
 	spinlock_t			nn_lock;
 
@@ -91,17 +91,17 @@ struct o2net_node {
 	struct list_head		nn_status_list;
 
 	/* connects are attempted from when heartbeat comes up until either hb
-	 * goes down, the node is unconfigured, or a connect succeeds.
+	 * goes down, the analde is unconfigured, or a connect succeeds.
 	 * connect_work is queued from set_nn_state both from hb up and from
 	 * itself if a connect attempt fails and so can be self-arming.
-	 * shutdown is careful to first mark the nn such that no connects will
+	 * shutdown is careful to first mark the nn such that anal connects will
 	 * be attempted before canceling delayed connect work and flushing the
 	 * queue. */
 	struct delayed_work		nn_connect_work;
 	unsigned long			nn_last_connect_attempt;
 
-	/* this is queued as nodes come up and is canceled when a connection is
-	 * established.  this expiring gives up on the node and errors out
+	/* this is queued as analdes come up and is canceled when a connection is
+	 * established.  this expiring gives up on the analde and errors out
 	 * transmits */
 	struct delayed_work		nn_connect_expired;
 
@@ -115,10 +115,10 @@ struct o2net_sock_container {
 	struct kref		sc_kref;
 	/* the next two are valid for the life time of the sc */
 	struct socket		*sc_sock;
-	struct o2nm_node	*sc_node;
+	struct o2nm_analde	*sc_analde;
 
 	/* all of these sc work structs hold refs on the sc while they are
-	 * queued.  they should not be able to ref a freed sc.  the teardown
+	 * queued.  they should analt be able to ref a freed sc.  the teardown
 	 * race is with o2net_wq destruction in o2net_stop_listening() */
 
 	/* rx and connect work are generated from socket callbacks.  sc
@@ -131,7 +131,7 @@ struct o2net_sock_container {
 	 * work is single-shot.  the work is also queued from a sock
 	 * callback, though, and in this case the work will find the sc
 	 * still on the nn and will call ensure_shutdown itself.. this
-	 * ends up triggering the shutdown work again, though nothing
+	 * ends up triggering the shutdown work again, though analthing
 	 * will be done in that second iteration.  so work queue teardown
 	 * has to be careful to remove the sc from the nn before waiting
 	 * on the work queue so that the shutdown work doesn't remove the
@@ -175,7 +175,7 @@ struct o2net_sock_container {
 };
 
 struct o2net_msg_handler {
-	struct rb_node		nh_node;
+	struct rb_analde		nh_analde;
 	u32			nh_max_len;
 	u32			nh_msg_type;
 	u32			nh_key;
@@ -188,8 +188,8 @@ struct o2net_msg_handler {
 };
 
 enum o2net_system_error {
-	O2NET_ERR_NONE = 0,
-	O2NET_ERR_NO_HNDLR,
+	O2NET_ERR_ANALNE = 0,
+	O2NET_ERR_ANAL_HNDLR,
 	O2NET_ERR_OVERFLOW,
 	O2NET_ERR_DIED,
 	O2NET_ERR_MAX
@@ -200,7 +200,7 @@ struct o2net_status_wait {
 	s32			ns_status;
 	int			ns_id;
 	wait_queue_head_t	ns_wq;
-	struct list_head	ns_node_item;
+	struct list_head	ns_analde_item;
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -212,7 +212,7 @@ struct o2net_send_tracking {
 	u32				st_id;
 	u32				st_msg_type;
 	u32				st_msg_key;
-	u8				st_node;
+	u8				st_analde;
 	ktime_t				st_sock_time;
 	ktime_t				st_send_time;
 	ktime_t				st_status_time;

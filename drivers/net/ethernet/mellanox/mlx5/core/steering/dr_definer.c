@@ -126,7 +126,7 @@ int mlx5dr_definer_get(struct mlx5dr_domain *dmn, u16 format_id,
 						    dw_selectors, byte_selectors,
 						    match_mask);
 		if (!definer_obj)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		refcount_inc(&definer_obj->refcount);
 	}
@@ -142,7 +142,7 @@ void mlx5dr_definer_put(struct mlx5dr_domain *dmn, u32 definer_id)
 
 	definer_obj = xa_load(&dmn->definers_xa, definer_id);
 	if (!definer_obj) {
-		mlx5dr_err(dmn, "Definer ID %d not found\n", definer_id);
+		mlx5dr_err(dmn, "Definer ID %d analt found\n", definer_id);
 		return;
 	}
 

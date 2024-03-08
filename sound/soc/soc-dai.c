@@ -3,7 +3,7 @@
 // soc-dai.c
 //
 // Copyright (C) 2019 Renesas Electronics Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 //
 
 #include <sound/soc.h>
@@ -14,14 +14,14 @@
 static inline int _soc_dai_ret(struct snd_soc_dai *dai,
 			       const char *func, int ret)
 {
-	/* Positive, Zero values are not errors */
+	/* Positive, Zero values are analt errors */
 	if (ret >= 0)
 		return ret;
 
 	/* Negative values might be errors */
 	switch (ret) {
 	case -EPROBE_DEFER:
-	case -ENOTSUPP:
+	case -EANALTSUPP:
 		break;
 	default:
 		dev_err(dai->dev,
@@ -124,7 +124,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_pll);
  */
 int snd_soc_dai_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (dai->driver->ops &&
 	    dai->driver->ops->set_bclk_ratio)
@@ -206,7 +206,7 @@ u64 snd_soc_dai_get_fmt(struct snd_soc_dai *dai, int priority)
  */
 int snd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (dai->driver->ops && dai->driver->ops->set_fmt)
 		ret = dai->driver->ops->set_fmt(dai, fmt);
@@ -258,7 +258,7 @@ static int snd_soc_xlate_tdm_slot_mask(unsigned int slots,
  * channel and so on.
  *
  * TDM mode can be disabled by passing 0 for @slots. In this case @tx_mask,
- * @rx_mask and @slot_width will be ignored.
+ * @rx_mask and @slot_width will be iganalred.
  *
  * Returns 0 on success, a negative error code otherwise.
  */
@@ -266,7 +266,7 @@ int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 			     unsigned int tx_mask, unsigned int rx_mask,
 			     int slots, int slot_width)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 	int stream;
 	unsigned int *tdm_mask[] = {
 		&tx_mask,
@@ -307,7 +307,7 @@ int snd_soc_dai_set_channel_map(struct snd_soc_dai *dai,
 				unsigned int tx_num, unsigned int *tx_slot,
 				unsigned int rx_num, unsigned int *rx_slot)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (dai->driver->ops &&
 	    dai->driver->ops->set_channel_map)
@@ -331,7 +331,7 @@ int snd_soc_dai_get_channel_map(struct snd_soc_dai *dai,
 				unsigned int *tx_num, unsigned int *tx_slot,
 				unsigned int *rx_num, unsigned int *rx_slot)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (dai->driver->ops &&
 	    dai->driver->ops->get_channel_map)
@@ -371,16 +371,16 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_tristate);
 int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute,
 			     int direction)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	/*
-	 * ignore if direction was CAPTURE
-	 * and it had .no_capture_mute flag
+	 * iganalre if direction was CAPTURE
+	 * and it had .anal_capture_mute flag
 	 */
 	if (dai->driver->ops &&
 	    dai->driver->ops->mute_stream &&
 	    (direction == SNDRV_PCM_STREAM_PLAYBACK ||
-	     !dai->driver->ops->no_capture_mute))
+	     !dai->driver->ops->anal_capture_mute))
 		ret = dai->driver->ops->mute_stream(dai, mute, direction);
 
 	return soc_dai_ret(dai, ret);
@@ -459,7 +459,7 @@ void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
 int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
 			     struct snd_soc_pcm_runtime *rtd, int num)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 	if (dai->driver->ops &&
 	    dai->driver->ops->compress_new)
 		ret = dai->driver->ops->compress_new(rtd, num);

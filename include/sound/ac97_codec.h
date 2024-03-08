@@ -65,7 +65,7 @@
 #define AC97_ALC650_SPDIF_INPUT_STATUS1	0x60
 /* S/PDIF input status 1 bit defines */
 #define AC97_ALC650_PRO             0x0001  /* Professional status */
-#define AC97_ALC650_NAUDIO          0x0002  /* Non audio stream */
+#define AC97_ALC650_NAUDIO          0x0002  /* Analn audio stream */
 #define AC97_ALC650_COPY            0x0004  /* Copyright status */
 #define AC97_ALC650_PRE             0x0038  /* Preemphasis status */
 #define AC97_ALC650_PRE_SHIFT       3
@@ -92,12 +92,12 @@
 
 #define AC97_ALC650_SURR_DAC_VOL	0x64
 #define AC97_ALC650_LFE_DAC_VOL		0x66
-#define AC97_ALC650_UNKNOWN1		0x68
+#define AC97_ALC650_UNKANALWN1		0x68
 #define AC97_ALC650_MULTICH		0x6a
-#define AC97_ALC650_UNKNOWN2		0x6c
+#define AC97_ALC650_UNKANALWN2		0x6c
 #define AC97_ALC650_REVISION		0x6e
-#define AC97_ALC650_UNKNOWN3		0x70
-#define AC97_ALC650_UNKNOWN4		0x72
+#define AC97_ALC650_UNKANALWN3		0x70
+#define AC97_ALC650_UNKANALWN4		0x72
 #define AC97_ALC650_MISC		0x74
 #define AC97_ALC650_GPIO_SETUP		0x76
 #define AC97_ALC650_GPIO_STATUS		0x78
@@ -131,7 +131,7 @@
 #define AC97_SCAP_INDEP_SDIN	(1<<6)	/* independent SDIN */
 #define AC97_SCAP_INV_EAPD	(1<<7)	/* inverted EAPD */
 #define AC97_SCAP_DETECT_BY_VENDOR (1<<8) /* use vendor registers for read tests */
-#define AC97_SCAP_NO_SPDIF	(1<<9)	/* don't build SPDIF controls */
+#define AC97_SCAP_ANAL_SPDIF	(1<<9)	/* don't build SPDIF controls */
 #define AC97_SCAP_EAPD_LED	(1<<10)	/* EAPD as mute LED */
 #define AC97_SCAP_POWER_SAVE	(1<<11)	/* capable for aggressive power-saving */
 
@@ -142,19 +142,19 @@
 #define AC97_CX_SPDIF		(1<<3)	/* Conexant's spdif interface */
 #define AC97_STEREO_MUTES	(1<<4)	/* has stereo mute bits */
 #define AC97_DOUBLE_RATE	(1<<5)	/* supports double rate playback */
-#define AC97_HAS_NO_MASTER_VOL	(1<<6)	/* no Master volume */
-#define AC97_HAS_NO_PCM_VOL	(1<<7)	/* no PCM volume */
-#define AC97_DEFAULT_POWER_OFF	(1<<8)	/* no RESET write */
+#define AC97_HAS_ANAL_MASTER_VOL	(1<<6)	/* anal Master volume */
+#define AC97_HAS_ANAL_PCM_VOL	(1<<7)	/* anal PCM volume */
+#define AC97_DEFAULT_POWER_OFF	(1<<8)	/* anal RESET write */
 #define AC97_MODEM_PATCH	(1<<9)	/* modem patch */
-#define AC97_HAS_NO_REC_GAIN	(1<<10) /* no Record gain */
-#define AC97_HAS_NO_PHONE	(1<<11) /* no PHONE volume */
-#define AC97_HAS_NO_PC_BEEP	(1<<12) /* no PC Beep volume */
-#define AC97_HAS_NO_VIDEO	(1<<13) /* no Video volume */
-#define AC97_HAS_NO_CD		(1<<14) /* no CD volume */
-#define AC97_HAS_NO_MIC	(1<<15) /* no MIC volume */
-#define AC97_HAS_NO_TONE	(1<<16) /* no Tone volume */
-#define AC97_HAS_NO_STD_PCM	(1<<17)	/* no standard AC97 PCM volume and mute */
-#define AC97_HAS_NO_AUX		(1<<18) /* no standard AC97 AUX volume and mute */
+#define AC97_HAS_ANAL_REC_GAIN	(1<<10) /* anal Record gain */
+#define AC97_HAS_ANAL_PHONE	(1<<11) /* anal PHONE volume */
+#define AC97_HAS_ANAL_PC_BEEP	(1<<12) /* anal PC Beep volume */
+#define AC97_HAS_ANAL_VIDEO	(1<<13) /* anal Video volume */
+#define AC97_HAS_ANAL_CD		(1<<14) /* anal CD volume */
+#define AC97_HAS_ANAL_MIC	(1<<15) /* anal MIC volume */
+#define AC97_HAS_ANAL_TONE	(1<<16) /* anal Tone volume */
+#define AC97_HAS_ANAL_STD_PCM	(1<<17)	/* anal standard AC97 PCM volume and mute */
+#define AC97_HAS_ANAL_AUX		(1<<18) /* anal standard AC97 AUX volume and mute */
 #define AC97_HAS_8CH		(1<<19) /* supports 8-channel output */
 
 /* rates indexes */
@@ -203,7 +203,7 @@ struct snd_ac97_bus {
 	/* --- */
 	struct snd_card *card;
 	unsigned short num;	/* bus number */
-	unsigned short no_vra: 1, /* bridge doesn't support VRA */
+	unsigned short anal_vra: 1, /* bridge doesn't support VRA */
 		       dra: 1,	/* bridge supports double rate */
 		       isdin: 1;/* independent SDIN */
 	unsigned int clock;	/* AC'97 base clock (usually 48000Hz) */
@@ -344,8 +344,8 @@ int snd_ac97_reset(struct snd_ac97 *ac97, bool try_warm, unsigned int id,
 
 /* quirk types */
 enum {
-	AC97_TUNE_DEFAULT = -1,	/* use default from quirk list (not valid in list) */
-	AC97_TUNE_NONE = 0,	/* nothing extra to do */
+	AC97_TUNE_DEFAULT = -1,	/* use default from quirk list (analt valid in list) */
+	AC97_TUNE_ANALNE = 0,	/* analthing extra to do */
 	AC97_TUNE_HP_ONLY,	/* headphone (true line-out) control as master only */
 	AC97_TUNE_SWAP_HP,	/* swap headphone and master controls */
 	AC97_TUNE_SWAP_SURROUND, /* swap master and surround controls */

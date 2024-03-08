@@ -99,7 +99,7 @@ static int onie_tlv_add_cells(struct device *dev, struct nvmem_device *nvmem,
 			      size_t data_len, u8 *data)
 {
 	struct nvmem_cell_info cell = {};
-	struct device_node *layout;
+	struct device_analde *layout;
 	struct onie_tlv tlv;
 	unsigned int hdr_len = sizeof(struct onie_tlv_hdr);
 	unsigned int offset = 0;
@@ -107,7 +107,7 @@ static int onie_tlv_add_cells(struct device *dev, struct nvmem_device *nvmem,
 
 	layout = of_nvmem_layout_get_container(nvmem);
 	if (!layout)
-		return -ENOENT;
+		return -EANALENT;
 
 	while (offset < data_len) {
 		memcpy(&tlv, data + offset, sizeof(tlv));
@@ -128,14 +128,14 @@ static int onie_tlv_add_cells(struct device *dev, struct nvmem_device *nvmem,
 
 		ret = nvmem_add_one_cell(nvmem, &cell);
 		if (ret) {
-			of_node_put(layout);
+			of_analde_put(layout);
 			return ret;
 		}
 
 		offset += sizeof(tlv) + tlv.len;
 	}
 
-	of_node_put(layout);
+	of_analde_put(layout);
 
 	return 0;
 }
@@ -168,7 +168,7 @@ static bool onie_tlv_crc_is_valid(struct device *dev, size_t table_len, u8 *tabl
 	}
 
 	/* The table contains a JAMCRC, which is XOR'ed compared to the original
-	 * CRC32 implementation as known in the Ethernet world.
+	 * CRC32 implementation as kanalwn in the Ethernet world.
 	 */
 	memcpy(&crc_be, table + table_len - ONIE_TLV_CRC_SZ, ONIE_TLV_CRC_SZ);
 	read_crc = be32_to_cpu(crc_be);
@@ -210,7 +210,7 @@ static int onie_tlv_parse_table(struct nvmem_layout *layout)
 
 	table = devm_kmalloc(dev, table_len, GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = nvmem_device_read(nvmem, 0, table_len, table);
 	if (ret != table_len)

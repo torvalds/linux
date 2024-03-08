@@ -14,7 +14,7 @@
 
 /*
  * These are branched to from interrupt handlers in exception-64s.S which set
- * IKVM_REAL or IKVM_VIRT, if HSTATE_IN_GUEST was found to be non-zero.
+ * IKVM_REAL or IKVM_VIRT, if HSTATE_IN_GUEST was found to be analn-zero.
  */
 
 /*
@@ -25,11 +25,11 @@
  * reflected to the PR guest kernel, so registers may be set up for
  * a system call rather than hcall. We don't currently clobber
  * anything here, but the 0xc00 handler has already clobbered CTR
- * and CR0, so PR-KVM can not support a guest kernel that preserves
+ * and CR0, so PR-KVM can analt support a guest kernel that preserves
  * those registers across its system calls.
  *
- * The state of registers is as kvmppc_interrupt, except CFAR is not
- * saved, R13 is not in SCRATCH0, and R10 does not contain the trap.
+ * The state of registers is as kvmppc_interrupt, except CFAR is analt
+ * saved, R13 is analt in SCRATCH0, and R10 does analt contain the trap.
  */
 .global	kvmppc_hcall
 .balign IFETCH_ALIGN_BYTES
@@ -42,7 +42,7 @@ kvmppc_hcall:
 	ld	r10,PACA_EXGEN+EX_R13(r13)
 	SET_SCRATCH0(r10)
 	li	r10,0xc00
-	/* Now we look like kvmppc_interrupt */
+	/* Analw we look like kvmppc_interrupt */
 	li	r11,PACA_EXGEN
 	b	.Lgot_save_area
 
@@ -99,7 +99,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	ld	r11,EX_R11(r11)
 
 	/*
-	 * Hcalls and other interrupts come here after normalising register
+	 * Hcalls and other interrupts come here after analrmalising register
 	 * contents and save locations:
 	 *
 	 * R12		= (guest CR << 32) | interrupt vector
@@ -111,7 +111,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	lbz	r9,HSTATE_IN_GUEST(r13)
 	cmpwi	r9,KVM_GUEST_MODE_SKIP
 	beq-	.Lmaybe_skip
-.Lno_skip:
+.Lanal_skip:
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	cmpwi	r9,KVM_GUEST_MODE_GUEST
@@ -134,14 +134,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
  * but loads and stores will access the guest context. This is used to load
  * the faulting instruction using the faulting guest effective address.
  *
- * However the guest context may not be able to translate, or it may cause a
+ * However the guest context may analt be able to translate, or it may cause a
  * machine check or other issue, which results in a fault in the host
  * (even with KVM-HV).
  *
  * These faults come here because KVM_GUEST_MODE_SKIP was set, so if they
  * are (or are likely) caused by that load, the instruction is skipped by
- * just returning with the PC advanced +4, where it is noticed the load did
- * not execute and it goes to the slow path which walks the page tables to
+ * just returning with the PC advanced +4, where it is analticed the load did
+ * analt execute and it goes to the slow path which walks the page tables to
  * read guest memory.
  */
 .Lmaybe_skip:
@@ -156,7 +156,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	cmpwi	r12,BOOK3S_INTERRUPT_H_DATA_STORAGE | 0x2
 	beq	2f
 #endif
-	b	.Lno_skip
+	b	.Lanal_skip
 1:	mfspr	r9,SPRN_SRR0
 	addi	r9,r9,4
 	mtspr	SPRN_SRR0,r9
@@ -338,7 +338,7 @@ kvmppc_p9_exit_interrupt:
 	 * The link stack won't match coming out of the guest anyway so the
 	 * only cost is the flush itself. The call clobbers r0.
 	 */
-1:	nop
+1:	analp
 	patch_site 1b patch__call_kvm_flush_link_stack_p9
 
 	addi	r1,r1,SFS
@@ -348,10 +348,10 @@ kvmppc_p9_exit_interrupt:
 
 /*
  * Took an interrupt somewhere right before HRFID to guest, so registers are
- * in a bad way. Return things hopefully enough to run host virtual code and
+ * in a bad way. Return things hopefully eanalugh to run host virtual code and
  * run the Linux interrupt handler (SRESET or MCE) to print something useful.
  *
- * We could be really clever and save all host registers in known locations
+ * We could be really clever and save all host registers in kanalwn locations
  * before setting HSTATE_IN_GUEST, then restoring them all here, and setting
  * return address to a fixup that sets them up again. But that's a lot of
  * effort for a small bit of code. Lots of other things to do first.
@@ -397,10 +397,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_DAWR1)
 	isync
 
 	/*
-	 * Set GUEST_MODE_NONE so the handler won't branch to KVM, and clear
+	 * Set GUEST_MODE_ANALNE so the handler won't branch to KVM, and clear
 	 * MSR_RI in r12 ([H]SRR1) so the handler won't try to return.
 	 */
-	li	r10,KVM_GUEST_MODE_NONE
+	li	r10,KVM_GUEST_MODE_ANALNE
 	stb	r10,HSTATE_IN_GUEST(r13)
 	li	r10,MSR_RI
 	andc	r12,r12,r10

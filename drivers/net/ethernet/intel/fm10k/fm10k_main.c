@@ -41,7 +41,7 @@ static int __init fm10k_init_module(void)
 	fm10k_workqueue = alloc_workqueue("%s", WQ_MEM_RECLAIM, 0,
 					  fm10k_driver_name);
 	if (!fm10k_workqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fm10k_dbg_init();
 
@@ -120,7 +120,7 @@ void fm10k_alloc_rx_buffers(struct fm10k_ring *rx_ring, u16 cleaned_count)
 	struct fm10k_rx_buffer *bi;
 	u16 i = rx_ring->next_to_use;
 
-	/* nothing to do */
+	/* analthing to do */
 	if (!cleaned_count)
 		return;
 
@@ -162,13 +162,13 @@ void fm10k_alloc_rx_buffers(struct fm10k_ring *rx_ring, u16 cleaned_count)
 		rx_ring->next_to_alloc = i;
 
 		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch.  (Only
+		 * kanalw there are new descriptors to fetch.  (Only
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64).
 		 */
 		wmb();
 
-		/* notify hardware of new descriptors */
+		/* analtify hardware of new descriptors */
 		writel(i, rx_ring->tail);
 	}
 }
@@ -176,7 +176,7 @@ void fm10k_alloc_rx_buffers(struct fm10k_ring *rx_ring, u16 cleaned_count)
 /**
  * fm10k_reuse_rx_page - page flip buffer and store it back on the ring
  * @rx_ring: rx descriptor ring to store buffers on
- * @old_buff: donor buffer to have page reused
+ * @old_buff: doanalr buffer to have page reused
  *
  * Synchronizes page for reuse by the interface
  **/
@@ -225,7 +225,7 @@ static bool fm10k_can_reuse_rx_page(struct fm10k_rx_buffer *rx_buffer,
 		return false;
 #endif
 
-	/* Even if we own the page, we are not allowed to use atomic_set()
+	/* Even if we own the page, we are analt allowed to use atomic_set()
 	 * This would break get_page_unless_zero() users.
 	 */
 	page_ref_inc(page);
@@ -262,7 +262,7 @@ static bool fm10k_add_rx_frag(struct fm10k_rx_buffer *rx_buffer,
 #endif
 	unsigned int pull_len;
 
-	if (unlikely(skb_is_nonlinear(skb)))
+	if (unlikely(skb_is_analnlinear(skb)))
 		goto add_tail_frag;
 
 	if (likely(size <= FM10K_RX_HDR_LEN)) {
@@ -272,7 +272,7 @@ static bool fm10k_add_rx_frag(struct fm10k_rx_buffer *rx_buffer,
 		if (dev_page_is_reusable(page))
 			return true;
 
-		/* this page cannot be reused so discard it */
+		/* this page cananalt be reused so discard it */
 		__free_page(page);
 		return false;
 	}
@@ -325,7 +325,7 @@ static struct sk_buff *fm10k_fetch_rx_buffer(struct fm10k_ring *rx_ring,
 
 		/* we will be copying header into skb->data in
 		 * pskb_may_pull so it is in our interest to prefetch
-		 * it now to avoid a possible cache miss
+		 * it analw to avoid a possible cache miss
 		 */
 		prefetchw(skb->data);
 	}
@@ -342,7 +342,7 @@ static struct sk_buff *fm10k_fetch_rx_buffer(struct fm10k_ring *rx_ring,
 		/* hand second half of page back to the ring */
 		fm10k_reuse_rx_page(rx_ring, rx_buffer);
 	} else {
-		/* we are not reusing the buffer so unmap it */
+		/* we are analt reusing the buffer so unmap it */
 		dma_unmap_page(rx_ring->dev, rx_buffer->dma,
 			       PAGE_SIZE, DMA_FROM_DEVICE);
 	}
@@ -357,7 +357,7 @@ static inline void fm10k_rx_checksum(struct fm10k_ring *ring,
 				     union fm10k_rx_desc *rx_desc,
 				     struct sk_buff *skb)
 {
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 
 	/* Rx checksum disabled via ethtool */
 	if (!(ring->netdev->features & NETIF_F_RXCSUM))
@@ -478,16 +478,16 @@ static unsigned int fm10k_process_skb_fields(struct fm10k_ring *rx_ring,
 }
 
 /**
- * fm10k_is_non_eop - process handling of non-EOP buffers
+ * fm10k_is_analn_eop - process handling of analn-EOP buffers
  * @rx_ring: Rx ring being processed
  * @rx_desc: Rx descriptor for current buffer
  *
  * This function updates next to clean.  If the buffer is an EOP buffer
  * this function exits returning false, otherwise it will place the
  * sk_buff in the next buffer to be chained and return true indicating
- * that this is in fact a non-EOP buffer.
+ * that this is in fact a analn-EOP buffer.
  **/
-static bool fm10k_is_non_eop(struct fm10k_ring *rx_ring,
+static bool fm10k_is_analn_eop(struct fm10k_ring *rx_ring,
 			     union fm10k_rx_desc *rx_desc)
 {
 	u32 ntc = rx_ring->next_to_clean + 1;
@@ -511,10 +511,10 @@ static bool fm10k_is_non_eop(struct fm10k_ring *rx_ring,
  * @skb: pointer to current skb being fixed
  *
  * Address the case where we are pulling data in on pages only
- * and as such no data is present in the skb header.
+ * and as such anal data is present in the skb header.
  *
- * In addition if skb is not at least 60 bytes we need to pad it so that
- * it is large enough to qualify as a valid Ethernet frame.
+ * In addition if skb is analt at least 60 bytes we need to pad it so that
+ * it is large eanalugh to qualify as a valid Ethernet frame.
  *
  * Returns true if an error was encountered and skb was freed.
  **/
@@ -528,7 +528,7 @@ static bool fm10k_cleanup_headers(struct fm10k_ring *rx_ring,
 	((rxd)->w.csum_err & cpu_to_le16(bit))
 		if (FM10K_TEST_RXD_BIT(rx_desc, FM10K_RXD_ERR_SWITCH_ERROR))
 			rx_ring->rx_stats.switch_errors++;
-		if (FM10K_TEST_RXD_BIT(rx_desc, FM10K_RXD_ERR_NO_DESCRIPTOR))
+		if (FM10K_TEST_RXD_BIT(rx_desc, FM10K_RXD_ERR_ANAL_DESCRIPTOR))
 			rx_ring->rx_stats.drops++;
 		if (FM10K_TEST_RXD_BIT(rx_desc, FM10K_RXD_ERR_PP_ERROR))
 			rx_ring->rx_stats.pp_errors++;
@@ -582,7 +582,7 @@ static int fm10k_clean_rx_irq(struct fm10k_q_vector *q_vector,
 			break;
 
 		/* This memory barrier is needed to keep us from reading
-		 * any other fields out of the rx_desc until we know the
+		 * any other fields out of the rx_desc until we kanalw the
 		 * descriptor has been written back
 		 */
 		dma_rmb();
@@ -596,8 +596,8 @@ static int fm10k_clean_rx_irq(struct fm10k_q_vector *q_vector,
 
 		cleaned_count++;
 
-		/* fetch next buffer in frame if non-eop */
-		if (fm10k_is_non_eop(rx_ring, rx_desc))
+		/* fetch next buffer in frame if analn-eop */
+		if (fm10k_is_analn_eop(rx_ring, rx_desc))
 			continue;
 
 		/* verify the packet layout is correct */
@@ -803,7 +803,7 @@ static void fm10k_tx_csum(struct fm10k_ring *tx_ring,
 	u8 l4_hdr = 0;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
-		goto no_csum;
+		goto anal_csum;
 
 	if (skb->encapsulation) {
 		protocol = fm10k_tx_encap_offload(skb);
@@ -813,7 +813,7 @@ static void fm10k_tx_csum(struct fm10k_ring *tx_ring,
 					 "failed to offload encap csum!\n");
 				tx_ring->tx_stats.csum_err++;
 			}
-			goto no_csum;
+			goto anal_csum;
 		}
 		network_hdr.raw = skb_inner_network_header(skb);
 		transport_hdr = skb_inner_transport_header(skb);
@@ -858,14 +858,14 @@ static void fm10k_tx_csum(struct fm10k_ring *tx_ring,
 		}
 		skb_checksum_help(skb);
 		tx_ring->tx_stats.csum_err++;
-		goto no_csum;
+		goto anal_csum;
 	}
 
 	/* update TX checksum flag */
 	first->tx_flags |= FM10K_TX_FLAGS_CSUM;
 	tx_ring->tx_stats.csum_good++;
 
-no_csum:
+anal_csum:
 	/* populate Tx descriptor header size and mss */
 	tx_desc = FM10K_TX_DESC(tx_ring, tx_ring->next_to_use);
 	tx_desc->hdrlen = 0;
@@ -913,7 +913,7 @@ static int __fm10k_maybe_stop_tx(struct fm10k_ring *tx_ring, u16 size)
 	/* Memory barrier before checking head and tail */
 	smp_mb();
 
-	/* Check again in a case another CPU has just made room available */
+	/* Check again in a case aanalther CPU has just made room available */
 	if (likely(fm10k_desc_unused(tx_ring) < size))
 		return -EBUSY;
 
@@ -1006,10 +1006,10 @@ static void fm10k_tx_map(struct fm10k_ring *tx_ring,
 	/* record bytecount for BQL */
 	netdev_tx_sent_queue(txring_txq(tx_ring), first->bytecount);
 
-	/* record SW timestamp if HW timestamp is not available */
+	/* record SW timestamp if HW timestamp is analt available */
 	skb_tx_timestamp(first->skb);
 
-	/* Force memory writes to complete before letting h/w know there
+	/* Force memory writes to complete before letting h/w kanalw there
 	 * are new descriptors to fetch.  (Only applicable for weak-ordered
 	 * memory model archs, such as IA-64).
 	 *
@@ -1026,7 +1026,7 @@ static void fm10k_tx_map(struct fm10k_ring *tx_ring,
 	/* Make sure there is space in the ring for the next send. */
 	fm10k_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
-	/* notify HW of packet */
+	/* analtify HW of packet */
 	if (netif_xmit_stopped(txring_txq(tx_ring)) || !netdev_xmit_more()) {
 		writel(i, tx_ring->tail);
 	}
@@ -1106,7 +1106,7 @@ static u64 fm10k_get_tx_completed(struct fm10k_ring *ring)
 }
 
 /**
- * fm10k_get_tx_pending - how many Tx descriptors not processed
+ * fm10k_get_tx_pending - how many Tx descriptors analt processed
  * @ring: the ring structure
  * @in_sw: is tx_pending being checked in SW or in HW?
  */
@@ -1196,14 +1196,14 @@ static bool fm10k_clean_tx_irq(struct fm10k_q_vector *q_vector,
 	do {
 		struct fm10k_tx_desc *eop_desc = tx_buffer->next_to_watch;
 
-		/* if next_to_watch is not set then there is no work pending */
+		/* if next_to_watch is analt set then there is anal work pending */
 		if (!eop_desc)
 			break;
 
 		/* prevent any other reads prior to eop_desc */
 		smp_rmb();
 
-		/* if DD is not set pending work has not been completed */
+		/* if DD is analt set pending work has analt been completed */
 		if (!(eop_desc->flags & FM10K_TXD_FLAG_DONE))
 			break;
 
@@ -1299,11 +1299,11 @@ static bool fm10k_clean_tx_irq(struct fm10k_q_vector *q_vector,
 
 		fm10k_tx_timeout_reset(interface);
 
-		/* the netdev is about to reset, no point in enabling stuff */
+		/* the netdev is about to reset, anal point in enabling stuff */
 		return true;
 	}
 
-	/* notify netdev of completed buffers */
+	/* analtify netdev of completed buffers */
 	netdev_tx_completed_queue(txring_txq(tx_ring),
 				  total_packets, total_bytes);
 
@@ -1451,7 +1451,7 @@ static int fm10k_poll(struct napi_struct *napi, int budget)
 			clean_complete = false;
 	}
 
-	/* If all work not completed, return budget and keep polling */
+	/* If all work analt completed, return budget and keep polling */
 	if (!clean_complete)
 		return budget;
 
@@ -1584,7 +1584,7 @@ static void fm10k_reset_num_queues(struct fm10k_intfc *interface)
  * @rxr_count: total number of Rx rings to allocate
  * @rxr_idx: index of first Rx ring to allocate
  *
- * We allocate one q_vector.  If allocation fails we return -ENOMEM.
+ * We allocate one q_vector.  If allocation fails we return -EANALMEM.
  **/
 static int fm10k_alloc_q_vector(struct fm10k_intfc *interface,
 				unsigned int v_count, unsigned int v_idx,
@@ -1600,7 +1600,7 @@ static int fm10k_alloc_q_vector(struct fm10k_intfc *interface,
 	/* allocate q_vector and rings */
 	q_vector = kzalloc(struct_size(q_vector, ring, ring_count), GFP_KERNEL);
 	if (!q_vector)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* initialize NAPI */
 	netif_napi_add(interface->netdev, &q_vector->napi, fm10k_poll);
@@ -1710,7 +1710,7 @@ static void fm10k_free_q_vector(struct fm10k_intfc *interface, int v_idx)
  * @interface: board private structure to initialize
  *
  * We allocate one q_vector per queue interrupt.  If allocation fails we
- * return -ENOMEM.
+ * return -EANALMEM.
  **/
 static int fm10k_alloc_q_vectors(struct fm10k_intfc *interface)
 {
@@ -1759,7 +1759,7 @@ err_out:
 	while (v_idx--)
 		fm10k_free_q_vector(interface, v_idx);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -1814,8 +1814,8 @@ static int fm10k_init_msix_capability(struct fm10k_intfc *interface)
 	v_budget = max(interface->num_rx_queues, interface->num_tx_queues);
 	v_budget = min_t(u16, v_budget, num_online_cpus());
 
-	/* account for vectors not related to queues */
-	v_budget += NON_Q_VECTORS;
+	/* account for vectors analt related to queues */
+	v_budget += ANALN_Q_VECTORS;
 
 	/* At the same time, hardware can only support a maximum of
 	 * hw.mac->max_msix_vectors vectors.  With features
@@ -1829,7 +1829,7 @@ static int fm10k_init_msix_capability(struct fm10k_intfc *interface)
 	interface->msix_entries = kcalloc(v_budget, sizeof(struct msix_entry),
 					  GFP_KERNEL);
 	if (!interface->msix_entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* populate entry values */
 	for (vector = 0; vector < v_budget; vector++)
@@ -1847,7 +1847,7 @@ static int fm10k_init_msix_capability(struct fm10k_intfc *interface)
 	}
 
 	/* record the number of queues available for q_vectors */
-	interface->num_q_vectors = v_budget - NON_Q_VECTORS;
+	interface->num_q_vectors = v_budget - ANALN_Q_VECTORS;
 
 	return 0;
 }
@@ -1941,7 +1941,7 @@ static void fm10k_init_reta(struct fm10k_intfc *interface)
 			goto repopulate_reta;
 		}
 
-		/* do nothing if all of the elements are in bounds */
+		/* do analthing if all of the elements are in bounds */
 		return;
 	}
 

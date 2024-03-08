@@ -22,7 +22,7 @@ __parse_regs(const struct option *opt, const char *str, int unset, bool intr)
 		return 0;
 
 	/*
-	 * cannot set it twice
+	 * cananalt set it twice
 	 */
 	if (*mode)
 		return -1;
@@ -32,7 +32,7 @@ __parse_regs(const struct option *opt, const char *str, int unset, bool intr)
 	else
 		mask = arch__user_reg_mask();
 
-	/* str may be NULL in case no arg is passed to -I */
+	/* str may be NULL in case anal arg is passed to -I */
 	if (str) {
 		/* because str is read-only */
 		s = os = strdup(str);
@@ -63,7 +63,7 @@ __parse_regs(const struct option *opt, const char *str, int unset, bool intr)
 			}
 #endif
 			if (!r || !r->name) {
-				ui__warning("Unknown register \"%s\", check man page or run \"perf record %s?\"\n",
+				ui__warning("Unkanalwn register \"%s\", check man page or run \"perf record %s?\"\n",
 					    s, intr ? "-I" : "--user-regs=");
 				goto error;
 			}

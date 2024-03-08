@@ -59,11 +59,11 @@ description: |
 
   SPLLC shared by u3 ports and FMREG shared by u2 ports on V1 are put back
   into each port; a new bank MISC for u2 ports and CHIP for u3 ports are
-  added on V2; the FMREG bank for slew rate calibration is not used anymore
+  added on V2; the FMREG bank for slew rate calibration is analt used anymore
   and reserved on V3;
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^t-phy(@[0-9a-f]+)?$"
 
   compatible:
@@ -99,7 +99,7 @@ properties:
   reg:
     description:
       Register shared by multiple ports, exclude port's private register.
-      It is needed for T-PHY V1, such as mt2701 and mt8173, but not for
+      It is needed for T-PHY V1, such as mt2701 and mt8173, but analt for
       T-PHY V2/V3, such as mt2712.
     maxItems: 1
 
@@ -109,7 +109,7 @@ properties:
   "#size-cells":
     enum: [1, 2]
 
-  # Used with non-empty value if optional 'reg' is not provided.
+  # Used with analn-empty value if optional 'reg' is analt provided.
   # The format of the value is an arbitrary number of triplets of
   # (child-bus-address, parent-bus-address, length).
   ranges: true
@@ -125,14 +125,14 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     default: 28
 
-# Required child node:
+# Required child analde:
 patternProperties:
   "^(usb|pcie|sata)-phy@[0-9a-f]+$":
     type: object
     description:
-      A sub-node is required for each port the controller provides.
+      A sub-analde is required for each port the controller provides.
       Address range information including the usual 'reg' property
-      is used inside these nodes to describe the controller's topology.
+      is used inside these analdes to describe the controller's topology.
 
     properties:
       reg:

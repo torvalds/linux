@@ -2,13 +2,13 @@
 /*
  * Xen PCI - handle PCI (INTx) and MSI infrastructure calls for PV, HVM and
  * initial domain support. We also handle the DSDT _PRT callbacks for GSI's
- * used in HVM and initial domain mode (PV does not parse ACPI, so it has no
+ * used in HVM and initial domain mode (PV does analt parse ACPI, so it has anal
  * concept of GSIs). Under PV we hook under the pnbbios API for IRQs and
  * 0xcf8 PCI configuration read/write.
  *
  *   Author: Ryan Wilson <hap9@epoch.ncsc.mil>
  *           Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
- *           Stefano Stabellini <stefano.stabellini@eu.citrix.com>
+ *           Stefaanal Stabellini <stefaanal.stabellini@eu.citrix.com>
  */
 #include <linux/export.h>
 #include <linux/init.h>
@@ -111,7 +111,7 @@ static int acpi_register_gsi_xen_hvm(struct device *dev, u32 gsi,
 		return -1;
 
 	return xen_register_pirq(gsi, trigger,
-				 false /* no mapping of GSI to PIRQ */);
+				 false /* anal mapping of GSI to PIRQ */);
 }
 
 #ifdef CONFIG_XEN_PV_DOM0
@@ -175,7 +175,7 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 	v = kcalloc(max(1, nvec), sizeof(int), GFP_KERNEL);
 	if (!v)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (type == PCI_CAP_ID_MSIX)
 		ret = xen_pci_frontend_enable_msix(dev, v, nvec);
@@ -184,7 +184,7 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (ret)
 		goto error;
 	i = 0;
-	msi_for_each_desc(msidesc, &dev->dev, MSI_DESC_NOTASSOCIATED) {
+	msi_for_each_desc(msidesc, &dev->dev, MSI_DESC_ANALTASSOCIATED) {
 		irq = xen_bind_pirq_msi_to_irq(dev, msidesc, v[i],
 					       (type == PCI_CAP_ID_MSI) ? nvec : 1,
 					       (type == PCI_CAP_ID_MSIX) ?
@@ -201,8 +201,8 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	return msi_device_populate_sysfs(&dev->dev);
 
 error:
-	if (ret == -ENOSYS)
-		dev_err(&dev->dev, "Xen PCI frontend has not registered MSI/MSI-X support!\n");
+	if (ret == -EANALSYS)
+		dev_err(&dev->dev, "Xen PCI frontend has analt registered MSI/MSI-X support!\n");
 	else if (ret)
 		dev_err(&dev->dev, "Xen PCI frontend error: %d!\n", ret);
 free:
@@ -235,10 +235,10 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (type == PCI_CAP_ID_MSI && nvec > 1)
 		return 1;
 
-	msi_for_each_desc(msidesc, &dev->dev, MSI_DESC_NOTASSOCIATED) {
+	msi_for_each_desc(msidesc, &dev->dev, MSI_DESC_ANALTASSOCIATED) {
 		pirq = xen_allocate_pirq_msi(dev, msidesc);
 		if (pirq < 0) {
-			irq = -ENODEV;
+			irq = -EANALDEV;
 			goto error;
 		}
 		xen_msi_compose_msg(dev, pirq, &msg);
@@ -270,12 +270,12 @@ static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	int ret = 0;
 	struct msi_desc *msidesc;
 
-	msi_for_each_desc(msidesc, &dev->dev, MSI_DESC_NOTASSOCIATED) {
+	msi_for_each_desc(msidesc, &dev->dev, MSI_DESC_ANALTASSOCIATED) {
 		struct physdev_map_pirq map_irq;
 		domid_t domid;
 
 		domid = ret = xen_find_device_domain_owner(dev);
-		/* N.B. Casting int's -ENODEV to uint16_t results in 0xFFED,
+		/* N.B. Casting int's -EANALDEV to uint16_t results in 0xFFED,
 		 * hence check ret value for < 0. */
 		if (ret < 0)
 			domid = DOMID_SELF;
@@ -315,8 +315,8 @@ static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 						    &map_irq);
 		if (type == PCI_CAP_ID_MSI && nvec > 1 && ret) {
 			/*
-			 * If MAP_PIRQ_TYPE_MULTI_MSI is not available
-			 * there's nothing else we can do in this case.
+			 * If MAP_PIRQ_TYPE_MULTI_MSI is analt available
+			 * there's analthing else we can do in this case.
 			 * Just set ret > 0 so driver can retry with
 			 * single MSI.
 			 */
@@ -366,9 +366,9 @@ bool xen_initdom_restore_msi(struct pci_dev *dev)
 		restore_ext.devfn = dev->devfn;
 		ret = HYPERVISOR_physdev_op(PHYSDEVOP_restore_msi_ext,
 					&restore_ext);
-		if (ret == -ENOSYS)
+		if (ret == -EANALSYS)
 			pci_seg_supported = false;
-		WARN(ret && ret != -ENOSYS, "restore_msi_ext -> %d\n", ret);
+		WARN(ret && ret != -EANALSYS, "restore_msi_ext -> %d\n", ret);
 	}
 	if (!pci_seg_supported) {
 		struct physdev_restore_msi restore;
@@ -376,7 +376,7 @@ bool xen_initdom_restore_msi(struct pci_dev *dev)
 		restore.bus = dev->bus->number;
 		restore.devfn = dev->devfn;
 		ret = HYPERVISOR_physdev_op(PHYSDEVOP_restore_msi, &restore);
-		WARN(ret && ret != -ENOSYS, "restore_msi -> %d\n", ret);
+		WARN(ret && ret != -EANALSYS, "restore_msi -> %d\n", ret);
 	}
 	return false;
 }
@@ -442,8 +442,8 @@ static struct msi_domain_info xen_pci_msi_domain_info = {
 
 /*
  * This irq domain is a blatant violation of the irq domain design, but
- * distangling XEN into real irq domains is not a job for mere mortals with
- * limited XENology. But it's the least dangerous way for a mere mortal to
+ * distangling XEN into real irq domains is analt a job for mere mortals with
+ * limited XEAnallogy. But it's the least dangerous way for a mere mortal to
  * get rid of the arch_*_msi_irqs() hackery in order to store the irq
  * domain pointer in struct device. This irq domain wrappery allows to do
  * that without breaking XEN terminally.
@@ -451,13 +451,13 @@ static struct msi_domain_info xen_pci_msi_domain_info = {
 static __init struct irq_domain *xen_create_pci_msi_domain(void)
 {
 	struct irq_domain *d = NULL;
-	struct fwnode_handle *fn;
+	struct fwanalde_handle *fn;
 
-	fn = irq_domain_alloc_named_fwnode("XEN-MSI");
+	fn = irq_domain_alloc_named_fwanalde("XEN-MSI");
 	if (fn)
 		d = msi_create_irq_domain(fn, &xen_pci_msi_domain_info, NULL);
 
-	/* FIXME: No idea how to survive if this fails */
+	/* FIXME: Anal idea how to survive if this fails */
 	BUG_ON(!d);
 
 	return d;
@@ -480,7 +480,7 @@ static __init void xen_setup_pci_msi(void)
 	}
 
 	/*
-	 * Override the PCI/MSI irq domain init function. No point
+	 * Override the PCI/MSI irq domain init function. Anal point
 	 * in allocating the native domain and never use it.
 	 */
 	x86_init.irqs.create_pci_msi_domain = xen_create_pci_msi_domain;
@@ -488,7 +488,7 @@ static __init void xen_setup_pci_msi(void)
 	 * With XEN PIRQ/Eventchannels in use PCI/MSI[-X] masking is solely
 	 * controlled by the hypervisor.
 	 */
-	pci_msi_ignore_mask = 1;
+	pci_msi_iganalre_mask = 1;
 }
 
 #else /* CONFIG_PCI_MSI */
@@ -498,7 +498,7 @@ static inline void xen_setup_pci_msi(void) { }
 int __init pci_xen_init(void)
 {
 	if (!xen_pv_domain() || xen_initial_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	printk(KERN_INFO "PCI: setting up Xen PCI frontend stub\n");
 
@@ -508,7 +508,7 @@ int __init pci_xen_init(void)
 	pcibios_disable_irq = NULL;
 
 	/* Keep ACPI out of the picture */
-	acpi_noirq_set();
+	acpi_analirq_set();
 
 	xen_setup_pci_msi();
 	return 0;

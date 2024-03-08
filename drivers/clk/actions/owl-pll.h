@@ -67,7 +67,7 @@ struct owl_pll {
 		},							\
 	}
 
-#define OWL_PLL_NO_PARENT(_struct, _name, _reg, _bfreq, _bit_idx,	\
+#define OWL_PLL_ANAL_PARENT(_struct, _name, _reg, _bfreq, _bit_idx,	\
 		_shift, _width, _min_mul, _max_mul, _table, _flags)	\
 	struct owl_pll _struct = {					\
 		.pll_hw	= OWL_PLL_HW(_reg, _bfreq, _bit_idx, _shift,	\
@@ -75,13 +75,13 @@ struct owl_pll {
 				     OWL_PLL_DEF_DELAY,	_table),	\
 		.common = {						\
 			.regmap = NULL,					\
-			.hw.init = CLK_HW_INIT_NO_PARENT(_name,		\
+			.hw.init = CLK_HW_INIT_ANAL_PARENT(_name,		\
 					       &owl_pll_ops,		\
 					       _flags),			\
 		},							\
 	}
 
-#define OWL_PLL_NO_PARENT_DELAY(_struct, _name, _reg, _bfreq, _bit_idx,	\
+#define OWL_PLL_ANAL_PARENT_DELAY(_struct, _name, _reg, _bfreq, _bit_idx,	\
 		_shift, _width, _min_mul, _max_mul, _delay, _table,	\
 		_flags)							\
 	struct owl_pll _struct = {					\
@@ -90,7 +90,7 @@ struct owl_pll {
 				     _delay, _table),			\
 		.common = {						\
 			.regmap = NULL,					\
-			.hw.init = CLK_HW_INIT_NO_PARENT(_name,		\
+			.hw.init = CLK_HW_INIT_ANAL_PARENT(_name,		\
 					       &owl_pll_ops,		\
 					       _flags),			\
 		},							\

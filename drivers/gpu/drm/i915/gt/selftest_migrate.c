@@ -180,8 +180,8 @@ static int intel_context_copy_ccs(struct intel_context *ce,
 			deps = NULL;
 		}
 
-		/* The PTE updates + clear must not be interrupted. */
-		err = emit_no_arbitration(rq);
+		/* The PTE updates + clear must analt be interrupted. */
+		err = emit_anal_arbitration(rq);
 		if (err)
 			goto out_rq;
 
@@ -232,7 +232,7 @@ intel_migrate_ccs_copy(struct intel_migrate *m,
 
 	*out = NULL;
 	if (!m->context)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ce = intel_migrate_create_context(m);
 	if (IS_ERR(ce))
@@ -563,7 +563,7 @@ static int live_emit_pte_full_ring(void *arg)
 	 */
 
 	if (igt_spinner_init(&st.spin, to_gt(i915)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	obj = i915_gem_object_create_internal(i915, 2 * PAGE_SIZE);
 	if (IS_ERR(obj)) {
@@ -581,7 +581,7 @@ static int live_emit_pte_full_ring(void *arg)
 		goto out_obj;
 	}
 
-	ce->ring_size = SZ_4K; /* Not too big */
+	ce->ring_size = SZ_4K; /* Analt too big */
 
 	err = intel_context_pin(ce);
 	if (err)
@@ -629,7 +629,7 @@ static int live_emit_pte_full_ring(void *arg)
 			goto out_rq;
 		}
 
-		memset32(cs, MI_NOOP, sz);
+		memset32(cs, MI_ANALOP, sz);
 		cs += sz;
 		intel_ring_advance(rq, cs);
 
@@ -903,7 +903,7 @@ static int perf_clear_blt(void *arg)
 		err = __perf_clear_blt(gt->migrate.context,
 				       dst->mm.pages->sgl,
 				       i915_gem_get_pat_index(gt->i915,
-							      I915_CACHE_NONE),
+							      I915_CACHE_ANALNE),
 				       i915_gem_object_is_lmem(dst),
 				       sizes[i]);
 
@@ -994,11 +994,11 @@ static int perf_copy_blt(void *arg)
 		err = __perf_copy_blt(gt->migrate.context,
 				      src->mm.pages->sgl,
 				      i915_gem_get_pat_index(gt->i915,
-							     I915_CACHE_NONE),
+							     I915_CACHE_ANALNE),
 				      i915_gem_object_is_lmem(src),
 				      dst->mm.pages->sgl,
 				      i915_gem_get_pat_index(gt->i915,
-							     I915_CACHE_NONE),
+							     I915_CACHE_ANALNE),
 				      i915_gem_object_is_lmem(dst),
 				      sz);
 

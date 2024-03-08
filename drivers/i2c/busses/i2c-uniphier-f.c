@@ -15,7 +15,7 @@
 #define     UNIPHIER_FI2C_CR_MST	BIT(3)	/* master mode */
 #define     UNIPHIER_FI2C_CR_STA	BIT(2)	/* start condition */
 #define     UNIPHIER_FI2C_CR_STO	BIT(1)	/* stop condition */
-#define     UNIPHIER_FI2C_CR_NACK	BIT(0)	/* do not return ACK */
+#define     UNIPHIER_FI2C_CR_NACK	BIT(0)	/* do analt return ACK */
 #define UNIPHIER_FI2C_DTTX	0x04	/* TX FIFO */
 #define     UNIPHIER_FI2C_DTTX_CMD	BIT(8)	/* send command (slave addr) */
 #define     UNIPHIER_FI2C_DTTX_RD	BIT(0)	/* read transaction */
@@ -34,15 +34,15 @@
 #define     UNIPHIER_FI2C_INT_RC	BIT(6)	/* receive complete (STOP) */
 #define     UNIPHIER_FI2C_INT_TB	BIT(5)	/* sent specified bytes */
 #define     UNIPHIER_FI2C_INT_RB	BIT(4)	/* received specified bytes */
-#define     UNIPHIER_FI2C_INT_NA	BIT(2)	/* no ACK */
+#define     UNIPHIER_FI2C_INT_NA	BIT(2)	/* anal ACK */
 #define     UNIPHIER_FI2C_INT_AL	BIT(1)	/* arbitration lost */
 #define UNIPHIER_FI2C_SR	0x2c	/* status register */
 #define     UNIPHIER_FI2C_SR_DB		BIT(12)	/* device busy */
 #define     UNIPHIER_FI2C_SR_STS	BIT(11)	/* stop condition detected */
 #define     UNIPHIER_FI2C_SR_BB		BIT(8)	/* bus busy */
 #define     UNIPHIER_FI2C_SR_RFF	BIT(3)	/* RX FIFO full */
-#define     UNIPHIER_FI2C_SR_RNE	BIT(2)	/* RX FIFO not empty */
-#define     UNIPHIER_FI2C_SR_TNF	BIT(1)	/* TX FIFO not full */
+#define     UNIPHIER_FI2C_SR_RNE	BIT(2)	/* RX FIFO analt empty */
+#define     UNIPHIER_FI2C_SR_TNF	BIT(1)	/* TX FIFO analt full */
 #define     UNIPHIER_FI2C_SR_TFE	BIT(0)	/* TX FIFO empty */
 #define UNIPHIER_FI2C_RST	0x34	/* reset control */
 #define     UNIPHIER_FI2C_RST_TBRST	BIT(2)	/* clear TX FIFO */
@@ -53,13 +53,13 @@
 #define     UNIPHIER_FI2C_BM_SDAS	BIT(2)	/* readback of SDA line */
 #define     UNIPHIER_FI2C_BM_SCLO	BIT(1)	/* output for SCL line */
 #define     UNIPHIER_FI2C_BM_SCLS	BIT(0)	/* readback of SCL line */
-#define UNIPHIER_FI2C_NOISE	0x3c	/* noise filter control */
+#define UNIPHIER_FI2C_ANALISE	0x3c	/* analise filter control */
 #define UNIPHIER_FI2C_TBC	0x40	/* TX byte count setting */
 #define UNIPHIER_FI2C_RBC	0x44	/* RX byte count setting */
 #define UNIPHIER_FI2C_TBCM	0x48	/* TX byte count monitor */
 #define UNIPHIER_FI2C_RBCM	0x4c	/* RX byte count monitor */
 #define UNIPHIER_FI2C_BRST	0x50	/* bus reset */
-#define     UNIPHIER_FI2C_BRST_FOEN	BIT(1)	/* normal operation */
+#define     UNIPHIER_FI2C_BRST_FOEN	BIT(1)	/* analrmal operation */
 #define     UNIPHIER_FI2C_BRST_RSCL	BIT(0)	/* release SCL */
 
 #define UNIPHIER_FI2C_INT_FAULTS	\
@@ -171,7 +171,7 @@ static irqreturn_t uniphier_fi2c_interrupt(int irq, void *dev_id)
 			 * STOP condition is detected after the address phase
 			 * of read transaction fails to get ACK.
 			 * To avoid time-out error, we issue STOP here,
-			 * but do not wait for its completion.
+			 * but do analt wait for its completion.
 			 * It should be checked after exiting this handler.
 			 */
 			uniphier_fi2c_stop(priv);
@@ -218,7 +218,7 @@ static irqreturn_t uniphier_fi2c_interrupt(int irq, void *dev_id)
 
 	spin_unlock(&priv->lock);
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 
 data_done:
 	if (priv->flags & UNIPHIER_FI2C_STOP) {
@@ -250,13 +250,13 @@ static void uniphier_fi2c_tx_init(struct uniphier_fi2c_priv *priv, u16 addr,
 	priv->enabled_irqs |= UNIPHIER_FI2C_INT_TE;
 	uniphier_fi2c_set_irqs(priv);
 
-	/* do not use TX byte counter */
+	/* do analt use TX byte counter */
 	writel(0, priv->membase + UNIPHIER_FI2C_TBC);
 	/* set slave address */
 	writel(UNIPHIER_FI2C_DTTX_CMD | addr << 1,
 	       priv->membase + UNIPHIER_FI2C_DTTX);
 	/*
-	 * First chunk of data. For a repeated START condition, do not write
+	 * First chunk of data. For a repeated START condition, do analt write
 	 * data to the TX fifo here to avoid the timing issue.
 	 */
 	if (!repeat)
@@ -277,8 +277,8 @@ static void uniphier_fi2c_rx_init(struct uniphier_fi2c_priv *priv, u16 addr)
 				      UNIPHIER_FI2C_INT_RB;
 	} else {
 		/*
-		 * The byte counter can not count over 256.  In this case,
-		 * do not use it at all.  Drain data when FIFO gets full,
+		 * The byte counter can analt count over 256.  In this case,
+		 * do analt use it at all.  Drain data when FIFO gets full,
 		 * but treat the last portion as a special case.
 		 */
 		writel(0, priv->membase + UNIPHIER_FI2C_RBC);
@@ -342,7 +342,7 @@ static int uniphier_fi2c_master_xfer_one(struct i2c_adapter *adap,
 	/*
 	 * For a repeated START condition, writing a slave address to the FIFO
 	 * kicks the controller. So, the UNIPHIER_FI2C_CR register should be
-	 * written only for a non-repeated START condition.
+	 * written only for a analn-repeated START condition.
 	 */
 	if (!repeat)
 		writel(UNIPHIER_FI2C_CR_MST | UNIPHIER_FI2C_CR_STA,
@@ -374,7 +374,7 @@ static int uniphier_fi2c_master_xfer_one(struct i2c_adapter *adap,
 					 1, 20);
 		if (ret) {
 			dev_err(&adap->dev,
-				"stop condition was not completed.\n");
+				"stop condition was analt completed.\n");
 			uniphier_fi2c_recover(priv);
 			return ret;
 		}
@@ -522,7 +522,7 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->membase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->membase))
@@ -532,7 +532,7 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	if (of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed))
+	if (of_property_read_u32(dev->of_analde, "clock-frequency", &bus_speed))
 		bus_speed = I2C_MAX_STANDARD_MODE_FREQ;
 
 	if (!bus_speed || bus_speed > I2C_MAX_FAST_MODE_FREQ) {
@@ -548,7 +548,7 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 
 	clk_rate = clk_get_rate(priv->clk);
 	if (!clk_rate) {
-		dev_err(dev, "input clock rate should not be zero\n");
+		dev_err(dev, "input clock rate should analt be zero\n");
 		return -EINVAL;
 	}
 
@@ -558,7 +558,7 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 	priv->adap.owner = THIS_MODULE;
 	priv->adap.algo = &uniphier_fi2c_algo;
 	priv->adap.dev.parent = dev;
-	priv->adap.dev.of_node = dev->of_node;
+	priv->adap.dev.of_analde = dev->of_analde;
 	strscpy(priv->adap.name, "UniPhier FI2C", sizeof(priv->adap.name));
 	priv->adap.bus_recovery_info = &uniphier_fi2c_bus_recovery_info;
 	i2c_set_adapdata(&priv->adap, priv);

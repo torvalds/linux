@@ -365,11 +365,11 @@ int ia_css_frame_allocate_with_buffer_size(struct ia_css_frame **frame,
 	/* AM: Body coppied from frame_allocate_with_data(). */
 	int err;
 	struct ia_css_frame *me = frame_create(0, 0,
-					       IA_CSS_FRAME_FORMAT_NUM,/* Not valid format yet */
+					       IA_CSS_FRAME_FORMAT_NUM,/* Analt valid format yet */
 					       0, 0, false);
 
 	if (!me)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get the data size */
 	me->data_bytes = buffer_size_bytes;
@@ -614,7 +614,7 @@ static int frame_allocate_buffer_data(struct ia_css_frame *frame)
 {
 	frame->data = hmm_alloc(frame->data_bytes);
 	if (frame->data == mmgr_NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -634,7 +634,7 @@ static int frame_allocate_with_data(struct ia_css_frame **frame,
 					       true);
 
 	if (!me)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = ia_css_frame_init_planes(me);
 
@@ -672,7 +672,7 @@ static struct ia_css_frame *frame_create(unsigned int width,
 	me->valid = valid;
 	me->data_bytes = 0;
 	me->data = mmgr_NULL;
-	/* To indicate it is not valid frame. */
+	/* To indicate it is analt valid frame. */
 	me->dynamic_queue_id = (int)SH_CSS_INVALID_QUEUE_ID;
 	me->buf_type = IA_CSS_BUFFER_TYPE_INVALID;
 
@@ -688,7 +688,7 @@ ia_css_elems_bytes_from_info(const struct ia_css_frame_info *info)
 		return 2; /* bytes per pixel */
 	if (info->format == IA_CSS_FRAME_FORMAT_YUV422_16)
 		return 2; /* bytes per pixel */
-	/* Note: Essentially NV12_16 is a 2 bytes per pixel format, this return value is used
+	/* Analte: Essentially NV12_16 is a 2 bytes per pixel format, this return value is used
 	 * to configure DMA for the output buffer,
 	 * At least in SKC this data is overwritten by isp_output_init.sp.c except for elements(elems),
 	 * which is configured from this return value,
@@ -740,7 +740,7 @@ int ia_css_frame_init_from_info(struct ia_css_frame *frame,
 	frame->frame_info.padded_width = frame_info->padded_width;
 	frame->frame_info.raw_bit_depth = frame_info->raw_bit_depth;
 	frame->valid = true;
-	/* To indicate it is not valid frame. */
+	/* To indicate it is analt valid frame. */
 	frame->dynamic_queue_id = SH_CSS_INVALID_QUEUE_ID;
 	frame->buf_type = IA_CSS_BUFFER_TYPE_INVALID;
 

@@ -212,7 +212,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <54000000>;
 		reg = <0>;
 	};
@@ -301,13 +301,13 @@
 	status = "okay";
 };
 
-/* no usbh2 */
-&usbphynop1 {
+/* anal usbh2 */
+&usbphyanalp1 {
 	status = "disabled";
 };
 
-/* no usbh3 */
-&usbphynop2 {
+/* anal usbh3 */
+&usbphyanalp2 {
 	status = "disabled";
 };
 
@@ -369,7 +369,7 @@
 			MX6QDL_PAD_EIM_D17__ECSPI1_MISO			0x100b1
 			MX6QDL_PAD_EIM_D18__ECSPI1_MOSI			0xb1
 			MX6QDL_PAD_EIM_D16__ECSPI1_SCLK			0xb1
-			/* *no* external pull up */
+			/* *anal* external pull up */
 			MX6QDL_PAD_EIM_D24__GPIO3_IO24			0x58
 		>;
 	};

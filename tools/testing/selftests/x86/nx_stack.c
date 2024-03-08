@@ -3,18 +3,18 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 /*
- * Test that userspace stack is NX. Requires linking with -Wl,-z,noexecstack
+ * Test that userspace stack is NX. Requires linking with -Wl,-z,analexecstack
  * because I don't want to bother with PT_GNU_STACK detection.
  *
  * Fill the stack with INT3's and then try to execute some of them:
@@ -180,7 +180,7 @@ int main(void)
 		struct rlimit rlim;
 		int rv = getrlimit(RLIMIT_STACK, &rlim);
 		assert(rv == 0);
-		/* Cap stack at time-honored 8 MiB value. */
+		/* Cap stack at time-hoanalred 8 MiB value. */
 		rlim.rlim_max = rlim.rlim_cur;
 		if (rlim.rlim_max > 8 * 1024 * 1024) {
 			rlim.rlim_max = 8 * 1024 * 1024;
@@ -190,12 +190,12 @@ int main(void)
 	}
 	{
 		/*
-		 * We don't know now much stack SIGSEGV handler uses.
+		 * We don't kanalw analw much stack SIGSEGV handler uses.
 		 * Bump this by 1 page every time someone complains,
 		 * or rewrite it in assembly.
 		 */
 		const size_t len = SIGSTKSZ;
-		void *p = mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+		void *p = mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_AANALNYMOUS, -1, 0);
 		assert(p != MAP_FAILED);
 		stack_t ss = {};
 		ss.ss_sp = p;

@@ -69,7 +69,7 @@
 				compatible = "syscon-reboot-mode";
 				offset = <0x65c>;
 
-				mode-normal = <0x77665501>;
+				mode-analrmal = <0x77665501>;
 				mode-bootloader = <0x77665500>;
 				mode-recovery = <0x77665502>;
 			};

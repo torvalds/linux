@@ -77,7 +77,7 @@ test_gretap()
 	RET=0
 	mirror_install $swp1 ingress gt4 "matchall $tcflags"
 
-	# For IPv4, test that there's no mirroring without the route directing
+	# For IPv4, test that there's anal mirroring without the route directing
 	# the traffic to tunnel remote address. Then add it and test that
 	# mirroring starts. For IPv6 we can't test this due to the limitation
 	# that routes for locally-specified IPv6 addresses can't be added.
@@ -122,7 +122,7 @@ tcflags="skip_hw"
 test_all
 
 if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
+	echo "WARN: Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	test_all

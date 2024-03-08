@@ -61,7 +61,7 @@ static int adv748x_csi2_register_link(struct adv748x_csi2 *tx,
  * v4l2_subdev_internal_ops
  *
  * We use the internal registered operation to be able to ensure that our
- * incremental subdevices (not connected in the forward path) can be registered
+ * incremental subdevices (analt connected in the forward path) can be registered
  * against the resulting video path and media device.
  */
 
@@ -75,7 +75,7 @@ static int adv748x_csi2_registered(struct v4l2_subdev *sd)
 			sd->name);
 
 	/*
-	 * Link TXA to AFE and HDMI, and TXB to AFE only as TXB cannot output
+	 * Link TXA to AFE and HDMI, and TXB to AFE only as TXB cananalt output
 	 * HDMI.
 	 *
 	 * The HDMI->TXA link is enabled by default, as is the AFE->TXB one.
@@ -135,7 +135,7 @@ static const struct v4l2_subdev_video_ops adv748x_csi2_video_ops = {
 /* -----------------------------------------------------------------------------
  * v4l2_subdev_pad_ops
  *
- * The CSI2 bus pads are ignorant to the data sizes or formats.
+ * The CSI2 bus pads are iganalrant to the data sizes or formats.
  * But we must support setting the pad formats for format propagation.
  */
 
@@ -312,7 +312,7 @@ int adv748x_csi2_init(struct adv748x_state *state, struct adv748x_csi2 *tx)
 		return ret;
 
 	ret = v4l2_async_subdev_endpoint_add(&tx->sd,
-					     of_fwnode_handle(state->endpoints[tx->port]));
+					     of_fwanalde_handle(state->endpoints[tx->port]));
 	if (ret)
 		goto err_free_media;
 

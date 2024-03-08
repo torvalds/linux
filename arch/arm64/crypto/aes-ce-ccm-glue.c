@@ -277,7 +277,7 @@ static struct aead_alg ccm_aes_alg = {
 static int __init aes_mod_init(void)
 {
 	if (!cpu_have_named_feature(AES))
-		return -ENODEV;
+		return -EANALDEV;
 	return crypto_register_aead(&ccm_aes_alg);
 }
 
@@ -289,7 +289,7 @@ static void __exit aes_mod_exit(void)
 module_init(aes_mod_init);
 module_exit(aes_mod_exit);
 
-MODULE_DESCRIPTION("Synchronous AES in CCM mode using ARMv8 Crypto Extensions");
+MODULE_DESCRIPTION("Synchroanalus AES in CCM mode using ARMv8 Crypto Extensions");
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("ccm(aes)");

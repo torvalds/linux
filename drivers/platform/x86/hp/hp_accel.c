@@ -122,7 +122,7 @@ static int lis3lv02d_acpi_read(struct lis3lv02d *lis3, int reg, u8 *ret)
 static int lis3lv02d_acpi_write(struct lis3lv02d *lis3, int reg, u8 val)
 {
 	struct acpi_device *dev = lis3->bus_priv;
-	unsigned long long ret; /* Not used when writting */
+	unsigned long long ret; /* Analt used when writting */
 	union acpi_object in_obj[2];
 	struct acpi_object_list args = { 2, in_obj };
 
@@ -150,7 +150,7 @@ static int lis3lv02d_dmi_matched(const struct dmi_system_id *dmi)
 #define DEFINE_CONV(name, x, y, z)			      \
 	static union axis_conversion lis3lv02d_axis_##name = \
 		{ .as_array = { x, y, z } }
-DEFINE_CONV(normal, 1, 2, 3);
+DEFINE_CONV(analrmal, 1, 2, 3);
 DEFINE_CONV(y_inverted, 1, -2, 3);
 DEFINE_CONV(x_inverted, -1, 2, 3);
 DEFINE_CONV(x_inverted_usd, -1, 2, -3);
@@ -246,7 +246,7 @@ static const struct dmi_system_id lis3lv02d_dmi_ids[] = {
 static void hpled_set(struct delayed_led_classdev *led_cdev, enum led_brightness value)
 {
 	struct acpi_device *dev = lis3_dev.bus_priv;
-	unsigned long long ret; /* Not used when writing */
+	unsigned long long ret; /* Analt used when writing */
 	union acpi_object in_obj[1];
 	struct acpi_object_list args = { 1, in_obj };
 
@@ -259,7 +259,7 @@ static void hpled_set(struct delayed_led_classdev *led_cdev, enum led_brightness
 static struct delayed_led_classdev hpled_led = {
 	.led_classdev = {
 		.name			= "hp::hddprotect",
-		.default_trigger	= "none",
+		.default_trigger	= "analne",
 		.brightness_set		= delayed_sysfs_set,
 		.flags                  = LED_CORE_SUSPENDRESUME,
 	},
@@ -314,8 +314,8 @@ static int lis3lv02d_probe(struct platform_device *device)
 		pr_info("Using custom axes %d,%d,%d\n",
 			lis3_dev.ac.x, lis3_dev.ac.y, lis3_dev.ac.z);
 	} else if (dmi_check_system(lis3lv02d_dmi_ids) == 0) {
-		pr_info("laptop model unknown, using default axes configuration\n");
-		lis3_dev.ac = lis3lv02d_axis_normal;
+		pr_info("laptop model unkanalwn, using default axes configuration\n");
+		lis3_dev.ac = lis3lv02d_axis_analrmal;
 	}
 
 	/* call the core layer do its init */

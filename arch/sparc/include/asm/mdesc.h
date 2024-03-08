@@ -16,15 +16,15 @@ struct mdesc_handle;
 struct mdesc_handle *mdesc_grab(void);
 void mdesc_release(struct mdesc_handle *);
 
-#define MDESC_NODE_NULL		(~(u64)0)
+#define MDESC_ANALDE_NULL		(~(u64)0)
 #define MDESC_MAX_STR_LEN	256
 
-u64 mdesc_node_by_name(struct mdesc_handle *handle,
-		       u64 from_node, const char *name);
-#define mdesc_for_each_node_by_name(__hdl, __node, __name) \
-	for (__node = mdesc_node_by_name(__hdl, MDESC_NODE_NULL, __name); \
-	     (__node) != MDESC_NODE_NULL; \
-	     __node = mdesc_node_by_name(__hdl, __node, __name))
+u64 mdesc_analde_by_name(struct mdesc_handle *handle,
+		       u64 from_analde, const char *name);
+#define mdesc_for_each_analde_by_name(__hdl, __analde, __name) \
+	for (__analde = mdesc_analde_by_name(__hdl, MDESC_ANALDE_NULL, __name); \
+	     (__analde) != MDESC_ANALDE_NULL; \
+	     __analde = mdesc_analde_by_name(__hdl, __analde, __name))
 
 /* Access to property values returned from mdesc_get_property() are
  * only valid inside of a mdesc_grab()/mdesc_release() sequence.
@@ -34,16 +34,16 @@ u64 mdesc_node_by_name(struct mdesc_handle *handle,
  * Therefore callers must make copies of any property values
  * they need.
  *
- * These same rules apply to mdesc_node_name().
+ * These same rules apply to mdesc_analde_name().
  */
 const void *mdesc_get_property(struct mdesc_handle *handle,
-			       u64 node, const char *name, int *lenp);
-const char *mdesc_node_name(struct mdesc_handle *hp, u64 node);
+			       u64 analde, const char *name, int *lenp);
+const char *mdesc_analde_name(struct mdesc_handle *hp, u64 analde);
 
 /* MD arc iteration, the standard sequence is:
  *
  *	unsigned long arc;
- *	mdesc_for_each_arc(arc, handle, node, MDESC_ARC_TYPE_{FWD,BACK}) {
+ *	mdesc_for_each_arc(arc, handle, analde, MDESC_ARC_TYPE_{FWD,BACK}) {
  *		unsigned long target = mdesc_arc_target(handle, arc);
  *		...
  *	}
@@ -54,27 +54,27 @@ const char *mdesc_node_name(struct mdesc_handle *hp, u64 node);
 
 u64 mdesc_next_arc(struct mdesc_handle *handle, u64 from,
 		   const char *arc_type);
-#define mdesc_for_each_arc(__arc, __hdl, __node, __type) \
-	for (__arc = mdesc_next_arc(__hdl, __node, __type); \
-	     (__arc) != MDESC_NODE_NULL; \
+#define mdesc_for_each_arc(__arc, __hdl, __analde, __type) \
+	for (__arc = mdesc_next_arc(__hdl, __analde, __type); \
+	     (__arc) != MDESC_ANALDE_NULL; \
 	     __arc = mdesc_next_arc(__hdl, __arc, __type))
 
 u64 mdesc_arc_target(struct mdesc_handle *hp, u64 arc);
 
 void mdesc_update(void);
 
-struct mdesc_notifier_client {
-	void (*add)(struct mdesc_handle *handle, u64 node,
-		    const char *node_name);
-	void (*remove)(struct mdesc_handle *handle, u64 node,
-		       const char *node_name);
-	const char			*node_name;
-	struct mdesc_notifier_client	*next;
+struct mdesc_analtifier_client {
+	void (*add)(struct mdesc_handle *handle, u64 analde,
+		    const char *analde_name);
+	void (*remove)(struct mdesc_handle *handle, u64 analde,
+		       const char *analde_name);
+	const char			*analde_name;
+	struct mdesc_analtifier_client	*next;
 };
 
-void mdesc_register_notifier(struct mdesc_notifier_client *client);
+void mdesc_register_analtifier(struct mdesc_analtifier_client *client);
 
-union md_node_info {
+union md_analde_info {
 	struct vdev_port {
 		u64 id;				/* id */
 		u64 parent_cfg_hdl;		/* parent config handle */
@@ -85,10 +85,10 @@ union md_node_info {
 	} ds_port;
 };
 
-u64 mdesc_get_node(struct mdesc_handle *hp, const char *node_name,
-		   union md_node_info *node_info);
-int mdesc_get_node_info(struct mdesc_handle *hp, u64 node,
-			const char *node_name, union md_node_info *node_info);
+u64 mdesc_get_analde(struct mdesc_handle *hp, const char *analde_name,
+		   union md_analde_info *analde_info);
+int mdesc_get_analde_info(struct mdesc_handle *hp, u64 analde,
+			const char *analde_name, union md_analde_info *analde_info);
 
 void mdesc_fill_in_cpu_data(cpumask_t *mask);
 void mdesc_populate_present_mask(cpumask_t *mask);

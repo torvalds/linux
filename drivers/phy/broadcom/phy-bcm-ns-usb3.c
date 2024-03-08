@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Broadcom Northstar USB 3.0 PHY Driver
+ * Broadcom Analrthstar USB 3.0 PHY Driver
  *
  * Copyright (C) 2016 Rafał Miłecki <rafal@milecki.pl>
  * Copyright (C) 2016 Broadcom
@@ -41,7 +41,7 @@
 #define BCM_NS_USB3_LFPS_DEGLITCH	0x03
 
 enum bcm_ns_family {
-	BCM_NS_UNKNOWN,
+	BCM_NS_UNKANALWN,
 	BCM_NS_AX,
 	BCM_NS_BX,
 };
@@ -164,7 +164,7 @@ static int bcm_ns_usb3_phy_init(struct phy *phy)
 		break;
 	default:
 		WARN_ON(1);
-		err = -ENOTSUPP;
+		err = -EANALTSUPP;
 	}
 
 	return err;
@@ -191,23 +191,23 @@ static int bcm_ns_usb3_mdio_probe(struct mdio_device *mdiodev)
 {
 	struct device *dev = &mdiodev->dev;
 	struct phy_provider *phy_provider;
-	struct device_node *syscon_np;
+	struct device_analde *syscon_np;
 	struct bcm_ns_usb3 *usb3;
 	struct resource res;
 	int err;
 
 	usb3 = devm_kzalloc(dev, sizeof(*usb3), GFP_KERNEL);
 	if (!usb3)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb3->dev = dev;
 	usb3->mdiodev = mdiodev;
 
 	usb3->family = (enum bcm_ns_family)device_get_match_data(dev);
 
-	syscon_np = of_parse_phandle(dev->of_node, "usb3-dmp-syscon", 0);
+	syscon_np = of_parse_phandle(dev->of_analde, "usb3-dmp-syscon", 0);
 	err = of_address_to_resource(syscon_np, 0, &res);
-	of_node_put(syscon_np);
+	of_analde_put(syscon_np);
 	if (err)
 		return err;
 

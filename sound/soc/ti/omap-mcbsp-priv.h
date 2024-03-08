@@ -207,7 +207,7 @@ enum {
 #define MCBSP_CLKS_PRCM_SRC	0
 #define MCBSP_CLKS_PAD_SRC	1
 
-/* we don't do multichannel for now */
+/* we don't do multichannel for analw */
 struct omap_mcbsp_reg_cfg {
 	u16 spcr2;
 	u16 spcr1;
@@ -248,7 +248,7 @@ struct omap_mcbsp {
 	u8 id;
 	/*
 	 * Flags indicating is the bus already activated and configured by
-	 * another substream
+	 * aanalther substream
 	 */
 	int active;
 	int configured;

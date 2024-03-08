@@ -15,15 +15,15 @@ provide information to the user or system administrator.  One useful
 technique is the creation of virtual files, in debugfs, /proc or elsewhere.
 Virtual files can provide human-readable output that is easy to get at
 without any special utility programs; they can also make life easier for
-script writers. It is not surprising that the use of virtual files has
+script writers. It is analt surprising that the use of virtual files has
 grown over the years.
 
 Creating those files correctly has always been a bit of a challenge,
-however. It is not that hard to make a virtual file which returns a
+however. It is analt that hard to make a virtual file which returns a
 string. But life gets trickier if the output is long - anything greater
 than an application is likely to read in a single operation.  Handling
 multiple reads (and seeks) requires careful attention to the reader's
-position within the virtual file - that position is, likely as not, in the
+position within the virtual file - that position is, likely as analt, in the
 middle of a line of output. The kernel has traditionally had a number of
 implementations that got this wrong.
 
@@ -54,7 +54,7 @@ following::
     dd if=/proc/sequence skip=1 of=out2 count=1
 
 Then concatenate the output files out1 and out2 and get the right
-result. Yes, it is a thoroughly useless module, but the point is to show
+result. Anal, it is a thoroughly useless module, but the point is to show
 how the mechanism works without getting lost in other details.  (Those
 wanting to see the full source for this module can find it at
 https://lwn.net/Articles/22359/).
@@ -62,7 +62,7 @@ https://lwn.net/Articles/22359/).
 Deprecated create_proc_entry
 ============================
 
-Note that the above article uses create_proc_entry which was removed in
+Analte that the above article uses create_proc_entry which was removed in
 kernel 3.10. Current versions require the following update::
 
     -	entry = create_proc_entry("sequence", 0, NULL);
@@ -79,7 +79,7 @@ during a "session" (roughly one read() system call).  If the iterator
 is able to move to a specific position - like the file they implement,
 though with freedom to map the position number to a sequence location
 in whatever way is convenient - the iterator need only exist
-transiently during a session.  If the iterator cannot easily find a
+transiently during a session.  If the iterator cananalt easily find a
 numerical position but works well with a first/next interface, the
 iterator can be stored in the private data area and continue from one
 session to the next.
@@ -92,7 +92,7 @@ might record a pointer into that list, providing that can be done
 without risk of the current location being removed.
 
 Positioning can thus be done in whatever way makes the most sense for
-the generator of the data, which need not be aware of how a position
+the generator of the data, which need analt be aware of how a position
 translates to an offset in the virtual file. The one obvious exception
 is that a position of zero should indicate the beginning of the file.
 
@@ -118,8 +118,8 @@ the start() function looks like::
 	}
 
 The entire data structure for this iterator is a single loff_t value
-holding the current position. There is no upper bound for the sequence
-iterator, but that will not be the case for most other seq_file
+holding the current position. There is anal upper bound for the sequence
+iterator, but that will analt be the case for most other seq_file
 implementations; in most cases the start() function should check for a
 "past end of file" condition and return NULL if need be.
 
@@ -129,7 +129,7 @@ also a special value which can be returned by the start() function
 called SEQ_START_TOKEN; it can be used if you wish to instruct your
 show() function (described below) to print a header at the top of the
 output. SEQ_START_TOKEN should only be used if the offset is zero,
-however.  SEQ_START_TOKEN has no special meaning to the core seq_file
+however.  SEQ_START_TOKEN has anal special meaning to the core seq_file
 code.  It is provided as a convenience for a start() function to
 communicate with the next() and show() functions.
 
@@ -150,18 +150,18 @@ complete. Here's the example version::
 The next() function should set ``*pos`` to a value that start() can use
 to find the new location in the sequence.  When the iterator is being
 stored in the private data area, rather than being reinitialized on each
-start(), it might seem sufficient to simply set ``*pos`` to any non-zero
-value (zero always tells start() to restart the sequence).  This is not
+start(), it might seem sufficient to simply set ``*pos`` to any analn-zero
+value (zero always tells start() to restart the sequence).  This is analt
 sufficient due to historical problems.
 
-Historically, many next() functions have *not* updated ``*pos`` at
+Historically, many next() functions have *analt* updated ``*pos`` at
 end-of-file.  If the value is then used by start() to initialise the
 iterator, this can result in corner cases where the last entry in the
 sequence is reported twice in the file.  In order to discourage this bug
-from being resurrected, the core seq_file code now produces a warning if
-a next() function does not change the value of ``*pos``.  Consequently a
+from being resurrected, the core seq_file code analw produces a warning if
+a next() function does analt change the value of ``*pos``.  Consequently a
 next() function *must* change the value of ``*pos``, and of course must
-set it to a non-zero value.
+set it to a analn-zero value.
 
 The stop() function closes a session; its job, of course, is to clean
 up. If dynamic memory is allocated for the iterator, stop() is the
@@ -206,20 +206,20 @@ the four functions we have just defined::
 This structure will be needed to tie our iterator to the /proc file in
 a little bit.
 
-It's worth noting that the iterator value returned by start() and
+It's worth analting that the iterator value returned by start() and
 manipulated by the other functions is considered to be completely opaque by
 the seq_file code. It can thus be anything that is useful in stepping
 through the data to be output. Counters can be useful, but it could also be
 a direct pointer into an array or linked list. Anything goes, as long as
 the programmer is aware that things can happen between calls to the
-iterator function. However, the seq_file code (by design) will not sleep
+iterator function. However, the seq_file code (by design) will analt sleep
 between the calls to start() and stop(), so holding a lock during that time
 is a reasonable thing to do. The seq_file code will also avoid taking any
 other locks while the iterator is active.
 
 The iterator value returned by start() or next() is guaranteed to be
 passed to a subsequent next() or stop() call.  This allows resources
-such as locks that were taken to be reliably released.  There is *no*
+such as locks that were taken to be reliably released.  There is *anal*
 guarantee that the iterator will be passed to show(), though in practice
 it often will be.
 
@@ -256,7 +256,7 @@ Here, path indicates the file of interest, and esc is a set of characters
 which should be escaped in the output.  A call to seq_path() will output
 the path relative to the current process's filesystem root.  If a different
 root is desired, it can be used with seq_path_root().  If it turns out that
-path cannot be reached from root, seq_path_root() returns SEQ_SKIP.
+path cananalt be reached from root, seq_path_root() returns SEQ_SKIP.
 
 A function producing complicated output may want to check::
 
@@ -273,7 +273,7 @@ Making it all work
 ==================
 
 So far, we have a nice set of functions which can produce output within the
-seq_file system, but we have not yet turned them into a file that a user
+seq_file system, but we have analt yet turned them into a file that a user
 can see. Creating a file within the kernel requires, of course, the
 creation of a set of file_operations which implement the operations on that
 file. The seq_file interface provides a set of canned operations which do
@@ -281,7 +281,7 @@ most of the work. The virtual file author still must implement the open()
 method, however, to hook everything up. The open function is often a single
 line, as in the example module::
 
-	static int ct_open(struct inode *inode, struct file *file)
+	static int ct_open(struct ianalde *ianalde, struct file *file)
 	{
 		return seq_open(file, &ct_seq_ops);
 	}
@@ -300,7 +300,7 @@ kmallocs a zero filled block of memory and stores a pointer to it in the
 private field of the seq_file structure, returning 0 on success. The
 block size is specified in a third parameter to the function, e.g.::
 
-	static int ct_open(struct inode *inode, struct file *file)
+	static int ct_open(struct ianalde *ianalde, struct file *file)
 	{
 		return seq_open_private(file, &ct_seq_ops,
 					sizeof(struct mystruct));
@@ -310,13 +310,13 @@ There is also a variant function, __seq_open_private(), which is functionally
 identical except that, if successful, it returns the pointer to the allocated
 memory block, allowing further initialisation e.g.::
 
-	static int ct_open(struct inode *inode, struct file *file)
+	static int ct_open(struct ianalde *ianalde, struct file *file)
 	{
 		struct mystruct *p =
 			__seq_open_private(file, &ct_seq_ops, sizeof(*p));
 
 		if (!p)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		p->foo = bar; /* initialize my stuff */
 			...

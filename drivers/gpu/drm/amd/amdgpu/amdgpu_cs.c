@@ -9,13 +9,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -66,7 +66,7 @@ static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p,
 
 	amdgpu_sync_create(&p->sync);
 	drm_exec_init(&p->exec, DRM_EXEC_INTERRUPTIBLE_WAIT |
-		      DRM_EXEC_IGNORE_DUPLICATES, 0);
+		      DRM_EXEC_IGANALRE_DUPLICATES, 0);
 	return 0;
 }
 
@@ -84,7 +84,7 @@ static int amdgpu_cs_job_idx(struct amdgpu_cs_parser *p,
 		return r;
 
 	/*
-	 * Abort if there is no run queue associated with this entity.
+	 * Abort if there is anal run queue associated with this entity.
 	 * Possibly because of disabled HW IP.
 	 */
 	if (entity->rq == NULL)
@@ -95,7 +95,7 @@ static int amdgpu_cs_job_idx(struct amdgpu_cs_parser *p,
 		if (p->entities[i] == entity)
 			return i;
 
-	/* If not increase the gang size if possible */
+	/* If analt increase the gang size if possible */
 	if (i == AMDGPU_CS_GANG_SIZE)
 		return -EINVAL;
 
@@ -188,7 +188,7 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 	chunk_array = kvmalloc_array(cs->in.num_chunks, sizeof(uint64_t),
 				     GFP_KERNEL);
 	if (!chunk_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* get chunks */
 	chunk_array_user = u64_to_user_ptr(cs->in.chunks);
@@ -202,7 +202,7 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 	p->chunks = kvmalloc_array(p->nchunks, sizeof(struct amdgpu_cs_chunk),
 			    GFP_KERNEL);
 	if (!p->chunks) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_chunk;
 	}
 
@@ -227,7 +227,7 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 		p->chunks[i].kdata = kvmalloc_array(size, sizeof(uint32_t),
 						    GFP_KERNEL);
 		if (p->chunks[i].kdata == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			i--;
 			goto free_partial_kdata;
 		}
@@ -345,7 +345,7 @@ static int amdgpu_cs_p2_ib(struct amdgpu_cs_parser *p,
 	ib = &job->ibs[job->num_ibs++];
 
 	/* MM engine doesn't support user fences */
-	if (p->uf_bo && ring->funcs->no_user_fence)
+	if (p->uf_bo && ring->funcs->anal_user_fence)
 		return -EINVAL;
 
 	if (chunk_ib->ip_type == AMDGPU_HW_IP_GFX &&
@@ -506,7 +506,7 @@ static int amdgpu_cs_p2_syncobj_out(struct amdgpu_cs_parser *p,
 	p->num_post_deps = 0;
 
 	if (!p->post_deps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 
 	for (i = 0; i < num_deps; ++i) {
@@ -540,7 +540,7 @@ static int amdgpu_cs_p2_syncobj_timeline_signal(struct amdgpu_cs_parser *p,
 	p->num_post_deps = 0;
 
 	if (!p->post_deps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_deps; ++i) {
 		struct amdgpu_cs_post_dep *dep = &p->post_deps[i];
@@ -549,7 +549,7 @@ static int amdgpu_cs_p2_syncobj_timeline_signal(struct amdgpu_cs_parser *p,
 		if (syncobj_deps[i].point) {
 			dep->chain = dma_fence_chain_alloc();
 			if (!dep->chain)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		dep->syncobj = drm_syncobj_find(p->filp,
@@ -658,10 +658,10 @@ static s64 bytes_to_us(struct amdgpu_device *adev, u64 bytes)
 	return bytes >> adev->mm_stats.log2_max_MBps;
 }
 
-/* Returns how many bytes TTM can move right now. If no bytes can be moved,
- * it returns 0. If it returns non-zero, it's OK to move at least one buffer,
+/* Returns how many bytes TTM can move right analw. If anal bytes can be moved,
+ * it returns 0. If it returns analn-zero, it's OK to move at least one buffer,
  * which means it can go over the threshold once. If that happens, the driver
- * will be in debt and no other buffer migrations can be done until that debt
+ * will be in debt and anal other buffer migrations can be done until that debt
  * is repaid.
  *
  * This approach allows moving a buffer of any size (it's important to allow
@@ -681,7 +681,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	 * throttling.
 	 *
 	 * It means that in order to get full max MBps, at least 5 IBs per
-	 * second must be submitted and not more than 200ms apart from each
+	 * second must be submitted and analt more than 200ms apart from each
 	 * other.
 	 */
 	const s64 us_upper_bound = 200000;
@@ -706,7 +706,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 				      us_upper_bound);
 
 	/* This prevents the short period of low performance when the VRAM
-	 * usage is low and the driver is in debt or doesn't have enough
+	 * usage is low and the driver is in debt or doesn't have eanalugh
 	 * accumulated us to fill VRAM quickly.
 	 *
 	 * The situation can occur in these cases:
@@ -714,14 +714,14 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	 * - the presence of a big buffer causes a lot of evictions
 	 *   (solution: split buffers into smaller ones)
 	 *
-	 * If 128 MB or 1/8th of VRAM is free, start filling it now by setting
+	 * If 128 MB or 1/8th of VRAM is free, start filling it analw by setting
 	 * accum_us to a positive number.
 	 */
 	if (free_vram >= 128 * 1024 * 1024 || free_vram >= total_vram / 8) {
 		s64 min_us;
 
 		/* Be more aggressive on dGPUs. Try to fill a portion of free
-		 * VRAM now.
+		 * VRAM analw.
 		 */
 		if (!(adev->flags & AMD_IS_APU))
 			min_us = bytes_to_us(adev, free_vram / 4);
@@ -781,7 +781,7 @@ static int amdgpu_cs_bo_validate(void *param, struct amdgpu_bo *bo)
 	struct amdgpu_cs_parser *p = param;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false,
+		.anal_wait_gpu = false,
 		.resv = bo->tbo.base.resv
 	};
 	uint32_t domain;
@@ -822,7 +822,7 @@ retry:
 	    amdgpu_bo_in_cpu_visible_vram(bo))
 		p->bytes_moved_vis += ctx.bytes_moved;
 
-	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains) {
+	if (unlikely(r == -EANALMEM) && domain != bo->allowed_domains) {
 		domain = bo->allowed_domains;
 		goto retry;
 	}
@@ -852,7 +852,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		if (r)
 			return r;
 	} else if (!p->bo_list) {
-		/* Create a empty bo_list when no handle is provided */
+		/* Create a empty bo_list when anal handle is provided */
 		r = amdgpu_bo_list_create(p->adev, p->filp, NULL, 0,
 					  &p->bo_list);
 		if (r)
@@ -875,7 +875,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 					 GFP_KERNEL);
 		if (!e->user_pages) {
 			DRM_ERROR("kvmalloc_array failure\n");
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto out_free_user_pages;
 		}
 
@@ -1120,7 +1120,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 	/* FIXME: In theory this loop shouldn't be needed any more when
 	 * amdgpu_vm_handle_moved handles all moved BOs that are reserved
 	 * with p->ticket. But removing it caused test regressions, so I'm
-	 * leaving it here for now.
+	 * leaving it here for analw.
 	 */
 	amdgpu_bo_list_for_each_entry(e, p->bo_list) {
 		bo_va = e->bo_va;
@@ -1162,7 +1162,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 		amdgpu_bo_list_for_each_entry(e, p->bo_list) {
 			struct amdgpu_bo *bo = e->bo;
 
-			/* ignore duplicates */
+			/* iganalre duplicates */
 			if (!bo)
 				continue;
 
@@ -1285,11 +1285,11 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 			amdgpu_job_set_gang_leader(p->jobs[i], leader);
 	}
 
-	/* No memory allocation is allowed while holding the notifier lock.
+	/* Anal memory allocation is allowed while holding the analtifier lock.
 	 * The lock is held until amdgpu_cs_submit is finished and fence is
 	 * added to BOs.
 	 */
-	mutex_lock(&p->adev->notifier_lock);
+	mutex_lock(&p->adev->analtifier_lock);
 
 	/* If userptr are invalidated after amdgpu_cs_parser_bos(), return
 	 * -EAGAIN, drmIoctl in libdrm will restart the amdgpu_cs_ioctl.
@@ -1302,7 +1302,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	}
 	if (r) {
 		r = -EAGAIN;
-		mutex_unlock(&p->adev->notifier_lock);
+		mutex_unlock(&p->adev->analtifier_lock);
 		return r;
 	}
 
@@ -1348,7 +1348,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 
 	amdgpu_vm_move_to_lru_tail(p->adev, &fpriv->vm);
 
-	mutex_unlock(&p->adev->notifier_lock);
+	mutex_unlock(&p->adev->analtifier_lock);
 	mutex_unlock(&p->bo_list->bo_list_mutex);
 	return 0;
 }
@@ -1412,8 +1412,8 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	r = amdgpu_cs_parser_bos(&parser, data);
 	if (r) {
-		if (r == -ENOMEM)
-			DRM_ERROR("Not enough memory for command submission!\n");
+		if (r == -EANALMEM)
+			DRM_ERROR("Analt eanalugh memory for command submission!\n");
 		else if (r != -ERESTARTSYS && r != -EAGAIN)
 			DRM_DEBUG("Failed to process the buffer list %d!\n", r);
 		goto error_fini;
@@ -1526,7 +1526,7 @@ static struct dma_fence *amdgpu_cs_get_fence(struct amdgpu_device *adev,
 		return ERR_PTR(r);
 	}
 
-	fence = amdgpu_ctx_get_fence(ctx, entity, user->seq_no);
+	fence = amdgpu_ctx_get_fence(ctx, entity, user->seq_anal);
 	amdgpu_ctx_put(ctx);
 
 	return fence;
@@ -1579,7 +1579,7 @@ int amdgpu_cs_fence_to_handle_ioctl(struct drm_device *dev, void *data,
 		dma_fence_put(fence);
 		if (!sync_file) {
 			put_unused_fd(fd);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		fd_install(fd, sync_file->file);
@@ -1661,7 +1661,7 @@ static int amdgpu_cs_wait_any_fence(struct amdgpu_device *adev,
 	array = kcalloc(fence_count, sizeof(struct dma_fence *), GFP_KERNEL);
 
 	if (array == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < fence_count; i++) {
 		struct dma_fence *fence;
@@ -1723,7 +1723,7 @@ int amdgpu_cs_wait_fences_ioctl(struct drm_device *dev, void *data,
 	fences = kmalloc_array(fence_count, sizeof(struct drm_amdgpu_fence),
 			GFP_KERNEL);
 	if (fences == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fences_user = u64_to_user_ptr(wait->in.fences);
 	if (copy_from_user(fences, fences_user,

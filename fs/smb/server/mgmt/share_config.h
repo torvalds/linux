@@ -22,7 +22,7 @@ struct ksmbd_share_config {
 	struct path		vfs_path;
 
 	atomic_t		refcount;
-	struct hlist_node	hlist;
+	struct hlist_analde	hlist;
 	unsigned short		create_mask;
 	unsigned short		directory_mask;
 	unsigned short		force_create_mode;

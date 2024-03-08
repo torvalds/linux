@@ -6,11 +6,11 @@
 
 /dts-v1/;
 
-#include "rk3399-nanopi4.dtsi"
+#include "rk3399-naanalpi4.dtsi"
 
 / {
-	model = "FriendlyARM NanoPi NEO4";
-	compatible = "friendlyarm,nanopi-neo4", "rockchip,rk3399";
+	model = "FriendlyARM NaanalPi NEO4";
+	compatible = "friendlyarm,naanalpi-neo4", "rockchip,rk3399";
 
 	vdd_5v: vdd-5v {
 		compatible = "regulator-fixed";

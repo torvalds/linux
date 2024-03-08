@@ -59,7 +59,7 @@ static void nft_quota_obj_eval(struct nft_object *obj,
 
 	if (overquota &&
 	    !test_and_set_bit(NFT_QUOTA_DEPLETED_BIT, &priv->flags))
-		nft_obj_notify(nft_net(pkt), obj->key.table, obj, 0, 0,
+		nft_obj_analtify(nft_net(pkt), obj->key.table, obj, 0, 0,
 			       NFT_MSG_NEWOBJ, 0, nft_pf(pkt), 0, GFP_ATOMIC);
 }
 
@@ -87,12 +87,12 @@ static int nft_quota_do_init(const struct nlattr * const tb[],
 		if (flags & ~NFT_QUOTA_F_INV)
 			return -EINVAL;
 		if (flags & NFT_QUOTA_F_DEPLETED)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	priv->consumed = kmalloc(sizeof(*priv->consumed), GFP_KERNEL_ACCOUNT);
 	if (!priv->consumed)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atomic64_set(&priv->quota, quota);
 	priv->flags = flags;
@@ -243,7 +243,7 @@ static int nft_quota_clone(struct nft_expr *dst, const struct nft_expr *src)
 
 	priv_dst->consumed = kmalloc(sizeof(*priv_dst->consumed), GFP_ATOMIC);
 	if (!priv_dst->consumed)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*priv_dst->consumed = *priv_src->consumed;
 

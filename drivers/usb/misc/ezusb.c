@@ -32,7 +32,7 @@ static int ezusb_writememory(struct usb_device *dev, int address,
 				unsigned char *data, int length, __u8 request)
 {
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return usb_control_msg_send(dev, 0, request,
 				 USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
@@ -59,7 +59,7 @@ static int ezusb_ihex_firmware_download(struct usb_device *dev,
 					struct ezusb_fx_type fx,
 					const char *firmware_path)
 {
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 	const struct firmware *firmware = NULL;
 	const struct ihex_binrec *record;
 

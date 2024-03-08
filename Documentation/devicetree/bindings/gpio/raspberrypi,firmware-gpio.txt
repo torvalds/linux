@@ -4,13 +4,13 @@ The Raspberry Pi 3 GPIO expander is controlled by the VC4 firmware. The
 firmware exposes a mailbox interface that allows the ARM core to control the
 GPIO lines on the expander.
 
-The Raspberry Pi GPIO expander node must be a child node of the Raspberry Pi
-firmware node.
+The Raspberry Pi GPIO expander analde must be a child analde of the Raspberry Pi
+firmware analde.
 
 Required properties:
 
 - compatible : Should be "raspberrypi,firmware-gpio"
-- gpio-controller : Marks the device node as a gpio controller
+- gpio-controller : Marks the device analde as a gpio controller
 - #gpio-cells : Should be two.  The first cell is the pin number, and
   the second cell is used to specify the gpio polarity:
   0 = active high

@@ -13,7 +13,7 @@
 	chassis-type = "handset";
 };
 
-/delete-node/ &vreg_l7f_1p8;
+/delete-analde/ &vreg_l7f_1p8;
 
 &i2c5 {
 	clock-frequency = <400000>;

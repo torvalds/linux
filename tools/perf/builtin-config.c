@@ -125,14 +125,14 @@ static int parse_config_arg(char *arg, char **var, char **value)
 
 	/*
 	 * Since "var" actually contains the section name and the real
-	 * config variable name separated by a dot, we have to know where the dot is.
+	 * config variable name separated by a dot, we have to kanalw where the dot is.
 	 */
 	if (last_dot == NULL || last_dot == arg) {
-		pr_err("The config variable does not contain a section name: %s\n", arg);
+		pr_err("The config variable does analt contain a section name: %s\n", arg);
 		return -1;
 	}
 	if (!last_dot[1]) {
-		pr_err("The config variable does not contain a variable name: %s\n", arg);
+		pr_err("The config variable does analt contain a variable name: %s\n", arg);
 		return -1;
 	}
 
@@ -140,7 +140,7 @@ static int parse_config_arg(char *arg, char **var, char **value)
 	if (*value == NULL)
 		*var = arg;
 	else if (!strcmp(*value, "=")) {
-		pr_err("The config variable does not contain a value: %s\n", arg);
+		pr_err("The config variable does analt contain a value: %s\n", arg);
 		return -1;
 	} else {
 		*value = *value + 1; /* excluding a first character '=' */
@@ -164,7 +164,7 @@ int cmd_config(int argc, const char **argv)
 	bool changed = false;
 
 	argc = parse_options(argc, argv, config_options, config_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+			     PARSE_OPT_STOP_AT_ANALN_OPTION);
 
 	if (use_system_config && use_user_config) {
 		pr_err("Error: only one config file at a time\n");
@@ -194,12 +194,12 @@ int cmd_config(int argc, const char **argv)
 	switch (actions) {
 	case ACTION_LIST:
 		if (argc) {
-			pr_err("Error: takes no arguments\n");
+			pr_err("Error: takes anal arguments\n");
 			parse_options_usage(config_usage, config_options, "l", 1);
 		} else {
 do_action_list:
 			if (show_config(set) < 0) {
-				pr_err("Nothing configured, "
+				pr_err("Analthing configured, "
 				       "please check your %s \n", config_filename);
 				goto out_err;
 			}
@@ -225,7 +225,7 @@ do_action_list:
 
 			if (value == NULL) {
 				if (show_spec_config(set, var) < 0) {
-					pr_err("%s is not configured: %s\n",
+					pr_err("%s is analt configured: %s\n",
 					       var, config_filename);
 					free(arg);
 					goto out_err;

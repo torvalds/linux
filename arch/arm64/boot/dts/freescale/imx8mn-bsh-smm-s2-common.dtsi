@@ -262,7 +262,7 @@
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
 	mmc-pwrseq = <&usdhc2_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	brcmf: bcrmf@1 {

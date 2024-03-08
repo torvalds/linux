@@ -216,7 +216,7 @@
 			reset-deassert-us = <50000>;
 			interrupt-parent = <&gpio3>;
 			interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
-			enet-phy-lane-no-swap;
+			enet-phy-lane-anal-swap;
 			ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
 			ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
 			ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
@@ -249,7 +249,7 @@
 			reset-deassert-us = <50000>;
 			interrupt-parent = <&gpio3>;
 			interrupts = <27 IRQ_TYPE_EDGE_FALLING>;
-			enet-phy-lane-no-swap;
+			enet-phy-lane-anal-swap;
 			ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
 			ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
 			ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
@@ -337,7 +337,7 @@
 		/*
 		 * Controls the mPCIE slot reset which is low active as
 		 * reset signal. The output-low states, the signal is
-		 * inactive, e.g. not in reset
+		 * inactive, e.g. analt in reset
 		 */
 		mpcie_rst_hog: mpcie-rst-hog {
 			gpio-hog;
@@ -349,7 +349,7 @@
 		/*
 		 * Controls the mPCIE slot WDISABLE pin which is low active
 		 * as disable signal. The output-low states, the signal is
-		 * inactive, e.g. not disabled
+		 * inactive, e.g. analt disabled
 		 */
 		mpcie_wdisable_hog: mpcie-wdisable-hog {
 			gpio-hog;
@@ -373,7 +373,7 @@
 		/*
 		 * Controls the on board USB Hub reset which is low
 		 * active as reset signal. The output-low states, the
-		 * signal is inactive, e.g. no reset
+		 * signal is inactive, e.g. anal reset
 		 */
 		usb-reset-hog {
 			gpio-hog;
@@ -500,8 +500,8 @@
 	cd-gpios = <&gpio3 0 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
 	bus-width = <4>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	disable-wp;
 	status = "okay";
 };

@@ -6,7 +6,7 @@
  * can be shared, all the other devices must be assigned to one core only.
  * This dts allows core1 to have l2, eth0, crypto.
  *
- * Please note to add "-b 1" for core1's dts compiling.
+ * Please analte to add "-b 1" for core1's dts compiling.
  *
  * Copyright 2012 Freescale Semiconductor Inc.
  */
@@ -116,7 +116,7 @@
 			0xe3 0xe4 0xe5
 			0xe6 0xe7		/* sdhci, crypto , pci */
 			>;
-			pic-no-reset;
+			pic-anal-reset;
 		};
 
 		msi@41600 {

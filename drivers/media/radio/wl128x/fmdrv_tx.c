@@ -11,7 +11,7 @@
 #include "fmdrv_common.h"
 #include "fmdrv_tx.h"
 
-int fm_tx_set_stereo_mono(struct fmdev *fmdev, u16 mode)
+int fm_tx_set_stereo_moanal(struct fmdev *fmdev, u16 mode)
 {
 	u16 payload;
 	int ret;
@@ -21,9 +21,9 @@ int fm_tx_set_stereo_mono(struct fmdev *fmdev, u16 mode)
 
 	fmdbg("stereo mode: %d\n", mode);
 
-	/* Set Stereo/Mono mode */
+	/* Set Stereo/Moanal mode */
 	payload = (1 - mode);
-	ret = fmc_send_cmd(fmdev, MONO_SET, REG_WR, &payload,
+	ret = fmc_send_cmd(fmdev, MOANAL_SET, REG_WR, &payload,
 			sizeof(payload), NULL, NULL);
 	if (ret < 0)
 		return ret;

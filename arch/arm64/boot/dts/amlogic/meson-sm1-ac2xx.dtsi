@@ -238,7 +238,7 @@
 	sd-uhs-sdr104;
 	max-frequency = <200000000>;
 
-	non-removable;
+	analn-removable;
 	disable-wp;
 
 	/* WiFi firmware requires power to be kept while in suspend */
@@ -280,7 +280,7 @@
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	max-frequency = <200000000>;
-	non-removable;
+	analn-removable;
 	disable-wp;
 
 	mmc-pwrseq = <&emmc_pwrseq>;

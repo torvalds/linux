@@ -29,7 +29,7 @@ static int saa7164_dl_wait_ack(struct saa7164_dev *dev, u32 reg)
 	while ((saa7164_readl(reg) & 0x01) == 0) {
 		timeout -= 10;
 		if (timeout == 0) {
-			printk(KERN_ERR "%s() timeout (no d/l ack)\n",
+			printk(KERN_ERR "%s() timeout (anal d/l ack)\n",
 				__func__);
 			return -EBUSY;
 		}
@@ -45,7 +45,7 @@ static int saa7164_dl_wait_clr(struct saa7164_dev *dev, u32 reg)
 	while (saa7164_readl(reg) & 0x01) {
 		timeout -= 10;
 		if (timeout == 0) {
-			printk(KERN_ERR "%s() timeout (no d/l clr)\n",
+			printk(KERN_ERR "%s() timeout (anal d/l clr)\n",
 				__func__);
 			return -EBUSY;
 		}
@@ -81,12 +81,12 @@ static int saa7164_downloadimage(struct saa7164_dev *dev, u8 *src, u32 srcsize,
 
 	srcbuf = kzalloc(4 * 1048576, GFP_KERNEL);
 	if (NULL == srcbuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	if (srcsize > (4*1048576)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -233,8 +233,8 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 					__func__);
 				break;
 			}
-			if (err_flags & SAA_DEVICE_NO_IMAGE) {
-				printk(KERN_ERR "%s() no first image\n",
+			if (err_flags & SAA_DEVICE_ANAL_IMAGE) {
+				printk(KERN_ERR "%s() anal first image\n",
 				__func__);
 				break;
 			}
@@ -242,7 +242,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 				first_timeout -= 10;
 				if (first_timeout == 0) {
 					printk(KERN_ERR
-						"%s() no first image\n",
+						"%s() anal first image\n",
 						__func__);
 					break;
 				}
@@ -258,7 +258,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 				second_timeout -= 10;
 				if (second_timeout == 0) {
 					printk(KERN_ERR
-					"%s() Unknown bootloader flags 0x%x\n",
+					"%s() Unkanalwn bootloader flags 0x%x\n",
 						__func__, err_flags);
 					break;
 				}
@@ -293,8 +293,8 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 						__func__);
 					break;
 				}
-				if (err_flags & SAA_DEVICE_NO_IMAGE) {
-					printk(KERN_ERR "%s() no second image\n",
+				if (err_flags & SAA_DEVICE_ANAL_IMAGE) {
+					printk(KERN_ERR "%s() anal second image\n",
 						__func__);
 					break;
 				}
@@ -302,7 +302,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 					first_timeout -= 10;
 					if (first_timeout == 0) {
 						printk(KERN_ERR
-						"%s() no second image\n",
+						"%s() anal second image\n",
 							__func__);
 						break;
 					}
@@ -319,7 +319,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 					second_timeout -= 10;
 					if (second_timeout == 0) {
 						printk(KERN_ERR
-					"%s() Unknown bootloader flags 0x%x\n",
+					"%s() Unkanalwn bootloader flags 0x%x\n",
 							__func__, err_flags);
 						break;
 					}
@@ -363,7 +363,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 					first_timeout -= 10;
 					if (first_timeout == 0) {
 						printk(KERN_ERR
-						"%s() FW did not boot\n",
+						"%s() FW did analt boot\n",
 							__func__);
 						break;
 					}
@@ -389,7 +389,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 
 		saa7164_getfirmwarestatus(dev);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dprintk(DBGLVL_FW, "Device has Firmware Version %d.%d.%d.%d\n",
@@ -406,9 +406,9 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 
 		ret = request_firmware(&fw, fwname, &dev->pci->dev);
 		if (ret) {
-			printk(KERN_ERR "%s() Upload failed. (file not found?)\n",
+			printk(KERN_ERR "%s() Upload failed. (file analt found?)\n",
 			       __func__);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		printk(KERN_INFO "%s() firmware read %zu bytes.\n",
@@ -417,7 +417,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 		if (fw->size != fwlength) {
 			printk(KERN_ERR "saa7164: firmware incorrect size %zu != %u\n",
 				fw->size, fwlength);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -488,7 +488,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 
 			fwhdr = (struct fw_header *)(fw->data+tmp);
 		} else {
-			/* No second boot loader */
+			/* Anal second boot loader */
 			fwhdr = hdr;
 		}
 
@@ -500,7 +500,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 			);
 
 		if (version == fwhdr->version) {
-			/* No download, firmware already on board */
+			/* Anal download, firmware already on board */
 			ret = 0;
 			goto out;
 		}
@@ -570,7 +570,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 
 		} else {
 
-			/* No bootloader update reqd, download firmware only */
+			/* Anal bootloader update reqd, download firmware only */
 			printk(KERN_ERR "starting firmware download(3)\n");
 
 			ret = saa7164_downloadimage(

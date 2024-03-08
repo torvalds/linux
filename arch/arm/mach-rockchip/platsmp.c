@@ -50,13 +50,13 @@ static int pmu_power_domain_is_on(int pd)
 static struct reset_control *rockchip_get_core_reset(int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
-	struct device_node *np;
+	struct device_analde *np;
 
 	/* The cpu device is only available after the initial core bringup */
 	if (dev)
-		np = dev->of_node;
+		np = dev->of_analde;
 	else
-		np = of_get_cpu_node(cpu, NULL);
+		np = of_get_cpu_analde(cpu, NULL);
 
 	return of_reset_control_get_exclusive(np, NULL);
 }
@@ -68,7 +68,7 @@ static int pmu_set_power_domain(int pd, bool on)
 	int ret;
 
 	if (IS_ERR(rstc) && read_cpuid_part() != ARM_CPU_PART_CORTEX_A9) {
-		pr_err("%s: could not get reset control for core %d\n",
+		pr_err("%s: could analt get reset control for core %d\n",
 		       __func__, pd);
 		return PTR_ERR(rstc);
 	}
@@ -84,7 +84,7 @@ static int pmu_set_power_domain(int pd, bool on)
 	if (has_pmu) {
 		ret = regmap_update_bits(pmu, PMU_PWRDN_CON, BIT(pd), val);
 		if (ret < 0) {
-			pr_err("%s: could not update power domain\n",
+			pr_err("%s: could analt update power domain\n",
 			       __func__);
 			return ret;
 		}
@@ -93,7 +93,7 @@ static int pmu_set_power_domain(int pd, bool on)
 		while (ret != on) {
 			ret = pmu_power_domain_is_on(pd);
 			if (ret < 0) {
-				pr_err("%s: could not read power domain state\n",
+				pr_err("%s: could analt read power domain state\n",
 				       __func__);
 				return ret;
 			}
@@ -159,11 +159,11 @@ static int rockchip_boot_secondary(unsigned int cpu, struct task_struct *idle)
  * rockchip_smp_prepare_sram - populate necessary sram block
  * Starting cores execute the code residing at the start of the on-chip sram
  * after power-on. Therefore make sure, this sram region is reserved and
- * big enough. After this check, copy the trampoline code that directs the
+ * big eanalugh. After this check, copy the trampoline code that directs the
  * core to the real startup code in ram into the sram-region.
- * @node: mmio-sram device node
+ * @analde: mmio-sram device analde
  */
-static int __init rockchip_smp_prepare_sram(struct device_node *node)
+static int __init rockchip_smp_prepare_sram(struct device_analde *analde)
 {
 	unsigned int trampoline_sz = &rockchip_secondary_trampoline_end -
 					    &rockchip_secondary_trampoline;
@@ -171,10 +171,10 @@ static int __init rockchip_smp_prepare_sram(struct device_node *node)
 	unsigned int rsize;
 	int ret;
 
-	ret = of_address_to_resource(node, 0, &res);
+	ret = of_address_to_resource(analde, 0, &res);
 	if (ret < 0) {
-		pr_err("%s: could not get address for node %pOF\n",
-		       __func__, node);
+		pr_err("%s: could analt get address for analde %pOF\n",
+		       __func__, analde);
 		return ret;
 	}
 
@@ -207,19 +207,19 @@ static const struct regmap_config rockchip_pmu_regmap_config = {
 
 static int __init rockchip_smp_prepare_pmu(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	void __iomem *pmu_base;
 
 	/*
 	 * This function is only called via smp_ops->smp_prepare_cpu().
-	 * That only happens if a "/cpus" device tree node exists
+	 * That only happens if a "/cpus" device tree analde exists
 	 * and has an "enable-method" property that selects the SMP
 	 * operations defined herein.
 	 */
-	node = of_find_node_by_path("/cpus");
+	analde = of_find_analde_by_path("/cpus");
 
-	pmu = syscon_regmap_lookup_by_phandle(node, "rockchip,pmu");
-	of_node_put(node);
+	pmu = syscon_regmap_lookup_by_phandle(analde, "rockchip,pmu");
+	of_analde_put(analde);
 	if (!IS_ERR(pmu))
 		return 0;
 
@@ -229,17 +229,17 @@ static int __init rockchip_smp_prepare_pmu(void)
 
 	/* fallback, create our own regmap for the pmu area */
 	pmu = NULL;
-	node = of_find_compatible_node(NULL, NULL, "rockchip,rk3066-pmu");
-	if (!node) {
-		pr_err("%s: could not find pmu dt node\n", __func__);
-		return -ENODEV;
+	analde = of_find_compatible_analde(NULL, NULL, "rockchip,rk3066-pmu");
+	if (!analde) {
+		pr_err("%s: could analt find pmu dt analde\n", __func__);
+		return -EANALDEV;
 	}
 
-	pmu_base = of_iomap(node, 0);
-	of_node_put(node);
+	pmu_base = of_iomap(analde, 0);
+	of_analde_put(analde);
 	if (!pmu_base) {
-		pr_err("%s: could not map pmu registers\n", __func__);
-		return -ENOMEM;
+		pr_err("%s: could analt map pmu registers\n", __func__);
+		return -EANALMEM;
 	}
 
 	pmu = regmap_init_mmio(NULL, pmu_base, &rockchip_pmu_regmap_config);
@@ -257,47 +257,47 @@ static int __init rockchip_smp_prepare_pmu(void)
 
 static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	unsigned int i;
 
-	node = of_find_compatible_node(NULL, NULL, "rockchip,rk3066-smp-sram");
-	if (!node) {
-		pr_err("%s: could not find sram dt node\n", __func__);
+	analde = of_find_compatible_analde(NULL, NULL, "rockchip,rk3066-smp-sram");
+	if (!analde) {
+		pr_err("%s: could analt find sram dt analde\n", __func__);
 		return;
 	}
 
-	sram_base_addr = of_iomap(node, 0);
+	sram_base_addr = of_iomap(analde, 0);
 	if (!sram_base_addr) {
-		pr_err("%s: could not map sram registers\n", __func__);
-		of_node_put(node);
+		pr_err("%s: could analt map sram registers\n", __func__);
+		of_analde_put(analde);
 		return;
 	}
 
 	if (has_pmu && rockchip_smp_prepare_pmu()) {
-		of_node_put(node);
+		of_analde_put(analde);
 		return;
 	}
 
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9) {
-		if (rockchip_smp_prepare_sram(node)) {
-			of_node_put(node);
+		if (rockchip_smp_prepare_sram(analde)) {
+			of_analde_put(analde);
 			return;
 		}
 
 		/* enable the SCU power domain */
 		pmu_set_power_domain(PMU_PWRDN_SCU, true);
 
-		of_node_put(node);
-		node = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
-		if (!node) {
+		of_analde_put(analde);
+		analde = of_find_compatible_analde(NULL, NULL, "arm,cortex-a9-scu");
+		if (!analde) {
 			pr_err("%s: missing scu\n", __func__);
 			return;
 		}
 
-		scu_base_addr = of_iomap(node, 0);
+		scu_base_addr = of_iomap(analde, 0);
 		if (!scu_base_addr) {
-			pr_err("%s: could not map scu registers\n", __func__);
-			of_node_put(node);
+			pr_err("%s: could analt map scu registers\n", __func__);
+			of_analde_put(analde);
 			return;
 		}
 
@@ -316,7 +316,7 @@ static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 		asm ("mrc p15, 1, %0, c9, c0, 2\n" : "=r" (l2ctlr));
 		ncores = ((l2ctlr >> 24) & 0x3) + 1;
 	}
-	of_node_put(node);
+	of_analde_put(analde);
 
 	/* Make sure that all cores except the first are really off */
 	for (i = 1; i < ncores; i++)

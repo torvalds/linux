@@ -36,7 +36,7 @@ struct of_pci_range {
 #define OF_PCI_ADDR_SPACE_MEM32		0x2
 #define OF_PCI_ADDR_SPACE_MEM64		0x3
 
-#define OF_PCI_ADDR_FIELD_NONRELOC	BIT(31)
+#define OF_PCI_ADDR_FIELD_ANALNRELOC	BIT(31)
 #define OF_PCI_ADDR_FIELD_SS		GENMASK(25, 24)
 #define OF_PCI_ADDR_FIELD_PREFETCH	BIT(30)
 #define OF_PCI_ADDR_FIELD_BUS		GENMASK(23, 16)
@@ -59,7 +59,7 @@ static void of_pci_set_address(struct pci_dev *pdev, u32 *prop, u64 addr,
 		FIELD_PREP(OF_PCI_ADDR_FIELD_FUNC, PCI_FUNC(pdev->devfn));
 	prop[0] |= flags | reg_num;
 	if (!reloc) {
-		prop[0] |= OF_PCI_ADDR_FIELD_NONRELOC;
+		prop[0] |= OF_PCI_ADDR_FIELD_ANALNRELOC;
 		prop[1] = upper_32_bits(addr);
 		prop[2] = lower_32_bits(addr);
 	}
@@ -89,7 +89,7 @@ static int of_pci_get_addr_flags(struct resource *res, u32 *flags)
 
 static int of_pci_prop_bus_range(struct pci_dev *pdev,
 				 struct of_changeset *ocs,
-				 struct device_node *np)
+				 struct device_analde *np)
 {
 	u32 bus_range[] = { pdev->subordinate->busn_res.start,
 			    pdev->subordinate->busn_res.end };
@@ -99,7 +99,7 @@ static int of_pci_prop_bus_range(struct pci_dev *pdev,
 }
 
 static int of_pci_prop_ranges(struct pci_dev *pdev, struct of_changeset *ocs,
-			      struct device_node *np)
+			      struct device_analde *np)
 {
 	struct of_pci_range *rp;
 	struct resource *res;
@@ -117,7 +117,7 @@ static int of_pci_prop_ranges(struct pci_dev *pdev, struct of_changeset *ocs,
 
 	rp = kcalloc(num, sizeof(*rp), GFP_KERNEL);
 	if (!rp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, j = 0; j < num; j++) {
 		if (!resource_size(&res[j]))
@@ -155,7 +155,7 @@ static int of_pci_prop_ranges(struct pci_dev *pdev, struct of_changeset *ocs,
 }
 
 static int of_pci_prop_reg(struct pci_dev *pdev, struct of_changeset *ocs,
-			   struct device_node *np)
+			   struct device_analde *np)
 {
 	struct of_pci_addr_pair reg = { 0 };
 
@@ -168,7 +168,7 @@ static int of_pci_prop_reg(struct pci_dev *pdev, struct of_changeset *ocs,
 
 static int of_pci_prop_interrupts(struct pci_dev *pdev,
 				  struct of_changeset *ocs,
-				  struct device_node *np)
+				  struct device_analde *np)
 {
 	int ret;
 	u8 pin;
@@ -184,31 +184,31 @@ static int of_pci_prop_interrupts(struct pci_dev *pdev,
 }
 
 static int of_pci_prop_intr_map(struct pci_dev *pdev, struct of_changeset *ocs,
-				struct device_node *np)
+				struct device_analde *np)
 {
 	u32 i, addr_sz[OF_PCI_MAX_INT_PIN] = { 0 }, map_sz = 0;
 	struct of_phandle_args out_irq[OF_PCI_MAX_INT_PIN];
 	__be32 laddr[OF_PCI_ADDRESS_CELLS] = { 0 };
 	u32 int_map_mask[] = { 0xffff00, 0, 0, 7 };
-	struct device_node *pnode;
+	struct device_analde *panalde;
 	struct pci_dev *child;
 	u32 *int_map, *mapp;
 	int ret;
 	u8 pin;
 
-	pnode = pci_device_to_OF_node(pdev->bus->self);
-	if (!pnode)
-		pnode = pci_bus_to_OF_node(pdev->bus);
+	panalde = pci_device_to_OF_analde(pdev->bus->self);
+	if (!panalde)
+		panalde = pci_bus_to_OF_analde(pdev->bus);
 
-	if (!pnode) {
-		pci_err(pdev, "failed to get parent device node");
+	if (!panalde) {
+		pci_err(pdev, "failed to get parent device analde");
 		return -EINVAL;
 	}
 
 	laddr[0] = cpu_to_be32((pdev->bus->number << 16) | (pdev->devfn << 8));
 	for (pin = 1; pin <= OF_PCI_MAX_INT_PIN;  pin++) {
 		i = pin - 1;
-		out_irq[i].np = pnode;
+		out_irq[i].np = panalde;
 		out_irq[i].args_count = 1;
 		out_irq[i].args[0] = pin;
 		ret = of_irq_parse_raw(laddr, &out_irq[i]);
@@ -231,7 +231,7 @@ static int of_pci_prop_intr_map(struct pci_dev *pdev, struct of_changeset *ocs,
 	}
 
 	/*
-	 * Parsing interrupt failed for all pins. In this case, it does not
+	 * Parsing interrupt failed for all pins. In this case, it does analt
 	 * need to generate interrupt-map property.
 	 */
 	if (!map_sz)
@@ -292,7 +292,7 @@ failed:
 
 static int of_pci_prop_compatible(struct pci_dev *pdev,
 				  struct of_changeset *ocs,
-				  struct device_node *np)
+				  struct device_analde *np)
 {
 	const char *compat_strs[PROP_COMPAT_NUM] = { 0 };
 	int i, ret;
@@ -313,7 +313,7 @@ static int of_pci_prop_compatible(struct pci_dev *pdev,
 }
 
 int of_pci_add_properties(struct pci_dev *pdev, struct of_changeset *ocs,
-			  struct device_node *np)
+			  struct device_analde *np)
 {
 	int ret;
 

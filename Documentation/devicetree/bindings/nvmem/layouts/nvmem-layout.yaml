@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/nvmem/layouts/nvmem-layout.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NVMEM (Non Volatile Memory) layouts
+title: NVMEM (Analn Volatile Memory) layouts
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
@@ -12,7 +12,7 @@ maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
 
 description: |
-  Most NVMEM layouts are static and thus do not require additional description
+  Most NVMEM layouts are static and thus do analt require additional description
   besides the bytes/bits offset and length. Other layouts can be less statically
   define and might require dynamic reading of the NVMEM device in order to
   perform their parsing. The nvmem-layout container is here to describe these.

@@ -111,7 +111,7 @@ static int isl6271a_probe(struct i2c_client *i2c)
 
 	pmic = devm_kzalloc(&i2c->dev, sizeof(struct isl_pmic), GFP_KERNEL);
 	if (!pmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmic->client = i2c;
 
@@ -147,7 +147,7 @@ MODULE_DEVICE_TABLE(i2c, isl6271a_id);
 static struct i2c_driver isl6271a_i2c_driver = {
 	.driver = {
 		.name = "isl6271a",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = isl6271a_probe,
 	.id_table = isl6271a_id,

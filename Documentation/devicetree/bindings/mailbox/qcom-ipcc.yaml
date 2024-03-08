@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mailbox/qcom-ipcc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. Inter-Processor Communication Controller
+title: Qualcomm Techanallogies, Inc. Inter-Processor Communication Controller
 
 maintainers:
   - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>

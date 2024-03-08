@@ -60,7 +60,7 @@
 
 source lib.sh
 VERBOSE=0
-PAUSE_ON_FAIL=no
+PAUSE_ON_FAIL=anal
 DEFAULT_TTYPE=sym
 
 H1_N1=172.16.1.0/24
@@ -110,7 +110,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read -r a
@@ -197,7 +197,7 @@ create_vrf()
 	ip -netns "${ns}" -6 route add vrf "${vrf}" unreachable default metric 8192
 
 	ip -netns "${ns}" addr add 127.0.0.1/8 dev "${vrf}"
-	ip -netns "${ns}" -6 addr add ::1 dev "${vrf}" nodad
+	ip -netns "${ns}" -6 addr add ::1 dev "${vrf}" analdad
 }
 
 setup_sym()
@@ -208,7 +208,7 @@ setup_sym()
 	cleanup
 
 	#
-	# create nodes as namespaces
+	# create analdes as namespaces
 	setup_ns h1 h2 r1
 	for ns in $h1 $h2 $r1; do
 		if echo $ns | grep -q h[12]-; then
@@ -233,7 +233,7 @@ setup_sym()
 	# h1
 	#
 	ip -netns $h1 addr add dev eth0 ${H1_N1_IP}/24
-	ip -netns $h1 -6 addr add dev eth0 ${H1_N1_IP6}/64 nodad
+	ip -netns $h1 -6 addr add dev eth0 ${H1_N1_IP6}/64 analdad
 	ip -netns $h1 link set eth0 up
 
 	# h1 to h2 via r1
@@ -244,7 +244,7 @@ setup_sym()
 	# h2
 	#
 	ip -netns $h2 addr add dev eth0 ${H2_N2_IP}/24
-	ip -netns $h2 -6 addr add dev eth0 ${H2_N2_IP6}/64 nodad
+	ip -netns $h2 -6 addr add dev eth0 ${H2_N2_IP6}/64 analdad
 	ip -netns $h2 link set eth0 up
 
 	# h2 to h1 via r1
@@ -261,9 +261,9 @@ setup_sym()
 	ip -netns $r1 link set eth0 vrf blue up
 	ip -netns $r1 link set eth1 vrf red up
 	ip -netns $r1 addr add dev eth0 ${R1_N1_IP}/24
-	ip -netns $r1 -6 addr add dev eth0 ${R1_N1_IP6}/64 nodad
+	ip -netns $r1 -6 addr add dev eth0 ${R1_N1_IP6}/64 analdad
 	ip -netns $r1 addr add dev eth1 ${R1_N2_IP}/24
-	ip -netns $r1 -6 addr add dev eth1 ${R1_N2_IP6}/64 nodad
+	ip -netns $r1 -6 addr add dev eth1 ${R1_N2_IP6}/64 analdad
 
 	# Route leak from blue to red
 	ip -netns $r1 route add vrf blue ${H2_N2} dev red
@@ -286,7 +286,7 @@ setup_asym()
 	cleanup
 
 	#
-	# create nodes as namespaces
+	# create analdes as namespaces
 	setup_ns h1 h2 r1 r2
 	for ns in $h1 $h2 $r1 $r2; do
 		if echo $ns | grep -q h[12]-; then
@@ -319,7 +319,7 @@ setup_asym()
 	ip -netns $h1 link add br0 type bridge
 	ip -netns $h1 link set br0 up
 	ip -netns $h1 addr add dev br0 ${H1_N1_IP}/24
-	ip -netns $h1 -6 addr add dev br0 ${H1_N1_IP6}/64 nodad
+	ip -netns $h1 -6 addr add dev br0 ${H1_N1_IP6}/64 analdad
 	ip -netns $h1 link set eth0 master br0 up
 	ip -netns $h1 link set eth1 master br0 up
 
@@ -333,7 +333,7 @@ setup_asym()
 	ip -netns $h2 link add br0 type bridge
 	ip -netns $h2 link set br0 up
 	ip -netns $h2 addr add dev br0 ${H2_N2_IP}/24
-	ip -netns $h2 -6 addr add dev br0 ${H2_N2_IP6}/64 nodad
+	ip -netns $h2 -6 addr add dev br0 ${H2_N2_IP6}/64 analdad
 	ip -netns $h2 link set eth0 master br0 up
 	ip -netns $h2 link set eth1 master br0 up
 
@@ -351,23 +351,23 @@ setup_asym()
 	ip -netns $r1 link set eth0 vrf blue up
 	ip -netns $r1 link set eth1 vrf red up
 	ip -netns $r1 addr add dev eth0 ${R1_N1_IP}/24
-	ip -netns $r1 -6 addr add dev eth0 ${R1_N1_IP6}/64 nodad
+	ip -netns $r1 -6 addr add dev eth0 ${R1_N1_IP6}/64 analdad
 	ip -netns $r1 addr add dev eth1 ${R1_N2_IP}/24
-	ip -netns $r1 -6 addr add dev eth1 ${R1_N2_IP6}/64 nodad
+	ip -netns $r1 -6 addr add dev eth1 ${R1_N2_IP6}/64 analdad
 
 	# Route leak from blue to red
 	ip -netns $r1 route add vrf blue ${H2_N2} dev red
 	ip -netns $r1 -6 route add vrf blue ${H2_N2_6} dev red
 
-	# No route leak from red to blue
+	# Anal route leak from red to blue
 
 	#
 	# r2
 	#
 	ip -netns $r2 addr add dev eth0 ${R2_N1_IP}/24
-	ip -netns $r2 -6 addr add dev eth0 ${R2_N1_IP6}/64 nodad
+	ip -netns $r2 -6 addr add dev eth0 ${R2_N1_IP6}/64 analdad
 	ip -netns $r2 addr add dev eth1 ${R2_N2_IP}/24
-	ip -netns $r2 -6 addr add dev eth1 ${R2_N2_IP6}/64 nodad
+	ip -netns $r2 -6 addr add dev eth1 ${R2_N2_IP6}/64 analdad
 
 	# Wait for ip config to settle
 	sleep 2
@@ -390,7 +390,7 @@ check_connectivity6()
 check_traceroute()
 {
 	if [ ! -x "$(command -v traceroute)" ]; then
-		echo "SKIP: Could not run IPV4 test without traceroute"
+		echo "SKIP: Could analt run IPV4 test without traceroute"
 		return 1
 	fi
 }
@@ -398,7 +398,7 @@ check_traceroute()
 check_traceroute6()
 {
 	if [ ! -x "$(command -v traceroute6)" ]; then
-		echo "SKIP: Could not run IPV6 test without traceroute6"
+		echo "SKIP: Could analt run IPV6 test without traceroute6"
 		return 1
 	fi
 }
@@ -568,7 +568,7 @@ do
 		4) TESTS=ipv4;;
 		6) TESTS=ipv6;;
 		t) TESTS=$OPTARG;;
-		p) PAUSE_ON_FAIL=yes;;
+		p) PAUSE_ON_FAIL=anal;;
 		v) VERBOSE=1;;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
@@ -601,7 +601,7 @@ do
 	ipv6_traceroute_asym|traceroute) ipv6_traceroute_asym;;&
 	ipv6_ping_frag|ping)             ipv6_ping_frag;;&
 
-	# setup namespaces and config, but do not run any tests
+	# setup namespaces and config, but do analt run any tests
 	setup_sym|setup)                 setup_sym; exit 0;;
 	setup_asym)                      setup_asym; exit 0;;
 

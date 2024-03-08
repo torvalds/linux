@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Intel Smart Sound Technology (SST) DSP Core Driver
+ * Intel Smart Sound Techanallogy (SST) DSP Core Driver
  *
  * Copyright (C) 2013, Intel Corporation. All rights reserved.
  */
@@ -10,7 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/delay.h>
 
 #include "sst-dsp.h"
@@ -154,7 +154,7 @@ int sst_dsp_register_poll(struct sst_dsp *ctx, u32 offset, u32 mask,
 	 * Phase 1(first 5ms): min sleep 0.5ms; max sleep 1ms.
 	 * Phase 2:( 5ms to 10ms) : min sleep 0.5ms; max sleep 10ms
 	 * (usleep_range (500, 1000) and usleep_range(5000, 10000) are
-	 * both possible in this phase depending on whether k > 10 or not).
+	 * both possible in this phase depending on whether k > 10 or analt).
 	 * Phase 3: (beyond 10 ms) min sleep 5ms; max sleep 10ms.
 	 */
 

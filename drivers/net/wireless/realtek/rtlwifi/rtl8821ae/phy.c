@@ -194,9 +194,9 @@ static u32 _rtl8821ae_phy_rf_serial_read(struct ieee80211_hw *hw,
 	bool is_pi_mode = false;
 	u32 retvalue = 0;
 
-	/* 2009/06/17 MH We can not execute IO for power
+	/* 2009/06/17 MH We can analt execute IO for power
 	save or other accident mode.*/
-	if (RT_CANNOT_IO(hw)) {
+	if (RT_CANANALT_IO(hw)) {
 		pr_err("return all one\n");
 		return 0xFFFFFFFF;
 	}
@@ -257,7 +257,7 @@ static void _rtl8821ae_phy_rf_serial_write(struct ieee80211_hw *hw,
 	u32 data_and_addr;
 	u32 newoffset;
 
-	if (RT_CANNOT_IO(hw)) {
+	if (RT_CANANALT_IO(hw)) {
 		pr_err("stop\n");
 		return;
 	}
@@ -829,7 +829,7 @@ static void _rtl8821ae_config_rf_reg(struct ieee80211_hw *hw,
 				     enum radio_path rfpath, u32 regaddr)
 {
 	if (addr == 0xfe || addr == 0xffe) {
-		/* In order not to disturb BT music when
+		/* In order analt to disturb BT music when
 		 * wifi init.(1ant NIC only)
 		 */
 		mdelay(50);
@@ -1132,7 +1132,7 @@ static void _rtl8812ae_phy_cross_reference_ht_and_vht_txpower_limit(struct ieee8
 					if (temp_pwrlmt == MAX_POWER_INDEX) {
 						if (bw == 0 || bw == 1) { /*5G 20M 40M VHT and HT can cross reference*/
 							rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE,
-								"No power limit table of the specified band %d, bandwidth %d, ratesection %d, channel %d, rf path %d\n",
+								"Anal power limit table of the specified band %d, bandwidth %d, ratesection %d, channel %d, rf path %d\n",
 								1, bw, rate_section, channel, RF90_PATH_A);
 							if (rate_section == 2) {
 								rtlphy->txpwr_limit_5g[regulation][bw][2][channel][RF90_PATH_A] =
@@ -1725,7 +1725,7 @@ static void _rtl8812ae_phy_set_txpower_limit(struct ieee80211_hw *hw,
 				[rate_section][channel_index][RF90_PATH_A]);
 	} else {
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE,
-			"Cannot recognize the band info in %s\n", pband);
+			"Cananalt recognize the band info in %s\n", pband);
 		return;
 	}
 }
@@ -1861,7 +1861,7 @@ __rtl8821ae_phy_config_with_headerfile(struct ieee80211_hw *hw,
 					}
 				}
 			} else if (v1 & BIT(30)) { /*negative condition*/
-			/*do nothing*/
+			/*do analthing*/
 			}
 		} else {
 			if (matched)
@@ -2055,7 +2055,7 @@ bool rtl8812ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	radioa_array_table_b = RTL8812AE_RADIOB_ARRAY;
 	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 		"Radio_A:RTL8821AE_RADIOA_ARRAY %d\n", radioa_arraylen_a);
-	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Radio No %x\n", rfpath);
+	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Radio Anal %x\n", rfpath);
 	switch (rfpath) {
 	case RF90_PATH_A:
 		return __rtl8821ae_phy_config_with_headerfile(hw,
@@ -2067,7 +2067,7 @@ bool rtl8812ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 				_rtl8821ae_config_rf_radio_b);
 	case RF90_PATH_C:
 	case RF90_PATH_D:
-		pr_err("switch case %#x not processed\n", rfpath);
+		pr_err("switch case %#x analt processed\n", rfpath);
 		break;
 	}
 	return true;
@@ -2084,7 +2084,7 @@ bool rtl8821ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	radioa_array_table = RTL8821AE_RADIOA_ARRAY;
 	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 		"Radio_A:RTL8821AE_RADIOA_ARRAY %d\n", radioa_arraylen);
-	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Radio No %x\n", rfpath);
+	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Radio Anal %x\n", rfpath);
 	switch (rfpath) {
 	case RF90_PATH_A:
 		return __rtl8821ae_phy_config_with_headerfile(hw,
@@ -2094,7 +2094,7 @@ bool rtl8821ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	case RF90_PATH_B:
 	case RF90_PATH_C:
 	case RF90_PATH_D:
-		pr_err("switch case %#x not processed\n", rfpath);
+		pr_err("switch case %#x analt processed\n", rfpath);
 		break;
 	}
 	return true;
@@ -2402,7 +2402,7 @@ static s8 _rtl8812ae_phy_get_txpower_limit(struct ieee80211_hw *hw,
 
 	if (band_temp == BAND_ON_5G  && rate_section == 0)
 		rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
-			"Wrong rate 0x%x: No CCK in 5G Band\n", rate);
+			"Wrong rate 0x%x: Anal CCK in 5G Band\n", rate);
 
 	/*workaround for wrong index combination to obtain tx power limit,
 	  OFDM only exists in BW 20M*/
@@ -2466,7 +2466,7 @@ static s8 _rtl8812ae_phy_get_txpower_limit(struct ieee80211_hw *hw,
 			[sec][chnl][rf_path];
 	} else {
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
-			"No power limit table of the specified band\n");
+			"Anal power limit table of the specified band\n");
 	}
 	return power_limit;
 }
@@ -2481,9 +2481,9 @@ static s8 _rtl8821ae_phy_get_txpower_by_rate(struct ieee80211_hw *hw,
 	s8 limit = 0;
 
 	rate_section = _rtl8821ae_phy_get_ratesection_intxpower_byrate(path, rate);
-	tx_num = RF_TX_NUM_NONIMPLEMENT;
+	tx_num = RF_TX_NUM_ANALNIMPLEMENT;
 
-	if (tx_num == RF_TX_NUM_NONIMPLEMENT) {
+	if (tx_num == RF_TX_NUM_ANALNIMPLEMENT) {
 		if ((rate >= DESC_RATEMCS8 && rate <= DESC_RATEMCS15) ||
 			(rate >= DESC_RATEVHT2SS_MCS2 && rate <= DESC_RATEVHT2SS_MCS9))
 			tx_num = RF_2TX;
@@ -3297,7 +3297,7 @@ void rtl8821ae_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
 						      (u8 *)&iotype);
 			break;
 		default:
-			pr_err("Unknown Scan Backup operation.\n");
+			pr_err("Unkanalwn Scan Backup operation.\n");
 			break;
 		}
 	}
@@ -3321,7 +3321,7 @@ static void _rtl8821ae_phy_set_reg_bw(struct rtl_priv *rtlpriv, u8 bw)
 		rtl_write_word(rtlpriv, REG_TRXPTCL_CTL, tmp & 0xFF7F);
 		break;
 	default:
-		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING, "unknown Bandwidth: 0x%x\n", bw);
+		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING, "unkanalwn Bandwidth: 0x%x\n", bw);
 		break;
 	}
 }
@@ -3338,7 +3338,7 @@ static u8 _rtl8821ae_phy_get_secondary_chnl(struct rtl_priv *rtlpriv)
 		else if (mac->cur_80_prime_sc == PRIME_CHNL_OFFSET_UPPER)
 			sc_set_40 = VHT_DATA_SC_40_UPPER_OF_80MHZ;
 		else
-			pr_err("SCMapping: Not Correct Primary40MHz Setting\n");
+			pr_err("SCMapping: Analt Correct Primary40MHz Setting\n");
 
 		if ((mac->cur_40_prime_sc == PRIME_CHNL_OFFSET_LOWER) &&
 			(mac->cur_80_prime_sc == HAL_PRIME_CHNL_OFFSET_LOWER))
@@ -3353,14 +3353,14 @@ static u8 _rtl8821ae_phy_get_secondary_chnl(struct rtl_priv *rtlpriv)
 			(mac->cur_80_prime_sc == HAL_PRIME_CHNL_OFFSET_UPPER))
 			sc_set_20 = VHT_DATA_SC_20_UPPERST_OF_80MHZ;
 		else
-			pr_err("SCMapping: Not Correct Primary40MHz Setting\n");
+			pr_err("SCMapping: Analt Correct Primary40MHz Setting\n");
 	} else if (rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_20_40) {
 		if (mac->cur_40_prime_sc == PRIME_CHNL_OFFSET_UPPER)
 			sc_set_20 = VHT_DATA_SC_20_UPPER_OF_80MHZ;
 		else if (mac->cur_40_prime_sc == PRIME_CHNL_OFFSET_LOWER)
 			sc_set_20 = VHT_DATA_SC_20_LOWER_OF_80MHZ;
 		else
-			pr_err("SCMapping: Not Correct Primary40MHz Setting\n");
+			pr_err("SCMapping: Analt Correct Primary40MHz Setting\n");
 	}
 	return (sc_set_40 << 4) | sc_set_20;
 }
@@ -3436,7 +3436,7 @@ void rtl8821ae_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkanalwn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 	}
@@ -3460,7 +3460,7 @@ void rtl8821ae_phy_set_bw_mode(struct ieee80211_hw *hw,
 	if (rtlphy->set_bwmode_inprogress)
 		return;
 	rtlphy->set_bwmode_inprogress = true;
-	if ((!is_hal_stop(rtlhal)) && !(RT_CANNOT_IO(hw)))
+	if ((!is_hal_stop(rtlhal)) && !(RT_CANANALT_IO(hw)))
 		rtl8821ae_phy_set_bw_mode_callback(hw);
 	else {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
@@ -3537,7 +3537,7 @@ u8 rtl8821ae_phy_sw_chnl(struct ieee80211_hw *hw)
 	if (rtlphy->set_bwmode_inprogress)
 		return 0;
 
-	if ((is_hal_stop(rtlhal)) || (RT_CANNOT_IO(hw))) {
+	if ((is_hal_stop(rtlhal)) || (RT_CANANALT_IO(hw))) {
 		rtl_dbg(rtlpriv, COMP_CHAN, DBG_LOUD,
 			"sw_chnl_inprogress false driver sleep or unload\n");
 		return 0;
@@ -3871,7 +3871,7 @@ static void _rtl8821ae_iqk_tx(struct ieee80211_hw *hw, enum radio_path path)
 							}
 						}
 
-						if (delay_count < 20) {							/* If 20ms No Result, then cal_retry++ */
+						if (delay_count < 20) {							/* If 20ms Anal Result, then cal_retry++ */
 							/* ============TXIQK Check============== */
 							tx_fail = rtl_get_bbreg(hw, 0xd00, BIT(12));
 
@@ -3925,7 +3925,7 @@ static void _rtl8821ae_iqk_tx(struct ieee80211_hw *hw, enum radio_path path)
 						}
 					}
 
-					if (delay_count < 20) {							/* If 20ms No Result, then cal_retry++ */
+					if (delay_count < 20) {							/* If 20ms Anal Result, then cal_retry++ */
 						/* ============TXIQK Check============== */
 						tx_fail = rtl_get_bbreg(hw, 0xd00, BIT(12));
 
@@ -4038,7 +4038,7 @@ static void _rtl8821ae_iqk_tx(struct ieee80211_hw *hw, enum radio_path path)
 							}
 						}
 
-						if (delay_count < 20) {							/* If 20ms No Result, then cal_retry++ */
+						if (delay_count < 20) {							/* If 20ms Anal Result, then cal_retry++ */
 							/* ============TXIQK Check============== */
 							tx_fail = rtl_get_bbreg(hw, 0xd00, BIT(12));
 
@@ -4122,7 +4122,7 @@ static void _rtl8821ae_iqk_tx(struct ieee80211_hw *hw, enum radio_path path)
 							}
 						}
 
-						if (delay_count < 20) {	/* If 20ms No Result, then cal_retry++ */
+						if (delay_count < 20) {	/* If 20ms Anal Result, then cal_retry++ */
 							/* ============RXIQK Check============== */
 							rx_fail = rtl_get_bbreg(hw, 0xd00, BIT(11));
 							if (rx_fail == 0) {
@@ -4197,7 +4197,7 @@ static void _rtl8821ae_iqk_tx(struct ieee80211_hw *hw, enum radio_path path)
 						}
 					}
 
-					if (delay_count < 20) {							/* If 20ms No Result, then cal_retry++ */
+					if (delay_count < 20) {							/* If 20ms Anal Result, then cal_retry++ */
 						/* ============TXIQK Check============== */
 						tx_fail = rtl_get_bbreg(hw, 0xd00, BIT(12));
 
@@ -4277,7 +4277,7 @@ static void _rtl8821ae_iqk_tx(struct ieee80211_hw *hw, enum radio_path path)
 						}
 					}
 
-					if (delay_count < 20) {	/* If 20ms No Result, then cal_retry++ */
+					if (delay_count < 20) {	/* If 20ms Anal Result, then cal_retry++ */
 						/* ============RXIQK Check============== */
 						rx_fail = rtl_get_bbreg(hw, 0xd00, BIT(11));
 						if (rx_fail == 0) {
@@ -4616,7 +4616,7 @@ bool rtl8821ae_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype)
 			postprocessing = true;
 			break;
 		default:
-			pr_err("switch case %#x not processed\n",
+			pr_err("switch case %#x analt processed\n",
 			       iotype);
 			break;
 		}
@@ -4660,7 +4660,7 @@ static void rtl8821ae_phy_set_io(struct ieee80211_hw *hw)
 	case IO_CMD_PAUSE_BAND1_DM_BY_SCAN:
 		break;
 	default:
-		pr_err("switch case %#x not processed\n",
+		pr_err("switch case %#x analt processed\n",
 		       rtlphy->current_io_type);
 		break;
 	}
@@ -4719,7 +4719,7 @@ static bool _rtl8821ae_phy_set_rf_power_state(struct ieee80211_hw *hw,
 						       LED_CTL_LINK);
 		} else {
 			rtlpriv->cfg->ops->led_control(hw,
-						       LED_CTL_NO_LINK);
+						       LED_CTL_ANAL_LINK);
 		}
 		break;
 	case ERFOFF:
@@ -4757,7 +4757,7 @@ static bool _rtl8821ae_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		} else {
 			if (ppsc->rfoff_reason == RF_CHANGE_BY_IPS) {
 				rtlpriv->cfg->ops->led_control(hw,
-							       LED_CTL_NO_LINK);
+							       LED_CTL_ANAL_LINK);
 			} else {
 				rtlpriv->cfg->ops->led_control(hw,
 							       LED_CTL_POWER_OFF);
@@ -4765,7 +4765,7 @@ static bool _rtl8821ae_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		}
 		break;
 	default:
-		pr_err("switch case %#x not processed\n",
+		pr_err("switch case %#x analt processed\n",
 		       rfpwr_state);
 		bresult = false;
 		break;

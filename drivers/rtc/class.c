@@ -2,7 +2,7 @@
 /*
  * RTC subsystem, base class
  *
- * Copyright (C) 2005 Tower Technologies
+ * Copyright (C) 2005 Tower Techanallogies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * class skeleton from drivers/hwmon/hwmon.c
@@ -27,11 +27,11 @@ static void rtc_device_release(struct device *dev)
 {
 	struct rtc_device *rtc = to_rtc_device(dev);
 	struct timerqueue_head *head = &rtc->timerqueue;
-	struct timerqueue_node *node;
+	struct timerqueue_analde *analde;
 
 	mutex_lock(&rtc->ops_lock);
-	while ((node = timerqueue_getnext(head)))
-		timerqueue_del(head, node);
+	while ((analde = timerqueue_getnext(head)))
+		timerqueue_del(head, analde);
 	mutex_unlock(&rtc->ops_lock);
 
 	cancel_work_sync(&rtc->irqwork);
@@ -43,7 +43,7 @@ static void rtc_device_release(struct device *dev)
 
 #ifdef CONFIG_RTC_HCTOSYS_DEVICE
 /* Result of the last RTC to system clock attempt. */
-int rtc_hctosys_ret = -ENODEV;
+int rtc_hctosys_ret = -EANALDEV;
 
 /* IMPORTANT: the RTC only stores whole seconds. It is arbitrary
  * whether it stores the most close value or the value with partial
@@ -51,7 +51,7 @@ int rtc_hctosys_ret = -ENODEV;
  * the truncated value. This is because otherwise it is necessary,
  * in an rtc sync function, to read both xtime.tv_sec and
  * xtime.tv_nsec. On some processors (i.e. ARM), an atomic read
- * of >32bits is not possible. So storing the most close value would
+ * of >32bits is analt possible. So storing the most close value would
  * slow down the sync API. So here we have the truncated value and
  * the best guess is to add 0.5s.
  */
@@ -154,7 +154,7 @@ static int rtc_resume(struct device *dev)
 	if (timekeeping_rtc_skipresume())
 		return 0;
 
-	rtc_hctosys_ret = -ENODEV;
+	rtc_hctosys_ret = -EANALDEV;
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;
 
@@ -178,7 +178,7 @@ static int rtc_resume(struct device *dev)
 	sleep_time = timespec64_sub(new_rtc, old_rtc);
 
 	/*
-	 * Since these RTC suspend/resume handlers are not called
+	 * Since these RTC suspend/resume handlers are analt called
 	 * at the very end of suspend or the start of resume,
 	 * some run-time may pass on either sides of the sleep time
 	 * so subtract kernel run-time between rtc_suspend to rtc_resume
@@ -236,7 +236,7 @@ static struct rtc_device *rtc_allocate_device(void)
 	/* Init uie timer */
 	rtc_timer_init(&rtc->uie_rtctimer, rtc_uie_update_irq, rtc);
 	/* Init pie timer */
-	hrtimer_init(&rtc->pie_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&rtc->pie_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	rtc->pie_timer.function = rtc_pie_update_irq;
 	rtc->pie_enabled = 0;
 
@@ -250,15 +250,15 @@ static int rtc_device_get_id(struct device *dev)
 {
 	int of_id = -1, id = -1;
 
-	if (dev->of_node)
-		of_id = of_alias_get_id(dev->of_node, "rtc");
-	else if (dev->parent && dev->parent->of_node)
-		of_id = of_alias_get_id(dev->parent->of_node, "rtc");
+	if (dev->of_analde)
+		of_id = of_alias_get_id(dev->of_analde, "rtc");
+	else if (dev->parent && dev->parent->of_analde)
+		of_id = of_alias_get_id(dev->parent->of_analde, "rtc");
 
 	if (of_id >= 0) {
 		id = ida_alloc_range(&rtc_ida, of_id, of_id, GFP_KERNEL);
 		if (id < 0)
-			dev_warn(dev, "/aliases ID %d not available\n", of_id);
+			dev_warn(dev, "/aliases ID %d analt available\n", of_id);
 	}
 
 	if (id < 0)
@@ -274,8 +274,8 @@ static void rtc_device_get_offset(struct rtc_device *rtc)
 	int ret;
 
 	/*
-	 * If RTC driver did not implement the range of RTC hardware device,
-	 * then we can not expand the RTC range by adding or subtracting one
+	 * If RTC driver did analt implement the range of RTC hardware device,
+	 * then we can analt expand the RTC range by adding or subtracting one
 	 * offset.
 	 */
 	if (rtc->range_min == rtc->range_max)
@@ -289,7 +289,7 @@ static void rtc_device_get_offset(struct rtc_device *rtc)
 	}
 
 	/*
-	 * If user did not implement the start time for RTC driver, then no
+	 * If user did analt implement the start time for RTC driver, then anal
 	 * need to expand the RTC range.
 	 */
 	if (!rtc->set_start_time)
@@ -309,7 +309,7 @@ static void rtc_device_get_offset(struct rtc_device *rtc)
 	 * If the start_secs is larger than the minimum seconds (rtc->range_min)
 	 * supported by RTC hardware, then there is one region is overlapped
 	 * between the original RTC hardware range and the new expanded range,
-	 * and this overlapped region do not need to be mapped into the new
+	 * and this overlapped region do analt need to be mapped into the new
 	 * expanded range due to it is valid for RTC device. So the minimum
 	 * seconds of RTC hardware (rtc->range_min) should be mapped to
 	 * rtc->range_max + 1, then the offset seconds formula should be:
@@ -344,7 +344,7 @@ static void devm_rtc_unregister_device(void *data)
 	 * letting any rtc_class_open() users access it again
 	 */
 	rtc_proc_del_device(rtc);
-	if (!test_bit(RTC_NO_CDEV, &rtc->flags))
+	if (!test_bit(RTC_ANAL_CDEV, &rtc->flags))
 		cdev_device_del(&rtc->char_dev, &rtc->dev);
 	rtc->ops = NULL;
 	mutex_unlock(&rtc->ops_lock);
@@ -369,7 +369,7 @@ struct rtc_device *devm_rtc_allocate_device(struct device *dev)
 	rtc = rtc_allocate_device();
 	if (!rtc) {
 		ida_free(&rtc_ida, id);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	rtc->id = id;
@@ -392,7 +392,7 @@ int __devm_rtc_register_device(struct module *owner, struct rtc_device *rtc)
 	int err;
 
 	if (!rtc->ops) {
-		dev_dbg(&rtc->dev, "no ops set\n");
+		dev_dbg(&rtc->dev, "anal ops set\n");
 		return -EINVAL;
 	}
 
@@ -414,7 +414,7 @@ int __devm_rtc_register_device(struct module *owner, struct rtc_device *rtc)
 
 	err = cdev_device_add(&rtc->char_dev, &rtc->dev);
 	if (err) {
-		set_bit(RTC_NO_CDEV, &rtc->flags);
+		set_bit(RTC_ANAL_CDEV, &rtc->flags);
 		dev_warn(rtc->dev.parent, "failed to add char device %d:%d\n",
 			 MAJOR(rtc->dev.devt), rtc->id);
 	} else {

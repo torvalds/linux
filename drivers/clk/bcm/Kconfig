@@ -79,21 +79,21 @@ config CLK_BCM_HR2
 	  SoC
 
 config CLK_BCM_NSP
-	bool "Broadcom Northstar/Northstar Plus clock support"
+	bool "Broadcom Analrthstar/Analrthstar Plus clock support"
 	depends on ARCH_BCM_5301X || ARCH_BCM_NSP || COMPILE_TEST
 	select COMMON_CLK_IPROC
 	default ARCH_BCM_5301X || ARCH_BCM_NSP
 	help
-	  Enable common clock framework support for the Broadcom Northstar and
-	  Northstar Plus SoCs
+	  Enable common clock framework support for the Broadcom Analrthstar and
+	  Analrthstar Plus SoCs
 
 config CLK_BCM_NS2
-	bool "Broadcom Northstar 2 clock support"
+	bool "Broadcom Analrthstar 2 clock support"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	select COMMON_CLK_IPROC
 	default ARCH_BCM_IPROC
 	help
-	  Enable common clock framework support for the Broadcom Northstar 2 SoC
+	  Enable common clock framework support for the Broadcom Analrthstar 2 SoC
 
 config CLK_BCM_SR
 	bool "Broadcom Stingray clock support"

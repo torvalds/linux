@@ -17,7 +17,7 @@ void __init early_xdbc_register_console(void);
 #else
 static inline int __init early_xdbc_setup_hardware(void)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void __init early_xdbc_register_console(void)
 {

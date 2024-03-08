@@ -182,13 +182,13 @@ static int hisi_cpa_pmu_init_data(struct platform_device *pdev,
 {
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
 				     &cpa_pmu->sicl_id)) {
-		dev_err(&pdev->dev, "Can not read sicl-id\n");
+		dev_err(&pdev->dev, "Can analt read sicl-id\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
 				     &cpa_pmu->index_id)) {
-		dev_err(&pdev->dev, "Cannot read idx-id\n");
+		dev_err(&pdev->dev, "Cananalt read idx-id\n");
 		return -EINVAL;
 	}
 
@@ -305,7 +305,7 @@ static int hisi_cpa_pmu_probe(struct platform_device *pdev)
 
 	cpa_pmu = devm_kzalloc(&pdev->dev, sizeof(*cpa_pmu), GFP_KERNEL);
 	if (!cpa_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hisi_cpa_pmu_dev_probe(pdev, cpa_pmu);
 	if (ret)
@@ -314,14 +314,14 @@ static int hisi_cpa_pmu_probe(struct platform_device *pdev)
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sicl%d_cpa%u",
 			      cpa_pmu->sicl_id, cpa_pmu->index_id);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hisi_pmu_init(cpa_pmu, THIS_MODULE);
 
 	/* Power Management should be disabled before using CPA PMU. */
 	hisi_cpa_pmu_disable_pm(cpa_pmu);
 	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_CPA_ONLINE,
-				       &cpa_pmu->node);
+				       &cpa_pmu->analde);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug\n", ret);
 		hisi_cpa_pmu_enable_pm(cpa_pmu);
@@ -331,8 +331,8 @@ static int hisi_cpa_pmu_probe(struct platform_device *pdev)
 	ret = perf_pmu_register(&cpa_pmu->pmu, name, -1);
 	if (ret) {
 		dev_err(cpa_pmu->dev, "PMU register failed\n");
-		cpuhp_state_remove_instance_nocalls(
-			CPUHP_AP_PERF_ARM_HISI_CPA_ONLINE, &cpa_pmu->node);
+		cpuhp_state_remove_instance_analcalls(
+			CPUHP_AP_PERF_ARM_HISI_CPA_ONLINE, &cpa_pmu->analde);
 		hisi_cpa_pmu_enable_pm(cpa_pmu);
 		return ret;
 	}
@@ -346,8 +346,8 @@ static int hisi_cpa_pmu_remove(struct platform_device *pdev)
 	struct hisi_pmu *cpa_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&cpa_pmu->pmu);
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_CPA_ONLINE,
-					    &cpa_pmu->node);
+	cpuhp_state_remove_instance_analcalls(CPUHP_AP_PERF_ARM_HISI_CPA_ONLINE,
+					    &cpa_pmu->analde);
 	hisi_cpa_pmu_enable_pm(cpa_pmu);
 	return 0;
 }

@@ -3,7 +3,7 @@
  * soc-jack.h
  *
  * Copyright (C) 2019 Renesas Electronics Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  */
 #ifndef __SOC_JACK_H
 #define __SOC_JACK_H
@@ -13,7 +13,7 @@
  *
  * @pin:    name of the pin to update
  * @mask:   bits to check for in reported jack status
- * @invert: if non-zero then pin is enabled when status is not reported
+ * @invert: if analn-zero then pin is enabled when status is analt reported
  * @list:   internal list entry
  */
 struct snd_soc_jack_pin {
@@ -71,7 +71,7 @@ struct snd_soc_jack_gpio {
 	/* private: */
 	struct snd_soc_jack *jack;
 	struct delayed_work work;
-	struct notifier_block pm_notifier;
+	struct analtifier_block pm_analtifier;
 	struct gpio_desc *desc;
 
 	void *data;
@@ -85,7 +85,7 @@ struct snd_soc_jack {
 	struct snd_soc_card *card;
 	struct list_head pins;
 	int status;
-	struct blocking_notifier_head notifier;
+	struct blocking_analtifier_head analtifier;
 	struct list_head jack_zones;
 };
 
@@ -93,10 +93,10 @@ struct snd_soc_jack {
 void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask);
 int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 			  struct snd_soc_jack_pin *pins);
-void snd_soc_jack_notifier_register(struct snd_soc_jack *jack,
-				    struct notifier_block *nb);
-void snd_soc_jack_notifier_unregister(struct snd_soc_jack *jack,
-				      struct notifier_block *nb);
+void snd_soc_jack_analtifier_register(struct snd_soc_jack *jack,
+				    struct analtifier_block *nb);
+void snd_soc_jack_analtifier_unregister(struct snd_soc_jack *jack,
+				      struct analtifier_block *nb);
 int snd_soc_jack_add_zones(struct snd_soc_jack *jack, int count,
 			   struct snd_soc_jack_zone *zones);
 int snd_soc_jack_get_type(struct snd_soc_jack *jack, int micbias_voltage);

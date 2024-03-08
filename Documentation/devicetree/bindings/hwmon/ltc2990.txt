@@ -1,4 +1,4 @@
-ltc2990: Linear Technology LTC2990 power monitor
+ltc2990: Linear Techanallogy LTC2990 power monitor
 
 Required properties:
 - compatible: Must be "lltc,ltc2990"

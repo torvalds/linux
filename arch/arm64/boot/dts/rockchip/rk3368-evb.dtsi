@@ -121,7 +121,7 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	mmc-pwrseq = <&emmc_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 	status = "okay";
@@ -146,7 +146,7 @@
 };
 
 &pinctrl {
-	pcfg_pull_none_drv_8ma: pcfg-pull-none-drv-8ma {
+	pcfg_pull_analne_drv_8ma: pcfg-pull-analne-drv-8ma {
 		bias-disable;
 		drive-strength = <8>;
 	};
@@ -158,7 +158,7 @@
 
 	backlight {
 		bl_en: bl-en {
-			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -175,7 +175,7 @@
 		};
 
 		emmc-clk {
-			rockchip,pins = <2 RK_PA4 2 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <2 RK_PA4 2 &pcfg_pull_analne_drv_8ma>;
 		};
 
 		emmc-cmd {
@@ -183,7 +183,7 @@
 		};
 
 		emmc_reset: emmc-reset {
-			rockchip,pins = <2 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -201,17 +201,17 @@
 
 	sdio {
 		wifi_reg_on: wifi-reg-on {
-			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_rst: bt-rst {
-			rockchip,pins = <3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

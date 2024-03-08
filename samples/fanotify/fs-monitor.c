@@ -4,12 +4,12 @@
  */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <err.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
-#include <sys/fanotify.h>
+#include <sys/faanaltify.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -17,15 +17,15 @@
 #define FAN_FS_ERROR		0x00008000
 #define FAN_EVENT_INFO_TYPE_ERROR	5
 
-struct fanotify_event_info_error {
-	struct fanotify_event_info_header hdr;
+struct faanaltify_event_info_error {
+	struct faanaltify_event_info_header hdr;
 	__s32 error;
 	__u32 error_count;
 };
 #endif
 
-#ifndef FILEID_INO32_GEN
-#define FILEID_INO32_GEN	1
+#ifndef FILEID_IANAL32_GEN
+#define FILEID_IANAL32_GEN	1
 #endif
 
 #ifndef FILEID_INVALID
@@ -43,22 +43,22 @@ static void print_fh(struct file_handle *fh)
 	printf("\n");
 
 	printf("\tdecoded fh: ");
-	if (fh->handle_type == FILEID_INO32_GEN)
-		printf("inode=%u gen=%u\n", h[0], h[1]);
+	if (fh->handle_type == FILEID_IANAL32_GEN)
+		printf("ianalde=%u gen=%u\n", h[0], h[1]);
 	else if (fh->handle_type == FILEID_INVALID && !fh->handle_bytes)
 		printf("Type %d (Superblock error)\n", fh->handle_type);
 	else
-		printf("Type %d (Unknown)\n", fh->handle_type);
+		printf("Type %d (Unkanalwn)\n", fh->handle_type);
 
 }
 
-static void handle_notifications(char *buffer, int len)
+static void handle_analtifications(char *buffer, int len)
 {
-	struct fanotify_event_metadata *event =
-		(struct fanotify_event_metadata *) buffer;
-	struct fanotify_event_info_header *info;
-	struct fanotify_event_info_error *err;
-	struct fanotify_event_info_fid *fid;
+	struct faanaltify_event_metadata *event =
+		(struct faanaltify_event_metadata *) buffer;
+	struct faanaltify_event_info_header *info;
+	struct faanaltify_event_info_error *err;
+	struct faanaltify_event_info_fid *fid;
 	int off;
 
 	for (; FAN_EVENT_OK(event, len); event = FAN_EVENT_NEXT(event, len)) {
@@ -69,8 +69,8 @@ static void handle_notifications(char *buffer, int len)
 			goto next_event;
 		}
 
-		if (event->fd != FAN_NOFD) {
-			printf("Unexpected fd (!= FAN_NOFD)\n");
+		if (event->fd != FAN_ANALFD) {
+			printf("Unexpected fd (!= FAN_ANALFD)\n");
 			goto next_event;
 		}
 
@@ -78,12 +78,12 @@ static void handle_notifications(char *buffer, int len)
 
 		for (off = sizeof(*event) ; off < event->event_len;
 		     off += info->len) {
-			info = (struct fanotify_event_info_header *)
+			info = (struct faanaltify_event_info_header *)
 				((char *) event + off);
 
 			switch (info->info_type) {
 			case FAN_EVENT_INFO_TYPE_ERROR:
-				err = (struct fanotify_event_info_error *) info;
+				err = (struct faanaltify_event_info_error *) info;
 
 				printf("\tGeneric Error Record: len=%d\n",
 				       err->hdr.len);
@@ -92,7 +92,7 @@ static void handle_notifications(char *buffer, int len)
 				break;
 
 			case FAN_EVENT_INFO_TYPE_FID:
-				fid = (struct fanotify_event_info_fid *) info;
+				fid = (struct faanaltify_event_info_fid *) info;
 
 				printf("\tfsid: %x%x\n",
 				       fid->fsid.val[0], fid->fsid.val[1]);
@@ -100,7 +100,7 @@ static void handle_notifications(char *buffer, int len)
 				break;
 
 			default:
-				printf("\tUnknown info type=%d len=%d:\n",
+				printf("\tUnkanalwn info type=%d len=%d:\n",
 				       info->info_type, info->len);
 			}
 		}
@@ -120,13 +120,13 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	fd = fanotify_init(FAN_CLASS_NOTIF|FAN_REPORT_FID, O_RDONLY);
+	fd = faanaltify_init(FAN_CLASS_ANALTIF|FAN_REPORT_FID, O_RDONLY);
 	if (fd < 0)
-		errx(1, "fanotify_init");
+		errx(1, "faanaltify_init");
 
-	if (fanotify_mark(fd, FAN_MARK_ADD|FAN_MARK_FILESYSTEM,
+	if (faanaltify_mark(fd, FAN_MARK_ADD|FAN_MARK_FILESYSTEM,
 			  FAN_FS_ERROR, AT_FDCWD, argv[1])) {
-		errx(1, "fanotify_mark");
+		errx(1, "faanaltify_mark");
 	}
 
 	while (1) {
@@ -135,7 +135,7 @@ int main(int argc, char **argv)
 		if (n < 0)
 			errx(1, "read");
 
-		handle_notifications(buffer, n);
+		handle_analtifications(buffer, n);
 	}
 
 	return 0;

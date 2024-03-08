@@ -6,8 +6,8 @@ Description:
 		to overlay planes.
 
 		Stores the alpha blending value for the overlay. Values range
-		from 0 (transparent) to 255 (opaque). The value is ignored if
-		the mode is not set to Alpha Blending.
+		from 0 (transparent) to 255 (opaque). The value is iganalred if
+		the mode is analt set to Alpha Blending.
 
 What:		/sys/devices/platform/sh_mobile_lcdc_fb.[0-3]/graphics/fb[0-9]/ovl_mode
 Date:		May 2012
@@ -40,5 +40,5 @@ Description:
 		to overlay planes.
 
 		Stores the raster operation (ROP3) for the overlay. Values
-		range from 0 to 255. The value is ignored if the mode is not
+		range from 0 to 255. The value is iganalred if the mode is analt
 		set to ROP3.

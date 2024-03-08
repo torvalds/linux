@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
-/* Do not edit directly, auto-generated from: */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
+/* Do analt edit directly, auto-generated from: */
 /*	Documentation/netlink/specs/handshake.yaml */
 /* YNL-GEN uapi header */
 
@@ -10,7 +10,7 @@
 #define HANDSHAKE_FAMILY_VERSION	1
 
 enum handshake_handler_class {
-	HANDSHAKE_HANDLER_CLASS_NONE,
+	HANDSHAKE_HANDLER_CLASS_ANALNE,
 	HANDSHAKE_HANDLER_CLASS_TLSHD,
 	HANDSHAKE_HANDLER_CLASS_MAX,
 };
@@ -68,7 +68,7 @@ enum {
 	HANDSHAKE_CMD_MAX = (__HANDSHAKE_CMD_MAX - 1)
 };
 
-#define HANDSHAKE_MCGRP_NONE	"none"
+#define HANDSHAKE_MCGRP_ANALNE	"analne"
 #define HANDSHAKE_MCGRP_TLSHD	"tlshd"
 
 #endif /* _UAPI_LINUX_HANDSHAKE_H */

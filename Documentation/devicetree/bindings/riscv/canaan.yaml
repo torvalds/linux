@@ -13,7 +13,7 @@ description:
   Canaan Kendryte K210 SoC-based boards
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -32,7 +32,7 @@ properties:
           - const: canaan,kendryte-k210
 
       - items:
-          - const: sipeed,maixduino
+          - const: sipeed,maixduianal
           - const: canaan,kendryte-k210
 
       - items:

@@ -206,8 +206,8 @@ static void ufs_mtk_init_reset(struct ufs_hba *hba)
 				   "crypto_rst");
 }
 
-static int ufs_mtk_hce_enable_notify(struct ufs_hba *hba,
-				     enum ufs_notify_change_status status)
+static int ufs_mtk_hce_enable_analtify(struct ufs_hba *hba,
+				     enum ufs_analtify_change_status status)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 
@@ -230,7 +230,7 @@ static int ufs_mtk_hce_enable_notify(struct ufs_hba *hba,
 		}
 
 		/*
-		 * Turn on CLK_CG early to bypass abnormal ERR_CHK signal
+		 * Turn on CLK_CG early to bypass abanalrmal ERR_CHK signal
 		 * to prevent host hang issue
 		 */
 		ufshcd_writel(hba,
@@ -245,7 +245,7 @@ static int ufs_mtk_bind_mphy(struct ufs_hba *hba)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 	struct device *dev = hba->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int err = 0;
 
 	host->mphy = devm_of_phy_get_by_index(dev, np, 0);
@@ -261,7 +261,7 @@ static int ufs_mtk_bind_mphy(struct ufs_hba *hba)
 			__func__, err);
 	} else if (IS_ERR(host->mphy)) {
 		err = PTR_ERR(host->mphy);
-		if (err != -ENODEV) {
+		if (err != -EANALDEV) {
 			dev_info(dev, "%s: PHY get failed %d\n", __func__,
 				 err);
 		}
@@ -270,10 +270,10 @@ static int ufs_mtk_bind_mphy(struct ufs_hba *hba)
 	if (err)
 		host->mphy = NULL;
 	/*
-	 * Allow unbound mphy because not every platform needs specific
+	 * Allow unbound mphy because analt every platform needs specific
 	 * mphy control.
 	 */
-	if (err == -ENODEV)
+	if (err == -EANALDEV)
 		err = 0;
 
 	return err;
@@ -289,7 +289,7 @@ static int ufs_mtk_setup_ref_clk(struct ufs_hba *hba, bool on)
 	if (host->ref_clk_enabled == on)
 		return 0;
 
-	ufs_mtk_ref_clk_notify(on, PRE_CHANGE, res);
+	ufs_mtk_ref_clk_analtify(on, PRE_CHANGE, res);
 
 	if (on) {
 		ufshcd_writel(hba, REFCLK_REQUEST, REG_UFS_REFCLK_CTRL);
@@ -313,7 +313,7 @@ static int ufs_mtk_setup_ref_clk(struct ufs_hba *hba, bool on)
 
 	dev_err(hba->dev, "missing ack of refclk req, reg: 0x%x\n", value);
 
-	ufs_mtk_ref_clk_notify(host->ref_clk_enabled, POST_CHANGE, res);
+	ufs_mtk_ref_clk_analtify(host->ref_clk_enabled, POST_CHANGE, res);
 
 	return -ETIMEDOUT;
 
@@ -322,7 +322,7 @@ out:
 	if (on)
 		ufshcd_delay_us(host->ref_clk_ungating_wait_us, 10);
 
-	ufs_mtk_ref_clk_notify(on, POST_CHANGE, res);
+	ufs_mtk_ref_clk_analtify(on, POST_CHANGE, res);
 
 	return 0;
 }
@@ -364,15 +364,15 @@ static void ufs_mtk_wait_idle_state(struct ufs_hba *hba,
 	u32 val, sm;
 	bool wait_idle;
 
-	/* cannot use plain ktime_get() in suspend */
-	timeout = ktime_get_mono_fast_ns() + retry_ms * 1000000UL;
+	/* cananalt use plain ktime_get() in suspend */
+	timeout = ktime_get_moanal_fast_ns() + retry_ms * 1000000UL;
 
 	/* wait a specific time after check base */
 	udelay(10);
 	wait_idle = false;
 
 	do {
-		time_checked = ktime_get_mono_fast_ns();
+		time_checked = ktime_get_moanal_fast_ns();
 		ufs_mtk_dbg_sel(hba);
 		val = ufshcd_readl(hba, REG_UFS_PROBE);
 
@@ -565,7 +565,7 @@ static void ufs_mtk_init_boost_crypt(struct ufs_hba *hba)
 		goto disable_caps;
 	}
 
-	if (of_property_read_u32(dev->of_node, "boost-crypt-vcore-min",
+	if (of_property_read_u32(dev->of_analde, "boost-crypt-vcore-min",
 				 &volt)) {
 		dev_info(dev, "failed to get boost-crypt-vcore-min");
 		goto disable_caps;
@@ -606,7 +606,7 @@ static void ufs_mtk_init_va09_pwr_ctrl(struct ufs_hba *hba)
 static void ufs_mtk_init_host_caps(struct ufs_hba *hba)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
-	struct device_node *np = hba->dev->of_node;
+	struct device_analde *np = hba->dev->of_analde;
 
 	if (of_property_read_bool(np, "mediatek,ufs-boost-crypt"))
 		ufs_mtk_init_boost_crypt(hba);
@@ -664,19 +664,19 @@ static void ufs_mtk_pwr_ctrl(struct ufs_hba *hba, bool on)
  * ufs_mtk_setup_clocks - enables/disable clocks
  * @hba: host controller instance
  * @on: If true, enable clocks else disable them.
- * @status: PRE_CHANGE or POST_CHANGE notify
+ * @status: PRE_CHANGE or POST_CHANGE analtify
  *
- * Return: 0 on success, non-zero on failure.
+ * Return: 0 on success, analn-zero on failure.
  */
 static int ufs_mtk_setup_clocks(struct ufs_hba *hba, bool on,
-				enum ufs_notify_change_status status)
+				enum ufs_analtify_change_status status)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 	bool clk_pwr_off = false;
 	int ret = 0;
 
 	/*
-	 * In case ufs_mtk_init() is not yet done, simply ignore.
+	 * In case ufs_mtk_init() is analt yet done, simply iganalre.
 	 * This ufs_mtk_setup_clocks() shall be called from
 	 * ufs_mtk_init() after init is done.
 	 */
@@ -775,7 +775,7 @@ static void ufs_mtk_init_clocks(struct ufs_hba *hba)
 	    !mclk->ufs_sel_min_clki) {
 		hba->caps &= ~UFSHCD_CAP_CLK_SCALING;
 		dev_info(hba->dev,
-			 "%s: Clk-scaling not ready. Feature disabled.",
+			 "%s: Clk-scaling analt ready. Feature disabled.",
 			 __func__);
 	}
 }
@@ -784,7 +784,7 @@ static void ufs_mtk_init_clocks(struct ufs_hba *hba)
 static int ufs_mtk_vreg_fix_vcc(struct ufs_hba *hba)
 {
 	struct ufs_vreg_info *info = &hba->vreg_info;
-	struct device_node *np = hba->dev->of_node;
+	struct device_analde *np = hba->dev->of_analde;
 	struct device *dev = hba->dev;
 	char vcc_name[MAX_VCC_NAME];
 	struct arm_smccc_res res;
@@ -795,10 +795,10 @@ static int ufs_mtk_vreg_fix_vcc(struct ufs_hba *hba)
 
 	if (of_property_read_bool(np, "mediatek,ufs-vcc-by-num")) {
 		ufs_mtk_get_vcc_num(res);
-		if (res.a1 > UFS_VCC_NONE && res.a1 < UFS_VCC_MAX)
+		if (res.a1 > UFS_VCC_ANALNE && res.a1 < UFS_VCC_MAX)
 			snprintf(vcc_name, MAX_VCC_NAME, "vcc-opt%lu", res.a1);
 		else
-			return -ENODEV;
+			return -EANALDEV;
 	} else if (of_property_read_bool(np, "mediatek,ufs-vcc-by-ver")) {
 		ver = (hba->dev_info.wspecversion & 0xF00) >> 8;
 		snprintf(vcc_name, MAX_VCC_NAME, "vcc-ufs%u", ver);
@@ -897,8 +897,8 @@ static int ufs_mtk_init(struct ufs_hba *hba)
 
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 	if (!host) {
-		err = -ENOMEM;
-		dev_info(dev, "%s: no memory for mtk ufs host\n", __func__);
+		err = -EANALMEM;
+		dev_info(dev, "%s: anal memory for mtk ufs host\n", __func__);
 		goto out;
 	}
 
@@ -1024,7 +1024,7 @@ static int ufs_mtk_pre_pwr_change(struct ufs_hba *hba,
 			       dev_req_params->hs_rate);
 
 		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TXHSADAPTTYPE),
-			       PA_NO_ADAPT);
+			       PA_ANAL_ADAPT);
 
 		ret = ufshcd_uic_change_pwr_mode(hba,
 					FASTAUTO_MODE << 4 | FASTAUTO_MODE);
@@ -1044,8 +1044,8 @@ static int ufs_mtk_pre_pwr_change(struct ufs_hba *hba,
 	return ret;
 }
 
-static int ufs_mtk_pwr_change_notify(struct ufs_hba *hba,
-				     enum ufs_notify_change_status stage,
+static int ufs_mtk_pwr_change_analtify(struct ufs_hba *hba,
+				     enum ufs_analtify_change_status stage,
 				     struct ufs_pa_layer_attr *dev_max_params,
 				     struct ufs_pa_layer_attr *dev_req_params)
 {
@@ -1076,7 +1076,7 @@ static int ufs_mtk_unipro_set_lpm(struct ufs_hba *hba, bool lpm)
 			     lpm ? 1 : 0);
 	if (!ret || !lpm) {
 		/*
-		 * Forcibly set as non-LPM mode if UIC commands is failed
+		 * Forcibly set as analn-LPM mode if UIC commands is failed
 		 * to use default hba_enable_delay_us value for re-enabling
 		 * the host.
 		 */
@@ -1145,8 +1145,8 @@ static void ufs_mtk_post_link(struct ufs_hba *hba)
 	ufs_mtk_setup_clk_gating(hba);
 }
 
-static int ufs_mtk_link_startup_notify(struct ufs_hba *hba,
-				       enum ufs_notify_change_status stage)
+static int ufs_mtk_link_startup_analtify(struct ufs_hba *hba,
+				       enum ufs_analtify_change_status stage)
 {
 	int ret = 0;
 
@@ -1257,7 +1257,7 @@ static void ufs_mtk_vccqx_set_lpm(struct ufs_hba *hba, bool lpm)
 		vccqx = hba->vreg_info.vccq2;
 
 	regulator_set_mode(vccqx->reg,
-			   lpm ? REGULATOR_MODE_IDLE : REGULATOR_MODE_NORMAL);
+			   lpm ? REGULATOR_MODE_IDLE : REGULATOR_MODE_ANALRMAL);
 }
 
 static void ufs_mtk_vsx_set_lpm(struct ufs_hba *hba, bool lpm)
@@ -1311,7 +1311,7 @@ static void ufs_mtk_auto_hibern8_disable(struct ufs_hba *hba)
 }
 
 static int ufs_mtk_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
-	enum ufs_notify_change_status status)
+	enum ufs_analtify_change_status status)
 {
 	int err;
 	struct arm_smccc_res res;
@@ -1330,7 +1330,7 @@ static int ufs_mtk_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
 
 	if (!ufshcd_is_link_active(hba)) {
 		/*
-		 * Make sure no error will be returned to prevent
+		 * Make sure anal error will be returned to prevent
 		 * ufshcd_suspend() re-enabling regulators while vreg is still
 		 * in low-power mode.
 		 */
@@ -1444,7 +1444,7 @@ static void ufs_mtk_fixup_dev_quirks(struct ufs_hba *hba)
 	ufs_mtk_vreg_fix_vccqx(hba);
 }
 
-static void ufs_mtk_event_notify(struct ufs_hba *hba,
+static void ufs_mtk_event_analtify(struct ufs_hba *hba,
 				 enum ufs_event_type evt, void *data)
 {
 	unsigned int val = *(u32 *)data;
@@ -1528,8 +1528,8 @@ static void ufs_mtk_clk_scale(struct ufs_hba *hba, bool scale_up)
 	trace_ufs_mtk_clk_scale(clki->name, scale_up, clk_get_rate(clki->clk));
 }
 
-static int ufs_mtk_clk_scale_notify(struct ufs_hba *hba, bool scale_up,
-				    enum ufs_notify_change_status status)
+static int ufs_mtk_clk_scale_analtify(struct ufs_hba *hba, bool scale_up,
+				    enum ufs_analtify_change_status status)
 {
 	if (!ufshcd_is_clkscaling_supported(hba))
 		return 0;
@@ -1573,9 +1573,9 @@ static int ufs_mtk_mcq_config_resource(struct ufs_hba *hba)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 
-	/* fail mcq initialization if interrupt is not filled properly */
+	/* fail mcq initialization if interrupt is analt filled properly */
 	if (!host->mcq_nr_intr) {
-		dev_info(hba->dev, "IRQs not ready. MCQ disabled.");
+		dev_info(hba->dev, "IRQs analt ready. MCQ disabled.");
 		return -EINVAL;
 	}
 
@@ -1613,7 +1613,7 @@ static int ufs_mtk_config_mcq_irq(struct ufs_hba *hba)
 		irq = host->mcq_intr_info[i].irq;
 		if (irq == MTK_MCQ_INVALID_IRQ) {
 			dev_err(hba->dev, "invalid irq. %d\n", i);
-			return -ENOPARAM;
+			return -EANALPARAM;
 		}
 
 		host->mcq_intr_info[i].qid = i;
@@ -1623,7 +1623,7 @@ static int ufs_mtk_config_mcq_irq(struct ufs_hba *hba)
 		dev_dbg(hba->dev, "request irq %d intr %s\n", irq, ret ? "failed" : "");
 
 		if (ret) {
-			dev_err(hba->dev, "Cannot request irq %d\n", ret);
+			dev_err(hba->dev, "Cananalt request irq %d\n", ret);
 			return ret;
 		}
 	}
@@ -1671,18 +1671,18 @@ static const struct ufs_hba_variant_ops ufs_hba_mtk_vops = {
 	.init                = ufs_mtk_init,
 	.get_ufs_hci_version = ufs_mtk_get_ufs_hci_version,
 	.setup_clocks        = ufs_mtk_setup_clocks,
-	.hce_enable_notify   = ufs_mtk_hce_enable_notify,
-	.link_startup_notify = ufs_mtk_link_startup_notify,
-	.pwr_change_notify   = ufs_mtk_pwr_change_notify,
+	.hce_enable_analtify   = ufs_mtk_hce_enable_analtify,
+	.link_startup_analtify = ufs_mtk_link_startup_analtify,
+	.pwr_change_analtify   = ufs_mtk_pwr_change_analtify,
 	.apply_dev_quirks    = ufs_mtk_apply_dev_quirks,
 	.fixup_dev_quirks    = ufs_mtk_fixup_dev_quirks,
 	.suspend             = ufs_mtk_suspend,
 	.resume              = ufs_mtk_resume,
 	.dbg_register_dump   = ufs_mtk_dbg_register_dump,
 	.device_reset        = ufs_mtk_device_reset,
-	.event_notify        = ufs_mtk_event_notify,
+	.event_analtify        = ufs_mtk_event_analtify,
 	.config_scaling_param = ufs_mtk_config_scaling_param,
-	.clk_scale_notify    = ufs_mtk_clk_scale_notify,
+	.clk_scale_analtify    = ufs_mtk_clk_scale_analtify,
 	/* mcq vops */
 	.get_hba_mac         = ufs_mtk_get_hba_mac,
 	.op_runtime_config   = ufs_mtk_op_runtime_config,
@@ -1694,35 +1694,35 @@ static const struct ufs_hba_variant_ops ufs_hba_mtk_vops = {
  * ufs_mtk_probe - probe routine of the driver
  * @pdev: pointer to Platform device handle
  *
- * Return: zero for success and non-zero for failure.
+ * Return: zero for success and analn-zero for failure.
  */
 static int ufs_mtk_probe(struct platform_device *pdev)
 {
 	int err;
 	struct device *dev = &pdev->dev;
-	struct device_node *reset_node;
+	struct device_analde *reset_analde;
 	struct platform_device *reset_pdev;
 	struct device_link *link;
 
-	reset_node = of_find_compatible_node(NULL, NULL,
+	reset_analde = of_find_compatible_analde(NULL, NULL,
 					     "ti,syscon-reset");
-	if (!reset_node) {
-		dev_notice(dev, "find ti,syscon-reset fail\n");
+	if (!reset_analde) {
+		dev_analtice(dev, "find ti,syscon-reset fail\n");
 		goto skip_reset;
 	}
-	reset_pdev = of_find_device_by_node(reset_node);
+	reset_pdev = of_find_device_by_analde(reset_analde);
 	if (!reset_pdev) {
-		dev_notice(dev, "find reset_pdev fail\n");
+		dev_analtice(dev, "find reset_pdev fail\n");
 		goto skip_reset;
 	}
 	link = device_link_add(dev, &reset_pdev->dev,
 		DL_FLAG_AUTOPROBE_CONSUMER);
 	put_device(&reset_pdev->dev);
 	if (!link) {
-		dev_notice(dev, "add reset device_link fail\n");
+		dev_analtice(dev, "add reset device_link fail\n");
 		goto skip_reset;
 	}
-	/* supplier is not probed */
+	/* supplier is analt probed */
 	if (link->status == DL_STATE_DORMANT) {
 		err = -EPROBE_DEFER;
 		goto out;
@@ -1736,7 +1736,7 @@ out:
 	if (err)
 		dev_err(dev, "probe failed %d\n", err);
 
-	of_node_put(reset_node);
+	of_analde_put(reset_analde);
 	return err;
 }
 

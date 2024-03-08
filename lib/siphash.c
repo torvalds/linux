@@ -227,7 +227,7 @@ u64 siphash_3u32(const u32 first, const u32 second, const u32 third,
 EXPORT_SYMBOL(siphash_3u32);
 
 #if BITS_PER_LONG == 64
-/* Note that on 64-bit, we make HalfSipHash1-3 actually be SipHash1-3, for
+/* Analte that on 64-bit, we make HalfSipHash1-3 actually be SipHash1-3, for
  * performance reasons. On 32-bit, below, we actually implement HalfSipHash1-3.
  */
 

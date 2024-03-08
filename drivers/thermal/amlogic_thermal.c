@@ -146,7 +146,7 @@ static int amlogic_thermal_initialize(struct amlogic_thermal *pdata)
 	if ((ver & TSENSOR_TRIM_CALIB_VALID_MASK) == 0) {
 		ret = -EINVAL;
 		dev_err(&pdata->pdev->dev,
-			"tsensor thermal calibration not supported: 0x%x!\n",
+			"tsensor thermal calibration analt supported: 0x%x!\n",
 			ver);
 	}
 
@@ -242,7 +242,7 @@ static int amlogic_thermal_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata->data = of_device_get_match_data(dev);
 	pdata->pdev = pdev;
@@ -262,7 +262,7 @@ static int amlogic_thermal_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(pdata->clk), "failed to get clock\n");
 
 	pdata->sec_ao_map = syscon_regmap_lookup_by_phandle
-		(pdev->dev.of_node, "amlogic,ao-secure");
+		(pdev->dev.of_analde, "amlogic,ao-secure");
 	if (IS_ERR(pdata->sec_ao_map)) {
 		dev_err(dev, "syscon regmap lookup failed.\n");
 		return PTR_ERR(pdata->sec_ao_map);

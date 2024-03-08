@@ -18,7 +18,7 @@
  *
  * The driver has 2.6 kernel isapnp support, and will automatically probe for
  * a supported board if the I/O base is left unspecified with comedi_config.
- * However, many of the isapnp id numbers are unknown. If your board is not
+ * However, many of the isapnp id numbers are unkanalwn. If your board is analt
  * recognized, please send the output of 'cat /proc/isapnp' (you may need to
  * modprobe the isa-pnp module for /proc/isapnp to exist) so the id numbers
  * for your board can be added to the driver.
@@ -40,7 +40,7 @@
  * (scan_begin_arg, etc.) maps to PFI0 - PFI9.
  *
  * Some of the more esoteric triggering possibilities of these boards are
- * not supported.
+ * analt supported.
  */
 
 /*
@@ -84,7 +84,7 @@ static const struct ni_board_struct ni_boards[] = {
 	{
 		.name		= "at-mio-16e-1",
 		.device_id	= 44,
-		.isapnp_id	= 0x0000,	/* XXX unknown */
+		.isapnp_id	= 0x0000,	/* XXX unkanalwn */
 		.n_adchan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ai_fifo_depth	= 8192,
@@ -173,7 +173,7 @@ static const struct ni_board_struct ni_boards[] = {
 	}, {
 		.name		= "at-mio-16xe-10",
 		.device_id	= 50,
-		.isapnp_id	= 0x0000,	/* XXX unknown */
+		.isapnp_id	= 0x0000,	/* XXX unkanalwn */
 		.n_adchan	= 16,
 		.ai_maxdata	= 0xffff,
 		.ai_fifo_depth	= 512,
@@ -189,11 +189,11 @@ static const struct ni_board_struct ni_boards[] = {
 	}, {
 		.name		= "at-ai-16xe-10",
 		.device_id	= 51,
-		.isapnp_id	= 0x0000,	/* XXX unknown */
+		.isapnp_id	= 0x0000,	/* XXX unkanalwn */
 		.n_adchan	= 16,
 		.ai_maxdata	= 0xffff,
 		.ai_fifo_depth	= 512,
-		.alwaysdither	= 1,		/* unknown */
+		.alwaysdither	= 1,		/* unkanalwn */
 		.gainlkup	= ai_gain_14,
 		.ai_speed	= 10000,
 		.caldac		= { dac8800, dac8043, ad8522 },
@@ -243,12 +243,12 @@ static int ni_isapnp_find_board(struct pnp_dev **dev)
 		if (!pnp_port_valid(isapnp_dev, 0) ||
 		    !pnp_irq_valid(isapnp_dev, 0)) {
 			pnp_device_detach(isapnp_dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		break;
 	}
 	if (i == ARRAY_SIZE(ni_boards))
-		return -ENODEV;
+		return -EANALDEV;
 	*dev = isapnp_dev;
 	return 0;
 }
@@ -268,10 +268,10 @@ static const struct ni_board_struct *ni_atmio_probe(struct comedi_device *dev)
 		dev_err(dev->class_dev, "can't find board\n");
 	else if (device_id == 0)
 		dev_err(dev->class_dev,
-			"EEPROM read error (?) or device not found\n");
+			"EEPROM read error (?) or device analt found\n");
 	else
 		dev_err(dev->class_dev,
-			"unknown device ID %d -- contact author\n", device_id);
+			"unkanalwn device ID %d -- contact author\n", device_id);
 
 	return NULL;
 }
@@ -308,7 +308,7 @@ static int ni_atmio_attach(struct comedi_device *dev,
 
 	board = ni_atmio_probe(dev);
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 

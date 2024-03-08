@@ -147,12 +147,12 @@ static irqreturn_t rotate_irq(int irq, void *data)
 	if (!ctx) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Instance released before the end of transaction\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	val = rotate_read(dev, ROTATE_INT);
 	if (!(val & ROTATE_INT_FINISH_IRQ))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* clear flag and disable irq */
 	rotate_write(dev, ROTATE_INT, ROTATE_INT_FINISH_IRQ);
@@ -270,7 +270,7 @@ static int rotate_set_cap_format(struct rotate_ctx *ctx,
 	else
 		f->pixelformat = ctx->src_fmt.pixelformat;
 
-	f->field = V4L2_FIELD_NONE;
+	f->field = V4L2_FIELD_ANALNE;
 
 	if (rotate == 90 || rotate == 270) {
 		f->width = ctx->src_fmt.height;
@@ -329,7 +329,7 @@ static int rotate_try_fmt_vid_out(struct file *file, void *priv,
 	if (f->fmt.pix.height > ROTATE_MAX_HEIGHT)
 		f->fmt.pix.height = ROTATE_MAX_HEIGHT;
 
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 
 	rotate_prepare_format(&f->fmt.pix);
 
@@ -647,12 +647,12 @@ static int rotate_open(struct file *file)
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		mutex_unlock(&dev->dev_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* default output format */
 	ctx->src_fmt.pixelformat = V4L2_PIX_FMT_ARGB32;
-	ctx->src_fmt.field = V4L2_FIELD_NONE;
+	ctx->src_fmt.field = V4L2_FIELD_ANALNE;
 	ctx->src_fmt.width = 640;
 	ctx->src_fmt.height = 480;
 	rotate_prepare_format(&ctx->src_fmt);
@@ -724,7 +724,7 @@ static const struct video_device rotate_video_device = {
 	.vfl_dir	= VFL_DIR_M2M,
 	.fops		= &rotate_fops,
 	.ioctl_ops	= &rotate_ioctl_ops,
-	.minor		= -1,
+	.mianalr		= -1,
 	.release	= video_device_release_empty,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
 };
@@ -741,7 +741,7 @@ static int rotate_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->vfd = rotate_video_device;
 	dev->dev = &pdev->dev;

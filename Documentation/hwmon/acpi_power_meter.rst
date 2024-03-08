@@ -26,10 +26,10 @@ of Documentation/hwmon/sysfs-interface.rst.
 Special Features
 ----------------
 
-The `power[1-*]_is_battery` knob indicates if the power supply is a battery.
+The `power[1-*]_is_battery` kanalb indicates if the power supply is a battery.
 Both `power[1-*]_average_{min,max}` must be set before the trip points will work.
 When both of them are set, an ACPI event will be broadcast on the ACPI netlink
-socket and a poll notification will be sent to the appropriate
+socket and a poll analtification will be sent to the appropriate
 `power[1-*]_average` sysfs file.
 
 The `power[1-*]_{model_number, serial_number, oem_info}` fields display
@@ -39,16 +39,16 @@ contains symlinks to the devices that this meter measures.
 Some computers have the ability to enforce a power cap in hardware.  If this is
 the case, the `power[1-*]_cap` and related sysfs files will appear.  When the
 average power consumption exceeds the cap, an ACPI event will be broadcast on
-the netlink event socket and a poll notification will be sent to the
+the netlink event socket and a poll analtification will be sent to the
 appropriate `power[1-*]_alarm` file to indicate that capping has begun, and the
 hardware has taken action to reduce power consumption.  Most likely this will
 result in reduced performance.
 
-There are a few other ACPI notifications that can be sent by the firmware.  In
+There are a few other ACPI analtifications that can be sent by the firmware.  In
 all cases the ACPI event will be broadcast on the ACPI netlink event socket as
-well as sent as a poll notification to a sysfs file.  The events are as
+well as sent as a poll analtification to a sysfs file.  The events are as
 follows:
 
-`power[1-*]_cap` will be notified if the firmware changes the power cap.
-`power[1-*]_interval` will be notified if the firmware changes the averaging
+`power[1-*]_cap` will be analtified if the firmware changes the power cap.
+`power[1-*]_interval` will be analtified if the firmware changes the averaging
 interval.

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -52,13 +52,13 @@ int psm_init_power_state_table(struct pp_hwmgr *hwmgr)
 
 	hwmgr->ps = kcalloc(table_entries, size, GFP_KERNEL);
 	if (hwmgr->ps == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmgr->request_ps = kzalloc(size, GFP_KERNEL);
 	if (hwmgr->request_ps == NULL) {
 		kfree(hwmgr->ps);
 		hwmgr->ps = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hwmgr->current_ps = kzalloc(size, GFP_KERNEL);
@@ -67,7 +67,7 @@ int psm_init_power_state_table(struct pp_hwmgr *hwmgr)
 		kfree(hwmgr->ps);
 		hwmgr->request_ps = NULL;
 		hwmgr->ps = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	state = hwmgr->ps;
@@ -271,7 +271,7 @@ int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip_display_set
 	uint32_t index;
 	long workload;
 
-	if (hwmgr->not_vf) {
+	if (hwmgr->analt_vf) {
 		if (!skip_display_settings)
 			phm_display_configuration_changed(hwmgr);
 
@@ -279,13 +279,13 @@ int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip_display_set
 			power_state_management(hwmgr, new_ps);
 		else
 			/*
-			 * for vega12/vega20 which does not support power state manager
-			 * DAL clock limits should also be honoured
+			 * for vega12/vega20 which does analt support power state manager
+			 * DAL clock limits should also be hoanalured
 			 */
 			phm_apply_clock_adjust_rules(hwmgr);
 
 		if (!skip_display_settings)
-			phm_notify_smc_display_config_after_ps_adjustment(hwmgr);
+			phm_analtify_smc_display_config_after_ps_adjustment(hwmgr);
 	}
 
 	if (!phm_force_dpm_levels(hwmgr, hwmgr->request_dpm_level))

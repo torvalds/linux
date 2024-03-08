@@ -30,7 +30,7 @@
  *
  *	1. The host guarantees that while it is draining the
  *	   ring buffer, it will set the interrupt_mask to
- *	   indicate it does not need to be interrupted when
+ *	   indicate it does analt need to be interrupted when
  *	   new data is placed.
  *
  *	2. The host guarantees that it will completely drain
@@ -41,9 +41,9 @@
  *
  * KYS: Oct. 30, 2016:
  * It looks like Windows hosts have logic to deal with DOS attacks that
- * can be triggered if it receives interrupts when it is not expecting
+ * can be triggered if it receives interrupts when it is analt expecting
  * the interrupt. The host expects interrupts only when the ring
- * transitions from empty to non-empty (or full to non full on the guest
+ * transitions from empty to analn-empty (or full to analn full on the guest
  * to host ring).
  * So, base the signaling decision solely on the ring state until the
  * host logic is fixed.
@@ -61,7 +61,7 @@ static void hv_signal_on_write(u32 old_write, struct vmbus_channel *channel)
 	virt_rmb();
 	/*
 	 * This is the only case we need to signal when the
-	 * ring transitions from being empty to non-empty.
+	 * ring transitions from being empty to analn-empty.
 	 */
 	if (old_write == READ_ONCE(rbi->ring_buffer->read_index)) {
 		++channel->intr_out_empty;
@@ -102,7 +102,7 @@ hv_get_ring_bufferindices(struct hv_ring_buffer_info *ring_info)
 
 /*
  * Helper routine to copy from source to ring buffer.
- * Assume there is enough room. Handles wrap-around in dest case only!!
+ * Assume there is eanalugh room. Handles wrap-around in dest case only!!
  */
 static u32 hv_copyto_ringbuffer(
 	struct hv_ring_buffer_info	*ring_info,
@@ -198,7 +198,7 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 				   sizeof(struct page *),
 				   GFP_KERNEL);
 	if (!pages_wraparound)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pages_wraparound[0] = pages;
 	for (i = 0; i < 2 * (page_cnt - 1); i++)
@@ -211,7 +211,7 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 
 	kfree(pages_wraparound);
 	if (!ring_info->ring_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Ensure the header page is zero'ed since
@@ -236,7 +236,7 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 	if (max_pkt_size) {
 		ring_info->pkt_buffer = kzalloc(max_pkt_size, GFP_KERNEL);
 		if (!ring_info->pkt_buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 		ring_info->pkt_buffer_size = max_pkt_size;
 	}
 
@@ -259,7 +259,7 @@ void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
 }
 
 /*
- * Check if the ring buffer spinlock is available to take or not; used on
+ * Check if the ring buffer spinlock is available to take or analt; used on
  * atomic contexts, like panic path (see the Hyper-V framebuffer driver).
  */
 
@@ -285,10 +285,10 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 	unsigned long flags;
 	struct hv_ring_buffer_info *outring_info = &channel->outbound;
 	struct vmpacket_descriptor *desc = kv_list[0].iov_base;
-	u64 __trans_id, rqst_id = VMBUS_NO_RQSTOR;
+	u64 __trans_id, rqst_id = VMBUS_ANAL_RQSTOR;
 
 	if (channel->rescind)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < kv_count; i++)
 		totalbytes_towrite += kv_list[i].iov_len;
@@ -344,7 +344,7 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 		}
 	}
 	desc = hv_get_ring_buffer(outring_info) + old_write;
-	__trans_id = (rqst_id == VMBUS_NO_RQSTOR) ? requestid : rqst_id;
+	__trans_id = (rqst_id == VMBUS_ANAL_RQSTOR) ? requestid : rqst_id;
 	/*
 	 * Ensure the compiler doesn't generate code that reads the value of
 	 * the transaction ID from the ring buffer, which is shared with the
@@ -365,7 +365,7 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 	/* Issue a full memory barrier before updating the write index */
 	virt_mb();
 
-	/* Now, update the write location */
+	/* Analw, update the write location */
 	hv_set_next_write_location(outring_info, next_write_location);
 
 
@@ -374,12 +374,12 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 	hv_signal_on_write(old_write, channel);
 
 	if (channel->rescind) {
-		if (rqst_id != VMBUS_NO_RQSTOR) {
+		if (rqst_id != VMBUS_ANAL_RQSTOR) {
 			/* Reclaim request ID to avoid leak of IDs */
 			if (channel->request_addr_callback != NULL)
 				channel->request_addr_callback(channel, rqst_id);
 		}
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -402,7 +402,7 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 	desc = hv_pkt_iter_first(channel);
 	if (desc == NULL) {
 		/*
-		 * No error is set when there is even no header, drivers are
+		 * Anal error is set when there is even anal header, drivers are
 		 * supposed to analyze buffer_actual_len.
 		 */
 		return 0;
@@ -414,7 +414,7 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 	*requestid = desc->trans_id;
 
 	if (unlikely(packetlen > buflen))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	/* since ring is double mapped, only one copy is necessary */
 	memcpy(buffer, (const char *)desc + offset, packetlen);
@@ -422,7 +422,7 @@ int hv_ringbuffer_read(struct vmbus_channel *channel,
 	/* Advance ring index to next packet descriptor */
 	__hv_pkt_iter_next(channel, desc);
 
-	/* Notify host of update */
+	/* Analtify host of update */
 	hv_pkt_iter_close(channel);
 
 	return 0;
@@ -458,7 +458,7 @@ static u32 hv_pkt_iter_avail(const struct hv_ring_buffer_info *rbi)
 /*
  * Get first vmbus packet from ring buffer after read_index
  *
- * If ring buffer is empty, returns NULL and no other action needed.
+ * If ring buffer is empty, returns NULL and anal other action needed.
  */
 struct vmpacket_descriptor *hv_pkt_iter_first(struct vmbus_channel *channel)
 {
@@ -476,7 +476,7 @@ struct vmpacket_descriptor *hv_pkt_iter_first(struct vmbus_channel *channel)
 	desc = (struct vmpacket_descriptor *)(hv_get_ring_buffer(rbi) + rbi->priv_read_index);
 
 	/*
-	 * Ensure the compiler does not use references to incoming Hyper-V values (which
+	 * Ensure the compiler does analt use references to incoming Hyper-V values (which
 	 * could change at any moment) when reading local variables later in the code
 	 */
 	pkt_len = READ_ONCE(desc->len8) << 3;
@@ -563,9 +563,9 @@ static u32 hv_pkt_iter_bytes_read(const struct hv_ring_buffer_info *rbi,
  * 2. Read the pending_send_sz
  * 3. Read the current write_index
  *
- * The interrupt_mask is not used to determine when to signal. The
+ * The interrupt_mask is analt used to determine when to signal. The
  * interrupt_mask is used only on the guest->host ring buffer when
- * sending requests to the host. The host does not use it on the host->
+ * sending requests to the host. The host does analt use it on the host->
  * guest ring buffer to indicate whether it should be signaled.
  */
 void hv_pkt_iter_close(struct vmbus_channel *channel)
@@ -583,9 +583,9 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 	rbi->ring_buffer->read_index = rbi->priv_read_index;
 
 	/*
-	 * Older versions of Hyper-V (before WS2102 and Win8) do not
+	 * Older versions of Hyper-V (before WS2102 and Win8) do analt
 	 * implement pending_send_sz and simply poll if the host->guest
-	 * ring buffer is full.  No signaling is needed or expected.
+	 * ring buffer is full.  Anal signaling is needed or expected.
 	 */
 	if (!rbi->ring_buffer->feature_bits.feat_pending_send_sz)
 		return;
@@ -602,8 +602,8 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 	virt_mb();
 
 	/*
-	 * If the pending_send_sz is zero, then the ring buffer is not
-	 * blocked and there is no need to signal.  This is far by the
+	 * If the pending_send_sz is zero, then the ring buffer is analt
+	 * blocked and there is anal need to signal.  This is far by the
 	 * most common case, so exit quickly for best performance.
 	 */
 	pending_sz = READ_ONCE(rbi->ring_buffer->pending_send_sz);
@@ -620,30 +620,30 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 
 	/*
 	 * We want to signal the host only if we're transitioning
-	 * from a "not enough free space" state to a "enough free
+	 * from a "analt eanalugh free space" state to a "eanalugh free
 	 * space" state.  For example, it's possible that this function
-	 * could run and free up enough space to signal the host, and then
+	 * could run and free up eanalugh space to signal the host, and then
 	 * run again and free up additional space before the host has a
 	 * chance to clear the pending_send_sz.  The 2nd invocation would
-	 * be a null transition from "enough free space" to "enough free
+	 * be a null transition from "eanalugh free space" to "eanalugh free
 	 * space", which doesn't warrant a signal.
 	 *
-	 * Exactly filling the ring buffer is treated as "not enough
+	 * Exactly filling the ring buffer is treated as "analt eanalugh
 	 * space". The ring buffer always must have at least one byte
 	 * empty so the empty and full conditions are distinguishable.
 	 * hv_get_bytes_to_write() doesn't fully tell the truth in
 	 * this regard.
 	 *
-	 * So first check if we were in the "enough free space" state
-	 * before we began the iteration. If so, the host was not
-	 * blocked, and there's no need to signal.
+	 * So first check if we were in the "eanalugh free space" state
+	 * before we began the iteration. If so, the host was analt
+	 * blocked, and there's anal need to signal.
 	 */
 	if (curr_write_sz - bytes_read > pending_sz)
 		return;
 
 	/*
-	 * Similarly, if the new state is "not enough space", then
-	 * there's no need to signal.
+	 * Similarly, if the new state is "analt eanalugh space", then
+	 * there's anal need to signal.
 	 */
 	if (curr_write_sz <= pending_sz)
 		return;

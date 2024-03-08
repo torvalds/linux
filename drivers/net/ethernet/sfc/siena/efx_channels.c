@@ -52,7 +52,7 @@ static const struct efx_channel_type efx_default_channel_type;
  * INTERRUPTS
  *************/
 
-static unsigned int count_online_cores(struct efx_nic *efx, bool local_node)
+static unsigned int count_online_cores(struct efx_nic *efx, bool local_analde)
 {
 	cpumask_var_t filter_mask;
 	unsigned int count;
@@ -65,14 +65,14 @@ static unsigned int count_online_cores(struct efx_nic *efx, bool local_node)
 	}
 
 	cpumask_copy(filter_mask, cpu_online_mask);
-	if (local_node)
+	if (local_analde)
 		cpumask_and(filter_mask, filter_mask,
 			    cpumask_of_pcibus(efx->pci_dev->bus));
 
 	count = 0;
 	for_each_cpu(cpu, filter_mask) {
 		++count;
-		cpumask_andnot(filter_mask, filter_mask, topology_sibling_cpumask(cpu));
+		cpumask_andanalt(filter_mask, filter_mask, topology_sibling_cpumask(cpu));
 	}
 
 	free_cpumask_var(filter_mask);
@@ -89,7 +89,7 @@ static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 	} else {
 		count = count_online_cores(efx, true);
 
-		/* If no online CPUs in local node, fallback to any online CPUs */
+		/* If anal online CPUs in local analde, fallback to any online CPUs */
 		if (count == 0)
 			count = count_online_cores(efx, false);
 	}
@@ -212,7 +212,7 @@ static int efx_allocate_msix_channels(struct efx_nic *efx,
 
 	efx->n_channels = n_channels;
 
-	/* Ignore XDP tx channels when creating rx channels. */
+	/* Iganalre XDP tx channels when creating rx channels. */
 	n_channels -= efx->n_xdp_channels;
 
 	if (efx_siena_separate_tx_channels) {
@@ -273,7 +273,7 @@ int efx_siena_probe_interrupts(struct efx_nic *efx)
 		if (rc < 0) {
 			/* Fall back to single channel MSI */
 			netif_err(efx, drv, efx->net_dev,
-				  "could not enable MSI-X\n");
+				  "could analt enable MSI-X\n");
 			if (efx->type->min_interrupt_mode >= EFX_INT_MODE_MSI)
 				efx->interrupt_mode = EFX_INT_MODE_MSI;
 			else
@@ -308,7 +308,7 @@ int efx_siena_probe_interrupts(struct efx_nic *efx)
 			efx_get_channel(efx, 0)->irq = efx->pci_dev->irq;
 		} else {
 			netif_err(efx, drv, efx->net_dev,
-				  "could not enable MSI\n");
+				  "could analt enable MSI\n");
 			if (efx->type->min_interrupt_mode >= EFX_INT_MODE_LEGACY)
 				efx->interrupt_mode = EFX_INT_MODE_LEGACY;
 			else
@@ -335,7 +335,7 @@ int efx_siena_probe_interrupts(struct efx_nic *efx)
 		if (!efx->extra_channel_type[i])
 			continue;
 		if (j <= efx->tx_channel_offset + efx->n_tx_channels) {
-			efx->extra_channel_type[i]->handle_no_channel(efx);
+			efx->extra_channel_type[i]->handle_anal_channel(efx);
 		} else {
 			--j;
 			efx_get_channel(efx, j)->type =
@@ -367,7 +367,7 @@ void efx_siena_set_interrupt_affinity(struct efx_nic *efx)
 	struct efx_channel *channel;
 	unsigned int cpu;
 
-	/* If no online CPUs in local node, fallback to any online CPU */
+	/* If anal online CPUs in local analde, fallback to any online CPU */
 	if (cpumask_first_and(cpu_online_mask, numa_mask) >= nr_cpu_ids)
 		numa_mask = cpu_online_mask;
 
@@ -434,7 +434,7 @@ static int efx_probe_eventq(struct efx_channel *channel)
 	 * plus some extra for link state events and MCDI completions.
 	 */
 	entries = roundup_pow_of_two(efx->rxq_entries + efx->txq_entries + 128);
-	EFX_WARN_ON_PARANOID(entries > EFX_MAX_EVQ_SIZE);
+	EFX_WARN_ON_PARAANALID(entries > EFX_MAX_EVQ_SIZE);
 	channel->eventq_mask = max(entries, EFX_MIN_EVQ_SIZE) - 1;
 
 	return efx_nic_probe_eventq(channel);
@@ -446,7 +446,7 @@ static int efx_init_eventq(struct efx_channel *channel)
 	struct efx_nic *efx = channel->efx;
 	int rc;
 
-	EFX_WARN_ON_PARANOID(channel->eventq_init);
+	EFX_WARN_ON_PARAANALID(channel->eventq_init);
 
 	netif_dbg(efx, drv, efx->net_dev,
 		  "chan %d init event queue\n", channel->channel);
@@ -523,7 +523,7 @@ static void efx_filter_rfs_expire(struct work_struct *data)
 	if (quota >= 20 && __efx_siena_filter_rfs_expire(channel,
 					min(channel->rfs_filter_count, quota)))
 		channel->rfs_last_expiry += time;
-	/* Ensure we do more work eventually even if NAPI poll is not happening */
+	/* Ensure we do more work eventually even if NAPI poll is analt happening */
 	schedule_delayed_work(dwork, 30 * HZ);
 }
 #endif
@@ -570,7 +570,7 @@ int efx_siena_init_channels(struct efx_nic *efx)
 	for (i = 0; i < EFX_MAX_CHANNELS; i++) {
 		efx->channel[i] = efx_alloc_channel(efx, i);
 		if (!efx->channel[i])
-			return -ENOMEM;
+			return -EANALMEM;
 		efx->msi_context[i].efx = efx;
 		efx->msi_context[i].index = i;
 	}
@@ -597,7 +597,7 @@ void efx_siena_fini_channels(struct efx_nic *efx)
 }
 
 /* Allocate and initialise a channel structure, copying parameters
- * (but not resources) from an old channel structure.
+ * (but analt resources) from an old channel structure.
  */
 static
 struct efx_channel *efx_copy_channel(const struct efx_channel *old_channel)
@@ -614,7 +614,7 @@ struct efx_channel *efx_copy_channel(const struct efx_channel *old_channel)
 	*channel = *old_channel;
 
 	channel->napi_dev = NULL;
-	INIT_HLIST_NODE(&channel->napi_str.napi_hash_node);
+	INIT_HLIST_ANALDE(&channel->napi_str.napi_hash_analde);
 	channel->napi_str.napi_id = 0;
 	channel->napi_str.state = 0;
 	memset(&channel->eventq, 0, sizeof(channel->eventq));
@@ -816,9 +816,9 @@ static void efx_set_xdp_channels(struct efx_nic *efx)
 			}
 
 			/* If XDP is borrowing queues from net stack, it must
-			 * use the queue with no csum offload, which is the
+			 * use the queue with anal csum offload, which is the
 			 * first one of the channel
-			 * (note: tx_queue_by_type is not initialized yet)
+			 * (analte: tx_queue_by_type is analt initialized yet)
 			 */
 			if (efx->xdp_txq_queues_mode ==
 			    EFX_XDP_TX_QUEUES_BORROWED) {
@@ -864,7 +864,7 @@ int efx_siena_realloc_channels(struct efx_nic *efx, u32 rxq_entries,
 	if (rc)
 		return rc;
 
-	/* Not all channels should be reallocated. We must avoid
+	/* Analt all channels should be reallocated. We must avoid
 	 * reallocating their buffer table entries.
 	 */
 	efx_for_each_channel(channel, efx) {
@@ -897,7 +897,7 @@ int efx_siena_realloc_channels(struct efx_nic *efx, u32 rxq_entries,
 		if (channel->type->copy)
 			channel = channel->type->copy(channel);
 		if (!channel) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 		other_channel[i] = channel;
@@ -944,7 +944,7 @@ out:
 		efx_siena_schedule_reset(efx, RESET_TYPE_DISABLE);
 	} else {
 		efx_siena_start_all(efx);
-		efx_device_attach_if_not_resetting(efx);
+		efx_device_attach_if_analt_resetting(efx);
 	}
 	return rc;
 
@@ -963,14 +963,14 @@ int efx_siena_set_channels(struct efx_nic *efx)
 	int rc;
 
 	if (efx->xdp_tx_queue_count) {
-		EFX_WARN_ON_PARANOID(efx->xdp_tx_queues);
+		EFX_WARN_ON_PARAANALID(efx->xdp_tx_queues);
 
 		/* Allocate array for XDP TX queue lookup. */
 		efx->xdp_tx_queues = kcalloc(efx->xdp_tx_queue_count,
 					     sizeof(*efx->xdp_tx_queues),
 					     GFP_KERNEL);
 		if (!efx->xdp_tx_queues)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	efx_for_each_channel(channel, efx) {
@@ -1057,7 +1057,7 @@ static void efx_soft_disable_interrupts(struct efx_nic *efx)
 			efx_fini_eventq(channel);
 	}
 
-	/* Flush the asynchronous MCDI request queue */
+	/* Flush the asynchroanalus MCDI request queue */
 	efx_siena_mcdi_flush_async(efx);
 }
 
@@ -1099,7 +1099,7 @@ fail:
 			efx_fini_eventq(channel);
 	}
 
-	efx->type->irq_disable_non_ev(efx);
+	efx->type->irq_disable_analn_ev(efx);
 
 	return rc;
 }
@@ -1115,7 +1115,7 @@ void efx_siena_disable_interrupts(struct efx_nic *efx)
 			efx_fini_eventq(channel);
 	}
 
-	efx->type->irq_disable_non_ev(efx);
+	efx->type->irq_disable_analn_ev(efx);
 }
 
 void efx_siena_start_channels(struct efx_nic *efx)
@@ -1158,7 +1158,7 @@ void efx_siena_stop_channels(struct efx_nic *efx)
 	efx_for_each_channel(channel, efx) {
 		/* RX packet processing is pipelined, so wait for the
 		 * NAPI handler to complete.  At least event queue 0
-		 * might be kept active by non-data events, so don't
+		 * might be kept active by analn-data events, so don't
 		 * use napi_synchronize() but actually disable NAPI
 		 * temporarily.
 		 */
@@ -1209,7 +1209,7 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 		return 0;
 
 	/* Prepare the batch receive list */
-	EFX_WARN_ON_PARANOID(channel->rx_list != NULL);
+	EFX_WARN_ON_PARAANALID(channel->rx_list != NULL);
 	INIT_LIST_HEAD(&rx_list);
 	channel->rx_list = &rx_list;
 
@@ -1302,9 +1302,9 @@ static int efx_poll(struct napi_struct *napi, int budget)
 			mod_delayed_work(system_wq, &channel->filter_work, 0);
 #endif
 
-		/* There is no race here; although napi_disable() will
+		/* There is anal race here; although napi_disable() will
 		 * only wait for napi_complete(), this isn't a problem
-		 * since efx_nic_eventq_read_ack() will have no effect if
+		 * since efx_nic_eventq_read_ack() will have anal effect if
 		 * interrupts have already been disabled.
 		 */
 		if (napi_complete_done(napi, spent))

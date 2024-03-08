@@ -32,14 +32,14 @@ enum buf_end_align_type {
 	/**
 	 * @SAME_PAGE_UNALIGNED: The end of this buffer is on
 	 * the same page as the end of the previous buffer and
-	 * is not page aligned. Examples:
+	 * is analt page aligned. Examples:
 	 * buf1 ][ buf2 ][ ...
 	 * buf1 ]|[ buf2 ][ ...
 	 */
 	SAME_PAGE_UNALIGNED = 0,
 	/**
 	 * @SAME_PAGE_ALIGNED: When the end of the previous buffer
-	 * is not page aligned, the end of this buffer is on the
+	 * is analt page aligned, the end of this buffer is on the
 	 * same page as the end of the previous buffer and is page
 	 * aligned. When the previous buffer is page aligned, the
 	 * end of this buffer is aligned to the next page boundary.
@@ -51,7 +51,7 @@ enum buf_end_align_type {
 	/**
 	 * @NEXT_PAGE_UNALIGNED: The end of this buffer is on
 	 * the page next to the end of the previous buffer and
-	 * is not page aligned. Examples:
+	 * is analt page aligned. Examples:
 	 * buf1 ][ buf2 | buf2 ][ ...
 	 * buf1 ]|[ buf2 | buf2 ][ ...
 	 */
@@ -67,7 +67,7 @@ enum buf_end_align_type {
 	/**
 	 * @NEXT_NEXT_UNALIGNED: The end of this buffer is on
 	 * the page that follows the page after the end of the
-	 * previous buffer and is not page aligned. Examples:
+	 * previous buffer and is analt page aligned. Examples:
 	 * buf1 ][ buf2 | buf2 | buf2 ][ ...
 	 * buf1 ]|[ buf2 | buf2 | buf2 ][ ...
 	 */
@@ -188,7 +188,7 @@ static void binder_selftest_alloc_free(struct binder_alloc *alloc,
 	/* Allocate from lru. */
 	binder_selftest_alloc_buf(alloc, buffers, sizes, seq);
 	if (list_lru_count(&binder_freelist))
-		pr_err("lru list should be empty but is not\n");
+		pr_err("lru list should be empty but is analt\n");
 
 	binder_selftest_free_buf(alloc, buffers, sizes, seq, end);
 	binder_selftest_free_page(alloc);

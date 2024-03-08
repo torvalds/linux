@@ -168,7 +168,7 @@
 #define	  SOLO_FI_INV_DISP_OUT(n)		((n)<<7)
 #define	  SOLO_DISP_SYNC_FI(n)			((n)<<6)
 #define	  SOLO_PIP_PAGE_ADD(n)			((n)<<3)
-#define	  SOLO_NORMAL_PAGE_ADD(n)		((n)<<0)
+#define	  SOLO_ANALRMAL_PAGE_ADD(n)		((n)<<0)
 
 #define	SOLO_VI_ACT_I_P				0x011C
 #define	SOLO_VI_ACT_I_S				0x0120
@@ -437,7 +437,7 @@
 #define SOLO_VE_JPEG_QUE(n)			(0x0A04+((n)*8))
 
 #define SOLO_VD_CFG0				0x0900
-#define	  SOLO_VD_CFG_NO_WRITE_NO_WINDOW	BIT(24)
+#define	  SOLO_VD_CFG_ANAL_WRITE_ANAL_WINDOW	BIT(24)
 #define	  SOLO_VD_CFG_BUSY_WIAT_CODE		BIT(23)
 #define	  SOLO_VD_CFG_BUSY_WIAT_REF		BIT(22)
 #define	  SOLO_VD_CFG_BUSY_WIAT_RES		BIT(21)
@@ -566,7 +566,7 @@
 #define	  SOLO_UART_STOP_BIT_1			(0<<2)
 #define	  SOLO_UART_STOP_BIT_2			(1<<2)
 
-#define	  SOLO_UART_PARITY_NONE			(0<<0)
+#define	  SOLO_UART_PARITY_ANALNE			(0<<0)
 #define	  SOLO_UART_PARITY_EVEN			(2<<0)
 #define	  SOLO_UART_PARITY_ODD			(3<<0)
 

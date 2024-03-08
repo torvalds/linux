@@ -26,7 +26,7 @@ OUTPUT_ARCH(loongarch)
 ENTRY(kernel_entry)
 PHDRS {
 	text PT_LOAD FLAGS(7);	/* RWX */
-	note PT_NOTE FLAGS(4);	/* R__ */
+	analte PT_ANALTE FLAGS(4);	/* R__ */
 }
 
 jiffies	 = jiffies_64;

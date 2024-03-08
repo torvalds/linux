@@ -38,7 +38,7 @@
  *
  * 0 0 -127 -127 makes the joystick rattle very hard
  *
- * I'm sure these are effects that I don't know enough about them
+ * I'm sure these are effects that I don't kanalw eanalugh about them
  */
 
 struct lg3ff_device {
@@ -92,7 +92,7 @@ static void hid_lg3ff_set_autocenter(struct input_dev *dev, u16 magnitude)
 
 /*
  * Auto Centering probed from device
- * NOTE: deadman's switch on G940 must be covered
+ * ANALTE: deadman's switch on G940 must be covered
  * for effects to work
  */
 	report->field[0]->value[0] = 0x51;
@@ -124,15 +124,15 @@ int lg3ff_init(struct hid_device *hid)
 	int i;
 
 	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		return -ENODEV;
+		hid_err(hid, "anal inputs found\n");
+		return -EANALDEV;
 	}
 	hidinput = list_entry(hid->inputs.next, struct hid_input, list);
 	dev = hidinput->input;
 
 	/* Check that the report looks ok */
 	if (!hid_validate_values(hid, HID_OUTPUT_REPORT, 0, 0, 35))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Assume single fixed device G940 */
 	for (i = 0; ff_bits[i] >= 0; i++)

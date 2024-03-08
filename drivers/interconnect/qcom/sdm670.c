@@ -15,180 +15,180 @@
 #include "icc-rpmh.h"
 #include "sdm670.h"
 
-static struct qcom_icc_node qhm_a1noc_cfg = {
-	.name = "qhm_a1noc_cfg",
-	.id = SDM670_MASTER_A1NOC_CFG,
+static struct qcom_icc_analde qhm_a1analc_cfg = {
+	.name = "qhm_a1analc_cfg",
+	.id = SDM670_MASTER_A1ANALC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_SERVICE_A1NOC },
+	.links = { SDM670_SLAVE_SERVICE_A1ANALC },
 };
 
-static struct qcom_icc_node qhm_qup1 = {
+static struct qcom_icc_analde qhm_qup1 = {
 	.name = "qhm_qup1",
 	.id = SDM670_MASTER_BLSP_1,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_A1NOC_SNOC },
+	.links = { SDM670_SLAVE_A1ANALC_SANALC },
 };
 
-static struct qcom_icc_node qhm_tsif = {
+static struct qcom_icc_analde qhm_tsif = {
 	.name = "qhm_tsif",
 	.id = SDM670_MASTER_TSIF,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_A1NOC_SNOC },
+	.links = { SDM670_SLAVE_A1ANALC_SANALC },
 };
 
-static struct qcom_icc_node xm_emmc = {
+static struct qcom_icc_analde xm_emmc = {
 	.name = "xm_emmc",
 	.id = SDM670_MASTER_EMMC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_A1NOC_SNOC },
+	.links = { SDM670_SLAVE_A1ANALC_SANALC },
 };
 
-static struct qcom_icc_node xm_sdc2 = {
+static struct qcom_icc_analde xm_sdc2 = {
 	.name = "xm_sdc2",
 	.id = SDM670_MASTER_SDCC_2,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_A1NOC_SNOC },
+	.links = { SDM670_SLAVE_A1ANALC_SANALC },
 };
 
-static struct qcom_icc_node xm_sdc4 = {
+static struct qcom_icc_analde xm_sdc4 = {
 	.name = "xm_sdc4",
 	.id = SDM670_MASTER_SDCC_4,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_A1NOC_SNOC },
+	.links = { SDM670_SLAVE_A1ANALC_SANALC },
 };
 
-static struct qcom_icc_node xm_ufs_mem = {
+static struct qcom_icc_analde xm_ufs_mem = {
 	.name = "xm_ufs_mem",
 	.id = SDM670_MASTER_UFS_MEM,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_A1NOC_SNOC },
+	.links = { SDM670_SLAVE_A1ANALC_SANALC },
 };
 
-static struct qcom_icc_node qhm_a2noc_cfg = {
-	.name = "qhm_a2noc_cfg",
-	.id = SDM670_MASTER_A2NOC_CFG,
+static struct qcom_icc_analde qhm_a2analc_cfg = {
+	.name = "qhm_a2analc_cfg",
+	.id = SDM670_MASTER_A2ANALC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_SERVICE_A2NOC },
+	.links = { SDM670_SLAVE_SERVICE_A2ANALC },
 };
 
-static struct qcom_icc_node qhm_qdss_bam = {
+static struct qcom_icc_analde qhm_qdss_bam = {
 	.name = "qhm_qdss_bam",
 	.id = SDM670_MASTER_QDSS_BAM,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_A2NOC_SNOC },
+	.links = { SDM670_SLAVE_A2ANALC_SANALC },
 };
 
-static struct qcom_icc_node qhm_qup2 = {
+static struct qcom_icc_analde qhm_qup2 = {
 	.name = "qhm_qup2",
 	.id = SDM670_MASTER_BLSP_2,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_A2NOC_SNOC },
+	.links = { SDM670_SLAVE_A2ANALC_SANALC },
 };
 
-static struct qcom_icc_node qnm_cnoc = {
-	.name = "qnm_cnoc",
-	.id = SDM670_MASTER_CNOC_A2NOC,
+static struct qcom_icc_analde qnm_canalc = {
+	.name = "qnm_canalc",
+	.id = SDM670_MASTER_CANALC_A2ANALC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_A2NOC_SNOC },
+	.links = { SDM670_SLAVE_A2ANALC_SANALC },
 };
 
-static struct qcom_icc_node qxm_crypto = {
+static struct qcom_icc_analde qxm_crypto = {
 	.name = "qxm_crypto",
 	.id = SDM670_MASTER_CRYPTO_CORE_0,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_A2NOC_SNOC },
+	.links = { SDM670_SLAVE_A2ANALC_SANALC },
 };
 
-static struct qcom_icc_node qxm_ipa = {
+static struct qcom_icc_analde qxm_ipa = {
 	.name = "qxm_ipa",
 	.id = SDM670_MASTER_IPA,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_A2NOC_SNOC },
+	.links = { SDM670_SLAVE_A2ANALC_SANALC },
 };
 
-static struct qcom_icc_node xm_qdss_etr = {
+static struct qcom_icc_analde xm_qdss_etr = {
 	.name = "xm_qdss_etr",
 	.id = SDM670_MASTER_QDSS_ETR,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_A2NOC_SNOC },
+	.links = { SDM670_SLAVE_A2ANALC_SANALC },
 };
 
-static struct qcom_icc_node xm_usb3_0 = {
+static struct qcom_icc_analde xm_usb3_0 = {
 	.name = "xm_usb3_0",
 	.id = SDM670_MASTER_USB3,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_A2NOC_SNOC },
+	.links = { SDM670_SLAVE_A2ANALC_SANALC },
 };
 
-static struct qcom_icc_node qxm_camnoc_hf0_uncomp = {
-	.name = "qxm_camnoc_hf0_uncomp",
-	.id = SDM670_MASTER_CAMNOC_HF0_UNCOMP,
+static struct qcom_icc_analde qxm_camanalc_hf0_uncomp = {
+	.name = "qxm_camanalc_hf0_uncomp",
+	.id = SDM670_MASTER_CAMANALC_HF0_UNCOMP,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_CAMNOC_UNCOMP },
+	.links = { SDM670_SLAVE_CAMANALC_UNCOMP },
 };
 
-static struct qcom_icc_node qxm_camnoc_hf1_uncomp = {
-	.name = "qxm_camnoc_hf1_uncomp",
-	.id = SDM670_MASTER_CAMNOC_HF1_UNCOMP,
+static struct qcom_icc_analde qxm_camanalc_hf1_uncomp = {
+	.name = "qxm_camanalc_hf1_uncomp",
+	.id = SDM670_MASTER_CAMANALC_HF1_UNCOMP,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_CAMNOC_UNCOMP },
+	.links = { SDM670_SLAVE_CAMANALC_UNCOMP },
 };
 
-static struct qcom_icc_node qxm_camnoc_sf_uncomp = {
-	.name = "qxm_camnoc_sf_uncomp",
-	.id = SDM670_MASTER_CAMNOC_SF_UNCOMP,
+static struct qcom_icc_analde qxm_camanalc_sf_uncomp = {
+	.name = "qxm_camanalc_sf_uncomp",
+	.id = SDM670_MASTER_CAMANALC_SF_UNCOMP,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_CAMNOC_UNCOMP },
+	.links = { SDM670_SLAVE_CAMANALC_UNCOMP },
 };
 
-static struct qcom_icc_node qhm_spdm = {
+static struct qcom_icc_analde qhm_spdm = {
 	.name = "qhm_spdm",
 	.id = SDM670_MASTER_SPDM,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_CNOC_A2NOC },
+	.links = { SDM670_SLAVE_CANALC_A2ANALC },
 };
 
-static struct qcom_icc_node qnm_snoc = {
-	.name = "qnm_snoc",
-	.id = SDM670_MASTER_SNOC_CNOC,
+static struct qcom_icc_analde qnm_sanalc = {
+	.name = "qnm_sanalc",
+	.id = SDM670_MASTER_SANALC_CANALC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 38,
@@ -196,17 +196,17 @@ static struct qcom_icc_node qnm_snoc = {
 		   SDM670_SLAVE_CAMERA_CFG,
 		   SDM670_SLAVE_SDCC_4,
 		   SDM670_SLAVE_SDCC_2,
-		   SDM670_SLAVE_CNOC_MNOC_CFG,
+		   SDM670_SLAVE_CANALC_MANALC_CFG,
 		   SDM670_SLAVE_UFS_MEM_CFG,
 		   SDM670_SLAVE_GLM,
 		   SDM670_SLAVE_PDM,
-		   SDM670_SLAVE_A2NOC_CFG,
+		   SDM670_SLAVE_A2ANALC_CFG,
 		   SDM670_SLAVE_QDSS_CFG,
 		   SDM670_SLAVE_DISPLAY_CFG,
 		   SDM670_SLAVE_TCSR,
 		   SDM670_SLAVE_DCC_CFG,
-		   SDM670_SLAVE_CNOC_DDRSS,
-		   SDM670_SLAVE_SNOC_CFG,
+		   SDM670_SLAVE_CANALC_DDRSS,
+		   SDM670_SLAVE_SANALC_CFG,
 		   SDM670_SLAVE_SOUTH_PHY_CFG,
 		   SDM670_SLAVE_GRAPHICS_3D_CFG,
 		   SDM670_SLAVE_VENUS_CFG,
@@ -214,11 +214,11 @@ static struct qcom_icc_node qnm_snoc = {
 		   SDM670_SLAVE_CDSP_CFG,
 		   SDM670_SLAVE_AOP,
 		   SDM670_SLAVE_BLSP_2,
-		   SDM670_SLAVE_SERVICE_CNOC,
+		   SDM670_SLAVE_SERVICE_CANALC,
 		   SDM670_SLAVE_USB3,
 		   SDM670_SLAVE_IPA_CFG,
 		   SDM670_SLAVE_RBCPR_CX_CFG,
-		   SDM670_SLAVE_A1NOC_CFG,
+		   SDM670_SLAVE_A1ANALC_CFG,
 		   SDM670_SLAVE_AOSS,
 		   SDM670_SLAVE_PRNG,
 		   SDM670_SLAVE_VSENSE_CTRL_CFG,
@@ -227,45 +227,45 @@ static struct qcom_icc_node qnm_snoc = {
 		   SDM670_SLAVE_SPDM_WRAPPER,
 		   SDM670_SLAVE_CRYPTO_0_CFG,
 		   SDM670_SLAVE_PIMEM_CFG,
-		   SDM670_SLAVE_TLMM_NORTH,
+		   SDM670_SLAVE_TLMM_ANALRTH,
 		   SDM670_SLAVE_CLK_CTL,
 		   SDM670_SLAVE_IMEM_CFG
 	},
 };
 
-static struct qcom_icc_node qhm_cnoc = {
-	.name = "qhm_cnoc",
-	.id = SDM670_MASTER_CNOC_DC_NOC,
+static struct qcom_icc_analde qhm_canalc = {
+	.name = "qhm_canalc",
+	.id = SDM670_MASTER_CANALC_DC_ANALC,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 2,
-	.links = { SDM670_SLAVE_MEM_NOC_CFG,
+	.links = { SDM670_SLAVE_MEM_ANALC_CFG,
 		   SDM670_SLAVE_LLCC_CFG
 	},
 };
 
-static struct qcom_icc_node acm_l3 = {
+static struct qcom_icc_analde acm_l3 = {
 	.name = "acm_l3",
 	.id = SDM670_MASTER_AMPSS_M0,
 	.channels = 1,
 	.buswidth = 16,
 	.num_links = 3,
-	.links = { SDM670_SLAVE_SERVICE_GNOC,
-		   SDM670_SLAVE_GNOC_SNOC,
-		   SDM670_SLAVE_GNOC_MEM_NOC
+	.links = { SDM670_SLAVE_SERVICE_GANALC,
+		   SDM670_SLAVE_GANALC_SANALC,
+		   SDM670_SLAVE_GANALC_MEM_ANALC
 	},
 };
 
-static struct qcom_icc_node pm_gnoc_cfg = {
-	.name = "pm_gnoc_cfg",
-	.id = SDM670_MASTER_GNOC_CFG,
+static struct qcom_icc_analde pm_ganalc_cfg = {
+	.name = "pm_ganalc_cfg",
+	.id = SDM670_MASTER_GANALC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_SERVICE_GNOC },
+	.links = { SDM670_SLAVE_SERVICE_GANALC },
 };
 
-static struct qcom_icc_node llcc_mc = {
+static struct qcom_icc_analde llcc_mc = {
 	.name = "llcc_mc",
 	.id = SDM670_MASTER_LLCC,
 	.channels = 2,
@@ -274,659 +274,659 @@ static struct qcom_icc_node llcc_mc = {
 	.links = { SDM670_SLAVE_EBI_CH0 },
 };
 
-static struct qcom_icc_node acm_tcu = {
+static struct qcom_icc_analde acm_tcu = {
 	.name = "acm_tcu",
 	.id = SDM670_MASTER_TCU_0,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 3,
-	.links = { SDM670_SLAVE_MEM_NOC_GNOC,
+	.links = { SDM670_SLAVE_MEM_ANALC_GANALC,
 		   SDM670_SLAVE_LLCC,
-		   SDM670_SLAVE_MEM_NOC_SNOC
+		   SDM670_SLAVE_MEM_ANALC_SANALC
 	},
 };
 
-static struct qcom_icc_node qhm_memnoc_cfg = {
-	.name = "qhm_memnoc_cfg",
-	.id = SDM670_MASTER_MEM_NOC_CFG,
+static struct qcom_icc_analde qhm_memanalc_cfg = {
+	.name = "qhm_memanalc_cfg",
+	.id = SDM670_MASTER_MEM_ANALC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 2,
-	.links = { SDM670_SLAVE_SERVICE_MEM_NOC,
+	.links = { SDM670_SLAVE_SERVICE_MEM_ANALC,
 		   SDM670_SLAVE_MSS_PROC_MS_MPU_CFG
 	},
 };
 
-static struct qcom_icc_node qnm_apps = {
+static struct qcom_icc_analde qnm_apps = {
 	.name = "qnm_apps",
-	.id = SDM670_MASTER_GNOC_MEM_NOC,
+	.id = SDM670_MASTER_GANALC_MEM_ANALC,
 	.channels = 2,
 	.buswidth = 32,
 	.num_links = 1,
 	.links = { SDM670_SLAVE_LLCC },
 };
 
-static struct qcom_icc_node qnm_mnoc_hf = {
-	.name = "qnm_mnoc_hf",
-	.id = SDM670_MASTER_MNOC_HF_MEM_NOC,
+static struct qcom_icc_analde qnm_manalc_hf = {
+	.name = "qnm_manalc_hf",
+	.id = SDM670_MASTER_MANALC_HF_MEM_ANALC,
 	.channels = 2,
 	.buswidth = 32,
 	.num_links = 1,
 	.links = { SDM670_SLAVE_LLCC },
 };
 
-static struct qcom_icc_node qnm_mnoc_sf = {
-	.name = "qnm_mnoc_sf",
-	.id = SDM670_MASTER_MNOC_SF_MEM_NOC,
+static struct qcom_icc_analde qnm_manalc_sf = {
+	.name = "qnm_manalc_sf",
+	.id = SDM670_MASTER_MANALC_SF_MEM_ANALC,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 3,
-	.links = { SDM670_SLAVE_MEM_NOC_GNOC,
+	.links = { SDM670_SLAVE_MEM_ANALC_GANALC,
 		   SDM670_SLAVE_LLCC,
-		   SDM670_SLAVE_MEM_NOC_SNOC
+		   SDM670_SLAVE_MEM_ANALC_SANALC
 	},
 };
 
-static struct qcom_icc_node qnm_snoc_gc = {
-	.name = "qnm_snoc_gc",
-	.id = SDM670_MASTER_SNOC_GC_MEM_NOC,
+static struct qcom_icc_analde qnm_sanalc_gc = {
+	.name = "qnm_sanalc_gc",
+	.id = SDM670_MASTER_SANALC_GC_MEM_ANALC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
 	.links = { SDM670_SLAVE_LLCC },
 };
 
-static struct qcom_icc_node qnm_snoc_sf = {
-	.name = "qnm_snoc_sf",
-	.id = SDM670_MASTER_SNOC_SF_MEM_NOC,
+static struct qcom_icc_analde qnm_sanalc_sf = {
+	.name = "qnm_sanalc_sf",
+	.id = SDM670_MASTER_SANALC_SF_MEM_ANALC,
 	.channels = 1,
 	.buswidth = 16,
 	.num_links = 2,
-	.links = { SDM670_SLAVE_MEM_NOC_GNOC,
+	.links = { SDM670_SLAVE_MEM_ANALC_GANALC,
 		   SDM670_SLAVE_LLCC
 	},
 };
 
-static struct qcom_icc_node qxm_gpu = {
+static struct qcom_icc_analde qxm_gpu = {
 	.name = "qxm_gpu",
 	.id = SDM670_MASTER_GRAPHICS_3D,
 	.channels = 2,
 	.buswidth = 32,
 	.num_links = 3,
-	.links = { SDM670_SLAVE_MEM_NOC_GNOC,
+	.links = { SDM670_SLAVE_MEM_ANALC_GANALC,
 		   SDM670_SLAVE_LLCC,
-		   SDM670_SLAVE_MEM_NOC_SNOC
+		   SDM670_SLAVE_MEM_ANALC_SANALC
 	},
 };
 
-static struct qcom_icc_node qhm_mnoc_cfg = {
-	.name = "qhm_mnoc_cfg",
-	.id = SDM670_MASTER_CNOC_MNOC_CFG,
+static struct qcom_icc_analde qhm_manalc_cfg = {
+	.name = "qhm_manalc_cfg",
+	.id = SDM670_MASTER_CANALC_MANALC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_SERVICE_MNOC },
+	.links = { SDM670_SLAVE_SERVICE_MANALC },
 };
 
-static struct qcom_icc_node qxm_camnoc_hf0 = {
-	.name = "qxm_camnoc_hf0",
-	.id = SDM670_MASTER_CAMNOC_HF0,
+static struct qcom_icc_analde qxm_camanalc_hf0 = {
+	.name = "qxm_camanalc_hf0",
+	.id = SDM670_MASTER_CAMANALC_HF0,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_MNOC_HF_MEM_NOC },
+	.links = { SDM670_SLAVE_MANALC_HF_MEM_ANALC },
 };
 
-static struct qcom_icc_node qxm_camnoc_hf1 = {
-	.name = "qxm_camnoc_hf1",
-	.id = SDM670_MASTER_CAMNOC_HF1,
+static struct qcom_icc_analde qxm_camanalc_hf1 = {
+	.name = "qxm_camanalc_hf1",
+	.id = SDM670_MASTER_CAMANALC_HF1,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_MNOC_HF_MEM_NOC },
+	.links = { SDM670_SLAVE_MANALC_HF_MEM_ANALC },
 };
 
-static struct qcom_icc_node qxm_camnoc_sf = {
-	.name = "qxm_camnoc_sf",
-	.id = SDM670_MASTER_CAMNOC_SF,
+static struct qcom_icc_analde qxm_camanalc_sf = {
+	.name = "qxm_camanalc_sf",
+	.id = SDM670_MASTER_CAMANALC_SF,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_MNOC_SF_MEM_NOC },
+	.links = { SDM670_SLAVE_MANALC_SF_MEM_ANALC },
 };
 
-static struct qcom_icc_node qxm_mdp0 = {
+static struct qcom_icc_analde qxm_mdp0 = {
 	.name = "qxm_mdp0",
 	.id = SDM670_MASTER_MDP_PORT0,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_MNOC_HF_MEM_NOC },
+	.links = { SDM670_SLAVE_MANALC_HF_MEM_ANALC },
 };
 
-static struct qcom_icc_node qxm_mdp1 = {
+static struct qcom_icc_analde qxm_mdp1 = {
 	.name = "qxm_mdp1",
 	.id = SDM670_MASTER_MDP_PORT1,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_MNOC_HF_MEM_NOC },
+	.links = { SDM670_SLAVE_MANALC_HF_MEM_ANALC },
 };
 
-static struct qcom_icc_node qxm_rot = {
+static struct qcom_icc_analde qxm_rot = {
 	.name = "qxm_rot",
 	.id = SDM670_MASTER_ROTATOR,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_MNOC_SF_MEM_NOC },
+	.links = { SDM670_SLAVE_MANALC_SF_MEM_ANALC },
 };
 
-static struct qcom_icc_node qxm_venus0 = {
+static struct qcom_icc_analde qxm_venus0 = {
 	.name = "qxm_venus0",
 	.id = SDM670_MASTER_VIDEO_P0,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_MNOC_SF_MEM_NOC },
+	.links = { SDM670_SLAVE_MANALC_SF_MEM_ANALC },
 };
 
-static struct qcom_icc_node qxm_venus1 = {
+static struct qcom_icc_analde qxm_venus1 = {
 	.name = "qxm_venus1",
 	.id = SDM670_MASTER_VIDEO_P1,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_MNOC_SF_MEM_NOC },
+	.links = { SDM670_SLAVE_MANALC_SF_MEM_ANALC },
 };
 
-static struct qcom_icc_node qxm_venus_arm9 = {
+static struct qcom_icc_analde qxm_venus_arm9 = {
 	.name = "qxm_venus_arm9",
 	.id = SDM670_MASTER_VIDEO_PROC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_MNOC_SF_MEM_NOC },
+	.links = { SDM670_SLAVE_MANALC_SF_MEM_ANALC },
 };
 
-static struct qcom_icc_node qhm_snoc_cfg = {
-	.name = "qhm_snoc_cfg",
-	.id = SDM670_MASTER_SNOC_CFG,
+static struct qcom_icc_analde qhm_sanalc_cfg = {
+	.name = "qhm_sanalc_cfg",
+	.id = SDM670_MASTER_SANALC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_SLAVE_SERVICE_SNOC },
+	.links = { SDM670_SLAVE_SERVICE_SANALC },
 };
 
-static struct qcom_icc_node qnm_aggre1_noc = {
-	.name = "qnm_aggre1_noc",
-	.id = SDM670_MASTER_A1NOC_SNOC,
+static struct qcom_icc_analde qnm_aggre1_analc = {
+	.name = "qnm_aggre1_analc",
+	.id = SDM670_MASTER_A1ANALC_SANALC,
 	.channels = 1,
 	.buswidth = 16,
 	.num_links = 6,
 	.links = { SDM670_SLAVE_PIMEM,
-		   SDM670_SLAVE_SNOC_MEM_NOC_SF,
+		   SDM670_SLAVE_SANALC_MEM_ANALC_SF,
 		   SDM670_SLAVE_OCIMEM,
 		   SDM670_SLAVE_APPSS,
-		   SDM670_SLAVE_SNOC_CNOC,
+		   SDM670_SLAVE_SANALC_CANALC,
 		   SDM670_SLAVE_QDSS_STM
 	},
 };
 
-static struct qcom_icc_node qnm_aggre2_noc = {
-	.name = "qnm_aggre2_noc",
-	.id = SDM670_MASTER_A2NOC_SNOC,
+static struct qcom_icc_analde qnm_aggre2_analc = {
+	.name = "qnm_aggre2_analc",
+	.id = SDM670_MASTER_A2ANALC_SANALC,
 	.channels = 1,
 	.buswidth = 16,
 	.num_links = 7,
 	.links = { SDM670_SLAVE_PIMEM,
-		   SDM670_SLAVE_SNOC_MEM_NOC_SF,
+		   SDM670_SLAVE_SANALC_MEM_ANALC_SF,
 		   SDM670_SLAVE_OCIMEM,
 		   SDM670_SLAVE_APPSS,
-		   SDM670_SLAVE_SNOC_CNOC,
+		   SDM670_SLAVE_SANALC_CANALC,
 		   SDM670_SLAVE_TCU,
 		   SDM670_SLAVE_QDSS_STM
 	},
 };
 
-static struct qcom_icc_node qnm_gladiator_sodv = {
+static struct qcom_icc_analde qnm_gladiator_sodv = {
 	.name = "qnm_gladiator_sodv",
-	.id = SDM670_MASTER_GNOC_SNOC,
+	.id = SDM670_MASTER_GANALC_SANALC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 6,
 	.links = { SDM670_SLAVE_PIMEM,
 		   SDM670_SLAVE_OCIMEM,
 		   SDM670_SLAVE_APPSS,
-		   SDM670_SLAVE_SNOC_CNOC,
+		   SDM670_SLAVE_SANALC_CANALC,
 		   SDM670_SLAVE_TCU,
 		   SDM670_SLAVE_QDSS_STM
 	},
 };
 
-static struct qcom_icc_node qnm_memnoc = {
-	.name = "qnm_memnoc",
-	.id = SDM670_MASTER_MEM_NOC_SNOC,
+static struct qcom_icc_analde qnm_memanalc = {
+	.name = "qnm_memanalc",
+	.id = SDM670_MASTER_MEM_ANALC_SANALC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 5,
 	.links = { SDM670_SLAVE_OCIMEM,
 		   SDM670_SLAVE_APPSS,
 		   SDM670_SLAVE_PIMEM,
-		   SDM670_SLAVE_SNOC_CNOC,
+		   SDM670_SLAVE_SANALC_CANALC,
 		   SDM670_SLAVE_QDSS_STM
 	},
 };
 
-static struct qcom_icc_node qxm_pimem = {
+static struct qcom_icc_analde qxm_pimem = {
 	.name = "qxm_pimem",
 	.id = SDM670_MASTER_PIMEM,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 2,
 	.links = { SDM670_SLAVE_OCIMEM,
-		   SDM670_SLAVE_SNOC_MEM_NOC_GC
+		   SDM670_SLAVE_SANALC_MEM_ANALC_GC
 	},
 };
 
-static struct qcom_icc_node xm_gic = {
+static struct qcom_icc_analde xm_gic = {
 	.name = "xm_gic",
 	.id = SDM670_MASTER_GIC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 2,
 	.links = { SDM670_SLAVE_OCIMEM,
-		   SDM670_SLAVE_SNOC_MEM_NOC_GC
+		   SDM670_SLAVE_SANALC_MEM_ANALC_GC
 	},
 };
 
-static struct qcom_icc_node qns_a1noc_snoc = {
-	.name = "qns_a1noc_snoc",
-	.id = SDM670_SLAVE_A1NOC_SNOC,
+static struct qcom_icc_analde qns_a1analc_sanalc = {
+	.name = "qns_a1analc_sanalc",
+	.id = SDM670_SLAVE_A1ANALC_SANALC,
 	.channels = 1,
 	.buswidth = 16,
 	.num_links = 1,
-	.links = { SDM670_MASTER_A1NOC_SNOC },
+	.links = { SDM670_MASTER_A1ANALC_SANALC },
 };
 
-static struct qcom_icc_node srvc_aggre1_noc = {
-	.name = "srvc_aggre1_noc",
-	.id = SDM670_SLAVE_SERVICE_A1NOC,
+static struct qcom_icc_analde srvc_aggre1_analc = {
+	.name = "srvc_aggre1_analc",
+	.id = SDM670_SLAVE_SERVICE_A1ANALC,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qns_a2noc_snoc = {
-	.name = "qns_a2noc_snoc",
-	.id = SDM670_SLAVE_A2NOC_SNOC,
+static struct qcom_icc_analde qns_a2analc_sanalc = {
+	.name = "qns_a2analc_sanalc",
+	.id = SDM670_SLAVE_A2ANALC_SANALC,
 	.channels = 1,
 	.buswidth = 16,
 	.num_links = 1,
-	.links = { SDM670_MASTER_A2NOC_SNOC },
+	.links = { SDM670_MASTER_A2ANALC_SANALC },
 };
 
-static struct qcom_icc_node srvc_aggre2_noc = {
-	.name = "srvc_aggre2_noc",
-	.id = SDM670_SLAVE_SERVICE_A2NOC,
+static struct qcom_icc_analde srvc_aggre2_analc = {
+	.name = "srvc_aggre2_analc",
+	.id = SDM670_SLAVE_SERVICE_A2ANALC,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qns_camnoc_uncomp = {
-	.name = "qns_camnoc_uncomp",
-	.id = SDM670_SLAVE_CAMNOC_UNCOMP,
+static struct qcom_icc_analde qns_camanalc_uncomp = {
+	.name = "qns_camanalc_uncomp",
+	.id = SDM670_SLAVE_CAMANALC_UNCOMP,
 	.channels = 1,
 	.buswidth = 32,
 };
 
-static struct qcom_icc_node qhs_a1_noc_cfg = {
-	.name = "qhs_a1_noc_cfg",
-	.id = SDM670_SLAVE_A1NOC_CFG,
+static struct qcom_icc_analde qhs_a1_analc_cfg = {
+	.name = "qhs_a1_analc_cfg",
+	.id = SDM670_SLAVE_A1ANALC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_MASTER_A1NOC_CFG },
+	.links = { SDM670_MASTER_A1ANALC_CFG },
 };
 
-static struct qcom_icc_node qhs_a2_noc_cfg = {
-	.name = "qhs_a2_noc_cfg",
-	.id = SDM670_SLAVE_A2NOC_CFG,
+static struct qcom_icc_analde qhs_a2_analc_cfg = {
+	.name = "qhs_a2_analc_cfg",
+	.id = SDM670_SLAVE_A2ANALC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_MASTER_A2NOC_CFG },
+	.links = { SDM670_MASTER_A2ANALC_CFG },
 };
 
-static struct qcom_icc_node qhs_aop = {
+static struct qcom_icc_analde qhs_aop = {
 	.name = "qhs_aop",
 	.id = SDM670_SLAVE_AOP,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_aoss = {
+static struct qcom_icc_analde qhs_aoss = {
 	.name = "qhs_aoss",
 	.id = SDM670_SLAVE_AOSS,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_camera_cfg = {
+static struct qcom_icc_analde qhs_camera_cfg = {
 	.name = "qhs_camera_cfg",
 	.id = SDM670_SLAVE_CAMERA_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_clk_ctl = {
+static struct qcom_icc_analde qhs_clk_ctl = {
 	.name = "qhs_clk_ctl",
 	.id = SDM670_SLAVE_CLK_CTL,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_compute_dsp_cfg = {
+static struct qcom_icc_analde qhs_compute_dsp_cfg = {
 	.name = "qhs_compute_dsp_cfg",
 	.id = SDM670_SLAVE_CDSP_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_cpr_cx = {
+static struct qcom_icc_analde qhs_cpr_cx = {
 	.name = "qhs_cpr_cx",
 	.id = SDM670_SLAVE_RBCPR_CX_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_crypto0_cfg = {
+static struct qcom_icc_analde qhs_crypto0_cfg = {
 	.name = "qhs_crypto0_cfg",
 	.id = SDM670_SLAVE_CRYPTO_0_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_dcc_cfg = {
+static struct qcom_icc_analde qhs_dcc_cfg = {
 	.name = "qhs_dcc_cfg",
 	.id = SDM670_SLAVE_DCC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_MASTER_CNOC_DC_NOC },
+	.links = { SDM670_MASTER_CANALC_DC_ANALC },
 };
 
-static struct qcom_icc_node qhs_ddrss_cfg = {
+static struct qcom_icc_analde qhs_ddrss_cfg = {
 	.name = "qhs_ddrss_cfg",
-	.id = SDM670_SLAVE_CNOC_DDRSS,
+	.id = SDM670_SLAVE_CANALC_DDRSS,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_display_cfg = {
+static struct qcom_icc_analde qhs_display_cfg = {
 	.name = "qhs_display_cfg",
 	.id = SDM670_SLAVE_DISPLAY_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_emmc_cfg = {
+static struct qcom_icc_analde qhs_emmc_cfg = {
 	.name = "qhs_emmc_cfg",
 	.id = SDM670_SLAVE_EMMC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_glm = {
+static struct qcom_icc_analde qhs_glm = {
 	.name = "qhs_glm",
 	.id = SDM670_SLAVE_GLM,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_gpuss_cfg = {
+static struct qcom_icc_analde qhs_gpuss_cfg = {
 	.name = "qhs_gpuss_cfg",
 	.id = SDM670_SLAVE_GRAPHICS_3D_CFG,
 	.channels = 1,
 	.buswidth = 8,
 };
 
-static struct qcom_icc_node qhs_imem_cfg = {
+static struct qcom_icc_analde qhs_imem_cfg = {
 	.name = "qhs_imem_cfg",
 	.id = SDM670_SLAVE_IMEM_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_ipa = {
+static struct qcom_icc_analde qhs_ipa = {
 	.name = "qhs_ipa",
 	.id = SDM670_SLAVE_IPA_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_mnoc_cfg = {
-	.name = "qhs_mnoc_cfg",
-	.id = SDM670_SLAVE_CNOC_MNOC_CFG,
+static struct qcom_icc_analde qhs_manalc_cfg = {
+	.name = "qhs_manalc_cfg",
+	.id = SDM670_SLAVE_CANALC_MANALC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_MASTER_CNOC_MNOC_CFG },
+	.links = { SDM670_MASTER_CANALC_MANALC_CFG },
 };
 
-static struct qcom_icc_node qhs_pdm = {
+static struct qcom_icc_analde qhs_pdm = {
 	.name = "qhs_pdm",
 	.id = SDM670_SLAVE_PDM,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_phy_refgen_south = {
+static struct qcom_icc_analde qhs_phy_refgen_south = {
 	.name = "qhs_phy_refgen_south",
 	.id = SDM670_SLAVE_SOUTH_PHY_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_pimem_cfg = {
+static struct qcom_icc_analde qhs_pimem_cfg = {
 	.name = "qhs_pimem_cfg",
 	.id = SDM670_SLAVE_PIMEM_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_prng = {
+static struct qcom_icc_analde qhs_prng = {
 	.name = "qhs_prng",
 	.id = SDM670_SLAVE_PRNG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_qdss_cfg = {
+static struct qcom_icc_analde qhs_qdss_cfg = {
 	.name = "qhs_qdss_cfg",
 	.id = SDM670_SLAVE_QDSS_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_qupv3_north = {
-	.name = "qhs_qupv3_north",
+static struct qcom_icc_analde qhs_qupv3_analrth = {
+	.name = "qhs_qupv3_analrth",
 	.id = SDM670_SLAVE_BLSP_2,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_qupv3_south = {
+static struct qcom_icc_analde qhs_qupv3_south = {
 	.name = "qhs_qupv3_south",
 	.id = SDM670_SLAVE_BLSP_1,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_sdc2 = {
+static struct qcom_icc_analde qhs_sdc2 = {
 	.name = "qhs_sdc2",
 	.id = SDM670_SLAVE_SDCC_2,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_sdc4 = {
+static struct qcom_icc_analde qhs_sdc4 = {
 	.name = "qhs_sdc4",
 	.id = SDM670_SLAVE_SDCC_4,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_snoc_cfg = {
-	.name = "qhs_snoc_cfg",
-	.id = SDM670_SLAVE_SNOC_CFG,
+static struct qcom_icc_analde qhs_sanalc_cfg = {
+	.name = "qhs_sanalc_cfg",
+	.id = SDM670_SLAVE_SANALC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_MASTER_SNOC_CFG },
+	.links = { SDM670_MASTER_SANALC_CFG },
 };
 
-static struct qcom_icc_node qhs_spdm = {
+static struct qcom_icc_analde qhs_spdm = {
 	.name = "qhs_spdm",
 	.id = SDM670_SLAVE_SPDM_WRAPPER,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_tcsr = {
+static struct qcom_icc_analde qhs_tcsr = {
 	.name = "qhs_tcsr",
 	.id = SDM670_SLAVE_TCSR,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_tlmm_north = {
-	.name = "qhs_tlmm_north",
-	.id = SDM670_SLAVE_TLMM_NORTH,
+static struct qcom_icc_analde qhs_tlmm_analrth = {
+	.name = "qhs_tlmm_analrth",
+	.id = SDM670_SLAVE_TLMM_ANALRTH,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_tlmm_south = {
+static struct qcom_icc_analde qhs_tlmm_south = {
 	.name = "qhs_tlmm_south",
 	.id = SDM670_SLAVE_TLMM_SOUTH,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_tsif = {
+static struct qcom_icc_analde qhs_tsif = {
 	.name = "qhs_tsif",
 	.id = SDM670_SLAVE_TSIF,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_ufs_mem_cfg = {
+static struct qcom_icc_analde qhs_ufs_mem_cfg = {
 	.name = "qhs_ufs_mem_cfg",
 	.id = SDM670_SLAVE_UFS_MEM_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_usb3_0 = {
+static struct qcom_icc_analde qhs_usb3_0 = {
 	.name = "qhs_usb3_0",
 	.id = SDM670_SLAVE_USB3,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_venus_cfg = {
+static struct qcom_icc_analde qhs_venus_cfg = {
 	.name = "qhs_venus_cfg",
 	.id = SDM670_SLAVE_VENUS_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_vsense_ctrl_cfg = {
+static struct qcom_icc_analde qhs_vsense_ctrl_cfg = {
 	.name = "qhs_vsense_ctrl_cfg",
 	.id = SDM670_SLAVE_VSENSE_CTRL_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qns_cnoc_a2noc = {
-	.name = "qns_cnoc_a2noc",
-	.id = SDM670_SLAVE_CNOC_A2NOC,
+static struct qcom_icc_analde qns_canalc_a2analc = {
+	.name = "qns_canalc_a2analc",
+	.id = SDM670_SLAVE_CANALC_A2ANALC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_MASTER_CNOC_A2NOC },
+	.links = { SDM670_MASTER_CANALC_A2ANALC },
 };
 
-static struct qcom_icc_node srvc_cnoc = {
-	.name = "srvc_cnoc",
-	.id = SDM670_SLAVE_SERVICE_CNOC,
+static struct qcom_icc_analde srvc_canalc = {
+	.name = "srvc_canalc",
+	.id = SDM670_SLAVE_SERVICE_CANALC,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_llcc = {
+static struct qcom_icc_analde qhs_llcc = {
 	.name = "qhs_llcc",
 	.id = SDM670_SLAVE_LLCC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_memnoc = {
-	.name = "qhs_memnoc",
-	.id = SDM670_SLAVE_MEM_NOC_CFG,
+static struct qcom_icc_analde qhs_memanalc = {
+	.name = "qhs_memanalc",
+	.id = SDM670_SLAVE_MEM_ANALC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SDM670_MASTER_MEM_NOC_CFG },
+	.links = { SDM670_MASTER_MEM_ANALC_CFG },
 };
 
-static struct qcom_icc_node qns_gladiator_sodv = {
+static struct qcom_icc_analde qns_gladiator_sodv = {
 	.name = "qns_gladiator_sodv",
-	.id = SDM670_SLAVE_GNOC_SNOC,
+	.id = SDM670_SLAVE_GANALC_SANALC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_MASTER_GNOC_SNOC },
+	.links = { SDM670_MASTER_GANALC_SANALC },
 };
 
-static struct qcom_icc_node qns_gnoc_memnoc = {
-	.name = "qns_gnoc_memnoc",
-	.id = SDM670_SLAVE_GNOC_MEM_NOC,
+static struct qcom_icc_analde qns_ganalc_memanalc = {
+	.name = "qns_ganalc_memanalc",
+	.id = SDM670_SLAVE_GANALC_MEM_ANALC,
 	.channels = 2,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SDM670_MASTER_GNOC_MEM_NOC },
+	.links = { SDM670_MASTER_GANALC_MEM_ANALC },
 };
 
-static struct qcom_icc_node srvc_gnoc = {
-	.name = "srvc_gnoc",
-	.id = SDM670_SLAVE_SERVICE_GNOC,
+static struct qcom_icc_analde srvc_ganalc = {
+	.name = "srvc_ganalc",
+	.id = SDM670_SLAVE_SERVICE_GANALC,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node ebi = {
+static struct qcom_icc_analde ebi = {
 	.name = "ebi",
 	.id = SDM670_SLAVE_EBI_CH0,
 	.channels = 2,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_mdsp_ms_mpu_cfg = {
+static struct qcom_icc_analde qhs_mdsp_ms_mpu_cfg = {
 	.name = "qhs_mdsp_ms_mpu_cfg",
 	.id = SDM670_SLAVE_MSS_PROC_MS_MPU_CFG,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qns_apps_io = {
+static struct qcom_icc_analde qns_apps_io = {
 	.name = "qns_apps_io",
-	.id = SDM670_SLAVE_MEM_NOC_GNOC,
+	.id = SDM670_SLAVE_MEM_ANALC_GANALC,
 	.channels = 1,
 	.buswidth = 32,
 };
 
-static struct qcom_icc_node qns_llcc = {
+static struct qcom_icc_analde qns_llcc = {
 	.name = "qns_llcc",
 	.id = SDM670_SLAVE_LLCC,
 	.channels = 2,
@@ -935,110 +935,110 @@ static struct qcom_icc_node qns_llcc = {
 	.links = { SDM670_MASTER_LLCC },
 };
 
-static struct qcom_icc_node qns_memnoc_snoc = {
-	.name = "qns_memnoc_snoc",
-	.id = SDM670_SLAVE_MEM_NOC_SNOC,
+static struct qcom_icc_analde qns_memanalc_sanalc = {
+	.name = "qns_memanalc_sanalc",
+	.id = SDM670_SLAVE_MEM_ANALC_SANALC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_MASTER_MEM_NOC_SNOC },
+	.links = { SDM670_MASTER_MEM_ANALC_SANALC },
 };
 
-static struct qcom_icc_node srvc_memnoc = {
-	.name = "srvc_memnoc",
-	.id = SDM670_SLAVE_SERVICE_MEM_NOC,
+static struct qcom_icc_analde srvc_memanalc = {
+	.name = "srvc_memanalc",
+	.id = SDM670_SLAVE_SERVICE_MEM_ANALC,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qns2_mem_noc = {
-	.name = "qns2_mem_noc",
-	.id = SDM670_SLAVE_MNOC_SF_MEM_NOC,
+static struct qcom_icc_analde qns2_mem_analc = {
+	.name = "qns2_mem_analc",
+	.id = SDM670_SLAVE_MANALC_SF_MEM_ANALC,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SDM670_MASTER_MNOC_SF_MEM_NOC },
+	.links = { SDM670_MASTER_MANALC_SF_MEM_ANALC },
 };
 
-static struct qcom_icc_node qns_mem_noc_hf = {
-	.name = "qns_mem_noc_hf",
-	.id = SDM670_SLAVE_MNOC_HF_MEM_NOC,
+static struct qcom_icc_analde qns_mem_analc_hf = {
+	.name = "qns_mem_analc_hf",
+	.id = SDM670_SLAVE_MANALC_HF_MEM_ANALC,
 	.channels = 2,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SDM670_MASTER_MNOC_HF_MEM_NOC },
+	.links = { SDM670_MASTER_MANALC_HF_MEM_ANALC },
 };
 
-static struct qcom_icc_node srvc_mnoc = {
-	.name = "srvc_mnoc",
-	.id = SDM670_SLAVE_SERVICE_MNOC,
+static struct qcom_icc_analde srvc_manalc = {
+	.name = "srvc_manalc",
+	.id = SDM670_SLAVE_SERVICE_MANALC,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qhs_apss = {
+static struct qcom_icc_analde qhs_apss = {
 	.name = "qhs_apss",
 	.id = SDM670_SLAVE_APPSS,
 	.channels = 1,
 	.buswidth = 8,
 };
 
-static struct qcom_icc_node qns_cnoc = {
-	.name = "qns_cnoc",
-	.id = SDM670_SLAVE_SNOC_CNOC,
+static struct qcom_icc_analde qns_canalc = {
+	.name = "qns_canalc",
+	.id = SDM670_SLAVE_SANALC_CANALC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_MASTER_SNOC_CNOC },
+	.links = { SDM670_MASTER_SANALC_CANALC },
 };
 
-static struct qcom_icc_node qns_memnoc_gc = {
-	.name = "qns_memnoc_gc",
-	.id = SDM670_SLAVE_SNOC_MEM_NOC_GC,
+static struct qcom_icc_analde qns_memanalc_gc = {
+	.name = "qns_memanalc_gc",
+	.id = SDM670_SLAVE_SANALC_MEM_ANALC_GC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SDM670_MASTER_SNOC_GC_MEM_NOC },
+	.links = { SDM670_MASTER_SANALC_GC_MEM_ANALC },
 };
 
-static struct qcom_icc_node qns_memnoc_sf = {
-	.name = "qns_memnoc_sf",
-	.id = SDM670_SLAVE_SNOC_MEM_NOC_SF,
+static struct qcom_icc_analde qns_memanalc_sf = {
+	.name = "qns_memanalc_sf",
+	.id = SDM670_SLAVE_SANALC_MEM_ANALC_SF,
 	.channels = 1,
 	.buswidth = 16,
 	.num_links = 1,
-	.links = { SDM670_MASTER_SNOC_SF_MEM_NOC },
+	.links = { SDM670_MASTER_SANALC_SF_MEM_ANALC },
 };
 
-static struct qcom_icc_node qxs_imem = {
+static struct qcom_icc_analde qxs_imem = {
 	.name = "qxs_imem",
 	.id = SDM670_SLAVE_OCIMEM,
 	.channels = 1,
 	.buswidth = 8,
 };
 
-static struct qcom_icc_node qxs_pimem = {
+static struct qcom_icc_analde qxs_pimem = {
 	.name = "qxs_pimem",
 	.id = SDM670_SLAVE_PIMEM,
 	.channels = 1,
 	.buswidth = 8,
 };
 
-static struct qcom_icc_node srvc_snoc = {
-	.name = "srvc_snoc",
-	.id = SDM670_SLAVE_SERVICE_SNOC,
+static struct qcom_icc_analde srvc_sanalc = {
+	.name = "srvc_sanalc",
+	.id = SDM670_SLAVE_SERVICE_SANALC,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node xs_qdss_stm = {
+static struct qcom_icc_analde xs_qdss_stm = {
 	.name = "xs_qdss_stm",
 	.id = SDM670_SLAVE_QDSS_STM,
 	.channels = 1,
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node xs_sys_tcu_cfg = {
+static struct qcom_icc_analde xs_sys_tcu_cfg = {
 	.name = "xs_sys_tcu_cfg",
 	.id = SDM670_SLAVE_TCU,
 	.channels = 1,
@@ -1049,47 +1049,47 @@ static struct qcom_icc_bcm bcm_acv = {
 	.name = "ACV",
 	.enable_mask = BIT(3),
 	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &ebi },
+	.num_analdes = 1,
+	.analdes = { &ebi },
 };
 
 static struct qcom_icc_bcm bcm_mc0 = {
 	.name = "MC0",
 	.keepalive = true,
-	.num_nodes = 1,
-	.nodes = { &ebi },
+	.num_analdes = 1,
+	.analdes = { &ebi },
 };
 
 static struct qcom_icc_bcm bcm_sh0 = {
 	.name = "SH0",
 	.keepalive = true,
-	.num_nodes = 1,
-	.nodes = { &qns_llcc },
+	.num_analdes = 1,
+	.analdes = { &qns_llcc },
 };
 
 static struct qcom_icc_bcm bcm_mm0 = {
 	.name = "MM0",
 	.keepalive = true,
-	.num_nodes = 1,
-	.nodes = { &qns_mem_noc_hf },
+	.num_analdes = 1,
+	.analdes = { &qns_mem_analc_hf },
 };
 
 static struct qcom_icc_bcm bcm_sh1 = {
 	.name = "SH1",
 	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &qns_apps_io },
+	.num_analdes = 1,
+	.analdes = { &qns_apps_io },
 };
 
 static struct qcom_icc_bcm bcm_mm1 = {
 	.name = "MM1",
 	.keepalive = true,
-	.num_nodes = 7,
-	.nodes = { &qxm_camnoc_hf0_uncomp,
-		   &qxm_camnoc_hf1_uncomp,
-		   &qxm_camnoc_sf_uncomp,
-		   &qxm_camnoc_hf0,
-		   &qxm_camnoc_hf1,
+	.num_analdes = 7,
+	.analdes = { &qxm_camanalc_hf0_uncomp,
+		   &qxm_camanalc_hf1_uncomp,
+		   &qxm_camanalc_sf_uncomp,
+		   &qxm_camanalc_hf0,
+		   &qxm_camanalc_hf1,
 		   &qxm_mdp0,
 		   &qxm_mdp1
 	},
@@ -1098,60 +1098,60 @@ static struct qcom_icc_bcm bcm_mm1 = {
 static struct qcom_icc_bcm bcm_sh2 = {
 	.name = "SH2",
 	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &qns_memnoc_snoc },
+	.num_analdes = 1,
+	.analdes = { &qns_memanalc_sanalc },
 };
 
 static struct qcom_icc_bcm bcm_mm2 = {
 	.name = "MM2",
 	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &qns2_mem_noc },
+	.num_analdes = 1,
+	.analdes = { &qns2_mem_analc },
 };
 
 static struct qcom_icc_bcm bcm_sh3 = {
 	.name = "SH3",
 	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &acm_tcu },
+	.num_analdes = 1,
+	.analdes = { &acm_tcu },
 };
 
 static struct qcom_icc_bcm bcm_mm3 = {
 	.name = "MM3",
 	.keepalive = false,
-	.num_nodes = 5,
-	.nodes = { &qxm_camnoc_sf, &qxm_rot, &qxm_venus0, &qxm_venus1, &qxm_venus_arm9 },
+	.num_analdes = 5,
+	.analdes = { &qxm_camanalc_sf, &qxm_rot, &qxm_venus0, &qxm_venus1, &qxm_venus_arm9 },
 };
 
 static struct qcom_icc_bcm bcm_sh5 = {
 	.name = "SH5",
 	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &qnm_apps },
+	.num_analdes = 1,
+	.analdes = { &qnm_apps },
 };
 
 static struct qcom_icc_bcm bcm_sn0 = {
 	.name = "SN0",
 	.keepalive = true,
-	.num_nodes = 1,
-	.nodes = { &qns_memnoc_sf },
+	.num_analdes = 1,
+	.analdes = { &qns_memanalc_sf },
 };
 
 static struct qcom_icc_bcm bcm_ce0 = {
 	.name = "CE0",
 	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &qxm_crypto },
+	.num_analdes = 1,
+	.analdes = { &qxm_crypto },
 };
 
 static struct qcom_icc_bcm bcm_cn0 = {
 	.name = "CN0",
 	.keepalive = true,
-	.num_nodes = 41,
-	.nodes = { &qhm_spdm,
-		   &qnm_snoc,
-		   &qhs_a1_noc_cfg,
-		   &qhs_a2_noc_cfg,
+	.num_analdes = 41,
+	.analdes = { &qhm_spdm,
+		   &qnm_sanalc,
+		   &qhs_a1_analc_cfg,
+		   &qhs_a2_analc_cfg,
 		   &qhs_aop,
 		   &qhs_aoss,
 		   &qhs_camera_cfg,
@@ -1167,160 +1167,160 @@ static struct qcom_icc_bcm bcm_cn0 = {
 		   &qhs_gpuss_cfg,
 		   &qhs_imem_cfg,
 		   &qhs_ipa,
-		   &qhs_mnoc_cfg,
+		   &qhs_manalc_cfg,
 		   &qhs_pdm,
 		   &qhs_phy_refgen_south,
 		   &qhs_pimem_cfg,
 		   &qhs_prng,
 		   &qhs_qdss_cfg,
-		   &qhs_qupv3_north,
+		   &qhs_qupv3_analrth,
 		   &qhs_qupv3_south,
 		   &qhs_sdc2,
 		   &qhs_sdc4,
-		   &qhs_snoc_cfg,
+		   &qhs_sanalc_cfg,
 		   &qhs_spdm,
 		   &qhs_tcsr,
-		   &qhs_tlmm_north,
+		   &qhs_tlmm_analrth,
 		   &qhs_tlmm_south,
 		   &qhs_tsif,
 		   &qhs_ufs_mem_cfg,
 		   &qhs_usb3_0,
 		   &qhs_venus_cfg,
 		   &qhs_vsense_ctrl_cfg,
-		   &qns_cnoc_a2noc,
-		   &srvc_cnoc
+		   &qns_canalc_a2analc,
+		   &srvc_canalc
 	},
 };
 
 static struct qcom_icc_bcm bcm_qup0 = {
 	.name = "QUP0",
 	.keepalive = false,
-	.num_nodes = 2,
-	.nodes = { &qhm_qup1, &qhm_qup2 },
+	.num_analdes = 2,
+	.analdes = { &qhm_qup1, &qhm_qup2 },
 };
 
 static struct qcom_icc_bcm bcm_sn1 = {
 	.name = "SN1",
 	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &qxs_imem },
+	.num_analdes = 1,
+	.analdes = { &qxs_imem },
 };
 
 static struct qcom_icc_bcm bcm_sn2 = {
 	.name = "SN2",
 	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &qns_memnoc_gc },
+	.num_analdes = 1,
+	.analdes = { &qns_memanalc_gc },
 };
 
 static struct qcom_icc_bcm bcm_sn3 = {
 	.name = "SN3",
 	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &qns_cnoc },
+	.num_analdes = 1,
+	.analdes = { &qns_canalc },
 };
 
 static struct qcom_icc_bcm bcm_sn4 = {
 	.name = "SN4",
 	.keepalive = false,
-	.num_nodes = 2,
-	.nodes = { &qxm_pimem, &qxs_pimem },
+	.num_analdes = 2,
+	.analdes = { &qxm_pimem, &qxs_pimem },
 };
 
 static struct qcom_icc_bcm bcm_sn5 = {
 	.name = "SN5",
 	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &xs_qdss_stm },
+	.num_analdes = 1,
+	.analdes = { &xs_qdss_stm },
 };
 
 static struct qcom_icc_bcm bcm_sn8 = {
 	.name = "SN8",
 	.keepalive = false,
-	.num_nodes = 2,
-	.nodes = { &qnm_aggre1_noc, &srvc_aggre1_noc },
+	.num_analdes = 2,
+	.analdes = { &qnm_aggre1_analc, &srvc_aggre1_analc },
 };
 
 static struct qcom_icc_bcm bcm_sn10 = {
 	.name = "SN10",
 	.keepalive = false,
-	.num_nodes = 2,
-	.nodes = { &qnm_aggre2_noc, &srvc_aggre2_noc },
+	.num_analdes = 2,
+	.analdes = { &qnm_aggre2_analc, &srvc_aggre2_analc },
 };
 
 static struct qcom_icc_bcm bcm_sn11 = {
 	.name = "SN11",
 	.keepalive = false,
-	.num_nodes = 2,
-	.nodes = { &qnm_gladiator_sodv, &xm_gic },
+	.num_analdes = 2,
+	.analdes = { &qnm_gladiator_sodv, &xm_gic },
 };
 
 static struct qcom_icc_bcm bcm_sn13 = {
 	.name = "SN13",
 	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &qnm_memnoc },
+	.num_analdes = 1,
+	.analdes = { &qnm_memanalc },
 };
 
-static struct qcom_icc_bcm * const aggre1_noc_bcms[] = {
+static struct qcom_icc_bcm * const aggre1_analc_bcms[] = {
 	&bcm_qup0,
 	&bcm_sn8,
 };
 
-static struct qcom_icc_node * const aggre1_noc_nodes[] = {
-	[MASTER_A1NOC_CFG] = &qhm_a1noc_cfg,
+static struct qcom_icc_analde * const aggre1_analc_analdes[] = {
+	[MASTER_A1ANALC_CFG] = &qhm_a1analc_cfg,
 	[MASTER_BLSP_1] = &qhm_qup1,
 	[MASTER_TSIF] = &qhm_tsif,
 	[MASTER_EMMC] = &xm_emmc,
 	[MASTER_SDCC_2] = &xm_sdc2,
 	[MASTER_SDCC_4] = &xm_sdc4,
 	[MASTER_UFS_MEM] = &xm_ufs_mem,
-	[SLAVE_A1NOC_SNOC] = &qns_a1noc_snoc,
-	[SLAVE_SERVICE_A1NOC] = &srvc_aggre1_noc,
+	[SLAVE_A1ANALC_SANALC] = &qns_a1analc_sanalc,
+	[SLAVE_SERVICE_A1ANALC] = &srvc_aggre1_analc,
 };
 
-static const struct qcom_icc_desc sdm670_aggre1_noc = {
-	.nodes = aggre1_noc_nodes,
-	.num_nodes = ARRAY_SIZE(aggre1_noc_nodes),
-	.bcms = aggre1_noc_bcms,
-	.num_bcms = ARRAY_SIZE(aggre1_noc_bcms),
+static const struct qcom_icc_desc sdm670_aggre1_analc = {
+	.analdes = aggre1_analc_analdes,
+	.num_analdes = ARRAY_SIZE(aggre1_analc_analdes),
+	.bcms = aggre1_analc_bcms,
+	.num_bcms = ARRAY_SIZE(aggre1_analc_bcms),
 };
 
-static struct qcom_icc_bcm * const aggre2_noc_bcms[] = {
+static struct qcom_icc_bcm * const aggre2_analc_bcms[] = {
 	&bcm_ce0,
 	&bcm_qup0,
 	&bcm_sn10,
 };
 
-static struct qcom_icc_node * const aggre2_noc_nodes[] = {
-	[MASTER_A2NOC_CFG] = &qhm_a2noc_cfg,
+static struct qcom_icc_analde * const aggre2_analc_analdes[] = {
+	[MASTER_A2ANALC_CFG] = &qhm_a2analc_cfg,
 	[MASTER_QDSS_BAM] = &qhm_qdss_bam,
 	[MASTER_BLSP_2] = &qhm_qup2,
-	[MASTER_CNOC_A2NOC] = &qnm_cnoc,
+	[MASTER_CANALC_A2ANALC] = &qnm_canalc,
 	[MASTER_CRYPTO_CORE_0] = &qxm_crypto,
 	[MASTER_IPA] = &qxm_ipa,
 	[MASTER_QDSS_ETR] = &xm_qdss_etr,
 	[MASTER_USB3] = &xm_usb3_0,
-	[SLAVE_A2NOC_SNOC] = &qns_a2noc_snoc,
-	[SLAVE_SERVICE_A2NOC] = &srvc_aggre2_noc,
+	[SLAVE_A2ANALC_SANALC] = &qns_a2analc_sanalc,
+	[SLAVE_SERVICE_A2ANALC] = &srvc_aggre2_analc,
 };
 
-static const struct qcom_icc_desc sdm670_aggre2_noc = {
-	.nodes = aggre2_noc_nodes,
-	.num_nodes = ARRAY_SIZE(aggre2_noc_nodes),
-	.bcms = aggre2_noc_bcms,
-	.num_bcms = ARRAY_SIZE(aggre2_noc_bcms),
+static const struct qcom_icc_desc sdm670_aggre2_analc = {
+	.analdes = aggre2_analc_analdes,
+	.num_analdes = ARRAY_SIZE(aggre2_analc_analdes),
+	.bcms = aggre2_analc_bcms,
+	.num_bcms = ARRAY_SIZE(aggre2_analc_bcms),
 };
 
-static struct qcom_icc_bcm * const config_noc_bcms[] = {
+static struct qcom_icc_bcm * const config_analc_bcms[] = {
 	&bcm_cn0,
 };
 
-static struct qcom_icc_node * const config_noc_nodes[] = {
+static struct qcom_icc_analde * const config_analc_analdes[] = {
 	[MASTER_SPDM] = &qhm_spdm,
-	[MASTER_SNOC_CNOC] = &qnm_snoc,
-	[SLAVE_A1NOC_CFG] = &qhs_a1_noc_cfg,
-	[SLAVE_A2NOC_CFG] = &qhs_a2_noc_cfg,
+	[MASTER_SANALC_CANALC] = &qnm_sanalc,
+	[SLAVE_A1ANALC_CFG] = &qhs_a1_analc_cfg,
+	[SLAVE_A2ANALC_CFG] = &qhs_a2_analc_cfg,
 	[SLAVE_AOP] = &qhs_aop,
 	[SLAVE_AOSS] = &qhs_aoss,
 	[SLAVE_CAMERA_CFG] = &qhs_camera_cfg,
@@ -1329,79 +1329,79 @@ static struct qcom_icc_node * const config_noc_nodes[] = {
 	[SLAVE_RBCPR_CX_CFG] = &qhs_cpr_cx,
 	[SLAVE_CRYPTO_0_CFG] = &qhs_crypto0_cfg,
 	[SLAVE_DCC_CFG] = &qhs_dcc_cfg,
-	[SLAVE_CNOC_DDRSS] = &qhs_ddrss_cfg,
+	[SLAVE_CANALC_DDRSS] = &qhs_ddrss_cfg,
 	[SLAVE_DISPLAY_CFG] = &qhs_display_cfg,
 	[SLAVE_EMMC_CFG] = &qhs_emmc_cfg,
 	[SLAVE_GLM] = &qhs_glm,
 	[SLAVE_GRAPHICS_3D_CFG] = &qhs_gpuss_cfg,
 	[SLAVE_IMEM_CFG] = &qhs_imem_cfg,
 	[SLAVE_IPA_CFG] = &qhs_ipa,
-	[SLAVE_CNOC_MNOC_CFG] = &qhs_mnoc_cfg,
+	[SLAVE_CANALC_MANALC_CFG] = &qhs_manalc_cfg,
 	[SLAVE_PDM] = &qhs_pdm,
 	[SLAVE_SOUTH_PHY_CFG] = &qhs_phy_refgen_south,
 	[SLAVE_PIMEM_CFG] = &qhs_pimem_cfg,
 	[SLAVE_PRNG] = &qhs_prng,
 	[SLAVE_QDSS_CFG] = &qhs_qdss_cfg,
-	[SLAVE_BLSP_2] = &qhs_qupv3_north,
+	[SLAVE_BLSP_2] = &qhs_qupv3_analrth,
 	[SLAVE_BLSP_1] = &qhs_qupv3_south,
 	[SLAVE_SDCC_2] = &qhs_sdc2,
 	[SLAVE_SDCC_4] = &qhs_sdc4,
-	[SLAVE_SNOC_CFG] = &qhs_snoc_cfg,
+	[SLAVE_SANALC_CFG] = &qhs_sanalc_cfg,
 	[SLAVE_SPDM_WRAPPER] = &qhs_spdm,
 	[SLAVE_TCSR] = &qhs_tcsr,
-	[SLAVE_TLMM_NORTH] = &qhs_tlmm_north,
+	[SLAVE_TLMM_ANALRTH] = &qhs_tlmm_analrth,
 	[SLAVE_TLMM_SOUTH] = &qhs_tlmm_south,
 	[SLAVE_TSIF] = &qhs_tsif,
 	[SLAVE_UFS_MEM_CFG] = &qhs_ufs_mem_cfg,
 	[SLAVE_USB3] = &qhs_usb3_0,
 	[SLAVE_VENUS_CFG] = &qhs_venus_cfg,
 	[SLAVE_VSENSE_CTRL_CFG] = &qhs_vsense_ctrl_cfg,
-	[SLAVE_CNOC_A2NOC] = &qns_cnoc_a2noc,
-	[SLAVE_SERVICE_CNOC] = &srvc_cnoc,
+	[SLAVE_CANALC_A2ANALC] = &qns_canalc_a2analc,
+	[SLAVE_SERVICE_CANALC] = &srvc_canalc,
 };
 
-static const struct qcom_icc_desc sdm670_config_noc = {
-	.nodes = config_noc_nodes,
-	.num_nodes = ARRAY_SIZE(config_noc_nodes),
-	.bcms = config_noc_bcms,
-	.num_bcms = ARRAY_SIZE(config_noc_bcms),
+static const struct qcom_icc_desc sdm670_config_analc = {
+	.analdes = config_analc_analdes,
+	.num_analdes = ARRAY_SIZE(config_analc_analdes),
+	.bcms = config_analc_bcms,
+	.num_bcms = ARRAY_SIZE(config_analc_bcms),
 };
 
-static struct qcom_icc_bcm * const dc_noc_bcms[] = {
+static struct qcom_icc_bcm * const dc_analc_bcms[] = {
 };
 
-static struct qcom_icc_node * const dc_noc_nodes[] = {
-	[MASTER_CNOC_DC_NOC] = &qhm_cnoc,
+static struct qcom_icc_analde * const dc_analc_analdes[] = {
+	[MASTER_CANALC_DC_ANALC] = &qhm_canalc,
 	[SLAVE_LLCC_CFG] = &qhs_llcc,
-	[SLAVE_MEM_NOC_CFG] = &qhs_memnoc,
+	[SLAVE_MEM_ANALC_CFG] = &qhs_memanalc,
 };
 
-static const struct qcom_icc_desc sdm670_dc_noc = {
-	.nodes = dc_noc_nodes,
-	.num_nodes = ARRAY_SIZE(dc_noc_nodes),
-	.bcms = dc_noc_bcms,
-	.num_bcms = ARRAY_SIZE(dc_noc_bcms),
+static const struct qcom_icc_desc sdm670_dc_analc = {
+	.analdes = dc_analc_analdes,
+	.num_analdes = ARRAY_SIZE(dc_analc_analdes),
+	.bcms = dc_analc_bcms,
+	.num_bcms = ARRAY_SIZE(dc_analc_bcms),
 };
 
-static struct qcom_icc_bcm * const gladiator_noc_bcms[] = {
+static struct qcom_icc_bcm * const gladiator_analc_bcms[] = {
 };
 
-static struct qcom_icc_node * const gladiator_noc_nodes[] = {
+static struct qcom_icc_analde * const gladiator_analc_analdes[] = {
 	[MASTER_AMPSS_M0] = &acm_l3,
-	[MASTER_GNOC_CFG] = &pm_gnoc_cfg,
-	[SLAVE_GNOC_SNOC] = &qns_gladiator_sodv,
-	[SLAVE_GNOC_MEM_NOC] = &qns_gnoc_memnoc,
-	[SLAVE_SERVICE_GNOC] = &srvc_gnoc,
+	[MASTER_GANALC_CFG] = &pm_ganalc_cfg,
+	[SLAVE_GANALC_SANALC] = &qns_gladiator_sodv,
+	[SLAVE_GANALC_MEM_ANALC] = &qns_ganalc_memanalc,
+	[SLAVE_SERVICE_GANALC] = &srvc_ganalc,
 };
 
-static const struct qcom_icc_desc sdm670_gladiator_noc = {
-	.nodes = gladiator_noc_nodes,
-	.num_nodes = ARRAY_SIZE(gladiator_noc_nodes),
-	.bcms = gladiator_noc_bcms,
-	.num_bcms = ARRAY_SIZE(gladiator_noc_bcms),
+static const struct qcom_icc_desc sdm670_gladiator_analc = {
+	.analdes = gladiator_analc_analdes,
+	.num_analdes = ARRAY_SIZE(gladiator_analc_analdes),
+	.bcms = gladiator_analc_bcms,
+	.num_bcms = ARRAY_SIZE(gladiator_analc_bcms),
 };
 
-static struct qcom_icc_bcm * const mem_noc_bcms[] = {
+static struct qcom_icc_bcm * const mem_analc_bcms[] = {
 	&bcm_acv,
 	&bcm_mc0,
 	&bcm_sh0,
@@ -1411,62 +1411,62 @@ static struct qcom_icc_bcm * const mem_noc_bcms[] = {
 	&bcm_sh5,
 };
 
-static struct qcom_icc_node * const mem_noc_nodes[] = {
+static struct qcom_icc_analde * const mem_analc_analdes[] = {
 	[MASTER_TCU_0] = &acm_tcu,
-	[MASTER_MEM_NOC_CFG] = &qhm_memnoc_cfg,
-	[MASTER_GNOC_MEM_NOC] = &qnm_apps,
-	[MASTER_MNOC_HF_MEM_NOC] = &qnm_mnoc_hf,
-	[MASTER_MNOC_SF_MEM_NOC] = &qnm_mnoc_sf,
-	[MASTER_SNOC_GC_MEM_NOC] = &qnm_snoc_gc,
-	[MASTER_SNOC_SF_MEM_NOC] = &qnm_snoc_sf,
+	[MASTER_MEM_ANALC_CFG] = &qhm_memanalc_cfg,
+	[MASTER_GANALC_MEM_ANALC] = &qnm_apps,
+	[MASTER_MANALC_HF_MEM_ANALC] = &qnm_manalc_hf,
+	[MASTER_MANALC_SF_MEM_ANALC] = &qnm_manalc_sf,
+	[MASTER_SANALC_GC_MEM_ANALC] = &qnm_sanalc_gc,
+	[MASTER_SANALC_SF_MEM_ANALC] = &qnm_sanalc_sf,
 	[MASTER_GRAPHICS_3D] = &qxm_gpu,
 	[SLAVE_MSS_PROC_MS_MPU_CFG] = &qhs_mdsp_ms_mpu_cfg,
-	[SLAVE_MEM_NOC_GNOC] = &qns_apps_io,
+	[SLAVE_MEM_ANALC_GANALC] = &qns_apps_io,
 	[SLAVE_LLCC] = &qns_llcc,
-	[SLAVE_MEM_NOC_SNOC] = &qns_memnoc_snoc,
-	[SLAVE_SERVICE_MEM_NOC] = &srvc_memnoc,
+	[SLAVE_MEM_ANALC_SANALC] = &qns_memanalc_sanalc,
+	[SLAVE_SERVICE_MEM_ANALC] = &srvc_memanalc,
 	[MASTER_LLCC] = &llcc_mc,
 	[SLAVE_EBI_CH0] = &ebi,
 };
 
-static const struct qcom_icc_desc sdm670_mem_noc = {
-	.nodes = mem_noc_nodes,
-	.num_nodes = ARRAY_SIZE(mem_noc_nodes),
-	.bcms = mem_noc_bcms,
-	.num_bcms = ARRAY_SIZE(mem_noc_bcms),
+static const struct qcom_icc_desc sdm670_mem_analc = {
+	.analdes = mem_analc_analdes,
+	.num_analdes = ARRAY_SIZE(mem_analc_analdes),
+	.bcms = mem_analc_bcms,
+	.num_bcms = ARRAY_SIZE(mem_analc_bcms),
 };
 
-static struct qcom_icc_bcm * const mmss_noc_bcms[] = {
+static struct qcom_icc_bcm * const mmss_analc_bcms[] = {
 	&bcm_mm0,
 	&bcm_mm1,
 	&bcm_mm2,
 	&bcm_mm3,
 };
 
-static struct qcom_icc_node * const mmss_noc_nodes[] = {
-	[MASTER_CNOC_MNOC_CFG] = &qhm_mnoc_cfg,
-	[MASTER_CAMNOC_HF0] = &qxm_camnoc_hf0,
-	[MASTER_CAMNOC_HF1] = &qxm_camnoc_hf1,
-	[MASTER_CAMNOC_SF] = &qxm_camnoc_sf,
+static struct qcom_icc_analde * const mmss_analc_analdes[] = {
+	[MASTER_CANALC_MANALC_CFG] = &qhm_manalc_cfg,
+	[MASTER_CAMANALC_HF0] = &qxm_camanalc_hf0,
+	[MASTER_CAMANALC_HF1] = &qxm_camanalc_hf1,
+	[MASTER_CAMANALC_SF] = &qxm_camanalc_sf,
 	[MASTER_MDP_PORT0] = &qxm_mdp0,
 	[MASTER_MDP_PORT1] = &qxm_mdp1,
 	[MASTER_ROTATOR] = &qxm_rot,
 	[MASTER_VIDEO_P0] = &qxm_venus0,
 	[MASTER_VIDEO_P1] = &qxm_venus1,
 	[MASTER_VIDEO_PROC] = &qxm_venus_arm9,
-	[SLAVE_MNOC_SF_MEM_NOC] = &qns2_mem_noc,
-	[SLAVE_MNOC_HF_MEM_NOC] = &qns_mem_noc_hf,
-	[SLAVE_SERVICE_MNOC] = &srvc_mnoc,
+	[SLAVE_MANALC_SF_MEM_ANALC] = &qns2_mem_analc,
+	[SLAVE_MANALC_HF_MEM_ANALC] = &qns_mem_analc_hf,
+	[SLAVE_SERVICE_MANALC] = &srvc_manalc,
 };
 
-static const struct qcom_icc_desc sdm670_mmss_noc = {
-	.nodes = mmss_noc_nodes,
-	.num_nodes = ARRAY_SIZE(mmss_noc_nodes),
-	.bcms = mmss_noc_bcms,
-	.num_bcms = ARRAY_SIZE(mmss_noc_bcms),
+static const struct qcom_icc_desc sdm670_mmss_analc = {
+	.analdes = mmss_analc_analdes,
+	.num_analdes = ARRAY_SIZE(mmss_analc_analdes),
+	.bcms = mmss_analc_bcms,
+	.num_bcms = ARRAY_SIZE(mmss_analc_bcms),
 };
 
-static struct qcom_icc_bcm * const system_noc_bcms[] = {
+static struct qcom_icc_bcm * const system_analc_bcms[] = {
 	&bcm_mm1,
 	&bcm_sn0,
 	&bcm_sn1,
@@ -1480,67 +1480,67 @@ static struct qcom_icc_bcm * const system_noc_bcms[] = {
 	&bcm_sn8,
 };
 
-static struct qcom_icc_node * const system_noc_nodes[] = {
-	[MASTER_SNOC_CFG] = &qhm_snoc_cfg,
-	[MASTER_A1NOC_SNOC] = &qnm_aggre1_noc,
-	[MASTER_A2NOC_SNOC] = &qnm_aggre2_noc,
-	[MASTER_GNOC_SNOC] = &qnm_gladiator_sodv,
-	[MASTER_MEM_NOC_SNOC] = &qnm_memnoc,
+static struct qcom_icc_analde * const system_analc_analdes[] = {
+	[MASTER_SANALC_CFG] = &qhm_sanalc_cfg,
+	[MASTER_A1ANALC_SANALC] = &qnm_aggre1_analc,
+	[MASTER_A2ANALC_SANALC] = &qnm_aggre2_analc,
+	[MASTER_GANALC_SANALC] = &qnm_gladiator_sodv,
+	[MASTER_MEM_ANALC_SANALC] = &qnm_memanalc,
 	[MASTER_PIMEM] = &qxm_pimem,
 	[MASTER_GIC] = &xm_gic,
 	[SLAVE_APPSS] = &qhs_apss,
-	[SLAVE_SNOC_CNOC] = &qns_cnoc,
-	[SLAVE_SNOC_MEM_NOC_GC] = &qns_memnoc_gc,
-	[SLAVE_SNOC_MEM_NOC_SF] = &qns_memnoc_sf,
+	[SLAVE_SANALC_CANALC] = &qns_canalc,
+	[SLAVE_SANALC_MEM_ANALC_GC] = &qns_memanalc_gc,
+	[SLAVE_SANALC_MEM_ANALC_SF] = &qns_memanalc_sf,
 	[SLAVE_OCIMEM] = &qxs_imem,
 	[SLAVE_PIMEM] = &qxs_pimem,
-	[SLAVE_SERVICE_SNOC] = &srvc_snoc,
+	[SLAVE_SERVICE_SANALC] = &srvc_sanalc,
 	[SLAVE_QDSS_STM] = &xs_qdss_stm,
 	[SLAVE_TCU] = &xs_sys_tcu_cfg,
-	[MASTER_CAMNOC_HF0_UNCOMP] = &qxm_camnoc_hf0_uncomp,
-	[MASTER_CAMNOC_HF1_UNCOMP] = &qxm_camnoc_hf1_uncomp,
-	[MASTER_CAMNOC_SF_UNCOMP] = &qxm_camnoc_sf_uncomp,
-	[SLAVE_CAMNOC_UNCOMP] = &qns_camnoc_uncomp,
+	[MASTER_CAMANALC_HF0_UNCOMP] = &qxm_camanalc_hf0_uncomp,
+	[MASTER_CAMANALC_HF1_UNCOMP] = &qxm_camanalc_hf1_uncomp,
+	[MASTER_CAMANALC_SF_UNCOMP] = &qxm_camanalc_sf_uncomp,
+	[SLAVE_CAMANALC_UNCOMP] = &qns_camanalc_uncomp,
 };
 
-static const struct qcom_icc_desc sdm670_system_noc = {
-	.nodes = system_noc_nodes,
-	.num_nodes = ARRAY_SIZE(system_noc_nodes),
-	.bcms = system_noc_bcms,
-	.num_bcms = ARRAY_SIZE(system_noc_bcms),
+static const struct qcom_icc_desc sdm670_system_analc = {
+	.analdes = system_analc_analdes,
+	.num_analdes = ARRAY_SIZE(system_analc_analdes),
+	.bcms = system_analc_bcms,
+	.num_bcms = ARRAY_SIZE(system_analc_bcms),
 };
 
-static const struct of_device_id qnoc_of_match[] = {
-	{ .compatible = "qcom,sdm670-aggre1-noc",
-	  .data = &sdm670_aggre1_noc},
-	{ .compatible = "qcom,sdm670-aggre2-noc",
-	  .data = &sdm670_aggre2_noc},
-	{ .compatible = "qcom,sdm670-config-noc",
-	  .data = &sdm670_config_noc},
-	{ .compatible = "qcom,sdm670-dc-noc",
-	  .data = &sdm670_dc_noc},
-	{ .compatible = "qcom,sdm670-gladiator-noc",
-	  .data = &sdm670_gladiator_noc},
-	{ .compatible = "qcom,sdm670-mem-noc",
-	  .data = &sdm670_mem_noc},
-	{ .compatible = "qcom,sdm670-mmss-noc",
-	  .data = &sdm670_mmss_noc},
-	{ .compatible = "qcom,sdm670-system-noc",
-	  .data = &sdm670_system_noc},
+static const struct of_device_id qanalc_of_match[] = {
+	{ .compatible = "qcom,sdm670-aggre1-analc",
+	  .data = &sdm670_aggre1_analc},
+	{ .compatible = "qcom,sdm670-aggre2-analc",
+	  .data = &sdm670_aggre2_analc},
+	{ .compatible = "qcom,sdm670-config-analc",
+	  .data = &sdm670_config_analc},
+	{ .compatible = "qcom,sdm670-dc-analc",
+	  .data = &sdm670_dc_analc},
+	{ .compatible = "qcom,sdm670-gladiator-analc",
+	  .data = &sdm670_gladiator_analc},
+	{ .compatible = "qcom,sdm670-mem-analc",
+	  .data = &sdm670_mem_analc},
+	{ .compatible = "qcom,sdm670-mmss-analc",
+	  .data = &sdm670_mmss_analc},
+	{ .compatible = "qcom,sdm670-system-analc",
+	  .data = &sdm670_system_analc},
 	{ }
 };
-MODULE_DEVICE_TABLE(of, qnoc_of_match);
+MODULE_DEVICE_TABLE(of, qanalc_of_match);
 
-static struct platform_driver qnoc_driver = {
+static struct platform_driver qanalc_driver = {
 	.probe = qcom_icc_rpmh_probe,
 	.remove_new = qcom_icc_rpmh_remove,
 	.driver = {
-		.name = "qnoc-sdm670",
-		.of_match_table = qnoc_of_match,
+		.name = "qanalc-sdm670",
+		.of_match_table = qanalc_of_match,
 		.sync_state = icc_sync_state,
 	},
 };
-module_platform_driver(qnoc_driver);
+module_platform_driver(qanalc_driver);
 
-MODULE_DESCRIPTION("Qualcomm SDM670 NoC driver");
+MODULE_DESCRIPTION("Qualcomm SDM670 AnalC driver");
 MODULE_LICENSE("GPL");

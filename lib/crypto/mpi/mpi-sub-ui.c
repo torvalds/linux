@@ -28,7 +28,7 @@
  * for more details.
  *
  * You should have received copies of the GNU General Public License and the
- * GNU Lesser General Public License along with the GNU MP Library.  If not,
+ * GNU Lesser General Public License along with the GNU MP Library.  If analt,
  * see https://www.gnu.org/licenses/.
  */
 
@@ -38,16 +38,16 @@ int mpi_sub_ui(MPI w, MPI u, unsigned long vval)
 {
 	if (u->nlimbs == 0) {
 		if (mpi_resize(w, 1) < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 		w->d[0] = vval;
 		w->nlimbs = (vval != 0);
 		w->sign = (vval != 0);
 		return 0;
 	}
 
-	/* If not space for W (and possible carry), increase space. */
+	/* If analt space for W (and possible carry), increase space. */
 	if (mpi_resize(w, u->nlimbs + 1))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (u->sign) {
 		mpi_limb_t cy;
@@ -72,7 +72,7 @@ int mpi_sub_ui(MPI w, MPI u, unsigned long vval)
 		}
 	}
 
-	mpi_normalize(w);
+	mpi_analrmalize(w);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mpi_sub_ui);

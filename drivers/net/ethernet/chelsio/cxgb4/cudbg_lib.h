@@ -189,7 +189,7 @@ static inline u32 cudbg_uld_txq_to_qtype(u32 uld)
 		return CUDBG_QTYPE_CRYPTO_TXQ;
 	}
 
-	return CUDBG_QTYPE_UNKNOWN;
+	return CUDBG_QTYPE_UNKANALWN;
 }
 
 static inline u32 cudbg_uld_rxq_to_qtype(u32 uld)
@@ -207,7 +207,7 @@ static inline u32 cudbg_uld_rxq_to_qtype(u32 uld)
 		return CUDBG_QTYPE_TLS_RXQ;
 	}
 
-	return CUDBG_QTYPE_UNKNOWN;
+	return CUDBG_QTYPE_UNKANALWN;
 }
 
 static inline u32 cudbg_uld_flq_to_qtype(u32 uld)
@@ -225,7 +225,7 @@ static inline u32 cudbg_uld_flq_to_qtype(u32 uld)
 		return CUDBG_QTYPE_TLS_FLQ;
 	}
 
-	return CUDBG_QTYPE_UNKNOWN;
+	return CUDBG_QTYPE_UNKANALWN;
 }
 
 static inline u32 cudbg_uld_ciq_to_qtype(u32 uld)
@@ -235,7 +235,7 @@ static inline u32 cudbg_uld_ciq_to_qtype(u32 uld)
 		return CUDBG_QTYPE_RDMA_CIQ;
 	}
 
-	return CUDBG_QTYPE_UNKNOWN;
+	return CUDBG_QTYPE_UNKANALWN;
 }
 
 static inline void cudbg_fill_qdesc_txq(const struct sge_txq *txq,

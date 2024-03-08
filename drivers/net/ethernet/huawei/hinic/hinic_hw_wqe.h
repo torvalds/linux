@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #ifndef HINIC_HW_WQE_H
@@ -262,9 +262,9 @@
 		(((u32)(val) >> HINIC_RSS_TYPE_##member##_SHIFT) & 0x1)
 
 enum hinic_l3_offload_type {
-	L3TYPE_UNKNOWN = 0,
+	L3TYPE_UNKANALWN = 0,
 	IPV6_PKT = 1,
-	IPV4_PKT_NO_CHKSUM_OFFLOAD = 2,
+	IPV4_PKT_ANAL_CHKSUM_OFFLOAD = 2,
 	IPV4_PKT_WITH_CHKSUM_OFFLOAD = 3,
 };
 
@@ -276,15 +276,15 @@ enum hinic_l4_offload_type {
 };
 
 enum hinic_l4_tunnel_type {
-	NOT_TUNNEL,
-	TUNNEL_UDP_NO_CSUM,
+	ANALT_TUNNEL,
+	TUNNEL_UDP_ANAL_CSUM,
 	TUNNEL_UDP_CSUM,
 };
 
 enum hinic_outer_l3type {
-	HINIC_OUTER_L3TYPE_UNKNOWN              = 0,
+	HINIC_OUTER_L3TYPE_UNKANALWN              = 0,
 	HINIC_OUTER_L3TYPE_IPV6                 = 1,
-	HINIC_OUTER_L3TYPE_IPV4_NO_CHKSUM       = 2,
+	HINIC_OUTER_L3TYPE_IPV4_ANAL_CHKSUM       = 2,
 	HINIC_OUTER_L3TYPE_IPV4_CHKSUM          = 3,
 };
 

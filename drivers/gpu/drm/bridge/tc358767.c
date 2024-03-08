@@ -10,7 +10,7 @@
  *
  * Copyright (C) 2016 Pengutronix, Philipp Zabel <p.zabel@pengutronix.de>
  *
- * Copyright (C) 2016 Zodiac Inflight Innovations
+ * Copyright (C) 2016 Zodiac Inflight Inanalvations
  *
  * Initially based on: drivers/gpu/drm/i2c/tda998x_drv.c
  *
@@ -117,9 +117,9 @@
 #define TC_IDREG		0x0500
 #define SYSSTAT			0x0508
 #define SYSCTRL			0x0510
-#define DP0_AUDSRC_NO_INPUT		(0 << 3)
+#define DP0_AUDSRC_ANAL_INPUT		(0 << 3)
 #define DP0_AUDSRC_I2S_RX		(1 << 3)
-#define DP0_VIDSRC_NO_INPUT		(0 << 0)
+#define DP0_VIDSRC_ANAL_INPUT		(0 << 0)
 #define DP0_VIDSRC_DSI_RX		(1 << 0)
 #define DP0_VIDSRC_DPI_RX		(2 << 0)
 #define DP0_VIDSRC_COLOR_BAR		(3 << 0)
@@ -205,7 +205,7 @@
 #define DP0_SRCCTRL		0x06a0
 #define DP0_SRCCTRL_SCRMBLDIS		BIT(13)
 #define DP0_SRCCTRL_EN810B		BIT(12)
-#define DP0_SRCCTRL_NOTP		(0 << 8)
+#define DP0_SRCCTRL_ANALTP		(0 << 8)
 #define DP0_SRCCTRL_TP1			(1 << 8)
 #define DP0_SRCCTRL_TP2			(2 << 8)
 #define DP0_SRCCTRL_LANESKEW		BIT(7)
@@ -241,7 +241,7 @@
 
 /* PLL */
 #define DP0_PLLCTRL		0x0900
-#define DP1_PLLCTRL		0x0904	/* not defined in DS */
+#define DP1_PLLCTRL		0x0904	/* analt defined in DS */
 #define PXL_PLLCTRL		0x0908
 #define PLLUPDATE			BIT(2)
 #define PLLBYP				BIT(1)
@@ -306,10 +306,10 @@ struct tc_data {
 	/* do we have IRQ */
 	bool			have_irq;
 
-	/* Input connector type, DSI and not DPI. */
+	/* Input connector type, DSI and analt DPI. */
 	bool			input_connector_dsi;
 
-	/* HPD pin number (0 or 1) or -ENODEV */
+	/* HPD pin number (0 or 1) or -EANALDEV */
 	int			hpd_pin;
 };
 
@@ -437,7 +437,7 @@ static ssize_t tc_aux_transfer(struct drm_dp_aux *aux,
 	/*
 	 * For some reason address-only DP_AUX_I2C_WRITE (MOT), still
 	 * reports 1 byte transferred in its status. To deal we that
-	 * we ignore aux_bytes field if we know that this was an
+	 * we iganalre aux_bytes field if we kanalw that this was an
 	 * address-only transfer
 	 */
 	if (size)
@@ -456,7 +456,7 @@ static ssize_t tc_aux_transfer(struct drm_dp_aux *aux,
 }
 
 static const char * const training_pattern1_errors[] = {
-	"No errors",
+	"Anal errors",
 	"Aux write error",
 	"Aux read error",
 	"Max voltage reached error",
@@ -465,7 +465,7 @@ static const char * const training_pattern1_errors[] = {
 };
 
 static const char * const training_pattern2_errors[] = {
-	"No errors",
+	"Anal errors",
 	"Aux write error",
 	"Aux read error",
 	"Clock recovery failed error",
@@ -476,10 +476,10 @@ static const char * const training_pattern2_errors[] = {
 static u32 tc_srcctrl(struct tc_data *tc)
 {
 	/*
-	 * No training pattern, skew lane 1 data by two LSCLK cycles with
+	 * Anal training pattern, skew lane 1 data by two LSCLK cycles with
 	 * respect to lane 0 data, AutoCorrect Mode = 0
 	 */
-	u32 reg = DP0_SRCCTRL_NOTP | DP0_SRCCTRL_LANESKEW | DP0_SRCCTRL_EN810B;
+	u32 reg = DP0_SRCCTRL_ANALTP | DP0_SRCCTRL_LANESKEW | DP0_SRCCTRL_EN810B;
 
 	if (tc->link.scrambler_dis)
 		reg |= DP0_SRCCTRL_SCRMBLDIS;	/* Scrambler Disabled */
@@ -626,11 +626,11 @@ static int tc_stream_clock_calc(struct tc_data *tc)
 {
 	/*
 	 * If the Stream clock and Link Symbol clock are
-	 * asynchronous with each other, the value of M changes over
+	 * asynchroanalus with each other, the value of M changes over
 	 * time. This way of generating link clock and stream
-	 * clock is called Asynchronous Clock mode. The value M
+	 * clock is called Asynchroanalus Clock mode. The value M
 	 * must change while the value N stays constant. The
-	 * value of N in this Asynchronous Clock mode must be set
+	 * value of N in this Asynchroanalus Clock mode must be set
 	 * to 2^15 or 32,768.
 	 *
 	 * LSCLK = 1/10 of high speed link clock
@@ -812,8 +812,8 @@ static int tc_set_common_video_mode(struct tc_data *tc,
 
 	/*
 	 * LCD Ctl Frame Size
-	 * datasheet is not clear of vsdelay in case of DPI
-	 * assume we do not need any delay when DPI is a source of
+	 * datasheet is analt clear of vsdelay in case of DPI
+	 * assume we do analt need any delay when DPI is a source of
 	 * sync signals
 	 */
 	ret = regmap_write(tc->regmap, VPCTRL0,
@@ -1051,7 +1051,7 @@ static int tc_main_link_enable(struct tc_data *tc)
 	/*
 	 * ASSR mode
 	 * on TC358767 side ASSR configured through strap pin
-	 * seems there is no way to change this setting from SW
+	 * seems there is anal way to change this setting from SW
 	 *
 	 * check is tc configured for same mode
 	 */
@@ -1141,7 +1141,7 @@ static int tc_main_link_enable(struct tc_data *tc)
 	if (ret) {
 		dev_err(tc->dev, "Link training phase 1 failed: %s\n",
 			training_pattern1_errors[ret]);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Channel Equalization */
@@ -1168,7 +1168,7 @@ static int tc_main_link_enable(struct tc_data *tc)
 	if (ret) {
 		dev_err(tc->dev, "Link training phase 2 failed: %s\n",
 			training_pattern2_errors[ret]);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -1187,7 +1187,7 @@ static int tc_main_link_enable(struct tc_data *tc)
 		return ret;
 
 	/* Clear DPCD 0x102 */
-	/* Note: Can Not use DP0_SNKLTCTRL (0x06E4) short cut */
+	/* Analte: Can Analt use DP0_SNKLTCTRL (0x06E4) short cut */
 	tmp[0] = tc->link.scrambler_dis ? DP_LINK_SCRAMBLING_DISABLE : 0x00;
 	ret = drm_dp_dpcd_writeb(aux, DP_TRAINING_PATTERN_SET, tmp[0]);
 	if (ret < 0)
@@ -1204,7 +1204,7 @@ static int tc_main_link_enable(struct tc_data *tc)
 
 	if (value != DP_CHANNEL_EQ_BITS) {
 		dev_err(tc->dev, "Lane 0 failed: %x\n", value);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	if (tc->link.num_lanes == 2) {
@@ -1212,12 +1212,12 @@ static int tc_main_link_enable(struct tc_data *tc)
 
 		if (value != DP_CHANNEL_EQ_BITS) {
 			dev_err(tc->dev, "Lane 1 failed: %x\n", value);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		}
 
 		if (!(tmp[2] & DP_INTERLANE_ALIGN_DONE)) {
 			dev_err(tc->dev, "Interlane align failed\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		}
 	}
 
@@ -1279,7 +1279,7 @@ static int tc_dsi_rx_enable(struct tc_data *tc)
 	regmap_write(tc->regmap, DSI_LANEENABLE, value);
 
 	/* Set input interface */
-	value = DP0_AUDSRC_NO_INPUT;
+	value = DP0_AUDSRC_ANAL_INPUT;
 	if (tc_test_pattern)
 		value |= DP0_VIDSRC_COLOR_BAR;
 	else
@@ -1301,7 +1301,7 @@ static int tc_dpi_rx_enable(struct tc_data *tc)
 	u32 value;
 
 	/* Set input interface */
-	value = DP0_AUDSRC_NO_INPUT;
+	value = DP0_AUDSRC_ANAL_INPUT;
 	if (tc_test_pattern)
 		value |= DP0_VIDSRC_COLOR_BAR;
 	else
@@ -1373,7 +1373,7 @@ static int tc_edp_stream_enable(struct tc_data *tc)
 	 * or DPI_PCLK supplies StrmClk. DPI_PCLK is only available in
 	 * case valid Pixel Clock are supplied to the chip DPI input.
 	 * In case built-in test pattern is desired OR DSI input mode
-	 * is used, DPI_PCLK is not available and thus Pixel PLL must
+	 * is used, DPI_PCLK is analt available and thus Pixel PLL must
 	 * be used instead.
 	 */
 	if (tc->input_connector_dsi || tc_test_pattern) {
@@ -1622,7 +1622,7 @@ static enum drm_connector_status tc_bridge_detect(struct drm_bridge *bridge)
 
 	ret = regmap_read(tc->regmap, GPIOI, &val);
 	if (ret)
-		return connector_status_unknown;
+		return connector_status_unkanalwn;
 
 	conn = val & BIT(tc->hpd_pin);
 
@@ -1643,7 +1643,7 @@ tc_connector_detect(struct drm_connector *connector, bool force)
 	if (tc->panel_bridge)
 		return connector_status_connected;
 	else
-		return connector_status_unknown;
+		return connector_status_unkanalwn;
 }
 
 static const struct drm_connector_funcs tc_connector_funcs = {
@@ -1678,12 +1678,12 @@ static int tc_edp_bridge_attach(struct drm_bridge *bridge,
 	if (tc->panel_bridge) {
 		/* If a connector is required then this driver shall create it */
 		ret = drm_bridge_attach(tc->bridge.encoder, tc->panel_bridge,
-					&tc->bridge, flags | DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+					&tc->bridge, flags | DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 		if (ret)
 			return ret;
 	}
 
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+	if (flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)
 		return 0;
 
 	tc->aux.drm_dev = drm;
@@ -1988,8 +1988,8 @@ static const struct regmap_range tc_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table tc_volatile_table = {
-	.yes_ranges = tc_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(tc_volatile_ranges),
+	.anal_ranges = tc_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(tc_volatile_ranges),
 };
 
 static bool tc_writeable_reg(struct device *dev, unsigned int reg)
@@ -2021,10 +2021,10 @@ static irqreturn_t tc_irq_handler(int irq, void *arg)
 
 	r = regmap_read(tc->regmap, INTSTS_G, &val);
 	if (r)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!val)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (val & INT_SYSERR) {
 		u32 stat = 0;
@@ -2059,23 +2059,23 @@ static irqreturn_t tc_irq_handler(int irq, void *arg)
 static int tc_mipi_dsi_host_attach(struct tc_data *tc)
 {
 	struct device *dev = tc->dev;
-	struct device_node *host_node;
-	struct device_node *endpoint;
+	struct device_analde *host_analde;
+	struct device_analde *endpoint;
 	struct mipi_dsi_device *dsi;
 	struct mipi_dsi_host *host;
 	const struct mipi_dsi_device_info info = {
 		.type = "tc358767",
 		.channel = 0,
-		.node = NULL,
+		.analde = NULL,
 	};
 	int dsi_lanes, ret;
 
-	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
+	endpoint = of_graph_get_endpoint_by_regs(dev->of_analde, 0, -1);
 	dsi_lanes = drm_of_get_data_lanes_count(endpoint, 1, 4);
-	host_node = of_graph_get_remote_port_parent(endpoint);
-	host = of_find_mipi_dsi_host_by_node(host_node);
-	of_node_put(host_node);
-	of_node_put(endpoint);
+	host_analde = of_graph_get_remote_port_parent(endpoint);
+	host = of_find_mipi_dsi_host_by_analde(host_analde);
+	of_analde_put(host_analde);
+	of_analde_put(endpoint);
 
 	if (!host)
 		return -EPROBE_DEFER;
@@ -2092,7 +2092,7 @@ static int tc_mipi_dsi_host_attach(struct tc_data *tc)
 	dsi->lanes = dsi_lanes;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_NON_CONTINUOUS;
+			  MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 
 	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
@@ -2111,8 +2111,8 @@ static int tc_probe_dpi_bridge_endpoint(struct tc_data *tc)
 	int ret;
 
 	/* port@1 is the DPI input/output port */
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, &bridge);
-	if (ret && ret != -ENODEV)
+	ret = drm_of_find_panel_or_bridge(dev->of_analde, 1, 0, &panel, &bridge);
+	if (ret && ret != -EANALDEV)
 		return ret;
 
 	if (panel) {
@@ -2139,8 +2139,8 @@ static int tc_probe_edp_bridge_endpoint(struct tc_data *tc)
 	int ret;
 
 	/* port@2 is the output port */
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 2, 0, &panel, NULL);
-	if (ret && ret != -ENODEV)
+	ret = drm_of_find_panel_or_bridge(dev->of_analde, 2, 0, &panel, NULL);
+	if (ret && ret != -EANALDEV)
 		return ret;
 
 	if (panel) {
@@ -2168,7 +2168,7 @@ static int tc_probe_bridge_endpoint(struct tc_data *tc)
 {
 	struct device *dev = tc->dev;
 	struct of_endpoint endpoint;
-	struct device_node *node = NULL;
+	struct device_analde *analde = NULL;
 	const u8 mode_dpi_to_edp = BIT(1) | BIT(2);
 	const u8 mode_dpi_to_dp = BIT(1);
 	const u8 mode_dsi_to_edp = BIT(0) | BIT(2);
@@ -2185,15 +2185,15 @@ static int tc_probe_bridge_endpoint(struct tc_data *tc)
 	 * port@2 - eDP output
 	 *
 	 * Possible connections:
-	 * DPI -> port@1 -> port@2 -> eDP :: [port@0 is not connected]
-	 * DSI -> port@0 -> port@2 -> eDP :: [port@1 is not connected]
-	 * DSI -> port@0 -> port@1 -> DPI :: [port@2 is not connected]
+	 * DPI -> port@1 -> port@2 -> eDP :: [port@0 is analt connected]
+	 * DSI -> port@0 -> port@2 -> eDP :: [port@1 is analt connected]
+	 * DSI -> port@0 -> port@1 -> DPI :: [port@2 is analt connected]
 	 */
 
-	for_each_endpoint_of_node(dev->of_node, node) {
-		of_graph_parse_endpoint(node, &endpoint);
+	for_each_endpoint_of_analde(dev->of_analde, analde) {
+		of_graph_parse_endpoint(analde, &endpoint);
 		if (endpoint.port > 2) {
-			of_node_put(node);
+			of_analde_put(analde);
 			return -EINVAL;
 		}
 		mode |= BIT(endpoint.port);
@@ -2210,7 +2210,7 @@ static int tc_probe_bridge_endpoint(struct tc_data *tc)
 		return tc_probe_edp_bridge_endpoint(tc);
 	}
 
-	dev_warn(dev, "Invalid mode (0x%x) is not supported!\n", mode);
+	dev_warn(dev, "Invalid mode (0x%x) is analt supported!\n", mode);
 
 	return -EINVAL;
 }
@@ -2223,7 +2223,7 @@ static int tc_probe(struct i2c_client *client)
 
 	tc = devm_kzalloc(dev, sizeof(*tc), GFP_KERNEL);
 	if (!tc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tc->dev = dev;
 
@@ -2266,10 +2266,10 @@ static int tc_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "toshiba,hpd-pin",
+	ret = of_property_read_u32(dev->of_analde, "toshiba,hpd-pin",
 				   &tc->hpd_pin);
 	if (ret) {
-		tc->hpd_pin = -ENODEV;
+		tc->hpd_pin = -EANALDEV;
 	} else {
 		if (tc->hpd_pin < 0 || tc->hpd_pin > 1) {
 			dev_err(dev, "failed to parse HPD number\n");
@@ -2295,7 +2295,7 @@ static int tc_probe(struct i2c_client *client)
 
 	ret = regmap_read(tc->regmap, TC_IDREG, &tc->rev);
 	if (ret) {
-		dev_err(tc->dev, "can not read device ID: %d\n", ret);
+		dev_err(tc->dev, "can analt read device ID: %d\n", ret);
 		return ret;
 	}
 
@@ -2344,7 +2344,7 @@ static int tc_probe(struct i2c_client *client)
 			return ret;
 	}
 
-	tc->bridge.of_node = dev->of_node;
+	tc->bridge.of_analde = dev->of_analde;
 	drm_bridge_add(&tc->bridge);
 
 	i2c_set_clientdata(client, tc);

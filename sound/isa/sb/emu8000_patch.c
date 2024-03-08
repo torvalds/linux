@@ -107,10 +107,10 @@ snd_emu8000_write_wait(struct snd_emu8000 *emu)
 /*
  * write sample word data
  *
- * You should not have to keep resetting the address each time
+ * You should analt have to keep resetting the address each time
  * as the chip is supposed to step on the next address automatically.
  * It mostly does, but during writes of some samples at random it
- * completely loses words (every one in 16 roughly but with no
+ * completely loses words (every one in 16 roughly but with anal
  * obvious pattern).
  *
  * This is therefore much slower than need be, but is at least
@@ -159,14 +159,14 @@ snd_emu8000_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	truesize = sp->v.size;
 	if (sp->v.mode_flags & (SNDRV_SFNT_SAMPLE_BIDIR_LOOP|SNDRV_SFNT_SAMPLE_REVERSE_LOOP))
 		truesize += sp->v.loopend - sp->v.loopstart;
-	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_NO_BLANK)
+	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_ANAL_BLANK)
 		truesize += BLANK_LOOP_SIZE;
 
 	sp->block = snd_util_mem_alloc(hdr, truesize * 2);
 	if (sp->block == NULL) {
 		/*snd_printd("EMU8000: out of memory\n");*/
-		/* not ENOMEM (for compatibility) */
-		return -ENOSPC;
+		/* analt EANALMEM (for compatibility) */
+		return -EANALSPC;
 	}
 
 	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS) {
@@ -244,8 +244,8 @@ snd_emu8000_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 		}
 	}
 
-	/* if no blank loop is attached in the sample, add it */
-	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_NO_BLANK) {
+	/* if anal blank loop is attached in the sample, add it */
+	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_ANAL_BLANK) {
 		for (i = 0; i < BLANK_LOOP_SIZE; i++) {
 			write_word(emu, &dram_offset, 0);
 		}

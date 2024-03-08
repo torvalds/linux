@@ -66,7 +66,7 @@ static int sdias_sclp_send(struct sclp_req *req)
 		TRACE("add request\n");
 		rc = sclp_add_request(req);
 		if (rc) {
-			/* not initiated, wait some time and retry */
+			/* analt initiated, wait some time and retry */
 			set_current_state(TASK_INTERRUPTIBLE);
 			TRACE("add request failed: rc = %i\n",rc);
 			schedule_timeout(msecs_to_jiffies(500));
@@ -78,7 +78,7 @@ static int sdias_sclp_send(struct sclp_req *req)
 			TRACE("sclp request failed\n");
 			continue;
 		}
-		/* if not accepted, retry */
+		/* if analt accepted, retry */
 		if (!(sccb->evbuf.hdr.flags & 0x80)) {
 			TRACE("sclp request failed: flags=%x\n",
 			      sccb->evbuf.hdr.flags);
@@ -154,7 +154,7 @@ out:
 }
 
 /*
- * Copy from HSA to absolute storage (not reentrant):
+ * Copy from HSA to absolute storage (analt reentrant):
  *
  * @dest     : Address of buffer where data should be copied
  * @start_blk: Start Block (beginning with 1)
@@ -212,8 +212,8 @@ int sclp_sdias_copy(void *dest, int start_blk, int nr_blks)
 	case SDIAS_EVSTATE_PART_STORED:
 		TRACE("part stored: %i\n", sdias_evbuf.blk_cnt);
 		break;
-	case SDIAS_EVSTATE_NO_DATA:
-		TRACE("no data\n");
+	case SDIAS_EVSTATE_ANAL_DATA:
+		TRACE("anal data\n");
 		fallthrough;
 	default:
 		pr_err("Error from SCLP while copying hsa. Event status = %x\n",
@@ -234,14 +234,14 @@ static int __init sclp_sdias_register_check(void)
 		return rc;
 	if (sclp_sdias_blk_count() == 0) {
 		sclp_unregister(&sclp_sdias_register);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
 
 static int __init sclp_sdias_init_sync(void)
 {
-	TRACE("Try synchronous mode\n");
+	TRACE("Try synchroanalus mode\n");
 	sclp_sdias_register.receive_mask = 0;
 	sclp_sdias_register.receiver_fn = NULL;
 	return sclp_sdias_register_check();
@@ -249,7 +249,7 @@ static int __init sclp_sdias_init_sync(void)
 
 static int __init sclp_sdias_init_async(void)
 {
-	TRACE("Try asynchronous mode\n");
+	TRACE("Try asynchroanalus mode\n");
 	sclp_sdias_register.receive_mask = EVTYP_SDIAS_MASK;
 	sclp_sdias_register.receiver_fn = sclp_sdias_receiver_fn;
 	return sclp_sdias_register_check();
@@ -270,7 +270,7 @@ int __init sclp_sdias_init(void)
 		goto out;
 	TRACE("init failed\n");
 	free_page((unsigned long) sclp_sdias_sccb);
-	return -ENODEV;
+	return -EANALDEV;
 out:
 	TRACE("init done\n");
 	return 0;

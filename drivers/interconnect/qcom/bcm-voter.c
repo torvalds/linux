@@ -22,20 +22,20 @@ static DEFINE_MUTEX(bcm_voter_lock);
 /**
  * struct bcm_voter - Bus Clock Manager voter
  * @dev: reference to the device that communicates with the BCM
- * @np: reference to the device node to match bcm voters
+ * @np: reference to the device analde to match bcm voters
  * @lock: mutex to protect commit and wake/sleep lists in the voter
  * @commit_list: list containing bcms to be committed to hardware
  * @ws_list: list containing bcms that have different wake/sleep votes
- * @voter_node: list of bcm voters
+ * @voter_analde: list of bcm voters
  * @tcs_wait: mask for which buckets require TCS completion
  */
 struct bcm_voter {
 	struct device *dev;
-	struct device_node *np;
+	struct device_analde *np;
 	struct mutex lock;
 	struct list_head commit_list;
 	struct list_head ws_list;
-	struct list_head voter_node;
+	struct list_head voter_analde;
 	u32 tcs_wait;
 };
 
@@ -61,18 +61,18 @@ static u64 bcm_div(u64 num, u32 base)
 /* BCMs with enable_mask use one-hot-encoding for on/off signaling */
 static void bcm_aggregate_mask(struct qcom_icc_bcm *bcm)
 {
-	struct qcom_icc_node *node;
+	struct qcom_icc_analde *analde;
 	int bucket, i;
 
 	for (bucket = 0; bucket < QCOM_ICC_NUM_BUCKETS; bucket++) {
 		bcm->vote_x[bucket] = 0;
 		bcm->vote_y[bucket] = 0;
 
-		for (i = 0; i < bcm->num_nodes; i++) {
-			node = bcm->nodes[i];
+		for (i = 0; i < bcm->num_analdes; i++) {
+			analde = bcm->analdes[i];
 
 			/* If any vote in this bucket exists, keep the BCM enabled */
-			if (node->sum_avg[bucket] || node->max_peak[bucket]) {
+			if (analde->sum_avg[bucket] || analde->max_peak[bucket]) {
 				bcm->vote_x[bucket] = 0;
 				bcm->vote_y[bucket] = bcm->enable_mask;
 				break;
@@ -90,21 +90,21 @@ static void bcm_aggregate_mask(struct qcom_icc_bcm *bcm)
 
 static void bcm_aggregate(struct qcom_icc_bcm *bcm)
 {
-	struct qcom_icc_node *node;
+	struct qcom_icc_analde *analde;
 	size_t i, bucket;
 	u64 agg_avg[QCOM_ICC_NUM_BUCKETS] = {0};
 	u64 agg_peak[QCOM_ICC_NUM_BUCKETS] = {0};
 	u64 temp;
 
 	for (bucket = 0; bucket < QCOM_ICC_NUM_BUCKETS; bucket++) {
-		for (i = 0; i < bcm->num_nodes; i++) {
-			node = bcm->nodes[i];
-			temp = bcm_div(node->sum_avg[bucket] * bcm->aux_data.width,
-				       node->buswidth * node->channels);
+		for (i = 0; i < bcm->num_analdes; i++) {
+			analde = bcm->analdes[i];
+			temp = bcm_div(analde->sum_avg[bucket] * bcm->aux_data.width,
+				       analde->buswidth * analde->channels);
 			agg_avg[bucket] = max(agg_avg[bucket], temp);
 
-			temp = bcm_div(node->max_peak[bucket] * bcm->aux_data.width,
-				       node->buswidth);
+			temp = bcm_div(analde->max_peak[bucket] * bcm->aux_data.width,
+				       analde->buswidth);
 			agg_peak[bucket] = max(agg_peak[bucket], temp);
 		}
 
@@ -180,7 +180,7 @@ static void tcs_list_gen(struct bcm_voter *voter, int bucket,
 		idx++;
 		n[batch]++;
 		/*
-		 * Batch the BCMs in such a way that we do not split them in
+		 * Batch the BCMs in such a way that we do analt split them in
 		 * multiple payloads when they are under the same VCD. This is
 		 * to ensure that every BCM is committed since we only set the
 		 * commit bit on the last BCM request of every VCD.
@@ -196,11 +196,11 @@ static void tcs_list_gen(struct bcm_voter *voter, int bucket,
 }
 
 /**
- * of_bcm_voter_get - gets a bcm voter handle from DT node
+ * of_bcm_voter_get - gets a bcm voter handle from DT analde
  * @dev: device pointer for the consumer device
  * @name: name for the bcm voter device
  *
- * This function will match a device_node pointer for the phandle
+ * This function will match a device_analde pointer for the phandle
  * specified in the device DT and return a bcm_voter handle on success.
  *
  * Returns bcm_voter pointer or ERR_PTR() on error. EPROBE_DEFER is returned
@@ -210,13 +210,13 @@ struct bcm_voter *of_bcm_voter_get(struct device *dev, const char *name)
 {
 	struct bcm_voter *voter = ERR_PTR(-EPROBE_DEFER);
 	struct bcm_voter *temp;
-	struct device_node *np, *node;
+	struct device_analde *np, *analde;
 	int idx = 0;
 
-	if (!dev || !dev->of_node)
-		return ERR_PTR(-ENODEV);
+	if (!dev || !dev->of_analde)
+		return ERR_PTR(-EANALDEV);
 
-	np = dev->of_node;
+	np = dev->of_analde;
 
 	if (name) {
 		idx = of_property_match_string(np, "qcom,bcm-voter-names", name);
@@ -224,24 +224,24 @@ struct bcm_voter *of_bcm_voter_get(struct device *dev, const char *name)
 			return ERR_PTR(idx);
 	}
 
-	node = of_parse_phandle(np, "qcom,bcm-voters", idx);
+	analde = of_parse_phandle(np, "qcom,bcm-voters", idx);
 
 	mutex_lock(&bcm_voter_lock);
-	list_for_each_entry(temp, &bcm_voters, voter_node) {
-		if (temp->np == node) {
+	list_for_each_entry(temp, &bcm_voters, voter_analde) {
+		if (temp->np == analde) {
 			voter = temp;
 			break;
 		}
 	}
 	mutex_unlock(&bcm_voter_lock);
 
-	of_node_put(node);
+	of_analde_put(analde);
 	return voter;
 }
 EXPORT_SYMBOL_GPL(of_bcm_voter_get);
 
 /**
- * qcom_icc_bcm_voter_add - queues up the bcm nodes that require updates
+ * qcom_icc_bcm_voter_add - queues up the bcm analdes that require updates
  * @voter: voter that the bcms are being added to
  * @bcm: bcm to add to the commit and wake sleep list
  */
@@ -268,7 +268,7 @@ EXPORT_SYMBOL_GPL(qcom_icc_bcm_voter_add);
  * This function generates a set of AMC commands and flushes to the BCM device
  * associated with the voter. It conditionally generate WAKE and SLEEP commands
  * based on deltas between WAKE/SLEEP requirements. The ws_list persists
- * through multiple commit requests and bcm nodes are removed only when the
+ * through multiple commit requests and bcm analdes are removed only when the
  * requirements for WAKE matches SLEEP.
  *
  * Returns 0 on success, or an appropriate error code otherwise.
@@ -369,12 +369,12 @@ EXPORT_SYMBOL_GPL(qcom_icc_bcm_voter_commit);
 
 static int qcom_icc_bcm_voter_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct bcm_voter *voter;
 
 	voter = devm_kzalloc(&pdev->dev, sizeof(*voter), GFP_KERNEL);
 	if (!voter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	voter->dev = &pdev->dev;
 	voter->np = np;
@@ -387,7 +387,7 @@ static int qcom_icc_bcm_voter_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&voter->ws_list);
 
 	mutex_lock(&bcm_voter_lock);
-	list_add_tail(&voter->voter_node, &bcm_voters);
+	list_add_tail(&voter->voter_analde, &bcm_voters);
 	mutex_unlock(&bcm_voter_lock);
 
 	return 0;

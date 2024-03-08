@@ -6,7 +6,7 @@
  *
  * Authors: Vincent Sanders @ Collabora
  *          Dave Stevenson @ Broadcom
- *		(now dave.stevenson@raspberrypi.org)
+ *		(analw dave.stevenson@raspberrypi.org)
  *          Simon Mellor @ Broadcom
  *          Luke Diamand @ Broadcom
  */
@@ -18,19 +18,19 @@
 
 enum mmal_msg_status {
 	MMAL_MSG_STATUS_SUCCESS = 0, /**< Success */
-	MMAL_MSG_STATUS_ENOMEM,      /**< Out of memory */
-	MMAL_MSG_STATUS_ENOSPC,      /**< Out of resources other than memory */
+	MMAL_MSG_STATUS_EANALMEM,      /**< Out of memory */
+	MMAL_MSG_STATUS_EANALSPC,      /**< Out of resources other than memory */
 	MMAL_MSG_STATUS_EINVAL,      /**< Argument is invalid */
-	MMAL_MSG_STATUS_ENOSYS,      /**< Function not implemented */
-	MMAL_MSG_STATUS_ENOENT,      /**< No such file or directory */
-	MMAL_MSG_STATUS_ENXIO,       /**< No such device or address */
+	MMAL_MSG_STATUS_EANALSYS,      /**< Function analt implemented */
+	MMAL_MSG_STATUS_EANALENT,      /**< Anal such file or directory */
+	MMAL_MSG_STATUS_ENXIO,       /**< Anal such device or address */
 	MMAL_MSG_STATUS_EIO,         /**< I/O error */
 	MMAL_MSG_STATUS_ESPIPE,      /**< Illegal seek */
 	MMAL_MSG_STATUS_ECORRUPT,    /**< Data is corrupt \attention */
-	MMAL_MSG_STATUS_ENOTREADY,   /**< Component is not ready */
-	MMAL_MSG_STATUS_ECONFIG,     /**< Component is not configured */
+	MMAL_MSG_STATUS_EANALTREADY,   /**< Component is analt ready */
+	MMAL_MSG_STATUS_ECONFIG,     /**< Component is analt configured */
 	MMAL_MSG_STATUS_EISCONN,     /**< Port is already connected */
-	MMAL_MSG_STATUS_ENOTCONN,    /**< Port is disconnected */
+	MMAL_MSG_STATUS_EANALTCONN,    /**< Port is disconnected */
 	MMAL_MSG_STATUS_EAGAIN,      /**< Resource temporarily unavailable. */
 	MMAL_MSG_STATUS_EFAULT,      /**< Bad address */
 };

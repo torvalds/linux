@@ -20,12 +20,12 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_device *dev, *tmp;
 
-	seq_printf(seq, "Device\tS-state\t  Status   Sysfs node\n");
+	seq_printf(seq, "Device\tS-state\t  Status   Sysfs analde\n");
 
 	mutex_lock(&acpi_device_lock);
 	list_for_each_entry_safe(dev, tmp, &acpi_wakeup_device_list,
 				 wakeup_list) {
-		struct acpi_device_physical_node *entry;
+		struct acpi_device_physical_analde *entry;
 
 		if (!dev->wakeup.flags.valid)
 			continue;
@@ -34,23 +34,23 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 			   dev->pnp.bus_id,
 			   (u32) dev->wakeup.sleep_state);
 
-		mutex_lock(&dev->physical_node_lock);
+		mutex_lock(&dev->physical_analde_lock);
 
-		if (!dev->physical_node_count) {
+		if (!dev->physical_analde_count) {
 			seq_printf(seq, "%c%-8s\n",
 				dev->wakeup.flags.valid ? '*' : ' ',
 				device_may_wakeup(&dev->dev) ?
 					"enabled" : "disabled");
 		} else {
 			struct device *ldev;
-			list_for_each_entry(entry, &dev->physical_node_list,
-					node) {
+			list_for_each_entry(entry, &dev->physical_analde_list,
+					analde) {
 				ldev = get_device(entry->dev);
 				if (!ldev)
 					continue;
 
-				if (&entry->node !=
-						dev->physical_node_list.next)
+				if (&entry->analde !=
+						dev->physical_analde_list.next)
 					seq_printf(seq, "\t\t");
 
 				seq_printf(seq, "%c%-8s  %s:%s\n",
@@ -59,12 +59,12 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 					device_may_wakeup(ldev)) ?
 					"enabled" : "disabled",
 					ldev->bus ? ldev->bus->name :
-					"no-bus", dev_name(ldev));
+					"anal-bus", dev_name(ldev));
 				put_device(ldev);
 			}
 		}
 
-		mutex_unlock(&dev->physical_node_lock);
+		mutex_unlock(&dev->physical_analde_lock);
 	}
 	mutex_unlock(&acpi_device_lock);
 	return 0;
@@ -72,18 +72,18 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 
 static void physical_device_enable_wakeup(struct acpi_device *adev)
 {
-	struct acpi_device_physical_node *entry;
+	struct acpi_device_physical_analde *entry;
 
-	mutex_lock(&adev->physical_node_lock);
+	mutex_lock(&adev->physical_analde_lock);
 
 	list_for_each_entry(entry,
-		&adev->physical_node_list, node)
+		&adev->physical_analde_list, analde)
 		if (entry->dev && device_can_wakeup(entry->dev)) {
 			bool enable = !device_may_wakeup(entry->dev);
 			device_set_wakeup_enable(entry->dev, enable);
 		}
 
-	mutex_unlock(&adev->physical_node_lock);
+	mutex_unlock(&adev->physical_analde_lock);
 }
 
 static ssize_t
@@ -124,10 +124,10 @@ acpi_system_write_wakeup_device(struct file *file,
 }
 
 static int
-acpi_system_wakeup_device_open_fs(struct inode *inode, struct file *file)
+acpi_system_wakeup_device_open_fs(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, acpi_system_wakeup_device_seq_show,
-			   pde_data(inode));
+			   pde_data(ianalde));
 }
 
 static const struct proc_ops acpi_system_wakeup_device_proc_ops = {

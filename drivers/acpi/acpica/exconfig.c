@@ -32,7 +32,7 @@ acpi_ex_region_read(union acpi_operand_object *obj_desc,
  * FUNCTION:    acpi_ex_add_table
  *
  * PARAMETERS:  table               - Pointer to raw table
- *              parent_node         - Where to load the table (scope)
+ *              parent_analde         - Where to load the table (scope)
  *              ddb_handle          - Where to return the table handle.
  *
  * RETURN:      Status
@@ -53,7 +53,7 @@ acpi_ex_add_table(u32 table_index, union acpi_operand_object **ddb_handle)
 
 	obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_LOCAL_REFERENCE);
 	if (!obj_desc) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Init the table handle */
@@ -84,9 +84,9 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 {
 	acpi_status status;
 	union acpi_operand_object **operand = &walk_state->operands[0];
-	struct acpi_namespace_node *parent_node;
-	struct acpi_namespace_node *start_node;
-	struct acpi_namespace_node *parameter_node = NULL;
+	struct acpi_namespace_analde *parent_analde;
+	struct acpi_namespace_analde *start_analde;
+	struct acpi_namespace_analde *parameter_analde = NULL;
 	union acpi_operand_object *return_obj;
 	union acpi_operand_object *ddb_handle;
 	u32 table_index;
@@ -97,7 +97,7 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 	return_obj = acpi_ut_create_integer_object((u64)0);
 	if (!return_obj) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	*return_desc = return_obj;
@@ -110,31 +110,31 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 				    operand[2]->string.pointer, &table_index);
 	acpi_ex_enter_interpreter();
 	if (ACPI_FAILURE(status)) {
-		if (status != AE_NOT_FOUND) {
+		if (status != AE_ANALT_FOUND) {
 			return_ACPI_STATUS(status);
 		}
 
-		/* Table not found, return an Integer=0 and AE_OK */
+		/* Table analt found, return an Integer=0 and AE_OK */
 
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* Default nodes */
+	/* Default analdes */
 
-	start_node = walk_state->scope_info->scope.node;
-	parent_node = acpi_gbl_root_node;
+	start_analde = walk_state->scope_info->scope.analde;
+	parent_analde = acpi_gbl_root_analde;
 
 	/* root_path (optional parameter) */
 
 	if (operand[3]->string.length > 0) {
 		/*
-		 * Find the node referenced by the root_path_string. This is the
+		 * Find the analde referenced by the root_path_string. This is the
 		 * location within the namespace where the table will be loaded.
 		 */
-		status = acpi_ns_get_node_unlocked(start_node,
+		status = acpi_ns_get_analde_unlocked(start_analde,
 						   operand[3]->string.pointer,
 						   ACPI_NS_SEARCH_PARENT,
-						   &parent_node);
+						   &parent_analde);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -146,18 +146,18 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 		if ((operand[4]->string.pointer[0] != AML_ROOT_PREFIX) &&
 		    (operand[4]->string.pointer[0] != AML_PARENT_PREFIX)) {
 			/*
-			 * Path is not absolute, so it will be relative to the node
+			 * Path is analt absolute, so it will be relative to the analde
 			 * referenced by the root_path_string (or the NS root if omitted)
 			 */
-			start_node = parent_node;
+			start_analde = parent_analde;
 		}
 
-		/* Find the node referenced by the parameter_path_string */
+		/* Find the analde referenced by the parameter_path_string */
 
-		status = acpi_ns_get_node_unlocked(start_node,
+		status = acpi_ns_get_analde_unlocked(start_analde,
 						   operand[4]->string.pointer,
 						   ACPI_NS_SEARCH_PARENT,
-						   &parameter_node);
+						   &parameter_analde);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -167,7 +167,7 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 	ACPI_INFO(("Dynamic OEM Table Load:"));
 	acpi_ex_exit_interpreter();
-	status = acpi_tb_load_table(table_index, parent_node);
+	status = acpi_tb_load_table(table_index, parent_analde);
 	acpi_ex_enter_interpreter();
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -186,13 +186,13 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 	/* Parameter Data (optional) */
 
-	if (parameter_node) {
+	if (parameter_analde) {
 
 		/* Store the parameter data into the optional parameter object */
 
 		status = acpi_ex_store(operand[5],
 				       ACPI_CAST_PTR(union acpi_operand_object,
-						     parameter_node),
+						     parameter_analde),
 				       walk_state);
 		if (ACPI_FAILURE(status)) {
 			(void)acpi_ex_unload_table(ddb_handle);
@@ -206,7 +206,7 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 	acpi_ut_remove_reference(ddb_handle);
 
-	/* Return -1 (non-zero) indicates success */
+	/* Return -1 (analn-zero) indicates success */
 
 	return_obj->integer.value = 0xFFFFFFFFFFFFFFFF;
 	return_ACPI_STATUS(status);
@@ -266,7 +266,7 @@ acpi_ex_region_read(union acpi_operand_object *obj_desc, u32 length, u8 *buffer)
  *
  * DESCRIPTION: Load an ACPI table from a field or operation region
  *
- * NOTE: Region Fields (Field, bank_field, index_fields) are resolved to buffer
+ * ANALTE: Region Fields (Field, bank_field, index_fields) are resolved to buffer
  *       objects before this code is reached.
  *
  *       If source is an operation region, it must refer to system_memory, as
@@ -291,11 +291,11 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	if (target->common.descriptor_type == ACPI_DESC_TYPE_NAMED) {
 		target =
 		    acpi_ns_get_attached_object(ACPI_CAST_PTR
-						(struct acpi_namespace_node,
+						(struct acpi_namespace_analde,
 						 target));
 	}
 	if (target->common.type != ACPI_TYPE_INTEGER) {
-		ACPI_ERROR((AE_INFO, "Type not integer: %X",
+		ACPI_ERROR((AE_INFO, "Type analt integer: %X",
 			    target->common.type));
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
@@ -317,8 +317,8 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		}
 
 		/*
-		 * If the Region Address and Length have not been previously
-		 * evaluated, evaluate them now and save the results.
+		 * If the Region Address and Length have analt been previously
+		 * evaluated, evaluate them analw and save the results.
 		 */
 		if (!(obj_desc->common.flags & AOPOBJ_DATA_VALID)) {
 			status = acpi_ds_get_region_arguments(obj_desc);
@@ -331,7 +331,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 		table_header = ACPI_ALLOCATE(sizeof(struct acpi_table_header));
 		if (!table_header) {
-			return_ACPI_STATUS(AE_NO_MEMORY);
+			return_ACPI_STATUS(AE_ANAL_MEMORY);
 		}
 
 		status =
@@ -352,13 +352,13 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		}
 
 		/*
-		 * The original implementation simply mapped the table, with no copy.
-		 * However, the memory region is not guaranteed to remain stable and
+		 * The original implementation simply mapped the table, with anal copy.
+		 * However, the memory region is analt guaranteed to remain stable and
 		 * we must copy the table to a local buffer. For example, the memory
 		 * region is corrupted after suspend on some machines. Dynamically
 		 * loaded tables are usually small, so this overhead is minimal.
 		 *
-		 * The latest implementation (5/2009) does not use a mapping at all.
+		 * The latest implementation (5/2009) does analt use a mapping at all.
 		 * We use the low-level operation region interface to read the table
 		 * instead of the obvious optimization of using a direct mapping.
 		 * This maintains a consistent use of operation regions across the
@@ -371,7 +371,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 		table = ACPI_ALLOCATE(length);
 		if (!table) {
-			return_ACPI_STATUS(AE_NO_MEMORY);
+			return_ACPI_STATUS(AE_ANAL_MEMORY);
 		}
 
 		/* Read the entire table */
@@ -403,7 +403,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 				  obj_desc->buffer.pointer);
 		length = table_header->length;
 
-		/* Table cannot extend beyond the buffer */
+		/* Table cananalt extend beyond the buffer */
 
 		if (length > obj_desc->buffer.length) {
 			return_ACPI_STATUS(AE_AML_BUFFER_LIMIT);
@@ -418,7 +418,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		 */
 		table = ACPI_ALLOCATE(length);
 		if (!table) {
-			return_ACPI_STATUS(AE_NO_MEMORY);
+			return_ACPI_STATUS(AE_ANAL_MEMORY);
 		}
 
 		memcpy(table, table_header, length);
@@ -448,7 +448,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	/*
 	 * Add the table to the namespace.
 	 *
-	 * Note: Load the table objects relative to the root of the namespace.
+	 * Analte: Load the table objects relative to the root of the namespace.
 	 * This appears to go against the ACPI specification, but we do it for
 	 * compatibility with other ACPI implementations.
 	 */
@@ -467,7 +467,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 	acpi_ut_remove_reference(ddb_handle);
 
-	/* Return -1 (non-zero) indicates success */
+	/* Return -1 (analn-zero) indicates success */
 
 	target->integer.value = 0xFFFFFFFFFFFFFFFF;
 	return_ACPI_STATUS(status);
@@ -496,20 +496,20 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	/*
 	 * Temporarily emit a warning so that the ASL for the machine can be
 	 * hopefully obtained. This is to say that the Unload() operator is
-	 * extremely rare if not completely unused.
+	 * extremely rare if analt completely unused.
 	 */
 	ACPI_WARNING((AE_INFO, "Received request to unload an ACPI table"));
 
 	/*
-	 * May 2018: Unload is no longer supported for the following reasons:
-	 * 1) A correct implementation on some hosts may not be possible.
-	 * 2) Other ACPI implementations do not correctly/fully support it.
-	 * 3) It requires host device driver support which does not exist.
+	 * May 2018: Unload is anal longer supported for the following reasons:
+	 * 1) A correct implementation on some hosts may analt be possible.
+	 * 2) Other ACPI implementations do analt correctly/fully support it.
+	 * 3) It requires host device driver support which does analt exist.
 	 *    (To properly support namespace unload out from underneath.)
 	 * 4) This AML operator has never been seen in the field.
 	 */
-	ACPI_EXCEPTION((AE_INFO, AE_NOT_IMPLEMENTED,
-			"AML Unload operator is not supported"));
+	ACPI_EXCEPTION((AE_INFO, AE_ANALT_IMPLEMENTED,
+			"AML Unload operator is analt supported"));
 
 	/*
 	 * Validate the handle
@@ -518,7 +518,7 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	 * validated here.
 	 *
 	 * Handle must be a valid operand object of type reference. Also, the
-	 * ddb_handle must still be marked valid (table has not been previously
+	 * ddb_handle must still be marked valid (table has analt been previously
 	 * unloaded)
 	 */
 	if ((!ddb_handle) ||
@@ -542,7 +542,7 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 
 	/*
 	 * Invalidate the handle. We do this because the handle may be stored
-	 * in a named object and may not be actually deleted until much later.
+	 * in a named object and may analt be actually deleted until much later.
 	 */
 	if (ACPI_SUCCESS(status)) {
 		ddb_handle->common.flags &= ~AOPOBJ_DATA_VALID;

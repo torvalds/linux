@@ -12,7 +12,7 @@
 #include "hfi.h"
 
 /*
- * Note:
+ * Analte:
  * This produces a REALLY ugly trace in the console output when the string is
  * too long.
  */
@@ -22,9 +22,9 @@
 
 #define MAX_MSG_LEN 512
 
-#pragma GCC diagnostic push
+#pragma GCC diaganalstic push
 #ifndef __clang__
-#pragma GCC diagnostic ignored "-Wsuggest-attribute=format"
+#pragma GCC diaganalstic iganalred "-Wsuggest-attribute=format"
 #endif
 
 DECLARE_EVENT_CLASS(hfi1_trace_template,
@@ -41,11 +41,11 @@ DECLARE_EVENT_CLASS(hfi1_trace_template,
 			      __get_str(msg))
 );
 
-#pragma GCC diagnostic pop
+#pragma GCC diaganalstic pop
 
 /*
  * It may be nice to macroize the __hfi1_trace but the va_* stuff requires an
- * actual function to work and can not be in a macro.
+ * actual function to work and can analt be in a macro.
  */
 #define __hfi1_trace_def(lvl) \
 void __printf(2, 3) __hfi1_trace_##lvl(const char *funct, char *fmt, ...); \
@@ -81,7 +81,7 @@ __hfi1_trace_def(PROC);
 __hfi1_trace_def(SDMA);
 __hfi1_trace_def(LINKVERB);
 __hfi1_trace_def(DEBUG);
-__hfi1_trace_def(SNOOP);
+__hfi1_trace_def(SANALOP);
 __hfi1_trace_def(CNTR);
 __hfi1_trace_def(PIO);
 __hfi1_trace_def(DC8051);
@@ -99,7 +99,7 @@ __hfi1_trace_def(IOCTL);
 
 /*
  * Define HFI1_EARLY_DBG at compile time or here to enable early trace
- * messages. Do not check in an enablement for this.
+ * messages. Do analt check in an enablement for this.
  */
 
 #ifdef HFI1_EARLY_DBG

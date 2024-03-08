@@ -13,7 +13,7 @@ static inline bool vcpu_has_nv(const struct kvm_vcpu *vcpu)
 		vcpu_has_feature(vcpu, KVM_ARM_VCPU_HAS_EL2));
 }
 
-/* Translation helpers from non-VHE EL2 to EL1 */
+/* Translation helpers from analn-VHE EL2 to EL1 */
 static inline u64 tcr_el2_ps_to_tcr_el1_ips(u64 tcr_el2)
 {
 	return (u64)FIELD_GET(TCR_EL2_PS_MASK, tcr_el2) << TCR_IPS_SHIFT;

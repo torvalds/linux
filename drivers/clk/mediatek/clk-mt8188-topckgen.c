@@ -922,7 +922,7 @@ static const char * const ecc_parents[] = {
 	"univpll_d6"
 };
 
-static const char * const spinor_parents[] = {
+static const char * const spianalr_parents[] = {
 	"clk26m",
 	"clk13m",
 	"mainpll_d7_d8",
@@ -949,7 +949,7 @@ static const char * const mfg_fast_ref_parents[] = {
 static const struct mtk_mux top_mtk_muxes[] = {
 	/*
 	 * CLK_CFG_0
-	 * axi_sel and bus_aximem_sel are bus clocks, should not be closed by Linux.
+	 * axi_sel and bus_aximem_sel are bus clocks, should analt be closed by Linux.
 	 * spm_sel and scp_sel are main clocks in always-on co-processor.
 	 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_AXI, "top_axi", axi_parents,
@@ -1076,7 +1076,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 			     venc_parents, 0x0B0, 0x0B4, 0x0B8, 24, 4, 31, 0x08, 19),
 	/*
 	 * CLK_CFG_13
-	 * top_mcupm is main clock in co-processor, should not be handled by Linux.
+	 * top_mcupm is main clock in co-processor, should analt be handled by Linux.
 	 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_VDEC, "top_vdec",
 			     vdec_parents, 0x0BC, 0x0C0, 0x0C4, 0, 4, 7, 0x08, 20),
@@ -1089,7 +1089,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 			     spmi_p_mst_parents, 0x0BC, 0x0C0, 0x0C4, 24, 4, 31, 0x08, 23),
 	/*
 	 * CLK_CFG_14
-	 * dvfsrc_sel is for internal DVFS usage, should not be handled by Linux.
+	 * dvfsrc_sel is for internal DVFS usage, should analt be handled by Linux.
 	 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPMI_M_MST, "top_spmi_m_mst",
 			     spmi_m_mst_parents, 0x0C8, 0x0CC, 0x0D0, 0, 4, 7, 0x08, 24),
@@ -1166,10 +1166,10 @@ static const struct mtk_mux top_mtk_muxes[] = {
 	/*
 	 * CLK_CFG_22
 	 * top_ulposc/top_srck are clock source of always on co-processor,
-	 * should not be closed by Linux.
+	 * should analt be closed by Linux.
 	 */
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPINOR, "top_spinor",
-			     spinor_parents, 0x0128, 0x012C, 0x0130, 0, 4, 7, 0x0C, 24),
+	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPIANALR, "top_spianalr",
+			     spianalr_parents, 0x0128, 0x012C, 0x0130, 0, 4, 7, 0x0C, 24),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_ULPOSC, "top_ulposc", ulposc_parents,
 				   0x0128, 0x012C, 0x0130, 8, 4, 15, 0x0C, 25,
 				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
@@ -1199,10 +1199,10 @@ static const struct mtk_gate_regs top1_cg_regs = {
 };
 
 #define GATE_TOP0(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &top0_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &top0_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 #define GATE_TOP1(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &top1_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &top1_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate top_clks[] = {
 	/* TOP0 */
@@ -1235,32 +1235,32 @@ static const struct of_device_id of_match_clk_mt8188_topck[] = {
 };
 MODULE_DEVICE_TABLE(of, of_match_clk_mt8188_topck);
 
-/* Register mux notifier for MFG mux */
-static int clk_mt8188_reg_mfg_mux_notifier(struct device *dev, struct clk *clk)
+/* Register mux analtifier for MFG mux */
+static int clk_mt8188_reg_mfg_mux_analtifier(struct device *dev, struct clk *clk)
 {
 	struct mtk_mux_nb *mfg_mux_nb;
 
 	mfg_mux_nb = devm_kzalloc(dev, sizeof(*mfg_mux_nb), GFP_KERNEL);
 	if (!mfg_mux_nb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mfg_mux_nb->ops = &clk_mux_ops;
 	mfg_mux_nb->bypass_index = 0; /* Bypass to TOP_MFG_CORE_TMP */
 
-	return devm_mtk_clk_mux_notifier_register(dev, clk, mfg_mux_nb);
+	return devm_mtk_clk_mux_analtifier_register(dev, clk, mfg_mux_nb);
 }
 
 static int clk_mt8188_topck_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *top_clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct clk_hw *hw;
 	int r;
 	void __iomem *base;
 
 	top_clk_data = mtk_alloc_clk_data(CLK_TOP_NR_CLK);
 	if (!top_clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base)) {
@@ -1278,7 +1278,7 @@ static int clk_mt8188_topck_probe(struct platform_device *pdev)
 		goto unregister_fixed_clks;
 
 	r = mtk_clk_register_muxes(&pdev->dev, top_mtk_muxes,
-				   ARRAY_SIZE(top_mtk_muxes), node,
+				   ARRAY_SIZE(top_mtk_muxes), analde,
 				   &mt8188_clk_lock, top_clk_data);
 	if (r)
 		goto unregister_factors;
@@ -1292,7 +1292,7 @@ static int clk_mt8188_topck_probe(struct platform_device *pdev)
 	}
 	top_clk_data->hws[CLK_TOP_MFG_CK_FAST_REF] = hw;
 
-	r = clk_mt8188_reg_mfg_mux_notifier(&pdev->dev,
+	r = clk_mt8188_reg_mfg_mux_analtifier(&pdev->dev,
 					    top_clk_data->hws[CLK_TOP_MFG_CK_FAST_REF]->clk);
 	if (r)
 		goto unregister_muxes;
@@ -1303,12 +1303,12 @@ static int clk_mt8188_topck_probe(struct platform_device *pdev)
 	if (r)
 		goto unregister_muxes;
 
-	r = mtk_clk_register_gates(&pdev->dev, node, top_clks,
+	r = mtk_clk_register_gates(&pdev->dev, analde, top_clks,
 				   ARRAY_SIZE(top_clks), top_clk_data);
 	if (r)
 		goto unregister_composite_divs;
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, top_clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, top_clk_data);
 	if (r)
 		goto unregister_gates;
 
@@ -1334,9 +1334,9 @@ free_top_data:
 static void clk_mt8188_topck_remove(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *top_clk_data = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 
-	of_clk_del_provider(node);
+	of_clk_del_provider(analde);
 	mtk_clk_unregister_gates(top_clks, ARRAY_SIZE(top_clks), top_clk_data);
 	mtk_clk_unregister_composites(top_adj_divs, ARRAY_SIZE(top_adj_divs), top_clk_data);
 	mtk_clk_unregister_muxes(top_mtk_muxes, ARRAY_SIZE(top_mtk_muxes), top_clk_data);

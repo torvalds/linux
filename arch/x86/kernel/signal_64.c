@@ -7,7 +7,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/unistd.h>
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
@@ -22,7 +22,7 @@
 
 /*
  * If regs->ss will cause an IRET fault, change it.  Otherwise leave it
- * alone.  Using this generally makes no sense unless
+ * alone.  Using this generally makes anal sense unless
  * user_64bit_mode(regs) would return true.
  */
 static void force_valid_ss(struct pt_regs *regs)
@@ -54,7 +54,7 @@ static bool restore_sigcontext(struct pt_regs *regs,
 	struct sigcontext sc;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	if (copy_from_user(&sc, usc, offsetof(struct sigcontext, reserved1)))
 		return false;
@@ -116,7 +116,7 @@ __unsafe_setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 	unsafe_put_user(regs->r14, &sc->r14, Efault);
 	unsafe_put_user(regs->r15, &sc->r15, Efault);
 
-	unsafe_put_user(current->thread.trap_nr, &sc->trapno, Efault);
+	unsafe_put_user(current->thread.trap_nr, &sc->trapanal, Efault);
 	unsafe_put_user(current->thread.error_code, &sc->err, Efault);
 	unsafe_put_user(regs->ip, &sc->ip, Efault);
 	unsafe_put_user(regs->flags, &sc->flags, Efault);
@@ -127,7 +127,7 @@ __unsafe_setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 
 	unsafe_put_user(fpstate, (unsigned long __user *)&sc->fpstate, Efault);
 
-	/* non-iBCS2 extensions.. */
+	/* analn-iBCS2 extensions.. */
 	unsafe_put_user(mask, &sc->oldmask, Efault);
 	unsafe_put_user(current->thread.cr2, &sc->cr2, Efault);
 	return 0;
@@ -203,7 +203,7 @@ int x64_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	/* In case the signal handler was declared without prototypes */
 	regs->ax = 0;
 
-	/* This also works for non SA_SIGINFO handlers because they expect the
+	/* This also works for analn SA_SIGINFO handlers because they expect the
 	   next argument after the signal number on the stack. */
 	regs->si = (unsigned long)&frame->info;
 	regs->dx = (unsigned long)&frame->uc;
@@ -283,7 +283,7 @@ static int x32_copy_siginfo_to_user(struct compat_siginfo __user *to,
 	struct compat_siginfo new;
 
 	copy_siginfo_to_external32(&new, from);
-	if (from->si_signo == SIGCHLD) {
+	if (from->si_siganal == SIGCHLD) {
 		new._sifields._sigchld_x32._utime = from->si_utime;
 		new._sifields._sigchld_x32._stime = from->si_stime;
 	}
@@ -419,15 +419,15 @@ static_assert(NSIGSYS  == 2);
 static_assert(sizeof(siginfo_t) == 128);
 
 /* This is a part of the ABI and can never change in alignment */
-static_assert(__alignof__(siginfo_t) == 8);
+static_assert(__aliganalf__(siginfo_t) == 8);
 
 /*
 * The offsets of all the (unioned) si_fields are fixed
-* in the ABI, of course.  Make sure none of them ever
+* in the ABI, of course.  Make sure analne of them ever
 * move and are always at the beginning:
 */
-static_assert(offsetof(siginfo_t, si_signo) == 0);
-static_assert(offsetof(siginfo_t, si_errno) == 4);
+static_assert(offsetof(siginfo_t, si_siganal) == 0);
+static_assert(offsetof(siginfo_t, si_erranal) == 4);
 static_assert(offsetof(siginfo_t, si_code)  == 8);
 
 /*
@@ -439,7 +439,7 @@ static_assert(offsetof(siginfo_t, si_code)  == 8);
 * We repeat this check for both the generic and compat
 * siginfos.
 *
-* Note: it is OK for these to grow as long as the whole
+* Analte: it is OK for these to grow as long as the whole
 * structure stays within the padding size (checked
 * above).
 */
@@ -476,7 +476,7 @@ static_assert(offsetof(siginfo_t, si_utime)  == 0x20);
 static_assert(offsetof(siginfo_t, si_stime)  == 0x28);
 
 #ifdef CONFIG_X86_X32_ABI
-/* no _sigchld_x32 in the generic siginfo_t */
+/* anal _sigchld_x32 in the generic siginfo_t */
 static_assert(sizeof_field(compat_siginfo_t, _sifields._sigchld_x32) ==
 	      7*sizeof(int));
 static_assert(offsetof(compat_siginfo_t, _sifields) ==
@@ -489,7 +489,7 @@ CHECK_SI_OFFSET(_sigfault);
 CHECK_SI_SIZE  (_sigfault, 8*sizeof(int));
 static_assert(offsetof(siginfo_t, si_addr)	== 0x10);
 
-static_assert(offsetof(siginfo_t, si_trapno)	== 0x18);
+static_assert(offsetof(siginfo_t, si_trapanal)	== 0x18);
 
 static_assert(offsetof(siginfo_t, si_addr_lsb)	== 0x18);
 

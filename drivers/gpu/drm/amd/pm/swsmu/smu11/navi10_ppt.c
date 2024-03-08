@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -49,7 +49,7 @@
 #include "smu_11_0_cdr_table.h"
 
 /*
- * DO NOT use these for err/warn/info/debug messages.
+ * DO ANALT use these for err/warn/info/debug messages.
  * Use dev_err, dev_warn, dev_info and dev_dbg instead.
  * They are more MGPU friendly.
  */
@@ -111,7 +111,7 @@ static struct cmn2asic_msg_mapping navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(OverridePcieParameters,		PPSMC_MSG_OverridePcieParameters,	0),
 	MSG_MAP(SetMinDeepSleepDcefclk,		PPSMC_MSG_SetMinDeepSleepDcefclk,	0),
 	MSG_MAP(ReenableAcDcInterrupt,		PPSMC_MSG_ReenableAcDcInterrupt,	0),
-	MSG_MAP(NotifyPowerSource,		PPSMC_MSG_NotifyPowerSource,		0),
+	MSG_MAP(AnaltifyPowerSource,		PPSMC_MSG_AnaltifyPowerSource,		0),
 	MSG_MAP(SetUclkFastSwitch,		PPSMC_MSG_SetUclkFastSwitch,		0),
 	MSG_MAP(SetVideoFps,			PPSMC_MSG_SetVideoFps,			0),
 	MSG_MAP(PrepareMp1ForUnload,		PPSMC_MSG_PrepareMp1ForUnload,		1),
@@ -425,7 +425,7 @@ static int navi10_append_powerplay_table(struct smu_context *smu)
 			smc_dpm_table->table_header.content_revision);
 
 	if (smc_dpm_table->table_header.format_revision != 4) {
-		dev_err(adev->dev, "smc_dpm_info table format revision is not 4!\n");
+		dev_err(adev->dev, "smc_dpm_info table format revision is analt 4!\n");
 		return -EINVAL;
 	}
 
@@ -549,7 +549,7 @@ err2_out:
 err1_out:
 	kfree(smu_table->metrics_table);
 err0_out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int navi10_get_legacy_smu_metrics_data(struct smu_context *smu,
@@ -941,7 +941,7 @@ static int navi10_allocate_dpm_context(struct smu_context *smu)
 	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_11_0_dpm_context),
 				       GFP_KERNEL);
 	if (!smu_dpm->dpm_context)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smu_dpm->dpm_context_size = sizeof(struct smu_11_0_dpm_context);
 
@@ -1352,7 +1352,7 @@ static int navi10_emit_clk_levels(struct smu_context *smu,
 		break;
 	case SMU_OD_SCLK:
 		if (!smu->od_enabled || !od_table || !od_settings)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_LIMITS))
 			break;
 		*offset += sysfs_emit_at(buf, *offset, "OD_SCLK:\n0: %uMhz\n1: %uMhz\n",
@@ -1360,14 +1360,14 @@ static int navi10_emit_clk_levels(struct smu_context *smu,
 		break;
 	case SMU_OD_MCLK:
 		if (!smu->od_enabled || !od_table || !od_settings)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_UCLK_MAX))
 			break;
 		*offset += sysfs_emit_at(buf, *offset, "OD_MCLK:\n1: %uMHz\n", od_table->UclkFmax);
 		break;
 	case SMU_OD_VDDC_CURVE:
 		if (!smu->od_enabled || !od_table || !od_settings)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_CURVE))
 			break;
 		*offset += sysfs_emit_at(buf, *offset, "OD_VDDC_CURVE:\n");
@@ -1392,7 +1392,7 @@ static int navi10_emit_clk_levels(struct smu_context *smu,
 		break;
 	case SMU_OD_RANGE:
 		if (!smu->od_enabled || !od_table || !od_settings)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "OD_RANGE");
 
 		if (navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_LIMITS)) {
@@ -1683,7 +1683,7 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 			return 0;
 		break;
 	case SMU_DCEFCLK:
-		dev_info(smu->adev->dev, "Setting DCEFCLK min/max dpm level is not supported!\n");
+		dev_info(smu->adev->dev, "Setting DCEFCLK min/max dpm level is analt supported!\n");
 		break;
 
 	default:
@@ -2072,7 +2072,7 @@ static int navi10_set_power_profile_mode(struct smu_context *smu, long *input, u
 	return ret;
 }
 
-static int navi10_notify_smc_display_config(struct smu_context *smu)
+static int navi10_analtify_smc_display_config(struct smu_context *smu)
 {
 	struct smu_clocks min_clocks = {0};
 	struct pp_display_clock_request clock_req;
@@ -2239,7 +2239,7 @@ static int navi10_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -2344,7 +2344,7 @@ static int navi10_get_power_limit(struct smu_context *smu,
 	if (smu_v11_0_get_current_power_limit(smu, &power_limit)) {
 		/* the last hope to figure out the ppt limit */
 		if (!pptable) {
-			dev_err(smu->adev->dev, "Cannot get PPT limit due to pptable missing!");
+			dev_err(smu->adev->dev, "Cananalt get PPT limit due to pptable missing!");
 			return -EINVAL;
 		}
 		power_limit =
@@ -2475,15 +2475,15 @@ static int navi10_baco_enter(struct smu_context *smu)
 	 *   amdgpu driver loaded -> runpm suspend kicked -> sound driver loaded
 	 *
 	 * For NAVI10 and later ASICs, we rely on PMFW to handle the runpm. To
-	 * make that possible, PMFW needs to acknowledge the dstate transition
+	 * make that possible, PMFW needs to ackanalwledge the dstate transition
 	 * process for both gfx(function 0) and audio(function 1) function of
 	 * the ASIC.
 	 *
 	 * The PCI device's initial runpm status is RUNPM_SUSPENDED. So as the
 	 * device representing the audio function of the ASIC. And that means
-	 * even if the sound driver(snd_hda_intel) was not loaded yet, it's still
+	 * even if the sound driver(snd_hda_intel) was analt loaded yet, it's still
 	 * possible runpm suspend kicked on the ASIC. However without the dstate
-	 * transition notification from audio function, pmfw cannot handle the
+	 * transition analtification from audio function, pmfw cananalt handle the
 	 * BACO in/exit correctly. And that will cause driver hang on runpm
 	 * resuming.
 	 *
@@ -2520,9 +2520,9 @@ static int navi10_set_default_od_settings(struct smu_context *smu)
 	int ret = 0;
 
 	/*
-	 * For S3/S4/Runpm resume, no need to setup those overdrive tables again as
+	 * For S3/S4/Runpm resume, anal need to setup those overdrive tables again as
 	 *   - either they already have the default OD settings got during cold bootup
-	 *   - or they have some user customized OD settings which cannot be overwritten
+	 *   - or they have some user customized OD settings which cananalt be overwritten
 	 */
 	if (smu->adev->in_suspend)
 		return 0;
@@ -2577,13 +2577,13 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 	od_table = (OverDriveTable_t *)table_context->overdrive_table;
 
 	if (!smu->od_enabled) {
-		dev_warn(smu->adev->dev, "OverDrive is not enabled!\n");
+		dev_warn(smu->adev->dev, "OverDrive is analt enabled!\n");
 		return -EINVAL;
 	}
 
 	if (!smu->od_settings) {
-		dev_err(smu->adev->dev, "OD board limits are not set!\n");
-		return -ENOENT;
+		dev_err(smu->adev->dev, "OD board limits are analt set!\n");
+		return -EANALENT;
 	}
 
 	od_settings = smu->od_settings;
@@ -2591,11 +2591,11 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 	switch (type) {
 	case PP_OD_EDIT_SCLK_VDDC_TABLE:
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_LIMITS)) {
-			dev_warn(smu->adev->dev, "GFXCLK_LIMITS not supported!\n");
-			return -ENOTSUPP;
+			dev_warn(smu->adev->dev, "GFXCLK_LIMITS analt supported!\n");
+			return -EANALTSUPP;
 		}
 		if (!table_context->overdrive_table) {
-			dev_err(smu->adev->dev, "Overdrive is not initialized\n");
+			dev_err(smu->adev->dev, "Overdrive is analt initialized\n");
 			return -EINVAL;
 		}
 		for (i = 0; i < size; i += 2) {
@@ -2637,8 +2637,8 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 		break;
 	case PP_OD_EDIT_MCLK_VDDC_TABLE:
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_UCLK_MAX)) {
-			dev_warn(smu->adev->dev, "UCLK_MAX not supported!\n");
-			return -ENOTSUPP;
+			dev_warn(smu->adev->dev, "UCLK_MAX analt supported!\n");
+			return -EANALTSUPP;
 		}
 		if (size < 2) {
 			dev_info(smu->adev->dev, "invalid number of parameters: %d\n", size);
@@ -2656,7 +2656,7 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 		break;
 	case PP_OD_RESTORE_DEFAULT_TABLE:
 		if (!(table_context->overdrive_table && table_context->boot_overdrive_table)) {
-			dev_err(smu->adev->dev, "Overdrive table was not initialized!\n");
+			dev_err(smu->adev->dev, "Overdrive table was analt initialized!\n");
 			return -EINVAL;
 		}
 		memcpy(table_context->overdrive_table, table_context->boot_overdrive_table, sizeof(OverDriveTable_t));
@@ -2680,15 +2680,15 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 		break;
 	case PP_OD_EDIT_VDDC_CURVE:
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_CURVE)) {
-			dev_warn(smu->adev->dev, "GFXCLK_CURVE not supported!\n");
-			return -ENOTSUPP;
+			dev_warn(smu->adev->dev, "GFXCLK_CURVE analt supported!\n");
+			return -EANALTSUPP;
 		}
 		if (size < 3) {
 			dev_info(smu->adev->dev, "invalid number of parameters: %d\n", size);
 			return -EINVAL;
 		}
 		if (!od_table) {
-			dev_info(smu->adev->dev, "Overdrive is not initialized\n");
+			dev_info(smu->adev->dev, "Overdrive is analt initialized\n");
 			return -EINVAL;
 		}
 
@@ -2736,7 +2736,7 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 		navi10_dump_od_table(smu, od_table);
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 	return ret;
 }
@@ -2786,7 +2786,7 @@ static int navi10_umc_hybrid_cdr_workaround(struct smu_context *smu)
 	/*
 	 * The NAVI10_UMC_HYBRID_CDR_WORKAROUND_UCLK_THRESHOLD is 750Mhz.
 	 * This workaround is needed only when the max uclk frequency
-	 * not greater than that.
+	 * analt greater than that.
 	 */
 	if (uclk_max > 0x2EE)
 		return 0;
@@ -2822,7 +2822,7 @@ static int navi10_set_dummy_pstates_table_location(struct smu_context *smu)
 	uint32_t i;
 
 	for (i = 0; i < 0x40000; i += 0x1000 * 2) {
-		memcpy(dummy_table, &NoDbiPrbs7[0], 0x1000);
+		memcpy(dummy_table, &AnalDbiPrbs7[0], 0x1000);
 		dummy_table += 0x1000;
 		memcpy(dummy_table, &DbiPrbs7[0], 0x1000);
 		dummy_table += 0x1000;
@@ -2985,7 +2985,7 @@ static int navi10_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->I2CcontrollerPort = smu_i2c->port;
 	req->I2CSpeed = I2C_SPEED_FAST_400K;
@@ -3058,7 +3058,7 @@ static const struct i2c_algorithm navi10_i2c_algo = {
 };
 
 static const struct i2c_adapter_quirks navi10_i2c_control_quirks = {
-	.flags = I2C_AQ_COMB | I2C_AQ_COMB_SAME_ADDR | I2C_AQ_NO_ZERO_LEN,
+	.flags = I2C_AQ_COMB | I2C_AQ_COMB_SAME_ADDR | I2C_AQ_ANAL_ZERO_LEN,
 	.max_read_len  = MAX_SW_I2C_COMMANDS,
 	.max_write_len = MAX_SW_I2C_COMMANDS,
 	.max_comb_1st_msg_len = 2,
@@ -3383,13 +3383,13 @@ static int navi10_enable_mgpu_fan_boost(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t param = 0;
 
-	/* Navi12 does not support this */
+	/* Navi12 does analt support this */
 	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 9))
 		return 0;
 
 	/*
 	 * Skip the MGpuFanBoost setting for those ASICs
-	 * which do not support it
+	 * which do analt support it
 	 */
 	if (!smc_pptable->MGpuFanBoostLimitRpm)
 		return 0;
@@ -3482,7 +3482,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_clock_by_type_with_latency = navi10_get_clock_by_type_with_latency,
 	.pre_display_config_changed = navi10_pre_display_config_changed,
 	.display_config_changed = navi10_display_config_changed,
-	.notify_smc_display_config = navi10_notify_smc_display_config,
+	.analtify_smc_display_config = navi10_analtify_smc_display_config,
 	.is_dpm_running = navi10_is_dpm_running,
 	.get_fan_speed_pwm = smu_v11_0_get_fan_speed_pwm,
 	.get_fan_speed_rpm = navi10_get_fan_speed_rpm,
@@ -3510,7 +3510,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.write_pptable = smu_cmn_write_pptable,
 	.set_driver_table_location = smu_v11_0_set_driver_table_location,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
-	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
+	.analtify_memory_pool_location = smu_v11_0_analtify_memory_pool_location,
 	.system_features_control = smu_v11_0_system_features_control,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
 	.send_smc_msg = smu_cmn_send_smc_msg,
@@ -3519,7 +3519,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_enabled_mask = smu_cmn_get_enabled_mask,
 	.feature_is_enabled = smu_cmn_feature_is_enabled,
 	.disable_all_features_with_exception = smu_cmn_disable_all_features_with_exception,
-	.notify_display_change = smu_v11_0_notify_display_change,
+	.analtify_display_change = smu_v11_0_analtify_display_change,
 	.set_power_limit = smu_v11_0_set_power_limit,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,
 	.enable_thermal_alert = smu_v11_0_enable_thermal_alert,

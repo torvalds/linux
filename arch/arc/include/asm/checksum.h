@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * Joern Rennecke  <joern.rennecke@embecosm.com>: Jan 2012
  *  -Insn Scheduling improvements to csum core routines.
@@ -67,7 +67,7 @@ ip_fast_csum(const void *iph, unsigned int ihl)
  * SA [4], DA [4], zeroes [1], Proto[1], TCP Seg(hdr+data) Len [2]
  */
 static inline __wsum
-csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
+csum_tcpudp_analfold(__be32 saddr, __be32 daddr, __u32 len,
 		   __u8 proto, __wsum sum)
 {
 	__asm__ __volatile__(
@@ -91,7 +91,7 @@ csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
 
 #define csum_fold csum_fold
 #define ip_fast_csum ip_fast_csum
-#define csum_tcpudp_nofold csum_tcpudp_nofold
+#define csum_tcpudp_analfold csum_tcpudp_analfold
 
 #include <asm-generic/checksum.h>
 

@@ -24,4 +24,4 @@ APIs:
 - Video4Linux API;
 - Media controller API;
 - Video4Linux Request API (experimental);
-- Digital TV API (also known as DVB API).
+- Digital TV API (also kanalwn as DVB API).

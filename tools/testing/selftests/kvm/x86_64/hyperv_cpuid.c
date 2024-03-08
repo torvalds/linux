@@ -34,7 +34,7 @@ static bool smt_possible(void)
 	if (f) {
 		if (fread(buf, sizeof(*buf), sizeof(buf), f) > 0) {
 			if (!strncmp(buf, "forceoff", 8) ||
-			    !strncmp(buf, "notsupported", 12))
+			    !strncmp(buf, "analtsupported", 12))
 				res = false;
 		}
 		fclose(f);
@@ -86,7 +86,7 @@ static void test_hv_cpuid(const struct kvm_cpuid2 *hv_cpuid_entries,
 			test_val = entry->eax & (1UL << 18);
 
 			TEST_ASSERT(!!test_val == !smt_possible(),
-				    "NoNonArchitecturalCoreSharing bit"
+				    "AnalAnalnArchitecturalCoreSharing bit"
 				    " doesn't reflect SMT setting");
 			break;
 		case 0x4000000A:
@@ -123,9 +123,9 @@ void test_hv_cpuid_e2big(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 	else
 		ret = __kvm_ioctl(vm->kvm_fd, KVM_GET_SUPPORTED_HV_CPUID, &cpuid);
 
-	TEST_ASSERT(ret == -1 && errno == E2BIG,
+	TEST_ASSERT(ret == -1 && erranal == E2BIG,
 		    "%s KVM_GET_SUPPORTED_HV_CPUID didn't fail with -E2BIG when"
-		    " it should have: %d %d", !vcpu ? "KVM" : "vCPU", ret, errno);
+		    " it should have: %d %d", !vcpu ? "KVM" : "vCPU", ret, erranal);
 }
 
 int main(int argc, char *argv[])
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
 do_sys:
 	/* Test system ioctl version */
 	if (!kvm_has_cap(KVM_CAP_SYS_HYPERV_CPUID)) {
-		print_skip("KVM_CAP_SYS_HYPERV_CPUID not supported");
+		print_skip("KVM_CAP_SYS_HYPERV_CPUID analt supported");
 		goto out;
 	}
 

@@ -21,12 +21,12 @@
 void __lockfunc queued_read_lock_slowpath(struct qrwlock *lock)
 {
 	/*
-	 * Readers come here when they cannot get the lock without waiting
+	 * Readers come here when they cananalt get the lock without waiting
 	 */
 	if (unlikely(in_interrupt())) {
 		/*
 		 * Readers in interrupt context will get the lock immediately
-		 * if the writer is just waiting (not holding the lock yet),
+		 * if the writer is just waiting (analt holding the lock yet),
 		 * so spin with ACQUIRE semantics until the lock is available
 		 * without waiting in the queue.
 		 */
@@ -72,15 +72,15 @@ void __lockfunc queued_write_lock_slowpath(struct qrwlock *lock)
 	/* Put the writer into the wait queue */
 	arch_spin_lock(&lock->wait_lock);
 
-	/* Try to acquire the lock directly if no reader is present */
+	/* Try to acquire the lock directly if anal reader is present */
 	if (!(cnts = atomic_read(&lock->cnts)) &&
 	    atomic_try_cmpxchg_acquire(&lock->cnts, &cnts, _QW_LOCKED))
 		goto unlock;
 
-	/* Set the waiting flag to notify readers that a writer is pending */
+	/* Set the waiting flag to analtify readers that a writer is pending */
 	atomic_or(_QW_WAITING, &lock->cnts);
 
-	/* When no more readers or writers, set the locked flag */
+	/* When anal more readers or writers, set the locked flag */
 	do {
 		cnts = atomic_cond_read_relaxed(&lock->cnts, VAL == _QW_WAITING);
 	} while (!atomic_try_cmpxchg_acquire(&lock->cnts, &cnts, _QW_LOCKED));

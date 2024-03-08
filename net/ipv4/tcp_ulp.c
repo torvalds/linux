@@ -2,7 +2,7 @@
 /*
  * Pluggable TCP upper layer protocol support.
  *
- * Copyright (c) 2016-2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016-2017, Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2016-2017, Dave Watson <davejwatson@fb.com>. All rights reserved.
  *
  */
@@ -113,7 +113,7 @@ void tcp_cleanup_ulp(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
-	/* No sock_owned_by_me() check here as at the time the
+	/* Anal sock_owned_by_me() check here as at the time the
 	 * stack calls this function, the socket is dead and
 	 * about to be destroyed.
 	 */
@@ -139,7 +139,7 @@ static int __tcp_set_ulp(struct sock *sk, const struct tcp_ulp_ops *ulp_ops)
 	if (sk->sk_socket)
 		clear_bit(SOCK_SUPPORT_ZC, &sk->sk_socket->flags);
 
-	err = -ENOTCONN;
+	err = -EANALTCONN;
 	if (!ulp_ops->clone && sk->sk_state == TCP_LISTEN)
 		goto out_err;
 
@@ -162,7 +162,7 @@ int tcp_set_ulp(struct sock *sk, const char *name)
 
 	ulp_ops = __tcp_ulp_find_autoload(name);
 	if (!ulp_ops)
-		return -ENOENT;
+		return -EANALENT;
 
 	return __tcp_set_ulp(sk, ulp_ops);
 }

@@ -32,13 +32,13 @@
 #define ENETC_SICAR0	0x40
 #define ENETC_SICAR1	0x44
 #define ENETC_SICAR2	0x48
-/* rd snoop, no alloc
- * wr snoop, no alloc, partial cache line update for BDs and full cache line
+/* rd sanalop, anal alloc
+ * wr sanalop, anal alloc, partial cache line update for BDs and full cache line
  * update for data
  */
 #define ENETC_SICAR_RD_COHERENT	0x2b2b0000
 #define ENETC_SICAR_WR_COHERENT	0x00006727
-#define ENETC_SICAR_MSI	0x00300030 /* rd/wr device, no snoop, no alloc */
+#define ENETC_SICAR_MSI	0x00300030 /* rd/wr device, anal sanalop, anal alloc */
 
 #define ENETC_SIPMAR0	0x80
 #define ENETC_SIPMAR1	0x84
@@ -397,7 +397,7 @@ struct enetc_hw {
 extern rwlock_t enetc_mdio_lock;
 
 /* use this locking primitive only on the fast datapath to
- * group together multiple non-MDIO register accesses to
+ * group together multiple analn-MDIO register accesses to
  * minimize the overhead of the lock
  */
 static inline void enetc_lock_mdio(void)
@@ -700,7 +700,7 @@ enum enetc_msg_cmd_action_type {
 /* PSI-VSI command header format */
 struct enetc_msg_cmd_header {
 	u16 type;	/* command class type */
-	u16 id;		/* denotes the specific required action */
+	u16 id;		/* deanaltes the specific required action */
 };
 
 /* Common H/W utility functions */
@@ -828,7 +828,7 @@ struct sfi_conf {
 };
 
 /* class 8, command 2 stream Filter Instance status query short format
- * command no need structure define
+ * command anal need structure define
  * Stream Filter Instance Query Statistics Response data
  */
 struct sfi_counter_data {

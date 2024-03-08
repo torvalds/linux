@@ -144,7 +144,7 @@ static int spaceorb_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct spaceorb *spaceorb;
 	struct input_dev *input_dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int i;
 
 	spaceorb = kzalloc(sizeof(struct spaceorb), GFP_KERNEL);

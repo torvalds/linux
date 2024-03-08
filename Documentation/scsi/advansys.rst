@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =====================
-AdvanSys Driver Notes
+AdvanSys Driver Analtes
 =====================
 
 AdvanSys (Advanced System Products, Inc.) manufactures the following
@@ -130,7 +130,7 @@ The following constants can be defined in the source file.
    for details.
 
    Alternatively you can enable printk() to console with this
-   program. However, this is not the 'official' way to do this.
+   program. However, this is analt the 'official' way to do this.
 
    Debug output is logged in /var/log/messages.
 
@@ -150,7 +150,7 @@ The following constants can be defined in the source file.
    Enabling this option adds statistics collection and display
    through /proc to the driver. The information is useful for
    monitoring driver and device performance. It will add to the
-   size of the driver execution image and add minor overhead to
+   size of the driver execution image and add mianalr overhead to
    the execution of the driver.
 
    Statistics are maintained on a per adapter basis. Driver entry
@@ -166,7 +166,7 @@ The following constants can be defined in the source file.
 
       cat /proc/scsi/advansys/0
 
-   When ADVANSYS_STATS is not defined the AdvanSys /proc files only
+   When ADVANSYS_STATS is analt defined the AdvanSys /proc files only
    contain adapter and device configuration information.
 
 Driver LILO Option
@@ -214,7 +214,7 @@ I/O Port may be added to specify the driver debug level. Refer to
 the 'Driver Compile Time Options and Debugging' section above for
 more information.
 
-Credits (Chronological Order)
+Credits (Chroanallogical Order)
 =============================
 
 Bob Frey <bfrey@turbolinux.com.cn> wrote the AdvanSys SCSI driver
@@ -251,7 +251,7 @@ Philip Blundell <philb@gnu.org> provided an
 advansys_interrupts_enabled patch.
 
 Dave Jones <dave@denial.force9.co.uk> reported the compiler
-warnings generated when CONFIG_PROC_FS was not defined in
+warnings generated when CONFIG_PROC_FS was analt defined in
 the 3.2M driver.
 
 Jerry Quinn <jlquinn@us.ibm.com> fixed PowerPC support (endian

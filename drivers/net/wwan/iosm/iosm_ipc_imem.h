@@ -22,7 +22,7 @@ struct ipc_chnl_cfg;
 #define IRQ_MOD_TRC 4000
 
 /* Either the PSI image is accepted by CP or the suspended flash tool is waken,
- * informed that the CP ROM driver is not ready to process the PSI image.
+ * informed that the CP ROM driver is analt ready to process the PSI image.
  * unit : milliseconds
  */
 #define IPC_PSI_TRANSFER_TIMEOUT 3000
@@ -63,7 +63,7 @@ struct ipc_chnl_cfg;
 #define IPC_HOST_SLEEP_ENTER_SLEEP 0
 
 /* Sleep_message, target host: AP exits  sleep / target device: CP is
- * NOT allowed to enter sleep
+ * ANALT allowed to enter sleep
  */
 #define IPC_HOST_SLEEP_EXIT_SLEEP 1
 
@@ -79,16 +79,16 @@ struct ipc_chnl_cfg;
 
 #define FORCE_UPDATE_DEFAULT_TIMEOUT_USEC 500
 
-/* Sleep_message, target host: not applicable  / target device: CP is
- * allowed to enter sleep and shall NOT use the device sleep protocol
+/* Sleep_message, target host: analt applicable  / target device: CP is
+ * allowed to enter sleep and shall ANALT use the device sleep protocol
  */
-#define IPC_HOST_SLEEP_ENTER_SLEEP_NO_PROTOCOL 2
+#define IPC_HOST_SLEEP_ENTER_SLEEP_ANAL_PROTOCOL 2
 
 /* in_band_crash_signal IPC_MEM_INBAND_CRASH_SIG
- * Modem crash notification configuration. If this value is non-zero then
+ * Modem crash analtification configuration. If this value is analn-zero then
  * FEATURE_SET message will be sent to the Modem as a result the Modem will
  * signal Crash via Execution Stage register. If this value is zero then Modem
- * will use out-of-band method to notify about it's Crash.
+ * will use out-of-band method to analtify about it's Crash.
  */
 #define IPC_MEM_INBAND_CRASH_SIG 1
 
@@ -187,9 +187,9 @@ enum ipc_hp_identifier {
  * @nr_of_entries:		Number of elements of skb_start and tdr_start.
  * @max_nr_of_queued_entries:	Maximum number of queued entries in TDR
  * @accumulation_backoff:	Accumulation in usec for accumulation
- *				backoff (0 = no acc backoff)
+ *				backoff (0 = anal acc backoff)
  * @irq_moderation:		timer in usec for irq_moderation
- *				(0=no irq moderation)
+ *				(0=anal irq moderation)
  * @pipe_nr:			Pipe identification number
  * @irq:			Interrupt vector
  * @dir:			Direction of data stream in pipe
@@ -253,7 +253,7 @@ struct ipc_mem_channel {
  *		    "IPC_P_RUN" indicates the operating state where CP can
  *		    respond to any requests. So while introducing new phase
  *		    this shall be taken into consideration.
- * @IPC_P_OFF:		On host PC, the PCIe device link settings are known
+ * @IPC_P_OFF:		On host PC, the PCIe device link settings are kanalwn
  *			about the combined power on. PC is running, the driver
  *			is loaded and CP is in power off mode. The PCIe bus
  *			driver call the device power mode D3hot. In this phase
@@ -264,7 +264,7 @@ struct ipc_mem_channel {
  * @IPC_P_CRASH:	The phase indicating CP crash
  * @IPC_P_CD_READY:	The phase indicating CP core dump is ready
  * @IPC_P_ROM:		After power on, CP starts in ROM mode and the IPC ROM
- *			driver is waiting 150 ms for the AP active notification
+ *			driver is waiting 150 ms for the AP active analtification
  *			saved in the PCI link status register.
  * @IPC_P_PSI:		Primary signed image download phase
  * @IPC_P_EBL:		Extended bootloader pahse
@@ -310,10 +310,10 @@ enum ipc_phase {
  *				executed.
  * @ul_pend_sem:		Semaphore to wait/complete of UL TDs
  *				before closing pipe.
- * @app_notify_ul_pend:		Signal app if UL TD is pending
+ * @app_analtify_ul_pend:		Signal app if UL TD is pending
  * @dl_pend_sem:		Semaphore to wait/complete of DL TDs
  *				before closing pipe.
- * @app_notify_dl_pend:		Signal app if DL TD is pending
+ * @app_analtify_dl_pend:		Signal app if DL TD is pending
  * @phase:			Operating phase like runtime.
  * @pci_device_id:		Device ID
  * @cp_version:			CP version
@@ -357,9 +357,9 @@ struct iosm_imem {
 	enum rom_exit_code rom_exit_code;
 	u32 enter_runtime;
 	struct completion ul_pend_sem;
-	u32 app_notify_ul_pend;
+	u32 app_analtify_ul_pend;
 	struct completion dl_pend_sem;
-	u32 app_notify_dl_pend;
+	u32 app_analtify_dl_pend;
 	enum ipc_phase phase;
 	u16 pci_device_id;
 	int cp_version;
@@ -471,7 +471,7 @@ struct ipc_mem_channel *ipc_imem_channel_open(struct iosm_imem *ipc_imem,
 					      int channel_id, u32 db_id);
 
 /**
- * ipc_imem_td_update_timer_start - Starts the TD Update Timer if not running.
+ * ipc_imem_td_update_timer_start - Starts the TD Update Timer if analt running.
  * @ipc_imem:	Pointer to imem data-struct
  */
 void ipc_imem_td_update_timer_start(struct iosm_imem *ipc_imem);
@@ -550,7 +550,7 @@ const char *ipc_imem_phase_get_string(enum ipc_phase phase);
 /**
  * ipc_imem_msg_send_feature_set - Send feature set message to modem
  * @ipc_imem:		Pointer to imem data-struct
- * @reset_enable:	0 = out-of-band, 1 = in-band-crash notification
+ * @reset_enable:	0 = out-of-band, 1 = in-band-crash analtification
  * @atomic_ctx:		if disabled call in tasklet context
  *
  */

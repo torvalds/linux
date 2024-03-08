@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -75,9 +75,9 @@ static int _c4iw_write_mem_dma_aligned(struct c4iw_rdev *rdev, u32 addr,
 	wr_len = roundup(sizeof(*req) + sizeof(*sgl), 16);
 
 	if (!skb) {
-		skb = alloc_skb(wr_len, GFP_KERNEL | __GFP_NOFAIL);
+		skb = alloc_skb(wr_len, GFP_KERNEL | __GFP_ANALFAIL);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
 
@@ -135,9 +135,9 @@ static int _c4iw_write_mem_inline(struct c4iw_rdev *rdev, u32 addr, u32 len,
 				 16);
 
 		if (!skb) {
-			skb = alloc_skb(wr_len, GFP_KERNEL | __GFP_NOFAIL);
+			skb = alloc_skb(wr_len, GFP_KERNEL | __GFP_ANALFAIL);
 			if (!skb)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
 
@@ -251,7 +251,7 @@ static int write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len,
 
 	ret = _c4iw_write_mem_dma(rdev, addr, len, data, skb, wr_waitp);
 	if (ret) {
-		pr_warn_ratelimited("%s: dma map failure (non fatal)\n",
+		pr_warn_ratelimited("%s: dma map failure (analn fatal)\n",
 				    pci_name(rdev->lldi.pdev));
 		ret = _c4iw_write_mem_inline(rdev, addr, len, data, skb,
 					      wr_waitp);
@@ -284,7 +284,7 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 
 	tpt = kmalloc(sizeof(*tpt), GFP_KERNEL);
 	if (!tpt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stag_state = stag_state > 0;
 	stag_idx = (*stag) >> 8;
@@ -296,7 +296,7 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 			rdev->stats.stag.fail++;
 			mutex_unlock(&rdev->stats.lock);
 			kfree(tpt);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		mutex_lock(&rdev->stats.lock);
 		rdev->stats.stag.cur += 32;
@@ -321,7 +321,7 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 			FW_RI_TPTE_ADDRTYPE_V((zbva ? FW_RI_ZERO_BASED_TO :
 						      FW_RI_VA_BASED_TO))|
 			FW_RI_TPTE_PS_V(page_size));
-		tpt->nosnoop_pbladdr = !pbl_size ? 0 : cpu_to_be32(
+		tpt->analsanalop_pbladdr = !pbl_size ? 0 : cpu_to_be32(
 			FW_RI_TPTE_PBLADDR_V(PBL_OFF(rdev, pbl_addr)>>3));
 		tpt->len_lo = cpu_to_be32((u32)(len & 0xffffffffUL));
 		tpt->va_hi = cpu_to_be32((u32)(to >> 32));
@@ -420,7 +420,7 @@ static int alloc_pbl(struct c4iw_mr *mhp, int npages)
 						    npages << 3);
 
 	if (!mhp->attr.pbl_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mhp->attr.pbl_size = npages;
 
@@ -441,17 +441,17 @@ struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc)
 
 	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
 	if (!mhp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	mhp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
 	if (!mhp->wr_waitp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_mhp;
 	}
 	c4iw_init_wr_wait(mhp->wr_waitp);
 
 	mhp->dereg_skb = alloc_skb(SGE_MAX_WR_LEN, GFP_KERNEL);
 	if (!mhp->dereg_skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_wr_wait;
 	}
 
@@ -493,7 +493,7 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 {
 	__be64 *pages;
 	int shift, n, i;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct ib_block_iter biter;
 	struct c4iw_dev *rhp;
 	struct c4iw_pd *php;
@@ -515,7 +515,7 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
 	if (!mhp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	mhp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
 	if (!mhp->wr_waitp)
 		goto err_free_mhp;
@@ -539,7 +539,7 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	pages = (__be64 *) __get_free_page(GFP_KERNEL);
 	if (!pages) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_pbl_free;
 	}
 
@@ -616,13 +616,13 @@ struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 
 	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
 	if (!mhp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	mhp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
 	if (!mhp->wr_waitp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_mhp;
 	}
 	c4iw_init_wr_wait(mhp->wr_waitp);
@@ -630,7 +630,7 @@ struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 	mhp->mpl = dma_alloc_coherent(&rhp->rdev.lldi.pdev->dev,
 				      length, &mhp->mpl_addr, GFP_KERNEL);
 	if (!mhp->mpl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_wr_wait;
 	}
 	mhp->max_mpl_len = length;
@@ -652,7 +652,7 @@ struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 	mmid = (stag) >> 8;
 	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
 	if (xa_insert_irq(&rhp->mrs, mmid, mhp, GFP_KERNEL)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dereg;
 	}
 
@@ -680,7 +680,7 @@ static int c4iw_set_page(struct ib_mr *ibmr, u64 addr)
 	struct c4iw_mr *mhp = to_c4iw_mr(ibmr);
 
 	if (unlikely(mhp->mpl_len == mhp->attr.pbl_size))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mhp->mpl[mhp->mpl_len++] = addr;
 

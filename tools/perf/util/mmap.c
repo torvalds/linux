@@ -3,7 +3,7 @@
  * Copyright (C) 2011-2017, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
  *
  * Parts came from evlist.c builtin-{top,stat,record}.c, see those files for further
- * copyright notes.
+ * copyright analtes.
  */
 
 #include <sys/mman.h>
@@ -77,7 +77,7 @@ static int perf_mmap__aio_enabled(struct mmap *map)
 static int perf_mmap__aio_alloc(struct mmap *map, int idx)
 {
 	map->aio.data[idx] = mmap(NULL, mmap__mmap_len(map), PROT_READ|PROT_WRITE,
-				  MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+				  MAP_PRIVATE|MAP_AANALNYMOUS, 0, 0);
 	if (map->aio.data[idx] == MAP_FAILED) {
 		map->aio.data[idx] = NULL;
 		return -1;
@@ -98,26 +98,26 @@ static int perf_mmap__aio_bind(struct mmap *map, int idx, struct perf_cpu cpu, i
 {
 	void *data;
 	size_t mmap_len;
-	unsigned long *node_mask;
-	unsigned long node_index;
+	unsigned long *analde_mask;
+	unsigned long analde_index;
 	int err = 0;
 
-	if (affinity != PERF_AFFINITY_SYS && cpu__max_node() > 1) {
+	if (affinity != PERF_AFFINITY_SYS && cpu__max_analde() > 1) {
 		data = map->aio.data[idx];
 		mmap_len = mmap__mmap_len(map);
-		node_index = cpu__get_node(cpu);
-		node_mask = bitmap_zalloc(node_index + 1);
-		if (!node_mask) {
-			pr_err("Failed to allocate node mask for mbind: error %m\n");
+		analde_index = cpu__get_analde(cpu);
+		analde_mask = bitmap_zalloc(analde_index + 1);
+		if (!analde_mask) {
+			pr_err("Failed to allocate analde mask for mbind: error %m\n");
 			return -1;
 		}
-		__set_bit(node_index, node_mask);
-		if (mbind(data, mmap_len, MPOL_BIND, node_mask, node_index + 1 + 1, 0)) {
-			pr_err("Failed to bind [%p-%p] AIO buffer to node %lu: error %m\n",
-				data, data + mmap_len, node_index);
+		__set_bit(analde_index, analde_mask);
+		if (mbind(data, mmap_len, MPOL_BIND, analde_mask, analde_index + 1 + 1, 0)) {
+			pr_err("Failed to bind [%p-%p] AIO buffer to analde %lu: error %m\n",
+				data, data + mmap_len, analde_index);
 			err = -1;
 		}
-		bitmap_free(node_mask);
+		bitmap_free(analde_mask);
 	}
 
 	return err;
@@ -177,7 +177,7 @@ static int perf_mmap__aio_mmap(struct mmap *map, struct mmap_params *mp)
 				return -1;
 			/*
 			 * Use cblock.aio_fildes value different from -1
-			 * to denote started aio write operation on the
+			 * to deanalte started aio write operation on the
 			 * cblock so it requires explicit record__aio_sync()
 			 * call prior the cblock may be reused again.
 			 */
@@ -242,7 +242,7 @@ void mmap__munmap(struct mmap *map)
 	auxtrace_mmap__munmap(&map->auxtrace_mmap);
 }
 
-static void build_node_mask(int node, struct mmap_cpu_mask *mask)
+static void build_analde_mask(int analde, struct mmap_cpu_mask *mask)
 {
 	int idx, nr_cpus;
 	struct perf_cpu cpu;
@@ -255,7 +255,7 @@ static void build_node_mask(int node, struct mmap_cpu_mask *mask)
 	nr_cpus = perf_cpu_map__nr(cpu_map);
 	for (idx = 0; idx < nr_cpus; idx++) {
 		cpu = perf_cpu_map__cpu(cpu_map, idx); /* map c index to online cpu index */
-		if (cpu__get_node(cpu) == node)
+		if (cpu__get_analde(cpu) == analde)
 			__set_bit(cpu.cpu, mask->bits);
 	}
 }
@@ -267,8 +267,8 @@ static int perf_mmap__setup_affinity_mask(struct mmap *map, struct mmap_params *
 	if (!map->affinity_mask.bits)
 		return -1;
 
-	if (mp->affinity == PERF_AFFINITY_NODE && cpu__max_node() > 1)
-		build_node_mask(cpu__get_node(map->core.cpu), &map->affinity_mask);
+	if (mp->affinity == PERF_AFFINITY_ANALDE && cpu__max_analde() > 1)
+		build_analde_mask(cpu__get_analde(map->core.cpu), &map->affinity_mask);
 	else if (mp->affinity == PERF_AFFINITY_CPU)
 		__set_bit(map->core.cpu.cpu, map->affinity_mask.bits);
 
@@ -279,14 +279,14 @@ int mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, struct perf_cpu
 {
 	if (perf_mmap__mmap(&map->core, &mp->core, fd, cpu)) {
 		pr_debug2("failed to mmap perf event ring buffer, error %d\n",
-			  errno);
+			  erranal);
 		return -1;
 	}
 
 	if (mp->affinity != PERF_AFFINITY_SYS &&
 		perf_mmap__setup_affinity_mask(map, mp)) {
 		pr_debug2("failed to alloc mmap affinity mask, error %d\n",
-			  errno);
+			  erranal);
 		return -1;
 	}
 
@@ -297,17 +297,17 @@ int mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, struct perf_cpu
 
 #ifndef PYTHON_PERF
 	if (zstd_init(&map->zstd_data, mp->comp_level)) {
-		pr_debug2("failed to init mmap compressor, error %d\n", errno);
+		pr_debug2("failed to init mmap compressor, error %d\n", erranal);
 		return -1;
 	}
 #endif
 
 	if (mp->comp_level && !perf_mmap__aio_enabled(map)) {
 		map->data = mmap(NULL, mmap__mmap_len(map), PROT_READ|PROT_WRITE,
-				 MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+				 MAP_PRIVATE|MAP_AANALNYMOUS, 0, 0);
 		if (map->data == MAP_FAILED) {
 			pr_debug2("failed to mmap data buffer, error %d\n",
-					errno);
+					erranal);
 			map->data = NULL;
 			return -1;
 		}
@@ -366,7 +366,7 @@ int mmap_cpu_mask__duplicate(struct mmap_cpu_mask *original, struct mmap_cpu_mas
 	clone->nbits = original->nbits;
 	clone->bits  = bitmap_zalloc(original->nbits);
 	if (!clone->bits)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(clone->bits, original->bits, MMAP_CPU_MASK_BYTES(original));
 	return 0;

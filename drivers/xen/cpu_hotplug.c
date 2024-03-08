@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #include <xen/xen.h>
 #include <xen/xenbus.h>
@@ -49,7 +49,7 @@ static int vcpu_online(unsigned int cpu)
 	else if (strcmp(state, "offline") == 0)
 		return 0;
 
-	pr_err("unknown state(%s) on CPU%d\n", state, cpu);
+	pr_err("unkanalwn state(%s) on CPU%d\n", state, cpu);
 	return -EINVAL;
 }
 static void vcpu_hotplug(unsigned int cpu)
@@ -82,12 +82,12 @@ static void handle_vcpu_hotplug_event(struct xenbus_watch *watch,
 	}
 }
 
-static int setup_cpu_watcher(struct notifier_block *notifier,
+static int setup_cpu_watcher(struct analtifier_block *analtifier,
 			      unsigned long event, void *data)
 {
 	int cpu;
 	static struct xenbus_watch cpu_watch = {
-		.node = "cpu",
+		.analde = "cpu",
 		.callback = handle_vcpu_hotplug_event};
 
 	(void)register_xenbus_watch(&cpu_watch);
@@ -97,22 +97,22 @@ static int setup_cpu_watcher(struct notifier_block *notifier,
 			disable_hotplug_cpu(cpu);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int __init setup_vcpu_hotplug_event(void)
 {
-	static struct notifier_block xsn_cpu = {
-		.notifier_call = setup_cpu_watcher };
+	static struct analtifier_block xsn_cpu = {
+		.analtifier_call = setup_cpu_watcher };
 
 #ifdef CONFIG_X86
 	if (!xen_pv_domain() && !xen_pvh_domain())
 #else
 	if (!xen_domain())
 #endif
-		return -ENODEV;
+		return -EANALDEV;
 
-	register_xenstore_notifier(&xsn_cpu);
+	register_xenstore_analtifier(&xsn_cpu);
 
 	return 0;
 }

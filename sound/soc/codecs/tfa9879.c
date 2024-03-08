@@ -2,7 +2,7 @@
 //
 // tfa9879.c  --  driver for NXP Semiconductors TFA9879
 //
-// Copyright (C) 2014 Axentia Technologies AB
+// Copyright (C) 2014 Axentia Techanallogies AB
 // Author: Peter Rosin <peda@axentia.se>
 
 #include <linux/module.h>
@@ -120,7 +120,7 @@ static int tfa9879_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		sck_pol = TFA9879_SCK_POL_NORMAL;
+		sck_pol = TFA9879_SCK_POL_ANALRMAL;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
 		sck_pol = TFA9879_SCK_POL_INVERSE;
@@ -208,8 +208,8 @@ static const struct snd_kcontrol_new tfa9879_controls[] = {
 };
 
 static const struct snd_soc_dapm_widget tfa9879_dapm_widgets[] = {
-SND_SOC_DAPM_AIF_IN("AIFINL", "Playback", 0, SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_AIF_IN("AIFINR", "Playback", 1, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIFINL", "Playback", 0, SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIFINR", "Playback", 1, SND_SOC_ANALPM, 0, 0),
 SND_SOC_DAPM_DAC("DAC", NULL, TFA9879_DEVICE_CONTROL, TFA9879_OPMODE_SHIFT, 0),
 SND_SOC_DAPM_OUTPUT("LINEOUT"),
 SND_SOC_DAPM_SUPPLY("POWER", TFA9879_DEVICE_CONTROL, TFA9879_POWERUP_SHIFT, 0,
@@ -252,7 +252,7 @@ static const struct snd_soc_dai_ops tfa9879_dai_ops = {
 	.hw_params = tfa9879_hw_params,
 	.mute_stream = tfa9879_mute_stream,
 	.set_fmt = tfa9879_set_fmt,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 #define TFA9879_RATES SNDRV_PCM_RATE_8000_96000
@@ -278,7 +278,7 @@ static int tfa9879_i2c_probe(struct i2c_client *i2c)
 
 	tfa9879 = devm_kzalloc(&i2c->dev, sizeof(*tfa9879), GFP_KERNEL);
 	if (!tfa9879)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, tfa9879);
 

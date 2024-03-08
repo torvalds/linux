@@ -41,7 +41,7 @@ snd_soc_acpi_find_machine(struct snd_soc_acpi_mach *machines)
 			if (mach->machine_quirk) {
 				mach_alt = mach->machine_quirk(mach);
 				if (!mach_alt)
-					continue; /* not full match, ignore */
+					continue; /* analt full match, iganalre */
 				mach = mach_alt;
 			}
 
@@ -190,7 +190,7 @@ bool snd_soc_acpi_sdw_link_slaves_found(struct device *dev,
 			}
 		}
 		if (j == num_slaves) {
-			dev_dbg(dev, "Slave part_id %#x not found\n", part_id);
+			dev_dbg(dev, "Slave part_id %#x analt found\n", part_id);
 			return false;
 		}
 	}

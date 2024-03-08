@@ -8,7 +8,7 @@
 	.text
 #define _pa(x)          ((x) - __START_KERNEL_map)
 
-#include <linux/elfnote.h>
+#include <linux/elfanalte.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/desc_defs.h>
@@ -17,8 +17,8 @@
 #include <asm/boot.h>
 #include <asm/processor-flags.h>
 #include <asm/msr.h>
-#include <asm/nospec-branch.h>
-#include <xen/interface/elfnote.h>
+#include <asm/analspec-branch.h>
+#include <xen/interface/elfanalte.h>
 
 	__HEAD
 
@@ -106,7 +106,7 @@ SYM_CODE_START_LOCAL(pvh_start_xen)
 	/* startup_64 expects boot_params in %rsi. */
 	mov $_pa(pvh_bootparams), %rsi
 	mov $_pa(startup_64), %rax
-	ANNOTATE_RETPOLINE_SAFE
+	ANANALTATE_RETPOLINE_SAFE
 	jmp *%rax
 
 #else /* CONFIG_X86_64 */
@@ -163,5 +163,5 @@ SYM_DATA_START_LOCAL(early_stack)
 	.fill BOOT_STACK_SIZE, 1, 0
 SYM_DATA_END_LABEL(early_stack, SYM_L_LOCAL, early_stack_end)
 
-	ELFNOTE(Xen, XEN_ELFNOTE_PHYS32_ENTRY,
+	ELFANALTE(Xen, XEN_ELFANALTE_PHYS32_ENTRY,
 	             _ASM_PTR (pvh_start_xen - __START_KERNEL_map))

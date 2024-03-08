@@ -107,7 +107,7 @@
 #define PM_CTL_WOL_EN_		(0x00000008)	/* Wake On Lan Enable */
 #define PM_CTL_ED_EN_		(0x00000004)	/* Energy Detect Enable */
 #define PM_CTL_WUPS_		(0x00000003)	/* Wake Up Status */
-#define PM_CTL_WUPS_NO_		(0x00000000)	/* No Wake Up Event Detected */
+#define PM_CTL_WUPS_ANAL_		(0x00000000)	/* Anal Wake Up Event Detected */
 #define PM_CTL_WUPS_ED_		(0x00000001)	/* Energy Detect */
 #define PM_CTL_WUPS_WOL_	(0x00000002)	/* Wake On Lan */
 #define PM_CTL_WUPS_MULTI_	(0x00000003)	/* Multiple Events Occurred */
@@ -148,7 +148,7 @@
 #define E2P_CMD_ERASE_		(0x50000000)	/* Erase Location */
 #define E2P_CMD_ERAL_		(0x60000000)	/* Erase All */
 #define E2P_CMD_RELOAD_		(0x70000000)	/* Data Reload */
-#define E2P_CMD_TIMEOUT_	(0x00000400)	/* Set if no resp within 30ms */
+#define E2P_CMD_TIMEOUT_	(0x00000400)	/* Set if anal resp within 30ms */
 #define E2P_CMD_LOADED_		(0x00000200)	/* Valid EEPROM found */
 #define E2P_CMD_ADDR_		(0x000001FF)	/* Byte aligned address */
 

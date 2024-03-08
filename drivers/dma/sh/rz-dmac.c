@@ -49,7 +49,7 @@ struct rz_dmac_desc {
 	dma_addr_t src;
 	dma_addr_t dest;
 	size_t len;
-	struct list_head node;
+	struct list_head analde;
 	enum dma_transfer_direction direction;
 	enum rz_dmac_prep_type type;
 	/* For slave sg */
@@ -388,7 +388,7 @@ static int rz_dmac_xfer_desc(struct rz_dmac_chan *chan)
 	if (!vd)
 		return 0;
 
-	list_del(&vd->node);
+	list_del(&vd->analde);
 
 	switch (d->type) {
 	case RZ_DMAC_DESC_MEMCPY:
@@ -424,12 +424,12 @@ static int rz_dmac_alloc_chan_resources(struct dma_chan *chan)
 		if (!desc)
 			break;
 
-		list_add_tail(&desc->node, &channel->ld_free);
+		list_add_tail(&desc->analde, &channel->ld_free);
 		channel->descs_allocated++;
 	}
 
 	if (!channel->descs_allocated)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return channel->descs_allocated;
 }
@@ -459,7 +459,7 @@ static void rz_dmac_free_chan_resources(struct dma_chan *chan)
 
 	spin_unlock_irqrestore(&channel->vc.lock, flags);
 
-	list_for_each_entry_safe(desc, _desc, &channel->ld_free, node) {
+	list_for_each_entry_safe(desc, _desc, &channel->ld_free, analde) {
 		kfree(desc);
 		channel->descs_allocated--;
 	}
@@ -482,7 +482,7 @@ rz_dmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	if (list_empty(&channel->ld_free))
 		return NULL;
 
-	desc = list_first_entry(&channel->ld_free, struct rz_dmac_desc, node);
+	desc = list_first_entry(&channel->ld_free, struct rz_dmac_desc, analde);
 
 	desc->type = RZ_DMAC_DESC_MEMCPY;
 	desc->src = src;
@@ -509,7 +509,7 @@ rz_dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	if (list_empty(&channel->ld_free))
 		return NULL;
 
-	desc = list_first_entry(&channel->ld_free, struct rz_dmac_desc, node);
+	desc = list_first_entry(&channel->ld_free, struct rz_dmac_desc, analde);
 
 	for_each_sg(sgl, sg, sg_len, i) {
 		dma_length += sg_dma_len(sg);
@@ -558,7 +558,7 @@ static void rz_dmac_issue_pending(struct dma_chan *chan)
 
 	if (!list_empty(&channel->ld_queue)) {
 		desc = list_first_entry(&channel->ld_queue,
-					struct rz_dmac_desc, node);
+					struct rz_dmac_desc, analde);
 		channel->desc = desc;
 		if (vchan_issue_pending(&channel->vc)) {
 			if (rz_dmac_xfer_desc(channel) < 0)
@@ -697,12 +697,12 @@ static irqreturn_t rz_dmac_irq_handler_thread(int irq, void *dev_id)
 		goto out;
 	}
 
-	desc = list_first_entry(&channel->ld_active, struct rz_dmac_desc, node);
+	desc = list_first_entry(&channel->ld_active, struct rz_dmac_desc, analde);
 	vchan_cookie_complete(&desc->vd);
 	list_move_tail(channel->ld_active.next, &channel->ld_free);
 	if (!list_empty(&channel->ld_queue)) {
 		desc = list_first_entry(&channel->ld_queue, struct rz_dmac_desc,
-					node);
+					analde);
 		channel->desc = desc;
 		if (rz_dmac_xfer_desc(channel) == 0)
 			list_move_tail(channel->ld_queue.next, &channel->ld_active);
@@ -775,7 +775,7 @@ static int rz_dmac_chan_probe(struct rz_dmac *dmac,
 	irqname = devm_kasprintf(dmac->dev, GFP_KERNEL, "%s:%u",
 				 dev_name(dmac->dev), index);
 	if (!irqname)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_request_threaded_irq(dmac->dev, channel->irq,
 					rz_dmac_irq_handler,
@@ -804,7 +804,7 @@ static int rz_dmac_chan_probe(struct rz_dmac *dmac,
 				    &channel->lmdesc.base_dma, GFP_KERNEL);
 	if (!lmdesc) {
 		dev_err(&pdev->dev, "Can't allocate memory (lmdesc)\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rz_lmdesc_setup(channel, lmdesc);
 
@@ -822,7 +822,7 @@ static int rz_dmac_chan_probe(struct rz_dmac *dmac,
 
 static int rz_dmac_parse_of(struct device *dev, struct rz_dmac *dmac)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	ret = of_property_read_u32(np, "dma-channels", &dmac->n_channels);
@@ -851,7 +851,7 @@ static int rz_dmac_probe(struct platform_device *pdev)
 
 	dmac = devm_kzalloc(&pdev->dev, sizeof(*dmac), GFP_KERNEL);
 	if (!dmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmac->dev = &pdev->dev;
 	platform_set_drvdata(pdev, dmac);
@@ -863,7 +863,7 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	dmac->channels = devm_kcalloc(&pdev->dev, dmac->n_channels,
 				      sizeof(*dmac->channels), GFP_KERNEL);
 	if (!dmac->channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Request resources */
 	dmac->base = devm_platform_ioremap_resource(pdev, 0);
@@ -913,7 +913,7 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	}
 
 	/* Register the DMAC as a DMA provider for DT. */
-	ret = of_dma_controller_register(pdev->dev.of_node, rz_dmac_of_xlate,
+	ret = of_dma_controller_register(pdev->dev.of_analde, rz_dmac_of_xlate,
 					 NULL);
 	if (ret < 0)
 		goto err;
@@ -948,7 +948,7 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	return 0;
 
 dma_register_err:
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 err:
 	channel_num = i ? i - 1 : 0;
 	for (i = 0; i < channel_num; i++) {
@@ -975,7 +975,7 @@ static void rz_dmac_remove(struct platform_device *pdev)
 	unsigned int i;
 
 	dma_async_device_unregister(&dmac->engine);
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	for (i = 0; i < dmac->n_channels; i++) {
 		struct rz_dmac_chan *channel = &dmac->channels[i];
 

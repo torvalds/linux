@@ -12,7 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/completion.h>
 #include <linux/io.h>
@@ -162,7 +162,7 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 
 		/*
 		 * send the TX bytes in as large a chunk as possible
-		 * but neither exceed the TX nor the RX FIFOs
+		 * but neither exceed the TX analr the RX FIFOs
 		 */
 		fifosz = MPC512x_PSC_FIFO_SZ(in_be32(&fifo->txsz));
 		txcount = min(fifosz, tx_len);
@@ -194,7 +194,7 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 		 *
 		 * only insist in draining all the remaining RX bytes
 		 * when the TX bytes were exhausted (that's at the very
-		 * end of this transfer, not when still iterating over
+		 * end of this transfer, analt when still iterating over
 		 * the transfer's chunks)
 		 */
 		rxtries = 50;
@@ -234,7 +234,7 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 			 * hardware implementation details (buffering) yet
 			 * should resolve very quickly
 			 *
-			 * just yield for a moment to not hog the CPU for
+			 * just yield for a moment to analt hog the CPU for
 			 * too long when running SPI at low speed
 			 *
 			 * the timeout range is rather arbitrary and tries
@@ -242,7 +242,7 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 			 * chosen values result in a minimal timeout of 50
 			 * times 10us and thus work at speeds as low as
 			 * some 20kbps, while the maximum timeout at the
-			 * transfer's end could be 5ms _if_ nothing else
+			 * transfer's end could be 5ms _if_ analthing else
 			 * ticks in the system _and_ RX data still wasn't
 			 * received, which only occurs in situations that
 			 * are exceptional; removing the unpredictability
@@ -250,14 +250,14 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 			 * (longer timeouts), or puts more load on the
 			 * system (fixed short timeouts) or requires the
 			 * use of a timeout API instead of a counter and an
-			 * unknown inner delay
+			 * unkanalwn inner delay
 			 */
 			usleep_range(10, 100);
 
 		} while (--rxtries > 0);
 		if (!tx_len && rx_len && !rxtries) {
 			/*
-			 * not enough RX bytes even after several retries
+			 * analt eanalugh RX bytes even after several retries
 			 * and the resulting rather long timeout?
 			 */
 			rxcount = in_be32(&fifo->rxcnt);
@@ -267,9 +267,9 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 		}
 
 		/*
-		 * drain and drop RX data which "should not be there" in
+		 * drain and drop RX data which "should analt be there" in
 		 * the first place, for undisturbed transmission this turns
-		 * into a NOP (except for the FIFO level fetch)
+		 * into a ANALP (except for the FIFO level fetch)
 		 */
 		if (!tx_len && !rx_len) {
 			while (in_be32(&fifo->rxcnt))
@@ -364,7 +364,7 @@ static int mpc512x_psc_spi_setup(struct spi_device *spi)
 	if (!cs) {
 		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		spi->controller_state = cs;
 	}
@@ -389,7 +389,7 @@ static int mpc512x_psc_spi_port_config(struct spi_controller *host,
 	int speed;
 	u16 bclkdiv;
 
-	/* Reset the PSC into a known state */
+	/* Reset the PSC into a kanalwn state */
 	out_8(psc_addr(mps, command), MPC52xx_PSC_RST_RX);
 	out_8(psc_addr(mps, command), MPC52xx_PSC_RST_TX);
 	out_8(psc_addr(mps, command), MPC52xx_PSC_TX_DISABLE | MPC52xx_PSC_RX_DISABLE);
@@ -452,7 +452,7 @@ static irqreturn_t mpc512x_psc_spi_isr(int irq, void *dev_id)
 		complete(&mps->txisrdone);
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int mpc512x_psc_spi_of_probe(struct platform_device *pdev)
@@ -466,7 +466,7 @@ static int mpc512x_psc_spi_of_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(dev, sizeof(*mps));
 	if (host == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, host);
 	mps = spi_controller_get_devdata(host);
@@ -480,11 +480,11 @@ static int mpc512x_psc_spi_of_probe(struct platform_device *pdev)
 	host->use_gpio_descriptors = true;
 	host->cleanup = mpc512x_psc_spi_cleanup;
 
-	device_set_node(&host->dev, dev_fwnode(dev));
+	device_set_analde(&host->dev, dev_fwanalde(dev));
 
 	tempp = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(tempp))
-		return dev_err_probe(dev, PTR_ERR(tempp), "could not ioremap I/O port range\n");
+		return dev_err_probe(dev, PTR_ERR(tempp), "could analt ioremap I/O port range\n");
 	mps->psc = tempp;
 	mps->fifo =
 		(struct mpc512x_psc_fifo *)(tempp + sizeof(struct mpc52xx_psc));

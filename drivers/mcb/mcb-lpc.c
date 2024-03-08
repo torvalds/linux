@@ -27,12 +27,12 @@ static int mcb_lpc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!priv->mem) {
-		dev_err(&pdev->dev, "No Memory resource\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Anal Memory resource\n");
+		return -EANALDEV;
 	}
 
 	res = devm_request_mem_region(&pdev->dev, priv->mem->start,
@@ -46,8 +46,8 @@ static int mcb_lpc_probe(struct platform_device *pdev)
 	priv->base = devm_ioremap(&pdev->dev, priv->mem->start,
 				  resource_size(priv->mem));
 	if (!priv->base) {
-		dev_err(&pdev->dev, "Cannot ioremap\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "Cananalt ioremap\n");
+		return -EANALMEM;
 	}
 
 	platform_set_drvdata(pdev, priv);
@@ -80,8 +80,8 @@ static int mcb_lpc_probe(struct platform_device *pdev)
 
 		priv->base = devm_ioremap(&pdev->dev, priv->mem->start, table_size);
 		if (!priv->base) {
-			dev_err(&pdev->dev, "Cannot ioremap\n");
-			ret = -ENOMEM;
+			dev_err(&pdev->dev, "Cananalt ioremap\n");
+			ret = -EANALMEM;
 			goto out_mcb_bus;
 		}
 
@@ -115,7 +115,7 @@ static int mcb_lpc_create_platform_device(const struct dmi_system_id *id)
 
 	mcb_lpc_pdev = platform_device_alloc("mcb-lpc", -1);
 	if (!mcb_lpc_pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_device_add_resources(mcb_lpc_pdev, res, 1);
 	if (ret)
@@ -169,7 +169,7 @@ MODULE_DEVICE_TABLE(dmi, mcb_lpc_dmi_table);
 static int __init mcb_lpc_init(void)
 {
 	if (!dmi_check_system(mcb_lpc_dmi_table))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return platform_driver_register(&mcb_lpc_driver);
 }

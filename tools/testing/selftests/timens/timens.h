@@ -20,10 +20,10 @@ static inline void check_supported_timers(void)
 {
 	struct timespec ts;
 
-	if (timer_create(-1, 0, 0) == -1 && errno == ENOSYS)
+	if (timer_create(-1, 0, 0) == -1 && erranal == EANALSYS)
 		config_posix_timers = false;
 
-	if (clock_gettime(CLOCK_BOOTTIME_ALARM, &ts) == -1 && errno == EINVAL)
+	if (clock_gettime(CLOCK_BOOTTIME_ALARM, &ts) == -1 && erranal == EINVAL)
 		config_alarm_timers = false;
 }
 
@@ -40,11 +40,11 @@ static inline bool check_skip(int clockid)
 	switch (clockid) {
 	/* Only these clocks are supported without CONFIG_POSIX_TIMERS. */
 	case CLOCK_BOOTTIME:
-	case CLOCK_MONOTONIC:
+	case CLOCK_MOANALTONIC:
 	case CLOCK_REALTIME:
 		return false;
 	default:
-		ksft_test_result_skip("Posix Clocks & timers are not supported\n");
+		ksft_test_result_skip("Posix Clocks & timers are analt supported\n");
 		return true;
 	}
 
@@ -54,7 +54,7 @@ static inline bool check_skip(int clockid)
 static inline int unshare_timens(void)
 {
 	if (unshare(CLONE_NEWTIME)) {
-		if (errno == EPERM)
+		if (erranal == EPERM)
 			ksft_exit_skip("need to run as root\n");
 		return pr_perror("Can't unshare() timens");
 	}
@@ -66,8 +66,8 @@ static inline int _settime(clockid_t clk_id, time_t offset)
 	int fd, len;
 	char buf[4096];
 
-	if (clk_id == CLOCK_MONOTONIC_COARSE || clk_id == CLOCK_MONOTONIC_RAW)
-		clk_id = CLOCK_MONOTONIC;
+	if (clk_id == CLOCK_MOANALTONIC_COARSE || clk_id == CLOCK_MOANALTONIC_RAW)
+		clk_id = CLOCK_MOANALTONIC;
 
 	len = snprintf(buf, sizeof(buf), "%d %ld 0", clk_id, offset);
 
@@ -105,7 +105,7 @@ static inline int _gettime(clockid_t clk_id, struct timespec *res, bool raw_sysc
 static inline void nscheck(void)
 {
 	if (access("/proc/self/ns/time", F_OK) < 0)
-		ksft_exit_skip("Time namespaces are not supported\n");
+		ksft_exit_skip("Time namespaces are analt supported\n");
 }
 
 #endif

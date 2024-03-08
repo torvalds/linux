@@ -54,7 +54,7 @@ static void shx3_smp_setup(void)
 	__cpu_logical_map[0] = 0;
 
 	/*
-	 * Do this stupidly for now.. we don't have an easy way to probe
+	 * Do this stupidly for analw.. we don't have an easy way to probe
 	 * for the total number of cores.
 	 */
 	for (i = 1, num = 0; i < NR_CPUS; i++) {
@@ -126,13 +126,13 @@ static int shx3_cpu_prepare(unsigned int cpu)
 	return 0;
 }
 
-static int register_shx3_cpu_notifier(void)
+static int register_shx3_cpu_analtifier(void)
 {
-	cpuhp_setup_state_nocalls(CPUHP_SH_SH3X_PREPARE, "sh/shx3:prepare",
+	cpuhp_setup_state_analcalls(CPUHP_SH_SH3X_PREPARE, "sh/shx3:prepare",
 				  shx3_cpu_prepare, NULL);
 	return 0;
 }
-late_initcall(register_shx3_cpu_notifier);
+late_initcall(register_shx3_cpu_analtifier);
 
 struct plat_smp_ops shx3_smp_ops = {
 	.smp_setup		= shx3_smp_setup,

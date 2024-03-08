@@ -35,7 +35,7 @@ struct llt_ndlc {
 
 	/*
 	 * < 0 if hardware error occurred
-	 * and prevents normal operation.
+	 * and prevents analrmal operation.
 	 */
 	int hard_fault;
 	int powered;

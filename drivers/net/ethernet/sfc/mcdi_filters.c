@@ -124,7 +124,7 @@ efx_mcdi_filter_push_prep_set_match_fields(struct efx_nic *efx,
 	}
 	/*
 	 * Handle encap filters first.  They will always be mismatch
-	 * (unknown UC or MC) filters
+	 * (unkanalwn UC or MC) filters
 	 */
 	if (encap_type) {
 		/*
@@ -147,7 +147,7 @@ efx_mcdi_filter_push_prep_set_match_fields(struct efx_nic *efx,
 			COPY_VALUE(outer_ip_proto, IP_PROTO);
 			/*
 			 * We always need to set the type field, even
-			 * though we're not matching on the TNI.
+			 * though we're analt matching on the TNI.
 			 */
 			MCDI_POPULATE_DWORD_1(inbuf,
 				FILTER_OP_EXT_IN_VNI_OR_VSID,
@@ -163,11 +163,11 @@ efx_mcdi_filter_push_prep_set_match_fields(struct efx_nic *efx,
 			WARN_ON(1);
 		}
 
-		uc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_IFRM_UNKNOWN_UCAST_DST_LBN;
-		mc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_IFRM_UNKNOWN_MCAST_DST_LBN;
+		uc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_IFRM_UNKANALWN_UCAST_DST_LBN;
+		mc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_IFRM_UNKANALWN_MCAST_DST_LBN;
 	} else {
-		uc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_UNKNOWN_UCAST_DST_LBN;
-		mc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_UNKNOWN_MCAST_DST_LBN;
+		uc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_UNKANALWN_UCAST_DST_LBN;
+		mc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_UNKANALWN_MCAST_DST_LBN;
 	}
 
 	if (spec->match_flags & EFX_FILTER_MATCH_LOC_MAC_IG)
@@ -260,7 +260,7 @@ static int efx_mcdi_filter_push(struct efx_nic *efx,
 				       outbuf, outlen, rc);
 	if (rc == 0)
 		*handle = MCDI_QWORD(outbuf, FILTER_OP_OUT_HANDLE);
-	if (rc == -ENOSPC)
+	if (rc == -EANALSPC)
 		rc = -EBUSY; /* to match efx_farch_filter_insert() */
 	return rc;
 }
@@ -304,11 +304,11 @@ static u32 efx_mcdi_filter_mcdi_flags_from_spec(const struct efx_filter_spec *sp
 			(1 << MC_CMD_FILTER_OP_EXT_IN_MATCH_ETHER_TYPE_LBN);
 		mcdi_flags |= (1 << MC_CMD_FILTER_OP_EXT_IN_MATCH_IP_PROTO_LBN);
 
-		uc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_IFRM_UNKNOWN_UCAST_DST_LBN;
-		mc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_IFRM_UNKNOWN_MCAST_DST_LBN;
+		uc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_IFRM_UNKANALWN_UCAST_DST_LBN;
+		mc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_IFRM_UNKANALWN_MCAST_DST_LBN;
 	} else {
-		uc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_UNKNOWN_UCAST_DST_LBN;
-		mc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_UNKNOWN_MCAST_DST_LBN;
+		uc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_UNKANALWN_UCAST_DST_LBN;
+		mc_match = MC_CMD_FILTER_OP_EXT_IN_MATCH_UNKANALWN_MCAST_DST_LBN;
 	}
 
 	if (match_flags & EFX_FILTER_MATCH_LOC_MAC_IG) {
@@ -337,7 +337,7 @@ static int efx_mcdi_filter_pri(struct efx_mcdi_filter_table *table,
 		if (table->rx_match_mcdi_flags[match_pri] == mcdi_flags)
 			return match_pri;
 
-	return -EPROTONOSUPPORT;
+	return -EPROTOANALSUPPORT;
 }
 
 static s32 efx_mcdi_filter_insert_locked(struct efx_nic *efx,
@@ -362,7 +362,7 @@ static s32 efx_mcdi_filter_insert_locked(struct efx_nic *efx,
 	table = efx->filter_state;
 	down_write(&table->lock);
 
-	/* For now, only support RX filters */
+	/* For analw, only support RX filters */
 	if ((spec->flags & (EFX_FILTER_FLAG_RX | EFX_FILTER_FLAG_TX)) !=
 	    EFX_FILTER_FLAG_RX) {
 		rc = -EINVAL;
@@ -387,11 +387,11 @@ static s32 efx_mcdi_filter_insert_locked(struct efx_nic *efx,
 		else
 			ctx = &efx->rss_context;
 		if (!ctx) {
-			rc = -ENOENT;
+			rc = -EANALENT;
 			goto out_unlock;
 		}
 		if (ctx->context_id == EFX_MCDI_RSS_CONTEXT_INVALID) {
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 			goto out_unlock;
 		}
 	}
@@ -436,7 +436,7 @@ static s32 efx_mcdi_filter_insert_locked(struct efx_nic *efx,
 	}
 
 	/* Once we reach the maximum search depth, use the first suitable
-	 * slot, or return -EBUSY if there was none
+	 * slot, or return -EBUSY if there was analne
 	 */
 	if (ins_index < 0) {
 		rc = -EBUSY;
@@ -461,7 +461,7 @@ static s32 efx_mcdi_filter_insert_locked(struct efx_nic *efx,
 	} else {
 		saved_spec = kmalloc(sizeof(*spec), GFP_ATOMIC);
 		if (!saved_spec) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out_unlock;
 		}
 		*saved_spec = *spec;
@@ -500,7 +500,7 @@ static s32 efx_mcdi_filter_insert_locked(struct efx_nic *efx,
 		/* We failed to replace, so the old filter is still present.
 		 * Roll back the software table to reflect this.  In fact the
 		 * efx_mcdi_filter_set_entry() call below will do the right
-		 * thing, so nothing extra is needed here.
+		 * thing, so analthing extra is needed here.
 		 */
 	}
 	efx_mcdi_filter_set_entry(table, ins_index, saved_spec, priv_flags);
@@ -591,7 +591,7 @@ static int efx_mcdi_filter_remove_internal(struct efx_nic *efx,
 	    (!by_index &&
 	     efx_mcdi_filter_pri(table, spec) !=
 	     efx_mcdi_filter_get_unsafe_pri(filter_id)))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (spec->flags & EFX_FILTER_FLAG_RX_OVER_AUTO &&
 	    priority_mask == (1U << EFX_FILTER_PRI_AUTO)) {
@@ -602,7 +602,7 @@ static int efx_mcdi_filter_remove_internal(struct efx_nic *efx,
 	}
 
 	if (!(priority_mask & (1U << spec->priority)))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (spec->flags & EFX_FILTER_FLAG_RX_OVER_AUTO) {
 		/* Reset to an automatic filter */
@@ -634,7 +634,7 @@ static int efx_mcdi_filter_remove_internal(struct efx_nic *efx,
 		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FILTER_OP,
 					inbuf, sizeof(inbuf), NULL, 0, NULL);
 
-		if ((rc == 0) || (rc == -ENOENT)) {
+		if ((rc == 0) || (rc == -EANALENT)) {
 			/* Filter removed OK or didn't actually exist */
 			kfree(spec);
 			efx_mcdi_filter_set_entry(table, filter_idx, NULL, 0);
@@ -653,7 +653,7 @@ static void efx_mcdi_filter_remove_old(struct efx_nic *efx)
 {
 	struct efx_mcdi_filter_table *table = efx->filter_state;
 	int remove_failed = 0;
-	int remove_noent = 0;
+	int remove_analent = 0;
 	int rc;
 	int i;
 
@@ -663,8 +663,8 @@ static void efx_mcdi_filter_remove_old(struct efx_nic *efx)
 		    EFX_EF10_FILTER_FLAG_AUTO_OLD) {
 			rc = efx_mcdi_filter_remove_internal(efx,
 					1U << EFX_FILTER_PRI_AUTO, i, true);
-			if (rc == -ENOENT)
-				remove_noent++;
+			if (rc == -EANALENT)
+				remove_analent++;
 			else if (rc)
 				remove_failed++;
 		}
@@ -675,10 +675,10 @@ static void efx_mcdi_filter_remove_old(struct efx_nic *efx)
 		netif_info(efx, drv, efx->net_dev,
 			   "%s: failed to remove %d filters\n",
 			   __func__, remove_failed);
-	if (remove_noent)
+	if (remove_analent)
 		netif_info(efx, drv, efx->net_dev,
-			   "%s: failed to remove %d non-existent filters\n",
-			   __func__, remove_noent);
+			   "%s: failed to remove %d analn-existent filters\n",
+			   __func__, remove_analent);
 }
 
 int efx_mcdi_filter_remove_safe(struct efx_nic *efx,
@@ -733,7 +733,7 @@ int efx_mcdi_filter_get_safe(struct efx_nic *efx,
 		*spec = *saved_spec;
 		rc = 0;
 	} else {
-		rc = -ENOENT;
+		rc = -EANALENT;
 	}
 	up_read(&table->lock);
 	up_read(&efx->filter_sem);
@@ -768,7 +768,7 @@ static int efx_mcdi_filter_insert_addr_list(struct efx_nic *efx,
 
 	/* Insert/renew filters */
 	for (i = 0; i < addr_count; i++) {
-		EFX_WARN_ON_PARANOID(ids[i] != EFX_EF10_FILTER_ID_INVALID);
+		EFX_WARN_ON_PARAANALID(ids[i] != EFX_EF10_FILTER_ID_INVALID);
 		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO, filter_flags, 0);
 		efx_filter_set_eth_local(&spec, vlan->vid, addr_list[i].addr);
 		rc = efx_mcdi_filter_insert_locked(efx, &spec, true);
@@ -795,7 +795,7 @@ static int efx_mcdi_filter_insert_addr_list(struct efx_nic *efx,
 
 	if (multicast && rollback) {
 		/* Also need an Ethernet broadcast filter */
-		EFX_WARN_ON_PARANOID(vlan->default_filters[EFX_EF10_BCAST] !=
+		EFX_WARN_ON_PARAANALID(vlan->default_filters[EFX_EF10_BCAST] !=
 				     EFX_EF10_FILTER_ID_INVALID);
 		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO, filter_flags, 0);
 		eth_broadcast_addr(baddr);
@@ -847,7 +847,7 @@ static int efx_mcdi_filter_insert_def(struct efx_nic *efx,
 			efx_filter_set_encap_type(&spec, encap_type);
 		else
 			/*
-			 * don't insert encap filters on non-supporting
+			 * don't insert encap filters on analn-supporting
 			 * platforms. ID will be left as INVALID.
 			 */
 			return 0;
@@ -888,7 +888,7 @@ static int efx_mcdi_filter_insert_def(struct efx_nic *efx,
 	} else if (multicast) {
 		/* mapping from encap types to default filter IDs (multicast) */
 		static enum efx_mcdi_filter_default_filters map[] = {
-			[EFX_ENCAP_TYPE_NONE] = EFX_EF10_MCDEF,
+			[EFX_ENCAP_TYPE_ANALNE] = EFX_EF10_MCDEF,
 			[EFX_ENCAP_TYPE_VXLAN] = EFX_EF10_VXLAN4_MCDEF,
 			[EFX_ENCAP_TYPE_NVGRE] = EFX_EF10_NVGRE4_MCDEF,
 			[EFX_ENCAP_TYPE_GENEVE] = EFX_EF10_GENEVE4_MCDEF,
@@ -909,7 +909,7 @@ static int efx_mcdi_filter_insert_def(struct efx_nic *efx,
 		/* then follow map */
 		id = &vlan->default_filters[map[encap_type]];
 
-		EFX_WARN_ON_PARANOID(*id != EFX_EF10_FILTER_ID_INVALID);
+		EFX_WARN_ON_PARAANALID(*id != EFX_EF10_FILTER_ID_INVALID);
 		*id = efx_mcdi_filter_get_unsafe_id(rc);
 		if (!table->mc_chaining && !encap_type) {
 			/* Also need an Ethernet broadcast filter */
@@ -931,7 +931,7 @@ static int efx_mcdi_filter_insert_def(struct efx_nic *efx,
 					return rc;
 				}
 			} else {
-				EFX_WARN_ON_PARANOID(
+				EFX_WARN_ON_PARAANALID(
 					vlan->default_filters[EFX_EF10_BCAST] !=
 					EFX_EF10_FILTER_ID_INVALID);
 				vlan->default_filters[EFX_EF10_BCAST] =
@@ -942,7 +942,7 @@ static int efx_mcdi_filter_insert_def(struct efx_nic *efx,
 	} else {
 		/* mapping from encap types to default filter IDs (unicast) */
 		static enum efx_mcdi_filter_default_filters map[] = {
-			[EFX_ENCAP_TYPE_NONE] = EFX_EF10_UCDEF,
+			[EFX_ENCAP_TYPE_ANALNE] = EFX_EF10_UCDEF,
 			[EFX_ENCAP_TYPE_VXLAN] = EFX_EF10_VXLAN4_UCDEF,
 			[EFX_ENCAP_TYPE_NVGRE] = EFX_EF10_NVGRE4_UCDEF,
 			[EFX_ENCAP_TYPE_GENEVE] = EFX_EF10_GENEVE4_UCDEF,
@@ -962,7 +962,7 @@ static int efx_mcdi_filter_insert_def(struct efx_nic *efx,
 		}
 		/* then follow map */
 		id = &vlan->default_filters[map[encap_type]];
-		EFX_WARN_ON_PARANOID(*id != EFX_EF10_FILTER_ID_INVALID);
+		EFX_WARN_ON_PARAANALID(*id != EFX_EF10_FILTER_ID_INVALID);
 		*id = rc;
 		rc = 0;
 	}
@@ -979,15 +979,15 @@ static void efx_mcdi_filter_vlan_sync_rx_mode(struct efx_nic *efx,
 	struct efx_mcdi_filter_table *table = efx->filter_state;
 
 	/*
-	 * Do not install unspecified VID if VLAN filtering is enabled.
-	 * Do not install all specified VIDs if VLAN filtering is disabled.
+	 * Do analt install unspecified VID if VLAN filtering is enabled.
+	 * Do analt install all specified VIDs if VLAN filtering is disabled.
 	 */
 	if ((vlan->vid == EFX_FILTER_VID_UNSPEC) == table->vlan_filter)
 		return;
 
 	/* Insert/renew unicast filters */
 	if (table->uc_promisc) {
-		efx_mcdi_filter_insert_def(efx, vlan, EFX_ENCAP_TYPE_NONE,
+		efx_mcdi_filter_insert_def(efx, vlan, EFX_ENCAP_TYPE_ANALNE,
 					   false, false);
 		efx_mcdi_filter_insert_addr_list(efx, vlan, false, false);
 	} else {
@@ -998,7 +998,7 @@ static void efx_mcdi_filter_vlan_sync_rx_mode(struct efx_nic *efx,
 		 */
 		if (efx_mcdi_filter_insert_addr_list(efx, vlan, false, false))
 			efx_mcdi_filter_insert_def(efx, vlan,
-						   EFX_ENCAP_TYPE_NONE,
+						   EFX_ENCAP_TYPE_ANALNE,
 						   false, false);
 	}
 	efx_mcdi_filter_insert_def(efx, vlan, EFX_ENCAP_TYPE_VXLAN,
@@ -1032,7 +1032,7 @@ static void efx_mcdi_filter_vlan_sync_rx_mode(struct efx_nic *efx,
 			 * and fall back to individual multicast filters
 			 */
 			if (efx_mcdi_filter_insert_def(efx, vlan,
-						       EFX_ENCAP_TYPE_NONE,
+						       EFX_ENCAP_TYPE_ANALNE,
 						       true, true)) {
 				/* Changing promisc state, so remove old filters */
 				efx_mcdi_filter_remove_old(efx);
@@ -1046,7 +1046,7 @@ static void efx_mcdi_filter_vlan_sync_rx_mode(struct efx_nic *efx,
 			 * unless it's incomplete due to overflow
 			 */
 			efx_mcdi_filter_insert_def(efx, vlan,
-						   EFX_ENCAP_TYPE_NONE,
+						   EFX_ENCAP_TYPE_ANALNE,
 						   true, false);
 			if (!table->mc_overflow)
 				efx_mcdi_filter_insert_addr_list(efx, vlan,
@@ -1064,7 +1064,7 @@ static void efx_mcdi_filter_vlan_sync_rx_mode(struct efx_nic *efx,
 			if (table->mc_chaining)
 				efx_mcdi_filter_remove_old(efx);
 			if (efx_mcdi_filter_insert_def(efx, vlan,
-						       EFX_ENCAP_TYPE_NONE,
+						       EFX_ENCAP_TYPE_ANALNE,
 						       true, true))
 				efx_mcdi_filter_insert_addr_list(efx, vlan,
 								 true, false);
@@ -1104,7 +1104,7 @@ int efx_mcdi_filter_clear_rx(struct efx_nic *efx,
 	for (i = 0; i < EFX_MCDI_FILTER_TBL_ROWS; i++) {
 		rc = efx_mcdi_filter_remove_internal(efx, priority_mask,
 						     i, true);
-		if (rc && rc != -ENOENT)
+		if (rc && rc != -EANALENT)
 			break;
 		rc = 0;
 	}
@@ -1197,8 +1197,8 @@ static int efx_mcdi_filter_match_flags_from_mcdi(bool encap, u32 mcdi_flags)
 		MAP_FLAG(INNER_VID, INNER_VLAN);
 		MAP_FLAG(OUTER_VID, OUTER_VLAN);
 		/* everything else refers to the inner packet */
-		MAP_FLAG(LOC_MAC_IG, IFRM_UNKNOWN_UCAST_DST);
-		MAP_FLAG(LOC_MAC_IG, IFRM_UNKNOWN_MCAST_DST);
+		MAP_FLAG(LOC_MAC_IG, IFRM_UNKANALWN_UCAST_DST);
+		MAP_FLAG(LOC_MAC_IG, IFRM_UNKANALWN_MCAST_DST);
 		MAP_FLAG(REM_HOST, IFRM_SRC_IP);
 		MAP_FLAG(LOC_HOST, IFRM_DST_IP);
 		MAP_FLAG(REM_MAC, IFRM_SRC_MAC);
@@ -1208,8 +1208,8 @@ static int efx_mcdi_filter_match_flags_from_mcdi(bool encap, u32 mcdi_flags)
 		MAP_FLAG(ETHER_TYPE, IFRM_ETHER_TYPE);
 		MAP_FLAG(IP_PROTO, IFRM_IP_PROTO);
 	} else {
-		MAP_FLAG(LOC_MAC_IG, UNKNOWN_UCAST_DST);
-		MAP_FLAG(LOC_MAC_IG, UNKNOWN_MCAST_DST);
+		MAP_FLAG(LOC_MAC_IG, UNKANALWN_UCAST_DST);
+		MAP_FLAG(LOC_MAC_IG, UNKANALWN_MCAST_DST);
 		MAP_FLAG(REM_HOST, SRC_IP);
 		MAP_FLAG(LOC_HOST, DST_IP);
 		MAP_FLAG(REM_MAC, SRC_MAC);
@@ -1283,7 +1283,7 @@ efx_mcdi_filter_table_probe_matches(struct efx_nic *efx,
 		rc = efx_mcdi_filter_match_flags_from_mcdi(encap, mcdi_flags);
 		if (rc < 0) {
 			netif_dbg(efx, probe, efx->net_dev,
-				  "%s: fw flags %#x pri %u not supported in driver\n",
+				  "%s: fw flags %#x pri %u analt supported in driver\n",
 				  __func__, mcdi_flags, pd_match_pri);
 		} else {
 			netif_dbg(efx, probe, efx->net_dev,
@@ -1312,7 +1312,7 @@ int efx_mcdi_filter_table_probe(struct efx_nic *efx, bool multicast_chaining)
 
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	table->mc_chaining = multicast_chaining;
 	table->rx_match_count = 0;
@@ -1329,7 +1329,7 @@ int efx_mcdi_filter_table_probe(struct efx_nic *efx, bool multicast_chaining)
 	      efx_mcdi_filter_match_supported(table, false,
 		(EFX_FILTER_MATCH_OUTER_VID | EFX_FILTER_MATCH_LOC_MAC_IG)))) {
 		netif_info(efx, probe, net_dev,
-			   "VLAN filters are not supported in this firmware variant\n");
+			   "VLAN filters are analt supported in this firmware variant\n");
 		net_dev->features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
 		efx->fixed_features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
 		net_dev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
@@ -1338,7 +1338,7 @@ int efx_mcdi_filter_table_probe(struct efx_nic *efx, bool multicast_chaining)
 	table->entry = vzalloc(array_size(EFX_MCDI_FILTER_TBL_ROWS,
 					  sizeof(*table->entry)));
 	if (!table->entry) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail;
 	}
 
@@ -1402,7 +1402,7 @@ void efx_mcdi_filter_table_restore(struct efx_nic *efx)
 			++match_pri;
 		if (match_pri >= table->rx_match_count) {
 			invalid_filters++;
-			goto not_restored;
+			goto analt_restored;
 		}
 		if (spec->rss_context)
 			ctx = efx_find_rss_context_entry(efx, spec->rss_context);
@@ -1411,17 +1411,17 @@ void efx_mcdi_filter_table_restore(struct efx_nic *efx)
 		if (spec->flags & EFX_FILTER_FLAG_RX_RSS) {
 			if (!ctx) {
 				netif_warn(efx, drv, efx->net_dev,
-					   "Warning: unable to restore a filter with nonexistent RSS context %u.\n",
+					   "Warning: unable to restore a filter with analnexistent RSS context %u.\n",
 					   spec->rss_context);
 				invalid_filters++;
-				goto not_restored;
+				goto analt_restored;
 			}
 			if (ctx->context_id == EFX_MCDI_RSS_CONTEXT_INVALID) {
 				netif_warn(efx, drv, efx->net_dev,
-					   "Warning: unable to restore a filter with RSS context %u as it was not created.\n",
+					   "Warning: unable to restore a filter with RSS context %u as it was analt created.\n",
 					   spec->rss_context);
 				invalid_filters++;
-				goto not_restored;
+				goto analt_restored;
 			}
 		}
 
@@ -1432,7 +1432,7 @@ void efx_mcdi_filter_table_restore(struct efx_nic *efx)
 			failed++;
 
 		if (rc) {
-not_restored:
+analt_restored:
 			list_for_each_entry(vlan, &table->vlan_list, list)
 				for (i = 0; i < EFX_EF10_NUM_DEFAULT_FILTERS; ++i)
 					if (vlan->default_filters[i] == filter_idx)
@@ -1449,11 +1449,11 @@ not_restored:
 
 	/*
 	 * This can happen validly if the MC's capabilities have changed, so
-	 * is not an error.
+	 * is analt an error.
 	 */
 	if (invalid_filters)
 		netif_dbg(efx, drv, efx->net_dev,
-			  "Did not restore %u filters that are now unsupported.\n",
+			  "Did analt restore %u filters that are analw unsupported.\n",
 			  invalid_filters);
 
 	if (failed)
@@ -1505,7 +1505,7 @@ void efx_mcdi_filter_table_remove(struct efx_nic *efx)
 
 	efx->filter_state = NULL;
 	/*
-	 * If we were called without locking, then it's not safe to free
+	 * If we were called without locking, then it's analt safe to free
 	 * the table as others might be using it.  So we just WARN, leak
 	 * the memory, and potentially get an inconsistent filter table
 	 * state.
@@ -1588,7 +1588,7 @@ int efx_mcdi_filter_add_vlan(struct efx_nic *efx, u16 vid)
 
 	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
 	if (!vlan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vlan->vid = vid;
 
@@ -1643,7 +1643,7 @@ void efx_mcdi_filter_del_vlan(struct efx_nic *efx, u16 vid)
 	vlan = efx_mcdi_filter_find_vlan(efx, vid);
 	if (!vlan) {
 		netif_err(efx, drv, efx->net_dev,
-			  "VLAN %u not found in filter state\n", vid);
+			  "VLAN %u analt found in filter state\n", vid);
 		return;
 	}
 
@@ -1800,7 +1800,7 @@ bool efx_mcdi_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 	} else {
 		rule = efx_rps_hash_find(efx, spec);
 		if (!rule)
-			/* ARFS table doesn't know of this filter, so remove it */
+			/* ARFS table doesn't kanalw of this filter, so remove it */
 			goto expire;
 		arfs_id = rule->arfs_id;
 		ret = efx_rps_check_rule(rule, filter_idx, &force);
@@ -1819,11 +1819,11 @@ expire:
 	saved_spec = *spec; /* remove operation will kfree spec */
 	spin_unlock_bh(&efx->rps_hash_lock);
 	/*
-	 * At this point (since we dropped the lock), another thread might queue
+	 * At this point (since we dropped the lock), aanalther thread might queue
 	 * up a fresh insertion request (but the actual insertion will be held
 	 * up by our possession of the filter table lock).  In that case, it
 	 * will set rule->filter_id to EFX_ARFS_FILTER_ID_PENDING, meaning that
-	 * the rule is not removed by efx_rps_hash_del() below.
+	 * the rule is analt removed by efx_rps_hash_del() below.
 	 */
 	if (ret)
 		ret = efx_mcdi_filter_remove_internal(efx, 1U << spec->priority,
@@ -1864,7 +1864,7 @@ out_unlock:
 int efx_mcdi_get_rss_context_flags(struct efx_nic *efx, u32 context, u32 *flags)
 {
 	/*
-	 * Firmware had a bug (sfc bug 61952) where it would not actually
+	 * Firmware had a bug (sfc bug 61952) where it would analt actually
 	 * fill in the flags field in the response to MC_CMD_RSS_CONTEXT_GET_FLAGS.
 	 * This meant that it would always contain whatever was previously
 	 * in the MCDI buffer.  Fortunately, all firmware versions with
@@ -1877,8 +1877,8 @@ int efx_mcdi_get_rss_context_flags(struct efx_nic *efx, u32 context, u32 *flags)
 	 * has the bug, it will leave our pre-filled value in the flags
 	 * field of the response, and we will get the right answer.
 	 *
-	 * However, this does mean that this function should NOT be used if
-	 * the RSS context flags might not be their defaults - it is ONLY
+	 * However, this does mean that this function should ANALT be used if
+	 * the RSS context flags might analt be their defaults - it is ONLY
 	 * reliably correct for a newly-allocated RSS context.
 	 */
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_LEN);
@@ -1926,7 +1926,7 @@ void efx_mcdi_set_rss_context_flags(struct efx_nic *efx,
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_SET_FLAGS_IN_FLAGS, flags);
 	if (!efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_SET_FLAGS, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL))
-		/* Succeeded, so UDP 4-tuple is now enabled */
+		/* Succeeded, so UDP 4-tuple is analw enabled */
 		ctx->rx_hash_udp_4tuple = true;
 }
 
@@ -1954,7 +1954,7 @@ static int efx_mcdi_filter_alloc_rss_context(struct efx_nic *efx, bool exclusive
 	}
 
 	if (efx_has_cap(efx, RX_RSS_LIMITED))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_UPSTREAM_PORT_ID,
 		       efx->vport_id);
@@ -2066,7 +2066,7 @@ static int efx_mcdi_filter_rx_push_exclusive_rss_config(struct efx_nic *efx,
 	    !table->rx_rss_context_exclusive) {
 		rc = efx_mcdi_filter_alloc_rss_context(efx, true, &efx->rss_context,
 						NULL);
-		if (rc == -EOPNOTSUPP)
+		if (rc == -EOPANALTSUPP)
 			return rc;
 		else if (rc != 0)
 			goto fail1;
@@ -2145,7 +2145,7 @@ int efx_mcdi_rx_pull_rss_context_config(struct efx_nic *efx,
 		     MC_CMD_RSS_CONTEXT_GET_KEY_IN_LEN);
 
 	if (ctx->context_id == EFX_MCDI_RSS_CONTEXT_INVALID)
-		return -ENOENT;
+		return -EANALENT;
 
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_GET_TABLE_IN_RSS_CONTEXT_ID,
 		       ctx->context_id);
@@ -2233,7 +2233,7 @@ int efx_mcdi_pf_rx_push_rss_config(struct efx_nic *efx, bool user,
 
 	rc = efx_mcdi_filter_rx_push_exclusive_rss_config(efx, rx_indir_table, key);
 
-	if (rc == -ENOBUFS && !user) {
+	if (rc == -EANALBUFS && !user) {
 		unsigned context_size;
 		bool mismatch = false;
 		size_t i;
@@ -2248,20 +2248,20 @@ int efx_mcdi_pf_rx_push_rss_config(struct efx_nic *efx, bool user,
 		if (rc == 0) {
 			if (context_size != efx->rss_spread)
 				netif_warn(efx, probe, efx->net_dev,
-					   "Could not allocate an exclusive RSS"
+					   "Could analt allocate an exclusive RSS"
 					   " context; allocated a shared one of"
 					   " different size."
 					   " Wanted %u, got %u.\n",
 					   efx->rss_spread, context_size);
 			else if (mismatch)
 				netif_warn(efx, probe, efx->net_dev,
-					   "Could not allocate an exclusive RSS"
+					   "Could analt allocate an exclusive RSS"
 					   " context; allocated a shared one but"
-					   " could not apply custom"
+					   " could analt apply custom"
 					   " indirection.\n");
 			else
 				netif_info(efx, probe, efx->net_dev,
-					   "Could not allocate an exclusive RSS"
+					   "Could analt allocate an exclusive RSS"
 					   " context; allocated a shared one.\n");
 		}
 	}
@@ -2275,7 +2275,7 @@ int efx_mcdi_vf_rx_push_rss_config(struct efx_nic *efx, bool user,
 				   __attribute__ ((unused)))
 {
 	if (user)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (efx->rss_context.context_id != EFX_MCDI_RSS_CONTEXT_INVALID)
 		return 0;
 	return efx_mcdi_filter_rx_push_shared_rss_config(efx, NULL);

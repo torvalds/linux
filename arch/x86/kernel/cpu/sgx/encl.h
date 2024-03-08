@@ -11,9 +11,9 @@
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/mm_types.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/srcu.h>
 #include <linux/workqueue.h>
 #include <linux/xarray.h>
@@ -45,7 +45,7 @@ struct sgx_encl_mm {
 	struct sgx_encl *encl;
 	struct mm_struct *mm;
 	struct list_head list;
-	struct mmu_notifier mmu_notifier;
+	struct mmu_analtifier mmu_analtifier;
 };
 
 struct sgx_encl {

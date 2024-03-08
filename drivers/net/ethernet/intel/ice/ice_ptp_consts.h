@@ -24,7 +24,7 @@ const struct ice_time_ref_info_e82x e822_time_ref[NUM_ICE_TIME_REF_FREQ] = {
 	{
 		/* pll_freq */
 		823437500, /* 823.4375 MHz PLL */
-		/* nominal_incval */
+		/* analminal_incval */
 		0x136e44fabULL,
 		/* pps_delay */
 		11,
@@ -34,7 +34,7 @@ const struct ice_time_ref_info_e82x e822_time_ref[NUM_ICE_TIME_REF_FREQ] = {
 	{
 		/* pll_freq */
 		783360000, /* 783.36 MHz */
-		/* nominal_incval */
+		/* analminal_incval */
 		0x146cc2177ULL,
 		/* pps_delay */
 		12,
@@ -44,7 +44,7 @@ const struct ice_time_ref_info_e82x e822_time_ref[NUM_ICE_TIME_REF_FREQ] = {
 	{
 		/* pll_freq */
 		796875000, /* 796.875 MHz */
-		/* nominal_incval */
+		/* analminal_incval */
 		0x141414141ULL,
 		/* pps_delay */
 		12,
@@ -54,7 +54,7 @@ const struct ice_time_ref_info_e82x e822_time_ref[NUM_ICE_TIME_REF_FREQ] = {
 	{
 		/* pll_freq */
 		816000000, /* 816 MHz */
-		/* nominal_incval */
+		/* analminal_incval */
 		0x139b9b9baULL,
 		/* pps_delay */
 		12,
@@ -64,7 +64,7 @@ const struct ice_time_ref_info_e82x e822_time_ref[NUM_ICE_TIME_REF_FREQ] = {
 	{
 		/* pll_freq */
 		830078125, /* 830.78125 MHz */
-		/* nominal_incval */
+		/* analminal_incval */
 		0x134679aceULL,
 		/* pps_delay */
 		11,
@@ -74,7 +74,7 @@ const struct ice_time_ref_info_e82x e822_time_ref[NUM_ICE_TIME_REF_FREQ] = {
 	{
 		/* pll_freq */
 		783360000, /* 783.36 MHz */
-		/* nominal_incval */
+		/* analminal_incval */
 		0x146cc2177ULL,
 		/* pps_delay */
 		12,
@@ -164,7 +164,7 @@ const struct ice_cgu_pll_params_e82x e822_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
  * calculate the correct conversion ratios in the PHY registers.
  *
  * Many of the values relate to the PAR/PCS clock conversion registers. For
- * these registers, a value of 0 means that the associated register is not
+ * these registers, a value of 0 means that the associated register is analt
  * used by this link speed, and that the register should be cleared by writing
  * 0. Other values specify the clock frequency in Hz.
  */

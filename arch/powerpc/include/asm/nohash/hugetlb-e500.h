@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_NOHASH_HUGETLB_E500_H
-#define _ASM_POWERPC_NOHASH_HUGETLB_E500_H
+#ifndef _ASM_POWERPC_ANALHASH_HUGETLB_E500_H
+#define _ASM_POWERPC_ANALHASH_HUGETLB_E500_H
 
 static inline pte_t *hugepd_page(hugepd_t hpd)
 {
@@ -36,10 +36,10 @@ static inline void hugepd_populate(hugepd_t *hpdp, pte_t *new, unsigned int pshi
 
 static inline int check_and_get_huge_psize(int shift)
 {
-	if (shift & 1)	/* Not a power of 4 */
+	if (shift & 1)	/* Analt a power of 4 */
 		return -EINVAL;
 
 	return shift_to_mmu_psize(shift);
 }
 
-#endif /* _ASM_POWERPC_NOHASH_HUGETLB_E500_H */
+#endif /* _ASM_POWERPC_ANALHASH_HUGETLB_E500_H */

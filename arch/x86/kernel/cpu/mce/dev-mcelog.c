@@ -3,7 +3,7 @@
  * /dev/mcelog driver
  *
  * K8 parts Copyright 2002,2003 Andi Kleen, SuSE Labs.
- * Rest from unknown author(s).
+ * Rest from unkanalwn author(s).
  * 2004 Andi Kleen. Rewrote most of it.
  * Copyright 2008 Intel Corporation
  * Author: Andi Kleen
@@ -16,7 +16,7 @@
 
 #include "internal.h"
 
-static BLOCKING_NOTIFIER_HEAD(mce_injector_chain);
+static BLOCKING_ANALTIFIER_HEAD(mce_injector_chain);
 
 static DEFINE_MUTEX(mce_chrdev_read_mutex);
 
@@ -33,14 +33,14 @@ static struct mce_log_buffer *mcelog;
 
 static DECLARE_WAIT_QUEUE_HEAD(mce_chrdev_wait);
 
-static int dev_mce_log(struct notifier_block *nb, unsigned long val,
+static int dev_mce_log(struct analtifier_block *nb, unsigned long val,
 				void *data)
 {
 	struct mce *mce = (struct mce *)data;
 	unsigned int entry;
 
 	if (mce->kflags & MCE_HANDLED_CEC)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	mutex_lock(&mce_chrdev_read_mutex);
 
@@ -70,17 +70,17 @@ unlock:
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
 		mce->kflags |= MCE_HANDLED_MCELOG;
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block dev_mcelog_nb = {
-	.notifier_call	= dev_mce_log,
+static struct analtifier_block dev_mcelog_nb = {
+	.analtifier_call	= dev_mce_log,
 	.priority	= MCE_PRIO_MCELOG,
 };
 
 static void mce_do_trigger(struct work_struct *work)
 {
-	call_usermodehelper(mce_helper, mce_helper_argv, NULL, UMH_NO_WAIT);
+	call_usermodehelper(mce_helper, mce_helper_argv, NULL, UMH_ANAL_WAIT);
 }
 
 static DECLARE_WORK(mce_trigger_work, mce_do_trigger);
@@ -124,7 +124,7 @@ static DEFINE_SPINLOCK(mce_chrdev_state_lock);
 static int mce_chrdev_open_count;	/* #times opened */
 static int mce_chrdev_open_exclu;	/* already open exclusive? */
 
-static int mce_chrdev_open(struct inode *inode, struct file *file)
+static int mce_chrdev_open(struct ianalde *ianalde, struct file *file)
 {
 	spin_lock(&mce_chrdev_state_lock);
 
@@ -141,10 +141,10 @@ static int mce_chrdev_open(struct inode *inode, struct file *file)
 
 	spin_unlock(&mce_chrdev_state_lock);
 
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
-static int mce_chrdev_release(struct inode *inode, struct file *file)
+static int mce_chrdev_release(struct ianalde *ianalde, struct file *file)
 {
 	spin_lock(&mce_chrdev_state_lock);
 
@@ -169,14 +169,14 @@ static int __mce_read_apei(char __user **ubuf, size_t usize)
 		return -EINVAL;
 
 	rc = apei_read_mce(&m, &record_id);
-	/* Error or no more MCE record */
+	/* Error or anal more MCE record */
 	if (rc <= 0) {
 		mce_apei_read_done = 1;
 		/*
 		 * When ERST is disabled, mce_chrdev_read() should return
-		 * "no record" instead of "no device."
+		 * "anal record" instead of "anal device."
 		 */
-		if (rc == -ENODEV)
+		if (rc == -EANALDEV)
 			return 0;
 		return rc;
 	}
@@ -186,7 +186,7 @@ static int __mce_read_apei(char __user **ubuf, size_t usize)
 	/*
 	 * In fact, we should have cleared the record after that has
 	 * been flushed to the disk or sent to network in
-	 * /sbin/mcelog, but we have no interface to support that now,
+	 * /sbin/mcelog, but we have anal interface to support that analw,
 	 * so just clear it to avoid duplication.
 	 */
 	rc = apei_clear_mce(record_id);
@@ -214,7 +214,7 @@ static ssize_t mce_chrdev_read(struct file *filp, char __user *ubuf,
 			goto out;
 	}
 
-	/* Only supports full reads right now */
+	/* Only supports full reads right analw */
 	err = -EINVAL;
 	if (*off != 0 || usize < mcelog->len * sizeof(struct mce))
 		goto out;
@@ -245,9 +245,9 @@ static __poll_t mce_chrdev_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &mce_chrdev_wait, wait);
 	if (READ_ONCE(mcelog->next))
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	if (!mce_apei_read_done && apei_check_mce())
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	return 0;
 }
 
@@ -274,19 +274,19 @@ static long mce_chrdev_ioctl(struct file *f, unsigned int cmd,
 		return put_user(flags, p);
 	}
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
-void mce_register_injector_chain(struct notifier_block *nb)
+void mce_register_injector_chain(struct analtifier_block *nb)
 {
-	blocking_notifier_chain_register(&mce_injector_chain, nb);
+	blocking_analtifier_chain_register(&mce_injector_chain, nb);
 }
 EXPORT_SYMBOL_GPL(mce_register_injector_chain);
 
-void mce_unregister_injector_chain(struct notifier_block *nb)
+void mce_unregister_injector_chain(struct analtifier_block *nb)
 {
-	blocking_notifier_chain_unregister(&mce_injector_chain, nb);
+	blocking_analtifier_chain_unregister(&mce_injector_chain, nb);
 }
 EXPORT_SYMBOL_GPL(mce_unregister_injector_chain);
 
@@ -318,7 +318,7 @@ static ssize_t mce_chrdev_write(struct file *filp, const char __user *ubuf,
 	 */
 	schedule_timeout(2);
 
-	blocking_notifier_call_chain(&mce_injector_chain, 0, &m);
+	blocking_analtifier_call_chain(&mce_injector_chain, 0, &m);
 
 	return usize;
 }
@@ -331,11 +331,11 @@ static const struct file_operations mce_chrdev_ops = {
 	.poll			= mce_chrdev_poll,
 	.unlocked_ioctl		= mce_chrdev_ioctl,
 	.compat_ioctl		= compat_ptr_ioctl,
-	.llseek			= no_llseek,
+	.llseek			= anal_llseek,
 };
 
 static struct miscdevice mce_chrdev_device = {
-	MISC_MCELOG_MINOR,
+	MISC_MCELOG_MIANALR,
 	"mcelog",
 	&mce_chrdev_ops,
 };
@@ -348,7 +348,7 @@ static __init int dev_mcelog_init_device(void)
 	mce_log_len = max(MCE_LOG_MIN_LEN, num_online_cpus());
 	mcelog = kzalloc(struct_size(mcelog, entry, mce_log_len), GFP_KERNEL);
 	if (!mcelog)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(mcelog->signature, MCE_LOG_SIGNATURE, sizeof(mcelog->signature));
 	mcelog->len = mce_log_len;

@@ -29,7 +29,7 @@ setup_ns NS test_ns
 ip -netns $NS link add name $DEV type dummy || fail
 ip -netns $NS link set dev $DEV netns $test_ns ||
     fail "Can't perform a netns move"
-ip -netns $test_ns link show dev $DEV >> /dev/null || fail "Device not found after move"
+ip -netns $test_ns link show dev $DEV >> /dev/null || fail "Device analt found after move"
 ip -netns $test_ns link del $DEV || fail
 
 #
@@ -39,7 +39,7 @@ ip -netns $test_ns link add name $DEV type dummy
 ip -netns $NS link add name $DEV type dummy || fail
 ip -netns $NS link set dev $DEV netns $test_ns 2> /dev/null &&
     fail "Performed a netns move with a name conflict"
-ip -netns $test_ns link show dev $DEV >> /dev/null || fail "Device not found after move"
+ip -netns $test_ns link show dev $DEV >> /dev/null || fail "Device analt found after move"
 ip -netns $NS link del $DEV || fail
 ip -netns $test_ns link del $DEV || fail
 
@@ -68,7 +68,7 @@ ip -netns $test_ns link del $DEV || fail
 ip -netns $NS link del $DEV2 || fail
 
 #
-# Test creating alt-name in one net-ns and using in another
+# Test creating alt-name in one net-ns and using in aanalther
 #
 ip -netns $NS link add name $DEV type dummy || fail
 ip -netns $NS link property add dev $DEV altname $ALT_NAME || fail

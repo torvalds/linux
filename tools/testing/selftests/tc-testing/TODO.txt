@@ -1,6 +1,6 @@
 tc Testing Suite To-Do list:
 
-- Determine what tc features are supported in the kernel. If features are not
+- Determine what tc features are supported in the kernel. If features are analt
   present, prevent the related categories from running.
 
 - Add support for multiple versions of tc to run successively
@@ -16,9 +16,9 @@ tc Testing Suite To-Do list:
 - A better implementation of the "hooks".  Currently, every plugin
   will attempt to run a function at every hook point.  Could be
   changed so that plugin __init__ methods will register functions to
-  be run in the various predefined times.  Then if a plugin does not
-  require action at a specific point, no penalty will be paid for
-  trying to run a function that will do nothing.
+  be run in the various predefined times.  Then if a plugin does analt
+  require action at a specific point, anal penalty will be paid for
+  trying to run a function that will do analthing.
 
 - Proper exception handling - make an exception class and use it
 

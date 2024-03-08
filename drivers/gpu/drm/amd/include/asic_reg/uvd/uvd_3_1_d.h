@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -34,7 +34,7 @@
 #define mmUVD_UDEC_ADDR_CONFIG                                                  0x3bd3
 #define mmUVD_UDEC_DB_ADDR_CONFIG                                               0x3bd4
 #define mmUVD_UDEC_DBW_ADDR_CONFIG                                              0x3bd5
-#define mmUVD_NO_OP                                                             0x3bff
+#define mmUVD_ANAL_OP                                                             0x3bff
 #define mmUVD_SEMA_CNTL                                                         0x3d00
 #define mmUVD_LMI_EXT40_ADDR                                                    0x3d26
 #define mmUVD_CTX_INDEX                                                         0x3d28

@@ -8,7 +8,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -33,7 +33,7 @@ static void atmel_sha204a_rng_done(struct atmel_i2c_work_data *work_data,
 	atomic_dec(&i2c_priv->tfm_count);
 }
 
-static int atmel_sha204a_rng_read_nonblocking(struct hwrng *rng, void *data,
+static int atmel_sha204a_rng_read_analnblocking(struct hwrng *rng, void *data,
 					      size_t max)
 {
 	struct atmel_i2c_client_priv *i2c_priv;
@@ -41,7 +41,7 @@ static int atmel_sha204a_rng_read_nonblocking(struct hwrng *rng, void *data,
 
 	i2c_priv = container_of(rng, struct atmel_i2c_client_priv, hwrng);
 
-	/* keep maximum 1 asynchronous read in flight at any time */
+	/* keep maximum 1 asynchroanalus read in flight at any time */
 	if (!atomic_add_unless(&i2c_priv->tfm_count, 1, 1))
 		return 0;
 
@@ -53,7 +53,7 @@ static int atmel_sha204a_rng_read_nonblocking(struct hwrng *rng, void *data,
 	} else {
 		work_data = kmalloc(sizeof(*work_data), GFP_ATOMIC);
 		if (!work_data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		work_data->ctx = i2c_priv;
 		work_data->client = i2c_priv->client;
@@ -75,7 +75,7 @@ static int atmel_sha204a_rng_read(struct hwrng *rng, void *data, size_t max,
 	int ret;
 
 	if (!wait)
-		return atmel_sha204a_rng_read_nonblocking(rng, data, max);
+		return atmel_sha204a_rng_read_analnblocking(rng, data, max);
 
 	i2c_priv = container_of(rng, struct atmel_i2c_client_priv, hwrng);
 

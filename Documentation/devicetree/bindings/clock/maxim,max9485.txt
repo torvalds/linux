@@ -18,11 +18,11 @@ Required properties:
 
 Optional properties:
 - reset-gpios:		GPIO descriptor connected to the #RESET input pin
-- vdd-supply:		A regulator node for Vdd
+- vdd-supply:		A regulator analde for Vdd
 - clock-output-names:	Name of output clocks, as defined in common clock
 			bindings
 
-If not explicitly set, the output names are "mclkout", "clkout", "clkout1"
+If analt explicitly set, the output names are "mclkout", "clkout", "clkout1"
 and "clkout2".
 
 Clocks are defined as preprocessor macros in the dt-binding header.
@@ -49,7 +49,7 @@ Example:
 		};
 	};
 
-	// Clock consumer node
+	// Clock consumer analde
 
 	foo@0 {
 		compatible = "bar,foo";

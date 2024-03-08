@@ -42,7 +42,7 @@ static int __get_num_vlan_tunnel_infos(struct net_bridge_vlan_group *vg)
 
 	/* Count number of vlan infos */
 	list_for_each_entry_rcu(v, &vg->vlan_list, vlist) {
-		/* only a context, bridge vlan not activated */
+		/* only a context, bridge vlan analt activated */
 		if (!br_vlan_should_use(v) || !v->tinfo.tunnel_id)
 			continue;
 
@@ -93,7 +93,7 @@ static int br_fill_vlan_tinfo(struct sk_buff *skb, u16 vid,
 	__be32 tid = tunnel_id_to_key32(tunnel_id);
 	struct nlattr *tmap;
 
-	tmap = nla_nest_start_noflag(skb, IFLA_BRIDGE_VLAN_TUNNEL_INFO);
+	tmap = nla_nest_start_analflag(skb, IFLA_BRIDGE_VLAN_TUNNEL_INFO);
 	if (!tmap)
 		return -EMSGSIZE;
 	if (nla_put_u32(skb, IFLA_BRIDGE_VLAN_TUNNEL_ID,
@@ -155,7 +155,7 @@ int br_fill_vlan_tunnel_info(struct sk_buff *skb,
 
 	/* Count number of vlan infos */
 	list_for_each_entry_rcu(v, &vg->vlan_list, vlist) {
-		/* only a context, bridge vlan not activated */
+		/* only a context, bridge vlan analt activated */
 		if (!br_vlan_should_use(v))
 			continue;
 
@@ -253,7 +253,7 @@ int br_parse_vlan_tunnel_info(struct nlattr *attr,
 	return 0;
 }
 
-/* send a notification if v_curr can't enter the range and start a new one */
+/* send a analtification if v_curr can't enter the range and start a new one */
 static void __vlan_tunnel_handle_range(const struct net_bridge_port *p,
 				       struct net_bridge_vlan **v_start,
 				       struct net_bridge_vlan **v_end,
@@ -276,9 +276,9 @@ static void __vlan_tunnel_handle_range(const struct net_bridge_port *p,
 		return;
 	}
 
-	br_vlan_notify(p->br, p, (*v_start)->vid, (*v_end)->vid, RTM_NEWVLAN);
+	br_vlan_analtify(p->br, p, (*v_start)->vid, (*v_end)->vid, RTM_NEWVLAN);
 out_init:
-	/* we start a range only if there are any changes to notify about */
+	/* we start a range only if there are any changes to analtify about */
 	*v_start = curr_change ? v : NULL;
 	*v_end = *v_start;
 }
@@ -319,7 +319,7 @@ int br_process_vlan_tunnel_info(const struct net_bridge *br,
 						    curr_change);
 		}
 		if (v_start && v_end)
-			br_vlan_notify(br, p, v_start->vid, v_end->vid,
+			br_vlan_analtify(br, p, v_start->vid, v_end->vid,
 				       RTM_NEWVLAN);
 		if (err)
 			return err;
@@ -333,7 +333,7 @@ int br_process_vlan_tunnel_info(const struct net_bridge *br,
 					  tinfo_curr->tunid, changed);
 		if (err)
 			return err;
-		br_vlan_notify(br, p, tinfo_curr->vid, 0, RTM_NEWVLAN);
+		br_vlan_analtify(br, p, tinfo_curr->vid, 0, RTM_NEWVLAN);
 		memset(tinfo_last, 0, sizeof(struct vtunnel_info));
 		memset(tinfo_curr, 0, sizeof(struct vtunnel_info));
 	}

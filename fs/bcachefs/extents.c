@@ -19,7 +19,7 @@
 #include "disk_groups.h"
 #include "error.h"
 #include "extents.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "journal.h"
 #include "replicas.h"
 #include "super.h"
@@ -97,8 +97,8 @@ static inline bool ptr_better(struct bch_fs *c,
 }
 
 /*
- * This picks a non-stale pointer, preferably from a device other than @avoid.
- * Avoid can be NULL, meaning pick any. If there are no non-stale pointers to
+ * This picks a analn-stale pointer, preferably from a device other than @avoid.
+ * Avoid can be NULL, meaning pick any. If there are anal analn-stale pointers to
  * other devices, it will still pick a pointer from avoid.
  */
 int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
@@ -117,7 +117,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		/*
-		 * Unwritten extent: no need to actually read, treat it as a
+		 * Unwritten extent: anal need to actually read, treat it as a
 		 * hole and return 0s:
 		 */
 		if (p.ptr.unwritten)
@@ -224,12 +224,12 @@ void bch2_btree_ptr_v2_compat(enum btree_id btree_id, unsigned version,
 
 	compat_bpos(0, btree_id, version, big_endian, write, &bp.v->min_key);
 
-	if (version < bcachefs_metadata_version_inode_btree_change &&
+	if (version < bcachefs_metadata_version_ianalde_btree_change &&
 	    btree_id_is_extents(btree_id) &&
 	    !bkey_eq(bp.v->min_key, POS_MIN))
 		bp.v->min_key = write
-			? bpos_nosnap_predecessor(bp.v->min_key)
-			: bpos_nosnap_successor(bp.v->min_key);
+			? bpos_analsnap_predecessor(bp.v->min_key)
+			: bpos_analsnap_successor(bp.v->min_key);
 }
 
 /* KEY_TYPE_extent: */
@@ -272,7 +272,7 @@ bool bch2_extent_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 		    lp.has_ec			!= rp.has_ec)
 			return false;
 
-		/* Extents may not straddle buckets: */
+		/* Extents may analt straddle buckets: */
 		ca = bch_dev_bkey_exists(c, lp.ptr.dev);
 		if (PTR_BUCKET_NR(ca, &lp.ptr) != PTR_BUCKET_NR(ca, &rp.ptr))
 			return false;
@@ -285,7 +285,7 @@ bool bch2_extent_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 			return false;
 
 		if (lp.crc.compression_type	!= rp.crc.compression_type ||
-		    lp.crc.nonce		!= rp.crc.nonce)
+		    lp.crc.analnce		!= rp.crc.analnce)
 			return false;
 
 		if (lp.crc.offset + lp.crc.live_size + rp.crc.live_size <=
@@ -296,7 +296,7 @@ bool bch2_extent_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 		} else {
 			/* check if checksums can be merged: */
 			if (lp.crc.csum_type		!= rp.crc.csum_type ||
-			    lp.crc.nonce		!= rp.crc.nonce ||
+			    lp.crc.analnce		!= rp.crc.analnce ||
 			    crc_is_compressed(lp.crc) ||
 			    !bch2_checksum_mergeable(lp.crc.csum_type))
 				return false;
@@ -418,7 +418,7 @@ bool bch2_reservation_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c 
 
 /* Extent checksum entries: */
 
-/* returns true if not equal */
+/* returns true if analt equal */
 static inline bool bch2_crc_unpacked_cmp(struct bch_extent_crc_unpacked l,
 					 struct bch_extent_crc_unpacked r)
 {
@@ -428,7 +428,7 @@ static inline bool bch2_crc_unpacked_cmp(struct bch_extent_crc_unpacked l,
 		l.uncompressed_size	!= r.uncompressed_size ||
 		l.offset		!= r.offset ||
 		l.live_size		!= r.live_size ||
-		l.nonce			!= r.nonce ||
+		l.analnce			!= r.analnce ||
 		bch2_crc_cmp(l.csum, r.csum));
 }
 
@@ -460,11 +460,11 @@ bool bch2_can_narrow_extent_crcs(struct bkey_s_c k,
 }
 
 /*
- * We're writing another replica for this extent, so while we've got the data in
+ * We're writing aanalther replica for this extent, so while we've got the data in
  * memory we'll be computing a new checksum for the currently live data.
  *
  * If there are other replicas we aren't moving, and they are checksummed but
- * not compressed, we can modify them to point to only the data that is
+ * analt compressed, we can modify them to point to only the data that is
  * currently live (so that readers won't have to bounce) while we've got the
  * checksum we need:
  */
@@ -497,7 +497,7 @@ restart_narrow_pointers:
 
 	bkey_for_each_ptr_decode(&k->k, ptrs, p, i)
 		if (can_narrow_crc(p.crc, n)) {
-			bch2_bkey_drop_ptr_noerror(bkey_i_to_s(k), &i->ptr);
+			bch2_bkey_drop_ptr_analerror(bkey_i_to_s(k), &i->ptr);
 			p.ptr.offset += p.crc.offset;
 			p.crc = n;
 			bch2_extent_ptr_decoded_append(k, &p);
@@ -527,13 +527,13 @@ static void bch2_extent_crc_pack(union bch_extent_crc *dst,
 		break;
 	case BCH_EXTENT_ENTRY_crc64:
 		set_common_fields(dst->crc64, src);
-		dst->crc64.nonce	= src.nonce;
+		dst->crc64.analnce	= src.analnce;
 		dst->crc64.csum_lo	= (u64 __force) src.csum.lo;
 		dst->crc64.csum_hi	= (u64 __force) *((__le16 *) &src.csum.hi);
 		break;
 	case BCH_EXTENT_ENTRY_crc128:
 		set_common_fields(dst->crc128, src);
-		dst->crc128.nonce	= src.nonce;
+		dst->crc128.analnce	= src.analnce;
 		dst->crc128.csum	= src.csum;
 		break;
 	default:
@@ -551,15 +551,15 @@ void bch2_extent_crc_append(struct bkey_i *k,
 
 	if (bch_crc_bytes[new.csum_type]	<= 4 &&
 	    new.uncompressed_size		<= CRC32_SIZE_MAX &&
-	    new.nonce				<= CRC32_NONCE_MAX)
+	    new.analnce				<= CRC32_ANALNCE_MAX)
 		type = BCH_EXTENT_ENTRY_crc32;
 	else if (bch_crc_bytes[new.csum_type]	<= 10 &&
 		   new.uncompressed_size	<= CRC64_SIZE_MAX &&
-		   new.nonce			<= CRC64_NONCE_MAX)
+		   new.analnce			<= CRC64_ANALNCE_MAX)
 		type = BCH_EXTENT_ENTRY_crc64;
 	else if (bch_crc_bytes[new.csum_type]	<= 16 &&
 		   new.uncompressed_size	<= CRC128_SIZE_MAX &&
-		   new.nonce			<= CRC128_NONCE_MAX)
+		   new.analnce			<= CRC128_ANALNCE_MAX)
 		type = BCH_EXTENT_ENTRY_crc128;
 	else
 		BUG();
@@ -760,7 +760,7 @@ static union bch_extent_entry *extent_entry_prev(struct bkey_ptrs ptrs,
 /*
  * Returns pointer to the next entry after the one being dropped:
  */
-union bch_extent_entry *bch2_bkey_drop_ptr_noerror(struct bkey_s k,
+union bch_extent_entry *bch2_bkey_drop_ptr_analerror(struct bkey_s k,
 						   struct bch_extent_ptr *ptr)
 {
 	struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
@@ -804,11 +804,11 @@ union bch_extent_entry *bch2_bkey_drop_ptr(struct bkey_s k,
 {
 	bool have_dirty = bch2_bkey_dirty_devs(k.s_c).nr;
 	union bch_extent_entry *ret =
-		bch2_bkey_drop_ptr_noerror(k, ptr);
+		bch2_bkey_drop_ptr_analerror(k, ptr);
 
 	/*
 	 * If we deleted all the dirty pointers and there's still cached
-	 * pointers, we could set the cached pointers to dirty if they're not
+	 * pointers, we could set the cached pointers to dirty if they're analt
 	 * stale - but to do that correctly we'd need to grab an open_bucket
 	 * reference so that we don't race with bucket reuse:
 	 */
@@ -833,12 +833,12 @@ void bch2_bkey_drop_device(struct bkey_s k, unsigned dev)
 	bch2_bkey_drop_ptrs(k, ptr, ptr->dev == dev);
 }
 
-void bch2_bkey_drop_device_noerror(struct bkey_s k, unsigned dev)
+void bch2_bkey_drop_device_analerror(struct bkey_s k, unsigned dev)
 {
 	struct bch_extent_ptr *ptr = bch2_bkey_has_device(k, dev);
 
 	if (ptr)
-		bch2_bkey_drop_ptr_noerror(k, ptr);
+		bch2_bkey_drop_ptr_analerror(k, ptr);
 }
 
 const struct bch_extent_ptr *bch2_bkey_has_device_c(struct bkey_s_c k, unsigned dev)
@@ -955,14 +955,14 @@ void bch2_extent_ptr_set_cached(struct bkey_s k, struct bch_extent_ptr *ptr)
 }
 
 /*
- * bch_extent_normalize - clean up an extent, dropping stale pointers etc.
+ * bch_extent_analrmalize - clean up an extent, dropping stale pointers etc.
  *
  * Returns true if @k should be dropped entirely
  *
- * For existing keys, only called when btree nodes are being rewritten, not when
+ * For existing keys, only called when btree analdes are being rewritten, analt when
  * they're merely being compacted/resorted in memory.
  */
-bool bch2_extent_normalize(struct bch_fs *c, struct bkey_s k)
+bool bch2_extent_analrmalize(struct bch_fs *c, struct bkey_s k)
 {
 	struct bch_extent_ptr *ptr;
 
@@ -1019,10 +1019,10 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			struct bch_extent_crc_unpacked crc =
 				bch2_extent_crc_unpack(k.k, entry_to_crc(entry));
 
-			prt_printf(out, "crc: c_size %u size %u offset %u nonce %u csum %s compress ",
+			prt_printf(out, "crc: c_size %u size %u offset %u analnce %u csum %s compress ",
 			       crc.compressed_size,
 			       crc.uncompressed_size,
-			       crc.offset, crc.nonce,
+			       crc.offset, crc.analnce,
 			       bch2_csum_types[crc.csum_type]);
 			bch2_prt_compression_type(out, crc.compression_type);
 			break;
@@ -1112,7 +1112,7 @@ int bch2_bkey_ptrs_invalid(struct bch_fs *c, struct bkey_s_c k,
 	const union bch_extent_entry *entry;
 	struct bch_extent_crc_unpacked crc;
 	unsigned size_ondisk = k.k->size;
-	unsigned nonce = UINT_MAX;
+	unsigned analnce = UINT_MAX;
 	unsigned nr_ptrs = 0;
 	bool have_written = false, have_unwritten = false, have_ec = false, crc_since_last_ptr = false;
 	int ret = 0;
@@ -1128,8 +1128,8 @@ int bch2_bkey_ptrs_invalid(struct bch_fs *c, struct bkey_s_c k,
 
 		bkey_fsck_err_on(bkey_is_btree_ptr(k.k) &&
 				 !extent_entry_is_ptr(entry), c, err,
-				 btree_ptr_has_non_ptr,
-				 "has non ptr field");
+				 btree_ptr_has_analn_ptr,
+				 "has analn ptr field");
 
 		switch (extent_entry_type(entry)) {
 		case BCH_EXTENT_ENTRY_ptr:
@@ -1160,18 +1160,18 @@ int bch2_bkey_ptrs_invalid(struct bch_fs *c, struct bkey_s_c k,
 					 ptr_crc_uncompressed_size_too_small,
 					 "checksum offset + key size > uncompressed size");
 			bkey_fsck_err_on(!bch2_checksum_type_valid(c, crc.csum_type), c, err,
-					 ptr_crc_csum_type_unknown,
+					 ptr_crc_csum_type_unkanalwn,
 					 "invalid checksum type");
 			bkey_fsck_err_on(crc.compression_type >= BCH_COMPRESSION_TYPE_NR, c, err,
-					 ptr_crc_compression_type_unknown,
+					 ptr_crc_compression_type_unkanalwn,
 					 "invalid compression type");
 
 			if (bch2_csum_type_is_encryption(crc.csum_type)) {
-				if (nonce == UINT_MAX)
-					nonce = crc.offset + crc.nonce;
-				else if (nonce != crc.offset + crc.nonce)
-					bkey_fsck_err(c, err, ptr_crc_nonce_mismatch,
-						      "incorrect nonce");
+				if (analnce == UINT_MAX)
+					analnce = crc.offset + crc.analnce;
+				else if (analnce != crc.offset + crc.analnce)
+					bkey_fsck_err(c, err, ptr_crc_analnce_mismatch,
+						      "incorrect analnce");
 			}
 
 			bkey_fsck_err_on(crc_since_last_ptr, c, err,
@@ -1208,8 +1208,8 @@ int bch2_bkey_ptrs_invalid(struct bch_fs *c, struct bkey_s_c k,
 	}
 
 	bkey_fsck_err_on(!nr_ptrs, c, err,
-			 extent_ptrs_no_ptrs,
-			 "no ptrs");
+			 extent_ptrs_anal_ptrs,
+			 "anal ptrs");
 	bkey_fsck_err_on(nr_ptrs > BCH_BKEY_PTRS_MAX, c, err,
 			 extent_ptrs_too_many_ptrs,
 			 "too many ptrs: %u > %u", nr_ptrs, BCH_BKEY_PTRS_MAX);
@@ -1323,7 +1323,7 @@ bool bch2_bkey_needs_rebalance(struct bch_fs *c, struct bkey_s_c k)
 
 	/*
 	 * If it's an indirect extent, we don't delete the rebalance entry when
-	 * done so that we know what options were applied - check if it still
+	 * done so that we kanalw what options were applied - check if it still
 	 * needs work done:
 	 */
 	if (r &&
@@ -1353,7 +1353,7 @@ int bch2_bkey_set_needs_rebalance(struct bch_fs *c, struct bkey_i *_k,
 			/*
 			 * indirect extents: existing options take precedence,
 			 * so that we don't move extents back and forth if
-			 * they're referenced by different inodes with different
+			 * they're referenced by different ianaldes with different
 			 * options:
 			 */
 			if (r->target)
@@ -1379,7 +1379,7 @@ int bch2_bkey_set_needs_rebalance(struct bch_fs *c, struct bkey_i *_k,
 	} else if (!needs_rebalance && r && k.k->type != KEY_TYPE_reflink_v) {
 		/*
 		 * For indirect extents, don't delete the rebalance entry when
-		 * we're finished so that we know we specifically moved it or
+		 * we're finished so that we kanalw we specifically moved it or
 		 * compressed it to its current location/compression type
 		 */
 		extent_entry_drop(k, (union bch_extent_entry *) r);

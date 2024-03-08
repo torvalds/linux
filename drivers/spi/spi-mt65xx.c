@@ -74,7 +74,7 @@
 #define SPI_CMD_TX_ENDIAN		BIT(15)
 #define SPI_CMD_FINISH_IE		BIT(16)
 #define SPI_CMD_PAUSE_IE		BIT(17)
-#define SPI_CMD_IPM_NONIDLE_MODE	BIT(19)
+#define SPI_CMD_IPM_ANALNIDLE_MODE	BIT(19)
 #define SPI_CMD_IPM_SPIM_LOOP		BIT(21)
 #define SPI_CMD_IPM_GET_TICKDLY_OFFSET	22
 
@@ -85,7 +85,7 @@
 #define SPI_CFG3_IPM_HALF_DUPLEX_DIR	BIT(2)
 #define SPI_CFG3_IPM_HALF_DUPLEX_EN	BIT(3)
 #define SPI_CFG3_IPM_XMODE_EN		BIT(4)
-#define SPI_CFG3_IPM_NODATA_FLAG	BIT(5)
+#define SPI_CFG3_IPM_ANALDATA_FLAG	BIT(5)
 #define SPI_CFG3_IPM_CMD_BYTELEN_OFFSET	8
 #define SPI_CFG3_IPM_ADDR_BYTELEN_OFFSET 12
 
@@ -116,7 +116,7 @@
  * @must_tx:		Must explicitly send dummy TX bytes to do RX only transfer
  * @enhance_timing:	Enable adjusting cfg register to enhance time accuracy
  * @dma_ext:		DMA address extension supported
- * @no_need_unprepare:	Don't unprepare the SPI clk during runtime
+ * @anal_need_unprepare:	Don't unprepare the SPI clk during runtime
  * @ipm_design:		Adjust/extend registers to support IPM design IP features
  */
 struct mtk_spi_compatible {
@@ -124,7 +124,7 @@ struct mtk_spi_compatible {
 	bool must_tx;
 	bool enhance_timing;
 	bool dma_ext;
-	bool no_need_unprepare;
+	bool anal_need_unprepare;
 	bool ipm_design;
 };
 
@@ -213,7 +213,7 @@ static const struct mtk_spi_compatible mt6893_compat = {
 	.must_tx = true,
 	.enhance_timing = true,
 	.dma_ext = true,
-	.no_need_unprepare = true,
+	.anal_need_unprepare = true,
 };
 
 /*
@@ -361,7 +361,7 @@ static int mtk_spi_hw_init(struct spi_controller *host,
 	reg_val = readl(mdata->base + SPI_CMD_REG);
 	if (mdata->dev_comp->ipm_design) {
 		/* SPI transfer without idle time until packet length done */
-		reg_val |= SPI_CMD_IPM_NONIDLE_MODE;
+		reg_val |= SPI_CMD_IPM_ANALNIDLE_MODE;
 		if (spi->mode & SPI_LOOP)
 			reg_val |= SPI_CMD_IPM_SPIM_LOOP;
 		else
@@ -849,7 +849,7 @@ static int mtk_spi_mem_adjust_op_size(struct spi_mem *mem,
 {
 	int opcode_len;
 
-	if (op->data.dir != SPI_MEM_NO_DATA) {
+	if (op->data.dir != SPI_MEM_ANAL_DATA) {
 		opcode_len = 1 + op->addr.nbytes + op->dummy.nbytes;
 		if (opcode_len + op->data.nbytes > MTK_SPI_IPM_PACKET_SIZE) {
 			op->data.nbytes = MTK_SPI_IPM_PACKET_SIZE - opcode_len;
@@ -919,7 +919,7 @@ static int mtk_spi_transfer_wait(struct spi_mem *mem,
 	 */
 	u64 ms = 8000LL;
 
-	if (op->data.dir == SPI_MEM_NO_DATA)
+	if (op->data.dir == SPI_MEM_ANAL_DATA)
 		ms *= 32; /* prevent we may get 0 for short transfers. */
 	else
 		ms *= op->data.nbytes;
@@ -965,11 +965,11 @@ static int mtk_spi_mem_exec_op(struct spi_mem *mem,
 			    SPI_CFG3_IPM_ADDR_BYTELEN_OFFSET;
 
 	/* data byte len */
-	if (op->data.dir == SPI_MEM_NO_DATA) {
-		reg_val |= SPI_CFG3_IPM_NODATA_FLAG;
+	if (op->data.dir == SPI_MEM_ANAL_DATA) {
+		reg_val |= SPI_CFG3_IPM_ANALDATA_FLAG;
 		writel(0, mdata->base + SPI_CFG1_REG);
 	} else {
-		reg_val &= ~SPI_CFG3_IPM_NODATA_FLAG;
+		reg_val &= ~SPI_CFG3_IPM_ANALDATA_FLAG;
 		mdata->xfer_len = op->data.nbytes;
 		mtk_spi_setup_packet(mem->spi->controller);
 	}
@@ -1011,7 +1011,7 @@ static int mtk_spi_mem_exec_op(struct spi_mem *mem,
 	tx_tmp_buf = kzalloc(tx_size, GFP_KERNEL | GFP_DMA);
 	if (!tx_tmp_buf) {
 		mdata->use_spimem = false;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tx_tmp_buf[0] = op->cmd.opcode;
@@ -1037,7 +1037,7 @@ static int mtk_spi_mem_exec_op(struct spi_mem *mem,
 	mdata->tx_dma = dma_map_single(mdata->dev, tx_tmp_buf,
 				       tx_size, DMA_TO_DEVICE);
 	if (dma_mapping_error(mdata->dev, mdata->tx_dma)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_exit;
 	}
 
@@ -1046,7 +1046,7 @@ static int mtk_spi_mem_exec_op(struct spi_mem *mem,
 			rx_tmp_buf = kzalloc(op->data.nbytes,
 					     GFP_KERNEL | GFP_DMA);
 			if (!rx_tmp_buf) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto unmap_tx_dma;
 			}
 		} else {
@@ -1058,7 +1058,7 @@ static int mtk_spi_mem_exec_op(struct spi_mem *mem,
 					       op->data.nbytes,
 					       DMA_FROM_DEVICE);
 		if (dma_mapping_error(mdata->dev, mdata->rx_dma)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto kfree_rx_tmp_buf;
 		}
 	}
@@ -1121,10 +1121,10 @@ static int mtk_spi_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(dev, sizeof(*mdata));
 	if (!host)
-		return dev_err_probe(dev, -ENOMEM, "failed to alloc spi host\n");
+		return dev_err_probe(dev, -EANALMEM, "failed to alloc spi host\n");
 
 	host->auto_runtime_pm = true;
-	host->dev.of_node = dev->of_node;
+	host->dev.of_analde = dev->of_analde;
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
 
 	host->set_cs = mtk_spi_set_cs;
@@ -1154,19 +1154,19 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	}
 
 	if (mdata->dev_comp->need_pad_sel) {
-		mdata->pad_num = of_property_count_u32_elems(dev->of_node,
+		mdata->pad_num = of_property_count_u32_elems(dev->of_analde,
 			"mediatek,pad-select");
 		if (mdata->pad_num < 0)
 			return dev_err_probe(dev, -EINVAL,
-				"No 'mediatek,pad-select' property\n");
+				"Anal 'mediatek,pad-select' property\n");
 
 		mdata->pad_sel = devm_kmalloc_array(dev, mdata->pad_num,
 						    sizeof(u32), GFP_KERNEL);
 		if (!mdata->pad_sel)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < mdata->pad_num; i++) {
-			of_property_read_u32_index(dev->of_node,
+			of_property_read_u32_index(dev->of_analde,
 						   "mediatek,pad-select",
 						   i, &mdata->pad_sel[i]);
 			if (mdata->pad_sel[i] > MT8173_SPI_MAX_PAD_SEL)
@@ -1226,7 +1226,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 
 	mdata->spi_clk_hz = clk_get_rate(mdata->spi_clk);
 
-	if (mdata->dev_comp->no_need_unprepare) {
+	if (mdata->dev_comp->anal_need_unprepare) {
 		clk_disable(mdata->spi_clk);
 		clk_disable(mdata->spi_hclk);
 	} else {
@@ -1237,12 +1237,12 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	if (mdata->dev_comp->need_pad_sel) {
 		if (mdata->pad_num != host->num_chipselect)
 			return dev_err_probe(dev, -EINVAL,
-				"pad_num does not match num_chipselect(%d != %d)\n",
+				"pad_num does analt match num_chipselect(%d != %d)\n",
 				mdata->pad_num, host->num_chipselect);
 
 		if (!host->cs_gpiods && host->num_chipselect > 1)
 			return dev_err_probe(dev, -EINVAL,
-				"cs_gpios not specified and num_chipselect > 1\n");
+				"cs_gpios analt specified and num_chipselect > 1\n");
 	}
 
 	if (mdata->dev_comp->dma_ext)
@@ -1251,11 +1251,11 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		addr_bits = DMA_ADDR_DEF_BITS;
 	ret = dma_set_mask(dev, DMA_BIT_MASK(addr_bits));
 	if (ret)
-		dev_notice(dev, "SPI dma_set_mask(%d) failed, ret:%d\n",
+		dev_analtice(dev, "SPI dma_set_mask(%d) failed, ret:%d\n",
 			   addr_bits, ret);
 
 	ret = devm_request_irq(dev, irq, mtk_spi_interrupt,
-			       IRQF_TRIGGER_NONE, dev_name(dev), host);
+			       IRQF_TRIGGER_ANALNE, dev_name(dev), host);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to register irq\n");
 
@@ -1290,13 +1290,13 @@ static void mtk_spi_remove(struct platform_device *pdev)
 		 */
 		mtk_spi_reset(mdata);
 
-		if (mdata->dev_comp->no_need_unprepare) {
+		if (mdata->dev_comp->anal_need_unprepare) {
 			clk_unprepare(mdata->spi_clk);
 			clk_unprepare(mdata->spi_hclk);
 		}
 	}
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 }
 
@@ -1356,7 +1356,7 @@ static int mtk_spi_runtime_suspend(struct device *dev)
 	struct spi_controller *host = dev_get_drvdata(dev);
 	struct mtk_spi *mdata = spi_controller_get_devdata(host);
 
-	if (mdata->dev_comp->no_need_unprepare) {
+	if (mdata->dev_comp->anal_need_unprepare) {
 		clk_disable(mdata->spi_clk);
 		clk_disable(mdata->spi_hclk);
 	} else {
@@ -1373,7 +1373,7 @@ static int mtk_spi_runtime_resume(struct device *dev)
 	struct mtk_spi *mdata = spi_controller_get_devdata(host);
 	int ret;
 
-	if (mdata->dev_comp->no_need_unprepare) {
+	if (mdata->dev_comp->anal_need_unprepare) {
 		ret = clk_enable(mdata->spi_clk);
 		if (ret < 0) {
 			dev_err(dev, "failed to enable spi_clk (%d)\n", ret);

@@ -35,7 +35,7 @@ static int zpci_nb_devices;
  *
  * The PCI resources for the function are set up and added to its zbus and the
  * function is enabled. The function must be added to a zbus which must have
- * a PCI bus created. If an error occurs the zPCI function is not enabled.
+ * a PCI bus created. If an error occurs the zPCI function is analt enabled.
  *
  * Return: 0 on success, an error code otherwise
  */
@@ -78,7 +78,7 @@ int zpci_bus_scan_device(struct zpci_dev *zdev)
 
 	pdev = pci_scan_single_device(zdev->zbus->bus, zdev->devfn);
 	if (!pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pci_lock_rescan_remove();
 	pci_bus_add_device(pdev);
@@ -94,7 +94,7 @@ int zpci_bus_scan_device(struct zpci_dev *zdev)
  * Sets a zPCI device to a configured but offline state; the zPCI
  * device is still accessible through its hotplug slot and the zPCI
  * API but is removed from the common code PCI bus, making it
- * no longer available to drivers.
+ * anal longer available to drivers.
  */
 void zpci_bus_remove_device(struct zpci_dev *zdev, bool set_error)
 {
@@ -192,7 +192,7 @@ static int zpci_bus_create_pci_bus(struct zpci_bus *zbus, struct zpci_dev *fr, s
 	zbus->max_bus_speed = fr->max_bus_speed;
 
 	/*
-	 * Note that the zbus->resources are taken over and zbus->resources
+	 * Analte that the zbus->resources are taken over and zbus->resources
 	 * is empty after a successful call
 	 */
 	bus = pci_create_root_bus(NULL, ZPCI_BUS_NR, ops, zbus, &zbus->resources);
@@ -279,12 +279,12 @@ void pcibios_bus_add_device(struct pci_dev *pdev)
 	struct zpci_dev *zdev = to_zpci(pdev);
 
 	/*
-	 * With pdev->no_vf_scan the common PCI probing code does not
+	 * With pdev->anal_vf_scan the common PCI probing code does analt
 	 * perform PF/VF linking.
 	 */
 	if (zdev->vfn) {
 		zpci_iov_setup_virtfn(zdev->zbus, pdev, zdev->vfn);
-		pdev->no_command_memory = 1;
+		pdev->anal_command_memory = 1;
 	}
 }
 
@@ -302,7 +302,7 @@ static int zpci_bus_add_device(struct zpci_bus *zbus, struct zpci_dev *zdev)
 	zpci_nb_devices++;
 
 	if (zbus->multifunction && !zdev->rid_available) {
-		WARN_ONCE(1, "rid_available not set for multifunction\n");
+		WARN_ONCE(1, "rid_available analt set for multifunction\n");
 		goto error;
 	}
 	rc = zpci_init_slot(zdev);
@@ -327,19 +327,19 @@ int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)
 	if (zpci_nb_devices == ZPCI_NR_DEVICES) {
 		pr_warn("Adding PCI function %08x failed because the configured limit of %d is reached\n",
 			zdev->fid, ZPCI_NR_DEVICES);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	if (zdev->devfn >= ZPCI_FUNCTIONS_PER_BUS)
 		return -EINVAL;
 
-	if (!s390_pci_no_rid && zdev->rid_available)
+	if (!s390_pci_anal_rid && zdev->rid_available)
 		zbus = zpci_bus_get(zdev->pchid);
 
 	if (!zbus) {
 		zbus = zpci_bus_alloc(zdev->pchid);
 		if (!zbus)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (!zbus->bus) {

@@ -8,12 +8,12 @@
 #define __SDW_IRQ_H
 
 #include <linux/soundwire/sdw.h>
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 
 #if IS_ENABLED(CONFIG_IRQ_DOMAIN)
 
 int sdw_irq_create(struct sdw_bus *bus,
-		   struct fwnode_handle *fwnode);
+		   struct fwanalde_handle *fwanalde);
 void sdw_irq_delete(struct sdw_bus *bus);
 void sdw_irq_create_mapping(struct sdw_slave *slave);
 void sdw_irq_dispose_mapping(struct sdw_slave *slave);
@@ -21,7 +21,7 @@ void sdw_irq_dispose_mapping(struct sdw_slave *slave);
 #else /* CONFIG_IRQ_DOMAIN */
 
 static inline int sdw_irq_create(struct sdw_bus *bus,
-				 struct fwnode_handle *fwnode)
+				 struct fwanalde_handle *fwanalde)
 {
 	return 0;
 }

@@ -5,7 +5,7 @@
  * Copyright (c) 2015-2020 Texas Instruments Inc.
  *
  * Authors:
- *	Benoit Parrot <bparrot@ti.com>
+ *	Beanalit Parrot <bparrot@ti.com>
  *	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  */
 
@@ -64,7 +64,7 @@ static int cal_g_fmt_vid_cap(struct file *file, void *priv,
 }
 
 /* ------------------------------------------------------------------
- *	V4L2 Video Node Centric IOCTLs
+ *	V4L2 Video Analde Centric IOCTLs
  * ------------------------------------------------------------------
  */
 
@@ -198,7 +198,7 @@ static int cal_legacy_try_fmt_vid_cap(struct file *file, void *priv,
 
 	fmtinfo = find_format_by_pix(ctx, f->fmt.pix.pixelformat);
 	if (!fmtinfo) {
-		ctx_dbg(3, ctx, "Fourcc format (0x%08x) not found.\n",
+		ctx_dbg(3, ctx, "Fourcc format (0x%08x) analt found.\n",
 			f->fmt.pix.pixelformat);
 
 		/* Just get the first one enumerated */
@@ -240,7 +240,7 @@ static int cal_legacy_try_fmt_vid_cap(struct file *file, void *priv,
 	}
 
 	/*
-	 * Use current colorspace for now, it will get
+	 * Use current colorspace for analw, it will get
 	 * updated properly during s_fmt
 	 */
 	f->fmt.pix.colorspace = ctx->v_fmt.fmt.pix.colorspace;
@@ -277,10 +277,10 @@ static int cal_legacy_s_fmt_vid_cap(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	/* Just double check nothing has gone wrong */
+	/* Just double check analthing has gone wrong */
 	if (sd_fmt.format.code != fmtinfo->code) {
 		ctx_dbg(3, ctx,
-			"%s subdev changed format on us, this should not happen\n",
+			"%s subdev changed format on us, this should analt happen\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -479,7 +479,7 @@ static void cal_mc_try_fmt(struct cal_ctx *ctx, struct v4l2_format *f,
 	/*
 	 * Clamp the size, update the pixel format. The field and colorspace are
 	 * accepted as-is, except for V4L2_FIELD_ANY that is turned into
-	 * V4L2_FIELD_NONE.
+	 * V4L2_FIELD_ANALNE.
 	 */
 	bpp = ALIGN(fmtinfo->bpp, 8);
 
@@ -491,7 +491,7 @@ static void cal_mc_try_fmt(struct cal_ctx *ctx, struct v4l2_format *f,
 	format->pixelformat = fmtinfo->fourcc;
 
 	if (format->field == V4L2_FIELD_ANY)
-		format->field = V4L2_FIELD_NONE;
+		format->field = V4L2_FIELD_ANALNE;
 
 	/*
 	 * Calculate the number of bytes per line and the image size. The
@@ -632,7 +632,7 @@ static int cal_buffer_prepare(struct vb2_buffer *vb)
 	size = ctx->v_fmt.fmt.pix.sizeimage;
 	if (vb2_plane_size(vb, 0) < size) {
 		ctx_err(ctx,
-			"data will not fit into plane (%lu < %lu)\n",
+			"data will analt fit into plane (%lu < %lu)\n",
 			vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -694,7 +694,7 @@ static int cal_video_check_format(struct cal_ctx *ctx)
 
 	remote_pad = media_pad_remote_pad_first(&ctx->pad);
 	if (!remote_pad)
-		return -ENODEV;
+		return -EANALDEV;
 
 	state = v4l2_subdev_lock_and_get_active_state(&ctx->phy->subdev);
 
@@ -738,7 +738,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	ret = cal_video_check_format(ctx);
 	if (ret < 0) {
 		ctx_dbg(3, ctx,
-			"Format mismatch between CAMERARX and video node\n");
+			"Format mismatch between CAMERARX and video analde\n");
 		goto error_pipeline;
 	}
 
@@ -837,7 +837,7 @@ static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
 	ctx->active_fmt = devm_kcalloc(ctx->cal->dev, cal_num_formats,
 				       sizeof(*ctx->active_fmt), GFP_KERNEL);
 	if (!ctx->active_fmt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->num_active_fmt = 0;
 
@@ -877,7 +877,7 @@ static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
 	}
 
 	if (i == 0) {
-		ctx_err(ctx, "No suitable format reported by subdev %s\n",
+		ctx_err(ctx, "Anal suitable format reported by subdev %s\n",
 			ctx->phy->source->name);
 		return -EINVAL;
 	}
@@ -888,7 +888,7 @@ static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
 
 	fmtinfo = find_format_by_code(ctx, mbus_fmt.code);
 	if (!fmtinfo) {
-		ctx_dbg(3, ctx, "mbus code format (0x%08x) not found.\n",
+		ctx_dbg(3, ctx, "mbus code format (0x%08x) analt found.\n",
 			mbus_fmt.code);
 		return -EINVAL;
 	}
@@ -914,7 +914,7 @@ static int cal_ctx_v4l2_init_mc_format(struct cal_ctx *ctx)
 
 	pix_fmt->width = 640;
 	pix_fmt->height = 480;
-	pix_fmt->field = V4L2_FIELD_NONE;
+	pix_fmt->field = V4L2_FIELD_ANALNE;
 	pix_fmt->colorspace = V4L2_COLORSPACE_SRGB;
 	pix_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
 	pix_fmt->quantization = V4L2_QUANTIZATION_LIM_RANGE;
@@ -977,7 +977,7 @@ int cal_ctx_v4l2_register(struct cal_ctx *ctx)
 	}
 
 	ctx_info(ctx, "V4L2 device registered as %s\n",
-		 video_device_node_name(vfd));
+		 video_device_analde_name(vfd));
 
 	return 0;
 }
@@ -985,7 +985,7 @@ int cal_ctx_v4l2_register(struct cal_ctx *ctx)
 void cal_ctx_v4l2_unregister(struct cal_ctx *ctx)
 {
 	ctx_dbg(1, ctx, "unregistering %s\n",
-		video_device_node_name(&ctx->vdev));
+		video_device_analde_name(&ctx->vdev));
 
 	video_unregister_device(&ctx->vdev);
 }
@@ -1008,7 +1008,7 @@ int cal_ctx_v4l2_init(struct cal_ctx *ctx)
 	q->buf_struct_size = sizeof(struct cal_buffer);
 	q->ops = &cal_video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->lock = &ctx->mutex;
 	q->min_queued_buffers = 3;
 	q->dev = ctx->cal->dev;

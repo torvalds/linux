@@ -2,7 +2,7 @@
 /*
  * Detection routine for the NCR53c710 based Amiga SCSI Controllers for Linux.
  *		Amiga MacroSystemUS WarpEngine SCSI controller.
- *		Amiga Technologies/DKB A4091 SCSI controller.
+ *		Amiga Techanallogies/DKB A4091 SCSI controller.
  *
  * Written 1997 by Alan Hourihane <alanh@fairlite.demon.co.uk>
  * plus modifications of the 53c7xx.c driver to support the Amiga.
@@ -90,7 +90,7 @@ static int zorro7xx_init_one(struct zorro_dev *z,
 	}
 
 	if (!zorro_request_device(z, zdd->name)) {
-		printk(KERN_ERR "zorro7xx: cannot reserve region 0x%lx, abort\n",
+		printk(KERN_ERR "zorro7xx: cananalt reserve region 0x%lx, abort\n",
 		       board);
 		return -EBUSY;
 	}
@@ -119,7 +119,7 @@ static int zorro7xx_init_one(struct zorro_dev *z,
 	host = NCR_700_detect(&zorro7xx_scsi_driver_template, hostdata,
 			      &z->dev);
 	if (!host) {
-		printk(KERN_ERR "zorro7xx: No host detected; "
+		printk(KERN_ERR "zorro7xx: Anal host detected; "
 				"board configuration problem?\n");
 		goto out_free;
 	}
@@ -148,7 +148,7 @@ static int zorro7xx_init_one(struct zorro_dev *z,
  out_release:
 	zorro_release_device(z);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void zorro7xx_remove_one(struct zorro_dev *z)

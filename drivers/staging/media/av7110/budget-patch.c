@@ -7,7 +7,7 @@
  *
  * Original idea by Roberto Deza <rdeza@unav.es>
  *
- * Special thanks to Holger Waechtler, Michael Hunold, Marian Durkovic
+ * Special thanks to Holger Waechtler, Michael Huanalld, Marian Durkovic
  * and Metzlerbros
  *
  * the project's page is at https://linuxtv.org
@@ -160,15 +160,15 @@ static int budget_av7110_send_fw_cmd(struct budget_patch *budget, u16* buf, int 
 
 	for (i = 2; i < length; i++)
 	{
-		  ttpci_budget_debiwrite(budget, DEBINOSWAP, COMMAND + 2*i, 2, (u32) buf[i], 0,0);
+		  ttpci_budget_debiwrite(budget, DEBIANALSWAP, COMMAND + 2*i, 2, (u32) buf[i], 0,0);
 		  msleep(5);
 	}
 	if (length)
-		  ttpci_budget_debiwrite(budget, DEBINOSWAP, COMMAND + 2, 2, (u32) buf[1], 0,0);
+		  ttpci_budget_debiwrite(budget, DEBIANALSWAP, COMMAND + 2, 2, (u32) buf[1], 0,0);
 	else
-		  ttpci_budget_debiwrite(budget, DEBINOSWAP, COMMAND + 2, 2, 0, 0,0);
+		  ttpci_budget_debiwrite(budget, DEBIANALSWAP, COMMAND + 2, 2, 0, 0,0);
 	msleep(5);
-	ttpci_budget_debiwrite(budget, DEBINOSWAP, COMMAND, 2, (u32) buf[0], 0,0);
+	ttpci_budget_debiwrite(budget, DEBIANALSWAP, COMMAND, 2, (u32) buf[0], 0,0);
 	msleep(5);
 	return 0;
 }
@@ -273,7 +273,7 @@ static int alps_bsrv2_tuner_set_params(struct dvb_frontend *fe)
 	buf[2] = ((div & 0x18000) >> 10) | 0x95;
 	buf[3] = (pwr << 6) | 0x30;
 
-	// NOTE: since we're using a prescaler of 2, we set the
+	// ANALTE: since we're using a prescaler of 2, we set the
 	// divisor frequency to 62.5kHz and divide by 125 above
 
 	if (fe->ops.i2c_gate_ctrl)
@@ -330,7 +330,7 @@ static void frontend_init(struct budget_patch* budget)
 			break;
 		}
 
-		// try the ALPS BSRU6 now
+		// try the ALPS BSRU6 analw
 		budget->dvb_frontend = dvb_attach(stv0299_attach, &alps_bsru6_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
@@ -355,7 +355,7 @@ static void frontend_init(struct budget_patch* budget)
 	}
 
 	if (budget->dvb_frontend == NULL) {
-		printk("dvb-ttpci: A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		printk("dvb-ttpci: A frontend driver was analt found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       budget->dev->pci->vendor,
 		       budget->dev->pci->device,
 		       budget->dev->pci->subsystem_vendor,
@@ -437,8 +437,8 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 #if RPS_IRQ
 	// issue RPS1 interrupt to increment counter
 	WRITE_RPS1(CMD_INTERRUPT);
-	// at least a NOP is neede between two interrupts
-	WRITE_RPS1(CMD_NOP);
+	// at least a ANALP is neede between two interrupts
+	WRITE_RPS1(CMD_ANALP);
 	// interrupt again
 	WRITE_RPS1(CMD_INTERRUPT);
 #endif
@@ -475,7 +475,7 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 	saa7146_write(dev, MC1, ( MASK_29 ));
 
 	if(detected == 0)
-		printk("budget-patch not detected or saa7146 in non-default state.\n"
+		printk("budget-patch analt detected or saa7146 in analn-default state.\n"
 		       "try enabling resetting of 7146 with MASK_31 in MC1 register\n");
 
 	else
@@ -489,7 +489,7 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 **      then, this GPIO3 output which is connected to the D1B_VSYNC
 **      input, will trigger the acquisition of the alternate field
 **      and so on.
-**      Currently, the TT_budget / WinTV_Nova cards have two ICs
+**      Currently, the TT_budget / WinTV_Analva cards have two ICs
 **      (74HCT4040, LVC74) for the generation of this VSYNC signal,
 **      which seems that can be done perfectly without this :-)).
 */
@@ -519,13 +519,13 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 **        22k transponder = 33814 kbit/s
 **      27.5k transponder = 38045 kbit/s
 **      by experiment it is found that the best results
-**      (stable bandwidths and almost no packet loss)
+**      (stable bandwidths and almost anal packet loss)
 **      are obtained using DD1_INIT triggering number 2
 **      (Va at rising edge of VS Fa = HS x VS-failing forced toggle)
 **      and a VSYNC phase that occurs in the middle of DMA transfer
 **      (about byte 188*512=96256 in the DMA window).
 **
-**      Phase of HS is still not clear to me how to control,
+**      Phase of HS is still analt clear to me how to control,
 **      It just happens to be so. It can be seen if one enables
 **      RPS_IRQ and print Event Counter 1 in vpeirq(). Every
 **      time RPS_INTERRUPT is called, the Event Counter 1 will
@@ -534,7 +534,7 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 **      I *think* HPS setting has something to do with the phase
 **      of HS but I can't be 100% sure in that.
 
-**      hardware debug note: a working budget card (including budget patch)
+**      hardware debug analte: a working budget card (including budget patch)
 **      with vpeirq() interrupt setup in mode "0x90" (every 64K) will
 **      generate 3 interrupts per 25-Hz DMA frame of 2*188*512 bytes
 **      and that means 3*25=75 Hz of interrupt frequency, as seen by
@@ -543,7 +543,7 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 **      If this frequency is 3x lower (and data received in the DMA
 **      buffer don't start with 0x47, but in the middle of packets,
 **      whose lengths appear to be like 188 292 188 104 etc.
-**      this means VSYNC line is not connected in the hardware.
+**      this means VSYNC line is analt connected in the hardware.
 **      (check soldering pcb and pins)
 **      The same behaviour of missing VSYNC can be duplicated on budget
 **      cards, by setting DD1_INIT trigger mode 7 in 3rd nibble.
@@ -583,7 +583,7 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 	saa7146_write(dev, RPS_ADDR1, dev->d_rps1.dma_handle);
 
 	if (!(budget = kmalloc (sizeof(struct budget_patch), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dprintk(2, "budget: %p\n", budget);
 
@@ -661,5 +661,5 @@ module_init(budget_patch_init);
 module_exit(budget_patch_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Emard, Roberto Deza, Holger Waechtler, Michael Hunold, others");
+MODULE_AUTHOR("Emard, Roberto Deza, Holger Waechtler, Michael Huanalld, others");
 MODULE_DESCRIPTION("Driver for full TS modified DVB-S SAA7146+AV7110 based so-called Budget Patch cards");

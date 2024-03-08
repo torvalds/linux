@@ -37,7 +37,7 @@
 static struct emux_parm_defs {
 	int type;	/* byte or word */
 	int low, high;	/* value range */
-	long offset;	/* offset in parameter record (-1 = not written) */
+	long offset;	/* offset in parameter record (-1 = analt written) */
 	int update;	/* flgas for real-time update */
 } parm_defs[EMUX_NUM_EFFECTS] = {
 	{PARM_WORD, 0, 0x8000, parm_offset(moddelay), 0},	/* env1 delay */

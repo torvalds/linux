@@ -131,12 +131,12 @@ int apei_exec_write_register_value(struct apei_exec_context *ctx,
 }
 EXPORT_SYMBOL_GPL(apei_exec_write_register_value);
 
-int apei_exec_noop(struct apei_exec_context *ctx,
+int apei_exec_analop(struct apei_exec_context *ctx,
 		   struct acpi_whea_header *entry)
 {
 	return 0;
 }
-EXPORT_SYMBOL_GPL(apei_exec_noop);
+EXPORT_SYMBOL_GPL(apei_exec_analop);
 
 /*
  * Interpret the specified action. Go through whole action table,
@@ -145,7 +145,7 @@ EXPORT_SYMBOL_GPL(apei_exec_noop);
 int __apei_exec_run(struct apei_exec_context *ctx, u8 action,
 		    bool optional)
 {
-	int rc = -ENOENT;
+	int rc = -EANALENT;
 	u32 i, ip;
 	struct acpi_whea_header *entry;
 	apei_exec_ins_func_t run;
@@ -168,7 +168,7 @@ rewind:
 			if (entry->instruction >= ctx->instructions ||
 			    !ctx->ins_table[entry->instruction].run) {
 				pr_warn(FW_WARN APEI_PFX
-					"Invalid action table, unknown instruction type: %d\n",
+					"Invalid action table, unkanalwn instruction type: %d\n",
 					entry->instruction);
 				return -EINVAL;
 			}
@@ -209,7 +209,7 @@ static int apei_exec_for_each_entry(struct apei_exec_context *ctx,
 			*end = i;
 		if (ins >= ctx->instructions || !ins_table[ins].run) {
 			pr_warn(FW_WARN APEI_PFX
-				"Invalid action table, unknown instruction type: %d\n",
+				"Invalid action table, unkanalwn instruction type: %d\n",
 				ins);
 			return -EINVAL;
 		}
@@ -318,7 +318,7 @@ repeat:
 	else {
 		res_ins = kmalloc(sizeof(*res_ins), GFP_KERNEL);
 		if (!res_ins)
-			return -ENOMEM;
+			return -EANALMEM;
 		res_ins->start = start;
 		res_ins->end = end;
 		list_add(&res_ins->list, res_list);
@@ -347,7 +347,7 @@ static int apei_res_sub(struct list_head *res_list1,
 				   res1->start < res2->start) {
 				res = kmalloc(sizeof(*res), GFP_KERNEL);
 				if (!res)
-					return -ENOMEM;
+					return -EANALMEM;
 				res->start = res2->end;
 				res->end = res1->end;
 				res1->end = res2->start;
@@ -455,7 +455,7 @@ static int apei_get_arch_resources(struct apei_resources *resources)
 
 /*
  * IO memory/port resource management mechanism is used to check
- * whether memory/port area used by GARs conflicts with normal memory
+ * whether memory/port area used by GARs conflicts with analrmal memory
  * or IO memory/port of devices.
  */
 int apei_resources_request(struct apei_resources *resources,
@@ -499,7 +499,7 @@ int apei_resources_request(struct apei_resources *resources,
 				       desc);
 		if (!r) {
 			pr_err(APEI_PFX
-		"Can not request [mem %#010llx-%#010llx] for %s registers\n",
+		"Can analt request [mem %#010llx-%#010llx] for %s registers\n",
 			       (unsigned long long)res->start,
 			       (unsigned long long)res->end - 1, desc);
 			res_bak = res;
@@ -511,7 +511,7 @@ int apei_resources_request(struct apei_resources *resources,
 		r = request_region(res->start, res->end - res->start, desc);
 		if (!r) {
 			pr_err(APEI_PFX
-		"Can not request [io  %#06llx-%#06llx] for %s registers\n",
+		"Can analt request [io  %#06llx-%#06llx] for %s registers\n",
 			       (unsigned long long)res->start,
 			       (unsigned long long)res->end - 1, desc);
 			res_bak = res;

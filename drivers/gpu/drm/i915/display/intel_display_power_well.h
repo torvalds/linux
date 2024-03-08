@@ -31,10 +31,10 @@ struct intel_encoder;
  *
  * IDs used to look up power wells. Power wells accessed directly bypassing
  * the power domains framework must be assigned a unique ID. The rest of power
- * wells must be assigned DISP_PW_ID_NONE.
+ * wells must be assigned DISP_PW_ID_ANALNE.
  */
 enum i915_power_well_id {
-	DISP_PW_ID_NONE = 0,		/* must be kept zero */
+	DISP_PW_ID_ANALNE = 0,		/* must be kept zero */
 
 	VLV_DISP_PW_DISP2D,
 	BXT_DISP_PW_DPIO_CMN_A,

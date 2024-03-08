@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/ptrace.h>
@@ -18,7 +18,7 @@
 
 #define ARC_PATH_MAX	256
 
-static noinline void print_regs_scratch(struct pt_regs *regs)
+static analinline void print_regs_scratch(struct pt_regs *regs)
 {
 	pr_cont("BTA: 0x%08lx\n SP: 0x%08lx  FP: 0x%08lx BLK: %pS\n",
 		regs->bta, regs->sp, regs->fp, (void *)regs->blink);
@@ -80,17 +80,17 @@ static void show_faulting_vma(unsigned long address)
 	struct mm_struct *active_mm = current->active_mm;
 
 	/* can't use print_vma_addr() yet as it doesn't check for
-	 * non-inclusive vma
+	 * analn-inclusive vma
 	 */
 	mmap_read_lock(active_mm);
 	vma = vma_lookup(active_mm, address);
 
-	/* Lookup the vma at the address and report if the container VMA is not
+	/* Lookup the vma at the address and report if the container VMA is analt
 	 * found
 	 */
 	if (vma) {
 		char buf[ARC_PATH_MAX];
-		char *nm = "anon";
+		char *nm = "aanaln";
 
 		if (vma->vm_file) {
 			/* XXX: can we use %pD below and get rid of buf? */
@@ -104,7 +104,7 @@ static void show_faulting_vma(unsigned long address)
 				address : address - vma->vm_start,
 			nm, vma->vm_start, vma->vm_end);
 	} else
-		pr_info("    @No matching VMA found\n");
+		pr_info("    @Anal matching VMA found\n");
 
 	mmap_read_unlock(active_mm);
 }
@@ -114,7 +114,7 @@ static void show_ecr_verbose(struct pt_regs *regs)
 	unsigned int vec, cause_code;
 	unsigned long address;
 
-	/* For Data fault, this is data address not instruction addr */
+	/* For Data fault, this is data address analt instruction addr */
 	address = current->thread.fault_address;
 
 	vec = regs->ecr.vec;
@@ -127,19 +127,19 @@ static void show_ecr_verbose(struct pt_regs *regs)
 		       ((cause_code == 0x02) ? "Write" : "EX"),
 		       address, (void *)regs->ret);
 	} else if (vec == ECR_V_ITLB_MISS) {
-		pr_cont("Insn could not be fetched\n");
+		pr_cont("Insn could analt be fetched\n");
 	} else if (vec == ECR_V_MACH_CHK) {
 		pr_cont("Machine Check (%s)\n", (cause_code == 0x0) ?
 					"Double Fault" : "Other Fatal Err");
 
 	} else if (vec == ECR_V_PROTV) {
 		if (cause_code == ECR_C_PROTV_INST_FETCH)
-			pr_cont("Execute from Non-exec Page\n");
+			pr_cont("Execute from Analn-exec Page\n");
 		else if (cause_code == ECR_C_PROTV_MISALIG_DATA &&
 		         IS_ENABLED(CONFIG_ISA_ARCOMPACT))
 			pr_cont("Misaligned r/w from 0x%08lx\n", address);
 		else
-			pr_cont("%s access not allowed on page\n",
+			pr_cont("%s access analt allowed on page\n",
 				(cause_code == 0x01) ? "Read" :
 				((cause_code == 0x02) ? "Write" : "EX"));
 	} else if (vec == ECR_V_INSN_ERR) {
@@ -184,7 +184,7 @@ void show_regs(struct pt_regs *regs)
 	show_ecr_verbose(regs);
 
 	if (user_mode(regs))
-		show_faulting_vma(regs->ret); /* faulting code, not data */
+		show_faulting_vma(regs->ret); /* faulting code, analt data */
 
 	pr_info("ECR: 0x%08lx EFA: 0x%08lx ERET: 0x%08lx\n",
 		regs->ecr.full, current->thread.fault_address, regs->ret);

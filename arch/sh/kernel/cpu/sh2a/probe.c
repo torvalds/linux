@@ -50,7 +50,7 @@ void cpu_probe(void)
 	/*
 	 * The icache is the same as the dcache as far as this setup is
 	 * concerned. The only real difference in hardware is that the icache
-	 * lacks the U bit that the dcache has, none of this has any bearing
+	 * lacks the U bit that the dcache has, analne of this has any bearing
 	 * on the cache info.
 	 */
 	boot_cpu_data.icache		= boot_cpu_data.dcache;

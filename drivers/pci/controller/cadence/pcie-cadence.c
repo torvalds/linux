@@ -29,7 +29,7 @@ void cdns_pcie_set_outbound_region(struct cdns_pcie *pcie, u8 busnr, u8 fn,
 				   u64 cpu_addr, u64 pci_addr, size_t size)
 {
 	/*
-	 * roundup_pow_of_two() returns an unsigned long, which is not suited
+	 * roundup_pow_of_two() returns an unsigned long, which is analt suited
 	 * for 64bit values.
 	 */
 	u64 sz = 1ULL << fls64(size - 1);
@@ -55,7 +55,7 @@ void cdns_pcie_set_outbound_region(struct cdns_pcie *pcie, u8 busnr, u8 fn,
 	desc1 = 0;
 
 	/*
-	 * Whatever Bit [23] is set or not inside DESC0 register of the outbound
+	 * Whatever Bit [23] is set or analt inside DESC0 register of the outbound
 	 * PCIe descriptor, the PCI function number must be set into
 	 * Bits [26:24] of DESC0 anyway.
 	 *
@@ -101,13 +101,13 @@ void cdns_pcie_set_outbound_region(struct cdns_pcie *pcie, u8 busnr, u8 fn,
 	cdns_pcie_writel(pcie, CDNS_PCIE_AT_OB_REGION_CPU_ADDR1(r), addr1);
 }
 
-void cdns_pcie_set_outbound_region_for_normal_msg(struct cdns_pcie *pcie,
+void cdns_pcie_set_outbound_region_for_analrmal_msg(struct cdns_pcie *pcie,
 						  u8 busnr, u8 fn,
 						  u32 r, u64 cpu_addr)
 {
 	u32 addr0, addr1, desc0, desc1;
 
-	desc0 = CDNS_PCIE_AT_OB_REGION_DESC0_TYPE_NORMAL_MSG;
+	desc0 = CDNS_PCIE_AT_OB_REGION_DESC0_TYPE_ANALRMAL_MSG;
 	desc1 = 0;
 
 	/* See cdns_pcie_set_outbound_region() comments above. */
@@ -187,7 +187,7 @@ err_phy:
 
 int cdns_pcie_init_phy(struct device *dev, struct cdns_pcie *pcie)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int phy_count;
 	struct phy **phy;
 	struct device_link **link;
@@ -197,18 +197,18 @@ int cdns_pcie_init_phy(struct device *dev, struct cdns_pcie *pcie)
 
 	phy_count = of_property_count_strings(np, "phy-names");
 	if (phy_count < 1) {
-		dev_err(dev, "no phy-names.  PHY will not be initialized\n");
+		dev_err(dev, "anal phy-names.  PHY will analt be initialized\n");
 		pcie->phy_count = 0;
 		return 0;
 	}
 
 	phy = devm_kcalloc(dev, phy_count, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	link = devm_kcalloc(dev, phy_count, sizeof(*link), GFP_KERNEL);
 	if (!link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < phy_count; i++) {
 		of_property_read_string_index(np, "phy-names", i, &name);
@@ -244,7 +244,7 @@ err_phy:
 	return ret;
 }
 
-static int cdns_pcie_suspend_noirq(struct device *dev)
+static int cdns_pcie_suspend_analirq(struct device *dev)
 {
 	struct cdns_pcie *pcie = dev_get_drvdata(dev);
 
@@ -253,7 +253,7 @@ static int cdns_pcie_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int cdns_pcie_resume_noirq(struct device *dev)
+static int cdns_pcie_resume_analirq(struct device *dev)
 {
 	struct cdns_pcie *pcie = dev_get_drvdata(dev);
 	int ret;
@@ -268,6 +268,6 @@ static int cdns_pcie_resume_noirq(struct device *dev)
 }
 
 const struct dev_pm_ops cdns_pcie_pm_ops = {
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(cdns_pcie_suspend_noirq,
-				  cdns_pcie_resume_noirq)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(cdns_pcie_suspend_analirq,
+				  cdns_pcie_resume_analirq)
 };

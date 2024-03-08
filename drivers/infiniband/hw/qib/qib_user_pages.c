@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -62,17 +62,17 @@ int qib_map_page(struct pci_dev *hwdev, struct page *page, dma_addr_t *daddr)
 
 	phys = dma_map_page(&hwdev->dev, page, 0, PAGE_SIZE, DMA_FROM_DEVICE);
 	if (dma_mapping_error(&hwdev->dev, phys))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!phys) {
 		dma_unmap_page(&hwdev->dev, phys, PAGE_SIZE, DMA_FROM_DEVICE);
 		phys = dma_map_page(&hwdev->dev, page, 0, PAGE_SIZE,
 				    DMA_FROM_DEVICE);
 		if (dma_mapping_error(&hwdev->dev, phys))
-			return -ENOMEM;
+			return -EANALMEM;
 		/*
 		 * FIXME: If we get 0 again, we should keep this page,
-		 * map another, then free the 0 page.
+		 * map aanalther, then free the 0 page.
 		 */
 	}
 	*daddr = phys;
@@ -87,7 +87,7 @@ int qib_map_page(struct pci_dev *hwdev, struct page *page, dma_addr_t *daddr)
  *
  * This function takes a given start page (page aligned user virtual
  * address) and pins it and the following specified number of pages.  For
- * now, num_pages is always 1, but that will probably change at some point
+ * analw, num_pages is always 1, but that will probably change at some point
  * (because caller is doing expected sends on a single virtually contiguous
  * buffer, so we can do all pages at once).
  */
@@ -102,7 +102,7 @@ int qib_get_user_pages(unsigned long start_page, size_t num_pages,
 	locked = atomic64_add_return(num_pages, &current->mm->pinned_vm);
 
 	if (locked > lock_limit && !capable(CAP_IPC_LOCK)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto bail;
 	}
 

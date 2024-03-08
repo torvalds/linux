@@ -132,7 +132,7 @@ static int pm8xxx_irq_block_handler(struct pm_irq_chip *chip, int block)
 		return ret;
 	}
 	if (!bits) {
-		pr_err("block bit set in master but no irqs: %d", block);
+		pr_err("block bit set in master but anal irqs: %d", block);
 		return 0;
 	}
 
@@ -158,7 +158,7 @@ static int pm8xxx_irq_master_handler(struct pm_irq_chip *chip, int master)
 		return ret;
 	}
 	if (!blockbits) {
-		pr_err("master bit set in root but no blocks: %d", master);
+		pr_err("master bit set in root but anal blocks: %d", master);
 		return 0;
 	}
 
@@ -179,7 +179,7 @@ static irqreturn_t pm8xxx_irq_handler(int irq, void *data)
 	ret = regmap_read(chip->regmap, SSBI_REG_ADDR_IRQ_ROOT, &root);
 	if (ret) {
 		pr_err("Can't read root status ret=%d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* on pm8xxx series masters start from bit 1 of the root */
@@ -238,7 +238,7 @@ static irqreturn_t pm8821_irq_handler(int irq, void *data)
 			  PM8821_SSBI_REG_ADDR_IRQ_MASTER0, &master);
 	if (ret) {
 		pr_err("Failed to read master 0 ret=%d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* bits 1 through 7 marks the first 7 blocks in master 0 */
@@ -247,13 +247,13 @@ static irqreturn_t pm8821_irq_handler(int irq, void *data)
 
 	/* bit 0 marks if master 1 contains any bits */
 	if (!(master & BIT(0)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	ret = regmap_read(chip->regmap,
 			  PM8821_SSBI_REG_ADDR_IRQ_MASTER1, &master);
 	if (ret) {
 		pr_err("Failed to read master 1 ret=%d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	pm8821_irq_master_handler(chip, 1, master);
@@ -368,7 +368,7 @@ static void pm8xxx_irq_domain_map(struct pm_irq_chip *chip,
 {
 	irq_domain_set_info(domain, irq, hwirq, chip->pm_irq_data->irq_chip,
 			    chip, handle_level_irq, NULL, NULL);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 }
 
 static int pm8xxx_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
@@ -516,7 +516,7 @@ static int pm8xxx_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data) {
-		dev_err(&pdev->dev, "No matching driver data found\n");
+		dev_err(&pdev->dev, "Anal matching driver data found\n");
 		return -EINVAL;
 	}
 
@@ -550,7 +550,7 @@ static int pm8xxx_probe(struct platform_device *pdev)
 			    struct_size(chip, config, data->num_irqs),
 			    GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, chip);
 	chip->regmap = regmap;
@@ -559,12 +559,12 @@ static int pm8xxx_probe(struct platform_device *pdev)
 	chip->pm_irq_data = data;
 	spin_lock_init(&chip->pm_irq_lock);
 
-	chip->irqdomain = irq_domain_add_linear(pdev->dev.of_node,
+	chip->irqdomain = irq_domain_add_linear(pdev->dev.of_analde,
 						data->num_irqs,
 						&pm8xxx_irq_domain_ops,
 						chip);
 	if (!chip->irqdomain)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = devm_request_irq(&pdev->dev, irq, data->irq_handler, 0, dev_name(&pdev->dev), chip);
 	if (rc)
@@ -572,7 +572,7 @@ static int pm8xxx_probe(struct platform_device *pdev)
 
 	irq_set_irq_wake(irq, 1);
 
-	rc = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	rc = of_platform_populate(pdev->dev.of_analde, NULL, NULL, &pdev->dev);
 	if (rc)
 		irq_domain_remove(chip->irqdomain);
 

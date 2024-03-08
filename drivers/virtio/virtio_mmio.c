@@ -28,7 +28,7 @@
  *		}
  *	};
  *
- * 2. Device Tree node, eg.:
+ * 2. Device Tree analde, eg.:
  *
  *		virtio_block@1e000 {
  *			compatible = "virtio,mmio";
@@ -98,8 +98,8 @@ struct virtio_mmio_vq_info {
 	/* the actual virtqueue */
 	struct virtqueue *vq;
 
-	/* the list node for the virtqueues list */
-	struct list_head node;
+	/* the list analde for the virtqueues list */
+	struct list_head analde;
 };
 
 
@@ -128,7 +128,7 @@ static int vm_finalize_features(struct virtio_device *vdev)
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
 
-	/* Make sure there are no mixed devices */
+	/* Make sure there are anal mixed devices */
 	if (vm_dev->version == 2 &&
 			!__virtio_test_bit(vdev, VIRTIO_F_VERSION_1)) {
 		dev_err(&vdev->dev, "New virtio-mmio devices (version 2) must provide VIRTIO_F_VERSION_1 feature!\n");
@@ -256,7 +256,7 @@ static void vm_set_status(struct virtio_device *vdev, u8 status)
 	BUG_ON(status == 0);
 
 	/*
-	 * Per memory-barriers.txt, wmb() is not needed to guarantee
+	 * Per memory-barriers.txt, wmb() is analt needed to guarantee
 	 * that the cache coherent memory writes have completed
 	 * before writing to the MMIO region.
 	 */
@@ -275,37 +275,37 @@ static void vm_reset(struct virtio_device *vdev)
 
 /* Transport interface */
 
-/* the notify function used when creating a virt queue */
-static bool vm_notify(struct virtqueue *vq)
+/* the analtify function used when creating a virt queue */
+static bool vm_analtify(struct virtqueue *vq)
 {
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vq->vdev);
 
-	/* We write the queue's selector into the notification register to
+	/* We write the queue's selector into the analtification register to
 	 * signal the other end */
-	writel(vq->index, vm_dev->base + VIRTIO_MMIO_QUEUE_NOTIFY);
+	writel(vq->index, vm_dev->base + VIRTIO_MMIO_QUEUE_ANALTIFY);
 	return true;
 }
 
-static bool vm_notify_with_data(struct virtqueue *vq)
+static bool vm_analtify_with_data(struct virtqueue *vq)
 {
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vq->vdev);
-	u32 data = vring_notification_data(vq);
+	u32 data = vring_analtification_data(vq);
 
-	writel(data, vm_dev->base + VIRTIO_MMIO_QUEUE_NOTIFY);
+	writel(data, vm_dev->base + VIRTIO_MMIO_QUEUE_ANALTIFY);
 
 	return true;
 }
 
-/* Notify all virtqueues on an interrupt. */
+/* Analtify all virtqueues on an interrupt. */
 static irqreturn_t vm_interrupt(int irq, void *opaque)
 {
 	struct virtio_mmio_device *vm_dev = opaque;
 	struct virtio_mmio_vq_info *info;
 	unsigned long status;
 	unsigned long flags;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
-	/* Read and acknowledge interrupts */
+	/* Read and ackanalwledge interrupts */
 	status = readl(vm_dev->base + VIRTIO_MMIO_INTERRUPT_STATUS);
 	writel(status, vm_dev->base + VIRTIO_MMIO_INTERRUPT_ACK);
 
@@ -316,7 +316,7 @@ static irqreturn_t vm_interrupt(int irq, void *opaque)
 
 	if (likely(status & VIRTIO_MMIO_INT_VRING)) {
 		spin_lock_irqsave(&vm_dev->lock, flags);
-		list_for_each_entry(info, &vm_dev->virtqueues, node)
+		list_for_each_entry(info, &vm_dev->virtqueues, analde)
 			ret |= vring_interrupt(irq, info->vq);
 		spin_unlock_irqrestore(&vm_dev->lock, flags);
 	}
@@ -334,7 +334,7 @@ static void vm_del_vq(struct virtqueue *vq)
 	unsigned int index = vq->index;
 
 	spin_lock_irqsave(&vm_dev->lock, flags);
-	list_del(&info->node);
+	list_del(&info->analde);
 	spin_unlock_irqrestore(&vm_dev->lock, flags);
 
 	/* Select and deactivate the queue */
@@ -374,17 +374,17 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned int in
 				  const char *name, bool ctx)
 {
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
-	bool (*notify)(struct virtqueue *vq);
+	bool (*analtify)(struct virtqueue *vq);
 	struct virtio_mmio_vq_info *info;
 	struct virtqueue *vq;
 	unsigned long flags;
 	unsigned int num;
 	int err;
 
-	if (__virtio_test_bit(vdev, VIRTIO_F_NOTIFICATION_DATA))
-		notify = vm_notify_with_data;
+	if (__virtio_test_bit(vdev, VIRTIO_F_ANALTIFICATION_DATA))
+		analtify = vm_analtify_with_data;
 	else
-		notify = vm_notify;
+		analtify = vm_analtify;
 
 	if (!name)
 		return NULL;
@@ -395,28 +395,28 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned int in
 	/* Queue shouldn't already be set up. */
 	if (readl(vm_dev->base + (vm_dev->version == 1 ?
 			VIRTIO_MMIO_QUEUE_PFN : VIRTIO_MMIO_QUEUE_READY))) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto error_available;
 	}
 
 	/* Allocate and fill out our active queue description */
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error_kmalloc;
 	}
 
 	num = readl(vm_dev->base + VIRTIO_MMIO_QUEUE_NUM_MAX);
 	if (num == 0) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto error_new_virtqueue;
 	}
 
 	/* Create the vring */
 	vq = vring_create_virtqueue(index, num, VIRTIO_MMIO_VRING_ALIGN, vdev,
-				 true, true, ctx, notify, callback, name);
+				 true, true, ctx, analtify, callback, name);
 	if (!vq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error_new_virtqueue;
 	}
 
@@ -434,7 +434,7 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned int in
 		 */
 		if (q_pfn >> 32) {
 			dev_err(&vdev->dev,
-				"platform bug: legacy virtio-mmio must not be used with RAM above 0x%llxGB\n",
+				"platform bug: legacy virtio-mmio must analt be used with RAM above 0x%llxGB\n",
 				0x1ULL << (32 + PAGE_SHIFT - 30));
 			err = -E2BIG;
 			goto error_bad_pfn;
@@ -467,7 +467,7 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned int in
 	info->vq = vq;
 
 	spin_lock_irqsave(&vm_dev->lock, flags);
-	list_add(&info->node, &vm_dev->virtqueues);
+	list_add(&info->analde, &vm_dev->virtqueues);
 	spin_unlock_irqrestore(&vm_dev->lock, flags);
 
 	return vq;
@@ -506,7 +506,7 @@ static int vm_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 	if (err)
 		return err;
 
-	if (of_property_read_bool(vm_dev->pdev->dev.of_node, "wakeup-source"))
+	if (of_property_read_bool(vm_dev->pdev->dev.of_analde, "wakeup-source"))
 		enable_irq_wake(irq);
 
 	for (i = 0; i < nvqs; ++i) {
@@ -549,7 +549,7 @@ static bool vm_get_shm_region(struct virtio_device *vdev,
 	region->len = len;
 
 	/* Check if region length is -1. If that's the case, the shared memory
-	 * region does not exist and there is no need to proceed further.
+	 * region does analt exist and there is anal need to proceed further.
 	 */
 	if (len == ~(u64)0)
 		return false;
@@ -621,7 +621,7 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 
 	vm_dev = kzalloc(sizeof(*vm_dev), GFP_KERNEL);
 	if (!vm_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vm_dev->vdev.dev.parent = &pdev->dev;
 	vm_dev->vdev.dev.release = virtio_mmio_release_dev;
@@ -640,14 +640,14 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 	magic = readl(vm_dev->base + VIRTIO_MMIO_MAGIC_VALUE);
 	if (magic != ('v' | 'i' << 8 | 'r' << 16 | 't' << 24)) {
 		dev_warn(&pdev->dev, "Wrong magic value 0x%08lx!\n", magic);
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto free_vm_dev;
 	}
 
 	/* Check device version */
 	vm_dev->version = readl(vm_dev->base + VIRTIO_MMIO_VERSION);
 	if (vm_dev->version < 1 || vm_dev->version > 2) {
-		dev_err(&pdev->dev, "Version %ld not supported!\n",
+		dev_err(&pdev->dev, "Version %ld analt supported!\n",
 				vm_dev->version);
 		rc = -ENXIO;
 		goto free_vm_dev;
@@ -657,9 +657,9 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 	if (vm_dev->vdev.id.device == 0) {
 		/*
 		 * virtio-mmio device with an ID 0 is a (dummy) placeholder
-		 * with no function. End probing now with no error reported.
+		 * with anal function. End probing analw with anal error reported.
 		 */
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto free_vm_dev;
 	}
 	vm_dev->vdev.id.vendor = readl(vm_dev->base + VIRTIO_MMIO_VENDOR_ID);
@@ -681,7 +681,7 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 	if (rc)
 		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (rc)
-		dev_warn(&pdev->dev, "Failed to enable 64-bit or 32-bit DMA.  Trying to continue, but this might not work.\n");
+		dev_warn(&pdev->dev, "Failed to enable 64-bit or 32-bit DMA.  Trying to continue, but this might analt work.\n");
 
 	platform_set_drvdata(pdev, vm_dev);
 
@@ -738,7 +738,7 @@ static int vm_cmdline_set(const char *device,
 
 	/*
 	 * sscanf() must process at least 2 chunks; also there
-	 * must be no extra characters after the last chunk, so
+	 * must be anal extra characters after the last chunk, so
 	 * str[consumed] must be '\0'
 	 */
 	if (processed < 2 || str[consumed] || irq == 0)

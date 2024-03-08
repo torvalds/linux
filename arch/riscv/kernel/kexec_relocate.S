@@ -49,9 +49,9 @@ SYM_CODE_START(riscv_kexec_relocate)
 	/*
 	 * With C-extension, here we get 42 Bytes and the next
 	 * .align directive would pad zeros here up to 44 Bytes.
-	 * So manually put a nop here to avoid zeros padding.
+	 * So manually put a analp here to avoid zeros padding.
 	*/
-	nop
+	analp
 
 	/* Process entries in a loop */
 .align 2
@@ -85,7 +85,7 @@ SYM_CODE_START(riscv_kexec_relocate)
 	 * destination address we got from IND_DESTINATION
 	 */
 	andi	t1, t0, 0x8
-	beqz	t1, 1b		/* Unknown entry type, ignore it */
+	beqz	t1, 1b		/* Unkanalwn entry type, iganalre it */
 	andi	t0, t0, ~0x8
 	li	t3, (PAGE_SIZE / RISCV_SZPTR)	/* i = num words per page */
 3:	/* copy loop */
@@ -148,7 +148,7 @@ riscv_kexec_relocate_end:
 
 /* Used for jumping to crashkernel */
 .section ".text"
-SYM_CODE_START(riscv_kexec_norelocate)
+SYM_CODE_START(riscv_kexec_analrelocate)
 	/*
 	 * s0: (const) Phys address to jump to
 	 * s1: (const) Phys address of the FDT image
@@ -207,7 +207,7 @@ SYM_CODE_START(riscv_kexec_norelocate)
 	csrw	CSR_STVEC, a2
 	csrw	CSR_SATP, zero
 
-SYM_CODE_END(riscv_kexec_norelocate)
+SYM_CODE_END(riscv_kexec_analrelocate)
 
 .section ".rodata"
 SYM_DATA(riscv_kexec_relocate_size,

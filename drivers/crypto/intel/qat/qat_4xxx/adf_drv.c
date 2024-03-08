@@ -42,10 +42,10 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct adf_bar *bar;
 	int ret;
 
-	if (num_possible_nodes() > 1 && dev_to_node(&pdev->dev) < 0) {
+	if (num_possible_analdes() > 1 && dev_to_analde(&pdev->dev) < 0) {
 		/*
-		 * If the accelerator is connected to a node with no memory
-		 * there is no point in using the accelerator since the remote
+		 * If the accelerator is connected to a analde with anal memory
+		 * there is anal point in using the accelerator since the remote
 		 * memory transaction will be very slow.
 		 */
 		dev_err(&pdev->dev, "Invalid NUMA configuration.\n");
@@ -54,7 +54,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	accel_dev = devm_kzalloc(&pdev->dev, sizeof(*accel_dev), GFP_KERNEL);
 	if (!accel_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&accel_dev->crypto_list);
 	accel_pci_dev = &accel_dev->accel_pci_dev;
@@ -73,7 +73,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Allocate and initialise device hardware meta-data structure */
 	hw_data = devm_kzalloc(&pdev->dev, sizeof(*hw_data), GFP_KERNEL);
 	if (!hw_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_err;
 	}
 
@@ -87,10 +87,10 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw_data->accel_mask = hw_data->get_accel_mask(hw_data);
 	hw_data->ae_mask = hw_data->get_ae_mask(hw_data);
 	accel_pci_dev->sku = hw_data->get_sku(hw_data);
-	/* If the device has no acceleration engines then ignore it */
+	/* If the device has anal acceleration engines then iganalre it */
 	if (!hw_data->accel_mask || !hw_data->ae_mask ||
 	    (~hw_data->ae_mask & 0x01)) {
-		dev_err(&pdev->dev, "No acceleration units found.\n");
+		dev_err(&pdev->dev, "Anal acceleration units found.\n");
 		ret = -EFAULT;
 		goto out_err;
 	}
@@ -110,7 +110,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Set DMA identifier */
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret) {
-		dev_err(&pdev->dev, "No usable DMA configuration.\n");
+		dev_err(&pdev->dev, "Anal usable DMA configuration.\n");
 		goto out_err;
 	}
 
@@ -147,7 +147,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (pci_save_state(pdev)) {
 		dev_err(&pdev->dev, "Failed to save pci state.\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_err;
 	}
 
@@ -198,7 +198,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel");
 MODULE_FIRMWARE(ADF_4XXX_FW);
 MODULE_FIRMWARE(ADF_4XXX_MMP);
-MODULE_DESCRIPTION("Intel(R) QuickAssist Technology");
+MODULE_DESCRIPTION("Intel(R) QuickAssist Techanallogy");
 MODULE_VERSION(ADF_DRV_VERSION);
 MODULE_SOFTDEP("pre: crypto-intel_qat");
 MODULE_IMPORT_NS(CRYPTO_QAT);

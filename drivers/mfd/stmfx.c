@@ -135,14 +135,14 @@ int stmfx_function_enable(struct stmfx *stmfx, u32 func)
 		return -EBUSY;
 	}
 
-	/* If TS is enabled, aGPIO[3:0] cannot be used */
+	/* If TS is enabled, aGPIO[3:0] cananalt be used */
 	if ((func & STMFX_FUNC_ALTGPIO_LOW) &&
 	    (sys_ctrl & STMFX_REG_SYS_CTRL_TS_EN)) {
 		dev_err(stmfx->dev, "TS in use, aGPIO[3:0] unavailable\n");
 		return -EBUSY;
 	}
 
-	/* If IDD is enabled, aGPIO[7:4] cannot be used */
+	/* If IDD is enabled, aGPIO[7:4] cananalt be used */
 	if ((func & STMFX_FUNC_ALTGPIO_HIGH) &&
 	    (sys_ctrl & STMFX_REG_SYS_CTRL_IDD_EN)) {
 		dev_err(stmfx->dev, "IDD in use, aGPIO[7:4] unavailable\n");
@@ -210,17 +210,17 @@ static irqreturn_t stmfx_irq_handler(int irq, void *data)
 
 	ret = regmap_read(stmfx->map, STMFX_REG_IRQ_PENDING, &pending);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
-	 * There is no ACK for GPIO, MFX_REG_IRQ_PENDING_GPIO is a logical OR
+	 * There is anal ACK for GPIO, MFX_REG_IRQ_PENDING_GPIO is a logical OR
 	 * of MFX_REG_IRQ_GPI _PENDING1/_PENDING2/_PENDING3
 	 */
 	ack = pending & ~BIT(STMFX_REG_IRQ_SRC_EN_GPIO);
 	if (ack) {
 		ret = regmap_write(stmfx->map, STMFX_REG_IRQ_ACK, ack);
 		if (ret)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 	}
 
 	bits = pending;
@@ -236,7 +236,7 @@ static int stmfx_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_data(virq, d->host_data);
 	irq_set_chip_and_handler(virq, &stmfx_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_analprobe(virq);
 
 	return 0;
 }
@@ -269,7 +269,7 @@ static int stmfx_irq_init(struct i2c_client *client)
 	u32 irqoutpin = 0, irqtrigger;
 	int ret;
 
-	stmfx->irq_domain = irq_domain_add_simple(stmfx->dev->of_node,
+	stmfx->irq_domain = irq_domain_add_simple(stmfx->dev->of_analde,
 						  STMFX_REG_IRQ_SRC_MAX, 0,
 						  &stmfx_irq_ops, stmfx);
 	if (!stmfx->irq_domain) {
@@ -277,7 +277,7 @@ static int stmfx_irq_init(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	if (!of_property_read_bool(stmfx->dev->of_node, "drive-open-drain"))
+	if (!of_property_read_bool(stmfx->dev->of_analde, "drive-open-drain"))
 		irqoutpin |= STMFX_REG_IRQ_OUT_PIN_TYPE;
 
 	irqtrigger = irq_get_trigger_type(client->irq);
@@ -331,7 +331,7 @@ static int stmfx_chip_init(struct i2c_client *client)
 	ret = PTR_ERR_OR_ZERO(stmfx->vdd);
 	if (ret) {
 		stmfx->vdd = NULL;
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			return dev_err_probe(&client->dev, ret, "Failed to get VDD regulator\n");
 	}
 
@@ -361,7 +361,7 @@ static int stmfx_chip_init(struct i2c_client *client)
 	 *       1       | b: 1000 011x h:0x86 |       0x43
 	 */
 	if (FIELD_GET(STMFX_REG_CHIP_ID_MASK, ~id) != (client->addr << 1)) {
-		dev_err(&client->dev, "Unknown chip ID: %#x\n", id);
+		dev_err(&client->dev, "Unkanalwn chip ID: %#x\n", id);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -417,7 +417,7 @@ static int stmfx_probe(struct i2c_client *client)
 
 	stmfx = devm_kzalloc(dev, sizeof(*stmfx), GFP_KERNEL);
 	if (!stmfx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, stmfx);
 
@@ -449,7 +449,7 @@ static int stmfx_probe(struct i2c_client *client)
 	if (ret)
 		goto err_chip_exit;
 
-	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_ANALNE,
 				   stmfx_cells, ARRAY_SIZE(stmfx_cells), NULL,
 				   0, stmfx->irq_domain);
 	if (ret)

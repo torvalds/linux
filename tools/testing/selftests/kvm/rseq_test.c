@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #define _GNU_SOURCE /* for program_invocation_short_name */
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <sched.h>
@@ -45,10 +45,10 @@ static int next_cpu(int cpu)
 {
 	/*
 	 * Advance to the next CPU, skipping those that weren't in the original
-	 * affinity set.  Sadly, there is no CPU_SET_FOR_EACH, and cpu_set_t's
-	 * data storage is considered as opaque.  Note, if this task is pinned
+	 * affinity set.  Sadly, there is anal CPU_SET_FOR_EACH, and cpu_set_t's
+	 * data storage is considered as opaque.  Analte, if this task is pinned
 	 * to a small set of discontigous CPUs, e.g. 2 and 1023, this loop will
-	 * burn a lot cycles and the test will take longer than normal to
+	 * burn a lot cycles and the test will take longer than analrmal to
 	 * complete.
 	 */
 	do {
@@ -90,8 +90,8 @@ static void *migration_worker(void *__rseq_tid)
 		 */
 		smp_wmb();
 		r = sched_setaffinity(rseq_tid, sizeof(allowed_mask), &allowed_mask);
-		TEST_ASSERT(!r, "sched_setaffinity failed, errno = %d (%s)",
-			    errno, strerror(errno));
+		TEST_ASSERT(!r, "sched_setaffinity failed, erranal = %d (%s)",
+			    erranal, strerror(erranal));
 		smp_wmb();
 		atomic_inc(&seq_cnt);
 
@@ -103,14 +103,14 @@ static void *migration_worker(void *__rseq_tid)
 		 * needed on three fronts:
 		 *
 		 *  1. To allow sched_setaffinity() to prompt migration before
-		 *     ioctl(KVM_RUN) enters the guest so that TIF_NOTIFY_RESUME
+		 *     ioctl(KVM_RUN) enters the guest so that TIF_ANALTIFY_RESUME
 		 *     (or TIF_NEED_RESCHED, which indirectly leads to handling
-		 *     NOTIFY_RESUME) is handled in KVM context.
+		 *     ANALTIFY_RESUME) is handled in KVM context.
 		 *
-		 *     If NOTIFY_RESUME/NEED_RESCHED is set after KVM enters
+		 *     If ANALTIFY_RESUME/NEED_RESCHED is set after KVM enters
 		 *     the guest, the guest will trigger a IO/MMIO exit all the
 		 *     way to userspace and the TIF flags will be handled by
-		 *     the generic "exit to userspace" logic, not by KVM.  The
+		 *     the generic "exit to userspace" logic, analt by KVM.  The
 		 *     exit to userspace is necessary to give the test a chance
 		 *     to check the rseq CPU ID (see #2).
 		 *
@@ -134,7 +134,7 @@ static void *migration_worker(void *__rseq_tid)
 		 * Because any bug in this area is likely to be timing-dependent,
 		 * run with a range of delays at 1us intervals from 1us to 10us
 		 * as a best effort to avoid tuning the test to the point where
-		 * it can hit _only_ the original bug and not detect future
+		 * it can hit _only_ the original bug and analt detect future
 		 * regressions.
 		 *
 		 * The original bug can reproduce with a delay up to ~500us on
@@ -145,7 +145,7 @@ static void *migration_worker(void *__rseq_tid)
 		 * potential coverage loss.
 		 *
 		 * The lower bound for reproducing the bug is likely below 1us,
-		 * e.g. failures occur on x86-64 with nanosleep(0), but at that
+		 * e.g. failures occur on x86-64 with naanalsleep(0), but at that
 		 * point the overhead of the syscall likely dominates the delay.
 		 * Use usleep() for simplicity and to avoid unnecessary kernel
 		 * dependencies.
@@ -183,7 +183,7 @@ static void calc_min_max_cpu(void)
 	}
 
 	__TEST_REQUIRE(cnt >= 2,
-		       "Only one usable CPU, task migration not possible");
+		       "Only one usable CPU, task migration analt possible");
 }
 
 int main(int argc, char *argv[])
@@ -194,14 +194,14 @@ int main(int argc, char *argv[])
 	u32 cpu, rseq_cpu;
 
 	r = sched_getaffinity(0, sizeof(possible_mask), &possible_mask);
-	TEST_ASSERT(!r, "sched_getaffinity failed, errno = %d (%s)", errno,
-		    strerror(errno));
+	TEST_ASSERT(!r, "sched_getaffinity failed, erranal = %d (%s)", erranal,
+		    strerror(erranal));
 
 	calc_min_max_cpu();
 
 	r = rseq_register_current_thread();
-	TEST_ASSERT(!r, "rseq_register_current_thread failed, errno = %d (%s)",
-		    errno, strerror(errno));
+	TEST_ASSERT(!r, "rseq_register_current_thread failed, erranal = %d (%s)",
+		    erranal, strerror(erranal));
 
 	/*
 	 * Create and run a dummy VM that immediately exits to userspace via
@@ -233,13 +233,13 @@ int main(int argc, char *argv[])
 
 			/*
 			 * Ensure calling getcpu() and reading rseq.cpu_id complete
-			 * in a single "no migration" window, i.e. are not reordered
+			 * in a single "anal migration" window, i.e. are analt reordered
 			 * across the seq_cnt reads.
 			 */
 			smp_rmb();
 			r = sys_getcpu(&cpu, NULL);
-			TEST_ASSERT(!r, "getcpu failed, errno = %d (%s)",
-				    errno, strerror(errno));
+			TEST_ASSERT(!r, "getcpu failed, erranal = %d (%s)",
+				    erranal, strerror(erranal));
 			rseq_cpu = rseq_current_cpu_raw();
 			smp_rmb();
 		} while (snapshot != atomic_read(&seq_cnt));

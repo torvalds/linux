@@ -173,7 +173,7 @@ HD-Audio Codecs
 
 ``card*/codec#*``
 	Shows the general codec information and the attribute of each
-	widget node.
+	widget analde.
 
 ``card*/eld#*``
 	Available for HDMI or DisplayPort interfaces.

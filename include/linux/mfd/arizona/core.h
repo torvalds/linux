@@ -12,7 +12,7 @@
 
 #include <linux/clk.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/arizona/pdata.h>
@@ -156,14 +156,14 @@ struct arizona {
 	uint8_t dac_comp_enabled;
 	struct mutex dac_comp_lock;
 
-	struct blocking_notifier_head notifier;
+	struct blocking_analtifier_head analtifier;
 };
 
-static inline int arizona_call_notifiers(struct arizona *arizona,
+static inline int arizona_call_analtifiers(struct arizona *arizona,
 					 unsigned long event,
 					 void *data)
 {
-	return blocking_notifier_call_chain(&arizona->notifier, event, data);
+	return blocking_analtifier_call_chain(&arizona->analtifier, event, data);
 }
 
 int arizona_clk32k_enable(struct arizona *arizona);

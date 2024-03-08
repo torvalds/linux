@@ -16,14 +16,14 @@
 #include <linux/sched/stat.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
 #include <linux/sysctl.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/cpu.h>
 #include <linux/workqueue.h>
 #include <linux/uaccess.h>
@@ -142,7 +142,7 @@ int appldata_diag(char record_nr, u16 function, unsigned long buffer,
 
 	parm_list = kmalloc(sizeof(*parm_list), GFP_KERNEL);
 	id = kmemdup(&appldata_id, sizeof(appldata_id), GFP_KERNEL);
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	if (parm_list && id) {
 		id->record_nr = record_nr;
 		id->mod_lvl = (mod_lvl[0]) << 8 | mod_lvl[1];
@@ -196,7 +196,7 @@ static void __appldata_vtimer_setup(int cmd)
 /*
  * appldata_timer_handler()
  *
- * Start/Stop timer, show status of timer (0 = not active, 1 = active)
+ * Start/Stop timer, show status of timer (0 = analt active, 1 = active)
  */
 static int
 appldata_timer_handler(struct ctl_table *ctl, int write,
@@ -259,7 +259,7 @@ appldata_interval_handler(struct ctl_table *ctl, int write,
  * appldata_generic_handler()
  *
  * Generic start/stop monitoring and DIAG, show status of
- * monitoring (0 = not in process, 1 = in process)
+ * monitoring (0 = analt in process, 1 = in process)
  */
 static int
 appldata_generic_handler(struct ctl_table *ctl, int write,
@@ -286,12 +286,12 @@ appldata_generic_handler(struct ctl_table *ctl, int write,
 	}
 	if (!found) {
 		mutex_unlock(&appldata_ops_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	ops = ctl->data;
 	if (!try_module_get(ops->owner)) {	// protect this function
 		mutex_unlock(&appldata_ops_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	mutex_unlock(&appldata_ops_mutex);
 
@@ -308,7 +308,7 @@ appldata_generic_handler(struct ctl_table *ctl, int write,
 		if (!try_module_get(ops->owner)) {
 			mutex_unlock(&appldata_ops_mutex);
 			module_put(ops->owner);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		ops->callback(ops->data);	// init record
 		rc = appldata_diag(ops->record_nr,
@@ -352,7 +352,7 @@ int appldata_register_ops(struct appldata_ops *ops)
 
 	ops->ctl_table = kcalloc(1, sizeof(struct ctl_table), GFP_KERNEL);
 	if (!ops->ctl_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&appldata_ops_mutex);
 	list_add(&ops->list, &appldata_ops_list);
@@ -372,7 +372,7 @@ out:
 	list_del(&ops->list);
 	mutex_unlock(&appldata_ops_mutex);
 	kfree(ops->ctl_table);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -405,7 +405,7 @@ static int __init appldata_init(void)
 	appldata_timer.data = (unsigned long) &appldata_work;
 	appldata_wq = alloc_ordered_workqueue("appldata", 0);
 	if (!appldata_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 	appldata_sysctl_header = register_sysctl(appldata_proc_name, appldata_table);
 	return 0;
 }

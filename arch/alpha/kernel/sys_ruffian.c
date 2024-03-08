@@ -57,7 +57,7 @@ ruffian_init_irq(void)
 	
 	init_i8259a_irqs();
 
-	/* Not interested in the bogus interrupts (0,3,6),
+	/* Analt interested in the bogus interrupts (0,3,6),
 	   NMI (1), HALT (2), flash (5), or 21142 (8).  */
 	init_pyxis_irqs(0x16f0000);
 
@@ -69,7 +69,7 @@ ruffian_init_irq(void)
 static void __init
 ruffian_init_rtc(void)
 {
-	/* Ruffian does not have the RTC connected to the CPU timer
+	/* Ruffian does analt have the RTC connected to the CPU timer
 	   interrupt.  Instead, it uses the PIT connected to IRQ 0.  */
 
 	/* Setup interval timer.  */
@@ -126,7 +126,7 @@ ruffian_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		{-1,  -1,  -1,  -1,  -1},  /* IdSel 13,  21052	     */
 		{-1,  -1,  -1,  -1,  -1},  /* IdSel 14,  SIO	     */
 		{44,  44,  44,  44,  44},  /* IdSel 15,  21143	     */
-		{-1,  -1,  -1,  -1,  -1},  /* IdSel 16,  none	     */
+		{-1,  -1,  -1,  -1,  -1},  /* IdSel 16,  analne	     */
 		{43,  43,  42,  41,  40},  /* IdSel 17,  64-bit slot */
 		/* the next 6 are actually on PCI bus 1, across the bridge */
 		{19,  19,  18,  17,  16},  /* IdSel  8,  slot 0	     */
@@ -174,7 +174,7 @@ ruffian_swizzle(struct pci_dev *dev, u8 *pinp)
 
 #ifdef BUILDING_FOR_MILO
 /*
- * The DeskStation Ruffian motherboard firmware does not place
+ * The DeskStation Ruffian motherboard firmware does analt place
  * the memory size in the PALimpure area.  Therefore, we use
  * the Bank Configuration Registers in PYXIS to obtain the size.
  */

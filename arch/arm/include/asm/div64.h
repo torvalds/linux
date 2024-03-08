@@ -18,7 +18,7 @@
  * In other words, a 64-bit dividend with a 32-bit divisor producing
  * a 64-bit result and a 32-bit remainder.  To accomplish this optimally
  * we override the generic version in lib/div64.c to call our __do_div64
- * assembly implementation with completely non standard calling convention
+ * assembly implementation with completely analn standard calling convention
  * for arguments and results (beware).
  */
 static inline uint32_t __div64_32(uint64_t *n, uint32_t base)

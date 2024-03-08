@@ -37,9 +37,9 @@ static struct clk *boot_cpu_clk;
 static struct clk *get_cpu_clk(int cpu)
 {
 	struct clk *cpu_clk;
-	struct device_node *np = of_get_cpu_node(cpu, NULL);
+	struct device_analde *np = of_get_cpu_analde(cpu, NULL);
 
-	if (WARN(!np, "missing cpu node\n"))
+	if (WARN(!np, "missing cpu analde\n"))
 		return NULL;
 	cpu_clk = of_clk_get(np, 0);
 	if (WARN_ON(IS_ERR(cpu_clk)))
@@ -111,7 +111,7 @@ static int armada_xp_sync_secondary_clk(unsigned int cpu)
 
 static void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct resource res;
 	int err;
 
@@ -121,7 +121,7 @@ static void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 	boot_cpu_clk = get_cpu_clk(smp_processor_id());
 	if (boot_cpu_clk) {
 		clk_prepare_enable(boot_cpu_clk);
-		cpuhp_setup_state_nocalls(CPUHP_AP_ARM_MVEBU_SYNC_CLOCKS,
+		cpuhp_setup_state_analcalls(CPUHP_AP_ARM_MVEBU_SYNC_CLOCKS,
 					  "arm/mvebu/sync_clocks:online",
 					  armada_xp_sync_secondary_clk, NULL);
 	}
@@ -130,14 +130,14 @@ static void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 	 * In order to boot the secondary CPUs we need to ensure
 	 * the bootROM is mapped at the correct address.
 	 */
-	node = of_find_compatible_node(NULL, NULL, "marvell,bootrom");
-	if (!node)
-		panic("Cannot find 'marvell,bootrom' compatible node");
+	analde = of_find_compatible_analde(NULL, NULL, "marvell,bootrom");
+	if (!analde)
+		panic("Cananalt find 'marvell,bootrom' compatible analde");
 
-	err = of_address_to_resource(node, 0, &res);
-	of_node_put(node);
+	err = of_address_to_resource(analde, 0, &res);
+	of_analde_put(analde);
 	if (err < 0)
-		panic("Cannot get 'bootrom' node address");
+		panic("Cananalt get 'bootrom' analde address");
 
 	if (res.start != AXP_BOOTROM_BASE ||
 	    resource_size(&res) != AXP_BOOTROM_SIZE)
@@ -155,8 +155,8 @@ static void armada_xp_cpu_die(unsigned int cpu)
 }
 
 /*
- * We need a dummy function, so that platform_can_cpu_hotplug() knows
- * we support CPU hotplug. However, the function does not need to do
+ * We need a dummy function, so that platform_can_cpu_hotplug() kanalws
+ * we support CPU hotplug. However, the function does analt need to do
  * anything, because CPUs going offline can enter the deep idle state
  * by themselves, without any help from a still alive CPU.
  */
@@ -192,16 +192,16 @@ static const struct of_device_id of_mv98dx3236_resume_table[] = {
 
 static int mv98dx3236_resume_set_cpu_boot_addr(int hw_cpu, void *boot_addr)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *base;
 	WARN_ON(hw_cpu != 1);
 
-	np = of_find_matching_node(NULL, of_mv98dx3236_resume_table);
+	np = of_find_matching_analde(NULL, of_mv98dx3236_resume_table);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
-	base = of_io_request_and_map(np, 0, of_node_full_name(np));
-	of_node_put(np);
+	base = of_io_request_and_map(np, 0, of_analde_full_name(np));
+	of_analde_put(np);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

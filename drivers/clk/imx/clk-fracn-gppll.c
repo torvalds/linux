@@ -26,7 +26,7 @@
 #define PLL_NUMERATOR		0x40
 #define PLL_MFN_MASK		GENMASK(31, 2)
 
-#define PLL_DENOMINATOR		0x50
+#define PLL_DEANALMINATOR		0x50
 #define PLL_MFD_MASK		GENMASK(29, 0)
 
 #define PLL_DIV			0x60
@@ -152,7 +152,7 @@ static unsigned long clk_fracn_gppll_recalc_rate(struct clk_hw *hw, unsigned lon
 {
 	struct clk_fracn_gppll *pll = to_clk_fracn_gppll(hw);
 	const struct imx_fracn_gppll_rate_table *rate_table = pll->rate_table;
-	u32 pll_numerator, pll_denominator, pll_div;
+	u32 pll_numerator, pll_deanalminator, pll_div;
 	u32 mfi, mfn, mfd, rdiv, odiv;
 	u64 fvco = parent_rate;
 	long rate = 0;
@@ -161,8 +161,8 @@ static unsigned long clk_fracn_gppll_recalc_rate(struct clk_hw *hw, unsigned lon
 	pll_numerator = readl_relaxed(pll->base + PLL_NUMERATOR);
 	mfn = FIELD_GET(PLL_MFN_MASK, pll_numerator);
 
-	pll_denominator = readl_relaxed(pll->base + PLL_DENOMINATOR);
-	mfd = FIELD_GET(PLL_MFD_MASK, pll_denominator);
+	pll_deanalminator = readl_relaxed(pll->base + PLL_DEANALMINATOR);
+	mfd = FIELD_GET(PLL_MFD_MASK, pll_deanalminator);
 
 	pll_div = readl_relaxed(pll->base + PLL_DIV);
 	mfi = FIELD_GET(PLL_MFI_MASK, pll_div);
@@ -173,7 +173,7 @@ static unsigned long clk_fracn_gppll_recalc_rate(struct clk_hw *hw, unsigned lon
 	/*
 	 * Sometimes, the recalculated rate has deviation due to
 	 * the frac part. So find the accurate pll rate from the table
-	 * first, if no match rate in the table, use the rate calculated
+	 * first, if anal match rate in the table, use the rate calculated
 	 * from the equation below.
 	 */
 	for (i = 0; i < pll->rate_count; i++) {
@@ -253,7 +253,7 @@ static int clk_fracn_gppll_set_rate(struct clk_hw *hw, unsigned long drate,
 		FIELD_PREP(PLL_MFI_MASK, rate->mfi);
 	writel_relaxed(pll_div, pll->base + PLL_DIV);
 	if (pll->flags & CLK_FRACN_GPPLL_FRACN) {
-		writel_relaxed(rate->mfd, pll->base + PLL_DENOMINATOR);
+		writel_relaxed(rate->mfd, pll->base + PLL_DEANALMINATOR);
 		writel_relaxed(FIELD_PREP(PLL_MFN_MASK, rate->mfn), pll->base + PLL_NUMERATOR);
 	}
 
@@ -351,7 +351,7 @@ static struct clk_hw *_imx_clk_fracn_gppll(const char *name, const char *parent_
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.flags = pll_clk->flags;

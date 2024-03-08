@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Linear Technology LTC4306 and LTC4305 I2C multiplexer/switch
+ * Linear Techanallogy LTC4306 and LTC4305 I2C multiplexer/switch
  *
  * Copyright (C) 2017 Analog Devices Inc.
  *
@@ -141,7 +141,7 @@ static int ltc4306_gpio_set_config(struct gpio_chip *chip,
 		val = BIT(4 - offset);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return regmap_update_bits(data->regmap, LTC_REG_MODE,
@@ -228,7 +228,7 @@ static int ltc4306_probe(struct i2c_client *client)
 			     I2C_MUX_LOCKED, ltc4306_select_mux,
 			     idle_disc ? ltc4306_deselect_mux : NULL);
 	if (!muxc)
-		return -ENOMEM;
+		return -EANALMEM;
 	data = i2c_mux_priv(muxc);
 	data->chip = chip;
 
@@ -259,7 +259,7 @@ static int ltc4306_probe(struct i2c_client *client)
 	 */
 	if (regmap_write(data->regmap, LTC_REG_SWITCH, 0) < 0) {
 		dev_warn(&client->dev, "probe failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (device_property_read_bool(&client->dev,
@@ -271,13 +271,13 @@ static int ltc4306_probe(struct i2c_client *client)
 		val |= LTC_UPSTREAM_ACCL_EN;
 
 	if (regmap_write(data->regmap, LTC_REG_CONFIG, val) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = ltc4306_gpio_init(data);
 	if (ret < 0)
 		return ret;
 
-	/* Now create an adapter for each channel */
+	/* Analw create an adapter for each channel */
 	for (num = 0; num < chip->nchans; num++) {
 		ret = i2c_mux_add_adapter(muxc, 0, num, 0);
 		if (ret) {
@@ -313,5 +313,5 @@ static struct i2c_driver ltc4306_driver = {
 module_i2c_driver(ltc4306_driver);
 
 MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
-MODULE_DESCRIPTION("Linear Technology LTC4306, LTC4305 I2C mux/switch driver");
+MODULE_DESCRIPTION("Linear Techanallogy LTC4306, LTC4305 I2C mux/switch driver");
 MODULE_LICENSE("GPL v2");

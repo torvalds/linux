@@ -2,7 +2,7 @@
 Remote Processor Messaging (rpmsg) Framework
 ============================================
 
-.. note::
+.. analte::
 
   This document describes the rpmsg bus and how to write rpmsg drivers.
   To learn how to add rpmsg support for new platforms, check out remoteproc.txt
@@ -77,13 +77,13 @@ endpoint's channel, i.e. its source and destination address fields will be
 respectively set to the endpoint's src address and its parent channel
 dst addresses.
 
-In case there are no TX buffers available, the function will block until
+In case there are anal TX buffers available, the function will block until
 one becomes available (i.e. until the remote processor consumes
 a tx buffer and puts it back on virtio's used descriptor ring),
 or a timeout of 15 seconds elapses. When the latter happens,
 -ERESTARTSYS is returned.
 
-The function can only be called from a process context (for now).
+The function can only be called from a process context (for analw).
 Returns 0 on success and an appropriate error value on failure.
 
 ::
@@ -99,15 +99,15 @@ its length (in bytes), and an explicit destination address.
 The message will then be sent to the remote processor to which the
 endpoints's channel belongs, using the endpoints's src address,
 and the user-provided dst address (thus the channel's dst address
-will be ignored).
+will be iganalred).
 
-In case there are no TX buffers available, the function will block until
+In case there are anal TX buffers available, the function will block until
 one becomes available (i.e. until the remote processor consumes
 a tx buffer and puts it back on virtio's used descriptor ring),
 or a timeout of 15 seconds elapses. When the latter happens,
 -ERESTARTSYS is returned.
 
-The function can only be called from a process context (for now).
+The function can only be called from a process context (for analw).
 Returns 0 on success and an appropriate error value on failure.
 
 ::
@@ -123,16 +123,16 @@ The caller should specify the endpoint, the data it wants to send,
 its length (in bytes), and explicit source and destination addresses.
 The message will then be sent to the remote processor to which the
 endpoint's channel belongs, but the endpoint's src and channel dst
-addresses will be ignored (and the user-provided addresses will
+addresses will be iganalred (and the user-provided addresses will
 be used instead).
 
-In case there are no TX buffers available, the function will block until
+In case there are anal TX buffers available, the function will block until
 one becomes available (i.e. until the remote processor consumes
 a tx buffer and puts it back on virtio's used descriptor ring),
 or a timeout of 15 seconds elapses. When the latter happens,
 -ERESTARTSYS is returned.
 
-The function can only be called from a process context (for now).
+The function can only be called from a process context (for analw).
 Returns 0 on success and an appropriate error value on failure.
 
 ::
@@ -146,10 +146,10 @@ endpoint's channel, i.e. its source and destination address fields will be
 respectively set to the endpoint's src address and its parent channel
 dst addresses.
 
-In case there are no TX buffers available, the function will immediately
-return -ENOMEM without waiting until one becomes available.
+In case there are anal TX buffers available, the function will immediately
+return -EANALMEM without waiting until one becomes available.
 
-The function can only be called from a process context (for now).
+The function can only be called from a process context (for analw).
 Returns 0 on success and an appropriate error value on failure.
 
 ::
@@ -165,12 +165,12 @@ its length (in bytes), and an explicit destination address.
 
 The message will then be sent to the remote processor to which the
 channel belongs, using the channel's src address, and the user-provided
-dst address (thus the channel's dst address will be ignored).
+dst address (thus the channel's dst address will be iganalred).
 
-In case there are no TX buffers available, the function will immediately
-return -ENOMEM without waiting until one becomes available.
+In case there are anal TX buffers available, the function will immediately
+return -EANALMEM without waiting until one becomes available.
 
-The function can only be called from a process context (for now).
+The function can only be called from a process context (for analw).
 Returns 0 on success and an appropriate error value on failure.
 
 ::
@@ -186,12 +186,12 @@ The user should specify the channel, the data it wants to send,
 its length (in bytes), and explicit source and destination addresses.
 The message will then be sent to the remote processor to which the
 channel belongs, but the channel's src and dst addresses will be
-ignored (and the user-provided addresses will be used instead).
+iganalred (and the user-provided addresses will be used instead).
 
-In case there are no TX buffers available, the function will immediately
-return -ENOMEM without waiting until one becomes available.
+In case there are anal TX buffers available, the function will immediately
+return -EANALMEM without waiting until one becomes available.
 
-The function can only be called from a process context (for now).
+The function can only be called from a process context (for analw).
 Returns 0 on success and an appropriate error value on failure.
 
 ::
@@ -206,10 +206,10 @@ appropriate callback handler) by means of an rpmsg_endpoint struct.
 
 This function allows drivers to create such an endpoint, and by that,
 bind a callback, and possibly some private data too, to an rpmsg address
-(either one that is known in advance, or one that will be dynamically
+(either one that is kanalwn in advance, or one that will be dynamically
 assigned for them).
 
-Simple rpmsg drivers need not call rpmsg_create_ept, because an endpoint
+Simple rpmsg drivers need analt call rpmsg_create_ept, because an endpoint
 is already created for them when they are probed by the rpmsg bus
 (using the rx callback they provide when they registered to the rpmsg bus).
 
@@ -228,7 +228,7 @@ function, an optional private data (which is provided back when the
 rx callback is invoked), and an address they want to bind with the
 callback. If addr is RPMSG_ADDR_ANY, then rpmsg_create_ept will
 dynamically assign them an available rpmsg address (drivers should have
-a very good reason why not to always use RPMSG_ADDR_ANY here).
+a very good reason why analt to always use RPMSG_ADDR_ANY here).
 
 Returns a pointer to the endpoint on success, or NULL on error.
 
@@ -277,7 +277,7 @@ content to the console.
   static void rpmsg_sample_cb(struct rpmsg_channel *rpdev, void *data, int len,
 						void *priv, u32 src)
   {
-	print_hex_dump(KERN_INFO, "incoming message:", DUMP_PREFIX_NONE,
+	print_hex_dump(KERN_INFO, "incoming message:", DUMP_PREFIX_ANALNE,
 						16, 1, data, len, true);
   }
 
@@ -317,7 +317,7 @@ content to the console.
   };
   module_rpmsg_driver(rpmsg_sample_client);
 
-.. note::
+.. analte::
 
    a similar sample which can be built and loaded can be found
    in samples/rpmsg/.
@@ -329,10 +329,10 @@ At this point we only support dynamic allocations of rpmsg channels.
 
 This is possible only with remote processors that have the VIRTIO_RPMSG_F_NS
 virtio device feature set. This feature bit means that the remote
-processor supports dynamic name service announcement messages.
+processor supports dynamic name service ananaluncement messages.
 
 When this feature is enabled, creation of rpmsg devices (i.e. channels)
-is completely dynamic: the remote processor announces the existence of a
+is completely dynamic: the remote processor ananalunces the existence of a
 remote rpmsg service by sending a name service message (which contains
 the name and rpmsg addr of the remote service, see struct rpmsg_ns_msg).
 
@@ -342,4 +342,4 @@ If/when a relevant rpmsg driver is registered, it will be immediately probed
 by the bus, and can then start sending messages to the remote service.
 
 The plan is also to add static creation of rpmsg channels via the virtio
-config space, but it's not implemented yet.
+config space, but it's analt implemented yet.

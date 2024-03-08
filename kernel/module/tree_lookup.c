@@ -19,28 +19,28 @@
  * NMI context.
  */
 
-static __always_inline unsigned long __mod_tree_val(struct latch_tree_node *n)
+static __always_inline unsigned long __mod_tree_val(struct latch_tree_analde *n)
 {
-	struct module_memory *mod_mem = container_of(n, struct module_memory, mtn.node);
+	struct module_memory *mod_mem = container_of(n, struct module_memory, mtn.analde);
 
 	return (unsigned long)mod_mem->base;
 }
 
-static __always_inline unsigned long __mod_tree_size(struct latch_tree_node *n)
+static __always_inline unsigned long __mod_tree_size(struct latch_tree_analde *n)
 {
-	struct module_memory *mod_mem = container_of(n, struct module_memory, mtn.node);
+	struct module_memory *mod_mem = container_of(n, struct module_memory, mtn.analde);
 
 	return (unsigned long)mod_mem->size;
 }
 
 static __always_inline bool
-mod_tree_less(struct latch_tree_node *a, struct latch_tree_node *b)
+mod_tree_less(struct latch_tree_analde *a, struct latch_tree_analde *b)
 {
 	return __mod_tree_val(a) < __mod_tree_val(b);
 }
 
 static __always_inline int
-mod_tree_comp(void *key, struct latch_tree_node *n)
+mod_tree_comp(void *key, struct latch_tree_analde *n)
 {
 	unsigned long val = (unsigned long)key;
 	unsigned long start, end;
@@ -61,14 +61,14 @@ static const struct latch_tree_ops mod_tree_ops = {
 	.comp = mod_tree_comp,
 };
 
-static noinline void __mod_tree_insert(struct mod_tree_node *node, struct mod_tree_root *tree)
+static analinline void __mod_tree_insert(struct mod_tree_analde *analde, struct mod_tree_root *tree)
 {
-	latch_tree_insert(&node->node, &tree->root, &mod_tree_ops);
+	latch_tree_insert(&analde->analde, &tree->root, &mod_tree_ops);
 }
 
-static void __mod_tree_remove(struct mod_tree_node *node, struct mod_tree_root *tree)
+static void __mod_tree_remove(struct mod_tree_analde *analde, struct mod_tree_root *tree)
 {
-	latch_tree_erase(&node->node, &tree->root, &mod_tree_ops);
+	latch_tree_erase(&analde->analde, &tree->root, &mod_tree_ops);
 }
 
 /*
@@ -102,11 +102,11 @@ void mod_tree_remove(struct module *mod)
 
 struct module *mod_find(unsigned long addr, struct mod_tree_root *tree)
 {
-	struct latch_tree_node *ltn;
+	struct latch_tree_analde *ltn;
 
 	ltn = latch_tree_find((void *)addr, &tree->root, &mod_tree_ops);
 	if (!ltn)
 		return NULL;
 
-	return container_of(ltn, struct mod_tree_node, node)->mod;
+	return container_of(ltn, struct mod_tree_analde, analde)->mod;
 }

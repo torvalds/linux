@@ -23,12 +23,12 @@
 #define IETF_FLPDU_ZERO_LEN	0x4000
 #define IETF_RDMA0_WRITE	0x8000
 #define IETF_RDMA0_READ		0x4000
-#define IETF_NO_IRD_ORD		0x3fff
+#define IETF_ANAL_IRD_ORD		0x3fff
 
 #define MAX_PORTS	65536
 
 #define IRDMA_PASSIVE_STATE_INDICATED	0
-#define IRDMA_DO_NOT_SEND_RESET_EVENT	1
+#define IRDMA_DO_ANALT_SEND_RESET_EVENT	1
 #define IRDMA_SEND_RESET_EVENT		2
 
 #define MAX_IRDMA_IFS	4
@@ -83,7 +83,7 @@ enum irdma_timer_type {
 
 enum option_nums {
 	OPTION_NUM_EOL,
-	OPTION_NUM_NONE,
+	OPTION_NUM_ANALNE,
 	OPTION_NUM_MSS,
 	OPTION_NUM_WINDOW_SCALE,
 	OPTION_NUM_SACK_PERM,
@@ -91,9 +91,9 @@ enum option_nums {
 	OPTION_NUM_WRITE0 = 0xbc,
 };
 
-/* cm node transition states */
-enum irdma_cm_node_state {
-	IRDMA_CM_STATE_UNKNOWN,
+/* cm analde transition states */
+enum irdma_cm_analde_state {
+	IRDMA_CM_STATE_UNKANALWN,
 	IRDMA_CM_STATE_INITED,
 	IRDMA_CM_STATE_LISTENING,
 	IRDMA_CM_STATE_SYN_RCVD,
@@ -131,7 +131,7 @@ enum send_rdma0 {
 };
 
 enum irdma_tcpip_pkt_type {
-	IRDMA_PKT_TYPE_UNKNOWN,
+	IRDMA_PKT_TYPE_UNKANALWN,
 	IRDMA_PKT_TYPE_SYN,
 	IRDMA_PKT_TYPE_SYNACK,
 	IRDMA_PKT_TYPE_ACK,
@@ -147,7 +147,7 @@ enum irdma_cm_listener_state {
 
 /* CM event codes */
 enum irdma_cm_event_type {
-	IRDMA_CM_EVENT_UNKNOWN,
+	IRDMA_CM_EVENT_UNKANALWN,
 	IRDMA_CM_EVENT_ESTABLISHED,
 	IRDMA_CM_EVENT_MPA_REQ,
 	IRDMA_CM_EVENT_MPA_CONNECT,
@@ -198,7 +198,7 @@ struct option_windowscale {
 	u8 shiftcount;
 };
 
-union all_known_options {
+union all_kanalwn_options {
 	char eol;
 	struct option_base base;
 	struct option_mss mss;
@@ -235,7 +235,7 @@ struct irdma_cm_tcp_context {
 };
 
 struct irdma_apbvt_entry {
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	u32 use_cnt;
 	u16 port;
 };
@@ -251,7 +251,7 @@ struct irdma_cm_listener {
 	refcount_t refcnt;
 	atomic_t pend_accepts_cnt;
 	u32 loc_addr[4];
-	u32 reused_node;
+	u32 reused_analde;
 	int backlog;
 	u16 loc_port;
 	u16 vlan_id;
@@ -272,7 +272,7 @@ struct irdma_mpa_priv_info {
 	u32 size;
 };
 
-struct irdma_cm_node {
+struct irdma_cm_analde {
 	struct irdma_qp *iwqp;
 	struct irdma_device *iwdev;
 	struct irdma_sc_dev *dev;
@@ -294,12 +294,12 @@ struct irdma_cm_node {
 	};
 	struct irdma_kmem_info mpa_hdr;
 	struct iw_cm_id *cm_id;
-	struct hlist_node list;
+	struct hlist_analde list;
 	struct completion establish_comp;
-	spinlock_t retrans_list_lock; /* protect CM node rexmit updates*/
+	spinlock_t retrans_list_lock; /* protect CM analde rexmit updates*/
 	atomic_t passive_state;
 	refcount_t refcnt;
-	enum irdma_cm_node_state state;
+	enum irdma_cm_analde_state state;
 	enum send_rdma0 send_rdma0_op;
 	enum mpa_frame_ver mpa_frame_rev;
 	u32 loc_addr[4], rem_addr[4];
@@ -344,7 +344,7 @@ struct irdma_cm_event {
 	enum irdma_cm_event_type type;
 	struct irdma_cm_info cm_info;
 	struct work_struct event_work;
-	struct irdma_cm_node *cm_node;
+	struct irdma_cm_analde *cm_analde;
 };
 
 struct irdma_cm_core {
@@ -355,15 +355,15 @@ struct irdma_cm_core {
 	DECLARE_HASHTABLE(apbvt_hash_tbl, 8);
 	struct timer_list tcp_timer;
 	struct workqueue_struct *event_wq;
-	spinlock_t ht_lock; /* protect CM node (active side) list */
+	spinlock_t ht_lock; /* protect CM analde (active side) list */
 	spinlock_t listen_list_lock; /* protect listener list */
 	spinlock_t apbvt_lock; /*serialize apbvt add/del entries*/
-	u64 stats_nodes_created;
-	u64 stats_nodes_destroyed;
+	u64 stats_analdes_created;
+	u64 stats_analdes_destroyed;
 	u64 stats_listen_created;
 	u64 stats_listen_destroyed;
-	u64 stats_listen_nodes_created;
-	u64 stats_listen_nodes_destroyed;
+	u64 stats_listen_analdes_created;
+	u64 stats_listen_analdes_destroyed;
 	u64 stats_lpbs;
 	u64 stats_accepts;
 	u64 stats_rejects;
@@ -371,16 +371,16 @@ struct irdma_cm_core {
 	u64 stats_passive_errs;
 	u64 stats_pkt_retrans;
 	u64 stats_backlog_drops;
-	struct irdma_puda_buf *(*form_cm_frame)(struct irdma_cm_node *cm_node,
+	struct irdma_puda_buf *(*form_cm_frame)(struct irdma_cm_analde *cm_analde,
 						struct irdma_kmem_info *options,
 						struct irdma_kmem_info *hdr,
 						struct irdma_mpa_priv_info *pdata,
 						u8 flags);
-	int (*cm_create_ah)(struct irdma_cm_node *cm_node, bool wait);
-	void (*cm_free_ah)(struct irdma_cm_node *cm_node);
+	int (*cm_create_ah)(struct irdma_cm_analde *cm_analde, bool wait);
+	void (*cm_free_ah)(struct irdma_cm_analde *cm_analde);
 };
 
-int irdma_schedule_cm_timer(struct irdma_cm_node *cm_node,
+int irdma_schedule_cm_timer(struct irdma_cm_analde *cm_analde,
 			    struct irdma_puda_buf *sqbuf,
 			    enum irdma_timer_type type, int send_retrans,
 			    int close_when_complete);
@@ -406,11 +406,11 @@ bool irdma_ipv4_is_lpb(u32 loc_addr, u32 rem_addr);
 bool irdma_ipv6_is_lpb(u32 *loc_addr, u32 *rem_addr);
 int irdma_arp_table(struct irdma_pci_f *rf, u32 *ip_addr, bool ipv4,
 		    const u8 *mac_addr, u32 action);
-void irdma_if_notify(struct irdma_device *iwdev, struct net_device *netdev,
+void irdma_if_analtify(struct irdma_device *iwdev, struct net_device *netdev,
 		     u32 *ipaddr, bool ipv4, bool ifup);
 bool irdma_port_in_use(struct irdma_cm_core *cm_core, u16 port);
-void irdma_send_ack(struct irdma_cm_node *cm_node);
-void irdma_lpb_nop(struct irdma_sc_qp *qp);
-void irdma_rem_ref_cm_node(struct irdma_cm_node *cm_node);
-void irdma_add_conn_est_qh(struct irdma_cm_node *cm_node);
+void irdma_send_ack(struct irdma_cm_analde *cm_analde);
+void irdma_lpb_analp(struct irdma_sc_qp *qp);
+void irdma_rem_ref_cm_analde(struct irdma_cm_analde *cm_analde);
+void irdma_add_conn_est_qh(struct irdma_cm_analde *cm_analde);
 #endif /* IRDMA_CM_H */

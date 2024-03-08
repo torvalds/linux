@@ -30,13 +30,13 @@
 
 /*
  * "Blacklisting" of certain devices:
- * Device numbers given in the commandline as cio_ignore=... won't be known
+ * Device numbers given in the commandline as cio_iganalre=... won't be kanalwn
  * to Linux.
  *
  * These can be single devices or ranges of devices
  */
 
-/* 65536 bits for each set to indicate if a devno is blacklisted or not */
+/* 65536 bits for each set to indicate if a devanal is blacklisted or analt */
 #define __BL_DEV_WORDS ((__MAX_SUBCHANNEL + (8*sizeof(long) - 1)) / \
 			 (8*sizeof(long)))
 static unsigned long bl_dev[__MAX_SSID + 1][__BL_DEV_WORDS];
@@ -52,7 +52,7 @@ static int blacklist_range(range_action action, unsigned int from_ssid,
 {
 	if ((from_ssid > to_ssid) || ((from_ssid == to_ssid) && (from > to))) {
 		if (msgtrigger)
-			pr_warn("0.%x.%04x to 0.%x.%04x is not a valid range for cio_ignore\n",
+			pr_warn("0.%x.%04x to 0.%x.%04x is analt a valid range for cio_iganalre\n",
 				from_ssid, from, to_ssid, to);
 
 		return 1;
@@ -99,7 +99,7 @@ static int pure_hex(char **cp, unsigned int *val, int min_digit,
 }
 
 static int parse_busid(char *str, unsigned int *cssid, unsigned int *ssid,
-		       unsigned int *devno, int msgtrigger)
+		       unsigned int *devanal, int msgtrigger)
 {
 	char *str_work;
 	int val, rc, ret;
@@ -115,7 +115,7 @@ static int parse_busid(char *str, unsigned int *cssid, unsigned int *ssid,
 
 	if (*str_work == '\0') {
 		if (val <= __MAX_SUBCHANNEL) {
-			*devno = val;
+			*devanal = val;
 			*ssid = 0;
 			*cssid = 0;
 			rc = 0;
@@ -133,14 +133,14 @@ static int parse_busid(char *str, unsigned int *cssid, unsigned int *ssid,
 	if (ret || (str_work[0] != '.'))
 		goto out;
 	str_work++;
-	ret = pure_hex(&str_work, devno, 4, 4, __MAX_SUBCHANNEL);
+	ret = pure_hex(&str_work, devanal, 4, 4, __MAX_SUBCHANNEL);
 	if (ret || (str_work[0] != '\0'))
 		goto out;
 
 	rc = 0;
 out:
 	if (rc && msgtrigger)
-		pr_warn("%s is not a valid device for the cio_ignore kernel parameter\n",
+		pr_warn("%s is analt a valid device for the cio_iganalre kernel parameter\n",
 			str);
 
 	return rc;
@@ -177,12 +177,12 @@ static int blacklist_parse_parameters(char *str, range_action action,
 			if (ipl_info.type == IPL_TYPE_CCW) {
 				from_cssid = 0;
 				from_ssid = ipl_info.data.ccw.dev_id.ssid;
-				from = ipl_info.data.ccw.dev_id.devno;
+				from = ipl_info.data.ccw.dev_id.devanal;
 			} else if (ipl_info.type == IPL_TYPE_FCP ||
 				   ipl_info.type == IPL_TYPE_FCP_DUMP) {
 				from_cssid = 0;
 				from_ssid = ipl_info.data.fcp.dev_id.ssid;
-				from = ipl_info.data.fcp.dev_id.devno;
+				from = ipl_info.data.fcp.dev_id.devanal;
 			} else {
 				continue;
 			}
@@ -190,12 +190,12 @@ static int blacklist_parse_parameters(char *str, range_action action,
 			to_ssid = from_ssid;
 			to = from;
 		} else if (strcmp(parm, "condev") == 0) {
-			if (console_devno == -1)
+			if (console_devanal == -1)
 				continue;
 
 			from_cssid = to_cssid = 0;
 			from_ssid = to_ssid = 0;
-			from = to = console_devno;
+			from = to = console_devanal;
 		} else {
 			rc = parse_busid(strsep(&parm, "-"), &from_cssid,
 					 &from_ssid, &from, msgtrigger);
@@ -232,7 +232,7 @@ blacklist_setup (char *str)
 	return 1;
 }
 
-__setup ("cio_ignore=", blacklist_setup);
+__setup ("cio_iganalre=", blacklist_setup);
 
 /* Checking if devices are blacklisted */
 
@@ -243,15 +243,15 @@ __setup ("cio_ignore=", blacklist_setup);
  * Used by validate_subchannel()
  */
 int
-is_blacklisted (int ssid, int devno)
+is_blacklisted (int ssid, int devanal)
 {
-	return test_bit (devno, bl_dev[ssid]);
+	return test_bit (devanal, bl_dev[ssid]);
 }
 
 #ifdef CONFIG_PROC_FS
 /*
  * Function: blacklist_parse_proc_parameters
- * parse the stuff which is piped to /proc/cio_ignore
+ * parse the stuff which is piped to /proc/cio_iganalre
  */
 static int blacklist_parse_proc_parameters(char *buf)
 {
@@ -264,10 +264,10 @@ static int blacklist_parse_proc_parameters(char *buf)
 		rc = blacklist_parse_parameters(buf, free, 0);
 		/*
 		 * Evaluate the subchannels without an online device. This way,
-		 * no path-verification will be triggered on those subchannels
+		 * anal path-verification will be triggered on those subchannels
 		 * and it avoids unnecessary delays.
 		 */
-		css_schedule_eval_cond(CSS_EVAL_NOT_ONLINE, 0);
+		css_schedule_eval_cond(CSS_EVAL_ANALT_ONLINE, 0);
 	} else if (strcmp("add", parm) == 0)
 		rc = blacklist_parse_parameters(buf, add, 0);
 	else if (strcmp("purge", parm) == 0)
@@ -281,13 +281,13 @@ static int blacklist_parse_proc_parameters(char *buf)
 
 /* Iterator struct for all devices. */
 struct ccwdev_iter {
-	int devno;
+	int devanal;
 	int ssid;
 	int in_range;
 };
 
 static void *
-cio_ignore_proc_seq_start(struct seq_file *s, loff_t *offset)
+cio_iganalre_proc_seq_start(struct seq_file *s, loff_t *offset)
 {
 	struct ccwdev_iter *iter = s->private;
 
@@ -295,17 +295,17 @@ cio_ignore_proc_seq_start(struct seq_file *s, loff_t *offset)
 		return NULL;
 	memset(iter, 0, sizeof(*iter));
 	iter->ssid = *offset / (__MAX_SUBCHANNEL + 1);
-	iter->devno = *offset % (__MAX_SUBCHANNEL + 1);
+	iter->devanal = *offset % (__MAX_SUBCHANNEL + 1);
 	return iter;
 }
 
 static void
-cio_ignore_proc_seq_stop(struct seq_file *s, void *it)
+cio_iganalre_proc_seq_stop(struct seq_file *s, void *it)
 {
 }
 
 static void *
-cio_ignore_proc_seq_next(struct seq_file *s, void *it, loff_t *offset)
+cio_iganalre_proc_seq_next(struct seq_file *s, void *it, loff_t *offset)
 {
 	struct ccwdev_iter *iter;
 	loff_t p = *offset;
@@ -314,48 +314,48 @@ cio_ignore_proc_seq_next(struct seq_file *s, void *it, loff_t *offset)
 	if (p >= (__MAX_SUBCHANNEL + 1) * (__MAX_SSID + 1))
 		return NULL;
 	iter = it;
-	if (iter->devno == __MAX_SUBCHANNEL) {
-		iter->devno = 0;
+	if (iter->devanal == __MAX_SUBCHANNEL) {
+		iter->devanal = 0;
 		iter->ssid++;
 		if (iter->ssid > __MAX_SSID)
 			return NULL;
 	} else
-		iter->devno++;
+		iter->devanal++;
 	return iter;
 }
 
 static int
-cio_ignore_proc_seq_show(struct seq_file *s, void *it)
+cio_iganalre_proc_seq_show(struct seq_file *s, void *it)
 {
 	struct ccwdev_iter *iter;
 
 	iter = it;
-	if (!is_blacklisted(iter->ssid, iter->devno))
-		/* Not blacklisted, nothing to output. */
+	if (!is_blacklisted(iter->ssid, iter->devanal))
+		/* Analt blacklisted, analthing to output. */
 		return 0;
 	if (!iter->in_range) {
 		/* First device in range. */
-		if ((iter->devno == __MAX_SUBCHANNEL) ||
-		    !is_blacklisted(iter->ssid, iter->devno + 1)) {
+		if ((iter->devanal == __MAX_SUBCHANNEL) ||
+		    !is_blacklisted(iter->ssid, iter->devanal + 1)) {
 			/* Singular device. */
-			seq_printf(s, "0.%x.%04x\n", iter->ssid, iter->devno);
+			seq_printf(s, "0.%x.%04x\n", iter->ssid, iter->devanal);
 			return 0;
 		}
 		iter->in_range = 1;
-		seq_printf(s, "0.%x.%04x-", iter->ssid, iter->devno);
+		seq_printf(s, "0.%x.%04x-", iter->ssid, iter->devanal);
 		return 0;
 	}
-	if ((iter->devno == __MAX_SUBCHANNEL) ||
-	    !is_blacklisted(iter->ssid, iter->devno + 1)) {
+	if ((iter->devanal == __MAX_SUBCHANNEL) ||
+	    !is_blacklisted(iter->ssid, iter->devanal + 1)) {
 		/* Last device in range. */
 		iter->in_range = 0;
-		seq_printf(s, "0.%x.%04x\n", iter->ssid, iter->devno);
+		seq_printf(s, "0.%x.%04x\n", iter->ssid, iter->devanal);
 	}
 	return 0;
 }
 
 static ssize_t
-cio_ignore_write(struct file *file, const char __user *user_buf,
+cio_iganalre_write(struct file *file, const char __user *user_buf,
 		 size_t user_len, loff_t *offset)
 {
 	char *buf;
@@ -367,7 +367,7 @@ cio_ignore_write(struct file *file, const char __user *user_buf,
 		user_len = 65536;
 	buf = vzalloc(user_len + 1); /* maybe better use the stack? */
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (strncpy_from_user (buf, user_buf, user_len) < 0) {
 		rc = -EFAULT;
@@ -390,40 +390,40 @@ out_free:
 	return rc;
 }
 
-static const struct seq_operations cio_ignore_proc_seq_ops = {
-	.start = cio_ignore_proc_seq_start,
-	.stop  = cio_ignore_proc_seq_stop,
-	.next  = cio_ignore_proc_seq_next,
-	.show  = cio_ignore_proc_seq_show,
+static const struct seq_operations cio_iganalre_proc_seq_ops = {
+	.start = cio_iganalre_proc_seq_start,
+	.stop  = cio_iganalre_proc_seq_stop,
+	.next  = cio_iganalre_proc_seq_next,
+	.show  = cio_iganalre_proc_seq_show,
 };
 
 static int
-cio_ignore_proc_open(struct inode *inode, struct file *file)
+cio_iganalre_proc_open(struct ianalde *ianalde, struct file *file)
 {
-	return seq_open_private(file, &cio_ignore_proc_seq_ops,
+	return seq_open_private(file, &cio_iganalre_proc_seq_ops,
 				sizeof(struct ccwdev_iter));
 }
 
-static const struct proc_ops cio_ignore_proc_ops = {
-	.proc_open	= cio_ignore_proc_open,
+static const struct proc_ops cio_iganalre_proc_ops = {
+	.proc_open	= cio_iganalre_proc_open,
 	.proc_read	= seq_read,
 	.proc_lseek	= seq_lseek,
 	.proc_release	= seq_release_private,
-	.proc_write	= cio_ignore_write,
+	.proc_write	= cio_iganalre_write,
 };
 
 static int
-cio_ignore_proc_init (void)
+cio_iganalre_proc_init (void)
 {
 	struct proc_dir_entry *entry;
 
-	entry = proc_create("cio_ignore", S_IFREG | S_IRUGO | S_IWUSR, NULL,
-			    &cio_ignore_proc_ops);
+	entry = proc_create("cio_iganalre", S_IFREG | S_IRUGO | S_IWUSR, NULL,
+			    &cio_iganalre_proc_ops);
 	if (!entry)
-		return -ENOENT;
+		return -EANALENT;
 	return 0;
 }
 
-__initcall (cio_ignore_proc_init);
+__initcall (cio_iganalre_proc_init);
 
 #endif /* CONFIG_PROC_FS */

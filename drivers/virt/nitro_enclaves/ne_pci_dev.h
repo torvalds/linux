@@ -31,7 +31,7 @@
  */
 
 /**
- * NE_ENABLE - (1 byte) Register to notify the device that the driver is using
+ * NE_ENABLE - (1 byte) Register to analtify the device that the driver is using
  *	       it (Read/Write).
  */
 #define NE_ENABLE		(0x0000)
@@ -46,13 +46,13 @@
 #define NE_VERSION_MAX		(0x0001)
 
 /**
- * NE_COMMAND - (4 bytes) Register to notify the device what command was
+ * NE_COMMAND - (4 bytes) Register to analtify the device what command was
  *		requested (Write-Only).
  */
 #define NE_COMMAND		(0x0004)
 
 /**
- * NE_EVTCNT - (4 bytes) Register to notify the driver that a reply or a device
+ * NE_EVTCNT - (4 bytes) Register to analtify the driver that a reply or a device
  *	       event is available (Read-Only):
  *	       - Lower half  - command reply counter
  *	       - Higher half - out-of-band device event counter
@@ -98,7 +98,7 @@
  */
 
 /**
- * NE_VEC_REPLY - MSI-X vector used for command reply notification.
+ * NE_VEC_REPLY - MSI-X vector used for command reply analtification.
  */
 #define NE_VEC_REPLY		(0)
 
@@ -120,7 +120,7 @@
  * @SLOT_COUNT :		Get the number of allocated slots.
  * @NEXT_SLOT:			Get the next slot in the list of allocated slots.
  * @SLOT_INFO:			Get the info for a slot e.g. slot uid, vCPUs count.
- * @SLOT_ADD_BULK_VCPUS:	Add a number of vCPUs, not providing CPU ids.
+ * @SLOT_ADD_BULK_VCPUS:	Add a number of vCPUs, analt providing CPU ids.
  * @MAX_CMD:			A gatekeeper for max possible command type.
  */
 enum ne_pci_dev_cmd_type {
@@ -288,7 +288,7 @@ struct ne_pci_dev_cmd_reply {
  *				enclave state scanning and propagation to the
  *				enclave process.
  * @iomem_base :		MMIO region of the PCI device.
- * @notify_work:		Work item for every received out-of-band event.
+ * @analtify_work:		Work item for every received out-of-band event.
  * @pci_dev_mutex:		Mutex for accessing the PCI device MMIO space.
  * @pdev:			PCI device data structure.
  */
@@ -299,7 +299,7 @@ struct ne_pci_dev {
 	struct mutex		enclaves_list_mutex;
 	struct workqueue_struct	*event_wq;
 	void __iomem		*iomem_base;
-	struct work_struct	notify_work;
+	struct work_struct	analtify_work;
 	struct mutex		pci_dev_mutex;
 	struct pci_dev		*pdev;
 };

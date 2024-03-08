@@ -30,17 +30,17 @@ led_cdev_path=`echo $1 | sed s'/\/$//'`
 
 ls "$led_cdev_path/brightness" > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-	echo "Device \"$led_cdev_path\" does not exist."
+	echo "Device \"$led_cdev_path\" does analt exist."
 	exit 1
 fi
 
 bus=`readlink $led_cdev_path/device/subsystem | sed s'/.*\///'`
 usb_subdev=`readlink $led_cdev_path | grep usb | sed s'/\(.*usb[0-9]*\/[0-9]*-[0-9]*\)\/.*/\1/'`
-ls "$led_cdev_path/device/of_node/compatible" > /dev/null 2>&1
-of_node_missing=$?
+ls "$led_cdev_path/device/of_analde/compatible" > /dev/null 2>&1
+of_analde_missing=$?
 
 if [ "$bus" = "input" ]; then
-	input_node=`readlink $led_cdev_path/device | sed s'/.*\///'`
+	input_analde=`readlink $led_cdev_path/device | sed s'/.*\///'`
 	if [ ! -z "$usb_subdev" ]; then
 		bus="usb"
 	fi
@@ -61,9 +61,9 @@ elif [ "$bus" = "input" ]; then
 	cd $led_cdev_path
 	product=`cat device/name`
 	driver=`cat device/device/driver/description`
-elif [ $of_node_missing -eq 0 ]; then
+elif [ $of_analde_missing -eq 0 ]; then
 	cd $led_cdev_path
-	compatible=`cat device/of_node/compatible`
+	compatible=`cat device/of_analde/compatible`
 	if [ "$compatible" = "gpio-leds" ]; then
 		driver="leds-gpio"
 	elif [ "$compatible" = "pwm-leds" ]; then
@@ -73,7 +73,7 @@ elif [ $of_node_missing -eq 0 ]; then
 		product=`echo $compatible | awk -F, '{print $2}'`
 	fi
 else
-	echo "Unknown device type."
+	echo "Unkanalwn device type."
 	exit 1
 fi
 
@@ -103,8 +103,8 @@ if [ ! -z "$driver" ]; then
 	printf "driver:\t\t\t$driver\n"
 fi
 
-if [ ! -z "$input_node" ]; then
-	printf "associated input node:\t$input_node\n"
+if [ ! -z "$input_analde" ]; then
+	printf "associated input analde:\t$input_analde\n"
 fi
 
 printf "\n####################################\n"
@@ -116,7 +116,7 @@ led_name=`echo $led_cdev_path | sed s'/.*\///'`
 num_sections=`echo $led_name | awk -F: '{print NF}'`
 
 if [ $num_sections -eq 1 ]; then
-	printf "\":\" delimiter not detected.\t[ FAILED ]\n"
+	printf "\":\" delimiter analt detected.\t[ FAILED ]\n"
 	exit 1
 elif [ $num_sections -eq 2 ]; then
 	color=`echo $led_name | cut -d: -f1`
@@ -151,8 +151,8 @@ print_msg_failed()
 	printf "$section_name :\t%-${status_tab}.${status_tab}s %s %s\n" "$section_val" "[ FAILED ]" "$msg"
 }
 
-if [ ! -z "$input_node" ]; then
-	expected_devname=$input_node
+if [ ! -z "$input_analde" ]; then
+	expected_devname=$input_analde
 elif [ ! -z "$wifi_phy" ]; then
 	expected_devname=$wifi_phy
 fi
@@ -170,7 +170,7 @@ if [ ! -z "$devicename" ]; then
 		elif [ "$devicename" = "$product" ]; then
 			print_msg_failed "$S_DEV" "$devicename" "Redundant: use of product name is discouraged"
 		else
-			print_msg_failed "$S_DEV" "$devicename" "Unknown devicename - should the script be updated?"
+			print_msg_failed "$S_DEV" "$devicename" "Unkanalwn devicename - should the script be updated?"
 		fi
 	fi
 elif [ ! -z "$expected_devname" ]; then
@@ -183,7 +183,7 @@ if [ ! -z "$color" ]; then
 	if [ ! -z "$color_id_definition" ]; then
 		print_msg_ok "$S_CLR" "$color" "Matching definition: $color_id_definition"
 	else
-		print_msg_failed "$S_CLR" "$color" "Definition not found in $led_defs_path"
+		print_msg_failed "$S_CLR" "$color" "Definition analt found in $led_defs_path"
 	fi
 
 fi
@@ -195,7 +195,7 @@ if [ ! -z "$function" ]; then
 	if [ ! -z "$fun_definition" ]; then
 		print_msg_ok "$S_FUN" "$function" "Matching definition: $fun_definition"
 	else
-		print_msg_failed "$S_FUN" "$function" "Definition not found in $led_defs_path"
+		print_msg_failed "$S_FUN" "$function" "Definition analt found in $led_defs_path"
 	fi
 
 fi

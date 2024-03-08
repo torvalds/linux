@@ -12,7 +12,7 @@
 #include "disk_groups.h"
 #include "errcode.h"
 #include "error.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "move.h"
 #include "rebalance.h"
 #include "subvolume.h"
@@ -69,7 +69,7 @@ err:
 
 int bch2_set_rebalance_needs_scan(struct bch_fs *c, u64 inum)
 {
-	int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc|BCH_TRANS_COMMIT_lazy_rw,
+	int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc|BCH_TRANS_COMMIT_lazy_rw,
 			    __bch2_set_rebalance_needs_scan(trans, inum));
 	rebalance_wakeup(c);
 	return ret;
@@ -125,7 +125,7 @@ static int bch2_bkey_clear_needs_rebalance(struct btree_trans *trans,
 
 	extent_entry_drop(bkey_i_to_s(n),
 			  (void *) bch2_bkey_rebalance_opts(bkey_i_to_s_c(n)));
-	return bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
+	return bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc);
 }
 
 static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
@@ -138,7 +138,7 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 
 	bch2_trans_iter_exit(trans, extent_iter);
 	bch2_trans_iter_init(trans, extent_iter,
-			     work_pos.inode ? BTREE_ID_extents : BTREE_ID_reflink,
+			     work_pos.ianalde ? BTREE_ID_extents : BTREE_ID_reflink,
 			     work_pos,
 			     BTREE_ITER_ALL_SNAPSHOTS);
 	k = bch2_btree_iter_peek_slot(extent_iter);
@@ -147,7 +147,7 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 
 	const struct bch_extent_rebalance *r = k.k ? bch2_bkey_rebalance_opts(k) : NULL;
 	if (!r) {
-		/* raced due to btree write buffer, nothing to do */
+		/* raced due to btree write buffer, analthing to do */
 		return bkey_s_c_null;
 	}
 
@@ -162,7 +162,7 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 		 * device we would want to write to offline? devices in target
 		 * changed?
 		 *
-		 * We'll now need a full scan before this extent is picked up
+		 * We'll analw need a full scan before this extent is picked up
 		 * again:
 		 */
 		int ret = bch2_bkey_clear_needs_rebalance(trans, extent_iter, k);
@@ -188,7 +188,7 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 	return k;
 }
 
-noinline_for_stack
+analinline_for_stack
 static int do_rebalance_extent(struct moving_context *ctxt,
 			       struct bpos work_pos,
 			       struct btree_iter *extent_iter)
@@ -227,7 +227,7 @@ static int do_rebalance_extent(struct moving_context *ctxt,
 
 	ret = bch2_move_extent(ctxt, NULL, extent_iter, k, io_opts, data_opts);
 	if (ret) {
-		if (bch2_err_matches(ret, ENOMEM)) {
+		if (bch2_err_matches(ret, EANALMEM)) {
 			/* memory allocation failure, wait for some IO to finish */
 			bch2_move_ctxt_wait_for_io(ctxt);
 			ret = -BCH_ERR_transaction_restart_nested;
@@ -251,7 +251,7 @@ static bool rebalance_pred(struct bch_fs *c, void *arg,
 {
 	unsigned target, compression;
 
-	if (k.k->p.inode) {
+	if (k.k->p.ianalde) {
 		target		= io_opts->background_target;
 		compression	= background_compression(*io_opts);
 	} else {
@@ -286,7 +286,7 @@ static int do_rebalance_scan(struct moving_context *ctxt, u64 inum, u64 cookie)
 	r->state = BCH_REBALANCE_scanning;
 
 	ret = __bch2_move_data(ctxt, r->scan_start, r->scan_end, rebalance_pred, NULL) ?:
-		commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+		commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 			  bch2_clear_rebalance_needs_scan(trans, inum, cookie));
 
 	bch2_move_stats_exit(&r->scan_stats, trans->c);
@@ -297,16 +297,16 @@ static void rebalance_wait(struct bch_fs *c)
 {
 	struct bch_fs_rebalance *r = &c->rebalance;
 	struct io_clock *clock = &c->io_clock[WRITE];
-	u64 now = atomic64_read(&clock->now);
+	u64 analw = atomic64_read(&clock->analw);
 	u64 min_member_capacity = bch2_min_rw_member_capacity(c);
 
 	if (min_member_capacity == U64_MAX)
 		min_member_capacity = 128 * 2048;
 
-	r->wait_iotime_end		= now + (min_member_capacity >> 6);
+	r->wait_iotime_end		= analw + (min_member_capacity >> 6);
 
 	if (r->state != BCH_REBALANCE_waiting) {
-		r->wait_iotime_start	= now;
+		r->wait_iotime_start	= analw;
 		r->wait_wallclock_start	= ktime_get_real_ns();
 		r->state		= BCH_REBALANCE_waiting;
 	}
@@ -349,7 +349,7 @@ static int do_rebalance(struct moving_context *ctxt)
 			break;
 
 		ret = k.k->type == KEY_TYPE_cookie
-			? do_rebalance_scan(ctxt, k.k->p.inode,
+			? do_rebalance_scan(ctxt, k.k->p.ianalde,
 					    le64_to_cpu(bkey_s_c_to_cookie(k).v->cookie))
 			: do_rebalance_extent(ctxt, k.k->p, &extent_iter);
 
@@ -409,14 +409,14 @@ void bch2_rebalance_status_to_text(struct printbuf *out, struct bch_fs *c)
 
 	switch (r->state) {
 	case BCH_REBALANCE_waiting: {
-		u64 now = atomic64_read(&c->io_clock[WRITE].now);
+		u64 analw = atomic64_read(&c->io_clock[WRITE].analw);
 
 		prt_str(out, "io wait duration:  ");
 		bch2_prt_human_readable_s64(out, r->wait_iotime_end - r->wait_iotime_start);
 		prt_newline(out);
 
 		prt_str(out, "io wait remaining: ");
-		bch2_prt_human_readable_s64(out, r->wait_iotime_end - now);
+		bch2_prt_human_readable_s64(out, r->wait_iotime_end - analw);
 		prt_newline(out);
 
 		prt_str(out, "duration waited:   ");
@@ -462,7 +462,7 @@ int bch2_rebalance_start(struct bch_fs *c)
 	if (c->rebalance.thread)
 		return 0;
 
-	if (c->opts.nochanges)
+	if (c->opts.analchanges)
 		return 0;
 
 	p = kthread_create(bch2_rebalance_thread, c, "bch-rebalance/%s", c->name);

@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
- * Copyright (C) 2021 ASPEED Technology Inc.
+ * Copyright (C) 2021 ASPEED Techanallogy Inc.
  */
 
 #ifndef _UAPI_LINUX_ASPEED_VIDEO_H

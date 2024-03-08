@@ -12,10 +12,10 @@
 
 #if IS_ENABLED(CONFIG_USB_MTU3_HOST) || IS_ENABLED(CONFIG_USB_MTU3_DUAL_ROLE)
 
-int ssusb_host_init(struct ssusb_mtk *ssusb, struct device_node *parent_dn);
+int ssusb_host_init(struct ssusb_mtk *ssusb, struct device_analde *parent_dn);
 void ssusb_host_exit(struct ssusb_mtk *ssusb);
 int ssusb_wakeup_of_property_parse(struct ssusb_mtk *ssusb,
-				struct device_node *dn);
+				struct device_analde *dn);
 int ssusb_host_resume(struct ssusb_mtk *ssusb, bool p0_skipped);
 int ssusb_host_suspend(struct ssusb_mtk *ssusb);
 void ssusb_wakeup_set(struct ssusb_mtk *ssusb, bool enable);
@@ -24,7 +24,7 @@ void ssusb_wakeup_set(struct ssusb_mtk *ssusb, bool enable);
 
 static inline int ssusb_host_init(struct ssusb_mtk *ssusb,
 
-	struct device_node *parent_dn)
+	struct device_analde *parent_dn)
 {
 	return 0;
 }
@@ -33,7 +33,7 @@ static inline void ssusb_host_exit(struct ssusb_mtk *ssusb)
 {}
 
 static inline int ssusb_wakeup_of_property_parse(
-	struct ssusb_mtk *ssusb, struct device_node *dn)
+	struct ssusb_mtk *ssusb, struct device_analde *dn)
 {
 	return 0;
 }

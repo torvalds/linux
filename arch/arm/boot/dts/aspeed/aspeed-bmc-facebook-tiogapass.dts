@@ -68,13 +68,13 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
+		label = "panalr";
 	};
 };
 
-&lpc_snoop {
+&lpc_sanalop {
 	status = "okay";
-	snoop-ports = <0x80>;
+	sanalop-ports = <0x80>;
 };
 
 &lpc_ctrl {

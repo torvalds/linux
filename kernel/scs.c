@@ -20,7 +20,7 @@ static void __scs_account(void *s, int account)
 {
 	struct page *scs_page = vmalloc_to_page(s);
 
-	mod_node_page_state(page_pgdat(scs_page), NR_KERNEL_SCS_KB,
+	mod_analde_page_state(page_pgdat(scs_page), NR_KERNEL_SCS_KB,
 			    account * (SCS_SIZE / SZ_1K));
 }
 
@@ -28,7 +28,7 @@ static void __scs_account(void *s, int account)
 #define NR_CACHED_SCS 2
 static DEFINE_PER_CPU(void *, scs_cache[NR_CACHED_SCS]);
 
-static void *__scs_alloc(int node)
+static void *__scs_alloc(int analde)
 {
 	int i;
 	void *s;
@@ -37,25 +37,25 @@ static void *__scs_alloc(int node)
 		s = this_cpu_xchg(scs_cache[i], NULL);
 		if (s) {
 			s = kasan_unpoison_vmalloc(s, SCS_SIZE,
-						   KASAN_VMALLOC_PROT_NORMAL);
+						   KASAN_VMALLOC_PROT_ANALRMAL);
 			memset(s, 0, SCS_SIZE);
 			goto out;
 		}
 	}
 
-	s = __vmalloc_node_range(SCS_SIZE, 1, VMALLOC_START, VMALLOC_END,
-				    GFP_SCS, PAGE_KERNEL, 0, node,
+	s = __vmalloc_analde_range(SCS_SIZE, 1, VMALLOC_START, VMALLOC_END,
+				    GFP_SCS, PAGE_KERNEL, 0, analde,
 				    __builtin_return_address(0));
 
 out:
 	return kasan_reset_tag(s);
 }
 
-void *scs_alloc(int node)
+void *scs_alloc(int analde)
 {
 	void *s;
 
-	s = __scs_alloc(node);
+	s = __scs_alloc(analde);
 	if (!s)
 		return NULL;
 
@@ -77,7 +77,7 @@ void scs_free(void *s)
 	__scs_account(s, -1);
 
 	/*
-	 * We cannot sleep as this can be called in interrupt context,
+	 * We cananalt sleep as this can be called in interrupt context,
 	 * so use this_cpu_cmpxchg to update the cache, and vfree_atomic
 	 * to free the stack.
 	 */
@@ -86,7 +86,7 @@ void scs_free(void *s)
 		if (this_cpu_cmpxchg(scs_cache[i], 0, s) == NULL)
 			return;
 
-	kasan_unpoison_vmalloc(s, SCS_SIZE, KASAN_VMALLOC_PROT_NORMAL);
+	kasan_unpoison_vmalloc(s, SCS_SIZE, KASAN_VMALLOC_PROT_ANALRMAL);
 	vfree_atomic(s);
 }
 
@@ -111,16 +111,16 @@ void __init scs_init(void)
 			  scs_cleanup);
 }
 
-int scs_prepare(struct task_struct *tsk, int node)
+int scs_prepare(struct task_struct *tsk, int analde)
 {
 	void *s;
 
 	if (!scs_is_enabled())
 		return 0;
 
-	s = scs_alloc(node);
+	s = scs_alloc(analde);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	task_scs(tsk) = task_scs_sp(tsk) = s;
 	return 0;
@@ -136,7 +136,7 @@ static void scs_check_usage(struct task_struct *tsk)
 		return;
 
 	for (p = task_scs(tsk); p < __scs_magic(tsk); ++p) {
-		if (!READ_ONCE_NOCHECK(*p))
+		if (!READ_ONCE_ANALCHECK(*p))
 			break;
 		used += sizeof(*p);
 	}

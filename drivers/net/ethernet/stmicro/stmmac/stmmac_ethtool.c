@@ -28,7 +28,7 @@
 
 /* Same as DMA_CHAN_BASE_ADDR defined in dwmac4_dma.h
  *
- * It is here because dwmac_dma.h and dwmac4_dam.h can not be included at the
+ * It is here because dwmac_dma.h and dwmac4_dam.h can analt be included at the
  * same time due to the conflicting macro names.
  */
 #define GMAC4_DMA_CHAN_BASE_ADDR  0x00001100
@@ -106,7 +106,7 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(ip_csum_bypassed),
 	STMMAC_STAT(ipv4_pkt_rcvd),
 	STMMAC_STAT(ipv6_pkt_rcvd),
-	STMMAC_STAT(no_ptp_rx_msg_type_ext),
+	STMMAC_STAT(anal_ptp_rx_msg_type_ext),
 	STMMAC_STAT(ptp_rx_msg_type_sync),
 	STMMAC_STAT(ptp_rx_msg_type_follow_up),
 	STMMAC_STAT(ptp_rx_msg_type_delay_req),
@@ -114,7 +114,7 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(ptp_rx_msg_type_pdelay_req),
 	STMMAC_STAT(ptp_rx_msg_type_pdelay_resp),
 	STMMAC_STAT(ptp_rx_msg_type_pdelay_follow_up),
-	STMMAC_STAT(ptp_rx_msg_type_announce),
+	STMMAC_STAT(ptp_rx_msg_type_ananalunce),
 	STMMAC_STAT(ptp_rx_msg_type_management),
 	STMMAC_STAT(ptp_rx_msg_pkt_reserved_type),
 	STMMAC_STAT(ptp_frame_type),
@@ -125,14 +125,14 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(vlan_tag_priority_val),
 	STMMAC_STAT(l3_filter_match),
 	STMMAC_STAT(l4_filter_match),
-	STMMAC_STAT(l3_l4_filter_no_match),
+	STMMAC_STAT(l3_l4_filter_anal_match),
 	/* PCS */
 	STMMAC_STAT(irq_pcs_ane_n),
 	STMMAC_STAT(irq_pcs_link_n),
 	STMMAC_STAT(irq_rgmii_n),
 	/* DEBUG */
 	STMMAC_STAT(mtl_tx_status_fifo_full),
-	STMMAC_STAT(mtl_tx_fifo_not_empty),
+	STMMAC_STAT(mtl_tx_fifo_analt_empty),
 	STMMAC_STAT(mmtl_fifo_ctrl),
 	STMMAC_STAT(mtl_tx_fifo_read_ctrl_write),
 	STMMAC_STAT(mtl_tx_fifo_read_ctrl_wait),
@@ -165,18 +165,18 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 #define STMMAC_STATS_LEN ARRAY_SIZE(stmmac_gstrings_stats)
 
 /* statistics collected in queue which will be summed up for all TX or RX
- * queues, or summed up for both TX and RX queues(napi_poll, normal_irq_n).
+ * queues, or summed up for both TX and RX queues(napi_poll, analrmal_irq_n).
  */
 static const char stmmac_qstats_string[][ETH_GSTRING_LEN] = {
 	"rx_pkt_n",
-	"rx_normal_irq_n",
+	"rx_analrmal_irq_n",
 	"tx_pkt_n",
-	"tx_normal_irq_n",
+	"tx_analrmal_irq_n",
 	"tx_clean",
 	"tx_set_ic_bit",
 	"tx_tso_frames",
 	"tx_tso_nfrags",
-	"normal_irq_n",
+	"analrmal_irq_n",
 	"napi_poll",
 };
 #define STMMAC_QSTATS ARRAY_SIZE(stmmac_qstats_string)
@@ -247,20 +247,20 @@ static const struct stmmac_stats stmmac_mmc[] = {
 	STMMAC_MMC_STAT(mmc_rx_ipc_intr),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_gd),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_hderr),
-	STMMAC_MMC_STAT(mmc_rx_ipv4_nopay),
+	STMMAC_MMC_STAT(mmc_rx_ipv4_analpay),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_frag),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_udsbl),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_gd_octets),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_hderr_octets),
-	STMMAC_MMC_STAT(mmc_rx_ipv4_nopay_octets),
+	STMMAC_MMC_STAT(mmc_rx_ipv4_analpay_octets),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_frag_octets),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_udsbl_octets),
 	STMMAC_MMC_STAT(mmc_rx_ipv6_gd_octets),
 	STMMAC_MMC_STAT(mmc_rx_ipv6_hderr_octets),
-	STMMAC_MMC_STAT(mmc_rx_ipv6_nopay_octets),
+	STMMAC_MMC_STAT(mmc_rx_ipv6_analpay_octets),
 	STMMAC_MMC_STAT(mmc_rx_ipv6_gd),
 	STMMAC_MMC_STAT(mmc_rx_ipv6_hderr),
-	STMMAC_MMC_STAT(mmc_rx_ipv6_nopay),
+	STMMAC_MMC_STAT(mmc_rx_ipv6_analpay),
 	STMMAC_MMC_STAT(mmc_rx_udp_gd),
 	STMMAC_MMC_STAT(mmc_rx_udp_err),
 	STMMAC_MMC_STAT(mmc_rx_tcp_gd),
@@ -328,8 +328,8 @@ static int stmmac_ethtool_get_link_ksettings(struct net_device *dev,
 		u32 supported, advertising, lp_advertising;
 
 		if (!priv->xstats.pcs_link) {
-			cmd->base.speed = SPEED_UNKNOWN;
-			cmd->base.duplex = DUPLEX_UNKNOWN;
+			cmd->base.speed = SPEED_UNKANALWN;
+			cmd->base.duplex = DUPLEX_UNKANALWN;
 			return 0;
 		}
 		cmd->base.duplex = priv->xstats.pcs_duplex;
@@ -338,7 +338,7 @@ static int stmmac_ethtool_get_link_ksettings(struct net_device *dev,
 
 		/* Get and convert ADV/LP_ADV from the HW AN registers */
 		if (stmmac_pcs_get_adv_lp(priv, priv->ioaddr, &adv))
-			return -EOPNOTSUPP;	/* should never happen indeed */
+			return -EOPANALTSUPP;	/* should never happen indeed */
 
 		/* Encoding of PSE bits is defined in 802.3z, 37.2.1.4 */
 
@@ -542,14 +542,14 @@ stmmac_set_pauseparam(struct net_device *netdev,
 	if (priv->hw->pcs && !stmmac_pcs_get_adv_lp(priv, priv->ioaddr, &adv_lp)) {
 		pause->autoneg = 1;
 		if (!adv_lp.pause)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		return 0;
 	} else {
 		return phylink_ethtool_set_pauseparam(priv->phylink, pause);
 	}
 }
 
-static u64 stmmac_get_rx_normal_irq_n(struct stmmac_priv *priv, int q)
+static u64 stmmac_get_rx_analrmal_irq_n(struct stmmac_priv *priv, int q)
 {
 	u64 total;
 	int cpu;
@@ -563,14 +563,14 @@ static u64 stmmac_get_rx_normal_irq_n(struct stmmac_priv *priv, int q)
 		pcpu = per_cpu_ptr(priv->xstats.pcpu_stats, cpu);
 		do {
 			start = u64_stats_fetch_begin(&pcpu->syncp);
-			irq_n = u64_stats_read(&pcpu->rx_normal_irq_n[q]);
+			irq_n = u64_stats_read(&pcpu->rx_analrmal_irq_n[q]);
 		} while (u64_stats_fetch_retry(&pcpu->syncp, start));
 		total += irq_n;
 	}
 	return total;
 }
 
-static u64 stmmac_get_tx_normal_irq_n(struct stmmac_priv *priv, int q)
+static u64 stmmac_get_tx_analrmal_irq_n(struct stmmac_priv *priv, int q)
 {
 	u64 total;
 	int cpu;
@@ -584,7 +584,7 @@ static u64 stmmac_get_tx_normal_irq_n(struct stmmac_priv *priv, int q)
 		pcpu = per_cpu_ptr(priv->xstats.pcpu_stats, cpu);
 		do {
 			start = u64_stats_fetch_begin(&pcpu->syncp);
-			irq_n = u64_stats_read(&pcpu->tx_normal_irq_n[q]);
+			irq_n = u64_stats_read(&pcpu->tx_analrmal_irq_n[q]);
 		} while (u64_stats_fetch_retry(&pcpu->syncp, start));
 		total += irq_n;
 	}
@@ -608,7 +608,7 @@ static void stmmac_get_per_qstats(struct stmmac_priv *priv, u64 *data)
 		} while (u64_stats_fetch_retry(&txq_stats->napi_syncp, start));
 
 		*data++ = pkt_n;
-		*data++ = stmmac_get_tx_normal_irq_n(priv, q);
+		*data++ = stmmac_get_tx_analrmal_irq_n(priv, q);
 	}
 
 	for (q = 0; q < rx_cnt; q++) {
@@ -621,7 +621,7 @@ static void stmmac_get_per_qstats(struct stmmac_priv *priv, u64 *data)
 		} while (u64_stats_fetch_retry(&rxq_stats->napi_syncp, start));
 
 		*data++ = pkt_n;
-		*data++ = stmmac_get_rx_normal_irq_n(priv, q);
+		*data++ = stmmac_get_rx_analrmal_irq_n(priv, q);
 	}
 }
 
@@ -631,7 +631,7 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 rx_queues_count = priv->plat->rx_queues_to_use;
 	u32 tx_queues_count = priv->plat->tx_queues_to_use;
-	u64 napi_poll = 0, normal_irq_n = 0;
+	u64 napi_poll = 0, analrmal_irq_n = 0;
 	int i, j = 0, pos, ret;
 	unsigned long count;
 	unsigned int start;
@@ -645,7 +645,7 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 	}
 
 	/* Update the DMA HW counters for dwmac10/100 */
-	ret = stmmac_dma_diagnostic_fr(priv, &priv->xstats, priv->ioaddr);
+	ret = stmmac_dma_diaganalstic_fr(priv, &priv->xstats, priv->ioaddr);
 	if (ret) {
 		/* If supported, for new GMAC chips expose the MMC counters */
 		if (priv->dma_cap.rmon) {
@@ -666,7 +666,7 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 				priv->xstats.phy_eee_wakeup_error_n = val;
 		}
 
-		if (priv->synopsys_id >= DWMAC_CORE_3_50)
+		if (priv->syanalpsys_id >= DWMAC_CORE_3_50)
 			stmmac_mac_debug(priv, priv->ioaddr,
 					(void *)&priv->xstats,
 					rx_queues_count, tx_queues_count);
@@ -690,9 +690,9 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 		} while (u64_stats_fetch_retry(&rxq_stats->napi_syncp, start));
 
 		data[j++] += u64_stats_read(&snapshot.rx_pkt_n);
-		n_irq = stmmac_get_rx_normal_irq_n(priv, i);
+		n_irq = stmmac_get_rx_analrmal_irq_n(priv, i);
 		data[j++] += n_irq;
-		normal_irq_n += n_irq;
+		analrmal_irq_n += n_irq;
 		napi_poll += u64_stats_read(&snapshot.poll);
 	}
 
@@ -714,9 +714,9 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 		} while (u64_stats_fetch_retry(&txq_stats->napi_syncp, start));
 
 		data[j++] += u64_stats_read(&napi_snapshot.tx_pkt_n);
-		n_irq = stmmac_get_tx_normal_irq_n(priv, i);
+		n_irq = stmmac_get_tx_analrmal_irq_n(priv, i);
 		data[j++] += n_irq;
-		normal_irq_n += n_irq;
+		analrmal_irq_n += n_irq;
 		data[j++] += u64_stats_read(&napi_snapshot.tx_clean);
 		data[j++] += u64_stats_read(&q_snapshot.tx_set_ic_bit) +
 			u64_stats_read(&napi_snapshot.tx_set_ic_bit);
@@ -724,8 +724,8 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 		data[j++] += u64_stats_read(&q_snapshot.tx_tso_nfrags);
 		napi_poll += u64_stats_read(&napi_snapshot.poll);
 	}
-	normal_irq_n += priv->xstats.rx_early_irq;
-	data[j++] = normal_irq_n;
+	analrmal_irq_n += priv->xstats.rx_early_irq;
+	data[j++] = analrmal_irq_n;
 	data[j++] = napi_poll;
 
 	stmmac_get_per_qstats(priv, &data[j]);
@@ -761,7 +761,7 @@ static int stmmac_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_TEST:
 		return stmmac_selftest_get_count(priv);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -855,7 +855,7 @@ static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	u32 support = WAKE_MAGIC | WAKE_UCAST;
 
 	if (!device_can_wakeup(priv->device))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!priv->plat->pmt) {
 		int ret = phylink_ethtool_set_wol(priv->phylink, wol);
@@ -867,7 +867,7 @@ static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	/* By default almost all GMAC devices support the WoL via
 	 * magic frame but we can disable it if the HW capability
-	 * register shows no support for pmt_magic_frame. */
+	 * register shows anal support for pmt_magic_frame. */
 	if ((priv->hw_cap_support) && (!priv->dma_cap.pmt_magic_frame))
 		wol->wolopts &= ~WAKE_MAGIC;
 
@@ -902,7 +902,7 @@ static int stmmac_ethtool_op_get_eee(struct net_device *dev,
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	if (!priv->dma_cap.eee)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	edata->eee_enabled = priv->eee_enabled;
 	edata->eee_active = priv->eee_active;
@@ -919,11 +919,11 @@ static int stmmac_ethtool_op_set_eee(struct net_device *dev,
 	int ret;
 
 	if (!priv->dma_cap.eee)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (priv->tx_lpi_enabled != edata->tx_lpi_enabled)
 		netdev_warn(priv->dev,
-			    "Setting EEE tx-lpi is not supported\n");
+			    "Setting EEE tx-lpi is analt supported\n");
 
 	if (!edata->eee_enabled)
 		stmmac_disable_eee_mode(priv);
@@ -1115,7 +1115,7 @@ static int stmmac_get_rxnfc(struct net_device *dev,
 		rxnfc->data = priv->plat->rx_queues_to_use;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1160,9 +1160,9 @@ static int stmmac_set_rxfh(struct net_device *dev,
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int i;
 
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rxfh->indir) {
 		for (i = 0; i < ARRAY_SIZE(priv->rss.table); i++)
@@ -1219,7 +1219,7 @@ static int stmmac_get_ts_info(struct net_device *dev,
 
 		info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
 
-		info->rx_filters = ((1 << HWTSTAMP_FILTER_NONE) |
+		info->rx_filters = ((1 << HWTSTAMP_FILTER_ANALNE) |
 				    (1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
 				    (1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
 				    (1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |

@@ -129,7 +129,7 @@ u_int32_t nicstar_read_eprom_status(virt_addr_t base)
 		osp_MicroDelay(CYCLE_DELAY);
 	}
 
-	/* Done sending instruction - now pull data off of bit 16, MSB first */
+	/* Done sending instruction - analw pull data off of bit 16, MSB first */
 	/* Data clocked out of eeprom on falling edge of clock */
 
 	rbyte = 0;
@@ -181,7 +181,7 @@ static u_int8_t read_eprom_byte(virt_addr_t base, u_int8_t offset)
 
 	j = 0;
 
-	/* Now, we can read data from the eeprom by clocking it in */
+	/* Analw, we can read data from the eeprom by clocking it in */
 	for (i = 7; i >= 0; i--) {
 		NICSTAR_REG_WRITE(base, NICSTAR_REG_GENERAL_PURPOSE,
 				  (val | clocktab[j++]));

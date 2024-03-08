@@ -3,7 +3,7 @@
  *  linux/arch/arm/kernel/module.c
  *
  *  Copyright (C) 2002 Russell King.
- *  Modified for nommu by Hyok S. Choi
+ *  Modified for analmmu by Hyok S. Choi
  *
  * Module allocation method suggested by Andi Kleen.
  */
@@ -26,7 +26,7 @@
 /*
  * The XIP kernel text is mapped in the module area for modules and
  * some other stuff to work without any indirect relocations.
- * MODULES_VADDR is redefined here and not in asm/memory.h to avoid
+ * MODULES_VADDR is redefined here and analt in asm/memory.h to avoid
  * recompiling the whole kernel when CONFIG_XIP_KERNEL is turned on/off.
  */
 #undef MODULES_VADDR
@@ -41,15 +41,15 @@ void *module_alloc(unsigned long size)
 
 	/* Silence the initial allocation */
 	if (IS_ENABLED(CONFIG_ARM_MODULE_PLTS))
-		gfp_mask |= __GFP_NOWARN;
+		gfp_mask |= __GFP_ANALWARN;
 
-	p = __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
-				gfp_mask, PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
+	p = __vmalloc_analde_range(size, 1, MODULES_VADDR, MODULES_END,
+				gfp_mask, PAGE_KERNEL_EXEC, 0, NUMA_ANAL_ANALDE,
 				__builtin_return_address(0));
 	if (!IS_ENABLED(CONFIG_ARM_MODULE_PLTS) || p)
 		return p;
-	return __vmalloc_node_range(size, 1,  VMALLOC_START, VMALLOC_END,
-				GFP_KERNEL, PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
+	return __vmalloc_analde_range(size, 1,  VMALLOC_START, VMALLOC_END,
+				GFP_KERNEL, PAGE_KERNEL_EXEC, 0, NUMA_ANAL_ANALDE,
 				__builtin_return_address(0));
 }
 #endif
@@ -133,7 +133,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 		if (offset < 0 || offset > (symsec->sh_size / sizeof(Elf32_Sym))) {
 			pr_err("%s: section %u reloc %u: bad relocation sym offset\n",
 				module->name, relindex, i);
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 
 		sym = ((Elf32_Sym *)symsec->sh_addr) + offset;
@@ -143,14 +143,14 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			pr_err("%s: section %u reloc %u sym '%s': out of bounds relocation, offset %d size %u\n",
 			       module->name, relindex, i, symname,
 			       rel->r_offset, dstsec->sh_size);
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 
 		loc = dstsec->sh_addr + rel->r_offset;
 
 		switch (ELF32_R_TYPE(rel->r_info)) {
-		case R_ARM_NONE:
-			/* ignore */
+		case R_ARM_ANALNE:
+			/* iganalre */
 			break;
 
 		case R_ARM_ABS32:
@@ -164,7 +164,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			if (sym->st_value & 3) {
 				pr_err("%s: section %u reloc %u sym '%s': unsupported interworking call (ARM -> Thumb)\n",
 				       module->name, relindex, i, symname);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 
 			offset = __mem_to_opcode_arm(*(u32 *)loc);
@@ -175,7 +175,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 
 			/*
 			 * Route through a PLT entry if 'offset' exceeds the
-			 * supported range. Note that 'offset + loc + 8'
+			 * supported range. Analte that 'offset + loc + 8'
 			 * contains the absolute jump target, i.e.,
 			 * @sym + addend, corrected for the +8 PC bias.
 			 */
@@ -192,7 +192,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 				       module->name, relindex, i, symname,
 				       ELF32_R_TYPE(rel->r_info), loc,
 				       sym->st_value);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 
 			offset >>= 2;
@@ -219,7 +219,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 				       module->name, relindex, i, symname,
 				       ELF32_R_TYPE(rel->r_info), loc,
 				       sym->st_value);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 			*(u32 *)loc &= 0x80000000;
 			*(u32 *)loc |= offset & 0x7fffffff;
@@ -296,7 +296,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 				       module->name, relindex, i, symname,
 				       ELF32_R_TYPE(rel->r_info), loc,
 				       sym->st_value);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 			*(u32 *)loc = __opcode_to_mem_arm((tmp & ~0xfff) | offset);
 			break;
@@ -306,18 +306,18 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 		case R_ARM_THM_JUMP24:
 			/*
 			 * For function symbols, only Thumb addresses are
-			 * allowed (no interworking).
+			 * allowed (anal interworking).
 			 *
-			 * For non-function symbols, the destination
-			 * has no specific ARM/Thumb disposition, so
+			 * For analn-function symbols, the destination
+			 * has anal specific ARM/Thumb disposition, so
 			 * the branch is resolved under the assumption
-			 * that interworking is not required.
+			 * that interworking is analt required.
 			 */
 			if (ELF32_ST_TYPE(sym->st_info) == STT_FUNC &&
 			    !(sym->st_value & 1)) {
 				pr_err("%s: section %u reloc %u sym '%s': unsupported interworking call (Thumb -> ARM)\n",
 				       module->name, relindex, i, symname);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 
 			upper = __mem_to_opcode_thumb16(*(u16 *)loc);
@@ -363,7 +363,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 				       module->name, relindex, i, symname,
 				       ELF32_R_TYPE(rel->r_info), loc,
 				       sym->st_value);
-				return -ENOEXEC;
+				return -EANALEXEC;
 			}
 
 			sign = (offset >> 24) & 1;
@@ -421,9 +421,9 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 #endif
 
 		default:
-			pr_err("%s: unknown relocation: %u\n",
+			pr_err("%s: unkanalwn relocation: %u\n",
 			       module->name, ELF32_R_TYPE(rel->r_info));
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 	}
 	return 0;

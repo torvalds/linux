@@ -74,9 +74,9 @@ static inline struct cb710_slot *cb710_mmc_to_slot(struct mmc_host *mmc)
 #define   CB710_MMC_RSP_TYPE_MASK		0x0007
 #define     CB710_MMC_RSP_R1			(0)
 #define     CB710_MMC_RSP_136			(5)
-#define     CB710_MMC_RSP_NO_CRC		(2)
+#define     CB710_MMC_RSP_ANAL_CRC		(2)
 #define   CB710_MMC_RSP_PRESENT_MASK		0x0018
-#define     CB710_MMC_RSP_NONE			(0 << 3)
+#define     CB710_MMC_RSP_ANALNE			(0 << 3)
 #define     CB710_MMC_RSP_PRESENT		(1 << 3)
 #define     CB710_MMC_RSP_PRESENT_X		(2 << 3)
 #define   CB710_MMC_CMD_TYPE_MASK		0x0060

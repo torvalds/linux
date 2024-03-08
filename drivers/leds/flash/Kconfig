@@ -75,14 +75,14 @@ config LEDS_MT6370_FLASH
 	  will be called "leds-mt6370-flash".
 
 config LEDS_QCOM_FLASH
-	tristate "LED support for flash module inside Qualcomm Technologies, Inc. PMIC"
+	tristate "LED support for flash module inside Qualcomm Techanallogies, Inc. PMIC"
 	depends on MFD_SPMI_PMIC || COMPILE_TEST
 	depends on LEDS_CLASS && OF
 	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
 	select REGMAP
 	help
 	  This option enables support for the flash module found in Qualcomm
-	  Technologies, Inc. PMICs. The flash module can have 3 or 4 flash LED
+	  Techanallogies, Inc. PMICs. The flash module can have 3 or 4 flash LED
 	  channels and each channel is programmable to support up to 1.5 A full
 	  scale current. It also supports connecting two channels' output together
 	  to supply one LED component to achieve current up to 2 A. In such case,

@@ -11,11 +11,11 @@
 
 /* Maximum variable offset umax_value permitted when resolving memory accesses.
  * In practice this is far bigger than any realistic pointer offset; this limit
- * ensures that umax_value + (int)off + (int)size cannot overflow a u64.
+ * ensures that umax_value + (int)off + (int)size cananalt overflow a u64.
  */
 #define BPF_MAX_VAR_OFF	(1 << 29)
 /* Maximum variable size permitted for ARG_CONST_SIZE[_OR_ZERO].  This ensures
- * that converting umax_value to int cannot overflow.
+ * that converting umax_value to int cananalt overflow.
  */
 #define BPF_MAX_VAR_SIZ	(1 << 29)
 /* size of tmp_str_buf in bpf_verifier.
@@ -28,17 +28,17 @@
  * Read marks propagate upwards until they find a write mark; they record that
  * "one of this state's descendants read this reg" (and therefore the reg is
  * relevant for states_equal() checks).
- * Write marks collect downwards and do not propagate; they record that "the
+ * Write marks collect downwards and do analt propagate; they record that "the
  * straight-line code that reached this state (from its parent) wrote this reg"
  * (and therefore that reads propagated from this state or its descendants
- * should not propagate to its parent).
+ * should analt propagate to its parent).
  * A state with a write mark can receive read marks; it just won't propagate
- * them to its parent, since the write mark is a property, not of the state,
+ * them to its parent, since the write mark is a property, analt of the state,
  * but of the link between it and its parent.  See mark_reg_read() and
  * mark_stack_slot_read() in kernel/bpf/verifier.c.
  */
 enum bpf_reg_liveness {
-	REG_LIVE_NONE = 0, /* reg hasn't been read or written this branch */
+	REG_LIVE_ANALNE = 0, /* reg hasn't been read or written this branch */
 	REG_LIVE_READ32 = 0x1, /* reg was read, so we're sensitive to initial value */
 	REG_LIVE_READ64 = 0x2, /* likewise, but full 64-bit content matters */
 	REG_LIVE_READ = REG_LIVE_READ32 | REG_LIVE_READ64,
@@ -48,13 +48,13 @@ enum bpf_reg_liveness {
 
 /* For every reg representing a map value or allocated object pointer,
  * we consider the tuple of (ptr, id) for them to be unique in verifier
- * context and conside them to not alias each other for the purposes of
+ * context and conside them to analt alias each other for the purposes of
  * tracking lock state.
  */
 struct bpf_active_lock {
 	/* This can either be reg->map_ptr or reg->btf. If ptr is NULL,
-	 * there's no active lock held, and other fields have no
-	 * meaning. If non-NULL, it indicates that a lock is held and
+	 * there's anal active lock held, and other fields have anal
+	 * meaning. If analn-NULL, it indicates that a lock is held and
 	 * id member has the reg->id of the register which can be >= 0.
 	 */
 	void *ptr;
@@ -65,7 +65,7 @@ struct bpf_active_lock {
 #define ITER_PREFIX "bpf_iter_"
 
 enum bpf_iter_state {
-	BPF_ITER_STATE_INVALID, /* for non-first slot */
+	BPF_ITER_STATE_INVALID, /* for analn-first slot */
 	BPF_ITER_STATE_ACTIVE,
 	BPF_ITER_STATE_DRAINED,
 };
@@ -85,7 +85,7 @@ struct bpf_reg_state {
 		struct {
 			struct bpf_map *map_ptr;
 			/* To distinguish map lookups from outer map
-			 * the map_uid is non-zero for registers
+			 * the map_uid is analn-zero for registers
 			 * pointing to inner maps.
 			 */
 			u32 map_uid;
@@ -132,9 +132,9 @@ struct bpf_reg_state {
 			unsigned long raw2;
 		} raw;
 
-		u32 subprogno; /* for PTR_TO_FUNC */
+		u32 subproganal; /* for PTR_TO_FUNC */
 	};
-	/* For scalar types (SCALAR_VALUE), this represents our knowledge of
+	/* For scalar types (SCALAR_VALUE), this represents our kanalwledge of
 	 * the actual value.
 	 * For pointer types, this represents the variable part of the offset
 	 * from the pointed-to object, and is shared with all bpf_reg_states
@@ -143,7 +143,7 @@ struct bpf_reg_state {
 	struct tnum var_off;
 	/* Used to determine if any memory access using this register will
 	 * result in a bad access.
-	 * These refer to the same value as var_off, not necessarily the actual
+	 * These refer to the same value as var_off, analt necessarily the actual
 	 * contents of the register.
 	 */
 	s64 smin_value; /* minimum possible (s64)value */
@@ -155,7 +155,7 @@ struct bpf_reg_state {
 	u32 u32_min_value; /* minimum possible (u32)value */
 	u32 u32_max_value; /* maximum possible (u32)value */
 	/* For PTR_TO_PACKET, used to find other pointers with the same variable
-	 * offset, so they can share range knowledge.
+	 * offset, so they can share range kanalwledge.
 	 * For PTR_TO_MAP_VALUE_OR_NULL this is used to share which map value we
 	 * came from, when one is tested for != NULL.
 	 * For PTR_TO_MEM_OR_NULL this is used to identify memory allocation
@@ -203,7 +203,7 @@ struct bpf_reg_state {
 	 * which is the same as sk_reg->ref_obj_id.
 	 *
 	 * From the verifier perspective, if sk, fullsock and tp
-	 * are not NULL, they are the same ptr with different
+	 * are analt NULL, they are the same ptr with different
 	 * reg->type.  In particular, bpf_sk_release(tp) is also
 	 * allowed and has the same effect as bpf_sk_release(sk).
 	 */
@@ -212,11 +212,11 @@ struct bpf_reg_state {
 	struct bpf_reg_state *parent;
 	/* Inside the callee two registers can be both PTR_TO_STACK like
 	 * R1=fp-8 and R2=fp-8, but one of them points to this function stack
-	 * while another to the caller's stack. To differentiate them 'frameno'
+	 * while aanalther to the caller's stack. To differentiate them 'frameanal'
 	 * is used which is an index in bpf_verifier_state->frame[] array
 	 * pointing to bpf_func_state.
 	 */
-	u32 frameno;
+	u32 frameanal;
 	/* Tracks subreg definition. The stored value is the insn_idx of the
 	 * writing insn. This is safe because subreg_def is used before any insn
 	 * patching which only happens after main verification finished.
@@ -228,7 +228,7 @@ struct bpf_reg_state {
 };
 
 enum bpf_stack_slot_type {
-	STACK_INVALID,    /* nothing was stored in this stack slot */
+	STACK_INVALID,    /* analthing was stored in this stack slot */
 	STACK_SPILL,      /* register spilled into stack */
 	STACK_MISC,	  /* BPF program wrote some data into this slot */
 	STACK_ZERO,	  /* BPF program wrote constant zero */
@@ -269,7 +269,7 @@ struct bpf_reference_state {
 	 *    cb (frame 4)
 	 * Hence for frame 4, if callback_ref just stored boolean, it would be
 	 * impossible to distinguish nested callback refs. Hence store the
-	 * frameno and compare that to callback_ref in check_reference_leak when
+	 * frameanal and compare that to callback_ref in check_reference_leak when
 	 * exiting a callback function.
 	 */
 	int callback_ref;
@@ -291,11 +291,11 @@ struct bpf_func_state {
 	 * enclosing bpf_verifier_state.
 	 * 0 = main function, 1 = first callee.
 	 */
-	u32 frameno;
+	u32 frameanal;
 	/* subprog number == index within subprog_info
 	 * zero == main subprog
 	 */
-	u32 subprogno;
+	u32 subproganal;
 	/* Every bpf_timer_start will increment async_entry_cnt.
 	 * It's used to distinguish:
 	 * void foo(void) { for(;;); }
@@ -344,7 +344,7 @@ enum {
 	 * and accessed stack slot's index in next 6 bits (MAX_BPF_STACK is 512,
 	 * 8 bytes per slot, so slot index (spi) is [0, 63])
 	 */
-	INSN_F_FRAMENO_MASK = 0x7, /* 3 bits */
+	INSN_F_FRAMEANAL_MASK = 0x7, /* 3 bits */
 
 	INSN_F_SPI_MASK = 0x3f, /* 6 bits */
 	INSN_F_SPI_SHIFT = 3, /* shifted 3 bits to the left */
@@ -352,7 +352,7 @@ enum {
 	INSN_F_STACK_ACCESS = BIT(9), /* we need 10 bits total */
 };
 
-static_assert(INSN_F_FRAMENO_MASK + 1 >= MAX_CALL_FRAMES);
+static_assert(INSN_F_FRAMEANAL_MASK + 1 >= MAX_CALL_FRAMES);
 static_assert(INSN_F_SPI_MASK + 1 >= MAX_BPF_STACK / 8);
 
 struct bpf_jmp_history_entry {
@@ -377,7 +377,7 @@ struct bpf_verifier_state {
 	 * This state hasn't reached bpf_exit
 	 * 2 - at least two paths are being explored.
 	 * This state is an immediate parent of two children.
-	 * One is fallthrough branch with branches==1 and another
+	 * One is fallthrough branch with branches==1 and aanalther
 	 * state is pushed into stack (to be explored later) also with
 	 * branches==1. The parent of this state has branches==1.
 	 * The verifier state tree connected via 'parent' pointer looks like:
@@ -404,13 +404,13 @@ struct bpf_verifier_state {
 	 *
 	 * If is_state_visited() sees a state with branches > 0 it means
 	 * there is a loop. If such state is exactly equal to the current state
-	 * it's an infinite loop. Note states_equal() checks for states
-	 * equivalency, so two states being 'states_equal' does not mean
+	 * it's an infinite loop. Analte states_equal() checks for states
+	 * equivalency, so two states being 'states_equal' does analt mean
 	 * infinite loop. The exact comparison is provided by
 	 * states_maybe_looping() function. It's a stronger pre-check and
 	 * much faster than states_equal().
 	 *
-	 * This algorithm may not find all possible infinite loops or
+	 * This algorithm may analt find all possible infinite loops or
 	 * loop iteration count may be too high.
 	 * In such cases BPF_COMPLEXITY_LIMIT_INSNS limit kicks in.
 	 */
@@ -498,14 +498,14 @@ struct bpf_loop_inline_state {
 	unsigned int fit_for_inline:1; /* true if callback function is the same
 					* at each call and flags are always zero
 					*/
-	u32 callback_subprogno; /* valid when fit_for_inline is true */
+	u32 callback_subproganal; /* valid when fit_for_inline is true */
 };
 
 /* Possible states for alu_state member. */
 #define BPF_ALU_SANITIZE_SRC		(1U << 0)
 #define BPF_ALU_SANITIZE_DST		(1U << 1)
 #define BPF_ALU_NEG_VALUE		(1U << 2)
-#define BPF_ALU_NON_POINTER		(1U << 3)
+#define BPF_ALU_ANALN_POINTER		(1U << 3)
 #define BPF_ALU_IMMEDIATE		(1U << 4)
 #define BPF_ALU_SANITIZE		(BPF_ALU_SANITIZE_SRC | \
 					 BPF_ALU_SANITIZE_DST)
@@ -527,7 +527,7 @@ struct bpf_insn_aux_data {
 					struct btf *btf;
 					u32 btf_id;	/* btf_id for struct typed var */
 				};
-				u32 mem_size;	/* mem_size for non-struct typed var */
+				u32 mem_size;	/* mem_size for analn-struct typed var */
 			};
 		} btf_var;
 		/* if instruction is a call to bpf_loop this field tracks
@@ -538,7 +538,7 @@ struct bpf_insn_aux_data {
 	union {
 		/* remember the size of type passed to bpf_obj_new to rewrite R1 */
 		u64 obj_new_size;
-		/* remember the offset of node field within type to rewrite */
+		/* remember the offset of analde field within type to rewrite */
 		u64 insert_off;
 	};
 	struct btf_struct_meta *kptr_struct_meta;
@@ -811,7 +811,7 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 			    struct bpf_attach_target_info *tgt_info);
 void bpf_free_kfunc_btf_tab(struct bpf_kfunc_btf_tab *tab);
 
-int mark_chain_precision(struct bpf_verifier_env *env, int regno);
+int mark_chain_precision(struct bpf_verifier_env *env, int reganal);
 
 #define BPF_BASE_TYPE_MASK	GENMASK(BPF_BASE_TYPE_BITS - 1, 0)
 
@@ -847,7 +847,7 @@ static inline bool bpf_prog_check_recur(const struct bpf_prog *prog)
 	}
 }
 
-#define BPF_REG_TRUSTED_MODIFIERS (MEM_ALLOC | PTR_TRUSTED | NON_OWN_REF)
+#define BPF_REG_TRUSTED_MODIFIERS (MEM_ALLOC | PTR_TRUSTED | ANALN_OWN_REF)
 
 static inline bool bpf_type_has_unsafe_modifiers(u32 type)
 {
@@ -859,9 +859,9 @@ static inline bool type_is_ptr_alloc_obj(u32 type)
 	return base_type(type) == PTR_TO_BTF_ID && type_flag(type) & MEM_ALLOC;
 }
 
-static inline bool type_is_non_owning_ref(u32 type)
+static inline bool type_is_analn_owning_ref(u32 type)
 {
-	return type_is_ptr_alloc_obj(type) && type_flag(type) & NON_OWN_REF;
+	return type_is_ptr_alloc_obj(type) && type_flag(type) & ANALN_OWN_REF;
 }
 
 static inline bool type_is_pkt_pointer(enum bpf_reg_type type)
@@ -879,9 +879,9 @@ static inline bool type_is_sk_pointer(enum bpf_reg_type type)
 		type == PTR_TO_XDP_SOCK;
 }
 
-static inline void mark_reg_scratched(struct bpf_verifier_env *env, u32 regno)
+static inline void mark_reg_scratched(struct bpf_verifier_env *env, u32 reganal)
 {
-	env->scratched_regs |= 1U << regno;
+	env->scratched_regs |= 1U << reganal;
 }
 
 static inline void mark_stack_slot_scratched(struct bpf_verifier_env *env, u32 spi)
@@ -889,14 +889,14 @@ static inline void mark_stack_slot_scratched(struct bpf_verifier_env *env, u32 s
 	env->scratched_stack_slots |= 1ULL << spi;
 }
 
-static inline bool reg_scratched(const struct bpf_verifier_env *env, u32 regno)
+static inline bool reg_scratched(const struct bpf_verifier_env *env, u32 reganal)
 {
-	return (env->scratched_regs >> regno) & 1;
+	return (env->scratched_regs >> reganal) & 1;
 }
 
-static inline bool stack_slot_scratched(const struct bpf_verifier_env *env, u64 regno)
+static inline bool stack_slot_scratched(const struct bpf_verifier_env *env, u64 reganal)
 {
-	return (env->scratched_stack_slots >> regno) & 1;
+	return (env->scratched_stack_slots >> reganal) & 1;
 }
 
 static inline bool verifier_state_scratched(const struct bpf_verifier_env *env)

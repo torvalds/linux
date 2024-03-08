@@ -96,7 +96,7 @@
 #define DP83867_STRAP_STS2_CLK_SKEW_TX_SHIFT	4
 #define DP83867_STRAP_STS2_CLK_SKEW_RX_MASK	GENMASK(2, 0)
 #define DP83867_STRAP_STS2_CLK_SKEW_RX_SHIFT	0
-#define DP83867_STRAP_STS2_CLK_SKEW_NONE	BIT(2)
+#define DP83867_STRAP_STS2_CLK_SKEW_ANALNE	BIT(2)
 #define DP83867_STRAP_STS2_STRAP_FLD		BIT(10)
 
 /* PHY CTRL bits */
@@ -355,17 +355,17 @@ static irqreturn_t dp83867_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_DP83867_ISR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	irq_enabled = phy_read(phydev, MII_DP83867_MICR);
 	if (irq_enabled < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & irq_enabled))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -477,7 +477,7 @@ static int dp83867_get_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return dp83867_get_downshift(phydev, data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -488,7 +488,7 @@ static int dp83867_set_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return dp83867_set_downshift(phydev, *(const u8 *)data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -510,7 +510,7 @@ static int dp83867_verify_rgmii_cfg(struct phy_device *phydev)
 	struct dp83867_private *dp83867 = phydev->priv;
 
 	/* Existing behavior was to use default pin strapping delay in rgmii
-	 * mode, but rgmii should have meant no delay.  Warn existing users.
+	 * mode, but rgmii should have meant anal delay.  Warn existing users.
 	 */
 	if (phydev->interface == PHY_INTERFACE_MODE_RGMII) {
 		const u16 val = phy_read_mmd(phydev, DP83867_DEVADDR,
@@ -520,8 +520,8 @@ static int dp83867_verify_rgmii_cfg(struct phy_device *phydev)
 		const u16 rxskew = (val & DP83867_STRAP_STS2_CLK_SKEW_RX_MASK) >>
 				   DP83867_STRAP_STS2_CLK_SKEW_RX_SHIFT;
 
-		if (txskew != DP83867_STRAP_STS2_CLK_SKEW_NONE ||
-		    rxskew != DP83867_STRAP_STS2_CLK_SKEW_NONE)
+		if (txskew != DP83867_STRAP_STS2_CLK_SKEW_ANALNE ||
+		    rxskew != DP83867_STRAP_STS2_CLK_SKEW_ANALNE)
 			phydev_warn(phydev,
 				    "PHY has delays via pin strapping, but phy-mode = 'rgmii'\n"
 				    "Should be 'rgmii-id' to use internal delays txskew:%x rxskew:%x\n",
@@ -552,22 +552,22 @@ static int dp83867_of_init_io_impedance(struct phy_device *phydev)
 {
 	struct dp83867_private *dp83867 = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_analde *of_analde = dev->of_analde;
 	struct nvmem_cell *cell;
 	u8 *buf, val;
 	int ret;
 
-	cell = of_nvmem_cell_get(of_node, "io_impedance_ctrl");
+	cell = of_nvmem_cell_get(of_analde, "io_impedance_ctrl");
 	if (IS_ERR(cell)) {
 		ret = PTR_ERR(cell);
-		if (ret != -ENOENT && ret != -EOPNOTSUPP)
+		if (ret != -EANALENT && ret != -EOPANALTSUPP)
 			return phydev_err_probe(phydev, ret,
 						"failed to get nvmem cell io_impedance_ctrl\n");
 
-		/* If no nvmem cell, check for the boolean properties. */
-		if (of_property_read_bool(of_node, "ti,max-output-impedance"))
+		/* If anal nvmem cell, check for the boolean properties. */
+		if (of_property_read_bool(of_analde, "ti,max-output-impedance"))
 			dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MAX;
-		else if (of_property_read_bool(of_node, "ti,min-output-impedance"))
+		else if (of_property_read_bool(of_analde, "ti,min-output-impedance"))
 			dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MIN;
 		else
 			dp83867->io_impedance = -1; /* leave at default */
@@ -597,16 +597,16 @@ static int dp83867_of_init(struct phy_device *phydev)
 {
 	struct dp83867_private *dp83867 = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_analde *of_analde = dev->of_analde;
 	int ret;
 
-	if (!of_node)
-		return -ENODEV;
+	if (!of_analde)
+		return -EANALDEV;
 
 	/* Optional configuration */
-	ret = of_property_read_u32(of_node, "ti,clk-output-sel",
+	ret = of_property_read_u32(of_analde, "ti,clk-output-sel",
 				   &dp83867->clk_output_sel);
-	/* If not set, keep default */
+	/* If analt set, keep default */
 	if (!ret) {
 		dp83867->set_clk_output = true;
 		/* Valid values are 0 to DP83867_CLK_O_SEL_REF_CLK or
@@ -624,14 +624,14 @@ static int dp83867_of_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	dp83867->rxctrl_strap_quirk = of_property_read_bool(of_node,
+	dp83867->rxctrl_strap_quirk = of_property_read_bool(of_analde,
 							    "ti,dp83867-rxctrl-strap-quirk");
 
-	dp83867->sgmii_ref_clk_en = of_property_read_bool(of_node,
+	dp83867->sgmii_ref_clk_en = of_property_read_bool(of_analde,
 							  "ti,sgmii-ref-clock-output-enable");
 
 	dp83867->rx_id_delay = DP83867_RGMII_RX_CLK_DELAY_INV;
-	ret = of_property_read_u32(of_node, "ti,rx-internal-delay",
+	ret = of_property_read_u32(of_analde, "ti,rx-internal-delay",
 				   &dp83867->rx_id_delay);
 	if (!ret && dp83867->rx_id_delay > DP83867_RGMII_RX_CLK_DELAY_MAX) {
 		phydev_err(phydev,
@@ -641,7 +641,7 @@ static int dp83867_of_init(struct phy_device *phydev)
 	}
 
 	dp83867->tx_id_delay = DP83867_RGMII_TX_CLK_DELAY_INV;
-	ret = of_property_read_u32(of_node, "ti,tx-internal-delay",
+	ret = of_property_read_u32(of_analde, "ti,tx-internal-delay",
 				   &dp83867->tx_id_delay);
 	if (!ret && dp83867->tx_id_delay > DP83867_RGMII_TX_CLK_DELAY_MAX) {
 		phydev_err(phydev,
@@ -650,16 +650,16 @@ static int dp83867_of_init(struct phy_device *phydev)
 		return -EINVAL;
 	}
 
-	if (of_property_read_bool(of_node, "enet-phy-lane-swap"))
+	if (of_property_read_bool(of_analde, "enet-phy-lane-swap"))
 		dp83867->port_mirroring = DP83867_PORT_MIRROING_EN;
 
-	if (of_property_read_bool(of_node, "enet-phy-lane-no-swap"))
+	if (of_property_read_bool(of_analde, "enet-phy-lane-anal-swap"))
 		dp83867->port_mirroring = DP83867_PORT_MIRROING_DIS;
 
-	ret = of_property_read_u32(of_node, "ti,fifo-depth",
+	ret = of_property_read_u32(of_analde, "ti,fifo-depth",
 				   &dp83867->tx_fifo_depth);
 	if (ret) {
-		ret = of_property_read_u32(of_node, "tx-fifo-depth",
+		ret = of_property_read_u32(of_analde, "tx-fifo-depth",
 					   &dp83867->tx_fifo_depth);
 		if (ret)
 			dp83867->tx_fifo_depth =
@@ -672,7 +672,7 @@ static int dp83867_of_init(struct phy_device *phydev)
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(of_node, "rx-fifo-depth",
+	ret = of_property_read_u32(of_analde, "rx-fifo-depth",
 				   &dp83867->rx_fifo_depth);
 	if (ret)
 		dp83867->rx_fifo_depth = DP83867_PHYCR_FIFO_DEPTH_4_B_NIB;
@@ -691,7 +691,7 @@ static int dp83867_of_init(struct phy_device *phydev)
 	struct dp83867_private *dp83867 = phydev->priv;
 	u16 delay;
 
-	/* For non-OF device, the RX and TX ID values are either strapped
+	/* For analn-OF device, the RX and TX ID values are either strapped
 	 * or take from default value. So, we init RX & TX ID values here
 	 * so that the RGMIIDCTL is configured correctly later in
 	 * dp83867_config_init();
@@ -707,7 +707,7 @@ static int dp83867_of_init(struct phy_device *phydev)
 	 */
 	dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MIN / 2;
 
-	/* For non-OF device, the RX and TX FIFO depths are taken from
+	/* For analn-OF device, the RX and TX FIFO depths are taken from
 	 * default value. So, we init RX & TX FIFO depths here
 	 * so that it is configured correctly later in dp83867_config_init();
 	 */
@@ -749,7 +749,7 @@ static int dp83867_probe(struct phy_device *phydev)
 	dp83867 = devm_kzalloc(&phydev->mdio.dev, sizeof(*dp83867),
 			       GFP_KERNEL);
 	if (!dp83867)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = dp83867;
 
@@ -835,7 +835,7 @@ static int dp83867_config_init(struct phy_device *phydev)
 		if (ret)
 			return ret;
 
-		/* If rgmii mode with no internal delay is selected, we do NOT use
+		/* If rgmii mode with anal internal delay is selected, we do ANALT use
 		 * aligned mode as one might expect.  Instead we use the PHY's default
 		 * based on pin strapping.  And the "mode 0" default is to *use*
 		 * internal delay with a value of 7 (2.00 ns).
@@ -877,7 +877,7 @@ static int dp83867_config_init(struct phy_device *phydev)
 		/* For support SPEED_10 in SGMII mode
 		 * DP83867_10M_SGMII_RATE_ADAPT bit
 		 * has to be cleared by software. That
-		 * does not affect SPEED_100 and
+		 * does analt affect SPEED_100 and
 		 * SPEED_1000.
 		 */
 		ret = phy_modify_mmd(phydev, DP83867_DEVADDR,
@@ -888,7 +888,7 @@ static int dp83867_config_init(struct phy_device *phydev)
 			return ret;
 
 		/* After reset SGMII Autoneg timer is set to 2us (bits 6 and 5
-		 * are 01). That is not enough to finalize autoneg on some
+		 * are 01). That is analt eanalugh to finalize autoneg on some
 		 * devices. Increase this timer duration to maximum 16ms.
 		 */
 		ret = phy_modify_mmd(phydev, DP83867_DEVADDR,
@@ -911,7 +911,7 @@ static int dp83867_config_init(struct phy_device *phydev)
 		phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_SGMIICTL, val);
 
 		/* This is a SW workaround for link instability if RX_CTRL is
-		 * not strapped to mode 3 or 4 in HW. This is required for SGMII
+		 * analt strapped to mode 3 or 4 in HW. This is required for SGMII
 		 * in addition to clearing bit 7, handled above.
 		 */
 		if (dp83867->rxctrl_strap_quirk)
@@ -965,7 +965,7 @@ static int dp83867_phy_reset(struct phy_device *phydev)
 		return err;
 
 	/* Configure the DSP Feedforward Equalizer Configuration register to
-	 * improve short cable (< 1 meter) performance. This will not affect
+	 * improve short cable (< 1 meter) performance. This will analt affect
 	 * long cable performance.
 	 */
 	err = phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_DSP_FFE_CFG,
@@ -982,12 +982,12 @@ static int dp83867_phy_reset(struct phy_device *phydev)
 	return 0;
 }
 
-static void dp83867_link_change_notify(struct phy_device *phydev)
+static void dp83867_link_change_analtify(struct phy_device *phydev)
 {
 	/* There is a limitation in DP83867 PHY device where SGMII AN is
 	 * only triggered once after the device is booted up. Even after the
-	 * PHY TPI is down and up again, SGMII AN is not triggered and
-	 * hence no new in-band message from PHY to MAC side SGMII.
+	 * PHY TPI is down and up again, SGMII AN is analt triggered and
+	 * hence anal new in-band message from PHY to MAC side SGMII.
 	 * This could cause an issue during power up, when PHY is up prior
 	 * to MAC. At this condition, once MAC side SGMII is up, MAC side
 	 * SGMII wouldn`t receive new in-band message from TI PHY with
@@ -1064,7 +1064,7 @@ static int dp83867_led_mode(u8 index, unsigned long rules)
 	case BIT(TRIGGER_NETDEV_LINK) | BIT(TRIGGER_NETDEV_TX) | BIT(TRIGGER_NETDEV_RX):
 		return DP83867_LED_FN_LINK_RX_TX;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1177,7 +1177,7 @@ static struct phy_driver dp83867_driver[] = {
 		.suspend	= dp83867_suspend,
 		.resume		= dp83867_resume,
 
-		.link_change_notify = dp83867_link_change_notify,
+		.link_change_analtify = dp83867_link_change_analtify,
 		.set_loopback	= dp83867_loopback,
 
 		.led_brightness_set = dp83867_led_brightness_set,

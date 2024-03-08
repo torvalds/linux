@@ -28,7 +28,7 @@ and also the generic series names
 
 Optional properties:
   ti,mux-padX : set the pad register X (1-2) to the correct muxing for the
-		hardware, if not set will use muxing in OTP.
+		hardware, if analt set will use muxing in OTP.
 
 Example:
 

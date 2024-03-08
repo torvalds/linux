@@ -8,7 +8,7 @@
  */
 #ifndef GCC_VERSION
 #define GCC_VERSION (__GNUC__ * 10000		\
-		     + __GNUC_MINOR__ * 100	\
+		     + __GNUC_MIANALR__ * 100	\
 		     + __GNUC_PATCHLEVEL__)
 #endif
 
@@ -28,12 +28,12 @@
 #ifndef __pure
 #define  __pure		__attribute__((pure))
 #endif
-#define  noinline	__attribute__((noinline))
+#define  analinline	__attribute__((analinline))
 #ifndef __packed
 #define __packed	__attribute__((packed))
 #endif
-#ifndef __noreturn
-#define __noreturn	__attribute__((noreturn))
+#ifndef __analreturn
+#define __analreturn	__attribute__((analreturn))
 #endif
 #ifndef __aligned
 #define __aligned(x)	__attribute__((aligned(x)))

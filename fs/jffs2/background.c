@@ -19,7 +19,7 @@
 #include <linux/sched/signal.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
-#include "nodelist.h"
+#include "analdelist.h"
 
 
 static int jffs2_garbage_collect_thread(void *);
@@ -31,7 +31,7 @@ void jffs2_garbage_collect_trigger(struct jffs2_sb_info *c)
 		send_sig(SIGHUP, c->gc_task, 1);
 }
 
-/* This must only ever be called when no GC thread is currently running */
+/* This must only ever be called when anal GC thread is currently running */
 int jffs2_start_garbage_collect_thread(struct jffs2_sb_info *c)
 {
 	struct task_struct *tsk;
@@ -108,7 +108,7 @@ static int jffs2_garbage_collect_thread(void *_c)
 		 * are generally competing for a higher latency resource -
 		 * disk).
 		 * This forces the GCD to slow the hell down.   Pulling an
-		 * inode in with read_inode() is much preferable to having
+		 * ianalde in with read_ianalde() is much preferable to having
 		 * the GC thread get there first. */
 		schedule_timeout_interruptible(msecs_to_jiffies(50));
 
@@ -152,8 +152,8 @@ static int jffs2_garbage_collect_thread(void *_c)
 		sigprocmask(SIG_BLOCK, &hupmask, NULL);
 
 		jffs2_dbg(1, "%s(): pass\n", __func__);
-		if (jffs2_garbage_collect_pass(c) == -ENOSPC) {
-			pr_notice("No space for garbage collection. Aborting GC thread\n");
+		if (jffs2_garbage_collect_pass(c) == -EANALSPC) {
+			pr_analtice("Anal space for garbage collection. Aborting GC thread\n");
 			goto die;
 		}
 	}

@@ -2,7 +2,7 @@
 /*
  * Driver for BCM6328 GPIO unit (pinctrl + GPIO)
  *
- * Copyright (C) 2021 Álvaro Fernández Rojas <noltari@gmail.com>
+ * Copyright (C) 2021 Álvaro Fernández Rojas <analltari@gmail.com>
  * Copyright (C) 2016 Jonas Gorski <jonas.gorski@gmail.com>
  */
 
@@ -76,7 +76,7 @@ static const struct pinctrl_pin_desc bcm6328_pins[] = {
 	PINCTRL_PIN(31, "gpio31"),
 
 	/*
-	 * No idea where they really are; so let's put them according
+	 * Anal idea where they really are; so let's put them according
 	 * to their mux offsets.
 	 */
 	PINCTRL_PIN(36, "hsspi_cs1"),
@@ -347,7 +347,7 @@ static int bcm6328_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 static const struct pinctrl_ops bcm6328_pctl_ops = {
 	.dt_free_map = pinctrl_utils_free_map,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.get_group_name = bcm6328_pinctrl_get_group_name,
 	.get_group_pins = bcm6328_pinctrl_get_group_pins,
 	.get_groups_count = bcm6328_pinctrl_get_group_count,

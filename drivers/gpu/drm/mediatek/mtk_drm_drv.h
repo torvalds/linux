@@ -21,7 +21,7 @@ enum mtk_drm_crtc_path {
 };
 
 struct device;
-struct device_node;
+struct device_analde;
 struct drm_crtc;
 struct drm_device;
 struct drm_fb_helper;
@@ -54,10 +54,10 @@ struct mtk_drm_private {
 	bool mtk_drm_bound;
 	bool drm_master;
 	struct device *dev;
-	struct device_node *mutex_node;
+	struct device_analde *mutex_analde;
 	struct device *mutex_dev;
 	struct device *mmsys_dev;
-	struct device_node *comp_node[DDP_COMPONENT_DRM_ID_MAX];
+	struct device_analde *comp_analde[DDP_COMPONENT_DRM_ID_MAX];
 	struct mtk_ddp_comp ddp_comp[DDP_COMPONENT_DRM_ID_MAX];
 	const struct mtk_mmsys_driver_data *data;
 	struct drm_atomic_state *suspend_state;

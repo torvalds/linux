@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2021 ARM Limited
  *
- * Verify that using an instruction not supported in streaming mode
+ * Verify that using an instruction analt supported in streaming mode
  * traps when in streaming mode.
  */
 
@@ -18,13 +18,13 @@ static union {
 	char buf[1024 * 128];
 } context;
 
-int zt_no_regs_run(struct tdescr *td, siginfo_t *si, ucontext_t *uc)
+int zt_anal_regs_run(struct tdescr *td, siginfo_t *si, ucontext_t *uc)
 {
 	size_t offset;
 	struct _aarch64_ctx *head = GET_BUF_RESV_HEAD(context);
 
 	/*
-	 * Get a signal context which should not have a ZT frame and
+	 * Get a signal context which should analt have a ZT frame and
 	 * registers in it.
 	 */
 	if (!get_current_context(td, &context.uc, sizeof(context)))
@@ -42,10 +42,10 @@ int zt_no_regs_run(struct tdescr *td, siginfo_t *si, ucontext_t *uc)
 }
 
 struct tdescr tde = {
-	.name = "ZT register data not present",
-	.descr = "Validate that ZT is not present when ZA is disabled",
+	.name = "ZT register data analt present",
+	.descr = "Validate that ZT is analt present when ZA is disabled",
 	.feats_required = FEAT_SME2,
 	.timeout = 3,
 	.sanity_disabled = true,
-	.run = zt_no_regs_run,
+	.run = zt_anal_regs_run,
 };

@@ -17,7 +17,7 @@ Documentation and Driver by Ken Hollis <kenji@bitgate.com>
 
  The Watchdog Driver has one basic role: to talk to the card and send
  signals to it so it doesn't reset your computer ... at least during
- normal operation.
+ analrmal operation.
 
  The Watchdog Driver will automatically find your watchdog card, and will
  attach a running driver for use with that card.  After the watchdog
@@ -63,7 +63,7 @@ Documentation and Driver by Ken Hollis <kenji@bitgate.com>
 		enable or disable the card this way.
 
 	WDIOC_KEEPALIVE
-		This pings the card to tell it not to reset your computer.
+		This pings the card to tell it analt to reset your computer.
 
  And that's all she wrote!
 

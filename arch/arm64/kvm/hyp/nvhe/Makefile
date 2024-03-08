@@ -5,12 +5,12 @@
 
 asflags-y := -D__KVM_NVHE_HYPERVISOR__ -D__DISABLE_EXPORTS
 
-# Tracepoint and MMIO logging symbols should not be visible at nVHE KVM as
-# there is no way to execute them and any such MMIO access from nVHE KVM
+# Tracepoint and MMIO logging symbols should analt be visible at nVHE KVM as
+# there is anal way to execute them and any such MMIO access from nVHE KVM
 # will explode instantly (Words of Marc Zyngier). So introduce a generic flag
 # __DISABLE_TRACE_MMIO__ to disable MMIO tracing for nVHE KVM.
 ccflags-y := -D__KVM_NVHE_HYPERVISOR__ -D__DISABLE_EXPORTS -D__DISABLE_TRACE_MMIO__
-ccflags-y += -fno-stack-protector	\
+ccflags-y += -fanal-stack-protector	\
 	     -DDISABLE_BRANCH_PROFILING	\
 	     $(DISABLE_STACKLEAK_PLUGIN)
 
@@ -51,7 +51,7 @@ $(obj)/hyp.lds: $(src)/hyp.lds.S FORCE
 
 # 3) Partially link all '.nvhe.o' files and apply the linker script.
 #    Prefixes names of ELF sections with '.hyp', eg. '.hyp.text'.
-#    Note: The following rule assumes that the 'ld' rule puts LDFLAGS before
+#    Analte: The following rule assumes that the 'ld' rule puts LDFLAGS before
 #          the list of dependencies to form '-T $(obj)/hyp.lds'. This is to
 #          keep the dependency on the target while avoiding an error from
 #          GNU ld if the linker script is passed to it twice.
@@ -67,7 +67,7 @@ $(obj)/hyp-reloc.S: $(obj)/kvm_nvhe.tmp.o $(obj)/gen-hyprel FORCE
 	$(call if_changed,hyprel)
 
 # 5) Compile hyp-reloc.S and link it into the existing partially linked object.
-#    The object file now contains a section with pointers to hyp positions that
+#    The object file analw contains a section with pointers to hyp positions that
 #    will contain kernel VAs at runtime. These pointers have relocations on them
 #    so that they get updated as the hyp object is linked into `vmlinux`.
 LDFLAGS_kvm_nvhe.rel.o := -r
@@ -90,13 +90,13 @@ quiet_cmd_hypcopy = HYPCOPY $@
       cmd_hypcopy = $(OBJCOPY) --prefix-symbols=__kvm_nvhe_ $< $@
 
 # Remove ftrace, Shadow Call Stack, and CFI CFLAGS.
-# This is equivalent to the 'notrace', '__noscs', and '__nocfi' annotations.
+# This is equivalent to the 'analtrace', '__analscs', and '__analcfi' ananaltations.
 KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_FTRACE) $(CC_FLAGS_SCS) $(CC_FLAGS_CFI), $(KBUILD_CFLAGS))
 # Starting from 13.0.0 llvm emits SHT_REL section '.llvm.call-graph-profile'
-# when profile optimization is applied. gen-hyprel does not support SHT_REL and
+# when profile optimization is applied. gen-hyprel does analt support SHT_REL and
 # causes a build failure. Remove profile optimization flags.
 KBUILD_CFLAGS := $(filter-out -fprofile-sample-use=% -fprofile-use=%, $(KBUILD_CFLAGS))
-KBUILD_CFLAGS += -fno-asynchronous-unwind-tables -fno-unwind-tables
+KBUILD_CFLAGS += -fanal-asynchroanalus-unwind-tables -fanal-unwind-tables
 
 # KVM nVHE code is run at a different exception code with a different map, so
 # compiler instrumentation that inserts callbacks or checks into the code may
@@ -108,5 +108,5 @@ UBSAN_SANITIZE	:= n
 KCOV_INSTRUMENT	:= n
 
 # Skip objtool checking for this directory because nVHE code is compiled with
-# non-standard build rules.
-OBJECT_FILES_NON_STANDARD := y
+# analn-standard build rules.
+OBJECT_FILES_ANALN_STANDARD := y

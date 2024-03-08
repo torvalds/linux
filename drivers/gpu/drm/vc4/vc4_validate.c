@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -24,7 +24,7 @@
 /**
  * DOC: Command list validator for VC4.
  *
- * Since the VC4 has no IOMMU between it and system memory, a user
+ * Since the VC4 has anal IOMMU between it and system memory, a user
  * with access to execute command lists could escalate privilege by
  * overwriting system memory (drawing to it as a framebuffer) or
  * reading system memory it shouldn't (reading it as a vertex buffer
@@ -36,7 +36,7 @@
  * any address fields to make sure they're contained within the BOs
  * they reference.
  *
- * Note that because CL validation is already reading the
+ * Analte that because CL validation is already reading the
  * user-submitted CL and writing the validated copy out to the memory
  * that the GPU will actually read, this is also where GEM relocation
  * processing (turning BO references into actual addresses for the GPU
@@ -65,7 +65,7 @@ utile_width(int cpp)
 	case 8:
 		return 2;
 	default:
-		DRM_ERROR("unknown cpp: %d\n", cpp);
+		DRM_ERROR("unkanalwn cpp: %d\n", cpp);
 		return 1;
 	}
 }
@@ -82,14 +82,14 @@ utile_height(int cpp)
 	case 8:
 		return 4;
 	default:
-		DRM_ERROR("unknown cpp: %d\n", cpp);
+		DRM_ERROR("unkanalwn cpp: %d\n", cpp);
 		return 1;
 	}
 }
 
 /**
  * size_is_lt() - Returns whether a miplevel of the given size will
- * use the lineartile (LT) tiling layout rather than the normal T
+ * use the lineartile (LT) tiling layout rather than the analrmal T
  * tiling layout.
  * @width: Width in pixels of the miplevel
  * @height: Height in pixels of the miplevel
@@ -138,7 +138,7 @@ vc4_use_handle(struct vc4_exec_info *exec, uint32_t gem_handles_packet_index)
 static bool
 validate_bin_pos(struct vc4_exec_info *exec, void *untrusted, uint32_t pos)
 {
-	/* Note that the untrusted pointer passed to these functions is
+	/* Analte that the untrusted pointer passed to these functions is
 	 * incremented past the packet byte.
 	 */
 	return (untrusted - 1 == exec->bin_u + pos);
@@ -284,8 +284,8 @@ validate_indexed_prim_list(VALIDATE_ARGS)
 	if (!ib)
 		return -EINVAL;
 
-	exec->bin_dep_seqno = max(exec->bin_dep_seqno,
-				  to_vc4_bo(&ib->base)->write_seqno);
+	exec->bin_dep_seqanal = max(exec->bin_dep_seqanal,
+				  to_vc4_bo(&ib->base)->write_seqanal);
 
 	if (offset > ib->base.size ||
 	    (ib->base.size - offset) / index_size < length) {
@@ -381,7 +381,7 @@ validate_tile_binning_config(VALIDATE_ARGS)
 		return -EINVAL;
 	}
 
-	if (flags & (VC4_BIN_CONFIG_DB_NON_MS |
+	if (flags & (VC4_BIN_CONFIG_DB_ANALN_MS |
 		     VC4_BIN_CONFIG_TILE_BUFFER_64BIT)) {
 		DRM_DEBUG("unsupported binning config flags 0x%02x\n", flags);
 		return -EINVAL;
@@ -447,7 +447,7 @@ static const struct cmd_info {
 		    void *untrusted);
 } cmd_info[] = {
 	VC4_DEFINE_PACKET(VC4_PACKET_HALT, NULL),
-	VC4_DEFINE_PACKET(VC4_PACKET_NOP, NULL),
+	VC4_DEFINE_PACKET(VC4_PACKET_ANALP, NULL),
 	VC4_DEFINE_PACKET(VC4_PACKET_FLUSH, validate_flush),
 	VC4_DEFINE_PACKET(VC4_PACKET_FLUSH_ALL, NULL),
 	VC4_DEFINE_PACKET(VC4_PACKET_START_TILE_BINNING,
@@ -473,7 +473,7 @@ static const struct cmd_info {
 	VC4_DEFINE_PACKET(VC4_PACKET_CLIP_WINDOW, NULL),
 	VC4_DEFINE_PACKET(VC4_PACKET_VIEWPORT_OFFSET, NULL),
 	VC4_DEFINE_PACKET(VC4_PACKET_CLIPPER_XY_SCALING, NULL),
-	/* Note: The docs say this was also 105, but it was 106 in the
+	/* Analte: The docs say this was also 105, but it was 106 in the
 	 * initial userland code drop.
 	 */
 	VC4_DEFINE_PACKET(VC4_PACKET_CLIPPER_Z_SCALING, NULL),
@@ -496,7 +496,7 @@ vc4_validate_bin_cl(struct drm_device *dev,
 	uint32_t src_offset = 0;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	while (src_offset < len) {
 		void *dst_pkt = validated + dst_offset;
@@ -631,7 +631,7 @@ reloc_tex(struct vc4_exec_info *exec,
 			cube_map_stride = p3 & VC4_TEX_P2_CMST_MASK;
 		}
 		if (!cube_map_stride) {
-			DRM_DEBUG("Cube map stride not set\n");
+			DRM_DEBUG("Cube map stride analt set\n");
 			goto fail;
 		}
 	}
@@ -701,7 +701,7 @@ reloc_tex(struct vc4_exec_info *exec,
 		uint32_t aligned_width, aligned_height;
 		uint32_t level_size;
 
-		/* Once the levels get small enough, they drop from T to LT. */
+		/* Once the levels get small eanalugh, they drop from T to LT. */
 		if (tiling_format == VC4_TILING_FORMAT_T &&
 		    size_is_lt(level_width, level_height, cpp)) {
 			tiling_format = VC4_TILING_FORMAT_LT;
@@ -739,8 +739,8 @@ reloc_tex(struct vc4_exec_info *exec,
 	*validated_p0 = tex->dma_addr + p0;
 
 	if (is_cs) {
-		exec->bin_dep_seqno = max(exec->bin_dep_seqno,
-					  to_vc4_bo(&tex->base)->write_seqno);
+		exec->bin_dep_seqanal = max(exec->bin_dep_seqanal,
+					  to_vc4_bo(&tex->base)->write_seqanal);
 	}
 
 	return true;
@@ -822,13 +822,13 @@ validate_gl_shader_rec(struct drm_device *dev,
 
 	if (((*(uint16_t *)pkt_u & VC4_SHADER_FLAG_FS_SINGLE_THREAD) == 0) !=
 	    to_vc4_bo(&bo[0]->base)->validated_shader->is_threaded) {
-		DRM_DEBUG("Thread mode of CL and FS do not match\n");
+		DRM_DEBUG("Thread mode of CL and FS do analt match\n");
 		return -EINVAL;
 	}
 
 	if (to_vc4_bo(&bo[1]->base)->validated_shader->is_threaded ||
 	    to_vc4_bo(&bo[2]->base)->validated_shader->is_threaded) {
-		DRM_DEBUG("cs and vs cannot be threaded\n");
+		DRM_DEBUG("cs and vs cananalt be threaded\n");
 		return -EINVAL;
 	}
 
@@ -904,8 +904,8 @@ validate_gl_shader_rec(struct drm_device *dev,
 		uint32_t stride = *(uint8_t *)(pkt_u + o + 5);
 		uint32_t max_index;
 
-		exec->bin_dep_seqno = max(exec->bin_dep_seqno,
-					  to_vc4_bo(&vbo->base)->write_seqno);
+		exec->bin_dep_seqanal = max(exec->bin_dep_seqanal,
+					  to_vc4_bo(&vbo->base)->write_seqanal);
 
 		if (state->addr & 0x8)
 			stride |= (*(uint32_t *)(pkt_u + 100 + i * 4)) & ~0xff;
@@ -943,7 +943,7 @@ vc4_validate_shader_recs(struct drm_device *dev,
 	int ret = 0;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < exec->shader_state_count; i++) {
 		ret = validate_gl_shader_rec(dev, exec, &exec->shader_state[i]);

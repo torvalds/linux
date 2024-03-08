@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * kvm asynchronous fault support
+ * kvm asynchroanalus fault support
  *
  * Copyright 2010 Red Hat, Inc.
  *

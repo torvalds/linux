@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <sys/sysmacros.h>
 #include <sys/types.h>
-#include <errno.h>
+#include <erranal.h>
 #include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -79,7 +79,7 @@ jit_emit_elf(struct jit_buf_desc *jd,
 	     uint32_t unwinding_header_size,
 	     uint32_t unwinding_size)
 {
-	int ret, fd, saved_errno;
+	int ret, fd, saved_erranal;
 	struct nscookie nsc;
 
 	if (verbose > 0)
@@ -87,10 +87,10 @@ jit_emit_elf(struct jit_buf_desc *jd,
 
 	nsinfo__mountns_enter(jd->nsi, &nsc);
 	fd = open(filename, O_CREAT|O_TRUNC|O_WRONLY, 0644);
-	saved_errno = errno;
+	saved_erranal = erranal;
 	nsinfo__mountns_exit(&nsc);
 	if (fd == -1) {
-		pr_warning("cannot create jit ELF %s: %s\n", filename, strerror(saved_errno));
+		pr_warning("cananalt create jit ELF %s: %s\n", filename, strerror(saved_erranal));
 		return -1;
 	}
 
@@ -124,10 +124,10 @@ jit_validate_events(struct perf_session *session)
 	struct evsel *evsel;
 
 	/*
-	 * check that all events use CLOCK_MONOTONIC
+	 * check that all events use CLOCK_MOANALTONIC
 	 */
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (evsel->core.attr.use_clockid == 0 || evsel->core.attr.clockid != CLOCK_MONOTONIC)
+		if (evsel->core.attr.use_clockid == 0 || evsel->core.attr.clockid != CLOCK_MOANALTONIC)
 			return -1;
 	}
 	return 0;
@@ -205,7 +205,7 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 	}
 
 	if (jd->use_arch_timestamp && !jd->session->time_conv.time_mult) {
-		pr_err("jitdump file uses arch timestamps but there is no timestamp conversion\n");
+		pr_err("jitdump file uses arch timestamps but there is anal timestamp conversion\n");
 		goto error;
 	}
 
@@ -225,7 +225,7 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 			goto error;
 		bsz = bs;
 		buf = n;
-		/* read extra we do not know about */
+		/* read extra we do analt kanalw about */
 		ret = fread(buf, bs - bsz, 1, jd->in);
 		if (ret != 1)
 			goto error;
@@ -291,7 +291,7 @@ jit_get_next_entry(struct jit_buf_desc *jd)
 		return NULL;
 
 	if (id >= JIT_CODE_MAX) {
-		pr_warning("next_entry: unknown record type %d, skipping\n", id);
+		pr_warning("next_entry: unkanalwn record type %d, skipping\n", id);
 	}
 	if (bs > jd->bufsize) {
 		void *n;
@@ -318,7 +318,7 @@ jit_get_next_entry(struct jit_buf_desc *jd)
 			jr->info.nr_entry  = bswap_64(jr->info.nr_entry);
 			for (n = 0 ; n < jr->info.nr_entry; n++) {
 				jr->info.entries[n].addr    = bswap_64(jr->info.entries[n].addr);
-				jr->info.entries[n].lineno  = bswap_32(jr->info.entries[n].lineno);
+				jr->info.entries[n].lineanal  = bswap_32(jr->info.entries[n].lineanal);
 				jr->info.entries[n].discrim = bswap_32(jr->info.entries[n].discrim);
 			}
 		}
@@ -356,7 +356,7 @@ jit_get_next_entry(struct jit_buf_desc *jd)
 		break;
 	case JIT_CODE_MAX:
 	default:
-		/* skip unknown record (we have read them) */
+		/* skip unkanalwn record (we have read them) */
 		break;
 	}
 	return jr;
@@ -497,12 +497,12 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 	event->mmap2.len   = usize ? ALIGN_8(csize) + usize : csize;
 	event->mmap2.pid   = pid;
 	event->mmap2.tid   = tid;
-	event->mmap2.ino   = st.st_ino;
+	event->mmap2.ianal   = st.st_ianal;
 	event->mmap2.maj   = major(st.st_dev);
-	event->mmap2.min   = minor(st.st_dev);
+	event->mmap2.min   = mianalr(st.st_dev);
 	event->mmap2.prot  = st.st_mode;
 	event->mmap2.flags = MAP_SHARED;
-	event->mmap2.ino_generation = 1;
+	event->mmap2.ianal_generation = 1;
 
 	id = (void *)((unsigned long)event + event->mmap.header.size - idr_size);
 	if (jd->sample_type & PERF_SAMPLE_TID) {
@@ -592,12 +592,12 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 				   : jr->move.code_size;
 	event->mmap2.pid   = pid;
 	event->mmap2.tid   = tid;
-	event->mmap2.ino   = st.st_ino;
+	event->mmap2.ianal   = st.st_ianal;
 	event->mmap2.maj   = major(st.st_dev);
-	event->mmap2.min   = minor(st.st_dev);
+	event->mmap2.min   = mianalr(st.st_dev);
 	event->mmap2.prot  = st.st_mode;
 	event->mmap2.flags = MAP_SHARED;
-	event->mmap2.ino_generation = 1;
+	event->mmap2.ianal_generation = 1;
 
 	id = (void *)((unsigned long)event + event->mmap.header.size - idr_size);
 	if (jd->sample_type & PERF_SAMPLE_TID) {
@@ -648,7 +648,7 @@ static int jit_repipe_debug_info(struct jit_buf_desc *jd, union jr_entry *jr)
 
 	/*
 	 * we must use nr_entry instead of size here because
-	 * we cannot distinguish actual entry from padding otherwise
+	 * we cananalt distinguish actual entry from padding otherwise
 	 */
 	jd->nr_debug_entries = jr->info.nr_entry;
 
@@ -774,7 +774,7 @@ jit_detect(char *mmap_name, pid_t pid, struct nsinfo *nsi)
 		return -1;
 
 	/*
-	 * pid does not match mmap pid
+	 * pid does analt match mmap pid
 	 * pid==0 in system-wide mode (synthesized)
 	 */
 	if (pid && pid2 != nsinfo__nstgid(nsi))
@@ -796,7 +796,7 @@ static void jit_add_pid(struct machine *machine, pid_t pid)
 	struct thread *thread = machine__findnew_thread(machine, pid, pid);
 
 	if (!thread) {
-		pr_err("%s: thread %d not found or created\n", __func__, pid);
+		pr_err("%s: thread %d analt found or created\n", __func__, pid);
 		return;
 	}
 
@@ -848,11 +848,11 @@ jit_process(struct perf_session *session,
 		nsinfo__put(nsi);
 
 		/*
-		 * Strip //anon*, [anon:* and /memfd:* mmaps if we processed a jitdump for this pid
+		 * Strip //aanaln*, [aanaln:* and /memfd:* mmaps if we processed a jitdump for this pid
 		 */
 		if (jit_has_pid(machine, pid) &&
-			((strncmp(filename, "//anon", 6) == 0) ||
-			 (strncmp(filename, "[anon:", 6) == 0) ||
+			((strncmp(filename, "//aanaln", 6) == 0) ||
+			 (strncmp(filename, "[aanaln:", 6) == 0) ||
 			 (strncmp(filename, "/memfd:", 7) == 0)))
 			return 1;
 
@@ -868,7 +868,7 @@ jit_process(struct perf_session *session,
 
 	/*
 	 * track sample_type to compute id_all layout
-	 * perf sets the same sample type to all events as of now
+	 * perf sets the same sample type to all events as of analw
 	 */
 	first = evlist__first(session->evlist);
 	jd.sample_type = first->core.attr.sample_type;

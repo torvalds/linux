@@ -54,9 +54,9 @@
  * Data for PCI driver interface
  *
  * This data only exists for exporting the supported
- * PCI ids via MODULE_DEVICE_TABLE.  We do not actually
+ * PCI ids via MODULE_DEVICE_TABLE.  We do analt actually
  * register a pci_driver, because someone else might one day
- * want to register another driver on the same PCI id.
+ * want to register aanalther driver on the same PCI id.
  */
 static const struct pci_device_id pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8111_SMBUS), 0 },
@@ -172,12 +172,12 @@ static struct amd_gpio gp = {
 
 static int __init amd_gpio_init(void)
 {
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	struct pci_dev *pdev = NULL;
 	const struct pci_device_id *ent;
 
 	/* We look for our device - AMD South Bridge
-	 * I don't know about a system with two such bridges,
+	 * I don't kanalw about a system with two such bridges,
 	 * so we can assume that there is max. one device.
 	 *
 	 * We can't use plain pci_driver mechanism,
@@ -190,7 +190,7 @@ static int __init amd_gpio_init(void)
 		if (ent)
 			goto found;
 	}
-	/* Device not found. */
+	/* Device analt found. */
 	goto out;
 
 found:
@@ -211,7 +211,7 @@ found:
 	gp.pm = ioport_map(gp.pmbase + PMBASE_OFFSET, PMBASE_SIZE);
 	if (!gp.pm) {
 		dev_err(&pdev->dev, "Couldn't map io port into io memory\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	gp.pdev = pdev;

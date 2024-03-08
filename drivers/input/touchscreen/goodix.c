@@ -7,7 +7,7 @@
  *
  *  This code is based on gt9xx.c authored by andrew@goodix.com:
  *
- *  2010 - 2012 Goodix Technology.
+ *  2010 - 2012 Goodix Techanallogy.
  */
 
 
@@ -124,7 +124,7 @@ static const unsigned long goodix_irq_flags[] = {
 static const struct dmi_system_id nine_bytes_report[] = {
 #if defined(CONFIG_DMI) && defined(CONFIG_X86)
 	{
-		/* Lenovo Yoga Book X90F / X90L */
+		/* Leanalvo Yoga Book X90F / X90L */
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
@@ -132,10 +132,10 @@ static const struct dmi_system_id nine_bytes_report[] = {
 		}
 	},
 	{
-		/* Lenovo Yoga Book X91F / X91L */
+		/* Leanalvo Yoga Book X91F / X91L */
 		.matches = {
-			/* Non exact match to match F + L versions */
-			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X91"),
+			/* Analn exact match to match F + L versions */
+			DMI_MATCH(DMI_PRODUCT_NAME, "Leanalvo YB1-X91"),
 		}
 	},
 #endif
@@ -208,7 +208,7 @@ int goodix_i2c_write(struct i2c_client *client, u16 reg, const u8 *buf, int len)
 
 	addr_buf = kmalloc(len + 2, GFP_KERNEL);
 	if (!addr_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	addr_buf[0] = reg >> 8;
 	addr_buf[1] = reg & 0xFF;
@@ -263,7 +263,7 @@ static int goodix_ts_read_input_report(struct goodix_ts_data *ts, u8 *data)
 
 	/*
 	 * The 'buffer status' bit, which indicates that the data is valid, is
-	 * not set as soon as the interrupt is raised, but slightly after.
+	 * analt set as soon as the interrupt is raised, but slightly after.
 	 * This takes around 10 ms to happen, so we poll for 20 ms.
 	 */
 	max_timeout = jiffies + msecs_to_jiffies(GOODIX_BUFFER_STATUS_TIMEOUT);
@@ -304,7 +304,7 @@ static int goodix_ts_read_input_report(struct goodix_ts_data *ts, u8 *data)
 	 * The Goodix panel will send spurious interrupts after a
 	 * 'finger up' event, which will always cause a timeout.
 	 */
-	return -ENOMSG;
+	return -EANALMSG;
 }
 
 static int goodix_create_pen_input(struct goodix_ts_data *ts)
@@ -314,13 +314,13 @@ static int goodix_create_pen_input(struct goodix_ts_data *ts)
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_copy_abs(input, ABS_X, ts->input_dev, ABS_MT_POSITION_X);
 	input_copy_abs(input, ABS_Y, ts->input_dev, ABS_MT_POSITION_Y);
 	/*
 	 * The resolution of these touchscreens is about 10 units/mm, the actual
-	 * resolution does not matter much since we set INPUT_PROP_DIRECT.
+	 * resolution does analt matter much since we set INPUT_PROP_DIRECT.
 	 * Userspace wants something here though, so just set it to 10 units/mm.
 	 */
 	input_abs_set_res(input, ABS_X, 10);
@@ -535,7 +535,7 @@ static int goodix_check_cfg_8(struct goodix_ts_data *ts, const u8 *cfg, int len)
 	check_sum = (~check_sum) + 1;
 	if (check_sum != cfg[raw_cfg_len]) {
 		dev_err(&ts->client->dev,
-			"The checksum of the config fw is not correct");
+			"The checksum of the config fw is analt correct");
 		return -EINVAL;
 	}
 
@@ -572,7 +572,7 @@ static int goodix_check_cfg_16(struct goodix_ts_data *ts, const u8 *cfg,
 	check_sum = (~check_sum) + 1;
 	if (check_sum != get_unaligned_be16(&cfg[raw_cfg_len])) {
 		dev_err(&ts->client->dev,
-			"The checksum of the config fw is not correct");
+			"The checksum of the config fw is analt correct");
 		return -EINVAL;
 	}
 
@@ -610,7 +610,7 @@ static int goodix_check_cfg(struct goodix_ts_data *ts, const u8 *cfg, int len)
 	if (len < GOODIX_CONFIG_MIN_LENGTH ||
 	    len > GOODIX_CONFIG_MAX_LENGTH) {
 		dev_err(&ts->client->dev,
-			"The length of the config fw is not correct");
+			"The length of the config fw is analt correct");
 		return -EINVAL;
 	}
 
@@ -681,7 +681,7 @@ static int goodix_pin_acpi_output_method(struct goodix_ts_data *ts, int value)
 static int goodix_irq_direction_output(struct goodix_ts_data *ts, int value)
 {
 	switch (ts->irq_pin_access_method) {
-	case IRQ_PIN_ACCESS_NONE:
+	case IRQ_PIN_ACCESS_ANALNE:
 		dev_err(&ts->client->dev,
 			"%s called without an irq_pin_access_method set\n",
 			__func__);
@@ -704,7 +704,7 @@ static int goodix_irq_direction_output(struct goodix_ts_data *ts, int value)
 static int goodix_irq_direction_input(struct goodix_ts_data *ts)
 {
 	switch (ts->irq_pin_access_method) {
-	case IRQ_PIN_ACCESS_NONE:
+	case IRQ_PIN_ACCESS_ANALNE:
 		dev_err(&ts->client->dev,
 			"%s called without an irq_pin_access_method set\n",
 			__func__);
@@ -742,11 +742,11 @@ error:
 }
 
 /**
- * goodix_reset_no_int_sync - Reset device, leaving interrupt line in output mode
+ * goodix_reset_anal_int_sync - Reset device, leaving interrupt line in output mode
  *
  * @ts: goodix_ts_data pointer
  */
-int goodix_reset_no_int_sync(struct goodix_ts_data *ts)
+int goodix_reset_anal_int_sync(struct goodix_ts_data *ts)
 {
 	int error;
 
@@ -772,7 +772,7 @@ int goodix_reset_no_int_sync(struct goodix_ts_data *ts)
 
 	/*
 	 * Put the reset pin back in to input / high-impedance mode to save
-	 * power. Only do this in the non ACPI case since some ACPI boards
+	 * power. Only do this in the analn ACPI case since some ACPI boards
 	 * don't have a pull-up, so there the reset pin must stay active-high.
 	 */
 	if (ts->irq_pin_access_method == IRQ_PIN_ACCESS_GPIO) {
@@ -797,7 +797,7 @@ static int goodix_reset(struct goodix_ts_data *ts)
 {
 	int error;
 
-	error = goodix_reset_no_int_sync(ts);
+	error = goodix_reset_anal_int_sync(ts);
 	if (error)
 		return error;
 
@@ -835,7 +835,7 @@ static int goodix_resource(struct acpi_resource *ares, void *data)
 		if (ts->gpio_int_idx == -1) {
 			ts->gpio_int_idx = ts->gpio_count;
 		} else {
-			dev_err(dev, "More then one GpioInt resource, ignoring ACPI GPIO resources\n");
+			dev_err(dev, "More then one GpioInt resource, iganalring ACPI GPIO resources\n");
 			ts->gpio_int_idx = -2;
 		}
 		ts->gpio_count++;
@@ -848,7 +848,7 @@ static int goodix_resource(struct acpi_resource *ares, void *data)
 /*
  * This function gets called in case we fail to get the irq GPIO directly
  * because the ACPI tables lack GPIO-name to APCI _CRS index mappings
- * (no _DSD UUID daffd814-6eba-4d8c-8a91-bc9bbf4aa301 data).
+ * (anal _DSD UUID daffd814-6eba-4d8c-8a91-bc9bbf4aa301 data).
  * In that case we add our own mapping and then goodix_get_gpio_config()
  * retries to get the GPIOs based on the added mapping.
  */
@@ -874,7 +874,7 @@ static int goodix_add_acpi_gpio_mappings(struct goodix_ts_data *ts)
 	 * CHT devices should have a GpioInt + a regular GPIO ACPI resource.
 	 * Some CHT devices have a bug (where the also is bogus Interrupt
 	 * resource copied from a previous BYT based generation). i2c-core-acpi
-	 * will use the non-working Interrupt resource, fix this up.
+	 * will use the analn-working Interrupt resource, fix this up.
 	 */
 	if (soc_intel_is_cht() && ts->gpio_count == 2 && ts->gpio_int_idx != -1) {
 		irq = acpi_dev_gpio_irq_get(ACPI_COMPANION(dev), 0);
@@ -898,7 +898,7 @@ static int goodix_add_acpi_gpio_mappings(struct goodix_ts_data *ts)
 		ts->irq_pin_access_method = IRQ_PIN_ACCESS_ACPI_METHOD;
 		gpio_mapping = acpi_goodix_reset_only_gpios;
 	} else if (soc_intel_is_byt() && ts->gpio_count == 2 && ts->gpio_int_idx == -1) {
-		dev_info(dev, "No ACPI GpioInt resource, assuming that the GPIO order is reset, int\n");
+		dev_info(dev, "Anal ACPI GpioInt resource, assuming that the GPIO order is reset, int\n");
 		ts->irq_pin_access_method = IRQ_PIN_ACCESS_ACPI_GPIO;
 		gpio_mapping = acpi_goodix_int_last_gpios;
 	} else if (ts->gpio_count == 1 && ts->gpio_int_idx == 0) {
@@ -918,7 +918,7 @@ static int goodix_add_acpi_gpio_mappings(struct goodix_ts_data *ts)
 		 * gpiod_int = gpiod_get(..., GPIOD_IN) call succeed,
 		 * which will explicitly set the direction to input.
 		 */
-		ts->irq_pin_access_method = IRQ_PIN_ACCESS_NONE;
+		ts->irq_pin_access_method = IRQ_PIN_ACCESS_ANALNE;
 		gpio_mapping = acpi_goodix_int_first_gpios;
 	} else {
 		dev_warn(dev, "Unexpected ACPI resources: gpio_count %d, gpio_int_idx %d\n",
@@ -932,9 +932,9 @@ static int goodix_add_acpi_gpio_mappings(struct goodix_ts_data *ts)
 	}
 
 	/*
-	 * Normally we put the reset pin in input / high-impedance mode to save
+	 * Analrmally we put the reset pin in input / high-impedance mode to save
 	 * power. But some x86/ACPI boards don't have a pull-up, so for the ACPI
-	 * case, leave the pin as is. This results in the pin not being touched
+	 * case, leave the pin as is. This results in the pin analt being touched
 	 * at all on x86/ACPI boards, except when needed for error-recover.
 	 */
 	ts->gpiod_rst_flags = GPIOD_ASIS;
@@ -965,7 +965,7 @@ static int goodix_get_gpio_config(struct goodix_ts_data *ts)
 
 	/*
 	 * By default we request the reset pin as input, leaving it in
-	 * high-impedance when not resetting the controller to save power.
+	 * high-impedance when analt resetting the controller to save power.
 	 */
 	ts->gpiod_rst_flags = GPIOD_IN;
 
@@ -1005,17 +1005,17 @@ retry_get_irq_gpio:
 		/*
 		 * We end up here if goodix_add_acpi_gpio_mappings() has
 		 * called devm_acpi_dev_add_driver_gpios() because the ACPI
-		 * tables did not contain name to index mappings.
+		 * tables did analt contain name to index mappings.
 		 * Check that we successfully got both GPIOs after we've
-		 * added our own acpi_gpio_mapping and if we did not get both
-		 * GPIOs reset irq_pin_access_method to IRQ_PIN_ACCESS_NONE.
+		 * added our own acpi_gpio_mapping and if we did analt get both
+		 * GPIOs reset irq_pin_access_method to IRQ_PIN_ACCESS_ANALNE.
 		 */
 		if (!ts->gpiod_int || !ts->gpiod_rst)
-			ts->irq_pin_access_method = IRQ_PIN_ACCESS_NONE;
+			ts->irq_pin_access_method = IRQ_PIN_ACCESS_ANALNE;
 		break;
 	case IRQ_PIN_ACCESS_ACPI_METHOD:
 		if (!ts->gpiod_rst)
-			ts->irq_pin_access_method = IRQ_PIN_ACCESS_NONE;
+			ts->irq_pin_access_method = IRQ_PIN_ACCESS_ANALNE;
 		break;
 	default:
 		if (ts->gpiod_int && ts->gpiod_rst) {
@@ -1043,7 +1043,7 @@ static void goodix_read_config(struct goodix_ts_data *ts)
 	/*
 	 * On controllers where we need to upload the firmware
 	 * (controllers without flash) ts->config already has the config
-	 * at this point and the controller itself does not have it yet!
+	 * at this point and the controller itself does analt have it yet!
 	 */
 	if (!ts->firmware_name) {
 		error = goodix_i2c_read(ts->client, ts->chip->config_addr,
@@ -1124,7 +1124,7 @@ static int goodix_i2c_test(struct i2c_client *client)
  *
  * Must be called from probe to finish initialization of the device.
  * Contains the common initialization code for both devices that
- * declare gpio pins and devices that do not. It is either called
+ * declare gpio pins and devices that do analt. It is either called
  * directly from probe or from request_firmware_wait callback.
  */
 static int goodix_configure_dev(struct goodix_ts_data *ts)
@@ -1138,7 +1138,7 @@ static int goodix_configure_dev(struct goodix_ts_data *ts)
 	ts->input_dev = devm_input_allocate_device(&ts->client->dev);
 	if (!ts->input_dev) {
 		dev_err(&ts->client->dev, "Failed to allocate input device.");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ts->input_dev->name = "Goodix Capacitive TouchScreen";
@@ -1177,8 +1177,8 @@ retry_read_config:
 
 	if (!ts->prop.max_x || !ts->prop.max_y || !ts->max_touch_num) {
 		if (!ts->reset_controller_at_probe &&
-		    ts->irq_pin_access_method != IRQ_PIN_ACCESS_NONE) {
-			dev_info(&ts->client->dev, "Config not set, resetting controller\n");
+		    ts->irq_pin_access_method != IRQ_PIN_ACCESS_ANALNE) {
+			dev_info(&ts->client->dev, "Config analt set, resetting controller\n");
 			/* Retry after a controller reset */
 			ts->reset_controller_at_probe = true;
 			error = goodix_reset(ts);
@@ -1202,7 +1202,7 @@ retry_read_config:
 		ts->contact_size = 9;
 
 		dev_dbg(&ts->client->dev,
-			"Non-standard 9-bytes report format quirk\n");
+			"Analn-standard 9-bytes report format quirk\n");
 	}
 
 	if (dmi_check_system(inverted_x_screen)) {
@@ -1230,7 +1230,7 @@ retry_read_config:
 	 * Create the input_pen device before goodix_request_irq() calls
 	 * devm_request_threaded_irq() so that the devm framework frees
 	 * it after disabling the irq.
-	 * Unfortunately there is no way to detect if the touchscreen has pen
+	 * Unfortunately there is anal way to detect if the touchscreen has pen
 	 * support, so registering the dev is delayed till the first pen event.
 	 */
 	error = goodix_create_pen_input(ts);
@@ -1307,7 +1307,7 @@ static int goodix_ts_probe(struct i2c_client *client)
 
 	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->client = client;
 	i2c_set_clientdata(client, ts);
@@ -1352,7 +1352,7 @@ reset:
 	error = goodix_i2c_test(client);
 	if (error) {
 		if (!ts->reset_controller_at_probe &&
-		    ts->irq_pin_access_method != IRQ_PIN_ACCESS_NONE) {
+		    ts->irq_pin_access_method != IRQ_PIN_ACCESS_ANALNE) {
 			/* Retry after a controller reset */
 			ts->reset_controller_at_probe = true;
 			goto reset;
@@ -1383,7 +1383,7 @@ reset:
 			snprintf(ts->cfg_name, sizeof(ts->cfg_name),
 				 "goodix_%s_cfg.bin", ts->id);
 
-		error = request_firmware_nowait(THIS_MODULE, true, ts->cfg_name,
+		error = request_firmware_analwait(THIS_MODULE, true, ts->cfg_name,
 						&client->dev, GFP_KERNEL, ts,
 						goodix_config_cb);
 		if (error) {
@@ -1421,7 +1421,7 @@ static int goodix_suspend(struct device *dev)
 		wait_for_completion(&ts->firmware_loading_complete);
 
 	/* We need gpio pins to suspend/resume */
-	if (ts->irq_pin_access_method == IRQ_PIN_ACCESS_NONE) {
+	if (ts->irq_pin_access_method == IRQ_PIN_ACCESS_ANALNE) {
 		disable_irq(client->irq);
 		return 0;
 	}
@@ -1465,7 +1465,7 @@ static int goodix_resume(struct device *dev)
 	u8 config_ver;
 	int error;
 
-	if (ts->irq_pin_access_method == IRQ_PIN_ACCESS_NONE) {
+	if (ts->irq_pin_access_method == IRQ_PIN_ACCESS_ANALNE) {
 		enable_irq(client->irq);
 		return 0;
 	}
@@ -1560,6 +1560,6 @@ static struct i2c_driver goodix_ts_driver = {
 module_i2c_driver(goodix_ts_driver);
 
 MODULE_AUTHOR("Benjamin Tissoires <benjamin.tissoires@gmail.com>");
-MODULE_AUTHOR("Bastien Nocera <hadess@hadess.net>");
+MODULE_AUTHOR("Bastien Analcera <hadess@hadess.net>");
 MODULE_DESCRIPTION("Goodix touchscreen driver");
 MODULE_LICENSE("GPL v2");

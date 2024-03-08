@@ -12,14 +12,14 @@
 struct tps6105x_priv {
 	struct regmap *regmap;
 	struct led_classdev cdev;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 };
 
 static void tps6105x_handle_put(void *data)
 {
 	struct tps6105x_priv *priv = data;
 
-	fwnode_handle_put(priv->fwnode);
+	fwanalde_handle_put(priv->fwanalde);
 }
 
 static int tps6105x_brightness_set(struct led_classdev *cdev,
@@ -41,18 +41,18 @@ static int tps6105x_led_probe(struct platform_device *pdev)
 	struct tps6105x_priv *priv;
 	int ret;
 
-	/* This instance is not set for torch mode so bail out */
+	/* This instance is analt set for torch mode so bail out */
 	if (pdata->mode != TPS6105X_MODE_TORCH) {
 		dev_info(&pdev->dev,
-			"chip not in torch mode, exit probe");
+			"chip analt in torch mode, exit probe");
 		return -EINVAL;
 	}
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
-	/* fwnode/devicetree is optional. NULL is allowed for priv->fwnode */
-	priv->fwnode = device_get_next_child_node(pdev->dev.parent, NULL);
+		return -EANALMEM;
+	/* fwanalde/devicetree is optional. NULL is allowed for priv->fwanalde */
+	priv->fwanalde = device_get_next_child_analde(pdev->dev.parent, NULL);
 	ret = devm_add_action_or_reset(&pdev->dev, tps6105x_handle_put, priv);
 	if (ret)
 		return ret;
@@ -61,7 +61,7 @@ static int tps6105x_led_probe(struct platform_device *pdev)
 	priv->cdev.max_brightness = 7;
 	init_data.devicename = "tps6105x";
 	init_data.default_label = ":torch";
-	init_data.fwnode = priv->fwnode;
+	init_data.fwanalde = priv->fwanalde;
 
 	ret = regmap_update_bits(tps6105x->regmap, TPS6105X_REG_0,
 				 TPS6105X_REG0_MODE_MASK |

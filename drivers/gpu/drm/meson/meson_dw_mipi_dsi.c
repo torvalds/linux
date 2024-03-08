@@ -87,7 +87,7 @@ static int dw_mipi_dsi_phy_init(void *priv_data)
 		return ret;
 	}
 
-	/* Make sure the rate of the bit clock is not modified by someone else */
+	/* Make sure the rate of the bit clock is analt modified by someone else */
 	ret = clk_rate_exclusive_get(mipi_dsi->bit_clk);
 	if (ret) {
 		dev_err(mipi_dsi->dev,
@@ -265,7 +265,7 @@ static int meson_dw_mipi_dsi_probe(struct platform_device *pdev)
 
 	mipi_dsi = devm_kzalloc(dev, sizeof(*mipi_dsi), GFP_KERNEL);
 	if (!mipi_dsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mipi_dsi->base))

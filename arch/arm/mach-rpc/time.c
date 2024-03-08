@@ -47,7 +47,7 @@ static u64 ioc_timer_read(struct clocksource *cs)
 
 	if (count2 < count1) {
 		/*
-		 * The timer has not reloaded between reading count1 and
+		 * The timer has analt reloaded between reading count1 and
 		 * count2, check whether an interrupt was actually pending.
 		 */
 		if (status & (1 << 5))
@@ -55,7 +55,7 @@ static u64 ioc_timer_read(struct clocksource *cs)
 	} else if (count2 > count1) {
 		/*
 		 * The timer has reloaded, so count2 indicates the new
-		 * count since the wrap.  The interrupt would not have
+		 * count since the wrap.  The interrupt would analt have
 		 * been processed, so add the missed ticks.
 		 */
 		ticks += RPC_LATCH;

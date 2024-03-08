@@ -103,7 +103,7 @@ static int imx8mm_tmu_get_temp(void *data, int *temp)
 	val = readl_relaxed(tmu->base + TRITSR) & TRITSR_TEMP0_VAL_MASK;
 
 	/*
-	 * Do not validate against the V bit (bit 31) due to errata
+	 * Do analt validate against the V bit (bit 31) due to errata
 	 * ERR051272: TMU: Bit 31 of registers TMU_TSCR/TMU_TRITSR/TMU_TRATSR invalid
 	 */
 
@@ -274,14 +274,14 @@ static int imx8mm_tmu_probe_set_calib(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 
 	/*
-	 * Lack of calibration data OCOTP reference is not considered
+	 * Lack of calibration data OCOTP reference is analt considered
 	 * fatal to retain compatibility with old DTs. It is however
 	 * strongly recommended to update such old DTs to get correct
 	 * temperature compensation values for each SoC.
 	 */
-	if (!of_property_present(pdev->dev.of_node, "nvmem-cells")) {
+	if (!of_property_present(pdev->dev.of_analde, "nvmem-cells")) {
 		dev_warn(dev,
-			 "No OCOTP nvmem reference found, SoC-specific calibration not loaded. Please update your DT.\n");
+			 "Anal OCOTP nvmem reference found, SoC-specific calibration analt loaded. Please update your DT.\n");
 		return 0;
 	}
 
@@ -303,7 +303,7 @@ static int imx8mm_tmu_probe(struct platform_device *pdev)
 	tmu = devm_kzalloc(&pdev->dev, struct_size(tmu, sensors,
 			   data->num_sensors), GFP_KERNEL);
 	if (!tmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmu->socdata = data;
 

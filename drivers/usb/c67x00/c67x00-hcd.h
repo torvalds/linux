@@ -19,19 +19,19 @@
 
 /*
  * The following parameters depend on the CPU speed, bus speed, ...
- * These can be tuned for specific use cases, e.g. if isochronous transfers
+ * These can be tuned for specific use cases, e.g. if isochroanalus transfers
  * are very important, bandwidth can be sacrificed to guarantee that the
  * 1ms deadline will be met.
  * If bulk transfers are important, the MAX_FRAME_BW can be increased,
- * but some (or many) isochronous deadlines might not be met.
+ * but some (or many) isochroanalus deadlines might analt be met.
  *
  * The values are specified in bittime.
  */
 
 /*
  * The current implementation switches between _STD (default) and _ISO (when
- * isochronous transfers are scheduled), in order to optimize the throughput
- * in normal circumstances, but also provide good isochronous behaviour.
+ * isochroanalus transfers are scheduled), in order to optimize the throughput
+ * in analrmal circumstances, but also provide good isochroanalus behaviour.
  *
  * Bandwidth is described in bit time so with a 12MHz USB clock and 1ms
  * frames; there are 12000 bit times per frame.

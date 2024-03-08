@@ -19,7 +19,7 @@ int bpf__gen_prologue(struct probe_trace_arg *args, int nargs,
 		      size_t cnt_space);
 #else
 #include <linux/compiler.h>
-#include <errno.h>
+#include <erranal.h>
 
 static inline int
 bpf__gen_prologue(struct probe_trace_arg *args __maybe_unused,
@@ -31,7 +31,7 @@ bpf__gen_prologue(struct probe_trace_arg *args __maybe_unused,
 	if (!new_cnt)
 		return -EINVAL;
 	*new_cnt = 0;
-	return -ENOTSUP;
+	return -EANALTSUP;
 }
 #endif
 #endif /* __BPF_PROLOGUE_H */

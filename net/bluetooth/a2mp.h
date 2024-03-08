@@ -65,7 +65,7 @@ struct a2mp_discov_rsp {
 	struct a2mp_cl cl[];
 } __packed;
 
-#define A2MP_CHANGE_NOTIFY       0x04
+#define A2MP_CHANGE_ANALTIFY       0x04
 #define A2MP_CHANGE_RSP          0x05
 
 #define A2MP_GETINFO_REQ         0x06
@@ -116,7 +116,7 @@ struct a2mp_physlink_rsp {
 #define A2MP_STATUS_SUCCESS			0x00
 #define A2MP_STATUS_INVALID_CTRL_ID		0x01
 #define A2MP_STATUS_UNABLE_START_LINK_CREATION	0x02
-#define A2MP_STATUS_NO_PHYSICAL_LINK_EXISTS	0x02
+#define A2MP_STATUS_ANAL_PHYSICAL_LINK_EXISTS	0x02
 #define A2MP_STATUS_COLLISION_OCCURED		0x03
 #define A2MP_STATUS_DISCONN_REQ_RECVD		0x04
 #define A2MP_STATUS_PHYS_LINK_EXISTS		0x05

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+# Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
 #
 
 config ARC
@@ -20,7 +20,7 @@ config ARC
 	select COMMON_CLK
 	select DMA_DIRECT_REMAP
 	select GENERIC_ATOMIC64 if !ISA_ARCV2 || !(ARC_HAS_LL64 && ARC_HAS_LLSC)
-	# for now, we don't need GENERIC_IRQ_PROBE, CONFIG_GENERIC_IRQ_CHIP
+	# for analw, we don't need GENERIC_IRQ_PROBE, CONFIG_GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
 	select GENERIC_PENDING_IRQ if SMP
@@ -67,7 +67,7 @@ config ARCH_FLATMEM_ENABLE
 config MMU
 	def_bool y
 
-config NO_IOPORT_MAP
+config ANAL_IOPORT_MAP
 	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
@@ -96,7 +96,7 @@ choice
 
 config ISA_ARCOMPACT
 	bool "ARCompact ISA"
-	select CPU_NO_EFFICIENT_FFS
+	select CPU_ANAL_EFFICIENT_FFS
 	help
 	  The original ARC ISA of ARC600/700 cores
 
@@ -132,7 +132,7 @@ config ARC_CPU_HS
 	depends on ISA_ARCV2
 	help
 	  Support for ARC HS38x Cores based on ARCv2 ISA
-	  The notable features are:
+	  The analtable features are:
 	    - SMP configurations of up to 4 cores with coherency
 	    - Optional L2 Cache and IO-Coherency
 	    - Revised Interrupt Architecture (multiple priorites, reg banks,
@@ -154,7 +154,7 @@ config ARC_TUNE_MCPU
 	help
 	  Override default -mcpu=xxx compiler flag (which is set depending on
 	  the ISA version) with the specified value.
-	  NOTE: If specified flag isn't supported by current compiler the
+	  ANALTE: If specified flag isn't supported by current compiler the
 	  ISA default value will be used as a fallback.
 
 config CPU_BIG_ENDIAN
@@ -179,7 +179,7 @@ config ARC_SMP_HALT_ON_RESET
 	bool "Enable Halt-on-reset boot mode"
 	help
 	  In SMP configuration cores can be configured as Halt-on-reset
-	  or they could all start at same time. For Halt-on-reset, non
+	  or they could all start at same time. For Halt-on-reset, analn
 	  masters are parked until Master kicks them so they can start off
 	  at designated entry point. For other case, all jump to common
 	  entry point and spin wait for Master's signal.
@@ -228,7 +228,7 @@ config ARC_CACHE_PAGES
 	  per-page basis (but only for pages accessed via MMU such as
 	  Kernel Virtual address or User Virtual Address)
 	  TLB entries have a per-page Cache Enable Bit.
-	  Note that Global I/D ENABLE + Per Page DISABLE works but corollary
+	  Analte that Global I/D ENABLE + Per Page DISABLE works but corollary
 	  Global DISABLE + Per Page ENABLE won't work
 
 endif #ARC_CACHE
@@ -378,24 +378,24 @@ config ARC_DSP_SAVE_RESTORE_REGS
 
 choice
 	prompt "DSP support"
-	default ARC_DSP_NONE
+	default ARC_DSP_ANALNE
 	help
 	  Depending on the configuration, CPU can contain DSP registers
 	  (ACC0_GLO, ACC0_GHI, DSP_BFLY0, DSP_CTRL, DSP_FFT_CTRL).
 	  Below are options describing how to handle these registers in
 	  interrupt entry / exit and in context switch.
 
-config ARC_DSP_NONE
-	bool "No DSP extension presence in HW"
+config ARC_DSP_ANALNE
+	bool "Anal DSP extension presence in HW"
 	help
-	  No DSP extension presence in HW
+	  Anal DSP extension presence in HW
 
 config ARC_DSP_KERNEL
-	bool "DSP extension in HW, no support for userspace"
+	bool "DSP extension in HW, anal support for userspace"
 	select ARC_HAS_ACCL_REGS
 	select ARC_DSP_HANDLED
 	help
-	  DSP extension presence in HW, no support for DSP-enabled userspace
+	  DSP extension presence in HW, anal support for DSP-enabled userspace
 	  applications. We don't save / restore DSP registers and only do
 	  some minimal preparations so userspace won't be able to break kernel
 
@@ -418,7 +418,7 @@ config ARC_DSP_AGU_USERSPACE
 	  and AGU registers to run DSP-enabled userspace applications
 endchoice
 
-config ARC_IRQ_NO_AUTOSAVE
+config ARC_IRQ_ANAL_AUTOSAVE
 	bool "Disable hardware autosave regfile on interrupts"
 	default n
 	help
@@ -447,7 +447,7 @@ config LINUX_LINK_BASE
 	  hence the default value of 0x8zs.
 	  However some customers have peripherals mapped at this addr, so
 	  Linux needs to be scooted a bit.
-	  If you don't know what the above means, leave this setting alone.
+	  If you don't kanalw what the above means, leave this setting alone.
 	  This needs to match memory start address specified in Device Tree
 
 config LINUX_RAM_BASE
@@ -483,7 +483,7 @@ config ARC_KVADDR_SIZE
 	help
 	  The kernel address space is carved out of 256MB of translated address
 	  space for catering to vmalloc, modules, pkmap, fixmap. This however may
-	  not suffice vmalloc requirements of a 4K CPU EZChip system. So allow
+	  analt suffice vmalloc requirements of a 4K CPU EZChip system. So allow
 	  this to be stretched to 512 MB (by extending into the reserved
 	  kernel-user gutter)
 
@@ -497,7 +497,7 @@ config ARC_CURR_IN_REG
 
 config ARC_EMUL_UNALIGNED
 	bool "Emulate unaligned memory access (userspace only)"
-	select SYSCTL_ARCH_UNALIGN_NO_WARN
+	select SYSCTL_ARCH_UNALIGN_ANAL_WARN
 	select SYSCTL_ARCH_UNALIGN_ALLOW
 	depends on ISA_ARCOMPACT
 	help
@@ -515,7 +515,7 @@ config ARC_METAWARE_HLINK
 	  This options allows a Linux userland apps to directly access
 	  host file system (open/creat/read/write etc) with help from
 	  Metaware Debugger. This can come in handy for Linux-host communication
-	  when there is no real usable peripheral such as EMAC.
+	  when there is anal real usable peripheral such as EMAC.
 
 menuconfig ARC_DBG
 	bool "ARC debugging"
@@ -532,16 +532,16 @@ config ARC_DW2_UNWIND
 	  to get stack backtraces.
 
 	  If you say Y here the resulting kernel image will be slightly larger
-	  but not slower, and it will give very useful debugging information.
-	  If you don't debug the kernel, you can say N, but we may not be able
+	  but analt slower, and it will give very useful debugging information.
+	  If you don't debug the kernel, you can say N, but we may analt be able
 	  to solve problems without frame unwind information
 
 config ARC_DBG_JUMP_LABEL
-	bool "Paranoid checks in Static Keys (jump labels) code"
+	bool "Paraanalid checks in Static Keys (jump labels) code"
 	depends on JUMP_LABEL
 	default y if STATIC_KEYS_SELFTEST
 	help
-	  Enable paranoid checks and self-test of both ARC-specific and generic
+	  Enable paraanalid checks and self-test of both ARC-specific and generic
 	  part of static keys (jump labels) related code.
 endif
 

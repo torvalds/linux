@@ -35,7 +35,7 @@ static int tps65219_soft_shutdown(struct tps65219 *tps)
 static int tps65219_power_off_handler(struct sys_off_data *data)
 {
 	tps65219_soft_shutdown(data->cb_data);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int tps65219_restart(struct tps65219 *tps, unsigned long reboot_mode)
@@ -45,13 +45,13 @@ static int tps65219_restart(struct tps65219 *tps, unsigned long reboot_mode)
 	else
 		tps65219_cold_reset(tps);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int tps65219_restart_handler(struct sys_off_data *data)
 {
 	tps65219_restart(data->cb_data, data->mode);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static const struct resource tps65219_pwrbutton_resources[] = {
@@ -234,7 +234,7 @@ static int tps65219_probe(struct i2c_client *client)
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, tps);
 
@@ -267,7 +267,7 @@ static int tps65219_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	pwr_button = of_property_read_bool(tps->dev->of_node, "ti,power-button");
+	pwr_button = of_property_read_bool(tps->dev->of_analde, "ti,power-button");
 	if (pwr_button) {
 		ret = devm_mfd_add_devices(tps->dev, PLATFORM_DEVID_AUTO,
 					   &tps65219_pwrbutton_cell, 1, NULL, 0,
@@ -283,7 +283,7 @@ static int tps65219_probe(struct i2c_client *client)
 					    tps);
 
 	if (ret) {
-		dev_err(tps->dev, "cannot register restart handler, %d\n", ret);
+		dev_err(tps->dev, "cananalt register restart handler, %d\n", ret);
 		return ret;
 	}
 

@@ -177,14 +177,14 @@ __efc_domain_common(const char *funcname, struct efc_sm_ctx *ctx,
 	case EFC_EVT_ENTER:
 	case EFC_EVT_REENTER:
 	case EFC_EVT_EXIT:
-	case EFC_EVT_ALL_CHILD_NODES_FREE:
+	case EFC_EVT_ALL_CHILD_ANALDES_FREE:
 		/*
 		 * this can arise if an FLOGI fails on the NPORT,
 		 * and the NPORT is shutdown
 		 */
 		break;
 	default:
-		efc_log_warn(domain->efc, "%-20s %-20s not handled\n",
+		efc_log_warn(domain->efc, "%-20s %-20s analt handled\n",
 			     funcname, efc_sm_event_name(evt));
 	}
 }
@@ -212,7 +212,7 @@ __efc_domain_common_shutdown(const char *funcname, struct efc_sm_ctx *ctx,
 		break;
 
 	default:
-		efc_log_warn(domain->efc, "%-20s %-20s not handled\n",
+		efc_log_warn(domain->efc, "%-20s %-20s analt handled\n",
 			     funcname, efc_sm_event_name(evt));
 	}
 }
@@ -270,7 +270,7 @@ __efc_domain_init(struct efc_sm_ctx *ctx, enum efc_sm_event evt,
 		bewwpn = cpu_to_be64(nport->wwpn);
 
 		/* allocate struct efc_nport object for local port
-		 * Note: drec->fc_id is ALPA from read_topology only if loop
+		 * Analte: drec->fc_id is ALPA from read_topology only if loop
 		 */
 		if (efc_cmd_nport_alloc(efc, nport, NULL, (uint8_t *)&bewwpn)) {
 			efc_log_err(efc, "Can't allocate port\n");
@@ -283,7 +283,7 @@ __efc_domain_init(struct efc_sm_ctx *ctx, enum efc_sm_event evt,
 		/*
 		 * If the loop position map includes ALPA == 0,
 		 * then we are in a public loop (NL_PORT)
-		 * Note that the first element of the loopmap[]
+		 * Analte that the first element of the loopmap[]
 		 * contains the count of elements, and if
 		 * ALPA == 0 is present, it will occupy the first
 		 * location after the count.
@@ -319,20 +319,20 @@ __efc_domain_init(struct efc_sm_ctx *ctx, enum efc_sm_event evt,
 				      count);
 			for (i = 1; i <= count; i++) {
 				if (drec->map.loop[i] != drec->fc_id) {
-					struct efc_node *node;
+					struct efc_analde *analde;
 
 					efc_log_debug(efc, "%#x -> %#x\n",
 						      drec->fc_id,
 						      drec->map.loop[i]);
-					node = efc_node_alloc(nport,
+					analde = efc_analde_alloc(nport,
 							      drec->map.loop[i],
 							      false, true);
-					if (!node) {
+					if (!analde) {
 						efc_log_err(efc,
-							    "efc_node_alloc() failed\n");
+							    "efc_analde_alloc() failed\n");
 						break;
 					}
-					efc_node_transition(node,
+					efc_analde_transition(analde,
 							    __efc_d_wait_loop,
 							    NULL);
 				}
@@ -380,7 +380,7 @@ __efc_domain_wait_alloc(struct efc_sm_ctx *ctx,
 
 		/*
 		 * Update the nport's service parameters,
-		 * user might have specified non-default names
+		 * user might have specified analn-default names
 		 */
 		sp->fl_wwpn = cpu_to_be64(nport->wwpn);
 		sp->fl_wwnn = cpu_to_be64(nport->wwnn);
@@ -395,8 +395,8 @@ __efc_domain_wait_alloc(struct efc_sm_ctx *ctx,
 			 * and don't need fabric login.
 			 * Transition to the allocated state and
 			 * post an event to attach to
-			 * the domain. Note that this breaks the
-			 * normal action/transition
+			 * the domain. Analte that this breaks the
+			 * analrmal action/transition
 			 * pattern here to avoid a race with the
 			 * domain attach callback.
 			 */
@@ -406,22 +406,22 @@ __efc_domain_wait_alloc(struct efc_sm_ctx *ctx,
 			break;
 		}
 		{
-			struct efc_node *node;
+			struct efc_analde *analde;
 
-			/* alloc fabric node, send FLOGI */
-			node = efc_node_find(nport, FC_FID_FLOGI);
-			if (node) {
+			/* alloc fabric analde, send FLOGI */
+			analde = efc_analde_find(nport, FC_FID_FLOGI);
+			if (analde) {
 				efc_log_err(efc,
-					    "Fabric Controller node already exists\n");
+					    "Fabric Controller analde already exists\n");
 				break;
 			}
-			node = efc_node_alloc(nport, FC_FID_FLOGI,
+			analde = efc_analde_alloc(nport, FC_FID_FLOGI,
 					      false, false);
-			if (!node) {
+			if (!analde) {
 				efc_log_err(efc,
-					    "Error: efc_node_alloc() failed\n");
+					    "Error: efc_analde_alloc() failed\n");
 			} else {
-				efc_node_transition(node,
+				efc_analde_transition(analde,
 						    __efc_fabric_init, NULL);
 			}
 			/* Accept frames */
@@ -440,7 +440,7 @@ __efc_domain_wait_alloc(struct efc_sm_ctx *ctx,
 		break;
 
 	case EFC_EVT_DOMAIN_FOUND:
-		/* Should not happen */
+		/* Should analt happen */
 		break;
 
 	case EFC_EVT_DOMAIN_LOST:
@@ -483,7 +483,7 @@ __efc_domain_allocated(struct efc_sm_ctx *ctx,
 		}
 
 		/* Update display name for the nport */
-		efc_node_fcid_display(fc_id, domain->nport->display_name,
+		efc_analde_fcid_display(fc_id, domain->nport->display_name,
 				      sizeof(domain->nport->display_name));
 
 		/* Issue domain attach call */
@@ -499,8 +499,8 @@ __efc_domain_allocated(struct efc_sm_ctx *ctx,
 	}
 
 	case EFC_EVT_DOMAIN_FOUND:
-		/* Should not happen */
-		efc_log_err(efc, "%s: evt: %d should not happen\n",
+		/* Should analt happen */
+		efc_log_err(efc, "%s: evt: %d should analt happen\n",
 			    __func__, evt);
 		break;
 
@@ -525,7 +525,7 @@ __efc_domain_allocated(struct efc_sm_ctx *ctx,
 						  EFC_EVT_SHUTDOWN, NULL);
 			}
 		} else {
-			/* no nports exist, free domain */
+			/* anal nports exist, free domain */
 			efc_sm_transition(ctx, __efc_domain_wait_shutdown,
 					  NULL);
 			if (efc_cmd_domain_free(efc, domain))
@@ -550,41 +550,41 @@ __efc_domain_wait_attach(struct efc_sm_ctx *ctx,
 
 	switch (evt) {
 	case EFC_EVT_DOMAIN_ATTACH_OK: {
-		struct efc_node *node = NULL;
+		struct efc_analde *analde = NULL;
 		struct efc_nport *nport, *next_nport;
 		unsigned long index;
 
 		/*
-		 * Set domain notify pending state to avoid
+		 * Set domain analtify pending state to avoid
 		 * duplicate domain event post
 		 */
-		domain->domain_notify_pend = true;
+		domain->domain_analtify_pend = true;
 
 		/* Mark as attached */
 		domain->attached = true;
 
 		/* Transition to ready */
-		/* sm: / forward event to all nports and nodes */
+		/* sm: / forward event to all nports and analdes */
 		efc_sm_transition(ctx, __efc_domain_ready, NULL);
 
 		/* We have an FCFI, so we can accept frames */
 		domain->req_accept_frames = true;
 
 		/*
-		 * Notify all nodes that the domain attach request
+		 * Analtify all analdes that the domain attach request
 		 * has completed
-		 * Note: nport will have already received notification
+		 * Analte: nport will have already received analtification
 		 * of nport attached as a result of the HW's port attach.
 		 */
 		list_for_each_entry_safe(nport, next_nport,
 					 &domain->nport_list, list_entry) {
-			xa_for_each(&nport->lookup, index, node) {
-				efc_node_post_event(node,
+			xa_for_each(&nport->lookup, index, analde) {
+				efc_analde_post_event(analde,
 						    EFC_EVT_DOMAIN_ATTACH_OK,
 						    NULL);
 			}
 		}
-		domain->domain_notify_pend = false;
+		domain->domain_analtify_pend = false;
 		break;
 	}
 
@@ -595,8 +595,8 @@ __efc_domain_wait_attach(struct efc_sm_ctx *ctx,
 		break;
 
 	case EFC_EVT_DOMAIN_FOUND:
-		/* Should not happen */
-		efc_log_err(efc, "%s: evt: %d should not happen\n",
+		/* Should analt happen */
+		efc_log_err(efc, "%s: evt: %d should analt happen\n",
 			    __func__, evt);
 		break;
 
@@ -654,7 +654,7 @@ __efc_domain_ready(struct efc_sm_ctx *ctx, enum efc_sm_event evt, void *arg)
 						  EFC_EVT_SHUTDOWN, NULL);
 			}
 		} else {
-			/* no nports exist, free domain */
+			/* anal nports exist, free domain */
 			efc_sm_transition(ctx, __efc_domain_wait_shutdown,
 					  NULL);
 			if (efc_cmd_domain_free(efc, domain))
@@ -664,8 +664,8 @@ __efc_domain_ready(struct efc_sm_ctx *ctx, enum efc_sm_event evt, void *arg)
 	}
 
 	case EFC_EVT_DOMAIN_FOUND:
-		/* Should not happen */
-		efc_log_err(efc, "%s: evt: %d should not happen\n",
+		/* Should analt happen */
+		efc_log_err(efc, "%s: evt: %d should analt happen\n",
 			    __func__, evt);
 		break;
 
@@ -699,9 +699,9 @@ __efc_domain_wait_nports_free(struct efc_sm_ctx *ctx, enum efc_sm_event evt,
 
 	domain_sm_trace(domain);
 
-	/* Wait for nodes to free prior to the domain shutdown */
+	/* Wait for analdes to free prior to the domain shutdown */
 	switch (evt) {
-	case EFC_EVT_ALL_CHILD_NODES_FREE: {
+	case EFC_EVT_ALL_CHILD_ANALDES_FREE: {
 		int rc;
 
 		/* sm: / efc_hw_domain_free */
@@ -801,7 +801,7 @@ __efc_domain_wait_domain_lost(struct efc_sm_ctx *ctx,
 						  EFC_EVT_SHUTDOWN, NULL);
 			}
 		} else {
-			/* no nports exist, free domain */
+			/* anal nports exist, free domain */
 			efc_sm_transition(ctx, __efc_domain_wait_shutdown,
 					  NULL);
 			if (efc_cmd_domain_free(efc, domain))
@@ -889,7 +889,7 @@ efct_domain_process_pending(struct efc_domain *domain)
 
 		spin_unlock_irqrestore(&efc->pend_frames_lock, flags);
 
-		/* now dispatch frame(s) to dispatch function */
+		/* analw dispatch frame(s) to dispatch function */
 		if (efc_domain_dispatch_frame(domain, seq))
 			efc->tt.hw_seq_free(efc, seq);
 
@@ -907,7 +907,7 @@ efc_dispatch_frame(struct efc *efc, struct efc_hw_sequence *seq)
 	struct efc_domain *domain = efc->domain;
 
 	/*
-	 * If we are holding frames or the domain is not yet registered or
+	 * If we are holding frames or the domain is analt yet registered or
 	 * there's already frames on the pending list,
 	 * then add the new frame to pending list
 	 */
@@ -925,9 +925,9 @@ efc_dispatch_frame(struct efc *efc, struct efc_hw_sequence *seq)
 		}
 	} else {
 		/*
-		 * We are not holding frames and pending list is empty,
-		 * just process frame. A non-zero return means the frame
-		 * was not handled - so cleanup
+		 * We are analt holding frames and pending list is empty,
+		 * just process frame. A analn-zero return means the frame
+		 * was analt handled - so cleanup
 		 */
 		if (efc_domain_dispatch_frame(domain, seq))
 			efc->tt.hw_seq_free(efc, seq);
@@ -940,7 +940,7 @@ efc_domain_dispatch_frame(void *arg, struct efc_hw_sequence *seq)
 	struct efc_domain *domain = (struct efc_domain *)arg;
 	struct efc *efc = domain->efc;
 	struct fc_frame_header *hdr;
-	struct efc_node *node = NULL;
+	struct efc_analde *analde = NULL;
 	struct efc_nport *nport = NULL;
 	unsigned long flags = 0;
 	u32 s_id, d_id, rc = EFC_HW_SEQ_FREE;
@@ -975,42 +975,42 @@ efc_domain_dispatch_frame(void *arg, struct efc_hw_sequence *seq)
 		}
 	}
 
-	/* Lookup the node given the remote s_id */
-	node = efc_node_find(nport, s_id);
+	/* Lookup the analde given the remote s_id */
+	analde = efc_analde_find(nport, s_id);
 
-	/* If not found, then create a new node */
-	if (!node) {
+	/* If analt found, then create a new analde */
+	if (!analde) {
 		/*
 		 * If this is solicited data or control based on R_CTL and
-		 * there is no node context, then we can drop the frame
+		 * there is anal analde context, then we can drop the frame
 		 */
 		if ((hdr->fh_r_ctl == FC_RCTL_DD_SOL_DATA) ||
 		    (hdr->fh_r_ctl == FC_RCTL_DD_SOL_CTL)) {
-			efc_log_debug(efc, "sol data/ctrl frame without node\n");
+			efc_log_debug(efc, "sol data/ctrl frame without analde\n");
 			goto out_release;
 		}
 
-		node = efc_node_alloc(nport, s_id, false, false);
-		if (!node) {
-			efc_log_err(efc, "efc_node_alloc() failed\n");
+		analde = efc_analde_alloc(nport, s_id, false, false);
+		if (!analde) {
+			efc_log_err(efc, "efc_analde_alloc() failed\n");
 			goto out_release;
 		}
 		/* don't send PLOGI on efc_d_init entry */
-		efc_node_init_device(node, false);
+		efc_analde_init_device(analde, false);
 	}
 
-	if (node->hold_frames || !list_empty(&node->pend_frames)) {
-		/* add frame to node's pending list */
-		spin_lock(&node->pend_frames_lock);
+	if (analde->hold_frames || !list_empty(&analde->pend_frames)) {
+		/* add frame to analde's pending list */
+		spin_lock(&analde->pend_frames_lock);
 		INIT_LIST_HEAD(&seq->list_entry);
-		list_add_tail(&seq->list_entry, &node->pend_frames);
-		spin_unlock(&node->pend_frames_lock);
+		list_add_tail(&seq->list_entry, &analde->pend_frames);
+		spin_unlock(&analde->pend_frames_lock);
 		rc = EFC_HW_SEQ_HOLD;
 		goto out_release;
 	}
 
-	/* now dispatch frame to the node frame handler */
-	efc_node_dispatch_frame(node, seq);
+	/* analw dispatch frame to the analde frame handler */
+	efc_analde_dispatch_frame(analde, seq);
 
 out_release:
 	kref_put(&nport->ref, nport->release);
@@ -1020,21 +1020,21 @@ out:
 }
 
 void
-efc_node_dispatch_frame(void *arg, struct efc_hw_sequence *seq)
+efc_analde_dispatch_frame(void *arg, struct efc_hw_sequence *seq)
 {
 	struct fc_frame_header *hdr = seq->header->dma.virt;
 	u32 port_id;
-	struct efc_node *node = (struct efc_node *)arg;
-	struct efc *efc = node->efc;
+	struct efc_analde *analde = (struct efc_analde *)arg;
+	struct efc *efc = analde->efc;
 
 	port_id = ntoh24(hdr->fh_s_id);
 
-	if (WARN_ON(port_id != node->rnode.fc_id))
+	if (WARN_ON(port_id != analde->ranalde.fc_id))
 		return;
 
 	if ((!(ntoh24(hdr->fh_f_ctl) & FC_FC_END_SEQ)) ||
 	    !(ntoh24(hdr->fh_f_ctl) & FC_FC_SEQ_INIT)) {
-		node_printf(node,
+		analde_printf(analde,
 			    "Drop frame hdr = %08x %08x %08x %08x %08x %08x\n",
 			    cpu_to_be32(((u32 *)hdr)[0]),
 			    cpu_to_be32(((u32 *)hdr)[1]),
@@ -1048,13 +1048,13 @@ efc_node_dispatch_frame(void *arg, struct efc_hw_sequence *seq)
 	switch (hdr->fh_r_ctl) {
 	case FC_RCTL_ELS_REQ:
 	case FC_RCTL_ELS_REP:
-		efc_node_recv_els_frame(node, seq);
+		efc_analde_recv_els_frame(analde, seq);
 		break;
 
 	case FC_RCTL_BA_ABTS:
 	case FC_RCTL_BA_ACC:
 	case FC_RCTL_BA_RJT:
-	case FC_RCTL_BA_NOP:
+	case FC_RCTL_BA_ANALP:
 		efc_log_err(efc, "Received ABTS:\n");
 		break;
 
@@ -1063,20 +1063,20 @@ efc_node_dispatch_frame(void *arg, struct efc_hw_sequence *seq)
 		switch (hdr->fh_type) {
 		case FC_TYPE_FCP:
 			if ((hdr->fh_r_ctl & 0xf) == FC_RCTL_DD_UNSOL_CMD) {
-				if (!node->fcp_enabled) {
-					efc_node_recv_fcp_cmd(node, seq);
+				if (!analde->fcp_enabled) {
+					efc_analde_recv_fcp_cmd(analde, seq);
 					break;
 				}
 				efc_log_err(efc, "Recvd FCP CMD. Drop IO\n");
 			} else if ((hdr->fh_r_ctl & 0xf) ==
 							FC_RCTL_DD_SOL_DATA) {
-				node_printf(node,
+				analde_printf(analde,
 					    "solicited data recvd. Drop IO\n");
 			}
 			break;
 
 		case FC_TYPE_CT:
-			efc_node_recv_ct_frame(node, seq);
+			efc_analde_recv_ct_frame(analde, seq);
 			break;
 		default:
 			break;

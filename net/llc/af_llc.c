@@ -36,7 +36,7 @@
 
 /* remember: uninitialized global data is zeroed because its in .bss */
 static u16 llc_ui_sap_last_autoport = LLC_SAP_DYN_START;
-static u16 llc_ui_sap_link_no_max[256];
+static u16 llc_ui_sap_link_anal_max[256];
 static struct sockaddr_llc llc_ui_addrnull;
 static const struct proto_ops llc_ui_ops;
 
@@ -55,14 +55,14 @@ static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout);
 
 
 /**
- *	llc_ui_next_link_no - return the next unused link number for a sap
+ *	llc_ui_next_link_anal - return the next unused link number for a sap
  *	@sap: Address of sap to get link number from.
  *
  *	Return the next unused link number for a given sap.
  */
-static inline u16 llc_ui_next_link_no(int sap)
+static inline u16 llc_ui_next_link_anal(int sap)
 {
-	return llc_ui_sap_link_no_max[sap]++;
+	return llc_ui_sap_link_anal_max[sap]++;
 }
 
 /**
@@ -117,21 +117,21 @@ static inline u8 llc_ui_header_len(struct sock *sk, struct sockaddr_llc *addr)
  *	llc_ui_send_data - send data via reliable llc2 connection
  *	@sk: Connection the socket is using.
  *	@skb: Data the user wishes to send.
- *	@noblock: can we block waiting for data?
+ *	@analblock: can we block waiting for data?
  *
  *	Send data via reliable llc2 connection.
- *	Returns 0 upon success, non-zero if action did not succeed.
+ *	Returns 0 upon success, analn-zero if action did analt succeed.
  *
  *	This function always consumes a reference to the skb.
  */
-static int llc_ui_send_data(struct sock* sk, struct sk_buff *skb, int noblock)
+static int llc_ui_send_data(struct sock* sk, struct sk_buff *skb, int analblock)
 {
 	struct llc_sock* llc = llc_sk(sk);
 
 	if (unlikely(llc_data_accept_state(llc->state) ||
 		     llc->remote_busy_flag ||
 		     llc->p_flag)) {
-		long timeout = sock_sndtimeo(sk, noblock);
+		long timeout = sock_sndtimeo(sk, analblock);
 		int rc;
 
 		rc = llc_ui_wait_for_busy_core(sk, timeout);
@@ -172,16 +172,16 @@ static int llc_ui_create(struct net *net, struct socket *sock, int protocol,
 			 int kern)
 {
 	struct sock *sk;
-	int rc = -ESOCKTNOSUPPORT;
+	int rc = -ESOCKTANALSUPPORT;
 
 	if (!ns_capable(net->user_ns, CAP_NET_RAW))
 		return -EPERM;
 
 	if (!net_eq(net, &init_net))
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	if (likely(sock->type == SOCK_DGRAM || sock->type == SOCK_STREAM)) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		sk = llc_sk_alloc(net, PF_LLC, GFP_KERNEL, &llc_proto, kern);
 		if (sk) {
 			rc = 0;
@@ -287,7 +287,7 @@ static int llc_ui_autobind(struct socket *sock, struct sockaddr_llc *addr)
 		addr->sllc_arphrd = ARPHRD_ETHER;
 	if (addr->sllc_arphrd != ARPHRD_ETHER)
 		goto out;
-	rc = -ENODEV;
+	rc = -EANALDEV;
 	if (sk->sk_bound_dev_if) {
 		dev = dev_get_by_index(&init_net, sk->sk_bound_dev_if);
 		if (dev && addr->sllc_arphrd != dev->type) {
@@ -307,7 +307,7 @@ static int llc_ui_autobind(struct socket *sock, struct sockaddr_llc *addr)
 	if (!sap)
 		goto out;
 
-	/* Note: We do not expect errors from this point. */
+	/* Analte: We do analt expect errors from this point. */
 	llc->dev = dev;
 	netdev_tracker_alloc(llc->dev, &llc->dev_tracker, GFP_KERNEL);
 	dev = NULL;
@@ -349,13 +349,13 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 	lock_sock(sk);
 	if (unlikely(!sock_flag(sk, SOCK_ZAPPED) || addrlen != sizeof(*addr)))
 		goto out;
-	rc = -EAFNOSUPPORT;
+	rc = -EAFANALSUPPORT;
 	if (!addr->sllc_arphrd)
 		addr->sllc_arphrd = ARPHRD_ETHER;
 	if (unlikely(addr->sllc_family != AF_LLC || addr->sllc_arphrd != ARPHRD_ETHER))
 		goto out;
 	dprintk("%s: binding %02X\n", __func__, addr->sllc_sap);
-	rc = -ENODEV;
+	rc = -EANALDEV;
 	rcu_read_lock();
 	if (sk->sk_bound_dev_if) {
 		dev = dev_get_by_index_rcu(&init_net, sk->sk_bound_dev_if);
@@ -411,7 +411,7 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 		}
 	}
 
-	/* Note: We do not expect errors from this point. */
+	/* Analte: We do analt expect errors from this point. */
 	llc->dev = dev;
 	netdev_tracker_alloc(llc->dev, &llc->dev_tracker, GFP_KERNEL);
 	dev = NULL;
@@ -438,14 +438,14 @@ out:
  *
  *	Shutdown a connected llc2 socket. Currently this function only supports
  *	shutting down both sends and receives (2), we could probably make this
- *	function such that a user can shutdown only half the connection but not
- *	right now.
+ *	function such that a user can shutdown only half the connection but analt
+ *	right analw.
  *	Returns: 0 upon success, negative otherwise.
  */
 static int llc_ui_shutdown(struct socket *sock, int how)
 {
 	struct sock *sk = sock->sk;
-	int rc = -ENOTCONN;
+	int rc = -EANALTCONN;
 
 	lock_sock(sk);
 	if (unlikely(sk->sk_state != TCP_ESTABLISHED))
@@ -474,7 +474,7 @@ out:
  *	destination mac and address to connect to. If the user hasn't previously
  *	called bind(2) with a smac the address of the first interface of the
  *	specified arp type will be used.
- *	This function will autobind if user did not previously call bind.
+ *	This function will autobind if user did analt previously call bind.
  *	Returns: 0 upon success, negative otherwise.
  */
 static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
@@ -488,7 +488,7 @@ static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
 	lock_sock(sk);
 	if (unlikely(addrlen != sizeof(*addr)))
 		goto out;
-	rc = -EAFNOSUPPORT;
+	rc = -EAFANALSUPPORT;
 	if (unlikely(addr->sllc_family != AF_LLC))
 		goto out;
 	if (unlikely(sk->sk_type != SOCK_STREAM))
@@ -507,7 +507,7 @@ static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
 	memcpy(llc->daddr.mac, addr->sllc_mac, IFHWADDRLEN);
 	sock->state = SS_CONNECTING;
 	sk->sk_state   = TCP_SYN_SENT;
-	llc->link   = llc_ui_next_link_no(llc->sap->laddr.lsap);
+	llc->link   = llc_ui_next_link_anal(llc->sap->laddr.lsap);
 	rc = llc_establish_connection(sk, llc->dev->dev_addr,
 				      addr->sllc_mac, addr->sllc_sap);
 	if (rc) {
@@ -518,12 +518,12 @@ static int llc_ui_connect(struct socket *sock, struct sockaddr *uaddr,
 	}
 
 	if (sk->sk_state == TCP_SYN_SENT) {
-		const long timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
+		const long timeo = sock_sndtimeo(sk, flags & O_ANALNBLOCK);
 
 		if (!timeo || !llc_ui_wait_for_conn(sk, timeo))
 			goto out;
 
-		rc = sock_intr_errno(timeo);
+		rc = sock_intr_erranal(timeo);
 		if (signal_pending(current))
 			goto out;
 	}
@@ -543,11 +543,11 @@ sock_error:
 }
 
 /**
- *	llc_ui_listen - allow a normal socket to accept incoming connections
+ *	llc_ui_listen - allow a analrmal socket to accept incoming connections
  *	@sock: Socket to allow incoming connections on.
  *	@backlog: Number of connections to queue.
  *
- *	Allow a normal socket to accept incoming connections.
+ *	Allow a analrmal socket to accept incoming connections.
  *	Returns 0 upon success, negative otherwise.
  */
 static int llc_ui_listen(struct socket *sock, int backlog)
@@ -558,7 +558,7 @@ static int llc_ui_listen(struct socket *sock, int backlog)
 	lock_sock(sk);
 	if (unlikely(sock->state != SS_UNCONNECTED))
 		goto out;
-	rc = -EOPNOTSUPP;
+	rc = -EOPANALTSUPP;
 	if (unlikely(sk->sk_type != SOCK_STREAM))
 		goto out;
 	rc = -EAGAIN;
@@ -659,7 +659,7 @@ static int llc_wait_data(struct sock *sk, long timeo)
 		rc = -EAGAIN;
 		if (!timeo)
 			break;
-		rc = sock_intr_errno(timeo);
+		rc = sock_intr_erranal(timeo);
 		if (signal_pending(current))
 			break;
 		rc = 0;
@@ -700,7 +700,7 @@ static int llc_ui_accept(struct socket *sock, struct socket *newsock, int flags,
 	struct sock *sk = sock->sk, *newsk;
 	struct llc_sock *llc, *newllc;
 	struct sk_buff *skb;
-	int rc = -EOPNOTSUPP;
+	int rc = -EOPANALTSUPP;
 
 	dprintk("%s: accepting on %02X\n", __func__,
 		llc_sk(sk)->laddr.lsap);
@@ -733,7 +733,7 @@ static int llc_ui_accept(struct socket *sock, struct socket *newsock, int flags,
 	llc			= llc_sk(sk);
 	newllc			= llc_sk(newsk);
 	memcpy(&newllc->addr, &llc->addr, sizeof(newllc->addr));
-	newllc->link = llc_ui_next_link_no(newllc->laddr.lsap);
+	newllc->link = llc_ui_next_link_anal(newllc->laddr.lsap);
 
 	/* put original socket back into a clean listen state. */
 	sk->sk_state = TCP_LISTEN;
@@ -755,13 +755,13 @@ out:
  *	@flags: User specified flags.
  *
  *	Copy received data to the socket user.
- *	Returns non-negative upon success, negative otherwise.
+ *	Returns analn-negative upon success, negative otherwise.
  */
 static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			  int flags)
 {
 	DECLARE_SOCKADDR(struct sockaddr_llc *, uaddr, msg->msg_name);
-	const int nonblock = flags & MSG_DONTWAIT;
+	const int analnblock = flags & MSG_DONTWAIT;
 	struct sk_buff *skb = NULL;
 	struct sock *sk = sock->sk;
 	struct llc_sock *llc = llc_sk(sk);
@@ -773,11 +773,11 @@ static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	long timeo;
 
 	lock_sock(sk);
-	copied = -ENOTCONN;
+	copied = -EANALTCONN;
 	if (unlikely(sk->sk_type == SOCK_STREAM && sk->sk_state == TCP_LISTEN))
 		goto out;
 
-	timeo = sock_rcvtimeo(sk, nonblock);
+	timeo = sock_rcvtimeo(sk, analnblock);
 
 	seq = &llc->copied_seq;
 	if (flags & MSG_PEEK) {
@@ -799,7 +799,7 @@ static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		if (signal_pending(current)) {
 			if (copied)
 				break;
-			copied = timeo ? sock_intr_errno(timeo) : -EAGAIN;
+			copied = timeo ? sock_intr_erranal(timeo) : -EAGAIN;
 			break;
 		}
 
@@ -810,7 +810,7 @@ static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			offset = *seq;
 			goto found_ok_skb;
 		}
-		/* Well, if we have backlog, try to process it now yet. */
+		/* Well, if we have backlog, try to process it analw yet. */
 
 		if (copied >= target && !READ_ONCE(sk->sk_backlog.tail))
 			break;
@@ -839,7 +839,7 @@ static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 					 * This occurs when user tries to read
 					 * from never connected socket.
 					 */
-					copied = -ENOTCONN;
+					copied = -EANALTCONN;
 					break;
 				}
 				break;
@@ -850,7 +850,7 @@ static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			}
 		}
 
-		if (copied >= target) { /* Do not sleep, just process backlog. */
+		if (copied >= target) { /* Do analt sleep, just process backlog. */
 			release_sock(sk);
 			lock_sock(sk);
 		} else
@@ -884,7 +884,7 @@ static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		copied += used;
 		len -= used;
 
-		/* For non stream protcols we get one packet per recvmsg call */
+		/* For analn stream protcols we get one packet per recvmsg call */
 		if (sk->sk_type != SOCK_STREAM)
 			goto copy_uaddr;
 
@@ -926,7 +926,7 @@ copy_uaddr:
  *	@len: Length of data to transmit.
  *
  *	Transmit data provided by the socket user.
- *	Returns non-negative upon success, negative otherwise.
+ *	Returns analn-negative upon success, negative otherwise.
  */
 static int llc_ui_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
@@ -934,7 +934,7 @@ static int llc_ui_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	struct sock *sk = sock->sk;
 	struct llc_sock *llc = llc_sk(sk);
 	int flags = msg->msg_flags;
-	int noblock = flags & MSG_DONTWAIT;
+	int analblock = flags & MSG_DONTWAIT;
 	int rc = -EINVAL, copied = 0, hdrlen, hh_len;
 	struct sk_buff *skb = NULL;
 	struct net_device *dev;
@@ -968,7 +968,7 @@ static int llc_ui_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	if (copied < 0)
 		goto out;
 	release_sock(sk);
-	skb = sock_alloc_send_skb(sk, hh_len + size, noblock, &rc);
+	skb = sock_alloc_send_skb(sk, hh_len + size, analblock, &rc);
 	lock_sock(sk);
 	if (!skb)
 		goto out;
@@ -1002,10 +1002,10 @@ static int llc_ui_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		skb = NULL;
 		goto out;
 	}
-	rc = -ENOPROTOOPT;
+	rc = -EANALPROTOOPT;
 	if (!(sk->sk_type == SOCK_STREAM && !addr->sllc_ua))
 		goto out;
-	rc = llc_ui_send_data(sk, skb, noblock);
+	rc = llc_ui_send_data(sk, skb, analblock);
 	skb = NULL;
 out:
 	kfree_skb(skb);
@@ -1037,7 +1037,7 @@ static int llc_ui_getname(struct socket *sock, struct sockaddr *uaddr,
 	if (sock_flag(sk, SOCK_ZAPPED))
 		goto out;
 	if (peer) {
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		if (sk->sk_state != TCP_ESTABLISHED)
 			goto out;
 		if(llc->dev)
@@ -1075,7 +1075,7 @@ out:
 static int llc_ui_ioctl(struct socket *sock, unsigned int cmd,
 			unsigned long arg)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 /**
@@ -1151,7 +1151,7 @@ static int llc_ui_setsockopt(struct socket *sock, int level, int optname,
 			llc->cmsg_flags &= ~LLC_CMSG_PKTINFO;
 		break;
 	default:
-		rc = -ENOPROTOOPT;
+		rc = -EANALPROTOOPT;
 		goto out;
 	}
 	rc = 0;
@@ -1207,7 +1207,7 @@ static int llc_ui_getsockopt(struct socket *sock, int level, int optname,
 		val = (llc->cmsg_flags & LLC_CMSG_PKTINFO) != 0;
 		break;
 	default:
-		rc = -ENOPROTOOPT;
+		rc = -EANALPROTOOPT;
 		goto out;
 	}
 	rc = 0;
@@ -1230,7 +1230,7 @@ static const struct proto_ops llc_ui_ops = {
 	.release     = llc_ui_release,
 	.bind	     = llc_ui_bind,
 	.connect     = llc_ui_connect,
-	.socketpair  = sock_no_socketpair,
+	.socketpair  = sock_anal_socketpair,
 	.accept      = llc_ui_accept,
 	.getname     = llc_ui_getname,
 	.poll	     = datagram_poll,
@@ -1241,7 +1241,7 @@ static const struct proto_ops llc_ui_ops = {
 	.getsockopt  = llc_ui_getsockopt,
 	.sendmsg     = llc_ui_sendmsg,
 	.recvmsg     = llc_ui_recvmsg,
-	.mmap	     = sock_no_mmap,
+	.mmap	     = sock_anal_mmap,
 };
 
 static const char llc_proc_err_msg[] __initconst =

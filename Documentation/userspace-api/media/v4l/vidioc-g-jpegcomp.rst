@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_G_JPEGCOMP:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_G_JPEGCOMP - VIDIOC_S_JPEGCOMP
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_G_JPEGCOMP
@@ -68,7 +68,7 @@ encoding. You usually do want to add them.
       - Deprecated. If
 	:ref:`V4L2_CID_JPEG_COMPRESSION_QUALITY <jpeg-quality-control>`
 	control is exposed by a driver applications should use it instead
-	and ignore this field.
+	and iganalre this field.
     * - int
       - ``APPn``
       -
@@ -89,7 +89,7 @@ encoding. You usually do want to add them.
       - See :ref:`jpeg-markers`. Deprecated. If
 	:ref:`V4L2_CID_JPEG_ACTIVE_MARKER <jpeg-active-marker-control>`
 	control is exposed by a driver applications should use it instead
-	and ignore this field.
+	and iganalre this field.
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.5cm}|
 
@@ -119,6 +119,6 @@ encoding. You usually do want to add them.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

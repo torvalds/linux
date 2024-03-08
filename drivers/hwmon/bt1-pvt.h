@@ -73,7 +73,7 @@
  *		  when one is determined for Baikal-T1 SoC).
  * @PVT_TRIM_TEMP: Maximum temperature encoded by the trim factor.
  * @PVT_TRIM_STEP: Temperature stride corresponding to the trim value.
- * @PVT_TOUT_MIN: Minimal timeout between samples in nanoseconds.
+ * @PVT_TOUT_MIN: Minimal timeout between samples in naanalseconds.
  * @PVT_TOUT_DEF: Default data measurements timeout. In case if alarms are
  *		  activated the PVT IRQ is enabled to be raised after each
  *		  conversion in order to have the thresholds checked and the
@@ -221,7 +221,7 @@ struct pvt_hwmon {
 
 /*
  * struct pvt_poly_term - a term descriptor of the PVT data translation
- *			  polynomial
+ *			  polyanalmial
  * @deg: degree of the term.
  * @coef: multiplication factor of the term.
  * @divider: distributed divider per each degree.
@@ -235,9 +235,9 @@ struct pvt_poly_term {
 };
 
 /*
- * struct pvt_poly - PVT data translation polynomial descriptor
+ * struct pvt_poly - PVT data translation polyanalmial descriptor
  * @total_divider: total data divider.
- * @terms: polynomial terms up to a free one.
+ * @terms: polyanalmial terms up to a free one.
  */
 struct pvt_poly {
 	long total_divider;

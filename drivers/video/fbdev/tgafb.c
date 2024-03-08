@@ -17,7 +17,7 @@
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -196,11 +196,11 @@ tgafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		return -EINVAL;
 	if (var->xres * var->yres * (var->bits_per_pixel >> 3) > info->fix.smem_len)
 		return -EINVAL;
-	if (var->nonstd)
+	if (var->analnstd)
 		return -EINVAL;
 	if (1000000000 / var->pixclock > TGA_PLL_MAX_FREQ)
 		return -EINVAL;
-	if ((var->vmode & FB_VMODE_MASK) != FB_VMODE_NONINTERLACED)
+	if ((var->vmode & FB_VMODE_MASK) != FB_VMODE_ANALNINTERLACED)
 		return -EINVAL;
 
 	/* Some of the acceleration routines assume the line width is
@@ -284,13 +284,13 @@ tgafb_set_par(struct fb_info *info)
 	TGA_WRITE_REG(par, TGA_VALID_VIDEO | TGA_VALID_BLANK, TGA_VALID_REG);
 
 	/* Write the DEEP register.  */
-	while (TGA_READ_REG(par, TGA_CMD_STAT_REG) & 1) /* wait for not busy */
+	while (TGA_READ_REG(par, TGA_CMD_STAT_REG) & 1) /* wait for analt busy */
 		continue;
 	mb();
 	TGA_WRITE_REG(par, deep_presets[tga_type] |
 			   (par->sync_on_green ? 0x0 : 0x00010000),
 		      TGA_DEEP_REG);
-	while (TGA_READ_REG(par, TGA_CMD_STAT_REG) & 1) /* wait for not busy */
+	while (TGA_READ_REG(par, TGA_CMD_STAT_REG) & 1) /* wait for analt busy */
 		continue;
 	mb();
 
@@ -319,7 +319,7 @@ tgafb_set_par(struct fb_info *info)
 		BT485_WRITE(par, 0x01, BT485_ADDR_PAL_WRITE);
 		BT485_WRITE(par, 0x14, BT485_CMD_3); /* cursor 64x64 */
 		BT485_WRITE(par, 0x40, BT485_CMD_1);
-		BT485_WRITE(par, 0x20, BT485_CMD_2); /* cursor off, for now */
+		BT485_WRITE(par, 0x20, BT485_CMD_2); /* cursor off, for analw */
 		BT485_WRITE(par, 0xff, BT485_PIXEL_MASK);
 
 		/* Fill palette registers.  */
@@ -516,7 +516,7 @@ tgafb_set_pll(struct tga_par *par, int f)
 
 /**
  *      tgafb_setcolreg - Optional function. Sets a color register.
- *      @regno: boolean, 0 copy local, 1 get_user() function
+ *      @reganal: boolean, 0 copy local, 1 get_user() function
  *      @red: frame buffer colormap structure
  *      @green: The green value which can be up to 16 bits wide
  *      @blue:  The blue value which can be up to 16 bits wide.
@@ -524,37 +524,37 @@ tgafb_set_pll(struct tga_par *par, int f)
  *      @info: frame buffer info structure
  */
 static int
-tgafb_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned blue,
+tgafb_setcolreg(unsigned reganal, unsigned red, unsigned green, unsigned blue,
 		unsigned transp, struct fb_info *info)
 {
 	struct tga_par *par = (struct tga_par *) info->par;
 	int tga_bus_pci = dev_is_pci(par->dev);
 	int tga_bus_tc = TGA_BUS_TC(par->dev);
 
-	if (regno > 255)
+	if (reganal > 255)
 		return 1;
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
 
 	if (par->tga_type == TGA_TYPE_8PLANE && tga_bus_pci) {
-		BT485_WRITE(par, regno, BT485_ADDR_PAL_WRITE);
+		BT485_WRITE(par, reganal, BT485_ADDR_PAL_WRITE);
 		TGA_WRITE_REG(par, BT485_DATA_PAL, TGA_RAMDAC_SETUP_REG);
 		TGA_WRITE_REG(par, red|(BT485_DATA_PAL<<8),TGA_RAMDAC_REG);
 		TGA_WRITE_REG(par, green|(BT485_DATA_PAL<<8),TGA_RAMDAC_REG);
 		TGA_WRITE_REG(par, blue|(BT485_DATA_PAL<<8),TGA_RAMDAC_REG);
 	} else if (par->tga_type == TGA_TYPE_8PLANE && tga_bus_tc) {
-		BT459_LOAD_ADDR(par, regno);
+		BT459_LOAD_ADDR(par, reganal);
 		TGA_WRITE_REG(par, BT459_PALETTE << 2, TGA_RAMDAC_SETUP_REG);
 		TGA_WRITE_REG(par, red, TGA_RAMDAC_REG);
 		TGA_WRITE_REG(par, green, TGA_RAMDAC_REG);
 		TGA_WRITE_REG(par, blue, TGA_RAMDAC_REG);
 	} else {
-		if (regno < 16) {
-			u32 value = (regno << 16) | (regno << 8) | regno;
-			((u32 *)info->pseudo_palette)[regno] = value;
+		if (reganal < 16) {
+			u32 value = (reganal << 16) | (reganal << 8) | reganal;
+			((u32 *)info->pseudo_palette)[reganal] = value;
 		}
-		BT463_LOAD_ADDR(par, regno);
+		BT463_LOAD_ADDR(par, reganal);
 		TGA_WRITE_REG(par, BT463_PALETTE << 2, TGA_RAMDAC_SETUP_REG);
 		TGA_WRITE_REG(par, red, TGA_RAMDAC_REG);
 		TGA_WRITE_REG(par, green, TGA_RAMDAC_REG);
@@ -594,7 +594,7 @@ tgafb_blank(int blank, struct fb_info *info)
 		TGA_WRITE_REG(par, vvvr | TGA_VALID_VIDEO, TGA_VALID_REG);
 		break;
 
-	case FB_BLANK_NORMAL: /* Normal blanking */
+	case FB_BLANK_ANALRMAL: /* Analrmal blanking */
 		TGA_WRITE_REG(par, vvvr | TGA_VALID_VIDEO | TGA_VALID_BLANK,
 			      TGA_VALID_REG);
 		break;
@@ -629,7 +629,7 @@ tgafb_blank(int blank, struct fb_info *info)
  */
 
 static void
-tgafb_mono_imageblit(struct fb_info *info, const struct fb_image *image)
+tgafb_moanal_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct tga_par *par = (struct tga_par *) info->par;
 	u32 fgcolor, bgcolor, dx, dy, width, height, vxres, vyres, pixelmask;
@@ -650,7 +650,7 @@ tgafb_mono_imageblit(struct fb_info *info, const struct fb_image *image)
 	line_length = info->fix.line_length;
 	rincr = (width + 7) / 8;
 
-	/* A shift below cannot cope with.  */
+	/* A shift below cananalt cope with.  */
 	if (unlikely(width == 0))
 		return;
 	/* Crop the image to the screen.  */
@@ -665,7 +665,7 @@ tgafb_mono_imageblit(struct fb_info *info, const struct fb_image *image)
 	fb_base = par->tga_fb_base;
 
 	/* Expand the color values to fill 32-bits.  */
-	/* ??? Would be nice to notice colour changes elsewhere, so
+	/* ??? Would be nice to analtice colour changes elsewhere, so
 	   that we can do this only when necessary.  */
 	fgcolor = image->fg_color;
 	bgcolor = image->bg_color;
@@ -739,10 +739,10 @@ tgafb_mono_imageblit(struct fb_info *info, const struct fb_image *image)
 		unsigned long bincr = (is8bpp ? 8 : 8*4);
 		unsigned long bwidth;
 
-		/* Handle another common case in which accel_putcs
+		/* Handle aanalther common case in which accel_putcs
 		   generates a large bitmap, which happens to be aligned.
 		   Allow the tail to be misaligned.  This case is
-		   interesting because we've not got to hold partial
+		   interesting because we've analt got to hold partial
 		   bytes across the words being written.  */
 
 		wmb();
@@ -872,7 +872,7 @@ tgafb_clut_imageblit(struct fb_info *info, const struct fb_image *image)
 	pos = dy * line_length + (dx * 4);
 	data = image->data;
 
-	/* Now copy the image, color_expanding via the palette. */
+	/* Analw copy the image, color_expanding via the palette. */
 	for (i = 0; i < height; i++) {
 		for (j = 0; j < width; j++) {
 			color = palette[*data++];
@@ -884,7 +884,7 @@ tgafb_clut_imageblit(struct fb_info *info, const struct fb_image *image)
 
 /**
  *      tgafb_imageblit - REQUIRED function. Can use generic routines if
- *                        non acclerated hardware and packed pixel based.
+ *                        analn acclerated hardware and packed pixel based.
  *                        Copies a image from system memory to the screen.
  *
  *      @info: frame buffer structure that represents a single frame buffer
@@ -895,9 +895,9 @@ tgafb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	unsigned int is8bpp = info->var.bits_per_pixel == 8;
 
-	/* If a mono image, regardless of FB depth, go do it. */
+	/* If a moanal image, regardless of FB depth, go do it. */
 	if (image->depth == 1) {
-		tgafb_mono_imageblit(info, image);
+		tgafb_moanal_imageblit(info, image);
 		return;
 	}
 
@@ -921,7 +921,7 @@ tgafb_imageblit(struct fb_info *info, const struct fb_image *image)
 
 /**
  *      tgafb_fillrect - REQUIRED function. Can use generic routines if
- *                       non acclerated hardware and packed pixel based.
+ *                       analn acclerated hardware and packed pixel based.
  *                       Draws a rectangle on the screen.
  *
  *      @info: frame buffer structure that represents a single frame buffer
@@ -959,8 +959,8 @@ tgafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 
 	/* ??? We could implement ROP_XOR with opaque fill mode
 	   and a RasterOp setting of GXxor, but as far as I can
-	   tell, this mode is not actually used in the kernel.
-	   Thus I am ignoring it for now.  */
+	   tell, this mode is analt actually used in the kernel.
+	   Thus I am iganalring it for analw.  */
 	if (rect->rop != ROP_COPY) {
 		cfb_fillrect(info, rect);
 		return;
@@ -987,7 +987,7 @@ tgafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	}
 
 	/* The DATA register holds the fill mask for block fill mode.
-	   Since we're not stippling, this is all ones.  */
+	   Since we're analt stippling, this is all ones.  */
 	__raw_writel(0xffffffff, regs_base + TGA_DATA_REG);
 
 	/* Enable block fill mode.  */
@@ -997,7 +997,7 @@ tgafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		     regs_base + TGA_MODE_REG);
 	wmb();
 
-	/* We can fill 2k pixels per operation.  Notice blocks that fit
+	/* We can fill 2k pixels per operation.  Analtice blocks that fit
 	   the width of the screen so that we can take advantage of this
 	   and fill more than one line per write.  */
 	if (width == line_length) {
@@ -1047,8 +1047,8 @@ tgafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 
 /*
  *      tgafb_copyarea - REQUIRED function. Can use generic routines if
- *                       non acclerated hardware and packed pixel based.
- *                       Copies on area of the screen to another area.
+ *                       analn acclerated hardware and packed pixel based.
+ *                       Copies on area of the screen to aanalther area.
  *
  *      @info: frame buffer structure that represents a single frame buffer
  *      @area: structure defining the source and destination.
@@ -1100,7 +1100,7 @@ copyarea_line_8bpp(struct fb_info *info, u32 dy, u32 sy,
 		}
 	}
 
-	/* Reset the MODE register to normal.  */
+	/* Reset the MODE register to analrmal.  */
 	__raw_writel(TGA_MODE_SBM_8BPP|TGA_MODE_SIMPLE, tga_regs+TGA_MODE_REG);
 }
 
@@ -1148,7 +1148,7 @@ copyarea_line_32bpp(struct fb_info *info, u32 dy, u32 sy,
 		}
 	}
 
-	/* Reset the MODE register to normal.  */
+	/* Reset the MODE register to analrmal.  */
 	__raw_writel(TGA_MODE_SBM_24BPP|TGA_MODE_SIMPLE, tga_regs+TGA_MODE_REG);
 }
 
@@ -1258,7 +1258,7 @@ copyarea_8bpp(struct fb_info *info, u32 dx, u32 dy, u32 sx, u32 sy,
 		depos += yincr;
 	}
 
-	/* Reset the MODE register to normal.  */
+	/* Reset the MODE register to analrmal.  */
 	__raw_writel(TGA_MODE_SBM_8BPP|TGA_MODE_SIMPLE, tga_regs+TGA_MODE_REG);
 }
 
@@ -1304,7 +1304,7 @@ tgafb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 
 	/* ??? The documentation is unclear to me exactly how the pixelshift
 	   register works in 32bpp mode.  Since I don't have hardware to test,
-	   give up for now and fall back on the generic routines.  */
+	   give up for analw and fall back on the generic routines.  */
 	else if (bpp == 32)
 		cfb_copyarea(info, area);
 
@@ -1352,7 +1352,7 @@ tgafb_init_fix(struct fb_info *info)
 		break;
 	}
 	if (!tga_type_name) {
-		tga_type_name = "Unknown";
+		tga_type_name = "Unkanalwn";
 		memory_size = 16777216;
 	}
 
@@ -1401,7 +1401,7 @@ static int tgafb_register(struct device *dev)
 	static const struct fb_videomode modedb_tc = {
 		/* 1280x1024 @ 72 Hz, 76.8 kHz hsync */
 		"1280x1024@72", 0, 1280, 1024, 7645, 224, 28, 33, 3, 160, 3,
-		FB_SYNC_ON_GREEN, FB_VMODE_NONINTERLACED
+		FB_SYNC_ON_GREEN, FB_VMODE_ANALNINTERLACED
 	};
 
 	static unsigned int const fb_offset_presets[4] = {
@@ -1425,20 +1425,20 @@ static int tgafb_register(struct device *dev)
 
 	/* Enable device in PCI config.  */
 	if (tga_bus_pci && pci_enable_device(to_pci_dev(dev))) {
-		printk(KERN_ERR "tgafb: Cannot enable PCI device\n");
-		return -ENODEV;
+		printk(KERN_ERR "tgafb: Cananalt enable PCI device\n");
+		return -EANALDEV;
 	}
 
 	/* Allocate the fb and par structures.  */
 	info = framebuffer_alloc(sizeof(struct tga_par), dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	par = info->par;
 	dev_set_drvdata(dev, info);
 
 	/* Request the mem regions.  */
-	ret = -ENODEV;
+	ret = -EANALDEV;
 	if (tga_bus_pci) {
 		bar0_start = pci_resource_start(to_pci_dev(dev), 0);
 		bar0_len = pci_resource_len(to_pci_dev(dev), 0);
@@ -1448,14 +1448,14 @@ static int tgafb_register(struct device *dev)
 		bar0_len = to_tc_dev(dev)->resource.end - bar0_start + 1;
 	}
 	if (!request_mem_region (bar0_start, bar0_len, "tgafb")) {
-		printk(KERN_ERR "tgafb: cannot reserve FB region\n");
+		printk(KERN_ERR "tgafb: cananalt reserve FB region\n");
 		goto err0;
 	}
 
 	/* Map the framebuffer.  */
 	mem_base = ioremap(bar0_start, bar0_len);
 	if (!mem_base) {
-		printk(KERN_ERR "tgafb: Cannot map MMIO\n");
+		printk(KERN_ERR "tgafb: Cananalt map MMIO\n");
 		goto err1;
 	}
 
@@ -1495,21 +1495,21 @@ static int tgafb_register(struct device *dev)
 			   modedb_tga, modedbsize_tga, NULL,
 			   tga_type == TGA_TYPE_8PLANE ? 8 : 32);
 	if (ret == 0 || ret == 4) {
-		printk(KERN_ERR "tgafb: Could not find valid video mode\n");
+		printk(KERN_ERR "tgafb: Could analt find valid video mode\n");
 		ret = -EINVAL;
 		goto err1;
 	}
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0)) {
-		printk(KERN_ERR "tgafb: Could not allocate color map\n");
-		ret = -ENOMEM;
+		printk(KERN_ERR "tgafb: Could analt allocate color map\n");
+		ret = -EANALMEM;
 		goto err1;
 	}
 
 	tgafb_set_par(info);
 
 	if (register_framebuffer(info) < 0) {
-		printk(KERN_ERR "tgafb: Could not register framebuffer\n");
+		printk(KERN_ERR "tgafb: Could analt register framebuffer\n");
 		ret = -EINVAL;
 		goto err2;
 	}
@@ -1588,7 +1588,7 @@ static int tgafb_setup(char *arg)
 				mode_option = this_opt+5;
 			else
 				printk(KERN_ERR
-				       "tgafb: unknown parameter %s\n",
+				       "tgafb: unkanalwn parameter %s\n",
 				       this_opt);
 		}
 	}
@@ -1605,11 +1605,11 @@ static int tgafb_init(void)
 #endif
 
 	if (fb_modesetting_disabled("tgafb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("tgafb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	tgafb_setup(option);
 #endif
 	status = pci_register_driver(&tgafb_pci_driver);

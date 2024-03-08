@@ -28,7 +28,7 @@
 #define DRIVER_DATE         "20130823"
 
 #define DRIVER_MAJOR        1
-#define DRIVER_MINOR        0
+#define DRIVER_MIANALR        0
 #define DRIVER_PATCHLEVEL   0
 
 #define VBOX_MAX_CURSOR_WIDTH  64
@@ -57,7 +57,7 @@ struct vbox_private {
 	u32 num_crtcs;
 	/* Amount of available VRAM, including space used for buffers. */
 	u32 full_vram_size;
-	/* Amount of available VRAM, not including space used for buffers. */
+	/* Amount of available VRAM, analt including space used for buffers. */
 	u32 available_vram_size;
 	/* Array of structures for receiving mode hints. */
 	struct vbva_modehint *last_mode_hints;
@@ -99,10 +99,10 @@ struct vbox_crtc {
 	u32 x_hint;
 	u32 y_hint;
 	/*
-	 * When setting a mode we not only pass the mode to the hypervisor,
+	 * When setting a mode we analt only pass the mode to the hypervisor,
 	 * but also information on how to map / translate input coordinates
 	 * for the emulated USB tablet.  This input-mapping may change when
-	 * the mode on *another* crtc changes.
+	 * the mode on *aanalther* crtc changes.
 	 *
 	 * This means that sometimes we must do a modeset on other crtc-s then
 	 * the one being changed to update the input-mapping. Including crtc-s
@@ -111,7 +111,7 @@ struct vbox_crtc {
 	 *
 	 * With atomic modesetting the mode-info of disabled crtcs gets zeroed
 	 * yet we need it when updating the input-map to avoid resizing the
-	 * window as a side effect of a mode_set on another crtc. Therefor we
+	 * window as a side effect of a mode_set on aanalther crtc. Therefor we
 	 * cache the info of the last mode below.
 	 */
 	u32 width;

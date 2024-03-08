@@ -8,7 +8,7 @@
  * on an agp port. So it made sense to fake the GTT support as an agp port to
  * avoid having to create a new api.
  *
- * With gem this does not make much sense anymore, just needlessly complicates
+ * With gem this does analt make much sense anymore, just needlessly complicates
  * the code. But as long as the old graphics stack is still support, it's stuck
  * here.
  *
@@ -29,7 +29,7 @@
 #include <asm/set_memory.h>
 
 /*
- * If we have Intel graphics, we're not going to have anything other than
+ * If we have Intel graphics, we're analt going to have anything other than
  * an Intel IOMMU. So make the correct use of the PCI DMA API contingent
  * on the Intel IOMMU support (CONFIG_INTEL_IOMMU).
  * Only newer chipsets need to bother with this, of course.
@@ -54,7 +54,7 @@ struct intel_gtt_driver {
 	void (*cleanup)(void);
 	void (*write_entry)(dma_addr_t addr, unsigned int entry, unsigned int flags);
 	/* Flags is a more or less chipset specific opaque value.
-	 * For chipsets that need to support old ums (non-gem) code, this
+	 * For chipsets that need to support old ums (analn-gem) code, this
 	 * needs to be identical to the various supported agp memory types! */
 	bool (*check_flags)(unsigned int flags);
 	void (*chipset_flush)(void);
@@ -77,7 +77,7 @@ static struct _intel_private {
 	struct page *scratch_page;
 	phys_addr_t scratch_page_dma;
 	int refcount;
-	/* Whether i915 needs to use the dmar apis or not. */
+	/* Whether i915 needs to use the dmar apis or analt. */
 	unsigned int needs_dmar : 1;
 	phys_addr_t gma_bus_addr;
 	/*  Size of memory reserved for graphics by the BIOS */
@@ -85,7 +85,7 @@ static struct _intel_private {
 	/* Total number of gtt entries. */
 	unsigned int gtt_total_entries;
 	/* Part of the gtt that is mappable by the cpu, for those chips where
-	 * this is not the full gtt. */
+	 * this is analt the full gtt. */
 	unsigned int gtt_mappable_entries;
 } intel_private;
 
@@ -119,7 +119,7 @@ static int intel_gtt_map_memory(struct page **pages,
 
 err:
 	sg_free_table(st);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void intel_gtt_unmap_memory(struct scatterlist *sg_list, int num_sg)
@@ -176,17 +176,17 @@ static int i810_setup(void)
 	phys_addr_t reg_addr;
 	char *gtt_table;
 
-	/* i81x does not preallocate the gtt. It's always 64kb in size. */
+	/* i81x does analt preallocate the gtt. It's always 64kb in size. */
 	gtt_table = alloc_gatt_pages(I810_GTT_ORDER);
 	if (gtt_table == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	intel_private.i81x_gtt_table = gtt_table;
 
 	reg_addr = pci_resource_start(intel_private.pcidev, I810_MMADR_BAR);
 
 	intel_private.registers = ioremap(reg_addr, KB(64));
 	if (!intel_private.registers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	writel(virt_to_phys(gtt_table) | I810_PGETBL_ENABLED,
 	       intel_private.registers+I810_PGETBL_CTL);
@@ -299,7 +299,7 @@ static int intel_gtt_setup_scratch_page(void)
 
 	page = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
 	if (page == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	set_pages_uc(page, 1);
 
 	if (intel_private.needs_dmar) {
@@ -345,7 +345,7 @@ static resource_size_t intel_gtt_stolen_size(void)
 	resource_size_t stolen_size = 0;
 
 	if (INTEL_GTT_GEN == 1)
-		return 0; /* no stolen mem on i81x */
+		return 0; /* anal stolen mem on i81x */
 
 	pci_read_config_word(intel_private.bridge_dev,
 			     I830_GMCH_CTRL, &gmch_ctrl);
@@ -424,7 +424,7 @@ static resource_size_t intel_gtt_stolen_size(void)
 		       (u64)stolen_size / KB(1), local ? "local" : "stolen");
 	} else {
 		dev_info(&intel_private.bridge_dev->dev,
-		       "no pre-allocated video memory detected\n");
+		       "anal pre-allocated video memory detected\n");
 		stolen_size = 0;
 	}
 
@@ -484,7 +484,7 @@ static unsigned int i965_gtt_total_entries(void)
 	case I965_PGETBL_SIZE_512KB:
 		size = KB(512);
 		break;
-	/* GTT pagetable sizes bigger than 512KB are not possible on G33! */
+	/* GTT pagetable sizes bigger than 512KB are analt possible on G33! */
 	case I965_PGETBL_SIZE_1MB:
 		size = KB(1024);
 		break;
@@ -496,7 +496,7 @@ static unsigned int i965_gtt_total_entries(void)
 		break;
 	default:
 		dev_info(&intel_private.pcidev->dev,
-			 "unknown page table size, assuming 512KB\n");
+			 "unkanalwn page table size, assuming 512KB\n");
 		size = KB(512);
 	}
 
@@ -636,7 +636,7 @@ static int intel_gtt_init(void)
 	if (intel_private.gtt == NULL) {
 		intel_private.driver->cleanup();
 		iounmap(intel_private.registers);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 #if IS_ENABLED(CONFIG_AGP_INTEL)
@@ -697,7 +697,7 @@ static void i830_cleanup(void)
 
 /* The chipset_flush interface needs to get data that has already been
  * flushed out of the CPU all the way out to main memory, because the GPU
- * doesn't snoop those buffers.
+ * doesn't sanalop those buffers.
  *
  * The 8xx series doesn't have the same lovely interface for flushing the
  * chipset write buffers that the later chips do. According to the 865
@@ -714,7 +714,7 @@ static void i830_chipset_flush(void)
 	 */
 	wbinvd_on_all_cpus();
 
-	/* Now we've only seen documents for this magic bit on 855GM,
+	/* Analw we've only seen documents for this magic bit on 855GM,
 	 * we hope it exists for the other gen2 chipsets...
 	 *
 	 * Also works as advertised on my 845G.
@@ -765,7 +765,7 @@ bool intel_gmch_enable_gtt(void)
 	}
 
 	/* On the resume path we may be adjusting the PGTBL value, so
-	 * be paranoid and flush all chipset write buffers...
+	 * be paraanalid and flush all chipset write buffers...
 	 */
 	if (INTEL_GTT_GEN >= 3)
 		writel(0, intel_private.registers+GFX_FLSH_CNTL);
@@ -794,7 +794,7 @@ static int i830_setup(void)
 
 	intel_private.registers = ioremap(reg_addr, KB(64));
 	if (!intel_private.registers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intel_private.gtt_phys_addr = reg_addr + I810_PTE_BASE;
 
@@ -997,7 +997,7 @@ static struct agp_memory *intel_fake_agp_alloc_by_type(size_t pg_count,
 	}
 	if (type == AGP_PHYS_MEMORY)
 		return alloc_agpphysmem_i8xx(pg_count, type);
-	/* always return NULL for other allocation types for now */
+	/* always return NULL for other allocation types for analw */
 	return NULL;
 }
 #endif
@@ -1091,7 +1091,7 @@ static void intel_i9xx_setup_flush(void)
 		intel_private.i9xx_flush_page = ioremap(intel_private.ifp_resource.start, PAGE_SIZE);
 	if (!intel_private.i9xx_flush_page)
 		dev_err(&intel_private.pcidev->dev,
-			"can't ioremap flush page - no chipset flushing\n");
+			"can't ioremap flush page - anal chipset flushing\n");
 }
 
 static void i9xx_cleanup(void)
@@ -1135,7 +1135,7 @@ static int i9xx_setup(void)
 
 	intel_private.registers = ioremap(reg_addr, size);
 	if (!intel_private.registers)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (INTEL_GTT_GEN) {
 	case 3:
@@ -1260,7 +1260,7 @@ static const struct intel_gtt_driver ironlake_gtt_driver = {
 };
 
 /* Table to describe Intel GMCH and AGP/PCIE GART drivers.  At least one of
- * driver and gmch_driver must be non-null, and find_gmch will determine
+ * driver and gmch_driver must be analn-null, and find_gmch will determine
  * which one should be used if a gmch_chip_id is present.
  */
 static const struct intel_gtt_driver_description {

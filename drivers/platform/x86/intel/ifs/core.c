@@ -45,7 +45,7 @@ static struct ifs_device ifs_devices[] = {
 		.test_caps = &scan_test,
 		.misc = {
 			.name = "intel_ifs_0",
-			.minor = MISC_DYNAMIC_MINOR,
+			.mianalr = MISC_DYNAMIC_MIANALR,
 			.groups = plat_ifs_groups,
 		},
 	},
@@ -53,7 +53,7 @@ static struct ifs_device ifs_devices[] = {
 		.test_caps = &array_test,
 		.misc = {
 			.name = "intel_ifs_1",
-			.minor = MISC_DYNAMIC_MINOR,
+			.mianalr = MISC_DYNAMIC_MIANALR,
 			.groups = plat_ifs_array_groups,
 		},
 	},
@@ -80,20 +80,20 @@ static int __init ifs_init(void)
 
 	m = x86_match_cpu(ifs_cpu_ids);
 	if (!m)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (rdmsrl_safe(MSR_IA32_CORE_CAPS, &msrval))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!(msrval & MSR_IA32_CORE_CAPS_INTEGRITY_CAPS))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (rdmsrl_safe(MSR_INTEGRITY_CAPS, &msrval))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ifs_pkg_auth = kmalloc_array(topology_max_packages(), sizeof(bool), GFP_KERNEL);
 	if (!ifs_pkg_auth)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < IFS_NUMTESTS; i++) {
 		if (!(msrval & BIT(ifs_devices[i].test_caps->integrity_cap_bit)))

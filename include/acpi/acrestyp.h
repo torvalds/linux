@@ -22,22 +22,22 @@ typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (Length+3) = (6
 #define ACPI_READ_ONLY_MEMORY           (u8) 0x00
 #define ACPI_READ_WRITE_MEMORY          (u8) 0x01
 
-#define ACPI_NON_CACHEABLE_MEMORY       (u8) 0x00
+#define ACPI_ANALN_CACHEABLE_MEMORY       (u8) 0x00
 #define ACPI_CACHABLE_MEMORY            (u8) 0x01
 #define ACPI_WRITE_COMBINING_MEMORY     (u8) 0x02
 #define ACPI_PREFETCHABLE_MEMORY        (u8) 0x03
 
-/*! [Begin] no source code translation */
+/*! [Begin] anal source code translation */
 /*
  * IO Attributes
  * The ISA IO ranges are:     n000-n0FFh,  n400-n4FFh, n800-n8FFh, nC00-nCFFh.
- * The non-ISA IO ranges are: n100-n3FFh,  n500-n7FFh, n900-nBFFh, nCD0-nFFFh.
+ * The analn-ISA IO ranges are: n100-n3FFh,  n500-n7FFh, n900-nBFFh, nCD0-nFFFh.
  */
-/*! [End] no source code translation !*/
+/*! [End] anal source code translation !*/
 
-#define ACPI_NON_ISA_ONLY_RANGES        (u8) 0x01
+#define ACPI_ANALN_ISA_ONLY_RANGES        (u8) 0x01
 #define ACPI_ISA_ONLY_RANGES            (u8) 0x02
-#define ACPI_ENTIRE_RANGE               (ACPI_NON_ISA_ONLY_RANGES | ACPI_ISA_ONLY_RANGES)
+#define ACPI_ENTIRE_RANGE               (ACPI_ANALN_ISA_ONLY_RANGES | ACPI_ISA_ONLY_RANGES)
 
 /* Type of translation - 1=Sparse, 0=Dense */
 
@@ -71,7 +71,7 @@ typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (Length+3) = (6
 
 /* Wake */
 
-#define ACPI_NOT_WAKE_CAPABLE           (u8) 0x00
+#define ACPI_ANALT_WAKE_CAPABLE           (u8) 0x00
 #define ACPI_WAKE_CAPABLE               (u8) 0x01
 
 /*
@@ -82,7 +82,7 @@ typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (Length+3) = (6
 #define ACPI_TYPE_B                     (u8) 0x02
 #define ACPI_TYPE_F                     (u8) 0x03
 
-#define ACPI_NOT_BUS_MASTER             (u8) 0x00
+#define ACPI_ANALT_BUS_MASTER             (u8) 0x00
 #define ACPI_BUS_MASTER                 (u8) 0x01
 
 #define ACPI_TRANSFER_8                 (u8) 0x00
@@ -103,7 +103,7 @@ typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (Length+3) = (6
 #define ACPI_IO_RANGE                   (u8) 0x01
 #define ACPI_BUS_NUMBER_RANGE           (u8) 0x02
 
-#define ACPI_ADDRESS_NOT_FIXED          (u8) 0x00
+#define ACPI_ADDRESS_ANALT_FIXED          (u8) 0x00
 #define ACPI_ADDRESS_FIXED              (u8) 0x01
 
 #define ACPI_POS_DECODE                 (u8) 0x00
@@ -117,7 +117,7 @@ typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (Length+3) = (6
 /*
  * If possible, pack the following structures to byte alignment
  */
-#ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
+#ifndef ACPI_MISALIGNMENT_ANALT_SUPPORTED
 #pragma pack(1)
 #endif
 
@@ -166,8 +166,8 @@ struct acpi_resource_start_dependent {
 };
 
 /*
- * The END_DEPENDENT_FUNCTIONS_RESOURCE struct is not
- * needed because it has no fields
+ * The END_DEPENDENT_FUNCTIONS_RESOURCE struct is analt
+ * needed because it has anal fields
  */
 
 struct acpi_resource_io {
@@ -381,14 +381,14 @@ struct acpi_resource_gpio {
 #define ACPI_PIN_CONFIG_DEFAULT                 0
 #define ACPI_PIN_CONFIG_PULLUP                  1
 #define ACPI_PIN_CONFIG_PULLDOWN                2
-#define ACPI_PIN_CONFIG_NOPULL                  3
+#define ACPI_PIN_CONFIG_ANALPULL                  3
 
 /* Values for io_restriction field above */
 
-#define ACPI_IO_RESTRICT_NONE                   0
+#define ACPI_IO_RESTRICT_ANALNE                   0
 #define ACPI_IO_RESTRICT_INPUT                  1
 #define ACPI_IO_RESTRICT_OUTPUT                 2
-#define ACPI_IO_RESTRICT_NONE_PRESERVE          3
+#define ACPI_IO_RESTRICT_ANALNE_PRESERVE          3
 
 /* Common structure for I2C, SPI, UART, CSI2 serial descriptors */
 
@@ -487,20 +487,20 @@ struct acpi_resource_uart_serialbus {
 
 /* Values for stop_bits field above */
 
-#define ACPI_UART_NO_STOP_BITS                  0
+#define ACPI_UART_ANAL_STOP_BITS                  0
 #define ACPI_UART_1_STOP_BIT                    1
 #define ACPI_UART_1P5_STOP_BITS                 2
 #define ACPI_UART_2_STOP_BITS                   3
 
 /* Values for flow_control field above */
 
-#define ACPI_UART_FLOW_CONTROL_NONE             0
+#define ACPI_UART_FLOW_CONTROL_ANALNE             0
 #define ACPI_UART_FLOW_CONTROL_HW               1
 #define ACPI_UART_FLOW_CONTROL_XON_XOFF         2
 
 /* Values for Parity field above */
 
-#define ACPI_UART_PARITY_NONE                   0
+#define ACPI_UART_PARITY_ANALNE                   0
 #define ACPI_UART_PARITY_EVEN                   1
 #define ACPI_UART_PARITY_ODD                    2
 #define ACPI_UART_PARITY_MARK                   3
@@ -685,9 +685,9 @@ struct acpi_resource {
 
 #pragma pack()
 
-#define ACPI_RS_SIZE_NO_DATA                8	/* Id + Length fields */
+#define ACPI_RS_SIZE_ANAL_DATA                8	/* Id + Length fields */
 #define ACPI_RS_SIZE_MIN                    (u32) ACPI_ROUND_UP_TO_NATIVE_WORD (12)
-#define ACPI_RS_SIZE(type)                  (u32) (ACPI_RS_SIZE_NO_DATA + sizeof (type))
+#define ACPI_RS_SIZE(type)                  (u32) (ACPI_RS_SIZE_ANAL_DATA + sizeof (type))
 
 /* Macro for walking resource templates with multiple descriptors */
 

@@ -33,12 +33,12 @@ bool ovl_is_private_xattr(struct super_block *sb, const char *name)
 	return ovl_is_own_xattr(sb, name) && !ovl_is_escaped_xattr(sb, name);
 }
 
-static int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
+static int ovl_xattr_set(struct dentry *dentry, struct ianalde *ianalde, const char *name,
 			 const void *value, size_t size, int flags)
 {
 	int err;
 	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
-	struct dentry *upperdentry = ovl_i_dentry_upper(inode);
+	struct dentry *upperdentry = ovl_i_dentry_upper(ianalde);
 	struct dentry *realdentry = upperdentry ?: ovl_dentry_lower(dentry);
 	struct path realpath;
 	const struct cred *old_cred;
@@ -76,19 +76,19 @@ static int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char 
 	ovl_drop_write(dentry);
 
 	/* copy c/mtime */
-	ovl_copyattr(inode);
+	ovl_copyattr(ianalde);
 out:
 	return err;
 }
 
-static int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char *name,
+static int ovl_xattr_get(struct dentry *dentry, struct ianalde *ianalde, const char *name,
 			 void *value, size_t size)
 {
 	ssize_t res;
 	const struct cred *old_cred;
 	struct path realpath;
 
-	ovl_i_path_real(inode, &realpath);
+	ovl_i_path_real(ianalde, &realpath);
 	old_cred = ovl_override_creds(dentry->d_sb);
 	res = vfs_getxattr(mnt_idmap(realpath.mnt), realpath.dentry, name, value, size);
 	revert_creds(old_cred);
@@ -101,12 +101,12 @@ static bool ovl_can_list(struct super_block *sb, const char *s)
 	if (ovl_is_private_xattr(sb, s))
 		return false;
 
-	/* List all non-trusted xattrs */
+	/* List all analn-trusted xattrs */
 	if (strncmp(s, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) != 0)
 		return true;
 
 	/* list other trusted for superuser only */
-	return ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN);
+	return ns_capable_analaudit(&init_user_ns, CAP_SYS_ADMIN);
 }
 
 ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size)
@@ -163,11 +163,11 @@ static char *ovl_xattr_escape_name(const char *prefix, const char *name)
 
 	escaped_len = prefix_len + OVL_XATTR_ESCAPE_PREFIX_LEN + name_len;
 	if (escaped_len > XATTR_NAME_MAX)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	escaped = kmalloc(escaped_len + 1, GFP_KERNEL);
 	if (escaped == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	s = escaped;
 	memcpy(s, prefix, prefix_len);
@@ -180,7 +180,7 @@ static char *ovl_xattr_escape_name(const char *prefix, const char *name)
 }
 
 static int ovl_own_xattr_get(const struct xattr_handler *handler,
-			     struct dentry *dentry, struct inode *inode,
+			     struct dentry *dentry, struct ianalde *ianalde,
 			     const char *name, void *buffer, size_t size)
 {
 	char *escaped;
@@ -190,7 +190,7 @@ static int ovl_own_xattr_get(const struct xattr_handler *handler,
 	if (IS_ERR(escaped))
 		return PTR_ERR(escaped);
 
-	r = ovl_xattr_get(dentry, inode, escaped, buffer, size);
+	r = ovl_xattr_get(dentry, ianalde, escaped, buffer, size);
 
 	kfree(escaped);
 
@@ -199,7 +199,7 @@ static int ovl_own_xattr_get(const struct xattr_handler *handler,
 
 static int ovl_own_xattr_set(const struct xattr_handler *handler,
 			     struct mnt_idmap *idmap,
-			     struct dentry *dentry, struct inode *inode,
+			     struct dentry *dentry, struct ianalde *ianalde,
 			     const char *name, const void *value,
 			     size_t size, int flags)
 {
@@ -210,7 +210,7 @@ static int ovl_own_xattr_set(const struct xattr_handler *handler,
 	if (IS_ERR(escaped))
 		return PTR_ERR(escaped);
 
-	r = ovl_xattr_set(dentry, inode, escaped, value, size, flags);
+	r = ovl_xattr_set(dentry, ianalde, escaped, value, size, flags);
 
 	kfree(escaped);
 
@@ -218,19 +218,19 @@ static int ovl_own_xattr_set(const struct xattr_handler *handler,
 }
 
 static int ovl_other_xattr_get(const struct xattr_handler *handler,
-			       struct dentry *dentry, struct inode *inode,
+			       struct dentry *dentry, struct ianalde *ianalde,
 			       const char *name, void *buffer, size_t size)
 {
-	return ovl_xattr_get(dentry, inode, name, buffer, size);
+	return ovl_xattr_get(dentry, ianalde, name, buffer, size);
 }
 
 static int ovl_other_xattr_set(const struct xattr_handler *handler,
 			       struct mnt_idmap *idmap,
-			       struct dentry *dentry, struct inode *inode,
+			       struct dentry *dentry, struct ianalde *ianalde,
 			       const char *name, const void *value,
 			       size_t size, int flags)
 {
-	return ovl_xattr_set(dentry, inode, name, value, size, flags);
+	return ovl_xattr_set(dentry, ianalde, name, value, size, flags);
 }
 
 static const struct xattr_handler ovl_own_trusted_xattr_handler = {

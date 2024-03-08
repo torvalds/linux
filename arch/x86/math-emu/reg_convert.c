@@ -24,18 +24,18 @@ int FPU_to_exp16(FPU_REG const *a, FPU_REG *x)
 	setexponent16(x, exponent(a));
 
 	if (exponent16(x) == EXP_UNDER) {
-		/* The number is a de-normal or pseudodenormal. */
+		/* The number is a de-analrmal or pseudodeanalrmal. */
 		/* We only deal with the significand and exponent. */
 
 		if (x->sigh & 0x80000000) {
-			/* Is a pseudodenormal. */
-			/* This is non-80486 behaviour because the number
-			   loses its 'denormal' identity. */
+			/* Is a pseudodeanalrmal. */
+			/* This is analn-80486 behaviour because the number
+			   loses its 'deanalrmal' identity. */
 			addexponent(x, 1);
 		} else {
-			/* Is a denormal. */
+			/* Is a deanalrmal. */
 			addexponent(x, 1);
-			FPU_normalize_nuo(x);
+			FPU_analrmalize_nuo(x);
 		}
 	}
 

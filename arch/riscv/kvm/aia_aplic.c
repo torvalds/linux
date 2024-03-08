@@ -256,7 +256,7 @@ int kvm_riscv_aia_aplic_inject(struct kvm *kvm, u32 source, bool level)
 	struct aplic *aplic = kvm->arch.aia.aplic_state;
 
 	if (!aplic || !source || (aplic->nr_irqs <= source))
-		return -ENODEV;
+		return -EANALDEV;
 	irqd = &aplic->irqs[source];
 	ie = (aplic->domaincfg & APLIC_DOMAINCFG_IE) ? true : false;
 
@@ -365,7 +365,7 @@ static int aplic_mmio_read_offset(struct kvm *kvm, gpa_t off, u32 *val32)
 	struct aplic *aplic = kvm->arch.aia.aplic_state;
 
 	if ((off & 0x3) != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (off == APLIC_DOMAINCFG) {
 		*val32 = APLIC_DOMAINCFG_RDONLY |
@@ -408,7 +408,7 @@ static int aplic_mmio_read_offset(struct kvm *kvm, gpa_t off, u32 *val32)
 		i = ((off - APLIC_TARGET_BASE) >> 2) + 1;
 		*val32 = aplic_read_target(aplic, i);
 	} else
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -417,7 +417,7 @@ static int aplic_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 			   gpa_t addr, int len, void *val)
 {
 	if (len != 4)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return aplic_mmio_read_offset(vcpu->kvm,
 				      addr - vcpu->kvm->arch.aia.aplic_addr,
@@ -430,7 +430,7 @@ static int aplic_mmio_write_offset(struct kvm *kvm, gpa_t off, u32 val32)
 	struct aplic *aplic = kvm->arch.aia.aplic_state;
 
 	if ((off & 0x3) != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (off == APLIC_DOMAINCFG) {
 		/* Only IE bit writeable */
@@ -478,7 +478,7 @@ static int aplic_mmio_write_offset(struct kvm *kvm, gpa_t off, u32 val32)
 		i = ((off - APLIC_TARGET_BASE) >> 2) + 1;
 		aplic_write_target(aplic, i, val32);
 	} else
-		return -ENODEV;
+		return -EANALDEV;
 
 	aplic_update_irq_range(kvm, 1, aplic->nr_irqs - 1);
 
@@ -489,7 +489,7 @@ static int aplic_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 			    gpa_t addr, int len, const void *val)
 {
 	if (len != 4)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return aplic_mmio_write_offset(vcpu->kvm,
 				       addr - vcpu->kvm->arch.aia.aplic_addr,
@@ -506,7 +506,7 @@ int kvm_riscv_aia_aplic_set_attr(struct kvm *kvm, unsigned long type, u32 v)
 	int rc;
 
 	if (!kvm->arch.aia.aplic_state)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = aplic_mmio_write_offset(kvm, type, v);
 	if (rc)
@@ -520,7 +520,7 @@ int kvm_riscv_aia_aplic_get_attr(struct kvm *kvm, unsigned long type, u32 *v)
 	int rc;
 
 	if (!kvm->arch.aia.aplic_state)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = aplic_mmio_read_offset(kvm, type, v);
 	if (rc)
@@ -535,7 +535,7 @@ int kvm_riscv_aia_aplic_has_attr(struct kvm *kvm, unsigned long type)
 	u32 val;
 
 	if (!kvm->arch.aia.aplic_state)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = aplic_mmio_read_offset(kvm, type, &val);
 	if (rc)
@@ -549,14 +549,14 @@ int kvm_riscv_aia_aplic_init(struct kvm *kvm)
 	int i, ret = 0;
 	struct aplic *aplic;
 
-	/* Do nothing if we have zero sources */
+	/* Do analthing if we have zero sources */
 	if (!kvm->arch.aia.nr_sources)
 		return 0;
 
 	/* Allocate APLIC global state */
 	aplic = kzalloc(sizeof(*aplic), GFP_KERNEL);
 	if (!aplic)
-		return -ENOMEM;
+		return -EANALMEM;
 	kvm->arch.aia.aplic_state = aplic;
 
 	/* Setup APLIC IRQs */
@@ -565,7 +565,7 @@ int kvm_riscv_aia_aplic_init(struct kvm *kvm)
 	aplic->irqs = kcalloc(aplic->nr_irqs,
 			      sizeof(*aplic->irqs), GFP_KERNEL);
 	if (!aplic->irqs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_free_aplic;
 	}
 	for (i = 0; i < aplic->nr_irqs; i++)

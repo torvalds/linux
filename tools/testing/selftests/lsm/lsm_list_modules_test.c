@@ -21,9 +21,9 @@ TEST(size_null_lsm_list_modules)
 	__u64 *syscall_lsms = calloc(page_size, 1);
 
 	ASSERT_NE(NULL, syscall_lsms);
-	errno = 0;
+	erranal = 0;
 	ASSERT_EQ(-1, lsm_list_modules(syscall_lsms, NULL, 0));
-	ASSERT_EQ(EFAULT, errno);
+	ASSERT_EQ(EFAULT, erranal);
 
 	free(syscall_lsms);
 }
@@ -33,9 +33,9 @@ TEST(ids_null_lsm_list_modules)
 	const long page_size = sysconf(_SC_PAGESIZE);
 	size_t size = page_size;
 
-	errno = 0;
+	erranal = 0;
 	ASSERT_EQ(-1, lsm_list_modules(NULL, &size, 0));
-	ASSERT_EQ(EFAULT, errno);
+	ASSERT_EQ(EFAULT, erranal);
 	ASSERT_NE(1, size);
 }
 
@@ -46,9 +46,9 @@ TEST(size_too_small_lsm_list_modules)
 	size_t size = 1;
 
 	ASSERT_NE(NULL, syscall_lsms);
-	errno = 0;
+	erranal = 0;
 	ASSERT_EQ(-1, lsm_list_modules(syscall_lsms, &size, 0));
-	ASSERT_EQ(E2BIG, errno);
+	ASSERT_EQ(E2BIG, erranal);
 	ASSERT_NE(1, size);
 
 	free(syscall_lsms);
@@ -61,9 +61,9 @@ TEST(flags_set_lsm_list_modules)
 	size_t size = page_size;
 
 	ASSERT_NE(NULL, syscall_lsms);
-	errno = 0;
+	erranal = 0;
 	ASSERT_EQ(-1, lsm_list_modules(syscall_lsms, &size, 7));
-	ASSERT_EQ(EINVAL, errno);
+	ASSERT_EQ(EINVAL, erranal);
 	ASSERT_EQ(page_size, size);
 
 	free(syscall_lsms);

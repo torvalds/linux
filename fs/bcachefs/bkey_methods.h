@@ -8,7 +8,7 @@ struct bch_fs;
 struct btree;
 struct btree_trans;
 struct bkey;
-enum btree_node_type;
+enum btree_analde_type;
 
 extern const char * const bch2_bkey_types[];
 extern const struct bkey_ops bch2_bkey_null_ops;
@@ -26,7 +26,7 @@ struct bkey_ops {
 	void		(*val_to_text)(struct printbuf *, struct bch_fs *,
 				       struct bkey_s_c);
 	void		(*swab)(struct bkey_s);
-	bool		(*key_normalize)(struct bch_fs *, struct bkey_s);
+	bool		(*key_analrmalize)(struct bch_fs *, struct bkey_s);
 	bool		(*key_merge)(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 	int		(*trigger)(struct btree_trans *, enum btree_id, unsigned,
 				   struct bkey_s_c, struct bkey_s, unsigned);
@@ -49,11 +49,11 @@ static inline const struct bkey_ops *bch2_bkey_type_ops(enum bch_bkey_type type)
 
 int bch2_bkey_val_invalid(struct bch_fs *, struct bkey_s_c,
 			  enum bkey_invalid_flags, struct printbuf *);
-int __bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c, enum btree_node_type,
+int __bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c, enum btree_analde_type,
 			enum bkey_invalid_flags, struct printbuf *);
-int bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c, enum btree_node_type,
+int bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c, enum btree_analde_type,
 		      enum bkey_invalid_flags, struct printbuf *);
-int bch2_bkey_in_btree_node(struct bch_fs *, struct btree *,
+int bch2_bkey_in_btree_analde(struct bch_fs *, struct btree *,
 			    struct bkey_s_c, struct printbuf *);
 
 void bch2_bpos_to_text(struct printbuf *, struct bpos);
@@ -65,7 +65,7 @@ void bch2_bkey_val_to_text(struct printbuf *, struct bch_fs *,
 
 void bch2_bkey_swab_val(struct bkey_s);
 
-bool bch2_bkey_normalize(struct bch_fs *, struct bkey_s);
+bool bch2_bkey_analrmalize(struct bch_fs *, struct bkey_s);
 
 static inline bool bch2_bkey_maybe_mergable(const struct bkey *l, const struct bkey *r)
 {
@@ -77,11 +77,11 @@ static inline bool bch2_bkey_maybe_mergable(const struct bkey *l, const struct b
 bool bch2_bkey_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
 enum btree_update_flags {
-	__BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE = __BTREE_ITER_FLAGS_END,
-	__BTREE_UPDATE_NOJOURNAL,
+	__BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE = __BTREE_ITER_FLAGS_END,
+	__BTREE_UPDATE_ANALJOURNAL,
 	__BTREE_UPDATE_KEY_CACHE_RECLAIM,
 
-	__BTREE_TRIGGER_NORUN,
+	__BTREE_TRIGGER_ANALRUN,
 	__BTREE_TRIGGER_TRANSACTIONAL,
 	__BTREE_TRIGGER_ATOMIC,
 	__BTREE_TRIGGER_GC,
@@ -90,12 +90,12 @@ enum btree_update_flags {
 	__BTREE_TRIGGER_BUCKET_INVALIDATE,
 };
 
-#define BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE (1U << __BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE)
-#define BTREE_UPDATE_NOJOURNAL		(1U << __BTREE_UPDATE_NOJOURNAL)
+#define BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE (1U << __BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE)
+#define BTREE_UPDATE_ANALJOURNAL		(1U << __BTREE_UPDATE_ANALJOURNAL)
 #define BTREE_UPDATE_KEY_CACHE_RECLAIM	(1U << __BTREE_UPDATE_KEY_CACHE_RECLAIM)
 
 /* Don't run triggers at all */
-#define BTREE_TRIGGER_NORUN		(1U << __BTREE_TRIGGER_NORUN)
+#define BTREE_TRIGGER_ANALRUN		(1U << __BTREE_TRIGGER_ANALRUN)
 
 /*
  * If set, we're running transactional triggers as part of a transaction commit:
@@ -103,7 +103,7 @@ enum btree_update_flags {
  *
  * If cleared, and either BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE are set,
  * we're running atomic triggers during a transaction commit: we have our
- * journal reservation, we're holding btree node write locks, and we know the
+ * journal reservation, we're holding btree analde write locks, and we kanalw the
  * transaction is going to commit (returning an error here is a fatal error,
  * causing us to go emergency read-only)
  */
@@ -160,7 +160,7 @@ static inline int bch2_key_trigger_new(struct btree_trans *trans,
 				BTREE_TRIGGER_INSERT|flags);
 }
 
-void bch2_bkey_renumber(enum btree_node_type, struct bkey_packed *, int);
+void bch2_bkey_renumber(enum btree_analde_type, struct bkey_packed *, int);
 
 void __bch2_bkey_compat(unsigned, enum btree_id, unsigned, unsigned,
 			int, struct bkey_format *, struct bkey_packed *);

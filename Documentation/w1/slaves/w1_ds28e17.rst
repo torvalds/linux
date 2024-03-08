@@ -40,7 +40,7 @@ speed:
 	This sets up the default I2C speed a DS28E17 get configured for as soon
 	it is connected. The power-on default	of the DS28E17 is 400kBaud, but
 	chips may come and go on the Onewire bus without being de-powered and
-	as soon the "w1_ds28e17" driver notices a freshly connected, or
+	as soon the "w1_ds28e17" driver analtices a freshly connected, or
 	reconnected DS28E17 device on the Onewire bus, it will re-apply this
 	setting.
 
@@ -52,7 +52,7 @@ stretch:
 	DS28E17 devices. It is a multiplier used on the calculation of the busy
 	wait time for an I2C transfer. This is to account for I2C slave devices
 	which make heavy use of the I2C clock stretching feature and thus, the
-	needed timeout cannot be pre-calculated correctly. As the w1_ds28e17
+	needed timeout cananalt be pre-calculated correctly. As the w1_ds28e17
 	driver checks the DS28E17's busy flag in a loop after the precalculated
 	wait time, it should be hardly needed to tweak this setting.
 

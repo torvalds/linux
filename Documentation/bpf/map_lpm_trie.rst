@@ -5,12 +5,12 @@
 BPF_MAP_TYPE_LPM_TRIE
 =====================
 
-.. note::
+.. analte::
    - ``BPF_MAP_TYPE_LPM_TRIE`` was introduced in kernel version 4.11
 
 ``BPF_MAP_TYPE_LPM_TRIE`` provides a longest prefix match algorithm that
 can be used to match IP addresses to a stored set of prefixes.
-Internally, data is stored in an unbalanced trie of nodes that uses
+Internally, data is stored in an unbalanced trie of analdes that uses
 ``prefixlen,data`` pairs as its keys. The ``data`` is interpreted in
 network byte order, i.e. big endian, so ``data[0]`` stores the most
 significant byte.
@@ -25,9 +25,9 @@ operations is a ``struct bpf_lpm_trie_key``, extended by
 
 The value type stored in the LPM trie can be any user defined type.
 
-.. note::
+.. analte::
    When creating a map of type ``BPF_MAP_TYPE_LPM_TRIE`` you must set the
-   ``BPF_F_NO_PREALLOC`` flag.
+   ``BPF_F_ANAL_PREALLOC`` flag.
 
 Usage
 =====
@@ -44,7 +44,7 @@ bpf_map_lookup_elem()
 
 The longest prefix entry for a given data value can be found using the
 ``bpf_map_lookup_elem()`` helper. This helper returns a pointer to the
-value associated with the longest matching ``key``, or ``NULL`` if no
+value associated with the longest matching ``key``, or ``NULL`` if anal
 entry was found.
 
 The ``key`` should have ``prefixlen`` set to ``max_prefixlen`` when
@@ -65,9 +65,9 @@ helper. This helper replaces existing elements atomically.
 ``bpf_map_update_elem()`` returns ``0`` on success, or negative error in
 case of failure.
 
- .. note::
-    The flags parameter must be one of BPF_ANY, BPF_NOEXIST or BPF_EXIST,
-    but the value is ignored, giving BPF_ANY semantics.
+ .. analte::
+    The flags parameter must be one of BPF_ANY, BPF_ANALEXIST or BPF_EXIST,
+    but the value is iganalred, giving BPF_ANY semantics.
 
 bpf_map_delete_elem()
 ~~~~~~~~~~~~~~~~~~~~~
@@ -98,7 +98,7 @@ libbpf's ``bpf_map_get_next_key()`` function. The first key can be
 fetched by calling ``bpf_map_get_next_key()`` with ``cur_key`` set to
 ``NULL``. Subsequent calls will fetch the next key that follows the
 current key. ``bpf_map_get_next_key()`` returns ``0`` on success,
-``-ENOENT`` if ``cur_key`` is the last key in the trie, or negative
+``-EANALENT`` if ``cur_key`` is the last key in the trie, or negative
 error in case of failure.
 
 ``bpf_map_get_next_key()`` will iterate through the LPM trie elements
@@ -132,7 +132,7 @@ address prefixes:
             __uint(type, BPF_MAP_TYPE_LPM_TRIE);
             __type(key, struct ipv4_lpm_key);
             __type(value, __u32);
-            __uint(map_flags, BPF_F_NO_PREALLOC);
+            __uint(map_flags, BPF_F_ANAL_PREALLOC);
             __uint(max_entries, 255);
     } ipv4_lpm_map SEC(".maps");
 

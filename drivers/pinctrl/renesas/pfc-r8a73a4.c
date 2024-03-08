@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2012-2013  Renesas Solutions Corp.
  * Copyright (C) 2013  Magnus Damm
- * Copyright (C) 2012  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (C) 2012  Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  */
 #include <linux/io.h>
 #include <linux/kernel.h>

@@ -42,9 +42,9 @@ enum {
 #define SEC_IPC_INPUT_DOORBELL_REG       (0x0000 + IPC_BASE_ADDR)
 
 /* IPC Input Status Register
- * This register indicates whether or not processing of
+ * This register indicates whether or analt processing of
  * the most recent command has been completed by the SEC
- * New commands and payloads should not be written by the Host
+ * New commands and payloads should analt be written by the Host
  * until this indicates that the previous command has been processed.
  */
 #define SEC_IPC_INPUT_STATUS_REG         (0x0008 + IPC_BASE_ADDR)
@@ -152,7 +152,7 @@ enum {
  * The interrupt generation rules are as follows:
  * An interrupt will be generated whenever for any i,
  * there is a transition from a state where at least one of
- * the following conditions did not hold, to a state where
+ * the following conditions did analt hold, to a state where
  * ALL the following conditions hold:
  * A) HISR.INT[i]_STS == 1.
  * B) HIER.INT[i]_EN == 1.
@@ -218,9 +218,9 @@ enum {
 
 /* SeC Interrupt Cause Register - SeC IPC Output Status
  *
- * This register indicates whether or not processing of the most recent
+ * This register indicates whether or analt processing of the most recent
  * command has been completed by the Host.
- * New commands and payloads should not be written by SeC until this
+ * New commands and payloads should analt be written by SeC until this
  * register indicates that the previous command has been processed.
  */
 #define SICR_SEC_IPC_OUTPUT_STATUS_REG   0x2154

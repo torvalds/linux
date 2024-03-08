@@ -5,7 +5,7 @@
  * FPR[fd] = class(FPR[fs])
  *
  * MIPS floating point support
- * Copyright (C) 2015 Imagination Technologies, Ltd.
+ * Copyright (C) 2015 Imagination Techanallogies, Ltd.
  * Author: Markos Chandras <markos.chandras@imgtec.com>
  */
 
@@ -23,12 +23,12 @@ int ieee754dp_2008class(union ieee754dp x)
 	 * bit0 = SNAN
 	 * bit1 = QNAN
 	 * bit2 = -INF
-	 * bit3 = -NORM
-	 * bit4 = -DNORM
+	 * bit3 = -ANALRM
+	 * bit4 = -DANALRM
 	 * bit5 = -ZERO
 	 * bit6 = INF
-	 * bit7 = NORM
-	 * bit8 = DNORM
+	 * bit7 = ANALRM
+	 * bit8 = DANALRM
 	 * bit9 = ZERO
 	 */
 
@@ -39,14 +39,14 @@ int ieee754dp_2008class(union ieee754dp x)
 		return 0x02;
 	case IEEE754_CLASS_INF:
 		return 0x04 << (xs ? 0 : 4);
-	case IEEE754_CLASS_NORM:
+	case IEEE754_CLASS_ANALRM:
 		return 0x08 << (xs ? 0 : 4);
-	case IEEE754_CLASS_DNORM:
+	case IEEE754_CLASS_DANALRM:
 		return 0x10 << (xs ? 0 : 4);
 	case IEEE754_CLASS_ZERO:
 		return 0x20 << (xs ? 0 : 4);
 	default:
-		pr_err("Unknown class: %d\n", xc);
+		pr_err("Unkanalwn class: %d\n", xc);
 		return 0;
 	}
 }

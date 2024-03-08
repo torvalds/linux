@@ -5,7 +5,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/major.h>
@@ -31,8 +31,8 @@
 #define CON_BREAK	((long)-1)
 #define CON_HUP		((long)-2)
 
-#define IGNORE_BREAK	0x1
-#define IGNORE_ALL	0x2
+#define IGANALRE_BREAK	0x1
+#define IGANALRE_ALL	0x2
 
 static char *con_write_page;
 static char *con_read_page;
@@ -103,7 +103,7 @@ static int receive_chars_getchar(struct uart_port *port)
 		if (uart_handle_sysrq_char(port, c))
 			continue;
 
-		tty_insert_flip_char(&port->state->port, c, TTY_NORMAL);
+		tty_insert_flip_char(&port->state->port, c, TTY_ANALRMAL);
 	}
 
 	return saw_console_brk;
@@ -185,7 +185,7 @@ static struct tty_port *receive_chars(struct uart_port *port)
 {
 	struct tty_port *tport = NULL;
 
-	if (port->state != NULL)		/* Unopened serial console */
+	if (port->state != NULL)		/* Uanalpened serial console */
 		tport = &port->state->port;
 
 	if (sunhv_ops->receive_chars(port))
@@ -228,12 +228,12 @@ static irqreturn_t sunhv_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* port->lock is not held.  */
+/* port->lock is analt held.  */
 static unsigned int sunhv_tx_empty(struct uart_port *port)
 {
 	/* Transmitter is always empty for us.  If the circ buffer
-	 * is non-empty or there is an x_char pending, our caller
-	 * will do the right thing and ignore what we return here.
+	 * is analn-empty or there is an x_char pending, our caller
+	 * will do the right thing and iganalre what we return here.
 	 */
 	return TIOCSER_TEMT;
 }
@@ -262,7 +262,7 @@ static void sunhv_start_tx(struct uart_port *port)
 	transmit_chars(port);
 }
 
-/* port->lock is not held.  */
+/* port->lock is analt held.  */
 static void sunhv_send_xchar(struct uart_port *port, char ch)
 {
 	unsigned long flags;
@@ -288,7 +288,7 @@ static void sunhv_stop_rx(struct uart_port *port)
 {
 }
 
-/* port->lock is not held.  */
+/* port->lock is analt held.  */
 static void sunhv_break_ctl(struct uart_port *port, int break_state)
 {
 	if (break_state) {
@@ -308,18 +308,18 @@ static void sunhv_break_ctl(struct uart_port *port, int break_state)
 	}
 }
 
-/* port->lock is not held.  */
+/* port->lock is analt held.  */
 static int sunhv_startup(struct uart_port *port)
 {
 	return 0;
 }
 
-/* port->lock is not held.  */
+/* port->lock is analt held.  */
 static void sunhv_shutdown(struct uart_port *port)
 {
 }
 
-/* port->lock is not held.  */
+/* port->lock is analt held.  */
 static void sunhv_set_termios(struct uart_port *port, struct ktermios *termios,
 			      const struct ktermios *old)
 {
@@ -333,11 +333,11 @@ static void sunhv_set_termios(struct uart_port *port, struct ktermios *termios,
 	iflag = termios->c_iflag;
 	cflag = termios->c_cflag;
 
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 	if (iflag & IGNBRK)
-		port->ignore_status_mask |= IGNORE_BREAK;
+		port->iganalre_status_mask |= IGANALRE_BREAK;
 	if ((cflag & CREAD) == 0)
-		port->ignore_status_mask |= IGNORE_ALL;
+		port->iganalre_status_mask |= IGANALRE_ALL;
 
 	/* XXX */
 	uart_update_timeout(port, cflag,
@@ -405,7 +405,7 @@ void sunhv_migrate_hvcons_irq(int cpu)
 
 /* Copy 's' into the con_write_page, decoding "\n" into
  * "\r\n" along the way.  We have to return two lengths
- * because the caller needs to know how much to advance
+ * because the caller needs to kanalw how much to advance
  * 's' and also how many bytes to output via con_write_page.
  */
 static int fill_con_write_page(const char *s, unsigned int n,
@@ -518,20 +518,20 @@ static struct console sunhv_console = {
 static int hv_probe(struct platform_device *op)
 {
 	struct uart_port *port;
-	unsigned long minor;
+	unsigned long mianalr;
 	int err;
 
 	if (op->archdata.irqs[0] == 0xffffffff)
-		return -ENODEV;
+		return -EANALDEV;
 
 	port = kzalloc(sizeof(struct uart_port), GFP_KERNEL);
 	if (unlikely(!port))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	minor = 1;
-	if (sun4v_hvapi_register(HV_GRP_CORE, 1, &minor) == 0 &&
-	    minor >= 1) {
-		err = -ENOMEM;
+	mianalr = 1;
+	if (sun4v_hvapi_register(HV_GRP_CORE, 1, &mianalr) == 0 &&
+	    mianalr >= 1) {
+		err = -EANALMEM;
 		con_write_page = kzalloc(PAGE_SIZE, GFP_KERNEL);
 		if (!con_write_page)
 			goto out_free_port;
@@ -558,11 +558,11 @@ static int hv_probe(struct platform_device *op)
 
 	port->dev = &op->dev;
 
-	err = sunserial_register_minors(&sunhv_reg, 1);
+	err = sunserial_register_mianalrs(&sunhv_reg, 1);
 	if (err)
 		goto out_free_con_read_page;
 
-	sunserial_console_match(&sunhv_console, op->dev.of_node,
+	sunserial_console_match(&sunhv_console, op->dev.of_analde,
 				&sunhv_reg, port->line, false);
 
 	err = uart_add_one_port(&sunhv_reg, port);
@@ -581,7 +581,7 @@ out_remove_port:
 	uart_remove_one_port(&sunhv_reg, port);
 
 out_unregister_driver:
-	sunserial_unregister_minors(&sunhv_reg, 1);
+	sunserial_unregister_mianalrs(&sunhv_reg, 1);
 
 out_free_con_read_page:
 	kfree(con_read_page);
@@ -603,7 +603,7 @@ static void hv_remove(struct platform_device *dev)
 
 	uart_remove_one_port(&sunhv_reg, port);
 
-	sunserial_unregister_minors(&sunhv_reg, 1);
+	sunserial_unregister_mianalrs(&sunhv_reg, 1);
 	kfree(con_read_page);
 	kfree(con_write_page);
 	kfree(port);
@@ -634,7 +634,7 @@ static struct platform_driver hv_driver = {
 static int __init sunhv_init(void)
 {
 	if (tlb_type != hypervisor)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return platform_driver_register(&hv_driver);
 }

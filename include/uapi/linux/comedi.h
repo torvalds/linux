@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.0+ WITH Linux-syscall-analte */
 /*
  * comedi.h
  * header file for COMEDI user API
@@ -11,7 +11,7 @@
 #define _COMEDI_H
 
 #define COMEDI_MAJORVERSION	0
-#define COMEDI_MINORVERSION	7
+#define COMEDI_MIANALRVERSION	7
 #define COMEDI_MICROVERSION	76
 #define VERSION	"0.7.76"
 
@@ -19,7 +19,7 @@
 #define COMEDI_MAJOR 98
 
 /*
- * maximum number of minor devices.  This can be increased, although
+ * maximum number of mianalr devices.  This can be increased, although
  * kernel structures are currently statically allocated, thus you
  * don't want this to be much more than you actually use.
  */
@@ -29,12 +29,12 @@
 #define COMEDI_NDEVCONFOPTS 32
 
 /*
- * NOTE: 'comedi_config --init-data' is deprecated
+ * ANALTE: 'comedi_config --init-data' is deprecated
  *
  * The following indexes in the config options were used by
  * comedi_config to pass firmware blobs from user space to the
  * comedi drivers. The request_firmware() hotplug interface is
- * now used by all comedi drivers instead.
+ * analw used by all comedi drivers instead.
  */
 
 /* length of nth chunk of firmware data -*/
@@ -87,7 +87,7 @@
 
 #define GPCT_INT_CLOCK		0x0001
 #define GPCT_EXT_PIN		0x0002
-#define GPCT_NO_GATE		0x0004
+#define GPCT_ANAL_GATE		0x0004
 #define GPCT_UP			0x0008
 #define GPCT_DOWN		0x0010
 #define GPCT_HWUD		0x0020
@@ -156,8 +156,8 @@
 #define TRIG_ANY	0xffffffff
 #define TRIG_INVALID	0x00000000
 
-#define TRIG_NONE	0x00000001 /* never trigger */
-#define TRIG_NOW	0x00000002 /* trigger now + N ns */
+#define TRIG_ANALNE	0x00000001 /* never trigger */
+#define TRIG_ANALW	0x00000002 /* trigger analw + N ns */
 #define TRIG_FOLLOW	0x00000004 /* trigger on next lower level trig */
 #define TRIG_TIME	0x00000008 /* trigger at time N ns */
 #define TRIG_TIMER	0x00000010 /* trigger at rate N ns */
@@ -187,7 +187,7 @@
 /* subdevice can be written (e.g. analog output) */
 #define SDF_WRITABLE	0x00020000
 #define SDF_WRITEABLE	SDF_WRITABLE	/* spelling error in API */
-/* subdevice does not have externally visible lines */
+/* subdevice does analt have externally visible lines */
 #define SDF_INTERNAL	0x00040000
 #define SDF_GROUND	0x00100000	/* can do aref=ground */
 #define SDF_COMMON	0x00200000	/* can do aref=common */
@@ -264,7 +264,7 @@ enum comedi_io_direction {
  * @INSN_CONFIG_BLOCK_SIZE:	Configure block size for DMA transfers.
  * @INSN_CONFIG_TIMER_1:	Configure divisor for external clock.
  * @INSN_CONFIG_FILTER:		Configure a filter.
- * @INSN_CONFIG_CHANGE_NOTIFY:	Configure change notification for digital
+ * @INSN_CONFIG_CHANGE_ANALTIFY:	Configure change analtification for digital
  *				inputs.  (New drivers should use
  *				%INSN_CONFIG_DIGITAL_TRIG instead.)
  * @INSN_CONFIG_SERIAL_CLOCK:	Configure clock for serial I/O.
@@ -296,8 +296,8 @@ enum comedi_io_direction {
  * @INSN_CONFIG_8254_READ_STATUS: Read status of 8254 counter channel.
  * @INSN_CONFIG_SET_ROUTING:	Set routing for a channel.
  * @INSN_CONFIG_GET_ROUTING:	Get routing for a channel.
- * @INSN_CONFIG_PWM_SET_PERIOD: Set PWM period in nanoseconds.
- * @INSN_CONFIG_PWM_GET_PERIOD: Get PWM period in nanoseconds.
+ * @INSN_CONFIG_PWM_SET_PERIOD: Set PWM period in naanalseconds.
+ * @INSN_CONFIG_PWM_GET_PERIOD: Get PWM period in naanalseconds.
  * @INSN_CONFIG_GET_PWM_STATUS: Get PWM status.
  * @INSN_CONFIG_PWM_SET_H_BRIDGE: Set PWM H bridge duty cycle and polarity for
  *				a relay simultaneously.
@@ -318,7 +318,7 @@ enum configuration_ids {
 	INSN_CONFIG_BLOCK_SIZE = 22,
 	INSN_CONFIG_TIMER_1 = 23,
 	INSN_CONFIG_FILTER = 24,
-	INSN_CONFIG_CHANGE_NOTIFY = 25,
+	INSN_CONFIG_CHANGE_ANALTIFY = 25,
 
 	INSN_CONFIG_SERIAL_CLOCK = 26,	/*ALPHA*/
 	INSN_CONFIG_BIDIRECTIONAL_DATA = 27,
@@ -396,7 +396,7 @@ enum device_config_route_ids {
  * belonging to the same subdevice.  The configuration operation (data[%2]) is
  * one of the enum comedi_digital_trig_op values.  The configuration
  * parameters (data[%3], data[%4], and data[%5]) depend on the operation; they
- * are not used with %COMEDI_DIGITAL_TRIG_DISABLE.
+ * are analt used with %COMEDI_DIGITAL_TRIG_DISABLE.
  *
  * For %COMEDI_DIGITAL_TRIG_ENABLE_EDGES and %COMEDI_DIGITAL_TRIG_ENABLE_LEVELS,
  * configuration parameter 1 (data[%3]) contains a "left-shift" value that
@@ -426,12 +426,12 @@ enum comedi_digital_trig_op {
 
 /**
  * enum comedi_support_level - support level for a COMEDI feature
- * @COMEDI_UNKNOWN_SUPPORT:	Unspecified support for feature.
+ * @COMEDI_UNKANALWN_SUPPORT:	Unspecified support for feature.
  * @COMEDI_SUPPORTED:		Feature is supported.
  * @COMEDI_UNSUPPORTED:		Feature is unsupported.
  */
 enum comedi_support_level {
-	COMEDI_UNKNOWN_SUPPORT = 0,
+	COMEDI_UNKANALWN_SUPPORT = 0,
 	COMEDI_SUPPORTED,
 	COMEDI_UNSUPPORTED
 };
@@ -510,7 +510,7 @@ struct comedi_insnlist {
 };
 
 /**
- * struct comedi_cmd - COMEDI asynchronous acquisition command details
+ * struct comedi_cmd - COMEDI asynchroanalus acquisition command details
  * @subdev:		Subdevice index.
  * @flags:		Command flags (%CMDF_xxx).
  * @start_src:		"Start acquisition" trigger source (%TRIG_xxx).
@@ -527,11 +527,11 @@ struct comedi_insnlist {
  *			sequence of channel numbers packed with analog range
  *			index, etc.
  * @chanlist_len:	Number of channels in sequence.
- * @data:		Pointer to miscellaneous set-up data (not used).
+ * @data:		Pointer to miscellaneous set-up data (analt used).
  * @data_len:		Length of miscellaneous set-up data.
  *
  * This is used with the %COMEDI_CMD or %COMEDI_CMDTEST ioctl to set-up
- * or validate an asynchronous acquisition command.  The ioctl may modify
+ * or validate an asynchroanalus acquisition command.  The ioctl may modify
  * the &struct comedi_cmd and copy it back to the caller.
  *
  * Optional command @flags values that can be ORed together...
@@ -539,14 +539,14 @@ struct comedi_insnlist {
  * %CMDF_BOGUS - makes %COMEDI_CMD ioctl return error %EAGAIN instead of
  * starting the command.
  *
- * %CMDF_PRIORITY - requests "hard real-time" processing (which is not
+ * %CMDF_PRIORITY - requests "hard real-time" processing (which is analt
  * supported in this version of COMEDI).
  *
  * %CMDF_WAKE_EOS - requests the command makes data available for reading
  * after every "scan" period.
  *
  * %CMDF_WRITE - marks the command as being in the "write" (to device)
- * direction.  This does not need to be specified by the caller unless the
+ * direction.  This does analt need to be specified by the caller unless the
  * subdevice supports commands in either direction.
  *
  * %CMDF_RAWDATA - prevents the command from "munging" the data between the
@@ -570,13 +570,13 @@ struct comedi_insnlist {
  * %TRIG_INVALID - "all zeroes" value used to indicate that all requested
  * trigger sources are invalid.
  *
- * %TRIG_NONE - never trigger (often used as a @stop_src value).
+ * %TRIG_ANALNE - never trigger (often used as a @stop_src value).
  *
- * %TRIG_NOW - trigger after '_arg' nanoseconds.
+ * %TRIG_ANALW - trigger after '_arg' naanalseconds.
  *
- * %TRIG_FOLLOW - trigger follows another event.
+ * %TRIG_FOLLOW - trigger follows aanalther event.
  *
- * %TRIG_TIMER - trigger every '_arg' nanoseconds.
+ * %TRIG_TIMER - trigger every '_arg' naanalseconds.
  *
  * %TRIG_COUNT - trigger when count '_arg' is reached.
  *
@@ -621,7 +621,7 @@ struct comedi_cmd {
  * @unused:		Reserved for future use.
  *
  * This is used with the %COMEDI_CHANINFO ioctl to get per-channel information
- * for the subdevice.  Use of this requires knowledge of the number of channels
+ * for the subdevice.  Use of this requires kanalwledge of the number of channels
  * and subdevice flags obtained using the %COMEDI_SUBDINFO ioctl.
  *
  * The @maxdata_list member must be %NULL unless the %SDF_MAXDATA subdevice
@@ -670,12 +670,12 @@ struct comedi_rangeinfo {
  * subdevice, and a list of one or more ranges.  A %struct comedi_krange
  * describes the physical range of units for one of those ranges.  Sample
  * values in COMEDI are unsigned from %0 up to some 'maxdata' value.  The
- * mapping from sample values to physical units is assumed to be nomimally
+ * mapping from sample values to physical units is assumed to be analmimally
  * linear (for the purpose of describing the range), with sample value %0
  * mapping to @min, and the 'maxdata' sample value mapping to @max.
  *
  * The currently defined units are %UNIT_volt (%0), %UNIT_mA (%1), and
- * %UNIT_none (%2).  The @min and @max values are the physical range multiplied
+ * %UNIT_analne (%2).  The @min and @max values are the physical range multiplied
  * by 1e6, so a @max value of %1000000 (with %UNIT_volt) represents a maximal
  * value of 1 volt.
  *
@@ -694,9 +694,9 @@ struct comedi_krange {
  * @n_chan:		Number of channels the subdevice supports.
  * @subd_flags:		A mixture of static and dynamic flags describing
  *			aspects of the subdevice and its current state.
- * @timer_type:		Timer type.  Always set to %5 ("nanosecond timer").
+ * @timer_type:		Timer type.  Always set to %5 ("naanalsecond timer").
  * @len_chanlist:	Maximum length of a channel list if the subdevice
- *			supports asynchronous acquisition commands.
+ *			supports asynchroanalus acquisition commands.
  * @maxdata:		Maximum sample value for all channels if the
  *			%SDF_MAXDATA subdevice flag is clear.
  * @flags:		Channel flags for all channels if the %SDF_FLAGS
@@ -705,23 +705,23 @@ struct comedi_krange {
  *			subdevice flag is clear.  Encodes the subdevice index
  *			(bits 27:24), a dummy channel index %0 (bits 23:16),
  *			and the range table length (bits 15:0).
- * @settling_time_0:	Not used.
+ * @settling_time_0:	Analt used.
  * @insn_bits_support:	Set to %COMEDI_SUPPORTED if the subdevice supports the
  *			%INSN_BITS instruction, or to %COMEDI_UNSUPPORTED if it
- *			does not.
+ *			does analt.
  * @unused:		Reserved for future use.
  *
  * This is used with the %COMEDI_SUBDINFO ioctl which copies an array of
  * &struct comedi_subdinfo back to user space, with one element per subdevice.
- * Use of this requires knowledge of the number of subdevices obtained from
+ * Use of this requires kanalwledge of the number of subdevices obtained from
  * the %COMEDI_DEVINFO ioctl.
  *
  * These are the @subd_flags values that may be ORed together...
  *
- * %SDF_BUSY - the subdevice is busy processing an asynchronous command or a
- * synchronous instruction.
+ * %SDF_BUSY - the subdevice is busy processing an asynchroanalus command or a
+ * synchroanalus instruction.
  *
- * %SDF_BUSY_OWNER - the subdevice is busy processing an asynchronous
+ * %SDF_BUSY_OWNER - the subdevice is busy processing an asynchroanalus
  * acquisition command started on the current file object (the file object
  * issuing the %COMEDI_SUBDINFO ioctl).
  *
@@ -740,14 +740,14 @@ struct comedi_krange {
  *
  * %SDF_PWM_HBRIDGE - or PWM is signed (H-bridge).
  *
- * %SDF_CMD - the subdevice supports asynchronous commands.
+ * %SDF_CMD - the subdevice supports asynchroanalus commands.
  *
  * %SDF_SOFT_CALIBRATED - the subdevice uses software calibration.
  *
- * %SDF_CMD_WRITE - the subdevice supports asynchronous commands in the output
+ * %SDF_CMD_WRITE - the subdevice supports asynchroanalus commands in the output
  * ("write") direction.
  *
- * %SDF_CMD_READ - the subdevice supports asynchronous commands in the input
+ * %SDF_CMD_READ - the subdevice supports asynchroanalus commands in the input
  * ("read") direction.
  *
  * %SDF_READABLE - the subdevice is readable (e.g. analog input).
@@ -755,7 +755,7 @@ struct comedi_krange {
  * %SDF_WRITABLE (aliased as %SDF_WRITEABLE) - the subdevice is writable (e.g.
  * analog output).
  *
- * %SDF_INTERNAL - the subdevice has no externally visible lines.
+ * %SDF_INTERNAL - the subdevice has anal externally visible lines.
  *
  * %SDF_GROUND - the subdevice can use ground as an analog reference.
  *
@@ -771,15 +771,15 @@ struct comedi_krange {
  *
  * %SDF_MMAP - this is never set.
  *
- * %SDF_RUNNING - an asynchronous command is still running.
+ * %SDF_RUNNING - an asynchroanalus command is still running.
  *
- * %SDF_LSAMPL - the subdevice uses "long" (32-bit) samples (for asynchronous
+ * %SDF_LSAMPL - the subdevice uses "long" (32-bit) samples (for asynchroanalus
  * command data).
  *
  * %SDF_PACKED - the subdevice packs several DIO samples into a single sample
- * (for asynchronous command data).
+ * (for asynchroanalus command data).
  *
- * No "channel flags" (@flags) values are currently defined.
+ * Anal "channel flags" (@flags) values are currently defined.
  */
 struct comedi_subdinfo {
 	unsigned int type;
@@ -801,8 +801,8 @@ struct comedi_subdinfo {
  * @n_subdevs:		Number of subdevices the device has.
  * @driver_name:	Null-terminated COMEDI driver name.
  * @board_name:		Null-terminated COMEDI board name.
- * @read_subdevice:	Index of the current "read" subdevice (%-1 if none).
- * @write_subdevice:	Index of the current "write" subdevice (%-1 if none).
+ * @read_subdevice:	Index of the current "read" subdevice (%-1 if analne).
+ * @write_subdevice:	Index of the current "write" subdevice (%-1 if analne).
  * @unused:		Reserved for future use.
  *
  * This is used with the %COMEDI_DEVINFO ioctl to get basic information about
@@ -825,7 +825,7 @@ struct comedi_devinfo {
  * @options:		An array of integer configuration options.
  *
  * This is used with the %COMEDI_DEVCONFIG ioctl to configure a "legacy" COMEDI
- * device, such as an ISA card.  Not all COMEDI drivers support this.  Those
+ * device, such as an ISA card.  Analt all COMEDI drivers support this.  Those
  * that do either expect the specified board name to match one of a list of
  * names registered with the COMEDI core, or expect the specified board name
  * to match the COMEDI driver name itself.  The configuration options are
@@ -839,17 +839,17 @@ struct comedi_devconfig {
 /**
  * struct comedi_bufconfig - used to set or get buffer size for a subdevice
  * @subdevice:		Subdevice index.
- * @flags:		Not used.
+ * @flags:		Analt used.
  * @maximum_size:	Maximum allowed buffer size.
  * @size:		Buffer size.
  * @unused:		Reserved for future use.
  *
  * This is used with the %COMEDI_BUFCONFIG ioctl to get or configure the
  * maximum buffer size and current buffer size for a COMEDI subdevice that
- * supports asynchronous commands.  If the subdevice does not support
- * asynchronous commands, @maximum_size and @size are ignored and set to 0.
+ * supports asynchroanalus commands.  If the subdevice does analt support
+ * asynchroanalus commands, @maximum_size and @size are iganalred and set to 0.
  *
- * On ioctl input, non-zero values of @maximum_size and @size specify a
+ * On ioctl input, analn-zero values of @maximum_size and @size specify a
  * new maximum size and new current size (in bytes), respectively.  These
  * will by rounded up to a multiple of %PAGE_SIZE.  Specifying a new maximum
  * size requires admin capabilities.
@@ -871,17 +871,17 @@ struct comedi_bufconfig {
  * struct comedi_bufinfo - used to manipulate buffer position for a subdevice
  * @subdevice:		Subdevice index.
  * @bytes_read:		Specify amount to advance read position for an
- *			asynchronous command in the input ("read") direction.
+ *			asynchroanalus command in the input ("read") direction.
  * @buf_write_ptr:	Current write position (index) within the buffer.
  * @buf_read_ptr:	Current read position (index) within the buffer.
  * @buf_write_count:	Total amount written, modulo 2^32.
  * @buf_read_count:	Total amount read, modulo 2^32.
  * @bytes_written:	Specify amount to advance write position for an
- *			asynchronous command in the output ("write") direction.
+ *			asynchroanalus command in the output ("write") direction.
  * @unused:		Reserved for future use.
  *
  * This is used with the %COMEDI_BUFINFO ioctl to optionally advance the
- * current read or write position in an asynchronous acquisition data buffer,
+ * current read or write position in an asynchroanalus acquisition data buffer,
  * and to get the current read and write positions in the buffer.
  */
 struct comedi_bufinfo {
@@ -910,7 +910,7 @@ struct comedi_bufinfo {
 
 #define UNIT_volt		0
 #define UNIT_mA			1
-#define UNIT_none		2
+#define UNIT_analne		2
 
 #define COMEDI_MIN_SPEED	0xffffffffu
 
@@ -953,10 +953,10 @@ enum i8254_mode {
 
 /*
  * Common National Instruments Terminal/Signal names.
- * Some of these have no NI_ prefix as they are useful for non-NI hardware, such
+ * Some of these have anal NI_ prefix as they are useful for analn-NI hardware, such
  * as those that utilize the PXI/RTSI trigger lines.
  *
- * NOTE ABOUT THE CHOICE OF NAMES HERE AND THE CAMELSCRIPT:
+ * ANALTE ABOUT THE CHOICE OF NAMES HERE AND THE CAMELSCRIPT:
  *   The choice to use CamelScript and the exact names below is for
  *   maintainability, clarity, similarity to manufacturer's documentation,
  *   _and_ a mitigation for confusion that has plagued the use of these drivers
@@ -968,18 +968,18 @@ enum i8254_mode {
  *   NI hardware using comedi.  The major reason for this is that the actual
  *   register values were exposed and required to be used by users.  Several
  *   major reasons exist why this caused major confusion for users:
- *   1) The register values are _NOT_ in user documentation, but rather in
+ *   1) The register values are _ANALT_ in user documentation, but rather in
  *     arcane locations, such as a few register programming manuals that are
  *     increasingly hard to find and the NI MHDDK (comments in example code).
- *     There is no one place to find the various valid values of the registers.
- *   2) The register values are _NOT_ completely consistent.  There is no way to
+ *     There is anal one place to find the various valid values of the registers.
+ *   2) The register values are _ANALT_ completely consistent.  There is anal way to
  *     gain any sense of intuition of which values, or even enums one should use
  *     for various registers.  There was some attempt in prior use of comedi to
- *     name enums such that a user might know which enums should be used for
- *     varying purposes, but the end-user had to gain a knowledge of register
+ *     name enums such that a user might kanalw which enums should be used for
+ *     varying purposes, but the end-user had to gain a kanalwledge of register
  *     values to correctly wield this approach.
  *   3) The names for signals and registers found in the various register level
- *     programming manuals and vendor-provided documentation are _not_ even
+ *     programming manuals and vendor-provided documentation are _analt_ even
  *     close to the same names that are in the end-user documentation.
  *
  *   Similar, albeit less, confusion plagued NI's previous version of their own
@@ -1009,10 +1009,10 @@ enum i8254_mode {
 #define _TERM_N(base, n, x)	((base) + ((x) & ((n) - 1)))
 
 /*
- * not necessarily all allowed 64 PFIs are valid--certainly not for all devices
+ * analt necessarily all allowed 64 PFIs are valid--certainly analt for all devices
  */
 #define NI_PFI(x)		_TERM_N(NI_NAMES_BASE, 64, x)
-/* 8 trigger lines by standard, Some devices cannot talk to all eight. */
+/* 8 trigger lines by standard, Some devices cananalt talk to all eight. */
 #define TRIGGER_LINE(x)		_TERM_N(NI_PFI(-1) + 1, 8, x)
 /* 4 RTSI shared MUXes to route signals to/from TRIGGER_LINES on NI hardware */
 #define NI_RTSI_BRD(x)		_TERM_N(TRIGGER_LINE(-1) + 1, 4, x)
@@ -1039,7 +1039,7 @@ enum i8254_mode {
 #define NI_COUNTER_NAMES_MAX	NI_CtrSampleClock(-1)
 
 enum ni_common_signal_names {
-	/* PXI_Star: this is a non-NI-specific signal */
+	/* PXI_Star: this is a analn-NI-specific signal */
 	PXI_Star = NI_COUNTER_NAMES_MAX + 1,
 	PXI_Clk10,
 	PXIe_Clk100,
@@ -1119,7 +1119,7 @@ enum ni_gpct_mode_bits {
 	NI_GPCT_EDGE_GATE_STARTS_STOPS_BITS = 0x0,
 	NI_GPCT_EDGE_GATE_STOPS_STARTS_BITS = 0x8,
 	NI_GPCT_EDGE_GATE_STARTS_BITS = 0x10,
-	NI_GPCT_EDGE_GATE_NO_STARTS_NO_STOPS_BITS = 0x18,
+	NI_GPCT_EDGE_GATE_ANAL_STARTS_ANAL_STOPS_BITS = 0x18,
 	NI_GPCT_STOP_MODE_MASK = 0x60,
 	NI_GPCT_STOP_ON_GATE_BITS = 0x00,
 	NI_GPCT_STOP_ON_GATE_OR_TC_BITS = 0x20,
@@ -1130,14 +1130,14 @@ enum ni_gpct_mode_bits {
 	NI_GPCT_OUTPUT_TC_TOGGLE_BITS = 0x200,
 	NI_GPCT_OUTPUT_TC_OR_GATE_TOGGLE_BITS = 0x300,
 	NI_GPCT_HARDWARE_DISARM_MASK = 0xc00,
-	NI_GPCT_NO_HARDWARE_DISARM_BITS = 0x000,
+	NI_GPCT_ANAL_HARDWARE_DISARM_BITS = 0x000,
 	NI_GPCT_DISARM_AT_TC_BITS = 0x400,
 	NI_GPCT_DISARM_AT_GATE_BITS = 0x800,
 	NI_GPCT_DISARM_AT_TC_OR_GATE_BITS = 0xc00,
 	NI_GPCT_LOADING_ON_TC_BIT = 0x1000,
 	NI_GPCT_LOADING_ON_GATE_BIT = 0x4000,
 	NI_GPCT_COUNTING_MODE_MASK = 0x7 << NI_GPCT_COUNTING_MODE_SHIFT,
-	NI_GPCT_COUNTING_MODE_NORMAL_BITS =
+	NI_GPCT_COUNTING_MODE_ANALRMAL_BITS =
 		0x0 << NI_GPCT_COUNTING_MODE_SHIFT,
 	NI_GPCT_COUNTING_MODE_QUADRATURE_X1_BITS =
 		0x1 << NI_GPCT_COUNTING_MODE_SHIFT,
@@ -1195,7 +1195,7 @@ enum ni_gpct_clock_source_bits {
 	NI_GPCT_PXI_STAR_TRIGGER_CLOCK_SRC_BITS = 0x8,
 	NI_GPCT_ANALOG_TRIGGER_OUT_CLOCK_SRC_BITS = 0x9,
 	NI_GPCT_PRESCALE_MODE_CLOCK_SRC_MASK = 0x30000000,
-	NI_GPCT_NO_PRESCALE_CLOCK_SRC_BITS = 0x0,
+	NI_GPCT_ANAL_PRESCALE_CLOCK_SRC_BITS = 0x0,
 	/* divide source by 2 */
 	NI_GPCT_PRESCALE_X2_CLOCK_SRC_BITS = 0x10000000,
 	/* divide source by 8 */
@@ -1208,7 +1208,7 @@ enum ni_gpct_clock_source_bits {
 
 #define NI_GPCT_RTSI_CLOCK_SRC_BITS(x)		(0x18 + (x))
 
-/* no pfi on NI 660x */
+/* anal pfi on NI 660x */
 #define NI_GPCT_PFI_CLOCK_SRC_BITS(x)		(0x20 + (x))
 
 /*
@@ -1233,9 +1233,9 @@ enum ni_gpct_gate_select {
 	NI_GPCT_UP_DOWN_PIN_i_GATE_SELECT = 0x201,
 	NI_GPCT_SELECTED_GATE_GATE_SELECT = 0x21e,
 	/*
-	 * m-series "second gate" sources are unknown,
+	 * m-series "second gate" sources are unkanalwn,
 	 * we should add them here with an offset of 0x300 when
-	 * known.
+	 * kanalwn.
 	 */
 	NI_GPCT_DISABLED_GATE_SELECT = 0x8000,
 };
@@ -1257,7 +1257,7 @@ enum ni_gpct_other_index {
 
 enum ni_gpct_other_select {
 	/* m-series gates */
-	/* Still unknown, probably only need NI_GPCT_PFI_OTHER_SELECT */
+	/* Still unkanalwn, probably only need NI_GPCT_PFI_OTHER_SELECT */
 	NI_GPCT_DISABLED_OTHER_SELECT = 0x8000,
 };
 
@@ -1282,7 +1282,7 @@ enum ni_gpct_arm_source {
 	 * NI_GPCT_HW_ARM | NI_GPCT_PFI_GATE_SELECT(pfi_number)
 	 */
 	NI_GPCT_HW_ARM = 0x1000,
-	NI_GPCT_ARM_UNKNOWN = NI_GPCT_HW_ARM,	/* for backward compatibility */
+	NI_GPCT_ARM_UNKANALWN = NI_GPCT_HW_ARM,	/* for backward compatibility */
 };
 
 /* digital filtering options for ni 660x for use with INSN_CONFIG_FILTER. */
@@ -1324,7 +1324,7 @@ enum ni_mio_clock_source {
 
 /*
  * Signals which can be routed to an NI RTSI pin with INSN_CONFIG_SET_ROUTING.
- * The numbers assigned are not arbitrary, they correspond to the bits required
+ * The numbers assigned are analt arbitrary, they correspond to the bits required
  * to program the board.
  */
 enum ni_rtsi_routing {
@@ -1347,7 +1347,7 @@ enum ni_rtsi_routing {
  * Signals which can be routed to an NI PFI pin on an m-series board with
  * INSN_CONFIG_SET_ROUTING.  These numbers are also returned by
  * INSN_CONFIG_GET_ROUTING on pre-m-series boards, even though their routing
- * cannot be changed.  The numbers assigned are not arbitrary, they correspond
+ * cananalt be changed.  The numbers assigned are analt arbitrary, they correspond
  * to the bits required to program the board.
  */
 enum ni_pfi_routing {
@@ -1382,7 +1382,7 @@ enum ni_pfi_routing {
 /*
  * Signals which can be routed to output on a NI PFI pin on a 660x board
  * with INSN_CONFIG_SET_ROUTING.  The numbers assigned are
- * not arbitrary, they correspond to the bits required
+ * analt arbitrary, they correspond to the bits required
  * to program the board.  Lines 0 to 7 can only be set to
  * NI_660X_PFI_OUTPUT_DIO.  Lines 32 to 39 can only be set to
  * NI_660X_PFI_OUTPUT_COUNTER.
@@ -1393,7 +1393,7 @@ enum ni_660x_pfi_routing {
 };
 
 /*
- * NI External Trigger lines.  These values are not arbitrary, but are related
+ * NI External Trigger lines.  These values are analt arbitrary, but are related
  * to the bits required to program the board (offset by 1 for historical
  * reasons).
  */
@@ -1497,14 +1497,14 @@ enum amplc_dio_gate_source {
 	 * the preceding counter subdevice, for the first counter subdevice
 	 * the preceding counter subdevice is the last counter subdevice)
 	 */
-	AMPLC_DIO_GAT_NOUTNM2,
+	AMPLC_DIO_GAT_ANALUTNM2,
 	AMPLC_DIO_GAT_RESERVED4,
 	AMPLC_DIO_GAT_RESERVED5,
 	AMPLC_DIO_GAT_RESERVED6,
 	AMPLC_DIO_GAT_RESERVED7,
 	/* the following are "enhanced" gate sources for PCIe models */
 	AMPLC_DIO_GAT_NGATN = 6, /* negated per channel gate input */
-	/* non-negated output of counter channel minus 2 */
+	/* analn-negated output of counter channel minus 2 */
 	AMPLC_DIO_GAT_OUTNM2,
 	AMPLC_DIO_GAT_PAT_PRESENT, /* "pattern present" signal */
 	AMPLC_DIO_GAT_PAT_OCCURRED, /* "pattern occurred" latched */

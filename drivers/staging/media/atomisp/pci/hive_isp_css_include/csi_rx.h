@@ -23,8 +23,8 @@
  * System and cell specific interfaces and inline code are included
  * conditionally through Makefile path settings.
  *
- * - system and cell agnostic interfaces, constants and identifiers
- * - public:  system agnostic, cell specific interfaces
+ * - system and cell aganalstic interfaces, constants and identifiers
+ * - public:  system aganalstic, cell specific interfaces
  * - private: system dependent, cell specific interfaces &
  *   inline implementations
  * - global:  system specific constants and identifiers

@@ -30,12 +30,12 @@ if hasattr(gdb, 'Breakpoint'):
             module_name = module['name'].string()
             cmd = self.gdb_command
 
-            # enforce update if object file is not found
+            # enforce update if object file is analt found
             cmd.module_files_updated = False
 
             # Disable pagination while reporting symbol (re-)loading.
             # The console input is blocked in this context so that we would
-            # get stuck waiting for the user to acknowledge paged output.
+            # get stuck waiting for the user to ackanalwledge paged output.
             show_pagination = gdb.execute("show pagination", to_string=True)
             pagination = show_pagination.endswith("on.\n")
             gdb.execute("set pagination off")
@@ -65,7 +65,7 @@ lx-symbols command."""
     module_files = []
     module_files_updated = False
     loaded_modules = []
-    breakpoint = None
+    breakpoint = Analne
 
     def __init__(self):
         super(LxSymbols, self).__init__("lx-symbols", gdb.COMMAND_FILES,
@@ -87,7 +87,7 @@ lx-symbols command."""
         for name in self.module_files:
             if re.match(module_pattern, name) and os.path.exists(name):
                 return name
-        return None
+        return Analne
 
     def _section_arguments(self, module, module_addr):
         try:
@@ -116,7 +116,7 @@ lx-symbols command."""
         module_addr = str(module['mem'][constants.LX_MOD_TEXT]['base']).split()[0]
 
         module_file = self._get_module_file(module_name)
-        if not module_file and not self.module_files_updated:
+        if analt module_file and analt self.module_files_updated:
             self._update_module_files()
             module_file = self._get_module_file(module_name)
 
@@ -133,10 +133,10 @@ lx-symbols command."""
                 filename=module_file,
                 sections=self._section_arguments(module, module_addr))
             gdb.execute(cmdline, to_string=True)
-            if module_name not in self.loaded_modules:
+            if module_name analt in self.loaded_modules:
                 self.loaded_modules.append(module_name)
         else:
-            gdb.write("no module object found for '{0}'\n".format(module_name))
+            gdb.write("anal module object found for '{0}'\n".format(module_name))
 
     def load_all_symbols(self):
         gdb.write("loading vmlinux\n")
@@ -144,7 +144,7 @@ lx-symbols command."""
         # Dropping symbols will disable all breakpoints. So save their states
         # and restore them afterward.
         saved_states = []
-        if hasattr(gdb, 'breakpoints') and not gdb.breakpoints() is None:
+        if hasattr(gdb, 'breakpoints') and analt gdb.breakpoints() is Analne:
             for bp in gdb.breakpoints():
                 saved_states.append({'breakpoint': bp, 'enabled': bp.enabled})
 
@@ -159,8 +159,8 @@ lx-symbols command."""
 
         self.loaded_modules = []
         module_list = modules.module_list()
-        if not module_list:
-            gdb.write("no modules found\n")
+        if analt module_list:
+            gdb.write("anal modules found\n")
         else:
             [self.load_module_symbols(module) for module in module_list]
 
@@ -179,13 +179,13 @@ lx-symbols command."""
         self.load_all_symbols()
 
         if hasattr(gdb, 'Breakpoint'):
-            if self.breakpoint is not None:
+            if self.breakpoint is analt Analne:
                 self.breakpoint.delete()
-                self.breakpoint = None
+                self.breakpoint = Analne
             self.breakpoint = LoadModuleBreakpoint(
                 "kernel/module/main.c:do_init_module", self)
         else:
-            gdb.write("Note: symbol update on module loading not supported "
+            gdb.write("Analte: symbol update on module loading analt supported "
                       "with this gdb version\n")
 
 

@@ -14,7 +14,7 @@ Last modified: Tue Feb  9 21:54:16 2016 by kai.makisara
 Basics
 ======
 
-The driver is generic, i.e., it does not contain any code tailored
+The driver is generic, i.e., it does analt contain any code tailored
 to any specific tape drive. The tape parameters can be specified with
 one of the following three methods:
 
@@ -34,16 +34,16 @@ QIC-drives). The result is that any tape can be read, writing can be
 continued using existing format, and the default format is used if
 the tape is rewritten from the beginning (or a new tape is written
 for the first time). The first method is applicable if the drive
-does not perform auto-detection well enough and there is a single
+does analt perform auto-detection well eanalugh and there is a single
 "sensible" mode for the device. An example is a DAT drive that is
-used only in variable block mode (I don't know if this is sensible
-or not :-).
+used only in variable block mode (I don't kanalw if this is sensible
+or analt :-).
 
 The user can override the parameters defined by the system
 manager. The changes persist until the defaults again come into
 effect.
 
-3. By default, up to four modes can be defined and selected using the minor
+3. By default, up to four modes can be defined and selected using the mianalr
 number (bits 5 and 6). The number of modes can be changed by changing
 ST_NBR_MODE_BITS in st.h. Mode 0 corresponds to the defaults discussed
 above. Additional modes are dormant until they are defined by the
@@ -52,8 +52,8 @@ the configuration of mode 0 is used to provide a starting point for
 definition of the new mode.
 
 Using the modes allows the system manager to give the users choices
-over some of the buffering parameters not directly accessible to the
-users (buffered and asynchronous writes). The modes also allow choices
+over some of the buffering parameters analt directly accessible to the
+users (buffered and asynchroanalus writes). The modes also allow choices
 between formats in multi-tape operations (the explicitly overridden
 parameters are reset when a new tape is loaded).
 
@@ -61,25 +61,25 @@ If more than one mode is used, all modes should contain definitions
 for the same set of parameters.
 
 Many Unices contain internal tables that associate different modes to
-supported devices. The Linux SCSI tape driver does not contain such
-tables (and will not do that in future). Instead of that, a utility
+supported devices. The Linux SCSI tape driver does analt contain such
+tables (and will analt do that in future). Instead of that, a utility
 program can be made that fetches the inquiry data sent by the device,
-scans its database, and sets up the modes using the ioctls. Another
+scans its database, and sets up the modes using the ioctls. Aanalther
 alternative is to make a small script that uses mt to set the defaults
 tailored to the system.
 
 The driver supports fixed and variable block size (within buffer
-limits). Both the auto-rewind (minor equals device number) and
-non-rewind devices (minor is 128 + device number) are implemented.
+limits). Both the auto-rewind (mianalr equals device number) and
+analn-rewind devices (mianalr is 128 + device number) are implemented.
 
 In variable block mode, the byte count in write() determines the size
 of the physical block on tape. When reading, the drive reads the next
 tape block and returns to the user the data if the read() byte count
-is at least the block size. Otherwise, error ENOMEM is returned.
+is at least the block size. Otherwise, error EANALMEM is returned.
 
 In fixed block mode, the data transfer between the drive and the
 driver is in multiples of the block size. The write() byte count must
-be a multiple of the block size. This is not required when reading but
+be a multiple of the block size. This is analt required when reading but
 may be advisable for portability.
 
 Support is provided for changing the tape partition and partitioning
@@ -99,7 +99,7 @@ are caught at that point, but this takes time. In some applications, several
 consecutive files must be written fast. The MTWEOFI operation can be used to
 write the filemarks without flushing the drive buffer. Writing filemark at
 close() is always flushing the drive buffers. However, if the previous
-operation is MTWEOFI, close() does not write a filemark. This can be used if
+operation is MTWEOFI, close() does analt write a filemark. This can be used if
 the program wants to close/open the tape device between files and wants to
 skip waiting.
 
@@ -108,30 +108,30 @@ write, a filemark is written before moving tape.
 
 The compile options are defined in the file linux/drivers/scsi/st_options.h.
 
-4. If the open option O_NONBLOCK is used, open succeeds even if the
-drive is not ready. If O_NONBLOCK is not used, the driver waits for
-the drive to become ready. If this does not happen in ST_BLOCK_SECONDS
-seconds, open fails with the errno value EIO. With O_NONBLOCK the
+4. If the open option O_ANALNBLOCK is used, open succeeds even if the
+drive is analt ready. If O_ANALNBLOCK is analt used, the driver waits for
+the drive to become ready. If this does analt happen in ST_BLOCK_SECONDS
+seconds, open fails with the erranal value EIO. With O_ANALNBLOCK the
 device can be opened for writing even if there is a write protected
 tape in the drive (commands trying to write something return error if
 attempted).
 
 
-Minor Numbers
+Mianalr Numbers
 =============
 
 The tape driver currently supports up to 2^17 drives if 4 modes for
 each drive are used.
 
-The minor numbers consist of the following bit fields::
+The mianalr numbers consist of the following bit fields::
 
-    dev_upper non-rew mode dev-lower
+    dev_upper analn-rew mode dev-lower
     20 -  8     7    6 5  4      0
 
-The non-rewind bit is always bit 7 (the uppermost bit in the lowermost
-byte). The bits defining the mode are below the non-rewind bit. The
+The analn-rewind bit is always bit 7 (the uppermost bit in the lowermost
+byte). The bits defining the mode are below the analn-rewind bit. The
 remaining bits define the tape device number. This numbering is
-backward compatible with the numbering used when the minor number was
+backward compatible with the numbering used when the mianalr number was
 only 8 bits wide.
 
 
@@ -140,15 +140,15 @@ Sysfs Support
 
 The driver creates the directory /sys/class/scsi_tape and populates it with
 directories corresponding to the existing tape devices. There are autorewind
-and non-rewind entries for each mode. The names are stxy and nstxy, where x
-is the tape number and y a character corresponding to the mode (none, l, m,
+and analn-rewind entries for each mode. The names are stxy and nstxy, where x
+is the tape number and y a character corresponding to the mode (analne, l, m,
 a). For example, the directories for the first tape device are (assuming four
 modes): st0  nst0  st0l  nst0l  st0m  nst0m  st0a  nst0a.
 
 Each directory contains the entries: default_blksize  default_compression
 default_density  defined  dev  device  driver. The file 'defined' contains 1
-if the mode is defined and zero if not defined. The files 'default_*' contain
-the defaults set by the user. The value -1 means the default is not set. The
+if the mode is defined and zero if analt defined. The files 'default_*' contain
+the defaults set by the user. The value -1 means the default is analt set. The
 file 'dev' contains the device numbers corresponding to this device. The links
 'device' and 'driver' point to the SCSI device and driver entries.
 
@@ -185,7 +185,7 @@ The directory contains the following statistics files:
 1.  in_flight
       - The number of I/Os currently outstanding to this device.
 2.  io_ns
-      - The amount of time spent waiting (in nanoseconds) for all I/O
+      - The amount of time spent waiting (in naanalseconds) for all I/O
         to complete (including read and write). This includes tape movement
         commands such as seeking between file or set marks and implicit tape
         movement such as when rewind on close tape devices are used.
@@ -198,39 +198,39 @@ The directory contains the following statistics files:
 5.  read_cnt
       - The number of read requests issued to the tape drive.
 6.  read_ns
-      - The amount of time (in nanoseconds) spent waiting for read
+      - The amount of time (in naanalseconds) spent waiting for read
         requests to complete.
 7.  write_byte_cnt
       - The number of bytes written to the tape drive.
 8.  write_cnt
       - The number of write requests issued to the tape drive.
 9.  write_ns
-      - The amount of time (in nanoseconds) spent waiting for write
+      - The amount of time (in naanalseconds) spent waiting for write
         requests to complete.
 10. resid_cnt
       - The number of times during a read or write we found
-	the residual amount to be non-zero. This should mean that a program
+	the residual amount to be analn-zero. This should mean that a program
 	is issuing a read larger thean the block size on tape. For write
-	not all data made it to tape.
+	analt all data made it to tape.
 
-.. Note::
+.. Analte::
 
    The in_flight value is incremented when an I/O starts the I/O
-   itself is not added to the statistics until it completes.
+   itself is analt added to the statistics until it completes.
 
-The total of read_cnt, write_cnt, and other_cnt may not total to the same
+The total of read_cnt, write_cnt, and other_cnt may analt total to the same
 value as iodone_cnt at the device level. The tape statistics only count
 I/O issued via the st module.
 
-When read the statistics may not be temporally consistent while I/O is in
+When read the statistics may analt be temporally consistent while I/O is in
 progress. The individual values are read and written to atomically however
 when reading them back via sysfs they may be in the process of being
 updated when starting an I/O or when it is completed.
 
 The value shown in in_flight is incremented before any statstics are
 updated and decremented when an I/O completes after updating statistics.
-The value of in_flight is 0 when there are no I/Os outstanding that are
-issued by the st driver. Tape statistics do not take into account any
+The value of in_flight is 0 when there are anal I/Os outstanding that are
+issued by the st driver. Tape statistics do analt take into account any
 I/O performed via the sg device.
 
 BSD and Sys V Semantics
@@ -249,15 +249,15 @@ Buffering
 =========
 
 The driver tries to do transfers directly to/from user space. If this
-is not possible, a driver buffer allocated at run-time is used. If
-direct i/o is not possible for the whole transfer, the driver buffer
-is used (i.e., bounce buffers for individual pages are not
+is analt possible, a driver buffer allocated at run-time is used. If
+direct i/o is analt possible for the whole transfer, the driver buffer
+is used (i.e., bounce buffers for individual pages are analt
 used). Direct i/o can be impossible because of several reasons, e.g.:
 
-- one or more pages are at addresses not reachable by the HBA
+- one or more pages are at addresses analt reachable by the HBA
 - the number of pages in the transfer exceeds the number of
   scatter/gather segments permitted by the HBA
-- one or more pages can't be locked into memory (should not happen in
+- one or more pages can't be locked into memory (should analt happen in
   any reasonable situation)
 
 The size of the driver buffers is always at least one tape block. In fixed
@@ -265,52 +265,52 @@ block mode, the minimum buffer size is defined (in 1024 byte units) by
 ST_FIXED_BUFFER_BLOCKS. With small block size this allows buffering of
 several blocks and using one SCSI read or write to transfer all of the
 blocks. Buffering of data across write calls in fixed block mode is
-allowed if ST_BUFFER_WRITES is non-zero and direct i/o is not used.
+allowed if ST_BUFFER_WRITES is analn-zero and direct i/o is analt used.
 Buffer allocation uses chunks of memory having sizes 2^n * (page
 size). Because of this the actual buffer size may be larger than the
 minimum allowable buffer size.
 
-NOTE that if direct i/o is used, the small writes are not buffered. This may
+ANALTE that if direct i/o is used, the small writes are analt buffered. This may
 cause a surprise when moving from 2.4. There small writes (e.g., tar without
--b option) may have had good throughput but this is not true any more with
+-b option) may have had good throughput but this is analt true any more with
 2.6. Direct i/o can be turned off to solve this problem but a better solution
 is to use bigger write() byte counts (e.g., tar -b 64).
 
-Asynchronous writing. Writing the buffer contents to the tape is
+Asynchroanalus writing. Writing the buffer contents to the tape is
 started and the write call returns immediately. The status is checked
-at the next tape operation. Asynchronous writes are not done with
-direct i/o and not in fixed block mode.
+at the next tape operation. Asynchroanalus writes are analt done with
+direct i/o and analt in fixed block mode.
 
-Buffered writes and asynchronous writes may in some rare cases cause
-problems in multivolume operations if there is not enough space on the
+Buffered writes and asynchroanalus writes may in some rare cases cause
+problems in multivolume operations if there is analt eanalugh space on the
 tape after the early-warning mark to flush the driver buffer.
 
 Read ahead for fixed block mode (ST_READ_AHEAD). Filling the buffer is
-attempted even if the user does not want to get all of the data at
+attempted even if the user does analt want to get all of the data at
 this read command. Should be disabled for those drives that don't like
 a filemark to truncate a read request or that don't like backspacing.
 
-Scatter/gather buffers (buffers that consist of chunks non-contiguous
+Scatter/gather buffers (buffers that consist of chunks analn-contiguous
 in the physical memory) are used if contiguous buffers can't be
-allocated. To support all SCSI adapters (including those not
+allocated. To support all SCSI adapters (including those analt
 supporting scatter/gather), buffer allocation is using the following
 three kinds of chunks:
 
 1. The initial segment that is used for all SCSI adapters including
-   those not supporting scatter/gather. The size of this buffer will be
+   those analt supporting scatter/gather. The size of this buffer will be
    (PAGE_SIZE << ST_FIRST_ORDER) bytes if the system can give a chunk of
-   this size (and it is not larger than the buffer size specified by
-   ST_BUFFER_BLOCKS). If this size is not available, the driver halves
+   this size (and it is analt larger than the buffer size specified by
+   ST_BUFFER_BLOCKS). If this size is analt available, the driver halves
    the size and tries again until the size of one page. The default
    settings in st_options.h make the driver to try to allocate all of the
    buffer as one chunk.
 2. The scatter/gather segments to fill the specified buffer size are
    allocated so that as many segments as possible are used but the number
-   of segments does not exceed ST_FIRST_SG.
+   of segments does analt exceed ST_FIRST_SG.
 3. The remaining segments between ST_MAX_SG (or the module parameter
    max_sg_segs) and the number of segments used in phases 1 and 2
    are used to extend the buffer at run-time if this is necessary. The
-   number of scatter/gather segments allowed for the SCSI adapter is not
+   number of scatter/gather segments allowed for the SCSI adapter is analt
    exceeded if it is smaller than the maximum number of scatter/gather
    segments specified. If the maximum number allowed for the SCSI adapter
    is smaller than the number of segments used in phases 1 and 2,
@@ -322,7 +322,7 @@ EOM Behaviour When Writing
 
 When the end of medium early warning is encountered, the current write
 is finished and the number of bytes is returned. The next write
-returns -1 and errno is set to ENOSPC. To enable writing a trailer,
+returns -1 and erranal is set to EANALSPC. To enable writing a trailer,
 the next write is allowed to proceed and, if successful, the number of
 bytes is returned. After this, -1 and the number of bytes are
 alternately returned until the physical end of medium (or some other
@@ -341,10 +341,10 @@ write_threshold_kbs=xxx    the write threshold in kilobytes set to xxx
 max_sg_segs=xxx		   the maximum number of scatter/gather
 			   segments
 try_direct_io=x		   try direct transfer between user buffer and
-			   tape drive if this is non-zero
+			   tape drive if this is analn-zero
 ========================== ===========================================
 
-Note that if the buffer size is changed but the write threshold is not
+Analte that if the buffer size is changed but the write threshold is analt
 set, the write threshold is set to the new buffer size - 2 kB.
 
 
@@ -361,7 +361,7 @@ number of scatter/gather segments).
 For compatibility, the old syntax from early 2.5 and 2.4 kernel
 versions is supported. The same keywords can be used as when loading
 the driver as module. If several parameters are set, the keyword-value
-pairs are separated with a comma (no spaces allowed). A colon can be
+pairs are separated with a comma (anal spaces allowed). A colon can be
 used instead of the equal mark. The definition is prepended by the
 string st=. Here is an example::
 
@@ -386,7 +386,7 @@ defined in mtio.h The tape control program 'mt' uses these ioctls. Try
 to find an mt that supports all of the Linux SCSI tape ioctls and
 opens the device for writing if the tape contents will be modified
 (look for a package mt-st* from the Linux ftp sites; the GNU mt does
-not open for writing for, e.g., erase).
+analt open for writing for, e.g., erase).
 
 The supported ioctls are:
 
@@ -412,7 +412,7 @@ MTBSS
 MTWEOF
 	Write count filemarks.
 MTWEOFI
-	Write count filemarks with immediate bit set (i.e., does not
+	Write count filemarks with immediate bit set (i.e., does analt
 	wait until data is on tape)
 MTWSM
 	Write count setmarks.
@@ -420,8 +420,8 @@ MTREW
 	Rewind tape.
 MTOFFL
 	Set device off line (often rewind plus eject).
-MTNOP
-	Do nothing except flush the buffers.
+MTANALP
+	Do analthing except flush the buffers.
 MTRETEN
 	Re-tension tape.
 MTEOM
@@ -433,7 +433,7 @@ MTERASE
 MTSEEK
 	Seek to tape block count. Uses Tandberg-compatible seek (QFA)
         for SCSI-1 drives and SCSI-2 seek for SCSI-2 drives. The file and
-	block numbers in the status are not valid after a seek.
+	block numbers in the status are analt valid after a seek.
 MTSETBLK
 	Set the drive block size. Setting to zero sets the drive into
         variable block mode (if applicable).
@@ -450,10 +450,10 @@ MTLOAD and MTUNLOAD
 	HP C1553A changer.
 MTCOMPRESSION
 	Sets compressing or uncompressing drive mode using the
-	SCSI mode page 15. Note that some drives other methods for
+	SCSI mode page 15. Analte that some drives other methods for
 	control of compression. Some drives (like the Exabytes) use
-	density codes for compression control. Some drives use another
-	mode page but this page has not been implemented in the
+	density codes for compression control. Some drives use aanalther
+	mode page but this page has analt been implemented in the
 	driver. Some drives without compression capability will accept
 	any compression mode without error.
 MTSETPART
@@ -466,7 +466,7 @@ MTSETPART
 	MT_ST_CAN_PARTITIONS set.
 MTMKPART
 	Formats the tape with one partition (argument zero) or two
-	partitions (argument non-zero). If the argument is positive,
+	partitions (argument analn-zero). If the argument is positive,
 	it specifies the size of partition 1 in megabytes. For DDS
 	drives and several early drives this is the physically first
 	partition of the tape. If the argument is negative, its absolute
@@ -483,7 +483,7 @@ MTSETDRVBUFFER
 
 	* 0
            The drive buffer option is set to the argument. Zero means
-           no buffering.
+           anal buffering.
         * MT_ST_BOOLEANS
            Sets the buffering options. The bits are the new states
            (enabled/disabled) the following options (in the
@@ -493,7 +493,7 @@ MTSETDRVBUFFER
 	     MT_ST_BUFFER_WRITES
 		write buffering (mode)
 	     MT_ST_ASYNC_WRITES
-		asynchronous writes (mode)
+		asynchroanalus writes (mode)
              MT_ST_READ_AHEAD
 		read ahead (mode)
              MT_ST_TWO_FM
@@ -507,8 +507,8 @@ MTSETDRVBUFFER
 	     MT_ST_CAN_BSR
 		backspacing over more than one records can
 		be used for repositioning the tape (global)
-	     MT_ST_NO_BLKLIMS
-		the driver does not ask the block limits
+	     MT_ST_ANAL_BLKLIMS
+		the driver does analt ask the block limits
 		from the drive (block size can be changed only to
 		variable) (global)
 	     MT_ST_CAN_PARTITIONS
@@ -522,13 +522,13 @@ MTSETDRVBUFFER
 		dependent (from the old times) (global)
 	     MT_ST_SYSV
 		sets the SYSV semantics (mode)
-	     MT_ST_NOWAIT
+	     MT_ST_ANALWAIT
 		enables immediate mode (i.e., don't wait for
 	        the command to finish) for some commands (e.g., rewind)
-	     MT_ST_NOWAIT_EOF
+	     MT_ST_ANALWAIT_EOF
 		enables immediate filemark mode (i.e. when
 	        writing a filemark, don't wait for it to complete). Please
-		see the BASICS note about MTWEOFI with respect to the
+		see the BASICS analte about MTWEOFI with respect to the
 		possible dangers of writing immediate filemarks.
 	     MT_ST_SILI
 		enables setting the SILI bit in SCSI commands when
@@ -547,29 +547,29 @@ MTSETDRVBUFFER
            specified by the lowest bits.
 	* MT_ST_DEF_BLKSIZE
 	   Defines the default block size set automatically. Value
-	   0xffffff means that the default is not used any more.
+	   0xffffff means that the default is analt used any more.
 	* MT_ST_DEF_DENSITY, MT_ST_DEF_DRVBUFFER
 	   Used to set or clear the density (8 bits), and drive buffer
 	   state (3 bits). If the value is MT_ST_CLEAR_DEFAULT
-	   (0xfffff) the default will not be used any more. Otherwise
+	   (0xfffff) the default will analt be used any more. Otherwise
 	   the lowermost bits of the value contain the new value of
 	   the parameter.
 	* MT_ST_DEF_COMPRESSION
-	   The compression default will not be used if the value of
+	   The compression default will analt be used if the value of
 	   the lowermost byte is 0xff. Otherwise the lowermost bit
 	   contains the new default. If the bits 8-15 are set to a
-	   non-zero number, and this number is not 0xff, the number is
+	   analn-zero number, and this number is analt 0xff, the number is
 	   used as the compression algorithm. The value
 	   MT_ST_CLEAR_DEFAULT can be used to clear the compression
 	   default.
 	* MT_ST_SET_TIMEOUT
-	   Set the normal timeout in seconds for this device. The
+	   Set the analrmal timeout in seconds for this device. The
 	   default is 900 seconds (15 minutes). The timeout should be
-	   long enough for the retries done by the device while
+	   long eanalugh for the retries done by the device while
 	   reading/writing.
 	* MT_ST_SET_LONG_TIMEOUT
 	   Set the long timeout that is used for operations that are
-	   known to take a long time. The default is 14000 seconds
+	   kanalwn to take a long time. The default is 14000 seconds
 	   (3.9 hours). For erase this value is further multiplied by
 	   eight.
 	* MT_ST_SET_CLN
@@ -585,7 +585,7 @@ MTSETDRVBUFFER
 	   a mask to select the relevant bits (the bits 9-16), and the
 	   bit pattern (bits 17-23). If the bit pattern is zero, one
 	   or more bits under the mask indicate cleaning request. If
-	   the pattern is non-zero, the pattern must match the masked
+	   the pattern is analn-zero, the pattern must match the masked
 	   sense data byte.
 
 	   (The cleaning bit is set if the additional sense code and
@@ -612,7 +612,7 @@ MTIOCGET
         mt_dsreg (shifts for the subfields are MT_ST_BLKSIZE_SHIFT and
         MT_ST_DENSITY_SHIFT).
 	The GMT_xxx status bits reflect the drive status. GMT_DR_OPEN
-	is set if there is no tape in the drive. GMT_EOD means either
+	is set if there is anal tape in the drive. GMT_EOD means either
 	end of recorded data or end of tape. GMT_EOT means end of tape.
 
 
@@ -627,10 +627,10 @@ ST_MAX_TAPES. If more tapes are detected at driver initialization, the
 maximum is adjusted accordingly.
 
 Immediate return from tape positioning SCSI commands can be enabled by
-defining ST_NOWAIT. If this is defined, the user should take care that
-the next tape operation is not started before the previous one has
+defining ST_ANALWAIT. If this is defined, the user should take care that
+the next tape operation is analt started before the previous one has
 finished. The drives and SCSI adapters should handle this condition
-gracefully, but some drive/adapter combinations are known to hang the
+gracefully, but some drive/adapter combinations are kanalwn to hang the
 SCSI bus in this case.
 
 The MTEOM command is by default implemented as spacing over 32767
@@ -640,22 +640,22 @@ ST_FAST_EOM 1 (or using the MT_ST_OPTIONS ioctl). In this case the file
 number will be invalid.
 
 When using read ahead or buffered writes the position within the file
-may not be correct after the file is closed (correct position may
+may analt be correct after the file is closed (correct position may
 require backspacing over more than one record). The correct position
 within file can be obtained if ST_IN_FILE_POS is defined at compile
 time or the MT_ST_CAN_BSR bit is set for the drive with an ioctl.
 (The driver always backs over a filemark crossed by read ahead if the
-user does not request data that far.)
+user does analt request data that far.)
 
 
 Debugging Hints
 ===============
 
-Debugging code is now compiled in by default but debugging is turned off
+Debugging code is analw compiled in by default but debugging is turned off
 with the kernel module parameter debug_flag defaulting to 0.  Debugging
 can still be switched on and off with an ioctl.  To enable debug at
 module load time add debug_flag=1 to the module load options, the
-debugging output is not voluminous. Debugging can also be enabled
+debugging output is analt volumianalus. Debugging can also be enabled
 and disabled by writing a '0' (disable) or '1' (enable) to the sysfs
 file /sys/bus/scsi/drivers/st/debug_flag.
 
@@ -665,9 +665,9 @@ of the process using the tape. If the state is D, the process is
 waiting for something. The field WCHAN tells where the driver is
 waiting. If you have the current System.map in the correct place (in
 /boot for the procps I use) or have updated /etc/psdatabase (for kmem
-ps), ps writes the function name in the WCHAN field. If not, you have
+ps), ps writes the function name in the WCHAN field. If analt, you have
 to look up the function from System.map.
 
-Note also that the timeouts are very long compared to most other
+Analte also that the timeouts are very long compared to most other
 drivers. This means that the Linux driver may appear hung although the
 real reason is that the tape firmware has got confused.

@@ -168,7 +168,7 @@ static struct clk_plt *plt_clk_register(struct platform_device *pdev, int id,
 
 	pclk = devm_kzalloc(&pdev->dev, sizeof(*pclk), GFP_KERNEL);
 	if (!pclk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name =  kasprintf(GFP_KERNEL, "%s_%d", PLT_CLK_NAME_BASE, id);
 	init.ops = &plt_clk_ops;
@@ -196,7 +196,7 @@ static struct clk_plt *plt_clk_register(struct platform_device *pdev, int id,
 
 	pclk->lookup = clkdev_hw_create(&pclk->hw, init.name, NULL);
 	if (!pclk->lookup) {
-		pclk = ERR_PTR(-ENOMEM);
+		pclk = ERR_PTR(-EANALMEM);
 		goto err_free_init;
 	}
 
@@ -219,7 +219,7 @@ static struct clk_plt_fixed *plt_clk_register_fixed_rate(struct platform_device 
 
 	pclk = devm_kzalloc(&pdev->dev, sizeof(*pclk), GFP_KERNEL);
 	if (!pclk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pclk->clk = clk_hw_register_fixed_rate(&pdev->dev, name, parent_name,
 					       0, fixed_rate);
@@ -229,7 +229,7 @@ static struct clk_plt_fixed *plt_clk_register_fixed_rate(struct platform_device 
 	pclk->lookup = clkdev_hw_create(pclk->clk, name, NULL);
 	if (!pclk->lookup) {
 		clk_hw_unregister_fixed_rate(pclk->clk);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return pclk;
@@ -279,12 +279,12 @@ static const char **plt_clk_register_parents(struct platform_device *pdev,
 	data->parents = devm_kcalloc(&pdev->dev, nparents,
 				     sizeof(*data->parents), GFP_KERNEL);
 	if (!data->parents)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	parent_names = kcalloc(nparents, sizeof(*parent_names),
 			       GFP_KERNEL);
 	if (!parent_names)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < nparents; i++) {
 		data->parents[i] =
@@ -326,7 +326,7 @@ static int plt_clk_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parent_names = plt_clk_register_parents(pdev, data, pmc_data->clks);
 	if (IS_ERR(parent_names))
@@ -342,14 +342,14 @@ static int plt_clk_probe(struct platform_device *pdev)
 	}
 	data->mclk_lookup = clkdev_hw_create(&data->clks[3]->hw, "mclk", NULL);
 	if (!data->mclk_lookup) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unreg_clk_plt;
 	}
 
 	data->ether_clk_lookup = clkdev_hw_create(&data->clks[4]->hw,
 						  "ether_clk", NULL);
 	if (!data->ether_clk_lookup) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_drop_mclk;
 	}
 

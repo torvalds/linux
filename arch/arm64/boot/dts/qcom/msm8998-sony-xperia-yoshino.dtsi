@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2021, AngeloGioacchino Del Regno
- *                     <angelogioacchino.delregno@somainline.org>
+ * Copyright (c) 2021, AngeloGioacchianal Del Reganal
+ *                     <angelogioacchianal.delreganal@somainline.org>
  * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
  */
 
@@ -149,28 +149,28 @@
 
 		hyp_mem: memory@85800000 {
 			reg = <0x0 0x85800000 0x0 0x3700000>;
-			no-map;
+			anal-map;
 		};
 
 		cont_splash_mem: memory@9d400000 {
 			reg = <0x0 0x9d400000 0x0 0x2400000>;
-			no-map;
+			anal-map;
 		};
 
 		zap_shader_region: memory@f6400000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0xf6400000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_region: memory@fe000000 {
 			reg = <0x0 0xfe000000 0x0 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		qseecom_region: memory@fe800000 {
 			reg = <0x0 0xfe800000 0x0 0x1400000>;
-			no-map;
+			anal-map;
 		};
 
 		ramoops@ffc00000 {
@@ -214,7 +214,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x01>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f11@11 {
@@ -339,26 +339,26 @@
 
 	vol_down_n: vol-down-n-state {
 		pins = "gpio5";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		bias-pull-up;
 		input-enable;
-		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 	};
 
 	focus_n: focus-n-state {
 		pins = "gpio7";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		bias-pull-up;
 		input-enable;
-		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 	};
 
 	snapshot_n: snapshot-n-state {
 		pins = "gpio8";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		bias-pull-up;
 		input-enable;
-		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 	};
 
 	div_clk1: div-clk1-state {
@@ -386,7 +386,7 @@
 
 	main_cam_pwr_io_en: main-cam-pwr-io-en-state {
 		pins = "gpio1";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		bias-disable;
 		drive-push-pull;
 		output-low;
@@ -396,11 +396,11 @@
 
 	vib_ldo_en: vib-ldo-en-state {
 		pins = "gpio5";
-		function = PMIC_GPIO_FUNC_NORMAL;
+		function = PMIC_GPIO_FUNC_ANALRMAL;
 		bias-disable;
 		drive-push-pull;
 		output-low;
-		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_ANAL>;
 		power-source = <0>;
 	};
 };

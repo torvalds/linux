@@ -9,7 +9,7 @@
 
 #include <asm/io.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -197,7 +197,7 @@ static int l4_calibrate(struct gameport *gameport, int *axes, int *max)
 	return 0;
 }
 
-static int __init l4_create_ports(int card_no)
+static int __init l4_create_ports(int card_anal)
 {
 	struct l4 *l4;
 	struct gameport *port;
@@ -205,7 +205,7 @@ static int __init l4_create_ports(int card_no)
 
 	for (i = 0; i < 4; i++) {
 
-		idx = card_no * 4 + i;
+		idx = card_anal * 4 + i;
 		l4 = &l4_ports[idx];
 
 		if (!(l4->gameport = port = gameport_allocate_port())) {
@@ -214,7 +214,7 @@ static int __init l4_create_ports(int card_no)
 				gameport_free_port(l4->gameport);
 				l4->gameport = NULL;
 			}
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		l4->port = idx;
 
@@ -233,14 +233,14 @@ static int __init l4_create_ports(int card_no)
 	return 0;
 }
 
-static int __init l4_add_card(int card_no)
+static int __init l4_add_card(int card_anal)
 {
 	int cal[4] = { 255, 255, 255, 255 };
 	int i, rev, result;
 	struct l4 *l4;
 
 	outb(L4_SELECT_ANALOG, L4_PORT);
-	outb(L4_SELECT_DIGITAL + card_no, L4_PORT);
+	outb(L4_SELECT_DIGITAL + card_anal, L4_PORT);
 
 	if (inb(L4_PORT) & L4_BUSY)
 		return -1;
@@ -249,7 +249,7 @@ static int __init l4_add_card(int card_no)
 	if (l4_wait_ready())
 		return -1;
 
-	if (inb(L4_PORT) != L4_SELECT_DIGITAL + card_no)
+	if (inb(L4_PORT) != L4_SELECT_DIGITAL + card_anal)
 		return -1;
 
 	if (l4_wait_ready())
@@ -264,15 +264,15 @@ static int __init l4_add_card(int card_no)
 	if (!rev)
 		return -1;
 
-	result = l4_create_ports(card_no);
+	result = l4_create_ports(card_anal);
 	if (result)
 		return result;
 
 	printk(KERN_INFO "gameport: PDPI Lightning 4 %s card v%d.%d at %#x\n",
-		card_no ? "secondary" : "primary", rev >> 4, rev, L4_PORT);
+		card_anal ? "secondary" : "primary", rev >> 4, rev, L4_PORT);
 
 	for (i = 0; i < 4; i++) {
-		l4 = &l4_ports[card_no * 4 + i];
+		l4 = &l4_ports[card_anal * 4 + i];
 
 		if (rev > 0x28)		/* on 2.9+ the setcal command works correctly */
 			l4_setcal(l4->port, cal);
@@ -297,7 +297,7 @@ static int __init l4_init(void)
 
 	if (!cards) {
 		release_region(L4_PORT, 1);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;

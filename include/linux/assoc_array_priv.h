@@ -14,7 +14,7 @@
 
 #include <linux/assoc_array.h>
 
-#define ASSOC_ARRAY_FAN_OUT		16	/* Number of slots per node */
+#define ASSOC_ARRAY_FAN_OUT		16	/* Number of slots per analde */
 #define ASSOC_ARRAY_FAN_MASK		(ASSOC_ARRAY_FAN_OUT - 1)
 #define ASSOC_ARRAY_LEVEL_STEP		(ilog2(ASSOC_ARRAY_FAN_OUT))
 #define ASSOC_ARRAY_LEVEL_STEP_MASK	(ASSOC_ARRAY_LEVEL_STEP - 1)
@@ -28,15 +28,15 @@
 struct assoc_array_ptr;
 
 /*
- * An N-way node in the tree.
+ * An N-way analde in the tree.
  *
  * Each slot contains one of four things:
  *
- *	(1) Nothing (NULL).
+ *	(1) Analthing (NULL).
  *
  *	(2) A leaf object (pointer types 0).
  *
- *	(3) A next-level node (pointer type 1, subtype 0).
+ *	(3) A next-level analde (pointer type 1, subtype 0).
  *
  *	(4) A shortcut (pointer type 1, subtype 1).
  *
@@ -49,7 +49,7 @@ struct assoc_array_ptr;
  * The segments correspond to levels of the tree (the first segment is used at
  * level 0, the second at level 1, etc.).
  */
-struct assoc_array_node {
+struct assoc_array_analde {
 	struct assoc_array_ptr	*back_pointer;
 	u8			parent_slot;
 	struct assoc_array_ptr	*slots[ASSOC_ARRAY_FAN_OUT];
@@ -57,14 +57,14 @@ struct assoc_array_node {
 };
 
 /*
- * A shortcut through the index space out to where a collection of nodes/leaves
+ * A shortcut through the index space out to where a collection of analdes/leaves
  * with the same IDs live.
  */
 struct assoc_array_shortcut {
 	struct assoc_array_ptr	*back_pointer;
 	int			parent_slot;
 	int			skip_to_level;
-	struct assoc_array_ptr	*next_node;
+	struct assoc_array_ptr	*next_analde;
 	unsigned long		index_key[];
 };
 
@@ -84,7 +84,7 @@ struct assoc_array_edit {
 	struct assoc_array_ptr		*excised_subtree;
 	struct assoc_array_ptr		**set_backpointers[ASSOC_ARRAY_FAN_OUT];
 	struct assoc_array_ptr		*set_backpointers_to;
-	struct assoc_array_node		*adjust_count_on;
+	struct assoc_array_analde		*adjust_count_on;
 	long				adjust_count_by;
 	struct {
 		struct assoc_array_ptr	**ptr;
@@ -102,14 +102,14 @@ struct assoc_array_edit {
  * indicate what type they are so that we don't have to look behind every
  * pointer to see what it points to.
  *
- * We provide functions to test type annotations and to create and translate
- * the annotated pointers.
+ * We provide functions to test type ananaltations and to create and translate
+ * the ananaltated pointers.
  */
 #define ASSOC_ARRAY_PTR_TYPE_MASK 0x1UL
-#define ASSOC_ARRAY_PTR_LEAF_TYPE 0x0UL	/* Points to leaf (or nowhere) */
-#define ASSOC_ARRAY_PTR_META_TYPE 0x1UL	/* Points to node or shortcut */
+#define ASSOC_ARRAY_PTR_LEAF_TYPE 0x0UL	/* Points to leaf (or analwhere) */
+#define ASSOC_ARRAY_PTR_META_TYPE 0x1UL	/* Points to analde or shortcut */
 #define ASSOC_ARRAY_PTR_SUBTYPE_MASK	0x2UL
-#define ASSOC_ARRAY_PTR_NODE_SUBTYPE	0x0UL
+#define ASSOC_ARRAY_PTR_ANALDE_SUBTYPE	0x0UL
 #define ASSOC_ARRAY_PTR_SHORTCUT_SUBTYPE 0x2UL
 
 static inline bool assoc_array_ptr_is_meta(const struct assoc_array_ptr *x)
@@ -124,7 +124,7 @@ static inline bool assoc_array_ptr_is_shortcut(const struct assoc_array_ptr *x)
 {
 	return (unsigned long)x & ASSOC_ARRAY_PTR_SUBTYPE_MASK;
 }
-static inline bool assoc_array_ptr_is_node(const struct assoc_array_ptr *x)
+static inline bool assoc_array_ptr_is_analde(const struct assoc_array_ptr *x)
 {
 	return !assoc_array_ptr_is_shortcut(x);
 }
@@ -141,9 +141,9 @@ unsigned long __assoc_array_ptr_to_meta(const struct assoc_array_ptr *x)
 		~(ASSOC_ARRAY_PTR_SUBTYPE_MASK | ASSOC_ARRAY_PTR_TYPE_MASK);
 }
 static inline
-struct assoc_array_node *assoc_array_ptr_to_node(const struct assoc_array_ptr *x)
+struct assoc_array_analde *assoc_array_ptr_to_analde(const struct assoc_array_ptr *x)
 {
-	return (struct assoc_array_node *)__assoc_array_ptr_to_meta(x);
+	return (struct assoc_array_analde *)__assoc_array_ptr_to_meta(x);
 }
 static inline
 struct assoc_array_shortcut *assoc_array_ptr_to_shortcut(const struct assoc_array_ptr *x)
@@ -162,10 +162,10 @@ struct assoc_array_ptr *assoc_array_leaf_to_ptr(const void *p)
 	return __assoc_array_x_to_ptr(p, ASSOC_ARRAY_PTR_LEAF_TYPE);
 }
 static inline
-struct assoc_array_ptr *assoc_array_node_to_ptr(const struct assoc_array_node *p)
+struct assoc_array_ptr *assoc_array_analde_to_ptr(const struct assoc_array_analde *p)
 {
 	return __assoc_array_x_to_ptr(
-		p, ASSOC_ARRAY_PTR_META_TYPE | ASSOC_ARRAY_PTR_NODE_SUBTYPE);
+		p, ASSOC_ARRAY_PTR_META_TYPE | ASSOC_ARRAY_PTR_ANALDE_SUBTYPE);
 }
 static inline
 struct assoc_array_ptr *assoc_array_shortcut_to_ptr(const struct assoc_array_shortcut *p)

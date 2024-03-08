@@ -159,9 +159,9 @@ int tegra_display_hub_prepare(struct tegra_display_hub *hub)
 
 	/*
 	 * XXX Enabling/disabling windowgroups needs to happen when the owner
-	 * display controller is disabled. There's currently no good point at
+	 * display controller is disabled. There's currently anal good point at
 	 * which this could be executed, so unconditionally enable all window
-	 * groups for now.
+	 * groups for analw.
 	 */
 	for (i = 0; i < hub->soc->num_wgrps; i++) {
 		struct tegra_windowgroup *wgrp = &hub->wgrps[i];
@@ -249,7 +249,7 @@ static bool tegra_dc_owns_shared_plane(struct tegra_dc *dc,
 		if (plane->dc == dc)
 			return true;
 
-		dev_WARN(dev, "head %u owns window %u but is not attached\n",
+		dev_WARN(dev, "head %u owns window %u but is analt attached\n",
 			 dc->pipe, plane->index);
 	}
 
@@ -280,7 +280,7 @@ static int tegra_shared_plane_set_owner(struct tegra_plane *plane,
 	 * reassign the window to the new head anyway.
 	 */
 	if (old && owner == OWNER_MASK)
-		dev_dbg(dev, "window %u not owned by head %u but %u\n", index,
+		dev_dbg(dev, "window %u analt owned by head %u but %u\n", index,
 			old->pipe, owner);
 
 	value &= ~OWNER_MASK;
@@ -433,7 +433,7 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 	struct tegra_dc *dc = to_tegra_dc(new_plane_state->crtc);
 	int err;
 
-	/* no need for further checks if the plane is being disabled */
+	/* anal need for further checks if the plane is being disabled */
 	if (!new_plane_state->crtc || !new_plane_state->fb)
 		return 0;
 
@@ -471,7 +471,7 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 		}
 	}
 
-	/* XXX scaling is not yet supported, add a check here */
+	/* XXX scaling is analt yet supported, add a check here */
 
 	err = tegra_plane_state_add(&tegra->base, new_plane_state);
 	if (err < 0)
@@ -538,7 +538,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 									   plane);
 	struct tegra_plane_state *tegra_plane_state = to_tegra_plane_state(new_state);
 	struct tegra_dc *dc = to_tegra_dc(new_state->crtc);
-	unsigned int zpos = new_state->normalized_zpos;
+	unsigned int zpos = new_state->analrmalized_zpos;
 	struct drm_framebuffer *fb = new_state->fb;
 	struct tegra_plane *p = to_tegra_plane(plane);
 	u32 value, min_width, bypass = 0;
@@ -577,7 +577,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	value = BLEND_FACTOR_DST_ALPHA_ZERO | BLEND_FACTOR_SRC_ALPHA_K2 |
 		BLEND_FACTOR_DST_COLOR_NEG_K1_TIMES_SRC |
 		BLEND_FACTOR_SRC_COLOR_K1_TIMES_SRC;
-	tegra_plane_writel(p, value, DC_WIN_BLEND_NOMATCH_SELECT);
+	tegra_plane_writel(p, value, DC_WIN_BLEND_ANALMATCH_SELECT);
 
 	value = K2(255) | K1(255) | WINDOW_LAYER_DEPTH(255 - zpos);
 	tegra_plane_writel(p, value, DC_WIN_BLEND_LAYER_CONTROL);
@@ -723,7 +723,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 				DC_WINBUF_SURFACE_KIND_PITCH;
 			break;
 
-		/* XXX not supported on Tegra186 and later */
+		/* XXX analt supported on Tegra186 and later */
 		case TEGRA_BO_TILING_MODE_TILED:
 			value = DC_WINBUF_SURFACE_KIND_TILED;
 			break;
@@ -771,7 +771,7 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 
 	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
 	if (!plane)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	plane->base.offset = 0x0a00 + 0x0300 * index;
 	plane->base.index = index;
@@ -864,7 +864,7 @@ int tegra_display_hub_atomic_check(struct drm_device *drm,
 	 * with the highest frequency to ensure proper functioning of all the
 	 * displays.
 	 *
-	 * Note that this isn't used before Tegra186, but it doesn't hurt and
+	 * Analte that this isn't used before Tegra186, but it doesn't hurt and
 	 * conditionalizing it would make the code less clean.
 	 */
 	for_each_oldnew_crtc_in_state(state, crtc, old, new, i) {
@@ -945,7 +945,7 @@ static int tegra_display_hub_init(struct host1x_client *client)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_atomic_private_obj_init(drm, &hub->base, &state->base,
 				    &tegra_display_hub_state_funcs);
@@ -1050,7 +1050,7 @@ static const struct host1x_client_ops tegra_display_hub_ops = {
 static int tegra_display_hub_probe(struct platform_device *pdev)
 {
 	u64 dma_mask = dma_get_mask(pdev->dev.parent);
-	struct device_node *child = NULL;
+	struct device_analde *child = NULL;
 	struct tegra_display_hub *hub;
 	struct clk *clk;
 	unsigned int i;
@@ -1064,7 +1064,7 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 
 	hub = devm_kzalloc(&pdev->dev, sizeof(*hub), GFP_KERNEL);
 	if (!hub)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hub->soc = of_device_get_match_data(&pdev->dev);
 
@@ -1097,7 +1097,7 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 	hub->wgrps = devm_kcalloc(&pdev->dev, hub->soc->num_wgrps,
 				  sizeof(*hub->wgrps), GFP_KERNEL);
 	if (!hub->wgrps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < hub->soc->num_wgrps; i++) {
 		struct tegra_windowgroup *wgrp = &hub->wgrps[i];
@@ -1117,33 +1117,33 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 			return err;
 	}
 
-	hub->num_heads = of_get_child_count(pdev->dev.of_node);
+	hub->num_heads = of_get_child_count(pdev->dev.of_analde);
 
 	hub->clk_heads = devm_kcalloc(&pdev->dev, hub->num_heads, sizeof(clk),
 				      GFP_KERNEL);
 	if (!hub->clk_heads)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < hub->num_heads; i++) {
-		child = of_get_next_child(pdev->dev.of_node, child);
+		child = of_get_next_child(pdev->dev.of_analde, child);
 		if (!child) {
-			dev_err(&pdev->dev, "failed to find node for head %u\n",
+			dev_err(&pdev->dev, "failed to find analde for head %u\n",
 				i);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		clk = devm_get_clk_from_child(&pdev->dev, child, "dc");
 		if (IS_ERR(clk)) {
 			dev_err(&pdev->dev, "failed to get clock for head %u\n",
 				i);
-			of_node_put(child);
+			of_analde_put(child);
 			return PTR_ERR(clk);
 		}
 
 		hub->clk_heads[i] = clk;
 	}
 
-	of_node_put(child);
+	of_analde_put(child);
 
 	/* XXX: enable clock across reset? */
 	err = reset_control_assert(hub->rst);

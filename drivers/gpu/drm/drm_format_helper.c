@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 or MIT
 /*
- * Copyright (C) 2016 Noralf Trønnes
+ * Copyright (C) 2016 Analralf Trønnes
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
  * @state: The state to initialize
  *
  * Clears all fields in struct drm_format_conv_state. The state will
- * be empty with no preallocated resources.
+ * be empty with anal preallocated resources.
  */
 void drm_format_conv_state_init(struct drm_format_conv_state *state)
 {
@@ -154,7 +154,7 @@ static int __drm_fb_xfrm(void *dst, unsigned long dst_pitch, unsigned long dst_p
 	if (!vaddr_cached_hint) {
 		stmp = drm_format_conv_state_reserve(state, sbuf_len, GFP_KERNEL);
 		if (!stmp)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (!dst_pitch)
@@ -198,7 +198,7 @@ static int __drm_fb_xfrm_toio(void __iomem *dst, unsigned long dst_pitch, unsign
 		stmp = dbuf + stmp_off;
 	}
 	if (!dbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!dst_pitch)
 		dst_pitch = linepixels * dst_pixsize;
@@ -254,12 +254,12 @@ static int drm_fb_xfrm(struct iosys_map *dst,
  * @clip: Clip rectangle area to copy
  *
  * This function copies parts of a framebuffer to display memory. Destination and
- * framebuffer formats must match. No conversion takes place. The parameters @dst,
+ * framebuffer formats must match. Anal conversion takes place. The parameters @dst,
  * @dst_pitch and @src refer to arrays. Each array must have at least as many entries
  * as there are planes in @fb's format. Each entry stores the value for the format's
  * respective color plane at the same index.
  *
- * This function does not apply clipping on @dst (i.e. the destination is at the
+ * This function does analt apply clipping on @dst (i.e. the destination is at the
  * top-left corner).
  */
 void drm_fb_memcpy(struct iosys_map *dst, const unsigned int *dst_pitch,
@@ -326,7 +326,7 @@ static void drm_fb_swab32_line(void *dbuf, const void *sbuf, unsigned int pixels
  * @src: Array of source buffers
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
- * @cached: Source buffer is mapped cached (eg. not write-combined)
+ * @cached: Source buffer is mapped cached (eg. analt write-combined)
  * @state: Transform and conversion state
  *
  * This function copies parts of a framebuffer to display memory and swaps per-pixel
@@ -337,7 +337,7 @@ static void drm_fb_swab32_line(void *dbuf, const void *sbuf, unsigned int pixels
  * false a temporary buffer is used to cache one pixel line at a time to speed up
  * slow uncached reads.
  *
- * This function does not apply clipping on @dst (i.e. the destination is at the
+ * This function does analt apply clipping on @dst (i.e. the destination is at the
  * top-left corner).
  */
 void drm_fb_swab(struct iosys_map *dst, const unsigned int *dst_pitch,
@@ -397,7 +397,7 @@ static void drm_fb_xrgb8888_to_rgb332_line(void *dbuf, const void *sbuf, unsigne
  * least as many entries as there are planes in @fb's format. Each entry stores the
  * value for the format's respective color plane at the same index.
  *
- * This function does not apply clipping on @dst (i.e. the destination is at the
+ * This function does analt apply clipping on @dst (i.e. the destination is at the
  * top-left corner).
  *
  * Drivers can use this function for RGB332 devices that don't support XRGB8888 natively.
@@ -468,7 +468,7 @@ static void drm_fb_xrgb8888_to_rgb565_swab_line(void *dbuf, const void *sbuf,
  * least as many entries as there are planes in @fb's format. Each entry stores the
  * value for the format's respective color plane at the same index.
  *
- * This function does not apply clipping on @dst (i.e. the destination is at the
+ * This function does analt apply clipping on @dst (i.e. the destination is at the
  * top-left corner).
  *
  * Drivers can use this function for RGB565 devices that don't support XRGB8888 natively.
@@ -526,7 +526,7 @@ static void drm_fb_xrgb8888_to_xrgb1555_line(void *dbuf, const void *sbuf, unsig
  * there are planes in @fb's format. Each entry stores the value for the
  * format's respective color plane at the same index.
  *
- * This function does not apply clipping on @dst (i.e. the destination is at the
+ * This function does analt apply clipping on @dst (i.e. the destination is at the
  * top-left corner).
  *
  * Drivers can use this function for XRGB1555 devices that don't support
@@ -579,7 +579,7 @@ static void drm_fb_xrgb8888_to_argb1555_line(void *dbuf, const void *sbuf, unsig
  * there are planes in @fb's format. Each entry stores the value for the
  * format's respective color plane at the same index.
  *
- * This function does not apply clipping on @dst (i.e. the destination is at the
+ * This function does analt apply clipping on @dst (i.e. the destination is at the
  * top-left corner).
  *
  * Drivers can use this function for ARGB1555 devices that don't support
@@ -632,7 +632,7 @@ static void drm_fb_xrgb8888_to_rgba5551_line(void *dbuf, const void *sbuf, unsig
  * there are planes in @fb's format. Each entry stores the value for the
  * format's respective color plane at the same index.
  *
- * This function does not apply clipping on @dst (i.e. the destination is at the
+ * This function does analt apply clipping on @dst (i.e. the destination is at the
  * top-left corner).
  *
  * Drivers can use this function for RGBA5551 devices that don't support
@@ -683,7 +683,7 @@ static void drm_fb_xrgb8888_to_rgb888_line(void *dbuf, const void *sbuf, unsigne
  * least as many entries as there are planes in @fb's format. Each entry stores the
  * value for the format's respective color plane at the same index.
  *
- * This function does not apply clipping on @dst (i.e. the destination is at the
+ * This function does analt apply clipping on @dst (i.e. the destination is at the
  * top-left corner).
  *
  * Drivers can use this function for RGB888 devices that don't natively
@@ -732,7 +732,7 @@ static void drm_fb_xrgb8888_to_argb8888_line(void *dbuf, const void *sbuf, unsig
  * @fb's format. Each entry stores the value for the format's respective color plane
  * at the same index.
  *
- * This function does not apply clipping on @dst (i.e. the destination is at the
+ * This function does analt apply clipping on @dst (i.e. the destination is at the
  * top-left corner).
  *
  * Drivers can use this function for ARGB8888 devices that don't support XRGB8888
@@ -847,7 +847,7 @@ static void drm_fb_xrgb8888_to_xrgb2101010_line(void *dbuf, const void *sbuf, un
  * least as many entries as there are planes in @fb's format. Each entry stores the
  * value for the format's respective color plane at the same index.
  *
- * This function does not apply clipping on @dst (i.e. the destination is at the
+ * This function does analt apply clipping on @dst (i.e. the destination is at the
  * top-left corner).
  *
  * Drivers can use this function for XRGB2101010 devices that don't support XRGB8888
@@ -902,7 +902,7 @@ static void drm_fb_xrgb8888_to_argb2101010_line(void *dbuf, const void *sbuf, un
  * there are planes in @fb's format. Each entry stores the value for the
  * format's respective color plane at the same index.
  *
- * This function does not apply clipping on @dst (i.e. the destination is at the
+ * This function does analt apply clipping on @dst (i.e. the destination is at the
  * top-left corner).
  *
  * Drivers can use this function for ARGB2101010 devices that don't support XRGB8888
@@ -955,13 +955,13 @@ static void drm_fb_xrgb8888_to_gray8_line(void *dbuf, const void *sbuf, unsigned
  * least as many entries as there are planes in @fb's format. Each entry stores the
  * value for the format's respective color plane at the same index.
  *
- * This function does not apply clipping on @dst (i.e. the destination is at the
+ * This function does analt apply clipping on @dst (i.e. the destination is at the
  * top-left corner).
  *
- * DRM doesn't have native monochrome or grayscale support. Drivers can use this
+ * DRM doesn't have native moanalchrome or grayscale support. Drivers can use this
  * function for grayscale devices that don't support XRGB8888 natively.Such
- * drivers can announce the commonly supported XR24 format to userspace and use
- * this function to convert to the native format. Monochrome drivers will use the
+ * drivers can ananalunce the commonly supported XR24 format to userspace and use
+ * this function to convert to the native format. Moanalchrome drivers will use the
  * most significant bit, where 1 means foreground color and 0 background color.
  * ITU BT.601 is being used for the RGB -> luma (brightness) conversion.
  */
@@ -996,7 +996,7 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_gray8);
  * entries as there are planes in @dst_format's format. Each entry stores the
  * value for the format's respective color plane at the same index.
  *
- * This function does not apply clipping on @dst (i.e. the destination is at the
+ * This function does analt apply clipping on @dst (i.e. the destination is at the
  * top-left corner).
  *
  * Returns:
@@ -1056,14 +1056,14 @@ int drm_fb_blit(struct iosys_map *dst, const unsigned int *dst_pitch, uint32_t d
 		}
 	}
 
-	drm_warn_once(fb->dev, "No conversion helper from %p4cc to %p4cc found.\n",
+	drm_warn_once(fb->dev, "Anal conversion helper from %p4cc to %p4cc found.\n",
 		      &fb_format, &dst_format);
 
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_fb_blit);
 
-static void drm_fb_gray8_to_mono_line(void *dbuf, const void *sbuf, unsigned int pixels)
+static void drm_fb_gray8_to_moanal_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
 	u8 *dbuf8 = dbuf;
 	const u8 *sbuf8 = sbuf;
@@ -1081,8 +1081,8 @@ static void drm_fb_gray8_to_mono_line(void *dbuf, const void *sbuf, unsigned int
 }
 
 /**
- * drm_fb_xrgb8888_to_mono - Convert XRGB8888 to monochrome
- * @dst: Array of monochrome destination buffers (0=black, 1=white)
+ * drm_fb_xrgb8888_to_moanal - Convert XRGB8888 to moanalchrome
+ * @dst: Array of moanalchrome destination buffers (0=black, 1=white)
  * @dst_pitch: Array of numbers of bytes between the start of two consecutive scanlines
  *             within @dst; can be NULL if scanlines are stored next to each other.
  * @src: Array of XRGB8888 source buffers
@@ -1096,22 +1096,22 @@ static void drm_fb_gray8_to_mono_line(void *dbuf, const void *sbuf, unsigned int
  * least as many entries as there are planes in @fb's format. Each entry stores the
  * value for the format's respective color plane at the same index.
  *
- * This function does not apply clipping on @dst (i.e. the destination is at the
+ * This function does analt apply clipping on @dst (i.e. the destination is at the
  * top-left corner). The first pixel (upper left corner of the clip rectangle) will
- * be converted and copied to the first bit (LSB) in the first byte of the monochrome
+ * be converted and copied to the first bit (LSB) in the first byte of the moanalchrome
  * destination buffer. If the caller requires that the first pixel in a byte must
  * be located at an x-coordinate that is a multiple of 8, then the caller must take
  * care itself of supplying a suitable clip rectangle.
  *
- * DRM doesn't have native monochrome support. Drivers can use this function for
- * monochrome devices that don't support XRGB8888 natively. Such drivers can
- * announce the commonly supported XR24 format to userspace and use this function
+ * DRM doesn't have native moanalchrome support. Drivers can use this function for
+ * moanalchrome devices that don't support XRGB8888 natively. Such drivers can
+ * ananalunce the commonly supported XR24 format to userspace and use this function
  * to convert to the native format.
  *
  * This function uses drm_fb_xrgb8888_to_gray8() to convert to grayscale and
- * then the result is converted from grayscale to monochrome.
+ * then the result is converted from grayscale to moanalchrome.
  */
-void drm_fb_xrgb8888_to_mono(struct iosys_map *dst, const unsigned int *dst_pitch,
+void drm_fb_xrgb8888_to_moanal(struct iosys_map *dst, const unsigned int *dst_pitch,
 			     const struct iosys_map *src, const struct drm_framebuffer *fb,
 			     const struct drm_rect *clip, struct drm_format_conv_state *state)
 {
@@ -1126,7 +1126,7 @@ void drm_fb_xrgb8888_to_mono(struct iosys_map *dst, const unsigned int *dst_pitc
 	void *vaddr = src[0].vaddr;
 	unsigned int dst_pitch_0;
 	unsigned int y;
-	u8 *mono = dst[0].vaddr, *gray8;
+	u8 *moanal = dst[0].vaddr, *gray8;
 	u32 *src32;
 
 	if (drm_WARN_ON(dev, fb->format->format != DRM_FORMAT_XRGB8888))
@@ -1137,7 +1137,7 @@ void drm_fb_xrgb8888_to_mono(struct iosys_map *dst, const unsigned int *dst_pitc
 	dst_pitch_0 = dst_pitch[0];
 
 	/*
-	 * The mono destination buffer contains 1 bit per pixel
+	 * The moanal destination buffer contains 1 bit per pixel
 	 */
 	if (!dst_pitch_0)
 		dst_pitch_0 = DIV_ROUND_UP(linepixels, 8);
@@ -1146,7 +1146,7 @@ void drm_fb_xrgb8888_to_mono(struct iosys_map *dst, const unsigned int *dst_pitc
 	 * The dma memory is write-combined so reads are uncached.
 	 * Speed up by fetching one line at a time.
 	 *
-	 * Also, format conversion from XR24 to monochrome are done
+	 * Also, format conversion from XR24 to moanalchrome are done
 	 * line-by-line but are converted to 8-bit grayscale as an
 	 * intermediate step.
 	 *
@@ -1163,14 +1163,14 @@ void drm_fb_xrgb8888_to_mono(struct iosys_map *dst, const unsigned int *dst_pitc
 	for (y = 0; y < lines; y++) {
 		src32 = memcpy(src32, vaddr, len_src32);
 		drm_fb_xrgb8888_to_gray8_line(gray8, src32, linepixels);
-		drm_fb_gray8_to_mono_line(mono, gray8, linepixels);
+		drm_fb_gray8_to_moanal_line(moanal, gray8, linepixels);
 		vaddr += fb->pitches[0];
-		mono += dst_pitch_0;
+		moanal += dst_pitch_0;
 	}
 }
-EXPORT_SYMBOL(drm_fb_xrgb8888_to_mono);
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_moanal);
 
-static uint32_t drm_fb_nonalpha_fourcc(uint32_t fourcc)
+static uint32_t drm_fb_analnalpha_fourcc(uint32_t fourcc)
 {
 	/* only handle formats with depth != 0 and alpha channel */
 	switch (fourcc) {
@@ -1247,7 +1247,7 @@ size_t drm_fb_build_fourcc_list(struct drm_device *dev,
 	/*
 	 * XRGB8888 is the default fallback format for most of userspace
 	 * and it's currently the only format that should be emulated for
-	 * the primary plane. Only if there's ever another default fallback,
+	 * the primary plane. Only if there's ever aanalther default fallback,
 	 * it should be added here.
 	 */
 	static const uint32_t extra_fourccs[] = {
@@ -1266,15 +1266,15 @@ size_t drm_fb_build_fourcc_list(struct drm_device *dev,
 	for (i = 0; i < native_nfourccs; ++i) {
 		/*
 		 * Several DTs, boot loaders and firmware report native
-		 * alpha formats that are non-alpha formats instead. So
-		 * replace alpha formats by non-alpha formats.
+		 * alpha formats that are analn-alpha formats instead. So
+		 * replace alpha formats by analn-alpha formats.
 		 */
-		u32 fourcc = drm_fb_nonalpha_fourcc(native_fourccs[i]);
+		u32 fourcc = drm_fb_analnalpha_fourcc(native_fourccs[i]);
 
 		if (is_listed_fourcc(fourccs_out, fourccs - fourccs_out, fourcc)) {
 			continue; /* skip duplicate entries */
 		} else if (fourccs == fourccs_end) {
-			drm_warn(dev, "Ignoring native format %p4cc\n", &fourcc);
+			drm_warn(dev, "Iganalring native format %p4cc\n", &fourcc);
 			continue; /* end of available output buffer */
 		}
 
@@ -1294,7 +1294,7 @@ size_t drm_fb_build_fourcc_list(struct drm_device *dev,
 		if (is_listed_fourcc(fourccs_out, fourccs - fourccs_out, fourcc)) {
 			continue; /* skip duplicate and native entries */
 		} else if (fourccs == fourccs_end) {
-			drm_warn(dev, "Ignoring emulated format %p4cc\n", &fourcc);
+			drm_warn(dev, "Iganalring emulated format %p4cc\n", &fourcc);
 			continue; /* end of available output buffer */
 		}
 

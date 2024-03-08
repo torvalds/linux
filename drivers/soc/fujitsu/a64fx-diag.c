@@ -81,7 +81,7 @@ static int a64fx_diag_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->mmsc_reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->mmsc_reg_base))
@@ -93,15 +93,15 @@ static int a64fx_diag_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	irq_flags = IRQF_PERCPU | IRQF_NOBALANCING | IRQF_NO_AUTOEN |
-		   IRQF_NO_THREAD;
+	irq_flags = IRQF_PERCPU | IRQF_ANALBALANCING | IRQF_ANAL_AUTOEN |
+		   IRQF_ANAL_THREAD;
 	ret = request_nmi(priv->irq, &a64fx_diag_handler_nmi, irq_flags,
 			"a64fx_diag_nmi", NULL);
 	if (ret) {
 		ret = request_irq(priv->irq, &a64fx_diag_handler_irq,
 				irq_flags, "a64fx_diag_irq", NULL);
 		if (ret) {
-			dev_err(dev, "cannot register IRQ %d\n", ret);
+			dev_err(dev, "cananalt register IRQ %d\n", ret);
 			return ret;
 		}
 		enable_irq(priv->irq);

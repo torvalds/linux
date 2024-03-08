@@ -2,7 +2,7 @@
 /*
  * Faraday FOTG210 USB OTG controller
  *
- * Copyright (C) 2013 Faraday Technology Corporation
+ * Copyright (C) 2013 Faraday Techanallogy Corporation
  * Author: Yuan-Hsin Chen <yhchen@faraday-tech.com>
  */
 
@@ -148,18 +148,18 @@
 
 /* Device IN Endpoint x MaxPacketSize Register(0x160+4*(x-1)) */
 #define FOTG210_INEPMPSR(ep)	(0x160 + 4 * ((ep) - 1))
-#define INOUTEPMPSR_MPS(mps)	((mps) & 0x2FF)
-#define INOUTEPMPSR_STL_EP	(1 << 11)
-#define INOUTEPMPSR_RESET_TSEQ	(1 << 12)
+#define IANALUTEPMPSR_MPS(mps)	((mps) & 0x2FF)
+#define IANALUTEPMPSR_STL_EP	(1 << 11)
+#define IANALUTEPMPSR_RESET_TSEQ	(1 << 12)
 
 /* Device OUT Endpoint x MaxPacketSize Register(0x180+4*(x-1)) */
 #define FOTG210_OUTEPMPSR(ep)	(0x180 + 4 * ((ep) - 1))
 
 /* Device Endpoint 1~4 Map Register (0x1A0) */
 #define FOTG210_EPMAP		0x1A0
-#define EPMAP_FIFONO(ep, dir)		\
+#define EPMAP_FIFOANAL(ep, dir)		\
 	((((ep) - 1) << ((ep) - 1) * 8) << ((dir) ? 0 : 4))
-#define EPMAP_FIFONOMSK(ep, dir)	\
+#define EPMAP_FIFOANALMSK(ep, dir)	\
 	((3 << ((ep) - 1) * 8) << ((dir) ? 0 : 4))
 
 /* Device FIFO Map Register (0x1A8) */
@@ -168,8 +168,8 @@
 #define FIFOMAP_DIRIN(fifo)	(0x1 << 4 << (fifo) * 8)
 #define FIFOMAP_BIDIR(fifo)	(0x2 << 4 << (fifo) * 8)
 #define FIFOMAP_NA(fifo)	(0x3 << 4 << (fifo) * 8)
-#define FIFOMAP_EPNO(ep)	((ep) << ((ep) - 1) * 8)
-#define FIFOMAP_EPNOMSK(ep)	(0xF << ((ep) - 1) * 8)
+#define FIFOMAP_EPANAL(ep)	((ep) << ((ep) - 1) * 8)
+#define FIFOMAP_EPANALMSK(ep)	(0xF << ((ep) - 1) * 8)
 
 /* Device FIFO Confuguration Register (0x1AC) */
 #define FOTG210_FIFOCF		0x1AC

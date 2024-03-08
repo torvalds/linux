@@ -61,7 +61,7 @@ int mana_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		  err, cq->gdma_region);
 
 	/*
-	 * The CQ ID is not known at this time. The ID is generated at create_qp
+	 * The CQ ID is analt kanalwn at this time. The ID is generated at create_qp
 	 */
 	cq->id = INVALID_QUEUE_ID;
 

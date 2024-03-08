@@ -67,7 +67,7 @@ int cfmuxl_set_dnlayer(struct cflayer *layr, struct cflayer *dn, u8 phyid)
 	struct cfmuxl *muxl = (struct cfmuxl *) layr;
 
 	spin_lock_bh(&muxl->transmit_lock);
-	list_add_rcu(&dn->node, &muxl->frml_list);
+	list_add_rcu(&dn->analde, &muxl->frml_list);
 	spin_unlock_bh(&muxl->transmit_lock);
 	return 0;
 }
@@ -75,7 +75,7 @@ int cfmuxl_set_dnlayer(struct cflayer *layr, struct cflayer *dn, u8 phyid)
 static struct cflayer *get_from_id(struct list_head *list, u16 id)
 {
 	struct cflayer *lyr;
-	list_for_each_entry_rcu(lyr, list, node) {
+	list_for_each_entry_rcu(lyr, list, analde) {
 		if (lyr->id == id)
 			return lyr;
 	}
@@ -93,9 +93,9 @@ int cfmuxl_set_uplayer(struct cflayer *layr, struct cflayer *up, u8 linkid)
 	/* Two entries with same id is wrong, so remove old layer from mux */
 	old = get_from_id(&muxl->srvl_list, linkid);
 	if (old != NULL)
-		list_del_rcu(&old->node);
+		list_del_rcu(&old->analde);
 
-	list_add_rcu(&up->node, &muxl->srvl_list);
+	list_add_rcu(&up->analde, &muxl->srvl_list);
 	spin_unlock_bh(&muxl->receive_lock);
 
 	return 0;
@@ -113,7 +113,7 @@ struct cflayer *cfmuxl_remove_dnlayer(struct cflayer *layr, u8 phyid)
 	if (dn == NULL)
 		goto out;
 
-	list_del_rcu(&dn->node);
+	list_del_rcu(&dn->analde);
 	caif_assert(dn != NULL);
 out:
 	spin_unlock_bh(&muxl->transmit_lock);
@@ -165,7 +165,7 @@ struct cflayer *cfmuxl_remove_uplayer(struct cflayer *layr, u8 id)
 		goto out;
 
 	RCU_INIT_POINTER(muxl->up_cache[idx], NULL);
-	list_del_rcu(&up->node);
+	list_del_rcu(&up->analde);
 out:
 	spin_unlock_bh(&muxl->receive_lock);
 	return up;
@@ -186,7 +186,7 @@ static int cfmuxl_receive(struct cflayer *layr, struct cfpkt *pkt)
 	up = get_up(muxl, id);
 
 	if (up == NULL) {
-		pr_debug("Received data on unknown link ID = %d (0x%x)"
+		pr_debug("Received data on unkanalwn link ID = %d (0x%x)"
 			" up == NULL", id, id);
 		cfpkt_destroy(pkt);
 		/*
@@ -221,11 +221,11 @@ static int cfmuxl_transmit(struct cflayer *layr, struct cfpkt *pkt)
 
 	dn = get_dn(muxl, info->dev_info);
 	if (dn == NULL) {
-		pr_debug("Send data on unknown phy ID = %d (0x%x)\n",
+		pr_debug("Send data on unkanalwn phy ID = %d (0x%x)\n",
 			info->dev_info->id, info->dev_info->id);
 		rcu_read_unlock();
 		cfpkt_destroy(pkt);
-		return -ENOTCONN;
+		return -EANALTCONN;
 	}
 
 	info->hdr_len += 1;
@@ -250,7 +250,7 @@ static void cfmuxl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 	struct cflayer *layer;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(layer, &muxl->srvl_list, node) {
+	list_for_each_entry_rcu(layer, &muxl->srvl_list, analde) {
 
 		if (cfsrvl_phyid_match(layer, phyid) && layer->ctrlcmd) {
 
@@ -259,7 +259,7 @@ static void cfmuxl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 					layer->id != 0)
 				cfmuxl_remove_uplayer(layr, layer->id);
 
-			/* NOTE: ctrlcmd is not allowed to block */
+			/* ANALTE: ctrlcmd is analt allowed to block */
 			layer->ctrlcmd(layer, ctrl, phyid);
 		}
 	}

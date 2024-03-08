@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2023. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2023. Huawei Techanallogies Co., Ltd */
 #include <vmlinux.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_helpers.h>
@@ -24,7 +24,7 @@ struct {
 
 char _license[] SEC("license") = "GPL";
 
-bool nomem_err = false;
+bool analmem_err = false;
 
 static int del_array(unsigned int i, int *from)
 {
@@ -54,7 +54,7 @@ static int add_array(unsigned int i, int *from)
 
 	new = bpf_obj_new(typeof(*new));
 	if (!new) {
-		nomem_err = true;
+		analmem_err = true;
 		return 1;
 	}
 

@@ -2,7 +2,7 @@
 /*
  *    drivers/mtd/scpart.c: Sercomm Partition Parser
  *
- *    Copyright (C) 2018 NOGUCHI Hiroshi
+ *    Copyright (C) 2018 ANALGUCHI Hiroshi
  *    Copyright (C) 2022 Mikhail Zhilkin
  */
 
@@ -58,7 +58,7 @@ static int scpart_scan_partmap(struct mtd_info *master, loff_t partmap_offs,
 
 	buf = kzalloc(master->erasesize, GFP_KERNEL);
 	if (!buf) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto out;
 	}
 
@@ -82,7 +82,7 @@ static int scpart_scan_partmap(struct mtd_info *master, loff_t partmap_offs,
 
 		pdesc = kcalloc(cnt, sizeof(*pdesc), GFP_KERNEL);
 		if (!pdesc) {
-			res = -ENOMEM;
+			res = -EANALMEM;
 			goto free;
 		}
 		memcpy(pdesc, &(buf[MAP_OFFS_IN_BLK]), bytes);
@@ -130,7 +130,7 @@ out:
 	if (res > 0)
 		pr_info("Valid 'SC PART MAP' (%d partitions) found at 0x%llx\n", res, offs);
 	else
-		pr_info("No valid 'SC PART MAP' was found\n");
+		pr_info("Anal valid 'SC PART MAP' was found\n");
 
 	return res;
 }
@@ -146,39 +146,39 @@ static int scpart_parse(struct mtd_info *master,
 	int res = 0;
 	struct sc_part_desc *scpart_map = NULL;
 	struct mtd_partition *parts = NULL;
-	struct device_node *mtd_node;
-	struct device_node *ofpart_node;
-	struct device_node *pp;
+	struct device_analde *mtd_analde;
+	struct device_analde *ofpart_analde;
+	struct device_analde *pp;
 
-	mtd_node = mtd_get_of_node(master);
-	if (!mtd_node) {
-		res = -ENOENT;
+	mtd_analde = mtd_get_of_analde(master);
+	if (!mtd_analde) {
+		res = -EANALENT;
 		goto out;
 	}
 
-	ofpart_node = of_get_child_by_name(mtd_node, "partitions");
-	if (!ofpart_node) {
-		pr_info("%s: 'partitions' subnode not found on %pOF.\n",
-				master->name, mtd_node);
-		res = -ENOENT;
+	ofpart_analde = of_get_child_by_name(mtd_analde, "partitions");
+	if (!ofpart_analde) {
+		pr_info("%s: 'partitions' subanalde analt found on %pOF.\n",
+				master->name, mtd_analde);
+		res = -EANALENT;
 		goto out;
 	}
 
 	nr_scparts = scpart_find_partmap(master, &scpart_map);
 	if (nr_scparts <= 0) {
-		pr_info("No any partitions was found in 'SC PART MAP'.\n");
-		res = -ENOENT;
+		pr_info("Anal any partitions was found in 'SC PART MAP'.\n");
+		res = -EANALENT;
 		goto free;
 	}
 
-	parts = kcalloc(of_get_child_count(ofpart_node), sizeof(*parts),
+	parts = kcalloc(of_get_child_count(ofpart_analde), sizeof(*parts),
 		GFP_KERNEL);
 	if (!parts) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto free;
 	}
 
-	for_each_child_of_node(ofpart_node, pp) {
+	for_each_child_of_analde(ofpart_analde, pp) {
 		u32 scpart_id;
 
 		if (of_property_read_u32(pp, "sercomm,scpart-id", &scpart_id))
@@ -189,13 +189,13 @@ static int scpart_parse(struct mtd_info *master,
 					(scpart_id == scpart_map[n].part_id))
 				break;
 		if (n >= nr_scparts)
-			/* not match */
+			/* analt match */
 			continue;
 
 		/* add the partition found in OF into MTD partition array */
 		parts[nr_parts].offset = scpart_map[n].part_offs;
 		parts[nr_parts].size = scpart_map[n].part_bytes;
-		parts[nr_parts].of_node = pp;
+		parts[nr_parts].of_analde = pp;
 
 		if (!of_property_read_string(pp, "label", &partname))
 			parts[nr_parts].name = partname;
@@ -214,12 +214,12 @@ static int scpart_parse(struct mtd_info *master,
 		*pparts = parts;
 		res = nr_parts;
 	} else
-		pr_info("No partition in OF matches partition ID with 'SC PART MAP'.\n");
+		pr_info("Anal partition in OF matches partition ID with 'SC PART MAP'.\n");
 
-	of_node_put(pp);
+	of_analde_put(pp);
 
 free:
-	of_node_put(ofpart_node);
+	of_analde_put(ofpart_analde);
 	kfree(scpart_map);
 	if (res <= 0)
 		kfree(parts);
@@ -244,6 +244,6 @@ module_mtd_part_parser(scpart_parser);
 /* mtd parsers will request the module by parser name */
 MODULE_ALIAS("scpart");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("NOGUCHI Hiroshi <drvlabo@gmail.com>");
+MODULE_AUTHOR("ANALGUCHI Hiroshi <drvlabo@gmail.com>");
 MODULE_AUTHOR("Mikhail Zhilkin <csharper2005@gmail.com>");
 MODULE_DESCRIPTION("Sercomm partition parser");

@@ -28,7 +28,7 @@
 #define DBG(fmt...)
 #endif
 
-#ifndef CONFIG_NONSTATIC_KERNEL
+#ifndef CONFIG_ANALNSTATIC_KERNEL
 void __init reserve_kdump_trampoline(void)
 {
 	memblock_reserve(0, KDUMP_RESERVE_LIMIT);
@@ -40,13 +40,13 @@ static void __init create_trampoline(unsigned long addr)
 
 	/* The maximum range of a single instruction branch, is the current
 	 * instruction's address + (32 MB - 4) bytes. For the trampoline we
-	 * need to branch to current address + 32 MB. So we insert a nop at
+	 * need to branch to current address + 32 MB. So we insert a analp at
 	 * the trampoline address, then the next instruction (+ 4 bytes)
 	 * does a branch to (32 MB - 4). The net effect is that when we
 	 * branch to "addr" we jump to ("addr" + 32 MB). Although it requires
 	 * two instructions it doesn't require any registers.
 	 */
-	patch_instruction(p, ppc_inst(PPC_RAW_NOP()));
+	patch_instruction(p, ppc_inst(PPC_RAW_ANALP()));
 	patch_branch(p + 1, addr + PHYSICAL_START, 0);
 }
 
@@ -67,7 +67,7 @@ void __init setup_kdump_trampoline(void)
 
 	DBG(" <- setup_kdump_trampoline()\n");
 }
-#endif /* CONFIG_NONSTATIC_KERNEL */
+#endif /* CONFIG_ANALNSTATIC_KERNEL */
 
 ssize_t copy_oldmem_page(struct iov_iter *iter, unsigned long pfn,
 			size_t csize, unsigned long offset)
@@ -95,7 +95,7 @@ ssize_t copy_oldmem_page(struct iov_iter *iter, unsigned long pfn,
 
 /*
  * Return true only when kexec based kernel dump capturing method is used.
- * This ensures all restritions applied for kdump case are not automatically
+ * This ensures all restritions applied for kdump case are analt automatically
  * applied for fadump case.
  */
 bool is_kdump_kernel(void)

@@ -72,7 +72,7 @@ struct otx_cptvf {
 	u8 num_vfs;	/* Number of enabled VFs */
 	u8 vftype;	/* VF type of SE_TYPE(2) or AE_TYPE(1) */
 	u8 vfgrp;	/* VF group (0 - 8) */
-	u8 node;	/* Operating node: Bits (46:44) in BAR0 address */
+	u8 analde;	/* Operating analde: Bits (46:44) in BAR0 address */
 	u8 priority;	/*
 			 * VF priority ring: 1-High proirity round
 			 * robin ring;0-Low priority round robin ring;

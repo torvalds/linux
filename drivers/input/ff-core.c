@@ -95,11 +95,11 @@ int input_ff_upload(struct input_dev *dev, struct ff_effect *effect,
 	int id;
 
 	if (!test_bit(EV_FF, dev->evbit))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (effect->type < FF_EFFECT_MIN || effect->type > FF_EFFECT_MAX ||
 	    !test_bit(effect->type, dev->ffbit)) {
-		dev_dbg(&dev->dev, "invalid or not supported effect type in upload\n");
+		dev_dbg(&dev->dev, "invalid or analt supported effect type in upload\n");
 		return -EINVAL;
 	}
 
@@ -107,7 +107,7 @@ int input_ff_upload(struct input_dev *dev, struct ff_effect *effect,
 	    (effect->u.periodic.waveform < FF_WAVEFORM_MIN ||
 	     effect->u.periodic.waveform > FF_WAVEFORM_MAX ||
 	     !test_bit(effect->u.periodic.waveform, dev->ffbit))) {
-		dev_dbg(&dev->dev, "invalid or not supported wave form in upload\n");
+		dev_dbg(&dev->dev, "invalid or analt supported wave form in upload\n");
 		return -EINVAL;
 	}
 
@@ -125,7 +125,7 @@ int input_ff_upload(struct input_dev *dev, struct ff_effect *effect,
 				break;
 
 		if (id >= ff->max_effects) {
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 			goto out;
 		}
 
@@ -211,7 +211,7 @@ int input_ff_erase(struct input_dev *dev, int effect_id, struct file *file)
 	int ret;
 
 	if (!test_bit(EV_FF, dev->evbit))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	mutex_lock(&ff->mutex);
 	ret = erase_effect(dev, effect_id, file);
@@ -227,7 +227,7 @@ EXPORT_SYMBOL_GPL(input_ff_erase);
  * @file: purported owner of the effects
  *
  * This function erases all force-feedback effects associated with
- * the given owner from specified device. Note that @file may be %NULL,
+ * the given owner from specified device. Analte that @file may be %NULL,
  * in which case all effects will be erased.
  */
 int input_ff_flush(struct input_dev *dev, struct file *file)
@@ -235,7 +235,7 @@ int input_ff_flush(struct input_dev *dev, struct file *file)
 	struct ff_device *ff = dev->ff;
 	int i;
 
-	dev_dbg(&dev->dev, "flushing now\n");
+	dev_dbg(&dev->dev, "flushing analw\n");
 
 	mutex_lock(&ff->mutex);
 
@@ -251,7 +251,7 @@ EXPORT_SYMBOL_GPL(input_ff_flush);
 /**
  * input_ff_event() - generic handler for force-feedback events
  * @dev: input device to send the effect to
- * @type: event type (anything but EV_FF is ignored)
+ * @type: event type (anything but EV_FF is iganalred)
  * @code: event code
  * @value: event value
  */
@@ -306,12 +306,12 @@ int input_ff_create(struct input_dev *dev, unsigned int max_effects)
 	int i;
 
 	if (!max_effects) {
-		dev_err(&dev->dev, "cannot allocate device without any effects\n");
+		dev_err(&dev->dev, "cananalt allocate device without any effects\n");
 		return -EINVAL;
 	}
 
 	if (max_effects > FF_MAX_EFFECTS) {
-		dev_err(&dev->dev, "cannot allocate more than FF_MAX_EFFECTS effects\n");
+		dev_err(&dev->dev, "cananalt allocate more than FF_MAX_EFFECTS effects\n");
 		return -EINVAL;
 	}
 
@@ -322,13 +322,13 @@ int input_ff_create(struct input_dev *dev, unsigned int max_effects)
 
 	ff = kzalloc(ff_dev_size, GFP_KERNEL);
 	if (!ff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ff->effects = kcalloc(max_effects, sizeof(struct ff_effect),
 			      GFP_KERNEL);
 	if (!ff->effects) {
 		kfree(ff);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ff->max_effects = max_effects;

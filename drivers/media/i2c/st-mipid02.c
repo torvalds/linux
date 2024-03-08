@@ -21,7 +21,7 @@
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define MIPID02_CLK_LANE_WR_REG1	CCI_REG8(0x01)
@@ -48,7 +48,7 @@
 #define DATA_MIPI_CSI					BIT(0)
 /* Bits definition for MIPID02_MODE_REG1 */
 #define MODE_DATA_SWAP					BIT(2)
-#define MODE_NO_BYPASS					BIT(6)
+#define MODE_ANAL_BYPASS					BIT(6)
 /* Bits definition for MIPID02_MODE_REG2 */
 #define MODE_HSYNC_ACTIVE_HIGH				BIT(1)
 #define MODE_VSYNC_ACTIVE_HIGH				BIT(2)
@@ -95,10 +95,10 @@ struct mipid02_dev {
 	struct clk *xclk;
 	struct gpio_desc *reset_gpio;
 	/* endpoints info */
-	struct v4l2_fwnode_endpoint rx;
-	struct v4l2_fwnode_endpoint tx;
+	struct v4l2_fwanalde_endpoint rx;
+	struct v4l2_fwanalde_endpoint tx;
 	/* remote source */
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct v4l2_subdev *s_subdev;
 	/* registers */
 	struct {
@@ -293,14 +293,14 @@ static int mipid02_detect(struct mipid02_dev *bridge)
 	u64 reg;
 
 	/*
-	 * There is no version registers. Just try to read register
+	 * There is anal version registers. Just try to read register
 	 * MIPID02_CLK_LANE_WR_REG1.
 	 */
 	return cci_read(bridge->regmap, MIPID02_CLK_LANE_WR_REG1, &reg, NULL);
 }
 
 /*
- * We need to know link frequency to setup clk_lane_reg1 timings. Link frequency
+ * We need to kanalw link frequency to setup clk_lane_reg1 timings. Link frequency
  * will be retrieve from connected device via v4l2_get_link_freq, bit per pixel
  * and number of lanes.
  */
@@ -309,7 +309,7 @@ static int mipid02_configure_from_rx_speed(struct mipid02_dev *bridge,
 {
 	struct i2c_client *client = bridge->i2c_client;
 	struct v4l2_subdev *subdev = bridge->s_subdev;
-	struct v4l2_fwnode_endpoint *ep = &bridge->rx;
+	struct v4l2_fwanalde_endpoint *ep = &bridge->rx;
 	u32 bpp = bpp_from_code(fmt->code);
 	/*
 	 * clk_lane_reg1 requires 4 times the unit interval time, and bitrate
@@ -335,7 +335,7 @@ static int mipid02_configure_from_rx_speed(struct mipid02_dev *bridge,
 static int mipid02_configure_clk_lane(struct mipid02_dev *bridge)
 {
 	struct i2c_client *client = bridge->i2c_client;
-	struct v4l2_fwnode_endpoint *ep = &bridge->rx;
+	struct v4l2_fwanalde_endpoint *ep = &bridge->rx;
 	bool *polarities = ep->bus.mipi_csi2.lane_polarities;
 
 	/* midid02 doesn't support clock lane remapping */
@@ -385,7 +385,7 @@ static int mipid02_configure_data1_lane(struct mipid02_dev *bridge, int nb,
 static int mipid02_configure_from_rx(struct mipid02_dev *bridge,
 				     struct v4l2_mbus_framefmt *fmt)
 {
-	struct v4l2_fwnode_endpoint *ep = &bridge->rx;
+	struct v4l2_fwanalde_endpoint *ep = &bridge->rx;
 	bool are_lanes_swap = ep->bus.mipi_csi2.data_lanes[0] == 2;
 	bool *polarities = ep->bus.mipi_csi2.lane_polarities;
 	int nb = ep->bus.mipi_csi2.num_data_lanes;
@@ -413,7 +413,7 @@ static int mipid02_configure_from_rx(struct mipid02_dev *bridge,
 
 static int mipid02_configure_from_tx(struct mipid02_dev *bridge)
 {
-	struct v4l2_fwnode_endpoint *ep = &bridge->tx;
+	struct v4l2_fwanalde_endpoint *ep = &bridge->tx;
 
 	bridge->r.data_selection_ctrl = SELECTION_MANUAL_WIDTH;
 	bridge->r.pix_width_ctrl = ep->bus.parallel.bus_width;
@@ -511,7 +511,7 @@ static int mipid02_stream_enable(struct mipid02_dev *bridge)
 		  bridge->r.data_lane1_reg1, &ret);
 	cci_write(bridge->regmap, MIPID02_DATA_LANE1_REG2, DATA_MIPI_CSI, &ret);
 	cci_write(bridge->regmap, MIPID02_MODE_REG1,
-		  MODE_NO_BYPASS | bridge->r.mode_reg1, &ret);
+		  MODE_ANAL_BYPASS | bridge->r.mode_reg1, &ret);
 	cci_write(bridge->regmap, MIPID02_MODE_REG2, bridge->r.mode_reg2, &ret);
 	cci_write(bridge->regmap, MIPID02_DATA_ID_RREG, bridge->r.data_id_rreg,
 		  &ret);
@@ -556,7 +556,7 @@ static int mipid02_s_stream(struct v4l2_subdev *sd, int enable)
 
 static const struct v4l2_mbus_framefmt default_fmt = {
 	.code = MEDIA_BUS_FMT_SBGGR8_1X8,
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 	.colorspace = V4L2_COLORSPACE_SRGB,
 	.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT,
 	.quantization = V4L2_QUANTIZATION_FULL_RANGE,
@@ -615,7 +615,7 @@ static int mipid02_set_fmt(struct v4l2_subdev *sd,
 
 	dev_dbg(&client->dev, "%s for %d", __func__, fmt->pad);
 
-	/* second CSI-2 pad not yet supported */
+	/* second CSI-2 pad analt yet supported */
 	if (fmt->pad == MIPID02_SINK_1)
 		return -EINVAL;
 
@@ -662,19 +662,19 @@ static const struct media_entity_operations mipid02_subdev_entity_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
-static int mipid02_async_bound(struct v4l2_async_notifier *notifier,
+static int mipid02_async_bound(struct v4l2_async_analtifier *analtifier,
 			       struct v4l2_subdev *s_subdev,
 			       struct v4l2_async_connection *asd)
 {
-	struct mipid02_dev *bridge = to_mipid02_dev(notifier->sd);
+	struct mipid02_dev *bridge = to_mipid02_dev(analtifier->sd);
 	struct i2c_client *client = bridge->i2c_client;
 	int source_pad;
 	int ret;
 
 	dev_dbg(&client->dev, "sensor_async_bound call %p", s_subdev);
 
-	source_pad = media_entity_get_fwnode_pad(&s_subdev->entity,
-						 s_subdev->fwnode,
+	source_pad = media_entity_get_fwanalde_pad(&s_subdev->entity,
+						 s_subdev->fwanalde,
 						 MEDIA_PAD_FL_SOURCE);
 	if (source_pad < 0) {
 		dev_err(&client->dev, "Couldn't find output pad for subdev %s\n",
@@ -696,42 +696,42 @@ static int mipid02_async_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static void mipid02_async_unbind(struct v4l2_async_notifier *notifier,
+static void mipid02_async_unbind(struct v4l2_async_analtifier *analtifier,
 				 struct v4l2_subdev *s_subdev,
 				 struct v4l2_async_connection *asd)
 {
-	struct mipid02_dev *bridge = to_mipid02_dev(notifier->sd);
+	struct mipid02_dev *bridge = to_mipid02_dev(analtifier->sd);
 
 	bridge->s_subdev = NULL;
 }
 
-static const struct v4l2_async_notifier_operations mipid02_notifier_ops = {
+static const struct v4l2_async_analtifier_operations mipid02_analtifier_ops = {
 	.bound		= mipid02_async_bound,
 	.unbind		= mipid02_async_unbind,
 };
 
 static int mipid02_parse_rx_ep(struct mipid02_dev *bridge)
 {
-	struct v4l2_fwnode_endpoint ep = { .bus_type = V4L2_MBUS_CSI2_DPHY };
+	struct v4l2_fwanalde_endpoint ep = { .bus_type = V4L2_MBUS_CSI2_DPHY };
 	struct i2c_client *client = bridge->i2c_client;
 	struct v4l2_async_connection *asd;
-	struct device_node *ep_node;
+	struct device_analde *ep_analde;
 	int ret;
 
 	/* parse rx (endpoint 0) */
-	ep_node = of_graph_get_endpoint_by_regs(bridge->i2c_client->dev.of_node,
+	ep_analde = of_graph_get_endpoint_by_regs(bridge->i2c_client->dev.of_analde,
 						0, 0);
-	if (!ep_node) {
+	if (!ep_analde) {
 		dev_err(&client->dev, "unable to find port0 ep");
 		ret = -EINVAL;
 		goto error;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep_node), &ep);
+	ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(ep_analde), &ep);
 	if (ret) {
-		dev_err(&client->dev, "Could not parse v4l2 endpoint %d\n",
+		dev_err(&client->dev, "Could analt parse v4l2 endpoint %d\n",
 			ret);
-		goto error_of_node_put;
+		goto error_of_analde_put;
 	}
 
 	/* do some sanity checks */
@@ -739,34 +739,34 @@ static int mipid02_parse_rx_ep(struct mipid02_dev *bridge)
 		dev_err(&client->dev, "max supported data lanes is 2 / got %d",
 			ep.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
-		goto error_of_node_put;
+		goto error_of_analde_put;
 	}
 
 	/* register it for later use */
 	bridge->rx = ep;
 
-	/* register async notifier so we get noticed when sensor is connected */
-	v4l2_async_subdev_nf_init(&bridge->notifier, &bridge->sd);
-	asd = v4l2_async_nf_add_fwnode_remote(&bridge->notifier,
-					      of_fwnode_handle(ep_node),
+	/* register async analtifier so we get analticed when sensor is connected */
+	v4l2_async_subdev_nf_init(&bridge->analtifier, &bridge->sd);
+	asd = v4l2_async_nf_add_fwanalde_remote(&bridge->analtifier,
+					      of_fwanalde_handle(ep_analde),
 					      struct v4l2_async_connection);
-	of_node_put(ep_node);
+	of_analde_put(ep_analde);
 
 	if (IS_ERR(asd)) {
-		dev_err(&client->dev, "fail to register asd to notifier %ld",
+		dev_err(&client->dev, "fail to register asd to analtifier %ld",
 			PTR_ERR(asd));
 		return PTR_ERR(asd);
 	}
-	bridge->notifier.ops = &mipid02_notifier_ops;
+	bridge->analtifier.ops = &mipid02_analtifier_ops;
 
-	ret = v4l2_async_nf_register(&bridge->notifier);
+	ret = v4l2_async_nf_register(&bridge->analtifier);
 	if (ret)
-		v4l2_async_nf_cleanup(&bridge->notifier);
+		v4l2_async_nf_cleanup(&bridge->analtifier);
 
 	return ret;
 
-error_of_node_put:
-	of_node_put(ep_node);
+error_of_analde_put:
+	of_analde_put(ep_analde);
 error:
 
 	return ret;
@@ -774,33 +774,33 @@ error:
 
 static int mipid02_parse_tx_ep(struct mipid02_dev *bridge)
 {
-	struct v4l2_fwnode_endpoint ep = { .bus_type = V4L2_MBUS_PARALLEL };
+	struct v4l2_fwanalde_endpoint ep = { .bus_type = V4L2_MBUS_PARALLEL };
 	struct i2c_client *client = bridge->i2c_client;
-	struct device_node *ep_node;
+	struct device_analde *ep_analde;
 	int ret;
 
 	/* parse tx (endpoint 2) */
-	ep_node = of_graph_get_endpoint_by_regs(bridge->i2c_client->dev.of_node,
+	ep_analde = of_graph_get_endpoint_by_regs(bridge->i2c_client->dev.of_analde,
 						2, 0);
-	if (!ep_node) {
+	if (!ep_analde) {
 		dev_err(&client->dev, "unable to find port1 ep");
 		ret = -EINVAL;
 		goto error;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep_node), &ep);
+	ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(ep_analde), &ep);
 	if (ret) {
-		dev_err(&client->dev, "Could not parse v4l2 endpoint\n");
-		goto error_of_node_put;
+		dev_err(&client->dev, "Could analt parse v4l2 endpoint\n");
+		goto error_of_analde_put;
 	}
 
-	of_node_put(ep_node);
+	of_analde_put(ep_analde);
 	bridge->tx = ep;
 
 	return 0;
 
-error_of_node_put:
-	of_node_put(ep_node);
+error_of_analde_put:
+	of_analde_put(ep_analde);
 error:
 
 	return -EINVAL;
@@ -815,7 +815,7 @@ static int mipid02_probe(struct i2c_client *client)
 
 	bridge = devm_kzalloc(dev, sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bridge->i2c_client = client;
 	v4l2_i2c_subdev_init(&bridge->sd, client, &mipid02_subdev_ops);
@@ -854,7 +854,7 @@ static int mipid02_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(bridge->regmap),
 				     "failed to get cci regmap\n");
 
-	bridge->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	bridge->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	bridge->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	bridge->sd.internal_ops = &mipid02_subdev_internal_ops;
 	bridge->sd.entity.ops = &mipid02_subdev_entity_ops;
@@ -901,16 +901,16 @@ static int mipid02_probe(struct i2c_client *client)
 	if (ret < 0) {
 		dev_err(&client->dev, "v4l2_async_register_subdev failed %d",
 			    ret);
-		goto unregister_notifier;
+		goto unregister_analtifier;
 	}
 
 	dev_info(&client->dev, "mipid02 device probe successfully");
 
 	return 0;
 
-unregister_notifier:
-	v4l2_async_nf_unregister(&bridge->notifier);
-	v4l2_async_nf_cleanup(&bridge->notifier);
+unregister_analtifier:
+	v4l2_async_nf_unregister(&bridge->analtifier);
+	v4l2_async_nf_cleanup(&bridge->analtifier);
 power_off:
 	mipid02_set_power_off(bridge);
 entity_cleanup:
@@ -924,8 +924,8 @@ static void mipid02_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct mipid02_dev *bridge = to_mipid02_dev(sd);
 
-	v4l2_async_nf_unregister(&bridge->notifier);
-	v4l2_async_nf_cleanup(&bridge->notifier);
+	v4l2_async_nf_unregister(&bridge->analtifier);
+	v4l2_async_nf_cleanup(&bridge->analtifier);
 	v4l2_async_unregister_subdev(&bridge->sd);
 	mipid02_set_power_off(bridge);
 	media_entity_cleanup(&bridge->sd.entity);

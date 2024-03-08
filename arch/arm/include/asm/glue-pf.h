@@ -15,8 +15,8 @@
  *	================
  *
  *	We have the following to choose from:
- *	  legacy	- no IFSR, no IFAR
- *	  v6		- ARMv6: IFSR, no IFAR
+ *	  legacy	- anal IFSR, anal IFAR
+ *	  v6		- ARMv6: IFSR, anal IFAR
  *	  v7		- ARMv7: IFSR and IFAR
  */
 
@@ -48,7 +48,7 @@
 #endif
 
 #ifndef CPU_PABORT_HANDLER
-#error Unknown prefetch abort handler type
+#error Unkanalwn prefetch abort handler type
 #endif
 
 #endif

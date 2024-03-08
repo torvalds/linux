@@ -55,7 +55,7 @@ static void qcom_hwspinlock_unlock(struct hwspinlock *lock)
 	}
 
 	if (lock_owner != QCOM_MUTEX_APPS_PROC_ID) {
-		pr_err("%s: spinlock not owned by us (actual owner is %d)\n",
+		pr_err("%s: spinlock analt owned by us (actual owner is %d)\n",
 				__func__, lock_owner);
 	}
 
@@ -125,28 +125,28 @@ MODULE_DEVICE_TABLE(of, qcom_hwspinlock_of_match);
 static struct regmap *qcom_hwspinlock_probe_syscon(struct platform_device *pdev,
 						   u32 *base, u32 *stride)
 {
-	struct device_node *syscon;
+	struct device_analde *syscon;
 	struct regmap *regmap;
 	int ret;
 
-	syscon = of_parse_phandle(pdev->dev.of_node, "syscon", 0);
+	syscon = of_parse_phandle(pdev->dev.of_analde, "syscon", 0);
 	if (!syscon)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
-	regmap = syscon_node_to_regmap(syscon);
-	of_node_put(syscon);
+	regmap = syscon_analde_to_regmap(syscon);
+	of_analde_put(syscon);
 	if (IS_ERR(regmap))
 		return regmap;
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 1, base);
+	ret = of_property_read_u32_index(pdev->dev.of_analde, "syscon", 1, base);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "no offset in syscon\n");
+		dev_err(&pdev->dev, "anal offset in syscon\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 2, stride);
+	ret = of_property_read_u32_index(pdev->dev.of_analde, "syscon", 2, stride);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "no stride syscon\n");
+		dev_err(&pdev->dev, "anal stride syscon\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -185,7 +185,7 @@ static int qcom_hwspinlock_probe(struct platform_device *pdev)
 	int i;
 
 	regmap = qcom_hwspinlock_probe_syscon(pdev, &base, &stride);
-	if (IS_ERR(regmap) && PTR_ERR(regmap) == -ENODEV)
+	if (IS_ERR(regmap) && PTR_ERR(regmap) == -EANALDEV)
 		regmap = qcom_hwspinlock_probe_mmio(pdev, &base, &stride);
 
 	if (IS_ERR(regmap))
@@ -194,7 +194,7 @@ static int qcom_hwspinlock_probe(struct platform_device *pdev)
 	array_size = QCOM_MUTEX_NUM_LOCKS * sizeof(struct hwspinlock);
 	bank = devm_kzalloc(&pdev->dev, sizeof(*bank) + array_size, GFP_KERNEL);
 	if (!bank)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, bank);
 

@@ -2,11 +2,11 @@
 /*
  *  Copyright (c) 2012 Samsung Electronics.
  *
- * Exynos - SMC Call
+ * Exyanals - SMC Call
  */
 
-#ifndef __ASM_ARCH_EXYNOS_SMC_H
-#define __ASM_ARCH_EXYNOS_SMC_H
+#ifndef __ASM_ARCH_EXYANALS_SMC_H
+#define __ASM_ARCH_EXYANALS_SMC_H
 
 #define SMC_CMD_INIT		(-1)
 #define SMC_CMD_INFO		(-2)
@@ -34,7 +34,7 @@
 
 #ifndef __ASSEMBLY__
 
-extern void exynos_smc(u32 cmd, u32 arg1, u32 arg2, u32 arg3);
+extern void exyanals_smc(u32 cmd, u32 arg1, u32 arg2, u32 arg3);
 
 #endif /* __ASSEMBLY__ */
 

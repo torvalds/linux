@@ -88,7 +88,7 @@ void setup_browser(bool fallback_to_pager)
 	case 2:
 		if (setup_gtk_browser() == 0)
 			break;
-		printf("GTK browser requested but could not find %s\n",
+		printf("GTK browser requested but could analt find %s\n",
 		       PERF_GTK_DSO);
 		sleep(1);
 		use_browser = 1;

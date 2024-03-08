@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <perf/cpumap.h>
@@ -64,7 +64,7 @@ static int test__basic_mmap(struct test_suite *test __maybe_unused, int subtest 
 	if (sched_setaffinity(0, sizeof(cpu_set), &cpu_set) < 0) {
 		pr_debug("sched_setaffinity() failed on CPU %d: %s ",
 			 perf_cpu_map__cpu(cpus, 0).cpu,
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out_free_cpus;
 	}
 
@@ -97,8 +97,8 @@ static int test__basic_mmap(struct test_suite *test __maybe_unused, int subtest 
 
 		if (evsel__open(evsels[i], cpus, threads) < 0) {
 			pr_debug("failed to open counter: %s, "
-				 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
-				 str_error_r(errno, sbuf, sizeof(sbuf)));
+				 "tweak /proc/sys/kernel/perf_event_paraanalid?\n",
+				 str_error_r(erranal, sbuf, sizeof(sbuf)));
 			goto out_delete_evlist;
 		}
 
@@ -107,8 +107,8 @@ static int test__basic_mmap(struct test_suite *test __maybe_unused, int subtest 
 	}
 
 	if (evlist__mmap(evlist, 128) < 0) {
-		pr_debug("failed to mmap events: %d (%s)\n", errno,
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+		pr_debug("failed to mmap events: %d (%s)\n", erranal,
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -215,13 +215,13 @@ static int test_stat_user_read(int event)
 	}
 
 	if (!pc->cap_user_rdpmc || !pc->index) {
-		pr_err("userspace counter access not %s\n",
+		pr_err("userspace counter access analt %s\n",
 			!pc->cap_user_rdpmc ? "supported" : "enabled");
 		ret = TEST_SKIP;
 		goto out;
 	}
 	if (pc->pmc_width < 32) {
-		pr_err("userspace counter width not set (%d)\n", pc->pmc_width);
+		pr_err("userspace counter width analt set (%d)\n", pc->pmc_width);
 		goto out;
 	}
 

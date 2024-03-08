@@ -45,7 +45,7 @@ int cachefiles_add_cache(struct cachefiles_cache *cache)
 
 	ret = -EINVAL;
 	if (is_idmapped_mnt(path.mnt)) {
-		pr_warn("File cache on idmapped mounts not supported");
+		pr_warn("File cache on idmapped mounts analt supported");
 		goto error_unsupported;
 	}
 
@@ -57,12 +57,12 @@ int cachefiles_add_cache(struct cachefiles_cache *cache)
 	 * - We want to be able to sync the filesystem when stopping the cache
 	 * - We use DIO to/from pages, so the blocksize mustn't be too big.
 	 */
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	if (d_is_negative(root) ||
-	    !d_backing_inode(root)->i_op->lookup ||
-	    !d_backing_inode(root)->i_op->mkdir ||
-	    !d_backing_inode(root)->i_op->tmpfile ||
-	    !(d_backing_inode(root)->i_opflags & IOP_XATTR) ||
+	    !d_backing_ianalde(root)->i_op->lookup ||
+	    !d_backing_ianalde(root)->i_op->mkdir ||
+	    !d_backing_ianalde(root)->i_op->tmpfile ||
+	    !(d_backing_ianalde(root)->i_opflags & IOP_XATTR) ||
 	    !root->d_sb->s_op->statfs ||
 	    !root->d_sb->s_op->sync_fs ||
 	    root->d_sb->s_blocksize > PAGE_SIZE)
@@ -87,7 +87,7 @@ int cachefiles_add_cache(struct cachefiles_cache *cache)
 	if (stats.f_bsize <= 0)
 		goto error_unsupported;
 
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	if (stats.f_bsize > PAGE_SIZE)
 		goto error_unsupported;
 
@@ -208,7 +208,7 @@ int cachefiles_has_space(struct cachefiles_cache *cache,
 
 	ret = vfs_statfs(&path, &stats);
 	if (ret < 0) {
-		trace_cachefiles_vfs_error(NULL, d_inode(path.dentry), ret,
+		trace_cachefiles_vfs_error(NULL, d_ianalde(path.dentry), ret,
 					   cachefiles_trace_statfs_error);
 		if (ret == -EIO)
 			cachefiles_io_error(cache, "statfs failed");
@@ -238,7 +238,7 @@ int cachefiles_has_space(struct cachefiles_cache *cache,
 	else
 		b_avail = 0;
 
-	ret = -ENOBUFS;
+	ret = -EANALBUFS;
 	if (stats.f_ffree < cache->fstop ||
 	    b_avail < cache->bstop)
 		goto stop_and_begin_cull;
@@ -263,10 +263,10 @@ int cachefiles_has_space(struct cachefiles_cache *cache,
 stop_and_begin_cull:
 	switch (reason) {
 	case cachefiles_has_space_for_write:
-		fscache_count_no_write_space();
+		fscache_count_anal_write_space();
 		break;
 	case cachefiles_has_space_for_create:
-		fscache_count_no_create_space();
+		fscache_count_anal_create_space();
 		break;
 	default:
 		break;
@@ -372,7 +372,7 @@ void cachefiles_withdraw_cache(struct cachefiles_cache *cache)
 
 	fscache_withdraw_cache(fscache);
 
-	/* we now have to destroy all the active objects pertaining to this
+	/* we analw have to destroy all the active objects pertaining to this
 	 * cache - which we do by passing them off to thread pool to be
 	 * disposed of */
 	cachefiles_withdraw_objects(cache);

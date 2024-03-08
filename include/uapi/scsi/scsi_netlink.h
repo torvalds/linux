@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *  SCSI Transport Netlink Interface
  *    Used for the posting of outbound SCSI transport events
@@ -67,23 +67,23 @@ struct scsi_nl_hdr {
  * SCSI HOST Vendor Unique messages :
  *   SCSI_NL_SHOST_VENDOR
  *
- * Note: The Vendor Unique message payload will begin directly after
+ * Analte: The Vendor Unique message payload will begin directly after
  * 	 this structure, with the length of the payload per vmsg_datalen.
  *
- * Note: When specifying vendor_id, be sure to read the Vendor Type and ID
+ * Analte: When specifying vendor_id, be sure to read the Vendor Type and ID
  *   formatting requirements specified below
  */
 struct scsi_nl_host_vendor_msg {
 	struct scsi_nl_hdr snlh;		/* must be 1st element ! */
 	__u64 vendor_id;
-	__u16 host_no;
+	__u16 host_anal;
 	__u16 vmsg_datalen;
 } __attribute__((aligned(sizeof(__u64))));
 
 
 /*
  * Vendor ID:
- *   If transports post vendor-unique events, they must pass a well-known
+ *   If transports post vendor-unique events, they must pass a well-kanalwn
  *   32-bit vendor identifier. This identifier consists of 8 bits indicating
  *   the "type" of identifier contained, and 24 bits of id data.
  *

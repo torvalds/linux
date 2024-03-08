@@ -53,7 +53,7 @@ static inline void kernel_fpu_end(void)
 					   */
 #define X86_FEATURE_MMXEXT	(1*32+22) /* AMD MMX extensions */
 
-/* Should work well enough on modern CPUs for testing */
+/* Should work well eanalugh on modern CPUs for testing */
 static inline int boot_cpu_has(int flag)
 {
 	u32 eax, ebx, ecx, edx;

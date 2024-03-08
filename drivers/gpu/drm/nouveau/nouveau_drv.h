@@ -1,27 +1,27 @@
 /* SPDX-License-Identifier: MIT */
-#ifndef __NOUVEAU_DRV_H__
-#define __NOUVEAU_DRV_H__
+#ifndef __ANALUVEAU_DRV_H__
+#define __ANALUVEAU_DRV_H__
 
-#define DRIVER_AUTHOR		"Nouveau Project"
-#define DRIVER_EMAIL		"nouveau@lists.freedesktop.org"
+#define DRIVER_AUTHOR		"Analuveau Project"
+#define DRIVER_EMAIL		"analuveau@lists.freedesktop.org"
 
-#define DRIVER_NAME		"nouveau"
+#define DRIVER_NAME		"analuveau"
 #define DRIVER_DESC		"nVidia Riva/TNT/GeForce/Quadro/Tesla/Tegra K1+"
 #define DRIVER_DATE		"20120801"
 
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		4
+#define DRIVER_MIANALR		4
 #define DRIVER_PATCHLEVEL	0
 
 /*
  * 1.1.1:
  * 	- added support for tiled system memory buffer objects
- *      - added support for NOUVEAU_GETPARAM_GRAPH_UNITS on [nvc0,nve0].
+ *      - added support for ANALUVEAU_GETPARAM_GRAPH_UNITS on [nvc0,nve0].
  *      - added support for compressed memory storage types on [nvc0,nve0].
  *      - added support for software methods 0x600,0x644,0x6ac on nvc0
  *        to control registers on the MPs to enable performance counters,
  *        and to control the warp error enable mask (OpenGL requires out of
- *        bounds access to local memory to be silently ignored / return 0).
+ *        bounds access to local memory to be silently iganalred / return 0).
  * 1.1.2:
  *      - fixes multiple bugs in flip completion events and timestamping
  * 1.2.0:
@@ -30,7 +30,7 @@
  * 1.2.1:
  *      - allow concurrent access to bo's mapped read/write.
  * 1.2.2:
- *      - add NOUVEAU_GEM_DOMAIN_COHERENT flag
+ *      - add ANALUVEAU_GEM_DOMAIN_COHERENT flag
  * 1.3.0:
  *      - NVIF ABI modified, safe because only (current) users are test
  *        programs that get directly linked with NVKM.
@@ -38,7 +38,7 @@
  *      - implemented limited ABI16/NVIF interop
  */
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #include <nvif/client.h>
 #include <nvif/device.h>
@@ -56,49 +56,49 @@
 
 #include <drm/drm_audio_component.h>
 
-#include "uapi/drm/nouveau_drm.h"
+#include "uapi/drm/analuveau_drm.h"
 
-struct nouveau_channel;
+struct analuveau_channel;
 struct platform_device;
 
-#include "nouveau_fence.h"
-#include "nouveau_bios.h"
-#include "nouveau_sched.h"
-#include "nouveau_vmm.h"
-#include "nouveau_uvmm.h"
+#include "analuveau_fence.h"
+#include "analuveau_bios.h"
+#include "analuveau_sched.h"
+#include "analuveau_vmm.h"
+#include "analuveau_uvmm.h"
 
-struct nouveau_drm_tile {
-	struct nouveau_fence *fence;
+struct analuveau_drm_tile {
+	struct analuveau_fence *fence;
 	bool used;
 };
 
-enum nouveau_drm_object_route {
+enum analuveau_drm_object_route {
 	NVDRM_OBJECT_NVIF = NVIF_IOCTL_V0_OWNER_NVIF,
 	NVDRM_OBJECT_USIF,
 	NVDRM_OBJECT_ABI16,
 	NVDRM_OBJECT_ANY = NVIF_IOCTL_V0_OWNER_ANY,
 };
 
-enum nouveau_drm_handle {
+enum analuveau_drm_handle {
 	NVDRM_CHAN    = 0xcccc0000, /* |= client chid */
 	NVDRM_NVSW    = 0x55550000,
 };
 
-struct nouveau_cli {
+struct analuveau_cli {
 	struct nvif_client base;
-	struct nouveau_drm *drm;
+	struct analuveau_drm *drm;
 	struct mutex mutex;
 
 	struct nvif_device device;
 	struct nvif_mmu mmu;
-	struct nouveau_vmm vmm;
-	struct nouveau_vmm svm;
+	struct analuveau_vmm vmm;
+	struct analuveau_vmm svm;
 	struct {
-		struct nouveau_uvmm *ptr;
+		struct analuveau_uvmm *ptr;
 		bool disabled;
 	} uvmm;
 
-	struct nouveau_sched *sched;
+	struct analuveau_sched *sched;
 
 	const struct nvif_mclass *mem;
 
@@ -112,39 +112,39 @@ struct nouveau_cli {
 	struct mutex lock;
 };
 
-struct nouveau_cli_work {
-	void (*func)(struct nouveau_cli_work *);
-	struct nouveau_cli *cli;
+struct analuveau_cli_work {
+	void (*func)(struct analuveau_cli_work *);
+	struct analuveau_cli *cli;
 	struct list_head head;
 
 	struct dma_fence *fence;
 	struct dma_fence_cb cb;
 };
 
-static inline struct nouveau_uvmm *
-nouveau_cli_uvmm(struct nouveau_cli *cli)
+static inline struct analuveau_uvmm *
+analuveau_cli_uvmm(struct analuveau_cli *cli)
 {
 	return cli ? cli->uvmm.ptr : NULL;
 }
 
-static inline struct nouveau_uvmm *
-nouveau_cli_uvmm_locked(struct nouveau_cli *cli)
+static inline struct analuveau_uvmm *
+analuveau_cli_uvmm_locked(struct analuveau_cli *cli)
 {
-	struct nouveau_uvmm *uvmm;
+	struct analuveau_uvmm *uvmm;
 
 	mutex_lock(&cli->mutex);
-	uvmm = nouveau_cli_uvmm(cli);
+	uvmm = analuveau_cli_uvmm(cli);
 	mutex_unlock(&cli->mutex);
 
 	return uvmm;
 }
 
-static inline struct nouveau_vmm *
-nouveau_cli_vmm(struct nouveau_cli *cli)
+static inline struct analuveau_vmm *
+analuveau_cli_vmm(struct analuveau_cli *cli)
 {
-	struct nouveau_uvmm *uvmm;
+	struct analuveau_uvmm *uvmm;
 
-	uvmm = nouveau_cli_uvmm(cli);
+	uvmm = analuveau_cli_uvmm(cli);
 	if (uvmm)
 		return &uvmm->vmm;
 
@@ -155,27 +155,27 @@ nouveau_cli_vmm(struct nouveau_cli *cli)
 }
 
 static inline void
-__nouveau_cli_disable_uvmm_noinit(struct nouveau_cli *cli)
+__analuveau_cli_disable_uvmm_analinit(struct analuveau_cli *cli)
 {
-	struct nouveau_uvmm *uvmm = nouveau_cli_uvmm(cli);
+	struct analuveau_uvmm *uvmm = analuveau_cli_uvmm(cli);
 
 	if (!uvmm)
 		cli->uvmm.disabled = true;
 }
 
 static inline void
-nouveau_cli_disable_uvmm_noinit(struct nouveau_cli *cli)
+analuveau_cli_disable_uvmm_analinit(struct analuveau_cli *cli)
 {
 	mutex_lock(&cli->mutex);
-	__nouveau_cli_disable_uvmm_noinit(cli);
+	__analuveau_cli_disable_uvmm_analinit(cli);
 	mutex_unlock(&cli->mutex);
 }
 
-void nouveau_cli_work_queue(struct nouveau_cli *, struct dma_fence *,
-			    struct nouveau_cli_work *);
+void analuveau_cli_work_queue(struct analuveau_cli *, struct dma_fence *,
+			    struct analuveau_cli_work *);
 
-static inline struct nouveau_cli *
-nouveau_cli(struct drm_file *fpriv)
+static inline struct analuveau_cli *
+analuveau_cli(struct drm_file *fpriv)
 {
 	return fpriv ? fpriv->driver_priv : NULL;
 }
@@ -200,16 +200,16 @@ u_memcpya(uint64_t user, unsigned int nmemb, unsigned int size)
 #include <nvif/object.h>
 #include <nvif/parent.h>
 
-struct nouveau_drm {
+struct analuveau_drm {
 	struct nvif_parent parent;
-	struct nouveau_cli master;
-	struct nouveau_cli client;
+	struct analuveau_cli master;
+	struct analuveau_cli client;
 	struct drm_device *dev;
 
 	struct list_head clients;
 
 	/**
-	 * @clients_lock: Protects access to the @clients list of &struct nouveau_cli.
+	 * @clients_lock: Protects access to the @clients list of &struct analuveau_cli.
 	 */
 	struct mutex clients_lock;
 
@@ -226,10 +226,10 @@ struct nouveau_drm {
 	struct {
 		struct ttm_device bdev;
 		atomic_t validate_sequence;
-		int (*move)(struct nouveau_channel *,
+		int (*move)(struct analuveau_channel *,
 			    struct ttm_buffer_object *,
 			    struct ttm_resource *, struct ttm_resource *);
-		struct nouveau_channel *chan;
+		struct analuveau_channel *chan;
 		struct nvif_object copy;
 		int mtrr;
 		int type_vram;
@@ -262,39 +262,39 @@ struct nouveau_drm {
 	struct workqueue_struct *sched_wq;
 
 	/* context for accelerated drm-internal operations */
-	struct nouveau_channel *cechan;
-	struct nouveau_channel *channel;
-	struct nvkm_gpuobj *notify;
+	struct analuveau_channel *cechan;
+	struct analuveau_channel *channel;
+	struct nvkm_gpuobj *analtify;
 	struct nvif_object ntfy;
 
 	/* nv10-nv40 tiling regions */
 	struct {
-		struct nouveau_drm_tile reg[15];
+		struct analuveau_drm_tile reg[15];
 		spinlock_t lock;
 	} tile;
 
 	/* modesetting */
 	struct nvbios vbios;
-	struct nouveau_display *display;
+	struct analuveau_display *display;
 	struct work_struct hpd_work;
 	spinlock_t hpd_lock;
 	u32 hpd_pending;
 #ifdef CONFIG_ACPI
-	struct notifier_block acpi_nb;
+	struct analtifier_block acpi_nb;
 #endif
 
 	/* power management */
-	struct nouveau_hwmon *hwmon;
-	struct nouveau_debugfs *debugfs;
+	struct analuveau_hwmon *hwmon;
+	struct analuveau_debugfs *debugfs;
 
 	/* led management */
-	struct nouveau_led *led;
+	struct analuveau_led *led;
 
 	struct dev_pm_domain vga_pm_domain;
 
-	struct nouveau_svm *svm;
+	struct analuveau_svm *svm;
 
-	struct nouveau_dmem *dmem;
+	struct analuveau_dmem *dmem;
 
 	struct {
 		struct drm_audio_component *component;
@@ -303,32 +303,32 @@ struct nouveau_drm {
 	} audio;
 };
 
-static inline struct nouveau_drm *
-nouveau_drm(struct drm_device *dev)
+static inline struct analuveau_drm *
+analuveau_drm(struct drm_device *dev)
 {
 	return dev->dev_private;
 }
 
 static inline bool
-nouveau_drm_use_coherent_gpu_mapping(struct nouveau_drm *drm)
+analuveau_drm_use_coherent_gpu_mapping(struct analuveau_drm *drm)
 {
 	struct nvif_mmu *mmu = &drm->client.mmu;
 	return !(mmu->type[drm->ttm.type_host[0]].type & NVIF_MEM_UNCACHED);
 }
 
-int nouveau_pmops_suspend(struct device *);
-int nouveau_pmops_resume(struct device *);
-bool nouveau_pmops_runtime(void);
+int analuveau_pmops_suspend(struct device *);
+int analuveau_pmops_resume(struct device *);
+bool analuveau_pmops_runtime(void);
 
 #include <nvkm/core/tegra.h>
 
 struct drm_device *
-nouveau_platform_device_create(const struct nvkm_device_tegra_func *,
+analuveau_platform_device_create(const struct nvkm_device_tegra_func *,
 			       struct platform_device *, struct nvkm_device **);
-void nouveau_drm_device_remove(struct drm_device *dev);
+void analuveau_drm_device_remove(struct drm_device *dev);
 
 #define NV_PRINTK(l,c,f,a...) do {                                             \
-	struct nouveau_cli *_cli = (c);                                        \
+	struct analuveau_cli *_cli = (c);                                        \
 	dev_##l(_cli->drm->dev->dev, "%s: "f, _cli->name, ##a);                \
 } while(0)
 
@@ -352,6 +352,6 @@ void nouveau_drm_device_remove(struct drm_device *dev);
 #define NV_WARN_ONCE(drm,f,a...) NV_PRINTK_ONCE(warn, &(drm)->client, f, ##a)
 #define NV_INFO_ONCE(drm,f,a...) NV_PRINTK_ONCE(info, &(drm)->client, f, ##a)
 
-extern int nouveau_modeset;
+extern int analuveau_modeset;
 
 #endif

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2007-2016, Synaptics Incorporated
- * Copyright (C) 2016 Zodiac Inflight Innovations
+ * Copyright (C) 2016 Zodiac Inflight Inanalvations
  */
 
 #ifndef _RMI_F34_H
@@ -117,7 +117,7 @@
 #define DISPLAY_CONFIG_CONTAINER		20
 
 struct f34v7_query_1_7 {
-	u8 bl_minor_revision;			/* query 1 */
+	u8 bl_mianalr_revision;			/* query 1 */
 	u8 bl_major_revision;
 	__le32 bl_fw_id;			/* query 2 */
 	u8 minimum_write_size;			/* query 3 */
@@ -160,7 +160,7 @@ struct physical_address {
 struct container_descriptor {
 	__le32 content_checksum;
 	__le16 container_id;
-	u8 minor_version;
+	u8 mianalr_version;
 	u8 major_version;
 	u8 reserved_08;
 	u8 reserved_09;
@@ -188,7 +188,7 @@ struct image_header_10 {
 	__le32 checksum;
 	u8 reserved_04;
 	u8 reserved_05;
-	u8 minor_header_version;
+	u8 mianalr_header_version;
 	u8 major_header_version;
 	u8 reserved_08;
 	u8 reserved_09;

@@ -60,7 +60,7 @@ static struct rc_map_list avermedia_map = {
 	.map = {
 		.scan     = avermedia,
 		.size     = ARRAY_SIZE(avermedia),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_AVERMEDIA,
 	}
 };

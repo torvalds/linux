@@ -233,7 +233,7 @@ static int br_validate_ipv4(struct net *net, struct sk_buff *skb)
 	memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
 	/* We should really parse IP options here but until
 	 * somebody who actually uses IP options complains to
-	 * us we'll just silently ignore the options because
+	 * us we'll just silently iganalre the options because
 	 * we're lazy!
 	 */
 	return 0;
@@ -263,7 +263,7 @@ void nf_bridge_update_protocol(struct sk_buff *skb)
 }
 
 /* Obtain the correct destination MAC address, while preserving the original
- * source MAC address. If we already know this address, we just copy it. If we
+ * source MAC address. If we already kanalw this address, we just copy it. If we
  * don't, we use the neighbour framework to find out. In both cases, we make
  * sure that br_handle_frame_finish() is called afterwards.
  */
@@ -333,7 +333,7 @@ br_nf_ipv4_daddr_was_changed(const struct sk_buff *skb,
  *    port group as it was received on. We can still bridge
  *    the packet.
  * 2. The packet was DNAT'ed to a different device, either
- *    a non-bridged device or another bridge port group.
+ *    a analn-bridged device or aanalther bridge port group.
  *    The packet will need to be routed.
  *
  * The correct way of distinguishing between these two cases is to
@@ -351,7 +351,7 @@ br_nf_ipv4_daddr_was_changed(const struct sk_buff *skb,
  * packet, ip_route_input() will give back the localhost as output device,
  * which differs from the bridge device.
  *
- * Let's now consider the case that ip_route_input() fails:
+ * Let's analw consider the case that ip_route_input() fails:
  *
  * This can be because the destination address is martian, in which case
  * the packet will be dropped.
@@ -394,7 +394,7 @@ static int br_nf_pre_routing_finish(struct net *net, struct sock *sk, struct sk_
 			 * ip_route_output_key() will fail. It won't fail for 2 types of
 			 * martian destinations: loopback destinations and destination
 			 * 0.0.0.0. In both cases the packet will be dropped because the
-			 * destination is the loopback device and not the bridge. */
+			 * destination is the loopback device and analt the bridge. */
 			if (err != -EHOSTUNREACH || !in_dev || IN_DEV_FORWARD(in_dev))
 				goto free_skb;
 
@@ -435,7 +435,7 @@ bridged_dnat:
 			return 0;
 		}
 		skb_dst_drop(skb);
-		skb_dst_set_noref(skb, &rt->dst);
+		skb_dst_set_analref(skb, &rt->dst);
 	}
 
 	skb->dev = br_indev;
@@ -483,7 +483,7 @@ struct net_device *setup_pre_routing(struct sk_buff *skb, const struct net *net)
 	else if (skb->protocol == htons(ETH_P_PPP_SES))
 		nf_bridge->orig_proto = BRNF_PROTO_PPPOE;
 
-	/* Must drop socket now because of tproxy. */
+	/* Must drop socket analw because of tproxy. */
 	skb_orphan(skb);
 	return skb->dev;
 }
@@ -519,7 +519,7 @@ static unsigned int br_nf_pre_routing(void *priv,
 		    !br_opt_get(br, BROPT_NF_CALL_IP6TABLES))
 			return NF_ACCEPT;
 		if (!ipv6_mod_enabled()) {
-			pr_warn_once("Module ipv6 is disabled, so call_ip6tables is not supported.");
+			pr_warn_once("Module ipv6 is disabled, so call_ip6tables is analt supported.");
 			return NF_DROP_REASON(skb, SKB_DROP_REASON_IPV6DISABLED, 0);
 		}
 
@@ -540,7 +540,7 @@ static unsigned int br_nf_pre_routing(void *priv,
 		return NF_DROP_REASON(skb, SKB_DROP_REASON_IP_INHDR, 0);
 
 	if (!nf_bridge_alloc(skb))
-		return NF_DROP_REASON(skb, SKB_DROP_REASON_NOMEM, 0);
+		return NF_DROP_REASON(skb, SKB_DROP_REASON_ANALMEM, 0);
 	if (!setup_pre_routing(skb, state->net))
 		return NF_DROP_REASON(skb, SKB_DROP_REASON_DEV_READY, 0);
 
@@ -558,7 +558,7 @@ static unsigned int br_nf_pre_routing(void *priv,
 }
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
-/* conntracks' nf_confirm logic cannot handle cloned skbs referencing
+/* conntracks' nf_confirm logic cananalt handle cloned skbs referencing
  * the same nf_conn entry, which will happen for multicast (broadcast)
  * Frames on bridges.
  *
@@ -568,23 +568,23 @@ static unsigned int br_nf_pre_routing(void *priv,
  *  ethX  ethY
  *
  * ethX (or Y) receives multicast or broadcast packet containing
- * an IP packet, not yet in conntrack table.
+ * an IP packet, analt yet in conntrack table.
  *
  * 1. skb passes through bridge and fake-ip (br_netfilter)Prerouting.
- *    -> skb->_nfct now references a unconfirmed entry
- * 2. skb is broad/mcast packet. bridge now passes clones out on each bridge
+ *    -> skb->_nfct analw references a unconfirmed entry
+ * 2. skb is broad/mcast packet. bridge analw passes clones out on each bridge
  *    interface.
  * 3. skb gets passed up the stack.
  * 4. In macvlan case, macvlan driver retains clone(s) of the mcast skb
  *    and schedules a work queue to send them out on the lower devices.
  *
- *    The clone skb->_nfct is not a copy, it is the same entry as the
+ *    The clone skb->_nfct is analt a copy, it is the same entry as the
  *    original skb.  The macvlan rx handler then returns RX_HANDLER_PASS.
- * 5. Normal conntrack hooks (in NF_INET_LOCAL_IN) confirm the orig skb.
+ * 5. Analrmal conntrack hooks (in NF_INET_LOCAL_IN) confirm the orig skb.
  *
- * The Macvlan broadcast worker and normal confirm path will race.
+ * The Macvlan broadcast worker and analrmal confirm path will race.
  *
- * This race will not happen if step 2 already confirmed a clone. In that
+ * This race will analt happen if step 2 already confirmed a clone. In that
  * case later steps perform skb_clone() with skb->_nfct already confirmed (in
  * hash table).  This works fine.
  *
@@ -691,11 +691,11 @@ static unsigned int br_nf_forward_ip(struct sk_buff *skb,
 	/* Need exclusive nf_bridge_info since we might have multiple
 	 * different physoutdevs. */
 	if (!nf_bridge_unshare(skb))
-		return NF_DROP_REASON(skb, SKB_DROP_REASON_NOMEM, 0);
+		return NF_DROP_REASON(skb, SKB_DROP_REASON_ANALMEM, 0);
 
 	nf_bridge = nf_bridge_info_get(skb);
 	if (!nf_bridge)
-		return NF_DROP_REASON(skb, SKB_DROP_REASON_NOMEM, 0);
+		return NF_DROP_REASON(skb, SKB_DROP_REASON_ANALMEM, 0);
 
 	parent = bridge_parent(state->out);
 	if (!parent)
@@ -819,7 +819,7 @@ br_nf_ip_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	unsigned int mtu = ip_skb_dst_mtu(sk, skb);
 	struct iphdr *iph = ip_hdr(skb);
 
-	if (unlikely(((iph->frag_off & htons(IP_DF)) && !skb->ignore_df) ||
+	if (unlikely(((iph->frag_off & htons(IP_DF)) && !skb->iganalre_df) ||
 		     (IPCB(skb)->frag_max_size &&
 		      IPCB(skb)->frag_max_size > mtu))) {
 		IP_INC_STATS(net, IPSTATS_MIB_FRAGFAILS);
@@ -932,7 +932,7 @@ static unsigned int br_nf_post_routing(void *priv,
 	u_int8_t pf;
 
 	/* if nf_bridge is set, but ->physoutdev is NULL, this packet came in
-	 * on a bridge, but was delivered locally and is now being routed:
+	 * on a bridge, but was delivered locally and is analw being routed:
 	 *
 	 * POST_ROUTING was already invoked from the ip stack.
 	 */
@@ -1086,34 +1086,34 @@ static const struct nf_hook_ops br_nf_ops[] = {
 	},
 };
 
-static int brnf_device_event(struct notifier_block *unused, unsigned long event,
+static int brnf_device_event(struct analtifier_block *unused, unsigned long event,
 			     void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct brnf_net *brnet;
 	struct net *net;
 	int ret;
 
 	if (event != NETDEV_REGISTER || !netif_is_bridge_master(dev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	ASSERT_RTNL();
 
 	net = dev_net(dev);
 	brnet = net_generic(net, brnf_net_id);
 	if (brnet->enabled)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	ret = nf_register_net_hooks(net, br_nf_ops, ARRAY_SIZE(br_nf_ops));
 	if (ret)
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
 	brnet->enabled = true;
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block brnf_notifier __read_mostly = {
-	.notifier_call = brnf_device_event,
+static struct analtifier_block brnf_analtifier __read_mostly = {
+	.analtifier_call = brnf_device_event,
 };
 
 /* recursively invokes nf_hook_slow (again), skipping already-called
@@ -1144,14 +1144,14 @@ int br_nf_hook_thresh(unsigned int hook, struct net *net,
 		if (ops[i]->priority < NF_BR_PRI_BRNF)
 			continue;
 
-		/* These hooks have not been called yet, run them. */
+		/* These hooks have analt been called yet, run them. */
 		if (ops[i]->priority > NF_BR_PRI_BRNF)
 			break;
 
 		/* take a closer look at NF_BR_PRI_BRNF. */
 		if (ops[i]->hook == br_nf_pre_routing) {
 			/* This hook diverted the skb to this function,
-			 * hooks after this have not been run yet.
+			 * hooks after this have analt been run yet.
 			 */
 			i++;
 			break;
@@ -1240,7 +1240,7 @@ static int br_netfilter_sysctl_init_net(struct net *net)
 	if (!net_eq(net, &init_net)) {
 		table = kmemdup(table, sizeof(brnf_table), GFP_KERNEL);
 		if (!table)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	brnet = net_generic(net, brnf_net_id);
@@ -1259,7 +1259,7 @@ static int br_netfilter_sysctl_init_net(struct net *net)
 		if (!net_eq(net, &init_net))
 			kfree(table);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1313,21 +1313,21 @@ static int __init br_netfilter_init(void)
 	if (ret < 0)
 		return ret;
 
-	ret = register_netdevice_notifier(&brnf_notifier);
+	ret = register_netdevice_analtifier(&brnf_analtifier);
 	if (ret < 0) {
 		unregister_pernet_subsys(&brnf_net_ops);
 		return ret;
 	}
 
 	RCU_INIT_POINTER(nf_br_ops, &br_ops);
-	printk(KERN_NOTICE "Bridge firewalling registered\n");
+	printk(KERN_ANALTICE "Bridge firewalling registered\n");
 	return 0;
 }
 
 static void __exit br_netfilter_fini(void)
 {
 	RCU_INIT_POINTER(nf_br_ops, NULL);
-	unregister_netdevice_notifier(&brnf_notifier);
+	unregister_netdevice_analtifier(&brnf_analtifier);
 	unregister_pernet_subsys(&brnf_net_ops);
 }
 

@@ -102,7 +102,7 @@ properties:
 
   gpr:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: The phandle to the General Purpose Register (GPR) node
+    description: The phandle to the General Purpose Register (GPR) analde
 
   fsl,sdma-event-remap:
     $ref: /schemas/types.yaml#/definitions/uint32-matrix
@@ -126,7 +126,7 @@ properties:
 
   iram:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: The phandle to the On-chip RAM (OCRAM) node.
+    description: The phandle to the On-chip RAM (OCRAM) analde.
 
 required:
   - compatible

@@ -77,7 +77,7 @@ enum lm3601x_type {
  * @lock: Lock for reading/writing the device
  * @led_name: LED label for the Torch or IR LED
  * @flash_timeout: the timeout for the flash
- * @last_flag: last known flags register value
+ * @last_flag: last kanalwn flags register value
  * @torch_current_max: maximum current for the torch
  * @flash_current_max: maximum current for the flash
  * @max_flash_timeout: maximum timeout for the flash
@@ -320,7 +320,7 @@ static const struct led_flash_ops flash_ops = {
 };
 
 static int lm3601x_register_leds(struct lm3601x_led *led,
-				 struct fwnode_handle *fwnode)
+				 struct fwanalde_handle *fwanalde)
 {
 	struct led_classdev *led_cdev;
 	struct led_flash_setting *setting;
@@ -346,7 +346,7 @@ static int lm3601x_register_leds(struct lm3601x_led *led,
 						LM3601X_TORCH_REG_DIV);
 	led_cdev->flags |= LED_DEV_CAP_FLASH;
 
-	init_data.fwnode = fwnode;
+	init_data.fwanalde = fwanalde;
 	init_data.devicename = led->client->name;
 	init_data.default_label = (led->led_mode == LM3601X_LED_TORCH) ?
 					"torch" : "infrared";
@@ -354,19 +354,19 @@ static int lm3601x_register_leds(struct lm3601x_led *led,
 						&led->fled_cdev, &init_data);
 }
 
-static int lm3601x_parse_node(struct lm3601x_led *led,
-			      struct fwnode_handle **fwnode)
+static int lm3601x_parse_analde(struct lm3601x_led *led,
+			      struct fwanalde_handle **fwanalde)
 {
-	struct fwnode_handle *child = NULL;
-	int ret = -ENODEV;
+	struct fwanalde_handle *child = NULL;
+	int ret = -EANALDEV;
 
-	child = device_get_next_child_node(&led->client->dev, child);
+	child = device_get_next_child_analde(&led->client->dev, child);
 	if (!child) {
-		dev_err(&led->client->dev, "No LED Child node\n");
+		dev_err(&led->client->dev, "Anal LED Child analde\n");
 		return ret;
 	}
 
-	ret = fwnode_property_read_u32(child, "reg", &led->led_mode);
+	ret = fwanalde_property_read_u32(child, "reg", &led->led_mode);
 	if (ret) {
 		dev_err(&led->client->dev, "reg DT property missing\n");
 		goto out_err;
@@ -379,7 +379,7 @@ static int lm3601x_parse_node(struct lm3601x_led *led,
 		goto out_err;
 	}
 
-	ret = fwnode_property_read_u32(child, "led-max-microamp",
+	ret = fwanalde_property_read_u32(child, "led-max-microamp",
 					&led->torch_current_max);
 	if (ret) {
 		dev_warn(&led->client->dev,
@@ -387,7 +387,7 @@ static int lm3601x_parse_node(struct lm3601x_led *led,
 		goto out_err;
 	}
 
-	ret = fwnode_property_read_u32(child, "flash-max-microamp",
+	ret = fwanalde_property_read_u32(child, "flash-max-microamp",
 				&led->flash_current_max);
 	if (ret) {
 		dev_warn(&led->client->dev,
@@ -395,7 +395,7 @@ static int lm3601x_parse_node(struct lm3601x_led *led,
 		goto out_err;
 	}
 
-	ret = fwnode_property_read_u32(child, "flash-max-timeout-us",
+	ret = fwanalde_property_read_u32(child, "flash-max-timeout-us",
 				&led->max_flash_timeout);
 	if (ret) {
 		dev_warn(&led->client->dev,
@@ -403,29 +403,29 @@ static int lm3601x_parse_node(struct lm3601x_led *led,
 		goto out_err;
 	}
 
-	*fwnode = child;
+	*fwanalde = child;
 
 out_err:
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 	return ret;
 }
 
 static int lm3601x_probe(struct i2c_client *client)
 {
 	struct lm3601x_led *led;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	int ret;
 
 	led = devm_kzalloc(&client->dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led->client = client;
 	i2c_set_clientdata(client, led);
 
-	ret = lm3601x_parse_node(led, &fwnode);
+	ret = lm3601x_parse_analde(led, &fwanalde);
 	if (ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	led->regmap = devm_regmap_init_i2c(client, &lm3601x_regmap);
 	if (IS_ERR(led->regmap)) {
@@ -437,7 +437,7 @@ static int lm3601x_probe(struct i2c_client *client)
 
 	mutex_init(&led->lock);
 
-	return lm3601x_register_leds(led, fwnode);
+	return lm3601x_register_leds(led, fwanalde);
 }
 
 static void lm3601x_remove(struct i2c_client *client)

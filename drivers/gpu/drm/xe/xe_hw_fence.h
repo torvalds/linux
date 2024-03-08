@@ -9,7 +9,7 @@
 #include "xe_hw_fence_types.h"
 
 /* Cause an early wrap to catch wrapping errors */
-#define XE_FENCE_INITIAL_SEQNO (-127)
+#define XE_FENCE_INITIAL_SEQANAL (-127)
 
 int xe_hw_fence_module_init(void);
 void xe_hw_fence_module_exit(void);
@@ -25,6 +25,6 @@ void xe_hw_fence_ctx_init(struct xe_hw_fence_ctx *ctx, struct xe_gt *gt,
 void xe_hw_fence_ctx_finish(struct xe_hw_fence_ctx *ctx);
 
 struct xe_hw_fence *xe_hw_fence_create(struct xe_hw_fence_ctx *ctx,
-				       struct iosys_map seqno_map);
+				       struct iosys_map seqanal_map);
 
 #endif

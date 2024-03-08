@@ -68,8 +68,8 @@ extern unsigned long __get_wchan(struct task_struct *p);
     Offsets are pulled via asm-offsets.c  */
 
 /*
- * No real reason why VM and native switch stacks should be different.
- * Ultimately this should merge.  Note that Rev C. ABI called out only
+ * Anal real reason why VM and native switch stacks should be different.
+ * Ultimately this should merge.  Analte that Rev C. ABI called out only
  * R24-27 as callee saved GPRs needing explicit attention (R29-31 being
  * dealt with automagically by allocframe), but the current ABI has
  * more, R16-R27.  By saving more, the worst case is that we waste some

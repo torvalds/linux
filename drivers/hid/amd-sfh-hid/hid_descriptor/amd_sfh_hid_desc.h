@@ -68,10 +68,10 @@ struct gyro_input_report {
 	int in_angel_z_value;
 } __packed;
 
-struct magno_feature_report {
+struct maganal_feature_report {
 	struct common_feature_property common_property;
 	/*properties specific to this sensor */
-	u16 magno_headingchange_sensitivity;
+	u16 maganal_headingchange_sensitivity;
 	s16 heading_min;
 	s16 heading_max;
 	u16 flux_change_sensitivity;
@@ -79,12 +79,12 @@ struct magno_feature_report {
 	s16 flux_max;
 } __packed;
 
-struct magno_input_report {
+struct maganal_input_report {
 	struct	common_input_property common_property;
-	int in_magno_x;
-	int in_magno_y;
-	int in_magno_z;
-	int in_magno_accuracy;
+	int in_maganal_x;
+	int in_maganal_y;
+	int in_maganal_z;
+	int in_maganal_accuracy;
 } __packed;
 
 struct als_feature_report {

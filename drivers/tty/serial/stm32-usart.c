@@ -281,8 +281,8 @@ static int stm32_usart_init_rs485(struct uart_port *port,
 	rs485conf->delay_rts_before_send = 0;
 	rs485conf->delay_rts_after_send = 0;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	return uart_get_rs485_mode(port);
 }
@@ -340,7 +340,7 @@ static int stm32_usart_rx_dma_resume(struct stm32_port *stm32_port)
 					    stm32_usart_rx_dma_terminate);
 }
 
-/* Return true when data is pending (in pio mode), and false when no data is pending. */
+/* Return true when data is pending (in pio mode), and false when anal data is pending. */
 static bool stm32_usart_pending_rx_pio(struct uart_port *port, u32 *sr)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
@@ -384,13 +384,13 @@ static unsigned int stm32_usart_receive_chars_pio(struct uart_port *port)
 
 	while (stm32_usart_pending_rx_pio(port, &sr)) {
 		sr |= USART_SR_DUMMY_RX;
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 
 		/*
 		 * Status bits has to be cleared before reading the RDR:
 		 * In FIFO mode, reading the RDR will pop the next data
 		 * (if any) along with its status bits into the SR.
-		 * Not doing so leads to misalignement between RDR and SR,
+		 * Analt doing so leads to misalignement between RDR and SR,
 		 * and clear status bits of the next rx data.
 		 *
 		 * Clear errors flags for stm32f7 and stm32h7 compatible
@@ -452,7 +452,7 @@ static void stm32_usart_push_buffer_dma(struct uart_port *port, unsigned int dma
 	/*
 	 * Apply rdr_mask on buffer in order to mask parity bit.
 	 * This loop is useless in cs8 mode because DMA copies only
-	 * 8 bits and already ignores parity bit.
+	 * 8 bits and already iganalres parity bit.
 	 */
 	if (!(stm32_port->rdr_mask == (BIT(8) - 1)))
 		for (i = 0; i < dma_size; i++)
@@ -578,7 +578,7 @@ static int stm32_usart_rx_dma_start_or_resume(struct uart_port *port)
 	if (!desc) {
 		dev_err(port->dev, "rx dma prep cyclic failed\n");
 		stm32_port->rx_dma_busy = false;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	desc->callback = stm32_usart_rx_dma_complete;
@@ -607,8 +607,8 @@ static void stm32_usart_tx_dma_terminate(struct stm32_port *stm32_port)
 static bool stm32_usart_tx_dma_started(struct stm32_port *stm32_port)
 {
 	/*
-	 * We cannot use the function "dmaengine_tx_status" to know the
-	 * status of DMA. This function does not show if the "dma complete"
+	 * We cananalt use the function "dmaengine_tx_status" to kanalw the
+	 * status of DMA. This function does analt show if the "dma complete"
 	 * callback of the DMA transaction has been called. So we prefer
 	 * to use "tx_dma_busy" flag to prevent dual DMA transaction at the
 	 * same time.
@@ -756,8 +756,8 @@ static void stm32_usart_transmit_chars_dma(struct uart_port *port)
 	/*
 	 * Set "tx_dma_busy" flag. This flag will be released when
 	 * dmaengine_terminate_async will be called. This flag helps
-	 * transmit_chars_dma not to start another DMA transaction
-	 * if the callback of the previous is not yet called.
+	 * transmit_chars_dma analt to start aanalther DMA transaction
+	 * if the callback of the previous is analt yet called.
 	 */
 	stm32port->tx_dma_busy = true;
 
@@ -765,7 +765,7 @@ static void stm32_usart_transmit_chars_dma(struct uart_port *port)
 	desc->callback_param = port;
 
 	/* Push current DMA TX transaction in the pending queue */
-	/* DMA no yet started, safe to free resources */
+	/* DMA anal yet started, safe to free resources */
 	ret = dma_submit_error(dmaengine_submit(desc));
 	if (ret) {
 		dev_err(port->dev, "DMA failed with error code: %d\n", ret);
@@ -1007,7 +1007,7 @@ static void stm32_usart_throttle(struct uart_port *port)
 	uart_port_unlock_irqrestore(port, flags);
 }
 
-/* Unthrottle the remote, the input buffer can now accept data. */
+/* Unthrottle the remote, the input buffer can analw accept data. */
 static void stm32_usart_unthrottle(struct uart_port *port)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
@@ -1023,7 +1023,7 @@ static void stm32_usart_unthrottle(struct uart_port *port)
 
 	/*
 	 * Switch back to DMA mode (resume DMA).
-	 * Hardware flow control is stopped when FIFO is not full any more.
+	 * Hardware flow control is stopped when FIFO is analt full any more.
 	 */
 	if (stm32_port->rx_ch)
 		stm32_usart_rx_dma_start_or_resume(port);
@@ -1071,7 +1071,7 @@ static int stm32_usart_startup(struct uart_port *port)
 	int ret;
 
 	ret = request_irq(port->irq, stm32_usart_interrupt,
-			  IRQF_NO_SUSPEND, name, port);
+			  IRQF_ANAL_SUSPEND, name, port);
 	if (ret)
 		return ret;
 
@@ -1127,9 +1127,9 @@ static void stm32_usart_shutdown(struct uart_port *port)
 					 isr, (isr & USART_SR_TC),
 					 10, 100000);
 
-	/* Send the TC error message only when ISR_TC is not set */
+	/* Send the TC error message only when ISR_TC is analt set */
 	if (ret)
-		dev_err(port->dev, "Transmission is not complete\n");
+		dev_err(port->dev, "Transmission is analt complete\n");
 
 	/* Disable RX DMA. */
 	if (stm32_port->rx_ch) {
@@ -1174,9 +1174,9 @@ static void stm32_usart_set_termios(struct uart_port *port,
 						(isr & USART_SR_TC),
 						10, 100000);
 
-	/* Send the TC error message only when ISR_TC is not set. */
+	/* Send the TC error message only when ISR_TC is analt set. */
 	if (ret)
-		dev_err(port->dev, "Transmission is not complete\n");
+		dev_err(port->dev, "Transmission is analt complete\n");
 
 	/* Stop serial port and reset value */
 	writel_relaxed(0, port->membase + ofs->cr1);
@@ -1249,7 +1249,7 @@ static void stm32_usart_set_termios(struct uart_port *port,
 		writel_relaxed(bits, port->membase + ofs->rtor);
 		cr2 |= USART_CR2_RTOEN;
 		/*
-		 * Enable fifo threshold irq in two cases, either when there is no DMA, or when
+		 * Enable fifo threshold irq in two cases, either when there is anal DMA, or when
 		 * wake up over usart, from low power until the DMA gets re-enabled by resume.
 		 */
 		stm32_port->cr3_irq =  USART_CR3_RXFTIE;
@@ -1297,23 +1297,23 @@ static void stm32_usart_set_termios(struct uart_port *port,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= USART_SR_FE;
 
-	/* Characters to ignore */
-	port->ignore_status_mask = 0;
+	/* Characters to iganalre */
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask = USART_SR_PE | USART_SR_FE;
+		port->iganalre_status_mask = USART_SR_PE | USART_SR_FE;
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= USART_SR_FE;
+		port->iganalre_status_mask |= USART_SR_FE;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= USART_SR_ORE;
+			port->iganalre_status_mask |= USART_SR_ORE;
 	}
 
-	/* Ignore all characters if CREAD is not set */
+	/* Iganalre all characters if CREAD is analt set */
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= USART_SR_DUMMY_RX;
+		port->iganalre_status_mask |= USART_SR_DUMMY_RX;
 
 	if (stm32_port->rx_ch) {
 		/*
@@ -1390,7 +1390,7 @@ static void stm32_usart_config_port(struct uart_port *port, int flags)
 static int
 stm32_usart_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	/* No user changeable parameters */
+	/* Anal user changeable parameters */
 	return -EINVAL;
 }
 
@@ -1432,7 +1432,7 @@ static int stm32_usart_poll_get_char(struct uart_port *port)
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 
 	if (!(readl_relaxed(port->membase + ofs->isr) & USART_SR_RXNE))
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	return readl_relaxed(port->membase + ofs->rdr) & stm32_port->rdr_mask;
 }
@@ -1473,7 +1473,7 @@ static const struct uart_ops stm32_uart_ops = {
 
 /*
  * STM32H7 RX & TX FIFO threshold configuration (CR3 RXFTCFG / TXFTCFG)
- * Note: 1 isn't a valid value in RXFTCFG / TXFTCFG. In this case,
+ * Analte: 1 isn't a valid value in RXFTCFG / TXFTCFG. In this case,
  * RXNEIE / TXEIE can be used instead of threshold irqs: RXFTIE / TXFTIE.
  * So, RXFTCFG / TXFTCFG bitfields values are encoded as array index + 1.
  */
@@ -1485,7 +1485,7 @@ static void stm32_usart_get_ftcfg(struct platform_device *pdev, const char *p,
 	u32 bytes, i;
 
 	/* DT option to get RX & TX FIFO threshold (default to 8 bytes) */
-	if (of_property_read_u32(pdev->dev.of_node, p, &bytes))
+	if (of_property_read_u32(pdev->dev.of_analde, p, &bytes))
 		bytes = 8;
 
 	for (i = 0; i < ARRAY_SIZE(stm32h7_usart_fifo_thresh_cfg); i++)
@@ -1542,10 +1542,10 @@ static int stm32_usart_init_port(struct stm32_port *stm32port,
 		return ret;
 
 	stm32port->wakeup_src = stm32port->info->cfg.has_wakeup &&
-		of_property_read_bool(pdev->dev.of_node, "wakeup-source");
+		of_property_read_bool(pdev->dev.of_analde, "wakeup-source");
 
 	stm32port->swap = stm32port->info->cfg.has_swap &&
-		of_property_read_bool(pdev->dev.of_node, "rx-tx-swap");
+		of_property_read_bool(pdev->dev.of_analde, "rx-tx-swap");
 
 	stm32port->fifoen = stm32port->info->cfg.has_fifo;
 	if (stm32port->fifoen) {
@@ -1585,7 +1585,7 @@ static int stm32_usart_init_port(struct stm32_port *stm32port,
 
 	/*
 	 * Both CTS/RTS gpios and "st,hw-flow-ctrl" (deprecated) or "uart-has-rtscts"
-	 * properties should not be specified.
+	 * properties should analt be specified.
 	 */
 	if (stm32port->hw_flow_control) {
 		if (mctrl_gpio_to_gpiod(stm32port->gpios, UART_GPIO_CTS) ||
@@ -1606,7 +1606,7 @@ err_clk:
 
 static struct stm32_port *stm32_usart_of_get_port(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int id;
 
 	if (!np)
@@ -1614,7 +1614,7 @@ static struct stm32_port *stm32_usart_of_get_port(struct platform_device *pdev)
 
 	id = of_alias_get_id(np, "serial");
 	if (id < 0) {
-		dev_err(&pdev->dev, "failed to get alias id, errno %d\n", id);
+		dev_err(&pdev->dev, "failed to get alias id, erranal %d\n", id);
 		return NULL;
 	}
 
@@ -1663,7 +1663,7 @@ static int stm32_usart_of_dma_rx_probe(struct stm32_port *stm32port,
 					       &stm32port->rx_dma_buf,
 					       GFP_KERNEL);
 	if (!stm32port->rx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Configure DMA channel */
 	memset(&config, 0, sizeof(config));
@@ -1701,7 +1701,7 @@ static int stm32_usart_of_dma_tx_probe(struct stm32_port *stm32port,
 					       &stm32port->tx_dma_buf,
 					       GFP_KERNEL);
 	if (!stm32port->tx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Configure DMA channel */
 	memset(&config, 0, sizeof(config));
@@ -1725,7 +1725,7 @@ static int stm32_usart_serial_probe(struct platform_device *pdev)
 
 	stm32port = stm32_usart_of_get_port(pdev);
 	if (!stm32port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	stm32port->info = of_device_get_match_data(&pdev->dev);
 	if (!stm32port->info)
@@ -1735,7 +1735,7 @@ static int stm32_usart_serial_probe(struct platform_device *pdev)
 	if (PTR_ERR(stm32port->rx_ch) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
-	/* Fall back in interrupt mode for any non-deferral error */
+	/* Fall back in interrupt mode for any analn-deferral error */
 	if (IS_ERR(stm32port->rx_ch))
 		stm32port->rx_ch = NULL;
 
@@ -1744,7 +1744,7 @@ static int stm32_usart_serial_probe(struct platform_device *pdev)
 		ret = -EPROBE_DEFER;
 		goto err_dma_rx;
 	}
-	/* Fall back in interrupt mode for any non-deferral error */
+	/* Fall back in interrupt mode for any analn-deferral error */
 	if (IS_ERR(stm32port->tx_ch))
 		stm32port->tx_ch = NULL;
 
@@ -1772,13 +1772,13 @@ static int stm32_usart_serial_probe(struct platform_device *pdev)
 	}
 
 	if (!stm32port->rx_ch)
-		dev_info(&pdev->dev, "interrupt mode for rx (no dma)\n");
+		dev_info(&pdev->dev, "interrupt mode for rx (anal dma)\n");
 	if (!stm32port->tx_ch)
-		dev_info(&pdev->dev, "interrupt mode for tx (no dma)\n");
+		dev_info(&pdev->dev, "interrupt mode for tx (anal dma)\n");
 
 	platform_set_drvdata(pdev, &stm32port->port);
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
@@ -1793,7 +1793,7 @@ static int stm32_usart_serial_probe(struct platform_device *pdev)
 err_port:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 
 	if (stm32port->tx_ch)
 		stm32_usart_of_dma_tx_remove(stm32port, pdev);
@@ -1832,7 +1832,7 @@ static void stm32_usart_serial_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 
 	stm32_usart_clr_bits(port, ofs->cr1, USART_CR1_PEIE);
 
@@ -1919,12 +1919,12 @@ static int stm32_usart_console_setup(struct console *co, char *options)
 	int flow = 'n';
 
 	if (co->index >= STM32_MAX_PORTS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	stm32port = &stm32_ports[co->index];
 
 	/*
-	 * This driver does not support early console initialization
+	 * This driver does analt support early console initialization
 	 * (use ARM early printk support instead), so we only expect
 	 * this to be called during the uart port registration when the
 	 * driver gets probed and the port should be mapped at that point.
@@ -1976,7 +1976,7 @@ static void early_stm32_serial_write(struct console *console, const char *s, uns
 static int __init early_stm32_h7_serial_setup(struct earlycon_device *device, const char *options)
 {
 	if (!(device->port.membase || device->port.iobase))
-		return -ENODEV;
+		return -EANALDEV;
 	device->port.private_data = &stm32h7_info;
 	device->con->write = early_stm32_serial_write;
 	return 0;
@@ -1985,7 +1985,7 @@ static int __init early_stm32_h7_serial_setup(struct earlycon_device *device, co
 static int __init early_stm32_f7_serial_setup(struct earlycon_device *device, const char *options)
 {
 	if (!(device->port.membase || device->port.iobase))
-		return -ENODEV;
+		return -EANALDEV;
 	device->port.private_data = &stm32f7_info;
 	device->con->write = early_stm32_serial_write;
 	return 0;
@@ -1994,7 +1994,7 @@ static int __init early_stm32_f7_serial_setup(struct earlycon_device *device, co
 static int __init early_stm32_f4_serial_setup(struct earlycon_device *device, const char *options)
 {
 	if (!(device->port.membase || device->port.iobase))
-		return -ENODEV;
+		return -EANALDEV;
 	device->port.private_data = &stm32f4_info;
 	device->con->write = early_stm32_serial_write;
 	return 0;
@@ -2009,7 +2009,7 @@ static struct uart_driver stm32_usart_driver = {
 	.driver_name	= DRIVER_NAME,
 	.dev_name	= STM32_SERIAL_NAME,
 	.major		= 0,
-	.minor		= 0,
+	.mianalr		= 0,
 	.nr		= STM32_MAX_PORTS,
 	.cons		= STM32_SERIAL_CONSOLE,
 };
@@ -2082,7 +2082,7 @@ static int __maybe_unused stm32_usart_serial_suspend(struct device *dev)
 	}
 
 	/*
-	 * When "no_console_suspend" is enabled, keep the pinctrl default state
+	 * When "anal_console_suspend" is enabled, keep the pinctrl default state
 	 * and rely on bootloader stage to restore this state upon resume.
 	 * Otherwise, apply the idle or sleep states depending on wakeup
 	 * capabilities.

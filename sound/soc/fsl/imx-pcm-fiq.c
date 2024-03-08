@@ -49,7 +49,7 @@ static enum hrtimer_restart snd_hrtimer_callback(struct hrtimer *hrt)
 	struct pt_regs regs;
 
 	if (!atomic_read(&iprtd->playing) && !atomic_read(&iprtd->capturing))
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
 	get_fiq_regs(&regs);
 
@@ -60,7 +60,7 @@ static enum hrtimer_restart snd_hrtimer_callback(struct hrtimer *hrt)
 
 	snd_pcm_period_elapsed(substream);
 
-	hrtimer_forward_now(hrt, ns_to_ktime(iprtd->poll_time_ns));
+	hrtimer_forward_analw(hrt, ns_to_ktime(iprtd->poll_time_ns));
 
 	return HRTIMER_RESTART;
 }
@@ -178,14 +178,14 @@ static int snd_imx_open(struct snd_soc_component *component,
 
 	iprtd = kzalloc(sizeof(*iprtd), GFP_KERNEL);
 	if (iprtd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	runtime->private_data = iprtd;
 
 	iprtd->substream = substream;
 
 	atomic_set(&iprtd->playing, 0);
 	atomic_set(&iprtd->capturing, 0);
-	hrtimer_init(&iprtd->hrt, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&iprtd->hrt, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	iprtd->hrt.function = snd_hrtimer_callback;
 
 	ret = snd_pcm_hw_constraint_integer(substream->runtime,

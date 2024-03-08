@@ -18,7 +18,7 @@
 				wiphy_name(mt76_hw(dev)->wiphy), MAXNAME)
 #define DEV_PR_FMT	"%s"
 #define DEV_PR_ARG	__entry->wiphy_name
-#define LP_STATE_PR_ARG	__entry->lp_state ? "lp ready" : "lp not ready"
+#define LP_STATE_PR_ARG	__entry->lp_state ? "lp ready" : "lp analt ready"
 
 TRACE_EVENT(lp_event,
 	TP_PROTO(struct mt792x_dev *dev, u8 lp_state),

@@ -51,14 +51,14 @@ rmnet_map_ipv4_dl_csum_trailer(struct sk_buff *skb,
 	/* We don't support checksum offload on IPv4 fragments */
 	if (ip_is_fragment(ip4h)) {
 		priv->stats.csum_fragmented_pkt++;
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Checksum offload is only supported for UDP and TCP protocols */
 	csum_field = rmnet_map_get_csum_field(ip4h->protocol, txporthdr);
 	if (!csum_field) {
 		priv->stats.csum_err_invalid_transport++;
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 
 	/* RFC 768: UDP checksum is optional for IPv4, and is 0 if unused */
@@ -80,11 +80,11 @@ rmnet_map_ipv4_dl_csum_trailer(struct sk_buff *skb,
 	 * If the IP payload arrives intact, adding the pseudo header
 	 * checksum to the IP payload checksum will yield 0xffff (negative
 	 * zero).  This means the trailer checksum and the pseudo checksum
-	 * are additive inverses of each other.  Put another way, the
+	 * are additive inverses of each other.  Put aanalther way, the
 	 * message passes the checksum test if the trailer checksum value
 	 * is the negated pseudo header checksum.
 	 *
-	 * Knowing this, we don't even need to examine the transport
+	 * Kanalwing this, we don't even need to examine the transport
 	 * header checksum value; it is already accounted for in the
 	 * checksum value found in the trailer.
 	 */
@@ -117,12 +117,12 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 	__be16 ip_header_csum;
 
 	/* Checksum offload is only supported for UDP and TCP protocols;
-	 * the packet cannot include any IPv6 extension headers
+	 * the packet cananalt include any IPv6 extension headers
 	 */
 	csum_field = rmnet_map_get_csum_field(ip6h->nexthdr, txporthdr);
 	if (!csum_field) {
 		priv->stats.csum_err_invalid_transport++;
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 
 	/* The checksum value in the trailer is computed over the entire
@@ -192,7 +192,7 @@ rmnet_map_ipv4_ul_csum_header(struct iphdr *iphdr,
 	ul_header->csum_start_offset = htons(skb_network_header_len(skb));
 	ul_header->csum_info = htons(val);
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	rmnet_map_complement_ipv4_txporthdr_csum_field(iphdr);
 }
@@ -227,7 +227,7 @@ rmnet_map_ipv6_ul_csum_header(struct ipv6hdr *ipv6hdr,
 	ul_header->csum_start_offset = htons(skb_network_header_len(skb));
 	ul_header->csum_info = htons(val);
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	rmnet_map_complement_ipv6_txporthdr_csum_field(ipv6hdr);
 }
@@ -276,7 +276,7 @@ static void rmnet_map_v5_checksum_uplink_packet(struct sk_buff *skb,
 
 		check = rmnet_map_get_csum_field(proto, trans);
 		if (check) {
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = CHECKSUM_ANALNE;
 			/* Ask for checksum offloading */
 			ul_header->csum_info |= MAPV5_CSUMINFO_VALID_FLAG;
 			priv->stats.csum_hw++;
@@ -309,7 +309,7 @@ struct rmnet_map_header *rmnet_map_add_map_header(struct sk_buff *skb,
 	if (port->data_format & RMNET_FLAGS_EGRESS_MAP_CKSUMV5)
 		map_header->flags |= MAP_NEXT_HEADER_FLAG;
 
-	if (pad == RMNET_MAP_NO_PAD_BYTES) {
+	if (pad == RMNET_MAP_ANAL_PAD_BYTES) {
 		map_header->pkt_len = htons(map_datalen);
 		return map_header;
 	}
@@ -336,7 +336,7 @@ done:
 /* Deaggregates a single packet
  * A whole new buffer is allocated for each portion of an aggregated frame.
  * Caller should keep calling deaggregate() on the source skb until 0 is
- * returned, indicating that there are no more packets to deaggregate. Caller
+ * returned, indicating that there are anal more packets to deaggregate. Caller
  * is responsible for freeing the original skb.
  */
 struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,
@@ -398,7 +398,7 @@ struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,
  * the beginning of a buffer which contains the IP payload +
  * padding + checksum trailer.
  * Only IPv4 and IPv6 are supported along with TCP & UDP.
- * Fragmented or tunneled packets are not supported.
+ * Fragmented or tunneled packets are analt supported.
  */
 int rmnet_map_checksum_downlink_packet(struct sk_buff *skb, u16 len)
 {
@@ -407,7 +407,7 @@ int rmnet_map_checksum_downlink_packet(struct sk_buff *skb, u16 len)
 
 	if (unlikely(!(skb->dev->features & NETIF_F_RXCSUM))) {
 		priv->stats.csum_sw++;
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	csum_trailer = (struct rmnet_map_dl_csum_trailer *)(skb->data + len);
@@ -425,7 +425,7 @@ int rmnet_map_checksum_downlink_packet(struct sk_buff *skb, u16 len)
 
 	priv->stats.csum_err_invalid_ip_version++;
 
-	return -EPROTONOSUPPORT;
+	return -EPROTOANALSUPPORT;
 }
 
 static void rmnet_map_v4_checksum_uplink_packet(struct sk_buff *skb,
@@ -576,7 +576,7 @@ static enum hrtimer_restart rmnet_map_flush_tx_packet_queue(struct hrtimer *t)
 
 	schedule_work(&port->agg_wq);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 unsigned int rmnet_map_tx_aggregate(struct sk_buff *skb, struct rmnet_port *port,
@@ -607,11 +607,11 @@ new_packet:
 
 		if (diff.tv_sec > 0 || diff.tv_nsec > RMNET_AGG_BYPASS_TIME_NSEC ||
 		    size == 0)
-			goto no_aggr;
+			goto anal_aggr;
 
 		port->skbagg_head = skb_copy_expand(skb, 0, size, GFP_ATOMIC);
 		if (!port->skbagg_head)
-			goto no_aggr;
+			goto anal_aggr;
 
 		dev_kfree_skb_any(skb);
 		port->skbagg_head->protocol = htons(ETH_P_MAP);
@@ -666,7 +666,7 @@ schedule:
 
 	return len;
 
-no_aggr:
+anal_aggr:
 	spin_unlock_bh(&port->agg_lock);
 	skb->protocol = htons(ETH_P_MAP);
 	dev_queue_xmit(skb);
@@ -686,7 +686,7 @@ void rmnet_map_update_ul_agg_config(struct rmnet_port *port, u32 size,
 
 void rmnet_map_tx_aggregate_init(struct rmnet_port *port)
 {
-	hrtimer_init(&port->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&port->hrtimer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	port->hrtimer.function = rmnet_map_flush_tx_packet_queue;
 	spin_lock_init(&port->agg_lock);
 	rmnet_map_update_ul_agg_config(port, 4096, 1, 800);

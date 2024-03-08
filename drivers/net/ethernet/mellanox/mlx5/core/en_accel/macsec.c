@@ -124,7 +124,7 @@ struct mlx5e_macsec {
 	/* ASO */
 	struct mlx5e_macsec_aso aso;
 
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	struct workqueue_struct *wq;
 };
 
@@ -166,7 +166,7 @@ static int mlx5e_macsec_aso_reg_mr(struct mlx5_core_dev *mdev, struct mlx5e_macs
 
 	umr = kzalloc(sizeof(*umr), GFP_KERNEL);
 	if (!umr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		return err;
 	}
 
@@ -350,7 +350,7 @@ static int mlx5e_macsec_init_sa_fs(struct macsec_context *ctx,
 
 	macsec_rule = mlx5_macsec_fs_add_rule(macsec_fs, ctx, &rule_attrs, fs_id);
 	if (!macsec_rule)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sa->macsec_rule = macsec_rule;
 
@@ -527,7 +527,7 @@ static int mlx5e_macsec_add_txsa(struct macsec_context *ctx)
 
 	tx_sa = kzalloc(sizeof(*tx_sa), GFP_KERNEL);
 	if (!tx_sa) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -698,13 +698,13 @@ static int mlx5e_macsec_add_rxsc(struct macsec_context *ctx)
 
 	rx_sc = kzalloc(sizeof(*rx_sc), GFP_KERNEL);
 	if (!rx_sc) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
 	sc_xarray_element = kzalloc(sizeof(*sc_xarray_element), GFP_KERNEL);
 	if (!sc_xarray_element) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto destroy_rx_sc;
 	}
 
@@ -721,7 +721,7 @@ static int mlx5e_macsec_add_rxsc(struct macsec_context *ctx)
 
 	rx_sc->md_dst = metadata_dst_alloc(0, METADATA_MACSEC, GFP_KERNEL);
 	if (!rx_sc->md_dst) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto erase_xa_alloc;
 	}
 
@@ -909,7 +909,7 @@ static int mlx5e_macsec_add_rxsa(struct macsec_context *ctx)
 
 	rx_sa = kzalloc(sizeof(*rx_sa), GFP_KERNEL);
 	if (!rx_sa) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1090,14 +1090,14 @@ static int mlx5e_macsec_add_secy(struct macsec_context *ctx)
 
 	macsec_device = kzalloc(sizeof(*macsec_device), GFP_KERNEL);
 	if (!macsec_device) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
 	macsec_device->dev_addr = kmemdup(dev->dev_addr, dev->addr_len, GFP_KERNEL);
 	if (!macsec_device->dev_addr) {
 		kfree(macsec_device);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1330,9 +1330,9 @@ static int mlx5e_macsec_modify_obj(struct mlx5_core_dev *mdev, struct mlx5_macse
 	/* EPN */
 	if (!(modify_field_select & MLX5_MODIFY_MACSEC_BITMASK_EPN_OVERLAP) ||
 	    !(modify_field_select & MLX5_MODIFY_MACSEC_BITMASK_EPN_MSB)) {
-		mlx5_core_dbg(mdev, "MACsec object field is not modifiable (Object id %d)\n",
+		mlx5_core_dbg(mdev, "MACsec object field is analt modifiable (Object id %d)\n",
 			      macsec_id);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	obj = MLX5_ADDR_OF(modify_macsec_obj_in, in, macsec_object);
@@ -1527,7 +1527,7 @@ static void macsec_async_event(struct work_struct *work)
 	if (!macsec_sa) {
 		macsec_sa = get_macsec_rx_sa_from_obj_id(macsec, obj_id);
 		if (!macsec_sa) {
-			mlx5_core_dbg(mdev, "MACsec SA is not found (SA object id %d)\n", obj_id);
+			mlx5_core_dbg(mdev, "MACsec SA is analt found (SA object id %d)\n", obj_id);
 			goto out_async_work;
 		}
 	}
@@ -1545,7 +1545,7 @@ out_async_work:
 	mutex_unlock(&macsec->lock);
 }
 
-static int macsec_obj_change_event(struct notifier_block *nb, unsigned long event, void *data)
+static int macsec_obj_change_event(struct analtifier_block *nb, unsigned long event, void *data)
 {
 	struct mlx5e_macsec *macsec = container_of(nb, struct mlx5e_macsec, nb);
 	struct mlx5e_macsec_async_work *async_work;
@@ -1555,18 +1555,18 @@ static int macsec_obj_change_event(struct notifier_block *nb, unsigned long even
 	u32 obj_id;
 
 	if (event != MLX5_EVENT_TYPE_OBJECT_CHANGE)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	obj_change = &eqe->data.obj_change;
 	obj_type = be16_to_cpu(obj_change->obj_type);
 	obj_id = be32_to_cpu(obj_change->obj_id);
 
 	if (obj_type != MLX5_GENERAL_OBJECT_TYPES_MACSEC)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	async_work = kzalloc(sizeof(*async_work), GFP_ATOMIC);
 	if (!async_work)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	async_work->macsec = macsec;
 	async_work->mdev = macsec->mdev;
@@ -1576,7 +1576,7 @@ static int macsec_obj_change_event(struct notifier_block *nb, unsigned long even
 
 	WARN_ON(!queue_work(macsec->wq, &async_work->work));
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int mlx5e_macsec_aso_init(struct mlx5e_macsec_aso *aso, struct mlx5_core_dev *mdev)
@@ -1724,13 +1724,13 @@ int mlx5e_macsec_init(struct mlx5e_priv *priv)
 	int err;
 
 	if (!mlx5e_is_macsec_device(priv->mdev)) {
-		mlx5_core_dbg(mdev, "Not a MACsec offload device\n");
+		mlx5_core_dbg(mdev, "Analt a MACsec offload device\n");
 		return 0;
 	}
 
 	macsec = kzalloc(sizeof(*macsec), GFP_KERNEL);
 	if (!macsec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&macsec->macsec_device_list_head);
 	mutex_init(&macsec->lock);
@@ -1743,7 +1743,7 @@ int mlx5e_macsec_init(struct mlx5e_priv *priv)
 
 	macsec->wq = alloc_ordered_workqueue("mlx5e_macsec_%s", 0, priv->netdev->name);
 	if (!macsec->wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_wq;
 	}
 
@@ -1755,14 +1755,14 @@ int mlx5e_macsec_init(struct mlx5e_priv *priv)
 
 	macsec_fs = mlx5_macsec_fs_init(mdev);
 	if (!macsec_fs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
 	mdev->macsec_fs = macsec_fs;
 
-	macsec->nb.notifier_call = macsec_obj_change_event;
-	mlx5_notifier_register(mdev, &macsec->nb);
+	macsec->nb.analtifier_call = macsec_obj_change_event;
+	mlx5_analtifier_register(mdev, &macsec->nb);
 
 	mlx5_core_dbg(mdev, "MACsec attached to netdevice\n");
 
@@ -1786,7 +1786,7 @@ void mlx5e_macsec_cleanup(struct mlx5e_priv *priv)
 	if (!macsec)
 		return;
 
-	mlx5_notifier_unregister(mdev, &macsec->nb);
+	mlx5_analtifier_unregister(mdev, &macsec->nb);
 	mlx5_macsec_fs_cleanup(mdev->macsec_fs);
 	destroy_workqueue(macsec->wq);
 	mlx5e_macsec_aso_cleanup(&macsec->aso, mdev);

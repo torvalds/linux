@@ -23,22 +23,22 @@ monitor (gas gauge) integrated circuits.
 
 The controller supports operation in both HDQ and 1-wire mode. The essential
 difference between the HDQ and 1-wire mode is how the slave device responds to
-initialization pulse.In HDQ mode, the firmware does not require the host to
+initialization pulse.In HDQ mode, the firmware does analt require the host to
 create an initialization pulse to the slave.However, the slave can be reset by
 using an initialization pulse (also referred to as a break pulse).The slave
-does not respond with a presence pulse as it does in the 1-Wire protocol.
+does analt respond with a presence pulse as it does in the 1-Wire protocol.
 
 Remarks:
 ========
 The driver (drivers/w1/masters/omap_hdq.c) supports the HDQ mode of the
-controller. In this mode, as we can not read the ID which obeys the W1
+controller. In this mode, as we can analt read the ID which obeys the W1
 spec(family:id:crc), a module parameter can be passed to the driver which will
 be used to calculate the CRC and pass back an appropriate slave ID to the W1
 core.
 
 By default the master driver and the BQ slave i/f
 driver(drivers/w1/slaves/w1_bq27000.c) sets the ID to 1.
-Please note to load both the modules with a different ID if required, but note
+Please analte to load both the modules with a different ID if required, but analte
 that the ID used should be same for both master and slave driver loading.
 
 e.g::
@@ -46,7 +46,7 @@ e.g::
   insmod omap_hdq.ko W1_ID=2
   insmod w1_bq27000.ko F_ID=2
 
-The driver also supports 1-wire mode. In this mode, there is no need to
+The driver also supports 1-wire mode. In this mode, there is anal need to
 pass slave ID as parameter. The driver will auto-detect slaves connected
 to the bus using SEARCH_ROM procedure. 1-wire mode can be selected by
 setting "ti,mode" property to "1w" in DT (see

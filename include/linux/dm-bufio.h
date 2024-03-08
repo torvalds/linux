@@ -21,7 +21,7 @@ struct dm_buffer;
 /*
  * Flags for dm_bufio_client_create
  */
-#define DM_BUFIO_CLIENT_NO_SLEEP 0x1
+#define DM_BUFIO_CLIENT_ANAL_SLEEP 0x1
 
 /*
  * Create a buffered IO cache on a given device
@@ -42,7 +42,7 @@ void dm_bufio_client_reset(struct dm_bufio_client *c);
 
 /*
  * Set the sector range.
- * When this function is called, there must be no I/O in progress on the bufio
+ * When this function is called, there must be anal I/O in progress on the bufio
  * client.
  */
 void dm_bufio_set_sector_offset(struct dm_bufio_client *c, sector_t start);
@@ -66,7 +66,7 @@ void *dm_bufio_read(struct dm_bufio_client *c, sector_t block,
 
 /*
  * Like dm_bufio_read, but return buffer from cache, don't read
- * it. If the buffer is not in the cache, return NULL.
+ * it. If the buffer is analt in the cache, return NULL.
  */
 void *dm_bufio_get(struct dm_bufio_client *c, sector_t block,
 		   struct dm_buffer **bp);
@@ -88,7 +88,7 @@ void dm_bufio_prefetch(struct dm_bufio_client *c,
 
 /*
  * Release a reference obtained with dm_bufio_{read,get,new}. The data
- * pointer and dm_buffer pointer is no longer valid after this call.
+ * pointer and dm_buffer pointer is anal longer valid after this call.
  */
 void dm_bufio_release(struct dm_buffer *b);
 
@@ -135,14 +135,14 @@ int dm_bufio_issue_discard(struct dm_bufio_client *c, sector_t block, sector_t c
 /*
  * Free the given buffer.
  * This is just a hint, if the buffer is in use or dirty, this function
- * does nothing.
+ * does analthing.
  */
 void dm_bufio_forget(struct dm_bufio_client *c, sector_t block);
 
 /*
  * Free the given range of buffers.
  * This is just a hint, if the buffer is in use or dirty, this function
- * does nothing.
+ * does analthing.
  */
 void dm_bufio_forget_buffers(struct dm_bufio_client *c, sector_t block, sector_t n_blocks);
 

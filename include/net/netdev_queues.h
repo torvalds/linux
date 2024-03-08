@@ -11,19 +11,19 @@
  * macros are designed to safely implement stopping
  * and waking netdev queues without full lock protection.
  *
- * We assume that there can be no concurrent stop attempts and no concurrent
+ * We assume that there can be anal concurrent stop attempts and anal concurrent
  * wake attempts. The try-stop should happen from the xmit handler,
  * while wake up should be triggered from NAPI poll context.
  * The two may run concurrently (single producer, single consumer).
  *
  * The try-stop side is expected to run from the xmit handler and therefore
- * it does not reschedule Tx (netif_tx_start_queue() instead of
+ * it does analt reschedule Tx (netif_tx_start_queue() instead of
  * netif_tx_wake_queue()). Uses of the ``stop`` macros outside of the xmit
- * handler may lead to xmit queue being enabled but not run.
- * The waking side does not have similar context restrictions.
+ * handler may lead to xmit queue being enabled but analt run.
+ * The waking side does analt have similar context restrictions.
  *
- * The macros guarantee that rings will not remain stopped if there's
- * space available, but they do *not* prevent false wake ups when
+ * The macros guarantee that rings will analt remain stopped if there's
+ * space available, but they do *analt* prevent false wake ups when
  * the ring is full! Drivers should check for ring full at the start
  * for the xmit handler.
  *
@@ -42,7 +42,7 @@
 		 */							\
 		smp_mb__after_atomic();					\
 									\
-		/* We need to check again in a case another		\
+		/* We need to check again in a case aanalther		\
 		 * CPU has just made room available.			\
 		 */							\
 		_res = 0;						\
@@ -103,7 +103,7 @@ netdev_txq_completed_mb(struct netdev_queue *dev_queue,
  * @get_desc:	get current number of free descriptors (see requirements below!)
  * @start_thrs:	minimal number of descriptors to re-enable the queue
  * @down_cond:	down condition, predicate indicating that the queue should
- *		not be woken up even if descriptors are available
+ *		analt be woken up even if descriptors are available
  *
  * All arguments may be evaluated multiple times.
  * @get_desc must be a formula or a function call, it must always
@@ -113,7 +113,7 @@ netdev_txq_completed_mb(struct netdev_queue *dev_queue,
  * Returns:
  *	 0 if the queue was woken up
  *	 1 if the queue was already enabled (or disabled but @down_cond is true)
- *	-1 if the queue was left unchanged (@start_thrs not reached)
+ *	-1 if the queue was left unchanged (@start_thrs analt reached)
  */
 #define __netif_txq_completed_wake(txq, pkts, bytes,			\
 				   get_desc, start_thrs, down_cond)	\

@@ -39,7 +39,7 @@ struct ad7266_state {
 	/*
 	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
-	 * The buffer needs to be large enough to hold two samples (4 bytes) and
+	 * The buffer needs to be large eanalugh to hold two samples (4 bytes) and
 	 * the naturally aligned timestamp (8 bytes).
 	 */
 	struct {
@@ -90,7 +90,7 @@ static irqreturn_t ad7266_trigger_handler(int irq, void *p)
 			    pf->timestamp);
 	}
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -393,7 +393,7 @@ static int ad7266_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -414,7 +414,7 @@ static int ad7266_probe(struct spi_device *spi)
 		st->vref_mv = ret / 1000;
 	} else {
 		/* Any other error indicates that the regulator does exist */
-		if (PTR_ERR(st->reg) != -ENODEV)
+		if (PTR_ERR(st->reg) != -EANALDEV)
 			return PTR_ERR(st->reg);
 		/* Use internal reference */
 		st->vref_mv = 2500;

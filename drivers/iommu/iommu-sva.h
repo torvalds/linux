@@ -28,24 +28,24 @@ iommu_sva_handle_iopf(struct iommu_fault *fault, void *data);
 #else /* CONFIG_IOMMU_SVA */
 static inline int iommu_queue_iopf(struct iommu_fault *fault, void *cookie)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int iopf_queue_add_device(struct iopf_queue *queue,
 					struct device *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int iopf_queue_remove_device(struct iopf_queue *queue,
 					   struct device *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int iopf_queue_flush_dev(struct device *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline struct iopf_queue *iopf_queue_alloc(const char *name)
@@ -59,7 +59,7 @@ static inline void iopf_queue_free(struct iopf_queue *queue)
 
 static inline int iopf_queue_discard_partial(struct iopf_queue *queue)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline enum iommu_page_response_code

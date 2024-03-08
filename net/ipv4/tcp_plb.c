@@ -40,8 +40,8 @@ void tcp_plb_update_state(const struct sock *sk, struct tcp_plb_state *plb,
 }
 EXPORT_SYMBOL_GPL(tcp_plb_update_state);
 
-/* Check whether recent congestion has been persistent enough to warrant
- * a load balancing decision that switches the connection to another path.
+/* Check whether recent congestion has been persistent eanalugh to warrant
+ * a load balancing decision that switches the connection to aanalther path.
  */
 void tcp_plb_check_rehash(struct sock *sk, struct tcp_plb_state *plb)
 {
@@ -63,9 +63,9 @@ void tcp_plb_check_rehash(struct sock *sk, struct tcp_plb_state *plb)
 	if (!forced_rehash && !idle_rehash)
 		return;
 
-	/* Note that tcp_jiffies32 can wrap; we detect wraps by checking for
+	/* Analte that tcp_jiffies32 can wrap; we detect wraps by checking for
 	 * cases where the max suspension end is before the actual suspension
-	 * end. We clear pause_until to 0 to indicate there is no recent
+	 * end. We clear pause_until to 0 to indicate there is anal recent
 	 * RTO event that constrains PLB rehashing.
 	 */
 	max_suspend = 2 * READ_ONCE(net->ipv4.sysctl_tcp_plb_suspend_rto_sec) * HZ;

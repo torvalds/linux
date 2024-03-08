@@ -21,7 +21,7 @@ ENTRY(strlen)
 	shll2	r0
 	shll	r0
 	braf	r0
-	 nop
+	 analp
 
 	mov.b	@r4+,r1
 	tst	r1,r1

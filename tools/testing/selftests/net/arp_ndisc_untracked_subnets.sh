@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # 2 namespaces: one host and one router. Use arping from the host to send a
-# garp to the router. Router accepts or ignores based on its arp_accept
+# garp to the router. Router accepts or iganalres based on its arp_accept
 # or accept_untracked_na configuration.
 
 source lib.sh
@@ -82,10 +82,10 @@ setup_v6() {
 
 	ip -6 -netns ${HOST_NS_V6} link set dev ${HOST_INTF} up
 	ip -6 -netns ${ROUTER_NS_V6} addr add \
-		${ROUTER_ADDR_V6}/${PREFIX_WIDTH_V6} dev ${ROUTER_INTF} nodad
+		${ROUTER_ADDR_V6}/${PREFIX_WIDTH_V6} dev ${ROUTER_INTF} analdad
 
 	HOST_CONF=net.ipv6.conf.${HOST_INTF}
-	ip netns exec ${HOST_NS_V6} sysctl -qw ${HOST_CONF}.ndisc_notify=1
+	ip netns exec ${HOST_NS_V6} sysctl -qw ${HOST_CONF}.ndisc_analtify=1
 	ip netns exec ${HOST_NS_V6} sysctl -qw ${HOST_CONF}.disable_ipv6=0
 	ip -6 -netns ${HOST_NS_V6} addr add ${HOST_ADDR_V6}/${PREFIX_WIDTH_V6} \
 		dev ${HOST_INTF}
@@ -158,7 +158,7 @@ arp_test_gratuitous() {
 arp_test_gratuitous_combinations() {
 	arp_test_gratuitous 0
 	arp_test_gratuitous 1
-	arp_test_gratuitous 2 0 # Second entry indicates subnet or not
+	arp_test_gratuitous 2 0 # Second entry indicates subnet or analt
 	arp_test_gratuitous 2 1
 }
 
@@ -216,7 +216,7 @@ ndisc_test_untracked_advertisements() {
 			  "accept_untracked_na=$1 "
 			  "same_subnet=$2")
 		if [ ${same_subnet} -eq 0 ]; then
-			# Not same subnet
+			# Analt same subnet
 			HOST_ADDR_V6=2000:db8:abcd:0013::4
 		else
 			HOST_ADDR_V6=2001:db8:abcd:0012::3
@@ -273,17 +273,17 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v tcpdump)" ]; then
-	echo "SKIP: Could not run test without tcpdump tool"
+	echo "SKIP: Could analt run test without tcpdump tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v arping)" ]; then
-	echo "SKIP: Could not run test without arping tool"
+	echo "SKIP: Could analt run test without arping tool"
 	exit $ksft_skip
 fi
 

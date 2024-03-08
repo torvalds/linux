@@ -24,7 +24,7 @@ struct pci_root_info {
 
 bool pci_use_e820 = true;
 static bool pci_use_crs = true;
-static bool pci_ignore_seg;
+static bool pci_iganalre_seg;
 
 static int __init set_use_crs(const struct dmi_system_id *id)
 {
@@ -32,22 +32,22 @@ static int __init set_use_crs(const struct dmi_system_id *id)
 	return 0;
 }
 
-static int __init set_nouse_crs(const struct dmi_system_id *id)
+static int __init set_analuse_crs(const struct dmi_system_id *id)
 {
 	pci_use_crs = false;
 	return 0;
 }
 
-static int __init set_ignore_seg(const struct dmi_system_id *id)
+static int __init set_iganalre_seg(const struct dmi_system_id *id)
 {
-	pr_info("%s detected: ignoring ACPI _SEG\n", id->ident);
-	pci_ignore_seg = true;
+	pr_info("%s detected: iganalring ACPI _SEG\n", id->ident);
+	pci_iganalre_seg = true;
 	return 0;
 }
 
-static int __init set_no_e820(const struct dmi_system_id *id)
+static int __init set_anal_e820(const struct dmi_system_id *id)
 {
-	pr_info("%s detected: not clipping E820 regions from _CRS\n",
+	pr_info("%s detected: analt clipping E820 regions from _CRS\n",
 	        id->ident);
 	pci_use_e820 = false;
 	return 0;
@@ -90,7 +90,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "MICRO-STAR INTERNATIONAL CO., LTD"),
 			DMI_MATCH(DMI_BOARD_NAME, "MS-7253"),
-			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies, LTD"),
+			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Techanallogies, LTD"),
 		},
 	},
 	/* https://bugs.launchpad.net/ubuntu/+source/alsa-driver/+bug/931368 */
@@ -101,15 +101,15 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Foxconn"),
 			DMI_MATCH(DMI_BOARD_NAME, "K8M890-8237A"),
-			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies, LTD"),
+			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Techanallogies, LTD"),
 		},
 	},
 
-	/* Now for the blacklist.. */
+	/* Analw for the blacklist.. */
 
 	/* https://bugzilla.redhat.com/show_bug.cgi?id=769657 */
 	{
-		.callback = set_nouse_crs,
+		.callback = set_analuse_crs,
 		.ident = "Dell Studio 1557",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Dell Inc."),
@@ -119,17 +119,17 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 	},
 	/* https://bugzilla.redhat.com/show_bug.cgi?id=769657 */
 	{
-		.callback = set_nouse_crs,
+		.callback = set_analuse_crs,
 		.ident = "Thinkpad SL510",
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_BOARD_NAME, "2847DFG"),
 			DMI_MATCH(DMI_BIOS_VERSION, "6JET85WW (1.43 )"),
 		},
 	},
 	/* https://bugzilla.kernel.org/show_bug.cgi?id=42606 */
 	{
-		.callback = set_nouse_crs,
+		.callback = set_analuse_crs,
 		.ident = "Supermicro X8DTH",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Supermicro"),
@@ -140,7 +140,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 
 	/* https://bugzilla.kernel.org/show_bug.cgi?id=15362 */
 	{
-		.callback = set_ignore_seg,
+		.callback = set_iganalre_seg,
 		.ident = "HP xw9300",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -149,30 +149,30 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 	},
 
 	/*
-	 * Many Lenovo models with "IIL" in their DMI_PRODUCT_VERSION have
+	 * Many Leanalvo models with "IIL" in their DMI_PRODUCT_VERSION have
 	 * an E820 reserved region that covers the entire 32-bit host
 	 * bridge memory window from _CRS.  Using the E820 region to clip
-	 * _CRS means no space is available for hot-added or uninitialized
+	 * _CRS means anal space is available for hot-added or uninitialized
 	 * PCI devices.  This typically breaks I2C controllers for touchpads
 	 * and hot-added Thunderbolt devices.  See the commit log for
-	 * models known to require this quirk and related bug reports.
+	 * models kanalwn to require this quirk and related bug reports.
 	 */
 	{
-		.callback = set_no_e820,
-		.ident = "Lenovo *IIL* product version",
+		.callback = set_anal_e820,
+		.ident = "Leanalvo *IIL* product version",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "IIL"),
 		},
 	},
 
 	/*
 	 * The Acer Spin 5 (SP513-54N) has the same E820 reservation covering
-	 * the entire _CRS 32-bit window issue as the Lenovo *IIL* models.
+	 * the entire _CRS 32-bit window issue as the Leanalvo *IIL* models.
 	 * See https://bugs.launchpad.net/bugs/1884232
 	 */
 	{
-		.callback = set_no_e820,
+		.callback = set_anal_e820,
 		.ident = "Acer Spin 5 (SP513-54N)",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
@@ -182,11 +182,11 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 
 	/*
 	 * Clevo X170KM-G barebones have the same E820 reservation covering
-	 * the entire _CRS 32-bit window issue as the Lenovo *IIL* models.
+	 * the entire _CRS 32-bit window issue as the Leanalvo *IIL* models.
 	 * See https://bugzilla.kernel.org/show_bug.cgi?id=214259
 	 */
 	{
-		.callback = set_no_e820,
+		.callback = set_anal_e820,
 		.ident = "Clevo X170KM-G Barebone",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "X170KM-G"),
@@ -211,8 +211,8 @@ void __init pci_acpi_crs_quirks(void)
 	 *
 	 * But other firmware supplies E820 reserved regions that cover
 	 * entire _CRS windows, so clipping throws away the entire window,
-	 * leaving none for hot-added or uninitialized devices.  These E820
-	 * entries are probably *not* a firmware defect, so disable the
+	 * leaving analne for hot-added or uninitialized devices.  These E820
+	 * entries are probably *analt* a firmware defect, so disable the
 	 * clipping by default for post-2022 machines.
 	 *
 	 * We already have quirks to disable clipping for pre-2023
@@ -226,28 +226,28 @@ void __init pci_acpi_crs_quirks(void)
 	dmi_check_system(pci_crs_quirks);
 
 	/*
-	 * If the user specifies "pci=use_crs" or "pci=nocrs" explicitly, that
+	 * If the user specifies "pci=use_crs" or "pci=analcrs" explicitly, that
 	 * takes precedence over anything we figured out above.
 	 */
-	if (pci_probe & PCI_ROOT_NO_CRS)
+	if (pci_probe & PCI_ROOT_ANAL_CRS)
 		pci_use_crs = false;
 	else if (pci_probe & PCI_USE__CRS)
 		pci_use_crs = true;
 
 	pr_info("%s host bridge windows from ACPI; if necessary, use \"pci=%s\" and report a bug\n",
-	        pci_use_crs ? "Using" : "Ignoring",
-	        pci_use_crs ? "nocrs" : "use_crs");
+	        pci_use_crs ? "Using" : "Iganalring",
+	        pci_use_crs ? "analcrs" : "use_crs");
 
-	/* "pci=use_e820"/"pci=no_e820" on the kernel cmdline takes precedence */
-	if (pci_probe & PCI_NO_E820)
+	/* "pci=use_e820"/"pci=anal_e820" on the kernel cmdline takes precedence */
+	if (pci_probe & PCI_ANAL_E820)
 		pci_use_e820 = false;
 	else if (pci_probe & PCI_USE_E820)
 		pci_use_e820 = true;
 
 	pr_info("%s E820 reservations for host bridge windows\n",
-	        pci_use_e820 ? "Using" : "Ignoring");
-	if (pci_probe & (PCI_NO_E820 | PCI_USE_E820))
-		pr_info("Please notify linux-pci@vger.kernel.org so future kernels can do this automatically\n");
+	        pci_use_e820 ? "Using" : "Iganalring");
+	if (pci_probe & (PCI_ANAL_E820 | PCI_USE_E820))
+		pr_info("Please analtify linux-pci@vger.kernel.org so future kernels can do this automatically\n");
 }
 
 #ifdef	CONFIG_PCI_MMCONFIG
@@ -260,7 +260,7 @@ static int check_segment(u16 seg, struct device *dev, char *estr)
 	}
 
 	/*
-	 * Failure in adding MMCFG information is not fatal,
+	 * Failure in adding MMCFG information is analt fatal,
 	 * just can't access extended configuration space of
 	 * devices under this host bridge.
 	 */
@@ -286,7 +286,7 @@ static int setup_mcfg_map(struct acpi_pci_root_info *ci)
 	dev_dbg(dev, "%s(%04x %pR ECAM %pa)\n", __func__, seg,
 		&root->secondary, &root->mcfg_addr);
 
-	/* return success if MMCFG is not in use */
+	/* return success if MMCFG is analt in use */
 	if (raw_pci_ext_ops && raw_pci_ext_ops != &pci_mmcfg)
 		return 0;
 
@@ -329,22 +329,22 @@ static void teardown_mcfg_map(struct acpi_pci_root_info *ci)
 }
 #endif
 
-static int pci_acpi_root_get_node(struct acpi_pci_root *root)
+static int pci_acpi_root_get_analde(struct acpi_pci_root *root)
 {
 	int busnum = root->secondary.start;
 	struct acpi_device *device = root->device;
-	int node = acpi_get_node(device->handle);
+	int analde = acpi_get_analde(device->handle);
 
-	if (node == NUMA_NO_NODE) {
-		node = x86_pci_root_bus_node(busnum);
-		if (node != 0 && node != NUMA_NO_NODE)
-			dev_info(&device->dev, FW_BUG "no _PXM; falling back to node %d from hardware (may be inconsistent with ACPI node numbers)\n",
-				node);
+	if (analde == NUMA_ANAL_ANALDE) {
+		analde = x86_pci_root_bus_analde(busnum);
+		if (analde != 0 && analde != NUMA_ANAL_ANALDE)
+			dev_info(&device->dev, FW_BUG "anal _PXM; falling back to analde %d from hardware (may be inconsistent with ACPI analde numbers)\n",
+				analde);
 	}
-	if (node != NUMA_NO_NODE && !node_online(node))
-		node = NUMA_NO_NODE;
+	if (analde != NUMA_ANAL_ANALDE && !analde_online(analde))
+		analde = NUMA_ANAL_ANALDE;
 
-	return node;
+	return analde;
 }
 
 static int pci_acpi_root_init_info(struct acpi_pci_root_info *ci)
@@ -396,7 +396,7 @@ static int pci_acpi_root_prepare_resources(struct acpi_pci_root_info *ci)
 
 	resource_list_for_each_entry_safe(entry, tmp, &ci->resources) {
 		dev_printk(KERN_DEBUG, &device->dev,
-			   "host bridge window %pR (ignored)\n", entry->res);
+			   "host bridge window %pR (iganalred)\n", entry->res);
 		resource_list_destroy_entry(entry);
 	}
 	x86_pci_root_bus_resources(busnum, &ci->resources);
@@ -415,14 +415,14 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 {
 	int domain = root->segment;
 	int busnum = root->secondary.start;
-	int node = pci_acpi_root_get_node(root);
+	int analde = pci_acpi_root_get_analde(root);
 	struct pci_bus *bus;
 
-	if (pci_ignore_seg)
+	if (pci_iganalre_seg)
 		root->segment = domain = 0;
 
 	if (domain && !pci_domains_supported) {
-		pr_warn("pci_bus %04x:%02x: ignored (multiple domains not supported)\n",
+		pr_warn("pci_bus %04x:%02x: iganalred (multiple domains analt supported)\n",
 		        domain, busnum);
 		return NULL;
 	}
@@ -435,7 +435,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 		 */
 		struct pci_sysdata sd = {
 			.domain = domain,
-			.node = node,
+			.analde = analde,
 			.companion = root->device
 		};
 
@@ -446,11 +446,11 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 		info = kzalloc(sizeof(*info), GFP_KERNEL);
 		if (!info)
 			dev_err(&root->device->dev,
-				"pci_bus %04x:%02x: ignored (out of memory)\n",
+				"pci_bus %04x:%02x: iganalred (out of memory)\n",
 				domain, busnum);
 		else {
 			info->sd.domain = domain;
-			info->sd.node = node;
+			info->sd.analde = analde;
 			info->sd.companion = root->device;
 			bus = acpi_pci_root_create(root, &acpi_pci_root_ops,
 						   &info->common, &info->sd);
@@ -462,7 +462,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	 */
 	if (bus) {
 		struct pci_bus *child;
-		list_for_each_entry(child, &bus->children, node)
+		list_for_each_entry(child, &bus->children, analde)
 			pcie_bus_configure_settings(child);
 	}
 
@@ -472,7 +472,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
 	/*
-	 * We pass NULL as parent to pci_create_root_bus(), so if it is not NULL
+	 * We pass NULL as parent to pci_create_root_bus(), so if it is analt NULL
 	 * here, pci_create_root_bus() has been called by someone else and
 	 * sysdata is likely to be different from what we expect.  Let it go in
 	 * that case.
@@ -488,14 +488,14 @@ int __init pci_acpi_init(void)
 {
 	struct pci_dev *dev = NULL;
 
-	if (acpi_noirq)
-		return -ENODEV;
+	if (acpi_analirq)
+		return -EANALDEV;
 
 	pr_info("Using ACPI for IRQ routing\n");
 	acpi_irq_penalty_init();
 	pcibios_enable_irq = acpi_pci_irq_enable;
 	pcibios_disable_irq = acpi_pci_irq_disable;
-	x86_init.pci.init_irq = x86_init_noop;
+	x86_init.pci.init_irq = x86_init_analop;
 
 	if (pci_routeirq) {
 		/*

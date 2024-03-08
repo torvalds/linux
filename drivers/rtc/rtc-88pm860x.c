@@ -245,19 +245,19 @@ out:
 static int pm860x_rtc_dt_init(struct platform_device *pdev,
 			      struct pm860x_rtc_info *info)
 {
-	struct device_node *np = pdev->dev.parent->of_node;
+	struct device_analde *np = pdev->dev.parent->of_analde;
 	int ret;
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 	np = of_get_child_by_name(np, "rtc");
 	if (!np) {
-		dev_err(&pdev->dev, "failed to find rtc node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "failed to find rtc analde\n");
+		return -EANALDEV;
 	}
 	ret = of_property_read_u32(np, "marvell,88pm860x-vrtc", &info->vrtc);
 	if (ret)
 		info->vrtc = 0;
-	of_node_put(np);
+	of_analde_put(np);
 	return 0;
 }
 #else
@@ -273,7 +273,7 @@ static int pm860x_rtc_probe(struct platform_device *pdev)
 	info = devm_kzalloc(&pdev->dev, sizeof(struct pm860x_rtc_info),
 			    GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	info->irq = platform_get_irq(pdev, 0);
 	if (info->irq < 0)
 		return info->irq;

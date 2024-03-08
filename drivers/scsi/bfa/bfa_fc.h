@@ -144,10 +144,10 @@ enum {
 };
 
 /*
- * Fabric Well Known Addresses
+ * Fabric Well Kanalwn Addresses
  */
 enum {
-	FC_MIN_WELL_KNOWN_ADDR		= 0xFFFFF0,
+	FC_MIN_WELL_KANALWN_ADDR		= 0xFFFFF0,
 	FC_DOMAIN_CONTROLLER_MASK	= 0xFFFC00,
 	FC_ALIAS_SERVER			= 0xFFFFF8,
 	FC_MGMT_SERVER			= 0xFFFFFA,
@@ -208,15 +208,15 @@ enum {
 	FC_ELS_REC = 0x13,	/* Add this for TAPE support in FCR */
 	FC_ELS_PRLI = 0x20,	/* Process Login */
 	FC_ELS_PRLO = 0x21,	/* Process Logout. */
-	FC_ELS_SCN = 0x22,	/* State Change Notification. */
+	FC_ELS_SCN = 0x22,	/* State Change Analtification. */
 	FC_ELS_TPRLO = 0x24,	/* Third Party Process Logout. */
 	FC_ELS_PDISC = 0x50,	/* Discover N_Port Parameters. */
 	FC_ELS_FDISC = 0x51,	/* Discover F_Port Parameters. */
 	FC_ELS_ADISC = 0x52,	/* Discover Address. */
 	FC_ELS_FARP_REQ = 0x54,	/* FARP Request. */
 	FC_ELS_FARP_REP = 0x55,	/* FARP Reply. */
-	FC_ELS_FAN = 0x60,	/* Fabric Address Notification */
-	FC_ELS_RSCN = 0x61,	/* Reg State Change Notification */
+	FC_ELS_FAN = 0x60,	/* Fabric Address Analtification */
+	FC_ELS_RSCN = 0x61,	/* Reg State Change Analtification */
 	FC_ELS_SCR = 0x62,	/* State Change Registration. */
 	FC_ELS_RTIN = 0x77,	/* Mangement server request */
 	FC_ELS_RNID = 0x78,	/* Mangement server request */
@@ -227,7 +227,7 @@ enum {
 	FC_ELS_E2E_LBEACON = 0x81,
 				/* End-to-End Link Beacon */
 	FC_ELS_AUTH = 0x90,	/* Authentication. Ref FC-SP */
-	FC_ELS_RFCN = 0x97,	/* Request Fabric Change Notification. Ref
+	FC_ELS_RFCN = 0x97,	/* Request Fabric Change Analtification. Ref
 				 *FC-SP */
 };
 
@@ -346,7 +346,7 @@ struct fc_logi_s {
 	struct fc_els_cmd_s	els_cmd;	/* ELS command code */
 	struct fc_plogi_csp_s	csp;		/* common service params */
 	wwn_t			port_name;
-	wwn_t			node_name;
+	wwn_t			analde_name;
 	struct fc_plogi_clp_s	class1;		/* class 1 service parameters */
 	struct fc_plogi_clp_s	class2;		/* class 2 service parameters */
 	struct fc_plogi_clp_s	class3;		/* class 3 service parameters */
@@ -372,7 +372,7 @@ struct fc_adisc_s {
 	u32		res1:8;
 	u32		orig_HA:24;	/* originator hard address */
 	wwn_t		orig_port_name;	/* originator port name */
-	wwn_t		orig_node_name;	/* originator node name */
+	wwn_t		orig_analde_name;	/* originator analde name */
 	u32		res2:8;
 	u32		nport_id:24;	/* originator NPortID */
 };
@@ -428,7 +428,7 @@ struct fc_rec_s {
 #define FC_REC_ESB_OWN_RSP	0x80000000	/* responder owns */
 #define FC_REC_ESB_SI		0x40000000	/* SI is owned	*/
 #define FC_REC_ESB_COMP		0x20000000	/* exchange is complete	*/
-#define FC_REC_ESB_ENDCOND_ABN	0x10000000	/* abnormal ending	*/
+#define FC_REC_ESB_ENDCOND_ABN	0x10000000	/* abanalrmal ending	*/
 #define FC_REC_ESB_RQACT	0x04000000	/* recovery qual active	*/
 #define FC_REC_ESB_ERRP_MSK	0x03000000
 #define FC_REC_ESB_OXID_INV	0x00800000	/* invalid OXID		*/
@@ -503,7 +503,7 @@ struct fc_prli_params_s {
  */
 enum {
 	FC_PRLI_ACC_XQTD = 0x1,		/* request executed */
-	FC_PRLI_ACC_PREDEF_IMG = 0x5,	/* predefined image - no prli needed */
+	FC_PRLI_ACC_PREDEF_IMG = 0x5,	/* predefined image - anal prli needed */
 };
 
 struct fc_prli_params_page_s {
@@ -629,7 +629,7 @@ struct fc_scr_s {
  * Information category for Basic link data
  */
 enum {
-	FC_CAT_NOP	= 0x0,
+	FC_CAT_ANALP	= 0x0,
 	FC_CAT_ABTS	= 0x1,
 	FC_CAT_RMC	= 0x2,
 	FC_CAT_BA_ACC	= 0x4,
@@ -657,14 +657,14 @@ enum {
 	FC_LS_RJT_RSN_LOGICAL_BUSY	= 0x05,
 	FC_LS_RJT_RSN_PROTOCOL_ERROR	= 0x07,
 	FC_LS_RJT_RSN_UNABLE_TO_PERF_CMD = 0x09,
-	FC_LS_RJT_RSN_CMD_NOT_SUPP	= 0x0B,
+	FC_LS_RJT_RSN_CMD_ANALT_SUPP	= 0x0B,
 };
 
 /*
  * LS_RJT reason code explanation
  */
 enum {
-	FC_LS_RJT_EXP_NO_ADDL_INFO		= 0x00,
+	FC_LS_RJT_EXP_ANAL_ADDL_INFO		= 0x00,
 	FC_LS_RJT_EXP_SPARMS_ERR_OPTIONS	= 0x01,
 	FC_LS_RJT_EXP_SPARMS_ERR_INI_CTL	= 0x03,
 	FC_LS_RJT_EXP_SPARMS_ERR_REC_CTL	= 0x05,
@@ -672,7 +672,7 @@ enum {
 	FC_LS_RJT_EXP_SPARMS_ERR_CONSEQ		= 0x09,
 	FC_LS_RJT_EXP_SPARMS_ERR_CREDIT		= 0x0B,
 	FC_LS_RJT_EXP_INV_PORT_NAME		= 0x0D,
-	FC_LS_RJT_EXP_INV_NODE_FABRIC_NAME	= 0x0E,
+	FC_LS_RJT_EXP_INV_ANALDE_FABRIC_NAME	= 0x0E,
 	FC_LS_RJT_EXP_INV_CSP			= 0x0F,
 	FC_LS_RJT_EXP_INV_ASSOC_HDR		= 0x11,
 	FC_LS_RJT_EXP_ASSOC_HDR_REQD		= 0x13,
@@ -682,7 +682,7 @@ enum {
 	FC_LS_RJT_EXP_LOGIN_REQUIRED		= 0x1E,
 	FC_LS_RJT_EXP_INVALID_NPORT_ID		= 0x1F,
 	FC_LS_RJT_EXP_INSUFF_RES		= 0x29,
-	FC_LS_RJT_EXP_CMD_NOT_SUPP		= 0x2C,
+	FC_LS_RJT_EXP_CMD_ANALT_SUPP		= 0x2C,
 	FC_LS_RJT_EXP_INV_PAYLOAD_LEN		= 0x2D,
 };
 
@@ -813,11 +813,11 @@ struct fc_echo_s {
 /*
  * RNID els command
  */
-#define RNID_NODEID_DATA_FORMAT_COMMON			0x00
-#define RNID_NODEID_DATA_FORMAT_FCP3			0x08
-#define RNID_NODEID_DATA_FORMAT_DISCOVERY		0xDF
+#define RNID_ANALDEID_DATA_FORMAT_COMMON			0x00
+#define RNID_ANALDEID_DATA_FORMAT_FCP3			0x08
+#define RNID_ANALDEID_DATA_FORMAT_DISCOVERY		0xDF
 
-#define RNID_ASSOCIATED_TYPE_UNKNOWN			0x00000001
+#define RNID_ASSOCIATED_TYPE_UNKANALWN			0x00000001
 #define RNID_ASSOCIATED_TYPE_OTHER                      0x00000002
 #define RNID_ASSOCIATED_TYPE_HUB                        0x00000003
 #define RNID_ASSOCIATED_TYPE_SWITCH                     0x00000004
@@ -836,7 +836,7 @@ struct fc_echo_s {
  */
 struct fc_rnid_cmd_s {
 	struct fc_els_cmd_s els_cmd;
-	u32        node_id_data_format:8;
+	u32        analde_id_data_format:8;
 	u32        reserved:24;
 };
 
@@ -846,15 +846,15 @@ struct fc_rnid_cmd_s {
 
 struct fc_rnid_common_id_data_s {
 	wwn_t		port_name;
-	wwn_t           node_name;
+	wwn_t           analde_name;
 };
 
 struct fc_rnid_general_topology_data_s {
 	u32        vendor_unique[4];
 	__be32     asso_type;
 	u32        phy_port_num;
-	__be32     num_attached_nodes;
-	u32        node_mgmt:8;
+	__be32     num_attached_analdes;
+	u32        analde_mgmt:8;
 	u32        ip_version:8;
 	u32        udp_tcp_port_num:16;
 	u32        ip_address[4];
@@ -864,7 +864,7 @@ struct fc_rnid_general_topology_data_s {
 
 struct fc_rnid_acc_s {
 	struct fc_els_cmd_s els_cmd;
-	u32        node_id_data_format:8;
+	u32        analde_id_data_format:8;
 	u32        common_id_data_length:8;
 	u32        reserved:8;
 	u32        specific_id_data_length:8;
@@ -872,7 +872,7 @@ struct fc_rnid_acc_s {
 	struct fc_rnid_general_topology_data_s gen_topology_data;
 };
 
-#define RNID_ASSOCIATED_TYPE_UNKNOWN                    0x00000001
+#define RNID_ASSOCIATED_TYPE_UNKANALWN                    0x00000001
 #define RNID_ASSOCIATED_TYPE_OTHER                      0x00000002
 #define RNID_ASSOCIATED_TYPE_HUB                        0x00000003
 #define RNID_ASSOCIATED_TYPE_SWITCH                     0x00000004
@@ -894,7 +894,7 @@ enum fc_rpsc_speed_cap {
 	RPSC_SPEED_CAP_8G = 0x0800,
 	RPSC_SPEED_CAP_16G = 0x0400,
 
-	RPSC_SPEED_CAP_UNKNOWN = 0x0001,
+	RPSC_SPEED_CAP_UNKANALWN = 0x0001,
 };
 
 enum fc_rpsc_op_speed {
@@ -905,7 +905,7 @@ enum fc_rpsc_op_speed {
 	RPSC_OP_SPEED_8G = 0x0800,
 	RPSC_OP_SPEED_16G = 0x0400,
 
-	RPSC_OP_SPEED_NOT_EST = 0x0001,	/* speed not established */
+	RPSC_OP_SPEED_ANALT_EST = 0x0001,	/* speed analt established */
 };
 
 struct fc_rpsc_speed_info_s {
@@ -949,7 +949,7 @@ struct fc_rpsc2_cmd_s {
 };
 
 enum fc_rpsc2_port_type {
-	RPSC2_PORT_TYPE_UNKNOWN = 0,
+	RPSC2_PORT_TYPE_UNKANALWN = 0,
 	RPSC2_PORT_TYPE_NPORT   = 1,
 	RPSC2_PORT_TYPE_NLPORT  = 2,
 	RPSC2_PORT_TYPE_NPIV_PORT  = 0x5f,
@@ -1010,7 +1010,7 @@ struct fc_alpabm_s {
 /*
  * virtual fabric related defines
  */
-#define FC_VF_ID_NULL    0	/*  must not be used as VF_ID */
+#define FC_VF_ID_NULL    0	/*  must analt be used as VF_ID */
 #define FC_VF_ID_MIN     1
 #define FC_VF_ID_MAX     0xEFF
 #define FC_VF_ID_CTL     0xFEF	/*  control VF_ID */
@@ -1069,7 +1069,7 @@ struct fcp_cmnd_s {
  * struct fcp_cmnd_s .iodir field values
  */
 enum fcp_iodir {
-	FCP_IODIR_NONE  = 0,
+	FCP_IODIR_ANALNE  = 0,
 	FCP_IODIR_WRITE = 1,
 	FCP_IODIR_READ  = 2,
 	FCP_IODIR_RW    = 3,
@@ -1090,8 +1090,8 @@ enum fcp_tm_cmnd {
  * FCP_RSP residue flags
  */
 enum fcp_residue {
-	FCP_NO_RESIDUE = 0,     /* no residue */
-	FCP_RESID_OVER = 1,     /* more data left that was not sent */
+	FCP_ANAL_RESIDUE = 0,     /* anal residue */
+	FCP_RESID_OVER = 1,     /* more data left that was analt sent */
 	FCP_RESID_UNDER = 2,    /* less data than requested */
 };
 
@@ -1203,9 +1203,9 @@ enum {
 	CT_RSN_LOGICAL_BUSY	= 0x05,
 	CT_RSN_PROTO_ERR	= 0x07,
 	CT_RSN_UNABLE_TO_PERF	= 0x09,
-	CT_RSN_NOT_SUPP		= 0x0B,
-	CT_RSN_SERVER_NOT_AVBL  = 0x0D,
-	CT_RSN_SESSION_COULD_NOT_BE_ESTBD = 0x0E,
+	CT_RSN_ANALT_SUPP		= 0x0B,
+	CT_RSN_SERVER_ANALT_AVBL  = 0x0D,
+	CT_RSN_SESSION_COULD_ANALT_BE_ESTBD = 0x0E,
 	CT_RSN_VENDOR_SPECIFIC  = 0xFF,
 
 };
@@ -1214,29 +1214,29 @@ enum {
  * definitions for explanations code for Name server
  */
 enum {
-	CT_NS_EXP_NOADDITIONAL	= 0x00,
-	CT_NS_EXP_ID_NOT_REG	= 0x01,
-	CT_NS_EXP_PN_NOT_REG	= 0x02,
-	CT_NS_EXP_NN_NOT_REG	= 0x03,
-	CT_NS_EXP_CS_NOT_REG	= 0x04,
-	CT_NS_EXP_IPN_NOT_REG	= 0x05,
-	CT_NS_EXP_IPA_NOT_REG	= 0x06,
-	CT_NS_EXP_FT_NOT_REG	= 0x07,
-	CT_NS_EXP_SPN_NOT_REG	= 0x08,
-	CT_NS_EXP_SNN_NOT_REG	= 0x09,
-	CT_NS_EXP_PT_NOT_REG	= 0x0A,
-	CT_NS_EXP_IPP_NOT_REG	= 0x0B,
-	CT_NS_EXP_FPN_NOT_REG	= 0x0C,
-	CT_NS_EXP_HA_NOT_REG	= 0x0D,
-	CT_NS_EXP_FD_NOT_REG	= 0x0E,
-	CT_NS_EXP_FF_NOT_REG	= 0x0F,
+	CT_NS_EXP_ANALADDITIONAL	= 0x00,
+	CT_NS_EXP_ID_ANALT_REG	= 0x01,
+	CT_NS_EXP_PN_ANALT_REG	= 0x02,
+	CT_NS_EXP_NN_ANALT_REG	= 0x03,
+	CT_NS_EXP_CS_ANALT_REG	= 0x04,
+	CT_NS_EXP_IPN_ANALT_REG	= 0x05,
+	CT_NS_EXP_IPA_ANALT_REG	= 0x06,
+	CT_NS_EXP_FT_ANALT_REG	= 0x07,
+	CT_NS_EXP_SPN_ANALT_REG	= 0x08,
+	CT_NS_EXP_SNN_ANALT_REG	= 0x09,
+	CT_NS_EXP_PT_ANALT_REG	= 0x0A,
+	CT_NS_EXP_IPP_ANALT_REG	= 0x0B,
+	CT_NS_EXP_FPN_ANALT_REG	= 0x0C,
+	CT_NS_EXP_HA_ANALT_REG	= 0x0D,
+	CT_NS_EXP_FD_ANALT_REG	= 0x0E,
+	CT_NS_EXP_FF_ANALT_REG	= 0x0F,
 	CT_NS_EXP_ACCESSDENIED	= 0x10,
 	CT_NS_EXP_UNACCEPTABLE_ID = 0x11,
 	CT_NS_EXP_DATABASEEMPTY		= 0x12,
-	CT_NS_EXP_NOT_REG_IN_SCOPE	= 0x13,
-	CT_NS_EXP_DOM_ID_NOT_PRESENT	= 0x14,
-	CT_NS_EXP_PORT_NUM_NOT_PRESENT	= 0x15,
-	CT_NS_EXP_NO_DEVICE_ATTACHED	= 0x16
+	CT_NS_EXP_ANALT_REG_IN_SCOPE	= 0x13,
+	CT_NS_EXP_DOM_ID_ANALT_PRESENT	= 0x14,
+	CT_NS_EXP_PORT_NUM_ANALT_PRESENT	= 0x15,
+	CT_NS_EXP_ANAL_DEVICE_ATTACHED	= 0x16
 };
 
 /*
@@ -1248,7 +1248,7 @@ enum {
 	CT_EXP_DB_EMPTY			= 0xF3,
 	CT_EXP_PROCESSING_REQ		= 0xF4,
 	CT_EXP_UNABLE_TO_VERIFY_CONN	= 0xF5,
-	CT_EXP_DEVICES_NOT_IN_CMN_ZONE  = 0xF6
+	CT_EXP_DEVICES_ANALT_IN_CMN_ZONE  = 0xF6
 };
 
 /*
@@ -1257,14 +1257,14 @@ enum {
 enum {
 	GS_GID_PN	= 0x0121,	/* Get Id on port name */
 	GS_GPN_ID	= 0x0112,	/* Get port name on ID */
-	GS_GNN_ID	= 0x0113,	/* Get node name on ID */
+	GS_GNN_ID	= 0x0113,	/* Get analde name on ID */
 	GS_GID_FT	= 0x0171,	/* Get Id on FC4 type */
 	GS_GSPN_ID	= 0x0118,	/* Get symbolic PN on ID */
 	GS_RFT_ID	= 0x0217,	/* Register fc4type on ID */
 	GS_RSPN_ID	= 0x0218,	/* Register symbolic PN on ID */
 	GS_RSNN_NN	= 0x0239,	/* Register symbolic NN on NN */
 	GS_RPN_ID	= 0x0212,	/* Register port name */
-	GS_RNN_ID	= 0x0213,	/* Register node name */
+	GS_RNN_ID	= 0x0213,	/* Register analde name */
 	GS_RCS_ID	= 0x0214,	/* Register class of service */
 	GS_RPT_ID	= 0x021A,	/* Register port type */
 	GS_GA_NXT	= 0x0100,	/* Get all next */
@@ -1344,9 +1344,9 @@ struct fcgs_rspnid_req_s {
  * RSNN_NN
  */
 struct fcgs_rsnn_nn_req_s {
-	wwn_t	node_name;	/* Node name */
-	u8	snn_len;	/* symbolic node name length */
-	u8	snn[256];	/* symbolic node name */
+	wwn_t	analde_name;	/* Analde name */
+	u8	snn_len;	/* symbolic analde name length */
+	u8	snn[256];	/* symbolic analde name */
 };
 
 /*
@@ -1364,7 +1364,7 @@ struct fcgs_rpnid_req_s {
 struct fcgs_rnnid_req_s {
 	u32	rsvd:8;
 	u32	port_id:24;
-	wwn_t	node_name;
+	wwn_t	analde_name;
 };
 
 /*
@@ -1403,9 +1403,9 @@ struct fcgs_ganxt_rsp_s {
 	wwn_t		port_name;	/* Port Name */
 	u8		spn_len;	/* Length of Symbolic Port Name */
 	char		spn[255];	/* Symbolic Port Name */
-	wwn_t		node_name;	/* Node Name */
-	u8		snn_len;	/* Length of Symbolic Node Name */
-	char		snn[255];	/* Symbolic Node Name */
+	wwn_t		analde_name;	/* Analde Name */
+	u8		snn_len;	/* Length of Symbolic Analde Name */
+	char		snn[255];	/* Symbolic Analde Name */
 	u8		ipa[8];		/* Initial Process Associator */
 	u8		ip[16];		/* IP Address */
 	u32		cos;		/* Class of Service */
@@ -1469,16 +1469,16 @@ struct fcgs_gmal_entry_s {
 /*
  * FDMI reason codes
  */
-#define	FDMI_NO_ADDITIONAL_EXP		0x00
+#define	FDMI_ANAL_ADDITIONAL_EXP		0x00
 #define	FDMI_HBA_ALREADY_REG		0x10
-#define	FDMI_HBA_ATTRIB_NOT_REG		0x11
+#define	FDMI_HBA_ATTRIB_ANALT_REG		0x11
 #define	FDMI_HBA_ATTRIB_MULTIPLE	0x12
 #define	FDMI_HBA_ATTRIB_LENGTH_INVALID	0x13
-#define	FDMI_HBA_ATTRIB_NOT_PRESENT	0x14
-#define	FDMI_PORT_ORIG_NOT_IN_LIST	0x15
-#define	FDMI_PORT_HBA_NOT_IN_LIST	0x16
-#define	FDMI_PORT_ATTRIB_NOT_REG	0x20
-#define	FDMI_PORT_NOT_REG		0x21
+#define	FDMI_HBA_ATTRIB_ANALT_PRESENT	0x14
+#define	FDMI_PORT_ORIG_ANALT_IN_LIST	0x15
+#define	FDMI_PORT_HBA_ANALT_IN_LIST	0x16
+#define	FDMI_PORT_ATTRIB_ANALT_REG	0x20
+#define	FDMI_PORT_ANALT_REG		0x21
 #define	FDMI_PORT_ATTRIB_MULTIPLE	0x22
 #define	FDMI_PORT_ATTRIB_LENGTH_INVALID	0x23
 #define	FDMI_PORT_ALREADY_REGISTEREED	0x24
@@ -1492,13 +1492,13 @@ struct fcgs_gmal_entry_s {
 #define	FDMI_TRANS_SPEED_4G		0x00000008
 #define	FDMI_TRANS_SPEED_8G		0x00000010
 #define	FDMI_TRANS_SPEED_16G		0x00000020
-#define	FDMI_TRANS_SPEED_UNKNOWN	0x00008000
+#define	FDMI_TRANS_SPEED_UNKANALWN	0x00008000
 
 /*
  * FDMI HBA attribute types
  */
 enum fdmi_hba_attribute_type {
-	FDMI_HBA_ATTRIB_NODENAME = 1,	/* 0x0001 */
+	FDMI_HBA_ATTRIB_ANALDENAME = 1,	/* 0x0001 */
 	FDMI_HBA_ATTRIB_MANUFACTURER,	/* 0x0002 */
 	FDMI_HBA_ATTRIB_SERIALNUM,	/* 0x0003 */
 	FDMI_HBA_ATTRIB_MODEL,		/* 0x0004 */
@@ -1509,7 +1509,7 @@ enum fdmi_hba_attribute_type {
 	FDMI_HBA_ATTRIB_FW_VERSION,	/* 0x0009 */
 	FDMI_HBA_ATTRIB_OS_NAME,	/* 0x000A */
 	FDMI_HBA_ATTRIB_MAX_CT,		/* 0x000B */
-	FDMI_HBA_ATTRIB_NODE_SYM_NAME,  /* 0x000C */
+	FDMI_HBA_ATTRIB_ANALDE_SYM_NAME,  /* 0x000C */
 	FDMI_HBA_ATTRIB_VENDOR_INFO,    /* 0x000D */
 	FDMI_HBA_ATTRIB_NUM_PORTS,  /* 0x000E */
 	FDMI_HBA_ATTRIB_FABRIC_NAME,    /* 0x000F */
@@ -1529,7 +1529,7 @@ enum fdmi_port_attribute_type {
 	FDMI_PORT_ATTRIB_FRAME_SIZE,	/* 0x0004 */
 	FDMI_PORT_ATTRIB_DEV_NAME,	/* 0x0005 */
 	FDMI_PORT_ATTRIB_HOST_NAME,	/* 0x0006 */
-	FDMI_PORT_ATTRIB_NODE_NAME,     /* 0x0007 */
+	FDMI_PORT_ATTRIB_ANALDE_NAME,     /* 0x0007 */
 	FDMI_PORT_ATTRIB_PORT_NAME,     /* 0x0008 */
 	FDMI_PORT_ATTRIB_PORT_SYM_NAME, /* 0x0009 */
 	FDMI_PORT_ATTRIB_PORT_TYPE,     /* 0x000A */

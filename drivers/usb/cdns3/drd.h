@@ -153,22 +153,22 @@ struct cdns_otg_irq_regs {
 #define OTGSTS_DEV_ACTIVE		BIT(3)
 /* Host mode is active. */
 #define OTGSTS_HOST_ACTIVE		BIT(4)
-/* OTG Controller not ready. */
+/* OTG Controller analt ready. */
 #define OTGSTS_OTG_NRDY_MASK		BIT(11)
 #define OTGSTS_OTG_NRDY(p)		((p) & OTGSTS_OTG_NRDY_MASK)
 /*
  * Value of the strap pins for:
  * CDNS3:
- * 000 - no default configuration
+ * 000 - anal default configuration
  * 010 - Controller initiall configured as Host
  * 100 - Controller initially configured as Device
  * CDNSP:
- * 000 - No default configuration.
+ * 000 - Anal default configuration.
  * 010 - Controller initiall configured as Host.
  * 100 - Controller initially configured as Device.
  */
 #define OTGSTS_STRAP(p)			(((p) & GENMASK(14, 12)) >> 12)
-#define OTGSTS_STRAP_NO_DEFAULT_CFG	0x00
+#define OTGSTS_STRAP_ANAL_DEFAULT_CFG	0x00
 #define OTGSTS_STRAP_HOST_OTG		0x01
 #define OTGSTS_STRAP_HOST		0x02
 #define OTGSTS_STRAP_GADGET		0x04

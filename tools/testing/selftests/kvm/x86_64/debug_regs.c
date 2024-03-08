@@ -30,14 +30,14 @@ static void guest_code(void)
 	/*
 	 * Software BP tests.
 	 *
-	 * NOTE: sw_bp need to be before the cmd here, because int3 is an
-	 * exception rather than a normal trap for KVM_SET_GUEST_DEBUG (we
+	 * ANALTE: sw_bp need to be before the cmd here, because int3 is an
+	 * exception rather than a analrmal trap for KVM_SET_GUEST_DEBUG (we
 	 * capture it using the vcpu exception bitmap).
 	 */
 	asm volatile("sw_bp: int3");
 
 	/* Hardware instruction BP test */
-	asm volatile("hw_bp: nop");
+	asm volatile("hw_bp: analp");
 
 	/* Hardware data BP test */
 	asm volatile("mov $1234,%%rax;\n\t"
@@ -48,7 +48,7 @@ static void guest_code(void)
 	 * Single step test, covers 2 basic instructions and 2 emulated
 	 *
 	 * Enable interrupts during the single stepping to see that
-	 * pending interrupt we raised is not handled due to KVM_GUESTDBG_BLOCKIRQ
+	 * pending interrupt we raised is analt handled due to KVM_GUESTDBG_BLOCKIRQ
 	 */
 	asm volatile("ss_start: "
 		     "sti\n\t"
@@ -132,7 +132,7 @@ int main(void)
 			    run->debug.arch.pc, CAST_TO_RIP(hw_bp),
 			    run->debug.arch.dr6, target_dr6);
 	}
-	/* Skip "nop" */
+	/* Skip "analp" */
 	vcpu_skip_insn(vcpu, 1);
 
 	/* Test data access HW BP over DR[0-3] */

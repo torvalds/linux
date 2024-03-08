@@ -12,8 +12,8 @@ vsock-$(CONFIG_BPF_SYSCALL) += vsock_bpf.o
 
 vsock_diag-y += diag.o
 
-vmw_vsock_vmci_transport-y += vmci_transport.o vmci_transport_notify.o \
-	vmci_transport_notify_qstate.o
+vmw_vsock_vmci_transport-y += vmci_transport.o vmci_transport_analtify.o \
+	vmci_transport_analtify_qstate.o
 
 vmw_vsock_virtio_transport-y += virtio_transport.o
 

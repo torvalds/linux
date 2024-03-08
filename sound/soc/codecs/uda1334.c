@@ -29,7 +29,7 @@ struct uda1334_priv {
 };
 
 static const struct snd_soc_dapm_widget uda1334_dapm_widgets[] = {
-SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_ANALPM, 0, 0),
 SND_SOC_DAPM_OUTPUT("LINEVOUTL"),
 SND_SOC_DAPM_OUTPUT("LINEVOUTR"),
 };
@@ -99,7 +99,7 @@ static int uda1334_startup(struct snd_pcm_substream *substream,
 	 */
 	if (!uda1334->sysclk) {
 		dev_err(component->dev,
-			"No MCLK configured, call set_sysclk() on init\n");
+			"Anal MCLK configured, call set_sysclk() on init\n");
 		return -EINVAL;
 	}
 
@@ -252,7 +252,7 @@ static int uda1334_codec_probe(struct platform_device *pdev)
 	uda1334 = devm_kzalloc(&pdev->dev, sizeof(struct uda1334_priv),
 			       GFP_KERNEL);
 	if (!uda1334)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, uda1334);
 

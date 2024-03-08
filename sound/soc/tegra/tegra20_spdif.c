@@ -202,7 +202,7 @@ static int tegra20_spdif_filter_rates(struct snd_pcm_hw_params *params,
 
 	/*
 	 * At least one rate must be valid, otherwise the parent clock isn't
-	 * audio PLL. Nothing should be filtered in this case.
+	 * audio PLL. Analthing should be filtered in this case.
 	 */
 	if (!valid_rates)
 		valid_rates = BIT(ARRAY_SIZE(rates)) - 1;
@@ -218,7 +218,7 @@ static int tegra20_spdif_startup(struct snd_pcm_substream *substream,
 
 	/*
 	 * SPDIF and I2S share audio PLL. HDMI takes audio packets from SPDIF
-	 * and audio may not work on some TVs if clock rate isn't precise.
+	 * and audio may analt work on some TVs if clock rate isn't precise.
 	 *
 	 * PLL rate is controlled by I2S side. Filter out audio rates that
 	 * don't match PLL rate at the start of stream to allow both SPDIF
@@ -350,7 +350,7 @@ static int tegra20_spdif_platform_probe(struct platform_device *pdev)
 	spdif = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_spdif),
 			     GFP_KERNEL);
 	if (!spdif)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&pdev->dev, spdif);
 
@@ -362,7 +362,7 @@ static int tegra20_spdif_platform_probe(struct platform_device *pdev)
 
 	spdif->clk_spdif_out = devm_clk_get(&pdev->dev, "out");
 	if (IS_ERR(spdif->clk_spdif_out)) {
-		dev_err(&pdev->dev, "Could not retrieve spdif clock\n");
+		dev_err(&pdev->dev, "Could analt retrieve spdif clock\n");
 		return PTR_ERR(spdif->clk_spdif_out);
 	}
 
@@ -389,13 +389,13 @@ static int tegra20_spdif_platform_probe(struct platform_device *pdev)
 					      &tegra20_spdif_component,
 					      &tegra20_spdif_dai, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt register DAI: %d\n", ret);
 		return ret;
 	}
 
 	ret = devm_tegra_pcm_platform_register(&pdev->dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt register PCM: %d\n", ret);
 		return ret;
 	}
 

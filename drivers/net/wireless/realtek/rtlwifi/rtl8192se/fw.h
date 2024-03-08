@@ -45,7 +45,7 @@
 
 enum desc_packet_type {
 	DESC_PACKET_TYPE_INIT = 0,
-	DESC_PACKET_TYPE_NORMAL = 1,
+	DESC_PACKET_TYPE_ANALRMAL = 1,
 };
 
 /* 8-bytes alignment required */
@@ -86,9 +86,9 @@ struct fw_priv {
 	u8 rsvd011;
 
 	/* --- long word 2 ---- */
-	/* 0x00: normal, 0x03: MACLBK, 0x01: PHYLBK */
+	/* 0x00: analrmal, 0x03: MACLBK, 0x01: PHYLBK */
 	u8 lbk_mode;
-	/* 1: for MP use, 0: for normal
+	/* 1: for MP use, 0: for analrmal
 	 * driver (to be discussed) */
 	u8 mp_mode;
 	u8 rsvd020;
@@ -207,7 +207,7 @@ struct h2c_set_pwrmode_parm {
 	u8 flag_dps_en;
 	u8 bcn_rx_en;
 	u8 bcn_pass_cnt;
-	/* beacon TO (ms). ¡§=0¡¨ no limit. */
+	/* beacon TO (ms). ¡§=0¡¨ anal limit. */
 	u8 bcn_to;
 	u16	bcn_itv;
 	/* only for VOIP mode. */

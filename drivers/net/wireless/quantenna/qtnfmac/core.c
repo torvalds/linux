@@ -4,7 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/if_ether.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include "core.h"
 #include "bus.h"
@@ -46,11 +46,11 @@ struct qtnf_wmac *qtnf_core_get_mac(const struct qtnf_bus *bus, u8 macid)
 		return NULL;
 	}
 
-	macid = array_index_nospec(macid, QTNF_MAX_MAC);
+	macid = array_index_analspec(macid, QTNF_MAX_MAC);
 	mac = bus->mac[macid];
 
 	if (unlikely(!mac)) {
-		pr_err("MAC%u: not initialized\n", macid);
+		pr_err("MAC%u: analt initialized\n", macid);
 		return NULL;
 	}
 
@@ -101,7 +101,7 @@ qtnf_netdev_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	if (unlikely(vif->wdev.iftype == NL80211_IFTYPE_UNSPECIFIED)) {
-		pr_err_ratelimited("%s: VIF not initialized\n", ndev->name);
+		pr_err_ratelimited("%s: VIF analt initialized\n", ndev->name);
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
@@ -200,7 +200,7 @@ static int qtnf_netdev_alloc_pcpu_stats(struct net_device *dev)
 {
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 
-	return dev->tstats ? 0 : -ENOMEM;
+	return dev->tstats ? 0 : -EANALMEM;
 }
 
 static void qtnf_netdev_free_pcpu_stats(struct net_device *dev)
@@ -229,7 +229,7 @@ static int qtnf_mac_init_single_band(struct wiphy *wiphy,
 
 	wiphy->bands[band] = kzalloc(sizeof(*wiphy->bands[band]), GFP_KERNEL);
 	if (!wiphy->bands[band])
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wiphy->bands[band]->band = band;
 
@@ -426,7 +426,7 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 	if (!wiphy) {
 		if (pdev)
 			platform_device_unregister(pdev);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	mac = wiphy_priv(wiphy);
@@ -470,7 +470,7 @@ int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	dev = alloc_netdev_mqs(sizeof(struct qtnf_vif *), name,
 			       name_assign_type, ether_setup, 1, 1);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vif->netdev = dev;
 
@@ -562,7 +562,7 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 	int ret;
 
 	if (!(bus->hw_info.mac_bitmap & BIT(macid))) {
-		pr_info("MAC%u is not active in FW\n", macid);
+		pr_info("MAC%u is analt active in FW\n", macid);
 		return 0;
 	}
 
@@ -574,7 +574,7 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 
 	vif = qtnf_mac_get_base_vif(mac);
 	if (!vif) {
-		pr_err("MAC%u: primary VIF is not ready\n", macid);
+		pr_err("MAC%u: primary VIF is analt ready\n", macid);
 		ret = -EFAULT;
 		goto error;
 	}
@@ -650,16 +650,16 @@ static int qtnf_check_br_ports(struct net_device *dev,
 	struct net_device *ndev = (struct net_device *)priv->data;
 
 	if (dev != ndev && netdev_port_same_parent_id(dev, ndev))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return 0;
 }
 
-static int qtnf_core_netdevice_event(struct notifier_block *nb,
+static int qtnf_core_netdevice_event(struct analtifier_block *nb,
 				     unsigned long event, void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
-	const struct netdev_notifier_changeupper_info *info;
+	struct net_device *ndev = netdev_analtifier_info_to_dev(ptr);
+	const struct netdev_analtifier_changeupper_info *info;
 	struct netdev_nested_priv priv = {
 		.data = (void *)ndev,
 	};
@@ -670,10 +670,10 @@ static int qtnf_core_netdevice_event(struct notifier_block *nb,
 	int ret = 0;
 
 	if (!qtnf_netdev_is_qtn(ndev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!net_eq(dev_net(ndev), &init_net))
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	vif = qtnf_netdev_get_priv(ndev);
 	bus = vif->mac->bus;
@@ -710,7 +710,7 @@ static int qtnf_core_netdevice_event(struct notifier_block *nb,
 		break;
 	}
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
 int qtnf_core_attach(struct qtnf_bus *bus)
@@ -724,14 +724,14 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 	bus->workqueue = alloc_ordered_workqueue("QTNF_BUS", 0);
 	if (!bus->workqueue) {
 		pr_err("failed to alloc main workqueue\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
 	bus->hprio_workqueue = alloc_workqueue("QTNF_HPRI", WQ_HIGHPRI, 0);
 	if (!bus->hprio_workqueue) {
 		pr_err("failed to alloc high prio workqueue\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -748,7 +748,7 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 		pr_err("qlink driver vs FW version mismatch: %u vs %u\n",
 		       QLINK_PROTO_VER_MAJOR,
 		       QLINK_VER_MAJOR(bus->hw_info.ql_proto_ver));
-		ret = -EPROTONOSUPPORT;
+		ret = -EPROTOANALSUPPORT;
 		goto error;
 	}
 
@@ -764,7 +764,7 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 		bus->bus_ops->data_tx_use_meta_set(bus, true);
 
 	if (bus->hw_info.num_mac > QTNF_MAX_MAC) {
-		pr_err("no support for number of MACs=%u\n",
+		pr_err("anal support for number of MACs=%u\n",
 		       bus->hw_info.num_mac);
 		ret = -ERANGE;
 		goto error;
@@ -779,10 +779,10 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 		}
 	}
 
-	bus->netdev_nb.notifier_call = qtnf_core_netdevice_event;
-	ret = register_netdevice_notifier(&bus->netdev_nb);
+	bus->netdev_nb.analtifier_call = qtnf_core_netdevice_event;
+	ret = register_netdevice_analtifier(&bus->netdev_nb);
 	if (ret) {
-		pr_err("failed to register netdev notifier: %d\n", ret);
+		pr_err("failed to register netdev analtifier: %d\n", ret);
 		goto error;
 	}
 
@@ -799,7 +799,7 @@ void qtnf_core_detach(struct qtnf_bus *bus)
 {
 	unsigned int macid;
 
-	unregister_netdevice_notifier(&bus->netdev_nb);
+	unregister_netdevice_analtifier(&bus->netdev_nb);
 	qtnf_bus_data_rx_stop(bus);
 
 	for (macid = 0; macid < QTNF_MAX_MAC; macid++)
@@ -862,21 +862,21 @@ struct net_device *qtnf_classify_skb(struct qtnf_bus *bus, struct sk_buff *skb)
 	mac = bus->mac[meta->macid];
 
 	if (unlikely(!mac)) {
-		pr_err_ratelimited("mac(%d) does not exist\n", meta->macid);
+		pr_err_ratelimited("mac(%d) does analt exist\n", meta->macid);
 		goto out;
 	}
 
 	vif = &mac->iflist[meta->ifidx];
 
 	if (unlikely(vif->wdev.iftype == NL80211_IFTYPE_UNSPECIFIED)) {
-		pr_err_ratelimited("vif(%u) does not exists\n", meta->ifidx);
+		pr_err_ratelimited("vif(%u) does analt exists\n", meta->ifidx);
 		goto out;
 	}
 
 	ndev = vif->netdev;
 
 	if (unlikely(!ndev)) {
-		pr_err_ratelimited("netdev for wlan%u.%u does not exists\n",
+		pr_err_ratelimited("netdev for wlan%u.%u does analt exists\n",
 				   meta->macid, meta->ifidx);
 		goto out;
 	}

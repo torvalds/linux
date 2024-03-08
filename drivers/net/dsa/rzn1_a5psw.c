@@ -282,7 +282,7 @@ static void a5psw_phylink_mac_link_up(struct dsa_switch *ds, int port,
 	cmd_cfg |= A5PSW_CMD_CFG_CNTL_FRM_ENA;
 
 	if (!rx_pause)
-		cmd_cfg &= ~A5PSW_CMD_CFG_PAUSE_IGNORE;
+		cmd_cfg &= ~A5PSW_CMD_CFG_PAUSE_IGANALRE;
 
 	a5psw_reg_writel(a5psw, A5PSW_CMD_CFG(port), cmd_cfg);
 }
@@ -355,7 +355,7 @@ static int a5psw_port_bridge_join(struct dsa_switch *ds, int port,
 	if (a5psw->br_dev && bridge.dev != a5psw->br_dev) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Forwarding offload supported for a single bridge");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	a5psw->br_dev = bridge.dev;
@@ -375,7 +375,7 @@ static void a5psw_port_bridge_leave(struct dsa_switch *ds, int port,
 
 	a5psw_port_set_standalone(a5psw, port, true);
 
-	/* No more ports bridged */
+	/* Anal more ports bridged */
 	if (a5psw->bridged_ports == BIT(A5PSW_CPU_PORT))
 		a5psw->br_dev = NULL;
 }
@@ -399,12 +399,12 @@ a5psw_port_bridge_flags(struct dsa_switch *ds, int port,
 	struct a5psw *a5psw = ds->priv;
 	u32 val;
 
-	/* If a port is set as standalone, we do not want to be able to
-	 * configure flooding nor learning which would result in joining the
+	/* If a port is set as standalone, we do analt want to be able to
+	 * configure flooding analr learning which would result in joining the
 	 * unique bridge. This can happen when a port leaves the bridge, in
 	 * which case the DSA core will try to "clear" all flags for the
 	 * standalone port (ie enable flooding, disable learning). In that case
-	 * do not fail but do not apply the flags.
+	 * do analt fail but do analt apply the flags.
 	 */
 	if (!(a5psw->bridged_ports & BIT(port)))
 		return 0;
@@ -517,7 +517,7 @@ static int a5psw_port_fdb_add(struct dsa_switch *ds, int port,
 	lk_data.hi = a5psw_reg_readl(a5psw, A5PSW_LK_DATA_HI);
 	if (!lk_data.entry.valid) {
 		inc_learncount = true;
-		/* port_mask set to 0x1f when entry is not valid, clear it */
+		/* port_mask set to 0x1f when entry is analt valid, clear it */
 		lk_data.entry.port_mask = 0;
 		lk_data.entry.prio = 0;
 	}
@@ -565,17 +565,17 @@ static int a5psw_port_fdb_del(struct dsa_switch *ds, int port,
 
 	lk_data.hi = a5psw_reg_readl(a5psw, A5PSW_LK_DATA_HI);
 
-	/* Our hardware does not associate any VID to the FDB entries so this
+	/* Our hardware does analt associate any VID to the FDB entries so this
 	 * means that if two entries were added for the same mac but for
 	 * different VID, then, on the deletion of the first one, we would also
-	 * delete the second one. Since there is unfortunately nothing we can do
-	 * about that, do not return an error...
+	 * delete the second one. Since there is unfortunately analthing we can do
+	 * about that, do analt return an error...
 	 */
 	if (!lk_data.entry.valid)
 		goto lk_unlock;
 
 	lk_data.entry.port_mask &= ~BIT(port);
-	/* If there is no more port in the mask, clear the entry */
+	/* If there is anal more port in the mask, clear the entry */
 	if (lk_data.entry.port_mask == 0)
 		clear = true;
 
@@ -621,7 +621,7 @@ static int a5psw_port_fdb_dump(struct dsa_switch *ds, int port,
 			goto out_unlock;
 
 		lk_data.hi = a5psw_reg_readl(a5psw, A5PSW_LK_DATA_HI);
-		/* If entry is not valid or does not contain the port, skip */
+		/* If entry is analt valid or does analt contain the port, skip */
 		if (!lk_data.entry.valid ||
 		    !(lk_data.entry.port_mask & BIT(port)))
 			continue;
@@ -739,14 +739,14 @@ static int a5psw_port_vlan_add(struct dsa_switch *ds, int port,
 	if (vlan_res_id < 0) {
 		vlan_res_id = a5psw_new_vlan_res_entry(a5psw, vid);
 		if (vlan_res_id < 0)
-			return -ENOSPC;
+			return -EANALSPC;
 	}
 
 	a5psw_port_vlan_cfg(a5psw, vlan_res_id, port, true);
 	if (tagged)
 		a5psw_port_vlan_tagged_cfg(a5psw, vlan_res_id, port, true);
 
-	/* Configure port to tag with corresponding VID, but do not enable it
+	/* Configure port to tag with corresponding VID, but do analt enable it
 	 * yet: wait for vlan filtering to be enabled to enable vlan port
 	 * tagging
 	 */
@@ -939,7 +939,7 @@ static int a5psw_setup(struct dsa_switch *ds)
 	reg |= A5PSW_MGMT_TAG_CFG_ENABLE | A5PSW_MGMT_TAG_CFG_ALL_FRAMES;
 	a5psw_reg_writel(a5psw, A5PSW_MGMT_TAG_CFG, reg);
 
-	/* Enable normal switch operation */
+	/* Enable analrmal switch operation */
 	reg = A5PSW_LK_ADDR_CTRL_BLOCKING | A5PSW_LK_ADDR_CTRL_LEARNING |
 	      A5PSW_LK_ADDR_CTRL_AGEING | A5PSW_LK_ADDR_CTRL_ALLOW_MIGR |
 	      A5PSW_LK_ADDR_CTRL_CLEAR_TABLE;
@@ -1099,14 +1099,14 @@ static int a5psw_mdio_config(struct a5psw *a5psw, u32 mdio_freq)
 	return 0;
 }
 
-static int a5psw_probe_mdio(struct a5psw *a5psw, struct device_node *node)
+static int a5psw_probe_mdio(struct a5psw *a5psw, struct device_analde *analde)
 {
 	struct device *dev = a5psw->dev;
 	struct mii_bus *bus;
 	u32 mdio_freq;
 	int ret;
 
-	if (of_property_read_u32(node, "clock-frequency", &mdio_freq))
+	if (of_property_read_u32(analde, "clock-frequency", &mdio_freq))
 		mdio_freq = A5PSW_MDIO_DEF_FREQ;
 
 	ret = a5psw_mdio_config(a5psw, mdio_freq);
@@ -1115,7 +1115,7 @@ static int a5psw_probe_mdio(struct a5psw *a5psw, struct device_node *node)
 
 	bus = devm_mdiobus_alloc(dev);
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus->name = "a5psw_mdio";
 	bus->read = a5psw_mdio_read;
@@ -1126,7 +1126,7 @@ static int a5psw_probe_mdio(struct a5psw *a5psw, struct device_node *node)
 
 	a5psw->mii_bus = bus;
 
-	return devm_of_mdiobus_register(dev, bus, node);
+	return devm_of_mdiobus_register(dev, bus, analde);
 }
 
 static void a5psw_pcs_free(struct a5psw *a5psw)
@@ -1141,18 +1141,18 @@ static void a5psw_pcs_free(struct a5psw *a5psw)
 
 static int a5psw_pcs_get(struct a5psw *a5psw)
 {
-	struct device_node *ports, *port, *pcs_node;
+	struct device_analde *ports, *port, *pcs_analde;
 	struct phylink_pcs *pcs;
 	int ret;
 	u32 reg;
 
-	ports = of_get_child_by_name(a5psw->dev->of_node, "ethernet-ports");
+	ports = of_get_child_by_name(a5psw->dev->of_analde, "ethernet-ports");
 	if (!ports)
 		return -EINVAL;
 
-	for_each_available_child_of_node(ports, port) {
-		pcs_node = of_parse_phandle(port, "pcs-handle", 0);
-		if (!pcs_node)
+	for_each_available_child_of_analde(ports, port) {
+		pcs_analde = of_parse_phandle(port, "pcs-handle", 0);
+		if (!pcs_analde)
 			continue;
 
 		if (of_property_read_u32(port, "reg", &reg)) {
@@ -1161,11 +1161,11 @@ static int a5psw_pcs_get(struct a5psw *a5psw)
 		}
 
 		if (reg >= ARRAY_SIZE(a5psw->pcs)) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto free_pcs;
 		}
 
-		pcs = miic_create(a5psw->dev, pcs_node);
+		pcs = miic_create(a5psw->dev, pcs_analde);
 		if (IS_ERR(pcs)) {
 			dev_err(a5psw->dev, "Failed to create PCS for port %d\n",
 				reg);
@@ -1174,16 +1174,16 @@ static int a5psw_pcs_get(struct a5psw *a5psw)
 		}
 
 		a5psw->pcs[reg] = pcs;
-		of_node_put(pcs_node);
+		of_analde_put(pcs_analde);
 	}
-	of_node_put(ports);
+	of_analde_put(ports);
 
 	return 0;
 
 free_pcs:
-	of_node_put(pcs_node);
-	of_node_put(port);
-	of_node_put(ports);
+	of_analde_put(pcs_analde);
+	of_analde_put(port);
+	of_analde_put(ports);
 	a5psw_pcs_free(a5psw);
 
 	return ret;
@@ -1192,14 +1192,14 @@ free_pcs:
 static int a5psw_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *mdio;
+	struct device_analde *mdio;
 	struct dsa_switch *ds;
 	struct a5psw *a5psw;
 	int ret;
 
 	a5psw = devm_kzalloc(dev, sizeof(*a5psw), GFP_KERNEL);
 	if (!a5psw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	a5psw->dev = dev;
 	mutex_init(&a5psw->lk_lock);
@@ -1236,17 +1236,17 @@ static int a5psw_probe(struct platform_device *pdev)
 	if (ret)
 		goto clk_disable;
 
-	mdio = of_get_child_by_name(dev->of_node, "mdio");
+	mdio = of_get_child_by_name(dev->of_analde, "mdio");
 	if (of_device_is_available(mdio)) {
 		ret = a5psw_probe_mdio(a5psw, mdio);
 		if (ret) {
-			of_node_put(mdio);
+			of_analde_put(mdio);
 			dev_err(dev, "Failed to register MDIO: %d\n", ret);
 			goto hclk_disable;
 		}
 	}
 
-	of_node_put(mdio);
+	of_analde_put(mdio);
 
 	ds = &a5psw->ds;
 	ds->dev = dev;

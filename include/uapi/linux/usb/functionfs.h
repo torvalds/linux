@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__LINUX_FUNCTIONFS_H__
 #define _UAPI__LINUX_FUNCTIONFS_H__
 
@@ -26,8 +26,8 @@ enum functionfs_flags {
 	FUNCTIONFS_CONFIG0_SETUP = 128,
 };
 
-/* Descriptor of an non-audio endpoint */
-struct usb_endpoint_descriptor_no_audio {
+/* Descriptor of an analn-audio endpoint */
+struct usb_endpoint_descriptor_anal_audio {
 	__u8  bLength;
 	__u8  bDescriptorType;
 
@@ -73,7 +73,7 @@ struct usb_os_desc_header {
 struct usb_ext_compat_desc {
 	__u8	bFirstInterfaceNumber;
 	__u8	Reserved1;
-	__struct_group(/* no tag */, IDs, /* no attrs */,
+	__struct_group(/* anal tag */, IDs, /* anal attrs */,
 		__u8	CompatibleID[8];
 		__u8	SubCompatibleID[8];
 	);
@@ -107,8 +107,8 @@ struct usb_ext_prop_desc {
  * |     | os_descrs | OSDesc[]     | list of MS OS descriptors            |
  *
  * Depending on which flags are set, various fields may be missing in the
- * structure.  Any flags that are not recognised cause the whole block to be
- * rejected with -ENOSYS.
+ * structure.  Any flags that are analt recognised cause the whole block to be
+ * rejected with -EANALSYS.
  *
  * Legacy descriptors format (deprecated as of 3.14):
  *
@@ -232,7 +232,7 @@ enum usb_functionfs_event_type {
 	FUNCTIONFS_RESUME
 };
 
-/* NOTE:  this structure must stay the same size and layout on
+/* ANALTE:  this structure must stay the same size and layout on
  * both 32-bit and 64-bit kernels.
  */
 struct usb_functionfs_event {
@@ -272,8 +272,8 @@ struct usb_functionfs_event {
 
 /*
  * Returns reverse mapping of an interface.  Called on EP0.  If there
- * is no such interface returns -EDOM.  If function is not active
- * returns -ENODEV.
+ * is anal such interface returns -EDOM.  If function is analt active
+ * returns -EANALDEV.
  */
 #define	FUNCTIONFS_INTERFACE_REVMAP	_IO('g', 128)
 

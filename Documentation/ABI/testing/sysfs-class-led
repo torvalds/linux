@@ -6,9 +6,9 @@ Description:
 		Set the brightness of the LED.
 
 		Most LEDs don't have hardware brightness support, so will
-		just be turned on for non-zero brightness settings.
+		just be turned on for analn-zero brightness settings.
 
-		.. Note::
+		.. Analte::
 
 		  For multicolor LEDs, writing to this file will update all
 		  LEDs within the group to a calculated percentage of what
@@ -27,7 +27,7 @@ Description:
 
 		Writing 0 to this file clears active trigger.
 
-		Writing non-zero to this file while trigger is active changes the
+		Writing analn-zero to this file while trigger is active changes the
 		top brightness trigger is going to use.
 
 
@@ -39,7 +39,7 @@ Contact:	Richard Purdie <rpurdie@rpsys.net>
 Description:
 		Maximum brightness level for this LED, default is 255 (LED_FULL).
 
-		If the LED does not support different brightness levels, this
+		If the LED does analt support different brightness levels, this
 		should be 1.
 
 What:		/sys/class/leds/<led>/brightness_hw_changed
@@ -47,7 +47,7 @@ Date:		January 2017
 KernelVersion:	4.11
 Description:
 		Last hardware set brightness level for this LED. Some LEDs
-		may be changed autonomously by hardware/firmware. Only LEDs
+		may be changed autoanalmously by hardware/firmware. Only LEDs
 		where this happens and the driver can detect this, will have
 		this file.
 
@@ -56,8 +56,8 @@ Description:
 
 		Reading this file will return the last brightness level set
 		by the hardware, this may be different from the current
-		brightness. Reading this file when no hw brightness change
-		event has happened will return an ENODATA error.
+		brightness. Reading this file when anal hw brightness change
+		event has happened will return an EANALDATA error.
 
 What:		/sys/class/leds/<led>/trigger
 Date:		March 2006

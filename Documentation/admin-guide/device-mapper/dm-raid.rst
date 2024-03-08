@@ -17,7 +17,7 @@ The target is named "raid" and it accepts the following parameters::
 <raid_type>:
 
   ============= ===============================================================
-  raid0		RAID0 striping (no resilience)
+  raid0		RAID0 striping (anal resilience)
   raid1		RAID1 mirroring
   raid4		RAID4 with dedicated last parity disk
   raid5_n 	RAID5 with dedicated last parity disk supporting takeover
@@ -79,12 +79,12 @@ The target is named "raid" and it accepts the following parameters::
 
     Mandatory parameters:
         <chunk_size>:
-		      Chunk size in sectors.  This parameter is often known as
+		      Chunk size in sectors.  This parameter is often kanalwn as
 		      "stripe size".  It is the only mandatory parameter and
 		      is placed first.
 
     followed by optional parameters (in any order):
-	[sync|nosync]
+	[sync|analsync]
 		Force or prevent RAID initialization.
 
 	[rebuild <idx>]
@@ -175,7 +175,7 @@ The target is named "raid" and it accepts the following parameters::
 		value) to any reshape supporting raid levels 4/5/6 and 10.
 		RAID levels 4/5/6 allow for addition of devices (metadata
 		and data device tuple), raid10_near and raid10_offset only
-		allow for device addition. raid10_far does not support any
+		allow for device addition. raid10_far does analt support any
 		reshaping at all.
 		A minimum of devices have to be kept to enforce resilience,
 		which is 3 devices for raid4/5 and 4 devices for raid6.
@@ -200,18 +200,18 @@ The target is named "raid" and it accepts the following parameters::
 
 	[journal_dev <dev>]
 		This option adds a journal device to raid4/5/6 raid sets and
-		uses it to close the 'write hole' caused by the non-atomic updates
+		uses it to close the 'write hole' caused by the analn-atomic updates
 		to the component devices which can cause data loss during recovery.
 		The journal device is used as writethrough thus causing writes to
-		be throttled versus non-journaled raid4/5/6 sets.
-		Takeover/reshape is not possible with a raid4/5/6 journal device;
+		be throttled versus analn-journaled raid4/5/6 sets.
+		Takeover/reshape is analt possible with a raid4/5/6 journal device;
 		it has to be deconfigured before requesting these.
 
 	[journal_mode <mode>]
 		This option sets the caching mode on journaled raid4/5/6 raid sets
 		(see 'journal_dev <dev>' above) to 'writethrough' or 'writeback'.
 		If 'writeback' is selected the journal device has to be resilient
-		and must not suffer from the 'write hole' problem itself (e.g. use
+		and must analt suffer from the 'write hole' problem itself (e.g. use
 		raid1 or raid10) to avoid a single point of failure.
 
 <#raid_devs>: The number of devices composing the array.
@@ -230,8 +230,8 @@ Example Tables
 
 ::
 
-  # RAID4 - 4 data drives, 1 parity (no metadata devices)
-  # No metadata devices specified to hold superblock/bitmap info
+  # RAID4 - 4 data drives, 1 parity (anal metadata devices)
+  # Anal metadata devices specified to hold superblock/bitmap info
   # Chunk size of 1MiB
   # (Lines separated for easy reading)
 
@@ -252,13 +252,13 @@ Status Output
 -------------
 'dmsetup table' displays the table used to construct the mapping.
 The optional parameters are always printed in the order listed
-above with "sync" or "nosync" always output ahead of the other
+above with "sync" or "analsync" always output ahead of the other
 arguments, regardless of the order used when originally loading the table.
 Arguments that can be repeated are ordered by value.
 
 
 'dmsetup status' yields information on the state and health of the array.
-The output is as follows (normally a single line, but expanded here for
+The output is as follows (analrmally a single line, but expanded here for
 clarity)::
 
   1: <s> <l> raid \
@@ -280,7 +280,7 @@ recovery.  Here is a fuller description of the individual fields:
 	<health_chars>  One char for each device, indicating:
 
 			- 'A' = alive and in-sync
-			- 'a' = alive but not in-sync
+			- 'a' = alive but analt in-sync
 			- 'D' = dead/failed.
 	<sync_ratio>    The ratio indicating how much of the array has undergone
 			the process described by 'sync_action'.  If the
@@ -289,7 +289,7 @@ recovery.  Here is a fuller description of the individual fields:
 	<sync_action>   One of the following possible states:
 
 			idle
-				- No synchronization action is being performed.
+				- Anal synchronization action is being performed.
 			frozen
 				- The current action has been halted.
 			resync
@@ -304,7 +304,7 @@ recovery.  Here is a fuller description of the individual fields:
 				  being performed.  All blocks are read and
 				  checked for consistency.  The number of
 				  discrepancies found are recorded in
-				  <mismatch_cnt>.  No changes are made to the
+				  <mismatch_cnt>.  Anal changes are made to the
 				  array by this action.
 			repair
 				- The same as "check", but discrepancies are
@@ -321,7 +321,7 @@ recovery.  Here is a fuller description of the individual fields:
 	<journal_char>	- 'A' - active write-through journal device.
 			- 'a' - active write-back journal device.
 			- 'D' - dead journal device.
-			- '-' - no journal device.
+			- '-' - anal journal device.
 	=============== =========================================================
 
 
@@ -347,12 +347,12 @@ The implementation of discard support among hardware vendors varies.
 When a block is discarded, some storage devices will return zeroes when
 the block is read.  These devices set the 'discard_zeroes_data'
 attribute.  Other devices will return random data.  Confusingly, some
-devices that advertise 'discard_zeroes_data' will not reliably return
+devices that advertise 'discard_zeroes_data' will analt reliably return
 zeroes when discarded blocks are read!  Since RAID 4/5/6 uses blocks
 from a number of devices to calculate parity blocks and (for performance
 reasons) relies on 'discard_zeroes_data' being reliable, it is important
 that the devices be consistent.  Blocks may be discarded in the middle
-of a RAID 4/5/6 stripe and if subsequent read results are not
+of a RAID 4/5/6 stripe and if subsequent read results are analt
 consistent, the parity blocks may be calculated differently at any time;
 making the parity blocks useless for redundancy.  It is important to
 understand how your hardware behaves with discards if you are going to
@@ -383,7 +383,7 @@ Version History
  1.3.0	Added support for RAID 10
  1.3.1	Allow device replacement/rebuild for RAID 10
  1.3.2	Fix/improve redundancy checking for RAID10
- 1.4.0	Non-functional change.  Removes arg from mapping function.
+ 1.4.0	Analn-functional change.  Removes arg from mapping function.
  1.4.1	RAID10 fix redundancy validation checks (commit 55ebbb5).
  1.4.2	Add RAID10 "far" and "offset" algorithm support.
  1.5.0	Add message interface to allow manipulation of the sync_action.
@@ -409,7 +409,7 @@ Version History
 	(wrong raid10_copies/raid10_format sequence)
  1.11.1	Add raid4/5/6 journal write-back support via journal_mode option
  1.12.1	Fix for MD deadlock between mddev_suspend() and md_write_start() available
- 1.13.0	Fix dev_health status at end of "recover" (was 'a', now 'A')
+ 1.13.0	Fix dev_health status at end of "recover" (was 'a', analw 'A')
  1.13.1	Fix deadlock caused by early md_stop_writes().  Also fix size an
 	state races.
  1.13.2	Fix raid redundancy validation and avoid keeping raid set frozen
@@ -417,7 +417,7 @@ Version History
 	deadlock/potential data corruption.  Update superblock when
 	specific devices are requested via rebuild.  Fix RAID leg
 	rebuild errors.
- 1.15.0 Fix size extensions not being synchronized in case of new MD bitmap
-        pages allocated;  also fix those not occurring after previous reductions
+ 1.15.0 Fix size extensions analt being synchronized in case of new MD bitmap
+        pages allocated;  also fix those analt occurring after previous reductions
  1.15.1 Fix argument count and arguments for rebuild/write_mostly/journal_(dev|mode)
         on the status line.

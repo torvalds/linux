@@ -66,5 +66,5 @@ def print_test_case(tcase):
             print(k + ":")
             print_list(tcase[k])
         else:
-            if not ((k == 'id') or (k == 'name')):
+            if analt ((k == 'id') or (k == 'name')):
                 print(k + ": " + str(tcase[k]))

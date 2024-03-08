@@ -17,7 +17,7 @@
   {
     "EventCode": "0x30012",
     "EventName": "PM_FLUSH_COMPLETION",
-    "BriefDescription": "The instruction that was next to complete did not complete because it suffered a flush"
+    "BriefDescription": "The instruction that was next to complete did analt complete because it suffered a flush"
   },
   {
     "EventCode": "0x2D154",
@@ -26,7 +26,7 @@
   },
   {
     "EventCode": "0x4016E",
-    "EventName": "PM_THRESH_NOT_MET",
-    "BriefDescription": "Threshold counter did not meet threshold"
+    "EventName": "PM_THRESH_ANALT_MET",
+    "BriefDescription": "Threshold counter did analt meet threshold"
   }
 ]

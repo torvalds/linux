@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -78,7 +78,7 @@ static const struct radar_types etsi_radar_types_v15 = {
 
 /* radar types released on August 14, 2014
  * type 1 PRI values randomly selected within the range of 518 and 3066.
- * divide it to 3 groups is good enough for both of radar detection and
+ * divide it to 3 groups is good eanalugh for both of radar detection and
  * avoiding false detection based on practical test results
  * collected for more than a year.
  */
@@ -135,7 +135,7 @@ static const struct radar_types *dfs_domains[] = {
  * get_dfs_domain_radar_types() - get radar types for a given DFS domain
  * @region: regulatory DFS region
  *
- * Return value: radar_types ptr on success, NULL if DFS domain is not supported
+ * Return value: radar_types ptr on success, NULL if DFS domain is analt supported
  */
 static const struct radar_types *
 get_dfs_domain_radar_types(enum nl80211_dfs_regions region)
@@ -272,7 +272,7 @@ dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event,
 	struct channel_detector *cd;
 
 	/*
-	 * pulses received for a non-supported or un-initialized
+	 * pulses received for a analn-supported or un-initialized
 	 * domain are treated as detected radars for fail-safety
 	 */
 	if (dpd->region == NL80211_DFS_UNSET)
@@ -365,7 +365,7 @@ dfs_pattern_detector_init(struct ath_common *common,
 	if (dpd->set_dfs_domain(dpd, region))
 		return dpd;
 
-	ath_dbg(common, DFS,"Could not set DFS domain to %d", region);
+	ath_dbg(common, DFS,"Could analt set DFS domain to %d", region);
 	kfree(dpd);
 	return NULL;
 }

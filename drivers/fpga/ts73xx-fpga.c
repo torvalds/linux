@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Technologic Systems TS-73xx SBC FPGA loader
+ * Techanallogic Systems TS-73xx SBC FPGA loader
  *
  * Copyright (C) 2016 Florian Fainelli <f.fainelli@gmail.com>
  *
@@ -106,7 +106,7 @@ static int ts73xx_fpga_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(kdev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = kdev;
 

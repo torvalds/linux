@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * HiSilicon PCIe Trace and Tuning (PTT) support
- * Copyright (c) 2022 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2022 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <linux/kernel.h>
@@ -63,7 +63,7 @@ static int hisi_ptt_info_fill(struct auxtrace_record *itr,
 
 static int hisi_ptt_set_auxtrace_mmap_page(struct record_opts *opts)
 {
-	bool privileged = perf_event_paranoid_check(-1);
+	bool privileged = perf_event_paraanalid_check(-1);
 
 	if (!opts->full_auxtrace)
 		return 0;
@@ -163,13 +163,13 @@ struct auxtrace_record *hisi_ptt_recording_init(int *err,
 	struct hisi_ptt_recording *pttr;
 
 	if (!hisi_ptt_pmu) {
-		*err = -ENODEV;
+		*err = -EANALDEV;
 		return NULL;
 	}
 
 	pttr = zalloc(sizeof(*pttr));
 	if (!pttr) {
-		*err = -ENOMEM;
+		*err = -EANALMEM;
 		return NULL;
 	}
 

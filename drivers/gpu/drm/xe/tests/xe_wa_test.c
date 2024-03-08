@@ -27,7 +27,7 @@ struct platform_test_case {
 	{									\
 		.name = #platform__ " (" #graphics_step__ ")",			\
 		.platform = XE_ ## platform__,					\
-		.subplatform = XE_SUBPLATFORM_NONE,				\
+		.subplatform = XE_SUBPLATFORM_ANALNE,				\
 		.step = { .graphics = STEP_ ## graphics_step__ }		\
 	}
 
@@ -45,7 +45,7 @@ struct platform_test_case {
 	{									\
 		.name = #platform__ " (g:" #graphics_step__ ", m:" #media_step__ ")",\
 		.platform = XE_ ## platform__,					\
-		.subplatform = XE_SUBPLATFORM_NONE,				\
+		.subplatform = XE_SUBPLATFORM_ANALNE,				\
 		.graphics_verx100 = graphics_verx100__,				\
 		.media_verx100 = media_verx100__,				\
 		.step = { .graphics = STEP_ ## graphics_step__,			\
@@ -103,12 +103,12 @@ static int xe_wa_test_init(struct kunit *test)
 	int ret;
 
 	dev = drm_kunit_helper_alloc_device(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, dev);
 
 	xe = drm_kunit_helper_alloc_drm_device(test, dev,
 					       struct xe_device,
 					       drm, DRIVER_GEM);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xe);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, xe);
 
 	test->priv = &data;
 	ret = xe_pci_fake_device_init(xe);

@@ -31,7 +31,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/i2c/tc358743.h>
 
 #include "tc358743_regs.h"
@@ -58,7 +58,7 @@ static const struct v4l2_dv_timings_cap tc358743_timings_cap = {
 	.type = V4L2_DV_BT_656_1120,
 	/* keep this initialization for compatibility with GCC < 4.4.6 */
 	.reserved = { 0 },
-	/* Pixel clock from REF_01 p. 20. Min/max height/width are unknown */
+	/* Pixel clock from REF_01 p. 20. Min/max height/width are unkanalwn */
 	V4L2_INIT_BT_TIMINGS(640, 1920, 350, 1200, 13000000, 165000000,
 			V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
 			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
@@ -192,7 +192,7 @@ static void i2c_wr(struct v4l2_subdev *sd, u16 reg, u8 *values, u32 n)
 	}
 }
 
-static noinline u32 i2c_rdreg(struct v4l2_subdev *sd, u16 reg, u32 n)
+static analinline u32 i2c_rdreg(struct v4l2_subdev *sd, u16 reg, u32 n)
 {
 	__le32 val = 0;
 
@@ -201,7 +201,7 @@ static noinline u32 i2c_rdreg(struct v4l2_subdev *sd, u16 reg, u32 n)
 	return le32_to_cpu(val);
 }
 
-static noinline void i2c_wrreg(struct v4l2_subdev *sd, u16 reg, u32 val, u32 n)
+static analinline void i2c_wrreg(struct v4l2_subdev *sd, u16 reg, u32 val, u32 n)
 {
 	__le32 raw = cpu_to_le32(val);
 
@@ -261,12 +261,12 @@ static inline bool tx_5v_power_present(struct v4l2_subdev *sd)
 	return i2c_rd8(sd, SYS_STATUS) & MASK_S_DDC5V;
 }
 
-static inline bool no_signal(struct v4l2_subdev *sd)
+static inline bool anal_signal(struct v4l2_subdev *sd)
 {
 	return !(i2c_rd8(sd, SYS_STATUS) & MASK_S_TMDS);
 }
 
-static inline bool no_sync(struct v4l2_subdev *sd)
+static inline bool anal_sync(struct v4l2_subdev *sd)
 {
 	return !(i2c_rd8(sd, SYS_STATUS) & MASK_S_SYNC);
 }
@@ -283,8 +283,8 @@ static int get_audio_sampling_rate(struct v4l2_subdev *sd)
 		88200, 768000, 96000, 705600, 176400, 0, 192000, 0
 	};
 
-	/* Register FS_SET is not cleared when the cable is disconnected */
-	if (no_signal(sd))
+	/* Register FS_SET is analt cleared when the cable is disconnected */
+	if (anal_signal(sd))
 		return 0;
 
 	return code_to_rate[i2c_rd8(sd, FS_SET) & MASK_FS];
@@ -309,13 +309,13 @@ static int tc358743_get_detected_timings(struct v4l2_subdev *sd,
 
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
 
-	if (no_signal(sd)) {
-		v4l2_dbg(1, debug, sd, "%s: no valid signal\n", __func__);
-		return -ENOLINK;
+	if (anal_signal(sd)) {
+		v4l2_dbg(1, debug, sd, "%s: anal valid signal\n", __func__);
+		return -EANALLINK;
 	}
-	if (no_sync(sd)) {
-		v4l2_dbg(1, debug, sd, "%s: no sync on signal\n", __func__);
-		return -ENOLCK;
+	if (anal_sync(sd)) {
+		v4l2_dbg(1, debug, sd, "%s: anal sync on signal\n", __func__);
+		return -EANALLCK;
 	}
 
 	timings->type = V4L2_DV_BT_656_1120;
@@ -405,7 +405,7 @@ static void tc358743_enable_edid(struct v4l2_subdev *sd)
 	struct tc358743_state *state = to_state(sd);
 
 	if (state->edid_blocks_written == 0) {
-		v4l2_dbg(2, debug, sd, "%s: no EDID -> no hotplug\n", __func__);
+		v4l2_dbg(2, debug, sd, "%s: anal EDID -> anal hotplug\n", __func__);
 		tc358743_s_ctrl_detect_tx_5v(sd);
 		return;
 	}
@@ -438,7 +438,7 @@ static void print_avi_infoframe(struct v4l2_subdev *sd)
 	u8 buffer[HDMI_INFOFRAME_SIZE(AVI)];
 
 	if (!is_hdmi(sd)) {
-		v4l2_info(sd, "DVI-D signal - AVI infoframe not supported\n");
+		v4l2_info(sd, "DVI-D signal - AVI infoframe analt supported\n");
 		return;
 	}
 
@@ -522,7 +522,7 @@ static inline void enable_stream(struct v4l2_subdev *sd, bool enable)
 
 	if (enable) {
 		/* It is critical for CSI receiver to see lane transition
-		 * LP11->HS. Set to non-continuous mode to enable clock lane
+		 * LP11->HS. Set to analn-continuous mode to enable clock lane
 		 * LP11 state. */
 		i2c_wr32(sd, TXOPTIONCNTRL, 0);
 		/* Set to continuous mode to trigger LP11->HS transition */
@@ -531,7 +531,7 @@ static inline void enable_stream(struct v4l2_subdev *sd, bool enable)
 		i2c_wr8(sd, VI_MUTE, MASK_AUTO_MUTE);
 	} else {
 		/* Mute video so that all data lanes go to LSP11 state.
-		 * No data is output to CSI Tx block. */
+		 * Anal data is output to CSI Tx block. */
 		i2c_wr8(sd, VI_MUTE, MASK_AUTO_MUTE | MASK_VI_MUTE);
 	}
 
@@ -554,7 +554,7 @@ static void tc358743_set_pll(struct v4l2_subdev *sd)
 	v4l2_dbg(2, debug, sd, "%s:\n", __func__);
 
 	/* Only rewrite when needed (new value or disabled), since rewriting
-	 * triggers another format change event. */
+	 * triggers aanalther format change event. */
 	if ((pllctl0 != pllctl0_new) || ((pllctl1 & MASK_PLL_EN) == 0)) {
 		u16 pll_frs;
 
@@ -717,7 +717,7 @@ static void tc358743_set_csi(struct v4l2_subdev *sd)
 			((lanes > 3) ? MASK_D3M_HSTXVREGEN : 0x0));
 
 	i2c_wr32(sd, TXOPTIONCNTRL, (state->bus.flags &
-		 V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK) ? 0 : MASK_CONTCLKMODE);
+		 V4L2_MBUS_CSI2_ANALNCONTINUOUS_CLOCK) ? 0 : MASK_CONTCLKMODE);
 	i2c_wr32(sd, STARTCNTRL, MASK_START);
 	i2c_wr32(sd, CSI_START, MASK_STRT);
 
@@ -725,9 +725,9 @@ static void tc358743_set_csi(struct v4l2_subdev *sd)
 			MASK_ADDRESS_CSI_CONTROL |
 			MASK_CSI_MODE |
 			MASK_TXHSMD |
-			((lanes == 4) ? MASK_NOL_4 :
-			 (lanes == 3) ? MASK_NOL_3 :
-			 (lanes == 2) ? MASK_NOL_2 : MASK_NOL_1));
+			((lanes == 4) ? MASK_ANALL_4 :
+			 (lanes == 3) ? MASK_ANALL_3 :
+			 (lanes == 2) ? MASK_ANALL_2 : MASK_ANALL_1));
 
 	i2c_wr32(sd, CSI_CONFW, MASK_MODE_SET |
 			MASK_ADDRESS_CSI_ERR_INTENA | MASK_TXBRK | MASK_QUNK |
@@ -803,11 +803,11 @@ static void tc358743_set_hdmi_info_frame_mode(struct v4l2_subdev *sd)
 			MASK_ACP_INT_MODE | MASK_VS_INT_MODE |
 			MASK_SPD_INT_MODE | MASK_MS_INT_MODE |
 			MASK_AUD_INT_MODE | MASK_AVI_INT_MODE);
-	i2c_wr8(sd, NO_PKT_LIMIT, 0x2c);
-	i2c_wr8(sd, NO_PKT_CLR, 0x53);
+	i2c_wr8(sd, ANAL_PKT_LIMIT, 0x2c);
+	i2c_wr8(sd, ANAL_PKT_CLR, 0x53);
 	i2c_wr8(sd, ERR_PK_LIMIT, 0x01);
-	i2c_wr8(sd, NO_PKT_LIMIT2, 0x30);
-	i2c_wr8(sd, NO_GDB_LIMIT, 0x10);
+	i2c_wr8(sd, ANAL_PKT_LIMIT2, 0x30);
+	i2c_wr8(sd, ANAL_GDB_LIMIT, 0x10);
 }
 
 static void tc358743_initial_setup(struct v4l2_subdev *sd)
@@ -816,7 +816,7 @@ static void tc358743_initial_setup(struct v4l2_subdev *sd)
 	struct tc358743_platform_data *pdata = &state->pdata;
 
 	/*
-	 * IR is not supported by this driver.
+	 * IR is analt supported by this driver.
 	 * CEC is only enabled if needed.
 	 */
 	i2c_wr16_and_or(sd, SYSCTL, ~(MASK_IRRST | MASK_CECRST),
@@ -947,8 +947,8 @@ static void tc358743_cec_handler(struct v4l2_subdev *sd, u16 intstatus,
 						  CEC_TX_STATUS_NACK);
 		else if (cec_txint & MASK_CECTIUR) {
 			/*
-			 * Not sure when this bit is set. Treat
-			 * it as an error for now.
+			 * Analt sure when this bit is set. Treat
+			 * it as an error for analw.
 			 */
 			cec_transmit_attempt_done(state->cec_adap,
 						  CEC_TX_STATUS_ERROR);
@@ -994,7 +994,7 @@ static void tc358743_format_change(struct v4l2_subdev *sd)
 	if (tc358743_get_detected_timings(sd, &timings)) {
 		enable_stream(sd, false);
 
-		v4l2_dbg(1, debug, sd, "%s: No signal\n",
+		v4l2_dbg(1, debug, sd, "%s: Anal signal\n",
 				__func__);
 	} else {
 		if (!v4l2_match_dv_timings(&state->timings, &timings, 0, false))
@@ -1006,8 +1006,8 @@ static void tc358743_format_change(struct v4l2_subdev *sd)
 					&timings, false);
 	}
 
-	if (sd->devnode)
-		v4l2_subdev_notify_event(sd, &tc358743_ev_fmt);
+	if (sd->devanalde)
+		v4l2_subdev_analtify_event(sd, &tc358743_ev_fmt);
 }
 
 static void tc358743_init_interrupts(struct v4l2_subdev *sd)
@@ -1079,7 +1079,7 @@ static void tc358743_hdmi_misc_int_handler(struct v4l2_subdev *sd,
 		/* Reset the HDMI PHY to try to trigger proper lock on the
 		 * incoming video format. Erase BKSV to prevent that old keys
 		 * are used when a new source is connected. */
-		if (no_sync(sd) || no_signal(sd)) {
+		if (anal_sync(sd) || anal_signal(sd)) {
 			tc358743_reset_phy(sd);
 			tc358743_erase_bksv(sd);
 		}
@@ -1152,11 +1152,11 @@ static void tc358743_hdmi_clk_int_handler(struct v4l2_subdev *sd, bool *handled)
 
 		/* If the source switch to a new resolution with the same pixel
 		 * frequency as the existing (e.g. 1080p25 -> 720p50), the
-		 * I_SYNC_CHG interrupt is not always triggered, while the
+		 * I_SYNC_CHG interrupt is analt always triggered, while the
 		 * I_IN_DE_CHG interrupt seems to work fine. Format change
-		 * notifications are only sent when the signal is stable to
-		 * reduce the number of notifications. */
-		if (!no_signal(sd) && !no_sync(sd))
+		 * analtifications are only sent when the signal is stable to
+		 * reduce the number of analtifications. */
+		if (!anal_signal(sd) && !anal_sync(sd))
 			tc358743_format_change(sd);
 
 		clk_int &= ~(MASK_I_IN_DE_CHG);
@@ -1184,7 +1184,7 @@ static void tc358743_hdmi_sys_int_handler(struct v4l2_subdev *sd, bool *handled)
 		bool tx_5v = tx_5v_power_present(sd);
 
 		v4l2_dbg(1, debug, sd, "%s: Tx 5V power present: %s\n",
-				__func__, tx_5v ?  "yes" : "no");
+				__func__, tx_5v ?  "anal" : "anal");
 
 		if (tx_5v) {
 			tc358743_enable_edid(sd);
@@ -1208,7 +1208,7 @@ static void tc358743_hdmi_sys_int_handler(struct v4l2_subdev *sd, bool *handled)
 		/* Reset the HDMI PHY to try to trigger proper lock on the
 		 * incoming video format. Erase BKSV to prevent that old keys
 		 * are used when a new source is connected. */
-		if (no_sync(sd) || no_signal(sd)) {
+		if (anal_sync(sd) || anal_signal(sd)) {
 			tc358743_reset_phy(sd);
 			tc358743_erase_bksv(sd);
 		}
@@ -1223,7 +1223,7 @@ static void tc358743_hdmi_sys_int_handler(struct v4l2_subdev *sd, bool *handled)
 				__func__);
 
 		/* Register is reset in DVI mode (REF_01, c. 6.6.41) */
-		i2c_wr8(sd, ANA_CTL, MASK_APPL_PCSX_NORMAL | MASK_ANALOG_ON);
+		i2c_wr8(sd, ANA_CTL, MASK_APPL_PCSX_ANALRMAL | MASK_ANALOG_ON);
 
 		sys_int &= ~MASK_I_HDMI;
 		if (handled)
@@ -1263,27 +1263,27 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 			!!(sysctl & MASK_HDMIRST));
 	v4l2_info(sd, "Sleep mode: %s\n", sysctl & MASK_SLEEP ? "on" : "off");
 	v4l2_info(sd, "Cable detected (+5V power): %s\n",
-			hdmi_sys_status & MASK_S_DDC5V ? "yes" : "no");
+			hdmi_sys_status & MASK_S_DDC5V ? "anal" : "anal");
 	v4l2_info(sd, "DDC lines enabled: %s\n",
 			(i2c_rd8(sd, EDID_MODE) & MASK_EDID_MODE_E_DDC) ?
-			"yes" : "no");
+			"anal" : "anal");
 	v4l2_info(sd, "Hotplug enabled: %s\n",
 			(i2c_rd8(sd, HPD_CTL) & MASK_HPD_OUT0) ?
-			"yes" : "no");
+			"anal" : "anal");
 	v4l2_info(sd, "CEC enabled: %s\n",
-			(i2c_rd16(sd, CECEN) & MASK_CECEN) ?  "yes" : "no");
+			(i2c_rd16(sd, CECEN) & MASK_CECEN) ?  "anal" : "anal");
 	v4l2_info(sd, "-----Signal status-----\n");
 	v4l2_info(sd, "TMDS signal detected: %s\n",
-			hdmi_sys_status & MASK_S_TMDS ? "yes" : "no");
+			hdmi_sys_status & MASK_S_TMDS ? "anal" : "anal");
 	v4l2_info(sd, "Stable sync signal: %s\n",
-			hdmi_sys_status & MASK_S_SYNC ? "yes" : "no");
+			hdmi_sys_status & MASK_S_SYNC ? "anal" : "anal");
 	v4l2_info(sd, "PHY PLL locked: %s\n",
-			hdmi_sys_status & MASK_S_PHY_PLL ? "yes" : "no");
+			hdmi_sys_status & MASK_S_PHY_PLL ? "anal" : "anal");
 	v4l2_info(sd, "PHY DE detected: %s\n",
-			hdmi_sys_status & MASK_S_PHY_SCDT ? "yes" : "no");
+			hdmi_sys_status & MASK_S_PHY_SCDT ? "anal" : "anal");
 
 	if (tc358743_get_detected_timings(sd, &timings)) {
-		v4l2_info(sd, "No video detected\n");
+		v4l2_info(sd, "Anal video detected\n");
 	} else {
 		v4l2_print_dv_timings(sd->name, "Detected format: ", &timings,
 				true);
@@ -1298,16 +1298,16 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 			state->csi_lanes_in_use);
 	v4l2_info(sd, "Waiting for particular sync signal: %s\n",
 			(i2c_rd16(sd, CSI_STATUS) & MASK_S_WSYNC) ?
-			"yes" : "no");
+			"anal" : "anal");
 	v4l2_info(sd, "Transmit mode: %s\n",
 			(i2c_rd16(sd, CSI_STATUS) & MASK_S_TXACT) ?
-			"yes" : "no");
+			"anal" : "anal");
 	v4l2_info(sd, "Receive mode: %s\n",
 			(i2c_rd16(sd, CSI_STATUS) & MASK_S_RXACT) ?
-			"yes" : "no");
+			"anal" : "anal");
 	v4l2_info(sd, "Stopped: %s\n",
 			(i2c_rd16(sd, CSI_STATUS) & MASK_S_HLT) ?
-			"yes" : "no");
+			"anal" : "anal");
 	v4l2_info(sd, "Color space: %s\n",
 			state->mbus_fmt_code == MEDIA_BUS_FMT_UYVY8_1X16 ?
 			"YCbCr 422 16-bit" :
@@ -1316,7 +1316,7 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 
 	v4l2_info(sd, "-----%s status-----\n", is_hdmi(sd) ? "HDMI" : "DVI-D");
 	v4l2_info(sd, "HDCP encrypted content: %s\n",
-			hdmi_sys_status & MASK_S_HDCP ? "yes" : "no");
+			hdmi_sys_status & MASK_S_HDCP ? "anal" : "anal");
 	v4l2_info(sd, "Input color space: %s %s range\n",
 			input_color_space[(vi_status3 & MASK_S_V_COLOR) >> 1],
 			(vi_status3 & MASK_LIMITED) ? "limited" : "full");
@@ -1389,10 +1389,10 @@ static int tc358743_s_register(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	/* It should not be possible for the user to enable HDCP with a simple
+	/* It should analt be possible for the user to enable HDCP with a simple
 	 * v4l2-dbg command.
 	 *
-	 * DO NOT REMOVE THIS unless all other issues with HDCP have been
+	 * DO ANALT REMOVE THIS unless all other issues with HDCP have been
 	 * resolved.
 	 */
 	if (reg->reg == HDCP_MODE ||
@@ -1469,7 +1469,7 @@ static irqreturn_t tc358743_irq_handler(int irq, void *dev_id)
 
 	tc358743_isr(&state->sd, 0, &handled);
 
-	return handled ? IRQ_HANDLED : IRQ_NONE;
+	return handled ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static void tc358743_irq_poll_timer(struct timer_list *t)
@@ -1513,8 +1513,8 @@ static int tc358743_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 static int tc358743_g_input_status(struct v4l2_subdev *sd, u32 *status)
 {
 	*status = 0;
-	*status |= no_signal(sd) ? V4L2_IN_ST_NO_SIGNAL : 0;
-	*status |= no_sync(sd) ? V4L2_IN_ST_NO_SYNC : 0;
+	*status |= anal_signal(sd) ? V4L2_IN_ST_ANAL_SIGNAL : 0;
+	*status |= anal_sync(sd) ? V4L2_IN_ST_ANAL_SYNC : 0;
 
 	v4l2_dbg(1, debug, sd, "%s: status = 0x%x\n", __func__, *status);
 
@@ -1534,7 +1534,7 @@ static int tc358743_s_dv_timings(struct v4l2_subdev *sd,
 				timings, false);
 
 	if (v4l2_match_dv_timings(&state->timings, timings, 0, false)) {
-		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
+		v4l2_dbg(1, debug, sd, "%s: anal change\n", __func__);
 		return 0;
 	}
 
@@ -1614,7 +1614,7 @@ static int tc358743_get_mbus_config(struct v4l2_subdev *sd,
 
 	cfg->type = V4L2_MBUS_CSI2_DPHY;
 
-	/* Support for non-continuous CSI-2 clock is missing in the driver */
+	/* Support for analn-continuous CSI-2 clock is missing in the driver */
 	cfg->bus.mipi_csi2.flags = 0;
 	cfg->bus.mipi_csi2.num_data_lanes = state->csi_lanes_in_use;
 
@@ -1664,7 +1664,7 @@ static int tc358743_get_fmt(struct v4l2_subdev *sd,
 	format->format.code = state->mbus_fmt_code;
 	format->format.width = state->timings.bt.width;
 	format->format.height = state->timings.bt.height;
-	format->format.field = V4L2_FIELD_NONE;
+	format->format.field = V4L2_FIELD_ANALNE;
 
 	switch (vi_rep & MASK_VOUT_COLOR_SEL) {
 	case MASK_VOUT_COLOR_RGB_FULL:
@@ -1738,7 +1738,7 @@ static int tc358743_g_edid(struct v4l2_subdev *sd,
 	}
 
 	if (state->edid_blocks_written == 0)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (edid->start_block >= state->edid_blocks_written ||
 			edid->blocks == 0)
@@ -1884,8 +1884,8 @@ static void tc358743_gpio_reset(struct tc358743_state *state)
 static int tc358743_probe_of(struct tc358743_state *state)
 {
 	struct device *dev = &state->i2c_client->dev;
-	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
-	struct device_node *ep;
+	struct v4l2_fwanalde_endpoint endpoint = { .bus_type = 0 };
+	struct device_analde *ep;
 	struct clk *refclk;
 	u32 bps_pr_lane;
 	int ret;
@@ -1895,16 +1895,16 @@ static int tc358743_probe_of(struct tc358743_state *state)
 		return dev_err_probe(dev, PTR_ERR(refclk),
 				     "failed to get refclk\n");
 
-	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
+	ep = of_graph_get_next_endpoint(dev->of_analde, NULL);
 	if (!ep) {
-		dev_err(dev, "missing endpoint node\n");
+		dev_err(dev, "missing endpoint analde\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(ep), &endpoint);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(of_fwanalde_handle(ep), &endpoint);
 	if (ret) {
 		dev_err(dev, "failed to parse endpoint\n");
-		goto put_node;
+		goto put_analde;
 	}
 
 	if (endpoint.bus_type != V4L2_MBUS_CSI2_DPHY ||
@@ -1932,7 +1932,7 @@ static int tc358743_probe_of(struct tc358743_state *state)
 	state->pdata.refclk_hz = clk_get_rate(refclk);
 	state->pdata.ddc5v_delay = DDC5V_DELAY_100_MS;
 	state->pdata.enable_hdcp = false;
-	/* A FIFO level of 16 should be enough for 2-lane 720p60 at 594 MHz. */
+	/* A FIFO level of 16 should be eanalugh for 2-lane 720p60 at 594 MHz. */
 	state->pdata.fifo_level = 16;
 	/*
 	 * The PLL input clock is obtained by dividing refclk by pll_prd.
@@ -2001,15 +2001,15 @@ static int tc358743_probe_of(struct tc358743_state *state)
 disable_clk:
 	clk_disable_unprepare(refclk);
 free_endpoint:
-	v4l2_fwnode_endpoint_free(&endpoint);
-put_node:
-	of_node_put(ep);
+	v4l2_fwanalde_endpoint_free(&endpoint);
+put_analde:
+	of_analde_put(ep);
 	return ret;
 }
 #else
 static inline int tc358743_probe_of(struct tc358743_state *state)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -2031,7 +2031,7 @@ static int tc358743_probe(struct i2c_client *client)
 	state = devm_kzalloc(&client->dev, sizeof(struct tc358743_state),
 			GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->i2c_client = client;
 
@@ -2041,21 +2041,21 @@ static int tc358743_probe(struct i2c_client *client)
 		state->bus.flags = 0;
 	} else {
 		err = tc358743_probe_of(state);
-		if (err == -ENODEV)
-			v4l_err(client, "No platform data!\n");
+		if (err == -EANALDEV)
+			v4l_err(client, "Anal platform data!\n");
 		if (err)
 			return err;
 	}
 
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &tc358743_ops);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	/* i2c access */
 	if ((i2c_rd16(sd, CHIPID) & MASK_CHIPID) != 0) {
-		v4l2_info(sd, "not a TC358743 on address 0x%x\n",
+		v4l2_info(sd, "analt a TC358743 on address 0x%x\n",
 			  client->addr << 1);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* control handlers */
@@ -2078,7 +2078,7 @@ static int tc358743_probe(struct i2c_client *client)
 	}
 
 	if (tc358743_update_controls(sd)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_hdl;
 	}
 

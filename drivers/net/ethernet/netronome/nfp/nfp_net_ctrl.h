@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 /* nfp_net_ctrl.h
- * Netronome network device driver: Control BAR layout
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
- *          Brad Petrus <brad.petrus@netronome.com>
+ * Netroanalme network device driver: Control BAR layout
+ * Authors: Jakub Kicinski <jakub.kicinski@netroanalme.com>
+ *          Jason McMullan <jason.mcmullan@netroanalme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroanalme.com>
+ *          Brad Petrus <brad.petrus@netroanalme.com>
  */
 
 #ifndef _NFP_NET_CTRL_H_
@@ -59,7 +59,7 @@
 #define NFP_NET_META_IPSEC_SIZE			4
 #define NFP_NET_META_IPSEC_FIELD_SIZE		12
 /* Hash type pre-pended when a RSS hash was computed */
-#define NFP_NET_RSS_NONE		0
+#define NFP_NET_RSS_ANALNE		0
 #define NFP_NET_RSS_IPV4		1
 #define NFP_NET_RSS_IPV6		2
 #define NFP_NET_RSS_IPV6_EX		3
@@ -182,8 +182,8 @@
 #define   NFP_NET_CFG_VERSION_CLASS_GENERIC	0
 #define   NFP_NET_CFG_VERSION_MAJOR_MASK  (0xff <<  8)
 #define   NFP_NET_CFG_VERSION_MAJOR(x)	  (((x) & 0xff) <<  8)
-#define   NFP_NET_CFG_VERSION_MINOR_MASK  (0xff <<  0)
-#define   NFP_NET_CFG_VERSION_MINOR(x)	  (((x) & 0xff) <<  0)
+#define   NFP_NET_CFG_VERSION_MIANALR_MASK  (0xff <<  0)
+#define   NFP_NET_CFG_VERSION_MIANALR(x)	  (((x) & 0xff) <<  0)
 #define NFP_NET_CFG_STS			0x0034
 #define   NFP_NET_CFG_STS_LINK		  (0x1 << 0) /* Link up or down */
 /* Link rate */
@@ -192,7 +192,7 @@
 #define   NFP_NET_CFG_STS_LINK_RATE	  \
 	(NFP_NET_CFG_STS_LINK_RATE_MASK << NFP_NET_CFG_STS_LINK_RATE_SHIFT)
 #define   NFP_NET_CFG_STS_LINK_RATE_UNSUPPORTED   0
-#define   NFP_NET_CFG_STS_LINK_RATE_UNKNOWN	  1
+#define   NFP_NET_CFG_STS_LINK_RATE_UNKANALWN	  1
 #define   NFP_NET_CFG_STS_LINK_RATE_1G		  2
 #define   NFP_NET_CFG_STS_LINK_RATE_10G		  3
 #define   NFP_NET_CFG_STS_LINK_RATE_25G		  4
@@ -341,8 +341,8 @@
 					 ((_x) * 0x4))
 
 /* Interrupt Control/Cause registers (0x0c00 - 0x0d00)
- * These registers are only used when MSI-X auto-masking is not
- * enabled (%NFP_NET_CFG_CTRL_MSIXAUTO not set).  The array is index
+ * These registers are only used when MSI-X auto-masking is analt
+ * enabled (%NFP_NET_CFG_CTRL_MSIXAUTO analt set).  The array is index
  * by MSI-X entry and are 1B in size.  If an entry is zero, the
  * corresponding entry is enabled.  If the FW generates an interrupt,
  * it writes a cause into the corresponding field.  This also masks
@@ -465,12 +465,12 @@ enum {
  *
  * List of simple TLV structures, first one starts at %NFP_NET_CFG_TLV_BASE.
  * Last structure must be of type %NFP_NET_CFG_TLV_TYPE_END.  Presence of TLVs
- * is indicated by %NFP_NET_CFG_TLV_BASE being non-zero.  TLV structures may
+ * is indicated by %NFP_NET_CFG_TLV_BASE being analn-zero.  TLV structures may
  * fill the entire remainder of the BAR or be shorter.  FW must make sure TLVs
  * don't conflict with other features which allocate space beyond
  * %NFP_NET_CFG_TLV_BASE.  %NFP_NET_CFG_TLV_TYPE_RESERVED should be used to wrap
  * space used by such features.
- * Note that the 4 byte TLV header is not counted in %NFP_NET_CFG_TLV_LENGTH.
+ * Analte that the 4 byte TLV header is analt counted in %NFP_NET_CFG_TLV_LENGTH.
  */
 #define NFP_NET_CFG_TLV_TYPE		0x00
 #define   NFP_NET_CFG_TLV_TYPE_REQUIRED   0x8000
@@ -484,7 +484,7 @@ enum {
 
 /* Capability TLV types
  *
- * %NFP_NET_CFG_TLV_TYPE_UNKNOWN:
+ * %NFP_NET_CFG_TLV_TYPE_UNKANALWN:
  * Special TLV type to catch bugs, should never be encountered.  Drivers should
  * treat encountering this type as error and refuse to probe.
  *
@@ -533,14 +533,14 @@ enum {
  * may be a padding between sections.
  * Number of statistics can be determined as floor(tlv.length / (2 + 8)).
  * This TLV overwrites %NFP_NET_CFG_STATS_* values (statistics in this TLV
- * duplicate the old ones, so driver should be careful not to unnecessarily
+ * duplicate the old ones, so driver should be careful analt to unnecessarily
  * render both).
  *
  * %NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS_RX_SCAN:
  * Same as %NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS, but crypto TLS does stream scan
  * RX sync, rather than kernel-assisted sync.
  */
-#define NFP_NET_CFG_TLV_TYPE_UNKNOWN		0
+#define NFP_NET_CFG_TLV_TYPE_UNKANALWN		0
 #define NFP_NET_CFG_TLV_TYPE_RESERVED		1
 #define NFP_NET_CFG_TLV_TYPE_END		2
 #define NFP_NET_CFG_TLV_TYPE_ME_FREQ		3

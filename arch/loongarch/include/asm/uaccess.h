@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
  * Copyright (C) 1996, 1997, 1998, 1999, 2000, 03, 04 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2007  Maciej W. Rozycki
- * Copyright (C) 2014, Imagination Technologies Ltd.
+ * Copyright (C) 2014, Imagination Techanallogies Ltd.
  */
 #ifndef _ASM_UACCESS_H
 #define _ASM_UACCESS_H
@@ -33,7 +33,7 @@ extern u64 __ua_limit;
  *          enabled.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -60,7 +60,7 @@ extern u64 __ua_limit;
  *          enabled.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable
@@ -85,7 +85,7 @@ extern u64 __ua_limit;
  *          enabled.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -115,7 +115,7 @@ extern u64 __ua_limit;
  *          enabled.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable
@@ -190,7 +190,7 @@ do {									\
 	: "Jr" (__pu_val));						\
 }
 
-#define __get_kernel_nofault(dst, src, type, err_label)			\
+#define __get_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	int __gu_err = 0;						\
 									\
@@ -200,7 +200,7 @@ do {									\
 		goto err_label;						\
 } while (0)
 
-#define __put_kernel_nofault(dst, src, type, err_label)			\
+#define __put_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	type __pu_val;							\
 	int __pu_err = 0;						\
@@ -236,7 +236,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
  * Zero a block of memory in user space.  Caller must check
  * the specified block with access_ok() before calling this function.
  *
- * Returns number of bytes that could not be cleared.
+ * Returns number of bytes that could analt be cleared.
  * On success, this will be zero.
  */
 extern unsigned long __clear_user(void __user *addr, __kernel_size_t size);

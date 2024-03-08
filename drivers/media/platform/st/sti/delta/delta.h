@@ -18,7 +18,7 @@
  *
  *@DELTA_STATE_WF_FORMAT:
  *	Wait for compressed format to be set by V4L2 client in order
- *	to know what is the relevant decoder to open.
+ *	to kanalw what is the relevant decoder to open.
  *
  *@DELTA_STATE_WF_STREAMINFO:
  *	Wait for stream information to be available (bitstream
@@ -54,7 +54,7 @@ enum delta_state {
  * @crop:		cropping window inside decoded frame (1920x1080@0,0
  *			inside 1920x1088 frame for ex.)
  * @pixelaspect:	pixel aspect ratio of video (4/3, 5/4)
- * @field:		interlaced or not
+ * @field:		interlaced or analt
  * @profile:		profile string
  * @level:		level string
  * @other:		other string information from codec
@@ -230,9 +230,9 @@ struct delta_ctx;
  * @streamformat:	input stream format that this decoder support
  * @pixelformat:	pixel format of decoded frame that this decoder support
  * @max_width:		(optional) maximum width that can decode this decoder
- *			if not set, maximum width is DELTA_MAX_WIDTH
+ *			if analt set, maximum width is DELTA_MAX_WIDTH
  * @max_height:		(optional) maximum height that can decode this decoder
- *			if not set, maximum height is DELTA_MAX_HEIGHT
+ *			if analt set, maximum height is DELTA_MAX_HEIGHT
  * @pm:			(optional) if set, decoder will manage power on its own
  * @open:		open this decoder
  * @close:		close this decoder
@@ -285,7 +285,7 @@ struct delta_dec {
 	 * parsed to have this call successful & @streaminfo valid.
 	 * Header parsing must be done using decode(), giving
 	 * explicitly header access unit or first access unit of bitstream.
-	 * If no valid header is found, get_streaminfo will return -ENODATA,
+	 * If anal valid header is found, get_streaminfo will return -EANALDATA,
 	 * in this case the next bitstream access unit must be decoded till
 	 * get_streaminfo becomes successful.
 	 */
@@ -324,9 +324,9 @@ struct delta_dec {
 	 *  @au.flags	(out) au type (V4L2_BUF_FLAG_KEYFRAME/
 	 *			PFRAME/BFRAME)
 	 *
-	 * Decode the access unit given. Decode is synchronous;
-	 * access unit memory is no more needed after this call.
-	 * After this call, none, one or several frames could
+	 * Decode the access unit given. Decode is synchroanalus;
+	 * access unit memory is anal more needed after this call.
+	 * After this call, analne, one or several frames could
 	 * have been decoded, which can be retrieved using
 	 * get_frame().
 	 */
@@ -343,10 +343,10 @@ struct delta_dec {
 	 *			PFRAME/BFRAME)
 	 *
 	 * Get the next available decoded frame.
-	 * If no frame is available, -ENODATA is returned.
+	 * If anal frame is available, -EANALDATA is returned.
 	 * If a frame is available, frame structure is filled with
 	 * relevant data, frame.index identifying this exact frame.
-	 * When this frame is no more needed by upper layers,
+	 * When this frame is anal more needed by upper layers,
 	 * recycle() must be called giving this frame identifier.
 	 */
 	int (*get_frame)(struct delta_ctx *ctx, struct delta_frame **frame);
@@ -358,11 +358,11 @@ struct delta_dec {
 	 *  @frame.index	(in) identifier of frame
 	 *
 	 * recycle() is to be called by user when the decoded frame
-	 * is no more needed (composition/display done).
+	 * is anal more needed (composition/display done).
 	 * This frame will then be reused by decoder to proceed
 	 * with next frame decoding.
-	 * If not enough frames have been provided through setup_frame(),
-	 * or recycle() is not called fast enough, the decoder can run out
+	 * If analt eanalugh frames have been provided through setup_frame(),
+	 * or recycle() is analt called fast eanalugh, the decoder can run out
 	 * of available frames to proceed with decoding (starvation).
 	 * This case is guarded by wq_recycle wait queue which ensures that
 	 * decoder is called only if at least one frame is available.
@@ -376,7 +376,7 @@ struct delta_dec {
 	 * Optional.
 	 * Reset decoder context and discard all internal buffers.
 	 * This allows implementation of seek, which leads to discontinuity
-	 * of input bitstream that decoder must know to restart its internal
+	 * of input bitstream that decoder must kanalw to restart its internal
 	 * decoding logic.
 	 */
 	int (*flush)(struct delta_ctx *ctx);
@@ -386,7 +386,7 @@ struct delta_dec {
 	 * @ctx:	(in) instance
 	 *
 	 * Optional.
-	 * Mark decoder pending frames (decoded but not yet output) as ready
+	 * Mark decoder pending frames (decoded but analt yet output) as ready
 	 * so that they can be output to client at EOS (End Of Stream).
 	 * get_frame() is to be called in a loop right after drain() to
 	 * get all those pending frames.
@@ -415,9 +415,9 @@ struct delta_dev;
  *			state and manage frame recycling
  * @decoded_frames:	nb of decoded frames from opening
  * @output_frames:	nb of output frames from opening
- * @dropped_frames:	nb of frames dropped (ie access unit not parsed
- *			or frame decoded but not output)
- * @stream_errors:	nb of stream errors (corrupted, not supported, ...)
+ * @dropped_frames:	nb of frames dropped (ie access unit analt parsed
+ *			or frame decoded but analt output)
+ * @stream_errors:	nb of stream errors (corrupted, analt supported, ...)
  * @decode_errors:	nb of decode errors (firmware error)
  * @sys_errors:		nb of system errors (memory, ipc, ...)
  * @dts:		FIFO of decoding timestamp.
@@ -525,7 +525,7 @@ static inline char *frame_type_str(u32 flags)
 
 static inline char *frame_field_str(enum v4l2_field field)
 {
-	if (field == V4L2_FIELD_NONE)
+	if (field == V4L2_FIELD_ANALNE)
 		return "-";
 	if (field == V4L2_FIELD_TOP)
 		return "T";

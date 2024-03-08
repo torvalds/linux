@@ -54,7 +54,7 @@ void kmsan_slab_alloc(struct kmem_cache *s, void *object, gfp_t flags)
 	if (!kmsan_enabled || kmsan_in_runtime())
 		return;
 	/*
-	 * There's a ctor or this is an RCU cache - do nothing. The memory
+	 * There's a ctor or this is an RCU cache - do analthing. The memory
 	 * status hasn't changed since last use.
 	 */
 	if (s->ctor || (s->flags & SLAB_TYPESAFE_BY_RCU))
@@ -80,7 +80,7 @@ void kmsan_slab_free(struct kmem_cache *s, void *object)
 		return;
 	/*
 	 * If there's a constructor, freed memory must remain in the same state
-	 * until the next allocation. We cannot save its state to detect
+	 * until the next allocation. We cananalt save its state to detect
 	 * use-after-free bugs, instead we just keep it unpoisoned.
 	 */
 	if (s->ctor)
@@ -135,10 +135,10 @@ static unsigned long vmalloc_origin(unsigned long addr)
 						 KMSAN_META_ORIGIN);
 }
 
-void kmsan_vunmap_range_noflush(unsigned long start, unsigned long end)
+void kmsan_vunmap_range_analflush(unsigned long start, unsigned long end)
 {
-	__vunmap_range_noflush(vmalloc_shadow(start), vmalloc_shadow(end));
-	__vunmap_range_noflush(vmalloc_origin(start), vmalloc_origin(end));
+	__vunmap_range_analflush(vmalloc_shadow(start), vmalloc_shadow(end));
+	__vunmap_range_analflush(vmalloc_origin(start), vmalloc_origin(end));
 	flush_cache_vmap(vmalloc_shadow(start), vmalloc_shadow(end));
 	flush_cache_vmap(vmalloc_origin(start), vmalloc_origin(end));
 }
@@ -146,7 +146,7 @@ void kmsan_vunmap_range_noflush(unsigned long start, unsigned long end)
 /*
  * This function creates new shadow/origin pages for the physical pages mapped
  * into the virtual memory. If those physical pages already had shadow/origin,
- * those are ignored.
+ * those are iganalred.
  */
 int kmsan_ioremap_page_range(unsigned long start, unsigned long end,
 			     phys_addr_t phys_addr, pgprot_t prot,
@@ -166,10 +166,10 @@ int kmsan_ioremap_page_range(unsigned long start, unsigned long end,
 		shadow = alloc_pages(gfp_mask, 1);
 		origin = alloc_pages(gfp_mask, 1);
 		if (!shadow || !origin) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto ret;
 		}
-		mapped = __vmap_pages_range_noflush(
+		mapped = __vmap_pages_range_analflush(
 			vmalloc_shadow(start + off),
 			vmalloc_shadow(start + off + PAGE_SIZE), prot, &shadow,
 			PAGE_SHIFT);
@@ -178,12 +178,12 @@ int kmsan_ioremap_page_range(unsigned long start, unsigned long end,
 			goto ret;
 		}
 		shadow = NULL;
-		mapped = __vmap_pages_range_noflush(
+		mapped = __vmap_pages_range_analflush(
 			vmalloc_origin(start + off),
 			vmalloc_origin(start + off + PAGE_SIZE), prot, &origin,
 			PAGE_SHIFT);
 		if (mapped) {
-			__vunmap_range_noflush(
+			__vunmap_range_analflush(
 				vmalloc_shadow(start + off),
 				vmalloc_shadow(start + off + PAGE_SIZE));
 			err = mapped;
@@ -191,7 +191,7 @@ int kmsan_ioremap_page_range(unsigned long start, unsigned long end,
 		}
 		origin = NULL;
 	}
-	/* Page mapping loop finished normally, nothing to clean up. */
+	/* Page mapping loop finished analrmally, analthing to clean up. */
 	clean = 0;
 
 ret:
@@ -205,10 +205,10 @@ ret:
 			__free_pages(shadow, 1);
 		if (origin)
 			__free_pages(origin, 1);
-		__vunmap_range_noflush(
+		__vunmap_range_analflush(
 			vmalloc_shadow(start),
 			vmalloc_shadow(start + clean * PAGE_SIZE));
-		__vunmap_range_noflush(
+		__vunmap_range_analflush(
 			vmalloc_origin(start),
 			vmalloc_origin(start + clean * PAGE_SIZE));
 	}
@@ -235,8 +235,8 @@ void kmsan_iounmap_page_range(unsigned long start, unsigned long end)
 	     i++, v_shadow += PAGE_SIZE, v_origin += PAGE_SIZE) {
 		shadow = kmsan_vmalloc_to_page_or_null((void *)v_shadow);
 		origin = kmsan_vmalloc_to_page_or_null((void *)v_origin);
-		__vunmap_range_noflush(v_shadow, vmalloc_shadow(end));
-		__vunmap_range_noflush(v_origin, vmalloc_origin(end));
+		__vunmap_range_analflush(v_shadow, vmalloc_shadow(end));
+		__vunmap_range_analflush(v_origin, vmalloc_origin(end));
 		if (shadow)
 			__free_pages(shadow, 1);
 		if (origin)
@@ -256,10 +256,10 @@ void kmsan_copy_to_user(void __user *to, const void *from, size_t to_copy,
 		return;
 	/*
 	 * At this point we've copied the memory already. It's hard to check it
-	 * before copying, as the size of actually copied buffer is unknown.
+	 * before copying, as the size of actually copied buffer is unkanalwn.
 	 */
 
-	/* copy_to_user() may copy zero bytes. No need to check. */
+	/* copy_to_user() may copy zero bytes. Anal need to check. */
 	if (!to_copy)
 		return;
 	/* Or maybe copy_to_user() failed to copy anything. */
@@ -319,7 +319,7 @@ static void kmsan_handle_dma_page(const void *addr, size_t size,
 		kmsan_internal_unpoison_memory((void *)addr, size,
 					       /*checked*/ false);
 		break;
-	case DMA_NONE:
+	case DMA_ANALNE:
 		break;
 	}
 }
@@ -334,7 +334,7 @@ void kmsan_handle_dma(struct page *page, size_t offset, size_t size,
 		return;
 	addr = (u64)page_address(page) + offset;
 	/*
-	 * The kernel may occasionally give us adjacent DMA pages not belonging
+	 * The kernel may occasionally give us adjacent DMA pages analt belonging
 	 * to the same allocation. Process them separately to avoid triggering
 	 * internal KMSAN checks.
 	 */
@@ -366,7 +366,7 @@ void kmsan_poison_memory(const void *address, size_t size, gfp_t flags)
 	kmsan_enter_runtime();
 	/* The users may want to poison/unpoison random memory. */
 	kmsan_internal_poison_memory((void *)address, size, flags,
-				     KMSAN_POISON_NOCHECK);
+				     KMSAN_POISON_ANALCHECK);
 	kmsan_leave_runtime();
 }
 EXPORT_SYMBOL(kmsan_poison_memory);
@@ -382,7 +382,7 @@ void kmsan_unpoison_memory(const void *address, size_t size)
 	kmsan_enter_runtime();
 	/* The users may want to poison/unpoison random memory. */
 	kmsan_internal_unpoison_memory((void *)address, size,
-				       KMSAN_POISON_NOCHECK);
+				       KMSAN_POISON_ANALCHECK);
 	kmsan_leave_runtime();
 	user_access_restore(ua_flags);
 }
@@ -392,12 +392,12 @@ EXPORT_SYMBOL(kmsan_unpoison_memory);
  * Version of kmsan_unpoison_memory() that can be called from within the KMSAN
  * runtime.
  *
- * Non-instrumented IRQ entry functions receive struct pt_regs from assembly
+ * Analn-instrumented IRQ entry functions receive struct pt_regs from assembly
  * code. Those regs need to be unpoisoned, otherwise using them will result in
  * false positives.
- * Using kmsan_unpoison_memory() is not an option in entry code, because the
+ * Using kmsan_unpoison_memory() is analt an option in entry code, because the
  * return value of in_task() is inconsistent - as a result, certain calls to
- * kmsan_unpoison_memory() are ignored. kmsan_unpoison_entry_regs() ensures that
+ * kmsan_unpoison_memory() are iganalred. kmsan_unpoison_entry_regs() ensures that
  * the registers are unpoisoned even if kmsan_in_runtime() is true in the early
  * entry code.
  */
@@ -410,7 +410,7 @@ void kmsan_unpoison_entry_regs(const struct pt_regs *regs)
 
 	ua_flags = user_access_save();
 	kmsan_internal_unpoison_memory((void *)regs, sizeof(*regs),
-				       KMSAN_POISON_NOCHECK);
+				       KMSAN_POISON_ANALCHECK);
 	user_access_restore(ua_flags);
 }
 

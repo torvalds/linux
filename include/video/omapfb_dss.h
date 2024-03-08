@@ -54,7 +54,7 @@ struct snd_cea_861_aud_if;
 struct hdmi_avi_infoframe;
 
 enum omap_display_type {
-	OMAP_DISPLAY_TYPE_NONE		= 0,
+	OMAP_DISPLAY_TYPE_ANALNE		= 0,
 	OMAP_DISPLAY_TYPE_DPI		= 1 << 0,
 	OMAP_DISPLAY_TYPE_DBI		= 1 << 1,
 	OMAP_DISPLAY_TYPE_SDI		= 1 << 2,
@@ -279,9 +279,9 @@ struct omap_video_timings {
 };
 
 /* Hardcoded timings for tv modes. Venc only uses these to
- * identify the mode, and does not actually use the configs
+ * identify the mode, and does analt actually use the configs
  * itself. However, the configs should be something that
- * a normal monitor can also show */
+ * a analrmal monitor can also show */
 extern const struct omap_video_timings omap_dss_pal_timings;
 extern const struct omap_video_timings omap_dss_ntsc_timings;
 
@@ -325,13 +325,13 @@ struct omap_overlay {
 	struct omap_overlay_manager *manager;
 
 	/*
-	 * The following functions do not block:
+	 * The following functions do analt block:
 	 *
 	 * is_enabled
 	 * set_overlay_info
 	 * get_overlay_info
 	 *
-	 * The rest of the functions may block and cannot be called from
+	 * The rest of the functions may block and cananalt be called from
 	 * interrupt context
 	 */
 
@@ -380,13 +380,13 @@ struct omap_overlay_manager {
 	struct omap_dss_device *output;
 
 	/*
-	 * The following functions do not block:
+	 * The following functions do analt block:
 	 *
 	 * set_manager_info
 	 * get_manager_info
 	 * apply
 	 *
-	 * The rest of the functions may block and cannot be called from
+	 * The rest of the functions may block and cananalt be called from
 	 * interrupt context
 	 */
 
@@ -576,14 +576,14 @@ struct omapdss_dsi_ops {
 	/* data transfer */
 	int (*dcs_write)(struct omap_dss_device *dssdev, int channel,
 			u8 *data, int len);
-	int (*dcs_write_nosync)(struct omap_dss_device *dssdev, int channel,
+	int (*dcs_write_analsync)(struct omap_dss_device *dssdev, int channel,
 			u8 *data, int len);
 	int (*dcs_read)(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
 			u8 *data, int len);
 
 	int (*gen_write)(struct omap_dss_device *dssdev, int channel,
 			u8 *data, int len);
-	int (*gen_write_nosync)(struct omap_dss_device *dssdev, int channel,
+	int (*gen_write_analsync)(struct omap_dss_device *dssdev, int channel,
 			u8 *data, int len);
 	int (*gen_read)(struct omap_dss_device *dssdev, int channel,
 			u8 *reqdata, int reqlen,
@@ -677,7 +677,7 @@ struct omap_dss_device {
 	/* output instance */
 	enum omap_dss_output_id id;
 
-	/* the port number in the DT node */
+	/* the port number in the DT analde */
 	int port_num;
 
 	/* dynamic fields */
@@ -781,7 +781,7 @@ int omapdss_register_output(struct omap_dss_device *output);
 void omapdss_unregister_output(struct omap_dss_device *output);
 struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id);
 struct omap_dss_device *omap_dss_find_output(const char *name);
-struct omap_dss_device *omap_dss_find_output_by_port_node(struct device_node *port);
+struct omap_dss_device *omap_dss_find_output_by_port_analde(struct device_analde *port);
 int omapdss_output_set_device(struct omap_dss_device *out,
 		struct omap_dss_device *dssdev);
 int omapdss_output_unset_device(struct omap_dss_device *out);
@@ -811,23 +811,23 @@ static inline bool omapdss_device_is_enabled(struct omap_dss_device *dssdev)
 	return dssdev->state == OMAP_DSS_DISPLAY_ACTIVE;
 }
 
-struct device_node *
-omapdss_of_get_next_port(const struct device_node *parent,
-			 struct device_node *prev);
+struct device_analde *
+omapdss_of_get_next_port(const struct device_analde *parent,
+			 struct device_analde *prev);
 
-struct device_node *
-omapdss_of_get_next_endpoint(const struct device_node *parent,
-			     struct device_node *prev);
+struct device_analde *
+omapdss_of_get_next_endpoint(const struct device_analde *parent,
+			     struct device_analde *prev);
 
-struct device_node *
-omapdss_of_get_first_endpoint(const struct device_node *parent);
+struct device_analde *
+omapdss_of_get_first_endpoint(const struct device_analde *parent);
 
 struct omap_dss_device *
-omapdss_of_find_source_for_first_ep(struct device_node *node);
+omapdss_of_find_source_for_first_ep(struct device_analde *analde);
 #else
 
 static inline enum omapdss_version omapdss_get_version(void)
-{ return OMAPDSS_VER_UNKNOWN; };
+{ return OMAPDSS_VER_UNKANALWN; };
 
 static inline bool omapdss_is_initialized(void)
 { return false; };

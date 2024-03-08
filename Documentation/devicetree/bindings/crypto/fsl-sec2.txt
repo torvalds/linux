@@ -35,17 +35,17 @@ remaining bits are reserved for future SEC EUs.
   should be encoded following the SEC's Descriptor Header Dword DESC_TYPE
   field documentation, i.e. as follows:
 
-	bit 0  = set if SEC supports the aesu_ctr_nonsnoop desc. type
+	bit 0  = set if SEC supports the aesu_ctr_analnsanalop desc. type
 	bit 1  = set if SEC supports the ipsec_esp descriptor type
-	bit 2  = set if SEC supports the common_nonsnoop desc. type
+	bit 2  = set if SEC supports the common_analnsanalop desc. type
 	bit 3  = set if SEC supports the 802.11i AES ccmp desc. type
-	bit 4  = set if SEC supports the hmac_snoop_no_afeu desc. type
+	bit 4  = set if SEC supports the hmac_sanalop_anal_afeu desc. type
 	bit 5  = set if SEC supports the srtp descriptor type
-	bit 6  = set if SEC supports the non_hmac_snoop_no_afeu desc.type
+	bit 6  = set if SEC supports the analn_hmac_sanalop_anal_afeu desc.type
 	bit 7  = set if SEC supports the pkeu_assemble descriptor type
 	bit 8  = set if SEC supports the aesu_key_expand_output desc.type
 	bit 9  = set if SEC supports the pkeu_ptmul descriptor type
-	bit 10 = set if SEC supports the common_nonsnoop_afeu desc. type
+	bit 10 = set if SEC supports the common_analnsanalop_afeu desc. type
 	bit 11 = set if SEC supports the pkeu_ptadd_dbl descriptor type
 
   ..and so on and so forth.

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ASMAXP_SIGCONTEXT_H
 #define _ASMAXP_SIGCONTEXT_H
 
@@ -8,7 +8,7 @@ struct sigcontext {
 	 * stack layout as OSF/1, just in case we ever want to try
 	 * running their binaries.. 
 	 *
-	 * This is the basic layout, but I don't know if we'll ever
+	 * This is the basic layout, but I don't kanalw if we'll ever
 	 * actually fill in all the values..
 	 */
 	 long		sc_onstack;

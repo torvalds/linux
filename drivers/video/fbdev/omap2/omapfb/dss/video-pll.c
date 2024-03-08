@@ -161,7 +161,7 @@ struct dss_pll *dss_video_pll_init(struct platform_device *pdev, int id,
 
 	vpll = devm_kzalloc(&pdev->dev, sizeof(*vpll), GFP_KERNEL);
 	if (!vpll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vpll->dev = &pdev->dev;
 	vpll->clkctrl_base = clkctrl_base;

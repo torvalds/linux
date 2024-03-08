@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -790,7 +790,7 @@ int ni_init_microcode(struct radeon_device *rdev)
 		err = -EINVAL;
 	}
 
-	/* no MC ucode on TN */
+	/* anal MC ucode on TN */
 	if (!(rdev->flags & RADEON_IS_IGP)) {
 		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
 		err = request_firmware(&rdev->mc_fw, fw_name, rdev->dev);
@@ -1006,7 +1006,7 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	RREG32(MC_SHARED_CHMAP);
 	mc_arb_ramcfg = RREG32(MC_ARB_RAMCFG);
 
-	tmp = (mc_arb_ramcfg & NOOFCOLS_MASK) >> NOOFCOLS_SHIFT;
+	tmp = (mc_arb_ramcfg & ANALOFCOLS_MASK) >> ANALOFCOLS_SHIFT;
 	rdev->config.cayman.mem_row_size_in_kb = (4 * (1 << (8 + tmp))) / 1024;
 	if (rdev->config.cayman.mem_row_size_in_kb > 4)
 		rdev->config.cayman.mem_row_size_in_kb = 4;
@@ -1029,8 +1029,8 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	rdev->config.cayman.mem_row_size_in_kb = 1 << tmp;
 
 
-	/* setup tiling info dword.  gb_addr_config is not adequate since it does
-	 * not have bank info, so create a custom tiling dword.
+	/* setup tiling info dword.  gb_addr_config is analt adequate since it does
+	 * analt have bank info, so create a custom tiling dword.
 	 * bits 3:0   num_pipes
 	 * bits 7:4   num_banks
 	 * bits 11:8  group_size
@@ -1057,7 +1057,7 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	if (rdev->flags & RADEON_IS_IGP)
 		rdev->config.cayman.tile_config |= 1 << 4;
 	else {
-		switch ((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) {
+		switch ((mc_arb_ramcfg & ANALOFBANK_MASK) >> ANALOFBANK_SHIFT) {
 		case 0: /* four banks */
 			rdev->config.cayman.tile_config |= 0 << 4;
 			break;
@@ -1085,7 +1085,7 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 		tmp <<= 4;
 		tmp |= rb_disable_bitmap;
 	}
-	/* enabled rb are just the one not disabled :) */
+	/* enabled rb are just the one analt disabled :) */
 	disabled_rb_mask = tmp;
 	tmp = 0;
 	for (i = 0; i < (rdev->config.cayman.max_backends_per_se * rdev->config.cayman.max_shader_engines); i++)
@@ -1263,7 +1263,7 @@ static int cayman_pcie_gart_enable(struct radeon_device *rdev)
 	int i, r;
 
 	if (rdev->gart.robj == NULL) {
-		dev_err(rdev->dev, "No VRAM object for PCIE GART.\n");
+		dev_err(rdev->dev, "Anal VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
 	r = radeon_gart_table_vram_pin(rdev);
@@ -1274,7 +1274,7 @@ static int cayman_pcie_gart_enable(struct radeon_device *rdev)
 	       (0xA << 7) |
 	       ENABLE_L1_TLB |
 	       ENABLE_L1_FRAGMENT_PROCESSING |
-	       SYSTEM_ACCESS_MODE_NOT_IN_SYS |
+	       SYSTEM_ACCESS_MODE_ANALT_IN_SYS |
 	       ENABLE_ADVANCED_DRIVER_MODEL |
 	       SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU);
 	/* Setup L2 cache */
@@ -1303,7 +1303,7 @@ static int cayman_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(0x15DC, 0);
 
 	/* empty context1-7 */
-	/* Assign the pt base to something valid for now; the pts used for
+	/* Assign the pt base to something valid for analw; the pts used for
 	 * the VMs are determined by the application and setup and assigned
 	 * on the fly in the vm part of radeon_gart.c
 	 */
@@ -1356,7 +1356,7 @@ static void cayman_pcie_gart_disable(struct radeon_device *rdev)
 	WREG32(VM_CONTEXT1_CNTL, 0);
 	/* Setup TLB control */
 	WREG32(MC_VM_MX_L1_TLB_CNTL, ENABLE_L1_FRAGMENT_PROCESSING |
-	       SYSTEM_ACCESS_MODE_NOT_IN_SYS |
+	       SYSTEM_ACCESS_MODE_ANALT_IN_SYS |
 	       SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU);
 	/* Setup L2 cache */
 	WREG32(VM_L2_CNTL, ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE |
@@ -1668,7 +1668,7 @@ static int cayman_cp_resume(struct radeon_device *rdev)
 
 	WREG32(CP_DEBUG, (1 << 27));
 
-	/* set the wb address whether it's enabled or not */
+	/* set the wb address whether it's enabled or analt */
 	WREG32(SCRATCH_ADDR, ((rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET) >> 8) & 0xFFFFFFFF);
 	WREG32(SCRATCH_UMSK, 0xff);
 
@@ -1685,7 +1685,7 @@ static int cayman_cp_resume(struct radeon_device *rdev)
 #endif
 		WREG32(cp_rb_cntl[i], rb_cntl);
 
-		/* set the wb address whether it's enabled or not */
+		/* set the wb address whether it's enabled or analt */
 		addr = rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET;
 		WREG32(cp_rb_rptr_addr[i], addr & 0xFFFFFFFC);
 		WREG32(cp_rb_rptr_addr_hi[i], upper_32_bits(addr) & 0xFF);
@@ -1742,7 +1742,7 @@ u32 cayman_gpu_check_soft_reset(struct radeon_device *rdev)
 		   TA_BUSY | VGT_BUSY |
 		   DB_BUSY | CB_BUSY |
 		   GDS_BUSY | SPI_BUSY |
-		   IA_BUSY | IA_BUSY_NO_DMA))
+		   IA_BUSY | IA_BUSY_ANAL_DMA))
 		reset_mask |= RADEON_RESET_GFX;
 
 	if (tmp & (CF_RQ_PENDING | PF_RQ_PENDING |
@@ -1787,7 +1787,7 @@ u32 cayman_gpu_check_soft_reset(struct radeon_device *rdev)
 	if (tmp & VMC_BUSY)
 		reset_mask |= RADEON_RESET_VMC;
 
-	if (tmp & (MCB_BUSY | MCB_NON_DISPLAY_BUSY |
+	if (tmp & (MCB_BUSY | MCB_ANALN_DISPLAY_BUSY |
 		   MCC_BUSY | MCD_BUSY))
 		reset_mask |= RADEON_RESET_MC;
 
@@ -1799,7 +1799,7 @@ u32 cayman_gpu_check_soft_reset(struct radeon_device *rdev)
 	if (tmp & L2_BUSY)
 		reset_mask |= RADEON_RESET_VMC;
 
-	/* Skip MC reset as it's mostly likely not hung, just busy */
+	/* Skip MC reset as it's mostly likely analt hung, just busy */
 	if (reset_mask & RADEON_RESET_MC) {
 		DRM_DEBUG("MC busy: 0x%08X, clearing.\n", reset_mask);
 		reset_mask &= ~RADEON_RESET_MC;
@@ -1973,7 +1973,7 @@ int cayman_asic_reset(struct radeon_device *rdev, bool hard)
  * @ring: radeon_ring structure holding ring information
  *
  * Check if the GFX engine is locked up.
- * Returns true if the engine appears to be locked up, false if not.
+ * Returns true if the engine appears to be locked up, false if analt.
  */
 bool cayman_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
@@ -2000,7 +2000,7 @@ static void cayman_uvd_init(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed UVD (%d) init.\n", r);
 		/*
 		 * At this point rdev->uvd.vcpu_bo is NULL which trickles down
-		 * to early fails uvd_v2_2_resume() and thus nothing happens
+		 * to early fails uvd_v2_2_resume() and thus analthing happens
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable uvd here.
 		 */
@@ -2043,7 +2043,7 @@ static void cayman_uvd_resume(struct radeon_device *rdev)
 		return;
 
 	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
-	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, PACKET0(UVD_NO_OP, 0));
+	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, PACKET0(UVD_ANAL_OP, 0));
 	if (r) {
 		dev_err(rdev->dev, "failed initializing UVD ring (%d).\n", r);
 		return;
@@ -2068,7 +2068,7 @@ static void cayman_vce_init(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed VCE (%d) init.\n", r);
 		/*
 		 * At this point rdev->vce.vcpu_bo is NULL which trickles down
-		 * to early fails cayman_vce_start() and thus nothing happens
+		 * to early fails cayman_vce_start() and thus analthing happens
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable vce here.
 		 */
@@ -2245,13 +2245,13 @@ static int cayman_startup(struct radeon_device *rdev)
 
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
-			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
+			     DMA_PACKET(DMA_PACKET_ANALP, 0, 0, 0));
 	if (r)
 		return r;
 
 	ring = &rdev->ring[CAYMAN_RING_TYPE_DMA1_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, CAYMAN_WB_DMA1_RPTR_OFFSET,
-			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
+			     DMA_PACKET(DMA_PACKET_ANALP, 0, 0, 0));
 	if (r)
 		return r;
 
@@ -2292,7 +2292,7 @@ int cayman_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Do not reset GPU before posting, on rv770 hw unlike on r500 hw,
+	/* Do analt reset GPU before posting, on rv770 hw unlike on r500 hw,
 	 * posting will perform necessary task to bring back GPU into good
 	 * shape.
 	 */
@@ -2334,7 +2334,7 @@ int cayman_suspend(struct radeon_device *rdev)
 
 /* Plan is to move initialization in that function and use
  * helper function so that radeon_device_init pretty much
- * do nothing more than calling asic specific function. This
+ * do analthing more than calling asic specific function. This
  * should also allow to remove a bunch of callback function
  * like vram_info.
  */
@@ -2360,10 +2360,10 @@ int cayman_init(struct radeon_device *rdev)
 	/* Post card if necessary */
 	if (!radeon_card_posted(rdev)) {
 		if (!rdev->bios) {
-			dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+			dev_err(rdev->dev, "Card analt posted and anal BIOS - iganalring\n");
 			return -EINVAL;
 		}
-		DRM_INFO("GPU not posted. posting now...\n");
+		DRM_INFO("GPU analt posted. posting analw...\n");
 		atom_asic_init(rdev->mode_info.atom_context);
 	}
 	/* init golden registers */
@@ -2446,9 +2446,9 @@ int cayman_init(struct radeon_device *rdev)
 
 	/* Don't start up if the MC ucode is missing.
 	 * The default clocks and voltages before the MC ucode
-	 * is loaded are not suffient for advanced operations.
+	 * is loaded are analt suffient for advanced operations.
 	 *
-	 * We can skip this check for TN, because there is no MC
+	 * We can skip this check for TN, because there is anal MC
 	 * ucode.
 	 */
 	if (!rdev->mc_fw && !(rdev->flags & RADEON_IS_IGP)) {
@@ -2657,7 +2657,7 @@ void cayman_vm_decode_fault(struct radeon_device *rdev,
 		block = "HDP";
 		break;
 	default:
-		block = "unknown";
+		block = "unkanalwn";
 		break;
 	}
 

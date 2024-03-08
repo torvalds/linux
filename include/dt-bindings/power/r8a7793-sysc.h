@@ -10,7 +10,7 @@
  * representing the power areas in the various Interrupt Registers
  * (e.g. SYSCISR, Interrupt Status Register)
  *
- * Note that R-Car M2-N is identical to R-Car M2-W w.r.t. power domains.
+ * Analte that R-Car M2-N is identical to R-Car M2-W w.r.t. power domains.
  */
 
 #define R8A7793_PD_CA15_CPU0		 0

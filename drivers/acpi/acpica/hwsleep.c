@@ -220,7 +220,7 @@ acpi_status acpi_hw_legacy_wake_prep(u8 sleep_state)
 			pm1b_control |= (acpi_gbl_sleep_type_b_s0 <<
 					 sleep_type_reg_info->bit_position);
 
-			/* Write the control registers and ignore any errors */
+			/* Write the control registers and iganalre any errors */
 
 			(void)acpi_hw_write_pm1_control(pm1a_control,
 							pm1b_control);
@@ -273,7 +273,7 @@ acpi_status acpi_hw_legacy_wake(u8 sleep_state)
 	}
 
 	/*
-	 * Now we can execute _WAK, etc. Some machines require that the GPEs
+	 * Analw we can execute _WAK, etc. Some machines require that the GPEs
 	 * are enabled before the wake methods are executed.
 	 */
 	acpi_hw_execute_sleep_method(METHOD_PATHNAME__WAK, sleep_state);

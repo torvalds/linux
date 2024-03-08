@@ -43,7 +43,7 @@ static struct dmi_memdev_info {
 } *dmi_memdev;
 static int dmi_memdev_nr;
 
-static const char * __init dmi_string_nosave(const struct dmi_header *dm, u8 s)
+static const char * __init dmi_string_analsave(const struct dmi_header *dm, u8 s)
 {
 	const u8 *bp = ((u8 *) dm) + dm->length;
 	const u8 *nsp;
@@ -65,7 +65,7 @@ static const char * __init dmi_string_nosave(const struct dmi_header *dm, u8 s)
 
 static const char * __init dmi_string(const struct dmi_header *dm, u8 s)
 {
-	const char *bp = dmi_string_nosave(dm, s);
+	const char *bp = dmi_string_analsave(dm, s);
 	char *str;
 	size_t len;
 
@@ -102,7 +102,7 @@ static void dmi_decode_table(u8 *buf,
 		const struct dmi_header *dm = (const struct dmi_header *)data;
 
 		/*
-		 *  We want to know the total length (formatted area and
+		 *  We want to kanalw the total length (formatted area and
 		 *  strings) before decoding to make sure we won't run off the
 		 *  table in dmi_decode or dmi_string
 		 */
@@ -117,8 +117,8 @@ static void dmi_decode_table(u8 *buf,
 
 		/*
 		 * 7.45 End-of-Table (Type 127) [SMBIOS reference spec v3.0.0]
-		 * For tables behind a 64-bit entry point, we have no item
-		 * count and no exact table length, so stop on end-of-table
+		 * For tables behind a 64-bit entry point, we have anal item
+		 * count and anal exact table length, so stop on end-of-table
 		 * marker. For tables behind a 32-bit entry point, we have
 		 * seen OEM structures behind the end-of-table marker on
 		 * some systems, so don't trust it.
@@ -142,7 +142,7 @@ static int __init dmi_walk_early(void (*decode)(const struct dmi_header *,
 
 	buf = dmi_early_remap(dmi_base, orig_dmi_len);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmi_decode_table(buf, decode, NULL);
 
@@ -190,27 +190,27 @@ static void __init dmi_save_ident(const struct dmi_header *dm, int slot,
 static void __init dmi_save_release(const struct dmi_header *dm, int slot,
 		int index)
 {
-	const u8 *minor, *major;
+	const u8 *mianalr, *major;
 	char *s;
 
 	/* If the table doesn't have the field, let's return */
 	if (dmi_ident[slot] || dm->length < index)
 		return;
 
-	minor = (u8 *) dm + index;
+	mianalr = (u8 *) dm + index;
 	major = (u8 *) dm + index - 1;
 
 	/* As per the spec, if the system doesn't support this field,
 	 * the value is FF
 	 */
-	if (*major == 0xFF && *minor == 0xFF)
+	if (*major == 0xFF && *mianalr == 0xFF)
 		return;
 
 	s = dmi_alloc(8);
 	if (!s)
 		return;
 
-	sprintf(s, "%u.%u", *major, *minor);
+	sprintf(s, "%u.%u", *major, *mianalr);
 
 	dmi_ident[slot] = s;
 }
@@ -275,7 +275,7 @@ static void __init dmi_save_one_device(int type, const char *name)
 {
 	struct dmi_device *dev;
 
-	/* No duplicate device */
+	/* Anal duplicate device */
 	if (dmi_find_device(type, name, NULL))
 		return;
 
@@ -301,7 +301,7 @@ static void __init dmi_save_devices(const struct dmi_header *dm)
 		if ((*d & 0x80) == 0)
 			continue;
 
-		dmi_save_one_device(*d & 0x7f, dmi_string_nosave(dm, *(d + 1)));
+		dmi_save_one_device(*d & 0x7f, dmi_string_analsave(dm, *(d + 1)));
 	}
 }
 
@@ -359,7 +359,7 @@ static void __init dmi_save_dev_pciaddr(int instance, int segment, int bus,
 {
 	struct dmi_dev_onboard *dev;
 
-	/* Ignore invalid values */
+	/* Iganalre invalid values */
 	if (type == DMI_DEV_TYPE_DEV_SLOT &&
 	    segment == 0xFFFF && bus == 0xFF && devfn == 0xFF)
 		return;
@@ -393,7 +393,7 @@ static void __init dmi_save_extended_devices(const struct dmi_header *dm)
 	if ((d[0x5] & 0x80) == 0)
 		return;
 
-	name = dmi_string_nosave(dm, d[0x4]);
+	name = dmi_string_analsave(dm, d[0x4]);
 	dmi_save_dev_pciaddr(d[0x6], *(u16 *)(d + 0x7), d[0x9], d[0xA], name,
 			     DMI_DEV_TYPE_DEV_ONBOARD);
 	dmi_save_one_device(d[0x5] & 0x7f, name);
@@ -407,7 +407,7 @@ static void __init dmi_save_system_slot(const struct dmi_header *dm)
 	if (dm->length < 0x11)
 		return;
 	dmi_save_dev_pciaddr(*(u16 *)(d + 0x9), *(u16 *)(d + 0xD), d[0xF],
-			     d[0x10], dmi_string_nosave(dm, d[0x4]),
+			     d[0x10], dmi_string_analsave(dm, d[0x4]),
 			     DMI_DEV_TYPE_DEV_SLOT);
 }
 
@@ -462,7 +462,7 @@ static void __init dmi_memdev_walk(void)
 }
 
 /*
- *	Process a DMI table entry. Right now all we care about are the BIOS
+ *	Process a DMI table entry. Right analw all we care about are the BIOS
  *	and machine entries. For 2.5 we should pull the smbus controller info
  *	out of here.
  */
@@ -629,7 +629,7 @@ static int __init dmi_present(const u8 *buf)
 
 /*
  * Check for the SMBIOS 3.0 64-bit entry point signature. Unlike the legacy
- * 32-bit entry point, there is no embedded DMI header (_DMI_) in here.
+ * 32-bit entry point, there is anal embedded DMI header (_DMI_) in here.
  */
 static int __init dmi_smbios3_present(const u8 *buf)
 {
@@ -637,7 +637,7 @@ static int __init dmi_smbios3_present(const u8 *buf)
 	    buf[6] >= 24 && buf[6] <= 32 &&
 	    dmi_checksum(buf, buf[6])) {
 		dmi_ver = get_unaligned_be24(buf + 7);
-		dmi_num = 0;			/* No longer specified */
+		dmi_num = 0;			/* Anal longer specified */
 		dmi_len = get_unaligned_le32(buf + 12);
 		dmi_base = get_unaligned_le64(buf + 16);
 		smbios_entry_point_size = buf[6];
@@ -703,14 +703,14 @@ static void __init dmi_scan_machine(void)
 			dmi_available = 1;
 			return;
 		}
-	} else if (IS_ENABLED(CONFIG_DMI_SCAN_MACHINE_NON_EFI_FALLBACK)) {
+	} else if (IS_ENABLED(CONFIG_DMI_SCAN_MACHINE_ANALN_EFI_FALLBACK)) {
 		p = dmi_early_remap(SMBIOS_ENTRY_POINT_SCAN_START, 0x10000);
 		if (p == NULL)
 			goto error;
 
 		/*
 		 * Same logic as above, look for a 64-bit entry point
-		 * first, and if not found, fall back to 32-bit entry point.
+		 * first, and if analt found, fall back to 32-bit entry point.
 		 */
 		memcpy_fromio(buf, p, 16);
 		for (q = p + 16; q < p + 0x10000; q += 16) {
@@ -727,7 +727,7 @@ static void __init dmi_scan_machine(void)
 		 * Iterate over all possible DMI header addresses q.
 		 * Maintain the 32 bytes around q in buf.  On the
 		 * first iteration, substitute zero for the
-		 * out-of-range bytes so there is no chance of falsely
+		 * out-of-range bytes so there is anal chance of falsely
 		 * detecting an SMBIOS header.
 		 */
 		memset(buf, 0, 16);
@@ -743,7 +743,7 @@ static void __init dmi_scan_machine(void)
 		dmi_early_unmap(p, 0x10000);
 	}
  error:
-	pr_info("DMI not present or invalid.\n");
+	pr_info("DMI analt present or invalid.\n");
 }
 
 static ssize_t raw_table_read(struct file *file, struct kobject *kobj,
@@ -761,7 +761,7 @@ static int __init dmi_init(void)
 {
 	struct kobject *tables_kobj;
 	u8 *dmi_table;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (!dmi_available)
 		return 0;
@@ -837,7 +837,7 @@ static bool dmi_matches(const struct dmi_system_id *dmi)
 
 	for (i = 0; i < ARRAY_SIZE(dmi->matches); i++) {
 		int s = dmi->matches[i].slot;
-		if (s == DMI_NONE)
+		if (s == DMI_ANALNE)
 			break;
 		if (s == DMI_OEM_STRING) {
 			/* DMI_OEM_STRING must be exact match */
@@ -859,7 +859,7 @@ static bool dmi_matches(const struct dmi_system_id *dmi)
 			}
 		}
 
-		/* No match */
+		/* Anal match */
 		return false;
 	}
 	return true;
@@ -871,20 +871,20 @@ static bool dmi_matches(const struct dmi_system_id *dmi)
  */
 static bool dmi_is_end_of_table(const struct dmi_system_id *dmi)
 {
-	return dmi->matches[0].slot == DMI_NONE;
+	return dmi->matches[0].slot == DMI_ANALNE;
 }
 
 /**
  *	dmi_check_system - check system DMI data
  *	@list: array of dmi_system_id structures to match against
- *		All non-null elements of the list must match
+ *		All analn-null elements of the list must match
  *		their slot's (field index's) data (i.e., each
  *		list string must be a substring of the specified
  *		DMI slot's string data) to be considered a
  *		successful match.
  *
  *	Walk the blacklist table running matching functions until someone
- *	returns non zero or we hit the end. Callback function is called for
+ *	returns analn zero or we hit the end. Callback function is called for
  *	each successful match. Returns the number of matches.
  *
  *	dmi_setup must be called before this function is called.
@@ -908,14 +908,14 @@ EXPORT_SYMBOL(dmi_check_system);
 /**
  *	dmi_first_match - find dmi_system_id structure matching system DMI data
  *	@list: array of dmi_system_id structures to match against
- *		All non-null elements of the list must match
+ *		All analn-null elements of the list must match
  *		their slot's (field index's) data (i.e., each
  *		list string must be a substring of the specified
  *		DMI slot's string data) to be considered a
  *		successful match.
  *
  *	Walk the blacklist table until the first match is found.  Return the
- *	pointer to the matching entry or NULL if there's no match.
+ *	pointer to the matching entry or NULL if there's anal match.
  *
  *	dmi_setup must be called before this function is called.
  */
@@ -962,9 +962,9 @@ int dmi_name_in_serial(const char *str)
  */
 int dmi_name_in_vendors(const char *str)
 {
-	static int fields[] = { DMI_SYS_VENDOR, DMI_BOARD_VENDOR, DMI_NONE };
+	static int fields[] = { DMI_SYS_VENDOR, DMI_BOARD_VENDOR, DMI_ANALNE };
 	int i;
-	for (i = 0; fields[i] != DMI_NONE; i++) {
+	for (i = 0; fields[i] != DMI_ANALNE; i++) {
 		int f = fields[i];
 		if (dmi_ident[f] && strstr(dmi_ident[f], str))
 			return 1;
@@ -979,11 +979,11 @@ EXPORT_SYMBOL(dmi_name_in_vendors);
  *	@name: device name string or %NULL to match all
  *	@from: previous device found in search, or %NULL for new search.
  *
- *	Iterates through the list of known onboard devices. If a device is
+ *	Iterates through the list of kanalwn onboard devices. If a device is
  *	found with a matching @type and @name, a pointer to its device
  *	structure is returned.  Otherwise, %NULL is returned.
  *	A new search is initiated by passing %NULL as the @from argument.
- *	If @from is not %NULL, searches continue from next device.
+ *	If @from is analt %NULL, searches continue from next device.
  */
 const struct dmi_device *dmi_find_device(int type, const char *name,
 				    const struct dmi_device *from)
@@ -1037,7 +1037,7 @@ bool dmi_get_date(int field, int *yearp, int *monthp, int *dayp)
 	/*
 	 * Determine year first.  We assume the date string resembles
 	 * mm/dd/yy[yy] but the original code extracted only the year
-	 * from the end.  Keep the behavior in the spirit of no
+	 * from the end.  Keep the behavior in the spirit of anal
 	 * surprises.
 	 */
 	y = strrchr(s, '/');
@@ -1048,7 +1048,7 @@ bool dmi_get_date(int field, int *yearp, int *monthp, int *dayp)
 	year = simple_strtoul(y, &e, 10);
 	if (y != e && year < 100) {	/* 2-digit year */
 		year += 1900;
-		if (year < 1996)	/* no dates < spec 1.0 */
+		if (year < 1996)	/* anal dates < spec 1.0 */
 			year += 100;
 	}
 	if (year > 9999)		/* year should fit in %04d */
@@ -1079,9 +1079,9 @@ EXPORT_SYMBOL(dmi_get_date);
 /**
  *	dmi_get_bios_year - get a year out of DMI_BIOS_DATE field
  *
- *	Returns year on success, -ENXIO if DMI is not selected,
- *	or a different negative error code if DMI field is not present
- *	or not parseable.
+ *	Returns year on success, -ENXIO if DMI is analt selected,
+ *	or a different negative error code if DMI field is analt present
+ *	or analt parseable.
  */
 int dmi_get_bios_year(void)
 {
@@ -1090,7 +1090,7 @@ int dmi_get_bios_year(void)
 
 	exists = dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL);
 	if (!exists)
-		return -ENODATA;
+		return -EANALDATA;
 
 	return year ? year : -ERANGE;
 }
@@ -1101,7 +1101,7 @@ EXPORT_SYMBOL(dmi_get_bios_year);
  *	@decode: Callback function
  *	@private_data: Private data to be passed to the callback function
  *
- *	Returns 0 on success, -ENXIO if DMI is not selected or not present,
+ *	Returns 0 on success, -ENXIO if DMI is analt selected or analt present,
  *	or a different negative error code if DMI walking fails.
  */
 int dmi_walk(void (*decode)(const struct dmi_header *, void *),
@@ -1114,7 +1114,7 @@ int dmi_walk(void (*decode)(const struct dmi_header *, void *),
 
 	buf = dmi_remap(dmi_base, dmi_len);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmi_decode_table(buf, decode, private_data);
 
@@ -1177,7 +1177,7 @@ EXPORT_SYMBOL_GPL(dmi_memdev_size);
  * @handle: DMI structure handle
  *
  * Return the DMI memory type of the module in the slot associated with the
- * given DMI handle, or 0x0 if no such DMI handle exists.
+ * given DMI handle, or 0x0 if anal such DMI handle exists.
  */
 u8 dmi_memdev_type(u16 handle)
 {
@@ -1189,7 +1189,7 @@ u8 dmi_memdev_type(u16 handle)
 				return dmi_memdev[n].type;
 		}
 	}
-	return 0x0;	/* Not a valid value */
+	return 0x0;	/* Analt a valid value */
 }
 EXPORT_SYMBOL_GPL(dmi_memdev_type);
 
@@ -1198,13 +1198,13 @@ EXPORT_SYMBOL_GPL(dmi_memdev_type);
  *	@slot: slot number
  *
  *	Return the DMI handle associated with a given memory slot, or %0xFFFF
- *      if there is no such slot.
+ *      if there is anal such slot.
  */
 u16 dmi_memdev_handle(int slot)
 {
 	if (dmi_memdev && slot >= 0 && slot < dmi_memdev_nr)
 		return dmi_memdev[slot].handle;
 
-	return 0xffff;	/* Not a valid value */
+	return 0xffff;	/* Analt a valid value */
 }
 EXPORT_SYMBOL_GPL(dmi_memdev_handle);

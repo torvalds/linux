@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -100,7 +100,7 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 		else
 			return -1;
 	case CVMX_BOARD_TYPE_EBH3000:
-		/* Board has dual SPI4 and no PHYs */
+		/* Board has dual SPI4 and anal PHYs */
 		return -1;
 	case CVMX_BOARD_TYPE_EBH5200:
 	case CVMX_BOARD_TYPE_EBH5201:
@@ -157,7 +157,7 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 			return -1;
 	case CVMX_BOARD_TYPE_BBGW_REF:
 		/*
-		 * No PHYs are connected to Octeon, everything is
+		 * Anal PHYs are connected to Octeon, everything is
 		 * through switch.
 		 */
 		return -1;
@@ -182,9 +182,9 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 
 	}
 
-	/* Some unknown board. Somebody forgot to update this function... */
+	/* Some unkanalwn board. Somebody forgot to update this function... */
 	cvmx_dprintf
-	    ("cvmx_helper_board_get_mii_address: Unknown board type %d\n",
+	    ("cvmx_helper_board_get_mii_address: Unkanalwn board type %d\n",
 	     cvmx_sysinfo_get()->board_type);
 	return -1;
 }
@@ -193,7 +193,7 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
  * This function is the board specific method of determining an
  * ethernet ports link speed. Most Octeon boards have Marvell PHYs
  * and are handled by the fall through case. This function must be
- * updated for boards that don't have the normal Marvell PHYs.
+ * updated for boards that don't have the analrmal Marvell PHYs.
  *
  * This function must be modified for every new Octeon board.
  * Internally it uses switch statements based on the cvmx_sysinfo
@@ -231,7 +231,7 @@ union cvmx_helper_link_info __cvmx_helper_board_link_get(int ipd_port)
 		/*
 		 * We don't have a PHY address, so attempt to use
 		 * in-band status. It is really important that boards
-		 * not supporting in-band status never get
+		 * analt supporting in-band status never get
 		 * here. Reading broken in-band status tends to do bad
 		 * things
 		 */
@@ -260,7 +260,7 @@ union cvmx_helper_link_info __cvmx_helper_board_link_get(int ipd_port)
 	} else {
 		/*
 		 * We don't have a PHY address and we don't have
-		 * in-band status. There is no way to determine the
+		 * in-band status. There is anal way to determine the
 		 * link speed. Return down assuming this port isn't
 		 * wired
 		 */

@@ -7,7 +7,7 @@
 /*
  * unsigned long native_save_fl(void)
  */
-.pushsection .noinstr.text, "ax"
+.pushsection .analinstr.text, "ax"
 SYM_FUNC_START(native_save_fl)
 	pushf
 	pop %_ASM_AX

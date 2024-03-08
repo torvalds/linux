@@ -76,7 +76,7 @@ static int test_lsm(struct lsm *skel)
 
 	err = stack_mprotect();
 	if (!ASSERT_EQ(err, -1, "stack_mprotect") ||
-	    !ASSERT_EQ(errno, EPERM, "stack_mprotect"))
+	    !ASSERT_EQ(erranal, EPERM, "stack_mprotect"))
 		return err;
 
 	ASSERT_EQ(skel->bss->mprotect_count, 1, "mprotect_count");

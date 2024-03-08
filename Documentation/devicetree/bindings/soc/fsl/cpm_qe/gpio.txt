@@ -1,4 +1,4 @@
-Every GPIO controller node must have #gpio-cells property defined,
+Every GPIO controller analde must have #gpio-cells property defined,
 this information will be used to translate gpio-specifiers.
 
 On CPM1 devices, all ports are using slightly different register layouts.
@@ -22,7 +22,7 @@ Optional properties:
   many interrupts as number of ones in the mask property. The first interrupt in
   the list corresponds to the most significant bit of the mask.
 
-Example of four SOC GPIO banks defined as gpio-controller nodes:
+Example of four SOC GPIO banks defined as gpio-controller analdes:
 
 	CPM1_PIO_A: gpio-controller@950 {
 		#gpio-cells = <2>;

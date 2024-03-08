@@ -10,8 +10,8 @@
 #include "boot.h"
 
 /*
- * The code within this file will be called very early. It may _not_
- * access anything within the bss section, since that is not cleared
+ * The code within this file will be called very early. It may _analt_
+ * access anything within the bss section, since that is analt cleared
  * yet and may contain data (e.g. initrd) that must be saved by other
  * code.
  * For temporary objects the stack (16k) should be used.

@@ -27,7 +27,7 @@ enum nvbios_therm_fan_type {
 	NVBIOS_THERM_FAN_PWM = 2,
 };
 
-/* no vbios have more than 6 */
+/* anal vbios have more than 6 */
 #define NVKM_TEMP_FAN_TRIP_MAX 10
 struct nvbios_therm_trip_point {
 	int fan_duty;

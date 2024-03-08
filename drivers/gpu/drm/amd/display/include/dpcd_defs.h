@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -44,11 +44,11 @@ enum dpcd_downstream_port_type {
 	DOWNSTREAM_DP = 0,
 	DOWNSTREAM_VGA,
 	DOWNSTREAM_DVI_HDMI_DP_PLUS_PLUS,/* DVI, HDMI, DP++ */
-	DOWNSTREAM_NONDDC /* has no EDID (TV,CV) */
+	DOWNSTREAM_ANALNDDC /* has anal EDID (TV,CV) */
 };
 
 enum dpcd_link_test_patterns {
-	LINK_TEST_PATTERN_NONE = 0,
+	LINK_TEST_PATTERN_ANALNE = 0,
 	LINK_TEST_PATTERN_COLOR_RAMP,
 	LINK_TEST_PATTERN_VERTICAL_BARS,
 	LINK_TEST_PATTERN_COLOR_SQUARES
@@ -72,7 +72,7 @@ enum dpcd_test_bit_depth {
 The order of test patterns follows DPCD register PHY_TEST_PATTERN (0x248)
 */
 enum dpcd_phy_test_patterns {
-	PHY_TEST_PATTERN_NONE = 0,
+	PHY_TEST_PATTERN_ANALNE = 0,
 	PHY_TEST_PATTERN_D10_2,
 	PHY_TEST_PATTERN_SYMBOL_ERROR,
 	PHY_TEST_PATTERN_PRBS7,
@@ -128,7 +128,7 @@ enum dpcd_audio_channels {
 };
 
 enum dpcd_audio_test_pattern_periods {
-	DPCD_AUDIO_TEST_PATTERN_PERIOD_NOTUSED = 0,/* direct HW translation */
+	DPCD_AUDIO_TEST_PATTERN_PERIOD_ANALTUSED = 0,/* direct HW translation */
 	DPCD_AUDIO_TEST_PATTERN_PERIOD_3,
 	DPCD_AUDIO_TEST_PATTERN_PERIOD_6,
 	DPCD_AUDIO_TEST_PATTERN_PERIOD_12,

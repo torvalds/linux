@@ -3,7 +3,7 @@
  * Controller of read/write threads for virtio-trace
  *
  * Copyright (C) 2012 Hitachi, Ltd.
- * Created by Yoshihiro Yunomae <yoshihiro.yunomae.ez@hitachi.com>
+ * Created by Yoshihiro Yuanalmae <yoshihiro.yuanalmae.ez@hitachi.com>
  *            Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
  */
 
@@ -35,7 +35,7 @@ int rw_ctl_init(const char *ctl_path)
 
 	ctl_fd = open(ctl_path, O_RDONLY);
 	if (ctl_fd == -1) {
-		pr_err("Cannot open ctl_fd\n");
+		pr_err("Cananalt open ctl_fd\n");
 		goto error;
 	}
 
@@ -120,12 +120,12 @@ void *rw_ctl_loop(int ctl_fd)
 		} else if (rlen == 2 && buf[0] == '0') {
 			/*
 			 * If host writes '0' to a control path, read/write
-			 * threads will wait for notification from Host.
+			 * threads will wait for analtification from Host.
 			 */
 			global_run_operation = false;
 			pr_debug("Stop all read/write threads\n");
 		} else
-			pr_info("Invalid host notification: %s\n", buf);
+			pr_info("Invalid host analtification: %s\n", buf);
 	}
 
 	return NULL;

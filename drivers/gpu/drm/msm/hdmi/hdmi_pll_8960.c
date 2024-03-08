@@ -36,7 +36,7 @@ struct pll_rate {
 	} conf[32];
 };
 
-/* NOTE: keep sorted highest freq to lowest: */
+/* ANALTE: keep sorted highest freq to lowest: */
 static const struct pll_rate freqtbl[] = {
 	{ 154000000, 14, {
 		{ 0x08, REG_HDMI_8960_PHY_PLL_REFCLK_CFG    },
@@ -314,7 +314,7 @@ static int hdmi_pll_enable(struct clk_hw *hw)
 			continue;
 
 		/*
-		 * PLL has still not locked.
+		 * PLL has still analt locked.
 		 * Do a software reset and try again
 		 * Assert PLL S/W reset first
 		 */
@@ -415,7 +415,7 @@ static struct clk_init_data pll_init = {
 	.ops = &hdmi_pll_ops,
 	.parent_data = hdmi_pll_parents,
 	.num_parents = ARRAY_SIZE(hdmi_pll_parents),
-	.flags = CLK_IGNORE_UNUSED,
+	.flags = CLK_IGANALRE_UNUSED,
 };
 
 int msm_hdmi_pll_8960_init(struct platform_device *pdev)
@@ -431,12 +431,12 @@ int msm_hdmi_pll_8960_init(struct platform_device *pdev)
 
 	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pll->mmio = msm_ioremap(pdev, "hdmi_pll");
 	if (IS_ERR(pll->mmio)) {
 		DRM_DEV_ERROR(dev, "failed to map pll base\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pll->pdev = pdev;

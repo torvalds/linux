@@ -8,10 +8,10 @@
 #define __DRV_CLK_CPUMUX_H
 
 struct clk_hw_onecell_data;
-struct device_node;
+struct device_analde;
 struct mtk_composite;
 
-int mtk_clk_register_cpumuxes(struct device *dev, struct device_node *node,
+int mtk_clk_register_cpumuxes(struct device *dev, struct device_analde *analde,
 			      const struct mtk_composite *clks, int num,
 			      struct clk_hw_onecell_data *clk_data);
 

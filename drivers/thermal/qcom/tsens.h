@@ -6,12 +6,12 @@
 #ifndef __QCOM_TSENS_H__
 #define __QCOM_TSENS_H__
 
-#define NO_PT_CALIB		0x0
+#define ANAL_PT_CALIB		0x0
 #define ONE_PT_CALIB		0x1
 #define ONE_PT_CALIB2		0x2
 #define TWO_PT_CALIB		0x3
-#define ONE_PT_CALIB2_NO_OFFSET	0x6
-#define TWO_PT_CALIB_NO_OFFSET	0x7
+#define ONE_PT_CALIB2_ANAL_OFFSET	0x6
+#define TWO_PT_CALIB_ANAL_OFFSET	0x7
 #define CAL_DEGC_PT1		30
 #define CAL_DEGC_PT2		120
 #define SLOPE_FACTOR		1000
@@ -161,7 +161,7 @@ enum regfield_ids {
 	/* ----- SROT ------ */
 	/* HW_VER */
 	VER_MAJOR,
-	VER_MINOR,
+	VER_MIANALR,
 	VER_STEP,
 	/* CTRL_OFFSET */
 	TSENS_EN,
@@ -191,7 +191,7 @@ enum regfield_ids {
 	LAST_TEMP_13,
 	LAST_TEMP_14,
 	LAST_TEMP_15,
-	VALID_0,		/* VALID reading or not */
+	VALID_0,		/* VALID reading or analt */
 	VALID_1,
 	VALID_2,
 	VALID_3,
@@ -525,7 +525,7 @@ struct tsens_features {
  * struct tsens_plat_data - tsens compile-time platform data
  * @num_sensors: Number of sensors supported by platform
  * @ops: operations the tsens instance supports
- * @hw_ids: Subset of sensors ids supported by platform, if not the first n
+ * @hw_ids: Subset of sensors ids supported by platform, if analt the first n
  * @feat: features of the IP
  * @fields: bitfield locations
  */

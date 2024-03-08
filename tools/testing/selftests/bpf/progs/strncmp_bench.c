@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2021. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2021. Huawei Techanallogies Co., Ltd */
 #include <linux/types.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
@@ -33,7 +33,7 @@ static __always_inline int local_strncmp(const char *s1, unsigned int sz,
 }
 
 SEC("tp/syscalls/sys_enter_getpgid")
-int strncmp_no_helper(void *ctx)
+int strncmp_anal_helper(void *ctx)
 {
 	if (local_strncmp(str, cmp_str_len + 1, target) < 0)
 		__sync_add_and_fetch(&hits, 1);

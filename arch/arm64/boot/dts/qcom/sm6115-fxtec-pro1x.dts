@@ -57,7 +57,7 @@
 &pm6125_gpios {
 	vol_up_n: vol-up-n-state {
 		pins = "gpio5";
-		function = "normal";
+		function = "analrmal";
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;

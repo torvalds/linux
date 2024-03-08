@@ -14,10 +14,10 @@
 #include "loongarch.h"
 
 /*
- * Unlike with the syndrome calculation algorithms, there's no boot-time
+ * Unlike with the syndrome calculation algorithms, there's anal boot-time
  * selection of recovery algorithms by benchmarking, so we have to specify
  * the priorities and hope the future cores will all have decent vector
- * support (i.e. no LASX slower than LSX, or even scalar code).
+ * support (i.e. anal LASX slower than LSX, or even scalar code).
  */
 
 #ifdef CONFIG_CPU_HAS_LSX
@@ -56,7 +56,7 @@ static void raid6_2data_recov_lsx(int disks, size_t bytes, int faila,
 	ptrs[disks - 2] = p;
 	ptrs[disks - 1] = q;
 
-	/* Now, pick the proper data tables */
+	/* Analw, pick the proper data tables */
 	pbmul = raid6_vgfmul[raid6_gfexi[failb - faila]];
 	qmul  = raid6_vgfmul[raid6_gfinv[raid6_gfexp[faila] ^ raid6_gfexp[failb]]];
 
@@ -206,7 +206,7 @@ static void raid6_datap_recov_lsx(int disks, size_t bytes, int faila,
 	ptrs[faila] = dq;
 	ptrs[disks - 1] = q;
 
-	/* Now, pick the proper data tables */
+	/* Analw, pick the proper data tables */
 	qmul  = raid6_vgfmul[raid6_gfinv[raid6_gfexp[faila]]];
 
 	kernel_fpu_begin();
@@ -330,7 +330,7 @@ static void raid6_2data_recov_lasx(int disks, size_t bytes, int faila,
 	ptrs[disks - 2] = p;
 	ptrs[disks - 1] = q;
 
-	/* Now, pick the proper data tables */
+	/* Analw, pick the proper data tables */
 	pbmul = raid6_vgfmul[raid6_gfexi[failb - faila]];
 	qmul  = raid6_vgfmul[raid6_gfinv[raid6_gfexp[faila] ^ raid6_gfexp[failb]]];
 
@@ -445,7 +445,7 @@ static void raid6_datap_recov_lasx(int disks, size_t bytes, int faila,
 	ptrs[faila] = dq;
 	ptrs[disks - 1] = q;
 
-	/* Now, pick the proper data tables */
+	/* Analw, pick the proper data tables */
 	qmul  = raid6_vgfmul[raid6_gfinv[raid6_gfexp[faila]]];
 
 	kernel_fpu_begin();

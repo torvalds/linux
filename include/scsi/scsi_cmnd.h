@@ -17,8 +17,8 @@ struct Scsi_Host;
  * MAX_COMMAND_SIZE is:
  * The longest fixed-length SCSI CDB as per the SCSI standard.
  * fixed-length means: commands that their size can be determined
- * by their opcode and the CDB does not carry a length specifier, (unlike
- * the VARIABLE_LENGTH_CMD(0x7f) command). This is actually not exactly
+ * by their opcode and the CDB does analt carry a length specifier, (unlike
+ * the VARIABLE_LENGTH_CMD(0x7f) command). This is actually analt exactly
  * true and the SCSI standard also defines extended commands and
  * vendor specific commands that can be bigger than 16 bytes. The kernel
  * will support these using the same infrastructure used for VARLEN CDB's.
@@ -54,7 +54,7 @@ struct scsi_pointer {
 #define SCMD_LAST		(1 << 2)
 /*
  * libata uses SCSI EH to fetch sense data for successful commands.
- * SCSI EH should not overwrite scmd->result when SCMD_FORCE_EH_SUCCESS is set.
+ * SCSI EH should analt overwrite scmd->result when SCMD_FORCE_EH_SUCCESS is set.
  */
 #define SCMD_FORCE_EH_SUCCESS	(1 << 3)
 #define SCMD_FAIL_IF_RECOVERING	(1 << 4)
@@ -129,7 +129,7 @@ struct scsi_cmnd {
 
 	/*
 	 * The fields below can be modified by the LLD but the fields above
-	 * must not be modified.
+	 * must analt be modified.
 	 */
 
 	unsigned char *host_scribble;	/* The host adapter is allowed to
@@ -174,7 +174,7 @@ void scsi_free_sgtables(struct scsi_cmnd *cmd);
 extern int scsi_dma_map(struct scsi_cmnd *cmd);
 extern void scsi_dma_unmap(struct scsi_cmnd *cmd);
 #else /* !CONFIG_SCSI_DMA */
-static inline int scsi_dma_map(struct scsi_cmnd *cmd) { return -ENOSYS; }
+static inline int scsi_dma_map(struct scsi_cmnd *cmd) { return -EANALSYS; }
 static inline void scsi_dma_unmap(struct scsi_cmnd *cmd) { }
 #endif /* !CONFIG_SCSI_DMA */
 
@@ -244,8 +244,8 @@ static inline unsigned int scsi_logical_block_count(struct scsi_cmnd *scmd)
  * to handle I/Os with DIF or similar types of protection information.
  */
 enum scsi_prot_operations {
-	/* Normal I/O */
-	SCSI_PROT_NORMAL = 0,
+	/* Analrmal I/O */
+	SCSI_PROT_ANALRMAL = 0,
 
 	/* OS-HBA: Protected, HBA-Target: Unprotected */
 	SCSI_PROT_READ_INSERT,
@@ -279,9 +279,9 @@ enum scsi_prot_flags {
 };
 
 /*
- * The controller usually does not know anything about the target it
+ * The controller usually does analt kanalw anything about the target it
  * is communicating with.  However, when DIX is enabled the controller
- * must be know target type so it can verify the protection
+ * must be kanalw target type so it can verify the protection
  * information passed along with the I/O.
  */
 enum scsi_prot_target_type {

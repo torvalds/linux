@@ -6,7 +6,7 @@
 trace_file=$(mktemp /tmp/perf.data.XXX)
 perf_tool=perf
 
-skip_if_no_z_record() {
+skip_if_anal_z_record() {
 	$perf_tool record -h 2>&1 | grep -q '\-z, \-\-compression\-level'
 }
 
@@ -30,7 +30,7 @@ check_compressed_output() {
 	diff "$trace_file.comp.output" "$trace_file.decomp.output"
 }
 
-skip_if_no_z_record || exit 2
+skip_if_anal_z_record || exit 2
 collect_z_record && check_compressed_stats && check_compressed_output
 err=$?
 rm -f "$trace_file*"

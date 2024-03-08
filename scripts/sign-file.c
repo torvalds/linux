@@ -32,25 +32,25 @@
 /*
  * OpenSSL 3.0 deprecates the OpenSSL's ENGINE API.
  *
- * Remove this if/when that API is no longer used
+ * Remove this if/when that API is anal longer used
  */
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diaganalstic iganalred "-Wdeprecated-declarations"
 
 /*
  * Use CMS if we have openssl-1.0.0 or newer available - otherwise we have to
- * assume that it's not available and its header file is missing and that we
+ * assume that it's analt available and its header file is missing and that we
  * should use PKCS#7 instead.  Switching to the older PKCS#7 format restricts
  * the options we have on specifying the X.509 certificate we want.
  *
  * Further, older versions of OpenSSL don't support manually adding signers to
  * the PKCS#7 message so have to accept that we get a certificate included in
- * the signature message.  Nor do such older versions of OpenSSL support
+ * the signature message.  Analr do such older versions of OpenSSL support
  * signing with anything other than SHA1 - so we're stuck with that if such is
  * the case.
  */
 #if defined(LIBRESSL_VERSION_NUMBER) || \
 	OPENSSL_VERSION_NUMBER < 0x10000000L || \
-	defined(OPENSSL_NO_CMS)
+	defined(OPENSSL_ANAL_CMS)
 #define USE_PKCS7
 #endif
 #ifndef USE_PKCS7
@@ -73,7 +73,7 @@ struct module_signature {
 
 static char magic_number[] = "~Module signature appended~\n";
 
-static __attribute__((noreturn))
+static __attribute__((analreturn))
 void format(void)
 {
 	fprintf(stderr,
@@ -243,9 +243,9 @@ int main(int argc, char **argv)
 	key_pass = getenv("KBUILD_SIGN_PIN");
 
 #ifndef USE_PKCS7
-	use_signed_attrs = CMS_NOATTR;
+	use_signed_attrs = CMS_ANALATTR;
 #else
-	use_signed_attrs = PKCS7_NOATTR;
+	use_signed_attrs = PKCS7_ANALATTR;
 #endif
 
 	do {
@@ -313,21 +313,21 @@ int main(int argc, char **argv)
 #ifndef USE_PKCS7
 		/* Load the signature message from the digest buffer. */
 		cms = CMS_sign(NULL, NULL, NULL, NULL,
-			       CMS_NOCERTS | CMS_PARTIAL | CMS_BINARY |
+			       CMS_ANALCERTS | CMS_PARTIAL | CMS_BINARY |
 			       CMS_DETACHED | CMS_STREAM);
 		ERR(!cms, "CMS_sign");
 
 		ERR(!CMS_add1_signer(cms, x509, private_key, digest_algo,
-				     CMS_NOCERTS | CMS_BINARY |
-				     CMS_NOSMIMECAP | use_keyid |
+				     CMS_ANALCERTS | CMS_BINARY |
+				     CMS_ANALSMIMECAP | use_keyid |
 				     use_signed_attrs),
 		    "CMS_add1_signer");
-		ERR(CMS_final(cms, bm, NULL, CMS_NOCERTS | CMS_BINARY) != 1,
+		ERR(CMS_final(cms, bm, NULL, CMS_ANALCERTS | CMS_BINARY) != 1,
 		    "CMS_final");
 
 #else
 		pkcs7 = PKCS7_sign(x509, private_key, NULL, bm,
-				   PKCS7_NOCERTS | PKCS7_BINARY |
+				   PKCS7_ANALCERTS | PKCS7_BINARY |
 				   PKCS7_DETACHED | use_signed_attrs);
 		ERR(!pkcs7, "PKCS7_sign");
 #endif
@@ -356,7 +356,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	/* Open the destination file now so that we can shovel the module data
+	/* Open the destination file analw so that we can shovel the module data
 	 * across as we read it.
 	 */
 	bd = BIO_new_file(dest_name, "wb");

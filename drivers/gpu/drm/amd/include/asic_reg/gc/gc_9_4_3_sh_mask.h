@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -113,9 +113,9 @@
 #define GRBM_STATUS__CB_CLEAN__SHIFT                                                                          0xd
 #define GRBM_STATUS__TA_BUSY__SHIFT                                                                           0xe
 #define GRBM_STATUS__GDS_BUSY__SHIFT                                                                          0xf
-#define GRBM_STATUS__WD_BUSY_NO_DMA__SHIFT                                                                    0x10
+#define GRBM_STATUS__WD_BUSY_ANAL_DMA__SHIFT                                                                    0x10
 #define GRBM_STATUS__VGT_BUSY__SHIFT                                                                          0x11
-#define GRBM_STATUS__IA_BUSY_NO_DMA__SHIFT                                                                    0x12
+#define GRBM_STATUS__IA_BUSY_ANAL_DMA__SHIFT                                                                    0x12
 #define GRBM_STATUS__IA_BUSY__SHIFT                                                                           0x13
 #define GRBM_STATUS__SX_BUSY__SHIFT                                                                           0x14
 #define GRBM_STATUS__WD_BUSY__SHIFT                                                                           0x15
@@ -137,9 +137,9 @@
 #define GRBM_STATUS__CB_CLEAN_MASK                                                                            0x00002000L
 #define GRBM_STATUS__TA_BUSY_MASK                                                                             0x00004000L
 #define GRBM_STATUS__GDS_BUSY_MASK                                                                            0x00008000L
-#define GRBM_STATUS__WD_BUSY_NO_DMA_MASK                                                                      0x00010000L
+#define GRBM_STATUS__WD_BUSY_ANAL_DMA_MASK                                                                      0x00010000L
 #define GRBM_STATUS__VGT_BUSY_MASK                                                                            0x00020000L
-#define GRBM_STATUS__IA_BUSY_NO_DMA_MASK                                                                      0x00040000L
+#define GRBM_STATUS__IA_BUSY_ANAL_DMA_MASK                                                                      0x00040000L
 #define GRBM_STATUS__IA_BUSY_MASK                                                                             0x00080000L
 #define GRBM_STATUS__SX_BUSY_MASK                                                                             0x00100000L
 #define GRBM_STATUS__WD_BUSY_MASK                                                                             0x00200000L
@@ -449,9 +449,9 @@
 #define GRBM_IOV_READ_ERROR__IOV_VF_MASK                                                                      0x04000000L
 #define GRBM_IOV_READ_ERROR__IOV_OP_MASK                                                                      0x08000000L
 #define GRBM_IOV_READ_ERROR__IOV_ERROR_MASK                                                                   0x80000000L
-//GRBM_NOWHERE
-#define GRBM_NOWHERE__DATA__SHIFT                                                                             0x0
-#define GRBM_NOWHERE__DATA_MASK                                                                               0xFFFFFFFFL
+//GRBM_ANALWHERE
+#define GRBM_ANALWHERE__DATA__SHIFT                                                                             0x0
+#define GRBM_ANALWHERE__DATA_MASK                                                                               0xFFFFFFFFL
 //GRBM_SCRATCH_REG0
 #define GRBM_SCRATCH_REG0__SCRATCH_REG0__SHIFT                                                                0x0
 #define GRBM_SCRATCH_REG0__SCRATCH_REG0_MASK                                                                  0xFFFFFFFFL
@@ -819,14 +819,14 @@
 #define CP_DE_DE_COUNT__DRAW_ENGINE_COUNT__SHIFT                                                              0x0
 #define CP_DE_DE_COUNT__DRAW_ENGINE_COUNT_MASK                                                                0xFFFFFFFFL
 //CP_STALLED_STAT3
-#define CP_STALLED_STAT3__CE_TO_CSF_NOT_RDY_TO_RCV__SHIFT                                                     0x0
-#define CP_STALLED_STAT3__CE_TO_RAM_INIT_FETCHER_NOT_RDY_TO_RCV__SHIFT                                        0x1
+#define CP_STALLED_STAT3__CE_TO_CSF_ANALT_RDY_TO_RCV__SHIFT                                                     0x0
+#define CP_STALLED_STAT3__CE_TO_RAM_INIT_FETCHER_ANALT_RDY_TO_RCV__SHIFT                                        0x1
 #define CP_STALLED_STAT3__CE_WAITING_ON_DATA_FROM_RAM_INIT_FETCHER__SHIFT                                     0x2
-#define CP_STALLED_STAT3__CE_TO_RAM_INIT_NOT_RDY__SHIFT                                                       0x3
-#define CP_STALLED_STAT3__CE_TO_RAM_DUMP_NOT_RDY__SHIFT                                                       0x4
-#define CP_STALLED_STAT3__CE_TO_RAM_WRITE_NOT_RDY__SHIFT                                                      0x5
-#define CP_STALLED_STAT3__CE_TO_INC_FIFO_NOT_RDY_TO_RCV__SHIFT                                                0x6
-#define CP_STALLED_STAT3__CE_TO_WR_FIFO_NOT_RDY_TO_RCV__SHIFT                                                 0x7
+#define CP_STALLED_STAT3__CE_TO_RAM_INIT_ANALT_RDY__SHIFT                                                       0x3
+#define CP_STALLED_STAT3__CE_TO_RAM_DUMP_ANALT_RDY__SHIFT                                                       0x4
+#define CP_STALLED_STAT3__CE_TO_RAM_WRITE_ANALT_RDY__SHIFT                                                      0x5
+#define CP_STALLED_STAT3__CE_TO_INC_FIFO_ANALT_RDY_TO_RCV__SHIFT                                                0x6
+#define CP_STALLED_STAT3__CE_TO_WR_FIFO_ANALT_RDY_TO_RCV__SHIFT                                                 0x7
 #define CP_STALLED_STAT3__CE_WAITING_ON_BUFFER_DATA__SHIFT                                                    0xa
 #define CP_STALLED_STAT3__CE_WAITING_ON_CE_BUFFER_FLAG__SHIFT                                                 0xb
 #define CP_STALLED_STAT3__CE_WAITING_ON_DE_COUNTER__SHIFT                                                     0xc
@@ -838,14 +838,14 @@
 #define CP_STALLED_STAT3__UTCL2IU_WAITING_ON_FREE__SHIFT                                                      0x12
 #define CP_STALLED_STAT3__UTCL2IU_WAITING_ON_TAGS__SHIFT                                                      0x13
 #define CP_STALLED_STAT3__UTCL1_WAITING_ON_TRANS__SHIFT                                                       0x14
-#define CP_STALLED_STAT3__CE_TO_CSF_NOT_RDY_TO_RCV_MASK                                                       0x00000001L
-#define CP_STALLED_STAT3__CE_TO_RAM_INIT_FETCHER_NOT_RDY_TO_RCV_MASK                                          0x00000002L
+#define CP_STALLED_STAT3__CE_TO_CSF_ANALT_RDY_TO_RCV_MASK                                                       0x00000001L
+#define CP_STALLED_STAT3__CE_TO_RAM_INIT_FETCHER_ANALT_RDY_TO_RCV_MASK                                          0x00000002L
 #define CP_STALLED_STAT3__CE_WAITING_ON_DATA_FROM_RAM_INIT_FETCHER_MASK                                       0x00000004L
-#define CP_STALLED_STAT3__CE_TO_RAM_INIT_NOT_RDY_MASK                                                         0x00000008L
-#define CP_STALLED_STAT3__CE_TO_RAM_DUMP_NOT_RDY_MASK                                                         0x00000010L
-#define CP_STALLED_STAT3__CE_TO_RAM_WRITE_NOT_RDY_MASK                                                        0x00000020L
-#define CP_STALLED_STAT3__CE_TO_INC_FIFO_NOT_RDY_TO_RCV_MASK                                                  0x00000040L
-#define CP_STALLED_STAT3__CE_TO_WR_FIFO_NOT_RDY_TO_RCV_MASK                                                   0x00000080L
+#define CP_STALLED_STAT3__CE_TO_RAM_INIT_ANALT_RDY_MASK                                                         0x00000008L
+#define CP_STALLED_STAT3__CE_TO_RAM_DUMP_ANALT_RDY_MASK                                                         0x00000010L
+#define CP_STALLED_STAT3__CE_TO_RAM_WRITE_ANALT_RDY_MASK                                                        0x00000020L
+#define CP_STALLED_STAT3__CE_TO_INC_FIFO_ANALT_RDY_TO_RCV_MASK                                                  0x00000040L
+#define CP_STALLED_STAT3__CE_TO_WR_FIFO_ANALT_RDY_TO_RCV_MASK                                                   0x00000080L
 #define CP_STALLED_STAT3__CE_WAITING_ON_BUFFER_DATA_MASK                                                      0x00000400L
 #define CP_STALLED_STAT3__CE_WAITING_ON_CE_BUFFER_FLAG_MASK                                                   0x00000800L
 #define CP_STALLED_STAT3__CE_WAITING_ON_DE_COUNTER_MASK                                                       0x00001000L
@@ -858,9 +858,9 @@
 #define CP_STALLED_STAT3__UTCL2IU_WAITING_ON_TAGS_MASK                                                        0x00080000L
 #define CP_STALLED_STAT3__UTCL1_WAITING_ON_TRANS_MASK                                                         0x00100000L
 //CP_STALLED_STAT1
-#define CP_STALLED_STAT1__RBIU_TO_DMA_NOT_RDY_TO_RCV__SHIFT                                                   0x0
-#define CP_STALLED_STAT1__RBIU_TO_SEM_NOT_RDY_TO_RCV__SHIFT                                                   0x2
-#define CP_STALLED_STAT1__RBIU_TO_MEMWR_NOT_RDY_TO_RCV__SHIFT                                                 0x4
+#define CP_STALLED_STAT1__RBIU_TO_DMA_ANALT_RDY_TO_RCV__SHIFT                                                   0x0
+#define CP_STALLED_STAT1__RBIU_TO_SEM_ANALT_RDY_TO_RCV__SHIFT                                                   0x2
+#define CP_STALLED_STAT1__RBIU_TO_MEMWR_ANALT_RDY_TO_RCV__SHIFT                                                 0x4
 #define CP_STALLED_STAT1__ME_HAS_ACTIVE_CE_BUFFER_FLAG__SHIFT                                                 0xa
 #define CP_STALLED_STAT1__ME_HAS_ACTIVE_DE_BUFFER_FLAG__SHIFT                                                 0xb
 #define CP_STALLED_STAT1__ME_STALLED_ON_TC_WR_CONFIRM__SHIFT                                                  0xc
@@ -874,9 +874,9 @@
 #define CP_STALLED_STAT1__RCIU_STALLED_ON_DMA_READ__SHIFT                                                     0x1b
 #define CP_STALLED_STAT1__RCIU_STALLED_ON_APPEND_READ__SHIFT                                                  0x1c
 #define CP_STALLED_STAT1__RCIU_HALTED_BY_REG_VIOLATION__SHIFT                                                 0x1d
-#define CP_STALLED_STAT1__RBIU_TO_DMA_NOT_RDY_TO_RCV_MASK                                                     0x00000001L
-#define CP_STALLED_STAT1__RBIU_TO_SEM_NOT_RDY_TO_RCV_MASK                                                     0x00000004L
-#define CP_STALLED_STAT1__RBIU_TO_MEMWR_NOT_RDY_TO_RCV_MASK                                                   0x00000010L
+#define CP_STALLED_STAT1__RBIU_TO_DMA_ANALT_RDY_TO_RCV_MASK                                                     0x00000001L
+#define CP_STALLED_STAT1__RBIU_TO_SEM_ANALT_RDY_TO_RCV_MASK                                                     0x00000004L
+#define CP_STALLED_STAT1__RBIU_TO_MEMWR_ANALT_RDY_TO_RCV_MASK                                                   0x00000010L
 #define CP_STALLED_STAT1__ME_HAS_ACTIVE_CE_BUFFER_FLAG_MASK                                                   0x00000400L
 #define CP_STALLED_STAT1__ME_HAS_ACTIVE_DE_BUFFER_FLAG_MASK                                                   0x00000800L
 #define CP_STALLED_STAT1__ME_STALLED_ON_TC_WR_CONFIRM_MASK                                                    0x00001000L
@@ -891,21 +891,21 @@
 #define CP_STALLED_STAT1__RCIU_STALLED_ON_APPEND_READ_MASK                                                    0x10000000L
 #define CP_STALLED_STAT1__RCIU_HALTED_BY_REG_VIOLATION_MASK                                                   0x20000000L
 //CP_STALLED_STAT2
-#define CP_STALLED_STAT2__PFP_TO_CSF_NOT_RDY_TO_RCV__SHIFT                                                    0x0
-#define CP_STALLED_STAT2__PFP_TO_MEQ_NOT_RDY_TO_RCV__SHIFT                                                    0x1
-#define CP_STALLED_STAT2__PFP_TO_RCIU_NOT_RDY_TO_RCV__SHIFT                                                   0x2
+#define CP_STALLED_STAT2__PFP_TO_CSF_ANALT_RDY_TO_RCV__SHIFT                                                    0x0
+#define CP_STALLED_STAT2__PFP_TO_MEQ_ANALT_RDY_TO_RCV__SHIFT                                                    0x1
+#define CP_STALLED_STAT2__PFP_TO_RCIU_ANALT_RDY_TO_RCV__SHIFT                                                   0x2
 #define CP_STALLED_STAT2__PFP_TO_VGT_WRITES_PENDING__SHIFT                                                    0x4
 #define CP_STALLED_STAT2__PFP_RCIU_READ_PENDING__SHIFT                                                        0x5
 #define CP_STALLED_STAT2__PFP_WAITING_ON_BUFFER_DATA__SHIFT                                                   0x8
 #define CP_STALLED_STAT2__ME_WAIT_ON_CE_COUNTER__SHIFT                                                        0x9
 #define CP_STALLED_STAT2__ME_WAIT_ON_AVAIL_BUFFER__SHIFT                                                      0xa
-#define CP_STALLED_STAT2__GFX_CNTX_NOT_AVAIL_TO_ME__SHIFT                                                     0xb
-#define CP_STALLED_STAT2__ME_RCIU_NOT_RDY_TO_RCV__SHIFT                                                       0xc
-#define CP_STALLED_STAT2__ME_TO_CONST_NOT_RDY_TO_RCV__SHIFT                                                   0xd
+#define CP_STALLED_STAT2__GFX_CNTX_ANALT_AVAIL_TO_ME__SHIFT                                                     0xb
+#define CP_STALLED_STAT2__ME_RCIU_ANALT_RDY_TO_RCV__SHIFT                                                       0xc
+#define CP_STALLED_STAT2__ME_TO_CONST_ANALT_RDY_TO_RCV__SHIFT                                                   0xd
 #define CP_STALLED_STAT2__ME_WAITING_DATA_FROM_PFP__SHIFT                                                     0xe
 #define CP_STALLED_STAT2__ME_WAITING_ON_PARTIAL_FLUSH__SHIFT                                                  0xf
-#define CP_STALLED_STAT2__MEQ_TO_ME_NOT_RDY_TO_RCV__SHIFT                                                     0x10
-#define CP_STALLED_STAT2__STQ_TO_ME_NOT_RDY_TO_RCV__SHIFT                                                     0x11
+#define CP_STALLED_STAT2__MEQ_TO_ME_ANALT_RDY_TO_RCV__SHIFT                                                     0x10
+#define CP_STALLED_STAT2__STQ_TO_ME_ANALT_RDY_TO_RCV__SHIFT                                                     0x11
 #define CP_STALLED_STAT2__ME_WAITING_DATA_FROM_STQ__SHIFT                                                     0x12
 #define CP_STALLED_STAT2__PFP_STALLED_ON_TC_WR_CONFIRM__SHIFT                                                 0x13
 #define CP_STALLED_STAT2__PFP_STALLED_ON_ATOMIC_RTN_DATA__SHIFT                                               0x14
@@ -920,21 +920,21 @@
 #define CP_STALLED_STAT2__APPEND_WAITING_TO_SEND_MEMWRITE__SHIFT                                              0x1d
 #define CP_STALLED_STAT2__SURF_SYNC_NEEDS_IDLE_CNTXS__SHIFT                                                   0x1e
 #define CP_STALLED_STAT2__SURF_SYNC_NEEDS_ALL_CLEAN__SHIFT                                                    0x1f
-#define CP_STALLED_STAT2__PFP_TO_CSF_NOT_RDY_TO_RCV_MASK                                                      0x00000001L
-#define CP_STALLED_STAT2__PFP_TO_MEQ_NOT_RDY_TO_RCV_MASK                                                      0x00000002L
-#define CP_STALLED_STAT2__PFP_TO_RCIU_NOT_RDY_TO_RCV_MASK                                                     0x00000004L
+#define CP_STALLED_STAT2__PFP_TO_CSF_ANALT_RDY_TO_RCV_MASK                                                      0x00000001L
+#define CP_STALLED_STAT2__PFP_TO_MEQ_ANALT_RDY_TO_RCV_MASK                                                      0x00000002L
+#define CP_STALLED_STAT2__PFP_TO_RCIU_ANALT_RDY_TO_RCV_MASK                                                     0x00000004L
 #define CP_STALLED_STAT2__PFP_TO_VGT_WRITES_PENDING_MASK                                                      0x00000010L
 #define CP_STALLED_STAT2__PFP_RCIU_READ_PENDING_MASK                                                          0x00000020L
 #define CP_STALLED_STAT2__PFP_WAITING_ON_BUFFER_DATA_MASK                                                     0x00000100L
 #define CP_STALLED_STAT2__ME_WAIT_ON_CE_COUNTER_MASK                                                          0x00000200L
 #define CP_STALLED_STAT2__ME_WAIT_ON_AVAIL_BUFFER_MASK                                                        0x00000400L
-#define CP_STALLED_STAT2__GFX_CNTX_NOT_AVAIL_TO_ME_MASK                                                       0x00000800L
-#define CP_STALLED_STAT2__ME_RCIU_NOT_RDY_TO_RCV_MASK                                                         0x00001000L
-#define CP_STALLED_STAT2__ME_TO_CONST_NOT_RDY_TO_RCV_MASK                                                     0x00002000L
+#define CP_STALLED_STAT2__GFX_CNTX_ANALT_AVAIL_TO_ME_MASK                                                       0x00000800L
+#define CP_STALLED_STAT2__ME_RCIU_ANALT_RDY_TO_RCV_MASK                                                         0x00001000L
+#define CP_STALLED_STAT2__ME_TO_CONST_ANALT_RDY_TO_RCV_MASK                                                     0x00002000L
 #define CP_STALLED_STAT2__ME_WAITING_DATA_FROM_PFP_MASK                                                       0x00004000L
 #define CP_STALLED_STAT2__ME_WAITING_ON_PARTIAL_FLUSH_MASK                                                    0x00008000L
-#define CP_STALLED_STAT2__MEQ_TO_ME_NOT_RDY_TO_RCV_MASK                                                       0x00010000L
-#define CP_STALLED_STAT2__STQ_TO_ME_NOT_RDY_TO_RCV_MASK                                                       0x00020000L
+#define CP_STALLED_STAT2__MEQ_TO_ME_ANALT_RDY_TO_RCV_MASK                                                       0x00010000L
+#define CP_STALLED_STAT2__STQ_TO_ME_ANALT_RDY_TO_RCV_MASK                                                       0x00020000L
 #define CP_STALLED_STAT2__ME_WAITING_DATA_FROM_STQ_MASK                                                       0x00040000L
 #define CP_STALLED_STAT2__PFP_STALLED_ON_TC_WR_CONFIRM_MASK                                                   0x00080000L
 #define CP_STALLED_STAT2__PFP_STALLED_ON_ATOMIC_RTN_DATA_MASK                                                 0x00100000L
@@ -956,7 +956,7 @@
 #define CP_BUSY_STAT__ME_PARSING_PACKETS__SHIFT                                                               0x8
 #define CP_BUSY_STAT__RCIU_PFP_BUSY__SHIFT                                                                    0x9
 #define CP_BUSY_STAT__RCIU_ME_BUSY__SHIFT                                                                     0xa
-#define CP_BUSY_STAT__SEM_CMDFIFO_NOT_EMPTY__SHIFT                                                            0xc
+#define CP_BUSY_STAT__SEM_CMDFIFO_ANALT_EMPTY__SHIFT                                                            0xc
 #define CP_BUSY_STAT__SEM_FAILED_AND_HOLDING__SHIFT                                                           0xd
 #define CP_BUSY_STAT__SEM_POLLING_FOR_PASS__SHIFT                                                             0xe
 #define CP_BUSY_STAT__GFX_CONTEXT_BUSY__SHIFT                                                                 0xf
@@ -972,7 +972,7 @@
 #define CP_BUSY_STAT__ME_PARSING_PACKETS_MASK                                                                 0x00000100L
 #define CP_BUSY_STAT__RCIU_PFP_BUSY_MASK                                                                      0x00000200L
 #define CP_BUSY_STAT__RCIU_ME_BUSY_MASK                                                                       0x00000400L
-#define CP_BUSY_STAT__SEM_CMDFIFO_NOT_EMPTY_MASK                                                              0x00001000L
+#define CP_BUSY_STAT__SEM_CMDFIFO_ANALT_EMPTY_MASK                                                              0x00001000L
 #define CP_BUSY_STAT__SEM_FAILED_AND_HOLDING_MASK                                                             0x00002000L
 #define CP_BUSY_STAT__SEM_POLLING_FOR_PASS_MASK                                                               0x00004000L
 #define CP_BUSY_STAT__GFX_CONTEXT_BUSY_MASK                                                                   0x00008000L
@@ -1310,7 +1310,7 @@
 //VGT_CACHE_INVALIDATION
 #define VGT_CACHE_INVALIDATION__CACHE_INVALIDATION__SHIFT                                                     0x0
 #define VGT_CACHE_INVALIDATION__DIS_INSTANCING_OPT__SHIFT                                                     0x4
-#define VGT_CACHE_INVALIDATION__VS_NO_EXTRA_BUFFER__SHIFT                                                     0x5
+#define VGT_CACHE_INVALIDATION__VS_ANAL_EXTRA_BUFFER__SHIFT                                                     0x5
 #define VGT_CACHE_INVALIDATION__AUTO_INVLD_EN__SHIFT                                                          0x6
 #define VGT_CACHE_INVALIDATION__USE_GS_DONE__SHIFT                                                            0x9
 #define VGT_CACHE_INVALIDATION__DIS_RANGE_FULL_INVLD__SHIFT                                                   0xb
@@ -1324,7 +1324,7 @@
 #define VGT_CACHE_INVALIDATION__ENABLE_PING_PONG_EOI__SHIFT                                                   0x1d
 #define VGT_CACHE_INVALIDATION__CACHE_INVALIDATION_MASK                                                       0x00000003L
 #define VGT_CACHE_INVALIDATION__DIS_INSTANCING_OPT_MASK                                                       0x00000010L
-#define VGT_CACHE_INVALIDATION__VS_NO_EXTRA_BUFFER_MASK                                                       0x00000020L
+#define VGT_CACHE_INVALIDATION__VS_ANAL_EXTRA_BUFFER_MASK                                                       0x00000020L
 #define VGT_CACHE_INVALIDATION__AUTO_INVLD_EN_MASK                                                            0x000000C0L
 #define VGT_CACHE_INVALIDATION__USE_GS_DONE_MASK                                                              0x00000200L
 #define VGT_CACHE_INVALIDATION__DIS_RANGE_FULL_INVLD_MASK                                                     0x00000800L
@@ -1434,7 +1434,7 @@
 #define WD_UTCL1_CNTL__BYPASS__SHIFT                                                                          0x19
 #define WD_UTCL1_CNTL__INVALIDATE__SHIFT                                                                      0x1a
 #define WD_UTCL1_CNTL__FRAG_LIMIT_MODE__SHIFT                                                                 0x1b
-#define WD_UTCL1_CNTL__FORCE_SNOOP__SHIFT                                                                     0x1c
+#define WD_UTCL1_CNTL__FORCE_SANALOP__SHIFT                                                                     0x1c
 #define WD_UTCL1_CNTL__FORCE_SD_VMID_DIRTY__SHIFT                                                             0x1d
 #define WD_UTCL1_CNTL__XNACK_REDO_TIMER_CNT_MASK                                                              0x000FFFFFL
 #define WD_UTCL1_CNTL__VMID_RESET_MODE_MASK                                                                   0x00800000L
@@ -1442,7 +1442,7 @@
 #define WD_UTCL1_CNTL__BYPASS_MASK                                                                            0x02000000L
 #define WD_UTCL1_CNTL__INVALIDATE_MASK                                                                        0x04000000L
 #define WD_UTCL1_CNTL__FRAG_LIMIT_MODE_MASK                                                                   0x08000000L
-#define WD_UTCL1_CNTL__FORCE_SNOOP_MASK                                                                       0x10000000L
+#define WD_UTCL1_CNTL__FORCE_SANALOP_MASK                                                                       0x10000000L
 #define WD_UTCL1_CNTL__FORCE_SD_VMID_DIRTY_MASK                                                               0x20000000L
 //WD_UTCL1_STATUS
 #define WD_UTCL1_STATUS__FAULT_DETECTED__SHIFT                                                                0x0
@@ -1464,7 +1464,7 @@
 #define IA_UTCL1_CNTL__BYPASS__SHIFT                                                                          0x19
 #define IA_UTCL1_CNTL__INVALIDATE__SHIFT                                                                      0x1a
 #define IA_UTCL1_CNTL__FRAG_LIMIT_MODE__SHIFT                                                                 0x1b
-#define IA_UTCL1_CNTL__FORCE_SNOOP__SHIFT                                                                     0x1c
+#define IA_UTCL1_CNTL__FORCE_SANALOP__SHIFT                                                                     0x1c
 #define IA_UTCL1_CNTL__FORCE_SD_VMID_DIRTY__SHIFT                                                             0x1d
 #define IA_UTCL1_CNTL__XNACK_REDO_TIMER_CNT_MASK                                                              0x000FFFFFL
 #define IA_UTCL1_CNTL__VMID_RESET_MODE_MASK                                                                   0x00800000L
@@ -1472,7 +1472,7 @@
 #define IA_UTCL1_CNTL__BYPASS_MASK                                                                            0x02000000L
 #define IA_UTCL1_CNTL__INVALIDATE_MASK                                                                        0x04000000L
 #define IA_UTCL1_CNTL__FRAG_LIMIT_MODE_MASK                                                                   0x08000000L
-#define IA_UTCL1_CNTL__FORCE_SNOOP_MASK                                                                       0x10000000L
+#define IA_UTCL1_CNTL__FORCE_SANALOP_MASK                                                                       0x10000000L
 #define IA_UTCL1_CNTL__FORCE_SD_VMID_DIRTY_MASK                                                               0x20000000L
 //IA_UTCL1_STATUS
 #define IA_UTCL1_STATUS__FAULT_DETECTED__SHIFT                                                                0x0
@@ -1561,7 +1561,7 @@
 #define PA_CL_ENHANCE__CLIPPED_PRIM_SEQ_STALL__SHIFT                                                          0x3
 #define PA_CL_ENHANCE__VE_NAN_PROC_DISABLE__SHIFT                                                             0x4
 #define PA_CL_ENHANCE__XTRA_DEBUG_REG_SEL__SHIFT                                                              0x5
-#define PA_CL_ENHANCE__IGNORE_PIPELINE_RESET__SHIFT                                                           0x6
+#define PA_CL_ENHANCE__IGANALRE_PIPELINE_RESET__SHIFT                                                           0x6
 #define PA_CL_ENHANCE__KILL_INNER_EDGE_FLAGS__SHIFT                                                           0x7
 #define PA_CL_ENHANCE__NGG_PA_TO_ALL_SC__SHIFT                                                                0x8
 #define PA_CL_ENHANCE__TC_LATENCY_TIME_STAMP_RESOLUTION__SHIFT                                                0x9
@@ -1570,7 +1570,7 @@
 #define PA_CL_ENHANCE__NGG_PRIM_INDICES_FIFO_DEPTH__SHIFT                                                     0xe
 #define PA_CL_ENHANCE__PROG_NEAR_CLIP_PLANE_ENABLE__SHIFT                                                     0x11
 #define PA_CL_ENHANCE__OUTPUT_SWITCH_TO_LEGACY_EVENT__SHIFT                                                   0x12
-#define PA_CL_ENHANCE__NO_SWITCH_TO_LEGACY_AFTER_VMID_RESET__SHIFT                                            0x13
+#define PA_CL_ENHANCE__ANAL_SWITCH_TO_LEGACY_AFTER_VMID_RESET__SHIFT                                            0x13
 #define PA_CL_ENHANCE__POLY_INNER_EDGE_FLAG_DISABLE__SHIFT                                                    0x14
 #define PA_CL_ENHANCE__TC_REQUEST_PERF_CNTR_ENABLE__SHIFT                                                     0x15
 #define PA_CL_ENHANCE__ECO_SPARE3__SHIFT                                                                      0x1c
@@ -1582,7 +1582,7 @@
 #define PA_CL_ENHANCE__CLIPPED_PRIM_SEQ_STALL_MASK                                                            0x00000008L
 #define PA_CL_ENHANCE__VE_NAN_PROC_DISABLE_MASK                                                               0x00000010L
 #define PA_CL_ENHANCE__XTRA_DEBUG_REG_SEL_MASK                                                                0x00000020L
-#define PA_CL_ENHANCE__IGNORE_PIPELINE_RESET_MASK                                                             0x00000040L
+#define PA_CL_ENHANCE__IGANALRE_PIPELINE_RESET_MASK                                                             0x00000040L
 #define PA_CL_ENHANCE__KILL_INNER_EDGE_FLAGS_MASK                                                             0x00000080L
 #define PA_CL_ENHANCE__NGG_PA_TO_ALL_SC_MASK                                                                  0x00000100L
 #define PA_CL_ENHANCE__TC_LATENCY_TIME_STAMP_RESOLUTION_MASK                                                  0x00000600L
@@ -1591,7 +1591,7 @@
 #define PA_CL_ENHANCE__NGG_PRIM_INDICES_FIFO_DEPTH_MASK                                                       0x0001C000L
 #define PA_CL_ENHANCE__PROG_NEAR_CLIP_PLANE_ENABLE_MASK                                                       0x00020000L
 #define PA_CL_ENHANCE__OUTPUT_SWITCH_TO_LEGACY_EVENT_MASK                                                     0x00040000L
-#define PA_CL_ENHANCE__NO_SWITCH_TO_LEGACY_AFTER_VMID_RESET_MASK                                              0x00080000L
+#define PA_CL_ENHANCE__ANAL_SWITCH_TO_LEGACY_AFTER_VMID_RESET_MASK                                              0x00080000L
 #define PA_CL_ENHANCE__POLY_INNER_EDGE_FLAG_DISABLE_MASK                                                      0x00100000L
 #define PA_CL_ENHANCE__TC_REQUEST_PERF_CNTR_ENABLE_MASK                                                       0x00200000L
 #define PA_CL_ENHANCE__ECO_SPARE3_MASK                                                                        0x10000000L
@@ -1608,14 +1608,14 @@
 #define PA_SC_FIFO_DEPTH_CNTL__DEPTH__SHIFT                                                                   0x0
 #define PA_SC_FIFO_DEPTH_CNTL__DEPTH_MASK                                                                     0x000003FFL
 //PA_SC_P3D_TRAP_SCREEN_HV_LOCK
-#define PA_SC_P3D_TRAP_SCREEN_HV_LOCK__DISABLE_NON_PRIV_WRITES__SHIFT                                         0x0
-#define PA_SC_P3D_TRAP_SCREEN_HV_LOCK__DISABLE_NON_PRIV_WRITES_MASK                                           0x00000001L
+#define PA_SC_P3D_TRAP_SCREEN_HV_LOCK__DISABLE_ANALN_PRIV_WRITES__SHIFT                                         0x0
+#define PA_SC_P3D_TRAP_SCREEN_HV_LOCK__DISABLE_ANALN_PRIV_WRITES_MASK                                           0x00000001L
 //PA_SC_HP3D_TRAP_SCREEN_HV_LOCK
-#define PA_SC_HP3D_TRAP_SCREEN_HV_LOCK__DISABLE_NON_PRIV_WRITES__SHIFT                                        0x0
-#define PA_SC_HP3D_TRAP_SCREEN_HV_LOCK__DISABLE_NON_PRIV_WRITES_MASK                                          0x00000001L
+#define PA_SC_HP3D_TRAP_SCREEN_HV_LOCK__DISABLE_ANALN_PRIV_WRITES__SHIFT                                        0x0
+#define PA_SC_HP3D_TRAP_SCREEN_HV_LOCK__DISABLE_ANALN_PRIV_WRITES_MASK                                          0x00000001L
 //PA_SC_TRAP_SCREEN_HV_LOCK
-#define PA_SC_TRAP_SCREEN_HV_LOCK__DISABLE_NON_PRIV_WRITES__SHIFT                                             0x0
-#define PA_SC_TRAP_SCREEN_HV_LOCK__DISABLE_NON_PRIV_WRITES_MASK                                               0x00000001L
+#define PA_SC_TRAP_SCREEN_HV_LOCK__DISABLE_ANALN_PRIV_WRITES__SHIFT                                             0x0
+#define PA_SC_TRAP_SCREEN_HV_LOCK__DISABLE_ANALN_PRIV_WRITES_MASK                                               0x00000001L
 //PA_SC_FORCE_EOV_MAX_CNTS
 #define PA_SC_FORCE_EOV_MAX_CNTS__FORCE_EOV_MAX_CLK_CNT__SHIFT                                                0x0
 #define PA_SC_FORCE_EOV_MAX_CNTS__FORCE_EOV_MAX_REZ_CNT__SHIFT                                                0x10
@@ -1694,7 +1694,7 @@
 #define PA_SC_BINNER_EVENT_CNTL_2__CS_CONTEXT_DONE__SHIFT                                                     0x6
 #define PA_SC_BINNER_EVENT_CNTL_2__VGT_FLUSH__SHIFT                                                           0x8
 #define PA_SC_BINNER_EVENT_CNTL_2__TGID_ROLLOVER__SHIFT                                                       0xa
-#define PA_SC_BINNER_EVENT_CNTL_2__SQ_NON_EVENT__SHIFT                                                        0xc
+#define PA_SC_BINNER_EVENT_CNTL_2__SQ_ANALN_EVENT__SHIFT                                                        0xc
 #define PA_SC_BINNER_EVENT_CNTL_2__SC_SEND_DB_VPZ__SHIFT                                                      0xe
 #define PA_SC_BINNER_EVENT_CNTL_2__BOTTOM_OF_PIPE_TS__SHIFT                                                   0x10
 #define PA_SC_BINNER_EVENT_CNTL_2__FLUSH_SX_TS__SHIFT                                                         0x12
@@ -1710,7 +1710,7 @@
 #define PA_SC_BINNER_EVENT_CNTL_2__CS_CONTEXT_DONE_MASK                                                       0x000000C0L
 #define PA_SC_BINNER_EVENT_CNTL_2__VGT_FLUSH_MASK                                                             0x00000300L
 #define PA_SC_BINNER_EVENT_CNTL_2__TGID_ROLLOVER_MASK                                                         0x00000C00L
-#define PA_SC_BINNER_EVENT_CNTL_2__SQ_NON_EVENT_MASK                                                          0x00003000L
+#define PA_SC_BINNER_EVENT_CNTL_2__SQ_ANALN_EVENT_MASK                                                          0x00003000L
 #define PA_SC_BINNER_EVENT_CNTL_2__SC_SEND_DB_VPZ_MASK                                                        0x0000C000L
 #define PA_SC_BINNER_EVENT_CNTL_2__BOTTOM_OF_PIPE_TS_MASK                                                     0x00030000L
 #define PA_SC_BINNER_EVENT_CNTL_2__FLUSH_SX_TS_MASK                                                           0x000C0000L
@@ -1863,7 +1863,7 @@
 #define PA_UTCL1_CNTL2__SPARE3__SHIFT                                                                         0xb
 #define PA_UTCL1_CNTL2__GPUVM_INV_MODE__SHIFT                                                                 0xc
 #define PA_UTCL1_CNTL2__ENABLE_SHOOTDOWN_OPT__SHIFT                                                           0xd
-#define PA_UTCL1_CNTL2__FORCE_SNOOP__SHIFT                                                                    0xe
+#define PA_UTCL1_CNTL2__FORCE_SANALOP__SHIFT                                                                    0xe
 #define PA_UTCL1_CNTL2__FORCE_GPUVM_INV_ACK__SHIFT                                                            0xf
 #define PA_UTCL1_CNTL2__SPARE4__SHIFT                                                                         0x10
 #define PA_UTCL1_CNTL2__ENABLE_PERF_EVENT_RD_WR__SHIFT                                                        0x12
@@ -1880,7 +1880,7 @@
 #define PA_UTCL1_CNTL2__SPARE3_MASK                                                                           0x00000800L
 #define PA_UTCL1_CNTL2__GPUVM_INV_MODE_MASK                                                                   0x00001000L
 #define PA_UTCL1_CNTL2__ENABLE_SHOOTDOWN_OPT_MASK                                                             0x00002000L
-#define PA_UTCL1_CNTL2__FORCE_SNOOP_MASK                                                                      0x00004000L
+#define PA_UTCL1_CNTL2__FORCE_SANALOP_MASK                                                                      0x00004000L
 #define PA_UTCL1_CNTL2__FORCE_GPUVM_INV_ACK_MASK                                                              0x00008000L
 #define PA_UTCL1_CNTL2__SPARE4_MASK                                                                           0x00030000L
 #define PA_UTCL1_CNTL2__ENABLE_PERF_EVENT_RD_WR_MASK                                                          0x00040000L
@@ -1919,7 +1919,7 @@
 #define PA_SC_ENHANCE__DISABLE_OUT_OF_ORDER_SELECTED_FIFO_EMPTY_SWITCHING__SHIFT                              0x14
 #define PA_SC_ENHANCE__DISABLE_OUT_OF_ORDER_EMPTY_SWITCHING_HYSTERYSIS__SHIFT                                 0x15
 #define PA_SC_ENHANCE__ENABLE_OUT_OF_ORDER_DESIRED_FIFO_IS_NEXT_FEID__SHIFT                                   0x16
-#define PA_SC_ENHANCE__DISABLE_OOO_NO_EOPG_SKEW_DESIRED_FIFO_IS_CURRENT_FIFO__SHIFT                           0x17
+#define PA_SC_ENHANCE__DISABLE_OOO_ANAL_EOPG_SKEW_DESIRED_FIFO_IS_CURRENT_FIFO__SHIFT                           0x17
 #define PA_SC_ENHANCE__OOO_DISABLE_EOP_ON_FIRST_LIVE_PRIM_HIT__SHIFT                                          0x18
 #define PA_SC_ENHANCE__OOO_DISABLE_EOPG_SKEW_THRESHOLD_SWITCHING__SHIFT                                       0x19
 #define PA_SC_ENHANCE__DISABLE_EOP_LINE_STIPPLE_RESET__SHIFT                                                  0x1a
@@ -1949,7 +1949,7 @@
 #define PA_SC_ENHANCE__DISABLE_OUT_OF_ORDER_SELECTED_FIFO_EMPTY_SWITCHING_MASK                                0x00100000L
 #define PA_SC_ENHANCE__DISABLE_OUT_OF_ORDER_EMPTY_SWITCHING_HYSTERYSIS_MASK                                   0x00200000L
 #define PA_SC_ENHANCE__ENABLE_OUT_OF_ORDER_DESIRED_FIFO_IS_NEXT_FEID_MASK                                     0x00400000L
-#define PA_SC_ENHANCE__DISABLE_OOO_NO_EOPG_SKEW_DESIRED_FIFO_IS_CURRENT_FIFO_MASK                             0x00800000L
+#define PA_SC_ENHANCE__DISABLE_OOO_ANAL_EOPG_SKEW_DESIRED_FIFO_IS_CURRENT_FIFO_MASK                             0x00800000L
 #define PA_SC_ENHANCE__OOO_DISABLE_EOP_ON_FIRST_LIVE_PRIM_HIT_MASK                                            0x01000000L
 #define PA_SC_ENHANCE__OOO_DISABLE_EOPG_SKEW_THRESHOLD_SWITCHING_MASK                                         0x02000000L
 #define PA_SC_ENHANCE__DISABLE_EOP_LINE_STIPPLE_RESET_MASK                                                    0x04000000L
@@ -2394,7 +2394,7 @@
 #define SQ_UTCL1_CNTL2__DIS_EDC__SHIFT                                                                        0xb
 #define SQ_UTCL1_CNTL2__GPUVM_INV_MODE__SHIFT                                                                 0xc
 #define SQ_UTCL1_CNTL2__SHOOTDOWN_OPT__SHIFT                                                                  0xd
-#define SQ_UTCL1_CNTL2__FORCE_SNOOP__SHIFT                                                                    0xe
+#define SQ_UTCL1_CNTL2__FORCE_SANALOP__SHIFT                                                                    0xe
 #define SQ_UTCL1_CNTL2__FORCE_GPUVM_INV_ACK__SHIFT                                                            0xf
 #define SQ_UTCL1_CNTL2__RETRY_TIMER__SHIFT                                                                    0x10
 #define SQ_UTCL1_CNTL2__FORCE_FRAG_2M_TO_64K__SHIFT                                                           0x1a
@@ -2406,7 +2406,7 @@
 #define SQ_UTCL1_CNTL2__DIS_EDC_MASK                                                                          0x00000800L
 #define SQ_UTCL1_CNTL2__GPUVM_INV_MODE_MASK                                                                   0x00001000L
 #define SQ_UTCL1_CNTL2__SHOOTDOWN_OPT_MASK                                                                    0x00002000L
-#define SQ_UTCL1_CNTL2__FORCE_SNOOP_MASK                                                                      0x00004000L
+#define SQ_UTCL1_CNTL2__FORCE_SANALOP_MASK                                                                      0x00004000L
 #define SQ_UTCL1_CNTL2__FORCE_GPUVM_INV_ACK_MASK                                                              0x00008000L
 #define SQ_UTCL1_CNTL2__RETRY_TIMER_MASK                                                                      0x007F0000L
 #define SQ_UTCL1_CNTL2__FORCE_FRAG_2M_TO_64K_MASK                                                             0x04000000L
@@ -3030,7 +3030,7 @@
 #define SQ_MIMG_0__OPM__SHIFT                                                                                 0x0
 #define SQ_MIMG_0__SC1__SHIFT                                                                                 0x7
 #define SQ_MIMG_0__DMASK__SHIFT                                                                               0x8
-#define SQ_MIMG_0__UNORM__SHIFT                                                                               0xc
+#define SQ_MIMG_0__UANALRM__SHIFT                                                                               0xc
 #define SQ_MIMG_0__SC0__SHIFT                                                                                 0xd
 #define SQ_MIMG_0__DA__SHIFT                                                                                  0xe
 #define SQ_MIMG_0__A16__SHIFT                                                                                 0xf
@@ -3042,7 +3042,7 @@
 #define SQ_MIMG_0__OPM_MASK                                                                                   0x00000001L
 #define SQ_MIMG_0__SC1_MASK                                                                                   0x00000080L
 #define SQ_MIMG_0__DMASK_MASK                                                                                 0x00000F00L
-#define SQ_MIMG_0__UNORM_MASK                                                                                 0x00001000L
+#define SQ_MIMG_0__UANALRM_MASK                                                                                 0x00001000L
 #define SQ_MIMG_0__SC0_MASK                                                                                   0x00002000L
 #define SQ_MIMG_0__DA_MASK                                                                                    0x00004000L
 #define SQ_MIMG_0__A16_MASK                                                                                   0x00008000L
@@ -3731,7 +3731,7 @@
 #define SQ_THREAD_TRACE_WORD_WAVE_START__WAVE_ID__SHIFT                                                       0xa
 #define SQ_THREAD_TRACE_WORD_WAVE_START__SIMD_ID__SHIFT                                                       0xe
 #define SQ_THREAD_TRACE_WORD_WAVE_START__DISPATCHER__SHIFT                                                    0x10
-#define SQ_THREAD_TRACE_WORD_WAVE_START__VS_NO_ALLOC_OR_GROUPED__SHIFT                                        0x15
+#define SQ_THREAD_TRACE_WORD_WAVE_START__VS_ANAL_ALLOC_OR_GROUPED__SHIFT                                        0x15
 #define SQ_THREAD_TRACE_WORD_WAVE_START__COUNT__SHIFT                                                         0x16
 #define SQ_THREAD_TRACE_WORD_WAVE_START__TG_ID__SHIFT                                                         0x1d
 #define SQ_THREAD_TRACE_WORD_WAVE_START__TOKEN_TYPE_MASK                                                      0x0000000FL
@@ -3741,7 +3741,7 @@
 #define SQ_THREAD_TRACE_WORD_WAVE_START__WAVE_ID_MASK                                                         0x00003C00L
 #define SQ_THREAD_TRACE_WORD_WAVE_START__SIMD_ID_MASK                                                         0x0000C000L
 #define SQ_THREAD_TRACE_WORD_WAVE_START__DISPATCHER_MASK                                                      0x001F0000L
-#define SQ_THREAD_TRACE_WORD_WAVE_START__VS_NO_ALLOC_OR_GROUPED_MASK                                          0x00200000L
+#define SQ_THREAD_TRACE_WORD_WAVE_START__VS_ANAL_ALLOC_OR_GROUPED_MASK                                          0x00200000L
 #define SQ_THREAD_TRACE_WORD_WAVE_START__COUNT_MASK                                                           0x1FC00000L
 #define SQ_THREAD_TRACE_WORD_WAVE_START__TG_ID_MASK                                                           0xE0000000L
 //SQ_THREAD_TRACE_WORD_INST_PC_2_OF_2
@@ -3902,7 +3902,7 @@
 #define SQ_IMG_SAMP_WORD0__CLAMP_Z__SHIFT                                                                     0x6
 #define SQ_IMG_SAMP_WORD0__MAX_ANISO_RATIO__SHIFT                                                             0x9
 #define SQ_IMG_SAMP_WORD0__DEPTH_COMPARE_FUNC__SHIFT                                                          0xc
-#define SQ_IMG_SAMP_WORD0__FORCE_UNNORMALIZED__SHIFT                                                          0xf
+#define SQ_IMG_SAMP_WORD0__FORCE_UNANALRMALIZED__SHIFT                                                          0xf
 #define SQ_IMG_SAMP_WORD0__ANISO_THRESHOLD__SHIFT                                                             0x10
 #define SQ_IMG_SAMP_WORD0__MC_COORD_TRUNC__SHIFT                                                              0x13
 #define SQ_IMG_SAMP_WORD0__FORCE_DEGAMMA__SHIFT                                                               0x14
@@ -3916,7 +3916,7 @@
 #define SQ_IMG_SAMP_WORD0__CLAMP_Z_MASK                                                                       0x000001C0L
 #define SQ_IMG_SAMP_WORD0__MAX_ANISO_RATIO_MASK                                                               0x00000E00L
 #define SQ_IMG_SAMP_WORD0__DEPTH_COMPARE_FUNC_MASK                                                            0x00007000L
-#define SQ_IMG_SAMP_WORD0__FORCE_UNNORMALIZED_MASK                                                            0x00008000L
+#define SQ_IMG_SAMP_WORD0__FORCE_UNANALRMALIZED_MASK                                                            0x00008000L
 #define SQ_IMG_SAMP_WORD0__ANISO_THRESHOLD_MASK                                                               0x00070000L
 #define SQ_IMG_SAMP_WORD0__MC_COORD_TRUNC_MASK                                                                0x00080000L
 #define SQ_IMG_SAMP_WORD0__FORCE_DEGAMMA_MASK                                                                 0x00100000L
@@ -4022,7 +4022,7 @@
 #define SQC_ICACHE_UTCL1_CNTL2__DIS_EDC__SHIFT                                                                0xb
 #define SQC_ICACHE_UTCL1_CNTL2__GPUVM_INV_MODE__SHIFT                                                         0xc
 #define SQC_ICACHE_UTCL1_CNTL2__SHOOTDOWN_OPT__SHIFT                                                          0xd
-#define SQC_ICACHE_UTCL1_CNTL2__FORCE_SNOOP__SHIFT                                                            0xe
+#define SQC_ICACHE_UTCL1_CNTL2__FORCE_SANALOP__SHIFT                                                            0xe
 #define SQC_ICACHE_UTCL1_CNTL2__FORCE_GPUVM_INV_ACK__SHIFT                                                    0xf
 #define SQC_ICACHE_UTCL1_CNTL2__ARB_BURST_MODE__SHIFT                                                         0x10
 #define SQC_ICACHE_UTCL1_CNTL2__ENABLE_PERF_EVENT_RD_WR__SHIFT                                                0x12
@@ -4038,7 +4038,7 @@
 #define SQC_ICACHE_UTCL1_CNTL2__DIS_EDC_MASK                                                                  0x00000800L
 #define SQC_ICACHE_UTCL1_CNTL2__GPUVM_INV_MODE_MASK                                                           0x00001000L
 #define SQC_ICACHE_UTCL1_CNTL2__SHOOTDOWN_OPT_MASK                                                            0x00002000L
-#define SQC_ICACHE_UTCL1_CNTL2__FORCE_SNOOP_MASK                                                              0x00004000L
+#define SQC_ICACHE_UTCL1_CNTL2__FORCE_SANALOP_MASK                                                              0x00004000L
 #define SQC_ICACHE_UTCL1_CNTL2__FORCE_GPUVM_INV_ACK_MASK                                                      0x00008000L
 #define SQC_ICACHE_UTCL1_CNTL2__ARB_BURST_MODE_MASK                                                           0x00030000L
 #define SQC_ICACHE_UTCL1_CNTL2__ENABLE_PERF_EVENT_RD_WR_MASK                                                  0x00040000L
@@ -4090,7 +4090,7 @@
 #define SQC_DCACHE_UTCL1_CNTL2__DIS_EDC__SHIFT                                                                0xb
 #define SQC_DCACHE_UTCL1_CNTL2__GPUVM_INV_MODE__SHIFT                                                         0xc
 #define SQC_DCACHE_UTCL1_CNTL2__SHOOTDOWN_OPT__SHIFT                                                          0xd
-#define SQC_DCACHE_UTCL1_CNTL2__FORCE_SNOOP__SHIFT                                                            0xe
+#define SQC_DCACHE_UTCL1_CNTL2__FORCE_SANALOP__SHIFT                                                            0xe
 #define SQC_DCACHE_UTCL1_CNTL2__FORCE_GPUVM_INV_ACK__SHIFT                                                    0xf
 #define SQC_DCACHE_UTCL1_CNTL2__ARB_BURST_MODE__SHIFT                                                         0x10
 #define SQC_DCACHE_UTCL1_CNTL2__ENABLE_PERF_EVENT_RD_WR__SHIFT                                                0x12
@@ -4106,7 +4106,7 @@
 #define SQC_DCACHE_UTCL1_CNTL2__DIS_EDC_MASK                                                                  0x00000800L
 #define SQC_DCACHE_UTCL1_CNTL2__GPUVM_INV_MODE_MASK                                                           0x00001000L
 #define SQC_DCACHE_UTCL1_CNTL2__SHOOTDOWN_OPT_MASK                                                            0x00002000L
-#define SQC_DCACHE_UTCL1_CNTL2__FORCE_SNOOP_MASK                                                              0x00004000L
+#define SQC_DCACHE_UTCL1_CNTL2__FORCE_SANALOP_MASK                                                              0x00004000L
 #define SQC_DCACHE_UTCL1_CNTL2__FORCE_GPUVM_INV_ACK_MASK                                                      0x00008000L
 #define SQC_DCACHE_UTCL1_CNTL2__ARB_BURST_MODE_MASK                                                           0x00030000L
 #define SQC_DCACHE_UTCL1_CNTL2__ENABLE_PERF_EVENT_RD_WR_MASK                                                  0x00040000L
@@ -5445,7 +5445,7 @@
 #define DB_DEBUG__DEBUG_FORCE_HIS_ENABLE1__SHIFT                                                              0xc
 #define DB_DEBUG__DEBUG_FAST_Z_DISABLE__SHIFT                                                                 0xe
 #define DB_DEBUG__DEBUG_FAST_STENCIL_DISABLE__SHIFT                                                           0xf
-#define DB_DEBUG__DEBUG_NOOP_CULL_DISABLE__SHIFT                                                              0x10
+#define DB_DEBUG__DEBUG_ANALOP_CULL_DISABLE__SHIFT                                                              0x10
 #define DB_DEBUG__DISABLE_SUMM_SQUADS__SHIFT                                                                  0x11
 #define DB_DEBUG__DEPTH_CACHE_FORCE_MISS__SHIFT                                                               0x12
 #define DB_DEBUG__DEBUG_FORCE_FULL_Z_RANGE__SHIFT                                                             0x13
@@ -5454,7 +5454,7 @@
 #define DB_DEBUG__DISABLE_VPORT_ZPLANE_OPTIMIZATION__SHIFT                                                    0x17
 #define DB_DEBUG__DECOMPRESS_AFTER_N_ZPLANES__SHIFT                                                           0x18
 #define DB_DEBUG__ONE_FREE_IN_FLIGHT__SHIFT                                                                   0x1c
-#define DB_DEBUG__FORCE_MISS_IF_NOT_INFLIGHT__SHIFT                                                           0x1d
+#define DB_DEBUG__FORCE_MISS_IF_ANALT_INFLIGHT__SHIFT                                                           0x1d
 #define DB_DEBUG__DISABLE_DEPTH_SURFACE_SYNC__SHIFT                                                           0x1e
 #define DB_DEBUG__DISABLE_HTILE_SURFACE_SYNC__SHIFT                                                           0x1f
 #define DB_DEBUG__DEBUG_STENCIL_COMPRESS_DISABLE_MASK                                                         0x00000001L
@@ -5469,7 +5469,7 @@
 #define DB_DEBUG__DEBUG_FORCE_HIS_ENABLE1_MASK                                                                0x00003000L
 #define DB_DEBUG__DEBUG_FAST_Z_DISABLE_MASK                                                                   0x00004000L
 #define DB_DEBUG__DEBUG_FAST_STENCIL_DISABLE_MASK                                                             0x00008000L
-#define DB_DEBUG__DEBUG_NOOP_CULL_DISABLE_MASK                                                                0x00010000L
+#define DB_DEBUG__DEBUG_ANALOP_CULL_DISABLE_MASK                                                                0x00010000L
 #define DB_DEBUG__DISABLE_SUMM_SQUADS_MASK                                                                    0x00020000L
 #define DB_DEBUG__DEPTH_CACHE_FORCE_MISS_MASK                                                                 0x00040000L
 #define DB_DEBUG__DEBUG_FORCE_FULL_Z_RANGE_MASK                                                               0x00180000L
@@ -5478,7 +5478,7 @@
 #define DB_DEBUG__DISABLE_VPORT_ZPLANE_OPTIMIZATION_MASK                                                      0x00800000L
 #define DB_DEBUG__DECOMPRESS_AFTER_N_ZPLANES_MASK                                                             0x0F000000L
 #define DB_DEBUG__ONE_FREE_IN_FLIGHT_MASK                                                                     0x10000000L
-#define DB_DEBUG__FORCE_MISS_IF_NOT_INFLIGHT_MASK                                                             0x20000000L
+#define DB_DEBUG__FORCE_MISS_IF_ANALT_INFLIGHT_MASK                                                             0x20000000L
 #define DB_DEBUG__DISABLE_DEPTH_SURFACE_SYNC_MASK                                                             0x40000000L
 #define DB_DEBUG__DISABLE_HTILE_SURFACE_SYNC_MASK                                                             0x80000000L
 //DB_DEBUG2
@@ -5612,7 +5612,7 @@
 #define DB_DEBUG4__DISABLE_HIZ_Q1_TS_COLLISION_DETECT__SHIFT                                                  0x11
 #define DB_DEBUG4__DISABLE_HIZ_Q2_TS_COLLISION_DETECT__SHIFT                                                  0x12
 #define DB_DEBUG4__DB_EXTRA_DEBUG4__SHIFT                                                                     0x13
-#define DB_DEBUG4__DISABLE_8PPC_OBJPRIMID_WHEN_NO_SHADER_EXPORTS__SHIFT                                       0x1e
+#define DB_DEBUG4__DISABLE_8PPC_OBJPRIMID_WHEN_ANAL_SHADER_EXPORTS__SHIFT                                       0x1e
 #define DB_DEBUG4__FULL_TILE_CACHE_EVICT_ON_HALF_FULL__SHIFT                                                  0x1f
 #define DB_DEBUG4__DISABLE_QC_Z_MASK_SUMMATION_MASK                                                           0x00000001L
 #define DB_DEBUG4__DISABLE_QC_STENCIL_MASK_SUMMATION_MASK                                                     0x00000002L
@@ -5634,7 +5634,7 @@
 #define DB_DEBUG4__DISABLE_HIZ_Q1_TS_COLLISION_DETECT_MASK                                                    0x00020000L
 #define DB_DEBUG4__DISABLE_HIZ_Q2_TS_COLLISION_DETECT_MASK                                                    0x00040000L
 #define DB_DEBUG4__DB_EXTRA_DEBUG4_MASK                                                                       0x3FF80000L
-#define DB_DEBUG4__DISABLE_8PPC_OBJPRIMID_WHEN_NO_SHADER_EXPORTS_MASK                                         0x40000000L
+#define DB_DEBUG4__DISABLE_8PPC_OBJPRIMID_WHEN_ANAL_SHADER_EXPORTS_MASK                                         0x40000000L
 #define DB_DEBUG4__FULL_TILE_CACHE_EVICT_ON_HALF_FULL_MASK                                                    0x80000000L
 //DB_CREDIT_LIMIT
 #define DB_CREDIT_LIMIT__DB_SC_TILE_CREDITS__SHIFT                                                            0x0
@@ -6401,7 +6401,7 @@
 #define CB_HW_CONTROL__FC_CACHE_EVICT_POINT__SHIFT                                                            0x6
 #define CB_HW_CONTROL__CC_CACHE_EVICT_POINT__SHIFT                                                            0xc
 #define CB_HW_CONTROL__ALLOW_MRT_WITH_DUAL_SOURCE__SHIFT                                                      0x10
-#define CB_HW_CONTROL__DISABLE_INTNORM_LE11BPC_CLAMPING__SHIFT                                                0x12
+#define CB_HW_CONTROL__DISABLE_INTANALRM_LE11BPC_CLAMPING__SHIFT                                                0x12
 #define CB_HW_CONTROL__FORCE_NEEDS_DST__SHIFT                                                                 0x13
 #define CB_HW_CONTROL__FORCE_ALWAYS_TOGGLE__SHIFT                                                             0x14
 #define CB_HW_CONTROL__DISABLE_BLEND_OPT_RESULT_EQ_DEST__SHIFT                                                0x15
@@ -6419,7 +6419,7 @@
 #define CB_HW_CONTROL__FC_CACHE_EVICT_POINT_MASK                                                              0x000003C0L
 #define CB_HW_CONTROL__CC_CACHE_EVICT_POINT_MASK                                                              0x0000F000L
 #define CB_HW_CONTROL__ALLOW_MRT_WITH_DUAL_SOURCE_MASK                                                        0x00010000L
-#define CB_HW_CONTROL__DISABLE_INTNORM_LE11BPC_CLAMPING_MASK                                                  0x00040000L
+#define CB_HW_CONTROL__DISABLE_INTANALRM_LE11BPC_CLAMPING_MASK                                                  0x00040000L
 #define CB_HW_CONTROL__FORCE_NEEDS_DST_MASK                                                                   0x00080000L
 #define CB_HW_CONTROL__FORCE_ALWAYS_TOGGLE_MASK                                                               0x00100000L
 #define CB_HW_CONTROL__DISABLE_BLEND_OPT_RESULT_EQ_DEST_MASK                                                  0x00200000L
@@ -6516,55 +6516,55 @@
 #define CB_HW_CONTROL_3__COLOR_CACHE_PREFETCH_NUM_CLS_MASK                                                    0x30000000L
 //CB_HW_MEM_ARBITER_RD
 #define CB_HW_MEM_ARBITER_RD__MODE__SHIFT                                                                     0x0
-#define CB_HW_MEM_ARBITER_RD__IGNORE_URGENT_AGE__SHIFT                                                        0x2
+#define CB_HW_MEM_ARBITER_RD__IGANALRE_URGENT_AGE__SHIFT                                                        0x2
 #define CB_HW_MEM_ARBITER_RD__BREAK_GROUP_AGE__SHIFT                                                          0x6
 #define CB_HW_MEM_ARBITER_RD__WEIGHT_CC__SHIFT                                                                0xa
 #define CB_HW_MEM_ARBITER_RD__WEIGHT_FC__SHIFT                                                                0xc
 #define CB_HW_MEM_ARBITER_RD__WEIGHT_CM__SHIFT                                                                0xe
 #define CB_HW_MEM_ARBITER_RD__WEIGHT_DC__SHIFT                                                                0x10
 #define CB_HW_MEM_ARBITER_RD__WEIGHT_DECAY_REQS__SHIFT                                                        0x12
-#define CB_HW_MEM_ARBITER_RD__WEIGHT_DECAY_NOREQS__SHIFT                                                      0x14
-#define CB_HW_MEM_ARBITER_RD__WEIGHT_IGNORE_NUM_TIDS__SHIFT                                                   0x16
+#define CB_HW_MEM_ARBITER_RD__WEIGHT_DECAY_ANALREQS__SHIFT                                                      0x14
+#define CB_HW_MEM_ARBITER_RD__WEIGHT_IGANALRE_NUM_TIDS__SHIFT                                                   0x16
 #define CB_HW_MEM_ARBITER_RD__SCALE_AGE__SHIFT                                                                0x17
 #define CB_HW_MEM_ARBITER_RD__SCALE_WEIGHT__SHIFT                                                             0x1a
 #define CB_HW_MEM_ARBITER_RD__SEND_LASTS_WITHIN_GROUPS__SHIFT                                                 0x1d
 #define CB_HW_MEM_ARBITER_RD__MODE_MASK                                                                       0x00000003L
-#define CB_HW_MEM_ARBITER_RD__IGNORE_URGENT_AGE_MASK                                                          0x0000003CL
+#define CB_HW_MEM_ARBITER_RD__IGANALRE_URGENT_AGE_MASK                                                          0x0000003CL
 #define CB_HW_MEM_ARBITER_RD__BREAK_GROUP_AGE_MASK                                                            0x000003C0L
 #define CB_HW_MEM_ARBITER_RD__WEIGHT_CC_MASK                                                                  0x00000C00L
 #define CB_HW_MEM_ARBITER_RD__WEIGHT_FC_MASK                                                                  0x00003000L
 #define CB_HW_MEM_ARBITER_RD__WEIGHT_CM_MASK                                                                  0x0000C000L
 #define CB_HW_MEM_ARBITER_RD__WEIGHT_DC_MASK                                                                  0x00030000L
 #define CB_HW_MEM_ARBITER_RD__WEIGHT_DECAY_REQS_MASK                                                          0x000C0000L
-#define CB_HW_MEM_ARBITER_RD__WEIGHT_DECAY_NOREQS_MASK                                                        0x00300000L
-#define CB_HW_MEM_ARBITER_RD__WEIGHT_IGNORE_NUM_TIDS_MASK                                                     0x00400000L
+#define CB_HW_MEM_ARBITER_RD__WEIGHT_DECAY_ANALREQS_MASK                                                        0x00300000L
+#define CB_HW_MEM_ARBITER_RD__WEIGHT_IGANALRE_NUM_TIDS_MASK                                                     0x00400000L
 #define CB_HW_MEM_ARBITER_RD__SCALE_AGE_MASK                                                                  0x03800000L
 #define CB_HW_MEM_ARBITER_RD__SCALE_WEIGHT_MASK                                                               0x1C000000L
 #define CB_HW_MEM_ARBITER_RD__SEND_LASTS_WITHIN_GROUPS_MASK                                                   0x20000000L
 //CB_HW_MEM_ARBITER_WR
 #define CB_HW_MEM_ARBITER_WR__MODE__SHIFT                                                                     0x0
-#define CB_HW_MEM_ARBITER_WR__IGNORE_URGENT_AGE__SHIFT                                                        0x2
+#define CB_HW_MEM_ARBITER_WR__IGANALRE_URGENT_AGE__SHIFT                                                        0x2
 #define CB_HW_MEM_ARBITER_WR__BREAK_GROUP_AGE__SHIFT                                                          0x6
 #define CB_HW_MEM_ARBITER_WR__WEIGHT_CC__SHIFT                                                                0xa
 #define CB_HW_MEM_ARBITER_WR__WEIGHT_FC__SHIFT                                                                0xc
 #define CB_HW_MEM_ARBITER_WR__WEIGHT_CM__SHIFT                                                                0xe
 #define CB_HW_MEM_ARBITER_WR__WEIGHT_DC__SHIFT                                                                0x10
 #define CB_HW_MEM_ARBITER_WR__WEIGHT_DECAY_REQS__SHIFT                                                        0x12
-#define CB_HW_MEM_ARBITER_WR__WEIGHT_DECAY_NOREQS__SHIFT                                                      0x14
-#define CB_HW_MEM_ARBITER_WR__WEIGHT_IGNORE_BYTE_MASK__SHIFT                                                  0x16
+#define CB_HW_MEM_ARBITER_WR__WEIGHT_DECAY_ANALREQS__SHIFT                                                      0x14
+#define CB_HW_MEM_ARBITER_WR__WEIGHT_IGANALRE_BYTE_MASK__SHIFT                                                  0x16
 #define CB_HW_MEM_ARBITER_WR__SCALE_AGE__SHIFT                                                                0x17
 #define CB_HW_MEM_ARBITER_WR__SCALE_WEIGHT__SHIFT                                                             0x1a
 #define CB_HW_MEM_ARBITER_WR__SEND_LASTS_WITHIN_GROUPS__SHIFT                                                 0x1d
 #define CB_HW_MEM_ARBITER_WR__MODE_MASK                                                                       0x00000003L
-#define CB_HW_MEM_ARBITER_WR__IGNORE_URGENT_AGE_MASK                                                          0x0000003CL
+#define CB_HW_MEM_ARBITER_WR__IGANALRE_URGENT_AGE_MASK                                                          0x0000003CL
 #define CB_HW_MEM_ARBITER_WR__BREAK_GROUP_AGE_MASK                                                            0x000003C0L
 #define CB_HW_MEM_ARBITER_WR__WEIGHT_CC_MASK                                                                  0x00000C00L
 #define CB_HW_MEM_ARBITER_WR__WEIGHT_FC_MASK                                                                  0x00003000L
 #define CB_HW_MEM_ARBITER_WR__WEIGHT_CM_MASK                                                                  0x0000C000L
 #define CB_HW_MEM_ARBITER_WR__WEIGHT_DC_MASK                                                                  0x00030000L
 #define CB_HW_MEM_ARBITER_WR__WEIGHT_DECAY_REQS_MASK                                                          0x000C0000L
-#define CB_HW_MEM_ARBITER_WR__WEIGHT_DECAY_NOREQS_MASK                                                        0x00300000L
-#define CB_HW_MEM_ARBITER_WR__WEIGHT_IGNORE_BYTE_MASK_MASK                                                    0x00400000L
+#define CB_HW_MEM_ARBITER_WR__WEIGHT_DECAY_ANALREQS_MASK                                                        0x00300000L
+#define CB_HW_MEM_ARBITER_WR__WEIGHT_IGANALRE_BYTE_MASK_MASK                                                    0x00400000L
 #define CB_HW_MEM_ARBITER_WR__SCALE_AGE_MASK                                                                  0x03800000L
 #define CB_HW_MEM_ARBITER_WR__SCALE_WEIGHT_MASK                                                               0x1C000000L
 #define CB_HW_MEM_ARBITER_WR__SEND_LASTS_WITHIN_GROUPS_MASK                                                   0x20000000L
@@ -7674,8 +7674,8 @@
 #define GCEA_LATENCY_SAMPLING__SAMPLER1_WRITE__SHIFT                                                          0x9
 #define GCEA_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET__SHIFT                                                     0xa
 #define GCEA_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET__SHIFT                                                     0xb
-#define GCEA_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET__SHIFT                                                   0xc
-#define GCEA_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET__SHIFT                                                   0xd
+#define GCEA_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET__SHIFT                                                   0xc
+#define GCEA_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET__SHIFT                                                   0xd
 #define GCEA_LATENCY_SAMPLING__SAMPLER0_VC__SHIFT                                                             0xe
 #define GCEA_LATENCY_SAMPLING__SAMPLER1_VC__SHIFT                                                             0x16
 #define GCEA_LATENCY_SAMPLING__SAMPLER0_DRAM_MASK                                                             0x00000001L
@@ -7690,8 +7690,8 @@
 #define GCEA_LATENCY_SAMPLING__SAMPLER1_WRITE_MASK                                                            0x00000200L
 #define GCEA_LATENCY_SAMPLING__SAMPLER0_ATOMIC_RET_MASK                                                       0x00000400L
 #define GCEA_LATENCY_SAMPLING__SAMPLER1_ATOMIC_RET_MASK                                                       0x00000800L
-#define GCEA_LATENCY_SAMPLING__SAMPLER0_ATOMIC_NORET_MASK                                                     0x00001000L
-#define GCEA_LATENCY_SAMPLING__SAMPLER1_ATOMIC_NORET_MASK                                                     0x00002000L
+#define GCEA_LATENCY_SAMPLING__SAMPLER0_ATOMIC_ANALRET_MASK                                                     0x00001000L
+#define GCEA_LATENCY_SAMPLING__SAMPLER1_ATOMIC_ANALRET_MASK                                                     0x00002000L
 #define GCEA_LATENCY_SAMPLING__SAMPLER0_VC_MASK                                                               0x003FC000L
 #define GCEA_LATENCY_SAMPLING__SAMPLER1_VC_MASK                                                               0x3FC00000L
 //GCEA_PERFCOUNTER_LO
@@ -7774,14 +7774,14 @@
 //GCEA_MAM_CTRL2
 #define GCEA_MAM_CTRL2__ALOG_MODE2_INTR_THRESHOLD__SHIFT                                                      0x0
 #define GCEA_MAM_CTRL2__ALOG_SPACE_EN__SHIFT                                                                  0x2
-#define GCEA_MAM_CTRL2__ARAM_FLUSH_SNOOP_EN__SHIFT                                                            0x5
-#define GCEA_MAM_CTRL2__ARAM_FLUSH_NOALLOC__SHIFT                                                             0x6
+#define GCEA_MAM_CTRL2__ARAM_FLUSH_SANALOP_EN__SHIFT                                                            0x5
+#define GCEA_MAM_CTRL2__ARAM_FLUSH_ANALALLOC__SHIFT                                                             0x6
 #define GCEA_MAM_CTRL2__RESERVED_FIELD__SHIFT                                                                 0x7
 #define GCEA_MAM_CTRL2__ADDR_HI__SHIFT                                                                        0x18
 #define GCEA_MAM_CTRL2__ALOG_MODE2_INTR_THRESHOLD_MASK                                                        0x00000003L
 #define GCEA_MAM_CTRL2__ALOG_SPACE_EN_MASK                                                                    0x0000001CL
-#define GCEA_MAM_CTRL2__ARAM_FLUSH_SNOOP_EN_MASK                                                              0x00000020L
-#define GCEA_MAM_CTRL2__ARAM_FLUSH_NOALLOC_MASK                                                               0x00000040L
+#define GCEA_MAM_CTRL2__ARAM_FLUSH_SANALOP_EN_MASK                                                              0x00000020L
+#define GCEA_MAM_CTRL2__ARAM_FLUSH_ANALALLOC_MASK                                                               0x00000040L
 #define GCEA_MAM_CTRL2__RESERVED_FIELD_MASK                                                                   0x00FFFF80L
 #define GCEA_MAM_CTRL2__ADDR_HI_MASK                                                                          0xFF000000L
 //GCEA_UE_ERR_STATUS_LO
@@ -8082,9 +8082,9 @@
 #define GCEA_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                            0xb
 #define GCEA_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                                 0xc
 #define GCEA_ERR_STATUS__FUE_FLAG__SHIFT                                                                      0xd
-#define GCEA_ERR_STATUS__IGNORE_RDRSP_FED__SHIFT                                                              0xe
+#define GCEA_ERR_STATUS__IGANALRE_RDRSP_FED__SHIFT                                                              0xe
 #define GCEA_ERR_STATUS__INTERRUPT_ON_FATAL__SHIFT                                                            0xf
-#define GCEA_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL__SHIFT                                                    0x10
+#define GCEA_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL__SHIFT                                                    0x10
 #define GCEA_ERR_STATUS__LEVEL_INTERRUPT__SHIFT                                                               0x11
 #define GCEA_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR__SHIFT                                                      0x12
 #define GCEA_ERR_STATUS__FUE_FLAG_CLIENT__SHIFT                                                               0x13
@@ -8095,9 +8095,9 @@
 #define GCEA_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                              0x00000800L
 #define GCEA_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                   0x00001000L
 #define GCEA_ERR_STATUS__FUE_FLAG_MASK                                                                        0x00002000L
-#define GCEA_ERR_STATUS__IGNORE_RDRSP_FED_MASK                                                                0x00004000L
+#define GCEA_ERR_STATUS__IGANALRE_RDRSP_FED_MASK                                                                0x00004000L
 #define GCEA_ERR_STATUS__INTERRUPT_ON_FATAL_MASK                                                              0x00008000L
-#define GCEA_ERR_STATUS__INTERRUPT_IGNORE_CLI_FATAL_MASK                                                      0x00010000L
+#define GCEA_ERR_STATUS__INTERRUPT_IGANALRE_CLI_FATAL_MASK                                                      0x00010000L
 #define GCEA_ERR_STATUS__LEVEL_INTERRUPT_MASK                                                                 0x00020000L
 #define GCEA_ERR_STATUS__BUSY_ON_CMPL_FATAL_ERROR_MASK                                                        0x00040000L
 #define GCEA_ERR_STATUS__FUE_FLAG_CLIENT_MASK                                                                 0x00080000L
@@ -8450,7 +8450,7 @@
 #define RMI_UTCL1_CNTL2__DIS_EDC__SHIFT                                                                       0xb
 #define RMI_UTCL1_CNTL2__GPUVM_INV_MODE__SHIFT                                                                0xc
 #define RMI_UTCL1_CNTL2__SHOOTDOWN_OPT__SHIFT                                                                 0xd
-#define RMI_UTCL1_CNTL2__FORCE_SNOOP__SHIFT                                                                   0xe
+#define RMI_UTCL1_CNTL2__FORCE_SANALOP__SHIFT                                                                   0xe
 #define RMI_UTCL1_CNTL2__FORCE_GPUVM_INV_ACK__SHIFT                                                           0xf
 #define RMI_UTCL1_CNTL2__UTCL1_ARB_BURST_MODE__SHIFT                                                          0x10
 #define RMI_UTCL1_CNTL2__UTCL1_ENABLE_PERF_EVENT_RD_WR__SHIFT                                                 0x12
@@ -8465,7 +8465,7 @@
 #define RMI_UTCL1_CNTL2__DIS_EDC_MASK                                                                         0x00000800L
 #define RMI_UTCL1_CNTL2__GPUVM_INV_MODE_MASK                                                                  0x00001000L
 #define RMI_UTCL1_CNTL2__SHOOTDOWN_OPT_MASK                                                                   0x00002000L
-#define RMI_UTCL1_CNTL2__FORCE_SNOOP_MASK                                                                     0x00004000L
+#define RMI_UTCL1_CNTL2__FORCE_SANALOP_MASK                                                                     0x00004000L
 #define RMI_UTCL1_CNTL2__FORCE_GPUVM_INV_ACK_MASK                                                             0x00008000L
 #define RMI_UTCL1_CNTL2__UTCL1_ARB_BURST_MODE_MASK                                                            0x00030000L
 #define RMI_UTCL1_CNTL2__UTCL1_ENABLE_PERF_EVENT_RD_WR_MASK                                                   0x00040000L
@@ -8793,9 +8793,9 @@
 #define ATC_L2_CNTL3__REPEATER_FGCG_OFF_MASK                                                                  0x40000000L
 //ATC_L2_STATUS
 #define ATC_L2_STATUS__BUSY__SHIFT                                                                            0x0
-#define ATC_L2_STATUS__NO_OUTSTANDING_AT_REQUESTS__SHIFT                                                      0x1
+#define ATC_L2_STATUS__ANAL_OUTSTANDING_AT_REQUESTS__SHIFT                                                      0x1
 #define ATC_L2_STATUS__BUSY_MASK                                                                              0x00000001L
-#define ATC_L2_STATUS__NO_OUTSTANDING_AT_REQUESTS_MASK                                                        0x00000002L
+#define ATC_L2_STATUS__ANAL_OUTSTANDING_AT_REQUESTS_MASK                                                        0x00000002L
 //ATC_L2_STATUS2
 #define ATC_L2_STATUS2__UCE_MEM_ADDR__SHIFT                                                                   0x0
 #define ATC_L2_STATUS2__UCE_MEM_INST__SHIFT                                                                   0xc
@@ -8895,9 +8895,9 @@
 #define ATC_L2_CACHE_2M_DSM_CNTL__DED_COUNT_MASK                                                              0x00018000L
 #define ATC_L2_CACHE_2M_DSM_CNTL__TEST_FUE_MASK                                                               0x00020000L
 //ATC_L2_CNTL4
-#define ATC_L2_CNTL4__MM_NONRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                          0x0
+#define ATC_L2_CNTL4__MM_ANALNRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                          0x0
 #define ATC_L2_CNTL4__MM_SOFTRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                         0xa
-#define ATC_L2_CNTL4__MM_NONRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                            0x000003FFL
+#define ATC_L2_CNTL4__MM_ANALNRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                            0x000003FFL
 #define ATC_L2_CNTL4__MM_SOFTRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                           0x000FFC00L
 //ATC_L2_MM_GROUP_RT_CLASSES
 #define ATC_L2_MM_GROUP_RT_CLASSES__GROUP_RT_CLASS__SHIFT                                                     0x0
@@ -9062,9 +9062,9 @@
 #define VM_L2_PROTECTION_FAULT_CNTL__READ_PROTECTION_FAULT_ENABLE_DEFAULT__SHIFT                              0xa
 #define VM_L2_PROTECTION_FAULT_CNTL__WRITE_PROTECTION_FAULT_ENABLE_DEFAULT__SHIFT                             0xb
 #define VM_L2_PROTECTION_FAULT_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT__SHIFT                           0xc
-#define VM_L2_PROTECTION_FAULT_CNTL__CLIENT_ID_NO_RETRY_FAULT_INTERRUPT__SHIFT                                0xd
-#define VM_L2_PROTECTION_FAULT_CNTL__OTHER_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT__SHIFT                          0x1d
-#define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_NO_RETRY_FAULT__SHIFT                                           0x1e
+#define VM_L2_PROTECTION_FAULT_CNTL__CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT__SHIFT                                0xd
+#define VM_L2_PROTECTION_FAULT_CNTL__OTHER_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT__SHIFT                          0x1d
+#define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_ANAL_RETRY_FAULT__SHIFT                                           0x1e
 #define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_RETRY_FAULT__SHIFT                                              0x1f
 #define VM_L2_PROTECTION_FAULT_CNTL__CLEAR_PROTECTION_FAULT_STATUS_ADDR_MASK                                  0x00000001L
 #define VM_L2_PROTECTION_FAULT_CNTL__ALLOW_SUBSEQUENT_PROTECTION_FAULT_STATUS_ADDR_UPDATES_MASK               0x00000002L
@@ -9079,9 +9079,9 @@
 #define VM_L2_PROTECTION_FAULT_CNTL__READ_PROTECTION_FAULT_ENABLE_DEFAULT_MASK                                0x00000400L
 #define VM_L2_PROTECTION_FAULT_CNTL__WRITE_PROTECTION_FAULT_ENABLE_DEFAULT_MASK                               0x00000800L
 #define VM_L2_PROTECTION_FAULT_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT_MASK                             0x00001000L
-#define VM_L2_PROTECTION_FAULT_CNTL__CLIENT_ID_NO_RETRY_FAULT_INTERRUPT_MASK                                  0x1FFFE000L
-#define VM_L2_PROTECTION_FAULT_CNTL__OTHER_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT_MASK                            0x20000000L
-#define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_NO_RETRY_FAULT_MASK                                             0x40000000L
+#define VM_L2_PROTECTION_FAULT_CNTL__CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT_MASK                                  0x1FFFE000L
+#define VM_L2_PROTECTION_FAULT_CNTL__OTHER_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT_MASK                            0x20000000L
+#define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_ANAL_RETRY_FAULT_MASK                                             0x40000000L
 #define VM_L2_PROTECTION_FAULT_CNTL__CRASH_ON_RETRY_FAULT_MASK                                                0x80000000L
 //VM_L2_PROTECTION_FAULT_CNTL2
 #define VM_L2_PROTECTION_FAULT_CNTL2__CLIENT_ID_PRT_FAULT_INTERRUPT__SHIFT                                    0x0
@@ -9095,11 +9095,11 @@
 #define VM_L2_PROTECTION_FAULT_CNTL2__ACTIVE_PAGE_MIGRATION_PTE_READ_RETRY_MASK                               0x00040000L
 #define VM_L2_PROTECTION_FAULT_CNTL2__ENABLE_RETRY_FAULT_INTERRUPT_MASK                                       0x00080000L
 //VM_L2_PROTECTION_FAULT_MM_CNTL3
-#define VM_L2_PROTECTION_FAULT_MM_CNTL3__VML1_READ_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT__SHIFT                  0x0
-#define VM_L2_PROTECTION_FAULT_MM_CNTL3__VML1_READ_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT_MASK                    0xFFFFFFFFL
+#define VM_L2_PROTECTION_FAULT_MM_CNTL3__VML1_READ_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT__SHIFT                  0x0
+#define VM_L2_PROTECTION_FAULT_MM_CNTL3__VML1_READ_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT_MASK                    0xFFFFFFFFL
 //VM_L2_PROTECTION_FAULT_MM_CNTL4
-#define VM_L2_PROTECTION_FAULT_MM_CNTL4__VML1_WRITE_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT__SHIFT                 0x0
-#define VM_L2_PROTECTION_FAULT_MM_CNTL4__VML1_WRITE_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT_MASK                   0xFFFFFFFFL
+#define VM_L2_PROTECTION_FAULT_MM_CNTL4__VML1_WRITE_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT__SHIFT                 0x0
+#define VM_L2_PROTECTION_FAULT_MM_CNTL4__VML1_WRITE_CLIENT_ID_ANAL_RETRY_FAULT_INTERRUPT_MASK                   0xFFFFFFFFL
 //VM_L2_PROTECTION_FAULT_STATUS
 #define VM_L2_PROTECTION_FAULT_STATUS__MORE_FAULTS__SHIFT                                                     0x0
 #define VM_L2_PROTECTION_FAULT_STATUS__WALKER_ERROR__SHIFT                                                    0x1
@@ -9159,7 +9159,7 @@
 #define VM_L2_CNTL4__L2_CACHE_4K_PARTITION_COUNT__SHIFT                                                       0x0
 #define VM_L2_CNTL4__VMC_TAP_PDE_REQUEST_PHYSICAL__SHIFT                                                      0x6
 #define VM_L2_CNTL4__VMC_TAP_PTE_REQUEST_PHYSICAL__SHIFT                                                      0x7
-#define VM_L2_CNTL4__MM_NONRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                           0x8
+#define VM_L2_CNTL4__MM_ANALNRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                           0x8
 #define VM_L2_CNTL4__MM_SOFTRT_IFIFO_ACTIVE_TRANSACTION_LIMIT__SHIFT                                          0x12
 #define VM_L2_CNTL4__BPM_CGCGLS_OVERRIDE__SHIFT                                                               0x1c
 #define VM_L2_CNTL4__GC_CH_FGCG_OFF__SHIFT                                                                    0x1d
@@ -9167,16 +9167,16 @@
 #define VM_L2_CNTL4__L2_CACHE_4K_PARTITION_COUNT_MASK                                                         0x0000003FL
 #define VM_L2_CNTL4__VMC_TAP_PDE_REQUEST_PHYSICAL_MASK                                                        0x00000040L
 #define VM_L2_CNTL4__VMC_TAP_PTE_REQUEST_PHYSICAL_MASK                                                        0x00000080L
-#define VM_L2_CNTL4__MM_NONRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                             0x0003FF00L
+#define VM_L2_CNTL4__MM_ANALNRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                             0x0003FF00L
 #define VM_L2_CNTL4__MM_SOFTRT_IFIFO_ACTIVE_TRANSACTION_LIMIT_MASK                                            0x0FFC0000L
 #define VM_L2_CNTL4__BPM_CGCGLS_OVERRIDE_MASK                                                                 0x10000000L
 #define VM_L2_CNTL4__GC_CH_FGCG_OFF_MASK                                                                      0x20000000L
 #define VM_L2_CNTL4__VFIFO_HEAD_OF_QUEUE_MASK                                                                 0x40000000L
 //VM_L2_CNTL5
 #define VM_L2_CNTL5__WALKER_FETCH_PDE_MTYPE_ENABLE__SHIFT                                                     0x0
-#define VM_L2_CNTL5__WALKER_FETCH_PDE_NOALLOC_ENABLE__SHIFT                                                   0x1
+#define VM_L2_CNTL5__WALKER_FETCH_PDE_ANALALLOC_ENABLE__SHIFT                                                   0x1
 #define VM_L2_CNTL5__WALKER_FETCH_PDE_MTYPE_ENABLE_MASK                                                       0x00000001L
-#define VM_L2_CNTL5__WALKER_FETCH_PDE_NOALLOC_ENABLE_MASK                                                     0x00000002L
+#define VM_L2_CNTL5__WALKER_FETCH_PDE_ANALALLOC_ENABLE_MASK                                                     0x00000002L
 //VM_L2_MM_GROUP_RT_CLASSES
 #define VM_L2_MM_GROUP_RT_CLASSES__GROUP_0_RT_CLASS__SHIFT                                                    0x0
 #define VM_L2_MM_GROUP_RT_CLASSES__GROUP_1_RT_CLASS__SHIFT                                                    0x1
@@ -11363,27 +11363,27 @@
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ADDR__SHIFT                                            0x0
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__PERMS__SHIFT                                           0x4
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__FRAGMENT_SIZE__SHIFT                                   0x7
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SNOOP__SHIFT                                           0xd
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SANALOP__SHIFT                                           0xd
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SPA__SHIFT                                             0xe
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__IO__SHIFT                                              0xf
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__PTE_TMZ__SHIFT                                         0x10
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__NO_PTE__SHIFT                                          0x11
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ANAL_PTE__SHIFT                                          0x11
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__MTYPE__SHIFT                                           0x12
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__MEMLOG__SHIFT                                          0x14
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__LLC_NOALLOC__SHIFT                                     0x15
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__LLC_ANALALLOC__SHIFT                                     0x15
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__NACK__SHIFT                                            0x16
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ACK__SHIFT                                             0x1f
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ADDR_MASK                                              0x0000000FL
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__PERMS_MASK                                             0x00000070L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__FRAGMENT_SIZE_MASK                                     0x00001F80L
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SNOOP_MASK                                             0x00002000L
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SANALOP_MASK                                             0x00002000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__SPA_MASK                                               0x00004000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__IO_MASK                                                0x00008000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__PTE_TMZ_MASK                                           0x00010000L
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__NO_PTE_MASK                                            0x00020000L
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ANAL_PTE_MASK                                            0x00020000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__MTYPE_MASK                                             0x000C0000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__MEMLOG_MASK                                            0x00100000L
-#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__LLC_NOALLOC_MASK                                       0x00200000L
+#define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__LLC_ANALALLOC_MASK                                       0x00200000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__NACK_MASK                                              0x00C00000L
 #define UTC_GPUVA_VMID_TRANSLATION_ASSIST_RESPONSE_HI__ACK_MASK                                               0x80000000L
 
@@ -13462,9 +13462,9 @@
 //COMPUTE_DISPATCH_END
 #define COMPUTE_DISPATCH_END__DATA__SHIFT                                                                     0x0
 #define COMPUTE_DISPATCH_END__DATA_MASK                                                                       0xFFFFFFFFL
-//COMPUTE_NOWHERE
-#define COMPUTE_NOWHERE__DATA__SHIFT                                                                          0x0
-#define COMPUTE_NOWHERE__DATA_MASK                                                                            0xFFFFFFFFL
+//COMPUTE_ANALWHERE
+#define COMPUTE_ANALWHERE__DATA__SHIFT                                                                          0x0
+#define COMPUTE_ANALWHERE__DATA_MASK                                                                            0xFFFFFFFFL
 
 
 // addressBlock: xcd0_gc_cppdec
@@ -13640,51 +13640,51 @@
 #define CPG_UTCL1_CNTL__DROP_MODE__SHIFT                                                                      0x18
 #define CPG_UTCL1_CNTL__INVALIDATE__SHIFT                                                                     0x1a
 #define CPG_UTCL1_CNTL__FRAG_LIMIT_MODE__SHIFT                                                                0x1b
-#define CPG_UTCL1_CNTL__FORCE_SNOOP__SHIFT                                                                    0x1c
-#define CPG_UTCL1_CNTL__IGNORE_PTE_PERMISSION__SHIFT                                                          0x1d
-#define CPG_UTCL1_CNTL__MTYPE_NO_PTE_MODE__SHIFT                                                              0x1e
+#define CPG_UTCL1_CNTL__FORCE_SANALOP__SHIFT                                                                    0x1c
+#define CPG_UTCL1_CNTL__IGANALRE_PTE_PERMISSION__SHIFT                                                          0x1d
+#define CPG_UTCL1_CNTL__MTYPE_ANAL_PTE_MODE__SHIFT                                                              0x1e
 #define CPG_UTCL1_CNTL__XNACK_REDO_TIMER_CNT_MASK                                                             0x000FFFFFL
 #define CPG_UTCL1_CNTL__VMID_RESET_MODE_MASK                                                                  0x00800000L
 #define CPG_UTCL1_CNTL__DROP_MODE_MASK                                                                        0x01000000L
 #define CPG_UTCL1_CNTL__INVALIDATE_MASK                                                                       0x04000000L
 #define CPG_UTCL1_CNTL__FRAG_LIMIT_MODE_MASK                                                                  0x08000000L
-#define CPG_UTCL1_CNTL__FORCE_SNOOP_MASK                                                                      0x10000000L
-#define CPG_UTCL1_CNTL__IGNORE_PTE_PERMISSION_MASK                                                            0x20000000L
-#define CPG_UTCL1_CNTL__MTYPE_NO_PTE_MODE_MASK                                                                0x40000000L
+#define CPG_UTCL1_CNTL__FORCE_SANALOP_MASK                                                                      0x10000000L
+#define CPG_UTCL1_CNTL__IGANALRE_PTE_PERMISSION_MASK                                                            0x20000000L
+#define CPG_UTCL1_CNTL__MTYPE_ANAL_PTE_MODE_MASK                                                                0x40000000L
 //CPC_UTCL1_CNTL
 #define CPC_UTCL1_CNTL__XNACK_REDO_TIMER_CNT__SHIFT                                                           0x0
 #define CPC_UTCL1_CNTL__DROP_MODE__SHIFT                                                                      0x18
 #define CPC_UTCL1_CNTL__INVALIDATE__SHIFT                                                                     0x1a
 #define CPC_UTCL1_CNTL__FRAG_LIMIT_MODE__SHIFT                                                                0x1b
-#define CPC_UTCL1_CNTL__FORCE_SNOOP__SHIFT                                                                    0x1c
-#define CPC_UTCL1_CNTL__IGNORE_PTE_PERMISSION__SHIFT                                                          0x1d
-#define CPC_UTCL1_CNTL__MTYPE_NO_PTE_MODE__SHIFT                                                              0x1e
+#define CPC_UTCL1_CNTL__FORCE_SANALOP__SHIFT                                                                    0x1c
+#define CPC_UTCL1_CNTL__IGANALRE_PTE_PERMISSION__SHIFT                                                          0x1d
+#define CPC_UTCL1_CNTL__MTYPE_ANAL_PTE_MODE__SHIFT                                                              0x1e
 #define CPC_UTCL1_CNTL__XNACK_REDO_TIMER_CNT_MASK                                                             0x000FFFFFL
 #define CPC_UTCL1_CNTL__DROP_MODE_MASK                                                                        0x01000000L
 #define CPC_UTCL1_CNTL__INVALIDATE_MASK                                                                       0x04000000L
 #define CPC_UTCL1_CNTL__FRAG_LIMIT_MODE_MASK                                                                  0x08000000L
-#define CPC_UTCL1_CNTL__FORCE_SNOOP_MASK                                                                      0x10000000L
-#define CPC_UTCL1_CNTL__IGNORE_PTE_PERMISSION_MASK                                                            0x20000000L
-#define CPC_UTCL1_CNTL__MTYPE_NO_PTE_MODE_MASK                                                                0x40000000L
+#define CPC_UTCL1_CNTL__FORCE_SANALOP_MASK                                                                      0x10000000L
+#define CPC_UTCL1_CNTL__IGANALRE_PTE_PERMISSION_MASK                                                            0x20000000L
+#define CPC_UTCL1_CNTL__MTYPE_ANAL_PTE_MODE_MASK                                                                0x40000000L
 //CPF_UTCL1_CNTL
 #define CPF_UTCL1_CNTL__XNACK_REDO_TIMER_CNT__SHIFT                                                           0x0
 #define CPF_UTCL1_CNTL__VMID_RESET_MODE__SHIFT                                                                0x17
 #define CPF_UTCL1_CNTL__DROP_MODE__SHIFT                                                                      0x18
 #define CPF_UTCL1_CNTL__INVALIDATE__SHIFT                                                                     0x1a
 #define CPF_UTCL1_CNTL__FRAG_LIMIT_MODE__SHIFT                                                                0x1b
-#define CPF_UTCL1_CNTL__FORCE_SNOOP__SHIFT                                                                    0x1c
-#define CPF_UTCL1_CNTL__IGNORE_PTE_PERMISSION__SHIFT                                                          0x1d
-#define CPF_UTCL1_CNTL__MTYPE_NO_PTE_MODE__SHIFT                                                              0x1e
-#define CPF_UTCL1_CNTL__FORCE_NO_EXE__SHIFT                                                                   0x1f
+#define CPF_UTCL1_CNTL__FORCE_SANALOP__SHIFT                                                                    0x1c
+#define CPF_UTCL1_CNTL__IGANALRE_PTE_PERMISSION__SHIFT                                                          0x1d
+#define CPF_UTCL1_CNTL__MTYPE_ANAL_PTE_MODE__SHIFT                                                              0x1e
+#define CPF_UTCL1_CNTL__FORCE_ANAL_EXE__SHIFT                                                                   0x1f
 #define CPF_UTCL1_CNTL__XNACK_REDO_TIMER_CNT_MASK                                                             0x000FFFFFL
 #define CPF_UTCL1_CNTL__VMID_RESET_MODE_MASK                                                                  0x00800000L
 #define CPF_UTCL1_CNTL__DROP_MODE_MASK                                                                        0x01000000L
 #define CPF_UTCL1_CNTL__INVALIDATE_MASK                                                                       0x04000000L
 #define CPF_UTCL1_CNTL__FRAG_LIMIT_MODE_MASK                                                                  0x08000000L
-#define CPF_UTCL1_CNTL__FORCE_SNOOP_MASK                                                                      0x10000000L
-#define CPF_UTCL1_CNTL__IGNORE_PTE_PERMISSION_MASK                                                            0x20000000L
-#define CPF_UTCL1_CNTL__MTYPE_NO_PTE_MODE_MASK                                                                0x40000000L
-#define CPF_UTCL1_CNTL__FORCE_NO_EXE_MASK                                                                     0x80000000L
+#define CPF_UTCL1_CNTL__FORCE_SANALOP_MASK                                                                      0x10000000L
+#define CPF_UTCL1_CNTL__IGANALRE_PTE_PERMISSION_MASK                                                            0x20000000L
+#define CPF_UTCL1_CNTL__MTYPE_ANAL_PTE_MODE_MASK                                                                0x40000000L
+#define CPF_UTCL1_CNTL__FORCE_ANAL_EXE_MASK                                                                     0x80000000L
 //CP_AQL_SMM_STATUS
 #define CP_AQL_SMM_STATUS__AQL_QUEUE_SMM__SHIFT                                                               0x0
 #define CP_AQL_SMM_STATUS__AQL_QUEUE_SMM_MASK                                                                 0xFFFFFFFFL
@@ -13701,7 +13701,7 @@
 #define CP_RB0_CNTL__MIN_AVAILSZ__SHIFT                                                                       0x14
 #define CP_RB0_CNTL__MIN_IB_AVAILSZ__SHIFT                                                                    0x16
 #define CP_RB0_CNTL__CACHE_POLICY__SHIFT                                                                      0x18
-#define CP_RB0_CNTL__RB_NO_UPDATE__SHIFT                                                                      0x1b
+#define CP_RB0_CNTL__RB_ANAL_UPDATE__SHIFT                                                                      0x1b
 #define CP_RB0_CNTL__RB_RPTR_WR_ENA__SHIFT                                                                    0x1f
 #define CP_RB0_CNTL__RB_BUFSZ_MASK                                                                            0x0000003FL
 #define CP_RB0_CNTL__RB_BLKSZ_MASK                                                                            0x00003F00L
@@ -13709,7 +13709,7 @@
 #define CP_RB0_CNTL__MIN_AVAILSZ_MASK                                                                         0x00300000L
 #define CP_RB0_CNTL__MIN_IB_AVAILSZ_MASK                                                                      0x00C00000L
 #define CP_RB0_CNTL__CACHE_POLICY_MASK                                                                        0x01000000L
-#define CP_RB0_CNTL__RB_NO_UPDATE_MASK                                                                        0x08000000L
+#define CP_RB0_CNTL__RB_ANAL_UPDATE_MASK                                                                        0x08000000L
 #define CP_RB0_CNTL__RB_RPTR_WR_ENA_MASK                                                                      0x80000000L
 //CP_RB_CNTL
 #define CP_RB_CNTL__RB_BUFSZ__SHIFT                                                                           0x0
@@ -13717,14 +13717,14 @@
 #define CP_RB_CNTL__MIN_AVAILSZ__SHIFT                                                                        0x14
 #define CP_RB_CNTL__MIN_IB_AVAILSZ__SHIFT                                                                     0x16
 #define CP_RB_CNTL__CACHE_POLICY__SHIFT                                                                       0x18
-#define CP_RB_CNTL__RB_NO_UPDATE__SHIFT                                                                       0x1b
+#define CP_RB_CNTL__RB_ANAL_UPDATE__SHIFT                                                                       0x1b
 #define CP_RB_CNTL__RB_RPTR_WR_ENA__SHIFT                                                                     0x1f
 #define CP_RB_CNTL__RB_BUFSZ_MASK                                                                             0x0000003FL
 #define CP_RB_CNTL__RB_BLKSZ_MASK                                                                             0x00003F00L
 #define CP_RB_CNTL__MIN_AVAILSZ_MASK                                                                          0x00300000L
 #define CP_RB_CNTL__MIN_IB_AVAILSZ_MASK                                                                       0x00C00000L
 #define CP_RB_CNTL__CACHE_POLICY_MASK                                                                         0x01000000L
-#define CP_RB_CNTL__RB_NO_UPDATE_MASK                                                                         0x08000000L
+#define CP_RB_CNTL__RB_ANAL_UPDATE_MASK                                                                         0x08000000L
 #define CP_RB_CNTL__RB_RPTR_WR_ENA_MASK                                                                       0x80000000L
 //CP_RB_RPTR_WR
 #define CP_RB_RPTR_WR__RB_RPTR_WR__SHIFT                                                                      0x0
@@ -13942,14 +13942,14 @@
 #define CP_RB1_CNTL__MIN_AVAILSZ__SHIFT                                                                       0x14
 #define CP_RB1_CNTL__MIN_IB_AVAILSZ__SHIFT                                                                    0x16
 #define CP_RB1_CNTL__CACHE_POLICY__SHIFT                                                                      0x18
-#define CP_RB1_CNTL__RB_NO_UPDATE__SHIFT                                                                      0x1b
+#define CP_RB1_CNTL__RB_ANAL_UPDATE__SHIFT                                                                      0x1b
 #define CP_RB1_CNTL__RB_RPTR_WR_ENA__SHIFT                                                                    0x1f
 #define CP_RB1_CNTL__RB_BUFSZ_MASK                                                                            0x0000003FL
 #define CP_RB1_CNTL__RB_BLKSZ_MASK                                                                            0x00003F00L
 #define CP_RB1_CNTL__MIN_AVAILSZ_MASK                                                                         0x00300000L
 #define CP_RB1_CNTL__MIN_IB_AVAILSZ_MASK                                                                      0x00C00000L
 #define CP_RB1_CNTL__CACHE_POLICY_MASK                                                                        0x01000000L
-#define CP_RB1_CNTL__RB_NO_UPDATE_MASK                                                                        0x08000000L
+#define CP_RB1_CNTL__RB_ANAL_UPDATE_MASK                                                                        0x08000000L
 #define CP_RB1_CNTL__RB_RPTR_WR_ENA_MASK                                                                      0x80000000L
 //CP_RB1_RPTR_ADDR
 #define CP_RB1_RPTR_ADDR__RB_RPTR_ADDR__SHIFT                                                                 0x2
@@ -13966,14 +13966,14 @@
 #define CP_RB2_CNTL__MIN_AVAILSZ__SHIFT                                                                       0x14
 #define CP_RB2_CNTL__MIN_IB_AVAILSZ__SHIFT                                                                    0x16
 #define CP_RB2_CNTL__CACHE_POLICY__SHIFT                                                                      0x18
-#define CP_RB2_CNTL__RB_NO_UPDATE__SHIFT                                                                      0x1b
+#define CP_RB2_CNTL__RB_ANAL_UPDATE__SHIFT                                                                      0x1b
 #define CP_RB2_CNTL__RB_RPTR_WR_ENA__SHIFT                                                                    0x1f
 #define CP_RB2_CNTL__RB_BUFSZ_MASK                                                                            0x0000003FL
 #define CP_RB2_CNTL__RB_BLKSZ_MASK                                                                            0x00003F00L
 #define CP_RB2_CNTL__MIN_AVAILSZ_MASK                                                                         0x00300000L
 #define CP_RB2_CNTL__MIN_IB_AVAILSZ_MASK                                                                      0x00C00000L
 #define CP_RB2_CNTL__CACHE_POLICY_MASK                                                                        0x01000000L
-#define CP_RB2_CNTL__RB_NO_UPDATE_MASK                                                                        0x08000000L
+#define CP_RB2_CNTL__RB_ANAL_UPDATE_MASK                                                                        0x08000000L
 #define CP_RB2_CNTL__RB_RPTR_WR_ENA_MASK                                                                      0x80000000L
 //CP_RB2_RPTR_ADDR
 #define CP_RB2_RPTR_ADDR__RB_RPTR_ADDR__SHIFT                                                                 0x2
@@ -16428,8 +16428,8 @@
 #define CP_HQD_PQ_CONTROL__EXE_DISABLE__SHIFT                                                                 0x17
 #define CP_HQD_PQ_CONTROL__CACHE_POLICY__SHIFT                                                                0x18
 #define CP_HQD_PQ_CONTROL__SLOT_BASED_WPTR__SHIFT                                                             0x19
-#define CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR__SHIFT                                                              0x1b
-#define CP_HQD_PQ_CONTROL__UNORD_DISPATCH__SHIFT                                                              0x1c
+#define CP_HQD_PQ_CONTROL__ANAL_UPDATE_RPTR__SHIFT                                                              0x1b
+#define CP_HQD_PQ_CONTROL__UANALRD_DISPATCH__SHIFT                                                              0x1c
 #define CP_HQD_PQ_CONTROL__ROQ_PQ_IB_FLIP__SHIFT                                                              0x1d
 #define CP_HQD_PQ_CONTROL__PRIV_STATE__SHIFT                                                                  0x1e
 #define CP_HQD_PQ_CONTROL__KMD_QUEUE__SHIFT                                                                   0x1f
@@ -16446,8 +16446,8 @@
 #define CP_HQD_PQ_CONTROL__EXE_DISABLE_MASK                                                                   0x00800000L
 #define CP_HQD_PQ_CONTROL__CACHE_POLICY_MASK                                                                  0x01000000L
 #define CP_HQD_PQ_CONTROL__SLOT_BASED_WPTR_MASK                                                               0x06000000L
-#define CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK                                                                0x08000000L
-#define CP_HQD_PQ_CONTROL__UNORD_DISPATCH_MASK                                                                0x10000000L
+#define CP_HQD_PQ_CONTROL__ANAL_UPDATE_RPTR_MASK                                                                0x08000000L
+#define CP_HQD_PQ_CONTROL__UANALRD_DISPATCH_MASK                                                                0x10000000L
 #define CP_HQD_PQ_CONTROL__ROQ_PQ_IB_FLIP_MASK                                                                0x20000000L
 #define CP_HQD_PQ_CONTROL__PRIV_STATE_MASK                                                                    0x40000000L
 #define CP_HQD_PQ_CONTROL__KMD_QUEUE_MASK                                                                     0x80000000L
@@ -16919,7 +16919,7 @@
 #define TCP_UTCL1_CNTL2__MTYPE_OVRD_DIS__SHIFT                                                                0x9
 #define TCP_UTCL1_CNTL2__ANY_LINE_VALID__SHIFT                                                                0xa
 #define TCP_UTCL1_CNTL2__GPUVM_INV_MODE__SHIFT                                                                0xc
-#define TCP_UTCL1_CNTL2__FORCE_SNOOP__SHIFT                                                                   0xe
+#define TCP_UTCL1_CNTL2__FORCE_SANALOP__SHIFT                                                                   0xe
 #define TCP_UTCL1_CNTL2__FORCE_GPUVM_INV_ACK__SHIFT                                                           0xf
 #define TCP_UTCL1_CNTL2__FORCE_FRAG_2M_TO_64K__SHIFT                                                          0x1a
 #define TCP_UTCL1_CNTL2__THRASHING_TIMEOUT_PROTECT_ENABLE__SHIFT                                              0x1b
@@ -16928,7 +16928,7 @@
 #define TCP_UTCL1_CNTL2__MTYPE_OVRD_DIS_MASK                                                                  0x00000200L
 #define TCP_UTCL1_CNTL2__ANY_LINE_VALID_MASK                                                                  0x00000400L
 #define TCP_UTCL1_CNTL2__GPUVM_INV_MODE_MASK                                                                  0x00001000L
-#define TCP_UTCL1_CNTL2__FORCE_SNOOP_MASK                                                                     0x00004000L
+#define TCP_UTCL1_CNTL2__FORCE_SANALOP_MASK                                                                     0x00004000L
 #define TCP_UTCL1_CNTL2__FORCE_GPUVM_INV_ACK_MASK                                                             0x00008000L
 #define TCP_UTCL1_CNTL2__FORCE_FRAG_2M_TO_64K_MASK                                                            0x04000000L
 #define TCP_UTCL1_CNTL2__THRASHING_TIMEOUT_PROTECT_ENABLE_MASK                                                0x08000000L
@@ -17866,14 +17866,14 @@
 #define DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER__SHIFT                                                       0x6
 #define DB_RENDER_OVERRIDE__FAST_Z_DISABLE__SHIFT                                                             0x7
 #define DB_RENDER_OVERRIDE__FAST_STENCIL_DISABLE__SHIFT                                                       0x8
-#define DB_RENDER_OVERRIDE__NOOP_CULL_DISABLE__SHIFT                                                          0x9
+#define DB_RENDER_OVERRIDE__ANALOP_CULL_DISABLE__SHIFT                                                          0x9
 #define DB_RENDER_OVERRIDE__FORCE_COLOR_KILL__SHIFT                                                           0xa
 #define DB_RENDER_OVERRIDE__FORCE_Z_READ__SHIFT                                                               0xb
 #define DB_RENDER_OVERRIDE__FORCE_STENCIL_READ__SHIFT                                                         0xc
 #define DB_RENDER_OVERRIDE__FORCE_FULL_Z_RANGE__SHIFT                                                         0xd
 #define DB_RENDER_OVERRIDE__FORCE_QC_SMASK_CONFLICT__SHIFT                                                    0xf
 #define DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP__SHIFT                                                     0x10
-#define DB_RENDER_OVERRIDE__IGNORE_SC_ZRANGE__SHIFT                                                           0x11
+#define DB_RENDER_OVERRIDE__IGANALRE_SC_ZRANGE__SHIFT                                                           0x11
 #define DB_RENDER_OVERRIDE__DISABLE_FULLY_COVERED__SHIFT                                                      0x12
 #define DB_RENDER_OVERRIDE__FORCE_Z_LIMIT_SUMM__SHIFT                                                         0x13
 #define DB_RENDER_OVERRIDE__MAX_TILES_IN_DTT__SHIFT                                                           0x15
@@ -17889,14 +17889,14 @@
 #define DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK                                                         0x00000040L
 #define DB_RENDER_OVERRIDE__FAST_Z_DISABLE_MASK                                                               0x00000080L
 #define DB_RENDER_OVERRIDE__FAST_STENCIL_DISABLE_MASK                                                         0x00000100L
-#define DB_RENDER_OVERRIDE__NOOP_CULL_DISABLE_MASK                                                            0x00000200L
+#define DB_RENDER_OVERRIDE__ANALOP_CULL_DISABLE_MASK                                                            0x00000200L
 #define DB_RENDER_OVERRIDE__FORCE_COLOR_KILL_MASK                                                             0x00000400L
 #define DB_RENDER_OVERRIDE__FORCE_Z_READ_MASK                                                                 0x00000800L
 #define DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK                                                           0x00001000L
 #define DB_RENDER_OVERRIDE__FORCE_FULL_Z_RANGE_MASK                                                           0x00006000L
 #define DB_RENDER_OVERRIDE__FORCE_QC_SMASK_CONFLICT_MASK                                                      0x00008000L
 #define DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK                                                       0x00010000L
-#define DB_RENDER_OVERRIDE__IGNORE_SC_ZRANGE_MASK                                                             0x00020000L
+#define DB_RENDER_OVERRIDE__IGANALRE_SC_ZRANGE_MASK                                                             0x00020000L
 #define DB_RENDER_OVERRIDE__DISABLE_FULLY_COVERED_MASK                                                        0x00040000L
 #define DB_RENDER_OVERRIDE__FORCE_Z_LIMIT_SUMM_MASK                                                           0x00180000L
 #define DB_RENDER_OVERRIDE__MAX_TILES_IN_DTT_MASK                                                             0x03E00000L
@@ -17913,7 +17913,7 @@
 #define DB_RENDER_OVERRIDE2__DISABLE_SMEM_EXPCLEAR_OPTIMIZATION__SHIFT                                        0x6
 #define DB_RENDER_OVERRIDE2__DISABLE_COLOR_ON_VALIDATION__SHIFT                                               0x7
 #define DB_RENDER_OVERRIDE2__DECOMPRESS_Z_ON_FLUSH__SHIFT                                                     0x8
-#define DB_RENDER_OVERRIDE2__DISABLE_REG_SNOOP__SHIFT                                                         0x9
+#define DB_RENDER_OVERRIDE2__DISABLE_REG_SANALOP__SHIFT                                                         0x9
 #define DB_RENDER_OVERRIDE2__DEPTH_BOUNDS_HIER_DEPTH_DISABLE__SHIFT                                           0xa
 #define DB_RENDER_OVERRIDE2__SEPARATE_HIZS_FUNC_ENABLE__SHIFT                                                 0xb
 #define DB_RENDER_OVERRIDE2__HIZ_ZFUNC__SHIFT                                                                 0xc
@@ -17929,7 +17929,7 @@
 #define DB_RENDER_OVERRIDE2__DISABLE_SMEM_EXPCLEAR_OPTIMIZATION_MASK                                          0x00000040L
 #define DB_RENDER_OVERRIDE2__DISABLE_COLOR_ON_VALIDATION_MASK                                                 0x00000080L
 #define DB_RENDER_OVERRIDE2__DECOMPRESS_Z_ON_FLUSH_MASK                                                       0x00000100L
-#define DB_RENDER_OVERRIDE2__DISABLE_REG_SNOOP_MASK                                                           0x00000200L
+#define DB_RENDER_OVERRIDE2__DISABLE_REG_SANALOP_MASK                                                           0x00000200L
 #define DB_RENDER_OVERRIDE2__DEPTH_BOUNDS_HIER_DEPTH_DISABLE_MASK                                             0x00000400L
 #define DB_RENDER_OVERRIDE2__SEPARATE_HIZS_FUNC_ENABLE_MASK                                                   0x00000800L
 #define DB_RENDER_OVERRIDE2__HIZ_ZFUNC_MASK                                                                   0x00007000L
@@ -20088,18 +20088,18 @@
 #define VGT_DRAW_INITIATOR__SOURCE_SELECT__SHIFT                                                              0x0
 #define VGT_DRAW_INITIATOR__MAJOR_MODE__SHIFT                                                                 0x2
 #define VGT_DRAW_INITIATOR__SPRITE_EN_R6XX__SHIFT                                                             0x4
-#define VGT_DRAW_INITIATOR__NOT_EOP__SHIFT                                                                    0x5
+#define VGT_DRAW_INITIATOR__ANALT_EOP__SHIFT                                                                    0x5
 #define VGT_DRAW_INITIATOR__USE_OPAQUE__SHIFT                                                                 0x6
 #define VGT_DRAW_INITIATOR__UNROLLED_INST__SHIFT                                                              0x7
-#define VGT_DRAW_INITIATOR__GRBM_SKEW_NO_DEC__SHIFT                                                           0x8
+#define VGT_DRAW_INITIATOR__GRBM_SKEW_ANAL_DEC__SHIFT                                                           0x8
 #define VGT_DRAW_INITIATOR__REG_RT_INDEX__SHIFT                                                               0x1d
 #define VGT_DRAW_INITIATOR__SOURCE_SELECT_MASK                                                                0x00000003L
 #define VGT_DRAW_INITIATOR__MAJOR_MODE_MASK                                                                   0x0000000CL
 #define VGT_DRAW_INITIATOR__SPRITE_EN_R6XX_MASK                                                               0x00000010L
-#define VGT_DRAW_INITIATOR__NOT_EOP_MASK                                                                      0x00000020L
+#define VGT_DRAW_INITIATOR__ANALT_EOP_MASK                                                                      0x00000020L
 #define VGT_DRAW_INITIATOR__USE_OPAQUE_MASK                                                                   0x00000040L
 #define VGT_DRAW_INITIATOR__UNROLLED_INST_MASK                                                                0x00000080L
-#define VGT_DRAW_INITIATOR__GRBM_SKEW_NO_DEC_MASK                                                             0x00000100L
+#define VGT_DRAW_INITIATOR__GRBM_SKEW_ANAL_DEC_MASK                                                             0x00000100L
 #define VGT_DRAW_INITIATOR__REG_RT_INDEX_MASK                                                                 0xE0000000L
 //VGT_IMMED_DATA
 #define VGT_IMMED_DATA__DATA__SHIFT                                                                           0x0
@@ -20171,7 +20171,7 @@
 #define DB_SHADER_CONTROL__COVERAGE_TO_MASK_ENABLE__SHIFT                                                     0x7
 #define DB_SHADER_CONTROL__MASK_EXPORT_ENABLE__SHIFT                                                          0x8
 #define DB_SHADER_CONTROL__EXEC_ON_HIER_FAIL__SHIFT                                                           0x9
-#define DB_SHADER_CONTROL__EXEC_ON_NOOP__SHIFT                                                                0xa
+#define DB_SHADER_CONTROL__EXEC_ON_ANALOP__SHIFT                                                                0xa
 #define DB_SHADER_CONTROL__ALPHA_TO_MASK_DISABLE__SHIFT                                                       0xb
 #define DB_SHADER_CONTROL__DEPTH_BEFORE_SHADER__SHIFT                                                         0xc
 #define DB_SHADER_CONTROL__CONSERVATIVE_Z_EXPORT__SHIFT                                                       0xd
@@ -20187,7 +20187,7 @@
 #define DB_SHADER_CONTROL__COVERAGE_TO_MASK_ENABLE_MASK                                                       0x00000080L
 #define DB_SHADER_CONTROL__MASK_EXPORT_ENABLE_MASK                                                            0x00000100L
 #define DB_SHADER_CONTROL__EXEC_ON_HIER_FAIL_MASK                                                             0x00000200L
-#define DB_SHADER_CONTROL__EXEC_ON_NOOP_MASK                                                                  0x00000400L
+#define DB_SHADER_CONTROL__EXEC_ON_ANALOP_MASK                                                                  0x00000400L
 #define DB_SHADER_CONTROL__ALPHA_TO_MASK_DISABLE_MASK                                                         0x00000800L
 #define DB_SHADER_CONTROL__DEPTH_BEFORE_SHADER_MASK                                                           0x00001000L
 #define DB_SHADER_CONTROL__CONSERVATIVE_Z_EXPORT_MASK                                                         0x00006000L
@@ -20361,7 +20361,7 @@
 #define PA_CL_NANINF_CNTL__VS_W_NAN_TO_INF__SHIFT                                                             0xc
 #define PA_CL_NANINF_CNTL__VS_W_INF_RETAIN__SHIFT                                                             0xd
 #define PA_CL_NANINF_CNTL__VS_CLIP_DIST_INF_DISCARD__SHIFT                                                    0xe
-#define PA_CL_NANINF_CNTL__VTE_NO_OUTPUT_NEG_0__SHIFT                                                         0x14
+#define PA_CL_NANINF_CNTL__VTE_ANAL_OUTPUT_NEG_0__SHIFT                                                         0x14
 #define PA_CL_NANINF_CNTL__VTE_XY_INF_DISCARD_MASK                                                            0x00000001L
 #define PA_CL_NANINF_CNTL__VTE_Z_INF_DISCARD_MASK                                                             0x00000002L
 #define PA_CL_NANINF_CNTL__VTE_W_INF_DISCARD_MASK                                                             0x00000004L
@@ -20377,7 +20377,7 @@
 #define PA_CL_NANINF_CNTL__VS_W_NAN_TO_INF_MASK                                                               0x00001000L
 #define PA_CL_NANINF_CNTL__VS_W_INF_RETAIN_MASK                                                               0x00002000L
 #define PA_CL_NANINF_CNTL__VS_CLIP_DIST_INF_DISCARD_MASK                                                      0x00004000L
-#define PA_CL_NANINF_CNTL__VTE_NO_OUTPUT_NEG_0_MASK                                                           0x00100000L
+#define PA_CL_NANINF_CNTL__VTE_ANAL_OUTPUT_NEG_0_MASK                                                           0x00100000L
 //PA_SU_LINE_STIPPLE_CNTL
 #define PA_SU_LINE_STIPPLE_CNTL__LINE_STIPPLE_RESET__SHIFT                                                    0x0
 #define PA_SU_LINE_STIPPLE_CNTL__EXPAND_FULL_LENGTH__SHIFT                                                    0x2
@@ -20638,7 +20638,7 @@
 #define PA_SC_MODE_CNTL_1__SUPERTILE_WALK_ORDER_ENABLE__SHIFT                                                 0x7
 #define PA_SC_MODE_CNTL_1__TILE_WALK_ORDER_ENABLE__SHIFT                                                      0x8
 #define PA_SC_MODE_CNTL_1__TILE_COVER_DISABLE__SHIFT                                                          0x9
-#define PA_SC_MODE_CNTL_1__TILE_COVER_NO_SCISSOR__SHIFT                                                       0xa
+#define PA_SC_MODE_CNTL_1__TILE_COVER_ANAL_SCISSOR__SHIFT                                                       0xa
 #define PA_SC_MODE_CNTL_1__ZMM_LINE_EXTENT__SHIFT                                                             0xb
 #define PA_SC_MODE_CNTL_1__ZMM_LINE_OFFSET__SHIFT                                                             0xc
 #define PA_SC_MODE_CNTL_1__ZMM_RECT_EXTENT__SHIFT                                                             0xd
@@ -20662,7 +20662,7 @@
 #define PA_SC_MODE_CNTL_1__SUPERTILE_WALK_ORDER_ENABLE_MASK                                                   0x00000080L
 #define PA_SC_MODE_CNTL_1__TILE_WALK_ORDER_ENABLE_MASK                                                        0x00000100L
 #define PA_SC_MODE_CNTL_1__TILE_COVER_DISABLE_MASK                                                            0x00000200L
-#define PA_SC_MODE_CNTL_1__TILE_COVER_NO_SCISSOR_MASK                                                         0x00000400L
+#define PA_SC_MODE_CNTL_1__TILE_COVER_ANAL_SCISSOR_MASK                                                         0x00000400L
 #define PA_SC_MODE_CNTL_1__ZMM_LINE_EXTENT_MASK                                                               0x00000800L
 #define PA_SC_MODE_CNTL_1__ZMM_LINE_OFFSET_MASK                                                               0x00001000L
 #define PA_SC_MODE_CNTL_1__ZMM_RECT_EXTENT_MASK                                                               0x00002000L
@@ -20725,14 +20725,14 @@
 #define VGT_DMA_INDEX_TYPE__BUF_TYPE__SHIFT                                                                   0x4
 #define VGT_DMA_INDEX_TYPE__RDREQ_POLICY__SHIFT                                                               0x6
 #define VGT_DMA_INDEX_TYPE__PRIMGEN_EN__SHIFT                                                                 0x8
-#define VGT_DMA_INDEX_TYPE__NOT_EOP__SHIFT                                                                    0x9
+#define VGT_DMA_INDEX_TYPE__ANALT_EOP__SHIFT                                                                    0x9
 #define VGT_DMA_INDEX_TYPE__REQ_PATH__SHIFT                                                                   0xa
 #define VGT_DMA_INDEX_TYPE__INDEX_TYPE_MASK                                                                   0x00000003L
 #define VGT_DMA_INDEX_TYPE__SWAP_MODE_MASK                                                                    0x0000000CL
 #define VGT_DMA_INDEX_TYPE__BUF_TYPE_MASK                                                                     0x00000030L
 #define VGT_DMA_INDEX_TYPE__RDREQ_POLICY_MASK                                                                 0x00000040L
 #define VGT_DMA_INDEX_TYPE__PRIMGEN_EN_MASK                                                                   0x00000100L
-#define VGT_DMA_INDEX_TYPE__NOT_EOP_MASK                                                                      0x00000200L
+#define VGT_DMA_INDEX_TYPE__ANALT_EOP_MASK                                                                      0x00000200L
 #define VGT_DMA_INDEX_TYPE__REQ_PATH_MASK                                                                     0x00000400L
 //WD_ENHANCE
 #define WD_ENHANCE__MISC__SHIFT                                                                               0x0
@@ -21430,9 +21430,9 @@
 #define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__PBB_UNCERTAINTY_REGION_ENABLE__SHIFT                           0xa
 #define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__ZMM_TRI_EXTENT__SHIFT                                          0xb
 #define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__ZMM_TRI_OFFSET__SHIFT                                          0xc
-#define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__OVERRIDE_OVER_RAST_INNER_TO_NORMAL__SHIFT                      0xd
-#define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__OVERRIDE_UNDER_RAST_INNER_TO_NORMAL__SHIFT                     0xe
-#define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__DEGENERATE_OVERRIDE_INNER_TO_NORMAL_DISABLE__SHIFT             0xf
+#define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__OVERRIDE_OVER_RAST_INNER_TO_ANALRMAL__SHIFT                      0xd
+#define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__OVERRIDE_UNDER_RAST_INNER_TO_ANALRMAL__SHIFT                     0xe
+#define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__DEGENERATE_OVERRIDE_INNER_TO_ANALRMAL_DISABLE__SHIFT             0xf
 #define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__UNCERTAINTY_REGION_MODE__SHIFT                                 0x10
 #define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__OUTER_UNCERTAINTY_EDGERULE_OVERRIDE__SHIFT                     0x12
 #define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__INNER_UNCERTAINTY_EDGERULE_OVERRIDE__SHIFT                     0x13
@@ -21448,9 +21448,9 @@
 #define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__PBB_UNCERTAINTY_REGION_ENABLE_MASK                             0x00000400L
 #define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__ZMM_TRI_EXTENT_MASK                                            0x00000800L
 #define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__ZMM_TRI_OFFSET_MASK                                            0x00001000L
-#define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__OVERRIDE_OVER_RAST_INNER_TO_NORMAL_MASK                        0x00002000L
-#define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__OVERRIDE_UNDER_RAST_INNER_TO_NORMAL_MASK                       0x00004000L
-#define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__DEGENERATE_OVERRIDE_INNER_TO_NORMAL_DISABLE_MASK               0x00008000L
+#define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__OVERRIDE_OVER_RAST_INNER_TO_ANALRMAL_MASK                        0x00002000L
+#define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__OVERRIDE_UNDER_RAST_INNER_TO_ANALRMAL_MASK                       0x00004000L
+#define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__DEGENERATE_OVERRIDE_INNER_TO_ANALRMAL_DISABLE_MASK               0x00008000L
 #define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__UNCERTAINTY_REGION_MODE_MASK                                   0x00030000L
 #define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__OUTER_UNCERTAINTY_EDGERULE_OVERRIDE_MASK                       0x00040000L
 #define PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__INNER_UNCERTAINTY_EDGERULE_OVERRIDE_MASK                       0x00080000L
@@ -23063,9 +23063,9 @@
 //CP_CE_COMPLETION_STATUS
 #define CP_CE_COMPLETION_STATUS__STATUS__SHIFT                                                                0x0
 #define CP_CE_COMPLETION_STATUS__STATUS_MASK                                                                  0x00000003L
-//CP_PRED_NOT_VISIBLE
-#define CP_PRED_NOT_VISIBLE__NOT_VISIBLE__SHIFT                                                               0x0
-#define CP_PRED_NOT_VISIBLE__NOT_VISIBLE_MASK                                                                 0x00000001L
+//CP_PRED_ANALT_VISIBLE
+#define CP_PRED_ANALT_VISIBLE__ANALT_VISIBLE__SHIFT                                                               0x0
+#define CP_PRED_ANALT_VISIBLE__ANALT_VISIBLE_MASK                                                                 0x00000001L
 //CP_PFP_METADATA_BASE_ADDR
 #define CP_PFP_METADATA_BASE_ADDR__ADDR_LO__SHIFT                                                             0x0
 #define CP_PFP_METADATA_BASE_ADDR__ADDR_LO_MASK                                                               0xFFFFFFFFL
@@ -23687,13 +23687,13 @@
 #define GDS_OA_ADDRESS__CRAWLER__SHIFT                                                                        0x10
 #define GDS_OA_ADDRESS__CRAWLER_TYPE__SHIFT                                                                   0x14
 #define GDS_OA_ADDRESS__UNUSED__SHIFT                                                                         0x16
-#define GDS_OA_ADDRESS__NO_ALLOC__SHIFT                                                                       0x1e
+#define GDS_OA_ADDRESS__ANAL_ALLOC__SHIFT                                                                       0x1e
 #define GDS_OA_ADDRESS__ENABLE__SHIFT                                                                         0x1f
 #define GDS_OA_ADDRESS__DS_ADDRESS_MASK                                                                       0x0000FFFFL
 #define GDS_OA_ADDRESS__CRAWLER_MASK                                                                          0x000F0000L
 #define GDS_OA_ADDRESS__CRAWLER_TYPE_MASK                                                                     0x00300000L
 #define GDS_OA_ADDRESS__UNUSED_MASK                                                                           0x3FC00000L
-#define GDS_OA_ADDRESS__NO_ALLOC_MASK                                                                         0x40000000L
+#define GDS_OA_ADDRESS__ANAL_ALLOC_MASK                                                                         0x40000000L
 #define GDS_OA_ADDRESS__ENABLE_MASK                                                                           0x80000000L
 //GDS_OA_INCDEC
 #define GDS_OA_INCDEC__VALUE__SHIFT                                                                           0x0
@@ -24914,8 +24914,8 @@
 #define VGT_PERFCOUNTER1_SELECT1__PERF_MODE3_MASK                                                             0x0F000000L
 #define VGT_PERFCOUNTER1_SELECT1__PERF_MODE2_MASK                                                             0xF0000000L
 //VGT_PERFCOUNTER_SEID_MASK
-#define VGT_PERFCOUNTER_SEID_MASK__PERF_SEID_IGNORE_MASK__SHIFT                                               0x0
-#define VGT_PERFCOUNTER_SEID_MASK__PERF_SEID_IGNORE_MASK_MASK                                                 0x000000FFL
+#define VGT_PERFCOUNTER_SEID_MASK__PERF_SEID_IGANALRE_MASK__SHIFT                                               0x0
+#define VGT_PERFCOUNTER_SEID_MASK__PERF_SEID_IGANALRE_MASK_MASK                                                 0x000000FFL
 //PA_SU_PERFCOUNTER0_SELECT
 #define PA_SU_PERFCOUNTER0_SELECT__PERF_SEL__SHIFT                                                            0x0
 #define PA_SU_PERFCOUNTER0_SELECT__PERF_SEL1__SHIFT                                                           0xa
@@ -26410,52 +26410,52 @@
 //RLC_GPM_TIMER_INT_3
 #define RLC_GPM_TIMER_INT_3__TIMER__SHIFT                                                                     0x0
 #define RLC_GPM_TIMER_INT_3__TIMER_MASK                                                                       0xFFFFFFFFL
-//RLC_SERDES_WR_NONCU_MASTER_MASK_1
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__SE_MASTER_MASK_1__SHIFT                                            0x0
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__GC_MASTER_MASK_1__SHIFT                                            0x10
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__GC_GFX_MASTER_MASK_1__SHIFT                                        0x11
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__TC0_1_MASTER_MASK__SHIFT                                           0x12
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__RESERVED_1__SHIFT                                                  0x13
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__SPARE4_MASTER_MASK__SHIFT                                          0x14
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__SPARE5_MASTER_MASK__SHIFT                                          0x15
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__SPARE6_MASTER_MASK__SHIFT                                          0x16
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__SPARE7_MASTER_MASK__SHIFT                                          0x17
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__EA_1_MASTER_MASK__SHIFT                                            0x18
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__RESERVED__SHIFT                                                    0x19
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__SE_MASTER_MASK_1_MASK                                              0x0000FFFFL
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__GC_MASTER_MASK_1_MASK                                              0x00010000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__GC_GFX_MASTER_MASK_1_MASK                                          0x00020000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__TC0_1_MASTER_MASK_MASK                                             0x00040000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__RESERVED_1_MASK                                                    0x00080000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__SPARE4_MASTER_MASK_MASK                                            0x00100000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__SPARE5_MASTER_MASK_MASK                                            0x00200000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__SPARE6_MASTER_MASK_MASK                                            0x00400000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__SPARE7_MASTER_MASK_MASK                                            0x00800000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__EA_1_MASTER_MASK_MASK                                              0x01000000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK_1__RESERVED_MASK                                                      0xFE000000L
-//RLC_SERDES_NONCU_MASTER_BUSY_1
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__SE_MASTER_BUSY_1__SHIFT                                               0x0
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__GC_MASTER_BUSY_1__SHIFT                                               0x10
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__GC_GFX_MASTER_BUSY_1__SHIFT                                           0x11
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__TC0_MASTER_BUSY_1__SHIFT                                              0x12
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__RESERVED_1__SHIFT                                                     0x13
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__SPARE4_MASTER_BUSY__SHIFT                                             0x14
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__SPARE5_MASTER_BUSY__SHIFT                                             0x15
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__SPARE6_MASTER_BUSY__SHIFT                                             0x16
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__SPARE7_MASTER_BUSY__SHIFT                                             0x17
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__EA_1_MASTER_BUSY__SHIFT                                               0x18
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__RESERVED__SHIFT                                                       0x19
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__SE_MASTER_BUSY_1_MASK                                                 0x0000FFFFL
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__GC_MASTER_BUSY_1_MASK                                                 0x00010000L
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__GC_GFX_MASTER_BUSY_1_MASK                                             0x00020000L
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__TC0_MASTER_BUSY_1_MASK                                                0x00040000L
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__RESERVED_1_MASK                                                       0x00080000L
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__SPARE4_MASTER_BUSY_MASK                                               0x00100000L
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__SPARE5_MASTER_BUSY_MASK                                               0x00200000L
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__SPARE6_MASTER_BUSY_MASK                                               0x00400000L
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__SPARE7_MASTER_BUSY_MASK                                               0x00800000L
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__EA_1_MASTER_BUSY_MASK                                                 0x01000000L
-#define RLC_SERDES_NONCU_MASTER_BUSY_1__RESERVED_MASK                                                         0xFE000000L
+//RLC_SERDES_WR_ANALNCU_MASTER_MASK_1
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__SE_MASTER_MASK_1__SHIFT                                            0x0
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__GC_MASTER_MASK_1__SHIFT                                            0x10
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__GC_GFX_MASTER_MASK_1__SHIFT                                        0x11
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__TC0_1_MASTER_MASK__SHIFT                                           0x12
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__RESERVED_1__SHIFT                                                  0x13
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__SPARE4_MASTER_MASK__SHIFT                                          0x14
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__SPARE5_MASTER_MASK__SHIFT                                          0x15
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__SPARE6_MASTER_MASK__SHIFT                                          0x16
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__SPARE7_MASTER_MASK__SHIFT                                          0x17
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__EA_1_MASTER_MASK__SHIFT                                            0x18
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__RESERVED__SHIFT                                                    0x19
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__SE_MASTER_MASK_1_MASK                                              0x0000FFFFL
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__GC_MASTER_MASK_1_MASK                                              0x00010000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__GC_GFX_MASTER_MASK_1_MASK                                          0x00020000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__TC0_1_MASTER_MASK_MASK                                             0x00040000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__RESERVED_1_MASK                                                    0x00080000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__SPARE4_MASTER_MASK_MASK                                            0x00100000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__SPARE5_MASTER_MASK_MASK                                            0x00200000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__SPARE6_MASTER_MASK_MASK                                            0x00400000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__SPARE7_MASTER_MASK_MASK                                            0x00800000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__EA_1_MASTER_MASK_MASK                                              0x01000000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK_1__RESERVED_MASK                                                      0xFE000000L
+//RLC_SERDES_ANALNCU_MASTER_BUSY_1
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__SE_MASTER_BUSY_1__SHIFT                                               0x0
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__GC_MASTER_BUSY_1__SHIFT                                               0x10
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__GC_GFX_MASTER_BUSY_1__SHIFT                                           0x11
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__TC0_MASTER_BUSY_1__SHIFT                                              0x12
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__RESERVED_1__SHIFT                                                     0x13
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__SPARE4_MASTER_BUSY__SHIFT                                             0x14
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__SPARE5_MASTER_BUSY__SHIFT                                             0x15
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__SPARE6_MASTER_BUSY__SHIFT                                             0x16
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__SPARE7_MASTER_BUSY__SHIFT                                             0x17
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__EA_1_MASTER_BUSY__SHIFT                                               0x18
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__RESERVED__SHIFT                                                       0x19
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__SE_MASTER_BUSY_1_MASK                                                 0x0000FFFFL
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__GC_MASTER_BUSY_1_MASK                                                 0x00010000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__GC_GFX_MASTER_BUSY_1_MASK                                             0x00020000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__TC0_MASTER_BUSY_1_MASK                                                0x00040000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__RESERVED_1_MASK                                                       0x00080000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__SPARE4_MASTER_BUSY_MASK                                               0x00100000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__SPARE5_MASTER_BUSY_MASK                                               0x00200000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__SPARE6_MASTER_BUSY_MASK                                               0x00400000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__SPARE7_MASTER_BUSY_MASK                                               0x00800000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__EA_1_MASTER_BUSY_MASK                                                 0x01000000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY_1__RESERVED_MASK                                                         0xFE000000L
 //RLC_INT_STAT
 #define RLC_INT_STAT__LAST_CP_RLC_INT_ID__SHIFT                                                               0x0
 #define RLC_INT_STAT__CP_RLC_INT_PENDING__SHIFT                                                               0x8
@@ -26825,17 +26825,17 @@
 #define RLC_SERDES_RD_MASTER_INDEX__CU_ID__SHIFT                                                              0x0
 #define RLC_SERDES_RD_MASTER_INDEX__SH_ID__SHIFT                                                              0x4
 #define RLC_SERDES_RD_MASTER_INDEX__SE_ID__SHIFT                                                              0x6
-#define RLC_SERDES_RD_MASTER_INDEX__SE_NONCU_ID__SHIFT                                                        0x9
-#define RLC_SERDES_RD_MASTER_INDEX__SE_NONCU__SHIFT                                                           0xc
-#define RLC_SERDES_RD_MASTER_INDEX__NON_SE__SHIFT                                                             0xd
+#define RLC_SERDES_RD_MASTER_INDEX__SE_ANALNCU_ID__SHIFT                                                        0x9
+#define RLC_SERDES_RD_MASTER_INDEX__SE_ANALNCU__SHIFT                                                           0xc
+#define RLC_SERDES_RD_MASTER_INDEX__ANALN_SE__SHIFT                                                             0xd
 #define RLC_SERDES_RD_MASTER_INDEX__DATA_REG_ID__SHIFT                                                        0x11
 #define RLC_SERDES_RD_MASTER_INDEX__SPARE__SHIFT                                                              0x13
 #define RLC_SERDES_RD_MASTER_INDEX__CU_ID_MASK                                                                0x0000000FL
 #define RLC_SERDES_RD_MASTER_INDEX__SH_ID_MASK                                                                0x00000030L
 #define RLC_SERDES_RD_MASTER_INDEX__SE_ID_MASK                                                                0x000001C0L
-#define RLC_SERDES_RD_MASTER_INDEX__SE_NONCU_ID_MASK                                                          0x00000E00L
-#define RLC_SERDES_RD_MASTER_INDEX__SE_NONCU_MASK                                                             0x00001000L
-#define RLC_SERDES_RD_MASTER_INDEX__NON_SE_MASK                                                               0x0001E000L
+#define RLC_SERDES_RD_MASTER_INDEX__SE_ANALNCU_ID_MASK                                                          0x00000E00L
+#define RLC_SERDES_RD_MASTER_INDEX__SE_ANALNCU_MASK                                                             0x00001000L
+#define RLC_SERDES_RD_MASTER_INDEX__ANALN_SE_MASK                                                               0x0001E000L
 #define RLC_SERDES_RD_MASTER_INDEX__DATA_REG_ID_MASK                                                          0x00060000L
 #define RLC_SERDES_RD_MASTER_INDEX__SPARE_MASK                                                                0xFFF80000L
 //RLC_SERDES_RD_DATA_0
@@ -26850,31 +26850,31 @@
 //RLC_SERDES_WR_CU_MASTER_MASK
 #define RLC_SERDES_WR_CU_MASTER_MASK__MASTER_MASK__SHIFT                                                      0x0
 #define RLC_SERDES_WR_CU_MASTER_MASK__MASTER_MASK_MASK                                                        0xFFFFFFFFL
-//RLC_SERDES_WR_NONCU_MASTER_MASK
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__SE_MASTER_MASK__SHIFT                                                0x0
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__GC_MASTER_MASK__SHIFT                                                0x10
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__GC_GFX_MASTER_MASK__SHIFT                                            0x11
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__TC0_MASTER_MASK__SHIFT                                               0x12
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__TC1_MASTER_MASK__SHIFT                                               0x13
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__SPARE0_MASTER_MASK__SHIFT                                            0x14
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__SPARE1_MASTER_MASK__SHIFT                                            0x15
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__SPARE2_MASTER_MASK__SHIFT                                            0x16
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__SPARE3_MASTER_MASK__SHIFT                                            0x17
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__EA_0_MASTER_MASK__SHIFT                                              0x18
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__TC2_MASTER_MASK__SHIFT                                               0x19
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__RESERVED__SHIFT                                                      0x1a
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__SE_MASTER_MASK_MASK                                                  0x0000FFFFL
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__GC_MASTER_MASK_MASK                                                  0x00010000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__GC_GFX_MASTER_MASK_MASK                                              0x00020000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__TC0_MASTER_MASK_MASK                                                 0x00040000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__TC1_MASTER_MASK_MASK                                                 0x00080000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__SPARE0_MASTER_MASK_MASK                                              0x00100000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__SPARE1_MASTER_MASK_MASK                                              0x00200000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__SPARE2_MASTER_MASK_MASK                                              0x00400000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__SPARE3_MASTER_MASK_MASK                                              0x00800000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__EA_0_MASTER_MASK_MASK                                                0x01000000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__TC2_MASTER_MASK_MASK                                                 0x02000000L
-#define RLC_SERDES_WR_NONCU_MASTER_MASK__RESERVED_MASK                                                        0xFC000000L
+//RLC_SERDES_WR_ANALNCU_MASTER_MASK
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__SE_MASTER_MASK__SHIFT                                                0x0
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__GC_MASTER_MASK__SHIFT                                                0x10
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__GC_GFX_MASTER_MASK__SHIFT                                            0x11
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__TC0_MASTER_MASK__SHIFT                                               0x12
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__TC1_MASTER_MASK__SHIFT                                               0x13
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__SPARE0_MASTER_MASK__SHIFT                                            0x14
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__SPARE1_MASTER_MASK__SHIFT                                            0x15
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__SPARE2_MASTER_MASK__SHIFT                                            0x16
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__SPARE3_MASTER_MASK__SHIFT                                            0x17
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__EA_0_MASTER_MASK__SHIFT                                              0x18
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__TC2_MASTER_MASK__SHIFT                                               0x19
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__RESERVED__SHIFT                                                      0x1a
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__SE_MASTER_MASK_MASK                                                  0x0000FFFFL
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__GC_MASTER_MASK_MASK                                                  0x00010000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__GC_GFX_MASTER_MASK_MASK                                              0x00020000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__TC0_MASTER_MASK_MASK                                                 0x00040000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__TC1_MASTER_MASK_MASK                                                 0x00080000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__SPARE0_MASTER_MASK_MASK                                              0x00100000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__SPARE1_MASTER_MASK_MASK                                              0x00200000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__SPARE2_MASTER_MASK_MASK                                              0x00400000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__SPARE3_MASTER_MASK_MASK                                              0x00800000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__EA_0_MASTER_MASK_MASK                                                0x01000000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__TC2_MASTER_MASK_MASK                                                 0x02000000L
+#define RLC_SERDES_WR_ANALNCU_MASTER_MASK__RESERVED_MASK                                                        0xFC000000L
 //RLC_SERDES_WR_CTRL
 #define RLC_SERDES_WR_CTRL__BPM_ADDR__SHIFT                                                                   0x0
 #define RLC_SERDES_WR_CTRL__POWER_DOWN__SHIFT                                                                 0x8
@@ -26908,31 +26908,31 @@
 //RLC_SERDES_CU_MASTER_BUSY
 #define RLC_SERDES_CU_MASTER_BUSY__BUSY_BUSY__SHIFT                                                           0x0
 #define RLC_SERDES_CU_MASTER_BUSY__BUSY_BUSY_MASK                                                             0xFFFFFFFFL
-//RLC_SERDES_NONCU_MASTER_BUSY
-#define RLC_SERDES_NONCU_MASTER_BUSY__SE_MASTER_BUSY__SHIFT                                                   0x0
-#define RLC_SERDES_NONCU_MASTER_BUSY__GC_MASTER_BUSY__SHIFT                                                   0x10
-#define RLC_SERDES_NONCU_MASTER_BUSY__GC_GFX_MASTER_BUSY__SHIFT                                               0x11
-#define RLC_SERDES_NONCU_MASTER_BUSY__TC0_MASTER_BUSY__SHIFT                                                  0x12
-#define RLC_SERDES_NONCU_MASTER_BUSY__TC1_MASTER_BUSY__SHIFT                                                  0x13
-#define RLC_SERDES_NONCU_MASTER_BUSY__SPARE0_MASTER_BUSY__SHIFT                                               0x14
-#define RLC_SERDES_NONCU_MASTER_BUSY__SPARE1_MASTER_BUSY__SHIFT                                               0x15
-#define RLC_SERDES_NONCU_MASTER_BUSY__SPARE2_MASTER_BUSY__SHIFT                                               0x16
-#define RLC_SERDES_NONCU_MASTER_BUSY__SPARE3_MASTER_BUSY__SHIFT                                               0x17
-#define RLC_SERDES_NONCU_MASTER_BUSY__EA_0_MASTER_BUSY__SHIFT                                                 0x18
-#define RLC_SERDES_NONCU_MASTER_BUSY__TC2_MASTER_BUSY__SHIFT                                                  0x19
-#define RLC_SERDES_NONCU_MASTER_BUSY__RESERVED__SHIFT                                                         0x1a
-#define RLC_SERDES_NONCU_MASTER_BUSY__SE_MASTER_BUSY_MASK                                                     0x0000FFFFL
-#define RLC_SERDES_NONCU_MASTER_BUSY__GC_MASTER_BUSY_MASK                                                     0x00010000L
-#define RLC_SERDES_NONCU_MASTER_BUSY__GC_GFX_MASTER_BUSY_MASK                                                 0x00020000L
-#define RLC_SERDES_NONCU_MASTER_BUSY__TC0_MASTER_BUSY_MASK                                                    0x00040000L
-#define RLC_SERDES_NONCU_MASTER_BUSY__TC1_MASTER_BUSY_MASK                                                    0x00080000L
-#define RLC_SERDES_NONCU_MASTER_BUSY__SPARE0_MASTER_BUSY_MASK                                                 0x00100000L
-#define RLC_SERDES_NONCU_MASTER_BUSY__SPARE1_MASTER_BUSY_MASK                                                 0x00200000L
-#define RLC_SERDES_NONCU_MASTER_BUSY__SPARE2_MASTER_BUSY_MASK                                                 0x00400000L
-#define RLC_SERDES_NONCU_MASTER_BUSY__SPARE3_MASTER_BUSY_MASK                                                 0x00800000L
-#define RLC_SERDES_NONCU_MASTER_BUSY__EA_0_MASTER_BUSY_MASK                                                   0x01000000L
-#define RLC_SERDES_NONCU_MASTER_BUSY__TC2_MASTER_BUSY_MASK                                                    0x02000000L
-#define RLC_SERDES_NONCU_MASTER_BUSY__RESERVED_MASK                                                           0xFC000000L
+//RLC_SERDES_ANALNCU_MASTER_BUSY
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__SE_MASTER_BUSY__SHIFT                                                   0x0
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__GC_MASTER_BUSY__SHIFT                                                   0x10
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__GC_GFX_MASTER_BUSY__SHIFT                                               0x11
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__TC0_MASTER_BUSY__SHIFT                                                  0x12
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__TC1_MASTER_BUSY__SHIFT                                                  0x13
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__SPARE0_MASTER_BUSY__SHIFT                                               0x14
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__SPARE1_MASTER_BUSY__SHIFT                                               0x15
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__SPARE2_MASTER_BUSY__SHIFT                                               0x16
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__SPARE3_MASTER_BUSY__SHIFT                                               0x17
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__EA_0_MASTER_BUSY__SHIFT                                                 0x18
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__TC2_MASTER_BUSY__SHIFT                                                  0x19
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__RESERVED__SHIFT                                                         0x1a
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__SE_MASTER_BUSY_MASK                                                     0x0000FFFFL
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__GC_MASTER_BUSY_MASK                                                     0x00010000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__GC_GFX_MASTER_BUSY_MASK                                                 0x00020000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__TC0_MASTER_BUSY_MASK                                                    0x00040000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__TC1_MASTER_BUSY_MASK                                                    0x00080000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__SPARE0_MASTER_BUSY_MASK                                                 0x00100000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__SPARE1_MASTER_BUSY_MASK                                                 0x00200000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__SPARE2_MASTER_BUSY_MASK                                                 0x00400000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__SPARE3_MASTER_BUSY_MASK                                                 0x00800000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__EA_0_MASTER_BUSY_MASK                                                   0x01000000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__TC2_MASTER_BUSY_MASK                                                    0x02000000L
+#define RLC_SERDES_ANALNCU_MASTER_BUSY__RESERVED_MASK                                                           0xFC000000L
 //RLC_GPM_GENERAL_0
 #define RLC_GPM_GENERAL_0__DATA__SHIFT                                                                        0x0
 #define RLC_GPM_GENERAL_0__DATA_MASK                                                                          0xFFFFFFFFL
@@ -27217,52 +27217,52 @@
 #define RLC_GPM_UTCL1_CNTL_0__RESERVED__SHIFT                                                                 0x19
 #define RLC_GPM_UTCL1_CNTL_0__INVALIDATE__SHIFT                                                               0x1a
 #define RLC_GPM_UTCL1_CNTL_0__FRAG_LIMIT_MODE__SHIFT                                                          0x1b
-#define RLC_GPM_UTCL1_CNTL_0__FORCE_SNOOP__SHIFT                                                              0x1c
+#define RLC_GPM_UTCL1_CNTL_0__FORCE_SANALOP__SHIFT                                                              0x1c
 #define RLC_GPM_UTCL1_CNTL_0__XNACK_REDO_TIMER_CNT_MASK                                                       0x000FFFFFL
 #define RLC_GPM_UTCL1_CNTL_0__DROP_MODE_MASK                                                                  0x01000000L
 #define RLC_GPM_UTCL1_CNTL_0__RESERVED_MASK                                                                   0x02000000L
 #define RLC_GPM_UTCL1_CNTL_0__INVALIDATE_MASK                                                                 0x04000000L
 #define RLC_GPM_UTCL1_CNTL_0__FRAG_LIMIT_MODE_MASK                                                            0x08000000L
-#define RLC_GPM_UTCL1_CNTL_0__FORCE_SNOOP_MASK                                                                0x10000000L
+#define RLC_GPM_UTCL1_CNTL_0__FORCE_SANALOP_MASK                                                                0x10000000L
 //RLC_GPM_UTCL1_CNTL_1
 #define RLC_GPM_UTCL1_CNTL_1__XNACK_REDO_TIMER_CNT__SHIFT                                                     0x0
 #define RLC_GPM_UTCL1_CNTL_1__DROP_MODE__SHIFT                                                                0x18
 #define RLC_GPM_UTCL1_CNTL_1__RESERVED__SHIFT                                                                 0x19
 #define RLC_GPM_UTCL1_CNTL_1__INVALIDATE__SHIFT                                                               0x1a
 #define RLC_GPM_UTCL1_CNTL_1__FRAG_LIMIT_MODE__SHIFT                                                          0x1b
-#define RLC_GPM_UTCL1_CNTL_1__FORCE_SNOOP__SHIFT                                                              0x1c
+#define RLC_GPM_UTCL1_CNTL_1__FORCE_SANALOP__SHIFT                                                              0x1c
 #define RLC_GPM_UTCL1_CNTL_1__XNACK_REDO_TIMER_CNT_MASK                                                       0x000FFFFFL
 #define RLC_GPM_UTCL1_CNTL_1__DROP_MODE_MASK                                                                  0x01000000L
 #define RLC_GPM_UTCL1_CNTL_1__RESERVED_MASK                                                                   0x02000000L
 #define RLC_GPM_UTCL1_CNTL_1__INVALIDATE_MASK                                                                 0x04000000L
 #define RLC_GPM_UTCL1_CNTL_1__FRAG_LIMIT_MODE_MASK                                                            0x08000000L
-#define RLC_GPM_UTCL1_CNTL_1__FORCE_SNOOP_MASK                                                                0x10000000L
+#define RLC_GPM_UTCL1_CNTL_1__FORCE_SANALOP_MASK                                                                0x10000000L
 //RLC_GPM_UTCL1_CNTL_2
 #define RLC_GPM_UTCL1_CNTL_2__XNACK_REDO_TIMER_CNT__SHIFT                                                     0x0
 #define RLC_GPM_UTCL1_CNTL_2__DROP_MODE__SHIFT                                                                0x18
 #define RLC_GPM_UTCL1_CNTL_2__RESERVED__SHIFT                                                                 0x19
 #define RLC_GPM_UTCL1_CNTL_2__INVALIDATE__SHIFT                                                               0x1a
 #define RLC_GPM_UTCL1_CNTL_2__FRAG_LIMIT_MODE__SHIFT                                                          0x1b
-#define RLC_GPM_UTCL1_CNTL_2__FORCE_SNOOP__SHIFT                                                              0x1c
+#define RLC_GPM_UTCL1_CNTL_2__FORCE_SANALOP__SHIFT                                                              0x1c
 #define RLC_GPM_UTCL1_CNTL_2__XNACK_REDO_TIMER_CNT_MASK                                                       0x000FFFFFL
 #define RLC_GPM_UTCL1_CNTL_2__DROP_MODE_MASK                                                                  0x01000000L
 #define RLC_GPM_UTCL1_CNTL_2__RESERVED_MASK                                                                   0x02000000L
 #define RLC_GPM_UTCL1_CNTL_2__INVALIDATE_MASK                                                                 0x04000000L
 #define RLC_GPM_UTCL1_CNTL_2__FRAG_LIMIT_MODE_MASK                                                            0x08000000L
-#define RLC_GPM_UTCL1_CNTL_2__FORCE_SNOOP_MASK                                                                0x10000000L
+#define RLC_GPM_UTCL1_CNTL_2__FORCE_SANALOP_MASK                                                                0x10000000L
 //RLC_SPM_UTCL1_CNTL
 #define RLC_SPM_UTCL1_CNTL__XNACK_REDO_TIMER_CNT__SHIFT                                                       0x0
 #define RLC_SPM_UTCL1_CNTL__DROP_MODE__SHIFT                                                                  0x18
 #define RLC_SPM_UTCL1_CNTL__RESERVED__SHIFT                                                                   0x19
 #define RLC_SPM_UTCL1_CNTL__INVALIDATE__SHIFT                                                                 0x1a
 #define RLC_SPM_UTCL1_CNTL__FRAG_LIMIT_MODE__SHIFT                                                            0x1b
-#define RLC_SPM_UTCL1_CNTL__FORCE_SNOOP__SHIFT                                                                0x1c
+#define RLC_SPM_UTCL1_CNTL__FORCE_SANALOP__SHIFT                                                                0x1c
 #define RLC_SPM_UTCL1_CNTL__XNACK_REDO_TIMER_CNT_MASK                                                         0x000FFFFFL
 #define RLC_SPM_UTCL1_CNTL__DROP_MODE_MASK                                                                    0x01000000L
 #define RLC_SPM_UTCL1_CNTL__RESERVED_MASK                                                                     0x02000000L
 #define RLC_SPM_UTCL1_CNTL__INVALIDATE_MASK                                                                   0x04000000L
 #define RLC_SPM_UTCL1_CNTL__FRAG_LIMIT_MODE_MASK                                                              0x08000000L
-#define RLC_SPM_UTCL1_CNTL__FORCE_SNOOP_MASK                                                                  0x10000000L
+#define RLC_SPM_UTCL1_CNTL__FORCE_SANALOP_MASK                                                                  0x10000000L
 //RLC_UTCL1_STATUS_2
 #define RLC_UTCL1_STATUS_2__GPM_TH0_UTCL1_BUSY__SHIFT                                                         0x0
 #define RLC_UTCL1_STATUS_2__GPM_TH1_UTCL1_BUSY__SHIFT                                                         0x1
@@ -27367,13 +27367,13 @@
 #define RLC_PREWALKER_UTCL1_CNTL__RESERVED__SHIFT                                                             0x19
 #define RLC_PREWALKER_UTCL1_CNTL__INVALIDATE__SHIFT                                                           0x1a
 #define RLC_PREWALKER_UTCL1_CNTL__FRAG_LIMIT_MODE__SHIFT                                                      0x1b
-#define RLC_PREWALKER_UTCL1_CNTL__FORCE_SNOOP__SHIFT                                                          0x1c
+#define RLC_PREWALKER_UTCL1_CNTL__FORCE_SANALOP__SHIFT                                                          0x1c
 #define RLC_PREWALKER_UTCL1_CNTL__XNACK_REDO_TIMER_CNT_MASK                                                   0x000FFFFFL
 #define RLC_PREWALKER_UTCL1_CNTL__DROP_MODE_MASK                                                              0x01000000L
 #define RLC_PREWALKER_UTCL1_CNTL__RESERVED_MASK                                                               0x02000000L
 #define RLC_PREWALKER_UTCL1_CNTL__INVALIDATE_MASK                                                             0x04000000L
 #define RLC_PREWALKER_UTCL1_CNTL__FRAG_LIMIT_MODE_MASK                                                        0x08000000L
-#define RLC_PREWALKER_UTCL1_CNTL__FORCE_SNOOP_MASK                                                            0x10000000L
+#define RLC_PREWALKER_UTCL1_CNTL__FORCE_SANALOP_MASK                                                            0x10000000L
 //RLC_PREWALKER_UTCL1_TRIG
 #define RLC_PREWALKER_UTCL1_TRIG__VALID__SHIFT                                                                0x0
 #define RLC_PREWALKER_UTCL1_TRIG__VMID__SHIFT                                                                 0x1
@@ -27440,11 +27440,11 @@
 #define RLC_R2I_CNTL_3__Data__SHIFT                                                                           0x0
 #define RLC_R2I_CNTL_3__Data_MASK                                                                             0xFFFFFFFFL
 //RLC_UTCL2_CNTL
-#define RLC_UTCL2_CNTL__MTYPE_NO_PTE_MODE__SHIFT                                                              0x0
-#define RLC_UTCL2_CNTL__IGNORE_PTE_PERMISSION__SHIFT                                                          0x1
+#define RLC_UTCL2_CNTL__MTYPE_ANAL_PTE_MODE__SHIFT                                                              0x0
+#define RLC_UTCL2_CNTL__IGANALRE_PTE_PERMISSION__SHIFT                                                          0x1
 #define RLC_UTCL2_CNTL__RESERVED__SHIFT                                                                       0x2
-#define RLC_UTCL2_CNTL__MTYPE_NO_PTE_MODE_MASK                                                                0x00000001L
-#define RLC_UTCL2_CNTL__IGNORE_PTE_PERMISSION_MASK                                                            0x00000002L
+#define RLC_UTCL2_CNTL__MTYPE_ANAL_PTE_MODE_MASK                                                                0x00000001L
+#define RLC_UTCL2_CNTL__IGANALRE_PTE_PERMISSION_MASK                                                            0x00000002L
 #define RLC_UTCL2_CNTL__RESERVED_MASK                                                                         0xFFFFFFFCL
 //RLC_LBPW_CU_STAT
 #define RLC_LBPW_CU_STAT__MAX_CU__SHIFT                                                                       0x0
@@ -31264,11 +31264,11 @@
 #define SQ_DEBUG_STS_LOCAL__WAVE_LEVEL_MASK                                                                   0x000003F0L
 //SQ_DEBUG_CTRL_LOCAL
 #define SQ_DEBUG_CTRL_LOCAL__UNUSED__SHIFT                                                                    0x0
-#define SQ_DEBUG_CTRL_LOCAL__PERF_SEL_INSTS_VALU_MFMA_NON_WAVE__SHIFT                                         0x8
-#define SQ_DEBUG_CTRL_LOCAL__PERF_SEL_INSTS_VALU_MFMA_MOPS_NON_WAVE__SHIFT                                    0x9
+#define SQ_DEBUG_CTRL_LOCAL__PERF_SEL_INSTS_VALU_MFMA_ANALN_WAVE__SHIFT                                         0x8
+#define SQ_DEBUG_CTRL_LOCAL__PERF_SEL_INSTS_VALU_MFMA_MOPS_ANALN_WAVE__SHIFT                                    0x9
 #define SQ_DEBUG_CTRL_LOCAL__UNUSED_MASK                                                                      0x000000FFL
-#define SQ_DEBUG_CTRL_LOCAL__PERF_SEL_INSTS_VALU_MFMA_NON_WAVE_MASK                                           0x00000100L
-#define SQ_DEBUG_CTRL_LOCAL__PERF_SEL_INSTS_VALU_MFMA_MOPS_NON_WAVE_MASK                                      0x00000200L
+#define SQ_DEBUG_CTRL_LOCAL__PERF_SEL_INSTS_VALU_MFMA_ANALN_WAVE_MASK                                           0x00000100L
+#define SQ_DEBUG_CTRL_LOCAL__PERF_SEL_INSTS_VALU_MFMA_MOPS_ANALN_WAVE_MASK                                      0x00000200L
 //SQ_WAVE_VALID_AND_IDLE
 #define SQ_WAVE_VALID_AND_IDLE__WAVE_SLOT__SHIFT                                                              0x0
 #define SQ_WAVE_VALID_AND_IDLE__WAVE_SLOT_MASK                                                                0xFFFFFFFFL
@@ -31278,7 +31278,7 @@
 //SQ_PERF_SNAPSHOT_PC_HI
 //SQ_WAVE_MODE
 #define SQ_WAVE_MODE__FP_ROUND__SHIFT                                                                         0x0
-#define SQ_WAVE_MODE__FP_DENORM__SHIFT                                                                        0x4
+#define SQ_WAVE_MODE__FP_DEANALRM__SHIFT                                                                        0x4
 #define SQ_WAVE_MODE__DX10_CLAMP__SHIFT                                                                       0x8
 #define SQ_WAVE_MODE__IEEE__SHIFT                                                                             0x9
 #define SQ_WAVE_MODE__LOD_CLAMPED__SHIFT                                                                      0xa
@@ -31292,7 +31292,7 @@
 #define SQ_WAVE_MODE__VSKIP__SHIFT                                                                            0x1c
 #define SQ_WAVE_MODE__CSP__SHIFT                                                                              0x1d
 #define SQ_WAVE_MODE__FP_ROUND_MASK                                                                           0x0000000FL
-#define SQ_WAVE_MODE__FP_DENORM_MASK                                                                          0x000000F0L
+#define SQ_WAVE_MODE__FP_DEANALRM_MASK                                                                          0x000000F0L
 #define SQ_WAVE_MODE__DX10_CLAMP_MASK                                                                         0x00000100L
 #define SQ_WAVE_MODE__IEEE_MASK                                                                               0x00000200L
 #define SQ_WAVE_MODE__LOD_CLAMPED_MASK                                                                        0x00000400L
@@ -31449,7 +31449,7 @@
 #define SQ_WAVE_IB_DBG0__IBUF_ST__SHIFT                                                                       0x0
 #define SQ_WAVE_IB_DBG0__PC_INVALID__SHIFT                                                                    0x3
 #define SQ_WAVE_IB_DBG0__NEED_NEXT_DW__SHIFT                                                                  0x4
-#define SQ_WAVE_IB_DBG0__NO_PREFETCH_CNT__SHIFT                                                               0x5
+#define SQ_WAVE_IB_DBG0__ANAL_PREFETCH_CNT__SHIFT                                                               0x5
 #define SQ_WAVE_IB_DBG0__IBUF_RPTR__SHIFT                                                                     0x8
 #define SQ_WAVE_IB_DBG0__IBUF_WPTR__SHIFT                                                                     0xa
 #define SQ_WAVE_IB_DBG0__INST_STR_ST__SHIFT                                                                   0x10
@@ -31458,11 +31458,11 @@
 #define SQ_WAVE_IB_DBG0__HYB_CNT__SHIFT                                                                       0x1b
 #define SQ_WAVE_IB_DBG0__KILL__SHIFT                                                                          0x1d
 #define SQ_WAVE_IB_DBG0__NEED_KILL_IFETCH__SHIFT                                                              0x1e
-#define SQ_WAVE_IB_DBG0__NO_PREFETCH_CNT_HI__SHIFT                                                            0x1f
+#define SQ_WAVE_IB_DBG0__ANAL_PREFETCH_CNT_HI__SHIFT                                                            0x1f
 #define SQ_WAVE_IB_DBG0__IBUF_ST_MASK                                                                         0x00000007L
 #define SQ_WAVE_IB_DBG0__PC_INVALID_MASK                                                                      0x00000008L
 #define SQ_WAVE_IB_DBG0__NEED_NEXT_DW_MASK                                                                    0x00000010L
-#define SQ_WAVE_IB_DBG0__NO_PREFETCH_CNT_MASK                                                                 0x000000E0L
+#define SQ_WAVE_IB_DBG0__ANAL_PREFETCH_CNT_MASK                                                                 0x000000E0L
 #define SQ_WAVE_IB_DBG0__IBUF_RPTR_MASK                                                                       0x00000300L
 #define SQ_WAVE_IB_DBG0__IBUF_WPTR_MASK                                                                       0x00000C00L
 #define SQ_WAVE_IB_DBG0__INST_STR_ST_MASK                                                                     0x000F0000L
@@ -31471,7 +31471,7 @@
 #define SQ_WAVE_IB_DBG0__HYB_CNT_MASK                                                                         0x18000000L
 #define SQ_WAVE_IB_DBG0__KILL_MASK                                                                            0x20000000L
 #define SQ_WAVE_IB_DBG0__NEED_KILL_IFETCH_MASK                                                                0x40000000L
-#define SQ_WAVE_IB_DBG0__NO_PREFETCH_CNT_HI_MASK                                                              0x80000000L
+#define SQ_WAVE_IB_DBG0__ANAL_PREFETCH_CNT_HI_MASK                                                              0x80000000L
 //SQ_WAVE_IB_DBG1
 #define SQ_WAVE_IB_DBG1__IXNACK__SHIFT                                                                        0x0
 #define SQ_WAVE_IB_DBG1__XNACK__SHIFT                                                                         0x1

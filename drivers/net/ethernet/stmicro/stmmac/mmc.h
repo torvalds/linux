@@ -14,7 +14,7 @@
 /* MMC control register */
 /* When set, all counter are reset */
 #define MMC_CNTRL_COUNTER_RESET		0x1
-/* When set, do not roll over zero after reaching the max value*/
+/* When set, do analt roll over zero after reaching the max value*/
 #define MMC_CNTRL_COUNTER_STOP_ROLLOVER	0x2
 #define MMC_CNTRL_RESET_ON_READ		0x4	/* Reset after reading */
 #define MMC_CNTRL_COUNTER_FREEZER	0x8	/* Freeze counter values to the
@@ -93,24 +93,24 @@ struct stmmac_counters {
 	/* IPv4 */
 	unsigned int mmc_rx_ipv4_gd;
 	unsigned int mmc_rx_ipv4_hderr;
-	unsigned int mmc_rx_ipv4_nopay;
+	unsigned int mmc_rx_ipv4_analpay;
 	unsigned int mmc_rx_ipv4_frag;
 	unsigned int mmc_rx_ipv4_udsbl;
 
 	unsigned int mmc_rx_ipv4_gd_octets;
 	unsigned int mmc_rx_ipv4_hderr_octets;
-	unsigned int mmc_rx_ipv4_nopay_octets;
+	unsigned int mmc_rx_ipv4_analpay_octets;
 	unsigned int mmc_rx_ipv4_frag_octets;
 	unsigned int mmc_rx_ipv4_udsbl_octets;
 
 	/* IPV6 */
 	unsigned int mmc_rx_ipv6_gd_octets;
 	unsigned int mmc_rx_ipv6_hderr_octets;
-	unsigned int mmc_rx_ipv6_nopay_octets;
+	unsigned int mmc_rx_ipv6_analpay_octets;
 
 	unsigned int mmc_rx_ipv6_gd;
 	unsigned int mmc_rx_ipv6_hderr;
-	unsigned int mmc_rx_ipv6_nopay;
+	unsigned int mmc_rx_ipv6_analpay;
 
 	/* Protocols */
 	unsigned int mmc_rx_udp_gd;

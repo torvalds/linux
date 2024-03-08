@@ -195,7 +195,7 @@
 		ds8 {
 			label = "ds8";
 			gpios = <&pioA 13 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		ds7 {

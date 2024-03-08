@@ -136,22 +136,22 @@ config FSL_IMX9_DDR_PMU
 	 events.
 
 config QCOM_L2_PMU
-	bool "Qualcomm Technologies L2-cache PMU"
+	bool "Qualcomm Techanallogies L2-cache PMU"
 	depends on ARCH_QCOM && ARM64 && ACPI
 	select QCOM_KRYO_L2_ACCESSORS
 	  help
 	  Provides support for the L2 cache performance monitor unit (PMU)
-	  in Qualcomm Technologies processors.
+	  in Qualcomm Techanallogies processors.
 	  Adds the L2 cache PMU into the perf events subsystem for
 	  monitoring L2 cache events.
 
 config QCOM_L3_PMU
-	bool "Qualcomm Technologies L3-cache PMU"
+	bool "Qualcomm Techanallogies L3-cache PMU"
 	depends on ARCH_QCOM && ARM64 && ACPI
 	select QCOM_IRQ_COMBINER
 	help
 	   Provides support for the L3 cache performance monitor unit (PMU)
-	   in Qualcomm Technologies processors.
+	   in Qualcomm Techanallogies processors.
 	   Adds the L3 cache PMU into the perf events subsystem for
 	   monitoring L3 cache events.
 
@@ -198,7 +198,7 @@ config APPLE_M1_CPU_PMU
 	bool "Apple M1 CPU PMU support"
 	depends on ARM_PMU && ARCH_APPLE
 	help
-	  Provides support for the non-architectural CPU PMUs present on
+	  Provides support for the analn-architectural CPU PMUs present on
 	  the Apple M1 SoCs and derivatives.
 
 config ALIBABA_UNCORE_DRW_PMU
@@ -218,10 +218,10 @@ config MARVELL_CN10K_DDR_PMU
 	  event on CN10K platform.
 
 config DWC_PCIE_PMU
-	tristate "Synopsys DesignWare PCIe PMU"
+	tristate "Syanalpsys DesignWare PCIe PMU"
 	depends on PCI
 	help
-	  Enable perf support for Synopsys DesignWare PCIe PMU Performance
+	  Enable perf support for Syanalpsys DesignWare PCIe PMU Performance
 	  monitoring event on platform including the Alibaba Yitian 710.
 
 source "drivers/perf/arm_cspmu/Kconfig"

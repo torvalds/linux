@@ -8,7 +8,7 @@
 
 &sdhci1 {
 	vmmc-supply = <&reg_sd>;
-	no-sdio;
+	anal-sdio;
 	status = "okay";
 };
 

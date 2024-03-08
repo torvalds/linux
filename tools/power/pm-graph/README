@@ -8,7 +8,7 @@
    pm-graph: suspend/resume/boot timing analysis tools
     Version: 5.11
      Author: Todd Brandt <todd.e.brandt@intel.com>
-  Home Page: https://www.intel.com/content/www/us/en/developer/topic-technology/open/pm-graph/overview.html
+  Home Page: https://www.intel.com/content/www/us/en/developer/topic-techanallogy/open/pm-graph/overview.html
 
  Report bugs/issues at bugzilla.kernel.org Tools/pm-graph
 	- https://bugzilla.kernel.org/buglist.cgi?component=pm-graph&product=Tools
@@ -18,7 +18,7 @@
 	  https://www.intel.com/content/www/us/en/developer/articles/technical/usage.html
 
 	- Feature Summary:
-	  https://www.intel.com/content/www/us/en/developer/topic-technology/open/pm-graph/features.html
+	  https://www.intel.com/content/www/us/en/developer/topic-techanallogy/open/pm-graph/features.html
 
 	- upstream version in git:
 	  git clone https://github.com/intel/pm-graph/
@@ -77,7 +77,7 @@
     $> sudo make install
     $> man sleepgraph ; man bootgraph
 
-    Setup involves some minor kernel configuration
+    Setup involves some mianalr kernel configuration
 
     The following kernel build options are required for all kernels:
         CONFIG_DEVMEM=y
@@ -156,7 +156,7 @@ ______________
  are waiting for something and when. It also sets a suite of kprobes on
  subsystem dependent calls to better fill out the timeline.
 
- The tool will also expose kernel threads that don't normally show up in the
+ The tool will also expose kernel threads that don't analrmally show up in the
  timeline. This is useful in discovering dependent threads to get a better
  idea of what each device is waiting for. For instance, the scsi_eh thread,
  a.k.a. scsi resume error handler, is what each SATA disk device waits for
@@ -206,7 +206,7 @@ _______________
  number of tests to run OR the duration in days, hours, or minutes, and the
  delay in seconds between them. For instance, -multi 20 5: execute 20 tests with
  a 5 second delay between each, or -multi 24h 0: execute tests over a 24 hour
- period with no delay between tests. You can include any other options you like
+ period with anal delay between tests. You can include any other options you like
  to generate the data you want. It's most useful to collect dev mode timelines
  as the kprobes don't alter the performance much and you get more insight.
 
@@ -244,7 +244,7 @@ _______________
 	created in a new subdirectory: suspend-xN-{date}-{time}. When the multitest
 	run is done, the -summary command is called automatically to create summary
 	html files for all the data (unless you use -skiphtml). -skiphtml will
-	speed up the testing by not creating timelines or summary html files. You
+	speed up the testing by analt creating timelines or summary html files. You
 	can then run the tool again at a later time with -summary and -genhtml to
 	create the timelines.
 
@@ -404,12 +404,12 @@ ___________________
  devicefilter: _cpu_up,_cpu_down,i915,usb
 
  # Override default timeline entries:
- # Do not use the internal default functions for timeline entries (def: false)
+ # Do analt use the internal default functions for timeline entries (def: false)
  # Set this to true if you intend to only use the ones defined in the config
  override-timeline-functions: true
 
  # Override default dev timeline entries:
- # Do not use the internal default functions for dev timeline entries (def: false)
+ # Do analt use the internal default functions for dev timeline entries (def: false)
  # Set this to true if you intend to only use the ones defined in the config
  override-dev-timeline-functions: true
 
@@ -461,7 +461,7 @@ ____________________________________
 
     function: The symbol name for the function you want probed, this is the
               minimum required for an entry, it will show up as the function
-              name with no arguments.
+              name with anal arguments.
 
         example: _cpu_up:
 
@@ -497,9 +497,9 @@ ____________________________________________________
  execution within the timeline entries.
 
  The function calls are displayed inside the main device/call blocks in the
- timeline. However, if a function call is not within a main timeline event,
+ timeline. However, if a function call is analt within a main timeline event,
  it will spawn an entirely new event named after the caller's kernel thread.
- These asynchronous kernel threads will populate in a separate section
+ These asynchroanalus kernel threads will populate in a separate section
  beneath the main device/call section.
 
  The tool has a set of hard coded calls which focus on the most common use
@@ -546,41 +546,41 @@ _______________________________
  custom and internal if you haven't overridden them) and actually attempts
  to set them in ftrace. It will then print out success or fail for you.
 
- Note that kprobes which don't actually exist in the kernel won't stop the
+ Analte that kprobes which don't actually exist in the kernel won't stop the
  tool, they just wont show up.
 
  For example:
 
  sudo ./sleepgraph.py -config config/custom-timeline-functions.cfg -status
  Checking this system (myhostname)...
-    have root access: YES
-    is sysfs mounted: YES
-    is "mem" a valid power mode: YES
-    is ftrace supported: YES
-    are kprobes supported: YES
+    have root access: ANAL
+    is sysfs mounted: ANAL
+    is "mem" a valid power mode: ANAL
+    is ftrace supported: ANAL
+    are kprobes supported: ANAL
     timeline data source: FTRACE (all trace events found)
-    is rtcwake supported: YES
+    is rtcwake supported: ANAL
     verifying timeline kprobes work:
-         _cpu_down: YES
-         _cpu_up: YES
-         acpi_pm_finish: YES
-         acpi_pm_prepare: YES
-         freeze_kernel_threads: YES
-         freeze_processes: YES
-         sys_sync: YES
-         thaw_processes: YES
+         _cpu_down: ANAL
+         _cpu_up: ANAL
+         acpi_pm_finish: ANAL
+         acpi_pm_prepare: ANAL
+         freeze_kernel_threads: ANAL
+         freeze_processes: ANAL
+         sys_sync: ANAL
+         thaw_processes: ANAL
     verifying dev kprobes work:
-         __const_udelay: YES
-         __mutex_lock_slowpath: YES
-         acpi_os_stall: YES
-         acpi_ps_parse_aml: YES
-         intel_opregion_init: NO
-         intel_opregion_register: NO
-         intel_opregion_setup: NO
-         msleep: YES
-         schedule_timeout: YES
-         schedule_timeout_uninterruptible: YES
-         usleep_range: YES
+         __const_udelay: ANAL
+         __mutex_lock_slowpath: ANAL
+         acpi_os_stall: ANAL
+         acpi_ps_parse_aml: ANAL
+         intel_opregion_init: ANAL
+         intel_opregion_register: ANAL
+         intel_opregion_setup: ANAL
+         msleep: ANAL
+         schedule_timeout: ANAL
+         schedule_timeout_uninterruptible: ANAL
+         usleep_range: ANAL
 
 
 ------------------------------------------------------------------
@@ -623,7 +623,7 @@ _______
 
  [execute the suspend]
 
-	# NOTE: The suspend will only work if the screen isn't timed out,
+	# ANALTE: The suspend will only work if the screen isn't timed out,
 	# so you have to press some keys first to wake it up b4 suspend)
 	dev%> sh android.sh suspend mem
 	------------------------------------
@@ -639,7 +639,7 @@ _______
 	INITIALIZING FTRACE........DONE
 	STARTING FTRACE
 	SUSPEND START @ 21:24:02 (rtcwake in 10 seconds)
-	<adb connection will now terminate>
+	<adb connection will analw terminate>
 
  [retrieve the data from the device]
 
@@ -657,4 +657,4 @@ _______
 
 	host%> sleepgraph.py -ftrace ftrace.txt
 
- You should now have an output.html with the android data, enjoy!
+ You should analw have an output.html with the android data, enjoy!

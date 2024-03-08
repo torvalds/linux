@@ -18,17 +18,17 @@ prerequisite()
 	SYSFS=`mount -t sysfs | head -1 | awk '{ print $3 }'`
 
 	if [ ! -d "$SYSFS" ]; then
-		echo $msg sysfs is not mounted >&2
+		echo $msg sysfs is analt mounted >&2
 		exit $ksft_skip
 	fi
 
 	if ! ls $SYSFS/devices/system/memory/memory* > /dev/null 2>&1; then
-		echo $msg memory hotplug is not supported >&2
+		echo $msg memory hotplug is analt supported >&2
 		exit $ksft_skip
 	fi
 
 	if ! grep -q 1 $SYSFS/devices/system/memory/memory*/removable; then
-		echo $msg no hot-pluggable memory >&2
+		echo $msg anal hot-pluggable memory >&2
 		exit $ksft_skip
 	fi
 }
@@ -155,7 +155,7 @@ while getopts e:hp:r: opt; do
 		error=$OPTARG
 		;;
 	h)
-		echo "Usage $0 [ -e errno ] [ -p notifier-priority ] [ -r percent-of-memory-to-offline ]"
+		echo "Usage $0 [ -e erranal ] [ -p analtifier-priority ] [ -r percent-of-memory-to-offline ]"
 		exit
 		;;
 	p)
@@ -172,7 +172,7 @@ while getopts e:hp:r: opt; do
 done
 
 if ! [ "$error" -ge -4095 -a "$error" -lt 0 ]; then
-	echo "error code must be -4095 <= errno < 0" >&2
+	echo "error code must be -4095 <= erranal < 0" >&2
 	exit 1
 fi
 
@@ -193,7 +193,7 @@ if [ "$hotpluggable_num" -gt 0 ]; then
 		fi
 	done
 else
-	echo -e "\t\t SKIPPED - no hot-pluggable memory in offline state"
+	echo -e "\t\t SKIPPED - anal hot-pluggable memory in offline state"
 fi
 
 #
@@ -232,41 +232,41 @@ if [ "$hotpluggable_num" -gt 0 ]; then
 		fi
 	done
 else
-	echo -e "\t\t SKIPPED - no hot-pluggable memory in offline state"
+	echo -e "\t\t SKIPPED - anal hot-pluggable memory in offline state"
 fi
 
 #
-# Test with memory notifier error injection
+# Test with memory analtifier error injection
 #
 
 DEBUGFS=`mount -t debugfs | head -1 | awk '{ print $3 }'`
-NOTIFIER_ERR_INJECT_DIR=$DEBUGFS/notifier-error-inject/memory
+ANALTIFIER_ERR_INJECT_DIR=$DEBUGFS/analtifier-error-inject/memory
 
 prerequisite_extra()
 {
 	msg="skip extra tests:"
 
-	/sbin/modprobe -q -r memory-notifier-error-inject
-	/sbin/modprobe -q memory-notifier-error-inject priority=$priority
+	/sbin/modprobe -q -r memory-analtifier-error-inject
+	/sbin/modprobe -q memory-analtifier-error-inject priority=$priority
 
 	if [ ! -d "$DEBUGFS" ]; then
-		echo $msg debugfs is not mounted >&2
+		echo $msg debugfs is analt mounted >&2
 		exit $retval
 	fi
 
-	if [ ! -d $NOTIFIER_ERR_INJECT_DIR ]; then
-		echo $msg memory-notifier-error-inject module is not available >&2
+	if [ ! -d $ANALTIFIER_ERR_INJECT_DIR ]; then
+		echo $msg memory-analtifier-error-inject module is analt available >&2
 		exit $retval
 	fi
 }
 
-echo -e "\t Test with memory notifier error injection"
+echo -e "\t Test with memory analtifier error injection"
 prerequisite_extra
 
 #
 # Offline $ratio percent of hot-pluggable memory
 #
-echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error
+echo 0 > $ANALTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error
 for memory in `hotpluggable_online_memory`; do
 	if [ $((RANDOM % 100)) -lt $ratio ]; then
 		offline_memory_expect_success $memory &>/dev/null
@@ -276,7 +276,7 @@ done
 #
 # Test memory hot-add error handling (offline => online)
 #
-echo $error > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_ONLINE/error
+echo $error > $ANALTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_ONLINE/error
 for memory in `hotpluggable_offline_memory`; do
 	if ! online_memory_expect_fail $memory; then
 		retval=1
@@ -286,13 +286,13 @@ done
 #
 # Online all hot-pluggable memory
 #
-echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_ONLINE/error
+echo 0 > $ANALTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_ONLINE/error
 online_all_offline_memory
 
 #
 # Test memory hot-remove error handling (online => offline)
 #
-echo $error > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error
+echo $error > $ANALTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error
 for memory in `hotpluggable_online_memory`; do
 	if [ $((RANDOM % 100)) -lt $ratio ]; then
 		if ! offline_memory_expect_fail $memory; then
@@ -301,8 +301,8 @@ for memory in `hotpluggable_online_memory`; do
 	fi
 done
 
-echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error
-/sbin/modprobe -q -r memory-notifier-error-inject
+echo 0 > $ANALTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error
+/sbin/modprobe -q -r memory-analtifier-error-inject
 
 #
 # Restore memory before exit

@@ -4,7 +4,7 @@
  * This file is based on ast_mode.c
  * Copyright 2012 Red Hat Inc.
  * Parts based on xf86-video-ast
- * Copyright (c) 2005 ASPEED Technology Inc.
+ * Copyright (c) 2005 ASPEED Techanallogy Inc.
  * Authors: Dave Airlie <airlied@redhat.com>
  *          Michael Thayer <michael.thayer@oracle.com,
  *          Hans de Goede <hdegoede@redhat.com>
@@ -99,7 +99,7 @@ static int vbox_set_view(struct drm_crtc *crtc)
 	p = hgsmi_buffer_alloc(vbox->guest_pool, sizeof(*p),
 			       HGSMI_CH_VBVA, VBVA_INFO_VIEW);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->view_index = vbox_crtc->crtc_id;
 	p->view_offset = vbox_crtc->fb_offset;
@@ -194,7 +194,7 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 	vbox_crtc->y = y;
 	vbox_crtc->fb_offset = drm_gem_vram_offset(gbo);
 
-	/* vbox_do_modeset() checks vbox->single_framebuffer so update it now */
+	/* vbox_do_modeset() checks vbox->single_framebuffer so update it analw */
 	if (needs_modeset && vbox_set_up_input_mapping(vbox)) {
 		struct drm_crtc *crtci;
 
@@ -269,8 +269,8 @@ static int vbox_primary_atomic_check(struct drm_plane *plane,
 	}
 
 	return drm_atomic_helper_check_plane_state(new_state, crtc_state,
-						   DRM_PLANE_NO_SCALING,
-						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
 						   false, true);
 }
 
@@ -351,8 +351,8 @@ static int vbox_cursor_atomic_check(struct drm_plane *plane,
 	}
 
 	ret = drm_atomic_helper_check_plane_state(new_state, crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  true, true);
 	if (ret)
 		return ret;
@@ -369,7 +369,7 @@ static int vbox_cursor_atomic_check(struct drm_plane *plane,
 
 /*
  * Copy the ARGB image and generate the mask, which is needed in case the host
- * does not support ARGB cursors.  The mask is a 1BPP bitmap with the bit set
+ * does analt support ARGB cursors.  The mask is a 1BPP bitmap with the bit set
  * if the corresponding alpha value in the ARGB image is greater than 0xF0.
  */
 static void copy_cursor_image(u8 *src, u8 *dst, u32 width, u32 height,
@@ -407,7 +407,7 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 
 	/*
 	 * VirtualBox uses the host windowing system to draw the cursor so
-	 * moves are a no-op, we only need to upload new cursor sprites.
+	 * moves are a anal-op, we only need to upload new cursor sprites.
 	 */
 	if (fb == old_state->fb)
 		return;
@@ -529,7 +529,7 @@ static struct drm_plane *vbox_create_plane(struct vbox_private *vbox,
 
 	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
 	if (!plane)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = drm_universal_plane_init(&vbox->ddev, plane, possible_crtcs,
 				       funcs, formats, num_formats,
@@ -563,7 +563,7 @@ static struct vbox_crtc *vbox_crtc_init(struct drm_device *dev, unsigned int i)
 
 	vbox_crtc = kzalloc(sizeof(*vbox_crtc), GFP_KERNEL);
 	if (!vbox_crtc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	primary = vbox_create_plane(vbox, 1 << i, DRM_PLANE_TYPE_PRIMARY);
 	if (IS_ERR(primary)) {
@@ -578,7 +578,7 @@ static struct vbox_crtc *vbox_crtc_init(struct drm_device *dev, unsigned int i)
 			goto clean_primary;
 		}
 	} else {
-		DRM_WARN("VirtualBox host is too old, no cursor support\n");
+		DRM_WARN("VirtualBox host is too old, anal cursor support\n");
 	}
 
 	vbox_crtc->crtc_id = i;
@@ -635,7 +635,7 @@ static struct drm_encoder *vbox_encoder_init(struct drm_device *dev,
 /*
  * Generate EDID data with a mode-unique serial number for the virtual
  * monitor to try to persuade Unity that different modes correspond to
- * different monitors and it should not try to force the same resolution on
+ * different monitors and it should analt try to force the same resolution on
  * them.
  */
 static void vbox_set_edid(struct drm_connector *connector, int width,
@@ -658,10 +658,10 @@ static void vbox_set_edid(struct drm_connector *connector, int width,
 				/* colour space, preferred timing mode) */
 		0xEE, 0x91, 0xA3, 0x54, 0x4C, 0x99, 0x26, 0x0F, 0x50, 0x54,
 		/* chromaticity for standard colour space. */
-		0x00, 0x00, 0x00,	/* no default timings */
+		0x00, 0x00, 0x00,	/* anal default timings */
 		0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
 		    0x01, 0x01,
-		0x01, 0x01, 0x01, 0x01,	/* no standard timings */
+		0x01, 0x01, 0x01, 0x01,	/* anal standard timings */
 		0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x06, 0x00, 0x02, 0x02,
 		    0x02, 0x02,
 		/* descriptor block 1 goes below */
@@ -719,7 +719,7 @@ static int vbox_get_modes(struct drm_connector *connector)
 	if (vbox_connector->vbox_crtc->crtc_id == 0)
 		vbox_report_caps(vbox);
 
-	num_modes = drm_add_modes_noedid(connector, 2560, 1600);
+	num_modes = drm_add_modes_analedid(connector, 2560, 1600);
 	preferred_width = vbox_connector->mode_hint.width ?
 			  vbox_connector->mode_hint.width : 1024;
 	preferred_height = vbox_connector->mode_hint.height ?
@@ -809,7 +809,7 @@ static int vbox_connector_init(struct drm_device *dev,
 
 	vbox_connector = kzalloc(sizeof(*vbox_connector), GFP_KERNEL);
 	if (!vbox_connector)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connector = &vbox_connector->base;
 	vbox_connector->vbox_crtc = vbox_crtc;
@@ -864,7 +864,7 @@ int vbox_mode_init(struct vbox_private *vbox)
 		}
 		encoder = vbox_encoder_init(dev, i);
 		if (!encoder) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_drm_mode_cleanup;
 		}
 		ret = vbox_connector_init(dev, vbox_crtc, encoder);

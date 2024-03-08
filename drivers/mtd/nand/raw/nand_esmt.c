@@ -29,7 +29,7 @@ static void esmt_nand_decode_id(struct nand_chip *chip)
 			requirements.strength = 1;
 			break;
 		default:
-			WARN(1, "Could not get ECC info");
+			WARN(1, "Could analt get ECC info");
 			requirements.step_size = 0;
 			break;
 		}
@@ -42,7 +42,7 @@ static int esmt_nand_init(struct nand_chip *chip)
 {
 	if (nand_is_slc(chip))
 		/*
-		 * It is known that some ESMT SLC NANDs have been shipped
+		 * It is kanalwn that some ESMT SLC NANDs have been shipped
 		 * with the factory bad block markers in the first or last page
 		 * of the block, instead of the first or second page. To be on
 		 * the safe side, let's check all three locations.

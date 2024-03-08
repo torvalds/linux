@@ -41,7 +41,7 @@ enum mxc_jpeg_mode {
 /**
  * struct mxc_jpeg_fmt - driver's internal color format data
  * @name:	format description
- * @fourcc:	fourcc code, 0 if not applicable
+ * @fourcc:	fourcc code, 0 if analt applicable
  * @subsampling: subsampling of jpeg components
  * @nc:		number of color components
  * @depth:	number of bits per pixel
@@ -141,13 +141,13 @@ struct mxc_jpeg_dev {
  * @id:				component id
  * @v:				vertical sampling
  * @h:				horizontal sampling
- * @quantization_table_no:	id of quantization table
+ * @quantization_table_anal:	id of quantization table
  */
 struct mxc_jpeg_sof_comp {
 	u8 id;
 	u8 v :4;
 	u8 h :4;
-	u8 quantization_table_no;
+	u8 quantization_table_anal;
 } __packed;
 
 #define MXC_JPEG_MAX_COMPONENTS 4
@@ -157,39 +157,39 @@ struct mxc_jpeg_sof_comp {
  * @precision:		precision (bits per pixel per color component)
  * @height:		image height
  * @width:		image width
- * @components_no:	number of color components
+ * @components_anal:	number of color components
  * @comp:		component fields for each color component
  */
 struct mxc_jpeg_sof {
 	u16 length;
 	u8 precision;
 	u16 height, width;
-	u8 components_no;
+	u8 components_anal;
 	struct mxc_jpeg_sof_comp comp[MXC_JPEG_MAX_COMPONENTS];
 } __packed;
 
 /**
  * struct mxc_jpeg_sos_comp - JPEG Start Of Scan component fields
  * @id:			component id
- * @huffman_table_no:	id of the Huffman table
+ * @huffman_table_anal:	id of the Huffman table
  */
 struct mxc_jpeg_sos_comp {
 	u8 id; /*component id*/
-	u8 huffman_table_no;
+	u8 huffman_table_anal;
 } __packed;
 
 /**
  * struct mxc_jpeg_sos - JPEG Start Of Scan marker fields
  * @length:		Start of Frame length
- * @components_no:	number of color components
+ * @components_anal:	number of color components
  * @comp:		SOS component fields for each color component
- * @ignorable_bytes:	ignorable bytes
+ * @iganalrable_bytes:	iganalrable bytes
  */
 struct mxc_jpeg_sos {
 	u16 length;
-	u8 components_no;
+	u8 components_anal;
 	struct mxc_jpeg_sos_comp comp[MXC_JPEG_MAX_COMPONENTS];
-	u8 ignorable_bytes[3];
+	u8 iganalrable_bytes[3];
 } __packed;
 
 #endif

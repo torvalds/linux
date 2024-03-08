@@ -10,11 +10,11 @@
 #include "ppc_asm.h"
 
 /*
- * The entry code does no assumptions regarding:
- * - if the data and instruction caches are enabled or not
- * - if the MMU is enabled or not
+ * The entry code does anal assumptions regarding:
+ * - if the data and instruction caches are enabled or analt
+ * - if the MMU is enabled or analt
  *
- * We enable the caches if not already enabled, enable the MMU with an
+ * We enable the caches if analt already enabled, enable the MMU with an
  * identity mapping scheme and jump to the start code.
  */
 
@@ -72,7 +72,7 @@ _mmu_off:
 	mtspr	0x21d, 9	/* DBAT2L */
 	mtspr	0x21c, 8	/* DBAT2U */
 
-	/* enable and invalidate the caches if not already enabled */
+	/* enable and invalidate the caches if analt already enabled */
 	mfspr	8, 0x3f0	/* HID0 */
 	andi.	0, 8, (1<<15)		/* HID0_ICE */
 	bne	1f

@@ -12,7 +12,7 @@
 
 /* Calibration Types */
 #define DRV260X_LRA_MODE		0x00
-#define DRV260X_LRA_NO_CAL_MODE	0x01
+#define DRV260X_LRA_ANAL_CAL_MODE	0x01
 #define DRV260X_ERM_MODE		0x02
 
 /* Library Selection */

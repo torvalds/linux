@@ -573,7 +573,7 @@
 
 &usdhc4 {
 	/* hs200-mode is currently unsupported because Vccq is on 3.1V, but
-	 * not on necessary 1.8V.
+	 * analt on necessary 1.8V.
 	 */
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc4_50mhz>;
@@ -581,7 +581,7 @@
 	pinctrl-2 = <&pinctrl_usdhc4_200mhz>;
 	bus-width = <8>;
 	keep-power-in-suspend;
-	non-removable;
+	analn-removable;
 	cap-mmc-hw-reset;
 	status = "okay";
 };

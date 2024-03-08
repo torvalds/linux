@@ -108,7 +108,7 @@ static unsigned int da9211_map_buck_mode(unsigned int mode)
 	case DA9211_BUCK_MODE_SYNC:
 		return REGULATOR_MODE_FAST;
 	case DA9211_BUCK_MODE_AUTO:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	default:
 		return REGULATOR_MODE_INVALID;
 	}
@@ -130,7 +130,7 @@ static unsigned int da9211_buck_get_mode(struct regulator_dev *rdev)
 		mode = REGULATOR_MODE_FAST;
 		break;
 	case DA9211_BUCK_MODE_AUTO:
-		mode = REGULATOR_MODE_NORMAL;
+		mode = REGULATOR_MODE_ANALRMAL;
 		break;
 	case DA9211_BUCK_MODE_SLEEP:
 		mode = REGULATOR_MODE_STANDBY;
@@ -151,7 +151,7 @@ static int da9211_buck_set_mode(struct regulator_dev *rdev,
 	case REGULATOR_MODE_FAST:
 		val = DA9211_BUCK_MODE_SYNC;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = DA9211_BUCK_MODE_AUTO;
 		break;
 	case REGULATOR_MODE_STANDBY:
@@ -285,18 +285,18 @@ static struct da9211_pdata *da9211_parse_regulators_dt(
 		struct device *dev)
 {
 	struct da9211_pdata *pdata;
-	struct device_node *node;
+	struct device_analde *analde;
 	int i, num, n;
 
-	node = of_get_child_by_name(dev->of_node, "regulators");
-	if (!node) {
-		dev_err(dev, "regulators node not found\n");
-		return ERR_PTR(-ENODEV);
+	analde = of_get_child_by_name(dev->of_analde, "regulators");
+	if (!analde) {
+		dev_err(dev, "regulators analde analt found\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
-	num = of_regulator_match(dev, node, da9211_matches,
+	num = of_regulator_match(dev, analde, da9211_matches,
 				 ARRAY_SIZE(da9211_matches));
-	of_node_put(node);
+	of_analde_put(analde);
 	if (num < 0) {
 		dev_err(dev, "Failed to match regulators\n");
 		return ERR_PTR(-EINVAL);
@@ -304,7 +304,7 @@ static struct da9211_pdata *da9211_parse_regulators_dt(
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pdata->num_buck = num;
 
@@ -314,12 +314,12 @@ static struct da9211_pdata *da9211_parse_regulators_dt(
 			continue;
 
 		pdata->init_data[n] = da9211_matches[i].init_data;
-		pdata->reg_node[n] = da9211_matches[i].of_node;
-		pdata->gpiod_ren[n] = devm_fwnode_gpiod_get(dev,
-					of_fwnode_handle(pdata->reg_node[n]),
+		pdata->reg_analde[n] = da9211_matches[i].of_analde;
+		pdata->gpiod_ren[n] = devm_fwanalde_gpiod_get(dev,
+					of_fwanalde_handle(pdata->reg_analde[n]),
 					"enable",
 					GPIOD_OUT_HIGH |
-						GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+						GPIOD_FLAGS_BIT_ANALNEXCLUSIVE,
 					"da9211-enable");
 		if (IS_ERR(pdata->gpiod_ren[n]))
 			pdata->gpiod_ren[n] = NULL;
@@ -332,21 +332,21 @@ static struct da9211_pdata *da9211_parse_regulators_dt(
 static struct da9211_pdata *da9211_parse_regulators_dt(
 		struct device *dev)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 #endif
 
 static irqreturn_t da9211_irq_handler(int irq, void *data)
 {
 	struct da9211 *chip = data;
-	int reg_val, err, ret = IRQ_NONE;
+	int reg_val, err, ret = IRQ_ANALNE;
 
 	err = regmap_read(chip->regmap, DA9211_REG_EVENT_B, &reg_val);
 	if (err < 0)
 		goto error_i2c;
 
 	if (reg_val & DA9211_E_OV_CURR_A) {
-		regulator_notifier_call_chain(chip->rdev[0],
+		regulator_analtifier_call_chain(chip->rdev[0],
 			REGULATOR_EVENT_OVER_CURRENT, NULL);
 
 		err = regmap_write(chip->regmap, DA9211_REG_EVENT_B,
@@ -358,7 +358,7 @@ static irqreturn_t da9211_irq_handler(int irq, void *data)
 	}
 
 	if (reg_val & DA9211_E_OV_CURR_B) {
-		regulator_notifier_call_chain(chip->rdev[1],
+		regulator_analtifier_call_chain(chip->rdev[1],
 			REGULATOR_EVENT_OVER_CURRENT, NULL);
 
 		err = regmap_write(chip->regmap, DA9211_REG_EVENT_B,
@@ -373,7 +373,7 @@ static irqreturn_t da9211_irq_handler(int irq, void *data)
 
 error_i2c:
 	dev_err(chip->dev, "I2C error : %d\n", err);
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int da9211_regulator_init(struct da9211 *chip)
@@ -406,7 +406,7 @@ static int da9211_regulator_init(struct da9211 *chip)
 		config.dev = chip->dev;
 		config.driver_data = chip;
 		config.regmap = chip->regmap;
-		config.of_node = chip->pdata->reg_node[i];
+		config.of_analde = chip->pdata->reg_analde[i];
 
 		if (chip->pdata->gpiod_ren[i])
 			config.ena_gpiod = chip->pdata->gpiod_ren[i];
@@ -452,7 +452,7 @@ static int da9211_i2c_probe(struct i2c_client *i2c)
 
 	chip = devm_kzalloc(&i2c->dev, sizeof(struct da9211), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = &i2c->dev;
 	chip->regmap = devm_regmap_init_i2c(i2c, &da9211_regmap_config);
@@ -485,14 +485,14 @@ static int da9211_i2c_probe(struct i2c_client *i2c)
 		break;
 	default:
 		dev_err(chip->dev, "Unsupported device id = 0x%x.\n", data);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!chip->pdata)
 		chip->pdata = da9211_parse_regulators_dt(chip->dev);
 
 	if (IS_ERR(chip->pdata)) {
-		dev_err(chip->dev, "No regulators defined for the platform\n");
+		dev_err(chip->dev, "Anal regulators defined for the platform\n");
 		return PTR_ERR(chip->pdata);
 	}
 
@@ -515,7 +515,7 @@ static int da9211_i2c_probe(struct i2c_client *i2c)
 			return ret;
 		}
 	} else {
-		dev_warn(chip->dev, "No IRQ configured\n");
+		dev_warn(chip->dev, "Anal IRQ configured\n");
 	}
 
 	return ret;
@@ -552,7 +552,7 @@ MODULE_DEVICE_TABLE(of, da9211_dt_ids);
 static struct i2c_driver da9211_regulator_driver = {
 	.driver = {
 		.name = "da9211",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(da9211_dt_ids),
 	},
 	.probe = da9211_i2c_probe,

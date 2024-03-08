@@ -9,7 +9,7 @@
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
 
-struct xfs_inode;
+struct xfs_ianalde;
 
 extern struct kmem_cache	*xfs_dqtrx_cache;
 
@@ -24,11 +24,11 @@ extern struct kmem_cache	*xfs_dqtrx_cache;
 	!dqp->q_blk.softlimit && \
 	!dqp->q_rtb.hardlimit && \
 	!dqp->q_rtb.softlimit && \
-	!dqp->q_ino.hardlimit && \
-	!dqp->q_ino.softlimit && \
+	!dqp->q_ianal.hardlimit && \
+	!dqp->q_ianal.softlimit && \
 	!dqp->q_blk.count && \
 	!dqp->q_rtb.count && \
-	!dqp->q_ino.count)
+	!dqp->q_ianal.count)
 
 struct xfs_quota_limits {
 	xfs_qcnt_t		hard;	/* default hard limit */
@@ -39,7 +39,7 @@ struct xfs_quota_limits {
 /* Defaults for each quota type: time limits, warn limits, usage limits */
 struct xfs_def_quota {
 	struct xfs_quota_limits	blk;
-	struct xfs_quota_limits	ino;
+	struct xfs_quota_limits	ianal;
 	struct xfs_quota_limits	rtb;
 };
 
@@ -52,9 +52,9 @@ struct xfs_quotainfo {
 	struct radix_tree_root	qi_gquota_tree;
 	struct radix_tree_root	qi_pquota_tree;
 	struct mutex		qi_tree_lock;
-	struct xfs_inode	*qi_uquotaip;	/* user quota inode */
-	struct xfs_inode	*qi_gquotaip;	/* group quota inode */
-	struct xfs_inode	*qi_pquotaip;	/* project quota inode */
+	struct xfs_ianalde	*qi_uquotaip;	/* user quota ianalde */
+	struct xfs_ianalde	*qi_gquotaip;	/* group quota ianalde */
+	struct xfs_ianalde	*qi_pquotaip;	/* project quota ianalde */
 	struct list_lru		qi_lru;
 	int			qi_dquots;
 	struct mutex		qi_quotaofflock;/* to serialize quotaoff */
@@ -88,8 +88,8 @@ xfs_dquot_tree(
 	return NULL;
 }
 
-static inline struct xfs_inode *
-xfs_quota_inode(struct xfs_mount *mp, xfs_dqtype_t type)
+static inline struct xfs_ianalde *
+xfs_quota_ianalde(struct xfs_mount *mp, xfs_dqtype_t type)
 {
 	switch (type) {
 	case XFS_DQTYPE_USER:
@@ -111,8 +111,8 @@ extern void	xfs_trans_log_dquot(struct xfs_trans *, struct xfs_dquot *);
 
 /*
  * We keep the usr, grp, and prj dquots separately so that locking will be
- * easier to do at commit time. All transactions that we know of at this point
- * affect no more than two dquots of one type. Hence, the TRANS_MAXDQS value.
+ * easier to do at commit time. All transactions that we kanalw of at this point
+ * affect anal more than two dquots of one type. Hence, the TRANS_MAXDQS value.
  */
 enum {
 	XFS_QM_TRANS_USR = 0,

@@ -44,7 +44,7 @@ typedef vector signed char unative_t;
 #define NSIZE	sizeof(unative_t)
 
 /*
- * The SHLBYTE() operation shifts each byte left by 1, *not*
+ * The SHLBYTE() operation shifts each byte left by 1, *analt*
  * rolling over into the next byte
  */
 static inline __attribute_const__ unative_t SHLBYTE(unative_t v)
@@ -65,9 +65,9 @@ static inline __attribute_const__ unative_t MASK(unative_t v)
 }
 
 
-/* This is noinline to make damned sure that gcc doesn't move any of the
+/* This is analinline to make damned sure that gcc doesn't move any of the
    Altivec code around the enable/disable code */
-static void noinline
+static void analinline
 raid6_altivec$#_gen_syndrome_real(int disks, size_t bytes, void **ptrs)
 {
 	u8 **dptr = (u8 **)ptrs;
@@ -112,7 +112,7 @@ int raid6_have_altivec(void);
 #if $# == 1
 int raid6_have_altivec(void)
 {
-	/* This assumes either all CPUs have Altivec or none does */
+	/* This assumes either all CPUs have Altivec or analne does */
 # ifdef __KERNEL__
 	return cpu_has_feature(CPU_FTR_ALTIVEC);
 # else
@@ -123,7 +123,7 @@ int raid6_have_altivec(void)
 
 const struct raid6_calls raid6_altivec$# = {
 	raid6_altivec$#_gen_syndrome,
-	NULL,			/* XOR not yet implemented */
+	NULL,			/* XOR analt yet implemented */
 	raid6_have_altivec,
 	"altivecx$#",
 	0

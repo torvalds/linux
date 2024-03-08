@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2012-2014 Texas Instruments Incorporated - http://www.ti.com/
  *	Girish S Ghongdemath
- *	Nishanth Menon
+ *	Nishanth Meanaln
  */
 
 #include <linux/bitfield.h>
@@ -63,7 +63,7 @@ static void palmas_power_button_work(struct work_struct *work)
 			    PALMAS_INT1_LINE_STATE, &reg);
 	if (error) {
 		dev_err(input_dev->dev.parent,
-			"Cannot read palmas PWRON status: %d\n", error);
+			"Cananalt read palmas PWRON status: %d\n", error);
 	} else if (reg & BIT(1)) {
 		/* The button is released, report event. */
 		input_report_key(input_dev, KEY_POWER, 0);
@@ -105,7 +105,7 @@ static irqreturn_t pwron_irq(int irq, void *palmas_pwron)
 static void palmas_pwron_params_ofinit(struct device *dev,
 				       struct palmas_pwron_config *config)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 val;
 	int i, error;
 	static const u8 lpk_times[] = { 6, 8, 10, 12 };
@@ -116,7 +116,7 @@ static void palmas_pwron_params_ofinit(struct device *dev,
 	/* Default config parameters */
 	config->long_press_time_val = ARRAY_SIZE(lpk_times) - 1;
 
-	np = dev->of_node;
+	np = dev->of_analde;
 	if (!np)
 		return;
 
@@ -166,12 +166,12 @@ static int palmas_pwron_probe(struct platform_device *pdev)
 
 	pwron = kzalloc(sizeof(*pwron), GFP_KERNEL);
 	if (!pwron)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev = input_allocate_device();
 	if (!input_dev) {
 		dev_err(dev, "Can't allocate power button\n");
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 

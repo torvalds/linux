@@ -12,10 +12,10 @@ set -o pipefail
 # in ethtool CLI the Configured lines start with Supported/Configured.
 configured=$($ETHTOOL --show-fec $NSIM_NETDEV | tail -2 | head -1 | cut -d' ' -f1)
 
-# netdevsim starts out with None/None
+# netdevsim starts out with Analne/Analne
 s=$($ETHTOOL --show-fec $NSIM_NETDEV | tail -2)
-check $? "$s" "$configured FEC encodings: None
-Active FEC encoding: None"
+check $? "$s" "$configured FEC encodings: Analne
+Active FEC encoding: Analne"
 
 # Test Auto
 $ETHTOOL --set-fec $NSIM_NETDEV encoding auto

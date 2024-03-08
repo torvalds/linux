@@ -12,18 +12,18 @@ maintainers:
   - Marek Szyprowski <m.szyprowski@samsung.com>
 
 description: |
-  Samsung MIPI DSIM bridge controller can be found it on Exynos
-  and i.MX8M Mini/Nano/Plus SoC's.
+  Samsung MIPI DSIM bridge controller can be found it on Exyanals
+  and i.MX8M Mini/Naanal/Plus SoC's.
 
 properties:
   compatible:
     oneOf:
       - enum:
-          - samsung,exynos3250-mipi-dsi
-          - samsung,exynos4210-mipi-dsi
-          - samsung,exynos5410-mipi-dsi
-          - samsung,exynos5422-mipi-dsi
-          - samsung,exynos5433-mipi-dsi
+          - samsung,exyanals3250-mipi-dsi
+          - samsung,exyanals4210-mipi-dsi
+          - samsung,exyanals5410-mipi-dsi
+          - samsung,exyanals5422-mipi-dsi
+          - samsung,exyanals5433-mipi-dsi
           - fsl,imx8mm-mipi-dsim
           - fsl,imx8mp-mipi-dsim
       - items:
@@ -98,7 +98,7 @@ properties:
       port@0:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Input port node to receive pixel data from the
+          Input port analde to receive pixel data from the
           display controller. Exactly one endpoint must be
           specified.
 
@@ -106,7 +106,7 @@ properties:
         $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
         description:
-          DSI output port node to the panel or the next bridge
+          DSI output port analde to the panel or the next bridge
           in the chain.
 
         properties:
@@ -146,7 +146,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5433-mipi-dsi
+            const: samsung,exyanals5433-mipi-dsi
 
     then:
       properties:
@@ -174,7 +174,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos5410-mipi-dsi
+            const: samsung,exyanals5410-mipi-dsi
 
     then:
       properties:
@@ -194,7 +194,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos4210-mipi-dsi
+            const: samsung,exyanals4210-mipi-dsi
 
     then:
       properties:
@@ -214,7 +214,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: samsung,exynos3250-mipi-dsi
+            const: samsung,exyanals3250-mipi-dsi
 
     then:
       properties:
@@ -236,12 +236,12 @@ additionalProperties:
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos5433.h>
+    #include <dt-bindings/clock/exyanals5433.h>
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     dsi@13900000 {
-       compatible = "samsung,exynos5433-mipi-dsi";
+       compatible = "samsung,exyanals5433-mipi-dsi";
        reg = <0x13900000 0xC0>;
        interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
        phys = <&mipi_phy 1>;

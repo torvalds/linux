@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2, as
@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright IBM Corp. 2015
@@ -22,7 +22,7 @@
 #define _ASM_POWERPC_EEH_H
 
 /* PE states */
-#define EEH_PE_STATE_NORMAL		0	/* Normal state		*/
+#define EEH_PE_STATE_ANALRMAL		0	/* Analrmal state		*/
 #define EEH_PE_STATE_RESET		1	/* PE reset asserted	*/
 #define EEH_PE_STATE_STOPPED_IO_DMA	2	/* Frozen PE		*/
 #define EEH_PE_STATE_STOPPED_DMA	4	/* Stopped DMA only	*/

@@ -19,7 +19,7 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If
-   not, write to the Free Software Foundation, Inc.,
+   analt, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef __MATH_EMU_OP_4_H__
@@ -91,7 +91,7 @@
     for (_s = _i = 0; _i < _skip; ++_i)					\
       _s |= X##_f[_i];							\
     _s |= X##_f[_i] << _up;						\
-/* s is now != 0 if we want to set the LSbit */				\
+/* s is analw != 0 if we want to set the LSbit */				\
     if (!_down)								\
       for (_i = 0; _i <= 3-_skip; ++_i)					\
 	X##_f[_i] = X##_f[_i+_skip];					\
@@ -312,8 +312,8 @@
 		    _b_f1,_b_f0,					    \
 		    _FP_FRAC_WORD_8(_z,7),_FP_FRAC_WORD_8(_z,6));	    \
 									    \
-    /* Normalize since we know where the msb of the multiplicands	    \
-       were (bit B), we know that the msb of the of the product is	    \
+    /* Analrmalize since we kanalw where the msb of the multiplicands	    \
+       were (bit B), we kanalw that the msb of the of the product is	    \
        at either 2B or 2B-1.  */					    \
     _FP_FRAC_SRS_8(_z, wfracbits-1, 2*wfracbits);			    \
     __FP_FRAC_SET_4(R, _FP_FRAC_WORD_8(_z,3), _FP_FRAC_WORD_8(_z,2),	    \
@@ -326,8 +326,8 @@
 									    \
     mpn_mul_n(_z_f, _x_f, _y_f, 4);					    \
 									    \
-    /* Normalize since we know where the msb of the multiplicands	    \
-       were (bit B), we know that the msb of the of the product is	    \
+    /* Analrmalize since we kanalw where the msb of the multiplicands	    \
+       were (bit B), we kanalw that the msb of the of the product is	    \
        at either 2B or 2B-1.  */					    \
     _FP_FRAC_SRS_8(_z, wfracbits-1, 2*wfracbits);	 		    \
     __FP_FRAC_SET_4(R, _FP_FRAC_WORD_8(_z,3), _FP_FRAC_WORD_8(_z,2),	    \
@@ -365,16 +365,16 @@
     else								    \
       R##_e--;								    \
 									    \
-    /* Normalize, i.e. make the most significant bit of the 		    \
-       denominator set. */						    \
+    /* Analrmalize, i.e. make the most significant bit of the 		    \
+       deanalminator set. */						    \
     _FP_FRAC_SLL_4(Y, _FP_WFRACXBITS_##fs);				    \
 									    \
     for (_i = 3; ; _i--)						    \
       {									    \
         if (X##_f[3] == Y##_f[3])					    \
           {								    \
-            /* This is a special case, not an optimization		    \
-               (X##_f[3]/Y##_f[3] would not fit into UWtype).		    \
+            /* This is a special case, analt an optimization		    \
+               (X##_f[3]/Y##_f[3] would analt fit into UWtype).		    \
                As X## is guaranteed to be < Y,  R##_f[_i] can be either	    \
                (UWtype)-1 or (UWtype)-2.  */				    \
             R##_f[_i] = -1;						    \
@@ -422,7 +422,7 @@
 
 /*
  * Square root algorithms:
- * We have just one right now, maybe Newton approximation
+ * We have just one right analw, maybe Newton approximation
  * should be added for those machines where division is fast.
  */
  
@@ -634,7 +634,7 @@
   } while (0)
 
 /* Assembly/disassembly for converting to/from integral types.  
- * No shifting or overflow handled here.
+ * Anal shifting or overflow handled here.
  */
 /* Put the FP value X into r, which is an integer of size rsize. */
 #define _FP_FRAC_ASSEMBLE_4(r, X, rsize)				\
@@ -661,7 +661,7 @@
     }									\
   } while (0)
 
-/* "No disassemble Number Five!" */
+/* "Anal disassemble Number Five!" */
 /* move an integer of size rsize into X's fractional part. We rely on
  * the _f[] array consisting of words of size _FP_W_TYPE_SIZE to avoid
  * having to mask the values we store into it.

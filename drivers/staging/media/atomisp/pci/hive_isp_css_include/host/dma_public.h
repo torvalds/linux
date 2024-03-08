@@ -24,7 +24,7 @@
  \param	reg[in]				register index
  \param value[in]			The data to be written
 
- \return none, DMA[ID].ctrl[reg] = value
+ \return analne, DMA[ID].ctrl[reg] = value
  */
 STORAGE_CLASS_DMA_H void dma_reg_store(
     const dma_ID_t		ID,
@@ -49,7 +49,7 @@ STORAGE_CLASS_DMA_H hrt_data dma_reg_load(
  \param conn[in]			Connection to set max burst size for
  \param max_burst_size[in]		Maximum burst size in words
 
- \return none
+ \return analne
 */
 void
 dma_set_max_burst_size(

@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor network mediation definitions.
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2017 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2017 Caanalnical Ltd.
  */
 
 #ifndef __AA_NET_H
@@ -62,7 +62,7 @@ static inline struct aa_sk_ctx *aa_sock(const struct sock *sk)
 						  .family = (F)};	  \
 	DEFINE_AUDIT_DATA(NAME,						  \
 			  ((SK) && (F) != AF_UNIX) ? LSM_AUDIT_DATA_NET : \
-						     LSM_AUDIT_DATA_NONE, \
+						     LSM_AUDIT_DATA_ANALNE, \
 						     AA_CLASS_NET,        \
 			  OP);						  \
 	NAME.common.u.net = &(NAME ## _net);				  \

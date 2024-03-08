@@ -57,7 +57,7 @@
 #define IDPF_DFLT_TX_COMPLQ_DESC_COUNT		512
 #define IDPF_DFLT_RX_Q_DESC_COUNT		512
 
-/* IMPORTANT: We absolutely _cannot_ have more buffers in the system than a
+/* IMPORTANT: We absolutely _cananalt_ have more buffers in the system than a
  * given RX completion queue has descriptors. This includes _ALL_ buffer
  * queues. E.g.: If you have two buffer queues of 512 descriptors and buffers,
  * you have a total of 1024 buffers so your RX queue _must_ have at least that
@@ -69,7 +69,7 @@
  * happen is that if hardware gets a chance to post more than ring wrap of
  * descriptors before SW gets an interrupt and overwrites SW head, the gen bit
  * in the descriptor will be wrong. Any overwritten descriptors' buffers will
- * be gone forever and SW has no reasonable way to tell that this has happened.
+ * be gone forever and SW has anal reasonable way to tell that this has happened.
  * From SW perspective, when we finally get an interrupt, it looks like we're
  * still waiting for descriptor to be done, stalling forever.
  */
@@ -186,7 +186,7 @@ union idpf_tx_flex_desc {
  *	       the buf_id. The tag consists of a N bit buf_id and M upper
  *	       order "generation bits". See compl_tag_bufid_m and
  *	       compl_tag_gen_s in struct idpf_queue. We'll use a value of -1
- *	       to indicate the tag is not valid.
+ *	       to indicate the tag is analt valid.
  * @ctx_entry: Singleq only. Used to indicate the corresponding entry
  *	       in the descriptor ring was used for a context descriptor and
  *	       this buffer entry should be skipped.
@@ -207,13 +207,13 @@ struct idpf_tx_buf {
 };
 
 struct idpf_tx_stash {
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 	struct idpf_tx_buf buf;
 };
 
 /**
  * struct idpf_buf_lifo - LIFO for managing OOO completions
- * @top: Used to know how many buffers are left
+ * @top: Used to kanalw how many buffers are left
  * @size: Total size of LIFO
  * @bufs: Backing array
  */
@@ -268,9 +268,9 @@ struct idpf_tx_splitq_params {
 };
 
 enum idpf_tx_ctx_desc_eipt_offload {
-	IDPF_TX_CTX_EXT_IP_NONE         = 0x0,
+	IDPF_TX_CTX_EXT_IP_ANALNE         = 0x0,
 	IDPF_TX_CTX_EXT_IP_IPV6         = 0x1,
-	IDPF_TX_CTX_EXT_IP_IPV4_NO_CSUM = 0x2,
+	IDPF_TX_CTX_EXT_IP_IPV4_ANAL_CSUM = 0x2,
 	IDPF_TX_CTX_EXT_IP_IPV4         = 0x3
 };
 
@@ -346,7 +346,7 @@ struct idpf_rx_buf {
 #define IDPF_RX_MAX_BASE_PTYPE	256
 #define IDPF_INVALID_PTYPE_ID	0xFFFF
 
-/* Packet type non-ip values */
+/* Packet type analn-ip values */
 enum idpf_rx_ptype_l2 {
 	IDPF_RX_PTYPE_L2_RESERVED	= 0,
 	IDPF_RX_PTYPE_L2_MAC_PAY2	= 1,
@@ -372,18 +372,18 @@ enum idpf_rx_ptype_outer_ip {
 	 ((ptype)->outer_ip_ver == (ipv)))
 
 enum idpf_rx_ptype_outer_ip_ver {
-	IDPF_RX_PTYPE_OUTER_NONE	= 0,
+	IDPF_RX_PTYPE_OUTER_ANALNE	= 0,
 	IDPF_RX_PTYPE_OUTER_IPV4	= 1,
 	IDPF_RX_PTYPE_OUTER_IPV6	= 2,
 };
 
 enum idpf_rx_ptype_outer_fragmented {
-	IDPF_RX_PTYPE_NOT_FRAG	= 0,
+	IDPF_RX_PTYPE_ANALT_FRAG	= 0,
 	IDPF_RX_PTYPE_FRAG	= 1,
 };
 
 enum idpf_rx_ptype_tunnel_type {
-	IDPF_RX_PTYPE_TUNNEL_NONE		= 0,
+	IDPF_RX_PTYPE_TUNNEL_ANALNE		= 0,
 	IDPF_RX_PTYPE_TUNNEL_IP_IP		= 1,
 	IDPF_RX_PTYPE_TUNNEL_IP_GRENAT		= 2,
 	IDPF_RX_PTYPE_TUNNEL_IP_GRENAT_MAC	= 3,
@@ -391,13 +391,13 @@ enum idpf_rx_ptype_tunnel_type {
 };
 
 enum idpf_rx_ptype_tunnel_end_prot {
-	IDPF_RX_PTYPE_TUNNEL_END_NONE	= 0,
+	IDPF_RX_PTYPE_TUNNEL_END_ANALNE	= 0,
 	IDPF_RX_PTYPE_TUNNEL_END_IPV4	= 1,
 	IDPF_RX_PTYPE_TUNNEL_END_IPV6	= 2,
 };
 
 enum idpf_rx_ptype_inner_prot {
-	IDPF_RX_PTYPE_INNER_PROT_NONE		= 0,
+	IDPF_RX_PTYPE_INNER_PROT_ANALNE		= 0,
 	IDPF_RX_PTYPE_INNER_PROT_UDP		= 1,
 	IDPF_RX_PTYPE_INNER_PROT_TCP		= 2,
 	IDPF_RX_PTYPE_INNER_PROT_SCTP		= 3,
@@ -406,7 +406,7 @@ enum idpf_rx_ptype_inner_prot {
 };
 
 enum idpf_rx_ptype_payload_layer {
-	IDPF_RX_PTYPE_PAYLOAD_LAYER_NONE	= 0,
+	IDPF_RX_PTYPE_PAYLOAD_LAYER_ANALNE	= 0,
 	IDPF_RX_PTYPE_PAYLOAD_LAYER_PAY2	= 1,
 	IDPF_RX_PTYPE_PAYLOAD_LAYER_PAY3	= 2,
 	IDPF_RX_PTYPE_PAYLOAD_LAYER_PAY4	= 3,
@@ -426,7 +426,7 @@ struct idpf_ptype_state {
 
 struct idpf_rx_ptype_decoded {
 	u32 ptype:10;
-	u32 known:1;
+	u32 kanalwn:1;
 	u32 outer_ip:1;
 	u32 outer_ip_ver:2;
 	u32 outer_frag:1;
@@ -445,9 +445,9 @@ struct idpf_rx_ptype_decoded {
  *		      descriptor. After the ring wraps, HW sets the gen bit of
  *		      those descriptors to 0, and continues flipping
  *		      0->1 or 1->0 on each ring wrap. SW maintains its own
- *		      gen bit to know what value will indicate writebacks on
+ *		      gen bit to kanalw what value will indicate writebacks on
  *		      the next pass around the ring. E.g. it is initialized
- *		      to 1 and knows that reading a gen bit of 1 in any
+ *		      to 1 and kanalws that reading a gen bit of 1 in any
  *		      descriptor on the initial pass of the ring indicates a
  *		      writeback. It also flips on every ring wrap.
  * @__IDPF_RFLQ_GEN_CHK: Refill queues are SW only, so Q_GEN acts as the HW bit
@@ -515,13 +515,13 @@ struct idpf_intr_reg {
  * @tx: Array of TX queues to service
  * @tx_dim: Data for TX net_dim algorithm
  * @tx_itr_value: TX interrupt throttling rate
- * @tx_intr_mode: Dynamic ITR or not
+ * @tx_intr_mode: Dynamic ITR or analt
  * @tx_itr_idx: TX ITR index
  * @num_rxq: Number of RX queues
  * @rx: Array of RX queues to service
  * @rx_dim: Data for RX net_dim algorithm
  * @rx_itr_value: RX interrupt throttling rate
- * @rx_intr_mode: Dynamic ITR or not
+ * @rx_intr_mode: Dynamic ITR or analt
  * @rx_itr_idx: RX ITR index
  * @num_bufq: Number of buffer queues
  * @bufq: Array of buffer queues to service
@@ -595,8 +595,8 @@ union idpf_queue_stats {
 #define IDPF_ITR_IS_DYNAMIC(itr_mode) (itr_mode)
 #define IDPF_ITR_TX_DEF		IDPF_ITR_20K
 #define IDPF_ITR_RX_DEF		IDPF_ITR_20K
-/* Index used for 'No ITR' update in DYN_CTL register */
-#define IDPF_NO_ITR_UPDATE_IDX	3
+/* Index used for 'Anal ITR' update in DYN_CTL register */
+#define IDPF_ANAL_ITR_UPDATE_IDX	3
 #define IDPF_ITR_IDX_SPACING(spacing, dflt)	(spacing ? spacing : dflt)
 #define IDPF_DIM_DEFAULT_PROFILE_IX		1
 
@@ -747,7 +747,7 @@ struct idpf_queue {
 	u16 compl_tag_gen_max;
 
 	DECLARE_HASHTABLE(sched_buf_hash, 12);
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 /**
  * struct idpf_sw_queue
@@ -769,7 +769,7 @@ struct idpf_sw_queue {
 	u16 *ring;
 	u16 desc_count;
 	struct device *dev;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 /**
  * struct idpf_rxq_set
@@ -869,7 +869,7 @@ struct idpf_txq_group {
  * @size: transmit request size in bytes
  *
  * In the case where a large frag (>= 16K) needs to be split across multiple
- * descriptors, we need to assume that we can have no more than 12K of data
+ * descriptors, we need to assume that we can have anal more than 12K of data
  * per descriptor due to hardware alignment restrictions (4K alignment).
  */
 static inline u32 idpf_size_to_txd_count(unsigned int size)

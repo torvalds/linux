@@ -9,14 +9,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -24,13 +24,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -123,7 +123,7 @@ struct scb_platform_data;
 #define AHD_SET_SCB_COL_IDX(scb, col_idx)				\
 do {									\
 	(scb)->hscb->scsiid = ((col_idx) << TID_SHIFT) & TID;		\
-	(scb)->hscb->lun = ((col_idx) >> 4) & (AHD_NUM_LUNS_NONPKT-1);	\
+	(scb)->hscb->lun = ((col_idx) >> 4) & (AHD_NUM_LUNS_ANALNPKT-1);	\
 } while (0)
 
 #define AHD_COPY_SCB_COL_IDX(dst, src)				\
@@ -142,11 +142,11 @@ do {								\
 
 /*
  * The maximum number of supported luns.
- * The identify message only supports 64 luns in non-packetized transfers.
+ * The identify message only supports 64 luns in analn-packetized transfers.
  * You can have 2^64 luns when information unit transfers are enabled,
  * but until we see a need to support that many, we support 256.
  */
-#define AHD_NUM_LUNS_NONPKT 64
+#define AHD_NUM_LUNS_ANALNPKT 64
 #define AHD_NUM_LUNS 256
 
 /*
@@ -157,7 +157,7 @@ do {								\
 /*
  * The maximum amount of SCB storage in hardware on a controller.
  * This value represents an upper bound.  Due to software design,
- * we may not be able to use this number.
+ * we may analt be able to use this number.
  */
 #define AHD_SCB_MAX	512
 
@@ -196,7 +196,7 @@ do {								\
  * The chip order is from least sophisticated to most sophisticated.
  */
 typedef enum {
-	AHD_NONE	= 0x0000,
+	AHD_ANALNE	= 0x0000,
 	AHD_CHIPID_MASK	= 0x00FF,
 	AHD_AIC7901	= 0x0001,
 	AHD_AIC7902	= 0x0002,
@@ -210,19 +210,19 @@ typedef enum {
  * Features available in each chip type.
  */
 typedef enum {
-	AHD_FENONE		= 0x00000,
+	AHD_FEANALNE		= 0x00000,
 	AHD_WIDE		= 0x00001,/* Wide Channel */
 	AHD_AIC79XXB_SLOWCRC    = 0x00002,/* SLOWCRC bit should be set */
 	AHD_MULTI_FUNC		= 0x00100,/* Multi-Function/Channel Device */
 	AHD_TARGETMODE		= 0x01000,/* Has tested target mode support */
 	AHD_MULTIROLE		= 0x02000,/* Space for two roles at a time */
 	AHD_RTI			= 0x04000,/* Retained Training Support */
-	AHD_NEW_IOCELL_OPTS	= 0x08000,/* More Signal knobs in the IOCELL */
+	AHD_NEW_IOCELL_OPTS	= 0x08000,/* More Signal kanalbs in the IOCELL */
 	AHD_NEW_DFCNTRL_OPTS	= 0x10000,/* SCSIENWRDIS bit */
 	AHD_FAST_CDB_DELIVERY	= 0x20000,/* CDB acks released to Output Sync */
-	AHD_REMOVABLE		= 0x00000,/* Hot-Swap supported - None so far*/
-	AHD_AIC7901_FE		= AHD_FENONE,
-	AHD_AIC7901A_FE		= AHD_FENONE,
+	AHD_REMOVABLE		= 0x00000,/* Hot-Swap supported - Analne so far*/
+	AHD_AIC7901_FE		= AHD_FEANALNE,
+	AHD_AIC7901A_FE		= AHD_FEANALNE,
 	AHD_AIC7902_FE		= AHD_MULTI_FUNC
 } ahd_feature;
 
@@ -230,7 +230,7 @@ typedef enum {
  * Bugs in the silicon that we work around in software.
  */
 typedef enum {
-	AHD_BUGNONE		= 0x0000,
+	AHD_BUGANALNE		= 0x0000,
 	/*
 	 * Rev A hardware fails to update LAST/CURR/NEXTSCB
 	 * correctly in certain packetized selection cases.
@@ -242,44 +242,44 @@ typedef enum {
 	AHD_PKT_BITBUCKET_BUG	= 0x0004,
 	/* The selection timer runs twice as long as its setting. */
 	AHD_LONG_SETIMO_BUG	= 0x0008,
-	/* The Non-LQ CRC error status is delayed until phase change. */
+	/* The Analn-LQ CRC error status is delayed until phase change. */
 	AHD_NLQICRC_DELAYED_BUG	= 0x0010,
 	/* The chip must be reset for all outgoing bus resets.  */
 	AHD_SCSIRST_BUG		= 0x0020,
 	/* Some PCIX fields must be saved and restored across chip reset. */
 	AHD_PCIX_CHIPRST_BUG	= 0x0040,
-	/* MMAPIO is not functional in PCI-X mode.  */
+	/* MMAPIO is analt functional in PCI-X mode.  */
 	AHD_PCIX_MMAPIO_BUG	= 0x0080,
 	/* Reads to SCBRAM fail to reset the discard timer. */
 	AHD_PCIX_SCBRAM_RD_BUG  = 0x0100,
-	/* Bug workarounds that can be disabled on non-PCIX busses. */
+	/* Bug workarounds that can be disabled on analn-PCIX busses. */
 	AHD_PCIX_BUG_MASK	= AHD_PCIX_CHIPRST_BUG
 				| AHD_PCIX_MMAPIO_BUG
 				| AHD_PCIX_SCBRAM_RD_BUG,
 	/*
 	 * LQOSTOP0 status set even for forced selections with ATN
-	 * to perform non-packetized message delivery.
+	 * to perform analn-packetized message delivery.
 	 */
-	AHD_LQO_ATNO_BUG	= 0x0200,
-	/* FIFO auto-flush does not always trigger.  */
+	AHD_LQO_ATANAL_BUG	= 0x0200,
+	/* FIFO auto-flush does analt always trigger.  */
 	AHD_AUTOFLUSH_BUG	= 0x0400,
-	/* The CLRLQO registers are not self-clearing. */
+	/* The CLRLQO registers are analt self-clearing. */
 	AHD_CLRLQO_AUTOCLR_BUG	= 0x0800,
 	/* The PACKETIZED status bit refers to the previous connection. */
 	AHD_PKTIZED_STATUS_BUG  = 0x1000,
-	/* "Short Luns" are not placed into outgoing LQ packets correctly. */
+	/* "Short Luns" are analt placed into outgoing LQ packets correctly. */
 	AHD_PKT_LUN_BUG		= 0x2000,
 	/*
-	 * Only the FIFO allocated to the non-packetized connection may
-	 * be in use during a non-packetzied connection.
+	 * Only the FIFO allocated to the analn-packetized connection may
+	 * be in use during a analn-packetzied connection.
 	 */
-	AHD_NONPACKFIFO_BUG	= 0x4000,
+	AHD_ANALNPACKFIFO_BUG	= 0x4000,
 	/*
 	 * Writing to a DFF SCBPTR register may fail if concurent with
 	 * a hardware write to the other DFF SCBPTR register.  This is
-	 * not currently a concern in our sequencer since all chips with
-	 * this bug have the AHD_NONPACKFIFO_BUG and all writes of concern
-	 * occur in non-packetized connections.
+	 * analt currently a concern in our sequencer since all chips with
+	 * this bug have the AHD_ANALNPACKFIFO_BUG and all writes of concern
+	 * occur in analn-packetized connections.
 	 */
 	AHD_MDFF_WSCBPTR_BUG	= 0x8000,
 	/* SGHADDR updates are slow. */
@@ -290,10 +290,10 @@ typedef enum {
 	 * be in the mode written outside of interrupt context.
 	 */
 	AHD_SET_MODE_BUG	= 0x20000,
-	/* Non-packetized busfree revision does not work. */
+	/* Analn-packetized busfree revision does analt work. */
 	AHD_BUSFREEREV_BUG	= 0x40000,
 	/*
-	 * Paced transfers are indicated with a non-standard PPR
+	 * Paced transfers are indicated with a analn-standard PPR
 	 * option bit in the neg table, 160MHz is indicated by
 	 * sync factor 0x7, and the offset if off by a factor of 2.
 	 */
@@ -306,7 +306,7 @@ typedef enum {
 	 */
 	AHD_INTCOLLISION_BUG	= 0x200000,
 	/*
-	 * The GEM318 violates the SCSI spec by not waiting
+	 * The GEM318 violates the SCSI spec by analt waiting
 	 * the mandated bus settle delay between phase changes
 	 * in some situations.  Some aic79xx chip revs. are more
 	 * strict in this regard and will treat REQ assertions
@@ -316,7 +316,7 @@ typedef enum {
 	 */
 	AHD_EARLY_REQ_BUG	= 0x400000,
 	/*
-	 * The LED does not stay on long enough in packetized modes.
+	 * The LED does analt stay on long eanalugh in packetized modes.
 	 */
 	AHD_FAINT_LED_BUG	= 0x800000
 } ahd_bug;
@@ -327,7 +327,7 @@ typedef enum {
  * chip/controller's configuration.
  */
 typedef enum {
-	AHD_FNONE	      = 0x00000,
+	AHD_FANALNE	      = 0x00000,
 	AHD_BOOT_CHANNEL      = 0x00001,/* We were set as the boot channel. */
 	AHD_USEDEFAULTS	      = 0x00004,/*
 					 * For cards without an seeprom
@@ -360,7 +360,7 @@ typedef enum {
 	AHD_39BIT_ADDRESSING  = 0x10000,/* Use 39 bit addressing scheme. */
 	AHD_64BIT_ADDRESSING  = 0x20000,/* Use 64 bit addressing scheme. */
 	AHD_CURRENT_SENSING   = 0x40000,
-	AHD_SCB_CONFIG_USED   = 0x80000,/* No SEEPROM but SCB had info. */
+	AHD_SCB_CONFIG_USED   = 0x80000,/* Anal SEEPROM but SCB had info. */
 	AHD_HP_BOARD	      = 0x100000,
 	AHD_BUS_RESET_ACTIVE  = 0x200000,
 	AHD_UPDATE_PEND_CMDS  = 0x400000,
@@ -381,7 +381,7 @@ typedef enum {
  * contains the SCSI cdb (or a pointer to the  cdb) to be executed.  After
  * the cdb has been presented to the target, this area serves to store
  * residual transfer information and the SCSI status byte.
- * For the target role, the contents of this area do not change, but
+ * For the target role, the contents of this area do analt change, but
  * still serve a different purpose than for the initiator role.  See
  * struct target_data for details.
  */
@@ -390,7 +390,7 @@ typedef enum {
  * Status information embedded in the shared poriton of
  * an SCB after passing the cdb to the target.  The kernel
  * driver will only read this data for transactions that
- * complete abnormally.
+ * complete abanalrmally.
  */
 struct initiator_status {
 	uint32_t residual_datacnt;	/* Residual in the current S/G seg */
@@ -456,9 +456,9 @@ struct hardware_scb {
  * or'ed with the SG_FULL_RESID flag.  Sgptr may point to an invalid
  * S/G entry for this transfer (single S/G element transfer with the
  * first elements address and length preloaded in the dataptr/datacnt
- * fields).  If no transfer is to occur, sgptr is set to SG_LIST_NULL.
+ * fields).  If anal transfer is to occur, sgptr is set to SG_LIST_NULL.
  * The SG_FULL_RESID flag ensures that the residual will be correctly
- * noted even if no data transfers occur.  Once the data phase is entered,
+ * analted even if anal data transfers occur.  Once the data phase is entered,
  * the residual sgptr and datacnt are loaded from the sgptr and the
  * datacnt fields.  After each S/G element's dataptr and length are
  * loaded into the hardware, the residual sgptr is advanced.  After
@@ -466,12 +466,12 @@ struct hardware_scb {
  * if the LAST_SEG flag is set.  If so, SG_LIST_NULL is set in the
  * residual sg ptr and the transfer is considered complete.  If the
  * sequencer determines that there is a residual in the tranfer, or
- * there is non-zero status, it will set the SG_STATUS_VALID flag in
+ * there is analn-zero status, it will set the SG_STATUS_VALID flag in
  * sgptr and dma the scb back into host memory.  To sumarize:
  *
  * Sequencer:
  *	o A residual has occurred if SG_FULL_RESID is set in sgptr,
- *	  or residual_sgptr does not have SG_LIST_NULL set.
+ *	  or residual_sgptr does analt have SG_LIST_NULL set.
  *
  *	o We are transferring the last segment if residual_datacnt has
  *	  the SG_LAST_SEG flag set.
@@ -504,7 +504,7 @@ struct hardware_scb {
 /*44*/	uint32_t next_hscb_busaddr;
 /********** Long lun field only downloaded for full 8 byte lun support ********/
 /*48*/  uint8_t	 pkt_long_lun[8];
-/******* Fields below are not Downloaded (Sequencer may use for scratch) ******/
+/******* Fields below are analt Downloaded (Sequencer may use for scratch) ******/
 /*56*/  uint8_t	 spare[8];
 };
 
@@ -537,30 +537,30 @@ struct ahd_dma64_seg {
 	uint32_t	pad;
 };
 
-struct map_node {
+struct map_analde {
 	bus_dmamap_t		 dmamap;
 	dma_addr_t		 physaddr;
 	uint8_t			*vaddr;
-	SLIST_ENTRY(map_node)	 links;
+	SLIST_ENTRY(map_analde)	 links;
 };
 
 /*
  * The current state of this SCB.
  */
 typedef enum {
-	SCB_FLAG_NONE		= 0x00000,
+	SCB_FLAG_ANALNE		= 0x00000,
 	SCB_TRANSMISSION_ERROR	= 0x00001,/*
 					   * We detected a parity or CRC
 					   * error that has effected the
 					   * payload of the command.  This
-					   * flag is checked when normal
+					   * flag is checked when analrmal
 					   * status is returned to catch
-					   * the case of a target not
+					   * the case of a target analt
 					   * responding to our attempt
 					   * to report the error.
 					   */
 	SCB_OTHERTCL_TIMEOUT	= 0x00002,/*
-					   * Another device was active
+					   * Aanalther device was active
 					   * during the first timeout for
 					   * this SCB so we gave ourselves
 					   * an additional timeout period
@@ -608,9 +608,9 @@ struct scb {
 	struct ahd_softc	 *ahd_softc;
 	scb_flag		  flags;
 	struct scb_platform_data *platform_data;
-	struct map_node		 *hscb_map;
-	struct map_node		 *sg_map;
-	struct map_node		 *sense_map;
+	struct map_analde		 *hscb_map;
+	struct map_analde		 *sg_map;
+	struct map_analde		 *sense_map;
 	void			 *sg_list;
 	uint8_t			 *sense_data;
 	dma_addr_t		  sg_list_busaddr;
@@ -634,10 +634,10 @@ struct scb_data {
 	 * Per-device lists of SCBs whose tag ID would collide
 	 * with an already active tag on the device.
 	 */
-	struct scb_list free_scb_lists[AHD_NUM_TARGETS * AHD_NUM_LUNS_NONPKT];
+	struct scb_list free_scb_lists[AHD_NUM_TARGETS * AHD_NUM_LUNS_ANALNPKT];
 
 	/*
-	 * SCBs that will not collide with any active device.
+	 * SCBs that will analt collide with any active device.
 	 */
 	struct scb_list any_dev_free_scb_list;
 
@@ -652,12 +652,12 @@ struct scb_data {
 	bus_dma_tag_t	 hscb_dmat;	/* dmat for our hardware SCB array */
 	bus_dma_tag_t	 sg_dmat;	/* dmat for our sg segments */
 	bus_dma_tag_t	 sense_dmat;	/* dmat for our sense buffers */
-	SLIST_HEAD(, map_node) hscb_maps;
-	SLIST_HEAD(, map_node) sg_maps;
-	SLIST_HEAD(, map_node) sense_maps;
-	int		 scbs_left;	/* unallocated scbs in head map_node */
-	int		 sgs_left;	/* unallocated sgs in head map_node */
-	int		 sense_left;	/* unallocated sense in head map_node */
+	SLIST_HEAD(, map_analde) hscb_maps;
+	SLIST_HEAD(, map_analde) sg_maps;
+	SLIST_HEAD(, map_analde) sense_maps;
+	int		 scbs_left;	/* unallocated scbs in head map_analde */
+	int		 sgs_left;	/* unallocated sgs in head map_analde */
+	int		 sense_left;	/* unallocated sense in head map_analde */
 	uint16_t	 numscbs;
 	uint16_t	 maxhscbs;	/* Number of SCBs on the card */
 	uint8_t		 init_level;	/*
@@ -695,7 +695,7 @@ struct target_cmd {
 
 /*
  * Number of events we can buffer up if we run out
- * of immediate notify ccbs.
+ * of immediate analtify ccbs.
  */
 #define AHD_TMODE_EVENT_BUFFER_SIZE 8
 struct ahd_tmode_event {
@@ -716,7 +716,7 @@ struct ahd_tmode_event {
 struct ahd_tmode_lstate {
 	struct cam_path *path;
 	struct ccb_hdr_slist accept_tios;
-	struct ccb_hdr_slist immed_notifies;
+	struct ccb_hdr_slist immed_analtifies;
 	struct ahd_tmode_event event_buffer[AHD_TMODE_EVENT_BUFFER_SIZE];
 	uint8_t event_r_idx;
 	uint8_t event_w_idx;
@@ -732,10 +732,10 @@ struct ahd_tmode_lstate;
 #define AHD_TRANS_USER		0x08	/* Modify user negotiation settings */
 #define AHD_PERIOD_10MHz	0x19
 
-#define AHD_WIDTH_UNKNOWN	0xFF
-#define AHD_PERIOD_UNKNOWN	0xFF
-#define AHD_OFFSET_UNKNOWN	0xFF
-#define AHD_PPR_OPTS_UNKNOWN	0xFF
+#define AHD_WIDTH_UNKANALWN	0xFF
+#define AHD_PERIOD_UNKANALWN	0xFF
+#define AHD_OFFSET_UNKANALWN	0xFF
+#define AHD_PPR_OPTS_UNKANALWN	0xFF
 
 /*
  * Transfer Negotiation Information.
@@ -822,7 +822,7 @@ struct seeprom_config {
  * Per SCSI ID Configuration Flags
  */
 	uint16_t device_flags[16];	/* words 0-15 */
-#define		CFXFER		0x003F	/* synchronous transfer rate */
+#define		CFXFER		0x003F	/* synchroanalus transfer rate */
 #define			CFXFER_ASYNC	0x3F
 #define		CFQAS		0x0040	/* Negotiate QAS */
 #define		CFPACKETIZED	0x0080	/* Negotiate Packetized Transfers */
@@ -935,7 +935,7 @@ struct vpd_config {
 #define		FLX_ROMSTAT_SEECFG	0xF0
 #define		FLX_ROMSTAT_EECFG	0x0F
 #define		FLX_ROMSTAT_SEE_93C66	0x00
-#define		FLX_ROMSTAT_SEE_NONE	0xF0
+#define		FLX_ROMSTAT_SEE_ANALNE	0xF0
 #define		FLX_ROMSTAT_EE_512x8	0x0
 #define		FLX_ROMSTAT_EE_1MBx8	0x1
 #define		FLX_ROMSTAT_EE_2MBx8	0x2
@@ -967,7 +967,7 @@ void		ahd_release_seeprom(struct ahd_softc *ahd);
 
 /****************************  Message Buffer *********************************/
 typedef enum {
-	MSG_FLAG_NONE			= 0x00,
+	MSG_FLAG_ANALNE			= 0x00,
 	MSG_FLAG_EXPECT_PPR_BUSFREE	= 0x01,
 	MSG_FLAG_IU_REQ_CHANGED		= 0x02,
 	MSG_FLAG_EXPECT_IDE_BUSFREE	= 0x04,
@@ -976,7 +976,7 @@ typedef enum {
 } ahd_msg_flags;
 
 typedef enum {
-	MSG_TYPE_NONE			= 0x00,
+	MSG_TYPE_ANALNE			= 0x00,
 	MSG_TYPE_INITIATOR_MSGOUT	= 0x01,
 	MSG_TYPE_INITIATOR_MSGIN	= 0x02,
 	MSG_TYPE_TARGET_MSGOUT		= 0x03,
@@ -1029,7 +1029,7 @@ typedef enum {
 	AHD_MODE_CCHAN,
 	AHD_MODE_SCSI,
 	AHD_MODE_CFG,
-	AHD_MODE_UNKNOWN
+	AHD_MODE_UNKANALWN
 } ahd_mode;
 
 #define AHD_MK_MSK(x) (0x01 << (x))
@@ -1038,7 +1038,7 @@ typedef enum {
 #define AHD_MODE_CCHAN_MSK	AHD_MK_MSK(AHD_MODE_CCHAN)
 #define AHD_MODE_SCSI_MSK	AHD_MK_MSK(AHD_MODE_SCSI)
 #define AHD_MODE_CFG_MSK	AHD_MK_MSK(AHD_MODE_CFG)
-#define AHD_MODE_UNKNOWN_MSK	AHD_MK_MSK(AHD_MODE_UNKNOWN)
+#define AHD_MODE_UNKANALWN_MSK	AHD_MK_MSK(AHD_MODE_UNKANALWN)
 #define AHD_MODE_ANY_MSK (~0)
 
 typedef uint8_t ahd_mode_state;
@@ -1056,7 +1056,7 @@ struct ahd_softc {
 	struct scb_data		  scb_data;
 
 	struct hardware_scb	 *next_queued_hscb;
-	struct map_node		 *next_queued_hscb_map;
+	struct map_analde		 *next_queued_hscb_map;
 
 	/*
 	 * SCBs that have been sent to the controller
@@ -1093,7 +1093,7 @@ struct ahd_softc {
 
 	/*
 	 * Target mode related state kept on a per enabled lun basis.
-	 * Targets that are not enabled will have null entries.
+	 * Targets that are analt enabled will have null entries.
 	 * As an initiator, we keep one target entry for our initiator
 	 * ID to store our sync/wide transfer settings.
 	 */
@@ -1107,7 +1107,7 @@ struct ahd_softc {
 
 	/*
 	 * Device instance currently on the bus awaiting a continue TIO
-	 * for a command that was not given the disconnect priveledge.
+	 * for a command that was analt given the disconnect priveledge.
 	 */
 	struct ahd_tmode_lstate  *pending_device;
 
@@ -1198,7 +1198,7 @@ struct ahd_softc {
 	 */
 	bus_dma_tag_t		  parent_dmat;
 	bus_dma_tag_t		  shared_data_dmat;
-	struct map_node		  shared_data_map;
+	struct map_analde		  shared_data_map;
 
 	/* Information saved through suspend/resume cycles */
 	struct ahd_suspend_state  suspend_state;
@@ -1277,7 +1277,7 @@ do {									\
 
 /************************ Active Device Information ***************************/
 typedef enum {
-	ROLE_UNKNOWN,
+	ROLE_UNKANALWN,
 	ROLE_INITIATOR,
 	ROLE_TARGET
 } role_t;
@@ -1290,7 +1290,7 @@ struct ahd_devinfo {
 	u_int	 lun;
 	char	 channel;
 	role_t	 role;		/*
-				 * Only guaranteed to be correct if not
+				 * Only guaranteed to be correct if analt
 				 * in the busfree state.
 				 */
 };
@@ -1393,7 +1393,7 @@ void			ahd_find_syncrate(struct ahd_softc *ahd, u_int *period,
  */
 typedef enum {
 	AHD_NEG_TO_GOAL,	/* Renegotiate only if goal and curr differ. */
-	AHD_NEG_IF_NON_ASYNC,	/* Renegotiate so long as goal is non-async. */
+	AHD_NEG_IF_ANALN_ASYNC,	/* Renegotiate so long as goal is analn-async. */
 	AHD_NEG_ALWAYS		/* Renegotiat even if goal is async. */
 } ahd_neg_type;
 int			ahd_update_neg_request(struct ahd_softc*,
@@ -1410,7 +1410,7 @@ void			ahd_set_syncrate(struct ahd_softc *ahd,
 					 u_int ppr_options,
 					 u_int type, int paused);
 typedef enum {
-	AHD_QUEUE_NONE,
+	AHD_QUEUE_ANALNE,
 	AHD_QUEUE_BASIC,
 	AHD_QUEUE_TAGGED
 } ahd_queue_alg;
@@ -1425,7 +1425,7 @@ cam_status	ahd_find_tmode_devs(struct ahd_softc *ahd,
 				    struct cam_sim *sim, union ccb *ccb,
 				    struct ahd_tmode_tstate **tstate,
 				    struct ahd_tmode_lstate **lstate,
-				    int notfound_failure);
+				    int analtfound_failure);
 #ifndef AHD_TMODE_ENABLE
 #define AHD_TMODE_ENABLE 0
 #endif

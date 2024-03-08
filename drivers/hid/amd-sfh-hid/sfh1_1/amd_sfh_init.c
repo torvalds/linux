@@ -63,7 +63,7 @@ static const char *get_sensor_name(int idx)
 	case HPD_IDX:
 		return "HPD";
 	default:
-		return "unknown sensor type";
+		return "unkanalwn sensor type";
 	}
 }
 
@@ -120,7 +120,7 @@ static int amd_sfh1_1_hid_client_init(struct amd_mp2_dev *privdata)
 
 	cl_data->num_hid_devices = amd_sfh_get_sensor_num(privdata, &cl_data->sensor_idx[0]);
 	if (cl_data->num_hid_devices == 0)
-		return -ENODEV;
+		return -EANALDEV;
 	cl_data->is_any_sensor_enabled = false;
 
 	INIT_DELAYED_WORK(&cl_data->work, amd_sfh_work);
@@ -151,12 +151,12 @@ static int amd_sfh1_1_hid_client_init(struct amd_mp2_dev *privdata)
 		}
 		cl_data->feature_report[i] = devm_kzalloc(dev, feature_report_size, GFP_KERNEL);
 		if (!cl_data->feature_report[i]) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto cleanup;
 		}
 		in_data->input_report[i] = devm_kzalloc(dev, input_report_size, GFP_KERNEL);
 		if (!in_data->input_report[i]) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto cleanup;
 		}
 
@@ -165,7 +165,7 @@ static int amd_sfh1_1_hid_client_init(struct amd_mp2_dev *privdata)
 		cl_data->report_descr[i] =
 			devm_kzalloc(dev, cl_data->report_descr_sz[i], GFP_KERNEL);
 		if (!cl_data->report_descr[i]) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto cleanup;
 		}
 		rc = mp2_ops->get_rep_desc(cl_idx, cl_data->report_descr[i]);
@@ -202,9 +202,9 @@ static int amd_sfh1_1_hid_client_init(struct amd_mp2_dev *privdata)
 	}
 
 	if (!cl_data->is_any_sensor_enabled) {
-		dev_warn(dev, "Failed to discover, sensors not enabled is %d\n",
+		dev_warn(dev, "Failed to discover, sensors analt enabled is %d\n",
 			 cl_data->is_any_sensor_enabled);
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto cleanup;
 	}
 
@@ -306,13 +306,13 @@ int amd_sfh1_1_init(struct amd_mp2_dev *mp2)
 	phy_base <<= 21;
 	if (!devm_request_mem_region(dev, phy_base, 128 * 1024, "amd_sfh")) {
 		dev_dbg(dev, "can't reserve mmio registers\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mp2->vsbase = devm_ioremap(dev, phy_base, 128 * 1024);
 	if (!mp2->vsbase) {
 		dev_dbg(dev, "failed to remap vsbase\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Before accessing give time for SFH firmware for processing configuration */
@@ -321,7 +321,7 @@ int amd_sfh1_1_init(struct amd_mp2_dev *mp2)
 	memcpy_fromio(&binfo, mp2->vsbase, sizeof(struct sfh_base_info));
 	if (binfo.sbase.fw_info.fw_ver == 0 || binfo.sbase.s_list.sl.sensors == 0) {
 		dev_dbg(dev, "failed to get sensors\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	dev_dbg(dev, "firmware version 0x%x\n", binfo.sbase.fw_info.fw_ver);
 

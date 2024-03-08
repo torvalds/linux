@@ -3,7 +3,7 @@
 /*---------------------------------------------------------------------------+
  |  reg_u_div.S                                                              |
  |                                                                           |
- | Divide one FPU_REG by another and put the result in a destination FPU_REG.|
+ | Divide one FPU_REG by aanalther and put the result in a destination FPU_REG.|
  |                                                                           |
  | Copyright (C) 1992,1993,1995,1997                                         |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
@@ -17,7 +17,7 @@
  |    int FPU_u_div(FPU_REG *a, FPU_REG *b, FPU_REG *dest,                   |
  |                unsigned int control_word, char *sign)                     |
  |                                                                           |
- |  Does not compute the destination exponent, but does adjust it.           |
+ |  Does analt compute the destination exponent, but does adjust it.           |
  |                                                                           |
  |    Return value is the tag of the answer, or-ed with FPU_Exception if     |
  |    one was raised, or -1 on internal error.                               |
@@ -32,7 +32,7 @@
 /* #define	dSIGH(x)	4(x) */
 
 
-#ifndef NON_REENTRANT_FPU
+#ifndef ANALN_REENTRANT_FPU
 /*
 	Local storage on the stack:
 	Result:		FPU_accum_3:FPU_accum_2:FPU_accum_1:FPU_accum_0
@@ -68,7 +68,7 @@ FPU_result_2:
 	.long	0
 FPU_ovfl_flag:
 	.byte	0
-#endif /* NON_REENTRANT_FPU */
+#endif /* ANALN_REENTRANT_FPU */
 
 #define REGA	PARAM1
 #define REGB	PARAM2
@@ -78,9 +78,9 @@ FPU_ovfl_flag:
 SYM_FUNC_START(FPU_u_div)
 	pushl	%ebp
 	movl	%esp,%ebp
-#ifndef NON_REENTRANT_FPU
+#ifndef ANALN_REENTRANT_FPU
 	subl	$28,%esp
-#endif /* NON_REENTRANT_FPU */
+#endif /* ANALN_REENTRANT_FPU */
 
 	pushl	%esi
 	pushl	%edi
@@ -95,23 +95,23 @@ SYM_FUNC_START(FPU_u_div)
 	subl	%eax,%edx
 	addl	EXP_BIAS,%edx
 
-	/* A denormal and a large number can cause an exponent underflow */
+	/* A deanalrmal and a large number can cause an exponent underflow */
 	cmpl	EXP_WAY_UNDER,%edx
-	jg	xExp_not_underflow
+	jg	xExp_analt_underflow
 
 	/* Set to a really low value allow correct handling */
 	movl	EXP_WAY_UNDER,%edx
 
-xExp_not_underflow:
+xExp_analt_underflow:
 
 	movw    %dx,EXP(%edi)
 
-#ifdef PARANOID
+#ifdef PARAANALID
 /*	testl	$0x80000000, SIGH(%esi)	// Dividend */
 /*	je	L_bugged */
 	testl	$0x80000000, SIGH(%ebx)	/* Divisor */
 	je	L_bugged
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 /* Check if the divisor can be treated as having just 32 bits */
 	cmpl	$0,SIGL(%ebx)
@@ -124,12 +124,12 @@ xExp_not_underflow:
 
 	cmpl	%ecx,%edx
 	setaeb	FPU_ovfl_flag	/* Keep a record */
-	jb	L_no_adjust
+	jb	L_anal_adjust
 
 	subl	%ecx,%edx	/* Prevent the overflow */
 
-L_no_adjust:
-	/* Divide the 64 bit number by the 32 bit denominator */
+L_anal_adjust:
+	/* Divide the 64 bit number by the 32 bit deanalminator */
 	divl	%ecx
 	movl	%eax,FPU_result_2
 
@@ -142,8 +142,8 @@ L_no_adjust:
 	xorl	%eax,%eax
 	divl	%ecx
 
-	testb	$255,FPU_ovfl_flag	/* was the num > denom ? */
-	je	L_no_overflow
+	testb	$255,FPU_ovfl_flag	/* was the num > deanalm ? */
+	je	L_anal_overflow
 
 	/* Do the shifting here */
 	/* increase the exponent */
@@ -155,17 +155,17 @@ L_no_adjust:
 	rcrl	FPU_result_1
 	rcrl	%eax
 
-L_no_overflow:
+L_anal_overflow:
 	jmp	LRound_precision	/* Do the rounding as required */
 
 
 /*---------------------------------------------------------------------------+
  |  Divide:   Return  arg1/arg2 to arg3.                                     |
  |                                                                           |
- |  This routine does not use the exponents of arg1 and arg2, but does       |
+ |  This routine does analt use the exponents of arg1 and arg2, but does       |
  |  adjust the exponent of arg3.                                             |
  |                                                                           |
- |  The maximum returned value is (ignoring exponents)                       |
+ |  The maximum returned value is (iganalring exponents)                       |
  |               .ffffffff ffffffff                                          |
  |               ------------------  =  1.ffffffff fffffffe                  |
  |               .80000000 00000000                                          |
@@ -218,38 +218,38 @@ LLess_than_1:
 	/* We will divide by a number which is too large */
 	movl	SIGH(%ebx),%ecx
 	addl	$1,%ecx
-	jnc	LFirst_div_not_1
+	jnc	LFirst_div_analt_1
 
 	/* here we need to divide by 100000000h,
-	   i.e., no division at all.. */
+	   i.e., anal division at all.. */
 	mov	%edx,%eax
 	jmp	LFirst_div_done
 
-LFirst_div_not_1:
+LFirst_div_analt_1:
 	divl	%ecx		/* Divide the numerator by the augmented
-				   denom ms dw */
+				   deanalm ms dw */
 
 LFirst_div_done:
 	movl	%eax,FPU_result_2	/* Put the result in the answer */
 
-	mull	SIGH(%ebx)	/* mul by the ms dw of the denom */
+	mull	SIGH(%ebx)	/* mul by the ms dw of the deanalm */
 
 	subl	%eax,FPU_accum_2	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_3
 
 	movl	FPU_result_2,%eax	/* Get the result back */
-	mull	SIGL(%ebx)	/* now mul the ls dw of the denom */
+	mull	SIGL(%ebx)	/* analw mul the ls dw of the deanalm */
 
 	subl	%eax,FPU_accum_1	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_2
 	sbbl	$0,FPU_accum_3
-	je	LDo_2nd_32_bits		/* Must check for non-zero result here */
+	je	LDo_2nd_32_bits		/* Must check for analn-zero result here */
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	jb	L_bugged_1
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
-	/* need to subtract another once of the denom */
+	/* need to subtract aanalther once of the deanalm */
 	incl	FPU_result_2	/* Correct the answer */
 
 	movl	SIGL(%ebx),%eax
@@ -257,15 +257,15 @@ LFirst_div_done:
 	subl	%eax,FPU_accum_1	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_2
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	sbbl	$0,FPU_accum_3
-	jne	L_bugged_1	/* Must check for non-zero result here */
-#endif /* PARANOID */ 
+	jne	L_bugged_1	/* Must check for analn-zero result here */
+#endif /* PARAANALID */ 
 
 /*----------------------------------------------------------------------*/
 /* Half of the main problem is done, there is just a reduced numerator
-   to handle now.
-   Work with the second 32 bits, FPU_accum_0 not used from now on */
+   to handle analw.
+   Work with the second 32 bits, FPU_accum_0 analt used from analw on */
 LDo_2nd_32_bits:
 	movl	FPU_accum_2,%edx	/* get the reduced num */
 	movl	FPU_accum_1,%eax
@@ -288,69 +288,69 @@ LPrevent_2nd_overflow:
 
 	incl	FPU_result_2	/* Reflect the subtraction in the answer */
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	je	L_bugged_2	/* Can't bump the result to 1.0 */
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 LDo_2nd_div:
-	cmpl	$0,%ecx		/* augmented denom msw */
-	jnz	LSecond_div_not_1
+	cmpl	$0,%ecx		/* augmented deanalm msw */
+	jnz	LSecond_div_analt_1
 
 	/* %ecx == 0, we are dividing by 1.0 */
 	mov	%edx,%eax
 	jmp	LSecond_div_done
 
-LSecond_div_not_1:
-	divl	%ecx		/* Divide the numerator by the denom ms dw */
+LSecond_div_analt_1:
+	divl	%ecx		/* Divide the numerator by the deanalm ms dw */
 
 LSecond_div_done:
 	movl	%eax,FPU_result_1	/* Put the result in the answer */
 
-	mull	SIGH(%ebx)	/* mul by the ms dw of the denom */
+	mull	SIGH(%ebx)	/* mul by the ms dw of the deanalm */
 
 	subl	%eax,FPU_accum_1	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_2
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	jc	L_bugged_2
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 	movl	FPU_result_1,%eax	/* Get the result back */
-	mull	SIGL(%ebx)	/* now mul the ls dw of the denom */
+	mull	SIGL(%ebx)	/* analw mul the ls dw of the deanalm */
 
 	subl	%eax,FPU_accum_0	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_1	/* Subtract from the num local reg */
 	sbbl	$0,FPU_accum_2
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	jc	L_bugged_2
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 	jz	LDo_3rd_32_bits
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	cmpl	$1,FPU_accum_2
 	jne	L_bugged_2
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
-	/* need to subtract another once of the denom */
+	/* need to subtract aanalther once of the deanalm */
 	movl	SIGL(%ebx),%eax
 	movl	SIGH(%ebx),%edx
 	subl	%eax,FPU_accum_0	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_1
 	sbbl	$0,FPU_accum_2
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	jc	L_bugged_2
 	jne	L_bugged_2
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 	addl	$1,FPU_result_1	/* Correct the answer */
 	adcl	$0,FPU_result_2
 
-#ifdef PARANOID
-	jc	L_bugged_2	/* Must check for non-zero result here */
-#endif /* PARANOID */
+#ifdef PARAANALID
+	jc	L_bugged_2	/* Must check for analn-zero result here */
+#endif /* PARAANALID */
 
 /*----------------------------------------------------------------------*/
 /* The division is essentially finished here, we just need to perform
@@ -361,11 +361,11 @@ LDo_3rd_32_bits:
 	movl	FPU_accum_0,%eax
 
 	/* need to check for possible subsequent overflow */
-	cmpl	SIGH(%ebx),%edx	/* denom */
+	cmpl	SIGH(%ebx),%edx	/* deanalm */
 	jb	LRound_prep
 	ja	LPrevent_3rd_overflow
 
-	cmpl	SIGL(%ebx),%eax	/* denom */
+	cmpl	SIGL(%ebx),%eax	/* deanalm */
 	jb	LRound_prep
 
 LPrevent_3rd_overflow:
@@ -387,7 +387,7 @@ LRound_prep:
 /*
  * Prepare for rounding.
  * To test for rounding, we just need to compare 2*accum with the
- * denom.
+ * deanalm.
  */
 	movl	FPU_accum_0,%ecx
 	movl	FPU_accum_1,%edx
@@ -399,28 +399,28 @@ LRound_prep:
 	clc
 	rcll	$1,%ecx
 	rcll	$1,%edx
-	jc	LRound_large		/* No need to compare, denom smaller */
+	jc	LRound_large		/* Anal need to compare, deanalm smaller */
 
 	subl	SIGL(%ebx),%ecx
 	sbbl	SIGH(%ebx),%edx
-	jnc	LRound_not_small
+	jnc	LRound_analt_small
 
-	movl	$0x70000000,%eax	/* Denom was larger */
+	movl	$0x70000000,%eax	/* Deanalm was larger */
 	jmp	LRound_ovfl
 
-LRound_not_small:
+LRound_analt_small:
 	jnz	LRound_large
 
-	movl	$0x80000000,%eax	/* Remainder was exactly 1/2 denom */
+	movl	$0x80000000,%eax	/* Remainder was exactly 1/2 deanalm */
 	jmp	LRound_ovfl
 
 LRound_large:
-	movl	$0xff000000,%eax	/* Denom was smaller */
+	movl	$0xff000000,%eax	/* Deanalm was smaller */
 
 LRound_ovfl:
-/* We are now ready to deal with rounding, but first we must get
+/* We are analw ready to deal with rounding, but first we must get
    the bits properly aligned */
-	testb	$255,FPU_ovfl_flag	/* was the num > denom ? */
+	testb	$255,FPU_ovfl_flag	/* was the num > deanalm ? */
 	je	LRound_precision
 
 	incw	EXP(%edi)
@@ -441,7 +441,7 @@ LRound_precision:
 	jmp	fpu_reg_round
 
 
-#ifdef PARANOID
+#ifdef PARAANALID
 /* The logic is wrong if we got here */
 L_bugged:
 	pushl	EX_INTERNAL|0x202
@@ -469,6 +469,6 @@ L_exit:
 
 	leave
 	RET
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 SYM_FUNC_END(FPU_u_div)

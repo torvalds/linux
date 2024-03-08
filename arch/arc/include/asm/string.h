@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * vineetg: May 2011
  *  -We had half-optimised memset/memcpy, got better versions of those
  *  -Added memcmp, strchr, strcpy, strcmp, strlen
  *
- * Amit Bhor: Codito Technologies 2004
+ * Amit Bhor: Codito Techanallogies 2004
  */
 
 #ifndef _ASM_ARC_STRING_H

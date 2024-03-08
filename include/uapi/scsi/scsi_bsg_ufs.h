@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * UFS Transport SGIO v4 BSG Message Support
  *
@@ -169,7 +169,7 @@ struct utp_upiu_req {
 
 struct ufs_arpmb_meta {
 	__be16	req_resp_type;
-	__u8	nonce[16];
+	__u8	analnce[16];
 	__be32	write_counter;
 	__be16	addr_lun;
 	__be16	block_count;
@@ -194,8 +194,8 @@ struct ufs_bsg_request {
 struct ufs_bsg_reply {
 	/*
 	 * The completion result. Result exists in two forms:
-	 * if negative, it is an -Exxx system errno value. There will
-	 * be no further reply information supplied.
+	 * if negative, it is an -Exxx system erranal value. There will
+	 * be anal further reply information supplied.
 	 * else, it's the 4-byte scsi error result, with driver, host,
 	 * msg and status fields. The per-msgcode reply structure
 	 * will contain valid data.

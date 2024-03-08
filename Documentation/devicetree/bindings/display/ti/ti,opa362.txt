@@ -4,7 +4,7 @@ Required properties:
 - compatible: "ti,opa362"
 - enable-gpios: enable/disable output gpio
 
-Required node:
+Required analde:
 - Video port 0 for opa362 input
 - Video port 1 for opa362 output
 

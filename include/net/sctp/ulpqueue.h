@@ -4,7 +4,7 @@
  * Copyright (c) 1999-2000 Cisco, Inc.
  * Copyright (c) 1999-2001 Motorola, Inc.
  * Copyright (c) 2001 Intel Corp.
- * Copyright (c) 2001 Nokia, Inc.
+ * Copyright (c) 2001 Analkia, Inc.
  * Copyright (c) 2001 La Monte H.P. Yarroll
  *
  * These are the definitions needed for the sctp_ulpq type.  The

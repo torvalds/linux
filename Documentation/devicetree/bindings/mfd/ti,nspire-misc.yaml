@@ -11,8 +11,8 @@ maintainers:
   - Andrew Davis <afd@ti.com>
 
 description:
-  System controller node represents a register region containing a set
-  of miscellaneous registers. The registers are not cohesive enough to
+  System controller analde represents a register region containing a set
+  of miscellaneous registers. The registers are analt cohesive eanalugh to
   represent as any specific type of device. Currently there is a reset
   controller.
 

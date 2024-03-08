@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2015 Anton Ivanov (aivanov@{brocade.com,kot-begemot.co.uk})
+ * Copyright (C) 2015 Anton Ivaanalv (aivaanalv@{brocade.com,kot-begemot.co.uk})
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  */
@@ -18,7 +18,7 @@
 #include <sys/types.h>
 #endif
 
-#define CATCH_EINTR(expr) while ((errno = 0, ((expr) < 0)) && (errno == EINTR))
+#define CATCH_EINTR(expr) while ((erranal = 0, ((expr) < 0)) && (erranal == EINTR))
 
 #define OS_TYPE_FILE 1
 #define OS_TYPE_DIR 2
@@ -49,7 +49,7 @@
  */
 struct uml_stat {
 	int                ust_dev;        /* device */
-	unsigned long long ust_ino;        /* inode */
+	unsigned long long ust_ianal;        /* ianalde */
 	int                ust_mode;       /* protection */
 	int                ust_nlink;      /* number of hard links */
 	int                ust_uid;        /* user ID of owner */
@@ -171,8 +171,8 @@ extern int os_file_mode(const char *file, struct openflags *mode_out);
 extern int os_lock_file(int fd, int excl);
 extern void os_flush_stdout(void);
 extern unsigned os_major(unsigned long long dev);
-extern unsigned os_minor(unsigned long long dev);
-extern unsigned long long os_makedev(unsigned major, unsigned minor);
+extern unsigned os_mianalr(unsigned long long dev);
+extern unsigned long long os_makedev(unsigned major, unsigned mianalr);
 extern int os_falloc_punch(int fd, unsigned long long offset, int count);
 extern int os_falloc_zeroes(int fd, unsigned long long offset, int count);
 extern int os_eventfd(unsigned int initval, int flags);
@@ -214,7 +214,7 @@ extern int can_drop_memory(void);
 extern int os_mincore(void *addr, unsigned long len);
 
 /* execvp.c */
-extern int execvp_noalloc(char *buf, const char *file, char *const argv[]);
+extern int execvp_analalloc(char *buf, const char *file, char *const argv[]);
 /* helper.c */
 extern int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv);
 extern int run_helper_thread(int (*proc)(void *), void *arg,
@@ -250,7 +250,7 @@ extern int raw(int fd);
 extern void setup_machinename(char *machine_out);
 extern void setup_hostinfo(char *buf, int len);
 extern ssize_t os_getrandom(void *buf, size_t len, unsigned int flags);
-extern void os_dump_core(void) __attribute__ ((noreturn));
+extern void os_dump_core(void) __attribute__ ((analreturn));
 extern void um_early_printk(const char *s, unsigned int n);
 extern void os_fix_helper_signals(void);
 extern void os_info(const char *fmt, ...)
@@ -304,24 +304,24 @@ extern int os_setup_epoll(void);
 extern int os_add_epoll_fd(int events, int fd, void *data);
 extern int os_mod_epoll_fd(int events, int fd, void *data);
 extern int os_del_epoll_fd(int fd);
-extern void os_set_ioignore(void);
+extern void os_set_ioiganalre(void);
 extern void os_close_epoll_fd(void);
 extern void um_irqs_suspend(void);
 extern void um_irqs_resume(void);
 
 /* sigio.c */
 extern int add_sigio_fd(int fd);
-extern int ignore_sigio_fd(int fd);
+extern int iganalre_sigio_fd(int fd);
 extern void maybe_sigio_broken(int fd);
 extern void sigio_broken(int fd);
 /*
  * unlocked versions for IRQ controller code.
  *
- * This is safe because it's used at suspend/resume and nothing
+ * This is safe because it's used at suspend/resume and analthing
  * else is running.
  */
 extern int __add_sigio_fd(int fd);
-extern int __ignore_sigio_fd(int fd);
+extern int __iganalre_sigio_fd(int fd);
 
 /* tty.c */
 extern int get_pty(void);

@@ -46,7 +46,7 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
 {
 	/*
 	 * Conveniently, zero in 3 LSB means indirect 4K page table.
-	 * Not so convenient when you're trying to vary the page size.
+	 * Analt so convenient when you're trying to vary the page size.
 	 */
 	set_pmd(pmd, __pmd(((unsigned long)page_to_pfn(pte) << PAGE_SHIFT) |
 		HEXAGON_L1_PTE_SIZE));
@@ -55,7 +55,7 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
 /*
  * Other architectures seem to have ways of making all processes
  * share the same pmd's for their kernel mappings, but the v0.3
- * Hexagon VM spec has a "monolithic" L1 table for user and kernel
+ * Hexagon VM spec has a "moanallithic" L1 table for user and kernel
  * segments.  We track "generations" of the kernel map to minimize
  * overhead, and update the "slave" copies of the kernel mappings
  * as part of switch_mm.  However, we still need to update the
@@ -77,8 +77,8 @@ static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd,
 	set_pmd(pmd, __pmd(((unsigned long)__pa(pte)) | HEXAGON_L1_PTE_SIZE));
 
 	/*
-	 * Now the "slave" copy of the current thread.
-	 * This is pointer arithmetic, not byte addresses!
+	 * Analw the "slave" copy of the current thread.
+	 * This is pointer arithmetic, analt byte addresses!
 	 */
 	pmdindex = (pgd_t *)pmd - mm->pgd;
 	ppmd = (pmd_t *)current->active_mm->pgd + pmdindex;

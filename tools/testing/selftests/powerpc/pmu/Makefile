@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-noarg:
+analarg:
 	$(MAKE) -C ../
 
 TEST_GEN_PROGS := count_instructions count_stcx_fail l3_bank_test per_event_excludes

@@ -25,14 +25,14 @@ static inline const char *cdnsp_trb_comp_code_string(u8 status)
 		return "TRB Error";
 	case COMP_RESOURCE_ERROR:
 		return "Resource Error";
-	case COMP_NO_SLOTS_AVAILABLE_ERROR:
-		return "No Slots Available Error";
+	case COMP_ANAL_SLOTS_AVAILABLE_ERROR:
+		return "Anal Slots Available Error";
 	case COMP_INVALID_STREAM_TYPE_ERROR:
 		return "Invalid Stream Type Error";
-	case COMP_SLOT_NOT_ENABLED_ERROR:
-		return "Slot Not Enabled Error";
-	case COMP_ENDPOINT_NOT_ENABLED_ERROR:
-		return "Endpoint Not Enabled Error";
+	case COMP_SLOT_ANALT_ENABLED_ERROR:
+		return "Slot Analt Enabled Error";
+	case COMP_ENDPOINT_ANALT_ENABLED_ERROR:
+		return "Endpoint Analt Enabled Error";
 	case COMP_SHORT_PACKET:
 		return "Short Packet";
 	case COMP_RING_UNDERRUN:
@@ -72,15 +72,15 @@ static inline const char *cdnsp_trb_comp_code_string(u8 status)
 	case COMP_INVALID_STREAM_ID_ERROR:
 		return "Invalid Stream ID Error";
 	default:
-		return "Unknown!!";
+		return "Unkanalwn!!";
 	}
 }
 
 static inline const char *cdnsp_trb_type_string(u8 type)
 {
 	switch (type) {
-	case TRB_NORMAL:
-		return "Normal";
+	case TRB_ANALRMAL:
+		return "Analrmal";
 	case TRB_SETUP:
 		return "Setup Stage";
 	case TRB_DATA:
@@ -93,8 +93,8 @@ static inline const char *cdnsp_trb_type_string(u8 type)
 		return "Link";
 	case TRB_EVENT_DATA:
 		return "Event Data";
-	case TRB_TR_NOOP:
-		return "No-Op";
+	case TRB_TR_ANALOP:
+		return "Anal-Op";
 	case TRB_ENABLE_SLOT:
 		return "Enable Slot Command";
 	case TRB_DISABLE_SLOT:
@@ -115,8 +115,8 @@ static inline const char *cdnsp_trb_type_string(u8 type)
 		return "Reset Device Command";
 	case TRB_FORCE_HEADER:
 		return "Force Header Command";
-	case TRB_CMD_NOOP:
-		return "No-Op Command";
+	case TRB_CMD_ANALOP:
+		return "Anal-Op Command";
 	case TRB_TRANSFER:
 		return "Transfer Event";
 	case TRB_COMPLETION:
@@ -128,11 +128,11 @@ static inline const char *cdnsp_trb_type_string(u8 type)
 	case TRB_MFINDEX_WRAP:
 		return "MFINDEX Wrap Event";
 	case TRB_ENDPOINT_NRDY:
-		return "Endpoint Not ready";
+		return "Endpoint Analt ready";
 	case TRB_HALT_ENDPOINT:
 		return "Halt Endpoint";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -155,7 +155,7 @@ static inline const char *cdnsp_ring_type_string(enum cdnsp_ring_type type)
 		return "EVENT";
 	}
 
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 static inline char *cdnsp_slot_state_string(u32 state)
@@ -249,7 +249,7 @@ static inline const char *cdnsp_decode_trb(char *str, size_t size, u32 field0,
 				field3 & TRB_IDT ? 'D' : 'i',
 				field3 & TRB_IOC ? 'I' : 'i',
 				field3 & TRB_CHAIN ? 'C' : 'c',
-				field3 & TRB_NO_SNOOP ? 'S' : 's',
+				field3 & TRB_ANAL_SANALOP ? 'S' : 's',
 				field3 & TRB_ISP ? 'I' : 'i',
 				field3 & TRB_ENT ? 'E' : 'e',
 				field3 & TRB_CYCLE ? 'C' : 'c');
@@ -267,10 +267,10 @@ static inline const char *cdnsp_decode_trb(char *str, size_t size, u32 field0,
 				field3 & TRB_ENT ? 'E' : 'e',
 				field3 & TRB_CYCLE ? 'C' : 'c');
 		break;
-	case TRB_NORMAL:
+	case TRB_ANALRMAL:
 	case TRB_ISOC:
 	case TRB_EVENT_DATA:
-	case TRB_TR_NOOP:
+	case TRB_TR_ANALOP:
 		ret = scnprintf(str, size,
 				"type '%s' Buffer %08x%08x length %ld "
 				"TD size %ld intr %ld "
@@ -283,13 +283,13 @@ static inline const char *cdnsp_decode_trb(char *str, size_t size, u32 field0,
 				field3 & TRB_IDT ? 'T' : 't',
 				field3 & TRB_IOC ? 'I' : 'i',
 				field3 & TRB_CHAIN ? 'C' : 'c',
-				field3 & TRB_NO_SNOOP ? 'S' : 's',
+				field3 & TRB_ANAL_SANALOP ? 'S' : 's',
 				field3 & TRB_ISP ? 'I' : 'i',
 				field3 & TRB_ENT ? 'E' : 'e',
 				field3 & TRB_CYCLE ? 'C' : 'c',
 				!(field3 & TRB_EVENT_INVALIDATE) ? 'V' : 'v');
 		break;
-	case TRB_CMD_NOOP:
+	case TRB_CMD_ANALOP:
 	case TRB_ENABLE_SLOT:
 		ret = scnprintf(str, size, "%s: flags %c",
 				cdnsp_trb_type_string(type),
@@ -411,7 +411,7 @@ static inline const char *cdnsp_decode_slot_context(u32 info, u32 info2,
 		s = "super-speed plus";
 		break;
 	default:
-		s = "UNKNOWN speed";
+		s = "UNKANALWN speed";
 	}
 
 	ret = sprintf(str, "%s Ctx Entries %d",
@@ -457,7 +457,7 @@ static inline const char *cdnsp_portsc_link_state_string(u32 portsc)
 		break;
 	}
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 static inline const char *cdnsp_decode_portsc(char *str, size_t size,
@@ -467,7 +467,7 @@ static inline const char *cdnsp_decode_portsc(char *str, size_t size,
 
 	ret = scnprintf(str, size, "%s %s %s Link:%s PortSpeed:%d ",
 			portsc & PORT_POWER ? "Powered" : "Powered-off",
-			portsc & PORT_CONNECT ? "Connected" : "Not-connected",
+			portsc & PORT_CONNECT ? "Connected" : "Analt-connected",
 			portsc & PORT_PED ? "Enabled" : "Disabled",
 			cdnsp_portsc_link_state_string(portsc),
 			DEV_PORT_SPEED(portsc));

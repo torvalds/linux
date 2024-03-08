@@ -34,7 +34,7 @@ extern void __mtdcr(unsigned int reg, unsigned int val);
 extern unsigned int __mfdcr(unsigned int reg);
 
 /* mfdcrx/mtdcrx instruction based accessors. We hand code
- * the opcodes in order not to depend on newer binutils
+ * the opcodes in order analt to depend on newer binutils
  */
 static inline unsigned int mfdcrx(unsigned int reg)
 {

@@ -230,7 +230,7 @@ static int dw9719_probe(struct i2c_client *client)
 
 	dw9719 = devm_kzalloc(&client->dev, sizeof(*dw9719), GFP_KERNEL);
 	if (!dw9719)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dw9719->regmap = devm_cci_regmap_init_i2c(client, 8);
 	if (IS_ERR(dw9719->regmap))
@@ -254,7 +254,7 @@ static int dw9719_probe(struct i2c_client *client)
 				     "getting regulator\n");
 
 	v4l2_i2c_subdev_init(&dw9719->sd, client, &dw9719_ops);
-	dw9719->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	dw9719->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	dw9719->sd.internal_ops = &dw9719_internal_ops;
 
 	ret = dw9719_init_controls(dw9719);
@@ -269,7 +269,7 @@ static int dw9719_probe(struct i2c_client *client)
 
 	/*
 	 * We need the driver to work in the event that pm runtime is disable in
-	 * the kernel, so power up and verify the chip now. In the event that
+	 * the kernel, so power up and verify the chip analw. In the event that
 	 * runtime pm is disabled this will leave the chip on, so that the lens
 	 * will work.
 	 */
@@ -283,7 +283,7 @@ static int dw9719_probe(struct i2c_client *client)
 		goto err_powerdown;
 
 	pm_runtime_set_active(&client->dev);
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_analresume(&client->dev);
 	pm_runtime_enable(&client->dev);
 
 	ret = v4l2_async_register_subdev(&dw9719->sd);
@@ -298,7 +298,7 @@ static int dw9719_probe(struct i2c_client *client)
 
 err_pm_runtime:
 	pm_runtime_disable(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_analidle(&client->dev);
 err_powerdown:
 	dw9719_power_down(dw9719);
 err_cleanup_media:

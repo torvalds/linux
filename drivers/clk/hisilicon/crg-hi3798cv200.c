@@ -2,7 +2,7 @@
 /*
  * Hi3798CV200 Clock and Reset Generator Driver
  *
- * Copyright (c) 2016 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <dt-bindings/clock/histb-clock.h>
@@ -201,7 +201,7 @@ static struct hisi_clock_data *hi3798cv200_clk_register(
 
 	clk_data = hisi_clk_alloc(pdev, HI3798CV200_CRG_NR_CLKS);
 	if (!clk_data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* hisi_phase_clock is resource managed */
 	ret = hisi_clk_register_phase(&pdev->dev,
@@ -229,7 +229,7 @@ static struct hisi_clock_data *hi3798cv200_clk_register(
 	if (ret)
 		goto unregister_mux;
 
-	ret = of_clk_add_provider(pdev->dev.of_node,
+	ret = of_clk_add_provider(pdev->dev.of_analde,
 			of_clk_src_onecell_get, &clk_data->clk_data);
 	if (ret)
 		goto unregister_gate;
@@ -255,7 +255,7 @@ static void hi3798cv200_clk_unregister(struct platform_device *pdev)
 {
 	struct hisi_crg_dev *crg = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_analde);
 
 	hisi_clk_unregister_gate(hi3798cv200_gate_clks,
 				ARRAY_SIZE(hi3798cv200_gate_clks),
@@ -294,7 +294,7 @@ static struct hisi_clock_data *hi3798cv200_sysctrl_clk_register(
 
 	clk_data = hisi_clk_alloc(pdev, HI3798CV200_SYSCTRL_NR_CLKS);
 	if (!clk_data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = hisi_clk_register_gate(hi3798cv200_sysctrl_gate_clks,
 				ARRAY_SIZE(hi3798cv200_sysctrl_gate_clks),
@@ -302,7 +302,7 @@ static struct hisi_clock_data *hi3798cv200_sysctrl_clk_register(
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = of_clk_add_provider(pdev->dev.of_node,
+	ret = of_clk_add_provider(pdev->dev.of_analde,
 			of_clk_src_onecell_get, &clk_data->clk_data);
 	if (ret)
 		goto unregister_gate;
@@ -320,7 +320,7 @@ static void hi3798cv200_sysctrl_clk_unregister(struct platform_device *pdev)
 {
 	struct hisi_crg_dev *crg = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_analde);
 
 	hisi_clk_unregister_gate(hi3798cv200_sysctrl_gate_clks,
 				ARRAY_SIZE(hi3798cv200_sysctrl_gate_clks),
@@ -347,15 +347,15 @@ static int hi3798cv200_crg_probe(struct platform_device *pdev)
 
 	crg = devm_kmalloc(&pdev->dev, sizeof(*crg), GFP_KERNEL);
 	if (!crg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crg->funcs = of_device_get_match_data(&pdev->dev);
 	if (!crg->funcs)
-		return -ENOENT;
+		return -EANALENT;
 
 	crg->rstc = hisi_reset_init(pdev);
 	if (!crg->rstc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crg->clk_data = crg->funcs->register_clks(pdev);
 	if (IS_ERR(crg->clk_data)) {

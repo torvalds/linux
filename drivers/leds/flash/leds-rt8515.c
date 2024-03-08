@@ -17,7 +17,7 @@
  * Some sleuthing finds us the RT9387A which we have a datasheet for:
  * https://static5.arrow.com/pdfs/2014/7/27/8/21/12/794/rtt_/manual/94download_ds.jspprt9387a.jspprt9387a.pdf
  * This apparently works the same way so in theory this driver
- * should cover RT9387A as well. This has not been tested, please
+ * should cover RT9387A as well. This has analt been tested, please
  * update the compatibles if you add RT9387A support.
  *
  * Linus Walleij <linus.walleij@linaro.org>
@@ -228,7 +228,7 @@ static void rt8515_v4l2_flash_release(struct rt8515 *rt)
 #endif
 
 static void rt8515_determine_max_intensity(struct rt8515 *rt,
-					   struct fwnode_handle *led,
+					   struct fwanalde_handle *led,
 					   const char *resistance,
 					   const char *max_ua_prop, int hw_max,
 					   int *max_intensity_setting)
@@ -239,8 +239,8 @@ static void rt8515_determine_max_intensity(struct rt8515 *rt,
 	int max_intensity;
 	int ret;
 
-	fwnode_property_read_u32(rt->dev->fwnode, resistance, &res);
-	ret = fwnode_property_read_u32(led, max_ua_prop, &ua);
+	fwanalde_property_read_u32(rt->dev->fwanalde, resistance, &res);
+	ret = fwanalde_property_read_u32(led, max_ua_prop, &ua);
 
 	/* Missing info in DT, OK go with hardware maxima */
 	if (ret || res == 0) {
@@ -276,7 +276,7 @@ out_assign_max:
 static int rt8515_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	struct rt8515 *rt;
 	struct led_classdev *led;
 	struct led_classdev_flash *fled;
@@ -286,7 +286,7 @@ static int rt8515_probe(struct platform_device *pdev)
 
 	rt = devm_kzalloc(dev, sizeof(*rt), GFP_KERNEL);
 	if (!rt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt->dev = dev;
 	fled = &rt->fled;
@@ -296,21 +296,21 @@ static int rt8515_probe(struct platform_device *pdev)
 	rt->enable_flash = devm_gpiod_get(dev, "enf", GPIOD_OUT_LOW);
 	if (IS_ERR(rt->enable_flash))
 		return dev_err_probe(dev, PTR_ERR(rt->enable_flash),
-				     "cannot get ENF (enable flash) GPIO\n");
+				     "cananalt get ENF (enable flash) GPIO\n");
 
 	/* ENT - Enable Torch line */
 	rt->enable_torch = devm_gpiod_get(dev, "ent", GPIOD_OUT_LOW);
 	if (IS_ERR(rt->enable_torch))
 		return dev_err_probe(dev, PTR_ERR(rt->enable_torch),
-				     "cannot get ENT (enable torch) GPIO\n");
+				     "cananalt get ENT (enable torch) GPIO\n");
 
-	child = fwnode_get_next_available_child_node(dev->fwnode, NULL);
+	child = fwanalde_get_next_available_child_analde(dev->fwanalde, NULL);
 	if (!child) {
 		dev_err(dev,
-			"No fwnode child node found for connected LED.\n");
+			"Anal fwanalde child analde found for connected LED.\n");
 		return -EINVAL;
 	}
-	init_data.fwnode = child;
+	init_data.fwanalde = child;
 
 	rt8515_determine_max_intensity(rt, child, "richtek,rfs-ohms",
 				       "flash-max-microamp",
@@ -321,7 +321,7 @@ static int rt8515_probe(struct platform_device *pdev)
 				       RT8515_TORCH_MAX,
 				       &rt->torch_max_intensity);
 
-	ret = fwnode_property_read_u32(child, "flash-max-timeout-us",
+	ret = fwanalde_property_read_u32(child, "flash-max-timeout-us",
 				       &rt->max_timeout);
 	if (ret) {
 		rt->max_timeout = RT8515_MAX_TIMEOUT_US;
@@ -343,7 +343,7 @@ static int rt8515_probe(struct platform_device *pdev)
 
 	ret = devm_led_classdev_flash_register_ext(dev, fled, &init_data);
 	if (ret) {
-		fwnode_handle_put(child);
+		fwanalde_handle_put(child);
 		mutex_destroy(&rt->lock);
 		dev_err(dev, "can't register LED %s\n", led->name);
 		return ret;
@@ -363,7 +363,7 @@ static int rt8515_probe(struct platform_device *pdev)
 		 */
 	}
 
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 	return 0;
 }
 

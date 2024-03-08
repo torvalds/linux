@@ -29,7 +29,7 @@ enum {
 struct da9121_pdata {
 	int num_buck;
 	struct gpio_desc *gpiod_ren[DA9121_IDX_MAX];
-	struct device_node *reg_node[DA9121_IDX_MAX];
+	struct device_analde *reg_analde[DA9121_IDX_MAX];
 	struct regulator_init_data *init_data[DA9121_IDX_MAX];
 };
 

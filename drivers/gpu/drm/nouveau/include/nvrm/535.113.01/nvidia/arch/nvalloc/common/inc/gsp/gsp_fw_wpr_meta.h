@@ -14,12 +14,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -33,7 +33,7 @@ typedef struct
     NvU64 magic; // = 0xdc3aae21371a60b3;
 
     // Revision number of Booter-BL-Sequencer handoff interface
-    // Bumped up when we change this interface so it is not backward compatible.
+    // Bumped up when we change this interface so it is analt backward compatible.
     // Bumped up when we revoke GSP-RM ucode
     NvU64 revision; // = 1;
 
@@ -75,8 +75,8 @@ typedef struct
     // ---- Members describing FB layout --------------------------------
     NvU64 gspFwRsvdStart;
 
-    NvU64 nonWprHeapOffset;
-    NvU64 nonWprHeapSize;
+    NvU64 analnWprHeapOffset;
+    NvU64 analnWprHeapSize;
 
     NvU64 gspFwWprStart;
 
@@ -108,7 +108,7 @@ typedef struct
     // Boot count.  Used to determine whether to load the firmware image.
     NvU64 bootCount;
 
-    // TODO: the partitionRpc* fields below do not really belong in this
+    // TODO: the partitionRpc* fields below do analt really belong in this
     //       structure. The values are patched in by the partition bootstrapper
     //       when GSP-RM is booted in a partition, and this structure was a
     //       convenient place for the bootstrapper to access them. These should

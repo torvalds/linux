@@ -30,7 +30,7 @@ properties:
   realtek,dmic1-data-pin:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum:
-      - 0 # dmic1 data is not used
+      - 0 # dmic1 data is analt used
       - 1 # using GPIO2 pin as dmic1 data pin
       - 2 # using GPIO5 pin as dmic1 data pin
     description: |
@@ -39,7 +39,7 @@ properties:
   realtek,dmic1-clk-pin:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum:
-      - 0 # dmic1 clk is not used
+      - 0 # dmic1 clk is analt used
       - 1 # using GPIO1 pin as dmic1 clock pin
       - 2 # using GPIO3 pin as dmic1 clock pin
     description: |
@@ -48,7 +48,7 @@ properties:
   realtek,jd-src:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum:
-      - 0 # No JD is used
+      - 0 # Anal JD is used
       - 1 # using JD1 as JD source
     description: |
       Specify which JD source be used.

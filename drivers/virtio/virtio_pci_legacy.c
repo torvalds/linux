@@ -120,10 +120,10 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	int err;
 	u64 q_pfn;
 
-	/* Check if queue is either not available or already active. */
+	/* Check if queue is either analt available or already active. */
 	num = vp_legacy_get_queue_size(&vp_dev->ldev, index);
 	if (!num || vp_legacy_get_queue_enable(&vp_dev->ldev, index))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	info->msix_vector = msix_vec;
 
@@ -131,16 +131,16 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	vq = vring_create_virtqueue(index, num,
 				    VIRTIO_PCI_VRING_ALIGN, &vp_dev->vdev,
 				    true, false, ctx,
-				    vp_notify, callback, name);
+				    vp_analtify, callback, name);
 	if (!vq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vq->num_max = num;
 
 	q_pfn = virtqueue_get_desc_addr(vq) >> VIRTIO_PCI_QUEUE_ADDR_SHIFT;
 	if (q_pfn >> 32) {
 		dev_err(&vp_dev->pci_dev->dev,
-			"platform bug: legacy virtio-pci must not be used with RAM above 0x%llxGB\n",
+			"platform bug: legacy virtio-pci must analt be used with RAM above 0x%llxGB\n",
 			0x1ULL << (32 + PAGE_SHIFT - 30));
 		err = -E2BIG;
 		goto out_del_vq;
@@ -149,11 +149,11 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	/* activate the queue */
 	vp_legacy_set_queue_address(&vp_dev->ldev, index, q_pfn);
 
-	vq->priv = (void __force *)vp_dev->ldev.ioaddr + VIRTIO_PCI_QUEUE_NOTIFY;
+	vq->priv = (void __force *)vp_dev->ldev.ioaddr + VIRTIO_PCI_QUEUE_ANALTIFY;
 
-	if (msix_vec != VIRTIO_MSI_NO_VECTOR) {
+	if (msix_vec != VIRTIO_MSI_ANAL_VECTOR) {
 		msix_vec = vp_legacy_queue_vector(&vp_dev->ldev, index, msix_vec);
-		if (msix_vec == VIRTIO_MSI_NO_VECTOR) {
+		if (msix_vec == VIRTIO_MSI_ANAL_VECTOR) {
 			err = -EBUSY;
 			goto out_deactivate;
 		}
@@ -175,7 +175,7 @@ static void del_vq(struct virtio_pci_vq_info *info)
 
 	if (vp_dev->msix_enabled) {
 		vp_legacy_queue_vector(&vp_dev->ldev, vq->index,
-				VIRTIO_MSI_NO_VECTOR);
+				VIRTIO_MSI_ANAL_VECTOR);
 		/* Flush the write out to device */
 		ioread8(vp_dev->ldev.ioaddr + VIRTIO_PCI_ISR);
 	}

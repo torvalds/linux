@@ -65,11 +65,11 @@ then:
 
 else:
   description: |
-    Other SC9863a clock nodes should be the child of a syscon node in
+    Other SC9863a clock analdes should be the child of a syscon analde in
     which compatible string should be:
             "sprd,sc9863a-glbregs", "syscon", "simple-mfd"
 
-    The 'reg' property for the clock node is also required if there is a sub
+    The 'reg' property for the clock analde is also required if there is a sub
     range of registers for the clocks.
 
 additionalProperties: false

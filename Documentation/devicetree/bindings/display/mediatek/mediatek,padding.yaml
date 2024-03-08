@@ -15,7 +15,7 @@ description:
   specified colors. Due to hardware design, Mixer in VDOSYS1 requires
   width of a layer to be 2-pixel-align, or 4-pixel-align when ETHDR is enabled,
   we need Padding to deal with odd width.
-  Please notice that even if the Padding is in bypass mode, settings in
+  Please analtice that even if the Padding is in bypass mode, settings in
   register must be cleared to 0, or undefined behaviors could happen.
 
 properties:

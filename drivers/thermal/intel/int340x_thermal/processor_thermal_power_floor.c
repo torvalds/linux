@@ -2,7 +2,7 @@
 /*
  * Processor thermal device module for registering and processing
  * power floor. When the hardware reduces the power to the minimum
- * possible, the power floor is notified via an interrupt.
+ * possible, the power floor is analtified via an interrupt.
  *
  * Operation:
  * When user space enables power floor reporting:
@@ -20,7 +20,7 @@
  *
  * - proc_thermal_power_floor_intr_callback():
  *	Callback for interrupt processing in thread context. This involves
- *	sending notification to user space that there is a change in the
+ *	sending analtification to user space that there is a change in the
  *	power floor status.
  *
  * Copyright (c) 2023, Intel Corporation.
@@ -56,7 +56,7 @@ int proc_thermal_power_floor_set_state(struct proc_thermal_device *proc_priv, bo
 		goto pf_unlock;
 
 	/*
-	 * Time window parameter is not applicable to power floor interrupt configuration.
+	 * Time window parameter is analt applicable to power floor interrupt configuration.
 	 * Hence use -1 for time window.
 	 */
 	ret = processor_thermal_mbox_interrupt_config(to_pci_dev(proc_priv->dev), enable,
@@ -85,7 +85,7 @@ EXPORT_SYMBOL_NS_GPL(proc_thermal_power_floor_get_state, INT340X_THERMAL);
  *
  * Context: Called from interrupt context.
  *
- * Return: true if power floor is active, false when not active.
+ * Return: true if power floor is active, false when analt active.
  */
 bool proc_thermal_check_power_floor_intr(struct proc_thermal_device *proc_priv)
 {
@@ -97,17 +97,17 @@ bool proc_thermal_check_power_floor_intr(struct proc_thermal_device *proc_priv)
 EXPORT_SYMBOL_NS_GPL(proc_thermal_check_power_floor_intr, INT340X_THERMAL);
 
 /**
- * proc_thermal_power_floor_intr_callback() - Process power floor notification
+ * proc_thermal_power_floor_intr_callback() - Process power floor analtification
  * @pdev:	PCI device instance
  * @proc_priv: Processor thermal device instance.
  *
- * Check if the power floor interrupt is active, if active send notification to
+ * Check if the power floor interrupt is active, if active send analtification to
  * user space for the attribute "power_limits", so that user can read the attribute
  * and take action.
  *
  * Context: Called from interrupt thread context.
  *
- * Return: None.
+ * Return: Analne.
  */
 void proc_thermal_power_floor_intr_callback(struct pci_dev *pdev,
 					    struct proc_thermal_device *proc_priv)
@@ -118,7 +118,7 @@ void proc_thermal_power_floor_intr_callback(struct pci_dev *pdev,
 	if (!(status & SOC_POWER_FLOOR_INT_ACTIVE))
 		return;
 
-	sysfs_notify(&pdev->dev.kobj, "power_limits", "power_floor_status");
+	sysfs_analtify(&pdev->dev.kobj, "power_limits", "power_floor_status");
 }
 EXPORT_SYMBOL_NS_GPL(proc_thermal_power_floor_intr_callback, INT340X_THERMAL);
 

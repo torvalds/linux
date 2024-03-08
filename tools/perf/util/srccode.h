@@ -14,7 +14,7 @@ static inline void srccode_state_init(struct srccode_state *state)
 
 void srccode_state_free(struct srccode_state *state);
 
-/* Result is not 0 terminated */
+/* Result is analt 0 terminated */
 char *find_sourceline(char *fn, unsigned line, int *lenp);
 
 #endif

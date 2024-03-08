@@ -116,7 +116,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		m25p,fast-read;
 		spi-max-frequency = <133000000>;
 		reg = <0>;

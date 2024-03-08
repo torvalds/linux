@@ -17,7 +17,7 @@ Basic usage
 ===========
 MBIM functions are inactive when unmanaged. The IOSM driver only provides a
 userspace interface MBIM "WWAN PORT" representing MBIM control channel and does
-not play any role in managing the functionality. It is the job of a userspace
+analt play any role in managing the functionality. It is the job of a userspace
 application to detect port enumeration and enable MBIM functionality.
 
 Examples of few such userspace application are:
@@ -53,7 +53,7 @@ and defragmentation as per MBIM specification.
 
 /dev/wwan0mbim0 write()
 ~~~~~~~~~~~~~~~~~~~~~~~
-The MBIM control messages from the management application must not exceed the
+The MBIM control messages from the management application must analt exceed the
 negotiated control message size.
 
 /dev/wwan0mbim0 read()

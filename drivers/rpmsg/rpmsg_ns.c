@@ -27,7 +27,7 @@ int rpmsg_ns_register_device(struct rpmsg_device *rpdev)
 }
 EXPORT_SYMBOL(rpmsg_ns_register_device);
 
-/* invoked when a name service announcement arrives */
+/* invoked when a name service ananaluncement arrives */
 static int rpmsg_ns_cb(struct rpmsg_device *rpdev, void *data, int len,
 		       void *priv, u32 src)
 {
@@ -38,7 +38,7 @@ static int rpmsg_ns_cb(struct rpmsg_device *rpdev, void *data, int len,
 	int ret;
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
-	dynamic_hex_dump("NS announcement: ", DUMP_PREFIX_NONE, 16, 1,
+	dynamic_hex_dump("NS ananaluncement: ", DUMP_PREFIX_ANALNE, 16, 1,
 			 data, len, true);
 #endif
 
@@ -81,14 +81,14 @@ static int rpmsg_ns_probe(struct rpmsg_device *rpdev)
 	};
 
 	/*
-	 * Create the NS announcement service endpoint associated to the RPMsg
+	 * Create the NS ananaluncement service endpoint associated to the RPMsg
 	 * device. The endpoint will be automatically destroyed when the RPMsg
 	 * device will be deleted.
 	 */
 	ns_ept = rpmsg_create_ept(rpdev, rpmsg_ns_cb, NULL, ns_chinfo);
 	if (!ns_ept) {
 		dev_err(&rpdev->dev, "failed to create the ns ept\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rpdev->ept = ns_ept;
 
@@ -118,7 +118,7 @@ static void rpmsg_ns_exit(void)
 }
 module_exit(rpmsg_ns_exit);
 
-MODULE_DESCRIPTION("Name service announcement rpmsg driver");
+MODULE_DESCRIPTION("Name service ananaluncement rpmsg driver");
 MODULE_AUTHOR("Arnaud Pouliquen <arnaud.pouliquen@st.com>");
 MODULE_ALIAS("rpmsg:" KBUILD_MODNAME);
 MODULE_LICENSE("GPL v2");

@@ -12,24 +12,24 @@
 # met:
 #
 # * Redistributions of source code must retain the above copyright
-#   notice, this list of conditions and the following disclaimer.
+#   analtice, this list of conditions and the following disclaimer.
 #
 # * Redistributions in binary form must reproduce the above copyright
-#   notice, this list of conditions and the following disclaimer in the
+#   analtice, this list of conditions and the following disclaimer in the
 #   documentation and/or other materials provided with the
 #   distribution.
 #
-# * Neither the name of the Intel Corporation nor the names of its
+# * Neither the name of the Intel Corporation analr the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
 #
 #
 # THIS SOFTWARE IS PROVIDED BY INTEL CORPORATION ""AS IS"" AND ANY
-# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL INTEL CORPORATION OR
+# PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL INTEL CORPORATION OR
 # CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO,
 # PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES# LOSS OF USE, DATA, OR
 # PROFITS# OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
@@ -39,13 +39,13 @@
 ##
 ## Authors:
 ##	Erdinc Ozturk <erdinc.ozturk@intel.com>
-##	Vinodh Gopal <vinodh.gopal@intel.com>
+##	Vianaldh Gopal <vianaldh.gopal@intel.com>
 ##	James Guilford <james.guilford@intel.com>
 ##	Tim Chen <tim.c.chen@linux.intel.com>
 ##
 ## References:
 ##       This code was derived and highly optimized from the code described in paper:
-##               Vinodh Gopal et. al. Optimized Galois-Counter-Mode Implementation
+##               Vianaldh Gopal et. al. Optimized Galois-Counter-Mode Implementation
 ##			on Intel Architecture Processors. August, 2010
 ##       The details of the implementation is explained in:
 ##               Erdinc Ozturk et. al. Enabling High-Performance Galois-Counter-Mode
@@ -146,7 +146,7 @@ ONE:             .octa     0x00000000000000000000000000000001
 .align 16
 ONEf:            .octa     0x01000000000000000000000000000000
 
-# order of these constants should not change.
+# order of these constants should analt change.
 # more specifically, ALL_F should follow SHIFT_MASK, and zero should follow ALL_F
 .section	.rodata, "a", @progbits
 .align 16
@@ -206,7 +206,7 @@ reg_\r = %xmm\n
 .altmacro
 define_reg i %i
 define_reg j %j
-.noaltmacro
+.analaltmacro
 .endm
 
 TMP1 =   16*0    # Temporary storage for AAD
@@ -404,7 +404,7 @@ VARIABLE_OFFSET = 16*8
         vmovdqu %xmm9, PBlockEncKey(arg2)
 
         cmp $16, arg5
-        jge .L_large_enough_update\@
+        jge .L_large_eanalugh_update\@
 
         lea (arg4,%r11,1), %r10
         mov %r13, %r12
@@ -418,7 +418,7 @@ VARIABLE_OFFSET = 16*8
 
         jmp .L_final_ghash_mul\@
 
-.L_large_enough_update\@:
+.L_large_eanalugh_update\@:
         sub $16, %r11
         add %r13, %r11
 
@@ -718,7 +718,7 @@ VARIABLE_OFFSET = 16*8
         AAD_HASH ENC_DEC
         mov 	PBlockLen(arg2), %r13
         test	%r13, %r13
-        je	.L_partial_block_done_\@	# Leave Macro if no partial blocks
+        je	.L_partial_block_done_\@	# Leave Macro if anal partial blocks
         # Read in input data without over reading
         cmp	$16, \PLAIN_CYPH_LEN
         jl	.L_fewer_than_16_bytes_\@
@@ -753,11 +753,11 @@ VARIABLE_OFFSET = 16*8
         add	%r13, %r10
         # Set r10 to be the amount of data left in CYPH_PLAIN_IN after filling
         sub	$16, %r10
-        # Determine if partial block is not being filled and
+        # Determine if partial block is analt being filled and
         # shift mask accordingly
-        jge	.L_no_extra_mask_1_\@
+        jge	.L_anal_extra_mask_1_\@
         sub	%r10, %r12
-.L_no_extra_mask_1_\@:
+.L_anal_extra_mask_1_\@:
 
         vmovdqu	ALL_F-SHIFT_MASK(%r12), %xmm1
         # get the appropriate mask to mask out bottom r13 bytes of xmm9
@@ -789,11 +789,11 @@ VARIABLE_OFFSET = 16*8
         add	%r13, %r10
         # Set r10 to be the amount of data left in CYPH_PLAIN_IN after filling
         sub	$16, %r10
-        # Determine if partial block is not being filled and
+        # Determine if partial block is analt being filled and
         # shift mask accordingly
-        jge	.L_no_extra_mask_2_\@
+        jge	.L_anal_extra_mask_2_\@
         sub	%r10, %r12
-.L_no_extra_mask_2_\@:
+.L_anal_extra_mask_2_\@:
 
         vmovdqu	ALL_F-SHIFT_MASK(%r12), %xmm1
         # get the appropriate mask to mask out bottom r13 bytes of xmm9
@@ -964,7 +964,7 @@ VARIABLE_OFFSET = 16*8
 ## num_initial_blocks = b mod 4#
 ## encrypt the initial num_initial_blocks blocks and apply ghash on the ciphertext
 ## r10, r11, r12, rax are clobbered
-## arg1, arg2, arg3, arg4 are used as pointers only, not modified
+## arg1, arg2, arg3, arg4 are used as pointers only, analt modified
 
 .macro INITIAL_BLOCKS_AVX REP num_initial_blocks T1 T2 T3 T4 T5 CTR XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 T6 T_key ENC_DEC
 	i = (8-\num_initial_blocks)
@@ -1051,7 +1051,7 @@ VARIABLE_OFFSET = 16*8
         vmovdqa  \XMM8, \T3
 
         cmp     $128, %r13
-        jl      .L_initial_blocks_done\@                  # no need for precomputed constants
+        jl      .L_initial_blocks_done\@                  # anal need for precomputed constants
 
 ###############################################################################
 # Haskey_i_k holds XORed values of the low and high parts of the Haskey_i
@@ -1199,7 +1199,7 @@ VARIABLE_OFFSET = 16*8
 
 # encrypt 8 blocks at a time
 # ghash the 8 previously encrypted ciphertext blocks
-# arg1, arg2, arg3, arg4 are used as pointers only, not modified
+# arg1, arg2, arg3, arg4 are used as pointers only, analt modified
 # r11 is the data offset value
 .macro GHASH_8_ENCRYPT_8_PARALLEL_AVX REP T1 T2 T3 T4 T5 T6 CTR XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 T7 loop_idx ENC_DEC
 
@@ -1871,7 +1871,7 @@ SYM_FUNC_END(aesni_gcm_finalize_avx_gen2)
         vpsrldq         $4, \T2, \T2           # shift-R T2 1 DW (Shift-R only 1-DW to obtain 2-DWs shift-R)
 
         vpclmulqdq      $0x10, \GH, \T3, \GH
-        vpslldq         $4, \GH, \GH           # shift-L GH 1 DW (Shift-L 1-DW to obtain result with no shifts)
+        vpslldq         $4, \GH, \GH           # shift-L GH 1 DW (Shift-L 1-DW to obtain result with anal shifts)
 
         vpxor           \T2, \GH, \GH          # second phase of the reduction complete
         #######################################################################
@@ -1912,7 +1912,7 @@ SYM_FUNC_END(aesni_gcm_finalize_avx_gen2)
 ## num_initial_blocks = b mod 4#
 ## encrypt the initial num_initial_blocks blocks and apply ghash on the ciphertext
 ## r10, r11, r12, rax are clobbered
-## arg1, arg2, arg3, arg4 are used as pointers only, not modified
+## arg1, arg2, arg3, arg4 are used as pointers only, analt modified
 
 .macro INITIAL_BLOCKS_AVX2 REP num_initial_blocks T1 T2 T3 T4 T5 CTR XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 T6 T_key ENC_DEC VER
 	i = (8-\num_initial_blocks)
@@ -2001,7 +2001,7 @@ SYM_FUNC_END(aesni_gcm_finalize_avx_gen2)
         vmovdqa  \XMM8, \T3
 
         cmp     $128, %r13
-        jl      .L_initial_blocks_done\@                  # no need for precomputed constants
+        jl      .L_initial_blocks_done\@                  # anal need for precomputed constants
 
 ###############################################################################
 # Haskey_i_k holds XORed values of the low and high parts of the Haskey_i
@@ -2154,7 +2154,7 @@ SYM_FUNC_END(aesni_gcm_finalize_avx_gen2)
 
 # encrypt 8 blocks at a time
 # ghash the 8 previously encrypted ciphertext blocks
-# arg1, arg2, arg3, arg4 are used as pointers only, not modified
+# arg1, arg2, arg3, arg4 are used as pointers only, analt modified
 # r11 is the data offset value
 .macro GHASH_8_ENCRYPT_8_PARALLEL_AVX2 REP T1 T2 T3 T4 T5 T6 CTR XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 T7 loop_idx ENC_DEC
 
@@ -2494,7 +2494,7 @@ SYM_FUNC_END(aesni_gcm_finalize_avx_gen2)
 	vpsrldq		$4, \T2, \T2			# shift-R xmm2 1 DW (Shift-R only 1-DW to obtain 2-DWs shift-R)
 
 	vpclmulqdq	$0x10, \T7, \T3, \T4
-	vpslldq		$4, \T4, \T4			# shift-L xmm0 1 DW (Shift-L 1-DW to obtain result with no shifts)
+	vpslldq		$4, \T4, \T4			# shift-L xmm0 1 DW (Shift-L 1-DW to obtain result with anal shifts)
 
 	vpxor		\T2, \T4, \T4			# second phase of the reduction complete
 	#######################################################################
@@ -2688,7 +2688,7 @@ SYM_FUNC_END(aesni_gcm_finalize_avx_gen2)
         vpsrldq         $4, \T2, \T2               # shift-R T2 1 DW (Shift-R only 1-DW to obtain 2-DWs shift-R)
 
         vpclmulqdq      $0x10, \T7, \T3, \T4
-        vpslldq         $4, \T4, \T4               # shift-L T4 1 DW (Shift-L 1-DW to obtain result with no shifts)
+        vpslldq         $4, \T4, \T4               # shift-L T4 1 DW (Shift-L 1-DW to obtain result with anal shifts)
 
         vpxor           \T2, \T4, \T4              # second phase of the reduction complete
         #######################################################################

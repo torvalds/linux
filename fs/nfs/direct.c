@@ -11,13 +11,13 @@
  * (multiple copies of the same instance running on separate hosts)
  * implement their own cache coherency protocol that subsumes file
  * system cache protocols.  Applications that process datasets
- * considerably larger than the client's memory do not always benefit
- * from a local cache.  A streaming video server, for instance, has no
+ * considerably larger than the client's memory do analt always benefit
+ * from a local cache.  A streaming video server, for instance, has anal
  * need to cache the contents of a file.
  *
  * When an application requests uncached I/O, all read and write requests
  * are made directly to the server; data stored or fetched via these
- * requests is not cached in the Linux page cache.  The client does not
+ * requests is analt cached in the Linux page cache.  The client does analt
  * correct unaligned requests from applications.  All requested bytes are
  * held on permanent storage before a direct write system call returns to
  * an application.
@@ -39,7 +39,7 @@
  *
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/file.h>
@@ -162,7 +162,7 @@ static void nfs_direct_release_pages(struct page **pages, unsigned int npages)
 void nfs_init_cinfo_from_dreq(struct nfs_commit_info *cinfo,
 			      struct nfs_direct_req *dreq)
 {
-	cinfo->inode = dreq->inode;
+	cinfo->ianalde = dreq->ianalde;
 	cinfo->mds = &dreq->mds_cinfo;
 	cinfo->ds = &dreq->ds_cinfo;
 	cinfo->dreq = dreq;
@@ -192,7 +192,7 @@ static void nfs_direct_req_free(struct kref *kref)
 {
 	struct nfs_direct_req *dreq = container_of(kref, struct nfs_direct_req, kref);
 
-	pnfs_release_ds_info(&dreq->ds_cinfo, dreq->inode);
+	pnfs_release_ds_info(&dreq->ds_cinfo, dreq->ianalde);
 	if (dreq->l_ctx != NULL)
 		nfs_put_lock_context(dreq->l_ctx);
 	if (dreq->ctx != NULL)
@@ -237,14 +237,14 @@ out:
 }
 
 /*
- * Synchronous I/O uses a stack-allocated iocb.  Thus we can't trust
- * the iocb is still valid here if this is a synchronous request.
+ * Synchroanalus I/O uses a stack-allocated iocb.  Thus we can't trust
+ * the iocb is still valid here if this is a synchroanalus request.
  */
 static void nfs_direct_complete(struct nfs_direct_req *dreq)
 {
-	struct inode *inode = dreq->inode;
+	struct ianalde *ianalde = dreq->ianalde;
 
-	inode_dio_end(inode);
+	ianalde_dio_end(ianalde);
 
 	if (dreq->iocb) {
 		long res = (long) dreq->error;
@@ -318,7 +318,7 @@ static const struct nfs_pgio_completion_ops nfs_direct_read_completion_ops = {
  * operation.  If nfs_readdata_alloc() or get_user_pages() fails,
  * bail and stop sending more reads.  Read length accounting is
  * handled automatically by nfs_direct_read_result().  Otherwise, if
- * no requests have been sent, just return an error.
+ * anal requests have been sent, just return an error.
  */
 
 static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
@@ -326,16 +326,16 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 					      loff_t pos)
 {
 	struct nfs_pageio_descriptor desc;
-	struct inode *inode = dreq->inode;
+	struct ianalde *ianalde = dreq->ianalde;
 	ssize_t result = -EINVAL;
 	size_t requested_bytes = 0;
-	size_t rsize = max_t(size_t, NFS_SERVER(inode)->rsize, PAGE_SIZE);
+	size_t rsize = max_t(size_t, NFS_SERVER(ianalde)->rsize, PAGE_SIZE);
 
-	nfs_pageio_init_read(&desc, dreq->inode, false,
+	nfs_pageio_init_read(&desc, dreq->ianalde, false,
 			     &nfs_direct_read_completion_ops);
 	get_dreq(dreq);
 	desc.pg_dreq = dreq;
-	inode_dio_begin(inode);
+	ianalde_dio_begin(ianalde);
 
 	while (iov_iter_count(iter)) {
 		struct page **pagevec;
@@ -379,11 +379,11 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 	nfs_pageio_complete(&desc);
 
 	/*
-	 * If no bytes were started, return the error, and let the
+	 * If anal bytes were started, return the error, and let the
 	 * generic layer handle the completion.
 	 */
 	if (requested_bytes == 0) {
-		inode_dio_end(inode);
+		ianalde_dio_end(ianalde);
 		nfs_direct_req_release(dreq);
 		return result < 0 ? result : -EIO;
 	}
@@ -397,7 +397,7 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
  * nfs_file_direct_read - file direct read operation for NFS files
  * @iocb: target I/O control block
  * @iter: vector of user buffers into which to read data
- * @swap: flag indicating this is swap IO, not O_DIRECT IO
+ * @swap: flag indicating this is swap IO, analt O_DIRECT IO
  *
  * We use this function for direct reads instead of calling
  * generic_file_aio_read() in order to avoid gfar's check to see if
@@ -418,7 +418,7 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter,
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
+	struct ianalde *ianalde = mapping->host;
 	struct nfs_direct_req *dreq;
 	struct nfs_lock_context *l_ctx;
 	ssize_t result, requested;
@@ -434,12 +434,12 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter,
 
 	task_io_account_read(count);
 
-	result = -ENOMEM;
+	result = -EANALMEM;
 	dreq = nfs_direct_req_alloc();
 	if (dreq == NULL)
 		goto out;
 
-	dreq->inode = inode;
+	dreq->ianalde = ianalde;
 	dreq->max_count = count;
 	dreq->io_start = iocb->ki_pos;
 	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
@@ -457,13 +457,13 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter,
 		dreq->flags = NFS_ODIRECT_SHOULD_DIRTY;
 
 	if (!swap)
-		nfs_start_io_direct(inode);
+		nfs_start_io_direct(ianalde);
 
-	NFS_I(inode)->read_io += count;
+	NFS_I(ianalde)->read_io += count;
 	requested = nfs_direct_read_schedule_iovec(dreq, iter, iocb->ki_pos);
 
 	if (!swap)
-		nfs_end_io_direct(inode);
+		nfs_end_io_direct(ianalde);
 
 	if (requested > 0) {
 		result = nfs_direct_wait(dreq);
@@ -500,7 +500,7 @@ static void nfs_direct_add_page_head(struct list_head *list,
 
 static void nfs_direct_join_group(struct list_head *list,
 				  struct nfs_commit_info *cinfo,
-				  struct inode *inode)
+				  struct ianalde *ianalde)
 {
 	struct nfs_page *req, *subreq;
 
@@ -522,19 +522,19 @@ static void nfs_direct_join_group(struct list_head *list,
 				nfs_release_request(subreq);
 			}
 		} while ((subreq = subreq->wb_this_page) != req);
-		nfs_join_page_group(req, cinfo, inode);
+		nfs_join_page_group(req, cinfo, ianalde);
 	}
 }
 
 static void
-nfs_direct_write_scan_commit_list(struct inode *inode,
+nfs_direct_write_scan_commit_list(struct ianalde *ianalde,
 				  struct list_head *list,
 				  struct nfs_commit_info *cinfo)
 {
-	mutex_lock(&NFS_I(cinfo->inode)->commit_mutex);
+	mutex_lock(&NFS_I(cinfo->ianalde)->commit_mutex);
 	pnfs_recover_commit_reqs(list, cinfo);
 	nfs_scan_commit_list(&cinfo->mds->list, list, cinfo, 0);
-	mutex_unlock(&NFS_I(cinfo->inode)->commit_mutex);
+	mutex_unlock(&NFS_I(cinfo->ianalde)->commit_mutex);
 }
 
 static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
@@ -545,14 +545,14 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 	struct nfs_commit_info cinfo;
 
 	nfs_init_cinfo_from_dreq(&cinfo, dreq);
-	nfs_direct_write_scan_commit_list(dreq->inode, &reqs, &cinfo);
+	nfs_direct_write_scan_commit_list(dreq->ianalde, &reqs, &cinfo);
 
-	nfs_direct_join_group(&reqs, &cinfo, dreq->inode);
+	nfs_direct_join_group(&reqs, &cinfo, dreq->ianalde);
 
 	nfs_clear_pnfs_ds_commit_verifiers(&dreq->ds_cinfo);
 	get_dreq(dreq);
 
-	nfs_pageio_init_write(&desc, dreq->inode, FLUSH_STABLE, false,
+	nfs_pageio_init_write(&desc, dreq->ianalde, FLUSH_STABLE, false,
 			      &nfs_direct_write_completion_ops);
 	desc.pg_dreq = dreq;
 
@@ -667,9 +667,9 @@ static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 	LIST_HEAD(mds_list);
 
 	nfs_init_cinfo_from_dreq(&cinfo, dreq);
-	nfs_scan_commit(dreq->inode, &mds_list, &cinfo);
-	res = nfs_generic_commit_list(dreq->inode, &mds_list, 0, &cinfo);
-	if (res < 0) /* res == -ENOMEM */
+	nfs_scan_commit(dreq->ianalde, &mds_list, &cinfo);
+	res = nfs_generic_commit_list(dreq->ianalde, &mds_list, 0, &cinfo);
+	if (res < 0) /* res == -EANALMEM */
 		nfs_direct_write_reschedule(dreq);
 }
 
@@ -680,7 +680,7 @@ static void nfs_direct_write_clear_reqs(struct nfs_direct_req *dreq)
 	LIST_HEAD(reqs);
 
 	nfs_init_cinfo_from_dreq(&cinfo, dreq);
-	nfs_direct_write_scan_commit_list(dreq->inode, &reqs, &cinfo);
+	nfs_direct_write_scan_commit_list(dreq->ianalde, &reqs, &cinfo);
 
 	while (!list_empty(&reqs)) {
 		req = nfs_list_entry(reqs.next);
@@ -706,7 +706,7 @@ static void nfs_direct_write_schedule_work(struct work_struct *work)
 			break;
 		default:
 			nfs_direct_write_clear_reqs(dreq);
-			nfs_zap_mapping(dreq->inode, dreq->inode->i_mapping);
+			nfs_zap_mapping(dreq->ianalde, dreq->ianalde->i_mapping);
 			nfs_direct_complete(dreq);
 	}
 }
@@ -809,36 +809,36 @@ static const struct nfs_pgio_completion_ops nfs_direct_write_completion_ops = {
 
 /*
  * NB: Return the value of the first error return code.  Subsequent
- *     errors after the first one are ignored.
+ *     errors after the first one are iganalred.
  */
 /*
  * For each wsize'd chunk of the user's buffer, dispatch an NFS WRITE
  * operation.  If nfs_writedata_alloc() or get_user_pages() fails,
  * bail and stop sending more writes.  Write length accounting is
  * handled automatically by nfs_direct_write_result().  Otherwise, if
- * no requests have been sent, just return an error.
+ * anal requests have been sent, just return an error.
  */
 static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 					       struct iov_iter *iter,
 					       loff_t pos, int ioflags)
 {
 	struct nfs_pageio_descriptor desc;
-	struct inode *inode = dreq->inode;
+	struct ianalde *ianalde = dreq->ianalde;
 	struct nfs_commit_info cinfo;
 	ssize_t result = 0;
 	size_t requested_bytes = 0;
-	size_t wsize = max_t(size_t, NFS_SERVER(inode)->wsize, PAGE_SIZE);
+	size_t wsize = max_t(size_t, NFS_SERVER(ianalde)->wsize, PAGE_SIZE);
 	bool defer = false;
 
 	trace_nfs_direct_write_schedule_iovec(dreq);
 
-	nfs_pageio_init_write(&desc, inode, ioflags, false,
+	nfs_pageio_init_write(&desc, ianalde, ioflags, false,
 			      &nfs_direct_write_completion_ops);
 	desc.pg_dreq = dreq;
 	get_dreq(dreq);
-	inode_dio_begin(inode);
+	ianalde_dio_begin(ianalde);
 
-	NFS_I(inode)->write_io += iov_iter_count(iter);
+	NFS_I(ianalde)->write_io += iov_iter_count(iter);
 	while (iov_iter_count(iter)) {
 		struct page **pagevec;
 		size_t bytes;
@@ -908,11 +908,11 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 	nfs_pageio_complete(&desc);
 
 	/*
-	 * If no bytes were started, return the error, and let the
+	 * If anal bytes were started, return the error, and let the
 	 * generic layer handle the completion.
 	 */
 	if (requested_bytes == 0) {
-		inode_dio_end(inode);
+		ianalde_dio_end(ianalde);
 		nfs_direct_req_release(dreq);
 		return result < 0 ? result : -EIO;
 	}
@@ -926,10 +926,10 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
  * nfs_file_direct_write - file direct write operation for NFS files
  * @iocb: target I/O control block
  * @iter: vector of user buffers from which to write data
- * @swap: flag indicating this is swap IO, not O_DIRECT IO
+ * @swap: flag indicating this is swap IO, analt O_DIRECT IO
  *
  * We use this function for direct writes instead of calling
- * generic_file_aio_write() in order to avoid taking the inode
+ * generic_file_aio_write() in order to avoid taking the ianalde
  * semaphore and updating the i_size.  The NFS server will set
  * the new i_size and this client must read the updated size
  * back into its cache.  We let the server do generic write
@@ -937,11 +937,11 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
  *
  * We eliminate local atime updates, see direct read above.
  *
- * We avoid unnecessary page cache invalidations for normal cached
+ * We avoid unnecessary page cache invalidations for analrmal cached
  * readers of this file.
  *
- * Note that O_APPEND is not supported for NFS direct writes, as there
- * is no atomic O_APPEND write facility in the NFS protocol.
+ * Analte that O_APPEND is analt supported for NFS direct writes, as there
+ * is anal atomic O_APPEND write facility in the NFS protocol.
  */
 ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 			      bool swap)
@@ -950,7 +950,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 	size_t count;
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
+	struct ianalde *ianalde = mapping->host;
 	struct nfs_direct_req *dreq;
 	struct nfs_lock_context *l_ctx;
 	loff_t pos, end;
@@ -973,12 +973,12 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 
 	task_io_account_write(count);
 
-	result = -ENOMEM;
+	result = -EANALMEM;
 	dreq = nfs_direct_req_alloc();
 	if (!dreq)
 		goto out;
 
-	dreq->inode = inode;
+	dreq->ianalde = ianalde;
 	dreq->max_count = count;
 	dreq->io_start = pos;
 	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
@@ -991,23 +991,23 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 	dreq->l_ctx = l_ctx;
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
-	pnfs_init_ds_commit_info_ops(&dreq->ds_cinfo, inode);
+	pnfs_init_ds_commit_info_ops(&dreq->ds_cinfo, ianalde);
 
 	if (swap) {
 		requested = nfs_direct_write_schedule_iovec(dreq, iter, pos,
 							    FLUSH_STABLE);
 	} else {
-		nfs_start_io_direct(inode);
+		nfs_start_io_direct(ianalde);
 
 		requested = nfs_direct_write_schedule_iovec(dreq, iter, pos,
 							    FLUSH_COND_STABLE);
 
 		if (mapping->nrpages) {
-			invalidate_inode_pages2_range(mapping,
+			invalidate_ianalde_pages2_range(mapping,
 						      pos >> PAGE_SHIFT, end);
 		}
 
-		nfs_end_io_direct(inode);
+		nfs_end_io_direct(ianalde);
 	}
 
 	if (requested > 0) {
@@ -1022,7 +1022,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 	} else {
 		result = requested;
 	}
-	nfs_fscache_invalidate(inode, FSCACHE_INVAL_DIO_WRITE);
+	nfs_fscache_invalidate(ianalde, FSCACHE_INVAL_DIO_WRITE);
 out_release:
 	nfs_direct_req_release(dreq);
 out:
@@ -1041,7 +1041,7 @@ int __init nfs_init_directcache(void)
 							SLAB_MEM_SPREAD),
 						NULL);
 	if (nfs_direct_cachep == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

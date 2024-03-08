@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file holds USB constants and structures that are needed for
  * USB device APIs.  These are used by the USB device model, which is
  * defined in chapter 9 of the USB 2.0 specification and in the
- * Wireless USB 1.0 spec (now defunct).  Linux has several APIs in C that
+ * Wireless USB 1.0 spec (analw defunct).  Linux has several APIs in C that
  * need these:
  *
  * - the master/host side Linux-USB kernel driver API;
@@ -14,7 +14,7 @@
  * act either as a USB master/host or as a USB slave/device.  That means
  * the master and slave side APIs benefit from working well together.
  *
- * Note all descriptors are declared '__attribute__((packed))' so that:
+ * Analte all descriptors are declared '__attribute__((packed))' so that:
  *
  * [a] they never get padded, either internally (USB spec writers
  *     probably handled that) or externally;
@@ -24,7 +24,7 @@
  *     its descriptor inside a bundle isn't "naturally aligned", and
  *
  * [c] for consistency, removing all doubt even when it appears to
- *     someone that the two other points are non-issues for that
+ *     someone that the two other points are analn-issues for that
  *     particular descriptor type.
  */
 
@@ -203,7 +203,7 @@
  * USB spec for a fuller description of the different fields, and what they are
  * used for.
  *
- * Note that the driver for any interface can issue control requests.
+ * Analte that the driver for any interface can issue control requests.
  * For most devices, interfaces don't coordinate with each other, so
  * such requests may be made at any time.
  */
@@ -221,12 +221,12 @@ struct usb_ctrlrequest {
  * STANDARD DESCRIPTORS ... as returned by GET_DESCRIPTOR, or
  * (rarely) accepted by SET_DESCRIPTOR.
  *
- * Note that all multi-byte values here are encoded in little endian
+ * Analte that all multi-byte values here are encoded in little endian
  * byte order "on the wire".  Within the kernel and when exposed
- * through the Linux-USB APIs, they are not converted to cpu byte
+ * through the Linux-USB APIs, they are analt converted to cpu byte
  * order; it is the responsibility of the client code to do this.
  * The single exception is when device and configuration descriptors (but
- * not other descriptors) are read from character devices
+ * analt other descriptors) are read from character devices
  * (i.e. /dev/bus/usb/BBB/DDD);
  * in this case the fields are converted to host endianness by the kernel.
  */
@@ -242,7 +242,7 @@ struct usb_ctrlrequest {
 #define USB_DT_DEVICE_QUALIFIER		0x06
 #define USB_DT_OTHER_SPEED_CONFIG	0x07
 #define USB_DT_INTERFACE_POWER		0x08
-/* these are from a minor usb 2.0 revision (ECN) */
+/* these are from a mianalr usb 2.0 revision (ECN) */
 #define USB_DT_OTG			0x09
 #define USB_DT_DEBUG			0x0a
 #define USB_DT_INTERFACE_ASSOCIATION	0x0b
@@ -265,7 +265,7 @@ struct usb_ctrlrequest {
 
 /* Conventional codes for class-specific descriptors.  The convention is
  * defined in the USB "Common Class" Spec (3.11).  Individual class specs
- * are authoritative for their usage, not the "common class" writeup.
+ * are authoritative for their usage, analt the "common class" writeup.
  */
 #define USB_DT_CS_DEVICE		(USB_TYPE_CLASS | USB_DT_DEVICE)
 #define USB_DT_CS_CONFIG		(USB_TYPE_CLASS | USB_DT_CONFIG)
@@ -379,8 +379,8 @@ struct usb_string_descriptor {
 	};
 } __attribute__ ((packed));
 
-/* note that "string" zero is special, it holds language codes that
- * the device supports, not Unicode characters.
+/* analte that "string" zero is special, it holds language codes that
+ * the device supports, analt Unicode characters.
  */
 
 /*-------------------------------------------------------------------------*/
@@ -413,8 +413,8 @@ struct usb_endpoint_descriptor {
 	__le16 wMaxPacketSize;
 	__u8  bInterval;
 
-	/* NOTE:  these two are _only_ in audio endpoints. */
-	/* use USB_DT_ENDPOINT*_SIZE in bLength, not sizeof. */
+	/* ANALTE:  these two are _only_ in audio endpoints. */
+	/* use USB_DT_ENDPOINT*_SIZE in bLength, analt sizeof. */
 	__u8  bRefresh;
 	__u8  bSynchAddress;
 } __attribute__ ((packed));
@@ -445,10 +445,10 @@ struct usb_endpoint_descriptor {
 /* The USB 3.0 spec redefines bits 5:4 of bmAttributes as interrupt ep type. */
 #define USB_ENDPOINT_INTRTYPE		0x30
 #define USB_ENDPOINT_INTR_PERIODIC	(0 << 4)
-#define USB_ENDPOINT_INTR_NOTIFICATION	(1 << 4)
+#define USB_ENDPOINT_INTR_ANALTIFICATION	(1 << 4)
 
 #define USB_ENDPOINT_SYNCTYPE		0x0c
-#define USB_ENDPOINT_SYNC_NONE		(0 << 2)
+#define USB_ENDPOINT_SYNC_ANALNE		(0 << 2)
 #define USB_ENDPOINT_SYNC_ASYNC		(1 << 2)
 #define USB_ENDPOINT_SYNC_ADAPTIVE	(2 << 2)
 #define USB_ENDPOINT_SYNC_SYNC		(3 << 2)
@@ -547,10 +547,10 @@ static inline int usb_endpoint_xfer_int(
 }
 
 /**
- * usb_endpoint_xfer_isoc - check if the endpoint has isochronous transfer type
+ * usb_endpoint_xfer_isoc - check if the endpoint has isochroanalus transfer type
  * @epd: endpoint to be checked
  *
- * Returns true if the endpoint is of type isochronous, otherwise it returns
+ * Returns true if the endpoint is of type isochroanalus, otherwise it returns
  * false.
  */
 static inline int usb_endpoint_xfer_isoc(
@@ -613,10 +613,10 @@ static inline int usb_endpoint_is_int_out(
 }
 
 /**
- * usb_endpoint_is_isoc_in - check if the endpoint is isochronous IN
+ * usb_endpoint_is_isoc_in - check if the endpoint is isochroanalus IN
  * @epd: endpoint to be checked
  *
- * Returns true if the endpoint has isochronous transfer type and IN direction,
+ * Returns true if the endpoint has isochroanalus transfer type and IN direction,
  * otherwise it returns false.
  */
 static inline int usb_endpoint_is_isoc_in(
@@ -626,10 +626,10 @@ static inline int usb_endpoint_is_isoc_in(
 }
 
 /**
- * usb_endpoint_is_isoc_out - check if the endpoint is isochronous OUT
+ * usb_endpoint_is_isoc_out - check if the endpoint is isochroanalus OUT
  * @epd: endpoint to be checked
  *
- * Returns true if the endpoint has isochronous transfer type and OUT direction,
+ * Returns true if the endpoint has isochroanalus transfer type and OUT direction,
  * otherwise it returns false.
  */
 static inline int usb_endpoint_is_isoc_out(
@@ -671,7 +671,7 @@ static inline int usb_endpoint_interrupt_type(
 
 /*-------------------------------------------------------------------------*/
 
-/* USB_DT_SSP_ISOC_ENDPOINT_COMP: SuperSpeedPlus Isochronous Endpoint Companion
+/* USB_DT_SSP_ISOC_ENDPOINT_COMP: SuperSpeedPlus Isochroanalus Endpoint Companion
  * descriptor
  */
 struct usb_ssp_isoc_ep_comp_descriptor {
@@ -830,7 +830,7 @@ struct usb_encryption_descriptor {
 
 	__u8  bEncryptionType;
 #define	USB_ENC_TYPE_UNSECURE		0
-#define	USB_ENC_TYPE_WIRED		1	/* non-wireless mode */
+#define	USB_ENC_TYPE_WIRED		1	/* analn-wireless mode */
 #define	USB_ENC_TYPE_CCM_1		2	/* aes128/cbc session */
 #define	USB_ENC_TYPE_RSA_1		3	/* rsa3072/sha1 auth */
 	__u8  bEncryptionValue;		/* use in SET_ENCRYPTION */
@@ -871,7 +871,7 @@ struct usb_wireless_cap_descriptor {	/* Ultra Wide Band */
 #define	USB_WIRELESS_BEACON_MASK	(3 << 2)
 #define	USB_WIRELESS_BEACON_SELF	(1 << 2)
 #define	USB_WIRELESS_BEACON_DIRECTED	(2 << 2)
-#define	USB_WIRELESS_BEACON_NONE	(3 << 2)
+#define	USB_WIRELESS_BEACON_ANALNE	(3 << 2)
 	__le16 wPHYRates;	/* bit rates, Mbps */
 #define	USB_WIRELESS_PHY_53		(1 << 0)	/* always set */
 #define	USB_WIRELESS_PHY_80		(1 << 1)
@@ -1057,7 +1057,7 @@ struct usb_pd_cap_battery_info_descriptor {
 	__u8 bReserved;
 	/*
 	 * Shall contain the Battery Charge value above which this
-	 * battery is considered to be fully charged but not necessarily
+	 * battery is considered to be fully charged but analt necessarily
 	 * “topped off.”
 	 */
 	__le32 dwChargedThreshold; /* in mWh */
@@ -1087,7 +1087,7 @@ struct usb_pd_cap_consumer_port_descriptor {
 	__le32 dwMaxOperatingPower; /* in 10 mW - operating at steady state */
 	__le32 dwMaxPeakPower; /* in 10mW units - operating at peak power */
 	__le32 dwMaxPeakPowerTime; /* in 100ms units - duration of peak */
-#define USB_PD_CAP_CONSUMER_UNKNOWN_PEAK_POWER_TIME 0xffff
+#define USB_PD_CAP_CONSUMER_UNKANALWN_PEAK_POWER_TIME 0xffff
 } __attribute__((packed));
 
 struct usb_pd_cap_provider_port_descriptor {
@@ -1139,7 +1139,7 @@ struct usb_wireless_ep_comp_descriptor {
 	__u8  bOverTheAirInterval;
 	__u8  bmCompAttributes;
 #define USB_ENDPOINT_SWITCH_MASK	0x03	/* in bmCompAttributes */
-#define USB_ENDPOINT_SWITCH_NO		0
+#define USB_ENDPOINT_SWITCH_ANAL		0
 #define USB_ENDPOINT_SWITCH_SWITCH	1
 #define USB_ENDPOINT_SWITCH_SCALE	2
 } __attribute__((packed));
@@ -1156,14 +1156,14 @@ struct usb_handshake {
 	__u8 tTKID[3];
 	__u8 bReserved;
 	__u8 CDID[16];
-	__u8 nonce[16];
+	__u8 analnce[16];
 	__u8 MIC[8];
 } __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
 /* USB_REQ_SET_CONNECTION modifies or revokes a connection context (CC).
- * A CC may also be set up using non-wireless secure channels (including
+ * A CC may also be set up using analn-wireless secure channels (including
  * wired USB!), and some devices may support CCs with multiple hosts.
  */
 struct usb_connection_context {
@@ -1177,7 +1177,7 @@ struct usb_connection_context {
 /* USB 2.0 defines three speeds, here's how Linux identifies them */
 
 enum usb_device_speed {
-	USB_SPEED_UNKNOWN = 0,			/* enumerating */
+	USB_SPEED_UNKANALWN = 0,			/* enumerating */
 	USB_SPEED_LOW, USB_SPEED_FULL,		/* usb 1.1 */
 	USB_SPEED_HIGH,				/* usb 2.0 */
 	USB_SPEED_WIRELESS,			/* wireless (usb 2.5) */
@@ -1187,10 +1187,10 @@ enum usb_device_speed {
 
 
 enum usb_device_state {
-	/* NOTATTACHED isn't in the USB spec, and this state acts
+	/* ANALTATTACHED isn't in the USB spec, and this state acts
 	 * the same as ATTACHED ... but it's clearer this way.
 	 */
-	USB_STATE_NOTATTACHED = 0,
+	USB_STATE_ANALTATTACHED = 0,
 
 	/* chapter 9 and authentication (wireless) device states */
 	USB_STATE_ATTACHED,
@@ -1203,10 +1203,10 @@ enum usb_device_state {
 
 	USB_STATE_SUSPENDED
 
-	/* NOTE:  there are actually four different SUSPENDED
+	/* ANALTE:  there are actually four different SUSPENDED
 	 * states, returning to POWERED, DEFAULT, ADDRESS, or
 	 * CONFIGURED respectively when SOF tokens flow again.
-	 * At this level there's no difference between L1 and L2
+	 * At this level there's anal difference between L1 and L2
 	 * suspend states.  (L2 being original USB 1.1 suspend.)
 	 */
 };
@@ -1220,7 +1220,7 @@ enum usb3_link_state {
 
 /*
  * A U1 timeout of 0x0 means the parent hub will reject any transitions to U1.
- * 0xff means the parent hub will accept transitions to U1, but will not
+ * 0xff means the parent hub will accept transitions to U1, but will analt
  * initiate a transition.
  *
  * A U1 timeout of 0x1 to 0x7F also causes the hub to initiate a transition to
@@ -1228,7 +1228,7 @@ enum usb3_link_state {
  * values.
  *
  * A U2 timeout of 0x0 means the parent hub will reject any transitions to U2.
- * 0xff means the parent hub will accept transitions to U2, but will not
+ * 0xff means the parent hub will accept transitions to U2, but will analt
  * initiate a transition.
  *
  * A U2 timeout of 0x1 to 0xFE also causes the hub to initiate a transition to

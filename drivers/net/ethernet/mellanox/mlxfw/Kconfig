@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Mellanox firmware flash library configuration
+# Mellaanalx firmware flash library configuration
 #
 
 config MLXFW
-	tristate "Mellanox Technologies firmware flash module"
+	tristate "Mellaanalx Techanallogies firmware flash module"
 	help
-	  This driver supports Mellanox Technologies Firmware
+	  This driver supports Mellaanalx Techanallogies Firmware
 	  flashing common logic.
 
 	  To compile this driver as a module, choose M here: the

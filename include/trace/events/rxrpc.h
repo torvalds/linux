@@ -21,14 +21,14 @@
 	EM(afs_abort_general_error,		"afs-error")		\
 	EM(afs_abort_interrupted,		"afs-intr")		\
 	EM(afs_abort_oom,			"afs-oom")		\
-	EM(afs_abort_op_not_supported,		"afs-op-notsupp")	\
+	EM(afs_abort_op_analt_supported,		"afs-op-analtsupp")	\
 	EM(afs_abort_probeuuid_negative,	"afs-probeuuid-neg")	\
 	EM(afs_abort_send_data_error,		"afs-send-data")	\
 	EM(afs_abort_unmarshal_error,		"afs-unmarshal")	\
 	/* rxperf errors */						\
 	EM(rxperf_abort_general_error,		"rxperf-error")		\
 	EM(rxperf_abort_oom,			"rxperf-oom")		\
-	EM(rxperf_abort_op_not_supported,	"rxperf-op-notsupp")	\
+	EM(rxperf_abort_op_analt_supported,	"rxperf-op-analtsupp")	\
 	EM(rxperf_abort_unmarshal_error,	"rxperf-unmarshal")	\
 	/* RxKAD security errors */					\
 	EM(rxkad_abort_1_short_check,		"rxkad1-short-check")	\
@@ -42,7 +42,7 @@
 	EM(rxkad_abort_bad_checksum,		"rxkad2-bad-cksum")	\
 	EM(rxkad_abort_chall_key_expired,	"rxkad-chall-key-exp")	\
 	EM(rxkad_abort_chall_level,		"rxkad-chall-level")	\
-	EM(rxkad_abort_chall_no_key,		"rxkad-chall-nokey")	\
+	EM(rxkad_abort_chall_anal_key,		"rxkad-chall-analkey")	\
 	EM(rxkad_abort_chall_short,		"rxkad-chall-short")	\
 	EM(rxkad_abort_chall_version,		"rxkad-chall-version")	\
 	EM(rxkad_abort_resp_bad_callid,		"rxkad-resp-bad-callid") \
@@ -53,7 +53,7 @@
 	EM(rxkad_abort_resp_key_expired,	"rxkad-resp-key-exp")	\
 	EM(rxkad_abort_resp_key_rejected,	"rxkad-resp-key-rej")	\
 	EM(rxkad_abort_resp_level,		"rxkad-resp-level")	\
-	EM(rxkad_abort_resp_nokey,		"rxkad-resp-nokey")	\
+	EM(rxkad_abort_resp_analkey,		"rxkad-resp-analkey")	\
 	EM(rxkad_abort_resp_ooseq,		"rxkad-resp-ooseq")	\
 	EM(rxkad_abort_resp_short,		"rxkad-resp-short")	\
 	EM(rxkad_abort_resp_short_tkt,		"rxkad-resp-short-tkt")	\
@@ -66,7 +66,7 @@
 	EM(rxkad_abort_resp_tkt_short,		"rxkad-resp-tk-short")	\
 	EM(rxkad_abort_resp_tkt_sinst,		"rxkad-resp-tk-sinst")	\
 	EM(rxkad_abort_resp_tkt_sname,		"rxkad-resp-tk-sname")	\
-	EM(rxkad_abort_resp_unknown_tkt,	"rxkad-resp-unknown-tkt") \
+	EM(rxkad_abort_resp_unkanalwn_tkt,	"rxkad-resp-unkanalwn-tkt") \
 	EM(rxkad_abort_resp_version,		"rxkad-resp-version")	\
 	/* rxrpc errors */						\
 	EM(rxrpc_abort_call_improper_term,	"call-improper-term")	\
@@ -75,9 +75,9 @@
 	EM(rxrpc_abort_call_sock_release,	"call-sock-rel")	\
 	EM(rxrpc_abort_call_sock_release_tba,	"call-sock-rel-tba")	\
 	EM(rxrpc_abort_call_timeout,		"call-timeout")		\
-	EM(rxrpc_abort_no_service_key,		"no-serv-key")		\
-	EM(rxrpc_abort_nomem,			"nomem")		\
-	EM(rxrpc_abort_service_not_offered,	"serv-not-offered")	\
+	EM(rxrpc_abort_anal_service_key,		"anal-serv-key")		\
+	EM(rxrpc_abort_analmem,			"analmem")		\
+	EM(rxrpc_abort_service_analt_offered,	"serv-analt-offered")	\
 	EM(rxrpc_abort_shut_down,		"shut-down")		\
 	EM(rxrpc_abort_unsupported_security,	"unsup-sec")		\
 	EM(rxrpc_badmsg_bad_abort,		"bad-abort")		\
@@ -98,9 +98,9 @@
 	EM(rxrpc_eproto_different_last,		"diff-last")		\
 	EM(rxrpc_eproto_early_reply,		"early-reply")		\
 	EM(rxrpc_eproto_improper_term,		"improper-term")	\
-	EM(rxrpc_eproto_no_client_call,		"no-cl-call")		\
-	EM(rxrpc_eproto_no_client_conn,		"no-cl-conn")		\
-	EM(rxrpc_eproto_no_service_call,	"no-sv-call")		\
+	EM(rxrpc_eproto_anal_client_call,		"anal-cl-call")		\
+	EM(rxrpc_eproto_anal_client_conn,		"anal-cl-conn")		\
+	EM(rxrpc_eproto_anal_service_call,	"anal-sv-call")		\
 	EM(rxrpc_eproto_reupgrade,		"re-upgrade")		\
 	EM(rxrpc_eproto_rxnull_challenge,	"rxnull-chall")		\
 	EM(rxrpc_eproto_rxnull_response,	"rxnull-resp")		\
@@ -121,11 +121,11 @@
 	EM(rxrpc_call_poke_idle,		"Idle")		\
 	EM(rxrpc_call_poke_start,		"Start")	\
 	EM(rxrpc_call_poke_timer,		"Timer")	\
-	E_(rxrpc_call_poke_timer_now,		"Timer-now")
+	E_(rxrpc_call_poke_timer_analw,		"Timer-analw")
 
 #define rxrpc_skb_traces \
 	EM(rxrpc_skb_eaten_by_unshare,		"ETN unshare  ") \
-	EM(rxrpc_skb_eaten_by_unshare_nomem,	"ETN unshar-nm") \
+	EM(rxrpc_skb_eaten_by_unshare_analmem,	"ETN unshar-nm") \
 	EM(rxrpc_skb_get_conn_secured,		"GET conn-secd") \
 	EM(rxrpc_skb_get_conn_work,		"GET conn-work") \
 	EM(rxrpc_skb_get_last_nack,		"GET last-nack") \
@@ -145,7 +145,7 @@
 	EM(rxrpc_skb_put_last_nack,		"PUT last-nack") \
 	EM(rxrpc_skb_put_purge,			"PUT purge    ") \
 	EM(rxrpc_skb_put_rotate,		"PUT rotate   ") \
-	EM(rxrpc_skb_put_unknown,		"PUT unknown  ") \
+	EM(rxrpc_skb_put_unkanalwn,		"PUT unkanalwn  ") \
 	EM(rxrpc_skb_see_conn_work,		"SEE conn-work") \
 	EM(rxrpc_skb_see_recvmsg,		"SEE recvmsg  ") \
 	EM(rxrpc_skb_see_reject,		"SEE reject   ") \
@@ -225,7 +225,7 @@
 	EM(rxrpc_conn_put_conn_input,		"PUT inp-conn") \
 	EM(rxrpc_conn_put_discard_idle,		"PUT disc-idl") \
 	EM(rxrpc_conn_put_local_dead,		"PUT loc-dead") \
-	EM(rxrpc_conn_put_noreuse,		"PUT noreuse ") \
+	EM(rxrpc_conn_put_analreuse,		"PUT analreuse ") \
 	EM(rxrpc_conn_put_poke,			"PUT poke    ") \
 	EM(rxrpc_conn_put_service_reaped,	"PUT svc-reap") \
 	EM(rxrpc_conn_put_unbundle,		"PUT unbundle") \
@@ -256,7 +256,7 @@
 	EM(rxrpc_call_get_io_thread,		"GET iothread") \
 	EM(rxrpc_call_get_input,		"GET input   ") \
 	EM(rxrpc_call_get_kernel_service,	"GET krnl-srv") \
-	EM(rxrpc_call_get_notify_socket,	"GET notify  ") \
+	EM(rxrpc_call_get_analtify_socket,	"GET analtify  ") \
 	EM(rxrpc_call_get_poke,			"GET poke    ") \
 	EM(rxrpc_call_get_recvmsg,		"GET recvmsg ") \
 	EM(rxrpc_call_get_release_sock,		"GET rel-sock") \
@@ -274,7 +274,7 @@
 	EM(rxrpc_call_put_release_sock,		"PUT rls-sock") \
 	EM(rxrpc_call_put_release_sock_tba,	"PUT rls-sk-a") \
 	EM(rxrpc_call_put_sendmsg,		"PUT sendmsg ") \
-	EM(rxrpc_call_put_unnotify,		"PUT unnotify") \
+	EM(rxrpc_call_put_unanaltify,		"PUT unanaltify") \
 	EM(rxrpc_call_put_userid_exists,	"PUT u-exists") \
 	EM(rxrpc_call_put_userid,		"PUT user-id ") \
 	EM(rxrpc_call_see_accept,		"SEE accept  ") \
@@ -329,7 +329,7 @@
 #define rxrpc_rtt_tx_traces \
 	EM(rxrpc_rtt_tx_cancel,			"CNCE") \
 	EM(rxrpc_rtt_tx_data,			"DATA") \
-	EM(rxrpc_rtt_tx_no_slot,		"FULL") \
+	EM(rxrpc_rtt_tx_anal_slot,		"FULL") \
 	E_(rxrpc_rtt_tx_ping,			"PING")
 
 #define rxrpc_rtt_rx_traces \
@@ -346,7 +346,7 @@
 	EM(rxrpc_timer_exp_idle,		"ExpIdl") \
 	EM(rxrpc_timer_exp_keepalive,		"ExpKA ") \
 	EM(rxrpc_timer_exp_lost_ack,		"ExpLoA") \
-	EM(rxrpc_timer_exp_normal,		"ExpNml") \
+	EM(rxrpc_timer_exp_analrmal,		"ExpNml") \
 	EM(rxrpc_timer_exp_ping,		"ExpPng") \
 	EM(rxrpc_timer_exp_resend,		"ExpRsn") \
 	EM(rxrpc_timer_init_for_reply,		"IniRpl") \
@@ -357,7 +357,7 @@
 	EM(rxrpc_timer_set_for_idle,		"SetIdl") \
 	EM(rxrpc_timer_set_for_keepalive,	"KeepAl") \
 	EM(rxrpc_timer_set_for_lost_ack,	"SetLoA") \
-	EM(rxrpc_timer_set_for_normal,		"SetNml") \
+	EM(rxrpc_timer_set_for_analrmal,		"SetNml") \
 	EM(rxrpc_timer_set_for_ping,		"SetPng") \
 	EM(rxrpc_timer_set_for_resend,		"SetRTx") \
 	E_(rxrpc_timer_set_for_send,		"SetSnd")
@@ -390,7 +390,7 @@
 	EM(rxrpc_cong_begin_retransmission,	" Retrans") \
 	EM(rxrpc_cong_cleared_nacks,		" Cleared") \
 	EM(rxrpc_cong_new_low_nack,		" NewLowN") \
-	EM(rxrpc_cong_no_change,		" -") \
+	EM(rxrpc_cong_anal_change,		" -") \
 	EM(rxrpc_cong_progress,			" Progres") \
 	EM(rxrpc_cong_idle_reset,		" IdleRes") \
 	EM(rxrpc_cong_retransmit_again,		" ReTxAgn") \
@@ -421,7 +421,7 @@
 	EM(RXRPC_ACK_DUPLICATE,			"DUP") \
 	EM(RXRPC_ACK_OUT_OF_SEQUENCE,		"OOS") \
 	EM(RXRPC_ACK_EXCEEDS_WINDOW,		"WIN") \
-	EM(RXRPC_ACK_NOSPACE,			"MEM") \
+	EM(RXRPC_ACK_ANALSPACE,			"MEM") \
 	EM(RXRPC_ACK_PING,			"PNG") \
 	EM(RXRPC_ACK_PING_RESPONSE,		"PNR") \
 	EM(RXRPC_ACK_DELAY,			"DLY") \
@@ -432,7 +432,7 @@
 	EM(rxrpc_sack_advance,			"ADV")	\
 	EM(rxrpc_sack_fill,			"FIL")	\
 	EM(rxrpc_sack_nack,			"NAK")	\
-	EM(rxrpc_sack_none,			"---")	\
+	EM(rxrpc_sack_analne,			"---")	\
 	E_(rxrpc_sack_oos,			"OOS")
 
 #define rxrpc_completions \
@@ -446,7 +446,7 @@
 	EM(rxrpc_tx_point_call_abort,		"CallAbort") \
 	EM(rxrpc_tx_point_call_ack,		"CallAck") \
 	EM(rxrpc_tx_point_call_data_frag,	"CallDataFrag") \
-	EM(rxrpc_tx_point_call_data_nofrag,	"CallDataNofrag") \
+	EM(rxrpc_tx_point_call_data_analfrag,	"CallDataAnalfrag") \
 	EM(rxrpc_tx_point_call_final_resend,	"CallFinalResend") \
 	EM(rxrpc_tx_point_conn_abort,		"ConnAbort") \
 	EM(rxrpc_tx_point_reject,		"Reject") \
@@ -459,7 +459,7 @@
 	EM(rxrpc_reqack_ack_lost,		"ACK-LOST  ")	\
 	EM(rxrpc_reqack_already_on,		"ALREADY-ON")	\
 	EM(rxrpc_reqack_more_rtt,		"MORE-RTT  ")	\
-	EM(rxrpc_reqack_no_srv_last,		"NO-SRVLAST")	\
+	EM(rxrpc_reqack_anal_srv_last,		"ANAL-SRVLAST")	\
 	EM(rxrpc_reqack_old_rtt,		"OLD-RTT   ")	\
 	EM(rxrpc_reqack_retrans,		"RETRANS   ")	\
 	EM(rxrpc_reqack_slow_start,		"SLOW-START")	\
@@ -475,7 +475,7 @@
 	EM(rxrpc_txbuf_get_retrans,		"GET RETRANS")	\
 	EM(rxrpc_txbuf_put_ack_tx,		"PUT ACK TX ")	\
 	EM(rxrpc_txbuf_put_cleaned,		"PUT CLEANED")	\
-	EM(rxrpc_txbuf_put_nomem,		"PUT NOMEM  ")	\
+	EM(rxrpc_txbuf_put_analmem,		"PUT ANALMEM  ")	\
 	EM(rxrpc_txbuf_put_rotated,		"PUT ROTATED")	\
 	EM(rxrpc_txbuf_put_send_aborted,	"PUT SEND-X ")	\
 	EM(rxrpc_txbuf_put_trans,		"PUT TRANS  ")	\
@@ -553,7 +553,7 @@ rxrpc_txbuf_traces;
 rxrpc_txqueue_traces;
 
 /*
- * Now redefine the EM() and E_() macros to map the enums to the strings that
+ * Analw redefine the EM() and E_() macros to map the enums to the strings that
  * will be printed in the output.
  */
 #undef EM
@@ -965,15 +965,15 @@ TRACE_EVENT(rxrpc_rx_abort,
 
 TRACE_EVENT(rxrpc_rx_challenge,
 	    TP_PROTO(struct rxrpc_connection *conn, rxrpc_serial_t serial,
-		     u32 version, u32 nonce, u32 min_level),
+		     u32 version, u32 analnce, u32 min_level),
 
-	    TP_ARGS(conn, serial, version, nonce, min_level),
+	    TP_ARGS(conn, serial, version, analnce, min_level),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	conn)
 		    __field(rxrpc_serial_t,	serial)
 		    __field(u32,		version)
-		    __field(u32,		nonce)
+		    __field(u32,		analnce)
 		    __field(u32,		min_level)
 			     ),
 
@@ -981,7 +981,7 @@ TRACE_EVENT(rxrpc_rx_challenge,
 		    __entry->conn = conn->debug_id;
 		    __entry->serial = serial;
 		    __entry->version = version;
-		    __entry->nonce = nonce;
+		    __entry->analnce = analnce;
 		    __entry->min_level = min_level;
 			   ),
 
@@ -989,21 +989,21 @@ TRACE_EVENT(rxrpc_rx_challenge,
 		      __entry->conn,
 		      __entry->serial,
 		      __entry->version,
-		      __entry->nonce,
+		      __entry->analnce,
 		      __entry->min_level)
 	    );
 
 TRACE_EVENT(rxrpc_rx_response,
 	    TP_PROTO(struct rxrpc_connection *conn, rxrpc_serial_t serial,
-		     u32 version, u32 kvno, u32 ticket_len),
+		     u32 version, u32 kvanal, u32 ticket_len),
 
-	    TP_ARGS(conn, serial, version, kvno, ticket_len),
+	    TP_ARGS(conn, serial, version, kvanal, ticket_len),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	conn)
 		    __field(rxrpc_serial_t,	serial)
 		    __field(u32,		version)
-		    __field(u32,		kvno)
+		    __field(u32,		kvanal)
 		    __field(u32,		ticket_len)
 			     ),
 
@@ -1011,15 +1011,15 @@ TRACE_EVENT(rxrpc_rx_response,
 		    __entry->conn = conn->debug_id;
 		    __entry->serial = serial;
 		    __entry->version = version;
-		    __entry->kvno = kvno;
+		    __entry->kvanal = kvanal;
 		    __entry->ticket_len = ticket_len;
 			   ),
 
-	    TP_printk("C=%08x RESPONSE %08x v=%x kvno=%x tl=%x",
+	    TP_printk("C=%08x RESPONSE %08x v=%x kvanal=%x tl=%x",
 		      __entry->conn,
 		      __entry->serial,
 		      __entry->version,
-		      __entry->kvno,
+		      __entry->kvanal,
 		      __entry->ticket_len)
 	    );
 
@@ -1316,14 +1316,14 @@ TRACE_EVENT(rxrpc_rtt_rx,
 
 TRACE_EVENT(rxrpc_timer,
 	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_timer_trace why,
-		     unsigned long now),
+		     unsigned long analw),
 
-	    TP_ARGS(call, why, now),
+	    TP_ARGS(call, why, analw),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call)
 		    __field(enum rxrpc_timer_trace,	why)
-		    __field(long,			now)
+		    __field(long,			analw)
 		    __field(long,			ack_at)
 		    __field(long,			ack_lost_at)
 		    __field(long,			resend_at)
@@ -1337,7 +1337,7 @@ TRACE_EVENT(rxrpc_timer,
 	    TP_fast_assign(
 		    __entry->call		= call->debug_id;
 		    __entry->why		= why;
-		    __entry->now		= now;
+		    __entry->analw		= analw;
 		    __entry->ack_at		= call->delay_ack_at;
 		    __entry->ack_lost_at	= call->ack_lost_at;
 		    __entry->resend_at		= call->resend_at;
@@ -1350,23 +1350,23 @@ TRACE_EVENT(rxrpc_timer,
 	    TP_printk("c=%08x %s a=%ld la=%ld r=%ld xr=%ld xq=%ld xt=%ld t=%ld",
 		      __entry->call,
 		      __print_symbolic(__entry->why, rxrpc_timer_traces),
-		      __entry->ack_at - __entry->now,
-		      __entry->ack_lost_at - __entry->now,
-		      __entry->resend_at - __entry->now,
-		      __entry->expect_rx_by - __entry->now,
-		      __entry->expect_req_by - __entry->now,
-		      __entry->expect_term_by - __entry->now,
-		      __entry->timer - __entry->now)
+		      __entry->ack_at - __entry->analw,
+		      __entry->ack_lost_at - __entry->analw,
+		      __entry->resend_at - __entry->analw,
+		      __entry->expect_rx_by - __entry->analw,
+		      __entry->expect_req_by - __entry->analw,
+		      __entry->expect_term_by - __entry->analw,
+		      __entry->timer - __entry->analw)
 	    );
 
 TRACE_EVENT(rxrpc_timer_expired,
-	    TP_PROTO(struct rxrpc_call *call, unsigned long now),
+	    TP_PROTO(struct rxrpc_call *call, unsigned long analw),
 
-	    TP_ARGS(call, now),
+	    TP_ARGS(call, analw),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	call)
-		    __field(long,		now)
+		    __field(long,		analw)
 		    __field(long,		ack_at)
 		    __field(long,		ack_lost_at)
 		    __field(long,		resend_at)
@@ -1379,7 +1379,7 @@ TRACE_EVENT(rxrpc_timer_expired,
 
 	    TP_fast_assign(
 		    __entry->call		= call->debug_id;
-		    __entry->now		= now;
+		    __entry->analw		= analw;
 		    __entry->ack_at		= call->delay_ack_at;
 		    __entry->ack_lost_at	= call->ack_lost_at;
 		    __entry->resend_at		= call->resend_at;
@@ -1391,13 +1391,13 @@ TRACE_EVENT(rxrpc_timer_expired,
 
 	    TP_printk("c=%08x EXPIRED a=%ld la=%ld r=%ld xr=%ld xq=%ld xt=%ld t=%ld",
 		      __entry->call,
-		      __entry->ack_at - __entry->now,
-		      __entry->ack_lost_at - __entry->now,
-		      __entry->resend_at - __entry->now,
-		      __entry->expect_rx_by - __entry->now,
-		      __entry->expect_req_by - __entry->now,
-		      __entry->expect_term_by - __entry->now,
-		      __entry->timer - __entry->now)
+		      __entry->ack_at - __entry->analw,
+		      __entry->ack_lost_at - __entry->analw,
+		      __entry->resend_at - __entry->analw,
+		      __entry->expect_rx_by - __entry->analw,
+		      __entry->expect_req_by - __entry->analw,
+		      __entry->expect_term_by - __entry->analw,
+		      __entry->timer - __entry->analw)
 	    );
 
 TRACE_EVENT(rxrpc_rx_lose,
@@ -1478,16 +1478,16 @@ TRACE_EVENT(rxrpc_send_ack,
 
 TRACE_EVENT(rxrpc_drop_ack,
 	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_propose_ack_trace why,
-		     u8 ack_reason, rxrpc_serial_t serial, bool nobuf),
+		     u8 ack_reason, rxrpc_serial_t serial, bool analbuf),
 
-	    TP_ARGS(call, why, ack_reason, serial, nobuf),
+	    TP_ARGS(call, why, ack_reason, serial, analbuf),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,			call)
 		    __field(enum rxrpc_propose_ack_trace,	why)
 		    __field(rxrpc_serial_t,			serial)
 		    __field(u8,					ack_reason)
-		    __field(bool,				nobuf)
+		    __field(bool,				analbuf)
 			     ),
 
 	    TP_fast_assign(
@@ -1495,14 +1495,14 @@ TRACE_EVENT(rxrpc_drop_ack,
 		    __entry->why	= why;
 		    __entry->serial	= serial;
 		    __entry->ack_reason	= ack_reason;
-		    __entry->nobuf	= nobuf;
+		    __entry->analbuf	= analbuf;
 			   ),
 
 	    TP_printk("c=%08x %s %s r=%08x nbf=%u",
 		      __entry->call,
 		      __print_symbolic(__entry->why, rxrpc_propose_ack_traces),
 		      __print_symbolic(__entry->ack_reason, rxrpc_ack_names),
-		      __entry->serial, __entry->nobuf)
+		      __entry->serial, __entry->analbuf)
 	    );
 
 TRACE_EVENT(rxrpc_retransmit,
@@ -1574,9 +1574,9 @@ TRACE_EVENT(rxrpc_congest,
 	    );
 
 TRACE_EVENT(rxrpc_reset_cwnd,
-	    TP_PROTO(struct rxrpc_call *call, ktime_t now),
+	    TP_PROTO(struct rxrpc_call *call, ktime_t analw),
 
-	    TP_ARGS(call, now),
+	    TP_ARGS(call, analw),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call)
@@ -1596,7 +1596,7 @@ TRACE_EVENT(rxrpc_reset_cwnd,
 		    __entry->extra	= call->cong_extra;
 		    __entry->hard_ack	= call->acks_hard_ack;
 		    __entry->prepared	= call->tx_prepared - call->tx_bottom;
-		    __entry->since_last_tx = ktime_sub(now, call->tx_last_sent);
+		    __entry->since_last_tx = ktime_sub(analw, call->tx_last_sent);
 		    __entry->has_data	= !list_empty(&call->tx_sendmsg);
 			   ),
 
@@ -1732,7 +1732,7 @@ TRACE_EVENT(rxrpc_rx_icmp,
 		      __entry->ee.ee_code,
 		      __entry->ee.ee_info,
 		      __entry->ee.ee_data,
-		      __entry->ee.ee_errno,
+		      __entry->ee.ee_erranal,
 		      &__entry->srx.transport)
 	    );
 
@@ -1795,7 +1795,7 @@ TRACE_EVENT(rxrpc_call_reset,
 		      __entry->tx_seq, __entry->rx_seq)
 	    );
 
-TRACE_EVENT(rxrpc_notify_socket,
+TRACE_EVENT(rxrpc_analtify_socket,
 	    TP_PROTO(unsigned int debug_id, rxrpc_serial_t serial),
 
 	    TP_ARGS(debug_id, serial),

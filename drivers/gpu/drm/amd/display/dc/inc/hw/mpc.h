@@ -7,12 +7,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -75,7 +75,7 @@ enum mpcc_alpha_blend_mode {
 	 */
 	MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA_COMBINED_GLOBAL_GAIN,
 	/**
-	 * @MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA: global alpha value, ignores
+	 * @MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA: global alpha value, iganalres
 	 * pixel alpha and consider only plane alpha
 	 */
 	MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA
@@ -127,13 +127,13 @@ struct mpcc_sm_cfg {
 	bool frame_alt;
 	/* 0- disable field alternate, 1- enable field alternate */
 	bool field_alt;
-	/* 0-no force,2-force frame polarity from top,3-force frame polarity from bottom */
+	/* 0-anal force,2-force frame polarity from top,3-force frame polarity from bottom */
 	int force_next_frame_porlarity;
-	/* 0-no force,2-force field polarity from top,3-force field polarity from bottom */
+	/* 0-anal force,2-force field polarity from top,3-force field polarity from bottom */
 	int force_next_field_polarity;
 };
 
-struct mpc_denorm_clamp {
+struct mpc_deanalrm_clamp {
 	int clamp_max_r_cr;
 	int clamp_min_r_cr;
 	int clamp_max_g_y;
@@ -152,17 +152,17 @@ struct mpc_dwb_flow_control {
  * struct mpcc - MPCC connection and blending configuration for a single MPCC instance.
  * @mpcc_id: MPCC physical instance
  * @dpp_id: DPP input to this MPCC
- * @mpcc_bot: pointer to bottom layer MPCC. NULL when not connected.
+ * @mpcc_bot: pointer to bottom layer MPCC. NULL when analt connected.
  * @blnd_cfg: the blending configuration for this MPCC
  * @sm_cfg: stereo mix setting for this MPCC
  * @shared_bottom: if MPCC output to both OPP and DWB endpoints, true. Otherwise, false.
  *
- * This struct is used as a node in an MPC tree.
+ * This struct is used as a analde in an MPC tree.
  */
 struct mpcc {
 	int mpcc_id;			/* MPCC physical instance */
 	int dpp_id;			/* DPP input to this MPCC */
-	struct mpcc *mpcc_bot;		/* pointer to bottom layer MPCC.  NULL when not connected */
+	struct mpcc *mpcc_bot;		/* pointer to bottom layer MPCC.  NULL when analt connected */
 	struct mpcc_blnd_cfg blnd_cfg;	/* The blending configuration for this MPCC */
 	struct mpcc_sm_cfg sm_cfg;	/* stereo mix setting for this MPCC */
 	bool shared_bottom;		/* TRUE if MPCC output to both OPP and DWB endpoints, else FALSE */
@@ -363,14 +363,14 @@ struct mpc_funcs {
 		struct mpc *mpc,
 		struct mpc_tree *tree);
 
-	void (*set_denorm)(struct mpc *mpc,
+	void (*set_deanalrm)(struct mpc *mpc,
 			int opp_id,
 			enum dc_color_depth output_depth);
 
-	void (*set_denorm_clamp)(
+	void (*set_deanalrm_clamp)(
 			struct mpc *mpc,
 			int opp_id,
-			struct mpc_denorm_clamp denorm_clamp);
+			struct mpc_deanalrm_clamp deanalrm_clamp);
 
 	void (*set_output_csc)(struct mpc *mpc,
 			int opp_id,

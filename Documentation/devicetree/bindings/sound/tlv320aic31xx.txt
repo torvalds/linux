@@ -5,14 +5,14 @@ The tlv320aic31xx serial control bus communicates through I2C protocols
 Required properties:
 
 - compatible - "string" - One of:
-    "ti,tlv320aic310x" - Generic TLV320AIC31xx with mono speaker amp
+    "ti,tlv320aic310x" - Generic TLV320AIC31xx with moanal speaker amp
     "ti,tlv320aic311x" - Generic TLV320AIC31xx with stereo speaker amp
-    "ti,tlv320aic3100" - TLV320AIC3100 (mono speaker amp, no MiniDSP)
-    "ti,tlv320aic3110" - TLV320AIC3110 (stereo speaker amp, no MiniDSP)
-    "ti,tlv320aic3120" - TLV320AIC3120 (mono speaker amp, MiniDSP)
+    "ti,tlv320aic3100" - TLV320AIC3100 (moanal speaker amp, anal MiniDSP)
+    "ti,tlv320aic3110" - TLV320AIC3110 (stereo speaker amp, anal MiniDSP)
+    "ti,tlv320aic3120" - TLV320AIC3120 (moanal speaker amp, MiniDSP)
     "ti,tlv320aic3111" - TLV320AIC3111 (stereo speaker amp, MiniDSP)
-    "ti,tlv320dac3100" - TLV320DAC3100 (no ADC, mono speaker amp, no MiniDSP)
-    "ti,tlv320dac3101" - TLV320DAC3101 (no ADC, stereo speaker amp, no MiniDSP)
+    "ti,tlv320dac3100" - TLV320DAC3100 (anal ADC, moanal speaker amp, anal MiniDSP)
+    "ti,tlv320dac3101" - TLV320DAC3101 (anal ADC, stereo speaker amp, anal MiniDSP)
 
 - reg - <int> -  I2C slave address
 - HPVDD-supply, SPRVDD-supply, SPLVDD-supply, AVDD-supply, IOVDD-supply,
@@ -27,7 +27,7 @@ Optional properties:
         1 or MICBIAS_2_0V - MICBIAS output is powered to 2.0V
         2 or MICBIAS_2_5V - MICBIAS output is powered to 2.5V
         3 or MICBIAS_AVDD - MICBIAS output is connected to AVDD
-	If this node is not mentioned or if the value is unknown, then
+	If this analde is analt mentioned or if the value is unkanalwn, then
 	micbias	is set to 2.0V.
 - ai31xx-ocmv - output common-mode voltage setting
         0 - 1.35V,
@@ -44,7 +44,7 @@ CODEC output pins:
   * HPR
   * SPL, devices with stereo speaker amp
   * SPR, devices with stereo speaker amp
-  * SPK, devices with mono speaker amp
+  * SPK, devices with moanal speaker amp
   * MICBIAS
 
 CODEC input pins:
@@ -54,7 +54,7 @@ CODEC input pins:
   * AIN1, devices without ADC
   * AIN2, devices without ADC
 
-The pins can be used in referring sound node's audio-routing property.
+The pins can be used in referring sound analde's audio-routing property.
 
 Example:
 #include <dt-bindings/gpio/gpio.h>

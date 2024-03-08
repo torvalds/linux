@@ -34,7 +34,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	case INSN_REJECTED:
 		return -EINVAL;
 
-	case INSN_GOOD_NO_SLOT:
+	case INSN_GOOD_ANAL_SLOT:
 		auprobe->simulate = true;
 		break;
 
@@ -49,8 +49,8 @@ int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
 
-	utask->autask.saved_trap_no = current->thread.trap_no;
-	current->thread.trap_no = UPROBE_TRAP_NR;
+	utask->autask.saved_trap_anal = current->thread.trap_anal;
+	current->thread.trap_anal = UPROBE_TRAP_NR;
 
 	instruction_pointer_set(regs, utask->xol_vaddr);
 
@@ -63,8 +63,8 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
 
-	WARN_ON_ONCE(current->thread.trap_no != UPROBE_TRAP_NR);
-	current->thread.trap_no = utask->autask.saved_trap_no;
+	WARN_ON_ONCE(current->thread.trap_anal != UPROBE_TRAP_NR);
+	current->thread.trap_anal = utask->autask.saved_trap_anal;
 
 	instruction_pointer_set(regs, utask->vaddr + auprobe->insn_size);
 
@@ -75,7 +75,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 
 bool arch_uprobe_xol_was_trapped(struct task_struct *t)
 {
-	if (t->thread.trap_no != UPROBE_TRAP_NR)
+	if (t->thread.trap_anal != UPROBE_TRAP_NR)
 		return true;
 
 	return false;
@@ -102,7 +102,7 @@ void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
 
-	current->thread.trap_no = utask->autask.saved_trap_no;
+	current->thread.trap_anal = utask->autask.saved_trap_anal;
 
 	/*
 	 * Task has received a fatal signal, so reset back to probed
@@ -135,15 +135,15 @@ arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr,
 	return ra;
 }
 
-int arch_uprobe_exception_notify(struct notifier_block *self,
+int arch_uprobe_exception_analtify(struct analtifier_block *self,
 				 unsigned long val, void *data)
 {
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 int uprobe_breakpoint_handler(struct pt_regs *regs)
 {
-	if (uprobe_pre_sstep_notifier(regs))
+	if (uprobe_pre_sstep_analtifier(regs))
 		return 1;
 
 	return 0;
@@ -151,7 +151,7 @@ int uprobe_breakpoint_handler(struct pt_regs *regs)
 
 int uprobe_single_step_handler(struct pt_regs *regs)
 {
-	if (uprobe_post_sstep_notifier(regs))
+	if (uprobe_post_sstep_analtifier(regs))
 		return 1;
 
 	return 0;

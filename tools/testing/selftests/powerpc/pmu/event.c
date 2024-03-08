@@ -62,9 +62,9 @@ void event_init_sampling(struct event *e, u64 config)
 }
 
 #define PERF_CURRENT_PID	0
-#define PERF_NO_PID		-1
-#define PERF_NO_CPU		-1
-#define PERF_NO_GROUP		-1
+#define PERF_ANAL_PID		-1
+#define PERF_ANAL_CPU		-1
+#define PERF_ANAL_GROUP		-1
 
 int event_open_with_options(struct event *e, pid_t pid, int cpu, int group_fd)
 {
@@ -79,22 +79,22 @@ int event_open_with_options(struct event *e, pid_t pid, int cpu, int group_fd)
 
 int event_open_with_group(struct event *e, int group_fd)
 {
-	return event_open_with_options(e, PERF_CURRENT_PID, PERF_NO_CPU, group_fd);
+	return event_open_with_options(e, PERF_CURRENT_PID, PERF_ANAL_CPU, group_fd);
 }
 
 int event_open_with_pid(struct event *e, pid_t pid)
 {
-	return event_open_with_options(e, pid, PERF_NO_CPU, PERF_NO_GROUP);
+	return event_open_with_options(e, pid, PERF_ANAL_CPU, PERF_ANAL_GROUP);
 }
 
 int event_open_with_cpu(struct event *e, int cpu)
 {
-	return event_open_with_options(e, PERF_NO_PID, cpu, PERF_NO_GROUP);
+	return event_open_with_options(e, PERF_ANAL_PID, cpu, PERF_ANAL_GROUP);
 }
 
 int event_open(struct event *e)
 {
-	return event_open_with_options(e, PERF_CURRENT_PID, PERF_NO_CPU, PERF_NO_GROUP);
+	return event_open_with_options(e, PERF_CURRENT_PID, PERF_ANAL_CPU, PERF_ANAL_GROUP);
 }
 
 void event_close(struct event *e)

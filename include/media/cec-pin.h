@@ -65,7 +65,7 @@ void cec_pin_changed(struct cec_adapter *adap, bool value);
  * @pin_ops:	low-level pin operations
  * @priv:	will be stored in adap->priv and can be used by the adapter ops.
  *		Use cec_get_drvdata(adap) to get the priv pointer.
- * @name:	the name of the CEC adapter. Note: this name will be copied.
+ * @name:	the name of the CEC adapter. Analte: this name will be copied.
  * @caps:	capabilities of the CEC adapter. This will be ORed with
  *		CEC_CAP_MONITOR_ALL and CEC_CAP_MONITOR_PIN.
  *

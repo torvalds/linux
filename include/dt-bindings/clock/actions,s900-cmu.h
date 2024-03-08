@@ -8,7 +8,7 @@
 #ifndef __DT_BINDINGS_CLOCK_S900_CMU_H
 #define __DT_BINDINGS_CLOCK_S900_CMU_H
 
-#define CLK_NONE			0
+#define CLK_ANALNE			0
 
 /* fixed rate clocks */
 #define CLK_LOSC			1
@@ -27,9 +27,9 @@
 /* system clock */
 #define CLK_CPU				15
 #define CLK_DEV				16
-#define CLK_NOC				17
-#define CLK_NOC_MUX			18
-#define CLK_NOC_DIV			19
+#define CLK_ANALC				17
+#define CLK_ANALC_MUX			18
+#define CLK_ANALC_DIV			19
 #define CLK_AHB				20
 #define CLK_APB				21
 #define CLK_DMAC			22

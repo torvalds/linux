@@ -11,7 +11,7 @@
 #include <asm/ptrace.h>
 
 /* Store the register window onto the 8-byte aligned area starting
- * at %reg.  It might be %sp, it might not, we don't care.
+ * at %reg.  It might be %sp, it might analt, we don't care.
  */
 #define STORE_WINDOW(reg) \
 	std	%l0, [%reg + RW_L0]; \
@@ -114,7 +114,7 @@
 	/* SUN4D implementation. */			\
 	lda	 [%g0] ASI_M_VIKING_TMP1, %idreg;	\
 	sll	 %idreg, 2, %idreg;			\
-	nop;						\
+	analp;						\
 	/* LEON implementation. */			\
 	rd 	%asr17, %idreg;				\
 	srl	%idreg, 0x1c, %idreg;			\

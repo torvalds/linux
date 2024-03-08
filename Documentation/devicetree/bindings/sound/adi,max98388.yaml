@@ -10,7 +10,7 @@ maintainers:
   - Ryan Lee <ryans.lee@analog.com>
 
 description:
-  The MAX98388 is a mono Class-D speaker amplifier with I/V feedback.
+  The MAX98388 is a moanal Class-D speaker amplifier with I/V feedback.
   The device provides a PCM interface for audio data and a standard
   I2C interface for control data communication.
 
@@ -28,14 +28,14 @@ properties:
   '#sound-dai-cells':
     const: 0
 
-  adi,vmon-slot-no:
+  adi,vmon-slot-anal:
     description: slot number of the voltage feedback monitor
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 15
     default: 0
 
-  adi,imon-slot-no:
+  adi,imon-slot-anal:
     description: slot number of the current feedback monitor
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
@@ -45,7 +45,7 @@ properties:
   adi,interleave-mode:
     description:
       For cases where a single combined channel for the I/V feedback data
-      is not sufficient, the device can also be configured to share
+      is analt sufficient, the device can also be configured to share
       a single data output channel on alternating frames.
       In this configuration, the current and voltage data will be frame
       interleaved on a single output channel.
@@ -71,8 +71,8 @@ examples:
             compatible = "adi,max98388";
             reg = <0x39>;
             #sound-dai-cells = <0>;
-            adi,vmon-slot-no = <0>;
-            adi,imon-slot-no = <1>;
+            adi,vmon-slot-anal = <0>;
+            adi,imon-slot-anal = <1>;
             adi,interleave-mode;
             reset-gpios = <&gpio 4 GPIO_ACTIVE_LOW>;
         };

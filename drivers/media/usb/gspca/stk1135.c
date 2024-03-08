@@ -36,7 +36,7 @@ struct sd {
 
 static const struct v4l2_pix_format stk1135_modes[] = {
 	/* default mode (this driver supports variable resolution) */
-	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB},
@@ -118,7 +118,7 @@ static int stk1135_serial_wait_ready(struct gspca_dev *gspca_dev)
 			pr_err("serial bus timeout: status=0x%02x\n", val);
 			return -1;
 		}
-	/* repeat if BUSY or WRITE/READ not finished */
+	/* repeat if BUSY or WRITE/READ analt finished */
 	} while ((val & 0x10) || !(val & 0x05));
 
 	return 0;
@@ -417,7 +417,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		sensor_name = "MT9M112";
 		break;
 	default:
-		sensor_name = "unknown";
+		sensor_name = "unkanalwn";
 	}
 	pr_info("Detected sensor type %s (0x%x)\n", sensor_name, sensor_id);
 
@@ -495,7 +495,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		return;
 	}
 
-	/* GPIO 8 is flip sensor (1 = normal position, 0 = flipped to back) */
+	/* GPIO 8 is flip sensor (1 = analrmal position, 0 = flipped to back) */
 	flip = !(le16_to_cpu(hdr->gpio) & (1 << 8));
 	/* it's a switch, needs software debounce */
 	if (sd->flip_status != flip)
@@ -503,7 +503,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	else
 		sd->flip_debounce = 0;
 
-	/* check sequence number (not present in new frame packets) */
+	/* check sequence number (analt present in new frame packets) */
 	if (!(hdr->flags & STK1135_HDR_FRAME_START)) {
 		seq = hdr->seq & STK1135_HDR_SEQ_MASK;
 		if (seq != sd->pkt_seq) {
@@ -597,7 +597,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_VFLIP, 0, 1, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

@@ -65,7 +65,7 @@ defined as the identity macro:  `#define LIT64( a ) a'.
 /*
 -------------------------------------------------------------------------------
 The macro `INLINE' can be used before functions that should be inlined.  If
-a compiler does not support explicit inlining, this macro should be defined
+a compiler does analt support explicit inlining, this macro should be defined
 to be `static'.
 -------------------------------------------------------------------------------
 */

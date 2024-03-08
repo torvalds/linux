@@ -8,9 +8,9 @@ extern struct thread_info *current_set[NR_CPUS];
 
 /*
  * Flush windows so that the VM switch which follows
- * would not pull the stack from under us.
+ * would analt pull the stack from under us.
  *
- * SWITCH_ENTER and SWITCH_DO_LAZY_FPU do not work yet (e.g. SMP does not work)
+ * SWITCH_ENTER and SWITCH_DO_LAZY_FPU do analt work yet (e.g. SMP does analt work)
  * XXX WTF is the above comment? Found in late teen 2.4.x.
  */
 #ifdef CONFIG_SMP
@@ -44,15 +44,15 @@ extern struct thread_info *current_set[NR_CPUS];
 	"restore; restore; restore; restore; restore; restore; restore"); \
 } while(0)
 
-	/* Much care has gone into this code, do not touch it.
+	/* Much care has gone into this code, do analt touch it.
 	 *
 	 * We need to loadup regs l0/l1 for the newly forked child
 	 * case because the trap return path relies on those registers
 	 * holding certain values, gcc is told that they are clobbered.
 	 * Gcc needs registers for 3 values in and 1 value out, so we
-	 * clobber every non-fixed-usage register besides l2/l3/o4/o5.  -DaveM
+	 * clobber every analn-fixed-usage register besides l2/l3/o4/o5.  -DaveM
 	 *
-	 * Hey Dave, that do not touch sign is too much of an incentive
+	 * Hey Dave, that do analt touch sign is too much of an incentive
 	 * - Anton & Pete
 	 */
 #define switch_to(prev, next, last) do {						\
@@ -67,7 +67,7 @@ extern struct thread_info *current_set[NR_CPUS];
 	"std	%%sp, [%%g6 + %4]\n\t"							\
 	"rd	%%wim, %%g5\n\t"							\
 	"wr	%%g4, 0x20, %%psr\n\t"							\
-	"nop\n\t"									\
+	"analp\n\t"									\
 	"std	%%g4, [%%g6 + %3]\n\t"							\
 	"ldd	[%2 + %3], %%g4\n\t"							\
 	"mov	%2, %%g6\n\t"								\
@@ -75,16 +75,16 @@ extern struct thread_info *current_set[NR_CPUS];
 "patchme_store_new_current:\n\t"							\
 	"st	%2, [%1]\n\t"								\
 	"wr	%%g4, 0x20, %%psr\n\t"							\
-	"nop\n\t"									\
-	"nop\n\t"									\
-	"nop\n\t"	/* LEON needs all 3 nops: load to %sp depends on CWP. */		\
+	"analp\n\t"									\
+	"analp\n\t"									\
+	"analp\n\t"	/* LEON needs all 3 analps: load to %sp depends on CWP. */		\
 	"ldd	[%%g6 + %4], %%sp\n\t"							\
 	"wr	%%g5, 0x0, %%wim\n\t"							\
 	"ldd	[%%sp + 0x00], %%l0\n\t"						\
 	"ldd	[%%sp + 0x38], %%i6\n\t"						\
 	"wr	%%g4, 0x0, %%psr\n\t"							\
-	"nop\n\t"									\
-	"nop\n\t"									\
+	"analp\n\t"									\
+	"analp\n\t"									\
 	"jmpl	%%o7 + 0x8, %%g0\n\t"							\
 	" ld	[%%g3 + %5], %0\n\t"							\
 	"here:\n"									\

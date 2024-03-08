@@ -200,7 +200,7 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 
 	layer = devm_kzalloc(drm->dev, sizeof(*layer), GFP_KERNEL);
 	if (!layer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	layer->id = id;
 	layer->backend = backend;
@@ -242,7 +242,7 @@ struct drm_plane **sun4i_layers_init(struct drm_device *drm,
 	planes = devm_kcalloc(drm->dev, SUN4I_BACKEND_NUM_LAYERS + 1,
 			      sizeof(*planes), GFP_KERNEL);
 	if (!planes)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < SUN4I_BACKEND_NUM_LAYERS; i++) {
 		enum drm_plane_type type = i ? DRM_PLANE_TYPE_OVERLAY : DRM_PLANE_TYPE_PRIMARY;

@@ -93,9 +93,9 @@
  * Data for PCI driver interface
  *
  * This data only exists for exporting the supported
- * PCI ids via MODULE_DEVICE_TABLE.  We do not actually
+ * PCI ids via MODULE_DEVICE_TABLE.  We do analt actually
  * register a pci_driver, because someone else might one day
- * want to register another driver on the same PCI id.
+ * want to register aanalther driver on the same PCI id.
  */
 static const struct pci_device_id pci_tbl[] = {
 /* AA
@@ -146,9 +146,9 @@ static const struct pci_device_id pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, pci_tbl);
 
-static __initdata int no_fwh_detect;
-module_param(no_fwh_detect, int, 0);
-MODULE_PARM_DESC(no_fwh_detect, "Skip FWH detection:\n"
+static __initdata int anal_fwh_detect;
+module_param(anal_fwh_detect, int, 0);
+MODULE_PARM_DESC(anal_fwh_detect, "Skip FWH detection:\n"
                                 " positive value - skip if FWH space locked read-only\n"
                                 " negative value - skip always");
 
@@ -199,7 +199,7 @@ static int intel_rng_init(struct hwrng *rng)
 	if ((hw_status & INTEL_RNG_ENABLED) == 0)
 		hw_status = hwstatus_set(mem, hw_status | INTEL_RNG_ENABLED);
 	if ((hw_status & INTEL_RNG_ENABLED) == 0) {
-		pr_err(PFX "cannot enable RNG, aborting\n");
+		pr_err(PFX "cananalt enable RNG, aborting\n");
 		goto out;
 	}
 	err = 0;
@@ -274,8 +274,8 @@ static int __init intel_rng_hw_init(void *_intel_rng_hw)
 	if (mfc != INTEL_FWH_MANUFACTURER_CODE ||
 	    (dvc != INTEL_FWH_DEVICE_CODE_8M &&
 	     dvc != INTEL_FWH_DEVICE_CODE_4M)) {
-		pr_notice(PFX "FWH not detected\n");
-		return -ENODEV;
+		pr_analtice(PFX "FWH analt detected\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -309,10 +309,10 @@ static int __init intel_init_hw_struct(struct intel_rng_hw *intel_rng_hw,
 PFX "Firmware space is locked read-only. If you can't or\n"
 PFX "don't want to disable this in firmware setup, and if\n"
 PFX "you are certain that your system has a functional\n"
-PFX "RNG, try using the 'no_fwh_detect' option.\n";
+PFX "RNG, try using the 'anal_fwh_detect' option.\n";
 
-		if (no_fwh_detect)
-			return -ENODEV;
+		if (anal_fwh_detect)
+			return -EANALDEV;
 		pr_warn("%s", warning);
 		return -EBUSY;
 	}
@@ -327,7 +327,7 @@ PFX "RNG, try using the 'no_fwh_detect' option.\n";
 
 static int __init intel_rng_mod_init(void)
 {
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	int i;
 	struct pci_dev *dev = NULL;
 	void __iomem *mem;
@@ -339,9 +339,9 @@ static int __init intel_rng_mod_init(void)
 				     NULL);
 
 	if (!dev)
-		goto out; /* Device not found. */
+		goto out; /* Device analt found. */
 
-	if (no_fwh_detect < 0) {
+	if (anal_fwh_detect < 0) {
 		pci_dev_put(dev);
 		goto fwh_done;
 	}
@@ -356,15 +356,15 @@ static int __init intel_rng_mod_init(void)
 	if (err) {
 		pci_dev_put(dev);
 		kfree(intel_rng_hw);
-		if (err == -ENODEV)
+		if (err == -EANALDEV)
 			goto fwh_done;
 		goto out;
 	}
 
 	/*
-	 * Since the BIOS code/data is going to disappear from its normal
+	 * Since the BIOS code/data is going to disappear from its analrmal
 	 * location with the Read ID command, all activity on the system
-	 * must be stopped until the state is back to normal.
+	 * must be stopped until the state is back to analrmal.
 	 *
 	 * Use stop_machine because IPIs can be blocked by disabling
 	 * interrupts.
@@ -377,14 +377,14 @@ static int __init intel_rng_mod_init(void)
 		goto out;
 
 fwh_done:
-	err = -ENOMEM;
+	err = -EANALMEM;
 	mem = ioremap(INTEL_RNG_ADDR, INTEL_RNG_ADDR_LEN);
 	if (!mem)
 		goto out;
 	intel_rng.priv = (unsigned long)mem;
 
 	/* Check for Random Number Generator */
-	err = -ENODEV;
+	err = -EANALDEV;
 	hw_status = hwstatus_get(mem);
 	if ((hw_status & INTEL_RNG_PRESENT) == 0) {
 		iounmap(mem);

@@ -34,7 +34,7 @@ static u32 vidtv_pes_op_get_len(bool send_pts, bool send_dts)
 	/* the flags must always be sent */
 	len += sizeof(struct vidtv_pes_optional);
 
-	/* From all optionals, we might send these for now */
+	/* From all optionals, we might send these for analw */
 	if (send_pts && send_dts)
 		len += sizeof(struct vidtv_pes_optional_pts_dts);
 	else if (send_pts)
@@ -49,7 +49,7 @@ static u32 vidtv_pes_h_get_len(bool send_pts, bool send_dts)
 {
 	u32 len = 0;
 
-	/* PES header length notwithstanding stuffing bytes */
+	/* PES header length analtwithstanding stuffing bytes */
 
 	len += sizeof(struct vidtv_mpeg_pes);
 	len += vidtv_pes_op_get_len(send_pts, send_dts);
@@ -62,7 +62,7 @@ static u32 vidtv_pes_write_header_stuffing(struct pes_header_write_args *args)
 	/*
 	 * This is a fixed 8-bit value equal to '0xFF' that can be inserted
 	 * by the encoder, for example to meet the requirements of the channel.
-	 * It is discarded by the decoder. No more than 32 stuffing bytes shall
+	 * It is discarded by the decoder. Anal more than 32 stuffing bytes shall
 	 * be present in one PES packet header.
 	 */
 	if (args->n_pes_h_s_bytes > PES_HEADER_MAX_STUFFING_BYTES) {

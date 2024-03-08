@@ -50,7 +50,7 @@ static unsigned int gss_key_expire_timeo = GSS_KEY_EXPIRE_TIMEO;
 #endif
 
 /*
- * This compile-time check verifies that we will not exceed the
+ * This compile-time check verifies that we will analt exceed the
  * slack space allotted by the client and server auth_gss code
  * before they call gss_wrap().
  */
@@ -83,7 +83,7 @@ struct gss_pipe {
 
 struct gss_auth {
 	struct kref kref;
-	struct hlist_node hash;
+	struct hlist_analde hash;
 	struct rpc_auth rpc_auth;
 	struct gss_api_mech *mech;
 	enum rpc_gss_svc service;
@@ -165,7 +165,7 @@ gss_alloc_context(void)
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx != NULL) {
 		ctx->gc_proc = RPC_GSS_PROC_DATA;
-		ctx->gc_seq = 1;	/* NetApp 6.4R1 doesn't accept seq. no. 0 */
+		ctx->gc_seq = 1;	/* NetApp 6.4R1 doesn't accept seq. anal. 0 */
 		spin_lock_init(&ctx->gc_seq_lock);
 		refcount_set(&ctx->count,1);
 	}
@@ -179,7 +179,7 @@ gss_fill_context(const void *p, const void *end, struct gss_cl_ctx *ctx, struct 
 	const void *q;
 	unsigned int seclen;
 	unsigned int timeout;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	u32 window_size;
 	int ret;
 
@@ -192,7 +192,7 @@ gss_fill_context(const void *p, const void *end, struct gss_cl_ctx *ctx, struct 
 		goto err;
 	if (timeout == 0)
 		timeout = GSSD_MIN_TIMEOUT;
-	ctx->gc_expiry = now + ((unsigned long)timeout * HZ);
+	ctx->gc_expiry = analw + ((unsigned long)timeout * HZ);
 	/* Sequence number window. Determines the maximum number of
 	 * simultaneous requests
 	 */
@@ -243,15 +243,15 @@ gss_fill_context(const void *p, const void *end, struct gss_cl_ctx *ctx, struct 
 	if (IS_ERR(p))
 		goto err;
 done:
-	trace_rpcgss_context(window_size, ctx->gc_expiry, now, timeout,
+	trace_rpcgss_context(window_size, ctx->gc_expiry, analw, timeout,
 			     ctx->gc_acceptor.len, ctx->gc_acceptor.data);
 err:
 	return p;
 }
 
 /* XXX: Need some documentation about why UPCALL_BUF_LEN is so small.
- *	Is user space expecting no more than UPCALL_BUF_LEN bytes?
- *	Note that there are now _two_ NI_MAXHOST sized data items
+ *	Is user space expecting anal more than UPCALL_BUF_LEN bytes?
+ *	Analte that there are analw _two_ NI_MAXHOST sized data items
  *	being passed in this string.
  */
 #define UPCALL_BUF_LEN	256
@@ -351,7 +351,7 @@ static void
 __gss_unhash_msg(struct gss_upcall_msg *gss_msg)
 {
 	list_del_init(&gss_msg->list);
-	rpc_wake_up_status(&gss_msg->rpc_waitqueue, gss_msg->msg.errno);
+	rpc_wake_up_status(&gss_msg->rpc_waitqueue, gss_msg->msg.erranal);
 	wake_up_all(&gss_msg->waitqueue);
 	refcount_dec(&gss_msg->count);
 }
@@ -372,7 +372,7 @@ gss_unhash_msg(struct gss_upcall_msg *gss_msg)
 static void
 gss_handle_downcall_result(struct gss_cred *gss_cred, struct gss_upcall_msg *gss_msg)
 {
-	switch (gss_msg->msg.errno) {
+	switch (gss_msg->msg.erranal) {
 	case 0:
 		if (gss_msg->ctx == NULL)
 			break;
@@ -384,7 +384,7 @@ gss_handle_downcall_result(struct gss_cred *gss_cred, struct gss_upcall_msg *gss
 	}
 	gss_cred->gc_upcall_timestamp = jiffies;
 	gss_cred->gc_upcall = NULL;
-	rpc_wake_up_status(&gss_msg->rpc_waitqueue, gss_msg->msg.errno);
+	rpc_wake_up_status(&gss_msg->rpc_waitqueue, gss_msg->msg.erranal);
 }
 
 static void
@@ -398,7 +398,7 @@ gss_upcall_callback(struct rpc_task *task)
 	spin_lock(&pipe->lock);
 	gss_handle_downcall_result(gss_cred, gss_msg);
 	spin_unlock(&pipe->lock);
-	task->tk_status = gss_msg->msg.errno;
+	task->tk_status = gss_msg->msg.erranal;
 	gss_release_msg(gss_msg);
 }
 
@@ -463,7 +463,7 @@ static int gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
 	 * or "*" (meaning choose any).
 	 *
 	 * srchost= is the hostname part of the source principal. When
-	 * not provided, gssd uses the local hostname.
+	 * analt provided, gssd uses the local hostname.
 	 */
 	if (service_name) {
 		char *c = strchr(service_name, '@');
@@ -497,7 +497,7 @@ static int gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
 	return 0;
 out_overflow:
 	WARN_ON_ONCE(1);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static ssize_t
@@ -525,7 +525,7 @@ gss_alloc_msg(struct gss_auth *gss_auth,
 {
 	struct gss_upcall_msg *gss_msg;
 	int vers;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	gss_msg = kzalloc(sizeof(*gss_msg), GFP_KERNEL);
 	if (gss_msg == NULL)
@@ -545,7 +545,7 @@ gss_alloc_msg(struct gss_auth *gss_auth,
 	if (service_name) {
 		gss_msg->service_name = kstrdup_const(service_name, GFP_KERNEL);
 		if (!gss_msg->service_name) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_put_pipe_version;
 		}
 	}
@@ -605,7 +605,7 @@ gss_refresh_upcall(struct rpc_task *task)
 	gss_msg = gss_setup_upcall(gss_auth, cred);
 	if (PTR_ERR(gss_msg) == -EAGAIN) {
 		/* XXX: warning on the first, under the assumption we
-		 * shouldn't normally hit this case on a refresh. */
+		 * shouldn't analrmally hit this case on a refresh. */
 		warn_gssd();
 		rpc_sleep_on_timeout(&pipe_version_rpc_waitqueue,
 				task, NULL, jiffies + (15 * HZ));
@@ -620,14 +620,14 @@ gss_refresh_upcall(struct rpc_task *task)
 	spin_lock(&pipe->lock);
 	if (gss_cred->gc_upcall != NULL)
 		rpc_sleep_on(&gss_cred->gc_upcall->rpc_waitqueue, task, NULL);
-	else if (gss_msg->ctx == NULL && gss_msg->msg.errno >= 0) {
+	else if (gss_msg->ctx == NULL && gss_msg->msg.erranal >= 0) {
 		gss_cred->gc_upcall = gss_msg;
 		/* gss_upcall_callback will release the reference to gss_upcall_msg */
 		refcount_inc(&gss_msg->count);
 		rpc_sleep_on(&gss_msg->rpc_waitqueue, task, gss_upcall_callback);
 	} else {
 		gss_handle_downcall_result(gss_cred, gss_msg);
-		err = gss_msg->msg.errno;
+		err = gss_msg->msg.erranal;
 	}
 	spin_unlock(&pipe->lock);
 	gss_release_msg(gss_msg);
@@ -676,7 +676,7 @@ retry:
 	for (;;) {
 		prepare_to_wait(&gss_msg->waitqueue, &wait, TASK_KILLABLE);
 		spin_lock(&pipe->lock);
-		if (gss_msg->ctx != NULL || gss_msg->msg.errno < 0) {
+		if (gss_msg->ctx != NULL || gss_msg->msg.erranal < 0) {
 			break;
 		}
 		spin_unlock(&pipe->lock);
@@ -690,7 +690,7 @@ retry:
 		trace_rpcgss_ctx_init(gss_cred);
 		gss_cred_set_ctx(cred, gss_msg->ctx);
 	} else {
-		err = gss_msg->msg.errno;
+		err = gss_msg->msg.erranal;
 	}
 	spin_unlock(&pipe->lock);
 out_intr:
@@ -725,7 +725,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	const void *p, *end;
 	void *buf;
 	struct gss_upcall_msg *gss_msg;
-	struct rpc_pipe *pipe = RPC_I(file_inode(filp))->pipe;
+	struct rpc_pipe *pipe = RPC_I(file_ianalde(filp))->pipe;
 	struct gss_cl_ctx *ctx;
 	uid_t id;
 	kuid_t uid;
@@ -733,7 +733,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 
 	if (mlen > MSG_BUF_MAXSIZE)
 		goto out;
-	err = -ENOMEM;
+	err = -EANALMEM;
 	buf = kmalloc(mlen, GFP_KERNEL);
 	if (!buf)
 		goto out;
@@ -755,12 +755,12 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 		goto err;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ctx = gss_alloc_context();
 	if (ctx == NULL)
 		goto err;
 
-	err = -ENOENT;
+	err = -EANALENT;
 	/* Find a matching upcall */
 	spin_lock(&pipe->lock);
 	gss_msg = gss_find_downcall(pipe, uid);
@@ -777,19 +777,19 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 		switch (err) {
 		case -EACCES:
 		case -EKEYEXPIRED:
-			gss_msg->msg.errno = err;
+			gss_msg->msg.erranal = err;
 			err = mlen;
 			break;
 		case -EFAULT:
-		case -ENOMEM:
+		case -EANALMEM:
 		case -EINVAL:
-		case -ENOSYS:
-			gss_msg->msg.errno = -EAGAIN;
+		case -EANALSYS:
+			gss_msg->msg.erranal = -EAGAIN;
 			break;
 		default:
 			printk(KERN_CRIT "%s: bad return from "
 				"gss_fill_context: %zd\n", __func__, err);
-			gss_msg->msg.errno = -EIO;
+			gss_msg->msg.erranal = -EIO;
 		}
 		goto err_release_msg;
 	}
@@ -809,9 +809,9 @@ out:
 	return err;
 }
 
-static int gss_pipe_open(struct inode *inode, int new_version)
+static int gss_pipe_open(struct ianalde *ianalde, int new_version)
 {
-	struct net *net = inode->i_sb->s_fs_info;
+	struct net *net = ianalde->i_sb->s_fs_info;
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 	int ret = 0;
 
@@ -833,21 +833,21 @@ out:
 
 }
 
-static int gss_pipe_open_v0(struct inode *inode)
+static int gss_pipe_open_v0(struct ianalde *ianalde)
 {
-	return gss_pipe_open(inode, 0);
+	return gss_pipe_open(ianalde, 0);
 }
 
-static int gss_pipe_open_v1(struct inode *inode)
+static int gss_pipe_open_v1(struct ianalde *ianalde)
 {
-	return gss_pipe_open(inode, 1);
+	return gss_pipe_open(ianalde, 1);
 }
 
 static void
-gss_pipe_release(struct inode *inode)
+gss_pipe_release(struct ianalde *ianalde)
 {
-	struct net *net = inode->i_sb->s_fs_info;
-	struct rpc_pipe *pipe = RPC_I(inode)->pipe;
+	struct net *net = ianalde->i_sb->s_fs_info;
+	struct rpc_pipe *pipe = RPC_I(ianalde)->pipe;
 	struct gss_upcall_msg *gss_msg;
 
 restart:
@@ -856,7 +856,7 @@ restart:
 
 		if (!list_empty(&gss_msg->msg.list))
 			continue;
-		gss_msg->msg.errno = -EPIPE;
+		gss_msg->msg.erranal = -EPIPE;
 		refcount_inc(&gss_msg->count);
 		__gss_unhash_msg(gss_msg);
 		spin_unlock(&pipe->lock);
@@ -873,10 +873,10 @@ gss_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 {
 	struct gss_upcall_msg *gss_msg = container_of(msg, struct gss_upcall_msg, msg);
 
-	if (msg->errno < 0) {
+	if (msg->erranal < 0) {
 		refcount_inc(&gss_msg->count);
 		gss_unhash_msg(gss_msg);
-		if (msg->errno == -ETIMEDOUT)
+		if (msg->erranal == -ETIMEDOUT)
 			warn_gssd();
 		gss_release_msg(gss_msg);
 	}
@@ -918,7 +918,7 @@ static struct gss_pipe *gss_pipe_alloc(struct rpc_clnt *clnt,
 		const struct rpc_pipe_ops *upcall_ops)
 {
 	struct gss_pipe *p;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	p = kmalloc(sizeof(*p), GFP_KERNEL);
 	if (p == NULL)
@@ -992,7 +992,7 @@ static struct gss_pipe *gss_pipe_get(struct rpc_clnt *clnt,
 			&args);
 	if (pdo != NULL)
 		return container_of(pdo, struct gss_pipe, pdo);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static void __gss_pipe_free(struct gss_pipe *p)
@@ -1021,7 +1021,7 @@ static void gss_pipe_free(struct gss_pipe *p)
 }
 
 /*
- * NOTE: we have the opportunity to use different
+ * ANALTE: we have the opportunity to use different
  * parameters based on the input flavor (which must be a pseudoflavor)
  */
 static struct gss_auth *
@@ -1031,13 +1031,13 @@ gss_create_new(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 	struct gss_auth *gss_auth;
 	struct gss_pipe *gss_pipe;
 	struct rpc_auth * auth;
-	int err = -ENOMEM; /* XXX? */
+	int err = -EANALMEM; /* XXX? */
 
 	if (!try_module_get(THIS_MODULE))
 		return ERR_PTR(err);
 	if (!(gss_auth = kmalloc(sizeof(*gss_auth), GFP_KERNEL)))
 		goto out_dec;
-	INIT_HLIST_NODE(&gss_auth->hash);
+	INIT_HLIST_ANALDE(&gss_auth->hash);
 	gss_auth->target_name = NULL;
 	if (args->target_name) {
 		gss_auth->target_name = kstrdup(args->target_name, GFP_KERNEL);
@@ -1074,7 +1074,7 @@ gss_create_new(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 	if (err)
 		goto err_put_mech;
 	/*
-	 * Note: if we created the old pipe first, then someone who
+	 * Analte: if we created the old pipe first, then someone who
 	 * examined the directory at the right moment might conclude
 	 * that we supported only the old pipe.  So we instead create
 	 * the new pipe first.
@@ -1194,7 +1194,7 @@ gss_auth_find_or_add_hashed(const struct rpc_auth_create_args *args,
 			if (strcmp(gss_auth->target_name, args->target_name))
 				continue;
 		}
-		if (!refcount_inc_not_zero(&gss_auth->rpc_auth.au_count))
+		if (!refcount_inc_analt_zero(&gss_auth->rpc_auth.au_count))
 			continue;
 		goto out;
 	}
@@ -1276,7 +1276,7 @@ gss_dup_cred(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 /*
  * gss_send_destroy_context will cause the RPCSEC_GSS to send a NULL RPC call
  * to the server with the GSS control procedure field set to
- * RPC_GSS_PROC_DESTROY. This should normally cause the server to release
+ * RPC_GSS_PROC_DESTROY. This should analrmally cause the server to release
  * all RPCSEC_GSS state associated with that context.
  */
 static void
@@ -1384,14 +1384,14 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags, gfp_t
 {
 	struct gss_auth *gss_auth = container_of(auth, struct gss_auth, rpc_auth);
 	struct gss_cred	*cred = NULL;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	if (!(cred = kzalloc(sizeof(*cred), gfp)))
 		goto out_err;
 
 	rpcauth_init_cred(&cred->gc_base, acred, auth, &gss_credops);
 	/*
-	 * Note: in order to force a call to call_refresh(), we deliberately
+	 * Analte: in order to force a call to call_refresh(), we deliberately
 	 * fail to flag the credential as RPCAUTH_CRED_UPTODATE.
 	 */
 	cred->gc_base.cr_flags = 1UL << RPCAUTH_CRED_NEW;
@@ -1434,7 +1434,7 @@ gss_stringify_acceptor(struct rpc_cred *cred)
 	len = ctx->gc_acceptor.len;
 	rcu_read_unlock();
 
-	/* no point if there's no string */
+	/* anal point if there's anal string */
 	if (!len)
 		return NULL;
 realloc:
@@ -1445,7 +1445,7 @@ realloc:
 	rcu_read_lock();
 	ctx = rcu_dereference(gss_cred->gc_ctx);
 
-	/* did the ctx disappear or was it replaced by one with no acceptor? */
+	/* did the ctx disappear or was it replaced by one with anal acceptor? */
 	if (!ctx || !ctx->gc_acceptor.len) {
 		kfree(string);
 		string = NULL;
@@ -1529,7 +1529,7 @@ out:
  * Marshal credentials.
  *
  * The expensive part is computing the verifier. We can't cache a
- * pre-computed version of the verifier because the seqno, which
+ * pre-computed version of the verifier because the seqanal, which
  * is different every time, is included in the MIC.
  */
 static int gss_marshal(struct rpc_task *task, struct xdr_stream *xdr)
@@ -1556,15 +1556,15 @@ static int gss_marshal(struct rpc_task *task, struct xdr_stream *xdr)
 	cred_len = p++;
 
 	spin_lock(&ctx->gc_seq_lock);
-	req->rq_seqno = (ctx->gc_seq < MAXSEQ) ? ctx->gc_seq++ : MAXSEQ;
+	req->rq_seqanal = (ctx->gc_seq < MAXSEQ) ? ctx->gc_seq++ : MAXSEQ;
 	spin_unlock(&ctx->gc_seq_lock);
-	if (req->rq_seqno == MAXSEQ)
+	if (req->rq_seqanal == MAXSEQ)
 		goto expired;
-	trace_rpcgss_seqno(task);
+	trace_rpcgss_seqanal(task);
 
 	*p++ = cpu_to_be32(RPC_GSS_VERSION);
 	*p++ = cpu_to_be32(ctx->gc_proc);
-	*p++ = cpu_to_be32(req->rq_seqno);
+	*p++ = cpu_to_be32(req->rq_seqanal);
 	*p++ = cpu_to_be32(gss_cred->gc_service);
 	p = xdr_encode_netobj(p, &ctx->gc_wire_ctx);
 	*cred_len = cpu_to_be32((p - (cred_len + 1)) << 2);
@@ -1631,7 +1631,7 @@ static int gss_renew_cred(struct rpc_task *task)
 static int gss_cred_is_negative_entry(struct rpc_cred *cred)
 {
 	if (test_bit(RPCAUTH_CRED_NEGATIVE, &cred->cr_flags)) {
-		unsigned long now = jiffies;
+		unsigned long analw = jiffies;
 		unsigned long begin, expire;
 		struct gss_cred *gss_cred;
 
@@ -1639,7 +1639,7 @@ static int gss_cred_is_negative_entry(struct rpc_cred *cred)
 		begin = gss_cred->gc_upcall_timestamp;
 		expire = begin + gss_expired_cred_retry_delay * HZ;
 
-		if (time_in_range_open(now, begin, expire))
+		if (time_in_range_open(analw, begin, expire))
 			return 1;
 	}
 	return 0;
@@ -1705,7 +1705,7 @@ gss_validate(struct rpc_task *task, struct xdr_stream *xdr)
 	seq = kmalloc(4, GFP_KERNEL);
 	if (!seq)
 		goto validate_failed;
-	*seq = cpu_to_be32(task->tk_rqstp->rq_seqno);
+	*seq = cpu_to_be32(task->tk_rqstp->rq_seqanal);
 	iov.iov_base = seq;
 	iov.iov_len = 4;
 	xdr_buf_from_iov(&iov, &verf_buf);
@@ -1717,7 +1717,7 @@ gss_validate(struct rpc_task *task, struct xdr_stream *xdr)
 	if (maj_stat)
 		goto bad_mic;
 
-	/* We leave it to unwrap to calculate au_rslack. For now we just
+	/* We leave it to unwrap to calculate au_rslack. For analw we just
 	 * calculate the length of the verifier: */
 	if (test_bit(RPCAUTH_AUTH_UPDATE_SLACK, &cred->cr_auth->au_flags))
 		cred->cr_auth->au_verfsize = XDR_QUADLEN(len) + 2;
@@ -1736,7 +1736,7 @@ bad_mic:
 	goto out;
 }
 
-static noinline_for_stack int
+static analinline_for_stack int
 gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 		   struct rpc_task *task, struct xdr_stream *xdr)
 {
@@ -1750,7 +1750,7 @@ gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	if (!p)
 		goto wrap_failed;
 	integ_len = p++;
-	*p = cpu_to_be32(rqstp->rq_seqno);
+	*p = cpu_to_be32(rqstp->rq_seqanal);
 
 	if (rpcauth_wrap_req_encode(task, xdr))
 		goto wrap_failed;
@@ -1829,7 +1829,7 @@ out:
 	return -EAGAIN;
 }
 
-static noinline_for_stack int
+static analinline_for_stack int
 gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 		  struct rpc_task *task, struct xdr_stream *xdr)
 {
@@ -1847,7 +1847,7 @@ gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	if (!p)
 		goto wrap_failed;
 	opaque_len = p++;
-	*p = cpu_to_be32(rqstp->rq_seqno);
+	*p = cpu_to_be32(rqstp->rq_seqanal);
 
 	if (rpcauth_wrap_req_encode(task, xdr))
 		goto wrap_failed;
@@ -1914,14 +1914,14 @@ static int gss_wrap_req(struct rpc_task *task, struct xdr_stream *xdr)
 
 	status = -EIO;
 	if (ctx->gc_proc != RPC_GSS_PROC_DATA) {
-		/* The spec seems a little ambiguous here, but I think that not
+		/* The spec seems a little ambiguous here, but I think that analt
 		 * wrapping context destruction requests makes the most sense.
 		 */
 		status = rpcauth_wrap_req_encode(task, xdr);
 		goto out;
 	}
 	switch (gss_cred->gc_service) {
-	case RPC_GSS_SVC_NONE:
+	case RPC_GSS_SVC_ANALNE:
 		status = rpcauth_wrap_req_encode(task, xdr);
 		break;
 	case RPC_GSS_SVC_INTEGRITY:
@@ -1978,13 +1978,13 @@ gss_unwrap_resp_auth(struct rpc_task *task, struct rpc_cred *cred)
  *		proc_req_arg_t arg;
  *	};
  */
-static noinline_for_stack int
+static analinline_for_stack int
 gss_unwrap_resp_integ(struct rpc_task *task, struct rpc_cred *cred,
 		      struct gss_cl_ctx *ctx, struct rpc_rqst *rqstp,
 		      struct xdr_stream *xdr)
 {
 	struct xdr_buf gss_data, *rcv_buf = &rqstp->rq_rcv_buf;
-	u32 len, offset, seqno, maj_stat;
+	u32 len, offset, seqanal, maj_stat;
 	struct xdr_netobj mic;
 	int ret;
 
@@ -1997,15 +1997,15 @@ gss_unwrap_resp_integ(struct rpc_task *task, struct rpc_cred *cred,
 	if (len & 3)
 		goto unwrap_failed;
 	offset = rcv_buf->len - xdr_stream_remaining(xdr);
-	if (xdr_stream_decode_u32(xdr, &seqno))
+	if (xdr_stream_decode_u32(xdr, &seqanal))
 		goto unwrap_failed;
-	if (seqno != rqstp->rq_seqno)
-		goto bad_seqno;
+	if (seqanal != rqstp->rq_seqanal)
+		goto bad_seqanal;
 	if (xdr_buf_subsegment(rcv_buf, &gss_data, offset, len))
 		goto unwrap_failed;
 
 	/*
-	 * The xdr_stream now points to the beginning of the
+	 * The xdr_stream analw points to the beginning of the
 	 * upper layer payload, to be passed below to
 	 * rpcauth_unwrap_resp_decode(). The checksum, which
 	 * follows the upper layer payload in @rcv_buf, is
@@ -2042,15 +2042,15 @@ out:
 unwrap_failed:
 	trace_rpcgss_unwrap_failed(task);
 	goto out;
-bad_seqno:
-	trace_rpcgss_bad_seqno(task, rqstp->rq_seqno, seqno);
+bad_seqanal:
+	trace_rpcgss_bad_seqanal(task, rqstp->rq_seqanal, seqanal);
 	goto out;
 bad_mic:
 	trace_rpcgss_verify_mic(task, maj_stat);
 	goto out;
 }
 
-static noinline_for_stack int
+static analinline_for_stack int
 gss_unwrap_resp_priv(struct rpc_task *task, struct rpc_cred *cred,
 		     struct gss_cl_ctx *ctx, struct rpc_rqst *rqstp,
 		     struct xdr_stream *xdr)
@@ -2075,8 +2075,8 @@ gss_unwrap_resp_priv(struct rpc_task *task, struct rpc_cred *cred,
 	if (maj_stat != GSS_S_COMPLETE)
 		goto bad_unwrap;
 	/* gss_unwrap decrypted the sequence number */
-	if (be32_to_cpup(p++) != rqstp->rq_seqno)
-		goto bad_seqno;
+	if (be32_to_cpup(p++) != rqstp->rq_seqanal)
+		goto bad_seqanal;
 
 	/* gss_unwrap redacts the opaque blob from the head iovec.
 	 * rcv_buf has changed, thus the stream needs to be reset.
@@ -2090,8 +2090,8 @@ gss_unwrap_resp_priv(struct rpc_task *task, struct rpc_cred *cred,
 unwrap_failed:
 	trace_rpcgss_unwrap_failed(task);
 	return -EIO;
-bad_seqno:
-	trace_rpcgss_bad_seqno(task, rqstp->rq_seqno, be32_to_cpup(--p));
+bad_seqanal:
+	trace_rpcgss_bad_seqanal(task, rqstp->rq_seqanal, be32_to_cpup(--p));
 	return -EIO;
 bad_unwrap:
 	trace_rpcgss_unwrap(task, maj_stat);
@@ -2116,14 +2116,14 @@ gss_xmit_need_reencode(struct rpc_task *task)
 	if (!ctx)
 		goto out;
 
-	if (gss_seq_is_newer(req->rq_seqno, READ_ONCE(ctx->gc_seq)))
+	if (gss_seq_is_newer(req->rq_seqanal, READ_ONCE(ctx->gc_seq)))
 		goto out_ctx;
 
 	seq_xmit = READ_ONCE(ctx->gc_seq_xmit);
-	while (gss_seq_is_newer(req->rq_seqno, seq_xmit)) {
+	while (gss_seq_is_newer(req->rq_seqanal, seq_xmit)) {
 		u32 tmp = seq_xmit;
 
-		seq_xmit = cmpxchg(&ctx->gc_seq_xmit, tmp, req->rq_seqno);
+		seq_xmit = cmpxchg(&ctx->gc_seq_xmit, tmp, req->rq_seqanal);
 		if (seq_xmit == tmp) {
 			ret = false;
 			goto out_ctx;
@@ -2132,7 +2132,7 @@ gss_xmit_need_reencode(struct rpc_task *task)
 
 	win = ctx->gc_win;
 	if (win > 0)
-		ret = !gss_seq_is_newer(req->rq_seqno, seq_xmit - win);
+		ret = !gss_seq_is_newer(req->rq_seqanal, seq_xmit - win);
 
 out_ctx:
 	gss_put_ctx(ctx);
@@ -2154,7 +2154,7 @@ gss_unwrap_resp(struct rpc_task *task, struct xdr_stream *xdr)
 	if (ctx->gc_proc != RPC_GSS_PROC_DATA)
 		goto out_decode;
 	switch (gss_cred->gc_service) {
-	case RPC_GSS_SVC_NONE:
+	case RPC_GSS_SVC_ANALNE:
 		status = gss_unwrap_resp_auth(task, cred);
 		break;
 	case RPC_GSS_SVC_INTEGRITY:

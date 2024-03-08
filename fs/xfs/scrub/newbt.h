@@ -16,7 +16,7 @@ struct xrep_newbt_resv {
 	struct xfs_alloc_autoreap autoreap;
 
 	/* AG block of the extent we reserved. */
-	xfs_agblock_t		agbno;
+	xfs_agblock_t		agbanal;
 
 	/* Length of the reservation. */
 	xfs_extlen_t		len;
@@ -54,11 +54,11 @@ void xrep_newbt_init_bare(struct xrep_newbt *xnr, struct xfs_scrub *sc);
 void xrep_newbt_init_ag(struct xrep_newbt *xnr, struct xfs_scrub *sc,
 		const struct xfs_owner_info *oinfo, xfs_fsblock_t alloc_hint,
 		enum xfs_ag_resv_type resv);
-int xrep_newbt_init_inode(struct xrep_newbt *xnr, struct xfs_scrub *sc,
+int xrep_newbt_init_ianalde(struct xrep_newbt *xnr, struct xfs_scrub *sc,
 		int whichfork, const struct xfs_owner_info *oinfo);
 int xrep_newbt_alloc_blocks(struct xrep_newbt *xnr, uint64_t nr_blocks);
 int xrep_newbt_add_extent(struct xrep_newbt *xnr, struct xfs_perag *pag,
-		xfs_agblock_t agbno, xfs_extlen_t len);
+		xfs_agblock_t agbanal, xfs_extlen_t len);
 void xrep_newbt_cancel(struct xrep_newbt *xnr);
 int xrep_newbt_commit(struct xrep_newbt *xnr);
 int xrep_newbt_claim_block(struct xfs_btree_cur *cur, struct xrep_newbt *xnr,

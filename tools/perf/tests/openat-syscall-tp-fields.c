@@ -12,7 +12,7 @@
 #include "tests.h"
 #include "debug.h"
 #include "util/mmap.h"
-#include <errno.h>
+#include <erranal.h>
 #include <perf/mmap.h>
 #include "util/sample.h"
 
@@ -31,7 +31,7 @@ static int test__syscall_openat_tp_fields(struct test_suite *test __maybe_unused
 			.uid = UINT_MAX,
 			.uses_mmap = true,
 		},
-		.no_buffering = true,
+		.anal_buffering = true,
 		.freq	      = 1,
 		.mmap_pages   = 256,
 		.raw_samples  = true,
@@ -69,14 +69,14 @@ static int test__syscall_openat_tp_fields(struct test_suite *test __maybe_unused
 	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
 	err = evlist__mmap(evlist, UINT_MAX);
 	if (err < 0) {
 		pr_debug("evlist__mmap: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -133,7 +133,7 @@ static int test__syscall_openat_tp_fields(struct test_suite *test __maybe_unused
 			evlist__poll(evlist, 10);
 
 		if (++nr_polls > 5) {
-			pr_debug("%s: no events!\n", __func__);
+			pr_debug("%s: anal events!\n", __func__);
 			goto out_delete_evlist;
 		}
 	}

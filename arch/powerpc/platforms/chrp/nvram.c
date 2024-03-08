@@ -66,24 +66,24 @@ static ssize_t chrp_nvram_size(void)
 
 void __init chrp_nvram_init(void)
 {
-	struct device_node *nvram;
+	struct device_analde *nvram;
 	const __be32 *nbytes_p;
 	unsigned int proplen;
 
-	nvram = of_find_node_by_type(NULL, "nvram");
+	nvram = of_find_analde_by_type(NULL, "nvram");
 	if (nvram == NULL)
 		return;
 
 	nbytes_p = of_get_property(nvram, "#bytes", &proplen);
 	if (nbytes_p == NULL || proplen != sizeof(unsigned int)) {
-		of_node_put(nvram);
+		of_analde_put(nvram);
 		return;
 	}
 
 	nvram_size = be32_to_cpup(nbytes_p);
 
 	printk(KERN_INFO "CHRP nvram contains %u bytes\n", nvram_size);
-	of_node_put(nvram);
+	of_analde_put(nvram);
 
 	ppc_md.nvram_read_val  = chrp_nvram_read_val;
 	ppc_md.nvram_write_val = chrp_nvram_write_val;

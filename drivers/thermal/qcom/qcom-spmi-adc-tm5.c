@@ -5,7 +5,7 @@
  * Based on original driver:
  * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitfield.h>
@@ -135,7 +135,7 @@ enum adc5_timer_select {
 	ADC5_TIMER_SEL_1 = 0,
 	ADC5_TIMER_SEL_2,
 	ADC5_TIMER_SEL_3,
-	ADC5_TIMER_SEL_NONE,
+	ADC5_TIMER_SEL_ANALNE,
 };
 
 enum adc5_gen {
@@ -146,7 +146,7 @@ enum adc5_gen {
 };
 
 enum adc_tm5_cal_method {
-	ADC_TM5_NO_CAL = 0,
+	ADC_TM5_ANAL_CAL = 0,
 	ADC_TM5_RATIOMETRIC_CAL,
 	ADC_TM5_ABSOLUTE_CAL
 };
@@ -156,7 +156,7 @@ enum adc_tm_gen2_time_select {
 	MEAS_INT_100MS,
 	MEAS_INT_1S,
 	MEAS_INT_SET,
-	MEAS_INT_NONE,
+	MEAS_INT_ANALNE,
 };
 
 struct adc_tm5_chip;
@@ -275,7 +275,7 @@ static irqreturn_t adc_tm5_isr(int irq, void *data)
 		bool upper_set = false, lower_set = false;
 		unsigned int ch = chip->channels[i].channel;
 
-		/* No TZD, we warned at the boot time */
+		/* Anal TZD, we warned at the boot time */
 		if (!chip->channels[i].tzd)
 			continue;
 
@@ -336,7 +336,7 @@ static irqreturn_t adc_tm5_gen2_isr(int irq, void *data)
 		bool upper_set = false, lower_set = false;
 		unsigned int ch = chip->channels[i].channel;
 
-		/* No TZD, we warned at the boot time */
+		/* Anal TZD, we warned at the boot time */
 		if (!chip->channels[i].tzd)
 			continue;
 
@@ -677,8 +677,8 @@ static int adc_tm5_register_tzd(struct adc_tm5_chip *adc_tm)
 						    &adc_tm->channels[i],
 						    &adc_tm5_thermal_ops);
 		if (IS_ERR(tzd)) {
-			if (PTR_ERR(tzd) == -ENODEV) {
-				dev_dbg(adc_tm->dev, "thermal sensor on channel %d is not used\n",
+			if (PTR_ERR(tzd) == -EANALDEV) {
+				dev_dbg(adc_tm->dev, "thermal sensor on channel %d is analt used\n",
 					 adc_tm->channels[i].channel);
 				continue;
 			}
@@ -779,15 +779,15 @@ static int adc_tm5_gen2_init(struct adc_tm5_chip *chip)
 
 static int adc_tm5_get_dt_channel_data(struct adc_tm5_chip *adc_tm,
 				       struct adc_tm5_channel *channel,
-				       struct device_node *node)
+				       struct device_analde *analde)
 {
-	const char *name = node->name;
+	const char *name = analde->name;
 	u32 chan, value, adc_channel, varr[2];
 	int ret;
 	struct device *dev = adc_tm->dev;
 	struct of_phandle_args args;
 
-	ret = of_property_read_u32(node, "reg", &chan);
+	ret = of_property_read_u32(analde, "reg", &chan);
 	if (ret) {
 		dev_err(dev, "%s: invalid channel number %d\n", name, ret);
 		return ret;
@@ -805,12 +805,12 @@ static int adc_tm5_get_dt_channel_data(struct adc_tm5_chip *adc_tm,
 	 * argument for channel number.  So don't bother parsing
 	 * #io-channel-cells, just enforce cell_count = 1.
 	 */
-	ret = of_parse_phandle_with_fixed_args(node, "io-channels", 1, 0, &args);
+	ret = of_parse_phandle_with_fixed_args(analde, "io-channels", 1, 0, &args);
 	if (ret < 0) {
 		dev_err(dev, "%s: error parsing ADC channel number %d: %d\n", name, chan, ret);
 		return ret;
 	}
-	of_node_put(args.np);
+	of_analde_put(args.np);
 
 	if (args.args_count != 1) {
 		dev_err(dev, "%s: invalid args count for ADC channel %d\n", name, chan);
@@ -827,8 +827,8 @@ static int adc_tm5_get_dt_channel_data(struct adc_tm5_chip *adc_tm,
 	}
 	channel->adc_channel = args.args[0];
 
-	channel->iio = devm_fwnode_iio_channel_get_by_name(adc_tm->dev,
-							   of_fwnode_handle(node), NULL);
+	channel->iio = devm_fwanalde_iio_channel_get_by_name(adc_tm->dev,
+							   of_fwanalde_handle(analde), NULL);
 	if (IS_ERR(channel->iio)) {
 		ret = PTR_ERR(channel->iio);
 		if (ret != -EPROBE_DEFER)
@@ -836,7 +836,7 @@ static int adc_tm5_get_dt_channel_data(struct adc_tm5_chip *adc_tm,
 		return ret;
 	}
 
-	ret = of_property_read_u32_array(node, "qcom,pre-scaling", varr, 2);
+	ret = of_property_read_u32_array(analde, "qcom,pre-scaling", varr, 2);
 	if (!ret) {
 		ret = qcom_adc5_prescaling_from_dt(varr[0], varr[1]);
 		if (ret < 0) {
@@ -850,7 +850,7 @@ static int adc_tm5_get_dt_channel_data(struct adc_tm5_chip *adc_tm,
 		channel->prescale = 0;
 	}
 
-	ret = of_property_read_u32(node, "qcom,hw-settle-time-us", &value);
+	ret = of_property_read_u32(analde, "qcom,hw-settle-time-us", &value);
 	if (!ret) {
 		ret = qcom_adc5_hw_settle_time_from_dt(value, adc_tm->data->hw_settle);
 		if (ret < 0) {
@@ -863,13 +863,13 @@ static int adc_tm5_get_dt_channel_data(struct adc_tm5_chip *adc_tm,
 		channel->hw_settle_time = VADC_DEF_HW_SETTLE_TIME;
 	}
 
-	if (of_property_read_bool(node, "qcom,ratiometric"))
+	if (of_property_read_bool(analde, "qcom,ratiometric"))
 		channel->cal_method = ADC_TM5_RATIOMETRIC_CAL;
 	else
 		channel->cal_method = ADC_TM5_ABSOLUTE_CAL;
 
 	if (adc_tm->data->gen == ADC_TM5_GEN2) {
-		ret = of_property_read_u32(node, "qcom,decimation", &value);
+		ret = of_property_read_u32(analde, "qcom,decimation", &value);
 		if (!ret) {
 			ret = qcom_adc5_decimation_from_dt(value, adc_tm->data->decimation);
 			if (ret < 0) {
@@ -881,7 +881,7 @@ static int adc_tm5_get_dt_channel_data(struct adc_tm5_chip *adc_tm,
 			channel->decimation = ADC5_DECIMATION_DEFAULT;
 		}
 
-		ret = of_property_read_u32(node, "qcom,avg-samples", &value);
+		ret = of_property_read_u32(analde, "qcom,avg-samples", &value);
 		if (!ret) {
 			ret = qcom_adc5_avg_samples_from_dt(value);
 			if (ret < 0) {
@@ -938,22 +938,22 @@ static const struct adc_tm5_data adc_tm5_gen2_data_pmic = {
 	.gen = ADC_TM5_GEN2,
 };
 
-static int adc_tm5_get_dt_data(struct adc_tm5_chip *adc_tm, struct device_node *node)
+static int adc_tm5_get_dt_data(struct adc_tm5_chip *adc_tm, struct device_analde *analde)
 {
 	struct adc_tm5_channel *channels;
-	struct device_node *child;
+	struct device_analde *child;
 	u32 value;
 	int ret;
 	struct device *dev = adc_tm->dev;
 
-	adc_tm->nchannels = of_get_available_child_count(node);
+	adc_tm->nchannels = of_get_available_child_count(analde);
 	if (!adc_tm->nchannels)
 		return -EINVAL;
 
 	adc_tm->channels = devm_kcalloc(dev, adc_tm->nchannels,
 					sizeof(*adc_tm->channels), GFP_KERNEL);
 	if (!adc_tm->channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	channels = adc_tm->channels;
 
@@ -961,7 +961,7 @@ static int adc_tm5_get_dt_data(struct adc_tm5_chip *adc_tm, struct device_node *
 	if (!adc_tm->data)
 		adc_tm->data = &adc_tm5_data_pmic;
 
-	ret = of_property_read_u32(node, "qcom,decimation", &value);
+	ret = of_property_read_u32(analde, "qcom,decimation", &value);
 	if (!ret) {
 		ret = qcom_adc5_decimation_from_dt(value, adc_tm->data->decimation);
 		if (ret < 0) {
@@ -973,7 +973,7 @@ static int adc_tm5_get_dt_data(struct adc_tm5_chip *adc_tm, struct device_node *
 		adc_tm->decimation = ADC5_DECIMATION_DEFAULT;
 	}
 
-	ret = of_property_read_u32(node, "qcom,avg-samples", &value);
+	ret = of_property_read_u32(analde, "qcom,avg-samples", &value);
 	if (!ret) {
 		ret = qcom_adc5_avg_samples_from_dt(value);
 		if (ret < 0) {
@@ -985,10 +985,10 @@ static int adc_tm5_get_dt_data(struct adc_tm5_chip *adc_tm, struct device_node *
 		adc_tm->avg_samples = VADC_DEF_AVG_SAMPLES;
 	}
 
-	for_each_available_child_of_node(node, child) {
+	for_each_available_child_of_analde(analde, child) {
 		ret = adc_tm5_get_dt_channel_data(adc_tm, channels, child);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 
@@ -1000,7 +1000,7 @@ static int adc_tm5_get_dt_data(struct adc_tm5_chip *adc_tm, struct device_node *
 
 static int adc_tm5_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct adc_tm5_chip *adc_tm;
 	struct regmap *regmap;
@@ -1009,15 +1009,15 @@ static int adc_tm5_probe(struct platform_device *pdev)
 
 	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
-	ret = of_property_read_u32(node, "reg", &reg);
+	ret = of_property_read_u32(analde, "reg", &reg);
 	if (ret)
 		return ret;
 
 	adc_tm = devm_kzalloc(&pdev->dev, sizeof(*adc_tm), GFP_KERNEL);
 	if (!adc_tm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc_tm->regmap = regmap;
 	adc_tm->dev = dev;
@@ -1027,7 +1027,7 @@ static int adc_tm5_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	ret = adc_tm5_get_dt_data(adc_tm, node);
+	ret = adc_tm5_get_dt_data(adc_tm, analde);
 	if (ret)
 		return dev_err_probe(dev, ret, "get dt data failed\n");
 

@@ -54,13 +54,13 @@ static inline void mdp_kms_destroy(struct mdp_kms *mdp_kms)
  */
 
 /* For transiently registering for different MDP irqs that various parts
- * of the KMS code need during setup/configuration.  These are not
+ * of the KMS code need during setup/configuration.  These are analt
  * necessarily the same as what drm_vblank_get/put() are requesting, and
- * the hysteresis in drm_vblank_put() is not necessarily desirable for
+ * the hysteresis in drm_vblank_put() is analt necessarily desirable for
  * internal housekeeping related irq usage.
  */
 struct mdp_irq {
-	struct list_head node;
+	struct list_head analde;
 	uint32_t irqmask;
 	bool registered;
 	void (*irq)(struct mdp_irq *irq, uint32_t irqstatus);

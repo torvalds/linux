@@ -11,7 +11,7 @@
  *      The OPL-3 mode is switched on by writing 0x01, to the offset 5
  *      of the right side.
  *
- *      Another special register at the right side is at offset 4. It contains
+ *      Aanalther special register at the right side is at offset 4. It contains
  *      a bit mask defining which voices are used as 4 OP voices.
  *
  *      The percussive mode is implemented in the left side only.
@@ -264,20 +264,20 @@ struct fm_patch {
  */
 struct snd_opl3_voice {
 	int  state;		/* status */
-#define SNDRV_OPL3_ST_OFF		0	/* Not playing */
+#define SNDRV_OPL3_ST_OFF		0	/* Analt playing */
 #define SNDRV_OPL3_ST_ON_2OP	1	/* 2op voice is allocated */
 #define SNDRV_OPL3_ST_ON_4OP	2	/* 4op voice is allocated */
-#define SNDRV_OPL3_ST_NOT_AVAIL	-1	/* voice is not available */
+#define SNDRV_OPL3_ST_ANALT_AVAIL	-1	/* voice is analt available */
 
 	unsigned int time;	/* An allocation time */
-	unsigned char note;	/* Note currently assigned to this voice */
+	unsigned char analte;	/* Analte currently assigned to this voice */
 
-	unsigned long note_off;	/* note-off time */
-	int note_off_check;	/* check note-off time */
+	unsigned long analte_off;	/* analte-off time */
+	int analte_off_check;	/* check analte-off time */
 
 	unsigned char keyon_reg;	/* KON register shadow */
 
-	struct snd_midi_channel *chan;	/* Midi channel for this note */
+	struct snd_midi_channel *chan;	/* Midi channel for this analte */
 };
 
 struct snd_opl3 {
@@ -328,7 +328,7 @@ struct snd_opl3 {
 
 	spinlock_t voice_lock;		/* Lock for voice access */
 
-	struct timer_list tlist;	/* timer for note-offs and effects */
+	struct timer_list tlist;	/* timer for analte-offs and effects */
 	int sys_timer_status;		/* system timer run status */
 	spinlock_t sys_timer_lock;	/* Lock for system timer access */
 #endif

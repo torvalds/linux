@@ -20,7 +20,7 @@ properties:
 
   nvmem-cells:
     description:
-      A phandle pointing to the nvmem-cells node where the vendor-specific
+      A phandle pointing to the nvmem-cells analde where the vendor-specific
       magic value representing the reboot mode is stored.
     maxItems: 1
 

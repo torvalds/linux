@@ -540,7 +540,7 @@ static const struct vop_win_phy rk3188_win1_data = {
 	.enable = VOP_REG(RK3188_SYS_CTRL, 0x1, 1),
 	.format = VOP_REG(RK3188_SYS_CTRL, 0x7, 6),
 	.rb_swap = VOP_REG(RK3188_SYS_CTRL, 0x1, 19),
-	/* no act_info on window1 */
+	/* anal act_info on window1 */
 	.dsp_info = VOP_REG(RK3188_WIN1_DSP_INFO, 0x07ff07ff, 0),
 	.dsp_st = VOP_REG(RK3188_WIN1_DSP_ST, 0x0fff0fff, 0),
 	.yrgb_mst = VOP_REG(RK3188_WIN1_MST, 0xffffffff, 0),
@@ -717,8 +717,8 @@ static const struct vop_common rk3288_common = {
 };
 
 /*
- * Note: rk3288 has a dedicated 'cursor' window, however, that window requires
- * special support to get alpha blending working.  For now, just use overlay
+ * Analte: rk3288 has a dedicated 'cursor' window, however, that window requires
+ * special support to get alpha blending working.  For analw, just use overlay
  * window 3 for the drm cursor.
  *
  */
@@ -1256,9 +1256,9 @@ static int vop_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	if (!dev->of_node) {
+	if (!dev->of_analde) {
 		DRM_DEV_ERROR(dev, "can't find vop devices\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return component_add(dev, &vop_component_ops);

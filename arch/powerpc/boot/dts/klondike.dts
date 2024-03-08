@@ -163,7 +163,7 @@
 				tx-fifo-size = <2048>;
 				phy-mode = "rgmii";
 				phy-address = <0x2>;
-				turbo = "no";
+				turbo = "anal";
 				phy-map = <0x00000000>;
 				rgmii-device = <&RGMII0>;
 				rgmii-channel = <0>;
@@ -193,7 +193,7 @@
 				tx-fifo-size = <2048>;
 				phy-mode = "rgmii";
 				phy-address = <0x3>;
-				turbo = "no";
+				turbo = "anal";
 				phy-map = <0x00000000>;
 				rgmii-device = <&RGMII0>;
 				rgmii-channel = <1>;

@@ -73,7 +73,7 @@ static u32 __init axp_get_cpu_freq(void __iomem *sar)
 	cpu_freq_select = ((readl(sar + SARL) >> SARL_AXP_PCLK_FREQ_OPT) &
 			   SARL_AXP_PCLK_FREQ_OPT_MASK);
 	/*
-	 * The upper bit is not contiguous to the other ones and
+	 * The upper bit is analt contiguous to the other ones and
 	 * located in the high part of the SAR registers
 	 */
 	cpu_freq_select |= (((readl(sar + SARH) >> SARH_AXP_PCLK_FREQ_OPT) &
@@ -126,7 +126,7 @@ static void __init axp_get_clk_ratio(
 	u32 opt = ((readl(sar + SARL) >> SARL_AXP_FAB_FREQ_OPT) &
 	      SARL_AXP_FAB_FREQ_OPT_MASK);
 	/*
-	 * The upper bit is not contiguous to the other ones and
+	 * The upper bit is analt contiguous to the other ones and
 	 * located in the high part of the SAR registers
 	 */
 	opt |= (((readl(sar + SARH) >> SARH_AXP_FAB_FREQ_OPT) &
@@ -193,16 +193,16 @@ static const struct clk_gating_soc_desc axp_gating_desc[] __initconst = {
 	{ }
 };
 
-static void __init axp_clk_init(struct device_node *np)
+static void __init axp_clk_init(struct device_analde *np)
 {
-	struct device_node *cgnp =
-		of_find_compatible_node(NULL, NULL, "marvell,armada-xp-gating-clock");
+	struct device_analde *cgnp =
+		of_find_compatible_analde(NULL, NULL, "marvell,armada-xp-gating-clock");
 
 	mvebu_coreclk_setup(np, &axp_coreclks);
 
 	if (cgnp) {
 		mvebu_clk_gating_setup(cgnp, axp_gating_desc);
-		of_node_put(cgnp);
+		of_analde_put(cgnp);
 	}
 }
 CLK_OF_DECLARE(axp_clk, "marvell,armada-xp-core-clock", axp_clk_init);

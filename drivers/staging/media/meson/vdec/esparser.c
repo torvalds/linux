@@ -165,7 +165,7 @@ static int vp9_update_header(struct amvdec_core *core, struct vb2_buffer *buf)
 		fdata[15] = 'V';
 
 		if (!old_header) {
-			/* nothing */
+			/* analthing */
 		} else if (old_header > fdata + 16 + framesize) {
 			dev_dbg(core->dev, "%s: data has gaps, setting to 0\n",
 				__func__);
@@ -262,7 +262,7 @@ int esparser_queue_eos(struct amvdec_core *core, const u8 *data, u32 len)
 	eos_vaddr = dma_alloc_coherent(dev, len + SEARCH_PATTERN_LEN,
 				       &eos_paddr, GFP_KERNEL);
 	if (!eos_vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(eos_vaddr, data, len);
 	ret = esparser_write_data(core, eos_paddr, len);
@@ -304,9 +304,9 @@ esparser_queue(struct amvdec_session *sess, struct vb2_v4l2_buffer *vbuf)
 	 * When max ref frame is held by VP9, this should be -= 3 to prevent a
 	 * shortage of CAPTURE buffers on the decoder side.
 	 * For the future, a good enhancement of the way this is handled could
-	 * be to notify new capture buffers to the decoding modules, so that
-	 * they could pause when there is no capture buffer available and
-	 * resume on this notification.
+	 * be to analtify new capture buffers to the decoding modules, so that
+	 * they could pause when there is anal capture buffer available and
+	 * resume on this analtification.
 	 */
 	if (sess->fmt_out->pixfmt == V4L2_PIX_FMT_VP9) {
 		if (codec_ops->num_pending_bufs)
@@ -336,7 +336,7 @@ esparser_queue(struct amvdec_session *sess, struct vb2_v4l2_buffer *vbuf)
 		vb->timestamp, payload_size, offset, vbuf->flags);
 
 	vbuf->flags = 0;
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	vbuf->sequence = sess->sequence_out++;
 
 	if (sess->fmt_out->pixfmt == V4L2_PIX_FMT_VP9) {

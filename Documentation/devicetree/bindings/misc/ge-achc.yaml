@@ -12,7 +12,7 @@ description: |
   A device which handles data acquisition from compatible USB based peripherals.
   SPI is used for device management.
 
-  Note: This device does not expose the peripherals as USB devices.
+  Analte: This device does analt expose the peripherals as USB devices.
 
 maintainers:
   - Sebastian Reichel <sre@kernel.org>

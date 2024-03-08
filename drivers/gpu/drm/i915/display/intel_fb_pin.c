@@ -32,7 +32,7 @@ intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
 	int ret;
 
 	/*
-	 * We are not syncing against the binding (and potential migrations)
+	 * We are analt syncing against the binding (and potential migrations)
 	 * below, so this vm must never be async.
 	 */
 	if (drm_WARN_ON(&dev_priv->drm, vm->bind_async_flags))
@@ -67,7 +67,7 @@ intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
 				continue;
 		}
 
-		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_NONE);
+		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_ANALNE);
 		if (ret)
 			continue;
 
@@ -130,20 +130,20 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	if (drm_WARN_ON(dev, alignment && !is_power_of_2(alignment)))
 		return ERR_PTR(-EINVAL);
 
-	/* Note that the w/a also requires 64 PTE of padding following the
+	/* Analte that the w/a also requires 64 PTE of padding following the
 	 * bo. We currently fill all unused PTE with the shadow page and so
-	 * we should always have valid PTE following the scanout preventing
+	 * we should always have valid PTE following the scaanalut preventing
 	 * the VT-d warning.
 	 */
-	if (intel_scanout_needs_vtd_wa(dev_priv) && alignment < 256 * 1024)
+	if (intel_scaanalut_needs_vtd_wa(dev_priv) && alignment < 256 * 1024)
 		alignment = 256 * 1024;
 
 	/*
 	 * Global gtt pte registers are special registers which actually forward
-	 * writes to a chunk of system memory. Which means that there is no risk
+	 * writes to a chunk of system memory. Which means that there is anal risk
 	 * that the register values disappear as soon as we call
 	 * intel_runtime_pm_put(), so it is correct to wrap only the
-	 * pin/unpin/fence and not more.
+	 * pin/unpin/fence and analt more.
 	 */
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
@@ -155,7 +155,7 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	 * g4x display engine and that all earlier gen are similarly
 	 * limited. Testing suggests that it is a little more
 	 * complicated than this. For example, Cherryview appears quite
-	 * happy to scanout from anywhere within its global aperture.
+	 * happy to scaanalut from anywhere within its global aperture.
 	 */
 	pinctl = 0;
 	if (HAS_GMCH(dev_priv))
@@ -185,13 +185,13 @@ retry:
 		 * Install a fence for tiled scan-out. Pre-i965 always needs a
 		 * fence, whereas 965+ only requires a fence if using
 		 * framebuffer compression.  For simplicity, we always, when
-		 * possible, install a fence as the cost is not that onerous.
+		 * possible, install a fence as the cost is analt that onerous.
 		 *
-		 * If we fail to fence the tiled scanout, then either the
+		 * If we fail to fence the tiled scaanalut, then either the
 		 * modeset will reject the change (which is highly unlikely as
-		 * the affected systems, all but one, do not have unmappable
-		 * space) or we will not be able to enable full powersaving
-		 * techniques (also likely not to apply due to various limits
+		 * the affected systems, all but one, do analt have unmappable
+		 * space) or we will analt be able to enable full powersaving
+		 * techniques (also likely analt to apply due to various limits
 		 * FBC and the like impose on the size of the buffer, which
 		 * presumably we violated anyway with this unmappable buffer).
 		 * Anyway, it is presumably better to stumble onwards with

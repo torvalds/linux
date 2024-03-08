@@ -49,11 +49,11 @@ static int pxa2xx_flash_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	info = kzalloc(sizeof(struct pxa2xx_flash_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->map.name = flash->name;
 	info->map.bankwidth = flash->width;
@@ -65,7 +65,7 @@ static int pxa2xx_flash_probe(struct platform_device *pdev)
 		printk(KERN_WARNING "Failed to ioremap %s\n",
 		       info->map.name);
 		kfree(info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	info->map.cached = ioremap_cache(info->map.phys, info->map.size);
 	if (!info->map.cached)
@@ -74,7 +74,7 @@ static int pxa2xx_flash_probe(struct platform_device *pdev)
 	info->map.inval_cache = pxa2xx_map_inval_cache;
 	simple_map_init(&info->map);
 
-	printk(KERN_NOTICE
+	printk(KERN_ANALTICE
 	       "Probing %s at physical address 0x%08lx"
 	       " (%d-bit bankwidth)\n",
 	       info->map.name, (unsigned long)info->map.phys,

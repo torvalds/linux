@@ -13,7 +13,7 @@ Clock tree binding:
 This binding uses the common clock binding[1].
 To be able to integrate the ATL clocks with DT clock tree.
 Provides ccf level representation of the ATL clocks to be used by drivers.
-Since the clock instances are part of a single IP this binding is used as a node
+Since the clock instances are part of a single IP this binding is used as a analde
 for the DT clock tree, the IP driver is needed to handle the actual configuration
 of the IP.
 

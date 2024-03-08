@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2013-14 Intel Corp
  *  Author: Omair Mohammed Abdullah <omair.m.abdullah@intel.com>
- *	Vinod Koul <vinod.koul@intel.com>
+ *	Vianald Koul <vianald.koul@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  *  In the dpcm driver modelling when a particular FE/BE/Mixer/Pipe is active
@@ -107,7 +107,7 @@ static u8 sst_ssp_rx_map[SST_MAX_TDM_SLOTS] = {
 };
 
 /*
- * NOTE: this is invoked with lock held
+ * ANALTE: this is invoked with lock held
  */
 static int sst_send_slot_map(struct sst_data *drv)
 {
@@ -162,13 +162,13 @@ static int sst_slot_get(struct snd_kcontrol *kcontrol,
 	struct sst_enum *e = (void *)kcontrol->private_value;
 	struct snd_soc_component *c = snd_kcontrol_chip(kcontrol);
 	struct sst_data *drv = snd_soc_component_get_drvdata(c);
-	unsigned int ctl_no = e->reg;
+	unsigned int ctl_anal = e->reg;
 	unsigned int is_tx = e->tx;
 	unsigned int val, mux;
 	u8 *map = is_tx ? sst_ssp_rx_map : sst_ssp_tx_map;
 
 	mutex_lock(&drv->lock);
-	val = 1 << ctl_no;
+	val = 1 << ctl_anal;
 	/* search which slot/channel has this bit set - there should be only one */
 	for (mux = e->max; mux > 0;  mux--)
 		if (map[mux - 1] & val)
@@ -213,7 +213,7 @@ static int sst_check_and_send_slot_map(struct sst_data *drv, struct snd_kcontrol
  * slot/channel since there is only one control for each slot/channel.
  *
  * This means that whenever an enum is set, we need to clear the bit
- * for that kcontrol_no for all the interleaver OR deinterleaver registers
+ * for that kcontrol_anal for all the interleaver OR deinterleaver registers
  */
 static int sst_slot_put(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
@@ -222,15 +222,15 @@ static int sst_slot_put(struct snd_kcontrol *kcontrol,
 	struct sst_data *drv = snd_soc_component_get_drvdata(c);
 	struct sst_enum *e = (void *)kcontrol->private_value;
 	int i, ret = 0;
-	unsigned int ctl_no = e->reg;
+	unsigned int ctl_anal = e->reg;
 	unsigned int is_tx = e->tx;
-	unsigned int slot_channel_no;
+	unsigned int slot_channel_anal;
 	unsigned int val, mux;
 	u8 *map;
 
 	map = is_tx ? sst_ssp_rx_map : sst_ssp_tx_map;
 
-	val = 1 << ctl_no;
+	val = 1 << ctl_anal;
 	mux = ucontrol->value.enumerated.item[0];
 	if (mux > e->max - 1)
 		return -EINVAL;
@@ -241,20 +241,20 @@ static int sst_slot_put(struct snd_kcontrol *kcontrol,
 		map[i] &= ~val;
 
 	if (mux == 0) {
-		/* kctl set to 'none' and we reset the bits so send IPC */
+		/* kctl set to 'analne' and we reset the bits so send IPC */
 		ret = sst_check_and_send_slot_map(drv, kcontrol);
 
 		mutex_unlock(&drv->lock);
 		return ret;
 	}
 
-	/* offset by one to take "None" into account */
-	slot_channel_no = mux - 1;
-	map[slot_channel_no] |= val;
+	/* offset by one to take "Analne" into account */
+	slot_channel_anal = mux - 1;
+	map[slot_channel_anal] |= val;
 
 	dev_dbg(c->dev, "%s %s map = %#x\n",
 			is_tx ? "tx channel" : "rx slot",
-			e->texts[mux], map[slot_channel_no]);
+			e->texts[mux], map[slot_channel_anal]);
 
 	ret = sst_check_and_send_slot_map(drv, kcontrol);
 
@@ -273,7 +273,7 @@ static int sst_send_algo_cmd(struct sst_data *drv,
 
 	cmd = kzalloc(len, GFP_KERNEL);
 	if (cmd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SST_FILL_DESTINATION(2, cmd->dst, bc->pipe_id, bc->module_id);
 	cmd->command_id = bc->cmd_id;
@@ -303,7 +303,7 @@ static int sst_find_and_send_pipe_algo(struct sst_data *drv,
 
 	dev_dbg(&drv->pdev->dev, "Enter: widget=%s\n", pipe);
 
-	list_for_each_entry(algo, &ids->algo_list, node) {
+	list_for_each_entry(algo, &ids->algo_list, analde) {
 		bc = (void *)algo->kctl->private_value;
 
 		dev_dbg(&drv->pdev->dev, "Found algo control name=%s pipe=%s\n",
@@ -604,7 +604,7 @@ static int sst_set_pipe_gain(struct sst_ids *ids,
 	struct sst_gain_value *gv;
 	struct sst_module *gain;
 
-	list_for_each_entry(gain, &ids->gain_list, node) {
+	list_for_each_entry(gain, &ids->gain_list, analde) {
 		struct snd_kcontrol *kctl = gain->kctl;
 
 		dev_dbg(&drv->pdev->dev, "control name=%s\n", kctl->id.name);
@@ -685,14 +685,14 @@ static int sst_swm_mixer_event(struct snd_soc_dapm_widget *w,
 /* SBA mixers - 16 inputs */
 #define SST_SBA_DECLARE_MIX_CONTROLS(kctl_name)							\
 	static const struct snd_kcontrol_new kctl_name[] = {					\
-		SOC_DAPM_SINGLE("modem_in Switch", SND_SOC_NOPM, SST_IP_MODEM, 1, 0),		\
-		SOC_DAPM_SINGLE("codec_in0 Switch", SND_SOC_NOPM, SST_IP_CODEC0, 1, 0),		\
-		SOC_DAPM_SINGLE("codec_in1 Switch", SND_SOC_NOPM, SST_IP_CODEC1, 1, 0),		\
-		SOC_DAPM_SINGLE("sprot_loop_in Switch", SND_SOC_NOPM, SST_IP_LOOP0, 1, 0),	\
-		SOC_DAPM_SINGLE("media_loop1_in Switch", SND_SOC_NOPM, SST_IP_LOOP1, 1, 0),	\
-		SOC_DAPM_SINGLE("media_loop2_in Switch", SND_SOC_NOPM, SST_IP_LOOP2, 1, 0),	\
-		SOC_DAPM_SINGLE("pcm0_in Switch", SND_SOC_NOPM, SST_IP_PCM0, 1, 0),		\
-		SOC_DAPM_SINGLE("pcm1_in Switch", SND_SOC_NOPM, SST_IP_PCM1, 1, 0),		\
+		SOC_DAPM_SINGLE("modem_in Switch", SND_SOC_ANALPM, SST_IP_MODEM, 1, 0),		\
+		SOC_DAPM_SINGLE("codec_in0 Switch", SND_SOC_ANALPM, SST_IP_CODEC0, 1, 0),		\
+		SOC_DAPM_SINGLE("codec_in1 Switch", SND_SOC_ANALPM, SST_IP_CODEC1, 1, 0),		\
+		SOC_DAPM_SINGLE("sprot_loop_in Switch", SND_SOC_ANALPM, SST_IP_LOOP0, 1, 0),	\
+		SOC_DAPM_SINGLE("media_loop1_in Switch", SND_SOC_ANALPM, SST_IP_LOOP1, 1, 0),	\
+		SOC_DAPM_SINGLE("media_loop2_in Switch", SND_SOC_ANALPM, SST_IP_LOOP2, 1, 0),	\
+		SOC_DAPM_SINGLE("pcm0_in Switch", SND_SOC_ANALPM, SST_IP_PCM0, 1, 0),		\
+		SOC_DAPM_SINGLE("pcm1_in Switch", SND_SOC_ANALPM, SST_IP_PCM1, 1, 0),		\
 	}
 
 #define SST_SBA_MIXER_GRAPH_MAP(mix_name)			\
@@ -707,10 +707,10 @@ static int sst_swm_mixer_event(struct snd_soc_dapm_widget *w,
 
 #define SST_MMX_DECLARE_MIX_CONTROLS(kctl_name)						\
 	static const struct snd_kcontrol_new kctl_name[] = {				\
-		SOC_DAPM_SINGLE("media0_in Switch", SND_SOC_NOPM, SST_IP_MEDIA0, 1, 0),	\
-		SOC_DAPM_SINGLE("media1_in Switch", SND_SOC_NOPM, SST_IP_MEDIA1, 1, 0),	\
-		SOC_DAPM_SINGLE("media2_in Switch", SND_SOC_NOPM, SST_IP_MEDIA2, 1, 0),	\
-		SOC_DAPM_SINGLE("media3_in Switch", SND_SOC_NOPM, SST_IP_MEDIA3, 1, 0),	\
+		SOC_DAPM_SINGLE("media0_in Switch", SND_SOC_ANALPM, SST_IP_MEDIA0, 1, 0),	\
+		SOC_DAPM_SINGLE("media1_in Switch", SND_SOC_ANALPM, SST_IP_MEDIA1, 1, 0),	\
+		SOC_DAPM_SINGLE("media2_in Switch", SND_SOC_ANALPM, SST_IP_MEDIA2, 1, 0),	\
+		SOC_DAPM_SINGLE("media3_in Switch", SND_SOC_ANALPM, SST_IP_MEDIA3, 1, 0),	\
 	}
 
 SST_MMX_DECLARE_MIX_CONTROLS(sst_mix_media0_controls);
@@ -870,7 +870,7 @@ int sst_fill_ssp_config(struct snd_soc_dai *dai, unsigned int fmt)
 
 	case SND_SOC_DAIFMT_I2S:
 		ctx->ssp_cmd.ssp_protocol = SSP_MODE_I2S;
-		ctx->ssp_cmd.mode = sst_get_ssp_mode(dai, fmt) | (SSP_PCM_MODE_NORMAL << 1);
+		ctx->ssp_cmd.mode = sst_get_ssp_mode(dai, fmt) | (SSP_PCM_MODE_ANALRMAL << 1);
 		ctx->ssp_cmd.start_delay = 1;
 		ctx->ssp_cmd.data_polarity = 0;
 		ctx->ssp_cmd.frame_sync_width = ctx->ssp_cmd.nb_bits_per_slots;
@@ -878,7 +878,7 @@ int sst_fill_ssp_config(struct snd_soc_dai *dai, unsigned int fmt)
 
 	case SND_SOC_DAIFMT_LEFT_J:
 		ctx->ssp_cmd.ssp_protocol = SSP_MODE_I2S;
-		ctx->ssp_cmd.mode = sst_get_ssp_mode(dai, fmt) | (SSP_PCM_MODE_NORMAL << 1);
+		ctx->ssp_cmd.mode = sst_get_ssp_mode(dai, fmt) | (SSP_PCM_MODE_ANALRMAL << 1);
 		ctx->ssp_cmd.start_delay = 0;
 		ctx->ssp_cmd.data_polarity = 0;
 		ctx->ssp_cmd.frame_sync_width = ctx->ssp_cmd.nb_bits_per_slots;
@@ -952,7 +952,7 @@ int send_ssp_cmd(struct snd_soc_dai *dai, const char *id, bool enable)
 	else if (strcmp(id, "ssp2-port") == 0)
 		ssp_id = SSP_CODEC;
 	else {
-		dev_dbg(dai->dev, "port %s is not supported\n", id);
+		dev_dbg(dai->dev, "port %s is analt supported\n", id);
 		return -1;
 	}
 
@@ -1054,7 +1054,7 @@ static int sst_set_media_loop(struct snd_soc_dapm_widget *w,
 				 - sizeof(struct sst_dsp_header);
 	cmd.param.part.cfg.rate = 2; /* 48khz */
 
-	cmd.param.part.cfg.format = ids->format; /* stereo/Mono */
+	cmd.param.part.cfg.format = ids->format; /* stereo/Moanal */
 	cmd.param.part.cfg.s_length = 1; /* 24bit left justified */
 	cmd.map = 0; /* Algo sequence: Gain - DRP - FIR - IIR */
 
@@ -1078,7 +1078,7 @@ static const struct snd_soc_dapm_widget sst_dapm_widgets[] = {
 	SST_AIF_OUT("codec_out1", sst_set_be_modules),
 
 	/* Media Paths */
-	/* MediaX IN paths are set via ALLOC, so no SET_MEDIA_PATH command */
+	/* MediaX IN paths are set via ALLOC, so anal SET_MEDIA_PATH command */
 	SST_PATH_INPUT("media0_in", SST_TASK_MMX, SST_SWM_IN_MEDIA0, sst_generic_modules_event),
 	SST_PATH_INPUT("media1_in", SST_TASK_MMX, SST_SWM_IN_MEDIA1, NULL),
 	SST_PATH_INPUT("media2_in", SST_TASK_MMX, SST_SWM_IN_MEDIA2, sst_set_media_path),
@@ -1102,33 +1102,33 @@ static const struct snd_soc_dapm_widget sst_dapm_widgets[] = {
 	SST_PATH_MEDIA_LOOP_OUTPUT("media_loop2_out", SST_TASK_SBA, SST_SWM_OUT_MEDIA_LOOP2, SST_FMT_STEREO, sst_set_media_loop),
 
 	/* Media Mixers */
-	SST_SWM_MIXER("media0_out mix 0", SND_SOC_NOPM, SST_TASK_MMX, SST_SWM_OUT_MEDIA0,
+	SST_SWM_MIXER("media0_out mix 0", SND_SOC_ANALPM, SST_TASK_MMX, SST_SWM_OUT_MEDIA0,
 		      sst_mix_media0_controls, sst_swm_mixer_event),
-	SST_SWM_MIXER("media1_out mix 0", SND_SOC_NOPM, SST_TASK_MMX, SST_SWM_OUT_MEDIA1,
+	SST_SWM_MIXER("media1_out mix 0", SND_SOC_ANALPM, SST_TASK_MMX, SST_SWM_OUT_MEDIA1,
 		      sst_mix_media1_controls, sst_swm_mixer_event),
 
 	/* SBA PCM mixers */
-	SST_SWM_MIXER("pcm0_out mix 0", SND_SOC_NOPM, SST_TASK_SBA, SST_SWM_OUT_PCM0,
+	SST_SWM_MIXER("pcm0_out mix 0", SND_SOC_ANALPM, SST_TASK_SBA, SST_SWM_OUT_PCM0,
 		      sst_mix_pcm0_controls, sst_swm_mixer_event),
-	SST_SWM_MIXER("pcm1_out mix 0", SND_SOC_NOPM, SST_TASK_SBA, SST_SWM_OUT_PCM1,
+	SST_SWM_MIXER("pcm1_out mix 0", SND_SOC_ANALPM, SST_TASK_SBA, SST_SWM_OUT_PCM1,
 		      sst_mix_pcm1_controls, sst_swm_mixer_event),
-	SST_SWM_MIXER("pcm2_out mix 0", SND_SOC_NOPM, SST_TASK_SBA, SST_SWM_OUT_PCM2,
+	SST_SWM_MIXER("pcm2_out mix 0", SND_SOC_ANALPM, SST_TASK_SBA, SST_SWM_OUT_PCM2,
 		      sst_mix_pcm2_controls, sst_swm_mixer_event),
 
 	/* SBA Loop mixers */
-	SST_SWM_MIXER("sprot_loop_out mix 0", SND_SOC_NOPM, SST_TASK_SBA, SST_SWM_OUT_SPROT_LOOP,
+	SST_SWM_MIXER("sprot_loop_out mix 0", SND_SOC_ANALPM, SST_TASK_SBA, SST_SWM_OUT_SPROT_LOOP,
 		      sst_mix_sprot_l0_controls, sst_swm_mixer_event),
-	SST_SWM_MIXER("media_loop1_out mix 0", SND_SOC_NOPM, SST_TASK_SBA, SST_SWM_OUT_MEDIA_LOOP1,
+	SST_SWM_MIXER("media_loop1_out mix 0", SND_SOC_ANALPM, SST_TASK_SBA, SST_SWM_OUT_MEDIA_LOOP1,
 		      sst_mix_media_l1_controls, sst_swm_mixer_event),
-	SST_SWM_MIXER("media_loop2_out mix 0", SND_SOC_NOPM, SST_TASK_SBA, SST_SWM_OUT_MEDIA_LOOP2,
+	SST_SWM_MIXER("media_loop2_out mix 0", SND_SOC_ANALPM, SST_TASK_SBA, SST_SWM_OUT_MEDIA_LOOP2,
 		      sst_mix_media_l2_controls, sst_swm_mixer_event),
 
 	/* SBA Backend mixers */
-	SST_SWM_MIXER("codec_out0 mix 0", SND_SOC_NOPM, SST_TASK_SBA, SST_SWM_OUT_CODEC0,
+	SST_SWM_MIXER("codec_out0 mix 0", SND_SOC_ANALPM, SST_TASK_SBA, SST_SWM_OUT_CODEC0,
 		      sst_mix_codec0_controls, sst_swm_mixer_event),
-	SST_SWM_MIXER("codec_out1 mix 0", SND_SOC_NOPM, SST_TASK_SBA, SST_SWM_OUT_CODEC1,
+	SST_SWM_MIXER("codec_out1 mix 0", SND_SOC_ANALPM, SST_TASK_SBA, SST_SWM_OUT_CODEC1,
 		      sst_mix_codec1_controls, sst_swm_mixer_event),
-	SST_SWM_MIXER("modem_out mix 0", SND_SOC_NOPM, SST_TASK_SBA, SST_SWM_OUT_MODEM,
+	SST_SWM_MIXER("modem_out mix 0", SND_SOC_ANALPM, SST_TASK_SBA, SST_SWM_OUT_MODEM,
 		      sst_mix_modem_controls, sst_swm_mixer_event),
 
 };
@@ -1182,23 +1182,23 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 };
 static const char * const slot_names[] = {
-	"none",
+	"analne",
 	"slot 0", "slot 1", "slot 2", "slot 3",
-	"slot 4", "slot 5", "slot 6", "slot 7", /* not supported by FW */
+	"slot 4", "slot 5", "slot 6", "slot 7", /* analt supported by FW */
 };
 
 static const char * const channel_names[] = {
-	"none",
+	"analne",
 	"codec_out0_0", "codec_out0_1", "codec_out1_0", "codec_out1_1",
-	"codec_out2_0", "codec_out2_1", "codec_out3_0", "codec_out3_1", /* not supported by FW */
+	"codec_out2_0", "codec_out2_1", "codec_out3_0", "codec_out3_1", /* analt supported by FW */
 };
 
-#define SST_INTERLEAVER(xpname, slot_name, slotno) \
-	SST_SSP_SLOT_CTL(xpname, "tx interleaver", slot_name, slotno, true, \
+#define SST_INTERLEAVER(xpname, slot_name, slotanal) \
+	SST_SSP_SLOT_CTL(xpname, "tx interleaver", slot_name, slotanal, true, \
 			 channel_names, sst_slot_get, sst_slot_put)
 
-#define SST_DEINTERLEAVER(xpname, channel_name, channel_no) \
-	SST_SSP_SLOT_CTL(xpname, "rx deinterleaver", channel_name, channel_no, false, \
+#define SST_DEINTERLEAVER(xpname, channel_name, channel_anal) \
+	SST_SSP_SLOT_CTL(xpname, "rx deinterleaver", channel_name, channel_anal, false, \
 			 slot_names, sst_slot_get, sst_slot_put)
 
 static const struct snd_kcontrol_new sst_slot_controls[] = {
@@ -1294,7 +1294,7 @@ static int sst_algo_control_init(struct device *dev)
 		bc = (struct sst_algo_control *)sst_algo_controls[i].private_value;
 		bc->params = devm_kzalloc(dev, bc->max, GFP_KERNEL);
 		if (bc->params == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return 0;
 }
@@ -1394,22 +1394,22 @@ static int sst_fill_module_list(struct snd_kcontrol *kctl,
 
 	module = devm_kzalloc(c->dev, sizeof(*module), GFP_KERNEL);
 	if (!module)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (type == SST_MODULE_GAIN) {
 		struct sst_gain_mixer_control *mc = (void *)kctl->private_value;
 
 		mc->w = w;
 		module->kctl = kctl;
-		list_add_tail(&module->node, &ids->gain_list);
+		list_add_tail(&module->analde, &ids->gain_list);
 	} else if (type == SST_MODULE_ALGO) {
 		struct sst_algo_control *bc = (void *)kctl->private_value;
 
 		bc->w = w;
 		module->kctl = kctl;
-		list_add_tail(&module->node, &ids->algo_list);
+		list_add_tail(&module->analde, &ids->algo_list);
 	} else {
-		dev_err(c->dev, "invoked for unknown type %d module %s",
+		dev_err(c->dev, "invoked for unkanalwn type %d module %s",
 				type, kctl->id.name);
 		ret = -EINVAL;
 	}
@@ -1538,7 +1538,7 @@ int sst_dsp_init_v2_dpcm(struct snd_soc_component *component)
 	drv->byte_stream = devm_kzalloc(component->dev,
 					SST_MAX_BIN_BYTES, GFP_KERNEL);
 	if (!drv->byte_stream)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_soc_dapm_new_controls(dapm, sst_dapm_widgets,
 			ARRAY_SIZE(sst_dapm_widgets));

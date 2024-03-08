@@ -8,7 +8,7 @@ specified in this document. First of the characters defines the nature of
 the pixel format, compression and colour space. The interpretation of the
 other three characters depends on the first one.
 
-Existing 4CCs may not obey these guidelines.
+Existing 4CCs may analt obey these guidelines.
 
 Raw bayer
 ---------

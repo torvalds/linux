@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  HID driver for UC-Logic devices not fully compliant with HID standard
+ *  HID driver for UC-Logic devices analt fully compliant with HID standard
  *
  *  Copyright (c) 2010-2014 Nikolai Kondrashov
  *  Copyright (c) 2013 Martin Rusko
@@ -24,7 +24,7 @@
 
 /**
  * uclogic_inrange_timeout - handle pen in-range state timeout.
- * Emulate input events normally generated when pen goes out of range for
+ * Emulate input events analrmally generated when pen goes out of range for
  * tablets which don't report that.
  *
  * @t:	The timer the timeout handler is attached to, stored in a struct
@@ -90,7 +90,7 @@ static int uclogic_input_configured(struct hid_device *hdev,
 	size_t i;
 	const struct uclogic_params_frame *frame;
 
-	/* no report associated (HID_QUIRK_MULTI_INPUT not set) */
+	/* anal report associated (HID_QUIRK_MULTI_INPUT analt set) */
 	if (!hi->report)
 		return 0;
 
@@ -162,7 +162,7 @@ static int uclogic_probe(struct hid_device *hdev,
 		return -EINVAL;
 
 	/*
-	 * libinput requires the pad interface to be on a different node
+	 * libinput requires the pad interface to be on a different analde
 	 * than the pen, so use QUIRK_MULTI_INPUT for all tablets.
 	 */
 	hdev->quirks |= HID_QUIRK_MULTI_INPUT;
@@ -171,7 +171,7 @@ static int uclogic_probe(struct hid_device *hdev,
 	/* Allocate and assign driver data */
 	drvdata = devm_kzalloc(&hdev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (drvdata == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto failure;
 	}
 	timer_setup(&drvdata->inrange_timer, uclogic_inrange_timeout, 0);
@@ -189,8 +189,8 @@ static int uclogic_probe(struct hid_device *hdev,
 	hid_dbg(hdev, "parameters:\n");
 	uclogic_params_hid_dbg(hdev, &drvdata->params);
 	if (drvdata->params.invalid) {
-		hid_info(hdev, "interface is invalid, ignoring\n");
-		rc = -ENODEV;
+		hid_info(hdev, "interface is invalid, iganalring\n");
+		rc = -EANALDEV;
 		goto failure;
 	}
 
@@ -219,7 +219,7 @@ static int uclogic_probe(struct hid_device *hdev,
 
 	return 0;
 failure:
-	/* Assume "remove" might not be called if "probe" failed */
+	/* Assume "remove" might analt be called if "probe" failed */
 	if (params_initialized)
 		uclogic_params_cleanup(&drvdata->params);
 	return rc;
@@ -251,7 +251,7 @@ static int uclogic_resume(struct hid_device *hdev)
  * @size:	The size of event.
  *
  * Returns:
- *	Whether the event was hooked or not.
+ *	Whether the event was hooked or analt.
  */
 static bool uclogic_exec_event_hook(struct uclogic_params *p, u8 *event, int size)
 {
@@ -320,7 +320,7 @@ static int uclogic_raw_event_pen(struct uclogic_drvdata *drvdata,
 		data[9] = pressure_high_byte;
 	}
 	/* If we need to emulate in-range detection */
-	if (pen->inrange == UCLOGIC_PARAMS_PEN_INRANGE_NONE) {
+	if (pen->inrange == UCLOGIC_PARAMS_PEN_INRANGE_ANALNE) {
 		/* Set in-range bit */
 		data[1] |= 0x40;
 		/* (Re-)start in-range timeout */
@@ -424,7 +424,7 @@ static int uclogic_raw_event(struct hid_device *hdev,
 	struct uclogic_params_pen_subreport *subreport_list_end;
 	size_t i;
 
-	/* Do not handle anything but input reports */
+	/* Do analt handle anything but input reports */
 	if (report->type != HID_INPUT_REPORT)
 		return 0;
 
@@ -500,11 +500,11 @@ static const struct hid_device_id uclogic_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_HUION,
 				USB_DEVICE_ID_HUION_TABLET2) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_TRUST,
-				USB_DEVICE_ID_TRUST_PANORA_TABLET) },
+				USB_DEVICE_ID_TRUST_PAANALRA_TABLET) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_UCLOGIC,
 				USB_DEVICE_ID_HUION_TABLET) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_UCLOGIC,
-				USB_DEVICE_ID_YIYNOVA_TABLET) },
+				USB_DEVICE_ID_YIYANALVA_TABLET) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_UCLOGIC,
 				USB_DEVICE_ID_UCLOGIC_UGEE_TABLET_81) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_UCLOGIC,

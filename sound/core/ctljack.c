@@ -10,7 +10,7 @@
 #include <sound/core.h>
 #include <sound/control.h>
 
-#define jack_detect_kctl_info	snd_ctl_boolean_mono_info
+#define jack_detect_kctl_info	snd_ctl_boolean_moanal_info
 
 static int jack_detect_kctl_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -80,5 +80,5 @@ void snd_kctl_jack_report(struct snd_card *card,
 	if (kctl->private_value == status)
 		return;
 	kctl->private_value = status;
-	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
+	snd_ctl_analtify(card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
 }

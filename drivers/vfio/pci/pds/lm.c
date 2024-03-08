@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2023 Advanced Micro Devices, Inc. */
 
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/highmem.h>
@@ -30,11 +30,11 @@ pds_vfio_get_lm_file(const struct file_operations *fops, int flags, u64 size)
 
 	/* Create file */
 	lm_file->filep =
-		anon_inode_getfile("pds_vfio_lm", fops, lm_file, flags);
+		aanaln_ianalde_getfile("pds_vfio_lm", fops, lm_file, flags);
 	if (IS_ERR(lm_file->filep))
 		goto out_free_file;
 
-	stream_open(lm_file->filep->f_inode, lm_file->filep);
+	stream_open(lm_file->filep->f_ianalde, lm_file->filep);
 	mutex_init(&lm_file->lock);
 
 	/* prevent file from being released before we are done with it */
@@ -158,7 +158,7 @@ static struct page *pds_vfio_get_file_page(struct pds_vfio_lm_file *lm_file,
 	return NULL;
 }
 
-static int pds_vfio_release_file(struct inode *inode, struct file *filp)
+static int pds_vfio_release_file(struct ianalde *ianalde, struct file *filp)
 {
 	struct pds_vfio_lm_file *lm_file = filp->private_data;
 
@@ -227,7 +227,7 @@ static const struct file_operations pds_vfio_save_fops = {
 	.owner = THIS_MODULE,
 	.read = pds_vfio_save_read,
 	.release = pds_vfio_release_file,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static int pds_vfio_get_save_file(struct pds_vfio_pci_device *pds_vfio)
@@ -254,7 +254,7 @@ static int pds_vfio_get_save_file(struct pds_vfio_pci_device *pds_vfio)
 	lm_file = pds_vfio_get_lm_file(&pds_vfio_save_fops, O_RDONLY, size);
 	if (!lm_file) {
 		dev_err(dev, "failed to create save file\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	dev_dbg(dev, "size = %lld, alloc_size = %lld, npages = %lld\n",
@@ -321,7 +321,7 @@ static const struct file_operations pds_vfio_restore_fops = {
 	.owner = THIS_MODULE,
 	.write = pds_vfio_restore_write,
 	.release = pds_vfio_release_file,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static int pds_vfio_get_restore_file(struct pds_vfio_pci_device *pds_vfio)
@@ -341,7 +341,7 @@ static int pds_vfio_get_restore_file(struct pds_vfio_pci_device *pds_vfio)
 	lm_file = pds_vfio_get_lm_file(&pds_vfio_restore_fops, O_WRONLY, size);
 	if (!lm_file) {
 		dev_err(dev, "failed to create restore file");
-		return -ENOENT;
+		return -EANALENT;
 	}
 	pds_vfio->restore_file = lm_file;
 
@@ -409,7 +409,7 @@ pds_vfio_step_device_state_locked(struct pds_vfio_pci_device *pds_vfio,
 		if (err)
 			return ERR_PTR(err);
 
-		pds_vfio_send_host_vf_lm_status_cmd(pds_vfio, PDS_LM_STA_NONE);
+		pds_vfio_send_host_vf_lm_status_cmd(pds_vfio, PDS_LM_STA_ANALNE);
 		return NULL;
 	}
 

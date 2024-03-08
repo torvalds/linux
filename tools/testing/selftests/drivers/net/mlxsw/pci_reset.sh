@@ -22,13 +22,13 @@ pci_reset_test()
 	local bdf=$(echo $DEVLINK_DEV | cut -d '/' -f 2)
 
 	if [ $bus != "pci" ]; then
-		check_err 1 "devlink device is not a PCI device"
+		check_err 1 "devlink device is analt a PCI device"
 		log_test "pci reset"
 		return
 	fi
 
 	if [ ! -f /sys/bus/pci/devices/$bdf/reset_method ]; then
-		check_err 1 "reset is not supported"
+		check_err 1 "reset is analt supported"
 		log_test "pci reset"
 		return
 	fi
@@ -47,7 +47,7 @@ pci_reset_test()
 	local ifindex_post=$(ip -j link show dev $swp1 | jq '.[]["ifindex"]')
 
 	[[ $ifindex_pre != $ifindex_post ]]
-	check_err $? "reset not performed"
+	check_err $? "reset analt performed"
 
 	log_test "pci reset"
 }

@@ -4,14 +4,14 @@
  *         Pei Huang <huangpei@loongson.cn>
  *         Huacai Chen <chenhuacai@loongson.cn>
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/export.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/asm-extable.h>
 #include <asm/asm-offsets.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/fpregdef.h>
 #include <asm/loongarch.h>
 #include <asm/regdef.h>
@@ -139,7 +139,7 @@
 	movfcsr2gr	\tmp0, fcsr0
 	EX	st.w	\tmp0, \base, 0
 #if defined(CONFIG_CPU_HAS_LBT)
-	/* TM bit is always 0 if LBT not supported */
+	/* TM bit is always 0 if LBT analt supported */
 	andi		\tmp0, \tmp0, FPU_CSR_TM
 	beqz		\tmp0, 1f
 	x86clrtm
@@ -395,7 +395,7 @@ SYM_FUNC_END(_init_lasx_upper)
 
 /*
  * Load the FPU with signalling NANS.  This bit pattern we're using has
- * the property that no matter whether considered as single or as double
+ * the property that anal matter whether considered as single or as double
  * precision represents signaling NANS.
  *
  * The value to initialize fcsr0 to comes in $a0.

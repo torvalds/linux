@@ -4,7 +4,7 @@
  *
  * This file contains AppArmor file mediation function definitions.
  *
- * Copyright 2017 Canonical Ltd.
+ * Copyright 2017 Caanalnical Ltd.
  */
 
 #ifndef __AA_MOUNT_H
@@ -23,7 +23,7 @@
 #define AA_AUDIT_DATA		0x40
 #define AA_MNT_CONT_MATCH	0x40
 
-#define AA_MS_IGNORE_MASK (MS_KERNMOUNT | MS_NOSEC | MS_ACTIVE | MS_BORN)
+#define AA_MS_IGANALRE_MASK (MS_KERNMOUNT | MS_ANALSEC | MS_ACTIVE | MS_BORN)
 
 int aa_remount(const struct cred *subj_cred,
 	       struct aa_label *label, const struct path *path,

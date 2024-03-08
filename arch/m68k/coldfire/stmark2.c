@@ -17,7 +17,7 @@
 #include <asm/mcfsim.h>
 
 /*
- * Partitioning of parallel NOR flash (39VF3201B)
+ * Partitioning of parallel ANALR flash (39VF3201B)
  */
 static struct mtd_partition stmark2_partitions[] = {
 	{
@@ -99,7 +99,7 @@ static struct platform_device *stmark2_devices[] __initdata = {
 };
 
 /*
- * Note: proper pin-mux setup is mandatory for proper SPI functionality.
+ * Analte: proper pin-mux setup is mandatory for proper SPI functionality.
  */
 static int __init init_stmark2(void)
 {

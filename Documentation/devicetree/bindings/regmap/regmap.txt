@@ -6,7 +6,7 @@ Optional properties:
    big-endian,
    native-endian:	See common-properties.txt for a definition
 
-Note:
+Analte:
 Regmap defaults to little-endian register access on MMIO based
 devices, this is by far the most common setting. On CPU
 architectures that typically run big-endian operating systems

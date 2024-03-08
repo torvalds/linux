@@ -47,7 +47,7 @@ static const char *elog_type_to_string(uint64_t type)
 {
 	switch (type) {
 	case 0: return "PEL";
-	default: return "unknown";
+	default: return "unkanalwn";
 	}
 }
 
@@ -64,7 +64,7 @@ static ssize_t elog_ack_show(struct elog_obj *elog_obj,
 			     struct elog_attribute *attr,
 			     char *buf)
 {
-	return sprintf(buf, "ack - acknowledge log message\n");
+	return sprintf(buf, "ack - ackanalwledge log message\n");
 }
 
 static ssize_t elog_ack_store(struct elog_obj *elog_obj,
@@ -88,7 +88,7 @@ static struct elog_attribute id_attribute =
 static struct elog_attribute type_attribute =
 	__ATTR(type, 0444, elog_type_show, NULL);
 static struct elog_attribute ack_attribute =
-	__ATTR(acknowledge, 0660, elog_ack_show, elog_ack_store);
+	__ATTR(ackanalwledge, 0660, elog_ack_show, elog_ack_store);
 
 static struct kset *elog_kset;
 
@@ -231,7 +231,7 @@ static void create_elog_obj(uint64_t id, size_t size, uint64_t type)
 	/*
 	 * As soon as the sysfs file for this elog is created/activated there is
 	 * a chance the opal_errd daemon (or any userspace) might read and
-	 * acknowledge the elog before kobject_uevent() is called. If that
+	 * ackanalwledge the elog before kobject_uevent() is called. If that
 	 * happens then there is a potential race between
 	 * elog_ack_store->kobject_put() and kobject_uevent() which leads to a
 	 * use-after-free of a kernfs object resulting in a kernel crash.
@@ -287,8 +287,8 @@ static irqreturn_t elog_event(int irq, void *data)
 
 	sprintf(name, "0x%llx", log_id);
 
-	/* we may get notified twice, let's handle
-	 * that gracefully and not create two conflicting
+	/* we may get analtified twice, let's handle
+	 * that gracefully and analt create two conflicting
 	 * entries.
 	 */
 	kobj = kset_find_obj(elog_kset, name);
@@ -307,7 +307,7 @@ int __init opal_elog_init(void)
 {
 	int rc = 0, irq;
 
-	/* ELOG not supported by firmware */
+	/* ELOG analt supported by firmware */
 	if (!opal_check_token(OPAL_ELOG_READ))
 		return -1;
 
@@ -332,7 +332,7 @@ int __init opal_elog_init(void)
 		return rc;
 	}
 
-	/* We are now ready to pull error logs from opal. */
+	/* We are analw ready to pull error logs from opal. */
 	if (opal_check_token(OPAL_ELOG_RESEND))
 		opal_resend_pending_logs();
 

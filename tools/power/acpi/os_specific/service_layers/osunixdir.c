@@ -60,7 +60,7 @@ void *acpi_os_open_directory(char *dir_pathname,
 
 	dir = opendir(dir_pathname);
 	if (!dir) {
-		fprintf(stderr, "Cannot open directory - %s\n", dir_pathname);
+		fprintf(stderr, "Cananalt open directory - %s\n", dir_pathname);
 		free(external_info);
 		return (NULL);
 	}
@@ -80,7 +80,7 @@ void *acpi_os_open_directory(char *dir_pathname,
  *
  * PARAMETERS:  dir_handle          - Created via acpi_os_open_directory
  *
- * RETURN:      Next filename matched. NULL if no more matches.
+ * RETURN:      Next filename matched. NULL if anal more matches.
  *
  * DESCRIPTION: Get the next file in the directory that matches the wildcard
  *              specification.
@@ -109,7 +109,7 @@ char *acpi_os_get_next_filename(void *dir_handle)
 			temp_str = calloc(str_len, 1);
 			if (!temp_str) {
 				fprintf(stderr,
-					"Could not allocate buffer for temporary string\n");
+					"Could analt allocate buffer for temporary string\n");
 				return (NULL);
 			}
 
@@ -120,7 +120,7 @@ char *acpi_os_get_next_filename(void *dir_handle)
 			err = stat(temp_str, &temp_stat);
 			if (err == -1) {
 				fprintf(stderr,
-					"Cannot stat file (should not happen) - %s\n",
+					"Cananalt stat file (should analt happen) - %s\n",
 					temp_str);
 				free(temp_str);
 				return (NULL);
@@ -153,7 +153,7 @@ char *acpi_os_get_next_filename(void *dir_handle)
  *
  * PARAMETERS:  dir_handle          - Created via acpi_os_open_directory
  *
- * RETURN:      None.
+ * RETURN:      Analne.
  *
  * DESCRIPTION: Close the open directory and cleanup.
  *

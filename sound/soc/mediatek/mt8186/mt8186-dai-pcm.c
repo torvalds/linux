@@ -19,7 +19,7 @@ struct mtk_afe_pcm_priv {
 };
 
 enum aud_tx_lch_rpt {
-	AUD_TX_LCH_RPT_NO_REPEAT = 0,
+	AUD_TX_LCH_RPT_ANAL_REPEAT = 0,
 	AUD_TX_LCH_RPT_REPEAT = 1
 };
 
@@ -82,12 +82,12 @@ enum aud_pcm_fmt {
 };
 
 enum aud_bclk_out_inv {
-	AUD_BCLK_OUT_INV_NO_INVERSE = 0,
+	AUD_BCLK_OUT_INV_ANAL_INVERSE = 0,
 	AUD_BCLK_OUT_INV_INVERSE = 1
 };
 
 enum aud_lrclk_out_inv {
-	AUD_LRCLK_OUT_INV_NO_INVERSE = 0,
+	AUD_LRCLK_OUT_INV_ANAL_INVERSE = 0,
 	AUD_LRCLK_OUT_INV_INVERSE = 1
 };
 
@@ -139,7 +139,7 @@ static int mtk_pcm_en_event(struct snd_soc_dapm_widget *w,
 
 /* pcm in/out lpbk */
 static const char * const pcm_lpbk_mux_map[] = {
-	"Normal", "Lpbk",
+	"Analrmal", "Lpbk",
 };
 
 static int pcm_lpbk_mux_map_value[] = {
@@ -168,10 +168,10 @@ static const struct snd_kcontrol_new pcm_out_lpbk_mux_control =
 
 static const struct snd_soc_dapm_widget mtk_dai_pcm_widgets[] = {
 	/* inter-connections */
-	SND_SOC_DAPM_MIXER("PCM_1_PB_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("PCM_1_PB_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_pcm_1_playback_ch1_mix,
 			   ARRAY_SIZE(mtk_pcm_1_playback_ch1_mix)),
-	SND_SOC_DAPM_MIXER("PCM_1_PB_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("PCM_1_PB_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_pcm_1_playback_ch2_mix,
 			   ARRAY_SIZE(mtk_pcm_1_playback_ch2_mix)),
 
@@ -182,11 +182,11 @@ static const struct snd_soc_dapm_widget mtk_dai_pcm_widgets[] = {
 
 	/* pcm in lpbk */
 	SND_SOC_DAPM_MUX("PCM_In_Lpbk_Mux",
-			 SND_SOC_NOPM, 0, 0, &pcm_in_lpbk_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &pcm_in_lpbk_mux_control),
 
 	/* pcm out lpbk */
 	SND_SOC_DAPM_MUX("PCM_Out_Lpbk_Mux",
-			 SND_SOC_NOPM, 0, 0, &pcm_out_lpbk_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &pcm_out_lpbk_mux_control),
 };
 
 static const struct snd_soc_dapm_route mtk_dai_pcm_routes[] = {
@@ -241,7 +241,7 @@ static int mtk_dai_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	switch (dai->id) {
 	case MT8186_DAI_PCM:
-		pcm_con |= AUD_TX_LCH_RPT_NO_REPEAT << PCM_TX_LCH_RPT_SFT;
+		pcm_con |= AUD_TX_LCH_RPT_ANAL_REPEAT << PCM_TX_LCH_RPT_SFT;
 		pcm_con |= AUD_VBT_16K_MODE_DISABLE << PCM_VBT_16K_MODE_SFT;
 		pcm_con |= AUD_EXT_MODEM_SELECT_EXTERNAL << PCM_EXT_MODEM_SFT;
 		pcm_con |= AUD_PCM_ONE_BCK_CYCLE_SYNC << PCM_SYNC_TYPE_SFT;
@@ -275,7 +275,7 @@ static int mtk_dai_pcm_hw_params(struct snd_pcm_substream *substream,
 		regmap_update_bits(afe->regmap, PCM_INTF_CON1, 0xfffffffe, pcm_con);
 		break;
 	default:
-		dev_err(afe->dev, "%s(), id %d not support\n", __func__, dai->id);
+		dev_err(afe->dev, "%s(), id %d analt support\n", __func__, dai->id);
 		return -EINVAL;
 	}
 
@@ -309,24 +309,24 @@ static int mtk_dai_pcm_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	/* DAI clock inversion*/
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		pcm_priv->bck_invert = AUD_BCLK_OUT_INV_NO_INVERSE;
-		pcm_priv->lck_invert = AUD_LRCLK_OUT_INV_NO_INVERSE;
+		pcm_priv->bck_invert = AUD_BCLK_OUT_INV_ANAL_INVERSE;
+		pcm_priv->lck_invert = AUD_LRCLK_OUT_INV_ANAL_INVERSE;
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
-		pcm_priv->bck_invert = AUD_BCLK_OUT_INV_NO_INVERSE;
+		pcm_priv->bck_invert = AUD_BCLK_OUT_INV_ANAL_INVERSE;
 		pcm_priv->lck_invert = AUD_BCLK_OUT_INV_INVERSE;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
 		pcm_priv->bck_invert = AUD_BCLK_OUT_INV_INVERSE;
-		pcm_priv->lck_invert = AUD_LRCLK_OUT_INV_NO_INVERSE;
+		pcm_priv->lck_invert = AUD_LRCLK_OUT_INV_ANAL_INVERSE;
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
 		pcm_priv->bck_invert = AUD_BCLK_OUT_INV_INVERSE;
 		pcm_priv->lck_invert = AUD_BCLK_OUT_INV_INVERSE;
 		break;
 	default:
-		pcm_priv->bck_invert = AUD_BCLK_OUT_INV_NO_INVERSE;
-		pcm_priv->lck_invert = AUD_LRCLK_OUT_INV_NO_INVERSE;
+		pcm_priv->bck_invert = AUD_BCLK_OUT_INV_ANAL_INVERSE;
+		pcm_priv->lck_invert = AUD_LRCLK_OUT_INV_ANAL_INVERSE;
 		break;
 	}
 
@@ -383,8 +383,8 @@ static struct mtk_afe_pcm_priv *init_pcm_priv_data(struct mtk_base_afe *afe)
 
 	pcm_priv->id = MT8186_DAI_PCM;
 	pcm_priv->fmt = AUD_PCM_FMT_I2S;
-	pcm_priv->bck_invert = AUD_BCLK_OUT_INV_NO_INVERSE;
-	pcm_priv->lck_invert = AUD_LRCLK_OUT_INV_NO_INVERSE;
+	pcm_priv->bck_invert = AUD_BCLK_OUT_INV_ANAL_INVERSE;
+	pcm_priv->lck_invert = AUD_LRCLK_OUT_INV_ANAL_INVERSE;
 
 	return pcm_priv;
 }
@@ -397,7 +397,7 @@ int mt8186_dai_pcm_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 
@@ -411,7 +411,7 @@ int mt8186_dai_pcm_register(struct mtk_base_afe *afe)
 
 	pcm_priv = init_pcm_priv_data(afe);
 	if (!pcm_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	afe_priv->dai_priv[MT8186_DAI_PCM] = pcm_priv;
 

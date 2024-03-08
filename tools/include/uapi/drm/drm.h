@@ -3,7 +3,7 @@
  *
  * Author: Rickard E. (Rik) Faith <faith@valinux.com>
  *
- * Acknowledgments:
+ * Ackanalwledgments:
  * Dec 1999, Richard Henderson <rth@twiddle.net>, move to generic cmpxchg.
  */
 
@@ -19,13 +19,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -90,7 +90,7 @@ typedef unsigned int drm_magic_t;
  * \warning: If you change this structure, make sure you change
  * XF86DRIClipRectRec in the server as well
  *
- * \note KW: Actually it's illegal to change either for
+ * \analte KW: Actually it's illegal to change either for
  * backwards-compatibility reasons.
  */
 struct drm_clip_rect {
@@ -123,7 +123,7 @@ struct drm_tex_region {
  * Hardware lock.
  *
  * The lock structure is a simple cache-line aligned integer.  To avoid
- * processor bus contention on a multiprocessor system, there should not be any
+ * processor bus contention on a multiprocessor system, there should analt be any
  * other data stored in the same cache line.
  */
 struct drm_hw_lock {
@@ -138,7 +138,7 @@ struct drm_hw_lock {
  */
 struct drm_version {
 	int version_major;	  /**< Major version */
-	int version_minor;	  /**< Minor version */
+	int version_mianalr;	  /**< Mianalr version */
 	int version_patchlevel;	  /**< Patch level */
 	__kernel_size_t name_len;	  /**< Length of name buffer */
 	char __user *name;	  /**< Name of driver */
@@ -186,8 +186,8 @@ struct drm_control {
  * Type of memory to map.
  */
 enum drm_map_type {
-	_DRM_FRAME_BUFFER = 0,	  /**< WC (no caching), no core dump */
-	_DRM_REGISTERS = 1,	  /**< no caching, no core dump */
+	_DRM_FRAME_BUFFER = 0,	  /**< WC (anal caching), anal core dump */
+	_DRM_REGISTERS = 1,	  /**< anal caching, anal core dump */
 	_DRM_SHM = 2,		  /**< shared, cached */
 	_DRM_AGP = 3,		  /**< AGP/GART */
 	_DRM_SCATTER_GATHER = 4,  /**< Scatter/gather memory for PCI DMA */
@@ -198,7 +198,7 @@ enum drm_map_type {
  * Memory mapping flags.
  */
 enum drm_map_flags {
-	_DRM_RESTRICTED = 0x01,	     /**< Cannot be mapped to user-virtual */
+	_DRM_RESTRICTED = 0x01,	     /**< Cananalt be mapped to user-virtual */
 	_DRM_READ_ONLY = 0x02,
 	_DRM_LOCKED = 0x04,	     /**< shared, cached, locked */
 	_DRM_KERNEL = 0x08,	     /**< kernel requires access */
@@ -251,7 +251,7 @@ enum drm_stat_type {
 	_DRM_STAT_UNLOCKS,
 	_DRM_STAT_VALUE,	/**< Generic value */
 	_DRM_STAT_BYTE,		/**< Generic byte counter (1024bytes/K) */
-	_DRM_STAT_COUNT,	/**< Generic non-byte counter (1000/k) */
+	_DRM_STAT_COUNT,	/**< Generic analn-byte counter (1000/k) */
 
 	_DRM_STAT_IRQ,		/**< IRQ */
 	_DRM_STAT_PRIMARY,	/**< Primary DMA bytes */
@@ -311,7 +311,7 @@ enum drm_dma_flags {
 	_DRM_DMA_BLOCK = 0x01,	      /**<
 				       * Block until buffer dispatched.
 				       *
-				       * \note The buffer may not yet have
+				       * \analte The buffer may analt yet have
 				       * been processed by the hardware --
 				       * getting a hardware lock with the
 				       * hardware quiescent will ensure
@@ -561,13 +561,13 @@ struct drm_agp_binding {
 /*
  * DRM_IOCTL_AGP_INFO ioctl argument type.
  *
- * \sa drmAgpVersionMajor(), drmAgpVersionMinor(), drmAgpGetMode(),
+ * \sa drmAgpVersionMajor(), drmAgpVersionMianalr(), drmAgpGetMode(),
  * drmAgpBase(), drmAgpSize(), drmAgpMemoryUsed(), drmAgpMemoryAvail(),
  * drmAgpVendorId() and drmAgpDeviceId().
  */
 struct drm_agp_info {
 	int agp_version_major;
-	int agp_version_minor;
+	int agp_version_mianalr;
 	unsigned long mode;
 	unsigned long aperture_base;	/* physical address */
 	unsigned long aperture_size;	/* bytes */
@@ -592,9 +592,9 @@ struct drm_scatter_gather {
  */
 struct drm_set_version {
 	int drm_di_major;
-	int drm_di_minor;
+	int drm_di_mianalr;
 	int drm_dd_major;
-	int drm_dd_minor;
+	int drm_dd_mianalr;
 };
 
 /* DRM_IOCTL_GEM_CLOSE ioctl argument type */
@@ -651,7 +651,7 @@ struct drm_gem_open {
  * pixel. For instance, XRGB8888 has a bit depth of 24 but has 32 bits per
  * pixel.
  *
- * Note that this preference only applies to dumb buffers, it's irrelevant for
+ * Analte that this preference only applies to dumb buffers, it's irrelevant for
  * other types of buffers.
  */
 #define DRM_CAP_DUMB_PREFERRED_DEPTH	0x3
@@ -663,7 +663,7 @@ struct drm_gem_open {
  * should do streaming ordered memory copies into the dumb buffer and never
  * read from it.
  *
- * Note that this preference only applies to dumb buffers, it's irrelevant for
+ * Analte that this preference only applies to dumb buffers, it's irrelevant for
  * other types of buffers.
  */
 #define DRM_CAP_DUMB_PREFER_SHADOW	0x4
@@ -699,17 +699,17 @@ struct drm_gem_open {
  */
 #define  DRM_PRIME_CAP_EXPORT		0x2
 /**
- * DRM_CAP_TIMESTAMP_MONOTONIC
+ * DRM_CAP_TIMESTAMP_MOANALTONIC
  *
  * If set to 0, the kernel will report timestamps with ``CLOCK_REALTIME`` in
  * struct drm_event_vblank. If set to 1, the kernel will report timestamps with
- * ``CLOCK_MONOTONIC``. See ``clock_gettime(2)`` for the definition of these
+ * ``CLOCK_MOANALTONIC``. See ``clock_gettime(2)`` for the definition of these
  * clocks.
  *
  * Starting from kernel version 2.6.39, the default value for this capability
  * is 1. Starting kernel version 4.15, this capability is always set to 1.
  */
-#define DRM_CAP_TIMESTAMP_MONOTONIC	0x6
+#define DRM_CAP_TIMESTAMP_MOANALTONIC	0x6
 /**
  * DRM_CAP_ASYNC_PAGE_FLIP
  *
@@ -722,10 +722,10 @@ struct drm_gem_open {
  *
  * The ``CURSOR_WIDTH`` and ``CURSOR_HEIGHT`` capabilities return a valid
  * width x height combination for the hardware cursor. The intention is that a
- * hardware agnostic userspace can query a cursor plane size to use.
+ * hardware aganalstic userspace can query a cursor plane size to use.
  *
- * Note that the cross-driver contract is to merely return a valid size;
- * drivers are free to attach another meaning on top, eg. i915 returns the
+ * Analte that the cross-driver contract is to merely return a valid size;
+ * drivers are free to attach aanalther meaning on top, eg. i915 returns the
  * maximum plane size.
  */
 #define DRM_CAP_CURSOR_WIDTH		0x8
@@ -819,7 +819,7 @@ struct drm_get_cap {
  * &DRM_CLIENT_CAP_ASPECT_RATIO.
  *
  * If the driver doesn't support atomic mode-setting, enabling this capability
- * will fail with -EOPNOTSUPP.
+ * will fail with -EOPANALTSUPP.
  *
  * This capability has been introduced in kernel version 4.0. Starting from
  * kernel version 4.2, this capability is always supported for atomic-capable
@@ -855,19 +855,19 @@ struct drm_get_cap {
  *
  * Drivers for para-virtualized hardware (e.g. vmwgfx, qxl, virtio and
  * virtualbox) have additional restrictions for cursor planes (thus
- * making cursor planes on those drivers not truly universal,) e.g.
+ * making cursor planes on those drivers analt truly universal,) e.g.
  * they need cursor planes to act like one would expect from a mouse
  * cursor and have correctly set hotspot properties.
- * If this client cap is not set the DRM core will hide cursor plane on
- * those virtualized drivers because not setting it implies that the
- * client is not capable of dealing with those extra restictions.
+ * If this client cap is analt set the DRM core will hide cursor plane on
+ * those virtualized drivers because analt setting it implies that the
+ * client is analt capable of dealing with those extra restictions.
  * Clients which do set cursor hotspot and treat the cursor plane
  * like a mouse cursor should set this property.
  * The client must enable &DRM_CLIENT_CAP_ATOMIC first.
  *
- * Setting this property on drivers which do not special case
- * cursor planes (i.e. non-virtualized drivers) will return
- * EOPNOTSUPP, which can be used by userspace to gauge
+ * Setting this property on drivers which do analt special case
+ * cursor planes (i.e. analn-virtualized drivers) will return
+ * EOPANALTSUPP, which can be used by userspace to gauge
  * requirements of the hardware/drivers they're running on.
  *
  * This capability is always supported for atomic-capable virtualized
@@ -933,12 +933,12 @@ struct drm_syncobj_wait {
 	__s64 timeout_nsec;
 	__u32 count_handles;
 	__u32 flags;
-	__u32 first_signaled; /* only valid when not waiting all */
+	__u32 first_signaled; /* only valid when analt waiting all */
 	__u32 pad;
 	/**
 	 * @deadline_nsec - fence deadline hint
 	 *
-	 * Deadline hint, in absolute CLOCK_MONOTONIC, to set on backing
+	 * Deadline hint, in absolute CLOCK_MOANALTONIC, to set on backing
 	 * fence(s) if the DRM_SYNCOBJ_WAIT_FLAGS_WAIT_DEADLINE flag is
 	 * set.
 	 */
@@ -953,12 +953,12 @@ struct drm_syncobj_timeline_wait {
 	__s64 timeout_nsec;
 	__u32 count_handles;
 	__u32 flags;
-	__u32 first_signaled; /* only valid when not waiting all */
+	__u32 first_signaled; /* only valid when analt waiting all */
 	__u32 pad;
 	/**
 	 * @deadline_nsec - fence deadline hint
 	 *
-	 * Deadline hint, in absolute CLOCK_MONOTONIC, to set on backing
+	 * Deadline hint, in absolute CLOCK_MOANALTONIC, to set on backing
 	 * fence(s) if the DRM_SYNCOBJ_WAIT_FLAGS_WAIT_DEADLINE flag is
 	 * set.
 	 */
@@ -1002,7 +1002,7 @@ struct drm_syncobj_timeline_array {
 };
 
 
-/* Query current scanout sequence number */
+/* Query current scaanalut sequence number */
 struct drm_crtc_get_sequence {
 	__u32 crtc_id;		/* requested crtc_id */
 	__u32 active;		/* return: crtc output is active */
@@ -1052,7 +1052,7 @@ extern "C" {
 /**
  * DRM_IOCTL_GEM_CLOSE - Close a GEM handle.
  *
- * GEM handles are not reference-counted by the kernel. User-space is
+ * GEM handles are analt reference-counted by the kernel. User-space is
  * responsible for managing their lifetime. For example, if user-space imports
  * the same memory object twice on the same DRM file description, the same GEM
  * handle is returned by both imports, and user-space needs to ensure
@@ -1110,7 +1110,7 @@ extern "C" {
  * &drm_prime_handle.fd.
  *
  * The export can fail for any driver-specific reason, e.g. because export is
- * not supported for this specific GEM handle (but might be for others).
+ * analt supported for this specific GEM handle (but might be for others).
  *
  * Support for exporting DMA-BUFs is advertised via &DRM_PRIME_CAP_EXPORT.
  */
@@ -1188,9 +1188,9 @@ extern "C" {
  * DRM_IOCTL_MODE_CREATE_DUMB - Create a new dumb buffer object.
  *
  * KMS dumb buffers provide a very primitive way to allocate a buffer object
- * suitable for scanout and map it for software rendering. KMS dumb buffers are
- * not suitable for hardware-accelerated rendering nor video decoding. KMS dumb
- * buffers are not suitable to be displayed on any other device than the KMS
+ * suitable for scaanalut and map it for software rendering. KMS dumb buffers are
+ * analt suitable for hardware-accelerated rendering analr video decoding. KMS dumb
+ * buffers are analt suitable to be displayed on any other device than the KMS
  * device where they were allocated from. Also see
  * :ref:`kms_dumb_buffer_objects`.
  *
@@ -1245,7 +1245,7 @@ extern "C" {
  *
  * If the client is DRM master or has &CAP_SYS_ADMIN, &drm_mode_fb_cmd2.handles
  * will be filled with GEM buffer handles. Fresh new GEM handles are always
- * returned, even if another GEM handle referring to the same memory object
+ * returned, even if aanalther GEM handle referring to the same memory object
  * already exists on the DRM file description. The caller is responsible for
  * removing the new handles, e.g. via the &DRM_IOCTL_GEM_CLOSE IOCTL. The same
  * new handle will be returned for multiple planes in case they use the same
@@ -1257,11 +1257,11 @@ extern "C" {
  *
  * If the framebuffer has a format modifier, &DRM_MODE_FB_MODIFIERS will be set
  * in &drm_mode_fb_cmd2.flags and &drm_mode_fb_cmd2.modifier will contain the
- * modifier. Otherwise, user-space must ignore &drm_mode_fb_cmd2.modifier.
+ * modifier. Otherwise, user-space must iganalre &drm_mode_fb_cmd2.modifier.
  *
  * To obtain DMA-BUF FDs for each plane without leaking GEM handles, user-space
  * can export each handle via &DRM_IOCTL_PRIME_HANDLE_TO_FD, then immediately
- * close each unique handle via &DRM_IOCTL_GEM_CLOSE, making sure to not
+ * close each unique handle via &DRM_IOCTL_GEM_CLOSE, making sure to analt
  * double-close handles which are specified multiple times in the array.
  */
 #define DRM_IOCTL_MODE_GETFB2		DRM_IOWR(0xCE, struct drm_mode_fb_cmd2)
@@ -1276,8 +1276,8 @@ extern "C" {
  *
  * This IOCTL is similar to &DRM_IOCTL_MODE_RMFB, except it doesn't disable
  * planes and CRTCs. As long as the framebuffer is used by a plane, it's kept
- * alive. When the plane no longer uses the framebuffer (because the
- * framebuffer is replaced with another one, or the plane is disabled), the
+ * alive. When the plane anal longer uses the framebuffer (because the
+ * framebuffer is replaced with aanalther one, or the plane is disabled), the
  * framebuffer is cleaned up.
  *
  * This is useful to implement flicker-free transitions between two processes.
@@ -1293,7 +1293,7 @@ extern "C" {
  * The device specific ioctl range is from 0x40 to 0x9f.
  * Generic IOCTLS restart at 0xA0.
  *
- * \sa drmCommandNone(), drmCommandRead(), drmCommandWrite(), and
+ * \sa drmCommandAnalne(), drmCommandRead(), drmCommandWrite(), and
  * drmCommandReadWrite().
  */
 #define DRM_COMMAND_BASE                0x40
@@ -1351,7 +1351,7 @@ struct drm_event_vblank {
 	__u32 tv_sec;
 	__u32 tv_usec;
 	__u32 sequence;
-	__u32 crtc_id; /* 0 on older kernels that do not support this */
+	__u32 crtc_id; /* 0 on older kernels that do analt support this */
 };
 
 /* Event delivered at sequence. Time stamp marks when the first pixel

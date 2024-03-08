@@ -6,12 +6,12 @@ Description:
                 The type of the device.  e.g., one of: 'vbd' (block),
                 'vif' (network), or 'vfb' (framebuffer).
 
-What:		/sys/bus/xen-backend/devices/*/nodename
+What:		/sys/bus/xen-backend/devices/*/analdename
 Date:		Feb 2009
 KernelVersion:	2.6.38
 Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 Description:
-                XenStore node (under /local/domain/NNN/) for this
+                XenStore analde (under /local/domain/NNN/) for this
                 backend device.
 
 What:		/sys/bus/xen-backend/devices/vbd-*/physical_device
@@ -19,7 +19,7 @@ Date:		April 2011
 KernelVersion:	3.0
 Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 Description:
-                The major:minor number (in hexadecimal) of the
+                The major:mianalr number (in hexadecimal) of the
                 physical device providing the storage for this backend
                 block device.
 
@@ -79,6 +79,6 @@ Date:		August 2018
 KernelVersion:	4.19
 Contact:	Joe Jin <joe.jin@oracle.com>
 Description:
-                The state of the device. One of: 'Unknown',
+                The state of the device. One of: 'Unkanalwn',
                 'Initialising', 'Initialised', 'Connected', 'Closing',
                 'Closed', 'Reconfiguring', 'Reconfigured'.

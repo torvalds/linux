@@ -2,7 +2,7 @@
 #ifndef _BCACHEFS_FS_IO_BUFFERED_H
 #define _BCACHEFS_FS_IO_BUFFERED_H
 
-#ifndef NO_BCACHEFS_FS
+#ifndef ANAL_BCACHEFS_FS
 
 int bch2_read_single_folio(struct folio *, struct address_space *);
 int bch2_read_folio(struct file *, struct folio *);

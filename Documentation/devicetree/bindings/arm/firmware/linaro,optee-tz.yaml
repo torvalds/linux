@@ -18,7 +18,7 @@ description: |
   the reference implementation maintained by Linaro.
 
 properties:
-  $nodename:
+  $analdename:
     const: optee
 
   compatible:

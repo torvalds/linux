@@ -71,7 +71,7 @@ static int aspeed_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	writel(reg1, rtc->base + RTC_TIME);
 	writel(reg2, rtc->base + RTC_YEAR);
 
-	/* Re-lock and ensure enable is set now that a time is programmed */
+	/* Re-lock and ensure enable is set analw that a time is programmed */
 	writel(ctrl | RTC_ENABLE, rtc->base + RTC_CTRL);
 
 	return 0;
@@ -88,7 +88,7 @@ static int aspeed_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->base))

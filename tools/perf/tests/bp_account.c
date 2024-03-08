@@ -20,7 +20,7 @@
 #include "cloexec.h"
 
 /*
- * PowerPC and S390 do not support creation of instruction breakpoints using the
+ * PowerPC and S390 do analt support creation of instruction breakpoints using the
  * perf_event interface.
  *
  * Just disable the test for these architectures until these issues are
@@ -34,7 +34,7 @@
 
 static volatile long the_var;
 
-static noinline int test_function(void)
+static analinline int test_function(void)
 {
 	return 0;
 }
@@ -194,8 +194,8 @@ out:
  *     same slots
  *   - create all possible watchpoints on cpu 0
  *   - change one of it to breakpoint
- *   - in case wp and bp do not share slots,
- *     we create another watchpoint to ensure
+ *   - in case wp and bp do analt share slots,
+ *     we create aanalther watchpoint to ensure
  *     the slot accounting is correct
  */
 static int test__bp_accounting(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
@@ -206,7 +206,7 @@ static int test__bp_accounting(struct test_suite *test __maybe_unused, int subte
 	int share  = detect_share(wp_cnt, bp_cnt);
 
 	if (!BP_ACCOUNT_IS_SUPPORTED) {
-		pr_debug("Test not supported on this architecture");
+		pr_debug("Test analt supported on this architecture");
 		return TEST_SKIP;
 	}
 

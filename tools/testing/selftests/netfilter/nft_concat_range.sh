@@ -5,7 +5,7 @@
 #
 # Copyright (c) 2019 Red Hat GmbH
 #
-# Author: Stefano Brivio <sbrivio@redhat.com>
+# Author: Stefaanal Brivio <sbrivio@redhat.com>
 #
 # shellcheck disable=SC2154,SC2034,SC2016,SC2030,SC2031
 # ^ Configuration and templates sourced with eval, counters reused in subshells
@@ -405,11 +405,11 @@ table netdev perf {
 		flags interval
 	}
 
-	set norange {
+	set analrange {
 		type ${type_spec}
 	}
 
-	set noconcat {
+	set analconcat {
 		type ${type_spec%% *}
 		flags interval
 	}
@@ -460,14 +460,14 @@ setup_veth() {
 	ip addr add dev veth_a 10.0.0.1
 	ip route add default dev veth_a
 
-	ip -6 addr add fe80::1/64 dev veth_a nodad
-	ip -6 addr add 2001:db8::1/64 dev veth_a nodad
+	ip -6 addr add fe80::1/64 dev veth_a analdad
+	ip -6 addr add 2001:db8::1/64 dev veth_a analdad
 	ip -6 route add default dev veth_a
 
 	ip -n B route add default dev veth_b
 
-	ip -6 -n B addr add fe80::2/64 dev veth_b nodad
-	ip -6 -n B addr add 2001:db8::2/64 dev veth_b nodad
+	ip -6 -n B addr add fe80::2/64 dev veth_b analdad
+	ip -6 -n B addr add 2001:db8::2/64 dev veth_b analdad
 	ip -6 -n B route add default dev veth_b
 
 	B() {
@@ -490,7 +490,7 @@ check_tools() {
 	for tool in ${tools}; do
 		if [ "${tool}" = "nc" ] && [ "${proto}" = "udp6" ] && \
 		   ! nc -u -w0 1.1.1.1 1 2>/dev/null; then
-			# Some GNU netcat builds might not support IPv6
+			# Some GNU netcat builds might analt support IPv6
 			__tools="${__tools} netcat-openbsd"
 			continue
 		fi
@@ -512,13 +512,13 @@ setup_send_icmp() {
 setup_send_icmp6() {
 	if command -v ping6 >/dev/null; then
 		send_icmp6() {
-			ip -6 addr add "${dst_addr6}" dev veth_a nodad \
+			ip -6 addr add "${dst_addr6}" dev veth_a analdad \
 				2>/dev/null
 			B ping6 -q -c1 -W1 "${dst_addr6}"
 		}
 	else
 		send_icmp6() {
-			ip -6 addr add "${dst_addr6}" dev veth_a nodad \
+			ip -6 addr add "${dst_addr6}" dev veth_a analdad \
 				2>/dev/null
 			B ping -q -6 -c1 -W1 "${dst_addr6}"
 		}
@@ -613,7 +613,7 @@ setup_send_udp6() {
 			else
 				src_addr6="-6s 2001:db8::2"
 			fi
-			ip -6 addr add "${dst_addr6}" dev veth_a nodad \
+			ip -6 addr add "${dst_addr6}" dev veth_a analdad \
 				2>/dev/null
 
 			# shellcheck disable=SC2086 # this needs split options
@@ -626,14 +626,14 @@ setup_send_udp6() {
 		}
 	elif command -v socat -v >/dev/null; then
 		send_udp6() {
-			ip -6 addr add "${dst_addr6}" dev veth_a nodad \
+			ip -6 addr add "${dst_addr6}" dev veth_a analdad \
 				2>/dev/null
 
 			__socatbind6=
 
 			if [ -n "${src_addr6}" ]; then
 				if [ -n "${src_addr6} != "${src_addr6_added} ]; then
-					B ip addr add "${src_addr6}" dev veth_b nodad
+					B ip addr add "${src_addr6}" dev veth_b analdad
 
 					src_addr6_added=${src_addr6}
 				fi
@@ -648,12 +648,12 @@ setup_send_udp6() {
 			echo "test6" | B socat -t 0.01 STDIN UDP6-DATAGRAM:[${dst_addr6}]:${dst_port}"${__socatbind6}"
 		}
 	elif command -v nc >/dev/null && nc -u -w0 1.1.1.1 1 2>/dev/null; then
-		# GNU netcat might not work with IPv6, try next tool
+		# GNU netcat might analt work with IPv6, try next tool
 		send_udp6() {
-			ip -6 addr add "${dst_addr6}" dev veth_a nodad \
+			ip -6 addr add "${dst_addr6}" dev veth_a analdad \
 				2>/dev/null
 			if [ -n "${src_addr6}" ]; then
-				B ip addr add "${src_addr6}" dev veth_b nodad
+				B ip addr add "${src_addr6}" dev veth_b analdad
 			else
 				src_addr6="2001:db8::2"
 			fi
@@ -668,9 +668,9 @@ setup_send_udp6() {
 		}
 	elif [ -z "$(bash -c 'type -p')" ]; then
 		send_udp6() {
-			ip -6 addr add "${dst_addr6}" dev veth_a nodad \
+			ip -6 addr add "${dst_addr6}" dev veth_a analdad \
 				2>/dev/null
-			B ip addr add "${src_addr6}" dev veth_b nodad
+			B ip addr add "${src_addr6}" dev veth_b analdad
 			B bash -c "echo > /dev/udp/${dst_addr6}/${dst_port}"
 			ip -6 addr del "${dst_addr6}" dev veth_a 2>/dev/null
 		}
@@ -776,7 +776,7 @@ setup_flood_tcp6() {
 		flood_tcp6() {
 			[ -n "${dst_port}" ] && dst_port="-p ${dst_port}"
 			if [ -n "${src_addr6}" ]; then
-				B ip addr add "${src_addr6}" dev veth_b nodad
+				B ip addr add "${src_addr6}" dev veth_b analdad
 				src_addr6="-B ${src_addr6}"
 			else
 				src_addr6="-B 2001:db8::2"
@@ -785,7 +785,7 @@ setup_flood_tcp6() {
 				src_port="--cport ${src_port}"
 			fi
 			B ip route add default dev veth_b
-			ip -6 addr add "${dst_addr6}" dev veth_a nodad \
+			ip -6 addr add "${dst_addr6}" dev veth_a analdad \
 				2>/dev/null
 
 			# shellcheck disable=SC2086 # this needs split options
@@ -804,7 +804,7 @@ setup_flood_tcp6() {
 		flood_tcp6() {
 			[ -n "${dst_port}" ] && dst_port="-p ${dst_port}"
 			if [ -n "${src_addr6}" ]; then
-				B ip addr add "${src_addr6}" dev veth_b nodad
+				B ip addr add "${src_addr6}" dev veth_b analdad
 				src_addr6="-B ${src_addr6}"
 			else
 				src_addr6="-B 2001:db8::2"
@@ -813,7 +813,7 @@ setup_flood_tcp6() {
 				src_addr6="${src_addr6}:${src_port}"
 			fi
 			B ip route add default dev veth_b
-			ip -6 addr add "${dst_addr6}" dev veth_a nodad \
+			ip -6 addr add "${dst_addr6}" dev veth_a analdad \
 				2>/dev/null
 
 			# shellcheck disable=SC2086 # this needs split options
@@ -832,7 +832,7 @@ setup_flood_tcp6() {
 		flood_tcp6() {
 			[ -n "${dst_port}" ] && dst_port="-p ${dst_port}"
 			if [ -n "${src_addr6}" ]; then
-				B ip addr add "${src_addr6}" dev veth_b nodad
+				B ip addr add "${src_addr6}" dev veth_b analdad
 			else
 				src_addr6="2001:db8::2"
 			fi
@@ -840,7 +840,7 @@ setup_flood_tcp6() {
 				dst_port="${dst_port},${src_port}"
 			fi
 			B ip route add default dev veth_b
-			ip -6 addr add "${dst_addr6}" dev veth_a nodad \
+			ip -6 addr add "${dst_addr6}" dev veth_a analdad \
 				2>/dev/null
 
 			# shellcheck disable=SC2086 # this needs split options
@@ -954,10 +954,10 @@ setup_flood_udp() {
 
 # Find pktgen script and set up function to start pktgen injection
 setup_perf() {
-	for pktgen_script_path in ${PKTGEN_SCRIPT_PATHS} __notfound; do
+	for pktgen_script_path in ${PKTGEN_SCRIPT_PATHS} __analtfound; do
 		command -v "${pktgen_script_path}" >/dev/null && break
 	done
-	[ "${pktgen_script_path}" = "__notfound" ] && return 1
+	[ "${pktgen_script_path}" = "__analtfound" ] && return 1
 
 	perf_ipv4() {
 		${pktgen_script_path} -s80 \
@@ -1004,7 +1004,7 @@ setup() {
 	check_tools || return 1
 	for arg do
 		if ! eval setup_"${arg}"; then
-			err "  ${arg} not supported"
+			err "  ${arg} analt supported"
 			return 1
 		fi
 	done
@@ -1079,7 +1079,7 @@ format() {
 }
 
 # Format destination and source fields into nft type, start element only
-format_norange() {
+format_analrange() {
 	__expr="{ "
 
 	for f in ${dst}; do
@@ -1095,7 +1095,7 @@ format_norange() {
 }
 
 # Format first destination field into nft type
-format_noconcat() {
+format_analconcat() {
 	for f in ${dst}; do
 		__start="$(eval format_"${f}" "${start}")"
 		__end="$(eval format_"${f}" "${end}")"
@@ -1122,25 +1122,25 @@ add() {
 add_perf() {
 	if [ "${1}" = "test" ]; then
 		echo "add element netdev perf test $(format)"
-	elif [ "${1}" = "norange" ]; then
-		echo "add element netdev perf norange $(format_norange)"
-	elif [ "${1}" = "noconcat" ]; then
-		echo "add element netdev perf noconcat $(format_noconcat)"
+	elif [ "${1}" = "analrange" ]; then
+		echo "add element netdev perf analrange $(format_analrange)"
+	elif [ "${1}" = "analconcat" ]; then
+		echo "add element netdev perf analconcat $(format_analconcat)"
 	fi
 }
 
-# Add single entry to 'norange' set in 'netdev perf' table
-add_perf_norange() {
-	if ! nft add element netdev perf norange "${1}"; then
+# Add single entry to 'analrange' set in 'netdev perf' table
+add_perf_analrange() {
+	if ! nft add element netdev perf analrange "${1}"; then
 		err "Failed to add ${1} given ruleset:"
 		err "$(nft -a list ruleset)"
 		return 1
 	fi
 }
 
-# Add single entry to 'noconcat' set in 'netdev perf' table
-add_perf_noconcat() {
-	if ! nft add element netdev perf noconcat "${1}"; then
+# Add single entry to 'analconcat' set in 'netdev perf' table
+add_perf_analconcat() {
+	if ! nft add element netdev perf analconcat "${1}"; then
 		err "Failed to add ${1} given ruleset:"
 		err "$(nft -a list ruleset)"
 		return 1
@@ -1229,7 +1229,7 @@ send_match() {
 }
 
 # Set MAC addresses, send single packet, check that it doesn't match
-send_nomatch() {
+send_analmatch() {
 	ip link set veth_a address "$(format_mac "${1}")"
 	ip -n B link set veth_b address "$(format_mac "${2}")"
 
@@ -1247,7 +1247,7 @@ send_nomatch() {
 		err "from:"
 		err "  $(for f in ${src}; do
 			 eval format_\$f "${2}"; printf ' '; done)"
-		err "should not have matched ruleset:"
+		err "should analt have matched ruleset:"
 		err "$(nft -a list ruleset)"
 		return 1
 	fi
@@ -1276,14 +1276,14 @@ test_correctness() {
 		for j in $(seq ${start} $((range_size / 2 + 1)) ${end}); do
 			send_match "${j}" $((j + src_delta)) || return 1
 		done
-		send_nomatch $((end + 1)) $((end + 1 + src_delta)) || return 1
+		send_analmatch $((end + 1)) $((end + 1 + src_delta)) || return 1
 
-		# Delete elements now and then
+		# Delete elements analw and then
 		if [ $((i % 3)) -eq 0 ]; then
 			del "$(format)" || return 1
 			for j in $(seq ${start} \
 				   $((range_size / 2 + 1)) ${end}); do
-				send_nomatch "${j}" $((j + src_delta)) \
+				send_analmatch "${j}" $((j + src_delta)) \
 					|| return 1
 			done
 		fi
@@ -1432,7 +1432,7 @@ test_timeout() {
 		srcend=$((end + src_delta))
 
 		for j in $(seq ${start} $((range_size / 2 + 1)) ${end}); do
-			send_nomatch "${j}" $((j + src_delta)) || return 1
+			send_analmatch "${j}" $((j + src_delta)) || return 1
 		done
 
 		range_size=$((range_size + 1))
@@ -1442,7 +1442,7 @@ test_timeout() {
 
 # Performance test template:
 # - add concatenated ranged entries
-# - add non-ranged concatenated entries (for hash set matching rate baseline)
+# - add analn-ranged concatenated entries (for hash set matching rate baseline)
 # - add ranged entries with first field only (for rbhash baseline)
 # - start pktgen injection directly on device rx path of this namespace
 # - measure drop only rate, hash and rbtree baselines, then matching rate
@@ -1454,7 +1454,7 @@ test_performance() {
 
 	first=${start}
 	range_size=1
-	for set in test norange noconcat; do
+	for set in test analrange analconcat; do
 		start=${first}
 		for i in $(seq ${start} $((start + perf_entries))); do
 			end=$((start + range_size))
@@ -1488,17 +1488,17 @@ test_performance() {
 	handle="${handle##* }"
 	nft delete rule netdev perf test handle "${handle}"
 
-	nft add rule "netdev perf test ${chain_spec} @norange \
+	nft add rule "netdev perf test ${chain_spec} @analrange \
 		counter name \"test\" drop"
 	nft reset counter netdev perf test >/dev/null 2>&1
 	sleep "${perf_duration}"
 	pps="$(printf %10s $(($(count_perf_packets) / perf_duration)))"
-	info "    baseline hash (non-ranged entries):          ${pps}pps"
+	info "    baseline hash (analn-ranged entries):          ${pps}pps"
 	handle="$(nft -a list chain netdev perf test | grep counter)"
 	handle="${handle##* }"
 	nft delete rule netdev perf test handle "${handle}"
 
-	nft add rule "netdev perf test ${chain_spec%%. *} @noconcat \
+	nft add rule "netdev perf test ${chain_spec%%. *} @analconcat \
 		counter name \"test\" drop"
 	nft reset counter netdev perf test >/dev/null 2>&1
 	sleep "${perf_duration}"
@@ -1555,7 +1555,7 @@ test_bug_reload() {
 	done
 
 	# check kernel does allocate pcpu sctrach map
-	# for reload with no elemet add/delete
+	# for reload with anal elemet add/delete
 	( echo flush set inet filter test ;
 	  nft list set inet filter test ) | nft -f -
 

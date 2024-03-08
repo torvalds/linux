@@ -28,7 +28,7 @@ static ssize_t sof_dfsentry_write(struct file *file, const char __user *buffer,
 
 	string = kzalloc(count+1, GFP_KERNEL);
 	if (!string)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = simple_write_to_buffer(string, count, ppos, buffer, count);
 	ret = size;
@@ -55,7 +55,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 		return -EINVAL;
 	if (pos >= size || !count)
 		return 0;
-	/* find the minimum. min() is not used since it adds sparse warnings */
+	/* find the minimum. min() is analt used since it adds sparse warnings */
 	if (count > size - pos)
 		count = size - pos;
 
@@ -74,7 +74,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (dfse->type == SOF_DFSENTRY_TYPE_IOMEM) {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
@@ -97,7 +97,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 		if (!pm_runtime_active(sdev->dev) &&
 		    dfse->access_type == SOF_DEBUGFS_ACCESS_D0_ONLY) {
 			dev_err(sdev->dev,
-				"error: debugfs entry cannot be read in DSP D3\n");
+				"error: debugfs entry cananalt be read in DSP D3\n");
 			kfree(buf);
 			return -EINVAL;
 		}
@@ -142,7 +142,7 @@ static int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 
 	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
 	if (!dfse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dfse->type = SOF_DFSENTRY_TYPE_IOMEM;
 	dfse->io_mem = base;
@@ -158,7 +158,7 @@ static int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 	if (access_type == SOF_DEBUGFS_ACCESS_D0_ONLY) {
 		dfse->cache_buf = devm_kzalloc(sdev->dev, size, GFP_KERNEL);
 		if (!dfse->cache_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 #endif
 
@@ -198,7 +198,7 @@ int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
 
 	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
 	if (!dfse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dfse->type = SOF_DFSENTRY_TYPE_BUF;
 	dfse->buf = base;
@@ -227,7 +227,7 @@ static int memory_info_update(struct snd_sof_dev *sdev, char *buf, size_t buff_s
 
 	reply = kmalloc(SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
 	if (!reply)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pm_runtime_resume_and_get(sdev->dev);
 	if (ret < 0 && ret != -EACCES) {
@@ -284,9 +284,9 @@ static ssize_t memory_info_read(struct file *file, char __user *to, size_t count
 	return simple_read_from_buffer(to, count, ppos, dfse->buf, dfse->buf_data_size);
 }
 
-static int memory_info_open(struct inode *inode, struct file *file)
+static int memory_info_open(struct ianalde *ianalde, struct file *file)
 {
-	struct snd_sof_dfsentry *dfse = inode->i_private;
+	struct snd_sof_dfsentry *dfse = ianalde->i_private;
 	struct snd_sof_dev *sdev = dfse->sdev;
 
 	file->private_data = dfse;
@@ -295,7 +295,7 @@ static int memory_info_open(struct inode *inode, struct file *file)
 	if (!dfse->buf) {
 		dfse->buf = devm_kmalloc(sdev->dev, PAGE_SIZE, GFP_KERNEL);
 		if (!dfse->buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		dfse->size = PAGE_SIZE;
 	}
 
@@ -314,7 +314,7 @@ int snd_sof_dbg_memory_info_init(struct snd_sof_dev *sdev)
 
 	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
 	if (!dfse)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* don't allocate buffer before first usage, to save memory when unused */
 	dfse->type = SOF_DFSENTRY_TYPE_BUF;
@@ -348,7 +348,7 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 		err = snd_sof_debugfs_io_item(sdev, sdev->bar[map->bar] +
 					      map->offset, map->size,
 					      map->name, map->access_type);
-		/* errors are only due to memory allocation, not debugfs */
+		/* errors are only due to memory allocation, analt debugfs */
 		if (err < 0)
 			return err;
 	}
@@ -369,7 +369,7 @@ static const struct soc_fw_state_info {
 	enum sof_fw_state state;
 	const char *name;
 } fw_state_dbg[] = {
-	{SOF_FW_BOOT_NOT_STARTED, "SOF_FW_BOOT_NOT_STARTED"},
+	{SOF_FW_BOOT_ANALT_STARTED, "SOF_FW_BOOT_ANALT_STARTED"},
 	{SOF_DSPLESS_MODE, "SOF_DSPLESS_MODE"},
 	{SOF_FW_BOOT_PREPARE, "SOF_FW_BOOT_PREPARE"},
 	{SOF_FW_BOOT_IN_PROGRESS, "SOF_FW_BOOT_IN_PROGRESS"},
@@ -392,7 +392,7 @@ static void snd_sof_dbg_print_fw_state(struct snd_sof_dev *sdev, const char *lev
 		}
 	}
 
-	dev_printk(level, sdev->dev, "fw_state: UNKNOWN (%d)\n", sdev->fw_state);
+	dev_printk(level, sdev->dev, "fw_state: UNKANALWN (%d)\n", sdev->fw_state);
 }
 
 void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, const char *msg, u32 flags)

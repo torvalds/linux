@@ -11,9 +11,9 @@ Required properties:
   - second cell is used to specify the gpio polarity:
       0 = active high
       1 = active low
-- gpio-controller : Marks the device node as a GPIO controller.
+- gpio-controller : Marks the device analde as a GPIO controller.
 
-Note: This gpio node will be sub node of palmas node.
+Analte: This gpio analde will be sub analde of palmas analde.
 
 Example:
 	palmas: tps65913@58 {

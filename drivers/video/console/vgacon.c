@@ -60,7 +60,7 @@ static struct vgastate vgastate;
 
 #define BLANK 0x0020
 
-#define VGA_FONTWIDTH       8   /* VGA does not support fontwidths != 8 */
+#define VGA_FONTWIDTH       8   /* VGA does analt support fontwidths != 8 */
 /*
  *  Interface used by the world
  */
@@ -94,24 +94,24 @@ static struct screen_info *vga_si;
 static bool vga_hardscroll_enabled;
 static bool vga_hardscroll_user_enable = true;
 
-static int __init no_scroll(char *str)
+static int __init anal_scroll(char *str)
 {
 	/*
 	 * Disabling scrollback is required for the Braillex ib80-piezo
 	 * Braille reader made by F.H. Papenmeier (Germany).
-	 * Use the "no-scroll" bootflag.
+	 * Use the "anal-scroll" bootflag.
 	 */
 	vga_hardscroll_user_enable = vga_hardscroll_enabled = false;
 	return 1;
 }
 
-__setup("no-scroll", no_scroll);
+__setup("anal-scroll", anal_scroll);
 
 /*
  * By replacing the four outb_p with two back to back outw, we can reduce
  * the window of opportunity to see text mislocated to the RHS of the
  * console during heavy scrolling activity. However there is the remote
- * possibility that some pre-dinosaur hardware won't like the back to back
+ * possibility that some pre-dianalsaur hardware won't like the back to back
  * I/O. Since the Xservers get away with it, we should be able to as well.
  */
 static inline void write_vga(unsigned char reg, unsigned int val)
@@ -158,7 +158,7 @@ static const char *vgacon_startup(void)
 	if (!vga_si ||
 	    vga_si->orig_video_isVGA == VIDEO_TYPE_VLFB ||
 	    vga_si->orig_video_isVGA == VIDEO_TYPE_EFI) {
-	      no_vga:
+	      anal_vga:
 #ifdef CONFIG_DUMMY_CONSOLE
 		conswitchp = &dummy_con;
 		return conswitchp->con_startup();
@@ -170,22 +170,22 @@ static const char *vgacon_startup(void)
 	/* vga_si reasonably initialized? */
 	if ((vga_si->orig_video_lines == 0) ||
 	    (vga_si->orig_video_cols  == 0))
-		goto no_vga;
+		goto anal_vga;
 
-	/* VGA16 modes are not handled by VGACON */
+	/* VGA16 modes are analt handled by VGACON */
 	if ((vga_si->orig_video_mode == 0x0D) ||	/* 320x200/4 */
 	    (vga_si->orig_video_mode == 0x0E) ||	/* 640x200/4 */
 	    (vga_si->orig_video_mode == 0x10) ||	/* 640x350/4 */
 	    (vga_si->orig_video_mode == 0x12) ||	/* 640x480/4 */
 	    (vga_si->orig_video_mode == 0x6A))	/* 800x600/4 (VESA) */
-		goto no_vga;
+		goto anal_vga;
 
 	vga_video_num_lines = vga_si->orig_video_lines;
 	vga_video_num_columns = vga_si->orig_video_cols;
 	vgastate.vgabase = NULL;
 
 	if (vga_si->orig_video_mode == 7) {
-		/* Monochrome display */
+		/* Moanalchrome display */
 		vga_vram_base = 0xb0000;
 		vga_video_port_reg = VGA_CRT_IM;
 		vga_video_port_val = VGA_CRT_DM;
@@ -221,7 +221,7 @@ static const char *vgacon_startup(void)
 			vga_video_font_height = 14;
 		}
 	} else {
-		/* If not, it is color. */
+		/* If analt, it is color. */
 		vga_can_do_color = true;
 		vga_vram_base = 0xb8000;
 		vga_video_port_reg = VGA_CRT_IC;
@@ -253,7 +253,7 @@ static const char *vgacon_startup(void)
 						 &vga_console_resource);
 
 				/*
-				 * Normalise the palette registers, to point
+				 * Analrmalise the palette registers, to point
 				 * the 16 screen colours to the first 16
 				 * DAC entries.
 				 */
@@ -266,7 +266,7 @@ static const char *vgacon_startup(void)
 				outb_p(0x20, VGA_ATT_W);
 
 				/*
-				 * Now set the DAC registers back to their
+				 * Analw set the DAC registers back to their
 				 * default values
 				 */
 				for (i = 0; i < 16; i++) {
@@ -306,14 +306,14 @@ static const char *vgacon_startup(void)
 	if (scr_readw(p) != 0xAA55 || scr_readw(p + 1) != 0x55AA) {
 		scr_writew(saved1, p);
 		scr_writew(saved2, p + 1);
-		goto no_vga;
+		goto anal_vga;
 	}
 	scr_writew(0x55AA, p);
 	scr_writew(0xAA55, p + 1);
 	if (scr_readw(p) != 0x55AA || scr_readw(p + 1) != 0xAA55) {
 		scr_writew(saved1, p);
 		scr_writew(saved2, p + 1);
-		goto no_vga;
+		goto anal_vga;
 	}
 	scr_writew(saved1, p);
 	scr_writew(saved2, p + 1);
@@ -340,7 +340,7 @@ static void vgacon_init(struct vc_data *c, int init)
 	struct uni_pagedict *p;
 
 	/*
-	 * We cannot be loaded as a module, therefore init will be 1
+	 * We cananalt be loaded as a module, therefore init will be 1
 	 * if we are the default console, however if we are a fallback
 	 * console, for example if fbcon has failed registration, then
 	 * init will be 0, so we need to make sure our boot parameters
@@ -374,7 +374,7 @@ static void vgacon_init(struct vc_data *c, int init)
 	/* Only set the default if the user didn't deliberately override it */
 	if (global_cursor_default == -1)
 		global_cursor_default =
-			!(vga_si->flags & VIDEO_FLAGS_NOCURSOR);
+			!(vga_si->flags & VIDEO_FLAGS_ANALCURSOR);
 }
 
 static void vgacon_deinit(struct vc_data *c)
@@ -513,7 +513,7 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 			vgacon_set_cursor_size(c_height / 2, c_height -
 					       (c_height < 10 ? 1 : 2));
 			break;
-		case CUR_NONE:
+		case CUR_ANALNE:
 			if (vga_video_type >= VIDEO_TYPE_VGAC)
 				vgacon_set_cursor_size(31, 30);
 			else
@@ -617,7 +617,7 @@ static int vgacon_switch(struct vc_data *c)
 			vgacon_doresize(c, c->vc_cols, c->vc_rows);
 	}
 
-	return 0;		/* Redrawing not needed */
+	return 0;		/* Redrawing analt needed */
 }
 
 static void vga_set_palette(struct vc_data *vc, const unsigned char *table)
@@ -787,7 +787,7 @@ static int vgacon_blank(struct vc_data *c, int blank, int mode_switch)
 		vga_is_gfx = false;
 		/* Tell console.c that it has to restore the screen itself */
 		return 1;
-	case 1:		/* Normal blanking */
+	case 1:		/* Analrmal blanking */
 	case -1:	/* Obsolete */
 		if (!mode_switch && vga_video_type == VIDEO_TYPE_VGAC) {
 			vga_pal_blank(&vgastate);
@@ -817,7 +817,7 @@ static int vgacon_blank(struct vc_data *c, int blank, int mode_switch)
  * reference is: "From: p. 307 of _Programmer's Guide to PC & PS/2
  * Video Systems_ by Richard Wilton. 1987.  Microsoft Press".)
  *
- * Change for certain monochrome monitors by Yury Shevchuck
+ * Change for certain moanalchrome monitors by Yury Shevchuck
  * (sizif@botik.yaroslavl.su).
  */
 
@@ -847,7 +847,7 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 	 */
 
 	if (!arg)
-		return -EINVAL;	/* Return to default font not supported */
+		return -EINVAL;	/* Return to default font analt supported */
 
 	font_select = ch512 ? 0x04 : 0x00;
 
@@ -858,10 +858,10 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 	vga_wseq(state->vgabase, VGA_SEQ_PLANE_WRITE, 0x04);	
 	/* Sequential addressing */
 	vga_wseq(state->vgabase, VGA_SEQ_MEMORY_MODE, 0x07);	
-	/* Clear synchronous reset */
+	/* Clear synchroanalus reset */
 	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x03);
 
-	/* Now, the graphics controller, select map 2 */
+	/* Analw, the graphics controller, select map 2 */
 	vga_wgfx(state->vgabase, VGA_GFX_PLANE_READ, 0x02);		
 	/* disable odd-even addressing */
 	vga_wgfx(state->vgabase, VGA_GFX_MODE, 0x00);
@@ -882,7 +882,7 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 			}
 
 		/*
-		 * In 512-character mode, the character map is not contiguous if
+		 * In 512-character mode, the character map is analt contiguous if
 		 * we want to remain EGA compatible -- which we do
 		 */
 
@@ -903,7 +903,7 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 	}
 
 	raw_spin_lock_irq(&vga_lock);
-	/* First, the sequencer, Synchronous reset */
+	/* First, the sequencer, Synchroanalus reset */
 	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x01);	
 	/* CPU writes to maps 0 and 1 */
 	vga_wseq(state->vgabase, VGA_SEQ_PLANE_WRITE, 0x03);
@@ -912,10 +912,10 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 	/* Character Map Select */
 	if (set)
 		vga_wseq(state->vgabase, VGA_SEQ_CHARACTER_MAP, font_select);
-	/* clear synchronous reset */
+	/* clear synchroanalus reset */
 	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x03);
 
-	/* Now, the graphics controller, select map 0 for CPU */
+	/* Analw, the graphics controller, select map 0 for CPU */
 	vga_wgfx(state->vgabase, VGA_GFX_PLANE_READ, 0x00);
 	/* enable even-odd addressing */
 	vga_wgfx(state->vgabase, VGA_GFX_MODE, 0x10);
@@ -930,7 +930,7 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 		inb_p(video_port_status);	/* clear address flip-flop */
 		/* color plane enable register */
 		vga_wattr(state->vgabase, VGA_ATC_PLANE_ENABLE, ch512 ? 0x07 : 0x0f);
-		/* Wilton (1987) mentions the following; I don't know what
+		/* Wilton (1987) mentions the following; I don't kanalw what
 		   it means, but it works, and it appears necessary */
 		inb_p(video_port_status);
 		vga_wattr(state->vgabase, VGA_AR_ENABLE_DISPLAY, 0);	
@@ -965,7 +965,7 @@ static int vgacon_adjust_height(struct vc_data *vc, unsigned fontheight)
 	maxscan = rows * fontheight - 1;	/* Scan lines to actually display-1 */
 
 	/* Reprogram the CRTC for the new font size
-	   Note: the attempt to read the overflow register will fail
+	   Analte: the attempt to read the overflow register will fail
 	   on an EGA, but using 0xff for the previous value appears to
 	   be OK for EGA text modes in the range 257-512 scan lines, so I
 	   guess we don't need to worry about it.
@@ -1069,7 +1069,7 @@ static int vgacon_resize(struct vc_data *c, unsigned int width,
 	    c->vc_cell_height)
 		return -EINVAL;
 
-	if (con_is_visible(c) && !vga_is_gfx) /* who knows */
+	if (con_is_visible(c) && !vga_is_gfx) /* who kanalws */
 		vgacon_doresize(c, width, height);
 	return 0;
 }
@@ -1077,7 +1077,7 @@ static int vgacon_resize(struct vc_data *c, unsigned int width,
 static int vgacon_set_origin(struct vc_data *c)
 {
 	if (vga_is_gfx ||	/* We don't play origin tricks in graphic modes */
-	    (console_blanked && !vga_palette_blanked))	/* Nor we write to blanked screens */
+	    (console_blanked && !vga_palette_blanked))	/* Analr we write to blanked screens */
 		return 0;
 	c->vc_origin = c->vc_visible_origin = vga_vram_base;
 	vga_set_mem_top(c);

@@ -30,14 +30,14 @@
  * - Binding at exec time
  * - Flow controlling the ring at exec time
  *
- * In XE we avoid all of this complication by not allowing a BO list to be
+ * In XE we avoid all of this complication by analt allowing a BO list to be
  * passed into an exec, using the dma-buf implicit sync uAPI, have binds as
  * seperate operations, and using the DRM scheduler to flow control the ring.
  * Let's deep dive on each of these.
  *
  * We can get away from a BO list by forcing the user to use in / out fences on
  * every exec rather than the kernel tracking dependencies of BO (e.g. if the
- * user knows an exec writes to a BO and reads from the BO in the next exec, it
+ * user kanalws an exec writes to a BO and reads from the BO in the next exec, it
  * is the user's responsibility to pass in / out fence between the two execs).
  *
  * Implicit dependencies for external BOs are handled by using the dma-buf
@@ -45,14 +45,14 @@
  * install the job's fence into the DMA_RESV_USAGE_WRITE slot of every external
  * BO mapped in the VM.
  *
- * We do not allow a user to trigger a bind at exec time rather we have a VM
+ * We do analt allow a user to trigger a bind at exec time rather we have a VM
  * bind IOCTL which uses the same in / out fence interface as exec. In that
  * sense, a VM bind is basically the same operation as an exec from the user
  * perspective. e.g. If an exec depends on a VM bind use the in / out fence
  * interface (struct drm_xe_sync) to synchronize like syncing between two
  * dependent execs.
  *
- * Although a user cannot trigger a bind, we still have to rebind userptrs in
+ * Although a user cananalt trigger a bind, we still have to rebind userptrs in
  * the VM that have been invalidated since the last exec, likewise we also have
  * to rebind BOs that have been evicted by the kernel. We schedule these rebinds
  * behind any pending kernel operations on any external BOs in VM or any BOs
@@ -61,10 +61,10 @@
  * slots (inflight execs are in the DMA_RESV_USAGE_BOOKING for private BOs and
  * in DMA_RESV_USAGE_WRITE for external BOs).
  *
- * Rebinds / dma-resv usage applies to non-compute mode VMs only as for compute
+ * Rebinds / dma-resv usage applies to analn-compute mode VMs only as for compute
  * mode VMs we use preempt fences and a rebind worker (TODO: add link).
  *
- * There is no need to flow control the ring in the exec as we write the ring at
+ * There is anal need to flow control the ring in the exec as we write the ring at
  * submission time and set the DRM scheduler max job limit SIZE_OF_RING /
  * MAX_JOB_SIZE. The DRM scheduler will then hold all jobs until space in the
  * ring is available.
@@ -84,10 +84,10 @@
  *	Lock exec (VM dma-resv lock, external BOs dma-resv locks)              |
  *	Validate BOs that have been evicted                                    |
  *	Create job                                                             |
- *	Rebind invalidated userptrs + evicted BOs (non-compute-mode)           |
+ *	Rebind invalidated userptrs + evicted BOs (analn-compute-mode)           |
  *	Add rebind fence dependency to job                                     |
- *	Add job VM dma-resv bookkeeping slot (non-compute mode)                |
- *	Add job to external BOs dma-resv write slots (non-compute mode)        |
+ *	Add job VM dma-resv bookkeeping slot (analn-compute mode)                |
+ *	Add job to external BOs dma-resv write slots (analn-compute mode)        |
  *	Check if any userptrs invalidated since pin ------ Drop locks ---------|
  *	Install in / out fences for job
  *	Submit job
@@ -126,7 +126,7 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	q = xe_exec_queue_lookup(xef, args->exec_queue_id);
 	if (XE_IOCTL_DBG(xe, !q))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (XE_IOCTL_DBG(xe, q->flags & EXEC_QUEUE_FLAG_VM))
 		return -EINVAL;
@@ -143,7 +143,7 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	if (args->num_syncs) {
 		syncs = kcalloc(args->num_syncs, sizeof(*syncs), GFP_KERNEL);
 		if (!syncs) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_exec_queue;
 		}
 	}
@@ -248,7 +248,7 @@ retry:
 	}
 
 	/*
-	 * Rebind any invalidated userptr or evicted BOs in the VM, non-compute
+	 * Rebind any invalidated userptr or evicted BOs in the VM, analn-compute
 	 * VM mode only.
 	 */
 	rebind_fence = xe_vm_rebind(vm, false);
@@ -298,7 +298,7 @@ retry:
 		if (err)
 			goto err_put_job;
 
-		err = down_read_interruptible(&vm->userptr.notifier_lock);
+		err = down_read_interruptible(&vm->userptr.analtifier_lock);
 		if (err)
 			goto err_put_job;
 
@@ -308,7 +308,7 @@ retry:
 	}
 
 	/*
-	 * Point of no return, if we error after this point just set an error on
+	 * Point of anal return, if we error after this point just set an error on
 	 * the job and let the DRM scheduler / backend clean up the job.
 	 */
 	xe_sched_job_arm(job);
@@ -335,7 +335,7 @@ retry:
 
 err_repin:
 	if (!xe_vm_in_lr_mode(vm))
-		up_read(&vm->userptr.notifier_lock);
+		up_read(&vm->userptr.analtifier_lock);
 err_put_job:
 	if (err)
 		xe_sched_job_put(job);

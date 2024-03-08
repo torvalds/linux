@@ -24,17 +24,17 @@
  *
  * Linux stores time in a struct timespec64 consisting of a time64_t tv_sec
  * and a long tv_nsec where tv_sec is the number of 1-second intervals since
- * 1st January 1970, 00:00:00 UTC and tv_nsec is the number of 1-nano-second
+ * 1st January 1970, 00:00:00 UTC and tv_nsec is the number of 1-naanal-second
  * intervals since the value of tv_sec.
  *
  * NTFS uses Microsoft's standard time format which is stored in a s64 and is
- * measured as the number of 100-nano-second intervals since 1st January 1601,
+ * measured as the number of 100-naanal-second intervals since 1st January 1601,
  * 00:00:00 UTC.
  */
 static inline sle64 utc2ntfs(const struct timespec64 ts)
 {
 	/*
-	 * Convert the seconds to 100ns intervals, add the nano-seconds
+	 * Convert the seconds to 100ns intervals, add the naanal-seconds
 	 * converted to 100ns intervals, and then add the NTFS time offset.
 	 */
 	return cpu_to_sle64((s64)ts.tv_sec * 10000000 + ts.tv_nsec / 100 +
@@ -64,11 +64,11 @@ static inline sle64 get_current_ntfs_time(void)
  *
  * Linux stores time in a struct timespec64 consisting of a time64_t tv_sec
  * and a long tv_nsec where tv_sec is the number of 1-second intervals since
- * 1st January 1970, 00:00:00 UTC and tv_nsec is the number of 1-nano-second
+ * 1st January 1970, 00:00:00 UTC and tv_nsec is the number of 1-naanal-second
  * intervals since the value of tv_sec.
  *
  * NTFS uses Microsoft's standard time format which is stored in a s64 and is
- * measured as the number of 100 nano-second intervals since 1st January 1601,
+ * measured as the number of 100 naanal-second intervals since 1st January 1601,
  * 00:00:00 UTC.
  */
 static inline struct timespec64 ntfs2utc(const sle64 time)
@@ -79,7 +79,7 @@ static inline struct timespec64 ntfs2utc(const sle64 time)
 	u64 t = (u64)(sle64_to_cpu(time) - NTFS_TIME_OFFSET);
 	/*
 	 * Convert the time to 1-second intervals and the remainder to
-	 * 1-nano-second intervals.
+	 * 1-naanal-second intervals.
 	 */
 	ts.tv_nsec = do_div(t, 10000000) * 100;
 	ts.tv_sec = t;

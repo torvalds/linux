@@ -44,7 +44,7 @@ static char *number(char *str, const char *end, long num, int base, int size,
 		    int precision, int type)
 {
 	/* we are called with base 8, 10 or 16, only, thus don't need "G..."  */
-	static const char digits[16] = "0123456789ABCDEF"; /* "GHIJKLMNOPQRSTUVWXYZ"; */
+	static const char digits[16] = "0123456789ABCDEF"; /* "GHIJKLMANALPQRSTUVWXYZ"; */
 
 	char tmp[66];
 	char c, sign, locase;

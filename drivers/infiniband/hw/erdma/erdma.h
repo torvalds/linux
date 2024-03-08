@@ -16,7 +16,7 @@
 #include "erdma_hw.h"
 
 #define DRV_MODULE_NAME "erdma"
-#define ERDMA_NODE_DESC "Elastic RDMA(iWARP) stack"
+#define ERDMA_ANALDE_DESC "Elastic RDMA(iWARP) stack"
 
 struct erdma_eq {
 	void *qbuf;
@@ -30,7 +30,7 @@ struct erdma_eq {
 	u16 rsvd;
 
 	atomic64_t event_num;
-	atomic64_t notify_num;
+	atomic64_t analtify_num;
 
 	void __iomem *db;
 	u64 *db_record;
@@ -112,7 +112,7 @@ struct erdma_cmdq {
 
 #define COMPROMISE_CC ERDMA_CC_CUBIC
 enum erdma_cc_alg {
-	ERDMA_CC_NEWRENO = 0,
+	ERDMA_CC_NEWREANAL = 0,
 	ERDMA_CC_CUBIC,
 	ERDMA_CC_HPCC_RTT,
 	ERDMA_CC_HPCC_ECN,
@@ -126,7 +126,7 @@ struct erdma_devattr {
 	unsigned char peer_addr[ETH_ALEN];
 	unsigned long cap_flags;
 
-	int numa_node;
+	int numa_analde;
 	enum erdma_cc_alg cc;
 	u32 irq_num;
 
@@ -184,7 +184,7 @@ struct erdma_dev {
 	struct ib_device ibdev;
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-	struct notifier_block netdev_nb;
+	struct analtifier_block netdev_nb;
 	struct workqueue_struct *reflush_wq;
 
 	resource_size_t func_bar_addr;
@@ -269,7 +269,7 @@ void erdma_cmdq_completion_handler(struct erdma_cmdq *cmdq);
 
 int erdma_ceqs_init(struct erdma_dev *dev);
 void erdma_ceqs_uninit(struct erdma_dev *dev);
-void notify_eq(struct erdma_eq *eq);
+void analtify_eq(struct erdma_eq *eq);
 void *get_next_valid_eqe(struct erdma_eq *eq);
 
 int erdma_aeq_init(struct erdma_dev *dev);

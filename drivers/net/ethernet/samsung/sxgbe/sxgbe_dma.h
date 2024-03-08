@@ -32,9 +32,9 @@ struct sxgbe_dma_ops {
 	void (*stop_tx_queue)(void __iomem *ioaddr, int dma_cnum);
 	void (*start_rx)(void __iomem *ioaddr, int rchannels);
 	void (*stop_rx)(void __iomem *ioaddr, int rchannels);
-	int (*tx_dma_int_status)(void __iomem *ioaddr, int channel_no,
+	int (*tx_dma_int_status)(void __iomem *ioaddr, int channel_anal,
 				 struct sxgbe_extra_stats *x);
-	int (*rx_dma_int_status)(void __iomem *ioaddr, int channel_no,
+	int (*rx_dma_int_status)(void __iomem *ioaddr, int channel_anal,
 				 struct sxgbe_extra_stats *x);
 	/* Program the HW RX Watchdog */
 	void (*rx_watchdog)(void __iomem *ioaddr, u32 riwt);

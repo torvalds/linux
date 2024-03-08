@@ -17,7 +17,7 @@ Optional property:
 		PALMAS_EXT_CONTROL_PIN_ENABLE2 for ENABLE2 pin
 		PALMAS_EXT_CONTROL_PIN_NSLEEP for NSLEEP pin
 	Option 0 or missing this property means the clock is enabled/disabled
-	via register access and these pins do not have any control.
+	via register access and these pins do analt have any control.
 	The macros of external control pins for DTS is defined at
 	dt-bindings/mfd/palmas.h
 

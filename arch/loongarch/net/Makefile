@@ -2,6 +2,6 @@
 #
 # Makefile for arch/loongarch/net
 #
-# Copyright (C) 2022 Loongson Technology Corporation Limited
+# Copyright (C) 2022 Loongson Techanallogy Corporation Limited
 #
 obj-$(CONFIG_BPF_JIT) += bpf_jit.o

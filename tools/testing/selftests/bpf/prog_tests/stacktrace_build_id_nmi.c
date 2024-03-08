@@ -35,13 +35,13 @@ retry:
 	pmu_fd = syscall(__NR_perf_event_open, &attr, -1 /* pid */,
 			 0 /* cpu 0 */, -1 /* group id */,
 			 0 /* flags */);
-	if (pmu_fd < 0 && errno == ENOENT) {
-		printf("%s:SKIP:no PERF_COUNT_HW_CPU_CYCLES\n", __func__);
+	if (pmu_fd < 0 && erranal == EANALENT) {
+		printf("%s:SKIP:anal PERF_COUNT_HW_CPU_CYCLES\n", __func__);
 		test__skip();
 		goto cleanup;
 	}
-	if (CHECK(pmu_fd < 0, "perf_event_open", "err %d errno %d\n",
-		  pmu_fd, errno))
+	if (CHECK(pmu_fd < 0, "perf_event_open", "err %d erranal %d\n",
+		  pmu_fd, erranal))
 		goto cleanup;
 
 	skel->links.oncpu = bpf_program__attach_perf_event(skel->progs.oncpu,
@@ -70,31 +70,31 @@ retry:
 	 */
 	err = compare_map_keys(stackid_hmap_fd, stackmap_fd);
 	if (CHECK(err, "compare_map_keys stackid_hmap vs. stackmap",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erranal %d\n", err, erranal))
 		goto cleanup;
 
 	err = compare_map_keys(stackmap_fd, stackid_hmap_fd);
 	if (CHECK(err, "compare_map_keys stackmap vs. stackid_hmap",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erranal %d\n", err, erranal))
 		goto cleanup;
 
 	build_id_size = read_build_id("urandom_read", buf, sizeof(buf));
 	err = build_id_size < 0 ? build_id_size : 0;
 
 	if (CHECK(err, "get build_id with readelf",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erranal %d\n", err, erranal))
 		goto cleanup;
 
 	err = bpf_map__get_next_key(skel->maps.stackmap, NULL, &key, sizeof(key));
 	if (CHECK(err, "get_next_key from stackmap",
-		  "err %d, errno %d\n", err, errno))
+		  "err %d, erranal %d\n", err, erranal))
 		goto cleanup;
 
 	do {
 		err = bpf_map__lookup_elem(skel->maps.stackmap, &key, sizeof(key),
 					   id_offs, sizeof(id_offs), 0);
 		if (CHECK(err, "lookup_elem from stackmap",
-			  "err %d, errno %d\n", err, errno))
+			  "err %d, erranal %d\n", err, erranal))
 			goto cleanup;
 		for (i = 0; i < PERF_MAX_STACK_DEPTH; ++i)
 			if (id_offs[i].status == BPF_STACK_BUILD_ID_VALID &&

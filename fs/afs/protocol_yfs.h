@@ -71,7 +71,7 @@ static inline struct yfs_xdr_u64 u64_to_xdr(const u64 x)
 	return (struct yfs_xdr_u64){ .msw = htonl(x >> 32), .lsw = htonl(x) };
 }
 
-struct yfs_xdr_vnode {
+struct yfs_xdr_vanalde {
 	struct yfs_xdr_u64	lo;
 	__be32			hi;
 	__be32			unique;
@@ -79,7 +79,7 @@ struct yfs_xdr_vnode {
 
 struct yfs_xdr_YFSFid {
 	struct yfs_xdr_u64	volume;
-	struct yfs_xdr_vnode	vnode;
+	struct yfs_xdr_vanalde	vanalde;
 } __packed;
 
 
@@ -93,8 +93,8 @@ struct yfs_xdr_YFSFetchStatus {
 	struct yfs_xdr_u64	group;
 	__be32			mode;
 	__be32			caller_access;
-	__be32			anon_access;
-	struct yfs_xdr_vnode	parent;
+	__be32			aanaln_access;
+	struct yfs_xdr_vanalde	parent;
 	__be32			data_access_protocol;
 	struct yfs_xdr_u64	mtime_client;
 	struct yfs_xdr_u64	mtime_server;
@@ -159,7 +159,7 @@ struct yfs_xdr_YFSStoreVolumeStatus {
 } __packed;
 
 enum yfs_lock_type {
-	yfs_LockNone		= -1,
+	yfs_LockAnalne		= -1,
 	yfs_LockRead		= 0,
 	yfs_LockWrite		= 1,
 	yfs_LockExtend		= 2,

@@ -15,7 +15,7 @@ SAA7164 cards list
      - PCI subsystem IDs
 
    * - 0
-     - Unknown
+     - Unkanalwn
      -
 
    * - 1

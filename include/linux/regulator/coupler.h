@@ -23,8 +23,8 @@ struct regulator_dev;
  * @attach_regulator: Callback invoked on creation of a coupled regulator,
  *                    couples are unresolved at this point. The callee should
  *                    check that it could handle the regulator and return 0 on
- *                    success, -errno on failure and 1 if given regulator is
- *                    not suitable for this coupler (case of having multiple
+ *                    success, -erranal on failure and 1 if given regulator is
+ *                    analt suitable for this coupler (case of having multiple
  *                    regulators in a system). Callback shall be implemented.
  * @detach_regulator: Callback invoked on destruction of a coupled regulator.
  *                    This callback is optional and could be NULL.

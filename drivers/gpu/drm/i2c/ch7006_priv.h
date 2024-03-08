@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -34,18 +34,18 @@
 typedef int64_t fixed;
 #define fixed1 (1LL << 32)
 
-enum ch7006_tv_norm {
-	TV_NORM_PAL,
-	TV_NORM_PAL_M,
-	TV_NORM_PAL_N,
-	TV_NORM_PAL_NC,
-	TV_NORM_PAL_60,
-	TV_NORM_NTSC_M,
-	TV_NORM_NTSC_J,
-	NUM_TV_NORMS
+enum ch7006_tv_analrm {
+	TV_ANALRM_PAL,
+	TV_ANALRM_PAL_M,
+	TV_ANALRM_PAL_N,
+	TV_ANALRM_PAL_NC,
+	TV_ANALRM_PAL_60,
+	TV_ANALRM_NTSC_M,
+	TV_ANALRM_NTSC_J,
+	NUM_TV_ANALRMS
 };
 
-struct ch7006_tv_norm_info {
+struct ch7006_tv_analrm_info {
 	fixed vrefresh;
 	int vdisplay;
 	int vtotal;
@@ -68,7 +68,7 @@ struct ch7006_mode {
 	uint32_t dispmode;
 
 	uint32_t valid_scales;
-	uint32_t valid_norms;
+	uint32_t valid_analrms;
 };
 
 struct ch7006_state {
@@ -88,7 +88,7 @@ struct ch7006_priv {
 	int subconnector;
 	int hmargin;
 	int vmargin;
-	enum ch7006_tv_norm norm;
+	enum ch7006_tv_analrm analrm;
 	int brightness;
 	int contrast;
 	int flicker;
@@ -102,11 +102,11 @@ struct ch7006_priv {
 	((struct ch7006_priv *)to_encoder_slave(x)->slave_priv)
 
 extern int ch7006_debug;
-extern char *ch7006_tv_norm;
+extern char *ch7006_tv_analrm;
 extern int ch7006_scale;
 
-extern const char * const ch7006_tv_norm_names[];
-extern const struct ch7006_tv_norm_info ch7006_tv_norms[];
+extern const char * const ch7006_tv_analrm_names[];
+extern const struct ch7006_tv_analrm_info ch7006_tv_analrms[];
 extern const struct ch7006_mode ch7006_modes[];
 
 const struct ch7006_mode *ch7006_lookup_mode(struct drm_encoder *encoder,
@@ -200,11 +200,11 @@ static inline int32_t round_fixed(fixed x)
 #define CH7006_FFILTER_TEXT			0, 5:4
 #define CH7006_FFILTER_LUMA			0, 3:2
 #define CH7006_FFILTER_CHROMA			0, 1:0
-#define CH7006_FFILTER_CHROMA_NO_DCRAWL		0x3
+#define CH7006_FFILTER_CHROMA_ANAL_DCRAWL		0x3
 
 #define CH7006_BWIDTH				0x03
 #define CH7006_BWIDTH_5L_FFILER			(1 << 7)
-#define CH7006_BWIDTH_CVBS_NO_CHROMA		(1 << 6)
+#define CH7006_BWIDTH_CVBS_ANAL_CHROMA		(1 << 6)
 #define CH7006_BWIDTH_CHROMA			0, 5:4
 #define CH7006_BWIDTH_SVIDEO_YPEAK		(1 << 3)
 #define CH7006_BWIDTH_SVIDEO_LUMA		0, 2:1
@@ -262,7 +262,7 @@ static inline int32_t round_fixed(fixed x)
 #define CH7006_POWER_LEVEL_CVBS_OFF		0x0
 #define CH7006_POWER_LEVEL_POWER_OFF		0x1
 #define CH7006_POWER_LEVEL_SVIDEO_OFF		0x2
-#define CH7006_POWER_LEVEL_NORMAL		0x3
+#define CH7006_POWER_LEVEL_ANALRMAL		0x3
 #define CH7006_POWER_LEVEL_FULL_POWER_OFF	0x4
 
 #define CH7006_DETECT				0x10

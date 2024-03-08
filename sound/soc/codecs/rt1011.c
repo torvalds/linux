@@ -986,7 +986,7 @@ static SOC_ENUM_SINGLE_DECL(rt1011_din_source_enum, RT1011_CROSS_BQ_SET_1, 5,
 
 static const char * const rt1011_tdm_data_out_select[] = {
 	"TDM_O_LR", "BQ1", "DVOL", "BQ10", "ALC", "DMIX", "ADC_SRC_LR",
-	"ADC_O_LR", "ADC_MONO", "RSPK_BPF_LR", "DMIX_ADD", "ENVELOPE_FS",
+	"ADC_O_LR", "ADC_MOANAL", "RSPK_BPF_LR", "DMIX_ADD", "ENVELOPE_FS",
 	"SEP_O_GAIN", "ALC_BK_GAIN", "STP_V_C", "DMIX_ABST"
 };
 
@@ -1004,7 +1004,7 @@ static SOC_ENUM_SINGLE_DECL(rt1011_tdm1_adc1_loc_enum, RT1011_TDM1_SET_2, 0,
 	rt1011_tdm_l_ch_data_select);
 
 static const char * const rt1011_adc_data_mode_select[] = {
-	"Stereo", "Mono"
+	"Stereo", "Moanal"
 };
 static SOC_ENUM_SINGLE_DECL(rt1011_adc_dout_mode_enum, RT1011_TDM1_SET_1, 12,
 	rt1011_adc_data_mode_select);
@@ -1310,7 +1310,7 @@ static int rt1011_r0_load_info(struct snd_kcontrol *kcontrol,
 }
 
 static const char * const rt1011_i2s_ref[] = {
-	"None", "Left Channel", "Right Channel"
+	"Analne", "Left Channel", "Right Channel"
 };
 
 static SOC_ENUM_SINGLE_DECL(rt1011_i2s_ref_enum, 0, 0,
@@ -1339,7 +1339,7 @@ static int rt1011_i2s_ref_put(struct snd_kcontrol *kcontrol,
 		regmap_write(rt1011->regmap, RT1011_ADCDAT_OUT_SOURCE, 0x4);
 		break;
 	default:
-		dev_info(component->dev, "I2S Reference: Do nothing\n");
+		dev_info(component->dev, "I2S Reference: Do analthing\n");
 	}
 
 	return 0;
@@ -1378,7 +1378,7 @@ static const struct snd_kcontrol_new rt1011_snd_controls[] = {
 	SOC_ENUM("TDM2 DOUT Length", rt1011_tdm2_dout_len_enum),
 
 	/* Speaker/Receiver Mode */
-	SOC_SINGLE_EXT("RECV SPK Mode", SND_SOC_NOPM, 0, 1, 0,
+	SOC_SINGLE_EXT("RECV SPK Mode", SND_SOC_ANALPM, 0, 1, 0,
 		rt1011_recv_spk_mode_get, rt1011_recv_spk_mode_put),
 
 	/* BiQuad/DRC/SmartBoost Settings */
@@ -1389,7 +1389,7 @@ static const struct snd_kcontrol_new rt1011_snd_controls[] = {
 	RT1011_BQ_DRC("AdvanceMode SmartBoost Coeff"),
 
 	/* R0 */
-	SOC_SINGLE_EXT("R0 Calibration", SND_SOC_NOPM, 0, 1, 0,
+	SOC_SINGLE_EXT("R0 Calibration", SND_SOC_ANALPM, 0, 1, 0,
 		rt1011_r0_cali_get, rt1011_r0_cali_put),
 	RT1011_R0_LOAD("R0 Load Mode"),
 
@@ -1504,7 +1504,7 @@ static const struct snd_soc_dapm_widget rt1011_dapm_widgets[] = {
 		RT1011_POW_TEMP_REG_BIT, 0, NULL, 0),
 
 	/* Audio Interface */
-	SND_SOC_DAPM_AIF_IN("AIF1RX", "AIF1 Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF1RX", "AIF1 Playback", 0, SND_SOC_ANALPM, 0, 0),
 	/* Digital Interface */
 	SND_SOC_DAPM_SUPPLY("DAC Power", RT1011_POWER_1,
 		RT1011_POW_DAC_BIT, 0, NULL, 0),
@@ -1812,7 +1812,7 @@ static int rt1011_set_component_pll(struct snd_soc_component *component,
 			RT1011_PLL1_SRC_MASK, RT1011_PLL1_SRC_PLL2);
 		break;
 	default:
-		dev_err(component->dev, "Unknown PLL Source %d\n", source);
+		dev_err(component->dev, "Unkanalwn PLL Source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -1909,8 +1909,8 @@ static int rt1011_set_tdm_slot(struct snd_soc_dai *dai,
 	case 4:
 	case 6:
 		snd_soc_component_update_bits(component,
-			RT1011_CROSS_BQ_SET_1, RT1011_MONO_LR_SEL_MASK,
-			RT1011_MONO_L_CHANNEL);
+			RT1011_CROSS_BQ_SET_1, RT1011_MOANAL_LR_SEL_MASK,
+			RT1011_MOANAL_L_CHANNEL);
 		snd_soc_component_update_bits(component,
 			RT1011_TDM1_SET_4,
 			RT1011_TDM_I2S_TX_L_DAC1_1_MASK |
@@ -1923,8 +1923,8 @@ static int rt1011_set_tdm_slot(struct snd_soc_dai *dai,
 	case 5:
 	case 7:
 		snd_soc_component_update_bits(component,
-			RT1011_CROSS_BQ_SET_1, RT1011_MONO_LR_SEL_MASK,
-			RT1011_MONO_R_CHANNEL);
+			RT1011_CROSS_BQ_SET_1, RT1011_MOANAL_LR_SEL_MASK,
+			RT1011_MOANAL_R_CHANNEL);
 		snd_soc_component_update_bits(component,
 			RT1011_TDM1_SET_4,
 			RT1011_TDM_I2S_TX_L_DAC1_1_MASK |
@@ -2062,14 +2062,14 @@ static int rt1011_probe(struct snd_soc_component *component)
 		RT1011_ADVMODE_NUM, sizeof(struct rt1011_bq_drc_params *),
 		GFP_KERNEL);
 	if (!rt1011->bq_drc_params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < RT1011_ADVMODE_NUM; i++) {
 		rt1011->bq_drc_params[i] = devm_kcalloc(component->dev,
 			RT1011_BQ_DRC_NUM, sizeof(struct rt1011_bq_drc_params),
 			GFP_KERNEL);
 		if (!rt1011->bq_drc_params[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -2439,7 +2439,7 @@ static int rt1011_i2c_probe(struct i2c_client *i2c)
 	rt1011 = devm_kzalloc(&i2c->dev, sizeof(struct rt1011_priv),
 				GFP_KERNEL);
 	if (!rt1011)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, rt1011);
 
@@ -2456,8 +2456,8 @@ static int rt1011_i2c_probe(struct i2c_client *i2c)
 	regmap_read(rt1011->regmap, RT1011_DEVICE_ID, &val);
 	if (val != RT1011_DEVICE_ID_NUM) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt1011\n", val);
-		return -ENODEV;
+			"Device with ID register %x is analt rt1011\n", val);
+		return -EANALDEV;
 	}
 
 	INIT_WORK(&rt1011->cali_work, rt1011_calibration_work);

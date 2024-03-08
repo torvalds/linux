@@ -8,7 +8,7 @@
  * Copyright (C) 2010 Texas Instruments, Inc.
  * Thara Gopinath <thara@ti.com>
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  * Kalle Jokiniemi
  *
  * Copyright (C) 2007 Texas Instruments, Inc.
@@ -36,7 +36,7 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 	sr_data->nvalue_count = 0;
 	sr_data->nvalue_table = NULL;
 
-	while (volt_data[count].volt_nominal)
+	while (volt_data[count].volt_analminal)
 		count++;
 
 	nvalue_table = kcalloc(count, sizeof(*nvalue_table), GFP_KERNEL);
@@ -48,7 +48,7 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 
 		/*
 		 * In OMAP4 the efuse registers are 24 bit aligned.
-		 * A readl_relaxed will fail for non-32 bit aligned address
+		 * A readl_relaxed will fail for analn-32 bit aligned address
 		 * and hence the 8-bit read and shift.
 		 */
 		if (cpu_is_omap44xx()) {
@@ -75,7 +75,7 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 		nvalue_table[j].nvalue = v;
 		nvalue_table[j].efuse_offs = volt_data[i].sr_efuse_offs;
 		nvalue_table[j].errminlimit = volt_data[i].sr_errminlimit;
-		nvalue_table[j].volt_nominal = volt_data[i].volt_nominal;
+		nvalue_table[j].volt_analminal = volt_data[i].volt_analminal;
 
 		j++;
 	}
@@ -101,7 +101,7 @@ static int __init sr_init_by_name(const char *name, const char *voltdm)
 		sr_data = &omap_sr_pdata[OMAP_SR_IVA];
 
 	if (!sr_data) {
-		pr_err("%s: Unknown instance %s\n", __func__, name);
+		pr_err("%s: Unkanalwn instance %s\n", __func__, name);
 		return -EINVAL;
 	}
 
@@ -135,7 +135,7 @@ static int __init sr_init_by_name(const char *name, const char *voltdm)
 
 	omap_voltage_get_volttable(sr_data->voltdm, &volt_data);
 	if (!volt_data) {
-		pr_err("%s: No Voltage table registered for VDD%d\n",
+		pr_err("%s: Anal Voltage table registered for VDD%d\n",
 		       __func__, i + 1);
 		goto exit;
 	}
@@ -155,7 +155,7 @@ static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 
 	sr_dev_attr = (struct omap_smartreflex_dev_attr *)oh->dev_attr;
 	if (!sr_dev_attr || !sr_dev_attr->sensor_voltdm_name) {
-		pr_err("%s: No voltage domain specified for %s. Cannot initialize\n",
+		pr_err("%s: Anal voltage domain specified for %s. Cananalt initialize\n",
 		       __func__, oh->name);
 		return 0;
 	}

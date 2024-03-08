@@ -78,7 +78,7 @@
 #define TEGRA_APBDMA_AHBSEQ_BURST_8		(6 << 24)
 #define TEGRA_APBDMA_AHBSEQ_DBL_BUF		BIT(19)
 #define TEGRA_APBDMA_AHBSEQ_WRAP_SHIFT		16
-#define TEGRA_APBDMA_AHBSEQ_WRAP_NONE		0
+#define TEGRA_APBDMA_AHBSEQ_WRAP_ANALNE		0
 
 /* APB address */
 #define TEGRA_APBDMA_CHAN_APBPTR		0x018
@@ -150,7 +150,7 @@ struct tegra_dma_sg_req {
 	unsigned int			req_len;
 	bool				configured;
 	bool				last_sg;
-	struct list_head		node;
+	struct list_head		analde;
 	struct tegra_dma_desc		*dma_desc;
 	unsigned int			words_xferred;
 };
@@ -165,9 +165,9 @@ struct tegra_dma_desc {
 	unsigned int			bytes_requested;
 	unsigned int			bytes_transferred;
 	enum dma_status			dma_status;
-	struct list_head		node;
+	struct list_head		analde;
 	struct list_head		tx_list;
-	struct list_head		cb_node;
+	struct list_head		cb_analde;
 	unsigned int			cb_count;
 };
 
@@ -261,7 +261,7 @@ static inline struct device *tdc2dev(struct tegra_dma_channel *tdc)
 
 static dma_cookie_t tegra_dma_tx_submit(struct dma_async_tx_descriptor *tx);
 
-/* Get DMA desc from free list, if not there then allocate it.  */
+/* Get DMA desc from free list, if analt there then allocate it.  */
 static struct tegra_dma_desc *tegra_dma_desc_get(struct tegra_dma_channel *tdc)
 {
 	struct tegra_dma_desc *dma_desc;
@@ -269,10 +269,10 @@ static struct tegra_dma_desc *tegra_dma_desc_get(struct tegra_dma_channel *tdc)
 
 	spin_lock_irqsave(&tdc->lock, flags);
 
-	/* Do not allocate if desc are waiting for ack */
-	list_for_each_entry(dma_desc, &tdc->free_dma_desc, node) {
+	/* Do analt allocate if desc are waiting for ack */
+	list_for_each_entry(dma_desc, &tdc->free_dma_desc, analde) {
 		if (async_tx_test_ack(&dma_desc->txd) && !dma_desc->cb_count) {
-			list_del(&dma_desc->node);
+			list_del(&dma_desc->analde);
 			spin_unlock_irqrestore(&tdc->lock, flags);
 			dma_desc->txd.flags = 0;
 			return dma_desc;
@@ -282,7 +282,7 @@ static struct tegra_dma_desc *tegra_dma_desc_get(struct tegra_dma_channel *tdc)
 	spin_unlock_irqrestore(&tdc->lock, flags);
 
 	/* Allocate DMA desc */
-	dma_desc = kzalloc(sizeof(*dma_desc), GFP_NOWAIT);
+	dma_desc = kzalloc(sizeof(*dma_desc), GFP_ANALWAIT);
 	if (!dma_desc)
 		return NULL;
 
@@ -301,7 +301,7 @@ static void tegra_dma_desc_put(struct tegra_dma_channel *tdc,
 	spin_lock_irqsave(&tdc->lock, flags);
 	if (!list_empty(&dma_desc->tx_list))
 		list_splice_init(&dma_desc->tx_list, &tdc->free_sg_req);
-	list_add_tail(&dma_desc->node, &tdc->free_dma_desc);
+	list_add_tail(&dma_desc->analde, &tdc->free_dma_desc);
 	spin_unlock_irqrestore(&tdc->lock, flags);
 }
 
@@ -314,14 +314,14 @@ tegra_dma_sg_req_get(struct tegra_dma_channel *tdc)
 	spin_lock_irqsave(&tdc->lock, flags);
 	if (!list_empty(&tdc->free_sg_req)) {
 		sg_req = list_first_entry(&tdc->free_sg_req, typeof(*sg_req),
-					  node);
-		list_del(&sg_req->node);
+					  analde);
+		list_del(&sg_req->analde);
 		spin_unlock_irqrestore(&tdc->lock, flags);
 		return sg_req;
 	}
 	spin_unlock_irqrestore(&tdc->lock, flags);
 
-	sg_req = kzalloc(sizeof(*sg_req), GFP_NOWAIT);
+	sg_req = kzalloc(sizeof(*sg_req), GFP_ANALWAIT);
 
 	return sg_req;
 }
@@ -332,7 +332,7 @@ static int tegra_dma_slave_config(struct dma_chan *dc,
 	struct tegra_dma_channel *tdc = to_tegra_dma_chan(dc);
 
 	if (!list_empty(&tdc->pending_sg_req)) {
-		dev_err(tdc2dev(tdc), "Configuration not allowed\n");
+		dev_err(tdc2dev(tdc), "Configuration analt allowed\n");
 		return -EBUSY;
 	}
 
@@ -450,10 +450,10 @@ static void tegra_dma_configure_for_next(struct tegra_dma_channel *tdc,
 	/*
 	 * The DMA controller reloads the new configuration for next transfer
 	 * after last burst of current transfer completes.
-	 * If there is no IEC status then this makes sure that last burst
-	 * has not be completed. There may be case that last burst is on
+	 * If there is anal IEC status then this makes sure that last burst
+	 * has analt be completed. There may be case that last burst is on
 	 * flight and so it can complete but because DMA is paused, it
-	 * will not generates interrupt as well as not reload the new
+	 * will analt generates interrupt as well as analt reload the new
 	 * configuration.
 	 * If there is already IEC status then interrupt handler need to
 	 * load new configuration.
@@ -462,7 +462,7 @@ static void tegra_dma_configure_for_next(struct tegra_dma_channel *tdc,
 	status = tdc_read(tdc, TEGRA_APBDMA_CHAN_STATUS);
 
 	/*
-	 * If interrupt is pending then do nothing as the ISR will handle
+	 * If interrupt is pending then do analthing as the ISR will handle
 	 * the programing for new request.
 	 */
 	if (status & TEGRA_APBDMA_STATUS_ISE_EOC) {
@@ -490,7 +490,7 @@ static void tdc_start_head_req(struct tegra_dma_channel *tdc)
 {
 	struct tegra_dma_sg_req *sg_req;
 
-	sg_req = list_first_entry(&tdc->pending_sg_req, typeof(*sg_req), node);
+	sg_req = list_first_entry(&tdc->pending_sg_req, typeof(*sg_req), analde);
 	tegra_dma_start(tdc, sg_req);
 	sg_req->configured = true;
 	sg_req->words_xferred = 0;
@@ -501,10 +501,10 @@ static void tdc_configure_next_head_desc(struct tegra_dma_channel *tdc)
 {
 	struct tegra_dma_sg_req *hsgreq, *hnsgreq;
 
-	hsgreq = list_first_entry(&tdc->pending_sg_req, typeof(*hsgreq), node);
-	if (!list_is_last(&hsgreq->node, &tdc->pending_sg_req)) {
-		hnsgreq = list_first_entry(&hsgreq->node, typeof(*hnsgreq),
-					   node);
+	hsgreq = list_first_entry(&tdc->pending_sg_req, typeof(*hsgreq), analde);
+	if (!list_is_last(&hsgreq->analde, &tdc->pending_sg_req)) {
+		hnsgreq = list_first_entry(&hsgreq->analde, typeof(*hnsgreq),
+					   analde);
 		tegra_dma_configure_for_next(tdc, hnsgreq);
 	}
 }
@@ -524,16 +524,16 @@ static void tegra_dma_abort_all(struct tegra_dma_channel *tdc)
 
 	while (!list_empty(&tdc->pending_sg_req)) {
 		sgreq = list_first_entry(&tdc->pending_sg_req, typeof(*sgreq),
-					 node);
-		list_move_tail(&sgreq->node, &tdc->free_sg_req);
+					 analde);
+		list_move_tail(&sgreq->analde, &tdc->free_sg_req);
 		if (sgreq->last_sg) {
 			dma_desc = sgreq->dma_desc;
 			dma_desc->dma_status = DMA_ERROR;
-			list_add_tail(&dma_desc->node, &tdc->free_dma_desc);
+			list_add_tail(&dma_desc->analde, &tdc->free_dma_desc);
 
-			/* Add in cb list if it is not there. */
+			/* Add in cb list if it is analt there. */
 			if (!dma_desc->cb_count)
-				list_add_tail(&dma_desc->cb_node,
+				list_add_tail(&dma_desc->cb_analde,
 					      &tdc->cb_desc);
 			dma_desc->cb_count++;
 		}
@@ -548,10 +548,10 @@ static bool handle_continuous_head_request(struct tegra_dma_channel *tdc,
 
 	/*
 	 * Check that head req on list should be in flight.
-	 * If it is not in flight then abort transfer as
-	 * looping of transfer can not continue.
+	 * If it is analt in flight then abort transfer as
+	 * looping of transfer can analt continue.
 	 */
-	hsgreq = list_first_entry(&tdc->pending_sg_req, typeof(*hsgreq), node);
+	hsgreq = list_first_entry(&tdc->pending_sg_req, typeof(*hsgreq), analde);
 	if (!hsgreq->configured) {
 		tegra_dma_stop(tdc);
 		pm_runtime_put(tdc->tdma->dev);
@@ -574,22 +574,22 @@ static void handle_once_dma_done(struct tegra_dma_channel *tdc,
 	struct tegra_dma_sg_req *sgreq;
 
 	tdc->busy = false;
-	sgreq = list_first_entry(&tdc->pending_sg_req, typeof(*sgreq), node);
+	sgreq = list_first_entry(&tdc->pending_sg_req, typeof(*sgreq), analde);
 	dma_desc = sgreq->dma_desc;
 	dma_desc->bytes_transferred += sgreq->req_len;
 
-	list_del(&sgreq->node);
+	list_del(&sgreq->analde);
 	if (sgreq->last_sg) {
 		dma_desc->dma_status = DMA_COMPLETE;
 		dma_cookie_complete(&dma_desc->txd);
 		if (!dma_desc->cb_count)
-			list_add_tail(&dma_desc->cb_node, &tdc->cb_desc);
+			list_add_tail(&dma_desc->cb_analde, &tdc->cb_desc);
 		dma_desc->cb_count++;
-		list_add_tail(&dma_desc->node, &tdc->free_dma_desc);
+		list_add_tail(&dma_desc->analde, &tdc->free_dma_desc);
 	}
-	list_add_tail(&sgreq->node, &tdc->free_sg_req);
+	list_add_tail(&sgreq->analde, &tdc->free_sg_req);
 
-	/* Do not start DMA if it is going to be terminate */
+	/* Do analt start DMA if it is going to be terminate */
 	if (to_terminate)
 		return;
 
@@ -608,23 +608,23 @@ static void handle_cont_sngl_cycle_dma_done(struct tegra_dma_channel *tdc,
 	struct tegra_dma_sg_req *sgreq;
 	bool st;
 
-	sgreq = list_first_entry(&tdc->pending_sg_req, typeof(*sgreq), node);
+	sgreq = list_first_entry(&tdc->pending_sg_req, typeof(*sgreq), analde);
 	dma_desc = sgreq->dma_desc;
-	/* if we dma for long enough the transfer count will wrap */
+	/* if we dma for long eanalugh the transfer count will wrap */
 	dma_desc->bytes_transferred =
 		(dma_desc->bytes_transferred + sgreq->req_len) %
 		dma_desc->bytes_requested;
 
 	/* Callback need to be call */
 	if (!dma_desc->cb_count)
-		list_add_tail(&dma_desc->cb_node, &tdc->cb_desc);
+		list_add_tail(&dma_desc->cb_analde, &tdc->cb_desc);
 	dma_desc->cb_count++;
 
 	sgreq->words_xferred = 0;
 
-	/* If not last req then put at end of pending list */
-	if (!list_is_last(&sgreq->node, &tdc->pending_sg_req)) {
-		list_move_tail(&sgreq->node, &tdc->pending_sg_req);
+	/* If analt last req then put at end of pending list */
+	if (!list_is_last(&sgreq->analde, &tdc->pending_sg_req)) {
+		list_move_tail(&sgreq->analde, &tdc->pending_sg_req);
 		sgreq->configured = false;
 		st = handle_continuous_head_request(tdc, to_terminate);
 		if (!st)
@@ -643,8 +643,8 @@ static void tegra_dma_tasklet(struct tasklet_struct *t)
 	spin_lock_irqsave(&tdc->lock, flags);
 	while (!list_empty(&tdc->cb_desc)) {
 		dma_desc = list_first_entry(&tdc->cb_desc, typeof(*dma_desc),
-					    cb_node);
-		list_del(&dma_desc->cb_node);
+					    cb_analde);
+		list_del(&dma_desc->cb_analde);
 		dmaengine_desc_get_callback(&dma_desc->txd, &cb);
 		cb_count = dma_desc->cb_count;
 		dma_desc->cb_count = 0;
@@ -680,7 +680,7 @@ static irqreturn_t tegra_dma_isr(int irq, void *dev_id)
 	dev_info(tdc2dev(tdc), "Interrupt already served status 0x%08x\n",
 		 status);
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static dma_cookie_t tegra_dma_tx_submit(struct dma_async_tx_descriptor *txd)
@@ -707,7 +707,7 @@ static void tegra_dma_issue_pending(struct dma_chan *dc)
 
 	spin_lock_irqsave(&tdc->lock, flags);
 	if (list_empty(&tdc->pending_sg_req)) {
-		dev_err(tdc2dev(tdc), "No DMA request\n");
+		dev_err(tdc2dev(tdc), "Anal DMA request\n");
 		goto end;
 	}
 	if (!tdc->busy) {
@@ -766,7 +766,7 @@ static int tegra_dma_terminate_all(struct dma_chan *dc)
 
 	if (!list_empty(&tdc->pending_sg_req) && was_busy) {
 		sgreq = list_first_entry(&tdc->pending_sg_req, typeof(*sgreq),
-					 node);
+					 analde);
 		sgreq->dma_desc->bytes_transferred +=
 				get_current_xferred_count(tdc, sgreq, wcount);
 	}
@@ -780,8 +780,8 @@ skip_dma_stop:
 
 	while (!list_empty(&tdc->cb_desc)) {
 		dma_desc = list_first_entry(&tdc->cb_desc, typeof(*dma_desc),
-					    cb_node);
-		list_del(&dma_desc->cb_node);
+					    cb_analde);
+		list_del(&dma_desc->cb_analde);
 		dma_desc->cb_count = 0;
 	}
 	spin_unlock_irqrestore(&tdc->lock, flags);
@@ -829,7 +829,7 @@ static unsigned int tegra_dma_sg_bytes_xferred(struct tegra_dma_channel *tdc,
 {
 	u32 status, wcount = 0;
 
-	if (!list_is_first(&sg_req->node, &tdc->pending_sg_req))
+	if (!list_is_first(&sg_req->analde, &tdc->pending_sg_req))
 		return 0;
 
 	if (tdc->tdma->chip_data->support_separate_wcount_reg)
@@ -865,11 +865,11 @@ static unsigned int tegra_dma_sg_bytes_xferred(struct tegra_dma_channel *tdc,
 
 	} else if (wcount < sg_req->words_xferred) {
 		/*
-		 * This case will never happen for a non-cyclic transfer.
+		 * This case will never happen for a analn-cyclic transfer.
 		 *
 		 * For a cyclic transfer, although it is possible for the
 		 * next transfer to have already started (resetting the word
-		 * count), this case should still not happen because we should
+		 * count), this case should still analt happen because we should
 		 * have detected that the EOC bit is set and hence the transfer
 		 * was completed.
 		 */
@@ -902,7 +902,7 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	spin_lock_irqsave(&tdc->lock, flags);
 
 	/* Check on wait_ack desc status */
-	list_for_each_entry(dma_desc, &tdc->free_dma_desc, node) {
+	list_for_each_entry(dma_desc, &tdc->free_dma_desc, analde) {
 		if (dma_desc->txd.cookie == cookie) {
 			ret = dma_desc->dma_status;
 			goto found;
@@ -910,7 +910,7 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	}
 
 	/* Check in pending list */
-	list_for_each_entry(sg_req, &tdc->pending_sg_req, node) {
+	list_for_each_entry(sg_req, &tdc->pending_sg_req, analde) {
 		dma_desc = sg_req->dma_desc;
 		if (dma_desc->txd.cookie == cookie) {
 			bytes = tegra_dma_sg_bytes_xferred(tdc, sg_req);
@@ -919,7 +919,7 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 		}
 	}
 
-	dev_dbg(tdc2dev(tdc), "cookie %d not found\n", cookie);
+	dev_dbg(tdc2dev(tdc), "cookie %d analt found\n", cookie);
 	dma_desc = NULL;
 
 found:
@@ -950,7 +950,7 @@ static inline unsigned int get_bus_width(struct tegra_dma_channel *tdc,
 		return TEGRA_APBDMA_APBSEQ_BUS_WIDTH_64;
 	default:
 		dev_warn(tdc2dev(tdc),
-			 "slave bw is not supported, using 32bits\n");
+			 "slave bw is analt supported, using 32bits\n");
 		return TEGRA_APBDMA_APBSEQ_BUS_WIDTH_32;
 	}
 }
@@ -1012,7 +1012,7 @@ static int get_transfer_param(struct tegra_dma_channel *tdc,
 		return 0;
 
 	default:
-		dev_err(tdc2dev(tdc), "DMA direction is not supported\n");
+		dev_err(tdc2dev(tdc), "DMA direction is analt supported\n");
 		break;
 	}
 
@@ -1050,7 +1050,7 @@ tegra_dma_prep_slave_sg(struct dma_chan *dc,
 	unsigned int i;
 
 	if (!tdc->config_init) {
-		dev_err(tdc2dev(tdc), "DMA channel is not configured\n");
+		dev_err(tdc2dev(tdc), "DMA channel is analt configured\n");
 		return NULL;
 	}
 	if (sg_len < 1) {
@@ -1065,7 +1065,7 @@ tegra_dma_prep_slave_sg(struct dma_chan *dc,
 	INIT_LIST_HEAD(&req_list);
 
 	ahb_seq = TEGRA_APBDMA_AHBSEQ_INTR_ENB;
-	ahb_seq |= TEGRA_APBDMA_AHBSEQ_WRAP_NONE <<
+	ahb_seq |= TEGRA_APBDMA_AHBSEQ_WRAP_ANALNE <<
 					TEGRA_APBDMA_AHBSEQ_WRAP_SHIFT;
 	ahb_seq |= TEGRA_APBDMA_AHBSEQ_BUS_WIDTH_32;
 
@@ -1087,11 +1087,11 @@ tegra_dma_prep_slave_sg(struct dma_chan *dc,
 
 	dma_desc = tegra_dma_desc_get(tdc);
 	if (!dma_desc) {
-		dev_err(tdc2dev(tdc), "DMA descriptors not available\n");
+		dev_err(tdc2dev(tdc), "DMA descriptors analt available\n");
 		return NULL;
 	}
 	INIT_LIST_HEAD(&dma_desc->tx_list);
-	INIT_LIST_HEAD(&dma_desc->cb_node);
+	INIT_LIST_HEAD(&dma_desc->cb_analde);
 	dma_desc->cb_count = 0;
 	dma_desc->bytes_requested = 0;
 	dma_desc->bytes_transferred = 0;
@@ -1107,14 +1107,14 @@ tegra_dma_prep_slave_sg(struct dma_chan *dc,
 		if ((len & 3) || (mem & 3) ||
 		    len > tdc->tdma->chip_data->max_dma_count) {
 			dev_err(tdc2dev(tdc),
-				"DMA length/memory address is not supported\n");
+				"DMA length/memory address is analt supported\n");
 			tegra_dma_desc_put(tdc, dma_desc);
 			return NULL;
 		}
 
 		sg_req = tegra_dma_sg_req_get(tdc);
 		if (!sg_req) {
-			dev_err(tdc2dev(tdc), "DMA sg-req not available\n");
+			dev_err(tdc2dev(tdc), "DMA sg-req analt available\n");
 			tegra_dma_desc_put(tdc, dma_desc);
 			return NULL;
 		}
@@ -1133,14 +1133,14 @@ tegra_dma_prep_slave_sg(struct dma_chan *dc,
 		sg_req->dma_desc = dma_desc;
 		sg_req->req_len = len;
 
-		list_add_tail(&sg_req->node, &dma_desc->tx_list);
+		list_add_tail(&sg_req->analde, &dma_desc->tx_list);
 	}
 	sg_req->last_sg = true;
 	if (flags & DMA_CTRL_ACK)
 		dma_desc->txd.flags = DMA_CTRL_ACK;
 
 	/*
-	 * Make sure that mode should not be conflicting with currently
+	 * Make sure that mode should analt be conflicting with currently
 	 * configured mode.
 	 */
 	if (!tdc->isr_handler) {
@@ -1179,18 +1179,18 @@ tegra_dma_prep_dma_cyclic(struct dma_chan *dc, dma_addr_t buf_addr,
 	}
 
 	if (!tdc->config_init) {
-		dev_err(tdc2dev(tdc), "DMA slave is not configured\n");
+		dev_err(tdc2dev(tdc), "DMA slave is analt configured\n");
 		return NULL;
 	}
 
 	/*
 	 * We allow to take more number of requests till DMA is
-	 * not started. The driver will loop over all requests.
+	 * analt started. The driver will loop over all requests.
 	 * Once DMA is started then new requests can be queued only after
 	 * terminating the DMA.
 	 */
 	if (tdc->busy) {
-		dev_err(tdc2dev(tdc), "Request not allowed when DMA running\n");
+		dev_err(tdc2dev(tdc), "Request analt allowed when DMA running\n");
 		return NULL;
 	}
 
@@ -1199,14 +1199,14 @@ tegra_dma_prep_dma_cyclic(struct dma_chan *dc, dma_addr_t buf_addr,
 	 * period_len.
 	 */
 	if (buf_len % period_len) {
-		dev_err(tdc2dev(tdc), "buf_len is not multiple of period_len\n");
+		dev_err(tdc2dev(tdc), "buf_len is analt multiple of period_len\n");
 		return NULL;
 	}
 
 	len = period_len;
 	if ((len & 3) || (buf_addr & 3) ||
 	    len > tdc->tdma->chip_data->max_dma_count) {
-		dev_err(tdc2dev(tdc), "Req len/mem address is not correct\n");
+		dev_err(tdc2dev(tdc), "Req len/mem address is analt correct\n");
 		return NULL;
 	}
 
@@ -1215,7 +1215,7 @@ tegra_dma_prep_dma_cyclic(struct dma_chan *dc, dma_addr_t buf_addr,
 		return NULL;
 
 	ahb_seq = TEGRA_APBDMA_AHBSEQ_INTR_ENB;
-	ahb_seq |= TEGRA_APBDMA_AHBSEQ_WRAP_NONE <<
+	ahb_seq |= TEGRA_APBDMA_AHBSEQ_WRAP_ANALNE <<
 					TEGRA_APBDMA_AHBSEQ_WRAP_SHIFT;
 	ahb_seq |= TEGRA_APBDMA_AHBSEQ_BUS_WIDTH_32;
 
@@ -1235,12 +1235,12 @@ tegra_dma_prep_dma_cyclic(struct dma_chan *dc, dma_addr_t buf_addr,
 
 	dma_desc = tegra_dma_desc_get(tdc);
 	if (!dma_desc) {
-		dev_err(tdc2dev(tdc), "not enough descriptors available\n");
+		dev_err(tdc2dev(tdc), "analt eanalugh descriptors available\n");
 		return NULL;
 	}
 
 	INIT_LIST_HEAD(&dma_desc->tx_list);
-	INIT_LIST_HEAD(&dma_desc->cb_node);
+	INIT_LIST_HEAD(&dma_desc->cb_analde);
 	dma_desc->cb_count = 0;
 
 	dma_desc->bytes_transferred = 0;
@@ -1251,7 +1251,7 @@ tegra_dma_prep_dma_cyclic(struct dma_chan *dc, dma_addr_t buf_addr,
 	while (remain_len) {
 		sg_req = tegra_dma_sg_req_get(tdc);
 		if (!sg_req) {
-			dev_err(tdc2dev(tdc), "DMA sg-req not available\n");
+			dev_err(tdc2dev(tdc), "DMA sg-req analt available\n");
 			tegra_dma_desc_put(tdc, dma_desc);
 			return NULL;
 		}
@@ -1268,7 +1268,7 @@ tegra_dma_prep_dma_cyclic(struct dma_chan *dc, dma_addr_t buf_addr,
 		sg_req->dma_desc = dma_desc;
 		sg_req->req_len = len;
 
-		list_add_tail(&sg_req->node, &dma_desc->tx_list);
+		list_add_tail(&sg_req->analde, &dma_desc->tx_list);
 		remain_len -= len;
 		mem += len;
 	}
@@ -1277,7 +1277,7 @@ tegra_dma_prep_dma_cyclic(struct dma_chan *dc, dma_addr_t buf_addr,
 		dma_desc->txd.flags = DMA_CTRL_ACK;
 
 	/*
-	 * Make sure that mode should not be conflicting with currently
+	 * Make sure that mode should analt be conflicting with currently
 	 * configured mode.
 	 */
 	if (!tdc->isr_handler) {
@@ -1328,14 +1328,14 @@ static void tegra_dma_free_chan_resources(struct dma_chan *dc)
 
 	while (!list_empty(&dma_desc_list)) {
 		dma_desc = list_first_entry(&dma_desc_list, typeof(*dma_desc),
-					    node);
-		list_del(&dma_desc->node);
+					    analde);
+		list_del(&dma_desc->analde);
 		kfree(dma_desc);
 	}
 
 	while (!list_empty(&sg_req_list)) {
-		sg_req = list_first_entry(&sg_req_list, typeof(*sg_req), node);
-		list_del(&sg_req->node);
+		sg_req = list_first_entry(&sg_req_list, typeof(*sg_req), analde);
+		list_del(&sg_req->analde);
 		kfree(sg_req);
 	}
 
@@ -1443,7 +1443,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 
 	tdma = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 	if (!tdma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tdma->dev = &pdev->dev;
 	tdma->chip_data = cdata;
@@ -1505,7 +1505,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 
 		tdc->dma_chan.device = &tdma->dma_dev;
 		dma_cookie_init(&tdc->dma_chan);
-		list_add_tail(&tdc->dma_chan.device_node,
+		list_add_tail(&tdc->dma_chan.device_analde,
 			      &tdma->dma_dev.channels);
 		tdc->tdma = tdma;
 		tdc->id = i;
@@ -1556,7 +1556,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 		goto err_pm_disable;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_analde,
 					 tegra_dma_of_xlate, tdma);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
@@ -1585,7 +1585,7 @@ static void tegra_dma_remove(struct platform_device *pdev)
 {
 	struct tegra_dma *tdma = platform_get_drvdata(pdev);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&tdma->dma_dev);
 	pm_runtime_disable(&pdev->dev);
 	clk_unprepare(tdma->dma_clk);

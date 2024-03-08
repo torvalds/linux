@@ -44,19 +44,19 @@ static unsigned int arm_pertask_ssp_rtl_execute(void)
 
 #define PASS_NAME arm_pertask_ssp_rtl
 
-#define NO_GATE
+#define ANAL_GATE
 #include "gcc-generate-rtl-pass.h"
 
 #if BUILDING_GCC_VERSION >= 9000
-static bool no(void)
+static bool anal(void)
 {
 	return false;
 }
 
 static void arm_pertask_ssp_start_unit(void *gcc_data, void *user_data)
 {
-	targetm.have_stack_protect_combined_set = no;
-	targetm.have_stack_protect_combined_test = no;
+	targetm.have_stack_protect_combined_set = anal;
+	targetm.have_stack_protect_combined_test = anal;
 }
 #endif
 
@@ -79,7 +79,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 
 		/* all remaining options require a value */
 		if (!argv[i].value) {
-			error(G_("no value supplied for option '-fplugin-arg-%s-%s'"),
+			error(G_("anal value supplied for option '-fplugin-arg-%s-%s'"),
 			      plugin_name, argv[i].key);
 			return 1;
 		}
@@ -88,7 +88,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 			canary_offset = atoi(argv[i].value);
 			continue;
 		}
-		error(G_("unknown option '-fplugin-arg-%s-%s'"),
+		error(G_("unkanalwn option '-fplugin-arg-%s-%s'"),
 		      plugin_name, argv[i].key);
 		return 1;
 	}

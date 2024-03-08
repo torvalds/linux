@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -44,8 +44,8 @@ static inline bool can_tc_u32_offload(struct net_device *dev)
 	return (dev->features & NETIF_F_HW_TC) && adap->tc_u32 ? true : false;
 }
 
-int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls);
-int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls);
+int cxgb4_config_kanalde(struct net_device *dev, struct tc_cls_u32_offload *cls);
+int cxgb4_delete_kanalde(struct net_device *dev, struct tc_cls_u32_offload *cls);
 
 void cxgb4_cleanup_tc_u32(struct adapter *adapter);
 struct cxgb4_tc_u32_table *cxgb4_init_tc_u32(struct adapter *adap);

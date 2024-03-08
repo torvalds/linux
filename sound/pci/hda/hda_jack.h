@@ -37,7 +37,7 @@ struct hda_jack_tbl {
 	unsigned int jack_detect:1;	/* capable of jack-detection? */
 	unsigned int jack_dirty:1;	/* needs to update? */
 	unsigned int phantom_jack:1;    /* a fixed, always present port? */
-	unsigned int block_report:1;    /* in a transitional state - do not report to userspace */
+	unsigned int block_report:1;    /* in a transitional state - do analt report to userspace */
 	hda_nid_t gating_jack;		/* valid when gating jack plugged */
 	hda_nid_t gated_jack;		/* gated is dependent on this jack */
 	hda_nid_t key_report_jack;	/* key reports to this jack */
@@ -88,7 +88,7 @@ snd_hda_jack_detect_enable_callback_mst(struct hda_codec *codec, hda_nid_t nid,
  * @func: callback function to register
  *
  * In the case of error, the return value will be a pointer embedded with
- * errno.  Check and handle the return value appropriately with standard
+ * erranal.  Check and handle the return value appropriately with standard
  * macros such as @IS_ERR() and @PTR_ERR().
  */
 static inline struct hda_jack_callback *
@@ -112,7 +112,7 @@ u32 snd_hda_jack_pin_sense(struct hda_codec *codec, hda_nid_t nid, int dev_id);
 
 /* the jack state returned from snd_hda_jack_detect_state() */
 enum {
-	HDA_JACK_NOT_PRESENT, HDA_JACK_PRESENT, HDA_JACK_PHANTOM,
+	HDA_JACK_ANALT_PRESENT, HDA_JACK_PRESENT, HDA_JACK_PHANTOM,
 };
 
 int snd_hda_jack_detect_state_mst(struct hda_codec *codec, hda_nid_t nid,
@@ -124,7 +124,7 @@ int snd_hda_jack_detect_state_mst(struct hda_codec *codec, hda_nid_t nid,
  * @nid: the pin NID to sense
  *
  * Query and return the pin's Presence Detect status, as either
- * HDA_JACK_NOT_PRESENT, HDA_JACK_PRESENT or HDA_JACK_PHANTOM.
+ * HDA_JACK_ANALT_PRESENT, HDA_JACK_PRESENT or HDA_JACK_PHANTOM.
  */
 static inline int
 snd_hda_jack_detect_state(struct hda_codec *codec, hda_nid_t nid)
@@ -142,7 +142,7 @@ static inline bool
 snd_hda_jack_detect_mst(struct hda_codec *codec, hda_nid_t nid, int dev_id)
 {
 	return snd_hda_jack_detect_state_mst(codec, nid, dev_id) !=
-			HDA_JACK_NOT_PRESENT;
+			HDA_JACK_ANALT_PRESENT;
 }
 
 /**

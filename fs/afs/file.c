@@ -23,7 +23,7 @@ static int afs_symlink_read_folio(struct file *file, struct folio *folio);
 
 static ssize_t afs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter);
 static ssize_t afs_file_splice_read(struct file *in, loff_t *ppos,
-				    struct pipe_inode_info *pipe,
+				    struct pipe_ianalde_info *pipe,
 				    size_t len, unsigned int flags);
 static void afs_vm_open(struct vm_area_struct *area);
 static void afs_vm_close(struct vm_area_struct *area);
@@ -43,14 +43,14 @@ const struct file_operations afs_file_operations = {
 	.flock		= afs_flock,
 };
 
-const struct inode_operations afs_file_inode_operations = {
+const struct ianalde_operations afs_file_ianalde_operations = {
 	.getattr	= afs_getattr,
 	.setattr	= afs_setattr,
 	.permission	= afs_permission,
 };
 
 const struct address_space_operations afs_file_aops = {
-	.direct_IO	= noop_direct_IO,
+	.direct_IO	= analop_direct_IO,
 	.read_folio	= netfs_read_folio,
 	.readahead	= netfs_readahead,
 	.dirty_folio	= netfs_dirty_folio,
@@ -90,31 +90,31 @@ void afs_put_wb_key(struct afs_wb_key *wbk)
 /*
  * Cache key for writeback.
  */
-int afs_cache_wb_key(struct afs_vnode *vnode, struct afs_file *af)
+int afs_cache_wb_key(struct afs_vanalde *vanalde, struct afs_file *af)
 {
 	struct afs_wb_key *wbk, *p;
 
 	wbk = kzalloc(sizeof(struct afs_wb_key), GFP_KERNEL);
 	if (!wbk)
-		return -ENOMEM;
+		return -EANALMEM;
 	refcount_set(&wbk->usage, 2);
 	wbk->key = af->key;
 
-	spin_lock(&vnode->wb_lock);
-	list_for_each_entry(p, &vnode->wb_keys, vnode_link) {
+	spin_lock(&vanalde->wb_lock);
+	list_for_each_entry(p, &vanalde->wb_keys, vanalde_link) {
 		if (p->key == wbk->key)
 			goto found;
 	}
 
 	key_get(wbk->key);
-	list_add_tail(&wbk->vnode_link, &vnode->wb_keys);
-	spin_unlock(&vnode->wb_lock);
+	list_add_tail(&wbk->vanalde_link, &vanalde->wb_keys);
+	spin_unlock(&vanalde->wb_lock);
 	af->wb = wbk;
 	return 0;
 
 found:
 	refcount_inc(&p->usage);
-	spin_unlock(&vnode->wb_lock);
+	spin_unlock(&vanalde->wb_lock);
 	af->wb = p;
 	kfree(wbk);
 	return 0;
@@ -123,16 +123,16 @@ found:
 /*
  * open an AFS file or directory and attach a key to it
  */
-int afs_open(struct inode *inode, struct file *file)
+int afs_open(struct ianalde *ianalde, struct file *file)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 	struct afs_file *af;
 	struct key *key;
 	int ret;
 
-	_enter("{%llx:%llu},", vnode->fid.vid, vnode->fid.vnode);
+	_enter("{%llx:%llu},", vanalde->fid.vid, vanalde->fid.vanalde);
 
-	key = afs_request_key(vnode->volume->cell);
+	key = afs_request_key(vanalde->volume->cell);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error;
@@ -140,25 +140,25 @@ int afs_open(struct inode *inode, struct file *file)
 
 	af = kzalloc(sizeof(*af), GFP_KERNEL);
 	if (!af) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_key;
 	}
 	af->key = key;
 
-	ret = afs_validate(vnode, key);
+	ret = afs_validate(vanalde, key);
 	if (ret < 0)
 		goto error_af;
 
 	if (file->f_mode & FMODE_WRITE) {
-		ret = afs_cache_wb_key(vnode, af);
+		ret = afs_cache_wb_key(vanalde, af);
 		if (ret < 0)
 			goto error_af;
 	}
 
 	if (file->f_flags & O_TRUNC)
-		set_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
+		set_bit(AFS_VANALDE_NEW_CONTENT, &vanalde->flags);
 
-	fscache_use_cookie(afs_vnode_cache(vnode), file->f_mode & FMODE_WRITE);
+	fscache_use_cookie(afs_vanalde_cache(vanalde), file->f_mode & FMODE_WRITE);
 
 	file->private_data = af;
 	_leave(" = 0");
@@ -176,15 +176,15 @@ error:
 /*
  * release an AFS file or directory and discard its key
  */
-int afs_release(struct inode *inode, struct file *file)
+int afs_release(struct ianalde *ianalde, struct file *file)
 {
-	struct afs_vnode_cache_aux aux;
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde_cache_aux aux;
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 	struct afs_file *af = file->private_data;
 	loff_t i_size;
 	int ret = 0;
 
-	_enter("{%llx:%llu},", vnode->fid.vid, vnode->fid.vnode);
+	_enter("{%llx:%llu},", vanalde->fid.vid, vanalde->fid.vanalde);
 
 	if ((file->f_mode & FMODE_WRITE))
 		ret = vfs_fsync(file, 0);
@@ -194,16 +194,16 @@ int afs_release(struct inode *inode, struct file *file)
 		afs_put_wb_key(af->wb);
 
 	if ((file->f_mode & FMODE_WRITE)) {
-		i_size = i_size_read(&vnode->netfs.inode);
-		afs_set_cache_aux(vnode, &aux);
-		fscache_unuse_cookie(afs_vnode_cache(vnode), &aux, &i_size);
+		i_size = i_size_read(&vanalde->netfs.ianalde);
+		afs_set_cache_aux(vanalde, &aux);
+		fscache_unuse_cookie(afs_vanalde_cache(vanalde), &aux, &i_size);
 	} else {
-		fscache_unuse_cookie(afs_vnode_cache(vnode), NULL, NULL);
+		fscache_unuse_cookie(afs_vanalde_cache(vanalde), NULL, NULL);
 	}
 
 	key_put(af->key);
 	kfree(af);
-	afs_prune_wb_keys(vnode);
+	afs_prune_wb_keys(vanalde);
 	_leave(" = %d", ret);
 	return ret;
 }
@@ -235,7 +235,7 @@ void afs_put_read(struct afs_read *req)
 	}
 }
 
-static void afs_fetch_data_notify(struct afs_operation *op)
+static void afs_fetch_data_analtify(struct afs_operation *op)
 {
 	struct afs_read *req = op->fetch.req;
 	struct netfs_io_subrequest *subreq = req->subreq;
@@ -253,13 +253,13 @@ static void afs_fetch_data_notify(struct afs_operation *op)
 
 static void afs_fetch_data_success(struct afs_operation *op)
 {
-	struct afs_vnode *vnode = op->file[0].vnode;
+	struct afs_vanalde *vanalde = op->file[0].vanalde;
 
 	_enter("op=%08x", op->debug_id);
-	afs_vnode_commit_status(op, &op->file[0]);
-	afs_stat_v(vnode, n_fetches);
+	afs_vanalde_commit_status(op, &op->file[0]);
+	afs_stat_v(vanalde, n_fetches);
 	atomic_long_add(op->fetch.req->actual_len, &op->net->n_fetch_bytes);
-	afs_fetch_data_notify(op);
+	afs_fetch_data_analtify(op);
 }
 
 static void afs_fetch_data_put(struct afs_operation *op)
@@ -273,32 +273,32 @@ static const struct afs_operation_ops afs_fetch_data_operation = {
 	.issue_yfs_rpc	= yfs_fs_fetch_data,
 	.success	= afs_fetch_data_success,
 	.aborted	= afs_check_for_remote_deletion,
-	.failed		= afs_fetch_data_notify,
+	.failed		= afs_fetch_data_analtify,
 	.put		= afs_fetch_data_put,
 };
 
 /*
  * Fetch file data from the volume.
  */
-int afs_fetch_data(struct afs_vnode *vnode, struct afs_read *req)
+int afs_fetch_data(struct afs_vanalde *vanalde, struct afs_read *req)
 {
 	struct afs_operation *op;
 
 	_enter("%s{%llx:%llu.%u},%x,,,",
-	       vnode->volume->name,
-	       vnode->fid.vid,
-	       vnode->fid.vnode,
-	       vnode->fid.unique,
+	       vanalde->volume->name,
+	       vanalde->fid.vid,
+	       vanalde->fid.vanalde,
+	       vanalde->fid.unique,
 	       key_serial(req->key));
 
-	op = afs_alloc_operation(req->key, vnode->volume);
+	op = afs_alloc_operation(req->key, vanalde->volume);
 	if (IS_ERR(op)) {
 		if (req->subreq)
 			netfs_subreq_terminated(req->subreq, PTR_ERR(op), false);
 		return PTR_ERR(op);
 	}
 
-	afs_op_set_vnode(op, 0, vnode);
+	afs_op_set_vanalde(op, 0, vanalde);
 
 	op->fetch.req	= afs_get_read(req);
 	op->ops		= &afs_fetch_data_operation;
@@ -307,42 +307,42 @@ int afs_fetch_data(struct afs_vnode *vnode, struct afs_read *req)
 
 static void afs_issue_read(struct netfs_io_subrequest *subreq)
 {
-	struct afs_vnode *vnode = AFS_FS_I(subreq->rreq->inode);
+	struct afs_vanalde *vanalde = AFS_FS_I(subreq->rreq->ianalde);
 	struct afs_read *fsreq;
 
-	fsreq = afs_alloc_read(GFP_NOFS);
+	fsreq = afs_alloc_read(GFP_ANALFS);
 	if (!fsreq)
-		return netfs_subreq_terminated(subreq, -ENOMEM, false);
+		return netfs_subreq_terminated(subreq, -EANALMEM, false);
 
 	fsreq->subreq	= subreq;
 	fsreq->pos	= subreq->start + subreq->transferred;
 	fsreq->len	= subreq->len   - subreq->transferred;
 	fsreq->key	= key_get(subreq->rreq->netfs_priv);
-	fsreq->vnode	= vnode;
+	fsreq->vanalde	= vanalde;
 	fsreq->iter	= &subreq->io_iter;
 
-	afs_fetch_data(fsreq->vnode, fsreq);
+	afs_fetch_data(fsreq->vanalde, fsreq);
 	afs_put_read(fsreq);
 }
 
 static int afs_symlink_read_folio(struct file *file, struct folio *folio)
 {
-	struct afs_vnode *vnode = AFS_FS_I(folio->mapping->host);
+	struct afs_vanalde *vanalde = AFS_FS_I(folio->mapping->host);
 	struct afs_read *fsreq;
 	int ret;
 
-	fsreq = afs_alloc_read(GFP_NOFS);
+	fsreq = afs_alloc_read(GFP_ANALFS);
 	if (!fsreq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fsreq->pos	= folio_pos(folio);
 	fsreq->len	= folio_size(folio);
-	fsreq->vnode	= vnode;
+	fsreq->vanalde	= vanalde;
 	fsreq->iter	= &fsreq->def_iter;
 	iov_iter_xarray(&fsreq->def_iter, ITER_DEST, &folio->mapping->i_pages,
 			fsreq->pos, fsreq->len);
 
-	ret = afs_fetch_data(fsreq->vnode, fsreq);
+	ret = afs_fetch_data(fsreq->vanalde, fsreq);
 	if (ret == 0)
 		folio_mark_uptodate(folio);
 	folio_unlock(folio);
@@ -361,9 +361,9 @@ static int afs_init_request(struct netfs_io_request *rreq, struct file *file)
 static int afs_check_write_begin(struct file *file, loff_t pos, unsigned len,
 				 struct folio **foliop, void **_fsdata)
 {
-	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
+	struct afs_vanalde *vanalde = AFS_FS_I(file_ianalde(file));
 
-	return test_bit(AFS_VNODE_DELETED, &vnode->flags) ? -ESTALE : 0;
+	return test_bit(AFS_VANALDE_DELETED, &vanalde->flags) ? -ESTALE : 0;
 }
 
 static void afs_free_request(struct netfs_io_request *rreq)
@@ -371,26 +371,26 @@ static void afs_free_request(struct netfs_io_request *rreq)
 	key_put(rreq->netfs_priv);
 }
 
-static void afs_update_i_size(struct inode *inode, loff_t new_i_size)
+static void afs_update_i_size(struct ianalde *ianalde, loff_t new_i_size)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 	loff_t i_size;
 
-	write_seqlock(&vnode->cb_lock);
-	i_size = i_size_read(&vnode->netfs.inode);
+	write_seqlock(&vanalde->cb_lock);
+	i_size = i_size_read(&vanalde->netfs.ianalde);
 	if (new_i_size > i_size) {
-		i_size_write(&vnode->netfs.inode, new_i_size);
-		inode_set_bytes(&vnode->netfs.inode, new_i_size);
+		i_size_write(&vanalde->netfs.ianalde, new_i_size);
+		ianalde_set_bytes(&vanalde->netfs.ianalde, new_i_size);
 	}
-	write_sequnlock(&vnode->cb_lock);
-	fscache_update_cookie(afs_vnode_cache(vnode), NULL, &new_i_size);
+	write_sequnlock(&vanalde->cb_lock);
+	fscache_update_cookie(afs_vanalde_cache(vanalde), NULL, &new_i_size);
 }
 
 static void afs_netfs_invalidate_cache(struct netfs_io_request *wreq)
 {
-	struct afs_vnode *vnode = AFS_FS_I(wreq->inode);
+	struct afs_vanalde *vanalde = AFS_FS_I(wreq->ianalde);
 
-	afs_invalidate_cache(vnode, 0);
+	afs_invalidate_cache(vanalde, 0);
 }
 
 const struct netfs_request_ops afs_req_ops = {
@@ -403,34 +403,34 @@ const struct netfs_request_ops afs_req_ops = {
 	.create_write_requests	= afs_create_write_requests,
 };
 
-static void afs_add_open_mmap(struct afs_vnode *vnode)
+static void afs_add_open_mmap(struct afs_vanalde *vanalde)
 {
-	if (atomic_inc_return(&vnode->cb_nr_mmap) == 1) {
-		down_write(&vnode->volume->open_mmaps_lock);
+	if (atomic_inc_return(&vanalde->cb_nr_mmap) == 1) {
+		down_write(&vanalde->volume->open_mmaps_lock);
 
-		if (list_empty(&vnode->cb_mmap_link))
-			list_add_tail(&vnode->cb_mmap_link, &vnode->volume->open_mmaps);
+		if (list_empty(&vanalde->cb_mmap_link))
+			list_add_tail(&vanalde->cb_mmap_link, &vanalde->volume->open_mmaps);
 
-		up_write(&vnode->volume->open_mmaps_lock);
+		up_write(&vanalde->volume->open_mmaps_lock);
 	}
 }
 
-static void afs_drop_open_mmap(struct afs_vnode *vnode)
+static void afs_drop_open_mmap(struct afs_vanalde *vanalde)
 {
-	if (atomic_add_unless(&vnode->cb_nr_mmap, -1, 1))
+	if (atomic_add_unless(&vanalde->cb_nr_mmap, -1, 1))
 		return;
 
-	down_write(&vnode->volume->open_mmaps_lock);
+	down_write(&vanalde->volume->open_mmaps_lock);
 
-	read_seqlock_excl(&vnode->cb_lock);
+	read_seqlock_excl(&vanalde->cb_lock);
 	// the only place where ->cb_nr_mmap may hit 0
 	// see __afs_break_callback() for the other side...
-	if (atomic_dec_and_test(&vnode->cb_nr_mmap))
-		list_del_init(&vnode->cb_mmap_link);
-	read_sequnlock_excl(&vnode->cb_lock);
+	if (atomic_dec_and_test(&vanalde->cb_nr_mmap))
+		list_del_init(&vanalde->cb_mmap_link);
+	read_sequnlock_excl(&vanalde->cb_lock);
 
-	up_write(&vnode->volume->open_mmaps_lock);
-	flush_work(&vnode->cb_work);
+	up_write(&vanalde->volume->open_mmaps_lock);
+	flush_work(&vanalde->cb_work);
 }
 
 /*
@@ -438,73 +438,73 @@ static void afs_drop_open_mmap(struct afs_vnode *vnode)
  */
 static int afs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
+	struct afs_vanalde *vanalde = AFS_FS_I(file_ianalde(file));
 	int ret;
 
-	afs_add_open_mmap(vnode);
+	afs_add_open_mmap(vanalde);
 
 	ret = generic_file_mmap(file, vma);
 	if (ret == 0)
 		vma->vm_ops = &afs_vm_ops;
 	else
-		afs_drop_open_mmap(vnode);
+		afs_drop_open_mmap(vanalde);
 	return ret;
 }
 
 static void afs_vm_open(struct vm_area_struct *vma)
 {
-	afs_add_open_mmap(AFS_FS_I(file_inode(vma->vm_file)));
+	afs_add_open_mmap(AFS_FS_I(file_ianalde(vma->vm_file)));
 }
 
 static void afs_vm_close(struct vm_area_struct *vma)
 {
-	afs_drop_open_mmap(AFS_FS_I(file_inode(vma->vm_file)));
+	afs_drop_open_mmap(AFS_FS_I(file_ianalde(vma->vm_file)));
 }
 
 static vm_fault_t afs_vm_map_pages(struct vm_fault *vmf, pgoff_t start_pgoff, pgoff_t end_pgoff)
 {
-	struct afs_vnode *vnode = AFS_FS_I(file_inode(vmf->vma->vm_file));
+	struct afs_vanalde *vanalde = AFS_FS_I(file_ianalde(vmf->vma->vm_file));
 
-	if (afs_check_validity(vnode))
+	if (afs_check_validity(vanalde))
 		return filemap_map_pages(vmf, start_pgoff, end_pgoff);
 	return 0;
 }
 
 static ssize_t afs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct ianalde *ianalde = file_ianalde(iocb->ki_filp);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 	struct afs_file *af = iocb->ki_filp->private_data;
 	ssize_t ret;
 
 	if (iocb->ki_flags & IOCB_DIRECT)
 		return netfs_unbuffered_read_iter(iocb, iter);
 
-	ret = netfs_start_io_read(inode);
+	ret = netfs_start_io_read(ianalde);
 	if (ret < 0)
 		return ret;
-	ret = afs_validate(vnode, af->key);
+	ret = afs_validate(vanalde, af->key);
 	if (ret == 0)
 		ret = filemap_read(iocb, iter, 0);
-	netfs_end_io_read(inode);
+	netfs_end_io_read(ianalde);
 	return ret;
 }
 
 static ssize_t afs_file_splice_read(struct file *in, loff_t *ppos,
-				    struct pipe_inode_info *pipe,
+				    struct pipe_ianalde_info *pipe,
 				    size_t len, unsigned int flags)
 {
-	struct inode *inode = file_inode(in);
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct ianalde *ianalde = file_ianalde(in);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 	struct afs_file *af = in->private_data;
 	ssize_t ret;
 
-	ret = netfs_start_io_read(inode);
+	ret = netfs_start_io_read(ianalde);
 	if (ret < 0)
 		return ret;
-	ret = afs_validate(vnode, af->key);
+	ret = afs_validate(vanalde, af->key);
 	if (ret == 0)
 		ret = filemap_splice_read(in, ppos, pipe, len, flags);
-	netfs_end_io_read(inode);
+	netfs_end_io_read(ianalde);
 	return ret;
 }

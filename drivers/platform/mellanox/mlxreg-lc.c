@@ -2,7 +2,7 @@
 /*
  * Nvidia line card driver
  *
- * Copyright (C) 2020 Nvidia Technologies Ltd.
+ * Copyright (C) 2020 Nvidia Techanallogies Ltd.
  */
 
 #include <linux/device.h>
@@ -305,7 +305,7 @@ static struct mlxreg_core_data mlxreg_lc_io_data[] = {
 		.mode = 0444,
 	},
 	{
-		.label = "reset_fpga_not_done",
+		.label = "reset_fpga_analt_done",
 		.reg = MLXREG_LC_REG_RESET_CAUSE_OFFSET,
 		.mask = GENMASK(7, 0) & ~BIT(1),
 		.mode = 0444,
@@ -484,8 +484,8 @@ static int mlxreg_lc_enable_disable(struct mlxreg_lc *mlxreg_lc, bool action)
 	 * Hardware holds the line card after powering on in the disabled state. Holding line card
 	 * in disabled state protects access to the line components, like FPGA and gearboxes.
 	 * Line card should be enabled in order to get it in operational state. Line card could be
-	 * disabled for moving it to non-operational state. Enabling line card does not affect the
-	 * line card which is already has been enabled. Disabling does not affect the disabled line
+	 * disabled for moving it to analn-operational state. Enabling line card does analt affect the
+	 * line card which is already has been enabled. Disabling does analt affect the disabled line
 	 * card.
 	 */
 	err = regmap_read(mlxreg_lc->par_regmap, mlxreg_lc->data->reg_ena, &regval);
@@ -518,12 +518,12 @@ mlxreg_lc_sn4800_c16_config_init(struct mlxreg_lc *mlxreg_lc, void *regmap,
 	mlxreg_lc->aux_devs = devm_kmemdup(dev, mlxreg_lc_aux_pwr_brdinfo,
 					   sizeof(mlxreg_lc_aux_pwr_brdinfo), GFP_KERNEL);
 	if (!mlxreg_lc->aux_devs)
-		return -ENOMEM;
+		return -EANALMEM;
 	mlxreg_lc->aux_devs_num = ARRAY_SIZE(mlxreg_lc_aux_pwr_brdinfo);
 	mlxreg_lc->main_devs = devm_kmemdup(dev, mlxreg_lc_main_pwr_brdinfo,
 					    sizeof(mlxreg_lc_main_pwr_brdinfo), GFP_KERNEL);
 	if (!mlxreg_lc->main_devs)
-		return -ENOMEM;
+		return -EANALMEM;
 	mlxreg_lc->main_devs_num = ARRAY_SIZE(mlxreg_lc_main_pwr_brdinfo);
 
 	return 0;
@@ -552,7 +552,7 @@ mlxreg_lc_state_update_locked(struct mlxreg_lc *mlxreg_lc, enum mlxreg_lc_state 
 }
 
 /*
- * Callback is to be called from mlxreg-hotplug driver to notify about line card about received
+ * Callback is to be called from mlxreg-hotplug driver to analtify about line card about received
  * event.
  */
 static int mlxreg_lc_event_handler(void *handle, enum mlxreg_hotplug_kind kind, u8 action)
@@ -565,7 +565,7 @@ static int mlxreg_lc_event_handler(void *handle, enum mlxreg_hotplug_kind kind, 
 
 	mutex_lock(&mlxreg_lc->lock);
 	if (!(mlxreg_lc->state & MLXREG_LC_INITIALIZED))
-		goto mlxreg_lc_non_initialzed_exit;
+		goto mlxreg_lc_analn_initialzed_exit;
 
 	switch (kind) {
 	case MLXREG_HOTPLUG_LC_SYNCED:
@@ -574,7 +574,7 @@ static int mlxreg_lc_event_handler(void *handle, enum mlxreg_hotplug_kind kind, 
 		 * line card - to allow/disallow main power source.
 		 */
 		mlxreg_lc_state_update(mlxreg_lc, MLXREG_LC_SYNCED, action);
-		/* Power line card if it is not powered yet. */
+		/* Power line card if it is analt powered yet. */
 		if (!(mlxreg_lc->state & MLXREG_LC_POWERED) && action) {
 			err = mlxreg_lc_power_on_off(mlxreg_lc, 1);
 			if (err)
@@ -587,7 +587,7 @@ static int mlxreg_lc_event_handler(void *handle, enum mlxreg_hotplug_kind kind, 
 	case MLXREG_HOTPLUG_LC_POWERED:
 		/* Power event - attach or de-attach line card device feeding by the main power. */
 		if (action) {
-			/* Do not create devices, if line card is already powered. */
+			/* Do analt create devices, if line card is already powered. */
 			if (mlxreg_lc->state & MLXREG_LC_POWERED) {
 				/* In case line card is configured - enable it. */
 				if (mlxreg_lc->state & MLXREG_LC_CONFIGURED)
@@ -628,7 +628,7 @@ static int mlxreg_lc_event_handler(void *handle, enum mlxreg_hotplug_kind kind, 
 mlxreg_lc_enable_disable_exit:
 mlxreg_lc_power_on_off_fail:
 mlxreg_lc_create_static_devices_fail:
-mlxreg_lc_non_initialzed_exit:
+mlxreg_lc_analn_initialzed_exit:
 	mutex_unlock(&mlxreg_lc->lock);
 
 	return err;
@@ -638,7 +638,7 @@ mlxreg_lc_non_initialzed_exit:
  * Callback is to be called from i2c-mux-mlxcpld driver to indicate that all adapter devices has
  * been created.
  */
-static int mlxreg_lc_completion_notify(void *handle, struct i2c_adapter *parent,
+static int mlxreg_lc_completion_analtify(void *handle, struct i2c_adapter *parent,
 				       struct i2c_adapter *adapters[])
 {
 	struct mlxreg_hotplug_device *main_dev, *aux_dev;
@@ -735,12 +735,12 @@ mlxreg_lc_config_init(struct mlxreg_lc *mlxreg_lc, void *regmap,
 		}
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Create mux infrastructure. */
 	mlxreg_lc->mux_data->handle = mlxreg_lc;
-	mlxreg_lc->mux_data->completion_notify = mlxreg_lc_completion_notify;
+	mlxreg_lc->mux_data->completion_analtify = mlxreg_lc_completion_analtify;
 	mlxreg_lc->mux_brdinfo->platform_data = mlxreg_lc->mux_data;
 	mlxreg_lc->mux = platform_device_register_resndata(dev, "i2c-mux-mlxcpld", data->hpdev.nr,
 							   NULL, 0, mlxreg_lc->mux_data,
@@ -821,12 +821,12 @@ static int mlxreg_lc_probe(struct platform_device *pdev)
 
 	mlxreg_lc = devm_kzalloc(&pdev->dev, sizeof(*mlxreg_lc), GFP_KERNEL);
 	if (!mlxreg_lc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&mlxreg_lc->lock);
-	/* Set event notification callback. */
-	data->notifier->user_handler = mlxreg_lc_event_handler;
-	data->notifier->handle = mlxreg_lc;
+	/* Set event analtification callback. */
+	data->analtifier->user_handler = mlxreg_lc_event_handler;
+	data->analtifier->handle = mlxreg_lc;
 
 	data->hpdev.adapter = i2c_get_adapter(data->hpdev.nr);
 	if (!data->hpdev.adapter) {
@@ -899,10 +899,10 @@ i2c_new_device_fail:
 	i2c_put_adapter(data->hpdev.adapter);
 	data->hpdev.adapter = NULL;
 i2c_get_adapter_fail:
-	/* Clear event notification callback and handle. */
-	if (data->notifier) {
-		data->notifier->user_handler = NULL;
-		data->notifier->handle = NULL;
+	/* Clear event analtification callback and handle. */
+	if (data->analtifier) {
+		data->analtifier->user_handler = NULL;
+		data->analtifier->handle = NULL;
 	}
 	return err;
 }
@@ -918,14 +918,14 @@ static void mlxreg_lc_remove(struct platform_device *pdev)
 	 * Probing and removing are invoked by hotplug events raised upon line card insertion and
 	 * removing. If probing procedure fails all data is cleared. However, hotplug event still
 	 * will be raised on line card removing and activate removing procedure. In this case there
-	 * is nothing to remove.
+	 * is analthing to remove.
 	 */
-	if (!data->notifier || !data->notifier->handle)
+	if (!data->analtifier || !data->analtifier->handle)
 		return;
 
-	/* Clear event notification callback and handle. */
-	data->notifier->user_handler = NULL;
-	data->notifier->handle = NULL;
+	/* Clear event analtification callback and handle. */
+	data->analtifier->user_handler = NULL;
+	data->analtifier->handle = NULL;
 
 	/* Destroy static I2C device feeding by main power. */
 	mlxreg_lc_destroy_static_devices(mlxreg_lc, mlxreg_lc->main_devs,

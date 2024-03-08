@@ -13,12 +13,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -83,16 +83,16 @@ virtio_gpu_framebuffer_init(struct drm_device *dev,
 	return 0;
 }
 
-static void virtio_gpu_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void virtio_gpu_crtc_mode_set_analfb(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_output *output = drm_crtc_to_virtio_gpu_output(crtc);
 
-	virtio_gpu_cmd_set_scanout(vgdev, output->index, 0,
+	virtio_gpu_cmd_set_scaanalut(vgdev, output->index, 0,
 				   crtc->mode.hdisplay,
 				   crtc->mode.vdisplay, 0, 0);
-	virtio_gpu_notify(vgdev);
+	virtio_gpu_analtify(vgdev);
 }
 
 static void virtio_gpu_crtc_atomic_enable(struct drm_crtc *crtc,
@@ -107,8 +107,8 @@ static void virtio_gpu_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_output *output = drm_crtc_to_virtio_gpu_output(crtc);
 
-	virtio_gpu_cmd_set_scanout(vgdev, output->index, 0, 0, 0, 0, 0);
-	virtio_gpu_notify(vgdev);
+	virtio_gpu_cmd_set_scaanalut(vgdev, output->index, 0, 0, 0, 0, 0);
+	virtio_gpu_analtify(vgdev);
 }
 
 static int virtio_gpu_crtc_atomic_check(struct drm_crtc *crtc,
@@ -136,7 +136,7 @@ static void virtio_gpu_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs virtio_gpu_crtc_helper_funcs = {
-	.mode_set_nofb = virtio_gpu_crtc_mode_set_nofb,
+	.mode_set_analfb = virtio_gpu_crtc_mode_set_analfb,
 	.atomic_check  = virtio_gpu_crtc_atomic_check,
 	.atomic_flush  = virtio_gpu_crtc_atomic_flush,
 	.atomic_enable = virtio_gpu_crtc_atomic_enable,
@@ -172,7 +172,7 @@ static int virtio_gpu_conn_get_modes(struct drm_connector *connector)
 
 	width  = le32_to_cpu(output->info.r.width);
 	height = le32_to_cpu(output->info.r.height);
-	count = drm_add_modes_noedid(connector, XRES_MAX, YRES_MAX);
+	count = drm_add_modes_analedid(connector, XRES_MAX, YRES_MAX);
 
 	if (width == 0 || height == 0) {
 		drm_set_preferred_mode(connector, XRES_DEF, YRES_DEF);
@@ -303,7 +303,7 @@ virtio_gpu_user_framebuffer_create(struct drm_device *dev,
 
 	if (mode_cmd->pixel_format != DRM_FORMAT_HOST_XRGB8888 &&
 	    mode_cmd->pixel_format != DRM_FORMAT_HOST_ARGB8888)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	/* lookup object associated with res handle */
 	obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
@@ -313,7 +313,7 @@ virtio_gpu_user_framebuffer_create(struct drm_device *dev,
 	virtio_gpu_fb = kzalloc(sizeof(*virtio_gpu_fb), GFP_KERNEL);
 	if (virtio_gpu_fb == NULL) {
 		drm_gem_object_put(obj);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	ret = virtio_gpu_framebuffer_init(dev, virtio_gpu_fb, mode_cmd, obj);
@@ -336,7 +336,7 @@ int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev)
 {
 	int i, ret;
 
-	if (!vgdev->num_scanouts)
+	if (!vgdev->num_scaanaluts)
 		return 0;
 
 	ret = drmm_mode_config_init(vgdev->ddev);
@@ -352,9 +352,9 @@ int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev)
 	vgdev->ddev->mode_config.max_width = XRES_MAX;
 	vgdev->ddev->mode_config.max_height = YRES_MAX;
 
-	vgdev->ddev->mode_config.fb_modifiers_not_supported = true;
+	vgdev->ddev->mode_config.fb_modifiers_analt_supported = true;
 
-	for (i = 0 ; i < vgdev->num_scanouts; ++i)
+	for (i = 0 ; i < vgdev->num_scaanaluts; ++i)
 		vgdev_output_init(vgdev, i);
 
 	drm_mode_config_reset(vgdev->ddev);
@@ -365,9 +365,9 @@ void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev)
 {
 	int i;
 
-	if (!vgdev->num_scanouts)
+	if (!vgdev->num_scaanaluts)
 		return;
 
-	for (i = 0 ; i < vgdev->num_scanouts; ++i)
+	for (i = 0 ; i < vgdev->num_scaanaluts; ++i)
 		kfree(vgdev->outputs[i].edid);
 }

@@ -1,7 +1,7 @@
 #ifndef LLC_C_ST_H
 #define LLC_C_ST_H
 /*
- * Copyright (c) 1997 by Procom Technology,Inc.
+ * Copyright (c) 1997 by Procom Techanallogy,Inc.
  *		2001 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -21,7 +21,7 @@
  
 #define LLC_CONN_STATE_ADM		 1	/* disc, initial state */
 #define LLC_CONN_STATE_SETUP		 2	/* disconnected state */
-#define LLC_CONN_STATE_NORMAL		 3	/* connected state */
+#define LLC_CONN_STATE_ANALRMAL		 3	/* connected state */
 #define LLC_CONN_STATE_BUSY		 4	/* connected state */
 #define LLC_CONN_STATE_REJ		 5	/* connected state */
 #define LLC_CONN_STATE_AWAIT		 6	/* connected state */
@@ -33,7 +33,7 @@
 #define LLC_CONN_STATE_TEMP		12	/* disconnected state */
 
 #define NBR_CONN_STATES			12	/* size of state table */
-#define NO_STATE_CHANGE			100
+#define ANAL_STATE_CHANGE			100
 
 /* Connection state table structure */
 struct llc_conn_state_trans {

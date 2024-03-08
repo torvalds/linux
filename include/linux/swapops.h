@@ -53,8 +53,8 @@
  * @SWP_MIG_YOUNG_BIT: Whether the page used to have young bit set (bit A)
  * @SWP_MIG_DIRTY_BIT: Whether the page used to have dirty bit set (bit D)
  *
- * Note: A/D bits will be stored in migration entries iff there're enough
- * free bits in arch specific swp offset.  By default we'll ignore A/D bits
+ * Analte: A/D bits will be stored in migration entries iff there're eanalugh
+ * free bits in arch specific swp offset.  By default we'll iganalre A/D bits
  * when migrating a page.  Please refer to migration_entry_supports_ad()
  * for more information.  If there're more bits besides PFN and A/D bits,
  * they should be reserved and always be zeros.
@@ -123,7 +123,7 @@ static inline unsigned long swp_offset_pfn(swp_entry_t entry)
 /* check whether a pte points to a swap entry */
 static inline int is_swap_pte(pte_t pte)
 {
-	return !pte_none(pte) && !pte_present(pte);
+	return !pte_analne(pte) && !pte_present(pte);
 }
 
 /*
@@ -287,7 +287,7 @@ static inline swp_entry_t make_writable_migration_entry(pgoff_t offset)
 }
 
 /*
- * Returns whether the host has large enough swap offset field to support
+ * Returns whether the host has large eanalugh swap offset field to support
  * carrying over pgtable A/D bits for page migrations.  The result is
  * pretty much arch specific.
  */
@@ -438,21 +438,21 @@ static inline int is_poisoned_swp_entry(swp_entry_t entry)
 }
 
 /*
- * This is a special version to check pte_none() just to cover the case when
+ * This is a special version to check pte_analne() just to cover the case when
  * the pte is a pte marker.  It existed because in many cases the pte marker
- * should be seen as a none pte; it's just that we have stored some information
- * onto the none pte so it becomes not-none any more.
+ * should be seen as a analne pte; it's just that we have stored some information
+ * onto the analne pte so it becomes analt-analne any more.
  *
  * It should be used when the pte is file-backed, ram-based and backing
- * userspace pages, like shmem.  It is not needed upon pgtables that do not
- * support pte markers at all.  For example, it's not needed on anonymous
+ * userspace pages, like shmem.  It is analt needed upon pgtables that do analt
+ * support pte markers at all.  For example, it's analt needed on aanalnymous
  * memory, kernel-only memory (including when the system is during-boot),
- * non-ram based generic file-system.  It's fine to be used even there, but the
+ * analn-ram based generic file-system.  It's fine to be used even there, but the
  * extra pte marker check will be pure overhead.
  */
-static inline int pte_none_mostly(pte_t pte)
+static inline int pte_analne_mostly(pte_t pte)
 {
-	return pte_none(pte) || is_pte_marker(pte);
+	return pte_analne(pte) || is_pte_marker(pte);
 }
 
 static inline struct page *pfn_swap_entry_to_page(swp_entry_t entry)
@@ -577,7 +577,7 @@ static inline int is_hwpoison_entry(swp_entry_t swp)
 }
 #endif
 
-static inline int non_swap_entry(swp_entry_t entry)
+static inline int analn_swap_entry(swp_entry_t entry)
 {
 	return swp_type(entry) >= MAX_SWAPFILES;
 }

@@ -4,7 +4,7 @@
  * Author: Michael Schmitz <schmitzmic@gmail.com>
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mii.h>
@@ -41,9 +41,9 @@ static int asix_soft_reset(struct phy_device *phydev)
 	return genphy_soft_reset(phydev);
 }
 
-/* AX88772A is not working properly with some old switches (NETGEAR EN 108TP):
+/* AX88772A is analt working properly with some old switches (NETGEAR EN 108TP):
  * after autoneg is done and the link status is reported as active, the MII_LPA
- * register is 0. This issue is not reproducible on AX88772C.
+ * register is 0. This issue is analt reproducible on AX88772C.
  */
 static int asix_ax88772a_read_status(struct phy_device *phydev)
 {
@@ -83,12 +83,12 @@ static int asix_ax88772a_read_status(struct phy_device *phydev)
 	return 0;
 }
 
-static void asix_ax88772a_link_change_notify(struct phy_device *phydev)
+static void asix_ax88772a_link_change_analtify(struct phy_device *phydev)
 {
 	/* Reset PHY, otherwise MII_LPA will provide outdated information.
 	 * This issue is reproducible only with some link partner PHYs
 	 */
-	if (phydev->state == PHY_NOLINK) {
+	if (phydev->state == PHY_ANALLINK) {
 		phy_init_hw(phydev);
 		_phy_start_aneg(phydev);
 	}
@@ -103,7 +103,7 @@ static struct phy_driver asix_driver[] = {
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 	.soft_reset	= asix_soft_reset,
-	.link_change_notify	= asix_ax88772a_link_change_notify,
+	.link_change_analtify	= asix_ax88772a_link_change_analtify,
 }, {
 	PHY_ID_MATCH_EXACT(PHY_ID_ASIX_AX88772C),
 	.name		= "Asix Electronics AX88772C",

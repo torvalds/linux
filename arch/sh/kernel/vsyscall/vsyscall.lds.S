@@ -30,14 +30,14 @@ SECTIONS
 
 	/*
 	 * This linker script is used both with -r and with -shared.
-	 * For the layouts to match, we need to skip more than enough
+	 * For the layouts to match, we need to skip more than eanalugh
 	 * space for the dynamic symbol table et al.  If this amount
 	 * is insufficient, ld -shared will barf.  Just increase it here.
 	 */
 	. = 0x400;
 
 	.text		: { *(.text) } 			:text	=0x90909090
-	.note		: { *(.note.*) }		:text	:note
+	.analte		: { *(.analte.*) }		:text	:analte
 	.eh_frame_hdr	: { *(.eh_frame_hdr ) }		:text	:eh_frame_hdr
 	.eh_frame	: {
 		KEEP (*(.eh_frame))
@@ -53,7 +53,7 @@ SECTIONS
 }
 
 /*
- * Very old versions of ld do not recognize this name token; use the constant.
+ * Very old versions of ld do analt recognize this name token; use the constant.
  */
 #define PT_GNU_EH_FRAME	0x6474e550
 
@@ -65,7 +65,7 @@ PHDRS
 {
 	text		PT_LOAD FILEHDR PHDRS FLAGS(5);	/* PF_R|PF_X */
 	dynamic		PT_DYNAMIC FLAGS(4);		/* PF_R */
-	note		PT_NOTE FLAGS(4);		/* PF_R */
+	analte		PT_ANALTE FLAGS(4);		/* PF_R */
 	eh_frame_hdr	PT_GNU_EH_FRAME;
 }
 

@@ -31,15 +31,15 @@ u64 perf_bpf_filter__lost_count(struct evsel *evsel);
 static inline int perf_bpf_filter__parse(struct list_head *expr_head __maybe_unused,
 					 const char *str __maybe_unused)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int perf_bpf_filter__prepare(struct evsel *evsel __maybe_unused)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int perf_bpf_filter__destroy(struct evsel *evsel __maybe_unused)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline u64 perf_bpf_filter__lost_count(struct evsel *evsel __maybe_unused)
 {

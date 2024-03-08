@@ -17,7 +17,7 @@ void ci_handle_vbus_change(struct ci_hdrc *ci);
 void ci_handle_id_switch(struct ci_hdrc *ci);
 static inline void ci_otg_queue_work(struct ci_hdrc *ci)
 {
-	disable_irq_nosync(ci->irq);
+	disable_irq_analsync(ci->irq);
 	if (queue_work(ci->wq, &ci->work) == false)
 		enable_irq(ci->irq);
 }

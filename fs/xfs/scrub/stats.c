@@ -40,7 +40,7 @@ struct xchk_scrub_stats {
 	uint64_t		checktime_us;
 	uint64_t		repairtime_us;
 
-	/* non-counter state must go at the end for clearall */
+	/* analn-counter state must go at the end for clearall */
 	spinlock_t		css_lock;
 };
 
@@ -57,13 +57,13 @@ static const char *name_map[XFS_SCRUB_TYPE_NR] = {
 	[XFS_SCRUB_TYPE_AGF]		= "agf",
 	[XFS_SCRUB_TYPE_AGFL]		= "agfl",
 	[XFS_SCRUB_TYPE_AGI]		= "agi",
-	[XFS_SCRUB_TYPE_BNOBT]		= "bnobt",
+	[XFS_SCRUB_TYPE_BANALBT]		= "banalbt",
 	[XFS_SCRUB_TYPE_CNTBT]		= "cntbt",
-	[XFS_SCRUB_TYPE_INOBT]		= "inobt",
-	[XFS_SCRUB_TYPE_FINOBT]		= "finobt",
+	[XFS_SCRUB_TYPE_IANALBT]		= "ianalbt",
+	[XFS_SCRUB_TYPE_FIANALBT]		= "fianalbt",
 	[XFS_SCRUB_TYPE_RMAPBT]		= "rmapbt",
 	[XFS_SCRUB_TYPE_REFCNTBT]	= "refcountbt",
-	[XFS_SCRUB_TYPE_INODE]		= "inode",
+	[XFS_SCRUB_TYPE_IANALDE]		= "ianalde",
 	[XFS_SCRUB_TYPE_BMBTD]		= "bmapbtd",
 	[XFS_SCRUB_TYPE_BMBTA]		= "bmapbta",
 	[XFS_SCRUB_TYPE_BMBTC]		= "bmapbtc",
@@ -245,7 +245,7 @@ xchk_scrub_stats_read(
 
 	/*
 	 * This generates stringly snapshot of all the scrub counters, so we
-	 * do not want userspace to receive garbled text from multiple calls.
+	 * do analt want userspace to receive garbled text from multiple calls.
 	 * If the file position is greater than 0, return a short read.
 	 */
 	if (*ppos > 0)
@@ -255,7 +255,7 @@ xchk_scrub_stats_read(
 
 	buf = kvmalloc(bufsize, XCHK_GFP_FLAGS);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	avail = xchk_stats_format(cs, buf, bufsize);
 	if (avail < 0) {
@@ -384,7 +384,7 @@ xchk_mount_stats_alloc(
 
 	cs = kvzalloc(sizeof(struct xchk_stats), GFP_KERNEL);
 	if (!cs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = xchk_stats_init(cs, mp);
 	if (error)

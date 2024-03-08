@@ -20,7 +20,7 @@ kernel, and was overall 81.63% of the time idle.
 
 In most cases the ``/proc/stat``	 information reflects the reality quite
 closely, however due to the nature of how/when the kernel collects
-this data sometimes it can not be trusted at all.
+this data sometimes it can analt be trusted at all.
 
 So how is this information collected?  Whenever timer interrupt is
 signalled the kernel looks what kind of task was running at this

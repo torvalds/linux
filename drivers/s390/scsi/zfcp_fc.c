@@ -29,10 +29,10 @@ static u32 zfcp_fc_rscn_range_mask[] = {
 	[ELS_ADDR_FMT_FAB]		= 0x000000,
 };
 
-static bool no_auto_port_rescan;
-module_param(no_auto_port_rescan, bool, 0600);
-MODULE_PARM_DESC(no_auto_port_rescan,
-		 "no automatic port_rescan (default off)");
+static bool anal_auto_port_rescan;
+module_param(anal_auto_port_rescan, bool, 0600);
+MODULE_PARM_DESC(anal_auto_port_rescan,
+		 "anal automatic port_rescan (default off)");
 
 static unsigned int port_scan_backoff = 500;
 module_param(port_scan_backoff, uint, 0600);
@@ -61,14 +61,14 @@ static void zfcp_fc_port_scan_time(struct zfcp_adapter *adapter)
 
 static void zfcp_fc_port_scan(struct zfcp_adapter *adapter)
 {
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	unsigned long next = adapter->next_port_scan;
 	unsigned long delay = 0, max;
 
 	/* delay only needed within waiting period */
-	if (time_before(now, next)) {
-		delay = next - now;
-		/* paranoia: never ever delay scans longer than specified */
+	if (time_before(analw, next)) {
+		delay = next - analw;
+		/* paraanalia: never ever delay scans longer than specified */
 		max = msecs_to_jiffies(port_scan_ratelimit + port_scan_backoff);
 		delay = min(delay, max);
 	}
@@ -78,7 +78,7 @@ static void zfcp_fc_port_scan(struct zfcp_adapter *adapter)
 
 void zfcp_fc_conditional_port_scan(struct zfcp_adapter *adapter)
 {
-	if (no_auto_port_rescan)
+	if (anal_auto_port_rescan)
 		return;
 
 	zfcp_fc_port_scan(adapter);
@@ -86,7 +86,7 @@ void zfcp_fc_conditional_port_scan(struct zfcp_adapter *adapter)
 
 void zfcp_fc_inverse_conditional_port_scan(struct zfcp_adapter *adapter)
 {
-	if (!no_auto_port_rescan)
+	if (!anal_auto_port_rescan)
 		return;
 
 	zfcp_fc_port_scan(adapter);
@@ -154,7 +154,7 @@ static int zfcp_fc_wka_port_get(struct zfcp_fc_wka_port *wka_port)
 	    wka_port->status == ZFCP_FC_WKA_PORT_CLOSING) {
 		wka_port->status = ZFCP_FC_WKA_PORT_OPENING;
 		if (zfcp_fsf_open_wka_port(wka_port)) {
-			/* could not even send request, nothing to wait for */
+			/* could analt even send request, analthing to wait for */
 			wka_port->status = ZFCP_FC_WKA_PORT_OFFLINE;
 			goto out;
 		}
@@ -187,7 +187,7 @@ static void zfcp_fc_wka_port_offline(struct work_struct *work)
 
 	wka_port->status = ZFCP_FC_WKA_PORT_CLOSING;
 	if (zfcp_fsf_close_wka_port(wka_port)) {
-		/* could not even send request, nothing to wait for */
+		/* could analt even send request, analthing to wait for */
 		wka_port->status = ZFCP_FC_WKA_PORT_OFFLINE;
 		goto out;
 	}
@@ -261,17 +261,17 @@ static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 	struct fc_els_rscn *head;
 	struct fc_els_rscn_page *page;
 	u16 i;
-	u16 no_entries;
+	u16 anal_entries;
 	unsigned int afmt;
 
 	head = (struct fc_els_rscn *) status_buffer->payload.data;
 	page = (struct fc_els_rscn_page *) head;
 
 	/* see FC-FS */
-	no_entries = be16_to_cpu(head->rscn_plen) /
+	anal_entries = be16_to_cpu(head->rscn_plen) /
 		sizeof(struct fc_els_rscn_page);
 
-	if (no_entries > 1) {
+	if (anal_entries > 1) {
 		/* handle failed ports */
 		unsigned long flags;
 		struct zfcp_port *port;
@@ -287,7 +287,7 @@ static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 		read_unlock_irqrestore(&adapter->port_list_lock, flags);
 	}
 
-	for (i = 1; i < no_entries; i++) {
+	for (i = 1; i < anal_entries; i++) {
 		/* skip head and start with 1st element */
 		page++;
 		afmt = page->rscn_page_flags & ELS_RSCN_ADDR_FMT_MASK;
@@ -416,7 +416,7 @@ static int zfcp_fc_ns_gid_pn_request(struct zfcp_port *port,
 /**
  * zfcp_fc_ns_gid_pn - initiate GID_PN nameserver request
  * @port: port where GID_PN request is needed
- * return: -ENOMEM on error, 0 otherwise
+ * return: -EANALMEM on error, 0 otherwise
  */
 static int zfcp_fc_ns_gid_pn(struct zfcp_port *port)
 {
@@ -426,7 +426,7 @@ static int zfcp_fc_ns_gid_pn(struct zfcp_port *port)
 
 	fc_req = mempool_alloc(adapter->pool.gid_pn, GFP_ATOMIC);
 	if (!fc_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(fc_req, 0, sizeof(*fc_req));
 
@@ -451,7 +451,7 @@ void zfcp_fc_port_did_lookup(struct work_struct *work)
 	set_worker_desc("zgidpn%16llx", port->wwpn); /* < WORKER_DESC_LEN=24 */
 	ret = zfcp_fc_ns_gid_pn(port);
 	if (ret) {
-		/* could not issue gid_pn for some reason */
+		/* could analt issue gid_pn for some reason */
 		zfcp_erp_adapter_reopen(port->adapter, 0, "fcgpn_1");
 		goto out;
 	}
@@ -534,9 +534,9 @@ static void zfcp_fc_adisc_handler(void *data)
 
 	/* re-init to undo drop from zfcp_fc_adisc() */
 	port->d_id = ntoh24(adisc_resp->adisc_port_id);
-	/* port is still good, nothing to do */
+	/* port is still good, analthing to do */
  out:
-	atomic_andnot(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
+	atomic_andanalt(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
 	put_device(&port->dev);
 	kmem_cache_free(zfcp_fc_req_cache, fc_req);
 }
@@ -551,7 +551,7 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
 
 	fc_req = kmem_cache_zalloc(zfcp_fc_req_cache, GFP_ATOMIC);
 	if (!fc_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fc_req->ct_els.port = port;
 	fc_req->ct_els.req = &fc_req->sg_req;
@@ -564,10 +564,10 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
 	fc_req->ct_els.handler = zfcp_fc_adisc_handler;
 	fc_req->ct_els.handler_data = fc_req;
 
-	/* acc. to FC-FS, hard_nport_id in ADISC should not be set for ports
+	/* acc. to FC-FS, hard_nport_id in ADISC should analt be set for ports
 	   without FC-AL-2 capability, so we don't set it */
 	fc_req->u.adisc.req.adisc_wwpn = cpu_to_be64(fc_host_port_name(shost));
-	fc_req->u.adisc.req.adisc_wwnn = cpu_to_be64(fc_host_node_name(shost));
+	fc_req->u.adisc.req.adisc_wwnn = cpu_to_be64(fc_host_analde_name(shost));
 	fc_req->u.adisc.req.adisc_cmd = ELS_ADISC;
 	hton24(fc_req->u.adisc.req.adisc_port_id, fc_host_port_id(shost));
 
@@ -605,8 +605,8 @@ void zfcp_fc_link_test_work(struct work_struct *work)
 	if (retval == 0)
 		return;
 
-	/* send of ADISC was not possible */
-	atomic_andnot(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
+	/* send of ADISC was analt possible */
+	atomic_andanalt(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
 	zfcp_erp_port_forced_reopen(port, 0, "fcltwk1");
 
 out:
@@ -651,7 +651,7 @@ static void zfcp_fc_sg_free_table(struct scatterlist *sg, int count)
  * @count: number of scatterlists which should be assigned with buffers
  * of size page
  *
- * Returns: 0 on success, -ENOMEM otherwise
+ * Returns: 0 on success, -EANALMEM otherwise
  */
 static int zfcp_fc_sg_setup_table(struct scatterlist *sg, int count)
 {
@@ -663,7 +663,7 @@ static int zfcp_fc_sg_setup_table(struct scatterlist *sg, int count)
 		addr = (void *) get_zeroed_page(GFP_KERNEL);
 		if (!addr) {
 			zfcp_fc_sg_free_table(sg, i);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		sg_set_buf(sg, addr, PAGE_SIZE);
 	}
@@ -714,10 +714,10 @@ static int zfcp_fc_send_gpn_ft(struct zfcp_fc_req *fc_req,
 
 static void zfcp_fc_validate_port(struct zfcp_port *port, struct list_head *lh)
 {
-	if (!(atomic_read(&port->status) & ZFCP_STATUS_COMMON_NOESC))
+	if (!(atomic_read(&port->status) & ZFCP_STATUS_COMMON_ANALESC))
 		return;
 
-	atomic_andnot(ZFCP_STATUS_COMMON_NOESC, &port->status);
+	atomic_andanalt(ZFCP_STATUS_COMMON_ANALESC, &port->status);
 
 	if ((port->supported_classes != 0) ||
 	    !list_empty(&port->unit_list))
@@ -765,16 +765,16 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_fc_req *fc_req,
 		last = acc->fp_flags & FC_NS_FID_LAST;
 		d_id = ntoh24(acc->fp_fid);
 
-		/* don't attach ports with a well known address */
-		if (d_id >= FC_FID_WELL_KNOWN_BASE)
+		/* don't attach ports with a well kanalwn address */
+		if (d_id >= FC_FID_WELL_KANALWN_BASE)
 			continue;
-		/* skip the adapter's port and known remote ports */
+		/* skip the adapter's port and kanalwn remote ports */
 		if (be64_to_cpu(acc->fp_wwpn) ==
 		    fc_host_port_name(adapter->scsi_host))
 			continue;
 
 		port = zfcp_port_enqueue(adapter, be64_to_cpu(acc->fp_wwpn),
-					 ZFCP_STATUS_COMMON_NOESC, d_id);
+					 ZFCP_STATUS_COMMON_ANALESC, d_id);
 		if (!IS_ERR(port))
 			zfcp_erp_port_reopen(port, 0, "fcegpf1");
 		else if (PTR_ERR(port) != -EEXIST)
@@ -846,7 +846,7 @@ static int zfcp_fc_gspn(struct zfcp_adapter *adapter,
 			struct zfcp_fc_req *fc_req)
 {
 	DECLARE_COMPLETION_ONSTACK(completion);
-	char devno[] = "DEVNO:";
+	char devanal[] = "DEVANAL:";
 	struct zfcp_fsf_ct_els *ct_els = &fc_req->ct_els;
 	struct zfcp_fc_gspn_req *gspn_req = &fc_req->u.gspn.req;
 	struct zfcp_fc_gspn_rsp *gspn_rsp = &fc_req->u.gspn.rsp;
@@ -874,12 +874,12 @@ static int zfcp_fc_gspn(struct zfcp_adapter *adapter,
 		return ct_els->status;
 
 	if (fc_host_port_type(adapter->scsi_host) == FC_PORTTYPE_NPIV &&
-	    !(strstr(gspn_rsp->gspn.fp_name, devno)))
+	    !(strstr(gspn_rsp->gspn.fp_name, devanal)))
 		snprintf(fc_host_symbolic_name(adapter->scsi_host),
 			 FC_SYMBOLIC_NAME_SIZE, "%s%s %s NAME: %s",
-			 gspn_rsp->gspn.fp_name, devno,
+			 gspn_rsp->gspn.fp_name, devanal,
 			 dev_name(&adapter->ccw_device->dev),
-			 init_utsname()->nodename);
+			 init_utsname()->analdename);
 	else
 		strscpy(fc_host_symbolic_name(adapter->scsi_host),
 			gspn_rsp->gspn.fp_name, FC_SYMBOLIC_NAME_SIZE);
@@ -1092,7 +1092,7 @@ int zfcp_fc_exec_bsg_job(struct bsg_job *job)
 
 	switch (bsg_request->msgcode) {
 	case FC_BSG_RPT_ELS:
-	case FC_BSG_HST_ELS_NOLOGIN:
+	case FC_BSG_HST_ELS_ANALLOGIN:
 		return zfcp_fc_exec_els_job(job, adapter);
 	case FC_BSG_RPT_CT:
 	case FC_BSG_HST_CT:
@@ -1104,7 +1104,7 @@ int zfcp_fc_exec_bsg_job(struct bsg_job *job)
 
 int zfcp_fc_timeout_bsg_job(struct bsg_job *job)
 {
-	/* hardware tracks timeout, reset bsg timeout to not interfere */
+	/* hardware tracks timeout, reset bsg timeout to analt interfere */
 	return -EAGAIN;
 }
 
@@ -1114,7 +1114,7 @@ int zfcp_fc_gs_setup(struct zfcp_adapter *adapter)
 
 	wka_ports = kzalloc(sizeof(struct zfcp_fc_wka_ports), GFP_KERNEL);
 	if (!wka_ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->gs = wka_ports;
 	zfcp_fc_wka_port_init(&wka_ports->ms, FC_FID_MGMT_SERV, adapter);

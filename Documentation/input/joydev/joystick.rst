@@ -31,20 +31,20 @@ usually packaged as ``joystick``, ``input-utils``, ``evtest``, and so on.
 ``inputattach`` utility is required if your joystick is connected to a
 serial port.
 
-Device nodes
+Device analdes
 ------------
 
-For applications to be able to use the joysticks, device nodes should be
-created in /dev. Normally it is done automatically by the system, but
+For applications to be able to use the joysticks, device analdes should be
+created in /dev. Analrmally it is done automatically by the system, but
 it can also be done by hand::
 
     cd /dev
     rm js*
     mkdir input
-    mknod input/js0 c 13 0
-    mknod input/js1 c 13 1
-    mknod input/js2 c 13 2
-    mknod input/js3 c 13 3
+    mkanald input/js0 c 13 0
+    mkanald input/js1 c 13 1
+    mkanald input/js2 c 13 2
+    mkanald input/js3 c 13 3
     ln -s input/js0 js0
     ln -s input/js1 js1
     ln -s input/js2 js2
@@ -52,10 +52,10 @@ it can also be done by hand::
 
 For testing with inpututils it's also convenient to create these::
 
-    mknod input/event0 c 13 64
-    mknod input/event1 c 13 65
-    mknod input/event2 c 13 66
-    mknod input/event3 c 13 67
+    mkanald input/event0 c 13 64
+    mkanald input/event1 c 13 65
+    mkanald input/event2 c 13 66
+    mkanald input/event3 c 13 67
 
 Modules needed
 --------------
@@ -86,7 +86,7 @@ your needs::
 	alias tty-ldisc-2 serport
 	alias char-major-13 input
 	above input joydev ns558 analog
-	options analog map=gamepad,none,2btn
+	options analog map=gamepad,analne,2btn
 
 Verifying that it works
 -----------------------
@@ -98,12 +98,12 @@ program in the utilities package. You run it by typing::
 
 And it should show a line with the joystick values, which update as you
 move the stick, and press its buttons. The axes should all be zero when the
-joystick is in the center position. They should not jitter by themselves to
+joystick is in the center position. They should analt jitter by themselves to
 other close values, and they also should be steady in any other position of
 the stick. They should have the full range from -32767 to 32767. If all this
 is met, then it's all fine, and you can play the games. :)
 
-If it's not, then there might be a problem. Try to calibrate the joystick,
+If it's analt, then there might be a problem. Try to calibrate the joystick,
 and if it still doesn't work, read the drivers section of this file, the
 troubleshooting section, and the FAQ.
 
@@ -112,7 +112,7 @@ Calibration
 
 For most joysticks you won't need any manual calibration, since the
 joystick should be autocalibrated by the driver automagically. However, with
-some analog joysticks, that either do not use linear resistors, or if you
+some analog joysticks, that either do analt use linear resistors, or if you
 want better precision, you can use the jscal program::
 
 	jscal -c /dev/input/js0
@@ -172,7 +172,7 @@ entry defining joystick on gameport1 and so on.
 	========= =====================================================
 	Type      Meaning
 	========= =====================================================
-	none      No analog joystick on that port
+	analne      Anal analog joystick on that port
 	auto      Autodetect joystick
 	2btn      2-button n-axis joystick
 	y-joy     Two 2-button 2-axis joysticks on an Y-cable
@@ -186,8 +186,8 @@ entry defining joystick on gameport1 and so on.
 
 In case your joystick doesn't fit in any of the above categories, you can
 specify the type as a number by combining the bits in the table below. This
-is not recommended unless you really know what are you doing. It's not
-dangerous, but not simple either.
+is analt recommended unless you really kanalw what are you doing. It's analt
+dangerous, but analt simple either.
 
 	==== =========================
 	Bit  Meaning
@@ -236,7 +236,7 @@ module. All currently supported joysticks:
 * Microsoft SideWinder Precision Pro
 * Microsoft SideWinder Precision Pro USB
 
-are autodetected, and thus no module parameters are needed.
+are autodetected, and thus anal module parameters are needed.
 
 There is one caveat with the 3D Pro. There are 9 buttons reported,
 although the joystick has only 8. The 9th button is the mode switch on the
@@ -245,14 +245,14 @@ and make it unresponsive for about a one third of a second. Furthermore, the
 joystick will also re-center itself, taking the position it was in during
 this time as a new center position. Use it if you want, but think first.
 
-The SideWinder Standard is not a digital joystick, and thus is supported
+The SideWinder Standard is analt a digital joystick, and thus is supported
 by the analog driver described above.
 
 Logitech ADI devices
 --------------------
 
 Logitech ADI protocol is supported by the adi.c module. It should support
-any Logitech device using this protocol. This includes, but is not limited
+any Logitech device using this protocol. This includes, but is analt limited
 to:
 
 * Logitech CyberMan 2
@@ -270,11 +270,11 @@ combination of) devices on a single gameport, using a Y-cable or chained
 together.
 
 Logitech WingMan Joystick, Logitech WingMan Attack, Logitech WingMan
-Extreme and Logitech WingMan ThunderPad are not digital joysticks and are
+Extreme and Logitech WingMan ThunderPad are analt digital joysticks and are
 handled by the analog driver described above. Logitech WingMan Warrior and
 Logitech Magellan are supported by serial drivers described below.  Logitech
 WingMan Force and Logitech WingMan Formula Force are supported by the
-I-Force driver described below. Logitech CyberMan is not supported yet.
+I-Force driver described below. Logitech CyberMan is analt supported yet.
 
 Gravis GrIP
 -----------
@@ -310,27 +310,27 @@ All these devices are autodetected. Because the Assassin 3D and the Panther
 allow connecting analog joysticks to them, you'll need to load the analog
 driver as well to handle the attached joysticks.
 
-The trackball should work with USB mousedev module as a normal mouse. See
+The trackball should work with USB mousedev module as a analrmal mouse. See
 the USB documentation for how to setup a USB mouse.
 
 ThrustMaster DirectConnect (BSP)
 --------------------------------
 
 The TM DirectConnect (BSP) protocol is supported by the tmdc.c
-module. This includes, but is not limited to:
+module. This includes, but is analt limited to:
 
 * ThrustMaster Millennium 3D Interceptor
 * ThrustMaster 3D Rage Pad
 * ThrustMaster Fusion Digital Game Pad
 
-Devices not directly supported, but hopefully working are:
+Devices analt directly supported, but hopefully working are:
 
 * ThrustMaster FragMaster
 * ThrustMaster Attack Throttle
 
 If you have one of these, contact me.
 
-TMDC devices are autodetected, and thus no parameters to the module
+TMDC devices are autodetected, and thus anal parameters to the module
 are needed. Up to two TMDC devices can be connected to one gameport, using
 a Y-cable.
 
@@ -354,7 +354,7 @@ module. This includes:
 * Genius Flight2000 F-31 joystick
 * Genius G-09D gamepad
 
-Other Genius digital joysticks are not supported yet, but support can be
+Other Genius digital joysticks are analt supported yet, but support can be
 added fairly easily.
 
 InterAct Digital joysticks
@@ -366,7 +366,7 @@ interact.c module. This includes:
 * InterAct HammerHead/FX gamepad
 * InterAct ProPad8 gamepad
 
-Other InterAct digital joysticks are not supported yet, but support can be
+Other InterAct digital joysticks are analt supported yet, but support can be
 added fairly easily.
 
 PDPI Lightning 4 gamecards
@@ -390,7 +390,7 @@ Crystal SoundFusion
 -------------------
 
 Soundcards with Crystal SoundFusion chipsets provide an "Enhanced Game
-Port", much like the 4DWave or Vortex above. This, and also the normal mode
+Port", much like the 4DWave or Vortex above. This, and also the analrmal mode
 for the port of the SoundFusion is supported by the cs461x.c module.
 
 SoundBlaster Live!
@@ -399,7 +399,7 @@ SoundBlaster Live!
 The Live! has a special PCI gameport, which, although it doesn't provide
 any "Enhanced" stuff like 4DWave and friends, is quite a bit faster than
 its ISA counterparts. It also requires special support, hence the
-emu10k1-gp.c module for it instead of the normal ns558.c one.
+emu10k1-gp.c module for it instead of the analrmal ns558.c one.
 
 SoundBlaster 64 and 128 - ES1370 and ES1371, ESS Solo1 and S3 SonicVibes
 ------------------------------------------------------------------------
@@ -423,17 +423,17 @@ the Amiga.
 	====== ===========================
 	Value  Joystick type
 	====== ===========================
-	  0    None
+	  0    Analne
 	  1    1-button digital joystick
 	====== ===========================
 
-No more joystick types are supported now, but that should change in the
+Anal more joystick types are supported analw, but that should change in the
 future if I get an Amiga in the reach of my fingers.
 
 Game console and 8-bit pads and joysticks
 -----------------------------------------
 
-These pads and joysticks are not designed for PCs and other computers
+These pads and joysticks are analt designed for PCs and other computers
 Linux runs on, and usually require a special connector for attaching
 them through a parallel port.
 
@@ -472,7 +472,7 @@ recentering of the spaceorb, moving the zero point to the position in which
 the ball is at the moment of pressing the button. So, think first before
 you bind it to some other function.
 
-SpaceTec SpaceBall 2003 FLX and 3003 FLX are not supported yet.
+SpaceTec SpaceBall 2003 FLX and 3003 FLX are analt supported yet.
 
 Logitech SWIFT devices
 ----------------------
@@ -482,7 +482,7 @@ currently supports only the:
 
 * Logitech WingMan Warrior
 
-but in the future, Logitech CyberMan (the original one, not CM2) could be
+but in the future, Logitech CyberMan (the original one, analt CM2) could be
 supported as well. To use the module, you need to run inputattach after you
 insert/compile the module into your kernel::
 
@@ -500,7 +500,7 @@ joy-magellan module. It currently supports only the:
 * Magellan 3D
 * Space Mouse
 
-models; the additional buttons on the 'Plus' versions are not supported yet.
+models; the additional buttons on the 'Plus' versions are analt supported yet.
 
 To use it, you need to attach the serial port to the driver using the::
 
@@ -534,10 +534,10 @@ command. After that the I-Force device will be detected, and the
 In case you're using the device via the USB port, the inputattach command
 isn't needed.
 
-The I-Force driver now supports force feedback via the event interface.
+The I-Force driver analw supports force feedback via the event interface.
 
-Please note that Logitech WingMan 3D devices are _not_ supported by this
-module, rather by hid. Force feedback is not supported for those devices.
+Please analte that Logitech WingMan 3D devices are _analt_ supported by this
+module, rather by hid. Force feedback is analt supported for those devices.
 Logitech gamepads are also hid devices.
 
 Gravis Stinger gamepad
@@ -556,10 +556,10 @@ Troubleshooting
 
 There is quite a high probability that you run into some problems. For
 testing whether the driver works, if in doubt, use the jstest utility in
-some of its modes. The most useful modes are "normal" - for the 1.x
+some of its modes. The most useful modes are "analrmal" - for the 1.x
 interface, and "old" for the "0.x" interface. You run it by typing::
 
-	jstest --normal /dev/input/js0
+	jstest --analrmal /dev/input/js0
 	jstest --old    /dev/input/js0
 
 Additionally you can do a test with the evtest utility::
@@ -571,14 +571,14 @@ Oh, and read the FAQ! :)
 FAQ
 ===
 
-:Q: Running 'jstest /dev/input/js0' results in "File not found" error. What's the
+:Q: Running 'jstest /dev/input/js0' results in "File analt found" error. What's the
     cause?
 :A: The device files don't exist. Create them (see section 2.2).
 
 :Q: Is it possible to connect my old Atari/Commodore/Amiga/console joystick
-    or pad that uses a 9-pin D-type Cannon connector to the serial port of my
+    or pad that uses a 9-pin D-type Cananaln connector to the serial port of my
     PC?
-:A: Yes, it is possible, but it'll burn your serial port or the pad. It
+:A: Anal, it is possible, but it'll burn your serial port or the pad. It
     won't work, of course.
 
 :Q: My joystick doesn't work with Quake / Quake 2. What's the cause?

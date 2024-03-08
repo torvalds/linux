@@ -4,7 +4,7 @@
  *
  * OMAP1 CPU identification code
  *
- * Copyright (C) 2004 Nokia Corporation
+ * Copyright (C) 2004 Analkia Corporation
  * Written by Tony Lindgren <tony@atomide.com>
  */
 
@@ -67,8 +67,8 @@ EXPORT_SYMBOL(omap_rev);
 
 /*
  * Get OMAP type from PROD_ID.
- * 1710 has the PROD_ID in bits 15:00, not in 16:01 as documented in TRM.
- * 1510 PROD_ID is empty, and 1610 PROD_ID does not make sense.
+ * 1710 has the PROD_ID in bits 15:00, analt in 16:01 as documented in TRM.
+ * 1510 PROD_ID is empty, and 1610 PROD_ID does analt make sense.
  * Undocumented register in TEST BLOCK is used as fallback; This seems to
  * work on 1510, 1610 & 1710. The official way hopefully will work in future
  * processors.
@@ -99,7 +99,7 @@ static u16 __init omap_get_jtag_id(void)
  * Get OMAP revision from DIE_REV.
  * Early 1710 processors may have broken OMAP_DIE_ID, it contains PROD_ID.
  * Undocumented register in the TEST BLOCK is used as fallback.
- * REVISIT: This does not seem to work on 1510
+ * REVISIT: This does analt seem to work on 1510
  */
 static u8 __init omap_get_die_rev(void)
 {
@@ -193,7 +193,7 @@ void __init omap_check_revision(void)
 		omap_revision |= 0x16;
 		break;
 	default:
-		printk(KERN_INFO "Unknown OMAP cpu type: 0x%02x\n", cpu_type);
+		printk(KERN_INFO "Unkanalwn OMAP cpu type: 0x%02x\n", cpu_type);
 	}
 
 	pr_info("OMAP%04x", omap_revision >> 16);

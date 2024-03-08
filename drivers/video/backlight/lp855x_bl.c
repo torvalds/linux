@@ -324,33 +324,33 @@ static const struct attribute_group lp855x_attr_group = {
 static int lp855x_parse_dt(struct lp855x *lp)
 {
 	struct device *dev = lp->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct lp855x_platform_data *pdata = lp->pdata;
 	int rom_length;
 
-	if (!node) {
-		dev_err(dev, "no platform data\n");
+	if (!analde) {
+		dev_err(dev, "anal platform data\n");
 		return -EINVAL;
 	}
 
-	of_property_read_string(node, "bl-name", &pdata->name);
-	of_property_read_u8(node, "dev-ctrl", &pdata->device_control);
-	of_property_read_u8(node, "init-brt", &pdata->initial_brightness);
+	of_property_read_string(analde, "bl-name", &pdata->name);
+	of_property_read_u8(analde, "dev-ctrl", &pdata->device_control);
+	of_property_read_u8(analde, "init-brt", &pdata->initial_brightness);
 	/* Deprecated, specify period in pwms property instead */
-	of_property_read_u32(node, "pwm-period", &pdata->period_ns);
+	of_property_read_u32(analde, "pwm-period", &pdata->period_ns);
 
 	/* Fill ROM platform data if defined */
-	rom_length = of_get_child_count(node);
+	rom_length = of_get_child_count(analde);
 	if (rom_length > 0) {
 		struct lp855x_rom_data *rom;
-		struct device_node *child;
+		struct device_analde *child;
 		int i = 0;
 
 		rom = devm_kcalloc(dev, rom_length, sizeof(*rom), GFP_KERNEL);
 		if (!rom)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		for_each_child_of_node(node, child) {
+		for_each_child_of_analde(analde, child) {
 			of_property_read_u8(child, "rom-addr", &rom[i].addr);
 			of_property_read_u8(child, "rom-val", &rom[i].val);
 			i++;
@@ -405,7 +405,7 @@ static int lp855x_probe(struct i2c_client *cl)
 
 	lp = devm_kzalloc(dev, sizeof(struct lp855x), GFP_KERNEL);
 	if (!lp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp->client = cl;
 	lp->dev = dev;
@@ -417,7 +417,7 @@ static int lp855x_probe(struct i2c_client *cl)
 	} else {
 		acpi_id = acpi_match_device(dev->driver->acpi_match_table, dev);
 		if (!acpi_id)
-			return -ENODEV;
+			return -EANALDEV;
 
 		lp->chipname = acpi_id->id;
 		lp->chip_id = acpi_id->driver_data;
@@ -442,7 +442,7 @@ static int lp855x_probe(struct i2c_client *cl)
 	if (!lp->pdata) {
 		lp->pdata = devm_kzalloc(dev, sizeof(*lp->pdata), GFP_KERNEL);
 		if (!lp->pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (id) {
 			ret = lp855x_parse_dt(lp);
@@ -465,7 +465,7 @@ static int lp855x_probe(struct i2c_client *cl)
 	lp->enable = devm_regulator_get_optional(dev, "enable");
 	if (IS_ERR(lp->enable)) {
 		ret = PTR_ERR(lp->enable);
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			lp->enable = NULL;
 		else
 			return dev_err_probe(dev, ret, "getting enable regulator\n");
@@ -474,7 +474,7 @@ static int lp855x_probe(struct i2c_client *cl)
 	lp->pwm = devm_pwm_get(lp->dev, lp->chipname);
 	if (IS_ERR(lp->pwm)) {
 		ret = PTR_ERR(lp->pwm);
-		if (ret == -ENODEV || ret == -EINVAL)
+		if (ret == -EANALDEV || ret == -EINVAL)
 			lp->pwm = NULL;
 		else
 			return dev_err_probe(dev, ret, "getting PWM\n");

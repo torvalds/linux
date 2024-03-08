@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -40,7 +40,7 @@ void link_enc_cfg_init(
 		struct dc_state *state);
 
 /*
- * Copies a link encoder assignment from another state.
+ * Copies a link encoder assignment from aanalther state.
  */
 void link_enc_cfg_copy(const struct dc_state *src_ctx, struct dc_state *dst_ctx);
 
@@ -93,7 +93,7 @@ struct link_encoder *link_enc_cfg_get_link_enc_used_by_link(
 		struct dc *dc,
 		const struct dc_link *link);
 
-/* Return next available DIG link encoder. NULL if none available. */
+/* Return next available DIG link encoder. NULL if analne available. */
 struct link_encoder *link_enc_cfg_get_next_avail_link_enc(struct dc *dc);
 
 /* Return DIG link encoder used by stream. NULL if unused. */

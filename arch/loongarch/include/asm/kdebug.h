@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_LOONGARCH_KDEBUG_H
 #define _ASM_LOONGARCH_KDEBUG_H
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 enum die_val {
 	DIE_OOPS = 1,

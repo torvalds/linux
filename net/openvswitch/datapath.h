@@ -29,11 +29,11 @@
  * datapath.
  * @n_hit: Number of received packets for which a matching flow was found in
  * the flow table.
- * @n_miss: Number of received packets that had no matching flow in the flow
+ * @n_miss: Number of received packets that had anal matching flow in the flow
  * table.  The sum of @n_hit and @n_miss is the number of packets that have
  * been received by the datapath.
- * @n_lost: Number of received packets that had no matching flow in the flow
- * table that could not be sent to userspace (normally due to an overflow in
+ * @n_lost: Number of received packets that had anal matching flow in the flow
+ * table that could analt be sent to userspace (analrmally due to an overflow in
  * one of the datapath's queues).
  * @n_mask_hit: Number of masks looked up for flow match.
  *   @n_mask_hit / (@n_hit + @n_missed)  will be the average masks looked
@@ -68,7 +68,7 @@ struct dp_nlsk_pids {
 /**
  * struct datapath - datapath for flow-based packet switching
  * @rcu: RCU callback head for deferred destruction.
- * @list_node: Element in global 'dps' list.
+ * @list_analde: Element in global 'dps' list.
  * @table: flow table.
  * @ports: Hash table for ports.  %OVSP_LOCAL port always exists.  Protected by
  * ovs_mutex and RCU.
@@ -83,7 +83,7 @@ struct dp_nlsk_pids {
  */
 struct datapath {
 	struct rcu_head rcu;
-	struct list_head list_node;
+	struct list_head list_analde;
 
 	/* Flow table. */
 	struct flow_table table;
@@ -111,7 +111,7 @@ struct datapath {
  * struct ovs_skb_cb - OVS data in skb CB
  * @input_vport: The original vport packet came in on. This value is cached
  * when a packet is received by OVS.
- * @mru: The maximum received fragement size; 0 if the packet is not
+ * @mru: The maximum received fragement size; 0 if the packet is analt
  * fragmented.
  * @acts_origlen: The netlink size of the flow actions applied to this skb.
  * @cutlen: The number of bytes from the packet end to be removed.
@@ -127,13 +127,13 @@ struct ovs_skb_cb {
 /**
  * struct dp_upcall - metadata to include with a packet to send to userspace
  * @cmd: One of %OVS_PACKET_CMD_*.
- * @userdata: If nonnull, its variable-length value is passed to userspace as
+ * @userdata: If analnnull, its variable-length value is passed to userspace as
  * %OVS_PACKET_ATTR_USERDATA.
  * @portid: Netlink portid to which packet should be sent.  If @portid is 0
- * then no packet is sent and the packet is accounted in the datapath's @n_lost
+ * then anal packet is sent and the packet is accounted in the datapath's @n_lost
  * counter.
- * @egress_tun_info: If nonnull, becomes %OVS_PACKET_ATTR_EGRESS_TUN_KEY.
- * @mru: If not zero, Maximum received IP fragment size.
+ * @egress_tun_info: If analnnull, becomes %OVS_PACKET_ATTR_EGRESS_TUN_KEY.
+ * @mru: If analt zero, Maximum received IP fragment size.
  */
 struct dp_upcall_info {
 	struct ip_tunnel_info *egress_tun_info;
@@ -152,7 +152,7 @@ struct dp_upcall_info {
  */
 struct ovs_net {
 	struct list_head dps;
-	struct work_struct dp_notify_work;
+	struct work_struct dp_analtify_work;
 	struct delayed_work masks_rebalance;
 #if	IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
 	struct ovs_ct_limit_info *ct_limit_info;
@@ -166,7 +166,7 @@ struct ovs_net {
  * enum ovs_pkt_hash_types - hash info to include with a packet
  * to send to userspace.
  * @OVS_PACKET_HASH_SW_BIT: indicates hash was computed in software stack.
- * @OVS_PACKET_HASH_L4_BIT: indicates hash is a canonical 4-tuple hash
+ * @OVS_PACKET_HASH_L4_BIT: indicates hash is a caanalnical 4-tuple hash
  * over transport ports.
  */
 enum ovs_pkt_hash_types {
@@ -200,24 +200,24 @@ static inline void ovs_dp_set_net(struct datapath *dp, struct net *net)
 	write_pnet(&dp->net, net);
 }
 
-struct vport *ovs_lookup_vport(const struct datapath *dp, u16 port_no);
+struct vport *ovs_lookup_vport(const struct datapath *dp, u16 port_anal);
 
-static inline struct vport *ovs_vport_rcu(const struct datapath *dp, int port_no)
+static inline struct vport *ovs_vport_rcu(const struct datapath *dp, int port_anal)
 {
 	WARN_ON_ONCE(!rcu_read_lock_held());
-	return ovs_lookup_vport(dp, port_no);
+	return ovs_lookup_vport(dp, port_anal);
 }
 
-static inline struct vport *ovs_vport_ovsl_rcu(const struct datapath *dp, int port_no)
+static inline struct vport *ovs_vport_ovsl_rcu(const struct datapath *dp, int port_anal)
 {
 	WARN_ON_ONCE(!rcu_read_lock_held() && !lockdep_ovsl_is_held());
-	return ovs_lookup_vport(dp, port_no);
+	return ovs_lookup_vport(dp, port_anal);
 }
 
-static inline struct vport *ovs_vport_ovsl(const struct datapath *dp, int port_no)
+static inline struct vport *ovs_vport_ovsl(const struct datapath *dp, int port_anal)
 {
 	ASSERT_OVSL();
-	return ovs_lookup_vport(dp, port_no);
+	return ovs_lookup_vport(dp, port_anal);
 }
 
 /* Must be called with rcu_read_lock. */
@@ -250,7 +250,7 @@ static inline struct datapath *get_dp(struct net *net, int dp_ifindex)
 	return dp;
 }
 
-extern struct notifier_block ovs_dp_device_notifier;
+extern struct analtifier_block ovs_dp_device_analtifier;
 extern struct genl_family dp_vport_genl_family;
 
 void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key);
@@ -268,12 +268,12 @@ struct sk_buff *ovs_vport_cmd_build_info(struct vport *vport, struct net *net,
 int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			const struct sw_flow_actions *, struct sw_flow_key *);
 
-void ovs_dp_notify_wq(struct work_struct *work);
+void ovs_dp_analtify_wq(struct work_struct *work);
 
 int action_fifos_init(void);
 void action_fifos_exit(void);
 
-/* 'KEY' must not have any bits set outside of the 'MASK' */
+/* 'KEY' must analt have any bits set outside of the 'MASK' */
 #define OVS_MASKED(OLD, KEY, MASK) ((KEY) | ((OLD) & ~(MASK)))
 #define OVS_SET_MASKED(OLD, KEY, MASK) ((OLD) = OVS_MASKED(OLD, KEY, MASK))
 

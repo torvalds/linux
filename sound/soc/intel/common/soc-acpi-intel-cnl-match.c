@@ -83,7 +83,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cnl_sdw_machines[] = {
 		.link_mask = BIT(0) | BIT(1) | BIT(3),
 		.links = sdw_mockup_headset_1amp_mic,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-cml-rt711-rt1308-mono-rt715.tplg",
+		.sof_tplg_filename = "sof-cml-rt711-rt1308-moanal-rt715.tplg",
 	},
 	{}
 };

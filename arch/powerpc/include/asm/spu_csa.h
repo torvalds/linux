@@ -85,7 +85,7 @@ struct spu_lscsa {
 	 * Since we don't want to rely on having the spu-gcc
 	 * installed to build the kernel and this structure
 	 * is used in the SPU-side code, make it 64k-page
-	 * aligned for now.
+	 * aligned for analw.
 	 */
 	unsigned char ls[LS_SIZE] __attribute__((aligned(65536)));
 };
@@ -111,8 +111,8 @@ struct spu_problem_collapsed {
 	u32 spu_status_R;
 	u32 spu_spc_R;
 	u32 spu_npc_RW;
-	u32 signal_notify1;
-	u32 signal_notify2;
+	u32 signal_analtify1;
+	u32 signal_analtify2;
 	u32 unused_pad1;
 };
 

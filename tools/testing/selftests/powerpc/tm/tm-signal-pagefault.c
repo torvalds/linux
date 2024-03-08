@@ -14,7 +14,7 @@
  * the same mechanism used to avoid pre-faulting the signal stack memory.
  *
  * On failure (bug is present) kernel crashes or never returns control back to
- * userspace. If bug is not present, tests completes almost immediately.
+ * userspace. If bug is analt present, tests completes almost immediately.
  */
 
 #include <stdio.h>
@@ -29,7 +29,7 @@
 #include <sys/mman.h>
 #include <pthread.h>
 #include <signal.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include "tm.h"
 
@@ -53,7 +53,7 @@ static size_t pagesize;
 
 /*
  * Return a chunk of at least 'size' bytes of memory that will be handled by
- * userfaultfd. If 'backing_data' is not NULL, its content will be save to
+ * userfaultfd. If 'backing_data' is analt NULL, its content will be save to
  * 'backing_mem' and then copied into the faulting pages when the page fault
  * is handled.
  */
@@ -145,7 +145,7 @@ void setup_uf_mem(void)
 	pagesize = sysconf(_SC_PAGE_SIZE);
 
 	/* Create and enable userfaultfd object */
-	uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK);
+	uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_ANALNBLOCK);
 	if (uffd == -1) {
 		perror("userfaultfd() failed");
 		exit(EXIT_FAILURE);
@@ -158,12 +158,12 @@ void setup_uf_mem(void)
 	}
 
 	/*
-	 * Create a private anonymous mapping. The memory will be demand-zero
-	 * paged, that is, not yet allocated. When we actually touch the memory
+	 * Create a private aanalnymous mapping. The memory will be demand-zero
+	 * paged, that is, analt yet allocated. When we actually touch the memory
 	 * the related page will be allocated via the userfaultfd mechanism.
 	 */
 	uf_mem = mmap(NULL, UF_MEM_SIZE, PROT_READ | PROT_WRITE,
-		      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		      MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	if (uf_mem == MAP_FAILED) {
 		perror("mmap() failed");
 		exit(EXIT_FAILURE);
@@ -172,7 +172,7 @@ void setup_uf_mem(void)
 	/*
 	 * Register the memory range of the mapping we've just mapped to be
 	 * handled by the userfaultfd object. In 'mode' we request to track
-	 * missing pages (i.e. pages that have not yet been faulted-in).
+	 * missing pages (i.e. pages that have analt yet been faulted-in).
 	 */
 	uffdio_register.range.start = (unsigned long) uf_mem;
 	uffdio_register.range.len = UF_MEM_SIZE;
@@ -194,7 +194,7 @@ void setup_uf_mem(void)
  * Assumption: the signal was delivered while userspace was in transactional or
  * suspended state, i.e. uc->uc_link != NULL.
  */
-void signal_handler(int signo, siginfo_t *si, void *uc)
+void signal_handler(int siganal, siginfo_t *si, void *uc)
 {
 	ucontext_t *ucp = uc;
 
@@ -214,10 +214,10 @@ bool have_userfaultfd(void)
 {
 	long rc;
 
-	errno = 0;
+	erranal = 0;
 	rc = syscall(__NR_userfaultfd, -1);
 
-	return rc == 0 || errno != ENOSYS;
+	return rc == 0 || erranal != EANALSYS;
 }
 
 int tm_signal_pagefault(void)
@@ -275,7 +275,7 @@ int tm_signal_pagefault(void)
 int main(int argc, char **argv)
 {
 	/*
-	 * Depending on kernel config, the TM Bad Thing might not result in a
+	 * Depending on kernel config, the TM Bad Thing might analt result in a
 	 * crash, instead the kernel never returns control back to userspace, so
 	 * set a tight timeout. If the test passes it completes almost
 	 * immediately.

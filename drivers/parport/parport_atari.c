@@ -189,29 +189,29 @@ static int __init parport_atari_init(void)
 		/* MFP port I0 interrupt on high->low edge. */
 		st_mfp.active_edge &= ~1;
 		p = parport_register_port((unsigned long)&sound_ym.wd_data,
-					  IRQ_MFP_BUSY, PARPORT_DMA_NONE,
+					  IRQ_MFP_BUSY, PARPORT_DMA_ANALNE,
 					  &parport_atari_ops);
 		if (!p)
-			return -ENODEV;
+			return -EANALDEV;
 		if (request_irq(IRQ_MFP_BUSY, parport_irq_handler, 0, p->name,
 				p)) {
 			parport_put_port (p);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		this_port = p;
 		pr_info("%s: Atari built-in port using irq\n", p->name);
-		parport_announce_port (p);
+		parport_ananalunce_port (p);
 
 		return 0;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void __exit parport_atari_exit(void)
 {
 	parport_remove_port(this_port);
-	if (this_port->irq != PARPORT_IRQ_NONE)
+	if (this_port->irq != PARPORT_IRQ_ANALNE)
 		free_irq(IRQ_MFP_BUSY, this_port);
 	parport_put_port(this_port);
 }

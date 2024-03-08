@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -58,7 +58,7 @@
 #include "sas.h"
 #include <scsi/libsas.h>
 #include "remote_device.h"
-#include "remote_node_context.h"
+#include "remote_analde_context.h"
 #include "isci.h"
 #include "request.h"
 #include "task.h"
@@ -80,7 +80,7 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 {
 	unsigned long flags;
 
-	/* Normal notification (task_done) */
+	/* Analrmal analtification (task_done) */
 	dev_dbg(&ihost->pdev->dev, "%s: task = %p, response=%d, status=%d\n",
 		__func__, task, response, status);
 
@@ -89,7 +89,7 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 	task->task_status.resp = response;
 	task->task_status.stat = status;
 
-	/* Normal notification (task_done) */
+	/* Analrmal analtification (task_done) */
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
 	task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
 	task->lldd_task = NULL;
@@ -142,7 +142,7 @@ int isci_task_execute_task(struct sas_task *task, gfp_t gfp_flags)
 
 	if (!idev) {
 		isci_task_refuse(ihost, task, SAS_TASK_UNDELIVERED,
-				 SAS_DEVICE_UNKNOWN);
+				 SAS_DEVICE_UNKANALWN);
 	} else if (!io_ready || tag == SCI_CONTROLLER_INVALID_IO_TAG) {
 		/* Indicate QUEUE_FULL so that the scsi midlayer
 		 * retries.
@@ -178,7 +178,7 @@ int isci_task_execute_task(struct sas_task *task, gfp_t gfp_flags)
 					 */
 					isci_task_refuse(ihost, task,
 						SAS_TASK_UNDELIVERED,
-						SAS_DEVICE_UNKNOWN);
+						SAS_DEVICE_UNKANALWN);
 				} else {
 					/* Indicate QUEUE_FULL so that
 					 * the scsi midlayer retries.
@@ -269,13 +269,13 @@ static int isci_task_execute_tmf(struct isci_host *ihost,
 		return ret;
 
 	/* sanity check, return TMF_RESP_FUNC_FAILED
-	 * if the device is not there and ready.
+	 * if the device is analt there and ready.
 	 */
 	if (!idev ||
 	    (!test_bit(IDEV_IO_READY, &idev->flags) &&
 	     !test_bit(IDEV_IO_NCQERROR, &idev->flags))) {
 		dev_dbg(&ihost->pdev->dev,
-			"%s: idev = %p not ready (%#lx)\n",
+			"%s: idev = %p analt ready (%#lx)\n",
 			__func__,
 			idev, idev ? idev->flags : 0);
 		goto err_tci;
@@ -316,8 +316,8 @@ static int isci_task_execute_tmf(struct isci_host *ihost,
 					       msecs_to_jiffies(timeout_ms));
 
 	if (timeleft == 0) {
-		/* The TMF did not complete - this could be because
-		 * of an unplug.  Terminate the TMF request now.
+		/* The TMF did analt complete - this could be because
+		 * of an unplug.  Terminate the TMF request analw.
 		 */
 		isci_remote_device_suspend_terminate(ihost, idev, ireq);
 	}
@@ -422,7 +422,7 @@ int isci_task_lu_reset(struct domain_device *dev, u8 *lun)
 
 	if (!idev) {
 		/* If the device is gone, escalate to I_T_Nexus_Reset. */
-		dev_dbg(&ihost->pdev->dev, "%s: No dev\n", __func__);
+		dev_dbg(&ihost->pdev->dev, "%s: Anal dev\n", __func__);
 
 		ret = TMF_RESP_FUNC_FAILED;
 		goto out;
@@ -482,8 +482,8 @@ int isci_task_abort_task(struct sas_task *task)
 	unsigned long             flags;
 	int                       target_done_already = 0;
 
-	/* Get the isci_request reference from the task.  Note that
-	 * this check does not depend on the pending request list
+	/* Get the isci_request reference from the task.  Analte that
+	 * this check does analt depend on the pending request list
 	 * in the device, because tasks driving resets may land here
 	 * after completion in the core.
 	 */
@@ -521,7 +521,7 @@ int isci_task_abort_task(struct sas_task *task)
 	 */
 	if (!idev || !old_request) {
 		/* The request has already completed and there
-		* is nothing to do here other than to set the task
+		* is analthing to do here other than to set the task
 		* done bit, and indicate that the task abort function
 		* was successful.
 		*/
@@ -533,7 +533,7 @@ int isci_task_abort_task(struct sas_task *task)
 		ret = TMF_RESP_FUNC_COMPLETE;
 
 		dev_warn(&ihost->pdev->dev,
-			 "%s: abort task not needed for %p\n",
+			 "%s: abort task analt needed for %p\n",
 			 __func__, task);
 		goto out;
 	}
@@ -556,13 +556,13 @@ int isci_task_abort_task(struct sas_task *task)
 
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
-		/* No task to send, so explicitly resume the device here */
+		/* Anal task to send, so explicitly resume the device here */
 		isci_remote_device_resume_from_abort(ihost, idev);
 
 		dev_warn(&ihost->pdev->dev,
 			 "%s: %s request"
 				 " or complete_in_target (%d), "
-				 "or IDEV_GONE (%d), thus no TMF\n",
+				 "or IDEV_GONE (%d), thus anal TMF\n",
 			 __func__,
 			 ((task->task_proto == SAS_PROTOCOL_SMP)
 			  ? "SMP"
@@ -638,7 +638,7 @@ int isci_task_clear_task_set(
 /**
  * isci_task_query_task() - This function is implemented to cause libsas to
  *    correctly escalate the failed abort to a LUN or target reset (this is
- *    because sas_scsi_find_task libsas function does not correctly interpret
+ *    because sas_scsi_find_task libsas function does analt correctly interpret
  *    all return codes from the abort task call).  When TMF_RESP_FUNC_SUCC is
  *    returned, libsas turns this into a LUN reset; when FUNC_FAILED is
  *    returned, libsas will turn this into a target reset
@@ -664,7 +664,7 @@ int isci_task_query_task(
  * @completion_status: This parameter specifies the completion status from the
  *    sci core.
  *
- * none.
+ * analne.
  */
 void
 isci_task_request_complete(struct isci_host *ihost,
@@ -696,7 +696,7 @@ isci_task_request_complete(struct isci_host *ihost,
 		tmf_complete = tmf->complete;
 	}
 	sci_controller_complete_io(ihost, ireq->target_device, ireq);
-	/* set the 'terminated' flag handle to make sure it cannot be terminated
+	/* set the 'terminated' flag handle to make sure it cananalt be terminated
 	 *  or completed again.
 	 */
 	set_bit(IREQ_TERMINATED, &ireq->flags);
@@ -704,7 +704,7 @@ isci_task_request_complete(struct isci_host *ihost,
 	if (test_and_clear_bit(IREQ_ABORT_PATH_ACTIVE, &ireq->flags))
 		wake_up_all(&ihost->eventq);
 
-	if (!test_bit(IREQ_NO_AUTO_FREE_TAG, &ireq->flags))
+	if (!test_bit(IREQ_ANAL_AUTO_FREE_TAG, &ireq->flags))
 		isci_free_tag(ihost, ireq->io_tag);
 
 	/* The task management part completes last. */
@@ -728,7 +728,7 @@ static int isci_reset_device(struct isci_host *ihost,
 		rc = TMF_RESP_FUNC_FAILED;
 		goto out;
 	}
-	/* Note that since the termination for outstanding requests succeeded,
+	/* Analte that since the termination for outstanding requests succeeded,
 	 * this function will return success.  This is because the resets will
 	 * only fail if the device has been removed (ie. hotplug), and the
 	 * primary duty of this function is to cleanup tasks, so that is the
@@ -743,7 +743,7 @@ static int isci_reset_device(struct isci_host *ihost,
 		} else
 			reset_stat = sas_phy_reset(phy, !dev_is_sata(dev));
 	}
-	/* Explicitly resume the RNC here, since there was no task sent. */
+	/* Explicitly resume the RNC here, since there was anal task sent. */
 	isci_remote_device_resume_from_abort(ihost, idev);
 
 	dev_dbg(&ihost->pdev->dev, "%s: idev %p complete, reset_stat=%d.\n",
@@ -768,7 +768,7 @@ int isci_task_I_T_nexus_reset(struct domain_device *dev)
 		/* XXX: need to cleanup any ireqs targeting this
 		 * domain_device
 		 */
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 

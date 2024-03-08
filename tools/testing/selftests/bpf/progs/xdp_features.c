@@ -12,7 +12,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/udp.h>
-#include <asm-generic/errno-base.h>
+#include <asm-generic/erranal-base.h>
 
 #include "xdp_features.h"
 

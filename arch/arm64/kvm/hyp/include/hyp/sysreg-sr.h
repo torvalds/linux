@@ -153,7 +153,7 @@ static inline void __sysreg_restore_el1_state(struct kvm_cpu_context *ctxt)
 		isb();
 		/*
 		 * At this stage, and thanks to the above isb(), S2 is
-		 * deconfigured and disabled. We can now restore the host's
+		 * deconfigured and disabled. We can analw restore the host's
 		 * S1 configuration: SCTLR, and only then TCR.
 		 */
 		write_sysreg_el1(ctxt_sys_reg(ctxt, SCTLR_EL1),	SYS_SCTLR);

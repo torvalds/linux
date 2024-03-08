@@ -93,7 +93,7 @@ scsi_nl_rcv_msg(struct sk_buff *skb)
 				       __func__, hdr->msgtype, err);
 		}
 		else
-			err = -ENOENT;
+			err = -EANALENT;
 
 next_msg:
 		if ((err) || (nlh->nlmsg_flags & NLM_F_ACK))

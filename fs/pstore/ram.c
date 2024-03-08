@@ -68,7 +68,7 @@ MODULE_PARM_DESC(max_reason,
 static int ramoops_ecc;
 module_param_named(ecc, ramoops_ecc, int, 0400);
 MODULE_PARM_DESC(ramoops_ecc,
-		"if non-zero, the option enables ECC support and specifies "
+		"if analn-zero, the option enables ECC support and specifies "
 		"ECC buffer size in bytes (1 is a special value, means 16 "
 		"bytes ECC)");
 
@@ -201,7 +201,7 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 		header_length = ramoops_read_kmsg_hdr(persistent_ram_old(prz),
 						      &record->time,
 						      &record->compressed);
-		/* Clear and skip this DMESG record if it has no valid header */
+		/* Clear and skip this DMESG record if it has anal valid header */
 		if (!header_length) {
 			persistent_ram_free_old(prz);
 			persistent_ram_zap(prz);
@@ -231,7 +231,7 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 			tmp_prz = kzalloc(sizeof(struct persistent_ram_zone),
 					  GFP_KERNEL);
 			if (!tmp_prz)
-				return -ENOMEM;
+				return -EANALMEM;
 			prz = tmp_prz;
 			free_prz = true;
 
@@ -266,12 +266,12 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 
 	size = persistent_ram_old_size(prz) - header_length;
 
-	/* ECC correction notice */
-	record->ecc_notice_size = persistent_ram_ecc_string(prz, NULL, 0);
+	/* ECC correction analtice */
+	record->ecc_analtice_size = persistent_ram_ecc_string(prz, NULL, 0);
 
-	record->buf = kvzalloc(size + record->ecc_notice_size + 1, GFP_KERNEL);
+	record->buf = kvzalloc(size + record->ecc_analtice_size + 1, GFP_KERNEL);
 	if (record->buf == NULL) {
-		size = -ENOMEM;
+		size = -EANALMEM;
 		goto out;
 	}
 
@@ -279,7 +279,7 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 	       size);
 
 	persistent_ram_ecc_string(prz, record->buf + size,
-				  record->ecc_notice_size + 1);
+				  record->ecc_analtice_size + 1);
 
 out:
 	if (free_prz) {
@@ -306,7 +306,7 @@ static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz,
 	return len;
 }
 
-static int notrace ramoops_pstore_write(struct pstore_record *record)
+static int analtrace ramoops_pstore_write(struct pstore_record *record)
 {
 	struct ramoops_context *cxt = record->psi->data;
 	struct persistent_ram_zone *prz;
@@ -314,14 +314,14 @@ static int notrace ramoops_pstore_write(struct pstore_record *record)
 
 	if (record->type == PSTORE_TYPE_CONSOLE) {
 		if (!cxt->cprz)
-			return -ENOMEM;
+			return -EANALMEM;
 		persistent_ram_write(cxt->cprz, record->buf, record->size);
 		return 0;
 	} else if (record->type == PSTORE_TYPE_FTRACE) {
 		int zonenum;
 
 		if (!cxt->fprzs)
-			return -ENOMEM;
+			return -EANALMEM;
 		/*
 		 * Choose zone by if we're using per-cpu buffers.
 		 */
@@ -358,10 +358,10 @@ static int notrace ramoops_pstore_write(struct pstore_record *record)
 	 * report split across multiple records.
 	 */
 	if (record->part != 1)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (!cxt->dprzs)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	prz = cxt->dprzs[cxt->dump_write_cnt];
 
@@ -379,7 +379,7 @@ static int notrace ramoops_pstore_write(struct pstore_record *record)
 	/* Build header and append record contents. */
 	hlen = ramoops_write_kmsg_hdr(prz, record);
 	if (!hlen)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = record->size;
 	if (size + hlen > prz->buffer_size)
@@ -391,14 +391,14 @@ static int notrace ramoops_pstore_write(struct pstore_record *record)
 	return 0;
 }
 
-static int notrace ramoops_pstore_write_user(struct pstore_record *record,
+static int analtrace ramoops_pstore_write_user(struct pstore_record *record,
 					     const char __user *buf)
 {
 	if (record->type == PSTORE_TYPE_PMSG) {
 		struct ramoops_context *cxt = record->psi->data;
 
 		if (!cxt->mprz)
-			return -ENOMEM;
+			return -EANALMEM;
 		return persistent_ram_write_user(cxt->mprz, buf, record->size);
 	}
 
@@ -486,12 +486,12 @@ static int ramoops_init_przs(const char *name,
 			     ssize_t record_size,
 			     unsigned int *cnt, u32 sig, u32 flags)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int i;
 	size_t zone_sz;
 	struct persistent_ram_zone **prz_ar;
 
-	/* Allocate nothing for 0 mem_sz or 0 record_size. */
+	/* Allocate analthing for 0 mem_sz or 0 record_size. */
 	if (mem_sz == 0 || record_size == 0) {
 		*cnt = 0;
 		return 0;
@@ -521,7 +521,7 @@ static int ramoops_init_przs(const char *name,
 	}
 
 	if (*paddr + mem_sz - cxt->phys_addr > cxt->size) {
-		dev_err(dev, "no room for %s mem region (0x%zx@0x%llx) in (0x%lx@0x%llx)\n",
+		dev_err(dev, "anal room for %s mem region (0x%zx@0x%llx) in (0x%lx@0x%llx)\n",
 			name,
 			mem_sz, (unsigned long long)*paddr,
 			cxt->size, (unsigned long long)cxt->phys_addr);
@@ -588,10 +588,10 @@ static int ramoops_init_prz(const char *name,
 		return 0;
 
 	if (*paddr + sz - cxt->phys_addr > cxt->size) {
-		dev_err(dev, "no room for %s mem region (0x%zx@0x%llx) in (0x%lx@0x%llx)\n",
+		dev_err(dev, "anal room for %s mem region (0x%zx@0x%llx) in (0x%lx@0x%llx)\n",
 			name, sz, (unsigned long long)*paddr,
 			cxt->size, (unsigned long long)cxt->phys_addr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	label = kasprintf(GFP_KERNEL, "ramoops:%s", name);
@@ -620,7 +620,7 @@ static int ramoops_parse_dt_u32(struct platform_device *pdev,
 	u32 val32 = 0;
 	int ret;
 
-	ret = of_property_read_u32(pdev->dev.of_node, propname, &val32);
+	ret = of_property_read_u32(pdev->dev.of_analde, propname, &val32);
 	if (ret == -EINVAL) {
 		/* field is missing, use default value. */
 		val32 = default_value;
@@ -643,8 +643,8 @@ static int ramoops_parse_dt_u32(struct platform_device *pdev,
 static int ramoops_parse_dt(struct platform_device *pdev,
 			    struct ramoops_platform_data *pdata)
 {
-	struct device_node *of_node = pdev->dev.of_node;
-	struct device_node *parent_node;
+	struct device_analde *of_analde = pdev->dev.of_analde;
+	struct device_analde *parent_analde;
 	struct resource *res;
 	u32 value;
 	int ret;
@@ -661,15 +661,15 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 	pdata->mem_size = resource_size(res);
 	pdata->mem_address = res->start;
 	/*
-	 * Setting "unbuffered" is deprecated and will be ignored if
+	 * Setting "unbuffered" is deprecated and will be iganalred if
 	 * "mem_type" is also specified.
 	 */
-	pdata->mem_type = of_property_read_bool(of_node, "unbuffered");
+	pdata->mem_type = of_property_read_bool(of_analde, "unbuffered");
 	/*
-	 * Setting "no-dump-oops" is deprecated and will be ignored if
+	 * Setting "anal-dump-oops" is deprecated and will be iganalred if
 	 * "max_reason" is also specified.
 	 */
-	if (of_property_read_bool(of_node, "no-dump-oops"))
+	if (of_property_read_bool(of_analde, "anal-dump-oops"))
 		pdata->max_reason = KMSG_DUMP_PANIC;
 	else
 		pdata->max_reason = KMSG_DUMP_OOPS;
@@ -697,21 +697,21 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 	 * Some old Chromebooks relied on the kernel setting the
 	 * console_size and pmsg_size to the record size since that's
 	 * what the downstream kernel did.  These same Chromebooks had
-	 * "ramoops" straight under the root node which isn't
+	 * "ramoops" straight under the root analde which isn't
 	 * according to the current upstream bindings (though it was
 	 * arguably acceptable under a prior version of the bindings).
 	 * Let's make those old Chromebooks work by detecting that
-	 * we're not a child of "reserved-memory" and mimicking the
+	 * we're analt a child of "reserved-memory" and mimicking the
 	 * expected behavior.
 	 */
-	parent_node = of_get_parent(of_node);
-	if (!of_node_name_eq(parent_node, "reserved-memory") &&
+	parent_analde = of_get_parent(of_analde);
+	if (!of_analde_name_eq(parent_analde, "reserved-memory") &&
 	    !pdata->console_size && !pdata->ftrace_size &&
 	    !pdata->pmsg_size && !pdata->ecc_info.ecc_size) {
 		pdata->console_size = pdata->record_size;
 		pdata->pmsg_size = pdata->record_size;
 	}
-	of_node_put(parent_node);
+	of_analde_put(parent_analde);
 
 	return 0;
 }
@@ -735,7 +735,7 @@ static int ramoops_probe(struct platform_device *pdev)
 		goto fail_out;
 	}
 
-	if (dev_of_node(dev) && !pdata) {
+	if (dev_of_analde(dev) && !pdata) {
 		pdata = &pdata_local;
 		memset(pdata, 0, sizeof(*pdata));
 
@@ -754,7 +754,7 @@ static int ramoops_probe(struct platform_device *pdev)
 	if (!pdata->mem_size || (!pdata->record_size && !pdata->console_size &&
 			!pdata->ftrace_size && !pdata->pmsg_size)) {
 		pr_err("The memory size and the record/console size must be "
-			"non-zero\n");
+			"analn-zero\n");
 		err = -EINVAL;
 		goto fail_out;
 	}
@@ -805,7 +805,7 @@ static int ramoops_probe(struct platform_device *pdev)
 				cxt->ftrace_size, -1,
 				&cxt->max_ftrace_cnt, LINUX_VERSION_CODE,
 				(cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU)
-					? PRZ_FLAG_NO_LOCK : 0);
+					? PRZ_FLAG_ANAL_LOCK : 0);
 	if (err)
 		goto fail_init;
 
@@ -837,8 +837,8 @@ static int ramoops_probe(struct platform_device *pdev)
 		cxt->pstore.bufsize = cxt->dprzs[0]->buffer_size;
 		cxt->pstore.buf = kvzalloc(cxt->pstore.bufsize, GFP_KERNEL);
 		if (!cxt->pstore.buf) {
-			pr_err("cannot allocate pstore crash dump buffer\n");
-			err = -ENOMEM;
+			pr_err("cananalt allocate pstore crash dump buffer\n");
+			err = -EANALMEM;
 			goto fail_clear;
 		}
 	}
@@ -915,7 +915,7 @@ static void __init ramoops_register_dummy(void)
 
 	/*
 	 * Prepare a dummy platform data structure to carry the module
-	 * parameters. If mem_size isn't set, then there are no module
+	 * parameters. If mem_size isn't set, then there are anal module
 	 * parameters, and we can skip this.
 	 */
 	if (!mem_size)
@@ -952,7 +952,7 @@ static void __init ramoops_register_dummy(void)
 	dummy = platform_device_register_data(NULL, "ramoops", -1,
 			&pdata, sizeof(pdata));
 	if (IS_ERR(dummy)) {
-		pr_info("could not create platform device: %ld\n",
+		pr_info("could analt create platform device: %ld\n",
 			PTR_ERR(dummy));
 		dummy = NULL;
 	}

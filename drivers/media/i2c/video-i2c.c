@@ -2,7 +2,7 @@
 /*
  * video-i2c.c - Support for I2C transport video devices
  *
- * Copyright (C) 2018 Matt Ranostay <matt.ranostay@konsulko.com>
+ * Copyright (C) 2018 Matt Raanalstay <matt.raanalstay@konsulko.com>
  *
  * Supported:
  * - Panasonic AMG88xx Grid-Eye Sensors
@@ -37,7 +37,7 @@
 
 /* Power control register */
 #define AMG88XX_REG_PCTL	0x00
-#define AMG88XX_PCTL_NORMAL		0x00
+#define AMG88XX_PCTL_ANALRMAL		0x00
 #define AMG88XX_PCTL_SLEEP		0x10
 
 /* Reset register */
@@ -184,7 +184,7 @@ static int amg88xx_setup(struct video_i2c_data *data)
 	unsigned int mask = AMG88XX_FPSC_1FPS;
 	unsigned int val;
 
-	if (data->frame_interval.numerator == data->frame_interval.denominator)
+	if (data->frame_interval.numerator == data->frame_interval.deanalminator)
 		val = mask;
 	else
 		val = 0;
@@ -213,7 +213,7 @@ static int amg88xx_set_power_on(struct video_i2c_data *data)
 {
 	int ret;
 
-	ret = regmap_write(data->regmap, AMG88XX_REG_PCTL, AMG88XX_PCTL_NORMAL);
+	ret = regmap_write(data->regmap, AMG88XX_REG_PCTL, AMG88XX_PCTL_ANALRMAL);
 	if (ret)
 		return ret;
 
@@ -245,9 +245,9 @@ static int amg88xx_set_power_off(struct video_i2c_data *data)
 	if (ret)
 		return ret;
 	/*
-	 * Wait for a while to avoid resuming normal mode immediately after
+	 * Wait for a while to avoid resuming analrmal mode immediately after
 	 * entering sleep mode, otherwise the device occasionally goes wrong
-	 * (thermistor and temperature registers are not updated at all)
+	 * (thermistor and temperature registers are analt updated at all)
 	 */
 	msleep(100);
 
@@ -428,7 +428,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	if (vb2_plane_size(vb, 0) < size)
 		return -EINVAL;
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	vb2_set_plane_payload(vb, 0, size);
 
 	return 0;
@@ -450,7 +450,7 @@ static int video_i2c_thread_vid_cap(void *priv)
 {
 	struct video_i2c_data *data = priv;
 	u32 delay = mult_frac(1000000UL, data->frame_interval.numerator,
-			       data->frame_interval.denominator);
+			       data->frame_interval.deanalminator);
 	s64 end_us = ktime_to_us(ktime_get());
 
 	set_freezable();
@@ -674,7 +674,7 @@ static int video_i2c_try_fmt_vid_cap(struct file *file, void *fh,
 	pix->width = size->width;
 	pix->height = size->height;
 	pix->pixelformat = data->chip->format->pixelformat;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 	pix->bytesperline = pix->width * bpp;
 	pix->sizeimage = pix->bytesperline * pix->height;
 	pix->colorspace = V4L2_COLORSPACE_RAW;
@@ -763,11 +763,11 @@ static int video_i2c_probe(struct i2c_client *client)
 	struct video_i2c_data *data;
 	struct v4l2_device *v4l2_dev;
 	struct vb2_queue *queue;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->chip = i2c_get_match_data(client);
 	if (!data->chip)
@@ -792,7 +792,7 @@ static int video_i2c_probe(struct i2c_client *client)
 	queue = &data->vb_vidq;
 	queue->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	queue->io_modes = VB2_DMABUF | VB2_MMAP | VB2_USERPTR | VB2_READ;
-	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	queue->drv_priv = data;
 	queue->buf_struct_size = sizeof(struct video_i2c_buffer);
 	queue->min_queued_buffers = 1;
@@ -832,7 +832,7 @@ static int video_i2c_probe(struct i2c_client *client)
 			goto error_unregister_device;
 	}
 
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_analresume(&client->dev);
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev, 2000);
@@ -873,7 +873,7 @@ static int video_i2c_probe(struct i2c_client *client)
 error_pm_disable:
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_analidle(&client->dev);
 
 	if (data->chip->set_power)
 		data->chip->set_power(data, false);
@@ -899,7 +899,7 @@ static void video_i2c_remove(struct i2c_client *client)
 	pm_runtime_get_sync(&client->dev);
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_analidle(&client->dev);
 
 	if (data->chip->set_power)
 		data->chip->set_power(data, false);
@@ -963,6 +963,6 @@ static struct i2c_driver video_i2c_driver = {
 
 module_i2c_driver(video_i2c_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Raanalstay <matt.raanalstay@konsulko.com>");
 MODULE_DESCRIPTION("I2C transport video support");
 MODULE_LICENSE("GPL v2");

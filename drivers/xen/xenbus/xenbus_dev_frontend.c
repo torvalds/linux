@@ -18,12 +18,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -38,9 +38,9 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/uio.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/wait.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
@@ -135,7 +135,7 @@ static ssize_t xenbus_file_read(struct file *filp,
 again:
 	while (list_empty(&u->read_buffers)) {
 		mutex_unlock(&u->reply_mutex);
-		if (filp->f_flags & O_NONBLOCK)
+		if (filp->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
 		ret = wait_event_interruptible(u->read_waitq,
@@ -181,7 +181,7 @@ out:
 
 /*
  * Add a buffer to the queue.  Caller must hold the appropriate lock
- * if the queue is not local.  (Commonly the caller will build up
+ * if the queue is analt local.  (Commonly the caller will build up
  * multiple queued buffers on a temporary local list, and then add it
  * to the appropriate list under lock once all the buffers have een
  * successfully allocated.)
@@ -197,7 +197,7 @@ static int queue_reply(struct list_head *queue, const void *data, size_t len)
 
 	rb = kmalloc(struct_size(rb, msg, len), GFP_KERNEL);
 	if (rb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rb->cons = 0;
 	rb->len = len;
@@ -232,7 +232,7 @@ struct watch_adapter {
 
 static void free_watch_adapter(struct watch_adapter *watch)
 {
-	kfree(watch->watch.node);
+	kfree(watch->watch.analde);
 	kfree(watch->token);
 	kfree(watch);
 }
@@ -246,8 +246,8 @@ static struct watch_adapter *alloc_watch_adapter(const char *path,
 	if (watch == NULL)
 		goto out_fail;
 
-	watch->watch.node = kstrdup(path, GFP_KERNEL);
-	if (watch->watch.node == NULL)
+	watch->watch.analde = kstrdup(path, GFP_KERNEL);
+	if (watch->watch.analde == NULL)
 		goto out_free;
 
 	watch->token = kstrdup(token, GFP_KERNEL);
@@ -313,7 +313,7 @@ static void xenbus_worker(struct work_struct *wq)
 	u = container_of(wq, struct xenbus_file_priv, wq);
 
 	/*
-	 * No need for locking here because there are no other users,
+	 * Anal need for locking here because there are anal other users,
 	 * by definition.
 	 */
 
@@ -456,14 +456,14 @@ static int xenbus_write_transaction(unsigned msg_type,
 	if (msg_type == XS_TRANSACTION_START) {
 		trans = kzalloc(sizeof(*trans), GFP_KERNEL);
 		if (!trans) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 		trans->generation_id = xb_dev_generation_id;
 		list_add(&trans->list, &u->transactions);
 	} else if (msg->hdr.tx_id != 0 &&
 		   !xenbus_get_transaction(u, msg->hdr.tx_id))
-		return xenbus_command_reply(u, XS_ERROR, "ENOENT");
+		return xenbus_command_reply(u, XS_ERROR, "EANALENT");
 	else if (msg_type == XS_TRANSACTION_END &&
 		 !(msg->hdr.len == 2 &&
 		   (!strcmp(msg->body, "T") || !strcmp(msg->body, "F"))))
@@ -514,7 +514,7 @@ static int xenbus_write_watch(unsigned msg_type, struct xenbus_file_priv *u)
 	if (msg_type == XS_WATCH) {
 		watch = alloc_watch_adapter(path, token);
 		if (watch == NULL) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 
@@ -531,7 +531,7 @@ static int xenbus_write_watch(unsigned msg_type, struct xenbus_file_priv *u)
 	} else {
 		list_for_each_entry(watch, &u->watches, list) {
 			if (!strcmp(watch->token, token) &&
-			    !strcmp(watch->watch.node, path)) {
+			    !strcmp(watch->watch.analde, path)) {
 				unregister_xenbus_watch(&watch->watch);
 				list_del(&watch->list);
 				free_watch_adapter(watch);
@@ -600,7 +600,7 @@ static ssize_t xenbus_file_write(struct file *filp,
 
 	/* Return if we haven't got a full message yet */
 	if (u->len < sizeof(u->u.msg))
-		goto out;	/* not even the header yet */
+		goto out;	/* analt even the header yet */
 
 	/* If we're expecting a message that's larger than we can
 	   possibly send, dump what we have and return an error. */
@@ -614,7 +614,7 @@ static ssize_t xenbus_file_write(struct file *filp,
 		goto out;	/* incomplete data portion */
 
 	/*
-	 * OK, now we have a complete message.  Do something with it.
+	 * OK, analw we have a complete message.  Do something with it.
 	 */
 
 	kref_get(&u->kref);
@@ -646,18 +646,18 @@ static ssize_t xenbus_file_write(struct file *filp,
 	return rc;
 }
 
-static int xenbus_file_open(struct inode *inode, struct file *filp)
+static int xenbus_file_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct xenbus_file_priv *u;
 
 	if (xen_store_evtchn == 0)
-		return -ENOENT;
+		return -EANALENT;
 
-	stream_open(inode, filp);
+	stream_open(ianalde, filp);
 
 	u = kzalloc(sizeof(*u), GFP_KERNEL);
 	if (u == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&u->kref);
 
@@ -675,7 +675,7 @@ static int xenbus_file_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int xenbus_file_release(struct inode *inode, struct file *filp)
+static int xenbus_file_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct xenbus_file_priv *u = filp->private_data;
 
@@ -690,7 +690,7 @@ static __poll_t xenbus_file_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &u->read_waitq, wait);
 	if (!list_empty(&u->read_buffers))
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	return 0;
 }
 
@@ -700,12 +700,12 @@ const struct file_operations xen_xenbus_fops = {
 	.open = xenbus_file_open,
 	.release = xenbus_file_release,
 	.poll = xenbus_file_poll,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 EXPORT_SYMBOL_GPL(xen_xenbus_fops);
 
 static struct miscdevice xenbus_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "xen/xenbus",
 	.fops = &xen_xenbus_fops,
 };
@@ -715,11 +715,11 @@ static int __init xenbus_init(void)
 	int err;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = misc_register(&xenbus_dev);
 	if (err)
-		pr_err("Could not register xenbus frontend device\n");
+		pr_err("Could analt register xenbus frontend device\n");
 	return err;
 }
 device_initcall(xenbus_init);

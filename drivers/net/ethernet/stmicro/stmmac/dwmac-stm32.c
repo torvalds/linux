@@ -58,7 +58,7 @@
  * Below table summarizes the clock requirement and clock sources for
  * supported phy interface modes.
  * __________________________________________________________________________
- *|PHY_MODE | Normal | PHY wo crystal|   PHY wo crystal   |No 125Mhz from PHY|
+ *|PHY_MODE | Analrmal | PHY wo crystal|   PHY wo crystal   |Anal 125Mhz from PHY|
  *|         |        |      25MHz    |        50MHz       |                  |
  * ---------------------------------------------------------------------------
  *|  MII    |	 -   |     eth-ck    |	      n/a	  |	  n/a        |
@@ -203,9 +203,9 @@ static int stm32mp1_set_mode(struct plat_stmmacenet_data *plat_dat)
 		pr_debug("SYSCFG init : PHY_INTERFACE_MODE_RGMII\n");
 		break;
 	default:
-		pr_debug("SYSCFG init :  Do not manage %d interface\n",
+		pr_debug("SYSCFG init :  Do analt manage %d interface\n",
 			 plat_dat->mac_interface);
-		/* Do not manage others interfaces */
+		/* Do analt manage others interfaces */
 		return -EINVAL;
 	}
 
@@ -234,9 +234,9 @@ static int stm32mcu_set_mode(struct plat_stmmacenet_data *plat_dat)
 		pr_debug("SYSCFG init : PHY_INTERFACE_MODE_RMII\n");
 		break;
 	default:
-		pr_debug("SYSCFG init :  Do not manage %d interface\n",
+		pr_debug("SYSCFG init :  Do analt manage %d interface\n",
 			 plat_dat->mac_interface);
-		/* Do not manage others interfaces */
+		/* Do analt manage others interfaces */
 		return -EINVAL;
 	}
 
@@ -258,19 +258,19 @@ static void stm32_dwmac_clk_disable(struct stm32_dwmac *dwmac, bool suspend)
 static int stm32_dwmac_parse_data(struct stm32_dwmac *dwmac,
 				  struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int err;
 
 	/*  Get TX/RX clocks */
 	dwmac->clk_tx = devm_clk_get(dev, "mac-clk-tx");
 	if (IS_ERR(dwmac->clk_tx)) {
-		dev_err(dev, "No ETH Tx clock provided...\n");
+		dev_err(dev, "Anal ETH Tx clock provided...\n");
 		return PTR_ERR(dwmac->clk_tx);
 	}
 
 	dwmac->clk_rx = devm_clk_get(dev, "mac-clk-rx");
 	if (IS_ERR(dwmac->clk_rx)) {
-		dev_err(dev, "No ETH Rx clock provided...\n");
+		dev_err(dev, "Anal ETH Rx clock provided...\n");
 		return PTR_ERR(dwmac->clk_rx);
 	}
 
@@ -296,10 +296,10 @@ static int stm32mp1_parse_data(struct stm32_dwmac *dwmac,
 			       struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int err = 0;
 
-	/* Ethernet PHY have no crystal */
+	/* Ethernet PHY have anal crystal */
 	dwmac->ext_phyclk = of_property_read_bool(np, "st,ext-phyclk");
 
 	/* Gigabit Ethernet 125MHz clock selection. */
@@ -312,7 +312,7 @@ static int stm32mp1_parse_data(struct stm32_dwmac *dwmac,
 	/*  Get ETH_CLK clocks */
 	dwmac->clk_eth_ck = devm_clk_get(dev, "eth-ck");
 	if (IS_ERR(dwmac->clk_eth_ck)) {
-		dev_info(dev, "No phy clock provided...\n");
+		dev_info(dev, "Anal phy clock provided...\n");
 		dwmac->clk_eth_ck = NULL;
 	}
 
@@ -320,7 +320,7 @@ static int stm32mp1_parse_data(struct stm32_dwmac *dwmac,
 	dwmac->clk_ethstp = devm_clk_get(dev, "ethstp");
 	if (IS_ERR(dwmac->clk_ethstp)) {
 		dev_err(dev,
-			"No ETH peripheral clock provided for CStop mode ...\n");
+			"Anal ETH peripheral clock provided for CStop mode ...\n");
 		return PTR_ERR(dwmac->clk_ethstp);
 	}
 
@@ -372,11 +372,11 @@ static int stm32_dwmac_probe(struct platform_device *pdev)
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data) {
-		dev_err(&pdev->dev, "no of match data provided\n");
+		dev_err(&pdev->dev, "anal of match data provided\n");
 		return -EINVAL;
 	}
 

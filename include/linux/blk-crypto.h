@@ -42,7 +42,7 @@ struct blk_crypto_config {
  * @raw: the raw bytes of this key.  Only the first @size bytes are used.
  *
  * A blk_crypto_key is immutable once created, and many bios can reference it at
- * the same time.  It must not be freed until all bios using it have completed
+ * the same time.  It must analt be freed until all bios using it have completed
  * and it has been evicted from all devices on which it may have been used.
  */
 struct blk_crypto_key {
@@ -121,7 +121,7 @@ int __bio_crypt_clone(struct bio *dst, struct bio *src, gfp_t gfp_mask);
  *
  * If @src has an encryption context, clone it to @dst.
  *
- * Return: 0 on success, -ENOMEM if out of memory.  -ENOMEM is only possible if
+ * Return: 0 on success, -EANALMEM if out of memory.  -EANALMEM is only possible if
  *	   @gfp_mask doesn't include %__GFP_DIRECT_RECLAIM.
  */
 static inline int bio_crypt_clone(struct bio *dst, struct bio *src,

@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
-/* Do not edit directly, auto-generated from: */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
+/* Do analt edit directly, auto-generated from: */
 /*	Documentation/netlink/specs/mptcp_pm.yaml */
 /* YNL-GEN kernel header */
 
@@ -28,7 +28,7 @@ extern const struct nla_policy mptcp_pm_get_limits_nl_policy[MPTCP_PM_ATTR_SUBFL
 
 extern const struct nla_policy mptcp_pm_set_flags_nl_policy[MPTCP_PM_ATTR_ADDR_REMOTE + 1];
 
-extern const struct nla_policy mptcp_pm_announce_nl_policy[MPTCP_PM_ATTR_TOKEN + 1];
+extern const struct nla_policy mptcp_pm_ananalunce_nl_policy[MPTCP_PM_ATTR_TOKEN + 1];
 
 extern const struct nla_policy mptcp_pm_remove_nl_policy[MPTCP_PM_ATTR_LOC_ID + 1];
 
@@ -48,7 +48,7 @@ int mptcp_pm_nl_flush_addrs_doit(struct sk_buff *skb, struct genl_info *info);
 int mptcp_pm_nl_set_limits_doit(struct sk_buff *skb, struct genl_info *info);
 int mptcp_pm_nl_get_limits_doit(struct sk_buff *skb, struct genl_info *info);
 int mptcp_pm_nl_set_flags_doit(struct sk_buff *skb, struct genl_info *info);
-int mptcp_pm_nl_announce_doit(struct sk_buff *skb, struct genl_info *info);
+int mptcp_pm_nl_ananalunce_doit(struct sk_buff *skb, struct genl_info *info);
 int mptcp_pm_nl_remove_doit(struct sk_buff *skb, struct genl_info *info);
 int mptcp_pm_nl_subflow_create_doit(struct sk_buff *skb,
 				    struct genl_info *info);

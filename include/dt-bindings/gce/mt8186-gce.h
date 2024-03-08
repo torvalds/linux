@@ -8,7 +8,7 @@
 #define _DT_BINDINGS_GCE_MT8186_H
 
 /* assign timeout 0 also means default */
-#define CMDQ_NO_TIMEOUT		0xffffffff
+#define CMDQ_ANAL_TIMEOUT		0xffffffff
 #define CMDQ_TIMEOUT_DEFAULT	1000
 
 /* GCE thread priority */
@@ -55,10 +55,10 @@
 #define SUBSYS_1A04XXXX		27
 #define SUBSYS_1A05XXXX		28
 #define SUBSYS_1A06XXXX		29
-#define SUBSYS_NO_SUPPORT	99
+#define SUBSYS_ANAL_SUPPORT	99
 
 /* GCE General Purpose Register (GPR) support
- * Leave note for scenario usage here
+ * Leave analte for scenario usage here
  */
 /* GCE: write mask */
 #define GCE_GPR_R00		0x00
@@ -348,15 +348,15 @@
 /* CMDQ sw tokens
  * Following definitions are gce sw token which may use by clients
  * event operation API.
- * Note that token 512 to 639 may set secure
+ * Analte that token 512 to 639 may set secure
  */
 
 /* end of hw event and begin of sw token */
 #define CMDQ_MAX_HW_EVENT				512
 
-/* Config thread notify trigger thread */
+/* Config thread analtify trigger thread */
 #define CMDQ_SYNC_TOKEN_CONFIG_DIRTY			640
-/* Trigger thread notify config thread */
+/* Trigger thread analtify config thread */
 #define CMDQ_SYNC_TOKEN_STREAM_EOF			641
 /* Block Trigger thread until the ESD check finishes. */
 #define CMDQ_SYNC_TOKEN_ESD_EOF				642
@@ -364,8 +364,8 @@
 /* check CABC setup finish */
 #define CMDQ_SYNC_TOKEN_CABC_EOF			644
 
-/* Notify normal CMDQ there are some secure task done
- * MUST NOT CHANGE, this token sync with secure world
+/* Analtify analrmal CMDQ there are some secure task done
+ * MUST ANALT CHANGE, this token sync with secure world
  */
 #define CMDQ_SYNC_SECURE_THR_EOF			647
 
@@ -385,7 +385,7 @@
 /* GPR access tokens (for register backup)
  * There are 15 32-bit GPR, 3 GPR form a set
  * (64-bit for address, 32-bit for value)
- * MUST NOT CHANGE, these tokens sync with MDP
+ * MUST ANALT CHANGE, these tokens sync with MDP
  */
 #define CMDQ_SYNC_TOKEN_GPR_SET_0			700
 #define CMDQ_SYNC_TOKEN_GPR_SET_1			701

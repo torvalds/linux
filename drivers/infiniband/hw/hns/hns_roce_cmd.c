@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -203,7 +203,7 @@ int hns_roce_cmd_init(struct hns_roce_dev *hr_dev)
 					   HNS_ROCE_MAILBOX_SIZE,
 					   HNS_ROCE_MAILBOX_SIZE, 0);
 	if (!hr_dev->cmd.pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -222,7 +222,7 @@ int hns_roce_cmd_use_events(struct hns_roce_dev *hr_dev)
 		kcalloc(hr_cmd->max_cmds, sizeof(*hr_cmd->context), GFP_KERNEL);
 	if (!hr_cmd->context) {
 		hr_dev->cmd_mod = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < hr_cmd->max_cmds; ++i) {
@@ -256,13 +256,13 @@ hns_roce_alloc_cmd_mailbox(struct hns_roce_dev *hr_dev)
 
 	mailbox = kmalloc(sizeof(*mailbox), GFP_KERNEL);
 	if (!mailbox)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mailbox->buf =
 		dma_pool_alloc(hr_dev->cmd.pool, GFP_KERNEL, &mailbox->dma);
 	if (!mailbox->buf) {
 		kfree(mailbox);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return mailbox;

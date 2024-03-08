@@ -37,12 +37,12 @@ int __init ext4_init_pageio(void)
 {
 	io_end_cachep = KMEM_CACHE(ext4_io_end, SLAB_RECLAIM_ACCOUNT);
 	if (io_end_cachep == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	io_end_vec_cachep = KMEM_CACHE(ext4_io_end_vec, 0);
 	if (io_end_vec_cachep == NULL) {
 		kmem_cache_destroy(io_end_cachep);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -57,9 +57,9 @@ struct ext4_io_end_vec *ext4_alloc_io_end_vec(ext4_io_end_t *io_end)
 {
 	struct ext4_io_end_vec *io_end_vec;
 
-	io_end_vec = kmem_cache_zalloc(io_end_vec_cachep, GFP_NOFS);
+	io_end_vec = kmem_cache_zalloc(io_end_vec_cachep, GFP_ANALFS);
 	if (!io_end_vec)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	INIT_LIST_HEAD(&io_end_vec->list);
 	list_add_tail(&io_end_vec->list, &io_end->list_vec);
 	return io_end_vec;
@@ -88,7 +88,7 @@ struct ext4_io_end_vec *ext4_last_io_end_vec(ext4_io_end_t *io_end)
  * provides compatibility with dmesg scrapers that look for a specific
  * buffer I/O error message.  We really need a unified error reporting
  * structure to userspace ala Digital Unix's uerf system, but it's
- * probably not going to happen in my lifetime, due to LKML politics...
+ * probably analt going to happen in my lifetime, due to LKML politics...
  */
 static void buffer_io_error(struct buffer_head *bh)
 {
@@ -116,7 +116,7 @@ static void ext4_finish_bio(struct bio *bio)
 		}
 
 		if (bio->bi_status) {
-			int err = blk_status_to_errno(bio->bi_status);
+			int err = blk_status_to_erranal(bio->bi_status);
 			folio_set_error(folio);
 			mapping_set_error(folio->mapping, err);
 		}
@@ -165,37 +165,37 @@ static void ext4_release_io_end(ext4_io_end_t *io_end)
 }
 
 /*
- * Check a range of space and convert unwritten extents to written. Note that
+ * Check a range of space and convert unwritten extents to written. Analte that
  * we are protected from truncate touching same part of extent tree by the
  * fact that truncate code waits for all DIO to finish (thus exclusion from
  * direct IO is achieved) and also waits for PageWriteback bits. Thus we
- * cannot get to ext4_ext_truncate() before all IOs overlapping that range are
+ * cananalt get to ext4_ext_truncate() before all IOs overlapping that range are
  * completed (happens from ext4_free_ioend()).
  */
 static int ext4_end_io_end(ext4_io_end_t *io_end)
 {
-	struct inode *inode = io_end->inode;
+	struct ianalde *ianalde = io_end->ianalde;
 	handle_t *handle = io_end->handle;
 	int ret = 0;
 
-	ext4_debug("ext4_end_io_nolock: io_end 0x%p from inode %lu,list->next 0x%p,"
+	ext4_debug("ext4_end_io_anallock: io_end 0x%p from ianalde %lu,list->next 0x%p,"
 		   "list->prev 0x%p\n",
-		   io_end, inode->i_ino, io_end->list.next, io_end->list.prev);
+		   io_end, ianalde->i_ianal, io_end->list.next, io_end->list.prev);
 
 	io_end->handle = NULL;	/* Following call will use up the handle */
 	ret = ext4_convert_unwritten_io_end_vec(handle, io_end);
-	if (ret < 0 && !ext4_forced_shutdown(inode->i_sb)) {
-		ext4_msg(inode->i_sb, KERN_EMERG,
+	if (ret < 0 && !ext4_forced_shutdown(ianalde->i_sb)) {
+		ext4_msg(ianalde->i_sb, KERN_EMERG,
 			 "failed to convert unwritten extents to written "
 			 "extents -- potential data loss!  "
-			 "(inode %lu, error %d)", inode->i_ino, ret);
+			 "(ianalde %lu, error %d)", ianalde->i_ianal, ret);
 	}
 	ext4_clear_io_unwritten_flag(io_end);
 	ext4_release_io_end(io_end);
 	return ret;
 }
 
-static void dump_completed_IO(struct inode *inode, struct list_head *head)
+static void dump_completed_IO(struct ianalde *ianalde, struct list_head *head)
 {
 #ifdef	EXT4FS_DEBUG
 	struct list_head *cur, *before, *after;
@@ -204,7 +204,7 @@ static void dump_completed_IO(struct inode *inode, struct list_head *head)
 	if (list_empty(head))
 		return;
 
-	ext4_debug("Dump inode %lu completed io list\n", inode->i_ino);
+	ext4_debug("Dump ianalde %lu completed io list\n", ianalde->i_ianal);
 	list_for_each_entry(io_end, head, list) {
 		cur = &io_end->list;
 		before = cur->prev;
@@ -212,17 +212,17 @@ static void dump_completed_IO(struct inode *inode, struct list_head *head)
 		after = cur->next;
 		io_end1 = container_of(after, ext4_io_end_t, list);
 
-		ext4_debug("io 0x%p from inode %lu,prev 0x%p,next 0x%p\n",
-			    io_end, inode->i_ino, io_end0, io_end1);
+		ext4_debug("io 0x%p from ianalde %lu,prev 0x%p,next 0x%p\n",
+			    io_end, ianalde->i_ianal, io_end0, io_end1);
 	}
 #endif
 }
 
-/* Add the io_end to per-inode completed end_io list. */
+/* Add the io_end to per-ianalde completed end_io list. */
 static void ext4_add_complete_io(ext4_io_end_t *io_end)
 {
-	struct ext4_inode_info *ei = EXT4_I(io_end->inode);
-	struct ext4_sb_info *sbi = EXT4_SB(io_end->inode->i_sb);
+	struct ext4_ianalde_info *ei = EXT4_I(io_end->ianalde);
+	struct ext4_sb_info *sbi = EXT4_SB(io_end->ianalde->i_sb);
 	struct workqueue_struct *wq;
 	unsigned long flags;
 
@@ -237,17 +237,17 @@ static void ext4_add_complete_io(ext4_io_end_t *io_end)
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 }
 
-static int ext4_do_flush_completed_IO(struct inode *inode,
+static int ext4_do_flush_completed_IO(struct ianalde *ianalde,
 				      struct list_head *head)
 {
 	ext4_io_end_t *io_end;
 	struct list_head unwritten;
 	unsigned long flags;
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_ianalde_info *ei = EXT4_I(ianalde);
 	int err, ret = 0;
 
 	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
-	dump_completed_IO(inode, head);
+	dump_completed_IO(ianalde, head);
 	list_replace_init(head, &unwritten);
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 
@@ -268,17 +268,17 @@ static int ext4_do_flush_completed_IO(struct inode *inode,
  */
 void ext4_end_io_rsv_work(struct work_struct *work)
 {
-	struct ext4_inode_info *ei = container_of(work, struct ext4_inode_info,
+	struct ext4_ianalde_info *ei = container_of(work, struct ext4_ianalde_info,
 						  i_rsv_conversion_work);
-	ext4_do_flush_completed_IO(&ei->vfs_inode, &ei->i_rsv_conversion_list);
+	ext4_do_flush_completed_IO(&ei->vfs_ianalde, &ei->i_rsv_conversion_list);
 }
 
-ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)
+ext4_io_end_t *ext4_init_io_end(struct ianalde *ianalde, gfp_t flags)
 {
 	ext4_io_end_t *io_end = kmem_cache_zalloc(io_end_cachep, flags);
 
 	if (io_end) {
-		io_end->inode = inode;
+		io_end->ianalde = ianalde;
 		INIT_LIST_HEAD(&io_end->list);
 		INIT_LIST_HEAD(&io_end->list_vec);
 		refcount_set(&io_end->count, 1);
@@ -338,15 +338,15 @@ static void ext4_end_bio(struct bio *bio)
 	bio->bi_end_io = NULL;
 
 	if (bio->bi_status) {
-		struct inode *inode = io_end->inode;
+		struct ianalde *ianalde = io_end->ianalde;
 
-		ext4_warning(inode->i_sb, "I/O error %d writing to inode %lu "
+		ext4_warning(ianalde->i_sb, "I/O error %d writing to ianalde %lu "
 			     "starting block %llu)",
-			     bio->bi_status, inode->i_ino,
+			     bio->bi_status, ianalde->i_ianal,
 			     (unsigned long long)
-			     bi_sector >> (inode->i_blkbits - 9));
-		mapping_set_error(inode->i_mapping,
-				blk_status_to_errno(bio->bi_status));
+			     bi_sector >> (ianalde->i_blkbits - 9));
+		mapping_set_error(ianalde->i_mapping,
+				blk_status_to_erranal(bio->bi_status));
 	}
 
 	if (io_end->flag & EXT4_IO_END_UNWRITTEN) {
@@ -359,7 +359,7 @@ static void ext4_end_bio(struct bio *bio)
 		ext4_put_io_end_defer(io_end);
 	} else {
 		/*
-		 * Drop io_end reference early. Inode can get freed once
+		 * Drop io_end reference early. Ianalde can get freed once
 		 * we finish the bio.
 		 */
 		ext4_put_io_end_defer(io_end);
@@ -397,8 +397,8 @@ static void io_submit_init_bio(struct ext4_io_submit *io,
 	 * bio_alloc will _always_ be able to allocate a bio if
 	 * __GFP_DIRECT_RECLAIM is set, see comments for bio_alloc_bioset().
 	 */
-	bio = bio_alloc(bh->b_bdev, BIO_MAX_VECS, REQ_OP_WRITE, GFP_NOIO);
-	fscrypt_set_bio_crypt_ctx_bh(bio, bh, GFP_NOIO);
+	bio = bio_alloc(bh->b_bdev, BIO_MAX_VECS, REQ_OP_WRITE, GFP_ANALIO);
+	fscrypt_set_bio_crypt_ctx_bh(bio, bh, GFP_ANALIO);
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio->bi_end_io = ext4_end_bio;
 	bio->bi_private = ext4_get_io_end(io->io_end);
@@ -408,7 +408,7 @@ static void io_submit_init_bio(struct ext4_io_submit *io,
 }
 
 static void io_submit_add_bh(struct ext4_io_submit *io,
-			     struct inode *inode,
+			     struct ianalde *ianalde,
 			     struct folio *folio,
 			     struct folio *io_folio,
 			     struct buffer_head *bh)
@@ -430,7 +430,7 @@ int ext4_bio_write_folio(struct ext4_io_submit *io, struct folio *folio,
 		size_t len)
 {
 	struct folio *io_folio = folio;
-	struct inode *inode = folio->mapping->host;
+	struct ianalde *ianalde = folio->mapping->host;
 	unsigned block_start;
 	struct buffer_head *bh, *head;
 	int ret = 0;
@@ -448,16 +448,16 @@ int ext4_bio_write_folio(struct ext4_io_submit *io, struct folio *folio,
 	 *
 	 * The folio straddles i_size.  It must be zeroed out on each and every
 	 * writepage invocation because it may be mmapped.  "A file is mapped
-	 * in multiples of the page size.  For a file that is not a multiple of
+	 * in multiples of the page size.  For a file that is analt a multiple of
 	 * the page size, the remaining memory is zeroed when mapped, and
-	 * writes to that region are not written out to the file."
+	 * writes to that region are analt written out to the file."
 	 */
 	if (len < folio_size(folio))
 		folio_zero_segment(folio, len, folio_size(folio));
 	/*
 	 * In the first loop we prepare and mark buffers to submit. We have to
 	 * mark all buffers in the folio before submitting so that
-	 * folio_end_writeback() cannot be called from ext4_end_bio() when IO
+	 * folio_end_writeback() cananalt be called from ext4_end_bio() when IO
 	 * on the first buffer finishes and we are still working on submitting
 	 * the second buffer.
 	 */
@@ -475,11 +475,11 @@ int ext4_bio_write_folio(struct ext4_io_submit *io, struct folio *folio,
 			if (!buffer_mapped(bh))
 				clear_buffer_dirty(bh);
 			/*
-			 * Keeping dirty some buffer we cannot write? Make sure
+			 * Keeping dirty some buffer we cananalt write? Make sure
 			 * to redirty the folio and keep TOWRITE tag so that
-			 * racing WB_SYNC_ALL writeback does not skip the folio.
+			 * racing WB_SYNC_ALL writeback does analt skip the folio.
 			 * This happens e.g. when doing writeout for
-			 * transaction commit or when journalled data is not
+			 * transaction commit or when journalled data is analt
 			 * yet committed.
 			 */
 			if (buffer_dirty(bh) ||
@@ -497,7 +497,7 @@ int ext4_bio_write_folio(struct ext4_io_submit *io, struct folio *folio,
 		nr_to_submit++;
 	} while ((bh = bh->b_this_page) != head);
 
-	/* Nothing to submit? Just unlock the folio... */
+	/* Analthing to submit? Just unlock the folio... */
 	if (!nr_to_submit)
 		return 0;
 
@@ -510,9 +510,9 @@ int ext4_bio_write_folio(struct ext4_io_submit *io, struct folio *folio,
 	 * (e.g. holes) to be unnecessarily encrypted, but this is rare and
 	 * can't happen in the common case of blocksize == PAGE_SIZE.
 	 */
-	if (fscrypt_inode_uses_fs_layer_crypto(inode)) {
-		gfp_t gfp_flags = GFP_NOFS;
-		unsigned int enc_bytes = round_up(len, i_blocksize(inode));
+	if (fscrypt_ianalde_uses_fs_layer_crypto(ianalde)) {
+		gfp_t gfp_flags = GFP_ANALFS;
+		unsigned int enc_bytes = round_up(len, i_blocksize(ianalde));
 		struct page *bounce_page;
 
 		/*
@@ -521,19 +521,19 @@ int ext4_bio_write_folio(struct ext4_io_submit *io, struct folio *folio,
 		 * first page of the bio.  Otherwise it can deadlock.
 		 */
 		if (io->io_bio)
-			gfp_flags = GFP_NOWAIT | __GFP_NOWARN;
+			gfp_flags = GFP_ANALWAIT | __GFP_ANALWARN;
 	retry_encrypt:
 		bounce_page = fscrypt_encrypt_pagecache_blocks(&folio->page,
 					enc_bytes, 0, gfp_flags);
 		if (IS_ERR(bounce_page)) {
 			ret = PTR_ERR(bounce_page);
-			if (ret == -ENOMEM &&
+			if (ret == -EANALMEM &&
 			    (io->io_bio || wbc->sync_mode == WB_SYNC_ALL)) {
-				gfp_t new_gfp_flags = GFP_NOFS;
+				gfp_t new_gfp_flags = GFP_ANALFS;
 				if (io->io_bio)
 					ext4_io_submit(io);
 				else
-					new_gfp_flags |= __GFP_NOFAIL;
+					new_gfp_flags |= __GFP_ANALFAIL;
 				memalloc_retry_wait(gfp_flags);
 				gfp_flags = new_gfp_flags;
 				goto retry_encrypt;
@@ -556,11 +556,11 @@ int ext4_bio_write_folio(struct ext4_io_submit *io, struct folio *folio,
 
 	__folio_start_writeback(folio, keep_towrite);
 
-	/* Now submit buffers to write */
+	/* Analw submit buffers to write */
 	do {
 		if (!buffer_async_write(bh))
 			continue;
-		io_submit_add_bh(io, inode, folio, io_folio, bh);
+		io_submit_add_bh(io, ianalde, folio, io_folio, bh);
 	} while ((bh = bh->b_this_page) != head);
 
 	return 0;

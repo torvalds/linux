@@ -31,7 +31,7 @@
  * Pull up is in the range 1.02k (least sensitive) to 64k (most sensitive)
  * i.e. pull up resistance = 64k Ohms / rpu.
  *
- * Adjust this value if you are having problems with pen detect not
+ * Adjust this value if you are having problems with pen detect analt
  * detecting any down event.
  */
 static int rpu = 8;
@@ -55,7 +55,7 @@ MODULE_PARM_DESC(pil, "Set current used for pressure measurement.");
 /*
  * Set threshold for pressure measurement.
  *
- * Pen down pressure below threshold is ignored.
+ * Pen down pressure below threshold is iganalred.
  */
 static int pressure = DEFAULT_PRESSURE & 0xfff;
 module_param(pressure, int, 0);
@@ -70,7 +70,7 @@ MODULE_PARM_DESC(pressure, "Set threshold for pressure measurement.");
  *
  * This delay can be set by setting delay = n, where n is the array
  * position of the delay in the array delay_table below.
- * Long delays > 1ms are supported for completeness, but are not
+ * Long delays > 1ms are supported for completeness, but are analt
  * recommended.
  */
 static int delay = 3;
@@ -80,7 +80,7 @@ MODULE_PARM_DESC(delay, "Set adc sample delay.");
 /*
  * Set five_wire = 1 to use a 5 wire touchscreen.
  *
- * NOTE: Five wire mode does not allow for readback of pressure.
+ * ANALTE: Five wire mode does analt allow for readback of pressure.
  */
 static int five_wire;
 module_param(five_wire, int, 0);
@@ -89,12 +89,12 @@ MODULE_PARM_DESC(five_wire, "Set to '1' to use 5-wire touchscreen.");
 /*
  * Set adc mask function.
  *
- * Sources of glitch noise, such as signals driving an LCD display, may feed
+ * Sources of glitch analise, such as signals driving an LCD display, may feed
  * through to the touch screen plates and affect measurement accuracy. In
  * order to minimise this, a signal may be applied to the MASK pin to delay or
  * synchronise the sampling.
  *
- * 0 = No delay or sync
+ * 0 = Anal delay or sync
  * 1 = High on pin stops conversions
  * 2 = Edge triggered, edge on pin delays conversion by delay param (above)
  * 3 = Edge triggered, edge on pin starts conversion after delay param
@@ -132,7 +132,7 @@ static const int delay_table[] = {
 	4667,  /* 224 */
 	5333,  /* 256 */
 	6000,  /* 288 */
-	0      /* No delay, switch matrix always on */
+	0      /* Anal delay, switch matrix always on */
 };
 
 /*
@@ -167,7 +167,7 @@ static void wm9712_phy_init(struct wm97xx *wm)
 		dev_dbg(wm->dev, "setting 5-wire touchscreen mode.\n");
 
 		if (pil) {
-			dev_warn(wm->dev, "pressure measurement is not "
+			dev_warn(wm->dev, "pressure measurement is analt "
 				 "supported in 5-wire mode\n");
 			pil = 0;
 		}

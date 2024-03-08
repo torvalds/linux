@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright (C) 2022 Microchip Technology Inc. and its subsidiaries.
+/* Copyright (C) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  * Microchip VCAP API
  */
 

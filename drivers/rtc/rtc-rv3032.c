@@ -191,7 +191,7 @@ static irqreturn_t rv3032_handle_irq(int irq, void *dev_id)
 
 	if (regmap_read(rv3032->regmap, RV3032_STATUS, &status) < 0 ||
 	    status == 0) {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (status & RV3032_STATUS_TF) {
@@ -480,7 +480,7 @@ static int rv3032_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		return put_user(val, (unsigned int __user *)arg);
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -749,7 +749,7 @@ static int rv3032_clkout_register_clk(struct rv3032_data *rv3032,
 	int ret;
 	struct clk *clk;
 	struct clk_init_data init;
-	struct device_node *node = client->dev.of_node;
+	struct device_analde *analde = client->dev.of_analde;
 
 	ret = regmap_update_bits(rv3032->regmap, RV3032_TLSB, RV3032_TLSB_CLKF, 0);
 	if (ret < 0)
@@ -770,11 +770,11 @@ static int rv3032_clkout_register_clk(struct rv3032_data *rv3032,
 	init.num_parents = 0;
 	rv3032->clkout_hw.init = &init;
 
-	of_property_read_string(node, "clock-output-names", &init.name);
+	of_property_read_string(analde, "clock-output-names", &init.name);
 
 	clk = devm_clk_register(&client->dev, &rv3032->clkout_hw);
 	if (!IS_ERR(clk))
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 
 	return 0;
 }
@@ -794,7 +794,7 @@ static int rv3032_hwmon_read_temp(struct device *dev, long *mC)
 	temp = sign_extend32(buf[1], 7) << 4;
 	temp |= FIELD_GET(RV3032_TLSB_TEMP, buf[0]);
 
-	/* No blocking or shadowing on RV3032_TLSB and RV3032_TMSB */
+	/* Anal blocking or shadowing on RV3032_TLSB and RV3032_TMSB */
 	do {
 		prev = temp;
 
@@ -835,7 +835,7 @@ static int rv3032_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		err = rv3032_hwmon_read_temp(dev, temp);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -913,7 +913,7 @@ static int rv3032_probe(struct i2c_client *client)
 	rv3032 = devm_kzalloc(&client->dev, sizeof(struct rv3032_data),
 			      GFP_KERNEL);
 	if (!rv3032)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rv3032->regmap = devm_regmap_init_i2c(client, &regmap_config);
 	if (IS_ERR(rv3032->regmap))
@@ -932,7 +932,7 @@ static int rv3032_probe(struct i2c_client *client)
 	if (client->irq > 0) {
 		unsigned long irqflags = IRQF_TRIGGER_LOW;
 
-		if (dev_fwnode(&client->dev))
+		if (dev_fwanalde(&client->dev))
 			irqflags = 0;
 
 		ret = devm_request_threaded_irq(&client->dev, client->irq,

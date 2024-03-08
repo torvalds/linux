@@ -100,7 +100,7 @@ static void tpm_clk_disable(struct tpm_chip *chip)
  *
  * Return:
  * * The response length	- OK
- * * -errno			- A system error
+ * * -erranal			- A system error
  */
 int tpm_chip_start(struct tpm_chip *chip)
 {
@@ -133,7 +133,7 @@ EXPORT_SYMBOL_GPL(tpm_chip_start);
  *
  * Return:
  * * The response length	- OK
- * * -errno			- A system error
+ * * -erranal			- A system error
  */
 void tpm_chip_stop(struct tpm_chip *chip)
 {
@@ -150,9 +150,9 @@ EXPORT_SYMBOL_GPL(tpm_chip_stop);
  * The caller must already have some kind of locking to ensure that chip is
  * valid. This function will lock the chip so that the ops member can be
  * accessed safely. The locking prevents tpm_chip_unregister from
- * completing, so it should not be held for long periods.
+ * completing, so it should analt be held for long periods.
  *
- * Returns -ERRNO if the chip could not be got.
+ * Returns -ERRANAL if the chip could analt be got.
  */
 int tpm_try_get_ops(struct tpm_chip *chip)
 {
@@ -234,8 +234,8 @@ EXPORT_SYMBOL_GPL(tpm_default_chip);
  *
  * Return:
  * A reserved &struct tpm_chip instance.
- * %NULL if a chip is not found.
- * %NULL if the chip is not available.
+ * %NULL if a chip is analt found.
+ * %NULL if the chip is analt available.
  */
 struct tpm_chip *tpm_find_get_ops(struct tpm_chip *chip)
 {
@@ -307,7 +307,7 @@ int tpm_class_shutdown(struct device *dev)
 /**
  * tpm_chip_alloc() - allocate a new struct tpm_chip instance
  * @pdev: device to which the chip is associated
- *        At this point pdev mst be initialized, but does not have to
+ *        At this point pdev mst be initialized, but does analt have to
  *        be registered
  * @ops: struct tpm_class_ops instance
  *
@@ -322,7 +322,7 @@ struct tpm_chip *tpm_chip_alloc(struct device *pdev,
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&chip->tpm_mutex);
 	init_rwsem(&chip->ops_sem);
@@ -333,7 +333,7 @@ struct tpm_chip *tpm_chip_alloc(struct device *pdev,
 	rc = idr_alloc(&dev_nums_idr, NULL, 0, TPM_NUM_DEVICES, GFP_KERNEL);
 	mutex_unlock(&idr_lock);
 	if (rc < 0) {
-		dev_err(pdev, "No available tpm device numbers\n");
+		dev_err(pdev, "Anal available tpm device numbers\n");
 		kfree(chip);
 		return ERR_PTR(rc);
 	}
@@ -347,7 +347,7 @@ struct tpm_chip *tpm_chip_alloc(struct device *pdev,
 	chip->dev.groups = chip->groups;
 
 	if (chip->dev_num == 0)
-		chip->dev.devt = MKDEV(MISC_MAJOR, TPM_MINOR);
+		chip->dev.devt = MKDEV(MISC_MAJOR, TPM_MIANALR);
 	else
 		chip->dev.devt = MKDEV(MAJOR(tpm_devt), chip->dev_num);
 
@@ -363,7 +363,7 @@ struct tpm_chip *tpm_chip_alloc(struct device *pdev,
 
 	rc = tpm2_init_space(&chip->work_space, TPM2_SPACE_BUFFER_SIZE);
 	if (rc) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -417,9 +417,9 @@ static int tpm_add_char_device(struct tpm_chip *chip)
 	rc = cdev_device_add(&chip->cdev, &chip->dev);
 	if (rc) {
 		dev_err(&chip->dev,
-			"unable to cdev_device_add() %s, major %d, minor %d, err=%d\n",
+			"unable to cdev_device_add() %s, major %d, mianalr %d, err=%d\n",
 			dev_name(&chip->dev), MAJOR(chip->dev.devt),
-			MINOR(chip->dev.devt), rc);
+			MIANALR(chip->dev.devt), rc);
 		return rc;
 	}
 
@@ -499,7 +499,7 @@ static int tpm_add_legacy_sysfs(struct tpm_chip *chip)
 
 	rc = compat_only_sysfs_link_entry_to_kobj(
 		    &chip->dev.parent->kobj, &chip->dev.kobj, "ppi", NULL);
-	if (rc && rc != -ENOENT)
+	if (rc && rc != -EANALENT)
 		return rc;
 
 	/* All the names from tpm-sysfs */
@@ -519,7 +519,7 @@ static int tpm_hwrng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 {
 	struct tpm_chip *chip = container_of(rng, struct tpm_chip, hwrng);
 
-	/* Give back zero bytes, as TPM chip has not yet fully resumed: */
+	/* Give back zero bytes, as TPM chip has analt yet fully resumed: */
 	if (chip->flags & TPM_CHIP_FLAG_SUSPENDED)
 		return 0;
 
@@ -561,7 +561,7 @@ static int tpm_get_pcr_allocation(struct tpm_chip *chip)
 	     tpm1_get_pcr_allocation(chip);
 
 	if (rc > 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return rc;
 }
@@ -571,7 +571,7 @@ static int tpm_get_pcr_allocation(struct tpm_chip *chip)
  * @chip: TPM chip to use.
  *
  * Initialize TPM chip after power on. This a one-shot function: subsequent
- * calls will have no effect.
+ * calls will have anal effect.
  */
 int tpm_chip_bootstrap(struct tpm_chip *chip)
 {
@@ -660,10 +660,10 @@ EXPORT_SYMBOL_GPL(tpm_chip_register);
  * Takes the chip first away from the list of available TPM chips and then
  * cleans up all the resources reserved by tpm_chip_register().
  *
- * Once this function returns the driver call backs in 'op's will not be
- * running and will no longer start.
+ * Once this function returns the driver call backs in 'op's will analt be
+ * running and will anal longer start.
  *
- * NOTE: This function should be only called before deinitializing chip
+ * ANALTE: This function should be only called before deinitializing chip
  * resources.
  */
 void tpm_chip_unregister(struct tpm_chip *chip)

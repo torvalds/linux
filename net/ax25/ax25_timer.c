@@ -9,7 +9,7 @@
  * Copyright (C) Frederic Rible F1OAT (frible@teaser.fr)
  * Copyright (C) 2002 Ralf Baechle DO1GRB (ralf@gnu.org)
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>

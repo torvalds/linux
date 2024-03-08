@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
  * Copyright (C) 1994, 95, 96, 97, 98, 99, 2000, 2003 Ralf Baechle
@@ -15,11 +15,11 @@
 #include <asm/pgtable-bits.h>
 
 #if CONFIG_PGTABLE_LEVELS == 2
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-analpmd.h>
 #elif CONFIG_PGTABLE_LEVELS == 3
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-analpud.h>
 #else
-#include <asm-generic/pgtable-nop4d.h>
+#include <asm-generic/pgtable-analp4d.h>
 #endif
 
 #if CONFIG_PGTABLE_LEVELS == 2
@@ -132,7 +132,7 @@ extern pud_t invalid_pud_table[PTRS_PER_PUD];
 /*
  * Empty pgd/p4d entries point to the invalid_pud_table.
  */
-static inline int p4d_none(p4d_t p4d)
+static inline int p4d_analne(p4d_t p4d)
 {
 	return p4d_val(p4d) == (unsigned long)invalid_pud_table;
 }
@@ -178,7 +178,7 @@ extern pmd_t invalid_pmd_table[PTRS_PER_PMD];
 /*
  * Empty pud entries point to the invalid_pmd_table.
  */
-static inline int pud_none(pud_t pud)
+static inline int pud_analne(pud_t pud)
 {
 	return pud_val(pud) == (unsigned long)invalid_pmd_table;
 }
@@ -213,7 +213,7 @@ static inline pmd_t *pud_pgtable(pud_t pud)
 /*
  * Empty pmd entries point to the invalid_pte_table.
  */
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_analne(pmd_t pmd)
 {
 	return pmd_val(pmd) == (unsigned long)invalid_pte_table;
 }
@@ -226,7 +226,7 @@ static inline int pmd_bad(pmd_t pmd)
 static inline int pmd_present(pmd_t pmd)
 {
 	if (unlikely(pmd_val(pmd) & _PAGE_HUGE))
-		return !!(pmd_val(pmd) & (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PRESENT_INVALID));
+		return !!(pmd_val(pmd) & (_PAGE_PRESENT | _PAGE_PROTANALNE | _PAGE_PRESENT_INVALID));
 
 	return pmd_val(pmd) != (unsigned long)invalid_pte_table;
 }
@@ -263,7 +263,7 @@ extern void pmd_init(void *addr);
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs:
  *
@@ -275,8 +275,8 @@ extern void pmd_init(void *addr);
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  *   --------------> E <--- type ---> <---------- zeroes ---------->
  *
- *   E is the exclusive marker that is not stored in swap entries.
- *   The zero'ed bits include _PAGE_PRESENT and _PAGE_PROTNONE.
+ *   E is the exclusive marker that is analt stored in swap entries.
+ *   The zero'ed bits include _PAGE_PRESENT and _PAGE_PROTANALNE.
  */
 static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 { pte_t pte; pte_val(pte) = ((type & 0x7f) << 16) | (offset << 24); return pte; }
@@ -308,9 +308,9 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 
 extern void paging_init(void);
 
-#define pte_none(pte)		(!(pte_val(pte) & ~_PAGE_GLOBAL))
-#define pte_present(pte)	(pte_val(pte) & (_PAGE_PRESENT | _PAGE_PROTNONE))
-#define pte_no_exec(pte)	(pte_val(pte) & _PAGE_NO_EXEC)
+#define pte_analne(pte)		(!(pte_val(pte) & ~_PAGE_GLOBAL))
+#define pte_present(pte)	(pte_val(pte) & (_PAGE_PRESENT | _PAGE_PROTANALNE))
+#define pte_anal_exec(pte)	(pte_val(pte) & _PAGE_ANAL_EXEC)
 
 static inline void set_pte(pte_t *ptep, pte_t pteval)
 {
@@ -318,7 +318,7 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 	if (pte_val(pteval) & _PAGE_GLOBAL) {
 		pte_t *buddy = ptep_buddy(ptep);
 		/*
-		 * Make sure the buddy is global too (if it's !none,
+		 * Make sure the buddy is global too (if it's !analne,
 		 * it better already be global)
 		 */
 #ifdef CONFIG_SMP
@@ -335,13 +335,13 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 		"	 or	%[tmp], %[tmp], %[global]	\n"
 			__SC	"%[tmp], %[buddy]		\n"
 		"	beqz	%[tmp], 1b			\n"
-		"	nop					\n"
+		"	analp					\n"
 		"2:						\n"
 		__WEAK_LLSC_MB
 		: [buddy] "+m" (buddy->pte), [tmp] "=&r" (tmp)
 		: [global] "r" (page_global));
 #else /* !CONFIG_SMP */
-		if (pte_none(*buddy))
+		if (pte_analne(*buddy))
 			pte_val(*buddy) = pte_val(*buddy) | _PAGE_GLOBAL;
 #endif /* CONFIG_SMP */
 	}
@@ -368,7 +368,7 @@ struct page *tlb_virt_to_page(unsigned long kaddr);
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if analt..
  */
 static inline int pte_write(pte_t pte)	{ return pte_val(pte) & _PAGE_WRITE; }
 static inline int pte_young(pte_t pte)	{ return pte_val(pte) & _PAGE_ACCESSED; }
@@ -400,7 +400,7 @@ static inline pte_t pte_mkdirty(pte_t pte)
 	return pte;
 }
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_WRITE;
 	if (pte_val(pte) & _PAGE_MODIFIED)
@@ -433,7 +433,7 @@ static inline unsigned long pte_accessible(struct mm_struct *mm, pte_t a)
 	if (pte_val(a) & _PAGE_PRESENT)
 		return true;
 
-	if ((pte_val(a) & _PAGE_PROTNONE) &&
+	if ((pte_val(a) & _PAGE_PROTANALNE) &&
 			atomic_read(&mm->tlb_flush_pending))
 		return true;
 
@@ -509,7 +509,7 @@ static inline int pmd_write(pmd_t pmd)
 	return !!(pmd_val(pmd) & _PAGE_WRITE);
 }
 
-static inline pmd_t pmd_mkwrite_novma(pmd_t pmd)
+static inline pmd_t pmd_mkwrite_analvma(pmd_t pmd)
 {
 	pmd_val(pmd) |= _PAGE_WRITE;
 	if (pmd_val(pmd) & _PAGE_MODIFIED)
@@ -579,7 +579,7 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 static inline pmd_t pmd_mkinvalid(pmd_t pmd)
 {
 	pmd_val(pmd) |= _PAGE_PRESENT_INVALID;
-	pmd_val(pmd) &= ~(_PAGE_PRESENT | _PAGE_VALID | _PAGE_DIRTY | _PAGE_PROTNONE);
+	pmd_val(pmd) &= ~(_PAGE_PRESENT | _PAGE_VALID | _PAGE_DIRTY | _PAGE_PROTANALNE);
 
 	return pmd;
 }
@@ -602,14 +602,14 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 #ifdef CONFIG_NUMA_BALANCING
-static inline long pte_protnone(pte_t pte)
+static inline long pte_protanalne(pte_t pte)
 {
-	return (pte_val(pte) & _PAGE_PROTNONE);
+	return (pte_val(pte) & _PAGE_PROTANALNE);
 }
 
-static inline long pmd_protnone(pmd_t pmd)
+static inline long pmd_protanalne(pmd_t pmd)
 {
-	return (pmd_val(pmd) & _PAGE_PROTNONE);
+	return (pmd_val(pmd) & _PAGE_PROTANALNE);
 }
 #endif /* CONFIG_NUMA_BALANCING */
 

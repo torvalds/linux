@@ -18,7 +18,7 @@ function update_current_settings {
 }
 
 if ! ethtool -h | grep -q coalesce; then
-    echo "SKIP: No --coalesce support in ethtool"
+    echo "SKIP: Anal --coalesce support in ethtool"
     exit 4
 fi
 

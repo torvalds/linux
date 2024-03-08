@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
-/* Copyright 2022 Innovative Advantage Inc. */
+/* Copyright 2022 Inanalvative Advantage Inc. */
 
 #ifndef _LINUX_MFD_OCELOT_H
 #define _LINUX_MFD_OCELOT_H
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -56,7 +56,7 @@ ocelot_regmap_from_resource(struct platform_device *pdev, unsigned int index,
 	struct regmap *map;
 
 	map = ocelot_regmap_from_resource_optional(pdev, index, config);
-	return map ?: ERR_PTR(-ENOENT);
+	return map ?: ERR_PTR(-EANALENT);
 }
 
 #endif

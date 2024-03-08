@@ -64,7 +64,7 @@
 	status = "okay";
 };
 
-/* FIXME: MAC driver comes up but cannot attach to PHY */
+/* FIXME: MAC driver comes up but cananalt attach to PHY */
 &enet0 {
 	status = "disabled";
 };

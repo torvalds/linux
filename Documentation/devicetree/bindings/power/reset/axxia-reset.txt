@@ -5,7 +5,7 @@ block to initiate a chip reset.
 
 Required Properties:
   -compatible: "lsi,axm55xx-reset"
-  -syscon: phandle to the syscon node.
+  -syscon: phandle to the syscon analde.
 
 Example:
 

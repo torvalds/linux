@@ -36,7 +36,7 @@ Required properties:
 
   - mux-ext-port	: The external port of the i.MX audio muxer
 
-Note: The AUDMUX port numbering should start at 1, which is consistent with
+Analte: The AUDMUX port numbering should start at 1, which is consistent with
 hardware manual.
 
 Example:

@@ -228,7 +228,7 @@ static const char * const input2_route_sel_text[] = {
 	"ADC2_SEL", "DMIC2_SEL",
 };
 
-/* Note: CS53L30_ADCDMIC1_CTL1 CH_TYPE controls inputs 1 and 2 */
+/* Analte: CS53L30_ADCDMIC1_CTL1 CH_TYPE controls inputs 1 and 2 */
 static const struct soc_enum input2_route_sel_enum =
 	SOC_ENUM_SINGLE(CS53L30_ADCDMIC1_CTL1, 0,
 			ARRAY_SIZE(input2_route_sel_text),
@@ -244,7 +244,7 @@ static const struct snd_kcontrol_new input2_route_sel_mux =
 /*
  * TB = 6144*(MCLK(int) scaling factor)/MCLK(internal)
  * TB - Time base
- * NOTE: If MCLK_INT_SCALE = 0, then TB=1
+ * ANALTE: If MCLK_INT_SCALE = 0, then TB=1
  */
 static const char * const cs53l30_ng_delay_text[] = {
 	"TB*50ms", "TB*100ms", "TB*150ms", "TB*200ms",
@@ -260,7 +260,7 @@ static const struct soc_enum adc2_ng_delay_enum =
 			ARRAY_SIZE(cs53l30_ng_delay_text),
 			cs53l30_ng_delay_text);
 
-/* The noise gate threshold selected will depend on NG Boost */
+/* The analise gate threshold selected will depend on NG Boost */
 static const char * const cs53l30_ng_thres_text[] = {
 	"-64dB/-34dB", "-66dB/-36dB", "-70dB/-40dB", "-73dB/-43dB",
 	"-76dB/-46dB", "-82dB/-52dB", "-58dB", "-64dB",
@@ -292,22 +292,22 @@ static const struct soc_enum adc2_hpf_enum =
 static const struct snd_kcontrol_new cs53l30_snd_controls[] = {
 	SOC_SINGLE("Digital Soft-Ramp Switch", CS53L30_SFT_RAMP,
 		   CS53L30_DIGSFT_SHIFT, 1, 0),
-	SOC_SINGLE("ADC1 Noise Gate Ganging Switch", CS53L30_ADC1_CTL3,
+	SOC_SINGLE("ADC1 Analise Gate Ganging Switch", CS53L30_ADC1_CTL3,
 		   CS53L30_ADCx_NG_ALL_SHIFT, 1, 0),
-	SOC_SINGLE("ADC2 Noise Gate Ganging Switch", CS53L30_ADC2_CTL3,
+	SOC_SINGLE("ADC2 Analise Gate Ganging Switch", CS53L30_ADC2_CTL3,
 		   CS53L30_ADCx_NG_ALL_SHIFT, 1, 0),
-	SOC_SINGLE("ADC1A Noise Gate Enable Switch", CS53L30_ADC1_NG_CTL,
+	SOC_SINGLE("ADC1A Analise Gate Enable Switch", CS53L30_ADC1_NG_CTL,
 		   CS53L30_ADCxA_NG_SHIFT, 1, 0),
-	SOC_SINGLE("ADC1B Noise Gate Enable Switch", CS53L30_ADC1_NG_CTL,
+	SOC_SINGLE("ADC1B Analise Gate Enable Switch", CS53L30_ADC1_NG_CTL,
 		   CS53L30_ADCxB_NG_SHIFT, 1, 0),
-	SOC_SINGLE("ADC2A Noise Gate Enable Switch", CS53L30_ADC2_NG_CTL,
+	SOC_SINGLE("ADC2A Analise Gate Enable Switch", CS53L30_ADC2_NG_CTL,
 		   CS53L30_ADCxA_NG_SHIFT, 1, 0),
-	SOC_SINGLE("ADC2B Noise Gate Enable Switch", CS53L30_ADC2_NG_CTL,
+	SOC_SINGLE("ADC2B Analise Gate Enable Switch", CS53L30_ADC2_NG_CTL,
 		   CS53L30_ADCxB_NG_SHIFT, 1, 0),
-	SOC_SINGLE("ADC1 Notch Filter Switch", CS53L30_ADCDMIC1_CTL2,
-		   CS53L30_ADCx_NOTCH_DIS_SHIFT, 1, 1),
-	SOC_SINGLE("ADC2 Notch Filter Switch", CS53L30_ADCDMIC2_CTL2,
-		   CS53L30_ADCx_NOTCH_DIS_SHIFT, 1, 1),
+	SOC_SINGLE("ADC1 Analtch Filter Switch", CS53L30_ADCDMIC1_CTL2,
+		   CS53L30_ADCx_ANALTCH_DIS_SHIFT, 1, 1),
+	SOC_SINGLE("ADC2 Analtch Filter Switch", CS53L30_ADCDMIC2_CTL2,
+		   CS53L30_ADCx_ANALTCH_DIS_SHIFT, 1, 1),
 	SOC_SINGLE("ADC1A Invert Switch", CS53L30_ADCDMIC1_CTL2,
 		   CS53L30_ADCxA_INV_SHIFT, 1, 0),
 	SOC_SINGLE("ADC1B Invert Switch", CS53L30_ADCDMIC1_CTL2,
@@ -385,9 +385,9 @@ static const struct snd_soc_dapm_widget cs53l30_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("ASP_SDOUT2", NULL, 0, CS53L30_ASP_CTL2,
 			     CS53L30_ASP_SDOUTx_PDN_SHIFT, 1),
 
-	SND_SOC_DAPM_MUX("Input Mux 1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Input Mux 1", SND_SOC_ANALPM, 0, 0,
 			 &input1_route_sel_mux),
-	SND_SOC_DAPM_MUX("Input Mux 2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Input Mux 2", SND_SOC_ANALPM, 0, 0,
 			 &input2_route_sel_mux),
 
 	SND_SOC_DAPM_ADC("ADC1A", NULL, CS53L30_ADCDMIC1_CTL1,
@@ -464,7 +464,7 @@ struct cs53l30_mclk_div {
 };
 
 static const struct cs53l30_mclk_div cs53l30_mclk_coeffs[] = {
-	/* NOTE: Enable MCLK_INT_SCALE to save power. */
+	/* ANALTE: Enable MCLK_INT_SCALE to save power. */
 
 	/* MCLK, Sample Rate, asp_rate, internal_fs_ratio, mclk_int_scale */
 	{5644800, 11025, 0x4, CS53L30_INTRNL_FS_RATIO, CS53L30_MCLK_INT_SCALE},
@@ -718,7 +718,7 @@ static int cs53l30_set_bias_level(struct snd_soc_component *component,
 					break;
 			}
 		}
-		/* PDN_DONE is set. We now can disable the MCLK */
+		/* PDN_DONE is set. We analw can disable the MCLK */
 		regmap_update_bits(priv->regmap, CS53L30_INT_MASK,
 				   CS53L30_PDN_DONE, CS53L30_PDN_DONE);
 		regmap_update_bits(priv->regmap, CS53L30_MCLKCTL,
@@ -759,7 +759,7 @@ static int cs53l30_pcm_startup(struct snd_pcm_substream *substream,
 }
 
 /*
- * Note: CS53L30 counts the slot number per byte while ASoC counts the slot
+ * Analte: CS53L30 counts the slot number per byte while ASoC counts the slot
  * number per slot_width. So there is a difference between the slots of ASoC
  * and the slots of CS53L30.
  */
@@ -774,11 +774,11 @@ static int cs53l30_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	int i;
 
 	if (!rx_mask) {
-		dev_err(dai->dev, "rx masks must not be 0\n");
+		dev_err(dai->dev, "rx masks must analt be 0\n");
 		return -EINVAL;
 	}
 
-	/* Assuming slot_width is not supposed to be greater than 64 */
+	/* Assuming slot_width is analt supposed to be greater than 64 */
 	if (slots <= 0 || slot_width <= 0 || slot_width > 64) {
 		dev_err(dai->dev, "invalid slot number or slot width\n");
 		return -EINVAL;
@@ -844,8 +844,8 @@ static int cs53l30_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	return 0;
 }
 
-/* SNDRV_PCM_RATE_KNOT -> 12000, 24000 Hz, limit with constraint list */
-#define CS53L30_RATES (SNDRV_PCM_RATE_8000_48000 | SNDRV_PCM_RATE_KNOT)
+/* SNDRV_PCM_RATE_KANALT -> 12000, 24000 Hz, limit with constraint list */
+#define CS53L30_RATES (SNDRV_PCM_RATE_8000_48000 | SNDRV_PCM_RATE_KANALT)
 
 #define CS53L30_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE)
@@ -919,7 +919,7 @@ static struct regmap_config cs53l30_regmap = {
 
 static int cs53l30_i2c_probe(struct i2c_client *client)
 {
-	const struct device_node *np = client->dev.of_node;
+	const struct device_analde *np = client->dev.of_analde;
 	struct device *dev = &client->dev;
 	struct cs53l30_private *cs53l30;
 	unsigned int reg;
@@ -928,7 +928,7 @@ static int cs53l30_i2c_probe(struct i2c_client *client)
 
 	cs53l30 = devm_kzalloc(dev, sizeof(*cs53l30), GFP_KERNEL);
 	if (!cs53l30)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(cs53l30->supplies); i++)
 		cs53l30->supplies[i].supply = cs53l30_supply_names[i];
@@ -977,7 +977,7 @@ static int cs53l30_i2c_probe(struct i2c_client *client)
 	}
 
 	if (devid != CS53L30_DEVID) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(dev, "Device ID (%X). Expected %X\n",
 			devid, CS53L30_DEVID);
 		goto error;

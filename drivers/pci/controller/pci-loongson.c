@@ -55,7 +55,7 @@ struct loongson_pci {
 /* Fixup wrong class code in PCIe bridges */
 static void bridge_class_quirk(struct pci_dev *dev)
 {
-	dev->class = PCI_CLASS_BRIDGE_PCI_NORMAL;
+	dev->class = PCI_CLASS_BRIDGE_PCI_ANALRMAL;
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_LOONGSON,
 			DEV_LS7A_PCIE_PORT0, bridge_class_quirk);
@@ -71,7 +71,7 @@ static void system_bus_quirk(struct pci_dev *pdev)
 	 * resources of the host bridge.
 	 */
 	pdev->mmio_always_on = 1;
-	pdev->non_compliant_bars = 1;
+	pdev->analn_compliant_bars = 1;
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_LOONGSON,
 			DEV_LS2K_APB, system_bus_quirk);
@@ -83,7 +83,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_LOONGSON,
 /*
  * Some Loongson PCIe ports have hardware limitations on their Maximum Read
  * Request Size. They can't handle anything larger than this.  Sane
- * firmware will set proper MRRS at boot, so we only need no_inc_mrrs for
+ * firmware will set proper MRRS at boot, so we only need anal_inc_mrrs for
  * bridges. However, some MIPS Loongson firmware doesn't set MRRS properly,
  * so we have to enforce maximum safe MRRS, which is 256 bytes.
  */
@@ -125,7 +125,7 @@ static void loongson_mrrs_quirk(struct pci_dev *pdev)
 {
 	struct pci_host_bridge *bridge = pci_find_host_bridge(pdev->bus);
 
-	bridge->no_inc_mrrs = 1;
+	bridge->anal_inc_mrrs = 1;
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_LOONGSON,
 			DEV_LS2K_PCIE_PORT0, loongson_mrrs_quirk);
@@ -217,7 +217,7 @@ static void __iomem *pci_loongson_map_bus(struct pci_bus *bus,
 	struct loongson_pci *priv = pci_bus_to_loongson_pci(bus);
 
 	/*
-	 * Do not read more than one device on the bus other than
+	 * Do analt read more than one device on the bus other than
 	 * the host bus.
 	 */
 	if ((priv->data->flags & FLAG_DEV_FIX) && bus->self) {
@@ -225,7 +225,7 @@ static void __iomem *pci_loongson_map_bus(struct pci_bus *bus,
 			return NULL;
 	}
 
-	/* Don't access non-existent devices */
+	/* Don't access analn-existent devices */
 	if (priv->data->flags & FLAG_DEV_HIDDEN) {
 		if (!pdev_may_exist(bus, device, function))
 			return NULL;
@@ -305,16 +305,16 @@ static int loongson_pci_probe(struct platform_device *pdev)
 {
 	struct loongson_pci *priv;
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct pci_host_bridge *bridge;
 	struct resource *regs;
 
-	if (!node)
-		return -ENODEV;
+	if (!analde)
+		return -EANALDEV;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*priv));
 	if (!bridge)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = pci_host_bridge_priv(bridge);
 	priv->pdev = pdev;
@@ -370,11 +370,11 @@ static int loongson_pci_ecam_init(struct pci_config_window *cfg)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cfg->priv = priv;
 	data->flags = FLAG_CFG1 | FLAG_DEV_HIDDEN;

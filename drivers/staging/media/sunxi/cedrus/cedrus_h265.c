@@ -48,7 +48,7 @@ static unsigned int cedrus_h265_2bit_size(unsigned int width,
 	 * Vendor library additionally aligns width and height to 16,
 	 * but all capture formats are already aligned to that anyway,
 	 * so we can skip that here. All formats are also one form of
-	 * YUV 4:2:0 or another, so we can safely assume multiplication
+	 * YUV 4:2:0 or aanalther, so we can safely assume multiplication
 	 * factor of 1.5.
 	 */
 	return ALIGN(width / 4, 32) * height * 3 / 2;
@@ -428,7 +428,7 @@ static int cedrus_h265_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 	struct cedrus_buffer *cedrus_buf;
 	dma_addr_t src_buf_addr;
 	dma_addr_t src_buf_end_addr;
-	u32 chroma_log2_weight_denom;
+	u32 chroma_log2_weight_deanalm;
 	u32 num_entry_point_offsets;
 	u32 output_pic_list_index;
 	u32 pic_order_cnt[2];
@@ -476,10 +476,10 @@ static int cedrus_h265_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 			dma_alloc_attrs(dev->dev,
 					cedrus_buf->codec.h265.mv_col_buf_size,
 					&cedrus_buf->codec.h265.mv_col_buf_dma,
-					GFP_KERNEL, DMA_ATTR_NO_KERNEL_MAPPING);
+					GFP_KERNEL, DMA_ATTR_ANAL_KERNEL_MAPPING);
 		if (!cedrus_buf->codec.h265.mv_col_buf) {
 			cedrus_buf->codec.h265.mv_col_buf_size = 0;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -539,7 +539,7 @@ static int cedrus_h265_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 	 */
 
 	if (slice_params->data_byte_offset == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cedrus_h265_skip_bits(dev, (slice_params->data_byte_offset - 1) * 8);
 
@@ -725,15 +725,15 @@ static int cedrus_h265_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 				slice_params->flags);
 
 	if (slice_params->slice_type != V4L2_HEVC_SLICE_TYPE_I && !cedrus_h265_is_low_delay(run))
-		reg |= VE_DEC_H265_DEC_SLICE_HDR_INFO1_FLAG_SLICE_NOT_LOW_DELAY;
+		reg |= VE_DEC_H265_DEC_SLICE_HDR_INFO1_FLAG_SLICE_ANALT_LOW_DELAY;
 
 	cedrus_write(dev, VE_DEC_H265_DEC_SLICE_HDR_INFO1, reg);
 
-	chroma_log2_weight_denom = pred_weight_table->luma_log2_weight_denom +
-				   pred_weight_table->delta_chroma_log2_weight_denom;
+	chroma_log2_weight_deanalm = pred_weight_table->luma_log2_weight_deanalm +
+				   pred_weight_table->delta_chroma_log2_weight_deanalm;
 	reg = VE_DEC_H265_DEC_SLICE_HDR_INFO2_NUM_ENTRY_POINT_OFFSETS(num_entry_point_offsets) |
-	      VE_DEC_H265_DEC_SLICE_HDR_INFO2_CHROMA_LOG2_WEIGHT_DENOM(chroma_log2_weight_denom) |
-	      VE_DEC_H265_DEC_SLICE_HDR_INFO2_LUMA_LOG2_WEIGHT_DENOM(pred_weight_table->luma_log2_weight_denom);
+	      VE_DEC_H265_DEC_SLICE_HDR_INFO2_CHROMA_LOG2_WEIGHT_DEANALM(chroma_log2_weight_deanalm) |
+	      VE_DEC_H265_DEC_SLICE_HDR_INFO2_LUMA_LOG2_WEIGHT_DEANALM(pred_weight_table->luma_log2_weight_deanalm);
 
 	cedrus_write(dev, VE_DEC_H265_DEC_SLICE_HDR_INFO2, reg);
 
@@ -841,9 +841,9 @@ static int cedrus_h265_start(struct cedrus_ctx *ctx)
 	ctx->codec.h265.neighbor_info_buf =
 		dma_alloc_attrs(dev->dev, CEDRUS_H265_NEIGHBOR_INFO_BUF_SIZE,
 				&ctx->codec.h265.neighbor_info_buf_addr,
-				GFP_KERNEL, DMA_ATTR_NO_KERNEL_MAPPING);
+				GFP_KERNEL, DMA_ATTR_ANAL_KERNEL_MAPPING);
 	if (!ctx->codec.h265.neighbor_info_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->codec.h265.entry_points_buf =
 		dma_alloc_coherent(dev->dev, CEDRUS_H265_ENTRY_POINTS_BUF_SIZE,
@@ -853,8 +853,8 @@ static int cedrus_h265_start(struct cedrus_ctx *ctx)
 		dma_free_attrs(dev->dev, CEDRUS_H265_NEIGHBOR_INFO_BUF_SIZE,
 			       ctx->codec.h265.neighbor_info_buf,
 			       ctx->codec.h265.neighbor_info_buf_addr,
-			       DMA_ATTR_NO_KERNEL_MAPPING);
-		return -ENOMEM;
+			       DMA_ATTR_ANAL_KERNEL_MAPPING);
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -882,7 +882,7 @@ static void cedrus_h265_stop(struct cedrus_ctx *ctx)
 				       buf->codec.h265.mv_col_buf_size,
 				       buf->codec.h265.mv_col_buf,
 				       buf->codec.h265.mv_col_buf_dma,
-				       DMA_ATTR_NO_KERNEL_MAPPING);
+				       DMA_ATTR_ANAL_KERNEL_MAPPING);
 
 			buf->codec.h265.mv_col_buf_size = 0;
 		}
@@ -891,7 +891,7 @@ static void cedrus_h265_stop(struct cedrus_ctx *ctx)
 	dma_free_attrs(dev->dev, CEDRUS_H265_NEIGHBOR_INFO_BUF_SIZE,
 		       ctx->codec.h265.neighbor_info_buf,
 		       ctx->codec.h265.neighbor_info_buf_addr,
-		       DMA_ATTR_NO_KERNEL_MAPPING);
+		       DMA_ATTR_ANAL_KERNEL_MAPPING);
 	dma_free_coherent(dev->dev, CEDRUS_H265_ENTRY_POINTS_BUF_SIZE,
 			  ctx->codec.h265.entry_points_buf,
 			  ctx->codec.h265.entry_points_buf_addr);

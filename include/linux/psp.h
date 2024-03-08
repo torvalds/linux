@@ -14,7 +14,7 @@
 /*
  * Fields and bits used by most PSP mailboxes
  *
- * Note: Some mailboxes (such as SEV) have extra bits or different meanings
+ * Analte: Some mailboxes (such as SEV) have extra bits or different meanings
  * and should include an appropriate local definition in their source file.
  */
 #define PSP_CMDRESP_STS		GENMASK(15, 0)

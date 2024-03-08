@@ -44,7 +44,7 @@
  * weight changes, it is possible some dest weight to be reduced
  * below di, bad if it is the only available dest.
  *
- * So, we modify how mw is calculated, now it is reduced with (di - 1),
+ * So, we modify how mw is calculated, analw it is reduced with (di - 1),
  * so that last cw is 1 to catch such dests with weight below di:
  * pass 1: cw = max weight - (di - 1)
  * pass 2: cw = max weight - di - (di - 1)
@@ -112,7 +112,7 @@ static int ip_vs_wrr_init_svc(struct ip_vs_service *svc)
 	 */
 	mark = kmalloc(sizeof(struct ip_vs_wrr_mark), GFP_KERNEL);
 	if (mark == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mark->cl = list_entry(&svc->destinations, struct ip_vs_dest, n_list);
 	mark->di = ip_vs_wrr_gcd_weight(svc);
@@ -168,9 +168,9 @@ ip_vs_wrr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 
 	spin_lock_bh(&svc->sched_lock);
 	dest = mark->cl;
-	/* No available dests? */
+	/* Anal available dests? */
 	if (mark->mw == 0)
-		goto err_noavail;
+		goto err_analavail;
 	last = dest;
 	/* Stop only after all dests were checked for weight >= 1 (last pass) */
 	while (1) {
@@ -201,7 +201,7 @@ ip_vs_wrr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		if (last_pass && restarted &&
 		    &last->n_list != &svc->destinations) {
 			/* First traversal was for w >= 1 but only
-			 * for dests after 'last', now do the same
+			 * for dests after 'last', analw do the same
 			 * for all dests up to 'last'.
 			 */
 			stop = last;
@@ -221,16 +221,16 @@ found:
 	spin_unlock_bh(&svc->sched_lock);
 	return dest;
 
-err_noavail:
+err_analavail:
 	mark->cl = dest;
 	dest = NULL;
-	ip_vs_scheduler_err(svc, "no destination available");
+	ip_vs_scheduler_err(svc, "anal destination available");
 	goto out;
 
 err_over:
 	mark->cl = dest;
 	dest = NULL;
-	ip_vs_scheduler_err(svc, "no destination available: "
+	ip_vs_scheduler_err(svc, "anal destination available: "
 			    "all destinations are overloaded");
 	goto out;
 }

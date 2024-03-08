@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Historical copyright notices:
+ * Historical copyright analtices:
  *
  * Copyright 2004 James Cleverdon, IBM.
  * (c) 1995 Alan Cox, Building #3 <alan@redhat.com>
@@ -50,7 +50,7 @@ void apic_mem_wait_icr_idle(void);
 u32 apic_mem_wait_icr_idle_timeout(void);
 
 /*
- * This is used to send an IPI with no shorthand notation (the destination is
+ * This is used to send an IPI with anal shorthand analtation (the destination is
  * specified in bits 56 to 63 of the ICR).
  */
 void __default_send_IPI_dest_field(unsigned int mask, int vector, unsigned int dest);

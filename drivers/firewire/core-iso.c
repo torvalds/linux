@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Isochronous I/O functionality:
- *   - Isochronous DMA context management
- *   - Isochronous bus resource management (channels, bandwidth), client side
+ * Isochroanalus I/O functionality:
+ *   - Isochroanalus DMA context management
+ *   - Isochroanalus bus resource management (channels, bandwidth), client side
  *
  * Copyright (C) 2006 Kristian Hoegsberg <krh@bitplanet.net>
  */
 
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <linux/kernel.h>
@@ -23,7 +23,7 @@
 #include "core.h"
 
 /*
- * Isochronous DMA context management
+ * Isochroanalus DMA context management
  */
 
 int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count)
@@ -35,7 +35,7 @@ int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count)
 	buffer->pages = kmalloc_array(page_count, sizeof(buffer->pages[0]),
 				      GFP_KERNEL);
 	if (buffer->pages == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < page_count; i++) {
 		buffer->pages[i] = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
@@ -45,7 +45,7 @@ int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count)
 	buffer->page_count = i;
 	if (i < page_count) {
 		fw_iso_buffer_destroy(buffer, NULL);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -69,7 +69,7 @@ int fw_iso_buffer_map_dma(struct fw_iso_buffer *buffer, struct fw_card *card,
 	}
 	buffer->page_count_mapped = i;
 	if (i < buffer->page_count)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -198,7 +198,7 @@ int fw_iso_context_stop(struct fw_iso_context *ctx)
 EXPORT_SYMBOL(fw_iso_context_stop);
 
 /*
- * Isochronous bus resource management (channels, bandwidth), client side
+ * Isochroanalus bus resource management (channels, bandwidth), client side
  */
 
 static int manage_bandwidth(struct fw_card *card, int irm_id, int generation,
@@ -208,7 +208,7 @@ static int manage_bandwidth(struct fw_card *card, int irm_id, int generation,
 	__be32 data[2];
 
 	/*
-	 * On a 1394a IRM with low contention, try < 1 is enough.
+	 * On a 1394a IRM with low contention, try < 1 is eanalugh.
 	 * On a 1394-1995 IRM, we need at least try < 2.
 	 * Let's just do try < 5.
 	 */
@@ -320,18 +320,18 @@ static void deallocate_channel(struct fw_card *card, int irm_id,
  *
  * Allocates or deallocates at most one channel out of channels_mask.
  * channels_mask is a bitfield with MSB for channel 63 and LSB for channel 0.
- * (Note, the IRM's CHANNELS_AVAILABLE is a big-endian bitfield with MSB for
+ * (Analte, the IRM's CHANNELS_AVAILABLE is a big-endian bitfield with MSB for
  * channel 0 and LSB for channel 63.)
  * Allocates or deallocates as many bandwidth allocation units as specified.
  *
- * Returns channel < 0 if no channel was allocated or deallocated.
- * Returns bandwidth = 0 if no bandwidth was allocated or deallocated.
+ * Returns channel < 0 if anal channel was allocated or deallocated.
+ * Returns bandwidth = 0 if anal bandwidth was allocated or deallocated.
  *
  * If generation is stale, deallocations succeed but allocations fail with
  * channel = -EAGAIN.
  *
- * If channel allocation fails, no bandwidth will be allocated either.
- * If bandwidth allocation fails, no channel will be allocated either.
+ * If channel allocation fails, anal bandwidth will be allocated either.
+ * If bandwidth allocation fails, anal channel will be allocated either.
  * But deallocations of channel and bandwidth are tried independently
  * of each other's success.
  */
@@ -344,7 +344,7 @@ void fw_iso_resource_manage(struct fw_card *card, int generation,
 	int irm_id, ret, c = -EINVAL;
 
 	spin_lock_irq(&card->lock);
-	irm_id = card->irm_node->node_id;
+	irm_id = card->irm_analde->analde_id;
 	spin_unlock_irq(&card->lock);
 
 	if (channels_hi)

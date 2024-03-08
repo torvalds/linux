@@ -161,7 +161,7 @@ allOf:
                   $ref: ethernet-phy.yaml#
                   unevaluatedProperties: false
                   description:
-                    Integrated PHY node
+                    Integrated PHY analde
 
                   properties:
                     clocks:

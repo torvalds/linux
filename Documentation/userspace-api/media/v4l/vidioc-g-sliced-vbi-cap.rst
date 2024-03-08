@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_G_SLICED_VBI_CAP:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_G_SLICED_VBI_CAP - Query sliced VBI capabilities
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_G_SLICED_VBI_CAP
@@ -38,7 +38,7 @@ output device, applications initialize the ``type`` field of a struct
 driver fills in the remaining fields or returns an ``EINVAL`` error code if
 the sliced VBI API is unsupported or ``type`` is invalid.
 
-.. note::
+.. analte::
 
    The ``type`` field was added, and the ioctl changed from read-only
    to write-read, in Linux 2.6.19.
@@ -94,7 +94,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
       - :cspan:`2` The number of VBI lines the hardware can capture or
 	output per frame, or the number of services it can identify on a
 	given line may be limited. For example on PAL line 16 the hardware
-	may be able to look for a VPS or Teletext signal, but not both at
+	may be able to look for a VPS or Teletext signal, but analt both at
 	the same time. Applications can learn about these limits using the
 	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl as described in
 	:ref:`sliced`.
@@ -173,7 +173,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. _v4l2-sliced-vbi-cap-wss-625-payload:
 
@@ -194,7 +194,7 @@ The payload for ``V4L2_SLICED_WSS_625`` is:
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

@@ -27,9 +27,9 @@ struct klp_ops *klp_find_ops(void *old_func)
 	struct klp_ops *ops;
 	struct klp_func *func;
 
-	list_for_each_entry(ops, &klp_ops, node) {
+	list_for_each_entry(ops, &klp_ops, analde) {
 		func = list_first_entry(&ops->func_stack, struct klp_func,
-					stack_node);
+					stack_analde);
 		if (func->old_func == old_func)
 			return ops;
 	}
@@ -37,7 +37,7 @@ struct klp_ops *klp_find_ops(void *old_func)
 	return NULL;
 }
 
-static void notrace klp_ftrace_handler(unsigned long ip,
+static void analtrace klp_ftrace_handler(unsigned long ip,
 				       unsigned long parent_ip,
 				       struct ftrace_ops *fops,
 				       struct ftrace_regs *fregs)
@@ -52,7 +52,7 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 	/*
 	 * The ftrace_test_recursion_trylock() will disable preemption,
 	 * which is required for the variant of synchronize_rcu() that is
-	 * used to allow patching functions where RCU is not watching.
+	 * used to allow patching functions where RCU is analt watching.
 	 * See klp_synchronize_transition() for more details.
 	 */
 	bit = ftrace_test_recursion_trylock(ip, parent_ip);
@@ -60,7 +60,7 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 		return;
 
 	func = list_first_or_null_rcu(&ops->func_stack, struct klp_func,
-				      stack_node);
+				      stack_analde);
 
 	/*
 	 * func should never be NULL because preemption should be disabled here
@@ -75,7 +75,7 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 	 * func->transition reads.  The corresponding write barrier is in
 	 * __klp_enable_patch().
 	 *
-	 * (Note that this barrier technically isn't needed in the disable
+	 * (Analte that this barrier technically isn't needed in the disable
 	 * path.  In the rare case where klp_update_patch_state() runs before
 	 * this handler, its TIF_PATCH_PENDING read and this func->transition
 	 * read need to be ordered.  But klp_update_patch_state() already
@@ -100,22 +100,22 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 		if (patch_state == KLP_UNPATCHED) {
 			/*
 			 * Use the previously patched version of the function.
-			 * If no previous patches exist, continue with the
+			 * If anal previous patches exist, continue with the
 			 * original function.
 			 */
-			func = list_entry_rcu(func->stack_node.next,
-					      struct klp_func, stack_node);
+			func = list_entry_rcu(func->stack_analde.next,
+					      struct klp_func, stack_analde);
 
-			if (&func->stack_node == &ops->func_stack)
+			if (&func->stack_analde == &ops->func_stack)
 				goto unlock;
 		}
 	}
 
 	/*
-	 * NOPs are used to replace existing patches with original code.
-	 * Do nothing! Setting pc would cause an infinite loop.
+	 * ANALPs are used to replace existing patches with original code.
+	 * Do analthing! Setting pc would cause an infinite loop.
 	 */
-	if (func->nop)
+	if (func->analp)
 		goto unlock;
 
 	ftrace_regs_set_instruction_pointer(fregs, (unsigned long)func->new_func);
@@ -147,11 +147,11 @@ static void klp_unpatch_func(struct klp_func *func)
 		WARN_ON(unregister_ftrace_function(&ops->fops));
 		WARN_ON(ftrace_set_filter_ip(&ops->fops, ftrace_loc, 1, 0));
 
-		list_del_rcu(&func->stack_node);
-		list_del(&ops->node);
+		list_del_rcu(&func->stack_analde);
+		list_del(&ops->analde);
 		kfree(ops);
 	} else {
-		list_del_rcu(&func->stack_node);
+		list_del_rcu(&func->stack_analde);
 	}
 
 	func->patched = false;
@@ -181,7 +181,7 @@ static int klp_patch_func(struct klp_func *func)
 
 		ops = kzalloc(sizeof(*ops), GFP_KERNEL);
 		if (!ops)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ops->fops.func = klp_ftrace_handler;
 		ops->fops.flags = FTRACE_OPS_FL_DYNAMIC |
@@ -191,10 +191,10 @@ static int klp_patch_func(struct klp_func *func)
 				  FTRACE_OPS_FL_IPMODIFY |
 				  FTRACE_OPS_FL_PERMANENT;
 
-		list_add(&ops->node, &klp_ops);
+		list_add(&ops->analde, &klp_ops);
 
 		INIT_LIST_HEAD(&ops->func_stack);
-		list_add_rcu(&func->stack_node, &ops->func_stack);
+		list_add_rcu(&func->stack_analde, &ops->func_stack);
 
 		ret = ftrace_set_filter_ip(&ops->fops, ftrace_loc, 0, 0);
 		if (ret) {
@@ -213,7 +213,7 @@ static int klp_patch_func(struct klp_func *func)
 
 
 	} else {
-		list_add_rcu(&func->stack_node, &ops->func_stack);
+		list_add_rcu(&func->stack_analde, &ops->func_stack);
 	}
 
 	func->patched = true;
@@ -221,25 +221,25 @@ static int klp_patch_func(struct klp_func *func)
 	return 0;
 
 err:
-	list_del_rcu(&func->stack_node);
-	list_del(&ops->node);
+	list_del_rcu(&func->stack_analde);
+	list_del(&ops->analde);
 	kfree(ops);
 	return ret;
 }
 
-static void __klp_unpatch_object(struct klp_object *obj, bool nops_only)
+static void __klp_unpatch_object(struct klp_object *obj, bool analps_only)
 {
 	struct klp_func *func;
 
 	klp_for_each_func(obj, func) {
-		if (nops_only && !func->nop)
+		if (analps_only && !func->analp)
 			continue;
 
 		if (func->patched)
 			klp_unpatch_func(func);
 	}
 
-	if (obj->dynamic || !nops_only)
+	if (obj->dynamic || !analps_only)
 		obj->patched = false;
 }
 
@@ -269,13 +269,13 @@ int klp_patch_object(struct klp_object *obj)
 	return 0;
 }
 
-static void __klp_unpatch_objects(struct klp_patch *patch, bool nops_only)
+static void __klp_unpatch_objects(struct klp_patch *patch, bool analps_only)
 {
 	struct klp_object *obj;
 
 	klp_for_each_object(patch, obj)
 		if (obj->patched)
-			__klp_unpatch_object(obj, nops_only);
+			__klp_unpatch_object(obj, analps_only);
 }
 
 void klp_unpatch_objects(struct klp_patch *patch)

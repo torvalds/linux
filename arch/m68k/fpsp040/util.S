@@ -34,7 +34,7 @@
 	.global	reg_dest
 
 |
-| Final result table for ovf_res. Note that the negative counterparts
+| Final result table for ovf_res. Analte that the negative counterparts
 | are unnecessary as ovf_res always returns the sign separately from
 | the exponent.
 |					;+inf
@@ -94,7 +94,7 @@ ovf_r_k:
 | instruction is fsgldiv or fsglmul or fsadd, fdadd, fsub, fdsub, fsmul,
 | fdmul, fsdiv, fddiv, fssqrt, fsmove, fdmove, fsabs, fdabs, fsneg, fdneg.
 | If the instruction is fsgldiv of fsglmul, the rounding precision must be
-| extended.  If the instruction is not fsgldiv or fsglmul but a force-
+| extended.  If the instruction is analt fsgldiv or fsglmul but a force-
 | precision instruction, the rounding precision is then set to the force
 | precision.
 
@@ -115,7 +115,7 @@ ovf_e3_exc:
 	beql	ovf_fsgl		|fsglmul or fsgldiv
 	cmpil	#0x30,%d0
 	beql	ovf_fsgl
-	bra	ovf_fpcr		|instruction is none of the above
+	bra	ovf_fpcr		|instruction is analne of the above
 |					;use FPCR
 ovf_e1_exc:
 	movew	CMDREG1B(%a6),%d0		|get command word
@@ -130,7 +130,7 @@ ovf_e1_exc:
 	beql	ovf_fsgl		|fsglmul
 	cmpil	#0x00000024,%d0
 	beql	ovf_fsgl		|fsgldiv
-	bra	ovf_fpcr		|none of the above, use FPCR
+	bra	ovf_fpcr		|analne of the above, use FPCR
 |
 |
 | Inst is either fsgldiv or fsglmul.  Force extended precision.
@@ -191,10 +191,10 @@ ovf_res:
 EXT_RN:
 	leal	EXT_PINF,%a1	|answer is +/- infinity
 	bsetb	#inf_bit,FPSR_CC(%a6)
-	bra	set_sign	|now go set the sign
+	bra	set_sign	|analw go set the sign
 EXT_RZ:
 	leal	EXT_PLRG,%a1	|answer is +/- large number
-	bra	set_sign	|now go set the sign
+	bra	set_sign	|analw go set the sign
 EXT_RM:
 	tstb	LOCAL_SGN(%a0)	|if negative overflow
 	beqs	e_rm_pos
@@ -225,7 +225,7 @@ DBL_RN:
 	bra	set_sign
 DBL_RZ:
 	leal	DBL_PLRG,%a1	|answer is +/- large number
-	bra	set_sign	|now go set the sign
+	bra	set_sign	|analw go set the sign
 DBL_RM:
 	tstb	LOCAL_SGN(%a0)	|if negative overflow
 	beqs	d_rm_pos
@@ -286,7 +286,7 @@ neg_sign:
 	bsetb	#neg_bit,FPSR_CC(%a6)
 
 end_ovfr:
-	movew	LOCAL_EX(%a1),LOCAL_EX(%a0) |do not overwrite sign
+	movew	LOCAL_EX(%a1),LOCAL_EX(%a0) |do analt overwrite sign
 	movel	LOCAL_HI(%a1),LOCAL_HI(%a0)
 	movel	LOCAL_LO(%a1),LOCAL_LO(%a0)
 	rts
@@ -449,21 +449,21 @@ op011:
 	movel	CMDREG1B(%a6),%d0
 	bfextu	%d0{#3:#3},%d0	|dest fmt from cmdreg1b{12:10}
 	cmpb	#1,%d0		|check for single
-	bnes	not_sgl
+	bnes	analt_sgl
 	movel	#1,%d0
 	rts
-not_sgl:
+analt_sgl:
 	cmpb	#5,%d0		|check for double
-	bnes	not_dbl
+	bnes	analt_dbl
 	movel	#2,%d0
 	rts
-not_dbl:
+analt_dbl:
 	clrl	%d0		|must be extended
 	rts
 
 |
 |
-| Final result table for unf_sub. Note that the negative counterparts
+| Final result table for unf_sub. Analte that the negative counterparts
 | are unnecessary as unf_sub always returns the sign separately from
 | the exponent.
 |					;+zero
@@ -472,11 +472,11 @@ EXT_PZRO:	.long	0x00000000,0x00000000,0x00000000,0x00000000
 SGL_PZRO:	.long	0x3f810000,0x00000000,0x00000000,0x00000000
 |					;+zero
 DBL_PZRO:	.long	0x3c010000,0x00000000,0x00000000,0x00000000
-|					;smallest +ext denorm
+|					;smallest +ext deanalrm
 EXT_PSML:	.long	0x00000000,0x00000000,0x00000001,0x00000000
-|					;smallest +sgl denorm
+|					;smallest +sgl deanalrm
 SGL_PSML:	.long	0x3f810000,0x00000100,0x00000000,0x00000000
-|					;smallest +dbl denorm
+|					;smallest +dbl deanalrm
 DBL_PSML:	.long	0x3c010000,0x00000000,0x00000800,0x00000000
 |
 |	UNF_SUB --- underflow result calculation
@@ -521,16 +521,16 @@ unf_sub:
 uEXT_RN:
 	leal	EXT_PZRO,%a1	|answer is +/- zero
 	bsetb	#z_bit,FPSR_CC(%a6)
-	bra	uset_sign	|now go set the sign
+	bra	uset_sign	|analw go set the sign
 uEXT_RZ:
 	leal	EXT_PZRO,%a1	|answer is +/- zero
 	bsetb	#z_bit,FPSR_CC(%a6)
-	bra	uset_sign	|now go set the sign
+	bra	uset_sign	|analw go set the sign
 uEXT_RM:
 	tstb	LOCAL_SGN(%a0)	|if negative underflow
 	beqs	ue_rm_pos
 ue_rm_neg:
-	leal	EXT_PSML,%a1	|answer is negative smallest denorm
+	leal	EXT_PSML,%a1	|answer is negative smallest deanalrm
 	bsetb	#neg_bit,FPSR_CC(%a6)
 	bra	end_unfr
 ue_rm_pos:
@@ -545,7 +545,7 @@ ue_rp_neg:
 	oril	#negz_mask,USER_FPSR(%a6)
 	bra	end_unfr
 ue_rp_pos:
-	leal	EXT_PSML,%a1	|answer is positive smallest denorm
+	leal	EXT_PSML,%a1	|answer is positive smallest deanalrm
 	bra	end_unfr
 |
 |case DEST_FMT = DBL
@@ -557,12 +557,12 @@ uDBL_RN:
 uDBL_RZ:
 	leal	DBL_PZRO,%a1	|answer is +/- zero
 	bsetb	#z_bit,FPSR_CC(%a6)
-	bra	uset_sign	|now go set the sign
+	bra	uset_sign	|analw go set the sign
 uDBL_RM:
 	tstb	LOCAL_SGN(%a0)	|if negative overflow
 	beqs	ud_rm_pos
 ud_rm_neg:
-	leal	DBL_PSML,%a1	|answer is smallest denormalized negative
+	leal	DBL_PSML,%a1	|answer is smallest deanalrmalized negative
 	bsetb	#neg_bit,FPSR_CC(%a6)
 	bra	end_unfr
 ud_rm_pos:
@@ -577,7 +577,7 @@ ud_rp_neg:
 	oril	#negz_mask,USER_FPSR(%a6)
 	bra	end_unfr
 ud_rp_pos:
-	leal	DBL_PSML,%a1	|answer is smallest denormalized negative
+	leal	DBL_PSML,%a1	|answer is smallest deanalrmalized negative
 	bra	end_unfr
 |
 |case DEST_FMT = SGL
@@ -594,7 +594,7 @@ uSGL_RM:
 	tstb	LOCAL_SGN(%a0)	|if negative overflow
 	beqs	us_rm_pos
 us_rm_neg:
-	leal	SGL_PSML,%a1	|answer is smallest denormalized negative
+	leal	SGL_PSML,%a1	|answer is smallest deanalrmalized negative
 	bsetb	#neg_bit,FPSR_CC(%a6)
 	bras	end_unfr
 us_rm_pos:
@@ -609,7 +609,7 @@ us_rp_neg:
 	oril	#negz_mask,USER_FPSR(%a6)
 	bras	end_unfr
 us_rp_pos:
-	leal	SGL_PSML,%a1	|answer is smallest denormalized positive
+	leal	SGL_PSML,%a1	|answer is smallest deanalrmalized positive
 	bras	end_unfr
 
 uset_sign:
@@ -619,7 +619,7 @@ uneg_sign:
 	bsetb	#neg_bit,FPSR_CC(%a6)
 
 end_unfr:
-	movew	LOCAL_EX(%a1),LOCAL_EX(%a0) |be careful not to overwrite sign
+	movew	LOCAL_EX(%a1),LOCAL_EX(%a0) |be careful analt to overwrite sign
 	movel	LOCAL_HI(%a1),LOCAL_HI(%a0)
 	movel	LOCAL_LO(%a1),LOCAL_LO(%a0)
 	rts

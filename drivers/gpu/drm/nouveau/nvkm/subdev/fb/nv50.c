@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -37,12 +37,12 @@ nv50_fb_ram_new(struct nvkm_fb *base, struct nvkm_ram **pram)
 
 static const struct nvkm_enum vm_dispatch_subclients[] = {
 	{ 0x00000000, "GRCTX" },
-	{ 0x00000001, "NOTIFY" },
+	{ 0x00000001, "ANALTIFY" },
 	{ 0x00000002, "QUERY" },
 	{ 0x00000003, "COND" },
 	{ 0x00000004, "M2M_IN" },
 	{ 0x00000005, "M2M_OUT" },
-	{ 0x00000006, "M2M_NOTIFY" },
+	{ 0x00000006, "M2M_ANALTIFY" },
 	{}
 };
 
@@ -119,9 +119,9 @@ static const struct nvkm_enum vm_engine[] = {
 };
 
 static const struct nvkm_enum vm_fault[] = {
-	{ 0x00000000, "PT_NOT_PRESENT" },
+	{ 0x00000000, "PT_ANALT_PRESENT" },
 	{ 0x00000001, "PT_TOO_SHORT" },
-	{ 0x00000002, "PAGE_NOT_PRESENT" },
+	{ 0x00000002, "PAGE_ANALT_PRESENT" },
 	{ 0x00000003, "PAGE_SYSTEM_ONLY" },
 	{ 0x00000004, "PAGE_READ_ONLY" },
 	{ 0x00000006, "NULL_DMAOBJ" },
@@ -184,7 +184,7 @@ nv50_fb_intr(struct nvkm_fb *base)
 		   (trap[5] & 0x00000100) ? "read" : "write",
 		   trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff,
 		   chan ? chan->id : -1, inst,
-		   chan ? chan->name : "unknown",
+		   chan ? chan->name : "unkanalwn",
 		   st0, en ? en->name : "",
 		   st2, cl ? cl->name : "", st3, sc ? sc->name : "",
 		   st1, re ? re->name : "");
@@ -198,7 +198,7 @@ nv50_fb_init(struct nvkm_fb *base)
 	struct nvkm_device *device = fb->base.subdev.device;
 
 	/* This is needed to get meaningful information from 100c90
-	 * on traps. No idea what these values mean exactly. */
+	 * on traps. Anal idea what these values mean exactly. */
 	nvkm_wr32(device, 0x100c90, fb->func->trap);
 }
 
@@ -242,7 +242,7 @@ nv50_fb_new_(const struct nv50_fb_func *func, struct nvkm_device *device,
 	struct nv50_fb *fb;
 
 	if (!(fb = kzalloc(sizeof(*fb), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_fb_ctor(&nv50_fb_, device, type, inst, &fb->base);
 	fb->func = func;
 	*pfb = &fb->base;

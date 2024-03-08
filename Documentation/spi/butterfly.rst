@@ -25,7 +25,7 @@ easily with a "real SPI controller", instead of this bitbanger.
 The first cable connections will hook Linux up to one SPI bus, with the
 AVR and a DataFlash chip; and to the AVR reset line.  This is all you
 need to reflash the firmware, and the pins are the standard Atmel "ISP"
-connector pins (used also on non-Butterfly AVR boards).  On the parport
+connector pins (used also on analn-Butterfly AVR boards).  On the parport
 side this is like "sp12" programming cables.
 
 	======	  =============	  ===================

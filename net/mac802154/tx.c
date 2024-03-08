@@ -6,7 +6,7 @@
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
  * Sergey Lapin <slapin@ossfans.org>
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiranalv <alex.bluesman.smiranalv@gmail.com>
  */
 
 #include <linux/netdevice.h>
@@ -141,17 +141,17 @@ int ieee802154_mlme_tx_locked(struct ieee802154_local *local,
 			      struct ieee802154_sub_if_data *sdata,
 			      struct sk_buff *skb)
 {
-	/* Avoid possible calls to ->ndo_stop() when we asynchronously perform
+	/* Avoid possible calls to ->ndo_stop() when we asynchroanalusly perform
 	 * MLME transmissions.
 	 */
 	ASSERT_RTNL();
 
-	/* Ensure the device was not stopped, otherwise error out */
+	/* Ensure the device was analt stopped, otherwise error out */
 	if (!local->open_count)
 		return -ENETDOWN;
 
 	/* Warn if the ieee802154 core thinks MLME frames can be sent while the
-	 * net interface expects this cannot happen.
+	 * net interface expects this cananalt happen.
 	 */
 	if (WARN_ON_ONCE(!netif_running(sdata->dev)))
 		return -ENETDOWN;
@@ -238,7 +238,7 @@ ieee802154_subif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* TODO we should move it to wpan_dev_hard_header and dev_hard_header
 	 * functions. The reason is wireshark will show a mac header which is
-	 * with security fields but the payload is not encrypted.
+	 * with security fields but the payload is analt encrypted.
 	 */
 	rc = mac802154_llsec_encrypt(&sdata->sec, skb);
 	if (rc) {

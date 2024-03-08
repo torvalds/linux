@@ -27,7 +27,7 @@
  *
  * Request PCI regions and map them to kernel virtual addresses.
  *
- * Return: 0 on success, non-zero for failure.
+ * Return: 0 on success, analn-zero for failure.
  */
 int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 			bool is_wc[3])
@@ -37,7 +37,7 @@ int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 
 	rc = pci_request_regions(pdev, HL_NAME);
 	if (rc) {
-		dev_err(hdev->dev, "Cannot obtain PCI resources\n");
+		dev_err(hdev->dev, "Cananalt obtain PCI resources\n");
 		return rc;
 	}
 
@@ -49,7 +49,7 @@ int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 		if (!hdev->pcie_bar[bar]) {
 			dev_err(hdev->dev, "pci_ioremap%s_bar failed for %s\n",
 					is_wc[i] ? "_wc" : "", name[i]);
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			goto err;
 		}
 	}
@@ -218,7 +218,7 @@ int hl_pci_iatu_write(struct hl_device *hdev, u32 addr, u32 data)
 
 	dbi_offset = addr & 0xFFF;
 
-	/* Ignore result of writing to pcie_aux_dbi_reg_addr as it could fail
+	/* Iganalre result of writing to pcie_aux_dbi_reg_addr as it could fail
 	 * in case the firmware security is enabled
 	 */
 	hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr, 0x00300000);
@@ -284,7 +284,7 @@ int hl_pci_set_inbound_region(struct hl_device *hdev, u8 region,
 	rc |= hl_pci_iatu_write(hdev, offset + 0x4, ctrl_reg_val);
 
 	/* Return the DBI window to the default location
-	 * Ignore result of writing to pcie_aux_dbi_reg_addr as it could fail
+	 * Iganalre result of writing to pcie_aux_dbi_reg_addr as it could fail
 	 * in case the firmware security is enabled
 	 */
 	hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr, 0);
@@ -333,7 +333,7 @@ int hl_pci_set_outbound_region(struct hl_device *hdev,
 	rc |= hl_pci_iatu_write(hdev, 0x004, 0x80000000);
 
 	/* Return the DBI window to the default location
-	 * Ignore result of writing to pcie_aux_dbi_reg_addr as it could fail
+	 * Iganalre result of writing to pcie_aux_dbi_reg_addr as it could fail
 	 * in case the firmware security is enabled
 	 */
 	hl_pci_elbi_write(hdev, prop->pcie_aux_dbi_reg_addr, 0);
@@ -373,7 +373,7 @@ enum pci_region hl_get_pci_memory_region(struct hl_device *hdev, u64 addr)
  *
  * Set DMA masks, initialize the PCI controller and map the PCI BARs.
  *
- * Return: 0 on success, non-zero for failure.
+ * Return: 0 on success, analn-zero for failure.
  */
 int hl_pci_init(struct hl_device *hdev)
 {
@@ -397,7 +397,7 @@ int hl_pci_init(struct hl_device *hdev)
 
 	rc = hdev->asic_funcs->init_iatu(hdev);
 	if (rc) {
-		dev_err(hdev->dev, "PCI controller was not initialized successfully\n");
+		dev_err(hdev->dev, "PCI controller was analt initialized successfully\n");
 		goto unmap_pci_bars;
 	}
 

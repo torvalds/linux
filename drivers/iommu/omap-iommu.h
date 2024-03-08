@@ -2,9 +2,9 @@
 /*
  * omap iommu: main structures
  *
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  *
- * Written by Hiroshi DOYU <Hiroshi.DOYU@nokia.com>
+ * Written by Hiroshi DOYU <Hiroshi.DOYU@analkia.com>
  */
 
 #ifndef _OMAP_IOMMU_H
@@ -184,7 +184,7 @@ struct iotlb_lock {
 #define MMU_RAM_ELSZ_8		(0 << MMU_RAM_ELSZ_SHIFT)
 #define MMU_RAM_ELSZ_16		(1 << MMU_RAM_ELSZ_SHIFT)
 #define MMU_RAM_ELSZ_32		(2 << MMU_RAM_ELSZ_SHIFT)
-#define MMU_RAM_ELSZ_NONE	(3 << MMU_RAM_ELSZ_SHIFT)
+#define MMU_RAM_ELSZ_ANALNE	(3 << MMU_RAM_ELSZ_SHIFT)
 #define MMU_RAM_MIXED_SHIFT	6
 #define MMU_RAM_MIXED_MASK	BIT(MMU_RAM_MIXED_SHIFT)
 #define MMU_RAM_MIXED		MMU_RAM_MIXED_MASK

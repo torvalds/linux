@@ -29,7 +29,7 @@ int pdsc_dl_enable_get(struct devlink *dl, u32 id,
 
 	vt_entry = pdsc_dl_find_viftype_by_id(pdsc, id);
 	if (!vt_entry)
-		return -ENOENT;
+		return -EANALENT;
 
 	ctx->val.vbool = vt_entry->enabled;
 
@@ -46,7 +46,7 @@ int pdsc_dl_enable_set(struct devlink *dl, u32 id,
 
 	vt_entry = pdsc_dl_find_viftype_by_id(pdsc, id);
 	if (!vt_entry || !vt_entry->supported)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (vt_entry->enabled == ctx->val.vbool)
 		return 0;
@@ -71,10 +71,10 @@ int pdsc_dl_enable_validate(struct devlink *dl, u32 id,
 
 	vt_entry = pdsc_dl_find_viftype_by_id(pdsc, id);
 	if (!vt_entry || !vt_entry->supported)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!pdsc->viftype_status[vt_entry->vif_id].supported)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -152,7 +152,7 @@ int pdsc_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 	return devlink_info_serial_number_put(req, pdsc->dev_info.serial_num);
 }
 
-int pdsc_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
+int pdsc_fw_reporter_diaganalse(struct devlink_health_reporter *reporter,
 			      struct devlink_fmsg *fmsg,
 			      struct netlink_ext_ack *extack)
 {

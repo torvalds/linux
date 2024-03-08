@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Feixin K101 IM2BA02 10.1" MIPI-DSI LCD panel
 
 maintainers:
-  - Icenowy Zheng <icenowy@aosc.io>
+  - Iceanalwy Zheng <iceanalwy@aosc.io>
 
 allOf:
   - $ref: panel-common.yaml#

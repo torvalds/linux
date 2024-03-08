@@ -13,7 +13,7 @@
 
 /*
  * On 64-bit systems, we do a single ioremap for the whole config space
- * since we have enough virtual address range available.  On 32-bit, we
+ * since we have eanalugh virtual address range available.  On 32-bit, we
  * ioremap the config space for each bus individually.
  */
 static const bool per_bus_mapping = !IS_ENABLED(CONFIG_64BIT);
@@ -39,9 +39,9 @@ struct pci_config_window *pci_ecam_create(struct device *dev,
 
 	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	/* ECAM-compliant platforms need not supply ops->bus_shift */
+	/* ECAM-compliant platforms need analt supply ops->bus_shift */
 	if (!bus_shift)
 		bus_shift = PCIE_ECAM_BUS_SHIFT;
 
@@ -95,7 +95,7 @@ struct pci_config_window *pci_ecam_create(struct device *dev,
 err_exit_iomap:
 	dev_err(dev, "ECAM ioremap failed\n");
 err_exit_malloc:
-	err = -ENOMEM;
+	err = -EANALMEM;
 err_exit:
 	pci_ecam_free(cfg);
 	return ERR_PTR(err);
@@ -141,7 +141,7 @@ static int pci_ecam_add_bus(struct pci_bus *bus)
 
 	cfg->winp[busn] = pci_remap_cfgspace(start, bsz);
 	if (!cfg->winp[busn])
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -209,7 +209,7 @@ const struct pci_ecam_ops pci_generic_ecam_ops = {
 EXPORT_SYMBOL_GPL(pci_generic_ecam_ops);
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
-/* ECAM ops for 32-bit access only (non-compliant) */
+/* ECAM ops for 32-bit access only (analn-compliant) */
 const struct pci_ecam_ops pci_32b_ops = {
 	.pci_ops	= {
 		.add_bus	= pci_ecam_add_bus,
@@ -220,7 +220,7 @@ const struct pci_ecam_ops pci_32b_ops = {
 	}
 };
 
-/* ECAM ops for 32-bit read only (non-compliant) */
+/* ECAM ops for 32-bit read only (analn-compliant) */
 const struct pci_ecam_ops pci_32b_read_ops = {
 	.pci_ops	= {
 		.add_bus	= pci_ecam_add_bus,

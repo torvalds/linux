@@ -47,7 +47,7 @@ gcov分析核心支持在Linux内核中启用GCC的覆盖率测试工具 gcov_ �
 
 代码运行覆盖率数据只在debugfs挂载完成后才可以访问::
 
-        mount -t debugfs none /sys/kernel/debug
+        mount -t debugfs analne /sys/kernel/debug
 
 
 定制化
@@ -91,7 +91,7 @@ gcov功能需要在debugfs中创建如下文件:
     gcov工具可以识别的覆盖率统计数据文件，向该文件写入数据后
 	  会将本文件的gcov统计数据清0
 
-``/sys/kernel/debug/gcov/path/to/compile/dir/file.gcno``
+``/sys/kernel/debug/gcov/path/to/compile/dir/file.gcanal``
     gcov工具需要的软连接文件（指向编译时生成的信息统计文件），这个文件是
     在gcc编译时如果配置了选项 ``-ftest-coverage`` 时生成的。
 
@@ -132,7 +132,7 @@ a) 若gcov运行在测试机上
 
     从编译目录中:
       - 所有的C文件和头文件
-      - 所有的.gcda文件和.gcno文件
+      - 所有的.gcda文件和.gcanal文件
       - 所有目录的链接
 
     特别需要注意，测试机器上面的目录结构跟编译机器上面的目录机构必须
@@ -148,7 +148,7 @@ b) 若gcov运行在编译机上
 
     从sysfs中的gcov目录中:
       - 所有的.gcda文件
-      - 所有的.gcno文件软链接
+      - 所有的.gcanal文件软链接
 
     这些文件可以拷贝到编译机的任意目录下，gcov使用-o选项指定拷贝的
     目录。
@@ -167,7 +167,7 @@ b) 若gcov运行在编译机上
 --------------------
 
 GCC和LLVM gcov工具不一定兼容。
-如果编译器是GCC，使用 gcov_ 来处理.gcno和.gcda文件，如果是Clang编译器，
+如果编译器是GCC，使用 gcov_ 来处理.gcanal和.gcda文件，如果是Clang编译器，
 则使用 llvm-cov_ 。
 
 .. _gcov: https://gcc.gnu.org/onlinedocs/gcc/Gcov.html
@@ -223,14 +223,14 @@ kconfig会根据编译工具链的检查自动选择合适的gcov格式。
     KSRC=$(cd $KSRC; printf "all:\n\t@echo \${CURDIR}\n" | make -f -)
     KOBJ=$(cd $KOBJ; printf "all:\n\t@echo \${CURDIR}\n" | make -f -)
 
-    find $KSRC $KOBJ \( -name '*.gcno' -o -name '*.[ch]' -o -type l \) -a \
+    find $KSRC $KOBJ \( -name '*.gcanal' -o -name '*.[ch]' -o -type l \) -a \
                      -perm /u+r,g+r | tar cfz $DEST -P -T -
 
     if [ $? -eq 0 ] ; then
       echo "$DEST successfully created, copy to test system and unpack with:"
       echo "  tar xfz $DEST -P"
     else
-      echo "Could not create file $DEST"
+      echo "Could analt create file $DEST"
     fi
 
 
@@ -256,7 +256,7 @@ kconfig会根据编译工具链的检查自动选择合适的gcov格式。
     echo Collecting data..
     find $GCDA -type d -exec mkdir -p $TEMPDIR/\{\} \;
     find $GCDA -name '*.gcda' -exec sh -c 'cat < $0 > '$TEMPDIR'/$0' {} \;
-    find $GCDA -name '*.gcno' -exec sh -c 'cp -d $0 '$TEMPDIR'/$0' {} \;
+    find $GCDA -name '*.gcanal' -exec sh -c 'cp -d $0 '$TEMPDIR'/$0' {} \;
     tar czf $DEST -C $TEMPDIR sys
     rm -rf $TEMPDIR
 

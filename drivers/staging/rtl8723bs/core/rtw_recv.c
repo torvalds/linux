@@ -351,7 +351,7 @@ static signed int recvframe_chkmic(struct adapter *adapter,  union recv_frame *p
 
 			if (bmic_err == true) {
 				/*  double check key_index for some timing issue , */
-				/*  cannot compare with psecuritypriv->dot118021XGrpKeyid also cause timing issue */
+				/*  cananalt compare with psecuritypriv->dot118021XGrpKeyid also cause timing issue */
 				if ((is_multicast_ether_addr(prxattrib->ra) == true)  && (prxattrib->key_index != pmlmeinfo->key_index))
 					brpt_micerror = false;
 
@@ -492,7 +492,7 @@ static union recv_frame *portctrl(struct adapter *adapter, union recv_frame *pre
 			/* check decryption status, and decrypt the frame if needed */
 
 			prtnframe = precv_frame;
-			/* check is the EAPOL frame or not (Rekey) */
+			/* check is the EAPOL frame or analt (Rekey) */
 			/* if (ether_type == eapol_type) { */
 				/* check Rekey */
 
@@ -694,8 +694,8 @@ static signed int sta2sta_data_frame(struct adapter *adapter, union recv_frame *
 				ret = _FAIL;
 				goto exit;
 			}
-		} else { /*  not mc-frame */
-			/*  For AP mode, if DA is non-MCAST, then it must be BSSID, and bssid == BSSID */
+		} else { /*  analt mc-frame */
+			/*  For AP mode, if DA is analn-MCAST, then it must be BSSID, and bssid == BSSID */
 			if (memcmp(pattrib->bssid, pattrib->dst, ETH_ALEN)) {
 				ret = _FAIL;
 				goto exit;
@@ -767,7 +767,7 @@ static signed int ap2sta_data_frame(struct adapter *adapter, union recv_frame *p
 		    (memcmp(pattrib->bssid, mybssid, ETH_ALEN))) {
 
 			if (!bmcast)
-				issue_deauth(adapter, pattrib->bssid, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
+				issue_deauth(adapter, pattrib->bssid, WLAN_REASON_CLASS3_FRAME_FROM_ANALNASSOC_STA);
 
 			ret = _FAIL;
 			goto exit;
@@ -784,7 +784,7 @@ static signed int ap2sta_data_frame(struct adapter *adapter, union recv_frame *p
 		}
 
 		if (GetFrameSubType(ptr) & BIT(6)) {
-			/* No data, will not indicate to upper layer, temporily count it here */
+			/* Anal data, will analt indicate to upper layer, temporily count it here */
 			count_rx_stats(adapter, precv_frame, *psta);
 			ret = RTW_RX_HANDLED;
 			goto exit;
@@ -824,7 +824,7 @@ static signed int ap2sta_data_frame(struct adapter *adapter, union recv_frame *p
 				if (jiffies_to_msecs(jiffies - send_issue_deauth_time) > 10000 || send_issue_deauth_time == 0) {
 					send_issue_deauth_time = jiffies;
 
-					issue_deauth(adapter, pattrib->bssid, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
+					issue_deauth(adapter, pattrib->bssid, WLAN_REASON_CLASS3_FRAME_FROM_ANALNASSOC_STA);
 				}
 			}
 		}
@@ -855,7 +855,7 @@ static signed int sta2ap_data_frame(struct adapter *adapter, union recv_frame *p
 
 		*psta = rtw_get_stainfo(pstapriv, pattrib->src);
 		if (!*psta) {
-			issue_deauth(adapter, pattrib->src, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
+			issue_deauth(adapter, pattrib->src, WLAN_REASON_CLASS3_FRAME_FROM_ANALNASSOC_STA);
 
 			ret = RTW_RX_HANDLED;
 			goto exit;
@@ -867,7 +867,7 @@ static signed int sta2ap_data_frame(struct adapter *adapter, union recv_frame *p
 			process_wmmps_data(adapter, precv_frame);
 
 		if (GetFrameSubType(ptr) & BIT(6)) {
-			/* No data, will not indicate to upper layer, temporily count it here */
+			/* Anal data, will analt indicate to upper layer, temporily count it here */
 			count_rx_stats(adapter, precv_frame, *psta);
 			ret = RTW_RX_HANDLED;
 			goto exit;
@@ -879,7 +879,7 @@ static signed int sta2ap_data_frame(struct adapter *adapter, union recv_frame *p
 			ret = RTW_RX_HANDLED;
 			goto exit;
 		}
-		issue_deauth(adapter, pattrib->src, WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
+		issue_deauth(adapter, pattrib->src, WLAN_REASON_CLASS3_FRAME_FROM_ANALNASSOC_STA);
 		ret = RTW_RX_HANDLED;
 		goto exit;
 	}
@@ -993,7 +993,7 @@ static signed int validate_recv_ctrl_frame(struct adapter *padapter, union recv_
 
 				if (pstapriv->tim_bitmap&BIT(psta->aid)) {
 					if (psta->sleepq_len == 0) {
-						/* issue nulldata with More data bit = 0 to indicate we have no buffered packets */
+						/* issue nulldata with More data bit = 0 to indicate we have anal buffered packets */
 						issue_nulldata_in_interrupt(padapter, psta->hwaddr);
 					} else {
 						psta->sleepq_len = 0;
@@ -1309,7 +1309,7 @@ static signed int validate_recv_data_frame(struct adapter *adapter, union recv_f
 		pattrib->hdrlen = pattrib->to_fr_ds == 3 ? 32 : 26;
 
 		if (pattrib->priority != 0 && pattrib->priority != 3)
-			adapter->recvpriv.bIsAnyNonBEPkts = true;
+			adapter->recvpriv.bIsAnyAnalnBEPkts = true;
 
 	} else {
 		pattrib->priority = 0;
@@ -1395,7 +1395,7 @@ static signed int validate_80211w_mgmt(struct adapter *adapter, union recv_frame
 			}
 		} else { /* 802.11w protect */
 			if (subtype == WIFI_ACTION) {
-				/* according 802.11-2012 standard, these five types are not robust types */
+				/* according 802.11-2012 standard, these five types are analt robust types */
 				if (ptr[WLAN_HDR_A3_LEN] != RTW_WLAN_CATEGORY_PUBLIC          &&
 					ptr[WLAN_HDR_A3_LEN] != RTW_WLAN_CATEGORY_HT              &&
 					ptr[WLAN_HDR_A3_LEN] != RTW_WLAN_CATEGORY_UNPROTECTED_WNM &&
@@ -1588,7 +1588,7 @@ static int amsdu_to_msdu(struct adapter *padapter, union recv_frame *prframe)
 
 	while (a_len > ETH_HLEN) {
 
-		/* Offset 12 denote 2 mac address */
+		/* Offset 12 deanalte 2 mac address */
 		nSubframe_Length = get_unaligned_be16(pdata + 12);
 
 		if (a_len < ETH_HLEN + nSubframe_Length)
@@ -1694,7 +1694,7 @@ static int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl, un
 		if (SN_LESS(pnextattrib->seq_num, pattrib->seq_num))
 			plist = get_next(plist);
 		else if (SN_EQUAL(pnextattrib->seq_num, pattrib->seq_num))
-			/* Duplicate entry is found!! Do not insert current entry. */
+			/* Duplicate entry is found!! Do analt insert current entry. */
 			/* spin_unlock_irqrestore(&ppending_recvframe_queue->lock, irql); */
 			return false;
 		else
@@ -1880,7 +1880,7 @@ static int recv_indicatepkt_reorder(struct adapter *padapter, union recv_frame *
 
 	/* s4. */
 	/*  Indication process. */
-	/*  After Packet dropping and Sliding Window shifting as above, we can now just indicate the packets */
+	/*  After Packet dropping and Sliding Window shifting as above, we can analw just indicate the packets */
 	/*  with the SeqNum smaller than latest WinStart and buffer other packets. */
 	/*  */
 	/*  For Rx Reorder condition: */

@@ -37,7 +37,7 @@ struct nvkm_falcon_qmgr_seq {
 
 /*
  * We can have an arbitrary number of sequences, but realistically we will
- * probably not use that much simultaneously.
+ * probably analt use that much simultaneously.
  */
 #define NVKM_FALCON_QMGR_SEQ_NUM 16
 

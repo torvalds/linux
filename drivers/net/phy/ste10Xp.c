@@ -88,11 +88,11 @@ static irqreturn_t ste10Xp_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_XCIIS);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & MII_XIE_DEFAULT_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 

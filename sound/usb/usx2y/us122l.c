@@ -88,7 +88,7 @@ static void pt_info_set(struct usb_device *dev, u8 v)
 
 	ret = usb_control_msg_send(dev, 0, 'I',
 				   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-				   v, 0, NULL, 0, 1000, GFP_NOIO);
+				   v, 0, NULL, 0, 1000, GFP_ANALIO);
 	snd_printdd(KERN_DEBUG "%i\n", ret);
 }
 
@@ -243,7 +243,7 @@ static __poll_t usb_stream_hwdep_poll(struct snd_hwdep *hw,
 
 	poll_wait(file, &us122l->sk.sleep, wait);
 
-	mask = EPOLLIN | EPOLLOUT | EPOLLWRNORM | EPOLLERR;
+	mask = EPOLLIN | EPOLLOUT | EPOLLWRANALRM | EPOLLERR;
 	if (mutex_trylock(&us122l->mutex)) {
 		struct usb_stream *s = us122l->sk.s;
 
@@ -254,7 +254,7 @@ static __poll_t usb_stream_hwdep_poll(struct snd_hwdep *hw,
 				polled = &us122l->second_periods_polled;
 			if (*polled != s->periods_done) {
 				*polled = s->periods_done;
-				mask = EPOLLIN | EPOLLOUT | EPOLLWRNORM;
+				mask = EPOLLIN | EPOLLOUT | EPOLLWRANALRM;
 			} else {
 				mask = 0;
 			}
@@ -287,9 +287,9 @@ static int us122l_set_sample_rate(struct usb_device *dev, int rate)
 	err = usb_control_msg_send(dev, 0, UAC_SET_CUR,
 				   USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_OUT,
 				   UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep, data, 3,
-				   1000, GFP_NOIO);
+				   1000, GFP_ANALIO);
 	if (err)
-		snd_printk(KERN_ERR "%d: cannot set freq %d to ep 0x%x\n",
+		snd_printk(KERN_ERR "%d: cananalt set freq %d to ep 0x%x\n",
 			   dev->devnum, rate, ep);
 	return err;
 }
@@ -353,7 +353,7 @@ static int usb_stream_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	bool high_speed;
 
 	if (cmd != SNDRV_USB_STREAM_IOCTL_SET_PARAMS)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (copy_from_user(&cfg, (void __user *)arg, sizeof(cfg)))
 		return -EFAULT;
@@ -508,7 +508,7 @@ static int usx2y_create_card(struct usb_device *device,
 		if (enable[dev] && !snd_us122l_card_used[dev])
 			break;
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	err = snd_card_new(&intf->dev, index[dev], id[dev], THIS_MODULE,
 			   sizeof(struct us122l), &card);
 	if (err < 0)
@@ -573,7 +573,7 @@ static int snd_us122l_probe(struct usb_interface *intf,
 	if (id->driver_info & US122L_FLAG_US144 &&
 			device->speed == USB_SPEED_HIGH) {
 		snd_printk(KERN_ERR "disable ehci-hcd to run US-144\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	snd_printdd(KERN_DEBUG"%p:%i\n",

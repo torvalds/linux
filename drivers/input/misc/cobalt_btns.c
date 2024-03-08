@@ -67,7 +67,7 @@ static int cobalt_buttons_probe(struct platform_device *pdev)
 
 	bdev = devm_kzalloc(&pdev->dev, sizeof(*bdev), GFP_KERNEL);
 	if (!bdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -75,13 +75,13 @@ static int cobalt_buttons_probe(struct platform_device *pdev)
 
 	bdev->reg = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!bdev->reg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(bdev->keymap, cobalt_map, sizeof(bdev->keymap));
 
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_set_drvdata(input, bdev);
 

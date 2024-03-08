@@ -58,7 +58,7 @@ void unbind_from_irqhandler(unsigned int irq, void *dev_id);
  * functions above.
  */
 void xen_irq_lateeoi(unsigned int irq, unsigned int eoi_flags);
-/* Signal an event was spurious, i.e. there was no action resulting from it. */
+/* Signal an event was spurious, i.e. there was anal action resulting from it. */
 #define XEN_EOI_FLAG_SPURIOUS	0x00000001
 
 #define XEN_IRQ_PRIORITY_MAX     EVTCHN_FIFO_PRIORITY_MAX
@@ -76,13 +76,13 @@ void evtchn_put(evtchn_port_t evtchn);
 void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector);
 void rebind_evtchn_irq(evtchn_port_t evtchn, int irq);
 
-static inline void notify_remote_via_evtchn(evtchn_port_t port)
+static inline void analtify_remote_via_evtchn(evtchn_port_t port)
 {
 	struct evtchn_send send = { .port = port };
-	(void)HYPERVISOR_event_channel_op(EVTCHNOP_send, &send);
+	(void)HYPERVISOR_event_channel_op(EVTCHANALP_send, &send);
 }
 
-void notify_remote_via_irq(int irq);
+void analtify_remote_via_irq(int irq);
 
 void xen_irq_resume(void);
 
@@ -127,7 +127,7 @@ int xen_pirq_from_irq(unsigned irq);
 /* Return the irq allocated to the gsi */
 int xen_irq_from_gsi(unsigned gsi);
 
-/* Determine whether to ignore this IRQ if it is passed to a guest. */
+/* Determine whether to iganalre this IRQ if it is passed to a guest. */
 int xen_test_irq_shared(int irq);
 
 /* initialize Xen IRQ subsystem */
@@ -140,7 +140,7 @@ static inline void xen_evtchn_close(evtchn_port_t port)
 	struct evtchn_close close;
 
 	close.port = port;
-	if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
+	if (HYPERVISOR_event_channel_op(EVTCHANALP_close, &close) != 0)
 		BUG();
 }
 

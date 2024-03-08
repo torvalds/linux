@@ -8,7 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/iio/consumer.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -30,12 +30,12 @@
 #define CHG_STATE_SUSPEND	5
 #define CHG_STATE_VCHG_OVER_VOL	6
 #define CHG_STATE_BAT_ERROR	7
-#define CHG_STATE_NO_BAT	8
+#define CHG_STATE_ANAL_BAT	8
 #define CHG_STATE_BAT_OVER_VOL	9
 #define CHG_STATE_BAT_TEMP_ERR	10
 #define CHG_STATE_DIE_ERR	11
 #define CHG_STATE_DIE_SHUTDOWN	12
-#define CHG_STATE_NO_BAT2	13
+#define CHG_STATE_ANAL_BAT2	13
 #define CHG_STATE_CHG_READY_VUSB	14
 
 #define GCHGDET_TYPE_MASK 0x30
@@ -74,22 +74,22 @@ static enum power_supply_usb_type rn5t618_usb_types[] = {
 	POWER_SUPPLY_USB_TYPE_SDP,
 	POWER_SUPPLY_USB_TYPE_DCP,
 	POWER_SUPPLY_USB_TYPE_CDP,
-	POWER_SUPPLY_USB_TYPE_UNKNOWN
+	POWER_SUPPLY_USB_TYPE_UNKANALWN
 };
 
 static enum power_supply_property rn5t618_usb_props[] = {
-	/* input current limit is not very accurate */
+	/* input current limit is analt very accurate */
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_USB_TYPE,
 	POWER_SUPPLY_PROP_ONLINE,
 };
 
 static enum power_supply_property rn5t618_adp_props[] = {
-	/* input current limit is not very accurate */
+	/* input current limit is analt very accurate */
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_ONLINE,
 };
@@ -98,16 +98,16 @@ static enum power_supply_property rn5t618_adp_props[] = {
 static enum power_supply_property rn5t618_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 };
 
 static int rn5t618_battery_read_doublereg(struct rn5t618_power_info *info,
@@ -155,7 +155,7 @@ static int rn5t618_decode_status(unsigned int status)
 		return POWER_SUPPLY_STATUS_FULL;
 
 	default:
-		return POWER_SUPPLY_STATUS_NOT_CHARGING;
+		return POWER_SUPPLY_STATUS_ANALT_CHARGING;
 	}
 }
 
@@ -169,7 +169,7 @@ static int rn5t618_battery_status(struct rn5t618_power_info *info,
 	if (ret)
 		return ret;
 
-	val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+	val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 
 	if (v & 0xc0) { /* USB or ADP plugged */
 		val->intval = rn5t618_decode_status(v);
@@ -190,7 +190,7 @@ static int rn5t618_battery_present(struct rn5t618_power_info *info,
 		return ret;
 
 	v &= CHG_STATE_MASK;
-	if ((v == CHG_STATE_NO_BAT) || (v == CHG_STATE_NO_BAT2))
+	if ((v == CHG_STATE_ANAL_BAT) || (v == CHG_STATE_ANAL_BAT2))
 		val->intval = 0;
 	else
 		val->intval = 1;
@@ -198,7 +198,7 @@ static int rn5t618_battery_present(struct rn5t618_power_info *info,
 	return ret;
 }
 
-static int rn5t618_battery_voltage_now(struct rn5t618_power_info *info,
+static int rn5t618_battery_voltage_analw(struct rn5t618_power_info *info,
 				       union power_supply_propval *val)
 {
 	u16 res;
@@ -213,7 +213,7 @@ static int rn5t618_battery_voltage_now(struct rn5t618_power_info *info,
 	return 0;
 }
 
-static int rn5t618_battery_current_now(struct rn5t618_power_info *info,
+static int rn5t618_battery_current_analw(struct rn5t618_power_info *info,
 				       union power_supply_propval *val)
 {
 	u16 res;
@@ -270,7 +270,7 @@ static int rn5t618_battery_tte(struct rn5t618_power_info *info,
 		return ret;
 
 	if (res == 65535)
-		return -ENODATA;
+		return -EANALDATA;
 
 	val->intval = res * 60;
 
@@ -288,7 +288,7 @@ static int rn5t618_battery_ttf(struct rn5t618_power_info *info,
 		return ret;
 
 	if (res == 65535)
-		return -ENODATA;
+		return -EANALDATA;
 
 	val->intval = res * 60;
 
@@ -340,7 +340,7 @@ static int rn5t618_battery_charge_full(struct rn5t618_power_info *info,
 	return 0;
 }
 
-static int rn5t618_battery_charge_now(struct rn5t618_power_info *info,
+static int rn5t618_battery_charge_analw(struct rn5t618_power_info *info,
 				      union power_supply_propval *val)
 {
 	u16 res;
@@ -369,11 +369,11 @@ static int rn5t618_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		ret = rn5t618_battery_present(info, val);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		ret = rn5t618_battery_voltage_now(info, val);
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
+		ret = rn5t618_battery_voltage_analw(info, val);
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		ret = rn5t618_battery_current_now(info, val);
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
+		ret = rn5t618_battery_current_analw(info, val);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		ret = rn5t618_battery_capacity(info, val);
@@ -381,14 +381,14 @@ static int rn5t618_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TEMP:
 		ret = rn5t618_battery_temp(info, val);
 		break;
-	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
+	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW:
 		ret = rn5t618_battery_tte(info, val);
 		break;
-	case POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
+	case POWER_SUPPLY_PROP_TIME_TO_FULL_ANALW:
 		ret = rn5t618_battery_ttf(info, val);
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
 		ret = rn5t618_battery_get_current_limit(info, val);
@@ -396,8 +396,8 @@ static int rn5t618_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		ret = rn5t618_battery_charge_full(info, val);
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		ret = rn5t618_battery_charge_now(info, val);
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
+		ret = rn5t618_battery_charge_analw(info, val);
 		break;
 	default:
 		return -EINVAL;
@@ -453,12 +453,12 @@ static int rn5t618_adp_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_STATUS:
 		if (!online) {
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 			break;
 		}
 		val->intval = rn5t618_decode_status(chgstate);
 		if (val->intval != POWER_SUPPLY_STATUS_CHARGING)
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 
 		break;
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
@@ -469,9 +469,9 @@ static int rn5t618_adp_get_property(struct power_supply *psy,
 
 		val->intval = FROM_CUR_REG(regval);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		if (!info->channel_vadp)
-			return -ENODATA;
+			return -EANALDATA;
 
 		ret = iio_read_channel_processed_scale(info->channel_vadp, &val->intval, 1000);
 		if (ret < 0)
@@ -545,7 +545,7 @@ static int rc5t619_usb_get_type(struct rn5t618_power_info *info,
 		val->intval = POWER_SUPPLY_USB_TYPE_DCP;
 		break;
 	default:
-		val->intval = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+		val->intval = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 	}
 
 	return 0;
@@ -573,17 +573,17 @@ static int rn5t618_usb_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_STATUS:
 		if (!online) {
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 			break;
 		}
 		val->intval = rn5t618_decode_status(chgstate);
 		if (val->intval != POWER_SUPPLY_STATUS_CHARGING)
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 
 		break;
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		if (!online || (info->rn5t618->variant != RC5T619))
-			return -ENODATA;
+			return -EANALDATA;
 
 		return rc5t619_usb_get_type(info, val);
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
@@ -603,9 +603,9 @@ static int rn5t618_usb_get_property(struct power_supply *psy,
 			val->intval = FROM_CUR_REG(regval);
 		}
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		if (!info->channel_vusb)
-			return -ENODATA;
+			return -EANALDATA;
 
 		ret = iio_read_channel_processed_scale(info->channel_vusb, &val->intval, 1000);
 		if (ret < 0)
@@ -726,7 +726,7 @@ static int rn5t618_power_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->pdev = pdev;
 	info->rn5t618 = dev_get_drvdata(pdev->dev.parent);
@@ -736,14 +736,14 @@ static int rn5t618_power_probe(struct platform_device *pdev)
 
 	info->channel_vusb = devm_iio_channel_get(&pdev->dev, "vusb");
 	if (IS_ERR(info->channel_vusb)) {
-		if (PTR_ERR(info->channel_vusb) == -ENODEV)
+		if (PTR_ERR(info->channel_vusb) == -EANALDEV)
 			return -EPROBE_DEFER;
 		return PTR_ERR(info->channel_vusb);
 	}
 
 	info->channel_vadp = devm_iio_channel_get(&pdev->dev, "vadp");
 	if (IS_ERR(info->channel_vadp)) {
-		if (PTR_ERR(info->channel_vadp) == -ENODEV)
+		if (PTR_ERR(info->channel_vadp) == -EANALDEV)
 			return -EPROBE_DEFER;
 		return PTR_ERR(info->channel_vadp);
 	}
@@ -753,12 +753,12 @@ static int rn5t618_power_probe(struct platform_device *pdev)
 		return ret;
 
 	if (!(v & FG_ENABLE)) {
-		/* E.g. the vendor kernels of various Kobo and Tolino Ebook
+		/* E.g. the vendor kernels of various Kobo and Tolianal Ebook
 		 * readers disable the fuel gauge on shutdown. If a kernel
 		 * without fuel gauge support is booted after that, the fuel
 		 * gauge will get decalibrated.
 		 */
-		dev_info(&pdev->dev, "Fuel gauge not enabled, enabling now\n");
+		dev_info(&pdev->dev, "Fuel gauge analt enabled, enabling analw\n");
 		dev_info(&pdev->dev, "Expect imprecise results\n");
 		regmap_update_bits(info->rn5t618->regmap, RN5T618_CONTROL,
 				   FG_ENABLE, FG_ENABLE);

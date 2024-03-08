@@ -97,7 +97,7 @@ static int __init amimouse_probe(struct platform_device *pdev)
 
 	dev = input_allocate_device();
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->name = pdev->name;
 	dev->phys = "amimouse/input0";

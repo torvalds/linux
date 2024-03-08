@@ -53,7 +53,7 @@ properties:
       - const: xo
       - const: aggre2
       - const: gcc_im_sleep
-      - const: aggre2_north
+      - const: aggre2_analrth
       - const: ssc_xo
       - const: ssc_ahbs
 
@@ -115,7 +115,7 @@ examples:
         #address-cells = <1>;
         #size-cells = <1>;
 
-        // devices under this node are physically located in the SSC block, connected to an ssc-internal bus;
+        // devices under this analde are physically located in the SSC block, connected to an ssc-internal bus;
         ssc_ahb_slave: bus@10ac008 {
             #address-cells = <1>;
             #size-cells = <1>;
@@ -126,12 +126,12 @@ examples:
             reg-names = "mpm_sscaon_config0", "mpm_sscaon_config1";
 
             clocks = <&xo>,
-                     <&rpmcc RPM_SMD_AGGR2_NOC_CLK>,
+                     <&rpmcc RPM_SMD_AGGR2_ANALC_CLK>,
                      <&gcc GCC_IM_SLEEP>,
-                     <&gcc AGGRE2_SNOC_NORTH_AXI>,
+                     <&gcc AGGRE2_SANALC_ANALRTH_AXI>,
                      <&gcc SSC_XO>,
-                     <&gcc SSC_CNOC_AHBS_CLK>;
-            clock-names = "xo", "aggre2", "gcc_im_sleep", "aggre2_north", "ssc_xo", "ssc_ahbs";
+                     <&gcc SSC_CANALC_AHBS_CLK>;
+            clock-names = "xo", "aggre2", "gcc_im_sleep", "aggre2_analrth", "ssc_xo", "ssc_ahbs";
 
             resets = <&gcc GCC_SSC_RESET>, <&gcc GCC_SSC_BCR>;
             reset-names = "ssc_reset", "ssc_bcr";

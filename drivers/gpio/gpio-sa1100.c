@@ -149,7 +149,7 @@ static int sa1100_gpio_type(struct irq_data *d, unsigned int type)
 }
 
 /*
- * GPIO IRQs must be acknowledged.
+ * GPIO IRQs must be ackanalwledged.
  */
 static void sa1100_gpio_ack(struct irq_data *d)
 {

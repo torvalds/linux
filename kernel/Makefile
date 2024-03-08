@@ -9,7 +9,7 @@ obj-y     = fork.o exec_domain.o panic.o \
 	    signal.o sys.o umh.o workqueue.o pid.o task_work.o \
 	    extable.o params.o \
 	    kthread.o sys_ni.o nsproxy.o \
-	    notifier.o ksysfs.o cred.o reboot.o \
+	    analtifier.o ksysfs.o cred.o reboot.o \
 	    async.o range.o smpboot.o ucount.o regset.o ksyms_common.o
 
 obj-$(CONFIG_USERMODE_DRIVER) += usermode_driver.o
@@ -17,15 +17,15 @@ obj-$(CONFIG_MULTIUSER) += groups.o
 obj-$(CONFIG_VHOST_TASK) += vhost_task.o
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not trace internal ftrace files
+# Do analt trace internal ftrace files
 CFLAGS_REMOVE_irq_work.o = $(CC_FLAGS_FTRACE)
 endif
 
 # Prevents flicker of uninteresting __do_softirq()/__local_bh_disable_ip()
 # in coverage traces.
 KCOV_INSTRUMENT_softirq.o := n
-# Avoid KCSAN instrumentation in softirq ("No shared variables, all the data
-# are CPU local" => assume no data races), to reduce overhead in interrupts.
+# Avoid KCSAN instrumentation in softirq ("Anal shared variables, all the data
+# are CPU local" => assume anal data races), to reduce overhead in interrupts.
 KCSAN_SANITIZE_softirq.o = n
 # These are called from save_stack_trace() on slub debug path,
 # and produce insane amounts of uninteresting coverage.
@@ -39,7 +39,7 @@ KASAN_SANITIZE_kcov.o := n
 KCSAN_SANITIZE_kcov.o := n
 UBSAN_SANITIZE_kcov.o := n
 KMSAN_SANITIZE_kcov.o := n
-CFLAGS_kcov.o := $(call cc-option, -fno-conserve-stack) -fno-stack-protector
+CFLAGS_kcov.o := $(call cc-option, -fanal-conserve-stack) -fanal-stack-protector
 
 obj-y += sched/
 obj-y += locking/
@@ -83,7 +83,7 @@ obj-$(CONFIG_IKCONFIG) += configs.o
 obj-$(CONFIG_IKHEADERS) += kheaders.o
 obj-$(CONFIG_SMP) += stop_machine.o
 obj-$(CONFIG_AUDIT) += audit.o auditfilter.o
-obj-$(CONFIG_AUDITSYSCALL) += auditsc.o audit_watch.o audit_fsnotify.o audit_tree.o
+obj-$(CONFIG_AUDITSYSCALL) += auditsc.o audit_watch.o audit_fsanaltify.o audit_tree.o
 obj-$(CONFIG_GCOV_KERNEL) += gcov/
 obj-$(CONFIG_KCOV) += kcov.o
 obj-$(CONFIG_KPROBES) += kprobes.o
@@ -118,7 +118,7 @@ obj-$(CONFIG_NUMA) += numa.o
 
 obj-$(CONFIG_PERF_EVENTS) += events/
 
-obj-$(CONFIG_USER_RETURN_NOTIFIER) += user-return-notifier.o
+obj-$(CONFIG_USER_RETURN_ANALTIFIER) += user-return-analtifier.o
 obj-$(CONFIG_PADATA) += padata.o
 obj-$(CONFIG_CRASH_DUMP) += crash_dump.o
 obj-$(CONFIG_JUMP_LABEL) += jump_label.o

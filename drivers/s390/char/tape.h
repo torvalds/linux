@@ -51,16 +51,16 @@ do { \
 } while (0)
 
 #define TAPE_VERSION_MAJOR 2
-#define TAPE_VERSION_MINOR 0
+#define TAPE_VERSION_MIANALR 0
 #define TAPE_MAGIC "tape"
 
-#define TAPE_MINORS_PER_DEV 2	    /* two minors per device */
+#define TAPE_MIANALRS_PER_DEV 2	    /* two mianalrs per device */
 #define TAPEBLOCK_HSEC_SIZE	2048
 #define TAPEBLOCK_HSEC_S2B	2
 #define TAPEBLOCK_RETRIES	5
 
 enum tape_medium_state {
-	MS_UNKNOWN,
+	MS_UNKANALWN,
 	MS_LOADED,
 	MS_UNLOADED,
 	MS_SIZE
@@ -71,7 +71,7 @@ enum tape_state {
 	TS_IN_USE,
 	TS_BLKUSE,
 	TS_INIT,
-	TS_NOT_OPER,
+	TS_ANALT_OPER,
 	TS_SIZE
 };
 
@@ -83,7 +83,7 @@ enum tape_op {
 	TO_FSB,		/* Forward space block */
 	TO_FSF,		/* Forward space filemark */
 	TO_LBL,		/* Locate block label */
-	TO_NOP,		/* No operation */
+	TO_ANALP,		/* Anal operation */
 	TO_RBA,		/* Read backward */
 	TO_RBI,		/* Read block information */
 	TO_RFO,		/* Read forward */
@@ -179,7 +179,7 @@ struct tape_char_data {
 /* Tape Info */
 struct tape_device {
 	/* entry in tape_device_list */
-	struct list_head		node;
+	struct list_head		analde;
 
 	int				cdev_id;
 	struct ccw_device *		cdev;
@@ -211,8 +211,8 @@ struct tape_device {
 	/* Request wait queue. */
 	wait_queue_head_t		wait_queue;
 
-	/* Each tape device has (currently) two minor numbers. */
-	int				first_minor;
+	/* Each tape device has (currently) two mianalr numbers. */
+	int				first_mianalr;
 
 	/* Number of tapemarks required for correct termination. */
 	int				required_tapemarks;

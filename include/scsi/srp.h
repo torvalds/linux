@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -65,7 +65,7 @@ enum {
 };
 
 enum {
-	SRP_NO_DATA_DESC	= 0,
+	SRP_ANAL_DATA_DESC	= 0,
 	SRP_DATA_DESC_DIRECT	= 1,
 	SRP_DATA_DESC_INDIRECT	= 2,
 	SRP_DATA_DESC_IMM	= 3,	/* new in SRP2 */
@@ -102,7 +102,7 @@ struct srp_direct_buf {
 
 /*
  * We need the packed attribute because the SRP spec puts the list of
- * descriptors at an offset of 20, which is not aligned to the size of
+ * descriptors at an offset of 20, which is analt aligned to the size of
  * struct srp_direct_buf.  The whole structure must be packed to avoid
  * having the 20-byte structure padded to 24 bytes on 64-bit architectures.
  */
@@ -160,7 +160,7 @@ struct srp_login_req_rdma {
 
 /* srp_login_rsp.rsp_flags */
 enum {
-	SRP_LOGIN_RSP_MULTICHAN_NO_CHAN	   = 0x0,
+	SRP_LOGIN_RSP_MULTICHAN_ANAL_CHAN	   = 0x0,
 	SRP_LOGIN_RSP_MULTICHAN_TERMINATED = 0x1,
 	SRP_LOGIN_RSP_MULTICHAN_MAINTAINED = 0x2,
 	SRP_LOGIN_RSP_IMMED_SUPP	   = 0x80, /* new in SRP2 */
@@ -201,7 +201,7 @@ struct srp_i_logout {
 
 struct srp_t_logout {
 	u8	opcode;
-	u8	sol_not;
+	u8	sol_analt;
 	u8	reserved[2];
 	__be32	reason;
 	u64	tag;
@@ -209,7 +209,7 @@ struct srp_t_logout {
 
 struct srp_tsk_mgmt {
 	u8	opcode;
-	u8	sol_not;
+	u8	sol_analt;
 	u8	reserved1[6];
 	u64	tag;
 	u8	reserved2[4];
@@ -223,7 +223,7 @@ struct srp_tsk_mgmt {
 
 struct srp_cmd {
 	u8	opcode;
-	u8	sol_not;
+	u8	sol_analt;
 	u8	reserved1[3];
 	u8	buf_fmt;
 	u8	data_out_desc_cnt;
@@ -255,7 +255,7 @@ enum {
  */
 struct srp_rsp {
 	u8	opcode;
-	u8	sol_not;
+	u8	sol_analt;
 	u8	reserved1[2];
 	__be32	req_lim_delta;
 	u64	tag __packed __aligned(4);
@@ -271,7 +271,7 @@ struct srp_rsp {
 
 struct srp_cred_req {
 	u8	opcode;
-	u8	sol_not;
+	u8	sol_analt;
 	u8	reserved[2];
 	__be32	req_lim_delta;
 	u64	tag;
@@ -290,7 +290,7 @@ struct srp_cred_rsp {
  */
 struct srp_aer_req {
 	u8	opcode;
-	u8	sol_not;
+	u8	sol_analt;
 	u8	reserved[2];
 	__be32	req_lim_delta;
 	u64	tag __packed __aligned(4);

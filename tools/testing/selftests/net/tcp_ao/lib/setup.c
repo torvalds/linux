@@ -11,7 +11,7 @@
  */
 #include "../../../kselftest.h"
 
-/* Prevent overriding of one thread's output by another */
+/* Prevent overriding of one thread's output by aanalther */
 static pthread_mutex_t ksft_print_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void __test_msg(const char *buf)
@@ -104,7 +104,7 @@ static void test_destructor(void)
 	test_exit();
 }
 
-static void sig_int(int signo)
+static void sig_int(int siganal)
 {
 	test_error("Caught SIGINT - exiting");
 }
@@ -277,13 +277,13 @@ void __test_init(unsigned int ntests, int family, unsigned int prefix,
 
 /* /proc/sys/net/core/optmem_max artifically limits the amount of memory
  * that can be allocated with sock_kmalloc() on each socket in the system.
- * It is not virtualized in v6.7, so it has to written outside test
+ * It is analt virtualized in v6.7, so it has to written outside test
  * namespaces. To be nice a test will revert optmem back to the old value.
  * Keeping it simple without any file lock, which means the tests that
  * need to set/increase optmem value shouldn't run in parallel.
- * Also, not re-entrant.
+ * Also, analt re-entrant.
  * Since commit f5769faeec36 ("net: Namespace-ify sysctl_optmem_max")
- * it is per-namespace, keeping logic for non-virtualized optmem_max
+ * it is per-namespace, keeping logic for analn-virtualized optmem_max
  * for v6.7, which supports TCP-AO.
  */
 static const char *optmem_file = "/proc/sys/net/core/optmem_max";

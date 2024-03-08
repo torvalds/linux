@@ -47,14 +47,14 @@ patternProperties:
     additionalProperties: false
 
     description:
-      Child nodes can be specified to contain pin configuration information,
+      Child analdes can be specified to contain pin configuration information,
       which can then be utilized by pinctrl client devices.
       The following properties are supported.
 
     properties:
       pins:
         description: |
-          The name(s) of the pins to be configured in the child node.
+          The name(s) of the pins to be configured in the child analde.
           Supported pin names are "GPIO0" up to "GPIO79".
 
       bias-disable: true

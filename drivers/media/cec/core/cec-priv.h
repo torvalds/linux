@@ -9,7 +9,7 @@
 #define _CEC_PRIV_H
 
 #include <linux/cec-funcs.h>
-#include <media/cec-notifier.h>
+#include <media/cec-analtifier.h>
 
 #define dprintk(lvl, fmt, arg...)					\
 	do {								\
@@ -18,17 +18,17 @@
 	} while (0)
 
 #define call_op(adap, op, arg...)					\
-	((adap->ops->op && !adap->devnode.unregistered) ?		\
+	((adap->ops->op && !adap->devanalde.unregistered) ?		\
 	 adap->ops->op(adap, ## arg) : 0)
 
 #define call_void_op(adap, op, arg...)					\
 	do {								\
-		if (adap->ops->op && !adap->devnode.unregistered)	\
+		if (adap->ops->op && !adap->devanalde.unregistered)	\
 			adap->ops->op(adap, ## arg);			\
 	} while (0)
 
-/* devnode to cec_adapter */
-#define to_cec_adapter(node) container_of(node, struct cec_adapter, devnode)
+/* devanalde to cec_adapter */
+#define to_cec_adapter(analde) container_of(analde, struct cec_adapter, devanalde)
 
 static inline bool msg_is_raw(const struct cec_msg *msg)
 {
@@ -37,8 +37,8 @@ static inline bool msg_is_raw(const struct cec_msg *msg)
 
 /* cec-core.c */
 extern int cec_debug;
-int cec_get_device(struct cec_devnode *devnode);
-void cec_put_device(struct cec_devnode *devnode);
+int cec_get_device(struct cec_devanalde *devanalde);
+void cec_put_device(struct cec_devanalde *devanalde);
 
 /* cec-adap.c */
 int cec_monitor_all_cnt_inc(struct cec_adapter *adap);
@@ -57,6 +57,6 @@ void cec_queue_event_fh(struct cec_fh *fh,
 			const struct cec_event *new_ev, u64 ts);
 
 /* cec-api.c */
-extern const struct file_operations cec_devnode_fops;
+extern const struct file_operations cec_devanalde_fops;
 
 #endif

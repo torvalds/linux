@@ -20,8 +20,8 @@ static const struct regmap_range m10bmc_regmap_range[] = {
 };
 
 static const struct regmap_access_table m10bmc_access_table = {
-	.yes_ranges	= m10bmc_regmap_range,
-	.n_yes_ranges	= ARRAY_SIZE(m10bmc_regmap_range),
+	.anal_ranges	= m10bmc_regmap_range,
+	.n_anal_ranges	= ARRAY_SIZE(m10bmc_regmap_range),
 };
 
 static struct regmap_config intel_m10bmc_regmap_config = {
@@ -42,17 +42,17 @@ static int check_m10bmc_version(struct intel_m10bmc *ddata)
 	 * This check is to filter out the very old legacy BMC versions. In the
 	 * old BMC chips, the BMC version info is stored in the old version
 	 * register (M10BMC_N3000_LEGACY_BUILD_VER), so its read out value would have
-	 * not been M10BMC_N3000_VER_LEGACY_INVALID (0xffffffff). But in new BMC
+	 * analt been M10BMC_N3000_VER_LEGACY_INVALID (0xffffffff). But in new BMC
 	 * chips that the driver supports, the value of this register should be
 	 * M10BMC_N3000_VER_LEGACY_INVALID.
 	 */
 	ret = m10bmc_raw_read(ddata, M10BMC_N3000_LEGACY_BUILD_VER, &v);
 	if (ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (v != M10BMC_N3000_VER_LEGACY_INVALID) {
 		dev_err(ddata->dev, "bad version M10BMC detected\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -68,7 +68,7 @@ static int intel_m10_bmc_spi_probe(struct spi_device *spi)
 
 	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = (struct intel_m10bmc_platform_info *)id->driver_data;
 	ddata->dev = dev;

@@ -97,12 +97,12 @@
 #define DAQP_PACER_HIGH_REG		0x06
 
 #define DAQP_CMD_REG			0x07
-/* the monostable bits are self-clearing after the function is complete */
-#define DAQP_CMD_ARM			BIT(7)	/* monostable */
-#define DAQP_CMD_RSTF			BIT(6)	/* monostable */
-#define DAQP_CMD_RSTQ			BIT(5)	/* monostable */
-#define DAQP_CMD_STOP			BIT(4)	/* monostable */
-#define DAQP_CMD_LATCH			BIT(3)	/* monostable */
+/* the moanalstable bits are self-clearing after the function is complete */
+#define DAQP_CMD_ARM			BIT(7)	/* moanalstable */
+#define DAQP_CMD_RSTF			BIT(6)	/* moanalstable */
+#define DAQP_CMD_RSTQ			BIT(5)	/* moanalstable */
+#define DAQP_CMD_STOP			BIT(4)	/* moanalstable */
+#define DAQP_CMD_LATCH			BIT(3)	/* moanalstable */
 #define DAQP_CMD_SCANRATE(x)		(((x) & 0x3) << 1)
 #define DAQP_CMD_SCANRATE_100KHZ	DAQP_CMD_SCANRATE(0)
 #define DAQP_CMD_SCANRATE_50KHZ		DAQP_CMD_SCANRATE(1)
@@ -141,7 +141,7 @@
 
 #define DAQP_FIFO_SIZE			4096
 
-#define DAQP_MAX_TIMER_SPEED		10000	/* 100 kHz in nanoseconds */
+#define DAQP_MAX_TIMER_SPEED		10000	/* 100 kHz in naanalseconds */
 
 struct daqp_private {
 	unsigned int pacer_div;
@@ -216,11 +216,11 @@ static irqreturn_t daqp_interrupt(int irq, void *dev_id)
 	int status;
 
 	if (!dev->attached)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	status = inb(dev->iobase + DAQP_STATUS_REG);
 	if (!(status & DAQP_STATUS_EVENTS))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	while (!(status & DAQP_STATUS_FIFO_EMPTY)) {
 		unsigned short data;
@@ -314,7 +314,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	/* Reset data FIFO (see page 28 of DAQP User's Manual) */
 	outb(DAQP_CMD_RSTF, dev->iobase + DAQP_CMD_REG);
 
-	/* Set trigger - one-shot, internal, no interrupts */
+	/* Set trigger - one-shot, internal, anal interrupts */
 	outb(DAQP_CTRL_PACER_CLK_100KHZ, dev->iobase + DAQP_CTRL_REG);
 
 	ret = daqp_clear_events(dev, 10000);
@@ -343,7 +343,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	return ret ? ret : insn->n;
 }
 
-/* This function converts ns nanoseconds to a counter value suitable
+/* This function converts ns naanalseconds to a counter value suitable
  * for programming the device.  We always use the DAQP's 5 MHz clock,
  * which with its 24-bit counter, allows values up to 84 seconds.
  * Also, the function adjusts ns so that it cooresponds to the actual
@@ -377,13 +377,13 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_TIMER | TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->convert_src,
-					TRIG_TIMER | TRIG_NOW);
+					TRIG_TIMER | TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -434,7 +434,7 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -481,7 +481,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * TRIG_TIMER, then convert_arg specifies the time between
 	 * each conversion, so we program the pacer clock to that
 	 * frequency and set the SCANLIST_START bit on every scanlist
-	 * entry.  Otherwise, convert_src is TRIG_NOW, which means
+	 * entry.  Otherwise, convert_src is TRIG_ANALW, which means
 	 * we want the fastest possible conversions, scan_begin_src
 	 * is TRIG_TIMER, and scan_begin_arg specifies the time between
 	 * each scan, so we program the pacer clock to this frequency
@@ -501,7 +501,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		daqp_ai_set_one_scanlist_entry(dev, cmd->chanlist[i], start);
 	}
 
-	/* Now it's time to program the FIFO threshold, basically the
+	/* Analw it's time to program the FIFO threshold, basically the
 	 * number of samples the card will buffer before it interrupts
 	 * the CPU.
 	 *
@@ -545,25 +545,25 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * = 3^3 * 2).  Hmmm... a one-line while loop or prime
 	 * decomposition of integers... I'll leave it the way it is.
 	 *
-	 * I'll also note a mini-race condition before ignoring it in
+	 * I'll also analte a mini-race condition before iganalring it in
 	 * the code.  Let's say we're taking 4000 samples, as before.
 	 * After 1000 samples, we get an interrupt.  But before that
-	 * interrupt is completely serviced, another sample is taken
+	 * interrupt is completely serviced, aanalther sample is taken
 	 * and loaded into the FIFO.  Since the interrupt handler
 	 * empties the FIFO before returning, it will read 1001 samples.
 	 * If that happens four times, we'll end up taking 4004 samples,
-	 * not 4000.  The interrupt handler will discard the extra four
+	 * analt 4000.  The interrupt handler will discard the extra four
 	 * samples (by halting the acquisition with four samples still
 	 * in the FIFO), but we will have to wait for them.
 	 *
 	 * In short, this code works pretty well, but for either of
-	 * the two reasons noted, might end up waiting for a few more
+	 * the two reasons analted, might end up waiting for a few more
 	 * samples than actually requested.  Shouldn't make too much
 	 * of a difference.
 	 */
 
 	/* Save away the number of conversions we should perform, and
-	 * compute the FIFO threshold (in bytes, not samples - that's
+	 * compute the FIFO threshold (in bytes, analt samples - that's
 	 * why we multiple devpriv->count by 2 = sizeof(sample))
 	 */
 
@@ -704,7 +704,7 @@ static int daqp_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	link->config_flags |= CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
 	ret = comedi_pcmcia_enable(dev, NULL);
@@ -751,13 +751,13 @@ static int daqp_auto_attach(struct comedi_device *dev,
 
 	/*
 	 * Digital Input subdevice
-	 * NOTE: The digital input lines are shared:
+	 * ANALTE: The digital input lines are shared:
 	 *
-	 * Chan  Normal Mode        Expansion Mode
+	 * Chan  Analrmal Mode        Expansion Mode
 	 * ----  -----------------  ----------------------------
-	 *  0    DI0, ext. trigger  Same as normal mode
+	 *  0    DI0, ext. trigger  Same as analrmal mode
 	 *  1    DI1                External gain select, lo bit
-	 *  2    DI2, ext. clock    Same as normal mode
+	 *  2    DI2, ext. clock    Same as analrmal mode
 	 *  3    DI3                External gain select, hi bit
 	 */
 	s = &dev->subdevices[2];
@@ -769,9 +769,9 @@ static int daqp_auto_attach(struct comedi_device *dev,
 
 	/*
 	 * Digital Output subdevice
-	 * NOTE: The digital output lines share the same pins on the
+	 * ANALTE: The digital output lines share the same pins on the
 	 * interface connector as the four external channel selection
-	 * bits. If expansion mode is used the digital outputs do not
+	 * bits. If expansion mode is used the digital outputs do analt
 	 * work.
 	 */
 	s = &dev->subdevices[3];

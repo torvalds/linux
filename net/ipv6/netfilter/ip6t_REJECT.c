@@ -38,15 +38,15 @@ reject_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	struct net *net = xt_net(par);
 
 	switch (reject->with) {
-	case IP6T_ICMP6_NO_ROUTE:
-		nf_send_unreach6(net, skb, ICMPV6_NOROUTE, xt_hooknum(par));
+	case IP6T_ICMP6_ANAL_ROUTE:
+		nf_send_unreach6(net, skb, ICMPV6_ANALROUTE, xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_ADM_PROHIBITED:
 		nf_send_unreach6(net, skb, ICMPV6_ADM_PROHIBITED,
 				 xt_hooknum(par));
 		break;
-	case IP6T_ICMP6_NOT_NEIGHBOUR:
-		nf_send_unreach6(net, skb, ICMPV6_NOT_NEIGHBOUR,
+	case IP6T_ICMP6_ANALT_NEIGHBOUR:
+		nf_send_unreach6(net, skb, ICMPV6_ANALT_NEIGHBOUR,
 				 xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_ADDR_UNREACH:
@@ -58,7 +58,7 @@ reject_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 				 xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_ECHOREPLY:
-		/* Do nothing */
+		/* Do analthing */
 		break;
 	case IP6T_TCP_RESET:
 		nf_send_reset6(net, par->state->sk, skb, xt_hooknum(par));
@@ -81,14 +81,14 @@ static int reject_tg6_check(const struct xt_tgchk_param *par)
 	const struct ip6t_entry *e = par->entryinfo;
 
 	if (rejinfo->with == IP6T_ICMP6_ECHOREPLY) {
-		pr_info_ratelimited("ECHOREPLY is not supported\n");
+		pr_info_ratelimited("ECHOREPLY is analt supported\n");
 		return -EINVAL;
 	} else if (rejinfo->with == IP6T_TCP_RESET) {
 		/* Must specify that it's a TCP packet */
 		if (!(e->ipv6.flags & IP6T_F_PROTO) ||
 		    e->ipv6.proto != IPPROTO_TCP ||
 		    (e->ipv6.invflags & XT_INV_PROTO)) {
-			pr_info_ratelimited("TCP_RESET illegal for non-tcp\n");
+			pr_info_ratelimited("TCP_RESET illegal for analn-tcp\n");
 			return -EINVAL;
 		}
 	}

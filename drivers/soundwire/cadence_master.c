@@ -37,7 +37,7 @@ MODULE_PARM_DESC(cdns_mcp_int_mask, "Cadence MCP IntMask");
 #define CDNS_IP_MCP_CONFIG_SNIFFER		BIT(5)
 #define CDNS_IP_MCP_CONFIG_CMD			BIT(3)
 #define CDNS_IP_MCP_CONFIG_OP			GENMASK(2, 0)
-#define CDNS_IP_MCP_CONFIG_OP_NORMAL		0
+#define CDNS_IP_MCP_CONFIG_OP_ANALRMAL		0
 
 #define CDNS_MCP_CONTROL			0x4
 
@@ -271,7 +271,7 @@ static int cdns_config_update(struct sdw_cdns *cdns)
 	int ret;
 
 	if (sdw_cdns_is_clock_stop(cdns)) {
-		dev_err(cdns->dev, "Cannot program MCP_CONFIG_UPDATE in ClockStopMode\n");
+		dev_err(cdns->dev, "Cananalt program MCP_CONFIG_UPDATE in ClockStopMode\n");
 		return -EINVAL;
 	}
 
@@ -330,7 +330,7 @@ static int cdns_reg_show(struct seq_file *s, void *data)
 
 	buf = kzalloc(RD_BUF, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = scnprintf(buf, RD_BUF, "Register  Value\n");
 	ret += scnprintf(buf + ret, RD_BUF - ret, "\nMCP Registers\n");
@@ -340,7 +340,7 @@ static int cdns_reg_show(struct seq_file *s, void *data)
 
 	ret += scnprintf(buf + ret, RD_BUF - ret,
 			 "\nStatus & Intr Registers\n");
-	/* 13 Status & Intr registers (offsets 0x70 and 0x74 not defined) */
+	/* 13 Status & Intr registers (offsets 0x70 and 0x74 analt defined) */
 	for (i = CDNS_MCP_STAT; i <=  CDNS_MCP_FIFOSTAT; i += sizeof(u32))
 		ret += cdns_sprintf(cdns, buf, ret, i);
 
@@ -439,8 +439,8 @@ static int cdns_parity_error_injection(void *data, u64 value)
 	}
 
 	/*
-	 * wait long enough for Slave(s) to be in steady state. This
-	 * does not need to be super precise.
+	 * wait long eanalugh for Slave(s) to be in steady state. This
+	 * does analt need to be super precise.
 	 */
 	msleep(200);
 
@@ -461,7 +461,7 @@ static int cdns_parity_error_injection(void *data, u64 value)
 		goto unlock;
 
 	/* do a broadcast dummy read to avoid bus clashes */
-	ret = sdw_bread_no_pm_unlocked(&cdns->bus, 0xf, SDW_SCP_DEVID_0);
+	ret = sdw_bread_anal_pm_unlocked(&cdns->bus, 0xf, SDW_SCP_DEVID_0);
 	dev_info(cdns->dev, "parity error injection, read: %d\n", ret);
 
 	/* program hardware to disable parity error */
@@ -564,14 +564,14 @@ static enum sdw_command_response
 cdns_fill_msg_resp(struct sdw_cdns *cdns,
 		   struct sdw_msg *msg, int count, int offset)
 {
-	int nack = 0, no_ack = 0;
+	int nack = 0, anal_ack = 0;
 	int i;
 
 	/* check message response */
 	for (i = 0; i < count; i++) {
 		if (!(cdns->response_buf[i] & CDNS_MCP_RESP_ACK)) {
-			no_ack = 1;
-			dev_vdbg(cdns->dev, "Msg Ack not received, cmd %d\n", i);
+			anal_ack = 1;
+			dev_vdbg(cdns->dev, "Msg Ack analt received, cmd %d\n", i);
 		}
 		if (cdns->response_buf[i] & CDNS_MCP_RESP_NACK) {
 			nack = 1;
@@ -584,9 +584,9 @@ cdns_fill_msg_resp(struct sdw_cdns *cdns,
 		return SDW_CMD_FAIL;
 	}
 
-	if (no_ack) {
-		dev_dbg_ratelimited(cdns->dev, "Msg ignored for Slave %d\n", msg->dev_num);
-		return SDW_CMD_IGNORED;
+	if (anal_ack) {
+		dev_dbg_ratelimited(cdns->dev, "Msg iganalred for Slave %d\n", msg->dev_num);
+		return SDW_CMD_IGANALRED;
 	}
 
 	if (msg->flags == SDW_MSG_FLAG_READ) {
@@ -676,7 +676,7 @@ _cdns_xfer_msg(struct sdw_cdns *cdns, struct sdw_msg *msg, int cmd,
 static enum sdw_command_response
 cdns_program_scp_addr(struct sdw_cdns *cdns, struct sdw_msg *msg)
 {
-	int nack = 0, no_ack = 0;
+	int nack = 0, anal_ack = 0;
 	unsigned long time;
 	u32 data[2], base;
 	int i;
@@ -713,8 +713,8 @@ cdns_program_scp_addr(struct sdw_cdns *cdns, struct sdw_msg *msg)
 	/* check response the writes */
 	for (i = 0; i < 2; i++) {
 		if (!(cdns->response_buf[i] & CDNS_MCP_RESP_ACK)) {
-			no_ack = 1;
-			dev_err(cdns->dev, "Program SCP Ack not received\n");
+			anal_ack = 1;
+			dev_err(cdns->dev, "Program SCP Ack analt received\n");
 			if (cdns->response_buf[i] & CDNS_MCP_RESP_NACK) {
 				nack = 1;
 				dev_err(cdns->dev, "Program SCP NACK received\n");
@@ -722,17 +722,17 @@ cdns_program_scp_addr(struct sdw_cdns *cdns, struct sdw_msg *msg)
 		}
 	}
 
-	/* For NACK, NO ack, don't return err if we are in Broadcast mode */
+	/* For NACK, ANAL ack, don't return err if we are in Broadcast mode */
 	if (nack) {
 		dev_err_ratelimited(cdns->dev,
 				    "SCP_addrpage NACKed for Slave %d\n", msg->dev_num);
 		return SDW_CMD_FAIL;
 	}
 
-	if (no_ack) {
+	if (anal_ack) {
 		dev_dbg_ratelimited(cdns->dev,
-				    "SCP_addrpage ignored for Slave %d\n", msg->dev_num);
-		return SDW_CMD_IGNORED;
+				    "SCP_addrpage iganalred for Slave %d\n", msg->dev_num);
+		return SDW_CMD_IGANALRED;
 	}
 
 	return SDW_CMD_OK;
@@ -802,7 +802,7 @@ cdns_xfer_msg_defer(struct sdw_bus *bus)
 
 	/* for defer only 1 message is supported */
 	if (msg->len > 1)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = cdns_prep_msg(cdns, msg, &cmd);
 	if (ret)
@@ -867,7 +867,7 @@ static int cdns_update_slave_status(struct sdw_cdns *cdns,
 
 		/*
 		 * check that there was a single reported Slave status and when
-		 * there is not use the latest status extracted from PING commands
+		 * there is analt use the latest status extracted from PING commands
 		 */
 		if (set_status != 1) {
 			val = cdns_readl(cdns, CDNS_MCP_SLAVE_STAT);
@@ -909,16 +909,16 @@ irqreturn_t sdw_cdns_irq(int irq, void *dev_id)
 
 	/* Check if the link is up */
 	if (!cdns->link_up)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	int_status = cdns_readl(cdns, CDNS_MCP_INTSTAT);
 
 	/* check for reserved values read as zero */
 	if (int_status & CDNS_MCP_INT_RESERVED)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!(int_status & CDNS_MCP_INT_IRQ))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (int_status & CDNS_MCP_INT_RX_WL) {
 		struct sdw_bus *bus = &cdns->bus;
@@ -953,7 +953,7 @@ irqreturn_t sdw_cdns_irq(int irq, void *dev_id)
 		dev_err_ratelimited(cdns->dev, "Bus clash for data word\n");
 	}
 
-	if (cdns->bus.params.m_data_mode != SDW_PORT_DATA_MODE_NORMAL &&
+	if (cdns->bus.params.m_data_mode != SDW_PORT_DATA_MODE_ANALRMAL &&
 	    int_status & CDNS_MCP_INT_DPINT) {
 		u32 port_intstat;
 
@@ -1032,7 +1032,7 @@ update_status:
 	 * When there is more than one peripheral per link, it's
 	 * possible that a deviceB becomes attached after we deal with
 	 * the attachment of deviceA. Since the hardware does a
-	 * logical AND, the attachment of the second device does not
+	 * logical AND, the attachment of the second device does analt
 	 * change the status seen by the driver.
 	 *
 	 * In that case, clearing the registers above would result in
@@ -1040,11 +1040,11 @@ update_status:
 	 * is observed on the bus.
 	 *
 	 * To avoid this race condition, re-check if any device0 needs
-	 * attention with PING commands. There is no need to check for
-	 * ALERTS since they are not allowed until a non-zero
+	 * attention with PING commands. There is anal need to check for
+	 * ALERTS since they are analt allowed until a analn-zero
 	 * device_number is assigned.
 	 *
-	 * Do not clear the INTSTAT0/1. While looping to enumerate devices on
+	 * Do analt clear the INTSTAT0/1. While looping to enumerate devices on
 	 * #0 there could be status changes on other devices - these must
 	 * be kept in the INTSTAT so they can be handled when all #0 devices
 	 * have been handled.
@@ -1067,13 +1067,13 @@ update_status:
 		}
 	}
 
-	/* unmask Slave interrupt now */
+	/* unmask Slave interrupt analw */
 	cdns_updatel(cdns, CDNS_MCP_INTMASK,
 		     CDNS_MCP_INT_SLAVE_MASK, CDNS_MCP_INT_SLAVE_MASK);
 
 }
 
-/* paranoia check to make sure self-cleared bits are indeed cleared */
+/* paraanalia check to make sure self-cleared bits are indeed cleared */
 void sdw_cdns_check_self_clearing_bits(struct sdw_cdns *cdns, const char *string,
 				       bool initial_delay, int reset_iterations)
 {
@@ -1089,30 +1089,30 @@ void sdw_cdns_check_self_clearing_bits(struct sdw_cdns *cdns, const char *string
 
 	/* the following bits should be cleared immediately */
 	if (ip_mcp_control & CDNS_IP_MCP_CONTROL_SW_RST)
-		dev_err(cdns->dev, "%s failed: IP_MCP_CONTROL_SW_RST is not cleared\n", string);
+		dev_err(cdns->dev, "%s failed: IP_MCP_CONTROL_SW_RST is analt cleared\n", string);
 
 	mcp_control = cdns_readl(cdns, CDNS_MCP_CONTROL);
 
 	/* the following bits should be cleared immediately */
 	if (mcp_control & CDNS_MCP_CONTROL_CMD_RST)
-		dev_err(cdns->dev, "%s failed: MCP_CONTROL_CMD_RST is not cleared\n", string);
+		dev_err(cdns->dev, "%s failed: MCP_CONTROL_CMD_RST is analt cleared\n", string);
 	if (mcp_control & CDNS_MCP_CONTROL_SOFT_RST)
-		dev_err(cdns->dev, "%s failed: MCP_CONTROL_SOFT_RST is not cleared\n", string);
+		dev_err(cdns->dev, "%s failed: MCP_CONTROL_SOFT_RST is analt cleared\n", string);
 	if (mcp_control & CDNS_MCP_CONTROL_CLK_STOP_CLR)
-		dev_err(cdns->dev, "%s failed: MCP_CONTROL_CLK_STOP_CLR is not cleared\n", string);
+		dev_err(cdns->dev, "%s failed: MCP_CONTROL_CLK_STOP_CLR is analt cleared\n", string);
 
 	mcp_config_update = cdns_readl(cdns, CDNS_MCP_CONFIG_UPDATE);
 	if (mcp_config_update & CDNS_MCP_CONFIG_UPDATE_BIT)
-		dev_err(cdns->dev, "%s failed: MCP_CONFIG_UPDATE_BIT is not cleared\n", string);
+		dev_err(cdns->dev, "%s failed: MCP_CONFIG_UPDATE_BIT is analt cleared\n", string);
 
 	i = 0;
 	while (mcp_control & CDNS_MCP_CONTROL_HW_RST) {
 		if (i == reset_iterations) {
-			dev_err(cdns->dev, "%s failed: MCP_CONTROL_HW_RST is not cleared\n", string);
+			dev_err(cdns->dev, "%s failed: MCP_CONTROL_HW_RST is analt cleared\n", string);
 			break;
 		}
 
-		dev_dbg(cdns->dev, "%s: MCP_CONTROL_HW_RST is not cleared at iteration %d\n", string, i);
+		dev_dbg(cdns->dev, "%s: MCP_CONTROL_HW_RST is analt cleared at iteration %d\n", string, i);
 		i++;
 
 		usleep_range(1000, 1500);
@@ -1186,8 +1186,8 @@ int sdw_cdns_enable_interrupt(struct sdw_cdns *cdns, bool state)
 	mask |= CDNS_MCP_INT_CTRL_CLASH | CDNS_MCP_INT_DATA_CLASH |
 		CDNS_MCP_INT_PARITY;
 
-	/* port interrupt limited to test modes for now */
-	if (cdns->bus.params.m_data_mode != SDW_PORT_DATA_MODE_NORMAL)
+	/* port interrupt limited to test modes for analw */
+	if (cdns->bus.params.m_data_mode != SDW_PORT_DATA_MODE_ANALRMAL)
 		mask |= CDNS_MCP_INT_DPINT;
 
 	/* enable detection of RX fifo level */
@@ -1246,7 +1246,7 @@ static int cdns_allocate_pdi(struct sdw_cdns *cdns,
 
 	pdi = devm_kcalloc(cdns->dev, num, sizeof(*pdi), GFP_KERNEL);
 	if (!pdi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++) {
 		pdi[i].num = i + pdi_offset;
@@ -1387,7 +1387,7 @@ int sdw_cdns_init(struct sdw_cdns *cdns)
 
 	/* enable bus operations with clock and data */
 	val &= ~CDNS_IP_MCP_CONFIG_OP;
-	val |= CDNS_IP_MCP_CONFIG_OP_NORMAL;
+	val |= CDNS_IP_MCP_CONFIG_OP_ANALRMAL;
 
 	/* Set cmd mode for Tx and Rx cmds */
 	val &= ~CDNS_IP_MCP_CONFIG_CMD;
@@ -1464,7 +1464,7 @@ static int cdns_port_params(struct sdw_bus *bus,
 
 	dpn_config = cdns_readl(cdns, dpn_config_off_source);
 
-	/* use port params if there is no loopback, otherwise use source as is */
+	/* use port params if there is anal loopback, otherwise use source as is */
 	if (!override) {
 		u32p_replace_bits(&dpn_config, p_params->bps - 1, CDNS_DPN_CONFIG_WL);
 		u32p_replace_bits(&dpn_config, p_params->flow_mode, CDNS_DPN_CONFIG_PORT_FLOW);
@@ -1504,7 +1504,7 @@ static int cdns_transport_params(struct sdw_bus *bus,
 	}
 
 	/*
-	 * Note: Only full data port is supported on the Master side for
+	 * Analte: Only full data port is supported on the Master side for
 	 * both PCM and PDM ports.
 	 */
 
@@ -1629,7 +1629,7 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 
 	/*
 	 * For specific platforms, it is required to be able to put
-	 * master into a state in which it ignores wake-up trials
+	 * master into a state in which it iganalres wake-up trials
 	 * in clock stop state
 	 */
 	if (block_wake)
@@ -1637,7 +1637,7 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 				CDNS_IP_MCP_CONTROL_BLOCK_WAKEUP,
 				CDNS_IP_MCP_CONTROL_BLOCK_WAKEUP);
 
-	list_for_each_entry(slave, &cdns->bus.slaves, node) {
+	list_for_each_entry(slave, &cdns->bus.slaves, analde) {
 		if (slave->status == SDW_SLAVE_ATTACHED ||
 		    slave->status == SDW_SLAVE_ALERT) {
 			slave_present = true;
@@ -1655,7 +1655,7 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	/* Prepare slaves for clock stop */
 	if (slave_present) {
 		ret = sdw_bus_prep_clk_stop(&cdns->bus);
-		if (ret < 0 && ret != -ENODATA) {
+		if (ret < 0 && ret != -EANALDATA) {
 			dev_err(cdns->dev, "prepare clock stop failed %d\n", ret);
 			return ret;
 		}
@@ -1666,7 +1666,7 @@ int sdw_cdns_clock_stop(struct sdw_cdns *cdns, bool block_wake)
 	 * Slave devices present (ALERT or ATTACHED)
 	 */
 	ret = sdw_bus_clk_stop(&cdns->bus);
-	if (ret < 0 && slave_present && ret != -ENODATA) {
+	if (ret < 0 && slave_present && ret != -EANALDATA) {
 		dev_err(cdns->dev, "bus clock stop failed %d\n", ret);
 		return ret;
 	}
@@ -1719,7 +1719,7 @@ int sdw_cdns_clock_restart(struct sdw_cdns *cdns, bool bus_reset)
 		/* enable bus operations with clock and data */
 		cdns_ip_updatel(cdns, CDNS_IP_MCP_CONFIG,
 				CDNS_IP_MCP_CONFIG_OP,
-				CDNS_IP_MCP_CONFIG_OP_NORMAL);
+				CDNS_IP_MCP_CONFIG_OP_ANALRMAL);
 
 		ret = cdns_config_update(cdns);
 		if (ret < 0) {
@@ -1759,7 +1759,7 @@ int cdns_set_sdw_stream(struct snd_soc_dai *dai,
 	dai_runtime = cdns->dai_runtime_array[dai->id];
 
 	if (stream) {
-		/* first paranoia check */
+		/* first paraanalia check */
 		if (dai_runtime) {
 			dev_err(dai->dev,
 				"dai_runtime already allocated for dai %s\n",
@@ -1770,7 +1770,7 @@ int cdns_set_sdw_stream(struct snd_soc_dai *dai,
 		/* allocate and set dai_runtime info */
 		dai_runtime = kzalloc(sizeof(*dai_runtime), GFP_KERNEL);
 		if (!dai_runtime)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dai_runtime->stream_type = SDW_STREAM_PCM;
 
@@ -1782,10 +1782,10 @@ int cdns_set_sdw_stream(struct snd_soc_dai *dai,
 
 		cdns->dai_runtime_array[dai->id] = dai_runtime;
 	} else {
-		/* second paranoia check */
+		/* second paraanalia check */
 		if (!dai_runtime) {
 			dev_err(dai->dev,
-				"dai_runtime not allocated for dai %s\n",
+				"dai_runtime analt allocated for dai %s\n",
 				dai->name);
 			return -EINVAL;
 		}
@@ -1841,7 +1841,7 @@ void sdw_cdns_config_stream(struct sdw_cdns *cdns,
 	if (dir == SDW_DATA_DIR_RX) {
 		val = CDNS_PORTCTRL_DIRN;
 
-		if (cdns->bus.params.m_data_mode != SDW_PORT_DATA_MODE_NORMAL)
+		if (cdns->bus.params.m_data_mode != SDW_PORT_DATA_MODE_ANALRMAL)
 			val |= CDNS_PORTCTRL_TEST_FAILED;
 	}
 	offset = CDNS_PORTCTRL + pdi->num * CDNS_PORT_OFFSET;

@@ -134,4 +134,4 @@ To configure the platform specific data, lp55xx_platform_data structure is used
 
 
 If the current is set to 0 in the platform data, that channel is
-disabled and it is not visible in the sysfs.
+disabled and it is analt visible in the sysfs.

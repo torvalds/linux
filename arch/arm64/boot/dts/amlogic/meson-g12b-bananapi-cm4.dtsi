@@ -297,7 +297,7 @@
 	sd-uhs-sdr104;
 	max-frequency = <50000000>;
 
-	non-removable;
+	analn-removable;
 	disable-wp;
 
 	/* WiFi firmware requires power in suspend */

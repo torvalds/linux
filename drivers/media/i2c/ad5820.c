@@ -4,7 +4,7 @@
  *
  * AD5820 DAC driver for camera voice coil focus.
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  * Copyright (C) 2007 Texas Instruments
  * Copyright (C) 2016 Pavel Machek <pavel@ucw.cz>
  *
@@ -14,7 +14,7 @@
  * Based on af_d88.c by Texas Instruments.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -62,7 +62,7 @@ static int ad5820_write(struct ad5820_device *coil, u16 data)
 	int r;
 
 	if (!client->adapter)
-		return -ENODEV;
+		return -EANALDEV;
 
 	be_data = cpu_to_be16(data);
 	msg.addr  = client->addr;
@@ -180,10 +180,10 @@ static int ad5820_init_controls(struct ad5820_device *coil)
 	 * V4L2_CID_FOCUS_ABSOLUTE
 	 *
 	 * Minimum current is 0 mA, maximum is 100 mA. Thus, 1 code is
-	 * equivalent to 100/1023 = 0.0978 mA. Nevertheless, we do not use [mA]
+	 * equivalent to 100/1023 = 0.0978 mA. Nevertheless, we do analt use [mA]
 	 * for focus position, because it is meaningless for user. Meaningful
 	 * would be to use focus distance or even its inverse, but since the
-	 * driver doesn't have sufficiently knowledge to do the conversion, we
+	 * driver doesn't have sufficiently kanalwledge to do the conversion, we
 	 * will just use abstract codes here. In any case, smaller value = focus
 	 * position farther from camera. The default zero value means focus at
 	 * infinity, and also least current consumption.
@@ -297,23 +297,23 @@ static int ad5820_probe(struct i2c_client *client)
 
 	coil = devm_kzalloc(&client->dev, sizeof(*coil), GFP_KERNEL);
 	if (!coil)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	coil->vana = devm_regulator_get(&client->dev, "VANA");
 	if (IS_ERR(coil->vana))
 		return dev_err_probe(&client->dev, PTR_ERR(coil->vana),
-				     "could not get regulator for vana\n");
+				     "could analt get regulator for vana\n");
 
 	coil->enable_gpio = devm_gpiod_get_optional(&client->dev, "enable",
 						    GPIOD_OUT_LOW);
 	if (IS_ERR(coil->enable_gpio))
 		return dev_err_probe(&client->dev, PTR_ERR(coil->enable_gpio),
-				     "could not get enable gpio\n");
+				     "could analt get enable gpio\n");
 
 	mutex_init(&coil->power_lock);
 
 	v4l2_i2c_subdev_init(&coil->subdev, client, &ad5820_ops);
-	coil->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	coil->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	coil->subdev.internal_ops = &ad5820_internal_ops;
 	coil->subdev.entity.function = MEDIA_ENT_F_LENS;
 	strscpy(coil->subdev.name, "ad5820 focus", sizeof(coil->subdev.name));

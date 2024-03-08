@@ -15,7 +15,7 @@
  * zfcp_unit_scsi_scan - Register LUN with SCSI midlayer
  * @unit: The zfcp LUN/unit to register
  *
- * When the SCSI midlayer is not allowed to automatically scan and
+ * When the SCSI midlayer is analt allowed to automatically scan and
  * attach SCSI devices, zfcp has to register the single devices with
  * the SCSI midlayer.
  */
@@ -85,7 +85,7 @@ static struct zfcp_unit *_zfcp_unit_find(struct zfcp_port *port, u64 fcp_lun)
  * If zfcp_unit is found, a reference is acquired that has to be
  * released later.
  *
- * Returns: Pointer to the zfcp_unit, or NULL if there is no zfcp_unit
+ * Returns: Pointer to the zfcp_unit, or NULL if there is anal zfcp_unit
  *          with the specified FCP LUN.
  */
 struct zfcp_unit *zfcp_unit_find(struct zfcp_port *port, u64 fcp_lun)
@@ -126,7 +126,7 @@ int zfcp_unit_add(struct zfcp_port *port, u64 fcp_lun)
 	mutex_lock(&zfcp_sysfs_port_units_mutex);
 	if (zfcp_sysfs_port_is_removing(port)) {
 		/* port is already gone */
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out;
 	}
 
@@ -139,7 +139,7 @@ int zfcp_unit_add(struct zfcp_port *port, u64 fcp_lun)
 
 	unit = kzalloc(sizeof(struct zfcp_unit), GFP_KERNEL);
 	if (!unit) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 
@@ -153,13 +153,13 @@ int zfcp_unit_add(struct zfcp_port *port, u64 fcp_lun)
 	if (dev_set_name(&unit->dev, "0x%016llx",
 			 (unsigned long long) fcp_lun)) {
 		kfree(unit);
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 
 	if (device_register(&unit->dev)) {
 		put_device(&unit->dev);
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 
@@ -186,7 +186,7 @@ out:
  * zfcp_unit_sdev - Return SCSI device for zfcp_unit
  * @unit: The zfcp_unit where to get the SCSI device for
  *
- * Returns: scsi_device pointer on success, NULL if there is no SCSI
+ * Returns: scsi_device pointer on success, NULL if there is anal SCSI
  *          device for this zfcp_unit
  *
  * On success, the caller also holds a reference to the SCSI device
@@ -232,7 +232,7 @@ unsigned int zfcp_unit_sdev_status(struct zfcp_unit *unit)
  * @port: The port where to remove the unit from the configuration
  * @fcp_lun: The 64 bit LUN of the unit to remove
  *
- * Returns: -EINVAL if a unit with the specified LUN does not exist,
+ * Returns: -EINVAL if a unit with the specified LUN does analt exist,
  *          0 on success.
  */
 int zfcp_unit_remove(struct zfcp_port *port, u64 fcp_lun)

@@ -6,9 +6,9 @@
  */
 
 /*
- * NOTICE:
+ * ANALTICE:
  * This driver is incomplete and lacks init/config of the chips,
- * as the necessary info is not disclosed.
+ * as the necessary info is analt disclosed.
  * It assumes that users of this driver (such as a PCI bridge of
  * DTV receiver cards) properly init and configure the chip
  * via I2C *before* calling this driver's init() function.
@@ -186,7 +186,7 @@ static int tc90522t_read_status(struct dvb_frontend *fe, enum fe_status *status)
 }
 
 static const enum fe_code_rate fec_conv_sat[] = {
-	FEC_NONE, /* unused */
+	FEC_ANALNE, /* unused */
 	FEC_1_2, /* for BPSK */
 	FEC_1_2, FEC_2_3, FEC_3_4, FEC_5_6, FEC_7_8, /* for QPSK */
 	FEC_2_3, /* for 8PSK. (trellis code) */
@@ -224,12 +224,12 @@ static int tc90522s_get_frontend(struct dvb_frontend *fe,
 		/* low layer */
 		v = (val[2] & 0x07);
 		c->layer[1].fec = fec_conv_sat[v];
-		if (v == 0)  /* no low layer */
+		if (v == 0)  /* anal low layer */
 			c->layer[1].segment_count = 0;
 		else
 			c->layer[1].segment_count = val[4] & 0x3f; /* slots */
 		/*
-		 * actually, BPSK if v==1, but not defined in
+		 * actually, BPSK if v==1, but analt defined in
 		 * enum fe_modulation
 		 */
 		c->layer[1].modulation = QPSK;
@@ -249,7 +249,7 @@ static int tc90522s_get_frontend(struct dvb_frontend *fe,
 
 	stats = &c->cnr;
 	stats->len = 1;
-	stats->stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	stats->stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	cndat = 0;
 	ret = reg_read(state, 0xbc, val, 2);
 	if (ret == 0)
@@ -285,7 +285,7 @@ static int tc90522s_get_frontend(struct dvb_frontend *fe,
 	ret = reg_read(state, 0xeb, val, 10);
 	if (ret < 0)
 		for (i = 0; i < layers; i++)
-			stats->stat[i].scale = FE_SCALE_NOT_AVAILABLE;
+			stats->stat[i].scale = FE_SCALE_ANALT_AVAILABLE;
 	else {
 		for (i = 0; i < layers; i++) {
 			stats->stat[i].scale = FE_SCALE_COUNTER;
@@ -298,7 +298,7 @@ static int tc90522s_get_frontend(struct dvb_frontend *fe,
 	stats->len = layers;
 	if (ret < 0)
 		for (i = 0; i < layers; i++)
-			stats->stat[i].scale = FE_SCALE_NOT_AVAILABLE;
+			stats->stat[i].scale = FE_SCALE_ANALT_AVAILABLE;
 	else {
 		for (i = 0; i < layers; i++) {
 			stats->stat[i].scale = FE_SCALE_COUNTER;
@@ -407,7 +407,7 @@ static int tc90522t_get_frontend(struct dvb_frontend *fe,
 
 	stats = &c->cnr;
 	stats->len = 1;
-	stats->stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	stats->stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	cndat = 0;
 	ret = reg_read(state, 0x8b, val, 3);
 	if (ret == 0)
@@ -445,7 +445,7 @@ static int tc90522t_get_frontend(struct dvb_frontend *fe,
 	ret = reg_read(state, 0x9d, val, 15);
 	if (ret < 0)
 		for (i = 0; i < layers; i++)
-			stats->stat[i].scale = FE_SCALE_NOT_AVAILABLE;
+			stats->stat[i].scale = FE_SCALE_ANALT_AVAILABLE;
 	else {
 		for (i = 0; i < layers; i++) {
 			stats->stat[i].scale = FE_SCALE_COUNTER;
@@ -458,7 +458,7 @@ static int tc90522t_get_frontend(struct dvb_frontend *fe,
 	stats->len = layers;
 	if (ret < 0)
 		for (i = 0; i < layers; i++)
-			stats->stat[i].scale = FE_SCALE_NOT_AVAILABLE;
+			stats->stat[i].scale = FE_SCALE_ANALT_AVAILABLE;
 	else {
 		for (i = 0; i < layers; i++) {
 			stats->stat[i].scale = FE_SCALE_COUNTER;
@@ -484,7 +484,7 @@ static int tc90522_set_frontend(struct dvb_frontend *fe)
 	if (fe->ops.tuner_ops.set_params)
 		ret = fe->ops.tuner_ops.set_params(fe);
 	else
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	if (ret < 0)
 		goto failed;
 
@@ -595,7 +595,7 @@ static int tc90522_init(struct dvb_frontend *fe)
 	int ret;
 
 	/*
-	 * Because the init sequence is not public,
+	 * Because the init sequence is analt public,
 	 * the parent device/driver should have init'ed the device before.
 	 * just wake up the device here.
 	 */
@@ -619,7 +619,7 @@ static int tc90522_init(struct dvb_frontend *fe)
 		return ret;
 	}
 
-	/* prefer 'all-layers' to 'none' as a default */
+	/* prefer 'all-layers' to 'analne' as a default */
 	if (fe->dtv_property_cache.isdbt_layer_enabled == 0)
 		fe->dtv_property_cache.isdbt_layer_enabled = 7;
 	return tc90522_set_if_agc(fe, true);
@@ -649,7 +649,7 @@ tc90522_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			rd_num++;
 	new_msgs = kmalloc_array(num + rd_num, sizeof(*new_msgs), GFP_KERNEL);
 	if (!new_msgs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state = i2c_get_adapdata(adap);
 	p = wbuf;
@@ -686,7 +686,7 @@ tc90522_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	}
 
 	if (i < num) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	} else if (!state->cfg.split_tuner_read_i2c || rd_num == 0) {
 		ret = i2c_transfer(state->i2c_client->adapter, new_msgs, j);
 	} else {
@@ -790,7 +790,7 @@ static int tc90522_probe(struct i2c_client *client)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 	state->i2c_client = client;
 
 	cfg = client->dev.platform_data;

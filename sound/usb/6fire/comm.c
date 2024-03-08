@@ -112,7 +112,7 @@ static int usb6fire_comm_write8(struct comm_runtime *rt, u8 request,
 	/* 13: maximum length of message */
 	buffer = kmalloc(13, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb6fire_comm_init_buffer(buffer, 0x00, request, reg, value, 0x00);
 	ret = usb6fire_comm_send_buffer(buffer, rt->chip->dev);
@@ -130,7 +130,7 @@ static int usb6fire_comm_write16(struct comm_runtime *rt, u8 request,
 	/* 13: maximum length of message */
 	buffer = kmalloc(13, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb6fire_comm_init_buffer(buffer, 0x00, request, reg, vl, vh);
 	ret = usb6fire_comm_send_buffer(buffer, rt->chip->dev);
@@ -147,12 +147,12 @@ int usb6fire_comm_init(struct sfire_chip *chip)
 	int ret;
 
 	if (!rt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt->receiver_buffer = kzalloc(COMM_RECEIVER_BUFSIZE, GFP_KERNEL);
 	if (!rt->receiver_buffer) {
 		kfree(rt);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	urb = &rt->receiver;
@@ -175,7 +175,7 @@ int usb6fire_comm_init(struct sfire_chip *chip)
 	if (ret < 0) {
 		kfree(rt->receiver_buffer);
 		kfree(rt);
-		dev_err(&chip->dev->dev, "cannot create comm data receiver.");
+		dev_err(&chip->dev->dev, "cananalt create comm data receiver.");
 		return ret;
 	}
 	chip->comm = rt;

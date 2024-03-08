@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/fs.h>
 
-#define DEVCG_ACC_MKNOD 1
+#define DEVCG_ACC_MKANALD 1
 #define DEVCG_ACC_READ  2
 #define DEVCG_ACC_WRITE 4
-#define DEVCG_ACC_MASK (DEVCG_ACC_MKNOD | DEVCG_ACC_READ | DEVCG_ACC_WRITE)
+#define DEVCG_ACC_MASK (DEVCG_ACC_MKANALD | DEVCG_ACC_READ | DEVCG_ACC_WRITE)
 
 #define DEVCG_DEV_BLOCK 1
 #define DEVCG_DEV_CHAR  2
@@ -12,18 +12,18 @@
 
 
 #if defined(CONFIG_CGROUP_DEVICE) || defined(CONFIG_CGROUP_BPF)
-int devcgroup_check_permission(short type, u32 major, u32 minor,
+int devcgroup_check_permission(short type, u32 major, u32 mianalr,
 			       short access);
-static inline int devcgroup_inode_permission(struct inode *inode, int mask)
+static inline int devcgroup_ianalde_permission(struct ianalde *ianalde, int mask)
 {
 	short type, access = 0;
 
-	if (likely(!inode->i_rdev))
+	if (likely(!ianalde->i_rdev))
 		return 0;
 
-	if (S_ISBLK(inode->i_mode))
+	if (S_ISBLK(ianalde->i_mode))
 		type = DEVCG_DEV_BLOCK;
-	else if (S_ISCHR(inode->i_mode))
+	else if (S_ISCHR(ianalde->i_mode))
 		type = DEVCG_DEV_CHAR;
 	else
 		return 0;
@@ -33,11 +33,11 @@ static inline int devcgroup_inode_permission(struct inode *inode, int mask)
 	if (mask & MAY_READ)
 		access |= DEVCG_ACC_READ;
 
-	return devcgroup_check_permission(type, imajor(inode), iminor(inode),
+	return devcgroup_check_permission(type, imajor(ianalde), imianalr(ianalde),
 					  access);
 }
 
-static inline int devcgroup_inode_mknod(int mode, dev_t dev)
+static inline int devcgroup_ianalde_mkanald(int mode, dev_t dev)
 {
 	short type;
 
@@ -52,16 +52,16 @@ static inline int devcgroup_inode_mknod(int mode, dev_t dev)
 	else
 		type = DEVCG_DEV_CHAR;
 
-	return devcgroup_check_permission(type, MAJOR(dev), MINOR(dev),
-					  DEVCG_ACC_MKNOD);
+	return devcgroup_check_permission(type, MAJOR(dev), MIANALR(dev),
+					  DEVCG_ACC_MKANALD);
 }
 
 #else
-static inline int devcgroup_check_permission(short type, u32 major, u32 minor,
+static inline int devcgroup_check_permission(short type, u32 major, u32 mianalr,
 			       short access)
 { return 0; }
-static inline int devcgroup_inode_permission(struct inode *inode, int mask)
+static inline int devcgroup_ianalde_permission(struct ianalde *ianalde, int mask)
 { return 0; }
-static inline int devcgroup_inode_mknod(int mode, dev_t dev)
+static inline int devcgroup_ianalde_mkanald(int mode, dev_t dev)
 { return 0; }
 #endif

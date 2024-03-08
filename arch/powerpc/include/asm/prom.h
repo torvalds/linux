@@ -14,14 +14,14 @@
 #include <linux/types.h>
 #include <asm/firmware.h>
 
-struct device_node;
+struct device_analde;
 struct property;
 
-#define OF_DT_BEGIN_NODE	0x1		/* Start of node, full name */
-#define OF_DT_END_NODE		0x2		/* End node */
+#define OF_DT_BEGIN_ANALDE	0x1		/* Start of analde, full name */
+#define OF_DT_END_ANALDE		0x2		/* End analde */
 #define OF_DT_PROP		0x3		/* Property: name off, size,
 						 * content */
-#define OF_DT_NOP		0x4		/* nop */
+#define OF_DT_ANALP		0x4		/* analp */
 #define OF_DT_END		0x9
 
 #define OF_DT_VERSION		0x10
@@ -60,16 +60,16 @@ struct boot_param_header {
  * OF address retreival & translation
  */
 
-/* Parse the ibm,dma-window property of an OF node into the busno, phys and
+/* Parse the ibm,dma-window property of an OF analde into the busanal, phys and
  * size parameters.
  */
-void of_parse_dma_window(struct device_node *dn, const __be32 *dma_window,
-			 unsigned long *busno, unsigned long *phys,
+void of_parse_dma_window(struct device_analde *dn, const __be32 *dma_window,
+			 unsigned long *busanal, unsigned long *phys,
 			 unsigned long *size);
 
 extern void of_instantiate_rtc(void);
 
-extern int of_get_ibm_chip_id(struct device_node *np);
+extern int of_get_ibm_chip_id(struct device_analde *np);
 
 struct of_drc_info {
 	char *drc_type;
@@ -85,21 +85,21 @@ struct of_drc_info {
 extern int of_read_drc_info_cell(struct property **prop,
 			const __be32 **curval, struct of_drc_info *data);
 
-extern unsigned int boot_cpu_node_count;
+extern unsigned int boot_cpu_analde_count;
 
 /*
  * There are two methods for telling firmware what our capabilities are.
  * Newer machines have an "ibm,client-architecture-support" method on the
- * root node.  For older machines, we have to call the "process-elf-header"
- * method in the /packages/elf-loader node, passing it a fake 32-bit
- * ELF header containing a couple of PT_NOTE sections that contain
+ * root analde.  For older machines, we have to call the "process-elf-header"
+ * method in the /packages/elf-loader analde, passing it a fake 32-bit
+ * ELF header containing a couple of PT_ANALTE sections that contain
  * structures that contain various information.
  */
 
 /* New method - extensible architecture description vector. */
 
 /* Option vector bits - generic bits in byte 1 */
-#define OV_IGNORE		0x80	/* ignore this vector */
+#define OV_IGANALRE		0x80	/* iganalre this vector */
 #define OV_CESSATION_POLICY	0x40	/* halt if unsupported option present*/
 
 /* Option vector 1: processor architectures supported */

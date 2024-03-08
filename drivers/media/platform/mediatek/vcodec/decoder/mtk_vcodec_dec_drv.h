@@ -48,7 +48,7 @@ enum mtk_vdec_format_types {
  * enum mtk_vdec_hw_count - Supported hardware count
  */
 enum mtk_vdec_hw_count {
-	MTK_VDEC_NO_HW = 0,
+	MTK_VDEC_ANAL_HW = 0,
 	MTK_VDEC_ONE_CORE,
 	MTK_VDEC_ONE_LAT_ONE_CORE,
 	MTK_VDEC_MAX_HW_COUNT,
@@ -101,7 +101,7 @@ struct vdec_pic_info {
  *
  * @hw_arch: hardware arch is used to separate pure_sin_core and lat_sin_core
  *
- * @is_subdev_supported: whether support parent-node architecture(subdev)
+ * @is_subdev_supported: whether support parent-analde architecture(subdev)
  * @uses_stateless_api: whether the decoder uses the stateless API with requests
  */
 struct mtk_vcodec_dec_pdata {
@@ -253,7 +253,7 @@ struct mtk_vcodec_dec_ctx {
  *
  * @subdev_dev: subdev hardware device
  * @subdev_prob_done: check whether all used hw device is prob done
- * @subdev_bitmap: used to record hardware is ready or not
+ * @subdev_bitmap: used to record hardware is ready or analt
  *
  * @dec_active_cnt: used to mark whether need to record register value
  * @vdec_racing_info: record register value

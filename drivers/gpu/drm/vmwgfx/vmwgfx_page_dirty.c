@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -39,7 +39,7 @@ enum vmw_bo_dirty_method {
 };
 
 /*
- * No dirtied pages at scan trigger a transition to the _MKWRITE method,
+ * Anal dirtied pages at scan trigger a transition to the _MKWRITE method,
  * similarly a certain percentage of dirty pages trigger a transition to
  * the _PAGETABLE method. How many triggers should we wait for before
  * changing method?
@@ -82,7 +82,7 @@ struct vmw_bo_dirty {
 static void vmw_bo_dirty_scan_pagetable(struct vmw_bo *vbo)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
-	pgoff_t offset = drm_vma_node_start(&vbo->tbo.base.vma_node);
+	pgoff_t offset = drm_vma_analde_start(&vbo->tbo.base.vma_analde);
 	struct address_space *mapping = vbo->tbo.bdev->dev_mapping;
 	pgoff_t num_marked;
 
@@ -120,7 +120,7 @@ static void vmw_bo_dirty_scan_pagetable(struct vmw_bo *vbo)
 static void vmw_bo_dirty_scan_mkwrite(struct vmw_bo *vbo)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
-	unsigned long offset = drm_vma_node_start(&vbo->tbo.base.vma_node);
+	unsigned long offset = drm_vma_analde_start(&vbo->tbo.base.vma_analde);
 	struct address_space *mapping = vbo->tbo.bdev->dev_mapping;
 	pgoff_t num_marked;
 
@@ -185,7 +185,7 @@ static void vmw_bo_dirty_pre_unmap(struct vmw_bo *vbo,
 				   pgoff_t start, pgoff_t end)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
-	unsigned long offset = drm_vma_node_start(&vbo->tbo.base.vma_node);
+	unsigned long offset = drm_vma_analde_start(&vbo->tbo.base.vma_analde);
 	struct address_space *mapping = vbo->tbo.bdev->dev_mapping;
 
 	if (dirty->method != VMW_BO_DIRTY_PAGETABLE || start >= end)
@@ -209,7 +209,7 @@ static void vmw_bo_dirty_pre_unmap(struct vmw_bo *vbo,
 void vmw_bo_dirty_unmap(struct vmw_bo *vbo,
 			pgoff_t start, pgoff_t end)
 {
-	unsigned long offset = drm_vma_node_start(&vbo->tbo.base.vma_node);
+	unsigned long offset = drm_vma_analde_start(&vbo->tbo.base.vma_analde);
 	struct address_space *mapping = vbo->tbo.bdev->dev_mapping;
 
 	vmw_bo_dirty_pre_unmap(vbo, start, end);
@@ -225,7 +225,7 @@ void vmw_bo_dirty_unmap(struct vmw_bo *vbo,
  * A user can be for example a resource or a vma in a special user-space
  * mapping.
  *
- * Return: Zero on success, -ENOMEM on memory allocation failure.
+ * Return: Zero on success, -EANALMEM on memory allocation failure.
  */
 int vmw_bo_dirty_add(struct vmw_bo *vbo)
 {
@@ -242,8 +242,8 @@ int vmw_bo_dirty_add(struct vmw_bo *vbo)
 	size = sizeof(*dirty) + BITS_TO_LONGS(num_pages) * sizeof(long);
 	dirty = kvzalloc(size, GFP_KERNEL);
 	if (!dirty) {
-		ret = -ENOMEM;
-		goto out_no_dirty;
+		ret = -EANALMEM;
+		goto out_anal_dirty;
 	}
 
 	dirty->bitmap_size = num_pages;
@@ -254,7 +254,7 @@ int vmw_bo_dirty_add(struct vmw_bo *vbo)
 		dirty->method = VMW_BO_DIRTY_PAGETABLE;
 	} else {
 		struct address_space *mapping = vbo->tbo.bdev->dev_mapping;
-		pgoff_t offset = drm_vma_node_start(&vbo->tbo.base.vma_node);
+		pgoff_t offset = drm_vma_analde_start(&vbo->tbo.base.vma_analde);
 
 		dirty->method = VMW_BO_DIRTY_MKWRITE;
 
@@ -270,7 +270,7 @@ int vmw_bo_dirty_add(struct vmw_bo *vbo)
 
 	return 0;
 
-out_no_dirty:
+out_anal_dirty:
 	return ret;
 }
 
@@ -282,7 +282,7 @@ out_no_dirty:
  * If the reference count reaches zero, then the dirty-tracking object is
  * freed and the pointer to it cleared.
  *
- * Return: Zero on success, -ENOMEM on memory allocation failure.
+ * Return: Zero on success, -EANALMEM on memory allocation failure.
  */
 void vmw_bo_dirty_release(struct vmw_bo *vbo)
 {
@@ -393,7 +393,7 @@ vm_fault_t vmw_bo_vm_mkwrite(struct vm_fault *vmf)
 	if (ret)
 		return ret;
 
-	page_offset = vmf->pgoff - drm_vma_node_start(&bo->base.vma_node);
+	page_offset = vmf->pgoff - drm_vma_analde_start(&bo->base.vma_analde);
 	if (unlikely(page_offset >= PFN_UP(bo->resource->size))) {
 		ret = VM_FAULT_SIGBUS;
 		goto out_unlock;
@@ -435,7 +435,7 @@ vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf)
 		unsigned long page_offset;
 
 		page_offset = vmf->pgoff -
-			drm_vma_node_start(&bo->base.vma_node);
+			drm_vma_analde_start(&bo->base.vma_analde);
 		if (page_offset >= PFN_UP(bo->resource->size) ||
 		    vmw_resources_clean(vbo, page_offset,
 					page_offset + PAGE_SIZE,
@@ -458,7 +458,7 @@ vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf)
 		prot = vm_get_page_prot(vma->vm_flags);
 
 	ret = ttm_bo_vm_fault_reserved(vmf, prot, num_prefault);
-	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
+	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_ANALWAIT))
 		return ret;
 
 out_unlock:

@@ -25,7 +25,7 @@
 
 #define pr_fmt(fmt) "IPv6: " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/socket.h>
@@ -111,7 +111,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	int offset, end, fragsize;
 	struct sk_buff *prev_tail;
 	struct net_device *dev;
-	int err = -ENOENT;
+	int err = -EANALENT;
 	SKB_DR(reason);
 	u8 ecn;
 
@@ -128,8 +128,8 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 
 	if ((unsigned int)end > IPV6_MAXPLEN) {
 		*prob_offset = (u8 *)&fhdr->frag_off - skb_network_header(skb);
-		/* note that if prob_offset is set, the skb is freed elsewhere,
-		 * we do not free it here.
+		/* analte that if prob_offset is set, the skb is freed elsewhere,
+		 * we do analt free it here.
 		 */
 		return -1;
 	}
@@ -175,7 +175,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	if (end == offset)
 		goto discard_fq;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	/* Point into the IP datagram 'data' part. */
 	if (!pskb_pull(skb, (u8 *) (fhdr + 1) - skb->data))
 		goto discard_fq;
@@ -184,7 +184,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	if (err)
 		goto discard_fq;
 
-	/* Note : skb->rbnode and skb->dev share the same location. */
+	/* Analte : skb->rbanalde and skb->dev share the same location. */
 	dev = skb->dev;
 	/* Makes sure compiler wont do silly aliasing games */
 	barrier();
@@ -198,7 +198,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 		fq->iif = dev->ifindex;
 
 	fq->q.stamp = skb->tstamp;
-	fq->q.mono_delivery_time = skb->mono_delivery_time;
+	fq->q.moanal_delivery_time = skb->moanal_delivery_time;
 	fq->q.meat += skb->len;
 	fq->ecn |= ecn;
 	add_frag_mem_limit(fq->q.fqdir, skb->truesize);
@@ -250,7 +250,7 @@ err:
  *	Check if this packet is complete.
  *
  *	It is called with locked fq, and caller must check that
- *	queue is eligible for reassembly i.e. it is not COMPLETE,
+ *	queue is eligible for reassembly i.e. it is analt COMPLETE,
  *	the last and the first frames arrived and all the bits are here.
  */
 static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *skb,
@@ -299,7 +299,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *skb,
 	IP6CB(skb)->flags |= IP6SKB_FRAGMENTED;
 	IP6CB(skb)->frag_max_size = fq->q.max_size;
 
-	/* Yes, and fold redundant checksum back. 8) */
+	/* Anal, and fold redundant checksum back. 8) */
 	skb_postpush_rcsum(skb, skb_network_header(skb),
 			   skb_network_header_len(skb));
 
@@ -315,7 +315,7 @@ out_oversize:
 	net_dbg_ratelimited("ip6_frag_reasm: payload len = %d\n", payload_len);
 	goto out_fail;
 out_oom:
-	net_dbg_ratelimited("ip6_frag_reasm: no memory for reassembly\n");
+	net_dbg_ratelimited("ip6_frag_reasm: anal memory for reassembly\n");
 out_fail:
 	rcu_read_lock();
 	__IP6_INC_STATS(net, __in6_dev_stats_get(dev, skb), IPSTATS_MIB_REASMFAILS);
@@ -350,7 +350,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	fhdr = (struct frag_hdr *)skb_transport_header(skb);
 
 	if (!(fhdr->frag_off & htons(IP6_OFFSET | IP6_MF))) {
-		/* It is not a fragmented frame */
+		/* It is analt a fragmented frame */
 		skb->transport_header += sizeof(struct frag_hdr);
 		__IP6_INC_STATS(net,
 				ip6_dst_idev(skb_dst(skb)), IPSTATS_MIB_REASMOKS);
@@ -363,7 +363,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	}
 
 	/* RFC 8200, Section 4.5 Fragment Header:
-	 * If the first fragment does not include all headers through an
+	 * If the first fragment does analt include all headers through an
 	 * Upper-Layer header, then that fragment should be discarded and
 	 * an ICMP Parameter Problem, Code 3, message should be sent to
 	 * the source of the fragment, with the Pointer field set to zero.
@@ -412,7 +412,7 @@ fail_hdr:
 
 static const struct inet6_protocol frag_protocol = {
 	.handler	=	ipv6_frag_rcv,
-	.flags		=	INET6_PROTO_NOPOLICY,
+	.flags		=	INET6_PROTO_ANALPOLICY,
 };
 
 #ifdef CONFIG_SYSCTL
@@ -482,7 +482,7 @@ err_reg:
 	if (!net_eq(net, &init_net))
 		kfree(table);
 err_alloc:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void __net_exit ip6_frags_ns_sysctl_unregister(struct net *net)
@@ -501,7 +501,7 @@ static int ip6_frags_sysctl_register(void)
 {
 	ip6_ctl_header = register_net_sysctl(&init_net, "net/ipv6",
 			ip6_frags_ctl_table);
-	return ip6_ctl_header == NULL ? -ENOMEM : 0;
+	return ip6_ctl_header == NULL ? -EANALMEM : 0;
 }
 
 static void ip6_frags_sysctl_unregister(void)
@@ -564,7 +564,7 @@ static struct pernet_operations ip6_frags_ops = {
 };
 
 static const struct rhashtable_params ip6_rhash_params = {
-	.head_offset		= offsetof(struct inet_frag_queue, node),
+	.head_offset		= offsetof(struct inet_frag_queue, analde),
 	.hashfn			= ip6frag_key_hashfn,
 	.obj_hashfn		= ip6frag_obj_hashfn,
 	.obj_cmpfn		= ip6frag_obj_cmpfn,

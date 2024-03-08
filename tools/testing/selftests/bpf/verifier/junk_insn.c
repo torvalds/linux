@@ -4,7 +4,7 @@
 	BPF_RAW_INSN(0, 0, 0, 0, 0),
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "unknown opcode 00",
+	.errstr = "unkanalwn opcode 00",
 	.result = REJECT,
 },
 {
@@ -22,7 +22,7 @@
 	BPF_RAW_INSN(-1, 0, 0, 0, 0),
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "unknown opcode ff",
+	.errstr = "unkanalwn opcode ff",
 	.result = REJECT,
 },
 {
@@ -31,7 +31,7 @@
 	BPF_RAW_INSN(-1, -1, -1, -1, -1),
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "unknown opcode ff",
+	.errstr = "unkanalwn opcode ff",
 	.result = REJECT,
 },
 {

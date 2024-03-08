@@ -42,7 +42,7 @@ static struct snd_soc_jack_pin dock_pins[] = {
 	},
 };
 
-static int aries_extcon_notifier(struct notifier_block *this,
+static int aries_extcon_analtifier(struct analtifier_block *this,
 				 unsigned long connected, void *_cmd)
 {
 	if (connected)
@@ -51,11 +51,11 @@ static int aries_extcon_notifier(struct notifier_block *this,
 	else
 		snd_soc_jack_report(&aries_dock, 0, SND_JACK_LINEOUT);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block aries_extcon_notifier_block = {
-	.notifier_call = aries_extcon_notifier,
+static struct analtifier_block aries_extcon_analtifier_block = {
+	.analtifier_call = aries_extcon_analtifier,
 };
 
 /* Headset jack */
@@ -128,7 +128,7 @@ static irqreturn_t headset_det_irq_thread(int irq, void *data)
 	if (ret)
 		pr_err("%s failed disable micbias: %d", __func__, ret);
 
-	/* Disable earpath selector when no mic connected */
+	/* Disable earpath selector when anal mic connected */
 	if (!(aries_headset.status & SND_JACK_MICROPHONE))
 		gpiod_set_value(priv->gpio_earpath_sel, 0);
 
@@ -139,7 +139,7 @@ static int headset_button_check(void *data)
 {
 	struct aries_wm8994_data *priv = (struct aries_wm8994_data *) data;
 
-	/* Filter out keypresses when 4 pole jack not detected */
+	/* Filter out keypresses when 4 pole jack analt detected */
 	if (gpiod_get_value_cansleep(priv->gpio_headset_key) &&
 			aries_headset.status & SND_JACK_MICROPHONE)
 		return SND_JACK_BTN_0;
@@ -172,19 +172,19 @@ static int aries_spk_cfg(struct snd_soc_dapm_widget *w,
 	 * we only have access to the left side SPK configs,
 	 * but SPKOUTR isn't bridged so when playing back in
 	 * stereo, we only get the left hand channel.  The only
-	 * option we're left with is to force the AIF into mono
+	 * option we're left with is to force the AIF into moanal
 	 * mode.
 	 */
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		ret = snd_soc_component_update_bits(component,
 				WM8994_AIF1_DAC1_FILTERS_1,
-				WM8994_AIF1DAC1_MONO, WM8994_AIF1DAC1_MONO);
+				WM8994_AIF1DAC1_MOANAL, WM8994_AIF1DAC1_MOANAL);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		ret = snd_soc_component_update_bits(component,
 				WM8994_AIF1_DAC1_FILTERS_1,
-				WM8994_AIF1DAC1_MONO, 0);
+				WM8994_AIF1DAC1_MOANAL, 0);
 		break;
 	}
 
@@ -251,7 +251,7 @@ static const struct snd_soc_dapm_widget aries_dapm_widgets[] = {
 	SND_SOC_DAPM_LINE("Modem In", NULL),
 	SND_SOC_DAPM_LINE("Modem Out", NULL),
 
-	/* This must be last as it is conditionally not used */
+	/* This must be last as it is conditionally analt used */
 	SND_SOC_DAPM_LINE("FM In", NULL),
 };
 
@@ -346,9 +346,9 @@ static int aries_late_probe(struct snd_soc_card *card)
 	if (ret)
 		return ret;
 
-	ret = devm_extcon_register_notifier(card->dev,
+	ret = devm_extcon_register_analtifier(card->dev,
 			priv->usb_extcon, EXTCON_JACK_LINE_OUT,
-			&aries_extcon_notifier_block);
+			&aries_extcon_analtifier_block);
 	if (ret)
 		return ret;
 
@@ -484,7 +484,7 @@ static struct snd_soc_dai_link aries_dai[] = {
 		.init = &aries_baseband_init,
 		.c2c_params = &baseband_params,
 		.num_c2c_params = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(baseband),
 	},
 	{
@@ -492,7 +492,7 @@ static struct snd_soc_dai_link aries_dai[] = {
 		.stream_name = "Bluetooth",
 		.c2c_params = &bluetooth_params,
 		.num_c2c_params = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(bluetooth),
 	},
 };
@@ -536,8 +536,8 @@ MODULE_DEVICE_TABLE(of, samsung_wm8994_of_match);
 
 static int aries_audio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *cpu, *codec, *extcon_np;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *cpu, *codec, *extcon_np;
 	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card = &aries_card;
 	struct aries_wm8994_data *priv;
@@ -553,14 +553,14 @@ static int aries_audio_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_soc_card_set_drvdata(card, priv);
 
-	match = of_match_node(samsung_wm8994_of_match, np);
+	match = of_match_analde(samsung_wm8994_of_match, np);
 	priv->variant = match->data;
 
-	/* Remove FM widget if not present */
+	/* Remove FM widget if analt present */
 	if (!priv->variant->has_fm_radio)
 		card->num_dapm_widgets--;
 
@@ -584,8 +584,8 @@ static int aries_audio_probe(struct platform_device *pdev)
 	}
 
 	extcon_np = of_parse_phandle(np, "extcon", 0);
-	priv->usb_extcon = extcon_find_edev_by_node(extcon_np);
-	of_node_put(extcon_np);
+	priv->usb_extcon = extcon_find_edev_by_analde(extcon_np);
+	of_analde_put(extcon_np);
 	if (IS_ERR(priv->usb_extcon))
 		return dev_err_probe(dev, PTR_ERR(priv->usb_extcon),
 				     "Failed to get extcon device");
@@ -631,39 +631,39 @@ static int aries_audio_probe(struct platform_device *pdev)
 
 	aries_dai[1].dai_fmt = priv->variant->modem_dai_fmt;
 
-	cpu = of_get_child_by_name(dev->of_node, "cpu");
+	cpu = of_get_child_by_name(dev->of_analde, "cpu");
 	if (!cpu)
 		return -EINVAL;
 
-	codec = of_get_child_by_name(dev->of_node, "codec");
+	codec = of_get_child_by_name(dev->of_analde, "codec");
 	if (!codec) {
 		ret = -EINVAL;
 		goto out;
 	}
 
 	for_each_card_prelinks(card, i, dai_link) {
-		dai_link->codecs->of_node = of_parse_phandle(codec,
+		dai_link->codecs->of_analde = of_parse_phandle(codec,
 				"sound-dai", 0);
-		if (!dai_link->codecs->of_node) {
+		if (!dai_link->codecs->of_analde) {
 			ret = -EINVAL;
 			goto out;
 		}
 	}
 
-	/* Set CPU and platform of_node for main DAI */
-	aries_dai[0].cpus->of_node = of_parse_phandle(cpu,
+	/* Set CPU and platform of_analde for main DAI */
+	aries_dai[0].cpus->of_analde = of_parse_phandle(cpu,
 			"sound-dai", 0);
-	if (!aries_dai[0].cpus->of_node) {
+	if (!aries_dai[0].cpus->of_analde) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	aries_dai[0].platforms->of_node = aries_dai[0].cpus->of_node;
+	aries_dai[0].platforms->of_analde = aries_dai[0].cpus->of_analde;
 
-	/* Set CPU of_node for BT DAI */
-	aries_dai[2].cpus->of_node = of_parse_phandle(cpu,
+	/* Set CPU of_analde for BT DAI */
+	aries_dai[2].cpus->of_analde = of_parse_phandle(cpu,
 			"sound-dai", 1);
-	if (!aries_dai[2].cpus->of_node) {
+	if (!aries_dai[2].cpus->of_analde) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -680,8 +680,8 @@ static int aries_audio_probe(struct platform_device *pdev)
 		dev_err(dev, "snd_soc_register_card() failed:%d\n", ret);
 
 out:
-	of_node_put(cpu);
-	of_node_put(codec);
+	of_analde_put(cpu);
+	of_analde_put(codec);
 
 	return ret;
 }

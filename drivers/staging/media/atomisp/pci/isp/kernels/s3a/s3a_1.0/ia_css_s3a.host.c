@@ -15,7 +15,7 @@
 
 #include "ia_css_types.h"
 #include "sh_css_defs.h"
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 #include "ia_css_debug.h"
 #endif
 #include "sh_css_frac.h"
@@ -135,7 +135,7 @@ ia_css_process_s3a(
 }
 #endif
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_ae_dump(
     const struct sh_css_isp_ae_params *ae,
@@ -247,7 +247,7 @@ ia_css_s3a_hmem_decode(
 	ia_css_bh_hmem_decode(out_ptr, hmem_buf);
 
 	/* Calculate sum of histogram of R,
-	   which should not be less than count_for_3a */
+	   which should analt be less than count_for_3a */
 	sum_r = 0;
 	for (i = 0; i < HMEM_UNIT_SIZE; i++) {
 		sum_r += out_ptr[i].r;
@@ -306,7 +306,7 @@ ia_css_s3a_dmem_decode(
 	height     = host_stats->grid.height;
 	host_ptr   = host_stats->data;
 
-	/* Getting 3A statistics from DMEM does not involve any
+	/* Getting 3A statistics from DMEM does analt involve any
 	 * transformation (like the VMEM version), we just copy the data
 	 * using a different output width. */
 	for (i = 0; i < height; i++) {

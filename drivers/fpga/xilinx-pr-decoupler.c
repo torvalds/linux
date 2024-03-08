@@ -110,7 +110,7 @@ static int xlnx_pr_decoupler_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->ipconfig = device_get_match_data(&pdev->dev);
 
@@ -121,7 +121,7 @@ static int xlnx_pr_decoupler_probe(struct platform_device *pdev)
 	priv->clk = devm_clk_get(&pdev->dev, "aclk");
 	if (IS_ERR(priv->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clk),
-				     "input clock not found\n");
+				     "input clock analt found\n");
 
 	err = clk_prepare_enable(priv->clk);
 	if (err) {

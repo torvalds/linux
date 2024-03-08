@@ -25,18 +25,18 @@ enum io_pgtable_fmt {
 /**
  * struct iommu_flush_ops - IOMMU callbacks for TLB and page table management.
  *
- * @tlb_flush_all:  Synchronously invalidate the entire TLB context.
- * @tlb_flush_walk: Synchronously invalidate all intermediate TLB state
+ * @tlb_flush_all:  Synchroanalusly invalidate the entire TLB context.
+ * @tlb_flush_walk: Synchroanalusly invalidate all intermediate TLB state
  *                  (sometimes referred to as the "walk cache") for a virtual
  *                  address range.
  * @tlb_add_page:   Optional callback to queue up leaf TLB invalidation for a
- *                  single page.  IOMMUs that cannot batch TLB invalidation
+ *                  single page.  IOMMUs that cananalt batch TLB invalidation
  *                  operations efficiently will typically issue them here, but
  *                  others may decide to update the iommu_iotlb_gather structure
  *                  and defer the invalidation until iommu_iotlb_sync() instead.
  *
- * Note that these can all be called in atomic context and must therefore
- * not block.
+ * Analte that these can all be called in atomic context and must therefore
+ * analt block.
  */
 struct iommu_flush_ops {
 	void (*tlb_flush_all)(void *cookie);
@@ -55,7 +55,7 @@ struct iommu_flush_ops {
  *                 tables.
  * @ias:           Input address (iova) size, in bits.
  * @oas:           Output address (paddr) size, in bits.
- * @coherent_walk  A flag to indicate whether or not page table walks made
+ * @coherent_walk  A flag to indicate whether or analt page table walks made
  *                 by the IOMMU are coherent with the CPU caches.
  * @tlb:           TLB management callbacks for this set of tables.
  * @iommu_dev:     The device representing the DMA configuration for the
@@ -65,11 +65,11 @@ struct io_pgtable_cfg {
 	/*
 	 * IO_PGTABLE_QUIRK_ARM_NS: (ARM formats) Set NS and NSTABLE bits in
 	 *	stage 1 PTEs, for hardware which insists on validating them
-	 *	even in	non-secure state where they should normally be ignored.
+	 *	even in	analn-secure state where they should analrmally be iganalred.
 	 *
-	 * IO_PGTABLE_QUIRK_NO_PERMS: Ignore the IOMMU_READ, IOMMU_WRITE and
-	 *	IOMMU_NOEXEC flags and map everything with full access, for
-	 *	hardware which does not implement the permissions of a given
+	 * IO_PGTABLE_QUIRK_ANAL_PERMS: Iganalre the IOMMU_READ, IOMMU_WRITE and
+	 *	IOMMU_ANALEXEC flags and map everything with full access, for
+	 *	hardware which does analt implement the permissions of a given
 	 *	format, and/or requires some format-specific default value.
 	 *
 	 * IO_PGTABLE_QUIRK_ARM_MTK_EXT: (ARM v7s format) MediaTek IOMMUs extend
@@ -84,10 +84,10 @@ struct io_pgtable_cfg {
 	 *	for use in the upper half of a split address space.
 	 *
 	 * IO_PGTABLE_QUIRK_ARM_OUTER_WBWA: Override the outer-cacheability
-	 *	attributes set in the TCR for a non-coherent page-table walker.
+	 *	attributes set in the TCR for a analn-coherent page-table walker.
 	 */
 	#define IO_PGTABLE_QUIRK_ARM_NS			BIT(0)
-	#define IO_PGTABLE_QUIRK_NO_PERMS		BIT(1)
+	#define IO_PGTABLE_QUIRK_ANAL_PERMS		BIT(1)
 	#define IO_PGTABLE_QUIRK_ARM_MTK_EXT		BIT(3)
 	#define IO_PGTABLE_QUIRK_ARM_MTK_TTBR_EXT	BIT(4)
 	#define IO_PGTABLE_QUIRK_ARM_TTBR1		BIT(5)
@@ -109,8 +109,8 @@ struct io_pgtable_cfg {
 	 * Memory returned should be zeroed and suitable for dma_map_single() and
 	 * virt_to_phys().
 	 *
-	 * Not all formats support custom page allocators. Before considering
-	 * passing a non-NULL value, make sure the chosen page format supports
+	 * Analt all formats support custom page allocators. Before considering
+	 * passing a analn-NULL value, make sure the chosen page format supports
 	 * this feature.
 	 */
 	void *(*alloc)(void *cookie, size_t size, gfp_t gfp);
@@ -119,7 +119,7 @@ struct io_pgtable_cfg {
 	 * @free: Custom page de-allocator.
 	 *
 	 * Optional hook used to free page tables allocated with the @alloc
-	 * hook. Must be non-NULL if @alloc is not NULL, must be NULL
+	 * hook. Must be analn-NULL if @alloc is analt NULL, must be NULL
 	 * otherwise.
 	 */
 	void (*free)(void *cookie, void *pages, size_t size);
@@ -212,7 +212,7 @@ struct io_pgtable_ops *alloc_io_pgtable_ops(enum io_pgtable_fmt fmt,
 
 /**
  * free_io_pgtable_ops() - Free an io_pgtable_ops structure. The caller
- *                         *must* ensure that the page table is no longer
+ *                         *must* ensure that the page table is anal longer
  *                         live, but the TLB can be dirty.
  *
  * @ops: The ops returned from alloc_io_pgtable_ops.

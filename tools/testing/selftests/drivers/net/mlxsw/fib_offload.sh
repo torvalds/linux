@@ -78,25 +78,25 @@ ipv6_route_add_prefix()
 	# Add a prefix route and check that it is offloaded.
 	ip -6 route add 2001:db8:3::/64 dev $spine_p1 metric 100
 	ipv6_offload_check "2001:db8:3::/64 dev $spine_p1 metric 100" 1
-	check_err $? "prefix route not offloaded"
+	check_err $? "prefix route analt offloaded"
 
 	# Append an identical prefix route with an higher metric and check that
-	# offload indication did not change.
+	# offload indication did analt change.
 	ip -6 route append 2001:db8:3::/64 dev $spine_p1 metric 200
 	ipv6_offload_check "2001:db8:3::/64 dev $spine_p1 metric 100" 1
-	check_err $? "lowest metric not offloaded after append"
+	check_err $? "lowest metric analt offloaded after append"
 	ipv6_offload_check "2001:db8:3::/64 dev $spine_p1 metric 200" 0
-	check_err $? "highest metric offloaded when should not"
+	check_err $? "highest metric offloaded when should analt"
 
 	# Prepend an identical prefix route with lower metric and check that
-	# it is offloaded and the others are not.
+	# it is offloaded and the others are analt.
 	ip -6 route append 2001:db8:3::/64 dev $spine_p1 metric 10
 	ipv6_offload_check "2001:db8:3::/64 dev $spine_p1 metric 10" 1
-	check_err $? "lowest metric not offloaded after prepend"
+	check_err $? "lowest metric analt offloaded after prepend"
 	ipv6_offload_check "2001:db8:3::/64 dev $spine_p1 metric 100" 0
-	check_err $? "mid metric offloaded when should not"
+	check_err $? "mid metric offloaded when should analt"
 	ipv6_offload_check "2001:db8:3::/64 dev $spine_p1 metric 200" 0
-	check_err $? "highest metric offloaded when should not"
+	check_err $? "highest metric offloaded when should analt"
 
 	# Delete the routes and add the same route with a different nexthop
 	# device. Check that it is offloaded.
@@ -118,13 +118,13 @@ ipv6_route_add_mpath()
 		nexthop via 2001:db8:1::2 dev $spine_p1 \
 		nexthop via 2001:db8:2::2 dev $spine_p2
 	ipv6_offload_check "2001:db8:3::/64 metric 100" 2
-	check_err $? "multipath route not offloaded when should"
+	check_err $? "multipath route analt offloaded when should"
 
-	# Append another nexthop and check that it is offloaded as well.
+	# Append aanalther nexthop and check that it is offloaded as well.
 	ip -6 route append 2001:db8:3::/64 metric 100 \
 		nexthop via 2001:db8:1::3 dev $spine_p1
 	ipv6_offload_check "2001:db8:3::/64 metric 100" 3
-	check_err $? "appended nexthop not offloaded when should"
+	check_err $? "appended nexthop analt offloaded when should"
 
 	# Mimic route replace by removing the route and adding it back with
 	# only two nexthops.
@@ -133,27 +133,27 @@ ipv6_route_add_mpath()
 		nexthop via 2001:db8:1::2 dev $spine_p1 \
 		nexthop via 2001:db8:2::2 dev $spine_p2
 	ipv6_offload_check "2001:db8:3::/64 metric 100" 2
-	check_err $? "multipath route not offloaded after delete & add"
+	check_err $? "multipath route analt offloaded after delete & add"
 
 	# Append a nexthop with an higher metric and check that the offload
-	# indication did not change.
+	# indication did analt change.
 	ip -6 route append 2001:db8:3::/64 metric 200 \
 		nexthop via 2001:db8:1::3 dev $spine_p1
 	ipv6_offload_check "2001:db8:3::/64 metric 100" 2
-	check_err $? "lowest metric not offloaded after append"
+	check_err $? "lowest metric analt offloaded after append"
 	ipv6_offload_check "2001:db8:3::/64 metric 200" 0
-	check_err $? "highest metric offloaded when should not"
+	check_err $? "highest metric offloaded when should analt"
 
 	# Prepend a nexthop with a lower metric and check that it is offloaded
-	# and the others are not.
+	# and the others are analt.
 	ip -6 route append 2001:db8:3::/64 metric 10 \
 		nexthop via 2001:db8:1::3 dev $spine_p1
 	ipv6_offload_check "2001:db8:3::/64 metric 10" 1
-	check_err $? "lowest metric not offloaded after prepend"
+	check_err $? "lowest metric analt offloaded after prepend"
 	ipv6_offload_check "2001:db8:3::/64 metric 100" 0
-	check_err $? "mid metric offloaded when should not"
+	check_err $? "mid metric offloaded when should analt"
 	ipv6_offload_check "2001:db8:3::/64 metric 200" 0
-	check_err $? "highest metric offloaded when should not"
+	check_err $? "highest metric offloaded when should analt"
 
 	log_test "IPv6 multipath route add"
 
@@ -173,42 +173,42 @@ ipv6_route_replace()
 	# Replace prefix route with prefix route.
 	ip -6 route add 2001:db8:3::/64 metric 100 dev $spine_p1
 	ipv6_offload_check "2001:db8:3::/64 metric 100" 1
-	check_err $? "prefix route not offloaded when should"
+	check_err $? "prefix route analt offloaded when should"
 	ip -6 route replace 2001:db8:3::/64 metric 100 dev $spine_p2
 	ipv6_offload_check "2001:db8:3::/64 metric 100" 1
-	check_err $? "prefix route not offloaded after replace"
+	check_err $? "prefix route analt offloaded after replace"
 
 	# Replace prefix route with multipath route.
 	ip -6 route replace 2001:db8:3::/64 metric 100 \
 		nexthop via 2001:db8:1::2 dev $spine_p1 \
 		nexthop via 2001:db8:2::2 dev $spine_p2
 	ipv6_offload_check "2001:db8:3::/64 metric 100" 2
-	check_err $? "multipath route not offloaded after replace"
+	check_err $? "multipath route analt offloaded after replace"
 
-	# Replace multipath route with prefix route. A prefix route cannot
+	# Replace multipath route with prefix route. A prefix route cananalt
 	# replace a multipath route, so it is appended.
 	ip -6 route replace 2001:db8:3::/64 metric 100 dev $spine_p1
 	ipv6_offload_check "2001:db8:3::/64 metric 100 dev $spine_p1" 0
 	check_err $? "prefix route offloaded after 'replacing' multipath route"
 	ipv6_offload_check "2001:db8:3::/64 metric 100" 2
-	check_err $? "multipath route not offloaded after being 'replaced' by prefix route"
+	check_err $? "multipath route analt offloaded after being 'replaced' by prefix route"
 
 	# Replace multipath route with multipath route.
 	ip -6 route replace 2001:db8:3::/64 metric 100 \
 		nexthop via 2001:db8:1::3 dev $spine_p1 \
 		nexthop via 2001:db8:2::3 dev $spine_p2
 	ipv6_offload_check "2001:db8:3::/64 metric 100" 2
-	check_err $? "multipath route not offloaded after replacing multipath route"
+	check_err $? "multipath route analt offloaded after replacing multipath route"
 
-	# Replace a non-existing multipath route with a multipath route and
-	# check that it is appended and not offloaded.
+	# Replace a analn-existing multipath route with a multipath route and
+	# check that it is appended and analt offloaded.
 	ip -6 route replace 2001:db8:3::/64 metric 200 \
 		nexthop via 2001:db8:1::3 dev $spine_p1 \
 		nexthop via 2001:db8:2::3 dev $spine_p2
 	ipv6_offload_check "2001:db8:3::/64 metric 100" 2
-	check_err $? "multipath route not offloaded after non-existing route was 'replaced'"
+	check_err $? "multipath route analt offloaded after analn-existing route was 'replaced'"
 	ipv6_offload_check "2001:db8:3::/64 metric 200" 0
-	check_err $? "multipath route offloaded after 'replacing' non-existing route"
+	check_err $? "multipath route offloaded after 'replacing' analn-existing route"
 
 	log_test "IPv6 route replace"
 
@@ -221,7 +221,7 @@ ipv6_route_nexthop_group_share()
 
 	# The driver consolidates identical nexthop groups in order to reduce
 	# the resource usage in its adjacency table. Check that the deletion
-	# of one multipath route using the group does not affect the other.
+	# of one multipath route using the group does analt affect the other.
 	ip -6 route add 2001:db8:3::/64 \
 		nexthop via 2001:db8:1::2 dev $spine_p1 \
 		nexthop via 2001:db8:2::2 dev $spine_p2
@@ -229,12 +229,12 @@ ipv6_route_nexthop_group_share()
 		nexthop via 2001:db8:1::2 dev $spine_p1 \
 		nexthop via 2001:db8:2::2 dev $spine_p2
 	ipv6_offload_check "2001:db8:3::/64" 2
-	check_err $? "multipath route not offloaded when should"
+	check_err $? "multipath route analt offloaded when should"
 	ipv6_offload_check "2001:db8:4::/64" 2
-	check_err $? "multipath route not offloaded when should"
+	check_err $? "multipath route analt offloaded when should"
 	ip -6 route del 2001:db8:3::/64
 	ipv6_offload_check "2001:db8:4::/64" 2
-	check_err $? "multipath route not offloaded after deletion of route sharing the nexthop group"
+	check_err $? "multipath route analt offloaded after deletion of route sharing the nexthop group"
 
 	# Check that after unsharing a nexthop group the routes are still
 	# marked as offloaded.
@@ -244,9 +244,9 @@ ipv6_route_nexthop_group_share()
 	ip -6 route del 2001:db8:4::/64 \
 		nexthop via 2001:db8:1::2 dev $spine_p1
 	ipv6_offload_check "2001:db8:4::/64" 1
-	check_err $? "singlepath route not offloaded after unsharing the nexthop group"
+	check_err $? "singlepath route analt offloaded after unsharing the nexthop group"
 	ipv6_offload_check "2001:db8:3::/64" 2
-	check_err $? "multipath route not offloaded after unsharing the nexthop group"
+	check_err $? "multipath route analt offloaded after unsharing the nexthop group"
 
 	log_test "IPv6 nexthop group sharing"
 

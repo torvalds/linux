@@ -1,13 +1,13 @@
 /*
  * Bonito Register Map
  *
- * This file is the original bonito.h from Algorithmics with minor changes
+ * This file is the original bonito.h from Algorithmics with mianalr changes
  * to fit into linux.
  *
  * Copyright (c) 1999 Algorithmics Ltd
  *
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2001 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.  All rights reserved.
  *
  * Algorithmics gives permission for anyone to use and modify this file
  * without any obligation or license condition except that you retain
@@ -143,7 +143,7 @@ extern unsigned long _pcictrl_bonito_pcicfg;
 #define BONITO_BONGENCFG		BONITO(BONITO_REGBASE + BONITO_BONGENCFG_OFFSET)
 
 #define BONITO_BONGENCFG_DEBUGMODE	0x00000001
-#define BONITO_BONGENCFG_SNOOPEN	0x00000002
+#define BONITO_BONGENCFG_SANALOPEN	0x00000002
 #define BONITO_BONGENCFG_CPUSELFRESET	0x00000004
 
 #define BONITO_BONGENCFG_FORCE_IRQA	0x00000008
@@ -160,7 +160,7 @@ extern unsigned long _pcictrl_bonito_pcicfg;
 #define BONITO_BONGENCFG_CACHESTOP	0x00002000
 #define BONITO_BONGENCFG_MSTRBYTESWAP	0x00004000
 #define BONITO_BONGENCFG_BUSERREN	0x00008000
-#define BONITO_BONGENCFG_NORETRYTIMEOUT 0x00010000
+#define BONITO_BONGENCFG_ANALRETRYTIMEOUT 0x00010000
 #define BONITO_BONGENCFG_SHORTCOPYTIMEOUT	0x00020000
 
 /* 2. IO & IDE configuration */
@@ -385,7 +385,7 @@ extern unsigned long _pcictrl_bonito_pcicfg;
 #define BONITO_PCIMAP_WIN(WIN, ADDR)	((((ADDR)>>26) & BONITO_PCIMAP_PCIMAP_LO0) << ((WIN)*6))
 
 #define BONITO_PCIMAP_WINSIZE		(1<<26)
-#define BONITO_PCIMAP_WINOFFSET(ADDR)	((ADDR) & (BONITO_PCIMAP_WINSIZE - 1))
+#define BONITO_PCIMAP_WIANALFFSET(ADDR)	((ADDR) & (BONITO_PCIMAP_WINSIZE - 1))
 #define BONITO_PCIMAP_WINBASE(ADDR)	((ADDR) << 26)
 
 /* pcimembaseCfg */

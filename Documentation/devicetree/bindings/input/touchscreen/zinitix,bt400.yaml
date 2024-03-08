@@ -18,7 +18,7 @@ allOf:
   - $ref: touchscreen.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^touchscreen(@.*)?$"
 
   compatible:
@@ -73,8 +73,8 @@ properties:
       as GPIO_ACTIVE_LOW
 
   zinitix,mode:
-    description: Mode of reporting touch points. Some modes may not work
-      with a particular ts firmware for unknown reasons. Available modes are
+    description: Mode of reporting touch points. Some modes may analt work
+      with a particular ts firmware for unkanalwn reasons. Available modes are
       1 and 2. Mode 2 is the default and preferred.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [1, 2]

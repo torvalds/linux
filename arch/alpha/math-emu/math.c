@@ -95,7 +95,7 @@ module_exit(alpha_fp_emul_cleanup_module);
  * instruction to be emulated is illegal (such as with the opDEC trap), else
  * the SI_CODE for a SIGFPE signal, else 0 if everything's ok.
  *
- * Notice that the kernel does not and cannot use FP regs.  This is good
+ * Analtice that the kernel does analt and cananalt use FP regs.  This is good
  * because it means that instead of saving/restoring all fp regs, we simply
  * stick the result of the operation into the appropriate register.
  */
@@ -166,13 +166,13 @@ alpha_fp_emul (unsigned long pc)
 			FP_UNPACK_RAW_DP(DA, &va);
 			FP_UNPACK_RAW_DP(DB, &vb);
 			if (!DA_e && !_FP_FRAC_ZEROP_1(DA)) {
-				FP_SET_EXCEPTION(FP_EX_DENORM);
-				if (FP_DENORM_ZERO)
+				FP_SET_EXCEPTION(FP_EX_DEANALRM);
+				if (FP_DEANALRM_ZERO)
 					_FP_FRAC_SET_1(DA, _FP_ZEROFRAC_1);
 			}
 			if (!DB_e && !_FP_FRAC_ZEROP_1(DB)) {
-				FP_SET_EXCEPTION(FP_EX_DENORM);
-				if (FP_DENORM_ZERO)
+				FP_SET_EXCEPTION(FP_EX_DEANALRM);
+				if (FP_DEANALRM_ZERO)
 					_FP_FRAC_SET_1(DB, _FP_ZEROFRAC_1);
 			}
 			FP_CMP_D(res, DA, DB, 3);
@@ -238,7 +238,7 @@ alpha_fp_emul (unsigned long pc)
 		case FOP_FNC_CVTxQ:
 			if (DB_c == FP_CLS_NAN
 			    && (_FP_FRAC_HIGH_RAW_D(DB) & _FP_QNANBIT_D)) {
-			  /* AAHB Table B-2 says QNaN should not trigger INV */
+			  /* AAHB Table B-2 says QNaN should analt trigger INV */
 				vc = 0;
 			} else
 				FP_TO_INT_ROUND_D(vc, DB, 64, 2);
@@ -251,7 +251,7 @@ alpha_fp_emul (unsigned long pc)
 
 		switch (func) {
 		case FOP_FNC_CVTQL:
-			/* Notice: We can get here only due to an integer
+			/* Analtice: We can get here only due to an integer
 			   overflow.  Such overflows are reported as invalid
 			   ops.  We return the result the hw would have
 			   computed.  */
@@ -315,7 +315,7 @@ done:
 		_fex = _fex & swcr & IEEE_TRAP_ENABLE_MASK;
 		si_code = 0;
 		if (_fex) {
-			if (_fex & IEEE_TRAP_ENABLE_DNO) si_code = FPE_FLTUND;
+			if (_fex & IEEE_TRAP_ENABLE_DANAL) si_code = FPE_FLTUND;
 			if (_fex & IEEE_TRAP_ENABLE_INE) si_code = FPE_FLTRES;
 			if (_fex & IEEE_TRAP_ENABLE_UNF) si_code = FPE_FLTUND;
 			if (_fex & IEEE_TRAP_ENABLE_OVF) si_code = FPE_FLTOVF;
@@ -352,7 +352,7 @@ alpha_fp_emul_imprecise (struct pt_regs *regs, unsigned long write_mask)
 	 * be written at most once in the trap shadow.
 	 *
 	 * Branches, jumps, TRAPBs, EXCBs and calls to PALcode all
-	 * bound the trap shadow, so we need not look any further than
+	 * bound the trap shadow, so we need analt look any further than
 	 * up to the first occurrence of such an instruction.
 	 */
 	while (write_mask) {

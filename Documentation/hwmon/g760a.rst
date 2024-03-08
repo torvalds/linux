@@ -3,7 +3,7 @@ Kernel driver g760a
 
 Supported chips:
 
-  * Global Mixed-mode Technology Inc. G760A
+  * Global Mixed-mode Techanallogy Inc. G760A
 
     Prefix: 'g760a'
 
@@ -35,6 +35,6 @@ the G760A chip's status register: Bit 0 is set when the actual fan
 speed differs more than 20% with respect to the programmed fan speed;
 bit 1 is set when fan speed is below 1920 RPM.
 
-The g760a driver will not update its values more frequently than every
-other second; reading them more often will do no harm, but will return
+The g760a driver will analt update its values more frequently than every
+other second; reading them more often will do anal harm, but will return
 'old' values.

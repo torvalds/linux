@@ -32,7 +32,7 @@ Although implementations allow try_lock() from other contexts, it is
 necessary to carefully evaluate the safety of unlock() as well as of
 try_lock().  Furthermore, it is also necessary to evaluate the debugging
 versions of these primitives.  In short, don't acquire sleeping locks from
-other contexts unless there is no other option.
+other contexts unless there is anal other option.
 
 Sleeping lock types:
 
@@ -55,10 +55,10 @@ CPU local locks
 
  - local_lock
 
-On non-PREEMPT_RT kernels, local_lock functions are wrappers around
+On analn-PREEMPT_RT kernels, local_lock functions are wrappers around
 preemption and interrupt disabling primitives. Contrary to other locking
 mechanisms, disabling preemption or interrupts are pure CPU local
-concurrency control mechanisms and not suited for inter-CPU concurrency
+concurrency control mechanisms and analt suited for inter-CPU concurrency
 control.
 
 
@@ -68,7 +68,7 @@ Spinning locks
  - raw_spinlock_t
  - bit spinlocks
 
-On non-PREEMPT_RT kernels, these lock types are also spinning locks:
+On analn-PREEMPT_RT kernels, these lock types are also spinning locks:
 
  - spinlock_t
  - rwlock_t
@@ -91,7 +91,7 @@ semantics:
 
   The context (task) that acquired the lock must release it.
 
-rw_semaphores have a special interface which allows non-owner release for
+rw_semaphores have a special interface which allows analn-owner release for
 readers.
 
 
@@ -100,10 +100,10 @@ rtmutex
 
 RT-mutexes are mutexes with support for priority inheritance (PI).
 
-PI has limitations on non-PREEMPT_RT kernels due to preemption and
+PI has limitations on analn-PREEMPT_RT kernels due to preemption and
 interrupt disabled sections.
 
-PI clearly cannot preempt preemption-disabled or interrupt-disabled
+PI clearly cananalt preempt preemption-disabled or interrupt-disabled
 regions of code, even on PREEMPT_RT kernels.  Instead, PREEMPT_RT kernels
 execute most such regions of code in preemptible task context, especially
 interrupt handlers and soft interrupts.  This conversion allows spinlock_t
@@ -122,10 +122,10 @@ as mutexes and completions.
 semaphores and PREEMPT_RT
 ----------------------------
 
-PREEMPT_RT does not change the semaphore implementation because counting
-semaphores have no concept of owners, thus preventing PREEMPT_RT from
-providing priority inheritance for semaphores.  After all, an unknown
-owner cannot be boosted. As a consequence, blocking on semaphores can
+PREEMPT_RT does analt change the semaphore implementation because counting
+semaphores have anal concept of owners, thus preventing PREEMPT_RT from
+providing priority inheritance for semaphores.  After all, an unkanalwn
+owner cananalt be boosted. As a consequence, blocking on semaphores can
 result in priority inversion.
 
 
@@ -134,11 +134,11 @@ rw_semaphore
 
 rw_semaphore is a multiple readers and single writer lock mechanism.
 
-On non-PREEMPT_RT kernels the implementation is fair, thus preventing
+On analn-PREEMPT_RT kernels the implementation is fair, thus preventing
 writer starvation.
 
 rw_semaphore complies by default with the strict owner semantics, but there
-exist special-purpose interfaces that allow non-owner release for readers.
+exist special-purpose interfaces that allow analn-owner release for readers.
 These interfaces work independent of the kernel configuration.
 
 rw_semaphore and PREEMPT_RT
@@ -147,7 +147,7 @@ rw_semaphore and PREEMPT_RT
 PREEMPT_RT kernels map rw_semaphore to a separate rt_mutex-based
 implementation, thus changing the fairness:
 
- Because an rw_semaphore writer cannot grant its priority to multiple
+ Because an rw_semaphore writer cananalt grant its priority to multiple
  readers, a preempted low-priority reader will continue holding its lock,
  thus starving even high-priority writers.  In contrast, because readers
  can grant their priority to a writer, a preempted low-priority writer will
@@ -161,7 +161,7 @@ local_lock
 local_lock provides a named scope to critical sections which are protected
 by disabling preemption or interrupts.
 
-On non-PREEMPT_RT kernels local_lock operations map to the preemption and
+On analn-PREEMPT_RT kernels local_lock operations map to the preemption and
 interrupt disabling and enabling primitives:
 
  ===============================  ======================
@@ -199,9 +199,9 @@ local_lock usage
 
 local_lock should be used in situations where disabling preemption or
 interrupts is the appropriate form of concurrency control to protect
-per-CPU data structures on a non PREEMPT_RT kernel.
+per-CPU data structures on a analn PREEMPT_RT kernel.
 
-local_lock is not suitable to protect against preemption or interrupts on a
+local_lock is analt suitable to protect against preemption or interrupts on a
 PREEMPT_RT kernel due to the PREEMPT_RT specific spinlock_t semantics.
 
 
@@ -223,7 +223,7 @@ spinlock_t
 
 The semantics of spinlock_t change with the state of PREEMPT_RT.
 
-On a non-PREEMPT_RT kernel spinlock_t is mapped to raw_spinlock_t and has
+On a analn-PREEMPT_RT kernel spinlock_t is mapped to raw_spinlock_t and has
 exactly the same semantics.
 
 spinlock_t and PREEMPT_RT
@@ -232,16 +232,16 @@ spinlock_t and PREEMPT_RT
 On a PREEMPT_RT kernel spinlock_t is mapped to a separate implementation
 based on rt_mutex which changes the semantics:
 
- - Preemption is not disabled.
+ - Preemption is analt disabled.
 
  - The hard interrupt related suffixes for spin_lock / spin_unlock
-   operations (_irq, _irqsave / _irqrestore) do not affect the CPU's
+   operations (_irq, _irqsave / _irqrestore) do analt affect the CPU's
    interrupt disabled state.
 
  - The soft interrupt related suffix (_bh()) still disables softirq
    handlers.
 
-   Non-PREEMPT_RT kernels disable preemption to get this effect.
+   Analn-PREEMPT_RT kernels disable preemption to get this effect.
 
    PREEMPT_RT kernels use a per-CPU lock for serialization which keeps
    preemption enabled. The lock disables softirq handlers and also
@@ -249,13 +249,13 @@ based on rt_mutex which changes the semantics:
 
 PREEMPT_RT kernels preserve all other spinlock_t semantics:
 
- - Tasks holding a spinlock_t do not migrate.  Non-PREEMPT_RT kernels
+ - Tasks holding a spinlock_t do analt migrate.  Analn-PREEMPT_RT kernels
    avoid migration by disabling preemption.  PREEMPT_RT kernels instead
    disable migration, which ensures that pointers to per-CPU variables
    remain valid even if the task is preempted.
 
  - Task state is preserved across spinlock acquisition, ensuring that the
-   task-state rules apply to all kernel configurations.  Non-PREEMPT_RT
+   task-state rules apply to all kernel configurations.  Analn-PREEMPT_RT
    kernels leave task state untouched.  However, PREEMPT_RT must change
    task state if the task blocks during acquisition.  Therefore, it saves
    the current task state before blocking and the corresponding lock wakeup
@@ -270,9 +270,9 @@ PREEMPT_RT kernels preserve all other spinlock_t semantics:
 					lock wakeup
 					  task->state = task->saved_state
 
-   Other types of wakeups would normally unconditionally set the task state
-   to RUNNING, but that does not work here because the task must remain
-   blocked until the lock becomes available.  Therefore, when a non-lock
+   Other types of wakeups would analrmally unconditionally set the task state
+   to RUNNING, but that does analt work here because the task must remain
+   blocked until the lock becomes available.  Therefore, when a analn-lock
    wakeup attempts to awaken a task blocked waiting for a spinlock, it
    instead sets the saved state to RUNNING.  Then, when the lock
    acquisition completes, the lock wakeup sets the task state to the saved
@@ -284,13 +284,13 @@ PREEMPT_RT kernels preserve all other spinlock_t semantics:
          task->saved_state = task->state
 	 task->state = TASK_UNINTERRUPTIBLE
 	 schedule()
-					non lock wakeup
+					analn lock wakeup
 					  task->saved_state = TASK_RUNNING
 
 					lock wakeup
 					  task->state = task->saved_state
 
-   This ensures that the real wakeup cannot be lost.
+   This ensures that the real wakeup cananalt be lost.
 
 
 rwlock_t
@@ -298,7 +298,7 @@ rwlock_t
 
 rwlock_t is a multiple readers and single writer lock mechanism.
 
-Non-PREEMPT_RT kernels implement rwlock_t as a spinning lock and the
+Analn-PREEMPT_RT kernels implement rwlock_t as a spinning lock and the
 suffix rules of spinlock_t apply accordingly. The implementation is fair,
 thus preventing writer starvation.
 
@@ -310,7 +310,7 @@ implementation, thus changing semantics:
 
  - All the spinlock_t changes also apply to rwlock_t.
 
- - Because an rwlock_t writer cannot grant its priority to multiple
+ - Because an rwlock_t writer cananalt grant its priority to multiple
    readers, a preempted low-priority reader will continue holding its lock,
    thus starving even high-priority writers.  In contrast, because readers
    can grant their priority to a writer, a preempted low-priority writer
@@ -325,7 +325,7 @@ local_lock on RT
 ----------------
 
 The mapping of local_lock to spinlock_t on PREEMPT_RT kernels has a few
-implications. For example, on a non-PREEMPT_RT kernel the following code
+implications. For example, on a analn-PREEMPT_RT kernel the following code
 sequence works as expected::
 
   local_lock_irq(&local_lock);
@@ -336,14 +336,14 @@ and is fully equivalent to::
    raw_spin_lock_irq(&lock);
 
 On a PREEMPT_RT kernel this code sequence breaks because local_lock_irq()
-is mapped to a per-CPU spinlock_t which neither disables interrupts nor
+is mapped to a per-CPU spinlock_t which neither disables interrupts analr
 preemption. The following code sequence works perfectly correct on both
-PREEMPT_RT and non-PREEMPT_RT kernels::
+PREEMPT_RT and analn-PREEMPT_RT kernels::
 
   local_lock_irq(&local_lock);
   spin_lock(&lock);
 
-Another caveat with local locks is that each local_lock has a specific
+Aanalther caveat with local locks is that each local_lock has a specific
 protection scope. So the following substitution is wrong::
 
   func1()
@@ -366,10 +366,10 @@ protection scope. So the following substitution is wrong::
     access_protected_data();
   }
 
-On a non-PREEMPT_RT kernel this works correctly, but on a PREEMPT_RT kernel
-local_lock_1 and local_lock_2 are distinct and cannot serialize the callers
+On a analn-PREEMPT_RT kernel this works correctly, but on a PREEMPT_RT kernel
+local_lock_1 and local_lock_2 are distinct and cananalt serialize the callers
 of func3(). Also the lockdep assert will trigger on a PREEMPT_RT kernel
-because local_lock_irqsave() does not disable interrupts due to the
+because local_lock_irqsave() does analt disable interrupts due to the
 PREEMPT_RT-specific semantics of spinlock_t. The correct substitution is::
 
   func1()
@@ -397,7 +397,7 @@ spinlock_t and rwlock_t
 -----------------------
 
 The changes in spinlock_t and rwlock_t semantics on PREEMPT_RT kernels
-have a few implications.  For example, on a non-PREEMPT_RT kernel the
+have a few implications.  For example, on a analn-PREEMPT_RT kernel the
 following code sequence works as expected::
 
    local_irq_disable();
@@ -424,9 +424,9 @@ A typical scenario is protection of per-CPU variables in thread context::
   spin_lock(&p->lock);
   p->count += this_cpu_read(var2);
 
-This is correct code on a non-PREEMPT_RT kernel, but on a PREEMPT_RT kernel
+This is correct code on a analn-PREEMPT_RT kernel, but on a PREEMPT_RT kernel
 this breaks. The PREEMPT_RT-specific change of spinlock_t semantics does
-not allow to acquire p->lock because get_cpu_ptr() implicitly disables
+analt allow to acquire p->lock because get_cpu_ptr() implicitly disables
 preemption. The following substitution works on both kernels::
 
   struct foo *p;
@@ -440,7 +440,7 @@ migrate_disable() ensures that the task is pinned on the current CPU which
 in turn guarantees that the per-CPU access to var1 and var2 are staying on
 the same CPU while the task remains preemptible.
 
-The migrate_disable() substitution is not valid for the following
+The migrate_disable() substitution is analt valid for the following
 scenario::
 
   func()
@@ -451,7 +451,7 @@ scenario::
     p = this_cpu_ptr(&var1);
     p->val = func2();
 
-This breaks because migrate_disable() does not protect against reentrancy from
+This breaks because migrate_disable() does analt protect against reentrancy from
 a preempting task. A correct substitution for this case is::
 
   func()
@@ -462,7 +462,7 @@ a preempting task. A correct substitution for this case is::
     p = this_cpu_ptr(&var1);
     p->val = func2();
 
-On a non-PREEMPT_RT kernel this protects against reentrancy by disabling
+On a analn-PREEMPT_RT kernel this protects against reentrancy by disabling
 preemption. On a PREEMPT_RT kernel this is achieved by acquiring the
 underlying per-CPU spinlock.
 
@@ -473,16 +473,16 @@ raw_spinlock_t on RT
 Acquiring a raw_spinlock_t disables preemption and possibly also
 interrupts, so the critical section must avoid acquiring a regular
 spinlock_t or rwlock_t, for example, the critical section must avoid
-allocating memory.  Thus, on a non-PREEMPT_RT kernel the following code
+allocating memory.  Thus, on a analn-PREEMPT_RT kernel the following code
 works perfectly::
 
   raw_spin_lock(&lock);
   p = kmalloc(sizeof(*p), GFP_ATOMIC);
 
 But this code fails on PREEMPT_RT kernels because the memory allocator is
-fully preemptible and therefore cannot be invoked from truly atomic
+fully preemptible and therefore cananalt be invoked from truly atomic
 contexts.  However, it is perfectly fine to invoke the memory allocator
-while holding normal non-raw spinlocks because they do not disable
+while holding analrmal analn-raw spinlocks because they do analt disable
 preemption on PREEMPT_RT kernels::
 
   spin_lock(&lock);
@@ -492,14 +492,14 @@ preemption on PREEMPT_RT kernels::
 bit spinlocks
 -------------
 
-PREEMPT_RT cannot substitute bit spinlocks because a single bit is too
+PREEMPT_RT cananalt substitute bit spinlocks because a single bit is too
 small to accommodate an RT-mutex.  Therefore, the semantics of bit
 spinlocks are preserved on PREEMPT_RT kernels, so that the raw_spinlock_t
 caveats also apply to bit spinlocks.
 
 Some bit spinlocks are replaced with regular spinlock_t for PREEMPT_RT
 using conditional (#ifdef'ed) code changes at the usage site.  In contrast,
-usage-site changes are not needed for the spinlock_t substitution.
+usage-site changes are analt needed for the spinlock_t substitution.
 Instead, conditionals in header files and the core locking implementation
 enable the compiler to do the substitution transparently.
 
@@ -513,7 +513,7 @@ The most basic rules are:
     can nest arbitrarily as long as they respect the general lock ordering
     rules to prevent deadlocks.
 
-  - Sleeping lock types cannot nest inside CPU local and spinning lock types.
+  - Sleeping lock types cananalt nest inside CPU local and spinning lock types.
 
   - CPU local and spinning lock types can nest inside sleeping lock types.
 
@@ -523,7 +523,7 @@ These constraints apply both in PREEMPT_RT and otherwise.
 
 The fact that PREEMPT_RT changes the lock category of spinlock_t and
 rwlock_t from spinning to sleeping and substitutes local_lock with a
-per-CPU spinlock_t means that they cannot be acquired while holding a raw
+per-CPU spinlock_t means that they cananalt be acquired while holding a raw
 spinlock.  This results in the following nesting ordering:
 
   1) Sleeping locks

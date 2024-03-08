@@ -38,12 +38,12 @@ struct iwl_rfi_config_cmd {
 /**
  * enum iwl_rfi_freq_table_status - status of the frequency table query
  * @RFI_FREQ_TABLE_OK: can be used
- * @RFI_FREQ_TABLE_DVFS_NOT_READY: DVFS is not ready yet, should try later
+ * @RFI_FREQ_TABLE_DVFS_ANALT_READY: DVFS is analt ready yet, should try later
  * @RFI_FREQ_TABLE_DISABLED: the feature is disabled in FW
  */
 enum iwl_rfi_freq_table_status {
 	RFI_FREQ_TABLE_OK,
-	RFI_FREQ_TABLE_DVFS_NOT_READY,
+	RFI_FREQ_TABLE_DVFS_ANALT_READY,
 	RFI_FREQ_TABLE_DISABLED,
 };
 
@@ -59,11 +59,11 @@ struct iwl_rfi_freq_table_resp_cmd {
 } __packed; /* RFI_CONFIG_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_rfi_deactivate_notif - notifcation that FW disaled RFIm
+ * struct iwl_rfi_deactivate_analtif - analtifcation that FW disaled RFIm
  *
  * @reason: used only for a log message
  */
-struct iwl_rfi_deactivate_notif {
+struct iwl_rfi_deactivate_analtif {
 	__le32 reason;
 } __packed; /* RFI_DEACTIVATE_NTF_S_VER_1 */
 #endif /* __iwl_fw_api_rfi_h__ */

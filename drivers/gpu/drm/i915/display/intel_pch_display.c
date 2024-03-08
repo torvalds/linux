@@ -340,7 +340,7 @@ void ilk_pch_pre_enable(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, crtc);
 
 	/*
-	 * Note: FDI PLL enabling _must_ be done before we enable the
+	 * Analte: FDI PLL enabling _must_ be done before we enable the
 	 * cpu pipes, hence this is separate from all the other fdi/pch
 	 * enabling.
 	 */
@@ -389,10 +389,10 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 
 	/*
 	 * XXX: pch pll's can be enabled any time before we enable the PCH
-	 * transcoder, and we actually should do this to not upset any PCH
+	 * transcoder, and we actually should do this to analt upset any PCH
 	 * transcoder that already use the clock when we share it.
 	 *
-	 * Note that enable_shared_dpll tries to do the right thing, but
+	 * Analte that enable_shared_dpll tries to do the right thing, but
 	 * get_shared_dpll unconditionally resets the pll - we need that
 	 * to have the right LVDS enable sequence.
 	 */
@@ -406,7 +406,7 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 	}
 	ilk_pch_transcoder_set_timings(crtc_state, pipe);
 
-	intel_fdi_normal_train(crtc);
+	intel_fdi_analrmal_train(crtc);
 
 	/* For PCH DP, enable TRANS_DP_CTL */
 	if (HAS_PCH_CPT(dev_priv) &&
@@ -458,7 +458,7 @@ void ilk_pch_post_disable(struct intel_atomic_state *state,
 		/* disable TRANS_DP_CTL */
 		intel_de_rmw(dev_priv, TRANS_DP_CTL(pipe),
 			     TRANS_DP_OUTPUT_ENABLE | TRANS_DP_PORT_SEL_MASK,
-			     TRANS_DP_PORT_SEL_NONE);
+			     TRANS_DP_PORT_SEL_ANALNE);
 
 		/* disable DPLL_SEL */
 		intel_de_rmw(dev_priv, PCH_DPLL_SEL,

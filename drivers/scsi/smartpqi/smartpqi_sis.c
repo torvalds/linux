@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *    driver for Microchip PQI-based storage controllers
- *    Copyright (c) 2019-2023 Microchip Technology Inc. and its subsidiaries
+ *    Copyright (c) 2019-2023 Microchip Techanallogy Inc. and its subsidiaries
  *    Copyright (c) 2016-2018 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
@@ -59,7 +59,7 @@
 #define SIS_CTRL_READY_POLL_INTERVAL_MSECS	10
 
 enum sis_fw_triage_status {
-	FW_TRIAGE_NOT_STARTED = 0,
+	FW_TRIAGE_ANALT_STARTED = 0,
 	FW_TRIAGE_STARTED,
 	FW_TRIAGE_COND_INVALID,
 	FW_TRIAGE_COMPLETED
@@ -104,14 +104,14 @@ static int sis_wait_for_ctrl_ready_with_timeout(struct pqi_ctrl_info *ctrl_info,
 					"controller is offline: status code 0x%x\n",
 					readl(
 					&ctrl_info->registers->sis_mailbox[7]));
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			if (status & SIS_CTRL_KERNEL_UP)
 				break;
 		}
 		if (time_after(jiffies, timeout)) {
 			dev_err(&ctrl_info->pci_dev->dev,
-				"controller not ready after %u seconds\n",
+				"controller analt ready after %u seconds\n",
 				timeout_secs);
 			return -ETIMEDOUT;
 		}
@@ -184,7 +184,7 @@ static int sis_send_sync_cmd(struct pqi_ctrl_info *ctrl_info,
 	writel(cmd, &registers->sis_mailbox[0]);
 
 	/*
-	 * Write the command parameters to mailboxes 1-4 (mailbox 5 is not used
+	 * Write the command parameters to mailboxes 1-4 (mailbox 5 is analt used
 	 * when sending a command to the controller).
 	 */
 	for (i = 1; i <= 4; i++)
@@ -208,7 +208,7 @@ static int sis_send_sync_cmd(struct pqi_ctrl_info *ctrl_info,
 	writel(SIS_CMD_READY, &registers->sis_host_to_ctrl_doorbell);
 
 	/*
-	 * Poll for command completion.  Note that the call to msleep() is at
+	 * Poll for command completion.  Analte that the call to msleep() is at
 	 * the top of the loop in order to give the controller time to start
 	 * processing the command before we start polling.
 	 */
@@ -263,13 +263,13 @@ int sis_get_ctrl_properties(struct pqi_ctrl_info *ctrl_info)
 	properties = params.mailbox[1];
 
 	if (!(properties & SIS_EXTENDED_PROPERTIES_SUPPORTED))
-		return -ENODEV;
+		return -EANALDEV;
 
 	extended_properties = params.mailbox[4];
 
 	if ((extended_properties & SIS_REQUIRED_EXTENDED_PROPERTIES) !=
 		SIS_REQUIRED_EXTENDED_PROPERTIES)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (extended_properties & SIS_PQI_RESET_QUIESCE_SUPPORTED)
 		ctrl_info->pqi_reset_quiesce_supported = true;
@@ -310,7 +310,7 @@ int sis_init_base_struct_addr(struct pqi_ctrl_info *ctrl_info)
 	base_struct_unaligned = kzalloc(sizeof(*base_struct)
 		+ SIS_BASE_STRUCT_ALIGNMENT - 1, GFP_KERNEL);
 	if (!base_struct_unaligned)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base_struct = PTR_ALIGN(base_struct_unaligned,
 		SIS_BASE_STRUCT_ALIGNMENT);
@@ -329,7 +329,7 @@ int sis_init_base_struct_addr(struct pqi_ctrl_info *ctrl_info)
 	bus_address = dma_map_single(&ctrl_info->pci_dev->dev, base_struct,
 		sizeof(*base_struct), DMA_TO_DEVICE);
 	if (dma_mapping_error(&ctrl_info->pci_dev->dev, bus_address)) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -367,12 +367,12 @@ static int sis_wait_for_doorbell_bit_to_clear(
 			break;
 		if (readl(&ctrl_info->registers->sis_firmware_status) &
 			SIS_CTRL_KERNEL_PANIC) {
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			break;
 		}
 		if (time_after(jiffies, timeout)) {
 			dev_err(&ctrl_info->pci_dev->dev,
-				"doorbell register bit 0x%x not cleared\n",
+				"doorbell register bit 0x%x analt cleared\n",
 				bit);
 			rc = -ETIMEDOUT;
 			break;
@@ -465,7 +465,7 @@ int sis_wait_for_fw_triage_completion(struct pqi_ctrl_info *ctrl_info)
 				"firmware triage condition invalid\n");
 			rc = -EINVAL;
 			break;
-		} else if (status == FW_TRIAGE_NOT_STARTED ||
+		} else if (status == FW_TRIAGE_ANALT_STARTED ||
 			status == FW_TRIAGE_COMPLETED) {
 			rc = 0;
 			break;

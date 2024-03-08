@@ -41,9 +41,9 @@
 
 #define DRIVER_DESC "HID core driver"
 
-static int hid_ignore_special_drivers = 0;
-module_param_named(ignore_special_drivers, hid_ignore_special_drivers, int, 0600);
-MODULE_PARM_DESC(ignore_special_drivers, "Ignore any special drivers and handle all devices by generic driver");
+static int hid_iganalre_special_drivers = 0;
+module_param_named(iganalre_special_drivers, hid_iganalre_special_drivers, int, 0600);
+MODULE_PARM_DESC(iganalre_special_drivers, "Iganalre any special drivers and handle all devices by generic driver");
 
 /*
  * Register a new report for a device.
@@ -133,7 +133,7 @@ static int open_collection(struct hid_parser *parser, unsigned type)
 					    new_size * sizeof(unsigned int),
 					    GFP_KERNEL);
 		if (!collection_stack)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		parser->collection_stack = collection_stack;
 		parser->collection_stack_size = new_size;
@@ -147,7 +147,7 @@ static int open_collection(struct hid_parser *parser, unsigned type)
 				GFP_KERNEL);
 		if (collection == NULL) {
 			hid_err(parser->device, "failed to reallocate collection array\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		memcpy(collection, parser->device->collection,
 			sizeof(struct hid_collection) *
@@ -206,7 +206,7 @@ static unsigned hid_lookup_collection(struct hid_parser *parser, unsigned type)
 		if (collection[index].type == type)
 			return collection[index].usage;
 	}
-	return 0; /* we know nothing about this usage type */
+	return 0; /* we kanalw analthing about this usage type */
 }
 
 /*
@@ -296,7 +296,7 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
 		return -1;
 	}
 
-	if (!parser->local.usage_index) /* Ignore padding fields */
+	if (!parser->local.usage_index) /* Iganalre padding fields */
 		return 0;
 
 	usages = max_t(unsigned, parser->local.usage_index,
@@ -463,7 +463,7 @@ static int hid_parser_global(struct hid_parser *parser, struct hid_item *item)
 		return 0;
 
 	default:
-		hid_err(parser->device, "unknown global tag 0x%x\n", item->tag);
+		hid_err(parser->device, "unkanalwn global tag 0x%x\n", item->tag);
 		return -1;
 	}
 }
@@ -508,7 +508,7 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 	case HID_LOCAL_ITEM_TAG_USAGE:
 
 		if (parser->local.delimiter_branch > 1) {
-			dbg_hid("alternative usage ignored\n");
+			dbg_hid("alternative usage iganalred\n");
 			return 0;
 		}
 
@@ -517,7 +517,7 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 	case HID_LOCAL_ITEM_TAG_USAGE_MINIMUM:
 
 		if (parser->local.delimiter_branch > 1) {
-			dbg_hid("alternative usage ignored\n");
+			dbg_hid("alternative usage iganalred\n");
 			return 0;
 		}
 
@@ -527,24 +527,24 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 	case HID_LOCAL_ITEM_TAG_USAGE_MAXIMUM:
 
 		if (parser->local.delimiter_branch > 1) {
-			dbg_hid("alternative usage ignored\n");
+			dbg_hid("alternative usage iganalred\n");
 			return 0;
 		}
 
 		count = data - parser->local.usage_minimum;
 		if (count + parser->local.usage_index >= HID_MAX_USAGES) {
 			/*
-			 * We do not warn if the name is not set, we are
+			 * We do analt warn if the name is analt set, we are
 			 * actually pre-scanning the device.
 			 */
 			if (dev_name(&parser->device->dev))
 				hid_warn(parser->device,
-					 "ignoring exceeding usage max\n");
+					 "iganalring exceeding usage max\n");
 			data = HID_MAX_USAGES - parser->local.usage_index +
 				parser->local.usage_minimum - 1;
 			if (data <= 0) {
 				hid_err(parser->device,
-					"no more usage index available\n");
+					"anal more usage index available\n");
 				return -1;
 			}
 		}
@@ -558,7 +558,7 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 
 	default:
 
-		dbg_hid("unknown local item tag 0x%x\n", item->tag);
+		dbg_hid("unkanalwn local item tag 0x%x\n", item->tag);
 		return 0;
 	}
 	return 0;
@@ -584,11 +584,11 @@ static void hid_concatenate_last_usage_page(struct hid_parser *parser)
 
 	/*
 	 * Concatenate usage page again only if last declared Usage Page
-	 * has not been already used in previous usages concatenation
+	 * has analt been already used in previous usages concatenation
 	 */
 	for (i = parser->local.usage_index - 1; i >= 0; i--) {
 		if (parser->local.usage_size[i] > 2)
-			/* Ignore extended usages */
+			/* Iganalre extended usages */
 			continue;
 
 		current_page = parser->local.usage[i] >> 16;
@@ -629,7 +629,7 @@ static int hid_parser_main(struct hid_parser *parser, struct hid_item *item)
 		ret = hid_add_field(parser, HID_FEATURE_REPORT, data);
 		break;
 	default:
-		hid_warn(parser->device, "unknown main item tag 0x%x\n", item->tag);
+		hid_warn(parser->device, "unkanalwn main item tag 0x%x\n", item->tag);
 		ret = 0;
 	}
 
@@ -720,7 +720,7 @@ static void hid_device_release(struct device *dev)
 
 /*
  * Fetch a report description item from the data stream. We support long
- * items, though they are not used yet.
+ * items, though they are analt used yet.
  */
 
 static u8 *fetch_item(__u8 *start, __u8 *end, struct hid_item *item)
@@ -851,7 +851,7 @@ static int hid_scan_main(struct hid_parser *parser, struct hid_item *item)
 	case HID_MAIN_ITEM_TAG_END_COLLECTION:
 		break;
 	case HID_MAIN_ITEM_TAG_INPUT:
-		/* ignore constant inputs, they will be ignored by hid-input */
+		/* iganalre constant inputs, they will be iganalred by hid-input */
 		if (data & HID_MAIN_ITEM_CONSTANT)
 			break;
 		for (i = 0; i < parser->local.usage_index; i++)
@@ -892,7 +892,7 @@ static int hid_scan_report(struct hid_device *hid)
 
 	parser = vzalloc(sizeof(struct hid_parser));
 	if (!parser)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parser->device = hid;
 	hid->group = HID_GROUP_GENERIC;
@@ -925,7 +925,7 @@ static int hid_scan_report(struct hid_device *hid)
 			    && (parser->scan_flags & HID_SCAN_FLAG_GD_POINTER))
 				/*
 				 * hid-rmi should take care of them,
-				 * not hid-generic
+				 * analt hid-generic
 				 */
 				hid->group = HID_GROUP_RMI;
 		break;
@@ -950,7 +950,7 @@ int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size)
 {
 	hid->dev_rdesc = kmemdup(start, size, GFP_KERNEL);
 	if (!hid->dev_rdesc)
-		return -ENOMEM;
+		return -EANALMEM;
 	hid->dev_rsize = size;
 	return 0;
 }
@@ -991,8 +991,8 @@ struct hid_report *hid_validate_values(struct hid_device *hid,
 	}
 
 	/*
-	 * Explicitly not using hid_get_report() here since it depends on
-	 * ->numbered being checked, which may not always be the case when
+	 * Explicitly analt using hid_get_report() here since it depends on
+	 * ->numbered being checked, which may analt always be the case when
 	 * drivers go to access report values.
 	 */
 	if (id == 0) {
@@ -1011,12 +1011,12 @@ struct hid_report *hid_validate_values(struct hid_device *hid,
 		return NULL;
 	}
 	if (report->maxfield <= field_index) {
-		hid_err(hid, "not enough fields in %s %u\n",
+		hid_err(hid, "analt eanalugh fields in %s %u\n",
 			hid_report_names[type], id);
 		return NULL;
 	}
 	if (report->field[field_index]->report_count < report_counts) {
-		hid_err(hid, "not enough values in %s %u field %u\n",
+		hid_err(hid, "analt eanalugh values in %s %u field %u\n",
 			hid_report_names[type], id, field_index);
 		return NULL;
 	}
@@ -1037,7 +1037,7 @@ static int hid_calculate_multiplier(struct hid_device *hid,
 	/*
 	 * "Because OS implementations will generally divide the control's
 	 * reported count by the Effective Resolution Multiplier, designers
-	 * should take care not to establish a potential Effective
+	 * should take care analt to establish a potential Effective
 	 * Resolution Multiplier of zero."
 	 * HID Usage Table, v1.12, Section 4.3.1, p31
 	 */
@@ -1045,7 +1045,7 @@ static int hid_calculate_multiplier(struct hid_device *hid,
 		return 1;
 	/*
 	 * Handling the unit exponent is left as an exercise to whoever
-	 * finds a device where that exponent is not 0.
+	 * finds a device where that exponent is analt 0.
 	 */
 	m = ((v - lmin)/(lmax - lmin) * (pmax - pmin) + pmin);
 	if (unlikely(multiplier->unit_exponent != 0)) {
@@ -1054,7 +1054,7 @@ static int hid_calculate_multiplier(struct hid_device *hid,
 			 multiplier->unit_exponent);
 	}
 
-	/* There are no devices with an effective multiplier > 255 */
+	/* There are anal devices with an effective multiplier > 255 */
 	if (unlikely(m == 0 || m > 255 || m < -255)) {
 		hid_warn(hid, "unsupported Resolution Multiplier %d\n", m);
 		m = 1;
@@ -1106,10 +1106,10 @@ static void hid_apply_multiplier(struct hid_device *hid,
 	/*
 	 * "The Resolution Multiplier control must be contained in the same
 	 * Logical Collection as the control(s) to which it is to be applied.
-	 * If no Resolution Multiplier is defined, then the Resolution
+	 * If anal Resolution Multiplier is defined, then the Resolution
 	 * Multiplier defaults to 1.  If more than one control exists in a
 	 * Logical Collection, the Resolution Multiplier is associated with
-	 * all controls in the collection. If no Logical Collection is
+	 * all controls in the collection. If anal Logical Collection is
 	 * defined, the Resolution Multiplier is associated with all
 	 * controls in the report."
 	 * HID Usage Table, v1.12, Section 4.3.1, p30
@@ -1172,7 +1172,7 @@ void hid_setup_resolution_multiplier(struct hid_device *hid)
 	rep_enum = &hid->report_enum[HID_FEATURE_REPORT];
 	list_for_each_entry(rep, &rep_enum->report_list, list) {
 		for (i = 0; i < rep->maxfield; i++) {
-			/* Ignore if report count is out of bounds. */
+			/* Iganalre if report count is out of bounds. */
 			if (rep->field[i]->report_count < 1)
 				continue;
 
@@ -1194,7 +1194,7 @@ EXPORT_SYMBOL_GPL(hid_setup_resolution_multiplier);
  *
  * Parse a report description into a hid_device structure. Reports are
  * enumerated, fields are attached to these reports.
- * 0 returned on success, otherwise nonzero error value.
+ * 0 returned on success, otherwise analnzero error value.
  *
  * This function (or the equivalent hid_parse() macro) should only be
  * called from probe() in drivers, before starting the device.
@@ -1223,13 +1223,13 @@ int hid_open_report(struct hid_device *device)
 
 	start = device->dev_rdesc;
 	if (WARN_ON(!start))
-		return -ENODEV;
+		return -EANALDEV;
 	size = device->dev_rsize;
 
 	/* call_hid_bpf_rdesc_fixup() ensures we work on a copy of rdesc */
 	buf = call_hid_bpf_rdesc_fixup(device, start, &size);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (device->driver->report_fixup)
 		start = device->driver->report_fixup(device, buf, &size);
@@ -1239,14 +1239,14 @@ int hid_open_report(struct hid_device *device)
 	start = kmemdup(start, size, GFP_KERNEL);
 	kfree(buf);
 	if (start == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device->rdesc = start;
 	device->rsize = size;
 
 	parser = vzalloc(sizeof(struct hid_parser));
 	if (!parser) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto alloc_err;
 	}
 
@@ -1257,7 +1257,7 @@ int hid_open_report(struct hid_device *device)
 	device->collection = kcalloc(HID_DEFAULT_NUM_COLLECTIONS,
 				     sizeof(struct hid_collection), GFP_KERNEL);
 	if (!device->collection) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	device->collection_size = HID_DEFAULT_NUM_COLLECTIONS;
@@ -1578,7 +1578,7 @@ static void hid_input_fetch_field(struct hid_device *hid,
 
 	value = field->new_value;
 	memset(value, 0, count * sizeof(__s32));
-	field->ignored = false;
+	field->iganalred = false;
 
 	for (n = 0; n < count; n++) {
 
@@ -1587,11 +1587,11 @@ static void hid_input_fetch_field(struct hid_device *hid,
 			       size), size) :
 			hid_field_extract(hid, data, offset + n * size, size);
 
-		/* Ignore report if ErrorRollOver */
+		/* Iganalre report if ErrorRollOver */
 		if (!(field->flags & HID_MAIN_ITEM_VARIABLE) &&
 		    hid_array_value_is_valid(field, value[n]) &&
 		    field->usage[value[n] - min].hid == HID_UP_KEYBOARD + 1) {
-			field->ignored = true;
+			field->iganalred = true;
 			return;
 		}
 	}
@@ -1636,7 +1636,7 @@ static void hid_input_array_field(struct hid_device *hid,
 	value = field->new_value;
 
 	/* ErrorRollOver */
-	if (field->ignored)
+	if (field->iganalred)
 		return;
 
 	for (n = 0; n < count; n++) {
@@ -1783,7 +1783,7 @@ static void hid_report_process_ordering(struct hid_device *hid,
 	 * store them by priority order in report->field_entry_list
 	 *
 	 * - Var elements are individualized (field + usage_index)
-	 * - Arrays are taken as one, we can not chose an order for them
+	 * - Arrays are taken as one, we can analt chose an order for them
 	 */
 	usages = 0;
 	for (a = 0; a < report->maxfield; a++) {
@@ -1917,7 +1917,7 @@ static struct hid_report *hid_get_report(struct hid_report_enum *report_enum,
 		const u8 *data)
 {
 	struct hid_report *report;
-	unsigned int n = 0;	/* Normally report number is 0 */
+	unsigned int n = 0;	/* Analrmally report number is 0 */
 
 	/* Device uses numbered reports, data[0] is report number */
 	if (report_enum->numbered)
@@ -1932,7 +1932,7 @@ static struct hid_report *hid_get_report(struct hid_report_enum *report_enum,
 
 /*
  * Implement a generic .request() callback, using .raw_request()
- * DO NOT USE in hid drivers directly, but through hid_hw_request instead.
+ * DO ANALT USE in hid drivers directly, but through hid_hw_request instead.
  */
 int __hid_request(struct hid_device *hid, struct hid_report *report,
 		enum hid_class_request reqtype)
@@ -1943,7 +1943,7 @@ int __hid_request(struct hid_device *hid, struct hid_report *report,
 
 	buf = hid_alloc_report_buf(report, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len = hid_report_len(report);
 
@@ -2046,13 +2046,13 @@ int hid_input_report(struct hid_device *hid, enum hid_report_type type, u8 *data
 	int ret = 0;
 
 	if (!hid)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (down_trylock(&hid->driver_input_lock))
 		return -EBUSY;
 
 	if (!hid->driver) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock;
 	}
 	report_enum = hid->report_enum + type;
@@ -2205,11 +2205,11 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 	if (connect_mask & HID_CONNECT_DRIVER)
 		hdev->claimed |= HID_CLAIMED_DRIVER;
 
-	/* Drivers with the ->raw_event callback set are not required to connect
+	/* Drivers with the ->raw_event callback set are analt required to connect
 	 * to any other listener. */
 	if (!hdev->claimed && !hdev->driver->raw_event) {
-		hid_err(hdev, "device has no listeners, quitting\n");
-		return -ENODEV;
+		hid_err(hdev, "device has anal listeners, quitting\n");
+		return -EANALDEV;
 	}
 
 	hid_process_ordering(hdev);
@@ -2223,10 +2223,10 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 		len += sprintf(buf + len, "input");
 	if (hdev->claimed & HID_CLAIMED_HIDDEV)
 		len += sprintf(buf + len, "%shiddev%d", len ? "," : "",
-				((struct hiddev *)hdev->hiddev)->minor);
+				((struct hiddev *)hdev->hiddev)->mianalr);
 	if (hdev->claimed & HID_CLAIMED_HIDRAW)
 		len += sprintf(buf + len, "%shidraw%d", len ? "," : "",
-				((struct hidraw *)hdev->hidraw)->minor);
+				((struct hidraw *)hdev->hidraw)->mianalr);
 
 	type = "Device";
 	for (i = 0; i < hdev->maxcollection; i++) {
@@ -2257,7 +2257,7 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 		bus = "SENSOR HUB";
 		break;
 	default:
-		bus = "<UNKNOWN>";
+		bus = "<UNKANALWN>";
 	}
 
 	ret = device_create_file(&hdev->dev, &dev_attr_country);
@@ -2294,7 +2294,7 @@ EXPORT_SYMBOL_GPL(hid_disconnect);
  * @connect_mask: which outputs to connect, see HID_CONNECT_*
  *
  * Call this in probe function *after* hid_parse. This will setup HW
- * buffers and start the device (if not defeirred to device open).
+ * buffers and start the device (if analt defeirred to device open).
  * hid_hw_stop must be called if this was successful.
  */
 int hid_hw_start(struct hid_device *hdev, unsigned int connect_mask)
@@ -2363,8 +2363,8 @@ EXPORT_SYMBOL_GPL(hid_hw_open);
  *
  * @hdev: hid device
  *
- * This function indicates that we are not interested in the events
- * from this device anymore. Delivery of events may or may not stop,
+ * This function indicates that we are analt interested in the events
+ * from this device anymore. Delivery of events may or may analt stop,
  * depending on the number of users still outstanding.
  */
 void hid_hw_close(struct hid_device *hdev)
@@ -2446,7 +2446,7 @@ int hid_hw_output_report(struct hid_device *hdev, __u8 *buf, size_t len)
 	if (hdev->ll_driver->output_report)
 		return hdev->ll_driver->output_report(hdev, buf, len);
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 EXPORT_SYMBOL_GPL(hid_hw_output_report);
 
@@ -2509,7 +2509,7 @@ static ssize_t new_id_store(struct device_driver *drv, const char *buf,
 
 	dynid = kzalloc(sizeof(*dynid), GFP_KERNEL);
 	if (!dynid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dynid->id.bus = bus;
 	dynid->id.group = HID_GROUP_ANY;
@@ -2603,14 +2603,14 @@ static bool hid_check_device_match(struct hid_device *hdev,
 		return false;
 
 	if (hdrv->match)
-		return hdrv->match(hdev, hid_ignore_special_drivers);
+		return hdrv->match(hdev, hid_iganalre_special_drivers);
 
 	/*
 	 * hid-generic implements .match(), so we must be dealing with a
 	 * different HID driver here, and can simply check if
-	 * hid_ignore_special_drivers is set or not.
+	 * hid_iganalre_special_drivers is set or analt.
 	 */
-	return !hid_ignore_special_drivers;
+	return !hid_iganalre_special_drivers;
 }
 
 static int __hid_device_probe(struct hid_device *hdev, struct hid_driver *hdrv)
@@ -2619,11 +2619,11 @@ static int __hid_device_probe(struct hid_device *hdev, struct hid_driver *hdrv)
 	int ret;
 
 	if (!hid_check_device_match(hdev, hdrv, &id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	hdev->devres_group_id = devres_open_group(&hdev->dev, NULL, GFP_KERNEL);
 	if (!hdev->devres_group_id)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* reset the quirks that has been previously set */
 	hdev->quirks = hid_lookup_quirk(hdev);
@@ -2638,7 +2638,7 @@ static int __hid_device_probe(struct hid_device *hdev, struct hid_driver *hdrv)
 	}
 
 	/*
-	 * Note that we are not closing the devres group opened above so
+	 * Analte that we are analt closing the devres group opened above so
 	 * even resources that were attached to the device after probe is
 	 * run are released when hid_device_remove() is executed. This is
 	 * needed as some drivers would allocate additional resources,
@@ -2731,20 +2731,20 @@ static int hid_uevent(const struct device *dev, struct kobj_uevent_env *env)
 
 	if (add_uevent_var(env, "HID_ID=%04X:%08X:%08X",
 			hdev->bus, hdev->vendor, hdev->product))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (add_uevent_var(env, "HID_NAME=%s", hdev->name))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (add_uevent_var(env, "HID_PHYS=%s", hdev->phys))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (add_uevent_var(env, "HID_UNIQ=%s", hdev->uniq))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (add_uevent_var(env, "MODALIAS=hid:b%04Xg%04Xv%08Xp%08X",
 			   hdev->bus, hdev->group, hdev->vendor, hdev->product))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -2772,8 +2772,8 @@ int hid_add_device(struct hid_device *hdev)
 
 	/* we need to kill them here, otherwise they will stay allocated to
 	 * wait for coming driver */
-	if (hid_ignore(hdev))
-		return -ENODEV;
+	if (hid_iganalre(hdev))
+		return -EANALDEV;
 
 	/*
 	 * Check for the mandatory transport channel.
@@ -2791,12 +2791,12 @@ int hid_add_device(struct hid_device *hdev)
 	if (ret)
 		return ret;
 	if (!hdev->dev_rdesc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Scan generic devices for group information
 	 */
-	if (hid_ignore_special_drivers) {
+	if (hid_iganalre_special_drivers) {
 		hdev->group = HID_GROUP_GENERIC;
 	} else if (!hdev->group &&
 		   !(hdev->quirks & HID_QUIRK_HAVE_SPECIAL_DRIVER)) {
@@ -2835,7 +2835,7 @@ EXPORT_SYMBOL_GPL(hid_add_device);
 struct hid_device *hid_allocate_device(void)
 {
 	struct hid_device *hdev;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	hdev = kzalloc(sizeof(*hdev), GFP_KERNEL);
 	if (hdev == NULL)
@@ -2896,7 +2896,7 @@ static int __hid_bus_reprobe_drivers(struct device *dev, void *data)
 	struct hid_device *hdev = to_hid_device(dev);
 
 	if (hdev->driver == hdrv &&
-	    !hdrv->match(hdev, hid_ignore_special_drivers) &&
+	    !hdrv->match(hdev, hid_iganalre_special_drivers) &&
 	    !test_and_set_bit(ffs(HID_STAT_REPROBED), &hdev->status))
 		return device_reprobe(dev);
 

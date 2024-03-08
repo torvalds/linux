@@ -25,9 +25,9 @@ qedf_dbg_host_init(struct qedf_dbg_ctx *qedf,
 {
 	char host_dirname[32];
 
-	QEDF_INFO(qedf, QEDF_LOG_DEBUGFS, "Creating debugfs host node\n");
+	QEDF_INFO(qedf, QEDF_LOG_DEBUGFS, "Creating debugfs host analde\n");
 	/* create pf dir */
-	sprintf(host_dirname, "host%u", qedf->host_no);
+	sprintf(host_dirname, "host%u", qedf->host_anal);
 	qedf->bdf_dentry = debugfs_create_dir(host_dirname, qedf_dbg_root);
 
 	/* create debugfs files */
@@ -61,7 +61,7 @@ qedf_dbg_host_exit(struct qedf_dbg_ctx *qedf_dbg)
 void
 qedf_dbg_init(char *drv_name)
 {
-	QEDF_INFO(NULL, QEDF_LOG_DEBUGFS, "Creating debugfs root node\n");
+	QEDF_INFO(NULL, QEDF_LOG_DEBUGFS, "Creating debugfs root analde\n");
 
 	/* create qed dir in root of debugfs. NULL means debugfs root */
 	qedf_dbg_root = debugfs_create_dir(drv_name, NULL);
@@ -230,7 +230,7 @@ qedf_dbg_stop_io_on_error_cmd_write(struct file *filp,
 		qedf->stop_io_on_error = false;
 	else if (strncmp(kern_buf, "true", 4) == 0)
 		qedf->stop_io_on_error = true;
-	else if (strncmp(kern_buf, "now", 3) == 0)
+	else if (strncmp(kern_buf, "analw", 3) == 0)
 		/* Trigger from user to stop all I/O on this host */
 		set_bit(QEDF_DBG_STOP_IO, &qedf->flags);
 
@@ -248,7 +248,7 @@ qedf_io_trace_show(struct seq_file *s, void *unused)
 	unsigned long flags;
 
 	if (!qedf_io_tracing) {
-		seq_puts(s, "I/O tracing not enabled.\n");
+		seq_puts(s, "I/O tracing analt enabled.\n");
 		goto out;
 	}
 
@@ -286,9 +286,9 @@ out:
 }
 
 static int
-qedf_dbg_io_trace_open(struct inode *inode, struct file *file)
+qedf_dbg_io_trace_open(struct ianalde *ianalde, struct file *file)
 {
-	struct qedf_dbg_ctx *qedf_dbg = inode->i_private;
+	struct qedf_dbg_ctx *qedf_dbg = ianalde->i_private;
 	struct qedf_ctx *qedf = container_of(qedf_dbg,
 	    struct qedf_ctx, dbg_ctx);
 
@@ -300,7 +300,7 @@ static char *fip_state_names[] = {
 	"FIP_ST_DISABLED",
 	"FIP_ST_LINK_WAIT",
 	"FIP_ST_AUTO",
-	"FIP_ST_NON_FIP",
+	"FIP_ST_ANALN_FIP",
 	"FIP_ST_ENABLED",
 	"FIP_ST_VNMP_START",
 	"FIP_ST_VNMP_PROBE1",
@@ -344,7 +344,7 @@ qedf_driver_stats_show(struct seq_file *s, void *unused)
 			   qedf->ctlr.sel_fcf->switch_name);
 		seq_printf(s, "FCF MAC: %pM\n", qedf->ctlr.sel_fcf->fcf_mac);
 	} else {
-		seq_puts(s, "FCF not selected\n");
+		seq_puts(s, "FCF analt selected\n");
 	}
 
 	seq_puts(s, "\nSGE stats:\n\n");
@@ -361,7 +361,7 @@ qedf_driver_stats_show(struct seq_file *s, void *unused)
 		if (rdata == NULL)
 			continue;
 		seq_printf(s, "%016llx/%016llx/%06x: state=%s, free_sqes=%d, num_active_ios=%d\n",
-			   rdata->rport->node_name, rdata->rport->port_name,
+			   rdata->rport->analde_name, rdata->rport->port_name,
 			   rdata->ids.port_id,
 			   fc_rport_state_names[rdata->rp_state],
 			   atomic_read(&fcport->free_sqes),
@@ -373,9 +373,9 @@ qedf_driver_stats_show(struct seq_file *s, void *unused)
 }
 
 static int
-qedf_dbg_driver_stats_open(struct inode *inode, struct file *file)
+qedf_dbg_driver_stats_open(struct ianalde *ianalde, struct file *file)
 {
-	struct qedf_dbg_ctx *qedf_dbg = inode->i_private;
+	struct qedf_dbg_ctx *qedf_dbg = ianalde->i_private;
 	struct qedf_ctx *qedf = container_of(qedf_dbg,
 	    struct qedf_ctx, dbg_ctx);
 
@@ -409,7 +409,7 @@ qedf_dbg_clear_stats_cmd_write(struct file *filp,
 	if (!count || *ppos)
 		return 0;
 
-	/* Clear stat counters exposed by 'stats' node */
+	/* Clear stat counters exposed by 'stats' analde */
 	qedf->slow_sge_ios = 0;
 	qedf->fast_sge_ios = 0;
 
@@ -424,7 +424,7 @@ qedf_offload_stats_show(struct seq_file *s, void *unused)
 
 	fw_fcoe_stats = kmalloc(sizeof(struct qed_fcoe_stats), GFP_KERNEL);
 	if (!fw_fcoe_stats) {
-		QEDF_ERR(&(qedf->dbg_ctx), "Could not allocate memory for "
+		QEDF_ERR(&(qedf->dbg_ctx), "Could analt allocate memory for "
 		    "fw_fcoe_stats.\n");
 		goto out;
 	}
@@ -465,9 +465,9 @@ out:
 }
 
 static int
-qedf_dbg_offload_stats_open(struct inode *inode, struct file *file)
+qedf_dbg_offload_stats_open(struct ianalde *ianalde, struct file *file)
 {
-	struct qedf_dbg_ctx *qedf_dbg = inode->i_private;
+	struct qedf_dbg_ctx *qedf_dbg = ianalde->i_private;
 	struct qedf_ctx *qedf = container_of(qedf_dbg,
 	    struct qedf_ctx, dbg_ctx);
 

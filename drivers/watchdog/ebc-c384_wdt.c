@@ -5,7 +5,7 @@
  */
 #include <linux/device.h>
 #include <linux/dmi.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/isa.h>
@@ -27,10 +27,10 @@
 #define CFG_ADDR		(BASE_ADDR + 1)
 #define PET_ADDR		(BASE_ADDR + 2)
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+	__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static unsigned timeout;
 module_param(timeout, uint, 0);
@@ -99,7 +99,7 @@ static int ebc_c384_wdt_probe(struct device *dev, unsigned int id)
 
 	wdd = devm_kzalloc(dev, sizeof(*wdd), GFP_KERNEL);
 	if (!wdd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdd->info = &ebc_c384_wdt_info;
 	wdd->ops = &ebc_c384_wdt_ops;
@@ -107,7 +107,7 @@ static int ebc_c384_wdt_probe(struct device *dev, unsigned int id)
 	wdd->min_timeout = 1;
 	wdd->max_timeout = WATCHDOG_MAX_TIMEOUT;
 
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_analwayout(wdd, analwayout);
 	watchdog_init_timeout(wdd, timeout, dev);
 
 	return devm_watchdog_register_device(dev, wdd);
@@ -123,7 +123,7 @@ static struct isa_driver ebc_c384_wdt_driver = {
 static int __init ebc_c384_wdt_init(void)
 {
 	if (!dmi_match(DMI_BOARD_NAME, "EBC-C384 SBC"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return isa_register_driver(&ebc_c384_wdt_driver, 1);
 }

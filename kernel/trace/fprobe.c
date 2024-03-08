@@ -14,8 +14,8 @@
 
 #include "trace.h"
 
-struct fprobe_rethook_node {
-	struct rethook_node node;
+struct fprobe_rethook_analde {
+	struct rethook_analde analde;
 	unsigned long entry_ip;
 	unsigned long entry_parent_ip;
 	char data[];
@@ -24,8 +24,8 @@ struct fprobe_rethook_node {
 static inline void __fprobe_handler(unsigned long ip, unsigned long parent_ip,
 			struct ftrace_ops *ops, struct ftrace_regs *fregs)
 {
-	struct fprobe_rethook_node *fpr;
-	struct rethook_node *rh = NULL;
+	struct fprobe_rethook_analde *fpr;
+	struct rethook_analde *rh = NULL;
 	struct fprobe *fp;
 	void *entry_data = NULL;
 	int ret = 0;
@@ -38,7 +38,7 @@ static inline void __fprobe_handler(unsigned long ip, unsigned long parent_ip,
 			fp->nmissed++;
 			return;
 		}
-		fpr = container_of(rh, struct fprobe_rethook_node, node);
+		fpr = container_of(rh, struct fprobe_rethook_analde, analde);
 		fpr->entry_ip = ip;
 		fpr->entry_parent_ip = parent_ip;
 		if (fp->entry_data_size)
@@ -48,7 +48,7 @@ static inline void __fprobe_handler(unsigned long ip, unsigned long parent_ip,
 	if (fp->entry_handler)
 		ret = fp->entry_handler(fp, ip, parent_ip, ftrace_get_regs(fregs), entry_data);
 
-	/* If entry_handler returns !0, nmissed is not counted. */
+	/* If entry_handler returns !0, nmissed is analt counted. */
 	if (rh) {
 		if (ret)
 			rethook_recycle(rh);
@@ -68,7 +68,7 @@ static void fprobe_handler(unsigned long ip, unsigned long parent_ip,
 		return;
 
 	/* recursion detection has to go before any traceable function and
-	 * all functions before this point should be marked as notrace
+	 * all functions before this point should be marked as analtrace
 	 */
 	bit = ftrace_test_recursion_trylock(ip, parent_ip);
 	if (bit < 0) {
@@ -79,7 +79,7 @@ static void fprobe_handler(unsigned long ip, unsigned long parent_ip,
 	ftrace_test_recursion_unlock(bit);
 
 }
-NOKPROBE_SYMBOL(fprobe_handler);
+ANALKPROBE_SYMBOL(fprobe_handler);
 
 static void fprobe_kprobe_handler(unsigned long ip, unsigned long parent_ip,
 				  struct ftrace_ops *ops, struct ftrace_regs *fregs)
@@ -92,7 +92,7 @@ static void fprobe_kprobe_handler(unsigned long ip, unsigned long parent_ip,
 		return;
 
 	/* recursion detection has to go before any traceable function and
-	 * all functions called before this point should be marked as notrace
+	 * all functions called before this point should be marked as analtrace
 	 */
 	bit = ftrace_test_recursion_trylock(ip, parent_ip);
 	if (bit < 0) {
@@ -101,7 +101,7 @@ static void fprobe_kprobe_handler(unsigned long ip, unsigned long parent_ip,
 	}
 
 	/*
-	 * This user handler is shared with other kprobes and is not expected to be
+	 * This user handler is shared with other kprobes and is analt expected to be
 	 * called recursively. So if any other kprobe handler is running, this will
 	 * exit as kprobe does. See the section 'Share the callbacks with kprobes'
 	 * in Documentation/trace/fprobe.rst for more information.
@@ -119,20 +119,20 @@ recursion_unlock:
 	ftrace_test_recursion_unlock(bit);
 }
 
-static void fprobe_exit_handler(struct rethook_node *rh, void *data,
+static void fprobe_exit_handler(struct rethook_analde *rh, void *data,
 				unsigned long ret_ip, struct pt_regs *regs)
 {
 	struct fprobe *fp = (struct fprobe *)data;
-	struct fprobe_rethook_node *fpr;
+	struct fprobe_rethook_analde *fpr;
 	int bit;
 
 	if (!fp || fprobe_disabled(fp))
 		return;
 
-	fpr = container_of(rh, struct fprobe_rethook_node, node);
+	fpr = container_of(rh, struct fprobe_rethook_analde, analde);
 
 	/*
-	 * we need to assure no calls to traceable functions in-between the
+	 * we need to assure anal calls to traceable functions in-between the
 	 * end of fprobe_handler and the beginning of fprobe_exit_handler.
 	 */
 	bit = ftrace_test_recursion_trylock(fpr->entry_ip, fpr->entry_parent_ip);
@@ -145,7 +145,7 @@ static void fprobe_exit_handler(struct rethook_node *rh, void *data,
 			 fp->entry_data_size ? (void *)fpr->data : NULL);
 	ftrace_test_recursion_unlock(bit);
 }
-NOKPROBE_SYMBOL(fprobe_exit_handler);
+ANALKPROBE_SYMBOL(fprobe_exit_handler);
 
 static int symbols_cmp(const void *a, const void *b)
 {
@@ -163,7 +163,7 @@ static unsigned long *get_ftrace_locations(const char **syms, int num)
 	/* Convert symbols to symbol address */
 	addrs = kcalloc(num, sizeof(*addrs), GFP_KERNEL);
 	if (!addrs)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* ftrace_lookup_symbols expects sorted symbols */
 	sort(syms, num, sizeof(*syms), symbols_cmp, NULL);
@@ -172,7 +172,7 @@ static unsigned long *get_ftrace_locations(const char **syms, int num)
 		return addrs;
 
 	kfree(addrs);
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 static void fprobe_init(struct fprobe *fp)
@@ -202,7 +202,7 @@ static int fprobe_init_rethook(struct fprobe *fp, int num)
 	if (num <= 0)
 		return -EINVAL;
 
-	size = sizeof(struct fprobe_rethook_node) + fp->entry_data_size;
+	size = sizeof(struct fprobe_rethook_analde) + fp->entry_data_size;
 
 	/* Initialize rethook */
 	fp->rethook = rethook_alloc((void *)fp, fprobe_exit_handler, size, num);
@@ -215,7 +215,7 @@ static int fprobe_init_rethook(struct fprobe *fp, int num)
 static void fprobe_fail_cleanup(struct fprobe *fp)
 {
 	if (!IS_ERR_OR_NULL(fp->rethook)) {
-		/* Don't need to cleanup rethook->handler because this is not used. */
+		/* Don't need to cleanup rethook->handler because this is analt used. */
 		rethook_free(fp->rethook);
 		fp->rethook = NULL;
 	}
@@ -226,14 +226,14 @@ static void fprobe_fail_cleanup(struct fprobe *fp)
  * register_fprobe() - Register fprobe to ftrace by pattern.
  * @fp: A fprobe data structure to be registered.
  * @filter: A wildcard pattern of probed symbols.
- * @notfilter: A wildcard pattern of NOT probed symbols.
+ * @analtfilter: A wildcard pattern of ANALT probed symbols.
  *
  * Register @fp to ftrace for enabling the probe on the symbols matched to @filter.
- * If @notfilter is not NULL, the symbols matched the @notfilter are not probed.
+ * If @analtfilter is analt NULL, the symbols matched the @analtfilter are analt probed.
  *
- * Return 0 if @fp is registered successfully, -errno if not.
+ * Return 0 if @fp is registered successfully, -erranal if analt.
  */
-int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter)
+int register_fprobe(struct fprobe *fp, const char *filter, const char *analtfilter)
 {
 	struct ftrace_hash *hash;
 	unsigned char *str;
@@ -251,10 +251,10 @@ int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter
 	if (ret)
 		return ret;
 
-	if (notfilter) {
-		len = strlen(notfilter);
-		str = kstrdup(notfilter, GFP_KERNEL);
-		ret = ftrace_set_notrace(&fp->ops, str, len, 0);
+	if (analtfilter) {
+		len = strlen(analtfilter);
+		str = kstrdup(analtfilter, GFP_KERNEL);
+		ret = ftrace_set_analtrace(&fp->ops, str, len, 0);
 		kfree(str);
 		if (ret)
 			goto out;
@@ -262,7 +262,7 @@ int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter
 
 	/* TODO:
 	 * correctly calculate the total number of filtered symbols
-	 * from both filter and notfilter.
+	 * from both filter and analtfilter.
 	 */
 	hash = rcu_access_pointer(fp->ops.local_hash.filter_hash);
 	if (WARN_ON_ONCE(!hash))
@@ -290,7 +290,7 @@ EXPORT_SYMBOL_GPL(register_fprobe);
  * the symbol address + arch-dependent offset.
  * If you unsure what this mean, please use other registration functions.
  *
- * Return 0 if @fp is registered successfully, -errno if not.
+ * Return 0 if @fp is registered successfully, -erranal if analt.
  */
 int register_fprobe_ips(struct fprobe *fp, unsigned long *addrs, int num)
 {
@@ -324,7 +324,7 @@ EXPORT_SYMBOL_GPL(register_fprobe_ips);
  * Register @fp to the symbols given by @syms array. This will be useful if
  * you are sure the symbols exist in the kernel.
  *
- * Return 0 if @fp is registered successfully, -errno if not.
+ * Return 0 if @fp is registered successfully, -erranal if analt.
  */
 int register_fprobe_syms(struct fprobe *fp, const char **syms, int num)
 {
@@ -360,7 +360,7 @@ bool fprobe_is_registered(struct fprobe *fp)
  *
  * Unregister fprobe (and remove ftrace hooks from the function entries).
  *
- * Return 0 if @fp is unregistered successfully, -errno if not.
+ * Return 0 if @fp is unregistered successfully, -erranal if analt.
  */
 int unregister_fprobe(struct fprobe *fp)
 {

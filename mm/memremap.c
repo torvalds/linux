@@ -27,7 +27,7 @@ static DEFINE_XARRAY(pgmap_array);
  *
  * The role of memremap_compat_align() is to communicate the minimum
  * arch supported alignment of a namespace such that it can freely
- * switch modes without violating the arch constraint. Namely, do not
+ * switch modes without violating the arch constraint. Namely, do analt
  * allow a namespace to be PAGE_SIZE aligned since that namespace may be
  * reconfigured into a mode that requires SUBSECTION_SIZE alignment.
  */
@@ -176,25 +176,25 @@ static int pagemap_range(struct dev_pagemap *pgmap, struct mhp_params *params,
 	int error, is_ram;
 
 	if (WARN_ONCE(pgmap_altmap(pgmap) && range_id > 0,
-				"altmap not supported for multiple ranges\n"))
+				"altmap analt supported for multiple ranges\n"))
 		return -EINVAL;
 
 	conflict_pgmap = get_dev_pagemap(PHYS_PFN(range->start), NULL);
 	if (conflict_pgmap) {
 		WARN(1, "Conflicting mapping in same section\n");
 		put_dev_pagemap(conflict_pgmap);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	conflict_pgmap = get_dev_pagemap(PHYS_PFN(range->end), NULL);
 	if (conflict_pgmap) {
 		WARN(1, "Conflicting mapping in same section\n");
 		put_dev_pagemap(conflict_pgmap);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	is_ram = region_intersects(range->start, range_len(range),
-		IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
+		IORESOURCE_SYSTEM_RAM, IORES_DESC_ANALNE);
 
 	if (is_ram != REGION_DISJOINT) {
 		WARN_ONCE(1, "attempted on %s region %#llx-%#llx\n",
@@ -226,7 +226,7 @@ static int pagemap_range(struct dev_pagemap *pgmap, struct mhp_params *params,
 	/*
 	 * For device private memory we call add_pages() as we only need to
 	 * allocate and initialize struct page for the device memory. More-
-	 * over the device memory is un-accessible thus we do not want to
+	 * over the device memory is un-accessible thus we do analt want to
 	 * create a linear mapping for the memory like arch_add_memory()
 	 * would do.
 	 *
@@ -251,7 +251,7 @@ static int pagemap_range(struct dev_pagemap *pgmap, struct mhp_params *params,
 	if (!error) {
 		struct zone *zone;
 
-		zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
+		zone = &ANALDE_DATA(nid)->analde_zones[ZONE_DEVICE];
 		move_pfn_range_to_zone(zone, PHYS_PFN(range->start),
 				PHYS_PFN(range_len(range)), params->altmap,
 				MIGRATE_MOVABLE);
@@ -262,10 +262,10 @@ static int pagemap_range(struct dev_pagemap *pgmap, struct mhp_params *params,
 		goto err_add_memory;
 
 	/*
-	 * Initialization of the pages has been deferred until now in order
-	 * to allow us to do the work while not holding the hotplug lock.
+	 * Initialization of the pages has been deferred until analw in order
+	 * to allow us to do the work while analt holding the hotplug lock.
 	 */
-	memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
+	memmap_init_zone_device(&ANALDE_DATA(nid)->analde_zones[ZONE_DEVICE],
 				PHYS_PFN(range->start),
 				PHYS_PFN(range_len(range)), pgmap);
 	if (pgmap->type != MEMORY_DEVICE_PRIVATE &&
@@ -285,7 +285,7 @@ err_pfn_remap:
 
 
 /*
- * Not device managed version of devm_memremap_pages, undone by
+ * Analt device managed version of devm_memremap_pages, undone by
  * memunmap_pages().  Please use devm_memremap_pages if you have a struct
  * device available.
  */
@@ -305,7 +305,7 @@ void *memremap_pages(struct dev_pagemap *pgmap, int nid)
 	switch (pgmap->type) {
 	case MEMORY_DEVICE_PRIVATE:
 		if (!IS_ENABLED(CONFIG_DEVICE_PRIVATE)) {
-			WARN(1, "Device private memory not supported\n");
+			WARN(1, "Device private memory analt supported\n");
 			return ERR_PTR(-EINVAL);
 		}
 		if (!pgmap->ops || !pgmap->ops->migrate_to_ram) {
@@ -333,7 +333,7 @@ void *memremap_pages(struct dev_pagemap *pgmap, int nid)
 		break;
 	case MEMORY_DEVICE_FS_DAX:
 		if (IS_ENABLED(CONFIG_FS_DAX_LIMITED)) {
-			WARN(1, "File system DAX not supported\n");
+			WARN(1, "File system DAX analt supported\n");
 			return ERR_PTR(-EINVAL);
 		}
 		params.pgprot = pgprot_decrypted(params.pgprot);
@@ -341,7 +341,7 @@ void *memremap_pages(struct dev_pagemap *pgmap, int nid)
 	case MEMORY_DEVICE_GENERIC:
 		break;
 	case MEMORY_DEVICE_PCI_P2PDMA:
-		params.pgprot = pgprot_noncached(params.pgprot);
+		params.pgprot = pgprot_analncached(params.pgprot);
 		break;
 	default:
 		WARN(1, "Invalid pgmap type %d\n", pgmap->type);
@@ -385,7 +385,7 @@ EXPORT_SYMBOL_GPL(memremap_pages);
  * @dev: hosting device for @res
  * @pgmap: pointer to a struct dev_pagemap
  *
- * Notes:
+ * Analtes:
  * 1/ At a minimum the range and type members of @pgmap must be initialized
  *    by the caller before passing it to this function
  *
@@ -397,15 +397,15 @@ EXPORT_SYMBOL_GPL(memremap_pages);
  *    devm_memremap_pages_release() time, or if this routine fails.
  *
  * 4/ range is expected to be a host memory range that could feasibly be
- *    treated as a "System RAM" range, i.e. not a device mmio range, but
- *    this is not enforced.
+ *    treated as a "System RAM" range, i.e. analt a device mmio range, but
+ *    this is analt enforced.
  */
 void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 {
 	int error;
 	void *ret;
 
-	ret = memremap_pages(pgmap, dev_to_node(dev));
+	ret = memremap_pages(pgmap, dev_to_analde(dev));
 	if (IS_ERR(ret))
 		return ret;
 
@@ -426,10 +426,10 @@ EXPORT_SYMBOL_GPL(devm_memunmap_pages);
 /**
  * get_dev_pagemap() - take a new live reference on the dev_pagemap for @pfn
  * @pfn: page frame number to lookup page_map
- * @pgmap: optional known pgmap that already has a reference
+ * @pgmap: optional kanalwn pgmap that already has a reference
  *
- * If @pgmap is non-NULL and covers @pfn it will be returned as-is.  If @pgmap
- * is non-NULL but does not cover @pfn the reference to it will be released.
+ * If @pgmap is analn-NULL and covers @pfn it will be returned as-is.  If @pgmap
+ * is analn-NULL but does analt cover @pfn the reference to it will be released.
  */
 struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
 		struct dev_pagemap *pgmap)
@@ -464,23 +464,23 @@ void free_zone_device_page(struct page *page)
 	mem_cgroup_uncharge(page_folio(page));
 
 	/*
-	 * Note: we don't expect anonymous compound pages yet. Once supported
+	 * Analte: we don't expect aanalnymous compound pages yet. Once supported
 	 * and we could PTE-map them similar to THP, we'd have to clear
-	 * PG_anon_exclusive on all tail pages.
+	 * PG_aanaln_exclusive on all tail pages.
 	 */
-	VM_BUG_ON_PAGE(PageAnon(page) && PageCompound(page), page);
-	if (PageAnon(page))
-		__ClearPageAnonExclusive(page);
+	VM_BUG_ON_PAGE(PageAanaln(page) && PageCompound(page), page);
+	if (PageAanaln(page))
+		__ClearPageAanalnExclusive(page);
 
 	/*
 	 * When a device managed page is freed, the folio->mapping field
 	 * may still contain a (stale) mapping value. For example, the
 	 * lower bits of folio->mapping may still identify the folio as an
-	 * anonymous folio. Ultimately, this entire field is just stale
-	 * and wrong, and it will cause errors if not cleared.
+	 * aanalnymous folio. Ultimately, this entire field is just stale
+	 * and wrong, and it will cause errors if analt cleared.
 	 *
 	 * For other types of ZONE_DEVICE pages, migration is either
-	 * handled differently or not done at all, so there is no need
+	 * handled differently or analt done at all, so there is anal need
 	 * to clear page->mapping.
 	 */
 	page->mapping = NULL;
@@ -518,7 +518,7 @@ bool __put_devmap_managed_page_refs(struct page *page, int refs)
 	/*
 	 * fsdax page refcounts are 1-based, rather than 0-based: if
 	 * refcount is 1, then the page is free and the refcount is
-	 * stable because nobody holds a reference on the page.
+	 * stable because analbody holds a reference on the page.
 	 */
 	if (page_ref_sub_return(page, refs) == 1)
 		wake_up_var(&page->_refcount);

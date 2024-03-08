@@ -2,7 +2,7 @@
 /*
  * linux/arch/sh/boards/se/7722/setup.c
  *
- * Copyright (C) 2007 Nobuhiro Iwamatsu
+ * Copyright (C) 2007 Analbuhiro Iwamatsu
  * Copyright (C) 2012 Paul Mundt
  *
  * Hitachi UL SolutionEngine 7722 Support.

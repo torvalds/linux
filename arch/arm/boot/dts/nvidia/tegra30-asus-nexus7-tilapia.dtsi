@@ -134,14 +134,14 @@
 			kb_row15_ps7 {
 				nvidia,pins = "kb_row15_ps7";
 				nvidia,function = "kbc";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 			dap3_sclk_pp3 {
 				nvidia,pins = "dap3_sclk_pp3";
 				nvidia,function = "i2s2";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
@@ -166,14 +166,14 @@
 						"gmi_cs4_n_pk2",
 						"gmi_cs3_n_pk4";
 				nvidia,function = "rsvd1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 			gmi_cs6_n_pi3 {
 				nvidia,pins = "gmi_cs6_n_pi3";
 				nvidia,function = "gmi";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
@@ -188,7 +188,7 @@
 			/*
 			 * Binding doesn't support specifying linux,input-type
 			 * and this results in unwanted key-presses handled by
-			 * applications, hence keep it disabled for now.
+			 * applications, hence keep it disabled for analw.
 			 */
 			status = "disabled";
 

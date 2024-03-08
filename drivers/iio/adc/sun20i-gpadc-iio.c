@@ -53,8 +53,8 @@ struct sun20i_gpadc_iio {
 	 * read access from userspace. Reading a raw value requires a sequence
 	 * of register writes, then a wait for a completion callback,
 	 * and finally a register read, during which userspace could issue
-	 * another read request. This lock protects a read access from
-	 * ocurring before another one has finished.
+	 * aanalther read request. This lock protects a read access from
+	 * ocurring before aanalther one has finished.
 	 */
 	struct mutex		lock;
 };
@@ -90,8 +90,8 @@ static int sun20i_gpadc_adc_read(struct sun20i_gpadc_iio *info,
 	 * According to the datasheet maximum acquire time(TACQ) can be
 	 * (65535+1)/24Mhz and conversion time(CONV_TIME) is always constant
 	 * and equal to 14/24Mhz, so (TACQ+CONV_TIME) <= 2.73125ms.
-	 * A 10ms delay should be enough to make sure an interrupt occurs in
-	 * normal conditions. If it doesn't occur, then there is a timeout.
+	 * A 10ms delay should be eanalugh to make sure an interrupt occurs in
+	 * analrmal conditions. If it doesn't occur, then there is a timeout.
 	 */
 	if (!wait_for_completion_timeout(&info->completion, msecs_to_jiffies(10))) {
 		ret = -ETIMEDOUT;
@@ -155,22 +155,22 @@ static int sun20i_gpadc_alloc_channels(struct iio_dev *indio_dev,
 	unsigned int channel;
 	int num_channels, i, ret;
 	struct iio_chan_spec *channels;
-	struct fwnode_handle *node;
+	struct fwanalde_handle *analde;
 
-	num_channels = device_get_child_node_count(dev);
+	num_channels = device_get_child_analde_count(dev);
 	if (num_channels == 0)
-		return dev_err_probe(dev, -ENODEV, "no channel children\n");
+		return dev_err_probe(dev, -EANALDEV, "anal channel children\n");
 
 	channels = devm_kcalloc(dev, num_channels, sizeof(*channels),
 				GFP_KERNEL);
 	if (!channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
-	device_for_each_child_node(dev, node) {
-		ret = fwnode_property_read_u32(node, "reg", &channel);
+	device_for_each_child_analde(dev, analde) {
+		ret = fwanalde_property_read_u32(analde, "reg", &channel);
 		if (ret) {
-			fwnode_handle_put(node);
+			fwanalde_handle_put(analde);
 			return dev_err_probe(dev, ret, "invalid channel number\n");
 		}
 
@@ -201,7 +201,7 @@ static int sun20i_gpadc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*info));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = iio_priv(indio_dev);
 	info->last_channel = -1;
@@ -251,7 +251,7 @@ static int sun20i_gpadc_probe(struct platform_device *pdev)
 
 	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
-		return dev_err_probe(dev, ret, "could not register the device\n");
+		return dev_err_probe(dev, ret, "could analt register the device\n");
 
 	return 0;
 }

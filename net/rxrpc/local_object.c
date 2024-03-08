@@ -118,7 +118,7 @@ static struct rxrpc_local *rxrpc_alloc_local(struct net *net,
 		atomic_set(&local->active_users, 1);
 		local->net = net;
 		local->rxnet = rxrpc_net(net);
-		INIT_HLIST_NODE(&local->link);
+		INIT_HLIST_ANALDE(&local->link);
 		init_completion(&local->io_thread_ready);
 #ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
 		skb_queue_head_init(&local->rx_delay_queue);
@@ -252,7 +252,7 @@ struct rxrpc_local *rxrpc_lookup_local(struct net *net,
 {
 	struct rxrpc_local *local;
 	struct rxrpc_net *rxnet = rxrpc_net(net);
-	struct hlist_node *cursor;
+	struct hlist_analde *cursor;
 	long diff;
 	int ret;
 
@@ -291,7 +291,7 @@ struct rxrpc_local *rxrpc_lookup_local(struct net *net,
 
 	local = rxrpc_alloc_local(net, srx);
 	if (!local)
-		goto nomem;
+		goto analmem;
 
 	ret = rxrpc_open_socket(local, net);
 	if (ret < 0)
@@ -309,8 +309,8 @@ found:
 	_leave(" = %p", local);
 	return local;
 
-nomem:
-	ret = -ENOMEM;
+analmem:
+	ret = -EANALMEM;
 sock_error:
 	mutex_unlock(&rxnet->local_mutex);
 	if (local)
@@ -346,7 +346,7 @@ struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local,
 {
 	int r, u;
 
-	if (local && __refcount_inc_not_zero(&local->ref, &r)) {
+	if (local && __refcount_inc_analt_zero(&local->ref, &r)) {
 		u = atomic_read(&local->active_users);
 		trace_rxrpc_local(local->debug_id, why, r + 1, u);
 		return local;
@@ -417,7 +417,7 @@ void rxrpc_unuse_local(struct rxrpc_local *local, enum rxrpc_local_trace why)
  * Destroy a local endpoint's socket and then hand the record to RCU to dispose
  * of.
  *
- * Closing the socket cannot be done from bottom half context or RCU callback
+ * Closing the socket cananalt be done from bottom half context or RCU callback
  * context because it might sleep.
  */
 void rxrpc_destroy_local(struct rxrpc_local *local)
@@ -444,7 +444,7 @@ void rxrpc_destroy_local(struct rxrpc_local *local)
 		sock_release(socket);
 	}
 
-	/* At this point, there should be no more packets coming in to the
+	/* At this point, there should be anal more packets coming in to the
 	 * local endpoint.
 	 */
 #ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY

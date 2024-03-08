@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: RC
 
 .. _lirc_set_transmitter_mask:
@@ -12,7 +12,7 @@ Name
 
 LIRC_SET_TRANSMITTER_MASK - Enables send codes on a given set of transmitters
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: LIRC_SET_TRANSMITTER_MASK
@@ -40,12 +40,12 @@ This ioctl enables the given set of transmitters. The first transmitter is
 encoded by the least significant bit and so on.
 
 When an invalid bit mask is given, i.e. a bit is set, even though the device
-does not have so many transitters, then this ioctl returns the number of
-available transitters and does nothing otherwise.
+does analt have so many transitters, then this ioctl returns the number of
+available transitters and does analthing otherwise.
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

@@ -198,23 +198,23 @@ static int slpc_force_min_freq(struct intel_guc_slpc *slpc, u32 freq)
 	lockdep_assert_held(&slpc->lock);
 
 	if (!intel_guc_is_ready(guc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * This function is a little different as compared to
-	 * intel_guc_slpc_set_min_freq(). Softlimit will not be updated
+	 * intel_guc_slpc_set_min_freq(). Softlimit will analt be updated
 	 * here since this is used to temporarily change min freq,
 	 * for example, during a waitboost. Caller is responsible for
 	 * checking bounds.
 	 */
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		/* Non-blocking request will avoid stalls */
+		/* Analn-blocking request will avoid stalls */
 		ret = slpc_set_param_nb(slpc,
 					SLPC_PARAM_GLOBAL_MIN_GT_UNSLICE_FREQ_MHZ,
 					freq);
 		if (ret)
-			guc_notice(guc, "Failed to send set_param for min freq(%d): %pe\n",
+			guc_analtice(guc, "Failed to send set_param for min freq(%d): %pe\n",
 				   freq, ERR_PTR(ret));
 	}
 
@@ -230,7 +230,7 @@ static void slpc_boost_work(struct work_struct *work)
 	 * Raise min freq to boost. It's possible that
 	 * this is greater than current max. But it will
 	 * certainly be limited by RP0. An error setting
-	 * the min param is not fatal.
+	 * the min param is analt fatal.
 	 */
 	mutex_lock(&slpc->lock);
 	if (atomic_read(&slpc->num_waiters)) {
@@ -257,7 +257,7 @@ int intel_guc_slpc_init(struct intel_guc_slpc *slpc)
 
 	slpc->max_freq_softlimit = 0;
 	slpc->min_freq_softlimit = 0;
-	slpc->ignore_eff_freq = false;
+	slpc->iganalre_eff_freq = false;
 	slpc->min_is_rpmax = false;
 
 	slpc->boost_freq = 0;
@@ -274,8 +274,8 @@ int intel_guc_slpc_init(struct intel_guc_slpc *slpc)
 static const char *slpc_global_state_to_string(enum slpc_global_state state)
 {
 	switch (state) {
-	case SLPC_GLOBAL_STATE_NOT_RUNNING:
-		return "not running";
+	case SLPC_GLOBAL_STATE_ANALT_RUNNING:
+		return "analt running";
 	case SLPC_GLOBAL_STATE_INITIALIZING:
 		return "initializing";
 	case SLPC_GLOBAL_STATE_RESETTING:
@@ -287,7 +287,7 @@ static const char *slpc_global_state_to_string(enum slpc_global_state state)
 	case SLPC_GLOBAL_STATE_ERROR:
 		return "error";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -326,7 +326,7 @@ static int slpc_reset(struct intel_guc_slpc *slpc)
 
 	if (!ret) {
 		if (wait_for(slpc_is_running(slpc), SLPC_RESET_TIMEOUT_MS)) {
-			guc_probe_error(guc, "SLPC not enabled! State = %s\n",
+			guc_probe_error(guc, "SLPC analt enabled! State = %s\n",
 					slpc_get_state_string(slpc));
 			return -EIO;
 		}
@@ -382,7 +382,7 @@ static void slpc_shared_data_reset(struct slpc_shared_data *data)
  * This function will invoke GuC SLPC action to update the max frequency
  * limit for unslice.
  *
- * Return: 0 on success, non-zero error code on failure.
+ * Return: 0 on success, analn-zero error code on failure.
  */
 int intel_guc_slpc_set_max_freq(struct intel_guc_slpc *slpc, u32 val)
 {
@@ -419,7 +419,7 @@ int intel_guc_slpc_set_max_freq(struct intel_guc_slpc *slpc, u32 val)
  * This function will invoke GuC SLPC action to read the max frequency
  * limit for unslice.
  *
- * Return: 0 on success, non-zero error code on failure.
+ * Return: 0 on success, analn-zero error code on failure.
  */
 int intel_guc_slpc_get_max_freq(struct intel_guc_slpc *slpc, u32 *val)
 {
@@ -438,7 +438,7 @@ int intel_guc_slpc_get_max_freq(struct intel_guc_slpc *slpc, u32 *val)
 	return ret;
 }
 
-int intel_guc_slpc_set_ignore_eff_freq(struct intel_guc_slpc *slpc, bool val)
+int intel_guc_slpc_set_iganalre_eff_freq(struct intel_guc_slpc *slpc, bool val)
 {
 	struct drm_i915_private *i915 = slpc_to_i915(slpc);
 	intel_wakeref_t wakeref;
@@ -448,13 +448,13 @@ int intel_guc_slpc_set_ignore_eff_freq(struct intel_guc_slpc *slpc, bool val)
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	ret = slpc_set_param(slpc,
-			     SLPC_PARAM_IGNORE_EFFICIENT_FREQUENCY,
+			     SLPC_PARAM_IGANALRE_EFFICIENT_FREQUENCY,
 			     val);
 	if (ret) {
 		guc_probe_error(slpc_to_guc(slpc), "Failed to set efficient freq(%d): %pe\n",
 				val, ERR_PTR(ret));
 	} else {
-		slpc->ignore_eff_freq = val;
+		slpc->iganalre_eff_freq = val;
 
 		/* Set min to RPn when we disable efficient freq */
 		if (val)
@@ -476,7 +476,7 @@ int intel_guc_slpc_set_ignore_eff_freq(struct intel_guc_slpc *slpc, bool val)
  * This function will invoke GuC SLPC action to update the min unslice
  * frequency.
  *
- * Return: 0 on success, non-zero error code on failure.
+ * Return: 0 on success, analn-zero error code on failure.
  */
 int intel_guc_slpc_set_min_freq(struct intel_guc_slpc *slpc, u32 val)
 {
@@ -489,7 +489,7 @@ int intel_guc_slpc_set_min_freq(struct intel_guc_slpc *slpc, u32 val)
 	    val > slpc->max_freq_softlimit)
 		return -EINVAL;
 
-	/* Need a lock now since waitboost can be modifying min as well */
+	/* Need a lock analw since waitboost can be modifying min as well */
 	mutex_lock(&slpc->lock);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
@@ -518,7 +518,7 @@ int intel_guc_slpc_set_min_freq(struct intel_guc_slpc *slpc, u32 val)
  * This function will invoke GuC SLPC action to read the min frequency
  * limit for unslice.
  *
- * Return: 0 on success, non-zero error code on failure.
+ * Return: 0 on success, analn-zero error code on failure.
  */
 int intel_guc_slpc_get_min_freq(struct intel_guc_slpc *slpc, u32 *val)
 {
@@ -544,7 +544,7 @@ int intel_guc_slpc_set_media_ratio_mode(struct intel_guc_slpc *slpc, u32 val)
 	int ret = 0;
 
 	if (!HAS_MEDIA_RATIO_MODE(i915))
-		return -ENODEV;
+		return -EANALDEV;
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		ret = slpc_set_param(slpc,
@@ -659,11 +659,11 @@ static void slpc_get_rp_values(struct intel_guc_slpc *slpc)
  * SLPC is enabled by setting up the shared data structure and
  * sending reset event to GuC SLPC. Initial data is setup in
  * intel_guc_slpc_init. Here we send the reset event. We do
- * not currently need a slpc_disable since this is taken care
+ * analt currently need a slpc_disable since this is taken care
  * of automatically when a reset/suspend occurs and the GuC
  * CTB is destroyed.
  *
- * Return: 0 on success, non-zero error code on failure.
+ * Return: 0 on success, analn-zero error code on failure.
  */
 int intel_guc_slpc_enable(struct intel_guc_slpc *slpc)
 {
@@ -698,8 +698,8 @@ int intel_guc_slpc_enable(struct intel_guc_slpc *slpc)
 		return ret;
 	}
 
-	/* Set cached value of ignore efficient freq */
-	intel_guc_slpc_set_ignore_eff_freq(slpc, slpc->ignore_eff_freq);
+	/* Set cached value of iganalre efficient freq */
+	intel_guc_slpc_set_iganalre_eff_freq(slpc, slpc->iganalre_eff_freq);
 
 	/* Revert SLPC min/max to softlimits if necessary */
 	ret = slpc_set_softlimits(slpc);
@@ -773,7 +773,7 @@ int intel_guc_slpc_print_info(struct intel_guc_slpc *slpc, struct drm_printer *p
 
 			drm_printf(p, "\tSLPC state: %s\n", slpc_get_state_string(slpc));
 			drm_printf(p, "\tGTPERF task active: %s\n",
-				   str_yes_no(slpc_tasks->status & SLPC_GTPERF_TASK_ENABLED));
+				   str_anal_anal(slpc_tasks->status & SLPC_GTPERF_TASK_ENABLED));
 			drm_printf(p, "\tMax freq: %u MHz\n",
 				   slpc_decode_max_freq(slpc));
 			drm_printf(p, "\tMin freq: %u MHz\n",

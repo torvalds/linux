@@ -5,7 +5,7 @@
 #include <linux/interval_tree_generic.h>
 
 struct vhost_iotlb_map {
-	struct rb_node rb;
+	struct rb_analde rb;
 	struct list_head link;
 	u64 start;
 	u64 last;

@@ -30,7 +30,7 @@
 
 #define SX8_TSCONFIG_MODE_MASK              (0x00000003)
 #define SX8_TSCONFIG_MODE_OFF               (0x00000000)
-#define SX8_TSCONFIG_MODE_NORMAL            (0x00000001)
+#define SX8_TSCONFIG_MODE_ANALRMAL            (0x00000001)
 #define SX8_TSCONFIG_MODE_IQ                (0x00000003)
 
 /*
@@ -84,7 +84,7 @@
 #define MCI_STATUS_OK            (0x00)
 #define MCI_STATUS_UNSUPPORTED   (0x80)
 #define MCI_STATUS_RETRY         (0xFD)
-#define MCI_STATUS_NOT_READY     (0xFE)
+#define MCI_STATUS_ANALT_READY     (0xFE)
 #define MCI_STATUS_ERROR         (0xFF)
 
 #define MCI_SUCCESS(status)      ((status & MCI_STATUS_UNSUPPORTED) == 0)
@@ -187,9 +187,9 @@ struct mci_result {
 			s16 band_power;
 			/*
 			 * SNR in dB x 100
-			 * Note: negative values are valid in DVB-S2
+			 * Analte: negative values are valid in DVB-S2
 			 */
-			s16 signal_to_noise;
+			s16 signal_to_analise;
 			s16 rsvd2;
 			/*
 			 * Counter for packet errors
@@ -198,7 +198,7 @@ struct mci_result {
 			u32 packet_errors;
 			/* Bit error rate: PreRS in DVB-S, PreBCH in DVB-S2X */
 			u32 ber_numerator;
-			u32 ber_denominator;
+			u32 ber_deanalminator;
 		} dvbs2_signal_info;
 
 		struct {

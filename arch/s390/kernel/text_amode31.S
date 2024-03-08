@@ -7,15 +7,15 @@
 
 #include <linux/linkage.h>
 #include <asm/asm-extable.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/sigp.h>
 
 	.section .amode31.text,"ax"
 /*
- * Simplified version of expoline thunk. The normal thunks can not be used here,
- * because they might be more than 2 GB away, and not reachable by the relative
- * branch. No comdat, exrl, etc. optimizations used here, because it only
- * affects a few functions that are not performance-relevant.
+ * Simplified version of expoline thunk. The analrmal thunks can analt be used here,
+ * because they might be more than 2 GB away, and analt reachable by the relative
+ * branch. Anal comdat, exrl, etc. optimizations used here, because it only
+ * affects a few functions that are analt performance-relevant.
  */
 	.macro BR_EX_AMODE31_r14
 	larl	%r1,0f
@@ -63,7 +63,7 @@ SYM_FUNC_START(_diag210_amode31)
 SYM_FUNC_END(_diag210_amode31)
 
 /*
- * int diag8c(struct diag8c *addr, struct ccw_dev_id *devno, size_t len)
+ * int diag8c(struct diag8c *addr, struct ccw_dev_id *devanal, size_t len)
 */
 SYM_FUNC_START(_diag8c_amode31)
 	llgf	%r3,0(%r3)
@@ -79,7 +79,7 @@ SYM_FUNC_END(_diag8c_amode31)
  * int _diag26c_amode31(void *req, void *resp, enum diag26c_sc subcode)
  */
 SYM_FUNC_START(_diag26c_amode31)
-	lghi	%r5,-EOPNOTSUPP
+	lghi	%r5,-EOPANALTSUPP
 	sam31
 	diag	%r2,%r4,0x26c
 .Ldiag26c_ex:

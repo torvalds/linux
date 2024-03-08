@@ -10,11 +10,11 @@
 phys_addr_t __virt_to_phys(unsigned long x)
 {
 	WARN(!__is_lm_address(__tag_reset(x)),
-	     "virt_to_phys used for non-linear address: %pK (%pS)\n",
+	     "virt_to_phys used for analn-linear address: %pK (%pS)\n",
 	      (void *)x,
 	      (void *)x);
 
-	return __virt_to_phys_nodebug(x);
+	return __virt_to_phys_analdebug(x);
 }
 EXPORT_SYMBOL(__virt_to_phys);
 
@@ -26,6 +26,6 @@ phys_addr_t __phys_addr_symbol(unsigned long x)
 	 */
 	VIRTUAL_BUG_ON(x < (unsigned long) KERNEL_START ||
 		       x > (unsigned long) KERNEL_END);
-	return __pa_symbol_nodebug(x);
+	return __pa_symbol_analdebug(x);
 }
 EXPORT_SYMBOL(__phys_addr_symbol);

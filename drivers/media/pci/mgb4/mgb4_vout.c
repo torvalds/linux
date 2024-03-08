@@ -43,11 +43,11 @@ static const struct mgb4_i2c_kv fpdl3_i2c[] = {
 static void return_all_buffers(struct mgb4_vout_dev *voutdev,
 			       enum vb2_buffer_state state)
 {
-	struct mgb4_frame_buffer *buf, *node;
+	struct mgb4_frame_buffer *buf, *analde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&voutdev->qlock, flags);
-	list_for_each_entry_safe(buf, node, &voutdev->buf_list, list) {
+	list_for_each_entry_safe(buf, analde, &voutdev->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
@@ -62,7 +62,7 @@ static int queue_setup(struct vb2_queue *q, unsigned int *nbuffers,
 	unsigned int size;
 
 	/*
-	 * If I/O reconfiguration is in process, do not allow to start
+	 * If I/O reconfiguration is in process, do analt allow to start
 	 * the queue. See video_source_store() in mgb4_sysfs_out.c for
 	 * details.
 	 */
@@ -209,7 +209,7 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	f->fmt.pix.pixelformat = V4L2_PIX_FMT_ABGR32;
 	f->fmt.pix.width = voutdev->width;
 	f->fmt.pix.height = voutdev->height;
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_RAW;
 	f->fmt.pix.bytesperline = (f->fmt.pix.width + voutdev->padding) * 4;
 	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline * f->fmt.pix.height;
@@ -224,7 +224,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	f->fmt.pix.pixelformat = V4L2_PIX_FMT_ABGR32;
 	f->fmt.pix.width = voutdev->width;
 	f->fmt.pix.height = voutdev->height;
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_RAW;
 	f->fmt.pix.bytesperline = max(f->fmt.pix.width * 4,
 				      ALIGN_DOWN(f->fmt.pix.bytesperline, 4));
@@ -303,7 +303,7 @@ static int fh_open(struct file *file)
 	/* Return EBUSY when the device is in loopback mode */
 	config = mgb4_read_reg(video, voutdev->config->regs.config);
 	if ((config & 0xc) >> 2 != voutdev->config->id + MGB4_VIN_DEVICES) {
-		dev_dbg(dev, "can not open - device in loopback mode");
+		dev_dbg(dev, "can analt open - device in loopback mode");
 		return -EBUSY;
 	}
 
@@ -522,7 +522,7 @@ struct mgb4_vout_dev *mgb4_vout_create(struct mgb4_dev *mgbdev, int id)
 	voutdev->queue.ops = &queue_ops;
 	voutdev->queue.mem_ops = &vb2_dma_sg_memops;
 	voutdev->queue.gfp_flags = GFP_DMA32;
-	voutdev->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	voutdev->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	voutdev->queue.min_queued_buffers = 2;
 	voutdev->queue.drv_priv = voutdev;
 	voutdev->queue.lock = &voutdev->lock;

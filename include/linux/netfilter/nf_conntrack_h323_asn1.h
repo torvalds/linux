@@ -14,10 +14,10 @@
  * 1. Small. The total size of code plus data is less than 20 KB (IA32).
  * 2. Fast. Decoding Netmeeting's Setup signal 1 million times on a PIII 866
  *    takes only 3.9 seconds.
- * 3. No memory allocation. It uses a static object. No need to initialize or
+ * 3. Anal memory allocation. It uses a static object. Anal need to initialize or
  *    cleanup.
  * 4. Thread safe.
- * 5. Support embedded architectures that has no misaligned memory access
+ * 5. Support embedded architectures that has anal misaligned memory access
  *    support.
  *
  * Limitations:
@@ -25,8 +25,8 @@
  * 1. At most 30 faststart entries. Actually this is limited by ethernet's MTU.
  *    If a Setup signal contains more than 30 faststart, the packet size will
  *    very likely exceed the MTU size, then the TPKT will be fragmented. I
- *    don't know how to handle this in a Netfilter module. Anybody can help?
- *    Although I think 30 is enough for most of the cases.
+ *    don't kanalw how to handle this in a Netfilter module. Anybody can help?
+ *    Although I think 30 is eanalugh for most of the cases.
  * 2. IPv4 addresses only.
  *
  ****************************************************************************/
@@ -66,7 +66,7 @@ typedef struct {
 		Q931_Segment = 0x60,
 		Q931_CongestionCtrl = 0x79,
 		Q931_Information = 0x7B,
-		Q931_Notify = 0x6E,
+		Q931_Analtify = 0x6E,
 		Q931_Status = 0x7D,
 		Q931_StatusEnquiry = 0x75,
 		Q931_Facility = 0x62
@@ -78,8 +78,8 @@ typedef struct {
  * Decode Functions Return Codes
  ****************************************************************************/
 
-#define H323_ERROR_NONE 0	/* Decoded successfully */
-#define H323_ERROR_STOP 1	/* Decoding stopped, not really an error */
+#define H323_ERROR_ANALNE 0	/* Decoded successfully */
+#define H323_ERROR_STOP 1	/* Decoding stopped, analt really an error */
 #define H323_ERROR_BOUND -1
 #define H323_ERROR_RANGE -2
 

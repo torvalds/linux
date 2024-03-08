@@ -72,7 +72,7 @@
  * status register bits. P49
  */
 #define SR_RXTOFE	(1 << 11)	/* rx timeout fifo empty */
-#define SR_TXTO		(1 << 10)	/* rx timeout fifo nonempty */
+#define SR_TXTO		(1 << 10)	/* rx timeout fifo analnempty */
 #define SR_TXU		(1 << 9)	/* tx underrun */
 #define SR_RXO		(1 << 8)	/* rx overrun */
 #define SR_TXB		(1 << 7)	/* tx busy */

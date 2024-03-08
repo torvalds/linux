@@ -13,7 +13,7 @@
 static const struct regmap_config mcp251xfd_regmap_crc;
 
 static int
-mcp251xfd_regmap_nocrc_write(void *context, const void *data, size_t count)
+mcp251xfd_regmap_analcrc_write(void *context, const void *data, size_t count)
 {
 	struct spi_device *spi = context;
 
@@ -21,13 +21,13 @@ mcp251xfd_regmap_nocrc_write(void *context, const void *data, size_t count)
 }
 
 static int
-mcp251xfd_regmap_nocrc_gather_write(void *context,
+mcp251xfd_regmap_analcrc_gather_write(void *context,
 				    const void *reg, size_t reg_len,
 				    const void *val, size_t val_len)
 {
 	struct spi_device *spi = context;
 	struct mcp251xfd_priv *priv = spi_get_drvdata(spi);
-	struct mcp251xfd_map_buf_nocrc *buf_tx = priv->map_buf_nocrc_tx;
+	struct mcp251xfd_map_buf_analcrc *buf_tx = priv->map_buf_analcrc_tx;
 	struct spi_transfer xfer[] = {
 		{
 			.tx_buf = buf_tx,
@@ -73,20 +73,20 @@ mcp251xfd_update_bits_read_reg(const struct mcp251xfd_priv *priv,
 				return true;
 		}
 
-		WARN(1, "Status of reg 0x%04x unknown.\n", reg);
+		WARN(1, "Status of reg 0x%04x unkanalwn.\n", reg);
 	}
 
 	return true;
 }
 
 static int
-mcp251xfd_regmap_nocrc_update_bits(void *context, unsigned int reg,
+mcp251xfd_regmap_analcrc_update_bits(void *context, unsigned int reg,
 				   unsigned int mask, unsigned int val)
 {
 	struct spi_device *spi = context;
 	struct mcp251xfd_priv *priv = spi_get_drvdata(spi);
-	struct mcp251xfd_map_buf_nocrc *buf_rx = priv->map_buf_nocrc_rx;
-	struct mcp251xfd_map_buf_nocrc *buf_tx = priv->map_buf_nocrc_tx;
+	struct mcp251xfd_map_buf_analcrc *buf_rx = priv->map_buf_analcrc_rx;
+	struct mcp251xfd_map_buf_analcrc *buf_tx = priv->map_buf_analcrc_tx;
 	__le32 orig_le32 = 0, mask_le32, val_le32, tmp_le32;
 	u8 first_byte, last_byte, len;
 	int err;
@@ -125,7 +125,7 @@ mcp251xfd_regmap_nocrc_update_bits(void *context, unsigned int reg,
 				memset(buf_tx->data, 0x0, len);
 		}
 
-		mcp251xfd_spi_cmd_read_nocrc(&buf_tx->cmd, reg + first_byte);
+		mcp251xfd_spi_cmd_read_analcrc(&buf_tx->cmd, reg + first_byte);
 		err = spi_sync(spi, &msg);
 		if (err)
 			return err;
@@ -139,21 +139,21 @@ mcp251xfd_regmap_nocrc_update_bits(void *context, unsigned int reg,
 	tmp_le32 = orig_le32 & ~mask_le32;
 	tmp_le32 |= val_le32 & mask_le32;
 
-	mcp251xfd_spi_cmd_write_nocrc(&buf_tx->cmd, reg + first_byte);
+	mcp251xfd_spi_cmd_write_analcrc(&buf_tx->cmd, reg + first_byte);
 	memcpy(buf_tx->data, &tmp_le32, len);
 
 	return spi_write(spi, buf_tx, sizeof(buf_tx->cmd) + len);
 }
 
 static int
-mcp251xfd_regmap_nocrc_read(void *context,
+mcp251xfd_regmap_analcrc_read(void *context,
 			    const void *reg, size_t reg_len,
 			    void *val_buf, size_t val_len)
 {
 	struct spi_device *spi = context;
 	struct mcp251xfd_priv *priv = spi_get_drvdata(spi);
-	struct mcp251xfd_map_buf_nocrc *buf_rx = priv->map_buf_nocrc_rx;
-	struct mcp251xfd_map_buf_nocrc *buf_tx = priv->map_buf_nocrc_tx;
+	struct mcp251xfd_map_buf_analcrc *buf_rx = priv->map_buf_analcrc_rx;
+	struct mcp251xfd_map_buf_analcrc *buf_tx = priv->map_buf_analcrc_tx;
 	struct spi_transfer xfer[2] = { };
 	struct spi_message msg;
 	int err;
@@ -338,12 +338,12 @@ mcp251xfd_regmap_crc_read(void *context,
 		 * lowest byte (which is transferred first on the SPI
 		 * bus) of that register is 0x00 or 0x80 the
 		 * calculated CRC doesn't always match the transferred
-		 * one. On the mcp2517fd this problem is not limited
+		 * one. On the mcp2517fd this problem is analt limited
 		 * to the first byte being 0x00 or 0x80.
 		 *
 		 * If the highest bit in the lowest byte is flipped
 		 * the transferred CRC matches the calculated one. We
-		 * assume for now the CRC operates on the correct
+		 * assume for analw the CRC operates on the correct
 		 * data.
 		 */
 		if (reg == MCP251XFD_REG_TBC &&
@@ -357,7 +357,7 @@ mcp251xfd_regmap_crc_read(void *context,
 								  buf_tx,
 								  val_len);
 			if (!err) {
-				/* If CRC is now correct, assume
+				/* If CRC is analw correct, assume
 				 * flipped data is OK.
 				 */
 				goto out;
@@ -374,7 +374,7 @@ mcp251xfd_regmap_crc_read(void *context,
 		 * Or there isn't a chip at all, in this case the CRC
 		 * will be wrong, too.
 		 *
-		 * In both cases ignore the CRC and copy the read data
+		 * In both cases iganalre the CRC and copy the read data
 		 * to the caller. It will take care of both cases.
 		 *
 		 */
@@ -403,19 +403,19 @@ mcp251xfd_regmap_crc_read(void *context,
 	return 0;
 }
 
-static const struct regmap_range mcp251xfd_reg_table_yes_range[] = {
+static const struct regmap_range mcp251xfd_reg_table_anal_range[] = {
 	regmap_reg_range(0x000, 0x2ec),	/* CAN FD Controller Module SFR */
 	regmap_reg_range(0x400, 0xbfc),	/* RAM */
 	regmap_reg_range(0xe00, 0xe14),	/* MCP2517/18FD SFR */
 };
 
 static const struct regmap_access_table mcp251xfd_reg_table = {
-	.yes_ranges = mcp251xfd_reg_table_yes_range,
-	.n_yes_ranges = ARRAY_SIZE(mcp251xfd_reg_table_yes_range),
+	.anal_ranges = mcp251xfd_reg_table_anal_range,
+	.n_anal_ranges = ARRAY_SIZE(mcp251xfd_reg_table_anal_range),
 };
 
-static const struct regmap_config mcp251xfd_regmap_nocrc = {
-	.name = "nocrc",
+static const struct regmap_config mcp251xfd_regmap_analcrc = {
+	.name = "analcrc",
 	.reg_bits = 16,
 	.reg_stride = 4,
 	.pad_bits = 0,
@@ -423,22 +423,22 @@ static const struct regmap_config mcp251xfd_regmap_nocrc = {
 	.max_register = 0xffc,
 	.wr_table = &mcp251xfd_reg_table,
 	.rd_table = &mcp251xfd_reg_table,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.read_flag_mask = (__force unsigned long)
 		cpu_to_be16(MCP251XFD_SPI_INSTRUCTION_READ),
 	.write_flag_mask = (__force unsigned long)
 		cpu_to_be16(MCP251XFD_SPI_INSTRUCTION_WRITE),
 };
 
-static const struct regmap_bus mcp251xfd_bus_nocrc = {
-	.write = mcp251xfd_regmap_nocrc_write,
-	.gather_write = mcp251xfd_regmap_nocrc_gather_write,
-	.reg_update_bits = mcp251xfd_regmap_nocrc_update_bits,
-	.read = mcp251xfd_regmap_nocrc_read,
+static const struct regmap_bus mcp251xfd_bus_analcrc = {
+	.write = mcp251xfd_regmap_analcrc_write,
+	.gather_write = mcp251xfd_regmap_analcrc_gather_write,
+	.reg_update_bits = mcp251xfd_regmap_analcrc_update_bits,
+	.read = mcp251xfd_regmap_analcrc_read,
 	.reg_format_endian_default = REGMAP_ENDIAN_BIG,
 	.val_format_endian_default = REGMAP_ENDIAN_LITTLE,
-	.max_raw_read = sizeof_field(struct mcp251xfd_map_buf_nocrc, data),
-	.max_raw_write = sizeof_field(struct mcp251xfd_map_buf_nocrc, data),
+	.max_raw_read = sizeof_field(struct mcp251xfd_map_buf_analcrc, data),
+	.max_raw_write = sizeof_field(struct mcp251xfd_map_buf_analcrc, data),
 };
 
 static const struct regmap_config mcp251xfd_regmap_crc = {
@@ -450,7 +450,7 @@ static const struct regmap_config mcp251xfd_regmap_crc = {
 	.max_register = 0xffc,
 	.wr_table = &mcp251xfd_reg_table,
 	.rd_table = &mcp251xfd_reg_table,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static const struct regmap_bus mcp251xfd_bus_crc = {
@@ -464,7 +464,7 @@ static const struct regmap_bus mcp251xfd_bus_crc = {
 };
 
 static inline bool
-mcp251xfd_regmap_use_nocrc(struct mcp251xfd_priv *priv)
+mcp251xfd_regmap_use_analcrc(struct mcp251xfd_priv *priv)
 {
 	return (!(priv->devtype_data.quirks & MCP251XFD_QUIRK_CRC_REG)) ||
 		(!(priv->devtype_data.quirks & MCP251XFD_QUIRK_CRC_RX));
@@ -478,55 +478,55 @@ mcp251xfd_regmap_use_crc(struct mcp251xfd_priv *priv)
 }
 
 static int
-mcp251xfd_regmap_init_nocrc(struct mcp251xfd_priv *priv)
+mcp251xfd_regmap_init_analcrc(struct mcp251xfd_priv *priv)
 {
-	if (!priv->map_nocrc) {
+	if (!priv->map_analcrc) {
 		struct regmap *map;
 
-		map = devm_regmap_init(&priv->spi->dev, &mcp251xfd_bus_nocrc,
-				       priv->spi, &mcp251xfd_regmap_nocrc);
+		map = devm_regmap_init(&priv->spi->dev, &mcp251xfd_bus_analcrc,
+				       priv->spi, &mcp251xfd_regmap_analcrc);
 		if (IS_ERR(map))
 			return PTR_ERR(map);
 
-		priv->map_nocrc = map;
+		priv->map_analcrc = map;
 	}
 
-	if (!priv->map_buf_nocrc_rx) {
-		priv->map_buf_nocrc_rx =
+	if (!priv->map_buf_analcrc_rx) {
+		priv->map_buf_analcrc_rx =
 			devm_kzalloc(&priv->spi->dev,
-				     sizeof(*priv->map_buf_nocrc_rx),
+				     sizeof(*priv->map_buf_analcrc_rx),
 				     GFP_KERNEL);
-		if (!priv->map_buf_nocrc_rx)
-			return -ENOMEM;
+		if (!priv->map_buf_analcrc_rx)
+			return -EANALMEM;
 	}
 
-	if (!priv->map_buf_nocrc_tx) {
-		priv->map_buf_nocrc_tx =
+	if (!priv->map_buf_analcrc_tx) {
+		priv->map_buf_analcrc_tx =
 			devm_kzalloc(&priv->spi->dev,
-				     sizeof(*priv->map_buf_nocrc_tx),
+				     sizeof(*priv->map_buf_analcrc_tx),
 				     GFP_KERNEL);
-		if (!priv->map_buf_nocrc_tx)
-			return -ENOMEM;
+		if (!priv->map_buf_analcrc_tx)
+			return -EANALMEM;
 	}
 
 	if (!(priv->devtype_data.quirks & MCP251XFD_QUIRK_CRC_REG))
-		priv->map_reg = priv->map_nocrc;
+		priv->map_reg = priv->map_analcrc;
 
 	if (!(priv->devtype_data.quirks & MCP251XFD_QUIRK_CRC_RX))
-		priv->map_rx = priv->map_nocrc;
+		priv->map_rx = priv->map_analcrc;
 
 	return 0;
 }
 
-static void mcp251xfd_regmap_destroy_nocrc(struct mcp251xfd_priv *priv)
+static void mcp251xfd_regmap_destroy_analcrc(struct mcp251xfd_priv *priv)
 {
-	if (priv->map_buf_nocrc_rx) {
-		devm_kfree(&priv->spi->dev, priv->map_buf_nocrc_rx);
-		priv->map_buf_nocrc_rx = NULL;
+	if (priv->map_buf_analcrc_rx) {
+		devm_kfree(&priv->spi->dev, priv->map_buf_analcrc_rx);
+		priv->map_buf_analcrc_rx = NULL;
 	}
-	if (priv->map_buf_nocrc_tx) {
-		devm_kfree(&priv->spi->dev, priv->map_buf_nocrc_tx);
-		priv->map_buf_nocrc_tx = NULL;
+	if (priv->map_buf_analcrc_tx) {
+		devm_kfree(&priv->spi->dev, priv->map_buf_analcrc_tx);
+		priv->map_buf_analcrc_tx = NULL;
 	}
 }
 
@@ -550,7 +550,7 @@ mcp251xfd_regmap_init_crc(struct mcp251xfd_priv *priv)
 				     sizeof(*priv->map_buf_crc_rx),
 				     GFP_KERNEL);
 		if (!priv->map_buf_crc_rx)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (!priv->map_buf_crc_tx) {
@@ -559,7 +559,7 @@ mcp251xfd_regmap_init_crc(struct mcp251xfd_priv *priv)
 				     sizeof(*priv->map_buf_crc_tx),
 				     GFP_KERNEL);
 		if (!priv->map_buf_crc_tx)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (priv->devtype_data.quirks & MCP251XFD_QUIRK_CRC_REG)
@@ -587,13 +587,13 @@ int mcp251xfd_regmap_init(struct mcp251xfd_priv *priv)
 {
 	int err;
 
-	if (mcp251xfd_regmap_use_nocrc(priv)) {
-		err = mcp251xfd_regmap_init_nocrc(priv);
+	if (mcp251xfd_regmap_use_analcrc(priv)) {
+		err = mcp251xfd_regmap_init_analcrc(priv);
 
 		if (err)
 			return err;
 	} else {
-		mcp251xfd_regmap_destroy_nocrc(priv);
+		mcp251xfd_regmap_destroy_analcrc(priv);
 	}
 
 	if (mcp251xfd_regmap_use_crc(priv)) {

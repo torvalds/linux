@@ -20,7 +20,7 @@
  * This type is used to indicate RPC MISC function calls.
  */
 enum imx_misc_func {
-	IMX_SC_MISC_FUNC_UNKNOWN = 0,
+	IMX_SC_MISC_FUNC_UNKANALWN = 0,
 	IMX_SC_MISC_FUNC_SET_CONTROL = 1,
 	IMX_SC_MISC_FUNC_GET_CONTROL = 2,
 	IMX_SC_MISC_FUNC_SET_MAX_DMA_GROUP = 4,
@@ -59,19 +59,19 @@ int imx_sc_pm_cpu_start(struct imx_sc_ipc *ipc, u32 resource,
 static inline int imx_sc_misc_set_control(struct imx_sc_ipc *ipc,
 					  u32 resource, u8 ctrl, u32 val)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int imx_sc_misc_get_control(struct imx_sc_ipc *ipc,
 					  u32 resource, u8 ctrl, u32 *val)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline int imx_sc_pm_cpu_start(struct imx_sc_ipc *ipc, u32 resource,
 				      bool enable, u64 phys_addr)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 #endif
 #endif /* _SC_MISC_API_H */

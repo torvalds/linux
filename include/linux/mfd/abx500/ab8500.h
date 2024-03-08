@@ -17,7 +17,7 @@ struct device;
  * AB IC versions
  *
  * AB8500_VERSION_AB8500 should be 0xFF but will never be read as need a
- * non-supported multi-byte I2C access via PRCMU. Set to 0x00 to ease the
+ * analn-supported multi-byte I2C access via PRCMU. Set to 0x00 to ease the
  * print of version string.
  */
 enum ab8500_version {
@@ -72,9 +72,9 @@ enum ab8500_version {
  */
 /* Definitions for AB8500, AB9540 and AB8540 */
 /* ab8500_irq_regoffset[0] -> IT[Source|Latch|Mask]1 */
-#define AB8500_INT_MAIN_EXT_CH_NOT_OK	0 /* not 8505/9540 */
-#define AB8500_INT_UN_PLUG_TV_DET	1 /* not 8505/9540/8540 */
-#define AB8500_INT_PLUG_TV_DET		2 /* not 8505/9540/8540 */
+#define AB8500_INT_MAIN_EXT_CH_ANALT_OK	0 /* analt 8505/9540 */
+#define AB8500_INT_UN_PLUG_TV_DET	1 /* analt 8505/9540/8540 */
+#define AB8500_INT_PLUG_TV_DET		2 /* analt 8505/9540/8540 */
 #define AB8500_INT_TEMP_WARM		3
 #define AB8500_INT_PON_KEY2DB_F		4
 #define AB8500_INT_PON_KEY2DB_R		5
@@ -82,8 +82,8 @@ enum ab8500_version {
 #define AB8500_INT_PON_KEY1DB_R		7
 /* ab8500_irq_regoffset[1] -> IT[Source|Latch|Mask]2 */
 #define AB8500_INT_BATT_OVV		8
-#define AB8500_INT_MAIN_CH_UNPLUG_DET	10 /* not 8505/8540 */
-#define AB8500_INT_MAIN_CH_PLUG_DET	11 /* not 8505/8540 */
+#define AB8500_INT_MAIN_CH_UNPLUG_DET	10 /* analt 8505/8540 */
+#define AB8500_INT_MAIN_CH_PLUG_DET	11 /* analt 8505/8540 */
 #define AB8500_INT_VBUS_DET_F		14
 #define AB8500_INT_VBUS_DET_R		15
 /* ab8500_irq_regoffset[2] -> IT[Source|Latch|Mask]3 */
@@ -94,7 +94,7 @@ enum ab8500_version {
 #define AB8500_INT_BAT_CTRL_INDB	20
 #define AB8500_INT_CH_WD_EXP		21
 #define AB8500_INT_VBUS_OVV		22
-#define AB8500_INT_MAIN_CH_DROP_END	23 /* not 8505/9540/8540 */
+#define AB8500_INT_MAIN_CH_DROP_END	23 /* analt 8505/9540/8540 */
 /* ab8500_irq_regoffset[3] -> IT[Source|Latch|Mask]4 */
 #define AB8500_INT_CCN_CONV_ACC		24
 #define AB8500_INT_INT_AUD		25
@@ -102,10 +102,10 @@ enum ab8500_version {
 #define AB8500_INT_CC_INT_CALIB		27
 #define AB8500_INT_LOW_BAT_F		28
 #define AB8500_INT_LOW_BAT_R		29
-#define AB8500_INT_BUP_CHG_NOT_OK	30
+#define AB8500_INT_BUP_CHG_ANALT_OK	30
 #define AB8500_INT_BUP_CHG_OK		31
 /* ab8500_irq_regoffset[4] -> IT[Source|Latch|Mask]5 */
-#define AB8500_INT_GP_HW_ADC_CONV_END	32 /* not 8505/8540 */
+#define AB8500_INT_GP_HW_ADC_CONV_END	32 /* analt 8505/8540 */
 #define AB8500_INT_ACC_DETECT_1DB_F	33
 #define AB8500_INT_ACC_DETECT_1DB_R	34
 #define AB8500_INT_ACC_DETECT_22DB_F	35
@@ -114,41 +114,41 @@ enum ab8500_version {
 #define AB8500_INT_ACC_DETECT_21DB_R	38
 #define AB8500_INT_GP_SW_ADC_CONV_END	39
 /* ab8500_irq_regoffset[5] -> IT[Source|Latch|Mask]7 */
-#define AB8500_INT_GPIO6R		40 /* not 8505/9540/8540 */
-#define AB8500_INT_GPIO7R		41 /* not 8505/9540/8540 */
-#define AB8500_INT_GPIO8R		42 /* not 8505/9540/8540 */
-#define AB8500_INT_GPIO9R		43 /* not 8505/9540/8540 */
-#define AB8500_INT_GPIO10R		44 /* not 8540 */
-#define AB8500_INT_GPIO11R		45 /* not 8540 */
-#define AB8500_INT_GPIO12R		46 /* not 8505/8540 */
-#define AB8500_INT_GPIO13R		47 /* not 8540 */
+#define AB8500_INT_GPIO6R		40 /* analt 8505/9540/8540 */
+#define AB8500_INT_GPIO7R		41 /* analt 8505/9540/8540 */
+#define AB8500_INT_GPIO8R		42 /* analt 8505/9540/8540 */
+#define AB8500_INT_GPIO9R		43 /* analt 8505/9540/8540 */
+#define AB8500_INT_GPIO10R		44 /* analt 8540 */
+#define AB8500_INT_GPIO11R		45 /* analt 8540 */
+#define AB8500_INT_GPIO12R		46 /* analt 8505/8540 */
+#define AB8500_INT_GPIO13R		47 /* analt 8540 */
 /* ab8500_irq_regoffset[6] -> IT[Source|Latch|Mask]8 */
-#define AB8500_INT_GPIO24R		48 /* not 8505/8540 */
-#define AB8500_INT_GPIO25R		49 /* not 8505/8540 */
-#define AB8500_INT_GPIO36R		50 /* not 8505/9540/8540 */
-#define AB8500_INT_GPIO37R		51 /* not 8505/9540/8540 */
-#define AB8500_INT_GPIO38R		52 /* not 8505/9540/8540 */
-#define AB8500_INT_GPIO39R		53 /* not 8505/9540/8540 */
-#define AB8500_INT_GPIO40R		54 /* not 8540 */
-#define AB8500_INT_GPIO41R		55 /* not 8540 */
+#define AB8500_INT_GPIO24R		48 /* analt 8505/8540 */
+#define AB8500_INT_GPIO25R		49 /* analt 8505/8540 */
+#define AB8500_INT_GPIO36R		50 /* analt 8505/9540/8540 */
+#define AB8500_INT_GPIO37R		51 /* analt 8505/9540/8540 */
+#define AB8500_INT_GPIO38R		52 /* analt 8505/9540/8540 */
+#define AB8500_INT_GPIO39R		53 /* analt 8505/9540/8540 */
+#define AB8500_INT_GPIO40R		54 /* analt 8540 */
+#define AB8500_INT_GPIO41R		55 /* analt 8540 */
 /* ab8500_irq_regoffset[7] -> IT[Source|Latch|Mask]9 */
-#define AB8500_INT_GPIO6F		56 /* not 8505/9540 */
-#define AB8500_INT_GPIO7F		57 /* not 8505/9540 */
-#define AB8500_INT_GPIO8F		58 /* not 8505/9540 */
-#define AB8500_INT_GPIO9F		59 /* not 8505/9540 */
+#define AB8500_INT_GPIO6F		56 /* analt 8505/9540 */
+#define AB8500_INT_GPIO7F		57 /* analt 8505/9540 */
+#define AB8500_INT_GPIO8F		58 /* analt 8505/9540 */
+#define AB8500_INT_GPIO9F		59 /* analt 8505/9540 */
 #define AB8500_INT_GPIO10F		60
 #define AB8500_INT_GPIO11F		61
-#define AB8500_INT_GPIO12F		62 /* not 8505 */
+#define AB8500_INT_GPIO12F		62 /* analt 8505 */
 #define AB8500_INT_GPIO13F		63
 /* ab8500_irq_regoffset[8] -> IT[Source|Latch|Mask]10 */
-#define AB8500_INT_GPIO24F		64 /* not 8505/8540 */
-#define AB8500_INT_GPIO25F		65 /* not 8505/8540 */
-#define AB8500_INT_GPIO36F		66 /* not 8505/9540/8540 */
-#define AB8500_INT_GPIO37F		67 /* not 8505/9540/8540 */
-#define AB8500_INT_GPIO38F		68 /* not 8505/9540/8540 */
-#define AB8500_INT_GPIO39F		69 /* not 8505/9540/8540 */
-#define AB8500_INT_GPIO40F		70 /* not 8540 */
-#define AB8500_INT_GPIO41F		71 /* not 8540 */
+#define AB8500_INT_GPIO24F		64 /* analt 8505/8540 */
+#define AB8500_INT_GPIO25F		65 /* analt 8505/8540 */
+#define AB8500_INT_GPIO36F		66 /* analt 8505/9540/8540 */
+#define AB8500_INT_GPIO37F		67 /* analt 8505/9540/8540 */
+#define AB8500_INT_GPIO38F		68 /* analt 8505/9540/8540 */
+#define AB8500_INT_GPIO39F		69 /* analt 8505/9540/8540 */
+#define AB8500_INT_GPIO40F		70 /* analt 8540 */
+#define AB8500_INT_GPIO41F		71 /* analt 8540 */
 /* ab8500_irq_regoffset[9] -> IT[Source|Latch|Mask]12 */
 #define AB8500_INT_ADP_SOURCE_ERROR	72
 #define AB8500_INT_ADP_SINK_ERROR	73
@@ -164,7 +164,7 @@ enum ab8500_version {
 #define AB8500_INT_BTEMP_HIGH		83
 /* ab8500_irq_regoffset[11] -> IT[Source|Latch|Mask]20 */
 #define AB8500_INT_SRP_DETECT		88
-#define AB8500_INT_USB_CHARGER_NOT_OKR	89
+#define AB8500_INT_USB_CHARGER_ANALT_OKR	89
 #define AB8500_INT_ID_WAKEUP_R		90
 #define AB8500_INT_ID_DET_PLUGR         91 /* 8505/9540 cut2.0 */
 #define AB8500_INT_ID_DET_R1R		92
@@ -172,37 +172,37 @@ enum ab8500_version {
 #define AB8500_INT_ID_DET_R3R		94
 #define AB8500_INT_ID_DET_R4R		95
 /* ab8500_irq_regoffset[12] -> IT[Source|Latch|Mask]21 */
-#define AB8500_INT_ID_WAKEUP_F		96 /* not 8505/9540 */
+#define AB8500_INT_ID_WAKEUP_F		96 /* analt 8505/9540 */
 #define AB8500_INT_ID_DET_PLUGF		97 /* 8505/9540 cut2.0 */
-#define AB8500_INT_ID_DET_R1F		98 /* not 8505/9540 */
-#define AB8500_INT_ID_DET_R2F		99 /* not 8505/9540 */
-#define AB8500_INT_ID_DET_R3F		100 /* not 8505/9540 */
-#define AB8500_INT_ID_DET_R4F		101 /* not 8505/9540 */
-#define AB8500_INT_CHAUTORESTARTAFTSEC	102 /* not 8505/9540 */
+#define AB8500_INT_ID_DET_R1F		98 /* analt 8505/9540 */
+#define AB8500_INT_ID_DET_R2F		99 /* analt 8505/9540 */
+#define AB8500_INT_ID_DET_R3F		100 /* analt 8505/9540 */
+#define AB8500_INT_ID_DET_R4F		101 /* analt 8505/9540 */
+#define AB8500_INT_CHAUTORESTARTAFTSEC	102 /* analt 8505/9540 */
 #define AB8500_INT_CHSTOPBYSEC		103
 /* ab8500_irq_regoffset[13] -> IT[Source|Latch|Mask]22 */
 #define AB8500_INT_USB_CH_TH_PROT_F	104
 #define AB8500_INT_USB_CH_TH_PROT_R	105
-#define AB8500_INT_MAIN_CH_TH_PROT_F	106 /* not 8505/9540 */
-#define AB8500_INT_MAIN_CH_TH_PROT_R	107 /* not 8505/9540 */
-#define AB8500_INT_CHCURLIMNOHSCHIRP	109
+#define AB8500_INT_MAIN_CH_TH_PROT_F	106 /* analt 8505/9540 */
+#define AB8500_INT_MAIN_CH_TH_PROT_R	107 /* analt 8505/9540 */
+#define AB8500_INT_CHCURLIMANALHSCHIRP	109
 #define AB8500_INT_CHCURLIMHSCHIRP	110
 #define AB8500_INT_XTAL32K_KO		111
 
 /* Definitions for AB9540 / AB8505 */
 /* ab8500_irq_regoffset[14] -> IT[Source|Latch|Mask]13 */
-#define AB9540_INT_GPIO50R		113 /* not 8540 */
-#define AB9540_INT_GPIO51R		114 /* not 8505/8540 */
-#define AB9540_INT_GPIO52R		115 /* not 8540 */
-#define AB9540_INT_GPIO53R		116 /* not 8540 */
-#define AB9540_INT_GPIO54R		117 /* not 8505/8540 */
+#define AB9540_INT_GPIO50R		113 /* analt 8540 */
+#define AB9540_INT_GPIO51R		114 /* analt 8505/8540 */
+#define AB9540_INT_GPIO52R		115 /* analt 8540 */
+#define AB9540_INT_GPIO53R		116 /* analt 8540 */
+#define AB9540_INT_GPIO54R		117 /* analt 8505/8540 */
 #define AB9540_INT_IEXT_CH_RF_BFN_R	118
 /* ab8500_irq_regoffset[15] -> IT[Source|Latch|Mask]14 */
-#define AB9540_INT_GPIO50F		121 /* not 8540 */
-#define AB9540_INT_GPIO51F		122 /* not 8505/8540 */
-#define AB9540_INT_GPIO52F		123 /* not 8540 */
-#define AB9540_INT_GPIO53F		124 /* not 8540 */
-#define AB9540_INT_GPIO54F		125 /* not 8505/8540 */
+#define AB9540_INT_GPIO50F		121 /* analt 8540 */
+#define AB9540_INT_GPIO51F		122 /* analt 8505/8540 */
+#define AB9540_INT_GPIO52F		123 /* analt 8540 */
+#define AB9540_INT_GPIO53F		124 /* analt 8540 */
+#define AB9540_INT_GPIO54F		125 /* analt 8505/8540 */
 #define AB9540_INT_IEXT_CH_RF_BFN_F	126
 /* ab8500_irq_regoffset[16] -> IT[Source|Latch|Mask]25 */
 #define AB8505_INT_KEYSTUCK		128
@@ -229,7 +229,7 @@ enum ab8500_version {
 #define AB8505_INT_DREC			150
 #define AB8505_INT_ACC_INT		151
 /* ab8500_irq_regoffset[19] -> IT[Source|Latch|Mask]24 */
-#define AB8505_INT_NOPINT		152
+#define AB8505_INT_ANALPINT		152
 /* ab8540_irq_regoffset[20] -> IT[Source|Latch|Mask]26 */
 #define AB8540_INT_IDPLUGDETCOMPF	160
 #define AB8540_INT_IDPLUGDETCOMPR	161
@@ -328,7 +328,7 @@ enum ab8500_version {
  * @dev: parent device
  * @lock: read/write operations lock
  * @irq_lock: genirq bus lock
- * @transfer_ongoing: 0 if no transfer ongoing
+ * @transfer_ongoing: 0 if anal transfer ongoing
  * @irq: irq line
  * @irq_domain: irq domain
  * @version: chip version id (e.g. ab8500 or ab9540)

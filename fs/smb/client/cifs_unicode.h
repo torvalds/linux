@@ -8,7 +8,7 @@
  *
  *   Copyright (c) International Business Machines  Corp., 2000,2009
  *
- * Notes:
+ * Analtes:
  *     These APIs are based on the C library functions.  The semantics
  *     should match the C functions but with expanded size operands.
  *
@@ -25,7 +25,7 @@
 
 /*
  * Macs use an older "SFM" mapping of the symbols above. Fortunately it does
- * not conflict (although almost does) with the mapping above.
+ * analt conflict (although almost does) with the mapping above.
  */
 
 #define SFM_DOUBLEQUOTE ((__u16) 0xF020)
@@ -43,14 +43,14 @@
  * Mapping mechanism to use when one of the seven reserved characters is
  * encountered.  We can only map using one of the mechanisms at a time
  * since otherwise readdir could return directory entries which we would
- * not be able to open
+ * analt be able to open
  *
- * NO_MAP_UNI_RSVD  = do not perform any remapping of the character
+ * ANAL_MAP_UNI_RSVD  = do analt perform any remapping of the character
  * SFM_MAP_UNI_RSVD = map reserved characters using SFM scheme (MAC compatible)
  * SFU_MAP_UNI_RSVD = map reserved characters ala SFU ("mapchars" option)
  *
  */
-#define NO_MAP_UNI_RSVD		0
+#define ANAL_MAP_UNI_RSVD		0
 #define SFM_MAP_UNI_RSVD	1
 #define SFU_MAP_UNI_RSVD	2
 

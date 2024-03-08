@@ -19,12 +19,12 @@
 static int zero_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	if (argc != 0) {
-		ti->error = "No arguments required";
+		ti->error = "Anal arguments required";
 		return -EINVAL;
 	}
 
 	/*
-	 * Silently drop discards, avoiding -EOPNOTSUPP.
+	 * Silently drop discards, avoiding -EOPANALTSUPP.
 	 */
 	ti->num_discard_bios = 1;
 	ti->discards_supported = true;
@@ -69,7 +69,7 @@ static void zero_io_hints(struct dm_target *ti, struct queue_limits *limits)
 static struct target_type zero_target = {
 	.name   = "zero",
 	.version = {1, 2, 0},
-	.features = DM_TARGET_NOWAIT,
+	.features = DM_TARGET_ANALWAIT,
 	.module = THIS_MODULE,
 	.ctr    = zero_ctr,
 	.map    = zero_map,

@@ -16,7 +16,7 @@ void gen3_irq_reset(struct intel_uncore *uncore, i915_reg_t imr,
 
 	intel_uncore_write(uncore, ier, 0);
 
-	/* IIR can theoretically queue up two events. Be paranoid. */
+	/* IIR can theoretically queue up two events. Be paraanalid. */
 	intel_uncore_write(uncore, iir, 0xffffffff);
 	intel_uncore_posting_read(uncore, iir);
 	intel_uncore_write(uncore, iir, 0xffffffff);
@@ -35,7 +35,7 @@ void gen3_assert_iir_is_zero(struct intel_uncore *uncore, i915_reg_t reg)
 		return;
 
 	drm_WARN(&xe->drm, 1,
-		 "Interrupt register 0x%x is not zero: 0x%08x\n",
+		 "Interrupt register 0x%x is analt zero: 0x%08x\n",
 		 i915_mmio_reg_offset(reg), val);
 	intel_uncore_write(uncore, reg, 0xffffffff);
 	intel_uncore_posting_read(uncore, reg);
@@ -60,10 +60,10 @@ bool intel_irqs_enabled(struct xe_device *xe)
 	/*
 	 * XXX: i915 has a racy handling of the irq.enabled, since it doesn't
 	 * lock its transitions. Because of that, the irq.enabled sometimes
-	 * is not read with the irq.lock in place.
+	 * is analt read with the irq.lock in place.
 	 * However, the most critical cases like vblank and page flips are
 	 * properly using the locks.
-	 * We cannot take the lock in here or run any kind of assert because
+	 * We cananalt take the lock in here or run any kind of assert because
 	 * of i915 inconsistency.
 	 * But at this point the xe irq is better protected against races,
 	 * although the full solution would be protecting the i915 side.

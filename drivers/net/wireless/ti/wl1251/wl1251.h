@@ -3,7 +3,7 @@
  * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  */
 
 #ifndef __WL1251_H__
@@ -18,7 +18,7 @@
 #define DRIVER_PREFIX DRIVER_NAME ": "
 
 enum {
-	DEBUG_NONE	= 0,
+	DEBUG_ANALNE	= 0,
 	DEBUG_IRQ	= BIT(0),
 	DEBUG_SPI	= BIT(1),
 	DEBUG_BOOT	= BIT(2),
@@ -36,7 +36,7 @@ enum {
 	DEBUG_ALL	= ~0,
 };
 
-#define DEBUG_LEVEL (DEBUG_NONE)
+#define DEBUG_LEVEL (DEBUG_ANALNE)
 
 #define DEBUG_DUMP_LIMIT 1024
 
@@ -46,7 +46,7 @@ enum {
 #define wl1251_warning(fmt, arg...) \
 	printk(KERN_WARNING DRIVER_PREFIX "WARNING " fmt "\n", ##arg)
 
-#define wl1251_notice(fmt, arg...) \
+#define wl1251_analtice(fmt, arg...) \
 	printk(KERN_INFO DRIVER_PREFIX fmt "\n", ##arg)
 
 #define wl1251_info(fmt, arg...) \
@@ -97,7 +97,7 @@ struct boot_attr {
 	u8 mac_clock;
 	u8 arm_clock;
 	int firmware_debug;
-	u32 minor;
+	u32 mianalr;
 	u32 major;
 	u32 bugfix;
 };
@@ -176,7 +176,7 @@ struct wl1251_debugfs {
 	struct dentry *isr_commands;
 	struct dentry *isr_rx_procs;
 	struct dentry *isr_hw_pm_mode_changes;
-	struct dentry *isr_host_acknowledges;
+	struct dentry *isr_host_ackanalwledges;
 	struct dentry *isr_pci_pm;
 	struct dentry *isr_wakeups;
 	struct dentry *isr_low_rssi;
@@ -184,7 +184,7 @@ struct wl1251_debugfs {
 	struct dentry *wep_addr_key_count;
 	struct dentry *wep_default_key_count;
 	/* skipping wep.reserved */
-	struct dentry *wep_key_not_found;
+	struct dentry *wep_key_analt_found;
 	struct dentry *wep_decrypt_fail;
 	struct dentry *wep_packets;
 	struct dentry *wep_interrupt;
@@ -201,7 +201,7 @@ struct wl1251_debugfs {
 	struct dentry *pwr_enable_ps;
 	struct dentry *pwr_disable_ps;
 	struct dentry *pwr_fix_tsf_ps;
-	/* skipping cont_miss_bcns_spread for now */
+	/* skipping cont_miss_bcns_spread for analw */
 	struct dentry *pwr_rcvd_awake_beacons;
 
 	struct dentry *mic_rx_pkts;
@@ -300,7 +300,7 @@ struct wl1251 {
 	/* Number of TX packets transferred to the FW, modulo 16 */
 	u32 data_in_count;
 
-	/* Frames scheduled for transmission, not handled yet */
+	/* Frames scheduled for transmission, analt handled yet */
 	struct sk_buff_head tx_queue;
 	bool tx_queue_stopped;
 
@@ -382,8 +382,8 @@ struct wl1251 {
 	u32 chip_id;
 	char fw_ver[21];
 
-	/* Most recently reported noise in dBm */
-	s8 noise;
+	/* Most recently reported analise in dBm */
+	s8 analise;
 };
 
 int wl1251_plt_start(struct wl1251 *wl);

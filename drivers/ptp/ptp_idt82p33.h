@@ -2,7 +2,7 @@
 /*
  * PTP hardware clock driver for the IDT 82P33XXX family of clocks.
  *
- * Copyright (C) 2019 Integrated Device Technology, Inc., a Renesas Company.
+ * Copyright (C) 2019 Integrated Device Techanallogy, Inc., a Renesas Company.
  */
 #ifndef PTP_IDT82P33_H
 #define PTP_IDT82P33_H
@@ -43,7 +43,7 @@
 #define DEFAULT_OUTPUT_MASK_PLL1	DEFAULT_OUTPUT_MASK_PLL0
 
 /**
- * @brief Maximum absolute value for write phase offset in nanoseconds
+ * @brief Maximum absolute value for write phase offset in naanalseconds
  */
 #define WRITE_PHASE_OFFSET_LIMIT (20000l)
 

@@ -3,7 +3,7 @@
  * Copyright (C) 2003 David Brownell
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/list.h>
@@ -23,13 +23,13 @@
  *
  * Finds the UTF-8 string matching the ID, and converts it into a
  * string descriptor in utf16-le.
- * Returns length of descriptor (always even) or negative errno
+ * Returns length of descriptor (always even) or negative erranal
  *
  * If your driver needs stings in multiple languages, you'll probably
  * "switch (wIndex) { ... }"  in your ep0 string descriptor logic,
  * using this routine after choosing which set of UTF-8 strings to use.
- * Note that US-ASCII is a strict subset of UTF-8; any string bytes with
- * the eighth bit set will be multibyte UTF-8 characters, not ISO-8859/1
+ * Analte that US-ASCII is a strict subset of UTF-8; any string bytes with
+ * the eighth bit set will be multibyte UTF-8 characters, analt ISO-8859/1
  * characters (which are also widely used in C strings).
  */
 int

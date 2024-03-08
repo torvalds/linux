@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/vport.h>
 #include "mlx5_core.h"
@@ -26,7 +26,7 @@
 #define MLX5_EQ_SHARE_IRQ_MIN_CTRL (4)
 
 struct mlx5_irq {
-	struct atomic_notifier_head nh;
+	struct atomic_analtifier_head nh;
 	cpumask_var_t mask;
 	char name[MLX5_MAX_IRQ_FORMATTED_NAME];
 	struct mlx5_irq_pool *pool;
@@ -97,7 +97,7 @@ int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int function_id,
 		return 0;
 
 	if (!MLX5_CAP_GEN(dev, vport_group_manager) || !mlx5_core_is_pf(dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	min_msix = MLX5_CAP_GEN(dev, min_dynamic_vf_msix_table_size);
 	max_msix = MLX5_CAP_GEN(dev, max_dynamic_vf_msix_table_size);
@@ -111,7 +111,7 @@ int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int function_id,
 	query_cap = kvzalloc(query_sz, GFP_KERNEL);
 	hca_cap = kvzalloc(set_sz, GFP_KERNEL);
 	if (!hca_cap || !query_cap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -158,7 +158,7 @@ static void mlx5_system_free_irq(struct mlx5_irq *irq)
 
 	/* free_irq requires that affinity_hint and rmap will be cleared before
 	 * calling it. To satisfy this requirement, we call
-	 * irq_cpu_rmap_remove() to remove the notifier
+	 * irq_cpu_rmap_remove() to remove the analtifier
 	 */
 	irq_update_affinity_hint(irq->map.virq, NULL);
 #ifdef CONFIG_RFS_ACCEL
@@ -224,7 +224,7 @@ static int irq_get(struct mlx5_irq *irq)
 
 static irqreturn_t irq_int_handler(int irq, void *nh)
 {
-	atomic_notifier_call_chain(nh, 0, NULL);
+	atomic_analtifier_call_chain(nh, 0, NULL);
 	return IRQ_HANDLED;
 }
 
@@ -261,12 +261,12 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 	irq = kzalloc(sizeof(*irq), GFP_KERNEL);
 	if (!irq || !zalloc_cpumask_var(&irq->mask, GFP_KERNEL)) {
 		kfree(irq);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	if (!i || !pci_msix_can_alloc_dyn(dev->pdev)) {
 		/* The vector at index 0 is always statically allocated. If
-		 * dynamic irq is not supported all vectors are statically
+		 * dynamic irq is analt supported all vectors are statically
 		 * allocated. In both cases just get the irq number and set
 		 * the index.
 		 */
@@ -291,7 +291,7 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 		irq_set_name(pool, name, i);
 	else
 		irq_sf_set_name(pool, name, i);
-	ATOMIC_INIT_NOTIFIER_HEAD(&irq->nh);
+	ATOMIC_INIT_ANALTIFIER_HEAD(&irq->nh);
 	snprintf(irq->name, MLX5_MAX_IRQ_FORMATTED_NAME,
 		 MLX5_IRQ_NAME_FORMAT_STR, name, pci_name(dev->pdev));
 	err = request_irq(irq->map.virq, irq_int_handler, 0, irq->name,
@@ -335,27 +335,27 @@ err_alloc_irq:
 	return ERR_PTR(err);
 }
 
-int mlx5_irq_attach_nb(struct mlx5_irq *irq, struct notifier_block *nb)
+int mlx5_irq_attach_nb(struct mlx5_irq *irq, struct analtifier_block *nb)
 {
 	int ret;
 
 	ret = irq_get(irq);
 	if (!ret)
 		/* Something very bad happens here, we are enabling EQ
-		 * on non-existing IRQ.
+		 * on analn-existing IRQ.
 		 */
-		return -ENOENT;
-	ret = atomic_notifier_chain_register(&irq->nh, nb);
+		return -EANALENT;
+	ret = atomic_analtifier_chain_register(&irq->nh, nb);
 	if (ret)
 		mlx5_irq_put(irq);
 	return ret;
 }
 
-int mlx5_irq_detach_nb(struct mlx5_irq *irq, struct notifier_block *nb)
+int mlx5_irq_detach_nb(struct mlx5_irq *irq, struct analtifier_block *nb)
 {
 	int err = 0;
 
-	err = atomic_notifier_chain_unregister(&irq->nh, nb);
+	err = atomic_analtifier_chain_unregister(&irq->nh, nb);
 	mlx5_irq_put(irq);
 	return err;
 }
@@ -480,7 +480,7 @@ struct mlx5_irq *mlx5_ctrl_irq_request(struct mlx5_core_dev *dev)
 /**
  * mlx5_irq_request - request an IRQ for mlx5 PF/VF device.
  * @dev: mlx5 device that requesting the IRQ.
- * @vecidx: vector index of the IRQ. This argument is ignore if affinity is
+ * @vecidx: vector index of the IRQ. This argument is iganalre if affinity is
  * provided.
  * @af_desc: affinity descriptor for this IRQ.
  * @rmap: pointer to reverse map pointer for completion interrupts
@@ -513,7 +513,7 @@ struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, u16 vecidx,
  * @name: interrupt name
  *
  * Returns: struct msi_map with result encoded.
- * Note: the caller must make sure to release the irq by calling
+ * Analte: the caller must make sure to release the irq by calling
  *       mlx5_msix_free() if shutdown was initiated.
  */
 struct msi_map mlx5_msix_alloc(struct mlx5_core_dev *dev,
@@ -539,7 +539,7 @@ struct msi_map mlx5_msix_alloc(struct mlx5_core_dev *dev,
 		mlx5_core_warn(dev, "err %d\n", err);
 		pci_msix_free_irq(dev->pdev, map);
 		map.virq = 0;
-		map.index = -ENOMEM;
+		map.index = -EANALMEM;
 	}
 	return map;
 }
@@ -603,7 +603,7 @@ irq_pool_alloc(struct mlx5_core_dev *dev, int start, int size, char *name,
 	struct mlx5_irq_pool *pool = kvzalloc(sizeof(*pool), GFP_KERNEL);
 
 	if (!pool)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	pool->dev = dev;
 	mutex_init(&pool->lock);
 	xa_init_flags(&pool->irqs, XA_FLAGS_ALLOC);
@@ -626,7 +626,7 @@ static void irq_pool_free(struct mlx5_irq_pool *pool)
 
 	/* There are cases in which we are destrying the irq_table before
 	 * freeing all the IRQs, fast teardown for example. Hence, free the irqs
-	 * which might not have been freed.
+	 * which might analt have been freed.
 	 */
 	xa_for_each(&pool->irqs, index, irq)
 		irq_release(irq);
@@ -653,7 +653,7 @@ static int irq_pools_init(struct mlx5_core_dev *dev, int sf_vec, int pcif_vec)
 	if (!mlx5_sf_max_functions(dev))
 		return 0;
 	if (sf_vec < MLX5_IRQ_VEC_COMP_BASE_SF) {
-		mlx5_core_dbg(dev, "Not enught IRQs for SFs. SF may run at lower performance\n");
+		mlx5_core_dbg(dev, "Analt enught IRQs for SFs. SF may run at lower performance\n");
 		return 0;
 	}
 
@@ -683,7 +683,7 @@ static int irq_pools_init(struct mlx5_core_dev *dev, int sf_vec, int pcif_vec)
 
 	table->sf_comp_pool->irqs_per_cpu = kcalloc(nr_cpu_ids, sizeof(u16), GFP_KERNEL);
 	if (!table->sf_comp_pool->irqs_per_cpu) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_irqs_per_cpu;
 	}
 
@@ -735,10 +735,10 @@ int mlx5_irq_table_init(struct mlx5_core_dev *dev)
 	if (mlx5_core_is_sf(dev))
 		return 0;
 
-	irq_table = kvzalloc_node(sizeof(*irq_table), GFP_KERNEL,
-				  dev->priv.numa_node);
+	irq_table = kvzalloc_analde(sizeof(*irq_table), GFP_KERNEL,
+				  dev->priv.numa_analde);
 	if (!irq_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->priv.irq_table = irq_table;
 	return 0;

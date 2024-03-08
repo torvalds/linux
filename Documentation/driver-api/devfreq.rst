@@ -14,7 +14,7 @@ It exposes controls for adjusting frequency through sysfs files which are
 similar to the cpufreq subsystem.
 
 Devices for which current usage can be measured can have their frequency
-automatically adjusted by governors.
+automatically adjusted by goveranalrs.
 
 API
 ---

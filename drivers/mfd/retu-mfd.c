@@ -1,7 +1,7 @@
 /*
  * Retu/Tahvo MFD driver
  *
- * Copyright (C) 2004, 2005 Nokia Corporation
+ * Copyright (C) 2004, 2005 Analkia Corporation
  *
  * Based on code written by Juha Yrjölä, David Weinehall and Mikko Ylinen.
  * Rewritten by Aaro Koskinen.
@@ -172,7 +172,7 @@ static void retu_power_off(void)
 
 	mutex_lock(&retu_pm_power_off->mutex);
 
-	/* Ignore power button state */
+	/* Iganalre power button state */
 	regmap_read(rdev->regmap, RETU_REG_CC1, &reg);
 	regmap_write(rdev->regmap, RETU_REG_CC1, reg | 2);
 
@@ -234,12 +234,12 @@ static int retu_probe(struct i2c_client *i2c)
 	int ret;
 
 	if (i2c->addr > ARRAY_SIZE(retu_data))
-		return -ENODEV;
+		return -EANALDEV;
 	rdat = &retu_data[i2c->addr - 1];
 
 	rdev = devm_kzalloc(&i2c->dev, sizeof(*rdev), GFP_KERNEL);
 	if (rdev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, rdev);
 	rdev->dev = &i2c->dev;
@@ -251,7 +251,7 @@ static int retu_probe(struct i2c_client *i2c)
 
 	ret = retu_read(rdev, RETU_REG_ASICR);
 	if (ret < 0) {
-		dev_err(rdev->dev, "could not read %s revision: %d\n",
+		dev_err(rdev->dev, "could analt read %s revision: %d\n",
 			rdat->chip_name, ret);
 		return ret;
 	}
@@ -307,8 +307,8 @@ static const struct i2c_device_id retu_id[] = {
 MODULE_DEVICE_TABLE(i2c, retu_id);
 
 static const struct of_device_id retu_of_match[] = {
-	{ .compatible = "nokia,retu" },
-	{ .compatible = "nokia,tahvo" },
+	{ .compatible = "analkia,retu" },
+	{ .compatible = "analkia,tahvo" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, retu_of_match);

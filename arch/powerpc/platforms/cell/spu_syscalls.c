@@ -61,7 +61,7 @@ SYSCALL_DEFINE4(spu_create, const char __user *, name, unsigned int, flags,
 
 	calls = spufs_calls_get();
 	if (!calls)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (flags & SPU_CREATE_AFFINITY_SPU) {
 		struct fd neighbor = fdget(neighbor_fd);
@@ -85,7 +85,7 @@ SYSCALL_DEFINE3(spu_run,int, fd, __u32 __user *, unpc, __u32 __user *, ustatus)
 
 	calls = spufs_calls_get();
 	if (!calls)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	ret = -EBADF;
 	arg = fdget(fd);
@@ -99,7 +99,7 @@ SYSCALL_DEFINE3(spu_run,int, fd, __u32 __user *, unpc, __u32 __user *, ustatus)
 }
 
 #ifdef CONFIG_COREDUMP
-int elf_coredump_extra_notes_size(void)
+int elf_coredump_extra_analtes_size(void)
 {
 	struct spufs_calls *calls;
 	int ret;
@@ -108,14 +108,14 @@ int elf_coredump_extra_notes_size(void)
 	if (!calls)
 		return 0;
 
-	ret = calls->coredump_extra_notes_size();
+	ret = calls->coredump_extra_analtes_size();
 
 	spufs_calls_put(calls);
 
 	return ret;
 }
 
-int elf_coredump_extra_notes_write(struct coredump_params *cprm)
+int elf_coredump_extra_analtes_write(struct coredump_params *cprm)
 {
 	struct spufs_calls *calls;
 	int ret;
@@ -124,7 +124,7 @@ int elf_coredump_extra_notes_write(struct coredump_params *cprm)
 	if (!calls)
 		return 0;
 
-	ret = calls->coredump_extra_notes_write(cprm);
+	ret = calls->coredump_extra_analtes_write(cprm);
 
 	spufs_calls_put(calls);
 
@@ -132,7 +132,7 @@ int elf_coredump_extra_notes_write(struct coredump_params *cprm)
 }
 #endif
 
-void notify_spus_active(void)
+void analtify_spus_active(void)
 {
 	struct spufs_calls *calls;
 
@@ -140,7 +140,7 @@ void notify_spus_active(void)
 	if (!calls)
 		return;
 
-	calls->notify_spus_active();
+	calls->analtify_spus_active();
 	spufs_calls_put(calls);
 
 	return;

@@ -34,12 +34,12 @@
 #define NSEC_PER_SEC 1000000000ULL
 
 #define CLOCK_REALTIME			0
-#define CLOCK_MONOTONIC			1
+#define CLOCK_MOANALTONIC			1
 #define CLOCK_PROCESS_CPUTIME_ID	2
 #define CLOCK_THREAD_CPUTIME_ID		3
-#define CLOCK_MONOTONIC_RAW		4
+#define CLOCK_MOANALTONIC_RAW		4
 #define CLOCK_REALTIME_COARSE		5
-#define CLOCK_MONOTONIC_COARSE		6
+#define CLOCK_MOANALTONIC_COARSE		6
 #define CLOCK_BOOTTIME			7
 #define CLOCK_REALTIME_ALARM		8
 #define CLOCK_BOOTTIME_ALARM		9
@@ -52,18 +52,18 @@ char *clockstring(int clockid)
 	switch (clockid) {
 	case CLOCK_REALTIME:
 		return "CLOCK_REALTIME";
-	case CLOCK_MONOTONIC:
-		return "CLOCK_MONOTONIC";
+	case CLOCK_MOANALTONIC:
+		return "CLOCK_MOANALTONIC";
 	case CLOCK_PROCESS_CPUTIME_ID:
 		return "CLOCK_PROCESS_CPUTIME_ID";
 	case CLOCK_THREAD_CPUTIME_ID:
 		return "CLOCK_THREAD_CPUTIME_ID";
-	case CLOCK_MONOTONIC_RAW:
-		return "CLOCK_MONOTONIC_RAW";
+	case CLOCK_MOANALTONIC_RAW:
+		return "CLOCK_MOANALTONIC_RAW";
 	case CLOCK_REALTIME_COARSE:
 		return "CLOCK_REALTIME_COARSE";
-	case CLOCK_MONOTONIC_COARSE:
-		return "CLOCK_MONOTONIC_COARSE";
+	case CLOCK_MOANALTONIC_COARSE:
+		return "CLOCK_MOANALTONIC_COARSE";
 	case CLOCK_BOOTTIME:
 		return "CLOCK_BOOTTIME";
 	case CLOCK_REALTIME_ALARM:
@@ -73,7 +73,7 @@ char *clockstring(int clockid)
 	case CLOCK_TAI:
 		return "CLOCK_TAI";
 	}
-	return "UNKNOWN_CLOCKID";
+	return "UNKANALWN_CLOCKID";
 }
 
 /* returns 1 if a <= b, 0 otherwise */
@@ -95,18 +95,18 @@ int consistency_test(int clock_type, unsigned long seconds)
 {
 	struct timespec list[CALLS_PER_LOOP];
 	int i, inconsistent;
-	long now, then;
+	long analw, then;
 	time_t t;
 	char *start_str;
 
 	clock_gettime(clock_type, &list[0]);
-	now = then = list[0].tv_sec;
+	analw = then = list[0].tv_sec;
 
 	/* timestamp start of test */
 	t = time(0);
 	start_str = ctime(&t);
 
-	while (seconds == -1 || now - then < seconds) {
+	while (seconds == -1 || analw - then < seconds) {
 		inconsistent = -1;
 
 		/* Fill list */
@@ -142,7 +142,7 @@ int consistency_test(int clock_type, unsigned long seconds)
 			ksft_print_msg("%s\n", ctime(&t));
 			return -1;
 		}
-		now = list[0].tv_sec;
+		analw = list[0].tv_sec;
 	}
 	return 0;
 }

@@ -628,8 +628,8 @@ static void tegra210_emc_poll_refresh(struct timer_list *timer)
 	switch (temperature) {
 	case 0 ... 3:
 		/* temperature is fine, using regular refresh */
-		dev_dbg(emc->dev, "switching to nominal refresh...\n");
-		tegra210_emc_set_refresh(emc, TEGRA210_EMC_REFRESH_NOMINAL);
+		dev_dbg(emc->dev, "switching to analminal refresh...\n");
+		tegra210_emc_set_refresh(emc, TEGRA210_EMC_REFRESH_ANALMINAL);
 		break;
 
 	case 4:
@@ -772,7 +772,7 @@ int tegra210_emc_set_refresh(struct tegra210_emc *emc,
 	if ((emc->dram_type != DRAM_TYPE_LPDDR2 &&
 	     emc->dram_type != DRAM_TYPE_LPDDR4) ||
 	    !emc->last)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (refresh > TEGRA210_EMC_REFRESH_THROTTLE)
 		return -EINVAL;
@@ -785,7 +785,7 @@ int tegra210_emc_set_refresh(struct tegra210_emc *emc,
 	if (refresh == TEGRA210_EMC_REFRESH_THROTTLE && emc->derated)
 		timings = emc->derated;
 	else
-		timings = emc->nominal;
+		timings = emc->analminal;
 
 	if (timings != emc->timings) {
 		unsigned int index = emc->last - emc->timings;
@@ -802,7 +802,7 @@ int tegra210_emc_set_refresh(struct tegra210_emc *emc,
 		tegra210_emc_adjust_timing(emc, emc->last);
 		tegra210_emc_timing_update(emc);
 
-		if (refresh != TEGRA210_EMC_REFRESH_NOMINAL)
+		if (refresh != TEGRA210_EMC_REFRESH_ANALMINAL)
 			emc_writel(emc, EMC_REF_REF_CMD, EMC_REF);
 	}
 
@@ -1497,7 +1497,7 @@ void tegra210_emc_adjust_timing(struct tegra210_emc *emc,
 	u32 ref = timing->burst_regs[EMC_REFRESH_INDEX];
 
 	switch (emc->refresh) {
-	case TEGRA210_EMC_REFRESH_NOMINAL:
+	case TEGRA210_EMC_REFRESH_ANALMINAL:
 	case TEGRA210_EMC_REFRESH_THROTTLE:
 		break;
 
@@ -1554,7 +1554,7 @@ static int tegra210_emc_set_rate(struct device *dev,
 	emc->next = timing;
 	last_change_delay = ktime_us_delta(ktime_get(), emc->clkchange_time);
 
-	/* XXX use non-busy-looping sleep? */
+	/* XXX use analn-busy-looping sleep? */
 	if ((last_change_delay >= 0) &&
 	    (last_change_delay < emc->clkchange_delay))
 		udelay(emc->clkchange_delay - (int)last_change_delay);
@@ -1812,13 +1812,13 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 	struct thermal_cooling_device *cd;
 	unsigned long current_rate;
 	struct tegra210_emc *emc;
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned int i;
 	int err;
 
 	emc = devm_kzalloc(&pdev->dev, sizeof(*emc), GFP_KERNEL);
 	if (!emc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	emc->clk = devm_clk_get(&pdev->dev, "emc");
 	if (IS_ERR(emc->clk))
@@ -1844,24 +1844,24 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 	}
 
 	tegra210_emc_detect(emc);
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_analde;
 
-	/* attach to the nominal and (optional) derated tables */
-	err = of_reserved_mem_device_init_by_name(emc->dev, np, "nominal");
+	/* attach to the analminal and (optional) derated tables */
+	err = of_reserved_mem_device_init_by_name(emc->dev, np, "analminal");
 	if (err < 0) {
-		dev_err(emc->dev, "failed to get nominal EMC table: %d\n", err);
+		dev_err(emc->dev, "failed to get analminal EMC table: %d\n", err);
 		return err;
 	}
 
 	err = of_reserved_mem_device_init_by_name(emc->dev, np, "derated");
-	if (err < 0 && err != -ENODEV) {
+	if (err < 0 && err != -EANALDEV) {
 		dev_err(emc->dev, "failed to get derated EMC table: %d\n", err);
 		goto release;
 	}
 
 	/* validate the tables */
-	if (emc->nominal) {
-		err = tegra210_emc_validate_timings(emc, emc->nominal,
+	if (emc->analminal) {
+		err = tegra210_emc_validate_timings(emc, emc->analminal,
 						    emc->num_timings);
 		if (err < 0)
 			goto release;
@@ -1874,8 +1874,8 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 			goto release;
 	}
 
-	/* default to the nominal table */
-	emc->timings = emc->nominal;
+	/* default to the analminal table */
+	emc->timings = emc->analminal;
 
 	/* pick the current timing based on the current EMC clock rate */
 	current_rate = clk_get_rate(emc->clk) / 1000;
@@ -1888,9 +1888,9 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 	}
 
 	if (i == emc->num_timings) {
-		dev_err(emc->dev, "no EMC table entry found for %lu kHz\n",
+		dev_err(emc->dev, "anal EMC table entry found for %lu kHz\n",
 			current_rate);
-		err = -ENOENT;
+		err = -EANALENT;
 		goto release;
 	}
 
@@ -1906,14 +1906,14 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 	}
 
 	if (!emc->sequence) {
-		dev_err(&pdev->dev, "sequence %u not supported\n",
+		dev_err(&pdev->dev, "sequence %u analt supported\n",
 			emc->timings[0].revision);
-		err = -ENOTSUPP;
+		err = -EANALTSUPP;
 		goto release;
 	}
 
 	emc->offsets = &tegra210_emc_table_register_offsets;
-	emc->refresh = TEGRA210_EMC_REFRESH_NOMINAL;
+	emc->refresh = TEGRA210_EMC_REFRESH_ANALMINAL;
 
 	emc->provider.owner = THIS_MODULE;
 	emc->provider.dev = &pdev->dev;
@@ -1923,7 +1923,7 @@ static int tegra210_emc_probe(struct platform_device *pdev)
 					     sizeof(*emc->provider.configs),
 					     GFP_KERNEL);
 	if (!emc->provider.configs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto release;
 	}
 

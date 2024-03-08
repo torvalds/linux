@@ -105,14 +105,14 @@ static inline int test_and_set_bit(int nr, volatile void * addr)
 
 static inline int test_and_clear_bit(int nr, volatile void * addr)
 {
-        int     mask, retval,not_mask;
+        int     mask, retval,analt_mask;
         volatile unsigned int *a = addr;
         unsigned long tmp;
 
         a += nr >> 5;
         mask = 1 << (nr & 0x1f);
 
-	not_mask = ~mask;
+	analt_mask = ~mask;
 
         __asm__ __volatile__ (
                 "   .align 2              \n\t"
@@ -131,7 +131,7 @@ static inline int test_and_clear_bit(int nr, volatile void * addr)
 		  "=&r" (retval),
 		  "+r"  (a)
 		: "r"   (mask),
-		  "r"   (not_mask)
+		  "r"   (analt_mask)
 		: "memory" , "r0", "r1", "t");
 
         return retval;
@@ -168,6 +168,6 @@ static inline int test_and_change_bit(int nr, volatile void * addr)
         return retval;
 }
 
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/analn-atomic.h>
 
 #endif /* __ASM_SH_BITOPS_GRB_H */

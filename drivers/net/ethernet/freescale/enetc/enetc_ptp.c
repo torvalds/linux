@@ -33,9 +33,9 @@ static int enetc_ptp_probe(struct pci_dev *pdev,
 	void __iomem *base;
 	int err, len, n;
 
-	if (pdev->dev.of_node && !of_device_is_available(pdev->dev.of_node)) {
+	if (pdev->dev.of_analde && !of_device_is_available(pdev->dev.of_analde)) {
 		dev_info(&pdev->dev, "device is disabled, skipping\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = pci_enable_device_mem(pdev);
@@ -58,7 +58,7 @@ static int enetc_ptp_probe(struct pci_dev *pdev,
 
 	ptp_qoriq = kzalloc(sizeof(*ptp_qoriq), GFP_KERNEL);
 	if (!ptp_qoriq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_ptp;
 	}
 
@@ -90,14 +90,14 @@ static int enetc_ptp_probe(struct pci_dev *pdev,
 
 	err = ptp_qoriq_init(ptp_qoriq, base, &enetc_ptp_caps);
 	if (err)
-		goto err_no_clock;
+		goto err_anal_clock;
 
 	enetc_phc_index = ptp_qoriq->phc_index;
 	pci_set_drvdata(pdev, ptp_qoriq);
 
 	return 0;
 
-err_no_clock:
+err_anal_clock:
 	free_irq(ptp_qoriq->irq, ptp_qoriq);
 err_irq:
 	pci_free_irq_vectors(pdev);

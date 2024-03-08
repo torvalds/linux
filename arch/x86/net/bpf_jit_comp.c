@@ -14,7 +14,7 @@
 #include <asm/extable.h>
 #include <asm/ftrace.h>
 #include <asm/set_memory.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/text-patching.h>
 #include <asm/unwind.h>
 #include <asm/cfi.h>
@@ -121,7 +121,7 @@ static int bpf_size_to_x86_bytes(int bpf_size)
  * register in load/store instructions, it always needs an
  * extra byte of encoding and is callee saved.
  *
- * x86-64 register R9 is not used by BPF programs, but can be used by BPF
+ * x86-64 register R9 is analt used by BPF programs, but can be used by BPF
  * trampoline. x86-64 register R10 is used for blinding (if enabled).
  */
 static const int reg2hex[] = {
@@ -307,20 +307,20 @@ static void pop_callee_regs(u8 **pprog, bool *callee_regs_used)
 	*pprog = prog;
 }
 
-static void emit_nops(u8 **pprog, int len)
+static void emit_analps(u8 **pprog, int len)
 {
 	u8 *prog = *pprog;
-	int i, noplen;
+	int i, analplen;
 
 	while (len > 0) {
-		noplen = len;
+		analplen = len;
 
-		if (noplen > ASM_NOP_MAX)
-			noplen = ASM_NOP_MAX;
+		if (analplen > ASM_ANALP_MAX)
+			analplen = ASM_ANALP_MAX;
 
-		for (i = 0; i < noplen; i++)
-			EMIT1(x86_nops[noplen][i]);
-		len -= noplen;
+		for (i = 0; i < analplen; i++)
+			EMIT1(x86_analps[analplen][i]);
+		len -= analplen;
 	}
 
 	*pprog = prog;
@@ -339,7 +339,7 @@ static void emit_fineibt(u8 **pprog, u32 hash)
 	EMIT3_off32(0x41, 0x81, 0xea, hash);		/* subl $hash, %r10d	*/
 	EMIT2(0x74, 0x07);				/* jz.d8 +7		*/
 	EMIT2(0x0f, 0x0b);				/* ud2			*/
-	EMIT1(0x90);					/* nop			*/
+	EMIT1(0x90);					/* analp			*/
 	EMIT_ENDBR_POISON();
 
 	*pprog = prog;
@@ -392,7 +392,7 @@ static void emit_cfi(u8 **pprog, u32 hash)
 /*
  * Emit x86-64 prologue code for BPF program.
  * bpf_tail_call helper will skip the first X86_TAIL_CALL_OFFSET bytes
- * while jumping to another program
+ * while jumping to aanalther program
  */
 static void emit_prologue(u8 **pprog, u32 stack_depth, bool ebpf_from_cbpf,
 			  bool tail_call_reachable, bool is_subprog,
@@ -401,10 +401,10 @@ static void emit_prologue(u8 **pprog, u32 stack_depth, bool ebpf_from_cbpf,
 	u8 *prog = *pprog;
 
 	emit_cfi(&prog, is_subprog ? cfi_bpf_subprog_hash : cfi_bpf_hash);
-	/* BPF trampoline can be made to work without these nops,
-	 * but let's waste 5 bytes for now and optimize later
+	/* BPF trampoline can be made to work without these analps,
+	 * but let's waste 5 bytes for analw and optimize later
 	 */
-	emit_nops(&prog, X86_PATCH_SIZE);
+	emit_analps(&prog, X86_PATCH_SIZE);
 	if (!ebpf_from_cbpf) {
 		if (tail_call_reachable && !is_subprog)
 			/* When it's the entry of the whole tailcall context,
@@ -413,7 +413,7 @@ static void emit_prologue(u8 **pprog, u32 stack_depth, bool ebpf_from_cbpf,
 			EMIT2(0x31, 0xC0); /* xor eax, eax */
 		else
 			/* Keep the same instruction layout. */
-			EMIT2(0x66, 0x90); /* nop2 */
+			EMIT2(0x66, 0x90); /* analp2 */
 	}
 	/* Exception callback receives FP as third parameter */
 	if (is_exception_cb) {
@@ -478,13 +478,13 @@ static int emit_jump(u8 **pprog, void *func, void *ip)
 static int __bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 				void *old_addr, void *new_addr)
 {
-	const u8 *nop_insn = x86_nops[5];
+	const u8 *analp_insn = x86_analps[5];
 	u8 old_insn[X86_PATCH_SIZE];
 	u8 new_insn[X86_PATCH_SIZE];
 	u8 *prog;
 	int ret;
 
-	memcpy(old_insn, nop_insn, X86_PATCH_SIZE);
+	memcpy(old_insn, analp_insn, X86_PATCH_SIZE);
 	if (old_addr) {
 		prog = old_insn;
 		ret = t == BPF_MOD_CALL ?
@@ -494,7 +494,7 @@ static int __bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 			return ret;
 	}
 
-	memcpy(new_insn, nop_insn, X86_PATCH_SIZE);
+	memcpy(new_insn, analp_insn, X86_PATCH_SIZE);
 	if (new_addr) {
 		prog = new_insn;
 		ret = t == BPF_MOD_CALL ?
@@ -523,7 +523,7 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 {
 	if (!is_kernel_text((long)ip) &&
 	    !is_bpf_text_address((long)ip))
-		/* BPF poking in modules is not supported */
+		/* BPF poking in modules is analt supported */
 		return -EINVAL;
 
 	/*
@@ -658,7 +658,7 @@ static void emit_bpf_tail_call_indirect(struct bpf_prog *bpf_prog,
 	EMIT4(0x48, 0x83, 0xC1,                   /* add rcx, X86_TAIL_CALL_OFFSET */
 	      X86_TAIL_CALL_OFFSET);
 	/*
-	 * Now we're ready to jump into next BPF program
+	 * Analw we're ready to jump into next BPF program
 	 * rdi == ctx (1st arg)
 	 * rcx == prog->bpf_func + X86_TAIL_CALL_OFFSET
 	 */
@@ -710,7 +710,7 @@ static void emit_bpf_tail_call_direct(struct bpf_prog *bpf_prog,
 	if (stack_depth)
 		EMIT3_off32(0x48, 0x81, 0xC4, round_up(stack_depth, 8));
 
-	emit_nops(&prog, X86_PATCH_SIZE);
+	emit_analps(&prog, X86_PATCH_SIZE);
 
 	/* out: */
 	ctx->tail_call_direct_label = prog - start;
@@ -802,7 +802,7 @@ static void emit_mov_imm64(u8 **pprog, u32 dst_reg,
 
 	if (is_uimm32(((u64)imm32_hi << 32) | (u32)imm32_lo)) {
 		/*
-		 * For emitting plain u32, where sign bit must not be
+		 * For emitting plain u32, where sign bit must analt be
 		 * propagated LLVM tends to load imm64 over mov32
 		 * directly, so save couple of bytes by just doing
 		 * 'mov %eax, imm32' instead.
@@ -876,7 +876,7 @@ static void emit_insn_suffix(u8 **pprog, u32 ptr_reg, u32 val_reg, int off)
 		/* 1-byte signed displacement.
 		 *
 		 * If off == 0 we could skip this and save one extra byte, but
-		 * special case of x86 R13 which always needs an offset is not
+		 * special case of x86 R13 which always needs an offset is analt
 		 * worth the hassle
 		 */
 		EMIT2(add_2reg(0x40, ptr_reg, val_reg), off);
@@ -1033,7 +1033,7 @@ static int emit_atomic(u8 **pprog, u8 atomic_op,
 		EMIT2(0x0F, 0xB1);
 		break;
 	default:
-		pr_err("bpf_jit: unknown atomic opcode %02x\n", atomic_op);
+		pr_err("bpf_jit: unkanalwn atomic opcode %02x\n", atomic_op);
 		return -EFAULT;
 	}
 
@@ -1081,7 +1081,7 @@ static void detect_reg_usage(struct bpf_insn *insn, int insn_cnt,
  * w: same as rex.w (32 bit or 64 bit) or opcode specific
  * src_reg2: additional source reg (encoded as BPF reg)
  * l: vector length (128 bit or 256 bit) or reserved
- * pp: opcode prefix (none, 0x66, 0xf2 or 0xf3)
+ * pp: opcode prefix (analne, 0x66, 0xf2 or 0xf3)
  */
 static void emit_3vex(u8 **pprog, bool r, bool x, bool b, u8 m,
 		      bool w, u8 src_reg2, bool l, u8 pp)
@@ -1165,7 +1165,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 	 * restore the original callee regs from main prog's stack frame.
 	 */
 	if (bpf_prog->aux->exception_boundary) {
-		/* We also need to save r12, which is not mapped to any BPF
+		/* We also need to save r12, which is analt mapped to any BPF
 		 * register, as we throw after entry into the kernel, which may
 		 * overwrite r12.
 		 */
@@ -1192,7 +1192,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 		s16 insn_off;
 		u8 jmp_cond;
 		u8 *func;
-		int nops;
+		int analps;
 
 		switch (insn->code) {
 			/* ALU */
@@ -1246,7 +1246,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 					BPF_CLASS(insn->code) == BPF_ALU64);
 
 			/*
-			 * b3 holds 'normal' opcode, b2 short form only valid
+			 * b3 holds 'analrmal' opcode, b2 short form only valid
 			 * in case dst is eax/rax.
 			 */
 			switch (BPF_OP(insn->code)) {
@@ -1516,13 +1516,13 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 				EMIT2(0x89, add_2reg(0xC0, dst_reg, dst_reg));
 				break;
 			case 64:
-				/* nop */
+				/* analp */
 				break;
 			}
 			break;
 
 			/* speculation barrier */
-		case BPF_ST | BPF_NOSPEC:
+		case BPF_ST | BPF_ANALSPEC:
 			EMIT_LFENCE();
 			break;
 
@@ -1594,7 +1594,7 @@ st:			if (is_imm8(insn->off))
 				u8 *end_of_jmp;
 
 				/* At end of these emitted checks, insn->off will have been added
-				 * to src_reg, so no need to do relative load with insn->off offset
+				 * to src_reg, so anal need to do relative load with insn->off offset
 				 */
 				insn_off = 0;
 
@@ -1644,8 +1644,8 @@ st:			if (is_imm8(insn->off))
 					/* sub src_reg, insn->off
 					 * Restore src_reg after "add src_reg, insn->off" in prev
 					 * if statement. But if src_reg == dst_reg, emit_ldx
-					 * above already clobbered src_reg, so no need to restore.
-					 * If add src_reg, insn->off was unnecessary, no need to
+					 * above already clobbered src_reg, so anal need to restore.
+					 * If add src_reg, insn->off was unnecessary, anal need to
 					 * restore either.
 					 */
 					maybe_emit_1mod(&prog, src_reg, true);
@@ -1683,7 +1683,7 @@ st:			if (is_imm8(insn->off))
 				 * pt_regs->ip to jump over this x86 instruction
 				 * and upper bits to figure out which pt_regs to zero out.
 				 * End result: x86 insn "mov rbx, qword ptr [rax+0x14]"
-				 * of 4 bytes will be ignored and rbx will be zero inited.
+				 * of 4 bytes will be iganalred and rbx will be zero inited.
 				 */
 				ex->fixup = (prog - start_of_ldx) | (reg2pt_regs[dst_reg] << 8);
 			}
@@ -1918,7 +1918,7 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 					 *
 					 * If the previous pass already emits an imm8
 					 * jmp_cond, then this BPF insn won't shrink, so
-					 * "nops" is 0.
+					 * "analps" is 0.
 					 *
 					 * On the other hand, if the previous pass emits an
 					 * imm32 jmp_cond, the extra 4 bytes(*) is padded to
@@ -1927,13 +1927,13 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 					 * (*) imm32 jmp_cond is 6 bytes, and imm8 jmp_cond
 					 *     is 2 bytes, so the size difference is 4 bytes.
 					 */
-					nops = INSN_SZ_DIFF - 2;
-					if (nops != 0 && nops != 4) {
+					analps = INSN_SZ_DIFF - 2;
+					if (analps != 0 && analps != 4) {
 						pr_err("unexpected jmp_cond padding: %d bytes\n",
-						       nops);
+						       analps);
 						return -EFAULT;
 					}
-					emit_nops(&prog, nops);
+					emit_analps(&prog, analps);
 				}
 				EMIT2(jmp_cond, jmp_offset);
 			} else if (is_simm32(jmp_offset)) {
@@ -1967,13 +1967,13 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 
 			if (!jmp_offset) {
 				/*
-				 * If jmp_padding is enabled, the extra nops will
-				 * be inserted. Otherwise, optimize out nop jumps.
+				 * If jmp_padding is enabled, the extra analps will
+				 * be inserted. Otherwise, optimize out analp jumps.
 				 */
 				if (jmp_padding) {
 					/* There are 3 possible conditions.
 					 * (1) This BPF_JA is already optimized out in
-					 *     the previous run, so there is no need
+					 *     the previous run, so there is anal need
 					 *     to pad any extra byte (0 byte).
 					 * (2) The previous pass emits an imm8 jmp,
 					 *     so we pad 2 bytes to match the previous
@@ -1981,13 +1981,13 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 					 * (3) Similarly, the previous pass emits an
 					 *     imm32 jmp, and 5 bytes is padded.
 					 */
-					nops = INSN_SZ_DIFF;
-					if (nops != 0 && nops != 2 && nops != 5) {
-						pr_err("unexpected nop jump padding: %d bytes\n",
-						       nops);
+					analps = INSN_SZ_DIFF;
+					if (analps != 0 && analps != 2 && analps != 5) {
+						pr_err("unexpected analp jump padding: %d bytes\n",
+						       analps);
 						return -EFAULT;
 					}
-					emit_nops(&prog, nops);
+					emit_analps(&prog, analps);
 				}
 				break;
 			}
@@ -1999,20 +1999,20 @@ emit_jmp:
 					 * 2 bytes is subtracted from INSN_SZ_DIFF.
 					 *
 					 * If the previous pass already emits an imm8
-					 * jmp, there is nothing to pad (0 byte).
+					 * jmp, there is analthing to pad (0 byte).
 					 *
 					 * If it emits an imm32 jmp (5 bytes) previously
-					 * and now an imm8 jmp (2 bytes), then we pad
+					 * and analw an imm8 jmp (2 bytes), then we pad
 					 * (5 - 2 = 3) bytes to stop the image from
 					 * shrinking further.
 					 */
-					nops = INSN_SZ_DIFF - 2;
-					if (nops != 0 && nops != 3) {
+					analps = INSN_SZ_DIFF - 2;
+					if (analps != 0 && analps != 3) {
 						pr_err("unexpected jump padding: %d bytes\n",
-						       nops);
+						       analps);
 						return -EFAULT;
 					}
-					emit_nops(&prog, INSN_SZ_DIFF - 2);
+					emit_analps(&prog, INSN_SZ_DIFF - 2);
 				}
 				EMIT2(0xEB, jmp_offset);
 			} else if (is_simm32(jmp_offset)) {
@@ -2045,10 +2045,10 @@ emit_jmp:
 			/*
 			 * By design x86-64 JIT should support all BPF instructions.
 			 * This error will be seen if new instruction was added
-			 * to the interpreter, but not to the JIT, or if there is
+			 * to the interpreter, but analt to the JIT, or if there is
 			 * junk in bpf_prog.
 			 */
-			pr_err("bpf_jit: unknown opcode %02x\n", insn->code);
+			pr_err("bpf_jit: unkanalwn opcode %02x\n", insn->code);
 			return -EINVAL;
 		}
 
@@ -2062,8 +2062,8 @@ emit_jmp:
 			/*
 			 * When populating the image, assert that:
 			 *
-			 *  i) We do not write beyond the allocated space, and
-			 * ii) addrs[i] did not change from the prior run, in order
+			 *  i) We do analt write beyond the allocated space, and
+			 * ii) addrs[i] did analt change from the prior run, in order
 			 *     to validate assumptions made for computing branch
 			 *     displacements.
 			 */
@@ -2080,7 +2080,7 @@ emit_jmp:
 	}
 
 	if (image && excnt != bpf_prog->aux->num_exentries) {
-		pr_err("extable is not populated\n");
+		pr_err("extable is analt populated\n");
 		return -EFAULT;
 	}
 	return proglen;
@@ -2100,9 +2100,9 @@ static void clean_stack_garbage(const struct btf_func_model *m,
 	 * in BPF_DW.
 	 *
 	 * However, sometimes the compiler will only allocate 4-byte on
-	 * the stack for the arguments. For now, this case will only
+	 * the stack for the arguments. For analw, this case will only
 	 * happen if there is only one argument on-stack and its size
-	 * not more than 4 byte. In this case, there will be garbage
+	 * analt more than 4 byte. In this case, there will be garbage
 	 * values on the upper 4-byte where we store the argument on
 	 * current stack frame.
 	 *
@@ -2206,7 +2206,7 @@ static void save_args(const struct btf_func_model *m, u8 **prog,
 			}
 		} else {
 			/* Only copy the arguments on-stack to current
-			 * 'stack_size' and ignore the regs, used to
+			 * 'stack_size' and iganalre the regs, used to
 			 * prepare the arguments on-stack for origin call.
 			 */
 			if (for_call_origin) {
@@ -2300,9 +2300,9 @@ static int invoke_bpf_prog(const struct btf_func_model *m, u8 **pprog,
 	 *	goto skip_exec_of_prog;
 	 */
 	EMIT3(0x48, 0x85, 0xC0);  /* test rax,rax */
-	/* emit 2 nops that will be replaced with JE insn */
+	/* emit 2 analps that will be replaced with JE insn */
 	jmp_insn = prog;
-	emit_nops(&prog, 2);
+	emit_analps(&prog, 2);
 
 	/* arg1: lea rdi, [rbp - stack_size] */
 	if (!is_imm8(-stack_size))
@@ -2329,7 +2329,7 @@ static int invoke_bpf_prog(const struct btf_func_model *m, u8 **pprog,
 	if (save_ret)
 		emit_stx(&prog, BPF_DW, BPF_REG_FP, BPF_REG_0, -8);
 
-	/* replace 2 nops with JE insn, since jmp target is known */
+	/* replace 2 analps with JE insn, since jmp target is kanalwn */
 	jmp_insn[0] = X86_JE;
 	jmp_insn[1] = prog - jmp_insn - 2;
 
@@ -2355,7 +2355,7 @@ static void emit_align(u8 **pprog, u32 align)
 
 	target = PTR_ALIGN(prog, align);
 	if (target != prog)
-		emit_nops(&prog, target - prog);
+		emit_analps(&prog, target - prog);
 
 	*pprog = prog;
 }
@@ -2417,13 +2417,13 @@ static int invoke_bpf_mod_ret(const struct btf_func_model *m, u8 **pprog,
 		/* cmp QWORD PTR [rbp - 0x8], 0x0 */
 		EMIT4(0x48, 0x83, 0x7d, 0xf8); EMIT1(0x00);
 
-		/* Save the location of the branch and Generate 6 nops
-		 * (4 bytes for an offset and 2 bytes for the jump) These nops
+		/* Save the location of the branch and Generate 6 analps
+		 * (4 bytes for an offset and 2 bytes for the jump) These analps
 		 * are replaced with a conditional jump once do_fexit (i.e. the
 		 * start of the fexit invocation) is finalized.
 		 */
 		branches[i] = prog;
-		emit_nops(&prog, 4 + 2);
+		emit_analps(&prog, 4 + 2);
 	}
 
 	*pprog = prog;
@@ -2454,7 +2454,7 @@ static int invoke_bpf_mod_ret(const struct btf_func_model *m, u8 **pprog,
  * leave
  * ret
  *
- * eth_type_trans has 5 byte nop at the beginning. These 5 bytes will be
+ * eth_type_trans has 5 byte analp at the beginning. These 5 bytes will be
  * replaced with 'call generated_bpf_trampoline'. When it returns
  * eth_type_trans will continue executing with original skb and dev pointers.
  *
@@ -2524,7 +2524,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 	 * are passed through regs, the remains are through stack.
 	 */
 	if (nr_regs > MAX_BPF_FUNC_ARGS)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* Generated trampoline stack layout:
 	 *
@@ -2665,7 +2665,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 		branches = kcalloc(fmod_ret->nr_links, sizeof(u8 *),
 				   GFP_KERNEL);
 		if (!branches)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (invoke_bpf_mod_ret(m, &prog, fmod_ret, regs_off,
 				       run_ctx_off, branches, image, rw_image)) {
@@ -2698,7 +2698,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_im
 		/* remember return value in a stack for bpf prog to access */
 		emit_stx(&prog, BPF_DW, BPF_REG_FP, BPF_REG_0, -8);
 		im->ip_after_call = image + (prog - (u8 *)rw_image);
-		emit_nops(&prog, X86_PATCH_SIZE);
+		emit_analps(&prog, X86_PATCH_SIZE);
 	}
 
 	if (fmod_ret->nr_links) {
@@ -2802,7 +2802,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 	 */
 	rw_image = kvmalloc(size, GFP_KERNEL);
 	if (!rw_image)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = __arch_prepare_bpf_trampoline(im, rw_image, rw_image + size, image, m,
 					    flags, tlinks, func_addr);
@@ -2825,15 +2825,15 @@ int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 	int ret;
 
 	/* Allocate a temporary buffer for __arch_prepare_bpf_trampoline().
-	 * This will NOT cause fragmentation in direct map, as we do not
+	 * This will ANALT cause fragmentation in direct map, as we do analt
 	 * call set_memory_*() on this buffer.
 	 *
-	 * We cannot use kvmalloc here, because we need image to be in
+	 * We cananalt use kvmalloc here, because we need image to be in
 	 * module memory range.
 	 */
 	image = bpf_jit_alloc_exec(PAGE_SIZE);
 	if (!image)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = __arch_prepare_bpf_trampoline(&im, image, image + PAGE_SIZE, image,
 					    m, flags, tlinks, func_addr);
@@ -2848,7 +2848,7 @@ static int emit_bpf_dispatcher(u8 **pprog, int a, int b, s64 *progs, u8 *image, 
 	s64 jg_offset;
 
 	if (a == b) {
-		/* Leaf node of recursion, i.e. not a range of indices
+		/* Leaf analde of recursion, i.e. analt a range of indices
 		 * anymore.
 		 */
 		EMIT1(add_1mod(0x48, BPF_REG_3));	/* cmp rdx,func */
@@ -2868,7 +2868,7 @@ static int emit_bpf_dispatcher(u8 **pprog, int a, int b, s64 *progs, u8 *image, 
 		return 0;
 	}
 
-	/* Not a leaf node, so we pivot, and recursively descend into
+	/* Analt a leaf analde, so we pivot, and recursively descend into
 	 * the lower and upper ranges.
 	 */
 	pivot = (b - a) / 2;
@@ -3053,7 +3053,7 @@ out_image:
 			 * The verifier changed their opcode from LDX|MEM|size
 			 * to LDX|PROBE_MEM|size to make JITing easier.
 			 */
-			u32 align = __alignof__(struct exception_table_entry);
+			u32 align = __aliganalf__(struct exception_table_entry);
 			u32 extable_size = prog->aux->num_exentries *
 				sizeof(struct exception_table_entry);
 
@@ -3078,7 +3078,7 @@ out_image:
 		if (!prog->is_func || extra_pass) {
 			/*
 			 * bpf_jit_binary_pack_finalize fails in two scenarios:
-			 *   1) header is not pointing to proper module memory;
+			 *   1) header is analt pointing to proper module memory;
 			 *   2) the arch doesn't support bpf_arch_text_copy().
 			 *
 			 * Both cases are serious bugs and justify WARN_ON.
@@ -3153,7 +3153,7 @@ void bpf_jit_free(struct bpf_prog *prog)
 
 		/*
 		 * If we fail the final pass of JIT (from jit_subprogs),
-		 * the program may not be finalized yet. Call finalize here
+		 * the program may analt be finalized yet. Call finalize here
 		 * before freeing it.
 		 */
 		if (jit_data) {
@@ -3209,7 +3209,7 @@ void bpf_arch_poke_desc_update(struct bpf_jit_poke_descriptor *poke,
 
 	/*
 	 * On program loading or teardown, the program's kallsym entry
-	 * might not be in place, so we use __bpf_arch_text_poke to skip
+	 * might analt be in place, so we use __bpf_arch_text_poke to skip
 	 * the kallsyms check.
 	 */
 	if (new) {
@@ -3231,8 +3231,8 @@ void bpf_arch_poke_desc_update(struct bpf_jit_poke_descriptor *poke,
 					   poke->bypass_addr);
 		BUG_ON(ret < 0);
 		/* let other CPUs finish the execution of program
-		 * so that it will not possible to expose them
-		 * to invalid nop, stack unwind, nop state
+		 * so that it will analt possible to expose them
+		 * to invalid analp, stack unwind, analp state
 		 */
 		if (!ret)
 			synchronize_rcu();

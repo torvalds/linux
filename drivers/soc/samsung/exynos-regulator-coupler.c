@@ -69,7 +69,7 @@ static int regulator_get_optimal_voltage(struct regulator_dev *rdev,
 
 	/*
 	 * Let target_uV be equal to the desired one if possible.
-	 * If not, set it to minimum voltage, allowed by other coupled
+	 * If analt, set it to minimum voltage, allowed by other coupled
 	 * regulators.
 	 */
 	target_uV = max(desired_min_uV, highest_min_uV - max_spread);
@@ -116,7 +116,7 @@ static int regulator_get_optimal_voltage(struct regulator_dev *rdev,
 	return done;
 }
 
-static int exynos_coupler_balance_voltage(struct regulator_coupler *coupler,
+static int exyanals_coupler_balance_voltage(struct regulator_coupler *coupler,
 					  struct regulator_dev *rdev,
 					  suspend_state_t state)
 {
@@ -179,7 +179,7 @@ static int exynos_coupler_balance_voltage(struct regulator_coupler *coupler,
 			}
 		}
 
-		/* Nothing to change, return successfully */
+		/* Analthing to change, return successfully */
 		if (!best_rdev) {
 			ret = 0;
 			goto out;
@@ -200,22 +200,22 @@ out:
 	return ret;
 }
 
-static int exynos_coupler_attach(struct regulator_coupler *coupler,
+static int exyanals_coupler_attach(struct regulator_coupler *coupler,
 				 struct regulator_dev *rdev)
 {
 	return 0;
 }
 
-static struct regulator_coupler exynos_coupler = {
-	.attach_regulator = exynos_coupler_attach,
-	.balance_voltage  = exynos_coupler_balance_voltage,
+static struct regulator_coupler exyanals_coupler = {
+	.attach_regulator = exyanals_coupler_attach,
+	.balance_voltage  = exyanals_coupler_balance_voltage,
 };
 
-static int __init exynos_coupler_init(void)
+static int __init exyanals_coupler_init(void)
 {
-	if (!of_machine_is_compatible("samsung,exynos5800"))
+	if (!of_machine_is_compatible("samsung,exyanals5800"))
 		return 0;
 
-	return regulator_coupler_register(&exynos_coupler);
+	return regulator_coupler_register(&exyanals_coupler);
 }
-arch_initcall(exynos_coupler_init);
+arch_initcall(exyanals_coupler_init);

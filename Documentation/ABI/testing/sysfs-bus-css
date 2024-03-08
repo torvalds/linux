@@ -18,7 +18,7 @@ Description:	Contains the ids of the channel paths used by this
 		subchannel, as reported by the channel subsystem
 		during subchannel recognition.
 
-		Note: This is an I/O-subchannel specific attribute.
+		Analte: This is an I/O-subchannel specific attribute.
 Users:		s390-tools, HAL
 
 What:		/sys/bus/css/drivers/io_subchannel/.../pimpampom
@@ -26,10 +26,10 @@ Date:		December 2002
 Contact:	linux-s390@vger.kernel.org
 Description:	Contains the PIM/PAM/POM values, as reported by the
 		channel subsystem when last queried by the common I/O
-		layer (this implies that this attribute is not necessarily
+		layer (this implies that this attribute is analt necessarily
 		in sync with the values current in the channel subsystem).
 
-		Note: This is an I/O-subchannel specific attribute.
+		Analte: This is an I/O-subchannel specific attribute.
 Users:		s390-tools, HAL
 
 What:		/sys/bus/css/devices/.../driver_override
@@ -42,15 +42,15 @@ Description:	This file allows the driver for a device to be specified. When
 		driver_override file (echo vfio-ccw > driver_override) and
 		may be cleared with an empty string (echo > driver_override).
 		This returns the device to standard matching rules binding.
-		Writing to driver_override does not automatically unbind the
+		Writing to driver_override does analt automatically unbind the
 		device from its current driver or make any attempt to
-		automatically load the specified driver.  If no driver with a
+		automatically load the specified driver.  If anal driver with a
 		matching name is currently loaded in the kernel, the device
-		will not bind to any driver.  This also allows devices to
+		will analt bind to any driver.  This also allows devices to
 		opt-out of driver binding using a driver_override name such as
-		"none".  Only a single driver may be specified in the override,
-		there is no support for parsing delimiters.
+		"analne".  Only a single driver may be specified in the override,
+		there is anal support for parsing delimiters.
 
-		Note that unlike the mechanism of the same name for pci, this
-		file does not allow to override basic matching rules. I.e.,
+		Analte that unlike the mechanism of the same name for pci, this
+		file does analt allow to override basic matching rules. I.e.,
 		the driver must still match the subchannel type of the device.

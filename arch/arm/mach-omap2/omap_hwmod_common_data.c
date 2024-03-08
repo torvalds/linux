@@ -4,9 +4,9 @@
  *
  * Copyright (C) 2010 Texas Instruments, Inc.
  * Thara Gopinath <thara@ti.com>
- * Benoît Cousson
+ * Beanalît Cousson
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Paul Walmsley
  *
  * This data/structures are to be used while defining OMAP on-chip module

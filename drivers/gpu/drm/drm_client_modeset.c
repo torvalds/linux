@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /*
- * Copyright 2018 Noralf Trønnes
+ * Copyright 2018 Analralf Trønnes
  * Copyright (c) 2006-2009 Red Hat Inc.
  * Copyright (c) 2006-2008 Intel Corporation
  *   Jesse Barnes <jesse.barnes@intel.com>
@@ -44,7 +44,7 @@ int drm_client_modeset_create(struct drm_client_dev *client)
 	/* Add terminating zero entry to enable index less iteration */
 	client->modesets = kcalloc(num_crtc + 1, sizeof(*client->modesets), GFP_KERNEL);
 	if (!client->modesets)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&client->modeset_mutex);
 
@@ -67,7 +67,7 @@ int drm_client_modeset_create(struct drm_client_dev *client)
 err_free:
 	drm_client_modeset_free(client);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void drm_client_modeset_release(struct drm_client_dev *client)
@@ -131,7 +131,7 @@ drm_connector_get_tiled_mode(struct drm_connector *connector)
 }
 
 static struct drm_display_mode *
-drm_connector_fallback_non_tiled_mode(struct drm_connector *connector)
+drm_connector_fallback_analn_tiled_mode(struct drm_connector *connector)
 {
 	struct drm_display_mode *mode;
 
@@ -163,7 +163,7 @@ static struct drm_display_mode *drm_connector_pick_cmdline_mode(struct drm_conne
 {
 	struct drm_cmdline_mode *cmdline_mode;
 	struct drm_display_mode *mode;
-	bool prefer_non_interlace;
+	bool prefer_analn_interlace;
 
 	/*
 	 * Find a user-defined mode. If the user gave us a valid
@@ -185,7 +185,7 @@ static struct drm_display_mode *drm_connector_pick_cmdline_mode(struct drm_conne
 	 * have gotten so far.
 	 */
 
-	prefer_non_interlace = !cmdline_mode->interlace;
+	prefer_analn_interlace = !cmdline_mode->interlace;
 again:
 	list_for_each_entry(mode, &connector->modes, head) {
 		/* check width/height */
@@ -201,15 +201,15 @@ again:
 		if (cmdline_mode->interlace) {
 			if (!(mode->flags & DRM_MODE_FLAG_INTERLACE))
 				continue;
-		} else if (prefer_non_interlace) {
+		} else if (prefer_analn_interlace) {
 			if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 				continue;
 		}
 		return mode;
 	}
 
-	if (prefer_non_interlace) {
-		prefer_non_interlace = false;
+	if (prefer_analn_interlace) {
+		prefer_analn_interlace = false;
 		goto again;
 	}
 
@@ -220,7 +220,7 @@ static bool drm_connector_enabled(struct drm_connector *connector, bool strict)
 {
 	bool enable;
 
-	if (connector->display_info.non_desktop)
+	if (connector->display_info.analn_desktop)
 		return false;
 
 	if (strict)
@@ -243,7 +243,7 @@ static void drm_client_connectors_enabled(struct drm_connector **connectors,
 		connector = connectors[i];
 		enabled[i] = drm_connector_enabled(connector, true);
 		DRM_DEBUG_KMS("connector %d enabled? %s\n", connector->base.id,
-			      connector->display_info.non_desktop ? "non desktop" : str_yes_no(enabled[i]));
+			      connector->display_info.analn_desktop ? "analn desktop" : str_anal_anal(enabled[i]));
 
 		any_enabled |= enabled[i];
 	}
@@ -280,7 +280,7 @@ static bool drm_client_target_cloned(struct drm_device *dev,
 	if (count <= 1)
 		return false;
 
-	/* check the command line or if nothing common pick 1024x768 */
+	/* check the command line or if analthing common pick 1024x768 */
 	can_clone = true;
 	for (i = 0; i < connector_count; i++) {
 		if (!enabled[i])
@@ -357,7 +357,7 @@ static int drm_client_get_tile_offsets(struct drm_connector **connectors,
 			continue;
 
 		if (!modes[i] && (h_idx || v_idx)) {
-			DRM_DEBUG_KMS("no modes for connector tiled %d %d\n", i,
+			DRM_DEBUG_KMS("anal modes for connector tiled %d %d\n", i,
 				      connector->base.id);
 			continue;
 		}
@@ -436,18 +436,18 @@ retry:
 				      connector->base.id, connector->tile_group ? connector->tile_group->id : 0);
 			modes[i] = drm_connector_has_preferred_mode(connector, width, height);
 		}
-		/* No preferred modes, pick one off the list */
+		/* Anal preferred modes, pick one off the list */
 		if (!modes[i] && !list_empty(&connector->modes)) {
 			list_for_each_entry(modes[i], &connector->modes, head)
 				break;
 		}
 		/*
-		 * In case of tiled mode if all tiles not present fallback to
-		 * first available non tiled mode.
+		 * In case of tiled mode if all tiles analt present fallback to
+		 * first available analn tiled mode.
 		 * After all tiles are present, try to find the tiled mode
-		 * for all and if tiled mode not present due to fbcon size
-		 * limitations, use first non tiled mode only for
-		 * tile 0,0 and set to no mode for all other tiles.
+		 * for all and if tiled mode analt present due to fbcon size
+		 * limitations, use first analn tiled mode only for
+		 * tile 0,0 and set to anal mode for all other tiles.
 		 */
 		if (connector->has_tile) {
 			if (num_tiled_conns <
@@ -455,16 +455,16 @@ retry:
 			    (connector->tile_h_loc == 0 &&
 			     connector->tile_v_loc == 0 &&
 			     !drm_connector_get_tiled_mode(connector))) {
-				DRM_DEBUG_KMS("Falling back to non tiled mode on Connector %d\n",
+				DRM_DEBUG_KMS("Falling back to analn tiled mode on Connector %d\n",
 					      connector->base.id);
-				modes[i] = drm_connector_fallback_non_tiled_mode(connector);
+				modes[i] = drm_connector_fallback_analn_tiled_mode(connector);
 			} else {
 				modes[i] = drm_connector_get_tiled_mode(connector);
 			}
 		}
 
 		DRM_DEBUG_KMS("found mode %s\n", modes[i] ? modes[i]->name :
-			  "none");
+			  "analne");
 		conn_configured |= BIT_ULL(i);
 	}
 
@@ -540,7 +540,7 @@ static int drm_client_pick_crtcs(struct drm_client_dev *client,
 				break;
 
 		if (o < n) {
-			/* ignore cloning unless only a single crtc */
+			/* iganalre cloning unless only a single crtc */
 			if (dev->mode_config.num_crtc > 1)
 				continue;
 
@@ -624,7 +624,7 @@ retry:
 			num_connectors_detected++;
 
 		if (!enabled[i]) {
-			DRM_DEBUG_KMS("connector %s not enabled, skipping\n",
+			DRM_DEBUG_KMS("connector %s analt enabled, skipping\n",
 				      connector->name);
 			conn_configured |= BIT(i);
 			continue;
@@ -642,7 +642,7 @@ retry:
 			if (connector->force > DRM_FORCE_OFF)
 				goto bail;
 
-			DRM_DEBUG_KMS("connector %s has no encoder or crtc, skipping\n",
+			DRM_DEBUG_KMS("connector %s has anal encoder or crtc, skipping\n",
 				      connector->name);
 			enabled[i] = false;
 			conn_configured |= BIT(i);
@@ -654,8 +654,8 @@ retry:
 		new_crtc = connector->state->crtc;
 
 		/*
-		 * Make sure we're not trying to drive multiple connectors
-		 * with a single CRTC, since our cloning support may not
+		 * Make sure we're analt trying to drive multiple connectors
+		 * with a single CRTC, since our cloning support may analt
 		 * match the BIOS.
 		 */
 		for (j = 0; j < count; j++) {
@@ -678,7 +678,7 @@ retry:
 			modes[i] = drm_connector_has_preferred_mode(connector, width, height);
 		}
 
-		/* No preferred mode marked by the EDID? Are there any modes? */
+		/* Anal preferred mode marked by the EDID? Are there any modes? */
 		if (!modes[i] && !list_empty(&connector->modes)) {
 			DRM_DEBUG_KMS("using first mode listed on connector %s\n",
 				      connector->name);
@@ -692,12 +692,12 @@ retry:
 			/*
 			 * IMPORTANT: We want to use the adjusted mode (i.e.
 			 * after the panel fitter upscaling) as the initial
-			 * config, not the input mode, which is what crtc->mode
+			 * config, analt the input mode, which is what crtc->mode
 			 * usually contains. But since our current
 			 * code puts a mode derived from the post-pfit timings
 			 * into crtc->mode this works out correctly.
 			 *
-			 * This is crtc->mode and not crtc->state->mode for the
+			 * This is crtc->mode and analt crtc->state->mode for the
 			 * fastboot check to work correctly.
 			 */
 			DRM_DEBUG_KMS("looking for current mode on connector %s\n",
@@ -705,14 +705,14 @@ retry:
 			modes[i] = &connector->state->crtc->mode;
 		}
 		/*
-		 * In case of tiled modes, if all tiles are not present
-		 * then fallback to a non tiled mode.
+		 * In case of tiled modes, if all tiles are analt present
+		 * then fallback to a analn tiled mode.
 		 */
 		if (connector->has_tile &&
 		    num_tiled_conns < connector->num_h_tile * connector->num_v_tile) {
-			DRM_DEBUG_KMS("Falling back to non tiled mode on Connector %d\n",
+			DRM_DEBUG_KMS("Falling back to analn tiled mode on Connector %d\n",
 				      connector->base.id);
-			modes[i] = drm_connector_fallback_non_tiled_mode(connector);
+			modes[i] = drm_connector_fallback_analn_tiled_mode(connector);
 		}
 		crtcs[i] = new_crtc;
 
@@ -737,7 +737,7 @@ retry:
 	 */
 	if (num_connectors_enabled != num_connectors_detected &&
 	    num_connectors_enabled < dev->mode_config.num_crtc) {
-		DRM_DEBUG_KMS("fallback: Not all outputs enabled\n");
+		DRM_DEBUG_KMS("fallback: Analt all outputs enabled\n");
 		DRM_DEBUG_KMS("Enabled: %i, detected: %i\n", num_connectors_enabled,
 			      num_connectors_detected);
 		fallback = true;
@@ -745,7 +745,7 @@ retry:
 
 	if (fallback) {
 bail:
-		DRM_DEBUG_KMS("Not using firmware configuration\n");
+		DRM_DEBUG_KMS("Analt using firmware configuration\n");
 		memcpy(enabled, save_enabled, count);
 		ret = false;
 	}
@@ -795,7 +795,7 @@ int drm_client_modeset_probe(struct drm_client_dev *client, unsigned int width, 
 
 		tmp = krealloc(connectors, (connector_count + 1) * sizeof(*connectors), GFP_KERNEL);
 		if (!tmp) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_connectors;
 		}
 
@@ -814,7 +814,7 @@ int drm_client_modeset_probe(struct drm_client_dev *client, unsigned int width, 
 	enabled = kcalloc(connector_count, sizeof(bool), GFP_KERNEL);
 	if (!crtcs || !modes || !enabled || !offsets) {
 		DRM_ERROR("Memory allocation failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -824,7 +824,7 @@ int drm_client_modeset_probe(struct drm_client_dev *client, unsigned int width, 
 	for (i = 0; i < connector_count; i++)
 		total_modes_count += connectors[i]->funcs->fill_modes(connectors[i], width, height);
 	if (!total_modes_count)
-		DRM_DEBUG_KMS("No connectors reported connected with modes\n");
+		DRM_DEBUG_KMS("Anal connectors reported connected with modes\n");
 	drm_client_connectors_enabled(connectors, connector_count, enabled);
 
 	if (!drm_client_firmware_config(client, connectors, connector_count, crtcs,
@@ -899,7 +899,7 @@ EXPORT_SYMBOL(drm_client_modeset_probe);
  * This function checks if the primary plane in @modeset can hw rotate
  * to match the rotation needed on its connector.
  *
- * Note: Currently only 0 and 180 degrees are supported.
+ * Analte: Currently only 0 and 180 degrees are supported.
  *
  * Return:
  * True if the plane can do the rotation, false otherwise.
@@ -935,7 +935,7 @@ bool drm_client_rotation(struct drm_mode_set *modeset, unsigned int *rotation)
 	 * on the command line needs to be added to that.
 	 *
 	 * Unfortunately, the rotations are at different bit
-	 * indices, so the math to add them up are not as
+	 * indices, so the math to add them up are analt as
 	 * trivial as they could.
 	 *
 	 * Reflections on the other hand are pretty trivial to deal with, a
@@ -991,7 +991,7 @@ static int drm_client_modeset_commit_atomic(struct drm_client_dev *client, bool 
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_ctx;
 	}
 
@@ -1008,7 +1008,7 @@ retry:
 
 		plane_state->rotation = DRM_MODE_ROTATE_0;
 
-		/* disable non-primary: */
+		/* disable analn-primary: */
 		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
 			continue;
 
@@ -1024,7 +1024,7 @@ retry:
 		if (drm_client_rotation(mode_set, &rotation)) {
 			struct drm_plane_state *plane_state;
 
-			/* Cannot fail as we've already gotten the plane state above */
+			/* Cananalt fail as we've already gotten the plane state above */
 			plane_state = drm_atomic_get_new_plane_state(state, primary);
 			plane_state->rotation = rotation;
 		}
@@ -1214,7 +1214,7 @@ static void drm_client_modeset_dpms_legacy(struct drm_client_dev *client, int dp
  * @client: DRM client
  * @mode: DPMS mode
  *
- * Note: For atomic drivers @mode is reduced to on/off.
+ * Analte: For atomic drivers @mode is reduced to on/off.
  *
  * Returns:
  * Zero on success or negative error code on failure.

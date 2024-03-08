@@ -107,7 +107,7 @@ union ramrod_data {
 #define EQ_MAX_CREDIT   0xffffffff
 
 enum spq_priority {
-	QED_SPQ_PRIORITY_NORMAL,
+	QED_SPQ_PRIORITY_ANALRMAL,
 	QED_SPQ_PRIORITY_HIGH,
 };
 
@@ -190,7 +190,7 @@ struct qed_spq {
 
 	/* Statistics */
 	u32			unlimited_pending_count;
-	u32			normal_count;
+	u32			analrmal_count;
 	u32			high_count;
 	u32			comp_sent_count;
 	u32			comp_count;

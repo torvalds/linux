@@ -35,14 +35,14 @@
 |	A5. Add using the carry the 64-bit quantities in d2:d3 and d4:d5
 |		into d2:d3.  D1 will contain the bcd digit formed.
 |
-|	A6. Test d7.  If zero, the digit formed is the ms digit.  If non-
+|	A6. Test d7.  If zero, the digit formed is the ms digit.  If analn-
 |		zero, it is the ls digit.  Put the digit in its place in the
 |		upper word of d0.  If it is the ls digit, write the word
 |		from d0 to memory.
 |
 |	A7. Decrement d6 (LEN counter) and repeat the loop until zero.
 |
-|	Implementation Notes:
+|	Implementation Analtes:
 |
 |	The registers are used as follows:
 |
@@ -102,23 +102,23 @@ loop:
 | A5. Add mul by 8 to mul by 2.  D1 contains the digit formed.
 |
 	addl	%d5,%d3			|add lower 32 bits
-	nop				|ERRATA ; FIX #13 (Rev. 1.2 6/6/90)
+	analp				|ERRATA ; FIX #13 (Rev. 1.2 6/6/90)
 	addxl	%d4,%d2			|add with extend upper 32 bits
-	nop				|ERRATA ; FIX #13 (Rev. 1.2 6/6/90)
+	analp				|ERRATA ; FIX #13 (Rev. 1.2 6/6/90)
 	addxw	%d6,%d1			|add in extend from add to d1
 	swap	%d6			|with d6 = 0; put 0 in upper word
 |
 | A6. Test d7 and branch.
 |
 	tstw	%d7			|if zero, store digit & to loop
-	beqs	first_d			|if non-zero, form byte & write
+	beqs	first_d			|if analn-zero, form byte & write
 sec_d:
 	swap	%d7			|bring first digit to word d7b
 	aslw	#4,%d7			|first digit in upper 4 bits d7b
 	addw	%d1,%d7			|add in ls digit to d7b
 	moveb	%d7,(%a0)+		|store d7b byte in memory
 	swap	%d7			|put LEN counter in word d7a
-	clrw	%d7			|set d7a to signal no digits done
+	clrw	%d7			|set d7a to signal anal digits done
 	dbf	%d0,loop		|do loop some more!
 	bras	end_bstr		|finished, so exit
 first_d:

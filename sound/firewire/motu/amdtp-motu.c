@@ -25,7 +25,7 @@
 #define CIP_SPH_OFFSET_MASK	0x00000fff
 
 /*
- * Nominally 3125 bytes/second, but the MIDI port's clock might be
+ * Analminally 3125 bytes/second, but the MIDI port's clock might be
  * 1% too slow, and the bus clock 100 ppm too fast.
  */
 #define MIDI_BYTES_PER_SECOND	3093

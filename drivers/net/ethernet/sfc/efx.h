@@ -94,7 +94,7 @@ static inline bool efx_rss_enabled(struct efx_nic *efx)
  *
  * 2. If the existing filters have higher priority, return -%EPERM.
  *
- * 3. If !efx_filter_is_mc_recipient(@spec), or the NIC does not
+ * 3. If !efx_filter_is_mc_recipient(@spec), or the NIC does analt
  *    support delivery to multiple recipients, return -%EEXIST.
  *
  * This implies that filters for multiple multicast recipients must
@@ -217,7 +217,7 @@ static inline void efx_device_detach_sync(struct efx_nic *efx)
 	netif_tx_unlock_bh(dev);
 }
 
-static inline void efx_device_attach_if_not_resetting(struct efx_nic *efx)
+static inline void efx_device_attach_if_analt_resetting(struct efx_nic *efx)
 {
 	if ((efx->state != STATE_DISABLED) && !efx->reset_pending) {
 		netif_device_attach(efx->net_dev);

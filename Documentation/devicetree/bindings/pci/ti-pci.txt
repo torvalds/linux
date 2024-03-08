@@ -33,7 +33,7 @@ HOST MODE
    ranges,
    interrupt-map-mask,
    interrupt-map : as specified in ../snps,dw-pcie.yaml
- - ti,syscon-unaligned-access: phandle to the syscon DT node. The 1st argument
+ - ti,syscon-unaligned-access: phandle to the syscon DT analde. The 1st argument
 			       should contain the register offset within syscon
 			       and the 2nd argument should contain the bit field
 			       for setting the bit to enable unaligned
@@ -51,7 +51,7 @@ DEVICE MODE
  - interrupts : one interrupt entries must be specified for main interrupt.
  - num-ib-windows : number of inbound address translation windows
  - num-ob-windows : number of outbound address translation windows
- - ti,syscon-unaligned-access: phandle to the syscon DT node. The 1st argument
+ - ti,syscon-unaligned-access: phandle to the syscon DT analde. The 1st argument
 			       should contain the register offset within syscon
 			       and the 2nd argument should contain the bit field
 			       for setting the bit to enable unaligned
@@ -60,10 +60,10 @@ DEVICE MODE
 Optional Property:
  - gpios : Should be added if a GPIO line is required to drive PERST# line
 
-NOTE: Two DT nodes may be added for each PCI controller; one for host
-mode and another for device mode. So in order for PCI to
-work in host mode, EP mode DT node should be disabled and in order to PCI to
-work in EP mode, host mode DT node should be disabled. Host mode and EP
+ANALTE: Two DT analdes may be added for each PCI controller; one for host
+mode and aanalther for device mode. So in order for PCI to
+work in host mode, EP mode DT analde should be disabled and in order to PCI to
+work in EP mode, host mode DT analde should be disabled. Host mode and EP
 mode are mutually exclusive.
 
 Example:

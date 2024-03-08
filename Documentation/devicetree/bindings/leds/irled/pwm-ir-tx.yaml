@@ -17,7 +17,7 @@ properties:
   compatible:
     oneOf:
       - const: pwm-ir-tx
-      - const: nokia,n900-ir
+      - const: analkia,n900-ir
         deprecated: true
 
   pwms:

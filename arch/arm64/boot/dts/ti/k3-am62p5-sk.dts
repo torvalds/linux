@@ -48,18 +48,18 @@
 
 		secure_tfa_ddr: tfa@9e780000 {
 			reg = <0x00 0x9e780000 0x00 0x80000>;
-			no-map;
+			anal-map;
 		};
 
 		secure_ddr: optee@9e800000 {
 			reg = <0x00 0x9e800000 0x00 0x01800000>; /* for OP-TEE */
-			no-map;
+			anal-map;
 		};
 
 		wkup_r5fss0_core0_memory_region: r5f-dma-memory@9c900000 {
 			compatible = "shared-dma-pool";
 			reg = <0x00 0x9c900000 0x00 0x01e00000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -424,7 +424,7 @@
 	pinctrl-0 = <&main_mmc1_pins_default>;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
-	no-1-8-v;
+	anal-1-8-v;
 	bootph-all;
 };
 
@@ -491,7 +491,7 @@
 	bootph-all;
 
 	flash@0{
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0x0>;
 		spi-tx-bus-width = <8>;
 		spi-rx-bus-width = <8>;

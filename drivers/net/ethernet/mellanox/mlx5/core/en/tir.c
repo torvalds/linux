@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2021, Mellanox Technologies inc. All rights reserved. */
+/* Copyright (c) 2021, Mellaanalx Techanallogies inc. All rights reserved. */
 
 #include "tir.h"
 #include "params.h"
@@ -53,7 +53,7 @@ void mlx5e_tir_builder_build_inline(struct mlx5e_tir_builder *builder, u32 tdn, 
 
 	MLX5_SET(tirc, tirc, transport_domain, tdn);
 	MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_DIRECT);
-	MLX5_SET(tirc, tirc, rx_hash_fn, MLX5_RX_HASH_FN_NONE);
+	MLX5_SET(tirc, tirc, rx_hash_fn, MLX5_RX_HASH_FN_ANALNE);
 	MLX5_SET(tirc, tirc, inline_rqn, rqn);
 }
 
@@ -101,7 +101,7 @@ static int mlx5e_hfunc_to_hw(u8 hfunc)
 	case ETH_RSS_HASH_XOR:
 		return MLX5_RX_HASH_FN_INVERTED_XOR8;
 	default:
-		return MLX5_RX_HASH_FN_NONE;
+		return MLX5_RX_HASH_FN_ANALNE;
 	}
 }
 
@@ -183,7 +183,7 @@ void mlx5e_tir_destroy(struct mlx5e_tir *tir)
 {
 	struct mlx5e_hw_objs *res = &tir->mdev->mlx5e_res.hw_objs;
 
-	/* Skip mutex if list_del is no-op (the TIR wasn't registered in the
+	/* Skip mutex if list_del is anal-op (the TIR wasn't registered in the
 	 * list). list_empty will never return true for an item of tirs_list,
 	 * and READ_ONCE/WRITE_ONCE in list_empty/list_del guarantee consistency
 	 * of the list->next value.

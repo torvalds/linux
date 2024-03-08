@@ -4,7 +4,7 @@
  * Authors: Fabien Dessenne <fabien.dessenne@st.com> for STMicroelectronics.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -89,7 +89,7 @@ static const struct bdisp_fmt bdisp_formats[] = {
 		.h_align        = 1
 	},
 	/* YU12. YUV420P - 1 plane for Y + 1 plane for Cb + 1 plane for Cr
-	 * To keep as the LAST element of this table (no support on capture)
+	 * To keep as the LAST element of this table (anal support on capture)
 	 */
 	{
 		.pixelformat    = V4L2_PIX_FMT_YUV420,
@@ -109,7 +109,7 @@ static const struct bdisp_frame bdisp_dflt_fmt = {
 		.width          = BDISP_DEF_WIDTH,
 		.height         = BDISP_DEF_HEIGHT,
 		.fmt            = &bdisp_formats[0],
-		.field          = V4L2_FIELD_NONE,
+		.field          = V4L2_FIELD_ANALNE,
 		.bytesperline   = BDISP_DEF_WIDTH * 4,
 		.sizeimage      = BDISP_DEF_WIDTH * BDISP_DEF_HEIGHT * 4,
 		.colorspace     = V4L2_COLORSPACE_REC709,
@@ -269,7 +269,7 @@ static int bdisp_get_addr(struct bdisp_ctx *ctx, struct vb2_buffer *vb,
 				(frame->bytesperline * frame->height) / 4);
 
 	if (frame->fmt->nb_planes > 3)
-		dev_dbg(ctx->bdisp_dev->dev, "ignoring some planes\n");
+		dev_dbg(ctx->bdisp_dev->dev, "iganalring some planes\n");
 
 	dev_dbg(ctx->bdisp_dev->dev,
 		"%s plane[0]=%pad plane[1]=%pad plane[2]=%pad\n",
@@ -332,7 +332,7 @@ static void bdisp_device_run(void *priv)
 
 	err = bdisp_get_bufs(ctx);
 	if (err) {
-		dev_err(bdisp->dev, "cannot get address\n");
+		dev_err(bdisp->dev, "cananalt get address\n");
 		goto out;
 	}
 
@@ -340,13 +340,13 @@ static void bdisp_device_run(void *priv)
 
 	err = bdisp_hw_reset(bdisp);
 	if (err) {
-		dev_err(bdisp->dev, "could not get HW ready\n");
+		dev_err(bdisp->dev, "could analt get HW ready\n");
 		goto out;
 	}
 
 	err = bdisp_hw_update(ctx);
 	if (err) {
-		dev_err(bdisp->dev, "could not send HW request\n");
+		dev_err(bdisp->dev, "could analt send HW request\n");
 		goto out;
 	}
 
@@ -378,7 +378,7 @@ static int __bdisp_s_ctrl(struct bdisp_ctx *ctx, struct v4l2_ctrl *ctrl)
 		ctx->vflip = ctrl->val;
 		break;
 	default:
-		dev_err(ctx->bdisp_dev->dev, "unknown control %d\n", ctrl->id);
+		dev_err(ctx->bdisp_dev->dev, "unkanalwn control %d\n", ctrl->id);
 		return -EINVAL;
 	}
 
@@ -581,17 +581,17 @@ static int bdisp_open(struct file *file)
 	if (mutex_lock_interruptible(&bdisp->lock))
 		return -ERESTARTSYS;
 
-	/* Allocate memory for both context and node */
+	/* Allocate memory for both context and analde */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 	ctx->bdisp_dev = bdisp;
 
-	if (bdisp_hw_alloc_nodes(ctx)) {
-		dev_err(bdisp->dev, "no memory for nodes\n");
-		ret = -ENOMEM;
+	if (bdisp_hw_alloc_analdes(ctx)) {
+		dev_err(bdisp->dev, "anal memory for analdes\n");
+		ret = -EANALMEM;
 		goto mem_ctx;
 	}
 
@@ -635,7 +635,7 @@ error_ctrls:
 	v4l2_fh_del(&ctx->fh);
 error_fh:
 	v4l2_fh_exit(&ctx->fh);
-	bdisp_hw_free_nodes(ctx);
+	bdisp_hw_free_analdes(ctx);
 mem_ctx:
 	kfree(ctx);
 unlock:
@@ -663,7 +663,7 @@ static int bdisp_release(struct file *file)
 	if (--bdisp->m2m.refcnt <= 0)
 		clear_bit(ST_M2M_OPEN, &bdisp->state);
 
-	bdisp_hw_free_nodes(ctx);
+	bdisp_hw_free_analdes(ctx);
 
 	kfree(ctx);
 
@@ -706,7 +706,7 @@ static int bdisp_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 
 	if ((fmt->pixelformat == V4L2_PIX_FMT_YUV420) &&
 	    (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)) {
-		dev_dbg(ctx->bdisp_dev->dev, "No YU12 on capture\n");
+		dev_dbg(ctx->bdisp_dev->dev, "Anal YU12 on capture\n");
 		return -EINVAL;
 	}
 	f->pixelformat = fmt->pixelformat;
@@ -747,7 +747,7 @@ static int bdisp_try_fmt(struct file *file, void *fh, struct v4l2_format *f)
 
 	format = bdisp_find_fmt(pix->pixelformat);
 	if (!format) {
-		dev_dbg(ctx->bdisp_dev->dev, "Unknown format 0x%x\n",
+		dev_dbg(ctx->bdisp_dev->dev, "Unkanalwn format 0x%x\n",
 			pix->pixelformat);
 		return -EINVAL;
 	}
@@ -755,14 +755,14 @@ static int bdisp_try_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	/* YUV420P only supported for VIDEO_OUTPUT */
 	if ((format->pixelformat == V4L2_PIX_FMT_YUV420) &&
 	    (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)) {
-		dev_dbg(ctx->bdisp_dev->dev, "No YU12 on capture\n");
+		dev_dbg(ctx->bdisp_dev->dev, "Anal YU12 on capture\n");
 		return -EINVAL;
 	}
 
 	/* Field (interlaced only supported on OUTPUT) */
 	if ((f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) ||
 	    (pix->field != V4L2_FIELD_INTERLACED))
-		pix->field = V4L2_FIELD_NONE;
+		pix->field = V4L2_FIELD_ANALNE;
 
 	/* Adjust width & height */
 	in_w = pix->width;
@@ -799,7 +799,7 @@ static int bdisp_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 
 	ret = bdisp_try_fmt(file, fh, f);
 	if (ret) {
-		dev_err(ctx->bdisp_dev->dev, "Cannot set format\n");
+		dev_err(ctx->bdisp_dev->dev, "Cananalt set format\n");
 		return ret;
 	}
 
@@ -814,7 +814,7 @@ static int bdisp_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	pix = &f->fmt.pix;
 	frame->fmt = bdisp_find_fmt(pix->pixelformat);
 	if (!frame->fmt) {
-		dev_err(ctx->bdisp_dev->dev, "Unknown format 0x%x\n",
+		dev_err(ctx->bdisp_dev->dev, "Unkanalwn format 0x%x\n",
 			pix->pixelformat);
 		return -EINVAL;
 	}
@@ -1003,13 +1003,13 @@ static int bdisp_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	if ((type == V4L2_BUF_TYPE_VIDEO_OUTPUT) &&
 	    !bdisp_ctx_state_is_set(BDISP_SRC_FMT, ctx)) {
-		dev_err(ctx->bdisp_dev->dev, "src not defined\n");
+		dev_err(ctx->bdisp_dev->dev, "src analt defined\n");
 		return -EINVAL;
 	}
 
 	if ((type == V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
 	    !bdisp_ctx_state_is_set(BDISP_DST_FMT, ctx)) {
-		dev_err(ctx->bdisp_dev->dev, "dst not defined\n");
+		dev_err(ctx->bdisp_dev->dev, "dst analt defined\n");
 		return -EINVAL;
 	}
 
@@ -1045,7 +1045,7 @@ static int bdisp_register_device(struct bdisp_dev *bdisp)
 	int ret;
 
 	if (!bdisp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bdisp->vdev.fops        = &bdisp_fops;
 	bdisp->vdev.ioctl_ops   = &bdisp_ioctl_ops;
@@ -1132,7 +1132,7 @@ isr_unlock:
 static irqreturn_t bdisp_irq_handler(int irq, void *priv)
 {
 	if (bdisp_hw_get_and_clear_irq((struct bdisp_dev *)priv))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	else
 		return IRQ_WAKE_THREAD;
 }
@@ -1289,7 +1289,7 @@ static int bdisp_probe(struct platform_device *pdev)
 
 	bdisp = devm_kzalloc(dev, sizeof(struct bdisp_dev), GFP_KERNEL);
 	if (!bdisp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret)
@@ -1299,8 +1299,8 @@ static int bdisp_probe(struct platform_device *pdev)
 	bdisp->dev = dev;
 	platform_set_drvdata(pdev, bdisp);
 
-	if (dev->of_node)
-		bdisp->id = of_alias_get_id(pdev->dev.of_node, BDISP_NAME);
+	if (dev->of_analde)
+		bdisp->id = of_alias_get_id(pdev->dev.of_analde, BDISP_NAME);
 	else
 		bdisp->id = pdev->id;
 
@@ -1308,7 +1308,7 @@ static int bdisp_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&bdisp->timeout_work, bdisp_irq_timeout);
 	bdisp->work_queue = create_workqueue(BDISP_NAME);
 	if (!bdisp->work_queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&bdisp->slock);
 	mutex_init(&bdisp->lock);
@@ -1366,8 +1366,8 @@ static int bdisp_probe(struct platform_device *pdev)
 
 	/* Filters */
 	if (bdisp_hw_alloc_filters(bdisp->dev)) {
-		dev_err(bdisp->dev, "no memory for filters\n");
-		ret = -ENOMEM;
+		dev_err(bdisp->dev, "anal memory for filters\n");
+		ret = -EANALMEM;
 		goto err_pm;
 	}
 
@@ -1404,7 +1404,7 @@ static const struct of_device_id bdisp_match_types[] = {
 	{
 		.compatible = "st,stih407-bdisp",
 	},
-	{ /* end node */ }
+	{ /* end analde */ }
 };
 
 MODULE_DEVICE_TABLE(of, bdisp_match_types);

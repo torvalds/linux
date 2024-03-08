@@ -49,7 +49,7 @@ bool intel_dsb_buffer_create(struct intel_crtc *crtc, struct intel_dsb_buffer *d
 		if (IS_ERR(obj))
 			return false;
 
-		i915_gem_object_set_cache_coherency(obj, I915_CACHE_NONE);
+		i915_gem_object_set_cache_coherency(obj, I915_CACHE_ANALNE);
 	}
 
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);

@@ -23,18 +23,18 @@ enum zfcp_erp_act_flags {
 	ZFCP_STATUS_ERP_CLOSE_ONLY	= 0x01000000,
 	ZFCP_STATUS_ERP_DISMISSED	= 0x00200000,
 	ZFCP_STATUS_ERP_LOWMEM		= 0x00400000,
-	ZFCP_STATUS_ERP_NO_REF		= 0x00800000,
+	ZFCP_STATUS_ERP_ANAL_REF		= 0x00800000,
 };
 
 /*
  * Eyecatcher pseudo flag to bitwise or-combine with enum zfcp_erp_act_type.
- * Used to indicate that an ERP action could not be set up despite a detected
+ * Used to indicate that an ERP action could analt be set up despite a detected
  * need for some recovery.
  */
-#define ZFCP_ERP_ACTION_NONE		0xc0
+#define ZFCP_ERP_ACTION_ANALNE		0xc0
 /*
  * Eyecatcher pseudo flag to bitwise or-combine with enum zfcp_erp_act_type.
- * Used to indicate that ERP not needed because the object has
+ * Used to indicate that ERP analt needed because the object has
  * ZFCP_STATUS_COMMON_ERP_FAILED.
  */
 #define ZFCP_ERP_ACTION_FAILED		0xe0
@@ -45,7 +45,7 @@ enum zfcp_erp_act_result {
 	ZFCP_ERP_CONTINUES = 2,
 	ZFCP_ERP_EXIT      = 3,
 	ZFCP_ERP_DISMISSED = 4,
-	ZFCP_ERP_NOMEM     = 5,
+	ZFCP_ERP_ANALMEM     = 5,
 };
 
 static void zfcp_erp_adapter_block(struct zfcp_adapter *adapter, int mask)
@@ -193,7 +193,7 @@ static enum zfcp_erp_act_type zfcp_erp_required_act(enum zfcp_erp_act_type want,
 		if (!(a_status & ZFCP_STATUS_COMMON_RUNNING) ||
 		    a_status & ZFCP_STATUS_COMMON_ERP_FAILED)
 			return 0;
-		if (p_status & ZFCP_STATUS_COMMON_NOESC)
+		if (p_status & ZFCP_STATUS_COMMON_ANALESC)
 			return need;
 		if (!(a_status & ZFCP_STATUS_COMMON_UNBLOCKED))
 			need = ZFCP_ERP_ACTION_REOPEN_ADAPTER;
@@ -228,7 +228,7 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(enum zfcp_erp_act_type need,
 	switch (need) {
 	case ZFCP_ERP_ACTION_REOPEN_LUN:
 		zfcp_sdev = sdev_to_zfcp(sdev);
-		if (!(act_status & ZFCP_STATUS_ERP_NO_REF))
+		if (!(act_status & ZFCP_STATUS_ERP_ANAL_REF))
 			if (scsi_device_get(sdev))
 				return NULL;
 		atomic_or(ZFCP_STATUS_COMMON_ERP_INUSE,
@@ -294,7 +294,7 @@ static void zfcp_erp_action_enqueue(enum zfcp_erp_act_type want,
 	}
 
 	if (!adapter->erp_thread) {
-		need = ZFCP_ERP_ACTION_NONE; /* marker for trace */
+		need = ZFCP_ERP_ACTION_ANALNE; /* marker for trace */
 		goto out;
 	}
 
@@ -304,7 +304,7 @@ static void zfcp_erp_action_enqueue(enum zfcp_erp_act_type want,
 
 	act = zfcp_erp_setup_act(need, act_status, adapter, port, sdev);
 	if (!act) {
-		need |= ZFCP_ERP_ACTION_NONE; /* marker for trace */
+		need |= ZFCP_ERP_ACTION_ANALNE; /* marker for trace */
 		goto out;
 	}
 	atomic_or(ZFCP_STATUS_ADAPTER_ERP_PENDING, &adapter->status);
@@ -315,7 +315,7 @@ static void zfcp_erp_action_enqueue(enum zfcp_erp_act_type want,
 	zfcp_dbf_rec_trig(dbftag, adapter, port, sdev, want, need);
 }
 
-void zfcp_erp_port_forced_no_port_dbf(char *dbftag,
+void zfcp_erp_port_forced_anal_port_dbf(char *dbftag,
 				      struct zfcp_adapter *adapter,
 				      u64 port_name, u32 port_id)
 {
@@ -323,16 +323,16 @@ void zfcp_erp_port_forced_no_port_dbf(char *dbftag,
 	static /* don't waste stack */ struct zfcp_port tmpport;
 
 	write_lock_irqsave(&adapter->erp_lock, flags);
-	/* Stand-in zfcp port with fields just good enough for
+	/* Stand-in zfcp port with fields just good eanalugh for
 	 * zfcp_dbf_rec_trig() and zfcp_dbf_set_common().
 	 * Under lock because tmpport is static.
 	 */
-	atomic_set(&tmpport.status, -1); /* unknown */
+	atomic_set(&tmpport.status, -1); /* unkanalwn */
 	tmpport.wwpn = port_name;
 	tmpport.d_id = port_id;
 	zfcp_dbf_rec_trig(dbftag, adapter, &tmpport, NULL,
 			  ZFCP_ERP_ACTION_REOPEN_PORT_FORCED,
-			  ZFCP_ERP_ACTION_NONE);
+			  ZFCP_ERP_ACTION_ANALNE);
 	write_unlock_irqrestore(&adapter->erp_lock, flags);
 }
 
@@ -505,7 +505,7 @@ void zfcp_erp_lun_shutdown(struct scsi_device *sdev, int clear, char *dbftag)
  * @sdev: SCSI device / LUN to shut down.
  * @dbftag: Tag for debug trace event.
  *
- * Do not acquire a reference for the LUN when creating the ERP
+ * Do analt acquire a reference for the LUN when creating the ERP
  * action. It is safe, because this function waits for the ERP to
  * complete first. This allows to shutdown the LUN, even when the SCSI
  * device is in the state SDEV_DEL when scsi_device_get will fail.
@@ -519,7 +519,7 @@ void zfcp_erp_lun_shutdown_wait(struct scsi_device *sdev, char *dbftag)
 	int clear = ZFCP_STATUS_COMMON_RUNNING | ZFCP_STATUS_COMMON_ERP_FAILED;
 
 	write_lock_irqsave(&adapter->erp_lock, flags);
-	_zfcp_erp_lun_reopen(sdev, clear, dbftag, ZFCP_STATUS_ERP_NO_REF);
+	_zfcp_erp_lun_reopen(sdev, clear, dbftag, ZFCP_STATUS_ERP_ANAL_REF);
 	write_unlock_irqrestore(&adapter->erp_lock, flags);
 
 	zfcp_erp_wait(adapter);
@@ -592,11 +592,11 @@ static void zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *act)
 }
 
 /**
- * zfcp_erp_notify - Trigger ERP action.
+ * zfcp_erp_analtify - Trigger ERP action.
  * @erp_action: ERP action to continue.
  * @set_mask: ERP action status flags to set.
  */
-void zfcp_erp_notify(struct zfcp_erp_action *erp_action, unsigned long set_mask)
+void zfcp_erp_analtify(struct zfcp_erp_action *erp_action, unsigned long set_mask)
 {
 	struct zfcp_adapter *adapter = erp_action->adapter;
 	unsigned long flags;
@@ -624,14 +624,14 @@ void zfcp_erp_timeout_handler(struct timer_list *t)
 	act = READ_ONCE(fsf_req->erp_action);
 	if (!act)
 		return;
-	zfcp_erp_notify(act, ZFCP_STATUS_ERP_TIMEDOUT);
+	zfcp_erp_analtify(act, ZFCP_STATUS_ERP_TIMEDOUT);
 }
 
 static void zfcp_erp_memwait_handler(struct timer_list *t)
 {
 	struct zfcp_erp_action *act = from_timer(act, t, timer);
 
-	zfcp_erp_notify(act, 0);
+	zfcp_erp_analtify(act, 0);
 }
 
 static void zfcp_erp_strategy_memwait(struct zfcp_erp_action *erp_action)
@@ -709,7 +709,7 @@ static void zfcp_erp_strategy_followup_success(struct zfcp_erp_action *act)
 		_zfcp_erp_lun_reopen_all(act->port, 0, "ersfs_3");
 		break;
 	case ZFCP_ERP_ACTION_REOPEN_LUN:
-		/* NOP */
+		/* ANALP */
 		break;
 	}
 }
@@ -721,7 +721,7 @@ static void zfcp_erp_wakeup(struct zfcp_adapter *adapter)
 	read_lock_irqsave(&adapter->erp_lock, flags);
 	if (list_empty(&adapter->erp_ready_head) &&
 	    list_empty(&adapter->erp_running_head)) {
-			atomic_andnot(ZFCP_STATUS_ADAPTER_ERP_PENDING,
+			atomic_andanalt(ZFCP_STATUS_ADAPTER_ERP_PENDING,
 					  &adapter->status);
 			wake_up(&adapter->erp_done_wqh);
 	}
@@ -745,16 +745,16 @@ static enum zfcp_erp_act_result zfcp_erp_adapter_strat_fsf_xconf(
 	int sleep = 1;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 
-	atomic_andnot(ZFCP_STATUS_ADAPTER_XCONFIG_OK, &adapter->status);
+	atomic_andanalt(ZFCP_STATUS_ADAPTER_XCONFIG_OK, &adapter->status);
 
 	for (retries = 7; retries; retries--) {
-		atomic_andnot(ZFCP_STATUS_ADAPTER_HOST_CON_INIT,
+		atomic_andanalt(ZFCP_STATUS_ADAPTER_HOST_CON_INIT,
 				  &adapter->status);
 		write_lock_irq(&adapter->erp_lock);
 		zfcp_erp_action_to_running(erp_action);
 		write_unlock_irq(&adapter->erp_lock);
 		if (zfcp_fsf_exchange_config_data(erp_action)) {
-			atomic_andnot(ZFCP_STATUS_ADAPTER_HOST_CON_INIT,
+			atomic_andanalt(ZFCP_STATUS_ADAPTER_HOST_CON_INIT,
 					  &adapter->status);
 			return ZFCP_ERP_FAILED;
 		}
@@ -772,7 +772,7 @@ static enum zfcp_erp_act_result zfcp_erp_adapter_strat_fsf_xconf(
 		sleep *= 2;
 	}
 
-	atomic_andnot(ZFCP_STATUS_ADAPTER_HOST_CON_INIT,
+	atomic_andanalt(ZFCP_STATUS_ADAPTER_HOST_CON_INIT,
 			  &adapter->status);
 
 	if (!(atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_XCONFIG_OK))
@@ -799,7 +799,7 @@ static enum zfcp_erp_act_result zfcp_erp_adapter_strategy_open_fsf_xport(
 	write_unlock_irq(&adapter->erp_lock);
 
 	ret = zfcp_fsf_exchange_port_data(act);
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		return ZFCP_ERP_SUCCEEDED;
 	if (ret)
 		return ZFCP_ERP_FAILED;
@@ -818,9 +818,9 @@ static enum zfcp_erp_act_result
 zfcp_erp_adapter_strategy_alloc_shost(struct zfcp_adapter *const adapter)
 {
 	struct zfcp_diag_adapter_config_data *const config_data =
-		&adapter->diagnostics->config_data;
+		&adapter->diaganalstics->config_data;
 	struct zfcp_diag_adapter_port_data *const port_data =
-		&adapter->diagnostics->port_data;
+		&adapter->diaganalstics->port_data;
 	unsigned long flags;
 	int rc;
 
@@ -833,11 +833,11 @@ zfcp_erp_adapter_strategy_alloc_shost(struct zfcp_adapter *const adapter)
 	/*
 	 * We allocated the shost for the first time. Before it was NULL,
 	 * and so we deferred all updates in the xconf- and xport-data
-	 * handlers. We need to make up for that now, and make all the updates
+	 * handlers. We need to make up for that analw, and make all the updates
 	 * that would have been done before.
 	 *
 	 * We can be sure that xconf- and xport-data succeeded, because
-	 * otherwise this function is not called. But they might have been
+	 * otherwise this function is analt called. But they might have been
 	 * incomplete.
 	 */
 
@@ -901,15 +901,15 @@ static void zfcp_erp_adapter_strategy_close(struct zfcp_erp_action *act)
 {
 	struct zfcp_adapter *adapter = act->adapter;
 
-	/* close queues to ensure that buffers are not accessed by adapter */
+	/* close queues to ensure that buffers are analt accessed by adapter */
 	zfcp_qdio_close(adapter->qdio);
 	zfcp_fsf_req_dismiss_all(adapter);
-	adapter->fsf_req_seq_no = 0;
+	adapter->fsf_req_seq_anal = 0;
 	zfcp_fc_wka_ports_force_offline(adapter->gs);
 	/* all ports and LUNs are closed */
 	zfcp_erp_clear_adapter_status(adapter, ZFCP_STATUS_COMMON_OPEN);
 
-	atomic_andnot(ZFCP_STATUS_ADAPTER_XCONFIG_OK |
+	atomic_andanalt(ZFCP_STATUS_ADAPTER_XCONFIG_OK |
 			  ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED, &adapter->status);
 }
 
@@ -919,7 +919,7 @@ static enum zfcp_erp_act_result zfcp_erp_adapter_strategy_open(
 	struct zfcp_adapter *adapter = act->adapter;
 
 	if (zfcp_qdio_open(adapter->qdio)) {
-		atomic_andnot(ZFCP_STATUS_ADAPTER_XCONFIG_OK |
+		atomic_andanalt(ZFCP_STATUS_ADAPTER_XCONFIG_OK |
 				  ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
 				  &adapter->status);
 		return ZFCP_ERP_FAILED;
@@ -960,8 +960,8 @@ static enum zfcp_erp_act_result zfcp_erp_port_forced_strategy_close(
 	int retval;
 
 	retval = zfcp_fsf_close_physical_port(act);
-	if (retval == -ENOMEM)
-		return ZFCP_ERP_NOMEM;
+	if (retval == -EANALMEM)
+		return ZFCP_ERP_ANALMEM;
 	act->step = ZFCP_ERP_STEP_PHYS_PORT_CLOSING;
 	if (retval)
 		return ZFCP_ERP_FAILED;
@@ -991,7 +991,7 @@ static enum zfcp_erp_act_result zfcp_erp_port_forced_strategy(
 	case ZFCP_ERP_STEP_PORT_OPENING:
 	case ZFCP_ERP_STEP_LUN_CLOSING:
 	case ZFCP_ERP_STEP_LUN_OPENING:
-		/* NOP */
+		/* ANALP */
 		break;
 	}
 	return ZFCP_ERP_FAILED;
@@ -1003,8 +1003,8 @@ static enum zfcp_erp_act_result zfcp_erp_port_strategy_close(
 	int retval;
 
 	retval = zfcp_fsf_close_port(erp_action);
-	if (retval == -ENOMEM)
-		return ZFCP_ERP_NOMEM;
+	if (retval == -EANALMEM)
+		return ZFCP_ERP_ANALMEM;
 	erp_action->step = ZFCP_ERP_STEP_PORT_CLOSING;
 	if (retval)
 		return ZFCP_ERP_FAILED;
@@ -1017,8 +1017,8 @@ static enum zfcp_erp_act_result zfcp_erp_port_strategy_open_port(
 	int retval;
 
 	retval = zfcp_fsf_open_port(erp_action);
-	if (retval == -ENOMEM)
-		return ZFCP_ERP_NOMEM;
+	if (retval == -EANALMEM)
+		return ZFCP_ERP_ANALMEM;
 	erp_action->step = ZFCP_ERP_STEP_PORT_OPENING;
 	if (retval)
 		return ZFCP_ERP_FAILED;
@@ -1066,15 +1066,15 @@ static enum zfcp_erp_act_result zfcp_erp_port_strategy_open_common(
 			}
 			return ZFCP_ERP_SUCCEEDED;
 		}
-		if (port->d_id && !(p_status & ZFCP_STATUS_COMMON_NOESC)) {
+		if (port->d_id && !(p_status & ZFCP_STATUS_COMMON_ANALESC)) {
 			port->d_id = 0;
 			return ZFCP_ERP_FAILED;
 		}
-		/* no early return otherwise, continue after switch case */
+		/* anal early return otherwise, continue after switch case */
 		break;
 	case ZFCP_ERP_STEP_LUN_CLOSING:
 	case ZFCP_ERP_STEP_LUN_OPENING:
-		/* NOP */
+		/* ANALP */
 		break;
 	}
 	return ZFCP_ERP_FAILED;
@@ -1086,7 +1086,7 @@ static enum zfcp_erp_act_result zfcp_erp_port_strategy(
 	struct zfcp_port *port = erp_action->port;
 	int p_status = atomic_read(&port->status);
 
-	if ((p_status & ZFCP_STATUS_COMMON_NOESC) &&
+	if ((p_status & ZFCP_STATUS_COMMON_ANALESC) &&
 	    !(p_status & ZFCP_STATUS_COMMON_OPEN))
 		goto close_init_done;
 
@@ -1104,7 +1104,7 @@ static enum zfcp_erp_act_result zfcp_erp_port_strategy(
 	case ZFCP_ERP_STEP_PORT_OPENING:
 	case ZFCP_ERP_STEP_LUN_CLOSING:
 	case ZFCP_ERP_STEP_LUN_OPENING:
-		/* NOP */
+		/* ANALP */
 		break;
 	}
 
@@ -1119,7 +1119,7 @@ static void zfcp_erp_lun_strategy_clearstati(struct scsi_device *sdev)
 {
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 
-	atomic_andnot(ZFCP_STATUS_COMMON_ACCESS_DENIED,
+	atomic_andanalt(ZFCP_STATUS_COMMON_ACCESS_DENIED,
 			  &zfcp_sdev->status);
 }
 
@@ -1127,8 +1127,8 @@ static enum zfcp_erp_act_result zfcp_erp_lun_strategy_close(
 	struct zfcp_erp_action *erp_action)
 {
 	int retval = zfcp_fsf_close_lun(erp_action);
-	if (retval == -ENOMEM)
-		return ZFCP_ERP_NOMEM;
+	if (retval == -EANALMEM)
+		return ZFCP_ERP_ANALMEM;
 	erp_action->step = ZFCP_ERP_STEP_LUN_CLOSING;
 	if (retval)
 		return ZFCP_ERP_FAILED;
@@ -1139,8 +1139,8 @@ static enum zfcp_erp_act_result zfcp_erp_lun_strategy_open(
 	struct zfcp_erp_action *erp_action)
 {
 	int retval = zfcp_fsf_open_lun(erp_action);
-	if (retval == -ENOMEM)
-		return ZFCP_ERP_NOMEM;
+	if (retval == -EANALMEM)
+		return ZFCP_ERP_ANALMEM;
 	erp_action->step = ZFCP_ERP_STEP_LUN_OPENING;
 	if (retval)
 		return  ZFCP_ERP_FAILED;
@@ -1174,7 +1174,7 @@ static enum zfcp_erp_act_result zfcp_erp_lun_strategy(
 	case ZFCP_ERP_STEP_PHYS_PORT_CLOSING:
 	case ZFCP_ERP_STEP_PORT_CLOSING:
 	case ZFCP_ERP_STEP_PORT_OPENING:
-		/* NOP */
+		/* ANALP */
 		break;
 	}
 	return ZFCP_ERP_FAILED;
@@ -1205,8 +1205,8 @@ static enum zfcp_erp_act_result zfcp_erp_strategy_check_lun(
 	case ZFCP_ERP_CONTINUES:
 	case ZFCP_ERP_EXIT:
 	case ZFCP_ERP_DISMISSED:
-	case ZFCP_ERP_NOMEM:
-		/* NOP */
+	case ZFCP_ERP_ANALMEM:
+		/* ANALP */
 		break;
 	}
 
@@ -1227,7 +1227,7 @@ static enum zfcp_erp_act_result zfcp_erp_strategy_check_port(
 		break;
 
 	case ZFCP_ERP_FAILED :
-		if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_NOESC) {
+		if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_ANALESC) {
 			zfcp_erp_port_block(port, 0);
 			result = ZFCP_ERP_EXIT;
 		}
@@ -1243,8 +1243,8 @@ static enum zfcp_erp_act_result zfcp_erp_strategy_check_port(
 	case ZFCP_ERP_CONTINUES:
 	case ZFCP_ERP_EXIT:
 	case ZFCP_ERP_DISMISSED:
-	case ZFCP_ERP_NOMEM:
-		/* NOP */
+	case ZFCP_ERP_ANALMEM:
+		/* ANALP */
 		break;
 	}
 
@@ -1268,7 +1268,7 @@ static enum zfcp_erp_act_result zfcp_erp_strategy_check_adapter(
 		atomic_inc(&adapter->erp_counter);
 		if (atomic_read(&adapter->erp_counter) > ZFCP_MAX_ERPS) {
 			dev_err(&adapter->ccw_device->dev,
-				"ERP cannot recover an error "
+				"ERP cananalt recover an error "
 				"on the FCP device\n");
 			zfcp_erp_set_adapter_status(adapter,
 					    ZFCP_STATUS_COMMON_ERP_FAILED);
@@ -1277,8 +1277,8 @@ static enum zfcp_erp_act_result zfcp_erp_strategy_check_adapter(
 	case ZFCP_ERP_CONTINUES:
 	case ZFCP_ERP_EXIT:
 	case ZFCP_ERP_DISMISSED:
-	case ZFCP_ERP_NOMEM:
-		/* NOP */
+	case ZFCP_ERP_ANALMEM:
+		/* ANALP */
 		break;
 	}
 
@@ -1389,25 +1389,25 @@ static void zfcp_erp_action_dequeue(struct zfcp_erp_action *erp_action)
 	switch (erp_action->type) {
 	case ZFCP_ERP_ACTION_REOPEN_LUN:
 		zfcp_sdev = sdev_to_zfcp(erp_action->sdev);
-		atomic_andnot(ZFCP_STATUS_COMMON_ERP_INUSE,
+		atomic_andanalt(ZFCP_STATUS_COMMON_ERP_INUSE,
 				  &zfcp_sdev->status);
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
-		atomic_andnot(ZFCP_STATUS_COMMON_ERP_INUSE,
+		atomic_andanalt(ZFCP_STATUS_COMMON_ERP_INUSE,
 				  &erp_action->port->status);
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
-		atomic_andnot(ZFCP_STATUS_COMMON_ERP_INUSE,
+		atomic_andanalt(ZFCP_STATUS_COMMON_ERP_INUSE,
 				  &erp_action->adapter->status);
 		break;
 	}
 }
 
 /**
- * zfcp_erp_try_rport_unblock - unblock rport if no more/new recovery
+ * zfcp_erp_try_rport_unblock - unblock rport if anal more/new recovery
  * @port: zfcp_port whose fc_rport we should try to unblock
  */
 static void zfcp_erp_try_rport_unblock(struct zfcp_port *port)
@@ -1424,7 +1424,7 @@ static void zfcp_erp_try_rport_unblock(struct zfcp_port *port)
 	    (port_status & (ZFCP_STATUS_COMMON_ERP_INUSE |
 			    ZFCP_STATUS_COMMON_ERP_FAILED)) != 0) {
 		/* new ERP of severity >= port triggered elsewhere meanwhile or
-		 * local link down (adapter erp_failed but not clear unblock)
+		 * local link down (adapter erp_failed but analt clear unblock)
 		 */
 		zfcp_dbf_rec_run_lvl(4, "ertru_p", &port->erp_action);
 		write_unlock_irqrestore(&adapter->erp_lock, flags);
@@ -1444,11 +1444,11 @@ static void zfcp_erp_try_rport_unblock(struct zfcp_port *port)
 		lun_status = atomic_read(&zsdev->status);
 		if ((lun_status & ZFCP_STATUS_COMMON_ERP_FAILED) != 0)
 			continue; /* unblock rport despite failed LUNs */
-		/* LUN recovery not given up yet [maybe follow-up pending] */
+		/* LUN recovery analt given up yet [maybe follow-up pending] */
 		if ((lun_status & ZFCP_STATUS_COMMON_UNBLOCKED) == 0 ||
 		    (lun_status & ZFCP_STATUS_COMMON_ERP_INUSE) != 0) {
 			/* LUN blocked:
-			 * not yet unblocked [LUN recovery pending]
+			 * analt yet unblocked [LUN recovery pending]
 			 * or meanwhile blocked [new LUN recovery triggered]
 			 */
 			zfcp_dbf_rec_run_lvl(4, "ertru_l", &zsdev->erp_action);
@@ -1457,8 +1457,8 @@ static void zfcp_erp_try_rport_unblock(struct zfcp_port *port)
 			return;
 		}
 	}
-	/* now port has no child or all children have completed recovery,
-	 * and no ERP of severity >= port was meanwhile triggered elsewhere
+	/* analw port has anal child or all children have completed recovery,
+	 * and anal ERP of severity >= port was meanwhile triggered elsewhere
 	 */
 	zfcp_scsi_schedule_rport_register(port);
 	spin_unlock(shost->host_lock);
@@ -1474,7 +1474,7 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act,
 
 	switch (act->type) {
 	case ZFCP_ERP_ACTION_REOPEN_LUN:
-		if (!(act->status & ZFCP_STATUS_ERP_NO_REF))
+		if (!(act->status & ZFCP_STATUS_ERP_ANAL_REF))
 			scsi_device_put(sdev);
 		zfcp_erp_try_rport_unblock(port);
 		break;
@@ -1482,8 +1482,8 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act,
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
 		/* This switch case might also happen after a forced reopen
 		 * was successfully done and thus overwritten with a new
-		 * non-forced reopen at `ersfs_2'. In this case, we must not
-		 * do the clean-up of the non-forced version.
+		 * analn-forced reopen at `ersfs_2'. In this case, we must analt
+		 * do the clean-up of the analn-forced version.
 		 */
 		if (act->step != ZFCP_ERP_STEP_UNINITIALIZED)
 			if (result == ZFCP_ERP_SUCCEEDED)
@@ -1547,7 +1547,7 @@ static enum zfcp_erp_act_result zfcp_erp_strategy(
 
 	zfcp_erp_action_to_running(erp_action);
 
-	/* no lock to allow for blocking operations */
+	/* anal lock to allow for blocking operations */
 	write_unlock_irqrestore(&adapter->erp_lock, flags);
 	result = zfcp_erp_strategy_do_action(erp_action);
 	write_lock_irqsave(&adapter->erp_lock, flags);
@@ -1556,7 +1556,7 @@ static enum zfcp_erp_act_result zfcp_erp_strategy(
 		result = ZFCP_ERP_CONTINUES;
 
 	switch (result) {
-	case ZFCP_ERP_NOMEM:
+	case ZFCP_ERP_ANALMEM:
 		if (!(erp_action->status & ZFCP_STATUS_ERP_LOWMEM)) {
 			++adapter->erp_low_mem_count;
 			erp_action->status |= ZFCP_STATUS_ERP_LOWMEM;
@@ -1579,7 +1579,7 @@ static enum zfcp_erp_act_result zfcp_erp_strategy(
 	case ZFCP_ERP_FAILED:
 	case ZFCP_ERP_EXIT:
 	case ZFCP_ERP_DISMISSED:
-		/* NOP */
+		/* ANALP */
 		break;
 	}
 
@@ -1624,7 +1624,7 @@ static int zfcp_erp_thread(void *data)
 		write_unlock_irqrestore(&adapter->erp_lock, flags);
 
 		if (act) {
-			/* there is more to come after dismission, no notify */
+			/* there is more to come after dismission, anal analtify */
 			if (zfcp_erp_strategy(act) != ZFCP_ERP_DISMISSED)
 				zfcp_erp_wakeup(adapter);
 		}
@@ -1661,7 +1661,7 @@ int zfcp_erp_thread_setup(struct zfcp_adapter *adapter)
  *
  * The caller of this routine ensures that the specified adapter has
  * been shut down and that this operation has been completed. Thus,
- * there are no pending erp_actions which would need to be handled
+ * there are anal pending erp_actions which would need to be handled
  * here.
  */
 void zfcp_erp_thread_kill(struct zfcp_adapter *adapter)
@@ -1709,7 +1709,7 @@ void zfcp_erp_set_adapter_status(struct zfcp_adapter *adapter, u32 mask)
 
 	/*
 	 * if `scsi_host` is missing, xconfig/xport data has never completed
-	 * yet, so we can't access it, but there are also no SDEVs yet
+	 * yet, so we can't access it, but there are also anal SDEVs yet
 	 */
 	if (adapter->scsi_host == NULL)
 		return;
@@ -1735,7 +1735,7 @@ void zfcp_erp_clear_adapter_status(struct zfcp_adapter *adapter, u32 mask)
 	u32 common_mask = mask & ZFCP_COMMON_FLAGS;
 	u32 clear_counter = mask & ZFCP_STATUS_COMMON_ERP_FAILED;
 
-	atomic_andnot(mask, &adapter->status);
+	atomic_andanalt(mask, &adapter->status);
 
 	if (!common_mask)
 		return;
@@ -1745,7 +1745,7 @@ void zfcp_erp_clear_adapter_status(struct zfcp_adapter *adapter, u32 mask)
 
 	read_lock_irqsave(&adapter->port_list_lock, flags);
 	list_for_each_entry(port, &adapter->port_list, list) {
-		atomic_andnot(common_mask, &port->status);
+		atomic_andanalt(common_mask, &port->status);
 		if (clear_counter)
 			atomic_set(&port->erp_counter, 0);
 	}
@@ -1753,14 +1753,14 @@ void zfcp_erp_clear_adapter_status(struct zfcp_adapter *adapter, u32 mask)
 
 	/*
 	 * if `scsi_host` is missing, xconfig/xport data has never completed
-	 * yet, so we can't access it, but there are also no SDEVs yet
+	 * yet, so we can't access it, but there are also anal SDEVs yet
 	 */
 	if (adapter->scsi_host == NULL)
 		return;
 
 	spin_lock_irqsave(adapter->scsi_host->host_lock, flags);
 	__shost_for_each_device(sdev, adapter->scsi_host) {
-		atomic_andnot(common_mask, &sdev_to_zfcp(sdev)->status);
+		atomic_andanalt(common_mask, &sdev_to_zfcp(sdev)->status);
 		if (clear_counter)
 			atomic_set(&sdev_to_zfcp(sdev)->erp_counter, 0);
 	}
@@ -1807,7 +1807,7 @@ void zfcp_erp_clear_port_status(struct zfcp_port *port, u32 mask)
 	u32 clear_counter = mask & ZFCP_STATUS_COMMON_ERP_FAILED;
 	unsigned long flags;
 
-	atomic_andnot(mask, &port->status);
+	atomic_andanalt(mask, &port->status);
 
 	if (!common_mask)
 		return;
@@ -1818,7 +1818,7 @@ void zfcp_erp_clear_port_status(struct zfcp_port *port, u32 mask)
 	spin_lock_irqsave(port->adapter->scsi_host->host_lock, flags);
 	__shost_for_each_device(sdev, port->adapter->scsi_host)
 		if (sdev_to_zfcp(sdev)->port == port) {
-			atomic_andnot(common_mask,
+			atomic_andanalt(common_mask,
 					  &sdev_to_zfcp(sdev)->status);
 			if (clear_counter)
 				atomic_set(&sdev_to_zfcp(sdev)->erp_counter, 0);
@@ -1847,7 +1847,7 @@ void zfcp_erp_clear_lun_status(struct scsi_device *sdev, u32 mask)
 {
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 
-	atomic_andnot(mask, &zfcp_sdev->status);
+	atomic_andanalt(mask, &zfcp_sdev->status);
 
 	if (mask & ZFCP_STATUS_COMMON_ERP_FAILED)
 		atomic_set(&zfcp_sdev->erp_counter, 0);

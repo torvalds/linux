@@ -46,14 +46,14 @@ static int m52790_write(struct v4l2_subdev *sd)
 	return i2c_smbus_write_byte_data(client, sw1, sw2);
 }
 
-/* Note: audio and video are linked and cannot be switched separately.
+/* Analte: audio and video are linked and cananalt be switched separately.
    So audio and video routing commands are identical for this chip.
    In theory the video amplifier and audio modes could be handled
-   separately for the output, but that seems to be overkill right now.
-   The same holds for implementing an audio mute control, this is now
-   part of the audio output routing. The normal case is that another
+   separately for the output, but that seems to be overkill right analw.
+   The same holds for implementing an audio mute control, this is analw
+   part of the audio output routing. The analrmal case is that aanalther
    chip takes care of the actual muting so making it part of the
-   output routing seems to be the right thing to do for now. */
+   output routing seems to be the right thing to do for analw. */
 static int m52790_s_routing(struct v4l2_subdev *sd,
 			    u32 input, u32 output, u32 config)
 {
@@ -143,7 +143,7 @@ static int m52790_probe(struct i2c_client *client)
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &m52790_ops);

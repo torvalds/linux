@@ -31,7 +31,7 @@ static int ip30led_create(struct platform_device *pdev, int num)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->reg = devm_platform_ioremap_resource(pdev, num);
 	if (IS_ERR(data->reg))

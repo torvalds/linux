@@ -41,7 +41,7 @@ typedef struct uml_ldt {
 	((info)->limit & 0xf0000) | \
 	(((info)->read_exec_only ^ 1) << 9) | \
 	((info)->contents << 10) | \
-	(((info)->seg_not_present ^ 1) << 15) | \
+	(((info)->seg_analt_present ^ 1) << 15) | \
 	((info)->seg_32bit << 22) | \
 	((info)->limit_in_pages << 23) | \
 	((info)->useable << 20) | \
@@ -54,7 +54,7 @@ typedef struct uml_ldt {
 	(info)->read_exec_only	== 1	&& \
 	(info)->seg_32bit	== 0	&& \
 	(info)->limit_in_pages	== 0	&& \
-	(info)->seg_not_present	== 1	&& \
+	(info)->seg_analt_present	== 1	&& \
 	(info)->useable		== 0	)
 
 #ifdef CONFIG_X86_64

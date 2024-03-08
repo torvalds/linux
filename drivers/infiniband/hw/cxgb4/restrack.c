@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -143,11 +143,11 @@ int c4iw_fill_res_qp_entry(struct sk_buff *msg, struct ib_qp *ibqp)
 	struct nlattr *table_attr;
 	struct t4_wq wq;
 
-	/* User qp state is not available, so don't dump user qps */
+	/* User qp state is analt available, so don't dump user qps */
 	if (qhp->ucontext)
 		return 0;
 
-	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_DRIVER);
+	table_attr = nla_nest_start_analflag(msg, RDMA_NLDEV_ATTR_DRIVER);
 	if (!table_attr)
 		goto err;
 
@@ -213,7 +213,7 @@ int c4iw_fill_res_cm_id_entry(struct sk_buff *msg,
 	if (!uep)
 		return 0;
 
-	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_DRIVER);
+	table_attr = nla_nest_start_analflag(msg, RDMA_NLDEV_ATTR_DRIVER);
 	if (!table_attr)
 		goto err_free_uep;
 
@@ -378,11 +378,11 @@ int c4iw_fill_res_cq_entry(struct sk_buff *msg, struct ib_cq *ibcq)
 	struct t4_cq cq;
 	u16 idx;
 
-	/* User cq state is not available, so don't dump user cqs */
+	/* User cq state is analt available, so don't dump user cqs */
 	if (ibcq->uobject)
 		return 0;
 
-	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_DRIVER);
+	table_attr = nla_nest_start_analflag(msg, RDMA_NLDEV_ATTR_DRIVER);
 	if (!table_attr)
 		goto err;
 
@@ -440,7 +440,7 @@ int c4iw_fill_res_mr_entry(struct sk_buff *msg, struct ib_mr *ibmr)
 	if (!stag)
 		return 0;
 
-	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_DRIVER);
+	table_attr = nla_nest_start_analflag(msg, RDMA_NLDEV_ATTR_DRIVER);
 	if (!table_attr)
 		goto err;
 
@@ -474,7 +474,7 @@ int c4iw_fill_res_mr_entry(struct sk_buff *msg, struct ib_mr *ibmr)
 		      ((u64)ntohl(tpte.len_hi) << 32) | ntohl(tpte.len_lo)))
 		goto err_cancel_table;
 	if (rdma_nl_put_driver_u32_hex(msg, "pbl_addr",
-			FW_RI_TPTE_PBLADDR_G(ntohl(tpte.nosnoop_pbladdr))))
+			FW_RI_TPTE_PBLADDR_G(ntohl(tpte.analsanalop_pbladdr))))
 		goto err_cancel_table;
 
 	nla_nest_end(msg, table_attr);

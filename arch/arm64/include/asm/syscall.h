@@ -20,7 +20,7 @@ extern const syscall_fn_t compat_sys_call_table[];
 static inline int syscall_get_nr(struct task_struct *task,
 				 struct pt_regs *regs)
 {
-	return regs->syscallno;
+	return regs->syscallanal;
 }
 
 static inline void syscall_rollback(struct task_struct *task,

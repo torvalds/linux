@@ -568,7 +568,7 @@ typedef struct cpm_usb_ctlr {
 */
 
 typedef struct immap {
-	/* Some references are into the unique and known dpram spaces,
+	/* Some references are into the unique and kanalwn dpram spaces,
 	 * others are from the generic base.
 	 */
 #define im_dprambase	im_dpram1

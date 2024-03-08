@@ -283,10 +283,10 @@ static struct clk *clk_muxing_get_src(
 		if (clkspec->args[0] == mux->shift)
 			return ctrl->muxes[n];
 	}
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
-static void __init kirkwood_clk_muxing_setup(struct device_node *np,
+static void __init kirkwood_clk_muxing_setup(struct device_analde *np,
 				   const struct clk_muxing_soc_desc *desc)
 {
 	struct clk_muxing_ctrl *ctrl;
@@ -331,10 +331,10 @@ ctrl_out:
 	iounmap(base);
 }
 
-static void __init kirkwood_clk_init(struct device_node *np)
+static void __init kirkwood_clk_init(struct device_analde *np)
 {
-	struct device_node *cgnp =
-		of_find_compatible_node(NULL, NULL, "marvell,kirkwood-gating-clock");
+	struct device_analde *cgnp =
+		of_find_compatible_analde(NULL, NULL, "marvell,kirkwood-gating-clock");
 
 
 	if (of_device_is_compatible(np, "marvell,mv88f6180-core-clock"))
@@ -348,7 +348,7 @@ static void __init kirkwood_clk_init(struct device_node *np)
 		mvebu_clk_gating_setup(cgnp, kirkwood_gating_desc);
 		kirkwood_clk_muxing_setup(cgnp, kirkwood_mux_desc);
 
-		of_node_put(cgnp);
+		of_analde_put(cgnp);
 	}
 }
 CLK_OF_DECLARE(kirkwood_clk, "marvell,kirkwood-core-clock",

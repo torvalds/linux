@@ -249,7 +249,7 @@
 
 	/* default boot source: workaround #1 for errata ERR006282 */
 	smarc_flash: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <20000000>;
 	};
@@ -309,10 +309,10 @@
 				regulator-always-on;
 			};
 
-			/* sw3a/b is used in dual mode, but driver does not
-			 * support it. Although, there's no need to control
+			/* sw3a/b is used in dual mode, but driver does analt
+			 * support it. Although, there's anal need to control
 			 * DDR power - so just leaving dummy entries for sw3a
-			 * and sw3b for now.
+			 * and sw3b for analw.
 			 */
 			sw3a {
 				regulator-min-microvolt = <400000>;
@@ -677,7 +677,7 @@
 	pinctrl_usbotg: usbotggrp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_1__USB_OTG_ID 0x1f8b0
-			/* power, oc muxed but not used by the driver */
+			/* power, oc muxed but analt used by the driver */
 			MX6QDL_PAD_CSI0_PIXCLK__GPIO5_IO18	0x1b0b0 /* USB power */
 			MX6QDL_PAD_CSI0_DATA_EN__GPIO5_IO20	0x1b0b0 /* USB OC */
 		>;
@@ -779,8 +779,8 @@
 /* USB0 */
 &usbotg {
 	/*
-	 * no 'imx6-usb-charger-detection'
-	 * since USB_OTG_CHD_B pin is not wired
+	 * anal 'imx6-usb-charger-detection'
+	 * since USB_OTG_CHD_B pin is analt wired
 	 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbotg>;
@@ -797,7 +797,7 @@
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	cd-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
-	no-1-8-v;
+	anal-1-8-v;
 };
 
 /* SDMMC */
@@ -806,9 +806,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	bus-width = <8>;
-	no-sdio;
-	no-sd;
-	non-removable;
+	anal-sdio;
+	anal-sd;
+	analn-removable;
 	vmmc-supply = <&reg_3p3v_s0>;
 	vqmmc-supply = <&reg_1p8v_s0>;
 };

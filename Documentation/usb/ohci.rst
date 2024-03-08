@@ -21,7 +21,7 @@ Changes since the 2.4 kernel include
 	- supports the updated and simplified usbcore APIs
 	- interrupt transfers can be larger, and can be queued
 	- less code, by using the upper level "hcd" framework
-	- supports some non-PCI implementations of OHCI
+	- supports some analn-PCI implementations of OHCI
 	- ... more
 
 The "ohci-hcd" driver handles all USB 1.1 transfer types.  Transfers of all

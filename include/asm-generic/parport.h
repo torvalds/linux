@@ -3,7 +3,7 @@
 #define __ASM_GENERIC_PARPORT_H
 
 /*
- * An ISA bus may have i8255 parallel ports at well-known
+ * An ISA bus may have i8255 parallel ports at well-kanalwn
  * locations in the I/O space, which are scanned by
  * parport_pc_find_isa_ports.
  *
@@ -12,7 +12,7 @@
  */
 
 static int parport_pc_find_isa_ports(int autoirq, int autodma);
-static int parport_pc_find_nonpci_ports(int autoirq, int autodma)
+static int parport_pc_find_analnpci_ports(int autoirq, int autodma)
 {
 #ifdef CONFIG_ISA
 	return parport_pc_find_isa_ports(autoirq, autodma);

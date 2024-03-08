@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -44,7 +44,7 @@
 #define VIAFB_GET_PANEL_POSITION        0x56494137
 #define VIAFB_GET_PANEL_SIZE		0x56494138
 
-#define None_Device 0x00
+#define Analne_Device 0x00
 #define CRT_Device  0x01
 #define LCD_Device  0x02
 #define DVI_Device  0x08
@@ -123,7 +123,7 @@ struct viafb_driver_version {
 	int iMajorNum;
 	int iKernelNum;
 	int iOSNum;
-	int iMinorNum;
+	int iMianalrNum;
 };
 
 struct viafb_ioctl_lcd_attribute {

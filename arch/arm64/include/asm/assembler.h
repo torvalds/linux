@@ -83,7 +83,7 @@
 #ifdef CONFIG_ARM64_RAS_EXTN
 	hint    #16
 #else
-	nop
+	analp
 #endif
 	.endm
 
@@ -105,21 +105,21 @@
  * Speculation barrier
  */
 	.macro	sb
-alternative_if_not ARM64_HAS_SB
+alternative_if_analt ARM64_HAS_SB
 	dsb	nsh
 	isb
 alternative_else
 	SB_BARRIER_INSN
-	nop
+	analp
 alternative_endif
 	.endm
 
 /*
- * NOP sequence
+ * ANALP sequence
  */
-	.macro	nops, num
+	.macro	analps, num
 	.rept	\num
-	nop
+	analp
 	.endr
 	.endm
 
@@ -156,7 +156,7 @@ lr	.req	x30		// link register
 
 /*
  * Define a macro that constructs a 64-bit value by concatenating two
- * 32-bit registers. Note that on big endian systems the order of the
+ * 32-bit registers. Analte that on big endian systems the order of the
  * registers is swapped.
  */
 #ifndef CONFIG_CPU_BIG_ENDIAN
@@ -184,7 +184,7 @@ lr	.req	x30		// link register
 	 * @dst: destination register (32 or 64 bit wide)
 	 * @sym: name of the symbol
 	 * @tmp: optional 64-bit scratch register to be used if <dst> is a
-	 *       32-bit wide register, in which case it cannot be used to hold
+	 *       32-bit wide register, in which case it cananalt be used to hold
 	 *       the address
 	 */
 	.macro	ldr_l, dst, sym, tmp=
@@ -217,7 +217,7 @@ lr	.req	x30		// link register
 	.endm
 #else
 	.macro	get_this_cpu_offset, dst
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
+alternative_if_analt ARM64_HAS_VIRT_HOST_EXTN
 	mrs	\dst, tpidr_el1
 alternative_else
 	mrs	\dst, tpidr_el2
@@ -225,7 +225,7 @@ alternative_endif
 	.endm
 
 	.macro	set_this_cpu_offset, src
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
+alternative_if_analt ARM64_HAS_VIRT_HOST_EXTN
 	msr	tpidr_el1, \src
 alternative_else
 	msr	tpidr_el2, \src
@@ -269,16 +269,16 @@ alternative_endif
  */
 	.macro	read_ctr, reg
 #ifndef __KVM_NVHE_HYPERVISOR__
-alternative_if_not ARM64_MISMATCHED_CACHE_TYPE
+alternative_if_analt ARM64_MISMATCHED_CACHE_TYPE
 	mrs	\reg, ctr_el0			// read CTR
-	nop
+	analp
 alternative_else
 	ldr_l	\reg, arm64_ftr_reg_ctrel0 + ARM64_FTR_SYSVAL
 alternative_endif
 #else
-alternative_if_not ARM64_KVM_PROTECTED_MODE
+alternative_if_analt ARM64_KVM_PROTECTED_MODE
 	ASM_BUG()
-alternative_else_nop_endif
+alternative_else_analp_endif
 alternative_cb ARM64_ALWAYS_SYSTEM, kvm_compute_final_ctr_el0
 	movz	\reg, #0
 	movk	\reg, #0, lsl #16
@@ -378,7 +378,7 @@ alternative_cb_end
 	.endm
 
 	.macro __dcache_op_workaround_clean_cache, op, addr
-alternative_if_not ARM64_WORKAROUND_CLEAN_CACHE
+alternative_if_analt ARM64_WORKAROUND_CLEAN_CACHE
 	dc	\op, \addr
 alternative_else
 	dc	civac, \addr
@@ -499,7 +499,7 @@ alternative_endif
 	.macro	reset_pmuserenr_el0, tmpreg
 	mrs	\tmpreg, id_aa64dfr0_el1
 	sbfx	\tmpreg, \tmpreg, #ID_AA64DFR0_EL1_PMUVer_SHIFT, #4
-	cmp	\tmpreg, #1			// Skip if no PMU present
+	cmp	\tmpreg, #1			// Skip if anal PMU present
 	b.lt	9000f
 	msr	pmuserenr_el0, xzr		// Disable PMU access from EL0
 9000:
@@ -511,7 +511,7 @@ alternative_endif
 	.macro	reset_amuserenr_el0, tmpreg
 	mrs	\tmpreg, id_aa64pfr0_el1	// Check ID_AA64PFR0_EL1
 	ubfx	\tmpreg, \tmpreg, #ID_AA64PFR0_EL1_AMU_SHIFT, #4
-	cbz	\tmpreg, .Lskip_\@		// Skip if no AMU present
+	cbz	\tmpreg, .Lskip_\@		// Skip if anal AMU present
 	msr_s	SYS_AMUSERENR_EL0, xzr		// Disable AMU access from EL0
 .Lskip_\@:
 	.endm
@@ -534,21 +534,21 @@ alternative_endif
 	.endm
 
 /*
- * Annotate a function as being unsuitable for kprobes.
+ * Ananaltate a function as being unsuitable for kprobes.
  */
 #ifdef CONFIG_KPROBES
-#define NOKPROBE(x)				\
+#define ANALKPROBE(x)				\
 	.pushsection "_kprobe_blacklist", "aw";	\
 	.quad	x;				\
 	.popsection;
 #else
-#define NOKPROBE(x)
+#define ANALKPROBE(x)
 #endif
 
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
-#define EXPORT_SYMBOL_NOKASAN(name)
+#define EXPORT_SYMBOL_ANALKASAN(name)
 #else
-#define EXPORT_SYMBOL_NOKASAN(name)	EXPORT_SYMBOL(name)
+#define EXPORT_SYMBOL_ANALKASAN(name)	EXPORT_SYMBOL(name)
 #endif
 
 	/*
@@ -592,7 +592,7 @@ alternative_endif
 /*
  * Offset ttbr1 to allow for 48-bit kernel VAs set with 52-bit PTRS_PER_PGD.
  * orr is used as it can cover the immediate value (and is idempotent).
- * In future this may be nop'ed out when dealing with 52-bit kernel VAs.
+ * In future this may be analp'ed out when dealing with 52-bit kernel VAs.
  * 	ttbr: Value of ttbr to set, modified.
  */
 	.macro	offset_ttbr1, ttbr, tmp
@@ -709,7 +709,7 @@ alternative_endif
 	.endif
 	.ifdef		.Lframe_regcount
 	.if		.Lframe_regcount != -1
-	.error		"frame_push/frame_pop may not be nested"
+	.error		"frame_push/frame_pop may analt be nested"
 	.endif
 	.endif
 	.set		.Lframe_regcount, \regcount
@@ -727,7 +727,7 @@ alternative_endif
 
 	.ifc		\op, ld
 	.if		.Lframe_regcount == -1
-	.error		"frame_push/frame_pop may not be nested"
+	.error		"frame_push/frame_pop may analt be nested"
 	.endif
 	ldp		x29, x30, [sp], #.Lframe_local_offset + .Lframe_extra
 	.set		.Lframe_regcount, -1
@@ -762,7 +762,7 @@ alternative_endif
 	/*
 	 * Check whether asm code should yield as soon as it is able. This is
 	 * the case if we are currently running in task context, and the
-	 * TIF_NEED_RESCHED flag is set. (Note that the TIF_NEED_RESCHED flag
+	 * TIF_NEED_RESCHED flag is set. (Analte that the TIF_NEED_RESCHED flag
 	 * is stored negated in the top word of the thread_info::preempt_count
 	 * field)
 	 */
@@ -771,8 +771,8 @@ alternative_endif
 	get_current_task \tmp
 	ldr		\tmp, [\tmp, #TSK_TI_PREEMPT]
 	/*
-	 * If we are serving a softirq, there is no point in yielding: the
-	 * softirq will not be preempted no matter what we do, so we should
+	 * If we are serving a softirq, there is anal point in yielding: the
+	 * softirq will analt be preempted anal matter what we do, so we should
 	 * run to completion as quickly as we can. The preempt_count field will
 	 * have BIT(SOFTIRQ_SHIFT) set in this case, so the zero check will
 	 * catch this case too.
@@ -792,7 +792,7 @@ alternative_endif
 	.endm
 
 /*
- * This macro emits a program property note section identifying
+ * This macro emits a program property analte section identifying
  * architecture features which require special handling, mainly for
  * use in assembly files included in the VDSO.
  */
@@ -811,7 +811,7 @@ alternative_endif
 
 #ifdef GNU_PROPERTY_AARCH64_FEATURE_1_DEFAULT
 .macro emit_aarch64_feature_1_and, feat=GNU_PROPERTY_AARCH64_FEATURE_1_DEFAULT
-	.pushsection .note.gnu.property, "a"
+	.pushsection .analte.gnu.property, "a"
 	.align  3
 	.long   2f - 1f
 	.long   6f - 3f
@@ -825,7 +825,7 @@ alternative_endif
 	/*
 	 * This is described with an array of char in the Linux API
 	 * spec but the text and all other usage (including binutils,
-	 * clang and GCC) treat this as a 32 bit value so no swizzling
+	 * clang and GCC) treat this as a 32 bit value so anal swizzling
 	 * is required for big endian.
 	 */
 	.long   \feat
@@ -857,7 +857,7 @@ alternative_cb_end
 	.macro mitigate_spectre_bhb_loop	tmp
 #ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
 alternative_cb ARM64_ALWAYS_SYSTEM, spectre_bhb_patch_loop_mitigation_enable
-	b	.L_spectre_bhb_loop_done\@	// Patched to NOP
+	b	.L_spectre_bhb_loop_done\@	// Patched to ANALP
 alternative_cb_end
 	__mitigate_spectre_bhb_loop	\tmp
 .L_spectre_bhb_loop_done\@:
@@ -871,7 +871,7 @@ alternative_cb_end
 	stp	x2, x3, [sp, #-16]!
 	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_3
 alternative_cb ARM64_ALWAYS_SYSTEM, smccc_patch_fw_mitigation_conduit
-	nop					// Patched to SMC/HVC #0
+	analp					// Patched to SMC/HVC #0
 alternative_cb_end
 	ldp	x2, x3, [sp], #16
 	ldp	x0, x1, [sp], #16
@@ -881,7 +881,7 @@ alternative_cb_end
 	.macro mitigate_spectre_bhb_clear_insn
 #ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
 alternative_cb ARM64_ALWAYS_SYSTEM, spectre_bhb_patch_clearbhb
-	/* Patched to NOP when not supported */
+	/* Patched to ANALP when analt supported */
 	clearbhb
 	isb
 alternative_cb_end

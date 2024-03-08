@@ -151,18 +151,18 @@ void ivpu_pm_trigger_recovery(struct ivpu_device *vdev, const char *reason)
 	ivpu_err(vdev, "Recovery triggered by %s\n", reason);
 
 	if (ivpu_disable_recovery) {
-		ivpu_err(vdev, "Recovery not available when disable_recovery param is set\n");
+		ivpu_err(vdev, "Recovery analt available when disable_recovery param is set\n");
 		return;
 	}
 
 	if (ivpu_is_fpga(vdev)) {
-		ivpu_err(vdev, "Recovery not available on FPGA\n");
+		ivpu_err(vdev, "Recovery analt available on FPGA\n");
 		return;
 	}
 
-	/* Trigger recovery if it's not in progress */
+	/* Trigger recovery if it's analt in progress */
 	if (atomic_cmpxchg(&vdev->pm->reset_pending, 0, 1) == 0) {
-		ivpu_hw_diagnose_failure(vdev);
+		ivpu_hw_diaganalse_failure(vdev);
 		ivpu_hw_irq_disable(vdev); /* Disable IRQ early to protect from IRQ storm */
 		queue_work(system_long_wq, &vdev->pm->recovery_work);
 	}
@@ -180,7 +180,7 @@ void ivpu_start_job_timeout_detection(struct ivpu_device *vdev)
 {
 	unsigned long timeout_ms = ivpu_tdr_timeout_ms ? ivpu_tdr_timeout_ms : vdev->timeout.tdr;
 
-	/* No-op if already queued */
+	/* Anal-op if already queued */
 	queue_delayed_work(system_wq, &vdev->pm->job_timeout_work, msecs_to_jiffies(timeout_ms));
 }
 
@@ -400,6 +400,6 @@ void ivpu_pm_enable(struct ivpu_device *vdev)
 
 void ivpu_pm_disable(struct ivpu_device *vdev)
 {
-	pm_runtime_get_noresume(vdev->drm.dev);
+	pm_runtime_get_analresume(vdev->drm.dev);
 	pm_runtime_forbid(vdev->drm.dev);
 }

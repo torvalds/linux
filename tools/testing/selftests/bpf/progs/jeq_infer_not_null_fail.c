@@ -15,14 +15,14 @@ struct {
 
 SEC("?raw_tp")
 __failure __msg("R8 invalid mem access 'map_value_or_null")
-int jeq_infer_not_null_ptr_to_btfid(void *ctx)
+int jeq_infer_analt_null_ptr_to_btfid(void *ctx)
 {
 	struct bpf_map *map = (struct bpf_map *)&m_hash;
 	struct bpf_map *inner_map = map->inner_map_meta;
 	u64 key = 0, ret = 0, *val;
 
 	val = bpf_map_lookup_elem(map, &key);
-	/* Do not mark ptr as non-null if one of them is
+	/* Do analt mark ptr as analn-null if one of them is
 	 * PTR_TO_BTF_ID (R9), reject because of invalid
 	 * access to map value (R8).
 	 *

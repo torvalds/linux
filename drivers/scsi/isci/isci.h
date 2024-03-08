@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -75,21 +75,21 @@
 
 #define SCI_MAX_PHYS  (4UL)
 #define SCI_MAX_PORTS SCI_MAX_PHYS
-#define SCI_MAX_SMP_PHYS  (384) /* not silicon constrained */
+#define SCI_MAX_SMP_PHYS  (384) /* analt silicon constrained */
 #define SCI_MAX_REMOTE_DEVICES (256UL)
 #define SCI_MAX_IO_REQUESTS (256UL)
 #define SCI_MAX_SEQ (16)
 #define SCI_MAX_MSIX_MESSAGES  (2)
-#define SCI_MAX_SCATTER_GATHER_ELEMENTS 130 /* not silicon constrained */
+#define SCI_MAX_SCATTER_GATHER_ELEMENTS 130 /* analt silicon constrained */
 #define SCI_MAX_CONTROLLERS 2
 #define SCI_MAX_DOMAINS  SCI_MAX_PORTS
 
-#define SCU_MAX_CRITICAL_NOTIFICATIONS    (384)
+#define SCU_MAX_CRITICAL_ANALTIFICATIONS    (384)
 #define SCU_MAX_EVENTS_SHIFT		  (7)
 #define SCU_MAX_EVENTS                    (1 << SCU_MAX_EVENTS_SHIFT)
 #define SCU_MAX_UNSOLICITED_FRAMES        (128)
 #define SCU_MAX_COMPLETION_QUEUE_SCRATCH  (128)
-#define SCU_MAX_COMPLETION_QUEUE_ENTRIES  (SCU_MAX_CRITICAL_NOTIFICATIONS \
+#define SCU_MAX_COMPLETION_QUEUE_ENTRIES  (SCU_MAX_CRITICAL_ANALTIFICATIONS \
 					   + SCU_MAX_EVENTS \
 					   + SCU_MAX_UNSOLICITED_FRAMES	\
 					   + SCI_MAX_IO_REQUESTS \
@@ -105,18 +105,18 @@
 
 static inline void check_sizes(void)
 {
-	BUILD_BUG_ON_NOT_POWER_OF_2(SCU_MAX_EVENTS);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(SCU_MAX_EVENTS);
 	BUILD_BUG_ON(SCU_MAX_UNSOLICITED_FRAMES <= 8);
-	BUILD_BUG_ON_NOT_POWER_OF_2(SCU_MAX_UNSOLICITED_FRAMES);
-	BUILD_BUG_ON_NOT_POWER_OF_2(SCU_MAX_COMPLETION_QUEUE_ENTRIES);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(SCU_MAX_UNSOLICITED_FRAMES);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(SCU_MAX_COMPLETION_QUEUE_ENTRIES);
 	BUILD_BUG_ON(SCU_MAX_UNSOLICITED_FRAMES > SCU_ABSOLUTE_MAX_UNSOLICITED_FRAMES);
-	BUILD_BUG_ON_NOT_POWER_OF_2(SCI_MAX_IO_REQUESTS);
-	BUILD_BUG_ON_NOT_POWER_OF_2(SCI_MAX_SEQ);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(SCI_MAX_IO_REQUESTS);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(SCI_MAX_SEQ);
 }
 
 /**
- * enum sci_status - This is the general return status enumeration for non-IO,
- *    non-task management related SCI interface methods.
+ * enum sci_status - This is the general return status enumeration for analn-IO,
+ *    analn-task management related SCI interface methods.
  *
  *
  */
@@ -130,7 +130,7 @@ enum sci_status {
 	 * This value indicates that the calling method completed successfully,
 	 * but that the IO may have completed before having it's start method
 	 * invoked.  This occurs during SAT translation for requests that do
-	 * not require an IO to the target or for any other requests that may
+	 * analt require an IO to the target or for any other requests that may
 	 * be completed without having to submit IO.
 	 */
 	SCI_SUCCESS_IO_COMPLETE_BEFORE_START,
@@ -157,7 +157,7 @@ enum sci_status {
 	SCI_WARNING_TIMER_CONFLICT,
 
 	/**
-	 * This field indicates a sequence of action is not completed yet. Mostly,
+	 * This field indicates a sequence of action is analt completed yet. Mostly,
 	 * this status is used when multiple ATA commands are needed in a SATI translation.
 	 */
 	SCI_WARNING_SEQUENCE_INCOMPLETE,
@@ -190,11 +190,11 @@ enum sci_status {
 	 * This member indicates the calling function failed, because the
 	 * controller object required for the operation can't be located.
 	 */
-	SCI_FAILURE_CONTROLLER_NOT_FOUND,
+	SCI_FAILURE_CONTROLLER_ANALT_FOUND,
 
 	/**
 	 * This member indicates the calling function failed, because the
-	 * discovered controller type is not supported by the library.
+	 * discovered controller type is analt supported by the library.
 	 */
 	SCI_FAILURE_UNSUPPORTED_CONTROLLER_TYPE,
 
@@ -206,20 +206,20 @@ enum sci_status {
 
 	/**
 	 * This member indicates the calling function failed, because the
-	 * requested configuration of SAS Phys into SAS Ports is not supported.
+	 * requested configuration of SAS Phys into SAS Ports is analt supported.
 	 */
 	SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION,
 
 	/**
 	 * This member indicates the calling function failed, because the
-	 * requested protocol is not supported by the remote device, port,
+	 * requested protocol is analt supported by the remote device, port,
 	 * or controller.
 	 */
 	SCI_FAILURE_UNSUPPORTED_PROTOCOL,
 
 	/**
 	 * This member indicates the calling function failed, because the
-	 * requested information type is not supported by the SCI implementation.
+	 * requested information type is analt supported by the SCI implementation.
 	 */
 	SCI_FAILURE_UNSUPPORTED_INFORMATION_TYPE,
 
@@ -231,49 +231,49 @@ enum sci_status {
 
 	/**
 	 * This member indicates the calling function failed, because adding
-	 * a phy to the object is not possible.
+	 * a phy to the object is analt possible.
 	 */
 	SCI_FAILURE_ADDING_PHY_UNSUPPORTED,
 
 	/**
 	 * This member indicates the calling function failed, because the
-	 * requested information type is not supported by the SCI implementation.
+	 * requested information type is analt supported by the SCI implementation.
 	 */
 	SCI_FAILURE_UNSUPPORTED_INFORMATION_FIELD,
 
 	/**
 	 * This member indicates the calling function failed, because the SCI
-	 * implementation does not support the supplied time limit.
+	 * implementation does analt support the supplied time limit.
 	 */
 	SCI_FAILURE_UNSUPPORTED_TIME_LIMIT,
 
 	/**
 	 * This member indicates the calling method failed, because the SCI
-	 * implementation does not contain the specified Phy.
+	 * implementation does analt contain the specified Phy.
 	 */
 	SCI_FAILURE_INVALID_PHY,
 
 	/**
 	 * This member indicates the calling method failed, because the SCI
-	 * implementation does not contain the specified Port.
+	 * implementation does analt contain the specified Port.
 	 */
 	SCI_FAILURE_INVALID_PORT,
 
 	/**
 	 * This member indicates the calling method was partly successful
-	 * The port was reset but not all phys in port are operational
+	 * The port was reset but analt all phys in port are operational
 	 */
 	SCI_FAILURE_RESET_PORT_PARTIAL_SUCCESS,
 
 	/**
 	 * This member indicates that calling method failed
-	 * The port reset did not complete because none of the phys are operational
+	 * The port reset did analt complete because analne of the phys are operational
 	 */
 	SCI_FAILURE_RESET_PORT_FAILURE,
 
 	/**
 	 * This member indicates the calling method failed, because the SCI
-	 * implementation does not contain the specified remote device.
+	 * implementation does analt contain the specified remote device.
 	 */
 	SCI_FAILURE_INVALID_REMOTE_DEVICE,
 
@@ -285,7 +285,7 @@ enum sci_status {
 
 	/**
 	 * This member indicates the calling method failed, because the SCI
-	 * implementation does not contain or support the specified IO tag.
+	 * implementation does analt contain or support the specified IO tag.
 	 */
 	SCI_FAILURE_INVALID_IO_TAG,
 
@@ -298,7 +298,7 @@ enum sci_status {
 	/**
 	 * This member indicates that the operation failed, the failure is
 	 * controller implementation specific, and the response data associated
-	 * with the request is not valid.  You can query for the controller
+	 * with the request is analt valid.  You can query for the controller
 	 * specific error information via sci_controller_get_request_status()
 	 */
 	SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR,
@@ -317,13 +317,13 @@ enum sci_status {
 
 	/**
 	 * This member indicates that the operation failed because the supplied
-	 * device could not be located.
+	 * device could analt be located.
 	 */
-	SCI_FAILURE_DEVICE_NOT_FOUND,
+	SCI_FAILURE_DEVICE_ANALT_FOUND,
 
 	/**
 	 * This member indicates that the operation failed because the
-	 * objects association is required and is not correctly set.
+	 * objects association is required and is analt correctly set.
 	 */
 	SCI_FAILURE_INVALID_ASSOCIATION,
 
@@ -335,13 +335,13 @@ enum sci_status {
 
 	/**
 	 * This member indicates that the operation failed, because the user
-	 * specified a value that is either invalid or not supported.
+	 * specified a value that is either invalid or analt supported.
 	 */
 	SCI_FAILURE_INVALID_PARAMETER_VALUE,
 
 	/**
 	 * This value indicates that the operation failed, because the number
-	 * of messages (MSI-X) is not supported.
+	 * of messages (MSI-X) is analt supported.
 	 */
 	SCI_FAILURE_UNSUPPORTED_MESSAGE_COUNT,
 
@@ -349,7 +349,7 @@ enum sci_status {
 	 * This value indicates that the method failed due to a lack of
 	 * available NCQ tags.
 	 */
-	SCI_FAILURE_NO_NCQ_TAG_AVAILABLE,
+	SCI_FAILURE_ANAL_NCQ_TAG_AVAILABLE,
 
 	/**
 	 * This value indicates that a protocol violation has occurred on the
@@ -383,7 +383,7 @@ enum sci_status {
 
 	/**
 	 * This field indicates a CONFIG ROUTE INFO command has a response with function result
-	 * INDEX DOES NOT EXIST, usually means exceeding max route index.
+	 * INDEX DOES ANALT EXIST, usually means exceeding max route index.
 	 */
 	SCI_FAILURE_EXCEED_MAX_ROUTE_INDEX,
 
@@ -419,7 +419,7 @@ enum sci_io_status {
 	SCI_IO_FAILURE_TERMINATED              = SCI_FAILURE_IO_TERMINATED,
 	SCI_IO_FAILURE_REQUIRES_SCSI_ABORT     = SCI_FAILURE_IO_REQUIRES_SCSI_ABORT,
 	SCI_IO_FAILURE_INVALID_PARAMETER_VALUE = SCI_FAILURE_INVALID_PARAMETER_VALUE,
-	SCI_IO_FAILURE_NO_NCQ_TAG_AVAILABLE    = SCI_FAILURE_NO_NCQ_TAG_AVAILABLE,
+	SCI_IO_FAILURE_ANAL_NCQ_TAG_AVAILABLE    = SCI_FAILURE_ANAL_NCQ_TAG_AVAILABLE,
 	SCI_IO_FAILURE_PROTOCOL_VIOLATION      = SCI_FAILURE_PROTOCOL_VIOLATION,
 
 	SCI_IO_FAILURE_REMOTE_DEVICE_RESET_REQUIRED = SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED,
@@ -473,7 +473,7 @@ static inline void sci_swab32_cpy(void *_dest, void *_src, ssize_t word_cnt)
 		dest[word_cnt] = swab32(src[word_cnt]);
 }
 
-extern unsigned char no_outbound_task_to;
+extern unsigned char anal_outbound_task_to;
 extern u16 ssp_max_occ_to;
 extern u16 stp_max_occ_to;
 extern u16 ssp_inactive_to;
@@ -489,7 +489,7 @@ irqreturn_t isci_error_isr(int vec, void *data);
 /*
  * Each timer is associated with a cancellation flag that is set when
  * del_timer() is called and checked in the timer callback function. This
- * is needed since del_timer_sync() cannot be called with sci_lock held.
+ * is needed since del_timer_sync() cananalt be called with sci_lock held.
  * For deinit however, del_timer_sync() is used without holding the lock.
  */
 struct sci_timer {

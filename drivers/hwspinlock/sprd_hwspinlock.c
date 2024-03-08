@@ -23,7 +23,7 @@
 #define HWSPINLOCK_TOKEN(_X_)		(0x800 + 0x4 * (_X_))
 
 /* unlocked value */
-#define HWSPINLOCK_NOTTAKEN		0x55aa10c5
+#define HWSPINLOCK_ANALTTAKEN		0x55aa10c5
 /* bits definition of RECCTRL reg */
 #define HWSPINLOCK_USER_BITS		0x1
 
@@ -61,7 +61,7 @@ static void sprd_hwspinlock_unlock(struct hwspinlock *lock)
 {
 	void __iomem *lock_addr = lock->priv;
 
-	writel(HWSPINLOCK_NOTTAKEN, lock_addr);
+	writel(HWSPINLOCK_ANALTTAKEN, lock_addr);
 }
 
 /* The specs recommended below number as the retry delay time */
@@ -89,14 +89,14 @@ static int sprd_hwspinlock_probe(struct platform_device *pdev)
 	struct hwspinlock *lock;
 	int i, ret;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	sprd_hwlock = devm_kzalloc(&pdev->dev,
 				   struct_size(sprd_hwlock, bank.lock, SPRD_HWLOCKS_NUM),
 				   GFP_KERNEL);
 	if (!sprd_hwlock)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sprd_hwlock->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sprd_hwlock->base))

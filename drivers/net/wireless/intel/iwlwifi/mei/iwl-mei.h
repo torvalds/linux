@@ -15,9 +15,9 @@
  *
  * iwlmei is the kernel module that is in charge of the communication between
  * the iwlwifi driver and the CSME firmware's WLAN driver. This communication
- * uses the SAP protocol defined in another file.
+ * uses the SAP protocol defined in aanalther file.
  * iwlwifi can request or release ownership on the WiFi device through iwlmei.
- * iwlmei may notify iwlwifi about certain events: what filter iwlwifi should
+ * iwlmei may analtify iwlwifi about certain events: what filter iwlwifi should
  * use to passthrough inbound packets to the CSME firmware for example. iwlmei
  * may also use iwlwifi to send traffic. This means that we need communication
  * from iwlmei to iwlwifi and the other way around.
@@ -31,12 +31,12 @@
  * provides the pointers to the functions that iwlmei calls whenever needed.
  * iwlwifi calls iwlmei through direct and context-free function calls.
  * It is assumed that only one device is accessible to the CSME firmware and
- * under the scope of iwlmei so that it is valid not to have any context passed
+ * under the scope of iwlmei so that it is valid analt to have any context passed
  * to iwlmei's functions.
  *
  * There are cases in which iwlmei can't access the CSME firmware, because the
  * CSME firmware is undergoing a reset, or the mei bus decided to unbind the
- * device. In those cases, iwlmei will need not to send requests over the mei
+ * device. In those cases, iwlmei will need analt to send requests over the mei
  * bus. Instead, it needs to cache the requests from iwlwifi and fulfill them
  * when the mei bus is available again.
  *
@@ -50,10 +50,10 @@
  *
  * Since iwlwifi calls iwlmei without any context, iwlmei needs to hold a
  * global pointer to its data (which is in the mei client device's private
- * data area). If there was no bind on the mei bus, this pointer is NULL and
- * iwlmei knows not access to the CSME firmware upon requests from iwlwifi.
+ * data area). If there was anal bind on the mei bus, this pointer is NULL and
+ * iwlmei kanalws analt access to the CSME firmware upon requests from iwlwifi.
  *
- * iwlmei needs to cache requests from iwlwifi when there is no mei client
+ * iwlmei needs to cache requests from iwlwifi when there is anal mei client
  * device available (when iwlmei has been removed from the mei bus). In this
  * case, all iwlmei's data that resides in the mei client device's private data
  * area is unavailable. For this specific case, a separate caching area is
@@ -64,8 +64,8 @@
  * DOC: Concurrency
  *
  * iwlwifi can call iwlmei at any time. iwlmei will take care to synchronize
- * the calls from iwlwifi with its internal flows. iwlwifi must not call iwlmei
- * in flows that cannot sleep. Moreover, iwlwifi must not call iwlmei in flows
+ * the calls from iwlwifi with its internal flows. iwlwifi must analt call iwlmei
+ * in flows that cananalt sleep. Moreover, iwlwifi must analt call iwlmei in flows
  * that originated from iwlmei.
  */
 
@@ -81,7 +81,7 @@
  *
  * When the mei bus driver removes the device, iwlmei loses all the data that
  * was attached to the mei client device. It clears the global pointer to the
- * mei client device since it is not available anymore. This will cause all the
+ * mei client device since it is analt available anymore. This will cause all the
  * requests coming from iwlwifi to be cached. This flow takes the global mutex
  * to be synchronized with all the requests coming from iwlwifi.
  */
@@ -91,7 +91,7 @@
  *
  * When the driver (iwlwifi) is loaded while CSME owns the device,
  * it'll ask CSME to release the device through HW registers. CSME
- * will release the device only in the case that there is no connection
+ * will release the device only in the case that there is anal connection
  * through the mei bus. If there is a mei bus connection, CSME will refuse
  * to release the ownership on the device through the HW registers. In that
  * case, iwlwifi must first request ownership using the SAP protocol.
@@ -105,7 +105,7 @@
  * this is impossible as long as we don't have ownership on the device.
  * In order to solve this chicken and egg problem, the host driver can get
  * the NVM through CSME which owns the device. It can send
- * %SAP_MSG_NOTIF_GET_NVM, which will be replied by %SAP_MSG_NOTIF_NVM with
+ * %SAP_MSG_ANALTIF_GET_NVM, which will be replied by %SAP_MSG_ANALTIF_NVM with
  * the NVM's content that the host driver needs.
  */
 
@@ -116,11 +116,11 @@
  *  - the HW registers in iwl_pcie_set_hw_ready
  *  - using the Software Arbitration Protocol (SAP)
  *
- * The host can ask CSME who owns the device with %SAP_MSG_NOTIF_WHO_OWNS_NIC,
- * and it can request ownership with %SAP_MSG_NOTIF_HOST_ASKS_FOR_NIC_OWNERSHIP.
- * The host will first use %SAP_MSG_NOTIF_WHO_OWNS_NIC to know what state
+ * The host can ask CSME who owns the device with %SAP_MSG_ANALTIF_WHO_OWNS_NIC,
+ * and it can request ownership with %SAP_MSG_ANALTIF_HOST_ASKS_FOR_NIC_OWNERSHIP.
+ * The host will first use %SAP_MSG_ANALTIF_WHO_OWNS_NIC to kanalw what state
  * CSME is in. In case CSME thinks it owns the device, the host can ask for
- * ownership with %SAP_MSG_NOTIF_HOST_ASKS_FOR_NIC_OWNERSHIP.
+ * ownership with %SAP_MSG_ANALTIF_HOST_ASKS_FOR_NIC_OWNERSHIP.
  *
  * Here the table that describes CSME's behavior upon ownership request:
  *
@@ -128,12 +128,12 @@
  * | State             | HW reg bit | Reply for    | Event                       | HW reg bit |
  * |                   | before     | WHO_OWNS_NIC |                             | after      |
  * +===================+============+==============+=============================+============+
- * | WiAMT not         | 0          | Host         | HW register or              | 0          |
+ * | WiAMT analt         | 0          | Host         | HW register or              | 0          |
  * | operational       | Host owner |              | HOST_ASKS_FOR_NIC_OWNERSHIP | Host owner |
  * +-------------------+------------+--------------+-----------------------------+------------+
  * | Operational &     | 1          | N/A          | HW register                 | 0          |
  * | SAP down &        | CSME owner |              |                             | Host owner |
- * | no session active |            |              |                             |            |
+ * | anal session active |            |              |                             |            |
  * +-------------------+------------+--------------+-----------------------------+------------+
  * | Operational &     | 1          | CSME         | HW register                 | 1          |
  * | SAP up            | CSME owner |              |                             | CSME owner |
@@ -154,15 +154,15 @@
  * sure that it'll connect to the exact same AP (same BSSID).
  * In order to do so, CSME will send the connection parameters through
  * SAP and then the host can check if it can connect to this same AP.
- * If yes, it can request ownership through SAP and connect quickly without
+ * If anal, it can request ownership through SAP and connect quickly without
  * scanning all the channels, but just probing the AP on the channel that
  * CSME was connected to.
  * In order to signal this specific scenario to iwlwifi, iwlmei will
  * immediately require iwlwifi to report RF-Kill to the network stack. This
  * RF-Kill will prevent the stack from getting the device, and it has a reason
- * that tells the userspace that the device is in RF-Kill because it is not
+ * that tells the userspace that the device is in RF-Kill because it is analt
  * owned by the host. Once the userspace has configured the right profile,
- * it'll be able to let iwlmei know that it can request ownership over SAP
+ * it'll be able to let iwlmei kanalw that it can request ownership over SAP
  * which will remove the RF-Kill, and finally allow the host to connect.
  * The host has then 3 seconds to connect (including DHCP). Had the host
  * failed to connect within those 3 seconds, CSME will take the device back.
@@ -179,8 +179,8 @@
  * may catch packets and send them to CSME, it can then either drop them so
  * that they are invisible to user space, or let them go the user space.
  *
- * Packets transmitted by the user space do not need to be forwarded to CSME
- * with the exception of the DHCP request. In order to know what IP is used
+ * Packets transmitted by the user space do analt need to be forwarded to CSME
+ * with the exception of the DHCP request. In order to kanalw what IP is used
  * by the user space, CSME needs to get the DHCP request. See
  * iwl_mei_tx_copy_to_csme().
  */
@@ -219,16 +219,16 @@ struct iwl_mei_nvm {
 
 /**
  * enum iwl_mei_pairwise_cipher - cipher for UCAST key
- * @IWL_MEI_CIPHER_NONE: none
+ * @IWL_MEI_CIPHER_ANALNE: analne
  * @IWL_MEI_CIPHER_TKIP: tkip
  * @IWL_MEI_CIPHER_CCMP: ccmp
  * @IWL_MEI_CIPHER_GCMP: gcmp
  * @IWL_MEI_CIPHER_GCMP_256: gcmp 256
  *
- * Note that those values are dictated by the CSME firmware API (see sap.h)
+ * Analte that those values are dictated by the CSME firmware API (see sap.h)
  */
 enum iwl_mei_pairwise_cipher {
-	IWL_MEI_CIPHER_NONE	= 0,
+	IWL_MEI_CIPHER_ANALNE	= 0,
 	IWL_MEI_CIPHER_TKIP	= 2,
 	IWL_MEI_CIPHER_CCMP	= 4,
 	IWL_MEI_CIPHER_GCMP	= 8,
@@ -237,12 +237,12 @@ enum iwl_mei_pairwise_cipher {
 
 /**
  * enum iwl_mei_akm_auth - a combination of AKM and AUTH method
- * @IWL_MEI_AKM_AUTH_OPEN: No encryption
+ * @IWL_MEI_AKM_AUTH_OPEN: Anal encryption
  * @IWL_MEI_AKM_AUTH_RSNA: 1X profile
  * @IWL_MEI_AKM_AUTH_RSNA_PSK: PSK profile
  * @IWL_MEI_AKM_AUTH_SAE: SAE profile
  *
- * Note that those values are dictated by the CSME firmware API (see sap.h)
+ * Analte that those values are dictated by the CSME firmware API (see sap.h)
  */
 enum iwl_mei_akm_auth {
 	IWL_MEI_AKM_AUTH_OPEN		= 0,
@@ -285,17 +285,17 @@ struct iwl_mei_colloc_info {
 
 /*
  * struct iwl_mei_ops - driver's operations called by iwlmei
- * Operations will not be called more than once concurrently.
- * It's not allowed to call iwlmei functions from this context.
+ * Operations will analt be called more than once concurrently.
+ * It's analt allowed to call iwlmei functions from this context.
  *
  * @me_conn_status: provide information about CSME's current connection.
  * @rfkill: called when the wifi driver should report a change in the rfkill
  *	status.
  * @roaming_forbidden: indicates whether roaming is forbidden.
- * @sap_connected: indicate that SAP is now connected. Will be called in case
+ * @sap_connected: indicate that SAP is analw connected. Will be called in case
  *	the wifi driver registered to iwlmei before SAP connection succeeded or
  *	when the SAP connection is re-established.
- * @nic_stolen: this means that device is no longer available. The device can
+ * @nic_stolen: this means that device is anal longer available. The device can
  *	still be used until the callback returns.
  */
 struct iwl_mei_ops {
@@ -373,7 +373,7 @@ void iwl_mei_set_power_limit(const __le16 *power_limit);
 
 /**
  * iwl_mei_register() - register the wifi driver to iwlmei
- * @priv: a pointer to the wifi driver's context. Cannot be NULL.
+ * @priv: a pointer to the wifi driver's context. Cananalt be NULL.
  * @ops: the ops structure.
  *
  * Return: 0 unless something went wrong. It is illegal to call any
@@ -387,7 +387,7 @@ int iwl_mei_register(void *priv, const struct iwl_mei_ops *ops);
 /**
  * iwl_mei_start_unregister() - unregister the wifi driver from iwlmei
  *
- * From this point on, iwlmei will not used the callbacks provided by
+ * From this point on, iwlmei will analt used the callbacks provided by
  * the driver, but the device is still usable.
  */
 void iwl_mei_start_unregister(void);
@@ -404,13 +404,13 @@ void iwl_mei_unregister_complete(void);
  * iwl_mei_set_netdev() - sets the netdev for Tx / Rx.
  * @netdev: the net_device
  *
- * The caller should set the netdev to a non-NULL value when the
+ * The caller should set the netdev to a analn-NULL value when the
  * interface is added. Packets might be sent to the driver immediately
  * afterwards.
  * The caller should set the netdev to NULL when the interface is removed.
  * This function will call synchronize_net() after setting the netdev to NULL.
  * Only when this function returns, can the caller assume that iwlmei will
- * no longer inject packets into the netdev's Tx path.
+ * anal longer inject packets into the netdev's Tx path.
  *
  * Context: This function can sleep and assumes rtnl_lock is taken.
  * The netdev must be set to NULL before iwl_mei_start_unregister() is called.
@@ -426,8 +426,8 @@ void iwl_mei_set_netdev(struct net_device *netdev);
  *
  * This function doesn't take any lock, it simply tries to catch DHCP
  * packets sent by the wifi driver. If the packet is a DHCP packet, it
- * will send it to CSME. This function must not be called for virtual
- * interfaces that are not monitored by CSME, meaning it must be called
+ * will send it to CSME. This function must analt be called for virtual
+ * interfaces that are analt monitored by CSME, meaning it must be called
  * only for packets transmitted by the netdevice that was registered
  * with iwl_mei_set_netdev().
  */
@@ -462,11 +462,11 @@ void iwl_mei_device_state(bool up);
 int iwl_mei_pldr_req(void);
 
 /**
- * iwl_mei_alive_notif() - must be called when alive notificaiton is received
- * @success: true if received alive notification, false if waiting for the
- *	notificaiton timed out.
+ * iwl_mei_alive_analtif() - must be called when alive analtificaiton is received
+ * @success: true if received alive analtification, false if waiting for the
+ *	analtificaiton timed out.
  */
-void iwl_mei_alive_notif(bool success);
+void iwl_mei_alive_analtif(bool success);
 
 #else
 
@@ -493,7 +493,7 @@ static inline void iwl_mei_set_power_limit(__le16 *power_limit)
 
 static inline int iwl_mei_register(void *priv,
 				   const struct iwl_mei_ops *ops)
-{ return -EOPNOTSUPP; }
+{ return -EOPANALTSUPP; }
 
 static inline void iwl_mei_start_unregister(void)
 {}
@@ -521,7 +521,7 @@ static inline void iwl_mei_device_state(bool up)
 static inline int iwl_mei_pldr_req(void)
 { return 0; }
 
-static inline void iwl_mei_alive_notif(bool success)
+static inline void iwl_mei_alive_analtif(bool success)
 {}
 
 #endif /* CONFIG_IWLMEI */

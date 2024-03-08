@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * VFIO API definition
  *
@@ -26,7 +26,7 @@
 #define VFIO_SPAPR_TCE_IOMMU		2
 #define VFIO_TYPE1v2_IOMMU		3
 /*
- * IOMMU enforces DMA cache coherence (ex. PCIe NoSnoop stripping).  This
+ * IOMMU enforces DMA cache coherence (ex. PCIe AnalSanalop stripping).  This
  * capability is subject to change as groups are added or removed.
  */
 #define VFIO_DMA_CC_IOMMU		4
@@ -40,17 +40,17 @@
 #define VFIO_SPAPR_TCE_v2_IOMMU		7
 
 /*
- * The No-IOMMU IOMMU offers no translation or isolation for devices and
- * supports no ioctls outside of VFIO_CHECK_EXTENSION.  Use of VFIO's No-IOMMU
+ * The Anal-IOMMU IOMMU offers anal translation or isolation for devices and
+ * supports anal ioctls outside of VFIO_CHECK_EXTENSION.  Use of VFIO's Anal-IOMMU
  * code will taint the host kernel and should be used with extreme caution.
  */
-#define VFIO_NOIOMMU_IOMMU		8
+#define VFIO_ANALIOMMU_IOMMU		8
 
 /* Supports VFIO_DMA_UNMAP_FLAG_ALL */
 #define VFIO_UNMAP_ALL			9
 
 /*
- * Supports the vaddr flag for DMA map and unmap.  Not supported for mediated
+ * Supports the vaddr flag for DMA map and unmap.  Analt supported for mediated
  * devices, so this capability is subject to change as groups are added or
  * removed.
  */
@@ -93,8 +93,8 @@ struct vfio_info_cap_header {
  * the capability chain flag bit set, a zero value for the first capability
  * offset (if available within the provided argsz), and argsz will be
  * updated to report the necessary buffer size.  For compatibility, the
- * INFO ioctl will not report error in this case, but the capability chain
- * will not be available.
+ * INFO ioctl will analt report error in this case, but the capability chain
+ * will analt be available.
  */
 
 /* -------- IOCTLs for VFIO file descriptor (/dev/vfio/vfio) -------- */
@@ -114,7 +114,7 @@ struct vfio_info_cap_header {
  * VFIO_CHECK_EXTENSION - _IOW(VFIO_TYPE, VFIO_BASE + 1, __u32)
  *
  * Check whether an extension is supported.
- * Return: 0 if not supported, 1 (or some other positive integer) if supported.
+ * Return: 0 if analt supported, 1 (or some other positive integer) if supported.
  * Availability: Always
  */
 #define VFIO_CHECK_EXTENSION		_IO(VFIO_TYPE, VFIO_BASE + 1)
@@ -127,7 +127,7 @@ struct vfio_info_cap_header {
  * type.  A group must be set to this file descriptor before this
  * ioctl is available.  The IOMMU interfaces enabled by this call are
  * specific to the value set.
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  * Availability: When VFIO group attached
  */
 #define VFIO_SET_IOMMU			_IO(VFIO_TYPE, VFIO_BASE + 2)
@@ -140,7 +140,7 @@ struct vfio_info_cap_header {
  *
  * Retrieve information about the group.  Fills in provided
  * struct vfio_group_info.  Caller sets argsz.
- * Return: 0 on succes, -errno on failure.
+ * Return: 0 on succes, -erranal on failure.
  * Availability: Always
  */
 struct vfio_group_status {
@@ -160,7 +160,7 @@ struct vfio_group_status {
  * groups.  Only when a container is set are all of the interfaces
  * of the VFIO file descriptor and the VFIO group file descriptor
  * available to the user.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  * Availability: Always
  */
 #define VFIO_GROUP_SET_CONTAINER	_IO(VFIO_TYPE, VFIO_BASE + 4)
@@ -175,7 +175,7 @@ struct vfio_group_status {
  * from a container, the IOMMU will be disabled and all state lost,
  * effectively also returning the VFIO file descriptor to an initial
  * state.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  * Availability: When attached to container
  */
 #define VFIO_GROUP_UNSET_CONTAINER	_IO(VFIO_TYPE, VFIO_BASE + 5)
@@ -187,7 +187,7 @@ struct vfio_group_status {
  * the provided string.  The string should match a device listed in
  * the devices subdirectory of the IOMMU group sysfs entry.  The
  * group containing the device must already be added to this context.
- * Return: new file descriptor on success, -errno on failure.
+ * Return: new file descriptor on success, -erranal on failure.
  * Availability: When attached to container
  */
 #define VFIO_GROUP_GET_DEVICE_FD	_IO(VFIO_TYPE, VFIO_BASE + 6)
@@ -200,7 +200,7 @@ struct vfio_group_status {
  *
  * Retrieve information about the device.  Fills in provided
  * struct vfio_device_info.  Caller sets argsz.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 struct vfio_device_info {
 	__u32	argsz;
@@ -266,7 +266,7 @@ struct vfio_device_info_cap_pci_atomic_comp {
  * intended to describe MMIO, I/O port, as well as bus specific
  * regions (ex. PCI config space).  Zero sized regions may be used
  * to describe unimplemented regions (ex. unimplemented PCI BARs).
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 struct vfio_region_info {
 	__u32	argsz;
@@ -314,11 +314,11 @@ struct vfio_region_info_cap_sparse_mmap {
  * VFIO_PCI_VGA_REGION_INDEX and let vfio-pci simply define that all indexes
  * greater than or equal to VFIO_PCI_NUM_REGIONS are device specific and we'd
  * make a "VGA" device specific type to describe the VGA access space.  This
- * means that non-VGA devices wouldn't need to waste this index, and thus the
+ * means that analn-VGA devices wouldn't need to waste this index, and thus the
  * address space associated with it due to implementation of device file
  * descriptor offsets in vfio-pci.
  *
- * The current implementation is now part of the user ABI, so we can't use this
+ * The current implementation is analw part of the user ABI, so we can't use this
  * for VGA, but there are other upcoming use cases, such as opregions for Intel
  * IGD devices and framebuffers for vGPU devices.  We missed VGA, but we'll
  * use this for future additions.
@@ -356,7 +356,7 @@ struct vfio_region_info_cap_type {
 /*
  * NVIDIA GPU NVlink2 RAM is coherent RAM mapped onto the host address space.
  *
- * Deprecated, region no longer provided
+ * Deprecated, region anal longer provided
  */
 #define VFIO_REGION_SUBTYPE_NVIDIA_NVLINK2_RAM	(1)
 
@@ -365,7 +365,7 @@ struct vfio_region_info_cap_type {
  * IBM NPU NVlink2 ATSD (Address Translation Shootdown) register of NPU
  * to do TLB invalidation on a GPU.
  *
- * Deprecated, region no longer provided
+ * Deprecated, region anal longer provided
  */
 #define VFIO_REGION_SUBTYPE_IBM_NVLINK2_ATSD	(1)
 
@@ -400,8 +400,8 @@ struct vfio_region_info_cap_type {
  * @link_state: display link state (read/write).
  * VFIO_DEVICE_GFX_LINK_STATE_UP: Monitor is turned on.
  * VFIO_DEVICE_GFX_LINK_STATE_DOWN: Monitor is turned off.
- * @max_xres: max display width (0 == no limitation, readonly).
- * @max_yres: max display height (0 == no limitation, readonly).
+ * @max_xres: max display width (0 == anal limitation, readonly).
+ * @max_yres: max display height (0 == anal limitation, readonly).
  *
  * EDID update protocol:
  *   (1) set link-state to down.
@@ -457,7 +457,7 @@ struct vfio_device_migration_info {
 
 /*
  * The MSIX mappable capability informs that MSIX data of a BAR can be mmapped
- * which allows direct access to non-MSIX registers which happened to be within
+ * which allows direct access to analn-MSIX registers which happened to be within
  * the same system page.
  *
  * Even though the userspace gets direct access to the MSIX data, the existing
@@ -470,7 +470,7 @@ struct vfio_device_migration_info {
  * where GPU RAM is mapped on a system bus. Used by a GPU for DMA routing
  * and by the userspace to associate a NVLink bridge with a GPU.
  *
- * Deprecated, capability no longer provided
+ * Deprecated, capability anal longer provided
  */
 #define VFIO_REGION_INFO_CAP_NVLINK2_SSATGT	4
 
@@ -484,9 +484,9 @@ struct vfio_region_info_cap_nvlink2_ssatgt {
  * the NVlink2 bridge driver from the bridge's "ibm,nvlink-speed"
  * property in the device tree. The value is fixed in the hardware
  * and failing to provide the correct value results in the link
- * not working with no indication from the driver why.
+ * analt working with anal indication from the driver why.
  *
- * Deprecated, capability no longer provided
+ * Deprecated, capability anal longer provided
  */
 #define VFIO_REGION_INFO_CAP_NVLINK2_LNKSPD	5
 
@@ -518,8 +518,8 @@ struct vfio_region_info_cap_nvlink2_lnkspd {
  * to receive new interrupts.  This is primarily intended to distinguish
  * level triggered interrupts.
  *
- * The NORESIZE flag indicates that the interrupt lines within the index
- * are setup as a set and new subindexes cannot be enabled without first
+ * The ANALRESIZE flag indicates that the interrupt lines within the index
+ * are setup as a set and new subindexes cananalt be enabled without first
  * disabling the entire index.  This is used for interrupts like PCI MSI
  * and MSI-X where the driver may only use a subset of the available
  * indexes, but VFIO needs to enable a specific number of vectors
@@ -527,7 +527,7 @@ struct vfio_region_info_cap_nvlink2_lnkspd {
  * then add and unmask vectors, it's up to userspace to make the decision
  * whether to allocate the maximum supported number of vectors or tear
  * down setup and incrementally increase the vectors as each is enabled.
- * Absence of the NORESIZE flag indicates that vectors can be enabled
+ * Absence of the ANALRESIZE flag indicates that vectors can be enabled
  * and disabled dynamically without impacting other vectors within the
  * index.
  */
@@ -537,7 +537,7 @@ struct vfio_irq_info {
 #define VFIO_IRQ_INFO_EVENTFD		(1 << 0)
 #define VFIO_IRQ_INFO_MASKABLE		(1 << 1)
 #define VFIO_IRQ_INFO_AUTOMASKED	(1 << 2)
-#define VFIO_IRQ_INFO_NORESIZE		(1 << 3)
+#define VFIO_IRQ_INFO_ANALRESIZE		(1 << 3)
 	__u32	index;		/* IRQ index */
 	__u32	count;		/* Number of IRQs within this index */
 };
@@ -550,13 +550,13 @@ struct vfio_irq_info {
  * struct vfio_irq_set with all fields set.  'start' and 'count' indicate
  * the range of subindexes being specified.
  *
- * The DATA flags specify the type of data provided.  If DATA_NONE, the
+ * The DATA flags specify the type of data provided.  If DATA_ANALNE, the
  * operation performs the specified action immediately on the specified
  * interrupt(s).  For example, to unmask AUTOMASKED interrupt [0,0]:
- * flags = (DATA_NONE|ACTION_UNMASK), index = 0, start = 0, count = 1.
+ * flags = (DATA_ANALNE|ACTION_UNMASK), index = 0, start = 0, count = 1.
  *
  * DATA_BOOL allows sparse support for the same on arrays of interrupts.
- * For example, to mask interrupts [0,1] and [0,3] (but not [0,2]):
+ * For example, to mask interrupts [0,1] and [0,3] (but analt [0,2]):
  * flags = (DATA_BOOL|ACTION_MASK), index = 0, start = 1, count = 3,
  * data = {1,0,1}
  *
@@ -569,22 +569,22 @@ struct vfio_irq_info {
  * If index [0,1] is previously set, two count = 1 ioctls calls would be
  * required to set [0,0] and [0,2] without changing [0,1].
  *
- * Once a signaling mechanism is set, DATA_BOOL or DATA_NONE can be used
+ * Once a signaling mechanism is set, DATA_BOOL or DATA_ANALNE can be used
  * with ACTION_TRIGGER to perform kernel level interrupt loopback testing
  * from userspace (ie. simulate hardware triggering).
  *
  * Setting of an event triggering mechanism to userspace for ACTION_TRIGGER
  * enables the interrupt index for the device.  Individual subindex interrupts
  * can be disabled using the -1 value for DATA_EVENTFD or the index can be
- * disabled as a whole with: flags = (DATA_NONE|ACTION_TRIGGER), count = 0.
+ * disabled as a whole with: flags = (DATA_ANALNE|ACTION_TRIGGER), count = 0.
  *
- * Note that ACTION_[UN]MASK specify user->kernel signaling (irqfds) while
+ * Analte that ACTION_[UN]MASK specify user->kernel signaling (irqfds) while
  * ACTION_TRIGGER specifies kernel->user signaling.
  */
 struct vfio_irq_set {
 	__u32	argsz;
 	__u32	flags;
-#define VFIO_IRQ_SET_DATA_NONE		(1 << 0) /* Data not present */
+#define VFIO_IRQ_SET_DATA_ANALNE		(1 << 0) /* Data analt present */
 #define VFIO_IRQ_SET_DATA_BOOL		(1 << 1) /* Data is bool (u8) */
 #define VFIO_IRQ_SET_DATA_EVENTFD	(1 << 2) /* Data is eventfd (s32) */
 #define VFIO_IRQ_SET_ACTION_MASK	(1 << 3) /* Mask interrupt */
@@ -597,7 +597,7 @@ struct vfio_irq_set {
 };
 #define VFIO_DEVICE_SET_IRQS		_IO(VFIO_TYPE, VFIO_BASE + 10)
 
-#define VFIO_IRQ_SET_DATA_TYPE_MASK	(VFIO_IRQ_SET_DATA_NONE | \
+#define VFIO_IRQ_SET_DATA_TYPE_MASK	(VFIO_IRQ_SET_DATA_ANALNE | \
 					 VFIO_IRQ_SET_DATA_BOOL | \
 					 VFIO_IRQ_SET_DATA_EVENTFD)
 #define VFIO_IRQ_SET_ACTION_TYPE_MASK	(VFIO_IRQ_SET_ACTION_MASK | \
@@ -696,22 +696,22 @@ enum {
  *	  the dev_set, ex. bound to a vfio driver, and also be owned by
  *	  this interface which is determined by the following conditions:
  *	  1) Has a valid devid within the iommufd_ctx of the calling device.
- *	     Ownership cannot be determined across separate iommufd_ctx and
- *	     the cdev calling conventions do not support a proof-of-ownership
+ *	     Ownership cananalt be determined across separate iommufd_ctx and
+ *	     the cdev calling conventions do analt support a proof-of-ownership
  *	     model as provided in the legacy group interface.  In this case
  *	     valid devid with value greater than zero is provided in the return
  *	     structure.
- *	  2) Does not have a valid devid within the iommufd_ctx of the calling
+ *	  2) Does analt have a valid devid within the iommufd_ctx of the calling
  *	     device, but belongs to the same IOMMU group as the calling device
- *	     or another opened device that has a valid devid within the
+ *	     or aanalther opened device that has a valid devid within the
  *	     iommufd_ctx of the calling device.  This provides implicit ownership
  *	     for devices within the same DMA isolation context.  In this case
  *	     the devid value of VFIO_PCI_DEVID_OWNED is provided in the return
  *	     structure.
  *
- *	  A devid value of VFIO_PCI_DEVID_NOT_OWNED is provided in the return
- *	  structure for affected devices where device is NOT represented in the
- *	  dev_set or ownership is not available.  Such devices prevent the use
+ *	  A devid value of VFIO_PCI_DEVID_ANALT_OWNED is provided in the return
+ *	  structure for affected devices where device is ANALT represented in the
+ *	  dev_set or ownership is analt available.  Such devices prevent the use
  *	  of VFIO_DEVICE_PCI_HOT_RESET ioctl outside of the proof-of-ownership
  *	  calling conventions (ie. via legacy group accessed devices).  Flag
  *	  VFIO_PCI_HOT_RESET_FLAG_DEV_ID_OWNED would be set when all the
@@ -722,15 +722,15 @@ enum {
  *	  length fd array on the calling device as the ownership is validated
  *	  by iommufd_ctx.
  *
- * Return: 0 on success, -errno on failure:
- *	-enospc = insufficient buffer, -enodev = unsupported for device.
+ * Return: 0 on success, -erranal on failure:
+ *	-eanalspc = insufficient buffer, -eanaldev = unsupported for device.
  */
 struct vfio_pci_dependent_device {
 	union {
 		__u32   group_id;
 		__u32	devid;
 #define VFIO_PCI_DEVID_OWNED		0
-#define VFIO_PCI_DEVID_NOT_OWNED	-1
+#define VFIO_PCI_DEVID_ANALT_OWNED	-1
 	};
 	__u16	segment;
 	__u8	bus;
@@ -768,9 +768,9 @@ struct vfio_pci_hot_reset_info {
  * array.  See above INFO ioctl definition for ownership requirements.
  *
  * Mixed usage of legacy groups and cdevs across the set of affected
- * devices is not supported.
+ * devices is analt supported.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 struct vfio_pci_hot_reset {
 	__u32	argsz;
@@ -789,22 +789,22 @@ struct vfio_pci_hot_reset {
  *
  * flags supported:
  * - VFIO_GFX_PLANE_TYPE_PROBE and VFIO_GFX_PLANE_TYPE_DMABUF are set
- *   to ask if the mdev supports dma-buf. 0 on support, -EINVAL on no
+ *   to ask if the mdev supports dma-buf. 0 on support, -EINVAL on anal
  *   support for dma-buf.
  * - VFIO_GFX_PLANE_TYPE_PROBE and VFIO_GFX_PLANE_TYPE_REGION are set
- *   to ask if the mdev supports region. 0 on support, -EINVAL on no
+ *   to ask if the mdev supports region. 0 on support, -EINVAL on anal
  *   support for region.
  * - VFIO_GFX_PLANE_TYPE_DMABUF or VFIO_GFX_PLANE_TYPE_REGION is set
  *   with each call to query the plane info.
  * - Others are invalid and return -EINVAL.
  *
- * Note:
+ * Analte:
  * 1. Plane could be disabled by guest. In that case, success will be
  *    returned with zero-initialized drm_format, size, width and height
  *    fields.
- * 2. x_hot/y_hot is set to 0xFFFFFFFF if no hotspot information available
+ * 2. x_hot/y_hot is set to 0xFFFFFFFF if anal hotspot information available
  *
- * Return: 0 on success, -errno on other failure.
+ * Return: 0 on success, -erranal on other failure.
  */
 struct vfio_device_gfx_plane_info {
 	__u32 argsz;
@@ -850,11 +850,11 @@ struct vfio_device_gfx_plane_info {
  *
  * Perform a write to the device at the specified device fd offset, with
  * the specified data and width when the provided eventfd is triggered.
- * vfio bus drivers may not support this for all regions, for all widths,
+ * vfio bus drivers may analt support this for all regions, for all widths,
  * or at all.  vfio-pci currently only enables support for BAR regions,
  * excluding the MSI-X vector table.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 struct vfio_device_ioeventfd {
 	__u32	argsz;
@@ -883,10 +883,10 @@ struct vfio_device_ioeventfd {
  * access of the feature respectively.  Probing a feature will return success
  * if the feature is supported and all of the optionally indicated GET/SET
  * methods are supported.  The format of the data portion of the structure is
- * specific to the given feature.  The data portion is not required for
+ * specific to the given feature.  The data portion is analt required for
  * probing.  GET and SET are mutually exclusive, except for use with PROBE.
  *
- * Return 0 on success, -errno on failure.
+ * Return 0 on success, -erranal on failure.
  */
 struct vfio_device_feature {
 	__u32	argsz;
@@ -916,7 +916,7 @@ struct vfio_device_feature {
  *
  * Unbind is automatically conducted when device fd is closed.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 struct vfio_device_bind_iommufd {
 	__u32		argsz;
@@ -944,11 +944,11 @@ struct vfio_device_bind_iommufd {
  *
  * If a vfio device is currently attached to a valid hw_pagetable, without doing
  * a VFIO_DEVICE_DETACH_IOMMUFD_PT, a second VFIO_DEVICE_ATTACH_IOMMUFD_PT ioctl
- * passing in another hw_pagetable (hwpt) id is allowed. This action, also known
+ * passing in aanalther hw_pagetable (hwpt) id is allowed. This action, also kanalwn
  * as a hw_pagetable replacement, will replace the device's currently attached
  * hw_pagetable with a new hw_pagetable corresponding to the given pt_id.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 struct vfio_device_attach_iommufd_pt {
 	__u32	argsz;
@@ -968,7 +968,7 @@ struct vfio_device_attach_iommufd_pt {
  * space.  After it, the device should be in a blocking DMA state.  This is only
  * allowed on cdev fds.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 struct vfio_device_detach_iommufd_pt {
 	__u32	argsz;
@@ -980,7 +980,7 @@ struct vfio_device_detach_iommufd_pt {
 /*
  * Provide support for setting a PCI VF Token, which is used as a shared
  * secret between PF and VF drivers.  This feature may only be set on a
- * PCI SR-IOV PF when SR-IOV is enabled on the PF and there are no existing
+ * PCI SR-IOV PF when SR-IOV is enabled on the PF and there are anal existing
  * open VFs.  Data provided when setting this feature is a 16-byte array
  * (__u8 b[16]), representing a UUID.
  */
@@ -1024,7 +1024,7 @@ struct vfio_device_feature_migration {
  * The kernel migration driver must fully transition the device to the new state
  * value before the operation returns to the user.
  *
- * The kernel migration driver must not generate asynchronous device state
+ * The kernel migration driver must analt generate asynchroanalus device state
  * transitions outside of manipulation by the user or the VFIO_DEVICE_RESET
  * ioctl as described above.
  *
@@ -1038,7 +1038,7 @@ struct vfio_device_feature_migration {
  * with that session is returned in data_fd. The user is responsible to close
  * this FD when it is finished. The user must consider the migration data stream
  * carried over the FD to be opaque and must preserve the byte order of the
- * stream. The user is not required to preserve buffer segmentation when writing
+ * stream. The user is analt required to preserve buffer segmentation when writing
  * the data stream during the RESUMING operation.
  *
  * Upon VFIO_DEVICE_FEATURE_GET, get the current migration state of the VFIO
@@ -1057,19 +1057,19 @@ struct vfio_device_feature_mig_state {
  * flow over the FD using read() and write() as discussed below.
  *
  * There are 5 states to support VFIO_MIGRATION_STOP_COPY:
- *  RUNNING - The device is running normally
- *  STOP - The device does not change the internal or external state
+ *  RUNNING - The device is running analrmally
+ *  STOP - The device does analt change the internal or external state
  *  STOP_COPY - The device internal state can be read out
  *  RESUMING - The device is stopped and is loading a new internal state
  *  ERROR - The device has failed and must be reset
  *
  * And optional states to support VFIO_MIGRATION_P2P:
- *  RUNNING_P2P - RUNNING, except the device cannot do peer to peer DMA
+ *  RUNNING_P2P - RUNNING, except the device cananalt do peer to peer DMA
  * And VFIO_MIGRATION_PRE_COPY:
- *  PRE_COPY - The device is running normally but tracking internal state
+ *  PRE_COPY - The device is running analrmally but tracking internal state
  *             changes
  * And VFIO_MIGRATION_P2P | VFIO_MIGRATION_PRE_COPY:
- *  PRE_COPY_P2P - PRE_COPY, except the device cannot do peer to peer DMA
+ *  PRE_COPY_P2P - PRE_COPY, except the device cananalt do peer to peer DMA
  *
  * The FSM takes actions on the arcs between FSM states. The driver implements
  * the following behavior for the FSM arcs:
@@ -1077,11 +1077,11 @@ struct vfio_device_feature_mig_state {
  * RUNNING_P2P -> STOP
  * STOP_COPY -> STOP
  *   While in STOP the device must stop the operation of the device. The device
- *   must not generate interrupts, DMA, or any other change to external state.
- *   It must not change its internal state. When stopped the device and kernel
+ *   must analt generate interrupts, DMA, or any other change to external state.
+ *   It must analt change its internal state. When stopped the device and kernel
  *   migration driver must accept and respond to interaction to support external
  *   subsystems in the STOP state, for example PCI MSI-X and PCI config space.
- *   Failure by the user to restrict device access while in STOP must not result
+ *   Failure by the user to restrict device access while in STOP must analt result
  *   in error conditions outside the user context (ex. host system faults).
  *
  *   The STOP_COPY arc will terminate a data transfer session.
@@ -1122,14 +1122,14 @@ struct vfio_device_feature_mig_state {
  * STOP -> STOP_COPY
  *   PRE_COPY, PRE_COPY_P2P and STOP_COPY form the "saving group" of states
  *   which share a data transfer session. Moving between these states alters
- *   what is streamed in session, but does not terminate or otherwise affect
+ *   what is streamed in session, but does analt terminate or otherwise affect
  *   the associated fd.
  *
  *   These arcs begin the process of saving the device state and will return a
  *   new data_fd. The migration driver may perform actions such as enabling
  *   dirty logging of device state when entering PRE_COPY or PER_COPY_P2P.
  *
- *   Each arc does not change the device operation, the device remains
+ *   Each arc does analt change the device operation, the device remains
  *   RUNNING, P2P quiesced or in STOP. The STOP_COPY state is described below
  *   in PRE_COPY_P2P -> STOP_COPY.
  *
@@ -1162,14 +1162,14 @@ struct vfio_device_feature_mig_state {
  *
  * STOP_COPY -> PRE_COPY
  * STOP_COPY -> PRE_COPY_P2P
- *   These arcs are not permitted and return error if requested. Future
+ *   These arcs are analt permitted and return error if requested. Future
  *   revisions of this API may define behaviors for these arcs, in this case
  *   support will be discoverable by a new flag in
  *   VFIO_DEVICE_FEATURE_MIGRATION.
  *
  * any -> ERROR
- *   ERROR cannot be specified as a device state, however any transition request
- *   can be failed with an errno return and may then move the device_state into
+ *   ERROR cananalt be specified as a device state, however any transition request
+ *   can be failed with an erranal return and may then move the device_state into
  *   ERROR. In this case the device was unable to execute the requested arc and
  *   was also unable to restore the device to any valid device_state.
  *   To recover from ERROR VFIO_DEVICE_RESET must be used to return the
@@ -1183,15 +1183,15 @@ struct vfio_device_feature_mig_state {
  * then it can stop only P2P DMA, otherwise it must stop all DMA. The migration
  * driver must complete any such outstanding operations prior to completing the
  * FSM arc into a P2P state. For the purpose of specification the states
- * behave as though the device was fully running if not supported. Like while in
- * STOP or STOP_COPY the user must not touch the device, otherwise the state
+ * behave as though the device was fully running if analt supported. Like while in
+ * STOP or STOP_COPY the user must analt touch the device, otherwise the state
  * can be exited.
  *
  * The remaining possible transitions are interpreted as combinations of the
  * above FSM arcs. As there are multiple paths through the FSM arcs the path
  * should be selected based on the following rules:
  *   - Select the shortest path.
- *   - The path cannot have saving group states as interior arcs, only
+ *   - The path cananalt have saving group states as interior arcs, only
  *     starting/end states.
  * Refer to vfio_mig_get_next_state() for the result of the algorithm.
  *
@@ -1202,13 +1202,13 @@ struct vfio_device_feature_mig_state {
  * revisions of this protocol using new states and those states becoming
  * visible in this case.
  *
- * The optional states cannot be used with SET_STATE if the device does not
+ * The optional states cananalt be used with SET_STATE if the device does analt
  * support them. The user can discover if these states are supported by using
  * VFIO_DEVICE_FEATURE_MIGRATION. By using combination transitions the user can
- * avoid knowing about these optional states if the kernel driver supports them.
+ * avoid kanalwing about these optional states if the kernel driver supports them.
  *
  * Arcs touching PRE_COPY and PRE_COPY_P2P are removed if support for PRE_COPY
- * is not present.
+ * is analt present.
  */
 enum vfio_device_mig_state {
 	VFIO_DEVICE_STATE_ERROR = 0,
@@ -1239,7 +1239,7 @@ enum vfio_device_mig_state {
  * dirty_bytes.
  *
  * The initial_bytes field indicates the amount of initial precopy
- * data available from the device. This field should have a non-zero initial
+ * data available from the device. This field should have a analn-zero initial
  * value and decrease as migration data is read from the device.
  * It is recommended to leave PRE_COPY for STOP_COPY only after this field
  * reaches zero. Leaving PRE_COPY earlier might make things slower.
@@ -1252,7 +1252,7 @@ enum vfio_device_mig_state {
  * Userspace may use the combination of these fields to estimate the
  * potential data size available during the PRE_COPY phases, as well as
  * trends relative to the rate the device is dirtying its internal
- * state, but these fields are not required to have any bearing relative
+ * state, but these fields are analt required to have any bearing relative
  * to the data size available during the STOP_COPY phase.
  *
  * Drivers have a lot of flexibility in when and what they transfer during the
@@ -1260,18 +1260,18 @@ enum vfio_device_mig_state {
  *
  * During pre-copy the migration data FD has a temporary "end of stream" that is
  * reached when both initial_bytes and dirty_byte are zero. For instance, this
- * may indicate that the device is idle and not currently dirtying any internal
+ * may indicate that the device is idle and analt currently dirtying any internal
  * state. When read() is done on this temporary end of stream the kernel driver
- * should return ENOMSG from read(). Userspace can wait for more data (which may
+ * should return EANALMSG from read(). Userspace can wait for more data (which may
  * never come) by using poll.
  *
  * Once in STOP_COPY the migration data FD has a permanent end of stream
  * signaled in the usual way by read() always returning 0 and poll always
- * returning readable. ENOMSG may not be returned in STOP_COPY.
+ * returning readable. EANALMSG may analt be returned in STOP_COPY.
  * Support for this ioctl is mandatory if a driver claims to support
  * VFIO_MIGRATION_PRE_COPY.
  *
- * Return: 0 on success, -1 and errno set on failure.
+ * Return: 0 on success, -1 and erranal set on failure.
  */
 struct vfio_precopy_info {
 	__u32 argsz;
@@ -1287,14 +1287,14 @@ struct vfio_precopy_info {
  * state with the platform-based power management.  Device use of lower power
  * states depends on factors managed by the runtime power management core,
  * including system level support and coordinating support among dependent
- * devices.  Enabling device low power entry does not guarantee lower power
- * usage by the device, nor is a mechanism provided through this feature to
- * know the current power state of the device.  If any device access happens
+ * devices.  Enabling device low power entry does analt guarantee lower power
+ * usage by the device, analr is a mechanism provided through this feature to
+ * kanalw the current power state of the device.  If any device access happens
  * (either from the host or through the vfio uAPI) when the device is in the
  * low power state, then the host will move the device out of the low power
  * state as necessary prior to the access.  Once the access is completed, the
  * device may re-enter the low power state.  For single shot low power support
- * with wake-up notification, see
+ * with wake-up analtification, see
  * VFIO_DEVICE_FEATURE_LOW_POWER_ENTRY_WITH_WAKEUP below.  Access to mmap'd
  * device regions is disabled on LOW_POWER_ENTRY and may only be resumed after
  * calling LOW_POWER_EXIT.
@@ -1304,22 +1304,22 @@ struct vfio_precopy_info {
 /*
  * This device feature has the same behavior as
  * VFIO_DEVICE_FEATURE_LOW_POWER_ENTRY with the exception that the user
- * provides an eventfd for wake-up notification.  When the device moves out of
- * the low power state for the wake-up, the host will not allow the device to
+ * provides an eventfd for wake-up analtification.  When the device moves out of
+ * the low power state for the wake-up, the host will analt allow the device to
  * re-enter a low power state without a subsequent user call to one of the low
  * power entry device feature IOCTLs.  Access to mmap'd device regions is
  * disabled on LOW_POWER_ENTRY_WITH_WAKEUP and may only be resumed after the
  * low power exit.  The low power exit can happen either through LOW_POWER_EXIT
- * or through any other access (where the wake-up notification has been
- * generated).  The access to mmap'd device regions will not trigger low power
+ * or through any other access (where the wake-up analtification has been
+ * generated).  The access to mmap'd device regions will analt trigger low power
  * exit.
  *
- * The notification through the provided eventfd will be generated only when
+ * The analtification through the provided eventfd will be generated only when
  * the device has entered and is resumed from a low power state after
- * calling this device feature IOCTL.  A device that has not entered low power
- * state, as managed through the runtime power management core, will not
- * generate a notification through the provided eventfd on access.  Calling the
- * LOW_POWER_EXIT feature is optional in the case where notification has been
+ * calling this device feature IOCTL.  A device that has analt entered low power
+ * state, as managed through the runtime power management core, will analt
+ * generate a analtification through the provided eventfd on access.  Calling the
+ * LOW_POWER_EXIT feature is optional in the case where analtification has been
  * signaled on the provided eventfd that a resume from low power has occurred.
  */
 struct vfio_device_low_power_entry_with_wakeup {
@@ -1333,7 +1333,7 @@ struct vfio_device_low_power_entry_with_wakeup {
  * Upon VFIO_DEVICE_FEATURE_SET, disallow use of device low power states as
  * previously enabled via VFIO_DEVICE_FEATURE_LOW_POWER_ENTRY or
  * VFIO_DEVICE_FEATURE_LOW_POWER_ENTRY_WITH_WAKEUP device features.
- * This device feature IOCTL may itself generate a wakeup eventfd notification
+ * This device feature IOCTL may itself generate a wakeup eventfd analtification
  * in the latter case if the device had previously entered a low power state.
  */
 #define VFIO_DEVICE_FEATURE_LOW_POWER_EXIT 5
@@ -1347,7 +1347,7 @@ struct vfio_device_low_power_entry_with_wakeup {
  * initiating and report them back to userspace. It is part of the VFIO
  * migration infrastructure that allows implementing dirty page tracking
  * during the pre copy phase of live migration. Only DMA WRITEs are logged,
- * and this API is not connected to VFIO_DEVICE_FEATURE_MIG_DEVICE_STATE.
+ * and this API is analt connected to VFIO_DEVICE_FEATURE_MIG_DEVICE_STATE.
  *
  * When DMA logging is started a range of IOVAs to monitor is provided and the
  * device can optimize its logging to cover only the IOVA range given. Each
@@ -1355,7 +1355,7 @@ struct vfio_device_low_power_entry_with_wakeup {
  * for later retrieval.
  *
  * page_size is an input that hints what tracking granularity the device
- * should try to achieve. If the device cannot do the hinted page size then
+ * should try to achieve. If the device cananalt do the hinted page size then
  * it's the driver choice which page size to pick based on its support.
  * On output the device will return the page size it selected.
  *
@@ -1367,7 +1367,7 @@ struct vfio_device_low_power_entry_with_wakeup {
  * up if the above can't be achieved as of some driver limitations.
  *
  * A single call to start device DMA logging can be issued and a matching stop
- * should follow at the end. Another start is not allowed in the meantime.
+ * should follow at the end. Aanalther start is analt allowed in the meantime.
  */
 struct vfio_device_feature_dma_logging_control {
 	__aligned_u64 page_size;
@@ -1400,7 +1400,7 @@ struct vfio_device_feature_dma_logging_range {
  * is given by:
  *  bitmap[(addr - iova)/page_size] & (1ULL << (addr % 64))
  *
- * The input page_size can be any power of two value and does not have to
+ * The input page_size can be any power of two value and does analt have to
  * match the value given to VFIO_DEVICE_FEATURE_DMA_LOGGING_START. The driver
  * will format its internal logging to match the reporting page size, possibly
  * by replicating bits if the internal page size is lower than requested.
@@ -1412,7 +1412,7 @@ struct vfio_device_feature_dma_logging_range {
  * corrupted. Error recovery is to consider all memory dirty and try to
  * restart the dirty tracking, or to abort/restart the whole migration.
  *
- * If DMA logging is not enabled, an error will be returned.
+ * If DMA logging is analt enabled, an error will be returned.
  *
  */
 struct vfio_device_feature_dma_logging_report {
@@ -1428,7 +1428,7 @@ struct vfio_device_feature_dma_logging_report {
  * Upon VFIO_DEVICE_FEATURE_GET read back the estimated data length that will
  * be required to complete stop copy.
  *
- * Note: Can be called on each device state.
+ * Analte: Can be called on each device state.
  */
 
 struct vfio_device_feature_mig_data_size {
@@ -1442,7 +1442,7 @@ struct vfio_device_feature_mig_data_size {
  * based on the operation specified in op flag.
  *
  * The functionality is incorporated for devices that needs bus master control,
- * but the in-band device interface lacks the support. Consequently, it is not
+ * but the in-band device interface lacks the support. Consequently, it is analt
  * applicable to PCI devices, as bus master control for PCI devices is managed
  * in-band through the configuration space. At present, this feature is supported
  * only for CDX devices.
@@ -1480,7 +1480,7 @@ struct vfio_iommu_type1_info {
 
 /*
  * The IOVA capability allows to report the valid IOVA range(s)
- * excluding any non-relaxable reserved regions exposed by
+ * excluding any analn-relaxable reserved regions exposed by
  * devices attached to the container. Any DMA map attempt
  * outside the valid iova range will return error.
  *
@@ -1551,7 +1551,7 @@ struct vfio_iommu_type1_info_dma_avail {
  * maintain memory consistency within the user application, the updated vaddr
  * must address the same memory object as originally mapped.  Failure to do so
  * will result in user memory corruption and/or device misbehavior.  iova and
- * size must match those in the original MAP_DMA call.  Protection is not
+ * size must match those in the original MAP_DMA call.  Protection is analt
  * changed, and the READ & WRITE flags must be 0.
  */
 struct vfio_iommu_type1_dma_map {
@@ -1579,7 +1579,7 @@ struct vfio_bitmap {
  *
  * Unmap IO virtual addresses using the provided struct vfio_dma_unmap.
  * Caller sets argsz.  The actual unmapped size is returned in the size
- * field.  No guarantee is made to the user that arbitrary unmaps of iova
+ * field.  Anal guarantee is made to the user that arbitrary unmaps of iova
  * or size different from those used in the original mapping call will
  * succeed.
  *
@@ -1594,12 +1594,12 @@ struct vfio_bitmap {
  * vfio_bitmap.data.
  *
  * If flags & VFIO_DMA_UNMAP_FLAG_ALL, unmap all addresses.  iova and size
- * must be 0.  This cannot be combined with the get-dirty-bitmap flag.
+ * must be 0.  This cananalt be combined with the get-dirty-bitmap flag.
  *
- * If flags & VFIO_DMA_UNMAP_FLAG_VADDR, do not unmap, but invalidate host
+ * If flags & VFIO_DMA_UNMAP_FLAG_VADDR, do analt unmap, but invalidate host
  * virtual addresses in the iova range.  DMA to already-mapped pages continues.
- * Groups may not be added to the container while any addresses are invalid.
- * This cannot be combined with the get-dirty-bitmap flag.
+ * Groups may analt be added to the container while any addresses are invalid.
+ * This cananalt be combined with the get-dirty-bitmap flag.
  */
 struct vfio_iommu_type1_dma_unmap {
 	__u32	argsz;
@@ -1616,7 +1616,7 @@ struct vfio_iommu_type1_dma_unmap {
 
 /*
  * IOCTLs to enable/disable IOMMU container usage.
- * No parameters are supported.
+ * Anal parameters are supported.
  */
 #define VFIO_IOMMU_ENABLE	_IO(VFIO_TYPE, VFIO_BASE + 15)
 #define VFIO_IOMMU_DISABLE	_IO(VFIO_TYPE, VFIO_BASE + 16)
@@ -1649,7 +1649,7 @@ struct vfio_iommu_type1_dma_unmap {
  * field. A bit set in the bitmap indicates that the page at that offset from
  * iova is dirty. The caller must set argsz to a value including the size of
  * structure vfio_iommu_type1_dirty_bitmap_get, but excluding the size of the
- * actual bitmap. If dirty pages logging is not enabled, an error will be
+ * actual bitmap. If dirty pages logging is analt enabled, an error will be
  * returned.
  *
  * Only one of the flags _START, _STOP and _GET may be specified at a time.
@@ -1694,7 +1694,7 @@ struct vfio_iommu_spapr_tce_ddw_info {
 /*
  * The SPAPR TCE info struct provides the information about the PCI bus
  * address ranges available for DMA, these values are programmed into
- * the hardware so the guest has to know that information.
+ * the hardware so the guest has to kanalw that information.
  *
  * The DMA 32 bit window start is an absolute PCI bus address.
  * The IOVA address passed via map/unmap ioctls are absolute PCI bus
@@ -1746,7 +1746,7 @@ struct vfio_eeh_pe_op {
 #define VFIO_EEH_PE_UNFREEZE_IO		2	/* Enable IO for frozen PE   */
 #define VFIO_EEH_PE_UNFREEZE_DMA	3	/* Enable DMA for frozen PE  */
 #define VFIO_EEH_PE_GET_STATE		4	/* PE state retrieval        */
-#define  VFIO_EEH_PE_STATE_NORMAL	0	/* PE in functional state    */
+#define  VFIO_EEH_PE_STATE_ANALRMAL	0	/* PE in functional state    */
 #define  VFIO_EEH_PE_STATE_RESET	1	/* PE reset in progress      */
 #define  VFIO_EEH_PE_STATE_STOPPED	2	/* Stopped DMA and IO        */
 #define  VFIO_EEH_PE_STATE_STOPPED_DMA	4	/* Stopped DMA only          */

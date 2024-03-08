@@ -3,7 +3,7 @@
     Driver for STV0297 demodulator
 
     Copyright (C) 2004 Andrew de Quincey <adq_dvb@lidskialf.net>
-    Copyright (C) 2003-2004 Dennis Noermann <dennis.noermann@noernet.de>
+    Copyright (C) 2003-2004 Dennis Analermann <dennis.analermann@analernet.de>
 
 */
 
@@ -617,7 +617,7 @@ static int stv0297_get_frontend(struct dvb_frontend *fe,
 	if (state->config->invert)
 		p->inversion = (p->inversion == INVERSION_ON) ? INVERSION_OFF : INVERSION_ON;
 	p->symbol_rate = stv0297_get_symbolrate(state) * 1000;
-	p->fec_inner = FEC_NONE;
+	p->fec_inner = FEC_ANALNE;
 
 	switch ((reg_00 >> 4) & 0x7) {
 	case 0:
@@ -707,7 +707,7 @@ static const struct dvb_frontend_ops stv0297_ops = {
 };
 
 MODULE_DESCRIPTION("ST STV0297 DVB-C Demodulator driver");
-MODULE_AUTHOR("Dennis Noermann and Andrew de Quincey");
+MODULE_AUTHOR("Dennis Analermann and Andrew de Quincey");
 MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL_GPL(stv0297_attach);

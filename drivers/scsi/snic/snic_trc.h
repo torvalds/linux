@@ -18,7 +18,7 @@ extern unsigned int snic_trace_max_pages;
 struct snic_trc_data {
 	u64	ts;		/* Time Stamp */
 	char	*fn;		/* Ptr to Function Name */
-	u32	hno;		/* SCSI Host ID */
+	u32	hanal;		/* SCSI Host ID */
 	u32	tag;		/* Command Tag */
 	u64 data[5];
 } __attribute__((__packed__));
@@ -45,7 +45,7 @@ void snic_debugfs_init(void);
 void snic_debugfs_term(void);
 
 static inline void
-snic_trace(char *fn, u16 hno, u32 tag, u64 d1, u64 d2, u64 d3, u64 d4, u64 d5)
+snic_trace(char *fn, u16 hanal, u32 tag, u64 d1, u64 d2, u64 d3, u64 d4, u64 d5)
 {
 	struct snic_trc_data *tr_rec = snic_get_trc_buf();
 
@@ -53,7 +53,7 @@ snic_trace(char *fn, u16 hno, u32 tag, u64 d1, u64 d2, u64 d3, u64 d4, u64 d5)
 		return;
 
 	tr_rec->fn = (char *)fn;
-	tr_rec->hno = hno;
+	tr_rec->hanal = hanal;
 	tr_rec->tag = tag;
 	tr_rec->data[0] = d1;
 	tr_rec->data[1] = d2;
@@ -63,11 +63,11 @@ snic_trace(char *fn, u16 hno, u32 tag, u64 d1, u64 d2, u64 d3, u64 d4, u64 d5)
 	tr_rec->ts = jiffies; /* Update time stamp at last */
 }
 
-#define SNIC_TRC(_hno, _tag, d1, d2, d3, d4, d5)			\
+#define SNIC_TRC(_hanal, _tag, d1, d2, d3, d4, d5)			\
 	do {								\
 		if (unlikely(snic_glob->trc.enable))			\
 			snic_trace((char *)__func__,			\
-				   (u16)(_hno),				\
+				   (u16)(_hanal),				\
 				   (u32)(_tag),				\
 				   (u64)(d1),				\
 				   (u64)(d2),				\
@@ -77,12 +77,12 @@ snic_trace(char *fn, u16 hno, u32 tag, u64 d1, u64 d2, u64 d3, u64 d4, u64 d5)
 	} while (0)
 #else
 
-#define SNIC_TRC(_hno, _tag, d1, d2, d3, d4, d5)	\
+#define SNIC_TRC(_hanal, _tag, d1, d2, d3, d4, d5)	\
 	do {						\
 		if (unlikely(snic_log_level & 0x2))	\
 			SNIC_DBG("SnicTrace: %s %2u %2u %llx %llx %llx %llx %llx", \
 				 (char *)__func__,	\
-				 (u16)(_hno),		\
+				 (u16)(_hanal),		\
 				 (u32)(_tag),		\
 				 (u64)(d1),		\
 				 (u64)(d2),		\

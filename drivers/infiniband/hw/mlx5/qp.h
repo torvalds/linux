@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2013-2020, Mellanox Technologies inc. All rights reserved.
+ * Copyright (c) 2013-2020, Mellaanalx Techanallogies inc. All rights reserved.
  */
 
 #ifndef _MLX5_IB_QP_H
@@ -9,7 +9,7 @@
 struct mlx5_ib_dev;
 
 struct mlx5_qp_table {
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	struct xarray dct_xa;
 
 	/* protect radix tree

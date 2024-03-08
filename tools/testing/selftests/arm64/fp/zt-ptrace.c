@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2021 ARM Limited.
  */
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -43,10 +43,10 @@ static void fill_buf(char *buf, size_t size)
 static int do_child(void)
 {
 	if (ptrace(PTRACE_TRACEME, -1, NULL, NULL))
-		ksft_exit_fail_msg("PTRACE_TRACEME", strerror(errno));
+		ksft_exit_fail_msg("PTRACE_TRACEME", strerror(erranal));
 
 	if (raise(SIGSTOP))
-		ksft_exit_fail_msg("raise(SIGSTOP)", strerror(errno));
+		ksft_exit_fail_msg("raise(SIGSTOP)", strerror(erranal));
 
 	return EXIT_SUCCESS;
 }
@@ -62,7 +62,7 @@ static struct user_za_header *get_za(pid_t pid, void **buf, size_t *size)
 		if (*size < sz) {
 			p = realloc(*buf, sz);
 			if (!p) {
-				errno = ENOMEM;
+				erranal = EANALMEM;
 				goto error;
 			}
 
@@ -236,7 +236,7 @@ static void ptrace_enable_za_via_zt(pid_t child)
 			vq = 0;
 		}
 
-		/* That register data should be non-zero */
+		/* That register data should be analn-zero */
 		for (i = 0; i < ZA_PT_ZA_SIZE(vq); i++) {
 			if (za_data[i]) {
 				ksft_print_msg("ZA byte %d is %x\n",
@@ -285,16 +285,16 @@ static int do_parent(pid_t child)
 		sig = WSTOPSIG(status);
 
 		if (ptrace(PTRACE_GETSIGINFO, pid, NULL, &si)) {
-			if (errno == ESRCH)
+			if (erranal == ESRCH)
 				goto disappeared;
 
-			if (errno == EINVAL) {
+			if (erranal == EINVAL) {
 				sig = 0; /* bust group-stop */
 				goto cont;
 			}
 
 			ksft_test_result_fail("PTRACE_GETSIGINFO: %s\n",
-					      strerror(errno));
+					      strerror(erranal));
 			goto error;
 		}
 
@@ -304,11 +304,11 @@ static int do_parent(pid_t child)
 
 	cont:
 		if (ptrace(PTRACE_CONT, pid, NULL, sig)) {
-			if (errno == ESRCH)
+			if (erranal == ESRCH)
 				goto disappeared;
 
 			ksft_test_result_fail("PTRACE_CONT: %s\n",
-					      strerror(errno));
+					      strerror(erranal));
 			goto error;
 		}
 	}
@@ -339,7 +339,7 @@ int main(void)
 
 	if (!(getauxval(AT_HWCAP2) & HWCAP2_SME2)) {
 		ksft_set_plan(1);
-		ksft_exit_skip("SME2 not available\n");
+		ksft_exit_skip("SME2 analt available\n");
 	}
 
 	/* We need a valid SME VL to enable/disable ZA */
@@ -347,7 +347,7 @@ int main(void)
 	if (sme_vl == -1) {
 		ksft_set_plan(1);
 		ksft_exit_skip("Failed to read SME VL: %d (%s)\n",
-			       errno, strerror(errno));
+			       erranal, strerror(erranal));
 	}
 
 	ksft_set_plan(EXPECTED_TESTS);

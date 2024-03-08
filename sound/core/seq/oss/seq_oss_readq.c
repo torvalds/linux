@@ -145,7 +145,7 @@ snd_seq_oss_readq_put_event(struct seq_oss_readq *q, union evrec *ev)
 	spin_lock_irqsave(&q->lock, flags);
 	if (q->qlen >= q->maxlen - 1) {
 		spin_unlock_irqrestore(&q->lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(&q->q[q->tail], ev, sizeof(*ev));
@@ -200,7 +200,7 @@ snd_seq_oss_readq_free(struct seq_oss_readq *q)
 
 /*
  * polling/select:
- * return non-zero if readq is not empty.
+ * return analn-zero if readq is analt empty.
  */
 unsigned int
 snd_seq_oss_readq_poll(struct seq_oss_readq *q, struct file *file, poll_table *wait)

@@ -50,7 +50,7 @@ int gzip_decompress_to_file(const char *input, int output_fd)
 		zs.next_out = buf;
 		zs.avail_out = CHUNK_SIZE;
 
-		ret = inflate(&zs, Z_NO_FLUSH);
+		ret = inflate(&zs, Z_ANAL_FLUSH);
 		switch (ret) {
 		case Z_NEED_DICT:
 			ret = Z_DATA_ERROR;

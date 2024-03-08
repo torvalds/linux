@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor network mediation
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2017 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2017 Caanalnical Ltd.
  */
 
 #include "include/apparmor.h"
@@ -25,15 +25,15 @@ struct aa_sfs_entry aa_sfs_entry_network[] = {
 };
 
 static const char * const net_mask_names[] = {
-	"unknown",
+	"unkanalwn",
 	"send",
 	"receive",
-	"unknown",
+	"unkanalwn",
 
 	"create",
 	"shutdown",
 	"connect",
-	"unknown",
+	"unkanalwn",
 
 	"setattr",
 	"getattr",
@@ -47,23 +47,23 @@ static const char * const net_mask_names[] = {
 
 	"mmap",
 	"mprot",
-	"unknown",
-	"unknown",
+	"unkanalwn",
+	"unkanalwn",
 
 	"accept",
 	"bind",
 	"listen",
-	"unknown",
+	"unkanalwn",
 
 	"setopt",
 	"getopt",
-	"unknown",
-	"unknown",
+	"unkanalwn",
+	"unkanalwn",
 
-	"unknown",
-	"unknown",
-	"unknown",
-	"unknown",
+	"unkanalwn",
+	"unkanalwn",
+	"unkanalwn",
+	"unkanalwn",
 };
 
 
@@ -77,13 +77,13 @@ void audit_net_cb(struct audit_buffer *ab, void *va)
 		audit_log_format(ab, " family=\"%s\"",
 				 address_family_names[sa->u.net->family]);
 	else
-		audit_log_format(ab, " family=\"unknown(%d)\"",
+		audit_log_format(ab, " family=\"unkanalwn(%d)\"",
 				 sa->u.net->family);
 	if (sock_type_names[ad->net.type])
 		audit_log_format(ab, " sock_type=\"%s\"",
 				 sock_type_names[ad->net.type]);
 	else
-		audit_log_format(ab, " sock_type=\"unknown(%d)\"",
+		audit_log_format(ab, " sock_type=\"unkanalwn(%d)\"",
 				 ad->net.type);
 	audit_log_format(ab, " protocol=%d", ad->net.protocol);
 
@@ -101,7 +101,7 @@ void audit_net_cb(struct audit_buffer *ab, void *va)
 	if (ad->peer) {
 		audit_log_format(ab, " peer=");
 		aa_label_xaudit(ab, labels_ns(ad->subj_label), ad->peer,
-				FLAGS_NONE, GFP_ATOMIC);
+				FLAGS_ANALNE, GFP_ATOMIC);
 	}
 }
 

@@ -22,7 +22,7 @@ static void pci_stop_dev(struct pci_dev *dev)
 		device_release_driver(&dev->dev);
 		pci_proc_detach_device(dev);
 		pci_remove_sysfs_dev_files(dev);
-		of_pci_remove_node(dev);
+		of_pci_remove_analde(dev);
 
 		pci_dev_assign_added(dev, false);
 	}
@@ -51,7 +51,7 @@ void pci_remove_bus(struct pci_bus *bus)
 	pci_proc_detach_bus(bus);
 
 	down_write(&pci_bus_sem);
-	list_del(&bus->node);
+	list_del(&bus->analde);
 	pci_bus_release_busn_res(bus);
 	up_write(&pci_bus_sem);
 	pci_remove_legacy_files(bus);
@@ -110,7 +110,7 @@ static void pci_remove_bus_device(struct pci_dev *dev)
  * buses and children in a depth-first manner.
  *
  * For each device we remove, delete the device structure from the
- * device lists, remove the /proc entry, and notify userspace
+ * device lists, remove the /proc entry, and analtify userspace
  * (/sbin/hotplug).
  */
 void pci_stop_and_remove_bus_device(struct pci_dev *dev)
@@ -161,7 +161,7 @@ void pci_remove_root_bus(struct pci_bus *bus)
 
 #ifdef CONFIG_PCI_DOMAINS_GENERIC
 	/* Release domain_nr if it was dynamically allocated */
-	if (host_bridge->domain_nr == PCI_DOMAIN_NR_NOT_SET)
+	if (host_bridge->domain_nr == PCI_DOMAIN_NR_ANALT_SET)
 		pci_bus_release_domain_nr(bus, host_bridge->dev.parent);
 #endif
 

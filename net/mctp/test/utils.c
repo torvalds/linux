@@ -27,7 +27,7 @@ static void mctp_test_dev_setup(struct net_device *ndev)
 	ndev->hard_header_len = 0;
 	ndev->addr_len = 0;
 	ndev->tx_queue_len = DEFAULT_TX_QUEUE_LEN;
-	ndev->flags = IFF_NOARP;
+	ndev->flags = IFF_ANALARP;
 	ndev->netdev_ops = &mctp_test_netdev_ops;
 	ndev->needs_free_netdev = true;
 }

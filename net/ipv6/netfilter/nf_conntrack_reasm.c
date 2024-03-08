@@ -12,7 +12,7 @@
 
 #define pr_fmt(fmt) "IPv6-nf: " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/net.h>
@@ -99,7 +99,7 @@ err_reg:
 	if (!net_eq(net, &init_net))
 		kfree(table);
 err_alloc:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void __net_exit nf_ct_frags6_sysctl_unregister(struct net *net)
@@ -217,7 +217,7 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 			/* RFC2460 says always send parameter problem in
 			 * this case. -DaveM
 			 */
-			pr_debug("end of fragment not rounded to 8 bytes.\n");
+			pr_debug("end of fragment analt rounded to 8 bytes.\n");
 			inet_frag_kill(&fq->q);
 			return -EPROTO;
 		}
@@ -244,7 +244,7 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 		goto err;
 	}
 
-	/* Note : skb->rbnode and skb->dev share the same location. */
+	/* Analte : skb->rbanalde and skb->dev share the same location. */
 	dev = skb->dev;
 	/* Makes sure compiler wont do silly aliasing games */
 	barrier();
@@ -253,7 +253,7 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 	err = inet_frag_queue_insert(&fq->q, skb, offset, end);
 	if (err) {
 		if (err == IPFRAG_DUP) {
-			/* No error for duplicates, pretend they got queued. */
+			/* Anal error for duplicates, pretend they got queued. */
 			kfree_skb_reason(skb, SKB_DROP_REASON_DUP_FRAG);
 			return -EINPROGRESS;
 		}
@@ -264,7 +264,7 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 		fq->iif = dev->ifindex;
 
 	fq->q.stamp = skb->tstamp;
-	fq->q.mono_delivery_time = skb->mono_delivery_time;
+	fq->q.moanal_delivery_time = skb->moanal_delivery_time;
 	fq->q.meat += skb->len;
 	fq->ecn |= ecn;
 	if (payload_len > fq->q.max_size)
@@ -307,7 +307,7 @@ err:
  *	Check if this packet is complete.
  *
  *	It is called with locked fq, and caller must check that
- *	queue is eligible for reassembly i.e. it is not COMPLETE,
+ *	queue is eligible for reassembly i.e. it is analt COMPLETE,
  *	the last and the first frames arrived and all the bits are here.
  */
 static int nf_ct_frag6_reasm(struct frag_queue *fq, struct sk_buff *skb,
@@ -348,14 +348,14 @@ static int nf_ct_frag6_reasm(struct frag_queue *fq, struct sk_buff *skb,
 
 	inet_frag_reasm_finish(&fq->q, skb, reasm_data, false);
 
-	skb->ignore_df = 1;
+	skb->iganalre_df = 1;
 	skb->dev = dev;
 	ipv6_hdr(skb)->payload_len = htons(payload_len);
 	ipv6_change_dsfield(ipv6_hdr(skb), 0xff, ecn);
 	IP6CB(skb)->frag_max_size = sizeof(struct ipv6hdr) + fq->q.max_size;
 	IP6CB(skb)->flags |= IP6SKB_FRAGMENTED;
 
-	/* Yes, and fold redundant checksum back. 8) */
+	/* Anal, and fold redundant checksum back. 8) */
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->csum = csum_partial(skb_network_header(skb),
 					 skb_network_header_len(skb),
@@ -402,8 +402,8 @@ find_prev_fhdr(struct sk_buff *skb, u8 *prevhdrp, int *prevhoff, int *fhoff)
 		if (!ipv6_ext_hdr(nexthdr)) {
 			return -1;
 		}
-		if (nexthdr == NEXTHDR_NONE) {
-			pr_debug("next header is none\n");
+		if (nexthdr == NEXTHDR_ANALNE) {
+			pr_debug("next header is analne\n");
 			return -1;
 		}
 		if (len < (int)sizeof(struct ipv6_opt_hdr)) {
@@ -454,7 +454,7 @@ int nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 user)
 	if (find_prev_fhdr(skb, &prevhdr, &nhoff, &fhoff) < 0)
 		return 0;
 
-	/* Discard the first fragment if it does not include all headers
+	/* Discard the first fragment if it does analt include all headers
 	 * RFC 8200, Section 4.5
 	 */
 	if (ipv6frag_thdr_truncated(skb, fhoff, &nexthdr)) {
@@ -463,7 +463,7 @@ int nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 user)
 	}
 
 	if (!pskb_may_pull(skb, fhoff + sizeof(*fhdr)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_set_transport_header(skb, fhoff);
 	hdr = ipv6_hdr(skb);
@@ -474,7 +474,7 @@ int nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 user)
 		     skb->dev ? skb->dev->ifindex : 0);
 	if (fq == NULL) {
 		pr_debug("Can't find and can't create new queue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_bh(&fq->q.lock);
@@ -534,7 +534,7 @@ static struct pernet_operations nf_ct_net_ops = {
 };
 
 static const struct rhashtable_params nfct_rhash_params = {
-	.head_offset		= offsetof(struct inet_frag_queue, node),
+	.head_offset		= offsetof(struct inet_frag_queue, analde),
 	.hashfn			= ip6frag_key_hashfn,
 	.obj_hashfn		= ip6frag_obj_hashfn,
 	.obj_cmpfn		= ip6frag_obj_cmpfn,

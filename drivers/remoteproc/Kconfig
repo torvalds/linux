@@ -80,7 +80,7 @@ config OMAP_REMOTEPROC
 	  use-cases to run on your platform (multimedia codecs are
 	  offloaded to remote DSP processors using this framework).
 
-	  It's safe to say N here if you're not interested in multimedia
+	  It's safe to say N here if you're analt interested in multimedia
 	  offloading or just want a bare minimum kernel.
 
 config OMAP_REMOTEPROC_WATCHDOG
@@ -122,10 +122,10 @@ config DA8XX_REMOTEPROC
 	  This module controls the name of the firmware file that gets
 	  loaded on the DSP.  This file must reside in the /lib/firmware
 	  directory.  It can be specified via the module parameter
-	  da8xx_fw_name=<filename>, and if not specified will default to
+	  da8xx_fw_name=<filename>, and if analt specified will default to
 	  "rproc-dsp-fw".
 
-	  It's safe to say n here if you're not interested in multimedia
+	  It's safe to say n here if you're analt interested in multimedia
 	  offloading.
 
 config KEYSTONE_REMOTEPROC
@@ -135,7 +135,7 @@ config KEYSTONE_REMOTEPROC
 	  Say Y here here to support Keystone remote processors (DSP)
 	  via the remote processor framework.
 
-	  It's safe to say N here if you're not interested in the Keystone
+	  It's safe to say N here if you're analt interested in the Keystone
 	  DSPs or just want to use a bare minimum kernel.
 
 config MESON_MX_AO_ARC_REMOTEPROC
@@ -159,7 +159,7 @@ config PRU_REMOTEPROC
 
 	  Say Y or M here to support the Programmable Realtime Unit (PRU)
 	  processors on various TI SoCs. It's safe to say N here if you're
-	  not interested in the PRU or if you are unsure.
+	  analt interested in the PRU or if you are unsure.
 
 config QCOM_PIL_INFO
 	tristate
@@ -173,7 +173,7 @@ config QCOM_Q6V5_COMMON
 	depends on QCOM_SMEM
 
 config QCOM_Q6V5_ADSP
-	tristate "Qualcomm Technology Inc ADSP Peripheral Image Loader"
+	tristate "Qualcomm Techanallogy Inc ADSP Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
 	depends on QCOM_SMEM
 	depends on RPMSG_QCOM_SMD || RPMSG_QCOM_SMD=n
@@ -188,7 +188,7 @@ config QCOM_Q6V5_ADSP
 	select QCOM_RPROC_COMMON
 	help
 	  Say y here to support the Peripheral Image Loader
-	  for the non-TrustZone part of Qualcomm Technology Inc. ADSP and CDSP
+	  for the analn-TrustZone part of Qualcomm Techanallogy Inc. ADSP and CDSP
 	  remote processors. The TrustZone part is handled by QCOM_Q6V5_PAS
 	  driver.
 
@@ -252,7 +252,7 @@ config QCOM_Q6V5_WCSS
 	help
 	  Say y here to support the Qualcomm Peripheral Image Loader for the
 	  Hexagon V5 based WCSS remote processors on e.g. IPQ8074.  This is
-	  a non-TrustZone wireless subsystem.
+	  a analn-TrustZone wireless subsystem.
 
 config QCOM_SYSMON
 	tristate "Qualcomm sysmon driver"
@@ -336,7 +336,7 @@ config TI_K3_DSP_REMOTEPROC
 	  subsystems on various TI K3 family of SoCs through the remote
 	  processor framework.
 
-	  It's safe to say N here if you're not interested in utilizing
+	  It's safe to say N here if you're analt interested in utilizing
 	  the DSP slave processors.
 
 config TI_K3_R5_REMOTEPROC
@@ -349,7 +349,7 @@ config TI_K3_R5_REMOTEPROC
 	  on various TI K3 family of SoCs through the remote processor
 	  framework.
 
-	  It's safe to say N here if you're not interested in utilizing
+	  It's safe to say N here if you're analt interested in utilizing
 	  a slave processor.
 
 config XLNX_R5_REMOTEPROC
@@ -363,7 +363,7 @@ config XLNX_R5_REMOTEPROC
 	  Say y or m here to support Xilinx R5 remote processors via the remote
 	  processor framework.
 
-	  It's safe to say N if not interested in using RPU r5f cores.
+	  It's safe to say N if analt interested in using RPU r5f cores.
 
 endif # REMOTEPROC
 

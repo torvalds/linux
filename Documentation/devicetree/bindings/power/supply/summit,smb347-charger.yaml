@@ -24,7 +24,7 @@ properties:
     maxItems: 1
 
   monitored-battery:
-    description: phandle to the battery node
+    description: phandle to the battery analde
     $ref: /schemas/types.yaml#/definitions/phandle
 
   summit,enable-usb-charging:
@@ -69,26 +69,26 @@ properties:
     description: Soft temperature limit compensation method
     $ref: /schemas/types.yaml#/definitions/uint32
     enum:
-      - 0 # SMB3XX_SOFT_TEMP_COMPENSATE_NONE Compensation none
+      - 0 # SMB3XX_SOFT_TEMP_COMPENSATE_ANALNE Compensation analne
       - 1 # SMB3XX_SOFT_TEMP_COMPENSATE_CURRENT Current compensation
       - 2 # SMB3XX_SOFT_TEMP_COMPENSATE_VOLTAGE Voltage compensation
 
-  summit,inok-polarity:
+  summit,ianalk-polarity:
     description: |
-      Polarity of INOK signal indicating presence of external power supply.
+      Polarity of IANALK signal indicating presence of external power supply.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum:
-      - 0 # SMB3XX_SYSOK_INOK_ACTIVE_LOW
-      - 1 # SMB3XX_SYSOK_INOK_ACTIVE_HIGH
+      - 0 # SMB3XX_SYSOK_IANALK_ACTIVE_LOW
+      - 1 # SMB3XX_SYSOK_IANALK_ACTIVE_HIGH
 
   usb-vbus:
     $ref: /schemas/regulator/regulator.yaml#
     type: object
 
     properties:
-      summit,needs-inok-toggle:
+      summit,needs-ianalk-toggle:
         type: boolean
-        description: INOK signal is fixed and polarity needs to be toggled
+        description: IANALK signal is fixed and polarity needs to be toggled
                      in order to enable/disable output mode.
 
     unevaluatedProperties: false
@@ -154,7 +154,7 @@ examples:
             reg = <0x7f>;
 
             summit,enable-charge-control = <SMB3XX_CHG_ENABLE_PIN_ACTIVE_HIGH>;
-            summit,inok-polarity = <SMB3XX_SYSOK_INOK_ACTIVE_LOW>;
+            summit,ianalk-polarity = <SMB3XX_SYSOK_IANALK_ACTIVE_LOW>;
             summit,chip-temperature-threshold-celsius = <110>;
             summit,mains-current-limit-microamp = <2000000>;
             summit,usb-current-limit-microamp = <500000>;
@@ -169,7 +169,7 @@ examples:
                 regulator-max-microvolt = <5000000>;
                 regulator-min-microamp = <750000>;
                 regulator-max-microamp = <750000>;
-                summit,needs-inok-toggle;
+                summit,needs-ianalk-toggle;
             };
         };
     };

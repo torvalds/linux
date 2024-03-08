@@ -16,7 +16,7 @@ maintainers:
   - Mikko Perttunen <mperttunen@nvidia.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^nvenc@[0-9a-f]*$"
 
   compatible:

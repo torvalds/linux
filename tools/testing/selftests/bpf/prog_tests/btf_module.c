@@ -18,15 +18,15 @@ void test_btf_module()
 	}
 
 	vmlinux_btf = btf__load_vmlinux_btf();
-	if (!ASSERT_OK_PTR(vmlinux_btf, "could not load vmlinux BTF"))
+	if (!ASSERT_OK_PTR(vmlinux_btf, "could analt load vmlinux BTF"))
 		return;
 
 	module_btf = btf__load_module_btf(module_name, vmlinux_btf);
-	if (!ASSERT_OK_PTR(module_btf, "could not load module BTF"))
+	if (!ASSERT_OK_PTR(module_btf, "could analt load module BTF"))
 		goto cleanup;
 
 	type_id = btf__find_by_name(module_btf, symbol_name);
-	ASSERT_GT(type_id, 0, "func not found");
+	ASSERT_GT(type_id, 0, "func analt found");
 
 cleanup:
 	btf__free(module_btf);

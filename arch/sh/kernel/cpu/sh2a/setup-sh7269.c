@@ -513,7 +513,7 @@ static struct platform_device r8a66597_usb_host_device = {
 	.name		= "r8a66597_hcd",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= NULL,         /*  not use dma */
+		.dma_mask		= NULL,         /*  analt use dma */
 		.coherent_dma_mask	= 0xffffffff,
 		.platform_data		= &r8a66597_data,
 	},

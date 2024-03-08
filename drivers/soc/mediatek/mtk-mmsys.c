@@ -393,7 +393,7 @@ static int mtk_mmsys_probe(struct platform_device *pdev)
 
 	mmsys = devm_kzalloc(dev, sizeof(*mmsys), GFP_KERNEL);
 	if (!mmsys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mmsys->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mmsys->regs)) {
@@ -410,7 +410,7 @@ static int mtk_mmsys_probe(struct platform_device *pdev)
 		mmsys->rcdev.owner = THIS_MODULE;
 		mmsys->rcdev.nr_resets = mmsys->data->num_resets;
 		mmsys->rcdev.ops = &mtk_mmsys_reset_ops;
-		mmsys->rcdev.of_node = pdev->dev.of_node;
+		mmsys->rcdev.of_analde = pdev->dev.of_analde;
 		ret = devm_reset_controller_register(&pdev->dev, &mmsys->rcdev);
 		if (ret) {
 			dev_err(&pdev->dev, "Couldn't register mmsys reset controller: %d\n", ret);
@@ -421,7 +421,7 @@ static int mtk_mmsys_probe(struct platform_device *pdev)
 	/* CMDQ is optional */
 	ret = cmdq_dev_get_client_reg(dev, &mmsys->cmdq_base, 0);
 	if (ret)
-		dev_dbg(dev, "No mediatek,gce-client-reg!\n");
+		dev_dbg(dev, "Anal mediatek,gce-client-reg!\n");
 
 	platform_set_drvdata(pdev, mmsys);
 

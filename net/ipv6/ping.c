@@ -27,7 +27,7 @@
 static int dummy_ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len,
 				 int *addr_len)
 {
-	return -EAFNOSUPPORT;
+	return -EAFANALSUPPORT;
 }
 static void dummy_ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
 				       struct sk_buff *skb)
@@ -35,7 +35,7 @@ static void dummy_ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
 }
 static int dummy_icmpv6_err_convert(u8 type, u8 code, int *err)
 {
-	return -EAFNOSUPPORT;
+	return -EAFANALSUPPORT;
 }
 static void dummy_ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 				  __be16 port, u32 info, u8 *payload) {}
@@ -86,7 +86,7 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		if (msg->msg_namelen < sizeof(*u))
 			return -EINVAL;
 		if (u->sin6_family != AF_INET6) {
-			return -EAFNOSUPPORT;
+			return -EAFANALSUPPORT;
 		}
 		daddr = &(u->sin6_addr);
 		if (inet6_test_bit(SNDFLOW, sk))
@@ -134,7 +134,7 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		if (err < 0)
 			return err;
 
-		/* Changes to txoptions and flow info are not implemented, yet.
+		/* Changes to txoptions and flow info are analt implemented, yet.
 		 * Drop the options.
 		 */
 		ipc6.opt = NULL;
@@ -258,7 +258,7 @@ static int __net_init ping_v6_proc_init_net(struct net *net)
 {
 	if (!proc_create_net("icmp6", 0444, net->proc_net, &ping_v6_seq_ops,
 			sizeof(struct ping_iter_state)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -290,7 +290,7 @@ int __init pingv6_init(void)
 	return inet6_register_protosw(&pingv6_protosw);
 }
 
-/* This never gets called because it's not possible to unload the ipv6 module,
+/* This never gets called because it's analt possible to unload the ipv6 module,
  * but just in case.
  */
 void pingv6_exit(void)

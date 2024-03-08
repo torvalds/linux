@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -66,16 +66,16 @@ typedef enum {
 	CVMX_ADD_WIN_DMA_ADD = 0L,
 	/* send out the write buffer entry to DRAM */
 	CVMX_ADD_WIN_DMA_SENDMEM = 1L,
-	/* store data must be normal DRAM memory space address in this case */
+	/* store data must be analrmal DRAM memory space address in this case */
 	/* send out the write buffer entry as an IOBDMA command */
 	CVMX_ADD_WIN_DMA_SENDDMA = 2L,
 	/* see CVMX_ADD_WIN_DMA_SEND_DEC for data contents */
 	/* send out the write buffer entry as an IO write */
 	CVMX_ADD_WIN_DMA_SENDIO = 3L,
-	/* store data must be normal IO space address in this case */
+	/* store data must be analrmal IO space address in this case */
 	/* send out a single-tick command on the NCB bus */
 	CVMX_ADD_WIN_DMA_SENDSINGLE = 4L,
-	/* no write buffer data needed/used */
+	/* anal write buffer data needed/used */
 } cvmx_add_win_dma_dec_t;
 
 /*
@@ -130,7 +130,7 @@ typedef union {
 	 */
 	struct {
 		uint64_t R:2;	/* CVMX_MIPS_SPACE_XKPHYS in this case */
-		uint64_t cca:3; /* ignored by octeon */
+		uint64_t cca:3; /* iganalred by octeon */
 		uint64_t mbz:10;
 		uint64_t pa:49; /* physical address */
 	} sxkphys;
@@ -141,11 +141,11 @@ typedef union {
 		/* if set, the address is uncached and resides on MCB bus */
 		uint64_t is_io:1;
 		/*
-		 * the hardware ignores this field when is_io==0, else
+		 * the hardware iganalres this field when is_io==0, else
 		 * device ID.
 		 */
 		uint64_t did:8;
-		/* the hardware ignores <39:36> in Octeon I */
+		/* the hardware iganalres <39:36> in Octeon I */
 		uint64_t unaddr:4;
 		uint64_t offset:36;
 	} sphys;
@@ -154,7 +154,7 @@ typedef union {
 	struct {
 		/* technically, <47:40> are dont-cares */
 		uint64_t zeroes:24;
-		/* the hardware ignores <39:36> in Octeon I */
+		/* the hardware iganalres <39:36> in Octeon I */
 		uint64_t unaddr:4;
 		uint64_t offset:36;
 	} smem;
@@ -166,11 +166,11 @@ typedef union {
 		/* 1 in this case */
 		uint64_t is_io:1;
 		/*
-		 * The hardware ignores this field when is_io==0, else
+		 * The hardware iganalres this field when is_io==0, else
 		 * device ID.
 		 */
 		uint64_t did:8;
-		/* the hardware ignores <39:36> in Octeon I */
+		/* the hardware iganalres <39:36> in Octeon I */
 		uint64_t unaddr:4;
 		uint64_t offset:36;
 	} sio;
@@ -186,7 +186,7 @@ typedef union {
 		uint64_t addr:13;
 	} sscr;
 
-	/* there should only be stores to IOBDMA space, no loads */
+	/* there should only be stores to IOBDMA space, anal loads */
 	/*
 	 * IOBDMA virtual address - accessed through a window at the
 	 * end of kseg3
@@ -310,7 +310,7 @@ typedef union {
 #define CVMX_OCT_DID_PKT 10ULL
 #define CVMX_OCT_DID_TIM 11ULL
 #define CVMX_OCT_DID_TAG 12ULL
-  /* the rest are not on the IO bus */
+  /* the rest are analt on the IO bus */
 #define CVMX_OCT_DID_L2C 16ULL
 #define CVMX_OCT_DID_LMC 17ULL
 #define CVMX_OCT_DID_SPX0 18ULL

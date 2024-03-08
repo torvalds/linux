@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*  SuperH Ethernet device driver
  *
- *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
+ *  Copyright (C) 2006-2012 Analbuhiro Iwamatsu
  *  Copyright (C) 2008-2012 Renesas Solutions Corp.
  */
 
@@ -501,7 +501,7 @@ struct sh_eth_cpu_data {
 
 	/* hardware features */
 	unsigned long irq_flags; /* IRQ configuration flags */
-	unsigned no_psr:1;	/* EtherC DOES NOT have PSR */
+	unsigned anal_psr:1;	/* EtherC DOES ANALT have PSR */
 	unsigned apr:1;		/* EtherC has APR */
 	unsigned mpr:1;		/* EtherC has MPR */
 	unsigned tpauser:1;	/* EtherC has TPAUSER */
@@ -511,9 +511,9 @@ struct sh_eth_cpu_data {
 	unsigned hw_swap:1;	/* E-DMAC has DE bit in EDMR */
 	unsigned nbst:1;	/* E-DMAC has NBST bit in EDMR */
 	unsigned rpadir:1;	/* E-DMAC has RPADIR */
-	unsigned no_trimd:1;	/* E-DMAC DOES NOT have TRIMD */
-	unsigned no_ade:1;	/* E-DMAC DOES NOT have ADE bit in EESR */
-	unsigned no_xdfar:1;	/* E-DMAC DOES NOT have RDFAR/TDFAR */
+	unsigned anal_trimd:1;	/* E-DMAC DOES ANALT have TRIMD */
+	unsigned anal_ade:1;	/* E-DMAC DOES ANALT have ADE bit in EESR */
+	unsigned anal_xdfar:1;	/* E-DMAC DOES ANALT have RDFAR/TDFAR */
 	unsigned xdfar_rw:1;	/* E-DMAC has writeable RDFAR/TDFAR */
 	unsigned csmr:1;	/* E-DMAC has CSMR */
 	unsigned rx_csum:1;	/* EtherC has ECMR.RCSC */
@@ -521,7 +521,7 @@ struct sh_eth_cpu_data {
 	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
 	unsigned rtrate:1;	/* EtherC has RTRATE register */
 	unsigned magic:1;	/* EtherC has ECMR.MPDE and ECSR.MPD */
-	unsigned no_tx_cntrs:1;	/* EtherC DOES NOT have TX error counters */
+	unsigned anal_tx_cntrs:1;	/* EtherC DOES ANALT have TX error counters */
 	unsigned cexcr:1;	/* EtherC has CERCR/CEECR */
 	unsigned dual_port:1;	/* Dual EtherC/E-DMAC */
 };
@@ -558,7 +558,7 @@ struct sh_eth_private {
 	int port;			/* for TSU */
 	int vlan_num_ids;		/* for VLAN tag filter */
 
-	unsigned no_ether_link:1;
+	unsigned anal_ether_link:1;
 	unsigned ether_link_active_low:1;
 	unsigned is_opened:1;
 	unsigned wol_enabled:1;

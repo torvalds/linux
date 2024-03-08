@@ -3,8 +3,8 @@
  * hdc2010.c - Support for the TI HDC2010 and HDC2080
  * temperature + relative humidity sensors
  *
- * Copyright (C) 2020 Norphonic AS
- * Author: Eugene Zaikonnikov <ez@norphonic.com>
+ * Copyright (C) 2020 Analrphonic AS
+ * Author: Eugene Zaikonnikov <ez@analrphonic.com>
  *
  * Datasheet: https://www.ti.com/product/HDC2010/datasheet
  * Datasheet: https://www.ti.com/product/HDC2080/datasheet
@@ -130,7 +130,7 @@ static int hdc2010_get_prim_measurement_word(struct hdc2010_data *data,
 			hdc2010_reg_translation[chan->address].primary);
 
 	if (ret < 0)
-		dev_err(&client->dev, "Could not read sensor measurement word\n");
+		dev_err(&client->dev, "Could analt read sensor measurement word\n");
 
 	return ret;
 }
@@ -145,7 +145,7 @@ static int hdc2010_get_peak_measurement_byte(struct hdc2010_data *data,
 			hdc2010_reg_translation[chan->address].peak);
 
 	if (ret < 0)
-		dev_err(&client->dev, "Could not read sensor measurement byte\n");
+		dev_err(&client->dev, "Could analt read sensor measurement byte\n");
 
 	return ret;
 }
@@ -260,11 +260,11 @@ static int hdc2010_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter,
 	    I2C_FUNC_SMBUS_WORD_DATA | I2C_FUNC_SMBUS_BYTE | I2C_FUNC_I2C))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -272,7 +272,7 @@ static int hdc2010_probe(struct i2c_client *client)
 	mutex_init(&data->lock);
 
 	/*
-	 * As DEVICE ID register does not differentiate between
+	 * As DEVICE ID register does analt differentiate between
 	 * HDC2010 and HDC2080, we have the name hardcoded
 	 */
 	indio_dev->name = "hdc2010";
@@ -344,6 +344,6 @@ static struct i2c_driver hdc2010_driver = {
 };
 module_i2c_driver(hdc2010_driver);
 
-MODULE_AUTHOR("Eugene Zaikonnikov <ez@norphonic.com>");
+MODULE_AUTHOR("Eugene Zaikonnikov <ez@analrphonic.com>");
 MODULE_DESCRIPTION("TI HDC2010 humidity and temperature sensor driver");
 MODULE_LICENSE("GPL");

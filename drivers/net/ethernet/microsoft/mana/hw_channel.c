@@ -185,15 +185,15 @@ static void mana_hwc_init_event_handler(void *ctx, struct gdma_queue *q_self,
 			break;
 
 		default:
-			dev_warn(hwc->dev, "Received unknown reconfig type %u\n", type);
+			dev_warn(hwc->dev, "Received unkanalwn reconfig type %u\n", type);
 			break;
 		}
 
 		break;
 
 	default:
-		dev_warn(hwc->dev, "Received unknown gdma event %u\n", event->type);
-		/* Ignore unknown events, which should never happen. */
+		dev_warn(hwc->dev, "Received unkanalwn gdma event %u\n", event->type);
+		/* Iganalre unkanalwn events, which should never happen. */
 		break;
 	}
 }
@@ -236,7 +236,7 @@ static void mana_hwc_rx_event_handler(void *ctx, u32 gdma_rxq_id,
 
 	mana_hwc_handle_resp(hwc, rx_oob->tx_oob_data_size, resp);
 
-	/* Do no longer use 'resp', because the buffer is posted to the HW
+	/* Do anal longer use 'resp', because the buffer is posted to the HW
 	 * in the below mana_hwc_post_rx_wqe().
 	 */
 	resp = NULL;
@@ -370,7 +370,7 @@ static int mana_hwc_create_cq(struct hw_channel_context *hwc, u16 q_depth,
 
 	hwc_cq = kzalloc(sizeof(*hwc_cq), GFP_KERNEL);
 	if (!hwc_cq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mana_hwc_create_gdma_eq(hwc, eq_size, ctx, callback, &eq);
 	if (err) {
@@ -389,7 +389,7 @@ static int mana_hwc_create_cq(struct hw_channel_context *hwc, u16 q_depth,
 
 	comp_buf = kcalloc(q_depth, sizeof(*comp_buf), GFP_KERNEL);
 	if (!comp_buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -424,7 +424,7 @@ static int mana_hwc_alloc_dma_buf(struct hw_channel_context *hwc, u16 q_depth,
 
 	dma_buf = kzalloc(struct_size(dma_buf, reqs, q_depth), GFP_KERNEL);
 	if (!dma_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_buf->num_reqs = q_depth;
 
@@ -501,7 +501,7 @@ static int mana_hwc_create_wq(struct hw_channel_context *hwc,
 
 	hwc_wq = kzalloc(sizeof(*hwc_wq), GFP_KERNEL);
 	if (!hwc_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mana_hwc_create_gdma_wq(hwc, q_type, queue_size, &queue);
 	if (err)
@@ -603,7 +603,7 @@ static int mana_hwc_test_channel(struct hw_channel_context *hwc, u16 q_depth,
 
 	ctx = kcalloc(q_depth, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < q_depth; ++i)
 		init_completion(&ctx[i].comp_event);
@@ -648,7 +648,7 @@ static int mana_hwc_establish_channel(struct gdma_context *gc, u16 *q_depth,
 
 	gc->cq_table = vcalloc(gc->max_num_cqs, sizeof(struct gdma_queue *));
 	if (!gc->cq_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gc->cq_table[cq->id] = cq;
 
@@ -709,7 +709,7 @@ int mana_hwc_create_channel(struct gdma_context *gc)
 
 	hwc = kzalloc(sizeof(*hwc), GFP_KERNEL);
 	if (!hwc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gd->gdma_context = gc;
 	gd->driver_data = hwc;
@@ -764,7 +764,7 @@ void mana_hwc_destroy_channel(struct gdma_context *gc)
 		return;
 
 	/* gc->max_num_cqs is set in mana_hwc_init_event_handler(). If it's
-	 * non-zero, the HWC worked and we should tear down the HWC here.
+	 * analn-zero, the HWC worked and we should tear down the HWC here.
 	 */
 	if (gc->max_num_cqs > 0) {
 		mana_smc_teardown_hwc(&gc->shm_channel, false);

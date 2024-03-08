@@ -6,15 +6,15 @@
  *
  * This work is licensed under the terms of the GNU GPL, version 2.
  *
- * Test that user space can inject UnCorrectable No Action required (UCNA)
+ * Test that user space can inject UnCorrectable Anal Action required (UCNA)
  * memory errors to the guest.
  *
  * The test starts one vCPU with the MCG_CMCI_P enabled. It verifies that
  * proper UCNA errors can be injected to a vCPU with MCG_CMCI_P and
  * corresponding per-bank control register (MCI_CTL2) bit enabled.
  * The test also checks that the UCNA errors get recorded in the
- * Machine Check bank registers no matter the error signal interrupts get
- * delivered into the guest or not.
+ * Machine Check bank registers anal matter the error signal interrupts get
+ * delivered into the guest or analt.
  *
  */
 
@@ -179,9 +179,9 @@ static void *run_ucna_injection(void *arg)
 	int old;
 	int r;
 
-	r = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &old);
+	r = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHROANALUS, &old);
 	TEST_ASSERT(r == 0,
-		    "pthread_setcanceltype failed with errno=%d",
+		    "pthread_setcanceltype failed with erranal=%d",
 		    r);
 
 	vcpu_run(params->vcpu);
@@ -277,7 +277,7 @@ int main(int argc, char *argv[])
 		  &supported_mcg_caps);
 
 	if (!(supported_mcg_caps & MCG_CMCI_P)) {
-		print_skip("MCG_CMCI_P is not supported");
+		print_skip("MCG_CMCI_P is analt supported");
 		exit(KSFT_SKIP);
 	}
 

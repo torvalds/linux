@@ -5,7 +5,7 @@
  * Written by Masami Hiramatsu <mhiramat@redhat.com>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,7 +72,7 @@ error:
 		close(fd);
 	memset(dbg, 0, sizeof(*dbg));
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static struct debuginfo *__debuginfo__new(const char *path)
@@ -94,7 +94,7 @@ enum dso_binary_type distro_dwarf_types[] = {
 	DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO,
 	DSO_BINARY_TYPE__BUILDID_DEBUGINFO,
 	DSO_BINARY_TYPE__MIXEDUP_UBUNTU_DEBUGINFO,
-	DSO_BINARY_TYPE__NOT_FOUND,
+	DSO_BINARY_TYPE__ANALT_FOUND,
 };
 
 struct debuginfo *debuginfo__new(const char *path)
@@ -115,7 +115,7 @@ struct debuginfo *debuginfo__new(const char *path)
 		dso__set_build_id(dso, &bid);
 
 	for (type = distro_dwarf_types;
-	     !dinfo && *type != DSO_BINARY_TYPE__NOT_FOUND;
+	     !dinfo && *type != DSO_BINARY_TYPE__ANALT_FOUND;
 	     type++) {
 		if (dso__read_binary_type_filename(dso, *type, &nil,
 						   buf, PATH_MAX) < 0)
@@ -156,7 +156,7 @@ int debuginfo__get_text_offset(struct debuginfo *dbg, Dwarf_Addr *offs,
 	/* Get the number of relocations */
 	n = dwfl_module_relocations(dbg->mod);
 	if (n < 0)
-		return -ENOENT;
+		return -EANALENT;
 	/* Search the relocation related .text section */
 	for (i = 0; i < n; i++) {
 		p = dwfl_module_relocation_info(dbg->mod, i, &shndx);
@@ -164,10 +164,10 @@ int debuginfo__get_text_offset(struct debuginfo *dbg, Dwarf_Addr *offs,
 			/* OK, get the section header */
 			scn = elf_getscn(elf, shndx);
 			if (!scn)
-				return -ENOENT;
+				return -EANALENT;
 			shdr = gelf_getshdr(scn, &mem);
 			if (!shdr)
-				return -ENOENT;
+				return -EANALENT;
 			*offs = shdr->sh_addr;
 			if (adjust_offset)
 				*offs -= shdr->sh_offset;
@@ -185,7 +185,7 @@ int get_source_from_debuginfod(const char *raw_path,
 	int fd;
 
 	if (!c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fd = debuginfod_find_source(c, (const unsigned char *)sbuild_id,
 				0, p, new_path);
@@ -196,7 +196,7 @@ int get_source_from_debuginfod(const char *raw_path,
 	if (fd < 0) {
 		pr_debug("Failed to find %s in debuginfod (%s)\n",
 			raw_path, sbuild_id);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	pr_debug("Got a source %s\n", *new_path);
 

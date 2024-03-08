@@ -2,7 +2,7 @@
 //
 // TSE-850 audio - ASoC driver for the Axentia TSE-850 with a PCM5142 codec
 //
-// Copyright (C) 2016 Axentia Technologies AB
+// Copyright (C) 2016 Axentia Techanallogies AB
 //
 // Author: Peter Rosin <peda@axentia.se>
 //
@@ -201,8 +201,8 @@ static int tse850_put_ana(struct snd_kcontrol *kctrl,
 	 * the ana regulator is supplied by the system 12V voltage and
 	 * requesting anything below the system voltage causes the system
 	 * voltage to be passed through the regulator. Also, the ana
-	 * regulator induces noise when requesting voltages near the
-	 * system voltage. So, by mapping Low to 2V, that noise is
+	 * regulator induces analise when requesting voltages near the
+	 * system voltage. So, by mapping Low to 2V, that analise is
 	 * eliminated when all that is needed is 12V (the system voltage).
 	 */
 	if (uV)
@@ -220,7 +220,7 @@ static int tse850_put_ana(struct snd_kcontrol *kctrl,
 static const char * const mux_text[] = { "Mixer", "Loop" };
 
 static const struct soc_enum mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(mux_text), mux_text);
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 0, ARRAY_SIZE(mux_text), mux_text);
 
 static const struct snd_kcontrol_new mux1 =
 	SOC_DAPM_ENUM_EXT("MUX1", mux_enum, tse850_get_mux1, tse850_put_mux1);
@@ -236,7 +236,7 @@ static const struct snd_kcontrol_new mux2 =
 	.private_value = SOC_SINGLE_VALUE(reg, shift, max, invert, 0) }
 
 static const struct snd_kcontrol_new mix[] = {
-	TSE850_DAPM_SINGLE_EXT("IN Switch", SND_SOC_NOPM, 0, 1, 0,
+	TSE850_DAPM_SINGLE_EXT("IN Switch", SND_SOC_ANALPM, 0, 1, 0,
 			       tse850_get_mix, tse850_put_mix),
 };
 
@@ -245,7 +245,7 @@ static const char * const ana_text[] = {
 };
 
 static const struct soc_enum ana_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(ana_text), ana_text);
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 0, ARRAY_SIZE(ana_text), ana_text);
 
 static const struct snd_kcontrol_new out =
 	SOC_DAPM_ENUM_EXT("ANA", ana_enum, tse850_get_ana, tse850_put_ana);
@@ -256,22 +256,22 @@ static const struct snd_soc_dapm_widget tse850_dapm_widgets[] = {
 	SND_SOC_DAPM_LINE("IN1", NULL),
 	SND_SOC_DAPM_LINE("IN2", NULL),
 	SND_SOC_DAPM_INPUT("DAC"),
-	SND_SOC_DAPM_AIF_IN("AIFINL", "Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("AIFINR", "Playback", 1, SND_SOC_NOPM, 0, 0),
-	SOC_MIXER_ARRAY("MIX", SND_SOC_NOPM, 0, 0, mix),
-	SND_SOC_DAPM_MUX("MUX1", SND_SOC_NOPM, 0, 0, &mux1),
-	SND_SOC_DAPM_MUX("MUX2", SND_SOC_NOPM, 0, 0, &mux2),
-	SND_SOC_DAPM_OUT_DRV("OUT", SND_SOC_NOPM, 0, 0, &out, 1),
+	SND_SOC_DAPM_AIF_IN("AIFINL", "Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIFINR", "Playback", 1, SND_SOC_ANALPM, 0, 0),
+	SOC_MIXER_ARRAY("MIX", SND_SOC_ANALPM, 0, 0, mix),
+	SND_SOC_DAPM_MUX("MUX1", SND_SOC_ANALPM, 0, 0, &mux1),
+	SND_SOC_DAPM_MUX("MUX2", SND_SOC_ANALPM, 0, 0, &mux2),
+	SND_SOC_DAPM_OUT_DRV("OUT", SND_SOC_ANALPM, 0, 0, &out, 1),
 };
 
 /*
- * These connections are not entirely correct, since both IN1 and IN2
+ * These connections are analt entirely correct, since both IN1 and IN2
  * are always fed to MIX (if the "IN switch" is set so), i.e. without
  * regard to the loop1 and loop2 relays that according to this only
  * control MUX1 and MUX2 but in fact also control how the input signals
  * are routed.
- * But, 1) I don't know how to do it right, and 2) it doesn't seem to
- * matter in practice since nothing is powered in those sections anyway.
+ * But, 1) I don't kanalw how to do it right, and 2) it doesn't seem to
+ * matter in practice since analthing is powered in those sections anyway.
  */
 static const struct snd_soc_dapm_route tse850_intercon[] = {
 	{ "OUT1", NULL, "MUX1" },
@@ -321,8 +321,8 @@ static struct snd_soc_card tse850_card = {
 
 static int tse850_dt_init(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *codec_np, *cpu_np;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *codec_np, *cpu_np;
 	struct snd_soc_dai_link *dailink = &tse850_dailink;
 
 	if (!np) {
@@ -335,17 +335,17 @@ static int tse850_dt_init(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get cpu dai\n");
 		return -EINVAL;
 	}
-	dailink->cpus->of_node = cpu_np;
-	dailink->platforms->of_node = cpu_np;
-	of_node_put(cpu_np);
+	dailink->cpus->of_analde = cpu_np;
+	dailink->platforms->of_analde = cpu_np;
+	of_analde_put(cpu_np);
 
 	codec_np = of_parse_phandle(np, "axentia,audio-codec", 0);
 	if (!codec_np) {
 		dev_err(&pdev->dev, "failed to get codec info\n");
 		return -EINVAL;
 	}
-	dailink->codecs->of_node = codec_np;
-	of_node_put(codec_np);
+	dailink->codecs->of_analde = codec_np;
+	of_analde_put(codec_np);
 
 	return 0;
 }
@@ -359,7 +359,7 @@ static int tse850_probe(struct platform_device *pdev)
 
 	tse850 = devm_kzalloc(dev, sizeof(*tse850), GFP_KERNEL);
 	if (!tse850)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_soc_card_set_drvdata(card, tse850);
 

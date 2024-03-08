@@ -22,7 +22,7 @@
  * @max_uV:	maximum voltage value (mV)
  *
  * This function returns the voltage range according to the provided OCR
- * bit number. If conversion is not possible a negative errno value returned.
+ * bit number. If conversion is analt possible a negative erranal value returned.
  */
 static int mmc_ocrbitnum_to_vdd(int vdd_bit, int *min_uV, int *max_uV)
 {
@@ -53,9 +53,9 @@ static int mmc_ocrbitnum_to_vdd(int vdd_bit, int *min_uV, int *max_uV)
  * mmc_regulator_get_ocrmask - return mask of supported voltages
  * @supply: regulator to use
  *
- * This returns either a negative errno, or a mask of voltages that
+ * This returns either a negative erranal, or a mask of voltages that
  * can be provided to MMC/SD/SDIO devices using the specified voltage
- * regulator.  This would normally be called before registering the
+ * regulator.  This would analrmally be called before registering the
  * MMC host adapter.
  */
 static int mmc_regulator_get_ocrmask(struct regulator *supply)
@@ -97,10 +97,10 @@ static int mmc_regulator_get_ocrmask(struct regulator *supply)
  * @supply: regulator to use
  * @vdd_bit: zero for power off, else a bit number (host->ios.vdd)
  *
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erranal.
  *
  * MMC host drivers may use this to enable or disable a regulator using
- * a particular supply voltage.  This would normally be called from the
+ * a particular supply voltage.  This would analrmally be called from the
  * set_ios() method.
  */
 int mmc_regulator_set_ocr(struct mmc_host *mmc,
@@ -130,7 +130,7 @@ int mmc_regulator_set_ocr(struct mmc_host *mmc,
 
 	if (result)
 		dev_err(mmc_dev(mmc),
-			"could not set regulator OCR (%d)\n", result);
+			"could analt set regulator OCR (%d)\n", result);
 	return result;
 }
 EXPORT_SYMBOL_GPL(mmc_regulator_set_ocr);
@@ -149,8 +149,8 @@ static int mmc_regulator_set_voltage_if_supported(struct regulator *regulator,
 		return -EINVAL;
 
 	/*
-	 * The voltage is already set, no need to switch.
-	 * Return 1 to indicate that no switch happened.
+	 * The voltage is already set, anal need to switch.
+	 * Return 1 to indicate that anal switch happened.
 	 */
 	current_uV = regulator_get_voltage(regulator);
 	if (current_uV == target_uV)
@@ -169,7 +169,7 @@ static int mmc_regulator_set_voltage_if_supported(struct regulator *regulator,
  * That will match the behavior of old boards where VQMMC and VMMC were supplied
  * by the same supply.  The Bus Operating conditions for 3.3V signaling in the
  * SD card spec also define VQMMC in terms of VMMC.
- * If this is not possible we'll try the full 2.7-3.6V of the spec.
+ * If this is analt possible we'll try the full 2.7-3.6V of the spec.
  *
  * For 1.2V and 1.8V signaling we'll try to get as close as possible to the
  * requested voltage.  This is definitely a good idea for UHS where there's a
@@ -184,7 +184,7 @@ int mmc_regulator_set_vqmmc(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct device *dev = mmc_dev(mmc);
 	int ret, volt, min_uV, max_uV;
 
-	/* If no vqmmc supply then we can't change the voltage */
+	/* If anal vqmmc supply then we can't change the voltage */
 	if (IS_ERR(mmc->supply.vqmmc))
 		return -EINVAL;
 
@@ -239,8 +239,8 @@ static inline int mmc_regulator_get_ocrmask(struct regulator *supply)
  * mmc_regulator_get_supply - try to get VMMC and VQMMC regulators for a host
  * @mmc: the host to regulate
  *
- * Returns 0 or errno. errno should be handled, it is either a critical error
- * or -EPROBE_DEFER. 0 means no critical error but it does not mean all
+ * Returns 0 or erranal. erranal should be handled, it is either a critical error
+ * or -EPROBE_DEFER. 0 means anal critical error but it does analt mean all
  * regulators have been found because they all are optional. If you require
  * certain regulators, you need to check separately in your driver if they got
  * populated after calling this function.
@@ -256,7 +256,7 @@ int mmc_regulator_get_supply(struct mmc_host *mmc)
 	if (IS_ERR(mmc->supply.vmmc)) {
 		if (PTR_ERR(mmc->supply.vmmc) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_dbg(dev, "No vmmc regulator found\n");
+		dev_dbg(dev, "Anal vmmc regulator found\n");
 	} else {
 		ret = mmc_regulator_get_ocrmask(mmc->supply.vmmc);
 		if (ret > 0)
@@ -268,7 +268,7 @@ int mmc_regulator_get_supply(struct mmc_host *mmc)
 	if (IS_ERR(mmc->supply.vqmmc)) {
 		if (PTR_ERR(mmc->supply.vqmmc) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_dbg(dev, "No vqmmc regulator found\n");
+		dev_dbg(dev, "Anal vqmmc regulator found\n");
 	}
 
 	return 0;
@@ -279,7 +279,7 @@ EXPORT_SYMBOL_GPL(mmc_regulator_get_supply);
  * mmc_regulator_enable_vqmmc - enable VQMMC regulator for a host
  * @mmc: the host to regulate
  *
- * Returns 0 or errno. Enables the regulator for vqmmc.
+ * Returns 0 or erranal. Enables the regulator for vqmmc.
  * Keeps track of the enable status for ensuring that calls to
  * regulator_enable/disable are balanced.
  */
@@ -303,7 +303,7 @@ EXPORT_SYMBOL_GPL(mmc_regulator_enable_vqmmc);
  * mmc_regulator_disable_vqmmc - disable VQMMC regulator for a host
  * @mmc: the host to regulate
  *
- * Returns 0 or errno. Disables the regulator for vqmmc.
+ * Returns 0 or erranal. Disables the regulator for vqmmc.
  * Keeps track of the enable status for ensuring that calls to
  * regulator_enable/disable are balanced.
  */

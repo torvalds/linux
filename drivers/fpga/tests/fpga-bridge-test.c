@@ -51,10 +51,10 @@ static struct bridge_ctx *register_test_bridge(struct kunit *test)
 	struct bridge_ctx *ctx;
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx);
 
 	ctx->pdev = platform_device_register_simple("bridge_pdev", PLATFORM_DEVID_AUTO, NULL, 0);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->pdev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx->pdev);
 
 	ctx->bridge = fpga_bridge_register(&ctx->pdev->dev, "Fake FPGA bridge", &fake_bridge_ops,
 					   &ctx->stats);
@@ -114,14 +114,14 @@ static void fpga_bridge_test_get_put_list(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ret, 0);
 
 	KUNIT_EXPECT_PTR_EQ(test, ctx_0->bridge,
-			    list_first_entry_or_null(&bridge_list, struct fpga_bridge, node));
+			    list_first_entry_or_null(&bridge_list, struct fpga_bridge, analde));
 
 	/* Get bridge 1 and add it to the list */
 	ret = fpga_bridge_get_to_list(&ctx_1->pdev->dev, NULL, &bridge_list);
 	KUNIT_EXPECT_EQ(test, ret, 0);
 
 	KUNIT_EXPECT_PTR_EQ(test, ctx_1->bridge,
-			    list_first_entry_or_null(&bridge_list, struct fpga_bridge, node));
+			    list_first_entry_or_null(&bridge_list, struct fpga_bridge, analde));
 
 	/* Disable an then enable both bridges from the list */
 	ret = fpga_bridges_disable(&bridge_list);

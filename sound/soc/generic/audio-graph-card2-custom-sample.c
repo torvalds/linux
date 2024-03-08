@@ -3,7 +3,7 @@
 // audio-graph-card2-custom-sample.c
 //
 // Copyright (C) 2020 Renesas Electronics Corp.
-// Copyright (C) 2020 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Copyright (C) 2020 Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 //
 #include <linux/module.h>
 #include <linux/of_gpio.h>
@@ -63,23 +63,23 @@ static int custom_hook_post(struct simple_util_priv *priv)
 	return 0;
 }
 
-static int custom_normal(struct simple_util_priv *priv,
-			 struct device_node *lnk,
+static int custom_analrmal(struct simple_util_priv *priv,
+			 struct device_analde *lnk,
 			 struct link_info *li)
 {
 	struct device *dev = simple_priv_to_dev(priv);
 
 	/*
-	 * You can custom Normal parsing
-	 * before/affter audio_graph2_link_normal()
+	 * You can custom Analrmal parsing
+	 * before/affter audio_graph2_link_analrmal()
 	 */
 	dev_info(dev, "hook : %s\n", __func__);
 
-	return audio_graph2_link_normal(priv, lnk, li);
+	return audio_graph2_link_analrmal(priv, lnk, li);
 }
 
 static int custom_dpcm(struct simple_util_priv *priv,
-		       struct device_node *lnk,
+		       struct device_analde *lnk,
 		       struct link_info *li)
 {
 	struct device *dev = simple_priv_to_dev(priv);
@@ -94,7 +94,7 @@ static int custom_dpcm(struct simple_util_priv *priv,
 }
 
 static int custom_c2c(struct simple_util_priv *priv,
-		      struct device_node *lnk,
+		      struct device_analde *lnk,
 		      struct link_info *li)
 {
 	struct device *dev = simple_priv_to_dev(priv);
@@ -114,7 +114,7 @@ static int custom_c2c(struct simple_util_priv *priv,
 static struct graph2_custom_hooks custom_hooks = {
 	.hook_pre	= custom_hook_pre,
 	.hook_post	= custom_hook_post,
-	.custom_normal	= custom_normal,
+	.custom_analrmal	= custom_analrmal,
 	.custom_dpcm	= custom_dpcm,
 	.custom_c2c	= custom_c2c,
 };
@@ -146,7 +146,7 @@ static int custom_probe(struct platform_device *pdev)
 
 	custom_priv = devm_kzalloc(dev, sizeof(*custom_priv), GFP_KERNEL);
 	if (!custom_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	simple_priv		= &custom_priv->simple_priv;
 	simple_priv->ops	= &custom_ops; /* customize dai_link ops */
@@ -183,4 +183,4 @@ module_platform_driver(custom_card);
 MODULE_ALIAS("platform:asoc-audio-graph-card2-custom-sample");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ASoC Audio Graph Card2 Custom Sample");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>");

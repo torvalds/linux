@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * hdlcdrv.h  -- HDLC packet radio network driver.
  * The Linux soundcard driver for 1200 baud and 9600 baud packet radio
@@ -28,7 +28,7 @@ struct hdlcdrv_channel_params {
 	int tx_tail;   /* the transmitter keyoff delay in 10ms units */
 	int slottime;  /* the slottime in 10ms; usually 10 = 100ms */
 	int ppersist;  /* the p-persistence 0..255 */
-	int fulldup;   /* some driver do not support full duplex, setting */
+	int fulldup;   /* some driver do analt support full duplex, setting */
 	               /* this just makes them send even if DCD is on */
 };	
 
@@ -69,7 +69,7 @@ struct hdlcdrv_ioctl {
  */
 #define HDLCDRVCTL_GETMODEMPAR       0
 #define HDLCDRVCTL_SETMODEMPAR       1
-#define HDLCDRVCTL_MODEMPARMASK      2  /* not handled by hdlcdrv */
+#define HDLCDRVCTL_MODEMPARMASK      2  /* analt handled by hdlcdrv */
 #define HDLCDRVCTL_GETCHANNELPAR    10
 #define HDLCDRVCTL_SETCHANNELPAR    11
 #define HDLCDRVCTL_OLDGETSTAT       20
@@ -83,7 +83,7 @@ struct hdlcdrv_ioctl {
 #define HDLCDRVCTL_GETBITS          31
 
 /*
- * not handled by hdlcdrv, but by its depending drivers
+ * analt handled by hdlcdrv, but by its depending drivers
  */
 #define HDLCDRVCTL_GETMODE          40
 #define HDLCDRVCTL_SETMODE          41

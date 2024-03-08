@@ -37,20 +37,20 @@ int ip6mr_ioctl(struct sock *sk, int cmd, void *arg);
 static inline int ip6_mroute_setsockopt(struct sock *sock, int optname,
 		sockptr_t optval, unsigned int optlen)
 {
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 static inline
 int ip6_mroute_getsockopt(struct sock *sock,
 			  int optname, sockptr_t optval, sockptr_t optlen)
 {
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 static inline
 int ip6mr_ioctl(struct sock *sk, int cmd, void *arg)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 static inline int ip6_mr_init(void)
@@ -108,13 +108,13 @@ static inline int ip6mr_sk_ioctl(struct sock *sk, unsigned int cmd,
 	case SIOCGETMIFCNT_IN6: {
 		struct sioc_mif_req6 buffer;
 
-		return sock_ioctl_inout(sk, cmd, arg, &buffer,
+		return sock_ioctl_ianalut(sk, cmd, arg, &buffer,
 					sizeof(buffer));
 		}
 	case SIOCGETSGCNT_IN6: {
 		struct sioc_sg_req6 buffer;
 
-		return sock_ioctl_inout(sk, cmd, arg, &buffer,
+		return sock_ioctl_ianalut(sk, cmd, arg, &buffer,
 					sizeof(buffer));
 		}
 	}

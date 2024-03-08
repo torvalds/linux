@@ -7,17 +7,17 @@
  * Usage:
  *
  * 1. before inclusion define PASS_NAME
- * 2. before inclusion define NO_* for unimplemented callbacks
- *    NO_GENERATE_SUMMARY
- *    NO_READ_SUMMARY
- *    NO_WRITE_SUMMARY
- *    NO_READ_OPTIMIZATION_SUMMARY
- *    NO_WRITE_OPTIMIZATION_SUMMARY
- *    NO_STMT_FIXUP
- *    NO_FUNCTION_TRANSFORM
- *    NO_VARIABLE_TRANSFORM
- *    NO_GATE
- *    NO_EXECUTE
+ * 2. before inclusion define ANAL_* for unimplemented callbacks
+ *    ANAL_GENERATE_SUMMARY
+ *    ANAL_READ_SUMMARY
+ *    ANAL_WRITE_SUMMARY
+ *    ANAL_READ_OPTIMIZATION_SUMMARY
+ *    ANAL_WRITE_OPTIMIZATION_SUMMARY
+ *    ANAL_STMT_FIXUP
+ *    ANAL_FUNCTION_TRANSFORM
+ *    ANAL_VARIABLE_TRANSFORM
+ *    ANAL_GATE
+ *    ANAL_EXECUTE
  * 3. before inclusion define PROPERTIES_* and *TODO_FLAGS_* to override
  *    the default 0 values
  * 4. for convenience, all the above will be undefined after inclusion!
@@ -43,63 +43,63 @@
 #define __MAKE_PASS_NAME_PASS(n)	_GCC_PLUGIN_CONCAT3(make_, n, _pass)
 #define _MAKE_PASS_NAME_PASS		__MAKE_PASS_NAME_PASS(PASS_NAME)
 
-#ifdef NO_GENERATE_SUMMARY
+#ifdef ANAL_GENERATE_SUMMARY
 #define _GENERATE_SUMMARY NULL
 #else
 #define __GENERATE_SUMMARY(n)		_GCC_PLUGIN_CONCAT2(n, _generate_summary)
 #define _GENERATE_SUMMARY		__GENERATE_SUMMARY(PASS_NAME)
 #endif
 
-#ifdef NO_READ_SUMMARY
+#ifdef ANAL_READ_SUMMARY
 #define _READ_SUMMARY NULL
 #else
 #define __READ_SUMMARY(n)		_GCC_PLUGIN_CONCAT2(n, _read_summary)
 #define _READ_SUMMARY			__READ_SUMMARY(PASS_NAME)
 #endif
 
-#ifdef NO_WRITE_SUMMARY
+#ifdef ANAL_WRITE_SUMMARY
 #define _WRITE_SUMMARY NULL
 #else
 #define __WRITE_SUMMARY(n)		_GCC_PLUGIN_CONCAT2(n, _write_summary)
 #define _WRITE_SUMMARY			__WRITE_SUMMARY(PASS_NAME)
 #endif
 
-#ifdef NO_READ_OPTIMIZATION_SUMMARY
+#ifdef ANAL_READ_OPTIMIZATION_SUMMARY
 #define _READ_OPTIMIZATION_SUMMARY NULL
 #else
 #define __READ_OPTIMIZATION_SUMMARY(n)	_GCC_PLUGIN_CONCAT2(n, _read_optimization_summary)
 #define _READ_OPTIMIZATION_SUMMARY	__READ_OPTIMIZATION_SUMMARY(PASS_NAME)
 #endif
 
-#ifdef NO_WRITE_OPTIMIZATION_SUMMARY
+#ifdef ANAL_WRITE_OPTIMIZATION_SUMMARY
 #define _WRITE_OPTIMIZATION_SUMMARY NULL
 #else
 #define __WRITE_OPTIMIZATION_SUMMARY(n)	_GCC_PLUGIN_CONCAT2(n, _write_optimization_summary)
 #define _WRITE_OPTIMIZATION_SUMMARY	__WRITE_OPTIMIZATION_SUMMARY(PASS_NAME)
 #endif
 
-#ifdef NO_STMT_FIXUP
+#ifdef ANAL_STMT_FIXUP
 #define _STMT_FIXUP NULL
 #else
 #define __STMT_FIXUP(n)			_GCC_PLUGIN_CONCAT2(n, _stmt_fixup)
 #define _STMT_FIXUP			__STMT_FIXUP(PASS_NAME)
 #endif
 
-#ifdef NO_FUNCTION_TRANSFORM
+#ifdef ANAL_FUNCTION_TRANSFORM
 #define _FUNCTION_TRANSFORM NULL
 #else
 #define __FUNCTION_TRANSFORM(n)		_GCC_PLUGIN_CONCAT2(n, _function_transform)
 #define _FUNCTION_TRANSFORM		__FUNCTION_TRANSFORM(PASS_NAME)
 #endif
 
-#ifdef NO_VARIABLE_TRANSFORM
+#ifdef ANAL_VARIABLE_TRANSFORM
 #define _VARIABLE_TRANSFORM NULL
 #else
 #define __VARIABLE_TRANSFORM(n)		_GCC_PLUGIN_CONCAT2(n, _variable_transform)
 #define _VARIABLE_TRANSFORM		__VARIABLE_TRANSFORM(PASS_NAME)
 #endif
 
-#ifdef NO_GATE
+#ifdef ANAL_GATE
 #define _GATE NULL
 #define _HAS_GATE false
 #else
@@ -108,7 +108,7 @@
 #define _HAS_GATE true
 #endif
 
-#ifdef NO_EXECUTE
+#ifdef ANAL_EXECUTE
 #define _EXECUTE NULL
 #define _HAS_EXECUTE false
 #else
@@ -145,8 +145,8 @@ namespace {
 static const pass_data _PASS_NAME_PASS_DATA = {
 		.type			= IPA_PASS,
 		.name			= _PASS_NAME_NAME,
-		.optinfo_flags		= OPTGROUP_NONE,
-		.tv_id			= TV_NONE,
+		.optinfo_flags		= OPTGROUP_ANALNE,
+		.tv_id			= TV_ANALNE,
 		.properties_required	= PROPERTIES_REQUIRED,
 		.properties_provided	= PROPERTIES_PROVIDED,
 		.properties_destroyed	= PROPERTIES_DESTROYED,
@@ -168,12 +168,12 @@ public:
 			 _FUNCTION_TRANSFORM,
 			 _VARIABLE_TRANSFORM) {}
 
-#ifndef NO_GATE
+#ifndef ANAL_GATE
 	virtual bool gate(function *) { return _GATE(); }
 
 	virtual opt_pass *clone() { return new _PASS_NAME_PASS(); }
 
-#ifndef NO_EXECUTE
+#ifndef ANAL_EXECUTE
 	virtual unsigned int execute(function *) { return _EXECUTE(); }
 #endif
 };
@@ -192,16 +192,16 @@ struct opt_pass *_MAKE_PASS_NAME_PASS(void)
 
 /* clean up user provided defines */
 #undef PASS_NAME
-#undef NO_GENERATE_SUMMARY
-#undef NO_WRITE_SUMMARY
-#undef NO_READ_SUMMARY
-#undef NO_WRITE_OPTIMIZATION_SUMMARY
-#undef NO_READ_OPTIMIZATION_SUMMARY
-#undef NO_STMT_FIXUP
-#undef NO_FUNCTION_TRANSFORM
-#undef NO_VARIABLE_TRANSFORM
-#undef NO_GATE
-#undef NO_EXECUTE
+#undef ANAL_GENERATE_SUMMARY
+#undef ANAL_WRITE_SUMMARY
+#undef ANAL_READ_SUMMARY
+#undef ANAL_WRITE_OPTIMIZATION_SUMMARY
+#undef ANAL_READ_OPTIMIZATION_SUMMARY
+#undef ANAL_STMT_FIXUP
+#undef ANAL_FUNCTION_TRANSFORM
+#undef ANAL_VARIABLE_TRANSFORM
+#undef ANAL_GATE
+#undef ANAL_EXECUTE
 
 #undef FUNCTION_TRANSFORM_TODO_FLAGS_START
 #undef PROPERTIES_DESTROYED

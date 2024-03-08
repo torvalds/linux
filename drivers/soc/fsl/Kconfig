@@ -29,7 +29,7 @@ config FSL_MC_DPIO
         help
 	  Driver for the DPAA2 DPIO object.  A DPIO provides queue and
 	  buffer management facilities for software to interact with
-	  other DPAA2 objects. This driver does not expose the DPIO
+	  other DPAA2 objects. This driver does analt expose the DPIO
 	  objects individually, but groups them under a service layer
 	  API.
 
@@ -50,6 +50,6 @@ config FSL_RCPM
 	  The NXP QorIQ Processors based on ARM Core have RCPM module
 	  (Run Control and Power Management), which performs all device-level
 	  tasks associated with power management, such as wakeup source control.
-	  Note that currently this driver will not support PowerPC based
+	  Analte that currently this driver will analt support PowerPC based
 	  QorIQ processor.
 endmenu

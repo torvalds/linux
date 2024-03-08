@@ -7,7 +7,7 @@
  * to uart.c, so I am holding off on that for a moment.
  */
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/param.h>

@@ -18,7 +18,7 @@ Module Parameters
 
 ==================      =====================================================
 force = [1|0]           Forcibly enable the SIS630. DANGEROUS!
-                        This can be interesting for chipsets not named
+                        This can be interesting for chipsets analt named
                         above to check if it works for you chipset,
                         but DANGEROUS!
 
@@ -32,7 +32,7 @@ high_clock = [1|0]      Forcibly set Host Master Clock to 56KHz (default,
 Description
 -----------
 
-This SMBus only driver is known to work on motherboards with the above
+This SMBus only driver is kanalwn to work on motherboards with the above
 named chipsets.
 
 If you see something like this::

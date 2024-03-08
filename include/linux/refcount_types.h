@@ -8,7 +8,7 @@
  * typedef refcount_t - variant of atomic_t specialized for reference counts
  * @refs: atomic_t counter field
  *
- * The counter saturates at REFCOUNT_SATURATED and will not move once
+ * The counter saturates at REFCOUNT_SATURATED and will analt move once
  * there. This avoids wrapping the counter and causing 'spurious'
  * use-after-free bugs.
  */

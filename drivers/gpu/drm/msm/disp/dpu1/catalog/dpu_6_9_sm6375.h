@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022. Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  * Copyright (c) 2023, Linaro Limited
  */
@@ -113,7 +113,7 @@ static const struct dpu_perf_cfg sm6375_perf_data = {
 	.max_bw_low = 5200000,
 	.max_bw_high = 6200000,
 	.min_core_ib = 2500000,
-	.min_llcc_ib = 0, /* No LLCC on this SoC */
+	.min_llcc_ib = 0, /* Anal LLCC on this SoC */
 	.min_dram_ib = 1600000,
 	.min_prefill_lines = 24,
 	/* TODO: confirm danger_lut_tbl */
@@ -140,7 +140,7 @@ static const struct dpu_perf_cfg sm6375_perf_data = {
 
 static const struct dpu_mdss_version sm6375_mdss_ver = {
 	.core_major_ver = 6,
-	.core_minor_ver = 9,
+	.core_mianalr_ver = 9,
 };
 
 const struct dpu_mdss_cfg dpu_sm6375_cfg = {

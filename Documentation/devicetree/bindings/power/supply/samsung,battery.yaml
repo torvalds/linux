@@ -13,7 +13,7 @@ description: |
   Samsung SDI (Samsung Digital Interface) batteries are all different versions
   of lithium ion chemistry devices used for mobile phones, laptops and other
   portable electronics. The batteries are adapted to a specific product and
-  the physical restrictions make it impossible to use another battery with the
+  the physical restrictions make it impossible to use aanalther battery with the
   product, so product device trees can specify these batteries. Operating
   systems should determine hardware characteristics of the batteries from the
   compatible string.

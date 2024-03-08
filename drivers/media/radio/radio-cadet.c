@@ -19,7 +19,7 @@
  *
  * 2001-01-10	Russell Kroll <rkroll@exploits.org>
  *		Removed dead CONFIG_RADIO_CADET_PORT code
- *		PnP detection on load is now default (no args necessary)
+ *		PnP detection on load is analw default (anal args necessary)
  *
  * 2002-01-17	Adam Belay <ambx1@neo.rr.com>
  *		Updated to latest pnp code
@@ -83,7 +83,7 @@ static struct cadet cadet_card;
 
 /*
  * Signal Strength Threshold Values
- * The V4L API spec does not define any particular unit for the signal
+ * The V4L API spec does analt define any particular unit for the signal
  * strength value.  These values are in microvolts of RF at the tuner's input.
  */
 static u16 sigtable[2][4] = {
@@ -114,10 +114,10 @@ static const struct v4l2_frequency_band bands[] = {
 
 static int cadet_getstereo(struct cadet *dev)
 {
-	int ret = V4L2_TUNER_SUB_MONO;
+	int ret = V4L2_TUNER_SUB_MOANAL;
 
 	if (!dev->is_fm_band)	/* Only FM has stereo capability! */
-		return V4L2_TUNER_SUB_MONO;
+		return V4L2_TUNER_SUB_MOANAL;
 
 	outb(7, dev->io);          /* Select tuner control */
 	if ((inb(dev->io + 1) & 0x40) == 0)
@@ -334,7 +334,7 @@ static ssize_t cadet_read(struct file *file, char __user *data, size_t count, lo
 		cadet_start_rds(dev);
 	mutex_unlock(&dev->lock);
 
-	if (!cadet_has_rds_data(dev) && (file->f_flags & O_NONBLOCK))
+	if (!cadet_has_rds_data(dev) && (file->f_flags & O_ANALNBLOCK))
 		return -EWOULDBLOCK;
 	i = wait_event_interruptible(dev->read_queue, cadet_has_rds_data(dev));
 	if (i)
@@ -383,7 +383,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	} else {
 		v->rangelow = 8320;      /* 520 kHz */
 		v->rangehigh = 26400;    /* 1650 kHz */
-		v->rxsubchans = V4L2_TUNER_SUB_MONO;
+		v->rxsubchans = V4L2_TUNER_SUB_MOANAL;
 	}
 	v->audmode = V4L2_TUNER_MODE_STEREO;
 	v->signal = dev->sigstrength; /* We might need to modify scaling of this */
@@ -486,14 +486,14 @@ static __poll_t cadet_poll(struct file *file, struct poll_table_struct *wait)
 	__poll_t res = v4l2_ctrl_poll(file, wait);
 
 	poll_wait(file, &dev->read_queue, wait);
-	if (dev->rdsstat == 0 && (req_events & (EPOLLIN | EPOLLRDNORM))) {
+	if (dev->rdsstat == 0 && (req_events & (EPOLLIN | EPOLLRDANALRM))) {
 		mutex_lock(&dev->lock);
 		if (dev->rdsstat == 0)
 			cadet_start_rds(dev);
 		mutex_unlock(&dev->lock);
 	}
 	if (cadet_has_rds_data(dev))
-		res |= EPOLLIN | EPOLLRDNORM;
+		res |= EPOLLIN | EPOLLRDANALRM;
 	return res;
 }
 
@@ -536,13 +536,13 @@ MODULE_DEVICE_TABLE(pnp, cadet_pnp_devices);
 static int cadet_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 {
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	/* only support one device */
 	if (io > 0)
 		return -EBUSY;
 
 	if (!pnp_port_valid(dev, 0))
-		return -ENODEV;
+		return -EANALDEV;
 
 	io = pnp_port_start(dev, 0);
 
@@ -591,7 +591,7 @@ static int __init cadet_init(void)
 	struct cadet *dev = &cadet_card;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	struct v4l2_ctrl_handler *hdl;
-	int res = -ENODEV;
+	int res = -EANALDEV;
 
 	strscpy(v4l2_dev->name, "cadet", sizeof(v4l2_dev->name));
 	mutex_init(&dev->lock);
@@ -619,7 +619,7 @@ static int __init cadet_init(void)
 	res = v4l2_device_register(NULL, v4l2_dev);
 	if (res < 0) {
 		release_region(dev->io, 2);
-		v4l2_err(v4l2_dev, "could not register v4l2_device\n");
+		v4l2_err(v4l2_dev, "could analt register v4l2_device\n");
 		goto fail;
 	}
 
@@ -630,7 +630,7 @@ static int __init cadet_init(void)
 	v4l2_dev->ctrl_handler = hdl;
 	if (hdl->error) {
 		res = hdl->error;
-		v4l2_err(v4l2_dev, "Could not register controls\n");
+		v4l2_err(v4l2_dev, "Could analt register controls\n");
 		goto err_hdl;
 	}
 

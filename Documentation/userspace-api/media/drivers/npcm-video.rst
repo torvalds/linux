@@ -44,7 +44,7 @@ buffer with the layout defined in Remote Framebuffer Protocol:
            (RFC 6143, https://www.rfc-editor.org/rfc/rfc6143.html#section-7.6.1)
 
            +--------------+--------------+-------------------+
-           | No. of bytes | Type [Value] | Description       |
+           | Anal. of bytes | Type [Value] | Description       |
            +--------------+--------------+-------------------+
            | 2            | U16          | x-position        |
            | 2            | U16          | y-position        |
@@ -63,4 +63,4 @@ References
 ----------
 include/uapi/linux/npcm-video.h
 
-**Copyright** |copy| 2022 Nuvoton Technologies
+**Copyright** |copy| 2022 Nuvoton Techanallogies

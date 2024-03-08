@@ -57,7 +57,7 @@ struct mmc_ext_csd {
 	unsigned int		sa_timeout;		/* Units: 100ns */
 	unsigned int		generic_cmd6_time;	/* Units: 10ms */
 	unsigned int            power_off_longtime;     /* Units: ms */
-	u8			power_off_notification;	/* state */
+	u8			power_off_analtification;	/* state */
 	unsigned int		hs_max_dtr;
 	unsigned int		hs200_max_dtr;
 #define MMC_HIGH_26_MAX_DTR	26000000
@@ -182,7 +182,7 @@ struct sd_switch_caps {
 #define SD_SET_CURRENT_LIMIT_400	1
 #define SD_SET_CURRENT_LIMIT_600	2
 #define SD_SET_CURRENT_LIMIT_800	3
-#define SD_SET_CURRENT_NO_CHANGE	(-1)
+#define SD_SET_CURRENT_ANAL_CHANGE	(-1)
 
 #define SD_MAX_CURRENT_200	(1 << SD_SET_CURRENT_LIMIT_200)
 #define SD_MAX_CURRENT_400	(1 << SD_SET_CURRENT_LIMIT_400)
@@ -191,14 +191,14 @@ struct sd_switch_caps {
 };
 
 struct sd_ext_reg {
-	u8			fno;
+	u8			fanal;
 	u8			page;
 	u16			offset;
 	u8			rev;
 	u8			feature_enabled;
 	u8			feature_support;
 /* Power Management Function. */
-#define SD_EXT_POWER_OFF_NOTIFY	(1<<0)
+#define SD_EXT_POWER_OFF_ANALTIFY	(1<<0)
 #define SD_EXT_POWER_SUSTENANCE	(1<<1)
 #define SD_EXT_POWER_DOWN_MODE	(1<<2)
 /* Performance Enhancement Function. */
@@ -278,12 +278,12 @@ struct mmc_card {
 #define MMC_QUIRK_LENIENT_FN0	(1<<0)		/* allow SDIO FN0 writes outside of the VS CCCR range */
 #define MMC_QUIRK_BLKSZ_FOR_BYTE_MODE (1<<1)	/* use func->cur_blksize */
 						/* for byte mode */
-#define MMC_QUIRK_NONSTD_SDIO	(1<<2)		/* non-standard SDIO card attached */
+#define MMC_QUIRK_ANALNSTD_SDIO	(1<<2)		/* analn-standard SDIO card attached */
 						/* (missing CIA registers) */
-#define MMC_QUIRK_NONSTD_FUNC_IF (1<<4)		/* SDIO card has nonstd function interfaces */
+#define MMC_QUIRK_ANALNSTD_FUNC_IF (1<<4)		/* SDIO card has analnstd function interfaces */
 #define MMC_QUIRK_DISABLE_CD	(1<<5)		/* disconnect CD/DAT[3] resistor */
 #define MMC_QUIRK_INAND_CMD38	(1<<6)		/* iNAND devices have broken CMD38 */
-#define MMC_QUIRK_BLK_NO_CMD23	(1<<7)		/* Avoid CMD23 for regular multiblock */
+#define MMC_QUIRK_BLK_ANAL_CMD23	(1<<7)		/* Avoid CMD23 for regular multiblock */
 #define MMC_QUIRK_BROKEN_BYTE_MODE_512 (1<<8)	/* Avoid sending 512 bytes in */
 						/* byte mode */
 #define MMC_QUIRK_LONG_READ_TIME (1<<9)		/* Data read time > CSD says */
@@ -326,10 +326,10 @@ struct mmc_card {
 	struct sdio_func	*sdio_func[SDIO_MAX_FUNCS]; /* SDIO functions (devices) */
 	struct sdio_func	*sdio_single_irq; /* SDIO function when only one IRQ active */
 	u8			major_rev;	/* major revision number */
-	u8			minor_rev;	/* minor revision number */
+	u8			mianalr_rev;	/* mianalr revision number */
 	unsigned		num_info;	/* number of info strings */
 	const char		**info;		/* info strings */
-	struct sdio_func_tuple	*tuples;	/* unknown common tuples */
+	struct sdio_func_tuple	*tuples;	/* unkanalwn common tuples */
 
 	unsigned int		sd_bus_speed;	/* Bus Speed Mode set for the card */
 	unsigned int		mmc_avail_type;	/* supported device type by both host and card */

@@ -20,7 +20,7 @@ static char *action_param;
 module_param_named(action, action_param, charp, 0400);
 MODULE_PARM_DESC(action,
 		 "Changes KUnit executor behavior, valid values are:\n"
-		 "<none>: run the tests like normal\n"
+		 "<analne>: run the tests like analrmal\n"
 		 "'list' to list test names instead of running them.\n"
 		 "'list_attr' to list test names and attributes instead of running them.\n");
 
@@ -42,7 +42,7 @@ MODULE_PARM_DESC(filter,
 module_param_named(filter_action, filter_action_param, charp, 0400);
 MODULE_PARM_DESC(filter_action,
 		"Changes behavior of filtered tests using attributes, valid values are:\n"
-		"<none>: do not run filtered tests as normal\n"
+		"<analne>: do analt run filtered tests as analrmal\n"
 		"'skip': skip all filtered tests instead so tests will appear in output\n");
 
 const char *kunit_filter_glob(void)
@@ -66,7 +66,7 @@ struct kunit_glob_filter {
 	char *test_glob;
 };
 
-/* Split "suite_glob.test_glob" into two. Assumes filter_glob is not empty. */
+/* Split "suite_glob.test_glob" into two. Assumes filter_glob is analt empty. */
 static int kunit_parse_glob_filter(struct kunit_glob_filter *parsed,
 				    const char *filter_glob)
 {
@@ -76,7 +76,7 @@ static int kunit_parse_glob_filter(struct kunit_glob_filter *parsed,
 	if (!period) {
 		parsed->suite_glob = kzalloc(len + 1, GFP_KERNEL);
 		if (!parsed->suite_glob)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		parsed->test_glob = NULL;
 		strcpy(parsed->suite_glob, filter_glob);
@@ -85,12 +85,12 @@ static int kunit_parse_glob_filter(struct kunit_glob_filter *parsed,
 
 	parsed->suite_glob = kzalloc(period - filter_glob + 1, GFP_KERNEL);
 	if (!parsed->suite_glob)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parsed->test_glob = kzalloc(len - (period - filter_glob) + 1, GFP_KERNEL);
 	if (!parsed->test_glob) {
 		kfree(parsed->suite_glob);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	strncpy(parsed->suite_glob, filter_glob, period - filter_glob);
@@ -117,12 +117,12 @@ kunit_filter_glob_tests(const struct kunit_suite *const suite, const char *test_
 
 	copy = kmemdup(suite, sizeof(*copy), GFP_KERNEL);
 	if (!copy)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	filtered = kcalloc(n + 1, sizeof(*filtered), GFP_KERNEL);
 	if (!filtered) {
 		kfree(copy);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	n = 0;
@@ -184,7 +184,7 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 		filter_count = kunit_get_filter_count(filters);
 		parsed_filters = kcalloc(filter_count, sizeof(*parsed_filters), GFP_KERNEL);
 		if (!parsed_filters) {
-			*err = -ENOMEM;
+			*err = -EANALMEM;
 			goto free_parsed_glob;
 		}
 		for (j = 0; j < filter_count; j++)
@@ -355,18 +355,18 @@ int kunit_run_all_tests(void)
 	struct kunit_suite_set init_suite_set = {
 		__kunit_init_suites_start, __kunit_init_suites_end,
 	};
-	struct kunit_suite_set normal_suite_set = {
+	struct kunit_suite_set analrmal_suite_set = {
 		__kunit_suites_start, __kunit_suites_end,
 	};
 	size_t init_num_suites = init_suite_set.end - init_suite_set.start;
 	int err = 0;
 
 	if (init_num_suites > 0) {
-		suite_set = kunit_merge_suite_sets(init_suite_set, normal_suite_set);
+		suite_set = kunit_merge_suite_sets(init_suite_set, analrmal_suite_set);
 		if (!suite_set.start)
 			goto out;
 	} else
-		suite_set = normal_suite_set;
+		suite_set = analrmal_suite_set;
 
 	if (!kunit_enabled()) {
 		pr_info("kunit: disabled\n");
@@ -395,7 +395,7 @@ int kunit_run_all_tests(void)
 	else if (strcmp(action_param, "list_attr") == 0)
 		kunit_exec_list_tests(&suite_set, true);
 	else
-		pr_err("kunit executor: unknown action '%s'\n", action_param);
+		pr_err("kunit executor: unkanalwn action '%s'\n", action_param);
 
 free_out:
 	if (filter_glob_param || filter_param)

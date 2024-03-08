@@ -8,25 +8,25 @@
 volatile unsigned short uprobe_ref_ctr __attribute__((unused)) __attribute((section(".probes")));
 
 /* uprobe attach point */
-static noinline void trigger_func(void)
+static analinline void trigger_func(void)
 {
 	asm volatile ("");
 }
 
 /* attach point for byname uprobe */
-static noinline void trigger_func2(void)
+static analinline void trigger_func2(void)
 {
 	asm volatile ("");
 }
 
 /* attach point for byname sleepable uprobe */
-static noinline void trigger_func3(void)
+static analinline void trigger_func3(void)
 {
 	asm volatile ("");
 }
 
 /* attach point for ref_ctr */
-static noinline void trigger_func4(void)
+static analinline void trigger_func4(void)
 {
 	asm volatile ("");
 }
@@ -55,7 +55,7 @@ static void test_attach_probe_manual(enum probe_attach_mode attach_mode)
 	kprobe_opts.attach_mode = attach_mode;
 	kprobe_opts.retprobe = false;
 	kprobe_link = bpf_program__attach_kprobe_opts(skel->progs.handle_kprobe,
-						      SYS_NANOSLEEP_KPROBE_NAME,
+						      SYS_NAANALSLEEP_KPROBE_NAME,
 						      &kprobe_opts);
 	if (!ASSERT_OK_PTR(kprobe_link, "attach_kprobe"))
 		goto cleanup;
@@ -63,7 +63,7 @@ static void test_attach_probe_manual(enum probe_attach_mode attach_mode)
 
 	kprobe_opts.retprobe = true;
 	kretprobe_link = bpf_program__attach_kprobe_opts(skel->progs.handle_kretprobe,
-							 SYS_NANOSLEEP_KPROBE_NAME,
+							 SYS_NAANALSLEEP_KPROBE_NAME,
 							 &kprobe_opts);
 	if (!ASSERT_OK_PTR(kretprobe_link, "attach_kretprobe"))
 		goto cleanup;
@@ -135,7 +135,7 @@ static void test_attach_probe_auto(struct test_attach_probe *skel)
 
 	/* verify auto-attach fails for old-style uprobe definition */
 	uprobe_err_link = bpf_program__attach(skel->progs.handle_uprobe_byname);
-	if (!ASSERT_EQ(libbpf_get_error(uprobe_err_link), -EOPNOTSUPP,
+	if (!ASSERT_EQ(libbpf_get_error(uprobe_err_link), -EOPANALTSUPP,
 		       "auto-attach should fail for old-style name"))
 		return;
 
@@ -250,7 +250,7 @@ static void test_kprobe_sleepable(void)
 		       "skel_kprobe_sleepable_load"))
 		goto cleanup;
 
-	/* sleepable kprobes should not attach successfully */
+	/* sleepable kprobes should analt attach successfully */
 	skel->links.handle_kprobe_sleepable = bpf_program__attach(skel->progs.handle_kprobe_sleepable);
 	ASSERT_ERR_PTR(skel->links.handle_kprobe_sleepable, "attach_kprobe_sleepable");
 

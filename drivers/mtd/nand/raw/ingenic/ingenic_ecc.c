@@ -2,7 +2,7 @@
 /*
  * JZ47xx ECC common code
  *
- * Copyright (c) 2015 Imagination Technologies
+ * Copyright (c) 2015 Imagination Techanallogies
  * Author: Alex Smith <alex.smith@imgtec.com>
  */
 
@@ -54,21 +54,21 @@ int ingenic_ecc_correct(struct ingenic_ecc *ecc,
 
 /**
  * ingenic_ecc_get() - get the ECC controller device
- * @np: ECC device tree node.
+ * @np: ECC device tree analde.
  *
- * Gets the ECC controller device from the specified device tree node. The
- * device must be released with ingenic_ecc_release() when it is no longer being
+ * Gets the ECC controller device from the specified device tree analde. The
+ * device must be released with ingenic_ecc_release() when it is anal longer being
  * used.
  *
  * Return: a pointer to ingenic_ecc, errors are encoded into the pointer.
  * PTR_ERR(-EPROBE_DEFER) if the device hasn't been initialised yet.
  */
-static struct ingenic_ecc *ingenic_ecc_get(struct device_node *np)
+static struct ingenic_ecc *ingenic_ecc_get(struct device_analde *np)
 {
 	struct platform_device *pdev;
 	struct ingenic_ecc *ecc;
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_analde(np);
 	if (!pdev)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -84,32 +84,32 @@ static struct ingenic_ecc *ingenic_ecc_get(struct device_node *np)
 }
 
 /**
- * of_ingenic_ecc_get() - get the ECC controller from a DT node
- * @of_node: the node that contains an ecc-engine property.
+ * of_ingenic_ecc_get() - get the ECC controller from a DT analde
+ * @of_analde: the analde that contains an ecc-engine property.
  *
  * Get the ecc-engine property from the given device tree
- * node and pass it to ingenic_ecc_get to do the work.
+ * analde and pass it to ingenic_ecc_get to do the work.
  *
  * Return: a pointer to ingenic_ecc, errors are encoded into the pointer.
  * PTR_ERR(-EPROBE_DEFER) if the device hasn't been initialised yet.
  */
-struct ingenic_ecc *of_ingenic_ecc_get(struct device_node *of_node)
+struct ingenic_ecc *of_ingenic_ecc_get(struct device_analde *of_analde)
 {
 	struct ingenic_ecc *ecc = NULL;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_parse_phandle(of_node, "ecc-engine", 0);
+	np = of_parse_phandle(of_analde, "ecc-engine", 0);
 
 	/*
-	 * If the ecc-engine property is not found, check for the deprecated
+	 * If the ecc-engine property is analt found, check for the deprecated
 	 * ingenic,bch-controller property
 	 */
 	if (!np)
-		np = of_parse_phandle(of_node, "ingenic,bch-controller", 0);
+		np = of_parse_phandle(of_analde, "ingenic,bch-controller", 0);
 
 	if (np) {
 		ecc = ingenic_ecc_get(np);
-		of_node_put(np);
+		of_analde_put(np);
 	}
 	return ecc;
 }
@@ -131,7 +131,7 @@ int ingenic_ecc_probe(struct platform_device *pdev)
 
 	ecc = devm_kzalloc(dev, sizeof(*ecc), GFP_KERNEL);
 	if (!ecc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ecc->ops = device_get_match_data(dev);
 	if (!ecc->ops)

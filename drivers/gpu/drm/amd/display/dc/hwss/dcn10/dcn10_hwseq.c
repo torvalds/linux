@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -230,8 +230,8 @@ static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 	DTN_INFO("HUBP:  rc_hbe     dlg_vbe    min_d_y_n  rc_per_ht  rc_x_a_s "
 			"  dst_y_a_s  dst_y_pf   dst_y_vvb  dst_y_rvb  dst_y_vfl  dst_y_rfl  rf_pix_fq"
 			"  vratio_pf  vrat_pf_c  rc_pg_vbl  rc_pg_vbc  rc_mc_vbl  rc_mc_vbc  rc_pg_fll"
-			"  rc_pg_flc  rc_mc_fll  rc_mc_flc  pr_nom_l   pr_nom_c   rc_pg_nl   rc_pg_nc "
-			"  mr_nom_l   mr_nom_c   rc_mc_nl   rc_mc_nc   rc_ld_pl   rc_ld_pc   rc_ld_l  "
+			"  rc_pg_flc  rc_mc_fll  rc_mc_flc  pr_analm_l   pr_analm_c   rc_pg_nl   rc_pg_nc "
+			"  mr_analm_l   mr_analm_c   rc_mc_nl   rc_mc_nc   rc_ld_pl   rc_ld_pc   rc_ld_l  "
 			"  rc_ld_c    cha_cur0   ofst_cur1  cha_cur1   vr_af_vc0  ddrq_limt  x_rt_dlay"
 			"  x_rp_dlay  x_rr_sfl\n");
 	for (i = 0; i < pool->pipe_count; i++) {
@@ -250,11 +250,11 @@ static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 				dlg_regs->refcyc_per_pte_group_vblank_c, dlg_regs->refcyc_per_meta_chunk_vblank_l,
 				dlg_regs->refcyc_per_meta_chunk_vblank_c, dlg_regs->refcyc_per_pte_group_flip_l,
 				dlg_regs->refcyc_per_pte_group_flip_c, dlg_regs->refcyc_per_meta_chunk_flip_l,
-				dlg_regs->refcyc_per_meta_chunk_flip_c, dlg_regs->dst_y_per_pte_row_nom_l,
-				dlg_regs->dst_y_per_pte_row_nom_c, dlg_regs->refcyc_per_pte_group_nom_l,
-				dlg_regs->refcyc_per_pte_group_nom_c, dlg_regs->dst_y_per_meta_row_nom_l,
-				dlg_regs->dst_y_per_meta_row_nom_c, dlg_regs->refcyc_per_meta_chunk_nom_l,
-				dlg_regs->refcyc_per_meta_chunk_nom_c, dlg_regs->refcyc_per_line_delivery_pre_l,
+				dlg_regs->refcyc_per_meta_chunk_flip_c, dlg_regs->dst_y_per_pte_row_analm_l,
+				dlg_regs->dst_y_per_pte_row_analm_c, dlg_regs->refcyc_per_pte_group_analm_l,
+				dlg_regs->refcyc_per_pte_group_analm_c, dlg_regs->dst_y_per_meta_row_analm_l,
+				dlg_regs->dst_y_per_meta_row_analm_c, dlg_regs->refcyc_per_meta_chunk_analm_l,
+				dlg_regs->refcyc_per_meta_chunk_analm_c, dlg_regs->refcyc_per_line_delivery_pre_l,
 				dlg_regs->refcyc_per_line_delivery_pre_c, dlg_regs->refcyc_per_line_delivery_l,
 				dlg_regs->refcyc_per_line_delivery_c, dlg_regs->chunk_hdl_adjust_cur0, dlg_regs->dst_y_offset_cur1,
 				dlg_regs->chunk_hdl_adjust_cur1, dlg_regs->vready_after_vcount0, dlg_regs->dst_y_delta_drq_limit,
@@ -316,19 +316,19 @@ void dcn10_log_hw_state(struct dc *dc,
 					((s.igam_lut_mode == 1) ? "BypassFloat" :
 					((s.igam_lut_mode == 2) ? "RAM" :
 					((s.igam_lut_mode == 3) ? "RAM" :
-								 "Unknown"))),
+								 "Unkanalwn"))),
 				(s.dgam_lut_mode == 0) ? "Bypass" :
 					((s.dgam_lut_mode == 1) ? "sRGB" :
 					((s.dgam_lut_mode == 2) ? "Ycc" :
 					((s.dgam_lut_mode == 3) ? "RAM" :
 					((s.dgam_lut_mode == 4) ? "RAM" :
-								 "Unknown")))),
+								 "Unkanalwn")))),
 				(s.rgam_lut_mode == 0) ? "Bypass" :
 					((s.rgam_lut_mode == 1) ? "sRGB" :
 					((s.rgam_lut_mode == 2) ? "Ycc" :
 					((s.rgam_lut_mode == 3) ? "RAM" :
 					((s.rgam_lut_mode == 4) ? "RAM" :
-								 "Unknown")))),
+								 "Unkanalwn")))),
 				s.gamut_remap_mode,
 				s.gamut_remap_c11_c12,
 				s.gamut_remap_c13_c14,
@@ -598,7 +598,7 @@ void dcn10_disable_vga(
 	REG_WRITE(D3VGA_CONTROL, 0);
 	REG_WRITE(D4VGA_CONTROL, 0);
 
-	/* HW Engineer's Notes:
+	/* HW Engineer's Analtes:
 	 *  During switch from vga->extended, if we set the VGA_TEST_ENABLE and
 	 *  then hit the VGA_TEST_RENDER_START, then the DCHUBP timing gets updated correctly.
 	 *
@@ -913,7 +913,7 @@ enum dc_status dcn10_enable_stream_timing(
 
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
 	 * back end is set up by for pipe0. Other children pipe share back end
-	 * with pipe 0. No program is needed.
+	 * with pipe 0. Anal program is needed.
 	 */
 	if (pipe_ctx->top_pipe != NULL)
 		return DC_OK;
@@ -954,7 +954,7 @@ enum dc_status dcn10_enable_stream_timing(
 
 #if 0 /* move to after enable_crtc */
 	/* TODO: OPP FMT, ABM. etc. should be done here. */
-	/* or FPGA now. instance 0 only. TODO: move to opp.c */
+	/* or FPGA analw. instance 0 only. TODO: move to opp.c */
 
 	inst_offset = reg_offsets[pipe_ctx->stream_res.tg->inst].fmt;
 
@@ -993,7 +993,7 @@ enum dc_status dcn10_enable_stream_timing(
 		return DC_ERROR_UNEXPECTED;
 	}
 
-	/* TODO program crtc source select for non-virtual signal*/
+	/* TODO program crtc source select for analn-virtual signal*/
 	/* TODO program FMT */
 	/* TODO setup link_enc */
 	/* TODO set stream attributes */
@@ -1259,7 +1259,7 @@ void dcn10_plane_atomic_power_down(struct dc *dc,
 }
 
 /* disable HW used by plane.
- * note:  cannot disable until disconnect is complete
+ * analte:  cananalt disable until disconnect is complete
  */
 void dcn10_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
@@ -1280,7 +1280,7 @@ void dcn10_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 				false);
 
 	hubp->power_gated = true;
-	dc->optimized_required = false; /* We're powering off, no need to optimize */
+	dc->optimized_required = false; /* We're powering off, anal need to optimize */
 
 	hws->funcs.plane_atomic_power_down(dc,
 			pipe_ctx->plane_res.dpp,
@@ -1328,8 +1328,8 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		/* There is assumption that pipe_ctx is not mapping irregularly
-		 * to non-preferred front end. If pipe_ctx->stream is not NULL,
+		/* There is assumption that pipe_ctx is analt mapping irregularly
+		 * to analn-preferred front end. If pipe_ctx->stream is analt NULL,
 		 * we will use the pipe, so don't disable
 		 */
 		if (pipe_ctx->stream != NULL && can_apply_seamless_boot)
@@ -1355,7 +1355,7 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = dc->res_pool->hubps[i];
 
-		/* Do not need to reset for seamless boot */
+		/* Do analt need to reset for seamless boot */
 		if (pipe_ctx->stream != NULL && can_apply_seamless_boot)
 			continue;
 
@@ -1369,7 +1369,7 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->res_cap->num_opp; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		/* Cannot reset the MPC mux if seamless boot */
+		/* Cananalt reset the MPC mux if seamless boot */
 		if (pipe_ctx->stream != NULL && can_apply_seamless_boot)
 			continue;
 
@@ -1383,16 +1383,16 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		struct dpp *dpp = dc->res_pool->dpps[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		/* There is assumption that pipe_ctx is not mapping irregularly
-		 * to non-preferred front end. If pipe_ctx->stream is not NULL,
+		/* There is assumption that pipe_ctx is analt mapping irregularly
+		 * to analn-preferred front end. If pipe_ctx->stream is analt NULL,
 		 * we will use the pipe, so don't disable
 		 */
 		if (can_apply_seamless_boot &&
 			pipe_ctx->stream != NULL &&
 			pipe_ctx->stream_res.tg->funcs->is_tg_enabled(
 				pipe_ctx->stream_res.tg)) {
-			// Enable double buffering for OTG_BLANK no matter if
-			// seamless boot is enabled or not to suppress global sync
+			// Enable double buffering for OTG_BLANK anal matter if
+			// seamless boot is enabled or analt to suppress global sync
 			// signals when OTG blanked. This is to prevent pipe from
 			// requesting data while in PSR.
 			tg->funcs->tg_init(tg);
@@ -1447,7 +1447,7 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		// Step 1: To find out which OPTC is running & OPTC DSC is ON
 		// We can't use res_pool->res_cap->num_timing_generator to check
 		// Because it records display pipes default setting built in driver,
-		// not display pipes of the current chip.
+		// analt display pipes of the current chip.
 		// Some ASICs would be fused display pipes less than the default setting.
 		// In dcnxx_resource_construct function, driver would obatin real information.
 		for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
@@ -1458,7 +1458,7 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 				if (tg->funcs->get_dsc_status)
 					tg->funcs->get_dsc_status(tg, &optc_dsc_state);
 				// Only one OPTC with DSC is ON, so if we got one result, we would exit this block.
-				// non-zero value is DSC enabled
+				// analn-zero value is DSC enabled
 				if (optc_dsc_state != 0) {
 					tg->funcs->get_optc_source(tg, &num_opps, &opp_id_src0, &opp_id_src1);
 					break;
@@ -1527,7 +1527,7 @@ void dcn10_init_hw(struct dc *dc)
 					res_pool->ref_clocks.dccg_ref_clock_inKhz,
 					&res_pool->ref_clocks.dchub_ref_clock_inKhz);
 		} else {
-			// Not all ASICs have DCCG sw component
+			// Analt all ASICs have DCCG sw component
 			res_pool->ref_clocks.dccg_ref_clock_inKhz =
 					res_pool->ref_clocks.xtalin_clock_inKhz;
 			res_pool->ref_clocks.dchub_ref_clock_inKhz =
@@ -1563,9 +1563,9 @@ void dcn10_init_hw(struct dc *dc)
 		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	/* If taking control over from VBIOS, we may want to optimize our first
-	 * mode set, so we need to skip powering down pipes until we know which
+	 * mode set, so we need to skip powering down pipes until we kanalw which
 	 * pipes we want to use.
-	 * Otherwise, if taking control is not possible, we need to power
+	 * Otherwise, if taking control is analt possible, we need to power
 	 * everything down.
 	 */
 	if (dcb->funcs->is_accelerated_mode(dcb) || !dc->config.seamless_boot_edp_requested) {
@@ -1617,8 +1617,8 @@ void dcn10_init_hw(struct dc *dc)
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
 
-	if (dc->clk_mgr->funcs->notify_wm_ranges)
-		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
+	if (dc->clk_mgr->funcs->analtify_wm_ranges)
+		dc->clk_mgr->funcs->analtify_wm_ranges(dc->clk_mgr);
 }
 
 /* In headless boot cases, DIG may be turned
@@ -1662,7 +1662,7 @@ void dcn10_power_down_on_boot(struct dc *dc)
 	/*
 	 * Call update_clocks with empty context
 	 * to send DISPLAY_OFF
-	 * Otherwise DISPLAY_OFF may not be asserted
+	 * Otherwise DISPLAY_OFF may analt be asserted
 	 */
 	if (dc->clk_mgr->funcs->set_low_power_state)
 		dc->clk_mgr->funcs->set_low_power_state(dc->clk_mgr);
@@ -1716,7 +1716,7 @@ static bool patch_address_for_sbs_tb_stereo(
 		plane_state->address.grph_stereo.right_addr;
 		return true;
 	} else {
-		if (pipe_ctx->stream->view_format != VIEW_3D_FORMAT_NONE &&
+		if (pipe_ctx->stream->view_format != VIEW_3D_FORMAT_ANALNE &&
 			plane_state->address.type != PLN_ADDR_TYPE_GRPH_STEREO) {
 			plane_state->address.type = PLN_ADDR_TYPE_GRPH_STEREO;
 			plane_state->address.grph_stereo.right_addr =
@@ -1814,7 +1814,7 @@ static void log_tf(struct dc_context *ctx,
 				struct dc_transfer_func *tf, uint32_t hw_points_num)
 {
 	// DC_LOG_GAMMA is default logging of all hw points
-	// DC_LOG_ALL_GAMMA logs all points, not only hw points
+	// DC_LOG_ALL_GAMMA logs all points, analt only hw points
 	// DC_LOG_ALL_TF_POINTS logs all channels of the tf
 	int i = 0;
 
@@ -2009,7 +2009,7 @@ static bool wait_for_reset_trigger_to_occur(
 	for (i = 0; i < frames_to_wait_on_triggered_reset; i++) {
 
 		if (!tg->funcs->is_counter_moving(tg)) {
-			DC_ERROR("TG counter is not moving!\n");
+			DC_ERROR("TG counter is analt moving!\n");
 			break;
 		}
 
@@ -2033,13 +2033,13 @@ static bool wait_for_reset_trigger_to_occur(
 }
 
 static uint64_t reduceSizeAndFraction(uint64_t *numerator,
-				      uint64_t *denominator,
+				      uint64_t *deanalminator,
 				      bool checkUint32Bounary)
 {
 	int i;
 	bool ret = checkUint32Bounary == false;
 	uint64_t max_int32 = 0xffffffff;
-	uint64_t num, denom;
+	uint64_t num, deanalm;
 	static const uint16_t prime_numbers[] = {
 		2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43,
 		47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103,
@@ -2059,26 +2059,26 @@ static uint64_t reduceSizeAndFraction(uint64_t *numerator,
 	int count = ARRAY_SIZE(prime_numbers);
 
 	num = *numerator;
-	denom = *denominator;
+	deanalm = *deanalminator;
 	for (i = 0; i < count; i++) {
-		uint32_t num_remainder, denom_remainder;
-		uint64_t num_result, denom_result;
+		uint32_t num_remainder, deanalm_remainder;
+		uint64_t num_result, deanalm_result;
 		if (checkUint32Bounary &&
-			num <= max_int32 && denom <= max_int32) {
+			num <= max_int32 && deanalm <= max_int32) {
 			ret = true;
 			break;
 		}
 		do {
 			num_result = div_u64_rem(num, prime_numbers[i], &num_remainder);
-			denom_result = div_u64_rem(denom, prime_numbers[i], &denom_remainder);
-			if (num_remainder == 0 && denom_remainder == 0) {
+			deanalm_result = div_u64_rem(deanalm, prime_numbers[i], &deanalm_remainder);
+			if (num_remainder == 0 && deanalm_remainder == 0) {
 				num = num_result;
-				denom = denom_result;
+				deanalm = deanalm_result;
 			}
-		} while (num_remainder == 0 && denom_remainder == 0);
+		} while (num_remainder == 0 && deanalm_remainder == 0);
 	}
 	*numerator = num;
-	*denominator = denom;
+	*deanalminator = deanalm;
 	return ret;
 }
 
@@ -2175,13 +2175,13 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 					 * this timing synchronizable
 					 */
 					DC_SYNC_INFO("Failed to reduce DTO parameters\n");
-					grouped_pipes[i]->stream->has_non_synchronizable_pclk = true;
+					grouped_pipes[i]->stream->has_analn_synchronizable_pclk = true;
 				}
 			}
 		}
 
 		for (i = 0; i < group_size; i++) {
-			if (i != embedded && !grouped_pipes[i]->stream->has_non_synchronizable_pclk) {
+			if (i != embedded && !grouped_pipes[i]->stream->has_analn_synchronizable_pclk) {
 				dc->res_pool->dp_clock_source->funcs->override_dp_pix_clk(
 					dc->res_pool->dp_clock_source,
 					grouped_pipes[i]->stream_res.tg->inst,
@@ -2233,7 +2233,7 @@ void dcn10_enable_vblanks_synchronization(
 		if (grouped_pipes[i]->stream == NULL)
 			continue;
 		grouped_pipes[i]->stream->vblank_synchronized = false;
-		grouped_pipes[i]->stream->has_non_synchronizable_pclk = false;
+		grouped_pipes[i]->stream->has_analn_synchronizable_pclk = false;
 	}
 
 	DC_SYNC_INFO("Aligning DP DTOs\n");
@@ -2244,7 +2244,7 @@ void dcn10_enable_vblanks_synchronization(
 
 	if (master >= 0) {
 		for (i = 0; i < group_size; i++) {
-			if (i != master && !grouped_pipes[i]->stream->has_non_synchronizable_pclk)
+			if (i != master && !grouped_pipes[i]->stream->has_analn_synchronizable_pclk)
 				grouped_pipes[i]->stream_res.tg->funcs->align_vblanks(
 					grouped_pipes[master]->stream_res.tg,
 					grouped_pipes[i]->stream_res.tg,
@@ -2532,7 +2532,7 @@ static bool dcn10_is_rear_mpo_fix_required(struct pipe_ctx *pipe_ctx, enum dc_co
 			while (top->top_pipe)
 				top = top->top_pipe; // Traverse to top pipe_ctx
 			if (top->plane_state && top->plane_state->layer_index == 0)
-				return true; // Front MPO plane not hidden
+				return true; // Front MPO plane analt hidden
 		}
 	}
 	return false;
@@ -2652,15 +2652,15 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 	/*
 	 * TODO: remove hack
-	 * Note: currently there is a bug in init_hw such that
+	 * Analte: currently there is a bug in init_hw such that
 	 * on resume from hibernate, BIOS sets up MPCC0, and
-	 * we do mpcc_remove but the mpcc cannot go to idle
+	 * we do mpcc_remove but the mpcc cananalt go to idle
 	 * after remove. This cause us to pick mpcc1 here,
-	 * which causes a pstate hang for yet unknown reason.
+	 * which causes a pstate hang for yet unkanalwn reason.
 	 */
 	mpcc_id = hubp->inst;
 
-	/* If there is no full update, don't need to touch MPC tree*/
+	/* If there is anal full update, don't need to touch MPC tree*/
 	if (!pipe_ctx->plane_state->update_flags.bits.full_update) {
 		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);
 		dc->hwss.update_visual_confirm_color(dc, pipe_ctx, mpcc_id);
@@ -2718,7 +2718,7 @@ static void dcn10_update_dchubp_dpp(
 	bool should_divided_by_2 = false;
 
 	/* depends on DML calculation, DPP clock value may change dynamically */
-	/* If request max dpp clk is lower than current dispclk, no need to
+	/* If request max dpp clk is lower than current dispclk, anal need to
 	 * divided by 2
 	 */
 	if (plane_state->update_flags.bits.full_update) {
@@ -2730,11 +2730,11 @@ static void dcn10_update_dchubp_dpp(
 		 * dispclk will put in use after optimize_bandwidth when
 		 * ramp_up_dispclk_with_dpp is called.
 		 * there are two places for dppclk be put in use. One location
-		 * is the same as the location as dispclk. Another is within
+		 * is the same as the location as dispclk. Aanalther is within
 		 * update_dchubp_dpp which happens between pre_bandwidth and
 		 * optimize_bandwidth.
 		 * dppclk updated within update_dchubp_dpp will cause new
-		 * clock values of dispclk and dppclk not be in use at the same
+		 * clock values of dispclk and dppclk analt be in use at the same
 		 * time. when clocks are decreased, this may cause dppclk is
 		 * lower than previous configuration and let pipe stuck.
 		 * for example, eDP + external dp,  change resolution of DP from
@@ -2969,7 +2969,7 @@ void dcn10_program_pipe(
 	/* dcn10_translate_regamma_to_hw_format takes 750us to finish
 	 * only do gamma programming for full update.
 	 * TODO: This can be further optimized/cleaned up
-	 * Always call this for now since it does memcmp inside before
+	 * Always call this for analw since it does memcmp inside before
 	 * doing heavy calculation and programming
 	 */
 	if (pipe_ctx->plane_state->update_flags.bits.full_update)
@@ -2999,7 +2999,7 @@ void dcn10_wait_for_pending_cleared(struct dc *dc,
 			/*
 			 * Wait for VBLANK then VACTIVE to ensure we get VUPDATE.
 			 * For some reason waiting for OTG_UPDATE_PENDING cleared
-			 * seems to not trigger the update right away, and if we
+			 * seems to analt trigger the update right away, and if we
 			 * lock again before VUPDATE then we don't get a separated
 			 * operation.
 			 */
@@ -3087,7 +3087,7 @@ void dcn10_prepare_bandwidth(
 		dcn_get_soc_clks(
 			dc, &min_fclk_khz, &min_dcfclk_khz, &socclk_khz);
 		DC_FP_END();
-		dcn_bw_notify_pplib_of_wm_ranges(
+		dcn_bw_analtify_pplib_of_wm_ranges(
 			dc, min_fclk_khz, min_dcfclk_khz, socclk_khz);
 	}
 
@@ -3126,7 +3126,7 @@ void dcn10_optimize_bandwidth(
 		dcn_get_soc_clks(
 			dc, &min_fclk_khz, &min_dcfclk_khz, &socclk_khz);
 		DC_FP_END();
-		dcn_bw_notify_pplib_of_wm_ranges(
+		dcn_bw_analtify_pplib_of_wm_ranges(
 			dc, min_fclk_khz, min_dcfclk_khz, socclk_khz);
 	}
 
@@ -3141,7 +3141,7 @@ void dcn10_set_drr(struct pipe_ctx **pipe_ctx,
 	struct drr_params params = {0};
 	// DRR set trigger event mapped to OTG_TRIG_A (bit 11) for manual control flow
 	unsigned int event_triggers = 0x800;
-	// Note DRR trigger events are generated regardless of whether num frames met.
+	// Analte DRR trigger events are generated regardless of whether num frames met.
 	unsigned int num_frames = 2;
 
 	params.vertical_total_max = adjust.v_total_max;
@@ -3203,14 +3203,14 @@ static void dcn10_config_stereo_parameters(
 	enum view_3d_format view_format = stream->view_format;
 	enum dc_timing_3d_format timing_3d_format =\
 			stream->timing.timing_3d_format;
-	bool non_stereo_timing = false;
+	bool analn_stereo_timing = false;
 
-	if (timing_3d_format == TIMING_3D_FORMAT_NONE ||
+	if (timing_3d_format == TIMING_3D_FORMAT_ANALNE ||
 		timing_3d_format == TIMING_3D_FORMAT_SIDE_BY_SIDE ||
 		timing_3d_format == TIMING_3D_FORMAT_TOP_AND_BOTTOM)
-		non_stereo_timing = true;
+		analn_stereo_timing = true;
 
-	if (non_stereo_timing == false &&
+	if (analn_stereo_timing == false &&
 		view_format == VIEW_3D_FORMAT_FRAME_SEQUENTIAL) {
 
 		flags->PROGRAM_STEREO         = 1;
@@ -3375,7 +3375,7 @@ static bool dcn10_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 	int cur_layer = pipe_ctx->plane_state->layer_index;
 
 	/**
-	 * Disable the cursor if there's another pipe above this with a
+	 * Disable the cursor if there's aanalther pipe above this with a
 	 * plane that contains this pipe's viewport to prevent double cursor
 	 * and incorrect scaling artifacts.
 	 */
@@ -3393,7 +3393,7 @@ static bool dcn10_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 		split_pipe = test_pipe;
 
 		/**
-		 * There is another half plane on same layer because of
+		 * There is aanalther half plane on same layer because of
 		 * pipe-split, merge together per same height.
 		 */
 		for (split_pipe = pipe_ctx->top_pipe; split_pipe;
@@ -3481,7 +3481,7 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	 * This translation isn't affected by scaling so it needs to be
 	 * done *after* we adjust the position for the scale factor.
 	 *
-	 * This is only done by opt-in for now since there are still
+	 * This is only done by opt-in for analw since there are still
 	 * some usecases like tiled display that might enable the
 	 * cursor on both streams while expecting dc to clip it.
 	 */
@@ -3562,12 +3562,12 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		/**
 		 * Display groups that are 1xnY, have pos_cpy.x > 2 * viewport.height
 		 * For pipe split cases:
-		 * - apply offset of viewport.y to normalize pos_cpy.x
+		 * - apply offset of viewport.y to analrmalize pos_cpy.x
 		 * - calculate the pos_cpy.y as before
 		 * - shift pos_cpy.y back by same offset to get final value
 		 * - since we iterate through both pipes, use the lower
 		 *   viewport.y for offset
-		 * For non pipe split cases, use the same calculation for
+		 * For analn pipe split cases, use the same calculation for
 		 *  pos_cpy.y as the 180 degree rotation case below,
 		 *  but use pos_cpy.x as our input because we are rotating
 		 *  270 degrees
@@ -3692,7 +3692,7 @@ void dcn10_set_cursor_sdr_white_level(struct pipe_ctx *pipe_ctx)
 /*
  * apply_front_porch_workaround  TODO FPGA still need?
  *
- * This is a workaround for a bug that has existed since R5xx and has not been
+ * This is a workaround for a bug that has existed since R5xx and has analt been
  * fixed keep Front porch at minimum 2 for Interlaced mode or 1 for progressive.
  */
 static void apply_front_porch_workaround(

@@ -92,8 +92,8 @@ void pcap_set_ts_bits(struct pcap_chip *, u32);
 #define PCAP_IRQ_WL		4	/* ADC below low limit */
 #define PCAP_IRQ_TODA		5	/* Time of day alarm */
 #define PCAP_IRQ_USB4V		6	/* USB above 4V */
-#define PCAP_IRQ_ONOFF		7	/* On/Off button */
-#define PCAP_IRQ_ONOFF2		8	/* On/Off button 2 */
+#define PCAP_IRQ_OANALFF		7	/* On/Off button */
+#define PCAP_IRQ_OANALFF2		8	/* On/Off button 2 */
 #define PCAP_IRQ_USB1V		9	/* USB above 1V */
 #define PCAP_IRQ_MOBPORT	10
 #define PCAP_IRQ_MIC		11	/* Mic attach/HS button */
@@ -186,7 +186,7 @@ void pcap_set_ts_bits(struct pcap_chip *, u32);
 #define PCAP_ADC_CH_TS_Y1		5
 #define PCAP_ADC_CH_TS_Y2		6
 
-#define PCAP_ADC_T_NOW			0
+#define PCAP_ADC_T_ANALW			0
 #define PCAP_ADC_T_IN_BURST		1
 #define PCAP_ADC_T_OUT_BURST		2
 
@@ -198,7 +198,7 @@ void pcap_set_ts_bits(struct pcap_chip *, u32);
 #define PCAP_ADC_TS_M_PLATE_X		3
 #define PCAP_ADC_TS_M_PLATE_Y		4
 #define PCAP_ADC_TS_M_STANDBY		5
-#define PCAP_ADC_TS_M_NONTS		6
+#define PCAP_ADC_TS_M_ANALNTS		6
 
 #define PCAP_ADR_ADD1_MASK		0x000003ff
 #define PCAP_ADR_ADD1_SHIFT		0

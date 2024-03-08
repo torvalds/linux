@@ -13,7 +13,7 @@
 
 #define UWORD_CPYBUF_SIZE 1024U
 #define INVLD_UWORD 0xffffffffffull
-#define PID_MINOR_REV 0xf
+#define PID_MIANALR_REV 0xf
 #define PID_MAJOR_REV (0xf << 4)
 
 static int qat_uclo_init_ae_data(struct icp_qat_uclo_objhandle *obj_handle,
@@ -38,7 +38,7 @@ static int qat_uclo_init_ae_data(struct icp_qat_uclo_objhandle *obj_handle,
 	}
 	ae_slice->region = kzalloc(sizeof(*ae_slice->region), GFP_KERNEL);
 	if (!ae_slice->region)
-		return -ENOMEM;
+		return -EANALMEM;
 	ae_slice->page = kzalloc(sizeof(*ae_slice->page), GFP_KERNEL);
 	if (!ae_slice->page)
 		goto out_err;
@@ -50,7 +50,7 @@ static int qat_uclo_init_ae_data(struct icp_qat_uclo_objhandle *obj_handle,
 out_err:
 	kfree(ae_slice->region);
 	ae_slice->region = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int qat_uclo_free_ae_data(struct icp_qat_uclo_aedata *ae_data)
@@ -89,7 +89,7 @@ static int qat_uclo_check_uof_format(struct icp_qat_uof_filehdr *hdr)
 		return -EINVAL;
 	}
 	if (min != ICP_QAT_UOF_MINVER || maj != ICP_QAT_UOF_MAJVER) {
-		pr_err("QAT: bad UOF version, major 0x%x, minor 0x%x\n",
+		pr_err("QAT: bad UOF version, major 0x%x, mianalr 0x%x\n",
 		       maj, min);
 		return -EINVAL;
 	}
@@ -114,7 +114,7 @@ static int qat_uclo_check_suof_format(struct icp_qat_suof_filehdr *suof_hdr)
 		return -EINVAL;
 	}
 	if (maj != ICP_QAT_SUOF_MAJVER || min != ICP_QAT_SUOF_MINVER) {
-		pr_err("QAT: bad SUOF version, major 0x%x, minor 0x%x\n",
+		pr_err("QAT: bad SUOF version, major 0x%x, mianalr 0x%x\n",
 		       maj, min);
 		return -EINVAL;
 	}
@@ -264,7 +264,7 @@ static int qat_uclo_create_batch_init_list(struct icp_qat_fw_loader_handle
 	if (!init_header) {
 		init_header = kzalloc(sizeof(*init_header), GFP_KERNEL);
 		if (!init_header)
-			return -ENOMEM;
+			return -EANALMEM;
 		init_header->size = 1;
 		*init_tab_base = init_header;
 		flag = 1;
@@ -289,7 +289,7 @@ static int qat_uclo_create_batch_init_list(struct icp_qat_fw_loader_handle
 	}
 	return 0;
 out_err:
-	/* Do not free the list head unless we allocated it. */
+	/* Do analt free the list head unless we allocated it. */
 	tail_old = tail_old->next;
 	if (flag) {
 		kfree(*init_tab_base);
@@ -301,7 +301,7 @@ out_err:
 		kfree(tail_old);
 		tail_old = mem_init;
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int qat_uclo_init_lmem_seg(struct icp_qat_fw_loader_handle *handle,
@@ -380,7 +380,7 @@ static int qat_uclo_init_ustore(struct icp_qat_fw_loader_handle *handle,
 	fill_data = kcalloc(ICP_QAT_UCLO_MAX_USTORE, sizeof(u64),
 			    GFP_KERNEL);
 	if (!fill_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < ICP_QAT_UCLO_MAX_USTORE; i++)
 		memcpy(&fill_data[i], &uof_image->fill_pattern,
 		       sizeof(u64));
@@ -676,7 +676,7 @@ static int qat_uclo_map_ae(struct icp_qat_fw_loader_handle *handle, int max_ae)
 		}
 	}
 	if (!mflag) {
-		pr_err("QAT: uimage uses AE not set\n");
+		pr_err("QAT: uimage uses AE analt set\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -798,7 +798,7 @@ static int qat_uclo_init_reg(struct icp_qat_fw_loader_handle *handle,
 	case ICP_NEIGH_REL:
 		return qat_hal_init_nn(handle, ae, ctx_mask, reg_addr, value);
 	default:
-		pr_err("QAT: UOF uses not supported reg type 0x%x\n", reg_type);
+		pr_err("QAT: UOF uses analt supported reg type 0x%x\n", reg_type);
 		return -EFAULT;
 	}
 	return 0;
@@ -847,10 +847,10 @@ static int qat_uclo_init_reg_sym(struct icp_qat_fw_loader_handle *handle,
 					  exp_res);
 			break;
 		case ICP_QAT_UOF_INIT_EXPR:
-			pr_err("QAT: INIT_EXPR feature not supported\n");
+			pr_err("QAT: INIT_EXPR feature analt supported\n");
 			return -EINVAL;
 		case ICP_QAT_UOF_INIT_EXPR_ENDIAN_SWAP:
-			pr_err("QAT: INIT_EXPR_ENDIAN_SWAP feature not supported\n");
+			pr_err("QAT: INIT_EXPR_ENDIAN_SWAP feature analt supported\n");
 			return -EINVAL;
 		default:
 			break;
@@ -994,7 +994,7 @@ static int qat_uclo_parse_uof_obj(struct icp_qat_fw_loader_handle *handle)
 	obj_handle->uword_in_bytes = 6;
 	obj_handle->prod_type = qat_uclo_get_dev_type(handle);
 	obj_handle->prod_rev = PID_MAJOR_REV |
-			(PID_MINOR_REV & handle->hal_handle->revision_id);
+			(PID_MIANALR_REV & handle->hal_handle->revision_id);
 	if (qat_uclo_check_uof_compat(obj_handle)) {
 		pr_err("QAT: UOF incompatible\n");
 		return -EINVAL;
@@ -1002,7 +1002,7 @@ static int qat_uclo_parse_uof_obj(struct icp_qat_fw_loader_handle *handle)
 	obj_handle->uword_buf = kcalloc(UWORD_CPYBUF_SIZE, sizeof(u64),
 					GFP_KERNEL);
 	if (!obj_handle->uword_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	obj_handle->ustore_phy_size = ICP_QAT_UCLO_MAX_USTORE;
 	if (!obj_handle->obj_hdr->file_buff ||
 	    !qat_uclo_map_str_table(obj_handle->obj_hdr, ICP_QAT_UOF_STRT,
@@ -1114,7 +1114,7 @@ static int qat_uclo_check_simg_compat(struct icp_qat_fw_loader_handle *handle,
 	prod_type = qat_uclo_get_dev_type(handle);
 	img_ae_mode = (struct icp_qat_simg_ae_mode *)img_hdr->css_simg;
 	prod_rev = PID_MAJOR_REV |
-			 (PID_MINOR_REV & handle->hal_handle->revision_id);
+			 (PID_MIANALR_REV & handle->hal_handle->revision_id);
 	if (img_ae_mode->dev_type != prod_type) {
 		pr_err("QAT: incompatible product type %x\n",
 		       img_ae_mode->dev_type);
@@ -1185,7 +1185,7 @@ static int qat_uclo_map_suof(struct icp_qat_fw_loader_handle *handle,
 				       sizeof(img_header),
 				       GFP_KERNEL);
 		if (!suof_img_hdr)
-			return -ENOMEM;
+			return -EANALMEM;
 		suof_handle->img_table.simg_hdr = suof_img_hdr;
 
 		for (i = 0; i < suof_handle->img_table.num_simgs; i++) {
@@ -1284,7 +1284,7 @@ static int qat_uclo_broadcast_load_fw(struct icp_qat_fw_loader_handle *handle,
 
 	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
 		if (qat_hal_check_ae_active(handle, (unsigned char)ae)) {
-			pr_err("QAT: Broadcast load failed. AE is not enabled or active.\n");
+			pr_err("QAT: Broadcast load failed. AE is analt enabled or active.\n");
 			return -EINVAL;
 		}
 
@@ -1333,7 +1333,7 @@ static int qat_uclo_simg_alloc(struct icp_qat_fw_loader_handle *handle,
 	vptr = dma_alloc_coherent(&handle->pci_dev->dev,
 				  size, &ptr, GFP_KERNEL);
 	if (!vptr)
-		return -ENOMEM;
+		return -EANALMEM;
 	dram_desc->dram_base_addr_v = vptr;
 	dram_desc->dram_bus_addr = ptr;
 	dram_desc->dram_size = size;
@@ -1432,7 +1432,7 @@ static int qat_uclo_map_auth_fw(struct icp_qat_fw_loader_handle *handle,
 		 size + ICP_QAT_CSS_FWSK_PAD_LEN(handle) + simg_offset;
 	if (qat_uclo_simg_alloc(handle, &img_desc, length)) {
 		pr_err("QAT: error, allocate continuous dram fail\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	auth_chunk = img_desc.dram_base_addr_v;
@@ -1576,7 +1576,7 @@ static int qat_uclo_map_suof_obj(struct icp_qat_fw_loader_handle *handle,
 
 	suof_handle = kzalloc(sizeof(*suof_handle), GFP_KERNEL);
 	if (!suof_handle)
-		return -ENOMEM;
+		return -EANALMEM;
 	handle->sobj_handle = suof_handle;
 	if (qat_uclo_map_suof(handle, addr_ptr, mem_size)) {
 		qat_uclo_del_suof(handle);
@@ -1620,7 +1620,7 @@ static int qat_uclo_map_uof_obj(struct icp_qat_fw_loader_handle *handle,
 
 	objhdl = kzalloc(sizeof(*objhdl), GFP_KERNEL);
 	if (!objhdl)
-		return -ENOMEM;
+		return -EANALMEM;
 	objhdl->obj_buf = kmemdup(addr_ptr, mem_size, GFP_KERNEL);
 	if (!objhdl->obj_buf)
 		goto out_objbuf_err;
@@ -1645,7 +1645,7 @@ out_objhdr_err:
 	kfree(objhdl->obj_buf);
 out_objbuf_err:
 	kfree(objhdl);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int qat_uclo_map_mof_file_hdr(struct icp_qat_fw_loader_handle *handle,
@@ -1701,7 +1701,7 @@ static int qat_uclo_seek_obj_inside_mof(struct icp_qat_mof_handle *mobj_handle,
 		}
 	}
 
-	pr_err("QAT: object %s is not found inside MOF\n", obj_name);
+	pr_err("QAT: object %s is analt found inside MOF\n", obj_name);
 	return -EINVAL;
 }
 
@@ -1749,7 +1749,7 @@ static int qat_uclo_map_objs_from_mof(struct icp_qat_mof_handle *mobj_handle)
 	mobj_hdr = kzalloc((uobj_chunk_num + sobj_chunk_num) *
 			   sizeof(*mobj_hdr), GFP_KERNEL);
 	if (!mobj_hdr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mobj_handle->obj_table.obj_hdr = mobj_hdr;
 	valid_chunk = &mobj_handle->obj_table.num_objs;
@@ -1829,7 +1829,7 @@ static int qat_uclo_check_mof_format(struct icp_qat_mof_file_hdr *mof_hdr)
 		return -EINVAL;
 	}
 	if (maj != ICP_QAT_MOF_MAJVER || min != ICP_QAT_MOF_MINVER) {
-		pr_err("QAT: bad MOF version, major 0x%x, minor 0x%x\n",
+		pr_err("QAT: bad MOF version, major 0x%x, mianalr 0x%x\n",
 		       maj, min);
 		return -EINVAL;
 	}
@@ -1860,7 +1860,7 @@ static int qat_uclo_map_mof_obj(struct icp_qat_fw_loader_handle *handle,
 
 	mobj_handle = kzalloc(sizeof(*mobj_handle), GFP_KERNEL);
 	if (!mobj_handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	handle->mobj_handle = mobj_handle;
 	ret = qat_uclo_map_mof_file_hdr(handle, mof_ptr, mof_size);

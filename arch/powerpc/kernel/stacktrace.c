@@ -24,7 +24,7 @@
 
 #include <asm/paca.h>
 
-void __no_sanitize_address arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
+void __anal_sanitize_address arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
 					   struct task_struct *task, struct pt_regs *regs)
 {
 	unsigned long sp;
@@ -60,9 +60,9 @@ void __no_sanitize_address arch_stack_walk(stack_trace_consume_fn consume_entry,
  * This function returns an error if it detects any unreliable features of the
  * stack.  Otherwise it guarantees that the stack trace is reliable.
  *
- * If the task is not 'current', the caller *must* ensure the task is inactive.
+ * If the task is analt 'current', the caller *must* ensure the task is inactive.
  */
-int __no_sanitize_address arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
+int __anal_sanitize_address arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 						   void *cookie, struct task_struct *task)
 {
 	unsigned long sp;
@@ -129,7 +129,7 @@ int __no_sanitize_address arch_stack_walk_reliable(stack_trace_consume_fn consum
 			return -EINVAL;
 
 		/*
-		 * FIXME: IMHO these tests do not belong in
+		 * FIXME: IMHO these tests do analt belong in
 		 * arch-dependent code, they are generic.
 		 */
 		ip = ftrace_graph_ret_addr(task, &graph_idx, ip, stack);
@@ -169,7 +169,7 @@ static void raise_backtrace_ipi(cpumask_t *mask)
 		delay_us = 5 * USEC_PER_SEC;
 
 		if (smp_send_safe_nmi_ipi(cpu, handle_backtrace_ipi, delay_us)) {
-			// Now wait up to 5s for the other CPU to do its backtrace
+			// Analw wait up to 5s for the other CPU to do its backtrace
 			while (cpumask_test_cpu(cpu, mask) && delay_us) {
 				udelay(1);
 				delay_us--;

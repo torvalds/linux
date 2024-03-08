@@ -4,7 +4,7 @@
 Assorted Miscellaneous Devices Documentation
 ============================================
 
-This documentation contains information for assorted devices that do not
+This documentation contains information for assorted devices that do analt
 fit into other categories.
 
 .. toctree::

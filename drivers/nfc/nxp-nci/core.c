@@ -75,7 +75,7 @@ static int nxp_nci_send(struct nci_dev *ndev, struct sk_buff *skb)
 
 	if (!info->phy_ops->write) {
 		kfree_skb(skb);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (info->mode != NXP_NCI_MODE_NCI) {
@@ -141,7 +141,7 @@ int nxp_nci_probe(void *phy_id, struct device *pdev,
 
 	info = devm_kzalloc(pdev, sizeof(struct nxp_nci_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->phy_id = phy_id;
 	info->pdev = pdev;
@@ -162,7 +162,7 @@ int nxp_nci_probe(void *phy_id, struct device *pdev,
 	info->ndev = nci_allocate_device(&nxp_nci_ops, NXP_NCI_NFC_PROTOCOLS,
 					 NXP_NCI_HDR_LEN, 0);
 	if (!info->ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nci_set_parent_dev(info->ndev, pdev);
 	nci_set_drvdata(info->ndev, info);

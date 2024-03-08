@@ -11,7 +11,7 @@
 #include <linux/uio.h>
 
 #define OS_INFO_VERSION_MAJOR	1
-#define OS_INFO_VERSION_MINOR	1
+#define OS_INFO_VERSION_MIANALR	1
 #define OS_INFO_MAGIC		0x4f53494e464f535aULL /* OSINFOSZ */
 
 #define OS_INFO_VMCOREINFO	0
@@ -30,7 +30,7 @@ struct os_info {
 	u64	magic;
 	u32	csum;
 	u16	version_major;
-	u16	version_minor;
+	u16	version_mianalr;
 	u64	crashkernel_addr;
 	u64	crashkernel_size;
 	struct os_info_entry entry[3];

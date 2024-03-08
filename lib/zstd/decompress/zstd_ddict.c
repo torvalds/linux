@@ -9,7 +9,7 @@
  */
 
 /* zstd_ddict.c :
- * concentrates all logic that needs to know the internals of ZSTD_DDict object */
+ * concentrates all logic that needs to kanalw the internals of ZSTD_DDict object */
 
 /*-*******************************************************
 *  Dependencies
@@ -218,7 +218,7 @@ size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
 
 /*! ZSTD_estimateDDictSize() :
  *  Estimate amount of memory that will be needed to create a dictionary for decompression.
- *  Note : dictionary created by reference using ZSTD_dlm_byRef are smaller */
+ *  Analte : dictionary created by reference using ZSTD_dlm_byRef are smaller */
 size_t ZSTD_estimateDDictSize(size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod)
 {
     return sizeof(ZSTD_DDict) + (dictLoadMethod == ZSTD_dlm_byRef ? 0 : dictSize);
@@ -232,8 +232,8 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict)
 
 /*! ZSTD_getDictID_fromDDict() :
  *  Provides the dictID of the dictionary loaded into `ddict`.
- *  If @return == 0, the dictionary is not conformant to Zstandard specification, or empty.
- *  Non-conformant dictionaries can still be loaded, but as content-only dictionaries. */
+ *  If @return == 0, the dictionary is analt conformant to Zstandard specification, or empty.
+ *  Analn-conformant dictionaries can still be loaded, but as content-only dictionaries. */
 unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict)
 {
     if (ddict==NULL) return 0;

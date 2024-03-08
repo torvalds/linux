@@ -65,7 +65,7 @@ static int create_map(struct test_info *ti, char *filename, struct map **map_p)
 static int test_dso(struct dso *dso)
 {
 	struct symbol *last_sym = NULL;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	int ret = TEST_OK;
 
 	/* dso__fprintf() prints all the symbols */
@@ -73,7 +73,7 @@ static int test_dso(struct dso *dso)
 		dso__fprintf(dso, stderr);
 
 	for (nd = rb_first_cached(&dso->symbols); nd; nd = rb_next(nd)) {
-		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
+		struct symbol *sym = rb_entry(nd, struct symbol, rb_analde);
 
 		if (sym->type != STT_FUNC && sym->type != STT_GNU_IFUNC)
 			continue;
@@ -118,7 +118,7 @@ static int test_file(struct test_info *ti, char *filename)
 	}
 
 	if (nr == 0) {
-		pr_debug("DSO has no symbols!\n");
+		pr_debug("DSO has anal symbols!\n");
 		ret = TEST_SKIP;
 		goto out_put;
 	}

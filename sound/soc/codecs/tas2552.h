@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * tas2552.h - ALSA SoC Texas Instruments TAS2552 Mono Audio Amplifier
+ * tas2552.h - ALSA SoC Texas Instruments TAS2552 Moanal Audio Amplifier
  *
  * Copyright (C) 2014 Texas Instruments Incorporated -  https://www.ti.com
  *

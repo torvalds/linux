@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Novatek NT36523 DriverIC panels driver
+ * Analvatek NT36523 DriverIC panels driver
  *
  * Copyright (c) 2022, 2023 Jianhua Lu <lujianhua000@gmail.com>
  */
@@ -67,7 +67,7 @@ static int elish_boe_init_sequence(struct panel_info *pinfo)
 {
 	struct mipi_dsi_device *dsi0 = pinfo->dsi[0];
 	struct mipi_dsi_device *dsi1 = pinfo->dsi[1];
-	/* No datasheet, so write magic init sequence directly */
+	/* Anal datasheet, so write magic init sequence directly */
 	mipi_dsi_dual_dcs_write_seq(dsi0, dsi1, 0xff, 0x10);
 	mipi_dsi_dual_dcs_write_seq(dsi0, dsi1, 0xfb, 0x01);
 	mipi_dsi_dual_dcs_write_seq(dsi0, dsi1, 0xb9, 0x05);
@@ -287,7 +287,7 @@ static int elish_csot_init_sequence(struct panel_info *pinfo)
 {
 	struct mipi_dsi_device *dsi0 = pinfo->dsi[0];
 	struct mipi_dsi_device *dsi1 = pinfo->dsi[1];
-	/* No datasheet, so write magic init sequence directly */
+	/* Anal datasheet, so write magic init sequence directly */
 	mipi_dsi_dual_dcs_write_seq(dsi0, dsi1, 0xff, 0x10);
 	mipi_dsi_dual_dcs_write_seq(dsi0, dsi1, 0xfb, 0x01);
 	mipi_dsi_dual_dcs_write_seq(dsi0, dsi1, 0xb9, 0x05);
@@ -983,14 +983,14 @@ static const struct panel_desc elish_boe_desc = {
 	.dsi_info = {
 		.type = "BOE-elish",
 		.channel = 0,
-		.node = NULL,
+		.analde = NULL,
 	},
 	.width_mm = 127,
 	.height_mm = 203,
 	.bpc = 8,
 	.lanes = 3,
 	.format = MIPI_DSI_FMT_RGB888,
-	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM,
+	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_ANALN_CONTINUOUS | MIPI_DSI_MODE_LPM,
 	.init_sequence = elish_boe_init_sequence,
 	.is_dual_dsi = true,
 };
@@ -1001,14 +1001,14 @@ static const struct panel_desc elish_csot_desc = {
 	.dsi_info = {
 		.type = "CSOT-elish",
 		.channel = 0,
-		.node = NULL,
+		.analde = NULL,
 	},
 	.width_mm = 127,
 	.height_mm = 203,
 	.bpc = 8,
 	.lanes = 3,
 	.format = MIPI_DSI_FMT_RGB888,
-	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM,
+	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_ANALN_CONTINUOUS | MIPI_DSI_MODE_LPM,
 	.init_sequence = elish_csot_init_sequence,
 	.is_dual_dsi = true,
 };
@@ -1022,7 +1022,7 @@ static const struct panel_desc j606f_boe_desc = {
 	.lanes = 4,
 	.format = MIPI_DSI_FMT_RGB888,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-		      MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM,
+		      MIPI_DSI_CLOCK_ANALN_CONTINUOUS | MIPI_DSI_MODE_LPM,
 	.init_sequence = j606f_boe_init_sequence,
 	.has_dcs_backlight = true,
 };
@@ -1127,7 +1127,7 @@ static int nt36523_get_modes(struct drm_panel *panel,
 		if (!mode) {
 			dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 				m->hdisplay, m->vdisplay, drm_mode_vrefresh(m));
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		mode->type = DRM_MODE_TYPE_DRIVER;
@@ -1206,7 +1206,7 @@ static struct backlight_device *nt36523_create_backlight(struct mipi_dsi_device 
 		.type = BACKLIGHT_RAW,
 		.brightness = 512,
 		.max_brightness = 4095,
-		.scale = BACKLIGHT_SCALE_NON_LINEAR,
+		.scale = BACKLIGHT_SCALE_ANALN_LINEAR,
 	};
 
 	return devm_backlight_device_register(dev, dev_name(dev), dev, dsi,
@@ -1216,7 +1216,7 @@ static struct backlight_device *nt36523_create_backlight(struct mipi_dsi_device 
 static int nt36523_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
-	struct device_node *dsi1;
+	struct device_analde *dsi1;
 	struct mipi_dsi_host *dsi1_host;
 	struct panel_info *pinfo;
 	const struct mipi_dsi_device_info *info;
@@ -1224,7 +1224,7 @@ static int nt36523_probe(struct mipi_dsi_device *dsi)
 
 	pinfo = devm_kzalloc(dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pinfo->vddio = devm_regulator_get(dev, "vddio");
 	if (IS_ERR(pinfo->vddio))
@@ -1236,26 +1236,26 @@ static int nt36523_probe(struct mipi_dsi_device *dsi)
 
 	pinfo->desc = of_device_get_match_data(dev);
 	if (!pinfo->desc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* If the panel is dual dsi, register DSI1 */
 	if (pinfo->desc->is_dual_dsi) {
 		info = &pinfo->desc->dsi_info;
 
-		dsi1 = of_graph_get_remote_node(dsi->dev.of_node, 1, -1);
+		dsi1 = of_graph_get_remote_analde(dsi->dev.of_analde, 1, -1);
 		if (!dsi1) {
-			dev_err(dev, "cannot get secondary DSI node.\n");
-			return -ENODEV;
+			dev_err(dev, "cananalt get secondary DSI analde.\n");
+			return -EANALDEV;
 		}
 
-		dsi1_host = of_find_mipi_dsi_host_by_node(dsi1);
-		of_node_put(dsi1);
+		dsi1_host = of_find_mipi_dsi_host_by_analde(dsi1);
+		of_analde_put(dsi1);
 		if (!dsi1_host)
-			return dev_err_probe(dev, -EPROBE_DEFER, "cannot get secondary DSI host\n");
+			return dev_err_probe(dev, -EPROBE_DEFER, "cananalt get secondary DSI host\n");
 
 		pinfo->dsi[1] = mipi_dsi_device_register_full(dsi1_host, info);
 		if (IS_ERR(pinfo->dsi[1])) {
-			dev_err(dev, "cannot get secondary DSI device\n");
+			dev_err(dev, "cananalt get secondary DSI device\n");
 			return PTR_ERR(pinfo->dsi[1]);
 		}
 	}
@@ -1264,9 +1264,9 @@ static int nt36523_probe(struct mipi_dsi_device *dsi)
 	mipi_dsi_set_drvdata(dsi, pinfo);
 	drm_panel_init(&pinfo->panel, dev, &nt36523_panel_funcs, DRM_MODE_CONNECTOR_DSI);
 
-	ret = of_drm_get_panel_orientation(dev->of_node, &pinfo->orientation);
+	ret = of_drm_get_panel_orientation(dev->of_analde, &pinfo->orientation);
 	if (ret < 0) {
-		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_node, ret);
+		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_analde, ret);
 		return ret;
 	}
 
@@ -1290,7 +1290,7 @@ static int nt36523_probe(struct mipi_dsi_device *dsi)
 
 		ret = mipi_dsi_attach(pinfo->dsi[i]);
 		if (ret < 0)
-			return dev_err_probe(dev, ret, "cannot attach to DSI%d host.\n", i);
+			return dev_err_probe(dev, ret, "cananalt attach to DSI%d host.\n", i);
 	}
 
 	return 0;
@@ -1298,7 +1298,7 @@ static int nt36523_probe(struct mipi_dsi_device *dsi)
 
 static const struct of_device_id nt36523_of_match[] = {
 	{
-		.compatible = "lenovo,j606f-boe-nt36523w",
+		.compatible = "leanalvo,j606f-boe-nt36523w",
 		.data = &j606f_boe_desc,
 	},
 	{
@@ -1317,12 +1317,12 @@ static struct mipi_dsi_driver nt36523_driver = {
 	.probe = nt36523_probe,
 	.remove = nt36523_remove,
 	.driver = {
-		.name = "panel-novatek-nt36523",
+		.name = "panel-analvatek-nt36523",
 		.of_match_table = nt36523_of_match,
 	},
 };
 module_mipi_dsi_driver(nt36523_driver);
 
 MODULE_AUTHOR("Jianhua Lu <lujianhua000@gmail.com>");
-MODULE_DESCRIPTION("DRM driver for Novatek NT36523 based MIPI DSI panels");
+MODULE_DESCRIPTION("DRM driver for Analvatek NT36523 based MIPI DSI panels");
 MODULE_LICENSE("GPL");

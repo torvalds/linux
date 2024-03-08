@@ -2,7 +2,7 @@
 /*
  * PWM-based multi-color LED control
  *
- * Copyright 2022 Sven Schwermer <sven.schwermer@disruptive-technologies.com>
+ * Copyright 2022 Sven Schwermer <sven.schwermer@disruptive-techanallogies.com>
  */
 
 #include <linux/err.h>
@@ -63,29 +63,29 @@ static int led_pwm_mc_set(struct led_classdev *cdev,
 }
 
 static int iterate_subleds(struct device *dev, struct pwm_mc_led *priv,
-			   struct fwnode_handle *mcnode)
+			   struct fwanalde_handle *mcanalde)
 {
 	struct mc_subled *subled = priv->mc_cdev.subled_info;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct pwm_led *pwmled;
 	u32 color;
 	int ret;
 
-	/* iterate over the nodes inside the multi-led node */
-	fwnode_for_each_child_node(mcnode, fwnode) {
+	/* iterate over the analdes inside the multi-led analde */
+	fwanalde_for_each_child_analde(mcanalde, fwanalde) {
 		pwmled = &priv->leds[priv->mc_cdev.num_colors];
-		pwmled->pwm = devm_fwnode_pwm_get(dev, fwnode, NULL);
+		pwmled->pwm = devm_fwanalde_pwm_get(dev, fwanalde, NULL);
 		if (IS_ERR(pwmled->pwm)) {
 			ret = dev_err_probe(dev, PTR_ERR(pwmled->pwm), "unable to request PWM\n");
-			goto release_fwnode;
+			goto release_fwanalde;
 		}
 		pwm_init_state(pwmled->pwm, &pwmled->state);
-		pwmled->active_low = fwnode_property_read_bool(fwnode, "active-low");
+		pwmled->active_low = fwanalde_property_read_bool(fwanalde, "active-low");
 
-		ret = fwnode_property_read_u32(fwnode, "color", &color);
+		ret = fwanalde_property_read_u32(fwanalde, "color", &color);
 		if (ret) {
-			dev_err(dev, "cannot read color: %d\n", ret);
-			goto release_fwnode;
+			dev_err(dev, "cananalt read color: %d\n", ret);
+			goto release_fwanalde;
 		}
 
 		subled[priv->mc_cdev.num_colors].color_index = color;
@@ -94,14 +94,14 @@ static int iterate_subleds(struct device *dev, struct pwm_mc_led *priv,
 
 	return 0;
 
-release_fwnode:
-	fwnode_handle_put(fwnode);
+release_fwanalde:
+	fwanalde_handle_put(fwanalde);
 	return ret;
 }
 
 static int led_pwm_mc_probe(struct platform_device *pdev)
 {
-	struct fwnode_handle *mcnode, *fwnode;
+	struct fwanalde_handle *mcanalde, *fwanalde;
 	struct led_init_data init_data = {};
 	struct led_classdev *cdev;
 	struct mc_subled *subled;
@@ -109,42 +109,42 @@ static int led_pwm_mc_probe(struct platform_device *pdev)
 	int count = 0;
 	int ret = 0;
 
-	mcnode = device_get_named_child_node(&pdev->dev, "multi-led");
-	if (!mcnode)
-		return dev_err_probe(&pdev->dev, -ENODEV,
-				     "expected multi-led node\n");
+	mcanalde = device_get_named_child_analde(&pdev->dev, "multi-led");
+	if (!mcanalde)
+		return dev_err_probe(&pdev->dev, -EANALDEV,
+				     "expected multi-led analde\n");
 
-	/* count the nodes inside the multi-led node */
-	fwnode_for_each_child_node(mcnode, fwnode)
+	/* count the analdes inside the multi-led analde */
+	fwanalde_for_each_child_analde(mcanalde, fwanalde)
 		count++;
 
 	priv = devm_kzalloc(&pdev->dev, struct_size(priv, leds, count),
 			    GFP_KERNEL);
 	if (!priv) {
-		ret = -ENOMEM;
-		goto release_mcnode;
+		ret = -EANALMEM;
+		goto release_mcanalde;
 	}
 	mutex_init(&priv->lock);
 
 	subled = devm_kcalloc(&pdev->dev, count, sizeof(*subled), GFP_KERNEL);
 	if (!subled) {
-		ret = -ENOMEM;
-		goto release_mcnode;
+		ret = -EANALMEM;
+		goto release_mcanalde;
 	}
 	priv->mc_cdev.subled_info = subled;
 
 	/* init the multicolor's LED class device */
 	cdev = &priv->mc_cdev.led_cdev;
-	fwnode_property_read_u32(mcnode, "max-brightness",
+	fwanalde_property_read_u32(mcanalde, "max-brightness",
 				 &cdev->max_brightness);
 	cdev->flags = LED_CORE_SUSPENDRESUME;
 	cdev->brightness_set_blocking = led_pwm_mc_set;
 
-	ret = iterate_subleds(&pdev->dev, priv, mcnode);
+	ret = iterate_subleds(&pdev->dev, priv, mcanalde);
 	if (ret)
-		goto release_mcnode;
+		goto release_mcanalde;
 
-	init_data.fwnode = mcnode;
+	init_data.fwanalde = mcanalde;
 	ret = devm_led_classdev_multicolor_register_ext(&pdev->dev,
 							&priv->mc_cdev,
 							&init_data);
@@ -152,7 +152,7 @@ static int led_pwm_mc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"failed to register multicolor PWM led for %s: %d\n",
 			cdev->name, ret);
-		goto release_mcnode;
+		goto release_mcanalde;
 	}
 
 	ret = led_pwm_mc_set(cdev, cdev->brightness);
@@ -164,8 +164,8 @@ static int led_pwm_mc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 	return 0;
 
-release_mcnode:
-	fwnode_handle_put(mcnode);
+release_mcanalde:
+	fwanalde_handle_put(mcanalde);
 	return ret;
 }
 
@@ -184,7 +184,7 @@ static struct platform_driver led_pwm_mc_driver = {
 };
 module_platform_driver(led_pwm_mc_driver);
 
-MODULE_AUTHOR("Sven Schwermer <sven.schwermer@disruptive-technologies.com>");
+MODULE_AUTHOR("Sven Schwermer <sven.schwermer@disruptive-techanallogies.com>");
 MODULE_DESCRIPTION("multi-color PWM LED driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:leds-pwm-multicolor");

@@ -57,7 +57,7 @@ struct dsp_code {
 /** Prepare *psDspCode to refer to the requested adapter's firmware.
 Code file name is obtained from HpiOs_GetDspCodePath
 
-\return 0 for success, or error code if requested code is not available
+\return 0 for success, or error code if requested code is analt available
 */
 short hpi_dsp_code_open(
 	/** Code identifier, usually adapter family */
@@ -83,9 +83,9 @@ short hpi_dsp_code_read_word(struct dsp_code *ps_dsp_code,
 
 /** Get a block of dsp code into an internal buffer, and provide a pointer to
 that buffer. (If dsp code is already an array in memory, it is referenced,
-not copied.)
+analt copied.)
 
-\return Error if requested number of words are not available
+\return Error if requested number of words are analt available
 */
 short hpi_dsp_code_read_block(size_t words_requested,
 	struct dsp_code *ps_dsp_code,

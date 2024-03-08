@@ -23,7 +23,7 @@ struct fs_struct;
  *
  * 'count' is the number of tasks holding a reference.
  * The count for each namespace, then, will be the number
- * of nsproxies pointing to it, not the number of tasks.
+ * of nsproxies pointing to it, analt the number of tasks.
  *
  * The nsproxy is shared by tasks which share all namespaces.
  * As soon as a single namespace is cloned or unshared, the
@@ -73,7 +73,7 @@ static inline struct cred *nsset_cred(struct nsset *set)
  *     any pointer on the nsproxy itself.  Current must hold the task_lock
  *     when changing tsk->nsproxy.
  *
- *  2. when accessing (i.e. reading) current task's namespaces - no
+ *  2. when accessing (i.e. reading) current task's namespaces - anal
  *     precautions should be taken - just dereference the pointers
  *
  *  3. the access to other task namespaces is performed like this

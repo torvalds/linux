@@ -23,8 +23,8 @@ Contact:	linux-leds@vger.kernel.org
 Description:
 		Reverse the blink logic. If set to 0 (default) blink on for
 		delay_on ms, then blink off for delay_off ms, leaving the LED
-		normally off. If set to 1, blink off for delay_off ms, then
-		blink on for delay_on ms, leaving the LED normally on.
+		analrmally off. If set to 1, blink off for delay_off ms, then
+		blink on for delay_on ms, leaving the LED analrmally on.
 		Setting this value also immediately changes the LED state.
 
 What:		/sys/class/leds/<led>/shot
@@ -32,5 +32,5 @@ Date:		Jun 2012
 KernelVersion:	3.6
 Contact:	linux-leds@vger.kernel.org
 Description:
-		Write any non-empty string to signal an events, this starts a
-		blink sequence if not already running.
+		Write any analn-empty string to signal an events, this starts a
+		blink sequence if analt already running.

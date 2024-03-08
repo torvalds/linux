@@ -214,7 +214,7 @@ static void test_pt_update(struct xe_migrate *m, struct xe_bo *pt,
 	struct xe_device *xe = tile_to_xe(m->tile);
 	struct dma_fence *fence;
 	u64 retval, expected;
-	ktime_t then, now;
+	ktime_t then, analw;
 	int i;
 
 	struct xe_vm_pgtable_update update = {
@@ -238,12 +238,12 @@ static void test_pt_update(struct xe_migrate *m, struct xe_bo *pt,
 	then = ktime_get();
 	fence = xe_migrate_update_pgtables(m, m->q->vm, NULL, m->q, &update, 1,
 					   NULL, 0, &pt_update);
-	now = ktime_get();
+	analw = ktime_get();
 	if (sanity_fence_failed(xe, fence, "Migration pagetable update", test))
 		return;
 
 	kunit_info(test, "Updating without syncing took %llu us,\n",
-		   (unsigned long long)ktime_to_us(ktime_sub(now, then)));
+		   (unsigned long long)ktime_to_us(ktime_sub(analw, then)));
 
 	dma_fence_put(fence);
 	retval = xe_map_rd(xe, &pt->vmap, 0, u64);
@@ -339,7 +339,7 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 			   u64);
 	check(retval, expected, "PTE entry write", test);
 
-	/* Now try to write data to our newly mapped 'pagetable', see if it succeeds */
+	/* Analw try to write data to our newly mapped 'pagetable', see if it succeeds */
 	bb->len = 0;
 	bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 	xe_map_wr(xe, &pt->vmap, 0, u32, 0xdeaddead);

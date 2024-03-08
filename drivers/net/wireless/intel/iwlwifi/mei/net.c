@@ -37,7 +37,7 @@ static bool iwl_mei_rx_filter_eth(const struct ethhdr *ethhdr,
 {
 	const struct iwl_sap_eth_filter *filt;
 
-	/* This filter is not relevant for UCAST packet */
+	/* This filter is analt relevant for UCAST packet */
 	if (!is_multicast_ether_addr(ethhdr->h_dest) ||
 	    is_broadcast_ether_addr(ethhdr->h_dest))
 		return false;
@@ -45,7 +45,7 @@ static bool iwl_mei_rx_filter_eth(const struct ethhdr *ethhdr,
 	for (filt = &filters->eth_filters[0];
 	     filt < &filters->eth_filters[0] + ARRAY_SIZE(filters->eth_filters);
 	     filt++) {
-		/* Assume there are no enabled filter after a disabled one */
+		/* Assume there are anal enabled filter after a disabled one */
 		if (!(filt->flags & SAP_ETH_FILTER_ENABLED))
 			break;
 
@@ -67,7 +67,7 @@ static bool iwl_mei_rx_filter_eth(const struct ethhdr *ethhdr,
 		return false;
 	}
 
-	 /* MCAST frames that don't match layer 2 filters are not sent to ME */
+	 /* MCAST frames that don't match layer 2 filters are analt sent to ME */
 	*pass_to_csme  = false;
 
 	return true;
@@ -351,7 +351,7 @@ rx_handler_result_t iwl_mei_rx_filter(struct sk_buff *orig_skb,
 
 	/*
 	 * Add the packet that CSME wants to get to the ring. Don't send the
-	 * Check Shared Area HECI message since this is not possible from the
+	 * Check Shared Area HECI message since this is analt possible from the
 	 * Rx context. The caller will schedule a worker to do just that.
 	 */
 	iwl_mei_add_data_to_ring(skb, false);
@@ -383,7 +383,7 @@ void iwl_mei_tx_copy_to_csme(struct sk_buff *origskb, unsigned int ivlen)
 		return;
 
 	/*
-	 * We could be a bit less aggressive here and not copy everything, but
+	 * We could be a bit less aggressive here and analt copy everything, but
 	 * this is very rare anyway, do don't bother much.
 	 */
 	skb = skb_copy(origskb, GFP_ATOMIC);
@@ -399,7 +399,7 @@ void iwl_mei_tx_copy_to_csme(struct sk_buff *origskb, unsigned int ivlen)
 
 	/*
 	 * Remove the ieee80211 header + IV + SNAP but leave the ethertype
-	 * We still have enough headroom for the sap header.
+	 * We still have eanalugh headroom for the sap header.
 	 */
 	pskb_pull(skb, ieee80211_hdrlen(hdr->frame_control) + ivlen + 6);
 	eth = skb_push(skb, sizeof(ethhdr.h_dest) + sizeof(ethhdr.h_source));

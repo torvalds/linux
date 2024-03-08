@@ -74,7 +74,7 @@ static int a030jtn01_prepare(struct drm_panel *panel)
 	usleep_range(2000, 8000);
 
 	/*
-	 * No idea why, but a register read (doesn't matter which) is needed to
+	 * Anal idea why, but a register read (doesn't matter which) is needed to
 	 * properly initialize the chip after a reset; otherwise, the colors
 	 * will be wrong. It doesn't seem to be timing-related as a msleep(200)
 	 * doesn't fix it.
@@ -146,7 +146,7 @@ static int a030jtn01_get_modes(struct drm_panel *panel,
 		mode = drm_mode_duplicate(connector->dev,
 					  &panel_info->display_modes[i]);
 		if (!mode)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		drm_mode_set_name(mode);
 
@@ -202,7 +202,7 @@ static int a030jtn01_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->spi = spi;
 	spi_set_drvdata(spi, priv);

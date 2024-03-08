@@ -34,7 +34,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
@@ -151,7 +151,7 @@ static int __init mk712_init(void)
 
 	if (!request_region(mk712_io, 8, "mk712")) {
 		printk(KERN_WARNING "mk712: unable to get IO region\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	outb(0, mk712_io + MK712_CONTROL);
@@ -159,15 +159,15 @@ static int __init mk712_init(void)
 	if ((inw(mk712_io + MK712_X) & 0xf000) ||	/* Sanity check */
 	    (inw(mk712_io + MK712_Y) & 0xf000) ||
 	    (inw(mk712_io + MK712_STATUS) & 0xf333)) {
-		printk(KERN_WARNING "mk712: device not present\n");
-		err = -ENODEV;
+		printk(KERN_WARNING "mk712: device analt present\n");
+		err = -EANALDEV;
 		goto fail1;
 	}
 
 	mk712_dev = input_allocate_device();
 	if (!mk712_dev) {
-		printk(KERN_ERR "mk712: not enough memory\n");
-		err = -ENOMEM;
+		printk(KERN_ERR "mk712: analt eanalugh memory\n");
+		err = -EANALMEM;
 		goto fail1;
 	}
 

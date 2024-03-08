@@ -56,7 +56,7 @@ struct pt3_i2cbuf {
  * DMA things
  */
 #define TS_PACKET_SZ  188
-/* DMA transfers must not cross 4GiB, so use one page / transfer */
+/* DMA transfers must analt cross 4GiB, so use one page / transfer */
 #define DATA_XFER_SZ   4096
 #define DATA_BUF_XFERS 47
 /* (num_bufs * DATA_BUF_SZ) % TS_PACKET_SZ must be 0 */

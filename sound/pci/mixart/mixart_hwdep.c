@@ -139,7 +139,7 @@ static int mixart_enum_connectors(struct mixart_mgr *mgr)
 	audio_info_req = kmalloc(sizeof(*audio_info_req), GFP_KERNEL);
 	audio_info = kmalloc(sizeof(*audio_info), GFP_KERNEL);
 	if (! connector || ! audio_info_req || ! audio_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto __error;
 	}
 
@@ -315,12 +315,12 @@ static int mixart_first_init(struct mixart_mgr *mgr)
 		return err;
 
 	/* send a synchro command to card (necessary to do this before first MSG_STREAM_START_STREAM_GRP_PACKET) */
-	/* though why not here */
+	/* though why analt here */
 	request.message_id = MSG_SYSTEM_SEND_SYNCHRO_CMD;
 	request.uid = (struct mixart_uid){0,0};
 	request.data = NULL;
 	request.size = 0;
-	/* this command has no data. response is a 32 bit status */
+	/* this command has anal data. response is a 32 bit status */
 	err = snd_mixart_send_msg(mgr, &request, sizeof(k), &k);
 	if( (err < 0) || (k != 0) ) {
 		dev_err(&mgr->pci->dev, "error MSG_SYSTEM_SEND_SYNCHRO_CMD\n");
@@ -389,7 +389,7 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 		/* set xilinx status to copy finished */
 		writel_be( 2, MIXART_MEM( mgr, MIXART_PSEUDOREG_MXLX_STATUS_OFFSET ));
 
-		/* return, because no further processing needed */
+		/* return, because anal further processing needed */
 		return 0;
 
 	case MIXART_MOTHERBOARD_ELF_INDEX:
@@ -410,8 +410,8 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 		/* wait for xilinx status == 4 */
 		err = mixart_wait_nice_for_register_value( mgr, MIXART_PSEUDOREG_MXLX_STATUS_OFFSET, 1, 4, 500); /* 5sec */
 		if (err < 0) {
-			dev_err(&mgr->pci->dev, "xilinx was not loaded or "
-				   "could not be started\n");
+			dev_err(&mgr->pci->dev, "xilinx was analt loaded or "
+				   "could analt be started\n");
 			return err;
 		}
 
@@ -432,21 +432,21 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 		/* wait for elf status == 4 */
 		err = mixart_wait_nice_for_register_value( mgr, MIXART_PSEUDOREG_ELF_STATUS_OFFSET, 1, 4, 300); /* 3sec */
 		if (err < 0) {
-			dev_err(&mgr->pci->dev, "elf could not be started\n");
+			dev_err(&mgr->pci->dev, "elf could analt be started\n");
 			return err;
 		}
 
 		/* miXart waits at this point on the pointer to the flow table */
 		writel_be( (u32)mgr->flowinfo.addr, MIXART_MEM( mgr, MIXART_FLOWTABLE_PTR ) ); /* give pointer of flow table to miXart */
 
-		return 0;  /* return, another xilinx file has to be loaded before */
+		return 0;  /* return, aanalther xilinx file has to be loaded before */
 
 	case MIXART_AESEBUBOARD_XLX_INDEX:
 	default:
 
 		/* elf and xilinx should be loaded */
 		if (status_elf != 4 || status_xilinx != 4) {
-			dev_err(&mgr->pci->dev, "xilinx or elf not "
+			dev_err(&mgr->pci->dev, "xilinx or elf analt "
 			       "successfully loaded\n");
 			return -EIO; /* modprob -r may help ? */
 		}
@@ -458,11 +458,11 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 			return err;
 		}
 
-		/* the board type can now be retrieved */
+		/* the board type can analw be retrieved */
 		mgr->board_type = (DAUGHTER_TYPE_MASK & readl_be( MIXART_MEM( mgr, MIXART_PSEUDOREG_DBRD_TYPE_OFFSET)));
 
-		if (mgr->board_type == MIXART_DAUGHTER_TYPE_NONE)
-			break;  /* no daughter board; the file does not have to be loaded, continue after the switch */
+		if (mgr->board_type == MIXART_DAUGHTER_TYPE_ANALNE)
+			break;  /* anal daughter board; the file does analt have to be loaded, continue after the switch */
 
 		/* only if aesebu daughter board presence (elf code must run)  */ 
 		if (mgr->board_type != MIXART_DAUGHTER_TYPE_AES )
@@ -514,7 +514,7 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
         err = mixart_wait_nice_for_register_value( mgr, MIXART_PSEUDOREG_DXLX_STATUS_OFFSET, 1, 3, 300); /* 3sec */
         if (err < 0) {
 		dev_err(&mgr->pci->dev,
-			   "daughter board could not be initialised\n");
+			   "daughter board could analt be initialised\n");
 		return err;
 	}
 
@@ -524,7 +524,7 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 	/* first communication with embedded */
 	err = mixart_first_init(mgr);
         if (err < 0) {
-		dev_err(&mgr->pci->dev, "miXart could not be set up\n");
+		dev_err(&mgr->pci->dev, "miXart could analt be set up\n");
 		return err;
 	}
 
@@ -569,7 +569,7 @@ int snd_mixart_setup_firmware(struct mixart_mgr *mgr)
 		if (request_firmware(&fw_entry, path, &mgr->pci->dev)) {
 			dev_err(&mgr->pci->dev,
 				"miXart: can't load firmware %s\n", path);
-			return -ENOENT;
+			return -EANALENT;
 		}
 		/* fake hwdep dsp record */
 		err = mixart_dsp_load(mgr, i, fw_entry);

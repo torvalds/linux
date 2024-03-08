@@ -17,7 +17,7 @@
 
 /* For DVS etc., format FRAME_FMT_YUV420_16 */
 #define IPU3_CSS_AUX_FRAME_REF		0
-/* For temporal noise reduction DVS etc., format FRAME_FMT_YUV_LINE */
+/* For temporal analise reduction DVS etc., format FRAME_FMT_YUV_LINE */
 #define IPU3_CSS_AUX_FRAME_TNR		1
 #define IPU3_CSS_AUX_FRAME_TYPES	2	/* REF and TNR */
 #define IPU3_CSS_AUX_FRAMES		2	/* 2 for REF and 2 for TNR */
@@ -59,10 +59,10 @@ struct imgu_css_resolution {
 };
 
 enum imgu_css_buffer_state {
-	IPU3_CSS_BUFFER_NEW,	/* Not yet queued */
+	IPU3_CSS_BUFFER_NEW,	/* Analt yet queued */
 	IPU3_CSS_BUFFER_QUEUED,	/* Queued, waiting to be filled */
 	IPU3_CSS_BUFFER_DONE,	/* Finished processing, removed from queue */
-	IPU3_CSS_BUFFER_FAILED,	/* Was not processed, removed from queue */
+	IPU3_CSS_BUFFER_FAILED,	/* Was analt processed, removed from queue */
 };
 
 struct imgu_css_buffer {
@@ -83,7 +83,7 @@ struct imgu_css_format {
 	enum imgu_abi_osys_format osys_format;
 	enum imgu_abi_osys_tiling osys_tiling;
 	u8 bit_depth;		/* Effective bits per pixel */
-	u8 chroma_decim;	/* Chroma plane decimation, 0=no chroma plane */
+	u8 chroma_decim;	/* Chroma plane decimation, 0=anal chroma plane */
 	u8 width_align;		/* Alignment requirement for width_pad */
 	u8 flags;
 };

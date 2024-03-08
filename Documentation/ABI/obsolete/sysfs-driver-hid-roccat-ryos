@@ -1,4 +1,4 @@
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/control
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/control
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one select which data from which
@@ -6,7 +6,7 @@ Description:	When written, this file lets one select which data from which
 		This file is writeonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/profile
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/profile
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse can store 5 profiles which can be switched by the
@@ -18,7 +18,7 @@ Description:	The mouse can store 5 profiles which can be switched by the
 		The device will reject invalid data.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/keys_primary
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/keys_primary
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the default of all keys for
@@ -28,7 +28,7 @@ Description:	When written, this file lets one set the default of all keys for
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/keys_function
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/keys_function
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the function of the
@@ -38,7 +38,7 @@ Description:	When written, this file lets one set the function of the
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/keys_macro
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/keys_macro
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the function of the macro
@@ -48,7 +48,7 @@ Description:	When written, this file lets one set the function of the macro
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/keys_thumbster
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/keys_thumbster
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the function of the
@@ -58,7 +58,7 @@ Description:	When written, this file lets one set the function of the
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/keys_extra
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/keys_extra
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the function of the
@@ -68,7 +68,7 @@ Description:	When written, this file lets one set the function of the
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/keys_easyzone
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/keys_easyzone
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the function of the
@@ -78,7 +78,7 @@ Description:	When written, this file lets one set the function of the
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/key_mask
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/key_mask
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one deactivate certain keys like
@@ -89,7 +89,7 @@ Description:	When written, this file lets one deactivate certain keys like
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/light
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/light
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the backlight intensity for
@@ -100,7 +100,7 @@ Description:	When written, this file lets one set the backlight intensity for
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/macro
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/macro
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one store macros with max 480
@@ -111,7 +111,7 @@ Description:	When written, this file lets one store macros with max 480
 		which profile and key to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/info
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/info
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When read, this file returns general data like firmware version.
@@ -119,7 +119,7 @@ Description:	When read, this file returns general data like firmware version.
 		This file is readonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/reset
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/reset
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one reset the device.
@@ -127,7 +127,7 @@ Description:	When written, this file lets one reset the device.
 		This file is writeonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/talk
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/talk
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one trigger easyshift functionality
@@ -136,7 +136,7 @@ Description:	When written, this file lets one trigger easyshift functionality
 		This file is writeonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/light_control
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/light_control
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one switch between stored and custom
@@ -146,7 +146,7 @@ Description:	When written, this file lets one switch between stored and custom
 		This file is writeonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/stored_lights
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/stored_lights
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set per-key lighting for different
@@ -157,7 +157,7 @@ Description:	When written, this file lets one set per-key lighting for different
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/custom_lights
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/custom_lights
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the actual per-key lighting.
@@ -166,7 +166,7 @@ Description:	When written, this file lets one set the actual per-key lighting.
 		This file is writeonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<minor>/light_macro
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/ryos/roccatryos<mianalr>/light_macro
 Date:		October 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set a light macro that is looped

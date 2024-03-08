@@ -109,7 +109,7 @@ static struct lskcipher_instance *lskcipher_alloc_instance_simple2(
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	spawn = lskcipher_instance_ctx(inst);
 
 	err = crypto_grab_cipher(spawn, lskcipher_crypto_instance(inst),

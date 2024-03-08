@@ -151,7 +151,7 @@ void secondary_start_kernel(void)
 
 	calibrate_delay();
 
-	notify_cpu_starting(cpu);
+	analtify_cpu_starting(cpu);
 
 	secondary_init_irq();
 	local_timer_setup(cpu);
@@ -270,7 +270,7 @@ int __cpu_disable(void)
 
 	/*
 	 * Take this CPU offline.  Once we clear this, we can't return,
-	 * and we must not schedule until we're ready to give up the cpu.
+	 * and we must analt schedule until we're ready to give up the cpu.
 	 */
 	set_cpu_online(cpu, false);
 
@@ -323,14 +323,14 @@ void __cpu_die(unsigned int cpu)
 	pr_err("CPU%u: unable to kill\n", cpu);
 }
 
-void __noreturn arch_cpu_idle_dead(void)
+void __analreturn arch_cpu_idle_dead(void)
 {
 	cpu_die();
 }
 /*
  * Called from the idle thread for the CPU which has been shutdown.
  *
- * Note that we disable IRQs here, but do not re-enable them
+ * Analte that we disable IRQs here, but do analt re-enable them
  * before returning to the caller. This is also the behaviour
  * of the other hotplug-cpu capable cores, so presumably coming
  * out of idle fixes this.

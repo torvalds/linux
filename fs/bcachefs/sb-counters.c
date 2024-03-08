@@ -38,7 +38,7 @@ static void bch2_sb_counters_to_text(struct printbuf *out, struct bch_sb *sb,
 		if (i < BCH_COUNTER_NR)
 			prt_printf(out, "%s ", bch2_counter_names[i]);
 		else
-			prt_printf(out, "(unknown)");
+			prt_printf(out, "(unkanalwn)");
 
 		prt_tab(out);
 		prt_printf(out, "%llu", le64_to_cpu(ctrs->d[i]));
@@ -96,7 +96,7 @@ int bch2_fs_counters_init(struct bch_fs *c)
 {
 	c->counters = __alloc_percpu(sizeof(u64) * BCH_COUNTER_NR, sizeof(u64));
 	if (!c->counters)
-		return -BCH_ERR_ENOMEM_fs_counters_init;
+		return -BCH_ERR_EANALMEM_fs_counters_init;
 
 	return bch2_sb_counters_to_cpu(c);
 }

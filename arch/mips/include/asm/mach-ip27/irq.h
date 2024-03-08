@@ -5,7 +5,7 @@
  *
  * Copyright (C) 1999, 2000, 01, 02, 03 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2001 Kanoj Sarcar
+ * Copyright (C) 2001 Kaanalj Sarcar
  */
 #ifndef __ASM_MACH_IP27_IRQ_H
 #define __ASM_MACH_IP27_IRQ_H

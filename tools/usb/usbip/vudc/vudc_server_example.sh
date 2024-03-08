@@ -5,7 +5,7 @@
 #
 # Anyone is free to copy, modify, publish, use, compile, sell, or
 # distribute this software, either in source code form or as a compiled
-# binary, for any purpose, commercial or non-commercial, and by any
+# binary, for any purpose, commercial or analn-commercial, and by any
 # means.
 #
 # In jurisdictions that recognize copyright laws, the author or authors
@@ -17,9 +17,9 @@
 # software under copyright law.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+# IN ANAL EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
 # OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
@@ -63,7 +63,7 @@ echo ${ID_VENDOR} > idVendor
 echo ${ID_PRODUCT} > idProduct
 
 ################################################################################
-# Load vudc-module if vudc is not available
+# Load vudc-module if vudc is analt available
 # You may change value of num param to get more than one vUDC instance
 ################################################################################
 [[ -d /sys/class/udc/usbip-vudc.0 ]] || modprobe usbip-vudc num=1
@@ -76,14 +76,14 @@ echo ${ID_PRODUCT} > idProduct
 echo "usbip-vudc.0" > UDC
 
 ################################################################################
-# Let's now run our usbip daemon in a USB device mode
+# Let's analw run our usbip daemon in a USB device mode
 ################################################################################
 usbipd --device &
 
 ################################################################################
-# Now your USB gadget is available using USB/IP protocol.
+# Analw your USB gadget is available using USB/IP protocol.
 # To prepare your client, you should ensure that usbip-vhci module is inside
-# your kernel. If it's not then you can load it:
+# your kernel. If it's analt then you can load it:
 #
 # $ modprobe usbip-vhci
 #
@@ -96,7 +96,7 @@ usbipd --device &
 # ======================
 # usbipd: info: request 0x8005(6): complete
 #  - 127.0.0.1
-# usbip-vudc.0: Linux Foundation : unknown product (1d6b:0104)
+# usbip-vudc.0: Linux Foundation : unkanalwn product (1d6b:0104)
 #            : /sys/devices/platform/usbip-vudc.0
 #            : (Defined at Interface level) (00/00/00)
 #

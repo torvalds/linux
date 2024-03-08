@@ -75,7 +75,7 @@
 #define ATMEL_I2SC_MR_FORMAT_TDMLJ	(3 << 6)
 
 /* Left audio samples duplicated to right audio channel */
-#define ATMEL_I2SC_MR_RXMONO		BIT(8)
+#define ATMEL_I2SC_MR_RXMOANAL		BIT(8)
 
 /* Receiver uses one DMA channel ... */
 #define ATMEL_I2SC_MR_RXDMA_MASK	GENMASK(9, 9)
@@ -86,7 +86,7 @@
 #define ATMEL_I2SC_MR_RXLOOP		BIT(10)
 
 /* Left audio samples duplicated to right audio channel */
-#define ATMEL_I2SC_MR_TXMONO		BIT(12)
+#define ATMEL_I2SC_MR_TXMOANAL		BIT(12)
 
 /* Transmitter uses one DMA channel ... */
 #define ATMEL_I2SC_MR_TXDMA_MASK	GENMASK(13, 13)
@@ -110,7 +110,7 @@
 
 /* Master Clock mode */
 #define ATMEL_I2SC_MR_IMCKMODE_MASK	GENMASK(30, 30)
-/* 0: No master clock generated (selected clock drives I2SCK pin) */
+/* 0: Anal master clock generated (selected clock drives I2SCK pin) */
 #define ATMEL_I2SC_MR_IMCKMODE_I2SCK	(0 << 30)
 /* 1: master clock generated (internally generated clock drives I2SMCK pin) */
 #define ATMEL_I2SC_MR_IMCKMODE_I2SMCK	(1 << 30)
@@ -190,7 +190,7 @@ static const struct atmel_i2s_gck_param gck_params[] = {
 struct atmel_i2s_dev;
 
 struct atmel_i2s_caps {
-	int	(*mck_init)(struct atmel_i2s_dev *, struct device_node *np);
+	int	(*mck_init)(struct atmel_i2s_dev *, struct device_analde *np);
 };
 
 struct atmel_i2s_dev {
@@ -203,21 +203,21 @@ struct atmel_i2s_dev {
 	unsigned int				fmt;
 	const struct atmel_i2s_gck_param	*gck_param;
 	const struct atmel_i2s_caps		*caps;
-	int					clk_use_no;
+	int					clk_use_anal;
 };
 
 static irqreturn_t atmel_i2s_interrupt(int irq, void *dev_id)
 {
 	struct atmel_i2s_dev *dev = dev_id;
 	unsigned int sr, imr, pending, ch, mask;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	regmap_read(dev->regmap, ATMEL_I2SC_SR, &sr);
 	regmap_read(dev->regmap, ATMEL_I2SC_IMR, &imr);
 	pending = sr & imr;
 
 	if (!pending)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (pending & ATMEL_I2SC_INT_RXOR) {
 		mask = ATMEL_I2SC_SR_RXOR;
@@ -279,7 +279,7 @@ static int atmel_i2s_prepare(struct snd_pcm_substream *substream,
 		regmap_read(dev->regmap, ATMEL_I2SC_SR, &sr);
 		if (sr & ATMEL_I2SC_SR_RXRDY) {
 			/*
-			 * The RX Ready flag should not be set. However if here,
+			 * The RX Ready flag should analt be set. However if here,
 			 * we flush (read) the Receive Holding Register to start
 			 * from a clean state.
 			 */
@@ -296,7 +296,7 @@ static int atmel_i2s_get_gck_param(struct atmel_i2s_dev *dev, int fs)
 	int i, best;
 
 	if (!dev->gclk) {
-		dev_err(dev->dev, "cannot generate the I2S Master Clock\n");
+		dev_err(dev->dev, "cananalt generate the I2S Master Clock\n");
 		return -EINVAL;
 	}
 
@@ -331,9 +331,9 @@ static int atmel_i2s_hw_params(struct snd_pcm_substream *substream,
 	mr_mask = ATMEL_I2SC_MR_FORMAT_MASK | ATMEL_I2SC_MR_MODE_MASK |
 		ATMEL_I2SC_MR_DATALENGTH_MASK;
 	if (is_playback)
-		mr_mask |= ATMEL_I2SC_MR_TXMONO;
+		mr_mask |= ATMEL_I2SC_MR_TXMOANAL;
 	else
-		mr_mask |= ATMEL_I2SC_MR_RXMONO;
+		mr_mask |= ATMEL_I2SC_MR_RXMOANAL;
 
 	switch (dev->fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
@@ -368,9 +368,9 @@ static int atmel_i2s_hw_params(struct snd_pcm_substream *substream,
 	switch (params_channels(params)) {
 	case 1:
 		if (is_playback)
-			mr |= ATMEL_I2SC_MR_TXMONO;
+			mr |= ATMEL_I2SC_MR_TXMOANAL;
 		else
-			mr |= ATMEL_I2SC_MR_RXMONO;
+			mr |= ATMEL_I2SC_MR_RXMOANAL;
 		break;
 	case 2:
 		break;
@@ -507,12 +507,12 @@ static int atmel_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	/* If master starts, enable the audio clock. */
 	if (is_master && mck_enabled) {
-		if (!dev->clk_use_no) {
+		if (!dev->clk_use_anal) {
 			err = atmel_i2s_switch_mck_generator(dev, true);
 			if (err)
 				return err;
 		}
-		dev->clk_use_no++;
+		dev->clk_use_anal++;
 	}
 
 	err = regmap_write(dev->regmap, ATMEL_I2SC_CR, cr);
@@ -521,12 +521,12 @@ static int atmel_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	/* If master stops, disable the audio clock. */
 	if (is_master && !mck_enabled) {
-		if (dev->clk_use_no == 1) {
+		if (dev->clk_use_anal == 1) {
 			err = atmel_i2s_switch_mck_generator(dev, false);
 			if (err)
 				return err;
 		}
-		dev->clk_use_no--;
+		dev->clk_use_anal--;
 	}
 
 	return err;
@@ -572,7 +572,7 @@ static const struct snd_soc_component_driver atmel_i2s_component = {
 };
 
 static int atmel_i2s_sama5d2_mck_init(struct atmel_i2s_dev *dev,
-				      struct device_node *np)
+				      struct device_analde *np)
 {
 	struct clk *muxclk;
 	int err;
@@ -611,7 +611,7 @@ MODULE_DEVICE_TABLE(of, atmel_i2s_dt_ids);
 
 static int atmel_i2s_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct of_device_id *match;
 	struct atmel_i2s_dev *dev;
 	struct resource *mem;
@@ -625,10 +625,10 @@ static int atmel_i2s_probe(struct platform_device *pdev)
 	/* Get memory for driver data. */
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get hardware capabilities. */
-	match = of_match_node(atmel_i2s_dt_ids, np);
+	match = of_match_analde(atmel_i2s_dt_ids, np);
 	if (match)
 		dev->caps = match->data;
 
@@ -666,7 +666,7 @@ static int atmel_i2s_probe(struct platform_device *pdev)
 	if (IS_ERR(dev->gclk)) {
 		if (PTR_ERR(dev->gclk) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		/* Master Mode not supported */
+		/* Master Mode analt supported */
 		dev->gclk = NULL;
 	}
 	dev->dev = &pdev->dev;

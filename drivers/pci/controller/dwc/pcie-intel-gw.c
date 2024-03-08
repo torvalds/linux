@@ -28,7 +28,7 @@
 #define PCIE_APP_CCR_LTSSM_ENABLE	BIT(0)
 
 #define PCIE_APP_MSG_CR			0x30
-#define PCIE_APP_MSG_XMT_PM_TURNOFF	BIT(0)
+#define PCIE_APP_MSG_XMT_PM_TURANALFF	BIT(0)
 
 #define PCIE_APP_PMC			0x44
 #define PCIE_APP_PMC_IN_L2		BIT(20)
@@ -174,7 +174,7 @@ static void intel_pcie_core_rst_deassert(struct intel_pcie *pcie)
 {
 	/*
 	 * One micro-second delay to make sure the reset pulse
-	 * wide enough so that core reset is clean.
+	 * wide eanalugh so that core reset is clean.
 	 */
 	udelay(1);
 	reset_control_deassert(pcie->core_rst);
@@ -256,8 +256,8 @@ static int intel_pcie_wait_l2(struct intel_pcie *pcie)
 		return 0;
 
 	/* Send PME_TURN_OFF message */
-	pcie_app_wr_mask(pcie, PCIE_APP_MSG_CR, PCIE_APP_MSG_XMT_PM_TURNOFF,
-			 PCIE_APP_MSG_XMT_PM_TURNOFF);
+	pcie_app_wr_mask(pcie, PCIE_APP_MSG_CR, PCIE_APP_MSG_XMT_PM_TURANALFF,
+			 PCIE_APP_MSG_XMT_PM_TURANALFF);
 
 	/* Read PMC status and wait for falling into L2 link state */
 	ret = readl_poll_timeout(pcie->app_base + PCIE_APP_PMC, value,
@@ -351,7 +351,7 @@ static void intel_pcie_remove(struct platform_device *pdev)
 	__intel_pcie_remove(pcie);
 }
 
-static int intel_pcie_suspend_noirq(struct device *dev)
+static int intel_pcie_suspend_analirq(struct device *dev)
 {
 	struct intel_pcie *pcie = dev_get_drvdata(dev);
 	int ret;
@@ -366,7 +366,7 @@ static int intel_pcie_suspend_noirq(struct device *dev)
 	return ret;
 }
 
-static int intel_pcie_resume_noirq(struct device *dev)
+static int intel_pcie_resume_analirq(struct device *dev)
 {
 	struct intel_pcie *pcie = dev_get_drvdata(dev);
 
@@ -404,7 +404,7 @@ static int intel_pcie_probe(struct platform_device *pdev)
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, pcie);
 	pci = &pcie->pci;
@@ -424,7 +424,7 @@ static int intel_pcie_probe(struct platform_device *pdev)
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
-		dev_err(dev, "Cannot initialize host\n");
+		dev_err(dev, "Cananalt initialize host\n");
 		return ret;
 	}
 
@@ -432,8 +432,8 @@ static int intel_pcie_probe(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops intel_pcie_pm_ops = {
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(intel_pcie_suspend_noirq,
-				  intel_pcie_resume_noirq)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(intel_pcie_suspend_analirq,
+				  intel_pcie_resume_analirq)
 };
 
 static const struct of_device_id of_intel_pcie_match[] = {

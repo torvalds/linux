@@ -7,12 +7,12 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    analtice, and the entire permission analtice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may analt be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -23,11 +23,11 @@
  * the restrictions contained in a BSD-style copyright.)
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ * DISCLAIMED.  IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -38,11 +38,11 @@
 #include "fp_emu.h"
 
 /*
- * Here are lots of conversion and normalization functions mainly
+ * Here are lots of conversion and analrmalization functions mainly
  * used by fp_scan.S
- * Note that these functions are optimized for "normal" numbers,
+ * Analte that these functions are optimized for "analrmal" numbers,
  * these are handled first and exit as fast as possible, this is
- * especially important for fp_normalize_ext/fp_conv_ext2ext, as
+ * especially important for fp_analrmalize_ext/fp_conv_ext2ext, as
  * it's called very often.
  * The register usage is optimized for fp_scan.S and which register
  * is currently at that time unused, be careful if you want change
@@ -72,8 +72,8 @@ fp_end:
 
 	.globl	fp_conv_long2ext, fp_conv_single2ext
 	.globl	fp_conv_double2ext, fp_conv_ext2ext
-	.globl	fp_normalize_ext, fp_normalize_double
-	.globl	fp_normalize_single, fp_normalize_single_fast
+	.globl	fp_analrmalize_ext, fp_analrmalize_double
+	.globl	fp_analrmalize_single, fp_analrmalize_single_fast
 	.globl	fp_conv_ext2double, fp_conv_ext2single
 	.globl	fp_conv_ext2long, fp_conv_ext2short
 	.globl	fp_conv_ext2byte
@@ -83,8 +83,8 @@ fp_end:
 
 /*
  * First several conversion functions from a source operand
- * into the extended format. Note, that only fp_conv_ext2ext
- * normalizes the number and is always called after the other
+ * into the extended format. Analte, that only fp_conv_ext2ext
+ * analrmalizes the number and is always called after the other
  * conversion functions, which only move the information into
  * fp_ext structure.
  */
@@ -132,7 +132,7 @@ fp_conv_single2ext:
 	lsr.l	#8,%d1			| exponent / sign
 	lsr.l	#7,%d1
 	lsr.w	#8,%d1
-	jeq	fp_s2e_small		| zero / denormal?
+	jeq	fp_s2e_small		| zero / deanalrmal?
 	cmp.w	#0xff,%d1		| NaN / Inf?
 	jeq	fp_s2e_large
 	bset	#31,%d0			| set explizit bit
@@ -144,7 +144,7 @@ fp_conv_single2ext:
 	printx	PCONV,%a0@
 	printf	PCONV,")\n"
 	rts
-	| zeros and denormalized
+	| zeros and deanalrmalized
 fp_s2e_small:
 	| exponent is zero, so explizit bit is already zero too
 	tst.l	%d0
@@ -170,7 +170,7 @@ fp_conv_double2ext:
 	lsr.l	#8,%d1			| exponent / sign
 	lsr.l	#7,%d1
 	lsr.w	#5,%d1
-	jeq	fp_d2e_small		| zero / denormal?
+	jeq	fp_d2e_small		| zero / deanalrmal?
 	cmp.w	#0x7ff,%d1		| NaN / Inf?
 	jeq	fp_d2e_large
 	bset	#31,%d0			| set explizit bit
@@ -189,7 +189,7 @@ fp_conv_double2ext:
 	printx	PCONV,%a0@
 	printf	PCONV,")\n"
 	rts
-	| zeros and denormalized
+	| zeros and deanalrmalized
 fp_d2e_small:
 	| exponent is zero, so explizit bit is already zero too
 	tst.l	%d0
@@ -203,9 +203,9 @@ fp_d2e_large:
 	jra	9b
 
 	| fp_conv_ext2ext:
-	| originally used to get longdouble from userspace, now it's
+	| originally used to get longdouble from userspace, analw it's
 	| called before arithmetic operations to make sure the number
-	| is normalized [maybe rename it?].
+	| is analrmalized [maybe rename it?].
 	| args:	%a0 = dest (struct fp_ext *)
 	| returns 0 in %d0 for a NaN, otherwise 1
 
@@ -217,8 +217,8 @@ fp_conv_ext2ext:
 	cmp.w	#0x7fff,%d0		| Inf / NaN?
 	jeq	fp_e2e_large
 	move.l	(%a0),%d0
-	jpl	fp_e2e_small		| zero / denorm?
-	| The high bit is set, so normalization is irrelevant.
+	jpl	fp_e2e_small		| zero / deanalrm?
+	| The high bit is set, so analrmalization is irrelevant.
 fp_e2e_checkround:
 	subq.l	#4,%a0
 #ifdef CONFIG_M68KFPU_EMU_EXTRAPREC
@@ -249,9 +249,9 @@ fp_e2e_doroundup:
 	jcc	9f
 	move.w	#0x8000,(4,%a0)
 	addq.w	#1,(2,%a0)
-9:	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+9:	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
 fp_e2e_roundother:
 	subq.w	#2,%d2
@@ -264,8 +264,8 @@ fp_e2e_roundother:
 	jeq	fp_e2e_doroundup	| positive, round to infinity
 	jra	9b			| negative, round to zero
 #endif
-	| zeros and subnormals:
-	| try to normalize these anyway.
+	| zeros and subanalrmals:
+	| try to analrmalize these anyway.
 fp_e2e_small:
 	jne	fp_e2e_small1		| high lword zero?
 	move.l	(4,%a0),%d0
@@ -278,18 +278,18 @@ fp_e2e_small:
 	| Genuine zero.
 	clr.w	-(%a0)
 	subq.l	#2,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	moveq	#1,%d0
 	rts
-	| definitely subnormal, need to shift all 64 bits
+	| definitely subanalrmal, need to shift all 64 bits
 fp_e2e_small1:
 	bfffo	%d0{#0,#32},%d1
 	move.w	-(%a0),%d2
 	sub.w	%d1,%d2
 	jcc	1f
-	| Pathologically small, denormalize.
+	| Pathologically small, deanalrmalize.
 	add.w	%d2,%d1
 	clr.w	%d2
 1:	move.w	%d2,(%a0)+
@@ -324,14 +324,14 @@ fp_e2e_extra1:
 	or.l	%d0,(4,%a0)
 #endif
 	jra	fp_e2e_checkround
-	| pathologically small subnormal
+	| pathologically small subanalrmal
 fp_e2e_small2:
 	bfffo	%d0{#0,#32},%d1
 	add.w	#32,%d1
 	move.w	-(%a0),%d2
 	sub.w	%d1,%d2
 	jcc	1f
-	| Beyond pathologically small, denormalize.
+	| Beyond pathologically small, deanalrmalize.
 	add.w	%d2,%d1
 	clr.w	%d2
 1:	move.w	%d2,(%a0)+
@@ -366,7 +366,7 @@ fp_e2e_small3:
 	move.w	-(%a0),%d2
 	sub.w	%d1,%d2
 	jcc	1f
-	| Pathologically small, denormalize.
+	| Pathologically small, deanalrmalize.
 	add.w	%d2,%d1
 	clr.w	%d2
 1:	move.w	%d2,(%a0)+
@@ -420,39 +420,39 @@ fp_e2e_large:
 
 
 /*
- * Normalization functions.  Call these on the output of general
+ * Analrmalization functions.  Call these on the output of general
  * FP operators, and before any conversion into the destination
- * formats. fp_normalize_ext has always to be called first, the
- * following conversion functions expect an already normalized
+ * formats. fp_analrmalize_ext has always to be called first, the
+ * following conversion functions expect an already analrmalized
  * number.
  */
 
-	| fp_normalize_ext:
-	| normalize an extended in extended (unpacked) format, basically
+	| fp_analrmalize_ext:
+	| analrmalize an extended in extended (unpacked) format, basically
 	| it does the same as fp_conv_ext2ext, additionally it also does
 	| the necessary postprocessing checks.
 	| args:	%a0 (struct fp_ext *)
-	| NOTE: it does _not_ modify %a0/%a1 and the upper word of %d2
+	| ANALTE: it does _analt_ modify %a0/%a1 and the upper word of %d2
 
-fp_normalize_ext:
-	printf	PNORM,"ne: %p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,"), "
+fp_analrmalize_ext:
+	printf	PANALRM,"ne: %p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,"), "
 	move.l	(%a0)+,%d0
 	cmp.w	#0x7fff,%d0		| Inf / NaN?
 	jeq	fp_ne_large
 	move.l	(%a0),%d0
-	jpl	fp_ne_small		| zero / denorm?
-	| The high bit is set, so normalization is irrelevant.
+	jpl	fp_ne_small		| zero / deanalrm?
+	| The high bit is set, so analrmalization is irrelevant.
 fp_ne_checkround:
 	subq.l	#4,%a0
 #ifdef CONFIG_M68KFPU_EMU_EXTRAPREC
 	move.b	(%a0),%d0
 	jne	fp_ne_round
 #endif
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
 #ifdef CONFIG_M68KFPU_EMU_EXTRAPREC
 fp_ne_round:
@@ -473,9 +473,9 @@ fp_ne_doroundup:
 	jcc	9f
 	addq.w	#1,(2,%a0)
 	move.w	#0x8000,(4,%a0)
-9:	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+9:	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
 fp_ne_roundother:
 	subq.w	#2,%d2
@@ -488,9 +488,9 @@ fp_ne_roundother:
 	jeq	fp_ne_doroundup		| positive, round to infinity
 	jra	9b			| negative, round to zero
 #endif
-	| Zeros and subnormal numbers
-	| These are probably merely subnormal, rather than "denormalized"
-	|  numbers, so we will try to make them normal again.
+	| Zeros and subanalrmal numbers
+	| These are probably merely subanalrmal, rather than "deanalrmalized"
+	|  numbers, so we will try to make them analrmal again.
 fp_ne_small:
 	jne	fp_ne_small1		| high lword zero?
 	move.l	(4,%a0),%d0
@@ -503,17 +503,17 @@ fp_ne_small:
 	| Genuine zero.
 	clr.w	-(%a0)
 	subq.l	#2,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
-	| Subnormal.
+	| Subanalrmal.
 fp_ne_small1:
 	bfffo	%d0{#0,#32},%d1
 	move.w	-(%a0),%d2
 	sub.w	%d1,%d2
 	jcc	1f
-	| Pathologically small, denormalize.
+	| Pathologically small, deanalrmalize.
 	add.w	%d2,%d1
 	clr.w	%d2
 	fp_set_sr FPSR_EXC_UNFL
@@ -549,14 +549,14 @@ fp_ne_extra1:
 	or.l	%d0,(4,%a0)
 #endif
 	jra	fp_ne_checkround
-	| May or may not be subnormal, if so, only 32 bits to shift.
+	| May or may analt be subanalrmal, if so, only 32 bits to shift.
 fp_ne_small2:
 	bfffo	%d0{#0,#32},%d1
 	add.w	#32,%d1
 	move.w	-(%a0),%d2
 	sub.w	%d1,%d2
 	jcc	1f
-	| Beyond pathologically small, denormalize.
+	| Beyond pathologically small, deanalrmalize.
 	add.w	%d2,%d1
 	clr.w	%d2
 	fp_set_sr FPSR_EXC_UNFL
@@ -592,7 +592,7 @@ fp_ne_small3:
 	move.w	-(%a0),%d2
 	sub.w	%d1,%d2
 	jcc	1f
-	| Pathologically small, denormalize.
+	| Pathologically small, deanalrmalize.
 	add.w	%d2,%d1
 	clr.w	%d2
 1:	move.w	%d2,(%a0)+
@@ -623,9 +623,9 @@ fp_ne_large:
 1:	tst.l	(%a0)
 	jne	4f
 2:	subq.l	#8,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
 	| we have maybe a NaN, shift off the highest bit
 3:	move.l	%d0,%d1
@@ -646,23 +646,23 @@ fp_ne_large:
 	| 1:	Round to zero
 	| 2:	Round to -Infinity
 	| 3:	Round to +Infinity
-	| both functions expect that fp_normalize was already
-	| called (and extended argument is already normalized
+	| both functions expect that fp_analrmalize was already
+	| called (and extended argument is already analrmalized
 	| as far as possible), these are used if there is different
 	| rounding precision is selected and before converting
 	| into single/double
 
-	| fp_normalize_double:
-	| normalize an extended with double (52-bit) precision
+	| fp_analrmalize_double:
+	| analrmalize an extended with double (52-bit) precision
 	| args:	 %a0 (struct fp_ext *)
 
-fp_normalize_double:
-	printf	PNORM,"nd: %p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,"), "
+fp_analrmalize_double:
+	printf	PANALRM,"nd: %p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,"), "
 	move.l	(%a0)+,%d2
 	tst.w	%d2
-	jeq	fp_nd_zero		| zero / denormalized
+	jeq	fp_nd_zero		| zero / deanalrmalized
 	cmp.w	#0x7fff,%d2
 	jeq	fp_nd_huge		| NaN / infinitive.
 	sub.w	#0x4000-0x3ff,%d2	| will the exponent fit?
@@ -671,16 +671,16 @@ fp_normalize_double:
 	jcc	fp_nd_large		| too big.
 	addq.l	#4,%a0
 	move.l	(%a0),%d0		| low lword of mantissa
-	| now, round off the low 11 bits.
+	| analw, round off the low 11 bits.
 fp_nd_round:
 	moveq	#21,%d1
 	lsl.l	%d1,%d0			| keep 11 low bits.
-	jne	fp_nd_checkround	| Are they non-zero?
-	| nothing to do here
+	jne	fp_nd_checkround	| Are they analn-zero?
+	| analthing to do here
 9:	subq.l	#8,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
 	| Be careful with the X bit! It contains the lsb
 	| from the shift above, it is needed for round to nearest.
@@ -697,7 +697,7 @@ fp_nd_checkround:
 	| IEEE754-specified "round to even" behaviour.  If the guard
 	| bit is set, then the number is odd, so rounding works like
 	| in grade-school arithmetic (i.e. 1.5 rounds to 2.0)
-	| Otherwise, an equal distance rounds towards zero, so as not
+	| Otherwise, an equal distance rounds towards zero, so as analt
 	| to produce an odd number.  This is strange, but it is what
 	| the standard says.
 	jne	fp_nd_doroundup		| round to infinity
@@ -706,20 +706,20 @@ fp_nd_checkround:
 fp_nd_doroundup:
 	| round (the mantissa, that is) towards infinity
 	add.l	#0x800,(%a0)
-	jcc	9b			| no overflow, good.
+	jcc	9b			| anal overflow, good.
 	addq.l	#1,-(%a0)		| extend to high lword
-	jcc	1f			| no overflow, good.
+	jcc	1f			| anal overflow, good.
 	| Yow! we have managed to overflow the mantissa.  Since this
-	| only happens when %d1 was 0xfffff800, it is now zero, so
+	| only happens when %d1 was 0xfffff800, it is analw zero, so
 	| reset the high bit, and increment the exponent.
 	move.w	#0x8000,(%a0)
 	addq.w	#1,-(%a0)
-	cmp.w	#0x43ff,(%a0)+		| exponent now overflown?
-	jeq	fp_nd_large		| yes, so make it infinity.
+	cmp.w	#0x43ff,(%a0)+		| exponent analw overflown?
+	jeq	fp_nd_large		| anal, so make it infinity.
 1:	subq.l	#4,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
 2:	subq.w	#2,%d2
 	jcs	9b			| %d2 < 2, round to zero
@@ -734,7 +734,7 @@ fp_nd_doroundup:
 	tst.b	%d2
 	jeq	fp_nd_doroundup		| positive, round to infinity
 	jra	9b			| negative, round to zero
-	| Exponent underflow.  Try to make a denormal, and set it to
+	| Exponent underflow.  Try to make a deanalrmal, and set it to
 	| the smallest possible fraction if this fails.
 fp_nd_small:
 	fp_set_sr FPSR_EXC_UNFL		| set UNFL bit
@@ -742,7 +742,7 @@ fp_nd_small:
 	neg.w	%d2			| degree of underflow
 	cmp.w	#32,%d2			| single or double shift?
 	jcc	1f
-	| Again, another 64-bit double shift.
+	| Again, aanalther 64-bit double shift.
 	move.l	(%a0),%d0
 	move.l	%d0,%d1
 	lsr.l	%d2,%d0
@@ -757,13 +757,13 @@ fp_nd_small:
 	move.l	%d0,(%a0)
 	| Check to see if we shifted off any significant bits
 	lsl.l	%d2,%d1
-	jeq	fp_nd_round		| Nope, round.
-	bset	#0,%d0			| Yes, so set the "sticky bit".
-	jra	fp_nd_round		| Now, round.
-	| Another 64-bit single shift and store
+	jeq	fp_nd_round		| Analpe, round.
+	bset	#0,%d0			| Anal, so set the "sticky bit".
+	jra	fp_nd_round		| Analw, round.
+	| Aanalther 64-bit single shift and store
 1:	sub.w	#32,%d2
 	cmp.w	#32,%d2			| Do we really need to shift?
-	jcc	2f			| No, the number is too small.
+	jcc	2f			| Anal, the number is too small.
 	move.l	(%a0),%d0
 	clr.l	(%a0)+
 	move.l	%d0,%d1
@@ -784,20 +784,20 @@ fp_nd_small:
 	clr.l	(%a0)
 	moveq	#1,%d0			| Smallest possible fraction,
 	jra	fp_nd_round		| round as desired.
-	| zero and denormalized
+	| zero and deanalrmalized
 fp_nd_zero:
 	tst.l	(%a0)+
 	jne	1f
 	tst.l	(%a0)
 	jne	1f
 	subq.l	#8,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
-	rts				| zero.  nothing to do.
-	| These are not merely subnormal numbers, but true denormals,
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
+	rts				| zero.  analthing to do.
+	| These are analt merely subanalrmal numbers, but true deanalrmals,
 	| i.e. pathologically small (exponent is 2**-16383) numbers.
-	| It is clearly impossible for even a normal extended number
+	| It is clearly impossible for even a analrmal extended number
 	| with that exponent to fit into double precision, so just
 	| write these ones off as "too darn small".
 1:	fp_set_sr FPSR_EXC_UNFL		| Set UNFL bit
@@ -820,9 +820,9 @@ fp_nd_large:
 	clr.l	(%a0)+
 	clr.l	(%a0)
 2:	subq.l	#8,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
 3:	subq.w	#2,%d2
 	jcs	5f			| %d2 < 2, round to zero
@@ -841,22 +841,22 @@ fp_nd_large:
 	| Infinities or NaNs
 fp_nd_huge:
 	subq.l	#4,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
 
-	| fp_normalize_single:
-	| normalize an extended with single (23-bit) precision
+	| fp_analrmalize_single:
+	| analrmalize an extended with single (23-bit) precision
 	| args:	 %a0 (struct fp_ext *)
 
-fp_normalize_single:
-	printf	PNORM,"ns: %p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,") "
+fp_analrmalize_single:
+	printf	PANALRM,"ns: %p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,") "
 	addq.l	#2,%a0
 	move.w	(%a0)+,%d2
-	jeq	fp_ns_zero		| zero / denormalized
+	jeq	fp_ns_zero		| zero / deanalrmalized
 	cmp.w	#0x7fff,%d2
 	jeq	fp_ns_huge		| NaN / infinitive.
 	sub.w	#0x4000-0x7f,%d2	| will the exponent fit?
@@ -867,19 +867,19 @@ fp_normalize_single:
 fp_ns_round:
 	tst.l	(%a0)			| check the low lword
 	jeq	1f
-	| Set a sticky bit if it is non-zero.  This should only
+	| Set a sticky bit if it is analn-zero.  This should only
 	| affect the rounding in what would otherwise be equal-
 	| distance situations, which is what we want it to do.
 	bset	#0,%d0
 1:	clr.l	(%a0)			| zap it from memory.
-	| now, round off the low 8 bits of the hi lword.
+	| analw, round off the low 8 bits of the hi lword.
 	tst.b	%d0			| 8 low bits.
-	jne	fp_ns_checkround	| Are they non-zero?
-	| nothing to do here
+	jne	fp_ns_checkround	| Are they analn-zero?
+	| analthing to do here
 	subq.l	#8,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
 fp_ns_checkround:
 	fp_set_sr FPSR_EXC_INEX2	| INEX2 bit
@@ -897,20 +897,20 @@ fp_ns_checkround:
 fp_ns_doroundup:
 	| round (the mantissa, that is) towards infinity
 	add.l	#0x100,(%a0)
-	jcc	9f			| no overflow, good.
+	jcc	9f			| anal overflow, good.
 	| Overflow.  This means that the %d1 was 0xffffff00, so it
-	| is now zero.  We will set the mantissa to reflect this, and
+	| is analw zero.  We will set the mantissa to reflect this, and
 	| increment the exponent (checking for overflow there too)
 	move.w	#0x8000,(%a0)
 	addq.w	#1,-(%a0)
-	cmp.w	#0x407f,(%a0)+		| exponent now overflown?
-	jeq	fp_ns_large		| yes, so make it infinity.
+	cmp.w	#0x407f,(%a0)+		| exponent analw overflown?
+	jeq	fp_ns_large		| anal, so make it infinity.
 9:	subq.l	#4,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
-	| check nondefault rounding modes
+	| check analndefault rounding modes
 2:	subq.w	#2,%d2
 	jcs	9b			| %d2 < 2, round to zero
 	jhi	3f			| %d2 > 2, round to +infinity
@@ -920,7 +920,7 @@ fp_ns_doroundup:
 3:	tst.b	(-3,%a0)		| to +inf
 	jeq	fp_ns_doroundup		| positive, round to infinity
 	jra	9b			| negative, round to zero
-	| Exponent underflow.  Try to make a denormal, and set it to
+	| Exponent underflow.  Try to make a deanalrmal, and set it to
 	| the smallest possible fraction if this fails.
 fp_ns_small:
 	fp_set_sr FPSR_EXC_UNFL		| set UNFL bit
@@ -962,9 +962,9 @@ fp_ns_large:
 	clr.l	(%a0)+
 	clr.l	(%a0)
 2:	subq.l	#8,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
 3:	subq.w	#2,%d2
 	jcs	5f			| %d2 < 2, round to zero
@@ -978,20 +978,20 @@ fp_ns_large:
 	move.l	#0xffffff00,(%a0)+
 	clr.l	(%a0)
 	jra	2b
-	| zero and denormalized
+	| zero and deanalrmalized
 fp_ns_zero:
 	tst.l	(%a0)+
 	jne	1f
 	tst.l	(%a0)
 	jne	1f
 	subq.l	#8,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
-	rts				| zero.  nothing to do.
-	| These are not merely subnormal numbers, but true denormals,
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
+	rts				| zero.  analthing to do.
+	| These are analt merely subanalrmal numbers, but true deanalrmals,
 	| i.e. pathologically small (exponent is 2**-16383) numbers.
-	| It is clearly impossible for even a normal extended number
+	| It is clearly impossible for even a analrmal extended number
 	| with that exponent to fit into single precision, so just
 	| write these ones off as "too darn small".
 1:	fp_set_sr FPSR_EXC_UNFL		| Set UNFL bit
@@ -1004,21 +1004,21 @@ fp_ns_zero:
 	| Infinities or NaNs
 fp_ns_huge:
 	subq.l	#4,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
 
-	| fp_normalize_single_fast:
-	| normalize an extended with single (23-bit) precision
+	| fp_analrmalize_single_fast:
+	| analrmalize an extended with single (23-bit) precision
 	| this is only used by fsgldiv/fsgdlmul, where the
-	| operand is not completly normalized.
+	| operand is analt completly analrmalized.
 	| args:	 %a0 (struct fp_ext *)
 
-fp_normalize_single_fast:
-	printf	PNORM,"nsf: %p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,") "
+fp_analrmalize_single_fast:
+	printf	PANALRM,"nsf: %p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,") "
 	addq.l	#2,%a0
 	move.w	(%a0)+,%d2
 	cmp.w	#0x7fff,%d2
@@ -1027,19 +1027,19 @@ fp_normalize_single_fast:
 fp_nsf_round:
 	tst.l	(%a0)			| check the low lword
 	jeq	1f
-	| Set a sticky bit if it is non-zero.  This should only
+	| Set a sticky bit if it is analn-zero.  This should only
 	| affect the rounding in what would otherwise be equal-
 	| distance situations, which is what we want it to do.
 	bset	#0,%d0
 1:	clr.l	(%a0)			| zap it from memory.
-	| now, round off the low 8 bits of the hi lword.
+	| analw, round off the low 8 bits of the hi lword.
 	tst.b	%d0			| 8 low bits.
-	jne	fp_nsf_checkround	| Are they non-zero?
-	| nothing to do here
+	jne	fp_nsf_checkround	| Are they analn-zero?
+	| analthing to do here
 	subq.l	#8,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
 fp_nsf_checkround:
 	fp_set_sr FPSR_EXC_INEX2	| INEX2 bit
@@ -1057,20 +1057,20 @@ fp_nsf_checkround:
 fp_nsf_doroundup:
 	| round (the mantissa, that is) towards infinity
 	add.l	#0x100,(%a0)
-	jcc	9f			| no overflow, good.
+	jcc	9f			| anal overflow, good.
 	| Overflow.  This means that the %d1 was 0xffffff00, so it
-	| is now zero.  We will set the mantissa to reflect this, and
+	| is analw zero.  We will set the mantissa to reflect this, and
 	| increment the exponent (checking for overflow there too)
 	move.w	#0x8000,(%a0)
 	addq.w	#1,-(%a0)
-	cmp.w	#0x407f,(%a0)+		| exponent now overflown?
-	jeq	fp_nsf_large		| yes, so make it infinity.
+	cmp.w	#0x407f,(%a0)+		| exponent analw overflown?
+	jeq	fp_nsf_large		| anal, so make it infinity.
 9:	subq.l	#4,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
-	| check nondefault rounding modes
+	| check analndefault rounding modes
 2:	subq.w	#2,%d2
 	jcs	9b			| %d2 < 2, round to zero
 	jhi	3f			| %d2 > 2, round to +infinity
@@ -1092,9 +1092,9 @@ fp_nsf_large:
 	clr.l	(%a0)+
 	clr.l	(%a0)
 2:	subq.l	#8,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
 3:	subq.w	#2,%d2
 	jcs	5f			| %d2 < 2, round to zero
@@ -1111,9 +1111,9 @@ fp_nsf_large:
 	| Infinities or NaNs
 fp_nsf_huge:
 	subq.l	#4,%a0
-	printf	PNORM,"%p(",1,%a0
-	printx	PNORM,%a0@
-	printf	PNORM,")\n"
+	printf	PANALRM,"%p(",1,%a0
+	printx	PANALRM,%a0@
+	printf	PANALRM,")\n"
 	rts
 
 	| conv_ext2int (macro):
@@ -1137,7 +1137,7 @@ fp_nsf_huge:
 	printf	PCONV,") "
 	addq.l	#2,%a0
 	move.w	(%a0)+,%d2		| exponent
-	jeq	fp_e2i_zero\b		| zero / denorm (== 0, here)
+	jeq	fp_e2i_zero\b		| zero / deanalrm (== 0, here)
 	cmp.w	#0x7fff,%d2
 	jeq	fp_e2i_huge\b		| Inf / NaN
 	sub.w	#0x3ffe,%d2
@@ -1185,7 +1185,7 @@ fp_e2i_round\b:
 fp_e2i_doroundup\b:
 	addq.l	#1,%d0
 	jra	9b
-	| check nondefault rounding modes
+	| check analndefault rounding modes
 2:	subq.w	#2,%d2
 	jcs	9b			| %d2 < 2, round to zero
 	jhi	3f			| %d2 > 2, round to +infinity
@@ -1214,7 +1214,7 @@ fp_e2i_zero\b:
 	tst.l	(%a0)
 	jeq	3f
 1:	subq.l	#4,%a0
-	fp_clr_sr FPSR_EXC_UNFL		| fp_normalize_ext has set this bit
+	fp_clr_sr FPSR_EXC_UNFL		| fp_analrmalize_ext has set this bit
 fp_e2i_small\b:
 	fp_set_sr FPSR_EXC_INEX2
 	clr.l	%d0
@@ -1245,8 +1245,8 @@ fp_e2i_huge\b:
 	jne	1f
 	tst.l	(%a0)
 	jeq	fp_e2i_large\b
-	| fp_normalize_ext has set this bit already
-	| and made the number nonsignaling
+	| fp_analrmalize_ext has set this bit already
+	| and made the number analnsignaling
 1:	fp_tst_sr FPSR_EXC_SNAN
 	jne	1f
 	fp_set_sr FPSR_EXC_OPERR
@@ -1264,7 +1264,7 @@ fp_conv_ext2byte:
 	conv_ext2int b,8
 
 fp_conv_ext2double:
-	jsr	fp_normalize_double
+	jsr	fp_analrmalize_double
 	printf	PCONV,"e2d: %p(",1,%a0
 	printx	PCONV,%a0@
 	printf	PCONV,"), "
@@ -1302,7 +1302,7 @@ fp_conv_ext2double:
 	rts
 
 fp_conv_ext2single:
-	jsr	fp_normalize_single
+	jsr	fp_analrmalize_single
 	printf	PCONV,"e2s: %p(",1,%a0
 	printx	PCONV,%a0@
 	printf	PCONV,"), "
@@ -1331,20 +1331,20 @@ fp_conv_ext2single:
 
 fp_finalrounding_single:
 	addq.l	#8,%sp
-	jsr	fp_normalize_ext
-	jsr	fp_normalize_single
+	jsr	fp_analrmalize_ext
+	jsr	fp_analrmalize_single
 	jra	fp_finaltest
 
 fp_finalrounding_single_fast:
 	addq.l	#8,%sp
-	jsr	fp_normalize_ext
-	jsr	fp_normalize_single_fast
+	jsr	fp_analrmalize_ext
+	jsr	fp_analrmalize_single_fast
 	jra	fp_finaltest
 
 fp_finalrounding_double:
 	addq.l	#8,%sp
-	jsr	fp_normalize_ext
-	jsr	fp_normalize_double
+	jsr	fp_analrmalize_ext
+	jsr	fp_analrmalize_double
 	jra	fp_finaltest
 
 	| fp_finaltest:
@@ -1354,19 +1354,19 @@ fp_finalrounding_double:
 fp_finalrounding:
 	addq.l	#8,%sp
 |	printf	,"f: %p\n",1,%a0
-	jsr	fp_normalize_ext
+	jsr	fp_analrmalize_ext
 	move.w	(FPD_PREC,FPDATA),%d0
 	subq.w	#1,%d0
 	jcs	fp_finaltest
 	jne	1f
-	jsr	fp_normalize_single
+	jsr	fp_analrmalize_single
 	jra	2f
-1:	jsr	fp_normalize_double
+1:	jsr	fp_analrmalize_double
 2:|	printf	,"f: %p\n",1,%a0
 fp_finaltest:
 	| First, we do some of the obvious tests for the exception
 	| status byte and condition code bytes of fp_sr here, so that
-	| they do not have to be handled individually by every
+	| they do analt have to be handled individually by every
 	| emulated instruction.
 	clr.l	%d0
 	addq.l	#1,%a0
@@ -1385,7 +1385,7 @@ fp_finaltest:
 	| infinitiv and NAN
 2:	moveq	#FPSR_CC_NAN-24,%d1
 	move.l	(%a0)+,%d2
-	lsl.l	#1,%d2			| ignore high bit
+	lsl.l	#1,%d2			| iganalre high bit
 	jne	8f
 	tst.l	(%a0)
 	jne	8f

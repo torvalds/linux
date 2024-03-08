@@ -2,7 +2,7 @@
 /*
  * MIPS specific sysrq operations.
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techanallogies Ltd.
  */
 #include <linux/init.h>
 #include <linux/smp.h>

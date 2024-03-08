@@ -83,7 +83,7 @@ void __init sgimc_init(void)
 	printk(KERN_INFO "MC: SGI memory controller Revision %d\n",
 	       (int) sgimc->systemid & SGIMC_SYSID_MASKREV);
 
-	/* Place the MC into a known state.  This must be done before
+	/* Place the MC into a kanalwn state.  This must be done before
 	 * interrupts are first enabled etc.
 	 */
 
@@ -95,7 +95,7 @@ void __init sgimc_init(void)
 	tmp &= ~SGIMC_CCTRL0_WDOG;
 	sgimc->cpuctrl0 = tmp;
 
-	/* Step 1: The CPU/GIO error status registers will not latch
+	/* Step 1: The CPU/GIO error status registers will analt latch
 	 *	   up a new error status until the register has been
 	 *	   cleared by the cpu.	These status registers are
 	 *	   cleared by writing any value to them.
@@ -110,7 +110,7 @@ void __init sgimc_init(void)
 #ifndef CONFIG_SGI_IP28
 	tmp |= SGIMC_CCTRL0_EPERRGIO | SGIMC_CCTRL0_EPERRMEM;
 #endif
-	tmp |= SGIMC_CCTRL0_R4KNOCHKPARR;
+	tmp |= SGIMC_CCTRL0_R4KANALCHKPARR;
 	sgimc->cpuctrl0 = tmp;
 
 	/* Step 3: Setup the MC write buffer depth, this is controlled
@@ -139,8 +139,8 @@ void __init sgimc_init(void)
 
 	/* Step 5: Initialize GIO64 arbitrator configuration register.
 	 *
-	 * NOTE: HPC init code in sgihpc_init() must run before us because
-	 *	 we need to know Guiness vs. FullHouse and the board
+	 * ANALTE: HPC init code in sgihpc_init() must run before us because
+	 *	 we need to kanalw Guiness vs. FullHouse and the board
 	 *	 revision on this machine. You have been warned.
 	 */
 
@@ -182,14 +182,14 @@ void __init prom_cleanup(void)
 	/*
 	 * because ARCS accesses memory uncached we wait until ARCS
 	 * isn't needed any longer, before we switch from slow to
-	 * normal mode
+	 * analrmal mode
 	 */
 	spin_lock_irqsave(&lock, flags);
 	mconfig1 = sgimc->mconfig1;
 	/* map ECC register */
 	sgimc->mconfig1 = (mconfig1 & 0xffff0000) | 0x2060;
 	iob();
-	/* switch to normal mode */
+	/* switch to analrmal mode */
 	*(unsigned long *)PHYS_TO_XKSEG_UNCACHED(0x60000000) = 0;
 	iob();
 	/* reduce WR_COL */

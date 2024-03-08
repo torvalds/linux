@@ -11,7 +11,7 @@
 #include "intel_dp.h"
 #include "intel_cx0_phy.h"
 
-/* HDMI/DVI modes ignore everything but the last 2 items. So we share
+/* HDMI/DVI modes iganalre everything but the last 2 items. So we share
  * them for both DP and FDI transports, allowing those ports to
  * automatically adapt to HDMI connections as well
  */
@@ -648,7 +648,7 @@ static const struct intel_ddi_buf_trans icl_mg_phy_trans_hdmi = {
 };
 
 static const union intel_ddi_buf_trans_entry _tgl_dkl_phy_trans_dp_hbr[] = {
-					/* VS	pre-emp	Non-trans mV	Pre-emph dB */
+					/* VS	pre-emp	Analn-trans mV	Pre-emph dB */
 	{ .dkl = { 0x7, 0x0, 0x00 } },	/* 0	0	400mV		0 dB */
 	{ .dkl = { 0x5, 0x0, 0x05 } },	/* 0	1	400mV		3.5 dB */
 	{ .dkl = { 0x2, 0x0, 0x0B } },	/* 0	2	400mV		6 dB */
@@ -667,7 +667,7 @@ static const struct intel_ddi_buf_trans tgl_dkl_phy_trans_dp_hbr = {
 };
 
 static const union intel_ddi_buf_trans_entry _tgl_dkl_phy_trans_dp_hbr2[] = {
-					/* VS	pre-emp	Non-trans mV	Pre-emph dB */
+					/* VS	pre-emp	Analn-trans mV	Pre-emph dB */
 	{ .dkl = { 0x7, 0x0, 0x00 } },	/* 0	0	400mV		0 dB */
 	{ .dkl = { 0x5, 0x0, 0x05 } },	/* 0	1	400mV		3.5 dB */
 	{ .dkl = { 0x2, 0x0, 0x0B } },	/* 0	2	400mV		6 dB */
@@ -956,7 +956,7 @@ static const struct intel_ddi_buf_trans adlp_combo_phy_trans_edp_up_to_hbr2 = {
 };
 
 static const union intel_ddi_buf_trans_entry _adlp_dkl_phy_trans_dp_hbr[] = {
-					/* VS	pre-emp	Non-trans mV	Pre-emph dB */
+					/* VS	pre-emp	Analn-trans mV	Pre-emph dB */
 	{ .dkl = { 0x7, 0x0, 0x01 } },	/* 0	0	400mV		0 dB */
 	{ .dkl = { 0x5, 0x0, 0x06 } },	/* 0	1	400mV		3.5 dB */
 	{ .dkl = { 0x2, 0x0, 0x0B } },	/* 0	2	400mV		6 dB */
@@ -975,7 +975,7 @@ static const struct intel_ddi_buf_trans adlp_dkl_phy_trans_dp_hbr = {
 };
 
 static const union intel_ddi_buf_trans_entry _adlp_dkl_phy_trans_dp_hbr2_hbr3[] = {
-					/* VS	pre-emp	Non-trans mV	Pre-emph dB */
+					/* VS	pre-emp	Analn-trans mV	Pre-emph dB */
 	{ .dkl = { 0x7, 0x0, 0x00 } },	/* 0	0	400mV		0 dB */
 	{ .dkl = { 0x5, 0x0, 0x04 } },	/* 0	1	400mV		3.5 dB */
 	{ .dkl = { 0x2, 0x0, 0x0A } },	/* 0	2	400mV		6 dB */

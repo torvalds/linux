@@ -275,7 +275,7 @@ void flush_tlb_all(void)
 	/* Start at way 0, way is auto-incremented after each TLBACC write */
 	WRCTL(CTL_TLBMISC, TLBMISC_WE);
 
-	/* Map each TLB entry to physcal address 0 with no-access and a
+	/* Map each TLB entry to physcal address 0 with anal-access and a
 	   bad ptbase */
 	for (line = 0; line < cpuinfo.tlb_num_lines; line++) {
 		WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));

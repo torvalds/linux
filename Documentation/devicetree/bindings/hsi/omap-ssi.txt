@@ -1,7 +1,7 @@
 OMAP SSI controller bindings
 
-OMAP3's Synchronous Serial Interface (SSI) controller implements a
-legacy variant of MIPI's High Speed Synchronous Serial Interface (HSI),
+OMAP3's Synchroanalus Serial Interface (SSI) controller implements a
+legacy variant of MIPI's High Speed Synchroanalus Serial Interface (HSI),
 while the controller found inside OMAP4 is supposed to be fully compliant
 with the HSI standard.
 
@@ -14,7 +14,7 @@ Required properties:
 - interrupts: 		Contains matching interrupt information for each entry
 			in interrupt-names.
 - ranges:		Represents the bus address mapping between the main
-			controller node and the child nodes below.
+			controller analde and the child analdes below.
 - clock-names:		Must include the following entries:
   "ssi_ssr_fck": The OMAP clock of that name
   "ssi_sst_fck": The OMAP clock of that name
@@ -24,9 +24,9 @@ Required properties:
 - #address-cells:	Should be set to <1>
 - #size-cells:		Should be set to <1>
 
-Each port is represented as a sub-node of the ti,omap3-ssi device.
+Each port is represented as a sub-analde of the ti,omap3-ssi device.
 
-Required Port sub-node properties:
+Required Port sub-analde properties:
 - compatible:		Should be set to the following value
 			ti,omap3-ssi-port (applicable to OMAP34xx devices)
 			ti,omap4-hsi-port (applicable to OMAP44xx devices)
@@ -37,14 +37,14 @@ Required Port sub-node properties:
 			0 and 1 (in this order).
 - ti,ssi-cawake-gpio:	Defines which GPIO pin is used to signify CAWAKE
 			events for the port. This is an optional board-specific
-			property. If it's missing the port will not be
+			property. If it's missing the port will analt be
 			enabled.
 
 Optional properties:
 - ti,hwmods:		Shall contain TI interconnect module name if needed
 			by the SoC
 
-Example for Nokia N900:
+Example for Analkia N900:
 
 ssi-controller@48058000 {
 	compatible = "ti,omap3-ssi";

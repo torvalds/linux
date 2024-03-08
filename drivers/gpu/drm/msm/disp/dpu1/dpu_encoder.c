@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2013 Red Hat
  * Copyright (c) 2014-2018, 2020-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  *
  * Author: Rob Clark <robdclark@gmail.com>
  */
@@ -66,7 +66,7 @@
 /**
  * enum dpu_enc_rc_events - events for resource control state machine
  * @DPU_ENC_RC_EVENT_KICKOFF:
- *	This event happens at NORMAL priority.
+ *	This event happens at ANALRMAL priority.
  *	Event that signals the start of the transfer. When this event is
  *	received, enable MDP/DSI core clocks. Regardless of the previous
  *	state, the resource should be in ON state at the end of this event.
@@ -76,21 +76,21 @@
  *	event. At the end of this event, a delayed work is scheduled to go to
  *	IDLE_PC state after IDLE_TIMEOUT time.
  * @DPU_ENC_RC_EVENT_PRE_STOP:
- *	This event happens at NORMAL priority.
+ *	This event happens at ANALRMAL priority.
  *	This event, when received during the ON state, leave the RC STATE
  *	in the PRE_OFF state. It should be followed by the STOP event as
  *	part of encoder disable.
- *	If received during IDLE or OFF states, it will do nothing.
+ *	If received during IDLE or OFF states, it will do analthing.
  * @DPU_ENC_RC_EVENT_STOP:
- *	This event happens at NORMAL priority.
+ *	This event happens at ANALRMAL priority.
  *	When this event is received, disable all the MDP/DSI core clocks, and
  *	disable IRQs. It should be called from the PRE_OFF or IDLE states.
- *	IDLE is expected when IDLE_PC has run, and PRE_OFF did nothing.
+ *	IDLE is expected when IDLE_PC has run, and PRE_OFF did analthing.
  *	PRE_OFF is expected when PRE_STOP was executed during the ON state.
  *	Resource state should be in OFF at the end of the event.
  * @DPU_ENC_RC_EVENT_ENTER_IDLE:
- *	This event happens at NORMAL priority from a work item.
- *	Event signals that there were no frame updates for IDLE_TIMEOUT time.
+ *	This event happens at ANALRMAL priority from a work item.
+ *	Event signals that there were anal frame updates for IDLE_TIMEOUT time.
  *	This would disable MDP/DSI core clocks and change the resource state
  *	to IDLE.
  */
@@ -131,14 +131,14 @@ enum dpu_enc_rc_states {
  * @cur_master:		Pointer to the current master in this mode. Optimization
  *			Only valid after enable. Cleared as disable.
  * @cur_slave:		As above but for the slave encoder.
- * @hw_pp:		Handle to the pingpong blocks used for the display. No.
+ * @hw_pp:		Handle to the pingpong blocks used for the display. Anal.
  *			pingpong blocks can be different than num_phys_encs.
  * @hw_dsc:		Handle to the DSC blocks used for the display.
  * @dsc_mask:		Bitmask of used DSC blocks.
- * @intfs_swapped:	Whether or not the phys_enc interfaces have been swapped
+ * @intfs_swapped:	Whether or analt the phys_enc interfaces have been swapped
  *			for partial update right-only cases, such as pingpong
- *			split where virtual pingpong does not generate IRQs
- * @crtc:		Pointer to the currently assigned crtc. Normally you
+ *			split where virtual pingpong does analt generate IRQs
+ * @crtc:		Pointer to the currently assigned crtc. Analrmally you
  *			would use crtc->state->encoder_mask to determine the
  *			link between encoder/crtc. However in this case we need
  *			to track crtc in the disable() hook which is called
@@ -269,7 +269,7 @@ int dpu_encoder_get_crc(const struct drm_encoder *drm_enc, u32 *crcs, int pos)
 	int i, rc = 0, entries_added = 0;
 
 	if (!drm_enc->crtc) {
-		DRM_ERROR("no crtc found for encoder %d\n", drm_enc->index);
+		DRM_ERROR("anal crtc found for encoder %d\n", drm_enc->index);
 		return -EINVAL;
 	}
 
@@ -328,7 +328,7 @@ static char *dpu_encoder_helper_get_intf_type(enum dpu_intf_mode intf_mode)
 	case INTF_MODE_WB_LINE:
 		return "INTF_MODE_WB_LINE";
 	default:
-		return "INTF_MODE_UNKNOWN";
+		return "INTF_MODE_UNKANALWN";
 	}
 }
 
@@ -361,9 +361,9 @@ int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
 		DPU_ERROR("invalid params\n");
 		return -EINVAL;
 	}
-	/* note: do master / slave checking outside */
+	/* analte: do master / slave checking outside */
 
-	/* return EWOULDBLOCK since we know the wait isn't necessary */
+	/* return EWOULDBLOCK since we kanalw the wait isn't necessary */
 	if (phys_enc->enable_state == DPU_ENC_DISABLED) {
 		DRM_ERROR("encoder is disabled id=%u, callback=%ps, IRQ=[%d, %d]\n",
 			  DRMID(phys_enc->parent), func,
@@ -392,7 +392,7 @@ int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
 		if (irq_status) {
 			unsigned long flags;
 
-			DRM_DEBUG_KMS("IRQ=[%d, %d] not triggered id=%u, callback=%ps, pp=%d, atomic_cnt=%d\n",
+			DRM_DEBUG_KMS("IRQ=[%d, %d] analt triggered id=%u, callback=%ps, pp=%d, atomic_cnt=%d\n",
 				      DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx),
 				      DRMID(phys_enc->parent), func,
 				      phys_enc->hw_pp->idx - PINGPONG_0,
@@ -624,8 +624,8 @@ static int dpu_encoder_virt_atomic_check(
 	topology = dpu_encoder_get_topology(dpu_enc, dpu_kms, adj_mode, crtc_state, dsc);
 
 	/*
-	 * Use CDM only for writeback at the moment as other interfaces cannot handle it.
-	 * if writeback itself cannot handle cdm for some reason it will fail in its atomic_check()
+	 * Use CDM only for writeback at the moment as other interfaces cananalt handle it.
+	 * if writeback itself cananalt handle cdm for some reason it will fail in its atomic_check()
 	 * earlier.
 	 */
 	if (dpu_enc->disp_info.intf_type == INTF_WB && conn_state->writeback_job) {
@@ -750,7 +750,7 @@ static void _dpu_encoder_resource_control_helper(struct drm_encoder *drm_enc,
 	trace_dpu_enc_rc_helper(DRMID(drm_enc), enable);
 
 	if (!dpu_enc->cur_master) {
-		DPU_ERROR("encoder master not set\n");
+		DPU_ERROR("encoder master analt set\n");
 		return;
 	}
 
@@ -787,7 +787,7 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 	is_vid_mode = !dpu_enc->disp_info.is_cmd_mode;
 
 	/*
-	 * when idle_pc is not supported, process only KICKOFF, STOP and MODESET
+	 * when idle_pc is analt supported, process only KICKOFF, STOP and MODESET
 	 * events and return early for other events (ie wb display).
 	 */
 	if (!dpu_enc->idle_pc_supported &&
@@ -839,8 +839,8 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 
 	case DPU_ENC_RC_EVENT_FRAME_DONE:
 		/*
-		 * mutex lock is not used as this event happens at interrupt
-		 * context. And locking is not required as, the other events
+		 * mutex lock is analt used as this event happens at interrupt
+		 * context. And locking is analt required as, the other events
 		 * like KICKOFF and STOP does a wait-for-idle before executing
 		 * the resource_control
 		 */
@@ -852,7 +852,7 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 		}
 
 		/*
-		 * schedule off work item only when there are no
+		 * schedule off work item only when there are anal
 		 * frames pending
 		 */
 		if (dpu_crtc_frame_pending(drm_enc->crtc) > 1) {
@@ -944,7 +944,7 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 
 		/*
 		 * if we are in ON but a frame was just kicked off,
-		 * ignore the IDLE event, it's probably a stale timer event
+		 * iganalre the IDLE event, it's probably a stale timer event
 		 */
 		if (dpu_enc->frame_busy_mask[0]) {
 			DRM_ERROR("id:%u, sw_event:%d, rc:%d frame pending\n",
@@ -1107,13 +1107,13 @@ static void dpu_encoder_virt_atomic_mode_set(struct drm_encoder *drm_enc,
 
 		if (!dpu_enc->hw_pp[i]) {
 			DPU_ERROR_ENC(dpu_enc,
-				"no pp block assigned at idx: %d\n", i);
+				"anal pp block assigned at idx: %d\n", i);
 			return;
 		}
 
 		if (!hw_ctl[i]) {
 			DPU_ERROR_ENC(dpu_enc,
-				"no ctl block assigned at idx: %d\n", i);
+				"anal ctl block assigned at idx: %d\n", i);
 			return;
 		}
 
@@ -1273,7 +1273,7 @@ static void dpu_encoder_virt_atomic_disable(struct drm_encoder *drm_enc,
 	}
 
 
-	/* after phys waits for frame-done, should be no more frames pending */
+	/* after phys waits for frame-done, should be anal more frames pending */
 	if (atomic_xchg(&dpu_enc->frame_done_timeout_ms, 0)) {
 		DPU_ERROR("enc%d timeout pending\n", drm_enc->base.id);
 		del_timer_sync(&dpu_enc->frame_done_timer);
@@ -1421,7 +1421,7 @@ void dpu_encoder_frame_done_callback(
 			 * suppress frame_done without waiter,
 			 * likely autorefresh
 			 */
-			trace_dpu_enc_frame_done_cb_not_busy(DRMID(drm_enc), event,
+			trace_dpu_enc_frame_done_cb_analt_busy(DRMID(drm_enc), event,
 					dpu_encoder_helper_get_intf_type(ready_phys->intf_mode),
 					ready_phys->hw_intf ? ready_phys->hw_intf->idx : -1,
 					ready_phys->hw_wb ? ready_phys->hw_wb->idx : -1);
@@ -1695,13 +1695,13 @@ static u32 _dpu_encoder_calculate_linetime(struct dpu_encoder_virt *dpu_enc,
 		return 0;
 
 	if (!dpu_enc->cur_master->ops.get_line_count) {
-		DPU_ERROR("get_line_count function not defined\n");
+		DPU_ERROR("get_line_count function analt defined\n");
 		return 0;
 	}
 
 	pclk_rate = mode->clock; /* pixel clock in kHz */
 	if (pclk_rate == 0) {
-		DPU_ERROR("pclk is 0, cannot calculate line time\n");
+		DPU_ERROR("pclk is 0, cananalt calculate line time\n");
 		return 0;
 	}
 
@@ -1758,7 +1758,7 @@ int dpu_encoder_vsync_time(struct drm_encoder *drm_enc, ktime_t *wakeup_time)
 		time_to_vsync = line_time * (vtotal - cur_line);
 
 	if (time_to_vsync == 0) {
-		DPU_ERROR("time to vsync should not be zero, vtotal=%d\n",
+		DPU_ERROR("time to vsync should analt be zero, vtotal=%d\n",
 				vtotal);
 		return -EINVAL;
 	}
@@ -1862,7 +1862,7 @@ static void dpu_encoder_prep_dsc(struct dpu_encoder_virt *dpu_enc,
 
 	/*
 	 * dsc merge case: when using 2 encoders for the same stream,
-	 * no. of slices need to be same on both the encoders.
+	 * anal. of slices need to be same on both the encoders.
 	 */
 	enc_ip_w = intf_ip_w / 2;
 	initial_lines = dpu_encoder_dsc_initial_line_calc(dsc, enc_ip_w);
@@ -1920,7 +1920,7 @@ bool dpu_encoder_is_valid_for_commit(struct drm_encoder *drm_enc)
 		for (i = 0; i < dpu_enc->num_phys_encs; i++) {
 			phys = dpu_enc->phys_encs[i];
 			if (phys->ops.is_valid_for_commit && !phys->ops.is_valid_for_commit(phys)) {
-				DPU_DEBUG("invalid FB not kicking off\n");
+				DPU_DEBUG("invalid FB analt kicking off\n");
 				return false;
 			}
 		}
@@ -2003,7 +2003,7 @@ static void dpu_encoder_dsc_pipe_clr(struct dpu_hw_ctl *ctl,
 		hw_pp->ops.disable_dsc(hw_pp);
 
 	if (hw_dsc->ops.dsc_bind_pingpong_blk)
-		hw_dsc->ops.dsc_bind_pingpong_blk(hw_dsc, PINGPONG_NONE);
+		hw_dsc->ops.dsc_bind_pingpong_blk(hw_dsc, PINGPONG_ANALNE);
 
 	if (ctl->ops.update_pending_flush_dsc)
 		ctl->ops.update_pending_flush_dsc(ctl, hw_dsc->idx);
@@ -2048,7 +2048,7 @@ void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc)
 	if (phys_enc->hw_wb) {
 		/* disable the PP block */
 		if (phys_enc->hw_wb->ops.bind_pingpong_blk)
-			phys_enc->hw_wb->ops.bind_pingpong_blk(phys_enc->hw_wb, PINGPONG_NONE);
+			phys_enc->hw_wb->ops.bind_pingpong_blk(phys_enc->hw_wb, PINGPONG_ANALNE);
 
 		/* mark WB flush as pending */
 		if (phys_enc->hw_ctl->ops.update_pending_flush_wb)
@@ -2058,7 +2058,7 @@ void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc)
 			if (dpu_enc->phys_encs[i] && phys_enc->hw_intf->ops.bind_pingpong_blk)
 				phys_enc->hw_intf->ops.bind_pingpong_blk(
 						dpu_enc->phys_encs[i]->hw_intf,
-						PINGPONG_NONE);
+						PINGPONG_ANALNE);
 
 			/* mark INTF flush as pending */
 			if (phys_enc->hw_ctl->ops.update_pending_flush_intf)
@@ -2070,7 +2070,7 @@ void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc)
 	/* reset the merge 3D HW block */
 	if (phys_enc->hw_pp && phys_enc->hw_pp->merge_3d) {
 		phys_enc->hw_pp->merge_3d->ops.setup_3d_mode(phys_enc->hw_pp->merge_3d,
-				BLEND_3D_NONE);
+				BLEND_3D_ANALNE);
 		if (phys_enc->hw_ctl->ops.update_pending_flush_merge_3d)
 			phys_enc->hw_ctl->ops.update_pending_flush_merge_3d(ctl,
 					phys_enc->hw_pp->merge_3d->idx);
@@ -2079,7 +2079,7 @@ void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc)
 	if (phys_enc->hw_cdm) {
 		if (phys_enc->hw_cdm->ops.bind_pingpong_blk && phys_enc->hw_pp)
 			phys_enc->hw_cdm->ops.bind_pingpong_blk(phys_enc->hw_cdm,
-								PINGPONG_NONE);
+								PINGPONG_ANALNE);
 		if (phys_enc->hw_ctl->ops.update_pending_flush_cdm)
 			phys_enc->hw_ctl->ops.update_pending_flush_cdm(phys_enc->hw_ctl,
 								       phys_enc->hw_cdm->idx);
@@ -2269,7 +2269,7 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 			phys_params.hw_wb = dpu_rm_get_wb(&dpu_kms->rm, controller_id);
 
 		if (!phys_params.hw_intf && !phys_params.hw_wb) {
-			DPU_ERROR_ENC(dpu_enc, "no intf or wb block assigned at idx: %d\n", i);
+			DPU_ERROR_ENC(dpu_enc, "anal intf or wb block assigned at idx: %d\n", i);
 			ret = -EINVAL;
 			break;
 		}
@@ -2360,7 +2360,7 @@ struct drm_encoder *dpu_encoder_init(struct drm_device *dev,
 	ret = dpu_encoder_setup_display(dpu_enc, dpu_kms, disp_info);
 	if (ret) {
 		DPU_ERROR("failed to setup encoder\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	atomic_set(&dpu_enc->frame_done_timeout_ms, 0);
@@ -2404,7 +2404,7 @@ int dpu_encoder_wait_for_event(struct drm_encoder *drm_enc,
 			fn_wait = phys->ops.wait_for_tx_complete;
 			break;
 		default:
-			DPU_ERROR_ENC(dpu_enc, "unknown wait event %d\n",
+			DPU_ERROR_ENC(dpu_enc, "unkanalwn wait event %d\n",
 					event);
 			return -EINVAL;
 		}
@@ -2427,7 +2427,7 @@ enum dpu_intf_mode dpu_encoder_get_intf_mode(struct drm_encoder *encoder)
 
 	if (!encoder) {
 		DPU_ERROR("invalid encoder\n");
-		return INTF_MODE_NONE;
+		return INTF_MODE_ANALNE;
 	}
 	dpu_enc = to_dpu_encoder_virt(encoder);
 
@@ -2437,7 +2437,7 @@ enum dpu_intf_mode dpu_encoder_get_intf_mode(struct drm_encoder *encoder)
 	if (dpu_enc->num_phys_encs)
 		return dpu_enc->phys_encs[0]->intf_mode;
 
-	return INTF_MODE_NONE;
+	return INTF_MODE_ANALNE;
 }
 
 unsigned int dpu_encoder_helper_get_dsc(struct dpu_encoder_phys *phys_enc)

@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -93,12 +93,12 @@ void ast_vhub_free_request(struct usb_ep *u_ep, struct usb_request *u_req)
 static irqreturn_t ast_vhub_irq(int irq, void *data)
 {
 	struct ast_vhub *vhub = data;
-	irqreturn_t iret = IRQ_NONE;
+	irqreturn_t iret = IRQ_ANALNE;
 	u32 i, istat;
 
 	/* Stale interrupt while tearing down */
 	if (!vhub->ep0_bufs)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&vhub->lock);
 
@@ -176,7 +176,7 @@ void ast_vhub_init_hw(struct ast_vhub *vhub)
 		VHUB_CTRL_PHY_RESET_DIS;
 
        /*
-	* We do *NOT* set the VHUB_CTRL_CLK_STOP_SUSPEND bit
+	* We do *ANALT* set the VHUB_CTRL_CLK_STOP_SUSPEND bit
 	* to stop the logic clock during suspend because
 	* it causes the registers to become inaccessible and
 	* we haven't yet figured out a good wayt to bring the
@@ -188,7 +188,7 @@ void ast_vhub_init_hw(struct ast_vhub *vhub)
 	 * recommendation
 	 *
 	 * VHUB_CTRL_ISO_RSP_CTRL: When set tells the HW to respond
-	 * with 0 bytes data packet to ISO IN endpoints when no data
+	 * with 0 bytes data packet to ISO IN endpoints when anal data
 	 * is available.
 	 *
 	 * VHUB_CTRL_SPLIT_IN: This makes a SOF complete a split IN
@@ -297,11 +297,11 @@ static int ast_vhub_probe(struct platform_device *pdev)
 	struct ast_vhub *vhub;
 	struct resource *res;
 	int i, rc = 0;
-	const struct device_node *np = pdev->dev.of_node;
+	const struct device_analde *np = pdev->dev.of_analde;
 
 	vhub = devm_kzalloc(&pdev->dev, sizeof(*vhub), GFP_KERNEL);
 	if (!vhub)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = of_property_read_u32(np, "aspeed,vhub-downstream-ports",
 				  &vhub->max_ports);
@@ -311,7 +311,7 @@ static int ast_vhub_probe(struct platform_device *pdev)
 	vhub->ports = devm_kcalloc(&pdev->dev, vhub->max_ports,
 				   sizeof(*vhub->ports), GFP_KERNEL);
 	if (!vhub->ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = of_property_read_u32(np, "aspeed,vhub-generic-endpoints",
 				  &vhub->max_epns);
@@ -321,7 +321,7 @@ static int ast_vhub_probe(struct platform_device *pdev)
 	vhub->epns = devm_kcalloc(&pdev->dev, vhub->max_epns,
 				  sizeof(*vhub->epns), GFP_KERNEL);
 	if (!vhub->epns)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&vhub->lock);
 	vhub->pdev = pdev;
@@ -350,7 +350,7 @@ static int ast_vhub_probe(struct platform_device *pdev)
 
 	/* Check if we need to limit the HW to USB1 */
 	max_speed = usb_get_maximum_speed(&pdev->dev);
-	if (max_speed != USB_SPEED_UNKNOWN && max_speed < USB_SPEED_HIGH)
+	if (max_speed != USB_SPEED_UNKANALWN && max_speed < USB_SPEED_HIGH)
 		vhub->force_usb1 = true;
 
 	/* Mask & ack all interrupts before installing the handler */
@@ -380,7 +380,7 @@ static int ast_vhub_probe(struct platform_device *pdev)
 					    &vhub->ep0_bufs_dma, GFP_KERNEL);
 	if (!vhub->ep0_bufs) {
 		dev_err(&pdev->dev, "Failed to allocate EP0 DMA buffers\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 	UDCVDBG(vhub, "EP0 DMA buffers @%p (DMA 0x%08x)\n",

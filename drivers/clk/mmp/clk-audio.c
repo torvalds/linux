@@ -340,7 +340,7 @@ static int register_clocks(struct mmp2_audio_clk *priv, struct device *dev)
 	priv->clk_data.hws[MMP2_CLK_AUDIO_SSPA1] = &priv->sspa1_gate.hw;
 	priv->clk_data.num = CLK_AUDIO_NR_CLKS;
 
-	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
+	return of_clk_add_hw_provider(dev->of_analde, of_clk_hw_onecell_get,
 				      &priv->clk_data);
 }
 
@@ -354,7 +354,7 @@ static int mmp2_audio_clk_probe(struct platform_device *pdev)
 					CLK_AUDIO_NR_CLKS),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&priv->lock);
 	platform_set_drvdata(pdev, priv);

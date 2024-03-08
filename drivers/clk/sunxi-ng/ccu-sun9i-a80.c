@@ -25,9 +25,9 @@
 /*
  * The CPU PLLs are actually NP clocks, with P being /1 or /4. However
  * P should only be used for output frequencies lower than 228 MHz.
- * Neither mainline Linux, U-boot, nor the vendor BSPs use these.
+ * Neither mainline Linux, U-boot, analr the vendor BSPs use these.
  *
- * For now we can just model it as a multiplier clock, and force P to /1.
+ * For analw we can just model it as a multiplier clock, and force P to /1.
  */
 #define SUN9I_A80_PLL_C0CPUX_REG	0x000
 #define SUN9I_A80_PLL_C1CPUX_REG	0x004
@@ -63,7 +63,7 @@ static struct ccu_mult pll_c1cpux_clk = {
 /*
  * The Audio PLL has d1, d2 dividers in addition to the usual N, M
  * factors. Since we only need 2 frequencies from this PLL: 22.5792 MHz
- * and 24.576 MHz, ignore them for now. Enforce d1 = 0 and d2 = 0.
+ * and 24.576 MHz, iganalre them for analw. Enforce d1 = 0 and d2 = 0.
  */
 #define SUN9I_A80_PLL_AUDIO_REG	0x008
 
@@ -81,7 +81,7 @@ static struct ccu_nm pll_audio_clk = {
 	},
 };
 
-/* Some PLLs are input * N / div1 / div2. Model them as NKMP with no K */
+/* Some PLLs are input * N / div1 / div2. Model them as NKMP with anal K */
 static struct ccu_nkmp pll_periph0_clk = {
 	.enable		= BIT(31),
 	.lock		= BIT(3),
@@ -545,7 +545,7 @@ static SUNXI_CCU_M_WITH_MUX_TABLE_GATE(sdram_clk, "sdram",
 				       0x484,
 				       8, 4,	/* M */
 				       12, 4,	/* mux */
-				       0,	/* no gate */
+				       0,	/* anal gate */
 				       CLK_IS_CRITICAL);
 
 static SUNXI_CCU_M_WITH_GATE(de_clk, "de", "pll-de", 0x490,
@@ -571,7 +571,7 @@ static SUNXI_CCU_M_WITH_MUX_TABLE_GATE(lcd0_clk, "lcd0",
 				       0, 4,	/* M */
 				       24, 4,	/* mux */
 				       BIT(31),	/* gate */
-				       CLK_SET_RATE_NO_REPARENT |
+				       CLK_SET_RATE_ANAL_REPARENT |
 				       CLK_SET_RATE_PARENT);
 
 static SUNXI_CCU_M_WITH_MUX_TABLE_GATE(lcd1_clk, "lcd1",
@@ -580,7 +580,7 @@ static SUNXI_CCU_M_WITH_MUX_TABLE_GATE(lcd1_clk, "lcd1",
 				       0, 4,	/* M */
 				       24, 4,	/* mux */
 				       BIT(31),	/* gate */
-				       CLK_SET_RATE_NO_REPARENT |
+				       CLK_SET_RATE_ANAL_REPARENT |
 				       CLK_SET_RATE_PARENT);
 
 static SUNXI_CCU_M_WITH_MUX_TABLE_GATE(mipi_dsi0_clk, "mipi-dsi0",
@@ -607,7 +607,7 @@ static SUNXI_CCU_M_WITH_MUX_TABLE_GATE(hdmi_clk, "hdmi",
 				       0, 4,	/* M */
 				       24, 4,	/* mux */
 				       BIT(31),	/* gate */
-				       CLK_SET_RATE_NO_REPARENT |
+				       CLK_SET_RATE_ANAL_REPARENT |
 				       CLK_SET_RATE_PARENT);
 
 static SUNXI_CCU_GATE(hdmi_slow_clk, "hdmi-slow", "osc24M", 0x4b4, BIT(31), 0);
@@ -1189,14 +1189,14 @@ static void sun9i_a80_cpu_pll_fixup(void __iomem *reg)
 {
 	u32 val = readl(reg);
 
-	/* bail out if P divider is not used */
+	/* bail out if P divider is analt used */
 	if (!(val & BIT(SUN9I_A80_PLL_P_SHIFT)))
 		return;
 
 	/*
 	 * If P is used, output should be less than 288 MHz. When we
 	 * set P to 1, we should also decrease the multiplier so the
-	 * output doesn't go out of range, but not too much such that
+	 * output doesn't go out of range, but analt too much such that
 	 * the multiplier stays above 12, the minimal operation value.
 	 *
 	 * To keep it simple, set the multiplier to 17, the reset value.

@@ -144,7 +144,7 @@ int coresight_make_links(struct coresight_device *orig,
 			 struct coresight_connection *conn,
 			 struct coresight_device *target)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	char *outs = NULL, *ins = NULL;
 	struct coresight_sysfs_link *link = NULL;
 

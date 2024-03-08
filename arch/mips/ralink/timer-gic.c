@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Copyright (C) 2015 Nikolay Martynov <mar.kolya@gmail.com>
+ * Copyright (C) 2015 Nikolay Martyanalv <mar.kolya@gmail.com>
  * Copyright (C) 2015 John Crispin <john@phrozen.org>
  */
 

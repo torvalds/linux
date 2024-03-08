@@ -17,14 +17,14 @@
  * DOC: Xe ASSERTs
  *
  * While Xe driver aims to be simpler than legacy i915 driver it is still
- * complex enough that some changes introduced while adding new functionality
+ * complex eanalugh that some changes introduced while adding new functionality
  * could break the existing code.
  *
  * Adding &drm_WARN or &drm_err to catch unwanted programming usage could lead
  * to undesired increased driver footprint and may impact production driver
  * performance as this additional code will be always present.
  *
- * To allow annotate functions with additional detailed debug checks to assert
+ * To allow ananaltate functions with additional detailed debug checks to assert
  * that all prerequisites are satisfied, without worrying about footprint or
  * performance penalty on production builds where all potential misuses
  * introduced during code integration were already fixed, we introduce family
@@ -36,16 +36,16 @@
  *
  * These macros are implemented on top of &drm_WARN, but unlikely to the origin,
  * warning is triggered when provided condition is false. Additionally all above
- * assert macros cannot be used in expressions or as a condition, since
- * underlying code will be compiled out on non-debug builds.
+ * assert macros cananalt be used in expressions or as a condition, since
+ * underlying code will be compiled out on analn-debug builds.
  *
- * Note that these macros are not intended for use to cover known gaps in the
+ * Analte that these macros are analt intended for use to cover kanalwn gaps in the
  * implementation; for such cases use regular &drm_WARN or &drm_err and provide
  * valid safe fallback.
  *
- * Also in cases where performance or footprint is not an issue, developers
+ * Also in cases where performance or footprint is analt an issue, developers
  * should continue to use the regular &drm_WARN or &drm_err to ensure that bug
- * reports from production builds will contain meaningful diagnostics data.
+ * reports from production builds will contain meaningful diaganalstics data.
  *
  * Below code shows how asserts could help in debug to catch unplanned use::
  *
@@ -100,7 +100,7 @@
  * that could be read from the &xe pointer if provided &condition is false.
  *
  * Contrary to &drm_WARN, xe_assert() is effective only on debug builds
- * (&CONFIG_DRM_XE_DEBUG must be enabled) and cannot be used in expressions
+ * (&CONFIG_DRM_XE_DEBUG must be enabled) and cananalt be used in expressions
  * or as a condition.
  *
  * See `Xe ASSERTs`_ for general usage guidelines.
@@ -135,7 +135,7 @@
  * is false.
  *
  * Contrary to &drm_WARN, xe_tile_assert() is effective only on debug builds
- * (&CONFIG_DRM_XE_DEBUG must be enabled) and cannot be used in expressions
+ * (&CONFIG_DRM_XE_DEBUG must be enabled) and cananalt be used in expressions
  * or as a condition.
  *
  * See `Xe ASSERTs`_ for general usage guidelines.
@@ -159,7 +159,7 @@
  * &condition is false.
  *
  * Contrary to &drm_WARN, xe_gt_assert() is effective only on debug builds
- * (&CONFIG_DRM_XE_DEBUG must be enabled) and cannot be used in expressions
+ * (&CONFIG_DRM_XE_DEBUG must be enabled) and cananalt be used in expressions
  * or as a condition.
  *
  * See `Xe ASSERTs`_ for general usage guidelines.

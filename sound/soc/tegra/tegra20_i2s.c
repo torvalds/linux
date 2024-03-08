@@ -186,7 +186,7 @@ static int tegra20_i2s_hw_params(struct snd_pcm_substream *substream,
 	val = bitcnt << TEGRA20_I2S_TIMING_CHANNEL_BIT_COUNT_SHIFT;
 
 	if (i2sclock % (2 * srate))
-		val |= TEGRA20_I2S_TIMING_NON_SYM_ENABLE;
+		val |= TEGRA20_I2S_TIMING_ANALN_SYM_ENABLE;
 
 	regmap_write(i2s->regmap, TEGRA20_I2S_TIMING, val);
 
@@ -288,7 +288,7 @@ static int tegra20_i2s_filter_rates(struct snd_pcm_hw_params *params,
 
 	/*
 	 * At least one rate must be valid, otherwise the parent clock isn't
-	 * audio PLL. Nothing should be filtered in this case.
+	 * audio PLL. Analthing should be filtered in this case.
 	 */
 	if (!valid_rates)
 		valid_rates = BIT(ARRAY_SIZE(tegra20_i2s_rates)) - 1;
@@ -405,7 +405,7 @@ static int tegra20_i2s_platform_probe(struct platform_device *pdev)
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_i2s), GFP_KERNEL);
 	if (!i2s) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	dev_set_drvdata(&pdev->dev, i2s);
@@ -453,14 +453,14 @@ static int tegra20_i2s_platform_probe(struct platform_device *pdev)
 	ret = snd_soc_register_component(&pdev->dev, &tegra20_i2s_component,
 					 &i2s->dai, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
-		ret = -ENOMEM;
+		dev_err(&pdev->dev, "Could analt register DAI: %d\n", ret);
+		ret = -EANALMEM;
 		goto err_pm_disable;
 	}
 
 	ret = tegra_pcm_platform_register(&pdev->dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
+		dev_err(&pdev->dev, "Could analt register PCM: %d\n", ret);
 		goto err_unregister_component;
 	}
 

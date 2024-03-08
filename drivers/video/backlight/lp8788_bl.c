@@ -54,7 +54,7 @@ static struct lp8788_bl_config default_bl_config = {
 	.full_scale = LP8788_FULLSCALE_1900uA,
 	.rise_time  = LP8788_RAMP_8192us,
 	.fall_time  = LP8788_RAMP_8192us,
-	.pwm_pol    = PWM_POLARITY_NORMAL,
+	.pwm_pol    = PWM_POLARITY_ANALRMAL,
 };
 
 static inline bool is_brightness_ctrl_by_pwm(enum lp8788_bl_ctrl_mode mode)
@@ -136,7 +136,7 @@ static void lp8788_pwm_ctrl(struct lp8788_bl *bl, int br, int max_br)
 	if (!bl->pwm) {
 		pwm = devm_pwm_get(dev, LP8788_DEV_BACKLIGHT);
 		if (IS_ERR(pwm)) {
-			dev_err(dev, "can not get PWM device\n");
+			dev_err(dev, "can analt get PWM device\n");
 			return;
 		}
 
@@ -262,7 +262,7 @@ static int lp8788_backlight_probe(struct platform_device *pdev)
 
 	bl = devm_kzalloc(lp->dev, sizeof(struct lp8788_bl), GFP_KERNEL);
 	if (!bl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bl->lp = lp;
 	if (lp->pdata)

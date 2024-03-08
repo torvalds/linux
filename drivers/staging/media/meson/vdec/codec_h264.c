@@ -60,7 +60,7 @@
 /*
  * Buffer to send to the ESPARSER to signal End Of Stream for H.264.
  * This is a 16x16 encoded picture that will trigger drain firmware-side.
- * There is no known alternative.
+ * There is anal kanalwn alternative.
  */
 static const u8 eos_sequence[SZ_4K] = {
 	0x00, 0x00, 0x00, 0x01, 0x06, 0x05, 0xff, 0xe4, 0xdc, 0x45, 0xe9, 0xbd,
@@ -174,13 +174,13 @@ static int codec_h264_start(struct amvdec_session *sess)
 		dma_alloc_coherent(core->dev, SIZE_WORKSPACE,
 				   &h264->workspace_paddr, GFP_KERNEL);
 	if (!h264->workspace_vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate some memory for the H.264 SEI dump */
 	h264->sei_vaddr = dma_alloc_coherent(core->dev, SIZE_SEI,
 					     &h264->sei_paddr, GFP_KERNEL);
 	if (!h264->sei_vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	amvdec_write_dos_bits(core, POWER_CTL_VLD, BIT(9) | BIT(6));
 
@@ -235,14 +235,14 @@ static int codec_h264_load_extended_firmware(struct amvdec_session *sess,
 
 	h264 = kzalloc(sizeof(*h264), GFP_KERNEL);
 	if (!h264)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	h264->ext_fw_vaddr = dma_alloc_coherent(core->dev, SIZE_EXT_FW,
 						&h264->ext_fw_paddr,
 						GFP_KERNEL);
 	if (!h264->ext_fw_vaddr) {
 		kfree(h264);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(h264->ext_fw_vaddr, data, SIZE_EXT_FW);
@@ -272,7 +272,7 @@ static void codec_h264_set_par(struct amvdec_session *sess)
 		u32 ar_info = amvdec_read_dos(core, AV_SCRATCH_3);
 
 		sess->pixelaspect.numerator = ar_info & 0xffff;
-		sess->pixelaspect.denominator = (ar_info >> 16) & 0xffff;
+		sess->pixelaspect.deanalminator = (ar_info >> 16) & 0xffff;
 		return;
 	}
 
@@ -393,7 +393,7 @@ static void codec_h264_frames_ready(struct amvdec_session *sess, u32 status)
 		u32 pic_struct = (frame_status >> PIC_STRUCT_BIT) &
 				 PIC_STRUCT_MASK;
 		u32 offset = (frame_status >> OFFSET_BIT) & OFFSET_MASK;
-		u32 field = V4L2_FIELD_NONE;
+		u32 field = V4L2_FIELD_ANALNE;
 
 		/*
 		 * A buffer decode error means it was decoded,
@@ -442,7 +442,7 @@ static irqreturn_t codec_h264_threaded_isr(struct amvdec_session *sess)
 		size = (amvdec_read_dos(core, AV_SCRATCH_1) + 1) * 16;
 		dev_err(core->dev, "Unsupported video height: %u\n", size);
 		goto abort;
-	case 0: /* Unused but not worth printing for */
+	case 0: /* Unused but analt worth printing for */
 	case 9:
 		break;
 	default:
@@ -453,7 +453,7 @@ static irqreturn_t codec_h264_threaded_isr(struct amvdec_session *sess)
 	if (cmd && cmd != CMD_SRC_CHANGE)
 		amvdec_write_dos(core, AV_SCRATCH_0, 0);
 
-	/* Decoder has some SEI data for us ; ignore */
+	/* Decoder has some SEI data for us ; iganalre */
 	if (amvdec_read_dos(core, AV_SCRATCH_J) & SEI_DATA_READY)
 		amvdec_write_dos(core, AV_SCRATCH_J, 0);
 

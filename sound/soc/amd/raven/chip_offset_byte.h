@@ -474,7 +474,7 @@
 // Registers from AZALIA_IP block
 
 #define mmAudio_Az_Global_Capabilities                  0x1200000
-#define mmAudio_Az_Minor_Version                        0x1200002
+#define mmAudio_Az_Mianalr_Version                        0x1200002
 #define mmAudio_Az_Major_Version                        0x1200003
 #define mmAudio_Az_Output_Payload_Capability            0x1200004
 #define mmAudio_Az_Input_Payload_Capability             0x1200006

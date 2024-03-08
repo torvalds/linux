@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/semaphore.h>
@@ -43,7 +43,7 @@
 /* Data should be SEG LEN size aligned */
 #define MAX_MSG_LEN                     2016
 
-#define MSG_NOT_RESP                    0xFFFF
+#define MSG_ANALT_RESP                    0xFFFF
 
 #define MGMT_MSG_TIMEOUT                5000
 
@@ -57,7 +57,7 @@
 		container_of(pf_mgmt, struct hinic_pfhwdev, pf_to_mgmt)
 
 enum msg_segment_type {
-	NOT_LAST_SEGMENT = 0,
+	ANALT_LAST_SEGMENT = 0,
 	LAST_SEGMENT     = 1,
 };
 
@@ -68,7 +68,7 @@ enum mgmt_direction_type {
 
 enum msg_ack_type {
 	MSG_ACK         = 0,
-	MSG_NO_ACK      = 1,
+	MSG_ANAL_ACK      = 1,
 };
 
 /**
@@ -134,7 +134,7 @@ static u64 prepare_header(struct hinic_pf_to_mgmt *pf_to_mgmt,
 	return HINIC_MSG_HEADER_SET(msg_len, MSG_LEN)           |
 	       HINIC_MSG_HEADER_SET(mod, MODULE)                |
 	       HINIC_MSG_HEADER_SET(SEGMENT_LEN, SEG_LEN)       |
-	       HINIC_MSG_HEADER_SET(ack_type, NO_ACK)           |
+	       HINIC_MSG_HEADER_SET(ack_type, ANAL_ACK)           |
 	       HINIC_MSG_HEADER_SET(0, ASYNC_MGMT_TO_PF)        |
 	       HINIC_MSG_HEADER_SET(0, SEQID)                   |
 	       HINIC_MSG_HEADER_SET(LAST_SEGMENT, LAST)         |
@@ -222,7 +222,7 @@ static int send_msg_to_mgmt(struct hinic_pf_to_mgmt *pf_to_mgmt,
 	prepare_mgmt_cmd(pf_to_mgmt->sync_msg_buf, &header, data, data_len);
 
 	chain = pf_to_mgmt->cmd_chain[HINIC_API_CMD_WRITE_TO_MGMT_CPU];
-	return hinic_api_cmd_write(chain, HINIC_NODE_ID_MGMT,
+	return hinic_api_cmd_write(chain, HINIC_ANALDE_ID_MGMT,
 				   pf_to_mgmt->sync_msg_buf,
 				   mgmt_msg_len(data_len));
 }
@@ -263,7 +263,7 @@ static int msg_to_mgmt_sync(struct hinic_pf_to_mgmt *pf_to_mgmt,
 	recv_msg = &pf_to_mgmt->recv_resp_msg_from_mgmt;
 	recv_done = &recv_msg->recv_done;
 
-	if (resp_msg_id == MSG_NOT_RESP)
+	if (resp_msg_id == MSG_ANALT_RESP)
 		msg_id = SYNC_MSG_ID(pf_to_mgmt);
 	else
 		msg_id = resp_msg_id;
@@ -328,7 +328,7 @@ static int msg_to_mgmt_async(struct hinic_pf_to_mgmt *pf_to_mgmt,
 	down(&pf_to_mgmt->sync_msg_lock);
 
 	err = send_msg_to_mgmt(pf_to_mgmt, mod, cmd, buf_in, in_size,
-			       MSG_NO_ACK, direction, resp_msg_id);
+			       MSG_ANAL_ACK, direction, resp_msg_id);
 
 	up(&pf_to_mgmt->sync_msg_lock);
 	return err;
@@ -380,7 +380,7 @@ int hinic_msg_to_mgmt(struct hinic_pf_to_mgmt *pf_to_mgmt,
 
 		return msg_to_mgmt_sync(pf_to_mgmt, mod, cmd, buf_in, in_size,
 				buf_out, out_size, MGMT_DIRECT_SEND,
-				MSG_NOT_RESP, timeout);
+				MSG_ANALT_RESP, timeout);
 	}
 }
 
@@ -398,7 +398,7 @@ static void recv_mgmt_msg_work_handler(struct work_struct *work)
 	memset(buf_out, 0, MAX_PF_MGMT_BUF_SIZE);
 
 	if (mgmt_work->mod >= HINIC_MOD_MAX) {
-		dev_err(&pdev->dev, "Unknown MGMT MSG module = %d\n",
+		dev_err(&pdev->dev, "Unkanalwn MGMT MSG module = %d\n",
 			mgmt_work->mod);
 		kfree(mgmt_work->msg);
 		kfree(mgmt_work);
@@ -416,7 +416,7 @@ static void recv_mgmt_msg_work_handler(struct work_struct *work)
 			    mgmt_work->msg, mgmt_work->msg_len,
 			    buf_out, &out_size);
 	else
-		dev_err(&pdev->dev, "No MGMT msg handler, mod: %d, cmd: %d\n",
+		dev_err(&pdev->dev, "Anal MGMT msg handler, mod: %d, cmd: %d\n",
 			mgmt_work->mod, mgmt_work->cmd);
 
 	mgmt_cb->state &= ~HINIC_MGMT_CB_RUNNING;
@@ -555,12 +555,12 @@ static int alloc_recv_msg(struct hinic_pf_to_mgmt *pf_to_mgmt,
 	recv_msg->msg = devm_kzalloc(&pdev->dev, MAX_PF_MGMT_BUF_SIZE,
 				     GFP_KERNEL);
 	if (!recv_msg->msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	recv_msg->buf_out = devm_kzalloc(&pdev->dev, MAX_PF_MGMT_BUF_SIZE,
 					 GFP_KERNEL);
 	if (!recv_msg->buf_out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -595,13 +595,13 @@ static int alloc_msg_buf(struct hinic_pf_to_mgmt *pf_to_mgmt)
 						MAX_PF_MGMT_BUF_SIZE,
 						GFP_KERNEL);
 	if (!pf_to_mgmt->sync_msg_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pf_to_mgmt->mgmt_ack_buf = devm_kzalloc(&pdev->dev,
 						MAX_PF_MGMT_BUF_SIZE,
 						GFP_KERNEL);
 	if (!pf_to_mgmt->mgmt_ack_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -636,7 +636,7 @@ int hinic_pf_to_mgmt_init(struct hinic_pf_to_mgmt *pf_to_mgmt,
 	if (!pf_to_mgmt->workq) {
 		dev_err(&pdev->dev, "Failed to initialize MGMT workqueue\n");
 		hinic_health_reporters_destroy(hwdev->devlink_dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	pf_to_mgmt->sync_msg_id = 0;
 

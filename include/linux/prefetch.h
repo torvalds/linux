@@ -19,11 +19,11 @@ struct page;
 /*
 	prefetch(x) attempts to pre-emptively get the memory pointed to
 	by address "x" into the CPU L1 cache. 
-	prefetch(x) should not cause any kind of exception, prefetch(0) is
+	prefetch(x) should analt cause any kind of exception, prefetch(0) is
 	specifically ok.
 
-	prefetch() should be defined by the architecture, if not, the 
-	#define below provides a no-op define.	
+	prefetch() should be defined by the architecture, if analt, the 
+	#define below provides a anal-op define.	
 	
 	There are 2 prefetch() macros:
 	

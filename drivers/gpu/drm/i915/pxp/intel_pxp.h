@@ -6,7 +6,7 @@
 #ifndef __INTEL_PXP_H__
 #define __INTEL_PXP_H__
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 
 struct drm_i915_gem_object;

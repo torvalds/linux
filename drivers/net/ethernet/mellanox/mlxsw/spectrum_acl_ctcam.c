@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/parman.h>
 
 #include "reg.h"
@@ -164,7 +164,7 @@ mlxsw_sp_acl_ctcam_region_init(struct mlxsw_sp *mlxsw_sp,
 	cregion->parman = parman_create(&mlxsw_sp_acl_ctcam_region_parman_ops,
 					cregion);
 	if (!cregion->parman)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

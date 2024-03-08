@@ -17,7 +17,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
@@ -161,7 +161,7 @@ static const struct timing_regs timing_reg_values[] = {
 #define XIIC_CR_TX_FIFO_RESET_MASK        0x02	/* Transmit FIFO reset=1  */
 #define XIIC_CR_MSMS_MASK                 0x04	/* Master starts Txing=1  */
 #define XIIC_CR_DIR_IS_TX_MASK            0x08	/* Dir of tx. Txing=1     */
-#define XIIC_CR_NO_ACK_MASK               0x10	/* Tx Ack. NO ack = 1     */
+#define XIIC_CR_ANAL_ACK_MASK               0x10	/* Tx Ack. ANAL ack = 1     */
 #define XIIC_CR_REPEATED_START_MASK       0x20	/* Repeated start = 1     */
 #define XIIC_CR_GENERAL_CALL_MASK         0x40	/* Gen Call enabled = 1   */
 
@@ -180,9 +180,9 @@ static const struct timing_regs timing_reg_values[] = {
 #define XIIC_INTR_TX_ERROR_MASK           0x02	/* 1=Tx error/msg complete */
 #define XIIC_INTR_TX_EMPTY_MASK           0x04	/* 1 = Tx FIFO/reg empty  */
 #define XIIC_INTR_RX_FULL_MASK            0x08	/* 1=Rx FIFO/reg=OCY level */
-#define XIIC_INTR_BNB_MASK                0x10	/* 1 = Bus not busy       */
+#define XIIC_INTR_BNB_MASK                0x10	/* 1 = Bus analt busy       */
 #define XIIC_INTR_AAS_MASK                0x20	/* 1 = when addr as slave */
-#define XIIC_INTR_NAAS_MASK               0x40	/* 1 = not addr as slave  */
+#define XIIC_INTR_NAAS_MASK               0x40	/* 1 = analt addr as slave  */
 #define XIIC_INTR_TX_HALF_MASK            0x80	/* 1 = TX FIFO half empty */
 
 /* The following constants specify the depth of the FIFOs */
@@ -365,8 +365,8 @@ static int xiic_wait_tx_empty(struct xiic_i2c *i2c)
  * AXI I2C PG and NXP I2C Spec.
  * Supported frequencies are 100KHz, 400KHz and 1MHz.
  *
- * Return: 0 on success (Supported frequency selected or not configurable in SW)
- *        -EINVAL on failure (scl frequency not supported or THIGH is 0)
+ * Return: 0 on success (Supported frequency selected or analt configurable in SW)
+ *        -EINVAL on failure (scl frequency analt supported or THIGH is 0)
  */
 static int xiic_setclk(struct xiic_i2c *i2c)
 {
@@ -378,7 +378,7 @@ static int xiic_setclk(struct xiic_i2c *i2c)
 		"%s entry, i2c->input_clk: %ld, i2c->i2c_clk: %d\n",
 		__func__, i2c->input_clk, i2c->i2c_clk);
 
-	/* If not specified in DT, do not configure in SW. Rely only on Vivado design */
+	/* If analt specified in DT, do analt configure in SW. Rely only on Vivado design */
 	if (!i2c->i2c_clk || !i2c->input_clk)
 		return 0;
 
@@ -578,7 +578,7 @@ static void xiic_read_rx(struct xiic_i2c *i2c)
 			/* Set NACK in CR to indicate slave transmitter */
 			cr = xiic_getreg8(i2c, XIIC_CR_REG_OFFSET);
 			xiic_setreg8(i2c, XIIC_CR_REG_OFFSET, cr |
-					XIIC_CR_NO_ACK_MASK);
+					XIIC_CR_ANAL_ACK_MASK);
 		} else if (bytes_rem == 0) {
 			bytes_to_read = bytes_in_fifo;
 
@@ -592,7 +592,7 @@ static void xiic_read_rx(struct xiic_i2c *i2c)
 			/* Make TXACK=0, clean up for next transaction */
 			cr = xiic_getreg8(i2c, XIIC_CR_REG_OFFSET);
 			xiic_setreg8(i2c, XIIC_CR_REG_OFFSET, cr &
-					~XIIC_CR_NO_ACK_MASK);
+					~XIIC_CR_ANAL_ACK_MASK);
 		}
 	}
 
@@ -674,7 +674,7 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 	enum xilinx_i2c_state wakeup_code = STATE_DONE;
 	int ret;
 
-	/* Get the interrupt Status from the IPIF. There is no clearing of
+	/* Get the interrupt Status from the IPIF. There is anal clearing of
 	 * interrupts in the IPIF. Interrupts must be cleared at the source.
 	 * To find which interrupts are pending; AND interrupts pending with
 	 * interrupts masked.
@@ -699,7 +699,7 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 	    !(pend & XIIC_INTR_RX_FULL_MASK))) {
 		/* bus arbritration lost, or...
 		 * Transmit error _OR_ RX completed
-		 * if this happens when RX_FULL is not set
+		 * if this happens when RX_FULL is analt set
 		 * this is probably a TX error
 		 */
 
@@ -749,7 +749,7 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 
 			/* send next message if this wasn't the last,
 			 * otherwise the transfer will be finialise when
-			 * receiving the bus not busy interrupt
+			 * receiving the bus analt busy interrupt
 			 */
 			if (i2c->nmsgs > 1) {
 				i2c->nmsgs--;
@@ -787,7 +787,7 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 				xiic_irq_dis(i2c, XIIC_INTR_TX_HALF_MASK);
 
 				dev_dbg(i2c->adap.dev.parent,
-					"%s Got TX IRQ but no more to do...\n",
+					"%s Got TX IRQ but anal more to do...\n",
 					__func__);
 			}
 		} else if (!xiic_tx_space(i2c) && (i2c->nmsgs == 1))
@@ -798,10 +798,10 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 	}
 
 	if (pend & XIIC_INTR_BNB_MASK) {
-		/* IIC bus has transitioned to not busy */
+		/* IIC bus has transitioned to analt busy */
 		clr |= XIIC_INTR_BNB_MASK;
 
-		/* The bus is not busy, disable BusNotBusy interrupt */
+		/* The bus is analt busy, disable BusAnaltBusy interrupt */
 		xiic_irq_dis(i2c, XIIC_INTR_BNB_MASK);
 
 		if (i2c->tx_msg && i2c->smbus_block_read) {
@@ -854,7 +854,7 @@ static int xiic_busy(struct xiic_i2c *i2c)
 
 	/* In single master mode bus can only be busy, when in use by this
 	 * driver. If the register indicates bus being busy for some reason we
-	 * should ignore it, since bus will never be released and i2c will be
+	 * should iganalre it, since bus will never be released and i2c will be
 	 * stuck forever.
 	 */
 	if (i2c->singlemaster) {
@@ -898,7 +898,7 @@ static void xiic_start_recv(struct xiic_i2c *i2c)
 		/*
 		 * We want to get all but last byte, because the TX_ERROR IRQ
 		 * is used to indicate error ACK on the address, and
-		 * negative ack on the last received byte, so to not mix
+		 * negative ack on the last received byte, so to analt mix
 		 * them receive all but last.
 		 * In the case where there is only one byte to receive
 		 * we can check if ERROR and RX full is set at the same time
@@ -946,10 +946,10 @@ static void xiic_start_recv(struct xiic_i2c *i2c)
 		} else if (rx_watermark == 1) {
 			rfd_set = rx_watermark - 1;
 
-			/* Set No_ACK, except for smbus_block_read */
+			/* Set Anal_ACK, except for smbus_block_read */
 			if (!(i2c->rx_msg->flags & I2C_M_RECV_LEN)) {
 				/* Handle single byte transfer separately */
-				cr |= XIIC_CR_NO_ACK_MASK;
+				cr |= XIIC_CR_ANAL_ACK_MASK;
 			}
 		} else if (rx_watermark == 0) {
 			rfd_set = rx_watermark;
@@ -986,7 +986,7 @@ static void xiic_start_recv(struct xiic_i2c *i2c)
 	}
 
 	if (i2c->nmsgs == 1)
-		/* very last, enable bus not busy as well */
+		/* very last, enable bus analt busy as well */
 		xiic_irq_clr_en(i2c, XIIC_INTR_BNB_MASK);
 
 	/* the message is tx:ed */
@@ -1016,7 +1016,7 @@ static void xiic_start_send(struct xiic_i2c *i2c)
 				XIIC_TX_DYN_START_MASK;
 
 		if (i2c->nmsgs == 1 && msg->len == 0)
-			/* no data and last message -> add STOP */
+			/* anal data and last message -> add STOP */
 			data |= XIIC_TX_DYN_STOP_MASK;
 
 		xiic_setreg16(i2c, XIIC_DTR_REG_OFFSET, data);
@@ -1050,7 +1050,7 @@ static void xiic_start_send(struct xiic_i2c *i2c)
 			xiic_setreg8(i2c, XIIC_CR_REG_OFFSET, (cr |
 					XIIC_CR_REPEATED_START_MASK |
 					XIIC_CR_DIR_IS_TX_MASK) &
-					~(XIIC_CR_NO_ACK_MASK));
+					~(XIIC_CR_ANAL_ACK_MASK));
 		}
 
 		/* Write address to FIFO */
@@ -1120,7 +1120,7 @@ static int xiic_start_xfer(struct xiic_i2c *i2c, struct i2c_msg *msgs, int num)
 	i2c->prev_msg_tx = false;
 
 	/*
-	 * Scan through nmsgs, use dynamic mode when none of the below three
+	 * Scan through nmsgs, use dynamic mode when analne of the below three
 	 * conditions occur. We need standard mode even if one condition holds
 	 * true in the entire array of messages in a single transfer.
 	 * If read transaction as dynamic mode is broken for delayed reads
@@ -1228,9 +1228,9 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	match = of_match_node(xiic_of_match, pdev->dev.of_node);
+	match = of_match_analde(xiic_of_match, pdev->dev.of_analde);
 	if (match && match->data) {
 		const struct xiic_version_data *data = match->data;
 
@@ -1252,7 +1252,7 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 	i2c->adap = xiic_adapter;
 	i2c_set_adapdata(&i2c->adap, i2c);
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.dev.of_node = pdev->dev.of_node;
+	i2c->adap.dev.of_analde = pdev->dev.of_analde;
 	snprintf(i2c->adap.name, sizeof(i2c->adap.name),
 		 DRIVER_NAME " %s", pdev->name);
 
@@ -1271,9 +1271,9 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 
 	/* SCL frequency configuration */
 	i2c->input_clk = clk_get_rate(i2c->clk);
-	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+	ret = of_property_read_u32(pdev->dev.of_analde, "clock-frequency",
 				   &i2c->i2c_clk);
-	/* If clock-frequency not specified in DT, do not configure in SW */
+	/* If clock-frequency analt specified in DT, do analt configure in SW */
 	if (ret || i2c->i2c_clk > I2C_MAX_FAST_MODE_PLUS_FREQ)
 		i2c->i2c_clk = 0;
 
@@ -1282,16 +1282,16 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 					pdev->name, i2c);
 
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Cannot claim IRQ\n");
+		dev_err(&pdev->dev, "Cananalt claim IRQ\n");
 		goto err_pm_disable;
 	}
 
 	i2c->singlemaster =
-		of_property_read_bool(pdev->dev.of_node, "single-master");
+		of_property_read_bool(pdev->dev.of_analde, "single-master");
 
 	/*
 	 * Detect endianness
-	 * Try to reset the TX FIFO. Then check the EMPTY flag. If it is not
+	 * Try to reset the TX FIFO. Then check the EMPTY flag. If it is analt
 	 * set, assume that the endianness was wrong and swap.
 	 */
 	i2c->endianness = LITTLE;
@@ -1303,7 +1303,7 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 
 	ret = xiic_reinit(i2c);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Cannot xiic_reinit\n");
+		dev_err(&pdev->dev, "Cananalt xiic_reinit\n");
 		goto err_pm_disable;
 	}
 
@@ -1315,7 +1315,7 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 	}
 
 	if (pdata) {
-		/* add in known devices to the bus */
+		/* add in kanalwn devices to the bus */
 		for (i = 0; i < pdata->num_devices; i++)
 			i2c_new_client_device(&i2c->adap, pdata->devices + i);
 	}
@@ -1370,7 +1370,7 @@ static int __maybe_unused xiic_i2c_runtime_resume(struct device *dev)
 
 	ret = clk_enable(i2c->clk);
 	if (ret) {
-		dev_err(dev, "Cannot enable clock.\n");
+		dev_err(dev, "Cananalt enable clock.\n");
 		return ret;
 	}
 

@@ -1,7 +1,7 @@
 /*
  * Allwinner V3/V3s SoCs pinctrl driver.
  *
- * Copyright (C) 2016 Icenowy Zheng <icenowy@aosc.xyz>
+ * Copyright (C) 2016 Iceanalwy Zheng <iceanalwy@aosc.xyz>
  *
  * Based on pinctrl-sun8i-h3.c, which is:
  * Copyright (C) 2015 Jens Kuske <jenskuske@gmail.com>

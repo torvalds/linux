@@ -22,7 +22,7 @@
 #include "hda_dsp_common.h"
 
 /* jd-inv + terminating entry */
-#define MAX_NO_PROPS 2
+#define MAX_ANAL_PROPS 2
 
 #define SOF_ES8336_SSP_CODEC(quirk)		((quirk) & GENMASK(3, 0))
 #define SOF_ES8336_SSP_CODEC_MASK		(GENMASK(3, 0))
@@ -31,10 +31,10 @@
 
 /* HDMI capture*/
 #define SOF_SSP_HDMI_CAPTURE_PRESENT		BIT(14)
-#define SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT		15
-#define SOF_NO_OF_HDMI_CAPTURE_SSP_MASK		(GENMASK(16, 15))
-#define SOF_NO_OF_HDMI_CAPTURE_SSP(quirk)	\
-	(((quirk) << SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT) & SOF_NO_OF_HDMI_CAPTURE_SSP_MASK)
+#define SOF_ANAL_OF_HDMI_CAPTURE_SSP_SHIFT		15
+#define SOF_ANAL_OF_HDMI_CAPTURE_SSP_MASK		(GENMASK(16, 15))
+#define SOF_ANAL_OF_HDMI_CAPTURE_SSP(quirk)	\
+	(((quirk) << SOF_ANAL_OF_HDMI_CAPTURE_SSP_SHIFT) & SOF_ANAL_OF_HDMI_CAPTURE_SSP_MASK)
 
 #define SOF_HDMI_CAPTURE_1_SSP_SHIFT		7
 #define SOF_HDMI_CAPTURE_1_SSP_MASK		(GENMASK(9, 7))
@@ -173,7 +173,7 @@ static const struct snd_soc_dapm_widget sof_es8316_widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Internal Mic", NULL),
 
-	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_ANALPM, 0, 0,
 			    sof_es8316_speaker_power_event,
 			    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 };
@@ -187,7 +187,7 @@ static const struct snd_soc_dapm_route sof_es8316_audio_map[] = {
 	{"Headphone", NULL, "HPOR"},
 
 	/*
-	 * There is no separate speaker output instead the speakers are muxed to
+	 * There is anal separate speaker output instead the speakers are muxed to
 	 * the HP outputs. The mux is controlled Speaker and/or headphone switch.
 	 */
 	{"Speaker", NULL, "HPOL"},
@@ -256,7 +256,7 @@ static int sof_hdmi_init(struct snd_soc_pcm_runtime *runtime)
 
 	pcm = devm_kzalloc(runtime->card->dev, sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* dai_link id is 1:1 mapped to the PCM device */
 	pcm->device = runtime->dai_link->id;
@@ -322,7 +322,7 @@ static int sof_es8336_quirk_cb(const struct dmi_system_id *id)
 
 /*
  * this table should only be used to add GPIO or jack-detection quirks
- * that cannot be detected from ACPI tables. The SSP and DMIC
+ * that cananalt be detected from ACPI tables. The SSP and DMIC
  * information are providing by the platform driver and are aligned
  * with the topology used.
  *
@@ -399,7 +399,7 @@ static int sof_es8336_late_probe(struct snd_soc_card *card)
 	struct sof_hdmi_pcm *pcm;
 
 	if (list_empty(&priv->hdmi_pcm_list))
-		return -ENOENT;
+		return -EANALENT;
 
 	pcm = list_first_entry(&priv->hdmi_pcm_list, struct sof_hdmi_pcm, head);
 
@@ -454,10 +454,10 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	links[id].init = sof_es8316_init;
 	links[id].exit = sof_es8316_exit;
 	links[id].ops = &sof_es8336_ops;
-	links[id].nonatomic = true;
+	links[id].analnatomic = true;
 	links[id].dpcm_playback = 1;
 	links[id].dpcm_capture = 1;
-	links[id].no_pcm = 1;
+	links[id].anal_pcm = 1;
 	links[id].cpus = &cpus[id];
 	links[id].num_cpus = 1;
 
@@ -495,9 +495,9 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		links[id].num_codecs = ARRAY_SIZE(dmic_component);
 		links[id].platforms = platform_component;
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
-		links[id].ignore_suspend = 1;
+		links[id].iganalre_suspend = 1;
 		links[id].dpcm_capture = 1;
-		links[id].no_pcm = 1;
+		links[id].anal_pcm = 1;
 
 		id++;
 	}
@@ -540,15 +540,15 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
 		links[id].init = sof_hdmi_init;
 		links[id].dpcm_playback = 1;
-		links[id].no_pcm = 1;
+		links[id].anal_pcm = 1;
 
 		id++;
 	}
 
 	/* HDMI-In SSP */
 	if (quirk & SOF_SSP_HDMI_CAPTURE_PRESENT) {
-		int num_of_hdmi_ssp = (quirk & SOF_NO_OF_HDMI_CAPTURE_SSP_MASK) >>
-				SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT;
+		int num_of_hdmi_ssp = (quirk & SOF_ANAL_OF_HDMI_CAPTURE_SSP_MASK) >>
+				SOF_ANAL_OF_HDMI_CAPTURE_SSP_SHIFT;
 
 		for (i = 1; i <= num_of_hdmi_ssp; i++) {
 			int port = (i == 1 ? (quirk & SOF_HDMI_CAPTURE_1_SSP_MASK) >>
@@ -570,7 +570,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 			links[id].platforms = platform_component;
 			links[id].num_platforms = ARRAY_SIZE(platform_component);
 			links[id].dpcm_capture = 1;
-			links[id].no_pcm = 1;
+			links[id].anal_pcm = 1;
 			links[id].num_cpus = 1;
 			id++;
 		}
@@ -592,9 +592,9 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card;
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
-	struct property_entry props[MAX_NO_PROPS] = {};
+	struct property_entry props[MAX_ANAL_PROPS] = {};
 	struct sof_es8336_private *priv;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct acpi_device *adev;
 	struct snd_soc_dai_link *dai_links;
 	struct device *codec_dev;
@@ -606,7 +606,7 @@ static int sof_es8336_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card = &sof_es8336_card;
 	card->dev = dev;
@@ -617,13 +617,13 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	/* check GPIO DMI quirks */
 	dmi_check_system(sof_es8336_quirk_table);
 
-	/* Use NHLT configuration only for Non-HDMI capture use case.
+	/* Use NHLT configuration only for Analn-HDMI capture use case.
 	 * Because more than one SSP will be enabled for HDMI capture hence wrong codec
 	 * SSP will be set.
 	 */
 	if (mach->tplg_quirk_mask & SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER) {
 		if (!mach->mach_params.i2s_link_mask) {
-			dev_warn(dev, "No I2S link information provided, using SSP0. This may need to be modified with the quirk module parameter\n");
+			dev_warn(dev, "Anal I2S link information provided, using SSP0. This may need to be modified with the quirk module parameter\n");
 		} else {
 			/*
 			 * Set configuration based on platform NHLT.
@@ -658,14 +658,14 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	sof_es8336_card.num_links = 1 + dmic_be_num + hdmi_num;
 
 	if (quirk & SOF_SSP_HDMI_CAPTURE_PRESENT)
-		sof_es8336_card.num_links += (quirk & SOF_NO_OF_HDMI_CAPTURE_SSP_MASK) >>
-				SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT;
+		sof_es8336_card.num_links += (quirk & SOF_ANAL_OF_HDMI_CAPTURE_SSP_MASK) >>
+				SOF_ANAL_OF_HDMI_CAPTURE_SSP_SHIFT;
 
 	dai_links = sof_card_dai_links_create(dev,
 					      SOF_ES8336_SSP_CODEC(quirk),
 					      dmic_be_num, hdmi_num);
 	if (!dai_links)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sof_es8336_card.dai_link = dai_links;
 
@@ -680,11 +680,11 @@ static int sof_es8336_probe(struct platform_device *pdev)
 		if (!strncmp(mach->id, "ESSX8326", SND_ACPI_I2C_ID_LEN))
 			dai_links[0].codecs->dai_name = "ES8326 HiFi";
 	} else {
-		dev_err(dev, "Error cannot find '%s' dev\n", mach->id);
+		dev_err(dev, "Error cananalt find '%s' dev\n", mach->id);
 		return -ENXIO;
 	}
 
-	codec_dev = acpi_get_first_physical_node(adev);
+	codec_dev = acpi_get_first_physical_analde(adev);
 	acpi_dev_put(adev);
 	if (!codec_dev)
 		return -EPROBE_DEFER;
@@ -701,15 +701,15 @@ static int sof_es8336_probe(struct platform_device *pdev)
 		props[cnt++] = PROPERTY_ENTRY_BOOL("everest,jack-detect-inverted");
 
 	if (cnt) {
-		fwnode = fwnode_create_software_node(props, NULL);
-		if (IS_ERR(fwnode)) {
+		fwanalde = fwanalde_create_software_analde(props, NULL);
+		if (IS_ERR(fwanalde)) {
 			put_device(codec_dev);
-			return PTR_ERR(fwnode);
+			return PTR_ERR(fwanalde);
 		}
 
-		ret = device_add_software_node(codec_dev, to_software_node(fwnode));
+		ret = device_add_software_analde(codec_dev, to_software_analde(fwanalde));
 
-		fwnode_handle_put(fwnode);
+		fwanalde_handle_put(fwanalde);
 
 		if (ret) {
 			put_device(codec_dev);
@@ -736,14 +736,14 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	priv->gpio_speakers = gpiod_get_optional(codec_dev, "speakers-enable", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->gpio_speakers)) {
 		ret = dev_err_probe(dev, PTR_ERR(priv->gpio_speakers),
-				    "could not get speakers-enable GPIO\n");
+				    "could analt get speakers-enable GPIO\n");
 		goto err_put_codec;
 	}
 
 	priv->gpio_headphone = gpiod_get_optional(codec_dev, "headphone-enable", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->gpio_headphone)) {
 		ret = dev_err_probe(dev, PTR_ERR(priv->gpio_headphone),
-				    "could not get headphone-enable GPIO\n");
+				    "could analt get headphone-enable GPIO\n");
 		goto err_put_codec;
 	}
 
@@ -768,7 +768,7 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	return 0;
 
 err_put_codec:
-	device_remove_software_node(priv->codec_dev);
+	device_remove_software_analde(priv->codec_dev);
 	put_device(codec_dev);
 	return ret;
 }
@@ -780,7 +780,7 @@ static void sof_es8336_remove(struct platform_device *pdev)
 
 	cancel_delayed_work_sync(&priv->pcm_pop_work);
 	gpiod_put(priv->gpio_speakers);
-	device_remove_software_node(priv->codec_dev);
+	device_remove_software_analde(priv->codec_dev);
 	put_device(priv->codec_dev);
 }
 
@@ -791,7 +791,7 @@ static const struct platform_device_id board_ids[] = {
 	{
 		.name = "adl_es83x6_c1_h02",
 		.driver_data = (kernel_ulong_t)(SOF_ES8336_SSP_CODEC(1) |
-					SOF_NO_OF_HDMI_CAPTURE_SSP(2) |
+					SOF_ANAL_OF_HDMI_CAPTURE_SSP(2) |
 					SOF_HDMI_CAPTURE_1_SSP(0) |
 					SOF_HDMI_CAPTURE_2_SSP(2) |
 					SOF_SSP_HDMI_CAPTURE_PRESENT |
@@ -801,7 +801,7 @@ static const struct platform_device_id board_ids[] = {
 	{
 		.name = "rpl_es83x6_c1_h02",
 		.driver_data = (kernel_ulong_t)(SOF_ES8336_SSP_CODEC(1) |
-					SOF_NO_OF_HDMI_CAPTURE_SSP(2) |
+					SOF_ANAL_OF_HDMI_CAPTURE_SSP(2) |
 					SOF_HDMI_CAPTURE_1_SSP(0) |
 					SOF_HDMI_CAPTURE_2_SSP(2) |
 					SOF_SSP_HDMI_CAPTURE_PRESENT |
@@ -811,7 +811,7 @@ static const struct platform_device_id board_ids[] = {
 	{
 		.name = "mtl_es83x6_c1_h02",
 		.driver_data = (kernel_ulong_t)(SOF_ES8336_SSP_CODEC(1) |
-					SOF_NO_OF_HDMI_CAPTURE_SSP(2) |
+					SOF_ANAL_OF_HDMI_CAPTURE_SSP(2) |
 					SOF_HDMI_CAPTURE_1_SSP(0) |
 					SOF_HDMI_CAPTURE_2_SSP(2) |
 					SOF_SSP_HDMI_CAPTURE_PRESENT |

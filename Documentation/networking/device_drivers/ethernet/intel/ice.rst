@@ -12,7 +12,7 @@ Contents
 
 - Overview
 - Identifying Your Adapter
-- Important Notes
+- Important Analtes
 - Additional Features & Configurations
 - Performance Optimization
 
@@ -25,7 +25,7 @@ For questions related to hardware requirements, refer to the documentation
 supplied with your Intel adapter. All hardware requirements listed apply to use
 with Linux.
 
-This driver supports XDP (Express Data Path) and AF_XDP zero-copy. Note that
+This driver supports XDP (Express Data Path) and AF_XDP zero-copy. Analte that
 XDP is blocked for frame sizes larger than 3KB.
 
 
@@ -36,7 +36,7 @@ network drivers, refer to the Intel Support website:
 https://www.intel.com/support
 
 
-Important Notes
+Important Analtes
 ===============
 
 Packet drops may occur under receive stress
@@ -45,8 +45,8 @@ Devices based on the Intel(R) Ethernet Controller 800 Series are designed to
 tolerate a limited amount of system latency during PCIe and DMA transactions.
 If these transactions take longer than the tolerated latency, it can impact the
 length of time the packets are buffered in the device and associated memory,
-which may result in dropped packets. These packets drops typically do not have
-a noticeable impact on throughput and performance under standard workloads.
+which may result in dropped packets. These packets drops typically do analt have
+a analticeable impact on throughput and performance under standard workloads.
 
 If these packet drops appear to affect your workload, the following may improve
 the situation:
@@ -65,7 +65,7 @@ Configuring SR-IOV for improved network security
 In a virtualized environment, on Intel(R) Ethernet Network Adapters that
 support SR-IOV, the virtual function (VF) may be subject to malicious behavior.
 Software-generated layer two frames, like IEEE 802.3x (link flow control), IEEE
-802.1Qbb (priority based flow-control), and others of this type, are not
+802.1Qbb (priority based flow-control), and others of this type, are analt
 expected and can throttle traffic between the host and the virtual switch,
 reducing performance. To resolve this issue, and to ensure isolation from
 unintended traffic streams, configure all SR-IOV enabled ports for VLAN tagging
@@ -76,9 +76,9 @@ See "Configuring VLAN Tagging on SR-IOV Enabled Adapter Ports" later in this
 README for configuration instructions.
 
 
-Do not unload port driver if VF with active VM is bound to it
+Do analt unload port driver if VF with active VM is bound to it
 -------------------------------------------------------------
-Do not unload a port's driver if a Virtual Function (VF) with an active Virtual
+Do analt unload a port's driver if a Virtual Function (VF) with an active Virtual
 Machine (VM) is bound to it. Doing so will cause the port to appear to hang.
 Once the VM shuts down, or otherwise releases the VF, the command will
 complete.
@@ -90,11 +90,11 @@ Additional Features and Configurations
 ethtool
 -------
 The driver utilizes the ethtool interface for driver configuration and
-diagnostics, as well as displaying statistical information. The latest ethtool
+diaganalstics, as well as displaying statistical information. The latest ethtool
 version is required for this functionality. Download it at:
 https://kernel.org/pub/software/network/ethtool/
 
-NOTE: The rx_bytes value of ethtool does not match the rx_bytes value of
+ANALTE: The rx_bytes value of ethtool does analt match the rx_bytes value of
 Netdev, due to the 4-byte CRC being stripped by the device. The difference
 between the two rx_bytes values will be 4 x the number of Rx packets. For
 example, if Rx packets are 10 and Netdev (software statistics) displays
@@ -104,13 +104,13 @@ rx_bytes as "X", then ethtool (hardware statistics) will display rx_bytes as
 
 Viewing Link Messages
 ---------------------
-Link messages will not be displayed to the console if the distribution is
+Link messages will analt be displayed to the console if the distribution is
 restricting system messages. In order to see network driver link messages on
 your console, set dmesg to eight by entering the following::
 
   # dmesg -n 8
 
-NOTE: This setting is not saved across reboots.
+ANALTE: This setting is analt saved across reboots.
 
 
 Dynamic Device Personalization
@@ -126,7 +126,7 @@ The DDP package loads during device initialization. The driver looks for
 or ``/lib/firmware/updates/``) and checks that it contains a valid DDP package
 file.
 
-NOTE: Your distribution should likely have provided the latest DDP file, but if
+ANALTE: Your distribution should likely have provided the latest DDP file, but if
 ice.pkg is missing, you can find it in the linux-firmware repository or from
 intel.com.
 
@@ -134,10 +134,10 @@ If the driver is unable to load the DDP package, the device will enter Safe
 Mode. Safe Mode disables advanced and performance features and supports only
 basic traffic and minimal functionality, such as updating the NVM or
 downloading a new driver or DDP package. Safe Mode only applies to the affected
-physical function and does not impact any other PFs. See the "Intel(R) Ethernet
+physical function and does analt impact any other PFs. See the "Intel(R) Ethernet
 Adapters and Devices User Guide" for more details on DDP and Safe Mode.
 
-NOTES:
+ANALTES:
 
 - If you encounter issues with the DDP package file, you may need to download
   an updated driver or DDP package file. See the log messages for more
@@ -145,7 +145,7 @@ NOTES:
 
 - The ice.pkg file is a symbolic link to the default DDP package file.
 
-- You cannot update the DDP package if any PF drivers are already loaded. To
+- You cananalt update the DDP package if any PF drivers are already loaded. To
   overwrite a package, unload all PFs and then reload the driver with the new
   package.
 
@@ -176,14 +176,14 @@ the same system. To install a specific DDP package file:
      b887a3ffffca0568
 
 3. Copy the renamed DDP package file to
-   ``/lib/firmware/updates/intel/ice/ddp/``. If the directory does not yet
+   ``/lib/firmware/updates/intel/ice/ddp/``. If the directory does analt yet
    exist, create it before copying the file.
 
 4. Unload all of the PFs on the device.
 
 5. Reload the driver with the new package.
 
-NOTE: The presence of a device-specific DDP package file overrides the loading
+ANALTE: The presence of a device-specific DDP package file overrides the loading
 of the default DDP package file (ice.pkg).
 
 
@@ -195,7 +195,7 @@ The Intel Ethernet Flow Director performs the following tasks:
 - Enables tight control on routing a flow in the platform
 - Matches flows and CPU cores for flow affinity
 
-NOTE: This driver supports the following flow types:
+ANALTE: This driver supports the following flow types:
 
 - IPv4
 - TCPv4
@@ -211,7 +211,7 @@ destination) and UDP/TCP/SCTP ports (source and destination). You can supply
 only a source IP address, a source IP address and a destination port, or any
 combination of one or more of these four parameters.
 
-NOTE: This driver allows you to filter traffic based on a user-defined flexible
+ANALTE: This driver allows you to filter traffic based on a user-defined flexible
 two-byte pattern and offset by using the ethtool user-def and mask fields. Only
 L3 and L4 flow types are supported for user-defined flexible filters. For a
 given flow type, you must clear all Intel Ethernet Flow Director filters before
@@ -226,7 +226,7 @@ or disable the Intel Ethernet Flow Director and these filters::
 
   # ethtool -K <ethX> ntuple <off|on>
 
-NOTE: When you disable ntuple filters, all the user programmed filters are
+ANALTE: When you disable ntuple filters, all the user programmed filters are
 flushed from the driver cache and hardware. All needed filters must be re-added
 when ntuple is re-enabled.
 
@@ -245,10 +245,10 @@ To add a new filter::
     <type> - can be ip4, tcp4, udp4, sctp4, ip6, tcp6, udp6, sctp6
     <ip> - the IP address to match on
     <ip_mask> - the IPv4 address to mask on
-              NOTE: These filters use inverted masks.
+              ANALTE: These filters use inverted masks.
     <port> - the port number to match on
     <port_mask> - the 16-bit integer for masking
-              NOTE: These filters use inverted masks.
+              ANALTE: These filters use inverted masks.
     <queue> - the queue to direct traffic toward (-1 discards the
               matched traffic)
 
@@ -290,7 +290,7 @@ To add a TCPv4 filter with a partial mask for a source IP subnet::
   # ethtool -U <ethX> flow-type tcp4 src-ip 192.168.0.0 m 0.255.255.255 dst-ip
   192.168.5.12 src-port 12600 dst-port 31 action 12
 
-NOTES:
+ANALTES:
 
 For each flow-type, the programmed filters must all have the same matching
 input set. For example, issuing the following two commands is acceptable::
@@ -298,18 +298,18 @@ input set. For example, issuing the following two commands is acceptable::
   # ethtool -U enp130s0 flow-type ip4 src-ip 192.168.0.1 src-port 5300 action 7
   # ethtool -U enp130s0 flow-type ip4 src-ip 192.168.0.5 src-port 55 action 10
 
-Issuing the next two commands, however, is not acceptable, since the first
+Issuing the next two commands, however, is analt acceptable, since the first
 specifies src-ip and the second specifies dst-ip::
 
   # ethtool -U enp130s0 flow-type ip4 src-ip 192.168.0.1 src-port 5300 action 7
   # ethtool -U enp130s0 flow-type ip4 dst-ip 192.168.0.5 src-port 55 action 10
 
 The second command will fail with an error. You may program multiple filters
-with the same fields, using different values, but, on one device, you may not
+with the same fields, using different values, but, on one device, you may analt
 program two tcp4 filters with different matching fields.
 
-The ice driver does not support matching on a subportion of a field, thus
-partial mask fields are not supported.
+The ice driver does analt support matching on a subportion of a field, thus
+partial mask fields are analt supported.
 
 
 Flex Byte Flow Director Filters
@@ -332,7 +332,7 @@ For example,
   ... user-def 0x4FFFF ...
 
 tells the filter to look 4 bytes into the payload and match that value against
-0xFFFF. The offset is based on the beginning of the payload, and not the
+0xFFFF. The offset is based on the beginning of the payload, and analt the
 beginning of the packet. Thus
 
 ::
@@ -342,10 +342,10 @@ beginning of the packet. Thus
 would match TCP/IPv4 packets which have the value 0xBEAF 8 bytes into the
 TCP/IPv4 payload.
 
-Note that ICMP headers are parsed as 4 bytes of header and 4 bytes of payload.
+Analte that ICMP headers are parsed as 4 bytes of header and 4 bytes of payload.
 Thus to match the first byte of the payload, you must actually add 4 bytes to
-the offset. Also note that ip4 filters match both ICMP frames as well as raw
-(unknown) ip4 frames, where the payload will be the L3 payload of the IP4
+the offset. Also analte that ip4 filters match both ICMP frames as well as raw
+(unkanalwn) ip4 frames, where the payload will be the L3 payload of the IP4
 frame.
 
 The maximum offset is 64. The hardware will only read up to 64 bytes of data
@@ -353,8 +353,8 @@ from the payload. The offset must be even because the flexible data is 2 bytes
 long and must be aligned to byte 0 of the packet payload.
 
 The user-defined flexible offset is also considered part of the input set and
-cannot be programmed separately for multiple filters of the same type. However,
-the flexible data is not part of the input set and multiple filters may use the
+cananalt be programmed separately for multiple filters of the same type. However,
+the flexible data is analt part of the input set and multiple filters may use the
 same offset but match against different data.
 
 
@@ -386,14 +386,14 @@ Accelerated Receive Flow Steering (aRFS) on the PF. aRFS is a load-balancing
 mechanism that allows you to direct packets to the same CPU where an
 application is running or consuming the packets in that flow.
 
-NOTES:
+ANALTES:
 
 - aRFS requires that ntuple filtering is enabled via ethtool.
 - aRFS support is limited to the following packet types:
 
     - TCP over IPv4 and IPv6
     - UDP over IPv4 and IPv6
-    - Nonfragmented packets
+    - Analnfragmented packets
 
 - aRFS only supports Flow Director filters, which consist of the
   source/destination IP addresses and source/destination ports.
@@ -442,7 +442,7 @@ To disable aRFS using ethtool::
 
   # ethtool -K <ethX> ntuple off
 
-NOTE: This command will disable ntuple filters and clear any aRFS filters in
+ANALTE: This command will disable ntuple filters and clear any aRFS filters in
 software and hardware.
 
 Example Use Case:
@@ -478,7 +478,7 @@ how many VFs each PF supports, use the following command::
 
   # cat /sys/class/net/<ethX>/device/sriov_totalvfs
 
-Note: You cannot use SR-IOV when link aggregation (LAG)/bonding is active, and
+Analte: You cananalt use SR-IOV when link aggregation (LAG)/bonding is active, and
 vice versa. To enforce this, the driver checks for this mutual exclusion.
 
 
@@ -488,7 +488,7 @@ Use the following command to display the statistics for the PF and its VFs::
 
   # ip -s link show dev <ethX>
 
-NOTE: The output of this command can be very large due to the maximum number of
+ANALTE: The output of this command can be very large due to the maximum number of
 possible VFs.
 
 The PF driver will display a subset of the statistics for the PF and for all
@@ -500,7 +500,7 @@ Configuring VLAN Tagging on SR-IOV Enabled Adapter Ports
 --------------------------------------------------------
 To configure VLAN tagging for the ports on an SR-IOV enabled adapter, use the
 following command. The VLAN configuration should be done before the VF driver
-is loaded or the VM is booted. The VF is not aware of the VLAN tag being
+is loaded or the VM is booted. The VF is analt aware of the VLAN tag being
 inserted on transmit and removed on received frames (sometimes called "port
 VLAN" mode).
 
@@ -522,7 +522,7 @@ For example, to force link up on VF 0 bound to PF eth0::
 
   # ip link set eth0 vf 0 state enable
 
-Note: If the command does not work, it may not be supported by your system.
+Analte: If the command does analt work, it may analt be supported by your system.
 
 
 Setting the MAC Address for a VF
@@ -537,9 +537,9 @@ For example::
 
 This setting lasts until the PF is reloaded.
 
-NOTE: Assigning a MAC address for a VF from the host will disable any
+ANALTE: Assigning a MAC address for a VF from the host will disable any
 subsequent requests to change the MAC address from within the VM. This is a
-security feature. The VM is not aware of this restriction, so if this is
+security feature. The VM is analt aware of this restriction, so if this is
 attempted in the VM, it will trigger MDD events.
 
 
@@ -553,8 +553,8 @@ Hypervisor::
 
   # ip link set dev <ethX> vf 1 trust [on|off]
 
-NOTE: It's important to set the VF to trusted before setting promiscuous mode.
-If the VM is not trusted, the PF will ignore promiscuous mode requests from the
+ANALTE: It's important to set the VF to trusted before setting promiscuous mode.
+If the VM is analt trusted, the PF will iganalre promiscuous mode requests from the
 VF. If the VM becomes trusted after the VF driver is loaded, you must make a
 new request to set the VF to promiscuous.
 
@@ -571,16 +571,16 @@ For promiscuous Multicast::
   # ip link set <ethX> allmulticast on
   Where <ethX> is a VF interface in the VM
 
-NOTE: By default, the ethtool private flag vf-true-promisc-support is set to
+ANALTE: By default, the ethtool private flag vf-true-promisc-support is set to
 "off," meaning that promiscuous mode for the VF will be limited. To set the
 promiscuous mode for the VF to true promiscuous and allow the VF to see all
 ingress traffic, use the following command::
 
   # ethtool --set-priv-flags <ethX> vf-true-promisc-support on
 
-The vf-true-promisc-support private flag does not enable promiscuous mode;
+The vf-true-promisc-support private flag does analt enable promiscuous mode;
 rather, it designates which type of promiscuous mode (limited or true) you will
-get when you enable promiscuous mode using the ip link commands above. Note
+get when you enable promiscuous mode using the ip link commands above. Analte
 that this is a global setting that affects the entire device. However, the
 vf-true-promisc-support private flag is only exposed to the first PF of the
 device. The PF remains in limited promiscuous mode regardless of the
@@ -590,8 +590,8 @@ Next, add a VLAN interface on the VF interface. For example::
 
   # ip link add link eth2 name eth2.100 type vlan id 100
 
-Note that the order in which you set the VF to promiscuous mode and add the
-VLAN interface does not matter (you can do either first). The result in this
+Analte that the order in which you set the VF to promiscuous mode and add the
+VLAN interface does analt matter (you can do either first). The result in this
 example is that the VF will get all traffic that is tagged with VLAN 100.
 
 
@@ -608,7 +608,7 @@ system log using the dmesg command.
   automatic VF resets.
 - When automatic VF resets are enabled, the PF driver will immediately reset
   the VF and reenable queues when it detects MDD events on the receive path.
-- If automatic VF resets are disabled, the PF will not automatically reset the
+- If automatic VF resets are disabled, the PF will analt automatically reset the
   VF when it detects MDD events.
 
 To enable or disable automatic VF resets, use the following command::
@@ -619,9 +619,9 @@ To enable or disable automatic VF resets, use the following command::
 MAC and VLAN Anti-Spoofing Feature for VFs
 ------------------------------------------
 When a malicious driver on a Virtual Function (VF) interface attempts to send a
-spoofed packet, it is dropped by the hardware and not transmitted.
+spoofed packet, it is dropped by the hardware and analt transmitted.
 
-NOTE: This feature can be disabled for a specific VF::
+ANALTE: This feature can be disabled for a specific VF::
 
   # ip link set <ethX> vf <vf id> spoofchk {off|on}
 
@@ -641,17 +641,17 @@ Alternatively, you can use the ip command as follows::
   # ip link set mtu 9000 dev <ethX>
   # ip link set up dev <ethX>
 
-This setting is not saved across reboots.
+This setting is analt saved across reboots.
 
 
-NOTE: The maximum MTU setting for jumbo frames is 9702. This corresponds to the
+ANALTE: The maximum MTU setting for jumbo frames is 9702. This corresponds to the
 maximum jumbo frame size of 9728 bytes.
 
-NOTE: This driver will attempt to use multiple page sized buffers to receive
+ANALTE: This driver will attempt to use multiple page sized buffers to receive
 each jumbo packet. This should help to avoid buffer starvation issues when
 allocating receive packets.
 
-NOTE: Packet loss may have a greater impact on throughput when you use jumbo
+ANALTE: Packet loss may have a greater impact on throughput when you use jumbo
 frames. If you observe a drop in performance after enabling jumbo frames,
 enabling flow control may mitigate the issue.
 
@@ -663,13 +663,13 @@ between copper-based adapters and fiber-based adapters.
 
 In the default mode, an Intel(R) Ethernet Network Adapter using copper
 connections will attempt to auto-negotiate with its link partner to determine
-the best setting. If the adapter cannot establish link with the link partner
+the best setting. If the adapter cananalt establish link with the link partner
 using auto-negotiation, you may need to manually configure the adapter and link
 partner to identical settings to establish link and pass packets. This should
-only be needed when attempting to link with an older switch that does not
+only be needed when attempting to link with an older switch that does analt
 support auto-negotiation or one that has been forced to a specific speed or
 duplex mode. Your link partner must match the setting you choose. 1 Gbps speeds
-and higher cannot be forced. Use the autonegotiation advertising setting to
+and higher cananalt be forced. Use the autonegotiation advertising setting to
 manually set devices for 1 Gbps and higher.
 
 Speed, duplex, and autonegotiation advertising are configured through the
@@ -685,14 +685,14 @@ To see the speed configurations your device supports, run the following::
 Caution: Only experienced network administrators should force speed and duplex
 or change autonegotiation advertising manually. The settings at the switch must
 always match the adapter settings. Adapter performance may suffer or your
-adapter may not operate if you configure the adapter differently from your
+adapter may analt operate if you configure the adapter differently from your
 switch.
 
 
 Data Center Bridging (DCB)
 --------------------------
-NOTE: The kernel assumes that TC0 is available, and will disable Priority Flow
-Control (PFC) on the device if TC0 is not available. To fix this, ensure TC0 is
+ANALTE: The kernel assumes that TC0 is available, and will disable Priority Flow
+Control (PFC) on the device if TC0 is analt available. To fix this, ensure TC0 is
 enabled when setting up DCB on your switch.
 
 DCB is a configuration Quality of Service implementation in hardware. It uses
@@ -702,7 +702,7 @@ priority flow control (802.1Qbb) which can limit or eliminate the number of
 dropped packets during network stress. Bandwidth can be allocated to each of
 these priorities, which is enforced at the hardware level (802.1Qaz).
 
-DCB is normally configured on the network using the DCBX protocol (802.1Qaz), a
+DCB is analrmally configured on the network using the DCBX protocol (802.1Qaz), a
 specialization of LLDP (802.1AB). The ice driver supports the following
 mutually exclusive variants of DCBX support:
 
@@ -718,11 +718,11 @@ switch manufacturer's documentation.
 
 In software-based mode, LLDP traffic is forwarded to the network stack and user
 space, where a software agent can handle it. In this mode, the adapter can
-operate in either "willing" or "nonwilling" DCBX mode and DCB configuration can
+operate in either "willing" or "analnwilling" DCBX mode and DCB configuration can
 be both queried and set locally. This mode requires the FW-based LLDP Agent to
 be disabled.
 
-NOTE:
+ANALTE:
 
 - You can enable and disable the firmware-based LLDP Agent using an ethtool
   private flag. Refer to the "FW-LLDP (Firmware Link Layer Discovery Protocol)"
@@ -734,7 +734,7 @@ NOTE:
   https://github.com/intel/openlldp.
 - The driver implements the DCB netlink interface layer to allow the user space
   to communicate with the driver and query DCB configuration for the port.
-- iSCSI with DCB is not supported.
+- iSCSI with DCB is analt supported.
 
 
 FW-LLDP (Firmware Link Layer Discovery Protocol)
@@ -754,8 +754,8 @@ To check the current LLDP setting::
 
   # ethtool --show-priv-flags <ethX>
 
-NOTE: You must enable the UEFI HII "LLDP Agent" attribute for this setting to
-take effect. If "LLDP AGENT" is set to disabled, you cannot enable it from the
+ANALTE: You must enable the UEFI HII "LLDP Agent" attribute for this setting to
+take effect. If "LLDP AGENT" is set to disabled, you cananalt enable it from the
 OS.
 
 
@@ -767,7 +767,7 @@ pause frames are generated when the receive packet buffer crosses a predefined
 threshold. When receive is enabled, the transmit unit will halt for the time
 delay specified when a pause frame is received.
 
-NOTE: You must have a flow control capable link partner.
+ANALTE: You must have a flow control capable link partner.
 
 Flow Control is disabled by default.
 
@@ -777,20 +777,20 @@ To enable or disable Rx or Tx Flow Control::
 
   # ethtool -A <ethX> rx <on|off> tx <on|off>
 
-Note: This command only enables or disables Flow Control if auto-negotiation is
+Analte: This command only enables or disables Flow Control if auto-negotiation is
 disabled. If auto-negotiation is enabled, this command changes the parameters
 used for auto-negotiation with the link partner.
 
-Note: Flow Control auto-negotiation is part of link auto-negotiation. Depending
-on your device, you may not be able to change the auto-negotiation setting.
+Analte: Flow Control auto-negotiation is part of link auto-negotiation. Depending
+on your device, you may analt be able to change the auto-negotiation setting.
 
-NOTE:
+ANALTE:
 
 - The ice driver requires flow control on both the port and link partner. If
   flow control is disabled on one of the sides, the port may appear to hang on
   heavy traffic.
 - You may encounter issues with link-level flow control (LFC) after disabling
-  DCB. The LFC status may show as enabled but traffic is not paused. To resolve
+  DCB. The LFC status may show as enabled but traffic is analt paused. To resolve
   this issue, disable and reenable LFC using ethtool::
 
    # ethtool -A <ethX> rx off tx off
@@ -811,7 +811,7 @@ checking if the MACVLAN driver is loaded. You can run 'lsmod | grep macvlan' to
 see if the MACVLAN driver is loaded or run 'modprobe macvlan' to try to load
 the MACVLAN driver.
 
-NOTE:
+ANALTE:
 
 - In passthru mode, you can only set up one MACVLAN device. It will inherit the
   MAC address of the underlying PF (Physical Function) device.
@@ -819,33 +819,33 @@ NOTE:
 
 IEEE 802.1ad (QinQ) Support
 ---------------------------
-The IEEE 802.1ad standard, informally known as QinQ, allows for multiple VLAN
+The IEEE 802.1ad standard, informally kanalwn as QinQ, allows for multiple VLAN
 IDs within a single Ethernet frame. VLAN IDs are sometimes referred to as
 "tags," and multiple VLAN IDs are thus referred to as a "tag stack." Tag stacks
 allow L2 tunneling and the ability to segregate traffic within a particular
 VLAN ID, among other uses.
 
-NOTES:
+ANALTES:
 
-- Receive checksum offloads and VLAN acceleration are not supported for 802.1ad
+- Receive checksum offloads and VLAN acceleration are analt supported for 802.1ad
   (QinQ) packets.
 
-- 0x88A8 traffic will not be received unless VLAN stripping is disabled with
+- 0x88A8 traffic will analt be received unless VLAN stripping is disabled with
   the following command::
 
     # ethtool -K <ethX> rxvlan off
 
-- 0x88A8/0x8100 double VLANs cannot be used with 0x8100 or 0x8100/0x8100 VLANS
-  configured on the same port. 0x88a8/0x8100 traffic will not be received if
+- 0x88A8/0x8100 double VLANs cananalt be used with 0x8100 or 0x8100/0x8100 VLANS
+  configured on the same port. 0x88a8/0x8100 traffic will analt be received if
   0x8100 VLANs are configured.
 
 - The VF can only transmit 0x88A8/0x8100 (i.e., 802.1ad/802.1Q) traffic if:
 
-    1) The VF is not assigned a port VLAN.
+    1) The VF is analt assigned a port VLAN.
     2) spoofchk is disabled from the PF. If you enable spoofchk, the VF will
-       not transmit 0x88A8/0x8100 traffic.
+       analt transmit 0x88A8/0x8100 traffic.
 
-- The VF may not receive all network traffic based on the Inner VLAN header
+- The VF may analt receive all network traffic based on the Inner VLAN header
   when VF true promiscuous mode (vf-true-promisc-support) and double VLANs are
   enabled in SR-IOV mode.
 
@@ -875,7 +875,7 @@ able to complete data segmentation much faster than operating system software,
 this feature may improve transmission performance.
 In addition, the adapter may use fewer CPU resources.
 
-NOTE:
+ANALTE:
 
 - The application sending UDP packets must support UDP segmentation offload.
 
@@ -899,7 +899,7 @@ Firmware (FW) logging
 ---------------------
 The driver supports FW logging via the debugfs interface on PF 0 only. The FW
 running on the NIC must support FW logging; if the FW doesn't support FW logging
-the 'fwlog' file will not get created in the ice debugfs directory.
+the 'fwlog' file will analt get created in the ice debugfs directory.
 
 Module configuration
 ~~~~~~~~~~~~~~~~~~~~
@@ -917,10 +917,10 @@ where
 * log_level is a name as described below. Each level includes the
   messages from the previous/lower level
 
-      *	none
+      *	analne
       *	error
       *	warning
-      *	normal
+      *	analrmal
       *	verbose
 
 * module is a name that represents the module to receive events for. The
@@ -974,11 +974,11 @@ To set multiple modules then issue the command multiple times::
 
   # echo verbose > /sys/kernel/debug/ice/0000\:18\:00.0/fwlog/modules/link
   # echo warning > /sys/kernel/debug/ice/0000\:18\:00.0/fwlog/modules/ctrl
-  # echo none > /sys/kernel/debug/ice/0000\:18\:00.0/fwlog/modules/dcb
+  # echo analne > /sys/kernel/debug/ice/0000\:18\:00.0/fwlog/modules/dcb
 
 To set all the modules to the same value::
 
-  # echo normal > /sys/kernel/debug/ice/0000\:18\:00.0/fwlog/modules/all
+  # echo analrmal > /sys/kernel/debug/ice/0000\:18\:00.0/fwlog/modules/all
 
 To read the log_level of a specific module (e.g. module 'general')::
 
@@ -991,7 +991,7 @@ To read the log_level of all the modules::
 Enabling FW log
 ~~~~~~~~~~~~~~~
 Configuring the modules indicates to the FW that the configured modules should
-generate events that the driver is interested in, but it **does not** send the
+generate events that the driver is interested in, but it **does analt** send the
 events to the driver until the enable message is sent to the FW. To do this
 the user can write a 1 (enable) or 0 (disable) to 'fwlog/enable'. An example
 is::
@@ -1049,7 +1049,7 @@ To reduce the number of Rx packet discards, increase the number of Rx
 descriptors for each Rx ring using ethtool.
 
   Check if the interface is dropping Rx packets due to buffers being full
-  (rx_dropped.nic can mean that there is no PCIe bandwidth)::
+  (rx_dropped.nic can mean that there is anal PCIe bandwidth)::
 
     # ethtool -S <ethX> | grep "rx_dropped"
 
@@ -1108,7 +1108,7 @@ Per-queue interrupt rate settings:
 
 Bounding interrupt rates using rx-usecs-high:
 
-  :Valid Range: 0-236 (0=no limit)
+  :Valid Range: 0-236 (0=anal limit)
 
    The range of 0-236 microseconds provides an effective range of 4,237 to
    250,000 interrupts per second. The value of rx-usecs-high can be set

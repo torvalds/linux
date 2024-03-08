@@ -168,8 +168,8 @@ h2_destroy()
 switch_create()
 {
 	ip link add name br1 type bridge vlan_filtering 1 vlan_default_pvid 0 \
-		mcast_snooping 0
-	# Make sure the bridge uses the MAC address of the local port and not
+		mcast_sanaloping 0
+	# Make sure the bridge uses the MAC address of the local port and analt
 	# that of the VxLAN's device.
 	ip link set dev br1 address $(mac_get $swp1)
 	ip link set dev br1 up
@@ -180,7 +180,7 @@ switch_create()
 
 	ip link add name vx10 type vxlan id 1010		\
 		local 10.0.0.1 remote 10.0.0.2 dstport 4789	\
-		nolearning noudpcsum tos inherit ttl 100
+		anallearning analudpcsum tos inherit ttl 100
 	ip link set dev vx10 up
 
 	ip link set dev vx10 master br1
@@ -188,7 +188,7 @@ switch_create()
 
 	ip link add name vx20 type vxlan id 1020		\
 		local 10.0.0.1 remote 10.0.0.2 dstport 4789	\
-		nolearning noudpcsum tos inherit ttl 100
+		anallearning analudpcsum tos inherit ttl 100
 	ip link set dev vx20 up
 
 	ip link set dev vx20 master br1
@@ -204,7 +204,7 @@ switch_create()
 
 	ip link add name vx4001 type vxlan id 104001		\
 		local 10.0.0.1 dstport 4789			\
-		nolearning noudpcsum tos inherit ttl 100
+		anallearning analudpcsum tos inherit ttl 100
 	ip link set dev vx4001 up
 
 	ip link set dev vx4001 master br1
@@ -266,26 +266,26 @@ switch_destroy()
 
 	bridge vlan del vid 20 dev $swp2
 	ip link set dev $swp2 down
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 analmaster
 
 	bridge vlan del vid 10 dev $swp1
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 
 	bridge vlan del vid 4001 dev vx4001
-	ip link set dev vx4001 nomaster
+	ip link set dev vx4001 analmaster
 
 	ip link set dev vx4001 down
 	ip link del dev vx4001
 
 	bridge vlan del vid 20 dev vx20
-	ip link set dev vx20 nomaster
+	ip link set dev vx20 analmaster
 
 	ip link set dev vx20 down
 	ip link del dev vx20
 
 	bridge vlan del vid 10 dev vx10
-	ip link set dev vx10 nomaster
+	ip link set dev vx10 analmaster
 
 	ip link set dev vx10 down
 	ip link del dev vx10
@@ -342,7 +342,7 @@ export -f ns_h2_create
 ns_switch_create()
 {
 	ip link add name br1 type bridge vlan_filtering 1 vlan_default_pvid 0 \
-		mcast_snooping 0
+		mcast_sanaloping 0
 	ip link set dev br1 up
 
 	ip link set dev v2 up
@@ -351,7 +351,7 @@ ns_switch_create()
 
 	ip link add name vx10 type vxlan id 1010		\
 		local 10.0.0.2 remote 10.0.0.1 dstport 4789	\
-		nolearning noudpcsum tos inherit ttl 100
+		anallearning analudpcsum tos inherit ttl 100
 	ip link set dev vx10 up
 
 	ip link set dev vx10 master br1
@@ -359,7 +359,7 @@ ns_switch_create()
 
 	ip link add name vx20 type vxlan id 1020		\
 		local 10.0.0.2 remote 10.0.0.1 dstport 4789	\
-		nolearning noudpcsum tos inherit ttl 100
+		anallearning analudpcsum tos inherit ttl 100
 	ip link set dev vx20 up
 
 	ip link set dev vx20 master br1
@@ -367,7 +367,7 @@ ns_switch_create()
 
 	ip link add name vx4001 type vxlan id 104001		\
 		local 10.0.0.2 dstport 4789			\
-		nolearning noudpcsum tos inherit ttl 100
+		anallearning analudpcsum tos inherit ttl 100
 	ip link set dev vx4001 up
 
 	ip link set dev vx4001 master br1
@@ -454,9 +454,9 @@ __l2_vni_init()
 	bridge fdb add $mac2 dev vx20 self master extern_learn static \
 		dst $dst vlan 20
 
-	ip neigh add $ip1 lladdr $mac1 nud noarp dev vlan10 \
+	ip neigh add $ip1 lladdr $mac1 nud analarp dev vlan10 \
 		extern_learn
-	ip neigh add $ip2 lladdr $mac2 nud noarp dev vlan20 \
+	ip neigh add $ip2 lladdr $mac2 nud analarp dev vlan20 \
 		extern_learn
 }
 export -f __l2_vni_init
@@ -482,7 +482,7 @@ __l3_vni_init()
 	bridge fdb add $mac dev vx4001 self master extern_learn static \
 		dst $vtep_ip vlan 4001
 
-	ip neigh add $vtep_ip lladdr $mac nud noarp dev vlan4001 extern_learn
+	ip neigh add $vtep_ip lladdr $mac nud analarp dev vlan4001 extern_learn
 
 	ip route add $host1_ip/32 vrf vrf-green nexthop via $vtep_ip \
 		dev vlan4001 onlink

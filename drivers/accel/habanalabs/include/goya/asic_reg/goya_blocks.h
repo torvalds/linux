@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef GOYA_BLOCKS_H_
@@ -340,9 +340,9 @@
 #define mmSTLB_BASE                                0x7FFC490000ull
 #define STLB_MAX_OFFSET                            0x50
 #define STLB_SECTION                               0x10000
-#define mmNORTH_THERMAL_SENSOR_BASE                0x7FFC4A0000ull
-#define NORTH_THERMAL_SENSOR_MAX_OFFSET            0xE64
-#define NORTH_THERMAL_SENSOR_SECTION               0x1000
+#define mmANALRTH_THERMAL_SENSOR_BASE                0x7FFC4A0000ull
+#define ANALRTH_THERMAL_SENSOR_MAX_OFFSET            0xE64
+#define ANALRTH_THERMAL_SENSOR_SECTION               0x1000
 #define mmMC_PLL_BASE                              0x7FFC4A1000ull
 #define MC_PLL_MAX_OFFSET                          0x444
 #define MC_PLL_SECTION                             0x1000

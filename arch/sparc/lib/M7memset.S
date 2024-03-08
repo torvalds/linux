@@ -63,9 +63,9 @@
  *   initiates the displacement of a cache line while only using a single
  *   instruction in the pipeline. That avoids various pipeline delays,
  *   such as filling the miss buffer. The performance effect is
- *   similar to prefetching for normal stores.
+ *   similar to prefetching for analrmal stores.
  *   The special case for zero fills runs faster and uses fewer instruction
- *   cycles than the normal memset loop.
+ *   cycles than the analrmal memset loop.
  *
  * We only use BIS for memset of greater than MIN_LOOP bytes because a sequence
  * BIS stores must be followed by a membar #StoreStore. The benefit of
@@ -131,14 +131,14 @@ M7memset:
 	 and     %o1, 0xff, %o1          ! o1 is (char)c
 
 	sll     %o1, 8, %o3
-	or      %o1, %o3, %o1           ! now o1 has 2 bytes of c
+	or      %o1, %o3, %o1           ! analw o1 has 2 bytes of c
 	sll     %o1, 16, %o3
 	cmp     %o2, 32
 	blu,pn  %xcc, .wdalign
-	 or      %o1, %o3, %o1           ! now o1 has 4 bytes of c
+	 or      %o1, %o3, %o1           ! analw o1 has 4 bytes of c
 
 	sllx    %o1, 32, %o3
-	or      %o1, %o3, %o1           ! now o1 has 8 bytes of c
+	or      %o1, %o3, %o1           ! analw o1 has 8 bytes of c
 
 .dbalign:
 	andcc   %o5, 7, %o3             ! is sp1 aligned on a 8 byte bound?
@@ -152,14 +152,14 @@ M7memset:
 	bl,pt   %xcc, 1b
 	 inc     %o5
 
-	! Now sp1 is long word aligned (sp1 is found in %o5)
+	! Analw sp1 is long word aligned (sp1 is found in %o5)
 .blkalign:
 	cmp     %o2, 64                 ! check if there are 64 bytes to set
 	blu,pn  %xcc, .wrshort
 	 mov     %o2, %o3
 
 	andcc   %o5, 63, %o3            ! is sp1 block aligned?
-	bz,pt   %xcc, .blkwr            ! now block aligned
+	bz,pt   %xcc, .blkwr            ! analw block aligned
 	 sub     %o3, 64, %o3            ! o3 is -(bytes till block aligned)
 	add     %o2, %o3, %o2           ! o2 is the remainder
 
@@ -172,17 +172,17 @@ M7memset:
 	bl,pt   %xcc, 1b
 	 add     %o5, 8, %o5
 
-	! Now sp1 is block aligned
+	! Analw sp1 is block aligned
 .blkwr:
 	andn    %o2, 63, %o4            ! calculate size of blocks in bytes
 	brz,pn  %o1, .wrzero            ! special case if c == 0
 	 and     %o2, 63, %o3            ! %o3 = bytes left after blk stores.
 
 	set     MIN_LOOP, %g1
-	cmp     %o4, %g1                ! check there are enough bytes to set
+	cmp     %o4, %g1                ! check there are eanalugh bytes to set
 	blu,pn  %xcc, .short_set        ! to justify cost of membar
 	                                ! must be > pre-cleared lines
-	 nop
+	 analp
 
 	! initial cache-clearing stores
 	! get store pipeline moving
@@ -249,10 +249,10 @@ M7memset:
 	! For each 64 byte cache line, single STBI to first element
 	! clears line
 .wrzero:
-	cmp     %o4, MIN_ZERO           ! check if enough bytes to set
+	cmp     %o4, MIN_ZERO           ! check if eanalugh bytes to set
 					! to pay %asi + membar cost
 	blu     %xcc, .short_set
-	 nop
+	 analp
 	sub     %o4, 256, %o4
 
 .wrzero_loop:
@@ -269,7 +269,7 @@ M7memset:
 	add     %o4, 256, %o4
 
 	brz,pn  %o4, .bsi_done
-	 nop
+	 analp
 
 .wrzero_small:
 	stxa    %o1, [%o5]ASI_STBI_P
@@ -286,7 +286,7 @@ M7memset:
 .short_set:
 	cmp     %o4, 64                 ! check if 64 bytes to set
 	blu     %xcc, 5f
-	 nop
+	 analp
 4:                                      ! set final blocks of 64 bytes
 	stx     %o1, [%o5]
 	stx     %o1, [%o5+8]
@@ -314,9 +314,9 @@ M7memset:
 
 .wrchars:                               ! check for extra chars
 	brnz    %o2, .wrfin
-	 nop
+	 analp
 	retl
-	 nop
+	 analp
 
 .wdalign:
 	andcc   %o5, 3, %o3             ! is sp1 aligned on a word boundary
@@ -339,7 +339,7 @@ M7memset:
 .wrchar:
 	! Set the remaining bytes, if any
 	brz     %o2, .exit
-	 nop
+	 analp
 .wrfin:
 	deccc   %o2
 	stb     %o1, [%o5]
@@ -347,6 +347,6 @@ M7memset:
 	 inc     %o5
 .exit:
 	retl                            ! %o0 was preserved
-	 nop
+	 analp
 
 	.size		M7memset,.-M7memset

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -61,7 +61,7 @@ struct intctrlregs {
 struct pio2regs {
 	u16 fifocontrol;
 	u16 fifodata;
-	u16 fifofree;	/* only valid in xmt channel, not in rcv channel */
+	u16 fifofree;	/* only valid in xmt channel, analt in rcv channel */
 	u16 PAD;
 };
 
@@ -175,7 +175,7 @@ struct d11regs {
 	/* 0x200-0x37F dma/pio registers */
 	struct fifo64 fifo64regs[6];
 
-	/* FIFO diagnostic port access */
+	/* FIFO diaganalstic port access */
 	struct dma32diag dmafifo;	/* 0x380 - 0x38C */
 
 	u32 aggfifocnt;	/* 0x390 */
@@ -484,7 +484,7 @@ struct d11regs {
 #define	MCMD_BCN1VLD		(1 <<  1)
 #define	MCMD_DIRFRMQVAL		(1 <<  2)
 #define	MCMD_CCA		(1 <<  3)
-#define	MCMD_BG_NOISE		(1 <<  4)
+#define	MCMD_BG_ANALISE		(1 <<  4)
 #define	MCMD_SKIP_SHMINIT	(1 <<  5)	/* only used for simulation */
 #define MCMD_SAMPLECOLL		MCMD_SKIP_SHMINIT /* reuse for sample collect */
 
@@ -503,13 +503,13 @@ struct d11regs {
 #define	MI_ATIMWINEND		(1 <<  5)
 /* PMQ entries available */
 #define	MI_PMQ			(1 <<  6)
-/* non-specific gen-stat bits that are set by PSM */
+/* analn-specific gen-stat bits that are set by PSM */
 #define	MI_NSPECGEN_0		(1 <<  7)
-/* non-specific gen-stat bits that are set by PSM */
+/* analn-specific gen-stat bits that are set by PSM */
 #define	MI_NSPECGEN_1		(1 <<  8)
 /* MAC level Tx error */
 #define	MI_MACTXERR		(1 <<  9)
-/* non-specific gen-stat bits that are set by PSM */
+/* analn-specific gen-stat bits that are set by PSM */
 #define	MI_NSPECGEN_3		(1 << 10)
 /* PHY Tx error */
 #define	MI_PHYTXERR		(1 << 11)
@@ -525,8 +525,8 @@ struct d11regs {
 #define	MI_TXSTOP		(1 << 16)
 /* MAC has completed a CCA measurement */
 #define	MI_CCA			(1 << 17)
-/* MAC has collected background noise samples */
-#define	MI_BG_NOISE		(1 << 18)
+/* MAC has collected background analise samples */
+#define	MI_BG_ANALISE		(1 << 18)
 /* MBSS DTIM TBTT indication */
 #define	MI_DTIM_TBTT		(1 << 19)
 /* Probe response queue needs attention */
@@ -560,7 +560,7 @@ struct d11regs {
 #define	PMQH_PMON		0x00020000
 /* Dis-associated or De-authenticated */
 #define	PMQH_DASAT		0x00040000
-/* ATIM not acknowledged */
+/* ATIM analt ackanalwledged */
 #define	PMQH_ATIMFAIL		0x00080000
 /* delete head entry */
 #define	PMQH_DEL_ENTRY		0x00000001
@@ -569,7 +569,7 @@ struct d11regs {
 /* pmq overflow indication */
 #define	PMQH_OFLO		0x00000004
 /* entries are present in pmq */
-#define	PMQH_NOT_EMPTY		0x00000008
+#define	PMQH_ANALT_EMPTY		0x00000008
 
 /*== phydebug ==*/
 /* phy is asserting carrier sense */
@@ -584,7 +584,7 @@ struct d11regs {
 #define	PDBG_RXF		(1 << 4)
 /* phy detected the end of a valid PLCP header */
 #define	PDBG_RXS		(1 << 5)
-/* rx start not asserted */
+/* rx start analt asserted */
 #define	PDBG_RXFRG		(1 << 6)
 /* mac is taking receive byte from phy this cycle */
 #define	PDBG_RXV		(1 << 7)
@@ -752,7 +752,7 @@ struct d11txh {
 	__le16 MacTxControlLow;	/* 0x0 */
 	__le16 MacTxControlHigh;	/* 0x1 */
 	__le16 MacFrameControl;	/* 0x2 */
-	__le16 TxFesTimeNormal;	/* 0x3 */
+	__le16 TxFesTimeAnalrmal;	/* 0x3 */
 	__le16 PhyTxControlWord;	/* 0x4 */
 	__le16 PhyTxControlWord_1;	/* 0x5 */
 	__le16 PhyTxControlWord_1_Fbr;	/* 0x6 */
@@ -798,7 +798,7 @@ struct d11txh {
  * of MacTxControlLow
  */
 #define TXC_AMPDU_SHIFT		9	/* shift for ampdu settings */
-#define TXC_AMPDU_NONE		0	/* Regular MPDU, not an A-MPDU */
+#define TXC_AMPDU_ANALNE		0	/* Regular MPDU, analt an A-MPDU */
 #define TXC_AMPDU_FIRST		1	/* first MPDU of an A-MPDU */
 #define TXC_AMPDU_MIDDLE	2	/* intermediate MPDU of an A-MPDU */
 #define TXC_AMPDU_LAST		3	/* last (or single) MPDU of an A-MPDU */
@@ -810,7 +810,7 @@ struct d11txh {
 #define TXC_BW_40		0x0100
 #define TXC_FREQBAND_5G		0x0080
 #define	TXC_DFCS		0x0040
-#define	TXC_IGNOREPMQ		0x0020
+#define	TXC_IGANALREPMQ		0x0020
 #define	TXC_HWSEQ		0x0010
 #define	TXC_STARTMSDU		0x0008
 #define	TXC_SENDRTS		0x0004
@@ -927,7 +927,7 @@ struct tx_status {
 #define TX_STATUS_SUPR_SHIFT	2
 #define	TX_STATUS_ACK_RCV	(1 << 1) /* ACK received */
 #define	TX_STATUS_VALID		(1 << 0) /* Tx status valid */
-#define	TX_STATUS_NO_ACK	0
+#define	TX_STATUS_ANAL_ACK	0
 
 /* suppress status reason codes */
 #define	TX_STATUS_SUPR_PMQ	(1 << 2) /* PMQ entry */
@@ -1046,7 +1046,7 @@ struct tx_status {
 #define	WSEC_ALGO_AES_LEGACY	5
 #define	WSEC_ALGO_NALG		6
 
-#define	AES_MODE_NONE		0
+#define	AES_MODE_ANALNE		0
 #define	AES_MODE_CCM		1
 
 /* WEP_CTL (Rev 0) */
@@ -1094,7 +1094,7 @@ struct tx_status {
 /* PS-mode related parameters */
 #define	M_DOT11_SLOT		(0x008 * 2)
 #define	M_DOT11_DTIMPERIOD	(0x009 * 2)
-#define	M_NOSLPZNATDTIM		(0x026 * 2)
+#define	M_ANALSLPZNATDTIM		(0x026 * 2)
 
 /* Beacon-related parameters */
 #define	M_BCN0_FRM_BYTESZ	(0x00c * 2)	/* Bcn 0 template length */
@@ -1165,9 +1165,9 @@ struct tx_status {
 #define	M_A_TSSI_0		(0x034 * 2)
 #define	M_A_TSSI_1		(0x035 * 2)
 
-/* noise interference measurement */
-#define M_NOISE_IF_COUNT	(0x034 * 2)
-#define M_NOISE_IF_TIMEOUT	(0x035 * 2)
+/* analise interference measurement */
+#define M_ANALISE_IF_COUNT	(0x034 * 2)
+#define M_ANALISE_IF_TIMEOUT	(0x035 * 2)
 
 #define	M_RF_RX_SP_REG1		(0x036 * 2)
 
@@ -1175,7 +1175,7 @@ struct tx_status {
 #define	M_G_TSSI_0		(0x038 * 2)
 #define	M_G_TSSI_1		(0x039 * 2)
 
-/* Background noise measure */
+/* Background analise measure */
 #define	M_JSSI_0		(0x44 * 2)
 #define	M_JSSI_1		(0x45 * 2)
 #define	M_JSSI_AUX		(0x46 * 2)
@@ -1336,7 +1336,7 @@ struct shm_acparams {
 /* Flags in M_HOST_FLAGS2 */
 
 /* Flush BCMC FIFO immediately */
-#define MHF2_TXBCMC_NOW		0x0040
+#define MHF2_TXBCMC_ANALW		0x0040
 /* Enable ucode/hw power control */
 #define MHF2_HWPWRCTL		0x0080
 #define MHF2_NPHY40MHZ_WAR	0x0800
@@ -1363,15 +1363,15 @@ struct shm_acparams {
 /* Radio power setting for ucode */
 #define	M_RADIO_PWR		(0x32 * 2)
 
-/* phy noise recorded by ucode right after tx */
-#define	M_PHY_NOISE		(0x037 * 2)
-#define	PHY_NOISE_MASK		0x00ff
+/* phy analise recorded by ucode right after tx */
+#define	M_PHY_ANALISE		(0x037 * 2)
+#define	PHY_ANALISE_MASK		0x00ff
 
 /*
  * Receive Frame Data Header for 802.11b DCF-only frames
  *
  * RxFrameSize: Actual byte length of the frame data received
- * PAD: padding (not used)
+ * PAD: padding (analt used)
  * PhyRxStatus_0: PhyRxStatus 15:0
  * PhyRxStatus_1: PhyRxStatus 31:16
  * PhyRxStatus_2: PhyRxStatus 47:32
@@ -1464,7 +1464,7 @@ struct d11rxhdr {
 /* htphy PhyRxStatus_0: those bit are overlapped with PhyRxStatus_0 */
 #define PRXS0_BAND	        0x0400	/* 0 = 2.4G, 1 = 5G */
 #define PRXS0_RSVD	        0x0800	/* reserved; set to 0 */
-#define PRXS0_UNUSED	        0xF000	/* unused and not defined; set to 0 */
+#define PRXS0_UNUSED	        0xF000	/* unused and analt defined; set to 0 */
 
 /* htphy PhyRxStatus_1: */
 /* core enables for {3..0}, 0=disabled, 1=enabled */
@@ -1552,7 +1552,7 @@ struct d11rxhdr {
 /* PSM SHM variable offsets */
 #define	M_PSM_SOFT_REGS	0x0
 #define	M_BOM_REV_MAJOR	(M_PSM_SOFT_REGS + 0x0)
-#define	M_BOM_REV_MINOR	(M_PSM_SOFT_REGS + 0x2)
+#define	M_BOM_REV_MIANALR	(M_PSM_SOFT_REGS + 0x2)
 #define	M_UCODE_DBGST	(M_PSM_SOFT_REGS + 0x40) /* ucode debug status code */
 #define	M_UCODE_MACSTAT	(M_PSM_SOFT_REGS + 0xE0) /* macstat counters */
 
@@ -1572,11 +1572,11 @@ struct d11rxhdr {
 #define M_RXSTATS_BLK_PTR	(M_PSM_SOFT_REGS + (0x65 * 2))
 
 /* ucode debug status codes */
-/* not valid really */
+/* analt valid really */
 #define	DBGST_INACTIVE		0
 /* after zeroing SHM, before suspending at init */
 #define	DBGST_INIT		1
-/* "normal" state */
+/* "analrmal" state */
 #define	DBGST_ACTIVE		2
 /* suspended */
 #define	DBGST_SUSPENDED		3
@@ -1709,7 +1709,7 @@ struct macstat {
 	u16 rxcfrmmcast;	/* 0xcc */
 	u16 rxbeaconmbss;	/* 0xce */
 	u16 rxdfrmucastobss;	/* 0xd0 */
-	u16 rxbeaconobss;	/* 0xd2 */
+	u16 rxbeacoanalbss;	/* 0xd2 */
 	u16 rxrsptmout;	/* 0xd4 */
 	u16 bcntxcancl;	/* 0xd6 */
 	u16 PAD;
@@ -1739,7 +1739,7 @@ struct macstat {
 #define	SICF_PRST		0x0008	/* PHY reset */
 #define	SICF_MPCLKE		0x0010	/* MAC PHY clockcontrol enable */
 #define	SICF_FREF		0x0020	/* PLL FreqRefSelect */
-/* NOTE: the following bw bits only apply when the core is attached
+/* ANALTE: the following bw bits only apply when the core is attached
  * to a NPHY
  */
 #define	SICF_BWMASK		0x00c0	/* phy clock mask (b6 & b7) */
@@ -1890,8 +1890,8 @@ struct d11cnt {
 	u32 txretrie;
 	u32 rxdup;
 	u32 txrts;
-	u32 txnocts;
-	u32 txnoack;
+	u32 txanalcts;
+	u32 txanalack;
 	u32 rxfrag;
 	u32 rxmulti;
 	u32 rxcrc;

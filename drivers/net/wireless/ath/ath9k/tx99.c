@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -74,14 +74,14 @@ static struct sk_buff *ath9k_build_tx99_skb(struct ath_softc *sc)
 
 	if (sc->tx99_vif) {
 		avp = (struct ath_vif *) sc->tx99_vif->drv_priv;
-		hdr->seq_ctrl |= cpu_to_le16(avp->seq_no);
+		hdr->seq_ctrl |= cpu_to_le16(avp->seq_anal);
 	}
 
 	tx_info = IEEE80211_SKB_CB(skb);
 	memset(tx_info, 0, sizeof(*tx_info));
 	rate = &tx_info->control.rates[0];
 	tx_info->band = sc->cur_chan->chandef.chan->band;
-	tx_info->flags = IEEE80211_TX_CTL_NO_ACK;
+	tx_info->flags = IEEE80211_TX_CTL_ANAL_ACK;
 	tx_info->control.vif = sc->tx99_vif;
 	rate->count = 1;
 	if (ah->curchan && IS_CHAN_HT(ah->curchan)) {
@@ -120,7 +120,7 @@ static int ath9k_tx99_init(struct ath_softc *sc)
 
 	sc->tx99_skb = ath9k_build_tx99_skb(sc);
 	if (!sc->tx99_skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&txctl, 0, sizeof(txctl));
 	txctl.txq = sc->tx.txq_map[IEEE80211_AC_VO];
@@ -180,7 +180,7 @@ static ssize_t write_file_tx99(struct file *file, const char __user *user_buf,
 		return -EINVAL;
 
 	if (sc->cur_chan->nvifs > 1)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = kstrtobool_from_user(user_buf, count, &start);
 	if (ret)

@@ -56,10 +56,10 @@ static int pi3usb30532_sw_set(struct typec_switch_dev *sw,
 	new_conf = pi->conf;
 
 	switch (orientation) {
-	case TYPEC_ORIENTATION_NONE:
+	case TYPEC_ORIENTATION_ANALNE:
 		new_conf = PI3USB30532_CONF_OPEN;
 		break;
-	case TYPEC_ORIENTATION_NORMAL:
+	case TYPEC_ORIENTATION_ANALRMAL:
 		new_conf &= ~PI3USB30532_CONF_SWAP;
 		break;
 	case TYPEC_ORIENTATION_REVERSE:
@@ -121,7 +121,7 @@ static int pi3usb30532_probe(struct i2c_client *client)
 
 	pi = devm_kzalloc(dev, sizeof(*pi), GFP_KERNEL);
 	if (!pi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pi->client = client;
 	mutex_init(&pi->lock);
@@ -134,7 +134,7 @@ static int pi3usb30532_probe(struct i2c_client *client)
 	pi->conf = ret;
 
 	sw_desc.drvdata = pi;
-	sw_desc.fwnode = dev->fwnode;
+	sw_desc.fwanalde = dev->fwanalde;
 	sw_desc.set = pi3usb30532_sw_set;
 
 	pi->sw = typec_switch_register(dev, &sw_desc);
@@ -145,7 +145,7 @@ static int pi3usb30532_probe(struct i2c_client *client)
 	}
 
 	mux_desc.drvdata = pi;
-	mux_desc.fwnode = dev->fwnode;
+	mux_desc.fwanalde = dev->fwanalde;
 	mux_desc.set = pi3usb30532_mux_set;
 
 	pi->mux = typec_mux_register(dev, &mux_desc);

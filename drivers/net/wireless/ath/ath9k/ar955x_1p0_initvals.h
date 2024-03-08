@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -673,7 +673,7 @@ static const u32 ar955x_1p0_common_rx_gain_bounds[][5] = {
 	{0x00009e48, 0x5030201a, 0x5030201a, 0x50302018, 0x50302018},
 };
 
-static const u32 ar955x_1p0_modes_no_xpa_tx_gain_table[][9] = {
+static const u32 ar955x_1p0_modes_anal_xpa_tx_gain_table[][9] = {
 	/* Addr      5G_HT20_L   5G_HT40_L   5G_HT20_M   5G_HT40_M   5G_HT20_H   5G_HT40_H   2G_HT40     2G_HT20  */
 	{0x0000a2dc, 0x01feee00, 0x01feee00, 0x01feee00, 0x01feee00, 0x01feee00, 0x01feee00, 0xfffe5aaa, 0xfffe5aaa},
 	{0x0000a2e0, 0x0000f000, 0x0000f000, 0x0000f000, 0x0000f000, 0x0000f000, 0x0000f000, 0xfffe9ccc, 0xfffe9ccc},

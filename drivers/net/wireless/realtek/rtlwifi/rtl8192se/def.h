@@ -8,7 +8,7 @@
 #define RX_CMD_QUEUE				1
 
 #define SHORT_SLOT_TIME				9
-#define NON_SHORT_SLOT_TIME			20
+#define ANALN_SHORT_SLOT_TIME			20
 
 /* Queue Select Value in TxDesc */
 #define QSLT_BK					0x2
@@ -73,7 +73,7 @@ static inline void set_tx_desc_queue_sel(__le32 *__pdesc, u32 __val)
 	le32p_replace_bits((__pdesc + 1), __val, GENMASK(12, 8));
 }
 
-static inline void set_tx_desc_non_qos(__le32 *__pdesc, u32 __val)
+static inline void set_tx_desc_analn_qos(__le32 *__pdesc, u32 __val)
 {
 	le32p_replace_bits((__pdesc + 1), __val, BIT(16));
 }
@@ -207,8 +207,8 @@ static inline void set_tx_desc_next_desc_address(__le32 *__pdesc, u32 __val)
 
 /* Because the PCI Tx descriptors are chaied at the
  * initialization and all the NextDescAddresses in
- * these descriptors cannot not be cleared (,or
- * driver/HW cannot find the next descriptor), the
+ * these descriptors cananalt analt be cleared (,or
+ * driver/HW cananalt find the next descriptor), the
  * offset 36 (NextDescAddresses) is reserved when
  * the desc is cleared. */
 #define	TX_DESC_NEXT_DESC_OFFSET			36
@@ -365,7 +365,7 @@ enum fwcmd_iotype {
 	 * MP driver only */
 	FW_CMD_TXPWR_TRACK_DISABLE = 13,
 	/* Tx power tracking with thermal
-	 * indication, for Normal driver */
+	 * indication, for Analrmal driver */
 	FW_CMD_TXPWR_TRACK_THERMAL = 14,
 	FW_CMD_PAUSE_DM_BY_SCAN = 15,
 	FW_CMD_RESUME_DM_BY_SCAN = 16,

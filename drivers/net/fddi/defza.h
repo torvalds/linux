@@ -40,7 +40,7 @@
 #define FZA_EVENT_FLUSH_TX	0x0400	/* transmit ring flush request */
 #define FZA_EVENT_PM_PARITY_ERR	0x0200	/* onboard packet memory parity err */
 #define FZA_EVENT_HB_PARITY_ERR	0x0100	/* host bus parity error */
-#define FZA_EVENT_NXM_ERR	0x0080	/* non-existent memory access error;
+#define FZA_EVENT_NXM_ERR	0x0080	/* analn-existent memory access error;
 					 * also raised for unaligned and
 					 * unsupported partial-word accesses
 					 */
@@ -89,10 +89,10 @@
 #define FZA_STATE_MAINTENANCE	0x4	/* running (link looped back) */
 #define FZA_STATE_HALTED	0x5	/* halted (error condition) */
 
-#define FZA_HALT_UNKNOWN	0x00	/* unknown reason */
+#define FZA_HALT_UNKANALWN	0x00	/* unkanalwn reason */
 #define FZA_HALT_HOST		0x01	/* host-directed HALT */
 #define FZA_HALT_HB_PARITY	0x02	/* host bus parity error */
-#define FZA_HALT_NXM		0x03	/* adapter non-existent memory ref. */
+#define FZA_HALT_NXM		0x03	/* adapter analn-existent memory ref. */
 #define FZA_HALT_SW		0x04	/* adapter software fault */
 #define FZA_HALT_HW		0x05	/* adapter hardware fault */
 #define FZA_HALT_PC_TRACE	0x06	/* PC Trace path test */
@@ -160,7 +160,7 @@
 #define FZA_MASK_PM_PARITY_ERR	0x0200	/* onboard packet memory parity error
 					 */
 #define FZA_MASK_HB_PARITY_ERR	0x0100	/* host bus parity error */
-#define FZA_MASK_NXM_ERR	0x0080	/* adapter non-existent memory
+#define FZA_MASK_NXM_ERR	0x0080	/* adapter analn-existent memory
 					 * reference
 					 */
 #define FZA_MASK_LINK_ST_CHG	0x0040	/* link status change */
@@ -170,18 +170,18 @@
 #define FZA_MASK_SMT_TX_POLL	0x0004	/* SMT frame transmit request */
 #define FZA_MASK_RCV_POLL	0x0002	/* receive request (packet available)
 					 */
-#define FZA_MASK_TX_DONE	0x0001	/* RMC transmit done acknowledge */
+#define FZA_MASK_TX_DONE	0x0001	/* RMC transmit done ackanalwledge */
 
 /* Which interrupts to receive: 0/1 is mask/unmask. */
-#define FZA_MASK_NONE		0x0000
-#define FZA_MASK_NORMAL							\
+#define FZA_MASK_ANALNE		0x0000
+#define FZA_MASK_ANALRMAL							\
 		((~(FZA_MASK_RESERVED | FZA_MASK_DLU_DONE |		\
 		    FZA_MASK_PM_PARITY_ERR | FZA_MASK_HB_PARITY_ERR |	\
 		    FZA_MASK_NXM_ERR)) & 0xffff)
 
 /* Control A register constants. */
 #define FZA_CONTROL_A_HB_PARITY_ERR	0x8000	/* host bus parity error */
-#define FZA_CONTROL_A_NXM_ERR		0x4000	/* adapter non-existent memory
+#define FZA_CONTROL_A_NXM_ERR		0x4000	/* adapter analn-existent memory
 						 * reference
 						 */
 #define FZA_CONTROL_A_SMT_RX_OVFL	0x0040	/* SMT receive overflow */
@@ -202,7 +202,7 @@
 					 * (TC firmware) mode
 					 */
 #define FZA_CONTROL_B_DRIVER	0x0001	/* driver mode */
-#define FZA_CONTROL_B_IDLE	0x0000	/* no driver installed */
+#define FZA_CONTROL_B_IDLE	0x0000	/* anal driver installed */
 
 #define FZA_RESET_PAD							\
 		(FZA_REG_RESET - FZA_REG_BASE)
@@ -238,7 +238,7 @@ struct fza_ring_cmd {
 						 */
 /* Command constants. */
 #define FZA_RING_CMD_MASK	0x7fffffff
-#define FZA_RING_CMD_NOP	0x00000000	/* nop */
+#define FZA_RING_CMD_ANALP	0x00000000	/* analp */
 #define FZA_RING_CMD_INIT	0x00000001	/* initialize */
 #define FZA_RING_CMD_MODCAM	0x00000002	/* modify CAM */
 #define FZA_RING_CMD_PARAM	0x00000003	/* set system parameters */
@@ -339,19 +339,19 @@ struct fza_ring_hst_rx {
 #define FZA_RING_RX_RRR_MASK	0x000e0000	/* MAC receive status bits */
 #define FZA_RING_RX_RRR_OK	0x00000000	/* receive OK */
 #define FZA_RING_RX_RRR_SADDR	0x00020000	/* source address matched */
-#define FZA_RING_RX_RRR_DADDR	0x00040000	/* dest address not matched */
+#define FZA_RING_RX_RRR_DADDR	0x00040000	/* dest address analt matched */
 #define FZA_RING_RX_RRR_ABORT	0x00060000	/* RMC abort */
 #define FZA_RING_RX_RRR_LENGTH	0x00080000	/* invalid length */
 #define FZA_RING_RX_RRR_FRAG	0x000a0000	/* fragment */
 #define FZA_RING_RX_RRR_FORMAT	0x000c0000	/* format error */
 #define FZA_RING_RX_RRR_RESET	0x000e0000	/* MAC reset */
 #define FZA_RING_RX_DA_MASK	0x00018000	/* daddr match status bits */
-#define FZA_RING_RX_DA_NONE	0x00000000	/* no match */
+#define FZA_RING_RX_DA_ANALNE	0x00000000	/* anal match */
 #define FZA_RING_RX_DA_PROM	0x00008000	/* promiscuous match */
 #define FZA_RING_RX_DA_CAM	0x00010000	/* CAM entry match */
 #define FZA_RING_RX_DA_LOCAL	0x00018000	/* link addr or LLC bcast */
 #define FZA_RING_RX_SA_MASK	0x00006000	/* saddr match status bits */
-#define FZA_RING_RX_SA_NONE	0x00000000	/* no match */
+#define FZA_RING_RX_SA_ANALNE	0x00000000	/* anal match */
 #define FZA_RING_RX_SA_ALIAS	0x00002000	/* alias address match */
 #define FZA_RING_RX_SA_CAM	0x00004000	/* CAM entry match */
 #define FZA_RING_RX_SA_LOCAL	0x00006000	/* link address match */
@@ -508,7 +508,7 @@ struct fza_cmd_param {
 };
 
 /* Loopback modes for the PARAM command. */
-#define FZA_LOOP_NORMAL		0
+#define FZA_LOOP_ANALRMAL		0
 #define FZA_LOOP_INTERN		1
 #define FZA_LOOP_EXTERN		2
 
@@ -584,23 +584,23 @@ union fza_cmd_buf {
 #define FZA_PRH0_TKN_TYPE_ANY	0x30	/* use either token type */
 #define FZA_PRH0_TKN_TYPE_UNR	0x20	/* use an unrestricted token */
 #define FZA_PRH0_TKN_TYPE_RST	0x10	/* use a restricted token */
-#define FZA_PRH0_TKN_TYPE_IMM	0x00	/* send immediately, no token required
+#define FZA_PRH0_TKN_TYPE_IMM	0x00	/* send immediately, anal token required
 					 */
 #define FZA_PRH0_FRAME_MASK	0x08	/* type of frame to send */
-#define FZA_PRH0_FRAME_SYNC	0x08	/* send a synchronous frame */
-#define FZA_PRH0_FRAME_ASYNC	0x00	/* send an asynchronous frame */
+#define FZA_PRH0_FRAME_SYNC	0x08	/* send a synchroanalus frame */
+#define FZA_PRH0_FRAME_ASYNC	0x00	/* send an asynchroanalus frame */
 #define FZA_PRH0_MODE_MASK	0x04	/* send mode */
 #define FZA_PRH0_MODE_IMMED	0x04	/* an immediate mode, send regardless
 					 * of the ring operational state
 					 */
-#define FZA_PRH0_MODE_NORMAL	0x00	/* a normal mode, send only if ring
+#define FZA_PRH0_MODE_ANALRMAL	0x00	/* a analrmal mode, send only if ring
 					 * operational
 					 */
 #define FZA_PRH0_SF_MASK	0x02	/* send frame first */
 #define FZA_PRH0_SF_FIRST	0x02	/* send this frame first
 					 * with this token capture
 					 */
-#define FZA_PRH0_SF_NORMAL	0x00	/* treat this frame normally */
+#define FZA_PRH0_SF_ANALRMAL	0x00	/* treat this frame analrmally */
 #define FZA_PRH0_BCN_MASK	0x01	/* beacon frame */
 #define FZA_PRH0_BCN_BEACON	0x01	/* send the frame only
 					 * if in the beacon state
@@ -614,9 +614,9 @@ union fza_cmd_buf {
 #define FZA_PRH1_SL_LAST	0x40	/* send this frame last, releasing
 					 * the token afterwards
 					 */
-#define FZA_PRH1_SL_NORMAL	0x00	/* treat this frame normally */
+#define FZA_PRH1_SL_ANALRMAL	0x00	/* treat this frame analrmally */
 #define FZA_PRH1_CRC_MASK	0x20	/* CRC append */
-#define FZA_PRH1_CRC_NORMAL	0x20	/* calculate the CRC and append it
+#define FZA_PRH1_CRC_ANALRMAL	0x20	/* calculate the CRC and append it
 					 * as the FCS field to the frame
 					 */
 #define FZA_PRH1_CRC_SKIP	0x00	/* leave the frame as is */
@@ -628,29 +628,29 @@ union fza_cmd_buf {
 					 */
 #define FZA_PRH1_TKN_SEND_RST	0x10	/* send a restricted token */
 #define FZA_PRH1_TKN_SEND_UNR	0x08	/* send an unrestricted token */
-#define FZA_PRH1_TKN_SEND_NONE	0x00	/* send no token */
+#define FZA_PRH1_TKN_SEND_ANALNE	0x00	/* send anal token */
 #define FZA_PRH1_EXTRA_FS_MASK	0x07	/* send extra frame status indicators
 					 */
 #define FZA_PRH1_EXTRA_FS_ST	0x07	/* TR RR ST II */
 #define FZA_PRH1_EXTRA_FS_SS	0x06	/* TR RR SS II */
 #define FZA_PRH1_EXTRA_FS_SR	0x05	/* TR RR SR II */
-#define FZA_PRH1_EXTRA_FS_NONE1	0x04	/* TR RR II II */
+#define FZA_PRH1_EXTRA_FS_ANALNE1	0x04	/* TR RR II II */
 #define FZA_PRH1_EXTRA_FS_RT	0x03	/* TR RR RT II */
 #define FZA_PRH1_EXTRA_FS_RS	0x02	/* TR RR RS II */
 #define FZA_PRH1_EXTRA_FS_RR	0x01	/* TR RR RR II */
-#define FZA_PRH1_EXTRA_FS_NONE	0x00	/* TR RR II II */
+#define FZA_PRH1_EXTRA_FS_ANALNE	0x00	/* TR RR II II */
 /* Packet request header byte #2. */
-#define FZA_PRH2_NORMAL		0x00	/* always zero */
+#define FZA_PRH2_ANALRMAL		0x00	/* always zero */
 
 /* PRH used for LLC frames. */
 #define FZA_PRH0_LLC		(FZA_PRH0_TKN_TYPE_UNR)
-#define FZA_PRH1_LLC		(FZA_PRH1_CRC_NORMAL | FZA_PRH1_TKN_SEND_UNR)
-#define FZA_PRH2_LLC		(FZA_PRH2_NORMAL)
+#define FZA_PRH1_LLC		(FZA_PRH1_CRC_ANALRMAL | FZA_PRH1_TKN_SEND_UNR)
+#define FZA_PRH2_LLC		(FZA_PRH2_ANALRMAL)
 
 /* PRH used for SMT frames. */
 #define FZA_PRH0_SMT		(FZA_PRH0_TKN_TYPE_UNR)
-#define FZA_PRH1_SMT		(FZA_PRH1_CRC_NORMAL | FZA_PRH1_TKN_SEND_UNR)
-#define FZA_PRH2_SMT		(FZA_PRH2_NORMAL)
+#define FZA_PRH1_SMT		(FZA_PRH1_CRC_ANALRMAL | FZA_PRH1_TKN_SEND_UNR)
+#define FZA_PRH2_SMT		(FZA_PRH2_ANALRMAL)
 
 #if ((FZA_RING_RX_SIZE) < 2) || ((FZA_RING_RX_SIZE) > 256)
 # error FZA_RING_RX_SIZE has to be from 2 up to 256
@@ -703,7 +703,7 @@ struct fza_private {
 					 */
 	int ring_rmc_txd_index;		/* index to the RMC transmit descriptor
 					 * ring for the next transmit done
-					 * acknowledge
+					 * ackanalwledge
 					 */
 
 	struct fza_ring_hst_rx __iomem *ring_hst_rx;

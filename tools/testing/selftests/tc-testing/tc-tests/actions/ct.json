@@ -433,7 +433,7 @@
     },
     {
         "id": "3991",
-        "name": "Add simple ct action with no_percpu flag",
+        "name": "Add simple ct action with anal_percpu flag",
         "category": [
             "actions",
             "ct"
@@ -449,10 +449,10 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC actions add action ct no_percpu",
+        "cmdUnderTest": "$TC actions add action ct anal_percpu",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action ct",
-        "matchPattern": "action order [0-9]*: ct zone 0 pipe.*no_percpu",
+        "matchPattern": "action order [0-9]*: ct zone 0 pipe.*anal_percpu",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action ct"

@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -87,7 +87,7 @@ struct detailed_pixel_timing {
 	u8 misc;
 } __attribute__((packed));
 
-/* If it's not pixel timing, it'll be one of the below */
+/* If it's analt pixel timing, it'll be one of the below */
 struct detailed_data_string {
 	u8 str[13];
 } __attribute__((packed));
@@ -151,7 +151,7 @@ struct cvt_timing {
 	u8 code[3];
 } __attribute__((packed));
 
-struct detailed_non_pixel {
+struct detailed_analn_pixel {
 	u8 pad1;
 	u8 type; /* ff=serial, fe=string, fd=monitor range, fc=monitor name
 		    fb=color point data, fa=standard timing data,
@@ -180,7 +180,7 @@ struct detailed_timing {
 	__le16 pixel_clock; /* need to multiply by 10 KHz */
 	union {
 		struct detailed_pixel_timing pixel_data;
-		struct detailed_non_pixel other_data;
+		struct detailed_analn_pixel other_data;
 	} __attribute__((packed)) data;
 } __attribute__((packed));
 
@@ -214,7 +214,7 @@ struct detailed_timing {
 #define DRM_EDID_FEATURE_PREFERRED_TIMING (1 << 1)
 #define DRM_EDID_FEATURE_STANDARD_COLOR   (1 << 2)
 /* If analog */
-#define DRM_EDID_FEATURE_DISPLAY_TYPE     (3 << 3) /* 00=mono, 01=rgb, 10=non-rgb, 11=unknown */
+#define DRM_EDID_FEATURE_DISPLAY_TYPE     (3 << 3) /* 00=moanal, 01=rgb, 10=analn-rgb, 11=unkanalwn */
 /* If digital */
 #define DRM_EDID_FEATURE_COLOR_MASK	  (3 << 3)
 #define DRM_EDID_FEATURE_RGB		  (0 << 3)
@@ -424,7 +424,7 @@ bool drm_detect_hdmi_monitor(const struct edid *edid);
 bool drm_detect_monitor_audio(const struct edid *edid);
 enum hdmi_quantization_range
 drm_default_rgb_quant_range(const struct drm_display_mode *mode);
-int drm_add_modes_noedid(struct drm_connector *connector,
+int drm_add_modes_analedid(struct drm_connector *connector,
 			 int hdisplay, int vdisplay);
 void drm_set_preferred_mode(struct drm_connector *connector,
 			    int hpref, int vpref);

@@ -94,12 +94,12 @@ static ssize_t rtw89_debugfs_seq_file_write(struct file *filp,
 	return debugfs_priv->cb_write(filp, buffer, count, loff);
 }
 
-static int rtw89_debugfs_single_open(struct inode *inode, struct file *filp)
+static int rtw89_debugfs_single_open(struct ianalde *ianalde, struct file *filp)
 {
-	return single_open(filp, rtw89_debugfs_single_show, inode->i_private);
+	return single_open(filp, rtw89_debugfs_single_show, ianalde->i_private);
 }
 
-static int rtw89_debugfs_close(struct inode *inode, struct file *filp)
+static int rtw89_debugfs_close(struct ianalde *ianalde, struct file *filp)
 {
 	return 0;
 }
@@ -429,47 +429,47 @@ static const struct txpwr_map __txpwr_map_byr_ax = {
 
 static const struct txpwr_ent __txpwr_ent_lmt_ax[] = {
 	/* 1TX */
-	__GEN_TXPWR_ENT2("CCK_1TX_20M    ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("CCK_1TX_40M    ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("OFDM_1TX       ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_20M_0  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_20M_1  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_20M_2  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_20M_3  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_20M_4  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_20M_5  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_20M_6  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_20M_7  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_40M_0  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_40M_1  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_40M_2  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_40M_3  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_80M_0  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_80M_1  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_160M   ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_40M_0p5", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_1TX_40M_2p5", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("CCK_1TX_20M    ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("CCK_1TX_40M    ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("OFDM_1TX       ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_20M_0  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_20M_1  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_20M_2  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_20M_3  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_20M_4  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_20M_5  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_20M_6  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_20M_7  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_40M_0  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_40M_1  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_40M_2  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_40M_3  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_80M_0  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_80M_1  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_160M   ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_40M_0p5", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_1TX_40M_2p5", "ANALN_BF", "BF"),
 	/* 2TX */
-	__GEN_TXPWR_ENT2("CCK_2TX_20M    ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("CCK_2TX_40M    ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("OFDM_2TX       ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_20M_0  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_20M_1  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_20M_2  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_20M_3  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_20M_4  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_20M_5  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_20M_6  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_20M_7  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_40M_0  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_40M_1  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_40M_2  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_40M_3  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_80M_0  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_80M_1  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_160M   ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_40M_0p5", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_2TX_40M_2p5", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("CCK_2TX_20M    ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("CCK_2TX_40M    ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("OFDM_2TX       ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_20M_0  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_20M_1  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_20M_2  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_20M_3  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_20M_4  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_20M_5  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_20M_6  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_20M_7  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_40M_0  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_40M_1  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_40M_2  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_40M_3  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_80M_0  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_80M_1  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_160M   ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_40M_0p5", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_2TX_40M_2p5", "ANALN_BF", "BF"),
 };
 
 static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ax) * 2) ==
@@ -551,7 +551,7 @@ static const struct txpwr_ent __txpwr_ent_byr_be[] = {
 	__GEN_TXPWR_ENT2("DLRU_EHT  ", "MCS14 ", "MCS15 \t"),
 	__GEN_TXPWR_ENT_NESTED(byr_mcs_be),
 
-	/* there is no CCK section after BW80 */
+	/* there is anal CCK section after BW80 */
 	__GEN_TXPWR_ENT0("BW80"),
 	__GEN_TXPWR_ENT4("LEGACY    ", "6M    ", "9M    ", "12M  ", "18M  "),
 	__GEN_TXPWR_ENT4("LEGACY    ", "24M   ", "36M   ", "48M  ", "54M  "),
@@ -579,58 +579,58 @@ static const struct txpwr_map __txpwr_map_byr_be = {
 	.size = ARRAY_SIZE(__txpwr_ent_byr_be),
 	.addr_from = R_BE_PWR_BY_RATE,
 	.addr_to = R_BE_PWR_BY_RATE_MAX,
-	.addr_to_1ss = 0, /* not support */
+	.addr_to_1ss = 0, /* analt support */
 };
 
 static const struct txpwr_ent __txpwr_ent_lmt_mcs_be[] = {
-	__GEN_TXPWR_ENT2("MCS_20M_0  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_1  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_2  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_3  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_4  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_5  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_6  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_7  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_8  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_9  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_10 ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_11 ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_12 ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_13 ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_14 ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_20M_15 ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_40M_0  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_40M_1  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_40M_2  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_40M_3  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_40M_4  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_40M_5  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_40M_6  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_40M_7  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_80M_0  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_80M_1  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_80M_2  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_80M_3  ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_160M_0 ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_160M_1 ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_320M   ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_40M_0p5", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_40M_2p5", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_40M_4p5", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("MCS_40M_6p5", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_0  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_1  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_2  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_3  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_4  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_5  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_6  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_7  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_8  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_9  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_10 ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_11 ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_12 ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_13 ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_14 ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_15 ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_0  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_1  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_2  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_3  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_4  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_5  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_6  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_7  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_80M_0  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_80M_1  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_80M_2  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_80M_3  ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_160M_0 ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_160M_1 ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_320M   ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_0p5", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_2p5", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_4p5", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_6p5", "ANALN_BF", "BF"),
 };
 
 static const struct txpwr_ent __txpwr_ent_lmt_be[] = {
 	__GEN_TXPWR_ENT0("1TX"),
-	__GEN_TXPWR_ENT2("CCK_20M    ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("CCK_40M    ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("OFDM       ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("CCK_20M    ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("CCK_40M    ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("OFDM       ", "ANALN_BF", "BF"),
 	__GEN_TXPWR_ENT_NESTED(lmt_mcs_be),
 
 	__GEN_TXPWR_ENT0("2TX"),
-	__GEN_TXPWR_ENT2("CCK_20M    ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("CCK_40M    ", "NON_BF", "BF"),
-	__GEN_TXPWR_ENT2("OFDM       ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("CCK_20M    ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("CCK_40M    ", "ANALN_BF", "BF"),
+	__GEN_TXPWR_ENT2("OFDM       ", "ANALN_BF", "BF"),
 	__GEN_TXPWR_ENT_NESTED(lmt_mcs_be),
 };
 
@@ -639,7 +639,7 @@ static const struct txpwr_map __txpwr_map_lmt_be = {
 	.size = ARRAY_SIZE(__txpwr_ent_lmt_be),
 	.addr_from = R_BE_PWR_LMT,
 	.addr_to = R_BE_PWR_LMT_MAX,
-	.addr_to_1ss = 0, /* not support */
+	.addr_to_1ss = 0, /* analt support */
 };
 
 static const struct txpwr_ent __txpwr_ent_lmt_ru_indexes_be[] = {
@@ -678,7 +678,7 @@ static const struct txpwr_map __txpwr_map_lmt_ru_be = {
 	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru_be),
 	.addr_from = R_BE_PWR_RU_LMT,
 	.addr_to = R_BE_PWR_RU_LMT_MAX,
-	.addr_to_1ss = 0, /* not support */
+	.addr_to_1ss = 0, /* analt support */
 };
 
 static unsigned int
@@ -732,7 +732,7 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 
 	buf = vzalloc(map->addr_to - map->addr_from + 4);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (path_num == 1)
 		max_valid_addr = map->addr_to_1ss;
@@ -740,7 +740,7 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 		max_valid_addr = map->addr_to;
 
 	if (max_valid_addr == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for (addr = map->addr_from; addr <= max_valid_addr; addr += 4) {
 		ret = rtw89_mac_txpwr_read32(rtwdev, RTW89_PHY_0, addr, &val);
@@ -775,7 +775,7 @@ static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev,
 
 	switch (regd) {
 	default:
-		seq_printf(m, "UNKNOWN: %d\n", regd);
+		seq_printf(m, "UNKANALWN: %d\n", regd);
 		break;
 	case_REGD(WW);
 	case_REGD(ETSI);
@@ -842,7 +842,7 @@ static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 
 	tbl = dbgfs_txpwr_tables[chip_gen];
 	if (!tbl) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err;
 	}
 
@@ -1063,7 +1063,7 @@ rtw89_debug_priv_mac_mem_dump_get(struct seq_file *m, void *v)
 	bool grant_read = false;
 
 	if (debugfs_priv->mac_mem.sel >= RTW89_MAC_MEM_NUM)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (rtwdev->chip->chip_id == RTL8852C) {
 		switch (debugfs_priv->mac_mem.sel) {
@@ -1217,7 +1217,7 @@ static int rtw89_debug_mac_dump_dle_dbg(struct rtw89_dev *rtwdev,
 
 	ret = rtw89_mac_check_mac_en(rtwdev, 0, RTW89_DMAC_SEL);
 	if (ret) {
-		seq_puts(m, "[DLE]  : DMAC not enabled\n");
+		seq_puts(m, "[DLE]  : DMAC analt enabled\n");
 		return ret;
 	}
 
@@ -1264,7 +1264,7 @@ static int rtw89_debug_mac_dump_dmac_dbg(struct rtw89_dev *rtwdev,
 
 	ret = rtw89_mac_check_mac_en(rtwdev, 0, RTW89_DMAC_SEL);
 	if (ret) {
-		seq_puts(m, "[DMAC] : DMAC not enabled\n");
+		seq_puts(m, "[DMAC] : DMAC analt enabled\n");
 		return ret;
 	}
 
@@ -1521,9 +1521,9 @@ static int rtw89_debug_mac_dump_cmac_err(struct rtw89_dev *rtwdev,
 	ret = rtw89_mac_check_mac_en(rtwdev, band, RTW89_CMAC_SEL);
 	if (ret) {
 		if (band)
-			seq_puts(m, "[CMAC] : CMAC1 not enabled\n");
+			seq_puts(m, "[CMAC] : CMAC1 analt enabled\n");
 		else
-			seq_puts(m, "[CMAC] : CMAC0 not enabled\n");
+			seq_puts(m, "[CMAC] : CMAC0 analt enabled\n");
 		return ret;
 	}
 
@@ -3347,7 +3347,7 @@ static int rtw89_dbg_trigger_ctrl_error(struct rtw89_dev *rtwdev)
 	ctrl_para.end_pktid = pkt_id;
 	ctrl_para.pkt_num = 1; /* start from 0 */
 	ctrl_para.dst_pid = WDE_DLE_PORT_ID_WDRLS;
-	ctrl_para.dst_qid = WDE_DLE_QUEID_NO_REPORT;
+	ctrl_para.dst_qid = WDE_DLE_QUEID_ANAL_REPORT;
 
 	if (mac->set_cpuio(rtwdev, &ctrl_para, true))
 		return -EFAULT;
@@ -3389,7 +3389,7 @@ rtw89_debug_priv_fw_crash_set(struct file *filp, const char __user *user_buf,
 	switch (crash_type) {
 	case RTW89_DBG_SIM_CPU_EXCEPTION:
 		if (!RTW89_CHK_FW_FEATURE(CRASH_TRIGGER, &rtwdev->fw))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		sim = rtw89_fw_h2c_trigger_cpu_exception;
 		break;
 	case RTW89_DBG_SIM_CTRL_ERROR:
@@ -3762,7 +3762,7 @@ static int rtw89_debug_priv_stations_get(struct seq_file *m, void *v)
 	}
 
 	ieee80211_iterate_active_interfaces_atomic(rtwdev->hw,
-		IEEE80211_IFACE_ITER_NORMAL, rtw89_vif_ids_get_iter, m);
+		IEEE80211_IFACE_ITER_ANALRMAL, rtw89_vif_ids_get_iter, m);
 
 	ieee80211_iterate_stations_atomic(rtwdev->hw, rtw89_sta_ids_get_iter, m);
 

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -226,7 +226,7 @@ static bool ch7017_init(struct intel_dvo_device *dvo,
 		str = "ch7019";
 		break;
 	default:
-		DRM_DEBUG_KMS("ch701x not detected, got %d: from %s "
+		DRM_DEBUG_KMS("ch701x analt detected, got %d: from %s "
 			      "slave %d.\n",
 			      val, adapter->name, dvo->slave_addr);
 		goto fail;
@@ -287,7 +287,7 @@ static void ch7017_mode_set(struct intel_dvo_device *dvo,
 			(3 << CH7017_LVDS_PLL_FEED_FORWARD_DIVIDER_SHIFT);
 		lvds_control_2 = (3 << CH7017_LOOP_FILTER_SHIFT) |
 			(0 << CH7017_PHASE_DETECTOR_SHIFT);
-		if (1) { /* XXX: dual channel panel detection.  Assume yes for now. */
+		if (1) { /* XXX: dual channel panel detection.  Assume anal for analw. */
 			outputs_enable |= CH7017_LVDS_CHANNEL_B;
 			lvds_pll_vco_control = CH7017_LVDS_PLL_VCO_DEFAULT_RESERVED |
 				(2 << CH7017_LVDS_PLL_VCO_SHIFT) |

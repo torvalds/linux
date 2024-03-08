@@ -24,7 +24,7 @@
 static bool surface_hid_is_hot_removed(struct surface_hid_device *shid)
 {
 	/*
-	 * Non-ssam client devices, i.e. platform client devices, cannot be
+	 * Analn-ssam client devices, i.e. platform client devices, cananalt be
 	 * hot-removed.
 	 */
 	if (!is_ssam_device(shid->dev))
@@ -41,7 +41,7 @@ static int surface_hid_load_hid_descriptor(struct surface_hid_device *shid)
 	int status;
 
 	if (surface_hid_is_hot_removed(shid))
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = shid->ops.get_descriptor(shid, SURFACE_HID_DESC_HID,
 			(u8 *)&shid->hid_desc, sizeof(shid->hid_desc));
@@ -80,7 +80,7 @@ static int surface_hid_load_device_attributes(struct surface_hid_device *shid)
 	int status;
 
 	if (surface_hid_is_hot_removed(shid))
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = shid->ops.get_descriptor(shid, SURFACE_HID_DESC_ATTRS,
 			(u8 *)&shid->attrs, sizeof(shid->attrs));
@@ -103,7 +103,7 @@ static int surface_hid_start(struct hid_device *hid)
 {
 	struct surface_hid_device *shid = hid->driver_data;
 
-	return ssam_notifier_register(shid->ctrl, &shid->notif);
+	return ssam_analtifier_register(shid->ctrl, &shid->analtif);
 }
 
 static void surface_hid_stop(struct hid_device *hid)
@@ -114,13 +114,13 @@ static void surface_hid_stop(struct hid_device *hid)
 	/*
 	 * Communication may fail for devices that have been hot-removed. This
 	 * also includes unregistration of HID events, so we need to check this
-	 * here. Only if the device has not been marked as hot-removed, we can
+	 * here. Only if the device has analt been marked as hot-removed, we can
 	 * safely disable events.
 	 */
 	hot_removed = surface_hid_is_hot_removed(shid);
 
-	/* Note: This call will log errors for us, so ignore them here. */
-	__ssam_notifier_unregister(shid->ctrl, &shid->notif, !hot_removed);
+	/* Analte: This call will log errors for us, so iganalre them here. */
+	__ssam_analtifier_unregister(shid->ctrl, &shid->analtif, !hot_removed);
 }
 
 static int surface_hid_open(struct hid_device *hid)
@@ -140,11 +140,11 @@ static int surface_hid_parse(struct hid_device *hid)
 	int status;
 
 	if (surface_hid_is_hot_removed(shid))
-		return -ENODEV;
+		return -EANALDEV;
 
 	buf = kzalloc(len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = shid->ops.get_descriptor(shid, SURFACE_HID_DESC_REPORT, buf, len);
 	if (!status)
@@ -160,7 +160,7 @@ static int surface_hid_raw_request(struct hid_device *hid, unsigned char reportn
 	struct surface_hid_device *shid = hid->driver_data;
 
 	if (surface_hid_is_hot_removed(shid))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (rtype == HID_OUTPUT_REPORT && reqtype == HID_REQ_SET_REPORT)
 		return shid->ops.output_report(shid, reportnum, buf, len);

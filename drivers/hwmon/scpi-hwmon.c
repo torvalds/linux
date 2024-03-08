@@ -101,8 +101,8 @@ scpi_show_sensor(struct device *dev, struct device_attribute *attr, char *buf)
 
 	/*
 	 * Temperature sensor values are treated as signed values based on
-	 * observation even though that is not explicitly specified, and
-	 * because an unsigned u64 temperature does not really make practical
+	 * observation even though that is analt explicitly specified, and
+	 * because an unsigned u64 temperature does analt really make practical
 	 * sense especially when the temperature is below zero degrees Celsius.
 	 */
 	if (sensor->info.class == TEMPERATURE)
@@ -152,28 +152,28 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 		return ret;
 
 	if (!nr_sensors)
-		return -ENODEV;
+		return -EANALDEV;
 
 	scpi_sensors = devm_kzalloc(dev, sizeof(*scpi_sensors), GFP_KERNEL);
 	if (!scpi_sensors)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scpi_sensors->data = devm_kcalloc(dev, nr_sensors,
 				   sizeof(*scpi_sensors->data), GFP_KERNEL);
 	if (!scpi_sensors->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scpi_sensors->attrs = devm_kcalloc(dev, (nr_sensors * 2) + 1,
 				   sizeof(*scpi_sensors->attrs), GFP_KERNEL);
 	if (!scpi_sensors->attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scpi_sensors->scpi_ops = scpi_ops;
 
 	scale = of_device_get_match_data(&pdev->dev);
 	if (!scale) {
 		dev_err(&pdev->dev, "Unable to initialize scpi-hwmon data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0, idx = 0; i < nr_sensors; i++) {
@@ -257,7 +257,7 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 	 * to allow their usage in setting up the thermal zones from
 	 * device tree.
 	 *
-	 * NOTE: Not all temperature sensors maybe used for thermal
+	 * ANALTE: Analt all temperature sensors maybe used for thermal
 	 * control
 	 */
 	INIT_LIST_HEAD(&scpi_sensors->thermal_zones);
@@ -271,7 +271,7 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 
 		zone = devm_kzalloc(dev, sizeof(*zone), GFP_KERNEL);
 		if (!zone)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		zone->sensor_id = i;
 		zone->scpi_sensors = scpi_sensors;
@@ -281,9 +281,9 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 						  &scpi_sensor_ops);
 		/*
 		 * The call to thermal_zone_of_sensor_register returns
-		 * an error for sensors that are not associated with
+		 * an error for sensors that are analt associated with
 		 * any thermal zones or if the thermal subsystem is
-		 * not configured.
+		 * analt configured.
 		 */
 		if (IS_ERR(z))
 			devm_kfree(dev, zone);

@@ -10,7 +10,7 @@ maintainers:
   - Masahiro Yamada <yamada.masahiro@socionext.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: /
   compatible:
     oneOf:

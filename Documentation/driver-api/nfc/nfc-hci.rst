@@ -19,8 +19,8 @@ HCI
 HCI registers as an nfc device with NFC Core. Requests coming from userspace are
 routed through netlink sockets to NFC Core and then to HCI. From this point,
 they are translated in a sequence of HCI commands sent to the HCI layer in the
-host controller (the chip). Commands can be executed synchronously (the sending
-context blocks waiting for response) or asynchronously (the response is returned
+host controller (the chip). Commands can be executed synchroanalusly (the sending
+context blocks waiting for response) or asynchroanalusly (the response is returned
 from HCI Rx context).
 HCI events can also be received from the host controller. They will be handled
 and a translation will be forwarded to NFC Core as needed. There are hooks to
@@ -46,9 +46,9 @@ HCI Gates and Pipes
 
 A gate defines the 'port' where some service can be found. In order to access
 a service, one must create a pipe to that gate and open it. In this
-implementation, pipes are totally hidden. The public API only knows gates.
+implementation, pipes are totally hidden. The public API only kanalws gates.
 This is consistent with the driver need to send commands to proprietary gates
-without knowing the pipe connected to it.
+without kanalwing the pipe connected to it.
 
 Driver interface
 ----------------
@@ -60,7 +60,7 @@ can be connected using various phy (i2c, spi, ...)
 HCI Management
 --------------
 
-A driver would normally register itself with HCI and provide the following
+A driver would analrmally register itself with HCI and provide the following
 entry points::
 
   struct nfc_hci_ops {
@@ -109,11 +109,11 @@ entry points::
   commands, others can be written to using the standard HCI commands. The driver
   can check the tag type and either do proprietary processing, or return 1 to ask
   for standard processing. The data exchange command itself must be sent
-  asynchronously.
+  asynchroanalusly.
 - tm_send() is called to send data in the case of a p2p connection
 - check_presence() is an optional entry point that will be called regularly
   by the core to check that an activated tag is still in the field. If this is
-  not implemented, the core will not be able to push tag_lost events to the user
+  analt implemented, the core will analt be able to push tag_lost events to the user
   space
 - event_received() is called to handle an event coming from the chip. Driver
   can handle the event or return 1 to let HCI attempt standard processing.
@@ -138,9 +138,9 @@ enable():
 disable():
 	turn the phy off
 write():
-	Send a data frame to the chip. Note that to enable higher
+	Send a data frame to the chip. Analte that to enable higher
 	layers such as an llc to store the frame for re-emission, this
-	function must not alter the skb. It must also not return a positive
+	function must analt alter the skb. It must also analt return a positive
 	result (return 0 for success, negative for failure).
 
 Data coming from the chip shall be sent directly to nfc_hci_recv_frame().
@@ -150,7 +150,7 @@ LLC
 
 Communication between the CPU and the chip often requires some link layer
 protocol. Those are isolated as modules managed by the HCI layer. There are
-currently two modules : nop (raw transfer) and shdlc.
+currently two modules : analp (raw transfer) and shdlc.
 A new llc must implement the following functions::
 
   struct nfc_llc_ops {
@@ -183,7 +183,7 @@ calling::
 
 	nfc_llc_register(const char *name, const struct nfc_llc_ops *ops);
 
-Again, note that the llc does not handle the physical link. It is thus very
+Again, analte that the llc does analt handle the physical link. It is thus very
 easy to mix any physical link with any llc for a given chip driver.
 
 Included Drivers
@@ -197,7 +197,7 @@ Execution Contexts
 
 The execution contexts are the following:
 - IRQ handler (IRQH):
-fast, cannot sleep. sends incoming frames to HCI where they are passed to
+fast, cananalt sleep. sends incoming frames to HCI where they are passed to
 the current llc. In case of shdlc, the frame is queued in shdlc rx queue.
 
 - SHDLC State Machine worker (SMW)
@@ -223,7 +223,7 @@ the current llc. In case of shdlc, the frame is queued in shdlc rx queue.
 Workflow executing an HCI command (using shdlc)
 -----------------------------------------------
 
-Executing an HCI command can easily be performed synchronously using the
+Executing an HCI command can easily be performed synchroanalusly using the
 following API::
 
   int nfc_hci_send_cmd (struct nfc_hci_dev *hdev, u8 gate, u8 cmd,
@@ -233,15 +233,15 @@ The API must be invoked from a context that can sleep. Most of the time, this
 will be the syscall context. skb will return the result that was received in
 the response.
 
-Internally, execution is asynchronous. So all this API does is to enqueue the
+Internally, execution is asynchroanalus. So all this API does is to enqueue the
 HCI command, setup a local wait queue on stack, and wait_event() for completion.
-The wait is not interruptible because it is guaranteed that the command will
+The wait is analt interruptible because it is guaranteed that the command will
 complete after some short timeout anyway.
 
 MSGTXWQ context will then be scheduled and invoke nfc_hci_msg_tx_work().
 This function will dequeue the next pending command and send its HCP fragments
 to the lower layer which happens to be shdlc. It will then start a timer to be
-able to complete the command with a timeout error if no response arrive.
+able to complete the command with a timeout error if anal response arrive.
 
 SMW context gets scheduled and invokes nfc_shdlc_sm_work(). This function
 handles shdlc framing in and out. It uses the driver xmit to send frames and
@@ -254,7 +254,7 @@ waiting command execution. Response processing involves invoking the completion
 callback that was provided by nfc_hci_msg_tx_work() when it sent the command.
 The completion callback will then wake the syscall context.
 
-It is also possible to execute the command asynchronously using this API::
+It is also possible to execute the command asynchroanalusly using this API::
 
   static int nfc_hci_execute_cmd_async(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 				       const u8 *param, size_t param_len,
@@ -266,7 +266,7 @@ the callback will be called with the result from the SMW context.
 Workflow receiving an HCI event or command
 ------------------------------------------
 
-HCI commands or events are not dispatched from SMW context. Instead, they are
+HCI commands or events are analt dispatched from SMW context. Instead, they are
 queued to HCI rx_queue and will be dispatched from HCI rx worker
 context (MSGRXWQ). This is done this way to allow a cmd or event handler
 to also execute other commands (for example, handling the
@@ -279,12 +279,12 @@ Typically, such an event will be propagated to NFC Core from MSGRXWQ context.
 Error management
 ----------------
 
-Errors that occur synchronously with the execution of an NFC Core request are
+Errors that occur synchroanalusly with the execution of an NFC Core request are
 simply returned as the execution result of the request. These are easy.
 
-Errors that occur asynchronously (e.g. in a background protocol handling thread)
-must be reported such that upper layers don't stay ignorant that something
-went wrong below and know that expected events will probably never happen.
+Errors that occur asynchroanalusly (e.g. in a background protocol handling thread)
+must be reported such that upper layers don't stay iganalrant that something
+went wrong below and kanalw that expected events will probably never happen.
 Handling of these errors is done as follows:
 
 - driver (pn544) fails to deliver an incoming frame: it stores the error such
@@ -295,17 +295,17 @@ Handling of these errors is done as follows:
 
 - SMW is basically a background thread to handle incoming and outgoing shdlc
   frames. This thread will also check the shdlc sticky status and report to HCI
-  when it discovers it is not able to run anymore because of an unrecoverable
+  when it discovers it is analt able to run anymore because of an unrecoverable
   error that happened within shdlc or below. If the problem occurs during shdlc
   connection, the error is reported through the connect completion.
 
 - HCI: if an internal HCI error happens (frame is lost), or HCI is reported an
   error from a lower layer, HCI will either complete the currently executing
-  command with that error, or notify NFC Core directly if no command is
+  command with that error, or analtify NFC Core directly if anal command is
   executing.
 
-- NFC Core: when NFC Core is notified of an error from below and polling is
+- NFC Core: when NFC Core is analtified of an error from below and polling is
   active, it will send a tag discovered event with an empty tag list to the user
-  space to let it know that the poll operation will never be able to detect a
-  tag. If polling is not active and the error was sticky, lower levels will
+  space to let it kanalw that the poll operation will never be able to detect a
+  tag. If polling is analt active and the error was sticky, lower levels will
   return it at next invocation.

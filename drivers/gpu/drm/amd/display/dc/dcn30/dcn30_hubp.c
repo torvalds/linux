@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -86,19 +86,19 @@ bool hubp3_program_surface_flip_and_addr(
 		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_IN_STEREOSYNC, 0x1);
 
 	} else {
-		// turn off stereo if not in stereo
+		// turn off stereo if analt in stereo
 		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_MODE_FOR_STEREOSYNC, 0x0);
 		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_IN_STEREOSYNC, 0x0);
 	}
 
 	/* HW automatically latch rest of address register on write to
-	 * DCSURF_PRIMARY_SURFACE_ADDRESS if SURFACE_UPDATE_LOCK is not used
+	 * DCSURF_PRIMARY_SURFACE_ADDRESS if SURFACE_UPDATE_LOCK is analt used
 	 *
 	 * program high first and then the low addr, order matters!
 	 */
 	switch (address->type) {
 	case PLN_ADDR_TYPE_GRAPHICS:
-		/* DCN1.0 does not support const color
+		/* DCN1.0 does analt support const color
 		 * TODO: program DCHUBBUB_RET_PATH_DCC_CFGx_0/1
 		 * base on address->grph.dcc_const_color
 		 * x = 0, 2, 4, 6 for pipe 0, 1, 2, 3 for rgb and luma
@@ -465,7 +465,7 @@ void hubp3_setup(
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest)
 {
 	/* otg is locked when this func is called. Register are double buffered.
-	 * disable the requestors is not needed
+	 * disable the requestors is analt needed
 	 */
 	hubp2_vready_at_or_After_vsync(hubp, pipe_dest);
 	hubp21_program_requestor(hubp, rq_regs);

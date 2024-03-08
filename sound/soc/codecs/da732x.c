@@ -407,12 +407,12 @@ static const struct snd_kcontrol_new da732x_snd_controls[] = {
 		   DA732X_SWITCH_MAX, DA732X_INVERT),
 	SOC_SINGLE_TLV("AUX1L Volume", DA732X_REG_AUX1L,
 		       DA732X_AUX_VOL_SHIFT, DA732X_AUX_VOL_VAL_MAX,
-		       DA732X_NO_INVERT, aux_pga_tlv),
+		       DA732X_ANAL_INVERT, aux_pga_tlv),
 	SOC_SINGLE("AUX1R Switch", DA732X_REG_AUX1R, DA732X_AUX_MUTE_SHIFT,
 		   DA732X_SWITCH_MAX, DA732X_INVERT),
 	SOC_SINGLE_TLV("AUX1R Volume", DA732X_REG_AUX1R,
 		       DA732X_AUX_VOL_SHIFT, DA732X_AUX_VOL_VAL_MAX,
-		       DA732X_NO_INVERT, aux_pga_tlv),
+		       DA732X_ANAL_INVERT, aux_pga_tlv),
 
 	/* ADCs */
 	SOC_DOUBLE_TLV("ADC1 Volume", DA732X_REG_ADC1_SEL,
@@ -474,7 +474,7 @@ static const struct snd_kcontrol_new da732x_snd_controls[] = {
 
 	/* Equalizers */
 	SOC_SINGLE("ADC1 EQ Switch", DA732X_REG_ADC1_EQ5,
-		   DA732X_EQ_EN_SHIFT, DA732X_EQ_EN_MAX, DA732X_NO_INVERT),
+		   DA732X_EQ_EN_SHIFT, DA732X_EQ_EN_MAX, DA732X_ANAL_INVERT),
 	SOC_SINGLE_TLV("ADC1 EQ Band 1 Volume", DA732X_REG_ADC1_EQ12,
 		       DA732X_EQ_BAND1_SHIFT, DA732X_EQ_VOL_VAL_MAX,
 		       DA732X_INVERT, eq_band_pga_tlv),
@@ -495,7 +495,7 @@ static const struct snd_kcontrol_new da732x_snd_controls[] = {
 		       DA732X_INVERT, eq_overall_tlv),
 
 	SOC_SINGLE("ADC2 EQ Switch", DA732X_REG_ADC2_EQ5,
-		   DA732X_EQ_EN_SHIFT, DA732X_EQ_EN_MAX, DA732X_NO_INVERT),
+		   DA732X_EQ_EN_SHIFT, DA732X_EQ_EN_MAX, DA732X_ANAL_INVERT),
 	SOC_SINGLE_TLV("ADC2 EQ Band 1 Volume", DA732X_REG_ADC2_EQ12,
 		       DA732X_EQ_BAND1_SHIFT, DA732X_EQ_VOL_VAL_MAX,
 		       DA732X_INVERT, eq_band_pga_tlv),
@@ -516,7 +516,7 @@ static const struct snd_kcontrol_new da732x_snd_controls[] = {
 		       DA732X_INVERT, eq_overall_tlv),
 
 	SOC_SINGLE("DAC1 EQ Switch", DA732X_REG_DAC1_EQ5,
-		   DA732X_EQ_EN_SHIFT, DA732X_EQ_EN_MAX, DA732X_NO_INVERT),
+		   DA732X_EQ_EN_SHIFT, DA732X_EQ_EN_MAX, DA732X_ANAL_INVERT),
 	SOC_SINGLE_TLV("DAC1 EQ Band 1 Volume", DA732X_REG_DAC1_EQ12,
 		       DA732X_EQ_BAND1_SHIFT, DA732X_EQ_VOL_VAL_MAX,
 		       DA732X_INVERT, eq_band_pga_tlv),
@@ -534,7 +534,7 @@ static const struct snd_kcontrol_new da732x_snd_controls[] = {
 		       DA732X_INVERT, eq_band_pga_tlv),
 
 	SOC_SINGLE("DAC2 EQ Switch", DA732X_REG_DAC2_EQ5,
-		   DA732X_EQ_EN_SHIFT, DA732X_EQ_EN_MAX, DA732X_NO_INVERT),
+		   DA732X_EQ_EN_SHIFT, DA732X_EQ_EN_MAX, DA732X_ANAL_INVERT),
 	SOC_SINGLE_TLV("DAC2 EQ Band 1 Volume", DA732X_REG_DAC2_EQ12,
 		       DA732X_EQ_BAND1_SHIFT, DA732X_EQ_VOL_VAL_MAX,
 		       DA732X_INVERT, eq_band_pga_tlv),
@@ -552,7 +552,7 @@ static const struct snd_kcontrol_new da732x_snd_controls[] = {
 		       DA732X_INVERT, eq_band_pga_tlv),
 
 	SOC_SINGLE("DAC3 EQ Switch", DA732X_REG_DAC3_EQ5,
-		   DA732X_EQ_EN_SHIFT, DA732X_EQ_EN_MAX, DA732X_NO_INVERT),
+		   DA732X_EQ_EN_SHIFT, DA732X_EQ_EN_MAX, DA732X_ANAL_INVERT),
 	SOC_SINGLE_TLV("DAC3 EQ Band 1 Volume", DA732X_REG_DAC3_EQ12,
 		       DA732X_EQ_BAND1_SHIFT, DA732X_EQ_VOL_VAL_MAX,
 		       DA732X_INVERT, eq_band_pga_tlv),
@@ -574,28 +574,28 @@ static const struct snd_kcontrol_new da732x_snd_controls[] = {
 		   DA732X_SWITCH_MAX, DA732X_INVERT),
 	SOC_SINGLE_TLV("Lineout 2 Volume", DA732X_REG_LIN2,
 		       DA732X_LOUT_VOL_SHIFT, DA732X_LOUT_VOL_VAL_MAX,
-		       DA732X_NO_INVERT, lin2_pga_tlv),
+		       DA732X_ANAL_INVERT, lin2_pga_tlv),
 
 	/* Lineout 3 SPEAKER*/
 	SOC_SINGLE("Lineout 3 Switch", DA732X_REG_LIN3, DA732X_LOUT_MUTE_SHIFT,
 		   DA732X_SWITCH_MAX, DA732X_INVERT),
 	SOC_SINGLE_TLV("Lineout 3 Volume", DA732X_REG_LIN3,
 		       DA732X_LOUT_VOL_SHIFT, DA732X_LOUT_VOL_VAL_MAX,
-		       DA732X_NO_INVERT, lin3_pga_tlv),
+		       DA732X_ANAL_INVERT, lin3_pga_tlv),
 
 	/* Lineout 4 */
 	SOC_SINGLE("Lineout 4 Switch", DA732X_REG_LIN4, DA732X_LOUT_MUTE_SHIFT,
 		   DA732X_SWITCH_MAX, DA732X_INVERT),
 	SOC_SINGLE_TLV("Lineout 4 Volume", DA732X_REG_LIN4,
 		       DA732X_LOUT_VOL_SHIFT, DA732X_LOUT_VOL_VAL_MAX,
-		       DA732X_NO_INVERT, lin4_pga_tlv),
+		       DA732X_ANAL_INVERT, lin4_pga_tlv),
 
 	/* Headphones */
 	SOC_DOUBLE_R("Headphone Switch", DA732X_REG_HPR, DA732X_REG_HPL,
 		     DA732X_HP_MUTE_SHIFT, DA732X_SWITCH_MAX, DA732X_INVERT),
 	SOC_DOUBLE_R_TLV("Headphone Volume", DA732X_REG_HPL_VOL,
 			 DA732X_REG_HPR_VOL, DA732X_HP_VOL_SHIFT,
-			 DA732X_HP_VOL_VAL_MAX, DA732X_NO_INVERT, hp_pga_tlv),
+			 DA732X_HP_VOL_VAL_MAX, DA732X_ANAL_INVERT, hp_pga_tlv),
 };
 
 static int da732x_adc_event(struct snd_soc_dapm_widget *w,
@@ -755,28 +755,28 @@ static const struct snd_kcontrol_new lout2_mux =
 static const struct snd_soc_dapm_widget da732x_dapm_widgets[] = {
 	/* Supplies */
 	SND_SOC_DAPM_SUPPLY("ADC1 Supply", DA732X_REG_ADC1_PD, 0,
-			    DA732X_NO_INVERT, da732x_adc_event,
+			    DA732X_ANAL_INVERT, da732x_adc_event,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY("ADC2 Supply", DA732X_REG_ADC2_PD, 0,
-			    DA732X_NO_INVERT, da732x_adc_event,
+			    DA732X_ANAL_INVERT, da732x_adc_event,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY("DAC1 CLK", DA732X_REG_CLK_EN4,
-			    DA732X_DACA_BB_CLK_SHIFT, DA732X_NO_INVERT,
+			    DA732X_DACA_BB_CLK_SHIFT, DA732X_ANAL_INVERT,
 			    NULL, 0),
 	SND_SOC_DAPM_SUPPLY("DAC2 CLK", DA732X_REG_CLK_EN4,
-			    DA732X_DACC_BB_CLK_SHIFT, DA732X_NO_INVERT,
+			    DA732X_DACC_BB_CLK_SHIFT, DA732X_ANAL_INVERT,
 			    NULL, 0),
 	SND_SOC_DAPM_SUPPLY("DAC3 CLK", DA732X_REG_CLK_EN5,
-			    DA732X_DACE_BB_CLK_SHIFT, DA732X_NO_INVERT,
+			    DA732X_DACE_BB_CLK_SHIFT, DA732X_ANAL_INVERT,
 			    NULL, 0),
 
 	/* Micbias */
 	SND_SOC_DAPM_SUPPLY("MICBIAS1", DA732X_REG_MICBIAS1,
 			    DA732X_MICBIAS_EN_SHIFT,
-			    DA732X_NO_INVERT, NULL, 0),
+			    DA732X_ANAL_INVERT, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("MICBIAS2", DA732X_REG_MICBIAS2,
 			    DA732X_MICBIAS_EN_SHIFT,
-			    DA732X_NO_INVERT, NULL, 0),
+			    DA732X_ANAL_INVERT, NULL, 0),
 
 	/* Inputs */
 	SND_SOC_DAPM_INPUT("MIC1"),
@@ -794,25 +794,25 @@ static const struct snd_soc_dapm_widget da732x_dapm_widgets[] = {
 
 	/* ADCs */
 	SND_SOC_DAPM_ADC("ADC1L", NULL, DA732X_REG_ADC1_SEL,
-			 DA732X_ADCL_EN_SHIFT, DA732X_NO_INVERT),
+			 DA732X_ADCL_EN_SHIFT, DA732X_ANAL_INVERT),
 	SND_SOC_DAPM_ADC("ADC1R", NULL, DA732X_REG_ADC1_SEL,
-			 DA732X_ADCR_EN_SHIFT, DA732X_NO_INVERT),
+			 DA732X_ADCR_EN_SHIFT, DA732X_ANAL_INVERT),
 	SND_SOC_DAPM_ADC("ADC2L", NULL, DA732X_REG_ADC2_SEL,
-			 DA732X_ADCL_EN_SHIFT, DA732X_NO_INVERT),
+			 DA732X_ADCL_EN_SHIFT, DA732X_ANAL_INVERT),
 	SND_SOC_DAPM_ADC("ADC2R", NULL, DA732X_REG_ADC2_SEL,
-			 DA732X_ADCR_EN_SHIFT, DA732X_NO_INVERT),
+			 DA732X_ADCR_EN_SHIFT, DA732X_ANAL_INVERT),
 
 	/* DACs */
 	SND_SOC_DAPM_DAC("DAC1L", NULL, DA732X_REG_DAC1_SEL,
-			 DA732X_DACL_EN_SHIFT, DA732X_NO_INVERT),
+			 DA732X_DACL_EN_SHIFT, DA732X_ANAL_INVERT),
 	SND_SOC_DAPM_DAC("DAC1R", NULL, DA732X_REG_DAC1_SEL,
-			 DA732X_DACR_EN_SHIFT, DA732X_NO_INVERT),
+			 DA732X_DACR_EN_SHIFT, DA732X_ANAL_INVERT),
 	SND_SOC_DAPM_DAC("DAC2L", NULL, DA732X_REG_DAC2_SEL,
-			 DA732X_DACL_EN_SHIFT, DA732X_NO_INVERT),
+			 DA732X_DACL_EN_SHIFT, DA732X_ANAL_INVERT),
 	SND_SOC_DAPM_DAC("DAC2R", NULL, DA732X_REG_DAC2_SEL,
-			 DA732X_DACR_EN_SHIFT, DA732X_NO_INVERT),
+			 DA732X_DACR_EN_SHIFT, DA732X_ANAL_INVERT),
 	SND_SOC_DAPM_DAC("DAC3", NULL, DA732X_REG_DAC3_SEL,
-			 DA732X_DACL_EN_SHIFT, DA732X_NO_INVERT),
+			 DA732X_DACL_EN_SHIFT, DA732X_ANAL_INVERT),
 
 	/* Input Pgas */
 	SND_SOC_DAPM_PGA("MIC1 PGA", DA732X_REG_MIC1, DA732X_MIC_EN_SHIFT,
@@ -843,16 +843,16 @@ static const struct snd_soc_dapm_widget da732x_dapm_widgets[] = {
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* MUXs */
-	SND_SOC_DAPM_MUX("ADC1 Left MUX", SND_SOC_NOPM, 0, 0, &adc1l_mux),
-	SND_SOC_DAPM_MUX("ADC1 Right MUX", SND_SOC_NOPM, 0, 0, &adc1r_mux),
-	SND_SOC_DAPM_MUX("ADC2 Left MUX", SND_SOC_NOPM, 0, 0, &adc2l_mux),
-	SND_SOC_DAPM_MUX("ADC2 Right MUX", SND_SOC_NOPM, 0, 0, &adc2r_mux),
+	SND_SOC_DAPM_MUX("ADC1 Left MUX", SND_SOC_ANALPM, 0, 0, &adc1l_mux),
+	SND_SOC_DAPM_MUX("ADC1 Right MUX", SND_SOC_ANALPM, 0, 0, &adc1r_mux),
+	SND_SOC_DAPM_MUX("ADC2 Left MUX", SND_SOC_ANALPM, 0, 0, &adc2l_mux),
+	SND_SOC_DAPM_MUX("ADC2 Right MUX", SND_SOC_ANALPM, 0, 0, &adc2r_mux),
 
-	SND_SOC_DAPM_MUX("HP Left MUX", SND_SOC_NOPM, 0, 0, &hpl_mux),
-	SND_SOC_DAPM_MUX("HP Right MUX", SND_SOC_NOPM, 0, 0, &hpr_mux),
-	SND_SOC_DAPM_MUX("Speaker MUX", SND_SOC_NOPM, 0, 0, &spk_mux),
-	SND_SOC_DAPM_MUX("LOUT2 MUX", SND_SOC_NOPM, 0, 0, &lout2_mux),
-	SND_SOC_DAPM_MUX("LOUT4 MUX", SND_SOC_NOPM, 0, 0, &lout4_mux),
+	SND_SOC_DAPM_MUX("HP Left MUX", SND_SOC_ANALPM, 0, 0, &hpl_mux),
+	SND_SOC_DAPM_MUX("HP Right MUX", SND_SOC_ANALPM, 0, 0, &hpr_mux),
+	SND_SOC_DAPM_MUX("Speaker MUX", SND_SOC_ANALPM, 0, 0, &spk_mux),
+	SND_SOC_DAPM_MUX("LOUT2 MUX", SND_SOC_ANALPM, 0, 0, &lout2_mux),
+	SND_SOC_DAPM_MUX("LOUT4 MUX", SND_SOC_ANALPM, 0, 0, &lout4_mux),
 
 	/* AIF interfaces */
 	SND_SOC_DAPM_AIF_OUT("AIFA Output", "AIFA Capture", 0, DA732X_REG_AIFA3,
@@ -1020,13 +1020,13 @@ static int da732x_set_dai_fmt(struct snd_soc_dai *dai, u32 fmt)
 	case DA732X_DAI_ID1:
 		reg_aif1 = DA732X_REG_AIFA1;
 		reg_aif3 = DA732X_REG_AIFA3;
-		pc_count = DA732X_PC_PULSE_AIFA | DA732X_PC_RESYNC_NOT_AUT |
+		pc_count = DA732X_PC_PULSE_AIFA | DA732X_PC_RESYNC_ANALT_AUT |
 			   DA732X_PC_SAME;
 		break;
 	case DA732X_DAI_ID2:
 		reg_aif1 = DA732X_REG_AIFB1;
 		reg_aif3 = DA732X_REG_AIFB3;
-		pc_count = DA732X_PC_PULSE_AIFB | DA732X_PC_RESYNC_NOT_AUT |
+		pc_count = DA732X_PC_PULSE_AIFB | DA732X_PC_RESYNC_ANALT_AUT |
 			   DA732X_PC_SAME;
 		break;
 	default:
@@ -1144,7 +1144,7 @@ static int da732x_set_dai_pll(struct snd_soc_component *component, int pll_id,
 			return 0;
 		default:
 			dev_err(component->dev,
-				"Cannot use PLL Bypass, invalid SYSCLK rate\n");
+				"Cananalt use PLL Bypass, invalid SYSCLK rate\n");
 			return -EINVAL;
 		}
 	}
@@ -1514,7 +1514,7 @@ static int da732x_i2c_probe(struct i2c_client *i2c)
 	da732x = devm_kzalloc(&i2c->dev, sizeof(struct da732x_priv),
 			      GFP_KERNEL);
 	if (!da732x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, da732x);
 
@@ -1533,7 +1533,7 @@ static int da732x_i2c_probe(struct i2c_client *i2c)
 
 	dev_info(&i2c->dev, "Revision: %d.%d\n",
 		 (reg & DA732X_ID_MAJOR_MASK) >> 4,
-		 (reg & DA732X_ID_MINOR_MASK));
+		 (reg & DA732X_ID_MIANALR_MASK));
 
 	ret = devm_snd_soc_register_component(&i2c->dev,
 				     &soc_component_dev_da732x,

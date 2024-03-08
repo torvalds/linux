@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-mc-objs	:= mc-device.o mc-devnode.o mc-entity.o \
+mc-objs	:= mc-device.o mc-devanalde.o mc-entity.o \
 	   mc-request.o
 
 ifneq ($(CONFIG_USB),)

@@ -57,7 +57,7 @@ static struct {
 #define CM_DEFAULT_CHARGE_TEMP_MAX	500
 
 /*
- * Regard CM_JIFFIES_SMALL jiffies is small enough to ignore for
+ * Regard CM_JIFFIES_SMALL jiffies is small eanalugh to iganalre for
  * delayed works so that we can run delayed works with CM_JIFFIES_SMALL
  * without any delays.
  */
@@ -67,7 +67,7 @@ static struct {
 #define CM_MIN_VALID(x, y)	x = (((y > 0) && ((x) > (y))) ? (y) : (x))
 
 /*
- * Regard CM_RTC_SMALL (sec) is small enough to ignore error in invoking
+ * Regard CM_RTC_SMALL (sec) is small eanalugh to iganalre error in invoking
  * rtc alarm. It should be 2 or larger
  */
 #define CM_RTC_SMALL		(2)
@@ -82,8 +82,8 @@ static bool cm_suspended;
 static bool cm_timer_set;
 static unsigned long cm_suspend_duration_ms;
 
-/* About normal (not suspended) monitoring */
-static unsigned long polling_jiffy = ULONG_MAX; /* ULONG_MAX: no polling */
+/* About analrmal (analt suspended) monitoring */
+static unsigned long polling_jiffy = ULONG_MAX; /* ULONG_MAX: anal polling */
 static unsigned long next_polling; /* Next appointed polling time */
 static struct workqueue_struct *cm_wq; /* init at driver add */
 static struct delayed_work cm_monitor_work; /* init at driver add */
@@ -103,7 +103,7 @@ static bool is_batt_present(struct charger_manager *cm)
 	case CM_BATTERY_PRESENT:
 		present = true;
 		break;
-	case CM_NO_BATTERY:
+	case CM_ANAL_BATTERY:
 		break;
 	case CM_FUEL_GAUGE:
 		psy = power_supply_get_by_name(cm->desc->psy_fuel_gauge);
@@ -121,7 +121,7 @@ static bool is_batt_present(struct charger_manager *cm)
 			psy = power_supply_get_by_name(
 					cm->desc->psy_charger_stat[i]);
 			if (!psy) {
-				dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
+				dev_err(cm->dev, "Cananalt find power supply \"%s\"\n",
 					cm->desc->psy_charger_stat[i]);
 				continue;
 			}
@@ -146,7 +146,7 @@ static bool is_batt_present(struct charger_manager *cm)
  *
  * Returns true if at least one of the chargers of the battery has an external
  * power source attached to charge the battery regardless of whether it is
- * actually charging or not.
+ * actually charging or analt.
  */
 static bool is_ext_pwr_online(struct charger_manager *cm)
 {
@@ -155,11 +155,11 @@ static bool is_ext_pwr_online(struct charger_manager *cm)
 	bool online = false;
 	int i, ret;
 
-	/* If at least one of them has one, it's yes. */
+	/* If at least one of them has one, it's anal. */
 	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
 		psy = power_supply_get_by_name(cm->desc->psy_charger_stat[i]);
 		if (!psy) {
-			dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
+			dev_err(cm->dev, "Cananalt find power supply \"%s\"\n",
 					cm->desc->psy_charger_stat[i]);
 			continue;
 		}
@@ -181,7 +181,7 @@ static bool is_ext_pwr_online(struct charger_manager *cm)
  * @cm: the Charger Manager representing the battery.
  * @uV: the voltage level returned.
  *
- * Returns 0 if there is no error.
+ * Returns 0 if there is anal error.
  * Returns a negative value on error.
  */
 static int get_batt_uV(struct charger_manager *cm, int *uV)
@@ -192,10 +192,10 @@ static int get_batt_uV(struct charger_manager *cm, int *uV)
 
 	fuel_gauge = power_supply_get_by_name(cm->desc->psy_fuel_gauge);
 	if (!fuel_gauge)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = power_supply_get_property(fuel_gauge,
-				POWER_SUPPLY_PROP_VOLTAGE_NOW, &val);
+				POWER_SUPPLY_PROP_VOLTAGE_ANALW, &val);
 	power_supply_put(fuel_gauge);
 	if (ret)
 		return ret;
@@ -215,13 +215,13 @@ static bool is_charging(struct charger_manager *cm)
 	struct power_supply *psy;
 	union power_supply_propval val;
 
-	/* If there is no battery, it cannot be charged */
+	/* If there is anal battery, it cananalt be charged */
 	if (!is_batt_present(cm))
 		return false;
 
-	/* If at least one of the charger is charging, return yes */
+	/* If at least one of the charger is charging, return anal */
 	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
-		/* 1. The charger sholuld not be DISABLED */
+		/* 1. The charger sholuld analt be DISABLED */
 		if (cm->emergency_stop)
 			continue;
 		if (!cm->charger_enabled)
@@ -229,7 +229,7 @@ static bool is_charging(struct charger_manager *cm)
 
 		psy = power_supply_get_by_name(cm->desc->psy_charger_stat[i]);
 		if (!psy) {
-			dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
+			dev_err(cm->dev, "Cananalt find power supply \"%s\"\n",
 					cm->desc->psy_charger_stat[i]);
 			continue;
 		}
@@ -238,7 +238,7 @@ static bool is_charging(struct charger_manager *cm)
 		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_ONLINE,
 				&val);
 		if (ret) {
-			dev_warn(cm->dev, "Cannot read ONLINE value from %s\n",
+			dev_warn(cm->dev, "Cananalt read ONLINE value from %s\n",
 				 cm->desc->psy_charger_stat[i]);
 			power_supply_put(psy);
 			continue;
@@ -249,20 +249,20 @@ static bool is_charging(struct charger_manager *cm)
 		}
 
 		/*
-		 * 3. The charger should not be FULL, DISCHARGING,
-		 * or NOT_CHARGING.
+		 * 3. The charger should analt be FULL, DISCHARGING,
+		 * or ANALT_CHARGING.
 		 */
 		ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_STATUS,
 				&val);
 		power_supply_put(psy);
 		if (ret) {
-			dev_warn(cm->dev, "Cannot read STATUS value from %s\n",
+			dev_warn(cm->dev, "Cananalt read STATUS value from %s\n",
 				 cm->desc->psy_charger_stat[i]);
 			continue;
 		}
 		if (val.intval == POWER_SUPPLY_STATUS_FULL ||
 				val.intval == POWER_SUPPLY_STATUS_DISCHARGING ||
-				val.intval == POWER_SUPPLY_STATUS_NOT_CHARGING)
+				val.intval == POWER_SUPPLY_STATUS_ANALT_CHARGING)
 			continue;
 
 		/* Then, this is charging. */
@@ -286,7 +286,7 @@ static bool is_full_charged(struct charger_manager *cm)
 	int ret = 0;
 	int uV;
 
-	/* If there is no battery, it cannot be charged */
+	/* If there is anal battery, it cananalt be charged */
 	if (!is_batt_present(cm))
 		return false;
 
@@ -310,7 +310,7 @@ static bool is_full_charged(struct charger_manager *cm)
 	if (desc->fullbatt_full_capacity > 0) {
 		val.intval = 0;
 
-		/* Not full if capacity of fuel gauge isn't full */
+		/* Analt full if capacity of fuel gauge isn't full */
 		ret = power_supply_get_property(fuel_gauge,
 				POWER_SUPPLY_PROP_CHARGE_FULL, &val);
 		if (!ret && val.intval > desc->fullbatt_full_capacity) {
@@ -364,8 +364,8 @@ static bool is_polling_required(struct charger_manager *cm)
  * @cm: the Charger Manager representing the battery.
  * @enable: true: enable / false: disable
  *
- * Note that Charger Manager keeps the charger enabled regardless whether
- * the charger is charging or not (because battery is full or no external
+ * Analte that Charger Manager keeps the charger enabled regardless whether
+ * the charger is charging or analt (because battery is full or anal external
  * power source exists) except when CM needs to disable chargers forcibly
  * because of emergency causes; when the battery is overheated or too cold.
  */
@@ -374,7 +374,7 @@ static int try_charger_enable(struct charger_manager *cm, bool enable)
 	int err = 0, i;
 	struct charger_desc *desc = cm->desc;
 
-	/* Ignore if it's redundant command */
+	/* Iganalre if it's redundant command */
 	if (enable == cm->charger_enabled)
 		return 0;
 
@@ -395,7 +395,7 @@ static int try_charger_enable(struct charger_manager *cm, bool enable)
 
 			err = regulator_enable(desc->charger_regulators[i].consumer);
 			if (err < 0) {
-				dev_warn(cm->dev, "Cannot enable %s regulator\n",
+				dev_warn(cm->dev, "Cananalt enable %s regulator\n",
 					 desc->charger_regulators[i].regulator_name);
 			}
 		}
@@ -413,13 +413,13 @@ static int try_charger_enable(struct charger_manager *cm, bool enable)
 
 			err = regulator_disable(desc->charger_regulators[i].consumer);
 			if (err < 0) {
-				dev_warn(cm->dev, "Cannot disable %s regulator\n",
+				dev_warn(cm->dev, "Cananalt disable %s regulator\n",
 					 desc->charger_regulators[i].regulator_name);
 			}
 		}
 
 		/*
-		 * Abnormal battery state - Stop charging forcibly,
+		 * Abanalrmal battery state - Stop charging forcibly,
 		 * even if charger was enabled at the other places
 		 */
 		for (i = 0; i < desc->num_charger_regulators; i++) {
@@ -468,7 +468,7 @@ static int check_charging_duration(struct charger_manager *cm)
 				 desc->charging_max_duration_ms);
 			ret = true;
 		}
-	} else if (cm->battery_status == POWER_SUPPLY_STATUS_NOT_CHARGING) {
+	} else if (cm->battery_status == POWER_SUPPLY_STATUS_ANALT_CHARGING) {
 		duration = curr - cm->charging_end_time;
 
 		if (duration > desc->discharging_max_duration_ms) {
@@ -489,7 +489,7 @@ static int cm_get_battery_temperature_by_psy(struct charger_manager *cm,
 
 	fuel_gauge = power_supply_get_by_name(cm->desc->psy_fuel_gauge);
 	if (!fuel_gauge)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = power_supply_get_property(fuel_gauge,
 				POWER_SUPPLY_PROP_TEMP,
@@ -505,7 +505,7 @@ static int cm_get_battery_temperature(struct charger_manager *cm,
 	int ret;
 
 	if (!cm->desc->measure_battery_temp)
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifdef CONFIG_THERMAL
 	if (cm->tzd_batt) {
@@ -532,7 +532,7 @@ static int cm_check_thermal_status(struct charger_manager *cm)
 	ret = cm_get_battery_temperature(cm, &temp);
 	if (ret) {
 		/* FIXME:
-		 * No information of battery temperature might
+		 * Anal information of battery temperature might
 		 * occur hazardous result. We have to handle it
 		 * depending on battery type.
 		 */
@@ -573,7 +573,7 @@ static int cm_get_target_status(struct charger_manager *cm)
 		/* Check if discharging duration exceeds limit. */
 		if (check_charging_duration(cm))
 			goto charging_ok;
-		return POWER_SUPPLY_STATUS_NOT_CHARGING;
+		return POWER_SUPPLY_STATUS_ANALT_CHARGING;
 	}
 
 	switch (cm->battery_status) {
@@ -599,7 +599,7 @@ charging_ok:
  * _cm_monitor - Monitor the temperature and return true for exceptions.
  * @cm: the Charger Manager representing the battery.
  *
- * Returns true if there is an event to notify for the battery.
+ * Returns true if there is an event to analtify for the battery.
  * (True if the status of "emergency_stop" changes)
  */
 static bool _cm_monitor(struct charger_manager *cm)
@@ -615,13 +615,13 @@ static bool _cm_monitor(struct charger_manager *cm)
 		power_supply_changed(cm->charger_psy);
 	}
 
-	return (cm->battery_status == POWER_SUPPLY_STATUS_NOT_CHARGING);
+	return (cm->battery_status == POWER_SUPPLY_STATUS_ANALT_CHARGING);
 }
 
 /**
  * cm_monitor - Monitor every battery.
  *
- * Returns true if there is an event to notify from any of the batteries.
+ * Returns true if there is an event to analtify from any of the batteries.
  * (True if the status of "emergency_stop" changes)
  */
 static bool cm_monitor(void)
@@ -672,13 +672,13 @@ static void _setup_polling(struct work_struct *work)
 	if (polling_jiffy == ULONG_MAX)
 		goto out;
 
-	WARN(cm_wq == NULL, "charger-manager: workqueue not initialized"
+	WARN(cm_wq == NULL, "charger-manager: workqueue analt initialized"
 			    ". try it later. %s\n", __func__);
 
 	/*
 	 * Use mod_delayed_work() iff the next polling interval should
 	 * occur before the currently scheduled one.  If @cm_monitor_work
-	 * isn't active, the end result is the same, so no need to worry
+	 * isn't active, the end result is the same, so anal need to worry
 	 * about stale @next_polling.
 	 */
 	_next_polling = jiffies + polling_jiffy;
@@ -699,7 +699,7 @@ static DECLARE_WORK(setup_polling, _setup_polling);
  * cm_monitor_poller - The Monitor / Poller.
  * @work: work_struct of the function cm_monitor_poller
  *
- * During non-suspended state, cm_monitor_poller is used to poll and monitor
+ * During analn-suspended state, cm_monitor_poller is used to poll and monitor
  * the batteries.
  */
 static void cm_monitor_poller(struct work_struct *work)
@@ -736,30 +736,30 @@ static int charger_get_property(struct power_supply *psy,
 		else
 			val->intval = 0;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = get_batt_uV(cm, &val->intval);
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		fuel_gauge = power_supply_get_by_name(cm->desc->psy_fuel_gauge);
 		if (!fuel_gauge) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			break;
 		}
 		ret = power_supply_get_property(fuel_gauge,
-				POWER_SUPPLY_PROP_CURRENT_NOW, val);
+				POWER_SUPPLY_PROP_CURRENT_ANALW, val);
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		return cm_get_battery_temperature(cm, &val->intval);
 	case POWER_SUPPLY_PROP_CAPACITY:
 		if (!is_batt_present(cm)) {
-			/* There is no battery. Assume 100% */
+			/* There is anal battery. Assume 100% */
 			val->intval = 100;
 			break;
 		}
 
 		fuel_gauge = power_supply_get_by_name(cm->desc->psy_fuel_gauge);
 		if (!fuel_gauge) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			break;
 		}
 
@@ -775,7 +775,7 @@ static int charger_get_property(struct power_supply *psy,
 		if (val->intval < 0)
 			val->intval = 0;
 
-		/* Do not adjust SOC when charging: voltage is overrated */
+		/* Do analt adjust SOC when charging: voltage is overrated */
 		if (is_charging(cm))
 			break;
 
@@ -785,7 +785,7 @@ static int charger_get_property(struct power_supply *psy,
 		 */
 		ret = get_batt_uV(cm, &uV);
 		if (ret) {
-			/* Voltage information not available. No calibration */
+			/* Voltage information analt available. Anal calibration */
 			ret = 0;
 			break;
 		}
@@ -804,10 +804,10 @@ static int charger_get_property(struct power_supply *psy,
 			val->intval = 0;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
 		fuel_gauge = power_supply_get_by_name(cm->desc->psy_fuel_gauge);
 		if (!fuel_gauge) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			break;
 		}
 		ret = power_supply_get_property(fuel_gauge, psp, val);
@@ -826,14 +826,14 @@ static enum power_supply_property default_charger_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_ONLINE,
 	/*
 	 * Optional properties are:
 	 * POWER_SUPPLY_PROP_CHARGE_FULL,
-	 * POWER_SUPPLY_PROP_CHARGE_NOW,
-	 * POWER_SUPPLY_PROP_CURRENT_NOW,
+	 * POWER_SUPPLY_PROP_CHARGE_ANALW,
+	 * POWER_SUPPLY_PROP_CURRENT_ANALW,
 	 * POWER_SUPPLY_PROP_TEMP,
 	 */
 };
@@ -844,7 +844,7 @@ static const struct power_supply_desc psy_default = {
 	.properties = default_charger_props,
 	.num_properties = ARRAY_SIZE(default_charger_props),
 	.get_property = charger_get_property,
-	.no_thermal = true,
+	.anal_thermal = true,
 };
 
 /**
@@ -854,7 +854,7 @@ static const struct power_supply_desc psy_default = {
  * Returns true if the alarm is set for Charger Manager to use.
  * Returns false if
  *	cm_setup_timer fails to set an alarm,
- *	cm_setup_timer does not need to set an alarm for Charger Manager,
+ *	cm_setup_timer does analt need to set an alarm for Charger Manager,
  *	or an alarm previously configured is to be used.
  */
 static bool cm_setup_timer(void)
@@ -869,7 +869,7 @@ static bool cm_setup_timer(void)
 
 	mutex_lock(&cm_list_mtx);
 	list_for_each_entry(cm, &cm_list, entry) {
-		/* Skip if polling is not required for this CM */
+		/* Skip if polling is analt required for this CM */
 		if (!is_polling_required(cm) && !cm->emergency_stop)
 			continue;
 		timer_req++;
@@ -880,11 +880,11 @@ static bool cm_setup_timer(void)
 	mutex_unlock(&cm_list_mtx);
 
 	if (timer_req && cm_timer) {
-		ktime_t now, add;
+		ktime_t analw, add;
 
 		/*
 		 * Set alarm with the polling interval (wakeup_ms)
-		 * The alarm time should be NOW + CM_RTC_SMALL or later.
+		 * The alarm time should be ANALW + CM_RTC_SMALL or later.
 		 */
 		if (wakeup_ms == UINT_MAX ||
 			wakeup_ms < CM_RTC_SMALL * MSEC_PER_SEC)
@@ -892,10 +892,10 @@ static bool cm_setup_timer(void)
 
 		pr_info("Charger Manager wakeup timer: %u ms\n", wakeup_ms);
 
-		now = ktime_get_boottime();
+		analw = ktime_get_boottime();
 		add = ktime_set(wakeup_ms / MSEC_PER_SEC,
 				(wakeup_ms % MSEC_PER_SEC) * NSEC_PER_MSEC);
-		alarm_start(cm_timer, ktime_add(now, add));
+		alarm_start(cm_timer, ktime_add(analw, add));
 
 		cm_suspend_duration_ms = wakeup_ms;
 
@@ -920,7 +920,7 @@ static void charger_extcon_work(struct work_struct *work)
 		ret = regulator_set_current_limit(cable->charger->consumer,
 					cable->min_uA, cable->max_uA);
 		if (ret < 0) {
-			pr_err("Cannot set current limit of %s (%s)\n",
+			pr_err("Cananalt set current limit of %s (%s)\n",
 			       cable->charger->regulator_name, cable->name);
 			return;
 		}
@@ -935,14 +935,14 @@ static void charger_extcon_work(struct work_struct *work)
 }
 
 /**
- * charger_extcon_notifier - receive the state of charger cable
+ * charger_extcon_analtifier - receive the state of charger cable
  *			when registered cable is attached or detached.
  *
- * @self: the notifier block of the charger_extcon_notifier.
+ * @self: the analtifier block of the charger_extcon_analtifier.
  * @event: the cable state.
- * @ptr: the data pointer of notifier block.
+ * @ptr: the data pointer of analtifier block.
  */
-static int charger_extcon_notifier(struct notifier_block *self,
+static int charger_extcon_analtifier(struct analtifier_block *self,
 			unsigned long event, void *ptr)
 {
 	struct charger_cable *cable =
@@ -960,7 +960,7 @@ static int charger_extcon_notifier(struct notifier_block *self,
 	 */
 	schedule_work(&cable->wq);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /**
@@ -974,7 +974,7 @@ static int charger_extcon_init(struct charger_manager *cm,
 		struct charger_cable *cable)
 {
 	int ret, i;
-	u64 extcon_type = EXTCON_NONE;
+	u64 extcon_type = EXTCON_ANALNE;
 
 	/*
 	 * Charger manager use Extcon framework to identify
@@ -982,11 +982,11 @@ static int charger_extcon_init(struct charger_manager *cm,
 	 * cable (e.g., TA, USB, MHL, Dock).
 	 */
 	INIT_WORK(&cable->wq, charger_extcon_work);
-	cable->nb.notifier_call = charger_extcon_notifier;
+	cable->nb.analtifier_call = charger_extcon_analtifier;
 
 	cable->extcon_dev = extcon_get_extcon_dev(cable->extcon_name);
 	if (IS_ERR(cable->extcon_dev)) {
-		pr_err("Cannot find extcon_dev for %s (cable: %s)\n",
+		pr_err("Cananalt find extcon_dev for %s (cable: %s)\n",
 			cable->extcon_name, cable->name);
 		return PTR_ERR(cable->extcon_dev);
 	}
@@ -997,17 +997,17 @@ static int charger_extcon_init(struct charger_manager *cm,
 			break;
 		}
 	}
-	if (extcon_type == EXTCON_NONE) {
-		pr_err("Cannot find cable for type %s", cable->name);
+	if (extcon_type == EXTCON_ANALNE) {
+		pr_err("Cananalt find cable for type %s", cable->name);
 		return -EINVAL;
 	}
 
 	cable->extcon_type = extcon_type;
 
-	ret = devm_extcon_register_notifier(cm->dev, cable->extcon_dev,
+	ret = devm_extcon_register_analtifier(cm->dev, cable->extcon_dev,
 		cable->extcon_type, &cable->nb);
 	if (ret < 0) {
-		pr_err("Cannot register extcon_dev for %s (cable: %s)\n",
+		pr_err("Cananalt register extcon_dev for %s (cable: %s)\n",
 			cable->extcon_name, cable->name);
 		return ret;
 	}
@@ -1040,7 +1040,7 @@ static int charger_manager_register_extcon(struct charger_manager *cm)
 		charger->consumer = regulator_get(cm->dev,
 					charger->regulator_name);
 		if (IS_ERR(charger->consumer)) {
-			dev_err(cm->dev, "Cannot find charger(%s)\n",
+			dev_err(cm->dev, "Cananalt find charger(%s)\n",
 				charger->regulator_name);
 			return PTR_ERR(charger->consumer);
 		}
@@ -1051,7 +1051,7 @@ static int charger_manager_register_extcon(struct charger_manager *cm)
 
 			ret = charger_extcon_init(cm, cable);
 			if (ret < 0) {
-				dev_err(cm->dev, "Cannot initialize charger(%s)\n",
+				dev_err(cm->dev, "Cananalt initialize charger(%s)\n",
 					charger->regulator_name);
 				return ret;
 			}
@@ -1060,7 +1060,7 @@ static int charger_manager_register_extcon(struct charger_manager *cm)
 
 			event = extcon_get_state(cable->extcon_dev,
 				cable->extcon_type);
-			charger_extcon_notifier(&cable->nb,
+			charger_extcon_analtifier(&cable->nb,
 				event, NULL);
 		}
 	}
@@ -1068,7 +1068,7 @@ static int charger_manager_register_extcon(struct charger_manager *cm)
 	return 0;
 }
 
-/* help function of sysfs node to control charger(regulator) */
+/* help function of sysfs analde to control charger(regulator) */
 static ssize_t charger_name_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -1181,7 +1181,7 @@ static int charger_manager_prepare_sysfs(struct charger_manager *cm)
 
 		name = devm_kasprintf(cm->dev, GFP_KERNEL, "charger.%d", i);
 		if (!name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		charger->attrs[0] = &charger->attr_name.attr;
 		charger->attrs[1] = &charger->attr_state.attr;
@@ -1220,7 +1220,7 @@ static int charger_manager_prepare_sysfs(struct charger_manager *cm)
 	}
 
 	if (chargers_externally_control) {
-		dev_err(cm->dev, "Cannot register regulator because charger-manager must need at least one charger for charging battery\n");
+		dev_err(cm->dev, "Cananalt register regulator because charger-manager must need at least one charger for charging battery\n");
 		return -EINVAL;
 	}
 
@@ -1260,7 +1260,7 @@ static int cm_init_thermal_data(struct charger_manager *cm,
 	}
 #endif
 	if (cm->desc->measure_battery_temp) {
-		/* NOTICE : Default allowable minimum charge temperature is 0 */
+		/* ANALTICE : Default allowable minimum charge temperature is 0 */
 		if (!desc->temp_max)
 			desc->temp_max = CM_DEFAULT_CHARGE_TEMP_MAX;
 		if (!desc->temp_diff)
@@ -1281,14 +1281,14 @@ MODULE_DEVICE_TABLE(of, charger_manager_match);
 static struct charger_desc *of_cm_parse_desc(struct device *dev)
 {
 	struct charger_desc *desc;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	u32 poll_mode = CM_POLL_DISABLE;
-	u32 battery_stat = CM_NO_BATTERY;
+	u32 battery_stat = CM_ANAL_BATTERY;
 	int num_chgs = 0;
 
 	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	of_property_read_string(np, "cm-name", &desc->psy_name);
 
@@ -1319,7 +1319,7 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 						      sizeof(char *),
 						      GFP_KERNEL);
 		if (!desc->psy_charger_stat)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		for (i = 0; i < num_chgs; i++)
 			of_property_read_string_index(np, "cm-chargers",
@@ -1345,14 +1345,14 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 	desc->num_charger_regulators = of_get_child_count(np);
 	if (desc->num_charger_regulators) {
 		struct charger_regulator *chg_regs;
-		struct device_node *child;
+		struct device_analde *child;
 
 		chg_regs = devm_kcalloc(dev,
 					desc->num_charger_regulators,
 					sizeof(*chg_regs),
 					GFP_KERNEL);
 		if (!chg_regs)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		desc->charger_regulators = chg_regs;
 
@@ -1361,11 +1361,11 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 					sizeof(*desc->sysfs_groups),
 					GFP_KERNEL);
 		if (!desc->sysfs_groups)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
-		for_each_child_of_node(np, child) {
+		for_each_child_of_analde(np, child) {
 			struct charger_cable *cables;
-			struct device_node *_child;
+			struct device_analde *_child;
 
 			of_property_read_string(child, "cm-regulator-name",
 					&chg_regs->regulator_name);
@@ -1378,13 +1378,13 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 						      sizeof(*cables),
 						      GFP_KERNEL);
 				if (!cables) {
-					of_node_put(child);
-					return ERR_PTR(-ENOMEM);
+					of_analde_put(child);
+					return ERR_PTR(-EANALMEM);
 				}
 
 				chg_regs->cables = cables;
 
-				for_each_child_of_node(child, _child) {
+				for_each_child_of_analde(child, _child) {
 					of_property_read_string(_child,
 					"cm-cable-name", &cables->name);
 					of_property_read_string(_child,
@@ -1407,15 +1407,15 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 
 static inline struct charger_desc *cm_get_drv_data(struct platform_device *pdev)
 {
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		return of_cm_parse_desc(&pdev->dev);
 	return dev_get_platdata(&pdev->dev);
 }
 
-static enum alarmtimer_restart cm_timer_func(struct alarm *alarm, ktime_t now)
+static enum alarmtimer_restart cm_timer_func(struct alarm *alarm, ktime_t analw)
 {
 	cm_timer_set = false;
-	return ALARMTIMER_NORESTART;
+	return ALARMTIMER_ANALRESTART;
 }
 
 static int charger_manager_probe(struct platform_device *pdev)
@@ -1430,13 +1430,13 @@ static int charger_manager_probe(struct platform_device *pdev)
 	struct power_supply_config psy_cfg = {};
 
 	if (IS_ERR(desc)) {
-		dev_err(&pdev->dev, "No platform data (desc) found\n");
+		dev_err(&pdev->dev, "Anal platform data (desc) found\n");
 		return PTR_ERR(desc);
 	}
 
 	cm = devm_kzalloc(&pdev->dev, sizeof(*cm), GFP_KERNEL);
 	if (!cm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Basic Values. Unspecified are Null or 0 */
 	cm->dev = &pdev->dev;
@@ -1447,26 +1447,26 @@ static int charger_manager_probe(struct platform_device *pdev)
 	if (alarmtimer_get_rtcdev()) {
 		cm_timer = devm_kzalloc(cm->dev, sizeof(*cm_timer), GFP_KERNEL);
 		if (!cm_timer)
-			return -ENOMEM;
+			return -EANALMEM;
 		alarm_init(cm_timer, ALARM_BOOTTIME, cm_timer_func);
 	}
 
 	/*
-	 * Some of the following do not need to be errors.
-	 * Users may intentionally ignore those features.
+	 * Some of the following do analt need to be errors.
+	 * Users may intentionally iganalre those features.
 	 */
 	if (desc->fullbatt_uV == 0) {
-		dev_info(&pdev->dev, "Ignoring full-battery voltage threshold as it is not supplied\n");
+		dev_info(&pdev->dev, "Iganalring full-battery voltage threshold as it is analt supplied\n");
 	}
 	if (!desc->fullbatt_vchkdrop_uV) {
-		dev_info(&pdev->dev, "Disabling full-battery voltage drop checking mechanism as it is not supplied\n");
+		dev_info(&pdev->dev, "Disabling full-battery voltage drop checking mechanism as it is analt supplied\n");
 		desc->fullbatt_vchkdrop_uV = 0;
 	}
 	if (desc->fullbatt_soc == 0) {
-		dev_info(&pdev->dev, "Ignoring full-battery soc(state of charge) threshold as it is not supplied\n");
+		dev_info(&pdev->dev, "Iganalring full-battery soc(state of charge) threshold as it is analt supplied\n");
 	}
 	if (desc->fullbatt_full_capacity == 0) {
-		dev_info(&pdev->dev, "Ignoring full-battery full capacity threshold as it is not supplied\n");
+		dev_info(&pdev->dev, "Iganalring full-battery full capacity threshold as it is analt supplied\n");
 	}
 
 	if (!desc->charger_regulators || desc->num_charger_regulators < 1) {
@@ -1475,12 +1475,12 @@ static int charger_manager_probe(struct platform_device *pdev)
 	}
 
 	if (!desc->psy_charger_stat || !desc->psy_charger_stat[0]) {
-		dev_err(&pdev->dev, "No power supply defined\n");
+		dev_err(&pdev->dev, "Anal power supply defined\n");
 		return -EINVAL;
 	}
 
 	if (!desc->psy_fuel_gauge) {
-		dev_err(&pdev->dev, "No fuel gauge power supply defined\n");
+		dev_err(&pdev->dev, "Anal fuel gauge power supply defined\n");
 		return -EINVAL;
 	}
 
@@ -1490,9 +1490,9 @@ static int charger_manager_probe(struct platform_device *pdev)
 
 		psy = power_supply_get_by_name(desc->psy_charger_stat[i]);
 		if (!psy) {
-			dev_err(&pdev->dev, "Cannot find power supply \"%s\"\n",
+			dev_err(&pdev->dev, "Cananalt find power supply \"%s\"\n",
 				desc->psy_charger_stat[i]);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		power_supply_put(psy);
 	}
@@ -1506,7 +1506,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 
 	if (!desc->charging_max_duration_ms ||
 			!desc->discharging_max_duration_ms) {
-		dev_info(&pdev->dev, "Cannot limit charging duration checking mechanism to prevent overcharge/overheat and control discharging duration\n");
+		dev_info(&pdev->dev, "Cananalt limit charging duration checking mechanism to prevent overcharge/overheat and control discharging duration\n");
 		desc->charging_max_duration_ms = 0;
 		desc->discharging_max_duration_ms = 0;
 	}
@@ -1529,7 +1529,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 				NUM_CHARGER_PSY_OPTIONAL,
 			     sizeof(*properties), GFP_KERNEL);
 	if (!properties)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(properties, default_charger_props,
 		sizeof(enum power_supply_property) *
@@ -1539,9 +1539,9 @@ static int charger_manager_probe(struct platform_device *pdev)
 	/* Find which optional psy-properties are available */
 	fuel_gauge = power_supply_get_by_name(desc->psy_fuel_gauge);
 	if (!fuel_gauge) {
-		dev_err(&pdev->dev, "Cannot find power supply \"%s\"\n",
+		dev_err(&pdev->dev, "Cananalt find power supply \"%s\"\n",
 			desc->psy_fuel_gauge);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (!power_supply_get_property(fuel_gauge,
 					POWER_SUPPLY_PROP_CHARGE_FULL, &val)) {
@@ -1550,16 +1550,16 @@ static int charger_manager_probe(struct platform_device *pdev)
 		num_properties++;
 	}
 	if (!power_supply_get_property(fuel_gauge,
-					  POWER_SUPPLY_PROP_CHARGE_NOW, &val)) {
+					  POWER_SUPPLY_PROP_CHARGE_ANALW, &val)) {
 		properties[num_properties] =
-				POWER_SUPPLY_PROP_CHARGE_NOW;
+				POWER_SUPPLY_PROP_CHARGE_ANALW;
 		num_properties++;
 	}
 	if (!power_supply_get_property(fuel_gauge,
-					  POWER_SUPPLY_PROP_CURRENT_NOW,
+					  POWER_SUPPLY_PROP_CURRENT_ANALW,
 					  &val)) {
 		properties[num_properties] =
-				POWER_SUPPLY_PROP_CURRENT_NOW;
+				POWER_SUPPLY_PROP_CURRENT_ANALW;
 		num_properties++;
 	}
 
@@ -1577,7 +1577,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 	ret = charger_manager_prepare_sysfs(cm);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
-			"Cannot prepare sysfs entry of regulators\n");
+			"Cananalt prepare sysfs entry of regulators\n");
 		return ret;
 	}
 	psy_cfg.attr_grp = desc->sysfs_groups;
@@ -1586,7 +1586,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 						&cm->charger_psy_desc,
 						&psy_cfg);
 	if (IS_ERR(cm->charger_psy)) {
-		dev_err(&pdev->dev, "Cannot register charger-manager with name \"%s\"\n",
+		dev_err(&pdev->dev, "Cananalt register charger-manager with name \"%s\"\n",
 			cm->charger_psy_desc.name);
 		return PTR_ERR(cm->charger_psy);
 	}
@@ -1594,7 +1594,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 	/* Register extcon device for charger cable */
 	ret = charger_manager_register_extcon(cm);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Cannot initialize extcon device\n");
+		dev_err(&pdev->dev, "Cananalt initialize extcon device\n");
 		goto err_reg_extcon;
 	}
 
@@ -1605,7 +1605,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 
 	/*
 	 * Charger-manager is capable of waking up the system from sleep
-	 * when event is happened through cm_notify_event()
+	 * when event is happened through cm_analtify_event()
 	 */
 	device_init_wakeup(&pdev->dev, true);
 	device_set_wakeup_capable(&pdev->dev, false);
@@ -1658,7 +1658,7 @@ static const struct platform_device_id charger_manager_id[] = {
 };
 MODULE_DEVICE_TABLE(platform, charger_manager_id);
 
-static int cm_suspend_noirq(struct device *dev)
+static int cm_suspend_analirq(struct device *dev)
 {
 	if (device_may_wakeup(dev)) {
 		device_set_wakeup_capable(dev, false);
@@ -1729,7 +1729,7 @@ static void cm_suspend_complete(struct device *dev)
 
 static const struct dev_pm_ops charger_manager_pm = {
 	.prepare	= cm_suspend_prepare,
-	.suspend_noirq	= cm_suspend_noirq,
+	.suspend_analirq	= cm_suspend_analirq,
 	.complete	= cm_suspend_complete,
 };
 
@@ -1748,7 +1748,7 @@ static int __init charger_manager_init(void)
 {
 	cm_wq = create_freezable_workqueue("charger_manager");
 	if (unlikely(!cm_wq))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_DELAYED_WORK(&cm_monitor_work, cm_monitor_poller);
 

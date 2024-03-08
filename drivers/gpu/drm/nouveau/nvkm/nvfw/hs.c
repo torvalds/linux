@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -63,10 +63,10 @@ nvfw_hs_load_header(struct nvkm_subdev *subdev, const void *data)
 	int i;
 
 	nvkm_debug(subdev, "hsLoadHeader:\n");
-	nvkm_debug(subdev, "\tnonSecCodeOff    : 0x%x\n",
-			   hdr->non_sec_code_off);
-	nvkm_debug(subdev, "\tnonSecCodeSize   : 0x%x\n",
-			   hdr->non_sec_code_size);
+	nvkm_debug(subdev, "\tanalnSecCodeOff    : 0x%x\n",
+			   hdr->analn_sec_code_off);
+	nvkm_debug(subdev, "\tanalnSecCodeSize   : 0x%x\n",
+			   hdr->analn_sec_code_size);
 	nvkm_debug(subdev, "\tdataDmaBase      : 0x%x\n", hdr->data_dma_base);
 	nvkm_debug(subdev, "\tdataSize         : 0x%x\n", hdr->data_size);
 	nvkm_debug(subdev, "\tnumApps          : 0x%x\n", hdr->num_apps);

@@ -21,8 +21,8 @@
 /*
  * The "en_reg" and "pcw_chg_reg" fields are standard offset register compared
  * with "reg" field, so set zero to imply it.
- * No tuner control in apu pll, so set "tuner_XXX" as zero to imply it.
- * No rst or post divider enable in apu pll, so set "rst_bar_mask" and "en_mask"
+ * Anal tuner control in apu pll, so set "tuner_XXX" as zero to imply it.
+ * Anal rst or post divider enable in apu pll, so set "rst_bar_mask" and "en_mask"
  * as zero to imply it.
  */
 #define PLL(_id, _name, _reg, _pwr_reg, _pd_reg, _pcw_reg) {		\
@@ -59,18 +59,18 @@ static const struct mtk_pll_data apusys_plls[] = {
 static int clk_mt8195_apusys_pll_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	int r;
 
 	clk_data = mtk_alloc_clk_data(CLK_APUSYS_PLL_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	r = mtk_clk_register_plls(node, apusys_plls, ARRAY_SIZE(apusys_plls), clk_data);
+	r = mtk_clk_register_plls(analde, apusys_plls, ARRAY_SIZE(apusys_plls), clk_data);
 	if (r)
 		goto free_apusys_pll_data;
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (r)
 		goto unregister_plls;
 
@@ -88,9 +88,9 @@ free_apusys_pll_data:
 static void clk_mt8195_apusys_pll_remove(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 
-	of_clk_del_provider(node);
+	of_clk_del_provider(analde);
 	mtk_clk_unregister_plls(apusys_plls, ARRAY_SIZE(apusys_plls), clk_data);
 	mtk_free_clk_data(clk_data);
 }

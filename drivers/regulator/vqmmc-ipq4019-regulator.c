@@ -51,7 +51,7 @@ static int ipq4019_regulator_probe(struct platform_device *pdev)
 	struct regmap *rmap;
 	void __iomem *base;
 
-	init_data = of_get_regulator_init_data(dev, dev->of_node,
+	init_data = of_get_regulator_init_data(dev, dev->of_analde,
 					       &vmmc_regulator);
 	if (!init_data)
 		return -EINVAL;
@@ -66,7 +66,7 @@ static int ipq4019_regulator_probe(struct platform_device *pdev)
 
 	cfg.dev = dev;
 	cfg.init_data = init_data;
-	cfg.of_node = dev->of_node;
+	cfg.of_analde = dev->of_analde;
 	cfg.regmap = rmap;
 
 	rdev = devm_regulator_register(dev, &vmmc_regulator, &cfg);
@@ -89,7 +89,7 @@ static struct platform_driver ipq4019_regulator_driver = {
 	.probe = ipq4019_regulator_probe,
 	.driver = {
 		.name = "vqmmc-ipq4019-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(regulator_ipq4019_of_match),
 	},
 };

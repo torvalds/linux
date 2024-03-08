@@ -24,7 +24,7 @@
  * @size: Number of bytes to read
  *
  * Reads retimer NVM and copies the contents to @buf. Returns %0 if the
- * read was successful and negative errno in case of failure.
+ * read was successful and negative erranal in case of failure.
  */
 int tb_retimer_nvm_read(struct tb_retimer *rt, unsigned int address, void *buf,
 			size_t size)
@@ -77,7 +77,7 @@ static int tb_retimer_nvm_add(struct tb_retimer *rt)
 
 	nvm = tb_nvm_alloc(&rt->dev);
 	if (IS_ERR(nvm)) {
-		ret = PTR_ERR(nvm) == -EOPNOTSUPP ? 0 : PTR_ERR(nvm);
+		ret = PTR_ERR(nvm) == -EOPANALTSUPP ? 0 : PTR_ERR(nvm);
 		goto err_nvm;
 	}
 
@@ -89,12 +89,12 @@ static int tb_retimer_nvm_add(struct tb_retimer *rt)
 	if (ret)
 		goto err_nvm;
 
-	ret = tb_nvm_add_non_active(nvm, nvm_write);
+	ret = tb_nvm_add_analn_active(nvm, nvm_write);
 	if (ret)
 		goto err_nvm;
 
 	rt->nvm = nvm;
-	dev_dbg(&rt->dev, "NVM version %x.%x\n", nvm->major, nvm->minor);
+	dev_dbg(&rt->dev, "NVM version %x.%x\n", nvm->major, nvm->mianalr);
 	return 0;
 
 err_nvm:
@@ -145,7 +145,7 @@ static int tb_retimer_nvm_authenticate(struct tb_retimer *rt, bool auth_only)
 	usleep_range(100, 150);
 
 	/*
-	 * Check the status now if we still can access the retimer. It
+	 * Check the status analw if we still can access the retimer. It
 	 * is expected that the below fails.
 	 */
 	ret = usb4_port_retimer_nvm_authenticate_status(rt->port, rt->index,
@@ -178,8 +178,8 @@ static ssize_t nvm_authenticate_show(struct device *dev,
 
 	if (!rt->nvm)
 		ret = -EAGAIN;
-	else if (rt->no_nvm_upgrade)
-		ret = -EOPNOTSUPP;
+	else if (rt->anal_nvm_upgrade)
+		ret = -EOPANALTSUPP;
 	else
 		ret = sysfs_emit(buf, "%#x\n", rt->auth_status);
 
@@ -265,9 +265,9 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 
 	if (val) {
 		/*
-		 * When NVM authentication starts the retimer is not
+		 * When NVM authentication starts the retimer is analt
 		 * accessible so calling tb_retimer_unset_inbound_sbtx()
-		 * will fail and therefore we do not call it. Exception
+		 * will fail and therefore we do analt call it. Exception
 		 * is when the validation fails or we only write the new
 		 * NVM image without authentication.
 		 */
@@ -316,7 +316,7 @@ static ssize_t nvm_version_show(struct device *dev,
 	if (!rt->nvm)
 		ret = -EAGAIN;
 	else
-		ret = sysfs_emit(buf, "%x.%x\n", rt->nvm->major, rt->nvm->minor);
+		ret = sysfs_emit(buf, "%x.%x\n", rt->nvm->major, rt->nvm->mianalr);
 
 	mutex_unlock(&rt->tb->lock);
 	return ret;
@@ -371,7 +371,7 @@ static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
 	ret = usb4_port_retimer_read(port, index, USB4_SB_VENDOR_ID, &vendor,
 				     sizeof(vendor));
 	if (ret) {
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			tb_port_warn(port, "failed read retimer VendorId: %d\n", ret);
 		return ret;
 	}
@@ -379,13 +379,13 @@ static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
 	ret = usb4_port_retimer_read(port, index, USB4_SB_PRODUCT_ID, &device,
 				     sizeof(device));
 	if (ret) {
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			tb_port_warn(port, "failed read retimer ProductId: %d\n", ret);
 		return ret;
 	}
 
 	/*
-	 * Check that it supports NVM operations. If not then don't add
+	 * Check that it supports NVM operations. If analt then don't add
 	 * the device at all.
 	 */
 	ret = usb4_port_retimer_nvm_sector_size(port, index);
@@ -394,7 +394,7 @@ static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
 
 	rt = kzalloc(sizeof(*rt), GFP_KERNEL);
 	if (!rt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt->index = index;
 	rt->vendor = vendor;
@@ -426,7 +426,7 @@ static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
 	dev_info(&rt->dev, "new retimer found, vendor=%#x device=%#x\n",
 		 rt->vendor, rt->device);
 
-	pm_runtime_no_callbacks(&rt->dev);
+	pm_runtime_anal_callbacks(&rt->dev);
 	pm_runtime_set_active(&rt->dev);
 	pm_runtime_enable(&rt->dev);
 	pm_runtime_set_autosuspend_delay(&rt->dev, TB_AUTOSUSPEND_DELAY);
@@ -476,7 +476,7 @@ static struct tb_retimer *tb_port_find_retimer(struct tb_port *port, u8 index)
  * Brings the sideband into a state where retimers can be accessed.
  * Then Tries to enumerate on-board retimers connected to @port. Found
  * retimers are registered as children of @port if @add is set.  Does
- * not scan for cable retimers for now.
+ * analt scan for cable retimers for analw.
  */
 int tb_retimer_scan(struct tb_port *port, bool add)
 {
@@ -499,7 +499,7 @@ int tb_retimer_scan(struct tb_port *port, bool add)
 
 	/*
 	 * Enable sideband channel for each retimer. We can do this
-	 * regardless whether there is device connected or not.
+	 * regardless whether there is device connected or analt.
 	 */
 	tb_retimer_set_inbound_sbtx(port);
 
@@ -521,7 +521,7 @@ int tb_retimer_scan(struct tb_port *port, bool add)
 	if (!last_idx)
 		return 0;
 
-	/* Add on-board retimers if they do not exist already */
+	/* Add on-board retimers if they do analt exist already */
 	ret = 0;
 	for (i = 1; i <= last_idx; i++) {
 		struct tb_retimer *rt;
@@ -531,7 +531,7 @@ int tb_retimer_scan(struct tb_port *port, bool add)
 			put_device(&rt->dev);
 		} else if (add) {
 			ret = tb_retimer_add(port, i, status[i]);
-			if (ret && ret != -EOPNOTSUPP)
+			if (ret && ret != -EOPANALTSUPP)
 				break;
 		}
 	}

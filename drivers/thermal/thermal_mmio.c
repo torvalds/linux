@@ -48,7 +48,7 @@ static int thermal_mmio_probe(struct platform_device *pdev)
 
 	sensor = devm_kzalloc(&pdev->dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensor->mmio_base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(sensor->mmio_base))

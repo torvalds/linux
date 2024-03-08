@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor file mediation function definitions.
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
 #ifndef __AA_FILE_H
@@ -54,7 +54,7 @@ struct aa_file_ctx {
 #define AA_X_INDEX_MASK		AA_INDEX_MASK
 
 #define AA_X_TYPE_MASK		0x0c000000
-#define AA_X_NONE		AA_INDEX_NONE
+#define AA_X_ANALNE		AA_INDEX_ANALNE
 #define AA_X_NAME		0x04000000 /* use executable name px */
 #define AA_X_TABLE		0x08000000 /* use a specified name ->n# */
 

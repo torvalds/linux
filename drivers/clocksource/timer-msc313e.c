@@ -166,14 +166,14 @@ static struct clock_event_device msc313e_clkevt = {
 	.set_next_event = msc313e_timer_clkevt_next_event,
 };
 
-static int __init msc313e_clkevt_init(struct device_node *np)
+static int __init msc313e_clkevt_init(struct device_analde *np)
 {
 	int ret;
 	struct timer_of *to;
 
 	to = kzalloc(sizeof(*to), GFP_KERNEL);
 	if (!to)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	to->flags = TIMER_OF_IRQ | TIMER_OF_CLOCK | TIMER_OF_BASE;
 	to->of_irq.handler = msc313e_timer_clkevt_irq;
@@ -196,7 +196,7 @@ static int __init msc313e_clkevt_init(struct device_node *np)
 	return 0;
 }
 
-static int __init msc313e_clksrc_init(struct device_node *np)
+static int __init msc313e_clksrc_init(struct device_analde *np)
 {
 	struct timer_of to = { 0 };
 	int ret;
@@ -225,7 +225,7 @@ static int __init msc313e_clksrc_init(struct device_node *np)
 				     msc313e_timer_clksrc_read);
 }
 
-static int __init msc313e_timer_init(struct device_node *np)
+static int __init msc313e_timer_init(struct device_analde *np)
 {
 	int ret = 0;
 	static int num_called;

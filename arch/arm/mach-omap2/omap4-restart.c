@@ -14,7 +14,7 @@
  * @cmd: passed from the userspace program rebooting the system (if provided)
  *
  * Resets the SoC.  For @cmd, see the 'reboot' syscall in
- * kernel/sys.c.  No return value.
+ * kernel/sys.c.  Anal return value.
  */
 void omap44xx_restart(enum reboot_mode mode, const char *cmd)
 {

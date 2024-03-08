@@ -29,7 +29,7 @@
 #include <linux/fs_parser.h>
 #include <linux/mman.h>
 #include <linux/slab.h>
-#include <linux/dnotify.h>
+#include <linux/danaltify.h>
 #include <linux/statfs.h>
 #include <linux/security.h>
 #include <linux/magic.h>
@@ -41,17 +41,17 @@
 
 static const struct address_space_operations hugetlbfs_aops;
 const struct file_operations hugetlbfs_file_operations;
-static const struct inode_operations hugetlbfs_dir_inode_operations;
-static const struct inode_operations hugetlbfs_inode_operations;
+static const struct ianalde_operations hugetlbfs_dir_ianalde_operations;
+static const struct ianalde_operations hugetlbfs_ianalde_operations;
 
-enum hugetlbfs_size_type { NO_SIZE, SIZE_STD, SIZE_PERCENT };
+enum hugetlbfs_size_type { ANAL_SIZE, SIZE_STD, SIZE_PERCENT };
 
 struct hugetlbfs_fs_context {
 	struct hstate		*hstate;
 	unsigned long long	max_size_opt;
 	unsigned long long	min_size_opt;
 	long			max_hpages;
-	long			nr_inodes;
+	long			nr_ianaldes;
 	long			min_hpages;
 	enum hugetlbfs_size_type max_val_type;
 	enum hugetlbfs_size_type min_val_type;
@@ -66,7 +66,7 @@ enum hugetlb_param {
 	Opt_gid,
 	Opt_min_size,
 	Opt_mode,
-	Opt_nr_inodes,
+	Opt_nr_ianaldes,
 	Opt_pagesize,
 	Opt_size,
 	Opt_uid,
@@ -76,7 +76,7 @@ static const struct fs_parameter_spec hugetlb_fs_parameters[] = {
 	fsparam_u32   ("gid",		Opt_gid),
 	fsparam_string("min_size",	Opt_min_size),
 	fsparam_u32oct("mode",		Opt_mode),
-	fsparam_string("nr_inodes",	Opt_nr_inodes),
+	fsparam_string("nr_ianaldes",	Opt_nr_ianaldes),
 	fsparam_string("pagesize",	Opt_pagesize),
 	fsparam_string("size",		Opt_size),
 	fsparam_u32   ("uid",		Opt_uid),
@@ -95,15 +95,15 @@ static const struct fs_parameter_spec hugetlb_fs_parameters[] = {
 
 static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode *inode = file_inode(file);
-	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct hugetlbfs_ianalde_info *info = HUGETLBFS_I(ianalde);
 	loff_t len, vma_len;
 	int ret;
 	struct hstate *h = hstate_file(file);
 	vm_flags_t vm_flags;
 
 	/*
-	 * vma address alignment (but not the pgoff alignment) has
+	 * vma address alignment (but analt the pgoff alignment) has
 	 * already been checked by prepare_hugepage_range.  If you add
 	 * any error returns here, do so after setting VM_HUGETLB, so
 	 * is_vm_hugetlb_page tests below unmap_region go the right
@@ -138,31 +138,31 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	if (len < vma_len)
 		return -EINVAL;
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	file_accessed(file);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	vm_flags = vma->vm_flags;
 	/*
 	 * for SHM_HUGETLB, the pages are reserved in the shmget() call so skip
-	 * reserving here. Note: only for SHM hugetlbfs file, the inode
+	 * reserving here. Analte: only for SHM hugetlbfs file, the ianalde
 	 * flag S_PRIVATE is set.
 	 */
-	if (inode->i_flags & S_PRIVATE)
-		vm_flags |= VM_NORESERVE;
+	if (ianalde->i_flags & S_PRIVATE)
+		vm_flags |= VM_ANALRESERVE;
 
-	if (!hugetlb_reserve_pages(inode,
+	if (!hugetlb_reserve_pages(ianalde,
 				vma->vm_pgoff >> huge_page_order(h),
 				len >> huge_page_shift(h), vma,
 				vm_flags))
 		goto out;
 
 	ret = 0;
-	if (vma->vm_flags & VM_WRITE && inode->i_size < len)
-		i_size_write(inode, len);
+	if (vma->vm_flags & VM_WRITE && ianalde->i_size < len)
+		i_size_write(ianalde, len);
 out:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 
 	return ret;
 }
@@ -209,7 +209,7 @@ hugetlb_get_unmapped_area_topdown(struct file *file, unsigned long addr,
 	 * allocations.
 	 */
 	if (unlikely(offset_in_page(addr))) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM_BUG_ON(addr != -EANALMEM);
 		info.flags = 0;
 		info.low_limit = current->mm->mmap_base;
 		info.high_limit = arch_get_mmap_end(addr, len, flags);
@@ -232,7 +232,7 @@ generic_hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	if (len & ~huge_page_mask(h))
 		return -EINVAL;
 	if (len > TASK_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (flags & MAP_FIXED) {
 		if (prepare_hugepage_range(file, addr, len))
@@ -314,7 +314,7 @@ static ssize_t hugetlbfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	struct file *file = iocb->ki_filp;
 	struct hstate *h = hstate_file(file);
 	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
+	struct ianalde *ianalde = mapping->host;
 	unsigned long index = iocb->ki_pos >> huge_page_shift(h);
 	unsigned long offset = iocb->ki_pos & ~huge_page_mask(h);
 	unsigned long end_index;
@@ -327,7 +327,7 @@ static ssize_t hugetlbfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 		/* nr is the maximum number of bytes to copy from this page */
 		nr = huge_page_size(h);
-		isize = i_size_read(inode);
+		isize = i_size_read(ianalde);
 		if (!isize)
 			break;
 		end_index = (isize - 1) >> huge_page_shift(h);
@@ -411,9 +411,9 @@ static void hugetlb_delete_from_page_cache(struct folio *folio)
 }
 
 /*
- * Called with i_mmap_rwsem held for inode based vma maps.  This makes
- * sure vma (and vm_mm) will not go away.  We also hold the hugetlb fault
- * mutex for the page in the mapping.  So, we can not race with page being
+ * Called with i_mmap_rwsem held for ianalde based vma maps.  This makes
+ * sure vma (and vm_mm) will analt go away.  We also hold the hugetlb fault
+ * mutex for the page in the mapping.  So, we can analt race with page being
  * faulted into the vma.
  */
 static bool hugetlb_vma_maps_page(struct vm_area_struct *vma,
@@ -426,7 +426,7 @@ static bool hugetlb_vma_maps_page(struct vm_area_struct *vma,
 		return false;
 
 	pte = huge_ptep_get(ptep);
-	if (huge_pte_none(pte) || !pte_present(pte))
+	if (huge_pte_analne(pte) || !pte_present(pte))
 		return false;
 
 	if (pte_page(pte) == page)
@@ -437,9 +437,9 @@ static bool hugetlb_vma_maps_page(struct vm_area_struct *vma,
 
 /*
  * Can vma_offset_start/vma_offset_end overflow on 32-bit arches?
- * No, because the interval tree returns us only those vmas
+ * Anal, because the interval tree returns us only those vmas
  * which overlap the truncated area starting at pgoff,
- * and no vma on a 32-bit arch can span beyond the 4GB.
+ * and anal vma on a 32-bit arch can span beyond the 4GB.
  */
 static unsigned long vma_offset_start(struct vm_area_struct *vma, pgoff_t start)
 {
@@ -465,7 +465,7 @@ static unsigned long vma_offset_end(struct vm_area_struct *vma, pgoff_t end)
 }
 
 /*
- * Called with hugetlb fault mutex held.  Therefore, no more mappings to
+ * Called with hugetlb fault mutex held.  Therefore, anal more mappings to
  * this folio can be created while executing the routine.
  */
 static void hugetlb_unmap_file_folio(struct hstate *h,
@@ -496,10 +496,10 @@ retry:
 		if (!hugetlb_vma_trylock_write(vma)) {
 			vma_lock = vma->vm_private_data;
 			/*
-			 * If we can not get vma lock, we need to drop
+			 * If we can analt get vma lock, we need to drop
 			 * immap_sema and take locks in order.  First,
 			 * take a ref on the vma_lock structure so that
-			 * we can be guaranteed it will not go away when
+			 * we can be guaranteed it will analt go away when
 			 * dropping immap_sema.
 			 */
 			kref_get(&vma_lock->refs);
@@ -515,9 +515,9 @@ retry:
 
 	if (vma_lock) {
 		/*
-		 * Wait on vma_lock.  We know it is still valid as we have
+		 * Wait on vma_lock.  We kanalw it is still valid as we have
 		 * a reference.  We must 'open code' vma locking as we do
-		 * not know if vma_lock is still attached to vma.
+		 * analt kanalw if vma_lock is still attached to vma.
 		 */
 		down_write(&vma_lock->rw_sema);
 		i_mmap_lock_write(mapping);
@@ -525,7 +525,7 @@ retry:
 		vma = vma_lock->vma;
 		if (!vma) {
 			/*
-			 * If lock is no longer attached to vma, then just
+			 * If lock is anal longer attached to vma, then just
 			 * unlock, drop our reference and retry looking for
 			 * other vmas.
 			 */
@@ -559,7 +559,7 @@ hugetlb_vmdelete_list(struct rb_root_cached *root, pgoff_t start, pgoff_t end,
 
 	/*
 	 * end == 0 indicates that the entire range after start should be
-	 * unmapped.  Note, end is exclusive, whereas the interval tree takes
+	 * unmapped.  Analte, end is exclusive, whereas the interval tree takes
 	 * an inclusive "last".
 	 */
 	vma_interval_tree_foreach(vma, root, start, end ? end - 1 : ULONG_MAX) {
@@ -575,8 +575,8 @@ hugetlb_vmdelete_list(struct rb_root_cached *root, pgoff_t start, pgoff_t end,
 		unmap_hugepage_range(vma, v_start, v_end, NULL, zap_flags);
 
 		/*
-		 * Note that vma lock only exists for shared/non-private
-		 * vmas.  Therefore, lock is not held when calling
+		 * Analte that vma lock only exists for shared/analn-private
+		 * vmas.  Therefore, lock is analt held when calling
 		 * unmap_hugepage_range for private vmas.
 		 */
 		hugetlb_vma_unlock_write(vma);
@@ -587,7 +587,7 @@ hugetlb_vmdelete_list(struct rb_root_cached *root, pgoff_t start, pgoff_t end,
  * Called with hugetlb fault mutex held.
  * Returns true if page was actually removed, false otherwise.
  */
-static bool remove_inode_single_folio(struct hstate *h, struct inode *inode,
+static bool remove_ianalde_single_folio(struct hstate *h, struct ianalde *ianalde,
 					struct address_space *mapping,
 					struct folio *folio, pgoff_t index,
 					bool truncate_op)
@@ -615,9 +615,9 @@ static bool remove_inode_single_folio(struct hstate *h, struct inode *inode,
 	hugetlb_delete_from_page_cache(folio);
 	ret = true;
 	if (!truncate_op) {
-		if (unlikely(hugetlb_unreserve_pages(inode, index,
+		if (unlikely(hugetlb_unreserve_pages(ianalde, index,
 							index + 1, 1)))
-			hugetlb_fix_reserve_counts(inode);
+			hugetlb_fix_reserve_counts(ianalde);
 	}
 
 	folio_unlock(folio);
@@ -625,30 +625,30 @@ static bool remove_inode_single_folio(struct hstate *h, struct inode *inode,
 }
 
 /*
- * remove_inode_hugepages handles two distinct cases: truncation and hole
+ * remove_ianalde_hugepages handles two distinct cases: truncation and hole
  * punch.  There are subtle differences in operation for each case.
  *
  * truncation is indicated by end of range being LLONG_MAX
  *	In this case, we first scan the range and release found pages.
  *	After releasing pages, hugetlb_unreserve_pages cleans up region/reserve
  *	maps and global counts.  Page faults can race with truncation.
- *	During faults, hugetlb_no_page() checks i_size before page allocation,
+ *	During faults, hugetlb_anal_page() checks i_size before page allocation,
  *	and again after obtaining page table lock.  It will 'back out'
  *	allocations in the truncated range.
- * hole punch is indicated if end is not LLONG_MAX
+ * hole punch is indicated if end is analt LLONG_MAX
  *	In the hole punch case we scan the range and release found pages.
  *	Only when releasing a page is the associated region/reserve map
  *	deleted.  The region/reserve map for ranges without associated
- *	pages are not modified.  Page faults can race with hole punch.
+ *	pages are analt modified.  Page faults can race with hole punch.
  *	This is indicated if we find a mapped page.
- * Note: If the passed end of range value is beyond the end of file, but
- * not LLONG_MAX this routine still performs a hole punch operation.
+ * Analte: If the passed end of range value is beyond the end of file, but
+ * analt LLONG_MAX this routine still performs a hole punch operation.
  */
-static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+static void remove_ianalde_hugepages(struct ianalde *ianalde, loff_t lstart,
 				   loff_t lend)
 {
-	struct hstate *h = hstate_inode(inode);
-	struct address_space *mapping = &inode->i_data;
+	struct hstate *h = hstate_ianalde(ianalde);
+	struct address_space *mapping = &ianalde->i_data;
 	const pgoff_t end = lend >> PAGE_SHIFT;
 	struct folio_batch fbatch;
 	pgoff_t next, index;
@@ -669,7 +669,7 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 			/*
 			 * Remove folio that was part of folio_batch.
 			 */
-			if (remove_inode_single_folio(h, inode, mapping, folio,
+			if (remove_ianalde_single_folio(h, ianalde, mapping, folio,
 							index, truncate_op))
 				freed++;
 
@@ -680,46 +680,46 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 	}
 
 	if (truncate_op)
-		(void)hugetlb_unreserve_pages(inode,
+		(void)hugetlb_unreserve_pages(ianalde,
 				lstart >> huge_page_shift(h),
 				LONG_MAX, freed);
 }
 
-static void hugetlbfs_evict_inode(struct inode *inode)
+static void hugetlbfs_evict_ianalde(struct ianalde *ianalde)
 {
 	struct resv_map *resv_map;
 
-	remove_inode_hugepages(inode, 0, LLONG_MAX);
+	remove_ianalde_hugepages(ianalde, 0, LLONG_MAX);
 
 	/*
-	 * Get the resv_map from the address space embedded in the inode.
+	 * Get the resv_map from the address space embedded in the ianalde.
 	 * This is the address space which points to any resv_map allocated
-	 * at inode creation time.  If this is a device special inode,
-	 * i_mapping may not point to the original address space.
+	 * at ianalde creation time.  If this is a device special ianalde,
+	 * i_mapping may analt point to the original address space.
 	 */
-	resv_map = (struct resv_map *)(&inode->i_data)->i_private_data;
-	/* Only regular and link inodes have associated reserve maps */
+	resv_map = (struct resv_map *)(&ianalde->i_data)->i_private_data;
+	/* Only regular and link ianaldes have associated reserve maps */
 	if (resv_map)
 		resv_map_release(&resv_map->refs);
-	clear_inode(inode);
+	clear_ianalde(ianalde);
 }
 
-static void hugetlb_vmtruncate(struct inode *inode, loff_t offset)
+static void hugetlb_vmtruncate(struct ianalde *ianalde, loff_t offset)
 {
 	pgoff_t pgoff;
-	struct address_space *mapping = inode->i_mapping;
-	struct hstate *h = hstate_inode(inode);
+	struct address_space *mapping = ianalde->i_mapping;
+	struct hstate *h = hstate_ianalde(ianalde);
 
 	BUG_ON(offset & ~huge_page_mask(h));
 	pgoff = offset >> PAGE_SHIFT;
 
-	i_size_write(inode, offset);
+	i_size_write(ianalde, offset);
 	i_mmap_lock_write(mapping);
 	if (!RB_EMPTY_ROOT(&mapping->i_mmap.rb_root))
 		hugetlb_vmdelete_list(&mapping->i_mmap, pgoff, 0,
 				      ZAP_FLAG_DROP_MARKER);
 	i_mmap_unlock_write(mapping);
-	remove_inode_hugepages(inode, offset, LLONG_MAX);
+	remove_ianalde_hugepages(ianalde, offset, LLONG_MAX);
 }
 
 static void hugetlbfs_zero_partial_page(struct hstate *h,
@@ -745,11 +745,11 @@ static void hugetlbfs_zero_partial_page(struct hstate *h,
 	folio_put(folio);
 }
 
-static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
+static long hugetlbfs_punch_hole(struct ianalde *ianalde, loff_t offset, loff_t len)
 {
-	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
-	struct address_space *mapping = inode->i_mapping;
-	struct hstate *h = hstate_inode(inode);
+	struct hugetlbfs_ianalde_info *info = HUGETLBFS_I(ianalde);
+	struct address_space *mapping = ianalde->i_mapping;
+	struct hstate *h = hstate_ianalde(ianalde);
 	loff_t hpage_size = huge_page_size(h);
 	loff_t hole_start, hole_end;
 
@@ -759,11 +759,11 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	hole_start = round_up(offset, hpage_size);
 	hole_end = round_down(offset + len, hpage_size);
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 
 	/* protected by i_rwsem */
 	if (info->seals & (F_SEAL_WRITE | F_SEAL_FUTURE_WRITE)) {
-		inode_unlock(inode);
+		ianalde_unlock(ianalde);
 		return -EPERM;
 	}
 
@@ -791,9 +791,9 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 
 	/* Remove full pages from the file. */
 	if (hole_end > hole_start)
-		remove_inode_hugepages(inode, hole_start, hole_end);
+		remove_ianalde_hugepages(ianalde, hole_start, hole_end);
 
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 
 	return 0;
 }
@@ -801,10 +801,10 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 				loff_t len)
 {
-	struct inode *inode = file_inode(file);
-	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
-	struct address_space *mapping = inode->i_mapping;
-	struct hstate *h = hstate_inode(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct hugetlbfs_ianalde_info *info = HUGETLBFS_I(ianalde);
+	struct address_space *mapping = ianalde->i_mapping;
+	struct hstate *h = hstate_ianalde(ianalde);
 	struct vm_area_struct pseudo_vma;
 	struct mm_struct *mm = current->mm;
 	loff_t hpage_size = huge_page_size(h);
@@ -814,10 +814,10 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 	u32 hash;
 
 	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (mode & FALLOC_FL_PUNCH_HOLE)
-		return hugetlbfs_punch_hole(inode, offset, len);
+		return hugetlbfs_punch_hole(ianalde, offset, len);
 
 	/*
 	 * Default preallocate case.
@@ -827,14 +827,14 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 	start = offset >> hpage_shift;
 	end = (offset + len + hpage_size - 1) >> hpage_shift;
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 
 	/* We need to check rlimit even when FALLOC_FL_KEEP_SIZE */
-	error = inode_newsize_ok(inode, offset + len);
+	error = ianalde_newsize_ok(ianalde, offset + len);
 	if (error)
 		goto out;
 
-	if ((info->seals & F_SEAL_GROW) && offset + len > inode->i_size) {
+	if ((info->seals & F_SEAL_GROW) && offset + len > ianalde->i_size) {
 		error = -EPERM;
 		goto out;
 	}
@@ -850,7 +850,7 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 	for (index = start; index < end; index++) {
 		/*
 		 * This is supposed to be the vaddr where the page is being
-		 * faulted in, but we have no vaddr here.
+		 * faulted in, but we have anal vaddr here.
 		 */
 		struct folio *folio;
 		unsigned long addr;
@@ -883,9 +883,9 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 
 		/*
 		 * Allocate folio without setting the avoid_reserve argument.
-		 * There certainly are no reserves associated with the
+		 * There certainly are anal reserves associated with the
 		 * pseudo_vma.  However, there could be shared mappings with
-		 * reserves for the file at the inode level.  If we fallocate
+		 * reserves for the file at the ianalde level.  If we fallocate
 		 * folios in these areas, we need to consume the reserves
 		 * to keep reservation accounting consistent.
 		 */
@@ -916,29 +916,29 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 		folio_put(folio);
 	}
 
-	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
-		i_size_write(inode, offset + len);
-	inode_set_ctime_current(inode);
+	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > ianalde->i_size)
+		i_size_write(ianalde, offset + len);
+	ianalde_set_ctime_current(ianalde);
 out:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	return error;
 }
 
 static int hugetlbfs_setattr(struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = d_inode(dentry);
-	struct hstate *h = hstate_inode(inode);
+	struct ianalde *ianalde = d_ianalde(dentry);
+	struct hstate *h = hstate_ianalde(ianalde);
 	int error;
 	unsigned int ia_valid = attr->ia_valid;
-	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
+	struct hugetlbfs_ianalde_info *info = HUGETLBFS_I(ianalde);
 
-	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
+	error = setattr_prepare(&analp_mnt_idmap, dentry, attr);
 	if (error)
 		return error;
 
 	if (ia_valid & ATTR_SIZE) {
-		loff_t oldsize = inode->i_size;
+		loff_t oldsize = ianalde->i_size;
 		loff_t newsize = attr->ia_size;
 
 		if (newsize & ~huge_page_mask(h))
@@ -947,52 +947,52 @@ static int hugetlbfs_setattr(struct mnt_idmap *idmap,
 		if ((newsize < oldsize && (info->seals & F_SEAL_SHRINK)) ||
 		    (newsize > oldsize && (info->seals & F_SEAL_GROW)))
 			return -EPERM;
-		hugetlb_vmtruncate(inode, newsize);
+		hugetlb_vmtruncate(ianalde, newsize);
 	}
 
-	setattr_copy(&nop_mnt_idmap, inode, attr);
-	mark_inode_dirty(inode);
+	setattr_copy(&analp_mnt_idmap, ianalde, attr);
+	mark_ianalde_dirty(ianalde);
 	return 0;
 }
 
-static struct inode *hugetlbfs_get_root(struct super_block *sb,
+static struct ianalde *hugetlbfs_get_root(struct super_block *sb,
 					struct hugetlbfs_fs_context *ctx)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	inode = new_inode(sb);
-	if (inode) {
-		inode->i_ino = get_next_ino();
-		inode->i_mode = S_IFDIR | ctx->mode;
-		inode->i_uid = ctx->uid;
-		inode->i_gid = ctx->gid;
-		simple_inode_init_ts(inode);
-		inode->i_op = &hugetlbfs_dir_inode_operations;
-		inode->i_fop = &simple_dir_operations;
-		/* directory inodes start off with i_nlink == 2 (for "." entry) */
-		inc_nlink(inode);
-		lockdep_annotate_inode_mutex_key(inode);
+	ianalde = new_ianalde(sb);
+	if (ianalde) {
+		ianalde->i_ianal = get_next_ianal();
+		ianalde->i_mode = S_IFDIR | ctx->mode;
+		ianalde->i_uid = ctx->uid;
+		ianalde->i_gid = ctx->gid;
+		simple_ianalde_init_ts(ianalde);
+		ianalde->i_op = &hugetlbfs_dir_ianalde_operations;
+		ianalde->i_fop = &simple_dir_operations;
+		/* directory ianaldes start off with i_nlink == 2 (for "." entry) */
+		inc_nlink(ianalde);
+		lockdep_ananaltate_ianalde_mutex_key(ianalde);
 	}
-	return inode;
+	return ianalde;
 }
 
 /*
- * Hugetlbfs is not reclaimable; therefore its i_mmap_rwsem will never
+ * Hugetlbfs is analt reclaimable; therefore its i_mmap_rwsem will never
  * be taken from reclaim -- unlike regular filesystems. This needs an
- * annotation because huge_pmd_share() does an allocation under hugetlb's
+ * ananaltation because huge_pmd_share() does an allocation under hugetlb's
  * i_mmap_rwsem.
  */
 static struct lock_class_key hugetlbfs_i_mmap_rwsem_key;
 
-static struct inode *hugetlbfs_get_inode(struct super_block *sb,
-					struct inode *dir,
+static struct ianalde *hugetlbfs_get_ianalde(struct super_block *sb,
+					struct ianalde *dir,
 					umode_t mode, dev_t dev)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct resv_map *resv_map = NULL;
 
 	/*
-	 * Reserve maps are only needed for inodes that can have associated
+	 * Reserve maps are only needed for ianaldes that can have associated
 	 * page allocations.
 	 */
 	if (S_ISREG(mode) || S_ISLNK(mode)) {
@@ -1001,68 +1001,68 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
 			return NULL;
 	}
 
-	inode = new_inode(sb);
-	if (inode) {
-		struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
+	ianalde = new_ianalde(sb);
+	if (ianalde) {
+		struct hugetlbfs_ianalde_info *info = HUGETLBFS_I(ianalde);
 
-		inode->i_ino = get_next_ino();
-		inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
-		lockdep_set_class(&inode->i_mapping->i_mmap_rwsem,
+		ianalde->i_ianal = get_next_ianal();
+		ianalde_init_owner(&analp_mnt_idmap, ianalde, dir, mode);
+		lockdep_set_class(&ianalde->i_mapping->i_mmap_rwsem,
 				&hugetlbfs_i_mmap_rwsem_key);
-		inode->i_mapping->a_ops = &hugetlbfs_aops;
-		simple_inode_init_ts(inode);
-		inode->i_mapping->i_private_data = resv_map;
+		ianalde->i_mapping->a_ops = &hugetlbfs_aops;
+		simple_ianalde_init_ts(ianalde);
+		ianalde->i_mapping->i_private_data = resv_map;
 		info->seals = F_SEAL_SEAL;
 		switch (mode & S_IFMT) {
 		default:
-			init_special_inode(inode, mode, dev);
+			init_special_ianalde(ianalde, mode, dev);
 			break;
 		case S_IFREG:
-			inode->i_op = &hugetlbfs_inode_operations;
-			inode->i_fop = &hugetlbfs_file_operations;
+			ianalde->i_op = &hugetlbfs_ianalde_operations;
+			ianalde->i_fop = &hugetlbfs_file_operations;
 			break;
 		case S_IFDIR:
-			inode->i_op = &hugetlbfs_dir_inode_operations;
-			inode->i_fop = &simple_dir_operations;
+			ianalde->i_op = &hugetlbfs_dir_ianalde_operations;
+			ianalde->i_fop = &simple_dir_operations;
 
-			/* directory inodes start off with i_nlink == 2 (for "." entry) */
-			inc_nlink(inode);
+			/* directory ianaldes start off with i_nlink == 2 (for "." entry) */
+			inc_nlink(ianalde);
 			break;
 		case S_IFLNK:
-			inode->i_op = &page_symlink_inode_operations;
-			inode_nohighmem(inode);
+			ianalde->i_op = &page_symlink_ianalde_operations;
+			ianalde_analhighmem(ianalde);
 			break;
 		}
-		lockdep_annotate_inode_mutex_key(inode);
+		lockdep_ananaltate_ianalde_mutex_key(ianalde);
 	} else {
 		if (resv_map)
 			kref_put(&resv_map->refs, resv_map_release);
 	}
 
-	return inode;
+	return ianalde;
 }
 
 /*
- * File creation. Allocate an inode, and we're done..
+ * File creation. Allocate an ianalde, and we're done..
  */
-static int hugetlbfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+static int hugetlbfs_mkanald(struct mnt_idmap *idmap, struct ianalde *dir,
 			   struct dentry *dentry, umode_t mode, dev_t dev)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	inode = hugetlbfs_get_inode(dir->i_sb, dir, mode, dev);
-	if (!inode)
-		return -ENOSPC;
-	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
-	d_instantiate(dentry, inode);
+	ianalde = hugetlbfs_get_ianalde(dir->i_sb, dir, mode, dev);
+	if (!ianalde)
+		return -EANALSPC;
+	ianalde_set_mtime_to_ts(dir, ianalde_set_ctime_current(dir));
+	d_instantiate(dentry, ianalde);
 	dget(dentry);/* Extra count - pin the dentry in core */
 	return 0;
 }
 
-static int hugetlbfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static int hugetlbfs_mkdir(struct mnt_idmap *idmap, struct ianalde *dir,
 			   struct dentry *dentry, umode_t mode)
 {
-	int retval = hugetlbfs_mknod(&nop_mnt_idmap, dir, dentry,
+	int retval = hugetlbfs_mkanald(&analp_mnt_idmap, dir, dentry,
 				     mode | S_IFDIR, 0);
 	if (!retval)
 		inc_nlink(dir);
@@ -1070,44 +1070,44 @@ static int hugetlbfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 }
 
 static int hugetlbfs_create(struct mnt_idmap *idmap,
-			    struct inode *dir, struct dentry *dentry,
+			    struct ianalde *dir, struct dentry *dentry,
 			    umode_t mode, bool excl)
 {
-	return hugetlbfs_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFREG, 0);
+	return hugetlbfs_mkanald(&analp_mnt_idmap, dir, dentry, mode | S_IFREG, 0);
 }
 
 static int hugetlbfs_tmpfile(struct mnt_idmap *idmap,
-			     struct inode *dir, struct file *file,
+			     struct ianalde *dir, struct file *file,
 			     umode_t mode)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	inode = hugetlbfs_get_inode(dir->i_sb, dir, mode | S_IFREG, 0);
-	if (!inode)
-		return -ENOSPC;
-	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
-	d_tmpfile(file, inode);
+	ianalde = hugetlbfs_get_ianalde(dir->i_sb, dir, mode | S_IFREG, 0);
+	if (!ianalde)
+		return -EANALSPC;
+	ianalde_set_mtime_to_ts(dir, ianalde_set_ctime_current(dir));
+	d_tmpfile(file, ianalde);
 	return finish_open_simple(file, 0);
 }
 
 static int hugetlbfs_symlink(struct mnt_idmap *idmap,
-			     struct inode *dir, struct dentry *dentry,
+			     struct ianalde *dir, struct dentry *dentry,
 			     const char *symname)
 {
-	struct inode *inode;
-	int error = -ENOSPC;
+	struct ianalde *ianalde;
+	int error = -EANALSPC;
 
-	inode = hugetlbfs_get_inode(dir->i_sb, dir, S_IFLNK|S_IRWXUGO, 0);
-	if (inode) {
+	ianalde = hugetlbfs_get_ianalde(dir->i_sb, dir, S_IFLNK|S_IRWXUGO, 0);
+	if (ianalde) {
 		int l = strlen(symname)+1;
-		error = page_symlink(inode, symname, l);
+		error = page_symlink(ianalde, symname, l);
 		if (!error) {
-			d_instantiate(dentry, inode);
+			d_instantiate(dentry, ianalde);
 			dget(dentry);
 		} else
-			iput(inode);
+			iput(ianalde);
 	}
-	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
+	ianalde_set_mtime_to_ts(dir, ianalde_set_ctime_current(dir));
 
 	return error;
 }
@@ -1129,7 +1129,7 @@ static int hugetlbfs_migrate_folio(struct address_space *mapping,
 		hugetlb_set_folio_subpool(src, NULL);
 	}
 
-	if (mode != MIGRATE_SYNC_NO_COPY)
+	if (mode != MIGRATE_SYNC_ANAL_COPY)
 		folio_migrate_copy(dst, src);
 	else
 		folio_migrate_flags(dst, src);
@@ -1165,8 +1165,8 @@ static int hugetlbfs_show_options(struct seq_file *m, struct dentry *root)
 			   from_kgid_munged(&init_user_ns, sbinfo->gid));
 	if (sbinfo->mode != 0755)
 		seq_printf(m, ",mode=%o", sbinfo->mode);
-	if (sbinfo->max_inodes != -1)
-		seq_printf(m, ",nr_inodes=%lu", sbinfo->max_inodes);
+	if (sbinfo->max_ianaldes != -1)
+		seq_printf(m, ",nr_ianaldes=%lu", sbinfo->max_ianaldes);
 
 	hpage_size /= 1024;
 	mod = 'K';
@@ -1189,7 +1189,7 @@ static int hugetlbfs_show_options(struct seq_file *m, struct dentry *root)
 static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(dentry->d_sb);
-	struct hstate *h = hstate_inode(d_inode(dentry));
+	struct hstate *h = hstate_ianalde(d_ianalde(dentry));
 	u64 id = huge_encode_dev(dentry->d_sb->s_dev);
 
 	buf->f_fsid = u64_to_fsid(id);
@@ -1197,7 +1197,7 @@ static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bsize = huge_page_size(h);
 	if (sbinfo) {
 		spin_lock(&sbinfo->stat_lock);
-		/* If no limits set, just report 0 or -1 for max/free/used
+		/* If anal limits set, just report 0 or -1 for max/free/used
 		 * blocks, like simple_statfs() */
 		if (sbinfo->spool) {
 			long free_pages;
@@ -1208,8 +1208,8 @@ static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 				- sbinfo->spool->used_hpages;
 			buf->f_bavail = buf->f_bfree = free_pages;
 			spin_unlock_irq(&sbinfo->spool->lock);
-			buf->f_files = sbinfo->max_inodes;
-			buf->f_ffree = sbinfo->free_inodes;
+			buf->f_files = sbinfo->max_ianaldes;
+			buf->f_ffree = sbinfo->free_ianaldes;
 		}
 		spin_unlock(&sbinfo->stat_lock);
 	}
@@ -1231,62 +1231,62 @@ static void hugetlbfs_put_super(struct super_block *sb)
 	}
 }
 
-static inline int hugetlbfs_dec_free_inodes(struct hugetlbfs_sb_info *sbinfo)
+static inline int hugetlbfs_dec_free_ianaldes(struct hugetlbfs_sb_info *sbinfo)
 {
-	if (sbinfo->free_inodes >= 0) {
+	if (sbinfo->free_ianaldes >= 0) {
 		spin_lock(&sbinfo->stat_lock);
-		if (unlikely(!sbinfo->free_inodes)) {
+		if (unlikely(!sbinfo->free_ianaldes)) {
 			spin_unlock(&sbinfo->stat_lock);
 			return 0;
 		}
-		sbinfo->free_inodes--;
+		sbinfo->free_ianaldes--;
 		spin_unlock(&sbinfo->stat_lock);
 	}
 
 	return 1;
 }
 
-static void hugetlbfs_inc_free_inodes(struct hugetlbfs_sb_info *sbinfo)
+static void hugetlbfs_inc_free_ianaldes(struct hugetlbfs_sb_info *sbinfo)
 {
-	if (sbinfo->free_inodes >= 0) {
+	if (sbinfo->free_ianaldes >= 0) {
 		spin_lock(&sbinfo->stat_lock);
-		sbinfo->free_inodes++;
+		sbinfo->free_ianaldes++;
 		spin_unlock(&sbinfo->stat_lock);
 	}
 }
 
 
-static struct kmem_cache *hugetlbfs_inode_cachep;
+static struct kmem_cache *hugetlbfs_ianalde_cachep;
 
-static struct inode *hugetlbfs_alloc_inode(struct super_block *sb)
+static struct ianalde *hugetlbfs_alloc_ianalde(struct super_block *sb)
 {
 	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(sb);
-	struct hugetlbfs_inode_info *p;
+	struct hugetlbfs_ianalde_info *p;
 
-	if (unlikely(!hugetlbfs_dec_free_inodes(sbinfo)))
+	if (unlikely(!hugetlbfs_dec_free_ianaldes(sbinfo)))
 		return NULL;
-	p = alloc_inode_sb(sb, hugetlbfs_inode_cachep, GFP_KERNEL);
+	p = alloc_ianalde_sb(sb, hugetlbfs_ianalde_cachep, GFP_KERNEL);
 	if (unlikely(!p)) {
-		hugetlbfs_inc_free_inodes(sbinfo);
+		hugetlbfs_inc_free_ianaldes(sbinfo);
 		return NULL;
 	}
-	return &p->vfs_inode;
+	return &p->vfs_ianalde;
 }
 
-static void hugetlbfs_free_inode(struct inode *inode)
+static void hugetlbfs_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(hugetlbfs_inode_cachep, HUGETLBFS_I(inode));
+	kmem_cache_free(hugetlbfs_ianalde_cachep, HUGETLBFS_I(ianalde));
 }
 
-static void hugetlbfs_destroy_inode(struct inode *inode)
+static void hugetlbfs_destroy_ianalde(struct ianalde *ianalde)
 {
-	hugetlbfs_inc_free_inodes(HUGETLBFS_SB(inode->i_sb));
+	hugetlbfs_inc_free_ianaldes(HUGETLBFS_SB(ianalde->i_sb));
 }
 
 static const struct address_space_operations hugetlbfs_aops = {
 	.write_begin	= hugetlbfs_write_begin,
 	.write_end	= hugetlbfs_write_end,
-	.dirty_folio	= noop_dirty_folio,
+	.dirty_folio	= analop_dirty_folio,
 	.migrate_folio  = hugetlbfs_migrate_folio,
 	.error_remove_folio	= hugetlbfs_error_remove_folio,
 };
@@ -1294,21 +1294,21 @@ static const struct address_space_operations hugetlbfs_aops = {
 
 static void init_once(void *foo)
 {
-	struct hugetlbfs_inode_info *ei = foo;
+	struct hugetlbfs_ianalde_info *ei = foo;
 
-	inode_init_once(&ei->vfs_inode);
+	ianalde_init_once(&ei->vfs_ianalde);
 }
 
 const struct file_operations hugetlbfs_file_operations = {
 	.read_iter		= hugetlbfs_read_iter,
 	.mmap			= hugetlbfs_file_mmap,
-	.fsync			= noop_fsync,
+	.fsync			= analop_fsync,
 	.get_unmapped_area	= hugetlb_get_unmapped_area,
 	.llseek			= default_llseek,
 	.fallocate		= hugetlbfs_fallocate,
 };
 
-static const struct inode_operations hugetlbfs_dir_inode_operations = {
+static const struct ianalde_operations hugetlbfs_dir_ianalde_operations = {
 	.create		= hugetlbfs_create,
 	.lookup		= simple_lookup,
 	.link		= simple_link,
@@ -1316,21 +1316,21 @@ static const struct inode_operations hugetlbfs_dir_inode_operations = {
 	.symlink	= hugetlbfs_symlink,
 	.mkdir		= hugetlbfs_mkdir,
 	.rmdir		= simple_rmdir,
-	.mknod		= hugetlbfs_mknod,
+	.mkanald		= hugetlbfs_mkanald,
 	.rename		= simple_rename,
 	.setattr	= hugetlbfs_setattr,
 	.tmpfile	= hugetlbfs_tmpfile,
 };
 
-static const struct inode_operations hugetlbfs_inode_operations = {
+static const struct ianalde_operations hugetlbfs_ianalde_operations = {
 	.setattr	= hugetlbfs_setattr,
 };
 
 static const struct super_operations hugetlbfs_ops = {
-	.alloc_inode    = hugetlbfs_alloc_inode,
-	.free_inode     = hugetlbfs_free_inode,
-	.destroy_inode  = hugetlbfs_destroy_inode,
-	.evict_inode	= hugetlbfs_evict_inode,
+	.alloc_ianalde    = hugetlbfs_alloc_ianalde,
+	.free_ianalde     = hugetlbfs_free_ianalde,
+	.destroy_ianalde  = hugetlbfs_destroy_ianalde,
+	.evict_ianalde	= hugetlbfs_evict_ianalde,
 	.statfs		= hugetlbfs_statfs,
 	.put_super	= hugetlbfs_put_super,
 	.show_options	= hugetlbfs_show_options,
@@ -1345,7 +1345,7 @@ static long
 hugetlbfs_size_to_hpages(struct hstate *h, unsigned long long size_opt,
 			 enum hugetlbfs_size_type val_type)
 {
-	if (val_type == NO_SIZE)
+	if (val_type == ANAL_SIZE)
 		return -1;
 
 	if (val_type == SIZE_PERCENT) {
@@ -1401,11 +1401,11 @@ static int hugetlbfs_parse_param(struct fs_context *fc, struct fs_parameter *par
 			ctx->max_val_type = SIZE_PERCENT;
 		return 0;
 
-	case Opt_nr_inodes:
+	case Opt_nr_ianaldes:
 		/* memparse() will accept a K/M/G without a digit */
 		if (!param->string || !isdigit(param->string[0]))
 			goto bad_val;
-		ctx->nr_inodes = memparse(param->string, &rest);
+		ctx->nr_ianaldes = memparse(param->string, &rest);
 		return 0;
 
 	case Opt_pagesize:
@@ -1446,7 +1446,7 @@ static int hugetlbfs_validate(struct fs_context *fc)
 
 	/*
 	 * Use huge page pool size (in hstate) to convert the size
-	 * options to number of huge pages.  If NO_SIZE, -1 is returned.
+	 * options to number of huge pages.  If ANAL_SIZE, -1 is returned.
 	 */
 	ctx->max_hpages = hugetlbfs_size_to_hpages(ctx->hstate,
 						   ctx->max_size_opt,
@@ -1458,9 +1458,9 @@ static int hugetlbfs_validate(struct fs_context *fc)
 	/*
 	 * If max_size was specified, then min_size must be smaller
 	 */
-	if (ctx->max_val_type > NO_SIZE &&
+	if (ctx->max_val_type > ANAL_SIZE &&
 	    ctx->min_hpages > ctx->max_hpages) {
-		pr_err("Minimum size can not be greater than maximum size\n");
+		pr_err("Minimum size can analt be greater than maximum size\n");
 		return -EINVAL;
 	}
 
@@ -1475,12 +1475,12 @@ hugetlbfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sbinfo = kmalloc(sizeof(struct hugetlbfs_sb_info), GFP_KERNEL);
 	if (!sbinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 	sb->s_fs_info = sbinfo;
 	spin_lock_init(&sbinfo->stat_lock);
 	sbinfo->hstate		= ctx->hstate;
-	sbinfo->max_inodes	= ctx->nr_inodes;
-	sbinfo->free_inodes	= ctx->nr_inodes;
+	sbinfo->max_ianaldes	= ctx->nr_ianaldes;
+	sbinfo->free_ianaldes	= ctx->nr_ianaldes;
 	sbinfo->spool		= NULL;
 	sbinfo->uid		= ctx->uid;
 	sbinfo->gid		= ctx->gid;
@@ -1507,7 +1507,7 @@ hugetlbfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	/*
 	 * Due to the special and limited functionality of hugetlbfs, it does
-	 * not work well as a stacking filesystem.
+	 * analt work well as a stacking filesystem.
 	 */
 	sb->s_stack_depth = FILESYSTEM_MAX_STACK_DEPTH;
 	sb->s_root = d_make_root(hugetlbfs_get_root(sb, ctx));
@@ -1517,7 +1517,7 @@ hugetlbfs_fill_super(struct super_block *sb, struct fs_context *fc)
 out_free:
 	kfree(sbinfo->spool);
 	kfree(sbinfo);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int hugetlbfs_get_tree(struct fs_context *fc)
@@ -1525,7 +1525,7 @@ static int hugetlbfs_get_tree(struct fs_context *fc)
 	int err = hugetlbfs_validate(fc);
 	if (err)
 		return err;
-	return get_tree_nodev(fc, hugetlbfs_fill_super);
+	return get_tree_analdev(fc, hugetlbfs_fill_super);
 }
 
 static void hugetlbfs_fs_context_free(struct fs_context *fc)
@@ -1545,17 +1545,17 @@ static int hugetlbfs_init_fs_context(struct fs_context *fc)
 
 	ctx = kzalloc(sizeof(struct hugetlbfs_fs_context), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ctx->max_hpages	= -1; /* No limit on size by default */
-	ctx->nr_inodes	= -1; /* No limit on number of inodes by default */
+	ctx->max_hpages	= -1; /* Anal limit on size by default */
+	ctx->nr_ianaldes	= -1; /* Anal limit on number of ianaldes by default */
 	ctx->uid	= current_fsuid();
 	ctx->gid	= current_fsgid();
 	ctx->mode	= 0755;
 	ctx->hstate	= &default_hstate;
-	ctx->min_hpages	= -1; /* No default minimum size */
-	ctx->max_val_type = NO_SIZE;
-	ctx->min_val_type = NO_SIZE;
+	ctx->min_hpages	= -1; /* Anal default minimum size */
+	ctx->max_val_type = ANAL_SIZE;
+	ctx->min_val_type = ANAL_SIZE;
 	fc->fs_private = ctx;
 	fc->ops	= &hugetlbfs_fs_context_ops;
 	return 0;
@@ -1587,27 +1587,27 @@ static int get_hstate_idx(int page_size_log)
 }
 
 /*
- * Note that size should be aligned to proper hugepage size in caller side,
+ * Analte that size should be aligned to proper hugepage size in caller side,
  * otherwise hugetlb_reserve_pages reserves one less hugepages than intended.
  */
 struct file *hugetlb_file_setup(const char *name, size_t size,
 				vm_flags_t acctflag, int creat_flags,
 				int page_size_log)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct vfsmount *mnt;
 	int hstate_idx;
 	struct file *file;
 
 	hstate_idx = get_hstate_idx(page_size_log);
 	if (hstate_idx < 0)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	mnt = hugetlbfs_vfsmount[hstate_idx];
 	if (!mnt)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
-	if (creat_flags == HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()) {
+	if (creat_flags == HUGETLB_SHMFS_IANALDE && !can_do_hugetlb_shm()) {
 		struct ucounts *ucounts = current_ucounts();
 
 		if (user_shm_lock(size, ucounts)) {
@@ -1618,27 +1618,27 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
 		return ERR_PTR(-EPERM);
 	}
 
-	file = ERR_PTR(-ENOSPC);
-	inode = hugetlbfs_get_inode(mnt->mnt_sb, NULL, S_IFREG | S_IRWXUGO, 0);
-	if (!inode)
+	file = ERR_PTR(-EANALSPC);
+	ianalde = hugetlbfs_get_ianalde(mnt->mnt_sb, NULL, S_IFREG | S_IRWXUGO, 0);
+	if (!ianalde)
 		goto out;
-	if (creat_flags == HUGETLB_SHMFS_INODE)
-		inode->i_flags |= S_PRIVATE;
+	if (creat_flags == HUGETLB_SHMFS_IANALDE)
+		ianalde->i_flags |= S_PRIVATE;
 
-	inode->i_size = size;
-	clear_nlink(inode);
+	ianalde->i_size = size;
+	clear_nlink(ianalde);
 
-	if (!hugetlb_reserve_pages(inode, 0,
-			size >> huge_page_shift(hstate_inode(inode)), NULL,
+	if (!hugetlb_reserve_pages(ianalde, 0,
+			size >> huge_page_shift(hstate_ianalde(ianalde)), NULL,
 			acctflag))
-		file = ERR_PTR(-ENOMEM);
+		file = ERR_PTR(-EANALMEM);
 	else
-		file = alloc_file_pseudo(inode, mnt, name, O_RDWR,
+		file = alloc_file_pseudo(ianalde, mnt, name, O_RDWR,
 					&hugetlbfs_file_operations);
 	if (!IS_ERR(file))
 		return file;
 
-	iput(inode);
+	iput(ianalde);
 out:
 	return file;
 }
@@ -1658,7 +1658,7 @@ static struct vfsmount *__init mount_one_hugetlbfs(struct hstate *h)
 		put_fs_context(fc);
 	}
 	if (IS_ERR(mnt))
-		pr_err("Cannot mount internal hugetlbfs for page size %luK",
+		pr_err("Cananalt mount internal hugetlbfs for page size %luK",
 		       huge_page_size(h) / SZ_1K);
 	return mnt;
 }
@@ -1671,15 +1671,15 @@ static int __init init_hugetlbfs_fs(void)
 	int i;
 
 	if (!hugepages_supported()) {
-		pr_info("disabling because there are no supported hugepage sizes\n");
-		return -ENOTSUPP;
+		pr_info("disabling because there are anal supported hugepage sizes\n");
+		return -EANALTSUPP;
 	}
 
-	error = -ENOMEM;
-	hugetlbfs_inode_cachep = kmem_cache_create("hugetlbfs_inode_cache",
-					sizeof(struct hugetlbfs_inode_info),
+	error = -EANALMEM;
+	hugetlbfs_ianalde_cachep = kmem_cache_create("hugetlbfs_ianalde_cache",
+					sizeof(struct hugetlbfs_ianalde_info),
 					0, SLAB_ACCOUNT, init_once);
-	if (hugetlbfs_inode_cachep == NULL)
+	if (hugetlbfs_ianalde_cachep == NULL)
 		goto out;
 
 	error = register_filesystem(&hugetlbfs_fs_type);
@@ -1715,7 +1715,7 @@ static int __init init_hugetlbfs_fs(void)
  out_unreg:
 	(void)unregister_filesystem(&hugetlbfs_fs_type);
  out_free:
-	kmem_cache_destroy(hugetlbfs_inode_cachep);
+	kmem_cache_destroy(hugetlbfs_ianalde_cachep);
  out:
 	return error;
 }

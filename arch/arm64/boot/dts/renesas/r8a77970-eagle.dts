@@ -25,7 +25,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		bootargs = "iganalre_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -100,7 +100,7 @@
 	pinctrl-0 = <&avb_pins>;
 	pinctrl-names = "default";
 
-	renesas,no-ether-link;
+	renesas,anal-ether-link;
 	phy-handle = <&phy0>;
 	rx-internal-delay-ps = <1800>;
 	tx-internal-delay-ps = <2000>;
@@ -348,7 +348,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "spansion,s25fs512s", "jedec,spi-nor";
+		compatible = "spansion,s25fs512s", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 		spi-rx-bus-width = <4>;

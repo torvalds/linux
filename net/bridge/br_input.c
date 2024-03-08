@@ -41,7 +41,7 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	vg = br_vlan_group_rcu(br);
 
 	/* Reset the offload_fwd_mark because there could be a stacked
-	 * bridge above, and it should not think this bridge it doing
+	 * bridge above, and it should analt think this bridge it doing
 	 * that bridge's work forwarding out its ports.
 	 */
 	br_switchdev_frame_unmark(skb);
@@ -70,7 +70,7 @@ static int br_pass_frame_up(struct sk_buff *skb)
 		       br_netif_receive_skb);
 }
 
-/* note: already called with rcu_read_lock */
+/* analte: already called with rcu_read_lock */
 int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
@@ -197,13 +197,13 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	}
 
 	if (dst) {
-		unsigned long now = jiffies;
+		unsigned long analw = jiffies;
 
 		if (test_bit(BR_FDB_LOCAL, &dst->flags))
 			return br_pass_frame_up(skb);
 
-		if (now != dst->used)
-			dst->used = now;
+		if (analw != dst->used)
+			dst->used = analw;
 		br_forward(dst->dst, skb, local_rcv, false);
 	} else {
 		if (!mcast_hit)
@@ -231,12 +231,12 @@ static void __br_handle_local_finish(struct sk_buff *skb)
 	/* check if vlan is allowed, to avoid spoofing */
 	if ((p->flags & BR_LEARNING) &&
 	    nbp_state_should_learn(p) &&
-	    !br_opt_get(p->br, BROPT_NO_LL_LEARN) &&
+	    !br_opt_get(p->br, BROPT_ANAL_LL_LEARN) &&
 	    br_should_learn(p, skb, &vid))
 		br_fdb_update(p->br, p, eth_hdr(skb)->h_source, vid, 0);
 }
 
-/* note: already called with rcu_read_lock */
+/* analte: already called with rcu_read_lock */
 static int br_handle_local_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	__br_handle_local_finish(skb);
@@ -298,8 +298,8 @@ frame_finish:
 	return RX_HANDLER_CONSUMED;
 }
 
-/* Return 0 if the frame was not processed otherwise 1
- * note: already called with rcu_read_lock
+/* Return 0 if the frame was analt processed otherwise 1
+ * analte: already called with rcu_read_lock
  */
 static int br_process_frame_type(struct net_bridge_port *p,
 				 struct sk_buff *skb)
@@ -315,7 +315,7 @@ static int br_process_frame_type(struct net_bridge_port *p,
 
 /*
  * Return NULL if skb is handled
- * note: already called with rcu_read_lock
+ * analte: already called with rcu_read_lock
  */
 static rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 {
@@ -361,7 +361,7 @@ static rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		case 0x00:	/* Bridge Group Address */
 			/* If STP is turned off,
 			   then must forward to keep loop detection */
-			if (p->br->stp_enabled == BR_NO_STP ||
+			if (p->br->stp_enabled == BR_ANAL_STP ||
 			    fwd_mask & (1u << dest[5]))
 				goto forward;
 			*pskb = skb;
@@ -422,7 +422,7 @@ drop:
 	return RX_HANDLER_CONSUMED;
 }
 
-/* This function has no purpose other than to appease the br_port_get_rcu/rtnl
+/* This function has anal purpose other than to appease the br_port_get_rcu/rtnl
  * helpers which identify bridged ports according to the rx_handler installed
  * on them (so there _needs_ to be a bridge rx_handler even if we don't need it
  * to do anything useful). This bridge won't support traffic to/from the stack,

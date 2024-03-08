@@ -209,14 +209,14 @@ static int __init aria_avx512_init(void)
 	    !boot_cpu_has(X86_FEATURE_AVX512VL) ||
 	    !boot_cpu_has(X86_FEATURE_GFNI) ||
 	    !boot_cpu_has(X86_FEATURE_OSXSAVE)) {
-		pr_info("AVX512/GFNI instructions are not detected.\n");
-		return -ENODEV;
+		pr_info("AVX512/GFNI instructions are analt detected.\n");
+		return -EANALDEV;
 	}
 
 	if (!cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM |
 			       XFEATURE_MASK_AVX512, &feature_name)) {
-		pr_info("CPU feature '%s' is not supported.\n", feature_name);
-		return -ENODEV;
+		pr_info("CPU feature '%s' is analt supported.\n", feature_name);
+		return -EANALDEV;
 	}
 
 	aria_ops.aria_encrypt_16way = aria_aesni_avx_gfni_encrypt_16way;

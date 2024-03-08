@@ -2,7 +2,7 @@
 /*
  * ALSA SoC TPA6130A2 amplifier driver
  *
- * Copyright (C) Nokia Corporation
+ * Copyright (C) Analkia Corporation
  *
  * Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  */
@@ -23,7 +23,7 @@
 #define TPA6130A2_TERMAL		(0x01 << 1)
 #define TPA6130A2_MODE(x)		(x << 4)
 #define TPA6130A2_MODE_STEREO		(0x00)
-#define TPA6130A2_MODE_DUAL_MONO	(0x01)
+#define TPA6130A2_MODE_DUAL_MOANAL	(0x01)
 #define TPA6130A2_MODE_BRIDGE		(0x02)
 #define TPA6130A2_MODE_MASK		(0x03)
 #define TPA6130A2_HP_EN_R_SHIFT		6

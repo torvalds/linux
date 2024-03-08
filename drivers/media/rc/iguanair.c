@@ -42,7 +42,7 @@ struct iguanair {
 	char phys[64];
 };
 
-#define CMD_NOP			0x00
+#define CMD_ANALP			0x00
 #define CMD_GET_VERSION		0x01
 #define CMD_GET_BUFSIZE		0x11
 #define CMD_GET_FEATURES	0x10
@@ -157,7 +157,7 @@ static void iguanair_rx(struct urb *urb)
 		process_ir_data(ir, urb->actual_length);
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	case -EPIPE:
@@ -167,7 +167,7 @@ static void iguanair_rx(struct urb *urb)
 	}
 
 	rc = usb_submit_urb(urb, GFP_ATOMIC);
-	if (rc && rc != -ENODEV)
+	if (rc && rc != -EANALDEV)
 		dev_warn(ir->dev, "failed to resubmit urb: %d\n", rc);
 }
 
@@ -178,8 +178,8 @@ static void iguanair_irq_out(struct urb *urb)
 	if (urb->status)
 		dev_dbg(ir->dev, "Error: out urb status = %d\n", urb->status);
 
-	/* if we sent an nop packet, do not expect a response */
-	if (urb->status == 0 && ir->packet->header.cmd == CMD_NOP)
+	/* if we sent an analp packet, do analt expect a response */
+	if (urb->status == 0 && ir->packet->header.cmd == CMD_ANALP)
 		complete(&ir->completion);
 }
 
@@ -206,12 +206,12 @@ static int iguanair_get_features(struct iguanair *ir)
 
 	/*
 	 * On cold boot, the iguanair initializes on the first packet
-	 * received but does not process that packet. Send an empty
+	 * received but does analt process that packet. Send an empty
 	 * packet.
 	 */
 	ir->packet->header.start = 0;
 	ir->packet->header.direction = DIR_OUT;
-	ir->packet->header.cmd = CMD_NOP;
+	ir->packet->header.cmd = CMD_ANALP;
 	iguanair_send(ir, sizeof(ir->packet->header));
 
 	ir->packet->header.cmd = CMD_GET_VERSION;
@@ -223,7 +223,7 @@ static int iguanair_get_features(struct iguanair *ir)
 
 	if (ir->version < 0x205) {
 		dev_err(ir->dev, "firmware 0x%04x is too old\n", ir->version);
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out;
 	}
 
@@ -373,7 +373,7 @@ static void iguanair_close(struct rc_dev *rdev)
 
 	rc = iguanair_receiver(ir, false);
 	ir->receiver_on = false;
-	if (rc && rc != -ENODEV)
+	if (rc && rc != -EANALDEV)
 		dev_warn(ir->dev, "failed to disable receiver: %d\n", rc);
 }
 
@@ -388,12 +388,12 @@ static int iguanair_probe(struct usb_interface *intf,
 
 	idesc = intf->cur_altsetting;
 	if (idesc->desc.bNumEndpoints < 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!ir || !rc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -407,7 +407,7 @@ static int iguanair_probe(struct usb_interface *intf,
 	if (!ir->buf_in || !ir->packet || !ir->urb_in || !ir->urb_out ||
 	    !usb_endpoint_is_int_in(&idesc->endpoint[0].desc) ||
 	    !usb_endpoint_is_int_out(&idesc->endpoint[1].desc)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -421,13 +421,13 @@ static int iguanair_probe(struct usb_interface *intf,
 	usb_fill_int_urb(ir->urb_out, udev, pipeout, ir->packet, MAX_OUT_PACKET,
 						iguanair_irq_out, ir, 1);
 	ir->urb_out->transfer_dma = ir->dma_out;
-	ir->urb_out->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	ir->urb_out->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	pipein = usb_rcvintpipe(udev, idesc->endpoint[0].desc.bEndpointAddress);
 	usb_fill_int_urb(ir->urb_in, udev, pipein, ir->buf_in, MAX_IN_PACKET,
 							 iguanair_rx, ir, 1);
 	ir->urb_in->transfer_dma = ir->dma_in;
-	ir->urb_in->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	ir->urb_in->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	ret = usb_submit_urb(ir->urb_in, GFP_KERNEL);
 	if (ret) {

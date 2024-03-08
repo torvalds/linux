@@ -25,7 +25,7 @@ static const struct of_device_id mpc85xx_common_ids[] __initconst = {
 	{ .compatible = "fsl,qe", },
 	{ .compatible = "fsl,cpm2", },
 	{ .compatible = "fsl,srio", },
-	/* So that the DMA channel nodes can be probed individually: */
+	/* So that the DMA channel analdes can be probed individually: */
 	{ .compatible = "fsl,eloplus-dma", },
 	/* For the PMC driver */
 	{ .compatible = "fsl,mpc8548-guts", },
@@ -64,24 +64,24 @@ static void cpm2_cascade(struct irq_desc *desc)
 
 void __init mpc85xx_cpm2_pic_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int irq;
 
 	/* Setup CPM2 PIC */
-	np = of_find_compatible_node(NULL, NULL, "fsl,cpm2-pic");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,cpm2-pic");
 	if (np == NULL) {
-		printk(KERN_ERR "PIC init: can not find fsl,cpm2-pic node\n");
+		printk(KERN_ERR "PIC init: can analt find fsl,cpm2-pic analde\n");
 		return;
 	}
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq) {
-		of_node_put(np);
-		printk(KERN_ERR "PIC init: got no IRQ for cpm cascade\n");
+		of_analde_put(np);
+		printk(KERN_ERR "PIC init: got anal IRQ for cpm cascade\n");
 		return;
 	}
 
 	cpm2_pic_init(np);
-	of_node_put(np);
+	of_analde_put(np);
 	irq_set_chained_handler(irq, cpm2_cascade);
 }
 #endif
@@ -89,16 +89,16 @@ void __init mpc85xx_cpm2_pic_init(void)
 #ifdef CONFIG_QUICC_ENGINE
 void __init mpc85xx_qe_par_io_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_node_by_name(NULL, "par_io");
+	np = of_find_analde_by_name(NULL, "par_io");
 	if (np) {
-		struct device_node *ucc;
+		struct device_analde *ucc;
 
 		par_io_init(np);
-		of_node_put(np);
+		of_analde_put(np);
 
-		for_each_node_by_name(ucc, "ucc")
+		for_each_analde_by_name(ucc, "ucc")
 			par_io_of_config(ucc);
 
 	}

@@ -21,9 +21,9 @@ ACPI_MODULE_NAME("dbfileio")
  *
  * FUNCTION:    acpi_db_close_debug_file
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: If open, close the current debug output file
  *
@@ -46,7 +46,7 @@ void acpi_db_close_debug_file(void)
  *
  * PARAMETERS:  name                - Filename to open
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Open a file where debug output will be directed.
  *
@@ -58,7 +58,7 @@ void acpi_db_open_debug_file(char *name)
 	acpi_db_close_debug_file();
 	acpi_gbl_debug_file = fopen(name, "w+");
 	if (!acpi_gbl_debug_file) {
-		acpi_os_printf("Could not open debug file %s\n", name);
+		acpi_os_printf("Could analt open debug file %s\n", name);
 		return;
 	}
 
@@ -100,7 +100,7 @@ acpi_status acpi_db_load_tables(struct acpi_new_table_desc *list_head)
 				    ("Table %4.4s is already installed\n",
 				     table->signature);
 			} else {
-				acpi_os_printf("Could not install table, %s\n",
+				acpi_os_printf("Could analt install table, %s\n",
 					       acpi_format_exception(status));
 			}
 

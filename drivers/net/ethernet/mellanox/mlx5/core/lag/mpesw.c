@@ -22,7 +22,7 @@ static void mlx5_mpesw_metadata_cleanup(struct mlx5_lag *ldev)
 		if (!pf_metadata)
 			continue;
 		mlx5_esw_acl_ingress_vport_metadata_update(esw, MLX5_VPORT_UPLINK, 0);
-		mlx5_notifier_call_chain(dev->priv.events, MLX5_DEV_EVENT_MULTIPORT_ESW,
+		mlx5_analtifier_call_chain(dev->priv.events, MLX5_DEV_EVENT_MULTIPORT_ESW,
 					 (void *)0);
 		mlx5_esw_match_metadata_free(esw, pf_metadata);
 		ldev->lag_mpesw.pf_metadata[i] = 0;
@@ -41,7 +41,7 @@ static int mlx5_mpesw_metadata_set(struct mlx5_lag *ldev)
 		esw = dev->priv.eswitch;
 		pf_metadata = mlx5_esw_match_metadata_alloc(esw);
 		if (!pf_metadata) {
-			err = -ENOSPC;
+			err = -EANALSPC;
 			goto err_metadata;
 		}
 
@@ -54,7 +54,7 @@ static int mlx5_mpesw_metadata_set(struct mlx5_lag *ldev)
 
 	for (i = 0; i < ldev->ports; i++) {
 		dev = ldev->pf[i].dev;
-		mlx5_notifier_call_chain(dev->priv.events, MLX5_DEV_EVENT_MULTIPORT_ESW,
+		mlx5_analtifier_call_chain(dev->priv.events, MLX5_DEV_EVENT_MULTIPORT_ESW,
 					 (void *)0);
 	}
 
@@ -72,17 +72,17 @@ static int enable_mpesw(struct mlx5_lag *ldev)
 	int err;
 	int i;
 
-	if (ldev->mode != MLX5_LAG_MODE_NONE)
+	if (ldev->mode != MLX5_LAG_MODE_ANALNE)
 		return -EINVAL;
 
 	if (ldev->ports > MLX5_LAG_MPESW_OFFLOADS_SUPPORTED_PORTS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (mlx5_eswitch_mode(dev0) != MLX5_ESWITCH_OFFLOADS ||
 	    !MLX5_CAP_PORT_SELECTION(dev0, port_select_flow_table) ||
-	    !MLX5_CAP_GEN(dev0, create_lag_when_not_master_up) ||
+	    !MLX5_CAP_GEN(dev0, create_lag_when_analt_master_up) ||
 	    !mlx5_lag_check_prereq(ldev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = mlx5_mpesw_metadata_set(ldev);
 	if (err)
@@ -165,7 +165,7 @@ static int mlx5_lag_mpesw_queue_work(struct mlx5_core_dev *dev,
 
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (!work)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&work->work, mlx5_mpesw_work);
 	init_completion(&work->comp);
@@ -207,7 +207,7 @@ int mlx5_lag_mpesw_do_mirred(struct mlx5_core_dev *mdev,
 		return 0;
 
 	NL_SET_ERR_MSG_MOD(extack, "can't forward to bond in mpesw mode");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 bool mlx5_lag_is_mpesw(struct mlx5_core_dev *dev)

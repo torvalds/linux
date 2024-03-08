@@ -11,8 +11,8 @@
 #include "isofs.h"
 
 /*
- * ok, we cannot use strncmp, as the name is not in our data space.
- * Thus we'll have to use isofs_match. No big problem. Match also makes
+ * ok, we cananalt use strncmp, as the name is analt in our data space.
+ * Thus we'll have to use isofs_match. Anal big problem. Match also makes
  * some sanity tests.
  */
 static int
@@ -30,10 +30,10 @@ isofs_cmp(struct dentry *dentry, const char *compare, int dlen)
  *	isofs_find_entry()
  *
  * finds an entry in the specified directory with the wanted name. It
- * returns the inode number of the found entry, or 0 on error.
+ * returns the ianalde number of the found entry, or 0 on error.
  */
 static unsigned long
-isofs_find_entry(struct inode *dir, struct dentry *dentry,
+isofs_find_entry(struct ianalde *dir, struct dentry *dentry,
 	unsigned long *block_rv, unsigned long *offset_rv,
 	char *tmpname, struct iso_directory_record *tmpde)
 {
@@ -99,9 +99,9 @@ isofs_find_entry(struct inode *dir, struct dentry *dentry,
 		dpnt = de->name;
 		/* Basic sanity check, whether name doesn't exceed dir entry */
 		if (de_len < dlen + sizeof(struct iso_directory_record)) {
-			printk(KERN_NOTICE "iso9660: Corrupted directory entry"
-			       " in block %lu of inode %lu\n", block,
-			       dir->i_ino);
+			printk(KERN_ANALTICE "iso9660: Corrupted directory entry"
+			       " in block %lu of ianalde %lu\n", block,
+			       dir->i_ianal);
 			brelse(bh);
 			return 0;
 		}
@@ -137,7 +137,7 @@ isofs_find_entry(struct inode *dir, struct dentry *dentry,
 				match = (isofs_cmp(dentry, dpnt, dlen) == 0);
 		}
 		if (match) {
-			isofs_normalize_block_and_offset(de,
+			isofs_analrmalize_block_and_offset(de,
 							 &block_saved,
 							 &offset_saved);
 			*block_rv = block_saved;
@@ -150,17 +150,17 @@ isofs_find_entry(struct inode *dir, struct dentry *dentry,
 	return 0;
 }
 
-struct dentry *isofs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+struct dentry *isofs_lookup(struct ianalde *dir, struct dentry *dentry, unsigned int flags)
 {
 	int found;
 	unsigned long block;
 	unsigned long offset;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct page *page;
 
 	page = alloc_page(GFP_USER);
 	if (!page)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	found = isofs_find_entry(dir, dentry,
 				&block, &offset,
@@ -168,7 +168,7 @@ struct dentry *isofs_lookup(struct inode *dir, struct dentry *dentry, unsigned i
 				1024 + page_address(page));
 	__free_page(page);
 
-	inode = found ? isofs_iget(dir->i_sb, block, offset) : NULL;
+	ianalde = found ? isofs_iget(dir->i_sb, block, offset) : NULL;
 
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 }

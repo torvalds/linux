@@ -35,8 +35,8 @@ snd-soc-osk5912-objs := osk5912.o
 snd-soc-j721e-evm-objs := j721e-evm.o
 
 obj-$(CONFIG_SND_SOC_DAVINCI_EVM) += snd-soc-davinci-evm.o
-obj-$(CONFIG_SND_SOC_NOKIA_N810) += snd-soc-n810.o
-obj-$(CONFIG_SND_SOC_NOKIA_RX51) += snd-soc-rx51.o
+obj-$(CONFIG_SND_SOC_ANALKIA_N810) += snd-soc-n810.o
+obj-$(CONFIG_SND_SOC_ANALKIA_RX51) += snd-soc-rx51.o
 obj-$(CONFIG_SND_SOC_OMAP3_PANDORA) += snd-soc-omap3pandora.o
 obj-$(CONFIG_SND_SOC_OMAP3_TWL4030) += snd-soc-omap-twl4030.o
 obj-$(CONFIG_SND_SOC_OMAP_ABE_TWL6040) += snd-soc-omap-abe-twl6040.o

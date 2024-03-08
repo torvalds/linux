@@ -116,7 +116,7 @@ int ____i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 /* Ensure that the associated pages are gathered from the backing storage
  * and pinned into our object. i915_gem_object_pin_pages() may be called
  * multiple times before they are released by a single call to
- * i915_gem_object_unpin_pages() - once the pages are no longer referenced
+ * i915_gem_object_unpin_pages() - once the pages are anal longer referenced
  * either as a result of memory pressure (reaping pages under the shrinker)
  * or as the object is itself released.
  */
@@ -242,7 +242,7 @@ int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	if (i915_gem_object_has_pinned_pages(obj))
 		return -EBUSY;
 
-	/* May be called by shrinker from within get_pages() (on another bo) */
+	/* May be called by shrinker from within get_pages() (on aanalther bo) */
 	assert_object_held_shared(obj);
 
 	i915_gem_object_release_mmap_offset(obj);
@@ -256,7 +256,7 @@ int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 
 	/*
 	 * XXX Temporary hijinx to avoid updating all backends to handle
-	 * NULL pages. In the future, when we have more asynchronous
+	 * NULL pages. In the future, when we have more asynchroanalus
 	 * get_pages backends we should be better able to handle the
 	 * cancellation of the async task in a more uniform manner.
 	 */
@@ -286,7 +286,7 @@ static void *i915_gem_object_map_page(struct drm_i915_gem_object *obj,
 		 * vmap) to provide virtual mappings of the high pages.
 		 * As these are finite, map_new_virtual() must wait for some
 		 * other kmap() to finish when it runs out. If we map a large
-		 * number of objects, there is no method for it to tell us
+		 * number of objects, there is anal method for it to tell us
 		 * to release the mappings, and we deadlock.
 		 *
 		 * However, if we make an explicit vmap of the page, that
@@ -311,7 +311,7 @@ static void *i915_gem_object_map_page(struct drm_i915_gem_object *obj,
 		/* Too big for stack -- allocate temporary array instead */
 		pages = kvmalloc_array(n_pages, sizeof(*pages), GFP_KERNEL);
 		if (!pages)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	i = 0;
@@ -321,7 +321,7 @@ static void *i915_gem_object_map_page(struct drm_i915_gem_object *obj,
 	if (pages != stack)
 		kvfree(pages);
 
-	return vaddr ?: ERR_PTR(-ENOMEM);
+	return vaddr ?: ERR_PTR(-EANALMEM);
 }
 
 static void *i915_gem_object_map_pfn(struct drm_i915_gem_object *obj,
@@ -341,7 +341,7 @@ static void *i915_gem_object_map_pfn(struct drm_i915_gem_object *obj,
 		/* Too big for stack -- allocate temporary array instead */
 		pfns = kvmalloc_array(n_pfn, sizeof(*pfns), GFP_KERNEL);
 		if (!pfns)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	i = 0;
@@ -351,7 +351,7 @@ static void *i915_gem_object_map_pfn(struct drm_i915_gem_object *obj,
 	if (pfns != stack)
 		kvfree(pfns);
 
-	return vaddr ?: ERR_PTR(-ENOMEM);
+	return vaddr ?: ERR_PTR(-EANALMEM);
 }
 
 /* get, pin, and map the pages of the object into kernel space */
@@ -375,7 +375,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	pinned = !(type & I915_MAP_OVERRIDE);
 	type &= ~I915_MAP_OVERRIDE;
 
-	if (!atomic_inc_not_zero(&obj->mm.pages_pin_count)) {
+	if (!atomic_inc_analt_zero(&obj->mm.pages_pin_count)) {
 		if (unlikely(!i915_gem_object_has_pages(obj))) {
 			GEM_BUG_ON(i915_gem_object_has_pinned_pages(obj));
 
@@ -404,12 +404,12 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	 *	  with the guarantee that everything is also coherent with the
 	 *	  GPU.
 	 *
-	 * Internal users of lmem are already expected to get this right, so no
+	 * Internal users of lmem are already expected to get this right, so anal
 	 * fudging needed there.
 	 */
 	if (i915_gem_object_placement_possible(obj, INTEL_MEMORY_LOCAL)) {
 		if (type != I915_MAP_WC && !obj->mm.n_placements) {
-			ptr = ERR_PTR(-ENODEV);
+			ptr = ERR_PTR(-EANALDEV);
 			goto err_unpin;
 		}
 
@@ -438,7 +438,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 		}
 
 		if (GEM_WARN_ON(type == I915_MAP_WC && !pat_enabled()))
-			ptr = ERR_PTR(-ENODEV);
+			ptr = ERR_PTR(-EANALDEV);
 		else if (i915_gem_object_has_struct_page(obj))
 			ptr = i915_gem_object_map_page(obj, type);
 		else
@@ -504,7 +504,7 @@ void __i915_gem_object_release_map(struct drm_i915_gem_object *obj)
 	 * We allow removing the mapping from underneath pinned pages!
 	 *
 	 * Furthermore, since this is an unsafe operation reserved only
-	 * for construction time manipulation, we ignore locking prudence.
+	 * for construction time manipulation, we iganalre locking prudence.
 	 */
 	unmap_object(obj, page_mask_bits(fetch_and_zero(&obj->mm.mapping)));
 
@@ -556,7 +556,7 @@ __i915_gem_object_page_iter_get_sg(struct drm_i915_gem_object *obj,
 		unsigned long i;
 		int ret;
 
-		/* If we cannot allocate and insert this entry, or the
+		/* If we cananalt allocate and insert this entry, or the
 		 * individual pages from this range, cancel updating the
 		 * sg_idx so that on this lookup we are forced to linearly
 		 * scan onwards, but on future lookups we will try the
@@ -586,7 +586,7 @@ scan:
 
 	mutex_unlock(&iter->lock);
 
-	if (unlikely(n < idx)) /* insertion completed by another thread */
+	if (unlikely(n < idx)) /* insertion completed by aanalther thread */
 		goto lookup;
 
 	/* In case we failed to insert the entry into the radixtree, we need

@@ -21,7 +21,7 @@ test_trace() {
 	echo "testing $line for >$x<"
 	match=`echo $line | sed -e "s/>$x<//"`
 	if [ "$line" = "$match" ]; then
-	    fail "$line does not have >$x< in it"
+	    fail "$line does analt have >$x< in it"
 	fi
 	x=$((x+2))
     done

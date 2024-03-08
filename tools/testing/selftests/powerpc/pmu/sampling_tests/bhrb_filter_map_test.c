@@ -12,7 +12,7 @@
 
 /*
  * A perf sampling test to check bhrb filter
- * map. All the branch filters are not supported
+ * map. All the branch filters are analt supported
  * in powerpc. Supported filters in:
  * power10: any, any_call, ind_call, cond
  * power9: any, any_call
@@ -48,7 +48,7 @@ static int bhrb_filter_map_test(void)
 
 	/*
 	 * Skip for Generic compat PMU since
-	 * bhrb filters is not supported
+	 * bhrb filters is analt supported
 	 */
 	SKIP_IF(check_for_generic_compat_pmu());
 

@@ -6,7 +6,7 @@
  * Pavel Smolenskiy <pavel.smolenskiy@gmail.com>
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiranalv <alex.bluesman.smiranalv@gmail.com>
  */
 
 #include <linux/kernel.h>
@@ -36,13 +36,13 @@ void mac802154_rx_beacon_worker(struct work_struct *work)
 	struct cfg802154_mac_pkt *mac_pkt;
 
 	mac_pkt = list_first_entry_or_null(&local->rx_beacon_list,
-					   struct cfg802154_mac_pkt, node);
+					   struct cfg802154_mac_pkt, analde);
 	if (!mac_pkt)
 		return;
 
 	mac802154_process_beacon(local, mac_pkt->skb, mac_pkt->page, mac_pkt->channel);
 
-	list_del(&mac_pkt->node);
+	list_del(&mac_pkt->analde);
 	kfree_skb(mac_pkt->skb);
 	kfree(mac_pkt);
 }
@@ -77,7 +77,7 @@ void mac802154_rx_mac_cmd_worker(struct work_struct *work)
 	int rc;
 
 	mac_pkt = list_first_entry_or_null(&local->rx_mac_cmd_list,
-					   struct cfg802154_mac_pkt, node);
+					   struct cfg802154_mac_pkt, analde);
 	if (!mac_pkt)
 		return;
 
@@ -110,12 +110,12 @@ void mac802154_rx_mac_cmd_worker(struct work_struct *work)
 		mac802154_process_association_req(mac_pkt->sdata, mac_pkt->skb);
 		break;
 
-	case IEEE802154_CMD_DISASSOCIATION_NOTIFY:
-		dev_dbg(&mac_pkt->sdata->dev->dev, "processing DISASSOC NOTIF\n");
+	case IEEE802154_CMD_DISASSOCIATION_ANALTIFY:
+		dev_dbg(&mac_pkt->sdata->dev->dev, "processing DISASSOC ANALTIF\n");
 		if (mac_pkt->sdata->wpan_dev.iftype != NL802154_IFTYPE_COORD)
 			break;
 
-		mac802154_process_disassociation_notif(mac_pkt->sdata, mac_pkt->skb);
+		mac802154_process_disassociation_analtif(mac_pkt->sdata, mac_pkt->skb);
 		break;
 
 	default:
@@ -123,7 +123,7 @@ void mac802154_rx_mac_cmd_worker(struct work_struct *work)
 	}
 
 out:
-	list_del(&mac_pkt->node);
+	list_del(&mac_pkt->analde);
 	kfree_skb(mac_pkt->skb);
 	kfree(mac_pkt);
 }
@@ -148,22 +148,22 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 	    sdata->required_filtering > wpan_phy->filtering) {
 		if (mac_cb(skb)->type != IEEE802154_FC_TYPE_BEACON) {
 			dev_dbg(&sdata->dev->dev,
-				"drop non-beacon frame (0x%x) during scan\n",
+				"drop analn-beacon frame (0x%x) during scan\n",
 				mac_cb(skb)->type);
 			goto fail;
 		}
 	}
 
 	switch (mac_cb(skb)->dest.mode) {
-	case IEEE802154_ADDR_NONE:
-		if (hdr->source.mode == IEEE802154_ADDR_NONE)
+	case IEEE802154_ADDR_ANALNE:
+		if (hdr->source.mode == IEEE802154_ADDR_ANALNE)
 			/* ACK comes with both addresses empty */
 			skb->pkt_type = PACKET_HOST;
 		else if (!wpan_dev->parent)
-			/* No dest means PAN coordinator is the recipient */
+			/* Anal dest means PAN coordinator is the recipient */
 			skb->pkt_type = PACKET_HOST;
 		else
-			/* We are not the PAN coordinator, just relaying */
+			/* We are analt the PAN coordinator, just relaying */
 			skb->pkt_type = PACKET_OTHERHOST;
 		break;
 	case IEEE802154_ADDR_LONG:
@@ -221,7 +221,7 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 		mac_pkt->sdata = sdata;
 		mac_pkt->page = sdata->local->scan_page;
 		mac_pkt->channel = sdata->local->scan_channel;
-		list_add_tail(&mac_pkt->node, &sdata->local->rx_beacon_list);
+		list_add_tail(&mac_pkt->analde, &sdata->local->rx_beacon_list);
 		queue_work(sdata->local->mac_wq, &sdata->local->rx_beacon_work);
 		return NET_RX_SUCCESS;
 
@@ -233,7 +233,7 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 
 		mac_pkt->skb = skb_get(skb);
 		mac_pkt->sdata = sdata;
-		list_add_tail(&mac_pkt->node, &sdata->local->rx_mac_cmd_list);
+		list_add_tail(&mac_pkt->analde, &sdata->local->rx_mac_cmd_list);
 		queue_work(sdata->local->mac_wq, &sdata->local->rx_mac_cmd_work);
 		return NET_RX_SUCCESS;
 
@@ -256,8 +256,8 @@ fail:
 static void
 ieee802154_print_addr(const char *name, const struct ieee802154_addr *addr)
 {
-	if (addr->mode == IEEE802154_ADDR_NONE) {
-		pr_debug("%s not present\n", name);
+	if (addr->mode == IEEE802154_ADDR_ANALNE) {
+		pr_debug("%s analt present\n", name);
 		return;
 	}
 
@@ -353,7 +353,7 @@ __ieee802154_rx_handle_packet(struct ieee802154_local *local,
 		if (!ieee802154_sdata_running(sdata))
 			continue;
 
-		/* Do not deliver packets received on interfaces expecting
+		/* Do analt deliver packets received on interfaces expecting
 		 * AACK=1 if the address filters where disabled.
 		 */
 		if (local->hw.phy->filtering < IEEE802154_FILTERING_4_FRAME_FIELDS &&
@@ -420,7 +420,7 @@ void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	ieee802154_monitors_rx(local, skb);
 
 	/* Level 1 filtering: Check the FCS by software when relevant */
-	if (local->hw.phy->filtering == IEEE802154_FILTERING_NONE) {
+	if (local->hw.phy->filtering == IEEE802154_FILTERING_ANALNE) {
 		crc = crc_ccitt(0, skb->data, skb->len);
 		if (crc)
 			goto drop;

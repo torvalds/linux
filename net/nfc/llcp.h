@@ -44,7 +44,7 @@ struct nfc_llcp_sdp_tlv {
 
 	unsigned long time;
 
-	struct hlist_node node;
+	struct hlist_analde analde;
 };
 
 struct nfc_llcp_local {
@@ -68,9 +68,9 @@ struct nfc_llcp_local {
 	u8 lto;
 	u8 rw;
 	__be16 miux;
-	unsigned long local_wks;      /* Well known services */
+	unsigned long local_wks;      /* Well kanalwn services */
 	unsigned long local_sdp;      /* Local services  */
-	unsigned long local_sap; /* Local SAPs, not available for discovery */
+	unsigned long local_sap; /* Local SAPs, analt available for discovery */
 	atomic_t local_sdp_cnt[LLCP_SDP_NUM_SAP];
 
 	/* local */
@@ -183,7 +183,7 @@ struct nfc_llcp_ui_cb {
 #define LLCP_TLV_SDRES   0x9
 #define LLCP_TLV_MAX     0xa
 
-/* Well known LLCP SAP */
+/* Well kanalwn LLCP SAP */
 #define LLCP_SAP_SDP   0x1
 #define LLCP_SAP_IP    0x2
 #define LLCP_SAP_OBEX  0x3
@@ -192,8 +192,8 @@ struct nfc_llcp_ui_cb {
 
 /* Disconnection reason code */
 #define LLCP_DM_DISC    0x00
-#define LLCP_DM_NOCONN  0x01
-#define LLCP_DM_NOBOUND 0x02
+#define LLCP_DM_ANALCONN  0x01
+#define LLCP_DM_ANALBOUND 0x02
 #define LLCP_DM_REJ     0x03
 
 

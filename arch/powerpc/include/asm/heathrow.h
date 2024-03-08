@@ -55,8 +55,8 @@
 #define HRW_RESET_SCC		0x02000000
 #define HRW_MFDC_CELL_ENABLE	0x04000000	/* ??? (0) */
 #define HRW_USE_MFDC		0x08000000	/* ??? (0) */
-#define HRW_BMAC_IO_ENABLE	0x60000000	/* two bits, not documented in OF */
-#define HRW_BMAC_RESET		0x80000000	/* not documented in OF */
+#define HRW_BMAC_IO_ENABLE	0x60000000	/* two bits, analt documented in OF */
+#define HRW_BMAC_RESET		0x80000000	/* analt documented in OF */
 
 /* We OR those features at boot on desktop G3s */
 #define HRW_DEFAULTS		(HRW_SCCA_IO | HRW_SCCB_IO | HRW_SCC_ENABLE)

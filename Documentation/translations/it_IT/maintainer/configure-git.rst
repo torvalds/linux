@@ -7,4 +7,4 @@
 Configurare Git
 ===============
 
-.. note::  To be translated
+.. analte::  To be translated

@@ -25,7 +25,7 @@
 /**
  * Define these to record a history of
  * Events/Statechanges and print it if a
- * action_function is not found.
+ * action_function is analt found.
  */
 #define FSM_DEBUG_HISTORY 0
 #define FSM_HISTORY_SIZE  40
@@ -82,7 +82,7 @@ typedef struct {
 	int cond_state;
 	int cond_event;
 	fsm_function_t function;
-} fsm_node;
+} fsm_analde;
 
 /**
  * Description of a FSM Timer.
@@ -102,14 +102,14 @@ typedef struct {
  * @param event_names An array of names for all events for logging purposes.
  * @param nr_states   Number of states for this instance.
  * @param nr_events   Number of events for this instance.
- * @param tmpl        An array of fsm_nodes, describing this FSM.
+ * @param tmpl        An array of fsm_analdes, describing this FSM.
  * @param tmpl_len    Length of the describing array.
  * @param order       Parameter for allocation of the FSM data structs.
  */
 extern fsm_instance *
 init_fsm(char *name, const char **state_names,
 	 const char **event_names,
-	 int nr_states, int nr_events, const fsm_node *tmpl,
+	 int nr_states, int nr_events, const fsm_analde *tmpl,
 	 int tmpl_len, gfp_t order);
 
 /**
@@ -138,7 +138,7 @@ fsm_record_history(fsm_instance *fi, int state, int event);
  *
  * @return      0  on success,
  *              1  if current state or event is out of range
- *              !0 if state and event in range, but no action defined.
+ *              !0 if state and event in range, but anal action defined.
  */
 static inline int
 fsm_event(fsm_instance *fi, int event, void *arg)
@@ -170,7 +170,7 @@ fsm_event(fsm_instance *fi, int event, void *arg)
 		return 0;
 	} else {
 #if FSM_DEBUG || FSM_DEBUG_HISTORY
-		printk(KERN_DEBUG "fsm(%s): no function for event %s in state %s\n",
+		printk(KERN_DEBUG "fsm(%s): anal function for event %s in state %s\n",
 		       fi->name, fi->f->event_names[event],
 		       fi->f->state_names[state]);
 #endif
@@ -183,7 +183,7 @@ fsm_event(fsm_instance *fi, int event, void *arg)
 
 /**
  * Modifies the state of an FSM.
- * This does <em>not</em> trigger an event or calls an action function.
+ * This does <em>analt</em> trigger an event or calls an action function.
  *
  * @param fi    Pointer to FSM
  * @param state The new state for this FSM.

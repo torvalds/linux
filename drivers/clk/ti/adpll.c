@@ -64,7 +64,7 @@
 #define ADPLL_RESERVED_OFFSET		0x20
 
 #define ADPLL_STATUS_OFFSET		0x24
-#define ADPLL_STATUS_PONOUT		31
+#define ADPLL_STATUS_POANALUT		31
 #define ADPLL_STATUS_PGOODOUT		30
 #define ADPLL_STATUS_LDOPWDN		29
 #define ADPLL_STATUS_RECAL_BSTATUS3	28
@@ -160,7 +160,7 @@ struct ti_adpll_clkout_data {
 struct ti_adpll_data {
 	struct device *dev;
 	const struct ti_adpll_platform_data *c;
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned long pa;
 	void __iomem *iobase;
 	void __iomem *regs;
@@ -216,10 +216,10 @@ static int ti_adpll_setup_clock(struct ti_adpll_data *d, struct clk *clock,
 		snprintf(con_id, 16, "pll%03lx%s", d->pa & 0xfff, postfix + 1);
 		cl = clkdev_create(clock, con_id, NULL);
 		if (!cl)
-			return -ENOMEM;
+			return -EANALMEM;
 		d->clocks[index].cl = cl;
 	} else {
-		dev_warn(d->dev, "no con_id for clock %s\n", name);
+		dev_warn(d->dev, "anal con_id for clock %s\n", name);
 	}
 
 	if (output_index < 0)
@@ -272,9 +272,9 @@ static int ti_adpll_init_mux(struct ti_adpll_data *d,
 	const char *parents[2];
 	struct clk *clock;
 
-	child_name = ti_adpll_clk_get_name(d, -ENODEV, name);
+	child_name = ti_adpll_clk_get_name(d, -EANALDEV, name);
 	if (!child_name)
-		return -ENOMEM;
+		return -EANALMEM;
 	parents[0] = __clk_get_name(clk0);
 	parents[1] = __clk_get_name(clk1);
 	clock = clk_register_mux(d->dev, child_name, parents, 2, 0,
@@ -285,7 +285,7 @@ static int ti_adpll_init_mux(struct ti_adpll_data *d,
 		return PTR_ERR(clock);
 	}
 
-	return ti_adpll_setup_clock(d, clock, index, -ENODEV, child_name,
+	return ti_adpll_setup_clock(d, clock, index, -EANALDEV, child_name,
 				    clk_unregister_mux);
 }
 
@@ -330,9 +330,9 @@ static int ti_adpll_init_fixed_factor(struct ti_adpll_data *d,
 	const char *parent_name;
 	struct clk *clock;
 
-	child_name = ti_adpll_clk_get_name(d, -ENODEV, name);
+	child_name = ti_adpll_clk_get_name(d, -EANALDEV, name);
 	if (!child_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parent_name = __clk_get_name(parent_clock);
 	clock = clk_register_fixed_factor(d->dev, child_name, parent_name,
@@ -340,7 +340,7 @@ static int ti_adpll_init_fixed_factor(struct ti_adpll_data *d,
 	if (IS_ERR(clock))
 		return PTR_ERR(clock);
 
-	return ti_adpll_setup_clock(d, clock, index, -ENODEV, child_name,
+	return ti_adpll_setup_clock(d, clock, index, -EANALDEV, child_name,
 				    clk_unregister);
 }
 
@@ -378,8 +378,8 @@ static bool ti_adpll_clock_is_bypass(struct ti_adpll_data *d)
 }
 
 /*
- * Locked and bypass are not actually mutually exclusive:  if you only care
- * about the DCO clock and not CLKOUT you can clear M2PWDNZ before enabling
+ * Locked and bypass are analt actually mutually exclusive:  if you only care
+ * about the DCO clock and analt CLKOUT you can clear M2PWDNZ before enabling
  * the PLL, resulting in status (FREQLOCK | PHASELOCK | BYPASS) after lock.
  */
 static bool ti_adpll_is_locked(struct ti_adpll_data *d)
@@ -431,7 +431,7 @@ static int ti_adpll_is_prepared(struct clk_hw *hw)
 }
 
 /*
- * Note that the DCO clock is never subject to bypass: if the PLL is off,
+ * Analte that the DCO clock is never subject to bypass: if the PLL is off,
  * dcoclk is low.
  */
 static unsigned long ti_adpll_recalc_rate(struct clk_hw *hw,
@@ -493,7 +493,7 @@ static int ti_adpll_init_dco(struct ti_adpll_data *d)
 				       sizeof(struct clk *),
 				       GFP_KERNEL);
 	if (!d->outputs.clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (d->c->output_index < 0)
 		postfix = "dco";
@@ -507,7 +507,7 @@ static int ti_adpll_init_dco(struct ti_adpll_data *d)
 	init.parent_names = d->parent_names;
 	init.num_parents = d->c->nr_max_inputs;
 	init.ops = &ti_adpll_ops;
-	init.flags = CLK_GET_RATE_NOCACHE;
+	init.flags = CLK_GET_RATE_ANALCACHE;
 	d->dco.hw.init = &init;
 
 	if (d->c->is_type_s)
@@ -516,7 +516,7 @@ static int ti_adpll_init_dco(struct ti_adpll_data *d)
 		width = 4;
 
 	/* Internal input clock divider N2 */
-	err = ti_adpll_init_divider(d, TI_ADPLL_N2, -ENODEV, "n2",
+	err = ti_adpll_init_divider(d, TI_ADPLL_N2, -EANALDEV, "n2",
 				    d->parent_clocks[TI_ADPLL_CLKINP],
 				    d->regs + ADPLL_MN2DIV_OFFSET,
 				    ADPLL_MN2DIV_N2, width, 0);
@@ -585,7 +585,7 @@ static int ti_adpll_init_clkout(struct ti_adpll_data *d,
 
 	co = devm_kzalloc(d->dev, sizeof(*co), GFP_KERNEL);
 	if (!co)
-		return -ENOMEM;
+		return -EANALMEM;
 	co->adpll = d;
 
 	err = of_property_read_string_index(d->np,
@@ -597,7 +597,7 @@ static int ti_adpll_init_clkout(struct ti_adpll_data *d,
 
 	ops = devm_kzalloc(d->dev, sizeof(*ops), GFP_KERNEL);
 	if (!ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.name = child_name;
 	init.ops = ops;
@@ -647,7 +647,7 @@ static int ti_adpll_init_children_adpll_s(struct ti_adpll_data *d)
 		return err;
 
 	/* Internal divider M2, sources DCO */
-	err = ti_adpll_init_divider(d, TI_ADPLL_M2, -ENODEV, "m2",
+	err = ti_adpll_init_divider(d, TI_ADPLL_M2, -EANALDEV, "m2",
 				    d->clocks[TI_ADPLL_DCO].clk,
 				    d->regs + ADPLL_M2NDIV_OFFSET,
 				    ADPLL_M2NDIV_M2,
@@ -720,7 +720,7 @@ static int ti_adpll_init_children_adpll_lj(struct ti_adpll_data *d)
 		return err;
 
 	/* Internal divider M2, sources from DCO */
-	err = ti_adpll_init_divider(d, TI_ADPLL_M2, -ENODEV,
+	err = ti_adpll_init_divider(d, TI_ADPLL_M2, -EANALDEV,
 				    "m2", d->clocks[TI_ADPLL_DCO].clk,
 				    d->regs + ADPLL_M2NDIV_OFFSET,
 				    ADPLL_M2NDIV_M2,
@@ -813,14 +813,14 @@ static int ti_adpll_init_inputs(struct ti_adpll_data *d)
 
 	clock = devm_clk_get(d->dev, d->parent_names[0]);
 	if (IS_ERR(clock)) {
-		dev_err(d->dev, "could not get clkinp\n");
+		dev_err(d->dev, "could analt get clkinp\n");
 		return PTR_ERR(clock);
 	}
 	d->parent_clocks[TI_ADPLL_CLKINP] = clock;
 
 	clock = devm_clk_get(d->dev, d->parent_names[1]);
 	if (IS_ERR(clock)) {
-		dev_err(d->dev, "could not get clkinpulow clock\n");
+		dev_err(d->dev, "could analt get clkinpulow clock\n");
 		return PTR_ERR(clock);
 	}
 	d->parent_clocks[TI_ADPLL_CLKINPULOW] = clock;
@@ -828,7 +828,7 @@ static int ti_adpll_init_inputs(struct ti_adpll_data *d)
 	if (d->c->is_type_s) {
 		clock =  devm_clk_get(d->dev, d->parent_names[2]);
 		if (IS_ERR(clock)) {
-			dev_err(d->dev, "could not get clkinphif clock\n");
+			dev_err(d->dev, "could analt get clkinphif clock\n");
 			return PTR_ERR(clock);
 		}
 		d->parent_clocks[TI_ADPLL_CLKINPHIF] = clock;
@@ -860,7 +860,7 @@ MODULE_DEVICE_TABLE(of, ti_adpll_match);
 
 static int ti_adpll_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct ti_adpll_data *d;
 	struct resource *res;
@@ -868,9 +868,9 @@ static int ti_adpll_probe(struct platform_device *pdev)
 
 	d = devm_kzalloc(dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 	d->dev = dev;
-	d->np = node;
+	d->np = analde;
 	d->c = device_get_match_data(dev);
 	dev_set_drvdata(d->dev, d);
 	spin_lock_init(&d->lock);
@@ -893,11 +893,11 @@ static int ti_adpll_probe(struct platform_device *pdev)
 				 sizeof(struct ti_adpll_clock),
 				 GFP_KERNEL);
 	if (!d->clocks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = ti_adpll_init_dco(d);
 	if (err) {
-		dev_err(dev, "could not register dco: %i\n", err);
+		dev_err(dev, "could analt register dco: %i\n", err);
 		goto free;
 	}
 

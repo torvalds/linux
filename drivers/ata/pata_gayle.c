@@ -113,14 +113,14 @@ static struct ata_port_operations pata_gayle_a1200_ops = {
 	.sff_data_xfer	= pata_gayle_data_xfer,
 	.sff_irq_check	= pata_gayle_irq_check,
 	.sff_irq_clear	= pata_gayle_irq_clear,
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= ata_cable_unkanalwn,
 	.set_mode	= pata_gayle_set_mode,
 };
 
 static struct ata_port_operations pata_gayle_a4000_ops = {
 	.inherits	= &ata_sff_port_ops,
 	.sff_data_xfer	= pata_gayle_data_xfer,
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= ata_cable_unkanalwn,
 	.set_mode	= pata_gayle_set_mode,
 };
 
@@ -140,7 +140,7 @@ static int pata_gayle_init_one(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!devm_request_mem_region(&pdev->dev, res->start,
 				     resource_size(res), DRV_NAME)) {
@@ -151,7 +151,7 @@ static int pata_gayle_init_one(struct platform_device *pdev)
 	/* allocate host */
 	host = ata_host_alloc(&pdev->dev, 1);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ap = host->ports[0];
 
@@ -161,7 +161,7 @@ static int pata_gayle_init_one(struct platform_device *pdev)
 		ap->ops = &pata_gayle_a4000_ops;
 
 	ap->pio_mask = ATA_PIO4;
-	ap->flags |= ATA_FLAG_SLAVE_POSS | ATA_FLAG_NO_IORDY;
+	ap->flags |= ATA_FLAG_SLAVE_POSS | ATA_FLAG_ANAL_IORDY;
 
 	base = ZTWO_VADDR(pdata->base);
 	ap->ioaddr.data_addr		= base;

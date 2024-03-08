@@ -581,7 +581,7 @@ static const struct snd_soc_dapm_widget rt5660_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("IN3P"),
 	SND_SOC_DAPM_INPUT("IN3N"),
 
-	SND_SOC_DAPM_SUPPLY("DMIC CLK", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("DMIC CLK", SND_SOC_ANALPM, 0, 0,
 		rt5660_set_dmic_clk, SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_SUPPLY("DMIC Power", RT5660_DMIC_CTRL1,
 		RT5660_DMIC_1_EN_SFT, 0, NULL, 0),
@@ -601,8 +601,8 @@ static const struct snd_soc_dapm_widget rt5660_dapm_widgets[] = {
 			0, rt5660_rec_r_mix, ARRAY_SIZE(rt5660_rec_r_mix)),
 
 	/* ADCs */
-	SND_SOC_DAPM_ADC("ADC L", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("ADC R", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC L", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC R", NULL, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_SUPPLY("ADC L power", RT5660_PWR_DIG1,
 			RT5660_PWR_ADC_L_BIT, 0, NULL, 0),
@@ -614,9 +614,9 @@ static const struct snd_soc_dapm_widget rt5660_dapm_widgets[] = {
 	/* ADC Mixer */
 	SND_SOC_DAPM_SUPPLY("adc stereo1 filter", RT5660_PWR_DIG2,
 		RT5660_PWR_ADC_S1F_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("Sto1 ADC MIXL", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Sto1 ADC MIXL", SND_SOC_ANALPM, 0, 0,
 		rt5660_sto1_adc_l_mix, ARRAY_SIZE(rt5660_sto1_adc_l_mix)),
-	SND_SOC_DAPM_MIXER("Sto1 ADC MIXR", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Sto1 ADC MIXR", SND_SOC_ANALPM, 0, 0,
 		rt5660_sto1_adc_r_mix, ARRAY_SIZE(rt5660_sto1_adc_r_mix)),
 
 	/* ADC */
@@ -628,32 +628,32 @@ static const struct snd_soc_dapm_widget rt5660_dapm_widgets[] = {
 	/* Digital Interface */
 	SND_SOC_DAPM_SUPPLY("I2S1", RT5660_PWR_DIG1, RT5660_PWR_I2S1_BIT, 0,
 		NULL, 0),
-	SND_SOC_DAPM_PGA("IF1 DAC", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF1 DAC L", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF1 DAC R", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MUX("IF1 DAC Swap Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_PGA("IF1 DAC", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("IF1 DAC L", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("IF1 DAC R", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MUX("IF1 DAC Swap Mux", SND_SOC_ANALPM, 0, 0,
 			&rt5660_if1_dac_swap_mux),
-	SND_SOC_DAPM_PGA("IF1 ADC", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MUX("IF1 ADC Swap Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_PGA("IF1 ADC", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MUX("IF1 ADC Swap Mux", SND_SOC_ANALPM, 0, 0,
 			&rt5660_if1_adc_swap_mux),
 
 	/* Audio Interface */
-	SND_SOC_DAPM_AIF_IN("AIF1RX", "AIF1 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF1TX", "AIF1 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF1RX", "AIF1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF1TX", "AIF1 Capture", 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Output Side */
 	/* DAC mixer before sound effect  */
-	SND_SOC_DAPM_MIXER("DAC1 MIXL", SND_SOC_NOPM, 0, 0, rt5660_dac_l_mix,
+	SND_SOC_DAPM_MIXER("DAC1 MIXL", SND_SOC_ANALPM, 0, 0, rt5660_dac_l_mix,
 		ARRAY_SIZE(rt5660_dac_l_mix)),
-	SND_SOC_DAPM_MIXER("DAC1 MIXR", SND_SOC_NOPM, 0, 0, rt5660_dac_r_mix,
+	SND_SOC_DAPM_MIXER("DAC1 MIXR", SND_SOC_ANALPM, 0, 0, rt5660_dac_r_mix,
 		ARRAY_SIZE(rt5660_dac_r_mix)),
 
 	/* DAC Mixer */
 	SND_SOC_DAPM_SUPPLY("dac stereo1 filter", RT5660_PWR_DIG2,
 		RT5660_PWR_DAC_S1F_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("Stereo DAC MIXL", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Stereo DAC MIXL", SND_SOC_ANALPM, 0, 0,
 		rt5660_sto_dac_l_mix, ARRAY_SIZE(rt5660_sto_dac_l_mix)),
-	SND_SOC_DAPM_MIXER("Stereo DAC MIXR", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Stereo DAC MIXR", SND_SOC_ANALPM, 0, 0,
 		rt5660_sto_dac_r_mix, ARRAY_SIZE(rt5660_sto_dac_r_mix)),
 
 	/* DACs */
@@ -673,19 +673,19 @@ static const struct snd_soc_dapm_widget rt5660_dapm_widgets[] = {
 	/* Output Volume */
 	SND_SOC_DAPM_SWITCH("SPKVOL", RT5660_PWR_VOL,
 		RT5660_PWR_SV_BIT, 0, &spk_vol_control),
-	SND_SOC_DAPM_PGA("DAC 1", SND_SOC_NOPM,
+	SND_SOC_DAPM_PGA("DAC 1", SND_SOC_ANALPM,
 		0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("LOUTVOL", SND_SOC_NOPM,
+	SND_SOC_DAPM_PGA("LOUTVOL", SND_SOC_ANALPM,
 		0, 0, NULL, 0),
-	SND_SOC_DAPM_SWITCH("LOUTVOL L", SND_SOC_NOPM,
+	SND_SOC_DAPM_SWITCH("LOUTVOL L", SND_SOC_ANALPM,
 		RT5660_PWR_LV_L_BIT, 0, &lout_l_vol_control),
-	SND_SOC_DAPM_SWITCH("LOUTVOL R", SND_SOC_NOPM,
+	SND_SOC_DAPM_SWITCH("LOUTVOL R", SND_SOC_ANALPM,
 		RT5660_PWR_LV_R_BIT, 0, &lout_r_vol_control),
 
-	/* HPO/LOUT/Mono Mixer */
-	SND_SOC_DAPM_MIXER("SPO MIX", SND_SOC_NOPM, 0,
+	/* HPO/LOUT/Moanal Mixer */
+	SND_SOC_DAPM_MIXER("SPO MIX", SND_SOC_ANALPM, 0,
 		0, rt5660_spo_mix, ARRAY_SIZE(rt5660_spo_mix)),
-	SND_SOC_DAPM_MIXER("LOUT MIX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("LOUT MIX", SND_SOC_ANALPM, 0, 0,
 		rt5660_lout_mix, ARRAY_SIZE(rt5660_lout_mix)),
 	SND_SOC_DAPM_SUPPLY("VREF HP", RT5660_GEN_CTRL1,
 		RT5660_PWR_VREF_HP_SFT, 0, NULL, 0),
@@ -1038,7 +1038,7 @@ static int rt5660_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown PLL source %d\n", source);
+		dev_err(component->dev, "Unkanalwn PLL source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -1274,7 +1274,7 @@ static int rt5660_i2c_probe(struct i2c_client *i2c)
 		GFP_KERNEL);
 
 	if (rt5660 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Check if MCLK provided */
 	rt5660->mclk = devm_clk_get(&i2c->dev, "mclk");
@@ -1285,7 +1285,7 @@ static int rt5660_i2c_probe(struct i2c_client *i2c)
 
 	if (pdata)
 		rt5660->pdata = *pdata;
-	else if (i2c->dev.of_node)
+	else if (i2c->dev.of_analde)
 		rt5660_parse_dt(rt5660, &i2c->dev);
 
 	rt5660->regmap = devm_regmap_init_i2c(i2c, &rt5660_regmap);
@@ -1299,8 +1299,8 @@ static int rt5660_i2c_probe(struct i2c_client *i2c)
 	regmap_read(rt5660->regmap, RT5660_VENDOR_ID2, &val);
 	if (val != RT5660_DEVICE_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %#x is not rt5660\n", val);
-		return -ENODEV;
+			"Device with ID register %#x is analt rt5660\n", val);
+		return -EANALDEV;
 	}
 
 	regmap_write(rt5660->regmap, RT5660_RESET, 0);

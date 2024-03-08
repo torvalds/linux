@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -95,7 +95,7 @@ done_free:
  * @flags: device flags
  *
  * This is the main load function for KMS (all asics).
- * It calls radeon_device_init() to set up the non-display
+ * It calls radeon_device_init() to set up the analn-display
  * parts of the chip (asic init, CP, writeback, etc.), and
  * radeon_modeset_init() to set up the display parts
  * (crtcs, encoders, hotplug detect, etc.).
@@ -109,7 +109,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 
 	rdev = kzalloc(sizeof(struct radeon_device), GFP_KERNEL);
 	if (rdev == NULL) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dev->dev_private = (void *)rdev;
 
@@ -154,7 +154,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	}
 
 	/* Again modeset_init should fail only on fatal error
-	 * otherwise it should provide enough functionalities
+	 * otherwise it should provide eanalugh functionalities
 	 * for shadowfb to run
 	 */
 	r = radeon_modeset_init(rdev);
@@ -162,7 +162,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		dev_err(dev->dev, "Fatal error during modeset init\n");
 
 	/* Call ACPI methods: require modeset init
-	 * but failure is not fatal
+	 * but failure is analt fatal
 	 */
 	if (!r) {
 		acpi_status = radeon_acpi_init(rdev);
@@ -171,7 +171,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	}
 
 	if (radeon_is_px(dev)) {
-		dev_pm_set_driver_flags(dev->dev, DPM_FLAG_NO_DIRECT_COMPLETE);
+		dev_pm_set_driver_flags(dev->dev, DPM_FLAG_ANAL_DIRECT_COMPLETE);
 		pm_runtime_use_autosuspend(dev->dev);
 		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
 		pm_runtime_set_active(dev->dev);
@@ -281,7 +281,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			}
 		}
 		if (!found) {
-			DRM_DEBUG_KMS("unknown crtc id %d\n", *value);
+			DRM_DEBUG_KMS("unkanalwn crtc id %d\n", *value);
 			return -EINVAL;
 		}
 		break;
@@ -411,13 +411,13 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		}
 		break;
 	case RADEON_INFO_VA_START:
-		/* this is where we report if vm is supported or not */
+		/* this is where we report if vm is supported or analt */
 		if (rdev->family < CHIP_CAYMAN)
 			return -EINVAL;
 		*value = RADEON_VA_RESERVED_SIZE;
 		break;
 	case RADEON_INFO_IB_VM_MAX_SIZE:
-		/* this is where we report if vm is supported or not */
+		/* this is where we report if vm is supported or analt */
 		if (rdev->family < CHIP_CAYMAN)
 			return -EINVAL;
 		*value = RADEON_IB_VM_MAX_SIZE;
@@ -650,7 +650,7 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 
 		fpriv = kzalloc(sizeof(*fpriv), GFP_KERNEL);
 		if (unlikely(!fpriv)) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto err_suspend;
 		}
 
@@ -669,14 +669,14 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 			vm->ib_bo_va = radeon_vm_bo_add(rdev, vm,
 							rdev->ring_tmp_bo.bo);
 			if (!vm->ib_bo_va) {
-				r = -ENOMEM;
+				r = -EANALMEM;
 				goto err_vm_fini;
 			}
 
 			r = radeon_vm_bo_set_addr(rdev, vm->ib_bo_va,
 						  RADEON_VA_IB_OFFSET,
 						  RADEON_VM_PAGE_READABLE |
-						  RADEON_VM_PAGE_SNOOPED);
+						  RADEON_VM_PAGE_SANALOPED);
 			if (r)
 				goto err_vm_fini;
 		}
@@ -771,7 +771,7 @@ u32 radeon_get_vblank_counter_kms(struct drm_crtc *crtc)
 		return -EINVAL;
 	}
 
-	/* The hw increments its frame counter at start of vsync, not at start
+	/* The hw increments its frame counter at start of vsync, analt at start
 	 * of vblank, as is required by DRM core vblank counter handling.
 	 * Cook the hw count here to make it appear to the caller as if it
 	 * incremented at start of vblank. We measure distance to start of
@@ -785,18 +785,18 @@ u32 radeon_get_vblank_counter_kms(struct drm_crtc *crtc)
 		 */
 		do {
 			count = radeon_get_vblank_counter(rdev, pipe);
-			/* Ask radeon_get_crtc_scanoutpos to return vpos as
+			/* Ask radeon_get_crtc_scaanalutpos to return vpos as
 			 * distance to start of vblank, instead of regular
-			 * vertical scanout pos.
+			 * vertical scaanalut pos.
 			 */
-			stat = radeon_get_crtc_scanoutpos(
+			stat = radeon_get_crtc_scaanalutpos(
 				dev, pipe, GET_DISTANCE_TO_VBLANKSTART,
 				&vpos, &hpos, NULL, NULL,
 				&rdev->mode_info.crtcs[pipe]->base.hwmode);
 		} while (count != radeon_get_vblank_counter(rdev, pipe));
 
-		if (((stat & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE)) !=
-		    (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE))) {
+		if (((stat & (DRM_SCAANALUTPOS_VALID | DRM_SCAANALUTPOS_ACCURATE)) !=
+		    (DRM_SCAANALUTPOS_VALID | DRM_SCAANALUTPOS_ACCURATE))) {
 			DRM_DEBUG_VBL("Query failed! stat %d\n", stat);
 		}
 		else {

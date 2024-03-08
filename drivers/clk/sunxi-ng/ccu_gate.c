@@ -113,7 +113,7 @@ static int ccu_gate_set_rate(struct clk_hw *hw, unsigned long rate,
 	/*
 	 * We must report success but we can do so unconditionally because
 	 * clk_factor_round_rate returns values that ensure this call is a
-	 * nop.
+	 * analp.
 	 */
 
 	return 0;

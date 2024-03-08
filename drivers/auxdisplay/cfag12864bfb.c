@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fb.h>
 #include <linux/mm.h>
 #include <linux/platform_device.h>
@@ -23,12 +23,12 @@
 static const struct fb_fix_screeninfo cfag12864bfb_fix = {
 	.id = "cfag12864b",
 	.type = FB_TYPE_PACKED_PIXELS,
-	.visual = FB_VISUAL_MONO10,
+	.visual = FB_VISUAL_MOANAL10,
 	.xpanstep = 0,
 	.ypanstep = 0,
 	.ywrapstep = 0,
 	.line_length = CFAG12864B_WIDTH / 8,
-	.accel = FB_ACCEL_NONE,
+	.accel = FB_ACCEL_ANALNE,
 };
 
 static const struct fb_var_screeninfo cfag12864bfb_var = {
@@ -44,7 +44,7 @@ static const struct fb_var_screeninfo cfag12864bfb_var = {
 	.right_margin = 0,
 	.upper_margin = 0,
 	.lower_margin = 0,
-	.vmode = FB_VMODE_NONINTERLACED,
+	.vmode = FB_VMODE_ANALNINTERLACED,
 };
 
 static int cfag12864bfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
@@ -69,7 +69,7 @@ static int cfag12864bfb_probe(struct platform_device *device)
 	struct fb_info *info = framebuffer_alloc(0, &device->dev);
 
 	if (!info)
-		goto none;
+		goto analne;
 
 	info->flags = FBINFO_VIRTFB;
 	info->screen_buffer = cfag12864b_buffer;
@@ -92,7 +92,7 @@ static int cfag12864bfb_probe(struct platform_device *device)
 fballoced:
 	framebuffer_release(info);
 
-none:
+analne:
 	return ret;
 }
 
@@ -125,14 +125,14 @@ static int __init cfag12864bfb_init(void)
 	/* cfag12864b_init() must be called first */
 	if (!cfag12864b_isinited()) {
 		printk(KERN_ERR CFAG12864BFB_NAME ": ERROR: "
-			"cfag12864b is not initialized\n");
-		goto none;
+			"cfag12864b is analt initialized\n");
+		goto analne;
 	}
 
 	if (cfag12864b_enable()) {
 		printk(KERN_ERR CFAG12864BFB_NAME ": ERROR: "
 			"can't enable cfag12864b refreshing (being used)\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = platform_driver_register(&cfag12864bfb_driver);
@@ -144,7 +144,7 @@ static int __init cfag12864bfb_init(void)
 		if (cfag12864bfb_device)
 			ret = platform_device_add(cfag12864bfb_device);
 		else
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 
 		if (ret) {
 			platform_device_put(cfag12864bfb_device);
@@ -152,7 +152,7 @@ static int __init cfag12864bfb_init(void)
 		}
 	}
 
-none:
+analne:
 	return ret;
 }
 

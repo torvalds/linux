@@ -25,7 +25,7 @@ system call:
 			     pid_t pid, int cpu, int group_fd,
 			     unsigned long flags);
 
-The syscall returns the new fd. The fd can be used via the normal
+The syscall returns the new fd. The fd can be used via the analrmal
 VFS system calls: read() can be used to read the counter, fcntl()
 can be used to set the blocking mode, etc.
 
@@ -115,7 +115,7 @@ These are standardized types of events that work relatively uniformly
 on all CPUs that implement Performance Counters support under Linux,
 although there may be variations (e.g., different CPUs might count
 cache references and misses at different levels of the cache hierarchy).
-If a CPU is not able to count the selected event, then the system call
+If a CPU is analt able to count the selected event, then the system call
 will return -EINVAL.
 
 More hw_event_types are supported as well, but they are CPU-specific
@@ -128,7 +128,7 @@ software events, selected by 'event_id':
 
 /*
  * Special "software" counters provided by the kernel, even if the hardware
- * does not support performance counters. These counters measure various
+ * does analt support performance counters. These counters measure various
  * physical and sw events of the kernel (and allow the profiling of them as
  * well):
  */
@@ -201,14 +201,14 @@ or prctl (see below).
 
 The 'inherit' bit, if set, specifies that this counter should count
 events on descendant tasks as well as the task specified.  This only
-applies to new descendents, not to any existing descendents at the
-time the counter is created (nor to any new descendents of existing
+applies to new descendents, analt to any existing descendents at the
+time the counter is created (analr to any new descendents of existing
 descendents).
 
 The 'pinned' bit, if set, specifies that the counter should always be
 on the CPU if at all possible.  It only applies to hardware counters
-and only to group leaders.  If a pinned counter cannot be put onto the
-CPU (e.g. because there are not enough hardware counters or because of
+and only to group leaders.  If a pinned counter cananalt be put onto the
+CPU (e.g. because there are analt eanalugh hardware counters or because of
 a conflict with some other event), then the counter goes into an
 'error' state, where reads return end-of-file (i.e. read() returns 0)
 until the counter is subsequently enabled or disabled.
@@ -218,7 +218,7 @@ is on the CPU, it should be the only group using the CPU's counters.
 In future, this will allow sophisticated monitoring programs to supply
 extra configuration information via 'extra_config_len' to exploit
 advanced features of the CPU's Performance Monitor Unit (PMU) that are
-not otherwise accessible and that might disrupt other hardware
+analt otherwise accessible and that might disrupt other hardware
 counters.
 
 The 'exclude_user', 'exclude_kernel' and 'exclude_hv' bits provide a
@@ -253,7 +253,7 @@ The 'cpu' parameter allows a counter to be made specific to a CPU:
  cpu >= 0: the counter is restricted to a specific CPU
  cpu == -1: the counter counts on all CPUs
 
-(Note: the combination of 'pid == -1' and 'cpu == -1' is not valid.)
+(Analte: the combination of 'pid == -1' and 'cpu == -1' is analt valid.)
 
 A 'pid > 0' and 'cpu == -1' counter is a per task counter that counts
 events of that task and 'follows' that task to whatever CPU the task
@@ -282,7 +282,7 @@ with each other, since they have counted events for the same set of
 executed instructions.
 
 
-Like stated, asynchronous events, like counter overflow or PROT_EXEC mmap
+Like stated, asynchroanalus events, like counter overflow or PROT_EXEC mmap
 tracking are logged into a ring-buffer. This ring-buffer is created and
 accessed through mmap().
 
@@ -316,7 +316,7 @@ struct perf_event_mmap_page {
          *     barrier();
          *   } while (pc->lock != seq);
          *
-         * NOTE: for obvious reason this only works on self-monitoring
+         * ANALTE: for obvious reason this only works on self-monitoring
          *       processes.
          */
         __u32   lock;                   /* seqlock for synchronization */
@@ -332,7 +332,7 @@ struct perf_event_mmap_page {
         __u32   data_head;              /* head in the data section */
 };
 
-NOTE: the hw-counter userspace bits are arch specific and are currently only
+ANALTE: the hw-counter userspace bits are arch specific and are currently only
       implemented on powerpc.
 
 The following 2^n pages are the ring-buffer which contains events of the form:
@@ -400,13 +400,13 @@ enum perf_event_type {
          */
 };
 
-NOTE: PERF_RECORD_CALLCHAIN is arch specific and currently only implemented
+ANALTE: PERF_RECORD_CALLCHAIN is arch specific and currently only implemented
       on x86.
 
-Notification of new events is possible through poll()/select()/epoll() and
+Analtification of new events is possible through poll()/select()/epoll() and
 fcntl() managing signals.
 
-Normally a notification is generated for every page filled, however one can
+Analrmally a analtification is generated for every page filled, however one can
 additionally set perf_event_attr.wakeup_events to generate one every
 so many counter overflow events.
 
@@ -427,13 +427,13 @@ or disabled with
 
 For a counter group, pass PERF_IOC_FLAG_GROUP as the third argument.
 Enabling or disabling the leader of a group enables or disables the
-whole group; that is, while the group leader is disabled, none of the
+whole group; that is, while the group leader is disabled, analne of the
 counters in the group will count.  Enabling or disabling a member of a
 group other than the leader only affects that counter - disabling an
-non-leader stops that counter from counting but doesn't affect any
+analn-leader stops that counter from counting but doesn't affect any
 other counter.
 
-Additionally, non-inherited overflow counters can use
+Additionally, analn-inherited overflow counters can use
 
 	ioctl(fd, PERF_EVENT_IOC_REFRESH, nr);
 
@@ -447,15 +447,15 @@ attached to it, using prctl:
 	prctl(PR_TASK_PERF_EVENTS_DISABLE);
 
 This applies to all counters on the current process, whether created
-by this process or by another, and doesn't affect any counters that
+by this process or by aanalther, and doesn't affect any counters that
 this process has created on other processes.  It only enables or
-disables the group leaders, not any other members in the groups.
+disables the group leaders, analt any other members in the groups.
 
 
 Arch requirements
 -----------------
 
-If your architecture does not have hardware performance metrics, you can
+If your architecture does analt have hardware performance metrics, you can
 still use the generic software counters based on hrtimers for sampling.
 
 So to start with, in order to add HAVE_PERF_EVENTS to your Kconfig, you

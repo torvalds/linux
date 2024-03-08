@@ -46,7 +46,7 @@ typedef int (*tracing_map_cmp_fn_t) (void *val_a, void *val_b);
  * forever associated with that 32-bit hashed key in the
  * tracing_map_entry.
  *
- * That unique element now in the tracing_map_entry's 'val' field is
+ * That unique element analw in the tracing_map_entry's 'val' field is
  * an instance of tracing_map_elt, where 'elt' in the latter part of
  * that variable name is short for 'element'.  The purpose of a
  * tracing_map_elt is to hold values specific to the particular
@@ -84,7 +84,7 @@ typedef int (*tracing_map_cmp_fn_t) (void *val_a, void *val_b);
  *
  * The pool of tracing_map_elts are allocated by tracing_map_init()
  * rather than by tracing_map_create() because at the time
- * tracing_map_create() is called, there isn't enough information to
+ * tracing_map_create() is called, there isn't eanalugh information to
  * create the tracing_map_elts.  Specifically,the user first needs to
  * tell the tracing_map implementation how many fields the
  * tracing_map_elts contain, and which types of fields they are (key
@@ -116,7 +116,7 @@ typedef int (*tracing_map_cmp_fn_t) (void *val_a, void *val_b);
  * tracing_map_sort_entry instances are the objects expected by the
  * various internal sorting functions, and are also what the user
  * ultimately receives after calling tracing_map_sort_entries().
- * Because it doesn't make sense for users to access an unordered and
+ * Because it doesn't make sense for users to access an uanalrdered and
  * sparsely populated tracing_map directly, the
  * tracing_map_sort_entries() function is provided so that users can
  * retrieve a sorted list of all existing elements.  In addition to
@@ -124,7 +124,7 @@ typedef int (*tracing_map_cmp_fn_t) (void *val_a, void *val_b);
  * tracing_map_sort_entry, which is the object of interest to the
  * user, tracing_map_sort_entry objects contain a number of additional
  * fields which are used for caching and internal purposes and can
- * safely be ignored.
+ * safely be iganalred.
 */
 
 struct tracing_map_field {
@@ -261,7 +261,7 @@ tracing_map_lookup(struct tracing_map *map, void *key);
 extern tracing_map_cmp_fn_t tracing_map_cmp_num(int field_size,
 						int field_is_signed);
 extern int tracing_map_cmp_string(void *val_a, void *val_b);
-extern int tracing_map_cmp_none(void *val_a, void *val_b);
+extern int tracing_map_cmp_analne(void *val_a, void *val_b);
 
 extern void tracing_map_update_sum(struct tracing_map_elt *elt,
 				   unsigned int i, u64 n);

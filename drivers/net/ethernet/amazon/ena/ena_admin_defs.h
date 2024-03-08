@@ -25,7 +25,7 @@ enum ena_admin_aq_completion_status {
 	ENA_ADMIN_MALFORMED_REQUEST                 = 4,
 	/* Additional status is provided in ACQ entry extended_status */
 	ENA_ADMIN_ILLEGAL_PARAMETER                 = 5,
-	ENA_ADMIN_UNKNOWN_ERROR                     = 6,
+	ENA_ADMIN_UNKANALWN_ERROR                     = 6,
 	ENA_ADMIN_RESOURCE_BUSY                     = 7,
 };
 
@@ -228,7 +228,7 @@ struct ena_admin_aq_create_sq_cmd {
 	/* submission queue depth in entries */
 	u16 sq_depth;
 
-	/* SQ physical base address in OS memory. This field should not be
+	/* SQ physical base address in OS memory. This field should analt be
 	 * used for Low Latency queues. Has to be page aligned.
 	 */
 	struct ena_common_mem_addr sq_ba;
@@ -316,7 +316,7 @@ struct ena_admin_acq_create_cq_resp_desc {
 	/* actual cq depth in number of entries */
 	u16 cq_actual_depth;
 
-	u32 numa_node_register_offset;
+	u32 numa_analde_register_offset;
 
 	u32 cq_head_db_register_offset;
 
@@ -754,7 +754,7 @@ enum ena_admin_flow_hash_proto {
 	ENA_ADMIN_RSS_IP4                           = 4,
 	ENA_ADMIN_RSS_IP6                           = 5,
 	ENA_ADMIN_RSS_IP4_FRAG                      = 6,
-	ENA_ADMIN_RSS_NOT_IP                        = 7,
+	ENA_ADMIN_RSS_ANALT_IP                        = 7,
 	/* TCPv6 with extension header */
 	ENA_ADMIN_RSS_TCP6_EX                       = 8,
 	/* IPv6 with extension header */
@@ -840,8 +840,8 @@ struct ena_admin_host_info {
 	u32 kernel_ver;
 
 	/* 7:0 : major
-	 * 15:8 : minor
-	 * 23:16 : sub_minor
+	 * 15:8 : mianalr
+	 * 23:16 : sub_mianalr
 	 * 31:24 : module_type
 	 */
 	u32 driver_version;
@@ -897,7 +897,7 @@ struct ena_admin_feature_rss_ind_table {
 	/* index of the inline entry. 0xFFFFFFFF means invalid */
 	u32 inline_index;
 
-	/* used for updating single entry, ignored when setting the entire
+	/* used for updating single entry, iganalred when setting the entire
 	 * table through the control buffer.
 	 */
 	struct ena_admin_rss_ind_table_entry inline_entry;
@@ -1041,17 +1041,17 @@ struct ena_admin_aenq_common_desc {
 	u32 timestamp_high;
 };
 
-/* asynchronous event notification groups */
+/* asynchroanalus event analtification groups */
 enum ena_admin_aenq_group {
 	ENA_ADMIN_LINK_CHANGE                       = 0,
 	ENA_ADMIN_FATAL_ERROR                       = 1,
 	ENA_ADMIN_WARNING                           = 2,
-	ENA_ADMIN_NOTIFICATION                      = 3,
+	ENA_ADMIN_ANALTIFICATION                      = 3,
 	ENA_ADMIN_KEEP_ALIVE                        = 4,
 	ENA_ADMIN_AENQ_GROUPS_NUM                   = 5,
 };
 
-enum ena_admin_aenq_notification_syndrome {
+enum ena_admin_aenq_analtification_syndrome {
 	ENA_ADMIN_UPDATE_HINTS                      = 2,
 };
 
@@ -1167,10 +1167,10 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 
 /* host_info */
 #define ENA_ADMIN_HOST_INFO_MAJOR_MASK                      GENMASK(7, 0)
-#define ENA_ADMIN_HOST_INFO_MINOR_SHIFT                     8
-#define ENA_ADMIN_HOST_INFO_MINOR_MASK                      GENMASK(15, 8)
-#define ENA_ADMIN_HOST_INFO_SUB_MINOR_SHIFT                 16
-#define ENA_ADMIN_HOST_INFO_SUB_MINOR_MASK                  GENMASK(23, 16)
+#define ENA_ADMIN_HOST_INFO_MIANALR_SHIFT                     8
+#define ENA_ADMIN_HOST_INFO_MIANALR_MASK                      GENMASK(15, 8)
+#define ENA_ADMIN_HOST_INFO_SUB_MIANALR_SHIFT                 16
+#define ENA_ADMIN_HOST_INFO_SUB_MIANALR_MASK                  GENMASK(23, 16)
 #define ENA_ADMIN_HOST_INFO_MODULE_TYPE_SHIFT               24
 #define ENA_ADMIN_HOST_INFO_MODULE_TYPE_MASK                GENMASK(31, 24)
 #define ENA_ADMIN_HOST_INFO_FUNCTION_MASK                   GENMASK(2, 0)

@@ -7,14 +7,14 @@
  * Portions copied from existing rtl8xxxu code:
  * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
- * Portions, notably calibration code:
+ * Portions, analtably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  */
 
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -483,7 +483,7 @@ static u32 rtl8710b_indirect_read32(struct rtl8xxxu_priv *priv, u32 addr)
 	u8 polling_count = 0xff;
 
 	if (!IS_ALIGNED(addr, 4)) {
-		dev_warn(dev, "%s: Aborting because 0x%x is not a multiple of 4.\n",
+		dev_warn(dev, "%s: Aborting because 0x%x is analt a multiple of 4.\n",
 			 __func__, addr);
 		return value;
 	}
@@ -491,7 +491,7 @@ static u32 rtl8710b_indirect_read32(struct rtl8xxxu_priv *priv, u32 addr)
 	mutex_lock(&priv->syson_indirect_access_mutex);
 
 	rtl8xxxu_write32(priv, REG_USB_HOST_INDIRECT_ADDR_8710B, addr);
-	rtl8xxxu_write32(priv, REG_EFUSE_INDIRECT_CTRL_8710B, NORMAL_REG_READ_OFFSET);
+	rtl8xxxu_write32(priv, REG_EFUSE_INDIRECT_CTRL_8710B, ANALRMAL_REG_READ_OFFSET);
 
 	do
 		val32 = rtl8xxxu_read32(priv, REG_EFUSE_INDIRECT_CTRL_8710B);
@@ -518,7 +518,7 @@ static void rtl8710b_indirect_write32(struct rtl8xxxu_priv *priv, u32 addr, u32 
 	u32 val32;
 
 	if (!IS_ALIGNED(addr, 4)) {
-		dev_warn(dev, "%s: Aborting because 0x%x is not a multiple of 4.\n",
+		dev_warn(dev, "%s: Aborting because 0x%x is analt a multiple of 4.\n",
 			 __func__, addr);
 		return;
 	}
@@ -527,7 +527,7 @@ static void rtl8710b_indirect_write32(struct rtl8xxxu_priv *priv, u32 addr, u32 
 
 	rtl8xxxu_write32(priv, REG_USB_HOST_INDIRECT_ADDR_8710B, addr);
 	rtl8xxxu_write32(priv, REG_USB_HOST_INDIRECT_DATA_8710B, val);
-	rtl8xxxu_write32(priv, REG_EFUSE_INDIRECT_CTRL_8710B, NORMAL_REG_WRITE_OFFSET);
+	rtl8xxxu_write32(priv, REG_EFUSE_INDIRECT_CTRL_8710B, ANALRMAL_REG_WRITE_OFFSET);
 
 	do
 		val32 = rtl8xxxu_read32(priv, REG_EFUSE_INDIRECT_CTRL_8710B);
@@ -588,7 +588,7 @@ static int rtl8710bu_identify_chip(struct rtl8xxxu_priv *priv)
 {
 	struct device *dev = &priv->udev->dev;
 	u32 cfg0, cfg2, vendor;
-	u8 package_type = 0x7; /* a nonsense value */
+	u8 package_type = 0x7; /* a analnsense value */
 
 	sprintf(priv->chip_name, "8710BU");
 	priv->rtl_chip = RTL8710B;
@@ -602,7 +602,7 @@ static int rtl8710bu_identify_chip(struct rtl8xxxu_priv *priv)
 
 	if (cfg0 & BIT(16)) {
 		dev_info(dev, "%s: Unsupported test chip\n", __func__);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	vendor = u32_get_bits(cfg0, 0xc0);
@@ -621,7 +621,7 @@ static int rtl8710bu_identify_chip(struct rtl8xxxu_priv *priv)
 		priv->vendor_umc = 1;
 		break;
 	default:
-		sprintf(priv->chip_vendor, "unknown");
+		sprintf(priv->chip_vendor, "unkanalwn");
 		break;
 	}
 
@@ -635,7 +635,7 @@ static int rtl8710bu_identify_chip(struct rtl8xxxu_priv *priv)
 		} else if (priv->vendor_smic) {
 			package_type = PACKAGE_QFN48M_S;
 		} else {
-			dev_warn(dev, "The vendor is neither UMC nor SMIC. Assuming the package type is QFN48M_U.\n");
+			dev_warn(dev, "The vendor is neither UMC analr SMIC. Assuming the package type is QFN48M_U.\n");
 
 			/*
 			 * In this case the vendor driver doesn't set
@@ -663,13 +663,13 @@ static int rtl8710bu_identify_chip(struct rtl8xxxu_priv *priv)
 	cfg2 = rtl8710b_read_syson_reg(priv, REG_SYS_SYSTEM_CFG2_8710B);
 	priv->rom_rev = cfg2 & 0xf;
 
-	return rtl8xxxu_config_endpoints_no_sie(priv);
+	return rtl8xxxu_config_endpoints_anal_sie(priv);
 }
 
 static void rtl8710b_revise_cck_tx_psf(struct rtl8xxxu_priv *priv, u8 channel)
 {
 	if (channel == 13) {
-		/* Normal values */
+		/* Analrmal values */
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER2, 0x64B80C1C);
 		rtl8xxxu_write32(priv, REG_CCK0_DEBUG_PORT, 0x00008810);
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER3, 0x01235667);
@@ -680,10 +680,10 @@ static void rtl8710b_revise_cck_tx_psf(struct rtl8xxxu_priv *priv, u8 channel)
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER2, 0x0000B81C);
 		rtl8xxxu_write32(priv, REG_CCK0_DEBUG_PORT, 0x00000000);
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER3, 0x00003667);
-		/* Normal value */
+		/* Analrmal value */
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER1, 0xE82C0001);
 	} else {
-		/* Restore normal values from the phy init table */
+		/* Restore analrmal values from the phy init table */
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER2, 0x64B80C1C);
 		rtl8xxxu_write32(priv, REG_CCK0_DEBUG_PORT, 0x00008810);
 		rtl8xxxu_write32(priv, REG_CCK0_TX_FILTER3, 0x01235667);
@@ -755,15 +755,15 @@ static void rtl8710bu_config_channel(struct ieee80211_hw *hw)
 	rtl8xxxu_write32(priv, REG_FPGA0_RF_MODE, val32);
 
 	/* small BW */
-	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TX_PSDO_NOISE_WEIGHT);
+	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TX_PSDO_ANALISE_WEIGHT);
 	val32 &= ~GENMASK(31, 30);
-	rtl8xxxu_write32(priv, REG_OFDM0_TX_PSDO_NOISE_WEIGHT, val32);
+	rtl8xxxu_write32(priv, REG_OFDM0_TX_PSDO_ANALISE_WEIGHT, val32);
 
 	/* adc buffer clk */
-	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TX_PSDO_NOISE_WEIGHT);
+	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TX_PSDO_ANALISE_WEIGHT);
 	val32 &= ~BIT(29);
 	val32 |= BIT(28);
-	rtl8xxxu_write32(priv, REG_OFDM0_TX_PSDO_NOISE_WEIGHT, val32);
+	rtl8xxxu_write32(priv, REG_OFDM0_TX_PSDO_ANALISE_WEIGHT, val32);
 
 	/* adc buffer clk */
 	val32 = rtl8xxxu_read32(priv, REG_OFDM0_XA_RX_AFE);
@@ -967,7 +967,7 @@ static int rtl8710bu_load_firmware(struct rtl8xxxu_priv *priv)
 	} else if (priv->vendor_umc) {
 		return rtl8xxxu_load_firmware(priv, "rtlwifi/rtl8710bufw_UMC.bin");
 	} else {
-		dev_err(&priv->udev->dev, "We have no suitable firmware for this chip.\n");
+		dev_err(&priv->udev->dev, "We have anal suitable firmware for this chip.\n");
 		return -1;
 	}
 }
@@ -1158,7 +1158,7 @@ static int rtl8710bu_rx_iqk_path_a(struct rtl8xxxu_priv *priv, u32 lok_result)
 	    ((reg_e94 & 0x03ff0000) != 0x01420000) &&
 	    ((reg_e9c & 0x03ff0000) != 0x00420000)) {
 		result |= 0x01;
-	} else { /* If TX not OK, ignore RX */
+	} else { /* If TX analt OK, iganalre RX */
 
 		/* reload RF path */
 		rtl8xxxu_write32(priv, REG_S0S1_PATH_SWITCH, path_sel_bb);
@@ -1297,7 +1297,7 @@ static void rtl8710bu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 	};
 
 	/*
-	 * Note: IQ calibration must be performed after loading
+	 * Analte: IQ calibration must be performed after loading
 	 *       PHY_REG.txt , and radio_a, radio_b.txt
 	 */
 
@@ -1578,7 +1578,7 @@ static int rtl8710bu_active_to_lps(struct rtl8xxxu_priv *priv)
 	retry = 100;
 	retval = -EBUSY;
 	/*
-	 * Poll 32 bit wide REG_SCH_TX_CMD for 0x00000000 to ensure no TX is pending.
+	 * Poll 32 bit wide REG_SCH_TX_CMD for 0x00000000 to ensure anal TX is pending.
 	 */
 	do {
 		val32 = rtl8xxxu_read32(priv, REG_SCH_TX_CMD);
@@ -1672,7 +1672,7 @@ static int rtl8710bu_power_on(struct rtl8xxxu_priv *priv)
 
 	/*
 	 * Technically the rest was in the rtl8710bu_hal_init function,
-	 * not the power_on function, but it's fine because we only
+	 * analt the power_on function, but it's fine because we only
 	 * call power_on from init_device.
 	 */
 
@@ -1886,5 +1886,5 @@ struct rtl8xxxu_fileops rtl8710bu_fops = {
 	.total_page_num = TX_TOTAL_PAGE_NUM_8723B,
 	.page_num_hi = TX_PAGE_NUM_HI_PQ_8723B,
 	.page_num_lo = TX_PAGE_NUM_LO_PQ_8723B,
-	.page_num_norm = TX_PAGE_NUM_NORM_PQ_8723B,
+	.page_num_analrm = TX_PAGE_NUM_ANALRM_PQ_8723B,
 };

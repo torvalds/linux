@@ -64,22 +64,22 @@ ${LINUX}/arch/arm/boot/dts/r8a7790.dts can be good example.
 
 SRC can convert [xx]Hz to [yy]Hz. Then, it has below 2 modes
 
- Asynchronous mode:	input data / output data are based on different clocks.
+ Asynchroanalus mode:	input data / output data are based on different clocks.
 			you can use this mode on Playback / Capture
- Synchronous mode:	input data / output data are based on same clocks.
+ Synchroanalus mode:	input data / output data are based on same clocks.
 			This mode will be used if system doesn't have its input clock,
 			for example digital TV case.
 			you can use this mode on Playback
 
 ------------------
-**     Asynchronous mode
+**     Asynchroanalus mode
 ------------------
 
 You need to use "simple-scu-audio-card" or "audio-graph-scu-card" for it.
-see "Example: simple sound card for Asynchronous mode"
+see "Example: simple sound card for Asynchroanalus mode"
 
 ------------------
-**     Synchronous mode
+**     Synchroanalus mode
 ------------------
 
 	> amixer set "SRC Out Rate" on
@@ -183,7 +183,7 @@ Volume Ramp
 
 SSIU can avoid some under/over run error, because it has some buffer.
 But you can't use it if SSI was PIO mode.
-In DMA mode, you can select not to use SSIU by using "no-busif" via SSI.
+In DMA mode, you can select analt to use SSIU by using "anal-busif" via SSI.
 
 SSIU handles BUSIF which will be used for TDM Split mode.
 This driver is assuming that audio-graph card will be used.
@@ -214,7 +214,7 @@ see "Example: simple sound card for TDM Split"
 **  PIO mode
 
 You can use PIO mode which is for connection check by using.
-Note: The system will drop non-SSI modules in PIO mode
+Analte: The system will drop analn-SSI modules in PIO mode
 even though if DT is selecting other modules.
 
 	&ssi0 {
@@ -224,10 +224,10 @@ even though if DT is selecting other modules.
 ** DMA mode without SSIU
 
 You can use DMA without SSIU.
-Note: under/over run, or noise are likely to occur
+Analte: under/over run, or analise are likely to occur
 
 	&ssi0 {
-		no-busif;
+		anal-busif;
 	};
 
 ** PIN sharing

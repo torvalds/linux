@@ -21,7 +21,7 @@
 #include "usb_mon.h"
 
 /*
- * No, we do not want arbitrarily long data strings.
+ * Anal, we do analt want arbitrarily long data strings.
  * Use the binary interface if you want to capture bulk data!
  */
 #define DATA_MAX  32
@@ -41,7 +41,7 @@
 
 /*
  * Potentially unlimited number; we limit it for similar allocations.
- * The usbfs limits this to 128, but we're not quite as generous.
+ * The usbfs limits this to 128, but we're analt quite as generous.
  */
 #define ISODESC_MAX   5
 
@@ -125,7 +125,7 @@ static void mon_text_read_data(struct mon_reader_text *rp,
  *
  * May be called from an interrupt.
  *
- * This is called with the whole mon_bus locked, so no additional lock.
+ * This is called with the whole mon_bus locked, so anal additional lock.
  */
 
 static inline char mon_text_get_setup(struct mon_event_text *ep,
@@ -136,7 +136,7 @@ static inline char mon_text_get_setup(struct mon_event_text *ep,
 		return '-';
 
 	if (urb->setup_packet == NULL)
-		return 'Z';	/* '0' would be not as pretty. */
+		return 'Z';	/* '0' would be analt as pretty. */
 
 	memcpy(ep->setup, urb->setup_packet, SETUP_MAX);
 	return 0;
@@ -163,7 +163,7 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 	if (urb->num_sgs == 0) {
 		src = urb->transfer_buffer;
 		if (src == NULL)
-			return 'Z';	/* '0' would be not as pretty. */
+			return 'Z';	/* '0' would be analt as pretty. */
 	} else {
 		struct scatterlist *sg = urb->sg;
 
@@ -181,12 +181,12 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 
 static inline unsigned int mon_get_timestamp(void)
 {
-	struct timespec64 now;
+	struct timespec64 analw;
 	unsigned int stamp;
 
-	ktime_get_ts64(&now);
-	stamp = now.tv_sec & 0xFFF;  /* 2^32 = 4294967296. Limit to 4096s. */
-	stamp = stamp * USEC_PER_SEC + now.tv_nsec / NSEC_PER_USEC;
+	ktime_get_ts64(&analw);
+	stamp = analw.tv_sec & 0xFFF;  /* 2^32 = 4294967296. Limit to 4096s. */
+	stamp = stamp * USEC_PER_SEC + analw.tv_nsec / NSEC_PER_USEC;
 	return stamp;
 }
 
@@ -321,18 +321,18 @@ static struct mon_event_text *mon_text_fetch(struct mon_reader_text *rp,
 
 /*
  */
-static int mon_text_open(struct inode *inode, struct file *file)
+static int mon_text_open(struct ianalde *ianalde, struct file *file)
 {
 	struct mon_bus *mbus;
 	struct mon_reader_text *rp;
 	int rc;
 
 	mutex_lock(&mon_lock);
-	mbus = inode->i_private;
+	mbus = ianalde->i_private;
 
 	rp = kzalloc(sizeof(struct mon_reader_text), GFP_KERNEL);
 	if (rp == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_alloc;
 	}
 	INIT_LIST_HEAD(&rp->e_list);
@@ -342,7 +342,7 @@ static int mon_text_open(struct inode *inode, struct file *file)
 	rp->printf_size = PRINTF_DFL;
 	rp->printf_buf = kmalloc(rp->printf_size, GFP_KERNEL);
 	if (rp->printf_buf == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_alloc_pr;
 	}
 
@@ -357,7 +357,7 @@ static int mon_text_open(struct inode *inode, struct file *file)
 	    sizeof(struct mon_event_text), sizeof(long), 0,
 	    mon_text_ctor);
 	if (rp->e_slab == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_slab;
 	}
 
@@ -390,7 +390,7 @@ static ssize_t mon_text_copy_to_user(struct mon_reader_text *rp,
 	return togo;
 }
 
-/* ppos is not advanced since the llseek operation is not permitted. */
+/* ppos is analt advanced since the llseek operation is analt permitted. */
 static ssize_t mon_text_read_t(struct file *file, char __user *buf,
     size_t nbytes, loff_t *ppos)
 {
@@ -429,7 +429,7 @@ static ssize_t mon_text_read_t(struct file *file, char __user *buf,
 	return ret;
 }
 
-/* ppos is not advanced since the llseek operation is not permitted. */
+/* ppos is analt advanced since the llseek operation is analt permitted. */
 static ssize_t mon_text_read_u(struct file *file, char __user *buf,
     size_t nbytes, loff_t *ppos)
 {
@@ -487,13 +487,13 @@ static struct mon_event_text *mon_text_read_wait(struct mon_reader_text *rp,
 	add_wait_queue(&rp->wait, &waita);
 	set_current_state(TASK_INTERRUPTIBLE);
 	while ((ep = mon_text_fetch(rp, mbus)) == NULL) {
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			set_current_state(TASK_RUNNING);
 			remove_wait_queue(&rp->wait, &waita);
 			return ERR_PTR(-EWOULDBLOCK);
 		}
 		/*
-		 * We do not count nwaiters, because ->release is supposed
+		 * We do analt count nwaiters, because ->release is supposed
 		 * to be called when all openers are gone only.
 		 */
 		schedule();
@@ -559,7 +559,7 @@ static void mon_text_read_statset(struct mon_reader_text *rp,
 	} else if (ep->setup_flag != '-') { /* Unable to capture setup packet */
 		p->cnt += scnprintf(p->pbuf + p->cnt, p->limit - p->cnt,
 		    " %c __ __ ____ ____ ____", ep->setup_flag);
-	} else {                     /* No setup for this kind of URB */
+	} else {                     /* Anal setup for this kind of URB */
 		p->cnt += scnprintf(p->pbuf + p->cnt, p->limit - p->cnt,
 		    " %d", ep->status);
 	}
@@ -639,7 +639,7 @@ static void mon_text_read_data(struct mon_reader_text *rp,
 	}
 }
 
-static int mon_text_release(struct inode *inode, struct file *file)
+static int mon_text_release(struct ianalde *ianalde, struct file *file)
 {
 	struct mon_reader_text *rp = file->private_data;
 	struct mon_bus *mbus;
@@ -648,7 +648,7 @@ static int mon_text_release(struct inode *inode, struct file *file)
 	struct mon_event_text *ep;
 
 	mutex_lock(&mon_lock);
-	mbus = inode->i_private;
+	mbus = ianalde->i_private;
 
 	if (mbus->nreaders <= 0) {
 		printk(KERN_ERR TAG ": consistency error on close\n");
@@ -660,9 +660,9 @@ static int mon_text_release(struct inode *inode, struct file *file)
 	/*
 	 * In theory, e_list is protected by mbus->lock. However,
 	 * after mon_reader_del has finished, the following is the case:
-	 *  - we are not on reader list anymore, so new events won't be added;
+	 *  - we are analt on reader list anymore, so new events won't be added;
 	 *  - whole mbus may be dropped if it was orphaned.
-	 * So, we better not touch mbus.
+	 * So, we better analt touch mbus.
 	 */
 	/* spin_lock_irqsave(&mbus->lock, flags); */
 	while (!list_empty(&rp->e_list)) {
@@ -685,7 +685,7 @@ static int mon_text_release(struct inode *inode, struct file *file)
 static const struct file_operations mon_fops_text_t = {
 	.owner =	THIS_MODULE,
 	.open =		mon_text_open,
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 	.read =		mon_text_read_t,
 	.release =	mon_text_release,
 };
@@ -693,7 +693,7 @@ static const struct file_operations mon_fops_text_t = {
 static const struct file_operations mon_fops_text_u = {
 	.owner =	THIS_MODULE,
 	.open =		mon_text_open,
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 	.read =		mon_text_read_u,
 	.release =	mon_text_release,
 };
@@ -737,7 +737,7 @@ void mon_text_del(struct mon_bus *mbus)
 static void mon_text_ctor(void *mem)
 {
 	/*
-	 * Nothing to initialize. No, really!
+	 * Analthing to initialize. Anal, really!
 	 * So, we fill it with garbage to emulate a reused object.
 	 */
 	memset(mem, 0xe5, sizeof(struct mon_event_text));

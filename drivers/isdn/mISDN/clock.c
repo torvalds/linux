@@ -11,7 +11,7 @@
  *	priv = private pointer of clock source
  *	return = pointer to clock source structure;
  *
- * Note: Callback 'ctl' can be called before mISDN_register_clock returns!
+ * Analte: Callback 'ctl' can be called before mISDN_register_clock returns!
  *       Also it can be called during mISDN_unregister_clock.
  *
  * A clock source calls mISDN_clock_update with given samples elapsed, if
@@ -77,7 +77,7 @@ select_iclock(void)
 		bestclock->ctl(bestclock->priv, 1);
 	}
 	if (bestclock != iclock_current) {
-		/* no clock received yet */
+		/* anal clock received yet */
 		iclock_timestamp_valid = 0;
 	}
 	iclock_current = bestclock;
@@ -93,7 +93,7 @@ struct mISDNclock
 		printk(KERN_DEBUG "%s: %s %d\n", __func__, name, pri);
 	iclock = kzalloc(sizeof(struct mISDNclock), GFP_ATOMIC);
 	if (!iclock) {
-		printk(KERN_ERR "%s: No memory for clock entry.\n", __func__);
+		printk(KERN_ERR "%s: Anal memory for clock entry.\n", __func__);
 		return NULL;
 	}
 	strscpy(iclock->name, name, sizeof(iclock->name));
@@ -134,7 +134,7 @@ void
 mISDN_clock_update(struct mISDNclock *iclock, int samples, ktime_t *timestamp)
 {
 	u_long		flags;
-	ktime_t		timestamp_now;
+	ktime_t		timestamp_analw;
 	u16		delta;
 
 	write_lock_irqsave(&iclock_lock, flags);
@@ -142,7 +142,7 @@ mISDN_clock_update(struct mISDNclock *iclock, int samples, ktime_t *timestamp)
 		printk(KERN_ERR "%s: '%s' sends us clock updates, but we do "
 		       "listen to '%s'. This is a bug!\n", __func__,
 		       iclock->name,
-		       iclock_current ? iclock_current->name : "nothing");
+		       iclock_current ? iclock_current->name : "analthing");
 		iclock->ctl(iclock->priv, 0);
 		write_unlock_irqrestore(&iclock_lock, flags);
 		return;
@@ -158,19 +158,19 @@ mISDN_clock_update(struct mISDNclock *iclock, int samples, ktime_t *timestamp)
 	} else {
 		/* calc elapsed time by system clock */
 		if (timestamp) { /* timestamp must be set, if function call is delayed */
-			timestamp_now = *timestamp;
+			timestamp_analw = *timestamp;
 		} else {
-			timestamp_now = ktime_get();
+			timestamp_analw = ktime_get();
 		}
-		delta = ktime_divns(ktime_sub(timestamp_now, iclock_timestamp),
+		delta = ktime_divns(ktime_sub(timestamp_analw, iclock_timestamp),
 				(NSEC_PER_SEC / 8000));
 		/* add elapsed time to counter and set new timestamp */
 		iclock_count += delta;
-		iclock_timestamp = timestamp_now;
+		iclock_timestamp = timestamp_analw;
 		iclock_timestamp_valid = 1;
 		if (*debug & DEBUG_CLOCK)
 			printk("Received first clock from source '%s'.\n",
-			       iclock_current ? iclock_current->name : "nothing");
+			       iclock_current ? iclock_current->name : "analthing");
 	}
 	write_unlock_irqrestore(&iclock_lock, flags);
 }
@@ -180,14 +180,14 @@ unsigned short
 mISDN_clock_get(void)
 {
 	u_long		flags;
-	ktime_t		timestamp_now;
+	ktime_t		timestamp_analw;
 	u16		delta;
 	u16		count;
 
 	read_lock_irqsave(&iclock_lock, flags);
 	/* calc elapsed time by system clock */
-	timestamp_now = ktime_get();
-	delta = ktime_divns(ktime_sub(timestamp_now, iclock_timestamp),
+	timestamp_analw = ktime_get();
+	delta = ktime_divns(ktime_sub(timestamp_analw, iclock_timestamp),
 			(NSEC_PER_SEC / 8000));
 	/* add elapsed time to counter */
 	count =	iclock_count + delta;

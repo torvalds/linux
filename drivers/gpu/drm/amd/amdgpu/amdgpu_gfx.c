@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -34,7 +34,7 @@
 /* delay 0.1 second to enable gfx off feature */
 #define GFX_OFF_DELAY_ENABLE         msecs_to_jiffies(100)
 
-#define GFX_OFF_NO_DELAY 0
+#define GFX_OFF_ANAL_DELAY 0
 
 /*
  * GPU GFX IP block helpers function.
@@ -127,7 +127,7 @@ void amdgpu_gfx_parse_disable_cu(unsigned int *mask, unsigned int max_se, unsign
 		int ret = sscanf(p, "%u.%u.%u", &se, &sh, &cu);
 
 		if (ret < 3) {
-			DRM_ERROR("amdgpu: could not parse disable_cu\n");
+			DRM_ERROR("amdgpu: could analt parse disable_cu\n");
 			return;
 		}
 
@@ -328,7 +328,7 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 		return r;
 
 	ring->eop_gpu_addr = kiq->eop_gpu_addr;
-	ring->no_scheduler = true;
+	ring->anal_scheduler = true;
 	sprintf(ring->name, "kiq_%d.%d.%d.%d", xcc_id, ring->me, ring->pipe, ring->queue);
 	r = amdgpu_ring_init(adev, ring, 1024, irq, AMDGPU_CP_KIQ_IRQ_DRIVER0,
 			     AMDGPU_RING_PRIO_DEFAULT, NULL);
@@ -386,7 +386,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 	u32 domain = AMDGPU_GEM_DOMAIN_GTT;
 
 #if !defined(CONFIG_ARM) && !defined(CONFIG_ARM64)
-	/* Only enable on gfx10 and 11 for now to avoid changing behavior on older chips */
+	/* Only enable on gfx10 and 11 for analw to avoid changing behavior on older chips */
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(10, 0, 0))
 		domain |= AMDGPU_GEM_DOMAIN_VRAM;
 #endif
@@ -396,7 +396,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 		/* originaly the KIQ MQD is put in GTT domain, but for SRIOV VRAM domain is a must
 		 * otherwise hypervisor trigger SAVE_VF fail after driver unloaded which mean MQD
 		 * deallocated and gart_unbind, to strict diverage we decide to use VRAM domain for
-		 * KIQ MQD no matter SRIOV or Bare-metal
+		 * KIQ MQD anal matter SRIOV or Bare-metal
 		 */
 		r = amdgpu_bo_create_kernel(adev, mqd_size, PAGE_SIZE,
 					    AMDGPU_GEM_DOMAIN_VRAM |
@@ -413,8 +413,8 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 		kiq->mqd_backup = kmalloc(mqd_size, GFP_KERNEL);
 		if (!kiq->mqd_backup) {
 			dev_warn(adev->dev,
-				 "no memory to create MQD backup for ring %s\n", ring->name);
-			return -ENOMEM;
+				 "anal memory to create MQD backup for ring %s\n", ring->name);
+			return -EANALMEM;
 		}
 	}
 
@@ -435,8 +435,8 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 				/* prepare MQD backup */
 				adev->gfx.me.mqd_backup[i] = kmalloc(mqd_size, GFP_KERNEL);
 				if (!adev->gfx.me.mqd_backup[i]) {
-					dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
-					return -ENOMEM;
+					dev_warn(adev->dev, "anal memory to create MQD backup for ring %s\n", ring->name);
+					return -EANALMEM;
 				}
 			}
 		}
@@ -459,8 +459,8 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 			/* prepare MQD backup */
 			adev->gfx.mec.mqd_backup[j] = kmalloc(mqd_size, GFP_KERNEL);
 			if (!adev->gfx.mec.mqd_backup[j]) {
-				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
-				return -ENOMEM;
+				dev_warn(adev->dev, "anal memory to create MQD backup for ring %s\n", ring->name);
+				return -EANALMEM;
 			}
 		}
 	}
@@ -517,7 +517,7 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
 	if (amdgpu_ring_alloc(kiq_ring, kiq->pmf->unmap_queues_size *
 					adev->gfx.num_compute_rings)) {
 		spin_unlock(&kiq->ring_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
@@ -566,7 +566,7 @@ int amdgpu_gfx_disable_kgq(struct amdgpu_device *adev, int xcc_id)
 		if (amdgpu_ring_alloc(kiq_ring, kiq->pmf->unmap_queues_size *
 						adev->gfx.num_gfx_rings)) {
 			spin_unlock(&kiq->ring_lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
@@ -666,7 +666,7 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 	amdgpu_device_flush_hdp(adev, NULL);
 
 	spin_lock(&kiq->ring_lock);
-	/* No need to map kcq on the slave */
+	/* Anal need to map kcq on the slave */
 	if (amdgpu_gfx_is_master_xcc(adev, xcc_id)) {
 		r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size *
 						adev->gfx.num_gfx_rings);
@@ -697,9 +697,9 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
  * @bool enable true: enable gfx off feature, false: disable gfx off feature
  *
  * 1. gfx off feature will be enabled by gfx ip after gfx cg gp enabled.
- * 2. other client can send request to disable gfx off feature, the request should be honored.
+ * 2. other client can send request to disable gfx off feature, the request should be hoanalred.
  * 3. other client can cancel their request of disable gfx off feature
- * 4. other client should not send request to enable gfx off feature before disable gfx off feature.
+ * 4. other client should analt send request to enable gfx off feature before disable gfx off feature.
  */
 
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
@@ -713,7 +713,7 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 
 	if (enable) {
 		/* If the count is already 0, it means there's an imbalance bug somewhere.
-		 * Note that the bug may be in a different caller than the one which triggers the
+		 * Analte that the bug may be in a different caller than the one which triggers the
 		 * WARN_ON_ONCE.
 		 */
 		if (WARN_ON_ONCE(adev->gfx.gfx_off_req_count == 0))
@@ -723,7 +723,7 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 
 		if (adev->gfx.gfx_off_req_count == 0 &&
 		    !adev->gfx.gfx_off_state) {
-			/* If going to s2idle, no need to wait */
+			/* If going to s2idle, anal need to wait */
 			if (adev->in_s0ix) {
 				if (!amdgpu_dpm_set_powergating_by_smu(adev,
 						AMD_IP_BLOCK_TYPE_GFX, true))
@@ -841,8 +841,8 @@ int amdgpu_gfx_ras_sw_init(struct amdgpu_device *adev)
 	int err = 0;
 	struct amdgpu_gfx_ras *ras = NULL;
 
-	/* adev->gfx.ras is NULL, which means gfx does not
-	 * support ras function, then do nothing here.
+	/* adev->gfx.ras is NULL, which means gfx does analt
+	 * support ras function, then do analthing here.
 	 */
 	if (!adev->gfx.ras)
 		return 0;
@@ -860,11 +860,11 @@ int amdgpu_gfx_ras_sw_init(struct amdgpu_device *adev)
 	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
 	adev->gfx.ras_if = &ras->ras_block.ras_comm;
 
-	/* If not define special ras_late_init function, use gfx default ras_late_init */
+	/* If analt define special ras_late_init function, use gfx default ras_late_init */
 	if (!ras->ras_block.ras_late_init)
 		ras->ras_block.ras_late_init = amdgpu_gfx_ras_late_init;
 
-	/* If not defined special ras_cb function, use default ras_cb */
+	/* If analt defined special ras_cb function, use default ras_cb */
 	if (!ras->ras_block.ras_cb)
 		ras->ras_block.ras_cb = amdgpu_gfx_process_ras_data_cb;
 
@@ -1231,7 +1231,7 @@ static ssize_t amdgpu_gfx_get_current_compute_partition(struct device *dev,
 	int mode;
 
 	mode = amdgpu_xcp_query_partition_mode(adev->xcp_mgr,
-					       AMDGPU_XCP_FL_NONE);
+					       AMDGPU_XCP_FL_ANALNE);
 
 	return sysfs_emit(buf, "%s\n", amdgpu_gfx_compute_mode_desc(mode));
 }
@@ -1305,7 +1305,7 @@ static ssize_t amdgpu_gfx_get_available_compute_partition(struct device *dev,
 		supported_partition = "SPX, CPX";
 		break;
 	default:
-		supported_partition = "Not supported";
+		supported_partition = "Analt supported";
 		break;
 	}
 

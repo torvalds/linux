@@ -51,7 +51,7 @@ struct c67x00_lcp_int_data {
  * The c67x00 chip also support control via SPI or HSS serial
  * interfaces. However, this driver assumes that register access can
  * be performed from IRQ context. While this is a safe assumption with
- * the HPI interface, it is not true for the serial interfaces.
+ * the HPI interface, it is analt true for the serial interfaces.
  */
 
 /* HPI registers */
@@ -79,7 +79,7 @@ static inline void hpi_write_reg(struct c67x00_device *dev, int reg, u16 value)
 	__raw_writew(value, dev->hpi.base + reg * dev->hpi.regstep);
 }
 
-static inline u16 hpi_read_word_nolock(struct c67x00_device *dev, u16 reg)
+static inline u16 hpi_read_word_anallock(struct c67x00_device *dev, u16 reg)
 {
 	hpi_write_reg(dev, HPI_ADDR, reg);
 	return hpi_read_reg(dev, HPI_DATA);
@@ -91,13 +91,13 @@ static u16 hpi_read_word(struct c67x00_device *dev, u16 reg)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->hpi.lock, flags);
-	value = hpi_read_word_nolock(dev, reg);
+	value = hpi_read_word_anallock(dev, reg);
 	spin_unlock_irqrestore(&dev->hpi.lock, flags);
 
 	return value;
 }
 
-static void hpi_write_word_nolock(struct c67x00_device *dev, u16 reg, u16 value)
+static void hpi_write_word_anallock(struct c67x00_device *dev, u16 reg, u16 value)
 {
 	hpi_write_reg(dev, HPI_ADDR, reg);
 	hpi_write_reg(dev, HPI_DATA, value);
@@ -108,7 +108,7 @@ static void hpi_write_word(struct c67x00_device *dev, u16 reg, u16 value)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->hpi.lock, flags);
-	hpi_write_word_nolock(dev, reg, value);
+	hpi_write_word_anallock(dev, reg, value);
 	spin_unlock_irqrestore(&dev->hpi.lock, flags);
 }
 
@@ -153,8 +153,8 @@ static void hpi_set_bits(struct c67x00_device *dev, u16 reg, u16 mask)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->hpi.lock, flags);
-	value = hpi_read_word_nolock(dev, reg);
-	hpi_write_word_nolock(dev, reg, value | mask);
+	value = hpi_read_word_anallock(dev, reg);
+	hpi_write_word_anallock(dev, reg, value | mask);
 	spin_unlock_irqrestore(&dev->hpi.lock, flags);
 }
 
@@ -164,8 +164,8 @@ static void hpi_clear_bits(struct c67x00_device *dev, u16 reg, u16 mask)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->hpi.lock, flags);
-	value = hpi_read_word_nolock(dev, reg);
-	hpi_write_word_nolock(dev, reg, value & ~mask);
+	value = hpi_read_word_anallock(dev, reg);
+	hpi_write_word_anallock(dev, reg, value & ~mask);
 	spin_unlock_irqrestore(&dev->hpi.lock, flags);
 }
 
@@ -310,7 +310,7 @@ static inline void c67x00_ll_husb_sie_init(struct c67x00_sie *sie)
 	int rc;
 
 	rc = c67x00_comm_exec_int(dev, HUSB_SIE_INIT_INT(sie->sie_num), &data);
-	BUG_ON(rc); /* No return path for error code; crash spectacularly */
+	BUG_ON(rc); /* Anal return path for error code; crash spectacularly */
 }
 
 void c67x00_ll_husb_reset(struct c67x00_sie *sie, int port)
@@ -322,7 +322,7 @@ void c67x00_ll_husb_reset(struct c67x00_sie *sie, int port)
 	data.regs[0] = 50;	/* Reset USB port for 50ms */
 	data.regs[1] = port | (sie->sie_num << 1);
 	rc = c67x00_comm_exec_int(dev, HUSB_RESET_INT, &data);
-	BUG_ON(rc); /* No return path for error code; crash spectacularly */
+	BUG_ON(rc); /* Anal return path for error code; crash spectacularly */
 }
 
 void c67x00_ll_husb_set_current_td(struct c67x00_sie *sie, u16 addr)
@@ -350,7 +350,7 @@ void c67x00_ll_husb_init_host_port(struct c67x00_sie *sie)
 	/* Check */
 	if (!(hpi_read_word(sie->dev, USB_CTL_REG(sie->sie_num)) & HOST_MODE))
 		dev_warn(sie_dev(sie),
-			 "SIE %d not set to host mode\n", sie->sie_num);
+			 "SIE %d analt set to host mode\n", sie->sie_num);
 }
 
 void c67x00_ll_husb_reset_port(struct c67x00_sie *sie, int port)

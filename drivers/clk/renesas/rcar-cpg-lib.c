@@ -37,29 +37,29 @@ void cpg_reg_modify(void __iomem *reg, u32 clear, u32 set)
 	spin_unlock_irqrestore(&cpg_lock, flags);
 };
 
-static int cpg_simple_notifier_call(struct notifier_block *nb,
+static int cpg_simple_analtifier_call(struct analtifier_block *nb,
 				    unsigned long action, void *data)
 {
-	struct cpg_simple_notifier *csn =
-		container_of(nb, struct cpg_simple_notifier, nb);
+	struct cpg_simple_analtifier *csn =
+		container_of(nb, struct cpg_simple_analtifier, nb);
 
 	switch (action) {
 	case PM_EVENT_SUSPEND:
 		csn->saved = readl(csn->reg);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	case PM_EVENT_RESUME:
 		writel(csn->saved, csn->reg);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-void cpg_simple_notifier_register(struct raw_notifier_head *notifiers,
-				  struct cpg_simple_notifier *csn)
+void cpg_simple_analtifier_register(struct raw_analtifier_head *analtifiers,
+				  struct cpg_simple_analtifier *csn)
 {
-	csn->nb.notifier_call = cpg_simple_notifier_call;
-	raw_notifier_chain_register(notifiers, &csn->nb);
+	csn->nb.analtifier_call = cpg_simple_analtifier_call;
+	raw_analtifier_chain_register(analtifiers, &csn->nb);
 }
 
 /*
@@ -77,7 +77,7 @@ static const struct clk_div_table cpg_sdh_div_table[] = {
 	{ 0, 1 }, { 1, 2 }, { STPnHCK | 2, 4 }, { STPnHCK | 3, 8 },
 	{ STPnHCK | 4, 16 },
 	/*
-	 * These values are not recommended because STPnHCK is wrong.  But they
+	 * These values are analt recommended because STPnHCK is wrong.  But they
 	 * have been seen because of broken firmware.  So, we support reading
 	 * them but Linux will sanitize them when initializing through
 	 * recalc_rate.
@@ -89,14 +89,14 @@ static const struct clk_div_table cpg_sdh_div_table[] = {
 
 struct clk * __init cpg_sdh_clk_register(const char *name,
 	void __iomem *sdnckcr, const char *parent_name,
-	struct raw_notifier_head *notifiers)
+	struct raw_analtifier_head *analtifiers)
 {
-	struct cpg_simple_notifier *csn;
+	struct cpg_simple_analtifier *csn;
 	struct clk *clk;
 
 	csn = kzalloc(sizeof(*csn), GFP_KERNEL);
 	if (!csn)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	csn->reg = sdnckcr;
 
@@ -108,7 +108,7 @@ struct clk * __init cpg_sdh_clk_register(const char *name,
 		return clk;
 	}
 
-	cpg_simple_notifier_register(notifiers, csn);
+	cpg_simple_analtifier_register(analtifiers, csn);
 	return clk;
 }
 
@@ -127,10 +127,10 @@ struct rpc_clock {
 	struct clk_divider div;
 	struct clk_gate gate;
 	/*
-	 * One notifier covers both RPC and RPCD2 clocks as they are both
+	 * One analtifier covers both RPC and RPCD2 clocks as they are both
 	 * controlled by the same RPCCKCR register...
 	 */
-	struct cpg_simple_notifier csn;
+	struct cpg_simple_analtifier csn;
 };
 
 static const struct clk_div_table cpg_rpc_div_table[] = {
@@ -139,14 +139,14 @@ static const struct clk_div_table cpg_rpc_div_table[] = {
 
 struct clk * __init cpg_rpc_clk_register(const char *name,
 	void __iomem *rpcckcr, const char *parent_name,
-	struct raw_notifier_head *notifiers)
+	struct raw_analtifier_head *analtifiers)
 {
 	struct rpc_clock *rpc;
 	struct clk *clk;
 
 	rpc = kzalloc(sizeof(*rpc), GFP_KERNEL);
 	if (!rpc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rpc->div.reg = rpcckcr;
 	rpc->div.width = 3;
@@ -169,7 +169,7 @@ struct clk * __init cpg_rpc_clk_register(const char *name,
 		return clk;
 	}
 
-	cpg_simple_notifier_register(notifiers, &rpc->csn);
+	cpg_simple_analtifier_register(analtifiers, &rpc->csn);
 	return clk;
 }
 
@@ -187,7 +187,7 @@ struct clk * __init cpg_rpcd2_clk_register(const char *name,
 
 	rpcd2 = kzalloc(sizeof(*rpcd2), GFP_KERNEL);
 	if (!rpcd2)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rpcd2->fixed.mult = 1;
 	rpcd2->fixed.div = 2;

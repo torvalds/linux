@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch Reset driver
  *
- * Copyright (c) 2020 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2020 Microchip Techanallogy Inc. and its subsidiaries.
  *
  * The Sparx5 Chip Register Model can be browsed at this location:
  * https://github.com/microchip-ung/sparx-5_reginfo
@@ -52,31 +52,31 @@ static int sparx5_switch_reset(struct mchp_reset_context *ctx)
 					1, 100);
 }
 
-static int sparx5_reset_noop(struct reset_controller_dev *rcdev,
+static int sparx5_reset_analop(struct reset_controller_dev *rcdev,
 			     unsigned long id)
 {
 	return 0;
 }
 
 static const struct reset_control_ops sparx5_reset_ops = {
-	.reset = sparx5_reset_noop,
+	.reset = sparx5_reset_analop,
 };
 
 static int mchp_sparx5_map_syscon(struct platform_device *pdev, char *name,
 				  struct regmap **target)
 {
-	struct device_node *syscon_np;
+	struct device_analde *syscon_np;
 	struct regmap *regmap;
 	int err;
 
-	syscon_np = of_parse_phandle(pdev->dev.of_node, name, 0);
+	syscon_np = of_parse_phandle(pdev->dev.of_analde, name, 0);
 	if (!syscon_np)
-		return -ENODEV;
-	regmap = syscon_node_to_regmap(syscon_np);
-	of_node_put(syscon_np);
+		return -EANALDEV;
+	regmap = syscon_analde_to_regmap(syscon_np);
+	of_analde_put(syscon_np);
 	if (IS_ERR(regmap)) {
 		err = PTR_ERR(regmap);
-		dev_err(&pdev->dev, "No '%s' map: %d\n", name, err);
+		dev_err(&pdev->dev, "Anal '%s' map: %d\n", name, err);
 		return err;
 	}
 	*target = regmap;
@@ -92,7 +92,7 @@ static int mchp_sparx5_map_io(struct platform_device *pdev, int index,
 
 	mem = devm_platform_get_and_ioremap_resource(pdev, index, &res);
 	if (IS_ERR(mem)) {
-		dev_err(&pdev->dev, "Could not map resource %d\n", index);
+		dev_err(&pdev->dev, "Could analt map resource %d\n", index);
 		return PTR_ERR(mem);
 	}
 	sparx5_reset_regmap_config.name = res->name;
@@ -105,13 +105,13 @@ static int mchp_sparx5_map_io(struct platform_device *pdev, int index,
 
 static int mchp_sparx5_reset_probe(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_analde *dn = pdev->dev.of_analde;
 	struct mchp_reset_context *ctx;
 	int err;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mchp_sparx5_map_syscon(pdev, "cpu-syscon", &ctx->cpu_ctrl);
 	if (err)
@@ -123,10 +123,10 @@ static int mchp_sparx5_reset_probe(struct platform_device *pdev)
 	ctx->rcdev.owner = THIS_MODULE;
 	ctx->rcdev.nr_resets = 1;
 	ctx->rcdev.ops = &sparx5_reset_ops;
-	ctx->rcdev.of_node = dn;
+	ctx->rcdev.of_analde = dn;
 	ctx->props = device_get_match_data(&pdev->dev);
 
-	/* Issue the reset very early, our actual reset callback is a noop. */
+	/* Issue the reset very early, our actual reset callback is a analop. */
 	err = sparx5_switch_reset(ctx);
 	if (err)
 		return err;

@@ -526,7 +526,7 @@ static int __init aes_init(void)
 	int i;
 
 	if (!(elf_hwcap & HWCAP_NEON))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = crypto_register_skciphers(aes_algs, ARRAY_SIZE(aes_algs));
 	if (err)

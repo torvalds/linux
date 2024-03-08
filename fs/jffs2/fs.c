@@ -25,46 +25,46 @@
 #include <linux/vmalloc.h>
 #include <linux/vfs.h>
 #include <linux/crc32.h>
-#include "nodelist.h"
+#include "analdelist.h"
 
 static int jffs2_flash_setup(struct jffs2_sb_info *c);
 
-int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
+int jffs2_do_setattr (struct ianalde *ianalde, struct iattr *iattr)
 {
-	struct jffs2_full_dnode *old_metadata, *new_metadata;
-	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
-	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
-	struct jffs2_raw_inode *ri;
-	union jffs2_device_node dev;
+	struct jffs2_full_danalde *old_metadata, *new_metadata;
+	struct jffs2_ianalde_info *f = JFFS2_IANALDE_INFO(ianalde);
+	struct jffs2_sb_info *c = JFFS2_SB_INFO(ianalde->i_sb);
+	struct jffs2_raw_ianalde *ri;
+	union jffs2_device_analde dev;
 	unsigned char *mdata = NULL;
 	int mdatalen = 0;
 	unsigned int ivalid;
 	uint32_t alloclen;
 	int ret;
-	int alloc_type = ALLOC_NORMAL;
+	int alloc_type = ALLOC_ANALRMAL;
 
-	jffs2_dbg(1, "%s(): ino #%lu\n", __func__, inode->i_ino);
+	jffs2_dbg(1, "%s(): ianal #%lu\n", __func__, ianalde->i_ianal);
 
-	/* Special cases - we don't want more than one data node
+	/* Special cases - we don't want more than one data analde
 	   for these types on the medium at any time. So setattr
-	   must read the original data associated with the node
+	   must read the original data associated with the analde
 	   (i.e. the device numbers or the target name) and write
 	   it out again with the appropriate data attached */
-	if (S_ISBLK(inode->i_mode) || S_ISCHR(inode->i_mode)) {
-		/* For these, we don't actually need to read the old node */
-		mdatalen = jffs2_encode_dev(&dev, inode->i_rdev);
+	if (S_ISBLK(ianalde->i_mode) || S_ISCHR(ianalde->i_mode)) {
+		/* For these, we don't actually need to read the old analde */
+		mdatalen = jffs2_encode_dev(&dev, ianalde->i_rdev);
 		mdata = (char *)&dev;
 		jffs2_dbg(1, "%s(): Writing %d bytes of kdev_t\n",
 			  __func__, mdatalen);
-	} else if (S_ISLNK(inode->i_mode)) {
+	} else if (S_ISLNK(ianalde->i_mode)) {
 		mutex_lock(&f->sem);
 		mdatalen = f->metadata->size;
 		mdata = kmalloc(f->metadata->size, GFP_USER);
 		if (!mdata) {
 			mutex_unlock(&f->sem);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
-		ret = jffs2_read_dnode(c, f, f->metadata, mdata, 0, mdatalen);
+		ret = jffs2_read_danalde(c, f, f->metadata, mdata, 0, mdatalen);
 		if (ret) {
 			mutex_unlock(&f->sem);
 			kfree(mdata);
@@ -75,18 +75,18 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 			  __func__, mdatalen);
 	}
 
-	ri = jffs2_alloc_raw_inode();
+	ri = jffs2_alloc_raw_ianalde();
 	if (!ri) {
-		if (S_ISLNK(inode->i_mode))
+		if (S_ISLNK(ianalde->i_mode))
 			kfree(mdata);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = jffs2_reserve_space(c, sizeof(*ri) + mdatalen, &alloclen,
-				  ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
+				  ALLOC_ANALRMAL, JFFS2_SUMMARY_IANALDE_SIZE);
 	if (ret) {
-		jffs2_free_raw_inode(ri);
-		if (S_ISLNK(inode->i_mode))
+		jffs2_free_raw_ianalde(ri);
+		if (S_ISLNK(ianalde->i_mode))
 			 kfree(mdata);
 		return ret;
 	}
@@ -94,85 +94,85 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	ivalid = iattr->ia_valid;
 
 	ri->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
-	ri->nodetype = cpu_to_je16(JFFS2_NODETYPE_INODE);
+	ri->analdetype = cpu_to_je16(JFFS2_ANALDETYPE_IANALDE);
 	ri->totlen = cpu_to_je32(sizeof(*ri) + mdatalen);
-	ri->hdr_crc = cpu_to_je32(crc32(0, ri, sizeof(struct jffs2_unknown_node)-4));
+	ri->hdr_crc = cpu_to_je32(crc32(0, ri, sizeof(struct jffs2_unkanalwn_analde)-4));
 
-	ri->ino = cpu_to_je32(inode->i_ino);
+	ri->ianal = cpu_to_je32(ianalde->i_ianal);
 	ri->version = cpu_to_je32(++f->highest_version);
 
 	ri->uid = cpu_to_je16((ivalid & ATTR_UID)?
-		from_kuid(&init_user_ns, iattr->ia_uid):i_uid_read(inode));
+		from_kuid(&init_user_ns, iattr->ia_uid):i_uid_read(ianalde));
 	ri->gid = cpu_to_je16((ivalid & ATTR_GID)?
-		from_kgid(&init_user_ns, iattr->ia_gid):i_gid_read(inode));
+		from_kgid(&init_user_ns, iattr->ia_gid):i_gid_read(ianalde));
 
 	if (ivalid & ATTR_MODE)
 		ri->mode = cpu_to_jemode(iattr->ia_mode);
 	else
-		ri->mode = cpu_to_jemode(inode->i_mode);
+		ri->mode = cpu_to_jemode(ianalde->i_mode);
 
 
-	ri->isize = cpu_to_je32((ivalid & ATTR_SIZE)?iattr->ia_size:inode->i_size);
-	ri->atime = cpu_to_je32(I_SEC((ivalid & ATTR_ATIME)?iattr->ia_atime:inode_get_atime(inode)));
-	ri->mtime = cpu_to_je32(I_SEC((ivalid & ATTR_MTIME)?iattr->ia_mtime:inode_get_mtime(inode)));
-	ri->ctime = cpu_to_je32(I_SEC((ivalid & ATTR_CTIME)?iattr->ia_ctime:inode_get_ctime(inode)));
+	ri->isize = cpu_to_je32((ivalid & ATTR_SIZE)?iattr->ia_size:ianalde->i_size);
+	ri->atime = cpu_to_je32(I_SEC((ivalid & ATTR_ATIME)?iattr->ia_atime:ianalde_get_atime(ianalde)));
+	ri->mtime = cpu_to_je32(I_SEC((ivalid & ATTR_MTIME)?iattr->ia_mtime:ianalde_get_mtime(ianalde)));
+	ri->ctime = cpu_to_je32(I_SEC((ivalid & ATTR_CTIME)?iattr->ia_ctime:ianalde_get_ctime(ianalde)));
 
 	ri->offset = cpu_to_je32(0);
 	ri->csize = ri->dsize = cpu_to_je32(mdatalen);
-	ri->compr = JFFS2_COMPR_NONE;
-	if (ivalid & ATTR_SIZE && inode->i_size < iattr->ia_size) {
-		/* It's an extension. Make it a hole node */
+	ri->compr = JFFS2_COMPR_ANALNE;
+	if (ivalid & ATTR_SIZE && ianalde->i_size < iattr->ia_size) {
+		/* It's an extension. Make it a hole analde */
 		ri->compr = JFFS2_COMPR_ZERO;
-		ri->dsize = cpu_to_je32(iattr->ia_size - inode->i_size);
-		ri->offset = cpu_to_je32(inode->i_size);
+		ri->dsize = cpu_to_je32(iattr->ia_size - ianalde->i_size);
+		ri->offset = cpu_to_je32(ianalde->i_size);
 	} else if (ivalid & ATTR_SIZE && !iattr->ia_size) {
 		/* For truncate-to-zero, treat it as deletion because
-		   it'll always be obsoleting all previous nodes */
+		   it'll always be obsoleting all previous analdes */
 		alloc_type = ALLOC_DELETION;
 	}
-	ri->node_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
+	ri->analde_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
 	if (mdatalen)
 		ri->data_crc = cpu_to_je32(crc32(0, mdata, mdatalen));
 	else
 		ri->data_crc = cpu_to_je32(0);
 
-	new_metadata = jffs2_write_dnode(c, f, ri, mdata, mdatalen, alloc_type);
-	if (S_ISLNK(inode->i_mode))
+	new_metadata = jffs2_write_danalde(c, f, ri, mdata, mdatalen, alloc_type);
+	if (S_ISLNK(ianalde->i_mode))
 		kfree(mdata);
 
 	if (IS_ERR(new_metadata)) {
 		jffs2_complete_reservation(c);
-		jffs2_free_raw_inode(ri);
+		jffs2_free_raw_ianalde(ri);
 		mutex_unlock(&f->sem);
 		return PTR_ERR(new_metadata);
 	}
-	/* It worked. Update the inode */
-	inode_set_atime_to_ts(inode, ITIME(je32_to_cpu(ri->atime)));
-	inode_set_ctime_to_ts(inode, ITIME(je32_to_cpu(ri->ctime)));
-	inode_set_mtime_to_ts(inode, ITIME(je32_to_cpu(ri->mtime)));
-	inode->i_mode = jemode_to_cpu(ri->mode);
-	i_uid_write(inode, je16_to_cpu(ri->uid));
-	i_gid_write(inode, je16_to_cpu(ri->gid));
+	/* It worked. Update the ianalde */
+	ianalde_set_atime_to_ts(ianalde, ITIME(je32_to_cpu(ri->atime)));
+	ianalde_set_ctime_to_ts(ianalde, ITIME(je32_to_cpu(ri->ctime)));
+	ianalde_set_mtime_to_ts(ianalde, ITIME(je32_to_cpu(ri->mtime)));
+	ianalde->i_mode = jemode_to_cpu(ri->mode);
+	i_uid_write(ianalde, je16_to_cpu(ri->uid));
+	i_gid_write(ianalde, je16_to_cpu(ri->gid));
 
 
 	old_metadata = f->metadata;
 
-	if (ivalid & ATTR_SIZE && inode->i_size > iattr->ia_size)
+	if (ivalid & ATTR_SIZE && ianalde->i_size > iattr->ia_size)
 		jffs2_truncate_fragtree (c, &f->fragtree, iattr->ia_size);
 
-	if (ivalid & ATTR_SIZE && inode->i_size < iattr->ia_size) {
-		jffs2_add_full_dnode_to_inode(c, f, new_metadata);
-		inode->i_size = iattr->ia_size;
-		inode->i_blocks = (inode->i_size + 511) >> 9;
+	if (ivalid & ATTR_SIZE && ianalde->i_size < iattr->ia_size) {
+		jffs2_add_full_danalde_to_ianalde(c, f, new_metadata);
+		ianalde->i_size = iattr->ia_size;
+		ianalde->i_blocks = (ianalde->i_size + 511) >> 9;
 		f->metadata = NULL;
 	} else {
 		f->metadata = new_metadata;
 	}
 	if (old_metadata) {
-		jffs2_mark_node_obsolete(c, old_metadata->raw);
-		jffs2_free_full_dnode(old_metadata);
+		jffs2_mark_analde_obsolete(c, old_metadata->raw);
+		jffs2_free_full_danalde(old_metadata);
 	}
-	jffs2_free_raw_inode(ri);
+	jffs2_free_raw_ianalde(ri);
 
 	mutex_unlock(&f->sem);
 	jffs2_complete_reservation(c);
@@ -181,10 +181,10 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	   some pages may be locked and waiting for it in read_folio().
 	   We are protected from a simultaneous write() extending i_size
 	   back past iattr->ia_size, because do_truncate() holds the
-	   generic inode semaphore. */
-	if (ivalid & ATTR_SIZE && inode->i_size > iattr->ia_size) {
-		truncate_setsize(inode, iattr->ia_size);
-		inode->i_blocks = (inode->i_size + 511) >> 9;
+	   generic ianalde semaphore. */
+	if (ivalid & ATTR_SIZE && ianalde->i_size > iattr->ia_size) {
+		truncate_setsize(ianalde, iattr->ia_size);
+		ianalde->i_blocks = (ianalde->i_size + 511) >> 9;
 	}
 
 	return 0;
@@ -193,16 +193,16 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 int jffs2_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *iattr)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	int rc;
 
-	rc = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
+	rc = setattr_prepare(&analp_mnt_idmap, dentry, iattr);
 	if (rc)
 		return rc;
 
-	rc = jffs2_do_setattr(inode, iattr);
+	rc = jffs2_do_setattr(ianalde, iattr);
 	if (!rc && (iattr->ia_valid & ATTR_MODE))
-		rc = posix_acl_chmod(&nop_mnt_idmap, dentry, inode->i_mode);
+		rc = posix_acl_chmod(&analp_mnt_idmap, dentry, ianalde->i_mode);
 
 	return rc;
 }
@@ -235,90 +235,90 @@ int jffs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 }
 
 
-void jffs2_evict_inode (struct inode *inode)
+void jffs2_evict_ianalde (struct ianalde *ianalde)
 {
-	/* We can forget about this inode for now - drop all
-	 *  the nodelists associated with it, etc.
+	/* We can forget about this ianalde for analw - drop all
+	 *  the analdelists associated with it, etc.
 	 */
-	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
-	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
+	struct jffs2_sb_info *c = JFFS2_SB_INFO(ianalde->i_sb);
+	struct jffs2_ianalde_info *f = JFFS2_IANALDE_INFO(ianalde);
 
-	jffs2_dbg(1, "%s(): ino #%lu mode %o\n",
-		  __func__, inode->i_ino, inode->i_mode);
-	truncate_inode_pages_final(&inode->i_data);
-	clear_inode(inode);
-	jffs2_do_clear_inode(c, f);
+	jffs2_dbg(1, "%s(): ianal #%lu mode %o\n",
+		  __func__, ianalde->i_ianal, ianalde->i_mode);
+	truncate_ianalde_pages_final(&ianalde->i_data);
+	clear_ianalde(ianalde);
+	jffs2_do_clear_ianalde(c, f);
 }
 
-struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
+struct ianalde *jffs2_iget(struct super_block *sb, unsigned long ianal)
 {
-	struct jffs2_inode_info *f;
+	struct jffs2_ianalde_info *f;
 	struct jffs2_sb_info *c;
-	struct jffs2_raw_inode latest_node;
-	union jffs2_device_node jdev;
-	struct inode *inode;
+	struct jffs2_raw_ianalde latest_analde;
+	union jffs2_device_analde jdev;
+	struct ianalde *ianalde;
 	dev_t rdev = 0;
 	int ret;
 
-	jffs2_dbg(1, "%s(): ino == %lu\n", __func__, ino);
+	jffs2_dbg(1, "%s(): ianal == %lu\n", __func__, ianal);
 
-	inode = iget_locked(sb, ino);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	ianalde = iget_locked(sb, ianal);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
+	if (!(ianalde->i_state & I_NEW))
+		return ianalde;
 
-	f = JFFS2_INODE_INFO(inode);
-	c = JFFS2_SB_INFO(inode->i_sb);
+	f = JFFS2_IANALDE_INFO(ianalde);
+	c = JFFS2_SB_INFO(ianalde->i_sb);
 
-	jffs2_init_inode_info(f);
+	jffs2_init_ianalde_info(f);
 	mutex_lock(&f->sem);
 
-	ret = jffs2_do_read_inode(c, f, inode->i_ino, &latest_node);
+	ret = jffs2_do_read_ianalde(c, f, ianalde->i_ianal, &latest_analde);
 	if (ret)
 		goto error;
 
-	inode->i_mode = jemode_to_cpu(latest_node.mode);
-	i_uid_write(inode, je16_to_cpu(latest_node.uid));
-	i_gid_write(inode, je16_to_cpu(latest_node.gid));
-	inode->i_size = je32_to_cpu(latest_node.isize);
-	inode_set_atime_to_ts(inode, ITIME(je32_to_cpu(latest_node.atime)));
-	inode_set_mtime_to_ts(inode, ITIME(je32_to_cpu(latest_node.mtime)));
-	inode_set_ctime_to_ts(inode, ITIME(je32_to_cpu(latest_node.ctime)));
+	ianalde->i_mode = jemode_to_cpu(latest_analde.mode);
+	i_uid_write(ianalde, je16_to_cpu(latest_analde.uid));
+	i_gid_write(ianalde, je16_to_cpu(latest_analde.gid));
+	ianalde->i_size = je32_to_cpu(latest_analde.isize);
+	ianalde_set_atime_to_ts(ianalde, ITIME(je32_to_cpu(latest_analde.atime)));
+	ianalde_set_mtime_to_ts(ianalde, ITIME(je32_to_cpu(latest_analde.mtime)));
+	ianalde_set_ctime_to_ts(ianalde, ITIME(je32_to_cpu(latest_analde.ctime)));
 
-	set_nlink(inode, f->inocache->pino_nlink);
+	set_nlink(ianalde, f->ianalcache->pianal_nlink);
 
-	inode->i_blocks = (inode->i_size + 511) >> 9;
+	ianalde->i_blocks = (ianalde->i_size + 511) >> 9;
 
-	switch (inode->i_mode & S_IFMT) {
+	switch (ianalde->i_mode & S_IFMT) {
 
 	case S_IFLNK:
-		inode->i_op = &jffs2_symlink_inode_operations;
-		inode->i_link = f->target;
+		ianalde->i_op = &jffs2_symlink_ianalde_operations;
+		ianalde->i_link = f->target;
 		break;
 
 	case S_IFDIR:
 	{
 		struct jffs2_full_dirent *fd;
-		set_nlink(inode, 2); /* parent and '.' */
+		set_nlink(ianalde, 2); /* parent and '.' */
 
 		for (fd=f->dents; fd; fd = fd->next) {
-			if (fd->type == DT_DIR && fd->ino)
-				inc_nlink(inode);
+			if (fd->type == DT_DIR && fd->ianal)
+				inc_nlink(ianalde);
 		}
 		/* Root dir gets i_nlink 3 for some reason */
-		if (inode->i_ino == 1)
-			inc_nlink(inode);
+		if (ianalde->i_ianal == 1)
+			inc_nlink(ianalde);
 
-		inode->i_op = &jffs2_dir_inode_operations;
-		inode->i_fop = &jffs2_dir_operations;
+		ianalde->i_op = &jffs2_dir_ianalde_operations;
+		ianalde->i_fop = &jffs2_dir_operations;
 		break;
 	}
 	case S_IFREG:
-		inode->i_op = &jffs2_file_inode_operations;
-		inode->i_fop = &jffs2_file_operations;
-		inode->i_mapping->a_ops = &jffs2_file_address_operations;
-		inode->i_mapping->nrpages = 0;
+		ianalde->i_op = &jffs2_file_ianalde_operations;
+		ianalde->i_fop = &jffs2_file_operations;
+		ianalde->i_mapping->a_ops = &jffs2_file_address_operations;
+		ianalde->i_mapping->nrpages = 0;
 		break;
 
 	case S_IFBLK:
@@ -326,16 +326,16 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 		/* Read the device numbers from the media */
 		if (f->metadata->size != sizeof(jdev.old_id) &&
 		    f->metadata->size != sizeof(jdev.new_id)) {
-			pr_notice("Device node has strange size %d\n",
+			pr_analtice("Device analde has strange size %d\n",
 				  f->metadata->size);
 			goto error_io;
 		}
 		jffs2_dbg(1, "Reading device numbers from flash\n");
-		ret = jffs2_read_dnode(c, f, f->metadata, (char *)&jdev, 0, f->metadata->size);
+		ret = jffs2_read_danalde(c, f, f->metadata, (char *)&jdev, 0, f->metadata->size);
 		if (ret < 0) {
 			/* Eep */
-			pr_notice("Read device numbers for inode %lu failed\n",
-				  (unsigned long)inode->i_ino);
+			pr_analtice("Read device numbers for ianalde %lu failed\n",
+				  (unsigned long)ianalde->i_ianal);
 			goto error;
 		}
 		if (f->metadata->size == sizeof(jdev.old_id))
@@ -346,51 +346,51 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 
 	case S_IFSOCK:
 	case S_IFIFO:
-		inode->i_op = &jffs2_file_inode_operations;
-		init_special_inode(inode, inode->i_mode, rdev);
+		ianalde->i_op = &jffs2_file_ianalde_operations;
+		init_special_ianalde(ianalde, ianalde->i_mode, rdev);
 		break;
 
 	default:
-		pr_warn("%s(): Bogus i_mode %o for ino %lu\n",
-			__func__, inode->i_mode, (unsigned long)inode->i_ino);
+		pr_warn("%s(): Bogus i_mode %o for ianal %lu\n",
+			__func__, ianalde->i_mode, (unsigned long)ianalde->i_ianal);
 	}
 
 	mutex_unlock(&f->sem);
 
-	jffs2_dbg(1, "jffs2_read_inode() returning\n");
-	unlock_new_inode(inode);
-	return inode;
+	jffs2_dbg(1, "jffs2_read_ianalde() returning\n");
+	unlock_new_ianalde(ianalde);
+	return ianalde;
 
 error_io:
 	ret = -EIO;
 error:
 	mutex_unlock(&f->sem);
-	iget_failed(inode);
+	iget_failed(ianalde);
 	return ERR_PTR(ret);
 }
 
-void jffs2_dirty_inode(struct inode *inode, int flags)
+void jffs2_dirty_ianalde(struct ianalde *ianalde, int flags)
 {
 	struct iattr iattr;
 
-	if (!(inode->i_state & I_DIRTY_DATASYNC)) {
-		jffs2_dbg(2, "%s(): not calling setattr() for ino #%lu\n",
-			  __func__, inode->i_ino);
+	if (!(ianalde->i_state & I_DIRTY_DATASYNC)) {
+		jffs2_dbg(2, "%s(): analt calling setattr() for ianal #%lu\n",
+			  __func__, ianalde->i_ianal);
 		return;
 	}
 
-	jffs2_dbg(1, "%s(): calling setattr() for ino #%lu\n",
-		  __func__, inode->i_ino);
+	jffs2_dbg(1, "%s(): calling setattr() for ianal #%lu\n",
+		  __func__, ianalde->i_ianal);
 
 	iattr.ia_valid = ATTR_MODE|ATTR_UID|ATTR_GID|ATTR_ATIME|ATTR_MTIME|ATTR_CTIME;
-	iattr.ia_mode = inode->i_mode;
-	iattr.ia_uid = inode->i_uid;
-	iattr.ia_gid = inode->i_gid;
-	iattr.ia_atime = inode_get_atime(inode);
-	iattr.ia_mtime = inode_get_mtime(inode);
-	iattr.ia_ctime = inode_get_ctime(inode);
+	iattr.ia_mode = ianalde->i_mode;
+	iattr.ia_uid = ianalde->i_uid;
+	iattr.ia_gid = ianalde->i_gid;
+	iattr.ia_atime = ianalde_get_atime(ianalde);
+	iattr.ia_mtime = ianalde_get_mtime(ianalde);
+	iattr.ia_ctime = ianalde_get_ctime(ianalde);
 
-	jffs2_do_setattr(inode, &iattr);
+	jffs2_do_setattr(ianalde, &iattr);
 }
 
 int jffs2_do_remount_fs(struct super_block *sb, struct fs_context *fc)
@@ -414,36 +414,36 @@ int jffs2_do_remount_fs(struct super_block *sb, struct fs_context *fc)
 	if (!(fc->sb_flags & SB_RDONLY))
 		jffs2_start_garbage_collect_thread(c);
 
-	fc->sb_flags |= SB_NOATIME;
+	fc->sb_flags |= SB_ANALATIME;
 	return 0;
 }
 
-/* jffs2_new_inode: allocate a new inode and inocache, add it to the hash,
-   fill in the raw_inode while you're at it. */
-struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode, struct jffs2_raw_inode *ri)
+/* jffs2_new_ianalde: allocate a new ianalde and ianalcache, add it to the hash,
+   fill in the raw_ianalde while you're at it. */
+struct ianalde *jffs2_new_ianalde (struct ianalde *dir_i, umode_t mode, struct jffs2_raw_ianalde *ri)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct super_block *sb = dir_i->i_sb;
 	struct jffs2_sb_info *c;
-	struct jffs2_inode_info *f;
+	struct jffs2_ianalde_info *f;
 	int ret;
 
 	jffs2_dbg(1, "%s(): dir_i %ld, mode 0x%x\n",
-		  __func__, dir_i->i_ino, mode);
+		  __func__, dir_i->i_ianal, mode);
 
 	c = JFFS2_SB_INFO(sb);
 
-	inode = new_inode(sb);
+	ianalde = new_ianalde(sb);
 
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
 
-	f = JFFS2_INODE_INFO(inode);
-	jffs2_init_inode_info(f);
+	f = JFFS2_IANALDE_INFO(ianalde);
+	jffs2_init_ianalde_info(f);
 	mutex_lock(&f->sem);
 
 	memset(ri, 0, sizeof(*ri));
-	/* Set OS-specific defaults for new inodes */
+	/* Set OS-specific defaults for new ianaldes */
 	ri->uid = cpu_to_je16(from_kuid(&init_user_ns, current_fsuid()));
 
 	if (dir_i->i_mode & S_ISGID) {
@@ -454,47 +454,47 @@ struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode, struct jffs2_r
 		ri->gid = cpu_to_je16(from_kgid(&init_user_ns, current_fsgid()));
 	}
 
-	/* POSIX ACLs have to be processed now, at least partly.
-	   The umask is only applied if there's no default ACL */
-	ret = jffs2_init_acl_pre(dir_i, inode, &mode);
+	/* POSIX ACLs have to be processed analw, at least partly.
+	   The umask is only applied if there's anal default ACL */
+	ret = jffs2_init_acl_pre(dir_i, ianalde, &mode);
 	if (ret) {
 		mutex_unlock(&f->sem);
-		make_bad_inode(inode);
-		iput(inode);
+		make_bad_ianalde(ianalde);
+		iput(ianalde);
 		return ERR_PTR(ret);
 	}
-	ret = jffs2_do_new_inode (c, f, mode, ri);
+	ret = jffs2_do_new_ianalde (c, f, mode, ri);
 	if (ret) {
 		mutex_unlock(&f->sem);
-		make_bad_inode(inode);
-		iput(inode);
+		make_bad_ianalde(ianalde);
+		iput(ianalde);
 		return ERR_PTR(ret);
 	}
-	set_nlink(inode, 1);
-	inode->i_ino = je32_to_cpu(ri->ino);
-	inode->i_mode = jemode_to_cpu(ri->mode);
-	i_gid_write(inode, je16_to_cpu(ri->gid));
-	i_uid_write(inode, je16_to_cpu(ri->uid));
-	simple_inode_init_ts(inode);
-	ri->atime = ri->mtime = ri->ctime = cpu_to_je32(I_SEC(inode_get_mtime(inode)));
+	set_nlink(ianalde, 1);
+	ianalde->i_ianal = je32_to_cpu(ri->ianal);
+	ianalde->i_mode = jemode_to_cpu(ri->mode);
+	i_gid_write(ianalde, je16_to_cpu(ri->gid));
+	i_uid_write(ianalde, je16_to_cpu(ri->uid));
+	simple_ianalde_init_ts(ianalde);
+	ri->atime = ri->mtime = ri->ctime = cpu_to_je32(I_SEC(ianalde_get_mtime(ianalde)));
 
-	inode->i_blocks = 0;
-	inode->i_size = 0;
+	ianalde->i_blocks = 0;
+	ianalde->i_size = 0;
 
-	if (insert_inode_locked(inode) < 0) {
+	if (insert_ianalde_locked(ianalde) < 0) {
 		mutex_unlock(&f->sem);
-		make_bad_inode(inode);
-		iput(inode);
+		make_bad_ianalde(ianalde);
+		iput(ianalde);
 		return ERR_PTR(-EINVAL);
 	}
 
-	return inode;
+	return ianalde;
 }
 
-static int calculate_inocache_hashsize(uint32_t flash_size)
+static int calculate_ianalcache_hashsize(uint32_t flash_size)
 {
 	/*
-	 * Pick a inocache hash size based on the size of the medium.
+	 * Pick a ianalcache hash size based on the size of the medium.
 	 * Count how many megabytes we're dealing with, apply a hashsize twice
 	 * that size, but rounding down to the usual big powers of 2. And keep
 	 * to sensible bounds.
@@ -503,10 +503,10 @@ static int calculate_inocache_hashsize(uint32_t flash_size)
 	int size_mb = flash_size / 1024 / 1024;
 	int hashsize = (size_mb * 2) & ~0x3f;
 
-	if (hashsize < INOCACHE_HASHSIZE_MIN)
-		return INOCACHE_HASHSIZE_MIN;
-	if (hashsize > INOCACHE_HASHSIZE_MAX)
-		return INOCACHE_HASHSIZE_MAX;
+	if (hashsize < IANALCACHE_HASHSIZE_MIN)
+		return IANALCACHE_HASHSIZE_MIN;
+	if (hashsize > IANALCACHE_HASHSIZE_MAX)
+		return IANALCACHE_HASHSIZE_MAX;
 
 	return hashsize;
 }
@@ -514,23 +514,23 @@ static int calculate_inocache_hashsize(uint32_t flash_size)
 int jffs2_do_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct jffs2_sb_info *c;
-	struct inode *root_i;
+	struct ianalde *root_i;
 	int ret;
 	size_t blocks;
 
 	c = JFFS2_SB_INFO(sb);
 
-	/* Do not support the MLC nand */
+	/* Do analt support the MLC nand */
 	if (c->mtd->type == MTD_MLCNANDFLASH)
 		return -EINVAL;
 
 #ifndef CONFIG_JFFS2_FS_WRITEBUFFER
 	if (c->mtd->type == MTD_NANDFLASH) {
-		errorf(fc, "Cannot operate on NAND flash unless jffs2 NAND support is compiled in");
+		errorf(fc, "Cananalt operate on NAND flash unless jffs2 NAND support is compiled in");
 		return -EINVAL;
 	}
 	if (c->mtd->type == MTD_DATAFLASH) {
-		errorf(fc, "Cannot operate on DataFlash unless jffs2 DataFlash support is compiled in");
+		errorf(fc, "Cananalt operate on DataFlash unless jffs2 DataFlash support is compiled in");
 		return -EINVAL;
 	}
 #endif
@@ -544,7 +544,7 @@ int jffs2_do_fill_super(struct super_block *sb, struct fs_context *fc)
 	 */
 	if ((c->sector_size * blocks) != c->flash_size) {
 		c->flash_size = c->sector_size * blocks;
-		infof(fc, "Flash size not aligned to erasesize, reducing to %dKiB",
+		infof(fc, "Flash size analt aligned to erasesize, reducing to %dKiB",
 		      c->flash_size / 1024);
 	}
 
@@ -554,34 +554,34 @@ int jffs2_do_fill_super(struct super_block *sb, struct fs_context *fc)
 		return -EINVAL;
 	}
 
-	c->cleanmarker_size = sizeof(struct jffs2_unknown_node);
+	c->cleanmarker_size = sizeof(struct jffs2_unkanalwn_analde);
 
 	/* NAND (or other bizarre) flash... do setup accordingly */
 	ret = jffs2_flash_setup(c);
 	if (ret)
 		return ret;
 
-	c->inocache_hashsize = calculate_inocache_hashsize(c->flash_size);
-	c->inocache_list = kcalloc(c->inocache_hashsize, sizeof(struct jffs2_inode_cache *), GFP_KERNEL);
-	if (!c->inocache_list) {
-		ret = -ENOMEM;
+	c->ianalcache_hashsize = calculate_ianalcache_hashsize(c->flash_size);
+	c->ianalcache_list = kcalloc(c->ianalcache_hashsize, sizeof(struct jffs2_ianalde_cache *), GFP_KERNEL);
+	if (!c->ianalcache_list) {
+		ret = -EANALMEM;
 		goto out_wbuf;
 	}
 
 	jffs2_init_xattr_subsystem(c);
 
 	if ((ret = jffs2_do_mount_fs(c)))
-		goto out_inohash;
+		goto out_ianalhash;
 
-	jffs2_dbg(1, "%s(): Getting root inode\n", __func__);
+	jffs2_dbg(1, "%s(): Getting root ianalde\n", __func__);
 	root_i = jffs2_iget(sb, 1);
 	if (IS_ERR(root_i)) {
-		jffs2_dbg(1, "get root inode failed\n");
+		jffs2_dbg(1, "get root ianalde failed\n");
 		ret = PTR_ERR(root_i);
 		goto out_root;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	jffs2_dbg(1, "%s(): d_make_root()\n", __func__);
 	sb->s_root = d_make_root(root_i);
@@ -600,88 +600,88 @@ int jffs2_do_fill_super(struct super_block *sb, struct fs_context *fc)
 	return 0;
 
 out_root:
-	jffs2_free_ino_caches(c);
-	jffs2_free_raw_node_refs(c);
+	jffs2_free_ianal_caches(c);
+	jffs2_free_raw_analde_refs(c);
 	kvfree(c->blocks);
 	jffs2_clear_xattr_subsystem(c);
 	jffs2_sum_exit(c);
- out_inohash:
-	kfree(c->inocache_list);
+ out_ianalhash:
+	kfree(c->ianalcache_list);
  out_wbuf:
 	jffs2_flash_cleanup(c);
 
 	return ret;
 }
 
-void jffs2_gc_release_inode(struct jffs2_sb_info *c,
-				   struct jffs2_inode_info *f)
+void jffs2_gc_release_ianalde(struct jffs2_sb_info *c,
+				   struct jffs2_ianalde_info *f)
 {
 	iput(OFNI_EDONI_2SFFJ(f));
 }
 
-struct jffs2_inode_info *jffs2_gc_fetch_inode(struct jffs2_sb_info *c,
+struct jffs2_ianalde_info *jffs2_gc_fetch_ianalde(struct jffs2_sb_info *c,
 					      int inum, int unlinked)
 {
-	struct inode *inode;
-	struct jffs2_inode_cache *ic;
+	struct ianalde *ianalde;
+	struct jffs2_ianalde_cache *ic;
 
 	if (unlinked) {
-		/* The inode has zero nlink but its nodes weren't yet marked
+		/* The ianalde has zero nlink but its analdes weren't yet marked
 		   obsolete. This has to be because we're still waiting for
 		   the final (close() and) iput() to happen.
 
 		   There's a possibility that the final iput() could have
 		   happened while we were contemplating. In order to ensure
-		   that we don't cause a new read_inode() (which would fail)
-		   for the inode in question, we use ilookup() in this case
+		   that we don't cause a new read_ianalde() (which would fail)
+		   for the ianalde in question, we use ilookup() in this case
 		   instead of iget().
 
 		   The nlink can't _become_ zero at this point because we're
 		   holding the alloc_sem, and jffs2_do_unlink() would also
-		   need that while decrementing nlink on any inode.
+		   need that while decrementing nlink on any ianalde.
 		*/
-		inode = ilookup(OFNI_BS_2SFFJ(c), inum);
-		if (!inode) {
-			jffs2_dbg(1, "ilookup() failed for ino #%u; inode is probably deleted.\n",
+		ianalde = ilookup(OFNI_BS_2SFFJ(c), inum);
+		if (!ianalde) {
+			jffs2_dbg(1, "ilookup() failed for ianal #%u; ianalde is probably deleted.\n",
 				  inum);
 
-			spin_lock(&c->inocache_lock);
-			ic = jffs2_get_ino_cache(c, inum);
+			spin_lock(&c->ianalcache_lock);
+			ic = jffs2_get_ianal_cache(c, inum);
 			if (!ic) {
-				jffs2_dbg(1, "Inode cache for ino #%u is gone\n",
+				jffs2_dbg(1, "Ianalde cache for ianal #%u is gone\n",
 					  inum);
-				spin_unlock(&c->inocache_lock);
+				spin_unlock(&c->ianalcache_lock);
 				return NULL;
 			}
-			if (ic->state != INO_STATE_CHECKEDABSENT) {
+			if (ic->state != IANAL_STATE_CHECKEDABSENT) {
 				/* Wait for progress. Don't just loop */
-				jffs2_dbg(1, "Waiting for ino #%u in state %d\n",
-					  ic->ino, ic->state);
-				sleep_on_spinunlock(&c->inocache_wq, &c->inocache_lock);
+				jffs2_dbg(1, "Waiting for ianal #%u in state %d\n",
+					  ic->ianal, ic->state);
+				sleep_on_spinunlock(&c->ianalcache_wq, &c->ianalcache_lock);
 			} else {
-				spin_unlock(&c->inocache_lock);
+				spin_unlock(&c->ianalcache_lock);
 			}
 
 			return NULL;
 		}
 	} else {
-		/* Inode has links to it still; they're not going away because
+		/* Ianalde has links to it still; they're analt going away because
 		   jffs2_do_unlink() would need the alloc_sem and we have it.
-		   Just iget() it, and if read_inode() is necessary that's OK.
+		   Just iget() it, and if read_ianalde() is necessary that's OK.
 		*/
-		inode = jffs2_iget(OFNI_BS_2SFFJ(c), inum);
-		if (IS_ERR(inode))
-			return ERR_CAST(inode);
+		ianalde = jffs2_iget(OFNI_BS_2SFFJ(c), inum);
+		if (IS_ERR(ianalde))
+			return ERR_CAST(ianalde);
 	}
-	if (is_bad_inode(inode)) {
-		pr_notice("Eep. read_inode() failed for ino #%u. unlinked %d\n",
+	if (is_bad_ianalde(ianalde)) {
+		pr_analtice("Eep. read_ianalde() failed for ianal #%u. unlinked %d\n",
 			  inum, unlinked);
 		/* NB. This will happen again. We need to do something appropriate here. */
-		iput(inode);
+		iput(ianalde);
 		return ERR_PTR(-EIO);
 	}
 
-	return JFFS2_INODE_INFO(inode);
+	return JFFS2_IANALDE_INFO(ianalde);
 }
 
 static int jffs2_flash_setup(struct jffs2_sb_info *c) {
@@ -702,8 +702,8 @@ static int jffs2_flash_setup(struct jffs2_sb_info *c) {
 	}
 
 	/* and Intel "Sibley" flash */
-	if (jffs2_nor_wbuf_flash(c)) {
-		ret = jffs2_nor_wbuf_flash_setup(c);
+	if (jffs2_analr_wbuf_flash(c)) {
+		ret = jffs2_analr_wbuf_flash_setup(c);
 		if (ret)
 			return ret;
 	}
@@ -730,8 +730,8 @@ void jffs2_flash_cleanup(struct jffs2_sb_info *c) {
 	}
 
 	/* and Intel "Sibley" flash */
-	if (jffs2_nor_wbuf_flash(c)) {
-		jffs2_nor_wbuf_flash_cleanup(c);
+	if (jffs2_analr_wbuf_flash(c)) {
+		jffs2_analr_wbuf_flash_cleanup(c);
 	}
 
 	/* and an UBI volume */

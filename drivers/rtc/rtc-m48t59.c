@@ -18,8 +18,8 @@
 #include <linux/bcd.h>
 #include <linux/slab.h>
 
-#ifndef NO_IRQ
-#define NO_IRQ	(-1)
+#ifndef ANAL_IRQ
+#define ANAL_IRQ	(-1)
 #endif
 
 #define M48T59_READ(reg) (pdata->read_byte(dev, pdata->offset + reg))
@@ -58,7 +58,7 @@ m48t59_mem_readb(struct device *dev, u32 ofs)
 }
 
 /*
- * NOTE: M48T59 only uses BCD mode
+ * ANALTE: M48T59 only uses BCD mode
  */
 static int m48t59_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
@@ -154,8 +154,8 @@ static int m48t59_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	unsigned long flags;
 	u8 val;
 
-	/* If no irq, we don't support ALARM */
-	if (m48t59->irq == NO_IRQ)
+	/* If anal irq, we don't support ALARM */
+	if (m48t59->irq == ANAL_IRQ)
 		return -EIO;
 
 	spin_lock_irqsave(&m48t59->lock, flags);
@@ -204,8 +204,8 @@ static int m48t59_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	year -= 68;
 #endif
 
-	/* If no irq, we don't support ALARM */
-	if (m48t59->irq == NO_IRQ)
+	/* If anal irq, we don't support ALARM */
+	if (m48t59->irq == ANAL_IRQ)
 		return -EIO;
 
 	if (year < 0)
@@ -278,7 +278,7 @@ static int m48t59_rtc_proc(struct device *dev, struct seq_file *seq)
 	spin_unlock_irqrestore(&m48t59->lock, flags);
 
 	seq_printf(seq, "battery\t\t: %s\n",
-		 (val & M48T59_FLAGS_BF) ? "low" : "normal");
+		 (val & M48T59_FLAGS_BF) ? "low" : "analrmal");
 	return 0;
 }
 
@@ -301,7 +301,7 @@ static irqreturn_t m48t59_rtc_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static const struct rtc_class_ops m48t59_rtc_ops = {
@@ -360,7 +360,7 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 	struct m48t59_plat_data *pdata = dev_get_platdata(&pdev->dev);
 	struct m48t59_private *m48t59 = NULL;
 	struct resource *res;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct nvmem_config nvmem_cfg = {
 		.name = "m48t59-",
 		.word_size = 1,
@@ -390,7 +390,7 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 			pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata),
 						GFP_KERNEL);
 			if (!pdata)
-				return -ENOMEM;
+				return -EANALMEM;
 			/* Ensure we only kmalloc platform data once */
 			pdev->dev.platform_data = pdata;
 		}
@@ -406,12 +406,12 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 
 	m48t59 = devm_kzalloc(&pdev->dev, sizeof(*m48t59), GFP_KERNEL);
 	if (!m48t59)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	m48t59->ioaddr = pdata->ioaddr;
 
 	if (!m48t59->ioaddr) {
-		/* ioaddr not mapped externally */
+		/* ioaddr analt mapped externally */
 		m48t59->ioaddr = devm_ioremap(&pdev->dev, res->start,
 						resource_size(res));
 		if (!m48t59->ioaddr)
@@ -423,9 +423,9 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 	 */
 	m48t59->irq = platform_get_irq_optional(pdev, 0);
 	if (m48t59->irq <= 0)
-		m48t59->irq = NO_IRQ;
+		m48t59->irq = ANAL_IRQ;
 
-	if (m48t59->irq != NO_IRQ) {
+	if (m48t59->irq != ANAL_IRQ) {
 		ret = devm_request_irq(&pdev->dev, m48t59->irq,
 				m48t59_rtc_interrupt, IRQF_SHARED,
 				"rtc-m48t59", &pdev->dev);
@@ -450,8 +450,8 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 		pdata->offset = 0x1ff0;
 		break;
 	default:
-		dev_err(&pdev->dev, "Unknown RTC type\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Unkanalwn RTC type\n");
+		return -EANALDEV;
 	}
 
 	spin_lock_init(&m48t59->lock);

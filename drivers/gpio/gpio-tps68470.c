@@ -129,7 +129,7 @@ static int tps68470_gpio_probe(struct platform_device *pdev)
 	tps68470_gpio = devm_kzalloc(&pdev->dev, sizeof(*tps68470_gpio),
 				     GFP_KERNEL);
 	if (!tps68470_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps68470_gpio->tps68470_regmap = dev_get_drvdata(pdev->dev.parent);
 	tps68470_gpio->gc.label = "tps68470-gpio";

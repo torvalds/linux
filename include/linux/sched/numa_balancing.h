@@ -10,7 +10,7 @@
 #include <linux/sched.h>
 
 #define TNF_MIGRATED	0x01
-#define TNF_NO_GROUP	0x02
+#define TNF_ANAL_GROUP	0x02
 #define TNF_SHARED	0x04
 #define TNF_FAULT_LOCAL	0x08
 #define TNF_MIGRATE_FAIL 0x10
@@ -21,19 +21,19 @@ enum numa_vmaskip_reason {
 	NUMAB_SKIP_INACCESSIBLE,
 	NUMAB_SKIP_SCAN_DELAY,
 	NUMAB_SKIP_PID_INACTIVE,
-	NUMAB_SKIP_IGNORE_PID,
+	NUMAB_SKIP_IGANALRE_PID,
 	NUMAB_SKIP_SEQ_COMPLETED,
 };
 
 #ifdef CONFIG_NUMA_BALANCING
-extern void task_numa_fault(int last_node, int node, int pages, int flags);
+extern void task_numa_fault(int last_analde, int analde, int pages, int flags);
 extern pid_t task_numa_group_id(struct task_struct *p);
 extern void set_numabalancing_state(bool enabled);
 extern void task_numa_free(struct task_struct *p, bool final);
 bool should_numa_migrate_memory(struct task_struct *p, struct folio *folio,
 				int src_nid, int dst_cpu);
 #else
-static inline void task_numa_fault(int last_node, int node, int pages,
+static inline void task_numa_fault(int last_analde, int analde, int pages,
 				   int flags)
 {
 }

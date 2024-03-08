@@ -19,7 +19,7 @@ struct hist_browser {
 	bool		     show_dso;
 	bool		     show_headers;
 	float		     min_pcnt;
-	u64		     nr_non_filtered_entries;
+	u64		     nr_analn_filtered_entries;
 	u64		     nr_hierarchy_entries;
 	u64		     nr_callchain_rows;
 	bool		     c2c_filter;

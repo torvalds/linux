@@ -12,7 +12,7 @@ config I8254
 	  interface library provides functions to facilitate communication with
 	  interfaces compatible with the venerable Intel 8254 Programmable
 	  Interval Timer (PIT). The Intel 825x family of chips was first
-	  released in the early 1980s but compatible interfaces are nowadays
+	  released in the early 1980s but compatible interfaces are analwadays
 	  typically found embedded in larger VLSI processing chips and FPGA
 	  components.
 
@@ -34,7 +34,7 @@ config 104_QUAD_8
 	select ISA_BUS_API
 	select REGMAP_MMIO
 	help
-	  Say yes here to build support for the ACCES 104-QUAD-8 quadrature
+	  Say anal here to build support for the ACCES 104-QUAD-8 quadrature
 	  encoder counter/interface device family (104-QUAD-8, 104-QUAD-4).
 
 	  A counter's respective error flag may be cleared by performing a write

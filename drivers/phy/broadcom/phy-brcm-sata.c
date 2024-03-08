@@ -375,7 +375,7 @@ static int brcm_stb_sata_16nm_ssc_init(struct brcm_sata_port *port)
 	brcm_sata_phy_wr(port, RXPMD_REG_BANK, RXPMD_RX_CDR_CDR_LOCK_INTEG_BW,
 			 ~tmp, value);
 
-	/* Set no guard band and clamp CDR */
+	/* Set anal guard band and clamp CDR */
 	tmp = RXPMD_MON_CORRECT_EN | RXPMD_MON_MARGIN_VAL_MASK;
 	if (port->ssc_en)
 		value = 0x51;
@@ -475,8 +475,8 @@ static int brcm_ns2_sata_init(struct brcm_sata_port *port)
 		try--;
 	}
 	if (!try) {
-		/* PLL did not lock; give up */
-		dev_err(dev, "port%d PLL did not lock\n", port->portnum);
+		/* PLL did analt lock; give up */
+		dev_err(dev, "port%d PLL did analt lock\n", port->portnum);
 		return -ETIMEDOUT;
 	}
 
@@ -540,8 +540,8 @@ static int brcm_nsp_sata_init(struct brcm_sata_port *port)
 		msleep(20);
 	}
 	if (!try) {
-		/* PLL did not lock; give up */
-		dev_err(dev, "port%d PLL did not lock\n", port->portnum);
+		/* PLL did analt lock; give up */
+		dev_err(dev, "port%d PLL did analt lock\n", port->portnum);
 		return -ETIMEDOUT;
 	}
 
@@ -587,8 +587,8 @@ static int brcm_sr_sata_init(struct brcm_sata_port *port)
 	} while (try);
 
 	if ((val & BLOCK0_XGXSSTATUS_PLL_LOCK) == 0) {
-		/* PLL did not lock; give up */
-		dev_err(dev, "port%d PLL did not lock\n", port->portnum);
+		/* PLL did analt lock; give up */
+		dev_err(dev, "port%d PLL did analt lock\n", port->portnum);
 		return -ETIMEDOUT;
 	}
 
@@ -654,8 +654,8 @@ static int brcm_dsl_sata_init(struct brcm_sata_port *port)
 	}
 
 	if (!try) {
-		/* PLL did not lock; give up */
-		dev_err(dev, "port%d PLL did not lock\n", port->portnum);
+		/* PLL did analt lock; give up */
+		dev_err(dev, "port%d PLL did analt lock\n", port->portnum);
 		return -ETIMEDOUT;
 	}
 
@@ -690,7 +690,7 @@ static int brcm_sata_phy_init(struct phy *phy)
 		rc = brcm_dsl_sata_init(port);
 		break;
 	default:
-		rc = -ENODEV;
+		rc = -EANALDEV;
 	}
 
 	return rc;
@@ -707,7 +707,7 @@ static void brcm_stb_sata_calibrate(struct brcm_sata_port *port)
 static int brcm_sata_phy_calibrate(struct phy *phy)
 {
 	struct brcm_sata_port *port = phy_get_drvdata(phy);
-	int rc = -EOPNOTSUPP;
+	int rc = -EOPANALTSUPP;
 
 	switch (port->phy_priv->version) {
 	case BRCM_SATA_PHY_STB_28NM:
@@ -751,18 +751,18 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 {
 	const char *rxaeq_mode;
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node, *child;
+	struct device_analde *dn = dev->of_analde, *child;
 	const struct of_device_id *of_id;
 	struct brcm_sata_phy *priv;
 	struct phy_provider *provider;
 	int ret, count = 0;
 
 	if (of_get_child_count(dn) == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, priv);
 	priv->dev = dev;
 
@@ -770,7 +770,7 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->phy_base))
 		return PTR_ERR(priv->phy_base);
 
-	of_id = of_match_node(brcm_sata_phy_of_match, dn);
+	of_id = of_match_analde(brcm_sata_phy_of_match, dn);
 	if (of_id)
 		priv->version = (uintptr_t)of_id->data;
 	else
@@ -782,12 +782,12 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 			return PTR_ERR(priv->ctrl_base);
 	}
 
-	for_each_available_child_of_node(dn, child) {
+	for_each_available_child_of_analde(dn, child) {
 		unsigned int id;
 		struct brcm_sata_port *port;
 
 		if (of_property_read_u32(child, "reg", &id)) {
-			dev_err(dev, "missing reg property in node %pOFn\n",
+			dev_err(dev, "missing reg property in analde %pOFn\n",
 					child);
 			ret = -EINVAL;
 			goto put_child;
@@ -832,7 +832,7 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 
 	provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (IS_ERR(provider)) {
-		dev_err(dev, "could not register PHY provider\n");
+		dev_err(dev, "could analt register PHY provider\n");
 		return PTR_ERR(provider);
 	}
 
@@ -840,7 +840,7 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 
 	return 0;
 put_child:
-	of_node_put(child);
+	of_analde_put(child);
 	return ret;
 }
 
@@ -855,6 +855,6 @@ module_platform_driver(brcm_sata_phy_driver);
 
 MODULE_DESCRIPTION("Broadcom SATA PHY driver");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Marc Carino");
-MODULE_AUTHOR("Brian Norris");
+MODULE_AUTHOR("Marc Carianal");
+MODULE_AUTHOR("Brian Analrris");
 MODULE_ALIAS("platform:phy-brcm-sata");

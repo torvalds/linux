@@ -51,7 +51,7 @@ struct vdec_h264_slice_lat_dec_param {
  * struct vdec_h264_slice_info - decode information
  *
  * @nal_info:		nal info of current picture
- * @timeout:		Decode timeout: 1 timeout, 0 no timeount
+ * @timeout:		Decode timeout: 1 timeout, 0 anal timeount
  * @bs_buf_size:	bitstream size
  * @bs_buf_addr:	bitstream buffer dma address
  * @y_fb_dma:		Y frame buffer dma address
@@ -198,7 +198,7 @@ static int vdec_h264_slice_fill_decode_parameters(struct vdec_h264_slice_inst *i
 		return PTR_ERR(pps);
 
 	if (dec_params->flags & V4L2_H264_DECODE_PARAM_FLAG_FIELD_PIC) {
-		mtk_vdec_err(inst->ctx, "No support for H.264 field decoding.");
+		mtk_vdec_err(inst->ctx, "Anal support for H.264 field decoding.");
 		inst->is_field_bitstream = true;
 		return -EINVAL;
 	}
@@ -399,7 +399,7 @@ static int vdec_h264_slice_init(struct mtk_vcodec_dec_ctx *ctx)
 
 	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	inst->ctx = ctx;
 
@@ -551,8 +551,8 @@ static void vdec_h264_insert_startcode(struct mtk_vcodec_dec_dev *vcodec_dev, un
 	 * cavlc bitstream when entropy_coding_mode_flag is false.
 	 */
 	if (pps->entropy_coding_mode_flag || *bs_size > 20 ||
-	    !(of_device_is_compatible(dev->of_node, "mediatek,mt8192-vcodec-dec") ||
-	    of_device_is_compatible(dev->of_node, "mediatek,mt8195-vcodec-dec")))
+	    !(of_device_is_compatible(dev->of_analde, "mediatek,mt8192-vcodec-dec") ||
+	    of_device_is_compatible(dev->of_analde, "mediatek,mt8195-vcodec-dec")))
 		return;
 
 	buf[*bs_size] = 0;
@@ -578,7 +578,7 @@ static int vdec_h264_slice_lat_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	if (vdec_msg_queue_init(&inst->ctx->msg_queue, inst->ctx,
 				vdec_h264_slice_core_decode,
 				sizeof(*share_info)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* bs NULL means flush decoder */
 	if (!bs) {

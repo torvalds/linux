@@ -257,7 +257,7 @@ static int mtk_eint_irq_request_resources(struct irq_data *d)
 	err = eint->gpio_xlate->get_gpio_n(eint->pctl, d->hwirq,
 					   &gpio_n, &gpio_c);
 	if (err < 0) {
-		dev_err(eint->dev, "Can not find pin\n");
+		dev_err(eint->dev, "Can analt find pin\n");
 		return err;
 	}
 
@@ -270,7 +270,7 @@ static int mtk_eint_irq_request_resources(struct irq_data *d)
 
 	err = eint->gpio_xlate->set_gpio_as_eint(eint->pctl, d->hwirq);
 	if (err < 0) {
-		dev_err(eint->dev, "Can not eint mode\n");
+		dev_err(eint->dev, "Can analt eint mode\n");
 		return err;
 	}
 
@@ -354,7 +354,7 @@ static void mtk_eint_irq_handler(struct irq_desc *desc)
 
 			/*
 			 * If we get an interrupt on pin that was only required
-			 * for wake (but no real interrupt requested), mask the
+			 * for wake (but anal real interrupt requested), mask the
 			 * interrupt (as would mtk_eint_resume do anyway later
 			 * in the resume sequence).
 			 */
@@ -426,7 +426,7 @@ int mtk_eint_set_debounce(struct mtk_eint *eint, unsigned long eint_num,
 	struct irq_data *d;
 
 	if (!eint->hw->db_time)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	virq = irq_find_mapping(eint->domain, eint_num);
 	eint_offset = (eint_num % 4) * 8;
@@ -496,23 +496,23 @@ int mtk_eint_do_init(struct mtk_eint *eint)
 	eint->wake_mask = devm_kcalloc(eint->dev, eint->hw->ports,
 				       sizeof(*eint->wake_mask), GFP_KERNEL);
 	if (!eint->wake_mask)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eint->cur_mask = devm_kcalloc(eint->dev, eint->hw->ports,
 				      sizeof(*eint->cur_mask), GFP_KERNEL);
 	if (!eint->cur_mask)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eint->dual_edge = devm_kcalloc(eint->dev, eint->hw->ap_num,
 				       sizeof(int), GFP_KERNEL);
 	if (!eint->dual_edge)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	eint->domain = irq_domain_add_linear(eint->dev->of_node,
+	eint->domain = irq_domain_add_linear(eint->dev->of_analde,
 					     eint->hw->ap_num,
 					     &irq_domain_simple_ops, NULL);
 	if (!eint->domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (eint->hw->db_time) {
 		for (i = 0; i < MTK_EINT_DBNC_MAX; i++)

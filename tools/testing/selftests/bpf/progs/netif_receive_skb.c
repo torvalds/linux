@@ -6,7 +6,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 
-#include <errno.h>
+#include <erranal.h>
 
 long ret = 0;
 int num_subtests = 0;
@@ -95,8 +95,8 @@ SEC("tp_btf/netif_receive_skb")
 int BPF_PROG(trace_netif_receive_skb, struct sk_buff *skb)
 {
 	static __u64 flags[] = { 0, BTF_F_COMPACT, BTF_F_ZERO, BTF_F_PTR_RAW,
-				 BTF_F_NONAME, BTF_F_COMPACT | BTF_F_ZERO |
-				 BTF_F_PTR_RAW | BTF_F_NONAME };
+				 BTF_F_ANALNAME, BTF_F_COMPACT | BTF_F_ZERO |
+				 BTF_F_PTR_RAW | BTF_F_ANALNAME };
 	static struct btf_ptr p = { };
 	__u32 key = 0;
 	int i, __ret;
@@ -131,72 +131,72 @@ int BPF_PROG(trace_netif_receive_skb, struct sk_buff *skb)
 
 	/* simple int */
 	TEST_BTF_C(str, int, 0, 1234);
-	TEST_BTF(str, int, BTF_F_NONAME, "1234", 1234);
+	TEST_BTF(str, int, BTF_F_ANALNAME, "1234", 1234);
 	/* zero value should be printed at toplevel */
 	TEST_BTF(str, int, 0, "(int)0", 0);
-	TEST_BTF(str, int, BTF_F_NONAME, "0", 0);
+	TEST_BTF(str, int, BTF_F_ANALNAME, "0", 0);
 	TEST_BTF(str, int, BTF_F_ZERO, "(int)0", 0);
-	TEST_BTF(str, int, BTF_F_NONAME | BTF_F_ZERO, "0", 0);
+	TEST_BTF(str, int, BTF_F_ANALNAME | BTF_F_ZERO, "0", 0);
 	TEST_BTF_C(str, int, 0, -4567);
-	TEST_BTF(str, int, BTF_F_NONAME, "-4567", -4567);
+	TEST_BTF(str, int, BTF_F_ANALNAME, "-4567", -4567);
 
 	/* simple char */
 	TEST_BTF_C(str, char, 0, 100);
-	TEST_BTF(str, char, BTF_F_NONAME, "100", 100);
+	TEST_BTF(str, char, BTF_F_ANALNAME, "100", 100);
 	/* zero value should be printed at toplevel */
 	TEST_BTF(str, char, 0, "(char)0", 0);
-	TEST_BTF(str, char, BTF_F_NONAME, "0", 0);
+	TEST_BTF(str, char, BTF_F_ANALNAME, "0", 0);
 	TEST_BTF(str, char, BTF_F_ZERO, "(char)0", 0);
-	TEST_BTF(str, char, BTF_F_NONAME | BTF_F_ZERO, "0", 0);
+	TEST_BTF(str, char, BTF_F_ANALNAME | BTF_F_ZERO, "0", 0);
 
 	/* simple typedef */
 	TEST_BTF_C(str, uint64_t, 0, 100);
-	TEST_BTF(str, u64, BTF_F_NONAME, "1", 1);
+	TEST_BTF(str, u64, BTF_F_ANALNAME, "1", 1);
 	/* zero value should be printed at toplevel */
 	TEST_BTF(str, u64, 0, "(u64)0", 0);
-	TEST_BTF(str, u64, BTF_F_NONAME, "0", 0);
+	TEST_BTF(str, u64, BTF_F_ANALNAME, "0", 0);
 	TEST_BTF(str, u64, BTF_F_ZERO, "(u64)0", 0);
-	TEST_BTF(str, u64, BTF_F_NONAME|BTF_F_ZERO, "0", 0);
+	TEST_BTF(str, u64, BTF_F_ANALNAME|BTF_F_ZERO, "0", 0);
 
 	/* typedef struct */
 	TEST_BTF_C(str, atomic_t, 0, {.counter = (int)1,});
-	TEST_BTF(str, atomic_t, BTF_F_NONAME, "{1,}", {.counter = 1,});
+	TEST_BTF(str, atomic_t, BTF_F_ANALNAME, "{1,}", {.counter = 1,});
 	/* typedef with 0 value should be printed at toplevel */
 	TEST_BTF(str, atomic_t, 0, "(atomic_t){}", {.counter = 0,});
-	TEST_BTF(str, atomic_t, BTF_F_NONAME, "{}", {.counter = 0,});
+	TEST_BTF(str, atomic_t, BTF_F_ANALNAME, "{}", {.counter = 0,});
 	TEST_BTF(str, atomic_t, BTF_F_ZERO, "(atomic_t){.counter = (int)0,}",
 		 {.counter = 0,});
-	TEST_BTF(str, atomic_t, BTF_F_NONAME|BTF_F_ZERO,
+	TEST_BTF(str, atomic_t, BTF_F_ANALNAME|BTF_F_ZERO,
 		 "{0,}", {.counter = 0,});
 
-	/* enum where enum value does (and does not) exist */
+	/* enum where enum value does (and does analt) exist */
 	TEST_BTF_C(str, enum bpf_cmd, 0, BPF_MAP_CREATE);
 	TEST_BTF(str, enum bpf_cmd, 0, "(enum bpf_cmd)BPF_MAP_CREATE", 0);
-	TEST_BTF(str, enum bpf_cmd, BTF_F_NONAME, "BPF_MAP_CREATE",
+	TEST_BTF(str, enum bpf_cmd, BTF_F_ANALNAME, "BPF_MAP_CREATE",
 		 BPF_MAP_CREATE);
-	TEST_BTF(str, enum bpf_cmd, BTF_F_NONAME|BTF_F_ZERO,
+	TEST_BTF(str, enum bpf_cmd, BTF_F_ANALNAME|BTF_F_ZERO,
 		 "BPF_MAP_CREATE", 0);
 
 	TEST_BTF(str, enum bpf_cmd, BTF_F_ZERO, "(enum bpf_cmd)BPF_MAP_CREATE",
 		 BPF_MAP_CREATE);
-	TEST_BTF(str, enum bpf_cmd, BTF_F_NONAME|BTF_F_ZERO,
+	TEST_BTF(str, enum bpf_cmd, BTF_F_ANALNAME|BTF_F_ZERO,
 		 "BPF_MAP_CREATE", BPF_MAP_CREATE);
 	TEST_BTF_C(str, enum bpf_cmd, 0, 2000);
-	TEST_BTF(str, enum bpf_cmd, BTF_F_NONAME, "2000", 2000);
+	TEST_BTF(str, enum bpf_cmd, BTF_F_ANALNAME, "2000", 2000);
 
 	/* simple struct */
 	TEST_BTF_C(str, struct btf_enum, 0,
 		   {.name_off = (__u32)3,.val = (__s32)-1,});
-	TEST_BTF(str, struct btf_enum, BTF_F_NONAME, "{3,-1,}",
+	TEST_BTF(str, struct btf_enum, BTF_F_ANALNAME, "{3,-1,}",
 		 { .name_off = 3, .val = -1,});
-	TEST_BTF(str, struct btf_enum, BTF_F_NONAME, "{-1,}",
+	TEST_BTF(str, struct btf_enum, BTF_F_ANALNAME, "{-1,}",
 		 { .name_off = 0, .val = -1,});
-	TEST_BTF(str, struct btf_enum, BTF_F_NONAME|BTF_F_ZERO, "{0,-1,}",
+	TEST_BTF(str, struct btf_enum, BTF_F_ANALNAME|BTF_F_ZERO, "{0,-1,}",
 		 { .name_off = 0, .val = -1,});
 	/* empty struct should be printed */
 	TEST_BTF(str, struct btf_enum, 0, "(struct btf_enum){}",
 		 { .name_off = 0, .val = 0,});
-	TEST_BTF(str, struct btf_enum, BTF_F_NONAME, "{}",
+	TEST_BTF(str, struct btf_enum, BTF_F_ANALNAME, "{}",
 		 { .name_off = 0, .val = 0,});
 	TEST_BTF(str, struct btf_enum, BTF_F_ZERO,
 		 "(struct btf_enum){.name_off = (__u32)0,.val = (__s32)0,}",
@@ -206,7 +206,7 @@ int BPF_PROG(trace_netif_receive_skb, struct sk_buff *skb)
 	TEST_BTF(str, struct list_head, BTF_F_PTR_RAW,
 		 "(struct list_head){.next = (struct list_head *)0x0000000000000001,}",
 		 { .next = (struct list_head *)1 });
-	/* NULL pointer should not be displayed */
+	/* NULL pointer should analt be displayed */
 	TEST_BTF(str, struct list_head, BTF_F_PTR_RAW,
 		 "(struct list_head){}",
 		 { .next = (struct list_head *)0 });
@@ -215,26 +215,26 @@ int BPF_PROG(trace_netif_receive_skb, struct sk_buff *skb)
 	TEST_BTF(str, struct bpf_prog_info, 0,
 		 "(struct bpf_prog_info){.name = (char[])['f','o','o',],}",
 		 { .name = "foo",});
-	TEST_BTF(str, struct bpf_prog_info, BTF_F_NONAME,
+	TEST_BTF(str, struct bpf_prog_info, BTF_F_ANALNAME,
 		 "{['f','o','o',],}",
 		 {.name = "foo",});
-	/* leading null char means do not display string */
+	/* leading null char means do analt display string */
 	TEST_BTF(str, struct bpf_prog_info, 0,
 		 "(struct bpf_prog_info){}",
 		 {.name = {'\0', 'f', 'o', 'o'}});
-	/* handle non-printable characters */
+	/* handle analn-printable characters */
 	TEST_BTF(str, struct bpf_prog_info, 0,
 		 "(struct bpf_prog_info){.name = (char[])[1,2,3,],}",
 		 { .name = {1, 2, 3, 0}});
 
-	/* struct with non-char array */
+	/* struct with analn-char array */
 	TEST_BTF(str, struct __sk_buff, 0,
 		 "(struct __sk_buff){.cb = (__u32[])[1,2,3,4,5,],}",
 		 { .cb = {1, 2, 3, 4, 5,},});
-	TEST_BTF(str, struct __sk_buff, BTF_F_NONAME,
+	TEST_BTF(str, struct __sk_buff, BTF_F_ANALNAME,
 		 "{[1,2,3,4,5,],}",
 		 { .cb = { 1, 2, 3, 4, 5},});
-	/* For non-char, arrays, show non-zero values only */
+	/* For analn-char, arrays, show analn-zero values only */
 	TEST_BTF(str, struct __sk_buff, 0,
 		 "(struct __sk_buff){.cb = (__u32[])[1,],}",
 		 { .cb = { 0, 0, 1, 0, 0},});
@@ -242,7 +242,7 @@ int BPF_PROG(trace_netif_receive_skb, struct sk_buff *skb)
 	/* struct with bitfields */
 	TEST_BTF_C(str, struct bpf_insn, 0,
 		   {.code = (__u8)1,.dst_reg = (__u8)0x2,.src_reg = (__u8)0x3,.off = (__s16)4,.imm = (__s32)5,});
-	TEST_BTF(str, struct bpf_insn, BTF_F_NONAME, "{1,0x2,0x3,4,5,}",
+	TEST_BTF(str, struct bpf_insn, BTF_F_ANALNAME, "{1,0x2,0x3,4,5,}",
 		 {.code = 1, .dst_reg = 0x2, .src_reg = 0x3, .off = 4,
 		  .imm = 5,});
 #else

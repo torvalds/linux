@@ -31,7 +31,7 @@ __igt_reset_stolen(struct intel_gt *gt,
 	u32 *crc;
 	int err;
 
-	if (!drm_mm_node_allocated(&ggtt->error_capture))
+	if (!drm_mm_analde_allocated(&ggtt->error_capture))
 		return 0;
 
 	num_pages = resource_size(dsm) >> PAGE_SHIFT;
@@ -40,11 +40,11 @@ __igt_reset_stolen(struct intel_gt *gt,
 
 	crc = kmalloc_array(num_pages, sizeof(u32), GFP_KERNEL);
 	if (!crc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmp = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!tmp) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_crc;
 	}
 
@@ -87,7 +87,7 @@ __igt_reset_stolen(struct intel_gt *gt,
 		ggtt->vm.insert_page(&ggtt->vm, dma,
 				     ggtt->error_capture.start,
 				     i915_gem_get_pat_index(gt->i915,
-							    I915_CACHE_NONE),
+							    I915_CACHE_ANALNE),
 				     0);
 		mb();
 
@@ -130,7 +130,7 @@ __igt_reset_stolen(struct intel_gt *gt,
 		ggtt->vm.insert_page(&ggtt->vm, dma,
 				     ggtt->error_capture.start,
 				     i915_gem_get_pat_index(gt->i915,
-							    I915_CACHE_NONE),
+							    I915_CACHE_ANALNE),
 				     0);
 		mb();
 
@@ -223,7 +223,7 @@ static int igt_global_reset(void *arg)
 	intel_gt_reset(gt, ALL_ENGINES, NULL);
 
 	if (i915_reset_count(&gt->i915->gpu_error) == reset_count) {
-		pr_err("No GPU reset recorded!\n");
+		pr_err("Anal GPU reset recorded!\n");
 		err = -EINVAL;
 	}
 

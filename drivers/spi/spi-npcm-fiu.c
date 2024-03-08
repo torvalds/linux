@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2019 Nuvoton Technology corporation.
+// Copyright (c) 2019 Nuvoton Techanallogy corporation.
 
 #include <linux/bits.h>
 #include <linux/init.h>
@@ -556,7 +556,7 @@ static int npcm_fiu_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		op->data.nbytes);
 
 	if (fiu->spix_mode || op->addr.nbytes > 4)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (fiu->clkrate != chip->clkrate) {
 		ret = clk_set_rate(fiu->clk, chip->clkrate);
@@ -610,14 +610,14 @@ static int npcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	struct regmap *gcr_regmap;
 
 	if (!fiu->res_mem) {
-		dev_warn(fiu->dev, "Reserved memory not defined, direct read disabled\n");
-		desc->nodirmap = true;
+		dev_warn(fiu->dev, "Reserved memory analt defined, direct read disabled\n");
+		desc->analdirmap = true;
 		return 0;
 	}
 
 	if (!fiu->spix_mode &&
 	    desc->info.op_tmpl.data.dir == SPI_MEM_DATA_OUT) {
-		desc->nodirmap = true;
+		desc->analdirmap = true;
 		return 0;
 	}
 
@@ -629,17 +629,17 @@ static int npcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 					     (u32)desc->info.length);
 		if (!chip->flash_region_mapped_ptr) {
 			dev_warn(fiu->dev, "Error mapping memory region, direct read disabled\n");
-			desc->nodirmap = true;
+			desc->analdirmap = true;
 			return 0;
 		}
 	}
 
-	if (of_device_is_compatible(fiu->dev->of_node, "nuvoton,npcm750-fiu")) {
+	if (of_device_is_compatible(fiu->dev->of_analde, "nuvoton,npcm750-fiu")) {
 		gcr_regmap =
 			syscon_regmap_lookup_by_compatible("nuvoton,npcm750-gcr");
 		if (IS_ERR(gcr_regmap)) {
 			dev_warn(fiu->dev, "Didn't find nuvoton,npcm750-gcr, direct read disabled\n");
-			desc->nodirmap = true;
+			desc->analdirmap = true;
 			return 0;
 		}
 		regmap_update_bits(gcr_regmap, NPCM7XX_INTCR3_OFFSET,
@@ -704,17 +704,17 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 
 	ctrl = devm_spi_alloc_host(dev, sizeof(*fiu));
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fiu = spi_controller_get_devdata(ctrl);
 
 	fiu_data_match = of_device_get_match_data(dev);
 	if (!fiu_data_match) {
-		dev_err(dev, "No compatible OF match\n");
-		return -ENODEV;
+		dev_err(dev, "Anal compatible OF match\n");
+		return -EANALDEV;
 	}
 
-	id = of_alias_get_id(dev->of_node, "fiu");
+	id = of_alias_get_id(dev->of_analde, "fiu");
 	if (id < 0 || id >= fiu_data_match->fiu_max) {
 		dev_err(dev, "Invalid platform device id: %d\n", id);
 		return -EINVAL;
@@ -742,7 +742,7 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 	if (IS_ERR(fiu->clk))
 		return PTR_ERR(fiu->clk);
 
-	fiu->spix_mode = of_property_read_bool(dev->of_node,
+	fiu->spix_mode = of_property_read_bool(dev->of_analde,
 					       "nuvoton,spix-mode");
 
 	platform_set_drvdata(pdev, fiu);
@@ -753,7 +753,7 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 	ctrl->bus_num = -1;
 	ctrl->mem_ops = &npcm_fiu_mem_ops;
 	ctrl->num_chipselect = fiu->info->max_cs;
-	ctrl->dev.of_node = dev->of_node;
+	ctrl->dev.of_analde = dev->of_analde;
 
 	return devm_spi_register_controller(dev, ctrl);
 }

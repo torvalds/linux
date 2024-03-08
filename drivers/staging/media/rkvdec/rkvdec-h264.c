@@ -62,8 +62,8 @@ struct rkvdec_ps_field {
 #define VIEW_ID(i)					PS_FIELD(62 + ((i) * 10), 10)
 #define NUM_ANCHOR_REFS_L(i)				PS_FIELD(82 + ((i) * 11), 1)
 #define ANCHOR_REF_L(i)				PS_FIELD(83 + ((i) * 11), 10)
-#define NUM_NON_ANCHOR_REFS_L(i)			PS_FIELD(104 + ((i) * 11), 1)
-#define NON_ANCHOR_REFS_L(i)				PS_FIELD(105 + ((i) * 11), 10)
+#define NUM_ANALN_ANCHOR_REFS_L(i)			PS_FIELD(104 + ((i) * 11), 1)
+#define ANALN_ANCHOR_REFS_L(i)				PS_FIELD(105 + ((i) * 11), 10)
 #define PIC_PARAMETER_SET_ID				PS_FIELD(128, 8)
 #define PPS_SEQ_PARAMETER_SET_ID			PS_FIELD(136, 5)
 #define ENTROPY_CODING_MODE_FLAG			PS_FIELD(141, 1)
@@ -552,7 +552,7 @@ static const s8 rkvdec_h264_cabac_table[4][464][2] = {
 	CABAC_ENTRY(397, 22, 61, 14, 71, 22, 56, 29, 39),
 	CABAC_ENTRY(398, 11, 86, 11, 83, 25, 61, 19, 66),
 
-	/* Values of variables m and n for ctxIdx from 399 to 463 (not documented) */
+	/* Values of variables m and n for ctxIdx from 399 to 463 (analt documented) */
 	CABAC_ENTRY(399, 12, 40, 25, 32, 21, 33, 31, 21),
 	CABAC_ENTRY(400, 11, 51, 21, 49, 19, 50, 31, 31),
 	CABAC_ENTRY(401, 14, 59, 21, 54, 17, 61, 25, 50),
@@ -673,7 +673,7 @@ static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 	/*
 	 * Use the SPS values since they are already in macroblocks
 	 * dimensions, height can be field height (halved) if
-	 * V4L2_H264_SPS_FLAG_FRAME_MBS_ONLY is not set and also it allows
+	 * V4L2_H264_SPS_FLAG_FRAME_MBS_ONLY is analt set and also it allows
 	 * decoding smaller images into larger allocation which can be used
 	 * to implementing SVC spatial layer support.
 	 */
@@ -747,7 +747,7 @@ static void lookup_ref_buf_idx(struct rkvdec_ctx *ctx,
 		if (dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE) {
 			buf = vb2_find_buffer(cap_q, dpb[i].reference_ts);
 			if (!buf)
-				pr_debug("No buffer for reference_ts %llu",
+				pr_debug("Anal buffer for reference_ts %llu",
 					 dpb[i].reference_ts);
 		}
 
@@ -1034,7 +1034,7 @@ static int rkvdec_h264_validate_sps(struct rkvdec_ctx *ctx,
 	/*
 	 * TODO: The hardware supports 10-bit and 4:2:2 profiles,
 	 * but it's currently broken in the driver.
-	 * Reject them for now, until it's fixed.
+	 * Reject them for analw, until it's fixed.
 	 */
 	if (sps->chroma_format_idc > 1)
 		/* Only 4:0:0 and 4:2:0 are supported */
@@ -1050,7 +1050,7 @@ static int rkvdec_h264_validate_sps(struct rkvdec_ctx *ctx,
 	height = (sps->pic_height_in_map_units_minus1 + 1) * 16;
 
 	/*
-	 * When frame_mbs_only_flag is not set, this is field height,
+	 * When frame_mbs_only_flag is analt set, this is field height,
 	 * which is half the final height (see (7-18) in the
 	 * specification)
 	 */
@@ -1083,12 +1083,12 @@ static int rkvdec_h264_start(struct rkvdec_ctx *ctx)
 
 	h264_ctx = kzalloc(sizeof(*h264_ctx), GFP_KERNEL);
 	if (!h264_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv_tbl = dma_alloc_coherent(rkvdec->dev, sizeof(*priv_tbl),
 				      &h264_ctx->priv_tbl.dma, GFP_KERNEL);
 	if (!priv_tbl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_ctx;
 	}
 

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include <linux/fdtable.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/uio.h>
 #include "internal.h"
 
-static int cachefiles_ondemand_fd_release(struct inode *inode,
+static int cachefiles_ondemand_fd_release(struct ianalde *ianalde,
 					  struct file *file)
 {
 	struct cachefiles_object *object = file->private_data;
@@ -47,7 +47,7 @@ static ssize_t cachefiles_ondemand_fd_write_iter(struct kiocb *kiocb,
 	int ret;
 
 	if (!file)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	cachefiles_begin_secure(cache, &saved_cred);
 	ret = __cachefiles_prepare_write(object, file, &pos, &len, len, true);
@@ -55,7 +55,7 @@ static ssize_t cachefiles_ondemand_fd_write_iter(struct kiocb *kiocb,
 	if (ret < 0)
 		return ret;
 
-	trace_cachefiles_ondemand_fd_write(object, file_inode(file), pos, len);
+	trace_cachefiles_ondemand_fd_write(object, file_ianalde(file), pos, len);
 	ret = __cachefiles_write(object, file, pos, iter, NULL, NULL);
 	if (!ret)
 		ret = len;
@@ -70,7 +70,7 @@ static loff_t cachefiles_ondemand_fd_llseek(struct file *filp, loff_t pos,
 	struct file *file = object->file;
 
 	if (!file)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	return vfs_llseek(file, pos, whence);
 }
@@ -87,7 +87,7 @@ static long cachefiles_ondemand_fd_ioctl(struct file *filp, unsigned int ioctl,
 		return -EINVAL;
 
 	if (!test_bit(CACHEFILES_ONDEMAND_MODE, &cache->flags))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	id = arg;
 	req = xa_erase(&cache->reqs, id);
@@ -122,7 +122,7 @@ int cachefiles_ondemand_copen(struct cachefiles_cache *cache, char *args)
 	int ret;
 
 	if (!test_bit(CACHEFILES_ONDEMAND_MODE, &cache->flags))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!*args) {
 		pr_err("Empty id specified\n");
@@ -132,7 +132,7 @@ int cachefiles_ondemand_copen(struct cachefiles_cache *cache, char *args)
 	pid = args;
 	psize = strchr(args, ',');
 	if (!psize) {
-		pr_err("Cache size is not specified\n");
+		pr_err("Cache size is analt specified\n");
 		return -EINVAL;
 	}
 
@@ -169,9 +169,9 @@ int cachefiles_ondemand_copen(struct cachefiles_cache *cache, char *args)
 	cookie = req->object->cookie;
 	cookie->object_size = size;
 	if (size)
-		clear_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags);
+		clear_bit(FSCACHE_COOKIE_ANAL_DATA_TO_READ, &cookie->flags);
 	else
-		set_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags);
+		set_bit(FSCACHE_COOKIE_ANAL_DATA_TO_READ, &cookie->flags);
 	trace_cachefiles_ondemand_copen(req->object, id, size);
 
 	cachefiles_ondemand_set_object_open(req->object);
@@ -189,7 +189,7 @@ int cachefiles_ondemand_restore(struct cachefiles_cache *cache, char *args)
 	XA_STATE(xas, &cache->reqs, 0);
 
 	if (!test_bit(CACHEFILES_ONDEMAND_MODE, &cache->flags))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 * Reset the requests to CACHEFILES_REQ_NEW state, so that the
@@ -230,7 +230,7 @@ static int cachefiles_ondemand_get_fd(struct cachefiles_req *req)
 		goto err_free_id;
 	}
 
-	file = anon_inode_getfile("[cachefiles]", &cachefiles_ondemand_fd_fops,
+	file = aanaln_ianalde_getfile("[cachefiles]", &cachefiles_ondemand_fd_fops,
 				  object, O_WRONLY);
 	if (IS_ERR(file)) {
 		ret = PTR_ERR(file);
@@ -306,7 +306,7 @@ ssize_t cachefiles_ondemand_daemon_read(struct cachefiles_cache *cache,
 
 	xa_lock(&cache->reqs);
 	/*
-	 * Cyclically search for a request that has not ever been processed,
+	 * Cyclically search for a request that has analt ever been processed,
 	 * to prevent requests from being processed repeatedly, and make
 	 * request distribution fair.
 	 */
@@ -350,7 +350,7 @@ ssize_t cachefiles_ondemand_daemon_read(struct cachefiles_cache *cache,
 		goto err_put_fd;
 	}
 
-	/* CLOSE request has no reply */
+	/* CLOSE request has anal reply */
 	if (msg->opcode == CACHEFILES_OP_CLOSE) {
 		xa_erase(&cache->reqs, id);
 		complete(&req->done);
@@ -391,7 +391,7 @@ static int cachefiles_ondemand_send_req(struct cachefiles_object *object,
 
 	req = kzalloc(sizeof(*req) + data_len, GFP_KERNEL);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -441,13 +441,13 @@ static int cachefiles_ondemand_send_req(struct cachefiles_object *object,
 
 		xas.xa_index = 0;
 		xas_find_marked(&xas, UINT_MAX, XA_FREE_MARK);
-		if (xas.xa_node == XAS_RESTART)
+		if (xas.xa_analde == XAS_RESTART)
 			xas_set_err(&xas, -EBUSY);
 		xas_store(&xas, req);
 		xas_clear_mark(&xas, XA_FREE_MARK);
 		xas_set_mark(&xas, CACHEFILES_REQ_NEW);
 		xas_unlock(&xas);
-	} while (xas_nomem(&xas, GFP_KERNEL));
+	} while (xas_analmem(&xas, GFP_KERNEL));
 
 	ret = xas_error(&xas);
 	if (ret)
@@ -460,7 +460,7 @@ static int cachefiles_ondemand_send_req(struct cachefiles_object *object,
 	return ret;
 out:
 	/* Reset the object to close state in error handling path.
-	 * If error occurs after creating the anonymous fd,
+	 * If error occurs after creating the aanalnymous fd,
 	 * cachefiles_ondemand_fd_release() will set object to close.
 	 */
 	if (opcode == CACHEFILES_OP_OPEN)
@@ -509,7 +509,7 @@ static int cachefiles_ondemand_init_close_req(struct cachefiles_req *req,
 	struct cachefiles_object *object = req->object;
 
 	if (!cachefiles_ondemand_object_is_open(object))
-		return -ENOENT;
+		return -EANALENT;
 
 	trace_cachefiles_ondemand_close(object, &req->msg);
 	return 0;
@@ -575,7 +575,7 @@ int cachefiles_ondemand_init_obj_info(struct cachefiles_object *object,
 	object->ondemand = kzalloc(sizeof(struct cachefiles_ondemand_info),
 					GFP_KERNEL);
 	if (!object->ondemand)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	object->ondemand->object = object;
 	INIT_WORK(&object->ondemand->ondemand_work, ondemand_object_worker);

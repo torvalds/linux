@@ -16,7 +16,7 @@
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -328,8 +328,8 @@ static void w5300_get_regs(struct net_device *ndev,
 	regs->version = 1;
 	for (addr = 0; addr < W5300_REGS_LEN; addr += 2) {
 		switch (addr & 0x23f) {
-		case W5300_S0_TX_FIFO: /* cannot read TX_FIFO */
-		case W5300_S0_RX_FIFO: /* cannot read RX_FIFO */
+		case W5300_S0_TX_FIFO: /* cananalt read TX_FIFO */
+		case W5300_S0_RX_FIFO: /* cananalt read RX_FIFO */
 			data = 0xffff;
 			break;
 		default:
@@ -391,7 +391,7 @@ static int w5300_napi_poll(struct napi_struct *napi, int budget)
 			for (i = 0; i < rx_fifo_len; i += 2)
 				w5300_read(priv, W5300_S0_RX_FIFO);
 			ndev->stats.rx_dropped++;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		skb_put(skb, rx_len);
@@ -418,7 +418,7 @@ static irqreturn_t w5300_interrupt(int irq, void *ndev_instance)
 
 	int ir = w5300_read(priv, W5300_S0_IR);
 	if (!ir)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	w5300_write(priv, W5300_S0_IR, ir);
 
 	if (ir & S0_IR_SENDOK) {
@@ -471,7 +471,7 @@ static int w5300_set_macaddr(struct net_device *ndev, void *addr)
 	struct sockaddr *sock_addr = addr;
 
 	if (!is_valid_ether_addr(sock_addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	eth_hw_addr_set(ndev, sock_addr->sa_data);
 	w5300_write_macaddr(priv);
 	return 0;
@@ -558,7 +558,7 @@ static int w5300_hw_probe(struct platform_device *pdev)
 
 	w5300_hw_reset(priv);
 	if (w5300_read(priv, W5300_IDR) != IDR_W5300)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -573,7 +573,7 @@ static int w5300_hw_probe(struct platform_device *pdev)
 	if (gpio_is_valid(priv->link_gpio)) {
 		char *link_name = devm_kzalloc(&pdev->dev, 16, GFP_KERNEL);
 		if (!link_name)
-			return -ENOMEM;
+			return -EANALMEM;
 		snprintf(link_name, 16, "%s-link", name);
 		priv->link_irq = gpio_to_irq(priv->link_gpio);
 		if (request_any_context_irq(priv->link_irq, w5300_detect_link,
@@ -594,7 +594,7 @@ static int w5300_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(*priv));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	platform_set_drvdata(pdev, ndev);
 	priv = netdev_priv(ndev);
@@ -605,7 +605,7 @@ static int w5300_probe(struct platform_device *pdev)
 	ndev->watchdog_timeo = HZ;
 	netif_napi_add_weight(ndev, &priv->napi, w5300_napi_poll, 16);
 
-	/* This chip doesn't support VLAN packets with normal MTU,
+	/* This chip doesn't support VLAN packets with analrmal MTU,
 	 * so disable VLAN for this device.
 	 */
 	ndev->features |= NETIF_F_VLAN_CHALLENGED;

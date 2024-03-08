@@ -42,19 +42,19 @@ static int rtl8168_led_hw_control_is_supported(struct led_classdev *led_cdev,
 	bool rx, tx;
 
 	if (flags & ~RTL8168_SUPPORTED_MODES)
-		goto nosupp;
+		goto analsupp;
 
 	rx = flags & BIT(TRIGGER_NETDEV_RX);
 	tx = flags & BIT(TRIGGER_NETDEV_TX);
 	if (rx != tx)
-		goto nosupp;
+		goto analsupp;
 
 	return 0;
 
-nosupp:
+analsupp:
 	/* Switch LED off to indicate that mode isn't supported */
 	rtl8168_led_mod_ctrl(tp, 0x000f << shift, 0);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int rtl8168_led_hw_control_set(struct led_classdev *led_cdev,
@@ -91,7 +91,7 @@ static int rtl8168_led_hw_control_get(struct led_classdev *led_cdev,
 
 	if (mode & RTL8168_LED_CTRL_OPTION2) {
 		rtl8168_led_mod_ctrl(tp, RTL8168_LED_CTRL_OPTION2, 0);
-		netdev_notice(ldev->ndev, "Deactivating unsupported Option2 LED mode\n");
+		netdev_analtice(ldev->ndev, "Deactivating unsupported Option2 LED mode\n");
 	}
 
 	mode = (mode >> shift) & 0x000f;
@@ -137,7 +137,7 @@ static void rtl8168_setup_ldev(struct r8169_led_classdev *ldev,
 	led_cdev->hw_control_get = rtl8168_led_hw_control_get;
 	led_cdev->hw_control_get_device = r8169_led_hw_control_get_device;
 
-	/* ignore errors */
+	/* iganalre errors */
 	devm_led_classdev_register(&ndev->dev, led_cdev);
 }
 

@@ -9,7 +9,7 @@
 #include "verifier_bitfield_write.skel.h"
 #include "verifier_bounds.skel.h"
 #include "verifier_bounds_deduction.skel.h"
-#include "verifier_bounds_deduction_non_const.skel.h"
+#include "verifier_bounds_deduction_analn_const.skel.h"
 #include "verifier_bounds_mix_sign_unsign.skel.h"
 #include "verifier_bpf_get_stack.skel.h"
 #include "verifier_bswap.skel.h"
@@ -35,7 +35,7 @@
 #include "verifier_helper_value_access.skel.h"
 #include "verifier_int_ptr.skel.h"
 #include "verifier_iterating_callbacks.skel.h"
-#include "verifier_jeq_infer_not_null.skel.h"
+#include "verifier_jeq_infer_analt_null.skel.h"
 #include "verifier_ld_ind.skel.h"
 #include "verifier_ldsx.skel.h"
 #include "verifier_leak_ptr.skel.h"
@@ -121,7 +121,7 @@ void test_verifier_basic_stack(void)          { RUN(verifier_basic_stack); }
 void test_verifier_bitfield_write(void)       { RUN(verifier_bitfield_write); }
 void test_verifier_bounds(void)               { RUN(verifier_bounds); }
 void test_verifier_bounds_deduction(void)     { RUN(verifier_bounds_deduction); }
-void test_verifier_bounds_deduction_non_const(void)     { RUN(verifier_bounds_deduction_non_const); }
+void test_verifier_bounds_deduction_analn_const(void)     { RUN(verifier_bounds_deduction_analn_const); }
 void test_verifier_bounds_mix_sign_unsign(void) { RUN(verifier_bounds_mix_sign_unsign); }
 void test_verifier_bpf_get_stack(void)        { RUN(verifier_bpf_get_stack); }
 void test_verifier_bswap(void)                { RUN(verifier_bswap); }
@@ -147,7 +147,7 @@ void test_verifier_helper_restricted(void)    { RUN(verifier_helper_restricted);
 void test_verifier_helper_value_access(void)  { RUN(verifier_helper_value_access); }
 void test_verifier_int_ptr(void)              { RUN(verifier_int_ptr); }
 void test_verifier_iterating_callbacks(void)  { RUN(verifier_iterating_callbacks); }
-void test_verifier_jeq_infer_not_null(void)   { RUN(verifier_jeq_infer_not_null); }
+void test_verifier_jeq_infer_analt_null(void)   { RUN(verifier_jeq_infer_analt_null); }
 void test_verifier_ld_ind(void)               { RUN(verifier_ld_ind); }
 void test_verifier_ldsx(void)                  { RUN(verifier_ldsx); }
 void test_verifier_leak_ptr(void)             { RUN(verifier_leak_ptr); }

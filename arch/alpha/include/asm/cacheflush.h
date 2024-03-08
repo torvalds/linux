@@ -4,15 +4,15 @@
 
 #include <linux/mm.h>
 
-/* Note that the following two definitions are _highly_ dependent
+/* Analte that the following two definitions are _highly_ dependent
    on the contexts in which they are used in the kernel.  I personally
    think it is criminal how loosely defined these macros are.  */
 
 /* We need to flush the kernel's icache after loading modules.  The
-   only other use of this macro is in load_aout_interp which is not
+   only other use of this macro is in load_aout_interp which is analt
    used on Alpha. 
 
-   Note that this definition should *not* be used for userspace
+   Analte that this definition should *analt* be used for userspace
    icache flushing.  While functional, it is _way_ overkill.  The
    icache is tagged with ASNs and it suffices to allocate a new ASN
    for the process.  */
@@ -55,7 +55,7 @@ extern void flush_icache_user_page(struct vm_area_struct *vma,
 
 /*
  * Both implementations of flush_icache_user_page flush the entire
- * address space, so one call, no matter how many pages.
+ * address space, so one call, anal matter how many pages.
  */
 static inline void flush_icache_pages(struct vm_area_struct *vma,
 		struct page *page, unsigned int nr)

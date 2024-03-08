@@ -72,7 +72,7 @@
         "BriefDescription": "Number of times an HLE execution started.",
         "EventCode": "0xC8",
         "EventName": "HLE_RETIRED.START",
-        "PublicDescription": "Number of times we entered an HLE region. Does not count nested transactions.",
+        "PublicDescription": "Number of times we entered an HLE region. Does analt count nested transactions.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -81,7 +81,7 @@
         "Errata": "SKL089",
         "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
-        "PublicDescription": "Counts the number of memory ordering Machine Clears detected. Memory Ordering Machine Clears can result from one of the following:a. memory disambiguation,b. external snoop, orc. cross SMT-HW-thread snoop (stores) hitting load buffer.",
+        "PublicDescription": "Counts the number of memory ordering Machine Clears detected. Memory Ordering Machine Clears can result from one of the following:a. memory disambiguation,b. external sanalop, orc. cross SMT-HW-thread sanalop (stores) hitting load buffer.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -215,7 +215,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x20001C0004",
         "SampleAfterValue": "100003",
@@ -224,7 +224,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_E.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_E.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000080004",
         "SampleAfterValue": "100003",
@@ -233,7 +233,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_M.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_M.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000040004",
         "SampleAfterValue": "100003",
@@ -242,7 +242,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_S.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT_S.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000100004",
         "SampleAfterValue": "100003",
@@ -251,7 +251,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FFC400004",
         "SampleAfterValue": "100003",
@@ -260,7 +260,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x103C400004",
         "SampleAfterValue": "100003",
@@ -269,7 +269,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x43C400004",
         "SampleAfterValue": "100003",
@@ -278,7 +278,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x23C400004",
         "SampleAfterValue": "100003",
@@ -287,7 +287,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0xBC400004",
         "SampleAfterValue": "100003",
@@ -296,7 +296,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x203C400004",
         "SampleAfterValue": "100003",
@@ -305,7 +305,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x13C400004",
         "SampleAfterValue": "100003",
@@ -323,7 +323,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FC4000004",
         "SampleAfterValue": "100003",
@@ -332,7 +332,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1004000004",
         "SampleAfterValue": "100003",
@@ -341,7 +341,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x404000004",
         "SampleAfterValue": "100003",
@@ -350,7 +350,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x204000004",
         "SampleAfterValue": "100003",
@@ -359,7 +359,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x84000004",
         "SampleAfterValue": "100003",
@@ -368,7 +368,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2004000004",
         "SampleAfterValue": "100003",
@@ -377,7 +377,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x104000004",
         "SampleAfterValue": "100003",
@@ -395,7 +395,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L4_HIT_LOCAL_L4.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L4_HIT_LOCAL_L4.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000400004",
         "SampleAfterValue": "100003",
@@ -404,7 +404,7 @@
     {
         "BriefDescription": "Counts all demand code reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_ANALNE.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000020004",
         "SampleAfterValue": "100003",
@@ -413,7 +413,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x20001C0001",
         "SampleAfterValue": "100003",
@@ -422,7 +422,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_E.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_E.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000080001",
         "SampleAfterValue": "100003",
@@ -431,7 +431,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_M.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_M.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000040001",
         "SampleAfterValue": "100003",
@@ -440,7 +440,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_S.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT_S.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000100001",
         "SampleAfterValue": "100003",
@@ -449,7 +449,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FFC400001",
         "SampleAfterValue": "100003",
@@ -458,7 +458,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x103C400001",
         "SampleAfterValue": "100003",
@@ -467,7 +467,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x43C400001",
         "SampleAfterValue": "100003",
@@ -476,7 +476,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x23C400001",
         "SampleAfterValue": "100003",
@@ -485,7 +485,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0xBC400001",
         "SampleAfterValue": "100003",
@@ -494,7 +494,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x203C400001",
         "SampleAfterValue": "100003",
@@ -503,7 +503,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x13C400001",
         "SampleAfterValue": "100003",
@@ -521,7 +521,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FC4000001",
         "SampleAfterValue": "100003",
@@ -530,7 +530,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1004000001",
         "SampleAfterValue": "100003",
@@ -539,7 +539,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x404000001",
         "SampleAfterValue": "100003",
@@ -548,7 +548,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x204000001",
         "SampleAfterValue": "100003",
@@ -557,7 +557,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x84000001",
         "SampleAfterValue": "100003",
@@ -566,7 +566,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2004000001",
         "SampleAfterValue": "100003",
@@ -575,7 +575,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x104000001",
         "SampleAfterValue": "100003",
@@ -593,7 +593,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L4_HIT_LOCAL_L4.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L4_HIT_LOCAL_L4.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000400001",
         "SampleAfterValue": "100003",
@@ -602,7 +602,7 @@
     {
         "BriefDescription": "Counts demand data reads",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_ANALNE.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000020001",
         "SampleAfterValue": "100003",
@@ -611,7 +611,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x20001C0002",
         "SampleAfterValue": "100003",
@@ -620,7 +620,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_E.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_E.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000080002",
         "SampleAfterValue": "100003",
@@ -629,7 +629,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_M.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_M.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000040002",
         "SampleAfterValue": "100003",
@@ -638,7 +638,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_S.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT_S.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000100002",
         "SampleAfterValue": "100003",
@@ -647,7 +647,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FFC400002",
         "SampleAfterValue": "100003",
@@ -656,7 +656,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x103C400002",
         "SampleAfterValue": "100003",
@@ -665,7 +665,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x43C400002",
         "SampleAfterValue": "100003",
@@ -674,7 +674,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x23C400002",
         "SampleAfterValue": "100003",
@@ -683,7 +683,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0xBC400002",
         "SampleAfterValue": "100003",
@@ -692,7 +692,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x203C400002",
         "SampleAfterValue": "100003",
@@ -701,7 +701,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x13C400002",
         "SampleAfterValue": "100003",
@@ -719,7 +719,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FC4000002",
         "SampleAfterValue": "100003",
@@ -728,7 +728,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1004000002",
         "SampleAfterValue": "100003",
@@ -737,7 +737,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x404000002",
         "SampleAfterValue": "100003",
@@ -746,7 +746,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x204000002",
         "SampleAfterValue": "100003",
@@ -755,7 +755,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x84000002",
         "SampleAfterValue": "100003",
@@ -764,7 +764,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2004000002",
         "SampleAfterValue": "100003",
@@ -773,7 +773,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x104000002",
         "SampleAfterValue": "100003",
@@ -791,7 +791,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L4_HIT_LOCAL_L4.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L4_HIT_LOCAL_L4.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000400002",
         "SampleAfterValue": "100003",
@@ -800,7 +800,7 @@
     {
         "BriefDescription": "Counts all demand data writes (RFOs)",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.SUPPLIER_NONE.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.SUPPLIER_ANALNE.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000020002",
         "SampleAfterValue": "100003",
@@ -809,7 +809,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x20001C8000",
         "SampleAfterValue": "100003",
@@ -818,7 +818,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_E.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_E.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000088000",
         "SampleAfterValue": "100003",
@@ -827,7 +827,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_M.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_M.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000048000",
         "SampleAfterValue": "100003",
@@ -836,7 +836,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_S.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT_S.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000108000",
         "SampleAfterValue": "100003",
@@ -845,7 +845,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FFC408000",
         "SampleAfterValue": "100003",
@@ -854,7 +854,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x103C408000",
         "SampleAfterValue": "100003",
@@ -863,7 +863,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x43C408000",
         "SampleAfterValue": "100003",
@@ -872,7 +872,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x23C408000",
         "SampleAfterValue": "100003",
@@ -881,7 +881,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0xBC408000",
         "SampleAfterValue": "100003",
@@ -890,7 +890,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x203C408000",
         "SampleAfterValue": "100003",
@@ -899,7 +899,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x13C408000",
         "SampleAfterValue": "100003",
@@ -917,7 +917,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.ANY_SNOOP",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.ANY_SANALOP",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3FC4008000",
         "SampleAfterValue": "100003",
@@ -926,7 +926,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.SNOOP_HITM",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1004008000",
         "SampleAfterValue": "100003",
@@ -935,7 +935,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.SNOOP_HIT_NO_FWD",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x404008000",
         "SampleAfterValue": "100003",
@@ -944,7 +944,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.SNOOP_MISS",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x204008000",
         "SampleAfterValue": "100003",
@@ -953,7 +953,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.SNOOP_NONE",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.SANALOP_ANALNE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x84008000",
         "SampleAfterValue": "100003",
@@ -962,7 +962,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2004008000",
         "SampleAfterValue": "100003",
@@ -971,7 +971,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.SNOOP_NOT_NEEDED",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x104008000",
         "SampleAfterValue": "100003",
@@ -989,7 +989,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.L4_HIT_LOCAL_L4.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L4_HIT_LOCAL_L4.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000408000",
         "SampleAfterValue": "100003",
@@ -998,7 +998,7 @@
     {
         "BriefDescription": "Counts any other requests",
         "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_NON_DRAM",
+        "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_ANALNE.SANALOP_ANALN_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2000028000",
         "SampleAfterValue": "100003",
@@ -1014,10 +1014,10 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)",
+        "BriefDescription": "Number of times an RTM execution aborted due to analne of the previous 4 categories (e.g. interrupt)",
         "EventCode": "0xC9",
         "EventName": "RTM_RETIRED.ABORTED_EVENTS",
-        "PublicDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt).",
+        "PublicDescription": "Number of times an RTM execution aborted due to analne of the previous 4 categories (e.g. interrupt).",
         "SampleAfterValue": "2000003",
         "UMask": "0x80"
     },
@@ -1064,12 +1064,12 @@
         "BriefDescription": "Number of times an RTM execution started.",
         "EventCode": "0xC9",
         "EventName": "RTM_RETIRED.START",
-        "PublicDescription": "Number of times we entered an RTM region. Does not count nested transactions.",
+        "PublicDescription": "Number of times we entered an RTM region. Does analt count nested transactions.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts the number of times a class of instructions that may cause a transactional abort was executed. Since this is the count of execution, it may not always cause a transactional abort.",
+        "BriefDescription": "Counts the number of times a class of instructions that may cause a transactional abort was executed. Since this is the count of execution, it may analt always cause a transactional abort.",
         "EventCode": "0x5d",
         "EventName": "TX_EXEC.MISC1",
         "SampleAfterValue": "2000003",
@@ -1123,7 +1123,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Number of times an HLE transactional execution aborted due to XRELEASE lock not satisfying the address and value requirements in the elision buffer",
+        "BriefDescription": "Number of times an HLE transactional execution aborted due to XRELEASE lock analt satisfying the address and value requirements in the elision buffer",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_MISMATCH",
         "PublicDescription": "Number of times a TSX Abort was triggered due to release/commit but data and address mismatch.",
@@ -1131,10 +1131,10 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Number of times an HLE transactional execution aborted due to NoAllocatedElisionBuffer being non-zero.",
+        "BriefDescription": "Number of times an HLE transactional execution aborted due to AnalAllocatedElisionBuffer being analn-zero.",
         "EventCode": "0x54",
-        "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_NOT_EMPTY",
-        "PublicDescription": "Number of times a TSX Abort was triggered due to commit but Lock Buffer not empty.",
+        "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_ANALT_EMPTY",
+        "PublicDescription": "Number of times a TSX Abort was triggered due to commit but Lock Buffer analt empty.",
         "SampleAfterValue": "2000003",
         "UMask": "0x8"
     },
@@ -1147,18 +1147,18 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Number of times a HLE transactional region aborted due to a non XRELEASE prefixed instruction writing to an elided lock in the elision buffer",
+        "BriefDescription": "Number of times a HLE transactional region aborted due to a analn XRELEASE prefixed instruction writing to an elided lock in the elision buffer",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_HLE_STORE_TO_ELIDED_LOCK",
-        "PublicDescription": "Number of times a TSX Abort was triggered due to a non-release/commit store to lock.",
+        "PublicDescription": "Number of times a TSX Abort was triggered due to a analn-release/commit store to lock.",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Number of times HLE lock could not be elided due to ElisionBufferAvailable being zero.",
+        "BriefDescription": "Number of times HLE lock could analt be elided due to ElisionBufferAvailable being zero.",
         "EventCode": "0x54",
         "EventName": "TX_MEM.HLE_ELISION_BUFFER_FULL",
-        "PublicDescription": "Number of times we could not allocate Lock Buffer.",
+        "PublicDescription": "Number of times we could analt allocate Lock Buffer.",
         "SampleAfterValue": "2000003",
         "UMask": "0x40"
     }

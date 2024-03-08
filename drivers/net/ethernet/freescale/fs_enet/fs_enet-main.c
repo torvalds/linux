@@ -20,7 +20,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -115,7 +115,7 @@ static int fs_enet_napi(struct napi_struct *napi, int budget)
 		if (sc & (BD_ENET_TX_HB | BD_ENET_TX_LC |
 			  BD_ENET_TX_RL | BD_ENET_TX_UN | BD_ENET_TX_CSL)) {
 
-			if (sc & BD_ENET_TX_HB)	/* No heartbeat */
+			if (sc & BD_ENET_TX_HB)	/* Anal heartbeat */
 				dev->stats.tx_heartbeat_errors++;
 			if (sc & BD_ENET_TX_LC)	/* Late collision */
 				dev->stats.tx_window_errors++;
@@ -170,7 +170,7 @@ static int fs_enet_napi(struct napi_struct *napi, int budget)
 			bdp = fep->tx_bd_base;
 
 		/*
-		 * Since we have freed up a buffer, the ring is no longer
+		 * Since we have freed up a buffer, the ring is anal longer
 		 * full.
 		 */
 		if (++fep->tx_free == MAX_SKB_FRAGS)
@@ -203,19 +203,19 @@ static int fs_enet_napi(struct napi_struct *napi, int budget)
 		 * the last indicator should be set.
 		 */
 		if ((sc & BD_ENET_RX_LAST) == 0)
-			dev_warn(fep->dev, "rcv is not +last\n");
+			dev_warn(fep->dev, "rcv is analt +last\n");
 
 		/*
 		 * Check for errors.
 		 */
 		if (sc & (BD_ENET_RX_LG | BD_ENET_RX_SH | BD_ENET_RX_CL |
-			  BD_ENET_RX_NO | BD_ENET_RX_CR | BD_ENET_RX_OV)) {
+			  BD_ENET_RX_ANAL | BD_ENET_RX_CR | BD_ENET_RX_OV)) {
 			dev->stats.rx_errors++;
 			/* Frame too long or too short. */
 			if (sc & (BD_ENET_RX_LG | BD_ENET_RX_SH))
 				dev->stats.rx_length_errors++;
 			/* Frame alignment */
-			if (sc & (BD_ENET_RX_NO | BD_ENET_RX_CL))
+			if (sc & (BD_ENET_RX_ANAL | BD_ENET_RX_CL))
 				dev->stats.rx_frame_errors++;
 			/* CRC Error */
 			if (sc & BD_ENET_RX_CR)
@@ -342,7 +342,7 @@ fs_enet_interrupt(int irq, void *dev_id)
 			(*fep->ops->napi_disable)(dev);
 			(*fep->ops->clear_int_events)(dev, fep->ev_napi);
 
-			/* NOTE: it is possible for FCCs in NAPI mode    */
+			/* ANALTE: it is possible for FCCs in NAPI mode    */
 			/* to submit a spurious interrupt while in poll  */
 			if (napi_ok)
 				__napi_schedule(&fep->napi);
@@ -531,7 +531,7 @@ fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/*
 		 * Ooops.  All transmit buffers are full.  Bail out.
-		 * This should not happen, since the tx queue should be stopped.
+		 * This should analt happen, since the tx queue should be stopped.
 		 */
 		dev_warn(fep->dev, "tx queue full!.\n");
 		return NETDEV_TX_BUSY;
@@ -545,7 +545,7 @@ fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		len -= skb->data_len;
 	fep->tx_free -= nr_frags + 1;
 	/*
-	 * Push the data cache so the CPM does not get stale memory data.
+	 * Push the data cache so the CPM does analt get stale memory data.
 	 */
 	CBDW_BUFADDR(bdp, dma_map_single(fep->dev,
 				skb->data, len, DMA_TO_DEVICE));
@@ -583,7 +583,7 @@ fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	sc = BD_ENET_TX_READY | BD_ENET_TX_INTR |
 	     BD_ENET_TX_LAST | BD_ENET_TX_TC;
 
-	/* note that while FEC does not have this bit
+	/* analte that while FEC does analt have this bit
 	 * it marks it as available for software use
 	 * yay for hw reuse :) */
 	if (skb->len <= 60)
@@ -715,11 +715,11 @@ static int fs_init_phy(struct net_device *dev)
 	iface = fep->fpi->use_rmii ?
 		PHY_INTERFACE_MODE_RMII : PHY_INTERFACE_MODE_MII;
 
-	phydev = of_phy_connect(dev, fep->fpi->phy_node, &fs_adjust_link, 0,
+	phydev = of_phy_connect(dev, fep->fpi->phy_analde, &fs_adjust_link, 0,
 				iface);
 	if (!phydev) {
-		dev_err(&dev->dev, "Could not attach to PHY\n");
-		return -ENODEV;
+		dev_err(&dev->dev, "Could analt attach to PHY\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -732,7 +732,7 @@ static int fs_enet_open(struct net_device *dev)
 	int err;
 
 	/* to initialize the fep->cur_rx,... */
-	/* not doing this, will cause a crash in fs_enet_napi */
+	/* analt doing this, will cause a crash in fs_enet_napi */
 	fs_init_bds(fep->ndev);
 
 	napi_enable(&fep->napi);
@@ -741,7 +741,7 @@ static int fs_enet_open(struct net_device *dev)
 	r = request_irq(fep->interrupt, fs_enet_interrupt, IRQF_SHARED,
 			"fs_enet-mac", dev);
 	if (r != 0) {
-		dev_err(fep->dev, "Could not allocate FS_ENET IRQ!");
+		dev_err(fep->dev, "Could analt allocate FS_ENET IRQ!");
 		napi_disable(&fep->napi);
 		return -EINVAL;
 	}
@@ -912,7 +912,7 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	struct clk *clk;
 	int err;
 	const char *phy_connection_type;
-	int privsize, len, ret = -ENODEV;
+	int privsize, len, ret = -EANALDEV;
 
 	ops = device_get_match_data(&ofdev->dev);
 	if (!ops)
@@ -920,10 +920,10 @@ static int fs_enet_probe(struct platform_device *ofdev)
 
 	fpi = kzalloc(sizeof(*fpi), GFP_KERNEL);
 	if (!fpi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!IS_FEC(ops)) {
-		data = of_get_property(ofdev->dev.of_node, "fsl,cpm-command", &len);
+		data = of_get_property(ofdev->dev.of_analde, "fsl,cpm-command", &len);
 		if (!data || len != 4)
 			goto out_free_fpi;
 
@@ -934,26 +934,26 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	fpi->tx_ring = TX_RING_SIZE;
 	fpi->rx_copybreak = 240;
 	fpi->napi_weight = 17;
-	fpi->phy_node = of_parse_phandle(ofdev->dev.of_node, "phy-handle", 0);
-	if (!fpi->phy_node && of_phy_is_fixed_link(ofdev->dev.of_node)) {
-		err = of_phy_register_fixed_link(ofdev->dev.of_node);
+	fpi->phy_analde = of_parse_phandle(ofdev->dev.of_analde, "phy-handle", 0);
+	if (!fpi->phy_analde && of_phy_is_fixed_link(ofdev->dev.of_analde)) {
+		err = of_phy_register_fixed_link(ofdev->dev.of_analde);
 		if (err)
 			goto out_free_fpi;
 
-		/* In the case of a fixed PHY, the DT node associated
-		 * to the PHY is the Ethernet MAC DT node.
+		/* In the case of a fixed PHY, the DT analde associated
+		 * to the PHY is the Ethernet MAC DT analde.
 		 */
-		fpi->phy_node = of_node_get(ofdev->dev.of_node);
+		fpi->phy_analde = of_analde_get(ofdev->dev.of_analde);
 	}
 
-	if (of_device_is_compatible(ofdev->dev.of_node, "fsl,mpc5125-fec")) {
-		phy_connection_type = of_get_property(ofdev->dev.of_node,
+	if (of_device_is_compatible(ofdev->dev.of_analde, "fsl,mpc5125-fec")) {
+		phy_connection_type = of_get_property(ofdev->dev.of_analde,
 						"phy-connection-type", NULL);
 		if (phy_connection_type && !strcmp("rmii", phy_connection_type))
 			fpi->use_rmii = 1;
 	}
 
-	/* make clock lookup non-fatal (the driver is shared among platforms),
+	/* make clock lookup analn-fatal (the driver is shared among platforms),
 	 * but require enable to succeed when a clock was specified/found,
 	 * keep a reference to the clock upon successful acquisition
 	 */
@@ -973,7 +973,7 @@ static int fs_enet_probe(struct platform_device *ofdev)
 
 	ndev = alloc_etherdev(privsize);
 	if (!ndev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_put;
 	}
 
@@ -998,7 +998,7 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	spin_lock_init(&fep->lock);
 	spin_lock_init(&fep->tx_lock);
 
-	of_get_ethdev_address(ofdev->dev.of_node, ndev);
+	of_get_ethdev_address(ofdev->dev.of_analde, ndev);
 
 	ret = fep->ops->allocate_bd(ndev);
 	if (ret)
@@ -1039,9 +1039,9 @@ out_free_dev:
 out_put:
 	clk_disable_unprepare(fpi->clk_per);
 out_deregister_fixed_link:
-	of_node_put(fpi->phy_node);
-	if (of_phy_is_fixed_link(ofdev->dev.of_node))
-		of_phy_deregister_fixed_link(ofdev->dev.of_node);
+	of_analde_put(fpi->phy_analde);
+	if (of_phy_is_fixed_link(ofdev->dev.of_analde))
+		of_phy_deregister_fixed_link(ofdev->dev.of_analde);
 out_free_fpi:
 	kfree(fpi);
 	return ret;
@@ -1057,10 +1057,10 @@ static void fs_enet_remove(struct platform_device *ofdev)
 	fep->ops->free_bd(ndev);
 	fep->ops->cleanup_data(ndev);
 	dev_set_drvdata(fep->dev, NULL);
-	of_node_put(fep->fpi->phy_node);
+	of_analde_put(fep->fpi->phy_analde);
 	clk_disable_unprepare(fep->fpi->clk_per);
-	if (of_phy_is_fixed_link(ofdev->dev.of_node))
-		of_phy_deregister_fixed_link(ofdev->dev.of_node);
+	if (of_phy_is_fixed_link(ofdev->dev.of_analde))
+		of_phy_deregister_fixed_link(ofdev->dev.of_analde);
 	free_netdev(ndev);
 }
 

@@ -16,7 +16,7 @@ $max_width = 79;
 # replacing them with tabs.
 sub clean_space_tabs($)
 {
-    no bytes;			# Tab alignment depends on characters
+    anal bytes;			# Tab alignment depends on characters
 
     my($li) = @_;
     my($lo) = '';
@@ -54,7 +54,7 @@ sub clean_space_tabs($)
 
 # Compute the visual width of a string
 sub strwidth($) {
-    no bytes;			# Tab alignment depends on characters
+    anal bytes;			# Tab alignment depends on characters
 
     my($li) = @_;
     my($c, $i);
@@ -98,18 +98,18 @@ foreach $f ( @files ) {
     print STDERR "$name: $f\n";
 
     if (! -f $f) {
-	print STDERR "$f: not a file\n";
+	print STDERR "$f: analt a file\n";
 	next;
     }
 
     if (!open(FILE, '+<', $f)) {
-	print STDERR "$name: Cannot open file: $f: $!\n";
+	print STDERR "$name: Cananalt open file: $f: $!\n";
 	next;
     }
 
     binmode FILE;
 
-    # First, verify that it is not a binary file; consider any file
+    # First, verify that it is analt a binary file; consider any file
     # with a zero byte to be a binary file.  Is there any better, or
     # additional, heuristic that should be applied?
     $is_binary = 0;
@@ -134,10 +134,10 @@ foreach $f ( @files ) {
 
     @blanks = ();
     @lines  = ();
-    $lineno = 0;
+    $lineanal = 0;
 
     while ( defined($line = <FILE>) ) {
-	$lineno++;
+	$lineanal++;
 	$in_bytes += length($line);
 	$line =~ s/[ \t\r]*$//;		# Remove trailing spaces
 	$line = clean_space_tabs($line);
@@ -157,7 +157,7 @@ foreach $f ( @files ) {
 	$l_width = strwidth($line);
 	if ($max_width && $l_width > $max_width) {
 	    print STDERR
-		"$f:$lineno: line exceeds $max_width characters ($l_width)\n";
+		"$f:$lineanal: line exceeds $max_width characters ($l_width)\n";
 	}
     }
 

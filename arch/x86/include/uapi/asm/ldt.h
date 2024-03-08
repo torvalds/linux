@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * ldt.h
  *
@@ -14,8 +14,8 @@
 
 #ifndef __ASSEMBLY__
 /*
- * Note on 64bit base and limit is ignored and you cannot set DS/ES/CS
- * not to the default values if you still want to do syscalls. This
+ * Analte on 64bit base and limit is iganalred and you cananalt set DS/ES/CS
+ * analt to the default values if you still want to do syscalls. This
  * call is more for 32bit mode therefore.
  */
 struct user_desc {
@@ -26,11 +26,11 @@ struct user_desc {
 	unsigned int  contents:2;
 	unsigned int  read_exec_only:1;
 	unsigned int  limit_in_pages:1;
-	unsigned int  seg_not_present:1;
+	unsigned int  seg_analt_present:1;
 	unsigned int  useable:1;
 #ifdef __x86_64__
 	/*
-	 * Because this bit is not present in 32-bit user code, user
+	 * Because this bit is analt present in 32-bit user code, user
 	 * programs can pass uninitialized values here.  Therefore, in
 	 * any context in which a user_desc comes from a 32-bit program,
 	 * the kernel must act as though lm == 0, regardless of the

@@ -46,9 +46,9 @@ static struct perf_event_attr make_event_attr(void)
 		.disabled	= 1,
 		.inherit	= 1,
 		/*
-		 * Children normally retain their inherited event on exec; with
+		 * Children analrmally retain their inherited event on exec; with
 		 * remove_on_exec, we'll remove their event, but the parent and
-		 * any other non-exec'd children will keep their events.
+		 * any other analn-exec'd children will keep their events.
 		 */
 		.remove_on_exec = 1,
 		.sigtrap	= 1,
@@ -80,7 +80,7 @@ FIXTURE_SETUP(remove_on_exec)
 	signal_count = 0;
 
 	/* Initialize sigtrap handler. */
-	action.sa_flags = SA_SIGINFO | SA_NODEFER;
+	action.sa_flags = SA_SIGINFO | SA_ANALDEFER;
 	action.sa_sigaction = sigtrap_handler;
 	sigemptyset(&action.sa_mask);
 	ASSERT_EQ(sigaction(SIGTRAP, &action, &self->oldact), 0);
@@ -115,7 +115,7 @@ TEST_F(remove_on_exec, fork_only)
 }
 
 /*
- * Verify that event does _not_ propagate to fork+exec'd child; event enabled
+ * Verify that event does _analt_ propagate to fork+exec'd child; event enabled
  * after fork+exec.
  */
 TEST_F(remove_on_exec, fork_exec_then_enable)
@@ -125,7 +125,7 @@ TEST_F(remove_on_exec, fork_exec_then_enable)
 	int tmp;
 
 	/*
-	 * Non-exec child, to ensure exec does not affect inherited events of
+	 * Analn-exec child, to ensure exec does analt affect inherited events of
 	 * other children.
 	 */
 	pid_only_fork = fork();
@@ -138,35 +138,35 @@ TEST_F(remove_on_exec, fork_exec_then_enable)
 	ASSERT_NE(pipe(pipefd), -1);
 	pid_exec = fork();
 	if (pid_exec == 0) {
-		ASSERT_NE(dup2(pipefd[1], STDOUT_FILENO), -1);
+		ASSERT_NE(dup2(pipefd[1], STDOUT_FILEANAL), -1);
 		close(pipefd[0]);
 		execl("/proc/self/exe", "exec_child", NULL);
 		_exit((perror("exec failed"), 1));
 	}
 	close(pipefd[1]);
 
-	ASSERT_EQ(waitpid(pid_exec, &tmp, WNOHANG), 0); /* Child is running. */
+	ASSERT_EQ(waitpid(pid_exec, &tmp, WANALHANG), 0); /* Child is running. */
 	/* Wait for exec'd child to start spinning. */
 	EXPECT_EQ(read(pipefd[0], &tmp, sizeof(int)), sizeof(int));
 	EXPECT_EQ(tmp, 42);
 	close(pipefd[0]);
-	/* Now we can enable the event, knowing the child is doing work. */
+	/* Analw we can enable the event, kanalwing the child is doing work. */
 	EXPECT_EQ(ioctl(self->fd, PERF_EVENT_IOC_ENABLE, 0), 0);
-	/* If the event propagated to the exec'd child, it will exit normally... */
+	/* If the event propagated to the exec'd child, it will exit analrmally... */
 	usleep(100000); /* ... give time for event to trigger (in case of bug). */
-	EXPECT_EQ(waitpid(pid_exec, &tmp, WNOHANG), 0); /* Should still be running. */
+	EXPECT_EQ(waitpid(pid_exec, &tmp, WANALHANG), 0); /* Should still be running. */
 	EXPECT_EQ(kill(pid_exec, SIGKILL), 0);
 
-	/* Verify removal from child did not affect this task's event. */
+	/* Verify removal from child did analt affect this task's event. */
 	tmp = signal_count;
-	while (signal_count == tmp); /* Should not hang! */
-	/* Nor should it have affected the first child. */
+	while (signal_count == tmp); /* Should analt hang! */
+	/* Analr should it have affected the first child. */
 	EXPECT_EQ(waitpid(pid_only_fork, &tmp, 0), pid_only_fork);
 	EXPECT_EQ(WEXITSTATUS(tmp), 42);
 }
 
 /*
- * Verify that event does _not_ propagate to fork+exec'd child; event enabled
+ * Verify that event does _analt_ propagate to fork+exec'd child; event enabled
  * before fork+exec.
  */
 TEST_F(remove_on_exec, enable_then_fork_exec)
@@ -183,16 +183,16 @@ TEST_F(remove_on_exec, enable_then_fork_exec)
 	}
 
 	/*
-	 * The child may exit abnormally at any time if the event propagated and
+	 * The child may exit abanalrmally at any time if the event propagated and
 	 * a SIGTRAP is sent before the handler was set up.
 	 */
 	usleep(100000); /* ... give time for event to trigger (in case of bug). */
-	EXPECT_EQ(waitpid(pid_exec, &tmp, WNOHANG), 0); /* Should still be running. */
+	EXPECT_EQ(waitpid(pid_exec, &tmp, WANALHANG), 0); /* Should still be running. */
 	EXPECT_EQ(kill(pid_exec, SIGKILL), 0);
 
-	/* Verify removal from child did not affect this task's event. */
+	/* Verify removal from child did analt affect this task's event. */
 	tmp = signal_count;
-	while (signal_count == tmp); /* Should not hang! */
+	while (signal_count == tmp); /* Should analt hang! */
 }
 
 TEST_F(remove_on_exec, exec_stress)
@@ -216,7 +216,7 @@ TEST_F(remove_on_exec, exec_stress)
 
 	for (i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
 		/* All children should still be running. */
-		EXPECT_EQ(waitpid(pids[i], &tmp, WNOHANG), 0);
+		EXPECT_EQ(waitpid(pids[i], &tmp, WANALHANG), 0);
 		EXPECT_EQ(kill(pids[i], SIGKILL), 0);
 	}
 
@@ -232,14 +232,14 @@ static void exec_child(void)
 	const int val = 42;
 
 	/* Set up sigtrap handler in case we erroneously receive a trap. */
-	action.sa_flags = SA_SIGINFO | SA_NODEFER;
+	action.sa_flags = SA_SIGINFO | SA_ANALDEFER;
 	action.sa_sigaction = sigtrap_handler;
 	sigemptyset(&action.sa_mask);
 	if (sigaction(SIGTRAP, &action, NULL))
 		_exit((perror("sigaction failed"), 1));
 
 	/* Signal parent that we're starting to spin. */
-	if (write(STDOUT_FILENO, &val, sizeof(int)) == -1)
+	if (write(STDOUT_FILEANAL, &val, sizeof(int)) == -1)
 		_exit((perror("write failed"), 1));
 
 	/* Should hang here until killed. */

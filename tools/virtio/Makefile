@@ -14,7 +14,7 @@ __cc-option = $(call try-run,\
 	$(1) -Werror $(2) -c -x c /dev/null -o /dev/null,$(2),)
 cc-option = $(call __cc-option, $(CC),$(1))
 
-CFLAGS += -g -O2 -Werror -Wno-maybe-uninitialized -Wall -I. -I../include/ -I ../../usr/include/ -Wno-pointer-sign -fno-strict-overflow -fno-strict-aliasing -fno-common -MMD -U_FORTIFY_SOURCE -include ../../include/linux/kconfig.h $(call cc-option,-mfunction-return=thunk) $(call cc-option,-fcf-protection=none) $(call cc-option,-mindirect-branch-register)
+CFLAGS += -g -O2 -Werror -Wanal-maybe-uninitialized -Wall -I. -I../include/ -I ../../usr/include/ -Wanal-pointer-sign -fanal-strict-overflow -fanal-strict-aliasing -fanal-common -MMD -U_FORTIFY_SOURCE -include ../../include/linux/kconfig.h $(call cc-option,-mfunction-return=thunk) $(call cc-option,-fcf-protection=analne) $(call cc-option,-mindirect-branch-register)
 
 CFLAGS += -pthread
 LDFLAGS += -pthread
@@ -23,7 +23,7 @@ mod:
 	${MAKE} -C `pwd`/../.. M=`pwd`/vhost_test V=${V}
 
 #oot: build vhost as an out of tree module for a distro kernel
-#no effort is taken to make it actually build or work, but tends to mostly work
+#anal effort is taken to make it actually build or work, but tends to mostly work
 #if the distro kernel is very close to upstream
 #unsupported! this is a development tool only, don't use the
 #resulting modules in production!

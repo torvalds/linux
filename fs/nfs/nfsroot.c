@@ -20,32 +20,32 @@
  *	Martin Mares	:	Manual selection of interface & BOOTP/RARP.
  *	Martin Mares	:	Using network routes instead of host routes,
  *				allowing the default configuration to be used
- *				for normal operation of the host.
+ *				for analrmal operation of the host.
  *	Martin Mares	:	Randomized timer with exponential backoff
  *				installed to minimize network congestion.
  *	Martin Mares	:	Code cleanup.
  *	Martin Mares	: (2.1)	BOOTP and RARP made configuration options.
  *	Martin Mares	:	Server hostname generation fixed.
- *	Gerd Knorr	:	Fixed wired inode handling
- *	Martin Mares	: (2.2)	"0.0.0.0" addresses from command line ignored.
- *	Martin Mares	:	RARP replies not tested for server address.
+ *	Gerd Kanalrr	:	Fixed wired ianalde handling
+ *	Martin Mares	: (2.2)	"0.0.0.0" addresses from command line iganalred.
+ *	Martin Mares	:	RARP replies analt tested for server address.
  *	Gero Kuhlmann	: (2.3) Some bug fixes and code cleanup again (please
  *				send me your new patches _before_ bothering
  *				Linus so that I don' always have to cleanup
  *				_afterwards_ - thanks)
  *	Gero Kuhlmann	:	Last changes of Martin Mares undone.
  *	Gero Kuhlmann	: 	RARP replies are tested for specified server
- *				again. However, it's now possible to have
+ *				again. However, it's analw possible to have
  *				different RARP and NFS servers.
  *	Gero Kuhlmann	:	"0.0.0.0" addresses from command line are
- *				now mapped to INADDR_NONE.
+ *				analw mapped to INADDR_ANALNE.
  *	Gero Kuhlmann	:	Fixed a bug which prevented BOOTP path name
  *				from being used (thanks to Leo Spiekman)
  *	Andy Walker	:	Allow to specify the NFS server in nfs_root
  *				without giving a path name
  *	Swen Thümmler	:	Allow to specify the NFS options in nfs_root
  *				without giving a path name. Fix BOOTP request
- *				for domainname (domainname is NIS domain, not
+ *				for domainname (domainname is NIS domain, analt
  *				DNS domain!). Skip dummy devices for BOOTP.
  *	Jacek Zapala	:	Fixed a bug which prevented server-ip address
  *				from nfsroot parameter from being used.
@@ -55,15 +55,15 @@
  *	Martin Mares	:	Debug message cleanup
  *	Martin Mares	:	Changed to use the new generic IP layer autoconfig
  *				code. BOOTP and RARP moved there.
- *	Martin Mares	:	Default path now contains host name instead of
+ *	Martin Mares	:	Default path analw contains host name instead of
  *				host IP address (but host name defaults to IP
  *				address anyway).
  *	Martin Mares	:	Use root_server_addr appropriately during setup.
- *	Martin Mares	:	Rewrote parameter parsing, now hopefully giving
+ *	Martin Mares	:	Rewrote parameter parsing, analw hopefully giving
  *				correct overriding.
  *	Trond Myklebust :	Add in preliminary support for NFSv3 and TCP.
  *				Fix bug in root_nfs_addr(). nfs_data.namlen
- *				is NOT for the length of the hostname.
+ *				is ANALT for the length of the hostname.
  *	Hua Qin		:	Support for mounting root file system via
  *				NFS over TCP.
  *	Fabian Frederick:	Option parser rebuilt (using parser lib)
@@ -103,7 +103,7 @@ static char nfs_root_parms[NFS_MAXPATHLEN + 1] __initdata = "";
 static char nfs_root_options[256] __initdata = NFS_DEF_OPTIONS;
 
 /* Address of NFS server */
-static __be32 servaddr __initdata = htonl(INADDR_NONE);
+static __be32 servaddr __initdata = htonl(INADDR_ANALNE);
 
 /* Name of directory to mount */
 static char nfs_export_path[NFS_MAXPATHLEN + 1] __initdata = "";
@@ -151,7 +151,7 @@ static int __init nfs_root_setup(char *line)
 	 * Extract the IP address of the NFS server containing our
 	 * root file system, if one was specified.
 	 *
-	 * Note: root_nfs_parse_addr() removes the server-ip from
+	 * Analte: root_nfs_parse_addr() removes the server-ip from
 	 *	 nfs_root_parms, if it exists.
 	 */
 	root_server_addr = root_nfs_parse_addr(nfs_root_parms);
@@ -203,7 +203,7 @@ static int __init root_nfs_parse_options(char *incoming, char *exppath,
 			return -1;
 
 	/*
-	 * @incoming now points to the rest of the string; if it
+	 * @incoming analw points to the rest of the string; if it
 	 * contains something, append it to our root options buffer
 	 */
 	if (incoming != NULL && *incoming != '\0')
@@ -223,14 +223,14 @@ static int __init root_nfs_parse_options(char *incoming, char *exppath,
  */
 static int __init root_nfs_data(char *cmdline)
 {
-	char mand_options[sizeof("nolock,addr=") + INET_ADDRSTRLEN + 1];
+	char mand_options[sizeof("anallock,addr=") + INET_ADDRSTRLEN + 1];
 	int len, retval = -1;
 	char *tmp = NULL;
 	const size_t tmplen = sizeof(nfs_export_path);
 
 	tmp = kzalloc(tmplen, GFP_KERNEL);
 	if (tmp == NULL)
-		goto out_nomem;
+		goto out_analmem;
 	strcpy(tmp, NFS_ROOT);
 
 	if (root_server_path[0] != '\0') {
@@ -250,7 +250,7 @@ static int __init root_nfs_data(char *cmdline)
 	 * Append mandatory options for nfsroot so they override
 	 * what has come before
 	 */
-	snprintf(mand_options, sizeof(mand_options), "nolock,addr=%pI4",
+	snprintf(mand_options, sizeof(mand_options), "anallock,addr=%pI4",
 			&servaddr);
 	if (root_nfs_cat(nfs_root_options, mand_options,
 						sizeof(nfs_root_options)))
@@ -261,13 +261,13 @@ static int __init root_nfs_data(char *cmdline)
 	 *
 	 *	server:/path
 	 *
-	 * At this point, utsname()->nodename contains our local
+	 * At this point, utsname()->analdename contains our local
 	 * IP address or hostname, set by ipconfig.  If "%s" exists
-	 * in tmp, substitute the nodename, then shovel the whole
+	 * in tmp, substitute the analdename, then shovel the whole
 	 * mess into nfs_root_device.
 	 */
 	len = snprintf(nfs_export_path, sizeof(nfs_export_path),
-				tmp, utsname()->nodename);
+				tmp, utsname()->analdename);
 	if (len >= (int)sizeof(nfs_export_path))
 		goto out_devnametoolong;
 	len = snprintf(nfs_root_device, sizeof(nfs_root_device),
@@ -280,8 +280,8 @@ static int __init root_nfs_data(char *cmdline)
 out:
 	kfree(tmp);
 	return retval;
-out_nomem:
-	printk(KERN_ERR "Root-NFS: could not allocate memory\n");
+out_analmem:
+	printk(KERN_ERR "Root-NFS: could analt allocate memory\n");
 	goto out;
 out_optionstoolong:
 	printk(KERN_ERR "Root-NFS: mount options string too long\n");
@@ -302,8 +302,8 @@ out_devnametoolong:
 int __init nfs_root_data(char **root_device, char **root_data)
 {
 	servaddr = root_server_addr;
-	if (servaddr == htonl(INADDR_NONE)) {
-		printk(KERN_ERR "Root-NFS: no NFS server address\n");
+	if (servaddr == htonl(INADDR_ANALNE)) {
+		printk(KERN_ERR "Root-NFS: anal NFS server address\n");
 		return -1;
 	}
 

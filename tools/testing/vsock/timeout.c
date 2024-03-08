@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2017 Red Hat, Inc.
  *
- * Author: Stefan Hajnoczi <stefanha@redhat.com>
+ * Author: Stefan Hajanalczi <stefanha@redhat.com>
  */
 
 /* Use the following pattern:
@@ -25,17 +25,17 @@
 
 static volatile bool timeout;
 
-/* SIGALRM handler function.  Do not use sleep(2), alarm(2), or
+/* SIGALRM handler function.  Do analt use sleep(2), alarm(2), or
  * setitimer(2) while using this API - they may interfere with each
  * other.
  */
-void sigalrm(int signo)
+void sigalrm(int siganal)
 {
 	timeout = true;
 }
 
 /* Start a timeout.  Call timeout_check() to verify that the timeout hasn't
- * expired.  timeout_end() must be called to stop the timeout.  Timeouts cannot
+ * expired.  timeout_end() must be called to stop the timeout.  Timeouts cananalt
  * be nested.
  */
 void timeout_begin(unsigned int seconds)

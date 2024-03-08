@@ -122,17 +122,17 @@ static int phy_g12a_mipi_dphy_analog_probe(struct platform_device *pdev)
 	struct phy_provider *phy;
 	struct device *dev = &pdev->dev;
 	struct phy_g12a_mipi_dphy_analog_priv *priv;
-	struct device_node *np = dev->of_node, *parent_np;
+	struct device_analde *np = dev->of_analde, *parent_np;
 	struct regmap *map;
 
 	priv = devm_kmalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Get the hhi system controller node */
+	/* Get the hhi system controller analde */
 	parent_np = of_get_parent(np);
-	map = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	map = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(map))
 		return dev_err_probe(dev, PTR_ERR(map), "failed to get HHI regmap\n");
 

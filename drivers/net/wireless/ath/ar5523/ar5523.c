@@ -1,17 +1,17 @@
 /*
  * Copyright (c) 2006 Damien Bergamini <damien.bergamini@free.fr>
- * Copyright (c) 2006 Sam Leffler, Errno Consulting
+ * Copyright (c) 2006 Sam Leffler, Erranal Consulting
  * Copyright (c) 2007 Christoph Hellwig <hch@lst.de>
  * Copyright (c) 2008-2009 Weongyo Jeong <weongyo@freebsd.org>
  * Copyright (c) 2012 Pontus Fuchs <pontus.fuchs@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -176,14 +176,14 @@ static int ar5523_alloc_rx_cmd(struct ar5523 *ar)
 {
 	ar->rx_cmd_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!ar->rx_cmd_urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ar->rx_cmd_buf = usb_alloc_coherent(ar->dev, AR5523_MAX_RXCMDSZ,
 					    GFP_KERNEL,
 					    &ar->rx_cmd_urb->transfer_dma);
 	if (!ar->rx_cmd_buf) {
 		usb_free_urb(ar->rx_cmd_urb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -207,11 +207,11 @@ static int ar5523_submit_rx_cmd(struct ar5523 *ar)
 	usb_fill_bulk_urb(ar->rx_cmd_urb, ar->dev,
 			  ar5523_cmd_rx_pipe(ar->dev), ar->rx_cmd_buf,
 			  AR5523_MAX_RXCMDSZ, ar5523_cmd_rx_cb, ar);
-	ar->rx_cmd_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	ar->rx_cmd_urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	error = usb_submit_urb(ar->rx_cmd_urb, GFP_ATOMIC);
 	if (error) {
-		if (error != -ENODEV)
+		if (error != -EANALDEV)
 			ar5523_err(ar, "error %d when submitting rx urb\n",
 				   error);
 		return error;
@@ -275,11 +275,11 @@ static int ar5523_cmd(struct ar5523 *ar, u32 code, const void *idata,
 
 	usb_fill_bulk_urb(cmd->urb_tx, ar->dev, ar5523_cmd_tx_pipe(ar->dev),
 			  cmd->buf_tx, xferlen, ar5523_cmd_tx_cb, cmd);
-	cmd->urb_tx->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	cmd->urb_tx->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	error = usb_submit_urb(cmd->urb_tx, GFP_KERNEL);
 	if (error) {
-		ar5523_err(ar, "could not send command 0x%x, error=%d\n",
+		ar5523_err(ar, "could analt send command 0x%x, error=%d\n",
 			   code, error);
 		return error;
 	}
@@ -320,7 +320,7 @@ static int ar5523_config(struct ar5523 *ar, u32 reg, u32 val)
 	error = ar5523_cmd_write(ar, WDCMSG_TARGET_SET_CONFIG, &write,
 				 3 * sizeof(u32), 0);
 	if (error != 0)
-		ar5523_err(ar, "could not write register 0x%02x\n", reg);
+		ar5523_err(ar, "could analt write register 0x%02x\n", reg);
 	return error;
 }
 
@@ -338,7 +338,7 @@ static int ar5523_config_multi(struct ar5523 *ar, u32 reg, const void *data,
 	error = ar5523_cmd_write(ar, WDCMSG_TARGET_SET_CONFIG, &write,
 	    (len == 0) ? sizeof(u32) : 2 * sizeof(u32) + len, 0);
 	if (error != 0)
-		ar5523_err(ar, "could not write %d bytes to register 0x%02x\n",
+		ar5523_err(ar, "could analt write %d bytes to register 0x%02x\n",
 			   len, reg);
 	return error;
 }
@@ -353,7 +353,7 @@ static int ar5523_get_status(struct ar5523 *ar, u32 which, void *odata,
 	error = ar5523_cmd_read(ar, WDCMSG_TARGET_GET_STATUS,
 	    &which_be, sizeof(which_be), odata, olen, AR5523_CMD_FLAG_MAGIC);
 	if (error != 0)
-		ar5523_err(ar, "could not read EEPROM offset 0x%02x\n", which);
+		ar5523_err(ar, "could analt read EEPROM offset 0x%02x\n", which);
 	return error;
 }
 
@@ -367,7 +367,7 @@ static int ar5523_get_capability(struct ar5523 *ar, u32 cap, u32 *val)
 				sizeof(cap_be), &val_be, sizeof(__be32),
 				AR5523_CMD_FLAG_MAGIC);
 	if (error != 0) {
-		ar5523_err(ar, "could not read capability %u\n", cap);
+		ar5523_err(ar, "could analt read capability %u\n", cap);
 		return error;
 	}
 	*val = be32_to_cpu(val_be);
@@ -502,21 +502,21 @@ static int ar5523_switch_chan(struct ar5523 *ar)
 
 	error = ar5523_set_chan(ar);
 	if (error) {
-		ar5523_err(ar, "could not set chan, error %d\n", error);
+		ar5523_err(ar, "could analt set chan, error %d\n", error);
 		goto out_err;
 	}
 
 	/* reset Tx rings */
 	error = ar5523_reset_tx_queues(ar);
 	if (error) {
-		ar5523_err(ar, "could not reset Tx queues, error %d\n",
+		ar5523_err(ar, "could analt reset Tx queues, error %d\n",
 			   error);
 		goto out_err;
 	}
 	/* set Tx rings WME properties */
 	error = ar5523_queue_init(ar);
 	if (error)
-		ar5523_err(ar, "could not init wme, error %d\n", error);
+		ar5523_err(ar, "could analt init wme, error %d\n", error);
 
 out_err:
 	return error;
@@ -561,7 +561,7 @@ static void ar5523_data_rx_cb(struct urb *urb)
 
 	if (((chunk->flags & UATH_CFLAGS_FINAL) == 0) ||
 		chunk->seqnum != 0) {
-		ar5523_dbg(ar, "RX: No final flag. s: %d f: %02x l: %d\n",
+		ar5523_dbg(ar, "RX: Anal final flag. s: %d f: %02x l: %d\n",
 			   chunk->seqnum, chunk->flags,
 			   be16_to_cpu(chunk->length));
 		goto skip;
@@ -645,7 +645,7 @@ static void ar5523_rx_refill_work(struct work_struct *work)
 
 		data->skb = alloc_skb(ar->rxbufsz, GFP_KERNEL);
 		if (!data->skb) {
-			ar5523_err(ar, "could not allocate rx skbuff\n");
+			ar5523_err(ar, "could analt allocate rx skbuff\n");
 			return;
 		}
 
@@ -661,7 +661,7 @@ static void ar5523_rx_refill_work(struct work_struct *work)
 		error = usb_submit_urb(data->urb, GFP_KERNEL);
 		if (error) {
 			kfree_skb(data->skb);
-			if (error != -ENODEV)
+			if (error != -EANALDEV)
 				ar5523_err(ar, "Err sending rx data urb %d\n",
 					   error);
 			ar5523_rx_data_put(ar, data);
@@ -726,7 +726,7 @@ static int ar5523_alloc_rx_bufs(struct ar5523 *ar)
 
 err:
 	ar5523_free_rx_bufs(ar);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void ar5523_data_tx_pkt_put(struct ar5523 *ar)
@@ -851,7 +851,7 @@ static void ar5523_tx_work_locked(struct ar5523 *ar)
 		desc->msgid  = AR5523_DATA_ID;
 		desc->buflen = cpu_to_be32(paylen);
 		desc->type   = cpu_to_be32(WDCMSG_SEND);
-		desc->flags  = cpu_to_be32(UATH_TX_NOTIFY);
+		desc->flags  = cpu_to_be32(UATH_TX_ANALTIFY);
 
 		if (test_bit(AR5523_CONNECTED, &ar->flags))
 			desc->connid = cpu_to_be32(AR5523_ID_BSS);
@@ -958,13 +958,13 @@ static int ar5523_alloc_tx_cmd(struct ar5523 *ar)
 
 	cmd->urb_tx = usb_alloc_urb(0, GFP_KERNEL);
 	if (!cmd->urb_tx)
-		return -ENOMEM;
+		return -EANALMEM;
 	cmd->buf_tx = usb_alloc_coherent(ar->dev, AR5523_MAX_TXCMDSZ,
 					 GFP_KERNEL,
 					 &cmd->urb_tx->transfer_dma);
 	if (!cmd->buf_tx) {
 		usb_free_urb(cmd->urb_tx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -982,12 +982,12 @@ static void ar5523_stat_work(struct work_struct *work)
 	mutex_lock(&ar->mutex);
 
 	/*
-	 * Send request for statistics asynchronously once a second. This
+	 * Send request for statistics asynchroanalusly once a second. This
 	 * seems to be important. Throughput is a lot better if this is done.
 	 */
 	error = ar5523_cmd_write(ar, WDCMSG_TARGET_GET_STATS, NULL, 0, 0);
 	if (error)
-		ar5523_err(ar, "could not query stats, error %d\n", error);
+		ar5523_err(ar, "could analt query stats, error %d\n", error);
 	mutex_unlock(&ar->mutex);
 	ieee80211_queue_delayed_work(ar->hw, &ar->stat_work, HZ);
 }
@@ -1011,7 +1011,7 @@ static int ar5523_start(struct ieee80211_hw *hw)
 	ar5523_config_multi(ar, CFG_MAC_ADDR, &ar->hw->wiphy->perm_addr,
 			    ETH_ALEN);
 
-	/* XXX honor net80211 state */
+	/* XXX hoanalr net80211 state */
 	ar5523_config(ar, CFG_RATE_CONTROL_ENABLE, 0x00000001);
 	ar5523_config(ar, CFG_DIVERSITY_CTL, 0x00000001);
 	ar5523_config(ar, CFG_ABOLT, 0x0000003f);
@@ -1030,7 +1030,7 @@ static int ar5523_start(struct ieee80211_hw *hw)
 	error = ar5523_cmd_read(ar, WDCMSG_TARGET_START, NULL, 0,
 	    &val, sizeof(val), AR5523_CMD_FLAG_MAGIC);
 	if (error) {
-		ar5523_dbg(ar, "could not start target, error %d\n", error);
+		ar5523_dbg(ar, "could analt start target, error %d\n", error);
 		goto err;
 	}
 	ar5523_dbg(ar, "WDCMSG_TARGET_START returns handle: 0x%x\n",
@@ -1115,7 +1115,7 @@ static int ar5523_add_interface(struct ieee80211_hw *hw,
 
 	if (ar->vif) {
 		ar5523_dbg(ar, "invalid add_interface\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (vif->type) {
@@ -1123,7 +1123,7 @@ static int ar5523_add_interface(struct ieee80211_hw *hw,
 		ar->vif = vif;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -1163,7 +1163,7 @@ static int ar5523_get_wlan_mode(struct ar5523 *ar,
 	band = ar->hw->wiphy->bands[ar->hw->conf.chandef.chan->band];
 	sta = ieee80211_find_sta(ar->vif, bss_conf->bssid);
 	if (!sta) {
-		ar5523_info(ar, "STA not found!\n");
+		ar5523_info(ar, "STA analt found!\n");
 		return WLAN_MODE_11b;
 	}
 	sta_rate_set = sta->deflink.supp_rates[ar->hw->conf.chandef.chan->band];
@@ -1201,7 +1201,7 @@ static void ar5523_create_rateset(struct ar5523 *ar,
 	sta = ieee80211_find_sta(ar->vif, bss_conf->bssid);
 	basic_rate_set = bss_conf->basic_rates;
 	if (!sta) {
-		ar5523_info(ar, "STA not found. Cannot set rates\n");
+		ar5523_info(ar, "STA analt found. Cananalt set rates\n");
 		sta_rate_set = bss_conf->basic_rates;
 	} else
 		sta_rate_set = sta->deflink.supp_rates[ar->hw->conf.chandef.chan->band];
@@ -1250,7 +1250,7 @@ static int ar5523_create_connection(struct ar5523 *ar,
 	memset(&create, 0, sizeof(create));
 	create.connid = cpu_to_be32(2);
 	create.bssid = cpu_to_be32(0);
-	/* XXX packed or not?  */
+	/* XXX packed or analt?  */
 	create.size = cpu_to_be32(sizeof(struct ar5523_cmd_rateset));
 
 	ar5523_create_rateset(ar, bss, &create.connattr.rateset, false);
@@ -1293,19 +1293,19 @@ static void ar5523_bss_info_changed(struct ieee80211_hw *hw,
 	if (vif->cfg.assoc) {
 		error = ar5523_create_connection(ar, vif, bss);
 		if (error) {
-			ar5523_err(ar, "could not create connection\n");
+			ar5523_err(ar, "could analt create connection\n");
 			goto out_unlock;
 		}
 
 		error = ar5523_set_basic_rates(ar, bss);
 		if (error) {
-			ar5523_err(ar, "could not set negotiated rate set\n");
+			ar5523_err(ar, "could analt set negotiated rate set\n");
 			goto out_unlock;
 		}
 
 		error = ar5523_write_associd(ar, vif);
 		if (error) {
-			ar5523_err(ar, "could not set association\n");
+			ar5523_err(ar, "could analt set association\n");
 			goto out_unlock;
 		}
 
@@ -1344,7 +1344,7 @@ static void ar5523_configure_filter(struct ieee80211_hw *hw,
 	*total_flags &= AR5523_SUPPORTED_FILTERS;
 
 	/* The filters seems strange. UATH_FILTER_RX_BCAST and
-	 * UATH_FILTER_RX_MCAST does not result in those frames being RXed.
+	 * UATH_FILTER_RX_MCAST does analt result in those frames being RXed.
 	 * The only way I have found to get [mb]cast frames seems to be
 	 * to set UATH_FILTER_RX_PROM. */
 	filter |= UATH_FILTER_RX_UCAST | UATH_FILTER_RX_MCAST |
@@ -1377,7 +1377,7 @@ static int ar5523_host_available(struct ar5523 *ar)
 
 	/* inform target the host is available */
 	setup.sw_ver_major = cpu_to_be32(ATH_SW_VER_MAJOR);
-	setup.sw_ver_minor = cpu_to_be32(ATH_SW_VER_MINOR);
+	setup.sw_ver_mianalr = cpu_to_be32(ATH_SW_VER_MIANALR);
 	setup.sw_ver_patch = cpu_to_be32(ATH_SW_VER_PATCH);
 	setup.sw_ver_build = cpu_to_be32(ATH_SW_VER_BUILD);
 	return ar5523_cmd_read(ar, WDCMSG_HOST_AVAILABLE,
@@ -1392,7 +1392,7 @@ static int ar5523_get_devstatus(struct ar5523 *ar)
 	/* retrieve MAC address */
 	error = ar5523_get_status(ar, ST_MAC_ADDR, macaddr, ETH_ALEN);
 	if (error) {
-		ar5523_err(ar, "could not read MAC address\n");
+		ar5523_err(ar, "could analt read MAC address\n");
 		return error;
 	}
 
@@ -1401,7 +1401,7 @@ static int ar5523_get_devstatus(struct ar5523 *ar)
 	error = ar5523_get_status(ar, ST_SERIAL_NUMBER,
 	    &ar->serial[0], sizeof(ar->serial));
 	if (error) {
-		ar5523_err(ar, "could not read device serial number\n");
+		ar5523_err(ar, "could analt read device serial number\n");
 		return error;
 	}
 	return 0;
@@ -1418,7 +1418,7 @@ static int ar5523_get_max_rxsz(struct ar5523 *ar)
 	error = ar5523_get_status(ar, ST_WDC_TRANSPORT_CHUNK_SIZE, &rxsize,
 				  sizeof(rxsize));
 	if (error != 0) {
-		ar5523_err(ar, "could not read max RX size\n");
+		ar5523_err(ar, "could analt read max RX size\n");
 		return error;
 	}
 
@@ -1502,9 +1502,9 @@ static int ar5523_load_firmware(struct usb_device *dev)
 	int error = -ENXIO;
 
 	if (request_firmware(&fw, AR5523_FIRMWARE_FILE, &dev->dev)) {
-		dev_err(&dev->dev, "no firmware found: %s\n",
+		dev_err(&dev->dev, "anal firmware found: %s\n",
 			AR5523_FIRMWARE_FILE);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	txblock = kzalloc(sizeof(*txblock), GFP_KERNEL);
@@ -1536,7 +1536,7 @@ static int ar5523_load_firmware(struct usb_device *dev)
 				     AR5523_CMD_TIMEOUT);
 		if (error) {
 			dev_err(&dev->dev,
-				"could not send firmware block info\n");
+				"could analt send firmware block info\n");
 			goto out_free_fwbuf;
 		}
 
@@ -1547,7 +1547,7 @@ static int ar5523_load_firmware(struct usb_device *dev)
 				     AR5523_DATA_TIMEOUT);
 		if (error) {
 			dev_err(&dev->dev,
-				"could not send firmware block data\n");
+				"could analt send firmware block data\n");
 			goto out_free_fwbuf;
 		}
 
@@ -1557,7 +1557,7 @@ static int ar5523_load_firmware(struct usb_device *dev)
 				     AR5523_CMD_TIMEOUT);
 		if (error) {
 			dev_err(&dev->dev,
-				"could not read firmware answer\n");
+				"could analt read firmware answer\n");
 			goto out_free_fwbuf;
 		}
 
@@ -1588,7 +1588,7 @@ static int ar5523_probe(struct usb_interface *intf,
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct ieee80211_hw *hw;
 	struct ar5523 *ar;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	/*
 	 * Load firmware if the device requires it.  This will return
@@ -1628,25 +1628,25 @@ static int ar5523_probe(struct usb_interface *intf,
 
 	ar->wq = create_singlethread_workqueue("ar5523");
 	if (!ar->wq) {
-		ar5523_err(ar, "Could not create wq\n");
+		ar5523_err(ar, "Could analt create wq\n");
 		goto out_free_ar;
 	}
 
 	error = ar5523_alloc_rx_bufs(ar);
 	if (error) {
-		ar5523_err(ar, "Could not allocate rx buffers\n");
+		ar5523_err(ar, "Could analt allocate rx buffers\n");
 		goto out_free_wq;
 	}
 
 	error = ar5523_alloc_rx_cmd(ar);
 	if (error) {
-		ar5523_err(ar, "Could not allocate rx command buffers\n");
+		ar5523_err(ar, "Could analt allocate rx command buffers\n");
 		goto out_free_rx_bufs;
 	}
 
 	error = ar5523_alloc_tx_cmd(ar);
 	if (error) {
-		ar5523_err(ar, "Could not allocate tx command buffers\n");
+		ar5523_err(ar, "Could analt allocate tx command buffers\n");
 		goto out_free_rx_cmd;
 	}
 
@@ -1657,29 +1657,29 @@ static int ar5523_probe(struct usb_interface *intf,
 	}
 
 	/*
-	 * We're now ready to send/receive firmware commands.
+	 * We're analw ready to send/receive firmware commands.
 	 */
 	error = ar5523_host_available(ar);
 	if (error) {
-		ar5523_err(ar, "could not initialize adapter\n");
+		ar5523_err(ar, "could analt initialize adapter\n");
 		goto out_cancel_rx_cmd;
 	}
 
 	error = ar5523_get_max_rxsz(ar);
 	if (error) {
-		ar5523_err(ar, "could not get caps from adapter\n");
+		ar5523_err(ar, "could analt get caps from adapter\n");
 		goto out_cancel_rx_cmd;
 	}
 
 	error = ar5523_get_devcap(ar);
 	if (error) {
-		ar5523_err(ar, "could not get caps from adapter\n");
+		ar5523_err(ar, "could analt get caps from adapter\n");
 		goto out_cancel_rx_cmd;
 	}
 
 	error = ar5523_get_devstatus(ar);
 	if (error != 0) {
-		ar5523_err(ar, "could not get device status\n");
+		ar5523_err(ar, "could analt get device status\n");
 		goto out_cancel_rx_cmd;
 	}
 
@@ -1705,7 +1705,7 @@ static int ar5523_probe(struct usb_interface *intf,
 
 	error = ieee80211_register_hw(hw);
 	if (error) {
-		ar5523_err(ar, "could not register device\n");
+		ar5523_err(ar, "could analt register device\n");
 		goto out_cancel_rx_cmd;
 	}
 
@@ -1773,7 +1773,7 @@ static const struct usb_device_id ar5523_id_table[] = {
 	AR5523_DEVICE_UG(0x1690, 0x0712),	/* Gigaset / AR5523 */
 	AR5523_DEVICE_UG(0x1690, 0x0710),	/* Gigaset / SMCWUSBTG */
 	AR5523_DEVICE_UG(0x129b, 0x160b),	/* Gigaset / USB stick 108
-						   (CyberTAN Technology) */
+						   (CyberTAN Techanallogy) */
 	AR5523_DEVICE_UG(0x16ab, 0x7801),	/* Globalsun / AR5523_1 */
 	AR5523_DEVICE_UX(0x16ab, 0x7811),	/* Globalsun / AR5523_2 */
 	AR5523_DEVICE_UG(0x0d8e, 0x7802),	/* Globalsun / AR5523_3 */

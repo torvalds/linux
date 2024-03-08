@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2022 Dario Binacchi <dario.binacchi@amarulasolutions.com>
 //
-// NOTE: The ST documentation uses the terms master/slave instead of
+// ANALTE: The ST documentation uses the terms master/slave instead of
 // primary/secondary.
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -124,7 +124,7 @@
 #define BXCAN_FMR_FINIT BIT(0)
 
 enum bxcan_lec_code {
-	BXCAN_LEC_NO_ERROR = 0,
+	BXCAN_LEC_ANAL_ERROR = 0,
 	BXCAN_LEC_STUFF_ERROR,
 	BXCAN_LEC_FORM_ERROR,
 	BXCAN_LEC_ACK_ERROR,
@@ -359,7 +359,7 @@ struct bxcan_priv *rx_offload_to_priv(struct can_rx_offload *offload)
 }
 
 static struct sk_buff *bxcan_mailbox_read(struct can_rx_offload *offload,
-					  unsigned int mbxno, u32 *timestamp,
+					  unsigned int mbxanal, u32 *timestamp,
 					  bool drop)
 {
 	struct bxcan_priv *priv = rx_offload_to_priv(offload);
@@ -371,7 +371,7 @@ static struct sk_buff *bxcan_mailbox_read(struct can_rx_offload *offload,
 
 	rf0r = readl(&regs->rf0r);
 	if (unlikely(drop)) {
-		skb = ERR_PTR(-ENOBUFS);
+		skb = ERR_PTR(-EANALBUFS);
 		goto mark_as_read;
 	}
 
@@ -380,7 +380,7 @@ static struct sk_buff *bxcan_mailbox_read(struct can_rx_offload *offload,
 
 	skb = alloc_can_skb(offload->dev, &cf);
 	if (unlikely(!skb)) {
-		skb = ERR_PTR(-ENOMEM);
+		skb = ERR_PTR(-EANALMEM);
 		goto mark_as_read;
 	}
 
@@ -418,7 +418,7 @@ static irqreturn_t bxcan_rx_isr(int irq, void *dev_id)
 
 	rf0r = readl(&regs->rf0r);
 	if (!(rf0r & BXCAN_RF0R_FMP0_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	can_rx_offload_irq_offload_fifo(&priv->offload);
 	can_rx_offload_irq_finish(&priv->offload);
@@ -437,7 +437,7 @@ static irqreturn_t bxcan_tx_isr(int irq, void *dev_id)
 
 	tsr = readl(&regs->tsr);
 	if (!(tsr & (BXCAN_TSR_RQCP0 | BXCAN_TSR_RQCP1 | BXCAN_TSR_RQCP2)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	while (priv->tx_head - priv->tx_tail > 0) {
 		idx = bxcan_get_tx_tail(priv);
@@ -472,7 +472,7 @@ static void bxcan_handle_state_change(struct net_device *ndev, u32 esr)
 	struct sk_buff *skb;
 	struct can_frame *cf;
 
-	/* Early exit if no error flag is set */
+	/* Early exit if anal error flag is set */
 	if (!(esr & (BXCAN_ESR_EWGF | BXCAN_ESR_EPVF | BXCAN_ESR_BOFF)))
 		return;
 
@@ -523,11 +523,11 @@ static void bxcan_handle_bus_err(struct net_device *ndev, u32 esr)
 
 	lec_code = FIELD_GET(BXCAN_ESR_LEC_MASK, esr);
 
-	/* Early exit if no lec update or no error.
-	 * No lec update means that no CAN bus event has been detected
+	/* Early exit if anal lec update or anal error.
+	 * Anal lec update means that anal CAN bus event has been detected
 	 * since CPU wrote BXCAN_LEC_UNUSED value to status reg.
 	 */
-	if (lec_code == BXCAN_LEC_UNUSED || lec_code == BXCAN_LEC_NO_ERROR)
+	if (lec_code == BXCAN_LEC_UNUSED || lec_code == BXCAN_LEC_ANAL_ERROR)
 		return;
 
 	/* Common for all type of bus errors */
@@ -608,7 +608,7 @@ static irqreturn_t bxcan_state_change_isr(int irq, void *dev_id)
 
 	msr = readl(&regs->msr);
 	if (!(msr & BXCAN_MSR_ERRI))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	esr = readl(&regs->esr);
 	bxcan_handle_state_change(ndev, esr);
@@ -659,7 +659,7 @@ static int bxcan_chip_start(struct net_device *ndev)
 	 * bus-off state left on sw request
 	 * sleep mode left on sw request
 	 * retransmit automatically on error
-	 * do not lock RX FIFO on overrun
+	 * do analt lock RX FIFO on overrun
 	 */
 	bxcan_rmw(priv, &regs->mcr,
 		  BXCAN_MCR_ABOM | BXCAN_MCR_AWUM | BXCAN_MCR_NART |
@@ -678,7 +678,7 @@ static int bxcan_chip_start(struct net_device *ndev)
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		set |= BXCAN_BTR_LBKM;
 
-	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 		set |= BXCAN_BTR_SILM;
 
 	bxcan_rmw(priv, &regs->btr, BXCAN_BTR_SILM | BXCAN_BTR_LBKM |
@@ -902,7 +902,7 @@ static int bxcan_do_set_mode(struct net_device *ndev, enum can_mode mode)
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -929,7 +929,7 @@ static int bxcan_get_berr_counter(const struct net_device *ndev,
 
 static int bxcan_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct net_device *ndev;
 	struct bxcan_priv *priv;
@@ -979,7 +979,7 @@ static int bxcan_probe(struct platform_device *pdev)
 	ndev = alloc_candev(sizeof(struct bxcan_priv), BXCAN_TX_MB_NUM);
 	if (!ndev) {
 		dev_err(dev, "alloc_candev() failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv = netdev_priv(ndev);
@@ -1006,7 +1006,7 @@ static int bxcan_probe(struct platform_device *pdev)
 	priv->can.do_set_mode = bxcan_do_set_mode;
 	priv->can.do_get_berr_counter = bxcan_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
-		CAN_CTRLMODE_LISTENONLY	| CAN_CTRLMODE_BERR_REPORTING;
+		CAN_CTRLMODE_LISTEANALNLY	| CAN_CTRLMODE_BERR_REPORTING;
 
 	priv->offload.mailbox_read = bxcan_mailbox_read;
 	err = can_rx_offload_add_fifo(ndev, &priv->offload, BXCAN_NAPI_WEIGHT);

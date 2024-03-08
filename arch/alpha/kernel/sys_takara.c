@@ -30,7 +30,7 @@
 #include "machvec_impl.h"
 #include "pc873xx.h"
 
-/* Note mask bit is true for DISABLED irqs.  */
+/* Analte mask bit is true for DISABLED irqs.  */
 static unsigned long cached_irq_mask[2] = { -1, -1 };
 
 static inline void
@@ -85,7 +85,7 @@ takara_device_interrupt(unsigned long vector)
 	 * OTOH, the accelerator thing doesn't seem to be working
 	 * overly well, so what we'll do instead is try directly
 	 * examining the Master Interrupt Register to see if it's a
-	 * PCI interrupt, and if _not_ then we'll pass it on to the
+	 * PCI interrupt, and if _analt_ then we'll pass it on to the
 	 * ISA handler.
 	 */
 
@@ -124,7 +124,7 @@ takara_init_irq(void)
 	} else {
 		unsigned int ctlreg = inl(0x500);
 
-		/* Return to non-accelerated mode.  */
+		/* Return to analn-accelerated mode.  */
 		ctlreg &= ~0x8000;
 		outl(ctlreg, 0x500);
 
@@ -162,15 +162,15 @@ takara_map_irq_srm(const struct pci_dev *dev, u8 slot, u8 pin)
 		{ 16+3, 16+3, 16+3, 16+3, 16+3},   /* slot  6 == device 3 */
 		{ 16+2, 16+2, 16+2, 16+2, 16+2},   /* slot  7 == device 2 */
 		{ 16+1, 16+1, 16+1, 16+1, 16+1},   /* slot  8 == device 1 */
-		{   -1,   -1,   -1,   -1,   -1},   /* slot  9 == nothing */
-		{   -1,   -1,   -1,   -1,   -1},   /* slot 10 == nothing */
-		{   -1,   -1,   -1,   -1,   -1},   /* slot 11 == nothing */
+		{   -1,   -1,   -1,   -1,   -1},   /* slot  9 == analthing */
+		{   -1,   -1,   -1,   -1,   -1},   /* slot 10 == analthing */
+		{   -1,   -1,   -1,   -1,   -1},   /* slot 11 == analthing */
 		/* These are behind the bridges.  */
-		{   12,   12,   13,   14,   15},   /* slot 12 == nothing */
-		{    8,    8,    9,   19,   11},   /* slot 13 == nothing */
-		{    4,    4,    5,    6,    7},   /* slot 14 == nothing */
-		{    0,    0,    1,    2,    3},   /* slot 15 == nothing */
-		{   -1,   -1,   -1,   -1,   -1},   /* slot 16 == nothing */
+		{   12,   12,   13,   14,   15},   /* slot 12 == analthing */
+		{    8,    8,    9,   19,   11},   /* slot 13 == analthing */
+		{    4,    4,    5,    6,    7},   /* slot 14 == analthing */
+		{    0,    0,    1,    2,    3},   /* slot 15 == analthing */
+		{   -1,   -1,   -1,   -1,   -1},   /* slot 16 == analthing */
 		{64+ 0, 64+0, 64+1, 64+2, 64+3},   /* slot 17= device 4 */
 		{48+ 0, 48+0, 48+1, 48+2, 48+3},   /* slot 18= device 3 */
 		{32+ 0, 32+0, 32+1, 32+2, 32+3},   /* slot 19= device 2 */
@@ -193,15 +193,15 @@ takara_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		{ 16+3, 16+3, 16+3, 16+3, 16+3},   /* slot  6 == device 3 */
 		{ 16+2, 16+2, 16+2, 16+2, 16+2},   /* slot  7 == device 2 */
 		{ 16+1, 16+1, 16+1, 16+1, 16+1},   /* slot  8 == device 1 */
-		{   -1,   -1,   -1,   -1,   -1},   /* slot  9 == nothing */
-		{   -1,   -1,   -1,   -1,   -1},   /* slot 10 == nothing */
-		{   -1,   -1,   -1,   -1,   -1},   /* slot 11 == nothing */
-		{   -1,   -1,   -1,   -1,   -1},   /* slot 12 == nothing */
-		{   -1,   -1,   -1,   -1,   -1},   /* slot 13 == nothing */
-		{   -1,   -1,   -1,   -1,   -1},   /* slot 14 == nothing */
-		{   -1,   -1,   -1,   -1,   -1},   /* slot 15 == nothing */
-		{   -1,   -1,   -1,   -1,   -1},   /* slot 16 == nothing */
-		{   -1,   -1,   -1,   -1,   -1},   /* slot 17 == nothing */
+		{   -1,   -1,   -1,   -1,   -1},   /* slot  9 == analthing */
+		{   -1,   -1,   -1,   -1,   -1},   /* slot 10 == analthing */
+		{   -1,   -1,   -1,   -1,   -1},   /* slot 11 == analthing */
+		{   -1,   -1,   -1,   -1,   -1},   /* slot 12 == analthing */
+		{   -1,   -1,   -1,   -1,   -1},   /* slot 13 == analthing */
+		{   -1,   -1,   -1,   -1,   -1},   /* slot 14 == analthing */
+		{   -1,   -1,   -1,   -1,   -1},   /* slot 15 == analthing */
+		{   -1,   -1,   -1,   -1,   -1},   /* slot 16 == analthing */
+		{   -1,   -1,   -1,   -1,   -1},   /* slot 17 == analthing */
 		{ 16+3, 16+3, 16+3, 16+3, 16+3},   /* slot 18 == device 3 */
 		{ 16+2, 16+2, 16+2, 16+2, 16+2},   /* slot 19 == device 2 */
 		{ 16+1, 16+1, 16+1, 16+1, 16+1},   /* slot 20 == device 1 */
@@ -234,7 +234,7 @@ takara_swizzle(struct pci_dev *dev, u8 *pinp)
 		}
 	} else {
 		/* Must be a card-based bridge.  */
-		printk(KERN_WARNING "takara_swizzle: cannot handle "
+		printk(KERN_WARNING "takara_swizzle: cananalt handle "
 		       "card-bridge behind builtin bridge yet.\n");
 	}
 

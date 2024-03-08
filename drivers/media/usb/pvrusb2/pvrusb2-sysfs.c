@@ -23,14 +23,14 @@ struct pvr2_sysfs {
 #endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
 	struct pvr2_sysfs_ctl_item *item_first;
 	struct pvr2_sysfs_ctl_item *item_last;
-	struct device_attribute attr_v4l_minor_number;
-	struct device_attribute attr_v4l_radio_minor_number;
+	struct device_attribute attr_v4l_mianalr_number;
+	struct device_attribute attr_v4l_radio_mianalr_number;
 	struct device_attribute attr_unit_number;
 	struct device_attribute attr_bus_info;
 	struct device_attribute attr_hdw_name;
 	struct device_attribute attr_hdw_desc;
-	int v4l_minor_number_created_ok;
-	int v4l_radio_minor_number_created_ok;
+	int v4l_mianalr_number_created_ok;
+	int v4l_radio_mianalr_number_created_ok;
 	int unit_number_created_ok;
 	int bus_info_created_ok;
 	int hdw_name_created_ok;
@@ -146,7 +146,7 @@ static ssize_t show_def(struct device *class_dev,
 	return cnt + 1;
 }
 
-static ssize_t show_val_norm(struct device *class_dev,
+static ssize_t show_val_analrm(struct device *class_dev,
 			     struct device_attribute *attr,
 			     char *buf)
 {
@@ -159,7 +159,7 @@ static ssize_t show_val_norm(struct device *class_dev,
 	if (ret < 0) return ret;
 	ret = pvr2_ctrl_value_to_sym(cip->cptr, ~0, val,
 				     buf, PAGE_SIZE - 1, &cnt);
-	pvr2_sysfs_trace("pvr2_sysfs(%p) show_val_norm(cid=%d) is %.*s (%d)",
+	pvr2_sysfs_trace("pvr2_sysfs(%p) show_val_analrm(cid=%d) is %.*s (%d)",
 			 cip->chptr, cip->ctl_id, cnt, buf, val);
 	buf[cnt] = '\n';
 	return cnt+1;
@@ -251,14 +251,14 @@ static int store_val_any(struct pvr2_sysfs_ctl_item *cip, int customfl,
 	return ret;
 }
 
-static ssize_t store_val_norm(struct device *class_dev,
+static ssize_t store_val_analrm(struct device *class_dev,
 			      struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
 	struct pvr2_sysfs_ctl_item *cip;
 	int ret;
 	cip = container_of(attr, struct pvr2_sysfs_ctl_item, attr_val);
-	pvr2_sysfs_trace("pvr2_sysfs(%p) store_val_norm(cid=%d) \"%.*s\"",
+	pvr2_sysfs_trace("pvr2_sysfs(%p) store_val_analrm(cid=%d) \"%.*s\"",
 			 cip->chptr, cip->ctl_id, (int)count, buf);
 	ret = store_val_any(cip, 0, buf, count);
 	if (!ret) ret = count;
@@ -358,8 +358,8 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	cip->attr_gen[acnt++] = &cip->attr_type.attr;
 	cip->attr_gen[acnt++] = &cip->attr_val.attr;
 	cip->attr_gen[acnt++] = &cip->attr_def.attr;
-	cip->attr_val.show = show_val_norm;
-	cip->attr_val.store = store_val_norm;
+	cip->attr_val.show = show_val_analrm;
+	cip->attr_val.store = store_val_analrm;
 	if (pvr2_ctrl_has_custom_symbols(cptr)) {
 		cip->attr_gen[acnt++] = &cip->attr_custom.attr;
 		cip->attr_custom.show = show_val_custom;
@@ -516,13 +516,13 @@ static void class_dev_destroy(struct pvr2_sysfs *sfp)
 		device_remove_file(sfp->class_dev,
 					 &sfp->attr_bus_info);
 	}
-	if (sfp->v4l_minor_number_created_ok) {
+	if (sfp->v4l_mianalr_number_created_ok) {
 		device_remove_file(sfp->class_dev,
-					 &sfp->attr_v4l_minor_number);
+					 &sfp->attr_v4l_mianalr_number);
 	}
-	if (sfp->v4l_radio_minor_number_created_ok) {
+	if (sfp->v4l_radio_mianalr_number_created_ok) {
 		device_remove_file(sfp->class_dev,
-					 &sfp->attr_v4l_radio_minor_number);
+					 &sfp->attr_v4l_radio_mianalr_number);
 	}
 	if (sfp->unit_number_created_ok) {
 		device_remove_file(sfp->class_dev,
@@ -538,14 +538,14 @@ static void class_dev_destroy(struct pvr2_sysfs *sfp)
 }
 
 
-static ssize_t v4l_minor_number_show(struct device *class_dev,
+static ssize_t v4l_mianalr_number_show(struct device *class_dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct pvr2_sysfs *sfp;
 	sfp = dev_get_drvdata(class_dev);
 	if (!sfp) return -EINVAL;
 	return sysfs_emit(buf, "%d\n",
-			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw,
+			 pvr2_hdw_v4l_get_mianalr_number(sfp->channel.hdw,
 						       pvr2_v4l_type_video));
 }
 
@@ -583,7 +583,7 @@ static ssize_t hdw_desc_show(struct device *class_dev,
 }
 
 
-static ssize_t v4l_radio_minor_number_show(struct device *class_dev,
+static ssize_t v4l_radio_mianalr_number_show(struct device *class_dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
@@ -591,7 +591,7 @@ static ssize_t v4l_radio_minor_number_show(struct device *class_dev,
 	sfp = dev_get_drvdata(class_dev);
 	if (!sfp) return -EINVAL;
 	return sysfs_emit(buf, "%d\n",
-			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw,
+			 pvr2_hdw_v4l_get_mianalr_number(sfp->channel.hdw,
 						       pvr2_v4l_type_radio));
 }
 
@@ -637,34 +637,34 @@ static void class_dev_create(struct pvr2_sysfs *sfp)
 		return;
 	}
 
-	sysfs_attr_init(&sfp->attr_v4l_minor_number.attr);
-	sfp->attr_v4l_minor_number.attr.name = "v4l_minor_number";
-	sfp->attr_v4l_minor_number.attr.mode = S_IRUGO;
-	sfp->attr_v4l_minor_number.show = v4l_minor_number_show;
-	sfp->attr_v4l_minor_number.store = NULL;
+	sysfs_attr_init(&sfp->attr_v4l_mianalr_number.attr);
+	sfp->attr_v4l_mianalr_number.attr.name = "v4l_mianalr_number";
+	sfp->attr_v4l_mianalr_number.attr.mode = S_IRUGO;
+	sfp->attr_v4l_mianalr_number.show = v4l_mianalr_number_show;
+	sfp->attr_v4l_mianalr_number.store = NULL;
 	ret = device_create_file(sfp->class_dev,
-				       &sfp->attr_v4l_minor_number);
+				       &sfp->attr_v4l_mianalr_number);
 	if (ret < 0) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "device_create_file error: %d",
 			   ret);
 	} else {
-		sfp->v4l_minor_number_created_ok = !0;
+		sfp->v4l_mianalr_number_created_ok = !0;
 	}
 
-	sysfs_attr_init(&sfp->attr_v4l_radio_minor_number.attr);
-	sfp->attr_v4l_radio_minor_number.attr.name = "v4l_radio_minor_number";
-	sfp->attr_v4l_radio_minor_number.attr.mode = S_IRUGO;
-	sfp->attr_v4l_radio_minor_number.show = v4l_radio_minor_number_show;
-	sfp->attr_v4l_radio_minor_number.store = NULL;
+	sysfs_attr_init(&sfp->attr_v4l_radio_mianalr_number.attr);
+	sfp->attr_v4l_radio_mianalr_number.attr.name = "v4l_radio_mianalr_number";
+	sfp->attr_v4l_radio_mianalr_number.attr.mode = S_IRUGO;
+	sfp->attr_v4l_radio_mianalr_number.show = v4l_radio_mianalr_number_show;
+	sfp->attr_v4l_radio_mianalr_number.store = NULL;
 	ret = device_create_file(sfp->class_dev,
-				       &sfp->attr_v4l_radio_minor_number);
+				       &sfp->attr_v4l_radio_mianalr_number);
 	if (ret < 0) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "device_create_file error: %d",
 			   ret);
 	} else {
-		sfp->v4l_radio_minor_number_created_ok = !0;
+		sfp->v4l_radio_mianalr_number_created_ok = !0;
 	}
 
 	sysfs_attr_init(&sfp->attr_unit_number.attr);

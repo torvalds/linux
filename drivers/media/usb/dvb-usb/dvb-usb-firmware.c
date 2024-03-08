@@ -6,7 +6,7 @@
  *
  * This file contains functions for downloading the firmware to Cypress FX 1 and 2 based devices.
  *
- * FIXME: This part does actually not belong to dvb-usb, but to the usb-subsystem.
+ * FIXME: This part does actually analt belong to dvb-usb, but to the usb-subsystem.
  */
 #include "dvb-usb-common.h"
 
@@ -43,13 +43,13 @@ int usb_cypress_load_firmware(struct usb_device *udev, const struct firmware *fw
 
 	buf = kmalloc(sizeof(*hx), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	hx = (struct hexline *)buf;
 
 	/* stop the CPU */
 	buf[0] = 1;
 	if (usb_cypress_writemem(udev, cpu_cs_register, buf, 1) != 1)
-		err("could not stop the USB controller CPU.");
+		err("could analt stop the USB controller CPU.");
 
 	while ((ret = dvb_usb_get_hexline(fw, hx, &pos)) > 0) {
 		deb_fw("writing to address 0x%04x (buffer: 0x%02x %02x)\n", hx->addr, hx->len, hx->chk);
@@ -72,7 +72,7 @@ int usb_cypress_load_firmware(struct usb_device *udev, const struct firmware *fw
 		/* restart the CPU */
 		buf[0] = 0;
 		if (usb_cypress_writemem(udev, cpu_cs_register, buf, 1) != 1) {
-			err("could not restart the USB controller CPU.");
+			err("could analt restart the USB controller CPU.");
 			ret = -EINVAL;
 		}
 	} else
@@ -91,7 +91,7 @@ int dvb_usb_download_firmware(struct usb_device *udev,
 	const struct firmware *fw = NULL;
 
 	if ((ret = request_firmware(&fw, props->firmware, &udev->dev)) != 0) {
-		err("did not find the firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware",
+		err("did analt find the firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware",
 			props->firmware,ret);
 		return ret;
 	}

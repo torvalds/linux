@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -226,7 +226,7 @@ int rsi_init_sdio_slave_regs(struct rsi_hw *adapter)
  * rsi_rx_handler() - Read and process SDIO interrupts.
  * @adapter: Pointer to the adapter structure.
  *
- * Return: None.
+ * Return: Analne.
  */
 static void rsi_rx_handler(struct rsi_hw *adapter)
 {
@@ -298,7 +298,7 @@ static void rsi_rx_handler(struct rsi_hw *adapter)
 						  BIT(FW_ASSERT_IND));
 			}
 
-			common->fsm_state = FSM_CARD_NOT_READY;
+			common->fsm_state = FSM_CARD_ANALT_READY;
 
 			isr_status &= ~BIT(FW_ASSERT_IND);
 		}
@@ -320,9 +320,9 @@ static void rsi_rx_handler(struct rsi_hw *adapter)
 
 		if (isr_status) {
 			rsi_sdio_ack_intr(common->priv, isr_status);
-			dev->rx_info.total_sdio_unknown_intr++;
+			dev->rx_info.total_sdio_unkanalwn_intr++;
 			isr_status = 0;
-			rsi_dbg(ISR_ZONE, "Unknown Interrupt %x\n",
+			rsi_dbg(ISR_ZONE, "Unkanalwn Interrupt %x\n",
 				isr_status);
 		}
 
@@ -393,7 +393,7 @@ out:
 	if ((q_num < MGMT_SOFT_Q) && (dev->rx_info.buffer_full))
 		return QUEUE_FULL;
 
-	return QUEUE_NOT_FULL;
+	return QUEUE_ANALT_FULL;
 }
 
 /**

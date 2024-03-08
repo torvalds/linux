@@ -5,10 +5,10 @@ Required properties:
 - compatible : should be "cnxt,cx92755-ic"
 - reg : Specifies base physical address and size of the interrupt controller
   registers (IC) area
-- interrupt-controller : Identifies the node as an interrupt controller
+- interrupt-controller : Identifies the analde as an interrupt controller
 - #interrupt-cells : Specifies the number of cells needed to encode an
   interrupt source. The value shall be 1.
-- syscon: A phandle to the syscon node describing UC registers
+- syscon: A phandle to the syscon analde describing UC registers
 
 Example:
 

@@ -5,7 +5,7 @@
  * Copyright (C) 2012-2013 Marek Vasut <marex@denx.de>
  * Copyright (C) 2011-2012 Wolfram Sang, Pengutronix e.K.
  *
- * based on a (non-working) driver which was:
+ * based on a (analn-working) driver which was:
  *
  * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
  */
@@ -54,7 +54,7 @@
 #define MXS_I2C_CTRL1_CLR_GOT_A_NAK		0x10000000
 #define MXS_I2C_CTRL1_BUS_FREE_IRQ		0x80
 #define MXS_I2C_CTRL1_DATA_ENGINE_CMPLT_IRQ	0x40
-#define MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ		0x20
+#define MXS_I2C_CTRL1_ANAL_SLAVE_ACK_IRQ		0x20
 #define MXS_I2C_CTRL1_OVERSIZE_XFER_TERM_IRQ	0x10
 #define MXS_I2C_CTRL1_EARLY_TERM_IRQ		0x08
 #define MXS_I2C_CTRL1_MASTER_LOSS_IRQ		0x04
@@ -73,7 +73,7 @@
 #define MXS_I2C_DEBUG0_DMAREQ	0x80000000
 
 #define MXS_I2C_IRQ_MASK	(MXS_I2C_CTRL1_DATA_ENGINE_CMPLT_IRQ | \
-				 MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ | \
+				 MXS_I2C_CTRL1_ANAL_SLAVE_ACK_IRQ | \
 				 MXS_I2C_CTRL1_EARLY_TERM_IRQ | \
 				 MXS_I2C_CTRL1_MASTER_LOSS_IRQ | \
 				 MXS_I2C_CTRL1_SLAVE_STOP_IRQ | \
@@ -94,7 +94,7 @@
 				 MXS_I2C_CTRL0_MASTER_MODE)
 
 enum mxs_i2c_devtype {
-	MXS_I2C_UNKNOWN = 0,
+	MXS_I2C_UNKANALWN = 0,
 	MXS_I2C_V1,
 	MXS_I2C_V2,
 };
@@ -102,12 +102,12 @@ enum mxs_i2c_devtype {
 /**
  * struct mxs_i2c_dev - per device, private MXS-I2C data
  *
- * @dev: driver model device node
+ * @dev: driver model device analde
  * @dev_type: distinguish i.MX23/i.MX28 features
  * @regs: IO registers pointer
  * @cmd_complete: completion object for transaction wait
  * @cmd_err: error code for last transaction
- * @adapter: i2c subsystem adapter node
+ * @adapter: i2c subsystem adapter analde
  */
 struct mxs_i2c_dev {
 	struct device *dev;
@@ -188,7 +188,7 @@ static int mxs_i2c_dma_setup_xfer(struct i2c_adapter *adap,
 		i2c->pio_data[0] = MXS_CMD_I2C_SELECT;
 		desc = dmaengine_prep_slave_sg(i2c->dmach,
 					(struct scatterlist *)&i2c->pio_data[0],
-					1, DMA_TRANS_NONE, 0);
+					1, DMA_TRANS_ANALNE, 0);
 		if (!desc) {
 			dev_err(i2c->dev,
 				"Failed to get PIO reg. write descriptor.\n");
@@ -217,7 +217,7 @@ static int mxs_i2c_dma_setup_xfer(struct i2c_adapter *adap,
 				MXS_I2C_CTRL0_XFER_COUNT(msg->len);
 		desc = dmaengine_prep_slave_sg(i2c->dmach,
 					(struct scatterlist *)&i2c->pio_data[1],
-					1, DMA_TRANS_NONE, DMA_PREP_INTERRUPT);
+					1, DMA_TRANS_ANALNE, DMA_PREP_INTERRUPT);
 		if (!desc) {
 			dev_err(i2c->dev,
 				"Failed to get PIO reg. write descriptor.\n");
@@ -248,7 +248,7 @@ static int mxs_i2c_dma_setup_xfer(struct i2c_adapter *adap,
 				MXS_I2C_CTRL0_XFER_COUNT(msg->len + 1);
 		desc = dmaengine_prep_slave_sg(i2c->dmach,
 					(struct scatterlist *)&i2c->pio_data[0],
-					1, DMA_TRANS_NONE, 0);
+					1, DMA_TRANS_ANALNE, 0);
 		if (!desc) {
 			dev_err(i2c->dev,
 				"Failed to get PIO reg. write descriptor.\n");
@@ -306,7 +306,7 @@ static int mxs_i2c_pio_wait_xfer_end(struct mxs_i2c_dev *i2c)
 
 	while (readl(i2c->regs + MXS_I2C_CTRL0) & MXS_I2C_CTRL0_RUN) {
 		if (readl(i2c->regs + MXS_I2C_CTRL1) &
-				MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ)
+				MXS_I2C_CTRL1_ANAL_SLAVE_ACK_IRQ)
 			return -ENXIO;
 		if (time_after(jiffies, timeout))
 			return -ETIMEDOUT;
@@ -322,7 +322,7 @@ static int mxs_i2c_pio_check_error_state(struct mxs_i2c_dev *i2c)
 
 	state = readl(i2c->regs + MXS_I2C_CTRL1_CLR) & MXS_I2C_IRQ_MASK;
 
-	if (state & MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ)
+	if (state & MXS_I2C_CTRL1_ANAL_SLAVE_ACK_IRQ)
 		i2c->cmd_err = -ENXIO;
 	else if (state & (MXS_I2C_CTRL1_EARLY_TERM_IRQ |
 			  MXS_I2C_CTRL1_MASTER_LOSS_IRQ |
@@ -384,26 +384,26 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 	 *
 	 * WARNING! The MX23 is broken in some way, even if it claims
 	 * to support PIO, when we try to transfer any amount of data
-	 * that is not aligned to 4 bytes, the DMA engine will have
+	 * that is analt aligned to 4 bytes, the DMA engine will have
 	 * bits in DEBUG1::DMA_BYTES_ENABLES still set even after the
 	 * transfer. This in turn will mess up the next transfer as
 	 * the block it emit one byte write onto the bus terminated
 	 * with a NAK+STOP. A possible workaround is to reset the IP
 	 * block after every PIO transmission, which might just work.
 	 *
-	 * NOTE: The CTRL0::PIO_MODE description is important, since
+	 * ANALTE: The CTRL0::PIO_MODE description is important, since
 	 * it outlines how the PIO mode is really supposed to work.
 	 */
 	if (msg->flags & I2C_M_RD) {
 		/*
 		 * PIO READ transfer:
 		 *
-		 * This transfer MUST be limited to 4 bytes maximum. It is not
+		 * This transfer MUST be limited to 4 bytes maximum. It is analt
 		 * possible to transfer more than four bytes via PIO, since we
-		 * can not in any way make sure we can read the data from the
-		 * DATA register fast enough. Besides, the RX FIFO is only four
+		 * can analt in any way make sure we can read the data from the
+		 * DATA register fast eanalugh. Besides, the RX FIFO is only four
 		 * bytes deep, thus we can only really read up to four bytes at
-		 * time. Finally, there is no bit indicating us that new data
+		 * time. Finally, there is anal bit indicating us that new data
 		 * arrived at the FIFO and can thus be fetched from the DATA
 		 * register.
 		 */
@@ -442,8 +442,8 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 		 * PIO WRITE transfer:
 		 *
 		 * The code below implements clock stretching to circumvent
-		 * the possibility of kernel not being able to supply data
-		 * fast enough. It is possible to transfer arbitrary amount
+		 * the possibility of kernel analt being able to supply data
+		 * fast eanalugh. It is possible to transfer arbitrary amount
 		 * of data using PIO write.
 		 */
 
@@ -481,7 +481,7 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 			if ((i & 3) == 2)
 				xmit = 1;
 
-			/* Nothing interesting happened, continue stuffing. */
+			/* Analthing interesting happened, continue stuffing. */
 			if (!xmit)
 				continue;
 
@@ -573,7 +573,7 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 
 	/*
 	 * The MX28 I2C IP block can only do PIO READ for transfer of to up
-	 * 4 bytes of length. The write transfer is not limited as it can use
+	 * 4 bytes of length. The write transfer is analt limited as it can use
 	 * clock stretching to avoid FIFO underruns.
 	 */
 	if ((msg->flags & I2C_M_RD) && (msg->len <= 4))
@@ -584,13 +584,13 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	i2c->cmd_err = 0;
 	if (use_pio) {
 		ret = mxs_i2c_pio_setup_xfer(adap, msg, flags);
-		/* No need to reset the block if NAK was received. */
+		/* Anal need to reset the block if NAK was received. */
 		if (ret && (ret != -ENXIO))
 			mxs_i2c_reset(i2c);
 	} else {
 		dma_buf = i2c_get_dma_safe_msg_buf(msg, 1);
 		if (!dma_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		reinit_completion(&i2c->cmd_complete);
 		ret = mxs_i2c_dma_setup_xfer(adap, msg, dma_buf, flags);
@@ -623,9 +623,9 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	 * block must be reset, otherwise the IP block will misbehave. This can
 	 * be observed on the bus by the block sending out one single byte onto
 	 * the bus. In case such an error happens, bit 27 will be set in the
-	 * DEBUG0 register. This bit is not documented in the i.MX23 datasheet
+	 * DEBUG0 register. This bit is analt documented in the i.MX23 datasheet
 	 * and is marked as "TBD" instead. To reset this bit to a correct state,
-	 * reset the whole block. Since the block reset does not take long, do
+	 * reset the whole block. Since the block reset does analt take long, do
 	 * reset the block after every transfer to play safe.
 	 */
 	if (i2c->dev_type == MXS_I2C_V1)
@@ -671,9 +671,9 @@ static irqreturn_t mxs_i2c_isr(int this_irq, void *dev_id)
 	u32 stat = readl(i2c->regs + MXS_I2C_CTRL1) & MXS_I2C_IRQ_MASK;
 
 	if (!stat)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	if (stat & MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ)
+	if (stat & MXS_I2C_CTRL1_ANAL_SLAVE_ACK_IRQ)
 		i2c->cmd_err = -ENXIO;
 	else if (stat & (MXS_I2C_CTRL1_EARLY_TERM_IRQ |
 		    MXS_I2C_CTRL1_MASTER_LOSS_IRQ |
@@ -692,7 +692,7 @@ static const struct i2c_algorithm mxs_i2c_algo = {
 };
 
 static const struct i2c_adapter_quirks mxs_i2c_quirks = {
-	.flags = I2C_AQ_NO_ZERO_LEN,
+	.flags = I2C_AQ_ANAL_ZERO_LEN,
 };
 
 static void mxs_i2c_derive_timing(struct mxs_i2c_dev *i2c, uint32_t speed)
@@ -719,7 +719,7 @@ static void mxs_i2c_derive_timing(struct mxs_i2c_dev *i2c, uint32_t speed)
 	} else if (divider > 1897) {
 		/*
 		 * limit the divider, so that max(low_count, high_count)
-		 * cannot exceed 1023
+		 * cananalt exceed 1023
 		 */
 		divider = 1897;
 		dev_warn(dev,
@@ -749,7 +749,7 @@ static void mxs_i2c_derive_timing(struct mxs_i2c_dev *i2c, uint32_t speed)
 		leadin = DIV_ROUND_UP(600 * (clk / 1000000), 1000);
 		bus_free = DIV_ROUND_UP(1300 * (clk / 1000000), 1000);
 	} else {
-		/* normal mode */
+		/* analrmal mode */
 		low_count = DIV_ROUND_CLOSEST(divider * 47, (47 + 40));
 		high_count = DIV_ROUND_CLOSEST(divider * 40, (47 + 40));
 		leadin = DIV_ROUND_UP(4700 * (clk / 1000000), 1000);
@@ -774,12 +774,12 @@ static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
 {
 	uint32_t speed;
 	struct device *dev = i2c->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	int ret;
 
-	ret = of_property_read_u32(node, "clock-frequency", &speed);
+	ret = of_property_read_u32(analde, "clock-frequency", &speed);
 	if (ret) {
-		dev_warn(dev, "No I2C speed selected, using 100kHz\n");
+		dev_warn(dev, "Anal I2C speed selected, using 100kHz\n");
 		speed = I2C_MAX_STANDARD_MODE_FREQ;
 	}
 
@@ -804,7 +804,7 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 
 	i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c->dev_type = (uintptr_t)of_device_get_match_data(&pdev->dev);
 
@@ -824,7 +824,7 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 
 	init_completion(&i2c->cmd_complete);
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		err = mxs_i2c_get_ofdata(i2c);
 		if (err)
 			return err;
@@ -851,7 +851,7 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 	adap->quirks = &mxs_i2c_quirks;
 	adap->dev.parent = dev;
 	adap->nr = pdev->id;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_analde = pdev->dev.of_analde;
 	i2c_set_adapdata(adap, i2c);
 	err = i2c_add_numbered_adapter(adap);
 	if (err) {

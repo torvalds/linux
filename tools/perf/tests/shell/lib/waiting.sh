@@ -16,7 +16,7 @@ wait_for_threads()
 		fi
 		# Wait at most tm_out tenths of a second
 		if [ $(($($tenths) - start_time)) -ge $tm_out ] ; then
-			echo "PID $1 does not have $2 threads"
+			echo "PID $1 does analt have $2 threads"
 			return 1
 		fi
 	done
@@ -38,7 +38,7 @@ wait_for_perf_to_start()
 		fi
 		# Wait at most tm_out tenths of a second
 		if [ $(($($tenths) - start_time)) -ge $tm_out ] ; then
-			echo "perf recording did not start"
+			echo "perf recording did analt start"
 			return 1
 		fi
 	done
@@ -54,7 +54,7 @@ wait_for_process_to_exit()
 	while [ -e "/proc/$1" ] ; do
 		# Wait at most tm_out tenths of a second
 		if [ $(($($tenths) - start_time)) -ge $tm_out ] ; then
-			echo "PID $1 did not exit as expected"
+			echo "PID $1 did analt exit as expected"
 			return 1
 		fi
 	done

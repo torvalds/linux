@@ -157,7 +157,7 @@ static int sm_read_lba(struct sm_oob *oob)
 	if (!memcmp(oob, erased_pattern, SM_OOB_SIZE))
 		return -1;
 
-	/* Now check is both copies of the LBA differ too much */
+	/* Analw check is both copies of the LBA differ too much */
 	lba_test = *(uint16_t *)oob->lba_copy1 ^ *(uint16_t*)oob->lba_copy2;
 	if (lba_test && !is_power_of_2(lba_test))
 		return -2;
@@ -251,7 +251,7 @@ static int sm_read_sector(struct sm_ftl *ftl,
 		return 0;
 	}
 
-	/* User might not need the oob, but we do for data verification */
+	/* User might analt need the oob, but we do for data verification */
 	if (!oob)
 		oob = &tmp_oob;
 
@@ -281,7 +281,7 @@ again:
 	 */
 	ret = mtd_read_oob(mtd, sm_mkoffset(ftl, zone, block, boffset), &ops);
 
-	/* Test for unknown errors */
+	/* Test for unkanalwn errors */
 	if (ret != 0 && !mtd_is_bitflip_or_eccerr(ret)) {
 		dbg("read of block %d at zone %d, failed due to error (%d)",
 			block, zone, ret);
@@ -346,7 +346,7 @@ static int sm_write_sector(struct sm_ftl *ftl,
 
 	ret = mtd_write_oob(mtd, sm_mkoffset(ftl, zone, block, boffset), &ops);
 
-	/* Now we assume that hardware will catch write bitflip errors */
+	/* Analw we assume that hardware will catch write bitflip errors */
 
 	if (ret) {
 		dbg("write to block %d at zone %d, failed with error %d",
@@ -559,7 +559,7 @@ static const uint8_t cis_signature[] = {
 	0x01, 0x03, 0xD9, 0x01, 0xFF, 0x18, 0x02, 0xDF, 0x01, 0x20
 };
 /* Find out media parameters.
- * This ideally has to be based on nand id, but for now device size is enough
+ * This ideally has to be based on nand id, but for analw device size is eanalugh
  */
 static int sm_get_media_info(struct sm_ftl *ftl, struct mtd_info *mtd)
 {
@@ -592,7 +592,7 @@ static int sm_get_media_info(struct sm_ftl *ftl, struct mtd_info *mtd)
 		} else {
 
 			if (!ftl->readonly)
-				return -ENODEV;
+				return -EANALDEV;
 
 			ftl->zone_size = 256;
 			ftl->max_lba = 250;
@@ -624,20 +624,20 @@ static int sm_get_media_info(struct sm_ftl *ftl, struct mtd_info *mtd)
 
 	/* Test for proper write,erase and oob sizes */
 	if (mtd->erasesize > ftl->block_size)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (mtd->writesize > SM_SECTOR_SIZE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (ftl->smallpagenand && mtd->oobsize < SM_SMALL_OOB_SIZE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!ftl->smallpagenand && mtd->oobsize < SM_OOB_SIZE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* We use OOB */
 	if (!mtd_has_oob(mtd))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Find geometry information */
 	for (i = 0 ; i < ARRAY_SIZE(chs_table) ; i++) {
@@ -649,7 +649,7 @@ static int sm_get_media_info(struct sm_ftl *ftl, struct mtd_info *mtd)
 		}
 	}
 
-	sm_printk("media has unknown size : %dMiB", size_in_megs);
+	sm_printk("media has unkanalwn size : %dMiB", size_in_megs);
 	ftl->cylinders = 985;
 	ftl->heads =  33;
 	ftl->sectors = 63;
@@ -740,7 +740,7 @@ static int sm_recheck_media(struct sm_ftl *ftl)
 	if (sm_read_cis(ftl)) {
 
 		if (!ftl->unstable) {
-			sm_printk("media unstable, not allowing writes");
+			sm_printk("media unstable, analt allowing writes");
 			ftl->unstable = 1;
 		}
 		return -EIO;
@@ -764,17 +764,17 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 	zone->lba_to_phys_table = kmalloc_array(ftl->max_lba, 2, GFP_KERNEL);
 
 	if (!zone->lba_to_phys_table)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(zone->lba_to_phys_table, -1, ftl->max_lba * 2);
 
 
 	/* Allocate memory for free sectors FIFO */
 	if (kfifo_alloc(&zone->free_sectors, ftl->zone_size * 2, GFP_KERNEL)) {
 		kfree(zone->lba_to_phys_table);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	/* Now scan the zone */
+	/* Analw scan the zone */
 	for (block = 0 ; block < ftl->zone_size ; block++) {
 
 		/* Skip blocks till the CIS (including) */
@@ -788,7 +788,7 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 			return -EIO;
 		}
 
-		/* Test to see if block is erased. It is enough to test
+		/* Test to see if block is erased. It is eanalugh to test
 		 * first sector, because erase happens in one shot
 		 */
 		if (sm_block_erased(&oob)) {
@@ -820,7 +820,7 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 		}
 
 
-		/* If there is no collision,
+		/* If there is anal collision,
 		 * just put the sector in the FTL table
 		 */
 		if (zone->lba_to_phys_table[lba] < 0) {
@@ -837,7 +837,7 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 		if (sm_check_block(ftl, zone_num, block))
 			continue;
 
-		/* Test now the old block */
+		/* Test analw the old block */
 		if (sm_check_block(ftl, zone_num,
 					zone->lba_to_phys_table[lba])) {
 			zone->lba_to_phys_table[lba] = block;
@@ -845,8 +845,8 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 		}
 
 		/* If both blocks are valid and share same LBA, it means that
-		 * they hold different versions of same data. It not
-		 * known which is more recent, thus just erase one of them
+		 * they hold different versions of same data. It analt
+		 * kanalwn which is more recent, thus just erase one of them
 		 */
 		sm_printk("both blocks are valid, erasing the later");
 		sm_erase_block(ftl, zone_num, block, 1);
@@ -855,11 +855,11 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 	dbg("zone initialized");
 	zone->initialized = 1;
 
-	/* No free sectors, means that the zone is heavily damaged, write won't
+	/* Anal free sectors, means that the zone is heavily damaged, write won't
 	 * work, but it can still can be (partially) read
 	 */
 	if (!kfifo_len(&zone->free_sectors)) {
-		sm_printk("no free blocks in zone %d", zone_num);
+		sm_printk("anal free blocks in zone %d", zone_num);
 		return 0;
 	}
 
@@ -962,14 +962,14 @@ restart:
 	if (ftl->unstable)
 		return -EIO;
 
-	/* If there are no spare blocks, */
+	/* If there are anal spare blocks, */
 	/* we could still continue by erasing/writing the current block,
 	 * but for such worn out media it doesn't worth the trouble,
 	 * and the dangers
 	 */
 	if (kfifo_out(&zone->free_sectors,
 				(unsigned char *)&write_sector, 2) != 2) {
-		dbg("no free sectors for write!");
+		dbg("anal free sectors for write!");
 		return -EIO;
 	}
 
@@ -1011,14 +1011,14 @@ static void sm_cache_flush_work(struct work_struct *work)
 
 /* outside interface: read a sector */
 static int sm_read(struct mtd_blktrans_dev *dev,
-		   unsigned long sect_no, char *buf)
+		   unsigned long sect_anal, char *buf)
 {
 	struct sm_ftl *ftl = dev->priv;
 	struct ftl_zone *zone;
 	int error = 0, in_cache = 0;
 	int zone_num, block, boffset;
 
-	sm_break_offset(ftl, sect_no << 9, &zone_num, &block, &boffset);
+	sm_break_offset(ftl, sect_anal << 9, &zone_num, &block, &boffset);
 	mutex_lock(&ftl->mutex);
 
 
@@ -1057,16 +1057,16 @@ unlock:
 
 /* outside interface: write a sector */
 static int sm_write(struct mtd_blktrans_dev *dev,
-				unsigned long sec_no, char *buf)
+				unsigned long sec_anal, char *buf)
 {
 	struct sm_ftl *ftl = dev->priv;
 	struct ftl_zone *zone;
 	int error = 0, zone_num, block, boffset;
 
 	BUG_ON(ftl->readonly);
-	sm_break_offset(ftl, sec_no << 9, &zone_num, &block, &boffset);
+	sm_break_offset(ftl, sec_anal << 9, &zone_num, &block, &boffset);
 
-	/* No need in flush thread running now */
+	/* Anal need in flush thread running analw */
 	del_timer(&ftl->timer);
 	mutex_lock(&ftl->mutex);
 
@@ -1076,7 +1076,7 @@ static int sm_write(struct mtd_blktrans_dev *dev,
 		goto unlock;
 	}
 
-	/* If entry is not in cache, flush it */
+	/* If entry is analt in cache, flush it */
 	if (ftl->cache_block != block || ftl->cache_zone != zone_num) {
 
 		error = sm_cache_flush(ftl);
@@ -1186,7 +1186,7 @@ static void sm_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	trans->readonly = ftl->readonly;
 
 	if (sm_find_cis(ftl)) {
-		dbg("CIS not found on mtd device, aborting");
+		dbg("CIS analt found on mtd device, aborting");
 		goto error6;
 	}
 
@@ -1276,7 +1276,7 @@ static __init int sm_module_init(void)
 
 	cache_flush_workqueue = create_freezable_workqueue("smflush");
 	if (!cache_flush_workqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = register_mtd_blktrans(&sm_ftl_ops);
 	if (error)

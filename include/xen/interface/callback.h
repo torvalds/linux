@@ -16,13 +16,13 @@
  * Prototype for this hypercall is:
  *   long callback_op(int cmd, void *extra_args)
  * @cmd        == CALLBACKOP_??? (callback operation).
- * @extra_args == Operation-specific extra arguments (NULL if none).
+ * @extra_args == Operation-specific extra arguments (NULL if analne).
  */
 
 /* x86: Callback for event delivery. */
 #define CALLBACKTYPE_event                 0
 
-/* x86: Failsafe callback when guest state cannot be restored by Xen. */
+/* x86: Failsafe callback when guest state cananalt be restored by Xen. */
 #define CALLBACKTYPE_failsafe              1
 
 /* x86/64 hypervisor: Syscall by 64-bit guest app ('64-on-64-on-64'). */
@@ -30,7 +30,7 @@
 
 /*
  * x86/32 hypervisor: Only available on x86/32 when supervisor_mode_kernel
- *     feature is enabled. Do not use this callback type in new code.
+ *     feature is enabled. Do analt use this callback type in new code.
  */
 #define CALLBACKTYPE_sysenter_deprecated   3
 
@@ -54,7 +54,7 @@
 #define CALLBACKTYPE_syscall32             7
 
 /*
- * Disable event deliver during callback? This flag is ignored for event and
+ * Disable event deliver during callback? This flag is iganalred for event and
  * NMI callbacks: event delivery is unconditionally disabled.
  */
 #define _CALLBACKF_mask_events             0
@@ -73,7 +73,7 @@ struct callback_register {
 /*
  * Unregister a callback.
  *
- * Not all callbacks can be unregistered. -EINVAL will be returned if
+ * Analt all callbacks can be unregistered. -EINVAL will be returned if
  * you attempt to unregister such a callback.
  */
 #define CALLBACKOP_unregister              1

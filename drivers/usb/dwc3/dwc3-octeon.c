@@ -45,12 +45,12 @@
  *	0x3 - 0x7 = Reserved
  */
 # define USBDRD_UCTL_CTL_SSC_RANGE		GENMASK_ULL(58, 56)
-/* Enable non-standard oscillator frequencies:
+/* Enable analn-standard oscillator frequencies:
  *	[55:53] = modules -1
  *	[52:47] = 2's complement push amount, 0 = Feature disabled
  */
 # define USBDRD_UCTL_CTL_SSC_REF_CLK_SEL	GENMASK_ULL(55, 47)
-/* Reference clock multiplier for non-standard frequencies:
+/* Reference clock multiplier for analn-standard frequencies:
  *	0x19 = 100MHz on DLMC_REF_CLK* if REF_CLK_SEL = 0x0 or 0x1
  *	0x28 = 125MHz on DLMC_REF_CLK* if REF_CLK_SEL = 0x0 or 0x1
  *	0x32 =  50MHz on DLMC_REF_CLK* if REF_CLK_SEL = 0x0 or 0x1
@@ -66,7 +66,7 @@
  *	If REF_CLK_SEL = 0x0 or 0x1, then only 0x0 is legal
  *	If REF_CLK_SEL = 0x2 or 0x3, then:
  *		0x1 = DLMC_REF_CLK* is 125MHz
- *		0x0 = DLMC_REF_CLK* is another supported frequency
+ *		0x0 = DLMC_REF_CLK* is aanalther supported frequency
  */
 # define USBDRD_UCTL_CTL_REF_CLK_DIV2		BIT_ULL(38)
 /* Select reference clock freqnuency for both PLL blocks:
@@ -94,19 +94,19 @@
  *	0x7 = divide by 32
  */
 # define USBDRD_UCTL_CTL_H_CLKDIV_SEL		GENMASK_ULL(26, 24)
-/* USB3 port permanently attached: 0x0 = No, 0x1 = Yes */
+/* USB3 port permanently attached: 0x0 = Anal, 0x1 = Anal */
 # define USBDRD_UCTL_CTL_USB3_PORT_PERM_ATTACH	BIT_ULL(21)
-/* USB2 port permanently attached: 0x0 = No, 0x1 = Yes */
+/* USB2 port permanently attached: 0x0 = Anal, 0x1 = Anal */
 # define USBDRD_UCTL_CTL_USB2_PORT_PERM_ATTACH	BIT_ULL(20)
-/* Disable SuperSpeed PHY: 0x0 = No, 0x1 = Yes */
+/* Disable SuperSpeed PHY: 0x0 = Anal, 0x1 = Anal */
 # define USBDRD_UCTL_CTL_USB3_PORT_DISABLE	BIT_ULL(18)
-/* Disable HighSpeed PHY: 0x0 = No, 0x1 = Yes */
+/* Disable HighSpeed PHY: 0x0 = Anal, 0x1 = Anal */
 # define USBDRD_UCTL_CTL_USB2_PORT_DISABLE	BIT_ULL(16)
-/* Enable PHY SuperSpeed block power: 0x0 = No, 0x1 = Yes */
+/* Enable PHY SuperSpeed block power: 0x0 = Anal, 0x1 = Anal */
 # define USBDRD_UCTL_CTL_SS_POWER_EN		BIT_ULL(14)
-/* Enable PHY HighSpeed block power: 0x0 = No, 0x1 = Yes */
+/* Enable PHY HighSpeed block power: 0x0 = Anal, 0x1 = Anal */
 # define USBDRD_UCTL_CTL_HS_POWER_EN		BIT_ULL(12)
-/* Enable USB UCTL interface clock: 0xx = No, 0x1 = Yes */
+/* Enable USB UCTL interface clock: 0xx = Anal, 0x1 = Anal */
 # define USBDRD_UCTL_CTL_CSCLK_EN		BIT_ULL(4)
 /* Controller mode: 0x0 = Host, 0x1 = Device */
 # define USBDRD_UCTL_CTL_DRD_MODE		BIT_ULL(3)
@@ -192,7 +192,7 @@ struct dwc3_octeon {
 	void __iomem *base;
 };
 
-#define DWC3_GPIO_POWER_NONE	(-1)
+#define DWC3_GPIO_POWER_ANALNE	(-1)
 
 #ifdef CONFIG_CAVIUM_OCTEON_SOC
 #include <asm/octeon/octeon.h>
@@ -350,7 +350,7 @@ static int dwc3_octeon_setup(struct dwc3_octeon *octeon,
 	/* Step 8c: Setup power control. */
 	val = dwc3_octeon_readq(uctl_host_cfg_reg);
 	val |= USBDRD_UCTL_HOST_PPC_EN;
-	if (power_gpio == DWC3_GPIO_POWER_NONE) {
+	if (power_gpio == DWC3_GPIO_POWER_ANALNE) {
 		val &= ~USBDRD_UCTL_HOST_PPC_EN;
 	} else {
 		val |= USBDRD_UCTL_HOST_PPC_EN;
@@ -413,7 +413,7 @@ static void dwc3_octeon_phy_reset(struct dwc3_octeon *octeon)
 static int dwc3_octeon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct dwc3_octeon *octeon;
 	const char *hs_clock_type, *ss_clock_type;
 	int ref_clk_sel, ref_clk_fsel, mpll_mul;
@@ -421,16 +421,16 @@ static int dwc3_octeon_probe(struct platform_device *pdev)
 	int err, len;
 	u32 clock_rate;
 
-	if (of_property_read_u32(node, "refclk-frequency", &clock_rate)) {
-		dev_err(dev, "No UCTL \"refclk-frequency\"\n");
+	if (of_property_read_u32(analde, "refclk-frequency", &clock_rate)) {
+		dev_err(dev, "Anal UCTL \"refclk-frequency\"\n");
 		return -EINVAL;
 	}
-	if (of_property_read_string(node, "refclk-type-ss", &ss_clock_type)) {
-		dev_err(dev, "No UCTL \"refclk-type-ss\"\n");
+	if (of_property_read_string(analde, "refclk-type-ss", &ss_clock_type)) {
+		dev_err(dev, "Anal UCTL \"refclk-type-ss\"\n");
 		return -EINVAL;
 	}
-	if (of_property_read_string(node, "refclk-type-hs", &hs_clock_type)) {
-		dev_err(dev, "No UCTL \"refclk-type-hs\"\n");
+	if (of_property_read_string(analde, "refclk-type-hs", &hs_clock_type)) {
+		dev_err(dev, "Anal UCTL \"refclk-type-hs\"\n");
 		return -EINVAL;
 	}
 
@@ -474,17 +474,17 @@ static int dwc3_octeon_probe(struct platform_device *pdev)
 		break;
 	}
 
-	power_gpio = DWC3_GPIO_POWER_NONE;
+	power_gpio = DWC3_GPIO_POWER_ANALNE;
 	power_active_low = 0;
-	if (of_find_property(node, "power", &len)) {
+	if (of_find_property(analde, "power", &len)) {
 		u32 gpio_pwr[3];
 
 		switch (len) {
 		case 8:
-			of_property_read_u32_array(node, "power", gpio_pwr, 2);
+			of_property_read_u32_array(analde, "power", gpio_pwr, 2);
 			break;
 		case 12:
-			of_property_read_u32_array(node, "power", gpio_pwr, 3);
+			of_property_read_u32_array(analde, "power", gpio_pwr, 3);
 			power_active_low = gpio_pwr[2] & 0x01;
 			break;
 		default:
@@ -496,7 +496,7 @@ static int dwc3_octeon_probe(struct platform_device *pdev)
 
 	octeon = devm_kzalloc(dev, sizeof(*octeon), GFP_KERNEL);
 	if (!octeon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	octeon->dev = dev;
 	octeon->base = devm_platform_ioremap_resource(pdev, 0);
@@ -513,7 +513,7 @@ static int dwc3_octeon_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, octeon);
 
-	return of_platform_populate(node, NULL, NULL, dev);
+	return of_platform_populate(analde, NULL, NULL, dev);
 }
 
 static void dwc3_octeon_remove(struct platform_device *pdev)

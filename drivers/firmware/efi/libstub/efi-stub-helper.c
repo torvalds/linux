@@ -16,27 +16,27 @@
 
 #include "efistub.h"
 
-bool efi_nochunk;
-bool efi_nokaslr = !IS_ENABLED(CONFIG_RANDOMIZE_BASE);
-bool efi_novamap;
+bool efi_analchunk;
+bool efi_analkaslr = !IS_ENABLED(CONFIG_RANDOMIZE_BASE);
+bool efi_analvamap;
 
-static bool efi_noinitrd;
-static bool efi_nosoftreserve;
+static bool efi_analinitrd;
+static bool efi_analsoftreserve;
 static bool efi_disable_pci_dma = IS_ENABLED(CONFIG_EFI_DISABLE_PCI_DMA);
 
 bool __pure __efi_soft_reserve_enabled(void)
 {
-	return !efi_nosoftreserve;
+	return !efi_analsoftreserve;
 }
 
 /**
  * efi_parse_options() - Parse EFI command line options
  * @cmdline:	kernel command line
  *
- * Parse the ASCII string @cmdline for EFI options, denoted by the efi=
- * option, e.g. efi=nochunk.
+ * Parse the ASCII string @cmdline for EFI options, deanalted by the efi=
+ * option, e.g. efi=analchunk.
  *
- * It should be noted that efi= is parsed in two very different
+ * It should be analted that efi= is parsed in two very different
  * environments, first in the early boot environment of the EFI boot
  * stub, and subsequently during the kernel boot.
  *
@@ -67,24 +67,24 @@ efi_status_t efi_parse_options(char const *cmdline)
 		if (!val && !strcmp(param, "--"))
 			break;
 
-		if (!strcmp(param, "nokaslr")) {
-			efi_nokaslr = true;
+		if (!strcmp(param, "analkaslr")) {
+			efi_analkaslr = true;
 		} else if (!strcmp(param, "quiet")) {
 			efi_loglevel = CONSOLE_LOGLEVEL_QUIET;
-		} else if (!strcmp(param, "noinitrd")) {
-			efi_noinitrd = true;
-		} else if (IS_ENABLED(CONFIG_X86_64) && !strcmp(param, "no5lvl")) {
-			efi_no5lvl = true;
+		} else if (!strcmp(param, "analinitrd")) {
+			efi_analinitrd = true;
+		} else if (IS_ENABLED(CONFIG_X86_64) && !strcmp(param, "anal5lvl")) {
+			efi_anal5lvl = true;
 		} else if (!strcmp(param, "efi") && val) {
-			efi_nochunk = parse_option_str(val, "nochunk");
-			efi_novamap |= parse_option_str(val, "novamap");
+			efi_analchunk = parse_option_str(val, "analchunk");
+			efi_analvamap |= parse_option_str(val, "analvamap");
 
-			efi_nosoftreserve = IS_ENABLED(CONFIG_EFI_SOFT_RESERVE) &&
-					    parse_option_str(val, "nosoftreserve");
+			efi_analsoftreserve = IS_ENABLED(CONFIG_EFI_SOFT_RESERVE) &&
+					    parse_option_str(val, "analsoftreserve");
 
 			if (parse_option_str(val, "disable_early_pci_dma"))
 				efi_disable_pci_dma = true;
-			if (parse_option_str(val, "no_disable_early_pci_dma"))
+			if (parse_option_str(val, "anal_disable_early_pci_dma"))
 				efi_disable_pci_dma = false;
 			if (parse_option_str(val, "debug"))
 				efi_loglevel = CONSOLE_LOGLEVEL_DEBUG;
@@ -326,7 +326,7 @@ char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
 			if ((c & 0xfc00) == 0xd800) {
 				/*
 				 * If the very last word is a high surrogate,
-				 * we must ignore it since we can't access the
+				 * we must iganalre it since we can't access the
 				 * low surrogate.
 				 */
 				if (!options_chars) {
@@ -403,8 +403,8 @@ efi_status_t efi_exit_boot_services(void *handle, void *priv,
 		 * updated map, and try again.  The spec implies one retry
 		 * should be sufficent, which is confirmed against the EDK2
 		 * implementation.  Per the spec, we can only invoke
-		 * get_memory_map() and exit_boot_services() - we cannot alloc
-		 * so efi_get_memory_map() cannot be used, and we must reuse
+		 * get_memory_map() and exit_boot_services() - we cananalt alloc
+		 * so efi_get_memory_map() cananalt be used, and we must reuse
 		 * the buffer.  For all practical purposes, the headroom in the
 		 * buffer should account for any changes in the map so the call
 		 * to get_memory_map() is expected to succeed here.
@@ -417,12 +417,12 @@ efi_status_t efi_exit_boot_services(void *handle, void *priv,
 				     &map->desc_size,
 				     &map->desc_ver);
 
-		/* exit_boot_services() was called, thus cannot free */
+		/* exit_boot_services() was called, thus cananalt free */
 		if (status != EFI_SUCCESS)
 			return status;
 
 		status = priv_func(map, priv);
-		/* exit_boot_services() was called, thus cannot free */
+		/* exit_boot_services() was called, thus cananalt free */
 		if (status != EFI_SUCCESS)
 			return status;
 
@@ -492,7 +492,7 @@ static const struct {
  * Return:
  * * %EFI_SUCCESS if the initrd was loaded successfully, in which
  *   case @load_addr and @load_size are assigned accordingly
- * * %EFI_NOT_FOUND if no LoadFile2 protocol exists on the initrd device path
+ * * %EFI_ANALT_FOUND if anal LoadFile2 protocol exists on the initrd device path
  * * %EFI_OUT_OF_RESOURCES if memory allocation failed
  * * %EFI_LOAD_ERROR in all other cases
  */
@@ -565,7 +565,7 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 	efi_status_t status = EFI_SUCCESS;
 	struct linux_efi_initrd initrd, *tbl;
 
-	if (!IS_ENABLED(CONFIG_BLK_DEV_INITRD) || efi_noinitrd)
+	if (!IS_ENABLED(CONFIG_BLK_DEV_INITRD) || efi_analinitrd)
 		return EFI_SUCCESS;
 
 	status = efi_load_initrd_dev_path(&initrd, hard_limit);
@@ -575,11 +575,11 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 		    efi_measure_tagged_event(initrd.base, initrd.size,
 					     EFISTUB_EVT_INITRD) == EFI_SUCCESS)
 			efi_info("Measured initrd data into PCR 9\n");
-	} else if (status == EFI_NOT_FOUND) {
+	} else if (status == EFI_ANALT_FOUND) {
 		status = efi_load_initrd_cmdline(image, &initrd, soft_limit,
 						 hard_limit);
-		/* command line loader disabled or no initrd= passed? */
-		if (status == EFI_UNSUPPORTED || status == EFI_NOT_READY)
+		/* command line loader disabled or anal initrd= passed? */
+		if (status == EFI_UNSUPPORTED || status == EFI_ANALT_READY)
 			return EFI_SUCCESS;
 		if (status == EFI_SUCCESS)
 			efi_info("Loaded initrd from command line option\n");
@@ -665,7 +665,7 @@ efi_status_t efi_wait_for_key(unsigned long usec, efi_input_key_t *key)
  *
  * efi_remap_image() uses the EFI memory attribute protocol to remap the code
  * region of the loaded image read-only/executable, and the remainder
- * read-write/non-executable. The code region is assumed to start at the base
+ * read-write/analn-executable. The code region is assumed to start at the base
  * of the image, and will therefore cover the PE/COFF header as well.
  */
 void efi_remap_image(unsigned long image_base, unsigned alloc_size,
@@ -679,7 +679,7 @@ void efi_remap_image(unsigned long image_base, unsigned alloc_size,
 	/*
 	 * If the firmware implements the EFI_MEMORY_ATTRIBUTE_PROTOCOL, let's
 	 * invoke it to remap the text/rodata region of the decompressed image
-	 * as read-only and the data/bss region as non-executable.
+	 * as read-only and the data/bss region as analn-executable.
 	 */
 	status = efi_bs_call(locate_protocol, &guid, NULL, (void **)&memattr);
 	if (status != EFI_SUCCESS)
@@ -702,7 +702,7 @@ void efi_remap_image(unsigned long image_base, unsigned alloc_size,
 		return;
 	}
 
-	// If the entire region was already mapped as non-exec, clear the
+	// If the entire region was already mapped as analn-exec, clear the
 	// attribute from the code region. Otherwise, set it on the data
 	// region.
 	if (attr & EFI_MEMORY_XP) {
@@ -717,6 +717,6 @@ void efi_remap_image(unsigned long image_base, unsigned alloc_size,
 							alloc_size - code_size,
 							EFI_MEMORY_XP);
 		if (status != EFI_SUCCESS)
-			efi_warn("Failed to remap data region non-executable\n");
+			efi_warn("Failed to remap data region analn-executable\n");
 	}
 }

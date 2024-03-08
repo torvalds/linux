@@ -971,7 +971,7 @@
 #define SUNI1x10GEXP_BITMSK_LANE0_SYNC_STAT_ERR  0x0001
 
 /*----------------------------------------------------------------------------
- * Register 0x208B: XRF Diagnostic Interrupt Enable
+ * Register 0x208B: XRF Diaganalstic Interrupt Enable
  *    Bit 7-4 LANE_OVERRUNE
  *    Bit 3-0 LANE_UNDERRUNE
  *----------------------------------------------------------------------------*/
@@ -981,7 +981,7 @@
 #define SUNI1x10GEXP_BITOFF_LANE_UNDERRUNE  0
 
 /*----------------------------------------------------------------------------
- * Register 0x208C: XRF Diagnostic Interrupt Status
+ * Register 0x208C: XRF Diaganalstic Interrupt Status
  *    Bit 7-4 LANE_OVERRUNI
  *    Bit 3-0 LANE_UNDERRUNI
  *----------------------------------------------------------------------------*/
@@ -1193,11 +1193,11 @@
  * Register 0x2240: PL4MOS Configuration Register
  *    Bit 3 PL4MOS_RE_INIT
  *    Bit 2 PL4MOS_EN
- *    Bit 1 PL4MOS_NO_STATUS
+ *    Bit 1 PL4MOS_ANAL_STATUS
  *----------------------------------------------------------------------------*/
 #define SUNI1x10GEXP_BITMSK_PL4MOS_RE_INIT          0x0008
 #define SUNI1x10GEXP_BITMSK_PL4MOS_EN               0x0004
-#define SUNI1x10GEXP_BITMSK_PL4MOS_NO_STATUS        0x0002
+#define SUNI1x10GEXP_BITMSK_PL4MOS_ANAL_STATUS        0x0002
 
 /*----------------------------------------------------------------------------
  * Register 0x2243: PL4MOS MaxBurst1 Register
@@ -1337,7 +1337,7 @@
  *    Bit 10  PL4IO_TRAIN_DIS
  *    Bit 9   PL4IO_OSTAT_DIS
  *    Bit 8   PL4IO_ISTAT_DIS
- *    Bit 7   PL4IO_NO_ISTAT
+ *    Bit 7   PL4IO_ANAL_ISTAT
  *    Bit 6   PL4IO_STAT_OUTSEL
  *    Bit 5   PL4IO_INSEL
  *    Bit 4   PL4IO_DLSEL
@@ -1348,7 +1348,7 @@
 #define SUNI1x10GEXP_BITMSK_PL4IO_TRAIN_DIS     0x0400
 #define SUNI1x10GEXP_BITMSK_PL4IO_OSTAT_DIS     0x0200
 #define SUNI1x10GEXP_BITMSK_PL4IO_ISTAT_DIS     0x0100
-#define SUNI1x10GEXP_BITMSK_PL4IO_NO_ISTAT      0x0080
+#define SUNI1x10GEXP_BITMSK_PL4IO_ANAL_ISTAT      0x0080
 #define SUNI1x10GEXP_BITMSK_PL4IO_STAT_OUTSEL   0x0040
 #define SUNI1x10GEXP_BITMSK_PL4IO_INSEL         0x0020
 #define SUNI1x10GEXP_BITMSK_PL4IO_DLSEL         0x0010
@@ -1464,14 +1464,14 @@
  *    Bit 15   TXOAM_HEC_EN
  *    Bit 14   TXOAM_EMPTYCODE_EN
  *    Bit 13   TXOAM_FORCE_IDLE
- *    Bit 12   TXOAM_IGNORE_IDLE
+ *    Bit 12   TXOAM_IGANALRE_IDLE
  *    Bit 11-6 TXOAM_PX_OVERWRITE
  *    Bit 5-0  TXOAM_PX_SEL
  *----------------------------------------------------------------------------*/
 #define SUNI1x10GEXP_BITMSK_TXOAM_HEC_EN        0x8000
 #define SUNI1x10GEXP_BITMSK_TXOAM_EMPTYCODE_EN  0x4000
 #define SUNI1x10GEXP_BITMSK_TXOAM_FORCE_IDLE    0x2000
-#define SUNI1x10GEXP_BITMSK_TXOAM_IGNORE_IDLE   0x1000
+#define SUNI1x10GEXP_BITMSK_TXOAM_IGANALRE_IDLE   0x1000
 #define SUNI1x10GEXP_BITMSK_TXOAM_PX_OVERWRITE  0x0FC0
 #define SUNI1x10GEXP_BITOFF_TXOAM_PX_OVERWRITE  6
 #define SUNI1x10GEXP_BITMSK_TXOAM_PX_SEL        0x003F

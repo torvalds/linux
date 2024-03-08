@@ -74,7 +74,7 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 	struct fpu *fpu = &target->thread.fpu;
 
 	if (!cpu_feature_enabled(X86_FEATURE_FXSR))
-		return -ENODEV;
+		return -EANALDEV;
 
 	sync_fpstate(fpu);
 
@@ -96,9 +96,9 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	int ret;
 
 	if (!cpu_feature_enabled(X86_FEATURE_FXSR))
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* No funny business with partial or oversized writes is permitted. */
+	/* Anal funny business with partial or oversized writes is permitted. */
 	if (pos != 0 || count != sizeof(newstate))
 		return -EINVAL;
 
@@ -106,7 +106,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (ret)
 		return ret;
 
-	/* Do not allow an invalid MXCSR value. */
+	/* Do analt allow an invalid MXCSR value. */
 	if (newstate.mxcsr & ~mxcsr_feature_mask)
 		return -EINVAL;
 
@@ -131,7 +131,7 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 		struct membuf to)
 {
 	if (!cpu_feature_enabled(X86_FEATURE_XSAVE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	sync_fpstate(&target->thread.fpu);
 
@@ -148,7 +148,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	int ret;
 
 	if (!cpu_feature_enabled(X86_FEATURE_XSAVE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * A whole standard-format XSAVE buffer is needed:
@@ -159,7 +159,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!kbuf) {
 		tmpbuf = vmalloc(count);
 		if (!tmpbuf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (copy_from_user(tmpbuf, ubuf, count)) {
 			ret = -EFAULT;
@@ -191,7 +191,7 @@ int ssp_get(struct task_struct *target, const struct user_regset *regset,
 	struct cet_user_state *cetregs;
 
 	if (!cpu_feature_enabled(X86_FEATURE_USER_SHSTK))
-		return -ENODEV;
+		return -EANALDEV;
 
 	sync_fpstate(fpu);
 	cetregs = get_xsave_addr(&fpu->fpstate->regs.xsave, XFEATURE_CET_USER);
@@ -200,9 +200,9 @@ int ssp_get(struct task_struct *target, const struct user_regset *regset,
 		 * This shouldn't ever be NULL because shadow stack was
 		 * verified to be enabled above. This means
 		 * MSR_IA32_U_CET.CET_SHSTK_EN should be 1 and so
-		 * XFEATURE_CET_USER should not be in the init state.
+		 * XFEATURE_CET_USER should analt be in the init state.
 		 */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return membuf_write(&to, (unsigned long *)&cetregs->user_ssp,
@@ -221,7 +221,7 @@ int ssp_set(struct task_struct *target, const struct user_regset *regset,
 
 	if (!cpu_feature_enabled(X86_FEATURE_USER_SHSTK) ||
 	    !ssp_active(target, regset))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pos != 0 || count != sizeof(user_ssp))
 		return -EINVAL;
@@ -245,9 +245,9 @@ int ssp_set(struct task_struct *target, const struct user_regset *regset,
 		 * This shouldn't ever be NULL because shadow stack was
 		 * verified to be enabled above. This means
 		 * MSR_IA32_U_CET.CET_SHSTK_EN should be 1 and so
-		 * XFEATURE_CET_USER should not be in the init state.
+		 * XFEATURE_CET_USER should analt be in the init state.
 		 */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	cetregs->user_ssp = user_ssp;
@@ -344,7 +344,7 @@ static void __convert_from_fxsr(struct user_i387_ia32_struct *env,
 	env->foo = fxsave->rdp;
 	/*
 	 * should be actually ds/cs at fpu exception time, but
-	 * that information is not available in 64bit mode.
+	 * that information is analt available in 64bit mode.
 	 */
 	env->fcs = task_pt_regs(tsk)->cs;
 	if (tsk == current) {
@@ -385,7 +385,7 @@ void convert_to_fxsr(struct fxregs_state *fxsave,
 #ifdef CONFIG_X86_64
 	fxsave->rip = env->fip;
 	fxsave->rdp = env->foo;
-	/* cs and ds ignored */
+	/* cs and ds iganalred */
 #else
 	fxsave->fip = env->fip;
 	fxsave->fcs = (env->fcs & 0xffff);
@@ -436,7 +436,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	struct user_i387_ia32_struct env;
 	int ret;
 
-	/* No funny business with partial or oversized writes is permitted. */
+	/* Anal funny business with partial or oversized writes is permitted. */
 	if (pos != 0 || count != sizeof(struct user_i387_ia32_struct))
 		return -EINVAL;
 

@@ -35,13 +35,13 @@
  * highger than 1) use fixmap_set(idx,phys) to associate
  * physical memory with fixmap indices.
  *
- * TLB entries of such buffers will not be flushed across
+ * TLB entries of such buffers will analt be flushed across
  * task switches.
  */
 
 /*
- * on UP currently we will have no trace of the fixmap mechanizm,
- * no page table allocations, etc. This might change in the
+ * on UP currently we will have anal trace of the fixmap mechanizm,
+ * anal page table allocations, etc. This might change in the
  * future, say framebuffers for the console driver(s) could be
  * fix-mapped?
  */

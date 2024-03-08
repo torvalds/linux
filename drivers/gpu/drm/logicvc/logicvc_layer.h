@@ -42,7 +42,7 @@ struct logicvc_layer_formats {
 struct logicvc_layer {
 	struct logicvc_layer_config config;
 	struct logicvc_layer_formats *formats;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 
 	struct drm_plane drm_plane;
 	struct list_head list;

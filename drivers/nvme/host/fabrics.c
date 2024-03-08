@@ -46,7 +46,7 @@ static struct nvmf_host *nvmf_host_add(const char *hostnqn, uuid_t *id)
 	/*
 	 * We have defined a host as how it is perceived by the target.
 	 * Therefore, we don't allow different Host NQNs with the same Host ID.
-	 * Similarly, we do not allow the usage of the same Host NQN with
+	 * Similarly, we do analt allow the usage of the same Host NQN with
 	 * different Host IDs. This'll maintain unambiguous host identification.
 	 */
 	list_for_each_entry(host, &nvmf_hosts, list) {
@@ -73,7 +73,7 @@ static struct nvmf_host *nvmf_host_add(const char *hostnqn, uuid_t *id)
 
 	host = nvmf_host_alloc(hostnqn, id);
 	if (!host) {
-		host = ERR_PTR(-ENOMEM);
+		host = ERR_PTR(-EANALMEM);
 		goto out_unlock;
 	}
 
@@ -167,7 +167,7 @@ EXPORT_SYMBOL_GPL(nvmf_get_address);
  * Return:
  *	0: successful read
  *	> 0: NVMe error status code
- *	< 0: Linux errno error code
+ *	< 0: Linux erranal error code
  */
 int nvmf_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val)
 {
@@ -212,7 +212,7 @@ EXPORT_SYMBOL_GPL(nvmf_reg_read32);
  * Return:
  *	0: successful read
  *	> 0: NVMe error status code
- *	< 0: Linux errno error code
+ *	< 0: Linux erranal error code
  */
 int nvmf_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val)
 {
@@ -257,7 +257,7 @@ EXPORT_SYMBOL_GPL(nvmf_reg_read64);
  * Return:
  *	0: successful write
  *	> 0: NVMe error status code
- *	< 0: Linux errno error code
+ *	< 0: Linux erranal error code
  */
 int nvmf_reg_write32(struct nvme_ctrl *ctrl, u32 off, u32 val)
 {
@@ -281,7 +281,7 @@ int nvmf_reg_write32(struct nvme_ctrl *ctrl, u32 off, u32 val)
 EXPORT_SYMBOL_GPL(nvmf_reg_write32);
 
 /**
- * nvmf_log_connect_error() - Error-parsing-diagnostic print out function for
+ * nvmf_log_connect_error() - Error-parsing-diaganalstic print out function for
  * 				connect() errors.
  * @ctrl:	The specific /dev/nvmeX device that had the error.
  * @errval:	Error code to be decoded in a more human-friendly
@@ -299,7 +299,7 @@ static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
 
 	if (errval < 0) {
 		dev_err(ctrl->device,
-			"Connect command failed, errno: %d\n", errval);
+			"Connect command failed, erranal: %d\n", errval);
 		return;
 	}
 
@@ -348,12 +348,12 @@ static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
 		break;
 	case NVME_SC_CONNECT_INVALID_HOST:
 		dev_err(ctrl->device,
-			"Connect for subsystem %s is not allowed, hostnqn: %s\n",
+			"Connect for subsystem %s is analt allowed, hostnqn: %s\n",
 			data->subsysnqn, data->hostnqn);
 		break;
 	case NVME_SC_CONNECT_CTRL_BUSY:
 		dev_err(ctrl->device,
-			"Connect command failed: controller is busy or not available\n");
+			"Connect command failed: controller is busy or analt available\n");
 		break;
 	case NVME_SC_CONNECT_FORMAT:
 		dev_err(ctrl->device,
@@ -432,7 +432,7 @@ static void nvmf_connect_cmd_prep(struct nvme_ctrl *ctrl, u16 qid,
  * Return:
  *	0: success
  *	> 0: NVMe error status code
- *	< 0: Linux errno error code
+ *	< 0: Linux erranal error code
  *
  */
 int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl)
@@ -447,12 +447,12 @@ int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl)
 
 	data = nvmf_connect_data_prep(ctrl, 0xffff);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = __nvme_submit_sync_cmd(ctrl->fabrics_q, &cmd, &res,
 			data, sizeof(*data), NVME_QID_ANY,
 			NVME_SUBMIT_AT_HEAD |
-			NVME_SUBMIT_NOWAIT |
+			NVME_SUBMIT_ANALWAIT |
 			NVME_SUBMIT_RESERVED);
 	if (ret) {
 		nvmf_log_connect_error(ctrl, ret, le32_to_cpu(res.u32),
@@ -463,10 +463,10 @@ int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl)
 	result = le32_to_cpu(res.u32);
 	ctrl->cntlid = result & 0xFFFF;
 	if (result & (NVME_CONNECT_AUTHREQ_ATR | NVME_CONNECT_AUTHREQ_ASCR)) {
-		/* Secure concatenation is not implemented */
+		/* Secure concatenation is analt implemented */
 		if (result & NVME_CONNECT_AUTHREQ_ASCR) {
 			dev_warn(ctrl->device,
-				 "qid 0: secure concatenation is not supported\n");
+				 "qid 0: secure concatenation is analt supported\n");
 			ret = NVME_SC_AUTH_REQUIRED;
 			goto out_free_data;
 		}
@@ -499,7 +499,7 @@ EXPORT_SYMBOL_GPL(nvmf_connect_admin_queue);
  *		NVMe I/O queue connection to the already allocated NVMe
  *		controller on the target system.
  * @qid:	NVMe I/O queue number for the new I/O connection between
- *		host and target (note qid == 0 is illegal as this is
+ *		host and target (analte qid == 0 is illegal as this is
  *		the Admin queue, per NVMe standard).
  *
  * This function issues a fabrics-protocol connection
@@ -510,7 +510,7 @@ EXPORT_SYMBOL_GPL(nvmf_connect_admin_queue);
  * Return:
  *	0: success
  *	> 0: NVMe error status code
- *	< 0: Linux errno error code
+ *	< 0: Linux erranal error code
  */
 int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid)
 {
@@ -524,13 +524,13 @@ int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid)
 
 	data = nvmf_connect_data_prep(ctrl, ctrl->cntlid);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = __nvme_submit_sync_cmd(ctrl->connect_q, &cmd, &res,
 			data, sizeof(*data), qid,
 			NVME_SUBMIT_AT_HEAD |
 			NVME_SUBMIT_RESERVED |
-			NVME_SUBMIT_NOWAIT);
+			NVME_SUBMIT_ANALWAIT);
 	if (ret) {
 		nvmf_log_connect_error(ctrl, ret, le32_to_cpu(res.u32),
 				       &cmd, data);
@@ -538,10 +538,10 @@ int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid)
 	}
 	result = le32_to_cpu(res.u32);
 	if (result & (NVME_CONNECT_AUTHREQ_ATR | NVME_CONNECT_AUTHREQ_ASCR)) {
-		/* Secure concatenation is not implemented */
+		/* Secure concatenation is analt implemented */
 		if (result & NVME_CONNECT_AUTHREQ_ASCR) {
 			dev_warn(ctrl->device,
-				 "qid 0: secure concatenation is not supported\n");
+				 "qid 0: secure concatenation is analt supported\n");
 			ret = NVME_SC_AUTH_REQUIRED;
 			goto out_free_data;
 		}
@@ -633,13 +633,13 @@ static struct key *nvmf_parse_key(int key_id)
 	struct key *key;
 
 	if (!IS_ENABLED(CONFIG_NVME_TCP_TLS)) {
-		pr_err("TLS is not supported\n");
+		pr_err("TLS is analt supported\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	key = key_lookup(key_id);
 	if (!IS_ERR(key))
-		pr_err("key id %08x not found\n", key_id);
+		pr_err("key id %08x analt found\n", key_id);
 	else
 		pr_debug("Using key id %08x\n", key_id);
 	return key;
@@ -710,9 +710,9 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 
 	options = o = kstrdup(buf, GFP_KERNEL);
 	if (!options)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* use default host if not given by user space */
+	/* use default host if analt given by user space */
 	uuid_copy(&hostid, &nvmf_default_host->id);
 	strscpy(hostnqn, nvmf_default_host->nqn, NVMF_NQN_SIZE);
 
@@ -726,7 +726,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 		case NVMF_OPT_TRANSPORT:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			kfree(opts->transport);
@@ -735,7 +735,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 		case NVMF_OPT_NQN:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			kfree(opts->subsysnqn);
@@ -754,7 +754,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 		case NVMF_OPT_TRADDR:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			kfree(opts->traddr);
@@ -763,7 +763,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 		case NVMF_OPT_TRSVCID:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			kfree(opts->trsvcid);
@@ -793,7 +793,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 				goto out;
 			}
 			if (opts->discovery_nqn) {
-				pr_debug("Ignoring nr_io_queues value for discovery controller\n");
+				pr_debug("Iganalring nr_io_queues value for discovery controller\n");
 				break;
 			}
 
@@ -849,7 +849,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			}
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			nqnlen = strlen(p);
@@ -878,7 +878,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 		case NVMF_OPT_HOST_TRADDR:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			kfree(opts->host_traddr);
@@ -887,7 +887,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 		case NVMF_OPT_HOST_IFACE:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			kfree(opts->host_iface);
@@ -896,7 +896,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 		case NVMF_OPT_HOST_ID:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			ret = uuid_parse(p, &hostid);
@@ -992,7 +992,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 		case NVMF_OPT_DHCHAP_SECRET:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			if (strlen(p) < 11 || strncmp(p, "DHHC-1:", 7)) {
@@ -1006,7 +1006,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 		case NVMF_OPT_DHCHAP_CTRL_SECRET:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			if (strlen(p) < 11 || strncmp(p, "DHHC-1:", 7)) {
@@ -1019,14 +1019,14 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			break;
 		case NVMF_OPT_TLS:
 			if (!IS_ENABLED(CONFIG_NVME_TCP_TLS)) {
-				pr_err("TLS is not supported\n");
+				pr_err("TLS is analt supported\n");
 				ret = -EINVAL;
 				goto out;
 			}
 			opts->tls = true;
 			break;
 		default:
-			pr_warn("unknown parameter or missing value '%s' in ctrl creation request\n",
+			pr_warn("unkanalwn parameter or missing value '%s' in ctrl creation request\n",
 				p);
 			ret = -EINVAL;
 			goto out;
@@ -1081,7 +1081,7 @@ void nvmf_set_io_queues(struct nvmf_ctrl_options *opts, u32 nr_io_queues,
 	} else {
 		/*
 		 * shared read/write queues
-		 * either no write queues were requested, or we don't have
+		 * either anal write queues were requested, or we don't have
 		 * sufficient queue count to have dedicated default queues.
 		 */
 		io_queues[HCTX_TYPE_DEFAULT] =
@@ -1171,13 +1171,13 @@ bool nvmf_ip_options_match(struct nvme_ctrl *ctrl,
 	/*
 	 * Checking the local address or host interfaces is rough.
 	 *
-	 * In most cases, none is specified and the host port or
+	 * In most cases, analne is specified and the host port or
 	 * host interface is selected by the stack.
 	 *
-	 * Assume no match if:
+	 * Assume anal match if:
 	 * -  local address or host interface is specified and address
-	 *    or host interface is not the same
-	 * -  local address or host interface is not specified but
+	 *    or host interface is analt the same
+	 * -  local address or host interface is analt specified but
 	 *    remote is, or vice versa (admin using specific
 	 *    host_traddr/host_iface when it matters).
 	 */
@@ -1258,7 +1258,7 @@ nvmf_create_ctrl(struct device *dev, const char *buf)
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = nvmf_parse_options(opts, buf);
 	if (ret)
@@ -1280,7 +1280,7 @@ nvmf_create_ctrl(struct device *dev, const char *buf)
 	down_read(&nvmf_transports_rwsem);
 	ops = nvmf_lookup_transport(opts);
 	if (!ops) {
-		pr_info("no handler found for transport %s.\n",
+		pr_info("anal handler found for transport %s.\n",
 			opts->transport);
 		ret = -EINVAL;
 		goto out_unlock;
@@ -1332,7 +1332,7 @@ static ssize_t nvmf_dev_write(struct file *file, const char __user *ubuf,
 	int ret = 0;
 
 	if (count > PAGE_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf = memdup_user_nul(ubuf, count);
 	if (IS_ERR(buf))
@@ -1365,7 +1365,7 @@ static void __nvmf_concat_opt_tokens(struct seq_file *seq_file)
 
 	/*
 	 * Add dummy entries for instance and cntlid to
-	 * signal an invalid/non-existing controller
+	 * signal an invalid/analn-existing controller
 	 */
 	seq_puts(seq_file, "instance=-1,cntlid=-1");
 	for (idx = 0; idx < ARRAY_SIZE(opt_tokens); idx++) {
@@ -1397,7 +1397,7 @@ out_unlock:
 	return 0;
 }
 
-static int nvmf_dev_open(struct inode *inode, struct file *file)
+static int nvmf_dev_open(struct ianalde *ianalde, struct file *file)
 {
 	/*
 	 * The miscdevice code initializes file->private_data, but doesn't
@@ -1407,14 +1407,14 @@ static int nvmf_dev_open(struct inode *inode, struct file *file)
 	return single_open(file, nvmf_dev_show, NULL);
 }
 
-static int nvmf_dev_release(struct inode *inode, struct file *file)
+static int nvmf_dev_release(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_file *seq_file = file->private_data;
 	struct nvme_ctrl *ctrl = seq_file->private;
 
 	if (ctrl)
 		nvme_put_ctrl(ctrl);
-	return single_release(inode, file);
+	return single_release(ianalde, file);
 }
 
 static const struct file_operations nvmf_dev_fops = {
@@ -1426,7 +1426,7 @@ static const struct file_operations nvmf_dev_fops = {
 };
 
 static struct miscdevice nvmf_misc = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.mianalr		= MISC_DYNAMIC_MIANALR,
 	.name           = "nvme-fabrics",
 	.fops		= &nvmf_dev_fops,
 };
@@ -1437,7 +1437,7 @@ static int __init nvmf_init(void)
 
 	nvmf_default_host = nvmf_host_default();
 	if (!nvmf_default_host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvmf_class = class_create("nvme-fabrics");
 	if (IS_ERR(nvmf_class)) {

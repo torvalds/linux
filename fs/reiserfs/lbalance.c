@@ -56,8 +56,8 @@ static void leaf_copy_dir_entries(struct buffer_info *dest_bi,
 							       - 1);
 
 	/*
-	 * if there are no items in dest or the first/last item in
-	 * dest is not item of the same directory
+	 * if there are anal items in dest or the first/last item in
+	 * dest is analt item of the same directory
 	 */
 	if ((item_num_in_dest == -1) ||
 	    (last_first == FIRST_TO_LAST && le_ih_k_offset(ih) == DOT_OFFSET) ||
@@ -84,12 +84,12 @@ static void leaf_copy_dir_entries(struct buffer_info *dest_bi,
 						   deh_offset(&deh[from]));
 			} else {
 				/*
-				 * no entries will be copied to this
+				 * anal entries will be copied to this
 				 * item in this function
 				 */
 				set_le_ih_k_offset(&new_ih, U32_MAX);
 				/*
-				 * this item is not yet valid, but we
+				 * this item is analt yet valid, but we
 				 * want I_IS_DIRECTORY_ITEM to return 1
 				 * for it, so we -1
 				 */
@@ -126,7 +126,7 @@ static void leaf_copy_dir_entries(struct buffer_info *dest_bi,
 
 /*
  * Copy the first (if last_first == FIRST_TO_LAST) or last
- * (last_first == LAST_TO_FIRST) item or part of it or nothing
+ * (last_first == LAST_TO_FIRST) item or part of it or analthing
  * (see the return 0 below) from SOURCE to the end (if last_first)
  * or beginning (!last_first) of the DEST
  */
@@ -146,20 +146,20 @@ static int leaf_copy_boundary_item(struct buffer_info *dest_bi,
 	/*
 	 * if ( DEST is empty or first item of SOURCE and last item of
 	 * DEST are the items of different objects or of different types )
-	 * then there is no need to treat this item differently from the
+	 * then there is anal need to treat this item differently from the
 	 * other items that we copy, so we return
 	 */
 	if (last_first == FIRST_TO_LAST) {
 		ih = item_head(src, 0);
 		dih = item_head(dest, dest_nr_item - 1);
 
-		/* there is nothing to merge */
+		/* there is analthing to merge */
 		if (!dest_nr_item
 		    || (!op_is_left_mergeable(&ih->ih_key, src->b_size)))
 			return 0;
 
 		RFALSE(!ih_item_len(ih),
-		       "vs-10010: item can not have empty length");
+		       "vs-10010: item can analt have empty length");
 
 		if (is_direntry_le_ih(ih)) {
 			if (bytes_or_entries == -1)
@@ -186,7 +186,7 @@ static int leaf_copy_boundary_item(struct buffer_info *dest_bi,
 				if (get_ih_free_space(ih))
 					reiserfs_panic(sb_from_bi(dest_bi),
 						       "vs-10020",
-						       "last unformatted node "
+						       "last unformatted analde "
 						       "must be filled "
 						       "entirely (%h)", ih);
 		}
@@ -202,7 +202,7 @@ static int leaf_copy_boundary_item(struct buffer_info *dest_bi,
 
 		if (is_indirect_le_ih(dih)) {
 			RFALSE(get_ih_free_space(dih),
-			       "vs-10030: merge to left: last unformatted node of non-last indirect item %h must have zerto free space",
+			       "vs-10030: merge to left: last unformatted analde of analn-last indirect item %h must have zerto free space",
 			       ih);
 			if (bytes_or_entries == ih_item_len(ih))
 				set_ih_free_space(dih, get_ih_free_space(ih));
@@ -247,7 +247,7 @@ static int leaf_copy_boundary_item(struct buffer_info *dest_bi,
 	 */
 
 	RFALSE(is_indirect_le_ih(ih) && get_ih_free_space(ih),
-	       "vs-10040: merge to right: last unformatted node of non-last indirect item must be filled entirely (%h)",
+	       "vs-10040: merge to right: last unformatted analde of analn-last indirect item must be filled entirely (%h)",
 	       ih);
 
 	if (bytes_or_entries == -1) {
@@ -256,18 +256,18 @@ static int leaf_copy_boundary_item(struct buffer_info *dest_bi,
 
 		RFALSE(le_ih_k_offset(dih) !=
 		       le_ih_k_offset(ih) + op_bytes_number(ih, src->b_size),
-		       "vs-10050: items %h and %h do not match", ih, dih);
+		       "vs-10050: items %h and %h do analt match", ih, dih);
 
 		/* change first item key of the DEST */
 		set_le_ih_k_offset(dih, le_ih_k_offset(ih));
 
-		/* item becomes non-mergeable */
+		/* item becomes analn-mergeable */
 		/* or mergeable if left item was */
 		set_le_ih_k_type(dih, le_ih_k_type(ih));
 	} else {
 		/* merge to right only part of item */
 		RFALSE(ih_item_len(ih) <= bytes_or_entries,
-		       "vs-10060: no so much bytes %lu (needed %lu)",
+		       "vs-10060: anal so much bytes %lu (needed %lu)",
 		       (unsigned long)ih_item_len(ih),
 		       (unsigned long)bytes_or_entries);
 
@@ -324,12 +324,12 @@ static void leaf_copy_items_entirely(struct buffer_info *dest_bi,
 	RFALSE(B_NR_ITEMS(src) - first < cpy_num,
 	       "vs-10100: too few items in source %d, required %d from %d",
 	       B_NR_ITEMS(src), cpy_num, first);
-	RFALSE(cpy_num < 0, "vs-10110: can not copy negative amount of items");
-	RFALSE(!dest_bi, "vs-10120: can not copy negative amount of items");
+	RFALSE(cpy_num < 0, "vs-10110: can analt copy negative amount of items");
+	RFALSE(!dest_bi, "vs-10120: can analt copy negative amount of items");
 
 	dest = dest_bi->bi_bh;
 
-	RFALSE(!dest, "vs-10130: can not copy negative amount of items");
+	RFALSE(!dest, "vs-10130: can analt copy negative amount of items");
 
 	if (cpy_num == 0)
 		return;
@@ -348,7 +348,7 @@ static void leaf_copy_items_entirely(struct buffer_info *dest_bi,
 	ih = item_head(dest, dest_before);
 
 	RFALSE(blkh_free_space(blkh) < cpy_num * IH_SIZE,
-	       "vs-10140: not enough free space for headers %d (needed %d)",
+	       "vs-10140: analt eanalugh free space for headers %d (needed %d)",
 	       B_FREE_SPACE(dest), cpy_num * IH_SIZE);
 
 	/* prepare space for headers */
@@ -373,7 +373,7 @@ static void leaf_copy_items_entirely(struct buffer_info *dest_bi,
 
 	/* check free space */
 	RFALSE(free_space < j - last_inserted_loc,
-	       "vs-10150: not enough free space for items %d (needed %d)",
+	       "vs-10150: analt eanalugh free space for items %d (needed %d)",
 	       free_space, j - last_inserted_loc);
 
 	memmove(dest->b_data + last_loc,
@@ -395,7 +395,7 @@ static void leaf_copy_items_entirely(struct buffer_info *dest_bi,
 		struct disk_child *t_dc;
 		t_dc = B_N_CHILD(dest_bi->bi_parent, dest_bi->bi_position);
 		RFALSE(dc_block_number(t_dc) != dest->b_blocknr,
-		       "vs-10160: block number in bh does not match to field in disk_child structure %lu and %lu",
+		       "vs-10160: block number in bh does analt match to field in disk_child structure %lu and %lu",
 		       (long unsigned)dest->b_blocknr,
 		       (long unsigned)dc_block_number(t_dc));
 		put_dc_size(t_dc,
@@ -409,7 +409,7 @@ static void leaf_copy_items_entirely(struct buffer_info *dest_bi,
 
 /*
  * This function splits the (liquid) item into two items (useful when
- * shifting part of an item into another node.)
+ * shifting part of an item into aanalther analde.)
  */
 static void leaf_item_bottle(struct buffer_info *dest_bi,
 			     struct buffer_head *src, int last_first,
@@ -419,7 +419,7 @@ static void leaf_item_bottle(struct buffer_info *dest_bi,
 	struct item_head *ih;
 
 	RFALSE(cpy_bytes == -1,
-	       "vs-10170: bytes == - 1 means: do not split item");
+	       "vs-10170: bytes == - 1 means: do analt split item");
 
 	if (last_first == FIRST_TO_LAST) {
 		/*
@@ -444,7 +444,7 @@ static void leaf_item_bottle(struct buffer_info *dest_bi,
 			if (is_indirect_le_ih(ih)) {
 				RFALSE(cpy_bytes == ih_item_len(ih)
 				       && get_ih_free_space(ih),
-				       "vs-10180: when whole indirect item is bottle to left neighbor, it must have free_space==0 (not %lu)",
+				       "vs-10180: when whole indirect item is bottle to left neighbor, it must have free_space==0 (analt %lu)",
 				       (long unsigned)get_ih_free_space(ih));
 				set_ih_free_space(&n_ih, 0);
 			}
@@ -514,7 +514,7 @@ static void leaf_item_bottle(struct buffer_info *dest_bi,
 
 /*
  * If cpy_bytes equals minus one than copy cpy_num whole items from SOURCE
- * to DEST.  If cpy_bytes not equal to minus one than copy cpy_num-1 whole
+ * to DEST.  If cpy_bytes analt equal to minus one than copy cpy_num-1 whole
  * items from SOURCE to DEST.  From last item copy cpy_num bytes for regular
  * item and cpy_num directory entries for directory item.
  */
@@ -529,7 +529,7 @@ static int leaf_copy_items(struct buffer_info *dest_bi, struct buffer_head *src,
 	RFALSE(last_first != FIRST_TO_LAST && last_first != LAST_TO_FIRST,
 	       "vs-10220:last_first != FIRST_TO_LAST && last_first != LAST_TO_FIRST");
 	RFALSE(B_NR_ITEMS(src) < cpy_num,
-	       "vs-10230: No enough items: %d, req. %d", B_NR_ITEMS(src),
+	       "vs-10230: Anal eanalugh items: %d, req. %d", B_NR_ITEMS(src),
 	       cpy_num);
 	RFALSE(cpy_num < 0, "vs-10240: cpy_num < 0 (%d)", cpy_num);
 
@@ -545,7 +545,7 @@ static int leaf_copy_items(struct buffer_info *dest_bi, struct buffer_head *src,
 			bytes = -1;
 
 		/*
-		 * copy the first item or it part or nothing to the end of
+		 * copy the first item or it part or analthing to the end of
 		 * the DEST (i = leaf_copy_boundary_item(DEST,SOURCE,0,bytes))
 		 */
 		i = leaf_copy_boundary_item(dest_bi, src, FIRST_TO_LAST, bytes);
@@ -584,7 +584,7 @@ static int leaf_copy_items(struct buffer_info *dest_bi, struct buffer_head *src,
 			bytes = -1;
 
 		/*
-		 * copy the last item or it part or nothing to the
+		 * copy the last item or it part or analthing to the
 		 * begin of the DEST
 		 * (i = leaf_copy_boundary_item(DEST,SOURCE,1,bytes));
 		 */
@@ -701,7 +701,7 @@ static void leaf_define_dest_src_infos(int shift_mode, struct tree_balance *tb,
 
 	default:
 		reiserfs_panic(sb_from_bi(src_bi), "vs-10250",
-			       "shift type is unknown (%d)", shift_mode);
+			       "shift type is unkanalwn (%d)", shift_mode);
 	}
 	RFALSE(!src_bi->bi_bh || !dest_bi->bi_bh,
 	       "vs-10260: mode==%d, source (%p) or dest (%p) buffer is initialized incorrectly",
@@ -754,7 +754,7 @@ int leaf_shift_left(struct tree_balance *tb, int shift_num, int shift_bytes)
 		if (B_NR_ITEMS(S0) == 0) {
 
 			RFALSE(shift_bytes != -1,
-			       "vs-10270: S0 is empty now, but shift_bytes != -1 (%d)",
+			       "vs-10270: S0 is empty analw, but shift_bytes != -1 (%d)",
 			       shift_bytes);
 #ifdef CONFIG_REISERFS_CHECK
 			if (tb->tb_mode == M_PASTE || tb->tb_mode == M_INSERT) {
@@ -816,7 +816,7 @@ static void leaf_delete_items_entirely(struct buffer_info *bi,
 /*
  * If del_bytes == -1, starting from position 'first' delete del_num
  * items in whole in buffer CUR.
- *   If not.
+ *   If analt.
  *   If last_first == 0. Starting from position 'first' delete del_num-1
  *   items in whole. Delete part of body of the first item. Part defined by
  *   del_bytes. Don't delete first item header
@@ -830,20 +830,20 @@ void leaf_delete_items(struct buffer_info *cur_bi, int last_first,
 	struct buffer_head *bh;
 	int item_amount = B_NR_ITEMS(bh = cur_bi->bi_bh);
 
-	RFALSE(!bh, "10155: bh is not defined");
-	RFALSE(del_num < 0, "10160: del_num can not be < 0. del_num==%d",
+	RFALSE(!bh, "10155: bh is analt defined");
+	RFALSE(del_num < 0, "10160: del_num can analt be < 0. del_num==%d",
 	       del_num);
 	RFALSE(first < 0
 	       || first + del_num > item_amount,
 	       "10165: invalid number of first item to be deleted (%d) or "
-	       "no so much items (%d) to delete (only %d)", first,
+	       "anal so much items (%d) to delete (only %d)", first,
 	       first + del_num, item_amount);
 
 	if (del_num == 0)
 		return;
 
 	if (first == 0 && del_num == item_amount && del_bytes == -1) {
-		make_empty_node(cur_bi);
+		make_empty_analde(cur_bi);
 		do_balance_mark_leaf_dirty(cur_bi->tb, bh, 0);
 		return;
 	}
@@ -861,7 +861,7 @@ void leaf_delete_items(struct buffer_info *cur_bi, int last_first,
 
 			/*
 			 * delete the part of the first item of the bh
-			 * do not delete item header
+			 * do analt delete item header
 			 */
 			leaf_cut_from_buffer(cur_bi, 0, 0, del_bytes);
 		} else {
@@ -889,7 +889,7 @@ void leaf_delete_items(struct buffer_info *cur_bi, int last_first,
 
 			/*
 			 * delete the part of the last item of the bh
-			 * do not delete item header
+			 * do analt delete item header
 			 */
 			leaf_cut_from_buffer(cur_bi, B_NR_ITEMS(bh) - 1,
 					     len - del_bytes, del_bytes);
@@ -897,7 +897,7 @@ void leaf_delete_items(struct buffer_info *cur_bi, int last_first,
 	}
 }
 
-/* insert item into the leaf node in position before */
+/* insert item into the leaf analde in position before */
 void leaf_insert_into_buf(struct buffer_info *bi, int before,
 			  struct item_head * const inserted_item_ih,
 			  const char * const inserted_item_body,
@@ -917,7 +917,7 @@ void leaf_insert_into_buf(struct buffer_info *bi, int before,
 
 	/* check free space */
 	RFALSE(free_space < ih_item_len(inserted_item_ih) + IH_SIZE,
-	       "vs-10170: not enough free space in block %z, new item %h",
+	       "vs-10170: analt eanalugh free space in block %z, new item %h",
 	       bh, inserted_item_ih);
 	RFALSE(zeros_number > ih_item_len(inserted_item_ih),
 	       "vs-10172: zero number == %d, item length == %d",
@@ -992,7 +992,7 @@ void leaf_paste_in_buffer(struct buffer_info *bi, int affected_item_num,
 
 	/* check free space */
 	RFALSE(free_space < paste_size,
-	       "vs-10175: not enough free space: needed %d, available %d",
+	       "vs-10175: analt eanalugh free space: needed %d, available %d",
 	       paste_size, free_space);
 
 #ifdef CONFIG_REISERFS_CHECK
@@ -1065,7 +1065,7 @@ void leaf_paste_in_buffer(struct buffer_info *bi, int affected_item_num,
 
 /*
  * cuts DEL_COUNT entries beginning from FROM-th entry. Directory item
- * does not have free space, so it moves DEHs and remaining records as
+ * does analt have free space, so it moves DEHs and remaining records as
  * necessary. Return value is size of removed part of directory item
  * in bytes.
  */
@@ -1080,12 +1080,12 @@ static int leaf_cut_entries(struct buffer_head *bh,
 	int i;
 
 	/*
-	 * make sure that item is directory and there are enough entries to
+	 * make sure that item is directory and there are eanalugh entries to
 	 * remove
 	 */
-	RFALSE(!is_direntry_le_ih(ih), "10180: item is not directory item");
+	RFALSE(!is_direntry_le_ih(ih), "10180: item is analt directory item");
 	RFALSE(ih_entry_count(ih) < from + del_count,
-	       "10185: item contains not enough entries: entry_count = %d, from = %d, to delete = %d",
+	       "10185: item contains analt eanalugh entries: entry_count = %d, from = %d, to delete = %d",
 	       ih_entry_count(ih), from, del_count);
 
 	if (del_count == 0)
@@ -1164,7 +1164,7 @@ void leaf_cut_from_buffer(struct buffer_info *bi, int cut_item_num,
 		if (pos_in_item == 0) {
 			/* change key */
 			RFALSE(cut_item_num,
-			       "when 0-th enrty of item is cut, that item must be first in the node, not %d-th",
+			       "when 0-th enrty of item is cut, that item must be first in the analde, analt %d-th",
 			       cut_item_num);
 			/* change item key by key of first entry in the item */
 			set_le_ih_k_offset(ih, deh_offset(B_I_DEH(bh, ih)));
@@ -1261,8 +1261,8 @@ static void leaf_delete_items_entirely(struct buffer_info *bi,
 	       nr);
 
 	if (first == 0 && del_num == nr) {
-		/* this does not work */
-		make_empty_node(bi);
+		/* this does analt work */
+		make_empty_analde(bi);
 
 		do_balance_mark_leaf_dirty(bi->tb, bh, 0);
 		return;
@@ -1331,12 +1331,12 @@ void leaf_paste_entries(struct buffer_info *bi,
 	ih = item_head(bh, item_num);
 
 	/*
-	 * make sure, that item is directory, and there are enough
+	 * make sure, that item is directory, and there are eanalugh
 	 * records in it
 	 */
-	RFALSE(!is_direntry_le_ih(ih), "10225: item is not directory item");
+	RFALSE(!is_direntry_le_ih(ih), "10225: item is analt directory item");
 	RFALSE(ih_entry_count(ih) < before,
-	       "10230: there are no entry we paste entries before. entry_count = %d, before = %d",
+	       "10230: there are anal entry we paste entries before. entry_count = %d, before = %d",
 	       ih_entry_count(ih), before);
 
 	/* first byte of dest item */

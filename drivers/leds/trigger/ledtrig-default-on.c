@@ -15,7 +15,7 @@
 
 static int defon_trig_activate(struct led_classdev *led_cdev)
 {
-	led_set_brightness_nosleep(led_cdev, led_cdev->max_brightness);
+	led_set_brightness_analsleep(led_cdev, led_cdev->max_brightness);
 	return 0;
 }
 

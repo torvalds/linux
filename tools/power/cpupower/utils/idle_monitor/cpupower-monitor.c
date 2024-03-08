@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Novell Inc.
+ *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Analvell Inc.
  *
  *  Output format inspired by Len Brown's <lenb@kernel.org> turbostat tool.
  */
@@ -46,7 +46,7 @@ static char range_abbr[RANGE_MAX] = { 'T', 'C', 'P', 'M', };
 
 static void print_wrong_arg_exit(void)
 {
-	printf(_("invalid or unknown argument\n"));
+	printf(_("invalid or unkanalwn argument\n"));
 	exit(EXIT_FAILURE);
 }
 
@@ -145,7 +145,7 @@ void print_results(int topology_depth, int cpu)
 	unsigned long long result;
 	cstate_t s;
 
-	/* Be careful CPUs may got resorted for pkg value do not just use cpu */
+	/* Be careful CPUs may got resorted for pkg value do analt just use cpu */
 	if (!bitmask_isbitset(cpus_chosen, cpu_top.core_info[cpu].cpu))
 		return;
 	if (!cpu_top.core_info[cpu].is_online &&
@@ -186,7 +186,7 @@ void print_results(int topology_depth, int cpu)
 				else
 					printf("%6llu", result);
 			} else {
-				printf(_("Monitor %s, Counter %s has no count "
+				printf(_("Monitor %s, Counter %s has anal count "
 					 "function. Implementation error\n"),
 				       monitors[mon]->name, s.name);
 				exit(EXIT_FAILURE);
@@ -244,7 +244,7 @@ static void parse_monitor_param(char *param)
 		}
 	}
 	if (hits == 0) {
-		printf(_("No matching monitor found in %s, "
+		printf(_("Anal matching monitor found in %s, "
 			 "try -l option\n"), param);
 		exit(EXIT_FAILURE);
 	}
@@ -362,7 +362,7 @@ static void cmdline(int argc, char *argv[])
 			mode = list;
 			break;
 		case 'i':
-			/* only allow -i with -m or no option */
+			/* only allow -i with -m or anal option */
 			if (mode && mode != show)
 				print_wrong_arg_exit();
 			interval = atoi(optarg);
@@ -393,7 +393,7 @@ int cmd_monitor(int argc, char **argv)
 	cmdline(argc, argv);
 	cpu_count = get_cpu_topology(&cpu_top);
 	if (cpu_count < 0) {
-		printf(_("Cannot read number of available processors\n"));
+		printf(_("Cananalt read number of available processors\n"));
 		return EXIT_FAILURE;
 	}
 
@@ -422,7 +422,7 @@ int cmd_monitor(int argc, char **argv)
 	}
 
 	if (avail_monitors == 0) {
-		printf(_("No HW Cstate monitors found\n"));
+		printf(_("Anal HW Cstate monitors found\n"));
 		return 1;
 	}
 

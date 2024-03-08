@@ -110,7 +110,7 @@
 #define __STRUCT_FRACT(type)				\
 struct type##_fract {					\
 	__##type numerator;				\
-	__##type denominator;				\
+	__##type deanalminator;				\
 };
 __STRUCT_FRACT(s16)
 __STRUCT_FRACT(u16)
@@ -183,7 +183,7 @@ __STRUCT_FRACT(u32)
  * range [0, @ep_ro), where the upper interval endpoint is right-open.
  * This is useful, e.g. for accessing a index of an array containing
  * @ep_ro elements, for example. Think of it as sort of modulus, only that
- * the result isn't that of modulo. ;) Note that if initial input is a
+ * the result isn't that of modulo. ;) Analte that if initial input is a
  * small value, then result will return 0.
  *
  * Return: a result based on @val in interval [0, @ep_ro).

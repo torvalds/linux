@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/scatterlist.h>
 #include <linux/interrupt.h>
@@ -38,7 +38,7 @@ static char version[] =
 
 /* Packet header layout for unreliable and reliable mode frames.
  * When in RAW mode, packets are simply straight 64-byte payloads
- * with no headers.
+ * with anal headers.
  */
 struct ldc_packet {
 	u8			type;
@@ -78,12 +78,12 @@ struct ldc_packet {
 
 struct ldc_version {
 	u16 major;
-	u16 minor;
+	u16 mianalr;
 };
 
 /* Ordered from largest major to lowest.  */
 static struct ldc_version ver_arr[] = {
-	{ .major = 1, .minor = 0 },
+	{ .major = 1, .mianalr = 0 },
 };
 
 #define LDC_DEFAULT_MTU			(4 * LDC_PACKET_SIZE)
@@ -97,7 +97,7 @@ struct ldc_mode_ops {
 };
 
 static const struct ldc_mode_ops raw_ops;
-static const struct ldc_mode_ops nonraw_ops;
+static const struct ldc_mode_ops analnraw_ops;
 static const struct ldc_mode_ops stream_ops;
 
 int ldom_domaining_enabled;
@@ -170,7 +170,7 @@ struct ldc_channel {
 
 	struct hlist_head		mh_list;
 
-	struct hlist_node		list;
+	struct hlist_analde		list;
 };
 
 #define ldcdbg(TYPE, f, a...) \
@@ -194,7 +194,7 @@ static const char *state_to_str(u8 state)
 	case LDC_STATE_CONNECTED:
 		return "CONNECTED";
 	default:
-		return "<UNKNOWN>";
+		return "<UNKANALWN>";
 	}
 }
 
@@ -235,9 +235,9 @@ static struct ldc_packet *handshake_get_tx_packet(struct ldc_channel *lp,
 
 /* When we are in reliable or stream mode, have to track the next packet
  * we haven't gotten an ACK for in the TX queue using tx_acked.  We have
- * to be careful not to stomp over the queue past that point.  During
+ * to be careful analt to stomp over the queue past that point.  During
  * the handshake, we don't have TX data packets pending in the queue
- * and that's why handshake_get_tx_packet() need not be mindful of
+ * and that's why handshake_get_tx_packet() need analt be mindful of
  * lp->tx_acked.
  */
 static unsigned long head_for_data(struct ldc_channel *lp)
@@ -373,7 +373,7 @@ static int start_handshake(struct ldc_channel *lp)
 	ver = &ver_arr[0];
 
 	ldcdbg(HS, "SEND VER INFO maj[%u] min[%u]\n",
-	       ver->major, ver->minor);
+	       ver->major, ver->mianalr);
 
 	p = handshake_compose_ctrl(lp, LDC_INFO, LDC_VERS,
 				   ver, sizeof(*ver), &new_tail);
@@ -387,20 +387,20 @@ static int start_handshake(struct ldc_channel *lp)
 }
 
 static int send_version_nack(struct ldc_channel *lp,
-			     u16 major, u16 minor)
+			     u16 major, u16 mianalr)
 {
 	struct ldc_packet *p;
 	struct ldc_version ver;
 	unsigned long new_tail;
 
 	ver.major = major;
-	ver.minor = minor;
+	ver.mianalr = mianalr;
 
 	p = handshake_compose_ctrl(lp, LDC_NACK, LDC_VERS,
 				   &ver, sizeof(ver), &new_tail);
 	if (p) {
 		ldcdbg(HS, "SEND VER NACK maj[%u] min[%u]\n",
-		       ver.major, ver.minor);
+		       ver.major, ver.mianalr);
 
 		return send_tx_packet(lp, p, new_tail);
 	}
@@ -417,7 +417,7 @@ static int send_version_ack(struct ldc_channel *lp,
 				   vp, sizeof(*vp), &new_tail);
 	if (p) {
 		ldcdbg(HS, "SEND VER ACK maj[%u] min[%u]\n",
-		       vp->major, vp->minor);
+		       vp->major, vp->mianalr);
 
 		return send_tx_packet(lp, p, new_tail);
 	}
@@ -516,7 +516,7 @@ static int ldc_abort(struct ldc_channel *lp, const char *msg)
 	ldcdbg(STATE, "ABORT[%s]\n", msg);
 	ldc_print(lp);
 
-	/* We report but do not act upon the hypervisor errors because
+	/* We report but do analt act upon the hypervisor errors because
 	 * there really isn't much we can do if they fail at this point.
 	 */
 	hv_err = sun4v_ldc_tx_qconf(lp->id, lp->tx_ra, lp->tx_num_entries);
@@ -575,8 +575,8 @@ static int process_ver_info(struct ldc_channel *lp, struct ldc_version *vp)
 	struct ldc_version *vap;
 	int err;
 
-	ldcdbg(HS, "GOT VERSION INFO major[%x] minor[%x]\n",
-	       vp->major, vp->minor);
+	ldcdbg(HS, "GOT VERSION INFO major[%x] mianalr[%x]\n",
+	       vp->major, vp->mianalr);
 
 	if (lp->hs_state == LDC_HS_GOTVERS) {
 		lp->hs_state = LDC_HS_OPEN;
@@ -587,11 +587,11 @@ static int process_ver_info(struct ldc_channel *lp, struct ldc_version *vp)
 	if (!vap) {
 		err = send_version_nack(lp, 0, 0);
 	} else if (vap->major != vp->major) {
-		err = send_version_nack(lp, vap->major, vap->minor);
+		err = send_version_nack(lp, vap->major, vap->mianalr);
 	} else {
 		struct ldc_version ver = *vp;
-		if (ver.minor > vap->minor)
-			ver.minor = vap->minor;
+		if (ver.mianalr > vap->mianalr)
+			ver.mianalr = vap->mianalr;
 		err = send_version_ack(lp, &ver);
 		if (!err) {
 			lp->ver = ver;
@@ -606,12 +606,12 @@ static int process_ver_info(struct ldc_channel *lp, struct ldc_version *vp)
 
 static int process_ver_ack(struct ldc_channel *lp, struct ldc_version *vp)
 {
-	ldcdbg(HS, "GOT VERSION ACK major[%x] minor[%x]\n",
-	       vp->major, vp->minor);
+	ldcdbg(HS, "GOT VERSION ACK major[%x] mianalr[%x]\n",
+	       vp->major, vp->mianalr);
 
 	if (lp->hs_state == LDC_HS_GOTVERS) {
 		if (lp->ver.major != vp->major ||
-		    lp->ver.minor != vp->minor)
+		    lp->ver.mianalr != vp->mianalr)
 			return LDC_ABORT(lp);
 	} else {
 		lp->ver = *vp;
@@ -628,7 +628,7 @@ static int process_ver_nack(struct ldc_channel *lp, struct ldc_version *vp)
 	struct ldc_packet *p;
 	unsigned long new_tail;
 
-	if (vp->major == 0 && vp->minor == 0)
+	if (vp->major == 0 && vp->mianalr == 0)
 		return LDC_ABORT(lp);
 
 	vap = find_by_major(vp->major);
@@ -816,7 +816,7 @@ static irqreturn_t ldc_rx(int irq, void *dev_id)
 
 		/*
 		 * Generate an LDC_EVENT_UP event if the channel
-		 * was not already up.
+		 * was analt already up.
 		 */
 		if (orig_state != LDC_CHANNEL_UP) {
 			event_mask |= LDC_EVENT_UP;
@@ -824,7 +824,7 @@ static irqreturn_t ldc_rx(int irq, void *dev_id)
 		}
 	}
 
-	/* If we are in reset state, flush the RX queue and ignore
+	/* If we are in reset state, flush the RX queue and iganalre
 	 * everything.
 	 */
 	if (lp->flags & LDC_FLAG_RESET) {
@@ -937,7 +937,7 @@ static irqreturn_t ldc_tx(int irq, void *dev_id)
 
 		/*
 		 * Generate an LDC_EVENT_UP event if the channel
-		 * was not already up.
+		 * was analt already up.
 		 */
 		if (orig_state != LDC_CHANNEL_UP) {
 			event_mask |= LDC_EVENT_UP;
@@ -955,7 +955,7 @@ static irqreturn_t ldc_tx(int irq, void *dev_id)
 /* XXX ldc_alloc() and ldc_free() needs to run under a mutex so
  * XXX that addition and removal from the ldc_channel_list has
  * XXX atomicity, otherwise the __ldc_channel_exists() check is
- * XXX totally pointless as another thread can slip into ldc_alloc()
+ * XXX totally pointless as aanalther thread can slip into ldc_alloc()
  * XXX and add a channel with the same ID.  There also needs to be
  * XXX a spinlock for ldc_channel_list.
  */
@@ -985,7 +985,7 @@ static int alloc_queue(const char *name, unsigned long num_entries,
 	if (!q) {
 		printk(KERN_ERR PFX "Alloc of %s queue failed with "
 		       "size=%lu order=%lu\n", name, size, order);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(q, 0, PAGE_SIZE << order);
@@ -1056,10 +1056,10 @@ static int ldc_iommu_init(const char *name, struct ldc_channel *lp)
 	iommu->map = kzalloc(sz, GFP_KERNEL);
 	if (!iommu->map) {
 		printk(KERN_ERR PFX "Alloc of arena map failed, sz=%lu\n", sz);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	iommu_tbl_pool_init(iommu, num_tsb_entries, PAGE_SHIFT,
-			    NULL, false /* no large pool */,
+			    NULL, false /* anal large pool */,
 			    1 /* npools */,
 			    true /* skip span boundary check */);
 
@@ -1067,7 +1067,7 @@ static int ldc_iommu_init(const char *name, struct ldc_channel *lp)
 
 	table = (struct ldc_mtable_entry *)
 		__get_free_pages(GFP_KERNEL, order);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!table) {
 		printk(KERN_ERR PFX "Alloc of MTE table failed, "
 		       "size=%lu order=%lu\n", tsbsize, order);
@@ -1127,7 +1127,7 @@ struct ldc_channel *ldc_alloc(unsigned long id,
 	u8 mss, *mssbuf;
 	int err;
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (!ldom_domaining_enabled)
 		goto out_err;
 
@@ -1144,7 +1144,7 @@ struct ldc_channel *ldc_alloc(unsigned long id,
 		break;
 
 	case LDC_MODE_UNRELIABLE:
-		mops = &nonraw_ops;
+		mops = &analnraw_ops;
 		mss = LDC_PACKET_SIZE - 8;
 		break;
 
@@ -1161,7 +1161,7 @@ struct ldc_channel *ldc_alloc(unsigned long id,
 		goto out_err;
 
 	hv_err = sun4v_ldc_tx_qinfo(id, &dummy1, &dummy2);
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (hv_err == HV_ECHANNEL)
 		goto out_err;
 
@@ -1172,7 +1172,7 @@ struct ldc_channel *ldc_alloc(unsigned long id,
 	mssbuf = NULL;
 
 	lp = kzalloc(sizeof(*lp), GFP_KERNEL);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!lp)
 		goto out_err;
 
@@ -1194,7 +1194,7 @@ struct ldc_channel *ldc_alloc(unsigned long id,
 	if (lp->cfg.mode == LDC_MODE_STREAM) {
 		mssbuf = kzalloc(lp->cfg.mtu, GFP_KERNEL);
 		if (!mssbuf) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_free_iommu;
 		}
 		lp->mssbuf = mssbuf;
@@ -1223,7 +1223,7 @@ struct ldc_channel *ldc_alloc(unsigned long id,
 	lp->hs_state = LDC_HS_CLOSED;
 	ldc_set_state(lp, LDC_STATE_INIT);
 
-	INIT_HLIST_NODE(&lp->list);
+	INIT_HLIST_ANALDE(&lp->list);
 	hlist_add_head(&lp->list, &ldc_channel_list);
 
 	INIT_HLIST_HEAD(&lp->mh_list);
@@ -1298,7 +1298,7 @@ EXPORT_SYMBOL(ldc_free);
 
 /* Bind the channel.  This registers the LDC queues with
  * the hypervisor and puts the channel into a pseudo-listening
- * state.  This does not initiate a handshake, ldc_connect() does
+ * state.  This does analt initiate a handshake, ldc_connect() does
  * that.
  */
 int ldc_bind(struct ldc_channel *lp)
@@ -1316,7 +1316,7 @@ int ldc_bind(struct ldc_channel *lp)
 
 	lp->flags |= LDC_FLAG_REGISTERED_IRQS;
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	hv_err = sun4v_ldc_tx_qconf(lp->id, 0, 0);
 	if (hv_err)
 		goto out_free_irqs;
@@ -1350,7 +1350,7 @@ int ldc_bind(struct ldc_channel *lp)
 
 	if (lp->cfg.mode == LDC_MODE_RAW) {
 		/*
-		 * There is no handshake in RAW mode, so handshake
+		 * There is anal handshake in RAW mode, so handshake
 		 * is completed.
 		 */
 		lp->hs_state = LDC_HS_COMPLETE;
@@ -1415,7 +1415,7 @@ int ldc_disconnect(struct ldc_channel *lp)
 
 	spin_lock_irqsave(&lp->lock, flags);
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	hv_err = sun4v_ldc_tx_qconf(lp->id, 0, 0);
 	if (hv_err)
 		goto out_err;
@@ -1570,7 +1570,7 @@ static const struct ldc_mode_ops raw_ops = {
 	.read		=	read_raw,
 };
 
-static int write_nonraw(struct ldc_channel *lp, const void *buf,
+static int write_analnraw(struct ldc_channel *lp, const void *buf,
 			unsigned int size)
 {
 	unsigned long hv_err, tail;
@@ -1736,7 +1736,7 @@ static void send_data_ack(struct ldc_channel *lp)
 	}
 }
 
-static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
+static int read_analnraw(struct ldc_channel *lp, void *buf, unsigned int size)
 {
 	struct ldc_packet *first_frag;
 	unsigned long hv_err, new;
@@ -1792,7 +1792,7 @@ static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
 		lp->rcv_nxt = p->seqid;
 
 		/*
-		 * If this is a control-only packet, there is nothing
+		 * If this is a control-only packet, there is analthing
 		 * else to do but advance the rx queue since the packet
 		 * was already processed above.
 		 */
@@ -1810,7 +1810,7 @@ static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
 			err = rx_set_head(lp, new);
 			if (err)
 				break;
-			goto no_data;
+			goto anal_data;
 		}
 
 		pkt_len = p->env & LDC_LEN;
@@ -1838,13 +1838,13 @@ static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
 				break;
 
 			if (!first_frag)
-				goto no_data;
+				goto anal_data;
 		}
 		if (!first_frag)
 			first_frag = p;
 
 		if (pkt_len > size - copied) {
-			/* User didn't give us a big enough buffer,
+			/* User didn't give us a big eanalugh buffer,
 			 * what to do?  This is a pretty serious error.
 			 *
 			 * Since we haven't updated the RX ring head to
@@ -1872,7 +1872,7 @@ static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
 		if (p->env & LDC_STOP)
 			break;
 
-no_data:
+anal_data:
 		if (new == lp->rx_tail) {
 			err = rx_data_wait(lp, new);
 			if (err)
@@ -1895,9 +1895,9 @@ no_data:
 	return err;
 }
 
-static const struct ldc_mode_ops nonraw_ops = {
-	.write		=	write_nonraw,
-	.read		=	read_nonraw,
+static const struct ldc_mode_ops analnraw_ops = {
+	.write		=	write_analnraw,
+	.read		=	read_analnraw,
 };
 
 static int write_stream(struct ldc_channel *lp, const void *buf,
@@ -1905,13 +1905,13 @@ static int write_stream(struct ldc_channel *lp, const void *buf,
 {
 	if (size > lp->cfg.mtu)
 		size = lp->cfg.mtu;
-	return write_nonraw(lp, buf, size);
+	return write_analnraw(lp, buf, size);
 }
 
 static int read_stream(struct ldc_channel *lp, void *buf, unsigned int size)
 {
 	if (!lp->mssbuf_len) {
-		int err = read_nonraw(lp, lp->mssbuf, lp->cfg.mtu);
+		int err = read_analnraw(lp, lp->mssbuf, lp->cfg.mtu);
 		if (err < 0)
 			return err;
 
@@ -1948,7 +1948,7 @@ int ldc_write(struct ldc_channel *lp, const void *buf, unsigned int size)
 	spin_lock_irqsave(&lp->lock, flags);
 
 	if (lp->hs_state != LDC_HS_COMPLETE)
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 	else
 		err = lp->mops->write(lp, buf, size);
 
@@ -1974,7 +1974,7 @@ int ldc_read(struct ldc_channel *lp, void *buf, unsigned int size)
 	spin_lock_irqsave(&lp->lock, flags);
 
 	if (lp->hs_state != LDC_HS_COMPLETE)
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 	else
 		err = lp->mops->read(lp, buf, size);
 
@@ -2172,7 +2172,7 @@ int ldc_map_sg(struct ldc_channel *lp,
 	base = alloc_npages(iommu, npages);
 
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state.page_table = iommu->page_table;
 	state.cookies = cookies;
@@ -2214,7 +2214,7 @@ int ldc_map_single(struct ldc_channel *lp,
 	base = alloc_npages(iommu, npages);
 
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state.page_table = iommu->page_table;
 	state.cookies = cookies;
@@ -2362,7 +2362,7 @@ void *ldc_alloc_exp_dring(struct ldc_channel *lp, unsigned int len,
 
 	buf = kzalloc(len, GFP_ATOMIC);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = ldc_map_single(lp, buf, len, cookies, *ncookies, map_perm);
 	if (err < 0) {
@@ -2385,7 +2385,7 @@ EXPORT_SYMBOL(ldc_free_exp_dring);
 
 static int __init ldc_init(void)
 {
-	unsigned long major, minor;
+	unsigned long major, mianalr;
 	struct mdesc_handle *hp;
 	const u64 *v;
 	int err;
@@ -2393,11 +2393,11 @@ static int __init ldc_init(void)
 
 	hp = mdesc_grab();
 	if (!hp)
-		return -ENODEV;
+		return -EANALDEV;
 
-	mp = mdesc_node_by_name(hp, MDESC_NODE_NULL, "platform");
-	err = -ENODEV;
-	if (mp == MDESC_NODE_NULL)
+	mp = mdesc_analde_by_name(hp, MDESC_ANALDE_NULL, "platform");
+	err = -EANALDEV;
+	if (mp == MDESC_ANALDE_NULL)
 		goto out;
 
 	v = mdesc_get_property(hp, mp, "domaining-enabled", NULL);
@@ -2405,9 +2405,9 @@ static int __init ldc_init(void)
 		goto out;
 
 	major = 1;
-	minor = 0;
-	if (sun4v_hvapi_register(HV_GRP_LDOM, major, &minor)) {
-		printk(KERN_INFO PFX "Could not register LDOM hvapi.\n");
+	mianalr = 0;
+	if (sun4v_hvapi_register(HV_GRP_LDOM, major, &mianalr)) {
+		printk(KERN_INFO PFX "Could analt register LDOM hvapi.\n");
 		goto out;
 	}
 

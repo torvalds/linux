@@ -23,12 +23,12 @@
  * @MESH_PATH_RESOLVING: the discovery process is running for this mesh path
  * @MESH_PATH_SN_VALID: the mesh path contains a valid destination sequence
  *	number
- * @MESH_PATH_FIXED: the mesh path has been manually set and should not be
+ * @MESH_PATH_FIXED: the mesh path has been manually set and should analt be
  *	modified
  * @MESH_PATH_RESOLVED: the mesh path can has been resolved
  * @MESH_PATH_REQ_QUEUED: there is an unsent path request for this destination
  *	already queued up, waiting for the discovery process to start.
- * @MESH_PATH_DELETED: the mesh path has been deleted and should no longer
+ * @MESH_PATH_DELETED: the mesh path has been deleted and should anal longer
  *	be used
  *
  * MESH_PATH_RESOLVED is used by the mesh path timer to
@@ -52,8 +52,8 @@ enum mesh_path_flags {
  * @MESH_WORK_HOUSEKEEPING: run the periodic mesh housekeeping tasks
  * @MESH_WORK_ROOT: the mesh root station needs to send a frame
  * @MESH_WORK_DRIFT_ADJUST: time to compensate for clock drift relative to other
- * mesh nodes
- * @MESH_WORK_MBSS_CHANGED: rebuild beacon and notify driver of BSS changes
+ * mesh analdes
+ * @MESH_WORK_MBSS_CHANGED: rebuild beacon and analtify driver of BSS changes
  */
 enum mesh_deferred_task_flags {
 	MESH_WORK_HOUSEKEEPING,
@@ -69,7 +69,7 @@ enum mesh_deferred_task_flags {
  * @mpp: mesh proxy mac address
  * @rhash: rhashtable list pointer
  * @walk_list: linked list containing all mesh_path objects.
- * @gate_list: list pointer for known gates list
+ * @gate_list: list pointer for kanalwn gates list
  * @sdata: mesh subif
  * @next_hop: mesh neighbor to which frames for this destination will be
  *	forwarded
@@ -86,27 +86,27 @@ enum mesh_deferred_task_flags {
  * @discovery_retries: number of discovery retries
  * @flags: mesh path flags, as specified on &enum mesh_path_flags
  * @state_lock: mesh path state lock used to protect changes to the
- * mpath itself.  No need to take this lock when adding or removing
+ * mpath itself.  Anal need to take this lock when adding or removing
  * an mpath to a hash bucket on a path table.
  * @rann_snd_addr: the RANN sender address
- * @rann_metric: the aggregated path metric towards the root node
+ * @rann_metric: the aggregated path metric towards the root analde
  * @last_preq_to_root: Timestamp of last PREQ sent to root
- * @is_root: the destination station of this path is a root node
+ * @is_root: the destination station of this path is a root analde
  * @is_gate: the destination station of this path is a mesh gate
  * @path_change_count: the number of path changes to destination
  *
  *
  * The dst address is unique in the mesh path table. Since the mesh_path is
  * protected by RCU, deleting the next_hop STA must remove / substitute the
- * mesh_path structure and wait until that is no longer reachable before
+ * mesh_path structure and wait until that is anal longer reachable before
  * destroying the STA completely.
  */
 struct mesh_path {
 	u8 dst[ETH_ALEN];
 	u8 mpp[ETH_ALEN];	/* used for MPP or MAP */
 	struct rhash_head rhash;
-	struct hlist_node walk_list;
-	struct hlist_node gate_list;
+	struct hlist_analde walk_list;
+	struct hlist_analde gate_list;
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info __rcu *next_hop;
 	struct timer_list timer;
@@ -154,7 +154,7 @@ struct ieee80211_mesh_fast_tx {
 	u16 hdrlen;
 
 	struct mesh_path *mpath, *mppath;
-	struct hlist_node walk_list;
+	struct hlist_analde walk_list;
 	unsigned long timestamp;
 };
 
@@ -177,7 +177,7 @@ struct ieee80211_mesh_fast_tx {
  * that are found in the cache.
  */
 struct rmc_entry {
-	struct hlist_node list;
+	struct hlist_analde list;
 	unsigned long exp_time;
 	u32 seqnum;
 	u8 sa[ETH_ALEN];
@@ -250,8 +250,8 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh);
 const struct ieee80211_mesh_sync_ops *ieee80211_mesh_sync_ops_get(u8 method);
-/* wrapper for ieee80211_bss_info_change_notify() */
-void ieee80211_mbss_info_change_notify(struct ieee80211_sub_if_data *sdata,
+/* wrapper for ieee80211_bss_info_change_analtify() */
+void ieee80211_mbss_info_change_analtify(struct ieee80211_sub_if_data *sdata,
 				       u64 changed);
 
 /* mesh power save */

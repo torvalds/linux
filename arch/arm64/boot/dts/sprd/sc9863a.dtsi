@@ -128,7 +128,7 @@
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_HIGH>, /* Physical Secure PPI */
-			     <GIC_PPI 14 IRQ_TYPE_LEVEL_HIGH>, /* Physical Non-Secure PPI */
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_HIGH>, /* Physical Analn-Secure PPI */
 			     <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>, /* Virtual PPI */
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_HIGH>; /* Hipervisor PPI */
 	};
@@ -563,8 +563,8 @@
 				assigned-clock-parents = <&rpll CLK_RPLL_390M>;
 
 				bus-width = <4>;
-				no-sdio;
-				no-mmc;
+				anal-sdio;
+				anal-mmc;
 			};
 
 			sdio3: sdio@20600000 {
@@ -579,9 +579,9 @@
 				assigned-clock-parents = <&rpll CLK_RPLL_390M>;
 
 				bus-width = <8>;
-				non-removable;
-				no-sdio;
-				no-sd;
+				analn-removable;
+				anal-sdio;
+				anal-sd;
 				cap-mmc-hw-reset;
 			};
 		};

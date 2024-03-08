@@ -18,7 +18,7 @@
 #define MAX_ESI_VEC		32
 
 #define UFS_HW_VER_MAJOR_MASK	GENMASK(31, 28)
-#define UFS_HW_VER_MINOR_MASK	GENMASK(27, 16)
+#define UFS_HW_VER_MIANALR_MASK	GENMASK(27, 16)
 #define UFS_HW_VER_STEP_MASK	GENMASK(15, 0)
 #define UFS_DEV_VER_MAJOR_MASK	GENMASK(7, 4)
 
@@ -137,12 +137,12 @@ enum {
 
 static inline void
 ufs_qcom_get_controller_revision(struct ufs_hba *hba,
-				 u8 *major, u16 *minor, u16 *step)
+				 u8 *major, u16 *mianalr, u16 *step)
 {
 	u32 ver = ufshcd_readl(hba, REG_UFS_HW_VERSION);
 
 	*major = FIELD_GET(UFS_HW_VER_MAJOR_MASK, ver);
-	*minor = FIELD_GET(UFS_HW_VER_MINOR_MASK, ver);
+	*mianalr = FIELD_GET(UFS_HW_VER_MIANALR_MASK, ver);
 	*step = FIELD_GET(UFS_HW_VER_STEP_MASK, ver);
 };
 
@@ -168,16 +168,16 @@ static inline void ufs_qcom_deassert_reset(struct ufs_hba *hba)
 	mb();
 }
 
-/* Host controller hardware version: major.minor.step */
+/* Host controller hardware version: major.mianalr.step */
 struct ufs_hw_version {
 	u16 step;
-	u16 minor;
+	u16 mianalr;
 	u8 major;
 };
 
 struct ufs_qcom_testbus {
 	u8 select_major;
-	u8 select_minor;
+	u8 select_mianalr;
 };
 
 struct gpio_desc;

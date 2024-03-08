@@ -16,7 +16,7 @@
 #include "pm6150l.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SC7180 IDP";
+	model = "Qualcomm Techanallogies, Inc. SC7180 IDP";
 	compatible = "qcom,sc7180-idp", "qcom,sc7180";
 
 	aliases {
@@ -34,16 +34,16 @@
 /*
  * Reserved memory changes
  *
- * Delete all unused memory nodes and define the peripheral memory regions
+ * Delete all unused memory analdes and define the peripheral memory regions
  * required by the board dts.
  *
  */
 
-/delete-node/ &hyp_mem;
-/delete-node/ &xbl_mem;
-/delete-node/ &aop_mem;
-/delete-node/ &sec_apps_mem;
-/delete-node/ &tz_mem;
+/delete-analde/ &hyp_mem;
+/delete-analde/ &xbl_mem;
+/delete-analde/ &aop_mem;
+/delete-analde/ &sec_apps_mem;
+/delete-analde/ &tz_mem;
 
 /* Increase the size from 2MB to 8MB */
 &rmtfs_mem {
@@ -54,38 +54,38 @@
 	reserved-memory {
 		atf_mem: memory@80b00000 {
 			reg = <0x0 0x80b00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_mem: memory@86000000 {
 			reg = <0x0 0x86000000 0x0 0x8c00000>;
-			no-map;
+			anal-map;
 		};
 
 		camera_mem: memory@8ec00000 {
 			reg = <0x0 0x8ec00000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: memory@8f600000 {
 			reg = <0 0x8f600000 0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_mem: memory@94100000 {
 			reg = <0x0 0x94100000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		mba_mem: memory@94400000 {
 			reg = <0x0 0x94400000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		mdata_mem: mpss-metadata {
 			alloc-ranges = <0x0 0xa0000000 0x0 0x20000000>;
 			size = <0x0 0x4000>;
-			no-map;
+			anal-map;
 		};
 	};
 };
@@ -306,7 +306,7 @@
 	vdda-supply = <&vreg_l3c_1p2>;
 
 	panel@0 {
-		compatible = "visionox,rm69299-1080p-display";
+		compatible = "visioanalx,rm69299-1080p-display";
 		reg = <0>;
 
 		vdda-supply = <&vreg_l8c_1p8>;
@@ -349,7 +349,7 @@
 	pinctrl-0 = <&qspi_clk>, <&qspi_cs0>, <&qspi_data0>, <&qspi_data1>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <25000000>;
 		spi-tx-bus-width = <2>;
@@ -372,12 +372,12 @@
 	reg-names = "qdsp6", "rmb";
 
 	clocks = <&gcc GCC_MSS_CFG_AHB_CLK>,
-		 <&gcc GCC_MSS_Q6_MEMNOC_AXI_CLK>,
+		 <&gcc GCC_MSS_Q6_MEMANALC_AXI_CLK>,
 		 <&gcc GCC_MSS_NAV_AXI_CLK>,
-		 <&gcc GCC_MSS_SNOC_AXI_CLK>,
+		 <&gcc GCC_MSS_SANALC_AXI_CLK>,
 		 <&gcc GCC_MSS_MFAB_AXIS_CLK>,
 		 <&rpmhcc RPMH_CXO_CLK>;
-	clock-names = "iface", "bus", "nav", "snoc_axi", "mnoc_axi", "xo";
+	clock-names = "iface", "bus", "nav", "sanalc_axi", "manalc_axi", "xo";
 
 	iommus = <&apps_smmu 0x461 0x0>, <&apps_smmu 0x444 0x3>;
 	memory-region = <&mba_mem>, <&mpss_mem>, <&mdata_mem>;
@@ -486,7 +486,7 @@
 	};
 };
 
-/* PINCTRL - additions to nodes defined in sc7180.dtsi */
+/* PINCTRL - additions to analdes defined in sc7180.dtsi */
 
 &pm6150l_gpios {
 	disp_pins: disp-state {
@@ -554,13 +554,13 @@
 };
 
 &qup_uart3_rts {
-	/* We'll drive RTS, so no pull */
+	/* We'll drive RTS, so anal pull */
 	drive-strength = <2>;
 	bias-disable;
 };
 
 &qup_uart3_tx {
-	/* We'll drive TX, so no pull */
+	/* We'll drive TX, so anal pull */
 	drive-strength = <2>;
 	bias-disable;
 };
@@ -569,7 +569,7 @@
 	/*
 	 * Configure a pull-up on RX. This is needed to avoid
 	 * garbage data when the TX pin of the Bluetooth module is
-	 * in tri-state (module powered off or not driving the
+	 * in tri-state (module powered off or analt driving the
 	 * signal yet).
 	 */
 	bias-pull-up;

@@ -6,7 +6,7 @@ Overview / What is SocketCAN
 ============================
 
 The socketcan package is an implementation of CAN protocols
-(Controller Area Network) for Linux.  CAN is a networking technology
+(Controller Area Network) for Linux.  CAN is a networking techanallogy
 which has widespread use in automation, embedded devices, and
 automotive fields.  While there have been other CAN implementations
 for Linux based on character devices, SocketCAN uses the Berkeley
@@ -23,7 +23,7 @@ Motivation / Why Using the Socket API
 =====================================
 
 There have been CAN implementations for Linux before SocketCAN so the
-question arises, why we have started another project.  Most existing
+question arises, why we have started aanalther project.  Most existing
 implementations come as a device driver for some CAN hardware, they
 are based on character devices and provide comparatively little
 functionality.  Usually, there is only a hardware-specific device
@@ -33,7 +33,7 @@ Queueing of frames and higher-level transport protocols like ISO-TP
 have to be implemented in user space applications.  Also, most
 character-device implementations support only one single process to
 open the device at a time, similar to a serial interface.  Exchanging
-the CAN controller requires employment of another device driver and
+the CAN controller requires employment of aanalther device driver and
 often the need for adaption of large parts of the application to the
 new driver's API.
 
@@ -47,8 +47,8 @@ controller can be passed up to the network layer and on to the CAN
 protocol family module and also vice-versa.  Also, the protocol family
 module provides an API for transport protocol modules to register, so
 that any number of transport protocols can be loaded or unloaded
-dynamically.  In fact, the can core module alone does not provide any
-protocol and cannot be used without loading at least one additional
+dynamically.  In fact, the can core module alone does analt provide any
+protocol and cananalt be used without loading at least one additional
 protocol module.  Multiple sockets can be opened at the same time,
 on different or the same protocol module and they can listen/send
 frames on different or the same CAN IDs.  Several sockets listening on
@@ -67,7 +67,7 @@ solution for a couple of reasons:
   socket(2) and using bind(2) to select a CAN interface and CAN ID, an
   application would have to do all these operations using ioctl(2)s.
 
-* **Code duplication:**  A character device cannot make use of the Linux
+* **Code duplication:**  A character device cananalt make use of the Linux
   network queueing code, so all that code would have to be duplicated
   for CAN networking.
 
@@ -92,7 +92,7 @@ solution for a couple of reasons:
   IDs, supporting several open file descriptors and (de)multiplexing
   CAN frames between them, (sophisticated) queueing of CAN frames, and
   providing an API for device drivers to register with.  However, then
-  it would be no more difficult, or may be even easier, to use the
+  it would be anal more difficult, or may be even easier, to use the
   networking framework provided by the Linux kernel, and this is what
   SocketCAN does.
 
@@ -107,9 +107,9 @@ SocketCAN Concept
 
 As described in :ref:`socketcan-motivation` the main goal of SocketCAN is to
 provide a socket interface to user space applications which builds
-upon the Linux network layer. In contrast to the commonly known
+upon the Linux network layer. In contrast to the commonly kanalwn
 TCP/IP and ethernet networking, the CAN bus is a broadcast-only(!)
-medium that has no MAC-layer addressing like ethernet. The CAN-identifier
+medium that has anal MAC-layer addressing like ethernet. The CAN-identifier
 (can_id) is used for arbitration on the CAN-bus. Therefore the CAN-IDs
 have to be chosen uniquely on the bus. When designing a CAN-ECU
 network the CAN-IDs are mapped to be sent by a specific ECU.
@@ -129,7 +129,7 @@ high efficient receive lists for this reason. If e.g. a user space
 application opens a CAN RAW socket, the raw protocol module itself
 requests the (range of) CAN-IDs from the SocketCAN core that are
 requested by the user. The subscription and unsubscription of
-CAN-IDs can be done for specific CAN interfaces or for all(!) known
+CAN-IDs can be done for specific CAN interfaces or for all(!) kanalwn
 CAN interfaces with the can_rx_(un)register() functions provided to
 CAN protocol modules by the SocketCAN core (see :ref:`socketcan-core-module`).
 To optimize the CPU usage at runtime the receive lists are split up
@@ -142,8 +142,8 @@ filter complexity for a given use-case.
 Local Loopback of Sent Frames
 -----------------------------
 
-As known from other networking concepts the data exchanging
-applications may run on the same or different nodes without any
+As kanalwn from other networking concepts the data exchanging
+applications may run on the same or different analdes without any
 change (except for the according addressing information):
 
 .. code::
@@ -158,15 +158,15 @@ change (except for the according addressing information):
 To ensure that application A receives the same information in the
 example (2) as it would receive in example (1) there is need for
 some kind of local loopback of the sent CAN frames on the appropriate
-node.
+analde.
 
 The Linux network devices (by default) just can handle the
 transmission and reception of media dependent frames. Due to the
 arbitration on the CAN bus the transmission of a low prio CAN-ID
 may be delayed by the reception of a high prio CAN frame. To
-reflect the correct [#f1]_ traffic on the node the loopback of the sent
+reflect the correct [#f1]_ traffic on the analde the loopback of the sent
 data has to be performed right after a successful transmission. If
-the CAN network interface is not capable of performing the loopback for
+the CAN network interface is analt capable of performing the loopback for
 some reason the SocketCAN core can do this task as a fallback solution.
 See :ref:`socketcan-local-loopback2` for details (recommended).
 
@@ -176,12 +176,12 @@ the RT-SocketCAN group the loopback optionally may be disabled for each
 separate socket. See sockopts from the CAN RAW sockets in :ref:`socketcan-raw-sockets`.
 
 .. [#f1] you really like to have this when you're running analyser
-       tools like 'candump' or 'cansniffer' on the (same) node.
+       tools like 'candump' or 'cansniffer' on the (same) analde.
 
 
-.. _socketcan-network-problem-notifications:
+.. _socketcan-network-problem-analtifications:
 
-Network Problem Notifications
+Network Problem Analtifications
 -----------------------------
 
 The use of the CAN bus may lead to several problems on the physical
@@ -189,7 +189,7 @@ and media access control layer. Detecting and logging of these lower
 layer problems is a vital requirement for CAN users to identify
 hardware issues on the physical transceiver layer as well as
 arbitration problems and error frames caused by the different
-ECUs. The occurrence of detected errors are important for diagnosis
+ECUs. The occurrence of detected errors are important for diaganalsis
 and have to be logged together with the exact timestamp. For this
 reason the CAN interface driver can generate so called Error Message
 Frames that can optionally be passed to the user application in the
@@ -220,7 +220,7 @@ and::
     s = socket(PF_CAN, SOCK_DGRAM, CAN_BCM);
 
 respectively.  After the successful creation of the socket, you would
-normally use the bind(2) system call to bind the socket to a CAN
+analrmally use the bind(2) system call to bind the socket to a CAN
 interface (which is different from TCP/IP due to different addressing
 - see :ref:`socketcan-concept`). After binding (CAN_RAW) or connecting (CAN_BCM)
 the socket, you can read(2) and write(2) from/to the socket or use
@@ -251,7 +251,7 @@ and the sockaddr structure are defined in include/linux/can.h:
 
 Remark: The len element contains the payload length in bytes and should be
 used instead of can_dlc. The deprecated can_dlc was misleadingly named as
-it always contained the plain payload length in bytes and not the so called
+it always contained the plain payload length in bytes and analt the so called
 'data length code' (DLC).
 
 To pass the raw DLC from/to a Classical CAN network device the len8_dlc
@@ -260,7 +260,7 @@ payload length for all DLC values greater or equal to 8).
 
 The alignment of the (linear) payload data[] to a 64bit boundary
 allows the user to define their own structs and unions to easily access
-the CAN payload. There is no given byteorder on the CAN bus by
+the CAN payload. There is anal given byteorder on the CAN bus by
 default. A read(2) system call on a CAN_RAW socket transfers a
 struct can_frame to the user space.
 
@@ -339,7 +339,7 @@ of reading a struct can_frame:
             return 1;
     }
 
-    /* paranoid check ... */
+    /* paraanalid check ... */
     if (nbytes < sizeof(struct can_frame)) {
             fprintf(stderr, "read: incomplete CAN frame\n");
             return 1;
@@ -430,7 +430,7 @@ code (DLC) of the struct can_frame was used as a length information as the
 length and the DLC has a 1:1 mapping in the range of 0 .. 8. To preserve
 the easy handling of the length information the canfd_frame.len element
 contains a plain length value from 0 .. 64. So both canfd_frame.len and
-can_frame.len are equal and contain a length information and no DLC.
+can_frame.len are equal and contain a length information and anal DLC.
 For details about the distinction of CAN and CAN FD capable devices and
 the mapping to the bus-relevant data length code (DLC), see :ref:`socketcan-can-fd-driver`.
 
@@ -450,14 +450,14 @@ RAW Protocol Sockets with can_filters (SOCK_RAW)
 ------------------------------------------------
 
 Using CAN_RAW sockets is extensively comparable to the commonly
-known access to CAN character devices. To meet the new possibilities
+kanalwn access to CAN character devices. To meet the new possibilities
 provided by the multi user SocketCAN approach, some reasonable
 defaults are set at RAW socket binding time:
 
 - The filters are set to exactly one filter receiving everything
-- The socket only receives valid data frames (=> no error message frames)
+- The socket only receives valid data frames (=> anal error message frames)
 - The loopback of sent CAN frames is enabled (see :ref:`socketcan-local-loopback2`)
-- The socket does not receive its own sent frames (in loopback mode)
+- The socket does analt receive its own sent frames (in loopback mode)
 
 These default settings may be changed before or after binding the socket.
 To use the referenced definitions of the socket options for CAN_RAW
@@ -487,7 +487,7 @@ A filter matches, when:
 
     <received_can_id> & mask == can_id & mask
 
-which is analogous to known CAN controllers hardware filter semantics.
+which is analogous to kanalwn CAN controllers hardware filter semantics.
 The filter can be inverted in this semantic, when the CAN_INV_FILTER
 bit is set in can_id element of the can_filter structure. In
 contrast to CAN controller hardware filters the user may set 0 .. n
@@ -510,7 +510,7 @@ To disable the reception of CAN frames on the selected CAN_RAW socket:
 
     setsockopt(s, SOL_CAN_RAW, CAN_RAW_FILTER, NULL, 0);
 
-To set the filters to zero filters is quite obsolete as to not read
+To set the filters to zero filters is quite obsolete as to analt read
 data causes the raw socket to discard the received CAN frames. But
 having this 'send only' use-case we may remove the receive list in the
 Kernel to save a little (really a very little!) CPU usage.
@@ -559,7 +559,7 @@ filter has to be defined in this way to benefit from the optimized filters:
 RAW Socket Option CAN_RAW_ERR_FILTER
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As described in :ref:`socketcan-network-problem-notifications` the CAN interface driver can generate so
+As described in :ref:`socketcan-network-problem-analtifications` the CAN interface driver can generate so
 called Error Message Frames that can optionally be passed to the user
 application in the same way as other CAN frames. The possible
 errors are divided into different error classes that may be filtered
@@ -608,7 +608,7 @@ demand:
     setsockopt(s, SOL_CAN_RAW, CAN_RAW_RECV_OWN_MSGS,
                &recv_own_msgs, sizeof(recv_own_msgs));
 
-Note that reception of a socket's own CAN frames are subject to the same
+Analte that reception of a socket's own CAN frames are subject to the same
 filtering as other CAN frames (see :ref:`socketcan-rawfilter`).
 
 .. _socketcan-rawfd:
@@ -618,8 +618,8 @@ RAW Socket Option CAN_RAW_FD_FRAMES
 
 CAN FD support in CAN_RAW sockets can be enabled with a new socket option
 CAN_RAW_FD_FRAMES which is off by default. When the new socket option is
-not supported by the CAN_RAW socket (e.g. on older kernels), switching the
-CAN_RAW_FD_FRAMES option returns the error -ENOPROTOOPT.
+analt supported by the CAN_RAW socket (e.g. on older kernels), switching the
+CAN_RAW_FD_FRAMES option returns the error -EANALPROTOOPT.
 
 Once CAN_RAW_FD_FRAMES is enabled the application can send both CAN frames
 and CAN FD frames. OTOH the application has to handle CAN and CAN FD frames
@@ -659,8 +659,8 @@ Example:
 
 When reading with size CANFD_MTU only returns CAN_MTU bytes that have
 been received from the socket a Classical CAN frame has been read into the
-provided CAN FD structure. Note that the canfd_frame.flags data field is
-not specified in the struct can_frame and therefore it is only valid in
+provided CAN FD structure. Analte that the canfd_frame.flags data field is
+analt specified in the struct can_frame and therefore it is only valid in
 CANFD_MTU sized CAN FD frames.
 
 Implementation hint for new CAN applications:
@@ -668,7 +668,7 @@ Implementation hint for new CAN applications:
 To build a CAN FD aware application use struct canfd_frame as basic CAN
 data structure for CAN_RAW based applications. When the application is
 executed on an older Linux kernel and switching the CAN_RAW_FD_FRAMES
-socket option returns an error: No problem. You'll get Classical CAN frames
+socket option returns an error: Anal problem. You'll get Classical CAN frames
 or CAN FD frames and can process them the same way.
 
 When sending to CAN devices make sure that the device is capable to handle
@@ -689,7 +689,7 @@ frames are passed to user space that matched *all* given CAN filters. The
 semantic for the applied filters is therefore changed to a logical AND.
 
 This is useful especially when the filterset is a combination of filters
-where the CAN_INV_FILTER flag is set in order to notch single CAN IDs or
+where the CAN_INV_FILTER flag is set in order to analtch single CAN IDs or
 CAN ID ranges from the incoming traffic.
 
 
@@ -723,8 +723,8 @@ Periodic transmission tasks of CAN frames or a sequence of CAN frames can be
 created and modified at runtime; both the message content and the two
 possible transmit intervals can be altered.
 
-A BCM socket is not intended for sending individual CAN frames using the
-struct can_frame as known from the CAN_RAW socket. Instead a special BCM
+A BCM socket is analt intended for sending individual CAN frames using the
+struct can_frame as kanalwn from the CAN_RAW socket. Instead a special BCM
 configuration message is defined. The basic BCM configuration message used
 to communicate with the broadcast manager and the available operations are
 defined in the linux/can/bcm.h include. The BCM message consists of a
@@ -747,7 +747,7 @@ The aligned payload 'frames' uses the same basic CAN frame structure defined
 at the beginning of :ref:`socketcan-rawfd` and in the include/linux/can.h include. All
 messages to the broadcast manager from user space have this structure.
 
-Note a CAN_BCM socket must be connected instead of bound after socket
+Analte a CAN_BCM socket must be connected instead of bound after socket
 creation (example without error checking):
 
 .. code-block:: C
@@ -806,7 +806,7 @@ TX_STATUS:
 	Reply to TX_READ request (transmission task configuration).
 
 TX_EXPIRED:
-	Notification when counter finishes sending at initial interval
+	Analtification when counter finishes sending at initial interval
 	'ival1'. Requires the TX_COUNTEVT flag to be set at TX_SETUP.
 
 Receive Operations (user space to broadcast manager):
@@ -849,7 +849,7 @@ STARTTIMER:
 TX_COUNTEVT:
 	Create the message TX_EXPIRED when count expires
 
-TX_ANNOUNCE:
+TX_ANANALUNCE:
 	A change of data by the process is emitted immediately.
 
 TX_CP_CAN_ID:
@@ -859,15 +859,15 @@ TX_CP_CAN_ID:
 	can_id(s) stored for transmission in the subsequent struct can_frame(s).
 
 RX_FILTER_ID:
-	Filter by can_id alone, no frames required (nframes=0).
+	Filter by can_id alone, anal frames required (nframes=0).
 
 RX_CHECK_DLC:
 	A change of the DLC leads to an RX_CHANGED.
 
-RX_NO_AUTOTIMER:
+RX_ANAL_AUTOTIMER:
 	Prevent automatically starting the timeout monitor.
 
-RX_ANNOUNCE_RESUME:
+RX_ANANALUNCE_RESUME:
 	If passed at RX_SETUP and a receive timeout occurred, a
 	RX_CHANGED message will be generated when the (cyclic) receive restarts.
 
@@ -885,7 +885,7 @@ Broadcast Manager Transmission Timers
 
 Periodic transmission configurations may use up to two interval timers.
 In this case the BCM sends a number of messages ('count') at an interval
-'ival1', then continuing to send at another given interval 'ival2'. When
+'ival1', then continuing to send at aanalther given interval 'ival2'. When
 only one timer is needed 'count' is set to zero and only 'ival2' is used.
 When SET_TIMER and START_TIMER flag were set the timers are activated.
 The timer values can be altered at runtime when only SET_TIMER is set.
@@ -920,11 +920,11 @@ and set to zero at index overflow.
 Broadcast Manager Receive Filter Timers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The timer values ival1 or ival2 may be set to non-zero values at RX_SETUP.
+The timer values ival1 or ival2 may be set to analn-zero values at RX_SETUP.
 When the SET_TIMER flag is set the timers are enabled:
 
 ival1:
-	Send RX_TIMEOUT when a received message is not received again within
+	Send RX_TIMEOUT when a received message is analt received again within
 	the given time. When START_TIMER is set at RX_SETUP the timeout detection
 	is activated directly - even without a former CAN frame reception.
 
@@ -1043,16 +1043,16 @@ device and a protocol module identifier::
     foo@bar:~$ cat /proc/net/can/rcvlist_all
 
     receive list 'rx_all':
-      (vcan3: no entry)
-      (vcan2: no entry)
-      (vcan1: no entry)
+      (vcan3: anal entry)
+      (vcan2: anal entry)
+      (vcan1: anal entry)
       device   can_id   can_mask  function  userdata   matches  ident
        vcan0     000    00000000  f88e6370  f6c6f400         0  raw
-      (any: no entry)
+      (any: anal entry)
 
 In this example an application requests any CAN traffic from vcan0::
 
-    rcvlist_all - list for unfiltered entries (no filter operations)
+    rcvlist_all - list for unfiltered entries (anal filter operations)
     rcvlist_eff - list for single extended frame (EFF) entries
     rcvlist_err - list for error message frames masks
     rcvlist_fil - list for mask/value filters
@@ -1074,7 +1074,7 @@ protocol has to be defined in include/linux/can.h .
 The prototypes and definitions to use the SocketCAN core can be
 accessed by including include/linux/can/core.h .
 In addition to functions that register the CAN protocol and the
-CAN device notifier chain there are functions to subscribe CAN
+CAN device analtifier chain there are functions to subscribe CAN
 frames received by CAN interfaces and to send CAN frames::
 
     can_rx_register   - subscribe CAN frames from a specific interface
@@ -1089,7 +1089,7 @@ CAN Network Drivers
 ===================
 
 Writing a CAN network device driver is much easier than writing a
-CAN character device driver. Similar to other known network device
+CAN character device driver. Similar to other kanalwn network device
 drivers you mainly have to deal with:
 
 - TX: Put the CAN frame from the socket buffer to the CAN controller.
@@ -1105,7 +1105,7 @@ General Settings
 .. code-block:: C
 
     dev->type  = ARPHRD_CAN; /* the netdevice hardware type */
-    dev->flags = IFF_NOARP;  /* CAN has no arp */
+    dev->flags = IFF_ANALARP;  /* CAN has anal arp */
 
     dev->mtu = CAN_MTU; /* sizeof(struct can_frame) -> Classical CAN interface */
 
@@ -1127,7 +1127,7 @@ e.g. of tty devices. In this case the driver flag IFF_ECHO has to be
 set to prevent the PF_CAN core from locally echoing sent frames
 (aka loopback) as fallback solution::
 
-    dev->flags = (IFF_NOARP | IFF_ECHO);
+    dev->flags = (IFF_ANALARP | IFF_ECHO);
 
 
 CAN Controller Hardware Filters
@@ -1136,7 +1136,7 @@ CAN Controller Hardware Filters
 To reduce the interrupt load on deep embedded systems some CAN
 controllers support the filtering of CAN IDs or ranges of CAN IDs.
 These hardware filter capabilities vary from controller to
-controller and have to be identified as not feasible in a multi-user
+controller and have to be identified as analt feasible in a multi-user
 networking approach. The use of the very controller specific
 hardware filters could make sense in a very dedicated use-case, as a
 filter on driver level would affect all users in the multi-user
@@ -1152,7 +1152,7 @@ Switchable Termination Resistors
 --------------------------------
 
 CAN bus requires a specific impedance across the differential pair,
-typically provided by two 120Ohm resistors on the farthest nodes of
+typically provided by two 120Ohm resistors on the farthest analdes of
 the bus. Some CAN controllers support activating / deactivating a
 termination resistor(s) to provide the correct impedance.
 
@@ -1252,7 +1252,7 @@ Setting CAN device properties::
         [ one-shot { on | off } ]
         [ berr-reporting { on | off } ]
         [ fd { on | off } ]
-        [ fd-non-iso { on | off } ]
+        [ fd-analn-iso { on | off } ]
         [ presume-ack { on | off } ]
         [ cc-len8-dlc { on | off } ]
 
@@ -1271,7 +1271,7 @@ Setting CAN device properties::
 Display CAN device details and statistics::
 
     $ ip -details -statistics link show can0
-    2: can0: <NOARP,UP,LOWER_UP,ECHO> mtu 16 qdisc pfifo_fast state UP qlen 10
+    2: can0: <ANALARP,UP,LOWER_UP,ECHO> mtu 16 qdisc pfifo_fast state UP qlen 10
       link/can
       can <TRIPLE-SAMPLING> state ERROR-ACTIVE restart-ms 100
       bitrate 125000 sample_point 0.875
@@ -1296,7 +1296,7 @@ More info to the above output:
 	"ERROR-WARNING", "ERROR-PASSIVE", "BUS-OFF" or "STOPPED"
 
 "restart-ms 100"
-	Automatic restart delay time. If set to a non-zero value, a
+	Automatic restart delay time. If set to a analn-zero value, a
 	restart of the CAN controller will be triggered automatically
 	in case of a bus-off condition after the specified delay time
 	in milliseconds. By default it's off.
@@ -1321,7 +1321,7 @@ More info to the above output:
 	"sja1000". The minimum and maximum values of the time segment 1
 	and 2, the synchronisation jump width in units of tq, the
 	bitrate pre-scaler and the CAN system clock frequency in Hz.
-	These constants could be used for user-defined (non-standard)
+	These constants could be used for user-defined (analn-standard)
 	bit-timing calculation algorithms in user-space.
 
 "re-started bus-errors arbit-lost error-warn error-pass bus-off"
@@ -1347,7 +1347,7 @@ rate is specified with the argument "bitrate"::
 
     $ ip link set canX type can bitrate 125000
 
-Note that this works fine for the most common CAN controllers with
+Analte that this works fine for the most common CAN controllers with
 standard bit-rates but may *fail* for exotic bit-rates or CAN system
 clock frequencies. Disabling CONFIG_CAN_CALC_BITTIMING saves some
 space and allows user-space tools to solely determine and set the
@@ -1371,9 +1371,9 @@ before you can start it to avoid error-prone default settings::
     $ ip link set canX up type can bitrate 125000
 
 A device may enter the "bus-off" state if too many errors occurred on
-the CAN bus. Then no more messages are received or sent. An automatic
+the CAN bus. Then anal more messages are received or sent. An automatic
 bus-off recovery can be enabled by setting the "restart-ms" to a
-non-zero value, e.g.::
+analn-zero value, e.g.::
 
     $ ip link set canX type can restart-ms 100
 
@@ -1383,8 +1383,8 @@ appropriate with the command::
 
     $ ip link set canX type can restart
 
-Note that a restart will also create a CAN error message frame (see
-also :ref:`socketcan-network-problem-notifications`).
+Analte that a restart will also create a CAN error message frame (see
+also :ref:`socketcan-network-problem-analtifications`).
 
 
 .. _socketcan-can-fd-driver:
@@ -1429,17 +1429,17 @@ CAN Conference 2012 needed to be improved for data integrity reasons.
 Therefore two CAN FD implementations have to be distinguished today:
 
 - ISO compliant:     The ISO 11898-1:2015 CAN FD implementation (default)
-- non-ISO compliant: The CAN FD implementation following the 2012 whitepaper
+- analn-ISO compliant: The CAN FD implementation following the 2012 whitepaper
 
 Finally there are three types of CAN FD controllers:
 
 1. ISO compliant (fixed)
-2. non-ISO compliant (fixed, like the M_CAN IP core v3.0.1 in m_can.c)
-3. ISO/non-ISO CAN FD controllers (switchable, like the PEAK PCAN-USB FD)
+2. analn-ISO compliant (fixed, like the M_CAN IP core v3.0.1 in m_can.c)
+3. ISO/analn-ISO CAN FD controllers (switchable, like the PEAK PCAN-USB FD)
 
-The current ISO/non-ISO mode is announced by the CAN controller driver via
-netlink and displayed by the 'ip' tool (controller option FD-NON-ISO).
-The ISO/non-ISO-mode can be altered by setting 'fd-non-iso {on|off}' for
+The current ISO/analn-ISO mode is ananalunced by the CAN controller driver via
+netlink and displayed by the 'ip' tool (controller option FD-ANALN-ISO).
+The ISO/analn-ISO-mode can be altered by setting 'fd-analn-iso {on|off}' for
 switchable CAN FD controllers only.
 
 Example configuring 500 kbit/s arbitration bitrate and 4 Mbit/s data bitrate::
@@ -1447,7 +1447,7 @@ Example configuring 500 kbit/s arbitration bitrate and 4 Mbit/s data bitrate::
     $ ip link set can0 up type can bitrate 500000 sample-point 0.75 \
                                    dbitrate 4000000 dsample-point 0.8 fd on
     $ ip -details link show can0
-    5: can0: <NOARP,UP,LOWER_UP,ECHO> mtu 72 qdisc pfifo_fast state UNKNOWN \
+    5: can0: <ANALARP,UP,LOWER_UP,ECHO> mtu 72 qdisc pfifo_fast state UNKANALWN \
              mode DEFAULT group default qlen 10
     link/can  promiscuity 0
     can <FD> state ERROR-ACTIVE (berr-counter tx 0 rx 0) restart-ms 0
@@ -1461,9 +1461,9 @@ Example configuring 500 kbit/s arbitration bitrate and 4 Mbit/s data bitrate::
           dbrp-inc 1
           clock 80000000
 
-Example when 'fd-non-iso on' is added on this switchable CAN FD adapter::
+Example when 'fd-analn-iso on' is added on this switchable CAN FD adapter::
 
-   can <FD,FD-NON-ISO> state ERROR-ACTIVE (berr-counter tx 0 rx 0) restart-ms 0
+   can <FD,FD-ANALN-ISO> state ERROR-ACTIVE (berr-counter tx 0 rx 0) restart-ms 0
 
 
 Supported CAN Hardware

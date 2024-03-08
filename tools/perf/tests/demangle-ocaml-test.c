@@ -20,8 +20,8 @@ static int test__demangle_ocaml(struct test_suite *test __maybe_unused, int subt
 		  NULL },
 		{ "camlStdlib__array__map_154",
 		  "Stdlib.array.map_154" },
-		{ "camlStdlib__anon_fn$5bstdlib$2eml$3a334$2c0$2d$2d54$5d_1453",
-		  "Stdlib.anon_fn[stdlib.ml:334,0--54]_1453" },
+		{ "camlStdlib__aanaln_fn$5bstdlib$2eml$3a334$2c0$2d$2d54$5d_1453",
+		  "Stdlib.aanaln_fn[stdlib.ml:334,0--54]_1453" },
 		{ "camlStdlib__bytes__$2b$2b_2205",
 		  "Stdlib.bytes.++_2205" },
 	};

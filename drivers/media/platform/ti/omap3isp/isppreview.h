@@ -4,7 +4,7 @@
  *
  * TI OMAP3 ISP - Preview module
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2009 Texas Instruments, Inc.
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -32,13 +32,13 @@
 #define ISPPRV_CONTRAST_HIGH		0xFF
 #define ISPPRV_CONTRAST_UNITS		0x1
 
-/* Additional features not listed in linux/omap3isp.h */
+/* Additional features analt listed in linux/omap3isp.h */
 #define OMAP3ISP_PREV_CONTRAST		(1 << 17)
 #define OMAP3ISP_PREV_BRIGHTNESS	(1 << 18)
 #define OMAP3ISP_PREV_FEATURES_END	(1 << 19)
 
 enum preview_input_entity {
-	PREVIEW_INPUT_NONE,
+	PREVIEW_INPUT_ANALNE,
 	PREVIEW_INPUT_CCDC,
 	PREVIEW_INPUT_MEMORY,
 };
@@ -62,8 +62,8 @@ enum preview_ycpos_mode {
  * @cfa: CFA coefficients.
  * @csup: Chroma suppression coefficients.
  * @luma: Luma enhancement coefficients.
- * @nf: Noise filter coefficients.
- * @dcor: Noise filter coefficients.
+ * @nf: Analise filter coefficients.
+ * @dcor: Analise filter coefficients.
  * @gamma: Gamma coefficients.
  * @wbal: White Balance parameters.
  * @blkadj: Black adjustment parameters.

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
- * Copyright Novell Inc. 2010
+ * Copyright Analvell Inc. 2010
  *
  * Authors: Alexander Graf <agraf@suse.de>
  */

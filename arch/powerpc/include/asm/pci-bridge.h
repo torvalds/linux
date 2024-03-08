@@ -10,7 +10,7 @@
 #include <linux/numa.h>
 #include <linux/iommu.h>
 
-struct device_node;
+struct device_analde;
 
 /*
  * PCI controller operations
@@ -57,15 +57,15 @@ struct pci_controller {
 	struct pci_bus *bus;
 	char is_dynamic;
 #ifdef CONFIG_PPC64
-	int node;
+	int analde;
 #endif
-	struct device_node *dn;
-	struct list_head list_node;
+	struct device_analde *dn;
+	struct list_head list_analde;
 	struct device *parent;
 
-	int first_busno;
-	int last_busno;
-	int self_busno;
+	int first_busanal;
+	int last_busanal;
+	int self_busanal;
 	struct resource busn;
 
 	void __iomem *io_base_virt;
@@ -95,7 +95,7 @@ struct pci_controller {
 	 *   on Freescale PCI-e controllers since they used the PCI_PRIMARY_BUS
 	 *   to determine which bus number to match on when generating type0
 	 *   config cycles
-	 *  NO_PCIE_LINK - the Freescale PCI-e controllers have issues with
+	 *  ANAL_PCIE_LINK - the Freescale PCI-e controllers have issues with
 	 *   hanging if we don't have link and try to do config cycles to
 	 *   anything but the PHB.  Only allow talking to the PHB if this is
 	 *   set.
@@ -108,7 +108,7 @@ struct pci_controller {
 #define PPC_INDIRECT_TYPE_SET_CFG_TYPE		0x00000001
 #define PPC_INDIRECT_TYPE_EXT_REG		0x00000002
 #define PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS	0x00000004
-#define PPC_INDIRECT_TYPE_NO_PCIE_LINK		0x00000008
+#define PPC_INDIRECT_TYPE_ANAL_PCIE_LINK		0x00000008
 #define PPC_INDIRECT_TYPE_BIG_ENDIAN		0x00000010
 #define PPC_INDIRECT_TYPE_BROKEN_MRM		0x00000020
 #define PPC_INDIRECT_TYPE_FSL_CFG_REG_LINK	0x00000040
@@ -134,7 +134,7 @@ struct pci_controller {
 	/* IRQ domain hierarchy */
 	struct irq_domain	*dev_domain;
 	struct irq_domain	*msi_domain;
-	struct fwnode_handle	*fwnode;
+	struct fwanalde_handle	*fwanalde;
 
 	/* iommu_ops support */
 	struct iommu_device	iommu;
@@ -178,7 +178,7 @@ static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
 }
 
 #ifdef CONFIG_PPC_PMAC
-extern int pci_device_from_OF_node(struct device_node *node,
+extern int pci_device_from_OF_analde(struct device_analde *analde,
 				   u8 *bus, u8 *devfn);
 #endif
 #ifndef CONFIG_PPC64
@@ -192,8 +192,8 @@ static inline void pci_create_OF_bus_map(void) {}
 #else	/* CONFIG_PPC64 */
 
 /*
- * PCI stuff, for nodes representing PCI devices, pointed to
- * by device_node->data.
+ * PCI stuff, for analdes representing PCI devices, pointed to
+ * by device_analde->data.
  */
 struct iommu_table;
 
@@ -202,7 +202,7 @@ struct pci_dn {
 #define PCI_DN_FLAG_IOV_VF	0x01
 #define PCI_DN_FLAG_DEAD	0x02    /* Device has been hot-removed */
 
-	int	busno;			/* pci bus number */
+	int	busanal;			/* pci bus number */
 	int	devfn;			/* pci device and function number */
 	int	vendor_id;		/* Vendor ID */
 	int	device_id;		/* Device ID */
@@ -233,15 +233,15 @@ struct pci_dn {
 	struct resource holes[PCI_SRIOV_NUM_BARS];
 };
 
-/* Get the pointer to a device_node's pci_dn */
+/* Get the pointer to a device_analde's pci_dn */
 #define PCI_DN(dn)	((struct pci_dn *) (dn)->data)
 
 extern struct pci_dn *pci_get_pdn_by_devfn(struct pci_bus *bus,
 					   int devfn);
 extern struct pci_dn *pci_get_pdn(struct pci_dev *pdev);
-extern struct pci_dn *pci_add_device_node_info(struct pci_controller *hose,
-					       struct device_node *dn);
-extern void pci_remove_device_node_info(struct device_node *dn);
+extern struct pci_dn *pci_add_device_analde_info(struct pci_controller *hose,
+					       struct device_analde *dn);
+extern void pci_remove_device_analde_info(struct device_analde *dn);
 
 #ifdef CONFIG_PCI_IOV
 struct pci_dn *add_sriov_vf_pdns(struct pci_dev *pdev);
@@ -257,8 +257,8 @@ static inline struct eeh_dev *pdn_to_eeh_dev(struct pci_dn *pdn)
 #define pdn_to_eeh_dev(x)	(NULL)
 #endif
 
-/** Find the bus corresponding to the indicated device node */
-extern struct pci_bus *pci_find_bus_by_node(struct device_node *dn);
+/** Find the bus corresponding to the indicated device analde */
+extern struct pci_bus *pci_find_bus_by_analde(struct device_analde *dn);
 
 /** Remove all of the PCI devices under this bus */
 extern void pci_hp_remove_devices(struct pci_bus *bus);
@@ -270,25 +270,25 @@ extern int pcibios_unmap_io_space(struct pci_bus *bus);
 extern int pcibios_map_io_space(struct pci_bus *bus);
 
 #ifdef CONFIG_NUMA
-#define PHB_SET_NODE(PHB, NODE)		((PHB)->node = (NODE))
+#define PHB_SET_ANALDE(PHB, ANALDE)		((PHB)->analde = (ANALDE))
 #else
-#define PHB_SET_NODE(PHB, NODE)		((PHB)->node = NUMA_NO_NODE)
+#define PHB_SET_ANALDE(PHB, ANALDE)		((PHB)->analde = NUMA_ANAL_ANALDE)
 #endif
 
 #endif	/* CONFIG_PPC64 */
 
 /* Get the PCI host controller for an OF device */
 extern struct pci_controller *pci_find_hose_for_OF_device(
-			struct device_node* node);
+			struct device_analde* analde);
 
 extern struct pci_controller *pci_find_controller_for_domain(int domain_nr);
 
-/* Fill up host controller resources from the OF node */
+/* Fill up host controller resources from the OF analde */
 extern void pci_process_bridge_OF_ranges(struct pci_controller *hose,
-			struct device_node *dev, int primary);
+			struct device_analde *dev, int primary);
 
 /* Allocate & free a PCI host bridge structure */
-extern struct pci_controller *pcibios_alloc_controller(struct device_node *dev);
+extern struct pci_controller *pcibios_alloc_controller(struct device_analde *dev);
 extern void pcibios_free_controller(struct pci_controller *phb);
 extern void pcibios_free_controller_deferred(struct pci_host_bridge *bridge);
 

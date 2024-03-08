@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -108,7 +108,7 @@ static const uint32_t safe_modeset_formats[] = {
 };
 
 static const struct drm_plane_funcs primary_plane_funcs = {
-	DRM_PLANE_NON_ATOMIC_FUNCS,
+	DRM_PLANE_ANALN_ATOMIC_FUNCS,
 };
 
 /**
@@ -117,16 +117,16 @@ static const struct drm_plane_funcs primary_plane_funcs = {
  * @crtc: CRTC object to init
  * @funcs: callbacks for the new CRTC
  *
- * Initialize a CRTC object with a default helper-provided primary plane and no
+ * Initialize a CRTC object with a default helper-provided primary plane and anal
  * cursor plane.
  *
- * Note that we make some assumptions about hardware limitations that may not be
+ * Analte that we make some assumptions about hardware limitations that may analt be
  * true for all hardware:
  *
- * 1. Primary plane cannot be repositioned.
- * 2. Primary plane cannot be scaled.
+ * 1. Primary plane cananalt be repositioned.
+ * 2. Primary plane cananalt be scaled.
  * 3. Primary plane must cover the entire CRTC.
- * 4. Subpixel positioning is not supported.
+ * 4. Subpixel positioning is analt supported.
  * 5. The primary plane must always be on if the CRTC is enabled.
  *
  * This is purely a backwards compatibility helper for old drivers. Drivers

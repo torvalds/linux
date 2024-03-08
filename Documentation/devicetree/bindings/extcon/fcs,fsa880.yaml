@@ -12,7 +12,7 @@ maintainers:
 description:
   The FSA880 and FSA9480 are USB port accessory detectors and switches.
   The switch is fully controlled using I2C and enables USB data, stereo
-  and mono audio, video, microphone, and UART data to use a common
+  and moanal audio, video, microphone, and UART data to use a common
   connector port. Compatible switches exist from other manufacturers.
 
 properties:

@@ -29,15 +29,15 @@
  * mount options
  */
 #define CEPH_OPT_FSID             (1<<0)
-#define CEPH_OPT_NOSHARE          (1<<1) /* don't share client with other sbs */
+#define CEPH_OPT_ANALSHARE          (1<<1) /* don't share client with other sbs */
 #define CEPH_OPT_MYIP             (1<<2) /* specified my ip */
-#define CEPH_OPT_NOCRC            (1<<3) /* no data crc on writes (msgr1) */
-#define CEPH_OPT_TCP_NODELAY      (1<<4) /* TCP_NODELAY on TCP sockets */
-#define CEPH_OPT_NOMSGSIGN        (1<<5) /* don't sign msgs (msgr1) */
-#define CEPH_OPT_ABORT_ON_FULL    (1<<6) /* abort w/ ENOSPC when full */
+#define CEPH_OPT_ANALCRC            (1<<3) /* anal data crc on writes (msgr1) */
+#define CEPH_OPT_TCP_ANALDELAY      (1<<4) /* TCP_ANALDELAY on TCP sockets */
+#define CEPH_OPT_ANALMSGSIGN        (1<<5) /* don't sign msgs (msgr1) */
+#define CEPH_OPT_ABORT_ON_FULL    (1<<6) /* abort w/ EANALSPC when full */
 #define CEPH_OPT_RXBOUNCE         (1<<7) /* double-buffer read data */
 
-#define CEPH_OPT_DEFAULT   (CEPH_OPT_TCP_NODELAY)
+#define CEPH_OPT_DEFAULT   (CEPH_OPT_TCP_ANALDELAY)
 
 #define ceph_set_opt(client, opt) \
 	(client)->options->flags |= CEPH_OPT_##opt;
@@ -75,7 +75,7 @@ struct ceph_options {
 #define CEPH_MOUNT_TIMEOUT_DEFAULT	msecs_to_jiffies(60 * 1000)
 #define CEPH_OSD_KEEPALIVE_DEFAULT	msecs_to_jiffies(5 * 1000)
 #define CEPH_OSD_IDLE_TTL_DEFAULT	msecs_to_jiffies(60 * 1000)
-#define CEPH_OSD_REQUEST_TIMEOUT_DEFAULT 0  /* no timeout */
+#define CEPH_OSD_REQUEST_TIMEOUT_DEFAULT 0  /* anal timeout */
 #define CEPH_READ_FROM_REPLICA_DEFAULT	0  /* read from primary */
 
 #define CEPH_MONC_HUNT_INTERVAL		msecs_to_jiffies(3 * 1000)
@@ -92,7 +92,7 @@ struct ceph_options {
  * The largest possible rbd data object is 32M.
  * The largest possible rbd object map object is 64M.
  *
- * There is no limit on the size of cephfs objects, but it has to obey
+ * There is anal limit on the size of cephfs objects, but it has to obey
  * rsize and wsize mount options anyway.
  */
 #define CEPH_MSG_MAX_DATA_LEN	(64*1024*1024)
@@ -145,7 +145,7 @@ struct ceph_client {
 
 static inline bool ceph_msgr2(struct ceph_client *client)
 {
-	return client->options->con_modes[0] != CEPH_CON_MODE_UNKNOWN;
+	return client->options->con_modes[0] != CEPH_CON_MODE_UNKANALWN;
 }
 
 /*
@@ -187,16 +187,16 @@ static inline int calc_pages_for(u64 off, u64 len)
 #define RB_BYPTR(a)      (&(a))
 #define RB_CMP3WAY(a, b) ((a) < (b) ? -1 : (a) > (b))
 
-#define DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, cmpexp, keyexp, nodefld) \
+#define DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, cmpexp, keyexp, analdefld) \
 static bool __insert_##name(struct rb_root *root, type *t)		\
 {									\
-	struct rb_node **n = &root->rb_node;				\
-	struct rb_node *parent = NULL;					\
+	struct rb_analde **n = &root->rb_analde;				\
+	struct rb_analde *parent = NULL;					\
 									\
-	BUG_ON(!RB_EMPTY_NODE(&t->nodefld));				\
+	BUG_ON(!RB_EMPTY_ANALDE(&t->analdefld));				\
 									\
 	while (*n) {							\
-		type *cur = rb_entry(*n, type, nodefld);		\
+		type *cur = rb_entry(*n, type, analdefld);		\
 		int cmp;						\
 									\
 		parent = *n;						\
@@ -209,8 +209,8 @@ static bool __insert_##name(struct rb_root *root, type *t)		\
 			return false;					\
 	}								\
 									\
-	rb_link_node(&t->nodefld, parent, n);				\
-	rb_insert_color(&t->nodefld, root);				\
+	rb_link_analde(&t->analdefld, parent, n);				\
+	rb_insert_color(&t->analdefld, root);				\
 	return true;							\
 }									\
 static void __maybe_unused insert_##name(struct rb_root *root, type *t)	\
@@ -220,23 +220,23 @@ static void __maybe_unused insert_##name(struct rb_root *root, type *t)	\
 }									\
 static void erase_##name(struct rb_root *root, type *t)			\
 {									\
-	BUG_ON(RB_EMPTY_NODE(&t->nodefld));				\
-	rb_erase(&t->nodefld, root);					\
-	RB_CLEAR_NODE(&t->nodefld);					\
+	BUG_ON(RB_EMPTY_ANALDE(&t->analdefld));				\
+	rb_erase(&t->analdefld, root);					\
+	RB_CLEAR_ANALDE(&t->analdefld);					\
 }
 
 /*
- * @lookup_param_type is a parameter and not constructed from (@type,
+ * @lookup_param_type is a parameter and analt constructed from (@type,
  * @keyfld) with typeof() because adding const is too unwieldy.
  */
 #define DEFINE_RB_LOOKUP_FUNC2(name, type, keyfld, cmpexp, keyexp,	\
-			       lookup_param_type, nodefld)		\
+			       lookup_param_type, analdefld)		\
 static type *lookup_##name(struct rb_root *root, lookup_param_type key)	\
 {									\
-	struct rb_node *n = root->rb_node;				\
+	struct rb_analde *n = root->rb_analde;				\
 									\
 	while (n) {							\
-		type *cur = rb_entry(n, type, nodefld);			\
+		type *cur = rb_entry(n, type, analdefld);			\
 		int cmp;						\
 									\
 		cmp = cmpexp(key, keyexp(cur->keyfld));			\
@@ -252,27 +252,27 @@ static type *lookup_##name(struct rb_root *root, lookup_param_type key)	\
 }
 
 #define DEFINE_RB_FUNCS2(name, type, keyfld, cmpexp, keyexp,		\
-			 lookup_param_type, nodefld)			\
-DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, cmpexp, keyexp, nodefld)	\
+			 lookup_param_type, analdefld)			\
+DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, cmpexp, keyexp, analdefld)	\
 DEFINE_RB_LOOKUP_FUNC2(name, type, keyfld, cmpexp, keyexp,		\
-		       lookup_param_type, nodefld)
+		       lookup_param_type, analdefld)
 
 /*
  * Shorthands for integer keys.
  */
-#define DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, nodefld)		\
-DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, RB_CMP3WAY, RB_BYVAL, nodefld)
+#define DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, analdefld)		\
+DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, RB_CMP3WAY, RB_BYVAL, analdefld)
 
-#define DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)		\
+#define DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, analdefld)		\
 extern type __lookup_##name##_key;					\
 DEFINE_RB_LOOKUP_FUNC2(name, type, keyfld, RB_CMP3WAY, RB_BYVAL,	\
-		       typeof(__lookup_##name##_key.keyfld), nodefld)
+		       typeof(__lookup_##name##_key.keyfld), analdefld)
 
-#define DEFINE_RB_FUNCS(name, type, keyfld, nodefld)			\
-DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, nodefld)			\
-DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)
+#define DEFINE_RB_FUNCS(name, type, keyfld, analdefld)			\
+DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, analdefld)			\
+DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, analdefld)
 
-extern struct kmem_cache *ceph_inode_cachep;
+extern struct kmem_cache *ceph_ianalde_cachep;
 extern struct kmem_cache *ceph_cap_cachep;
 extern struct kmem_cache *ceph_cap_snap_cachep;
 extern struct kmem_cache *ceph_cap_flush_cachep;

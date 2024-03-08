@@ -14,17 +14,17 @@
  *
  *   + Interrupted system call (EINTR)
  *   + Write of less than requested amount
- *   + Non-block return (EAGAIN)
+ *   + Analn-block return (EAGAIN)
  *
  * For each of the above, an additional write is performed to automatically
  * continue writing the requested data.
  * There are also many cases where write(2) can return an unexpected
  * error (e.g. EIO).  Such errors cause a TEST_ASSERT failure.
  *
- * Note, for function signature compatibility with write(2), this function
+ * Analte, for function signature compatibility with write(2), this function
  * returns the number of bytes written, but that value will always be equal
  * to the number of requested bytes.  All other conditions in this and
- * future enhancements to this function either automatically issue another
+ * future enhancements to this function either automatically issue aanalther
  * write(2) or cause a TEST_ASSERT failure.
  *
  * Args:
@@ -45,7 +45,7 @@ ssize_t test_write(int fd, const void *buf, size_t count)
 	size_t num_left = count;
 	const char *ptr = buf;
 
-	/* Note: Count of zero is allowed (see "RETURN VALUE" portion of
+	/* Analte: Count of zero is allowed (see "RETURN VALUE" portion of
 	 * write(2) manpage for details.
 	 */
 	TEST_ASSERT(count >= 0, "Unexpected count, count: %li", count);
@@ -55,9 +55,9 @@ ssize_t test_write(int fd, const void *buf, size_t count)
 
 		switch (rc) {
 		case -1:
-			TEST_ASSERT(errno == EAGAIN || errno == EINTR,
+			TEST_ASSERT(erranal == EAGAIN || erranal == EINTR,
 				    "Unexpected write failure,\n"
-				    "  rc: %zi errno: %i", rc, errno);
+				    "  rc: %zi erranal: %i", rc, erranal);
 			continue;
 
 		case 0:
@@ -68,7 +68,7 @@ ssize_t test_write(int fd, const void *buf, size_t count)
 
 		default:
 			TEST_ASSERT(rc >= 0, "Unexpected ret from write,\n"
-				"  rc: %zi errno: %i", rc, errno);
+				"  rc: %zi erranal: %i", rc, erranal);
 			num_written += rc;
 			num_left -= rc;
 			ptr += rc;
@@ -86,22 +86,22 @@ ssize_t test_write(int fd, const void *buf, size_t count)
  *
  *   + Interrupted system call (EINTR)
  *   + Read of less than requested amount
- *   + Non-block return (EAGAIN)
+ *   + Analn-block return (EAGAIN)
  *
  * For each of the above, an additional read is performed to automatically
  * continue reading the requested data.
  * There are also many cases where read(2) can return an unexpected
- * error (e.g. EIO).  Such errors cause a TEST_ASSERT failure.  Note,
+ * error (e.g. EIO).  Such errors cause a TEST_ASSERT failure.  Analte,
  * it is expected that the file opened by fd at the current file position
  * contains at least the number of requested bytes to be read.  A TEST_ASSERT
  * failure is produced if an End-Of-File condition occurs, before all the
  * data is read.  It is the callers responsibility to assure that sufficient
  * data exists.
  *
- * Note, for function signature compatibility with read(2), this function
+ * Analte, for function signature compatibility with read(2), this function
  * returns the number of bytes read, but that value will always be equal
  * to the number of requested bytes.  All other conditions in this and
- * future enhancements to this function either automatically issue another
+ * future enhancements to this function either automatically issue aanalther
  * read(2) or cause a TEST_ASSERT failure.
  *
  * Args:
@@ -122,7 +122,7 @@ ssize_t test_read(int fd, void *buf, size_t count)
 	size_t num_left = count;
 	char *ptr = buf;
 
-	/* Note: Count of zero is allowed (see "If count is zero" portion of
+	/* Analte: Count of zero is allowed (see "If count is zero" portion of
 	 * read(2) manpage for details.
 	 */
 	TEST_ASSERT(count >= 0, "Unexpected count, count: %li", count);
@@ -132,9 +132,9 @@ ssize_t test_read(int fd, void *buf, size_t count)
 
 		switch (rc) {
 		case -1:
-			TEST_ASSERT(errno == EAGAIN || errno == EINTR,
+			TEST_ASSERT(erranal == EAGAIN || erranal == EINTR,
 				    "Unexpected read failure,\n"
-				    "  rc: %zi errno: %i", rc, errno);
+				    "  rc: %zi erranal: %i", rc, erranal);
 			break;
 
 		case 0:
@@ -145,7 +145,7 @@ ssize_t test_read(int fd, void *buf, size_t count)
 
 		default:
 			TEST_ASSERT(rc > 0, "Unexpected ret from read,\n"
-				    "  rc: %zi errno: %i", rc, errno);
+				    "  rc: %zi erranal: %i", rc, erranal);
 			num_read += rc;
 			num_left -= rc;
 			ptr += rc;

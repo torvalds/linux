@@ -18,7 +18,7 @@ endif
 # Drop some uninteresting sections in the kernel.
 # This is only relevant for ELF kernels but doesn't hurt a.out
 #
-drop-sections := .reginfo .mdebug .comment .note .pdr .options .MIPS.options
+drop-sections := .reginfo .mdebug .comment .analte .pdr .options .MIPS.options
 strip-flags   := $(addprefix --remove-section=,$(drop-sections))
 
 hostprogs := elf2ecoff
@@ -83,7 +83,7 @@ targets += uImage.lzma
 targets += uImage.lzo
 
 $(obj)/uImage.bin: $(obj)/vmlinux.bin FORCE
-	$(call if_changed,uimage,none)
+	$(call if_changed,uimage,analne)
 
 $(obj)/uImage.bz2: $(obj)/vmlinux.bin.bz2 FORCE
 	$(call if_changed,uimage,bzip2)
@@ -98,7 +98,7 @@ $(obj)/uImage.lzo: $(obj)/vmlinux.bin.lzo FORCE
 	$(call if_changed,uimage,lzo)
 
 $(obj)/uImage: $(obj)/uImage.$(suffix-y)
-	@ln -sf $(notdir $<) $@
+	@ln -sf $(analtdir $<) $@
 	@echo '  Image $@ is ready'
 
 #
@@ -137,7 +137,7 @@ quiet_cmd_cpp_its_S = ITS     $@
 			-DADDR_CELLS=$(itb_addr_cells)
 
 $(obj)/vmlinux.its: $(obj)/vmlinux.its.S $(VMLINUX) FORCE
-	$(call if_changed,cpp_its_S,none,vmlinux.bin)
+	$(call if_changed,cpp_its_S,analne,vmlinux.bin)
 
 $(obj)/vmlinux.gz.its: $(obj)/vmlinux.its.S $(VMLINUX) FORCE
 	$(call if_changed,cpp_its_S,gzip,vmlinux.bin.gz)
@@ -163,7 +163,7 @@ quiet_cmd_itb-image = ITB     $@
 		$(BASH) $(MKIMAGE) \
 		-D "-I dts -O dtb -p 500 \
 			--include $(objtree)/arch/mips \
-			--warning no-unit_address_vs_reg" \
+			--warning anal-unit_address_vs_reg" \
 		-f $(2) $@
 
 $(obj)/vmlinux.itb: $(obj)/vmlinux.its $(obj)/vmlinux.bin FORCE

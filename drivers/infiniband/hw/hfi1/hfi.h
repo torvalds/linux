@@ -95,7 +95,7 @@ extern unsigned long hfi1_cap_mask;
 #define NUM_SEND_DMA_ENG_ERR_STATUS_COUNTERS 24
 
 /*
- * per driver stats, either not device nor port-specific, or
+ * per driver stats, either analt device analr port-specific, or
  * summed over all of the devices and ports.
  * They are described by name via ipathfs filesystem, so layout
  * and number of elements can change without breaking compatibility.
@@ -106,9 +106,9 @@ struct hfi1_ib_stats {
 	__u64 sps_ints; /* number of interrupts handled */
 	__u64 sps_errints; /* number of error interrupts */
 	__u64 sps_txerrs; /* tx-related packet errors */
-	__u64 sps_rcverrs; /* non-crc rcv packet errors */
+	__u64 sps_rcverrs; /* analn-crc rcv packet errors */
 	__u64 sps_hwerrs; /* hardware errors reported (parity, etc.) */
-	__u64 sps_nopiobufs; /* no pio bufs avail from kernel */
+	__u64 sps_analpiobufs; /* anal pio bufs avail from kernel */
 	__u64 sps_ctxts; /* number of contexts currently open */
 	__u64 sps_lenerrs; /* number of kernel packets where RHF != LRH len */
 	__u64 sps_buffull;
@@ -183,7 +183,7 @@ struct hfi1_ctxtdata {
 	const rhf_rcv_function_ptr *rhf_rcv_function_map;
 	/*
 	 * The interrupt handler for a particular receive context can vary
-	 * throughout it's lifetime. This is not a lock protected data member so
+	 * throughout it's lifetime. This is analt a lock protected data member so
 	 * it must be updated atomically and the prev and new value must always
 	 * be valid. Worst case is we process an extra interrupt and up to 64
 	 * packets with the wrong interrupt handler.
@@ -247,7 +247,7 @@ struct hfi1_ctxtdata {
 	spinlock_t aspm_lock;
 	/* Reference count the base context usage */
 	struct kref kref;
-	/* numa node of this context */
+	/* numa analde of this context */
 	int numa_id;
 	/* associated msix interrupt. */
 	s16 msix_intr;
@@ -295,12 +295,12 @@ struct hfi1_ctxtdata {
 	u32 urgent_poll;
 	/* Type of packets or conditions we want to poll for */
 	u16 poll_type;
-	/* non-zero if ctxt is being shared. */
+	/* analn-zero if ctxt is being shared. */
 	u16 subctxt_id;
 	/* The version of the library which opened this ctxt */
 	u32 userversion;
 	/*
-	 * non-zero if ctxt can be shared, and defines the maximum number of
+	 * analn-zero if ctxt can be shared, and defines the maximum number of
 	 * sub-contexts for this device context.
 	 */
 	u8 subctxt_cnt;
@@ -325,7 +325,7 @@ static inline u32 rcvhdrq_size(struct hfi1_ctxtdata *rcd)
 
 /*
  * Represents a single packet at a high level. Put commonly computed things in
- * here so we do not have to keep doing them over and over. The rule of thumb is
+ * here so we do analt have to keep doing them over and over. The rule of thumb is
  * if something is used one time to derive some value, store that something in
  * here. If it is used multiple times, then store the result of that derivation
  * in here.
@@ -604,7 +604,7 @@ struct rvt_sge_state;
 
 #define HLS_DEFAULT HLS_DN_POLL
 
-/* use this MTU size if none other is given */
+/* use this MTU size if analne other is given */
 #define HFI1_DEFAULT_ACTIVE_MTU 10240
 /* use this MTU size as the default maximum */
 #define HFI1_DEFAULT_MAX_MTU 10240
@@ -618,8 +618,8 @@ struct rvt_sge_state;
 #define FM_TBL_VL_LOW_ARB		2 /* Get/set VL low prio weights */
 #define FM_TBL_BUFFER_CONTROL		3 /* Get/set Buffer Control */
 #define FM_TBL_SC2VLNT			4 /* Get/set SC->VLnt */
-#define FM_TBL_VL_PREEMPT_ELEMS		5 /* Get (no set) VL preempt elems */
-#define FM_TBL_VL_PREEMPT_MATRIX	6 /* Get (no set) VL preempt matrix */
+#define FM_TBL_VL_PREEMPT_ELEMS		5 /* Get (anal set) VL preempt elems */
+#define FM_TBL_VL_PREEMPT_MATRIX	6 /* Get (anal set) VL preempt matrix */
 
 /*
  * Possible "operations" for f_rcvctrl(ppd, op, ctxt)
@@ -632,16 +632,16 @@ struct rvt_sge_state;
 #define HFI1_RCVCTRL_CTXT_DIS 0x08
 #define HFI1_RCVCTRL_INTRAVAIL_ENB 0x10
 #define HFI1_RCVCTRL_INTRAVAIL_DIS 0x20
-#define HFI1_RCVCTRL_PKEY_ENB 0x40  /* Note, default is enabled */
+#define HFI1_RCVCTRL_PKEY_ENB 0x40  /* Analte, default is enabled */
 #define HFI1_RCVCTRL_PKEY_DIS 0x80
 #define HFI1_RCVCTRL_TIDFLOW_ENB 0x0400
 #define HFI1_RCVCTRL_TIDFLOW_DIS 0x0800
 #define HFI1_RCVCTRL_ONE_PKT_EGR_ENB 0x1000
 #define HFI1_RCVCTRL_ONE_PKT_EGR_DIS 0x2000
-#define HFI1_RCVCTRL_NO_RHQ_DROP_ENB 0x4000
-#define HFI1_RCVCTRL_NO_RHQ_DROP_DIS 0x8000
-#define HFI1_RCVCTRL_NO_EGR_DROP_ENB 0x10000
-#define HFI1_RCVCTRL_NO_EGR_DROP_DIS 0x20000
+#define HFI1_RCVCTRL_ANAL_RHQ_DROP_ENB 0x4000
+#define HFI1_RCVCTRL_ANAL_RHQ_DROP_DIS 0x8000
+#define HFI1_RCVCTRL_ANAL_EGR_DROP_ENB 0x10000
+#define HFI1_RCVCTRL_ANAL_EGR_DROP_DIS 0x20000
 #define HFI1_RCVCTRL_URGENT_ENB 0x40000
 #define HFI1_RCVCTRL_URGENT_DIS 0x80000
 
@@ -653,7 +653,7 @@ struct rvt_sge_state;
 #define SYNTH_CNT_TIME 3
 
 /* Counter flags */
-#define CNTR_NORMAL		0x0 /* Normal counters, just read register */
+#define CNTR_ANALRMAL		0x0 /* Analrmal counters, just read register */
 #define CNTR_SYNTH		0x1 /* Synthetic counters, saturate at all 1s */
 #define CNTR_DISABLED		0x2 /* Disable this counter */
 #define CNTR_32BIT		0x4 /* Simulate 64 bits for this counter */
@@ -682,7 +682,7 @@ struct hfi1_msix_entry {
 	int irq;
 	void *arg;
 	cpumask_t mask;
-	struct irq_affinity_notify notify;
+	struct irq_affinity_analtify analtify;
 };
 
 struct hfi1_msix_info {
@@ -725,7 +725,7 @@ struct vl_arb_cache {
 /*
  * The structure below encapsulates data relevant to a physical IB Port.
  * Current chips support only one such port, but the separation
- * clarifies things a bit. Note that to conform to IB conventions,
+ * clarifies things a bit. Analte that to conform to IB conventions,
  * port-numbers are one-based. The first or only port is port1.
  */
 struct hfi1_pportdata {
@@ -738,7 +738,7 @@ struct hfi1_pportdata {
 	/* Values for SI tuning of SerDes */
 	u32 port_type;
 	u32 tx_preset_eq;
-	u32 tx_preset_noeq;
+	u32 tx_preset_analeq;
 	u32 rx_preset;
 	u8  local_atten;
 	u8  remote_atten;
@@ -792,7 +792,7 @@ struct hfi1_pportdata {
 	u32 current_egress_rate; /* units [10^6 bits/sec] */
 	/* LID programmed for this instance */
 	u32 lid;
-	/* list of pkeys programmed; 0 if not set */
+	/* list of pkeys programmed; 0 if analt set */
 	u16 pkeys[MAX_PKEY_VALUES];
 	u16 link_width_supported;
 	u16 link_width_downgrade_supported;
@@ -814,9 +814,9 @@ struct hfi1_pportdata {
 
 	u8 hw_pidx;     /* physical port index */
 	u32 port;        /* IB port number and index into dd->pports - 1 */
-	/* type of neighbor node */
+	/* type of neighbor analde */
 	u8 neighbor_type;
-	u8 neighbor_normal;
+	u8 neighbor_analrmal;
 	u8 neighbor_fm_security; /* 1 if firmware checking is disabled */
 	u8 neighbor_port_number;
 	u8 is_sm_config_started;
@@ -905,8 +905,8 @@ struct hfi1_pportdata {
 	u64 link_downed;
 	/* number of times link retrained successfully */
 	u64 link_up;
-	/* number of times a link unknown frame was reported */
-	u64 unknown_frame_count;
+	/* number of times a link unkanalwn frame was reported */
+	u64 unkanalwn_frame_count;
 	/* port_ltp_crc_mode is returned in 'portinfo' MADs */
 	u16 port_ltp_crc_mode;
 	/* port_crc_mode_enabled is the crc we support */
@@ -936,7 +936,7 @@ typedef void (*opcode_handler)(struct hfi1_packet *packet);
 typedef void (*hfi1_make_req)(struct rvt_qp *qp,
 			      struct hfi1_pkt_state *ps,
 			      struct rvt_swqe *wqe);
-extern const rhf_rcv_function_ptr normal_rhf_rcv_functions[];
+extern const rhf_rcv_function_ptr analrmal_rhf_rcv_functions[];
 extern const rhf_rcv_function_ptr netdev_rhf_rcv_functions[];
 
 /* return values for the RHF receive functions */
@@ -1005,7 +1005,7 @@ struct hfi1_vnic_data {
 
 struct hfi1_vnic_vport_info;
 
-/* device data struct now contains only "general per-device" info.
+/* device data struct analw contains only "general per-device" info.
  * fields related to a physical IB port are in a hfi1_pportdata struct.
  */
 struct sdma_engine;
@@ -1037,7 +1037,7 @@ struct hfi1_devdata {
 	/* for detecting offset above kregbase2 address */
 	u32 base2_start;
 
-	/* Per VL data. Enough for all VLs but not all elements are set/used. */
+	/* Per VL data. Eanalugh for all VLs but analt all elements are set/used. */
 	struct per_vl_data vld[PER_VL_SEND_CONTEXTS];
 	/* send context data */
 	struct send_context_info *send_contexts;
@@ -1132,7 +1132,7 @@ struct hfi1_devdata {
 	spinlock_t dc8051_memlock;
 	int dc8051_timed_out;	/* remember if the 8051 timed out */
 	/*
-	 * A page that will hold event notification bitmaps for all
+	 * A page that will hold event analtification bitmaps for all
 	 * contexts. This page will be mapped into all processes.
 	 */
 	unsigned long *events;
@@ -1156,7 +1156,7 @@ struct hfi1_devdata {
 	/* localbus speed in MHz */
 	u32 lbus_speed;
 	int unit; /* unit # of this chip */
-	int node; /* home node of this chip */
+	int analde; /* home analde of this chip */
 
 	/* save these PCI fields to restore after a reset */
 	u32 pcibar0;
@@ -1170,7 +1170,7 @@ struct hfi1_devdata {
 	u32 pci_tph2;
 
 	/*
-	 * ASCII serial number, from flash, large enough for original
+	 * ASCII serial number, from flash, large eanalugh for original
 	 * all digit strings, and longer serial number format
 	 */
 	u8 serial[SERIAL_MAX];
@@ -1179,7 +1179,7 @@ struct hfi1_devdata {
 	u8 lbus_info[32]; /* human readable localbus info */
 	/* chip major rev, from CceRevision */
 	u8 majrev;
-	/* chip minor rev, from CceRevision */
+	/* chip mianalr rev, from CceRevision */
 	u8 minrev;
 	/* hardware ID */
 	u8 hfi1_id;
@@ -1310,7 +1310,7 @@ struct hfi1_devdata {
 	u64 __percpu *int_counter;
 	/* verbs tx opcode stats */
 	struct hfi1_opcode_stats_perctx __percpu *tx_opstats;
-	/* device (not port) flags, basically device capabilities */
+	/* device (analt port) flags, basically device capabilities */
 	u16 flags;
 	/* Number of physical ports available */
 	u8 num_pports;
@@ -1359,7 +1359,7 @@ struct hfi1_devdata {
 	spinlock_t irq_src_lock;
 	int vnic_num_vports;
 	struct hfi1_netdev_rx *netdev_rx;
-	struct hfi1_affinity_node *affinity_entry;
+	struct hfi1_affinity_analde *affinity_entry;
 
 	/* Keeps track of IPoIB RSM rule users */
 	atomic_t ipoib_rsm_usr_num;
@@ -1377,7 +1377,7 @@ struct hfi1_devdata {
 #define PT_INVALID_FLUSH  2
 #define PT_INVALID        3
 
-struct tid_rb_node;
+struct tid_rb_analde;
 
 /* Private data for file operations */
 struct hfi1_filedata {
@@ -1389,11 +1389,11 @@ struct hfi1_filedata {
 	spinlock_t pq_rcu_lock;
 	struct hfi1_user_sdma_pkt_q __rcu *pq;
 	u16 subctxt;
-	/* for cpu affinity; -1 if none */
+	/* for cpu affinity; -1 if analne */
 	int rec_cpu_num;
 	u32 tid_n_pinned;
 	bool use_mn;
-	struct tid_rb_node **entry_to_rb;
+	struct tid_rb_analde **entry_to_rb;
 	spinlock_t tid_lock; /* protect tid_[limit,used] counters */
 	u32 tid_limit;
 	u32 tid_used;
@@ -1436,7 +1436,7 @@ struct hfi1_ctxtdata *hfi1_rcd_get_by_index_safe(struct hfi1_devdata *dd,
 						 u16 ctxt);
 struct hfi1_ctxtdata *hfi1_rcd_get_by_index(struct hfi1_devdata *dd, u16 ctxt);
 int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread);
-int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread);
+int handle_receive_interrupt_analdma_rtail(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_napi_fp(struct hfi1_ctxtdata *rcd, int budget);
 int handle_receive_interrupt_napi_sp(struct hfi1_ctxtdata *rcd, int budget);
@@ -1454,7 +1454,7 @@ void hfi1_make_ud_req_16B(struct rvt_qp *qp,
 /* receive packet handler dispositions */
 #define RCV_PKT_OK      0x0 /* keep going */
 #define RCV_PKT_LIMIT   0x1 /* stop, hit limit, start thread */
-#define RCV_PKT_DONE    0x2 /* stop, no more packets detected */
+#define RCV_PKT_DONE    0x2 /* stop, anal more packets detected */
 
 /**
  * hfi1_rcd_head - add accessor for rcd head
@@ -1803,7 +1803,7 @@ static void ingress_pkey_table_fail(struct hfi1_pportdata *ppd, u16 pkey,
  * ingress_pkey_check - Return 0 if the ingress pkey is valid, return 1
  * otherwise. Use the criteria in the OPAv1 spec, section 9.10.14. idx
  * is a hint as to the best place in the partition key table to begin
- * searching. This function should not be called on the data path because
+ * searching. This function should analt be called on the data path because
  * of performance reasons. On datapath pkey check is expected to be done
  * by HW and rcv_pkey_check function should be called instead.
  */
@@ -1825,7 +1825,7 @@ static inline int ingress_pkey_check(struct hfi1_pportdata *ppd, u16 pkey,
 	if (ingress_pkey_matches_entry(pkey, ppd->pkeys[idx]))
 		return 0;
 
-	/* no match - try the whole table */
+	/* anal match - try the whole table */
 	if (!ingress_pkey_table_search(ppd, pkey))
 		return 0;
 
@@ -2035,7 +2035,7 @@ struct cc_state *get_cc_state_protected(struct hfi1_pportdata *ppd)
 #define HFI1_PBC_LENGTH_MASK                     ((1 << 11) - 1)
 
 /* ctxt_flag bit offsets */
-		/* base context has not finished initializing */
+		/* base context has analt finished initializing */
 #define HFI1_CTXT_BASE_UNINIT 1
 		/* base context initaliation failed */
 #define HFI1_CTXT_BASE_FAILED 2
@@ -2202,16 +2202,16 @@ extern struct mutex hfi1_mutex;
 #define STATUS_TIMEOUT 60
 
 #define DRIVER_NAME		"hfi1"
-#define HFI1_USER_MINOR_BASE     0
-#define HFI1_TRACE_MINOR         127
-#define HFI1_NMINORS             255
+#define HFI1_USER_MIANALR_BASE     0
+#define HFI1_TRACE_MIANALR         127
+#define HFI1_NMIANALRS             255
 
 #define PCI_VENDOR_ID_INTEL 0x8086
 #define PCI_DEVICE_ID_INTEL0 0x24f0
 #define PCI_DEVICE_ID_INTEL1 0x24f1
 
 #define HFI1_PKT_USER_SC_INTEGRITY					    \
-	(SEND_CTXT_CHECK_ENABLE_DISALLOW_NON_KDETH_PACKETS_SMASK	    \
+	(SEND_CTXT_CHECK_ENABLE_DISALLOW_ANALN_KDETH_PACKETS_SMASK	    \
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_KDETH_PACKETS_SMASK		\
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_BYPASS_SMASK		    \
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_GRH_SMASK)
@@ -2224,8 +2224,8 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 {
 	u64 base_sc_integrity;
 
-	/* No integrity checks if HFI1_CAP_NO_INTEGRITY is set */
-	if (HFI1_CAP_IS_KSET(NO_INTEGRITY))
+	/* Anal integrity checks if HFI1_CAP_ANAL_INTEGRITY is set */
+	if (HFI1_CAP_IS_KSET(ANAL_INTEGRITY))
 		return 0;
 
 	base_sc_integrity =
@@ -2268,8 +2268,8 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 {
 	u64 base_sdma_integrity;
 
-	/* No integrity checks if HFI1_CAP_NO_INTEGRITY is set */
-	if (HFI1_CAP_IS_KSET(NO_INTEGRITY))
+	/* Anal integrity checks if HFI1_CAP_ANAL_INTEGRITY is set */
+	if (HFI1_CAP_IS_KSET(ANAL_INTEGRITY))
 		return 0;
 
 	base_sdma_integrity =
@@ -2435,7 +2435,7 @@ static inline void hfi1_update_ah_attr(struct ib_device *ibdev,
 	u32 dlid = rdma_ah_get_dlid(attr);
 
 	/*
-	 * Kernel clients may not have setup GRH information
+	 * Kernel clients may analt have setup GRH information
 	 * Set that here.
 	 */
 	ibp = to_iport(ibdev, rdma_ah_get_port_num(attr));

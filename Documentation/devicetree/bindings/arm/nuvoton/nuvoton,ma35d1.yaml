@@ -14,7 +14,7 @@ description: |
   the following properties.
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

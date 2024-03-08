@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 1996 Paul Mackerras.
  *
- * NOTE: assert(sizeof(buf) > 23 * sizeof(long))
+ * ANALTE: assert(sizeof(buf) > 23 * sizeof(long))
  */
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
@@ -11,12 +11,12 @@
 #include <asm/asm-compat.h>
 
 /*
- * Grab the register values as they are now.
+ * Grab the register values as they are analw.
  * This won't do a particularly good job because we really
  * want our caller's caller's registers, and our caller has
  * already executed its prologue.
  * ToDo: We could reach back into the caller's save area to do
- * a better job of representing the caller's state (note that
+ * a better job of representing the caller's state (analte that
  * that will be different for 32-bit and 64-bit, because of the
  * different ABIs, though).
  */

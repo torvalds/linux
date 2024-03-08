@@ -81,7 +81,7 @@ static void kunit_device_release(struct device *d)
 struct device_driver *kunit_driver_create(struct kunit *test, const char *name)
 {
 	struct device_driver *driver;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	driver = kunit_kzalloc(test, sizeof(*driver), GFP_KERNEL);
 
@@ -109,7 +109,7 @@ static struct kunit_device *kunit_device_register_internal(struct kunit *test,
 							   const struct device_driver *drv)
 {
 	struct kunit_device *kunit_dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	kunit_dev = kzalloc(sizeof(*kunit_dev), GFP_KERNEL);
 	if (!kunit_dev)

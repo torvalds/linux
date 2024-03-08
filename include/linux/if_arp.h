@@ -9,11 +9,11 @@
  * Version:	@(#)if_arp.h	1.0.1	04/16/93
  *
  * Authors:	Original taken from Berkeley UNIX 4.3, (c) UCB 1986-1988
- *		Portions taken from the KA9Q/NOS (v2.00m PA0GRI) source.
+ *		Portions taken from the KA9Q/ANALS (v2.00m PA0GRI) source.
  *		Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Florian La Roche,
- *		Jonathan Layes <layes@loran.com>
+ *		Jonathan Laanal <laanal@loran.com>
  *		Arnaldo Carvalho de Melo <acme@conectiva.com.br> ARPHRD_HWX25
  */
 #ifndef _LINUX_IF_ARP_H
@@ -50,7 +50,7 @@ static inline bool dev_is_mac_header_xmit(const struct net_device *dev)
 	case ARPHRD_IPGRE:
 	case ARPHRD_IP6GRE:
 	case ARPHRD_VOID:
-	case ARPHRD_NONE:
+	case ARPHRD_ANALNE:
 	case ARPHRD_RAWIP:
 	case ARPHRD_PIMREG:
 	/* PPP adds its l2 header automatically in ppp_start_xmit().

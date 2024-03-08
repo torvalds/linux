@@ -31,7 +31,7 @@ struct userspace_policy {
 static int cpufreq_set(struct cpufreq_policy *policy, unsigned int freq)
 {
 	int ret = -EINVAL;
-	struct userspace_policy *userspace = policy->governor_data;
+	struct userspace_policy *userspace = policy->goveranalr_data;
 
 	pr_debug("cpufreq_set for cpu %u, freq %u kHz\n", policy->cpu, freq);
 
@@ -58,27 +58,27 @@ static int cpufreq_userspace_policy_init(struct cpufreq_policy *policy)
 
 	userspace = kzalloc(sizeof(*userspace), GFP_KERNEL);
 	if (!userspace)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&userspace->mutex);
 
-	policy->governor_data = userspace;
+	policy->goveranalr_data = userspace;
 	return 0;
 }
 
 /*
  * Any routine that writes to the policy struct will hold the "rwsem" of
- * policy struct that means it is free to free "governor_data" here.
+ * policy struct that means it is free to free "goveranalr_data" here.
  */
 static void cpufreq_userspace_policy_exit(struct cpufreq_policy *policy)
 {
-	kfree(policy->governor_data);
-	policy->governor_data = NULL;
+	kfree(policy->goveranalr_data);
+	policy->goveranalr_data = NULL;
 }
 
 static int cpufreq_userspace_policy_start(struct cpufreq_policy *policy)
 {
-	struct userspace_policy *userspace = policy->governor_data;
+	struct userspace_policy *userspace = policy->goveranalr_data;
 
 	BUG_ON(!policy->cur);
 	pr_debug("started managing cpu %u\n", policy->cpu);
@@ -92,7 +92,7 @@ static int cpufreq_userspace_policy_start(struct cpufreq_policy *policy)
 
 static void cpufreq_userspace_policy_stop(struct cpufreq_policy *policy)
 {
-	struct userspace_policy *userspace = policy->governor_data;
+	struct userspace_policy *userspace = policy->goveranalr_data;
 
 	pr_debug("managing cpu %u stopped\n", policy->cpu);
 
@@ -104,7 +104,7 @@ static void cpufreq_userspace_policy_stop(struct cpufreq_policy *policy)
 
 static void cpufreq_userspace_policy_limits(struct cpufreq_policy *policy)
 {
-	struct userspace_policy *userspace = policy->governor_data;
+	struct userspace_policy *userspace = policy->goveranalr_data;
 
 	mutex_lock(&userspace->mutex);
 
@@ -124,7 +124,7 @@ static void cpufreq_userspace_policy_limits(struct cpufreq_policy *policy)
 	mutex_unlock(&userspace->mutex);
 }
 
-static struct cpufreq_governor cpufreq_gov_userspace = {
+static struct cpufreq_goveranalr cpufreq_gov_userspace = {
 	.name		= "userspace",
 	.init		= cpufreq_userspace_policy_init,
 	.exit		= cpufreq_userspace_policy_exit,
@@ -138,15 +138,15 @@ static struct cpufreq_governor cpufreq_gov_userspace = {
 
 MODULE_AUTHOR("Dominik Brodowski <linux@brodo.de>, "
 		"Russell King <rmk@arm.linux.org.uk>");
-MODULE_DESCRIPTION("CPUfreq policy governor 'userspace'");
+MODULE_DESCRIPTION("CPUfreq policy goveranalr 'userspace'");
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_USERSPACE
-struct cpufreq_governor *cpufreq_default_governor(void)
+struct cpufreq_goveranalr *cpufreq_default_goveranalr(void)
 {
 	return &cpufreq_gov_userspace;
 }
 #endif
 
-cpufreq_governor_init(cpufreq_gov_userspace);
-cpufreq_governor_exit(cpufreq_gov_userspace);
+cpufreq_goveranalr_init(cpufreq_gov_userspace);
+cpufreq_goveranalr_exit(cpufreq_gov_userspace);

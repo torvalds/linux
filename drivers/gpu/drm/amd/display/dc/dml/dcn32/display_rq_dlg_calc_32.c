@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -150,7 +150,7 @@ void dml32_rq_dlg_get_rq_reg(display_rq_regs_st *rq_regs,
 	rq_regs->rq_regs_c.swath_height = dml_log2(get_swath_height_c(mode_lib, e2e_pipe_param, num_pipes, pipe_idx));
 
 	// FIXME: take the max between luma, chroma chunk size?
-	// okay for now, as we are setting pixel_chunk_bytes to 8kb anyways
+	// okay for analw, as we are setting pixel_chunk_bytes to 8kb anyways
 	if (pixel_chunk_bytes >= 32 * 1024 || (dual_plane && p1_pixel_chunk_bytes >= 32 * 1024)) { //32kb
 		rq_regs->drq_expansion_mode = 0;
 	} else {
@@ -166,7 +166,7 @@ void dml32_rq_dlg_get_rq_reg(display_rq_regs_st *rq_regs,
 			pipe_idx);
 	is_phantom_pipe = get_is_phantom_pipe(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
 
-	// Note: detile_buf_plane1_addr is in unit of 1KB
+	// Analte: detile_buf_plane1_addr is in unit of 1KB
 	if (dual_plane) {
 		if (is_phantom_pipe) {
 			detile_buf_plane1_addr = ((1024.0 * 1024.0) / 2.0 / 1024.0); // half to chroma
@@ -246,18 +246,18 @@ void dml32_rq_dlg_get_dlg_reg(struct display_mode_lib *mode_lib,
 	double dst_y_per_row_flip;
 	double max_dst_y_per_vm_vblank = 32.0;
 	double max_dst_y_per_row_vblank = 16.0;
-	double dst_y_per_pte_row_nom_l;
-	double dst_y_per_pte_row_nom_c;
-	double dst_y_per_meta_row_nom_l;
-	double dst_y_per_meta_row_nom_c;
-	double refcyc_per_pte_group_nom_l;
-	double refcyc_per_pte_group_nom_c;
+	double dst_y_per_pte_row_analm_l;
+	double dst_y_per_pte_row_analm_c;
+	double dst_y_per_meta_row_analm_l;
+	double dst_y_per_meta_row_analm_c;
+	double refcyc_per_pte_group_analm_l;
+	double refcyc_per_pte_group_analm_c;
 	double refcyc_per_pte_group_vblank_l;
 	double refcyc_per_pte_group_vblank_c;
 	double refcyc_per_pte_group_flip_l;
 	double refcyc_per_pte_group_flip_c;
-	double refcyc_per_meta_chunk_nom_l;
-	double refcyc_per_meta_chunk_nom_c;
+	double refcyc_per_meta_chunk_analm_l;
+	double refcyc_per_meta_chunk_analm_c;
 	double refcyc_per_meta_chunk_vblank_l;
 	double refcyc_per_meta_chunk_vblank_c;
 	double refcyc_per_meta_chunk_flip_l;
@@ -467,17 +467,17 @@ void dml32_rq_dlg_get_dlg_reg(struct display_mode_lib *mode_lib,
 			pipe_idx) * refclk_freq_in_mhz * dml_pow(2, 10);  // From VBA
 
 	// From VBA
-	dst_y_per_pte_row_nom_l = get_dst_y_per_pte_row_nom_l(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
+	dst_y_per_pte_row_analm_l = get_dst_y_per_pte_row_analm_l(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
 	// From VBA
-	dst_y_per_pte_row_nom_c = get_dst_y_per_pte_row_nom_c(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
+	dst_y_per_pte_row_analm_c = get_dst_y_per_pte_row_analm_c(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
 	// From VBA
-	dst_y_per_meta_row_nom_l = get_dst_y_per_meta_row_nom_l(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
+	dst_y_per_meta_row_analm_l = get_dst_y_per_meta_row_analm_l(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
 	// From VBA
-	dst_y_per_meta_row_nom_c = get_dst_y_per_meta_row_nom_c(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
+	dst_y_per_meta_row_analm_c = get_dst_y_per_meta_row_analm_c(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
 
-	refcyc_per_pte_group_nom_l = get_refcyc_per_pte_group_nom_l_in_us(mode_lib, e2e_pipe_param, num_pipes,
+	refcyc_per_pte_group_analm_l = get_refcyc_per_pte_group_analm_l_in_us(mode_lib, e2e_pipe_param, num_pipes,
 			pipe_idx) * refclk_freq_in_mhz;         // From VBA
-	refcyc_per_pte_group_nom_c = get_refcyc_per_pte_group_nom_c_in_us(mode_lib, e2e_pipe_param, num_pipes,
+	refcyc_per_pte_group_analm_c = get_refcyc_per_pte_group_analm_c_in_us(mode_lib, e2e_pipe_param, num_pipes,
 			pipe_idx) * refclk_freq_in_mhz;         // From VBA
 	refcyc_per_pte_group_vblank_l = get_refcyc_per_pte_group_vblank_l_in_us(mode_lib, e2e_pipe_param,
 			num_pipes, pipe_idx) * refclk_freq_in_mhz;      // From VBA
@@ -488,9 +488,9 @@ void dml32_rq_dlg_get_dlg_reg(struct display_mode_lib *mode_lib,
 	refcyc_per_pte_group_flip_c = get_refcyc_per_pte_group_flip_c_in_us(mode_lib, e2e_pipe_param, num_pipes,
 			pipe_idx) * refclk_freq_in_mhz;        // From VBA
 
-	refcyc_per_meta_chunk_nom_l = get_refcyc_per_meta_chunk_nom_l_in_us(mode_lib, e2e_pipe_param, num_pipes,
+	refcyc_per_meta_chunk_analm_l = get_refcyc_per_meta_chunk_analm_l_in_us(mode_lib, e2e_pipe_param, num_pipes,
 			pipe_idx) * refclk_freq_in_mhz;        // From VBA
-	refcyc_per_meta_chunk_nom_c = get_refcyc_per_meta_chunk_nom_c_in_us(mode_lib, e2e_pipe_param, num_pipes,
+	refcyc_per_meta_chunk_analm_c = get_refcyc_per_meta_chunk_analm_c_in_us(mode_lib, e2e_pipe_param, num_pipes,
 			pipe_idx) * refclk_freq_in_mhz;        // From VBA
 	refcyc_per_meta_chunk_vblank_l = get_refcyc_per_meta_chunk_vblank_l_in_us(mode_lib, e2e_pipe_param,
 			num_pipes, pipe_idx) * refclk_freq_in_mhz;     // From VBA
@@ -501,18 +501,18 @@ void dml32_rq_dlg_get_dlg_reg(struct display_mode_lib *mode_lib,
 	refcyc_per_meta_chunk_flip_c = get_refcyc_per_meta_chunk_flip_c_in_us(mode_lib, e2e_pipe_param,
 			num_pipes, pipe_idx) * refclk_freq_in_mhz;       // From VBA
 
-	dlg_regs->dst_y_per_pte_row_nom_l = dst_y_per_pte_row_nom_l * dml_pow(2, 2);
-	dlg_regs->dst_y_per_pte_row_nom_c = dst_y_per_pte_row_nom_c * dml_pow(2, 2);
-	dlg_regs->dst_y_per_meta_row_nom_l = dst_y_per_meta_row_nom_l * dml_pow(2, 2);
-	dlg_regs->dst_y_per_meta_row_nom_c = dst_y_per_meta_row_nom_c * dml_pow(2, 2);
-	dlg_regs->refcyc_per_pte_group_nom_l = refcyc_per_pte_group_nom_l;
-	dlg_regs->refcyc_per_pte_group_nom_c = refcyc_per_pte_group_nom_c;
+	dlg_regs->dst_y_per_pte_row_analm_l = dst_y_per_pte_row_analm_l * dml_pow(2, 2);
+	dlg_regs->dst_y_per_pte_row_analm_c = dst_y_per_pte_row_analm_c * dml_pow(2, 2);
+	dlg_regs->dst_y_per_meta_row_analm_l = dst_y_per_meta_row_analm_l * dml_pow(2, 2);
+	dlg_regs->dst_y_per_meta_row_analm_c = dst_y_per_meta_row_analm_c * dml_pow(2, 2);
+	dlg_regs->refcyc_per_pte_group_analm_l = refcyc_per_pte_group_analm_l;
+	dlg_regs->refcyc_per_pte_group_analm_c = refcyc_per_pte_group_analm_c;
 	dlg_regs->refcyc_per_pte_group_vblank_l = refcyc_per_pte_group_vblank_l;
 	dlg_regs->refcyc_per_pte_group_vblank_c = refcyc_per_pte_group_vblank_c;
 	dlg_regs->refcyc_per_pte_group_flip_l = refcyc_per_pte_group_flip_l;
 	dlg_regs->refcyc_per_pte_group_flip_c = refcyc_per_pte_group_flip_c;
-	dlg_regs->refcyc_per_meta_chunk_nom_l = refcyc_per_meta_chunk_nom_l;
-	dlg_regs->refcyc_per_meta_chunk_nom_c = refcyc_per_meta_chunk_nom_c;
+	dlg_regs->refcyc_per_meta_chunk_analm_l = refcyc_per_meta_chunk_analm_l;
+	dlg_regs->refcyc_per_meta_chunk_analm_c = refcyc_per_meta_chunk_analm_c;
 	dlg_regs->refcyc_per_meta_chunk_vblank_l = refcyc_per_meta_chunk_vblank_l;
 	dlg_regs->refcyc_per_meta_chunk_vblank_c = refcyc_per_meta_chunk_vblank_c;
 	dlg_regs->refcyc_per_meta_chunk_flip_l = refcyc_per_meta_chunk_flip_l;
@@ -570,33 +570,33 @@ void dml32_rq_dlg_get_dlg_reg(struct display_mode_lib *mode_lib,
 
 	ASSERT(dlg_regs->dst_y_after_scaler < (unsigned int) 8);
 	ASSERT(dlg_regs->refcyc_x_after_scaler < (unsigned int)dml_pow(2, 13));
-	ASSERT(dlg_regs->dst_y_per_pte_row_nom_l < (unsigned int)dml_pow(2, 17));
+	ASSERT(dlg_regs->dst_y_per_pte_row_analm_l < (unsigned int)dml_pow(2, 17));
 	if (dual_plane) {
-		if (dlg_regs->dst_y_per_pte_row_nom_c >= (unsigned int) dml_pow(2, 17)) {
+		if (dlg_regs->dst_y_per_pte_row_analm_c >= (unsigned int) dml_pow(2, 17)) {
 			// FIXME what so special about chroma, can we just assert?
-			dml_print("DML_DLG: %s: Warning dst_y_per_pte_row_nom_c %u > register max U15.2 %u\n",
-					__func__, dlg_regs->dst_y_per_pte_row_nom_c, (unsigned int)dml_pow(2, 17) - 1);
+			dml_print("DML_DLG: %s: Warning dst_y_per_pte_row_analm_c %u > register max U15.2 %u\n",
+					__func__, dlg_regs->dst_y_per_pte_row_analm_c, (unsigned int)dml_pow(2, 17) - 1);
 		}
 	}
-	ASSERT(dlg_regs->dst_y_per_meta_row_nom_l < (unsigned int)dml_pow(2, 17));
-	ASSERT(dlg_regs->dst_y_per_meta_row_nom_c < (unsigned int)dml_pow(2, 17));
+	ASSERT(dlg_regs->dst_y_per_meta_row_analm_l < (unsigned int)dml_pow(2, 17));
+	ASSERT(dlg_regs->dst_y_per_meta_row_analm_c < (unsigned int)dml_pow(2, 17));
 
-	if (dlg_regs->refcyc_per_pte_group_nom_l >= (unsigned int) dml_pow(2, 23))
-		dlg_regs->refcyc_per_pte_group_nom_l = dml_pow(2, 23) - 1;
+	if (dlg_regs->refcyc_per_pte_group_analm_l >= (unsigned int) dml_pow(2, 23))
+		dlg_regs->refcyc_per_pte_group_analm_l = dml_pow(2, 23) - 1;
 	if (dual_plane) {
-		if (dlg_regs->refcyc_per_pte_group_nom_c >= (unsigned int) dml_pow(2, 23))
-			dlg_regs->refcyc_per_pte_group_nom_c = dml_pow(2, 23) - 1;
+		if (dlg_regs->refcyc_per_pte_group_analm_c >= (unsigned int) dml_pow(2, 23))
+			dlg_regs->refcyc_per_pte_group_analm_c = dml_pow(2, 23) - 1;
 	}
 	ASSERT(dlg_regs->refcyc_per_pte_group_vblank_l < (unsigned int)dml_pow(2, 13));
 	if (dual_plane) {
 		ASSERT(dlg_regs->refcyc_per_pte_group_vblank_c < (unsigned int)dml_pow(2, 13));
 	}
 
-	if (dlg_regs->refcyc_per_meta_chunk_nom_l >= (unsigned int) dml_pow(2, 23))
-		dlg_regs->refcyc_per_meta_chunk_nom_l = dml_pow(2, 23) - 1;
+	if (dlg_regs->refcyc_per_meta_chunk_analm_l >= (unsigned int) dml_pow(2, 23))
+		dlg_regs->refcyc_per_meta_chunk_analm_l = dml_pow(2, 23) - 1;
 	if (dual_plane) {
-		if (dlg_regs->refcyc_per_meta_chunk_nom_c >= (unsigned int) dml_pow(2, 23))
-			dlg_regs->refcyc_per_meta_chunk_nom_c = dml_pow(2, 23) - 1;
+		if (dlg_regs->refcyc_per_meta_chunk_analm_c >= (unsigned int) dml_pow(2, 23))
+			dlg_regs->refcyc_per_meta_chunk_analm_c = dml_pow(2, 23) - 1;
 	}
 	ASSERT(dlg_regs->refcyc_per_meta_chunk_vblank_l < (unsigned int)dml_pow(2, 13));
 	ASSERT(dlg_regs->refcyc_per_meta_chunk_vblank_c < (unsigned int)dml_pow(2, 13));

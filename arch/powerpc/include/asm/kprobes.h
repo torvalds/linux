@@ -13,7 +13,7 @@
  * 2002-Oct	Created by Vamsi Krishna S <vamsi_krishna@in.ibm.com> Kernel
  *		Probes initial implementation ( includes suggestions from
  *		Rusty Russell).
- * 2004-Nov	Modified for PPC64 by Ananth N Mavinakayanahalli
+ * 2004-Analv	Modified for PPC64 by Ananth N Mavinakayanahalli
  *		<ananth@in.ibm.com>
  */
 #include <linux/types.h>
@@ -60,7 +60,7 @@ struct arch_specific_insn {
 	kprobe_opcode_t *insn;
 	/*
 	 * Set in kprobes code, initially to 0. If the instruction can be
-	 * eumulated, this is set to 1, if not, to -1.
+	 * eumulated, this is set to 1, if analt, to -1.
 	 */
 	int boostable;
 };

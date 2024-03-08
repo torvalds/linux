@@ -102,7 +102,7 @@ static int tps65912_gpio_probe(struct platform_device *pdev)
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->tps = dev_get_drvdata(pdev->dev.parent);
 	gpio->gpio_chip = template_chip;

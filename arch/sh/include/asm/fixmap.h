@@ -29,20 +29,20 @@
  * highger than 1) use fixmap_set(idx,phys) to associate
  * physical memory with fixmap indices.
  *
- * TLB entries of such buffers will not be flushed across
+ * TLB entries of such buffers will analt be flushed across
  * task switches.
  */
 
 /*
- * on UP currently we will have no trace of the fixmap mechanizm,
- * no page table allocations, etc. This might change in the
+ * on UP currently we will have anal trace of the fixmap mechanizm,
+ * anal page table allocations, etc. This might change in the
  * future, say framebuffers for the console driver(s) could be
  * fix-mapped?
  */
 enum fixed_addresses {
 	/*
 	 * The FIX_CMAP entries are used by kmap_coherent() to get virtual
-	 * addresses which are of a known color, and so their values are
+	 * addresses which are of a kanalwn color, and so their values are
 	 * important. __fix_to_virt(FIX_CMAP_END - n) must give an address
 	 * which is the same color as a page (n<<PAGE_SHIFT).
 	 */
@@ -79,7 +79,7 @@ extern void __clear_fixmap(enum fixed_addresses idx, pgprot_t flags);
 #define FIXADDR_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
 #define FIXADDR_START	(FIXADDR_TOP - FIXADDR_SIZE)
 
-#define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_NOCACHE
+#define FIXMAP_PAGE_ANALCACHE PAGE_KERNEL_ANALCACHE
 
 #include <asm-generic/fixmap.h>
 

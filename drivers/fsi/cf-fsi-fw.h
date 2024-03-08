@@ -27,8 +27,8 @@
 #define HDR_SYS_SIG		0x00	/* 2 bytes system signature */
 #define  SYS_SIG_SHARED		0x5348
 #define  SYS_SIG_SPLIT		0x5350
-#define HDR_FW_VERS		0x02	/* 2 bytes Major.Minor */
-#define HDR_API_VERS		0x04	/* 2 bytes Major.Minor */
+#define HDR_FW_VERS		0x02	/* 2 bytes Major.Mianalr */
+#define HDR_API_VERS		0x04	/* 2 bytes Major.Mianalr */
 #define  API_VERSION_MAJ	2	/* Current version */
 #define  API_VERSION_MIN	1
 #define HDR_FW_OPTIONS		0x08	/* 4 bytes option flags */
@@ -78,7 +78,7 @@
 #define	CMD_STAT_REG	        0x00
 #define  CMD_REG_CMD_MASK	0x000000ff
 #define  CMD_REG_CMD_SHIFT	0
-#define	  CMD_NONE		0x00
+#define	  CMD_ANALNE		0x00
 #define	  CMD_COMMAND		0x01
 #define	  CMD_BREAK		0x02
 #define	  CMD_IDLE_CLOCKS	0x03 /* clen = #clocks */

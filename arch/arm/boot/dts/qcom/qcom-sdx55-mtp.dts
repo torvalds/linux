@@ -12,7 +12,7 @@
 #include "pmx55.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SDX55 MTP";
+	model = "Qualcomm Techanallogies, Inc. SDX55 MTP";
 	compatible = "qcom,sdx55-mtp", "qcom,sdx55";
 	qcom,board-id = <0x5010008 0x0>;
 
@@ -30,17 +30,17 @@
 		ranges;
 
 		mpss_debug_mem: memory@8ef00000 {
-			no-map;
+			anal-map;
 			reg = <0x8ef00000 0x800000>;
 		};
 
 		ipa_fw_mem: memory@8fced000 {
-			no-map;
+			anal-map;
 			reg = <0x8fced000 0x10000>;
 		};
 
 		mpss_adsp_mem: memory@90c00000 {
-			no-map;
+			anal-map;
 			reg = <0x90c00000 0xd400000>;
 		};
 	};

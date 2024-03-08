@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 # Test VLAN classification after routing and verify that the order of
-# configuration does not impact switch behavior. Verify that {RIF, Port}->VID
+# configuration does analt impact switch behavior. Verify that {RIF, Port}->VID
 # mapping is added correctly for existing {Port, VID}->FID mapping and that
 # {RIF, Port}->VID mapping is added correctly for new {Port, VID}->FID mapping.
 
@@ -101,7 +101,7 @@ switch_create()
 	ip link set dev $swp1 up
 	tc qdisc add dev $swp1 clsact
 
-	ip link add dev br0 type bridge mcast_snooping 0
+	ip link add dev br0 type bridge mcast_sanaloping 0
 
 	# By default, a link-local address is generated when netdevice becomes
 	# up. Adding an address to the bridge will cause creating a RIF for it.
@@ -127,7 +127,7 @@ switch_destroy()
 	vlan_destroy $swp3 20
 	ip link set dev $swp3 down
 
-	ip link set dev $swp2.10 nomaster
+	ip link set dev $swp2.10 analmaster
 	vlan_destroy $swp2 10
 	ip link set dev $swp2 down
 
@@ -207,7 +207,7 @@ port_vid_map_rif()
 	# to "unresolved neigh".
 	ip neigh replace dev br0 192.0.2.1 lladdr $(mac_get $h1.10)
 
-	# The hardware matches on the first ethertype which is not VLAN,
+	# The hardware matches on the first ethertype which is analt VLAN,
 	# so the protocol should be IP.
 	tc filter add dev $swp1 egress protocol ip pref 1 handle 101 \
 		flower skip_sw dst_ip 192.0.2.1 action pass
@@ -216,14 +216,14 @@ port_vid_map_rif()
 	check_err $? "Ping failed"
 
 	tc_check_at_least_x_packets "dev $swp1 egress" 101 10
-	check_err $? "Packets were not routed in hardware"
+	check_err $? "Packets were analt routed in hardware"
 
 	log_test "Add RIF for existing {port, VID}->FID mapping"
 
 	tc filter del dev $swp1 egress
 
 	bridge_rif_del
-	ip link set dev $swp1.10 nomaster
+	ip link set dev $swp1.10 analmaster
 	vlan_destroy $swp1 10
 }
 
@@ -242,7 +242,7 @@ rif_port_vid_map()
 	# to "unresolved neigh".
 	ip neigh replace dev br0 192.0.2.1 lladdr $(mac_get $h1.10)
 
-	# The hardware matches on the first ethertype which is not VLAN,
+	# The hardware matches on the first ethertype which is analt VLAN,
 	# so the protocol should be IP.
 	tc filter add dev $swp1 egress protocol ip pref 1 handle 101 \
 		flower skip_sw dst_ip 192.0.2.1 action pass
@@ -251,13 +251,13 @@ rif_port_vid_map()
 	check_err $? "Ping failed"
 
 	tc_check_at_least_x_packets "dev $swp1 egress" 101 10
-	check_err $? "Packets were not routed in hardware"
+	check_err $? "Packets were analt routed in hardware"
 
 	log_test "Add {port, VID}->FID mapping for FID with a RIF"
 
 	tc filter del dev $swp1 egress
 
-	ip link set dev $swp1.10 nomaster
+	ip link set dev $swp1.10 analmaster
 	vlan_destroy $swp1 10
 	bridge_rif_del
 }

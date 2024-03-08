@@ -202,7 +202,7 @@ static int ecap_cnt_action_read(struct counter_device *counter,
 {
 	*action = (synapse->signal->id == ECAP_CLOCK_SIG) ?
 		   COUNTER_SYNAPSE_ACTION_RISING_EDGE :
-		   COUNTER_SYNAPSE_ACTION_NONE;
+		   COUNTER_SYNAPSE_ACTION_ANALNE;
 
 	return 0;
 }
@@ -365,7 +365,7 @@ static const enum counter_synapse_action ecap_cnt_clock_actions[] = {
 };
 
 static const enum counter_synapse_action ecap_cnt_input_actions[] = {
-	COUNTER_SYNAPSE_ACTION_NONE,
+	COUNTER_SYNAPSE_ACTION_ANALNE,
 };
 
 static struct counter_comp ecap_cnt_clock_ext[] = {
@@ -481,7 +481,7 @@ static int ecap_cnt_probe(struct platform_device *pdev)
 
 	counter_dev = devm_counter_alloc(dev, sizeof(*ecap_dev));
 	if (!counter_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	counter_dev->name = ECAP_DRV_NAME;
 	counter_dev->parent = dev;

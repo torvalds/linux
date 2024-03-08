@@ -64,8 +64,8 @@ int __init mpic_setup_error_int(struct mpic *mpic, int intvec)
 
 	mpic->err_regs = ioremap(mpic->paddr + MPIC_ERR_INT_BASE, 0x1000);
 	if (!mpic->err_regs) {
-		pr_err("could not map mpic error registers\n");
-		return -ENOMEM;
+		pr_err("could analt map mpic error registers\n");
+		return -EANALMEM;
 	}
 	mpic->hc_err = fsl_mpic_err_chip;
 	mpic->hc_err.name = mpic->name;
@@ -104,7 +104,7 @@ static irqreturn_t fsl_error_int_handler(int irq, void *data)
 	eimr = mpic_fsl_err_read(mpic->err_regs, MPIC_ERR_INT_EIMR);
 
 	if (!(eisr & ~eimr))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	while (eisr) {
 		int ret;
@@ -135,7 +135,7 @@ void __init mpic_err_int_init(struct mpic *mpic, irq_hw_number_t irqnum)
 	/* Mask all error interrupts */
 	mpic_fsl_err_write(mpic->err_regs, ~0);
 
-	ret = request_irq(virq, fsl_error_int_handler, IRQF_NO_THREAD,
+	ret = request_irq(virq, fsl_error_int_handler, IRQF_ANAL_THREAD,
 		    "mpic-error-int", mpic);
 	if (ret)
 		pr_err("Failed to register error interrupt handler\n");

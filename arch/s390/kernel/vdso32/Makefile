@@ -5,7 +5,7 @@ KCOV_INSTRUMENT := n
 
 # Include the generic Makefile to check the built vdso.
 include $(srctree)/lib/vdso/Makefile
-obj-vdso32 = vdso_user_wrapper-32.o note-32.o
+obj-vdso32 = vdso_user_wrapper-32.o analte-32.o
 
 # Build rules
 
@@ -19,8 +19,8 @@ KBUILD_AFLAGS_32 := $(filter-out -m64,$(KBUILD_AFLAGS))
 KBUILD_AFLAGS_32 += -m31 -s
 
 KBUILD_CFLAGS_32 := $(filter-out -m64,$(KBUILD_CFLAGS))
-KBUILD_CFLAGS_32 := $(filter-out -mno-pic-data-is-text-relative,$(KBUILD_CFLAGS_32))
-KBUILD_CFLAGS_32 += -m31 -fPIC -shared -fno-common -fno-builtin
+KBUILD_CFLAGS_32 := $(filter-out -manal-pic-data-is-text-relative,$(KBUILD_CFLAGS_32))
+KBUILD_CFLAGS_32 += -m31 -fPIC -shared -fanal-common -fanal-builtin
 
 LDFLAGS_vdso32.so.dbg += -fPIC -shared -soname=linux-vdso32.so.1 \
 	--hash-style=both --build-id=sha1 -melf_s390 -T

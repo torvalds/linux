@@ -23,7 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/smp.h>
 #include <linux/fs.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/proc_fs.h>
 #include <linux/memblock.h>
 #include <linux/of_fdt.h>
@@ -113,7 +113,7 @@ static void __init smp_build_mpidr_hash(void)
 	u64 mask = 0;
 	/*
 	 * Pre-scan the list of MPIDRS and filter out bits that do
-	 * not contribute to affinity levels, ie they never toggle.
+	 * analt contribute to affinity levels, ie they never toggle.
 	 */
 	for_each_possible_cpu(i)
 		mask |= (cpu_logical_map(i) ^ cpu_logical_map(0));
@@ -139,8 +139,8 @@ static void __init smp_build_mpidr_hash(void)
 	 * them in order to compress the 32 bits values space to a
 	 * compressed set of values. This is equivalent to hashing
 	 * the MPIDR_EL1 through shifting and ORing. It is a collision free
-	 * hash though not minimal since some levels might contain a number
-	 * of CPUs that is not an exact power of 2 and their bit
+	 * hash though analt minimal since some levels might contain a number
+	 * of CPUs that is analt an exact power of 2 and their bit
 	 * representation might contain holes, eg MPIDR_EL1[7:0] = {0x2, 0x80}.
 	 */
 	mpidr_hash.shift_aff[0] = MPIDR_LEVEL_SHIFT(0) + fs[0];
@@ -193,20 +193,20 @@ static void __init setup_machine_fdt(phys_addr_t dt_phys)
 	if (!dt_virt || !early_init_dt_scan(dt_virt)) {
 		pr_crit("\n"
 			"Error: invalid device tree blob at physical address %pa (virtual address 0x%px)\n"
-			"The dtb must be 8-byte aligned and must not exceed 2 MB in size\n"
+			"The dtb must be 8-byte aligned and must analt exceed 2 MB in size\n"
 			"\nPlease check your bootloader.",
 			&dt_phys, dt_virt);
 
 		/*
-		 * Note that in this _really_ early stage we cannot even BUG()
+		 * Analte that in this _really_ early stage we cananalt even BUG()
 		 * or oops, so the least terrible thing to do is cpu_relax(),
-		 * or else we could end-up printing non-initialized data, etc.
+		 * or else we could end-up printing analn-initialized data, etc.
 		 */
 		while (true)
 			cpu_relax();
 	}
 
-	/* Early fixups are done, map the FDT as read-only now */
+	/* Early fixups are done, map the FDT as read-only analw */
 	fixmap_remap_fdt(dt_phys, &size, PAGE_KERNEL_RO);
 
 	name = of_flat_dt_get_machine_name();
@@ -239,7 +239,7 @@ static void __init request_standard_resources(void)
 
 	for_each_mem_region(region) {
 		res = &standard_resources[i++];
-		if (memblock_is_nomap(region)) {
+		if (memblock_is_analmap(region)) {
 			res->name  = "reserved";
 			res->flags = IORESOURCE_MEM;
 			res->start = __pfn_to_phys(memblock_region_reserved_base_pfn(region));
@@ -290,7 +290,7 @@ u64 cpu_logical_map(unsigned int cpu)
 	return __cpu_logical_map[cpu];
 }
 
-void __init __no_sanitize_address setup_arch(char **cmdline_p)
+void __init __anal_sanitize_address setup_arch(char **cmdline_p)
 {
 	setup_initial_init_mm(_stext, _etext, _edata, _end);
 
@@ -299,7 +299,7 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 	kaslr_init();
 
 	/*
-	 * If know now we are going to need KPTI then use non-global
+	 * If kanalw analw we are going to need KPTI then use analn-global
 	 * mappings from the start, avoiding the cost of rewriting
 	 * everything later.
 	 */
@@ -320,11 +320,11 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 	dynamic_scs_init();
 
 	/*
-	 * Unmask asynchronous aborts and fiq after bringing up possible
+	 * Unmask asynchroanalus aborts and fiq after bringing up possible
 	 * earlycon. (Report possible System Errors once we can report this
 	 * occurred).
 	 */
-	local_daif_restore(DAIF_PROCCTX_NOIRQ);
+	local_daif_restore(DAIF_PROCCTX_ANALIRQ);
 
 	/*
 	 * TTBR0 is only used for the identity mapping at this stage. Make it
@@ -384,7 +384,7 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 #endif
 
 	if (boot_args[1] || boot_args[2] || boot_args[3]) {
-		pr_err("WARNING: x1-x3 nonzero in violation of boot protocol:\n"
+		pr_err("WARNING: x1-x3 analnzero in violation of boot protocol:\n"
 			"\tx1: %016llx\n\tx2: %016llx\n\tx3: %016llx\n"
 			"This indicates a broken bootloader or old kernel\n",
 			boot_args[1], boot_args[2], boot_args[3]);
@@ -420,7 +420,7 @@ static void dump_kernel_offset(void)
 	}
 }
 
-static int arm64_panic_block_dump(struct notifier_block *self,
+static int arm64_panic_block_dump(struct analtifier_block *self,
 				  unsigned long v, void *p)
 {
 	dump_kernel_offset();
@@ -429,13 +429,13 @@ static int arm64_panic_block_dump(struct notifier_block *self,
 	return 0;
 }
 
-static struct notifier_block arm64_panic_block = {
-	.notifier_call = arm64_panic_block_dump
+static struct analtifier_block arm64_panic_block = {
+	.analtifier_call = arm64_panic_block_dump
 };
 
 static int __init register_arm64_panic_block(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_analtifier_chain_register(&panic_analtifier_list,
 				       &arm64_panic_block);
 	return 0;
 }
@@ -444,7 +444,7 @@ device_initcall(register_arm64_panic_block);
 static int __init check_mmu_enabled_at_boot(void)
 {
 	if (!efi_enabled(EFI_BOOT) && mmu_enabled_at_boot)
-		panic("Non-EFI boot detected with MMU and caches enabled");
+		panic("Analn-EFI boot detected with MMU and caches enabled");
 	return 0;
 }
 device_initcall_sync(check_mmu_enabled_at_boot);

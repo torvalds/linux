@@ -50,14 +50,14 @@ static const struct ce_variant ce_h3_variant = {
 		},
 	.esr = ESR_H3,
 	.prng = CE_ALG_PRNG,
-	.trng = CE_ID_NOTSUPP,
+	.trng = CE_ID_ANALTSUPP,
 };
 
 static const struct ce_variant ce_h5_variant = {
 	.alg_cipher = { CE_ALG_AES, CE_ALG_DES, CE_ALG_3DES,
 	},
 	.alg_hash = { CE_ALG_MD5, CE_ALG_SHA1, CE_ALG_SHA224, CE_ALG_SHA256,
-		CE_ID_NOTSUPP, CE_ID_NOTSUPP
+		CE_ID_ANALTSUPP, CE_ID_ANALTSUPP
 	},
 	.op_mode = { CE_OP_ECB, CE_OP_CBC
 	},
@@ -67,7 +67,7 @@ static const struct ce_variant ce_h5_variant = {
 		},
 	.esr = ESR_H5,
 	.prng = CE_ALG_PRNG,
-	.trng = CE_ID_NOTSUPP,
+	.trng = CE_ID_ANALTSUPP,
 };
 
 static const struct ce_variant ce_h6_variant = {
@@ -96,7 +96,7 @@ static const struct ce_variant ce_a64_variant = {
 	.alg_cipher = { CE_ALG_AES, CE_ALG_DES, CE_ALG_3DES,
 	},
 	.alg_hash = { CE_ALG_MD5, CE_ALG_SHA1, CE_ALG_SHA224, CE_ALG_SHA256,
-		CE_ID_NOTSUPP, CE_ID_NOTSUPP
+		CE_ID_ANALTSUPP, CE_ID_ANALTSUPP
 	},
 	.op_mode = { CE_OP_ECB, CE_OP_CBC
 	},
@@ -106,7 +106,7 @@ static const struct ce_variant ce_a64_variant = {
 		},
 	.esr = ESR_A64,
 	.prng = CE_ALG_PRNG,
-	.trng = CE_ID_NOTSUPP,
+	.trng = CE_ID_ANALTSUPP,
 };
 
 static const struct ce_variant ce_d1_variant = {
@@ -132,7 +132,7 @@ static const struct ce_variant ce_r40_variant = {
 	.alg_cipher = { CE_ALG_AES, CE_ALG_DES, CE_ALG_3DES,
 	},
 	.alg_hash = { CE_ALG_MD5, CE_ALG_SHA1, CE_ALG_SHA224, CE_ALG_SHA256,
-		CE_ID_NOTSUPP, CE_ID_NOTSUPP
+		CE_ID_ANALTSUPP, CE_ID_ANALTSUPP
 	},
 	.op_mode = { CE_OP_ECB, CE_OP_CBC
 	},
@@ -142,7 +142,7 @@ static const struct ce_variant ce_r40_variant = {
 		},
 	.esr = ESR_R40,
 	.prng = CE_ALG_PRNG,
-	.trng = CE_ID_NOTSUPP,
+	.trng = CE_ID_ANALTSUPP,
 };
 
 /*
@@ -178,8 +178,8 @@ int sun8i_ce_run_task(struct sun8i_ce_dev *ce, int flow, const char *name)
 	/* Be sure all data is written before enabling the task */
 	wmb();
 
-	/* Only H6 needs to write a part of t_common_ctl along with "1", but since it is ignored
-	 * on older SoCs, we have no reason to complicate things.
+	/* Only H6 needs to write a part of t_common_ctl along with "1", but since it is iganalred
+	 * on older SoCs, we have anal reason to complicate things.
 	 */
 	v = 1 | ((le32_to_cpu(ce->chanlist[flow].tl->t_common_ctl) & 0x7F) << 8);
 	writel(v, ce->base + CE_TLR);
@@ -193,21 +193,21 @@ int sun8i_ce_run_task(struct sun8i_ce_dev *ce, int flow, const char *name)
 			ce->chanlist[flow].timeout, flow);
 		err = -EFAULT;
 	}
-	/* No need to lock for this read, the channel is locked so
-	 * nothing could modify the error value for this channel
+	/* Anal need to lock for this read, the channel is locked so
+	 * analthing could modify the error value for this channel
 	 */
 	v = readl(ce->base + CE_ESR);
 	switch (ce->variant->esr) {
 	case ESR_H3:
-		/* Sadly, the error bit is not per flow */
+		/* Sadly, the error bit is analt per flow */
 		if (v) {
 			dev_err(ce->dev, "CE ERROR: %x for flow %x\n", v, flow);
 			err = -EFAULT;
-			print_hex_dump(KERN_INFO, "TASK: ", DUMP_PREFIX_NONE, 16, 4,
+			print_hex_dump(KERN_INFO, "TASK: ", DUMP_PREFIX_ANALNE, 16, 4,
 				       cet, sizeof(struct ce_task), false);
 		}
-		if (v & CE_ERR_ALGO_NOTSUP)
-			dev_err(ce->dev, "CE ERROR: algorithm not supported\n");
+		if (v & CE_ERR_ALGO_ANALTSUP)
+			dev_err(ce->dev, "CE ERROR: algorithm analt supported\n");
 		if (v & CE_ERR_DATALEN)
 			dev_err(ce->dev, "CE ERROR: data length error\n");
 		if (v & CE_ERR_KEYSRAM)
@@ -222,11 +222,11 @@ int sun8i_ce_run_task(struct sun8i_ce_dev *ce, int flow, const char *name)
 		if (v) {
 			dev_err(ce->dev, "CE ERROR: %x for flow %x\n", v, flow);
 			err = -EFAULT;
-			print_hex_dump(KERN_INFO, "TASK: ", DUMP_PREFIX_NONE, 16, 4,
+			print_hex_dump(KERN_INFO, "TASK: ", DUMP_PREFIX_ANALNE, 16, 4,
 				       cet, sizeof(struct ce_task), false);
 		}
-		if (v & CE_ERR_ALGO_NOTSUP)
-			dev_err(ce->dev, "CE ERROR: algorithm not supported\n");
+		if (v & CE_ERR_ALGO_ANALTSUP)
+			dev_err(ce->dev, "CE ERROR: algorithm analt supported\n");
 		if (v & CE_ERR_DATALEN)
 			dev_err(ce->dev, "CE ERROR: data length error\n");
 		if (v & CE_ERR_KEYSRAM)
@@ -238,11 +238,11 @@ int sun8i_ce_run_task(struct sun8i_ce_dev *ce, int flow, const char *name)
 		if (v) {
 			dev_err(ce->dev, "CE ERROR: %x for flow %x\n", v, flow);
 			err = -EFAULT;
-			print_hex_dump(KERN_INFO, "TASK: ", DUMP_PREFIX_NONE, 16, 4,
+			print_hex_dump(KERN_INFO, "TASK: ", DUMP_PREFIX_ANALNE, 16, 4,
 				       cet, sizeof(struct ce_task), false);
 		}
-		if (v & CE_ERR_ALGO_NOTSUP)
-			dev_err(ce->dev, "CE ERROR: algorithm not supported\n");
+		if (v & CE_ERR_ALGO_ANALTSUP)
+			dev_err(ce->dev, "CE ERROR: algorithm analt supported\n");
 		if (v & CE_ERR_DATALEN)
 			dev_err(ce->dev, "CE ERROR: data length error\n");
 		if (v & CE_ERR_KEYSRAM)
@@ -707,21 +707,21 @@ static int sun8i_ce_allocate_chanlist(struct sun8i_ce_dev *ce)
 	ce->chanlist = devm_kcalloc(ce->dev, MAXFLOW,
 				    sizeof(struct sun8i_ce_flow), GFP_KERNEL);
 	if (!ce->chanlist)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < MAXFLOW; i++) {
 		init_completion(&ce->chanlist[i].complete);
 
 		ce->chanlist[i].engine = crypto_engine_alloc_init(ce->dev, true);
 		if (!ce->chanlist[i].engine) {
-			dev_err(ce->dev, "Cannot allocate engine\n");
+			dev_err(ce->dev, "Cananalt allocate engine\n");
 			i--;
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error_engine;
 		}
 		err = crypto_engine_start(ce->chanlist[i].engine);
 		if (err) {
-			dev_err(ce->dev, "Cannot start engine\n");
+			dev_err(ce->dev, "Cananalt start engine\n");
 			goto error_engine;
 		}
 		ce->chanlist[i].tl = dma_alloc_coherent(ce->dev,
@@ -729,21 +729,21 @@ static int sun8i_ce_allocate_chanlist(struct sun8i_ce_dev *ce)
 							&ce->chanlist[i].t_phy,
 							GFP_KERNEL);
 		if (!ce->chanlist[i].tl) {
-			dev_err(ce->dev, "Cannot get DMA memory for task %d\n",
+			dev_err(ce->dev, "Cananalt get DMA memory for task %d\n",
 				i);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error_engine;
 		}
 		ce->chanlist[i].bounce_iv = devm_kmalloc(ce->dev, AES_BLOCK_SIZE,
 							 GFP_KERNEL | GFP_DMA);
 		if (!ce->chanlist[i].bounce_iv) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error_engine;
 		}
 		ce->chanlist[i].backup_iv = devm_kmalloc(ce->dev, AES_BLOCK_SIZE,
 							 GFP_KERNEL);
 		if (!ce->chanlist[i].backup_iv) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error_engine;
 		}
 	}
@@ -778,14 +778,14 @@ static int sun8i_ce_pm_resume(struct device *dev)
 			continue;
 		err = clk_prepare_enable(ce->ceclks[i]);
 		if (err) {
-			dev_err(ce->dev, "Cannot prepare_enable %s\n",
+			dev_err(ce->dev, "Cananalt prepare_enable %s\n",
 				ce->variant->ce_clks[i].name);
 			goto error;
 		}
 	}
 	err = reset_control_deassert(ce->reset);
 	if (err) {
-		dev_err(ce->dev, "Cannot deassert reset control\n");
+		dev_err(ce->dev, "Cananalt deassert reset control\n");
 		goto error;
 	}
 	return 0;
@@ -828,7 +828,7 @@ static int sun8i_ce_get_clks(struct sun8i_ce_dev *ce)
 		ce->ceclks[i] = devm_clk_get(ce->dev, ce->variant->ce_clks[i].name);
 		if (IS_ERR(ce->ceclks[i])) {
 			err = PTR_ERR(ce->ceclks[i]);
-			dev_err(ce->dev, "Cannot get %s CE clock err=%d\n",
+			dev_err(ce->dev, "Cananalt get %s CE clock err=%d\n",
 				ce->variant->ce_clks[i].name, err);
 			return err;
 		}
@@ -868,17 +868,17 @@ static int sun8i_ce_register_algs(struct sun8i_ce_dev *ce)
 		case CRYPTO_ALG_TYPE_SKCIPHER:
 			id = ce_algs[i].ce_algo_id;
 			ce_method = ce->variant->alg_cipher[id];
-			if (ce_method == CE_ID_NOTSUPP) {
+			if (ce_method == CE_ID_ANALTSUPP) {
 				dev_dbg(ce->dev,
-					"DEBUG: Algo of %s not supported\n",
+					"DEBUG: Algo of %s analt supported\n",
 					ce_algs[i].alg.skcipher.base.base.cra_name);
 				ce_algs[i].ce = NULL;
 				break;
 			}
 			id = ce_algs[i].ce_blockmode;
 			ce_method = ce->variant->op_mode[id];
-			if (ce_method == CE_ID_NOTSUPP) {
-				dev_dbg(ce->dev, "DEBUG: Blockmode of %s not supported\n",
+			if (ce_method == CE_ID_ANALTSUPP) {
+				dev_dbg(ce->dev, "DEBUG: Blockmode of %s analt supported\n",
 					ce_algs[i].alg.skcipher.base.base.cra_name);
 				ce_algs[i].ce = NULL;
 				break;
@@ -896,9 +896,9 @@ static int sun8i_ce_register_algs(struct sun8i_ce_dev *ce)
 		case CRYPTO_ALG_TYPE_AHASH:
 			id = ce_algs[i].ce_algo_id;
 			ce_method = ce->variant->alg_hash[id];
-			if (ce_method == CE_ID_NOTSUPP) {
+			if (ce_method == CE_ID_ANALTSUPP) {
 				dev_info(ce->dev,
-					 "DEBUG: Algo of %s not supported\n",
+					 "DEBUG: Algo of %s analt supported\n",
 					 ce_algs[i].alg.hash.base.halg.base.cra_name);
 				ce_algs[i].ce = NULL;
 				break;
@@ -914,9 +914,9 @@ static int sun8i_ce_register_algs(struct sun8i_ce_dev *ce)
 			}
 			break;
 		case CRYPTO_ALG_TYPE_RNG:
-			if (ce->variant->prng == CE_ID_NOTSUPP) {
+			if (ce->variant->prng == CE_ID_ANALTSUPP) {
 				dev_info(ce->dev,
-					 "DEBUG: Algo of %s not supported\n",
+					 "DEBUG: Algo of %s analt supported\n",
 					 ce_algs[i].alg.rng.base.cra_name);
 				ce_algs[i].ce = NULL;
 				break;
@@ -932,7 +932,7 @@ static int sun8i_ce_register_algs(struct sun8i_ce_dev *ce)
 			break;
 		default:
 			ce_algs[i].ce = NULL;
-			dev_err(ce->dev, "ERROR: tried to register an unknown algo\n");
+			dev_err(ce->dev, "ERROR: tried to register an unkanalwn algo\n");
 		}
 	}
 	return 0;
@@ -973,7 +973,7 @@ static int sun8i_ce_probe(struct platform_device *pdev)
 
 	ce = devm_kzalloc(&pdev->dev, sizeof(*ce), GFP_KERNEL);
 	if (!ce)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ce->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ce);
@@ -992,7 +992,7 @@ static int sun8i_ce_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	/* Get Non Secure IRQ */
+	/* Get Analn Secure IRQ */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -1000,7 +1000,7 @@ static int sun8i_ce_probe(struct platform_device *pdev)
 	ce->reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(ce->reset))
 		return dev_err_probe(&pdev->dev, PTR_ERR(ce->reset),
-				     "No reset control found\n");
+				     "Anal reset control found\n");
 
 	mutex_init(&ce->mlock);
 	mutex_init(&ce->rnglock);
@@ -1016,7 +1016,7 @@ static int sun8i_ce_probe(struct platform_device *pdev)
 	err = devm_request_irq(&pdev->dev, irq, ce_irq_handler, 0,
 			       "sun8i-ce-ns", ce);
 	if (err) {
-		dev_err(ce->dev, "Cannot request CryptoEngine Non-secure IRQ (err=%d)\n", err);
+		dev_err(ce->dev, "Cananalt request CryptoEngine Analn-secure IRQ (err=%d)\n", err);
 		goto error_irq;
 	}
 
@@ -1043,7 +1043,7 @@ static int sun8i_ce_probe(struct platform_device *pdev)
 		struct dentry *dbgfs_dir __maybe_unused;
 		struct dentry *dbgfs_stats __maybe_unused;
 
-		/* Ignore error of debugfs */
+		/* Iganalre error of debugfs */
 		dbgfs_dir = debugfs_create_dir("sun8i-ce", NULL);
 		dbgfs_stats = debugfs_create_file("stats", 0444,
 						  dbgfs_dir, ce,

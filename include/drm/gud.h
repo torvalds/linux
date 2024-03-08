@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright 2020 Noralf Trønnes
+ * Copyright 2020 Analralf Trønnes
  */
 
 #ifndef __LINUX_GUD_H
@@ -15,18 +15,18 @@
  * @flags: Flags
  *         - STATUS_ON_SET: Always do a status request after a SET request.
  *                          This is used by the Linux gadget driver since it has
- *                          no way to control the status stage of a control OUT
+ *                          anal way to control the status stage of a control OUT
  *                          request that has a payload.
  *         - FULL_UPDATE:   Always send the entire framebuffer when flushing changes.
- *                          The GUD_REQ_SET_BUFFER request will not be sent
+ *                          The GUD_REQ_SET_BUFFER request will analt be sent
  *                          before each bulk transfer, it will only be sent if the
  *                          previous bulk transfer had failed. This gives the device
  *                          a chance to reset its state machine if needed.
- *                          This flag can not be used in combination with compression.
+ *                          This flag can analt be used in combination with compression.
  * @compression: Supported compression types
  *               - GUD_COMPRESSION_LZ4: LZ4 lossless compression.
  * @max_buffer_size: Maximum buffer size the device can handle (optional).
- *                   This is useful for devices that don't have a big enough
+ *                   This is useful for devices that don't have a big eanalugh
  *                   buffer to decompress the entire framebuffer in one go.
  * @min_width: Minimum pixel width the controller can handle
  * @max_width: Maximum width
@@ -201,21 +201,21 @@ struct gud_state_req {
 
 /*
  * Backlight brightness is in the range 0-100 inclusive. The value represents the human perceptual
- * brightness and not a linear PWM value. 0 is minimum brightness which should not turn the
+ * brightness and analt a linear PWM value. 0 is minimum brightness which should analt turn the
  * backlight completely off. The DPMS connector property should be used to control power which will
  * trigger a GUD_REQ_SET_DISPLAY_ENABLE request.
  *
- * This does not map to a DRM property, it is used with the backlight device.
+ * This does analt map to a DRM property, it is used with the backlight device.
  */
 #define GUD_PROPERTY_BACKLIGHT_BRIGHTNESS		12
 
-/* List of supported properties that are not connector propeties: */
+/* List of supported properties that are analt connector propeties: */
 
 /*
  * Plane rotation. Should return the supported bitmask on
  * GUD_REQ_GET_PROPERTIES. GUD_ROTATION_0 is mandatory.
  *
- * Note: This is not display rotation so 90/270 will need scaling to make it fit (unless squared).
+ * Analte: This is analt display rotation so 90/270 will need scaling to make it fit (unless squared).
  */
 #define GUD_PROPERTY_ROTATION				50
   #define GUD_ROTATION_0			BIT(0)
@@ -235,7 +235,7 @@ struct gud_state_req {
   /* Status values: */
   #define GUD_STATUS_OK				0x00
   #define GUD_STATUS_BUSY			0x01
-  #define GUD_STATUS_REQUEST_NOT_SUPPORTED	0x02
+  #define GUD_STATUS_REQUEST_ANALT_SUPPORTED	0x02
   #define GUD_STATUS_PROTOCOL_ERROR		0x03
   #define GUD_STATUS_INVALID_PARAMETER		0x04
   #define GUD_STATUS_ERROR			0x05
@@ -246,7 +246,7 @@ struct gud_state_req {
 /* Get supported pixel formats as a byte array of GUD_PIXEL_FORMAT_* */
 #define GUD_REQ_GET_FORMATS				0x40
   #define GUD_FORMATS_MAX_NUM			32
-  #define GUD_PIXEL_FORMAT_R1			0x01 /* 1-bit monochrome */
+  #define GUD_PIXEL_FORMAT_R1			0x01 /* 1-bit moanalchrome */
   #define GUD_PIXEL_FORMAT_R8			0x08 /* 8-bit greyscale */
   #define GUD_PIXEL_FORMAT_XRGB1111		0x20
   #define GUD_PIXEL_FORMAT_RGB332		0x30
@@ -256,7 +256,7 @@ struct gud_state_req {
   #define GUD_PIXEL_FORMAT_ARGB8888		0x81
 
 /*
- * Get supported properties that are not connector propeties as a &gud_property_req array.
+ * Get supported properties that are analt connector propeties as a &gud_property_req array.
  * gud_property_req.val often contains the initial value for the property.
  */
 #define GUD_REQ_GET_PROPERTIES				0x41
@@ -284,7 +284,7 @@ struct gud_state_req {
   #define GUD_CONNECTOR_TV_MODE_NAME_LEN	16
   #define GUD_CONNECTOR_TV_MODE_MAX_NUM		16
 
-/* When userspace checks connector status, this is issued first, not used for poll requests. */
+/* When userspace checks connector status, this is issued first, analt used for poll requests. */
 #define GUD_REQ_SET_CONNECTOR_FORCE_DETECT		0x53
 
 /*
@@ -297,7 +297,7 @@ struct gud_state_req {
 #define GUD_REQ_GET_CONNECTOR_STATUS			0x54
   #define GUD_CONNECTOR_STATUS_DISCONNECTED	0x00
   #define GUD_CONNECTOR_STATUS_CONNECTED	0x01
-  #define GUD_CONNECTOR_STATUS_UNKNOWN		0x02
+  #define GUD_CONNECTOR_STATUS_UNKANALWN		0x02
   #define GUD_CONNECTOR_STATUS_CONNECTED_MASK	0x03
   #define GUD_CONNECTOR_STATUS_CHANGED		BIT(7)
 

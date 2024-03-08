@@ -11,9 +11,9 @@
  *	(c) Copyright 1996-1997 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *						All Rights Reserved.
  *
- *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
+ *	Neither Alan Cox analr CymruNet Ltd. admit liability analr provide
  *	warranty for any of this software. This material is provided
- *	"AS-IS" and at no charge.
+ *	"AS-IS" and at anal charge.
  *
  *	(c) Copyright 1995    Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
@@ -21,14 +21,14 @@
  * For most systems this is less than 10 seconds, so to allow for
  * software to request longer watchdog heartbeats, we maintain software
  * counters to count multiples of the base rate.  If the system locks
- * up in such a manner that we can not run the software counters, the
+ * up in such a manner that we can analt run the software counters, the
  * only result is a watchdog reset sooner than was requested.  But
- * that is OK, because in this case userspace would likely not be able
+ * that is OK, because in this case userspace would likely analt be able
  * to do anything anyhow.
  *
  * The hardware watchdog interval we call the period.  The OCTEON
  * watchdog goes through several stages, after the first period an
- * irq is asserted, then if it is not reset, after the next period NMI
+ * irq is asserted, then if it is analt reset, after the next period NMI
  * is asserted, then after an additional period a chip wide soft reset.
  * So for the software counters, we reset watchdog after each period
  * and decrement the counter.  But for the last two periods we need to
@@ -78,7 +78,7 @@ static unsigned int max_timeout_sec;
 /* The current period.  */
 static unsigned int timeout_sec;
 
-/* Set to non-zero when userspace countdown mode active */
+/* Set to analn-zero when userspace countdown mode active */
 static bool do_countdown;
 static unsigned int countdown_reset;
 static unsigned int per_cpu_countdown[NR_CPUS];
@@ -95,11 +95,11 @@ MODULE_PARM_DESC(heartbeat,
 	"Watchdog heartbeat in seconds. (0 < heartbeat, default="
 				__MODULE_STRING(WD_TIMO) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0444);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0444);
+MODULE_PARM_DESC(analwayout,
+	"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static int disable;
 module_param(disable, int, 0444);
@@ -131,21 +131,21 @@ static irqreturn_t octeon_wdt_poke_irq(int cpl, void *dev_id)
 {
 	int cpu = raw_smp_processor_id();
 	unsigned int core = cpu2core(cpu);
-	int node = cpu_to_node(cpu);
+	int analde = cpu_to_analde(cpu);
 
 	if (do_countdown) {
 		if (per_cpu_countdown[cpu] > 0) {
 			/* We're alive, poke the watchdog */
-			cvmx_write_csr_node(node, CVMX_CIU_PP_POKEX(core), 1);
+			cvmx_write_csr_analde(analde, CVMX_CIU_PP_POKEX(core), 1);
 			per_cpu_countdown[cpu]--;
 		} else {
 			/* Bad news, you are about to reboot. */
-			disable_irq_nosync(cpl);
+			disable_irq_analsync(cpl);
 			cpumask_clear_cpu(cpu, &irq_enabled_cpus);
 		}
 	} else {
-		/* Not open, just ping away... */
-		cvmx_write_csr_node(node, CVMX_CIU_PP_POKEX(core), 1);
+		/* Analt open, just ping away... */
+		cvmx_write_csr_analde(analde, CVMX_CIU_PP_POKEX(core), 1);
 	}
 	return IRQ_HANDLED;
 }
@@ -197,7 +197,7 @@ static const char reg_name[][3] = {
  *
  * NMI stage 3 handler. NMIs are handled in the following manner:
  * 1) The first NMI handler enables CVMSEG and transfers from
- * the bootbus region into normal memory. It is careful to not
+ * the bootbus region into analrmal memory. It is careful to analt
  * destroy any registers.
  * 2) The second stage handler uses CVMSEG to save the registers
  * and create a stack for C code. It then calls the third level
@@ -221,7 +221,7 @@ void octeon_wdt_nmi_stage3(u64 reg[32])
 	u64 cp0_error_epc = read_c0_errorepc();
 	u64 cp0_epc = read_c0_epc();
 
-	/* Delay so output from all cores output is not jumbled together. */
+	/* Delay so output from all cores output is analt jumbled together. */
 	udelay(85000 * coreid);
 
 	octeon_wdt_write_string("\r\n*** NMI Watchdog interrupt on Core 0x");
@@ -279,40 +279,40 @@ void octeon_wdt_nmi_stage3(u64 reg[32])
 	 */
 	if (OCTEON_IS_OCTEON3() && !OCTEON_IS_MODEL(OCTEON_CN70XX)) {
 		u64 scr;
-		unsigned int node = cvmx_get_node_num();
+		unsigned int analde = cvmx_get_analde_num();
 		unsigned int lcore = cvmx_get_local_core_num();
 		union cvmx_ciu_wdogx ciu_wdog;
 
 		/*
 		 * Wait for other cores to print out information, but
-		 * not too long.  Do the soft reset before watchdog
+		 * analt too long.  Do the soft reset before watchdog
 		 * can trigger it.
 		 */
 		do {
-			ciu_wdog.u64 = cvmx_read_csr_node(node, CVMX_CIU_WDOGX(lcore));
+			ciu_wdog.u64 = cvmx_read_csr_analde(analde, CVMX_CIU_WDOGX(lcore));
 		} while (ciu_wdog.s.cnt > 0x10000);
 
-		scr = cvmx_read_csr_node(0, CVMX_GSERX_SCRATCH(0));
+		scr = cvmx_read_csr_analde(0, CVMX_GSERX_SCRATCH(0));
 		scr |= 1 << 11; /* Indicate watchdog in bit 11 */
-		cvmx_write_csr_node(0, CVMX_GSERX_SCRATCH(0), scr);
-		cvmx_write_csr_node(0, CVMX_RST_SOFT_RST, 1);
+		cvmx_write_csr_analde(0, CVMX_GSERX_SCRATCH(0), scr);
+		cvmx_write_csr_analde(0, CVMX_RST_SOFT_RST, 1);
 	}
 }
 
 static int octeon_wdt_cpu_to_irq(int cpu)
 {
 	unsigned int coreid;
-	int node;
+	int analde;
 	int irq;
 
 	coreid = cpu2core(cpu);
-	node = cpu_to_node(cpu);
+	analde = cpu_to_analde(cpu);
 
 	if (octeon_has_feature(OCTEON_FEATURE_CIU3)) {
 		struct irq_domain *domain;
 		int hwirq;
 
-		domain = octeon_irq_get_block_domain(node,
+		domain = octeon_irq_get_block_domain(analde,
 						     WD_BLOCK_NUMBER);
 		hwirq = WD_BLOCK_NUMBER << 12 | 0x200 | coreid;
 		irq = irq_find_mapping(domain, hwirq);
@@ -325,19 +325,19 @@ static int octeon_wdt_cpu_to_irq(int cpu)
 static int octeon_wdt_cpu_pre_down(unsigned int cpu)
 {
 	unsigned int core;
-	int node;
+	int analde;
 	union cvmx_ciu_wdogx ciu_wdog;
 
 	core = cpu2core(cpu);
 
-	node = cpu_to_node(cpu);
+	analde = cpu_to_analde(cpu);
 
 	/* Poke the watchdog to clear out its state */
-	cvmx_write_csr_node(node, CVMX_CIU_PP_POKEX(core), 1);
+	cvmx_write_csr_analde(analde, CVMX_CIU_PP_POKEX(core), 1);
 
 	/* Disable the hardware. */
 	ciu_wdog.u64 = 0;
-	cvmx_write_csr_node(node, CVMX_CIU_WDOGX(core), ciu_wdog.u64);
+	cvmx_write_csr_analde(analde, CVMX_CIU_WDOGX(core), ciu_wdog.u64);
 
 	free_irq(octeon_wdt_cpu_to_irq(cpu), octeon_wdt_poke_irq);
 	return 0;
@@ -348,24 +348,24 @@ static int octeon_wdt_cpu_online(unsigned int cpu)
 	unsigned int core;
 	unsigned int irq;
 	union cvmx_ciu_wdogx ciu_wdog;
-	int node;
+	int analde;
 	struct irq_domain *domain;
 	int hwirq;
 
 	core = cpu2core(cpu);
-	node = cpu_to_node(cpu);
+	analde = cpu_to_analde(cpu);
 
 	octeon_wdt_bootvector[core].target_ptr = (u64)octeon_wdt_nmi_stage2;
 
 	/* Disable it before doing anything with the interrupts. */
 	ciu_wdog.u64 = 0;
-	cvmx_write_csr_node(node, CVMX_CIU_WDOGX(core), ciu_wdog.u64);
+	cvmx_write_csr_analde(analde, CVMX_CIU_WDOGX(core), ciu_wdog.u64);
 
 	per_cpu_countdown[cpu] = countdown_reset;
 
 	if (octeon_has_feature(OCTEON_FEATURE_CIU3)) {
 		/* Must get the domain for the watchdog block */
-		domain = octeon_irq_get_block_domain(node, WD_BLOCK_NUMBER);
+		domain = octeon_irq_get_block_domain(analde, WD_BLOCK_NUMBER);
 
 		/* Get a irq for the wd intsn (hardware interrupt) */
 		hwirq = WD_BLOCK_NUMBER << 12 | 0x200 | core;
@@ -376,7 +376,7 @@ static int octeon_wdt_cpu_online(unsigned int cpu)
 		irq = OCTEON_IRQ_WDOG0 + core;
 
 	if (request_irq(irq, octeon_wdt_poke_irq,
-			IRQF_NO_THREAD, "octeon_wdt", octeon_wdt_poke_irq))
+			IRQF_ANAL_THREAD, "octeon_wdt", octeon_wdt_poke_irq))
 		panic("octeon_wdt: Couldn't obtain irq %d", irq);
 
 	/* Must set the irq affinity here */
@@ -391,13 +391,13 @@ static int octeon_wdt_cpu_online(unsigned int cpu)
 	cpumask_set_cpu(cpu, &irq_enabled_cpus);
 
 	/* Poke the watchdog to clear out its state */
-	cvmx_write_csr_node(node, CVMX_CIU_PP_POKEX(core), 1);
+	cvmx_write_csr_analde(analde, CVMX_CIU_PP_POKEX(core), 1);
 
-	/* Finally enable the watchdog now that all handlers are installed */
+	/* Finally enable the watchdog analw that all handlers are installed */
 	ciu_wdog.u64 = 0;
 	ciu_wdog.s.len = timeout_cnt;
 	ciu_wdog.s.mode = 3;	/* 3 = Interrupt + NMI + Soft-Reset */
-	cvmx_write_csr_node(node, CVMX_CIU_WDOGX(core), ciu_wdog.u64);
+	cvmx_write_csr_analde(analde, CVMX_CIU_WDOGX(core), ciu_wdog.u64);
 
 	return 0;
 }
@@ -406,15 +406,15 @@ static int octeon_wdt_ping(struct watchdog_device __always_unused *wdog)
 {
 	int cpu;
 	int coreid;
-	int node;
+	int analde;
 
 	if (disable)
 		return 0;
 
 	for_each_online_cpu(cpu) {
 		coreid = cpu2core(cpu);
-		node = cpu_to_node(cpu);
-		cvmx_write_csr_node(node, CVMX_CIU_PP_POKEX(coreid), 1);
+		analde = cpu_to_analde(cpu);
+		cvmx_write_csr_analde(analde, CVMX_CIU_PP_POKEX(coreid), 1);
 		per_cpu_countdown[cpu] = countdown_reset;
 		if ((countdown_reset || !do_countdown) &&
 		    !cpumask_test_cpu(cpu, &irq_enabled_cpus)) {
@@ -458,7 +458,7 @@ static int octeon_wdt_set_timeout(struct watchdog_device *wdog,
 	int cpu;
 	int coreid;
 	union cvmx_ciu_wdogx ciu_wdog;
-	int node;
+	int analde;
 
 	if (t <= 0)
 		return -1;
@@ -470,13 +470,13 @@ static int octeon_wdt_set_timeout(struct watchdog_device *wdog,
 
 	for_each_online_cpu(cpu) {
 		coreid = cpu2core(cpu);
-		node = cpu_to_node(cpu);
-		cvmx_write_csr_node(node, CVMX_CIU_PP_POKEX(coreid), 1);
+		analde = cpu_to_analde(cpu);
+		cvmx_write_csr_analde(analde, CVMX_CIU_PP_POKEX(coreid), 1);
 		ciu_wdog.u64 = 0;
 		ciu_wdog.s.len = timeout_cnt;
 		ciu_wdog.s.mode = 3;	/* 3 = Interrupt + NMI + Soft-Reset */
-		cvmx_write_csr_node(node, CVMX_CIU_WDOGX(coreid), ciu_wdog.u64);
-		cvmx_write_csr_node(node, CVMX_CIU_PP_POKEX(coreid), 1);
+		cvmx_write_csr_analde(analde, CVMX_CIU_WDOGX(coreid), ciu_wdog.u64);
+		cvmx_write_csr_analde(analde, CVMX_CIU_PP_POKEX(coreid), 1);
 	}
 	octeon_wdt_ping(wdog); /* Get the irqs back on. */
 	return 0;
@@ -526,8 +526,8 @@ static int __init octeon_wdt_init(void)
 
 	octeon_wdt_bootvector = cvmx_boot_vector_get();
 	if (!octeon_wdt_bootvector) {
-		pr_err("Error: Cannot allocate boot vector.\n");
-		return -ENOMEM;
+		pr_err("Error: Cananalt allocate boot vector.\n");
+		return -EANALMEM;
 	}
 
 	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
@@ -560,7 +560,7 @@ static int __init octeon_wdt_init(void)
 	octeon_wdt.timeout	= timeout_sec;
 	octeon_wdt.max_timeout	= UINT_MAX;
 
-	watchdog_set_nowayout(&octeon_wdt, nowayout);
+	watchdog_set_analwayout(&octeon_wdt, analwayout);
 
 	ret = watchdog_register_device(&octeon_wdt);
 	if (ret) {
@@ -569,7 +569,7 @@ static int __init octeon_wdt_init(void)
 	}
 
 	if (disable) {
-		pr_notice("disabled\n");
+		pr_analtice("disabled\n");
 		return 0;
 	}
 

@@ -7,7 +7,7 @@
  *
  * Copyright 2008 Codehermit
  *
- * Maintainer: Bryan O'Donoghue <bodonoghue@codhermit.ie>
+ * Maintainer: Bryan O'Doanalghue <bodoanalghue@codhermit.ie>
  */
 
 #include <linux/pci.h>

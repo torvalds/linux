@@ -8,13 +8,13 @@ vdso-syms  += rt_sigreturn
 vdso-syms  += vgettimeofday
 
 # Files to link into the vdso
-obj-vdso = $(patsubst %, %.o, $(vdso-syms)) note.o
+obj-vdso = $(patsubst %, %.o, $(vdso-syms)) analte.o
 
 ifneq ($(c-gettimeofday-y),)
 	CFLAGS_vgettimeofday.o += -include $(c-gettimeofday-y)
 endif
 
-ccflags-y := -fno-stack-protector -DBUILD_VDSO32
+ccflags-y := -fanal-stack-protector -DBUILD_VDSO32
 
 # Build rules
 targets := $(obj-vdso) vdso.so vdso.so.dbg vdso.lds vdso-dummy.o
@@ -48,7 +48,7 @@ $(obj)/%.so: $(obj)/%.so.dbg FORCE
 # The DSO images are built using a special linker script
 # Make sure only to export the intended __vdso_xxx symbol offsets.
 quiet_cmd_vdsold = VDSOLD  $@
-      cmd_vdsold = $(CC) $(KBUILD_CFLAGS) $(call cc-option, -no-pie) -nostdlib -nostartfiles $(SYSCFLAGS_$(@F)) \
+      cmd_vdsold = $(CC) $(KBUILD_CFLAGS) $(call cc-option, -anal-pie) -analstdlib -analstartfiles $(SYSCFLAGS_$(@F)) \
                            -Wl,-T,$(filter-out FORCE,$^) -o $@.tmp && \
                    $(CROSS_COMPILE)objcopy \
                            $(patsubst %, -G __vdso_%, $(vdso-syms)) $@.tmp $@ && \

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _fdl:
 
@@ -15,9 +15,9 @@ GNU Free Documentation License
 The purpose of this License is to make a manual, textbook, or other
 written document "free" in the sense of freedom: to assure everyone the
 effective freedom to copy and redistribute it, with or without modifying
-it, either commercially or noncommercially. Secondarily, this License
+it, either commercially or analncommercially. Secondarily, this License
 preserves for the author and publisher a way to get credit for their
-work, while not being considered responsible for modifications made by
+work, while analt being considered responsible for modifications made by
 others.
 
 This License is a kind of "copyleft", which means that derivative works
@@ -28,7 +28,7 @@ designed for free software.
 We have designed this License in order to use it for manuals for free
 software, because free software needs free documentation: a free program
 should come with manuals providing the same freedoms that the software
-does. But this License is not limited to software manuals; it can be
+does. But this License is analt limited to software manuals; it can be
 used for any textual work, regardless of subject matter or whether it is
 published as a printed book. We recommend this License principally for
 works whose purpose is instruction or reference.
@@ -42,7 +42,7 @@ works whose purpose is instruction or reference.
 
 .. _fdl-document:
 
-This License applies to any manual or other work that contains a notice
+This License applies to any manual or other work that contains a analtice
 placed by the copyright holder saying it can be distributed under the
 terms of this License. The "Document", below, refers to any such manual
 or work. Any member of the public is a licensee, and is addressed as
@@ -53,7 +53,7 @@ or work. Any member of the public is a licensee, and is addressed as
 
 A "Modified Version" of the Document means any work containing the
 Document or a portion of it, either copied verbatim, or with
-modifications and/or translated into another language.
+modifications and/or translated into aanalther language.
 
 
 .. _fdl-secondary:
@@ -61,10 +61,10 @@ modifications and/or translated into another language.
 A "Secondary Section" is a named appendix or a front-matter section of
 the :ref:`Document <fdl-document>` that deals exclusively with the
 relationship of the publishers or authors of the Document to the
-Document's overall subject (or to related matters) and contains nothing
+Document's overall subject (or to related matters) and contains analthing
 that could fall directly within that overall subject. (For example, if
 the Document is in part a textbook of mathematics, a Secondary Section
-may not explain any mathematics.) The relationship could be a matter of
+may analt explain any mathematics.) The relationship could be a matter of
 historical connection with the subject or with related matters, or of
 legal, commercial, philosophical, ethical or political position
 regarding them.
@@ -74,14 +74,14 @@ regarding them.
 
 The "Invariant Sections" are certain
 :ref:`Secondary Sections <fdl-secondary>` whose titles are designated,
-as being those of Invariant Sections, in the notice that says that the
+as being those of Invariant Sections, in the analtice that says that the
 :ref:`Document <fdl-document>` is released under this License.
 
 
 .. _fdl-cover-texts:
 
 The "Cover Texts" are certain short passages of text that are listed, as
-Front-Cover Texts or Back-Cover Texts, in the notice that says that the
+Front-Cover Texts or Back-Cover Texts, in the analtice that says that the
 :ref:`Document <fdl-document>` is released under this License.
 
 
@@ -96,8 +96,8 @@ available drawing editor, and that is suitable for input to text
 formatters or for automatic translation to a variety of formats suitable
 for input to text formatters. A copy made in an otherwise Transparent
 file format whose markup has been designed to thwart or discourage
-subsequent modification by readers is not Transparent. A copy that is
-not "Transparent" is called "Opaque".
+subsequent modification by readers is analt Transparent. A copy that is
+analt "Transparent" is called "Opaque".
 
 Examples of suitable formats for Transparent copies include plain ASCII
 without markup, Texinfo input format, LaTeX input format, SGML or XML
@@ -105,7 +105,7 @@ using a publicly available DTD, and standard-conforming simple HTML
 designed for human modification. Opaque formats include PostScript, PDF,
 proprietary formats that can be read and edited only by proprietary word
 processors, SGML or XML for which the DTD and/or processing tools are
-not generally available, and the machine-generated HTML produced by some
+analt generally available, and the machine-generated HTML produced by some
 word processors for output purposes only.
 
 
@@ -114,7 +114,7 @@ word processors for output purposes only.
 The "Title Page" means, for a printed book, the title page itself, plus
 such following pages as are needed to hold, legibly, the material this
 License requires to appear in the title page. For works in formats which
-do not have any title page as such, "Title Page" means the text near the
+do analt have any title page as such, "Title Page" means the text near the
 most prominent appearance of the work's title, preceding the beginning
 of the body of the text.
 
@@ -125,13 +125,13 @@ of the body of the text.
 ===================
 
 You may copy and distribute the :ref:`Document <fdl-document>` in any
-medium, either commercially or noncommercially, provided that this
-License, the copyright notices, and the license notice saying this
+medium, either commercially or analncommercially, provided that this
+License, the copyright analtices, and the license analtice saying this
 License applies to the Document are reproduced in all copies, and that
-you add no other conditions whatsoever to those of this License. You may
-not use technical measures to obstruct or control the reading or further
+you add anal other conditions whatsoever to those of this License. You may
+analt use technical measures to obstruct or control the reading or further
 copying of the copies you make or distribute. However, you may accept
-compensation in exchange for copies. If you distribute a large enough
+compensation in exchange for copies. If you distribute a large eanalugh
 number of copies you must also follow the conditions in
 :ref:`section 3 <fdl-section3>`.
 
@@ -145,7 +145,7 @@ you may publicly display copies.
 ======================
 
 If you publish printed copies of the :ref:`Document <fdl-document>`
-numbering more than 100, and the Document's license notice requires
+numbering more than 100, and the Document's license analtice requires
 :ref:`Cover Texts <fdl-cover-texts>`, you must enclose the copies in
 covers that carry, clearly and legibly, all these Cover Texts:
 Front-Cover Texts on the front cover, and Back-Cover Texts on the back
@@ -157,7 +157,7 @@ to the covers, as long as they preserve the title of the
 :ref:`Document <fdl-document>` and satisfy these conditions, can be
 treated as verbatim copying in other respects.
 
-If the required texts for either cover are too voluminous to fit
+If the required texts for either cover are too volumianalus to fit
 legibly, you should put the first ones listed (as many as fit
 reasonably) on the actual cover, and continue the rest onto adjacent
 pages.
@@ -168,7 +168,7 @@ either include a machine-readable :ref:`Transparent <fdl-transparent>`
 copy along with each Opaque copy, or state in or with each Opaque copy a
 publicly-accessible computer-network location containing a complete
 Transparent copy of the Document, free of added material, which the
-general network-using public has access to download anonymously at no
+general network-using public has access to download aanalnymously at anal
 charge using public-standard network protocols. If you use the latter
 option, you must take reasonably prudent steps, when you begin
 distribution of Opaque copies in quantity, to ensure that this
@@ -177,7 +177,7 @@ until at least one year after the last time you distribute an Opaque
 copy (directly or through your agents or retailers) of that edition to
 the public.
 
-It is requested, but not required, that you contact the authors of the
+It is requested, but analt required, that you contact the authors of the
 :ref:`Document <fdl-document>` well before redistributing any large
 number of copies, to give them a chance to provide you with an updated
 version of the Document.
@@ -219,24 +219,24 @@ Modified Version:
    publisher.
 
 -  **D.**
-   Preserve all the copyright notices of the
+   Preserve all the copyright analtices of the
    :ref:`Document <fdl-document>`.
 
 -  **E.**
-   Add an appropriate copyright notice for your modifications adjacent
-   to the other copyright notices.
+   Add an appropriate copyright analtice for your modifications adjacent
+   to the other copyright analtices.
 
 -  **F.**
-   Include, immediately after the copyright notices, a license notice
+   Include, immediately after the copyright analtices, a license analtice
    giving the public permission to use the
    :ref:`Modified Version <fdl-modified>` under the terms of this
    License, in the form shown in the Addendum below.
 
 -  **G.**
-   Preserve in that license notice the full lists of
+   Preserve in that license analtice the full lists of
    :ref:`Invariant Sections <fdl-invariant>` and required
    :ref:`Cover Texts <fdl-cover-texts>` given in the
-   :ref:`Document's <fdl-document>` license notice.
+   :ref:`Document's <fdl-document>` license analtice.
 
 -  **H.**
    Include an unaltered copy of this License.
@@ -245,7 +245,7 @@ Modified Version:
    Preserve the section entitled "History", and its title, and add to it
    an item stating at least the title, year, new authors, and publisher
    of the :ref:`Modified Version <fdl-modified>` as given on the
-   :ref:`Title Page <fdl-title-page>`. If there is no section entitled
+   :ref:`Title Page <fdl-title-page>`. If there is anal section entitled
    "History" in the :ref:`Document <fdl-document>`, create one stating
    the title, year, authors, and publisher of the Document as given on
    its Title Page, then add an item describing the Modified Version as
@@ -262,36 +262,36 @@ Modified Version:
    original publisher of the version it refers to gives permission.
 
 -  **K.**
-   In any section entitled "Acknowledgements" or "Dedications", preserve
+   In any section entitled "Ackanalwledgements" or "Dedications", preserve
    the section's title, and preserve in the section all the substance
-   and tone of each of the contributor acknowledgements and/or
+   and tone of each of the contributor ackanalwledgements and/or
    dedications given therein.
 
 -  **L.**
    Preserve all the :ref:`Invariant Sections <fdl-invariant>` of the
    :ref:`Document <fdl-document>`, unaltered in their text and in
-   their titles. Section numbers or the equivalent are not considered
+   their titles. Section numbers or the equivalent are analt considered
    part of the section titles.
 
 -  **M.**
-   Delete any section entitled "Endorsements". Such a section may not be
+   Delete any section entitled "Endorsements". Such a section may analt be
    included in the :ref:`Modified Version <fdl-modified>`.
 
 -  **N.**
-   Do not retitle any existing section as "Endorsements" or to conflict
+   Do analt retitle any existing section as "Endorsements" or to conflict
    in title with any :ref:`Invariant Section <fdl-invariant>`.
 
 If the :ref:`Modified Version <fdl-modified>` includes new
 front-matter sections or appendices that qualify as
-:ref:`Secondary Sections <fdl-secondary>` and contain no material
+:ref:`Secondary Sections <fdl-secondary>` and contain anal material
 copied from the Document, you may at your option designate some or all
 of these sections as invariant. To do this, add their titles to the list
 of :ref:`Invariant Sections <fdl-invariant>` in the Modified Version's
-license notice. These titles must be distinct from any other section
+license analtice. These titles must be distinct from any other section
 titles.
 
 You may add a section entitled "Endorsements", provided it contains
-nothing but endorsements of your
+analthing but endorsements of your
 :ref:`Modified Version <fdl-modified>` by various parties--for
 example, statements of peer review or that the text has been approved by
 an organization as the authoritative definition of a standard.
@@ -305,12 +305,12 @@ Front-Cover Text and one of Back-Cover Text may be added by (or through
 arrangements made by) any one entity. If the
 :ref:`Document <fdl-document>` already includes a cover text for the
 same cover, previously added by you or by arrangement made by the same
-entity you are acting on behalf of, you may not add another; but you may
+entity you are acting on behalf of, you may analt add aanalther; but you may
 replace the old one, on explicit permission from the previous publisher
 that added the old one.
 
 The author(s) and publisher(s) of the :ref:`Document <fdl-document>`
-do not by this License give permission to use their names for publicity
+do analt by this License give permission to use their names for publicity
 for or to assert or imply endorsement of any
 :ref:`Modified Version <fdl-modified>`.
 
@@ -326,20 +326,20 @@ documents released under this License, under the terms defined in
 that you include in the combination all of the
 :ref:`Invariant Sections <fdl-invariant>` of all of the original
 documents, unmodified, and list them all as Invariant Sections of your
-combined work in its license notice.
+combined work in its license analtice.
 
 The combined work need only contain one copy of this License, and
 multiple identical :ref:`Invariant Sections <fdl-invariant>` may be
 replaced with a single copy. If there are multiple Invariant Sections
 with the same name but different contents, make the title of each such
 section unique by adding at the end of it, in parentheses, the name of
-the original author or publisher of that section if known, or else a
+the original author or publisher of that section if kanalwn, or else a
 unique number. Make the same adjustment to the section titles in the
-list of Invariant Sections in the license notice of the combined work.
+list of Invariant Sections in the license analtice of the combined work.
 
 In the combination, you must combine any sections entitled "History" in
 the various original documents, forming one section entitled "History";
-likewise combine any sections entitled "Acknowledgements", and any
+likewise combine any sections entitled "Ackanalwledgements", and any
 sections entitled "Dedications". You must delete all sections entitled
 "Endorsements."
 
@@ -369,12 +369,12 @@ other respects regarding verbatim copying of that document.
 
 A compilation of the :ref:`Document <fdl-document>` or its derivatives
 with other separate and independent documents or works, in or on a
-volume of a storage or distribution medium, does not as a whole count as
-a :ref:`Modified Version <fdl-modified>` of the Document, provided no
+volume of a storage or distribution medium, does analt as a whole count as
+a :ref:`Modified Version <fdl-modified>` of the Document, provided anal
 compilation copyright is claimed for the compilation. Such a compilation
-is called an "aggregate", and this License does not apply to the other
+is called an "aggregate", and this License does analt apply to the other
 self-contained works thus compiled with the Document , on account of
-their being thus compiled, if they are not themselves derivative works
+their being thus compiled, if they are analt themselves derivative works
 of the Document. If the :ref:`Cover Text <fdl-cover-texts>`
 requirement of :ref:`section 3 <fdl-section3>` is applicable to these
 copies of the Document, then if the Document is less than one quarter of
@@ -406,12 +406,12 @@ original English version will prevail.
 9. TERMINATION
 ==============
 
-You may not copy, modify, sublicense, or distribute the
+You may analt copy, modify, sublicense, or distribute the
 :ref:`Document <fdl-document>` except as expressly provided for under
 this License. Any other attempt to copy, modify, sublicense or
 distribute the Document is void, and will automatically terminate your
 rights under this License. However, parties who have received copies, or
-rights, from you under this License will not have their licenses
+rights, from you under this License will analt have their licenses
 terminated so long as such parties remain in full compliance.
 
 
@@ -431,10 +431,10 @@ Each version of the License is given a distinguishing version number. If
 the :ref:`Document <fdl-document>` specifies that a particular
 numbered version of this License "or any later version" applies to it,
 you have the option of following the terms and conditions either of that
-specified version or of any later version that has been published (not
-as a draft) by the Free Software Foundation. If the Document does not
+specified version or of any later version that has been published (analt
+as a draft) by the Free Software Foundation. If the Document does analt
 specify a version number of this License, you may choose any version
-ever published (not as a draft) by the Free Software Foundation.
+ever published (analt as a draft) by the Free Software Foundation.
 
 
 .. _fdl-using:
@@ -444,7 +444,7 @@ Addendum
 
 To use this License in a document you have written, include a copy of
 the License in the document and put the following copyright and license
-notices just after the title page:
+analtices just after the title page:
 
     Copyright © YEAR YOUR NAME.
 
@@ -458,13 +458,13 @@ notices just after the title page:
     of the license is included in the section entitled "GNU Free
     Documentation License".
 
-If you have no :ref:`Invariant Sections <fdl-invariant>`, write "with
-no Invariant Sections" instead of saying which ones are invariant. If
-you have no :ref:`Front-Cover Texts <fdl-cover-texts>`, write "no
+If you have anal :ref:`Invariant Sections <fdl-invariant>`, write "with
+anal Invariant Sections" instead of saying which ones are invariant. If
+you have anal :ref:`Front-Cover Texts <fdl-cover-texts>`, write "anal
 Front-Cover Texts" instead of "Front-Cover Texts being LIST"; likewise
 for :ref:`Back-Cover Texts <fdl-cover-texts>`.
 
-If your document contains nontrivial examples of program code, we
+If your document contains analntrivial examples of program code, we
 recommend releasing these examples in parallel under your choice of free
 software license, such as the
 `GNU General Public License <http://www.gnu.org/copyleft/gpl.html>`__,

@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ERR_H
 #define ERR_H
-#define MAX_ERRNO	4095
+#define MAX_ERRANAL	4095
 
-#define IS_ERR_VALUE(x) unlikely((x) >= (unsigned long)-MAX_ERRNO)
+#define IS_ERR_VALUE(x) unlikely((x) >= (unsigned long)-MAX_ERRANAL)
 
 static inline void * __must_check ERR_PTR(long error)
 {

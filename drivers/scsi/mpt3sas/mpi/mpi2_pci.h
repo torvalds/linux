@@ -8,9 +8,9 @@
  *
  * mpi2_pci.h Version:  02.00.04
  *
- * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
- *       prefix are for use only on MPI v2.5 products, and must not be used
- *       with MPI v2.0 products. Unless otherwise noted, names beginning with
+ * ANALTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
+ *       prefix are for use only on MPI v2.5 products, and must analt be used
+ *       with MPI v2.0 products. Unless otherwise analted, names beginning with
  *       MPI2 or Mpi2 are for use with both MPI v2.0 and MPI v2.5 products.
  *
  * Version History
@@ -40,7 +40,7 @@
 #define MPI26_PCIE_DEVINFO_DIRECT_ATTACH        (0x00000010)
 
 #define MPI26_PCIE_DEVINFO_MASK_DEVICE_TYPE     (0x0000000F)
-#define MPI26_PCIE_DEVINFO_NO_DEVICE            (0x00000000)
+#define MPI26_PCIE_DEVINFO_ANAL_DEVICE            (0x00000000)
 #define MPI26_PCIE_DEVINFO_PCI_SWITCH           (0x00000001)
 #define MPI26_PCIE_DEVINFO_NVME                 (0x00000003)
 #define MPI26_PCIE_DEVINFO_SCSI                 (0x00000004)
@@ -82,7 +82,7 @@ typedef struct _MPI26_NVME_ENCAPSULATED_REQUEST {
 #define MPI26_NVME_FLAGS_ERR_RSP_ADDR_IOCTL         (0x0008)
 /* Data Direction*/
 #define MPI26_NVME_FLAGS_DATADIRECTION_MASK         (0x0003)
-#define MPI26_NVME_FLAGS_NODATATRANSFER             (0x0000)
+#define MPI26_NVME_FLAGS_ANALDATATRANSFER             (0x0000)
 #define MPI26_NVME_FLAGS_WRITE                      (0x0001)
 #define MPI26_NVME_FLAGS_READ                       (0x0002)
 #define MPI26_NVME_FLAGS_BIDIRECTIONAL              (0x0003)

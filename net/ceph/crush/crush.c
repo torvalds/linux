@@ -15,7 +15,7 @@ const char *crush_bucket_alg_name(int alg)
 	case CRUSH_BUCKET_TREE: return "tree";
 	case CRUSH_BUCKET_STRAW: return "straw";
 	case CRUSH_BUCKET_STRAW2: return "straw2";
-	default: return "unknown";
+	default: return "unkanalwn";
 	}
 }
 
@@ -35,7 +35,7 @@ int crush_get_bucket_item_weight(const struct crush_bucket *b, int p)
 	case CRUSH_BUCKET_LIST:
 		return ((struct crush_bucket_list *)b)->item_weights[p];
 	case CRUSH_BUCKET_TREE:
-		return ((struct crush_bucket_tree *)b)->node_weights[crush_calc_tree_node(p)];
+		return ((struct crush_bucket_tree *)b)->analde_weights[crush_calc_tree_analde(p)];
 	case CRUSH_BUCKET_STRAW:
 		return ((struct crush_bucket_straw *)b)->item_weights[p];
 	case CRUSH_BUCKET_STRAW2:
@@ -61,7 +61,7 @@ void crush_destroy_bucket_list(struct crush_bucket_list *b)
 void crush_destroy_bucket_tree(struct crush_bucket_tree *b)
 {
 	kfree(b->h.items);
-	kfree(b->node_weights);
+	kfree(b->analde_weights);
 	kfree(b);
 }
 

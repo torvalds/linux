@@ -8,11 +8,11 @@
 
 #include <linux/bfs_fs.h>
 
-/* In theory BFS supports up to 512 inodes, numbered from 2 (for /) up to 513 inclusive.
-   In actual fact, attempting to create the 512th inode (i.e. inode No. 513 or file No. 511)
-   will fail with ENOSPC in bfs_add_entry(): the root directory cannot contain so many entries, counting '..'.
-   So, mkfs.bfs(8) should really limit its -N option to 511 and not 512. For now, we just print a warning
-   if a filesystem is mounted with such "impossible to fill up" number of inodes */
+/* In theory BFS supports up to 512 ianaldes, numbered from 2 (for /) up to 513 inclusive.
+   In actual fact, attempting to create the 512th ianalde (i.e. ianalde Anal. 513 or file Anal. 511)
+   will fail with EANALSPC in bfs_add_entry(): the root directory cananalt contain so many entries, counting '..'.
+   So, mkfs.bfs(8) should really limit its -N option to 511 and analt 512. For analw, we just print a warning
+   if a filesystem is mounted with such "impossible to fill up" number of ianaldes */
 #define BFS_MAX_LASTI	513
 
 /*
@@ -29,13 +29,13 @@ struct bfs_sb_info {
 };
 
 /*
- * BFS file system in-core inode info
+ * BFS file system in-core ianalde info
  */
-struct bfs_inode_info {
-	unsigned long i_dsk_ino; /* inode number from the disk, can be 0 */
+struct bfs_ianalde_info {
+	unsigned long i_dsk_ianal; /* ianalde number from the disk, can be 0 */
 	unsigned long i_sblock;
 	unsigned long i_eblock;
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 };
 
 static inline struct bfs_sb_info *BFS_SB(struct super_block *sb)
@@ -43,26 +43,26 @@ static inline struct bfs_sb_info *BFS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-static inline struct bfs_inode_info *BFS_I(struct inode *inode)
+static inline struct bfs_ianalde_info *BFS_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct bfs_inode_info, vfs_inode);
+	return container_of(ianalde, struct bfs_ianalde_info, vfs_ianalde);
 }
 
 
 #define printf(format, args...) \
 	printk(KERN_ERR "BFS-fs: %s(): " format, __func__, ## args)
 
-/* inode.c */
-extern struct inode *bfs_iget(struct super_block *sb, unsigned long ino);
+/* ianalde.c */
+extern struct ianalde *bfs_iget(struct super_block *sb, unsigned long ianal);
 extern void bfs_dump_imap(const char *, struct super_block *);
 
 /* file.c */
-extern const struct inode_operations bfs_file_inops;
+extern const struct ianalde_operations bfs_file_ianalps;
 extern const struct file_operations bfs_file_operations;
 extern const struct address_space_operations bfs_aops;
 
 /* dir.c */
-extern const struct inode_operations bfs_dir_inops;
+extern const struct ianalde_operations bfs_dir_ianalps;
 extern const struct file_operations bfs_dir_operations;
 
 #endif /* _FS_BFS_BFS_H */

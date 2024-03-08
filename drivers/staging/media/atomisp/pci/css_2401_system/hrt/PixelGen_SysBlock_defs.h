@@ -19,11 +19,11 @@
 /* Parematers and User_Parameters for HSS */
 #define _PXG_PPC                       Ppc
 #define _PXG_PIXEL_BITS                PixelWidth
-#define _PXG_MAX_NOF_SID               MaxNofSids
+#define _PXG_MAX_ANALF_SID               MaxAnalfSids
 #define _PXG_DATA_BITS                 DataWidth
 #define _PXG_CNT_BITS                  CntWidth
 #define _PXG_FIFODEPTH                 FifoDepth
-#define _PXG_DBG                       Dbg_device_not_included
+#define _PXG_DBG                       Dbg_device_analt_included
 
 /* ID's and Address */
 #define _PXG_ADRRESS_ALIGN_REG         4
@@ -34,9 +34,9 @@
 #define _PXG_SYNG_SID_REG_IDX          3
 #define _PXG_SYNG_FREE_RUN_REG_IDX     4
 #define _PXG_SYNG_PAUSE_REG_IDX        5
-#define _PXG_SYNG_NOF_FRAME_REG_IDX    6
-#define _PXG_SYNG_NOF_PIXEL_REG_IDX    7
-#define _PXG_SYNG_NOF_LINE_REG_IDX     8
+#define _PXG_SYNG_ANALF_FRAME_REG_IDX    6
+#define _PXG_SYNG_ANALF_PIXEL_REG_IDX    7
+#define _PXG_SYNG_ANALF_LINE_REG_IDX     8
 #define _PXG_SYNG_HBLANK_CYC_REG_IDX   9
 #define _PXG_SYNG_VBLANK_CYC_REG_IDX  10
 #define _PXG_SYNG_STAT_HCNT_REG_IDX   11
@@ -74,9 +74,9 @@
 #define _PXG_SYNG_FREE_RUN_REG_WIDTH   1
 #define _PXG_SYNG_PAUSE_REG_WIDTH      1
 /*
-#define _PXG_SYNG_NOF_FRAME_REG_WIDTH  <sync_gen_cnt_width>
-#define _PXG_SYNG_NOF_PIXEL_REG_WIDTH  <sync_gen_cnt_width>
-#define _PXG_SYNG_NOF_LINE_REG_WIDTH   <sync_gen_cnt_width>
+#define _PXG_SYNG_ANALF_FRAME_REG_WIDTH  <sync_gen_cnt_width>
+#define _PXG_SYNG_ANALF_PIXEL_REG_WIDTH  <sync_gen_cnt_width>
+#define _PXG_SYNG_ANALF_LINE_REG_WIDTH   <sync_gen_cnt_width>
 #define _PXG_SYNG_HBLANK_CYC_REG_WIDTH <sync_gen_cnt_width>
 #define _PXG_SYNG_VBLANK_CYC_REG_WIDTH <sync_gen_cnt_width>
 #define _PXG_SYNG_STAT_HCNT_REG_WIDTH  <sync_gen_cnt_width>

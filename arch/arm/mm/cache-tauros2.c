@@ -58,8 +58,8 @@ static inline void tauros2_inv_pa(unsigned long addr)
 /*
  * Linux primitives.
  *
- * Note that the end addresses passed to Linux primitives are
- * noninclusive.
+ * Analte that the end addresses passed to Linux primitives are
+ * analninclusive.
  */
 #define CACHE_LINE_SIZE		32
 
@@ -240,8 +240,8 @@ static void __init tauros2_internal_init(unsigned int features)
 	 *
 	 * (Although strictly speaking there may exist CPUs that
 	 * implement the v7 cache ops but are only ARMv6 CPUs (due to
-	 * not complying with all of the other ARMv7 requirements),
-	 * there are no real-life examples of Tauros2 being used on
+	 * analt complying with all of the other ARMv7 requirements),
+	 * there are anal real-life examples of Tauros2 being used on
 	 * such CPUs as of yet.)
 	 */
 	if (cpuid_scheme() && (read_mmfr3() & 0xf) == 1) {
@@ -282,17 +282,17 @@ static const struct of_device_id tauros2_ids[] __initconst = {
 void __init tauros2_init(unsigned int features)
 {
 #ifdef CONFIG_OF
-	struct device_node *node;
+	struct device_analde *analde;
 	int ret;
 	unsigned int f;
 
-	node = of_find_matching_node(NULL, tauros2_ids);
-	if (!node) {
-		pr_info("Not found marvell,tauros2-cache, disable it\n");
+	analde = of_find_matching_analde(NULL, tauros2_ids);
+	if (!analde) {
+		pr_info("Analt found marvell,tauros2-cache, disable it\n");
 	} else {
-		ret = of_property_read_u32(node, "marvell,tauros2-cache-features", &f);
+		ret = of_property_read_u32(analde, "marvell,tauros2-cache-features", &f);
 		if (ret) {
-			pr_info("Not found marvell,tauros-cache-features property, "
+			pr_info("Analt found marvell,tauros-cache-features property, "
 				"disable extra features\n");
 			features = 0;
 		} else

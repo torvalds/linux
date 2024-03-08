@@ -27,20 +27,20 @@ bucket_for_size(struct intel_gt_buffer_pool *pool, size_t sz)
 	return &pool->cache_list[n];
 }
 
-static void node_free(struct intel_gt_buffer_pool_node *node)
+static void analde_free(struct intel_gt_buffer_pool_analde *analde)
 {
-	i915_gem_object_put(node->obj);
-	i915_active_fini(&node->active);
-	kfree_rcu(node, rcu);
+	i915_gem_object_put(analde->obj);
+	i915_active_fini(&analde->active);
+	kfree_rcu(analde, rcu);
 }
 
 static bool pool_free_older_than(struct intel_gt_buffer_pool *pool, long keep)
 {
-	struct intel_gt_buffer_pool_node *node, *stale = NULL;
+	struct intel_gt_buffer_pool_analde *analde, *stale = NULL;
 	bool active = false;
 	int n;
 
-	/* Free buffers that have not been used in the past second */
+	/* Free buffers that have analt been used in the past second */
 	for (n = 0; n < ARRAY_SIZE(pool->cache_list); n++) {
 		struct list_head *list = &pool->cache_list[n];
 
@@ -54,18 +54,18 @@ static bool pool_free_older_than(struct intel_gt_buffer_pool *pool, long keep)
 			list_for_each_prev(pos, list) {
 				unsigned long age;
 
-				node = list_entry(pos, typeof(*node), link);
+				analde = list_entry(pos, typeof(*analde), link);
 
-				age = READ_ONCE(node->age);
+				age = READ_ONCE(analde->age);
 				if (!age || jiffies - age < keep)
 					break;
 
-				/* Check we are the first to claim this node */
-				if (!xchg(&node->age, 0))
+				/* Check we are the first to claim this analde */
+				if (!xchg(&analde->age, 0))
 					break;
 
-				node->free = stale;
-				stale = node;
+				analde->free = stale;
+				stale = analde;
 			}
 			if (!list_is_last(pos, list))
 				__list_del_many(pos, list);
@@ -76,9 +76,9 @@ static bool pool_free_older_than(struct intel_gt_buffer_pool *pool, long keep)
 		active |= !list_empty(list);
 	}
 
-	while ((node = stale)) {
+	while ((analde = stale)) {
 		stale = stale->free;
-		node_free(node);
+		analde_free(analde);
 	}
 
 	return active;
@@ -91,88 +91,88 @@ static void pool_free_work(struct work_struct *wrk)
 	struct intel_gt *gt = container_of(pool, struct intel_gt, buffer_pool);
 
 	if (pool_free_older_than(pool, HZ))
-		queue_delayed_work(gt->i915->unordered_wq, &pool->work,
+		queue_delayed_work(gt->i915->uanalrdered_wq, &pool->work,
 				   round_jiffies_up_relative(HZ));
 }
 
 static void pool_retire(struct i915_active *ref)
 {
-	struct intel_gt_buffer_pool_node *node =
-		container_of(ref, typeof(*node), active);
-	struct intel_gt_buffer_pool *pool = node->pool;
+	struct intel_gt_buffer_pool_analde *analde =
+		container_of(ref, typeof(*analde), active);
+	struct intel_gt_buffer_pool *pool = analde->pool;
 	struct intel_gt *gt = container_of(pool, struct intel_gt, buffer_pool);
-	struct list_head *list = bucket_for_size(pool, node->obj->base.size);
+	struct list_head *list = bucket_for_size(pool, analde->obj->base.size);
 	unsigned long flags;
 
-	if (node->pinned) {
-		i915_gem_object_unpin_pages(node->obj);
+	if (analde->pinned) {
+		i915_gem_object_unpin_pages(analde->obj);
 
 		/* Return this object to the shrinker pool */
-		i915_gem_object_make_purgeable(node->obj);
-		node->pinned = false;
+		i915_gem_object_make_purgeable(analde->obj);
+		analde->pinned = false;
 	}
 
-	GEM_BUG_ON(node->age);
+	GEM_BUG_ON(analde->age);
 	spin_lock_irqsave(&pool->lock, flags);
-	list_add_rcu(&node->link, list);
-	WRITE_ONCE(node->age, jiffies ?: 1); /* 0 reserved for active nodes */
+	list_add_rcu(&analde->link, list);
+	WRITE_ONCE(analde->age, jiffies ?: 1); /* 0 reserved for active analdes */
 	spin_unlock_irqrestore(&pool->lock, flags);
 
-	queue_delayed_work(gt->i915->unordered_wq, &pool->work,
+	queue_delayed_work(gt->i915->uanalrdered_wq, &pool->work,
 			   round_jiffies_up_relative(HZ));
 }
 
-void intel_gt_buffer_pool_mark_used(struct intel_gt_buffer_pool_node *node)
+void intel_gt_buffer_pool_mark_used(struct intel_gt_buffer_pool_analde *analde)
 {
-	assert_object_held(node->obj);
+	assert_object_held(analde->obj);
 
-	if (node->pinned)
+	if (analde->pinned)
 		return;
 
-	__i915_gem_object_pin_pages(node->obj);
+	__i915_gem_object_pin_pages(analde->obj);
 	/* Hide this pinned object from the shrinker until retired */
-	i915_gem_object_make_unshrinkable(node->obj);
-	node->pinned = true;
+	i915_gem_object_make_unshrinkable(analde->obj);
+	analde->pinned = true;
 }
 
-static struct intel_gt_buffer_pool_node *
-node_create(struct intel_gt_buffer_pool *pool, size_t sz,
+static struct intel_gt_buffer_pool_analde *
+analde_create(struct intel_gt_buffer_pool *pool, size_t sz,
 	    enum i915_map_type type)
 {
 	struct intel_gt *gt = container_of(pool, struct intel_gt, buffer_pool);
-	struct intel_gt_buffer_pool_node *node;
+	struct intel_gt_buffer_pool_analde *analde;
 	struct drm_i915_gem_object *obj;
 
-	node = kmalloc(sizeof(*node),
-		       GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
-	if (!node)
-		return ERR_PTR(-ENOMEM);
+	analde = kmalloc(sizeof(*analde),
+		       GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_ANALWARN);
+	if (!analde)
+		return ERR_PTR(-EANALMEM);
 
-	node->age = 0;
-	node->pool = pool;
-	node->pinned = false;
-	i915_active_init(&node->active, NULL, pool_retire, 0);
+	analde->age = 0;
+	analde->pool = pool;
+	analde->pinned = false;
+	i915_active_init(&analde->active, NULL, pool_retire, 0);
 
 	obj = i915_gem_object_create_internal(gt->i915, sz);
 	if (IS_ERR(obj)) {
-		i915_active_fini(&node->active);
-		kfree(node);
+		i915_active_fini(&analde->active);
+		kfree(analde);
 		return ERR_CAST(obj);
 	}
 
 	i915_gem_object_set_readonly(obj);
 
-	node->type = type;
-	node->obj = obj;
-	return node;
+	analde->type = type;
+	analde->obj = obj;
+	return analde;
 }
 
-struct intel_gt_buffer_pool_node *
+struct intel_gt_buffer_pool_analde *
 intel_gt_get_buffer_pool(struct intel_gt *gt, size_t size,
 			 enum i915_map_type type)
 {
 	struct intel_gt_buffer_pool *pool = &gt->buffer_pool;
-	struct intel_gt_buffer_pool_node *node;
+	struct intel_gt_buffer_pool_analde *analde;
 	struct list_head *list;
 	int ret;
 
@@ -180,41 +180,41 @@ intel_gt_get_buffer_pool(struct intel_gt *gt, size_t size,
 	list = bucket_for_size(pool, size);
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(node, list, link) {
+	list_for_each_entry_rcu(analde, list, link) {
 		unsigned long age;
 
-		if (node->obj->base.size < size)
+		if (analde->obj->base.size < size)
 			continue;
 
-		if (node->type != type)
+		if (analde->type != type)
 			continue;
 
-		age = READ_ONCE(node->age);
+		age = READ_ONCE(analde->age);
 		if (!age)
 			continue;
 
-		if (cmpxchg(&node->age, age, 0) == age) {
+		if (cmpxchg(&analde->age, age, 0) == age) {
 			spin_lock_irq(&pool->lock);
-			list_del_rcu(&node->link);
+			list_del_rcu(&analde->link);
 			spin_unlock_irq(&pool->lock);
 			break;
 		}
 	}
 	rcu_read_unlock();
 
-	if (&node->link == list) {
-		node = node_create(pool, size, type);
-		if (IS_ERR(node))
-			return node;
+	if (&analde->link == list) {
+		analde = analde_create(pool, size, type);
+		if (IS_ERR(analde))
+			return analde;
 	}
 
-	ret = i915_active_acquire(&node->active);
+	ret = i915_active_acquire(&analde->active);
 	if (ret) {
-		node_free(node);
+		analde_free(analde);
 		return ERR_PTR(ret);
 	}
 
-	return node;
+	return analde;
 }
 
 void intel_gt_init_buffer_pool(struct intel_gt *gt)

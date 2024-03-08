@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -27,7 +27,7 @@
 #define MOD_SHARED_H_
 
 enum color_transfer_func {
-	TRANSFER_FUNC_UNKNOWN,
+	TRANSFER_FUNC_UNKANALWN,
 	TRANSFER_FUNC_SRGB,
 	TRANSFER_FUNC_BT709,
 	TRANSFER_FUNC_PQ2084,
@@ -70,13 +70,13 @@ union lut3d_control_flags {
 };
 
 enum tm_show_option_internal {
-	tm_show_option_internal_single_file		= 0,/*flags2 not in use*/
+	tm_show_option_internal_single_file		= 0,/*flags2 analt in use*/
 	tm_show_option_internal_duplicate_file,		/*use flags2*/
 	tm_show_option_internal_duplicate_sidebyside/*use flags2*/
 };
 
 enum lut3d_control_gamut_map {
-	lut3d_control_gamut_map_none = 0,
+	lut3d_control_gamut_map_analne = 0,
 	lut3d_control_gamut_map_tonemap,
 	lut3d_control_gamut_map_chto,
 	lut3d_control_gamut_map_chso,
@@ -84,7 +84,7 @@ enum lut3d_control_gamut_map {
 };
 
 enum lut3d_control_rotation_mode {
-	lut3d_control_rotation_mode_none = 0,
+	lut3d_control_rotation_mode_analne = 0,
 	lut3d_control_rotation_mode_hue,
 	lut3d_control_rotation_mode_cc,
 	lut3d_control_rotation_mode_hue_cc

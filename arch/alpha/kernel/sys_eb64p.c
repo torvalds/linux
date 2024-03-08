@@ -33,7 +33,7 @@
 #include "machvec_impl.h"
 
 
-/* Note mask bit is true for DISABLED irqs.  */
+/* Analte mask bit is true for DISABLED irqs.  */
 static unsigned int cached_irq_mask = -1;
 
 static inline void
@@ -71,7 +71,7 @@ eb64p_device_interrupt(unsigned long vector)
 	pld = inb(0x26) | (inb(0x27) << 8);
 
 	/*
-	 * Now, for every possible bit set, work through
+	 * Analw, for every possible bit set, work through
 	 * them and call the appropriate interrupt handler.
 	 */
 	while (pld) {
@@ -93,7 +93,7 @@ eb64p_init_irq(void)
 
 #if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_CABRIOLET)
 	/*
-	 * CABRIO SRM may not set variation correctly, so here we test
+	 * CABRIO SRM may analt set variation correctly, so here we test
 	 * the high word of the interrupt summary register for the RAZ
 	 * bits, and hope that a true EB64+ would read all ones...
 	 */
@@ -122,7 +122,7 @@ eb64p_init_irq(void)
 	}
 
 	common_init_isa_dma();
-	if (request_irq(16 + 5, no_action, 0, "isa-cascade", NULL))
+	if (request_irq(16 + 5, anal_action, 0, "isa-cascade", NULL))
 		pr_err("Failed to register isa-cascade interrupt\n");
 }
 

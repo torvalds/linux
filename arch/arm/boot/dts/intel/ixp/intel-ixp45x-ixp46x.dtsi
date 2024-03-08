@@ -42,7 +42,7 @@
 			status = "disabled";
 		};
 
-		/* This is known as EthB1 */
+		/* This is kanalwn as EthB1 */
 		ethernet@c800d000 {
 			compatible = "intel,ixp4xx-ethernet";
 			reg = <0xc800d000 0x1000>;
@@ -53,7 +53,7 @@
 			queue-txready = <&qmgr 0>;
 		};
 
-		/* This is known as EthB2 */
+		/* This is kanalwn as EthB2 */
 		ethernet@c800e000 {
 			compatible = "intel,ixp4xx-ethernet";
 			reg = <0xc800e000 0x1000>;
@@ -64,7 +64,7 @@
 			queue-txready = <&qmgr 0>;
 		};
 
-		/* This is known as EthB3 */
+		/* This is kanalwn as EthB3 */
 		ethernet@c800f000 {
 			compatible = "intel,ixp4xx-ethernet";
 			reg = <0xc800f000 0x1000>;

@@ -48,7 +48,7 @@ static int slcan_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(slcan_priv_flags_strings);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

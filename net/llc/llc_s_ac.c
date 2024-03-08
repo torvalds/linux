@@ -7,7 +7,7 @@
  *   All functions have one sap and one event as input argument. All of
  *   them return 0 On success and 1 otherwise.
  *
- * Copyright (c) 1997 by Procom Technology, Inc.
+ * Copyright (c) 1997 by Procom Techanallogy, Inc.
  *		 2001-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the

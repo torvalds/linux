@@ -89,14 +89,14 @@ static int sun4i_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 
 static int sun4i_mdio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct mii_bus *bus;
 	struct sun4i_mdio_data *data;
 	int ret;
 
 	bus = mdiobus_alloc_size(sizeof(*data));
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus->name = "sun4i_mii_bus";
 	bus->read = &sun4i_mdio_read;
@@ -118,7 +118,7 @@ static int sun4i_mdio_probe(struct platform_device *pdev)
 			goto err_out_free_mdiobus;
 		}
 
-		dev_info(&pdev->dev, "no regulator found\n");
+		dev_info(&pdev->dev, "anal regulator found\n");
 		data->regulator = NULL;
 	} else {
 		ret = regulator_enable(data->regulator);

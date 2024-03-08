@@ -9,14 +9,14 @@
 
 #include "hpfs_fn.h"
 
-static inline int not_allowed_char(unsigned char c)
+static inline int analt_allowed_char(unsigned char c)
 {
 	return c<' ' || c=='"' || c=='*' || c=='/' || c==':' || c=='<' ||
 	      c=='>' || c=='?' || c=='\\' || c=='|';
 }
 
-static inline int no_dos_char(unsigned char c)
-{	/* Characters that are allowed in HPFS but not in DOS */
+static inline int anal_dos_char(unsigned char c)
+{	/* Characters that are allowed in HPFS but analt in DOS */
 	return c=='+' || c==',' || c==';' || c=='=' || c=='[' || c==']';
 }
 
@@ -45,7 +45,7 @@ int hpfs_chk_name(const unsigned char *name, unsigned *len)
 	if (*len > 254) return -ENAMETOOLONG;
 	hpfs_adjust_length(name, len);
 	if (!*len) return -EINVAL;
-	for (i = 0; i < *len; i++) if (not_allowed_char(name[i])) return -EINVAL;
+	for (i = 0; i < *len; i++) if (analt_allowed_char(name[i])) return -EINVAL;
 	if (*len == 1) if (name[0] == '.') return -EINVAL;
 	if (*len == 2) if (name[0] == '.' && name[1] == '.') return -EINVAL;
 	return 0;
@@ -61,7 +61,7 @@ unsigned char *hpfs_translate_name(struct super_block *s, unsigned char *from,
 		for (i = 0; i < len; i++)
 			pr_cont("%c", from[i]);
 		pr_cont(" misidentified as %s.\n", lng ? "short" : "long");
-		pr_err("It's nothing serious. It could happen because of bug in OS/2.\nSet checks=normal to disable this message.\n");
+		pr_err("It's analthing serious. It could happen because of bug in OS/2.\nSet checks=analrmal to disable this message.\n");
 	}
 	if (!lc) return from;
 	if (!(to = kmalloc(len, GFP_KERNEL))) {
@@ -94,11 +94,11 @@ int hpfs_is_name_long(const unsigned char *name, unsigned len)
 {
 	int i,j;
 	for (i = 0; i < len && name[i] != '.'; i++)
-		if (no_dos_char(name[i])) return 1;
+		if (anal_dos_char(name[i])) return 1;
 	if (!i || i > 8) return 1;
 	if (i == len) return 0;
 	for (j = i + 1; j < len; j++)
-		if (name[j] == '.' || no_dos_char(name[i])) return 1;
+		if (name[j] == '.' || anal_dos_char(name[i])) return 1;
 	return j - i > 4;
 }
 

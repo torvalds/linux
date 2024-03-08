@@ -22,7 +22,7 @@ config OVERLAY_FS_REDIRECT_DIR
 	  "redirect_dir=off" module option or on a filesystem instance basis
 	  with the "redirect_dir=off" mount option.
 
-	  Note, that redirects are not backward compatible.  That is, mounting
+	  Analte, that redirects are analt backward compatible.  That is, mounting
 	  an overlay which has redirects on a kernel that doesn't support this
 	  feature will have unexpected results.
 
@@ -34,9 +34,9 @@ config OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW
 	depends on OVERLAY_FS
 	help
 	  Disable this to get a possibly more secure configuration, but that
-	  might not be backward compatible with previous kernels.
+	  might analt be backward compatible with previous kernels.
 
-	  If backward compatibility is not an issue, then it is safe and
+	  If backward compatibility is analt an issue, then it is safe and
 	  recommended to say N here.
 
 	  For more information, see Documentation/filesystems/overlayfs.rst
@@ -44,20 +44,20 @@ config OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW
 	  If unsure, say Y.
 
 config OVERLAY_FS_INDEX
-	bool "Overlayfs: turn on inodes index feature by default"
+	bool "Overlayfs: turn on ianaldes index feature by default"
 	depends on OVERLAY_FS
 	help
 	  If this config option is enabled then overlay filesystems will use
-	  the index directory to map lower inodes to upper inodes by default.
+	  the index directory to map lower ianaldes to upper ianaldes by default.
 	  In this case it is still possible to turn off index globally with the
 	  "index=off" module option or on a filesystem instance basis with the
 	  "index=off" mount option.
 
-	  The inodes index feature prevents breaking of lower hardlinks on copy
+	  The ianaldes index feature prevents breaking of lower hardlinks on copy
 	  up.
 
-	  Note, that the inodes index feature is not backward compatible.
-	  That is, mounting an overlay which has an inodes index on a kernel
+	  Analte, that the ianaldes index feature is analt backward compatible.
+	  That is, mounting an overlay which has an ianaldes index on a kernel
 	  that doesn't support this feature will have unexpected results.
 
 	  If unsure, say N.
@@ -78,10 +78,10 @@ config OVERLAY_FS_NFS_EXPORT
 	  directory.  This full index is used to detect overlay filesystems
 	  inconsistencies on lookup, like redirect from multiple upper dirs to
 	  the same lower dir.  The full index may incur some overhead on mount
-	  time, especially when verifying that directory file handles are not
+	  time, especially when verifying that directory file handles are analt
 	  stale.
 
-	  Note, that the NFS export feature is not backward compatible.
+	  Analte, that the NFS export feature is analt backward compatible.
 	  That is, mounting an overlay which has a full index on a kernel
 	  that doesn't support this feature will have unexpected results.
 
@@ -90,18 +90,18 @@ config OVERLAY_FS_NFS_EXPORT
 
 	  Say N unless you fully understand the consequences.
 
-config OVERLAY_FS_XINO_AUTO
-	bool "Overlayfs: auto enable inode number mapping"
+config OVERLAY_FS_XIANAL_AUTO
+	bool "Overlayfs: auto enable ianalde number mapping"
 	default n
 	depends on OVERLAY_FS
 	depends on 64BIT
 	help
 	  If this config option is enabled then overlay filesystems will use
-	  unused high bits in underlying filesystem inode numbers to map all
-	  inodes to a unified address space.  The mapped 64bit inode numbers
-	  might not be compatible with applications that expect 32bit inodes.
+	  unused high bits in underlying filesystem ianalde numbers to map all
+	  ianaldes to a unified address space.  The mapped 64bit ianalde numbers
+	  might analt be compatible with applications that expect 32bit ianaldes.
 
-	  If compatibility with applications that expect 32bit inodes is not an
+	  If compatibility with applications that expect 32bit ianaldes is analt an
 	  issue, then it is safe and recommended to say Y here.
 
 	  For more information, see Documentation/filesystems/overlayfs.rst
@@ -120,8 +120,8 @@ config OVERLAY_FS_METACOPY
 	  module option or on a filesystem instance basis with the
 	  "metacopy=off" mount option.
 
-	  Note, that this feature is not backward compatible.  That is,
-	  mounting an overlay which has metacopy only inodes on a kernel
+	  Analte, that this feature is analt backward compatible.  That is,
+	  mounting an overlay which has metacopy only ianaldes on a kernel
 	  that doesn't support this feature will have unexpected results.
 
 	  If unsure, say N.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2009 Texas Instruments.
- * Copyright (C) 2010 EF Johnson Technologies
+ * Copyright (C) 2010 EF Johnson Techanallogies
  */
 
 #include <linux/interrupt.h>
@@ -203,7 +203,7 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 
 	dspi = spi_controller_get_devdata(spi->controller);
 
-	/* program delay transfers if tx_delay is non zero */
+	/* program delay transfers if tx_delay is analn zero */
 	if (spicfg && spicfg->wdelay)
 		spidat1 |= SPIDAT1_WDEL;
 
@@ -236,7 +236,7 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
  * less than or equal to the specified maximum.
  *
  * Returns: calculated prescale value for easy programming into SPI registers
- * or negative error number if valid prescalar cannot be updated.
+ * or negative error number if valid prescalar cananalt be updated.
  */
 static inline int davinci_spi_get_prescale(struct davinci_spi *dspi,
 							u32 max_speed_hz)
@@ -281,7 +281,7 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 		hz = t->speed_hz;
 	}
 
-	/* if bits_per_word is not set then set it default */
+	/* if bits_per_word is analt set then set it default */
 	if (!bits_per_word)
 		bits_per_word = spi->bits_per_word;
 
@@ -330,14 +330,14 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 	/*
 	 * Version 1 hardware supports two basic SPI modes:
 	 *  - Standard SPI mode uses 4 pins, with chipselect
-	 *  - 3 pin SPI is a 4 pin variant without CS (SPI_NO_CS)
+	 *  - 3 pin SPI is a 4 pin variant without CS (SPI_ANAL_CS)
 	 *	(distinct from SPI_3WIRE, with just one data wire;
 	 *	or similar variants without MOSI or without MISO)
 	 *
 	 * Version 2 hardware supports an optional handshaking signal,
 	 * so it can support two more modes:
 	 *  - 5 pin SPI variant is standard SPI plus SPI_READY
-	 *  - 4 pin with enable is (SPI_READY | SPI_NO_CS)
+	 *  - 4 pin with enable is (SPI_READY | SPI_ANAL_CS)
 	 */
 
 	if (dspi->version == SPI_VERSION_2) {
@@ -378,14 +378,14 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 static int davinci_spi_of_setup(struct spi_device *spi)
 {
 	struct davinci_spi_config *spicfg = spi->controller_data;
-	struct device_node *np = spi->dev.of_node;
+	struct device_analde *np = spi->dev.of_analde;
 	struct davinci_spi *dspi = spi_controller_get_devdata(spi->controller);
 	u32 prop;
 
 	if (spicfg == NULL && np) {
 		spicfg = kzalloc(sizeof(*spicfg), GFP_KERNEL);
 		if (!spicfg)
-			return -ENOMEM;
+			return -EANALMEM;
 		*spicfg = davinci_spi_default_cfg;
 		/* override with dt configured values */
 		if (!of_property_read_u32(np, "ti,spi-wdelay", &prop))
@@ -408,12 +408,12 @@ static int davinci_spi_of_setup(struct spi_device *spi)
 static int davinci_spi_setup(struct spi_device *spi)
 {
 	struct davinci_spi *dspi;
-	struct device_node *np = spi->dev.of_node;
+	struct device_analde *np = spi->dev.of_analde;
 	bool internal_cs = true;
 
 	dspi = spi_controller_get_devdata(spi->controller);
 
-	if (!(spi->mode & SPI_NO_CS)) {
+	if (!(spi->mode & SPI_ANAL_CS)) {
 		if (np && spi_get_csgpiod(spi, 0))
 			internal_cs = false;
 
@@ -437,7 +437,7 @@ static void davinci_spi_cleanup(struct spi_device *spi)
 	struct davinci_spi_config *spicfg = spi->controller_data;
 
 	spi->controller_data = NULL;
-	if (spi->dev.of_node)
+	if (spi->dev.of_analde)
 		kfree(spicfg);
 }
 
@@ -565,7 +565,7 @@ static void davinci_spi_dma_tx_callback(void *data)
 static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct davinci_spi *dspi;
-	int data_type, ret = -ENOMEM;
+	int data_type, ret = -EANALMEM;
 	u32 tx_data, spidat1;
 	u32 errors = 0;
 	struct davinci_spi_config *spicfg;
@@ -685,7 +685,7 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	 */
 	if (errors) {
 		ret = davinci_spi_check_error(dspi, errors);
-		WARN(!ret, "%s: error reported but no error found!\n",
+		WARN(!ret, "%s: error reported but anal error found!\n",
 							dev_name(&spi->dev));
 		return ret;
 	}
@@ -721,7 +721,7 @@ static irqreturn_t dummy_thread_fn(s32 irq, void *data)
  *
  * ISR will determine that interrupt arrives either for READ or WRITE command.
  * According to command it will do the appropriate action. It will check
- * transfer length and if it is not zero then dispatch transfer command again.
+ * transfer length and if it is analt zero then dispatch transfer command again.
  * If transfer length is zero then it will indicate the COMPLETION so that
  * davinci_spi_bufs function can go ahead.
  */
@@ -804,12 +804,12 @@ MODULE_DEVICE_TABLE(of, davinci_spi_of_match);
  *
  * Parses and populates pdata in dspi from device tree bindings.
  *
- * NOTE: Not all platform data params are supported currently.
+ * ANALTE: Analt all platform data params are supported currently.
  */
 static int spi_davinci_get_pdata(struct platform_device *pdev,
 			struct davinci_spi *dspi)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	const struct davinci_spi_of_data *spi_data;
 	struct davinci_spi_platform_data *pdata;
 	unsigned int num_cs, intr_line = 0;
@@ -823,14 +823,14 @@ static int spi_davinci_get_pdata(struct platform_device *pdev,
 	/*
 	 * default num_cs is 1 and all chipsel are internal to the chip
 	 * indicated by chip_sel being NULL or cs_gpios being NULL or
-	 * set to -ENOENT. num-cs includes internal as well as gpios.
-	 * indicated by chip_sel being NULL. GPIO based CS is not
+	 * set to -EANALENT. num-cs includes internal as well as gpios.
+	 * indicated by chip_sel being NULL. GPIO based CS is analt
 	 * supported yet in DT bindings.
 	 */
 	num_cs = 1;
-	of_property_read_u32(node, "num-cs", &num_cs);
+	of_property_read_u32(analde, "num-cs", &num_cs);
 	pdata->num_chipselect = num_cs;
-	of_property_read_u32(node, "ti,davinci-spi-intr-line", &intr_line);
+	of_property_read_u32(analde, "ti,davinci-spi-intr-line", &intr_line);
 	pdata->intr_line = intr_line;
 	return 0;
 }
@@ -838,7 +838,7 @@ static int spi_davinci_get_pdata(struct platform_device *pdev,
 static int spi_davinci_get_pdata(struct platform_device *pdev,
 			struct davinci_spi *dspi)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -864,7 +864,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(struct davinci_spi));
 	if (host == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -882,7 +882,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 			goto free_host;
 	}
 
-	/* pdata in dspi is now updated and point pdata to that */
+	/* pdata in dspi is analw updated and point pdata to that */
 	pdata = &dspi->pdata;
 
 	dspi->bytes_per_word = devm_kcalloc(&pdev->dev,
@@ -890,7 +890,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 					    sizeof(*dspi->bytes_per_word),
 					    GFP_KERNEL);
 	if (dspi->bytes_per_word == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_host;
 	}
 
@@ -917,12 +917,12 @@ static int davinci_spi_probe(struct platform_device *pdev)
 
 	dspi->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(dspi->clk)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free_host;
 	}
 
 	host->use_gpio_descriptors = true;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->bus_num = pdev->id;
 	host->num_chipselect = pdata->num_chipselect;
 	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(2, 16);
@@ -936,7 +936,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	dspi->prescaler_limit = pdata->prescaler_limit;
 	dspi->version = pdata->version;
 
-	dspi->bitbang.flags = SPI_NO_CS | SPI_LSB_FIRST | SPI_LOOP | SPI_CS_WORD;
+	dspi->bitbang.flags = SPI_ANAL_CS | SPI_LSB_FIRST | SPI_LOOP | SPI_CS_WORD;
 	if (dspi->version == SPI_VERSION_2)
 		dspi->bitbang.flags |= SPI_READY;
 
@@ -946,7 +946,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	if (ret == -EPROBE_DEFER) {
 		goto free_host;
 	} else if (ret) {
-		dev_info(&pdev->dev, "DMA is not supported (%d)\n", ret);
+		dev_info(&pdev->dev, "DMA is analt supported (%d)\n", ret);
 		dspi->dma_rx = NULL;
 		dspi->dma_tx = NULL;
 	}

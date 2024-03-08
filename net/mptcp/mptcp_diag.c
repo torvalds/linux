@@ -31,16 +31,16 @@ static int mptcp_diag_dump_one(struct netlink_callback *cb,
 	struct sk_buff *in_skb = cb->skb;
 	struct mptcp_sock *msk = NULL;
 	struct sk_buff *rep;
-	int err = -ENOENT;
+	int err = -EANALENT;
 	struct net *net;
 	struct sock *sk;
 
 	net = sock_net(in_skb->sk);
 	msk = mptcp_token_get_sock(net, req->id.idiag_cookie[0]);
 	if (!msk)
-		goto out_nosk;
+		goto out_analsk;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	sk = (struct sock *)msk;
 	rep = nlmsg_new(nla_total_size(sizeof(struct inet_diag_msg)) +
 			inet_diag_msg_attrs_size() +
@@ -62,7 +62,7 @@ static int mptcp_diag_dump_one(struct netlink_callback *cb,
 out:
 	sock_put(sk);
 
-out_nosk:
+out_analsk:
 	return err;
 }
 
@@ -88,7 +88,7 @@ static void mptcp_diag_dump_listeners(struct sk_buff *skb, struct netlink_callba
 
 	for (i = diag_ctx->l_slot; i <= hinfo->lhash2_mask; i++) {
 		struct inet_listen_hashbucket *ilb;
-		struct hlist_nulls_node *node;
+		struct hlist_nulls_analde *analde;
 		struct sock *sk;
 		int num = 0;
 
@@ -96,7 +96,7 @@ static void mptcp_diag_dump_listeners(struct sk_buff *skb, struct netlink_callba
 
 		rcu_read_lock();
 		spin_lock(&ilb->lock);
-		sk_nulls_for_each(sk, node, &ilb->nulls_head) {
+		sk_nulls_for_each(sk, analde, &ilb->nulls_head) {
 			const struct mptcp_subflow_context *ctx = mptcp_subflow_ctx(sk);
 			struct inet_sock *inet = inet_sk(sk);
 			int ret;
@@ -119,7 +119,7 @@ static void mptcp_diag_dump_listeners(struct sk_buff *skb, struct netlink_callba
 			    r->id.idiag_sport)
 				goto next_listen;
 
-			if (!refcount_inc_not_zero(&sk->sk_refcnt))
+			if (!refcount_inc_analt_zero(&sk->sk_refcnt))
 				goto next_listen;
 
 			ret = sk_diag_dump(sk, skb, cb, r, bc, net_admin);

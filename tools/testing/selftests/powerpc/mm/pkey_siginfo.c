@@ -21,7 +21,7 @@
 
 #include "pkeys.h"
 
-#define PPC_INST_NOP	0x60000000
+#define PPC_INST_ANALP	0x60000000
 #define PPC_INST_BLR	0x4e800020
 #define PROT_RWX	(PROT_READ | PROT_WRITE | PROT_EXEC)
 
@@ -70,7 +70,7 @@ static void segv_handler(int signum, siginfo_t *sinfo, void *ctx)
 	/*
 	 * If the current fault occurred due to lack of execute rights,
 	 * reassociate the page with the exec-only pkey since execute
-	 * rights cannot be changed directly for the faulting pkey as
+	 * rights cananalt be changed directly for the faulting pkey as
 	 * IAMR is inaccessible from userspace.
 	 *
 	 * Otherwise, if the current fault occurred due to lack of
@@ -106,7 +106,7 @@ static void *protect(void *p)
 	size = ((struct region *) p)->size;
 	FAIL_IF_EXIT(!base);
 
-	/* No read, write and execute restrictions */
+	/* Anal read, write and execute restrictions */
 	rights = 0;
 
 	printf("tid %d, pkey permissions are %s\n", tid, pkey_rights(rights));
@@ -184,10 +184,10 @@ static void *protect_access(void *p)
 		case PKEY_DISABLE_ACCESS:
 			/*
 			 * Read an instruction word from the region and
-			 * verify if it has not been overwritten to
+			 * verify if it has analt been overwritten to
 			 * something unexpected
 			 */
-			FAIL_IF_EXIT(*fault_addr != PPC_INST_NOP &&
+			FAIL_IF_EXIT(*fault_addr != PPC_INST_ANALP &&
 				     *fault_addr != PPC_INST_BLR);
 			break;
 
@@ -254,16 +254,16 @@ static int test(void)
 	/* Allocate the region */
 	r.size = getpagesize();
 	r.base = mmap(NULL, r.size, PROT_RWX,
-		      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		      MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	FAIL_IF(r.base == MAP_FAILED);
 
 	/*
-	 * Fill the region with no-ops with a branch at the end
+	 * Fill the region with anal-ops with a branch at the end
 	 * for returning to the caller
 	 */
 	numinsns = r.size / sizeof(r.base[0]);
 	for (i = 0; i < numinsns - 1; i++)
-		r.base[i] = PPC_INST_NOP;
+		r.base[i] = PPC_INST_ANALP;
 	r.base[i] = PPC_INST_BLR;
 
 	/* Setup SIGSEGV handler */
@@ -276,7 +276,7 @@ static int test(void)
 
 	/*
 	 * For these tests, the parent process should clear all bits of
-	 * AMR and IAMR, i.e. impose no restrictions, for all available
+	 * AMR and IAMR, i.e. impose anal restrictions, for all available
 	 * pkeys. This will be the base for the initial AMR and IAMR
 	 * values for all the test thread pairs.
 	 *
@@ -286,7 +286,7 @@ static int test(void)
 	 * pkey protected region, the pkey responsible for this must be
 	 * the one from the protect-and-access thread since the other
 	 * one is fully permissive. Despite that, if the pkey reported
-	 * by siginfo is not the restrictive pkey, then there must be a
+	 * by siginfo is analt the restrictive pkey, then there must be a
 	 * kernel bug.
 	 */
 	reset_pkeys(0);

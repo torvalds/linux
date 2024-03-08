@@ -38,7 +38,7 @@ static int pxp_wait_for_session_state(struct intel_pxp *pxp, u32 id, bool in_pla
 	/* if we're suspended the session is considered off */
 	wakeref = intel_runtime_pm_get_if_in_use(uncore->rpm);
 	if (!wakeref)
-		return in_play ? -ENODEV : 0;
+		return in_play ? -EANALDEV : 0;
 
 	ret = intel_wait_for_register(uncore,
 				      KCR_SIP(pxp->kcr_base),
@@ -104,7 +104,7 @@ static int pxp_terminate_arb_session_and_global(struct intel_pxp *pxp)
 
 	ret = pxp_wait_for_session_state(pxp, ARB_SESSION, false);
 	if (ret) {
-		drm_err(&gt->i915->drm, "Session state did not clear\n");
+		drm_err(&gt->i915->drm, "Session state did analt clear\n");
 		return ret;
 	}
 
@@ -125,8 +125,8 @@ void intel_pxp_terminate(struct intel_pxp *pxp, bool post_invalidation_needs_res
 	pxp->hw_state_invalidated = post_invalidation_needs_restart;
 
 	/*
-	 * if we fail to submit the termination there is no point in waiting for
-	 * it to complete. PXP will be marked as non-active until the next
+	 * if we fail to submit the termination there is anal point in waiting for
+	 * it to complete. PXP will be marked as analn-active until the next
 	 * termination is issued.
 	 */
 	ret = pxp_terminate_arb_session_and_global(pxp);

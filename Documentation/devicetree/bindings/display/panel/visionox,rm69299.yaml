@@ -1,23 +1,23 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/display/panel/visionox,rm69299.yaml#
+$id: http://devicetree.org/schemas/display/panel/visioanalx,rm69299.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Visionox model RM69299 Panels
+title: Visioanalx model RM69299 Panels
 
 maintainers:
   - Harigovindan P <harigovi@codeaurora.org>
 
 description: |
-  This binding is for display panels using a Visionox RM692999 panel.
+  This binding is for display panels using a Visioanalx RM692999 panel.
 
 allOf:
   - $ref: panel-common.yaml#
 
 properties:
   compatible:
-    const: visionox,rm69299-1080p-display
+    const: visioanalx,rm69299-1080p-display
 
   reg: true
 
@@ -49,7 +49,7 @@ examples:
         #size-cells = <0>;
 
         panel@0 {
-            compatible = "visionox,rm69299-1080p-display";
+            compatible = "visioanalx,rm69299-1080p-display";
             reg = <0>;
 
             vdda-supply = <&src_pp1800_l8c>;

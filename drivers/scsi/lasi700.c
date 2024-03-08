@@ -91,7 +91,7 @@ lasi700_probe(struct parisc_device *dev)
 	hostdata = kzalloc(sizeof(*hostdata), GFP_KERNEL);
 	if (!hostdata) {
 		dev_printk(KERN_ERR, &dev->dev, "Failed to allocate host data\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hostdata->dev = &dev->dev;
@@ -131,7 +131,7 @@ lasi700_probe(struct parisc_device *dev)
  out_kfree:
 	iounmap(hostdata->base);
 	kfree(hostdata);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void __exit

@@ -42,27 +42,27 @@
 #define VMCI_CAPS_HYPERCALL     BIT(0)
 #define VMCI_CAPS_GUESTCALL     BIT(1)
 #define VMCI_CAPS_DATAGRAM      BIT(2)
-#define VMCI_CAPS_NOTIFICATIONS BIT(3)
+#define VMCI_CAPS_ANALTIFICATIONS BIT(3)
 #define VMCI_CAPS_PPN64         BIT(4)
 #define VMCI_CAPS_DMA_DATAGRAM  BIT(5)
 
 /* Interrupt Cause register bits. */
 #define VMCI_ICR_DATAGRAM      BIT(0)
-#define VMCI_ICR_NOTIFICATION  BIT(1)
+#define VMCI_ICR_ANALTIFICATION  BIT(1)
 #define VMCI_ICR_DMA_DATAGRAM  BIT(2)
 
 /* Interrupt Mask register bits. */
 #define VMCI_IMR_DATAGRAM      BIT(0)
-#define VMCI_IMR_NOTIFICATION  BIT(1)
+#define VMCI_IMR_ANALTIFICATION  BIT(1)
 #define VMCI_IMR_DMA_DATAGRAM  BIT(2)
 
 /*
  * Maximum MSI/MSI-X interrupt vectors in the device.
  * If VMCI_CAPS_DMA_DATAGRAM is supported by the device,
  * VMCI_MAX_INTRS_DMA_DATAGRAM vectors are available,
- * otherwise only VMCI_MAX_INTRS_NOTIFICATION.
+ * otherwise only VMCI_MAX_INTRS_ANALTIFICATION.
  */
-#define VMCI_MAX_INTRS_NOTIFICATION 2
+#define VMCI_MAX_INTRS_ANALTIFICATION 2
 #define VMCI_MAX_INTRS_DMA_DATAGRAM 3
 #define VMCI_MAX_INTRS              VMCI_MAX_INTRS_DMA_DATAGRAM
 
@@ -72,7 +72,7 @@
  */
 enum {
 	VMCI_INTR_DATAGRAM = 0,
-	VMCI_INTR_NOTIFICATION = 1,
+	VMCI_INTR_ANALTIFICATION = 1,
 	VMCI_INTR_DMA_DATAGRAM = 2,
 };
 
@@ -147,7 +147,7 @@ struct vmci_sg_elem {
 /*
  * We have a fixed set of resource IDs available in the VMX.
  * This allows us to have a very simple implementation since we statically
- * know how many will create datagram handles. If a new caller arrives and
+ * kanalw how many will create datagram handles. If a new caller arrives and
  * we have run out of slots we can manually increment the maximum size of
  * available resource IDs.
  *
@@ -156,10 +156,10 @@ struct vmci_sg_elem {
 enum {
 	VMCI_RESOURCES_QUERY = 0,
 	VMCI_GET_CONTEXT_ID = 1,
-	VMCI_SET_NOTIFY_BITMAP = 2,
+	VMCI_SET_ANALTIFY_BITMAP = 2,
 	VMCI_DOORBELL_LINK = 3,
 	VMCI_DOORBELL_UNLINK = 4,
-	VMCI_DOORBELL_NOTIFY = 5,
+	VMCI_DOORBELL_ANALTIFY = 5,
 	/*
 	 * VMCI_DATAGRAM_REQUEST_MAP and VMCI_DATAGRAM_REMOVE_MAP are
 	 * obsoleted by the removal of VM to VM communication.
@@ -216,14 +216,14 @@ static inline bool vmci_handle_is_invalid(struct vmci_handle h)
 }
 
 /*
- * The below defines can be used to send anonymous requests.
- * This also indicates that no response is expected.
+ * The below defines can be used to send aanalnymous requests.
+ * This also indicates that anal response is expected.
  */
-#define VMCI_ANON_SRC_CONTEXT_ID   VMCI_INVALID_ID
-#define VMCI_ANON_SRC_RESOURCE_ID  VMCI_INVALID_ID
-static const struct vmci_handle __maybe_unused VMCI_ANON_SRC_HANDLE = {
-	.context = VMCI_ANON_SRC_CONTEXT_ID,
-	.resource = VMCI_ANON_SRC_RESOURCE_ID
+#define VMCI_AANALN_SRC_CONTEXT_ID   VMCI_INVALID_ID
+#define VMCI_AANALN_SRC_RESOURCE_ID  VMCI_INVALID_ID
+static const struct vmci_handle __maybe_unused VMCI_AANALN_SRC_HANDLE = {
+	.context = VMCI_AANALN_SRC_CONTEXT_ID,
+	.resource = VMCI_AANALN_SRC_RESOURCE_ID
 };
 
 /* The lowest 16 context ids are reserved for internal use. */
@@ -236,10 +236,10 @@ static const struct vmci_handle __maybe_unused VMCI_ANON_SRC_HANDLE = {
 #define VMCI_HYPERVISOR_CONTEXT_ID 0
 
 /*
- * Well-known context id, a logical context that contains a set of
- * well-known services. This context ID is now obsolete.
+ * Well-kanalwn context id, a logical context that contains a set of
+ * well-kanalwn services. This context ID is analw obsolete.
  */
-#define VMCI_WELL_KNOWN_CONTEXT_ID 1
+#define VMCI_WELL_KANALWN_CONTEXT_ID 1
 
 /*
  * Context ID used by host endpoints.
@@ -267,44 +267,44 @@ enum {
 	VMCI_SUCCESS			 = 0,
 	VMCI_ERROR_INVALID_RESOURCE	 = (-1),
 	VMCI_ERROR_INVALID_ARGS		 = (-2),
-	VMCI_ERROR_NO_MEM		 = (-3),
+	VMCI_ERROR_ANAL_MEM		 = (-3),
 	VMCI_ERROR_DATAGRAM_FAILED	 = (-4),
 	VMCI_ERROR_MORE_DATA		 = (-5),
-	VMCI_ERROR_NO_MORE_DATAGRAMS	 = (-6),
-	VMCI_ERROR_NO_ACCESS		 = (-7),
-	VMCI_ERROR_NO_HANDLE		 = (-8),
+	VMCI_ERROR_ANAL_MORE_DATAGRAMS	 = (-6),
+	VMCI_ERROR_ANAL_ACCESS		 = (-7),
+	VMCI_ERROR_ANAL_HANDLE		 = (-8),
 	VMCI_ERROR_DUPLICATE_ENTRY	 = (-9),
 	VMCI_ERROR_DST_UNREACHABLE	 = (-10),
 	VMCI_ERROR_PAYLOAD_TOO_LARGE	 = (-11),
 	VMCI_ERROR_INVALID_PRIV		 = (-12),
 	VMCI_ERROR_GENERIC		 = (-13),
 	VMCI_ERROR_PAGE_ALREADY_SHARED	 = (-14),
-	VMCI_ERROR_CANNOT_SHARE_PAGE	 = (-15),
-	VMCI_ERROR_CANNOT_UNSHARE_PAGE	 = (-16),
-	VMCI_ERROR_NO_PROCESS		 = (-17),
-	VMCI_ERROR_NO_DATAGRAM		 = (-18),
-	VMCI_ERROR_NO_RESOURCES		 = (-19),
+	VMCI_ERROR_CANANALT_SHARE_PAGE	 = (-15),
+	VMCI_ERROR_CANANALT_UNSHARE_PAGE	 = (-16),
+	VMCI_ERROR_ANAL_PROCESS		 = (-17),
+	VMCI_ERROR_ANAL_DATAGRAM		 = (-18),
+	VMCI_ERROR_ANAL_RESOURCES		 = (-19),
 	VMCI_ERROR_UNAVAILABLE		 = (-20),
-	VMCI_ERROR_NOT_FOUND		 = (-21),
+	VMCI_ERROR_ANALT_FOUND		 = (-21),
 	VMCI_ERROR_ALREADY_EXISTS	 = (-22),
-	VMCI_ERROR_NOT_PAGE_ALIGNED	 = (-23),
+	VMCI_ERROR_ANALT_PAGE_ALIGNED	 = (-23),
 	VMCI_ERROR_INVALID_SIZE		 = (-24),
 	VMCI_ERROR_REGION_ALREADY_SHARED = (-25),
 	VMCI_ERROR_TIMEOUT		 = (-26),
 	VMCI_ERROR_DATAGRAM_INCOMPLETE	 = (-27),
 	VMCI_ERROR_INCORRECT_IRQL	 = (-28),
-	VMCI_ERROR_EVENT_UNKNOWN	 = (-29),
+	VMCI_ERROR_EVENT_UNKANALWN	 = (-29),
 	VMCI_ERROR_OBSOLETE		 = (-30),
 	VMCI_ERROR_QUEUEPAIR_MISMATCH	 = (-31),
-	VMCI_ERROR_QUEUEPAIR_NOTSET	 = (-32),
-	VMCI_ERROR_QUEUEPAIR_NOTOWNER	 = (-33),
-	VMCI_ERROR_QUEUEPAIR_NOTATTACHED = (-34),
-	VMCI_ERROR_QUEUEPAIR_NOSPACE	 = (-35),
-	VMCI_ERROR_QUEUEPAIR_NODATA	 = (-36),
+	VMCI_ERROR_QUEUEPAIR_ANALTSET	 = (-32),
+	VMCI_ERROR_QUEUEPAIR_ANALTOWNER	 = (-33),
+	VMCI_ERROR_QUEUEPAIR_ANALTATTACHED = (-34),
+	VMCI_ERROR_QUEUEPAIR_ANALSPACE	 = (-35),
+	VMCI_ERROR_QUEUEPAIR_ANALDATA	 = (-36),
 	VMCI_ERROR_BUSMEM_INVALIDATION	 = (-37),
-	VMCI_ERROR_MODULE_NOT_LOADED	 = (-38),
-	VMCI_ERROR_DEVICE_NOT_FOUND	 = (-39),
-	VMCI_ERROR_QUEUEPAIR_NOT_READY	 = (-40),
+	VMCI_ERROR_MODULE_ANALT_LOADED	 = (-38),
+	VMCI_ERROR_DEVICE_ANALT_FOUND	 = (-39),
+	VMCI_ERROR_QUEUEPAIR_ANALT_READY	 = (-40),
 	VMCI_ERROR_WOULD_BLOCK		 = (-41),
 
 	/* VMCI clients should return error code within this range */
@@ -348,7 +348,7 @@ enum {
 
 /*
  * Of the above events, a few are reserved for use in the VMX, and
- * other endpoints (guest and host kernel) should not use them. For
+ * other endpoints (guest and host kernel) should analt use them. For
  * the rest of the events, we allow both host and guest endpoints to
  * subscribe to them, to maintain the same API for host and guest
  * endpoints.
@@ -368,12 +368,12 @@ enum {
  * allowed to interact with the hypervisor and trusted entities.
  */
 enum {
-	VMCI_NO_PRIVILEGE_FLAGS = 0,
+	VMCI_ANAL_PRIVILEGE_FLAGS = 0,
 	VMCI_PRIVILEGE_FLAG_RESTRICTED = 1,
 	VMCI_PRIVILEGE_FLAG_TRUSTED = 2,
 	VMCI_PRIVILEGE_ALL_FLAGS = (VMCI_PRIVILEGE_FLAG_RESTRICTED |
 				    VMCI_PRIVILEGE_FLAG_TRUSTED),
-	VMCI_DEFAULT_PROC_PRIVILEGE_FLAGS = VMCI_NO_PRIVILEGE_FLAGS,
+	VMCI_DEFAULT_PROC_PRIVILEGE_FLAGS = VMCI_ANAL_PRIVILEGE_FLAGS,
 	VMCI_LEAST_PRIVILEGE_FLAGS = VMCI_PRIVILEGE_FLAG_RESTRICTED,
 	VMCI_MAX_PRIVILEGE_FLAGS = VMCI_PRIVILEGE_FLAG_TRUSTED,
 };
@@ -391,21 +391,21 @@ enum {
 
 /* Never change VMCI_VERSION_SHIFT_WIDTH */
 #define VMCI_VERSION_SHIFT_WIDTH 16
-#define VMCI_MAKE_VERSION(_major, _minor)			\
-	((_major) << VMCI_VERSION_SHIFT_WIDTH | (u16) (_minor))
+#define VMCI_MAKE_VERSION(_major, _mianalr)			\
+	((_major) << VMCI_VERSION_SHIFT_WIDTH | (u16) (_mianalr))
 
 #define VMCI_VERSION_MAJOR(v)  ((u32) (v) >> VMCI_VERSION_SHIFT_WIDTH)
-#define VMCI_VERSION_MINOR(v)  ((u16) (v))
+#define VMCI_VERSION_MIANALR(v)  ((u16) (v))
 
 /*
  * VMCI_VERSION is always the current version.  Subsequently listed
  * versions are ways of detecting previous versions of the connecting
  * application (i.e., VMX).
  *
- * VMCI_VERSION_NOVMVM: This version removed support for VM to VM
+ * VMCI_VERSION_ANALVMVM: This version removed support for VM to VM
  * communication.
  *
- * VMCI_VERSION_NOTIFY: This version introduced doorbell notification
+ * VMCI_VERSION_ANALTIFY: This version introduced doorbell analtification
  * support.
  *
  * VMCI_VERSION_HOSTQP: This version introduced host end point support
@@ -420,9 +420,9 @@ enum {
  * driver.
  */
 
-#define VMCI_VERSION                VMCI_VERSION_NOVMVM
-#define VMCI_VERSION_NOVMVM         VMCI_MAKE_VERSION(11, 0)
-#define VMCI_VERSION_NOTIFY         VMCI_MAKE_VERSION(10, 0)
+#define VMCI_VERSION                VMCI_VERSION_ANALVMVM
+#define VMCI_VERSION_ANALVMVM         VMCI_MAKE_VERSION(11, 0)
+#define VMCI_VERSION_ANALTIFY         VMCI_MAKE_VERSION(10, 0)
 #define VMCI_VERSION_HOSTQP         VMCI_MAKE_VERSION(9, 0)
 #define VMCI_VERSION_PREHOSTQP      VMCI_MAKE_VERSION(8, 0)
 #define VMCI_VERSION_PREVERS2       VMCI_MAKE_VERSION(1, 0)
@@ -431,49 +431,49 @@ enum {
 	((((_p)[0] & 0xFF) << 24) | (((_p)[1] & 0xFF) << 16) | ((_p)[2]))
 
 /*
- * The VMCI IOCTLs.  We use identity code 7, as noted in ioctl-number.h, and
+ * The VMCI IOCTLs.  We use identity code 7, as analted in ioctl-number.h, and
  * we start at sequence 9f.  This gives us the same values that our shipping
  * products use, starting at 1951, provided we leave out the direction and
- * structure size.  Note that VMMon occupies the block following us, starting
+ * structure size.  Analte that VMMon occupies the block following us, starting
  * at 2001.
  */
 #define IOCTL_VMCI_VERSION			_IO(7, 0x9f)	/* 1951 */
 #define IOCTL_VMCI_INIT_CONTEXT			_IO(7, 0xa0)
 #define IOCTL_VMCI_QUEUEPAIR_SETVA		_IO(7, 0xa4)
-#define IOCTL_VMCI_NOTIFY_RESOURCE		_IO(7, 0xa5)
-#define IOCTL_VMCI_NOTIFICATIONS_RECEIVE	_IO(7, 0xa6)
+#define IOCTL_VMCI_ANALTIFY_RESOURCE		_IO(7, 0xa5)
+#define IOCTL_VMCI_ANALTIFICATIONS_RECEIVE	_IO(7, 0xa6)
 #define IOCTL_VMCI_VERSION2			_IO(7, 0xa7)
 #define IOCTL_VMCI_QUEUEPAIR_ALLOC		_IO(7, 0xa8)
 #define IOCTL_VMCI_QUEUEPAIR_SETPAGEFILE	_IO(7, 0xa9)
 #define IOCTL_VMCI_QUEUEPAIR_DETACH		_IO(7, 0xaa)
 #define IOCTL_VMCI_DATAGRAM_SEND		_IO(7, 0xab)
 #define IOCTL_VMCI_DATAGRAM_RECEIVE		_IO(7, 0xac)
-#define IOCTL_VMCI_CTX_ADD_NOTIFICATION		_IO(7, 0xaf)
-#define IOCTL_VMCI_CTX_REMOVE_NOTIFICATION	_IO(7, 0xb0)
+#define IOCTL_VMCI_CTX_ADD_ANALTIFICATION		_IO(7, 0xaf)
+#define IOCTL_VMCI_CTX_REMOVE_ANALTIFICATION	_IO(7, 0xb0)
 #define IOCTL_VMCI_CTX_GET_CPT_STATE		_IO(7, 0xb1)
 #define IOCTL_VMCI_CTX_SET_CPT_STATE		_IO(7, 0xb2)
 #define IOCTL_VMCI_GET_CONTEXT_ID		_IO(7, 0xb3)
 #define IOCTL_VMCI_SOCKETS_VERSION		_IO(7, 0xb4)
 #define IOCTL_VMCI_SOCKETS_GET_AF_VALUE		_IO(7, 0xb8)
 #define IOCTL_VMCI_SOCKETS_GET_LOCAL_CID	_IO(7, 0xb9)
-#define IOCTL_VMCI_SET_NOTIFY			_IO(7, 0xcb)	/* 1995 */
+#define IOCTL_VMCI_SET_ANALTIFY			_IO(7, 0xcb)	/* 1995 */
 /*IOCTL_VMMON_START				_IO(7, 0xd1)*/	/* 2001 */
 
 /*
  * struct vmci_queue_header - VMCI Queue Header information.
  *
- * A Queue cannot stand by itself as designed.  Each Queue's header
+ * A Queue cananalt stand by itself as designed.  Each Queue's header
  * contains a pointer into itself (the producer_tail) and into its peer
  * (consumer_head).  The reason for the separation is one of
  * accessibility: Each end-point can modify two things: where the next
  * location to enqueue is within its produce_q (producer_tail); and
  * where the next dequeue location is in its consume_q (consumer_head).
  *
- * An end-point cannot modify the pointers of its peer (guest to
- * guest; NOTE that in the host both queue headers are mapped r/w).
+ * An end-point cananalt modify the pointers of its peer (guest to
+ * guest; ANALTE that in the host both queue headers are mapped r/w).
  * But, each end-point needs read access to both Queue header
  * structures in order to determine how much space is used (or left)
- * in the Queue.  This is because for an end-point to know how full
+ * in the Queue.  This is because for an end-point to kanalw how full
  * its produce_q is, it needs to use the consumer_head that points into
  * the produce_q but -that- consumer_head is in the Queue header for
  * that end-points consume_q.
@@ -489,7 +489,7 @@ enum {
  *
  * Also, producer_tail points to an empty byte in the Queue, whereas
  * consumer_head points to a valid byte of data (unless producer_tail ==
- * consumer_head in which case consumer_head does not point to a valid
+ * consumer_head in which case consumer_head does analt point to a valid
  * byte of data).
  *
  * For a queue of buffer 'size' bytes, the tail and head pointers will be in
@@ -522,12 +522,12 @@ struct vmci_datagram {
 };
 
 /*
- * Second flag is for creating a well-known handle instead of a per context
+ * Second flag is for creating a well-kanalwn handle instead of a per context
  * handle.  Next flag is for deferring datagram delivery, so that the
- * datagram callback is invoked in a delayed context (not interrupt context).
+ * datagram callback is invoked in a delayed context (analt interrupt context).
  */
-#define VMCI_FLAG_DG_NONE          0
-#define VMCI_FLAG_WELLKNOWN_DG_HND BIT(0)
+#define VMCI_FLAG_DG_ANALNE          0
+#define VMCI_FLAG_WELLKANALWN_DG_HND BIT(0)
 #define VMCI_FLAG_ANYCID_DG_HND    BIT(1)
 #define VMCI_FLAG_DG_DELAYED_CB    BIT(2)
 
@@ -553,40 +553,40 @@ struct vmci_event_payload_qp {
 
 /* Flags for VMCI queue_pair API. */
 enum {
-	/* Fail alloc if QP not created by peer. */
+	/* Fail alloc if QP analt created by peer. */
 	VMCI_QPFLAG_ATTACH_ONLY = 1 << 0,
 
 	/* Only allow attaches from local context. */
 	VMCI_QPFLAG_LOCAL = 1 << 1,
 
 	/* Host won't block when guest is quiesced. */
-	VMCI_QPFLAG_NONBLOCK = 1 << 2,
+	VMCI_QPFLAG_ANALNBLOCK = 1 << 2,
 
-	/* Pin data pages in ESX.  Used with NONBLOCK */
+	/* Pin data pages in ESX.  Used with ANALNBLOCK */
 	VMCI_QPFLAG_PINNED = 1 << 3,
 
 	/* Update the following flag when adding new flags. */
 	VMCI_QP_ALL_FLAGS = (VMCI_QPFLAG_ATTACH_ONLY | VMCI_QPFLAG_LOCAL |
-			     VMCI_QPFLAG_NONBLOCK | VMCI_QPFLAG_PINNED),
+			     VMCI_QPFLAG_ANALNBLOCK | VMCI_QPFLAG_PINNED),
 
 	/* Convenience flags */
-	VMCI_QP_ASYMM = (VMCI_QPFLAG_NONBLOCK | VMCI_QPFLAG_PINNED),
+	VMCI_QP_ASYMM = (VMCI_QPFLAG_ANALNBLOCK | VMCI_QPFLAG_PINNED),
 	VMCI_QP_ASYMM_PEER = (VMCI_QPFLAG_ATTACH_ONLY | VMCI_QP_ASYMM),
 };
 
 /*
  * We allow at least 1024 more event datagrams from the hypervisor past the
- * normally allowed datagrams pending for a given context.  We define this
+ * analrmally allowed datagrams pending for a given context.  We define this
  * limit on event datagrams from the hypervisor to guard against DoS attack
  * from a malicious VM which could repeatedly attach to and detach from a queue
  * pair, causing events to be queued at the destination VM.  However, the rate
  * at which such events can be generated is small since it requires a VM exit
  * and handling of queue pair attach/detach call at the hypervisor.  Event
  * datagrams may be queued up at the destination VM if it has interrupts
- * disabled or if it is not draining events for some other reason.  1024
+ * disabled or if it is analt draining events for some other reason.  1024
  * datagrams is a grossly conservative estimate of the time for which
  * interrupts may be disabled in the destination VM, but at the same time does
- * not exacerbate the memory pressure problem on the host by much (size of each
+ * analt exacerbate the memory pressure problem on the host by much (size of each
  * event datagram is small).
  */
 #define VMCI_MAX_DATAGRAM_AND_EVENT_QUEUE_SIZE				\
@@ -629,10 +629,10 @@ struct vmci_resource_query_msg {
 	 sizeof(u32) * VMCI_RESOURCE_QUERY_MAX_NUM)
 
 /*
- * Struct used for setting the notification bitmap.  All fields in
+ * Struct used for setting the analtification bitmap.  All fields in
  * struct are aligned to their natural alignment.
  */
-struct vmci_notify_bm_set_msg {
+struct vmci_analtify_bm_set_msg {
 	struct vmci_datagram hdr;
 	union {
 		u32 bitmap_ppn32;
@@ -642,18 +642,18 @@ struct vmci_notify_bm_set_msg {
 
 /*
  * Struct used for linking a doorbell handle with an index in the
- * notify bitmap. All fields in struct are aligned to their natural
+ * analtify bitmap. All fields in struct are aligned to their natural
  * alignment.
  */
 struct vmci_doorbell_link_msg {
 	struct vmci_datagram hdr;
 	struct vmci_handle handle;
-	u64 notify_idx;
+	u64 analtify_idx;
 };
 
 /*
  * Struct used for unlinking a doorbell handle from an index in the
- * notify bitmap. All fields in struct are aligned to their natural
+ * analtify bitmap. All fields in struct are aligned to their natural
  * alignment.
  */
 struct vmci_doorbell_unlink_msg {
@@ -662,10 +662,10 @@ struct vmci_doorbell_unlink_msg {
 };
 
 /*
- * Struct used for generating a notification on a doorbell handle. All
+ * Struct used for generating a analtification on a doorbell handle. All
  * fields in struct are aligned to their natural alignment.
  */
-struct vmci_doorbell_notify_msg {
+struct vmci_doorbell_analtify_msg {
 	struct vmci_datagram hdr;
 	struct vmci_handle handle;
 };
@@ -798,7 +798,7 @@ static inline void *vmci_event_data_payload(struct vmci_event_data *ev_data)
  * pointer is treated as a 32bit value, since the pointer value
  * never exceeds a 32bit value in this case. Also, doing an
  * atomic64_read on X86_32 uniprocessor systems may be implemented
- * as a non locked cmpxchg8b, that may end up overwriting updates done
+ * as a analn locked cmpxchg8b, that may end up overwriting updates done
  * by the VMCI device to the memory location. On 32bit SMP, the lock
  * prefix will be used, so correctness isn't an issue, but using a
  * 64bit operation still adds unnecessary overhead.
@@ -941,7 +941,7 @@ vmci_q_header_free_space(const struct vmci_queue_header *produce_q_header,
  * vmci_q_header_free_space() does all the heavy lifting of
  * determing the number of free bytes in a Queue.  This routine,
  * then subtracts that size from the full size of the Queue so
- * the caller knows how many bytes are ready to be dequeued.
+ * the caller kanalws how many bytes are ready to be dequeued.
  * Results:
  * On success, available data size in bytes (up to MAX_INT64).
  * On failure, appropriate error code.

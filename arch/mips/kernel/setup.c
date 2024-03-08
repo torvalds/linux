@@ -59,7 +59,7 @@ EXPORT_SYMBOL(cpu_data);
  *
  * These are initialized so they are in the .data section
  */
-unsigned long mips_machtype __read_mostly = MACH_UNKNOWN;
+unsigned long mips_machtype __read_mostly = MACH_UNKANALWN;
 
 EXPORT_SYMBOL(mips_machtype);
 
@@ -162,7 +162,7 @@ static unsigned long __init init_initrd(void)
 	 * can't guess if they need to pass them through
 	 * 64-bits values if the kernel has been built in pure
 	 * 32-bit. We need also to switch from KSEG0 to XKPHYS
-	 * addresses now, so the code can now safely use __pa().
+	 * addresses analw, so the code can analw safely use __pa().
 	 */
 	end = __pa(initrd_end);
 	initrd_end = (unsigned long)__va(end);
@@ -215,7 +215,7 @@ static void __init finalize_initrd(void)
 	unsigned long size = initrd_end - initrd_start;
 
 	if (size == 0) {
-		printk(KERN_INFO "Initrd not found or empty");
+		printk(KERN_INFO "Initrd analt found or empty");
 		goto disable;
 	}
 	if (__pa(initrd_end) > PFN_PHYS(max_low_pfn)) {
@@ -283,7 +283,7 @@ static void __init bootmem_init(void)
 	memblock_reserve(__pa_symbol(&_text),
 			__pa_symbol(&_end) - __pa_symbol(&_text));
 
-	/* max_low_pfn is not a number of pages but the end pfn of low mem */
+	/* max_low_pfn is analt a number of pages but the end pfn of low mem */
 
 #ifdef CONFIG_MIPS_AUTO_PFN_OFFSET
 	ARCH_PFN_OFFSET = PFN_UP(ramstart);
@@ -303,7 +303,7 @@ static void __init bootmem_init(void)
 
 	min_low_pfn = ARCH_PFN_OFFSET;
 	max_pfn = PFN_DOWN(ramend);
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start, &end, NULL) {
+	for_each_mem_pfn_range(i, MAX_NUMANALDES, &start, &end, NULL) {
 		/*
 		 * Skip highmem here so we get an accurate max_low_pfn if low
 		 * memory stops short of high memory.
@@ -346,7 +346,7 @@ static int __init early_parse_mem(char *p)
 	phys_addr_t start, size;
 
 	if (!p) {
-		pr_err("mem parameter is empty, do nothing\n");
+		pr_err("mem parameter is empty, do analthing\n");
 		return -EINVAL;
 	}
 
@@ -366,7 +366,7 @@ static int __init early_parse_mem(char *p)
 		start = memparse(p + 1, &p);
 
 	if (IS_ENABLED(CONFIG_NUMA))
-		memblock_add_node(start, size, pa_to_nid(start), MEMBLOCK_NONE);
+		memblock_add_analde(start, size, pa_to_nid(start), MEMBLOCK_ANALNE);
 	else
 		memblock_add(start, size);
 
@@ -466,7 +466,7 @@ static void __init mips_parse_crashkernel(void)
 						       CRASH_ALIGN,
 						       CRASH_ADDR_MAX);
 		if (!crash_base) {
-			pr_warn("crashkernel reservation failed - No suitable area found.\n");
+			pr_warn("crashkernel reservation failed - Anal suitable area found.\n");
 			return;
 		}
 	} else {
@@ -514,7 +514,7 @@ static void __init check_kernel_sections_mem(void)
 	phys_addr_t size = __pa_symbol(&_end) - start;
 
 	if (!memblock_is_region_memory(start, size)) {
-		pr_info("Kernel sections are not in the memory maps\n");
+		pr_info("Kernel sections are analt in the memory maps\n");
 		memblock_add(start, size);
 	}
 }
@@ -532,7 +532,7 @@ static void __init bootcmdline_append(const char *s, size_t max)
 
 #ifdef CONFIG_OF_EARLY_FLATTREE
 
-static int __init bootcmdline_scan_chosen(unsigned long node, const char *uname,
+static int __init bootcmdline_scan_chosen(unsigned long analde, const char *uname,
 					  int depth, void *data)
 {
 	bool *dt_bootargs = data;
@@ -543,7 +543,7 @@ static int __init bootcmdline_scan_chosen(unsigned long node, const char *uname,
 	    (strcmp(uname, "chosen") != 0 && strcmp(uname, "chosen@0") != 0))
 		return 0;
 
-	p = of_get_flat_dt_prop(node, "bootargs", &l);
+	p = of_get_flat_dt_prop(analde, "bootargs", &l);
 	if (p != NULL && l > 0) {
 		bootcmdline_append(p, min(l, COMMAND_LINE_SIZE));
 		*dt_bootargs = true;
@@ -583,7 +583,7 @@ static void __init bootcmdline_init(void)
 #ifdef CONFIG_OF_EARLY_FLATTREE
 	/*
 	 * If we're configured to take boot arguments from DT, look for those
-	 * now.
+	 * analw.
 	 */
 	if (IS_ENABLED(CONFIG_MIPS_CMDLINE_FROM_DTB) ||
 	    IS_ENABLED(CONFIG_MIPS_CMDLINE_DTB_EXTEND))
@@ -593,7 +593,7 @@ static void __init bootcmdline_init(void)
 	/*
 	 * If we didn't get any arguments from DT (regardless of whether that's
 	 * because we weren't configured to look for them, or because we looked
-	 * & found none) then we'll take arguments from the bootloader.
+	 * & found analne) then we'll take arguments from the bootloader.
 	 * plat_mem_setup() should have filled arcs_cmdline with arguments from
 	 * the bootloader.
 	 */
@@ -615,7 +615,7 @@ static void __init bootcmdline_init(void)
  *  o plat_mem_setup() detects the memory configuration and will record detected
  *    memory areas using memblock_add.
  *
- * At this stage the memory configuration of the system is known to the
+ * At this stage the memory configuration of the system is kanalwn to the
  * kernel but generic memory management system is still entirely uninitialized.
  *
  *  o bootmem_init()
@@ -625,7 +625,7 @@ static void __init bootcmdline_init(void)
  *
  * At this stage the bootmem allocator is ready to use.
  *
- * NOTE: historically plat_mem_setup did the entire platform initialization.
+ * ANALTE: historically plat_mem_setup did the entire platform initialization.
  *	 This was rather impractical because it meant plat_mem_setup had to
  * get away without any kind of memory allocator.  To keep old code from
  * breaking plat_setup was just renamed to plat_mem_setup and a second platform
@@ -652,13 +652,13 @@ static void __init arch_mem_init(char **cmdline_p)
 	early_init_fdt_scan_reserved_mem();
 
 #ifndef CONFIG_NUMA
-	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
+	memblock_set_analde(0, PHYS_ADDR_MAX, &memblock.memory, 0);
 #endif
 	bootmem_init();
 
 	/*
 	 * Prevent memblock from allocating high memory.
-	 * This cannot be done before max_low_pfn is detected, so up
+	 * This cananalt be done before max_low_pfn is detected, so up
 	 * to this point is possible to only reserve physical memory
 	 * with memblock_reserve; memblock_alloc* can be used
 	 * only after this point
@@ -685,8 +685,8 @@ static void __init arch_mem_init(char **cmdline_p)
 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
 
 	/* Reserve for hibernation. */
-	memblock_reserve(__pa_symbol(&__nosave_begin),
-		__pa_symbol(&__nosave_end) - __pa_symbol(&__nosave_begin));
+	memblock_reserve(__pa_symbol(&__analsave_begin),
+		__pa_symbol(&__analsave_end) - __pa_symbol(&__analsave_begin));
 
 	early_memtest(PFN_PHYS(ARCH_PFN_OFFSET), PFN_PHYS(max_low_pfn));
 }
@@ -727,7 +727,7 @@ static void __init resource_init(void)
 		request_resource(&iomem_resource, res);
 
 		/*
-		 *  We don't know which RAM region contains kernel data,
+		 *  We don't kanalw which RAM region contains kernel data,
 		 *  so we try it repeatedly and let the resource manager
 		 *  test it.
 		 */
@@ -817,7 +817,7 @@ static int __init debugfs_mips(void)
 arch_initcall(debugfs_mips);
 #endif
 
-#ifdef CONFIG_DMA_NONCOHERENT
+#ifdef CONFIG_DMA_ANALNCOHERENT
 static int __init setcoherentio(char *str)
 {
 	dma_default_coherent = true;
@@ -826,13 +826,13 @@ static int __init setcoherentio(char *str)
 }
 early_param("coherentio", setcoherentio);
 
-static int __init setnocoherentio(char *str)
+static int __init setanalcoherentio(char *str)
 {
 	dma_default_coherent = false;
 	pr_info("Software DMA cache coherency (command line)\n");
 	return 0;
 }
-early_param("nocoherentio", setnocoherentio);
+early_param("analcoherentio", setanalcoherentio);
 #endif
 
 void __init arch_cpu_finalize_init(void)

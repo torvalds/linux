@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/qcom,sm8250.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies Inc. ASoC sound card drivers
+title: Qualcomm Techanallogies Inc. ASoC sound card drivers
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
@@ -18,7 +18,7 @@ properties:
     oneOf:
       - items:
           - enum:
-              - lenovo,yoga-c630-sndcard
+              - leanalvo,yoga-c630-sndcard
               - qcom,db845c-sndcard
           - const: qcom,sdm845-sndcard
       - items:
@@ -38,7 +38,7 @@ properties:
           - qcom,x1e80100-sndcard
 
   audio-routing:
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
     description:
       A list of the connections between audio components. Each entry is a
       pair of strings, the first being the connection's sink, the second
@@ -61,7 +61,7 @@ properties:
 
   widgets:
     description: User specified audio sound widgets.
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
 
   # Only valid for some compatibles (see allOf if below)
   reg: true
@@ -70,7 +70,7 @@ properties:
 patternProperties:
   ".*-dai-link$":
     description:
-      Each subnode represents a dai link. Subnodes of each dai links would be
+      Each subanalde represents a dai link. Subanaldes of each dai links would be
       cpu/codec dais.
 
     type: object
@@ -82,7 +82,7 @@ patternProperties:
         maxItems: 1
 
       cpu:
-        description: Holds subnode which indicates cpu dai.
+        description: Holds subanalde which indicates cpu dai.
         type: object
         additionalProperties: false
 
@@ -91,7 +91,7 @@ patternProperties:
             maxItems: 1
 
       platform:
-        description: Holds subnode which indicates platform dai.
+        description: Holds subanalde which indicates platform dai.
         type: object
         additionalProperties: false
 
@@ -100,7 +100,7 @@ patternProperties:
             maxItems: 1
 
       codec:
-        description: Holds subnode which indicates codec dai.
+        description: Holds subanalde which indicates codec dai.
         type: object
         additionalProperties: false
 

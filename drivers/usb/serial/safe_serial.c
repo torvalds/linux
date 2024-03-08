@@ -15,7 +15,7 @@
  * hardware.
  *
  * While the USB protocol has a CRC over the data while in transit, i.e. while
- * being carried over the bus, there is no end to end protection. If the
+ * being carried over the bus, there is anal end to end protection. If the
  * hardware has any problems getting the data into or out of the USB transmit
  * and receive FIFO's then data can be lost.
  *
@@ -24,7 +24,7 @@
  * to verify that the entire USB packet was received without error.
  *
  * Because in this case the sender and receiver are the class and function
- * drivers there is now end to end protection.
+ * drivers there is analw end to end protection.
  *
  * There is an additional option that can be used to force all transmitted
  * packets to be padded to the maximum packet size. This provides a work
@@ -50,7 +50,7 @@
  * the trailer and should be equal to zero.
  *
  * Two module parameters are used to control the encapsulation, if both are
- * turned of the module works as a simple serial device with NO
+ * turned of the module works as a simple serial device with ANAL
  * encapsulation.
  *
  * See linux/drivers/usbd/serial_fd for a device function driver
@@ -61,7 +61,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -261,14 +261,14 @@ static int safe_startup(struct usb_serial *serial)
 	struct usb_interface_descriptor	*desc;
 
 	if (serial->dev->descriptor.bDeviceClass != CDC_DEVICE_CLASS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	desc = &serial->interface->cur_altsetting->desc;
 
 	if (desc->bInterfaceClass != LINEO_INTERFACE_CLASS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (desc->bInterfaceSubClass != LINEO_INTERFACE_SUBCLASS_SAFESERIAL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (desc->bInterfaceProtocol) {
 	case LINEO_SAFESERIAL_CRC:

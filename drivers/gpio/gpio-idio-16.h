@@ -14,7 +14,7 @@ struct regmap_irq;
  * @regmap_irqs:	descriptors for individual IRQs
  * @num_regmap_irqs:	number of IRQ descriptors
  * @irq:		IRQ number for the IDIO-16 device
- * @no_status:		device has no status register
+ * @anal_status:		device has anal status register
  * @filters:		device has input filters
  */
 struct idio_16_regmap_config {
@@ -23,7 +23,7 @@ struct idio_16_regmap_config {
 	const struct regmap_irq *regmap_irqs;
 	int num_regmap_irqs;
 	unsigned int irq;
-	bool no_status;
+	bool anal_status;
 	bool filters;
 };
 

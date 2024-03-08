@@ -6,7 +6,7 @@
 
 /*
  * Driver: usbduxsigma
- * Description: University of Stirling USB DAQ & INCITE Technology Limited
+ * Description: University of Stirling USB DAQ & INCITE Techanallogy Limited
  * Devices: [ITL] USB-DUX-SIGMA (usbduxsigma)
  * Author: Bernd Porr <mail@berndporr.me.uk>
  * Updated: 20 July 2015
@@ -19,7 +19,7 @@
  * driver. I also must give credits to David Brownell
  * who supported me with the USB development.
  *
- * Note: the raw data from the A/D converter is 24 bit big endian
+ * Analte: the raw data from the A/D converter is 24 bit big endian
  * anything else is little endian to/from the dux board
  *
  *
@@ -90,7 +90,7 @@
 #define SIZEOUTBUF         ((8 * SIZEDAOUT))
 
 /*
- * Size of the buffer for the dux commands: just now max size is determined
+ * Size of the buffer for the dux commands: just analw max size is determined
  * by the analogue out + command byte + panic bytes...
  */
 #define SIZEOFDUXBUFFER    ((8 * SIZEDAOUT + 2))
@@ -215,7 +215,7 @@ static void usbduxsigma_ai_handle_urb(struct comedi_device *dev,
 
 			/*
 			 * Get the data from the USB bus and hand it over
-			 * to comedi. Note, first byte is the DIO state.
+			 * to comedi. Analte, first byte is the DIO state.
 			 */
 			for (i = 0; i < cmd->chanlist_len; i++) {
 				val = be32_to_cpu(devpriv->in_buf[i + 1]);
@@ -253,7 +253,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 
-	/* exit if not running a command, do not resubmit urb */
+	/* exit if analt running a command, do analt resubmit urb */
 	if (!devpriv->ai_cmd_running)
 		return;
 
@@ -266,7 +266,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 
 	case -EILSEQ:
 		/*
-		 * error in the ISOchronous data
+		 * error in the ISOchroanalus data
 		 * we don't copy the data into the transfer buffer
 		 * and recycle the last data byte
 		 */
@@ -275,7 +275,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 		break;
 
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 	case -ECONNABORTED:
 		/* happens after an unlink command */
@@ -284,14 +284,14 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 
 	default:
 		/* a real error */
-		dev_err(dev->class_dev, "non-zero urb status (%d)\n",
+		dev_err(dev->class_dev, "analn-zero urb status (%d)\n",
 			urb->status);
 		async->events |= COMEDI_CB_ERROR;
 		break;
 	}
 
 	/*
-	 * comedi_handle_events() cannot be used in this driver. The (*cancel)
+	 * comedi_handle_events() cananalt be used in this driver. The (*cancel)
 	 * operation would unlink the urb.
 	 */
 	if (async->events & COMEDI_CB_CANCEL_MASK)
@@ -392,7 +392,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 	struct comedi_subdevice *s = dev->write_subdev;
 	struct comedi_async *async = s->async;
 
-	/* exit if not running a command, do not resubmit urb */
+	/* exit if analt running a command, do analt resubmit urb */
 	if (!devpriv->ao_cmd_running)
 		return;
 
@@ -402,7 +402,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 		break;
 
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 	case -ECONNABORTED:
 		/* happens after an unlink command */
@@ -411,14 +411,14 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 
 	default:
 		/* a real error */
-		dev_err(dev->class_dev, "non-zero urb status (%d)\n",
+		dev_err(dev->class_dev, "analn-zero urb status (%d)\n",
 			urb->status);
 		async->events |= COMEDI_CB_ERROR;
 		break;
 	}
 
 	/*
-	 * comedi_handle_events() cannot be used in this driver. The (*cancel)
+	 * comedi_handle_events() cananalt be used in this driver. The (*cancel)
 	 * operation would unlink the urb.
 	 */
 	if (async->events & COMEDI_CB_CANCEL_MASK)
@@ -476,11 +476,11 @@ static int usbduxsigma_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_INT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -520,7 +520,7 @@ static int usbduxsigma_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -583,7 +583,7 @@ static int usbduxsigma_receive_cmd(struct comedi_device *dev, int command)
 	}
 	/*
 	 * This is only reached if the data has been requested a
-	 * couple of times and the command was not received.
+	 * couple of times and the command was analt received.
 	 */
 	return -EFAULT;
 }
@@ -669,7 +669,7 @@ static int usbduxsigma_ai_cmd(struct comedi_device *dev,
 
 	devpriv->ai_counter = devpriv->ai_timer;
 
-	if (cmd->start_src == TRIG_NOW) {
+	if (cmd->start_src == TRIG_ANALW) {
 		/* enable this acquisition operation */
 		devpriv->ai_cmd_running = 1;
 		ret = usbduxsigma_submit_urbs(dev, devpriv->ai_urbs,
@@ -830,20 +830,20 @@ static int usbduxsigma_ao_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_INT);
 
 	/*
-	 * For now, always use "scan" timing with all channels updated at once
-	 * (cmd->scan_begin_src == TRIG_TIMER, cmd->convert_src == TRIG_NOW).
+	 * For analw, always use "scan" timing with all channels updated at once
+	 * (cmd->scan_begin_src == TRIG_TIMER, cmd->convert_src == TRIG_ANALW).
 	 *
 	 * In a future version, "convert" timing with channels updated
 	 * indivually may be supported in high speed mode
 	 * (cmd->scan_begin_src == TRIG_FOLLOW, cmd->convert_src == TRIG_TIMER).
 	 */
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err) {
 		mutex_unlock(&devpriv->mut);
@@ -871,7 +871,7 @@ static int usbduxsigma_ao_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -898,7 +898,7 @@ static int usbduxsigma_ao_cmd(struct comedi_device *dev,
 	mutex_lock(&devpriv->mut);
 
 	/*
-	 * For now, only "scan" timing is supported.  A future version may
+	 * For analw, only "scan" timing is supported.  A future version may
 	 * support "convert" timing in high speed mode.
 	 *
 	 * Timing of the scan: every 1ms all channels updated at once.
@@ -907,7 +907,7 @@ static int usbduxsigma_ao_cmd(struct comedi_device *dev,
 
 	devpriv->ao_counter = devpriv->ao_timer;
 
-	if (cmd->start_src == TRIG_NOW) {
+	if (cmd->start_src == TRIG_ANALW) {
 		/* enable this acquisition operation */
 		devpriv->ao_cmd_running = 1;
 		ret = usbduxsigma_submit_urbs(dev, devpriv->ao_urbs,
@@ -1020,7 +1020,7 @@ static void usbduxsigma_pwm_urb_complete(struct urb *urb)
 		break;
 
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 	case -ECONNABORTED:
 		/* happens after an unlink command */
@@ -1031,7 +1031,7 @@ static void usbduxsigma_pwm_urb_complete(struct urb *urb)
 	default:
 		/* a real error */
 		if (devpriv->pwm_cmd_running) {
-			dev_err(dev->class_dev, "non-zero urb status (%d)\n",
+			dev_err(dev->class_dev, "analn-zero urb status (%d)\n",
 				urb->status);
 			usbduxsigma_pwm_stop(dev, 0);	/* w/o unlink */
 		}
@@ -1156,7 +1156,7 @@ static int usbduxsigma_pwm_write(struct comedi_device *dev,
 
 	/*
 	 * The sign is set via a special INSN only, this gives us 8 bits
-	 * for normal operation, sign is 0 by default.
+	 * for analrmal operation, sign is 0 by default.
 	 */
 	usbduxsigma_pwm_pattern(dev, s, chan, data[0], 0);
 
@@ -1174,8 +1174,8 @@ static int usbduxsigma_pwm_config(struct comedi_device *dev,
 	switch (data[0]) {
 	case INSN_CONFIG_ARM:
 		/*
-		 * if not zero the PWM is limited to a certain time which is
-		 * not supported here
+		 * if analt zero the PWM is limited to a certain time which is
+		 * analt supported here
 		 */
 		if (data[1] != 0)
 			return -EINVAL;
@@ -1198,7 +1198,7 @@ static int usbduxsigma_pwm_config(struct comedi_device *dev,
 		usbduxsigma_pwm_pattern(dev, s, chan, data[1], (data[2] != 0));
 		return 0;
 	case INSN_CONFIG_PWM_GET_H_BRIDGE:
-		/* values are not kept in this driver, nothing to return */
+		/* values are analt kept in this driver, analthing to return */
 		return -EINVAL;
 	}
 	return -EINVAL;
@@ -1269,19 +1269,19 @@ static int usbduxsigma_firmware_upload(struct comedi_device *dev,
 
 	if (size > FIRMWARE_MAX_LEN) {
 		dev_err(dev->class_dev, "firmware binary too large for FX2\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* we generate a local buffer for the firmware */
 	buf = kmemdup(data, size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* we need a malloc'ed buffer for usb_control_msg() */
 	tmp = kmalloc(1, GFP_KERNEL);
 	if (!tmp) {
 		kfree(buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* stop the current firmware on the device */
@@ -1293,7 +1293,7 @@ static int usbduxsigma_firmware_upload(struct comedi_device *dev,
 			      tmp, 1,
 			      BULK_TIMEOUT);
 	if (ret < 0) {
-		dev_err(dev->class_dev, "can not stop firmware\n");
+		dev_err(dev->class_dev, "can analt stop firmware\n");
 		goto done;
 	}
 
@@ -1318,7 +1318,7 @@ static int usbduxsigma_firmware_upload(struct comedi_device *dev,
 			      tmp, 1,
 			      BULK_TIMEOUT);
 	if (ret < 0)
-		dev_err(dev->class_dev, "can not start firmware\n");
+		dev_err(dev->class_dev, "can analt start firmware\n");
 
 done:
 	kfree(tmp);
@@ -1340,13 +1340,13 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 	devpriv->ao_urbs = kcalloc(devpriv->n_ao_urbs, sizeof(urb), GFP_KERNEL);
 	if (!devpriv->dux_commands || !devpriv->in_buf || !devpriv->insn_buf ||
 	    !devpriv->ai_urbs || !devpriv->ao_urbs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < devpriv->n_ai_urbs; i++) {
 		/* one frame: 1ms */
 		urb = usb_alloc_urb(1, GFP_KERNEL);
 		if (!urb)
-			return -ENOMEM;
+			return -EANALMEM;
 		devpriv->ai_urbs[i] = urb;
 		urb->dev = usb;
 		/* will be filled later with a pointer to the comedi-device */
@@ -1356,7 +1356,7 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = kzalloc(SIZEINBUF, GFP_KERNEL);
 		if (!urb->transfer_buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 		urb->complete = usbduxsigma_ai_urb_complete;
 		urb->number_of_packets = 1;
 		urb->transfer_buffer_length = SIZEINBUF;
@@ -1368,7 +1368,7 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 		/* one frame: 1ms */
 		urb = usb_alloc_urb(1, GFP_KERNEL);
 		if (!urb)
-			return -ENOMEM;
+			return -EANALMEM;
 		devpriv->ao_urbs[i] = urb;
 		urb->dev = usb;
 		/* will be filled later with a pointer to the comedi-device */
@@ -1378,7 +1378,7 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
 		if (!urb->transfer_buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 		urb->complete = usbduxsigma_ao_urb_complete;
 		urb->number_of_packets = 1;
 		urb->transfer_buffer_length = SIZEOUTBUF;
@@ -1390,13 +1390,13 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 	if (devpriv->pwm_buf_sz) {
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb)
-			return -ENOMEM;
+			return -EANALMEM;
 		devpriv->pwm_urb = urb;
 
 		urb->transfer_buffer = kzalloc(devpriv->pwm_buf_sz,
 					       GFP_KERNEL);
 		if (!urb->transfer_buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -1450,7 +1450,7 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&devpriv->mut);
 
@@ -1475,7 +1475,7 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 				3);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
-			"could not set alternate setting 3 in high speed\n");
+			"could analt set alternate setting 3 in high speed\n");
 		return ret;
 	}
 

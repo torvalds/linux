@@ -7,19 +7,19 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of IBM nor the names of its contributors
+ * 3. Neither the name of IBM analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL IBM OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN ANAL EVENT SHALL IBM OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -51,13 +51,13 @@
 #define VIRTIO_NET_F_CTRL_RX	18	/* Control channel RX mode support */
 #define VIRTIO_NET_F_CTRL_VLAN	19	/* Control channel VLAN filtering */
 #define VIRTIO_NET_F_CTRL_RX_EXTRA 20	/* Extra RX mode control support */
-#define VIRTIO_NET_F_GUEST_ANNOUNCE 21	/* Guest can announce device on the
+#define VIRTIO_NET_F_GUEST_ANANALUNCE 21	/* Guest can ananalunce device on the
 					 * network */
 #define VIRTIO_NET_F_MQ	22	/* Device supports Receive Flow
 					 * Steering */
 #define VIRTIO_NET_F_CTRL_MAC_ADDR 23	/* Set MAC address */
-#define VIRTIO_NET_F_VQ_NOTF_COAL 52	/* Device supports virtqueue notification coalescing */
-#define VIRTIO_NET_F_NOTF_COAL	53	/* Device supports notifications coalescing */
+#define VIRTIO_NET_F_VQ_ANALTF_COAL 52	/* Device supports virtqueue analtification coalescing */
+#define VIRTIO_NET_F_ANALTF_COAL	53	/* Device supports analtifications coalescing */
 #define VIRTIO_NET_F_GUEST_USO4	54	/* Guest can handle USOv4 in. */
 #define VIRTIO_NET_F_GUEST_USO6	55	/* Guest can handle USOv6 in. */
 #define VIRTIO_NET_F_HOST_USO	56	/* Host can handle USO in. */
@@ -65,17 +65,17 @@
 #define VIRTIO_NET_F_GUEST_HDRLEN  59	/* Guest provides the exact hdr_len value. */
 #define VIRTIO_NET_F_RSS	  60	/* Supports RSS RX steering */
 #define VIRTIO_NET_F_RSC_EXT	  61	/* extended coalescing info */
-#define VIRTIO_NET_F_STANDBY	  62	/* Act as standby for another device
+#define VIRTIO_NET_F_STANDBY	  62	/* Act as standby for aanalther device
 					 * with the same MAC.
 					 */
 #define VIRTIO_NET_F_SPEED_DUPLEX 63	/* Device set linkspeed and duplex */
 
-#ifndef VIRTIO_NET_NO_LEGACY
+#ifndef VIRTIO_NET_ANAL_LEGACY
 #define VIRTIO_NET_F_GSO	6	/* Host handles pkts w/ any GSO type */
-#endif /* VIRTIO_NET_NO_LEGACY */
+#endif /* VIRTIO_NET_ANAL_LEGACY */
 
 #define VIRTIO_NET_S_LINK_UP	1	/* Link is up */
-#define VIRTIO_NET_S_ANNOUNCE	2	/* Announcement is needed */
+#define VIRTIO_NET_S_ANANALUNCE	2	/* Ananaluncement is needed */
 
 /* supported/enabled hash types */
 #define VIRTIO_NET_RSS_HASH_TYPE_IPv4          (1 << 0)
@@ -102,13 +102,13 @@ struct virtio_net_config {
 	__virtio16 mtu;
 	/*
 	 * speed, in units of 1Mb. All values 0 to INT_MAX are legal.
-	 * Any other value stands for unknown.
+	 * Any other value stands for unkanalwn.
 	 */
 	__le32 speed;
 	/*
 	 * 0x00 - half duplex
 	 * 0x01 - full duplex
-	 * Any other value stands for unknown.
+	 * Any other value stands for unkanalwn.
 	 */
 	__u8 duplex;
 	/* maximum size of RSS key */
@@ -121,7 +121,7 @@ struct virtio_net_config {
 
 /*
  * This header comes first in the scatter-gather list.  If you don't
- * specify GSO or CSUM features, you can simply ignore the header.
+ * specify GSO or CSUM features, you can simply iganalre the header.
  *
  * This is bitwise-equivalent to the legacy struct virtio_net_hdr_mrg_rxbuf,
  * only flattened.
@@ -131,7 +131,7 @@ struct virtio_net_hdr_v1 {
 #define VIRTIO_NET_HDR_F_DATA_VALID	2	/* Csum is valid */
 #define VIRTIO_NET_HDR_F_RSC_INFO	4	/* rsc info in csum_ fields */
 	__u8 flags;
-#define VIRTIO_NET_HDR_GSO_NONE		0	/* Not a GSO frame */
+#define VIRTIO_NET_HDR_GSO_ANALNE		0	/* Analt a GSO frame */
 #define VIRTIO_NET_HDR_GSO_TCPV4	1	/* GSO frame, IPv4 TCP (TSO) */
 #define VIRTIO_NET_HDR_GSO_UDP		3	/* GSO frame, IPv4 UDP (UFO) */
 #define VIRTIO_NET_HDR_GSO_TCPV6	4	/* GSO frame, IPv6 TCP */
@@ -166,7 +166,7 @@ struct virtio_net_hdr_v1 {
 struct virtio_net_hdr_v1_hash {
 	struct virtio_net_hdr_v1 hdr;
 	__le32 hash_value;
-#define VIRTIO_NET_HASH_REPORT_NONE            0
+#define VIRTIO_NET_HASH_REPORT_ANALNE            0
 #define VIRTIO_NET_HASH_REPORT_IPv4            1
 #define VIRTIO_NET_HASH_REPORT_TCPv4           2
 #define VIRTIO_NET_HASH_REPORT_UDPv4           3
@@ -180,11 +180,11 @@ struct virtio_net_hdr_v1_hash {
 	__le16 padding;
 };
 
-#ifndef VIRTIO_NET_NO_LEGACY
+#ifndef VIRTIO_NET_ANAL_LEGACY
 /* This header comes first in the scatter-gather list.
- * For legacy virtio, if VIRTIO_F_ANY_LAYOUT is not negotiated, it must
+ * For legacy virtio, if VIRTIO_F_ANY_LAYOUT is analt negotiated, it must
  * be the first element of the scatter-gather list.  If you don't
- * specify GSO or CSUM features, you can simply ignore the header. */
+ * specify GSO or CSUM features, you can simply iganalre the header. */
 struct virtio_net_hdr {
 	/* See VIRTIO_NET_HDR_F_* */
 	__u8 flags;
@@ -202,7 +202,7 @@ struct virtio_net_hdr_mrg_rxbuf {
 	struct virtio_net_hdr hdr;
 	__virtio16 num_buffers;	/* Number of merged rx buffers */
 };
-#endif /* ...VIRTIO_NET_NO_LEGACY */
+#endif /* ...VIRTIO_NET_ANAL_LEGACY */
 
 /*
  * Control virtqueue data structures
@@ -224,7 +224,7 @@ typedef __u8 virtio_net_ctrl_ack;
 /*
  * Control the RX mode, ie. promisucous, allmulti, etc...
  * All commands require an "out" sg entry containing a 1 byte
- * state value, zero = disable, non-zero = enable.  Commands
+ * state value, zero = disable, analn-zero = enable.  Commands
  * 0 and 1 are supported with the VIRTIO_NET_F_CTRL_RX feature.
  * Commands 2-5 are added with VIRTIO_NET_F_CTRL_RX_EXTRA.
  */
@@ -232,17 +232,17 @@ typedef __u8 virtio_net_ctrl_ack;
  #define VIRTIO_NET_CTRL_RX_PROMISC      0
  #define VIRTIO_NET_CTRL_RX_ALLMULTI     1
  #define VIRTIO_NET_CTRL_RX_ALLUNI       2
- #define VIRTIO_NET_CTRL_RX_NOMULTI      3
- #define VIRTIO_NET_CTRL_RX_NOUNI        4
- #define VIRTIO_NET_CTRL_RX_NOBCAST      5
+ #define VIRTIO_NET_CTRL_RX_ANALMULTI      3
+ #define VIRTIO_NET_CTRL_RX_ANALUNI        4
+ #define VIRTIO_NET_CTRL_RX_ANALBCAST      5
 
 /*
  * Control the MAC
  *
  * The MAC filter table is managed by the hypervisor, the guest should
  * assume the size is infinite.  Filtering should be considered
- * non-perfect, ie. based on hypervisor resources, the guest may
- * received packets from sources not specified in the filter list.
+ * analn-perfect, ie. based on hypervisor resources, the guest may
+ * received packets from sources analt specified in the filter list.
  *
  * In addition to the class/cmd header, the TABLE_SET command requires
  * two out scatterlists.  Each contains a 4 byte count of entries followed
@@ -268,7 +268,7 @@ struct virtio_net_ctrl_mac {
  * Control VLAN filtering
  *
  * The VLAN filter table is controlled via a simple ADD/DEL interface.
- * VLAN IDs not added may be filterd by the hypervisor.  Del is the
+ * VLAN IDs analt added may be filterd by the hypervisor.  Del is the
  * opposite of add.  Both commands expect an out entry containing a 2
  * byte VLAN ID.  VLAN filterting is available with the
  * VIRTIO_NET_F_CTRL_VLAN feature bit.
@@ -278,15 +278,15 @@ struct virtio_net_ctrl_mac {
  #define VIRTIO_NET_CTRL_VLAN_DEL             1
 
 /*
- * Control link announce acknowledgement
+ * Control link ananalunce ackanalwledgement
  *
- * The command VIRTIO_NET_CTRL_ANNOUNCE_ACK is used to indicate that
- * driver has recevied the notification; device would clear the
- * VIRTIO_NET_S_ANNOUNCE bit in the status field after it receives
+ * The command VIRTIO_NET_CTRL_ANANALUNCE_ACK is used to indicate that
+ * driver has recevied the analtification; device would clear the
+ * VIRTIO_NET_S_ANANALUNCE bit in the status field after it receives
  * this command.
  */
-#define VIRTIO_NET_CTRL_ANNOUNCE       3
- #define VIRTIO_NET_CTRL_ANNOUNCE_ACK         0
+#define VIRTIO_NET_CTRL_ANANALUNCE       3
+ #define VIRTIO_NET_CTRL_ANANALUNCE_ACK         0
 
 /*
  * Control Receive Flow Steering
@@ -296,9 +296,9 @@ struct virtio_net_ctrl_mac {
  * The command VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET
  * enables Receive Flow Steering, specifying the number of the transmit and
  * receive queues that will be used. After the command is consumed and acked by
- * the device, the device will not steer new packets on receive virtqueues
- * other than specified nor read from transmit virtqueues other than specified.
- * Accordingly, driver should not transmit new packets  on virtqueues other than
+ * the device, the device will analt steer new packets on receive virtqueues
+ * other than specified analr read from transmit virtqueues other than specified.
+ * Accordingly, driver should analt transmit new packets  on virtqueues other than
  * specified.
  */
 struct virtio_net_ctrl_mq {
@@ -362,38 +362,38 @@ struct virtio_net_hash_config {
 #define VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET        0
 
 /*
- * Control notifications coalescing.
+ * Control analtifications coalescing.
  *
- * Request the device to change the notifications coalescing parameters.
+ * Request the device to change the analtifications coalescing parameters.
  *
- * Available with the VIRTIO_NET_F_NOTF_COAL feature bit.
+ * Available with the VIRTIO_NET_F_ANALTF_COAL feature bit.
  */
-#define VIRTIO_NET_CTRL_NOTF_COAL		6
+#define VIRTIO_NET_CTRL_ANALTF_COAL		6
 /*
  * Set the tx-usecs/tx-max-packets parameters.
  */
 struct virtio_net_ctrl_coal_tx {
-	/* Maximum number of packets to send before a TX notification */
+	/* Maximum number of packets to send before a TX analtification */
 	__le32 tx_max_packets;
-	/* Maximum number of usecs to delay a TX notification */
+	/* Maximum number of usecs to delay a TX analtification */
 	__le32 tx_usecs;
 };
 
-#define VIRTIO_NET_CTRL_NOTF_COAL_TX_SET		0
+#define VIRTIO_NET_CTRL_ANALTF_COAL_TX_SET		0
 
 /*
  * Set the rx-usecs/rx-max-packets parameters.
  */
 struct virtio_net_ctrl_coal_rx {
-	/* Maximum number of packets to receive before a RX notification */
+	/* Maximum number of packets to receive before a RX analtification */
 	__le32 rx_max_packets;
-	/* Maximum number of usecs to delay a RX notification */
+	/* Maximum number of usecs to delay a RX analtification */
 	__le32 rx_usecs;
 };
 
-#define VIRTIO_NET_CTRL_NOTF_COAL_RX_SET		1
-#define VIRTIO_NET_CTRL_NOTF_COAL_VQ_SET		2
-#define VIRTIO_NET_CTRL_NOTF_COAL_VQ_GET		3
+#define VIRTIO_NET_CTRL_ANALTF_COAL_RX_SET		1
+#define VIRTIO_NET_CTRL_ANALTF_COAL_VQ_SET		2
+#define VIRTIO_NET_CTRL_ANALTF_COAL_VQ_GET		3
 
 struct virtio_net_ctrl_coal {
 	__le32 max_packets;

@@ -27,7 +27,7 @@ struct ufs_buffer_head * _ubh_bread_ (struct ufs_sb_private_info * uspi,
 	count = size >> uspi->s_fshift;
 	if (count > UFS_MAXFRAG)
 		return NULL;
-	ubh = kmalloc (sizeof (struct ufs_buffer_head), GFP_NOFS);
+	ubh = kmalloc (sizeof (struct ufs_buffer_head), GFP_ANALFS);
 	if (!ubh)
 		return NULL;
 	ubh->fragment = fragment;
@@ -149,37 +149,37 @@ int ubh_buffer_dirty (struct ufs_buffer_head * ubh)
 void _ubh_ubhcpymem_(struct ufs_sb_private_info * uspi, 
 	unsigned char * mem, struct ufs_buffer_head * ubh, unsigned size)
 {
-	unsigned len, bhno;
+	unsigned len, bhanal;
 	if (size > (ubh->count << uspi->s_fshift))
 		size = ubh->count << uspi->s_fshift;
-	bhno = 0;
+	bhanal = 0;
 	while (size) {
 		len = min_t(unsigned int, size, uspi->s_fsize);
-		memcpy (mem, ubh->bh[bhno]->b_data, len);
+		memcpy (mem, ubh->bh[bhanal]->b_data, len);
 		mem += uspi->s_fsize;
 		size -= len;
-		bhno++;
+		bhanal++;
 	}
 }
 
 void _ubh_memcpyubh_(struct ufs_sb_private_info * uspi, 
 	struct ufs_buffer_head * ubh, unsigned char * mem, unsigned size)
 {
-	unsigned len, bhno;
+	unsigned len, bhanal;
 	if (size > (ubh->count << uspi->s_fshift))
 		size = ubh->count << uspi->s_fshift;
-	bhno = 0;
+	bhanal = 0;
 	while (size) {
 		len = min_t(unsigned int, size, uspi->s_fsize);
-		memcpy (ubh->bh[bhno]->b_data, mem, len);
+		memcpy (ubh->bh[bhanal]->b_data, mem, len);
 		mem += uspi->s_fsize;
 		size -= len;
-		bhno++;
+		bhanal++;
 	}
 }
 
 dev_t
-ufs_get_inode_dev(struct super_block *sb, struct ufs_inode_info *ufsi)
+ufs_get_ianalde_dev(struct super_block *sb, struct ufs_ianalde_info *ufsi)
 {
 	__u32 fs32;
 	dev_t dev;
@@ -195,7 +195,7 @@ ufs_get_inode_dev(struct super_block *sb, struct ufs_inode_info *ufsi)
 		    (fs32 & 0xffff0000) == 0xffff0000)
 			dev = old_decode_dev(fs32 & 0x7fff);
 		else
-			dev = MKDEV(sysv_major(fs32), sysv_minor(fs32));
+			dev = MKDEV(sysv_major(fs32), sysv_mianalr(fs32));
 		break;
 
 	default:
@@ -206,7 +206,7 @@ ufs_get_inode_dev(struct super_block *sb, struct ufs_inode_info *ufsi)
 }
 
 void
-ufs_set_inode_dev(struct super_block *sb, struct ufs_inode_info *ufsi, dev_t dev)
+ufs_set_ianalde_dev(struct super_block *sb, struct ufs_ianalde_info *ufsi, dev_t dev)
 {
 	__u32 fs32;
 
@@ -230,12 +230,12 @@ ufs_set_inode_dev(struct super_block *sb, struct ufs_inode_info *ufsi, dev_t dev
 }
 
 /**
- * ufs_get_locked_folio() - locate, pin and lock a pagecache folio, if not exist
+ * ufs_get_locked_folio() - locate, pin and lock a pagecache folio, if analt exist
  * read it from disk.
  * @mapping: the address_space to search
  * @index: the page index
  *
- * Locates the desired pagecache folio, if not exist we'll read it,
+ * Locates the desired pagecache folio, if analt exist we'll read it,
  * locks it, increments its reference
  * count and returns its address.
  *
@@ -243,14 +243,14 @@ ufs_set_inode_dev(struct super_block *sb, struct ufs_inode_info *ufsi, dev_t dev
 struct folio *ufs_get_locked_folio(struct address_space *mapping,
 				 pgoff_t index)
 {
-	struct inode *inode = mapping->host;
+	struct ianalde *ianalde = mapping->host;
 	struct folio *folio = filemap_lock_folio(mapping, index);
 	if (IS_ERR(folio)) {
 		folio = read_mapping_folio(mapping, index, NULL);
 
 		if (IS_ERR(folio)) {
-			printk(KERN_ERR "ufs_change_blocknr: read_mapping_folio error: ino %lu, index: %lu\n",
-			       mapping->host->i_ino, index);
+			printk(KERN_ERR "ufs_change_blocknr: read_mapping_folio error: ianal %lu, index: %lu\n",
+			       mapping->host->i_ianal, index);
 			return folio;
 		}
 
@@ -264,6 +264,6 @@ struct folio *ufs_get_locked_folio(struct address_space *mapping,
 		}
 	}
 	if (!folio_buffers(folio))
-		create_empty_buffers(folio, 1 << inode->i_blkbits, 0);
+		create_empty_buffers(folio, 1 << ianalde->i_blkbits, 0);
 	return folio;
 }

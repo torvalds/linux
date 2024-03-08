@@ -8,7 +8,7 @@ title: The TI AM654x/J721E/AM642x SoC Gigabit Ethernet MAC (Media Access Control
 
 maintainers:
   - Grygorii Strashko <grygorii.strashko@ti.com>
-  - Sekhar Nori <nsekhar@ti.com>
+  - Sekhar Analri <nsekhar@ti.com>
 
 description:
   The TI AM654x/J721E SoC Gigabit Ethernet MAC (CPSW2G NUSS) has two ports
@@ -152,11 +152,11 @@ properties:
             $ref: /schemas/types.yaml#/definitions/phandle-array
             items:
               - items:
-                  - description: Phandle to the system control device node which
+                  - description: Phandle to the system control device analde which
                       provides access to efuse
                   - description: offset to efuse registers???
             description:
-              Phandle to the system control device node which provides access
+              Phandle to the system control device analde which provides access
               to efuse IO range with MAC addresses
 
         required:
@@ -194,7 +194,7 @@ required:
 
 allOf:
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:
@@ -213,7 +213,7 @@ allOf:
                   maximum: 4
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

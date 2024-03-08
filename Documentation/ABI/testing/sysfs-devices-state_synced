@@ -18,7 +18,7 @@ Description:
 		this only when the sync_state() callback has been called --
 		which happens only when all its consumer devices are registered
 		and have probed successfully. Resources that were left disabled
-		at the time the kernel starts are not affected or limited in
+		at the time the kernel starts are analt affected or limited in
 		any way by sync_state() callbacks.
 
 		Writing "1" to this file will force a call to the device's

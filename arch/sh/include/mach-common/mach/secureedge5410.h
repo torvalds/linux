@@ -15,7 +15,7 @@
 
 /*
  * We need to remember what was written to the ioport as some bits
- * are shared with other functions and you cannot read back what was
+ * are shared with other functions and you cananalt read back what was
  * written :-|
  *
  * Bit        Read                   Write

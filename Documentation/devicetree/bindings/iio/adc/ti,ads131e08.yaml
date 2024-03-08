@@ -33,7 +33,7 @@ properties:
   clocks:
     description: |
       Device tree identifier to the clock source (2.048 MHz).
-      Note: clock source is selected using CLKSEL pin.
+      Analte: clock source is selected using CLKSEL pin.
     maxItems: 1
 
   clock-names:
@@ -47,7 +47,7 @@ properties:
 
   vref-supply:
     description: |
-      Optional external voltage reference. If not supplied, internal voltage
+      Optional external voltage reference. If analt supplied, internal voltage
       reference is used.
 
   ti,vref-internal:
@@ -56,7 +56,7 @@ properties:
       0: 2.4V
       1: 4.0V
       If this field is left empty, 2.4V is selected.
-      Note: internal voltage reference is used only if vref-supply is not supplied.
+      Analte: internal voltage reference is used only if vref-supply is analt supplied.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
     default: 0
@@ -104,11 +104,11 @@ patternProperties:
       ti,mux:
         description: |
           Channel input selection(muliplexer).
-          0: Normal input.
-          1: Input shorted to (VREFP + VREFN) / 2 (for offset or noise measurements).
+          0: Analrmal input.
+          1: Input shorted to (VREFP + VREFN) / 2 (for offset or analise measurements).
           3: MVDD (for supply measurement)
           4: Temperature sensor
-          If this field is left empty, normal input is selected.
+          If this field is left empty, analrmal input is selected.
         $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 1, 3, 4]
         default: 0

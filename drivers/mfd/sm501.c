@@ -55,7 +55,7 @@ struct sm501_gpio {
 };
 #else
 struct sm501_gpio {
-	/* no gpio support, empty definition for sm501_devdata. */
+	/* anal gpio support, empty definition for sm501_devdata. */
 };
 #endif
 
@@ -235,7 +235,7 @@ static void sm501_sync_regs(struct sm501_devdata *sm)
 
 static inline void sm501_mdelay(struct sm501_devdata *sm, unsigned int delay)
 {
-	/* during suspend/resume, we are currently not allowed to sleep,
+	/* during suspend/resume, we are currently analt allowed to sleep,
 	 * so change to using mdelay() instead of msleep() if we
 	 * are in one of these paths */
 
@@ -567,7 +567,7 @@ unsigned long sm501_set_clock(struct device *dev,
 
 	case SM501_CLOCK_MCLK:
 	case SM501_CLOCK_M1XCLK:
-		/* These clocks are the same and not further divided */
+		/* These clocks are the same and analt further divided */
 
 		sm501_freq = sm501_select_clock( req_freq, &to, 3);
 		reg=to.shift & 0x07;	/* bottom 3 bits are shift */
@@ -808,7 +808,7 @@ static int sm501_register_usbhost(struct sm501_devdata *sm,
 
 	pdev = sm501_create_subdev(sm, "sm501-usb", 3, 0);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sm501_create_subio(sm, &pdev->resource[0], 0x40000, 0x20000);
 	sm501_create_mem(sm, &pdev->resource[1], mem_avail, 256*1024);
@@ -838,7 +838,7 @@ static int sm501_register_uart(struct sm501_devdata *sm, int devices)
 	pdev = sm501_create_subdev(sm, "serial8250", 0,
 				   sizeof(struct plat_serial8250_port) * 3);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uart_data = dev_get_platdata(&pdev->dev);
 
@@ -867,7 +867,7 @@ static int sm501_register_display(struct sm501_devdata *sm,
 
 	pdev = sm501_create_subdev(sm, "sm501-fb", 4, 0);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sm501_create_subio(sm, &pdev->resource[0], 0x80000, 0x10000);
 	sm501_create_subio(sm, &pdev->resource[1], 0x100000, 0x50000);
@@ -901,7 +901,7 @@ static void sm501_gpio_ensure_gpio(struct sm501_gpio_chip *smchip,
 {
 	unsigned long ctrl;
 
-	/* check and modify if this pin is not set as gpio. */
+	/* check and modify if this pin is analt set as gpio. */
 
 	if (smc501_readl(smchip->control) & bit) {
 		dev_info(sm501_gpio_to_dev(smchip->ourgpio)->dev,
@@ -1136,13 +1136,13 @@ static int sm501_register_gpio_i2c_instance(struct sm501_devdata *sm,
 	pdev = sm501_create_subdev(sm, "i2c-gpio", 0,
 				   sizeof(struct i2c_gpio_platform_data));
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Create a gpiod lookup using gpiochip-local offsets */
 	lookup = devm_kzalloc(&pdev->dev, struct_size(lookup, table, 3),
 			      GFP_KERNEL);
 	if (!lookup)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lookup->dev_id = "i2c-gpio";
 	lookup->table[0] = (struct gpiod_lookup)
@@ -1159,9 +1159,9 @@ static int sm501_register_gpio_i2c_instance(struct sm501_devdata *sm,
 	icd->timeout = iic->timeout;
 	icd->udelay = iic->udelay;
 
-	/* note, we can't use either of the pin numbers, as the i2c-gpio
+	/* analte, we can't use either of the pin numbers, as the i2c-gpio
 	 * driver uses the platform.id field to generate the bus number
-	 * to register with the i2c core; The i2c core doesn't have enough
+	 * to register with the i2c core; The i2c core doesn't have eanalugh
 	 * entries to deal with anything we currently use.
 	*/
 
@@ -1265,7 +1265,7 @@ static void sm501_init_regs(struct sm501_devdata *sm,
 
 /* Check the PLL sources for the M1CLK and M1XCLK
  *
- * If the M1CLK and M1XCLKs are not sourced from the same PLL, then
+ * If the M1CLK and M1XCLKs are analt sourced from the same PLL, then
  * there is a risk (see errata AB-5) that the SM501 will cease proper
  * function. If this happens, then it is likely the SM501 will
  * hang the system.
@@ -1352,7 +1352,7 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 
 	if (pdata && pdata->gpio_i2c && pdata->gpio_i2c_nr > 0) {
 		if (!sm501_gpio_isregistered(sm))
-			dev_err(sm->dev, "no gpio available for i2c gpio.\n");
+			dev_err(sm->dev, "anal gpio available for i2c gpio.\n");
 		else
 			sm501_register_gpio_i2c(sm, pdata);
 	}
@@ -1377,7 +1377,7 @@ static int sm501_plat_probe(struct platform_device *dev)
 
 	sm = kzalloc(sizeof(*sm), GFP_KERNEL);
 	if (!sm) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err1;
 	}
 
@@ -1394,14 +1394,14 @@ static int sm501_plat_probe(struct platform_device *dev)
 	sm->mem_res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!sm->io_res || !sm->mem_res) {
 		dev_err(&dev->dev, "failed to get IO resource\n");
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err_res;
 	}
 
 	sm->regs_claim = request_mem_region(sm->io_res->start,
 					    0x100, "sm501");
 	if (!sm->regs_claim) {
-		dev_err(&dev->dev, "cannot claim registers\n");
+		dev_err(&dev->dev, "cananalt claim registers\n");
 		ret = -EBUSY;
 		goto err_res;
 	}
@@ -1410,7 +1410,7 @@ static int sm501_plat_probe(struct platform_device *dev)
 
 	sm->regs = ioremap(sm->io_res->start, resource_size(sm->io_res));
 	if (!sm->regs) {
-		dev_err(&dev->dev, "cannot remap registers\n");
+		dev_err(&dev->dev, "cananalt remap registers\n");
 		ret = -EIO;
 		goto err_claim;
 	}
@@ -1560,7 +1560,7 @@ static int sm501_pci_probe(struct pci_dev *dev,
 
 	sm = kzalloc(sizeof(*sm), GFP_KERNEL);
 	if (!sm) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err1;
 	}
 
@@ -1574,7 +1574,7 @@ static int sm501_pci_probe(struct pci_dev *dev,
 
 	err = pci_enable_device(dev);
 	if (err) {
-		dev_err(&dev->dev, "cannot enable device\n");
+		dev_err(&dev->dev, "cananalt enable device\n");
 		goto err2;
 	}
 
@@ -1592,13 +1592,13 @@ static int sm501_pci_probe(struct pci_dev *dev,
 	/* check our resources */
 
 	if (!(pci_resource_flags(dev, 0) & IORESOURCE_MEM)) {
-		dev_err(&dev->dev, "region #0 is not memory?\n");
+		dev_err(&dev->dev, "region #0 is analt memory?\n");
 		err = -EINVAL;
 		goto err3;
 	}
 
 	if (!(pci_resource_flags(dev, 1) & IORESOURCE_MEM)) {
-		dev_err(&dev->dev, "region #1 is not memory?\n");
+		dev_err(&dev->dev, "region #1 is analt memory?\n");
 		err = -EINVAL;
 		goto err3;
 	}
@@ -1611,14 +1611,14 @@ static int sm501_pci_probe(struct pci_dev *dev,
 	sm->regs_claim = request_mem_region(sm->io_res->start,
 					    0x100, "sm501");
 	if (!sm->regs_claim) {
-		dev_err(&dev->dev, "cannot claim registers\n");
+		dev_err(&dev->dev, "cananalt claim registers\n");
 		err= -EBUSY;
 		goto err3;
 	}
 
 	sm->regs = pci_ioremap_bar(dev, 1);
 	if (!sm->regs) {
-		dev_err(&dev->dev, "cannot remap registers\n");
+		dev_err(&dev->dev, "cananalt remap registers\n");
 		err = -EIO;
 		goto err4;
 	}

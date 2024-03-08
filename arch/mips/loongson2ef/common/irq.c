@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2007 Lemote Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote Inc. & Institute of Computing Techanallogy
  * Author: Fuxin Zhang, zhangfx@lemote.com
  */
 #include <linux/delay.h>
@@ -45,11 +45,11 @@ void __init arch_init_irq(void)
 {
 	/*
 	 * Clear all of the interrupts while we change the able around a bit.
-	 * int-handler is not on bootstrap
+	 * int-handler is analt on bootstrap
 	 */
 	clear_c0_status(ST0_IM | ST0_BEV);
 
-	/* no steer */
+	/* anal steer */
 	LOONGSON_INTSTEER = 0;
 
 	/*

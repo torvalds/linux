@@ -12,11 +12,11 @@ struct xfs_icreate_item {
 	struct xfs_icreate_log	ic_format;
 };
 
-extern struct kmem_cache *xfs_icreate_cache;	/* inode create item */
+extern struct kmem_cache *xfs_icreate_cache;	/* ianalde create item */
 
-void xfs_icreate_log(struct xfs_trans *tp, xfs_agnumber_t agno,
-			xfs_agblock_t agbno, unsigned int count,
-			unsigned int inode_size, xfs_agblock_t length,
+void xfs_icreate_log(struct xfs_trans *tp, xfs_agnumber_t aganal,
+			xfs_agblock_t agbanal, unsigned int count,
+			unsigned int ianalde_size, xfs_agblock_t length,
 			unsigned int generation);
 
 #endif	/* XFS_ICREATE_ITEM_H */

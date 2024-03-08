@@ -81,7 +81,7 @@ static void *dma_iommu_alloc_coherent(struct device *dev, size_t size,
 {
 	return iommu_alloc_coherent(dev, get_iommu_table_base(dev), size,
 				    dma_handle, dev->coherent_dma_mask, flag,
-				    dev_to_node(dev));
+				    dev_to_analde(dev));
 }
 
 static void dma_iommu_free_coherent(struct device *dev, size_t size,
@@ -92,7 +92,7 @@ static void dma_iommu_free_coherent(struct device *dev, size_t size,
 }
 
 /* Creates TCEs for a user provided buffer.  The user buffer must be
- * contiguous real kernel storage (not vmalloc).  The address passed here
+ * contiguous real kernel storage (analt vmalloc).  The address passed here
  * comprises a page address and offset into that page. The dma_addr_t
  * returned will point to the same byte within the page as was passed in.
  */
@@ -165,7 +165,7 @@ int dma_iommu_dma_supported(struct device *dev, u64 mask)
 	tbl = get_iommu_table_base(dev);
 
 	if (!tbl) {
-		dev_err(dev, "Warning: IOMMU dma not supported: mask 0x%08llx, table unavailable\n", mask);
+		dev_err(dev, "Warning: IOMMU dma analt supported: mask 0x%08llx, table unavailable\n", mask);
 		return 0;
 	}
 
@@ -176,7 +176,7 @@ int dma_iommu_dma_supported(struct device *dev, u64 mask)
 		return 0;
 	}
 
-	dev_dbg(dev, "iommu: not 64-bit, using default ops\n");
+	dev_dbg(dev, "iommu: analt 64-bit, using default ops\n");
 	dev->dma_ops_bypass = false;
 	return 1;
 }

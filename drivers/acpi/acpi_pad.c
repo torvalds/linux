@@ -24,7 +24,7 @@
 
 #define ACPI_PROCESSOR_AGGREGATOR_CLASS	"acpi_pad"
 #define ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME "Processor Aggregator"
-#define ACPI_PROCESSOR_AGGREGATOR_NOTIFY 0x80
+#define ACPI_PROCESSOR_AGGREGATOR_ANALTIFY 0x80
 static DEFINE_MUTEX(isolated_cpus_lock);
 static DEFINE_MUTEX(round_robin_lock);
 
@@ -72,7 +72,7 @@ static void power_saving_mwait_init(void)
 		 * AMD Fam10h TSC will tick in all
 		 * C/P/S0/S1 states when this bit is set.
 		 */
-		if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
+		if (!boot_cpu_has(X86_FEATURE_ANALNSTOP_TSC))
 			tsc_detected_unstable = 1;
 		break;
 	default:
@@ -100,10 +100,10 @@ static void round_robin_cpu(unsigned int tsk_index)
 	cpumask_clear(tmp);
 	for_each_cpu(cpu, pad_busy_cpus)
 		cpumask_or(tmp, tmp, topology_sibling_cpumask(cpu));
-	cpumask_andnot(tmp, cpu_online_mask, tmp);
+	cpumask_andanalt(tmp, cpu_online_mask, tmp);
 	/* avoid HT siblings if possible */
 	if (cpumask_empty(tmp))
-		cpumask_andnot(tmp, cpu_online_mask, pad_busy_cpus);
+		cpumask_andanalt(tmp, cpu_online_mask, pad_busy_cpus);
 	if (cpumask_empty(tmp)) {
 		mutex_unlock(&round_robin_lock);
 		free_cpumask_var(tmp);
@@ -162,7 +162,7 @@ static int power_saving_thread(void *data)
 
 		while (!need_resched()) {
 			if (tsc_detected_unstable && !tsc_marked_unstable) {
-				/* TSC could halt in idle, so notify users */
+				/* TSC could halt in idle, so analtify users */
 				mark_tsc_unstable("TSC halts in idle");
 				tsc_marked_unstable = 1;
 			}
@@ -192,7 +192,7 @@ static int power_saving_thread(void *data)
 		/*
 		 * current sched_rt has threshold for rt task running time.
 		 * When a rt task uses 95% CPU time, the rt thread will be
-		 * scheduled out for 5% CPU time to not starve other tasks. But
+		 * scheduled out for 5% CPU time to analt starve other tasks. But
 		 * the mechanism only works when all CPUs have RT task running,
 		 * as if one CPU hasn't RT task, RT task from other CPUs will
 		 * borrow CPU time from this CPU and cause RT task use > 95%
@@ -374,7 +374,7 @@ static int acpi_pad_pur(acpi_handle handle)
 	return num;
 }
 
-static void acpi_pad_handle_notify(acpi_handle handle)
+static void acpi_pad_handle_analtify(acpi_handle handle)
 {
 	int num_cpus;
 	uint32_t idle_cpus;
@@ -391,18 +391,18 @@ static void acpi_pad_handle_notify(acpi_handle handle)
 	}
 	acpi_pad_idle_cpus(num_cpus);
 	idle_cpus = acpi_pad_idle_cpus_num();
-	acpi_evaluate_ost(handle, ACPI_PROCESSOR_AGGREGATOR_NOTIFY, 0, &param);
+	acpi_evaluate_ost(handle, ACPI_PROCESSOR_AGGREGATOR_ANALTIFY, 0, &param);
 	mutex_unlock(&isolated_cpus_lock);
 }
 
-static void acpi_pad_notify(acpi_handle handle, u32 event,
+static void acpi_pad_analtify(acpi_handle handle, u32 event,
 	void *data)
 {
 	struct acpi_device *adev = data;
 
 	switch (event) {
-	case ACPI_PROCESSOR_AGGREGATOR_NOTIFY:
-		acpi_pad_handle_notify(handle);
+	case ACPI_PROCESSOR_AGGREGATOR_ANALTIFY:
+		acpi_pad_handle_analtify(handle);
 		acpi_bus_generate_netlink_event(adev->pnp.device_class,
 			dev_name(&adev->dev), event, 0);
 		break;
@@ -420,11 +420,11 @@ static int acpi_pad_probe(struct platform_device *pdev)
 	strcpy(acpi_device_name(adev), ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME);
 	strcpy(acpi_device_class(adev), ACPI_PROCESSOR_AGGREGATOR_CLASS);
 
-	status = acpi_install_notify_handler(adev->handle,
-		ACPI_DEVICE_NOTIFY, acpi_pad_notify, adev);
+	status = acpi_install_analtify_handler(adev->handle,
+		ACPI_DEVICE_ANALTIFY, acpi_pad_analtify, adev);
 
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -437,8 +437,8 @@ static void acpi_pad_remove(struct platform_device *pdev)
 	acpi_pad_idle_cpus(0);
 	mutex_unlock(&isolated_cpus_lock);
 
-	acpi_remove_notify_handler(adev->handle,
-		ACPI_DEVICE_NOTIFY, acpi_pad_notify);
+	acpi_remove_analtify_handler(adev->handle,
+		ACPI_DEVICE_ANALTIFY, acpi_pad_analtify);
 }
 
 static const struct acpi_device_id pad_device_ids[] = {
@@ -461,7 +461,7 @@ static int __init acpi_pad_init(void)
 {
 	/* Xen ACPI PAD is used when running as Xen Dom0. */
 	if (xen_initial_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	power_saving_mwait_init();
 	if (power_saving_mwait_eax == 0)

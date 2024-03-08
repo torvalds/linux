@@ -39,8 +39,8 @@ acpi_buffer_to_resource(u8 *aml_buffer,
 	ACPI_FUNCTION_TRACE(acpi_buffer_to_resource);
 
 	/*
-	 * Note: we allow AE_AML_NO_RESOURCE_END_TAG, since an end tag
-	 * is not required here.
+	 * Analte: we allow AE_AML_ANAL_RESOURCE_END_TAG, since an end tag
+	 * is analt required here.
 	 */
 
 	/* Get the required length for the converted resource */
@@ -48,7 +48,7 @@ acpi_buffer_to_resource(u8 *aml_buffer,
 	status =
 	    acpi_rs_get_list_length(aml_buffer, aml_buffer_length,
 				    &list_size_needed);
-	if (status == AE_AML_NO_RESOURCE_END_TAG) {
+	if (status == AE_AML_ANAL_RESOURCE_END_TAG) {
 		status = AE_OK;
 	}
 	if (ACPI_FAILURE(status)) {
@@ -60,7 +60,7 @@ acpi_buffer_to_resource(u8 *aml_buffer,
 	resource = ACPI_ALLOCATE_ZEROED(list_size_needed);
 	current_resource_ptr = resource;
 	if (!resource) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Perform the AML-to-Resource conversion */
@@ -68,7 +68,7 @@ acpi_buffer_to_resource(u8 *aml_buffer,
 	status = acpi_ut_walk_aml_resources(NULL, aml_buffer, aml_buffer_length,
 					    acpi_rs_convert_aml_to_resources,
 					    &current_resource_ptr);
-	if (status == AE_AML_NO_RESOURCE_END_TAG) {
+	if (status == AE_AML_ANAL_RESOURCE_END_TAG) {
 		status = AE_OK;
 	}
 	if (ACPI_FAILURE(status)) {
@@ -90,7 +90,7 @@ ACPI_EXPORT_SYMBOL(acpi_buffer_to_resource)
  *              output_buffer       - Pointer to the user's buffer
  *
  * RETURN:      Status: AE_OK if okay, else a valid acpi_status code
- *              If output_buffer is not large enough, output_buffer_length
+ *              If output_buffer is analt large eanalugh, output_buffer_length
  *              indicates how large output_buffer should be, else it
  *              indicates how may u8 elements of output_buffer are valid.
  *
@@ -170,7 +170,7 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
  * DESCRIPTION: Takes the union acpi_operand_object package and creates a
  *              linked list of PCI interrupt descriptions
  *
- * NOTE: It is the caller's responsibility to ensure that the start of the
+ * ANALTE: It is the caller's responsibility to ensure that the start of the
  * output buffer is aligned properly (if necessary).
  *
  ******************************************************************************/
@@ -187,7 +187,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 	u32 number_of_elements;
 	u32 index;
 	struct acpi_pci_routing_table *user_prt;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 	struct acpi_buffer path_buffer;
 
@@ -229,7 +229,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		/*
 		 * Point user_prt past this current structure
 		 *
-		 * NOTE: On the first iteration, user_prt->Length will
+		 * ANALTE: On the first iteration, user_prt->Length will
 		 * be zero because we cleared the return buffer earlier
 		 */
 		buffer += user_prt->length;
@@ -253,7 +253,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 
 		/*
 		 * Dereference the subpackage.
-		 * The sub_object_list will now point to an array of the four IRQ
+		 * The sub_object_list will analw point to an array of the four IRQ
 		 * elements: [Address, Pin, Source, source_index]
 		 */
 		sub_object_list = (*top_object_list)->package.elements;
@@ -302,7 +302,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 					return_ACPI_STATUS(AE_BAD_DATA);
 				}
 
-				node = obj_desc->reference.node;
+				analde = obj_desc->reference.analde;
 
 				/* Use *remaining* length of the buffer as max for pathname */
 
@@ -311,7 +311,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 					   (u8 *) output_buffer->pointer);
 				path_buffer.pointer = user_prt->source;
 
-				status = acpi_ns_handle_to_pathname((acpi_handle)node, &path_buffer, FALSE);
+				status = acpi_ns_handle_to_pathname((acpi_handle)analde, &path_buffer, FALSE);
 				if (ACPI_FAILURE(status)) {
 					return_ACPI_STATUS(status);
 				}
@@ -355,7 +355,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 			}
 		}
 
-		/* Now align the current length */
+		/* Analw align the current length */
 
 		user_prt->length =
 		    (u32) ACPI_ROUND_UP_TO_64BIT(user_prt->length);
@@ -409,7 +409,7 @@ acpi_rs_create_aml_resources(struct acpi_buffer *resource_list,
 
 	ACPI_FUNCTION_TRACE(rs_create_aml_resources);
 
-	/* Params already validated, no need to re-validate here */
+	/* Params already validated, anal need to re-validate here */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "ResourceList Buffer = %p\n",
 			  resource_list->pointer));

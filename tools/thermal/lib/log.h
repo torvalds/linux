@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1+ */
-/* Copyright (C) 2022, Linaro Ltd - Daniel Lezcano <daniel.lezcano@linaro.org> */
+/* Copyright (C) 2022, Linaro Ltd - Daniel Lezcaanal <daniel.lezcaanal@linaro.org> */
 #ifndef __THERMAL_TOOLS_LOG_H
 #define __THERMAL_TOOLS_LOG_H
 
@@ -17,7 +17,7 @@ extern void logit(int level, const char *format, ...);
 
 #define DEBUG(fmt, ...)		logit(LOG_DEBUG, "%s:%d: " fmt, __func__, __LINE__, ##__VA_ARGS__)
 #define INFO(fmt, ...)		logit(LOG_INFO, fmt, ##__VA_ARGS__)
-#define NOTICE(fmt, ...)	logit(LOG_NOTICE, fmt, ##__VA_ARGS__)
+#define ANALTICE(fmt, ...)	logit(LOG_ANALTICE, fmt, ##__VA_ARGS__)
 #define WARN(fmt, ...)		logit(LOG_WARNING, fmt, ##__VA_ARGS__)
 #define ERROR(fmt, ...)		logit(LOG_ERR, fmt, ##__VA_ARGS__)
 #define CRITICAL(fmt, ...)	logit(LOG_CRIT, fmt, ##__VA_ARGS__)

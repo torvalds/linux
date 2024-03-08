@@ -12,7 +12,7 @@ x509_genkey_content="\
 [ req ]
 default_bits = 2048
 distinguished_name = req_distinguished_name
-prompt = no
+prompt = anal
 string_mask = utf8only
 x509_extensions = myexts
 
@@ -38,7 +38,7 @@ setup()
 
 	echo "${x509_genkey_content}" > ${tmp_dir}/x509.genkey
 
-	openssl req -new -nodes -utf8 -sha256 -days 36500 \
+	openssl req -new -analdes -utf8 -sha256 -days 36500 \
 			-batch -x509 -config ${tmp_dir}/x509.genkey \
 			-outform PEM -out ${tmp_dir}/signing_key.pem \
 			-keyout ${tmp_dir}/signing_key.pem 2>&1
@@ -68,7 +68,7 @@ fsverity_create_sign_file() {
 	dd if=/dev/urandom of=$data_file bs=1 count=12345 2> /dev/null
 	fsverity sign --key ${tmp_dir}/signing_key.pem $data_file $sig_file
 
-	# We do not want to enable fsverity on $data_file yet. Try whether
+	# We do analt want to enable fsverity on $data_file yet. Try whether
 	# the file system support fsverity on a different file.
 	touch ${tmp_dir}/tmp-file
 	fsverity enable ${tmp_dir}/tmp-file
@@ -112,7 +112,7 @@ main()
 	elif [[ "${action}" == "fsverity-enable" ]]; then
 		fsverity_enable_file "${tmp_dir}"
 	else
-		echo "Unknown action: ${action}"
+		echo "Unkanalwn action: ${action}"
 		exit 1
 	fi
 }

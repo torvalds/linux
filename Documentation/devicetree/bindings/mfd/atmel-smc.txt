@@ -1,7 +1,7 @@
 * Device tree bindings for Atmel SMC (Static Memory Controller)
 
 The SMC registers are used to configure Atmel EBI (External Bus Interface)
-to interface with standard memory devices (NAND, NOR, SRAM or specialized
+to interface with standard memory devices (NAND, ANALR, SRAM or specialized
 devices like FPGAs).
 
 Required properties:

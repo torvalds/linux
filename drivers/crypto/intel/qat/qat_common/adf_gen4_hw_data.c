@@ -179,8 +179,8 @@ void adf_gen4_enable_error_correction(struct adf_accel_dev *accel_dev)
 	struct adf_bar *misc_bar = &GET_BARS(accel_dev)[ADF_GEN4_PMISC_BAR];
 	void __iomem *csr = misc_bar->virt_addr;
 
-	/* Enable all in errsou3 except VFLR notification on host */
-	ADF_CSR_WR(csr, ADF_GEN4_ERRMSK3, ADF_GEN4_VFLNOTIFY);
+	/* Enable all in errsou3 except VFLR analtification on host */
+	ADF_CSR_WR(csr, ADF_GEN4_ERRMSK3, ADF_GEN4_VFLANALTIFY);
 }
 EXPORT_SYMBOL_GPL(adf_gen4_enable_error_correction);
 
@@ -296,7 +296,7 @@ static int reset_ring_pair(void __iomem *csr, u32 bank_number)
 	int ret;
 
 	/* Write rpresetctl register BIT(0) as 1
-	 * Since rpresetctl registers have no RW fields, no need to preserve
+	 * Since rpresetctl registers have anal RW fields, anal need to preserve
 	 * values for other bits. Just write directly.
 	 */
 	ADF_CSR_WR(csr, ADF_WQM_CSR_RPRESETCTL(bank_number),

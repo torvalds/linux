@@ -44,9 +44,9 @@ struct rw_thread_info {
 /* use for stopping rw threads */
 extern bool global_sig_receive;
 
-/* use for notification */
+/* use for analtification */
 extern bool global_run_operation;
-extern pthread_mutex_t mutex_notify;
+extern pthread_mutex_t mutex_analtify;
 extern pthread_cond_t cond_wakeup;
 
 /* for controller of read/write threads */

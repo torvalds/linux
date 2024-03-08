@@ -32,22 +32,22 @@
 
 /*
  * struct meson_desc - Descriptor for DMA operations
- * Note that without datasheet, some are unknown
+ * Analte that without datasheet, some are unkanalwn
  * @t_status:	Descriptor of the cipher operation (see description below)
  * @t_src:	Physical address of data to read
  * @t_dst:	Physical address of data to write
  * t_status is segmented like this:
  * @len:	0-16	length of data to operate
- * @irq:	17	Ignored by hardware
+ * @irq:	17	Iganalred by hardware
  * @eoc:	18	End means the descriptor is the last
- * @loop:	19	Unknown
+ * @loop:	19	Unkanalwn
  * @mode:	20-23	Type of algorithm (AES, SHA)
- * @begin:	24	Unknown
- * @end:	25	Unknown
+ * @begin:	24	Unkanalwn
+ * @end:	25	Unkanalwn
  * @op_mode:	26-27	Blockmode (CBC, ECB)
  * @enc:	28	0 means decryption, 1 is for encryption
- * @block:	29	Unknown
- * @error:	30	Unknown
+ * @block:	29	Unkanalwn
+ * @error:	30	Unkanalwn
  * @owner:	31	owner of the descriptor, 1 own by HW
  */
 struct meson_desc {

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -322,21 +322,21 @@ static void xgpu_vi_mailbox_send_ack(struct amdgpu_device *adev)
 	int timeout = VI_MAILBOX_TIMEDOUT;
 	u32 mask = REG_FIELD_MASK(MAILBOX_CONTROL, RCV_MSG_VALID);
 
-	reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
+	reg = RREG32_ANAL_KIQ(mmMAILBOX_CONTROL);
 	reg = REG_SET_FIELD(reg, MAILBOX_CONTROL, RCV_MSG_ACK, 1);
-	WREG32_NO_KIQ(mmMAILBOX_CONTROL, reg);
+	WREG32_ANAL_KIQ(mmMAILBOX_CONTROL, reg);
 
 	/*Wait for RCV_MSG_VALID to be 0*/
-	reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
+	reg = RREG32_ANAL_KIQ(mmMAILBOX_CONTROL);
 	while (reg & mask) {
 		if (timeout <= 0) {
-			pr_err("RCV_MSG_VALID is not cleared\n");
+			pr_err("RCV_MSG_VALID is analt cleared\n");
 			break;
 		}
 		mdelay(1);
 		timeout -= 1;
 
-		reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
+		reg = RREG32_ANAL_KIQ(mmMAILBOX_CONTROL);
 	}
 }
 
@@ -344,10 +344,10 @@ static void xgpu_vi_mailbox_set_valid(struct amdgpu_device *adev, bool val)
 {
 	u32 reg;
 
-	reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
+	reg = RREG32_ANAL_KIQ(mmMAILBOX_CONTROL);
 	reg = REG_SET_FIELD(reg, MAILBOX_CONTROL,
 			    TRN_MSG_VALID, val ? 1 : 0);
-	WREG32_NO_KIQ(mmMAILBOX_CONTROL, reg);
+	WREG32_ANAL_KIQ(mmMAILBOX_CONTROL, reg);
 }
 
 static void xgpu_vi_mailbox_trans_msg(struct amdgpu_device *adev,
@@ -355,10 +355,10 @@ static void xgpu_vi_mailbox_trans_msg(struct amdgpu_device *adev,
 {
 	u32 reg;
 
-	reg = RREG32_NO_KIQ(mmMAILBOX_MSGBUF_TRN_DW0);
+	reg = RREG32_ANAL_KIQ(mmMAILBOX_MSGBUF_TRN_DW0);
 	reg = REG_SET_FIELD(reg, MAILBOX_MSGBUF_TRN_DW0,
 			    MSGBUF_DATA, req);
-	WREG32_NO_KIQ(mmMAILBOX_MSGBUF_TRN_DW0, reg);
+	WREG32_ANAL_KIQ(mmMAILBOX_MSGBUF_TRN_DW0, reg);
 
 	xgpu_vi_mailbox_set_valid(adev, true);
 }
@@ -369,16 +369,16 @@ static int xgpu_vi_mailbox_rcv_msg(struct amdgpu_device *adev,
 	u32 reg;
 	u32 mask = REG_FIELD_MASK(MAILBOX_CONTROL, RCV_MSG_VALID);
 
-	/* workaround: host driver doesn't set VALID for CMPL now */
-	if (event != IDH_FLR_NOTIFICATION_CMPL) {
-		reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
+	/* workaround: host driver doesn't set VALID for CMPL analw */
+	if (event != IDH_FLR_ANALTIFICATION_CMPL) {
+		reg = RREG32_ANAL_KIQ(mmMAILBOX_CONTROL);
 		if (!(reg & mask))
-			return -ENOENT;
+			return -EANALENT;
 	}
 
-	reg = RREG32_NO_KIQ(mmMAILBOX_MSGBUF_RCV_DW0);
+	reg = RREG32_ANAL_KIQ(mmMAILBOX_MSGBUF_RCV_DW0);
 	if (reg != event)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* send ack to PF */
 	xgpu_vi_mailbox_send_ack(adev);
@@ -392,7 +392,7 @@ static int xgpu_vi_poll_ack(struct amdgpu_device *adev)
 	u32 mask = REG_FIELD_MASK(MAILBOX_CONTROL, TRN_MSG_ACK);
 	u32 reg;
 
-	reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
+	reg = RREG32_ANAL_KIQ(mmMAILBOX_CONTROL);
 	while (!(reg & mask)) {
 		if (timeout <= 0) {
 			pr_err("Doesn't get ack from pf.\n");
@@ -402,7 +402,7 @@ static int xgpu_vi_poll_ack(struct amdgpu_device *adev)
 		mdelay(5);
 		timeout -= 5;
 
-		reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
+		reg = RREG32_ANAL_KIQ(mmMAILBOX_CONTROL);
 	}
 
 	return r;
@@ -463,7 +463,7 @@ static int xgpu_vi_request_reset(struct amdgpu_device *adev)
 
 static int xgpu_vi_wait_reset_cmpl(struct amdgpu_device *adev)
 {
-	return xgpu_vi_poll_msg(adev, IDH_FLR_NOTIFICATION_CMPL);
+	return xgpu_vi_poll_msg(adev, IDH_FLR_ANALTIFICATION_CMPL);
 }
 
 static int xgpu_vi_request_full_gpu_access(struct amdgpu_device *adev,
@@ -492,7 +492,7 @@ static int xgpu_vi_mailbox_ack_irq(struct amdgpu_device *adev,
 				   struct amdgpu_irq_src *source,
 				   struct amdgpu_iv_entry *entry)
 {
-	DRM_DEBUG("get ack intr and do nothing.\n");
+	DRM_DEBUG("get ack intr and do analthing.\n");
 	return 0;
 }
 
@@ -501,11 +501,11 @@ static int xgpu_vi_set_mailbox_ack_irq(struct amdgpu_device *adev,
 				       unsigned type,
 				       enum amdgpu_interrupt_state state)
 {
-	u32 tmp = RREG32_NO_KIQ(mmMAILBOX_INT_CNTL);
+	u32 tmp = RREG32_ANAL_KIQ(mmMAILBOX_INT_CNTL);
 
 	tmp = REG_SET_FIELD(tmp, MAILBOX_INT_CNTL, ACK_INT_EN,
 			    (state == AMDGPU_IRQ_STATE_ENABLE) ? 1 : 0);
-	WREG32_NO_KIQ(mmMAILBOX_INT_CNTL, tmp);
+	WREG32_ANAL_KIQ(mmMAILBOX_INT_CNTL, tmp);
 
 	return 0;
 }
@@ -516,7 +516,7 @@ static void xgpu_vi_mailbox_flr_work(struct work_struct *work)
 	struct amdgpu_device *adev = container_of(virt, struct amdgpu_device, virt);
 
 	/* wait until RCV_MSG become 3 */
-	if (xgpu_vi_poll_msg(adev, IDH_FLR_NOTIFICATION_CMPL)) {
+	if (xgpu_vi_poll_msg(adev, IDH_FLR_ANALTIFICATION_CMPL)) {
 		pr_err("failed to receive FLR_CMPL\n");
 		return;
 	}
@@ -526,7 +526,7 @@ static void xgpu_vi_mailbox_flr_work(struct work_struct *work)
 		struct amdgpu_reset_context reset_context;
 		memset(&reset_context, 0, sizeof(reset_context));
 
-		reset_context.method = AMD_RESET_METHOD_NONE;
+		reset_context.method = AMD_RESET_METHOD_ANALNE;
 		reset_context.reset_req_dev = adev;
 		clear_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
 
@@ -539,11 +539,11 @@ static int xgpu_vi_set_mailbox_rcv_irq(struct amdgpu_device *adev,
 				       unsigned type,
 				       enum amdgpu_interrupt_state state)
 {
-	u32 tmp = RREG32_NO_KIQ(mmMAILBOX_INT_CNTL);
+	u32 tmp = RREG32_ANAL_KIQ(mmMAILBOX_INT_CNTL);
 
 	tmp = REG_SET_FIELD(tmp, MAILBOX_INT_CNTL, VALID_INT_EN,
 			    (state == AMDGPU_IRQ_STATE_ENABLE) ? 1 : 0);
-	WREG32_NO_KIQ(mmMAILBOX_INT_CNTL, tmp);
+	WREG32_ANAL_KIQ(mmMAILBOX_INT_CNTL, tmp);
 
 	return 0;
 }
@@ -557,9 +557,9 @@ static int xgpu_vi_mailbox_rcv_irq(struct amdgpu_device *adev,
 	/* trigger gpu-reset by hypervisor only if TDR disabled */
 	if (!amdgpu_gpu_recovery) {
 		/* see what event we get */
-		r = xgpu_vi_mailbox_rcv_msg(adev, IDH_FLR_NOTIFICATION);
+		r = xgpu_vi_mailbox_rcv_msg(adev, IDH_FLR_ANALTIFICATION);
 
-		/* only handle FLR_NOTIFY now */
+		/* only handle FLR_ANALTIFY analw */
 		if (!r && !amdgpu_in_reset(adev))
 			WARN_ONCE(!amdgpu_reset_domain_schedule(adev->reset_domain,
 								&adev->virt.flr_work),
@@ -634,5 +634,5 @@ const struct amdgpu_virt_ops xgpu_vi_virt_ops = {
 	.rel_full_gpu		= xgpu_vi_release_full_gpu_access,
 	.reset_gpu		= xgpu_vi_request_reset,
 	.wait_reset             = xgpu_vi_wait_reset_cmpl,
-	.trans_msg		= NULL, /* Does not need to trans VF errors to host. */
+	.trans_msg		= NULL, /* Does analt need to trans VF errors to host. */
 };

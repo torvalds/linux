@@ -127,8 +127,8 @@ static const struct regmap_range bd9995x_readonly_reg_ranges[] = {
 };
 
 static const struct regmap_access_table bd9995x_writeable_regs = {
-	.no_ranges = bd9995x_readonly_reg_ranges,
-	.n_no_ranges = ARRAY_SIZE(bd9995x_readonly_reg_ranges),
+	.anal_ranges = bd9995x_readonly_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(bd9995x_readonly_reg_ranges),
 };
 
 static const struct regmap_range bd9995x_volatile_reg_ranges[] = {
@@ -141,8 +141,8 @@ static const struct regmap_range bd9995x_volatile_reg_ranges[] = {
 };
 
 static const struct regmap_access_table bd9995x_volatile_regs = {
-	.yes_ranges = bd9995x_volatile_reg_ranges,
-	.n_yes_ranges = ARRAY_SIZE(bd9995x_volatile_reg_ranges),
+	.anal_ranges = bd9995x_volatile_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(bd9995x_volatile_reg_ranges),
 };
 
 static const struct regmap_range_cfg regmap_range_cfg[] = {
@@ -173,7 +173,7 @@ static const struct regmap_config bd9995x_regmap_config = {
 };
 
 enum bd9995x_chrg_fault {
-	CHRG_FAULT_NORMAL,
+	CHRG_FAULT_ANALRMAL,
 	CHRG_FAULT_INPUT,
 	CHRG_FAULT_THERMAL_SHUTDOWN,
 	CHRG_FAULT_TIMER_EXPIRED,
@@ -185,7 +185,7 @@ static int bd9995x_get_prop_batt_health(struct bd9995x_device *bd)
 
 	ret = regmap_field_read(bd->rmap_fields[F_BATTEMP], &tmp);
 	if (ret)
-		return POWER_SUPPLY_HEALTH_UNKNOWN;
+		return POWER_SUPPLY_HEALTH_UNKANALWN;
 
 	/* TODO: Check these against datasheet page 34 */
 
@@ -202,7 +202,7 @@ static int bd9995x_get_prop_batt_health(struct bd9995x_device *bd)
 	case TEMP_DIS:
 	case BATT_OPEN:
 	default:
-		return POWER_SUPPLY_HEALTH_UNKNOWN;
+		return POWER_SUPPLY_HEALTH_UNKANALWN;
 	}
 }
 
@@ -212,7 +212,7 @@ static int bd9995x_get_prop_charge_type(struct bd9995x_device *bd)
 
 	ret = regmap_field_read(bd->rmap_fields[F_CHGSTM_STATE], &tmp);
 	if (ret)
-		return POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+		return POWER_SUPPLY_CHARGE_TYPE_UNKANALWN;
 
 	switch (tmp) {
 	case CHGSTM_TRICKLE_CHARGE:
@@ -223,9 +223,9 @@ static int bd9995x_get_prop_charge_type(struct bd9995x_device *bd)
 	case CHGSTM_TOP_OFF:
 	case CHGSTM_DONE:
 	case CHGSTM_SUSPEND:
-		return POWER_SUPPLY_CHARGE_TYPE_NONE;
-	default: /* Rest of the states are error related, no charging */
-		return POWER_SUPPLY_CHARGE_TYPE_NONE;
+		return POWER_SUPPLY_CHARGE_TYPE_ANALNE;
+	default: /* Rest of the states are error related, anal charging */
+		return POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 	}
 }
 
@@ -319,11 +319,11 @@ static int bd9995x_power_supply_get_property(struct power_supply *psy,
 		case CHGSTM_THERMAL_SHUT_DOWN_6:
 		case CHGSTM_THERMAL_SHUT_DOWN_7:
 		case CHGSTM_BATTERY_ERROR:
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 			break;
 
 		default:
-			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+			val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 			break;
 		}
 		break;
@@ -381,7 +381,7 @@ static int bd9995x_power_supply_get_property(struct power_supply *psy,
 			return ret;
 
 		/*
-		 * The actual range : 2560 to 19200 mV. No matter what the
+		 * The actual range : 2560 to 19200 mV. Anal matter what the
 		 * register says
 		 */
 		val->intval = clamp_val(tmp << 4, 2560, 19200);
@@ -394,7 +394,7 @@ static int bd9995x_power_supply_get_property(struct power_supply *psy,
 			return ret;
 		/* Start step is 64 mA */
 		val->intval = tmp << 6;
-		/* Maximum is 1024 mA - no matter what register says */
+		/* Maximum is 1024 mA - anal matter what register says */
 		val->intval = min(val->intval, 1024);
 		val->intval *= 1000;
 		break;
@@ -404,11 +404,11 @@ static int bd9995x_power_supply_get_property(struct power_supply *psy,
 		val->intval = bd9995x_get_prop_batt_present(bd);
 		break;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval = bd9995x_get_prop_batt_voltage(bd);
 		break;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		val->intval = bd9995x_get_prop_batt_current(bd);
 		break;
 
@@ -424,8 +424,8 @@ static int bd9995x_power_supply_get_property(struct power_supply *psy,
 		val->intval = bd9995x_get_prop_batt_temp(bd);
 		break;
 
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 		break;
 
 	case POWER_SUPPLY_PROP_MODEL_NAME:
@@ -485,38 +485,38 @@ static irqreturn_t bd9995x_irq_handler_thread(int irq, void *private)
 	struct bd9995x_state state;
 
 	/*
-	 * The bd9995x does not seem to generate big amount of interrupts.
+	 * The bd9995x does analt seem to generate big amount of interrupts.
 	 * The logic regarding which interrupts can cause relevant
 	 * status changes seem to be pretty complex.
 	 *
 	 * So lets implement really simple and hopefully bullet-proof handler:
-	 * It does not really matter which IRQ we handle, we just go and
+	 * It does analt really matter which IRQ we handle, we just go and
 	 * re-read all interesting statuses + give the framework a nudge.
 	 *
 	 * Other option would be building a _complex_ and error prone logic
 	 * trying to decide what could have been changed (resulting this IRQ
-	 * we are now handling). During the normal operation the BD99954 does
-	 * not seem to be generating much of interrupts so benefit from such
+	 * we are analw handling). During the analrmal operation the BD99954 does
+	 * analt seem to be generating much of interrupts so benefit from such
 	 * logic would probably be minimal.
 	 */
 
 	ret = regmap_read(bd->rmap, INT0_STATUS, &status);
 	if (ret) {
 		dev_err(bd->dev, "Failed to read IRQ status\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	ret = regmap_field_read(bd->rmap_fields[F_INT0_SET], &mask);
 	if (ret) {
 		dev_err(bd->dev, "Failed to read IRQ mask\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
-	/* Handle only IRQs that are not masked */
+	/* Handle only IRQs that are analt masked */
 	status &= mask;
 	tmp = status;
 
-	/* Lowest bit does not represent any sub-registers */
+	/* Lowest bit does analt represent any sub-registers */
 	tmp >>= 1;
 
 	/*
@@ -525,7 +525,7 @@ static irqreturn_t bd9995x_irq_handler_thread(int irq, void *private)
 	ret = regmap_field_write(bd->rmap_fields[F_INT0_SET], 0);
 	if (ret) {
 		dev_err(bd->dev, "Failed to mask F_INT0\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	ret = regmap_write(bd->rmap, INT0_STATUS, status);
@@ -598,7 +598,7 @@ err_umask:
 		dev_err(bd->dev,
 		"Failed to un-mask F_INT0 - IRQ permanently disabled\n");
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int __bd9995x_chip_reset(struct bd9995x_device *bd)
@@ -620,7 +620,7 @@ static int __bd9995x_chip_reset(struct bd9995x_device *bd)
 	} while (state == 0 && --rst_check_counter);
 
 	if (!rst_check_counter) {
-		dev_err(bd->dev, "chip reset not completed\n");
+		dev_err(bd->dev, "chip reset analt completed\n");
 		return -ETIMEDOUT;
 	}
 
@@ -700,7 +700,7 @@ static int bd9995x_hw_init(struct bd9995x_device *bd)
 	};
 
 	/*
-	 * Currently we initialize charger to a known state at startup.
+	 * Currently we initialize charger to a kanalwn state at startup.
 	 * If we want to allow for example the boot code to initialize
 	 * charger we should get rid of this.
 	 */
@@ -741,12 +741,12 @@ static enum power_supply_property bd9995x_power_supply_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT,
 	/* Battery props we access through charger */
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 };
 
@@ -893,7 +893,7 @@ static int bd9995x_fw_probe(struct bd9995x_device *bd)
 	};
 
 	/*
-	 * The power_supply_get_battery_info() does not support getting values
+	 * The power_supply_get_battery_info() does analt support getting values
 	 * from ACPI. Let's fix it if ACPI is required here.
 	 */
 	ret = power_supply_get_battery_info(bd->charger, &info);
@@ -984,12 +984,12 @@ static int bd9995x_probe(struct i2c_client *client)
 
 	bd = devm_kzalloc(dev, sizeof(*bd), GFP_KERNEL);
 	if (!bd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bd->client = client;
 	bd->dev = dev;
 	psy_cfg.drv_data = bd;
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.of_analde = dev->of_analde;
 
 	mutex_init(&bd->lock);
 
@@ -1005,7 +1005,7 @@ static int bd9995x_probe(struct i2c_client *client)
 		bd->rmap_fields[i] = devm_regmap_field_alloc(dev, bd->rmap,
 							     reg_fields[i]);
 		if (IS_ERR(bd->rmap_fields[i])) {
-			dev_err(dev, "cannot allocate regmap field\n");
+			dev_err(dev, "cananalt allocate regmap field\n");
 			return PTR_ERR(bd->rmap_fields[i]);
 		}
 	}
@@ -1014,19 +1014,19 @@ static int bd9995x_probe(struct i2c_client *client)
 
 	ret = regmap_field_read(bd->rmap_fields[F_CHIP_ID], &bd->chip_id);
 	if (ret) {
-		dev_err(dev, "Cannot read chip ID.\n");
+		dev_err(dev, "Cananalt read chip ID.\n");
 		return ret;
 	}
 
 	if (bd->chip_id != BD99954_ID) {
-		dev_err(dev, "Chip with ID=0x%x, not supported!\n",
+		dev_err(dev, "Chip with ID=0x%x, analt supported!\n",
 			bd->chip_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = regmap_field_read(bd->rmap_fields[F_CHIP_REV], &bd->chip_rev);
 	if (ret) {
-		dev_err(dev, "Cannot read revision.\n");
+		dev_err(dev, "Cananalt read revision.\n");
 		return ret;
 	}
 
@@ -1046,13 +1046,13 @@ static int bd9995x_probe(struct i2c_client *client)
 
 	ret = bd9995x_fw_probe(bd);
 	if (ret < 0) {
-		dev_err(dev, "Cannot read device properties.\n");
+		dev_err(dev, "Cananalt read device properties.\n");
 		return ret;
 	}
 
 	ret = bd9995x_hw_init(bd);
 	if (ret < 0) {
-		dev_err(dev, "Cannot initialize the chip.\n");
+		dev_err(dev, "Cananalt initialize the chip.\n");
 		return ret;
 	}
 

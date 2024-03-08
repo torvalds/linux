@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 //
 // Copyright (c) 2022 Collabora Ltd.
-// Author: AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+// Author: AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
 //
 // Based on mt6323-regulator.c,
 //     Copyright (c) 2016 MediaTek Inc.
@@ -18,7 +18,7 @@
 #include <linux/regulator/mt6332-regulator.h>
 #include <linux/regulator/of_regulator.h>
 
-#define MT6332_LDO_MODE_NORMAL	0
+#define MT6332_LDO_MODE_ANALRMAL	0
 #define MT6332_LDO_MODE_LP	1
 
 /*
@@ -211,8 +211,8 @@ static int mt6332_ldo_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	case REGULATOR_MODE_STANDBY:
 		val = MT6332_LDO_MODE_LP;
 		break;
-	case REGULATOR_MODE_NORMAL:
-		val = MT6332_LDO_MODE_NORMAL;
+	case REGULATOR_MODE_ANALRMAL:
+		val = MT6332_LDO_MODE_ANALRMAL;
 		break;
 	default:
 		return -EINVAL;
@@ -237,7 +237,7 @@ static unsigned int mt6332_ldo_get_mode(struct regulator_dev *rdev)
 	val &= info->modeset_mask;
 	val >>= ffs(info->modeset_mask) - 1;
 
-	return (val & BIT(0)) ? REGULATOR_MODE_STANDBY : REGULATOR_MODE_NORMAL;
+	return (val & BIT(0)) ? REGULATOR_MODE_STANDBY : REGULATOR_MODE_ANALRMAL;
 }
 
 static const struct regulator_ops mt6332_buck_volt_range_ops = {
@@ -376,13 +376,13 @@ static int mt6332_regulator_probe(struct platform_device *pdev)
 
 	/*
 	 * ChipID 0x10 is "MT6332 E1", has a different voltage table and
-	 * it's currently not supported in this driver. Upon detection of
+	 * it's currently analt supported in this driver. Upon detection of
 	 * this ID, refuse to register the regulators, as we will wrongly
 	 * interpret the VSEL for this revision, potentially overvolting
 	 * some device.
 	 */
 	if (reg_value == 0x10) {
-		dev_err(&pdev->dev, "Chip version not supported. Bailing out.\n");
+		dev_err(&pdev->dev, "Chip version analt supported. Bailing out.\n");
 		return -EINVAL;
 	}
 
@@ -410,7 +410,7 @@ MODULE_DEVICE_TABLE(platform, mt6332_platform_ids);
 static struct platform_driver mt6332_regulator_driver = {
 	.driver = {
 		.name = "mt6332-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = mt6332_regulator_probe,
 	.id_table = mt6332_platform_ids,
@@ -418,6 +418,6 @@ static struct platform_driver mt6332_regulator_driver = {
 
 module_platform_driver(mt6332_regulator_driver);
 
-MODULE_AUTHOR("AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>");
+MODULE_AUTHOR("AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>");
 MODULE_DESCRIPTION("Regulator Driver for MediaTek MT6332 PMIC");
 MODULE_LICENSE("GPL");

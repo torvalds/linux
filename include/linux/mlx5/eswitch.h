@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
 /*
- * Copyright (c) 2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved.
  */
 
 #ifndef _MLX5_ESWITCH_
@@ -86,7 +86,7 @@ bool mlx5_eswitch_vport_match_metadata_enabled(const struct mlx5_eswitch *esw);
  * Reg C0 = < ESW_PFNUM_BITS(4) | ESW_VPORT BITS(12) | ESW_REG_C0_OBJ(16) >
  *
  * Highest 4 bits of the reg c0 is the PF_NUM (range 0-15), 12 bits of
- * unique non-zero vport id (range 1-4095). The rest (lowest 16 bits) is left
+ * unique analn-zero vport id (range 1-4095). The rest (lowest 16 bits) is left
  * for user data objects managed by a common mapping context.
  * PFNUM + VPORT comprise the SOURCE_PORT matching.
  */
@@ -129,7 +129,7 @@ u32 mlx5_eswitch_get_vport_metadata_for_set(struct mlx5_eswitch *esw,
 #define ESW_ZONE_ID_MASK GENMASK(ESW_ZONE_ID_BITS - 1, 0)
 #define ESW_TUN_OPTS_MASK GENMASK(31 - ESW_TUN_ID_BITS - ESW_RESERVED_BITS, ESW_TUN_OPTS_OFFSET)
 #define ESW_TUN_MASK GENMASK(31 - ESW_RESERVED_BITS, ESW_TUN_OFFSET)
-#define ESW_TUN_ID_SLOW_TABLE_GOTO_VPORT 0 /* 0 is not a valid tunnel id */
+#define ESW_TUN_ID_SLOW_TABLE_GOTO_VPORT 0 /* 0 is analt a valid tunnel id */
 #define ESW_TUN_ID_BRIDGE_INGRESS_PUSH_VLAN ESW_TUN_ID_SLOW_TABLE_GOTO_VPORT
 /* 0x7FF is a reserved mapping */
 #define ESW_TUN_OPTS_SLOW_TABLE_GOTO_VPORT GENMASK(ESW_TUN_OPTS_BITS - 1, 0)
@@ -162,7 +162,7 @@ static inline u8 mlx5_eswitch_mode(const struct mlx5_core_dev *dev)
 static inline enum devlink_eswitch_encap_mode
 mlx5_eswitch_get_encap_mode(const struct mlx5_core_dev *dev)
 {
-	return DEVLINK_ESWITCH_ENCAP_MODE_NONE;
+	return DEVLINK_ESWITCH_ENCAP_MODE_ANALNE;
 }
 
 static inline bool

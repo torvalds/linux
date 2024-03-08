@@ -8,7 +8,7 @@
 
 /*
  * This file is copied and modified from the original irq.c provided by
- * Alexey Charkov. Minor changes have been made for Device Tree Support.
+ * Alexey Charkov. Mianalr changes have been made for Device Tree Support.
  */
 
 #include <linux/slab.h>
@@ -187,11 +187,11 @@ static void __exception_irq_entry vt8500_handle_irq(struct pt_regs *regs)
 	}
 }
 
-static int __init vt8500_irq_init(struct device_node *node,
-				  struct device_node *parent)
+static int __init vt8500_irq_init(struct device_analde *analde,
+				  struct device_analde *parent)
 {
 	int irq, i;
-	struct device_node *np = node;
+	struct device_analde *np = analde;
 
 	if (active_cnt == VT8500_INTC_MAX) {
 		pr_err("%s: Interrupt controllers > VT8500_INTC_MAX\n",
@@ -200,7 +200,7 @@ static int __init vt8500_irq_init(struct device_node *node,
 	}
 
 	intc[active_cnt].base = of_iomap(np, 0);
-	intc[active_cnt].domain = irq_domain_add_linear(node, 64,
+	intc[active_cnt].domain = irq_domain_add_linear(analde, 64,
 			&vt8500_irq_domain_ops,	&intc[active_cnt]);
 
 	if (!intc[active_cnt].base) {

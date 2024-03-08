@@ -68,7 +68,7 @@ struct fh_operation {
 	int (*ssc_enable)(struct mtk_fh *fh, u32 rate);
 };
 
-int mtk_clk_register_pllfhs(struct device_node *node,
+int mtk_clk_register_pllfhs(struct device_analde *analde,
 			    const struct mtk_pll_data *plls, int num_plls,
 			    struct mtk_pllfh_data *pllfhs, int num_pllfhs,
 			    struct clk_hw_onecell_data *clk_data);
@@ -77,7 +77,7 @@ void mtk_clk_unregister_pllfhs(const struct mtk_pll_data *plls, int num_plls,
 			       struct mtk_pllfh_data *pllfhs, int num_fhs,
 			       struct clk_hw_onecell_data *clk_data);
 
-void fhctl_parse_dt(const u8 *compatible_node, struct mtk_pllfh_data *pllfhs,
+void fhctl_parse_dt(const u8 *compatible_analde, struct mtk_pllfh_data *pllfhs,
 		    int num_pllfhs);
 
 #endif /* __CLK_PLLFH_H */

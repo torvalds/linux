@@ -4,7 +4,7 @@
  * Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003 Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Kevin Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000 MIPS Technologies, Inc.
+ * Copyright (C) 2000 MIPS Techanallogies, Inc.
  *
  * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  */

@@ -72,7 +72,7 @@ static void *handle_next_page(struct squashfs_page_actor *actor)
 		actor->next_index++;
 		actor->returned_pages++;
 		actor->last_page = NULL;
-		return actor->alloc_buffer ? actor->tmp_buffer : ERR_PTR(-ENOMEM);
+		return actor->alloc_buffer ? actor->tmp_buffer : ERR_PTR(-EANALMEM);
 	}
 
 	actor->next_index++;

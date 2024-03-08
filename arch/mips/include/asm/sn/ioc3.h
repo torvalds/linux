@@ -156,7 +156,7 @@ struct ioc3 {
 	struct ioc3_sioregs	sregs;	/* 0x20000 */
 	u32	pad2[(0x40000 - 0x20180) / 4];
 
-	/* SSRAM Diagnostic Access */
+	/* SSRAM Diaganalstic Access */
 	u32	ssram[(0x80000 - 0x40000) / 4];
 
 	/* Bytebus device offsets
@@ -250,9 +250,9 @@ struct ioc3_etxd {
 #define IOC3_SIO_UB_BASE	(IOC3_SIO_BASE+UARTB_BASE)	/* UART B */
 #define IOC3_SIO_UA_BASE	(IOC3_SIO_BASE+UARTA_BASE)	/* UART A */
 
-/* SSRAM Diagnostic Access */
-#define IOC3_SSRAM	IOC3_RAM_OFF	/* base of SSRAM diagnostic access */
-#define IOC3_SSRAM_LEN	0x40000	/* 256kb (addrspc sz, may not be populated) */
+/* SSRAM Diaganalstic Access */
+#define IOC3_SSRAM	IOC3_RAM_OFF	/* base of SSRAM diaganalstic access */
+#define IOC3_SSRAM_LEN	0x40000	/* 256kb (addrspc sz, may analt be populated) */
 #define IOC3_SSRAM_DM	0x0000ffff	/* data mask */
 #define IOC3_SSRAM_PM	0x00010000	/* parity mask */
 
@@ -557,7 +557,7 @@ struct ioc3_etxd {
 #define ETCSR_IPGR1_SHIFT	8
 #define ETCSR_IPGR2_MASK	0x007f0000
 #define ETCSR_IPGR2_SHIFT	16
-#define ETCSR_NOTXCLK		0x80000000
+#define ETCSR_ANALTXCLK		0x80000000
 
 #define ETCDC_COLLCNT_MASK	0x0000ffff
 #define ETCDC_DEFERCNT_MASK	0xffff0000

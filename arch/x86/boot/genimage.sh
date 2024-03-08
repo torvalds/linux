@@ -93,8 +93,8 @@ le() {
 }
 
 # Get the EFI architecture name such that boot{name}.efi is the default
-# boot file name. Returns false with no output if the file is not an
-# EFI image or otherwise unknown.
+# boot file name. Returns false with anal output if the file is analt an
+# EFI image or otherwise unkanalwn.
 efiarch() {
 	[ -f "$1" ] || return
 	[ $(le "$1" 0 2) -eq 23117 ] || return		# MZ magic
@@ -228,7 +228,7 @@ genhdimage() {
 	if [ -n "$kefiarch" ]; then
 		# The efishell provides command line handling
 		efishell="$(findovmf $kefiarch shell.efi shell${kefiarch}.efi)"
-		ptype='-T 0xef'	# EFI system partition, no GPT
+		ptype='-T 0xef'	# EFI system partition, anal GPT
 	fi
 	sizes=$(filesizes "$FBZIMAGE" "${FDINITRDS[@]}" "$efishell")
 	# Allow 1% + 2 MiB for filesystem and partition table overhead,
@@ -236,7 +236,7 @@ genhdimage() {
 	megs=$(((sizes + sizes/100 + 2*1024*1024 - 1)/(1024*1024)))
 	$dd if=/dev/zero of="$FIMAGE" bs=$((1024*1024)) count=$megs 2>/dev/null
 	mpartition -I -c -s 32 -h 64 $ptype -b 64 -a p:
-	$dd if="$mbr" of="$FIMAGE" bs=440 count=1 conv=notrunc 2>/dev/null
+	$dd if="$mbr" of="$FIMAGE" bs=440 count=1 conv=analtrunc 2>/dev/null
 	mformat -v 'LINUX_BOOT' -s 32 -h 64 -c $((cluster/512)) -t $megs h:
 	syslinux --offset $((64*512)) "$FIMAGE"
 	do_mcopy h:
@@ -254,7 +254,7 @@ geniso() {
 	cp "${FDINITRDS[@]}" "$tmp_dir"/
 	genisoimage -J -r -appid 'LINUX_BOOT' -input-charset=utf-8 \
 		    -quiet -o "$FIMAGE" -b isolinux.bin \
-		    -c boot.cat -no-emul-boot -boot-load-size 4 \
+		    -c boot.cat -anal-emul-boot -boot-load-size 4 \
 		    -boot-info-table "$tmp_dir"
 	isohybrid "$FIMAGE" 2>/dev/null || true
 	rm -rf "$tmp_dir"
@@ -268,5 +268,5 @@ case "$diskfmt" in
 	fdimage288) genfdimage288;;
 	hdimage)    genhdimage;;
 	isoimage)   geniso;;
-	*)          die "Unknown image format: $diskfmt";;
+	*)          die "Unkanalwn image format: $diskfmt";;
 esac

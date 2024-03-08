@@ -26,11 +26,11 @@ struct vdpa_callback {
 };
 
 /**
- * struct vdpa_notification_area - vDPA notification area
- * @addr: base address of the notification area
- * @size: size of the notification area
+ * struct vdpa_analtification_area - vDPA analtification area
+ * @addr: base address of the analtification area
+ * @size: size of the analtification area
  */
-struct vdpa_notification_area {
+struct vdpa_analtification_area {
 	resource_size_t addr;
 	resource_size_t size;
 };
@@ -70,7 +70,7 @@ struct vdpa_mgmt_dev;
  * struct vdpa_device - representation of a vDPA device
  * @dev: underlying device
  * @dma_dev: the actual device that is performing DMA
- * @driver_override: driver name to force a match; do not set directly,
+ * @driver_override: driver name to force a match; do analt set directly,
  *                   because core frees it; use driver_set_override() to
  *                   set or clear it.
  * @config: the configuration ops for this device.
@@ -131,7 +131,7 @@ struct vdpa_map_file {
 
 /**
  * struct vdpa_config_ops - operations for configuring a vDPA device.
- * Note: vDPA device drivers are required to implement all of the
+ * Analte: vDPA device drivers are required to implement all of the
  * operations unless it is mentioned to be optional in the following
  * list.
  *
@@ -150,7 +150,7 @@ struct vdpa_map_file {
  *				@vdev: vdpa device
  *				@idx: virtqueue index
  * @kick_vq_with_data:		Kick the virtqueue and supply extra data
- *				(only if VIRTIO_F_NOTIFICATION_DATA is negotiated)
+ *				(only if VIRTIO_F_ANALTIFICATION_DATA is negotiated)
  *				@vdev: vdpa device
  *				@data for split virtqueue:
  *				16 bits vqn and 16 bits next available index.
@@ -165,11 +165,11 @@ struct vdpa_map_file {
  * @set_vq_ready:		Set ready status for a virtqueue
  *				@vdev: vdpa device
  *				@idx: virtqueue index
- *				@ready: ready (true) not ready(false)
+ *				@ready: ready (true) analt ready(false)
  * @get_vq_ready:		Get ready status for a virtqueue
  *				@vdev: vdpa device
  *				@idx: virtqueue index
- *				Returns boolean: ready (true) or not (false)
+ *				Returns boolean: ready (true) or analt (false)
  * @set_vq_state:		Set the state for a virtqueue
  *				@vdev: vdpa device
  *				@idx: virtqueue index
@@ -185,16 +185,16 @@ struct vdpa_map_file {
  *				@msg: socket buffer holding stats message
  *				@extack: extack for reporting error messages
  *				Returns integer: success (0) or error (< 0)
- * @get_vq_notification:	Get the notification area for a virtqueue (optional)
+ * @get_vq_analtification:	Get the analtification area for a virtqueue (optional)
  *				@vdev: vdpa device
  *				@idx: virtqueue index
- *				Returns the notification area
+ *				Returns the analtification area
  * @get_vq_irq:			Get the irq number of a virtqueue (optional,
  *				but must implemented if require vq irq offloading)
  *				@vdev: vdpa device
  *				@idx: virtqueue index
  *				Returns int: irq number of a virtqueue,
- *				negative number if no irq assigned.
+ *				negative number if anal irq assigned.
  * @get_vq_align:		Get the virtqueue align requirement
  *				for the device
  *				@vdev: vdpa device
@@ -258,7 +258,7 @@ struct vdpa_map_file {
  *				behaviour, and has to maintain such behaviour
  *				for compatibility with older userspace.
  *				Historically compliant driver only has to
- *				implement .reset, Historically non-compliant
+ *				implement .reset, Historically analn-compliant
  *				driver should implement both.
  *				@vdev: vdpa device
  *				@flags: compatibility quirks for reset
@@ -343,7 +343,7 @@ struct vdpa_map_file {
  *				Needed for devices that are using device
  *				specific DMA translation and prefer mapping
  *				to be decoupled from the virtio life cycle,
- *				i.e. device .reset op does not reset mapping
+ *				i.e. device .reset op does analt reset mapping
  *				@vdev: vdpa device
  *				@asid: address space identifier
  *				Returns integer: success (0) or error (< 0)
@@ -382,9 +382,9 @@ struct vdpa_config_ops {
 	int (*get_vendor_vq_stats)(struct vdpa_device *vdev, u16 idx,
 				   struct sk_buff *msg,
 				   struct netlink_ext_ack *extack);
-	struct vdpa_notification_area
-	(*get_vq_notification)(struct vdpa_device *vdev, u16 idx);
-	/* vq irq is not expected to be changed once DRIVER_OK is set */
+	struct vdpa_analtification_area
+	(*get_vq_analtification)(struct vdpa_device *vdev, u16 idx);
+	/* vq irq is analt expected to be changed once DRIVER_OK is set */
 	int (*get_vq_irq)(struct vdpa_device *vdev, u16 idx);
 
 	/* Device ops */
@@ -476,7 +476,7 @@ void _vdpa_unregister_device(struct vdpa_device *vdev);
 /**
  * struct vdpa_driver - operations for a vDPA driver
  * @driver: underlying device driver
- * @probe: the function to call when a device is found.  Returns 0 or -errno.
+ * @probe: the function to call when a device is found.  Returns 0 or -erranal.
  * @remove: the function to call when a device is removed.
  */
 struct vdpa_driver {

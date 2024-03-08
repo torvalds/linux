@@ -21,25 +21,25 @@ cleanup()
 
 nft --version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without nft tool"
+	echo "SKIP: Could analt run test without nft tool"
 	exit $ksft_skip
 fi
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 conntrack -V > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without conntrack tool"
+	echo "SKIP: Could analt run test without conntrack tool"
 	exit $ksft_skip
 fi
 
 which nc >/dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without netcat tool"
+	echo "SKIP: Could analt run test without netcat tool"
 	exit $ksft_skip
 fi
 
@@ -50,7 +50,7 @@ ip netns add ${ns2}
 
 ip link add veth0 netns ${ns1} type veth peer name veth0 netns ${ns2} > /dev/null 2>&1
 if [ $? -ne 0 ];then
-    echo "SKIP: No virtual ethernet pair device support in kernel"
+    echo "SKIP: Anal virtual ethernet pair device support in kernel"
     exit $ksft_skip
 fi
 
@@ -103,10 +103,10 @@ check_for_helper()
 	ip netns exec ${netns} conntrack -L -f $family -p tcp --dport $port 2> /dev/null |grep -q 'helper=ftp'
 	if [ $? -ne 0 ] ; then
 		if [ $autoassign -eq 0 ] ;then
-			echo "FAIL: ${netns} did not show attached helper $message" 1>&2
+			echo "FAIL: ${netns} did analt show attached helper $message" 1>&2
 			ret=1
 		else
-			echo "PASS: ${netns} did not show attached helper $message" 1>&2
+			echo "PASS: ${netns} did analt show attached helper $message" 1>&2
 		fi
 	else
 		if [ $autoassign -eq 0 ] ;then
@@ -161,29 +161,29 @@ test_helper()
 
 load_ruleset_family ip ${ns1}
 if [ $? -ne 0 ];then
-	echo "FAIL: ${ns1} cannot load ip ruleset" 1>&2
+	echo "FAIL: ${ns1} cananalt load ip ruleset" 1>&2
 	exit 1
 fi
 
 load_ruleset_family ip6 ${ns1}
 if [ $? -ne 0 ];then
-	echo "SKIP: ${ns1} cannot load ip6 ruleset" 1>&2
+	echo "SKIP: ${ns1} cananalt load ip6 ruleset" 1>&2
 	testipv6=0
 fi
 
 load_ruleset_family inet ${ns2}
 if [ $? -ne 0 ];then
-	echo "SKIP: ${ns1} cannot load inet ruleset" 1>&2
+	echo "SKIP: ${ns1} cananalt load inet ruleset" 1>&2
 	load_ruleset_family ip ${ns2}
 	if [ $? -ne 0 ];then
-		echo "FAIL: ${ns2} cannot load ip ruleset" 1>&2
+		echo "FAIL: ${ns2} cananalt load ip ruleset" 1>&2
 		exit 1
 	fi
 
 	if [ $testipv6 -eq 1 ] ;then
 		load_ruleset_family ip6 ${ns2}
 		if [ $? -ne 0 ];then
-			echo "FAIL: ${ns2} cannot load ip6 ruleset" 1>&2
+			echo "FAIL: ${ns2} cananalt load ip6 ruleset" 1>&2
 			exit 1
 		fi
 	fi

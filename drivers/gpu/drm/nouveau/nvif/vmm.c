@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -42,7 +42,7 @@ nvif_vmm_map(struct nvif_vmm *vmm, u64 addr, u64 size, void *argv, u32 argc,
 
 	if (sizeof(*args) + argc > sizeof(stack)) {
 		if (!(args = kmalloc(sizeof(*args) + argc, GFP_KERNEL)))
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		args = (void *)stack;
 	}
@@ -202,13 +202,13 @@ nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name, s32 oclass,
 {
 	struct nvif_vmm_v0 *args;
 	u32 argn = sizeof(*args) + argc;
-	int ret = -ENOSYS, i;
+	int ret = -EANALSYS, i;
 
 	vmm->object.client = NULL;
 	vmm->page = NULL;
 
 	if (!(args = kmalloc(argn, GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	args->version = 0;
 	args->addr = addr;
 	args->size = size;
@@ -236,7 +236,7 @@ nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name, s32 oclass,
 	vmm->page = kmalloc_array(vmm->page_nr, sizeof(*vmm->page),
 				  GFP_KERNEL);
 	if (!vmm->page) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 

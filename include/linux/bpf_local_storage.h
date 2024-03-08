@@ -26,7 +26,7 @@ struct bpf_local_storage_map_bucket {
 	raw_spinlock_t lock;
 };
 
-/* Thp map is not the primary owner of a bpf_local_storage_elem.
+/* Thp map is analt the primary owner of a bpf_local_storage_elem.
  * Instead, the container object (eg. sk->sk_bpf_storage) is.
  *
  * The map (bpf_local_storage_map) is for two purposes
@@ -46,7 +46,7 @@ struct bpf_local_storage_map_bucket {
  */
 struct bpf_local_storage_map {
 	struct bpf_map map;
-	/* Lookup elem does not require accessing the map.
+	/* Lookup elem does analt require accessing the map.
 	 *
 	 * Updating/Deleting requires a bucket lock to
 	 * link/unlink the elem from the map.  Having
@@ -74,12 +74,12 @@ struct bpf_local_storage_data {
 
 /* Linked to bpf_local_storage and bpf_local_storage_map */
 struct bpf_local_storage_elem {
-	struct hlist_node map_node;	/* Linked to bpf_local_storage_map */
-	struct hlist_node snode;	/* Linked to bpf_local_storage */
+	struct hlist_analde map_analde;	/* Linked to bpf_local_storage_map */
+	struct hlist_analde sanalde;	/* Linked to bpf_local_storage */
 	struct bpf_local_storage __rcu *local_storage;
 	struct rcu_head rcu;
 	/* 8 bytes hole */
-	/* The data is stored in another cacheline to minimize
+	/* The data is stored in aanalther cacheline to minimize
 	 * the number of cachelines access during a cache hit.
 	 */
 	struct bpf_local_storage_data sdata ____cacheline_aligned;
@@ -96,7 +96,7 @@ struct bpf_local_storage {
 	raw_spinlock_t lock;	/* Protect adding/removing from the "list" */
 };
 
-/* U16_MAX is much more than enough for sk local storage
+/* U16_MAX is much more than eanalugh for sk local storage
  * considering a tcp_sock is ~2k.
  */
 #define BPF_LOCAL_STORAGE_MAX_VALUE_SIZE				       \
@@ -145,10 +145,10 @@ int bpf_local_storage_map_check_btf(const struct bpf_map *map,
 				    const struct btf_type *key_type,
 				    const struct btf_type *value_type);
 
-void bpf_selem_link_storage_nolock(struct bpf_local_storage *local_storage,
+void bpf_selem_link_storage_anallock(struct bpf_local_storage *local_storage,
 				   struct bpf_local_storage_elem *selem);
 
-void bpf_selem_unlink(struct bpf_local_storage_elem *selem, bool reuse_now);
+void bpf_selem_unlink(struct bpf_local_storage_elem *selem, bool reuse_analw);
 
 void bpf_selem_link_map(struct bpf_local_storage_map *smap,
 			struct bpf_local_storage_elem *selem);
@@ -159,7 +159,7 @@ bpf_selem_alloc(struct bpf_local_storage_map *smap, void *owner, void *value,
 
 void bpf_selem_free(struct bpf_local_storage_elem *selem,
 		    struct bpf_local_storage_map *smap,
-		    bool reuse_now);
+		    bool reuse_analw);
 
 int
 bpf_local_storage_alloc(void *owner,

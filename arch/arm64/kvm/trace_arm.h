@@ -111,7 +111,7 @@ TRACE_EVENT(kvm_irq_line,
 	TP_printk("Inject %s interrupt (%d), vcpu->idx: %d, num: %d, level: %d",
 		  (__entry->type == KVM_ARM_IRQ_TYPE_CPU) ? "CPU" :
 		  (__entry->type == KVM_ARM_IRQ_TYPE_PPI) ? "VGIC PPI" :
-		  (__entry->type == KVM_ARM_IRQ_TYPE_SPI) ? "VGIC SPI" : "UNKNOWN",
+		  (__entry->type == KVM_ARM_IRQ_TYPE_SPI) ? "VGIC SPI" : "UNKANALWN",
 		  __entry->type, __entry->vcpu_idx, __entry->irq_num, __entry->level)
 );
 
@@ -180,24 +180,24 @@ TRACE_EVENT(kvm_set_way_flush,
 );
 
 TRACE_EVENT(kvm_toggle_cache,
-	    TP_PROTO(unsigned long vcpu_pc, bool was, bool now),
-	    TP_ARGS(vcpu_pc, was, now),
+	    TP_PROTO(unsigned long vcpu_pc, bool was, bool analw),
+	    TP_ARGS(vcpu_pc, was, analw),
 
 	    TP_STRUCT__entry(
 		    __field(	unsigned long,	vcpu_pc		)
 		    __field(	bool,		was		)
-		    __field(	bool,		now		)
+		    __field(	bool,		analw		)
 	    ),
 
 	    TP_fast_assign(
 		    __entry->vcpu_pc		= vcpu_pc;
 		    __entry->was		= was;
-		    __entry->now		= now;
+		    __entry->analw		= analw;
 	    ),
 
-	    TP_printk("VM op at 0x%016lx (cache was %s, now %s)",
+	    TP_printk("VM op at 0x%016lx (cache was %s, analw %s)",
 		      __entry->vcpu_pc, __entry->was ? "on" : "off",
-		      __entry->now ? "on" : "off")
+		      __entry->analw ? "on" : "off")
 );
 
 /*

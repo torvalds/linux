@@ -97,7 +97,7 @@ static void imx25_setup_queue_cfgs(struct mx25_tcq_priv *priv,
 			MX25_ADCQ_CFG_SETTLING_TIME(settling_cnt);
 	u32 touch_detect_cfg =
 			MX25_TOUCH_DETECT_VALUE |
-			MX25_ADCQ_CFG_NOS(1) |
+			MX25_ADCQ_CFG_ANALS(1) |
 			MX25_ADCQ_CFG_SETTLING_TIME(settling_cnt);
 
 	regmap_write(priv->core_regs, MX25_TSC_TICR, precharge_cfg);
@@ -118,7 +118,7 @@ static void imx25_setup_queue_cfgs(struct mx25_tcq_priv *priv,
 		     MX25_ADCQ_CFG_REFP_XP |
 		     MX25_ADCQ_CFG_IN_YP |
 		     MX25_ADCQ_CFG_REFN_XN |
-		     MX25_ADCQ_CFG_NOS(priv->sample_count) |
+		     MX25_ADCQ_CFG_ANALS(priv->sample_count) |
 		     MX25_ADCQ_CFG_SETTLING_TIME(settling_cnt));
 
 	/* Y Measurement */
@@ -130,10 +130,10 @@ static void imx25_setup_queue_cfgs(struct mx25_tcq_priv *priv,
 		     MX25_ADCQ_CFG_REFP_YP |
 		     MX25_ADCQ_CFG_IN_XP |
 		     MX25_ADCQ_CFG_REFN_YN |
-		     MX25_ADCQ_CFG_NOS(priv->sample_count) |
+		     MX25_ADCQ_CFG_ANALS(priv->sample_count) |
 		     MX25_ADCQ_CFG_SETTLING_TIME(settling_cnt));
 
-	/* Enable the touch detection right now */
+	/* Enable the touch detection right analw */
 	regmap_write(priv->core_regs, MX25_TSC_TICR, touch_detect_cfg |
 		     MX25_ADCQ_CFG_IGS);
 }
@@ -216,10 +216,10 @@ static void mx25_tcq_re_enable_touch_detection(struct mx25_tcq_priv *priv)
 	/* for a clean touch detection, preload the X plane */
 	regmap_write(priv->core_regs, MX25_TSC_TICR, MX25_PRECHARGE_VALUE);
 
-	/* waste some time now to pre-load the X plate to high voltage */
+	/* waste some time analw to pre-load the X plate to high voltage */
 	mx25_tcq_fifo_reset(priv);
 
-	/* re-enable the detection right now */
+	/* re-enable the detection right analw */
 	regmap_write(priv->core_regs, MX25_TSC_TICR,
 		     MX25_TOUCH_DETECT_VALUE | MX25_ADCQ_CFG_IGS);
 
@@ -432,7 +432,7 @@ static int mx25_tcq_init(struct mx25_tcq_priv *priv)
 static int mx25_tcq_parse_dt(struct platform_device *pdev,
 			     struct mx25_tcq_priv *priv)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	u32 wires;
 	int error;
 
@@ -451,7 +451,7 @@ static int mx25_tcq_parse_dt(struct platform_device *pdev,
 	if (wires == 4) {
 		priv->mode = MX25_TS_4WIRE;
 	} else {
-		dev_err(&pdev->dev, "%u-wire mode not supported\n", wires);
+		dev_err(&pdev->dev, "%u-wire mode analt supported\n", wires);
 		return -EINVAL;
 	}
 
@@ -508,7 +508,7 @@ static int mx25_tcq_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->dev = dev;
 
 	mem = devm_platform_ioremap_resource(pdev, 0);
@@ -532,7 +532,7 @@ static int mx25_tcq_probe(struct platform_device *pdev)
 	idev = devm_input_allocate_device(dev);
 	if (!idev) {
 		dev_err(dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	idev->name = mx25_tcq_name;

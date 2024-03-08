@@ -2,8 +2,8 @@
 /*
  * linux/drivers/video/omap2/dss/core.c
  *
- * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2009 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -62,7 +62,7 @@ int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask)
 	struct omap_dss_board_info *board_data = core.pdev->dev.platform_data;
 
 	if (!board_data->dsi_enable_pads)
-		return -ENOENT;
+		return -EANALENT;
 
 	return board_data->dsi_enable_pads(dsi_id, lane_mask);
 }
@@ -129,9 +129,9 @@ void dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
 #endif /* CONFIG_FB_OMAP2_DSS_DEBUGFS */
 
 /* PLATFORM DEVICE */
-static int omap_dss_pm_notif(struct notifier_block *b, unsigned long v, void *d)
+static int omap_dss_pm_analtif(struct analtifier_block *b, unsigned long v, void *d)
 {
-	DSSDBG("pm notif %lu\n", v);
+	DSSDBG("pm analtif %lu\n", v);
 
 	switch (v) {
 	case PM_SUSPEND_PREPARE:
@@ -151,8 +151,8 @@ static int omap_dss_pm_notif(struct notifier_block *b, unsigned long v, void *d)
 	}
 }
 
-static struct notifier_block omap_dss_pm_notif_block = {
-	.notifier_call = omap_dss_pm_notif,
+static struct analtifier_block omap_dss_pm_analtif_block = {
+	.analtifier_call = omap_dss_pm_analtif,
 };
 
 static int __init omap_dss_probe(struct platform_device *pdev)
@@ -166,14 +166,14 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 	if (def_disp_name)
 		core.default_display_name = def_disp_name;
 
-	register_pm_notifier(&omap_dss_pm_notif_block);
+	register_pm_analtifier(&omap_dss_pm_analtif_block);
 
 	return 0;
 }
 
 static void omap_dss_remove(struct platform_device *pdev)
 {
-	unregister_pm_notifier(&omap_dss_pm_notif_block);
+	unregister_pm_analtifier(&omap_dss_pm_analtif_block);
 
 	dss_uninitialize_debugfs();
 }
@@ -280,7 +280,7 @@ static void __exit omap_dss_exit(void)
 module_init(omap_dss_init);
 module_exit(omap_dss_exit);
 
-MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@nokia.com>");
+MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@analkia.com>");
 MODULE_DESCRIPTION("OMAP2/3 Display Subsystem");
 MODULE_LICENSE("GPL v2");
 

@@ -23,10 +23,10 @@
  * PERF_RECORD_AUXTRACE_ERROR:
  *	Indicates an error during AUXTRACE collection such as buffer overflow.
  * PERF_RECORD_FINISHED_ROUND:
- *	Perf events are not necessarily in time stamp order, as they can be
+ *	Perf events are analt necessarily in time stamp order, as they can be
  *	collected in parallel on different CPUs. If the events should be
  *	processed in time order they need to be sorted first.
- *	Perf report guarantees that there is no reordering over a
+ *	Perf report guarantees that there is anal reordering over a
  *	PERF_RECORD_FINISHED_ROUND boundary event. All perf records with a
  *	time stamp lower than this record are processed (and displayed) before
  *	the succeeding perf record are processed.
@@ -44,7 +44,7 @@
  * the offset and size of a CPU's auxtrace data. During auxtrace processing
  * the data portion is mmap()'ed.
  *
- * To sort the queues in chronological order, all queue access is controlled
+ * To sort the queues in chroanallogical order, all queue access is controlled
  * by the auxtrace_heap. This is basically a stack, each stack element has two
  * entries, the queue number and a time stamp. However the stack is sorted by
  * the time stamps. The highest time stamp is at the bottom the lowest
@@ -133,13 +133,13 @@
  * The timestamp of PERF_RECORD_FINISHED_ROUND event is taken to process all
  * PERF_RECORD_XXX entries stored in the ordered_event list. This list was
  * built up while reading the perf.data file.
- * Each event is now processed by calling perf_session__deliver_event().
+ * Each event is analw processed by calling perf_session__deliver_event().
  * This enables time synchronization between the data in the perf.data file and
  * the data in the auxiliary trace buffers.
  */
 
 #include <endian.h>
-#include <errno.h>
+#include <erranal.h>
 #include <byteswap.h>
 #include <inttypes.h>
 #include <linux/kernel.h>
@@ -189,7 +189,7 @@ struct s390_cpumsf_queue {
 };
 
 /* Check if the raw data should be dumped to file. If this is the case and
- * the file to dump to has not been opened for writing, do so.
+ * the file to dump to has analt been opened for writing, do so.
  *
  * Return 0 on success and greater zero on error so processing continues.
  */
@@ -205,7 +205,7 @@ static int s390_cpumcf_dumpctr(struct s390_cpumsf *sf,
 
 	q = &sf->queues.queue_array[sample->cpu];
 	sfq = q->priv;
-	if (!sfq)		/* Queue not yet allocated */
+	if (!sfq)		/* Queue analt yet allocated */
 		return rc;
 
 	if (!sfq->logfile_ctr) {
@@ -281,7 +281,7 @@ static bool s390_cpumsf_basic_show(const char *color, size_t pos,
 	return true;
 }
 
-/* Display s390 CPU measurement facility diagnostic-sampling data entry.
+/* Display s390 CPU measurement facility diaganalstic-sampling data entry.
  * Data written on s390 in big endian byte order and contains bit
  * fields across byte boundaries.
  */
@@ -298,7 +298,7 @@ static bool s390_cpumsf_diag_show(const char *color, size_t pos,
 	diag = &local;
 #endif
 	if (diag->def < S390_CPUMSF_DIAG_DEF_FIRST) {
-		pr_err("Invalid AUX trace diagnostic entry [%#08zx]\n", pos);
+		pr_err("Invalid AUX trace diaganalstic entry [%#08zx]\n", pos);
 		return false;
 	}
 	color_fprintf(stdout, color, "    [%#08zx] Diag    Def:%04x %c\n",
@@ -311,7 +311,7 @@ static unsigned long long trailer_timestamp(struct hws_trailer_entry *te,
 					    int idx)
 {
 	/* te->t set: TOD in STCKE format, bytes 8-15
-	 * to->t not set: TOD in STCK format, bytes 0-7
+	 * to->t analt set: TOD in STCK format, bytes 0-7
 	 */
 	unsigned long long ts;
 
@@ -361,11 +361,11 @@ static bool s390_cpumsf_trailer_show(const char *color, size_t pos,
  * end which contains the sample entry data sizes.
  *
  * Return true if the sample data block passes the checks and set the
- * basic set entry size and diagnostic set entry size.
+ * basic set entry size and diaganalstic set entry size.
  *
  * Return false on failure.
  *
- * Note: Old hardware does not set the basic or diagnostic entry sizes
+ * Analte: Old hardware does analt set the basic or diaganalstic entry sizes
  * in the trailer entry. Use the type number instead.
  */
 static bool s390_cpumsf_validate(int machine_type,
@@ -379,7 +379,7 @@ static bool s390_cpumsf_validate(int machine_type,
 	*dsdes = *bsdes = 0;
 	if (len & (S390_CPUMSF_PAGESZ - 1))	/* Illegal size */
 		return false;
-	if (be16toh(basic->def) != 1)	/* No basic set entry, must be first */
+	if (be16toh(basic->def) != 1)	/* Anal basic set entry, must be first */
 		return false;
 	/* Check for trailer entry at end of SDB */
 	te = (struct hws_trailer_entry *)(buf + S390_CPUMSF_PAGESZ
@@ -417,7 +417,7 @@ static bool s390_cpumsf_validate(int machine_type,
 	return true;
 }
 
-/* Return true if there is room for another entry */
+/* Return true if there is room for aanalther entry */
 static bool s390_cpumsf_reached_trailer(size_t entry_sz, size_t pos)
 {
 	size_t payload = S390_CPUMSF_PAGESZ - sizeof(struct hws_trailer_entry);
@@ -452,7 +452,7 @@ static void s390_cpumsf_dump(struct s390_cpumsf *sf,
 	}
 
 	/* s390 kernel always returns 4KB blocks fully occupied,
-	 * no partially filled SDBs.
+	 * anal partially filled SDBs.
 	 */
 	while (pos < len) {
 		/* Handle Basic entry */
@@ -462,7 +462,7 @@ static void s390_cpumsf_dump(struct s390_cpumsf *sf,
 		else
 			return;
 
-		/* Handle Diagnostic entry */
+		/* Handle Diaganalstic entry */
 		diag = (struct hws_diag_entry *)(buf + pos);
 		if (s390_cpumsf_diag_show(color, pos, diag))
 			pos += dsdes;
@@ -479,7 +479,7 @@ static void s390_cpumsf_dump(struct s390_cpumsf *sf,
 			pos -= sizeof(te);
 			memcpy(&te, buf + pos, sizeof(te));
 			/* Set descriptor sizes in case of old hardware
-			 * where these values are not set.
+			 * where these values are analt set.
 			 */
 			te.bsdes = bsdes;
 			te.dsdes = dsdes;
@@ -508,7 +508,7 @@ static bool s390_cpumsf_make_event(size_t pos,
 				.ip = basic->ia,
 				.pid = basic->hpp & S390_LPP_PID_MASK,
 				.tid = basic->hpp & S390_LPP_PID_MASK,
-				.cpumode = PERF_RECORD_MISC_CPUMODE_UNKNOWN,
+				.cpumode = PERF_RECORD_MISC_CPUMODE_UNKANALWN,
 				.cpu = sfq->cpu,
 				.period = 1
 			    };
@@ -564,7 +564,7 @@ static unsigned long long get_trailer_time(const unsigned char *buf)
 		return 0;
 
 	/* Correct calculation to convert time stamp in trailer entry to
-	 * nano seconds (taken from arch/s390 function tod_to_ns()).
+	 * naanal seconds (taken from arch/s390 function tod_to_ns()).
 	 * TOD_CLOCK_BASE is stored in trailer entry member progusage2.
 	 */
 	aux_time = trailer_timestamp(te, clock_base) - progusage2;
@@ -641,7 +641,7 @@ static int s390_cpumsf_samples(struct s390_cpumsf_queue *sfq, u64 *ts)
 			goto out;
 		}
 
-		pos += dsdes;	/* Skip diagnostic entry */
+		pos += dsdes;	/* Skip diaganalstic entry */
 
 		/* Check for trailer entry */
 		if (!s390_cpumsf_reached_trailer(bsdes + dsdes, pos)) {
@@ -677,7 +677,7 @@ out:
  * be processed. This value is updated by called functions and
  * returned to the caller.
  *
- * Resume processing in the current buffer. If there is no buffer
+ * Resume processing in the current buffer. If there is anal buffer
  * get a new buffer from the queue and setup start position for
  * processing.
  * When a buffer is completely processed remove it from the queue
@@ -686,7 +686,7 @@ out:
  * This function returns
  * 1: When the queue is empty. Second parameter will be set to
  *    maximum time stamp.
- * 0: Normal processing done.
+ * 0: Analrmal processing done.
  * <0: Error during queue buffer setup. This causes the caller
  *     to stop processing completely.
  */
@@ -732,7 +732,7 @@ static int s390_cpumsf_run_decoder(struct s390_cpumsf_queue *sfq,
 
 		buffer->data = auxtrace_buffer__get_data(buffer, fd);
 		if (!buffer->data)
-			return -ENOMEM;
+			return -EANALMEM;
 		buffer->use_size = buffer->size;
 		buffer->use_data = buffer->data;
 
@@ -748,9 +748,9 @@ static int s390_cpumsf_run_decoder(struct s390_cpumsf_queue *sfq,
 		  buffer->size, buffer->use_size);
 	err = s390_cpumsf_samples(sfq, ts);
 
-	/* If non-zero, there is either an error (err < 0) or the buffer is
+	/* If analn-zero, there is either an error (err < 0) or the buffer is
 	 * completely done (err > 0). The error is unrecoverable, usually
-	 * some descriptors could not be read successfully, so continue with
+	 * some descriptors could analt be read successfully, so continue with
 	 * the next buffer.
 	 * In both cases the parameter 'ts' has been updated.
 	 */
@@ -758,7 +758,7 @@ static int s390_cpumsf_run_decoder(struct s390_cpumsf_queue *sfq,
 		sfq->buffer = NULL;
 		list_del_init(&buffer->list);
 		auxtrace_buffer__free(buffer);
-		if (err > 0)		/* Buffer done, no error */
+		if (err > 0)		/* Buffer done, anal error */
 			err = 0;
 	}
 	return err;
@@ -808,7 +808,7 @@ static int s390_cpumsf_setup_queue(struct s390_cpumsf *sf,
 	if (sfq == NULL) {
 		sfq = s390_cpumsf_alloc_queue(sf, queue_nr);
 		if (!sfq)
-			return -ENOMEM;
+			return -EANALMEM;
 		queue->priv = sfq;
 
 		if (queue->cpu != -1)
@@ -979,7 +979,7 @@ s390_cpumsf_process_auxtrace_event(struct perf_session *session,
 	} else {
 		data_offset = lseek(fd, 0, SEEK_CUR);
 		if (data_offset == -1)
-			return -errno;
+			return -erranal;
 	}
 
 	err = auxtrace_queues__add_event(&sf->queues, session, event,
@@ -1065,7 +1065,7 @@ static int s390_cpumsf_get_type(const char *cpuid)
 }
 
 /* Check itrace options set on perf report command.
- * Return true, if none are set or all options specified can be
+ * Return true, if analne are set or all options specified can be
  * handled on s390 (currently only option 'd' for logging.
  * Return false otherwise.
  */
@@ -1127,7 +1127,7 @@ int s390_cpumsf_process_auxtrace_info(union perf_event *event,
 
 	sf = zalloc(sizeof(struct s390_cpumsf));
 	if (sf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!check_auxtrace_itrace(session->itrace_synth_opts)) {
 		err = -EINVAL;
@@ -1142,7 +1142,7 @@ int s390_cpumsf_process_auxtrace_info(union perf_event *event,
 		goto err_free;
 
 	sf->session = session;
-	sf->machine = &session->machines.host; /* No kvm support */
+	sf->machine = &session->machines.host; /* Anal kvm support */
 	sf->auxtrace_type = auxtrace_info->type;
 	sf->pmu_type = PERF_TYPE_RAW;
 	sf->machine_type = s390_cpumsf_get_type(session->evlist->env->cpuid);

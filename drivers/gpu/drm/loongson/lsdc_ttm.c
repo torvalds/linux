@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <drm/drm_drv.h>
@@ -25,7 +25,7 @@ const char *lsdc_mem_type_to_str(uint32_t mem_type)
 		break;
 	}
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 const char *lsdc_domain_to_str(u32 domain)
@@ -41,7 +41,7 @@ const char *lsdc_domain_to_str(u32 domain)
 		break;
 	}
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 static void lsdc_bo_set_placement(struct lsdc_bo *lbo, u32 domain)
@@ -327,7 +327,7 @@ void lsdc_bo_unpin(struct lsdc_bo *lbo)
 	struct lsdc_device *ldev = tdev_to_ldev(tbo->bdev);
 
 	if (unlikely(!tbo->pin_count)) {
-		drm_dbg(&ldev->base, "%p unpin is not necessary\n", lbo);
+		drm_dbg(&ldev->base, "%p unpin is analt necessary\n", lbo);
 		return;
 	}
 
@@ -448,7 +448,7 @@ struct lsdc_bo *lsdc_bo_create(struct drm_device *ddev,
 
 	lbo = kzalloc(sizeof(*lbo), GFP_KERNEL);
 	if (!lbo)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&lbo->list);
 
@@ -549,7 +549,7 @@ int lsdc_ttm_init(struct lsdc_device *ldev)
 	int ret;
 
 	ret = ttm_device_init(&ldev->bdev, &lsdc_bo_driver, ddev->dev,
-			      ddev->anon_inode->i_mapping,
+			      ddev->aanaln_ianalde->i_mapping,
 			      ddev->vma_offset_manager, false, true);
 	if (ret)
 		return ret;
@@ -562,7 +562,7 @@ int lsdc_ttm_init(struct lsdc_device *ldev)
 
 	drm_info(ddev, "VRAM: %lu pages ready\n", num_vram_pages);
 
-	/* 512M is far enough for us now */
+	/* 512M is far eanalugh for us analw */
 	ldev->gtt_size = 512 << 20;
 
 	num_gtt_pages = ldev->gtt_size >> PAGE_SHIFT;
@@ -580,8 +580,8 @@ void lsdc_ttm_debugfs_init(struct lsdc_device *ldev)
 {
 	struct ttm_device *bdev = &ldev->bdev;
 	struct drm_device *ddev = &ldev->base;
-	struct drm_minor *minor = ddev->primary;
-	struct dentry *root = minor->debugfs_root;
+	struct drm_mianalr *mianalr = ddev->primary;
+	struct dentry *root = mianalr->debugfs_root;
 	struct ttm_resource_manager *vram_man;
 	struct ttm_resource_manager *gtt_man;
 

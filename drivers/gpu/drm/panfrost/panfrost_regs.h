@@ -172,8 +172,8 @@
 #define GPU_L2_MMU_CONFIG		0xF0C	/* (RW) Configuration of the L2 cache and MMU (Implementation specific register) */
 
 /* L2_MMU_CONFIG register */
-#define L2_MMU_CONFIG_ALLOW_SNOOP_DISPARITY_SHIFT	23
-#define L2_MMU_CONFIG_ALLOW_SNOOP_DISPARITY		(0x1 << L2_MMU_CONFIG_ALLOW_SNOOP_DISPARITY_SHIFT)
+#define L2_MMU_CONFIG_ALLOW_SANALOP_DISPARITY_SHIFT	23
+#define L2_MMU_CONFIG_ALLOW_SANALOP_DISPARITY		(0x1 << L2_MMU_CONFIG_ALLOW_SANALOP_DISPARITY_SHIFT)
 #define L2_MMU_CONFIG_LIMIT_EXTERNAL_READS_SHIFT	24
 #define L2_MMU_CONFIG_LIMIT_EXTERNAL_READS		(0x3 << L2_MMU_CONFIG_LIMIT_EXTERNAL_READS_SHIFT)
 #define L2_MMU_CONFIG_LIMIT_EXTERNAL_READS_OCTANT	(0x1 << L2_MMU_CONFIG_LIMIT_EXTERNAL_READS_SHIFT)
@@ -263,7 +263,7 @@
 #define JS_CONFIG_DISABLE_DESCRIPTOR_WR_BK	BIT(15)
 #define JS_CONFIG_THREAD_PRI(n)			((n) << 16)
 
-#define JS_COMMAND_NOP			0x00
+#define JS_COMMAND_ANALP			0x00
 #define JS_COMMAND_START		0x01
 #define JS_COMMAND_SOFT_STOP		0x02	/* Gently stop processing a job chain */
 #define JS_COMMAND_HARD_STOP		0x03	/* Rudely stop processing a job chain */
@@ -279,7 +279,7 @@
 #define MMU_INT_STAT			0x200c
 
 /* AS_COMMAND register commands */
-#define AS_COMMAND_NOP			0x00	/* NOP Operation */
+#define AS_COMMAND_ANALP			0x00	/* ANALP Operation */
 #define AS_COMMAND_UPDATE		0x01	/* Broadcasts the values in AS_TRANSTAB and ASn_MEMATTR to all MMUs */
 #define AS_COMMAND_LOCK			0x02	/* Issue a lock region command to all MMUs */
 #define AS_COMMAND_UNLOCK		0x03	/* Issue a flush region command to all MMUs */

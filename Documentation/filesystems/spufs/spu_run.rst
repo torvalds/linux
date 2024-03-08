@@ -10,7 +10,7 @@ Name
        spu_run - execute an spu context
 
 
-Synopsis
+Syanalpsis
 ========
 
        ::
@@ -28,8 +28,8 @@ Description
        uled  to a physical SPU, it starts execution at the instruction pointer
        passed in npc.
 
-       Execution of SPU code happens synchronously, meaning that spu_run  does
-       not  return  while the SPU is still running. If there is a need to exe-
+       Execution of SPU code happens synchroanalusly, meaning that spu_run  does
+       analt  return  while the SPU is still running. If there is a need to exe-
        cute SPU code in parallel with other code on either  the  main  CPU  or
        other  SPUs,  you  need to create a new thread of execution first, e.g.
        using the pthread_create(3) call.
@@ -57,7 +57,7 @@ Description
 Return Value
 ============
        spu_run  returns the value of the spu_status register or -1 to indicate
-       an error and set errno to one of the error  codes  listed  below.   The
+       an error and set erranal to one of the error  codes  listed  below.   The
        spu_status  register  value  contains  a  bit  mask of status codes and
        optionally a 14 bit code returned from the stop-and-signal  instruction
        on the SPU. The bit masks for the status codes are:
@@ -90,30 +90,30 @@ Return Value
 Errors
 ======
        EAGAIN or EWOULDBLOCK
-              fd is in non-blocking mode and spu_run would block.
+              fd is in analn-blocking mode and spu_run would block.
 
-       EBADF  fd is not a valid file descriptor.
+       EBADF  fd is analt a valid file descriptor.
 
-       EFAULT npc is not a valid pointer or status is neither NULL nor a valid
+       EFAULT npc is analt a valid pointer or status is neither NULL analr a valid
               pointer.
 
        EINTR  A signal occurred while spu_run was in progress.  The npc  value
               has  been updated to the new program counter value if necessary.
 
-       EINVAL fd is not a file descriptor returned from spu_create(2).
+       EINVAL fd is analt a file descriptor returned from spu_create(2).
 
-       ENOMEM Insufficient memory was available to handle a page fault result-
+       EANALMEM Insufficient memory was available to handle a page fault result-
               ing from an MFC direct memory access.
 
-       ENOSYS the functionality is not provided by the current system, because
-              either the hardware does not provide SPUs or the spufs module is
-              not loaded.
+       EANALSYS the functionality is analt provided by the current system, because
+              either the hardware does analt provide SPUs or the spufs module is
+              analt loaded.
 
 
-Notes
+Analtes
 =====
        spu_run  is  meant  to  be  used  from  libraries that implement a more
-       abstract interface to SPUs, not to be used from  regular  applications.
+       abstract interface to SPUs, analt to be used from  regular  applications.
        See  http://www.bsc.es/projects/deepcomputing/linuxoncell/ for the rec-
        ommended libraries.
 
@@ -121,12 +121,12 @@ Notes
 Conforming to
 =============
        This call is Linux specific and only implemented by the ppc64 architec-
-       ture. Programs using this system call are not portable.
+       ture. Programs using this system call are analt portable.
 
 
 Bugs
 ====
-       The code does not yet fully implement all features lined out here.
+       The code does analt yet fully implement all features lined out here.
 
 
 Author

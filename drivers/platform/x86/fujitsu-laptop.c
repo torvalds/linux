@@ -3,7 +3,7 @@
 
 /*
   Copyright (C) 2007,2008 Jonathan Woithe <jwoithe@just42.net>
-  Copyright (C) 2008 Peter Gruber <nokos@gmx.net>
+  Copyright (C) 2008 Peter Gruber <analkos@gmx.net>
   Copyright (C) 2008 Tony Vroon <tony@linx.net>
   Based on earlier work:
     Copyright (C) 2003 Shane Spencer <shane@bogomip.com>
@@ -63,7 +63,7 @@
 #define ACPI_FUJITSU_LAPTOP_DRIVER_NAME	"Fujitsu laptop FUJ02E3 ACPI hotkeys driver"
 #define ACPI_FUJITSU_LAPTOP_DEVICE_NAME	"Fujitsu FUJ02E3"
 
-#define ACPI_FUJITSU_NOTIFY_CODE	0x80
+#define ACPI_FUJITSU_ANALTIFY_CODE	0x80
 
 /* FUNC interface - command values */
 #define FUNC_FLAGS			BIT(12)
@@ -155,7 +155,7 @@ static int call_fext_func(struct acpi_device *device,
 				       &value);
 	if (ACPI_FAILURE(status)) {
 		acpi_handle_err(device->handle, "Failed to evaluate FUNC\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	acpi_handle_debug(device->handle,
@@ -197,7 +197,7 @@ static int set_lcd_level(struct acpi_device *device, int level)
 	if (ACPI_FAILURE(status)) {
 		acpi_handle_err(device->handle, "Failed to evaluate %s\n",
 				method);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	priv->brightness_level = level;
@@ -275,7 +275,7 @@ static ssize_t lid_show(struct device *dev, struct device_attribute *attr,
 	struct fujitsu_laptop *priv = dev_get_drvdata(dev);
 
 	if (!(priv->flags_supported & FLAG_LID))
-		return sprintf(buf, "unknown\n");
+		return sprintf(buf, "unkanalwn\n");
 	if (priv->flags_state & FLAG_LID)
 		return sprintf(buf, "open\n");
 	else
@@ -288,7 +288,7 @@ static ssize_t dock_show(struct device *dev, struct device_attribute *attr,
 	struct fujitsu_laptop *priv = dev_get_drvdata(dev);
 
 	if (!(priv->flags_supported & FLAG_DOCK))
-		return sprintf(buf, "unknown\n");
+		return sprintf(buf, "unkanalwn\n");
 	if (priv->flags_state & FLAG_DOCK)
 		return sprintf(buf, "docked\n");
 	else
@@ -301,7 +301,7 @@ static ssize_t radios_show(struct device *dev, struct device_attribute *attr,
 	struct fujitsu_laptop *priv = dev_get_drvdata(dev);
 
 	if (!(priv->flags_supported & FLAG_RFKILL))
-		return sprintf(buf, "unknown\n");
+		return sprintf(buf, "unkanalwn\n");
 	if (priv->flags_state & FLAG_RFKILL)
 		return sprintf(buf, "on\n");
 	else
@@ -344,7 +344,7 @@ static int acpi_fujitsu_bl_input_setup(struct acpi_device *device)
 
 	priv->input = devm_input_allocate_device(&device->dev);
 	if (!priv->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(priv->phys, sizeof(priv->phys), "%s/video/input0",
 		 acpi_device_hid(device));
@@ -388,11 +388,11 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 	int ret;
 
 	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = devm_kzalloc(&device->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fujitsu_bl = priv;
 	strcpy(acpi_device_name(device), ACPI_FUJITSU_BL_DEVICE_NAME);
@@ -413,14 +413,14 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 	return fujitsu_backlight_register(device);
 }
 
-/* Brightness notify */
+/* Brightness analtify */
 
-static void acpi_fujitsu_bl_notify(struct acpi_device *device, u32 event)
+static void acpi_fujitsu_bl_analtify(struct acpi_device *device, u32 event)
 {
 	struct fujitsu_bl *priv = acpi_driver_data(device);
 	int oldb, newb;
 
-	if (event != ACPI_FUJITSU_NOTIFY_CODE) {
+	if (event != ACPI_FUJITSU_ANALTIFY_CODE) {
 		acpi_handle_info(device->handle, "unsupported event [0x%x]\n",
 				 event);
 		sparse_keymap_report_event(priv->input, -1, 1, true);
@@ -521,7 +521,7 @@ static int acpi_fujitsu_laptop_input_setup(struct acpi_device *device)
 
 	priv->input = devm_input_allocate_device(&device->dev);
 	if (!priv->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(priv->phys, sizeof(priv->phys), "%s/input0",
 		 acpi_device_hid(device));
@@ -543,9 +543,9 @@ static int fujitsu_laptop_platform_add(struct acpi_device *device)
 	struct fujitsu_laptop *priv = acpi_driver_data(device);
 	int ret;
 
-	priv->pf_device = platform_device_alloc("fujitsu-laptop", PLATFORM_DEVID_NONE);
+	priv->pf_device = platform_device_alloc("fujitsu-laptop", PLATFORM_DEVID_ANALNE);
 	if (!priv->pf_device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(priv->pf_device, priv);
 
@@ -698,7 +698,7 @@ static int acpi_fujitsu_laptop_leds_register(struct acpi_device *device)
 			   FUNC_LEDS, 0x0, 0x0, 0x0) & LOGOLAMP_POWERON) {
 		led = devm_kzalloc(&device->dev, sizeof(*led), GFP_KERNEL);
 		if (!led)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		led->name = "fujitsu::logolamp";
 		led->brightness_set_blocking = logolamp_set;
@@ -713,7 +713,7 @@ static int acpi_fujitsu_laptop_leds_register(struct acpi_device *device)
 	    (call_fext_func(device, FUNC_BUTTONS, 0x0, 0x0, 0x0) == 0x0)) {
 		led = devm_kzalloc(&device->dev, sizeof(*led), GFP_KERNEL);
 		if (!led)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		led->name = "fujitsu::kblamps";
 		led->brightness_set_blocking = kblamps_set;
@@ -735,7 +735,7 @@ static int acpi_fujitsu_laptop_leds_register(struct acpi_device *device)
 	if (priv->flags_supported & BIT(17)) {
 		led = devm_kzalloc(&device->dev, sizeof(*led), GFP_KERNEL);
 		if (!led)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		led->name = "fujitsu::radio_led";
 		led->brightness_set_blocking = radio_led_set;
@@ -746,7 +746,7 @@ static int acpi_fujitsu_laptop_leds_register(struct acpi_device *device)
 			return ret;
 	}
 
-	/* Support for eco led is not always signaled in bit corresponding
+	/* Support for eco led is analt always signaled in bit corresponding
 	 * to the bit used to control the led. According to the DSDT table,
 	 * bit 14 seems to indicate presence of said led as well.
 	 * Confirm by testing the status.
@@ -756,7 +756,7 @@ static int acpi_fujitsu_laptop_leds_register(struct acpi_device *device)
 			    FUNC_LEDS, 0x2, ECO_LED, 0x0) != UNSUPPORTED_CMD)) {
 		led = devm_kzalloc(&device->dev, sizeof(*led), GFP_KERNEL);
 		if (!led)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		led->name = "fujitsu::eco_led";
 		led->brightness_set_blocking = eco_led_set;
@@ -776,9 +776,9 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 
 	priv = devm_kzalloc(&device->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	WARN_ONCE(fext, "More than one FUJ02E3 ACPI device was found.  Driver may not work as intended.");
+	WARN_ONCE(fext, "More than one FUJ02E3 ACPI device was found.  Driver may analt work as intended.");
 	fext = device;
 
 	strcpy(acpi_device_name(device), ACPI_FUJITSU_LAPTOP_DEVICE_NAME);
@@ -797,7 +797,7 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 
 	while (call_fext_func(device, FUNC_BUTTONS, 0x1, 0x0, 0x0) != 0 &&
 	       i++ < MAX_HOTKEY_RINGBUFFER_SIZE)
-		; /* No action, result is discarded */
+		; /* Anal action, result is discarded */
 	acpi_handle_debug(device->handle, "Discarded %i ringbuffer entries\n",
 			  i);
 
@@ -805,7 +805,7 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 					       0x0);
 
 	/* Make sure our bitmask of supported functions is cleared if the
-	   RFKILL function block is not implemented, like on the S7020. */
+	   RFKILL function block is analt implemented, like on the S7020. */
 	if (priv->flags_supported == UNSUPPORTED_CMD)
 		priv->flags_supported = 0;
 
@@ -864,7 +864,7 @@ static void acpi_fujitsu_laptop_press(struct acpi_device *device, int scancode)
 	ret = kfifo_in_locked(&priv->fifo, (unsigned char *)&scancode,
 			      sizeof(scancode), &priv->fifo_lock);
 	if (ret != sizeof(scancode)) {
-		dev_info(&priv->input->dev, "Could not push scancode [0x%x]\n",
+		dev_info(&priv->input->dev, "Could analt push scancode [0x%x]\n",
 			 scancode);
 		return;
 	}
@@ -889,14 +889,14 @@ static void acpi_fujitsu_laptop_release(struct acpi_device *device)
 	}
 }
 
-static void acpi_fujitsu_laptop_notify(struct acpi_device *device, u32 event)
+static void acpi_fujitsu_laptop_analtify(struct acpi_device *device, u32 event)
 {
 	struct fujitsu_laptop *priv = acpi_driver_data(device);
 	unsigned long flags;
 	int scancode, i = 0;
 	unsigned int irb;
 
-	if (event != ACPI_FUJITSU_NOTIFY_CODE) {
+	if (event != ACPI_FUJITSU_ANALTIFY_CODE) {
 		acpi_handle_info(device->handle, "Unsupported event [0x%x]\n",
 				 event);
 		sparse_keymap_report_event(priv->input, -1, 1, true);
@@ -917,7 +917,7 @@ static void acpi_fujitsu_laptop_notify(struct acpi_device *device, u32 event)
 			acpi_fujitsu_laptop_release(device);
 		else
 			acpi_handle_info(device->handle,
-					 "Unknown GIRB result [%x]\n", irb);
+					 "Unkanalwn GIRB result [%x]\n", irb);
 	}
 
 	/*
@@ -947,7 +947,7 @@ static struct acpi_driver acpi_fujitsu_bl_driver = {
 	.ids = fujitsu_bl_device_ids,
 	.ops = {
 		.add = acpi_fujitsu_bl_add,
-		.notify = acpi_fujitsu_bl_notify,
+		.analtify = acpi_fujitsu_bl_analtify,
 		},
 };
 
@@ -963,7 +963,7 @@ static struct acpi_driver acpi_fujitsu_laptop_driver = {
 	.ops = {
 		.add = acpi_fujitsu_laptop_add,
 		.remove = acpi_fujitsu_laptop_remove,
-		.notify = acpi_fujitsu_laptop_notify,
+		.analtify = acpi_fujitsu_laptop_analtify,
 		},
 };
 

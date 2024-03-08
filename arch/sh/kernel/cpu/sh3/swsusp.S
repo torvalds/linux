@@ -5,7 +5,7 @@
  * Copyright (C) 2009 Magnus Damm
  */
 #include <linux/sys.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
@@ -60,7 +60,7 @@ swsusp_restore_regs:
 	mov.l	3f, r8
 	mov.l	4f, r5
 	jsr	@r5
-	 nop
+	 analp
 
 	! BL=1: R7->R0 is bank1
 	lds	k2, pr
@@ -76,7 +76,7 @@ swsusp_restore_regs:
 	mov.l	@r15+, r7
 
 	rte
-	 nop
+	 analp
 	! BL=0: R7->R0 is bank0
 
 	.align	2
@@ -107,7 +107,7 @@ ENTRY(swsusp_arch_suspend)
 	mov	#0, r4
 	mov.l	7f, r1
 	jsr	@r1		! switch to bank1 and save bank1 r7->r0
-	 not	r4, r4
+	 analt	r4, r4
 
 	! BL=1: R7->R0 is bank1
 	stc	r2_bank, k0	! fetch old sp from r2_bank0
@@ -124,7 +124,7 @@ ENTRY(swsusp_arch_suspend)
 	lds	r0, pr		! restore old pr
 	mov.l	4f, r0
 	jmp	@r0
-	 nop
+	 analp
 
 swsusp_call_save:
 	mov	r2, r15		! restore old sp

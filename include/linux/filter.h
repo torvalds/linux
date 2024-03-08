@@ -39,7 +39,7 @@ struct sock_reuseport;
 struct ctl_table;
 struct ctl_table_header;
 
-/* ArgX, context and stack frame pointer register positions. Note,
+/* ArgX, context and stack frame pointer register positions. Analte,
  * Arg1, Arg2, Arg3, etc are used as argument mappings of function
  * calls in BPF_CALL instruction.
  */
@@ -78,7 +78,7 @@ struct ctl_table_header;
 /* unused opcode to mark speculation barrier for mitigating
  * Speculative Store Bypass
  */
-#define BPF_NOSPEC	0xc0
+#define BPF_ANALSPEC	0xc0
 
 /* As per nm, we expose JITed images as text (code) section for
  * kallsyms. That way, tools like perf can find it to match
@@ -446,9 +446,9 @@ static inline bool insn_is_zext(const struct bpf_insn *insn)
 
 /* Speculation barrier */
 
-#define BPF_ST_NOSPEC()						\
+#define BPF_ST_ANALSPEC()						\
 	((struct bpf_insn) {					\
-		.code  = BPF_ST | BPF_NOSPEC,			\
+		.code  = BPF_ST | BPF_ANALSPEC,			\
 		.dst_reg = 0,					\
 		.src_reg = 0,					\
 		.off   = 0,					\
@@ -655,7 +655,7 @@ static __always_inline u32 __bpf_prog_run(const struct bpf_prog *prog,
 
 static __always_inline u32 bpf_prog_run(const struct bpf_prog *prog, const void *ctx)
 {
-	return __bpf_prog_run(prog, ctx, bpf_dispatcher_nop_func);
+	return __bpf_prog_run(prog, ctx, bpf_dispatcher_analp_func);
 }
 
 /*
@@ -663,7 +663,7 @@ static __always_inline u32 bpf_prog_run(const struct bpf_prog *prog, const void 
  * the execution of the BPF program runs on one CPU.
  *
  * This uses migrate_disable/enable() explicitly to document that the
- * invocation of a BPF program does not require reentrancy protection
+ * invocation of a BPF program does analt require reentrancy protection
  * against a BPF program which is invoked from a preempting task.
  */
 static inline u32 bpf_prog_run_pin_on_cpu(const struct bpf_prog *prog,
@@ -707,7 +707,7 @@ struct bpf_redirect_info {
 DECLARE_PER_CPU(struct bpf_redirect_info, bpf_redirect_info);
 
 /* flags for bpf_redirect_info kern_flags */
-#define BPF_RI_F_RF_NO_DIRECT	BIT(0)	/* no napi_direct on return_frame */
+#define BPF_RI_F_RF_ANAL_DIRECT	BIT(0)	/* anal napi_direct on return_frame */
 
 /* Compute the linear packet data range [data, data_end) which
  * will be accessed by various program types (cls_bpf, act_bpf,
@@ -755,7 +755,7 @@ static inline u8 *bpf_skb_cb(const struct sk_buff *skb)
 	 * saved/restored so that protocol specific skb->cb[] data won't
 	 * be lost. In any case, due to unpriviledged eBPF programs
 	 * attached to sockets, we need to clear the bpf_skb_cb() area
-	 * to not leak previous contents to user space.
+	 * to analt leak previous contents to user space.
 	 */
 	BUILD_BUG_ON(sizeof_field(struct __sk_buff, cb) != BPF_SKB_CB_LEN);
 	BUILD_BUG_ON(sizeof_field(struct __sk_buff, cb) !=
@@ -838,7 +838,7 @@ static inline unsigned int bpf_prog_size(unsigned int proglen)
 static inline bool bpf_prog_was_classic(const struct bpf_prog *prog)
 {
 	/* When classic BPF programs have been loaded and the arch
-	 * does not have a classic BPF JIT (anymore), they have been
+	 * does analt have a classic BPF JIT (anymore), they have been
 	 * converted via bpf_migrate_filter() to eBPF and thus always
 	 * have an unspec program type.
 	 */
@@ -914,7 +914,7 @@ int bpf_prog_alloc_jited_linfo(struct bpf_prog *prog);
 void bpf_prog_jit_attempt_done(struct bpf_prog *prog);
 
 struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags);
-struct bpf_prog *bpf_prog_alloc_no_stats(unsigned int size, gfp_t gfp_extra_flags);
+struct bpf_prog *bpf_prog_alloc_anal_stats(unsigned int size, gfp_t gfp_extra_flags);
 struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 				  gfp_t gfp_extra_flags);
 void __bpf_prog_free(struct bpf_prog *fp);
@@ -972,25 +972,25 @@ int bpf_remove_insns(struct bpf_prog *prog, u32 off, u32 cnt);
 
 void bpf_clear_redirect_map(struct bpf_map *map);
 
-static inline bool xdp_return_frame_no_direct(void)
+static inline bool xdp_return_frame_anal_direct(void)
 {
 	struct bpf_redirect_info *ri = this_cpu_ptr(&bpf_redirect_info);
 
-	return ri->kern_flags & BPF_RI_F_RF_NO_DIRECT;
+	return ri->kern_flags & BPF_RI_F_RF_ANAL_DIRECT;
 }
 
-static inline void xdp_set_return_frame_no_direct(void)
+static inline void xdp_set_return_frame_anal_direct(void)
 {
 	struct bpf_redirect_info *ri = this_cpu_ptr(&bpf_redirect_info);
 
-	ri->kern_flags |= BPF_RI_F_RF_NO_DIRECT;
+	ri->kern_flags |= BPF_RI_F_RF_ANAL_DIRECT;
 }
 
-static inline void xdp_clear_return_frame_no_direct(void)
+static inline void xdp_clear_return_frame_anal_direct(void)
 {
 	struct bpf_redirect_info *ri = this_cpu_ptr(&bpf_redirect_info);
 
-	ri->kern_flags &= ~BPF_RI_F_RF_NO_DIRECT;
+	ri->kern_flags &= ~BPF_RI_F_RF_ANAL_DIRECT;
 }
 
 static inline int xdp_ok_fwd_dev(const struct net_device *fwd,
@@ -1009,10 +1009,10 @@ static inline int xdp_ok_fwd_dev(const struct net_device *fwd,
 }
 
 /* The pair of xdp_do_redirect and xdp_do_flush MUST be called in the
- * same cpu context. Further for best results no more than a single map
+ * same cpu context. Further for best results anal more than a single map
  * for the do_redirect/do_flush pair should be used. This limitation is
  * because we only track one map and force a flush when the map changes.
- * This does not appear to be a real limitation for existing software.
+ * This does analt appear to be a real limitation for existing software.
  */
 int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb,
 			    struct xdp_buff *xdp, struct bpf_prog *prog);
@@ -1071,8 +1071,8 @@ void bpf_prog_pack_free(void *ptr, u32 size);
 
 static inline bool bpf_prog_kallsyms_verify_off(const struct bpf_prog *fp)
 {
-	return list_empty(&fp->aux->ksym.lnode) ||
-	       fp->aux->ksym.lnode.prev == LIST_POISON2;
+	return list_empty(&fp->aux->ksym.lanalde) ||
+	       fp->aux->ksym.lanalde.prev == LIST_POISON2;
 }
 
 struct bpf_binary_header *
@@ -1148,7 +1148,7 @@ static inline bool bpf_jit_blinding_enabled(struct bpf_prog *prog)
 static inline bool bpf_jit_kallsyms_enabled(void)
 {
 	/* There are a couple of corner cases where kallsyms should
-	 * not be enabled f.e. on hardening.
+	 * analt be enabled f.e. on hardening.
 	 */
 	if (bpf_jit_harden)
 		return false;
@@ -1202,7 +1202,7 @@ static inline int
 bpf_jit_add_poke_descriptor(struct bpf_prog *prog,
 			    struct bpf_jit_poke_descriptor *poke)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline void bpf_jit_free(struct bpf_prog *fp)
@@ -1345,7 +1345,7 @@ struct bpf_sock_ops_kern {
 	u8	op;
 	u8	is_fullsock;
 	u8	remaining_opt_len;
-	u64	temp;			/* temp and everything after is not
+	u64	temp;			/* temp and everything after is analt
 					 * initialized to 0 before calling
 					 * the BPF program. New fields that
 					 * should be initialized to 0 should
@@ -1405,7 +1405,7 @@ struct bpf_sk_lookup_kern {
 	} v6;
 	struct sock	*selected_sk;
 	u32		ingress_ifindex;
-	bool		no_reuseport;
+	bool		anal_reuseport;
 };
 
 extern struct static_key_false bpf_sk_lookup_enabled;
@@ -1422,13 +1422,13 @@ extern struct static_key_false bpf_sk_lookup_enabled;
  * This macro aggregates return values and selected sockets from
  * multiple BPF programs according to following rules in order:
  *
- *  1. If any program returned SK_PASS and a non-NULL ctx.selected_sk,
+ *  1. If any program returned SK_PASS and a analn-NULL ctx.selected_sk,
  *     macro result is SK_PASS and last ctx.selected_sk is used.
  *  2. If any program returned SK_DROP return value,
  *     macro result is SK_DROP.
  *  3. Otherwise result is SK_PASS and ctx.selected_sk is NULL.
  *
- * Caller must ensure that the prog array is non-NULL, and that the
+ * Caller must ensure that the prog array is analn-NULL, and that the
  * array as well as the programs it contains remain valid.
  */
 #define BPF_PROG_SK_LOOKUP_RUN_ARRAY(array, ctx, func)			\
@@ -1436,7 +1436,7 @@ extern struct static_key_false bpf_sk_lookup_enabled;
 		struct bpf_sk_lookup_kern *_ctx = &(ctx);		\
 		struct bpf_prog_array_item *_item;			\
 		struct sock *_selected_sk = NULL;			\
-		bool _no_reuseport = false;				\
+		bool _anal_reuseport = false;				\
 		struct bpf_prog *_prog;					\
 		bool _all_pass = true;					\
 		u32 _ret;						\
@@ -1446,20 +1446,20 @@ extern struct static_key_false bpf_sk_lookup_enabled;
 		while ((_prog = READ_ONCE(_item->prog))) {		\
 			/* restore most recent selection */		\
 			_ctx->selected_sk = _selected_sk;		\
-			_ctx->no_reuseport = _no_reuseport;		\
+			_ctx->anal_reuseport = _anal_reuseport;		\
 									\
 			_ret = func(_prog, _ctx);			\
 			if (_ret == SK_PASS && _ctx->selected_sk) {	\
-				/* remember last non-NULL socket */	\
+				/* remember last analn-NULL socket */	\
 				_selected_sk = _ctx->selected_sk;	\
-				_no_reuseport = _ctx->no_reuseport;	\
+				_anal_reuseport = _ctx->anal_reuseport;	\
 			} else if (_ret == SK_DROP && _all_pass) {	\
 				_all_pass = false;			\
 			}						\
 			_item++;					\
 		}							\
 		_ctx->selected_sk = _selected_sk;			\
-		_ctx->no_reuseport = _no_reuseport;			\
+		_ctx->anal_reuseport = _anal_reuseport;			\
 		migrate_enable();					\
 		_all_pass || _selected_sk ? SK_PASS : SK_DROP;		\
 	 })
@@ -1471,7 +1471,7 @@ static inline bool bpf_sk_lookup_run_v4(struct net *net, int protocol,
 {
 	struct bpf_prog_array *run_array;
 	struct sock *selected_sk = NULL;
-	bool no_reuseport = false;
+	bool anal_reuseport = false;
 
 	rcu_read_lock();
 	run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
@@ -1490,14 +1490,14 @@ static inline bool bpf_sk_lookup_run_v4(struct net *net, int protocol,
 		act = BPF_PROG_SK_LOOKUP_RUN_ARRAY(run_array, ctx, bpf_prog_run);
 		if (act == SK_PASS) {
 			selected_sk = ctx.selected_sk;
-			no_reuseport = ctx.no_reuseport;
+			anal_reuseport = ctx.anal_reuseport;
 		} else {
 			selected_sk = ERR_PTR(-ECONNREFUSED);
 		}
 	}
 	rcu_read_unlock();
 	*psk = selected_sk;
-	return no_reuseport;
+	return anal_reuseport;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1510,7 +1510,7 @@ static inline bool bpf_sk_lookup_run_v6(struct net *net, int protocol,
 {
 	struct bpf_prog_array *run_array;
 	struct sock *selected_sk = NULL;
-	bool no_reuseport = false;
+	bool anal_reuseport = false;
 
 	rcu_read_lock();
 	run_array = rcu_dereference(net->bpf.run_array[NETNS_BPF_SK_LOOKUP]);
@@ -1529,14 +1529,14 @@ static inline bool bpf_sk_lookup_run_v6(struct net *net, int protocol,
 		act = BPF_PROG_SK_LOOKUP_RUN_ARRAY(run_array, ctx, bpf_prog_run);
 		if (act == SK_PASS) {
 			selected_sk = ctx.selected_sk;
-			no_reuseport = ctx.no_reuseport;
+			anal_reuseport = ctx.anal_reuseport;
 		} else {
 			selected_sk = ERR_PTR(-ECONNREFUSED);
 		}
 	}
 	rcu_read_unlock();
 	*psk = selected_sk;
-	return no_reuseport;
+	return anal_reuseport;
 }
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 
@@ -1591,25 +1591,25 @@ void bpf_xdp_copy_buf(struct xdp_buff *xdp, unsigned long off,
 static inline int __bpf_skb_load_bytes(const struct sk_buff *skb, u32 offset,
 				       void *to, u32 len)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int __bpf_skb_store_bytes(struct sk_buff *skb, u32 offset,
 					const void *from, u32 len, u64 flags)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int __bpf_xdp_load_bytes(struct xdp_buff *xdp, u32 offset,
 				       void *buf, u32 len)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int __bpf_xdp_store_bytes(struct xdp_buff *xdp, u32 offset,
 					void *buf, u32 len)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void *bpf_xdp_pointer(struct xdp_buff *xdp, u32 offset, u32 len)

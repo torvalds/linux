@@ -2,7 +2,7 @@
 Display Core Next (DCN)
 =======================
 
-To equip our readers with the basic knowledge of how AMD Display Core Next
+To equip our readers with the basic kanalwledge of how AMD Display Core Next
 (DCN) works, we need to start with an overview of the hardware pipeline. Below
 you can see a picture that provides a DCN overview, keep in mind that this is a
 generic diagram, and we have variations per ASIC.
@@ -36,7 +36,7 @@ them:
   the display pipe back to memory as video frames.
 
 * **Multi-Media HUB (MMHUBBUB)**: Memory controller interface for DMCUB and DWB
-  (Note that DWB is not hooked yet).
+  (Analte that DWB is analt hooked yet).
 
 * **DCN Management Unit (DMU)**: It provides registers with access control and
   interrupts the controller to the SOC host interrupt unit. This block includes
@@ -49,13 +49,13 @@ them:
 * **Azalia (AZ)**: Audio engine.
 
 The above diagram is an architecture generalization of DCN, which means that
-every ASIC has variations around this base model. Notice that the display
+every ASIC has variations around this base model. Analtice that the display
 pipeline is connected to the Scalable Data Port (SDP) via DCHUB; you can see
 the SDP as the element from our Data Fabric that feeds the display pipe.
 
 Always approach the DCN architecture as something flexible that can be
 configured and reconfigured in multiple ways; in other words, each block can be
-setup or ignored accordingly with userspace demands. For example, if we
+setup or iganalred accordingly with userspace demands. For example, if we
 want to drive an 8k@60Hz with a DSC enabled, our DCN may require 4 DPP and 2
 OPP. It is DC's responsibility to drive the best configuration for each
 specific scenario. Orchestrate all of these components together requires a
@@ -67,7 +67,7 @@ these blocks represents:
 2. Global sync signals (green): It is a set of synchronization signals composed
    by VStartup, VUpdate, and VReady;
 3. Config interface: Responsible to configure blocks;
-4. Sideband signals: All other signals that do not fit the previous one.
+4. Sideband signals: All other signals that do analt fit the previous one.
 
 These signals are essential and play an important role in DCN. Nevertheless,
 the Global Sync deserves an extra level of detail described in the next
@@ -96,7 +96,7 @@ On the other hand, BE consist of
 * OPTC
 * DIO (DP/HDMI stream encoder and link encoder)
 
-OPP and OPTC are two joining blocks between FE and BE. On a side note, this is
+OPP and OPTC are two joining blocks between FE and BE. On a side analte, this is
 a one-to-one mapping of the link encoder to PHY, but we can configure the DCN
 to choose which link encoder to connect to which PHY. FE's main responsibility
 is to change, blend and compose pixel data, while BE's job is to frame a
@@ -110,15 +110,15 @@ formats. Such data format stays through till HUBP in DCHUB, where HUBP unpacks
 different pixel formats and outputs them to DPP in uniform streams through 4
 channels (1 for alpha + 3 for colors).
 
-The Converter and Cursor (CNVC) in DPP would then normalize the data
+The Converter and Cursor (CNVC) in DPP would then analrmalize the data
 representation and convert them to a DCN specific floating-point format (i.e.,
 different from the IEEE floating-point format). In the process, CNVC also
-applies a degamma function to transform the data from non-linear to linear
+applies a degamma function to transform the data from analn-linear to linear
 space to relax the floating-point calculations following. Data would stay in
 this floating-point format from DPP to OPP.
 
 Starting OPP, because color transformation and blending have been completed
-(i.e alpha can be dropped), and the end sinks do not require the precision and
+(i.e alpha can be dropped), and the end sinks do analt require the precision and
 dynamic range that floating points provide (i.e. all displays are in integer
 depth format), bit-depth reduction/dithering would kick in. In OPP, we would
 also apply a regamma function to introduce the gamma removed earlier back.
@@ -135,11 +135,11 @@ sequence of DCN blocks instantiated to address some specific configuration. DC
 core treats DCN blocks as individual resources, meaning we can build a pipeline
 by taking resources for all individual hardware blocks to compose one pipeline.
 In actuality, we can't connect an arbitrary block from one pipe to a block from
-another pipe; they are routed linearly, except for DSC, which can be
+aanalther pipe; they are routed linearly, except for DSC, which can be
 arbitrarily assigned as needed. We have this pipeline concept for trying to
 optimize bandwidth utilization.
 
-.. kernel-figure:: pipeline_4k_no_split.svg
+.. kernel-figure:: pipeline_4k_anal_split.svg
 
 Additionally, let's take a look at parts of the DTN log (see
 'Documentation/gpu/amdgpu/display/dc-debug.rst' for more information) since
@@ -155,15 +155,15 @@ this log can help us to see part of this pipeline behavior in real-time::
  MPCC:  OPP  DPP ...
  [ 0]:   0h   0h ...
 
-The first thing to notice from the diagram and DTN log it is the fact that we
+The first thing to analtice from the diagram and DTN log it is the fact that we
 have different clock domains for each part of the DCN blocks. In this example,
 we have just a single **pipeline** where the data flows from DCHUB to DIO, as
-we intuitively expect. Nonetheless, DCN is flexible, as mentioned before, and
+we intuitively expect. Analnetheless, DCN is flexible, as mentioned before, and
 we can split this single pipe differently, as described in the below diagram:
 
 .. kernel-figure:: pipeline_4k_split.svg
 
-Now, if we inspect the DTN log again we can see some interesting changes::
+Analw, if we inspect the DTN log again we can see some interesting changes::
 
  HUBP:  format  addr_hi  width  height ...
  [ 0]:      8h      81h   1920    2160 ...
@@ -175,9 +175,9 @@ Now, if we inspect the DTN log again we can see some interesting changes::
  [ 0]:   0h   0h ...
  [ 5]:   0h   5h ...
 
-From the above example, we now split the display pipeline into two vertical
+From the above example, we analw split the display pipeline into two vertical
 parts of 1920x2160 (i.e., 3440x2160), and as a result, we could reduce the
-clock frequency in the DPP part. This is not only useful for saving power but
+clock frequency in the DPP part. This is analt only useful for saving power but
 also to better handle the required throughput. The idea to keep in mind here is
 that the pipe configuration can vary a lot according to the display
 configuration, and it is the DML's responsibility to set up all required
@@ -190,7 +190,7 @@ Many DCN registers are double buffered, most importantly the surface address.
 This allows us to update DCN hardware atomically for page flips, as well as
 for most other updates that don't require enabling or disabling of new pipes.
 
-(Note: There are many scenarios when DC will decide to reserve extra pipes
+(Analte: There are many scenarios when DC will decide to reserve extra pipes
 in order to support outputs that need a very high pixel clock, or for
 power saving purposes.)
 
@@ -204,7 +204,7 @@ calculated by the Display Mode Library - DML (drivers/gpu/drm/amd/display/dc/dml
 based on a large number of parameters and ensure our hardware is able to feed
 the DCN pipeline without underflows or hangs in any given system configuration.
 The global sync signals always happen during VBlank, are independent from the
-VSync signal, and do not overlap each other.
+VSync signal, and do analt overlap each other.
 
 VUPDATE is the only signal that is of interest to the rest of the driver stack
 or userspace clients as it signals the point at which hardware latches to

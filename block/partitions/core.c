@@ -28,7 +28,7 @@ static int (*const check_part[])(struct parsed_partitions *) = {
 #endif
 
 	/*
-	 * Now move on to formats that only have partition info at
+	 * Analw move on to formats that only have partition info at
 	 * disk address 0xdc0.  Since these may also have stale
 	 * PC/BIOS partition tables, they need to come before
 	 * the msdos entry.
@@ -138,7 +138,7 @@ static struct parsed_partitions *check_partition(struct gendisk *hd)
 		res = check_part[i++](state);
 		if (res < 0) {
 			/*
-			 * We have hit an I/O error which we don't report now.
+			 * We have hit an I/O error which we don't report analw.
 			 * But record it, and let the others do their job.
 			 */
 			err = res;
@@ -153,7 +153,7 @@ static struct parsed_partitions *check_partition(struct gendisk *hd)
 		return state;
 	}
 	if (state->access_beyond_eod)
-		err = -ENOSPC;
+		err = -EANALSPC;
 	/*
 	 * The partition is unrecognized. So report I/O errors if there were any
 	 */
@@ -173,7 +173,7 @@ static struct parsed_partitions *check_partition(struct gendisk *hd)
 static ssize_t part_partition_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dev_to_bdev(dev)->bd_partno);
+	return sprintf(buf, "%d\n", dev_to_bdev(dev)->bd_partanal);
 }
 
 static ssize_t part_start_show(struct device *dev,
@@ -243,14 +243,14 @@ static const struct attribute_group *part_attr_groups[] = {
 static void part_release(struct device *dev)
 {
 	put_disk(dev_to_bdev(dev)->bd_disk);
-	iput(dev_to_bdev(dev)->bd_inode);
+	iput(dev_to_bdev(dev)->bd_ianalde);
 }
 
 static int part_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	const struct block_device *part = dev_to_bdev(dev);
 
-	add_uevent_var(env, "PARTN=%u", part->bd_partno);
+	add_uevent_var(env, "PARTN=%u", part->bd_partanal);
 	if (part->bd_meta_info && part->bd_meta_info->volname[0])
 		add_uevent_var(env, "PARTNAME=%s", part->bd_meta_info->volname);
 	return 0;
@@ -267,7 +267,7 @@ void drop_partition(struct block_device *part)
 {
 	lockdep_assert_held(&part->bd_disk->open_mutex);
 
-	xa_erase(&part->bd_disk->part_tbl, part->bd_partno);
+	xa_erase(&part->bd_disk->part_tbl, part->bd_partanal);
 	kobject_put(part->bd_holder_dir);
 
 	device_del(&part->bd_device);
@@ -285,7 +285,7 @@ static const DEVICE_ATTR(whole_disk, 0444, whole_disk_show, NULL);
  * Must be called either with open_mutex held, before a disk can be opened or
  * after all disk users are gone.
  */
-static struct block_device *add_partition(struct gendisk *disk, int partno,
+static struct block_device *add_partition(struct gendisk *disk, int partanal,
 				sector_t start, sector_t len, int flags,
 				struct partition_meta_info *info)
 {
@@ -298,27 +298,27 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 
 	lockdep_assert_held(&disk->open_mutex);
 
-	if (partno >= DISK_MAX_PARTS)
+	if (partanal >= DISK_MAX_PARTS)
 		return ERR_PTR(-EINVAL);
 
 	/*
-	 * Partitions are not supported on zoned block devices that are used as
+	 * Partitions are analt supported on zoned block devices that are used as
 	 * such.
 	 */
 	if (bdev_is_zoned(disk->part0)) {
-		pr_warn("%s: partitions not supported on host managed zoned block device\n",
+		pr_warn("%s: partitions analt supported on host managed zoned block device\n",
 			disk->disk_name);
 		return ERR_PTR(-ENXIO);
 	}
 
-	if (xa_load(&disk->part_tbl, partno))
+	if (xa_load(&disk->part_tbl, partanal))
 		return ERR_PTR(-EBUSY);
 
 	/* ensure we always have a reference to the whole disk */
 	get_device(disk_to_dev(disk));
 
-	err = -ENOMEM;
-	bdev = bdev_alloc(disk, partno);
+	err = -EANALMEM;
+	bdev = bdev_alloc(disk, partanal);
 	if (!bdev)
 		goto out_put_disk;
 
@@ -328,20 +328,20 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	pdev = &bdev->bd_device;
 	dname = dev_name(ddev);
 	if (isdigit(dname[strlen(dname) - 1]))
-		dev_set_name(pdev, "%sp%d", dname, partno);
+		dev_set_name(pdev, "%sp%d", dname, partanal);
 	else
-		dev_set_name(pdev, "%s%d", dname, partno);
+		dev_set_name(pdev, "%s%d", dname, partanal);
 
 	device_initialize(pdev);
 	pdev->class = &block_class;
 	pdev->type = &part_type;
 	pdev->parent = ddev;
 
-	/* in consecutive minor range? */
-	if (bdev->bd_partno < disk->minors) {
-		devt = MKDEV(disk->major, disk->first_minor + bdev->bd_partno);
+	/* in consecutive mianalr range? */
+	if (bdev->bd_partanal < disk->mianalrs) {
+		devt = MKDEV(disk->major, disk->first_mianalr + bdev->bd_partanal);
 	} else {
-		err = blk_alloc_ext_minor();
+		err = blk_alloc_ext_mianalr();
 		if (err < 0)
 			goto out_put;
 		devt = MKDEV(BLOCK_EXT_MAJOR, err);
@@ -349,7 +349,7 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	pdev->devt = devt;
 
 	if (info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		bdev->bd_meta_info = kmemdup(info, sizeof(*info), GFP_KERNEL);
 		if (!bdev->bd_meta_info)
 			goto out_put;
@@ -361,7 +361,7 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	if (err)
 		goto out_put;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	bdev->bd_holder_dir = kobject_create_and_add("holders", &pdev->kobj);
 	if (!bdev->bd_holder_dir)
 		goto out_del;
@@ -374,7 +374,7 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	}
 
 	/* everything is up and running, commence */
-	err = xa_insert(&disk->part_tbl, partno, bdev, GFP_KERNEL);
+	err = xa_insert(&disk->part_tbl, partanal, bdev, GFP_KERNEL);
 	if (err)
 		goto out_del;
 	bdev_add(bdev, devt);
@@ -396,7 +396,7 @@ out_put_disk:
 }
 
 static bool partition_overlaps(struct gendisk *disk, sector_t start,
-		sector_t length, int skip_partno)
+		sector_t length, int skip_partanal)
 {
 	struct block_device *part;
 	bool overlap = false;
@@ -404,7 +404,7 @@ static bool partition_overlaps(struct gendisk *disk, sector_t start,
 
 	rcu_read_lock();
 	xa_for_each_start(&disk->part_tbl, idx, part, 1) {
-		if (part->bd_partno != skip_partno &&
+		if (part->bd_partanal != skip_partanal &&
 		    start < part->bd_start_sect + bdev_nr_sectors(part) &&
 		    start + length > part->bd_start_sect) {
 			overlap = true;
@@ -416,7 +416,7 @@ static bool partition_overlaps(struct gendisk *disk, sector_t start,
 	return overlap;
 }
 
-int bdev_add_partition(struct gendisk *disk, int partno, sector_t start,
+int bdev_add_partition(struct gendisk *disk, int partanal, sector_t start,
 		sector_t length)
 {
 	sector_t capacity = get_capacity(disk), end;
@@ -439,7 +439,7 @@ int bdev_add_partition(struct gendisk *disk, int partno, sector_t start,
 		goto out;
 	}
 
-	if (disk->flags & GENHD_FL_NO_PART) {
+	if (disk->flags & GENHD_FL_ANAL_PART) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -449,21 +449,21 @@ int bdev_add_partition(struct gendisk *disk, int partno, sector_t start,
 		goto out;
 	}
 
-	part = add_partition(disk, partno, start, length,
-			ADDPART_FLAG_NONE, NULL);
+	part = add_partition(disk, partanal, start, length,
+			ADDPART_FLAG_ANALNE, NULL);
 	ret = PTR_ERR_OR_ZERO(part);
 out:
 	mutex_unlock(&disk->open_mutex);
 	return ret;
 }
 
-int bdev_del_partition(struct gendisk *disk, int partno)
+int bdev_del_partition(struct gendisk *disk, int partanal)
 {
 	struct block_device *part = NULL;
 	int ret = -ENXIO;
 
 	mutex_lock(&disk->open_mutex);
-	part = xa_load(&disk->part_tbl, partno);
+	part = xa_load(&disk->part_tbl, partanal);
 	if (!part)
 		goto out_unlock;
 
@@ -476,11 +476,11 @@ int bdev_del_partition(struct gendisk *disk, int partno)
 	 * @part->bd_holder{_ops} can't be set. And since we hold
 	 * @disk->open_mutex the device can't be claimed by anyone.
 	 *
-	 * So no need to call @part->bd_holder_ops->mark_dead() here.
+	 * So anal need to call @part->bd_holder_ops->mark_dead() here.
 	 * Just delete the partition and invalidate it.
 	 */
 
-	remove_inode_hash(part->bd_inode);
+	remove_ianalde_hash(part->bd_ianalde);
 	invalidate_bdev(part);
 	drop_partition(part);
 	ret = 0;
@@ -489,14 +489,14 @@ out_unlock:
 	return ret;
 }
 
-int bdev_resize_partition(struct gendisk *disk, int partno, sector_t start,
+int bdev_resize_partition(struct gendisk *disk, int partanal, sector_t start,
 		sector_t length)
 {
 	struct block_device *part = NULL;
 	int ret = -ENXIO;
 
 	mutex_lock(&disk->open_mutex);
-	part = xa_load(&disk->part_tbl, partno);
+	part = xa_load(&disk->part_tbl, partanal);
 	if (!part)
 		goto out_unlock;
 
@@ -505,7 +505,7 @@ int bdev_resize_partition(struct gendisk *disk, int partno, sector_t start,
 		goto out_unlock;
 
 	ret = -EBUSY;
-	if (partition_overlaps(disk, start, length, partno))
+	if (partition_overlaps(disk, start, length, partanal))
 		goto out_unlock;
 
 	bdev_set_nr_sectors(part, length);
@@ -557,7 +557,7 @@ static bool blk_add_partition(struct gendisk *disk,
 			return false;
 
 		/*
-		 * We can not ignore partitions of broken tables created by for
+		 * We can analt iganalre partitions of broken tables created by for
 		 * example camera firmware, but we limit them to the end of the
 		 * disk to avoid creating invalid block devices.
 		 */
@@ -567,7 +567,7 @@ static bool blk_add_partition(struct gendisk *disk,
 	part = add_partition(disk, p, from, size, state->parts[p].flags,
 			     &state->parts[p].info);
 	if (IS_ERR(part) && PTR_ERR(part) != -ENXIO) {
-		printk(KERN_ERR " %s: p%d could not be added: %pe\n",
+		printk(KERN_ERR " %s: p%d could analt be added: %pe\n",
 		       disk->disk_name, p, part);
 		return true;
 	}
@@ -584,7 +584,7 @@ static int blk_add_partitions(struct gendisk *disk)
 	struct parsed_partitions *state;
 	int ret = -EAGAIN, p;
 
-	if (disk->flags & GENHD_FL_NO_PART)
+	if (disk->flags & GENHD_FL_ANAL_PART)
 		return 0;
 
 	if (test_bit(GD_SUPPRESS_PART_SCAN, &disk->state))
@@ -598,7 +598,7 @@ static int blk_add_partitions(struct gendisk *disk)
 		 * I/O error reading the partition table.  If we tried to read
 		 * beyond EOD, retry after unlocking the native capacity.
 		 */
-		if (PTR_ERR(state) == -ENOSPC) {
+		if (PTR_ERR(state) == -EANALSPC) {
 			printk(KERN_WARNING "%s: partition table beyond EOD, ",
 			       disk->disk_name);
 			if (disk_unlock_native_capacity(disk))
@@ -608,10 +608,10 @@ static int blk_add_partitions(struct gendisk *disk)
 	}
 
 	/*
-	 * Partitions are not supported on host managed zoned block devices.
+	 * Partitions are analt supported on host managed zoned block devices.
 	 */
 	if (bdev_is_zoned(disk->part0)) {
-		pr_warn("%s: ignoring partition table on host managed zoned block device\n",
+		pr_warn("%s: iganalring partition table on host managed zoned block device\n",
 			disk->disk_name);
 		ret = 0;
 		goto out_free_state;
@@ -662,11 +662,11 @@ rescan:
 
 	xa_for_each_start(&disk->part_tbl, idx, part, 1) {
 		/*
-		 * Remove the block device from the inode hash, so that
-		 * it cannot be looked up any more even when openers
+		 * Remove the block device from the ianalde hash, so that
+		 * it cananalt be looked up any more even when openers
 		 * still hold references.
 		 */
-		remove_inode_hash(part->bd_inode);
+		remove_ianalde_hash(part->bd_ianalde);
 
 		/*
 		 * If @disk->open_partitions isn't elevated but there's
@@ -684,11 +684,11 @@ rescan:
 	 * support partitions (independ of actually having partitions created).
 	 * Doing that is rather inconsistent, but changing it broke legacy
 	 * udisks polling for legacy ide-cdrom devices.  Use the crude check
-	 * below to get the sane behavior for most device while not breaking
+	 * below to get the sane behavior for most device while analt breaking
 	 * userspace for this particular setup.
 	 */
 	if (invalidate) {
-		if (!(disk->flags & GENHD_FL_NO_PART) ||
+		if (!(disk->flags & GENHD_FL_ANAL_PART) ||
 		    !(disk->flags & GENHD_FL_REMOVABLE))
 			set_capacity(disk, 0);
 	}
@@ -715,7 +715,7 @@ EXPORT_SYMBOL_GPL(bdev_disk_changed);
 
 void *read_part_sector(struct parsed_partitions *state, sector_t n, Sector *p)
 {
-	struct address_space *mapping = state->disk->part0->bd_inode->i_mapping;
+	struct address_space *mapping = state->disk->part0->bd_ianalde->i_mapping;
 	struct folio *folio;
 
 	if (n >= get_capacity(state->disk)) {

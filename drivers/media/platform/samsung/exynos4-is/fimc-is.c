@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Samsung EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver
+ * Samsung EXYANALS4x12 FIMC-IS (Imaging Subsystem) driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *
@@ -12,7 +12,7 @@
 #include <linux/device.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -32,7 +32,7 @@
 #include "media-dev.h"
 #include "fimc-is.h"
 #include "fimc-is-command.h"
-#include "fimc-is-errno.h"
+#include "fimc-is-erranal.h"
 #include "fimc-is-i2c.h"
 #include "fimc-is-param.h"
 #include "fimc-is-regs.h"
@@ -161,59 +161,59 @@ static void fimc_is_disable_clocks(struct fimc_is *is)
 }
 
 static int fimc_is_parse_sensor_config(struct fimc_is *is, unsigned int index,
-						struct device_node *node)
+						struct device_analde *analde)
 {
 	struct fimc_is_sensor *sensor = &is->sensor[index];
-	struct device_node *ep, *port;
+	struct device_analde *ep, *port;
 	u32 tmp = 0;
 	int ret;
 
-	sensor->drvdata = fimc_is_sensor_get_drvdata(node);
+	sensor->drvdata = fimc_is_sensor_get_drvdata(analde);
 	if (!sensor->drvdata) {
-		dev_err(&is->pdev->dev, "no driver data found for: %pOF\n",
-							 node);
+		dev_err(&is->pdev->dev, "anal driver data found for: %pOF\n",
+							 analde);
 		return -EINVAL;
 	}
 
-	ep = of_graph_get_next_endpoint(node, NULL);
+	ep = of_graph_get_next_endpoint(analde, NULL);
 	if (!ep)
 		return -ENXIO;
 
 	port = of_graph_get_remote_port(ep);
-	of_node_put(ep);
+	of_analde_put(ep);
 	if (!port)
 		return -ENXIO;
 
 	/* Use MIPI-CSIS channel id to determine the ISP I2C bus index. */
 	ret = of_property_read_u32(port, "reg", &tmp);
 	if (ret < 0) {
-		dev_err(&is->pdev->dev, "reg property not found at: %pOF\n",
+		dev_err(&is->pdev->dev, "reg property analt found at: %pOF\n",
 							 port);
-		of_node_put(port);
+		of_analde_put(port);
 		return ret;
 	}
 
-	of_node_put(port);
+	of_analde_put(port);
 	sensor->i2c_bus = tmp - FIMC_INPUT_MIPI_CSI2_0;
 	return 0;
 }
 
 static int fimc_is_register_subdevs(struct fimc_is *is)
 {
-	struct device_node *i2c_bus, *child;
+	struct device_analde *i2c_bus, *child;
 	int ret, index = 0;
 
 	ret = fimc_isp_subdev_create(&is->isp);
 	if (ret < 0)
 		return ret;
 
-	for_each_compatible_node(i2c_bus, NULL, FIMC_IS_I2C_COMPATIBLE) {
-		for_each_available_child_of_node(i2c_bus, child) {
+	for_each_compatible_analde(i2c_bus, NULL, FIMC_IS_I2C_COMPATIBLE) {
+		for_each_available_child_of_analde(i2c_bus, child) {
 			ret = fimc_is_parse_sensor_config(is, index, child);
 
 			if (ret < 0 || index >= FIMC_IS_SENSORS_NUM) {
-				of_node_put(child);
-				of_node_put(i2c_bus);
+				of_analde_put(child);
+				of_analde_put(i2c_bus);
 				return ret;
 			}
 			index++;
@@ -311,7 +311,7 @@ int fimc_is_start_firmware(struct fimc_is *is)
 	int ret;
 
 	if (is->fw.f_w == NULL) {
-		dev_err(dev, "firmware is not loaded\n");
+		dev_err(dev, "firmware is analt loaded\n");
 		return -EINVAL;
 	}
 
@@ -338,7 +338,7 @@ static int fimc_is_alloc_cpu_memory(struct fimc_is *is)
 	is->memory.vaddr = dma_alloc_coherent(dev, FIMC_IS_CPU_MEM_SIZE,
 					      &is->memory.addr, GFP_KERNEL);
 	if (is->memory.vaddr == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	is->memory.size = FIMC_IS_CPU_MEM_SIZE;
 
@@ -419,12 +419,12 @@ static void fimc_is_load_firmware(const struct firmware *fw, void *context)
 	dev_dbg(dev, "FW size: %zu, DMA addr: %pad\n", fw->size, &is->memory.addr);
 
 	is->is_shared_region->chip_id = 0xe4412;
-	is->is_shared_region->chip_rev_no = 1;
+	is->is_shared_region->chip_rev_anal = 1;
 
 	fimc_is_mem_barrier();
 
 	/*
-	 * FIXME: The firmware is not being released for now, as it is
+	 * FIXME: The firmware is analt being released for analw, as it is
 	 * needed around for copying to the IS working memory every
 	 * time before the Cortex-A5 is restarted.
 	 */
@@ -436,7 +436,7 @@ done:
 
 static int fimc_is_request_firmware(struct fimc_is *is, const char *fw_name)
 {
-	return request_firmware_nowait(THIS_MODULE,
+	return request_firmware_analwait(THIS_MODULE,
 				FW_ACTION_UEVENT, fw_name, &is->pdev->dev,
 				GFP_KERNEL, is, fimc_is_load_firmware);
 }
@@ -462,13 +462,13 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 	case IH_REPLY_DONE:
 		fimc_is_hw_get_params(is, 3);
 		break;
-	case IH_REPLY_NOT_DONE:
+	case IH_REPLY_ANALT_DONE:
 		fimc_is_hw_get_params(is, 4);
 		break;
-	case IHC_NOT_READY:
+	case IHC_ANALT_READY:
 		break;
 	default:
-		pr_info("unknown command: %#x\n", is->i2h_cmd.cmd);
+		pr_info("unkanalwn command: %#x\n", is->i2h_cmd.cmd);
 	}
 
 	fimc_is_fw_clear_irq1(is, FIMC_IS_INT_GENERAL);
@@ -565,7 +565,7 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 		}
 		break;
 
-	case IH_REPLY_NOT_DONE:
+	case IH_REPLY_ANALT_DONE:
 		pr_err("ISR_NDONE: %d: %#x, %s\n", is->i2h_cmd.args[0],
 		       is->i2h_cmd.args[1],
 		       fimc_is_strerr(is->i2h_cmd.args[1]));
@@ -587,8 +587,8 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 		}
 		break;
 
-	case IHC_NOT_READY:
-		pr_err("IS control sequence error: Not Ready\n");
+	case IHC_ANALT_READY:
+		pr_err("IS control sequence error: Analt Ready\n");
 		break;
 	}
 
@@ -740,7 +740,7 @@ static int fimc_is_show(struct seq_file *s, void *data)
 	const u8 *buf = is->memory.vaddr + FIMC_IS_DEBUG_REGION_OFFSET;
 
 	if (is->memory.vaddr == NULL) {
-		dev_err(&is->pdev->dev, "firmware memory is not initialized\n");
+		dev_err(&is->pdev->dev, "firmware memory is analt initialized\n");
 		return -EIO;
 	}
 
@@ -769,21 +769,21 @@ static int fimc_is_runtime_suspend(struct device *dev);
 
 static void __iomem *fimc_is_get_pmu_regs(struct device *dev)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	void __iomem *regs;
 
-	node = of_parse_phandle(dev->of_node, "samsung,pmu-syscon", 0);
-	if (!node) {
-		node = of_get_child_by_name(dev->of_node, "pmu");
-		if (!node)
-			return IOMEM_ERR_PTR(-ENODEV);
-		dev_warn(dev, "Found PMU node via deprecated method, update your DTB\n");
+	analde = of_parse_phandle(dev->of_analde, "samsung,pmu-syscon", 0);
+	if (!analde) {
+		analde = of_get_child_by_name(dev->of_analde, "pmu");
+		if (!analde)
+			return IOMEM_ERR_PTR(-EANALDEV);
+		dev_warn(dev, "Found PMU analde via deprecated method, update your DTB\n");
 	}
 
-	regs = of_iomap(node, 0);
-	of_node_put(node);
+	regs = of_iomap(analde, 0);
+	of_analde_put(analde);
 	if (!regs)
-		return IOMEM_ERR_PTR(-ENOMEM);
+		return IOMEM_ERR_PTR(-EANALMEM);
 
 	return regs;
 }
@@ -797,7 +797,7 @@ static int fimc_is_probe(struct platform_device *pdev)
 
 	is = devm_kzalloc(&pdev->dev, sizeof(*is), GFP_KERNEL);
 	if (!is)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	is->pdev = pdev;
 	is->isp.pdev = pdev;
@@ -806,7 +806,7 @@ static int fimc_is_probe(struct platform_device *pdev)
 	spin_lock_init(&is->slock);
 	mutex_init(&is->lock);
 
-	ret = of_address_to_resource(dev->of_node, 0, &res);
+	ret = of_address_to_resource(dev->of_analde, 0, &res);
 	if (ret < 0)
 		return ret;
 
@@ -818,9 +818,9 @@ static int fimc_is_probe(struct platform_device *pdev)
 	if (IS_ERR(is->pmu_regs))
 		return PTR_ERR(is->pmu_regs);
 
-	is->irq = irq_of_parse_and_map(dev->of_node, 0);
+	is->irq = irq_of_parse_and_map(dev->of_analde, 0);
 	if (!is->irq) {
-		dev_err(dev, "no irq found\n");
+		dev_err(dev, "anal irq found\n");
 		ret = -EINVAL;
 		goto err_iounmap;
 	}
@@ -855,7 +855,7 @@ static int fimc_is_probe(struct platform_device *pdev)
 		goto err_pm;
 
 	/*
-	 * Register FIMC-IS V4L2 subdevs to this driver. The video nodes
+	 * Register FIMC-IS V4L2 subdevs to this driver. The video analdes
 	 * will be created within the subdev's registered() callback.
 	 */
 	ret = fimc_is_register_subdevs(is);
@@ -877,7 +877,7 @@ err_dfs:
 	fimc_is_debugfs_remove(is);
 	fimc_is_unregister_subdevs(is);
 err_pm:
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	if (!pm_runtime_enabled(dev))
 		fimc_is_runtime_suspend(dev);
 err_pm_disable:
@@ -950,7 +950,7 @@ static void fimc_is_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id fimc_is_of_match[] = {
-	{ .compatible = "samsung,exynos4212-fimc-is" },
+	{ .compatible = "samsung,exyanals4212-fimc-is" },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, fimc_is_of_match);

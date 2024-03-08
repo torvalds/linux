@@ -7,19 +7,19 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of IBM nor the names of its contributors
+ * 3. Neither the name of IBM analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL IBM OR
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN ANAL EVENT SHALL IBM OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
  * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
@@ -70,7 +70,7 @@ struct virtio_crypto_ctrl_header {
 };
 
 struct virtio_crypto_cipher_session_para {
-#define VIRTIO_CRYPTO_NO_CIPHER                 0
+#define VIRTIO_CRYPTO_ANAL_CIPHER                 0
 #define VIRTIO_CRYPTO_CIPHER_ARC4               1
 #define VIRTIO_CRYPTO_CIPHER_AES_ECB            2
 #define VIRTIO_CRYPTO_CIPHER_AES_CBC            3
@@ -81,7 +81,7 @@ struct virtio_crypto_cipher_session_para {
 #define VIRTIO_CRYPTO_CIPHER_3DES_CBC           8
 #define VIRTIO_CRYPTO_CIPHER_3DES_CTR           9
 #define VIRTIO_CRYPTO_CIPHER_KASUMI_F8          10
-#define VIRTIO_CRYPTO_CIPHER_SNOW3G_UEA2        11
+#define VIRTIO_CRYPTO_CIPHER_SANALW3G_UEA2        11
 #define VIRTIO_CRYPTO_CIPHER_AES_F8             12
 #define VIRTIO_CRYPTO_CIPHER_AES_XTS            13
 #define VIRTIO_CRYPTO_CIPHER_ZUC_EEA3           14
@@ -109,7 +109,7 @@ struct virtio_crypto_cipher_session_req {
 };
 
 struct virtio_crypto_hash_session_para {
-#define VIRTIO_CRYPTO_NO_HASH            0
+#define VIRTIO_CRYPTO_ANAL_HASH            0
 #define VIRTIO_CRYPTO_HASH_MD5           1
 #define VIRTIO_CRYPTO_HASH_SHA1          2
 #define VIRTIO_CRYPTO_HASH_SHA_224       3
@@ -134,7 +134,7 @@ struct virtio_crypto_hash_create_session_req {
 };
 
 struct virtio_crypto_mac_session_para {
-#define VIRTIO_CRYPTO_NO_MAC                       0
+#define VIRTIO_CRYPTO_ANAL_MAC                       0
 #define VIRTIO_CRYPTO_MAC_HMAC_MD5                 1
 #define VIRTIO_CRYPTO_MAC_HMAC_SHA1                2
 #define VIRTIO_CRYPTO_MAC_HMAC_SHA_224             3
@@ -144,7 +144,7 @@ struct virtio_crypto_mac_session_para {
 #define VIRTIO_CRYPTO_MAC_CMAC_3DES                25
 #define VIRTIO_CRYPTO_MAC_CMAC_AES                 26
 #define VIRTIO_CRYPTO_MAC_KASUMI_F9                27
-#define VIRTIO_CRYPTO_MAC_SNOW3G_UIA2              28
+#define VIRTIO_CRYPTO_MAC_SANALW3G_UIA2              28
 #define VIRTIO_CRYPTO_MAC_GMAC_AES                 41
 #define VIRTIO_CRYPTO_MAC_GMAC_TWOFISH             42
 #define VIRTIO_CRYPTO_MAC_CBCMAC_AES               49
@@ -164,7 +164,7 @@ struct virtio_crypto_mac_create_session_req {
 };
 
 struct virtio_crypto_aead_session_para {
-#define VIRTIO_CRYPTO_NO_AEAD     0
+#define VIRTIO_CRYPTO_ANAL_AEAD     0
 #define VIRTIO_CRYPTO_AEAD_GCM    1
 #define VIRTIO_CRYPTO_AEAD_CCM    2
 #define VIRTIO_CRYPTO_AEAD_CHACHA20_POLY1305  3
@@ -190,7 +190,7 @@ struct virtio_crypto_rsa_session_para {
 #define VIRTIO_CRYPTO_RSA_PKCS1_PADDING 1
 	__le32 padding_algo;
 
-#define VIRTIO_CRYPTO_RSA_NO_HASH   0
+#define VIRTIO_CRYPTO_RSA_ANAL_HASH   0
 #define VIRTIO_CRYPTO_RSA_MD2       1
 #define VIRTIO_CRYPTO_RSA_MD3       2
 #define VIRTIO_CRYPTO_RSA_MD4       3
@@ -204,7 +204,7 @@ struct virtio_crypto_rsa_session_para {
 };
 
 struct virtio_crypto_ecdsa_session_para {
-#define VIRTIO_CRYPTO_CURVE_UNKNOWN   0
+#define VIRTIO_CRYPTO_CURVE_UNKANALWN   0
 #define VIRTIO_CRYPTO_CURVE_NIST_P192 1
 #define VIRTIO_CRYPTO_CURVE_NIST_P224 2
 #define VIRTIO_CRYPTO_CURVE_NIST_P256 3
@@ -215,7 +215,7 @@ struct virtio_crypto_ecdsa_session_para {
 };
 
 struct virtio_crypto_akcipher_session_para {
-#define VIRTIO_CRYPTO_NO_AKCIPHER    0
+#define VIRTIO_CRYPTO_ANAL_AKCIPHER    0
 #define VIRTIO_CRYPTO_AKCIPHER_RSA   1
 #define VIRTIO_CRYPTO_AKCIPHER_DSA   2
 #define VIRTIO_CRYPTO_AKCIPHER_ECDSA 3
@@ -272,8 +272,8 @@ struct virtio_crypto_sym_create_session_req {
 
 	/* Device-readable part */
 
-/* No operation */
-#define VIRTIO_CRYPTO_SYM_OP_NONE  0
+/* Anal operation */
+#define VIRTIO_CRYPTO_SYM_OP_ANALNE  0
 /* Cipher only operation on the data */
 #define VIRTIO_CRYPTO_SYM_OP_CIPHER  1
 /*
@@ -348,7 +348,7 @@ struct virtio_crypto_cipher_para {
 	 * Byte Length of valid IV/Counter
 	 *
 	 * For block ciphers in CBC or F8 mode, or for Kasumi in F8 mode, or for
-	 *   SNOW3G in UEA2 mode, this is the length of the IV (which
+	 *   SANALW3G in UEA2 mode, this is the length of the IV (which
 	 *   must be the same as the block length of the cipher).
 	 * For block ciphers in CTR mode, this is the length of the counter
 	 *   (which must be the same as the block length of the cipher).
@@ -383,7 +383,7 @@ struct virtio_crypto_aead_para {
 	 *
 	 * For GCM mode, this is either 12 (for 96-bit IVs) or 16, in which
 	 *   case iv_addr points to J0.
-	 * For CCM mode, this is the length of the nonce, which can be in the
+	 * For CCM mode, this is the length of the analnce, which can be in the
 	 *   range 7 to 13 inclusive.
 	 */
 	__le32 iv_len;
@@ -484,9 +484,9 @@ struct virtio_crypto_op_data_req {
 #define VIRTIO_CRYPTO_OK        0
 #define VIRTIO_CRYPTO_ERR       1
 #define VIRTIO_CRYPTO_BADMSG    2
-#define VIRTIO_CRYPTO_NOTSUPP   3
+#define VIRTIO_CRYPTO_ANALTSUPP   3
 #define VIRTIO_CRYPTO_INVSESS   4 /* Invalid session id */
-#define VIRTIO_CRYPTO_NOSPC     5 /* no free session ID */
+#define VIRTIO_CRYPTO_ANALSPC     5 /* anal free session ID */
 #define VIRTIO_CRYPTO_KEY_REJECTED 6 /* Signature verification failed */
 
 /* The accelerator hardware is ready */

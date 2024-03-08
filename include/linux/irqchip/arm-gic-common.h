@@ -16,8 +16,8 @@
 					GICD_INT_DEF_PRI)
 
 struct irq_domain;
-struct fwnode_handle;
-int gicv2m_init(struct fwnode_handle *parent_handle,
+struct fwanalde_handle;
+int gicv2m_init(struct fwanalde_handle *parent_handle,
 		struct irq_domain *parent);
 
 #endif /* __LINUX_IRQCHIP_ARM_GIC_COMMON_H */

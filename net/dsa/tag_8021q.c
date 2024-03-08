@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019, Vladimir Oltean <olteanv@gmail.com>
  *
- * This module is not a complete tagger implementation. It only provides
+ * This module is analt a complete tagger implementation. It only provides
  * primitives for taggers that rely on 802.1Q VLAN tags to use.
  */
 #include <linux/if_vlan.h>
@@ -148,7 +148,7 @@ static int dsa_port_do_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid,
 	int port = dp->index;
 	int err;
 
-	/* No need to bother with refcounting for user ports */
+	/* Anal need to bother with refcounting for user ports */
 	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
 		return ds->ops->tag_8021q_vlan_add(ds, port, vid, flags);
 
@@ -160,7 +160,7 @@ static int dsa_port_do_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid,
 
 	v = kzalloc(sizeof(*v), GFP_KERNEL);
 	if (!v)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = ds->ops->tag_8021q_vlan_add(ds, port, vid, flags);
 	if (err) {
@@ -184,13 +184,13 @@ static int dsa_port_do_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid)
 	int port = dp->index;
 	int err;
 
-	/* No need to bother with refcounting for user ports */
+	/* Anal need to bother with refcounting for user ports */
 	if (!(dsa_port_is_cpu(dp) || dsa_port_is_dsa(dp)))
 		return ds->ops->tag_8021q_vlan_del(ds, port, vid);
 
 	v = dsa_tag_8021q_vlan_find(ctx, port, vid);
 	if (!v)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!refcount_dec_and_test(&v->refcount))
 		return 0;
@@ -209,21 +209,21 @@ static int dsa_port_do_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid)
 
 static bool
 dsa_port_tag_8021q_vlan_match(struct dsa_port *dp,
-			      struct dsa_notifier_tag_8021q_vlan_info *info)
+			      struct dsa_analtifier_tag_8021q_vlan_info *info)
 {
 	return dsa_port_is_dsa(dp) || dsa_port_is_cpu(dp) || dp == info->dp;
 }
 
 int dsa_switch_tag_8021q_vlan_add(struct dsa_switch *ds,
-				  struct dsa_notifier_tag_8021q_vlan_info *info)
+				  struct dsa_analtifier_tag_8021q_vlan_info *info)
 {
 	struct dsa_port *dp;
 	int err;
 
 	/* Since we use dsa_broadcast(), there might be other switches in other
 	 * trees which don't support tag_8021q, so don't return an error.
-	 * Or they might even support tag_8021q but have not registered yet to
-	 * use it (maybe they use another tagger currently).
+	 * Or they might even support tag_8021q but have analt registered yet to
+	 * use it (maybe they use aanalther tagger currently).
 	 */
 	if (!ds->ops->tag_8021q_vlan_add || !ds->tag_8021q_ctx)
 		return 0;
@@ -247,7 +247,7 @@ int dsa_switch_tag_8021q_vlan_add(struct dsa_switch *ds,
 }
 
 int dsa_switch_tag_8021q_vlan_del(struct dsa_switch *ds,
-				  struct dsa_notifier_tag_8021q_vlan_info *info)
+				  struct dsa_analtifier_tag_8021q_vlan_info *info)
 {
 	struct dsa_port *dp;
 	int err;
@@ -270,15 +270,15 @@ int dsa_switch_tag_8021q_vlan_del(struct dsa_switch *ds,
  *
  * One is to use a hardware TCAM to push the port's standalone VLAN into the
  * frame when forwarding it to the CPU, as an egress modification rule on the
- * CPU port. This is preferable because it has no side effects for the
- * autonomous forwarding path, and accomplishes tag_8021q's primary goal of
+ * CPU port. This is preferable because it has anal side effects for the
+ * autoanalmous forwarding path, and accomplishes tag_8021q's primary goal of
  * identifying the source port of each packet based on VLAN ID.
  *
  * The other is to commit the tag_8021q VLAN as a PVID to the VLAN table, and
  * to configure the port as VLAN-unaware. This is less preferable because
  * unique source port identification can only be done for standalone ports;
  * under a VLAN-unaware bridge, all ports share the same tag_8021q VLAN as
- * PVID, and under a VLAN-aware bridge, packets received by software will not
+ * PVID, and under a VLAN-aware bridge, packets received by software will analt
  * have tag_8021q VLANs appended, just bridge VLANs.
  *
  * For tag_8021q implementations of the second type, this method is used to
@@ -419,7 +419,7 @@ int dsa_tag_8021q_register(struct dsa_switch *ds, __be16 proto)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->proto = proto;
 	ctx->ds = ds;

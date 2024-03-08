@@ -21,7 +21,7 @@
 /*
  * Exception handling.  Something went wrong and we can't proceed.  We
  * ought to tell the user, but since we don't have any guarantee that
- * we're even running on the right architecture, we do virtually nothing.
+ * we're even running on the right architecture, we do virtually analthing.
  *
  * If CONFIG_DEBUG_LL is set we try to print out something about the error
  * and hope for the best (useful if bootloader fails to pass a proper
@@ -66,7 +66,7 @@ ENDPROC(__vet_atags)
 
 /*
  * The following fragment of code is executed with the MMU on in MMU mode,
- * and uses absolute addresses; this is not position independent.
+ * and uses absolute addresses; this is analt position independent.
  *
  *  r0  = cp#15 control register (exc_ret for M-class)
  *  r1  = machine ID
@@ -164,9 +164,9 @@ ENDPROC(lookup_processor_type)
 
 /*
  * Read processor ID register (CP#15, CR0), and look up in the linker-built
- * supported processor list.  Note that we can't use the absolute addresses
+ * supported processor list.  Analte that we can't use the absolute addresses
  * for the __proc_info lists since we aren't running with the MMU on
- * (and therefore, we are not in the correct address space).  We have to
+ * (and therefore, we are analt in the correct address space).  We have to
  * calculate the offset.
  *
  *	r9 = cpuid
@@ -189,7 +189,7 @@ __lookup_processor_type:
 	add	r5, r5, #PROC_INFO_SZ		@ sizeof(proc_info_list)
 	cmp	r5, r6
 	blo	1b
-	mov	r5, #0				@ unknown processor
+	mov	r5, #0				@ unkanalwn processor
 2:	ret	lr
 ENDPROC(__lookup_processor_type)
 
@@ -198,7 +198,7 @@ __error_lpae:
 	adr	r0, str_lpae
 	bl 	printascii
 	b	__error
-str_lpae: .asciz "\nError: Kernel with LPAE support, but CPU does not support LPAE.\n"
+str_lpae: .asciz "\nError: Kernel with LPAE support, but CPU does analt support LPAE.\n"
 #else
 	b	__error
 #endif

@@ -55,12 +55,12 @@ frameworks）中常见的检查-使用竞态攻击（TOCTOU）的受害者。BPF
 		prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, prog);
 
 	'prog' 参数是一个指向 sock_fprog 结构体的指针，其中包含了过滤器程序。如
-	果程序是无效的，该调用会返回 -1 并设置 errno 为 ``EINVAL`` 。
+	果程序是无效的，该调用会返回 -1 并设置 erranal 为 ``EINVAL`` 。
 
 	如果 ``fork`` / ``clone`` 和 ``execve`` 被 @prog 所允许，任何子进程都将
 	受到和父进程相同的过滤器和系统调用ABI的约束。
 
-	在调用之前，进程必须调用 ``prctl(PR_SET_NO_NEW_PRIVS, 1)`` 或者在它的
+	在调用之前，进程必须调用 ``prctl(PR_SET_ANAL_NEW_PRIVS, 1)`` 或者在它的
 	命名空间内以 ``CAP_SYS_ADMIN`` 权限运行。如果以上条件不满足，会返回
 	``-EACCES`` 。这一要求保证了过滤器程序不能用于比安装过滤器的进程拥有更高
 	权限的子进程。
@@ -92,23 +92,23 @@ frameworks）中常见的检查-使用竞态攻击（TOCTOU）的受害者。BPF
 	``siginfo->si_call_addr`` 会展示系统调用指令的位置， ``siginfo->si_syscall``
 	和 ``siginfo->si_arch`` 会指出试图进行的系统调用。程序计数器会和发生了系统
 	调用的一样（即它不会指向系统调用指令）。返回值寄存器会包含一个与架构相关的值——
-	如果恢复执行，需要将其设为合理的值。（架构依赖性是因为将其替换为 ``-ENOSYS``
+	如果恢复执行，需要将其设为合理的值。（架构依赖性是因为将其替换为 ``-EANALSYS``
 	会导致一些有用的信息被覆盖。）
 
-	返回值的 ``SECCOMP_RET_DATA`` 部分会作为 ``si_errno`` 传递。
+	返回值的 ``SECCOMP_RET_DATA`` 部分会作为 ``si_erranal`` 传递。
 
 	由seccomp触发的 ``SIGSYS`` 会有一个 ``SYS_SECCOMP`` 的 si_code 。
 
-``SECCOMP_RET_ERRNO``:
-	使得返回值的低16位作为errno传递给用户空间，而不执行系统调用。
+``SECCOMP_RET_ERRANAL``:
+	使得返回值的低16位作为erranal传递给用户空间，而不执行系统调用。
 
-``SECCOMP_RET_USER_NOTIF``:
-	使得一个 ``struct seccomp_notif`` 消息被发送到已附加的用户空间通知文件描述
-	符。如果没有被附加则返回 ``-ENOSYS`` 。下面会讨论如何处理用户通知。
+``SECCOMP_RET_USER_ANALTIF``:
+	使得一个 ``struct seccomp_analtif`` 消息被发送到已附加的用户空间通知文件描述
+	符。如果没有被附加则返回 ``-EANALSYS`` 。下面会讨论如何处理用户通知。
 
 ``SECCOMP_RET_TRACE``:
 	当返回的时候，这个值会使得内核在执行系统调用前尝试去通知一个基于 ``ptrace()``
-	的追踪器。如果没有追踪器， ``-ENOSYS`` 会返回给用户空间，并且系统调用不会执行。
+	的追踪器。如果没有追踪器， ``-EANALSYS`` 会返回给用户空间，并且系统调用不会执行。
 
 	如果追踪器通过 ``ptrace(PTRACE_SETOPTIONS)`` 请求了 ``PTRACE_O_TRACESECCOMP``，
 	那么它会收到 ``PTRACE_EVENT_SECCOMP`` 通知。BPF程序返回值的 ``SECCOMP_RET_DATA``
@@ -152,7 +152,7 @@ frameworks）中常见的检查-使用竞态攻击（TOCTOU）的受害者。BPF
 用户空间通知
 ============
 
-``SECCOMP_RET_USER_NOTIF`` 返回值会让seccomp过滤器传递一个特定的系统调用给用户
+``SECCOMP_RET_USER_ANALTIF`` 返回值会让seccomp过滤器传递一个特定的系统调用给用户
 空间处理。这可能会对像容器管理器的程序有用，它们希望拦截特定的系统调用（如 ``mount()``，
 ``finit_module()`` 等等）并改变其行为。
 
@@ -172,48 +172,48 @@ seccomp通知文件描述符由两个结构体组成：
 
 .. code-block:: c
 
-    struct seccomp_notif_sizes {
-        __u16 seccomp_notif;
-        __u16 seccomp_notif_resp;
+    struct seccomp_analtif_sizes {
+        __u16 seccomp_analtif;
+        __u16 seccomp_analtif_resp;
         __u16 seccomp_data;
     };
 
-    struct seccomp_notif {
+    struct seccomp_analtif {
         __u64 id;
         __u32 pid;
         __u32 flags;
         struct seccomp_data data;
     };
 
-    struct seccomp_notif_resp {
+    struct seccomp_analtif_resp {
         __u64 id;
         __s64 val;
         __s32 error;
         __u32 flags;
     };
 
-``struct seccomp_notif_sizes`` 结构体可以用于确定seccomp通知中各种结构体的大小。
+``struct seccomp_analtif_sizes`` 结构体可以用于确定seccomp通知中各种结构体的大小。
 ``struct seccomp_data`` 的大小可能未来会改变，所以需要使用下面的代码：
 
 .. code-block:: c
 
-    struct seccomp_notif_sizes sizes;
-    seccomp(SECCOMP_GET_NOTIF_SIZES, 0, &sizes);
+    struct seccomp_analtif_sizes sizes;
+    seccomp(SECCOMP_GET_ANALTIF_SIZES, 0, &sizes);
 
 来决定需要分配的多种结构体的大小。请查看 samples/seccomp/user-trap.c 中的例子。
 
-用户可以通过 ``ioctl(SECCOMP_IOCTL_NOTIF_RECV)`` (或 ``poll()``) 读取seccomp
-通知文件描述符来接收一个 ``struct seccomp_notif`` ，其中包含五个成员：结构体的
+用户可以通过 ``ioctl(SECCOMP_IOCTL_ANALTIF_RECV)`` (或 ``poll()``) 读取seccomp
+通知文件描述符来接收一个 ``struct seccomp_analtif`` ，其中包含五个成员：结构体的
 输入长度，每个过滤器唯一的 ``id`` ， 触发请求进程的 ``pid`` （如果进程的pid命名空
 间对于监听者的pid命名空间不可见的话，可能为0）。通知还包含传递给seccomp的 ``data``
 和一个过滤器标志。在调用ioctl前结构体应该被清空。
 
-之后用户空间可以根据这些信息决定做什么，并通过 ``ioctl(SECCOMP_IOCTL_NOTIF_SEND)``
-发送一个响应，表示应该给用户空间返回什么。 ``struct seccomp_notif_resp`` 的 ``id``
-成员应该和 ``struct seccomp_notif`` 的 ``id`` 一致。
+之后用户空间可以根据这些信息决定做什么，并通过 ``ioctl(SECCOMP_IOCTL_ANALTIF_SEND)``
+发送一个响应，表示应该给用户空间返回什么。 ``struct seccomp_analtif_resp`` 的 ``id``
+成员应该和 ``struct seccomp_analtif`` 的 ``id`` 一致。
 
-用户空间也可以通过 ``ioctl(SECCOMP_IOCTL_NOTIF_ADDFD)`` 向通知进程添加文件描述
-符。 ``struct seccomp_notif_addfd`` 的 ``id`` 成员应该和 ``struct seccomp_notif``
+用户空间也可以通过 ``ioctl(SECCOMP_IOCTL_ANALTIF_ADDFD)`` 向通知进程添加文件描述
+符。 ``struct seccomp_analtif_addfd`` 的 ``id`` 成员应该和 ``struct seccomp_analtif``
 的 ``id`` 保持一致。 ``newfd_flags`` 标志可以被用于在通知进程的文件描述符上设置
 O_CLOEXEC 等标志。如果监督者（supervisor）向文件描述符注入一个特定的数字，可以使用
 ``SECCOMP_ADDFD_FLAG_SETFD`` 标志，并设置 ``newfd`` 成员为要使用的特定数字。
@@ -281,7 +281,7 @@ vsyscalls会遵守seccomp，但是有一些奇怪情况：
   任何其他改变都可能终止进程。追踪器看到的rip值将是系统调用的入口地址；这和正常行为
   不同。追踪器禁止修改rip或者rsp。（不要依赖其他改变来终止进程，它们可能正常工作。
   比如在一些内核中，选择一个只存在于未来内核中的系统调用将被正确模拟，返回一个
-  ``-ENOSYS`` 。）
+  ``-EANALSYS`` 。）
 
 要检测这个古怪的行为，可以检查 ``addr & ~0x0C00 == 0xFFFFFFFFFF600000``。（对于
 ``SECCOMP_RET_TRACE`` ，使用rip。对于 ``SECCOMP_RET_TRAP`` ，使用

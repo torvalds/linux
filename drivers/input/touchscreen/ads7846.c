@@ -3,8 +3,8 @@
  * ADS7846 based touchscreen and sensor driver
  *
  * Copyright (c) 2005 David Brownell
- * Copyright (c) 2006 Nokia Corporation
- * Various changes: Imre Deak <imre.deak@nokia.com>
+ * Copyright (c) 2006 Analkia Corporation
+ * Various changes: Imre Deak <imre.deak@analkia.com>
  *
  * Using code from:
  *  - corgi_ts.c
@@ -33,7 +33,7 @@
 #include <asm/unaligned.h>
 
 /*
- * This code has been heavily tested on a Nokia 770, and lightly
+ * This code has been heavily tested on a Analkia 770, and lightly
  * tested on other ads7846 devices (OSK/Mistral, Lubbock, Spitz).
  * TSC2046 is just newer ads7846 silicon.
  * Support for ads7843 tested on Atmel at91sam926x-EK.
@@ -46,11 +46,11 @@
  * have to maintain our own SW IRQ disabled status. This should be
  * removed as soon as the affected platform's IRQ handling is fixed.
  *
- * App note sbaa036 talks in more detail about accurate sampling...
- * that ought to help in situations like LCDs inducing noise (which
+ * App analte sbaa036 talks in more detail about accurate sampling...
+ * that ought to help in situations like LCDs inducing analise (which
  * can also be helped by using synch signals) and more generally.
  * This driver tries to utilize the measures described in the app
- * note. The strength of filtering can be set in the board-* specific
+ * analte. The strength of filtering can be set in the board-* specific
  * files.
  */
 
@@ -74,7 +74,7 @@ struct ads7846_buf_layout {
 /*
  * We allocate this separately to avoid cache line sharing issues when
  * driver is used with DMA-based SPI controllers (like atmel_spi) on
- * systems where main memory is not DMA-coherent (most non-x86 boards).
+ * systems where main memory is analt DMA-coherent (most analn-x86 boards).
  */
 struct ads7846_packet {
 	unsigned int count;
@@ -87,7 +87,7 @@ struct ads7846_packet {
 
 	struct ads7846_buf pwrdown_cmd;
 
-	bool ignore;
+	bool iganalre;
 	u16 x, y, z1, z2;
 };
 
@@ -145,7 +145,7 @@ struct ads7846 {
 enum ads7846_filter {
 	ADS7846_FILTER_OK,
 	ADS7846_FILTER_REPEAT,
-	ADS7846_FILTER_IGNORE,
+	ADS7846_FILTER_IGANALRE,
 };
 
 /* leave chip selected when we're done, for quicker re-select? */
@@ -165,13 +165,13 @@ enum ads7846_filter {
 #define	ADS_A2A1A0_d_z1		(3 << 4)	/* differential */
 #define	ADS_A2A1A0_d_z2		(4 << 4)	/* differential */
 #define	ADS_A2A1A0_d_x		(5 << 4)	/* differential */
-#define	ADS_A2A1A0_temp0	(0 << 4)	/* non-differential */
-#define	ADS_A2A1A0_vbatt	(2 << 4)	/* non-differential */
-#define	ADS_A2A1A0_vaux		(6 << 4)	/* non-differential */
-#define	ADS_A2A1A0_temp1	(7 << 4)	/* non-differential */
+#define	ADS_A2A1A0_temp0	(0 << 4)	/* analn-differential */
+#define	ADS_A2A1A0_vbatt	(2 << 4)	/* analn-differential */
+#define	ADS_A2A1A0_vaux		(6 << 4)	/* analn-differential */
+#define	ADS_A2A1A0_temp1	(7 << 4)	/* analn-differential */
 #define	ADS_8_BIT		(1 << 3)
 #define	ADS_12_BIT		(0 << 3)
-#define	ADS_SER			(1 << 2)	/* non-differential */
+#define	ADS_SER			(1 << 2)	/* analn-differential */
 #define	ADS_DFR			(0 << 2)	/* differential */
 #define	ADS_PD10_PDOWN		(0 << 0)	/* low power mode + penirq */
 #define	ADS_PD10_ADC_ON		(1 << 0)	/* ADC on */
@@ -269,7 +269,7 @@ static void __ads7846_disable(struct ads7846 *ts)
 	regulator_disable(ts->reg);
 
 	/*
-	 * We know the chip's in low power mode since we always
+	 * We kanalw the chip's in low power mode since we always
 	 * leave it that way after every request
 	 */
 }
@@ -319,7 +319,7 @@ static void ads7846_enable(struct ads7846 *ts)
 /*--------------------------------------------------------------------------*/
 
 /*
- * Non-touchscreen sensors only use single-ended conversions.
+ * Analn-touchscreen sensors only use single-ended conversions.
  * The range is GND..vREF. The ads7843 and ads7835 must use external vREF;
  * ads7846 lets that pin be unconnected, to use internal vREF.
  */
@@ -358,7 +358,7 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 
 	req = kzalloc(sizeof *req, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_message_init(&req->msg);
 
@@ -372,7 +372,7 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 		req->xfer[1].rx_buf = &req->scratch;
 		req->xfer[1].len = 2;
 
-		/* for 1uF, settle for 800 usec; no cap, 100 usec.  */
+		/* for 1uF, settle for 800 usec; anal cap, 100 usec.  */
 		req->xfer[1].delay.value = ts->vref_delay_usecs;
 		req->xfer[1].delay.unit = SPI_DELAY_UNIT_USECS;
 		spi_message_add_tail(&req->xfer[1], &req->msg);
@@ -414,7 +414,7 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 	mutex_unlock(&ts->lock);
 
 	if (status == 0) {
-		/* on-wire is a must-ignore bit, a BE12 value, then padding */
+		/* on-wire is a must-iganalre bit, a BE12 value, then padding */
 		status = be16_to_cpu(req->sample);
 		status = status >> 3;
 		status &= 0x0fff;
@@ -433,7 +433,7 @@ static int ads7845_read12_ser(struct device *dev, unsigned command)
 
 	req = kzalloc(sizeof *req, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_message_init(&req->msg);
 
@@ -477,7 +477,7 @@ static DEVICE_ATTR(name, S_IRUGO, name ## _show, NULL);
 
 /* Sysfs conventions report temperatures in millidegrees Celsius.
  * ADS7846 could use the low-accuracy two-sample scheme, but can't do the high
- * accuracy scheme without calibration data.  For now we won't try either;
+ * accuracy scheme without calibration data.  For analw we won't try either;
  * userspace sees raw sensor values, and must scale/calibrate appropriately.
  */
 static inline unsigned null_adjust(struct ads7846 *ts, ssize_t v)
@@ -490,7 +490,7 @@ SHOW(temp1, temp1, null_adjust)		/* temp2_input */
 
 
 /* sysfs conventions report voltages in millivolts.  We can convert voltages
- * if we know vREF.  userspace may need to scale vAUX to match the board's
+ * if we kanalw vREF.  userspace may need to scale vAUX to match the board's
  * external resistors; we assume that vBATT only uses the internal ones.
  */
 static inline unsigned vaux_adjust(struct ads7846 *ts, ssize_t v)
@@ -563,7 +563,7 @@ static int ads784x_hwmon_register(struct spi_device *spi, struct ads7846 *ts)
 	case 7843:
 		if (!ts->vref_mv) {
 			dev_warn(&spi->dev,
-				"external vREF for ADS%d not specified\n",
+				"external vREF for ADS%d analt specified\n",
 				ts->model);
 			return 0;
 		}
@@ -647,7 +647,7 @@ static int ads7846_debounce_filter(void *ads, int data_idx, int *val)
 		ts->read_rep = 0;
 		/*
 		 * Repeat it, if this was the first read or the read
-		 * wasn't consistent enough.
+		 * wasn't consistent eanalugh.
 		 */
 		if (ts->read_cnt < ts->debounce_max) {
 			ts->last_read = *val;
@@ -656,12 +656,12 @@ static int ads7846_debounce_filter(void *ads, int data_idx, int *val)
 		} else {
 			/*
 			 * Maximum number of debouncing reached and still
-			 * not enough number of consistent readings. Abort
+			 * analt eanalugh number of consistent readings. Abort
 			 * the whole sample, repeat it in the next sampling
 			 * period.
 			 */
 			ts->read_cnt = 0;
-			return ADS7846_FILTER_IGNORE;
+			return ADS7846_FILTER_IGANALRE;
 		}
 	} else {
 		if (++ts->read_rep > ts->debounce_rep) {
@@ -680,7 +680,7 @@ static int ads7846_debounce_filter(void *ads, int data_idx, int *val)
 	}
 }
 
-static int ads7846_no_filter(void *ads, int data_idx, int *val)
+static int ads7846_anal_filter(void *ads, int data_idx, int *val)
 {
 	return ADS7846_FILTER_OK;
 }
@@ -764,7 +764,7 @@ static int ads7846_filter(struct ads7846 *ts)
 	int val;
 	unsigned int cmd_idx, b;
 
-	packet->ignore = false;
+	packet->iganalre = false;
 	for (cmd_idx = packet->last_cmd_idx; cmd_idx < packet->cmds - 1; cmd_idx++) {
 		struct ads7846_buf_layout *l = &packet->l[cmd_idx];
 
@@ -781,7 +781,7 @@ static int ads7846_filter(struct ads7846 *ts)
 				ads7846_set_cmd_val(ts, cmd_idx, val);
 				break;
 			} else {
-				packet->ignore = true;
+				packet->iganalre = true;
 				return 0;
 			}
 		}
@@ -806,7 +806,7 @@ static void ads7846_read_state(struct ads7846 *ts)
 		error = spi_sync(ts->spi, m);
 		if (error) {
 			dev_err(&ts->spi->dev, "spi_sync --> %d\n", error);
-			packet->ignore = true;
+			packet->iganalre = true;
 			return;
 		}
 
@@ -858,9 +858,9 @@ static void ads7846_report_state(struct ads7846 *ts)
 	 * the maximum. Don't report it to user space, repeat at least
 	 * once more the measurement
 	 */
-	if (packet->ignore || Rt > ts->pressure_max) {
-		dev_vdbg(&ts->spi->dev, "ignored %d pressure %d\n",
-			 packet->ignore, Rt);
+	if (packet->iganalre || Rt > ts->pressure_max) {
+		dev_vdbg(&ts->spi->dev, "iganalred %d pressure %d\n",
+			 packet->iganalre, Rt);
 		return;
 	}
 
@@ -875,10 +875,10 @@ static void ads7846_report_state(struct ads7846 *ts)
 	}
 
 	/*
-	 * NOTE: We can't rely on the pressure to determine the pen down
+	 * ANALTE: We can't rely on the pressure to determine the pen down
 	 * state, even this controller has a pressure sensor. The pressure
 	 * value can fluctuate for quite a while after lifting the pen and
-	 * in some cases may not even settle at the expected value.
+	 * in some cases may analt even settle at the expected value.
 	 *
 	 * The only safe way to check for the pen up condition is in the
 	 * timer by reading the pen signal state (it's a GPIO _and_ IRQ).
@@ -1007,7 +1007,7 @@ static int ads7846_setup_pendown(struct spi_device *spi,
 
 /*
  * Set up the transfers to read touchscreen state; this assumes we
- * use formula #2 for pressure, not #3.
+ * use formula #2 for pressure, analt #3.
  */
 static int ads7846_setup_spi_msg(struct ads7846 *ts,
 				  const struct ads7846_platform_data *pdata)
@@ -1029,7 +1029,7 @@ static int ads7846_setup_spi_msg(struct ads7846 *ts,
 
 	if (ts->debounce_max && ts->debounce_rep)
 		/* ads7846_debounce_filter() is making ts->debounce_rep + 2
-		 * reads. So we need to get all samples for normal case. */
+		 * reads. So we need to get all samples for analrmal case. */
 		packet->count = ts->debounce_rep + 2;
 	else
 		packet->count = 1;
@@ -1060,11 +1060,11 @@ static int ads7846_setup_spi_msg(struct ads7846 *ts,
 
 	packet->tx = devm_kzalloc(&ts->spi->dev, size, GFP_KERNEL);
 	if (!packet->tx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	packet->rx = devm_kzalloc(&ts->spi->dev, size, GFP_KERNEL);
 	if (!packet->rx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ts->model == 7873) {
 		/*
@@ -1118,7 +1118,7 @@ static const struct ads7846_platform_data *ads7846_get_props(struct device *dev)
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pdata->model = (uintptr_t)device_get_match_data(dev);
 
@@ -1182,7 +1182,7 @@ static int ads7846_probe(struct spi_device *spi)
 	int err;
 
 	if (!spi->irq) {
-		dev_dbg(dev, "no IRQ?\n");
+		dev_dbg(dev, "anal IRQ?\n");
 		return -EINVAL;
 	}
 
@@ -1196,7 +1196,7 @@ static int ads7846_probe(struct spi_device *spi)
 	/*
 	 * We'd set TX word size 8 bits and RX word size to 13 bits ... except
 	 * that even if the hardware can do that, the SPI controller driver
-	 * may not.  So we stick to very-portable 8 bit words, both RX and TX.
+	 * may analt.  So we stick to very-portable 8 bit words, both RX and TX.
 	 */
 	spi->bits_per_word = 8;
 	spi->mode &= ~SPI_MODE_X_MASK;
@@ -1207,15 +1207,15 @@ static int ads7846_probe(struct spi_device *spi)
 
 	ts = devm_kzalloc(dev, sizeof(struct ads7846), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	packet = devm_kzalloc(dev, sizeof(struct ads7846_packet), GFP_KERNEL);
 	if (!packet)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev = devm_input_allocate_device(dev);
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, ts);
 
@@ -1247,7 +1247,7 @@ static int ads7846_probe(struct spi_device *spi)
 		ts->filter = ads7846_debounce_filter;
 		ts->filter_data = ts;
 	} else {
-		ts->filter = ads7846_no_filter;
+		ts->filter = ads7846_anal_filter;
 	}
 
 	err = ads7846_setup_pendown(spi, ts, pdata);
@@ -1347,7 +1347,7 @@ static int ads7846_probe(struct spi_device *spi)
 
 	/*
 	 * Take a first sample, leaving nPENIRQ active and vREF off; avoid
-	 * the touchscreen, in case it's not connected.
+	 * the touchscreen, in case it's analt connected.
 	 */
 	if (ts->model == 7845)
 		ads7845_read12_ser(dev, PWRDOWN);
@@ -1361,7 +1361,7 @@ static int ads7846_probe(struct spi_device *spi)
 	device_init_wakeup(dev, pdata->wakeup);
 
 	/*
-	 * If device does not carry platform data we must have allocated it
+	 * If device does analt carry platform data we must have allocated it
 	 * when parsing DT data.
 	 */
 	if (!dev_get_platdata(dev))

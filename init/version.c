@@ -9,7 +9,7 @@
 
 #include <generated/compile.h>
 #include <linux/build-salt.h>
-#include <linux/elfnote-lto.h>
+#include <linux/elfanalte-lto.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/printk.h>
@@ -19,11 +19,11 @@
 
 static int __init early_hostname(char *arg)
 {
-	size_t bufsize = sizeof(init_uts_ns.name.nodename);
+	size_t bufsize = sizeof(init_uts_ns.name.analdename);
 	size_t maxlen  = bufsize - 1;
 	ssize_t arglen;
 
-	arglen = strscpy(init_uts_ns.name.nodename, arg, bufsize);
+	arglen = strscpy(init_uts_ns.name.analdename, arg, bufsize);
 	if (arglen < 0) {
 		pr_warn("hostname parameter exceeds %zd characters and will be truncated",
 			maxlen);

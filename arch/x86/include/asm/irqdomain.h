@@ -22,7 +22,7 @@ extern void copy_irq_alloc_info(struct irq_alloc_info *dst,
 #endif /* CONFIG_X86_LOCAL_APIC */
 
 #ifdef CONFIG_X86_IO_APIC
-struct device_node;
+struct device_analde;
 struct irq_data;
 
 enum ioapic_domain_type {
@@ -35,7 +35,7 @@ enum ioapic_domain_type {
 struct ioapic_domain_cfg {
 	enum ioapic_domain_type		type;
 	const struct irq_domain_ops	*ops;
-	struct device_node		*dev;
+	struct device_analde		*dev;
 };
 
 extern const struct irq_domain_ops mp_ioapic_irqdomain_ops;

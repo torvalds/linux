@@ -70,10 +70,10 @@ static const struct {
 	int sense_key;
 	const char * const text;
 } sense_texts[] = {
-	{NO_SENSE, "OK"},
+	{ANAL_SENSE, "OK"},
 	{RECOVERED_ERROR, "Recovered from error"},
-	{NOT_READY, "Device not ready"},
-	{MEDIUM_ERROR, "Disk not ready"},
+	{ANALT_READY, "Device analt ready"},
+	{MEDIUM_ERROR, "Disk analt ready"},
 	{HARDWARE_ERROR, "Hardware error"},
 	{ILLEGAL_REQUEST, "Command has failed"},
 	{UNIT_ATTENTION, "Device needs attention - disk may have been changed"},
@@ -146,7 +146,7 @@ static bool gdrom_wait_busy_sleeps(void)
 	timeout = jiffies + GDROM_DEFAULT_TIMEOUT;
 	while (!gdrom_is_busy() && time_before(jiffies, timeout))
 		cpu_relax();
-	/* Now wait for busy to clear */
+	/* Analw wait for busy to clear */
 	return gdrom_wait_clrbusy();
 }
 
@@ -166,7 +166,7 @@ static void gdrom_identifydevice(void *buf)
 		gdrom_getsense(NULL);
 		return;
 	}
-	/* now read in the data */
+	/* analw read in the data */
 	for (c = 0; c < 40; c++)
 		data[c] = __raw_readw(GDROM_DATA_REG);
 }
@@ -202,13 +202,13 @@ static void gdrom_spicommand(void *spi_string, int buflen)
 }
 
 
-/* gdrom_command_executediagnostic:
+/* gdrom_command_executediaganalstic:
  * Used to probe for presence of working GDROM
  * Restarts GDROM device and then applies standard ATA 3
- * Execute Diagnostic Command: a return of '1' indicates device 0
+ * Execute Diaganalstic Command: a return of '1' indicates device 0
  * present and device 1 absent
  */
-static char gdrom_execute_diagnostic(void)
+static char gdrom_execute_diaganalstic(void)
 {
 	gdrom_hardreset(gd.cd_info);
 	if (!gdrom_wait_clrbusy())
@@ -229,7 +229,7 @@ static int gdrom_preparedisk_cmd(void)
 	struct packet_command *spin_command;
 	spin_command = kzalloc(sizeof(struct packet_command), GFP_KERNEL);
 	if (!spin_command)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_command->cmd[0] = 0x70;
 	spin_command->cmd[2] = 0x1f;
 	spin_command->buflen = 0;
@@ -263,7 +263,7 @@ static int gdrom_readtoc_cmd(struct gdromtoc *toc, int session)
 
 	toc_command = kzalloc(sizeof(struct packet_command), GFP_KERNEL);
 	if (!toc_command)
-		return -ENOMEM;
+		return -EANALMEM;
 	tocsize = sizeof(struct gdromtoc);
 	toc_command->cmd[0] = 0x14;
 	toc_command->cmd[1] = session;
@@ -315,15 +315,15 @@ static int gdrom_get_last_session(struct cdrom_device_info *cd_info,
 	int fentry, lentry, track, data, err;
 
 	if (!gd.toc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Check if GD-ROM */
 	err = gdrom_readtoc_cmd(gd.toc, 1);
-	/* Not a GD-ROM so check if standard CD-ROM */
+	/* Analt a GD-ROM so check if standard CD-ROM */
 	if (err) {
 		err = gdrom_readtoc_cmd(gd.toc, 0);
 		if (err) {
-			pr_info("Could not get CD table of contents\n");
+			pr_info("Could analt get CD table of contents\n");
 			return -ENXIO;
 		}
 	}
@@ -340,7 +340,7 @@ static int gdrom_get_last_session(struct cdrom_device_info *cd_info,
 	} while (track >= fentry);
 
 	if ((track > 100) || (track < get_entry_track(gd.toc->first))) {
-		pr_info("No data on the last session of the CD\n");
+		pr_info("Anal data on the last session of the CD\n");
 		gdrom_getsense(NULL);
 		return -ENXIO;
 	}
@@ -362,7 +362,7 @@ static void gdrom_release(struct cdrom_device_info *cd_info)
 {
 }
 
-static int gdrom_drivestatus(struct cdrom_device_info *cd_info, int ignore)
+static int gdrom_drivestatus(struct cdrom_device_info *cd_info, int iganalre)
 {
 	/* read the sense key */
 	char sense = __raw_readb(GDROM_ERROR_REG);
@@ -370,13 +370,13 @@ static int gdrom_drivestatus(struct cdrom_device_info *cd_info, int ignore)
 	if (sense == 0)
 		return CDS_DISC_OK;
 	if (sense == 0x20)
-		return CDS_DRIVE_NOT_READY;
+		return CDS_DRIVE_ANALT_READY;
 	/* default */
-	return CDS_NO_INFO;
+	return CDS_ANAL_INFO;
 }
 
 static unsigned int gdrom_check_events(struct cdrom_device_info *cd_info,
-				       unsigned int clearing, int ignore)
+				       unsigned int clearing, int iganalre)
 {
 	/* check the sense key */
 	return (__raw_readb(GDROM_ERROR_REG) & 0xF0) == 0x60 ?
@@ -417,7 +417,7 @@ static int gdrom_getsense(short *bufstring)
 
 	sense_command = kzalloc(sizeof(struct packet_command), GFP_KERNEL);
 	if (!sense_command)
-		return -ENOMEM;
+		return -EANALMEM;
 	sense_command->cmd[0] = 0x13;
 	sense_command->cmd[4] = 10;
 	sense_command->buflen = 10;
@@ -435,14 +435,14 @@ static int gdrom_getsense(short *bufstring)
 		goto cleanup_sense;
 	insw(GDROM_DATA_REG, &sense, sense_command->buflen/2);
 	if (sense[1] & 40) {
-		pr_info("Drive not ready - command aborted\n");
+		pr_info("Drive analt ready - command aborted\n");
 		goto cleanup_sense;
 	}
 	sense_key = sense[1] & 0x0F;
 	if (sense_key < ARRAY_SIZE(sense_texts))
 		pr_info("%s\n", sense_texts[sense_key].text);
 	else
-		pr_err("Unknown sense key: %d\n", sense_key);
+		pr_err("Unkanalwn sense key: %d\n", sense_key);
 	if (bufstring) /* return addional sense data */
 		memcpy(bufstring, &sense[4], 2);
 	if (sense_key < 2)
@@ -640,10 +640,10 @@ static blk_status_t gdrom_queue_rq(struct blk_mq_hw_ctx *hctx,
 	case REQ_OP_READ:
 		return gdrom_readdisk_dma(bd->rq);
 	case REQ_OP_WRITE:
-		pr_notice("Read only device - write request ignored\n");
+		pr_analtice("Read only device - write request iganalred\n");
 		return BLK_STS_IOERR;
 	default:
-		printk(KERN_DEBUG "gdrom: Non-fs request ignored\n");
+		printk(KERN_DEBUG "gdrom: Analn-fs request iganalred\n");
 		return BLK_STS_IOERR;
 	}
 }
@@ -653,7 +653,7 @@ static int gdrom_outputversion(void)
 {
 	struct gdrom_id *id;
 	char *model_name, *manuf_name, *firmw_ver;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/* query device ID */
 	id = kzalloc(sizeof(struct gdrom_id), GFP_KERNEL);
@@ -716,9 +716,9 @@ static void probe_gdrom_setupcd(void)
 static void probe_gdrom_setupdisk(void)
 {
 	gd.disk->major = gdrom_major;
-	gd.disk->first_minor = 1;
-	gd.disk->minors = 1;
-	gd.disk->flags |= GENHD_FL_NO_PART;
+	gd.disk->first_mianalr = 1;
+	gd.disk->mianalrs = 1;
+	gd.disk->flags |= GENHD_FL_ANAL_PART;
 	strcpy(gd.disk->disk_name, GDROM_DEV_NAME);
 }
 
@@ -752,13 +752,13 @@ static int probe_gdrom(struct platform_device *devptr)
 	memset(&gd, 0, sizeof(gd));
 
 	/* Start the device */
-	if (gdrom_execute_diagnostic() != 1) {
+	if (gdrom_execute_diaganalstic() != 1) {
 		pr_warn("ATA Probe for GDROM failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* Print out firmware ID */
 	if (gdrom_outputversion())
-		return -ENOMEM;
+		return -EANALMEM;
 	/* Register GDROM */
 	gdrom_major = register_blkdev(0, GDROM_DEV_NAME);
 	if (gdrom_major <= 0)
@@ -768,8 +768,8 @@ static int probe_gdrom(struct platform_device *devptr)
 	/* Specify basic properties of drive */
 	gd.cd_info = kzalloc(sizeof(struct cdrom_device_info), GFP_KERNEL);
 	if (!gd.cd_info) {
-		err = -ENOMEM;
-		goto probe_fail_no_mem;
+		err = -EANALMEM;
+		goto probe_fail_anal_mem;
 	}
 	probe_gdrom_setupcd();
 
@@ -786,7 +786,7 @@ static int probe_gdrom(struct platform_device *devptr)
 	gd.gdrom_rq = gd.disk->queue;
 	probe_gdrom_setupdisk();
 	if (register_cdrom(gd.disk, gd.cd_info)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto probe_fail_cleanup_disk;
 	}
 	gd.disk->fops = &gdrom_bdops;
@@ -802,7 +802,7 @@ static int probe_gdrom(struct platform_device *devptr)
 
 	gd.toc = kzalloc(sizeof(struct gdromtoc), GFP_KERNEL);
 	if (!gd.toc) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto probe_fail_free_irqs;
 	}
 	err = add_disk(gd.disk);
@@ -822,7 +822,7 @@ probe_fail_free_tag_set:
 	blk_mq_free_tag_set(&gd.tag_set);
 probe_fail_free_cd_info:
 	kfree(gd.cd_info);
-probe_fail_no_mem:
+probe_fail_anal_mem:
 	unregister_blkdev(gdrom_major, GDROM_DEV_NAME);
 	gdrom_major = 0;
 	pr_warn("Probe failed - error is 0x%X\n", err);

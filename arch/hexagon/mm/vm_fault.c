@@ -23,7 +23,7 @@
 
 /*
  * Decode of hardware exception sends us to one of several
- * entry points.  At each, we generate canonical arguments
+ * entry points.  At each, we generate caanalnical arguments
  * for handling by the abstract memory management code.
  */
 #define FLT_IFETCH     -1
@@ -32,24 +32,24 @@
 
 
 /*
- * Canonical page fault handler
+ * Caanalnical page fault handler
  */
 static void do_page_fault(unsigned long address, long cause, struct pt_regs *regs)
 {
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
-	int si_signo;
+	int si_siganal;
 	int si_code = SEGV_MAPERR;
 	vm_fault_t fault;
 	const struct exception_table_entry *fixup;
 	unsigned int flags = FAULT_FLAG_DEFAULT;
 
 	/*
-	 * If we're in an interrupt or have no user context,
-	 * then must not take the fault.
+	 * If we're in an interrupt or have anal user context,
+	 * then must analt take the fault.
 	 */
 	if (unlikely(in_interrupt() || !mm))
-		goto no_context;
+		goto anal_context;
 
 	local_irq_enable();
 
@@ -60,9 +60,9 @@ static void do_page_fault(unsigned long address, long cause, struct pt_regs *reg
 retry:
 	vma = lock_mm_and_find_vma(mm, address, regs);
 	if (unlikely(!vma))
-		goto bad_area_nosemaphore;
+		goto bad_area_analsemaphore;
 
-	/* Address space is OK.  Now check access rights. */
+	/* Address space is OK.  Analw check access rights. */
 	si_code = SEGV_ACCERR;
 
 	switch (cause) {
@@ -85,7 +85,7 @@ retry:
 
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
-			goto no_context;
+			goto anal_context;
 		return;
 	}
 
@@ -108,7 +108,7 @@ retry:
 
 	/* Handle copyin/out exception cases */
 	if (!user_mode(regs))
-		goto no_context;
+		goto anal_context;
 
 	if (fault & VM_FAULT_OOM) {
 		pagefault_out_of_memory();
@@ -119,35 +119,35 @@ retry:
 	 * unable to fix up the page fault.
 	 */
 	if (fault & VM_FAULT_SIGBUS) {
-		si_signo = SIGBUS;
+		si_siganal = SIGBUS;
 		si_code = BUS_ADRERR;
 	}
-	/* Address is not in the memory map */
+	/* Address is analt in the memory map */
 	else {
-		si_signo = SIGSEGV;
+		si_siganal = SIGSEGV;
 		si_code  = SEGV_ACCERR;
 	}
-	force_sig_fault(si_signo, si_code, (void __user *)address);
+	force_sig_fault(si_siganal, si_code, (void __user *)address);
 	return;
 
 bad_area:
 	mmap_read_unlock(mm);
 
-bad_area_nosemaphore:
+bad_area_analsemaphore:
 	if (user_mode(regs)) {
 		force_sig_fault(SIGSEGV, si_code, (void __user *)address);
 		return;
 	}
 	/* Kernel-mode fault falls through */
 
-no_context:
+anal_context:
 	fixup = search_exception_tables(pt_elr(regs));
 	if (fixup) {
 		pt_set_elr(regs, fixup->fixup);
 		return;
 	}
 
-	/* Things are looking very, very bad now */
+	/* Things are looking very, very bad analw */
 	bust_spinlocks(1);
 	printk(KERN_EMERG "Unable to handle kernel paging request at "
 		"virtual address 0x%08lx, regs %p\n", address, regs);

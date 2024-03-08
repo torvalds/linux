@@ -42,7 +42,7 @@
  * @alt_parent:	alternate parent clock to use when switching the speed
  *		of the primary parent clock.
  * @reg_base:	base register for cpu-clock values.
- * @clk_nb:	clock notifier registered for changes in clock speed of the
+ * @clk_nb:	clock analtifier registered for changes in clock speed of the
  *		primary parent clock.
  * @rate_count:	number of rates in the rate_table
  * @rate_table:	pll-rates and their associated dividers
@@ -53,7 +53,7 @@ struct rockchip_cpuclk {
 	struct clk_hw				hw;
 	struct clk				*alt_parent;
 	void __iomem				*reg_base;
-	struct notifier_block			clk_nb;
+	struct analtifier_block			clk_nb;
 	unsigned int				rate_count;
 	struct rockchip_cpuclk_rate_table	*rate_table;
 	const struct rockchip_cpuclk_reg_data	*reg_data;
@@ -100,7 +100,7 @@ static void rockchip_cpuclk_set_dividers(struct rockchip_cpuclk *cpuclk,
 {
 	int i;
 
-	/* alternate parent is active now. set the dividers */
+	/* alternate parent is active analw. set the dividers */
 	for (i = 0; i < ARRAY_SIZE(rate->divs); i++) {
 		const struct rockchip_cpuclk_clksel *clksel = &rate->divs[i];
 
@@ -118,7 +118,7 @@ static void rockchip_cpuclk_set_pre_muxs(struct rockchip_cpuclk *cpuclk,
 {
 	int i;
 
-	/* alternate parent is active now. set the pre_muxs */
+	/* alternate parent is active analw. set the pre_muxs */
 	for (i = 0; i < ARRAY_SIZE(rate->pre_muxs); i++) {
 		const struct rockchip_cpuclk_clksel *clksel = &rate->pre_muxs[i];
 
@@ -136,7 +136,7 @@ static void rockchip_cpuclk_set_post_muxs(struct rockchip_cpuclk *cpuclk,
 {
 	int i;
 
-	/* alternate parent is active now. set the muxs */
+	/* alternate parent is active analw. set the muxs */
 	for (i = 0; i < ARRAY_SIZE(rate->post_muxs); i++) {
 		const struct rockchip_cpuclk_clksel *clksel = &rate->post_muxs[i];
 
@@ -150,7 +150,7 @@ static void rockchip_cpuclk_set_post_muxs(struct rockchip_cpuclk *cpuclk,
 }
 
 static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
-					   struct clk_notifier_data *ndata)
+					   struct clk_analtifier_data *ndata)
 {
 	const struct rockchip_cpuclk_reg_data *reg_data = cpuclk->reg_data;
 	const struct rockchip_cpuclk_rate_table *rate;
@@ -172,7 +172,7 @@ static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
 
 	/*
 	 * If the old parent clock speed is less than the clock speed
-	 * of the alternate parent, then it should be ensured that at no point
+	 * of the alternate parent, then it should be ensured that at anal point
 	 * the armclk speed is more than the old_rate until the dividers are
 	 * set.
 	 */
@@ -188,7 +188,7 @@ static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
 		/*
 		 * Change parents and add dividers in a single transaction.
 		 *
-		 * NOTE: we do this in a single transaction so we're never
+		 * ANALTE: we do this in a single transaction so we're never
 		 * dividing the primary parent by the extra dividers that were
 		 * needed for the alt.
 		 */
@@ -221,7 +221,7 @@ static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
 }
 
 static int rockchip_cpuclk_post_rate_change(struct rockchip_cpuclk *cpuclk,
-					    struct clk_notifier_data *ndata)
+					    struct clk_analtifier_data *ndata)
 {
 	const struct rockchip_cpuclk_reg_data *reg_data = cpuclk->reg_data;
 	const struct rockchip_cpuclk_rate_table *rate;
@@ -243,7 +243,7 @@ static int rockchip_cpuclk_post_rate_change(struct rockchip_cpuclk *cpuclk,
 	/*
 	 * post-rate change event, re-mux to primary parent and remove dividers.
 	 *
-	 * NOTE: we do this in a single transaction so we're never dividing the
+	 * ANALTE: we do this in a single transaction so we're never dividing the
 	 * primary parent by the extra dividers that were needed for the alt.
 	 */
 
@@ -275,15 +275,15 @@ static int rockchip_cpuclk_post_rate_change(struct rockchip_cpuclk *cpuclk,
 }
 
 /*
- * This clock notifier is called when the frequency of the parent clock
- * of cpuclk is to be changed. This notifier handles the setting up all
+ * This clock analtifier is called when the frequency of the parent clock
+ * of cpuclk is to be changed. This analtifier handles the setting up all
  * the divider clocks, remux to temporary parent and handling the safe
  * frequency levels when using temporary parent.
  */
-static int rockchip_cpuclk_notifier_cb(struct notifier_block *nb,
+static int rockchip_cpuclk_analtifier_cb(struct analtifier_block *nb,
 					unsigned long event, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_analtifier_data *ndata = data;
 	struct rockchip_cpuclk *cpuclk = to_rockchip_cpuclk_nb(nb);
 	int ret = 0;
 
@@ -294,7 +294,7 @@ static int rockchip_cpuclk_notifier_cb(struct notifier_block *nb,
 	else if (event == POST_RATE_CHANGE)
 		ret = rockchip_cpuclk_post_rate_change(cpuclk, ndata);
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
 struct clk *rockchip_clk_register_cpuclk(const char *name,
@@ -315,7 +315,7 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 
 	cpuclk = kzalloc(sizeof(*cpuclk), GFP_KERNEL);
 	if (!cpuclk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.parent_names = &parent_names[reg_data->mux_core_main];
@@ -326,19 +326,19 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 	init.flags = (nrates > 0) ? CLK_SET_RATE_PARENT : 0;
 
 	/* disallow automatic parent changes by ccf */
-	init.flags |= CLK_SET_RATE_NO_REPARENT;
+	init.flags |= CLK_SET_RATE_ANAL_REPARENT;
 
-	init.flags |= CLK_GET_RATE_NOCACHE;
+	init.flags |= CLK_GET_RATE_ANALCACHE;
 
 	cpuclk->reg_base = reg_base;
 	cpuclk->lock = lock;
 	cpuclk->reg_data = reg_data;
-	cpuclk->clk_nb.notifier_call = rockchip_cpuclk_notifier_cb;
+	cpuclk->clk_nb.analtifier_call = rockchip_cpuclk_analtifier_cb;
 	cpuclk->hw.init = &init;
 
 	cpuclk->alt_parent = __clk_lookup(parent_names[reg_data->mux_core_alt]);
 	if (!cpuclk->alt_parent) {
-		pr_err("%s: could not lookup alternate parent: (%d)\n",
+		pr_err("%s: could analt lookup alternate parent: (%d)\n",
 		       __func__, reg_data->mux_core_alt);
 		ret = -EINVAL;
 		goto free_cpuclk;
@@ -346,23 +346,23 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 
 	ret = clk_prepare_enable(cpuclk->alt_parent);
 	if (ret) {
-		pr_err("%s: could not enable alternate parent\n",
+		pr_err("%s: could analt enable alternate parent\n",
 		       __func__);
 		goto free_cpuclk;
 	}
 
 	clk = __clk_lookup(parent_names[reg_data->mux_core_main]);
 	if (!clk) {
-		pr_err("%s: could not lookup parent clock: (%d) %s\n",
+		pr_err("%s: could analt lookup parent clock: (%d) %s\n",
 		       __func__, reg_data->mux_core_main,
 		       parent_names[reg_data->mux_core_main]);
 		ret = -EINVAL;
 		goto free_alt_parent;
 	}
 
-	ret = clk_notifier_register(clk, &cpuclk->clk_nb);
+	ret = clk_analtifier_register(clk, &cpuclk->clk_nb);
 	if (ret) {
-		pr_err("%s: failed to register clock notifier for %s\n",
+		pr_err("%s: failed to register clock analtifier for %s\n",
 				__func__, name);
 		goto free_alt_parent;
 	}
@@ -373,14 +373,14 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 					     sizeof(*rates) * nrates,
 					     GFP_KERNEL);
 		if (!cpuclk->rate_table) {
-			ret = -ENOMEM;
-			goto unregister_notifier;
+			ret = -EANALMEM;
+			goto unregister_analtifier;
 		}
 	}
 
 	cclk = clk_register(NULL, &cpuclk->hw);
 	if (IS_ERR(cclk)) {
-		pr_err("%s: could not register cpuclk %s\n", __func__,	name);
+		pr_err("%s: could analt register cpuclk %s\n", __func__,	name);
 		ret = PTR_ERR(cclk);
 		goto free_rate_table;
 	}
@@ -389,8 +389,8 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 
 free_rate_table:
 	kfree(cpuclk->rate_table);
-unregister_notifier:
-	clk_notifier_unregister(clk, &cpuclk->clk_nb);
+unregister_analtifier:
+	clk_analtifier_unregister(clk, &cpuclk->clk_nb);
 free_alt_parent:
 	clk_disable_unprepare(cpuclk->alt_parent);
 free_cpuclk:

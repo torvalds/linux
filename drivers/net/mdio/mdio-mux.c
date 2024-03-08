@@ -137,43 +137,43 @@ static void mdio_mux_uninit_children(struct mdio_mux_parent_bus *pb)
 }
 
 int mdio_mux_init(struct device *dev,
-		  struct device_node *mux_node,
+		  struct device_analde *mux_analde,
 		  int (*switch_fn)(int cur, int desired, void *data),
 		  void **mux_handle,
 		  void *data,
 		  struct mii_bus *mux_bus)
 {
-	struct device_node *parent_bus_node;
-	struct device_node *child_bus_node;
+	struct device_analde *parent_bus_analde;
+	struct device_analde *child_bus_analde;
 	int r, ret_val;
 	struct mii_bus *parent_bus;
 	struct mdio_mux_parent_bus *pb;
 	struct mdio_mux_child_bus *cb;
 
-	if (!mux_node)
-		return -ENODEV;
+	if (!mux_analde)
+		return -EANALDEV;
 
 	if (!mux_bus) {
-		parent_bus_node = of_parse_phandle(mux_node,
+		parent_bus_analde = of_parse_phandle(mux_analde,
 						   "mdio-parent-bus", 0);
 
-		if (!parent_bus_node)
-			return -ENODEV;
+		if (!parent_bus_analde)
+			return -EANALDEV;
 
-		parent_bus = of_mdio_find_bus(parent_bus_node);
+		parent_bus = of_mdio_find_bus(parent_bus_analde);
 		if (!parent_bus) {
 			ret_val = -EPROBE_DEFER;
 			goto err_parent_bus;
 		}
 	} else {
-		parent_bus_node = NULL;
+		parent_bus_analde = NULL;
 		parent_bus = mux_bus;
 		get_device(&parent_bus->dev);
 	}
 
 	pb = devm_kzalloc(dev, sizeof(*pb), GFP_KERNEL);
 	if (!pb) {
-		ret_val = -ENOMEM;
+		ret_val = -EANALMEM;
 		goto err_pb_kz;
 	}
 
@@ -183,21 +183,21 @@ int mdio_mux_init(struct device *dev,
 	pb->parent_id = parent_count++;
 	pb->mii_bus = parent_bus;
 
-	ret_val = -ENODEV;
-	for_each_available_child_of_node(mux_node, child_bus_node) {
+	ret_val = -EANALDEV;
+	for_each_available_child_of_analde(mux_analde, child_bus_analde) {
 		int v;
 
-		r = of_property_read_u32(child_bus_node, "reg", &v);
+		r = of_property_read_u32(child_bus_analde, "reg", &v);
 		if (r) {
 			dev_err(dev,
 				"Error: Failed to find reg for child %pOF: %pe\n",
-				child_bus_node, ERR_PTR(r));
+				child_bus_analde, ERR_PTR(r));
 			continue;
 		}
 
 		cb = devm_kzalloc(dev, sizeof(*cb), GFP_KERNEL);
 		if (!cb) {
-			ret_val = -ENOMEM;
+			ret_val = -EANALMEM;
 			goto err_loop;
 		}
 		cb->bus_number = v;
@@ -205,7 +205,7 @@ int mdio_mux_init(struct device *dev,
 
 		cb->mii_bus = mdiobus_alloc();
 		if (!cb->mii_bus) {
-			ret_val = -ENOMEM;
+			ret_val = -EANALMEM;
 			goto err_loop;
 		}
 		cb->mii_bus->priv = cb;
@@ -222,7 +222,7 @@ int mdio_mux_init(struct device *dev,
 			cb->mii_bus->read_c45 = mdio_mux_read_c45;
 		if (parent_bus->write_c45)
 			cb->mii_bus->write_c45 = mdio_mux_write_c45;
-		r = of_mdiobus_register(cb->mii_bus, child_bus_node);
+		r = of_mdiobus_register(cb->mii_bus, child_bus_analde);
 		if (r) {
 			mdiobus_free(cb->mii_bus);
 			if (r == -EPROBE_DEFER) {
@@ -232,7 +232,7 @@ int mdio_mux_init(struct device *dev,
 			devm_kfree(dev, cb);
 			dev_err(dev,
 				"Error: Failed to register MDIO bus for child %pOF: %pe\n",
-				child_bus_node, ERR_PTR(r));
+				child_bus_analde, ERR_PTR(r));
 		} else {
 			cb->next = pb->children;
 			pb->children = cb;
@@ -243,15 +243,15 @@ int mdio_mux_init(struct device *dev,
 		return 0;
 	}
 
-	dev_err(dev, "Error: No acceptable child buses found\n");
+	dev_err(dev, "Error: Anal acceptable child buses found\n");
 
 err_loop:
 	mdio_mux_uninit_children(pb);
-	of_node_put(child_bus_node);
+	of_analde_put(child_bus_analde);
 err_pb_kz:
 	put_device(&parent_bus->dev);
 err_parent_bus:
-	of_node_put(parent_bus_node);
+	of_analde_put(parent_bus_analde);
 	return ret_val;
 }
 EXPORT_SYMBOL_GPL(mdio_mux_init);

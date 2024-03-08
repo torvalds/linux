@@ -3,7 +3,7 @@
 
 #include <cpuid.h>
 #include <elf.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -389,7 +389,7 @@ TEST_F_TIMEOUT(enclave, unclobbered_vdso_oversubscribed_remove, 900)
 	struct encl_op_put_to_buf put_op;
 	struct encl_segment *heap;
 	unsigned long total_mem;
-	int ret, errno_save;
+	int ret, erranal_save;
 	unsigned long addr;
 	unsigned long i;
 
@@ -411,11 +411,11 @@ TEST_F_TIMEOUT(enclave, unclobbered_vdso_oversubscribed_remove, 900)
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_MODIFY_TYPES, &modt_ioc);
 
 	if (ret == -1) {
-		if (errno == ENOTTY)
+		if (erranal == EANALTTY)
 			SKIP(return,
-			     "Kernel does not support SGX_IOC_ENCLAVE_MODIFY_TYPES ioctl()");
-		else if (errno == ENODEV)
-			SKIP(return, "System does not support SGX2");
+			     "Kernel does analt support SGX_IOC_ENCLAVE_MODIFY_TYPES ioctl()");
+		else if (erranal == EANALDEV)
+			SKIP(return, "System does analt support SGX2");
 	}
 
 	/*
@@ -457,10 +457,10 @@ TEST_F_TIMEOUT(enclave, unclobbered_vdso_oversubscribed_remove, 900)
 	TH_LOG("Changing type of %zd bytes to trimmed may take a while ...",
 	       heap->size);
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_MODIFY_TYPES, &modt_ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
 	EXPECT_EQ(ret, 0);
-	EXPECT_EQ(errno_save, 0);
+	EXPECT_EQ(erranal_save, 0);
 	EXPECT_EQ(modt_ioc.result, 0);
 	EXPECT_EQ(modt_ioc.count, heap->size);
 
@@ -494,10 +494,10 @@ TEST_F_TIMEOUT(enclave, unclobbered_vdso_oversubscribed_remove, 900)
 	TH_LOG("Removing %zd bytes from enclave may take a while ...",
 	       heap->size);
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_REMOVE_PAGES, &remove_ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
 	EXPECT_EQ(ret, 0);
-	EXPECT_EQ(errno_save, 0);
+	EXPECT_EQ(erranal_save, 0);
 	EXPECT_EQ(remove_ioc.count, heap->size);
 }
 
@@ -580,7 +580,7 @@ TEST_F(enclave, tcs_entry)
 	memset(&self->run, 0, sizeof(self->run));
 	self->run.tcs = self->encl.encl_base;
 
-	op.type = ENCL_OP_NOP;
+	op.type = ENCL_OP_ANALP;
 
 	EXPECT_EQ(ENCL_CALL(&op, &self->run, true), 0);
 
@@ -610,7 +610,7 @@ TEST_F(enclave, tcs_entry)
  * 3) Repeat (1) - this time expecting a regular #PF communicated via the
  *    vDSO.
  * 4) Change PTE permissions of target page within enclave back to be RW.
- * 5) Repeat (1) by resuming enclave, now expected to be possible to write to
+ * 5) Repeat (1) by resuming enclave, analw expected to be possible to write to
  *    and read from target page within enclave.
  */
 TEST_F(enclave, pte_permissions)
@@ -687,7 +687,7 @@ TEST_F(enclave, pte_permissions)
 
 	/*
 	 * Change PTE permissions back to enable enclave to write to the
-	 * target page and resume enclave - do not expect any exceptions this
+	 * target page and resume enclave - do analt expect any exceptions this
 	 * time.
 	 */
 	ret = mprotect((void *)data_start, PAGE_SIZE, PROT_READ | PROT_WRITE);
@@ -715,12 +715,12 @@ TEST_F(enclave, pte_permissions)
 }
 
 /*
- * Modifying permissions of TCS page should not be possible.
+ * Modifying permissions of TCS page should analt be possible.
  */
 TEST_F(enclave, tcs_permissions)
 {
 	struct sgx_enclave_restrict_permissions ioc;
-	int ret, errno_save;
+	int ret, erranal_save;
 
 	ASSERT_TRUE(setup_test_encl(ENCL_HEAP_SIZE_DEFAULT, &self->encl, _metadata));
 
@@ -735,7 +735,7 @@ TEST_F(enclave, tcs_permissions)
 	 */
 
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_RESTRICT_PERMISSIONS, &ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
 	/*
 	 * Invalid parameters were provided during sanity check,
@@ -744,14 +744,14 @@ TEST_F(enclave, tcs_permissions)
 	ASSERT_EQ(ret, -1);
 
 	/* ret == -1 */
-	if (errno_save == ENOTTY)
+	if (erranal_save == EANALTTY)
 		SKIP(return,
-		     "Kernel does not support SGX_IOC_ENCLAVE_RESTRICT_PERMISSIONS ioctl()");
-	else if (errno_save == ENODEV)
-		SKIP(return, "System does not support SGX2");
+		     "Kernel does analt support SGX_IOC_ENCLAVE_RESTRICT_PERMISSIONS ioctl()");
+	else if (erranal_save == EANALDEV)
+		SKIP(return, "System does analt support SGX2");
 
 	/*
-	 * Attempt to make TCS page read-only. This is not allowed and
+	 * Attempt to make TCS page read-only. This is analt allowed and
 	 * should be prevented by the kernel.
 	 */
 	ioc.offset = encl_get_tcs_offset(&self->encl);
@@ -759,10 +759,10 @@ TEST_F(enclave, tcs_permissions)
 	ioc.permissions = SGX_SECINFO_R;
 
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_RESTRICT_PERMISSIONS, &ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
 	EXPECT_EQ(ret, -1);
-	EXPECT_EQ(errno_save, EINVAL);
+	EXPECT_EQ(erranal_save, EINVAL);
 	EXPECT_EQ(ioc.result, 0);
 	EXPECT_EQ(ioc.count, 0);
 }
@@ -773,7 +773,7 @@ TEST_F(enclave, tcs_permissions)
  * Modify and restore enclave page's EPCM (enclave) permissions from
  * outside enclave (ENCLS[EMODPR] via kernel) as well as from within
  * enclave (via ENCLU[EMODPE]). Check for page fault if
- * VMA allows access but EPCM permissions do not.
+ * VMA allows access but EPCM permissions do analt.
  */
 TEST_F(enclave, epcm_permissions)
 {
@@ -783,7 +783,7 @@ TEST_F(enclave, epcm_permissions)
 	struct encl_op_eaccept eaccept_op;
 	struct encl_op_emodpe emodpe_op;
 	unsigned long data_start;
-	int ret, errno_save;
+	int ret, erranal_save;
 
 	ASSERT_TRUE(setup_test_encl(ENCL_HEAP_SIZE_DEFAULT, &self->encl, _metadata));
 
@@ -798,7 +798,7 @@ TEST_F(enclave, epcm_permissions)
 
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_RESTRICT_PERMISSIONS,
 		    &restrict_ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
 	/*
 	 * Invalid parameters were provided during sanity check,
@@ -807,11 +807,11 @@ TEST_F(enclave, epcm_permissions)
 	ASSERT_EQ(ret, -1);
 
 	/* ret == -1 */
-	if (errno_save == ENOTTY)
+	if (erranal_save == EANALTTY)
 		SKIP(return,
-		     "Kernel does not support SGX_IOC_ENCLAVE_RESTRICT_PERMISSIONS ioctl()");
-	else if (errno_save == ENODEV)
-		SKIP(return, "System does not support SGX2");
+		     "Kernel does analt support SGX_IOC_ENCLAVE_RESTRICT_PERMISSIONS ioctl()");
+	else if (erranal_save == EANALDEV)
+		SKIP(return, "System does analt support SGX2");
 
 	/*
 	 * Page that will have its permissions changed is the second data
@@ -870,10 +870,10 @@ TEST_F(enclave, epcm_permissions)
 
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_RESTRICT_PERMISSIONS,
 		    &restrict_ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
 	EXPECT_EQ(ret, 0);
-	EXPECT_EQ(errno_save, 0);
+	EXPECT_EQ(erranal_save, 0);
 	EXPECT_EQ(restrict_ioc.result, 0);
 	EXPECT_EQ(restrict_ioc.count, 4096);
 
@@ -894,7 +894,7 @@ TEST_F(enclave, epcm_permissions)
 	EXPECT_EQ(eaccept_op.ret, 0);
 
 	/*
-	 * EPCM permissions of page is now read-only, expect #PF
+	 * EPCM permissions of page is analw read-only, expect #PF
 	 * on EPCM when attempting to write to page from within enclave.
 	 */
 	put_addr_op.value = MAGIC2;
@@ -911,7 +911,7 @@ TEST_F(enclave, epcm_permissions)
 	self->run.exception_addr = 0;
 
 	/*
-	 * Received AEX but cannot return to enclave at same entrypoint,
+	 * Received AEX but cananalt return to enclave at same entrypoint,
 	 * need different TCS from where EPCM permission can be made writable
 	 * again.
 	 */
@@ -942,7 +942,7 @@ TEST_F(enclave, epcm_permissions)
 
 	/*
 	 * Wrong page permissions that caused original fault has
-	 * now been fixed via EPCM permissions.
+	 * analw been fixed via EPCM permissions.
 	 * Resume execution in main TCS to re-attempt the memory access.
 	 */
 	self->run.tcs = self->encl.encl_base;
@@ -971,7 +971,7 @@ TEST_F(enclave, epcm_permissions)
 
 /*
  * Test the addition of pages to an initialized enclave via writing to
- * a page belonging to the enclave's address space but was not added
+ * a page belonging to the enclave's address space but was analt added
  * during enclave creation.
  */
 TEST_F(enclave, augment)
@@ -984,7 +984,7 @@ TEST_F(enclave, augment)
 	int i;
 
 	if (!sgx2_supported())
-		SKIP(return, "SGX2 not supported");
+		SKIP(return, "SGX2 analt supported");
 
 	ASSERT_TRUE(setup_test_encl(ENCL_HEAP_SIZE_DEFAULT, &self->encl, _metadata));
 
@@ -1000,7 +1000,7 @@ TEST_F(enclave, augment)
 	/*
 	 * Actual enclave size is expected to be larger than the loaded
 	 * test enclave since enclave size must be a power of 2 in bytes
-	 * and test_encl does not consume it all.
+	 * and test_encl does analt consume it all.
 	 */
 	EXPECT_LT(total_size + PAGE_SIZE, self->encl.encl_size);
 
@@ -1009,7 +1009,7 @@ TEST_F(enclave, augment)
 	 * memory mapping is for one page right after all existing
 	 * mappings.
 	 * Kernel will allow new mapping using any permissions if it
-	 * falls into the enclave's address range but not backed
+	 * falls into the enclave's address range but analt backed
 	 * by existing enclave pages.
 	 */
 	addr = mmap((void *)self->encl.encl_base + total_size, PAGE_SIZE,
@@ -1023,10 +1023,10 @@ TEST_F(enclave, augment)
 
 	/*
 	 * Attempt to write to the new page from within enclave.
-	 * Expected to fail since page is not (yet) part of the enclave.
+	 * Expected to fail since page is analt (yet) part of the enclave.
 	 * The first #PF will trigger the addition of the page to the
 	 * enclave, but since the new page needs an EACCEPT from within the
-	 * enclave before it can be used it would not be possible
+	 * enclave before it can be used it would analt be possible
 	 * to successfully return to the failing instruction. This is the
 	 * cause of the second #PF captured here having the SGX bit set,
 	 * it is from hardware preventing the page from being used.
@@ -1043,7 +1043,7 @@ TEST_F(enclave, augment)
 
 	if (self->run.exception_error_code == 0x6) {
 		munmap(addr, PAGE_SIZE);
-		SKIP(return, "Kernel does not support adding pages to initialized enclave");
+		SKIP(return, "Kernel does analt support adding pages to initialized enclave");
 	}
 
 	EXPECT_EQ(self->run.exception_error_code, 0x8007);
@@ -1068,7 +1068,7 @@ TEST_F(enclave, augment)
 	EXPECT_EQ(self->run.exception_addr, 0);
 	EXPECT_EQ(eaccept_op.ret, 0);
 
-	/* Can now return to main TCS to resume execution. */
+	/* Can analw return to main TCS to resume execution. */
 	self->run.tcs = self->encl.encl_base;
 
 	EXPECT_EQ(vdso_sgx_enter_enclave((unsigned long)&put_addr_op, 0, 0,
@@ -1114,7 +1114,7 @@ TEST_F(enclave, augment_via_eaccept)
 	int i;
 
 	if (!sgx2_supported())
-		SKIP(return, "SGX2 not supported");
+		SKIP(return, "SGX2 analt supported");
 
 	ASSERT_TRUE(setup_test_encl(ENCL_HEAP_SIZE_DEFAULT, &self->encl, _metadata));
 
@@ -1130,7 +1130,7 @@ TEST_F(enclave, augment_via_eaccept)
 	/*
 	 * Actual enclave size is expected to be larger than the loaded
 	 * test enclave since enclave size must be a power of 2 in bytes while
-	 * test_encl does not consume it all.
+	 * test_encl does analt consume it all.
 	 */
 	EXPECT_LT(total_size + PAGE_SIZE, self->encl.encl_size);
 
@@ -1139,7 +1139,7 @@ TEST_F(enclave, augment_via_eaccept)
 	 * EPC page.
 	 *
 	 * Kernel will allow new mapping using any permissions if it
-	 * falls into the enclave's address range but not backed
+	 * falls into the enclave's address range but analt backed
 	 * by existing enclave pages.
 	 */
 
@@ -1167,7 +1167,7 @@ TEST_F(enclave, augment_via_eaccept)
 	    self->run.exception_error_code == 4 &&
 	    self->run.exception_addr == self->encl.encl_base + total_size) {
 		munmap(addr, PAGE_SIZE);
-		SKIP(return, "Kernel does not support adding pages to initialized enclave");
+		SKIP(return, "Kernel does analt support adding pages to initialized enclave");
 	}
 
 	EXPECT_EEXIT(&self->run);
@@ -1234,7 +1234,7 @@ TEST_F(enclave, tcs_create)
 	struct encl_op_eaccept eaccept_op;
 	size_t total_size = 0;
 	uint64_t val_64;
-	int errno_save;
+	int erranal_save;
 	int ret, i;
 
 	ASSERT_TRUE(setup_test_encl(ENCL_HEAP_SIZE_DEFAULT, &self->encl,
@@ -1251,11 +1251,11 @@ TEST_F(enclave, tcs_create)
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_MODIFY_TYPES, &modt_ioc);
 
 	if (ret == -1) {
-		if (errno == ENOTTY)
+		if (erranal == EANALTTY)
 			SKIP(return,
-			     "Kernel does not support SGX_IOC_ENCLAVE_MODIFY_TYPES ioctl()");
-		else if (errno == ENODEV)
-			SKIP(return, "System does not support SGX2");
+			     "Kernel does analt support SGX_IOC_ENCLAVE_MODIFY_TYPES ioctl()");
+		else if (erranal == EANALDEV)
+			SKIP(return, "System does analt support SGX2");
 	}
 
 	/*
@@ -1279,7 +1279,7 @@ TEST_F(enclave, tcs_create)
 	/*
 	 * Actual enclave size is expected to be larger than the loaded
 	 * test enclave since enclave size must be a power of 2 in bytes while
-	 * test_encl does not consume it all.
+	 * test_encl does analt consume it all.
 	 */
 	EXPECT_LT(total_size + 3 * PAGE_SIZE, self->encl.encl_size);
 
@@ -1316,7 +1316,7 @@ TEST_F(enclave, tcs_create)
 	    self->run.exception_error_code == 4 &&
 	    self->run.exception_addr == (unsigned long)stack_end) {
 		munmap(addr, 3 * PAGE_SIZE);
-		SKIP(return, "Kernel does not support adding pages to initialized enclave");
+		SKIP(return, "Kernel does analt support adding pages to initialized enclave");
 	}
 
 	EXPECT_EEXIT(&self->run);
@@ -1346,7 +1346,7 @@ TEST_F(enclave, tcs_create)
 	EXPECT_EQ(eaccept_op.ret, 0);
 
 	/*
-	 * Three new pages added to enclave. Now populate the TCS page with
+	 * Three new pages added to enclave. Analw populate the TCS page with
 	 * needed data. This should be done from within enclave. Provide
 	 * the function that will do the actual data population with needed
 	 * data.
@@ -1379,10 +1379,10 @@ TEST_F(enclave, tcs_create)
 	modt_ioc.page_type = SGX_PAGE_TYPE_TCS;
 
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_MODIFY_TYPES, &modt_ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
 	EXPECT_EQ(ret, 0);
-	EXPECT_EQ(errno_save, 0);
+	EXPECT_EQ(erranal_save, 0);
 	EXPECT_EQ(modt_ioc.result, 0);
 	EXPECT_EQ(modt_ioc.count, 4096);
 
@@ -1442,10 +1442,10 @@ TEST_F(enclave, tcs_create)
 	modt_ioc.page_type = SGX_PAGE_TYPE_TRIM;
 
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_MODIFY_TYPES, &modt_ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
 	EXPECT_EQ(ret, 0);
-	EXPECT_EQ(errno_save, 0);
+	EXPECT_EQ(erranal_save, 0);
 	EXPECT_EQ(modt_ioc.result, 0);
 	EXPECT_EQ(modt_ioc.count, 3 * PAGE_SIZE);
 
@@ -1497,10 +1497,10 @@ TEST_F(enclave, tcs_create)
 	remove_ioc.length = 3 * PAGE_SIZE;
 
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_REMOVE_PAGES, &remove_ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
 	EXPECT_EQ(ret, 0);
-	EXPECT_EQ(errno_save, 0);
+	EXPECT_EQ(erranal_save, 0);
 	EXPECT_EQ(remove_ioc.count, 3 * PAGE_SIZE);
 
 	/*
@@ -1554,19 +1554,19 @@ TEST_F(enclave, tcs_create)
 }
 
 /*
- * Ensure sane behavior if user requests page removal, does not run
+ * Ensure sane behavior if user requests page removal, does analt run
  * EACCEPT from within enclave but still attempts to finalize page removal
  * with the SGX_IOC_ENCLAVE_REMOVE_PAGES ioctl(). The latter should fail
- * because the removal was not EACCEPTed from within the enclave.
+ * because the removal was analt EACCEPTed from within the enclave.
  */
-TEST_F(enclave, remove_added_page_no_eaccept)
+TEST_F(enclave, remove_added_page_anal_eaccept)
 {
 	struct sgx_enclave_remove_pages remove_ioc;
 	struct encl_op_get_from_addr get_addr_op;
 	struct sgx_enclave_modify_types modt_ioc;
 	struct encl_op_put_to_addr put_addr_op;
 	unsigned long data_start;
-	int ret, errno_save;
+	int ret, erranal_save;
 
 	ASSERT_TRUE(setup_test_encl(ENCL_HEAP_SIZE_DEFAULT, &self->encl, _metadata));
 
@@ -1581,11 +1581,11 @@ TEST_F(enclave, remove_added_page_no_eaccept)
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_MODIFY_TYPES, &modt_ioc);
 
 	if (ret == -1) {
-		if (errno == ENOTTY)
+		if (erranal == EANALTTY)
 			SKIP(return,
-			     "Kernel does not support SGX_IOC_ENCLAVE_MODIFY_TYPES ioctl()");
-		else if (errno == ENODEV)
-			SKIP(return, "System does not support SGX2");
+			     "Kernel does analt support SGX_IOC_ENCLAVE_MODIFY_TYPES ioctl()");
+		else if (erranal == EANALDEV)
+			SKIP(return, "System does analt support SGX2");
 	}
 
 	/*
@@ -1643,10 +1643,10 @@ TEST_F(enclave, remove_added_page_no_eaccept)
 	modt_ioc.page_type = SGX_PAGE_TYPE_TRIM;
 
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_MODIFY_TYPES, &modt_ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
 	EXPECT_EQ(ret, 0);
-	EXPECT_EQ(errno_save, 0);
+	EXPECT_EQ(erranal_save, 0);
 	EXPECT_EQ(modt_ioc.result, 0);
 	EXPECT_EQ(modt_ioc.count, 4096);
 
@@ -1659,11 +1659,11 @@ TEST_F(enclave, remove_added_page_no_eaccept)
 	remove_ioc.length = PAGE_SIZE;
 
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_REMOVE_PAGES, &remove_ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
-	/* Operation not permitted since EACCEPT was omitted. */
+	/* Operation analt permitted since EACCEPT was omitted. */
 	EXPECT_EQ(ret, -1);
-	EXPECT_EQ(errno_save, EPERM);
+	EXPECT_EQ(erranal_save, EPERM);
 	EXPECT_EQ(remove_ioc.count, 0);
 }
 
@@ -1677,7 +1677,7 @@ TEST_F(enclave, remove_added_page_invalid_access)
 	struct encl_op_put_to_addr put_addr_op;
 	struct sgx_enclave_modify_types ioc;
 	unsigned long data_start;
-	int ret, errno_save;
+	int ret, erranal_save;
 
 	ASSERT_TRUE(setup_test_encl(ENCL_HEAP_SIZE_DEFAULT, &self->encl, _metadata));
 
@@ -1692,11 +1692,11 @@ TEST_F(enclave, remove_added_page_invalid_access)
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_MODIFY_TYPES, &ioc);
 
 	if (ret == -1) {
-		if (errno == ENOTTY)
+		if (erranal == EANALTTY)
 			SKIP(return,
-			     "Kernel does not support SGX_IOC_ENCLAVE_MODIFY_TYPES ioctl()");
-		else if (errno == ENODEV)
-			SKIP(return, "System does not support SGX2");
+			     "Kernel does analt support SGX_IOC_ENCLAVE_MODIFY_TYPES ioctl()");
+		else if (erranal == EANALDEV)
+			SKIP(return, "System does analt support SGX2");
 	}
 
 	/*
@@ -1754,10 +1754,10 @@ TEST_F(enclave, remove_added_page_invalid_access)
 	ioc.page_type = SGX_PAGE_TYPE_TRIM;
 
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_MODIFY_TYPES, &ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
 	EXPECT_EQ(ret, 0);
-	EXPECT_EQ(errno_save, 0);
+	EXPECT_EQ(erranal_save, 0);
 	EXPECT_EQ(ioc.result, 0);
 	EXPECT_EQ(ioc.count, 4096);
 
@@ -1770,7 +1770,7 @@ TEST_F(enclave, remove_added_page_invalid_access)
 
 	/*
 	 * From kernel perspective the page is present but according to SGX the
-	 * page should not be accessible so a #PF with SGX bit set is
+	 * page should analt be accessible so a #PF with SGX bit set is
 	 * expected.
 	 */
 
@@ -1782,7 +1782,7 @@ TEST_F(enclave, remove_added_page_invalid_access)
 
 /*
  * Request enclave page removal and correctly follow with
- * EACCEPT but do not follow with removal ioctl() but instead a read attempt
+ * EACCEPT but do analt follow with removal ioctl() but instead a read attempt
  * to removed page is made from within the enclave.
  */
 TEST_F(enclave, remove_added_page_invalid_access_after_eaccept)
@@ -1792,7 +1792,7 @@ TEST_F(enclave, remove_added_page_invalid_access_after_eaccept)
 	struct sgx_enclave_modify_types ioc;
 	struct encl_op_eaccept eaccept_op;
 	unsigned long data_start;
-	int ret, errno_save;
+	int ret, erranal_save;
 
 	ASSERT_TRUE(setup_test_encl(ENCL_HEAP_SIZE_DEFAULT, &self->encl, _metadata));
 
@@ -1807,11 +1807,11 @@ TEST_F(enclave, remove_added_page_invalid_access_after_eaccept)
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_MODIFY_TYPES, &ioc);
 
 	if (ret == -1) {
-		if (errno == ENOTTY)
+		if (erranal == EANALTTY)
 			SKIP(return,
-			     "Kernel does not support SGX_IOC_ENCLAVE_MODIFY_TYPES ioctl()");
-		else if (errno == ENODEV)
-			SKIP(return, "System does not support SGX2");
+			     "Kernel does analt support SGX_IOC_ENCLAVE_MODIFY_TYPES ioctl()");
+		else if (erranal == EANALDEV)
+			SKIP(return, "System does analt support SGX2");
 	}
 
 	/*
@@ -1869,10 +1869,10 @@ TEST_F(enclave, remove_added_page_invalid_access_after_eaccept)
 	ioc.page_type = SGX_PAGE_TYPE_TRIM;
 
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_MODIFY_TYPES, &ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
 	EXPECT_EQ(ret, 0);
-	EXPECT_EQ(errno_save, 0);
+	EXPECT_EQ(erranal_save, 0);
 	EXPECT_EQ(ioc.result, 0);
 	EXPECT_EQ(ioc.count, 4096);
 
@@ -1900,7 +1900,7 @@ TEST_F(enclave, remove_added_page_invalid_access_after_eaccept)
 
 	/*
 	 * From kernel perspective the page is present but according to SGX the
-	 * page should not be accessible so a #PF with SGX bit set is
+	 * page should analt be accessible so a #PF with SGX bit set is
 	 * expected.
 	 */
 
@@ -1916,7 +1916,7 @@ TEST_F(enclave, remove_untouched_page)
 	struct sgx_enclave_modify_types modt_ioc;
 	struct encl_op_eaccept eaccept_op;
 	unsigned long data_start;
-	int ret, errno_save;
+	int ret, erranal_save;
 
 	ASSERT_TRUE(setup_test_encl(ENCL_HEAP_SIZE_DEFAULT, &self->encl, _metadata));
 
@@ -1928,11 +1928,11 @@ TEST_F(enclave, remove_untouched_page)
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_MODIFY_TYPES, &modt_ioc);
 
 	if (ret == -1) {
-		if (errno == ENOTTY)
+		if (erranal == EANALTTY)
 			SKIP(return,
-			     "Kernel does not support SGX_IOC_ENCLAVE_MODIFY_TYPES ioctl()");
-		else if (errno == ENODEV)
-			SKIP(return, "System does not support SGX2");
+			     "Kernel does analt support SGX_IOC_ENCLAVE_MODIFY_TYPES ioctl()");
+		else if (erranal == EANALDEV)
+			SKIP(return, "System does analt support SGX2");
 	}
 
 	/*
@@ -1954,10 +1954,10 @@ TEST_F(enclave, remove_untouched_page)
 	modt_ioc.length = PAGE_SIZE;
 	modt_ioc.page_type = SGX_PAGE_TYPE_TRIM;
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_MODIFY_TYPES, &modt_ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
 	EXPECT_EQ(ret, 0);
-	EXPECT_EQ(errno_save, 0);
+	EXPECT_EQ(erranal_save, 0);
 	EXPECT_EQ(modt_ioc.result, 0);
 	EXPECT_EQ(modt_ioc.count, 4096);
 
@@ -1983,10 +1983,10 @@ TEST_F(enclave, remove_untouched_page)
 	remove_ioc.offset = encl_get_data_offset(&self->encl) + PAGE_SIZE;
 	remove_ioc.length = PAGE_SIZE;
 	ret = ioctl(self->encl.fd, SGX_IOC_ENCLAVE_REMOVE_PAGES, &remove_ioc);
-	errno_save = ret == -1 ? errno : 0;
+	erranal_save = ret == -1 ? erranal : 0;
 
 	EXPECT_EQ(ret, 0);
-	EXPECT_EQ(errno_save, 0);
+	EXPECT_EQ(erranal_save, 0);
 	EXPECT_EQ(remove_ioc.count, 4096);
 }
 

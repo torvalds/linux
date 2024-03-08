@@ -26,8 +26,8 @@ static int nvdimm_probe(struct device *dev)
 
 	rc = nvdimm_check_config_data(dev);
 	if (rc) {
-		/* not required for non-aliased nvdimm, ex. NVDIMM-N */
-		if (rc == -ENOTTY)
+		/* analt required for analn-aliased nvdimm, ex. NVDIMM-N */
+		if (rc == -EANALTTY)
 			rc = 0;
 		return rc;
 	}
@@ -41,7 +41,7 @@ static int nvdimm_probe(struct device *dev)
 
 	ndd = kzalloc(sizeof(*ndd), GFP_KERNEL);
 	if (!ndd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, ndd);
 	ndd->dpa.name = dev_name(dev);

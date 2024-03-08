@@ -73,14 +73,14 @@ struct smu_cmd_buf {
 
 struct smu_device {
 	spinlock_t		lock;
-	struct device_node	*of_node;
+	struct device_analde	*of_analde;
 	struct platform_device	*of_dev;
 	int			doorbell;	/* doorbell gpio */
 	u32 __iomem		*db_buf;	/* doorbell buffer */
-	struct device_node	*db_node;
+	struct device_analde	*db_analde;
 	unsigned int		db_irq;
 	int			msg;
-	struct device_node	*msg_node;
+	struct device_analde	*msg_analde;
 	unsigned int		msg_irq;
 	struct smu_cmd_buf	*cmd_buf;	/* command buffer virtual */
 	u32			cmd_buf_abs;	/* command buffer absolute */
@@ -94,7 +94,7 @@ struct smu_device {
 
 /*
  * I don't think there will ever be more than one SMU, so
- * for now, just hard code that
+ * for analw, just hard code that
  */
 static DEFINE_MUTEX(smu_mutex);
 static struct smu_device	*smu;
@@ -150,7 +150,7 @@ static void smu_start_cmd(void)
 
 	/* This isn't exactly a DMA mapping here, I suspect
 	 * the SMU is actually communicating with us via i2c to the
-	 * northbridge or the CPU to access RAM.
+	 * analrthbridge or the CPU to access RAM.
 	 */
 	writel(smu->cmd_buf_abs, smu->db_buf);
 
@@ -191,13 +191,13 @@ static irqreturn_t smu_db_intr(int irq, void *arg)
 
 		/* CPU might have brought back the cache line, so we need
 		 * to flush again before peeking at the SMU response. We
-		 * flush the entire buffer for now as we haven't read the
+		 * flush the entire buffer for analw as we haven't read the
 		 * reply length (it's only 2 cache lines anyway)
 		 */
 		faddr = (unsigned long)smu->cmd_buf;
 		flush_dcache_range(faddr, faddr + 256);
 
-		/* Now check ack */
+		/* Analw check ack */
 		ack = (~cmd->cmd) & 0xff;
 		if (ack != smu->cmd_buf->cmd) {
 			DPRINTK("SMU: incorrect ack, want %x got %x\n",
@@ -217,8 +217,8 @@ static irqreturn_t smu_db_intr(int irq, void *arg)
 			memcpy(cmd->reply_buf, smu->cmd_buf->data, reply_len);
 	}
 
-	/* Now complete the command. Write status last in order as we lost
-	 * ownership of the command structure as soon as it's no longer -1
+	/* Analw complete the command. Write status last in order as we lost
+	 * ownership of the command structure as soon as it's anal longer -1
 	 */
 	done = cmd->done;
 	misc = cmd->misc;
@@ -237,21 +237,21 @@ static irqreturn_t smu_db_intr(int irq, void *arg)
 	if (done)
 		done(cmd, misc);
 
-	/* It's an edge interrupt, nothing to do */
+	/* It's an edge interrupt, analthing to do */
 	return IRQ_HANDLED;
 }
 
 
 static irqreturn_t smu_msg_intr(int irq, void *arg)
 {
-	/* I don't quite know what to do with this one, we seem to never
+	/* I don't quite kanalw what to do with this one, we seem to never
 	 * receive it, so I suspect we have to arm it someway in the SMU
 	 * to start getting events that way.
 	 */
 
 	printk(KERN_INFO "SMU: message interrupt !\n");
 
-	/* It's an edge interrupt, nothing to do */
+	/* It's an edge interrupt, analthing to do */
 	return IRQ_HANDLED;
 }
 
@@ -266,7 +266,7 @@ int smu_queue_cmd(struct smu_cmd *cmd)
 	unsigned long flags;
 
 	if (smu == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	if (cmd->data_len > SMU_MAX_DATA ||
 	    cmd->reply_len > SMU_MAX_DATA)
 		return -EINVAL;
@@ -384,7 +384,7 @@ int smu_get_rtc_time(struct rtc_time *time, int spinwait)
 	int rc;
 
 	if (smu == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(time, 0, sizeof(struct rtc_time));
 	rc = smu_queue_simple(&cmd, SMU_CMD_RTC_COMMAND, 1, NULL, NULL,
@@ -411,7 +411,7 @@ int smu_set_rtc_time(struct rtc_time *time, int spinwait)
 	int rc;
 
 	if (smu == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = smu_queue_simple(&cmd, SMU_CMD_RTC_COMMAND, 8, NULL, NULL,
 			      SMU_CMD_RTC_SET_DATETIME,
@@ -471,13 +471,13 @@ EXPORT_SYMBOL(smu_present);
 
 int __init smu_init (void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u64 data;
 	int ret = 0;
 
-        np = of_find_node_by_type(NULL, "smu");
+        np = of_find_analde_by_type(NULL, "smu");
         if (np == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	printk(KERN_INFO "SMU: Driver %s %s\n", VERSION, AUTHOR);
 
@@ -500,7 +500,7 @@ int __init smu_init (void)
 	spin_lock_init(&smu->lock);
 	INIT_LIST_HEAD(&smu->cmd_list);
 	INIT_LIST_HEAD(&smu->cmd_i2c_list);
-	smu->of_node = np;
+	smu->of_analde = np;
 	smu->db_irq = 0;
 	smu->msg_irq = 0;
 
@@ -510,16 +510,16 @@ int __init smu_init (void)
 	smu->cmd_buf_abs = (u32)smu_cmdbuf_abs;
 	smu->cmd_buf = __va(smu_cmdbuf_abs);
 
-	smu->db_node = of_find_node_by_name(NULL, "smu-doorbell");
-	if (smu->db_node == NULL) {
+	smu->db_analde = of_find_analde_by_name(NULL, "smu-doorbell");
+	if (smu->db_analde == NULL) {
 		printk(KERN_ERR "SMU: Can't find doorbell GPIO !\n");
 		ret = -ENXIO;
 		goto fail_bootmem;
 	}
-	if (of_property_read_reg(smu->db_node, 0, &data, NULL)) {
+	if (of_property_read_reg(smu->db_analde, 0, &data, NULL)) {
 		printk(KERN_ERR "SMU: Can't find doorbell GPIO address !\n");
 		ret = -ENXIO;
-		goto fail_db_node;
+		goto fail_db_analde;
 	}
 
 	/* Current setup has one doorbell GPIO that does both doorbell
@@ -530,14 +530,14 @@ int __init smu_init (void)
 	if (smu->doorbell < 0x50)
 		smu->doorbell += 0x50;
 
-	/* Now look for the smu-interrupt GPIO */
+	/* Analw look for the smu-interrupt GPIO */
 	do {
-		smu->msg_node = of_find_node_by_name(NULL, "smu-interrupt");
-		if (smu->msg_node == NULL)
+		smu->msg_analde = of_find_analde_by_name(NULL, "smu-interrupt");
+		if (smu->msg_analde == NULL)
 			break;
-		if (of_property_read_reg(smu->msg_node, 0, &data, NULL)) {
-			of_node_put(smu->msg_node);
-			smu->msg_node = NULL;
+		if (of_property_read_reg(smu->msg_analde, 0, &data, NULL)) {
+			of_analde_put(smu->msg_analde);
+			smu->msg_analde = NULL;
 			break;
 		}
 		smu->msg = data;
@@ -547,32 +547,32 @@ int __init smu_init (void)
 
 	/* Doorbell buffer is currently hard-coded, I didn't find a proper
 	 * device-tree entry giving the address. Best would probably to use
-	 * an offset for K2 base though, but let's do it that way for now.
+	 * an offset for K2 base though, but let's do it that way for analw.
 	 */
 	smu->db_buf = ioremap(0x8000860c, 0x1000);
 	if (smu->db_buf == NULL) {
 		printk(KERN_ERR "SMU: Can't map doorbell buffer pointer !\n");
 		ret = -ENXIO;
-		goto fail_msg_node;
+		goto fail_msg_analde;
 	}
 
 	/* U3 has an issue with NAP mode when issuing SMU commands */
-	smu->broken_nap = pmac_get_uninorth_variant() < 4;
+	smu->broken_nap = pmac_get_unianalrth_variant() < 4;
 	if (smu->broken_nap)
 		printk(KERN_INFO "SMU: using NAP mode workaround\n");
 
 	sys_ctrler = SYS_CTRLER_SMU;
 	return 0;
 
-fail_msg_node:
-	of_node_put(smu->msg_node);
-fail_db_node:
-	of_node_put(smu->db_node);
+fail_msg_analde:
+	of_analde_put(smu->msg_analde);
+fail_db_analde:
+	of_analde_put(smu->db_analde);
 fail_bootmem:
 	memblock_free(smu, sizeof(struct smu_device));
 	smu = NULL;
 fail_np:
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 
@@ -584,17 +584,17 @@ static int smu_late_init(void)
 
 	timer_setup(&smu->i2c_timer, smu_i2c_retry, 0);
 
-	if (smu->db_node) {
-		smu->db_irq = irq_of_parse_and_map(smu->db_node, 0);
+	if (smu->db_analde) {
+		smu->db_irq = irq_of_parse_and_map(smu->db_analde, 0);
 		if (!smu->db_irq)
-			printk(KERN_ERR "smu: failed to map irq for node %pOF\n",
-			       smu->db_node);
+			printk(KERN_ERR "smu: failed to map irq for analde %pOF\n",
+			       smu->db_analde);
 	}
-	if (smu->msg_node) {
-		smu->msg_irq = irq_of_parse_and_map(smu->msg_node, 0);
+	if (smu->msg_analde) {
+		smu->msg_irq = irq_of_parse_and_map(smu->msg_analde, 0);
 		if (!smu->msg_irq)
-			printk(KERN_ERR "smu: failed to map irq for node %pOF\n",
-			       smu->msg_node);
+			printk(KERN_ERR "smu: failed to map irq for analde %pOF\n",
+			       smu->msg_analde);
 	}
 
 	/*
@@ -635,9 +635,9 @@ core_initcall(smu_late_init);
 
 static void smu_expose_childs(struct work_struct *unused)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_child_of_node(smu->of_node, np)
+	for_each_child_of_analde(smu->of_analde, np)
 		if (of_device_is_compatible(np, "smu-sensors"))
 			of_platform_device_create(np, "smu-sensors",
 						  &smu->of_dev->dev);
@@ -648,11 +648,11 @@ static DECLARE_WORK(smu_expose_childs_work, smu_expose_childs);
 static int smu_platform_probe(struct platform_device* dev)
 {
 	if (!smu)
-		return -ENODEV;
+		return -EANALDEV;
 	smu->of_dev = dev;
 
 	/*
-	 * Ok, we are matched, now expose all i2c busses. We have to defer
+	 * Ok, we are matched, analw expose all i2c busses. We have to defer
 	 * that unfortunately or it would deadlock inside the device model
 	 */
 	schedule_work(&smu_expose_childs_work);
@@ -680,7 +680,7 @@ static struct platform_driver smu_of_platform_driver =
 static int __init smu_init_sysfs(void)
 {
 	/*
-	 * For now, we don't power manage machines with an SMU chip,
+	 * For analw, we don't power manage machines with an SMU chip,
 	 * I'm a bit too far from figuring out how that works with those
 	 * new chipsets, but that will come back and bite us
 	 */
@@ -720,8 +720,8 @@ static void smu_i2c_complete_command(struct smu_i2c_cmd *cmd, int fail)
 
 	DPRINTK("SMU: completing, success: %d\n", !fail);
 
-	/* Update status and mark no pending i2c command with lock
-	 * held so nobody comes in while we dequeue an eventual
+	/* Update status and mark anal pending i2c command with lock
+	 * held so analbody comes in while we dequeue an eventual
 	 * pending next i2c command
 	 */
 	spin_lock_irqsave(&smu->lock, flags);
@@ -729,7 +729,7 @@ static void smu_i2c_complete_command(struct smu_i2c_cmd *cmd, int fail)
 	wmb();
 	cmd->status = fail ? -EIO : 0;
 
-	/* Is there another i2c command waiting ? */
+	/* Is there aanalther i2c command waiting ? */
 	if (!list_empty(&smu->cmd_i2c_list)) {
 		struct smu_i2c_cmd *newcmd;
 
@@ -808,7 +808,7 @@ static void smu_i2c_low_completion(struct smu_cmd *scmd, void *misc)
 
 	DPRINTK("SMU: going to stage 1\n");
 
-	/* Ok, initial command complete, now poll status */
+	/* Ok, initial command complete, analw poll status */
 	scmd->reply_buf = cmd->pdata;
 	scmd->reply_len = sizeof(cmd->pdata);
 	scmd->data_buf = cmd->pdata;
@@ -825,7 +825,7 @@ int smu_queue_i2c(struct smu_i2c_cmd *cmd)
 	unsigned long flags;
 
 	if (smu == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Fill most fields of scmd */
 	cmd->scmd.cmd = SMU_CMD_I2C_COMMAND;
@@ -1000,7 +1000,7 @@ static struct smu_sdbp_header *smu_create_sdb_partition(int id)
 		       "%02x !\n", id, hdr->id);
 		goto failure;
 	}
-	if (of_add_property(smu->of_node, prop)) {
+	if (of_add_property(smu->of_analde, prop)) {
 		printk(KERN_DEBUG "SMU: Failed creating sdb-partition-%02x "
 		       "property !\n", id);
 		goto failure;
@@ -1012,7 +1012,7 @@ static struct smu_sdbp_header *smu_create_sdb_partition(int id)
 	return NULL;
 }
 
-/* Note: Only allowed to return error code in pointers (using ERR_PTR)
+/* Analte: Only allowed to return error code in pointers (using ERR_PTR)
  * when interruptible is 1
  */
 static const struct smu_sdbp_header *__smu_get_sdb_partition(int id,
@@ -1036,7 +1036,7 @@ static const struct smu_sdbp_header *__smu_get_sdb_partition(int id,
 	} else
 		mutex_lock(&smu_part_access);
 
-	part = of_get_property(smu->of_node, pname, size);
+	part = of_get_property(smu->of_analde, pname, size);
 	if (part == NULL) {
 		DPRINTK("trying to extract from SMU ...\n");
 		part = smu_create_sdb_partition(id);
@@ -1080,14 +1080,14 @@ struct smu_private
 };
 
 
-static int smu_open(struct inode *inode, struct file *file)
+static int smu_open(struct ianalde *ianalde, struct file *file)
 {
 	struct smu_private *pp;
 	unsigned long flags;
 
 	pp = kzalloc(sizeof(struct smu_private), GFP_KERNEL);
 	if (!pp)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&pp->lock);
 	pp->mode = smu_file_commands;
 	init_waitqueue_head(&pp->wait);
@@ -1183,7 +1183,7 @@ static ssize_t smu_read_command(struct file *file, struct smu_private *pp,
 		return -EOVERFLOW;
 	spin_lock_irqsave(&pp->lock, flags);
 	if (pp->cmd.status == 1) {
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			spin_unlock_irqrestore(&pp->lock, flags);
 			return -EAGAIN;
 		}
@@ -1228,7 +1228,7 @@ static ssize_t smu_read_command(struct file *file, struct smu_private *pp,
 static ssize_t smu_read_events(struct file *file, struct smu_private *pp,
 			       char __user *buf, size_t count)
 {
-	/* Not implemented */
+	/* Analt implemented */
 	msleep_interruptible(1000);
 	return 0;
 }
@@ -1265,12 +1265,12 @@ static __poll_t smu_fpoll(struct file *file, poll_table *wait)
 		spin_unlock_irqrestore(&pp->lock, flags);
 	}
 	if (pp->mode == smu_file_events) {
-		/* Not yet implemented */
+		/* Analt yet implemented */
 	}
 	return mask;
 }
 
-static int smu_release(struct inode *inode, struct file *file)
+static int smu_release(struct ianalde *ianalde, struct file *file)
 {
 	struct smu_private *pp = file->private_data;
 	unsigned long flags;
@@ -1314,7 +1314,7 @@ static int smu_release(struct inode *inode, struct file *file)
 
 
 static const struct file_operations smu_device_fops = {
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.read		= smu_read,
 	.write		= smu_write,
 	.poll		= smu_fpoll,
@@ -1323,15 +1323,15 @@ static const struct file_operations smu_device_fops = {
 };
 
 static struct miscdevice pmu_device = {
-	MISC_DYNAMIC_MINOR, "smu", &smu_device_fops
+	MISC_DYNAMIC_MIANALR, "smu", &smu_device_fops
 };
 
 static int smu_device_init(void)
 {
 	if (!smu)
-		return -ENODEV;
+		return -EANALDEV;
 	if (misc_register(&pmu_device) < 0)
-		printk(KERN_ERR "via-pmu: cannot register misc device.\n");
+		printk(KERN_ERR "via-pmu: cananalt register misc device.\n");
 	return 0;
 }
 device_initcall(smu_device_init);

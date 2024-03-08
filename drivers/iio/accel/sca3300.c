@@ -22,7 +22,7 @@
 
 #define SCA3300_ALIAS "sca3300"
 
-#define SCA3300_CRC8_POLYNOMIAL 0x1d
+#define SCA3300_CRC8_POLYANALMIAL 0x1d
 
 /* Device mode register */
 #define SCA3300_REG_MODE	0xd
@@ -509,7 +509,7 @@ static irqreturn_t sca3300_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 					   iio_get_time_ns(indio_dev));
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -546,8 +546,8 @@ static int sca3300_init(struct sca3300_data *sca_data,
 			break;
 	}
 	if (i == ARRAY_SIZE(sca3300_chip_tbl)) {
-		dev_err(&sca_data->spi->dev, "unknown chip id %x\n", value);
-		return -ENODEV;
+		dev_err(&sca_data->spi->dev, "unkanalwn chip id %x\n", value);
+		return -EANALDEV;
 	}
 
 	sca_data->chip = &sca3300_chip_tbl[i];
@@ -632,13 +632,13 @@ static int sca3300_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*sca_data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sca_data = iio_priv(indio_dev);
 	mutex_init(&sca_data->lock);
 	sca_data->spi = spi;
 
-	crc8_populate_msb(sca3300_crc_table, SCA3300_CRC8_POLYNOMIAL);
+	crc8_populate_msb(sca3300_crc_table, SCA3300_CRC8_POLYANALMIAL);
 
 	indio_dev->info = &sca3300_info;
 

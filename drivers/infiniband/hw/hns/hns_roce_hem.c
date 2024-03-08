@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Hisilicon Limited.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -191,7 +191,7 @@ static int get_hem_table_config(struct hns_roce_dev *hr_dev,
 		mhop->hop_num = hr_dev->caps.gmv_hop_num;
 		break;
 	default:
-		dev_err(dev, "table %u not support multi-hop addressing!\n",
+		dev_err(dev, "table %u analt support multi-hop addressing!\n",
 			type);
 		return -EINVAL;
 	}
@@ -238,7 +238,7 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 		mhop->l0_idx = table_idx;
 		break;
 	default:
-		dev_err(dev, "table %u not support hop_num = %u!\n",
+		dev_err(dev, "table %u analt support hop_num = %u!\n",
 			table->type, mhop->hop_num);
 		return -EINVAL;
 	}
@@ -262,7 +262,7 @@ static struct hns_roce_hem *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
 	WARN_ON(gfp_mask & __GFP_HIGHMEM);
 
 	hem = kmalloc(sizeof(*hem),
-		      gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN));
+		      gfp_mask & ~(__GFP_HIGHMEM | __GFP_ANALWARN));
 	if (!hem)
 		return NULL;
 
@@ -273,7 +273,7 @@ static struct hns_roce_hem *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
 	while (npages > 0) {
 		if (!chunk) {
 			chunk = kmalloc(sizeof(*chunk),
-				gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN));
+				gfp_mask & ~(__GFP_HIGHMEM | __GFP_ANALWARN));
 			if (!chunk)
 				goto fail;
 
@@ -368,7 +368,7 @@ static int calc_hem_config(struct hns_roce_dev *hr_dev,
 		index->buf = l0_idx;
 		break;
 	default:
-		ibdev_err(ibdev, "table %u not support mhop.hop_num = %u!\n",
+		ibdev_err(ibdev, "table %u analt support mhop.hop_num = %u!\n",
 			  table->type, mhop->hop_num);
 		return -EINVAL;
 	}
@@ -429,7 +429,7 @@ static int alloc_mhop_hem(struct hns_roce_dev *hr_dev,
 					    &table->bt_l0_dma_addr[index->l0],
 					    GFP_KERNEL);
 		if (!table->bt_l0[index->l0]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		index->inited |= HEM_INDEX_L0;
@@ -442,7 +442,7 @@ static int alloc_mhop_hem(struct hns_roce_dev *hr_dev,
 					    &table->bt_l1_dma_addr[index->l1],
 					    GFP_KERNEL);
 		if (!table->bt_l1[index->l1]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_alloc_hem;
 		}
 		index->inited |= HEM_INDEX_L1;
@@ -455,11 +455,11 @@ static int alloc_mhop_hem(struct hns_roce_dev *hr_dev,
 	 * alloc bt space chunk for MTT/CQE.
 	 */
 	size = table->type < HEM_TYPE_MTT ? mhop->buf_chunk_size : bt_size;
-	flag = GFP_KERNEL | __GFP_NOWARN;
+	flag = GFP_KERNEL | __GFP_ANALWARN;
 	table->hem[index->buf] = hns_roce_alloc_hem(hr_dev, size >> PAGE_SHIFT,
 						    size, flag);
 	if (!table->hem[index->buf]) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc_hem;
 	}
 
@@ -588,9 +588,9 @@ int hns_roce_table_get(struct hns_roce_dev *hr_dev,
 	table->hem[i] = hns_roce_alloc_hem(hr_dev,
 				       table->table_chunk_size >> PAGE_SHIFT,
 				       table->table_chunk_size,
-				       GFP_KERNEL | __GFP_NOWARN);
+				       GFP_KERNEL | __GFP_ANALWARN);
 	if (!table->hem[i]) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -792,7 +792,7 @@ out:
 
 int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_hem_table *table, u32 type,
-			    unsigned long obj_size, unsigned long nobj)
+			    unsigned long obj_size, unsigned long analbj)
 {
 	unsigned long obj_per_chunk;
 	unsigned long num_hem;
@@ -800,11 +800,11 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 	if (!hns_roce_check_whether_mhop(hr_dev, type)) {
 		table->table_chunk_size = hr_dev->caps.chunk_sz;
 		obj_per_chunk = table->table_chunk_size / obj_size;
-		num_hem = DIV_ROUND_UP(nobj, obj_per_chunk);
+		num_hem = DIV_ROUND_UP(analbj, obj_per_chunk);
 
 		table->hem = kcalloc(num_hem, sizeof(*table->hem), GFP_KERNEL);
 		if (!table->hem)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		struct hns_roce_hem_mhop mhop = {};
 		unsigned long buf_chunk_size;
@@ -822,7 +822,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 		hop_num = mhop.hop_num;
 
 		obj_per_chunk = buf_chunk_size / obj_size;
-		num_hem = DIV_ROUND_UP(nobj, obj_per_chunk);
+		num_hem = DIV_ROUND_UP(analbj, obj_per_chunk);
 		bt_chunk_num = bt_chunk_size / BA_BYTE_LEN;
 
 		if (type >= HEM_TYPE_MTT)
@@ -890,7 +890,7 @@ err_kcalloc_bt_l1:
 	table->hem = NULL;
 
 err_kcalloc_hem_buf:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void hns_roce_cleanup_mhop_hem_table(struct hns_roce_dev *hr_dev,
@@ -1208,7 +1208,7 @@ static int hem_list_alloc_mid_bt(struct hns_roce_dev *hr_dev,
 		cur = hem_list_alloc_item(hr_dev, start_aligned, end, unit,
 					  true);
 		if (!cur) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_exit;
 		}
 		hem_ptrs[level] = cur;
@@ -1249,10 +1249,10 @@ alloc_root_hem(struct hns_roce_dev *hr_dev, int unit, int *max_ba_num,
 
 	ba_num = hns_roce_hem_list_calc_root_ba(regions, region_cnt, unit);
 	if (ba_num < 1)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (ba_num > unit)
-		return ERR_PTR(-ENOBUFS);
+		return ERR_PTR(-EANALBUFS);
 
 	offset = regions[0].offset;
 	/* indicate to last region */
@@ -1260,7 +1260,7 @@ alloc_root_hem(struct hns_roce_dev *hr_dev, int unit, int *max_ba_num,
 	hem = hem_list_alloc_item(hr_dev, offset, r->offset + r->count - 1,
 				  ba_num, true);
 	if (!hem)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	*max_ba_num = ba_num;
 
@@ -1277,7 +1277,7 @@ static int alloc_fake_root_bt(struct hns_roce_dev *hr_dev, void *cpu_base,
 	hem = hem_list_alloc_item(hr_dev, r->offset, r->offset + r->count - 1,
 				  r->count, false);
 	if (!hem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hem_list_assign_bt(hr_dev, hem, cpu_base, phy_base);
 	list_add(&hem->list, branch_head);
@@ -1324,7 +1324,7 @@ setup_root_hem(struct hns_roce_dev *hr_dev, struct hns_roce_hem_list *hem_list,
 	root_hem = list_first_entry(&head->root,
 				    struct hns_roce_hem_item, list);
 	if (!root_hem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	total = 0;
 	for (i = 0; i < region_cnt && total < max_ba_num; i++) {

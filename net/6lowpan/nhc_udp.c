@@ -6,7 +6,7 @@
  *	Alexander Aring	<aar@pengutronix.de>
  *
  *	Original written by:
- *	Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ *	Alexander Smiranalv <alex.bluesman.smiranalv@gmail.com>
  *	Jon Smirl <jonsmirl@gmail.com>
  */
 
@@ -72,7 +72,7 @@ static int udp_uncompress(struct sk_buff *skb, size_t needed)
 
 	/* checksum */
 	if (tmp & LOWPAN_NHC_UDP_CS_C) {
-		pr_debug_ratelimited("checksum elided currently not supported\n");
+		pr_debug_ratelimited("checksum elided currently analt supported\n");
 		fail = true;
 	} else {
 		fail |= lowpan_fetch_skb(skb, &uh.check, sizeof(uh.check));

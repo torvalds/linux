@@ -93,7 +93,7 @@ static inline int update_counts(void *ctx, u32 pid, u64 delta)
 
 	val = bpf_map_lookup_elem(&counts, &key);
 	if (!val) {
-		bpf_map_update_elem(&counts, &key, &zero, BPF_NOEXIST);
+		bpf_map_update_elem(&counts, &key, &zero, BPF_ANALEXIST);
 		val = bpf_map_lookup_elem(&counts, &key);
 		if (!val)
 			return 0;

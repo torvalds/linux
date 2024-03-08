@@ -198,7 +198,7 @@ static void tas5805m_refresh(struct tas5805m_priv *tas5805m)
 
 	/* Refresh volume. The actual volume control documented in the
 	 * datasheet doesn't seem to work correctly. This is a pair of
-	 * DSP registers which are *not* documented in the datasheet.
+	 * DSP registers which are *analt* documented in the datasheet.
 	 */
 	set_dsp_scale(rm, 0x24, tas5805m->vol[0]);
 	set_dsp_scale(rm, 0x28, tas5805m->vol[1]);
@@ -296,7 +296,7 @@ static void send_cfg(struct regmap *rm,
 }
 
 /* The TAS5805M DSP can't be configured until the I2S clock has been
- * present and stable for 5ms, or else it won't boot and we get no
+ * present and stable for 5ms, or else it won't boot and we get anal
  * sound.
  */
 static int tas5805m_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -393,8 +393,8 @@ static const struct snd_soc_dapm_route tas5805m_audio_map[] = {
 };
 
 static const struct snd_soc_dapm_widget tas5805m_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("DAC IN", "Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_AIF_IN("DAC IN", "Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_ANALPM, 0, 0,
 		tas5805m_dac_event, SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUTPUT("OUT")
 };
@@ -431,7 +431,7 @@ static int tas5805m_mute(struct snd_soc_dai *dai, int mute, int direction)
 static const struct snd_soc_dai_ops tas5805m_dai_ops = {
 	.trigger		= tas5805m_trigger,
 	.mute_stream		= tas5805m_mute,
-	.no_capture_mute	= 1,
+	.anal_capture_mute	= 1,
 };
 
 static struct snd_soc_dai_driver tas5805m_dai = {
@@ -454,7 +454,7 @@ static const struct regmap_config tas5805m_regmap = {
 	 * relatively small number of register writes between bank
 	 * switches.
 	 */
-	.cache_type	= REGCACHE_NONE,
+	.cache_type	= REGCACHE_ANALNE,
 };
 
 static int tas5805m_i2c_probe(struct i2c_client *i2c)
@@ -476,7 +476,7 @@ static int tas5805m_i2c_probe(struct i2c_client *i2c)
 
 	tas5805m = devm_kzalloc(dev, sizeof(struct tas5805m_priv), GFP_KERNEL);
 	if (!tas5805m)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tas5805m->i2c = i2c;
 	tas5805m->pvdd = devm_regulator_get(dev, "pvdd");
@@ -523,7 +523,7 @@ static int tas5805m_i2c_probe(struct i2c_client *i2c)
 	tas5805m->dsp_cfg_data = devm_kmemdup(dev, fw->data, fw->size, GFP_KERNEL);
 	if (!tas5805m->dsp_cfg_data) {
 		release_firmware(fw);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	release_firmware(fw);

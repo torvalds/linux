@@ -2,8 +2,8 @@
  * Copyright (C) 2011 Philippe Rétornaz
  *
  * Based on twl4030-pwrbutton driver by:
- *     Peter De Schrijver <peter.de-schrijver@nokia.com>
- *     Felipe Balbi <felipe.balbi@nokia.com>
+ *     Peter De Schrijver <peter.de-schrijver@analkia.com>
+ *     Felipe Balbi <felipe.balbi@analkia.com>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License. See the file "COPYING" in the main directory of this
@@ -15,13 +15,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335  USA
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -40,9 +40,9 @@ struct mc13783_pwrb {
 };
 
 #define MC13783_REG_INTERRUPT_SENSE_1		5
-#define MC13783_IRQSENSE1_ONOFD1S		(1 << 3)
-#define MC13783_IRQSENSE1_ONOFD2S		(1 << 4)
-#define MC13783_IRQSENSE1_ONOFD3S		(1 << 5)
+#define MC13783_IRQSENSE1_OANALFD1S		(1 << 3)
+#define MC13783_IRQSENSE1_OANALFD2S		(1 << 4)
+#define MC13783_IRQSENSE1_OANALFD3S		(1 << 5)
 
 #define MC13783_REG_POWER_CONTROL_2		15
 #define MC13783_POWER_CONTROL_2_ON1BDBNC	4
@@ -61,22 +61,22 @@ static irqreturn_t button_irq(int irq, void *_priv)
 	mc13xxx_reg_read(priv->mc13783, MC13783_REG_INTERRUPT_SENSE_1, &val);
 
 	switch (irq) {
-	case MC13783_IRQ_ONOFD1:
-		val = val & MC13783_IRQSENSE1_ONOFD1S ? 1 : 0;
+	case MC13783_IRQ_OANALFD1:
+		val = val & MC13783_IRQSENSE1_OANALFD1S ? 1 : 0;
 		if (priv->flags & MC13783_PWRB_B1_POL_INVERT)
 			val ^= 1;
 		input_report_key(priv->pwr, priv->keymap[0], val);
 		break;
 
-	case MC13783_IRQ_ONOFD2:
-		val = val & MC13783_IRQSENSE1_ONOFD2S ? 1 : 0;
+	case MC13783_IRQ_OANALFD2:
+		val = val & MC13783_IRQSENSE1_OANALFD2S ? 1 : 0;
 		if (priv->flags & MC13783_PWRB_B2_POL_INVERT)
 			val ^= 1;
 		input_report_key(priv->pwr, priv->keymap[1], val);
 		break;
 
-	case MC13783_IRQ_ONOFD3:
-		val = val & MC13783_IRQSENSE1_ONOFD3S ? 1 : 0;
+	case MC13783_IRQ_OANALFD3:
+		val = val & MC13783_IRQSENSE1_OANALFD3S ? 1 : 0;
 		if (priv->flags & MC13783_PWRB_B3_POL_INVERT)
 			val ^= 1;
 		input_report_key(priv->pwr, priv->keymap[2], val);
@@ -100,18 +100,18 @@ static int mc13783_pwrbutton_probe(struct platform_device *pdev)
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(&pdev->dev, "missing platform data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pwr = input_allocate_device();
 	if (!pwr) {
 		dev_dbg(&pdev->dev, "Can't allocate power button\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_dbg(&pdev->dev, "Can't allocate power button\n");
 		goto free_input_dev;
 	}
@@ -136,7 +136,7 @@ static int mc13783_pwrbutton_probe(struct platform_device *pdev)
 		if (pdata->b1on_flags & MC13783_BUTTON_RESET_EN)
 			reg |= MC13783_POWER_CONTROL_2_ON1BRSTEN;
 
-		err = mc13xxx_irq_request(mc13783, MC13783_IRQ_ONOFD1,
+		err = mc13xxx_irq_request(mc13783, MC13783_IRQ_OANALFD1,
 					  button_irq, "b1on", priv);
 		if (err) {
 			dev_dbg(&pdev->dev, "Can't request irq\n");
@@ -155,7 +155,7 @@ static int mc13783_pwrbutton_probe(struct platform_device *pdev)
 		if (pdata->b2on_flags & MC13783_BUTTON_RESET_EN)
 			reg |= MC13783_POWER_CONTROL_2_ON2BRSTEN;
 
-		err = mc13xxx_irq_request(mc13783, MC13783_IRQ_ONOFD2,
+		err = mc13xxx_irq_request(mc13783, MC13783_IRQ_OANALFD2,
 					  button_irq, "b2on", priv);
 		if (err) {
 			dev_dbg(&pdev->dev, "Can't request irq\n");
@@ -174,7 +174,7 @@ static int mc13783_pwrbutton_probe(struct platform_device *pdev)
 		if (pdata->b3on_flags & MC13783_BUTTON_RESET_EN)
 			reg |= MC13783_POWER_CONTROL_2_ON3BRSTEN;
 
-		err = mc13xxx_irq_request(mc13783, MC13783_IRQ_ONOFD3,
+		err = mc13xxx_irq_request(mc13783, MC13783_IRQ_OANALFD3,
 					  button_irq, "b3on", priv);
 		if (err) {
 			dev_dbg(&pdev->dev, "Can't request irq: %d\n", err);
@@ -209,15 +209,15 @@ free_irq:
 	mc13xxx_lock(mc13783);
 
 	if (pdata->b3on_flags & MC13783_BUTTON_ENABLE)
-		mc13xxx_irq_free(mc13783, MC13783_IRQ_ONOFD3, priv);
+		mc13xxx_irq_free(mc13783, MC13783_IRQ_OANALFD3, priv);
 
 free_irq_b2:
 	if (pdata->b2on_flags & MC13783_BUTTON_ENABLE)
-		mc13xxx_irq_free(mc13783, MC13783_IRQ_ONOFD2, priv);
+		mc13xxx_irq_free(mc13783, MC13783_IRQ_OANALFD2, priv);
 
 free_irq_b1:
 	if (pdata->b1on_flags & MC13783_BUTTON_ENABLE)
-		mc13xxx_irq_free(mc13783, MC13783_IRQ_ONOFD1, priv);
+		mc13xxx_irq_free(mc13783, MC13783_IRQ_OANALFD1, priv);
 
 free_priv:
 	mc13xxx_unlock(mc13783);
@@ -239,11 +239,11 @@ static void mc13783_pwrbutton_remove(struct platform_device *pdev)
 	mc13xxx_lock(priv->mc13783);
 
 	if (pdata->b3on_flags & MC13783_BUTTON_ENABLE)
-		mc13xxx_irq_free(priv->mc13783, MC13783_IRQ_ONOFD3, priv);
+		mc13xxx_irq_free(priv->mc13783, MC13783_IRQ_OANALFD3, priv);
 	if (pdata->b2on_flags & MC13783_BUTTON_ENABLE)
-		mc13xxx_irq_free(priv->mc13783, MC13783_IRQ_ONOFD2, priv);
+		mc13xxx_irq_free(priv->mc13783, MC13783_IRQ_OANALFD2, priv);
 	if (pdata->b1on_flags & MC13783_BUTTON_ENABLE)
-		mc13xxx_irq_free(priv->mc13783, MC13783_IRQ_ONOFD1, priv);
+		mc13xxx_irq_free(priv->mc13783, MC13783_IRQ_OANALFD1, priv);
 
 	mc13xxx_unlock(priv->mc13783);
 

@@ -11,7 +11,7 @@
 #define SDW_SCP_ADDRPAGE2_MASK			GENMASK(22, 15)
 #define SDW_SCP_ADDRPAGE1_MASK			GENMASK(30, 23)
 
-#define SDW_REG_NO_PAGE				0x00008000
+#define SDW_REG_ANAL_PAGE				0x00008000
 #define SDW_REG_OPTIONAL_PAGE			0x00010000
 #define SDW_REG_MAX				0x80000000
 
@@ -37,7 +37,7 @@
 #define SDW_DP0_INT_PORT_READY			BIT(1)
 #define SDW_DP0_INT_BRA_FAILURE			BIT(2)
 #define SDW_DP0_SDCA_CASCADE			BIT(3)
-/* BIT(4) not allocated in SoundWire specification 1.2 */
+/* BIT(4) analt allocated in SoundWire specification 1.2 */
 #define SDW_DP0_INT_IMPDEF1			BIT(5)
 #define SDW_DP0_INT_IMPDEF2			BIT(6)
 #define SDW_DP0_INT_IMPDEF3			BIT(7)
@@ -84,12 +84,12 @@
 #define SDW_NUM_INT_CLEAR_REGISTERS		1
 
 #define SDW_SCP_CTRL				0x44
-#define SDW_SCP_CTRL_CLK_STP_NOW		BIT(1)
+#define SDW_SCP_CTRL_CLK_STP_ANALW		BIT(1)
 #define SDW_SCP_CTRL_FORCE_RESET		BIT(7)
 
 #define SDW_SCP_STAT				0x44
 #define SDW_SCP_STAT_CLK_STP_NF			BIT(0)
-#define SDW_SCP_STAT_HPHY_NOK			BIT(5)
+#define SDW_SCP_STAT_HPHY_ANALK			BIT(5)
 #define SDW_SCP_STAT_CURR_BANK			BIT(6)
 
 #define SDW_SCP_SYSTEMCTRL			0x45
@@ -111,7 +111,7 @@
 
 #define SDW_SCP_BUS_CLOCK_BASE			0x4D
 #define SDW_SCP_BASE_CLOCK_FREQ			GENMASK(2, 0)
-#define SDW_SCP_BASE_CLOCK_UNKNOWN		0x0
+#define SDW_SCP_BASE_CLOCK_UNKANALWN		0x0
 #define SDW_SCP_BASE_CLOCK_19200000_HZ		0x1
 #define SDW_SCP_BASE_CLOCK_24000000_HZ		0x2
 #define SDW_SCP_BASE_CLOCK_24576000_HZ		0x3
@@ -120,7 +120,7 @@
 #define SDW_SCP_BASE_CLOCK_RESERVED		0x6
 #define SDW_SCP_BASE_CLOCK_IMP_DEF		0x7
 
-/* 0x4E is not allocated in SoundWire specification 1.2 */
+/* 0x4E is analt allocated in SoundWire specification 1.2 */
 #define SDW_SCP_TESTMODE			0x4F
 #define SDW_SCP_DEVID_0				0x50
 #define SDW_SCP_DEVID_1				0x51
@@ -168,7 +168,7 @@
 #define SDW_SCP_SDCA_INT_SDCA_28		BIT(4)
 #define SDW_SCP_SDCA_INT_SDCA_29		BIT(5)
 #define SDW_SCP_SDCA_INT_SDCA_30		BIT(6)
-/* BIT(7) not allocated in SoundWire 1.2 specification */
+/* BIT(7) analt allocated in SoundWire 1.2 specification */
 
 #define SDW_SCP_SDCA_INTMASK1			0x5C
 #define SDW_SCP_SDCA_INTMASK_SDCA_0		BIT(0)
@@ -208,7 +208,7 @@
 #define SDW_SCP_SDCA_INTMASK_SDCA_28		BIT(4)
 #define SDW_SCP_SDCA_INTMASK_SDCA_29		BIT(5)
 #define SDW_SCP_SDCA_INTMASK_SDCA_30		BIT(6)
-/* BIT(7) not allocated in SoundWire 1.2 specification */
+/* BIT(7) analt allocated in SoundWire 1.2 specification */
 
 /* Banked Registers */
 #define SDW_SCP_FRAMECTRL_B0			0x60

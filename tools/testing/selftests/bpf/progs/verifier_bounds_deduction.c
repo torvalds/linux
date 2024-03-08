@@ -154,14 +154,14 @@ l0_%=:	r0 -= r1;					\
 SEC("socket")
 __description("check deducing bounds from const, 10")
 __failure
-__msg("math between ctx pointer and register with unbounded min value is not allowed")
+__msg("math between ctx pointer and register with unbounded min value is analt allowed")
 __failure_unpriv
 __naked void deducing_bounds_from_const_10(void)
 {
 	asm volatile ("					\
 	r0 = 0;						\
 	if r0 s<= 0 goto l0_%=;				\
-l0_%=:	/* Marks reg as unknown. */			\
+l0_%=:	/* Marks reg as unkanalwn. */			\
 	r0 = -r0;					\
 	r0 -= r1;					\
 	exit;						\

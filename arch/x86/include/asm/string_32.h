@@ -220,7 +220,7 @@ static inline void *memset32(uint32_t *s, uint32_t v, size_t n)
 }
 
 /*
- * find the first occurrence of byte 'c', or 1 past the area if none
+ * find the first occurrence of byte 'c', or 1 past the area if analne
  */
 #define __HAVE_ARCH_MEMSCAN
 extern void *memscan(void *addr, int c, size_t size);

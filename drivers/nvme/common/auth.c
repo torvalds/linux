@@ -173,7 +173,7 @@ struct nvme_dhchap_key *nvme_auth_extract_key(unsigned char *secret,
 		allocated_len = p - secret;
 	key = nvme_auth_alloc_key(allocated_len, 0);
 	if (!key)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	key_len = base64_decode(secret, allocated_len, key->key);
 	if (key_len < 0) {
@@ -244,14 +244,14 @@ struct nvme_dhchap_key *nvme_auth_transform_key(
 	int ret, key_len;
 
 	if (!key) {
-		pr_warn("No key specified\n");
-		return ERR_PTR(-ENOKEY);
+		pr_warn("Anal key specified\n");
+		return ERR_PTR(-EANALKEY);
 	}
 	if (key->hash == 0) {
 		key_len = nvme_auth_key_struct_size(key->len);
 		transformed_key = kmemdup(key, key_len, GFP_KERNEL);
 		if (!transformed_key)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		return transformed_key;
 	}
 	hmac_name = nvme_auth_hmac_name(key->hash);
@@ -268,14 +268,14 @@ struct nvme_dhchap_key *nvme_auth_transform_key(
 			crypto_shash_descsize(key_tfm),
 			GFP_KERNEL);
 	if (!shash) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_key;
 	}
 
 	key_len = crypto_shash_digestsize(key_tfm);
 	transformed_key = nvme_auth_alloc_key(key_len, key->hash);
 	if (!transformed_key) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_shash;
 	}
 
@@ -326,7 +326,7 @@ static int nvme_auth_hash_skey(int hmac_id, u8 *skey, size_t skey_len, u8 *hkey)
 	}
 	tfm = crypto_alloc_shash(digest_name, 0, 0);
 	if (IS_ERR(tfm))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = crypto_shash_tfm_digest(tfm, skey, skey_len, hkey);
 	if (ret < 0)
@@ -347,7 +347,7 @@ int nvme_auth_augmented_challenge(u8 hmac_id, u8 *skey, size_t skey_len,
 
 	hashed_key = kmalloc(hlen, GFP_KERNEL);
 	if (!hashed_key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = nvme_auth_hash_skey(hmac_id, skey,
 				  skey_len, hashed_key);
@@ -403,7 +403,7 @@ int nvme_auth_gen_pubkey(struct crypto_kpp *dh_tfm,
 
 	req = kpp_request_alloc(dh_tfm, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crypto_init_wait(&wait);
 	kpp_request_set_input(req, NULL, 0);
@@ -429,7 +429,7 @@ int nvme_auth_gen_shared_secret(struct crypto_kpp *dh_tfm,
 
 	req = kpp_request_alloc(dh_tfm, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crypto_init_wait(&wait);
 	sg_init_one(&src, ctrl_key, ctrl_key_len);

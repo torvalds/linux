@@ -38,9 +38,9 @@ properties:
   adi,exca-output-invert:
     description: |
       Inverts the excitation output in the EXCA pin.
-      Normally only one of the EXCX pins would be inverted, check the following
-      application notes for more details
-      https://www.analog.com/media/en/technical-documentation/application-notes/AN-1585.pdf
+      Analrmally only one of the EXCX pins would be inverted, check the following
+      application analtes for more details
+      https://www.analog.com/media/en/technical-documentation/application-analtes/AN-1585.pdf
     type: boolean
 
   adi,excb-output-en:

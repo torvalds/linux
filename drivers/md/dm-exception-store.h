@@ -29,7 +29,7 @@ typedef sector_t chunk_t;
  * chunk within the device.
  */
 struct dm_exception {
-	struct hlist_bl_node hash_list;
+	struct hlist_bl_analde hash_list;
 
 	chunk_t old_chunk;
 	chunk_t new_chunk;
@@ -93,7 +93,7 @@ struct dm_exception_store_type {
 	int (*commit_merge)(struct dm_exception_store *store, int nr_merged);
 
 	/*
-	 * The snapshot is invalid, note this in the metadata.
+	 * The snapshot is invalid, analte this in the metadata.
 	 */
 	void (*drop_snapshot)(struct dm_exception_store *store);
 

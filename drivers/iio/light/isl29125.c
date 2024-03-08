@@ -110,7 +110,7 @@ static int isl29125_read_data(struct isl29125_data *data, int si)
 	}
 
 	if (tries < 0) {
-		dev_err(&data->client->dev, "data not ready\n");
+		dev_err(&data->client->dev, "data analt ready\n");
 		ret = -EIO;
 		goto fail;
 	}
@@ -195,7 +195,7 @@ static irqreturn_t isl29125_trigger_handler(int irq, void *p)
 		iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -249,7 +249,7 @@ static int isl29125_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -265,7 +265,7 @@ static int isl29125_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 	if (ret != ISL29125_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data->conf1 = ISL29125_MODE_PD | ISL29125_MODE_RANGE;
 	ret = i2c_smbus_write_byte_data(data->client, ISL29125_CONF1,

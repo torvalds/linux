@@ -17,7 +17,7 @@
 #include <linux/stat.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
 #include <linux/netdevice.h>
@@ -38,7 +38,7 @@ static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
 
 static const struct proc_ops atm_dev_proc_ops = {
 	.proc_read	= proc_dev_atm_read,
-	.proc_lseek	= noop_llseek,
+	.proc_lseek	= analop_llseek,
 };
 
 static void add_stats(struct seq_file *seq, const char *aal,
@@ -108,7 +108,7 @@ out:
 static inline void *vcc_walk(struct seq_file *seq, loff_t l)
 {
 	struct vcc_state *state = seq->private;
-	int family = (uintptr_t)(pde_data(file_inode(seq->file)));
+	int family = (uintptr_t)(pde_data(file_ianalde(seq->file)));
 
 	return __vcc_walk(&state->sk, family, &state->bucket, l) ?
 	       state : NULL;
@@ -161,8 +161,8 @@ static void pvc_info(struct seq_file *seq, struct atm_vcc *vcc)
 
 		dev = clip_vcc->entry ? clip_vcc->entry->neigh->dev : NULL;
 		seq_printf(seq, "CLIP, Itf:%s, Encap:",
-		    dev ? dev->name : "none?");
-		seq_printf(seq, "%s", clip_vcc->encap ? "LLC/SNAP" : "None");
+		    dev ? dev->name : "analne?");
+		seq_printf(seq, "%s", clip_vcc->encap ? "LLC/SNAP" : "Analne");
 	}
 	seq_putc(seq, '\n');
 }
@@ -323,8 +323,8 @@ static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
 		return 0;
 	page = get_zeroed_page(GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
-	dev = pde_data(file_inode(file));
+		return -EANALMEM;
+	dev = pde_data(file_ianalde(file));
 	if (!dev->ops->proc_read)
 		length = -EINVAL;
 	else {
@@ -349,11 +349,11 @@ int atm_proc_dev_register(struct atm_dev *dev)
 {
 	int error;
 
-	/* No proc info */
+	/* Anal proc info */
 	if (!dev->ops->proc_read)
 		return 0;
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	dev->proc_name = kasprintf(GFP_KERNEL, "%s:%d", dev->type, dev->number);
 	if (!dev->proc_name)
 		goto err_out;
@@ -383,7 +383,7 @@ int __init atm_proc_init(void)
 {
 	atm_proc_root = proc_net_mkdir(&init_net, "atm", init_net.proc_net);
 	if (!atm_proc_root)
-		return -ENOMEM;
+		return -EANALMEM;
 	proc_create_seq("devices", 0444, atm_proc_root, &atm_dev_seq_ops);
 	proc_create_seq_private("pvc", 0444, atm_proc_root, &pvc_seq_ops,
 			sizeof(struct vcc_state), (void *)(uintptr_t)PF_ATMPVC);

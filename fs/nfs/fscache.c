@@ -52,7 +52,7 @@ static bool nfs_fscache_get_client_key(struct nfs_client *clp,
 	*_len += snprintf(key + *_len, NFS_MAX_KEY_LEN - *_len,
 			  ",%u.%u,%x",
 			  clp->rpc_ops->version,
-			  clp->cl_minorversion,
+			  clp->cl_mianalrversion,
 			  clp->cl_addr.ss_family);
 
 	switch (clp->cl_addr.ss_family) {
@@ -72,7 +72,7 @@ static bool nfs_fscache_get_client_key(struct nfs_client *clp,
 		return true;
 
 	default:
-		printk(KERN_WARNING "NFS: Unknown network family '%d'\n",
+		printk(KERN_WARNING "NFS: Unkanalwn network family '%d'\n",
 		       clp->cl_addr.ss_family);
 		return false;
 	}
@@ -95,17 +95,17 @@ int nfs_fscache_get_super_cookie(struct super_block *sb, const char *uniq, int u
 	if (uniq) {
 		nfss->fscache_uniq = kmemdup_nul(uniq, ulen, GFP_KERNEL);
 		if (!nfss->fscache_uniq)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	key = kmalloc(NFS_MAX_KEY_LEN + 24, GFP_KERNEL);
 	if (!key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(key, "nfs", 3);
 	if (!nfs_fscache_get_client_key(nfss->nfs_client, key, &len) ||
 	    !nfs_append_int(key, &len, nfss->fsid.major) ||
-	    !nfs_append_int(key, &len, nfss->fsid.minor) ||
+	    !nfs_append_int(key, &len, nfss->fsid.mianalr) ||
 	    !nfs_append_int(key, &len, sb->s_flags & NFS_SB_MASK) ||
 	    !nfs_append_int(key, &len, nfss->flags) ||
 	    !nfs_append_int(key, &len, nfss->rsize) ||
@@ -158,103 +158,103 @@ void nfs_fscache_release_super_cookie(struct super_block *sb)
 }
 
 /*
- * Initialise the per-inode cache cookie pointer for an NFS inode.
+ * Initialise the per-ianalde cache cookie pointer for an NFS ianalde.
  */
-void nfs_fscache_init_inode(struct inode *inode)
+void nfs_fscache_init_ianalde(struct ianalde *ianalde)
 {
-	struct nfs_fscache_inode_auxdata auxdata;
-	struct nfs_server *nfss = NFS_SERVER(inode);
-	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_fscache_ianalde_auxdata auxdata;
+	struct nfs_server *nfss = NFS_SERVER(ianalde);
+	struct nfs_ianalde *nfsi = NFS_I(ianalde);
 
-	netfs_inode(inode)->cache = NULL;
-	if (!(nfss->fscache && S_ISREG(inode->i_mode)))
+	netfs_ianalde(ianalde)->cache = NULL;
+	if (!(nfss->fscache && S_ISREG(ianalde->i_mode)))
 		return;
 
-	nfs_fscache_update_auxdata(&auxdata, inode);
+	nfs_fscache_update_auxdata(&auxdata, ianalde);
 
-	netfs_inode(inode)->cache = fscache_acquire_cookie(
+	netfs_ianalde(ianalde)->cache = fscache_acquire_cookie(
 					       nfss->fscache,
 					       0,
 					       nfsi->fh.data, /* index_key */
 					       nfsi->fh.size,
 					       &auxdata,      /* aux_data */
 					       sizeof(auxdata),
-					       i_size_read(inode));
+					       i_size_read(ianalde));
 
-	if (netfs_inode(inode)->cache)
-		mapping_set_release_always(inode->i_mapping);
+	if (netfs_ianalde(ianalde)->cache)
+		mapping_set_release_always(ianalde->i_mapping);
 }
 
 /*
- * Release a per-inode cookie.
+ * Release a per-ianalde cookie.
  */
-void nfs_fscache_clear_inode(struct inode *inode)
+void nfs_fscache_clear_ianalde(struct ianalde *ianalde)
 {
-	fscache_relinquish_cookie(netfs_i_cookie(netfs_inode(inode)), false);
-	netfs_inode(inode)->cache = NULL;
+	fscache_relinquish_cookie(netfs_i_cookie(netfs_ianalde(ianalde)), false);
+	netfs_ianalde(ianalde)->cache = NULL;
 }
 
 /*
  * Enable or disable caching for a file that is being opened as appropriate.
- * The cookie is allocated when the inode is initialised, but is not enabled at
+ * The cookie is allocated when the ianalde is initialised, but is analt enabled at
  * that time.  Enablement is deferred to file-open time to avoid stat() and
  * access() thrashing the cache.
  *
- * For now, with NFS, only regular files that are open read-only will be able
+ * For analw, with NFS, only regular files that are open read-only will be able
  * to use the cache.
  *
- * We enable the cache for an inode if we open it read-only and it isn't
- * currently open for writing.  We disable the cache if the inode is open
+ * We enable the cache for an ianalde if we open it read-only and it isn't
+ * currently open for writing.  We disable the cache if the ianalde is open
  * write-only.
  *
- * The caller uses the file struct to pin i_writecount on the inode before
+ * The caller uses the file struct to pin i_writecount on the ianalde before
  * calling us when a file is opened for writing, so we can make use of that.
  *
- * Note that this may be invoked multiple times in parallel by parallel
+ * Analte that this may be invoked multiple times in parallel by parallel
  * nfs_open() functions.
  */
-void nfs_fscache_open_file(struct inode *inode, struct file *filp)
+void nfs_fscache_open_file(struct ianalde *ianalde, struct file *filp)
 {
-	struct nfs_fscache_inode_auxdata auxdata;
-	struct fscache_cookie *cookie = netfs_i_cookie(netfs_inode(inode));
-	bool open_for_write = inode_is_open_for_write(inode);
+	struct nfs_fscache_ianalde_auxdata auxdata;
+	struct fscache_cookie *cookie = netfs_i_cookie(netfs_ianalde(ianalde));
+	bool open_for_write = ianalde_is_open_for_write(ianalde);
 
 	if (!fscache_cookie_valid(cookie))
 		return;
 
 	fscache_use_cookie(cookie, open_for_write);
 	if (open_for_write) {
-		nfs_fscache_update_auxdata(&auxdata, inode);
-		fscache_invalidate(cookie, &auxdata, i_size_read(inode),
+		nfs_fscache_update_auxdata(&auxdata, ianalde);
+		fscache_invalidate(cookie, &auxdata, i_size_read(ianalde),
 				   FSCACHE_INVAL_DIO_WRITE);
 	}
 }
 EXPORT_SYMBOL_GPL(nfs_fscache_open_file);
 
-void nfs_fscache_release_file(struct inode *inode, struct file *filp)
+void nfs_fscache_release_file(struct ianalde *ianalde, struct file *filp)
 {
-	struct nfs_fscache_inode_auxdata auxdata;
-	struct fscache_cookie *cookie = netfs_i_cookie(netfs_inode(inode));
-	loff_t i_size = i_size_read(inode);
+	struct nfs_fscache_ianalde_auxdata auxdata;
+	struct fscache_cookie *cookie = netfs_i_cookie(netfs_ianalde(ianalde));
+	loff_t i_size = i_size_read(ianalde);
 
-	nfs_fscache_update_auxdata(&auxdata, inode);
+	nfs_fscache_update_auxdata(&auxdata, ianalde);
 	fscache_unuse_cookie(cookie, &auxdata, &i_size);
 }
 
 int nfs_netfs_read_folio(struct file *file, struct folio *folio)
 {
-	if (!netfs_inode(folio_inode(folio))->cache)
-		return -ENOBUFS;
+	if (!netfs_ianalde(folio_ianalde(folio))->cache)
+		return -EANALBUFS;
 
 	return netfs_read_folio(file, folio);
 }
 
 int nfs_netfs_readahead(struct readahead_control *ractl)
 {
-	struct inode *inode = ractl->mapping->host;
+	struct ianalde *ianalde = ractl->mapping->host;
 
-	if (!netfs_inode(inode)->cache)
-		return -ENOBUFS;
+	if (!netfs_ianalde(ianalde)->cache)
+		return -EANALBUFS;
 
 	netfs_readahead(ractl);
 	return 0;
@@ -288,7 +288,7 @@ static struct nfs_netfs_io_data *nfs_netfs_alloc(struct netfs_io_subrequest *sre
 
 static bool nfs_netfs_clamp_length(struct netfs_io_subrequest *sreq)
 {
-	size_t	rsize = NFS_SB(sreq->rreq->inode->i_sb)->rsize;
+	size_t	rsize = NFS_SB(sreq->rreq->ianalde->i_sb)->rsize;
 
 	sreq->len = min(sreq->len, rsize);
 	return true;
@@ -298,7 +298,7 @@ static void nfs_netfs_issue_read(struct netfs_io_subrequest *sreq)
 {
 	struct nfs_netfs_io_data	*netfs;
 	struct nfs_pageio_descriptor	pgio;
-	struct inode *inode = sreq->rreq->inode;
+	struct ianalde *ianalde = sreq->rreq->ianalde;
 	struct nfs_open_context *ctx = sreq->rreq->netfs_priv;
 	struct page *page;
 	int err;
@@ -307,12 +307,12 @@ static void nfs_netfs_issue_read(struct netfs_io_subrequest *sreq)
 			 sreq->transferred - 1) >> PAGE_SHIFT);
 	XA_STATE(xas, &sreq->rreq->mapping->i_pages, start);
 
-	nfs_pageio_init_read(&pgio, inode, false,
+	nfs_pageio_init_read(&pgio, ianalde, false,
 			     &nfs_async_read_completion_ops);
 
 	netfs = nfs_netfs_alloc(sreq);
 	if (!netfs)
-		return netfs_subreq_terminated(sreq, -ENOMEM, false);
+		return netfs_subreq_terminated(sreq, -EANALMEM, false);
 
 	pgio.pg_netfs = netfs; /* used in completion */
 
@@ -346,12 +346,12 @@ void nfs_netfs_initiate_read(struct nfs_pgio_header *hdr)
 
 int nfs_netfs_folio_unlock(struct folio *folio)
 {
-	struct inode *inode = folio_file_mapping(folio)->host;
+	struct ianalde *ianalde = folio_file_mapping(folio)->host;
 
 	/*
 	 * If fscache is enabled, netfs will unlock pages.
 	 */
-	if (netfs_inode(inode)->cache)
+	if (netfs_ianalde(ianalde)->cache)
 		return 0;
 
 	return 1;

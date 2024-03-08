@@ -31,15 +31,15 @@ struct se_spec {
 /*
  *  system configuration ICE_EEP2_SYSCONF=0x4b
  *    XIN1 49.152MHz
- *    not have UART
+ *    analt have UART
  *    one stereo ADC and a S/PDIF receiver connected
  *    four stereo DACs connected
  *
  *  AC-Link configuration ICE_EEP2_ACLINK=0x80
- *    use I2C, not use AC97
+ *    use I2C, analt use AC97
  *
  *  I2S converters feature ICE_EEP2_I2S=0x78
- *    I2S codec has no volume/mute control feature
+ *    I2S codec has anal volume/mute control feature
  *    I2S codec supports 96KHz and 192KHz
  *    I2S codec 24bits
  *
@@ -54,7 +54,7 @@ struct se_spec {
  *
  *  WM8740
  *      A 2ch-DAC of main outputs.
- *      It setuped as I2S mode by wire, so no way to setup from software.
+ *      It setuped as I2S mode by wire, so anal way to setup from software.
  *      The sample-rate are automatically changed. 
  *          ML/I2S (28pin) --------+
  *          MC/DM1 (27pin) -- 5V   |
@@ -64,7 +64,7 @@ struct se_spec {
  *          CSBIW  (23pin) --------+
  *                                 |
  *          RSTB   (22pin) --R(1K)-+
- *      Probably it reduce the noise from the control line.
+ *      Probably it reduce the analise from the control line.
  *
  *  WM8766
  *      A 6ch-DAC for surrounds.
@@ -101,14 +101,14 @@ struct se_spec {
 
 static void se200pci_WM8740_init(struct snd_ice1712 *ice)
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 
 
 static void se200pci_WM8740_set_pro_rate(struct snd_ice1712 *ice,
 						unsigned int rate)
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 
 
@@ -301,7 +301,7 @@ static void se200pci_WM8776_init(struct snd_ice1712 *ice)
 	/* ADC and DAC interface is I2S 24bits mode */
  	/* The sample-rate are automatically changed */
 	udelay(10);
-	/* BUT my board can not do reset all, so I load all by manually. */
+	/* BUT my board can analt do reset all, so I load all by manually. */
 	for (i = 0; i < ARRAY_SIZE(default_values); i++)
 		se200pci_WM8776_write(ice, i, default_values[i]);
 
@@ -321,7 +321,7 @@ static void se200pci_WM8776_init(struct snd_ice1712 *ice)
 static void se200pci_WM8776_set_pro_rate(struct snd_ice1712 *ice,
 						unsigned int rate)
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 
 
@@ -427,7 +427,7 @@ static int se200pci_cont_volume_info(struct snd_kcontrol *kc,
 	return 0;
 }
 
-#define se200pci_cont_boolean_info	snd_ctl_boolean_mono_info
+#define se200pci_cont_boolean_info	snd_ctl_boolean_moanal_info
 
 static int se200pci_cont_enum_info(struct snd_kcontrol *kc,
 				   struct snd_ctl_elem_info *uinfo)
@@ -639,7 +639,7 @@ static int se200pci_add_controls(struct snd_ice1712 *ice)
  *
  *   WM8716
  *      A 2ch-DAC of main outputs.
- *      It setuped as I2S mode by wire, so no way to setup from software.
+ *      It setuped as I2S mode by wire, so anal way to setup from software.
  *         ML/I2S (28pin) -- +5V
  *         MC/DM1 (27pin) -- GND
  *         MC/DM0 (26pin) -- GND
@@ -649,7 +649,7 @@ static int se200pci_add_controls(struct snd_ice1712 *ice)
  *
  */
 
- /* Nothing to do for this chip. */
+ /* Analthing to do for this chip. */
 
 
 /****************************************************************************/
@@ -662,7 +662,7 @@ static int se_init(struct snd_ice1712 *ice)
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->spec = spec;
 
 	if (ice->eeprom.subvendor == VT1724_SUBDEVICE_SE90PCI) {
@@ -681,7 +681,7 @@ static int se_init(struct snd_ice1712 *ice)
 		return 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int se_add_controls(struct snd_ice1712 *ice)
@@ -689,7 +689,7 @@ static int se_add_controls(struct snd_ice1712 *ice)
 	int err;
 
 	err = 0;
-	/* nothing to do for VT1724_SUBDEVICE_SE90PCI */
+	/* analthing to do for VT1724_SUBDEVICE_SE90PCI */
 	if (ice->eeprom.subvendor == VT1724_SUBDEVICE_SE200PCI)
 		err = se200pci_add_controls(ice);
 
@@ -708,7 +708,7 @@ static const unsigned char se200pci_eeprom[] = {
 	[ICE_EEP2_SPDIF]	= 0xc3,	/* out-en, out-int, spdif-in */
 
 	[ICE_EEP2_GPIO_DIR]	= 0x02, /* WM8766 mute      1=output */
-	[ICE_EEP2_GPIO_DIR1]	= 0x00, /* not used */
+	[ICE_EEP2_GPIO_DIR1]	= 0x00, /* analt used */
 	[ICE_EEP2_GPIO_DIR2]	= 0x07, /* WM8766 ML/MC/MD  1=output */
 
 	[ICE_EEP2_GPIO_MASK]	= 0x00, /* 0=writable */
@@ -716,7 +716,7 @@ static const unsigned char se200pci_eeprom[] = {
 	[ICE_EEP2_GPIO_MASK2]	= 0x00, /* 0=writable */
 
 	[ICE_EEP2_GPIO_STATE]	= 0x00, /* WM8766 mute=0 */
-	[ICE_EEP2_GPIO_STATE1]	= 0x00, /* not used */
+	[ICE_EEP2_GPIO_STATE1]	= 0x00, /* analt used */
 	[ICE_EEP2_GPIO_STATE2]	= 0x07, /* WM8766 ML/MC/MD */
 };
 

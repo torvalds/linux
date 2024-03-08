@@ -48,7 +48,7 @@
 			(REG_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, MMU_IRQ_0_INT)) | \
 			(REG_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, MMU_IRQ_1_INT)) | \
 			(REG_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, MMU_IRQ_2_INT)) | \
-			(REG_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, NOC_FIREWALL_INT)) | \
+			(REG_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, ANALC_FIREWALL_INT)) | \
 			(REG_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, CPU_INT_REDIRECT_0_INT)) | \
 			(REG_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, CPU_INT_REDIRECT_1_INT)))
 
@@ -277,11 +277,11 @@ static void ivpu_boot_host_ss_rst_drive(struct ivpu_device *vdev, bool enable)
 	u32 val = REGV_RD32(VPU_40XX_HOST_SS_CPR_RST_EN);
 
 	if (enable) {
-		val = REG_SET_FLD(VPU_40XX_HOST_SS_CPR_RST_EN, TOP_NOC, val);
+		val = REG_SET_FLD(VPU_40XX_HOST_SS_CPR_RST_EN, TOP_ANALC, val);
 		val = REG_SET_FLD(VPU_40XX_HOST_SS_CPR_RST_EN, DSS_MAS, val);
 		val = REG_SET_FLD(VPU_40XX_HOST_SS_CPR_RST_EN, CSS_MAS, val);
 	} else {
-		val = REG_CLR_FLD(VPU_40XX_HOST_SS_CPR_RST_EN, TOP_NOC, val);
+		val = REG_CLR_FLD(VPU_40XX_HOST_SS_CPR_RST_EN, TOP_ANALC, val);
 		val = REG_CLR_FLD(VPU_40XX_HOST_SS_CPR_RST_EN, DSS_MAS, val);
 		val = REG_CLR_FLD(VPU_40XX_HOST_SS_CPR_RST_EN, CSS_MAS, val);
 	}
@@ -294,11 +294,11 @@ static void ivpu_boot_host_ss_clk_drive(struct ivpu_device *vdev, bool enable)
 	u32 val = REGV_RD32(VPU_40XX_HOST_SS_CPR_CLK_EN);
 
 	if (enable) {
-		val = REG_SET_FLD(VPU_40XX_HOST_SS_CPR_CLK_EN, TOP_NOC, val);
+		val = REG_SET_FLD(VPU_40XX_HOST_SS_CPR_CLK_EN, TOP_ANALC, val);
 		val = REG_SET_FLD(VPU_40XX_HOST_SS_CPR_CLK_EN, DSS_MAS, val);
 		val = REG_SET_FLD(VPU_40XX_HOST_SS_CPR_CLK_EN, CSS_MAS, val);
 	} else {
-		val = REG_CLR_FLD(VPU_40XX_HOST_SS_CPR_CLK_EN, TOP_NOC, val);
+		val = REG_CLR_FLD(VPU_40XX_HOST_SS_CPR_CLK_EN, TOP_ANALC, val);
 		val = REG_CLR_FLD(VPU_40XX_HOST_SS_CPR_CLK_EN, DSS_MAS, val);
 		val = REG_CLR_FLD(VPU_40XX_HOST_SS_CPR_CLK_EN, CSS_MAS, val);
 	}
@@ -306,64 +306,64 @@ static void ivpu_boot_host_ss_clk_drive(struct ivpu_device *vdev, bool enable)
 	REGV_WR32(VPU_40XX_HOST_SS_CPR_CLK_EN, val);
 }
 
-static int ivpu_boot_noc_qreqn_check(struct ivpu_device *vdev, u32 exp_val)
+static int ivpu_boot_analc_qreqn_check(struct ivpu_device *vdev, u32 exp_val)
 {
-	u32 val = REGV_RD32(VPU_40XX_HOST_SS_NOC_QREQN);
+	u32 val = REGV_RD32(VPU_40XX_HOST_SS_ANALC_QREQN);
 
-	if (!REG_TEST_FLD_NUM(VPU_40XX_HOST_SS_NOC_QREQN, TOP_SOCMMIO, exp_val, val))
+	if (!REG_TEST_FLD_NUM(VPU_40XX_HOST_SS_ANALC_QREQN, TOP_SOCMMIO, exp_val, val))
 		return -EIO;
 
 	return 0;
 }
 
-static int ivpu_boot_noc_qacceptn_check(struct ivpu_device *vdev, u32 exp_val)
+static int ivpu_boot_analc_qacceptn_check(struct ivpu_device *vdev, u32 exp_val)
 {
-	u32 val = REGV_RD32(VPU_40XX_HOST_SS_NOC_QACCEPTN);
+	u32 val = REGV_RD32(VPU_40XX_HOST_SS_ANALC_QACCEPTN);
 
-	if (!REG_TEST_FLD_NUM(VPU_40XX_HOST_SS_NOC_QACCEPTN, TOP_SOCMMIO, exp_val, val))
+	if (!REG_TEST_FLD_NUM(VPU_40XX_HOST_SS_ANALC_QACCEPTN, TOP_SOCMMIO, exp_val, val))
 		return -EIO;
 
 	return 0;
 }
 
-static int ivpu_boot_noc_qdeny_check(struct ivpu_device *vdev, u32 exp_val)
+static int ivpu_boot_analc_qdeny_check(struct ivpu_device *vdev, u32 exp_val)
 {
-	u32 val = REGV_RD32(VPU_40XX_HOST_SS_NOC_QDENY);
+	u32 val = REGV_RD32(VPU_40XX_HOST_SS_ANALC_QDENY);
 
-	if (!REG_TEST_FLD_NUM(VPU_40XX_HOST_SS_NOC_QDENY, TOP_SOCMMIO, exp_val, val))
+	if (!REG_TEST_FLD_NUM(VPU_40XX_HOST_SS_ANALC_QDENY, TOP_SOCMMIO, exp_val, val))
 		return -EIO;
 
 	return 0;
 }
 
-static int ivpu_boot_top_noc_qrenqn_check(struct ivpu_device *vdev, u32 exp_val)
+static int ivpu_boot_top_analc_qrenqn_check(struct ivpu_device *vdev, u32 exp_val)
 {
-	u32 val = REGV_RD32(VPU_40XX_TOP_NOC_QREQN);
+	u32 val = REGV_RD32(VPU_40XX_TOP_ANALC_QREQN);
 
-	if (!REG_TEST_FLD_NUM(VPU_40XX_TOP_NOC_QREQN, CPU_CTRL, exp_val, val) ||
-	    !REG_TEST_FLD_NUM(VPU_40XX_TOP_NOC_QREQN, HOSTIF_L2CACHE, exp_val, val))
+	if (!REG_TEST_FLD_NUM(VPU_40XX_TOP_ANALC_QREQN, CPU_CTRL, exp_val, val) ||
+	    !REG_TEST_FLD_NUM(VPU_40XX_TOP_ANALC_QREQN, HOSTIF_L2CACHE, exp_val, val))
 		return -EIO;
 
 	return 0;
 }
 
-static int ivpu_boot_top_noc_qacceptn_check(struct ivpu_device *vdev, u32 exp_val)
+static int ivpu_boot_top_analc_qacceptn_check(struct ivpu_device *vdev, u32 exp_val)
 {
-	u32 val = REGV_RD32(VPU_40XX_TOP_NOC_QACCEPTN);
+	u32 val = REGV_RD32(VPU_40XX_TOP_ANALC_QACCEPTN);
 
-	if (!REG_TEST_FLD_NUM(VPU_40XX_TOP_NOC_QACCEPTN, CPU_CTRL, exp_val, val) ||
-	    !REG_TEST_FLD_NUM(VPU_40XX_TOP_NOC_QACCEPTN, HOSTIF_L2CACHE, exp_val, val))
+	if (!REG_TEST_FLD_NUM(VPU_40XX_TOP_ANALC_QACCEPTN, CPU_CTRL, exp_val, val) ||
+	    !REG_TEST_FLD_NUM(VPU_40XX_TOP_ANALC_QACCEPTN, HOSTIF_L2CACHE, exp_val, val))
 		return -EIO;
 
 	return 0;
 }
 
-static int ivpu_boot_top_noc_qdeny_check(struct ivpu_device *vdev, u32 exp_val)
+static int ivpu_boot_top_analc_qdeny_check(struct ivpu_device *vdev, u32 exp_val)
 {
-	u32 val = REGV_RD32(VPU_40XX_TOP_NOC_QDENY);
+	u32 val = REGV_RD32(VPU_40XX_TOP_ANALC_QDENY);
 
-	if (!REG_TEST_FLD_NUM(VPU_40XX_TOP_NOC_QDENY, CPU_CTRL, exp_val, val) ||
-	    !REG_TEST_FLD_NUM(VPU_40XX_TOP_NOC_QDENY, HOSTIF_L2CACHE, exp_val, val))
+	if (!REG_TEST_FLD_NUM(VPU_40XX_TOP_ANALC_QDENY, CPU_CTRL, exp_val, val) ||
+	    !REG_TEST_FLD_NUM(VPU_40XX_TOP_ANALC_QDENY, HOSTIF_L2CACHE, exp_val, val))
 		return -EIO;
 
 	return 0;
@@ -385,19 +385,19 @@ static int ivpu_boot_host_ss_check(struct ivpu_device *vdev)
 {
 	int ret;
 
-	ret = ivpu_boot_noc_qreqn_check(vdev, 0x0);
+	ret = ivpu_boot_analc_qreqn_check(vdev, 0x0);
 	if (ret) {
 		ivpu_err(vdev, "Failed qreqn check: %d\n", ret);
 		return ret;
 	}
 
-	ret = ivpu_boot_noc_qacceptn_check(vdev, 0x0);
+	ret = ivpu_boot_analc_qacceptn_check(vdev, 0x0);
 	if (ret) {
 		ivpu_err(vdev, "Failed qacceptn check: %d\n", ret);
 		return ret;
 	}
 
-	ret = ivpu_boot_noc_qdeny_check(vdev, 0x0);
+	ret = ivpu_boot_analc_qdeny_check(vdev, 0x0);
 	if (ret)
 		ivpu_err(vdev, "Failed qdeny check %d\n", ret);
 
@@ -409,20 +409,20 @@ static int ivpu_boot_host_ss_axi_drive(struct ivpu_device *vdev, bool enable)
 	int ret;
 	u32 val;
 
-	val = REGV_RD32(VPU_40XX_HOST_SS_NOC_QREQN);
+	val = REGV_RD32(VPU_40XX_HOST_SS_ANALC_QREQN);
 	if (enable)
-		val = REG_SET_FLD(VPU_40XX_HOST_SS_NOC_QREQN, TOP_SOCMMIO, val);
+		val = REG_SET_FLD(VPU_40XX_HOST_SS_ANALC_QREQN, TOP_SOCMMIO, val);
 	else
-		val = REG_CLR_FLD(VPU_40XX_HOST_SS_NOC_QREQN, TOP_SOCMMIO, val);
-	REGV_WR32(VPU_40XX_HOST_SS_NOC_QREQN, val);
+		val = REG_CLR_FLD(VPU_40XX_HOST_SS_ANALC_QREQN, TOP_SOCMMIO, val);
+	REGV_WR32(VPU_40XX_HOST_SS_ANALC_QREQN, val);
 
-	ret = ivpu_boot_noc_qacceptn_check(vdev, enable ? 0x1 : 0x0);
+	ret = ivpu_boot_analc_qacceptn_check(vdev, enable ? 0x1 : 0x0);
 	if (ret) {
 		ivpu_err(vdev, "Failed qacceptn check: %d\n", ret);
 		return ret;
 	}
 
-	ret = ivpu_boot_noc_qdeny_check(vdev, 0x0);
+	ret = ivpu_boot_analc_qdeny_check(vdev, 0x0);
 	if (ret) {
 		ivpu_err(vdev, "Failed qdeny check: %d\n", ret);
 		return ret;
@@ -441,37 +441,37 @@ static int ivpu_boot_host_ss_axi_enable(struct ivpu_device *vdev)
 	return ivpu_boot_host_ss_axi_drive(vdev, true);
 }
 
-static int ivpu_boot_host_ss_top_noc_drive(struct ivpu_device *vdev, bool enable)
+static int ivpu_boot_host_ss_top_analc_drive(struct ivpu_device *vdev, bool enable)
 {
 	int ret;
 	u32 val;
 
-	val = REGV_RD32(VPU_40XX_TOP_NOC_QREQN);
+	val = REGV_RD32(VPU_40XX_TOP_ANALC_QREQN);
 	if (enable) {
-		val = REG_SET_FLD(VPU_40XX_TOP_NOC_QREQN, CPU_CTRL, val);
-		val = REG_SET_FLD(VPU_40XX_TOP_NOC_QREQN, HOSTIF_L2CACHE, val);
+		val = REG_SET_FLD(VPU_40XX_TOP_ANALC_QREQN, CPU_CTRL, val);
+		val = REG_SET_FLD(VPU_40XX_TOP_ANALC_QREQN, HOSTIF_L2CACHE, val);
 	} else {
-		val = REG_CLR_FLD(VPU_40XX_TOP_NOC_QREQN, CPU_CTRL, val);
-		val = REG_CLR_FLD(VPU_40XX_TOP_NOC_QREQN, HOSTIF_L2CACHE, val);
+		val = REG_CLR_FLD(VPU_40XX_TOP_ANALC_QREQN, CPU_CTRL, val);
+		val = REG_CLR_FLD(VPU_40XX_TOP_ANALC_QREQN, HOSTIF_L2CACHE, val);
 	}
-	REGV_WR32(VPU_40XX_TOP_NOC_QREQN, val);
+	REGV_WR32(VPU_40XX_TOP_ANALC_QREQN, val);
 
-	ret = ivpu_boot_top_noc_qacceptn_check(vdev, enable ? 0x1 : 0x0);
+	ret = ivpu_boot_top_analc_qacceptn_check(vdev, enable ? 0x1 : 0x0);
 	if (ret) {
 		ivpu_err(vdev, "Failed qacceptn check: %d\n", ret);
 		return ret;
 	}
 
-	ret = ivpu_boot_top_noc_qdeny_check(vdev, 0x0);
+	ret = ivpu_boot_top_analc_qdeny_check(vdev, 0x0);
 	if (ret)
 		ivpu_err(vdev, "Failed qdeny check: %d\n", ret);
 
 	return ret;
 }
 
-static int ivpu_boot_host_ss_top_noc_enable(struct ivpu_device *vdev)
+static int ivpu_boot_host_ss_top_analc_enable(struct ivpu_device *vdev)
 {
-	return ivpu_boot_host_ss_top_noc_drive(vdev, true);
+	return ivpu_boot_host_ss_top_analc_drive(vdev, true);
 }
 
 static void ivpu_boot_pwr_island_trickle_drive(struct ivpu_device *vdev, bool enable)
@@ -525,13 +525,13 @@ static void ivpu_boot_pwr_island_isolation_drive(struct ivpu_device *vdev, bool 
 	REGV_WR32(VPU_40XX_HOST_SS_AON_PWR_ISO_EN0, val);
 }
 
-static void ivpu_boot_no_snoop_enable(struct ivpu_device *vdev)
+static void ivpu_boot_anal_sanalop_enable(struct ivpu_device *vdev)
 {
 	u32 val = REGV_RD32(VPU_40XX_HOST_IF_TCU_PTW_OVERRIDES);
 
-	val = REG_SET_FLD(VPU_40XX_HOST_IF_TCU_PTW_OVERRIDES, SNOOP_OVERRIDE_EN, val);
-	val = REG_SET_FLD(VPU_40XX_HOST_IF_TCU_PTW_OVERRIDES, AW_SNOOP_OVERRIDE, val);
-	val = REG_CLR_FLD(VPU_40XX_HOST_IF_TCU_PTW_OVERRIDES, AR_SNOOP_OVERRIDE, val);
+	val = REG_SET_FLD(VPU_40XX_HOST_IF_TCU_PTW_OVERRIDES, SANALOP_OVERRIDE_EN, val);
+	val = REG_SET_FLD(VPU_40XX_HOST_IF_TCU_PTW_OVERRIDES, AW_SANALOP_OVERRIDE, val);
+	val = REG_CLR_FLD(VPU_40XX_HOST_IF_TCU_PTW_OVERRIDES, AR_SANALOP_OVERRIDE, val);
 
 	REGV_WR32(VPU_40XX_HOST_IF_TCU_PTW_OVERRIDES, val);
 }
@@ -550,21 +550,21 @@ static void ivpu_boot_tbu_mmu_enable(struct ivpu_device *vdev)
 	REGV_WR32(VPU_40XX_HOST_IF_TBU_MMUSSIDV, val);
 }
 
-static int ivpu_boot_cpu_noc_qacceptn_check(struct ivpu_device *vdev, u32 exp_val)
+static int ivpu_boot_cpu_analc_qacceptn_check(struct ivpu_device *vdev, u32 exp_val)
 {
-	u32 val = REGV_RD32(VPU_40XX_CPU_SS_CPR_NOC_QACCEPTN);
+	u32 val = REGV_RD32(VPU_40XX_CPU_SS_CPR_ANALC_QACCEPTN);
 
-	if (!REG_TEST_FLD_NUM(VPU_40XX_CPU_SS_CPR_NOC_QACCEPTN, TOP_MMIO, exp_val, val))
+	if (!REG_TEST_FLD_NUM(VPU_40XX_CPU_SS_CPR_ANALC_QACCEPTN, TOP_MMIO, exp_val, val))
 		return -EIO;
 
 	return 0;
 }
 
-static int ivpu_boot_cpu_noc_qdeny_check(struct ivpu_device *vdev, u32 exp_val)
+static int ivpu_boot_cpu_analc_qdeny_check(struct ivpu_device *vdev, u32 exp_val)
 {
-	u32 val = REGV_RD32(VPU_40XX_CPU_SS_CPR_NOC_QDENY);
+	u32 val = REGV_RD32(VPU_40XX_CPU_SS_CPR_ANALC_QDENY);
 
-	if (!REG_TEST_FLD_NUM(VPU_40XX_CPU_SS_CPR_NOC_QDENY, TOP_MMIO, exp_val, val))
+	if (!REG_TEST_FLD_NUM(VPU_40XX_CPU_SS_CPR_ANALC_QDENY, TOP_MMIO, exp_val, val))
 		return -EIO;
 
 	return 0;
@@ -589,7 +589,7 @@ static int ivpu_boot_pwr_domain_enable(struct ivpu_device *vdev)
 		return ret;
 	}
 
-	ret = ivpu_boot_top_noc_qrenqn_check(vdev, 0x0);
+	ret = ivpu_boot_top_analc_qrenqn_check(vdev, 0x0);
 	if (ret) {
 		ivpu_err(vdev, "Failed qrenqn check %d\n", ret);
 		return ret;
@@ -607,20 +607,20 @@ static int ivpu_boot_soc_cpu_drive(struct ivpu_device *vdev, bool enable)
 	int ret;
 	u32 val;
 
-	val = REGV_RD32(VPU_40XX_CPU_SS_CPR_NOC_QREQN);
+	val = REGV_RD32(VPU_40XX_CPU_SS_CPR_ANALC_QREQN);
 	if (enable)
-		val = REG_SET_FLD(VPU_40XX_CPU_SS_CPR_NOC_QREQN, TOP_MMIO, val);
+		val = REG_SET_FLD(VPU_40XX_CPU_SS_CPR_ANALC_QREQN, TOP_MMIO, val);
 	else
-		val = REG_CLR_FLD(VPU_40XX_CPU_SS_CPR_NOC_QREQN, TOP_MMIO, val);
-	REGV_WR32(VPU_40XX_CPU_SS_CPR_NOC_QREQN, val);
+		val = REG_CLR_FLD(VPU_40XX_CPU_SS_CPR_ANALC_QREQN, TOP_MMIO, val);
+	REGV_WR32(VPU_40XX_CPU_SS_CPR_ANALC_QREQN, val);
 
-	ret = ivpu_boot_cpu_noc_qacceptn_check(vdev, enable ? 0x1 : 0x0);
+	ret = ivpu_boot_cpu_analc_qacceptn_check(vdev, enable ? 0x1 : 0x0);
 	if (ret) {
 		ivpu_err(vdev, "Failed qacceptn check: %d\n", ret);
 		return ret;
 	}
 
-	ret = ivpu_boot_cpu_noc_qdeny_check(vdev, 0x0);
+	ret = ivpu_boot_cpu_analc_qdeny_check(vdev, 0x0);
 	if (ret)
 		ivpu_err(vdev, "Failed qdeny check: %d\n", ret);
 
@@ -875,9 +875,9 @@ static int ivpu_hw_40xx_power_up(struct ivpu_device *vdev)
 		return ret;
 	}
 
-	ret = ivpu_boot_host_ss_top_noc_enable(vdev);
+	ret = ivpu_boot_host_ss_top_analc_enable(vdev);
 	if (ret)
-		ivpu_err(vdev, "Failed to enable TOP NOC: %d\n", ret);
+		ivpu_err(vdev, "Failed to enable TOP ANALC: %d\n", ret);
 
 	return ret;
 }
@@ -886,7 +886,7 @@ static int ivpu_hw_40xx_boot_fw(struct ivpu_device *vdev)
 {
 	int ret;
 
-	ivpu_boot_no_snoop_enable(vdev);
+	ivpu_boot_anal_sanalop_enable(vdev);
 	ivpu_boot_tbu_mmu_enable(vdev);
 
 	ret = ivpu_boot_soc_cpu_boot(vdev);
@@ -1053,9 +1053,9 @@ static void ivpu_hw_40xx_irq_wdt_mss_handler(struct ivpu_device *vdev)
 	ivpu_pm_trigger_recovery(vdev, "WDT MSS IRQ");
 }
 
-static void ivpu_hw_40xx_irq_noc_firewall_handler(struct ivpu_device *vdev)
+static void ivpu_hw_40xx_irq_analc_firewall_handler(struct ivpu_device *vdev)
 {
-	ivpu_pm_trigger_recovery(vdev, "NOC Firewall IRQ");
+	ivpu_pm_trigger_recovery(vdev, "ANALC Firewall IRQ");
 }
 
 /* Handler for IRQs from VPU core (irqV) */
@@ -1086,8 +1086,8 @@ static bool ivpu_hw_40xx_irqv_handler(struct ivpu_device *vdev, int irq, bool *w
 	if (REG_TEST_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, CPU_INT_REDIRECT_1_INT, status))
 		ivpu_hw_40xx_irq_wdt_nce_handler(vdev);
 
-	if (REG_TEST_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, NOC_FIREWALL_INT, status))
-		ivpu_hw_40xx_irq_noc_firewall_handler(vdev);
+	if (REG_TEST_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, ANALC_FIREWALL_INT, status))
+		ivpu_hw_40xx_irq_analc_firewall_handler(vdev);
 
 	return true;
 }
@@ -1171,16 +1171,16 @@ static irqreturn_t ivpu_hw_40xx_irq_handler(int irq, void *ptr)
 		return IRQ_WAKE_THREAD;
 	if (irqv_handled || irqb_handled)
 		return IRQ_HANDLED;
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
-static void ivpu_hw_40xx_diagnose_failure(struct ivpu_device *vdev)
+static void ivpu_hw_40xx_diaganalse_failure(struct ivpu_device *vdev)
 {
 	u32 irqv = REGV_RD32(VPU_40XX_HOST_SS_ICB_STATUS_0) & ICB_0_IRQ_MASK;
 	u32 irqb = REGB_RD32(VPU_40XX_BUTTRESS_INTERRUPT_STAT) & BUTTRESS_IRQ_MASK;
 
 	if (ivpu_hw_40xx_reg_ipc_rx_count_get(vdev))
-		ivpu_err(vdev, "IPC FIFO queue not empty, missed IPC IRQ");
+		ivpu_err(vdev, "IPC FIFO queue analt empty, missed IPC IRQ");
 
 	if (REG_TEST_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, CPU_INT_REDIRECT_0_INT, irqv))
 		ivpu_err(vdev, "WDT MSS timeout detected\n");
@@ -1188,8 +1188,8 @@ static void ivpu_hw_40xx_diagnose_failure(struct ivpu_device *vdev)
 	if (REG_TEST_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, CPU_INT_REDIRECT_1_INT, irqv))
 		ivpu_err(vdev, "WDT NCE timeout detected\n");
 
-	if (REG_TEST_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, NOC_FIREWALL_INT, irqv))
-		ivpu_err(vdev, "NOC Firewall irq detected\n");
+	if (REG_TEST_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, ANALC_FIREWALL_INT, irqv))
+		ivpu_err(vdev, "ANALC Firewall irq detected\n");
 
 	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, ATS_ERR, irqb)) {
 		ivpu_err(vdev, "ATS_ERR_LOG1 0x%08x ATS_ERR_LOG2 0x%08x\n",
@@ -1226,7 +1226,7 @@ const struct ivpu_hw_ops ivpu_hw_40xx_ops = {
 	.reset = ivpu_hw_40xx_reset,
 	.boot_fw = ivpu_hw_40xx_boot_fw,
 	.wdt_disable = ivpu_hw_40xx_wdt_disable,
-	.diagnose_failure = ivpu_hw_40xx_diagnose_failure,
+	.diaganalse_failure = ivpu_hw_40xx_diaganalse_failure,
 	.profiling_freq_get = ivpu_hw_40xx_profiling_freq_get,
 	.profiling_freq_drive = ivpu_hw_40xx_profiling_freq_drive,
 	.reg_pll_freq_get = ivpu_hw_40xx_reg_pll_freq_get,

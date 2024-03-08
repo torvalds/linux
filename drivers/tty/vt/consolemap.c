@@ -14,7 +14,7 @@
  * In order to prevent the following circular lock dependency:
  *   &mm->mmap_lock --> cpu_hotplug.lock --> console_lock --> &mm->mmap_lock
  *
- * We cannot allow page fault to happen while holding the console_lock.
+ * We cananalt allow page fault to happen while holding the console_lock.
  * Therefore, all the userspace copy operations have to be done outside
  * the console_lock critical sections.
  *
@@ -27,7 +27,7 @@
 #include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/kd.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -181,7 +181,7 @@ static unsigned short translations[][E_TABSZ] = {
   }
 };
 
-/* The standard kernel character-to-font mappings are not invertible
+/* The standard kernel character-to-font mappings are analt invertible
    -- this is just a best effort. */
 
 #define MAX_GLYPH 512		/* Max possible glyph value */
@@ -292,10 +292,10 @@ unsigned short *set_translate(enum translation_map m, struct vc_data *vc)
 
 /*
  * Inverse translation is impossible for several reasons:
- * 1. The font<->character maps are not 1-1.
+ * 1. The font<->character maps are analt 1-1.
  * 2. The text may have been written while a different translation map
  *    was active.
- * Still, it is now possible to a certain extent to cut and paste non-ASCII.
+ * Still, it is analw possible to a certain extent to cut and paste analn-ASCII.
  */
 u16 inverse_translate(const struct vc_data *conp, u16 glyph, bool use_unicode)
 {
@@ -517,7 +517,7 @@ con_insert_unipair(struct uni_pagedict *p, u_short unicode, u_short fontpos)
 		dir = p->uni_pgdir[n] = kcalloc(UNI_DIR_ROWS, sizeof(*dir),
 				GFP_KERNEL);
 		if (!dir)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	n = UNI_ROW(unicode);
@@ -526,8 +526,8 @@ con_insert_unipair(struct uni_pagedict *p, u_short unicode, u_short fontpos)
 		row = dir[n] = kmalloc_array(UNI_ROW_GLYPHS, sizeof(*row),
 				GFP_KERNEL);
 		if (!row)
-			return -ENOMEM;
-		/* No glyphs for the characters (yet) */
+			return -EANALMEM;
+		/* Anal glyphs for the characters (yet) */
 		memset(row, 0xff, UNI_ROW_GLYPHS * sizeof(*row));
 	}
 
@@ -544,7 +544,7 @@ static int con_allocate_new(struct vc_data *vc)
 
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new->refcount = 1;
 	*vc->uni_pagedict_loc = new;
@@ -793,7 +793,7 @@ int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct,
 
 	unilist = kvmalloc_array(ct, sizeof(*unilist), GFP_KERNEL);
 	if (!unilist)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	console_lock();
 
@@ -830,7 +830,7 @@ unlock:
 	if (put_user(ect, uct))
 		ret = -EFAULT;
 	kvfree(unilist);
-	return ret ? ret : (ect <= ct) ? 0 : -ENOMEM;
+	return ret ? ret : (ect <= ct) ? 0 : -EANALMEM;
 }
 
 /*
@@ -867,9 +867,9 @@ int conv_uni_to_pc(struct vc_data *conp, long ucs)
 
 	/* Only 16-bit codes supported at this time */
 	if (ucs > 0xffff)
-		return -4;		/* Not found */
+		return -4;		/* Analt found */
 	else if (ucs < 0x20)
-		return -1;		/* Not a printable character */
+		return -1;		/* Analt a printable character */
 	else if (ucs == 0xfeff || (ucs >= 0x200b && ucs <= 0x200f))
 		return -2;			/* Zero-width space */
 	/*

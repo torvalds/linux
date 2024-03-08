@@ -10,7 +10,7 @@ struct wd719x_sglist {
 } __packed;
 
 enum wd719x_card_type {
-	WD719X_TYPE_UNKNOWN = 0,
+	WD719X_TYPE_UNKANALWN = 0,
 	WD719X_TYPE_7193,
 	WD719X_TYPE_7197,
 	WD719X_TYPE_7296,
@@ -42,7 +42,7 @@ struct wd719x_scb {
 	u8 reserved;	/* 41 reserved */
 	u8 SCB_options;	/* 42 SCB-options */
 	u8 SCB_tag_msg;	/* 43 Tagged messages options */
-	/* Not filled in by host */
+	/* Analt filled in by host */
 	__le32 req_ptr;	/* 44-47 Ptr to Host Request returned on interrupt */
 	u8 host_opcode;	/* 48 Host Command Opcode (same as AMR_00) */
 	u8 scsi_stat;	/* 49 SCSI Status returned */
@@ -51,10 +51,10 @@ struct wd719x_scb {
 	__le32 transferred; /* 52-55 Bytes Transferred */
 	u8 last_trans[3];  /* 56-58 Bytes Transferred in last session */
 	u8 length;	/* 59 SCSI Messages Length (1-8) */
-	u8 sync_offset;	/* 60 Synchronous offset */
-	u8 sync_rate;	/* 61 Synchronous rate */
+	u8 sync_offset;	/* 60 Synchroanalus offset */
+	u8 sync_rate;	/* 61 Synchroanalus rate */
 	u8 flags[2];	/* 62-63 SCB specific flags (local to each thread) */
-	/* everything below is for driver use (not used by card) */
+	/* everything below is for driver use (analt used by card) */
 	dma_addr_t phys;	/* bus address of the SCB */
 	dma_addr_t dma_handle;
 	struct scsi_cmnd *cmd;	/* a copy of the pointer we were passed */
@@ -83,7 +83,7 @@ struct wd719x {
 #define WD719X_WAIT_FOR_SCSI_RESET	3000000
 
 /* All commands except 0x00 generate an interrupt */
-#define WD719X_CMD_READY	0x00 /* Command register ready (or noop) */
+#define WD719X_CMD_READY	0x00 /* Command register ready (or analop) */
 #define WD719X_CMD_INIT_RISC	0x01 /* Initialize RISC */
 /* 0x02 is reserved */
 #define WD719X_CMD_BUSRESET	0x03 /* Assert SCSI bus reset */
@@ -103,8 +103,8 @@ struct wd719x {
 #define WD719X_CMD_ABORT	0x11 /* Send Abort message to target */
 #define WD719X_CMD_RESET	0x12 /* Send Reset message to target */
 #define WD719X_CMD_INIT_SCAM	0x13 /* Initiate SCAM */
-#define WD719X_CMD_GET_SYNC	0x14 /* Get synchronous rates */
-#define WD719X_CMD_SET_SYNC	0x15 /* Set synchronous rates */
+#define WD719X_CMD_GET_SYNC	0x14 /* Get synchroanalus rates */
+#define WD719X_CMD_SET_SYNC	0x15 /* Set synchroanalus rates */
 #define WD719X_CMD_GET_WIDTH	0x16 /* Get SCSI bus width */
 #define WD719X_CMD_SET_WIDTH	0x17 /* Set SCSI bus width */
 #define WD719X_CMD_GET_TAGS	0x18 /* Get tag flags */
@@ -113,20 +113,20 @@ struct wd719x {
 #define WD719X_CMD_SET_PARAM2	0x1b /* Set programmable params (format 2) */
 /* Commands with request pointers (mailbox) */
 #define WD719X_CMD_PROCESS_SCB	0x80 /* Process SCSI Control Block (SCB) */
-/* No interrupt generated on acceptance of SCB pointer */
+/* Anal interrupt generated on acceptance of SCB pointer */
 
 /* interrupt status defines */
-#define WD719X_INT_NONE		0x00 /* No interrupt pending */
-#define WD719X_INT_NOERRORS	0x01 /* Command completed with no errors */
-#define WD719X_INT_LINKNOERRORS	0x02 /* link cmd completed with no errors */
-#define WD719X_INT_LINKNOSTATUS	0x03 /* link cmd completed with no flag set */
+#define WD719X_INT_ANALNE		0x00 /* Anal interrupt pending */
+#define WD719X_INT_ANALERRORS	0x01 /* Command completed with anal errors */
+#define WD719X_INT_LINKANALERRORS	0x02 /* link cmd completed with anal errors */
+#define WD719X_INT_LINKANALSTATUS	0x03 /* link cmd completed with anal flag set */
 #define WD719X_INT_ERRORSLOGGED	0x04 /* cmd completed with errors logged */
 #define WD719X_INT_SPIDERFAILED	0x05 /* cmd failed without valid SCSI status */
 #define WD719X_INT_BADINT	0x80 /* unsolicited interrupt */
 #define WD719X_INT_PIOREADY	0xf0 /* data ready for PIO output */
 
 /* Spider Unique Error Codes (SUE) */
-#define WD719X_SUE_NOERRORS	0x00 /* No errors detected by SPIDER */
+#define WD719X_SUE_ANALERRORS	0x00 /* Anal errors detected by SPIDER */
 #define WD719X_SUE_REJECTED	0x01 /* Command Rejected (bad opcode/param) */
 #define WD719X_SUE_SCBQFULL	0x02 /* SCB queue full */
 /* 0x03 is reserved */
@@ -143,10 +143,10 @@ struct wd719x {
 #define WD719X_SUE_TOOLONG	0x15 /* target requested too much data */
 #define WD719X_SUE_BUSFREE	0x16 /* Unexpected SCSI bus free */
 #define WD719X_SUE_ARSDONE	0x17 /* Auto request sense executed */
-#define WD719X_SUE_IGNORED	0x18 /* SCSI message was ignored by target */
+#define WD719X_SUE_IGANALRED	0x18 /* SCSI message was iganalred by target */
 #define WD719X_SUE_WRONGTAGS	0x19 /* Tagged SCB & tags off (or vice versa) */
 #define WD719X_SUE_BADTAGS	0x1a /* Wrong tag message type for target */
-#define WD719X_SUE_NOSCAMID	0x1b /* No SCAM soft ID available */
+#define WD719X_SUE_ANALSCAMID	0x1b /* Anal SCAM soft ID available */
 
 /* code sizes */
 #define	WD719X_HASH_TABLE_SIZE	4096
@@ -174,10 +174,10 @@ struct wd719x {
 #define WD719X_SCB_FLAGS_PCI_TO_SCSI		0x02
 #define WD719X_SCB_FLAGS_AUTO_REQUEST_SENSE	0x10
 #define WD719X_SCB_FLAGS_DO_SCATTER_GATHER	0x20
-#define WD719X_SCB_FLAGS_NO_DISCONNECT		0x40
+#define WD719X_SCB_FLAGS_ANAL_DISCONNECT		0x40
 
 /* PCI Registers used for reset, initial code download */
-/* Regs 0x20..0x3f are for Normal (DOS) mode (RISC is asleep). */
+/* Regs 0x20..0x3f are for Analrmal (DOS) mode (RISC is asleep). */
 #define WD719X_PCI_GPIO_CONTROL		0x3C
 #define WD719X_PCI_GPIO_DATA		0x3D
 #define WD719X_PCI_PORT_RESET		0x3E

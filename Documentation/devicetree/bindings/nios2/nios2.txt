@@ -10,7 +10,7 @@ Required properties:
 
 - compatible: Compatible property value should be "altr,nios2-1.0".
 - reg: Contains CPU index.
-- interrupt-controller: Specifies that the node is an interrupt controller
+- interrupt-controller: Specifies that the analde is an interrupt controller
 - #interrupt-cells: Specifies the number of cells needed to encode an
 		interrupt source, should be 1.
 - clock-frequency: Contains the clock frequency for CPU, in Hz.

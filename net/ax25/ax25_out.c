@@ -5,7 +5,7 @@
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  * Copyright (C) Joerg Reuter DL1BKE (jreuter@yaina.de)
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -110,14 +110,14 @@ EXPORT_SYMBOL(ax25_send_frame);
 /*
  *	All outgoing AX.25 I frames pass via this routine. Therefore this is
  *	where the fragmentation of frames takes place. If fragment is set to
- *	zero then we are not allowed to do fragmentation, even if the frame
+ *	zero then we are analt allowed to do fragmentation, even if the frame
  *	is too large.
  */
 void ax25_output(ax25_cb *ax25, int paclen, struct sk_buff *skb)
 {
 	struct sk_buff *skbn;
 	unsigned char *p;
-	int frontlen, len, fragno, ka9qfrag, first = 1;
+	int frontlen, len, fraganal, ka9qfrag, first = 1;
 
 	if (paclen < 16) {
 		WARN_ON_ONCE(1);
@@ -134,8 +134,8 @@ void ax25_output(ax25_cb *ax25, int paclen, struct sk_buff *skb)
 			ka9qfrag = 1;
 		}
 
-		fragno = skb->len / paclen;
-		if (skb->len % paclen == 0) fragno--;
+		fraganal = skb->len / paclen;
+		if (skb->len % paclen == 0) fraganal--;
 
 		frontlen = skb_headroom(skb);	/* Address space + CTRL */
 
@@ -163,7 +163,7 @@ void ax25_output(ax25_cb *ax25, int paclen, struct sk_buff *skb)
 
 				*p++ = AX25_P_SEGMENT;
 
-				*p = fragno--;
+				*p = fraganal--;
 				if (first) {
 					*p |= AX25_SEG_FIRST;
 					first = 0;
@@ -194,8 +194,8 @@ void ax25_output(ax25_cb *ax25, int paclen, struct sk_buff *skb)
 
 #ifdef CONFIG_AX25_DAMA_SLAVE
 	/*
-	 * A DAMA slave is _required_ to work as normal AX.25L2V2
-	 * if no DAMA master is available.
+	 * A DAMA slave is _required_ to work as analrmal AX.25L2V2
+	 * if anal DAMA master is available.
 	 */
 	case AX25_PROTO_DAMA_SLAVE:
 		if (!ax25->ax25_dev->dama.slave) ax25_kick(ax25);
@@ -289,7 +289,7 @@ void ax25_kick(ax25_cb *ax25)
 
 		/*
 		 * Transmit the frame copy.
-		 * bke 960114: do not set the Poll bit on the last frame
+		 * bke 960114: do analt set the Poll bit on the last frame
 		 * in DAMA mode.
 		 */
 		switch (ax25->ax25_dev->values[AX25_VALUES_PROTOCOL]) {

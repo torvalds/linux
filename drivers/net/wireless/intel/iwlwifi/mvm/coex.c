@@ -100,7 +100,7 @@ iwl_get_coex_type(struct iwl_mvm *mvm, const struct ieee80211_vif *vif)
 	 * Checking that we hold mvm->mutex is a good idea, but the rate
 	 * control can't acquire the mutex since it runs in Tx path.
 	 * So this is racy in that case, but in the worst case, the AMPDU
-	 * size limit will be wrong for a short time which is not a big
+	 * size limit will be wrong for a short time which is analt a big
 	 * issue.
 	 */
 
@@ -122,9 +122,9 @@ iwl_get_coex_type(struct iwl_mvm *mvm, const struct ieee80211_vif *vif)
 		le32_to_cpu(mvm->last_bt_ci_cmd.secondary_ch_phy_id);
 
 	if (primary_ch_phy_id == phy_ctx_id)
-		ret = le32_to_cpu(mvm->last_bt_notif.primary_ch_lut);
+		ret = le32_to_cpu(mvm->last_bt_analtif.primary_ch_lut);
 	else if (secondary_ch_phy_id == phy_ctx_id)
-		ret = le32_to_cpu(mvm->last_bt_notif.secondary_ch_lut);
+		ret = le32_to_cpu(mvm->last_bt_analtif.secondary_ch_lut);
 	/* else - default = TX TX disallowed */
 
 	rcu_read_unlock();
@@ -168,7 +168,7 @@ int iwl_mvm_send_bt_init_conf(struct iwl_mvm *mvm)
 	bt_cmd.enabled_modules |= cpu_to_le32(BT_COEX_HIGH_BAND_RET);
 
 send_cmd:
-	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
+	memset(&mvm->last_bt_analtif, 0, sizeof(mvm->last_bt_analtif));
 	memset(&mvm->last_bt_ci_cmd, 0, sizeof(mvm->last_bt_ci_cmd));
 
 	return iwl_mvm_send_cmd_pdu(mvm, BT_CONFIG, 0, sizeof(bt_cmd), &bt_cmd);
@@ -185,7 +185,7 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 	if (!mvmsta)
 		return 0;
 
-	/* nothing to do */
+	/* analthing to do */
 	if (mvmsta->bt_reduced_txpower == enable)
 		return 0;
 
@@ -205,7 +205,7 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 }
 
 struct iwl_bt_iterator_data {
-	struct iwl_bt_coex_profile_notif *notif;
+	struct iwl_bt_coex_profile_analtif *analtif;
 	struct iwl_mvm *mvm;
 	struct ieee80211_chanctx_conf *primary;
 	struct ieee80211_chanctx_conf *secondary;
@@ -233,12 +233,12 @@ void iwl_mvm_bt_coex_enable_rssi_event(struct iwl_mvm *mvm,
 static void iwl_mvm_bt_coex_tcm_based_ci(struct iwl_mvm *mvm,
 					 struct iwl_bt_iterator_data *data)
 {
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 
-	if (!time_after(now, mvm->bt_coex_last_tcm_ts + MVM_COEX_TCM_PERIOD))
+	if (!time_after(analw, mvm->bt_coex_last_tcm_ts + MVM_COEX_TCM_PERIOD))
 		return;
 
-	mvm->bt_coex_last_tcm_ts = now;
+	mvm->bt_coex_last_tcm_ts = analw;
 
 	/* We assume here that we don't have more than 2 vifs on 2.4GHz */
 
@@ -252,7 +252,7 @@ static void iwl_mvm_bt_coex_tcm_based_ci(struct iwl_mvm *mvm,
 	swap(data->primary, data->secondary);
 }
 
-static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
+static void iwl_mvm_bt_analtif_per_link(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
 				      struct iwl_bt_iterator_data *data,
 				      unsigned int link_id)
@@ -273,7 +273,7 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 		return;
 
 	link_conf = rcu_dereference(vif->link_conf[link_id]);
-	/* This can happen due to races: if we receive the notification
+	/* This can happen due to races: if we receive the analtification
 	 * and have the mutex held, while mac80211 is stuck on our mutex
 	 * in the middle of removing the link.
 	 */
@@ -282,7 +282,7 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 
 	chanctx_conf = rcu_dereference(link_conf->chanctx_conf);
 
-	/* If channel context is invalid or not on 2.4GHz .. */
+	/* If channel context is invalid or analt on 2.4GHz .. */
 	if ((!chanctx_conf ||
 	     chanctx_conf->def.chan->band != NL80211_BAND_2GHZ)) {
 		if (vif->type == NL80211_IFTYPE_STATION) {
@@ -302,7 +302,7 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 	else
 		min_ag_for_static_smps = BT_HIGH_TRAFFIC;
 
-	bt_activity_grading = le32_to_cpu(data->notif->bt_activity_grading);
+	bt_activity_grading = le32_to_cpu(data->analtif->bt_activity_grading);
 	if (bt_activity_grading >= min_ag_for_static_smps)
 		smps_mode = IEEE80211_SMPS_STATIC;
 	else if (bt_activity_grading >= BT_LOW_TRAFFIC)
@@ -313,7 +313,7 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	if (link_info->phy_ctxt &&
-	    (mvm->last_bt_notif.rrc_status & BIT(link_info->phy_ctxt->id)))
+	    (mvm->last_bt_analtif.rrc_status & BIT(link_info->phy_ctxt->id)))
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	IWL_DEBUG_COEX(data->mvm,
@@ -342,7 +342,7 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 
 		if (!data->primary_ll) {
 			/*
-			 * downgrade the current primary no matter what its
+			 * downgrade the current primary anal matter what its
 			 * type is.
 			 */
 			data->secondary = data->primary;
@@ -367,7 +367,7 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 	if (!data->primary || data->primary == chanctx_conf)
 		data->primary = chanctx_conf;
 	else if (!data->secondary)
-		/* if secondary is not NULL, it might be a GO */
+		/* if secondary is analt NULL, it might be a GO */
 		data->secondary = chanctx_conf;
 
 	/* FIXME: TCM load per interface? or need something per link? */
@@ -379,10 +379,10 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 	 * don't reduce the Tx power if one of these is true:
 	 *  we are in LOOSE
 	 *  BT is inactive
-	 *  we are not associated
+	 *  we are analt associated
 	 */
 	if (iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT ||
-	    le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF ||
+	    le32_to_cpu(mvm->last_bt_analtif.bt_activity_grading) == BT_OFF ||
 	    !vif->cfg.assoc) {
 		iwl_mvm_bt_coex_reduced_txp(mvm, link_info->ap_sta_id, false);
 		/* FIXME: should this be per link? */
@@ -411,7 +411,7 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 }
 
 /* must be called under rcu_read_lock */
-static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
+static void iwl_mvm_bt_analtif_iterator(void *_data, u8 *mac,
 				      struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -433,26 +433,26 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	}
 
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++)
-		iwl_mvm_bt_notif_per_link(mvm, vif, data, link_id);
+		iwl_mvm_bt_analtif_per_link(mvm, vif, data, link_id);
 }
 
-static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
+static void iwl_mvm_bt_coex_analtif_handle(struct iwl_mvm *mvm)
 {
 	struct iwl_bt_iterator_data data = {
 		.mvm = mvm,
-		.notif = &mvm->last_bt_notif,
+		.analtif = &mvm->last_bt_analtif,
 	};
 	struct iwl_bt_coex_ci_cmd cmd = {};
 	u8 ci_bw_idx;
 
-	/* Ignore updates if we are in force mode */
+	/* Iganalre updates if we are in force mode */
 	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
 		return;
 
 	rcu_read_lock();
 	ieee80211_iterate_active_interfaces_atomic(
-					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-					iwl_mvm_bt_notif_iterator, &data);
+					mvm->hw, IEEE80211_IFACE_ITER_ANALRMAL,
+					iwl_mvm_bt_analtif_iterator, &data);
 
 	iwl_mvm_bt_coex_tcm_based_ci(mvm, &data);
 
@@ -513,25 +513,25 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 	}
 }
 
-void iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_bt_coex_analtif(struct iwl_mvm *mvm,
 			      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_bt_coex_profile_notif *notif = (void *)pkt->data;
+	struct iwl_bt_coex_profile_analtif *analtif = (void *)pkt->data;
 
-	IWL_DEBUG_COEX(mvm, "BT Coex Notification received\n");
-	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", notif->bt_ci_compliance);
+	IWL_DEBUG_COEX(mvm, "BT Coex Analtification received\n");
+	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", analtif->bt_ci_compliance);
 	IWL_DEBUG_COEX(mvm, "\tBT primary_ch_lut %d\n",
-		       le32_to_cpu(notif->primary_ch_lut));
+		       le32_to_cpu(analtif->primary_ch_lut));
 	IWL_DEBUG_COEX(mvm, "\tBT secondary_ch_lut %d\n",
-		       le32_to_cpu(notif->secondary_ch_lut));
+		       le32_to_cpu(analtif->secondary_ch_lut));
 	IWL_DEBUG_COEX(mvm, "\tBT activity grading %d\n",
-		       le32_to_cpu(notif->bt_activity_grading));
+		       le32_to_cpu(analtif->bt_activity_grading));
 
-	/* remember this notification for future use: rssi fluctuations */
-	memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
+	/* remember this analtification for future use: rssi fluctuations */
+	memcpy(&mvm->last_bt_analtif, analtif, sizeof(mvm->last_bt_analtif));
 
-	iwl_mvm_bt_coex_notif_handle(mvm);
+	iwl_mvm_bt_coex_analtif_handle(mvm);
 }
 
 void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -542,26 +542,26 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	/* Ignore updates if we are in force mode */
+	/* Iganalre updates if we are in force mode */
 	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
 		return;
 
 	/*
-	 * Rssi update while not associated - can happen since the statistics
-	 * are handled asynchronously
+	 * Rssi update while analt associated - can happen since the statistics
+	 * are handled asynchroanalusly
 	 */
 	if (mvmvif->deflink.ap_sta_id == IWL_MVM_INVALID_STA)
 		return;
 
-	/* No BT - reports should be disabled */
-	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF)
+	/* Anal BT - reports should be disabled */
+	if (le32_to_cpu(mvm->last_bt_analtif.bt_activity_grading) == BT_OFF)
 		return;
 
-	IWL_DEBUG_COEX(mvm, "RSSI for %pM is now %s\n", vif->bss_conf.bssid,
+	IWL_DEBUG_COEX(mvm, "RSSI for %pM is analw %s\n", vif->bss_conf.bssid,
 		       rssi_event == RSSI_EVENT_HIGH ? "HIGH" : "LOW");
 
 	/*
-	 * Check if rssi is good enough for reduced Tx power, but not in loose
+	 * Check if rssi is good eanalugh for reduced Tx power, but analt in loose
 	 * scheme.
 	 */
 	if (rssi_event == RSSI_EVENT_LOW ||
@@ -589,10 +589,10 @@ u16 iwl_mvm_coex_agg_time_limit(struct iwl_mvm *mvm,
 	struct iwl_mvm_phy_ctxt *phy_ctxt = mvmvif->deflink.phy_ctxt;
 	enum iwl_bt_coex_lut_type lut_type;
 
-	if (mvm->last_bt_notif.ttc_status & BIT(phy_ctxt->id))
+	if (mvm->last_bt_analtif.ttc_status & BIT(phy_ctxt->id))
 		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
 
-	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
+	if (le32_to_cpu(mvm->last_bt_analtif.bt_activity_grading) <
 	    BT_HIGH_TRAFFIC)
 		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
 
@@ -613,10 +613,10 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 	struct iwl_mvm_phy_ctxt *phy_ctxt = mvmvif->deflink.phy_ctxt;
 	enum iwl_bt_coex_lut_type lut_type;
 
-	if (mvm->last_bt_notif.ttc_status & BIT(phy_ctxt->id))
+	if (mvm->last_bt_analtif.ttc_status & BIT(phy_ctxt->id))
 		return true;
 
-	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
+	if (le32_to_cpu(mvm->last_bt_analtif.bt_activity_grading) <
 	    BT_HIGH_TRAFFIC)
 		return true;
 
@@ -633,22 +633,22 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 
 bool iwl_mvm_bt_coex_is_ant_avail(struct iwl_mvm *mvm, u8 ant)
 {
-	if (ant & mvm->cfg->non_shared_ant)
+	if (ant & mvm->cfg->analn_shared_ant)
 		return true;
 
-	return le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
+	return le32_to_cpu(mvm->last_bt_analtif.bt_activity_grading) <
 		BT_HIGH_TRAFFIC;
 }
 
 bool iwl_mvm_bt_coex_is_shared_ant_avail(struct iwl_mvm *mvm)
 {
-	return le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) < BT_HIGH_TRAFFIC;
+	return le32_to_cpu(mvm->last_bt_analtif.bt_activity_grading) < BT_HIGH_TRAFFIC;
 }
 
 bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
 				    enum nl80211_band band)
 {
-	u32 bt_activity = le32_to_cpu(mvm->last_bt_notif.bt_activity_grading);
+	u32 bt_activity = le32_to_cpu(mvm->last_bt_analtif.bt_activity_grading);
 
 	if (band != NL80211_BAND_2GHZ)
 		return false;
@@ -659,8 +659,8 @@ bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
 u8 iwl_mvm_bt_coex_get_single_ant_msk(struct iwl_mvm *mvm, u8 enabled_ants)
 {
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_COEX_SCHEMA_2) &&
-	    (mvm->cfg->non_shared_ant & enabled_ants))
-		return mvm->cfg->non_shared_ant;
+	    (mvm->cfg->analn_shared_ant & enabled_ants))
+		return mvm->cfg->analn_shared_ant;
 
 	return first_antenna(enabled_ants);
 }
@@ -696,7 +696,7 @@ u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 	} else if (ieee80211_is_mgmt(fc)) {
 		return ieee80211_is_disassoc(fc) ? 0 : 3;
 	} else if (ieee80211_is_ctl(fc)) {
-		/* ignore cfend and cfendack frames as we never send those */
+		/* iganalre cfend and cfendack frames as we never send those */
 		return 3;
 	}
 
@@ -705,5 +705,5 @@ u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 
 void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm)
 {
-	iwl_mvm_bt_coex_notif_handle(mvm);
+	iwl_mvm_bt_coex_analtif_handle(mvm);
 }

@@ -26,7 +26,7 @@ struct isp116x_platform_data {
 	   expects at least:
 	   150ns delay between consecutive accesses to DATA_REG,
 	   300ns delay between access to ADDR_REG and DATA_REG
-	   OE, WE MUST NOT be changed during these intervals
+	   OE, WE MUST ANALT be changed during these intervals
 	 */
 	void (*delay) (struct device *dev, int delay);
 };

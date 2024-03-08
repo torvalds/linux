@@ -1,13 +1,13 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# Copyright (C) 2017 Imagination Technologies
+# Copyright (C) 2017 Imagination Techanallogies
 # Author: Paul Burton <paul.burton@mips.com>
 #
 # This script merges configuration fragments for boards supported by the
 # generic MIPS kernel. It checks each for requirements specified using
 # formatted comments, and then calls merge_config.sh to merge those
-# fragments which have no unmet requirements.
+# fragments which have anal unmet requirements.
 #
 # An example of requirements in your board config fragment might be:
 #
@@ -15,7 +15,7 @@
 # # require CONFIG_CPU_LITTLE_ENDIAN=y
 #
 # This would mean that your board is only included in kernels which are
-# configured for little endian MIPS32r2 CPUs, and not for example in kernels
+# configured for little endian MIPS32r2 CPUs, and analt for example in kernels
 # configured for 64 bit or big endian systems.
 #
 
@@ -44,13 +44,13 @@ esac
 for board in $@; do
 	board_cfg="${srctree}/arch/mips/configs/generic/board-${board}.config"
 	if [ ! -f "${board_cfg}" ]; then
-		echo "WARNING: Board config '${board_cfg}' not found"
+		echo "WARNING: Board config '${board_cfg}' analt found"
 		continue
 	fi
 
 	# For each line beginning with # require, cut out the field following
 	# it & search for that in the reference config file. If the requirement
-	# is not found then the subshell will exit with code 1, and we'll
+	# is analt found then the subshell will exit with code 1, and we'll
 	# continue on to the next board.
 	grep -E '^# require ' "${board_cfg}" | \
 	    cut -d' ' -f 3- | \

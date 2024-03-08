@@ -11,7 +11,7 @@
  * transfer completions), IPA interrupts are related to other events related
  * to the IPA.  Some of the IPA interrupts come from a microcontroller
  * embedded in the IPA.  Each IPA interrupt type can be both masked and
- * acknowledged independent of the others.
+ * ackanalwledged independent of the others.
  *
  * Two of the IPA interrupts are initiated by the microcontroller.  A third
  * can be generated to signal the need for a wakeup/resume when an IPA
@@ -73,7 +73,7 @@ static void ipa_interrupt_process(struct ipa_interrupt *interrupt, u32 irq_id)
 		ipa_power_suspend_handler(ipa, irq_id);
 		fallthrough;
 
-	default:	/* Silently ignore (and clear) any other condition */
+	default:	/* Silently iganalre (and clear) any other condition */
 		iowrite32(mask, ipa->reg_virt + offset);
 		break;
 	}
@@ -98,7 +98,7 @@ static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 		goto out_power_put;
 
 	/* The status register indicates which conditions are present,
-	 * including conditions whose interrupt is not enabled.  Handle
+	 * including conditions whose interrupt is analt enabled.  Handle
 	 * only the enabled ones.
 	 */
 	reg = ipa_reg(ipa, IPA_IRQ_STTS);
@@ -175,7 +175,7 @@ static void ipa_interrupt_suspend_control(struct ipa_interrupt *interrupt,
 
 	WARN_ON(!test_bit(endpoint_id, ipa->available));
 
-	/* IPA version 3.0 does not support TX_SUSPEND interrupt control */
+	/* IPA version 3.0 does analt support TX_SUSPEND interrupt control */
 	if (ipa->version == IPA_VERSION_3_0)
 		return;
 
@@ -254,7 +254,7 @@ struct ipa_interrupt *ipa_interrupt_config(struct ipa *ipa)
 
 	interrupt = kzalloc(sizeof(*interrupt), GFP_KERNEL);
 	if (!interrupt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	interrupt->ipa = ipa;
 	interrupt->irq = irq;
 

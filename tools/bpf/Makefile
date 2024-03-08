@@ -38,9 +38,9 @@ FEATURE_TESTS = libbfd disassembler-four-args disassembler-init-styled
 FEATURE_DISPLAY = libbfd
 
 check_feat := 1
-NON_CHECK_FEAT_TARGETS := clean bpftool_clean runqslower_clean resolve_btfids_clean
+ANALN_CHECK_FEAT_TARGETS := clean bpftool_clean runqslower_clean resolve_btfids_clean
 ifdef MAKECMDGOALS
-ifeq ($(filter-out $(NON_CHECK_FEAT_TARGETS),$(MAKECMDGOALS)),)
+ifeq ($(filter-out $(ANALN_CHECK_FEAT_TARGETS),$(MAKECMDGOALS)),)
   check_feat := 0
 endif
 endif

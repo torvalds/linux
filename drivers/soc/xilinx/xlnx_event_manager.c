@@ -36,7 +36,7 @@ static int event_manager_availability = -EACCES;
 #define MAX_BITS	(32U) /* Number of bits available for error mask */
 
 #define FIRMWARE_VERSION_MASK			(0xFFFFU)
-#define REGISTER_NOTIFIER_FIRMWARE_VERSION	(2U)
+#define REGISTER_ANALTIFIER_FIRMWARE_VERSION	(2U)
 
 static DEFINE_HASHTABLE(reg_driver_map, REGISTERED_DRIVER_MAX_ORDER);
 static int sgi_num = XLNX_EVENT_SGI_NUM;
@@ -57,51 +57,51 @@ struct agent_cb {
 
 /**
  * struct registered_event_data - Registered Event Data.
- * @key:		key is the combine id(Node-Id | Event-Id) of type u64
- *			where upper u32 for Node-Id and lower u32 for Event-Id,
+ * @key:		key is the combine id(Analde-Id | Event-Id) of type u64
+ *			where upper u32 for Analde-Id and lower u32 for Event-Id,
  *			And this used as key to index into hashmap.
- * @cb_type:		Type of Api callback, like PM_NOTIFY_CB, etc.
+ * @cb_type:		Type of Api callback, like PM_ANALTIFY_CB, etc.
  * @wake:		If this flag set, firmware will wake up processor if is
  *			in sleep or power down state.
  * @cb_list_head:	Head of call back data list which contain the information
  *			about registered handler and private data.
- * @hentry:		hlist_node that hooks this entry into hashtable.
+ * @hentry:		hlist_analde that hooks this entry into hashtable.
  */
 struct registered_event_data {
 	u64 key;
 	enum pm_api_cb_id cb_type;
 	bool wake;
 	struct list_head cb_list_head;
-	struct hlist_node hentry;
+	struct hlist_analde hentry;
 };
 
-static bool xlnx_is_error_event(const u32 node_id)
+static bool xlnx_is_error_event(const u32 analde_id)
 {
 	u32 pm_family_code, pm_sub_family_code;
 
 	zynqmp_pm_get_family_info(&pm_family_code, &pm_sub_family_code);
 
 	if (pm_sub_family_code == VERSAL_SUB_FAMILY_CODE) {
-		if (node_id == VERSAL_EVENT_ERROR_PMC_ERR1 ||
-		    node_id == VERSAL_EVENT_ERROR_PMC_ERR2 ||
-		    node_id == VERSAL_EVENT_ERROR_PSM_ERR1 ||
-		    node_id == VERSAL_EVENT_ERROR_PSM_ERR2)
+		if (analde_id == VERSAL_EVENT_ERROR_PMC_ERR1 ||
+		    analde_id == VERSAL_EVENT_ERROR_PMC_ERR2 ||
+		    analde_id == VERSAL_EVENT_ERROR_PSM_ERR1 ||
+		    analde_id == VERSAL_EVENT_ERROR_PSM_ERR2)
 			return true;
 	} else {
-		if (node_id == VERSAL_NET_EVENT_ERROR_PMC_ERR1 ||
-		    node_id == VERSAL_NET_EVENT_ERROR_PMC_ERR2 ||
-		    node_id == VERSAL_NET_EVENT_ERROR_PMC_ERR3 ||
-		    node_id == VERSAL_NET_EVENT_ERROR_PSM_ERR1 ||
-		    node_id == VERSAL_NET_EVENT_ERROR_PSM_ERR2 ||
-		    node_id == VERSAL_NET_EVENT_ERROR_PSM_ERR3 ||
-		    node_id == VERSAL_NET_EVENT_ERROR_PSM_ERR4)
+		if (analde_id == VERSAL_NET_EVENT_ERROR_PMC_ERR1 ||
+		    analde_id == VERSAL_NET_EVENT_ERROR_PMC_ERR2 ||
+		    analde_id == VERSAL_NET_EVENT_ERROR_PMC_ERR3 ||
+		    analde_id == VERSAL_NET_EVENT_ERROR_PSM_ERR1 ||
+		    analde_id == VERSAL_NET_EVENT_ERROR_PSM_ERR2 ||
+		    analde_id == VERSAL_NET_EVENT_ERROR_PSM_ERR3 ||
+		    analde_id == VERSAL_NET_EVENT_ERROR_PSM_ERR4)
 			return true;
 	}
 
 	return false;
 }
 
-static int xlnx_add_cb_for_notify_event(const u32 node_id, const u32 event, const bool wake,
+static int xlnx_add_cb_for_analtify_event(const u32 analde_id, const u32 event, const bool wake,
 					event_cb_func_t cb_fun,	void *data)
 {
 	u64 key = 0;
@@ -111,7 +111,7 @@ static int xlnx_add_cb_for_notify_event(const u32 node_id, const u32 event, cons
 	struct agent_cb *cb_pos;
 	struct agent_cb *cb_next;
 
-	key = ((u64)node_id << 32U) | (u64)event;
+	key = ((u64)analde_id << 32U) | (u64)event;
 	/* Check for existing entry in hash table for given key id */
 	hash_for_each_possible(reg_driver_map, eve_data, hentry, key) {
 		if (eve_data->key == key) {
@@ -121,19 +121,19 @@ static int xlnx_add_cb_for_notify_event(const u32 node_id, const u32 event, cons
 	}
 
 	if (!present_in_hash) {
-		/* Add new entry if not present in HASH table */
+		/* Add new entry if analt present in HASH table */
 		eve_data = kmalloc(sizeof(*eve_data), GFP_KERNEL);
 		if (!eve_data)
-			return -ENOMEM;
+			return -EANALMEM;
 		eve_data->key = key;
-		eve_data->cb_type = PM_NOTIFY_CB;
+		eve_data->cb_type = PM_ANALTIFY_CB;
 		eve_data->wake = wake;
 		INIT_LIST_HEAD(&eve_data->cb_list_head);
 
 		cb_data = kmalloc(sizeof(*cb_data), GFP_KERNEL);
 		if (!cb_data) {
 			kfree(eve_data);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		cb_data->eve_cb = cb_fun;
 		cb_data->agent_data = data;
@@ -155,7 +155,7 @@ static int xlnx_add_cb_for_notify_event(const u32 node_id, const u32 event, cons
 		/* Add multiple handler and private data in list */
 		cb_data = kmalloc(sizeof(*cb_data), GFP_KERNEL);
 		if (!cb_data)
-			return -ENOMEM;
+			return -EANALMEM;
 		cb_data->eve_cb = cb_fun;
 		cb_data->agent_data = data;
 
@@ -178,10 +178,10 @@ static int xlnx_add_cb_for_suspend(event_cb_func_t cb_fun, void *data)
 		}
 	}
 
-	/* Add new entry if not present */
+	/* Add new entry if analt present */
 	eve_data = kmalloc(sizeof(*eve_data), GFP_KERNEL);
 	if (!eve_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eve_data->key = 0;
 	eve_data->cb_type = PM_INIT_SUSPEND_CB;
@@ -189,7 +189,7 @@ static int xlnx_add_cb_for_suspend(event_cb_func_t cb_fun, void *data)
 
 	cb_data = kmalloc(sizeof(*cb_data), GFP_KERNEL);
 	if (!cb_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	cb_data->eve_cb = cb_fun;
 	cb_data->agent_data = data;
 
@@ -207,7 +207,7 @@ static int xlnx_remove_cb_for_suspend(event_cb_func_t cb_fun)
 	struct registered_event_data *eve_data;
 	struct agent_cb *cb_pos;
 	struct agent_cb *cb_next;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 
 	is_need_to_unregister = false;
 
@@ -236,15 +236,15 @@ static int xlnx_remove_cb_for_suspend(event_cb_func_t cb_fun)
 	return 0;
 }
 
-static int xlnx_remove_cb_for_notify_event(const u32 node_id, const u32 event,
+static int xlnx_remove_cb_for_analtify_event(const u32 analde_id, const u32 event,
 					   event_cb_func_t cb_fun, void *data)
 {
 	bool is_callback_found = false;
 	struct registered_event_data *eve_data;
-	u64 key = ((u64)node_id << 32U) | (u64)event;
+	u64 key = ((u64)analde_id << 32U) | (u64)event;
 	struct agent_cb *cb_pos;
 	struct agent_cb *cb_next;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 
 	is_need_to_unregister = false;
 
@@ -272,7 +272,7 @@ static int xlnx_remove_cb_for_notify_event(const u32 node_id, const u32 event,
 	}
 	if (!is_callback_found) {
 		pr_warn("Didn't find any registered callback for 0x%x 0x%x\n",
-			node_id, event);
+			analde_id, event);
 		return -EINVAL;
 	}
 
@@ -282,18 +282,18 @@ static int xlnx_remove_cb_for_notify_event(const u32 node_id, const u32 event,
 /**
  * xlnx_register_event() - Register for the event.
  * @cb_type:	Type of callback from pm_api_cb_id,
- *			PM_NOTIFY_CB - for Error Events,
+ *			PM_ANALTIFY_CB - for Error Events,
  *			PM_INIT_SUSPEND_CB - for suspend callback.
- * @node_id:	Node-Id related to event.
+ * @analde_id:	Analde-Id related to event.
  * @event:	Event Mask for the Error Event.
  * @wake:	Flag specifying whether the subsystem should be woken upon
- *		event notification.
+ *		event analtification.
  * @cb_fun:	Function pointer to store the callback function.
  * @data:	Pointer for the driver instance.
  *
  * Return:	Returns 0 on successful registration else error code.
  */
-int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32 node_id, const u32 event,
+int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32 analde_id, const u32 event,
 			const bool wake, event_cb_func_t cb_fun, void *data)
 {
 	int ret = 0;
@@ -303,7 +303,7 @@ int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32 node_id, cons
 	if (event_manager_availability)
 		return event_manager_availability;
 
-	if (cb_type != PM_NOTIFY_CB && cb_type != PM_INIT_SUSPEND_CB) {
+	if (cb_type != PM_ANALTIFY_CB && cb_type != PM_INIT_SUSPEND_CB) {
 		pr_err("%s() Unsupported Callback 0x%x\n", __func__, cb_type);
 		return -EINVAL;
 	}
@@ -314,9 +314,9 @@ int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32 node_id, cons
 	if (cb_type == PM_INIT_SUSPEND_CB) {
 		ret = xlnx_add_cb_for_suspend(cb_fun, data);
 	} else {
-		if (!xlnx_is_error_event(node_id)) {
-			/* Add entry for Node-Id/Event in hash table */
-			ret = xlnx_add_cb_for_notify_event(node_id, event, wake, cb_fun, data);
+		if (!xlnx_is_error_event(analde_id)) {
+			/* Add entry for Analde-Id/Event in hash table */
+			ret = xlnx_add_cb_for_analtify_event(analde_id, event, wake, cb_fun, data);
 		} else {
 			/* Add into Hash table */
 			for (pos = 0; pos < MAX_BITS; pos++) {
@@ -324,8 +324,8 @@ int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32 node_id, cons
 				if (!eve)
 					continue;
 
-				/* Add entry for Node-Id/Eve in hash table */
-				ret = xlnx_add_cb_for_notify_event(node_id, eve, wake, cb_fun,
+				/* Add entry for Analde-Id/Eve in hash table */
+				ret = xlnx_add_cb_for_analtify_event(analde_id, eve, wake, cb_fun,
 								   data);
 				/* Break the loop if got error */
 				if (ret)
@@ -339,32 +339,32 @@ int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32 node_id, cons
 					eve = event & (1 << pos);
 					if (!eve)
 						continue;
-					xlnx_remove_cb_for_notify_event(node_id, eve, cb_fun, data);
+					xlnx_remove_cb_for_analtify_event(analde_id, eve, cb_fun, data);
 				}
 			}
 		}
 
 		if (ret) {
-			pr_err("%s() failed for 0x%x and 0x%x: %d\r\n", __func__, node_id,
+			pr_err("%s() failed for 0x%x and 0x%x: %d\r\n", __func__, analde_id,
 			       event, ret);
 			return ret;
 		}
 
-		/* Register for Node-Id/Event combination in firmware */
-		ret = zynqmp_pm_register_notifier(node_id, event, wake, true);
+		/* Register for Analde-Id/Event combination in firmware */
+		ret = zynqmp_pm_register_analtifier(analde_id, event, wake, true);
 		if (ret) {
-			pr_err("%s() failed for 0x%x and 0x%x: %d\r\n", __func__, node_id,
+			pr_err("%s() failed for 0x%x and 0x%x: %d\r\n", __func__, analde_id,
 			       event, ret);
 			/* Remove already registered event from hash table */
-			if (xlnx_is_error_event(node_id)) {
+			if (xlnx_is_error_event(analde_id)) {
 				for (pos = 0; pos < MAX_BITS; pos++) {
 					eve = event & (1 << pos);
 					if (!eve)
 						continue;
-					xlnx_remove_cb_for_notify_event(node_id, eve, cb_fun, data);
+					xlnx_remove_cb_for_analtify_event(analde_id, eve, cb_fun, data);
 				}
 			} else {
-				xlnx_remove_cb_for_notify_event(node_id, event, cb_fun, data);
+				xlnx_remove_cb_for_analtify_event(analde_id, event, cb_fun, data);
 			}
 			return ret;
 		}
@@ -377,16 +377,16 @@ EXPORT_SYMBOL_GPL(xlnx_register_event);
 /**
  * xlnx_unregister_event() - Unregister for the event.
  * @cb_type:	Type of callback from pm_api_cb_id,
- *			PM_NOTIFY_CB - for Error Events,
+ *			PM_ANALTIFY_CB - for Error Events,
  *			PM_INIT_SUSPEND_CB - for suspend callback.
- * @node_id:	Node-Id related to event.
+ * @analde_id:	Analde-Id related to event.
  * @event:	Event Mask for the Error Event.
  * @cb_fun:	Function pointer of callback function.
  * @data:	Pointer of agent's private data.
  *
  * Return:	Returns 0 on successful unregistration else error code.
  */
-int xlnx_unregister_event(const enum pm_api_cb_id cb_type, const u32 node_id, const u32 event,
+int xlnx_unregister_event(const enum pm_api_cb_id cb_type, const u32 analde_id, const u32 event,
 			  event_cb_func_t cb_fun, void *data)
 {
 	int ret = 0;
@@ -397,7 +397,7 @@ int xlnx_unregister_event(const enum pm_api_cb_id cb_type, const u32 node_id, co
 	if (event_manager_availability)
 		return event_manager_availability;
 
-	if (cb_type != PM_NOTIFY_CB && cb_type != PM_INIT_SUSPEND_CB) {
+	if (cb_type != PM_ANALTIFY_CB && cb_type != PM_INIT_SUSPEND_CB) {
 		pr_err("%s() Unsupported Callback 0x%x\n", __func__, cb_type);
 		return -EINVAL;
 	}
@@ -408,26 +408,26 @@ int xlnx_unregister_event(const enum pm_api_cb_id cb_type, const u32 node_id, co
 	if (cb_type == PM_INIT_SUSPEND_CB) {
 		ret = xlnx_remove_cb_for_suspend(cb_fun);
 	} else {
-		/* Remove Node-Id/Event from hash table */
-		if (!xlnx_is_error_event(node_id)) {
-			xlnx_remove_cb_for_notify_event(node_id, event, cb_fun, data);
+		/* Remove Analde-Id/Event from hash table */
+		if (!xlnx_is_error_event(analde_id)) {
+			xlnx_remove_cb_for_analtify_event(analde_id, event, cb_fun, data);
 		} else {
 			for (pos = 0; pos < MAX_BITS; pos++) {
 				eve = event & (1 << pos);
 				if (!eve)
 					continue;
 
-				xlnx_remove_cb_for_notify_event(node_id, eve, cb_fun, data);
+				xlnx_remove_cb_for_analtify_event(analde_id, eve, cb_fun, data);
 			}
 		}
 
 		/* Un-register if list is empty */
 		if (is_need_to_unregister) {
-			/* Un-register for Node-Id/Event combination */
-			ret = zynqmp_pm_register_notifier(node_id, event, false, false);
+			/* Un-register for Analde-Id/Event combination */
+			ret = zynqmp_pm_register_analtifier(analde_id, event, false, false);
 			if (ret) {
 				pr_err("%s() failed for 0x%x and 0x%x: %d\n",
-				       __func__, node_id, event, ret);
+				       __func__, analde_id, event, ret);
 				return ret;
 			}
 		}
@@ -458,7 +458,7 @@ static void xlnx_call_suspend_cb_handler(const u32 *payload)
 		pr_warn("Didn't find any registered callback for suspend event\n");
 }
 
-static void xlnx_call_notify_cb_handler(const u32 *payload)
+static void xlnx_call_analtify_cb_handler(const u32 *payload)
 {
 	bool is_callback_found = false;
 	struct registered_event_data *eve_data;
@@ -476,7 +476,7 @@ static void xlnx_call_notify_cb_handler(const u32 *payload)
 			}
 
 			/* re register with firmware to get future events */
-			ret = zynqmp_pm_register_notifier(payload[1], payload[2],
+			ret = zynqmp_pm_register_analtifier(payload[1], payload[2],
 							  eve_data->wake, true);
 			if (ret) {
 				pr_err("%s() failed for 0x%x and 0x%x: %d\r\n", __func__,
@@ -484,7 +484,7 @@ static void xlnx_call_notify_cb_handler(const u32 *payload)
 				list_for_each_entry_safe(cb_pos, cb_next, &eve_data->cb_list_head,
 							 list) {
 					/* Remove already registered event from hash table */
-					xlnx_remove_cb_for_notify_event(payload[1], payload[2],
+					xlnx_remove_cb_for_analtify_event(payload[1], payload[2],
 									cb_pos->eve_cb,
 									cb_pos->agent_data);
 				}
@@ -492,7 +492,7 @@ static void xlnx_call_notify_cb_handler(const u32 *payload)
 		}
 	}
 	if (!is_callback_found)
-		pr_warn("Unhandled SGI node 0x%x event 0x%x. Expected with Xen hypervisor\n",
+		pr_warn("Unhandled SGI analde 0x%x event 0x%x. Expected with Xen hypervisor\n",
 			payload[1], payload[2]);
 }
 
@@ -503,7 +503,7 @@ static void xlnx_get_event_callback_data(u32 *buf)
 
 static irqreturn_t xlnx_event_handler(int irq, void *dev_id)
 {
-	u32 cb_type, node_id, event, pos;
+	u32 cb_type, analde_id, event, pos;
 	u32 payload[CB_MAX_PAYLOAD_SIZE] = {0};
 	u32 event_data[CB_MAX_PAYLOAD_SIZE] = {0};
 
@@ -513,18 +513,18 @@ static irqreturn_t xlnx_event_handler(int irq, void *dev_id)
 	/* First element is callback type, others are callback arguments */
 	cb_type = payload[0];
 
-	if (cb_type == PM_NOTIFY_CB) {
-		node_id = payload[1];
+	if (cb_type == PM_ANALTIFY_CB) {
+		analde_id = payload[1];
 		event = payload[2];
-		if (!xlnx_is_error_event(node_id)) {
-			xlnx_call_notify_cb_handler(payload);
+		if (!xlnx_is_error_event(analde_id)) {
+			xlnx_call_analtify_cb_handler(payload);
 		} else {
 			/*
 			 * Each call back function expecting payload as an input arguments.
 			 * We can get multiple error events as in one call back through error
 			 * mask. So payload[2] may can contain multiple error events.
 			 * In reg_driver_map database we store data in the combination of single
-			 * node_id-error combination.
+			 * analde_id-error combination.
 			 * So coping the payload message into event_data and update the
 			 * event_data[2] with Error Mask for single error event and use
 			 * event_data as input argument for registered call back function.
@@ -536,7 +536,7 @@ static irqreturn_t xlnx_event_handler(int irq, void *dev_id)
 				if ((0 == (event & (1 << pos))))
 					continue;
 				event_data[2] = (event & (1 << pos));
-				xlnx_call_notify_cb_handler(event_data);
+				xlnx_call_analtify_cb_handler(event_data);
 			}
 		}
 	} else if (cb_type == PM_INIT_SUSPEND_CB) {
@@ -550,7 +550,7 @@ static irqreturn_t xlnx_event_handler(int irq, void *dev_id)
 
 static int xlnx_event_cpuhp_start(unsigned int cpu)
 {
-	enable_percpu_irq(virq_sgi, IRQ_TYPE_NONE);
+	enable_percpu_irq(virq_sgi, IRQ_TYPE_ANALNE);
 
 	return 0;
 }
@@ -580,11 +580,11 @@ static int xlnx_event_init_sgi(struct platform_device *pdev)
 	 */
 	struct irq_domain *domain;
 	struct irq_fwspec sgi_fwspec;
-	struct device_node *interrupt_parent = NULL;
+	struct device_analde *interrupt_parent = NULL;
 	struct device *parent = pdev->dev.parent;
 
 	/* Find GIC controller to map SGIs. */
-	interrupt_parent = of_irq_find_parent(parent->of_node);
+	interrupt_parent = of_irq_find_parent(parent->of_analde);
 	if (!interrupt_parent) {
 		dev_err(&pdev->dev, "Failed to find property for Interrupt parent\n");
 		return -EINVAL;
@@ -592,10 +592,10 @@ static int xlnx_event_init_sgi(struct platform_device *pdev)
 
 	/* Each SGI needs to be associated with GIC's IRQ domain. */
 	domain = irq_find_host(interrupt_parent);
-	of_node_put(interrupt_parent);
+	of_analde_put(interrupt_parent);
 
 	/* Each mapping needs GIC domain when finding IRQ mapping. */
-	sgi_fwspec.fwnode = domain->fwnode;
+	sgi_fwspec.fwanalde = domain->fwanalde;
 
 	/*
 	 * When irq domain looks at mapping each arg is as follows:
@@ -644,18 +644,18 @@ static int xlnx_event_manager_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	ret = zynqmp_pm_feature(PM_REGISTER_NOTIFIER);
+	ret = zynqmp_pm_feature(PM_REGISTER_ANALTIFIER);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Feature check failed with %d\n", ret);
 		return ret;
 	}
 
 	if ((ret & FIRMWARE_VERSION_MASK) <
-	    REGISTER_NOTIFIER_FIRMWARE_VERSION) {
-		dev_err(&pdev->dev, "Register notifier version error. Expected Firmware: v%d - Found: v%d\n",
-			REGISTER_NOTIFIER_FIRMWARE_VERSION,
+	    REGISTER_ANALTIFIER_FIRMWARE_VERSION) {
+		dev_err(&pdev->dev, "Register analtifier version error. Expected Firmware: v%d - Found: v%d\n",
+			REGISTER_ANALTIFIER_FIRMWARE_VERSION,
 			ret & FIRMWARE_VERSION_MASK);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Initialize the SGI */
@@ -671,8 +671,8 @@ static int xlnx_event_manager_probe(struct platform_device *pdev)
 
 	ret = zynqmp_pm_register_sgi(sgi_num, 0);
 	if (ret) {
-		if (ret == -EOPNOTSUPP)
-			dev_err(&pdev->dev, "SGI registration not supported by TF-A or Xen\n");
+		if (ret == -EOPANALTSUPP)
+			dev_err(&pdev->dev, "SGI registration analt supported by TF-A or Xen\n");
 		else
 			dev_err(&pdev->dev, "SGI %d registration failed, err %d\n", sgi_num, ret);
 
@@ -692,7 +692,7 @@ static void xlnx_event_manager_remove(struct platform_device *pdev)
 {
 	int i;
 	struct registered_event_data *eve_data;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int ret;
 	struct agent_cb *cb_pos;
 	struct agent_cb *cb_next;

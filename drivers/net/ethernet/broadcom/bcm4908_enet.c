@@ -27,7 +27,7 @@
 #define ENET_RX_BDS_NUM_MAX			8192
 
 #define ENET_DMA_INT_DEFAULTS			(ENET_DMA_CH_CFG_INT_DONE | \
-						 ENET_DMA_CH_CFG_INT_NO_DESC | \
+						 ENET_DMA_CH_CFG_INT_ANAL_DESC | \
 						 ENET_DMA_CH_CFG_INT_BUFF_DONE)
 #define ENET_DMA_MAX_BURST_LEN			8 /* in 64 bit words */
 
@@ -174,7 +174,7 @@ static int bcm4908_dma_alloc_buf_descs(struct bcm4908_enet *enet,
 
 	ring->cpu_addr = dma_alloc_coherent(dev, size, &ring->dma_addr, GFP_KERNEL);
 	if (!ring->cpu_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (((uintptr_t)ring->cpu_addr) & (0x40 - 1)) {
 		dev_err(dev, "Invalid DMA ring alignment\n");
@@ -190,7 +190,7 @@ static int bcm4908_dma_alloc_buf_descs(struct bcm4908_enet *enet,
 err_free_buf_descs:
 	dma_free_coherent(dev, size, ring->cpu_addr, ring->dma_addr);
 	ring->cpu_addr = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void bcm4908_enet_dma_free(struct bcm4908_enet *enet)
@@ -273,7 +273,7 @@ static int bcm4908_enet_dma_alloc_rx_buf(struct bcm4908_enet *enet, unsigned int
 
 	slot->buf = napi_alloc_frag(ENET_RX_SKB_BUF_ALLOC_SIZE);
 	if (!slot->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	slot->dma_addr = dma_map_single(dev, slot->buf + ENET_RX_BUF_DMA_OFFSET,
 					ENET_RX_BUF_DMA_SIZE, DMA_FROM_DEVICE);
@@ -715,7 +715,7 @@ static int bcm4908_enet_probe(struct platform_device *pdev)
 
 	netdev = devm_alloc_etherdev(dev, sizeof(*enet));
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	enet = netdev_priv(netdev);
 	enet->dev = dev;
@@ -742,7 +742,7 @@ static int bcm4908_enet_probe(struct platform_device *pdev)
 		return err;
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
-	err = of_get_ethdev_address(dev->of_node, netdev);
+	err = of_get_ethdev_address(dev->of_analde, netdev);
 	if (err == -EPROBE_DEFER)
 		goto err_dma_free;
 	if (err)

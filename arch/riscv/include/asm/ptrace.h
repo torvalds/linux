@@ -150,7 +150,7 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
  *
  * regs_get_argument() returns @n th argument of the function call.
  *
- * Note you can get the parameter correctly if the function has no
+ * Analte you can get the parameter correctly if the function has anal
  * more than eight arguments.
  */
 static inline unsigned long regs_get_kernel_argument(struct pt_regs *regs,

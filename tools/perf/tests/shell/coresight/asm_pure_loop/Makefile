@@ -5,7 +5,7 @@ include ../Makefile.miniconfig
 
 # Binary to produce
 BIN=asm_pure_loop
-# Any linking/libraries needed for the binary - empty if none needed
+# Any linking/libraries needed for the binary - empty if analne needed
 LIB=
 
 all: $(BIN)
@@ -13,8 +13,8 @@ all: $(BIN)
 $(BIN): $(BIN).S
 ifdef CORESIGHT
 ifeq ($(ARCH),arm64)
-# Build line - this is raw asm with no libc to have an always exact binary
-	$(Q)$(CC) $(BIN).S -nostdlib -static -o $(BIN) $(LIB)
+# Build line - this is raw asm with anal libc to have an always exact binary
+	$(Q)$(CC) $(BIN).S -analstdlib -static -o $(BIN) $(LIB)
 endif
 endif
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2018 Syanalpsys, Inc. and/or its affiliates.
  * stmmac TC Handling (HW only)
  */
 
@@ -22,7 +22,7 @@ static void tc_fill_all_pass_entry(struct stmmac_tc_entry *entry)
 	entry->val.match_data = 0x0;
 	entry->val.match_en = 0x0;
 	entry->val.af = 1;
-	entry->val.dma_ch_no = 0x0;
+	entry->val.dma_ch_anal = 0x0;
 }
 
 static struct stmmac_tc_entry *tc_find_entry(struct stmmac_priv *priv,
@@ -30,7 +30,7 @@ static struct stmmac_tc_entry *tc_find_entry(struct stmmac_priv *priv,
 					     bool free)
 {
 	struct stmmac_tc_entry *entry, *first = NULL, *dup = NULL;
-	u32 loc = cls->knode.handle;
+	u32 loc = cls->kanalde.handle;
 	int i;
 
 	for (i = 0; i < priv->tc_entries_max; i++) {
@@ -63,7 +63,7 @@ static int tc_fill_actions(struct stmmac_tc_entry *entry,
 	struct tcf_exts *exts;
 	int i;
 
-	exts = cls->knode.exts;
+	exts = cls->kanalde.exts;
 	if (!tcf_exts_has_actions(exts))
 		return -EINVAL;
 	if (frag)
@@ -92,7 +92,7 @@ static int tc_fill_entry(struct stmmac_priv *priv,
 			 struct tc_cls_u32_offload *cls)
 {
 	struct stmmac_tc_entry *entry, *frag = NULL;
-	struct tc_u32_sel *sel = cls->knode.sel;
+	struct tc_u32_sel *sel = cls->kanalde.sel;
 	u32 off, data, mask, real_off, rem;
 	u32 prio = cls->common.prio << 16;
 	int ret;
@@ -185,7 +185,7 @@ static void tc_unfill_entry(struct stmmac_priv *priv,
 	}
 }
 
-static int tc_config_knode(struct stmmac_priv *priv,
+static int tc_config_kanalde(struct stmmac_priv *priv,
 			   struct tc_cls_u32_offload *cls)
 {
 	int ret;
@@ -206,10 +206,10 @@ err_unfill:
 	return ret;
 }
 
-static int tc_delete_knode(struct stmmac_priv *priv,
+static int tc_delete_kanalde(struct stmmac_priv *priv,
 			   struct tc_cls_u32_offload *cls)
 {
-	/* Set entry and fragments as not used */
+	/* Set entry and fragments as analt used */
 	tc_unfill_entry(priv, cls);
 
 	return stmmac_rxp_config(priv, priv->hw->pcsr, priv->tc_entries,
@@ -220,15 +220,15 @@ static int tc_setup_cls_u32(struct stmmac_priv *priv,
 			    struct tc_cls_u32_offload *cls)
 {
 	switch (cls->command) {
-	case TC_CLSU32_REPLACE_KNODE:
+	case TC_CLSU32_REPLACE_KANALDE:
 		tc_unfill_entry(priv, cls);
 		fallthrough;
-	case TC_CLSU32_NEW_KNODE:
-		return tc_config_knode(priv, cls);
-	case TC_CLSU32_DELETE_KNODE:
-		return tc_delete_knode(priv, cls);
+	case TC_CLSU32_NEW_KANALDE:
+		return tc_config_kanalde(priv, cls);
+	case TC_CLSU32_DELETE_KANALDE:
+		return tc_delete_kanalde(priv, cls);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -248,7 +248,7 @@ static int tc_rfs_init(struct stmmac_priv *priv)
 					 sizeof(*priv->rfs_entries),
 					 GFP_KERNEL);
 	if (!priv->rfs_entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_info(priv->device, "Enabled RFS Flow TC (entries=%d)\n",
 		 priv->rfs_entries_total);
@@ -269,7 +269,7 @@ static int tc_init(struct stmmac_priv *priv)
 						  sizeof(*priv->flow_entries),
 						  GFP_KERNEL);
 		if (!priv->flow_entries)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < priv->flow_entries_max; i++)
 			priv->flow_entries[i].idx = i;
@@ -280,14 +280,14 @@ static int tc_init(struct stmmac_priv *priv)
 
 	ret = tc_rfs_init(priv);
 	if (ret)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!priv->plat->fpe_cfg) {
 		priv->plat->fpe_cfg = devm_kzalloc(priv->device,
 						   sizeof(*priv->plat->fpe_cfg),
 						   GFP_KERNEL);
 		if (!priv->plat->fpe_cfg)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		memset(priv->plat->fpe_cfg, 0, sizeof(*priv->plat->fpe_cfg));
 	}
@@ -329,7 +329,7 @@ static int tc_init(struct stmmac_priv *priv)
 	priv->tc_entries = devm_kcalloc(priv->device,
 			count, sizeof(*priv->tc_entries), GFP_KERNEL);
 	if (!priv->tc_entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tc_fill_all_pass_entry(&priv->tc_entries[count - 1]);
 
@@ -349,11 +349,11 @@ static int tc_setup_cbs(struct stmmac_priv *priv,
 	u64 value;
 	int ret;
 
-	/* Queue 0 is not AVB capable */
+	/* Queue 0 is analt AVB capable */
 	if (queue <= 0 || queue >= tx_queues_count)
 		return -EINVAL;
 	if (!priv->dma_cap.av)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Port Transmit Rate and Speed Divider */
 	switch (priv->speed) {
@@ -378,7 +378,7 @@ static int tc_setup_cbs(struct stmmac_priv *priv,
 		speed_div = 100000;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mode_to_use = priv->plat->tx_queues_cfg[queue].mode_to_use;
@@ -437,7 +437,7 @@ static int tc_parse_flow_actions(struct stmmac_priv *priv,
 		return -EINVAL;
 
 	if (!flow_action_basic_hw_stats_check(action, extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	flow_action_for_each(i, act, action) {
 		switch (act->id) {
@@ -449,7 +449,7 @@ static int tc_parse_flow_actions(struct stmmac_priv *priv,
 		}
 	}
 
-	/* Nothing to do, maybe inverse filter ? */
+	/* Analthing to do, maybe inverse filter ? */
 	return 0;
 }
 
@@ -463,7 +463,7 @@ static int tc_add_basic_flow(struct stmmac_priv *priv,
 	struct flow_dissector *dissector = rule->match.dissector;
 	struct flow_match_basic match;
 
-	/* Nothing to do here */
+	/* Analthing to do here */
 	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_BASIC))
 		return -EINVAL;
 
@@ -484,7 +484,7 @@ static int tc_add_ip4_flow(struct stmmac_priv *priv,
 	u32 hw_match;
 	int ret;
 
-	/* Nothing to do here */
+	/* Analthing to do here */
 	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_IPV4_ADDRS))
 		return -EINVAL;
 
@@ -520,7 +520,7 @@ static int tc_add_ports_flow(struct stmmac_priv *priv,
 	bool is_udp;
 	int ret;
 
-	/* Nothing to do here */
+	/* Analthing to do here */
 	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_PORTS))
 		return -EINVAL;
 
@@ -594,7 +594,7 @@ static int tc_add_flow(struct stmmac_priv *priv,
 	if (!entry) {
 		entry = tc_find_flow(priv, cls, true);
 		if (!entry)
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	ret = tc_parse_flow_actions(priv, &rule->action, entry,
@@ -622,7 +622,7 @@ static int tc_del_flow(struct stmmac_priv *priv,
 	int ret;
 
 	if (!entry || !entry->in_use)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (entry->is_l4) {
 		ret = stmmac_config_l4_filter(priv, priv->hw, entry->idx, false,
@@ -670,14 +670,14 @@ static int tc_add_vlan_flow(struct stmmac_priv *priv,
 	if (!entry) {
 		entry = tc_find_rfs(priv, cls, true);
 		if (!entry)
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	if (priv->rfs_entries_cnt[STMMAC_RFS_T_VLAN] >=
 	    priv->rfs_entries_max[STMMAC_RFS_T_VLAN])
-		return -ENOENT;
+		return -EANALENT;
 
-	/* Nothing to do here */
+	/* Analthing to do here */
 	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_VLAN))
 		return -EINVAL;
 
@@ -715,7 +715,7 @@ static int tc_del_vlan_flow(struct stmmac_priv *priv,
 	struct stmmac_rfs_entry *entry = tc_find_rfs(priv, cls, false);
 
 	if (!entry || !entry->in_use || entry->type != STMMAC_RFS_T_VLAN)
-		return -ENOENT;
+		return -EANALENT;
 
 	stmmac_rx_queue_prio(priv, priv->hw, 0, entry->tc);
 
@@ -741,10 +741,10 @@ static int tc_add_ethtype_flow(struct stmmac_priv *priv,
 	if (!entry) {
 		entry = tc_find_rfs(priv, cls, true);
 		if (!entry)
-			return -ENOENT;
+			return -EANALENT;
 	}
 
-	/* Nothing to do here */
+	/* Analthing to do here */
 	if (!dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_BASIC))
 		return -EINVAL;
 
@@ -766,7 +766,7 @@ static int tc_add_ethtype_flow(struct stmmac_priv *priv,
 		case ETH_P_LLDP:
 			if (priv->rfs_entries_cnt[STMMAC_RFS_T_LLDP] >=
 			    priv->rfs_entries_max[STMMAC_RFS_T_LLDP])
-				return -ENOENT;
+				return -EANALENT;
 
 			entry->type = STMMAC_RFS_T_LLDP;
 			priv->rfs_entries_cnt[STMMAC_RFS_T_LLDP]++;
@@ -777,7 +777,7 @@ static int tc_add_ethtype_flow(struct stmmac_priv *priv,
 		case ETH_P_1588:
 			if (priv->rfs_entries_cnt[STMMAC_RFS_T_1588] >=
 			    priv->rfs_entries_max[STMMAC_RFS_T_1588])
-				return -ENOENT;
+				return -EANALENT;
 
 			entry->type = STMMAC_RFS_T_1588;
 			priv->rfs_entries_cnt[STMMAC_RFS_T_1588]++;
@@ -786,7 +786,7 @@ static int tc_add_ethtype_flow(struct stmmac_priv *priv,
 						PACKET_PTPQ, tc);
 			break;
 		default:
-			netdev_err(priv->dev, "EthType(0x%x) is not supported", etype);
+			netdev_err(priv->dev, "EthType(0x%x) is analt supported", etype);
 			return -EINVAL;
 		}
 
@@ -809,7 +809,7 @@ static int tc_del_ethtype_flow(struct stmmac_priv *priv,
 	if (!entry || !entry->in_use ||
 	    entry->type < STMMAC_RFS_T_LLDP ||
 	    entry->type > STMMAC_RFS_T_1588)
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (entry->etype) {
 	case ETH_P_LLDP:
@@ -823,7 +823,7 @@ static int tc_del_ethtype_flow(struct stmmac_priv *priv,
 		priv->rfs_entries_cnt[STMMAC_RFS_T_1588]--;
 		break;
 	default:
-		netdev_err(priv->dev, "EthType(0x%x) is not supported",
+		netdev_err(priv->dev, "EthType(0x%x) is analt supported",
 			   entry->etype);
 		return -EINVAL;
 	}
@@ -886,7 +886,7 @@ static int tc_setup_cls(struct stmmac_priv *priv,
 		ret = tc_del_flow_cls(priv, cls);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -930,7 +930,7 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 		return -ERANGE;
 
 	if (!priv->dma_cap.estsel)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (wid) {
 	case 0x1:
@@ -943,7 +943,7 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 		wid = 24;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	switch (dep) {
@@ -963,13 +963,13 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 		dep = 1024;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (qopt->cmd == TAPRIO_CMD_DESTROY)
 		goto disable;
 	else if (qopt->cmd != TAPRIO_CMD_REPLACE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (qopt->num_entries >= dep)
 		return -EINVAL;
@@ -982,7 +982,7 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 		plat->est = devm_kzalloc(priv->device, sizeof(*plat->est),
 					 GFP_KERNEL);
 		if (!plat->est)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		mutex_init(&priv->plat->est->lock);
 	} else {
@@ -1019,7 +1019,7 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 			fpe = true;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		priv->plat->est->gcl[i] = delta_ns | (gates << wid);
@@ -1047,7 +1047,7 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 
 	if (fpe && !priv->dma_cap.fpesel) {
 		mutex_unlock(&priv->plat->est->lock);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Actual FPE register configuration will be done after FPE handshake
@@ -1099,7 +1099,7 @@ static int tc_setup_etf(struct stmmac_priv *priv,
 			struct tc_etf_qopt_offload *qopt)
 {
 	if (!priv->dma_cap.tbssel)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (qopt->queue >= priv->plat->tx_queues_to_use)
 		return -EINVAL;
 	if (!(priv->dma_conf.tx_queue[qopt->queue].tbs & STMMAC_TBS_AVAIL))
@@ -1123,14 +1123,14 @@ static int tc_query_caps(struct stmmac_priv *priv,
 		struct tc_taprio_caps *caps = base->caps;
 
 		if (!priv->dma_cap.estsel)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		caps->gate_mask_per_txq = true;
 
 		return 0;
 	}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

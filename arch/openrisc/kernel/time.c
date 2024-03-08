@@ -61,8 +61,8 @@ static int openrisc_timer_set_next_event(unsigned long delta,
 
 /* This is the clock event device based on the OR1K tick timer.
  * As the timer is being used as a continuous clock-source (required for HR
- * timers) we cannot enable the PERIODIC feature.  The tick timer can run using
- * one-shot events, so no problem.
+ * timers) we cananalt enable the PERIODIC feature.  The tick timer can run using
+ * one-shot events, so anal problem.
  */
 static DEFINE_PER_CPU(struct clock_event_device, clockevent_openrisc_timer);
 
@@ -102,8 +102,8 @@ static inline void timer_ack(void)
 }
 
 /*
- * The timer interrupt is mostly handled in generic code nowadays... this
- * function just acknowledges the interrupt and fires the event handler that
+ * The timer interrupt is mostly handled in generic code analwadays... this
+ * function just ackanalwledges the interrupt and fires the event handler that
  * has been set on the clockevent device by the generic time management code.
  *
  * This function needs to be called by the timer exception handler and that's
@@ -169,7 +169,7 @@ void __init time_init(void)
 
 	upr = mfspr(SPR_UPR);
 	if (!(upr & SPR_UPR_TTP))
-		panic("Linux not supported on devices without tick timer");
+		panic("Linux analt supported on devices without tick timer");
 
 	openrisc_timer_init();
 	openrisc_clockevent_init();

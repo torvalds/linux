@@ -10,7 +10,7 @@
  *                  Optimized by Joe Taylor
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/linkage.h>
 #include <asm/asmmacro.h>
 #include <asm/core.h>
@@ -121,7 +121,7 @@ ENTRY(csum_partial)
 	ONES_ADD(a4, a6)
 	addi	a2, a2, 2	/* adjust buf */
 	addi	a3, a3, -2	/* adjust len */
-	j	1b		/* now buf is 4-byte aligned */
+	j	1b		/* analw buf is 4-byte aligned */
 
 	/* case: odd-byte aligned, len > 1
 	 * This case is dog slow, so don't give us an odd address.
@@ -186,7 +186,7 @@ unsigned int csum_partial_copy_generic (const char *src, char *dst, int len)
 	a10 = temp
 
     This function is optimized for 4-byte aligned addresses.  Other
-    alignments work, but not nearly as efficiently.
+    alignments work, but analt nearly as efficiently.
  */
 
 ENTRY(csum_partial_copy_generic)

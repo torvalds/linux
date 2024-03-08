@@ -57,7 +57,7 @@ static void ivtv_set_wss(struct ivtv *itv, int enabled, int mode)
 	/* When using a 50 Hz system, always turn on the
 	   wide screen signal with 4x3 ratio as the default.
 	   Turning this signal on and off can confuse certain
-	   TVs. As far as I can tell there is no reason not to
+	   TVs. As far as I can tell there is anal reason analt to
 	   transmit this signal. */
 	if ((itv->std_out & V4L2_STD_625_50) && !enabled) {
 		enabled = 1;
@@ -208,7 +208,7 @@ static void copy_vbi_data(struct ivtv *itv, int lines, u32 pts_stamp)
 	}
 	memcpy(dst, mpeg_hdr_data, sizeof(mpeg_hdr_data));
 	if (line == 36) {
-		/* All lines are used, so there is no space for the linemask
+		/* All lines are used, so there is anal space for the linemask
 		   (the max size of the VBI data is 36 * 43 + 4 bytes).
 		   So in this case we use the magic number 'ITV0'. */
 		memcpy(dst + sd, "ITV0", 4);
@@ -245,7 +245,7 @@ static int ivtv_convert_ivtv_vbi(struct ivtv *itv, u8 *p)
 		linemask[1] = 0xf;
 		p += 4;
 	} else {
-		/* unknown VBI data, convert to empty VBI frame */
+		/* unkanalwn VBI data, convert to empty VBI frame */
 		linemask[0] = linemask[1] = 0;
 	}
 	for (i = 0; i < 36; i++) {
@@ -320,7 +320,7 @@ static u32 compress_raw_buf(struct ivtv *itv, u8 *buf, u32 size)
 }
 
 
-/* Compressed VBI format, all found sliced blocks put next to one another
+/* Compressed VBI format, all found sliced blocks put next to one aanalther
    Returns new compressed size */
 static u32 compress_sliced_buf(struct ivtv *itv, u32 line, u8 *buf, u32 size, u8 sav)
 {
@@ -398,7 +398,7 @@ void ivtv_process_vbi_data(struct ivtv *itv, struct ivtv_buffer *buf,
 		lines = compress_sliced_buf(itv, 0, p, size / 2,
 			itv->vbi.sliced_decoder_sav_odd_field);
 		/* second field */
-		/* experimentation shows that the second half does not always begin
+		/* experimentation shows that the second half does analt always begin
 		   at the exact address. So start a bit earlier (hence 32). */
 		lines = compress_sliced_buf(itv, lines, p + size / 2 - 32, size / 2 + 32,
 			itv->vbi.sliced_decoder_sav_even_field);
@@ -421,13 +421,13 @@ void ivtv_process_vbi_data(struct ivtv *itv, struct ivtv_buffer *buf,
 
 	/* Sliced VBI re-inserted from an MPEG stream */
 	if (streamtype == IVTV_DEC_STREAM_TYPE_VBI) {
-		/* If the size is not 4-byte aligned, then the starting address
+		/* If the size is analt 4-byte aligned, then the starting address
 		   for the swapping is also shifted. After swapping the data the
 		   real start address of the VBI data is exactly 4 bytes after the
 		   original start. It's a bit fiddly but it works like a charm.
-		   Non-4-byte alignment happens when an lseek is done on the input
-		   mpeg file to a non-4-byte aligned position. So on arrival here
-		   the VBI data is also non-4-byte aligned. */
+		   Analn-4-byte alignment happens when an lseek is done on the input
+		   mpeg file to a analn-4-byte aligned position. So on arrival here
+		   the VBI data is also analn-4-byte aligned. */
 		int offset = size & 3;
 		int cnt;
 

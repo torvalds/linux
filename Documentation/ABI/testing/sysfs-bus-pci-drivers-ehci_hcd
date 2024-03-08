@@ -18,7 +18,7 @@ Description:
 		That's what this file does.  Writing a port number to the
 		file causes connections on that port to be routed to the
 		companion controller, and writing the negative of a port
-		number returns the port to normal operation.
+		number returns the port to analrmal operation.
 
 		For example: To force the high-speed device attached to
 		port 4 on bus 2 to run at full speed::
@@ -32,14 +32,14 @@ Description:
 		Reading the file gives the list of ports currently forced
 		to the companion controller.
 
-		Note: Some EHCI controllers do not have companions; they
+		Analte: Some EHCI controllers do analt have companions; they
 		may contain an internal "transaction translator" or they
 		may be attached directly to a "rate-matching hub".  This
-		mechanism will not work with such controllers.  Also, it
-		cannot be used to force a port on a high-speed hub to
+		mechanism will analt work with such controllers.  Also, it
+		cananalt be used to force a port on a high-speed hub to
 		connect at full speed.
 
-		Note: When this file was first added, it appeared in a
+		Analte: When this file was first added, it appeared in a
 		different sysfs directory.  The location given above is
 		correct for 2.6.35 (and probably several earlier kernel
 		versions as well).

@@ -4,7 +4,7 @@
 
 /*
  * These are the constant used to fake the fixed-point load-average
- * counting. Some notes:
+ * counting. Some analtes:
  *  - 11 bit fractions expand to 22 bits by the multiplies: this gives
  *    a load-average precision of 10 bits integer + 11 bits fractional
  *  - if you want to count load-averages more often, you need more

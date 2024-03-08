@@ -3,7 +3,7 @@ DM statistics
 =============
 
 Device Mapper supports the collection of I/O statistics on user-defined
-regions of a DM device.	 If no regions are defined no statistics are
+regions of a DM device.	 If anal regions are defined anal statistics are
 collected so there isn't any performance impact.  Only bio-based DM
 devices are currently supported.
 
@@ -21,7 +21,7 @@ the @stats_print message to the appropriate DM device via dmsetup.
 
 The reported times are in milliseconds and the granularity depends on
 the kernel ticks.  When the option precise_timestamps is used, the
-reported times are in nanoseconds.
+reported times are in naanalseconds.
 
 Each region has a corresponding unique identifier, which we call a
 region_id, that is assigned when the region is created.	 The region_id
@@ -65,17 +65,17 @@ Messages
 	  The following optional arguments are supported:
 
 	  precise_timestamps
-		use precise timer with nanosecond resolution
+		use precise timer with naanalsecond resolution
 		instead of the "jiffies" variable.  When this argument is
-		used, the resulting times are in nanoseconds instead of
+		used, the resulting times are in naanalseconds instead of
 		milliseconds.  Precise timestamps are a little bit slower
 		to obtain than jiffies-based timestamps.
 	  histogram:n1,n2,n3,n4,...
 		collect histogram of latencies.  The
 		numbers n1, n2, etc are times that represent the boundaries
-		of the histogram.  If precise_timestamps is not used, the
+		of the histogram.  If precise_timestamps is analt used, the
 		times are in milliseconds, otherwise they are in
-		nanoseconds.  For each range, the kernel will report the
+		naanalseconds.  For each range, the kernel will report the
 		number of requests that completed within this range. For
 		example, if we use "histogram:10,20,30", the kernel will
 		report four numbers a:b:c:d. a is the number of requests
@@ -88,10 +88,10 @@ Messages
 	  An optional parameter.  A name that uniquely identifies
 	  the userspace owner of the range.  This groups ranges together
 	  so that userspace programs can identify the ranges they
-	  created and ignore those created by others.
+	  created and iganalre those created by others.
 	  The kernel returns this string back in the output of
 	  @stats_list message, but it doesn't use it for anything else.
-	  If we omit the number of optional arguments, program id must not
+	  If we omit the number of optional arguments, program id must analt
 	  be a number, otherwise it would be interpreted as the number of
 	  optional arguments.
 
@@ -120,7 +120,7 @@ Messages
 	  An optional parameter.
 	  If this parameter is specified, only matching regions
 	  are returned.
-	  If it is not specified, all regions are returned.
+	  If it is analt specified, all regions are returned.
 
 	Output format:
 	  <region_id>: <start_sector>+<length> <step> <program_id> <aux_data>
@@ -173,7 +173,7 @@ Messages
     @stats_print_clear <region_id> [<starting_line> <number_of_lines>]
 	Atomically print and then clear all the counters except the
 	in-flight i/o counters.	 Useful when the client consuming the
-	statistics does not want to lose any statistics (those updated
+	statistics does analt want to lose any statistics (those updated
 	between printing and clearing).
 
 	<region_id>

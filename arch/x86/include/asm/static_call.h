@@ -17,7 +17,7 @@
  * static_call_update().
  *
  * Having the trampoline in a special section forces GCC to emit a JMP.d32 when
- * it does tail-call optimization on the call; since you cannot compute the
+ * it does tail-call optimization on the call; since you cananalt compute the
  * relative displacement across sections.
  */
 
@@ -36,7 +36,7 @@
 	    ".align 4						\n"	\
 	    ".globl " STATIC_CALL_TRAMP_STR(name) "		\n"	\
 	    STATIC_CALL_TRAMP_STR(name) ":			\n"	\
-	    ANNOTATE_NOENDBR						\
+	    ANANALTATE_ANALENDBR						\
 	    insns "						\n"	\
 	    ".byte 0x0f, 0xb9, 0xcc				\n"	\
 	    ".type " STATIC_CALL_TRAMP_STR(name) ", @function	\n"	\
@@ -51,7 +51,7 @@
 	__ARCH_DEFINE_STATIC_CALL_TRAMP(name, "jmp __x86_return_thunk")
 #else
 #define ARCH_DEFINE_STATIC_CALL_NULL_TRAMP(name)			\
-	__ARCH_DEFINE_STATIC_CALL_TRAMP(name, "ret; int3; nop; nop; nop")
+	__ARCH_DEFINE_STATIC_CALL_TRAMP(name, "ret; int3; analp; analp; analp")
 #endif
 
 #define ARCH_DEFINE_STATIC_CALL_RET0_TRAMP(name)			\

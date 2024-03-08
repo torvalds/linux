@@ -26,7 +26,7 @@
 #define MIX_RST				0x14
 #define MIX_ROI_SIZE			0x18
 #define MIX_DATAPATH_CON		0x1c
-#define OUTPUT_NO_RND				BIT(3)
+#define OUTPUT_ANAL_RND				BIT(3)
 #define SOURCE_RGB_SEL				BIT(7)
 #define BACKGROUND_RELAY			(4 << 9)
 #define MIX_ROI_BGCLR			0x20
@@ -34,7 +34,7 @@
 #define MIX_SRC_CON			0x24
 #define MIX_SRC_L0_EN				BIT(0)
 #define MIX_L_SRC_CON(n)		(0x28 + 0x18 * (n))
-#define NON_PREMULTI_SOURCE			(2 << 12)
+#define ANALN_PREMULTI_SOURCE			(2 << 12)
 #define MIX_L_SRC_SIZE(n)		(0x30 + 0x18 * (n))
 #define MIX_L_SRC_OFFSET(n)		(0x34 + 0x18 * (n))
 #define MIX_FUNC_DCM0			0x120
@@ -137,7 +137,7 @@ static irqreturn_t mtk_ethdr_irq_handler(int irq, void *dev_id)
 	writel(0x0, priv->ethdr_comp[ETHDR_MIXER].regs + MIX_INTSTA);
 
 	if (!priv->vblank_cb)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	priv->vblank_cb(priv->vblank_cb_data);
 
@@ -215,16 +215,16 @@ void mtk_ethdr_config(struct device *dev, unsigned int w,
 	mtk_ddp_write(cmdq_pkt, MIX_FUNC_DCM_ENABLE, &mixer->cmdq_base, mixer->regs, MIX_FUNC_DCM1);
 	mtk_ddp_write(cmdq_pkt, h << 16 | w, &mixer->cmdq_base, mixer->regs, MIX_ROI_SIZE);
 	mtk_ddp_write(cmdq_pkt, BGCLR_BLACK, &mixer->cmdq_base, mixer->regs, MIX_ROI_BGCLR);
-	mtk_ddp_write(cmdq_pkt, NON_PREMULTI_SOURCE, &mixer->cmdq_base, mixer->regs,
+	mtk_ddp_write(cmdq_pkt, ANALN_PREMULTI_SOURCE, &mixer->cmdq_base, mixer->regs,
 		      MIX_L_SRC_CON(0));
-	mtk_ddp_write(cmdq_pkt, NON_PREMULTI_SOURCE, &mixer->cmdq_base, mixer->regs,
+	mtk_ddp_write(cmdq_pkt, ANALN_PREMULTI_SOURCE, &mixer->cmdq_base, mixer->regs,
 		      MIX_L_SRC_CON(1));
-	mtk_ddp_write(cmdq_pkt, NON_PREMULTI_SOURCE, &mixer->cmdq_base, mixer->regs,
+	mtk_ddp_write(cmdq_pkt, ANALN_PREMULTI_SOURCE, &mixer->cmdq_base, mixer->regs,
 		      MIX_L_SRC_CON(2));
-	mtk_ddp_write(cmdq_pkt, NON_PREMULTI_SOURCE, &mixer->cmdq_base, mixer->regs,
+	mtk_ddp_write(cmdq_pkt, ANALN_PREMULTI_SOURCE, &mixer->cmdq_base, mixer->regs,
 		      MIX_L_SRC_CON(3));
 	mtk_ddp_write(cmdq_pkt, 0x0, &mixer->cmdq_base, mixer->regs, MIX_L_SRC_SIZE(0));
-	mtk_ddp_write(cmdq_pkt, OUTPUT_NO_RND | SOURCE_RGB_SEL | BACKGROUND_RELAY,
+	mtk_ddp_write(cmdq_pkt, OUTPUT_ANAL_RND | SOURCE_RGB_SEL | BACKGROUND_RELAY,
 		      &mixer->cmdq_base, mixer->regs, MIX_DATAPATH_CON);
 	mtk_ddp_write_mask(cmdq_pkt, MIX_SRC_L0_EN, &mixer->cmdq_base, mixer->regs,
 			   MIX_SRC_CON, MIX_SRC_L0_EN);
@@ -298,18 +298,18 @@ static int mtk_ethdr_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ETHDR_ID_MAX; i++) {
 		priv->ethdr_comp[i].dev = dev;
-		priv->ethdr_comp[i].regs = of_iomap(dev->of_node, i);
+		priv->ethdr_comp[i].regs = of_iomap(dev->of_analde, i);
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 		ret = cmdq_dev_get_client_reg(dev,
 					      &priv->ethdr_comp[i].cmdq_base, i);
 		if (ret)
 			dev_dbg(dev, "get mediatek,gce-client-reg fail!\n");
 #endif
-		dev_dbg(dev, "[DRM]regs:0x%p, node:%d\n", priv->ethdr_comp[i].regs, i);
+		dev_dbg(dev, "[DRM]regs:0x%p, analde:%d\n", priv->ethdr_comp[i].regs, i);
 	}
 
 	for (i = 0; i < ETHDR_CLK_NUM; i++)
@@ -324,7 +324,7 @@ static int mtk_ethdr_probe(struct platform_device *pdev)
 
 	if (priv->irq) {
 		ret = devm_request_irq(dev, priv->irq, mtk_ethdr_irq_handler,
-				       IRQF_TRIGGER_NONE, dev_name(dev), priv);
+				       IRQF_TRIGGER_ANALNE, dev_name(dev), priv);
 		if (ret < 0) {
 			dev_err(dev, "Failed to request irq %d: %d\n", priv->irq, ret);
 			return ret;
@@ -333,7 +333,7 @@ static int mtk_ethdr_probe(struct platform_device *pdev)
 
 	priv->reset_ctl = devm_reset_control_array_get_optional_exclusive(dev);
 	if (IS_ERR(priv->reset_ctl)) {
-		dev_err_probe(dev, PTR_ERR(priv->reset_ctl), "cannot get ethdr reset control\n");
+		dev_err_probe(dev, PTR_ERR(priv->reset_ctl), "cananalt get ethdr reset control\n");
 		return PTR_ERR(priv->reset_ctl);
 	}
 
@@ -341,7 +341,7 @@ static int mtk_ethdr_probe(struct platform_device *pdev)
 
 	ret = component_add(dev, &mtk_ethdr_component_ops);
 	if (ret)
-		dev_notice(dev, "Failed to add component: %d\n", ret);
+		dev_analtice(dev, "Failed to add component: %d\n", ret);
 
 	return ret;
 }

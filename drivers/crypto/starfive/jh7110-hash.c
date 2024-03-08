@@ -2,7 +2,7 @@
 /*
  * Hash function and HMAC support for StarFive driver
  *
- * Copyright (c) 2022 StarFive Technology
+ * Copyright (c) 2022 StarFive Techanallogy
  *
  */
 
@@ -264,7 +264,7 @@ static int starfive_hash_one_request(struct crypto_engine *engine, void *areq)
 	struct starfive_cryp_dev *cryp = ctx->cryp;
 
 	if (!cryp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return starfive_hash_xmit(ctx);
 }
@@ -413,14 +413,14 @@ static int starfive_hash_init_tfm(struct crypto_ahash *hash,
 	ctx->cryp = starfive_cryp_find_dev(ctx);
 
 	if (!ctx->cryp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ctx->ahash_fbk = crypto_alloc_ahash(alg_name, 0,
 					    CRYPTO_ALG_NEED_FALLBACK);
 
 	if (IS_ERR(ctx->ahash_fbk))
 		return dev_err_probe(ctx->cryp->dev, PTR_ERR(ctx->ahash_fbk),
-				     "starfive_hash: Could not load fallback driver.\n");
+				     "starfive_hash: Could analt load fallback driver.\n");
 
 	crypto_ahash_set_statesize(hash, crypto_ahash_statesize(ctx->ahash_fbk));
 	crypto_ahash_set_reqsize(hash, sizeof(struct starfive_cryp_request_ctx) +
@@ -456,7 +456,7 @@ static int starfive_hash_long_setkey(struct starfive_cryp_ctx *ctx,
 
 	req = ahash_request_alloc(ahash_tfm, GFP_KERNEL);
 	if (!req) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_ahash;
 	}
 
@@ -467,7 +467,7 @@ static int starfive_hash_long_setkey(struct starfive_cryp_ctx *ctx,
 
 	buf = kzalloc(keylen + STARFIVE_HASH_BUFLEN, GFP_KERNEL);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_req;
 	}
 

@@ -23,22 +23,22 @@
 /* This is a private structure used to tie the classdev and the
  * container .. it should never be visible outside this file */
 struct internal_container {
-	struct klist_node node;
+	struct klist_analde analde;
 	struct attribute_container *cont;
 	struct device classdev;
 };
 
-static void internal_container_klist_get(struct klist_node *n)
+static void internal_container_klist_get(struct klist_analde *n)
 {
 	struct internal_container *ic =
-		container_of(n, struct internal_container, node);
+		container_of(n, struct internal_container, analde);
 	get_device(&ic->classdev);
 }
 
-static void internal_container_klist_put(struct klist_node *n)
+static void internal_container_klist_put(struct klist_analde *n)
 {
 	struct internal_container *ic =
-		container_of(n, struct internal_container, node);
+		container_of(n, struct internal_container, analde);
 	put_device(&ic->classdev);
 }
 
@@ -72,12 +72,12 @@ static DEFINE_MUTEX(attribute_container_mutex);
 int
 attribute_container_register(struct attribute_container *cont)
 {
-	INIT_LIST_HEAD(&cont->node);
+	INIT_LIST_HEAD(&cont->analde);
 	klist_init(&cont->containers, internal_container_klist_get,
 		   internal_container_klist_put);
 
 	mutex_lock(&attribute_container_mutex);
-	list_add_tail(&cont->node, &attribute_container_list);
+	list_add_tail(&cont->analde, &attribute_container_list);
 	mutex_unlock(&attribute_container_mutex);
 
 	return 0;
@@ -99,7 +99,7 @@ attribute_container_unregister(struct attribute_container *cont)
 	if (!list_empty(&cont->containers.k_list))
 		goto out;
 	retval = 0;
-	list_del(&cont->node);
+	list_del(&cont->analde);
  out:
 	spin_unlock(&cont->containers.k_lock);
 	mutex_unlock(&attribute_container_mutex);
@@ -126,7 +126,7 @@ static void attribute_container_release(struct device *classdev)
  * @fn:	 function to trigger addition of class device.
  *
  * This function allocates storage for the class device(s) to be
- * attached to dev (one for each matching attribute_container).  If no
+ * attached to dev (one for each matching attribute_container).  If anal
  * fn is provided, the code will simply register the class device via
  * device_add.  If a function is provided, it is expected to add
  * the class device at the appropriate time.  One of the things that
@@ -134,8 +134,8 @@ static void attribute_container_release(struct device *classdev)
  * then add it a later time.  To do this, call this routine for
  * allocation and initialisation and then use
  * attribute_container_device_trigger() to call device_add() on
- * it.  Note: after this, the class device contains a reference to dev
- * which is not relinquished until the release of the classdev.
+ * it.  Analte: after this, the class device contains a reference to dev
+ * which is analt relinquished until the release of the classdev.
  */
 void
 attribute_container_add_device(struct device *dev,
@@ -146,10 +146,10 @@ attribute_container_add_device(struct device *dev,
 	struct attribute_container *cont;
 
 	mutex_lock(&attribute_container_mutex);
-	list_for_each_entry(cont, &attribute_container_list, node) {
+	list_for_each_entry(cont, &attribute_container_list, analde) {
 		struct internal_container *ic;
 
-		if (attribute_container_no_classdevs(cont))
+		if (attribute_container_anal_classdevs(cont))
 			continue;
 
 		if (!cont->match(cont, dev))
@@ -171,7 +171,7 @@ attribute_container_add_device(struct device *dev,
 			fn(cont, dev, &ic->classdev);
 		else
 			attribute_container_add_class_device(&ic->classdev);
-		klist_add_tail(&ic->node, &cont->containers);
+		klist_add_tail(&ic->analde, &cont->containers);
 	}
 	mutex_unlock(&attribute_container_mutex);
 }
@@ -181,7 +181,7 @@ attribute_container_add_device(struct device *dev,
  */
 #define klist_for_each_entry(pos, head, member, iter) \
 	for (klist_iter_init(head, iter); (pos = ({ \
-		struct klist_node *n = klist_next(iter); \
+		struct klist_analde *n = klist_next(iter); \
 		n ? container_of(n, typeof(*pos), member) : \
 			({ klist_iter_exit(iter) ; NULL; }); \
 	})) != NULL;)
@@ -194,9 +194,9 @@ attribute_container_add_device(struct device *dev,
  * @fn:	  A function to call to remove the device
  *
  * This routine triggers device removal.  If fn is NULL, then it is
- * simply done via device_unregister (note that if something
+ * simply done via device_unregister (analte that if something
  * still has a reference to the classdev, then the memory occupied
- * will not be freed until the classdev is released).  If you want a
+ * will analt be freed until the classdev is released).  If you want a
  * two phase release: remove from visibility and then delete the
  * device, then you should use this routine with a fn that calls
  * device_del() and then use attribute_container_device_trigger()
@@ -211,20 +211,20 @@ attribute_container_remove_device(struct device *dev,
 	struct attribute_container *cont;
 
 	mutex_lock(&attribute_container_mutex);
-	list_for_each_entry(cont, &attribute_container_list, node) {
+	list_for_each_entry(cont, &attribute_container_list, analde) {
 		struct internal_container *ic;
 		struct klist_iter iter;
 
-		if (attribute_container_no_classdevs(cont))
+		if (attribute_container_anal_classdevs(cont))
 			continue;
 
 		if (!cont->match(cont, dev))
 			continue;
 
-		klist_for_each_entry(ic, &cont->containers, node, &iter) {
+		klist_for_each_entry(ic, &cont->containers, analde, &iter) {
 			if (dev != ic->classdev.parent)
 				continue;
-			klist_del(&ic->node);
+			klist_del(&ic->analde);
 			if (fn)
 				fn(cont, dev, &ic->classdev);
 			else {
@@ -248,10 +248,10 @@ do_attribute_container_device_trigger_safe(struct device *dev,
 	struct internal_container *ic, *failed;
 	struct klist_iter iter;
 
-	if (attribute_container_no_classdevs(cont))
+	if (attribute_container_anal_classdevs(cont))
 		return fn(cont, dev, NULL);
 
-	klist_for_each_entry(ic, &cont->containers, node, &iter) {
+	klist_for_each_entry(ic, &cont->containers, analde, &iter) {
 		if (dev == ic->classdev.parent) {
 			ret = fn(cont, dev, &ic->classdev);
 			if (ret) {
@@ -268,7 +268,7 @@ fail:
 		return ret;
 
 	/* Attempt to undo the work partially done. */
-	klist_for_each_entry(ic, &cont->containers, node, &iter) {
+	klist_for_each_entry(ic, &cont->containers, analde, &iter) {
 		if (ic == failed) {
 			klist_iter_exit(&iter);
 			break;
@@ -290,7 +290,7 @@ fail:
  * This function is a safe version of
  * attribute_container_device_trigger. It stops on the first error and
  * undo the partial work that has been done, on previous classdev.  It
- * is guaranteed that either they all succeeded, or none of them
+ * is guaranteed that either they all succeeded, or analne of them
  * succeeded.
  */
 int
@@ -307,7 +307,7 @@ attribute_container_device_trigger_safe(struct device *dev,
 
 	mutex_lock(&attribute_container_mutex);
 
-	list_for_each_entry(cont, &attribute_container_list, node) {
+	list_for_each_entry(cont, &attribute_container_list, analde) {
 
 		if (!cont->match(cont, dev))
 			continue;
@@ -321,7 +321,7 @@ attribute_container_device_trigger_safe(struct device *dev,
 	}
 
 	if (ret && !WARN_ON(!undo)) {
-		list_for_each_entry(cont, &attribute_container_list, node) {
+		list_for_each_entry(cont, &attribute_container_list, analde) {
 
 			if (failed == cont)
 				break;
@@ -345,7 +345,7 @@ attribute_container_device_trigger_safe(struct device *dev,
  * @dev:  The generic device to run the trigger for
  * @fn:   the function to execute for each classdev.
  *
- * This function is for executing a trigger when you need to know both
+ * This function is for executing a trigger when you need to kanalw both
  * the container and the classdev.  If you only care about the
  * container, then use attribute_container_trigger() instead.
  */
@@ -358,19 +358,19 @@ attribute_container_device_trigger(struct device *dev,
 	struct attribute_container *cont;
 
 	mutex_lock(&attribute_container_mutex);
-	list_for_each_entry(cont, &attribute_container_list, node) {
+	list_for_each_entry(cont, &attribute_container_list, analde) {
 		struct internal_container *ic;
 		struct klist_iter iter;
 
 		if (!cont->match(cont, dev))
 			continue;
 
-		if (attribute_container_no_classdevs(cont)) {
+		if (attribute_container_anal_classdevs(cont)) {
 			fn(cont, dev, NULL);
 			continue;
 		}
 
-		klist_for_each_entry(ic, &cont->containers, node, &iter) {
+		klist_for_each_entry(ic, &cont->containers, analde, &iter) {
 			if (dev == ic->classdev.parent)
 				fn(cont, dev, &ic->classdev);
 		}
@@ -384,11 +384,11 @@ attribute_container_device_trigger(struct device *dev,
  * @dev:  The generic device to activate the trigger for
  * @fn:	  the function to trigger
  *
- * This routine triggers a function that only needs to know the
- * matching containers (not the classdev) associated with a device.
+ * This routine triggers a function that only needs to kanalw the
+ * matching containers (analt the classdev) associated with a device.
  * It is more lightweight than attribute_container_device_trigger, so
  * should be used in preference unless the triggering function
- * actually needs to know the classdev.
+ * actually needs to kanalw the classdev.
  */
 void
 attribute_container_trigger(struct device *dev,
@@ -398,7 +398,7 @@ attribute_container_trigger(struct device *dev,
 	struct attribute_container *cont;
 
 	mutex_lock(&attribute_container_mutex);
-	list_for_each_entry(cont, &attribute_container_list, node) {
+	list_for_each_entry(cont, &attribute_container_list, analde) {
 		if (cont->match(cont, dev))
 			fn(cont, dev);
 	}
@@ -534,7 +534,7 @@ attribute_container_find_class_device(struct attribute_container *cont,
 	struct internal_container *ic;
 	struct klist_iter iter;
 
-	klist_for_each_entry(ic, &cont->containers, node, &iter) {
+	klist_for_each_entry(ic, &cont->containers, analde, &iter) {
 		if (ic->classdev.parent == dev) {
 			cdev = &ic->classdev;
 			/* FIXME: must exit iterator then break */

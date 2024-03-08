@@ -13,11 +13,11 @@ void __init mach_prom_init_machtype(void)
 	 * of machines, and provide the machtype= kernel command line
 	 * to users to indicate their machine, this command line will
 	 * be passed by the latest PMON automatically. and fortunately,
-	 * up to now, we can get the machine type from the PMON_VER=
+	 * up to analw, we can get the machine type from the PMON_VER=
 	 * commandline directly except the NAS machine, In the old
 	 * machines, this will help the users a lot.
 	 *
-	 * If no "machtype=" passed, get machine type from "PMON_VER=".
+	 * If anal "machtype=" passed, get machine type from "PMON_VER=".
 	 *	PMON_VER=LM8089		Lemote 8.9'' netbook
 	 *		 LM8101		Lemote 10.1'' netbook
 	 *	(The above two netbooks have the same kernel support)

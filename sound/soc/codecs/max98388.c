@@ -53,7 +53,7 @@ static struct reg_default max98388_reg[] = {
 	{MAX98388_R2092_SPK_AMP_OUT_CFG, 0x03},
 	{MAX98388_R2093_SPK_AMP_SSM_CFG, 0x01},
 	{MAX98388_R2094_SPK_AMP_ER_CTRL, 0x00},
-	{MAX98388_R209E_SPK_CH_PINK_NOISE_EN, 0x00},
+	{MAX98388_R209E_SPK_CH_PINK_ANALISE_EN, 0x00},
 	{MAX98388_R209F_SPK_CH_AMP_EN, 0x00},
 	{MAX98388_R20A0_IV_DATA_DSP_CTRL, 0x10},
 	{MAX98388_R20A7_IV_DATA_EN, 0x00},
@@ -93,13 +93,13 @@ static int max98388_dac_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static const char * const max98388_monomix_switch_text[] = {
+static const char * const max98388_moanalmix_switch_text[] = {
 	"Left", "Right", "LeftRight"};
 
 static const struct soc_enum dai_sel_enum =
 	SOC_ENUM_SINGLE(MAX98388_R2058_PCM_RX_SRC1,
-			MAX98388_PCM_TO_SPK_MONOMIX_CFG_SHIFT,
-			3, max98388_monomix_switch_text);
+			MAX98388_PCM_TO_SPK_MOANALMIX_CFG_SHIFT,
+			3, max98388_moanalmix_switch_text);
 
 static const struct snd_kcontrol_new max98388_dai_controls =
 	SOC_DAPM_ENUM("DAI Sel", dai_sel_enum);
@@ -111,7 +111,7 @@ static const struct snd_soc_dapm_widget max98388_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC_E("Amp Enable", "HiFi Playback",
 			   MAX98388_R205E_PCM_RX_EN, 0, 0, max98388_dac_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_ANALPM, 0, 0,
 			 &max98388_dai_controls),
 	SND_SOC_DAPM_OUTPUT("BE_OUT"),
 	SND_SOC_DAPM_AIF_OUT("Voltage Sense", "HiFi Capture", 0,
@@ -122,7 +122,7 @@ static const struct snd_soc_dapm_widget max98388_dapm_widgets[] = {
 			 MAX98388_R205D_PCM_TX_SRC_EN, 0, 0),
 	SND_SOC_DAPM_ADC("ADC Current", NULL,
 			 MAX98388_R205D_PCM_TX_SRC_EN, 1, 0),
-	SND_SOC_DAPM_SWITCH("VI Sense", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("VI Sense", SND_SOC_ANALPM, 0, 0,
 			    &max98388_vi_control),
 	SND_SOC_DAPM_SIGGEN("VMON"),
 	SND_SOC_DAPM_SIGGEN("IMON"),
@@ -276,7 +276,7 @@ static SOC_ENUM_SINGLE_DECL(max98388_spkmon_load_enum,
 			    max98388_spkmon_load_text);
 
 static const char * const max98388_edge_rate_text[] = {
-	"Normal", "Reduced", "Maximum", "Increased",
+	"Analrmal", "Reduced", "Maximum", "Increased",
 };
 
 static SOC_ENUM_SINGLE_DECL(max98388_edge_rate_falling_enum,
@@ -320,9 +320,9 @@ static const struct snd_kcontrol_new max98388_snd_controls[] = {
 		   MAX98388_CMON_AUTORESTART_SHIFT, 1, 0),
 	SOC_SINGLE("CLK Monitor Switch", MAX98388_R2037_ERR_MON_CTRL,
 		   MAX98388_CLOCK_MON_SHIFT, 1, 0),
-	/* Pinknoise Generator Enable */
-	SOC_SINGLE("Pinknoise Gen Switch", MAX98388_R209E_SPK_CH_PINK_NOISE_EN,
-		   MAX98388_PINK_NOISE_GEN_SHIFT, 1, 0),
+	/* Pinkanalise Generator Enable */
+	SOC_SINGLE("Pinkanalise Gen Switch", MAX98388_R209E_SPK_CH_PINK_ANALISE_EN,
+		   MAX98388_PINK_ANALISE_GEN_SHIFT, 1, 0),
 	/* Dither Enable */
 	SOC_SINGLE("Dither Switch", MAX98388_R2091_SPK_CH_CFG,
 		   MAX98388_SPK_CFG_DITH_EN_SHIFT, 1, 0),
@@ -343,7 +343,7 @@ static const struct snd_kcontrol_new max98388_snd_controls[] = {
 		       0, 5, 0, max98388_amp_gain_tlv),
 	SOC_ENUM("Thermal Warn Thresh", max98388_thermal_warning_thresh_enum),
 	SOC_ENUM("Thermal SHDN Thresh", max98388_thermal_shutdown_thresh_enum),
-	/* Brownout Protection Automatic Level Control */
+	/* Browanalut Protection Automatic Level Control */
 	SOC_SINGLE("ALC Switch", MAX98388_R20EF_BP_ALC_EN, 0, 1, 0),
 	SOC_ENUM("ALC Thresh", max98388_alc_thresh_single_enum),
 	SOC_ENUM("ALC Attack Rate", max98388_alc_attack_rate_enum),
@@ -642,7 +642,7 @@ static int max98388_dai_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = MAX98388_PCM_SR_96000;
 		break;
 	default:
-		dev_err(component->dev, "rate %d not supported\n",
+		dev_err(component->dev, "rate %d analt supported\n",
 			params_rate(params));
 		goto err;
 	}
@@ -703,7 +703,7 @@ static int max98388_dai_tdm_slot(struct snd_soc_dai *dai,
 	/* BCLK configuration */
 	bsel = max98388_get_bclk_sel(slots * slot_width);
 	if (bsel == 0) {
-		dev_err(component->dev, "BCLK %d not supported\n",
+		dev_err(component->dev, "BCLK %d analt supported\n",
 			slots * slot_width);
 		return -EINVAL;
 	}
@@ -802,7 +802,7 @@ static bool max98388_readable_register(struct device *dev,
 		... MAX98388_R205F_PCM_TX_EN:
 	case MAX98388_R2090_SPK_CH_VOL_CTRL
 		... MAX98388_R2094_SPK_AMP_ER_CTRL:
-	case MAX98388_R209E_SPK_CH_PINK_NOISE_EN
+	case MAX98388_R209E_SPK_CH_PINK_ANALISE_EN
 		... MAX98388_R209F_SPK_CH_AMP_EN:
 	case MAX98388_R20A0_IV_DATA_DSP_CTRL:
 	case MAX98388_R20A7_IV_DATA_EN:
@@ -903,12 +903,12 @@ static void max98388_read_deveice_property(struct device *dev,
 {
 	int value;
 
-	if (!device_property_read_u32(dev, "adi,vmon-slot-no", &value))
+	if (!device_property_read_u32(dev, "adi,vmon-slot-anal", &value))
 		max98388->v_slot = value & 0xF;
 	else
 		max98388->v_slot = 0;
 
-	if (!device_property_read_u32(dev, "adi,imon-slot-no", &value))
+	if (!device_property_read_u32(dev, "adi,imon-slot-anal", &value))
 		max98388->i_slot = value & 0xF;
 	else
 		max98388->i_slot = 1;
@@ -928,7 +928,7 @@ static int max98388_i2c_probe(struct i2c_client *i2c)
 
 	max98388 = devm_kzalloc(&i2c->dev, sizeof(*max98388), GFP_KERNEL);
 	if (!max98388)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, max98388);
 

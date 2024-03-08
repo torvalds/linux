@@ -161,23 +161,23 @@ static const struct clk_gating_soc_desc a370_gating_desc[] __initconst = {
 	{ "pex1", "pex1_en", 9, 0 },
 	{ "sata0", NULL, 15, 0 },
 	{ "sdio", NULL, 17, 0 },
-	{ "crypto", NULL, 23, CLK_IGNORE_UNUSED },
+	{ "crypto", NULL, 23, CLK_IGANALRE_UNUSED },
 	{ "tdm", NULL, 25, 0 },
-	{ "ddr", NULL, 28, CLK_IGNORE_UNUSED },
+	{ "ddr", NULL, 28, CLK_IGANALRE_UNUSED },
 	{ "sata1", NULL, 30, 0 },
 	{ }
 };
 
-static void __init a370_clk_init(struct device_node *np)
+static void __init a370_clk_init(struct device_analde *np)
 {
-	struct device_node *cgnp =
-		of_find_compatible_node(NULL, NULL, "marvell,armada-370-gating-clock");
+	struct device_analde *cgnp =
+		of_find_compatible_analde(NULL, NULL, "marvell,armada-370-gating-clock");
 
 	mvebu_coreclk_setup(np, &a370_coreclks);
 
 	if (cgnp) {
 		mvebu_clk_gating_setup(cgnp, a370_gating_desc);
-		of_node_put(cgnp);
+		of_analde_put(cgnp);
 	}
 }
 CLK_OF_DECLARE(a370_clk, "marvell,armada-370-core-clock", a370_clk_init);

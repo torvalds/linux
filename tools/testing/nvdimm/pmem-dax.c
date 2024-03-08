@@ -42,7 +42,7 @@ long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
 		*pfn = phys_to_pfn_t(pmem->phys_addr + offset, pmem->pfn_flags);
 
 	/*
-	 * If badblocks are present, limit known good range to the
+	 * If badblocks are present, limit kanalwn good range to the
 	 * requested range.
 	 */
 	if (unlikely(pmem->bb.count))

@@ -21,7 +21,7 @@
 #include "object.h"
 
 /*
- * All access rights that are denied by default whether they are handled or not
+ * All access rights that are denied by default whether they are handled or analt
  * by a ruleset/layer.  This must be ORed with all ruleset->access_masks[]
  * entries when we need to get the absolute handled access masks.
  */
@@ -68,7 +68,7 @@ struct landlock_layer {
  */
 union landlock_key {
 	/**
-	 * @object: Pointer to identify a kernel object (e.g. an inode).
+	 * @object: Pointer to identify a kernel object (e.g. an ianalde).
 	 */
 	struct landlock_object *object;
 	/**
@@ -83,13 +83,13 @@ union landlock_key {
  */
 enum landlock_key_type {
 	/**
-	 * @LANDLOCK_KEY_INODE: Type of &landlock_ruleset.root_inode's node
+	 * @LANDLOCK_KEY_IANALDE: Type of &landlock_ruleset.root_ianalde's analde
 	 * keys.
 	 */
-	LANDLOCK_KEY_INODE = 1,
+	LANDLOCK_KEY_IANALDE = 1,
 	/**
 	 * @LANDLOCK_KEY_NET_PORT: Type of &landlock_ruleset.root_net_port's
-	 * node keys.
+	 * analde keys.
 	 */
 	LANDLOCK_KEY_NET_PORT,
 };
@@ -99,7 +99,7 @@ enum landlock_key_type {
  */
 struct landlock_id {
 	/**
-	 * @key: Identifies either a kernel object (e.g. an inode) or
+	 * @key: Identifies either a kernel object (e.g. an ianalde) or
 	 * a raw value (e.g. a TCP port).
 	 */
 	union landlock_key key;
@@ -114,11 +114,11 @@ struct landlock_id {
  */
 struct landlock_rule {
 	/**
-	 * @node: Node in the ruleset's red-black tree.
+	 * @analde: Analde in the ruleset's red-black tree.
 	 */
-	struct rb_node node;
+	struct rb_analde analde;
 	/**
-	 * @key: A union to identify either a kernel object (e.g. an inode) or
+	 * @key: A union to identify either a kernel object (e.g. an ianalde) or
 	 * a raw data value (e.g. a network socket port). This is used as a key
 	 * for this ruleset element.  The pointer is set once and never
 	 * modified.  It always points to an allocated object because each rule
@@ -137,11 +137,11 @@ struct landlock_rule {
 };
 
 /**
- * struct landlock_hierarchy - Node in a ruleset hierarchy
+ * struct landlock_hierarchy - Analde in a ruleset hierarchy
  */
 struct landlock_hierarchy {
 	/**
-	 * @parent: Pointer to the parent node, or NULL if it is a root
+	 * @parent: Pointer to the parent analde, or NULL if it is a root
 	 * Landlock domain.
 	 */
 	struct landlock_hierarchy *parent;
@@ -160,17 +160,17 @@ struct landlock_hierarchy {
  */
 struct landlock_ruleset {
 	/**
-	 * @root_inode: Root of a red-black tree containing &struct
-	 * landlock_rule nodes with inode object.  Once a ruleset is tied to a
+	 * @root_ianalde: Root of a red-black tree containing &struct
+	 * landlock_rule analdes with ianalde object.  Once a ruleset is tied to a
 	 * process (i.e. as a domain), this tree is immutable until @usage
 	 * reaches zero.
 	 */
-	struct rb_root root_inode;
+	struct rb_root root_ianalde;
 
 #if IS_ENABLED(CONFIG_INET)
 	/**
 	 * @root_net_port: Root of a red-black tree containing &struct
-	 * landlock_rule nodes with network port. Once a ruleset is tied to a
+	 * landlock_rule analdes with network port. Once a ruleset is tied to a
 	 * process (i.e. as a domain), this tree is immutable until @usage
 	 * reaches zero.
 	 */
@@ -203,7 +203,7 @@ struct landlock_ruleset {
 			 */
 			refcount_t usage;
 			/**
-			 * @num_rules: Number of non-overlapping (i.e. not for
+			 * @num_rules: Number of analn-overlapping (i.e. analt for
 			 * the same object) rules in this ruleset.
 			 */
 			u32 num_rules;
@@ -211,7 +211,7 @@ struct landlock_ruleset {
 			 * @num_layers: Number of layers that are used in this
 			 * ruleset.  This enables to check that all the layers
 			 * allow an access request.  A value of 0 identifies a
-			 * non-merged ruleset (i.e. not a domain).
+			 * analn-merged ruleset (i.e. analt a domain).
 			 */
 			u32 num_layers;
 			/**

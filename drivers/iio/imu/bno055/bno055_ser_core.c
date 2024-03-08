@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Serial line interface for Bosh BNO055 IMU (via serdev).
+ * Serial line interface for Bosh BANAL055 IMU (via serdev).
  * This file implements serial communication up to the register read/write
  * level.
  *
- * Copyright (C) 2021-2022 Istituto Italiano di Tecnologia
+ * Copyright (C) 2021-2022 Istituto Italiaanal di Tecanallogia
  * Electronic Design Laboratory
  * Written by Andrea Merello <andrea.merello@iit.it>
  *
@@ -16,7 +16,7 @@
 
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
@@ -25,8 +25,8 @@
 #include <linux/regmap.h>
 #include <linux/serdev.h>
 
-#include "bno055_ser_trace.h"
-#include "bno055.h"
+#include "banal055_ser_trace.h"
+#include "banal055.h"
 
 /*
  * Register writes cmd have the following format
@@ -41,8 +41,8 @@
  *
  * .. except when writing the SYS_RST bit (i.e. triggering a system reset); in
  * case the IMU accepts the command, then it resets without responding. We don't
- * handle this (yet) here (so we inform the common bno055 code not to perform
- * sw resets - bno055 on serial bus basically requires the hw reset pin).
+ * handle this (yet) here (so we inform the common banal055 code analt to perform
+ * sw resets - banal055 on serial bus basically requires the hw reset pin).
  *
  * Register read have the following format
  * +------+------+-----+-----+
@@ -73,12 +73,12 @@
  *
  * **WORKAROUND ALERT**
  *
- * Serial communication seems very fragile: the BNO055 buffer seems to overflow
- * very easy; BNO055 seems able to sink few bytes, then it needs a brief pause.
+ * Serial communication seems very fragile: the BANAL055 buffer seems to overflow
+ * very easy; BANAL055 seems able to sink few bytes, then it needs a brief pause.
  * On the other hand, it is also picky on timeout: if there is a pause > 30mS in
  * between two bytes then the transaction fails (IMU internal RX FSM resets).
  *
- * BNO055 has been seen also failing to process commands in case we send them
+ * BANAL055 has been seen also failing to process commands in case we send them
  * too close each other (or if it is somehow busy?)
  *
  * In particular I saw these scenarios:
@@ -98,7 +98,7 @@
  * even after like 30 retries.
  *
  * So, we just split TXes in [2-bytes + delay] steps, and still keep an eye on
- * the IMU response; in case it overflows (which is now unlikely), we retry.
+ * the IMU response; in case it overflows (which is analw unlikely), we retry.
  */
 
 /*
@@ -114,11 +114,11 @@
  * section" in which it delays handling of serial protocol. Because of this we
  * round-up to 22, which is the max number of samples, always bursting indeed.
  */
-#define BNO055_SER_XFER_BURST_BREAK_THRESHOLD 22
+#define BANAL055_SER_XFER_BURST_BREAK_THRESHOLD 22
 
-struct bno055_ser_priv {
+struct banal055_ser_priv {
 	enum {
-		CMD_NONE,
+		CMD_ANALNE,
 		CMD_READ,
 		CMD_WRITE,
 	} expect_response;
@@ -162,7 +162,7 @@ struct bno055_ser_priv {
 	struct serdev_device *serdev;
 };
 
-static int bno055_ser_send_chunk(struct bno055_ser_priv *priv, const u8 *data, int len)
+static int banal055_ser_send_chunk(struct banal055_ser_priv *priv, const u8 *data, int len)
 {
 	int ret;
 
@@ -180,20 +180,20 @@ static int bno055_ser_send_chunk(struct bno055_ser_priv *priv, const u8 *data, i
 /*
  * Send a read or write command.
  * 'data' can be NULL (used in read case). 'len' parameter is always valid; in
- * case 'data' is non-NULL then it must match 'data' size.
+ * case 'data' is analn-NULL then it must match 'data' size.
  */
-static int bno055_ser_do_send_cmd(struct bno055_ser_priv *priv,
+static int banal055_ser_do_send_cmd(struct banal055_ser_priv *priv,
 				  bool read, int addr, int len, const u8 *data)
 {
 	u8 hdr[] = {0xAA, read, addr, len};
 	int chunk_len;
 	int ret;
 
-	ret = bno055_ser_send_chunk(priv, hdr, 2);
+	ret = banal055_ser_send_chunk(priv, hdr, 2);
 	if (ret)
 		goto fail;
 	usleep_range(2000, 3000);
-	ret = bno055_ser_send_chunk(priv, hdr + 2, 2);
+	ret = banal055_ser_send_chunk(priv, hdr + 2, 2);
 	if (ret)
 		goto fail;
 
@@ -203,7 +203,7 @@ static int bno055_ser_do_send_cmd(struct bno055_ser_priv *priv,
 	while (len) {
 		chunk_len = min(len, 2);
 		usleep_range(2000, 3000);
-		ret = bno055_ser_send_chunk(priv, data, chunk_len);
+		ret = banal055_ser_send_chunk(priv, data, chunk_len);
 		if (ret)
 			goto fail;
 		data += chunk_len;
@@ -212,12 +212,12 @@ static int bno055_ser_do_send_cmd(struct bno055_ser_priv *priv,
 
 	return 0;
 fail:
-	/* waiting more than 30mS should clear the BNO055 internal state */
+	/* waiting more than 30mS should clear the BANAL055 internal state */
 	usleep_range(40000, 50000);
 	return ret;
 }
 
-static int bno055_ser_send_cmd(struct bno055_ser_priv *priv,
+static int banal055_ser_send_cmd(struct banal055_ser_priv *priv,
 			       bool read, int addr, int len, const u8 *data)
 {
 	const int retry_max = 5;
@@ -243,7 +243,7 @@ static int bno055_ser_send_cmd(struct bno055_ser_priv *priv,
 	/*
 	 * Try to convince the IMU to cooperate.. as explained in the comments
 	 * at the top of this file, the IMU could also refuse the command (i.e.
-	 * it is not ready yet); retry in this case.
+	 * it is analt ready yet); retry in this case.
 	 */
 	do {
 		mutex_lock(&priv->lock);
@@ -253,7 +253,7 @@ static int bno055_ser_send_cmd(struct bno055_ser_priv *priv,
 
 		if (retry != retry_max)
 			trace_cmd_retry(read, addr, retry_max - retry);
-		ret = bno055_ser_do_send_cmd(priv, read, addr, len, data);
+		ret = banal055_ser_do_send_cmd(priv, read, addr, len, data);
 		if (ret)
 			continue;
 
@@ -282,10 +282,10 @@ static int bno055_ser_send_cmd(struct bno055_ser_priv *priv,
 	return 0;
 }
 
-static int bno055_ser_write_reg(void *context, const void *_data, size_t count)
+static int banal055_ser_write_reg(void *context, const void *_data, size_t count)
 {
 	const u8 *data = _data;
-	struct bno055_ser_priv *priv = context;
+	struct banal055_ser_priv *priv = context;
 
 	if (count < 2) {
 		dev_err(&priv->serdev->dev, "Invalid write count %zu", count);
@@ -293,17 +293,17 @@ static int bno055_ser_write_reg(void *context, const void *_data, size_t count)
 	}
 
 	trace_write_reg(data[0], data[1]);
-	return bno055_ser_send_cmd(priv, 0, data[0], count - 1, data + 1);
+	return banal055_ser_send_cmd(priv, 0, data[0], count - 1, data + 1);
 }
 
-static int bno055_ser_read_reg(void *context,
+static int banal055_ser_read_reg(void *context,
 			       const void *_reg, size_t reg_size,
 			       void *val, size_t val_size)
 {
 	int ret;
 	int reg_addr;
 	const u8 *reg = _reg;
-	struct bno055_ser_priv *priv = context;
+	struct banal055_ser_priv *priv = context;
 
 	if (val_size > 128) {
 		dev_err(&priv->serdev->dev, "Invalid read valsize %zu", val_size);
@@ -317,7 +317,7 @@ static int bno055_ser_read_reg(void *context,
 	priv->response_buf = val;
 	mutex_unlock(&priv->lock);
 
-	ret = bno055_ser_send_cmd(priv, 1, reg_addr, val_size, NULL);
+	ret = banal055_ser_send_cmd(priv, 1, reg_addr, val_size, NULL);
 
 	mutex_lock(&priv->lock);
 	priv->response_buf = NULL;
@@ -330,14 +330,14 @@ static int bno055_ser_read_reg(void *context,
  * Handler for received data; this is called from the receiver callback whenever
  * it got some packet from the serial bus. The status tells us whether the
  * packet is valid (i.e. header ok && received payload len consistent wrt the
- * header). It's now our responsibility to check whether this is what we
+ * header). It's analw our responsibility to check whether this is what we
  * expected, of whether we got some unexpected, yet valid, packet.
  */
-static void bno055_ser_handle_rx(struct bno055_ser_priv *priv, int status)
+static void banal055_ser_handle_rx(struct banal055_ser_priv *priv, int status)
 {
 	mutex_lock(&priv->lock);
 	switch (priv->expect_response) {
-	case CMD_NONE:
+	case CMD_ANALNE:
 		dev_warn(&priv->serdev->dev, "received unexpected, yet valid, data from sensor");
 		mutex_unlock(&priv->lock);
 		return;
@@ -349,7 +349,7 @@ static void bno055_ser_handle_rx(struct bno055_ser_priv *priv, int status)
 			/*
 			 * If we got here, then the lower layer serial protocol
 			 * seems consistent with itself; if we got an unexpected
-			 * amount of data then signal it as a non critical error
+			 * amount of data then signal it as a analn critical error
 			 */
 			priv->cmd_status = STATUS_FAIL;
 			dev_warn(&priv->serdev->dev,
@@ -362,27 +362,27 @@ static void bno055_ser_handle_rx(struct bno055_ser_priv *priv, int status)
 		break;
 	}
 
-	priv->expect_response = CMD_NONE;
+	priv->expect_response = CMD_ANALNE;
 	mutex_unlock(&priv->lock);
 	complete(&priv->cmd_complete);
 }
 
 /*
  * Serdev receiver FSM. This tracks the serial communication and parse the
- * header. It pushes packets to bno055_ser_handle_rx(), eventually communicating
+ * header. It pushes packets to banal055_ser_handle_rx(), eventually communicating
  * failures (i.e. malformed packets).
- * Ideally it doesn't know anything about upper layer (i.e. if this is the
+ * Ideally it doesn't kanalw anything about upper layer (i.e. if this is the
  * packet we were really expecting), but since we copies the payload into the
- * receiver buffer (that is not valid when i.e. we don't expect data), we
- * snoop a bit in the upper layer..
+ * receiver buffer (that is analt valid when i.e. we don't expect data), we
+ * sanalop a bit in the upper layer..
  * Also, we assume to RX one pkt per time (i.e. the HW doesn't send anything
  * unless we require to AND we don't queue more than one request per time).
  */
-static ssize_t bno055_ser_receive_buf(struct serdev_device *serdev,
+static ssize_t banal055_ser_receive_buf(struct serdev_device *serdev,
 				      const u8 *buf, size_t size)
 {
 	int status;
-	struct bno055_ser_priv *priv = serdev_device_get_drvdata(serdev);
+	struct banal055_ser_priv *priv = serdev_device_get_drvdata(serdev);
 	size_t remaining = size;
 
 	if (size == 0)
@@ -398,7 +398,7 @@ static ssize_t bno055_ser_receive_buf(struct serdev_device *serdev,
 		if (buf[0] != 0xEE && buf[0] != 0xBB) {
 			dev_err(&priv->serdev->dev,
 				"Invalid packet start %x", buf[0]);
-			bno055_ser_handle_rx(priv, STATUS_CRIT);
+			banal055_ser_handle_rx(priv, STATUS_CRIT);
 			break;
 		}
 		priv->rx.type = buf[0];
@@ -423,7 +423,7 @@ static ssize_t bno055_ser_receive_buf(struct serdev_device *serdev,
 			} else {
 				status = (buf[0] == 1) ? STATUS_OK : STATUS_FAIL;
 			}
-			bno055_ser_handle_rx(priv, status);
+			banal055_ser_handle_rx(priv, status);
 			priv->rx.state = RX_IDLE;
 			break;
 
@@ -437,29 +437,29 @@ static ssize_t bno055_ser_receive_buf(struct serdev_device *serdev,
 		fallthrough;
 
 	case RX_DATA:
-		/* Header parsed; now receiving packet data payload */
+		/* Header parsed; analw receiving packet data payload */
 		if (remaining == 0)
 			break;
 
 		if (priv->rx.databuf_count + remaining > priv->rx.expected_len) {
 			/*
 			 * This is an inconsistency in serial protocol, we lost
-			 * sync and we don't know how to handle further data
+			 * sync and we don't kanalw how to handle further data
 			 */
 			dev_err(&priv->serdev->dev, "BB pkt. Extra data received");
-			bno055_ser_handle_rx(priv, STATUS_CRIT);
+			banal055_ser_handle_rx(priv, STATUS_CRIT);
 			priv->rx.state = RX_IDLE;
 			break;
 		}
 
 		mutex_lock(&priv->lock);
 		/*
-		 * NULL e.g. when read cmd is stale or when no read cmd is
+		 * NULL e.g. when read cmd is stale or when anal read cmd is
 		 * actually pending.
 		 */
 		if (priv->response_buf &&
 		    /*
-		     * Snoop on the upper layer protocol stuff to make sure not
+		     * Sanalop on the upper layer protocol stuff to make sure analt
 		     * to write to an invalid memory. Apart for this, let's the
 		     * upper layer manage any inconsistency wrt expected data
 		     * len (as long as the serial protocol is consistent wrt
@@ -478,7 +478,7 @@ static ssize_t bno055_ser_receive_buf(struct serdev_device *serdev,
 		 * packet. Pass it to the upper layer (for us it is just valid).
 		 */
 		if (priv->rx.databuf_count == priv->rx.expected_len) {
-			bno055_ser_handle_rx(priv, STATUS_OK);
+			banal055_ser_handle_rx(priv, STATUS_OK);
 			priv->rx.state = RX_IDLE;
 		}
 		break;
@@ -487,74 +487,74 @@ static ssize_t bno055_ser_receive_buf(struct serdev_device *serdev,
 	return size;
 }
 
-static const struct serdev_device_ops bno055_ser_serdev_ops = {
-	.receive_buf = bno055_ser_receive_buf,
+static const struct serdev_device_ops banal055_ser_serdev_ops = {
+	.receive_buf = banal055_ser_receive_buf,
 	.write_wakeup = serdev_device_write_wakeup,
 };
 
-static struct regmap_bus bno055_ser_regmap_bus = {
-	.write = bno055_ser_write_reg,
-	.read = bno055_ser_read_reg,
+static struct regmap_bus banal055_ser_regmap_bus = {
+	.write = banal055_ser_write_reg,
+	.read = banal055_ser_read_reg,
 };
 
-static int bno055_ser_probe(struct serdev_device *serdev)
+static int banal055_ser_probe(struct serdev_device *serdev)
 {
-	struct bno055_ser_priv *priv;
+	struct banal055_ser_priv *priv;
 	struct regmap *regmap;
 	int ret;
 
 	priv = devm_kzalloc(&serdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	serdev_device_set_drvdata(serdev, priv);
 	priv->serdev = serdev;
 	mutex_init(&priv->lock);
 	init_completion(&priv->cmd_complete);
 
-	serdev_device_set_client_ops(serdev, &bno055_ser_serdev_ops);
+	serdev_device_set_client_ops(serdev, &banal055_ser_serdev_ops);
 	ret = devm_serdev_device_open(&serdev->dev, serdev);
 	if (ret)
 		return ret;
 
 	if (serdev_device_set_baudrate(serdev, 115200) != 115200) {
-		dev_err(&serdev->dev, "Cannot set required baud rate");
+		dev_err(&serdev->dev, "Cananalt set required baud rate");
 		return -EIO;
 	}
 
-	ret = serdev_device_set_parity(serdev, SERDEV_PARITY_NONE);
+	ret = serdev_device_set_parity(serdev, SERDEV_PARITY_ANALNE);
 	if (ret) {
-		dev_err(&serdev->dev, "Cannot set required parity setting");
+		dev_err(&serdev->dev, "Cananalt set required parity setting");
 		return ret;
 	}
 	serdev_device_set_flow_control(serdev, false);
 
-	regmap = devm_regmap_init(&serdev->dev, &bno055_ser_regmap_bus,
-				  priv, &bno055_regmap_config);
+	regmap = devm_regmap_init(&serdev->dev, &banal055_ser_regmap_bus,
+				  priv, &banal055_regmap_config);
 	if (IS_ERR(regmap))
 		return dev_err_probe(&serdev->dev, PTR_ERR(regmap),
 				     "Unable to init register map");
 
-	return bno055_probe(&serdev->dev, regmap,
-			    BNO055_SER_XFER_BURST_BREAK_THRESHOLD, false);
+	return banal055_probe(&serdev->dev, regmap,
+			    BANAL055_SER_XFER_BURST_BREAK_THRESHOLD, false);
 }
 
-static const struct of_device_id bno055_ser_of_match[] = {
-	{ .compatible = "bosch,bno055" },
+static const struct of_device_id banal055_ser_of_match[] = {
+	{ .compatible = "bosch,banal055" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, bno055_ser_of_match);
+MODULE_DEVICE_TABLE(of, banal055_ser_of_match);
 
-static struct serdev_device_driver bno055_ser_driver = {
+static struct serdev_device_driver banal055_ser_driver = {
 	.driver = {
-		.name = "bno055-ser",
-		.of_match_table = bno055_ser_of_match,
+		.name = "banal055-ser",
+		.of_match_table = banal055_ser_of_match,
 	},
-	.probe = bno055_ser_probe,
+	.probe = banal055_ser_probe,
 };
-module_serdev_device_driver(bno055_ser_driver);
+module_serdev_device_driver(banal055_ser_driver);
 
 MODULE_AUTHOR("Andrea Merello <andrea.merello@iit.it>");
-MODULE_DESCRIPTION("Bosch BNO055 serdev interface");
-MODULE_IMPORT_NS(IIO_BNO055);
+MODULE_DESCRIPTION("Bosch BANAL055 serdev interface");
+MODULE_IMPORT_NS(IIO_BANAL055);
 MODULE_LICENSE("GPL");

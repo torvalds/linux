@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroanalme Systems, Inc. */
 
 #ifndef __NET_TC_MPLS_H
 #define __NET_TC_MPLS_H
@@ -17,9 +17,9 @@ struct tcf_mpls_params {
 	struct rcu_head	rcu;
 };
 
-#define ACT_MPLS_TC_NOT_SET	0xff
-#define ACT_MPLS_BOS_NOT_SET	0xff
-#define ACT_MPLS_LABEL_NOT_SET	0xffffffff
+#define ACT_MPLS_TC_ANALT_SET	0xff
+#define ACT_MPLS_BOS_ANALT_SET	0xff
+#define ACT_MPLS_LABEL_ANALT_SET	0xffffffff
 
 struct tcf_mpls {
 	struct tc_action common;

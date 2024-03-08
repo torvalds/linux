@@ -24,7 +24,7 @@ config I2C_HID_ACPI
 
 config I2C_HID_OF
 	tristate "HID over I2C transport layer Open Firmware driver"
-	# No "depends on OF" because this can also be used for manually
+	# Anal "depends on OF" because this can also be used for manually
 	# (board-file) instantiated "hid-over-i2c" type i2c-clients.
 	depends on DRM || !DRM
 	select I2C_HID_CORE

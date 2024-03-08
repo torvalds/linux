@@ -9,7 +9,7 @@
 #include <linux/module.h>
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 
@@ -60,7 +60,7 @@ static int ams_input_enable(void)
 
 	input = input_allocate_device();
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = "Apple Motion Sensor";
 	input->id.bustype = ams_info.bustype;

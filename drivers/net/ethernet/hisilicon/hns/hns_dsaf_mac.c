@@ -126,7 +126,7 @@ int hns_mac_get_port_info(struct hns_mac_cb *mac_cb,
 	mac_ctrl_drv = hns_mac_get_drv(mac_cb);
 
 	if (!mac_ctrl_drv->get_info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mac_ctrl_drv->get_info(mac_ctrl_drv, &info);
 	if (auto_neg)
@@ -319,7 +319,7 @@ int hns_mac_add_uc_addr(struct hns_mac_cb *mac_cb, u8 vf_id,
 	int ret;
 
 	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memset(&mac_entry, 0, sizeof(mac_entry));
 	memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
@@ -339,7 +339,7 @@ int hns_mac_rm_uc_addr(struct hns_mac_cb *mac_cb, u8 vf_id,
 	int ret;
 
 	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	memset(&mac_entry, 0, sizeof(mac_entry));
 	memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
@@ -607,7 +607,7 @@ void hns_mac_get_pauseparam(struct hns_mac_cb *mac_cb, u32 *rx_en, u32 *tx_en)
 /**
  * hns_mac_set_autoneg - set auto autonegotiation
  * @mac_cb: mac control block
- * @enable: enable or not
+ * @enable: enable or analt
  * return 0 - success , negative --fail
  */
 int hns_mac_set_autoneg(struct hns_mac_cb *mac_cb, u8 enable)
@@ -615,8 +615,8 @@ int hns_mac_set_autoneg(struct hns_mac_cb *mac_cb, u8 enable)
 	struct mac_driver *mac_ctrl_drv = hns_mac_get_drv(mac_cb);
 
 	if (mac_cb->phy_if == PHY_INTERFACE_MODE_XGMII && enable) {
-		dev_err(mac_cb->dev, "enabling autoneg is not allowed!\n");
-		return -ENOTSUPP;
+		dev_err(mac_cb->dev, "enabling autoneg is analt allowed!\n");
+		return -EANALTSUPP;
 	}
 
 	if (mac_ctrl_drv->set_an_mode)
@@ -628,8 +628,8 @@ int hns_mac_set_autoneg(struct hns_mac_cb *mac_cb, u8 enable)
 /**
  * hns_mac_set_pauseparam - set rx & tx pause parameter
  * @mac_cb: mac control block
- * @rx_en: rx enable or not
- * @tx_en: tx enable or not
+ * @rx_en: rx enable or analt
+ * @tx_en: tx enable or analt
  * return 0 - success , negative --fail
  */
 int hns_mac_set_pauseparam(struct hns_mac_cb *mac_cb, u32 rx_en, u32 tx_en)
@@ -672,7 +672,7 @@ static int hns_mac_init_ex(struct hns_mac_cb *mac_cb)
 		drv = (struct mac_driver *)hns_xgmac_config(mac_cb, &param);
 
 	if (!drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mac_cb->priv.mac = (void *)drv;
 	hns_mac_reset(mac_cb);
@@ -693,12 +693,12 @@ free_mac_drv:
 }
 
 static int
-hns_mac_phy_parse_addr(struct device *dev, struct fwnode_handle *fwnode)
+hns_mac_phy_parse_addr(struct device *dev, struct fwanalde_handle *fwanalde)
 {
 	u32 addr;
 	int ret;
 
-	ret = fwnode_property_read_u32(fwnode, "phy-addr", &addr);
+	ret = fwanalde_property_read_u32(fwanalde, "phy-addr", &addr);
 	if (ret) {
 		dev_err(dev, "has invalid PHY address ret:%d\n", ret);
 		return ret;
@@ -721,7 +721,7 @@ hns_mac_register_phydev(struct mii_bus *mdio, struct hns_mac_cb *mac_cb,
 	bool is_c45;
 	int rc;
 
-	rc = fwnode_property_read_string(mac_cb->fw_port,
+	rc = fwanalde_property_read_string(mac_cb->fw_port,
 					 "phy-mode", &phy_type);
 	if (rc < 0)
 		return rc;
@@ -731,7 +731,7 @@ hns_mac_register_phydev(struct mii_bus *mdio, struct hns_mac_cb *mac_cb,
 	else if (!strcmp(phy_type, phy_modes(PHY_INTERFACE_MODE_SGMII)))
 		is_c45 = false;
 	else
-		return -ENODATA;
+		return -EANALDATA;
 
 	phy = get_phy_device(mdio, addr, is_c45);
 	if (!phy || IS_ERR(phy))
@@ -739,7 +739,7 @@ hns_mac_register_phydev(struct mii_bus *mdio, struct hns_mac_cb *mac_cb,
 
 	phy->irq = mdio->irq[addr];
 
-	/* All data is now stored in the phy struct;
+	/* All data is analw stored in the phy struct;
 	 * register it
 	 */
 	rc = phy_device_register(phy);
@@ -747,7 +747,7 @@ hns_mac_register_phydev(struct mii_bus *mdio, struct hns_mac_cb *mac_cb,
 		phy_device_free(phy);
 		dev_err(&mdio->dev, "registered phy fail at address %i\n",
 			addr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mac_cb->phy_dev = phy;
@@ -759,21 +759,21 @@ hns_mac_register_phydev(struct mii_bus *mdio, struct hns_mac_cb *mac_cb,
 
 static int hns_mac_register_phy(struct hns_mac_cb *mac_cb)
 {
-	struct fwnode_reference_args args;
+	struct fwanalde_reference_args args;
 	struct platform_device *pdev;
 	struct mii_bus *mii_bus;
 	int rc;
 	int addr;
 
-	/* Loop over the child nodes and register a phy_device for each one */
-	if (!to_acpi_device_node(mac_cb->fw_port))
-		return -ENODEV;
+	/* Loop over the child analdes and register a phy_device for each one */
+	if (!to_acpi_device_analde(mac_cb->fw_port))
+		return -EANALDEV;
 
-	rc = acpi_node_get_property_reference(
-			mac_cb->fw_port, "mdio-node", 0, &args);
+	rc = acpi_analde_get_property_reference(
+			mac_cb->fw_port, "mdio-analde", 0, &args);
 	if (rc)
 		return rc;
-	if (!is_acpi_device_node(args.fwnode))
+	if (!is_acpi_device_analde(args.fwanalde))
 		return -EINVAL;
 
 	addr = hns_mac_phy_parse_addr(mac_cb->dev, mac_cb->fw_port);
@@ -781,7 +781,7 @@ static int hns_mac_register_phy(struct hns_mac_cb *mac_cb)
 		return addr;
 
 	/* dev address in adev */
-	pdev = hns_dsaf_find_platform_device(args.fwnode);
+	pdev = hns_dsaf_find_platform_device(args.fwanalde);
 	if (!pdev) {
 		dev_err(mac_cb->dev, "mac%d mdio pdev is NULL\n",
 			mac_cb->mac_id);
@@ -806,7 +806,7 @@ static int hns_mac_register_phy(struct hns_mac_cb *mac_cb)
 
 static void hns_mac_remove_phydev(struct hns_mac_cb *mac_cb)
 {
-	if (!to_acpi_device_node(mac_cb->fw_port) || !mac_cb->phy_dev)
+	if (!to_acpi_device_analde(mac_cb->fw_port) || !mac_cb->phy_dev)
 		return;
 
 	phy_device_remove(mac_cb->phy_dev);
@@ -821,20 +821,20 @@ static const struct {
 	enum hnae_media_type value;
 	const char *name;
 } media_type_defs[] = {
-	{HNAE_MEDIA_TYPE_UNKNOWN,	"unknown" },
+	{HNAE_MEDIA_TYPE_UNKANALWN,	"unkanalwn" },
 	{HNAE_MEDIA_TYPE_FIBER,		"fiber" },
 	{HNAE_MEDIA_TYPE_COPPER,	"copper" },
 	{HNAE_MEDIA_TYPE_BACKPLANE,	"backplane" },
 };
 
 /**
- *hns_mac_get_info  - get mac information from device node
+ *hns_mac_get_info  - get mac information from device analde
  *@mac_cb: mac device
  * return: 0 --success, negative --fail
  */
 static int hns_mac_get_info(struct hns_mac_cb *mac_cb)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct regmap *syscon;
 	struct of_phandle_args cpld_args;
 	const char *media_type;
@@ -843,7 +843,7 @@ static int hns_mac_get_info(struct hns_mac_cb *mac_cb)
 
 	mac_cb->link = false;
 	mac_cb->half_duplex = false;
-	mac_cb->media_type = HNAE_MEDIA_TYPE_UNKNOWN;
+	mac_cb->media_type = HNAE_MEDIA_TYPE_UNKANALWN;
 	mac_cb->speed = mac_phy_to_speed[mac_cb->phy_if];
 	mac_cb->max_speed = mac_cb->speed;
 
@@ -860,11 +860,11 @@ static int hns_mac_get_info(struct hns_mac_cb *mac_cb)
 	mac_cb->port_rst_off = mac_cb->mac_id;
 	mac_cb->port_mode_off = 0;
 
-	/* if the dsaf node doesn't contain a port subnode, get phy-handle
-	 * from dsaf node
+	/* if the dsaf analde doesn't contain a port subanalde, get phy-handle
+	 * from dsaf analde
 	 */
 	if (!mac_cb->fw_port) {
-		np = of_parse_phandle(mac_cb->dev->of_node, "phy-handle",
+		np = of_parse_phandle(mac_cb->dev->of_analde, "phy-handle",
 				      mac_cb->mac_id);
 		mac_cb->phy_dev = of_phy_find_device(np);
 		if (mac_cb->phy_dev) {
@@ -873,17 +873,17 @@ static int hns_mac_get_info(struct hns_mac_cb *mac_cb)
 			 */
 			put_device(&mac_cb->phy_dev->mdio.dev);
 
-			dev_dbg(mac_cb->dev, "mac%d phy_node: %pOFn\n",
+			dev_dbg(mac_cb->dev, "mac%d phy_analde: %pOFn\n",
 				mac_cb->mac_id, np);
 		}
-		of_node_put(np);
+		of_analde_put(np);
 
 		return 0;
 	}
 
-	if (is_of_node(mac_cb->fw_port)) {
-		/* parse property from port subnode in dsaf */
-		np = of_parse_phandle(to_of_node(mac_cb->fw_port),
+	if (is_of_analde(mac_cb->fw_port)) {
+		/* parse property from port subanalde in dsaf */
+		np = of_parse_phandle(to_of_analde(mac_cb->fw_port),
 				      "phy-handle", 0);
 		mac_cb->phy_dev = of_phy_find_device(np);
 		if (mac_cb->phy_dev) {
@@ -891,71 +891,71 @@ static int hns_mac_get_info(struct hns_mac_cb *mac_cb)
 			 * if the phy_dev is found
 			 */
 			put_device(&mac_cb->phy_dev->mdio.dev);
-			dev_dbg(mac_cb->dev, "mac%d phy_node: %pOFn\n",
+			dev_dbg(mac_cb->dev, "mac%d phy_analde: %pOFn\n",
 				mac_cb->mac_id, np);
 		}
-		of_node_put(np);
+		of_analde_put(np);
 
-		np = of_parse_phandle(to_of_node(mac_cb->fw_port),
+		np = of_parse_phandle(to_of_analde(mac_cb->fw_port),
 				      "serdes-syscon", 0);
-		syscon = syscon_node_to_regmap(np);
-		of_node_put(np);
+		syscon = syscon_analde_to_regmap(np);
+		of_analde_put(np);
 		if (IS_ERR_OR_NULL(syscon)) {
 			dev_err(mac_cb->dev, "serdes-syscon is needed!\n");
 			return -EINVAL;
 		}
 		mac_cb->serdes_ctrl = syscon;
 
-		ret = fwnode_property_read_u32(mac_cb->fw_port,
+		ret = fwanalde_property_read_u32(mac_cb->fw_port,
 					       "port-rst-offset",
 					       &mac_cb->port_rst_off);
 		if (ret) {
 			dev_dbg(mac_cb->dev,
-				"mac%d port-rst-offset not found, use default value.\n",
+				"mac%d port-rst-offset analt found, use default value.\n",
 				mac_cb->mac_id);
 		}
 
-		ret = fwnode_property_read_u32(mac_cb->fw_port,
+		ret = fwanalde_property_read_u32(mac_cb->fw_port,
 					       "port-mode-offset",
 					       &mac_cb->port_mode_off);
 		if (ret) {
 			dev_dbg(mac_cb->dev,
-				"mac%d port-mode-offset not found, use default value.\n",
+				"mac%d port-mode-offset analt found, use default value.\n",
 				mac_cb->mac_id);
 		}
 
 		ret = of_parse_phandle_with_fixed_args(
-			to_of_node(mac_cb->fw_port), "cpld-syscon", 1, 0,
+			to_of_analde(mac_cb->fw_port), "cpld-syscon", 1, 0,
 			&cpld_args);
 		if (ret) {
-			dev_dbg(mac_cb->dev, "mac%d no cpld-syscon found.\n",
+			dev_dbg(mac_cb->dev, "mac%d anal cpld-syscon found.\n",
 				mac_cb->mac_id);
 			mac_cb->cpld_ctrl = NULL;
 		} else {
-			syscon = syscon_node_to_regmap(cpld_args.np);
+			syscon = syscon_analde_to_regmap(cpld_args.np);
 			if (IS_ERR_OR_NULL(syscon)) {
-				dev_dbg(mac_cb->dev, "no cpld-syscon found!\n");
+				dev_dbg(mac_cb->dev, "anal cpld-syscon found!\n");
 				mac_cb->cpld_ctrl = NULL;
 			} else {
 				mac_cb->cpld_ctrl = syscon;
 				mac_cb->cpld_ctrl_reg = cpld_args.args[0];
 			}
 		}
-	} else if (is_acpi_node(mac_cb->fw_port)) {
+	} else if (is_acpi_analde(mac_cb->fw_port)) {
 		ret = hns_mac_register_phy(mac_cb);
-		/* Mac can work well if there is phy or not.If the port don't
-		 * connect with phy, the return value will be ignored. Only
+		/* Mac can work well if there is phy or analt.If the port don't
+		 * connect with phy, the return value will be iganalred. Only
 		 * when there is phy but can't find mdio bus, the return value
 		 * will be handled.
 		 */
 		if (ret == -EPROBE_DEFER)
 			return ret;
 	} else {
-		dev_err(mac_cb->dev, "mac%d cannot find phy node\n",
+		dev_err(mac_cb->dev, "mac%d cananalt find phy analde\n",
 			mac_cb->mac_id);
 	}
 
-	if (!fwnode_property_read_string(mac_cb->fw_port, "media-type",
+	if (!fwanalde_property_read_string(mac_cb->fw_port, "media-type",
 					 &media_type)) {
 		for (i = 0; i < ARRAY_SIZE(media_type_defs); i++) {
 			if (!strncmp(media_type_defs[i].name, media_type,
@@ -966,10 +966,10 @@ static int hns_mac_get_info(struct hns_mac_cb *mac_cb)
 		}
 	}
 
-	if (fwnode_property_read_u8_array(mac_cb->fw_port, "mc-mac-mask",
+	if (fwanalde_property_read_u8_array(mac_cb->fw_port, "mc-mac-mask",
 					  mac_cb->mc_mask, ETH_ALEN)) {
 		dev_warn(mac_cb->dev,
-			 "no mc-mac-mask property, set to default value.\n");
+			 "anal mc-mac-mask property, set to default value.\n");
 		eth_broadcast_addr(mac_cb->mc_mask);
 	}
 
@@ -1089,18 +1089,18 @@ int hns_mac_init(struct dsaf_device *dsaf_dev)
 	u32 port_id;
 	int max_port_num = hns_mac_get_max_port_num(dsaf_dev);
 	struct hns_mac_cb *mac_cb;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 
-	device_for_each_child_node(dsaf_dev->dev, child) {
-		ret = fwnode_property_read_u32(child, "reg", &port_id);
+	device_for_each_child_analde(dsaf_dev->dev, child) {
+		ret = fwanalde_property_read_u32(child, "reg", &port_id);
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			dev_err(dsaf_dev->dev,
 				"get reg fail, ret=%d!\n", ret);
 			return ret;
 		}
 		if (port_id >= max_port_num) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			dev_err(dsaf_dev->dev,
 				"reg(%u) out of range!\n", port_id);
 			return -EINVAL;
@@ -1108,8 +1108,8 @@ int hns_mac_init(struct dsaf_device *dsaf_dev)
 		mac_cb = devm_kzalloc(dsaf_dev->dev, sizeof(*mac_cb),
 				      GFP_KERNEL);
 		if (!mac_cb) {
-			fwnode_handle_put(child);
-			return -ENOMEM;
+			fwanalde_handle_put(child);
+			return -EANALMEM;
 		}
 		mac_cb->fw_port = child;
 		mac_cb->mac_id = (u8)port_id;
@@ -1117,7 +1117,7 @@ int hns_mac_init(struct dsaf_device *dsaf_dev)
 		found = true;
 	}
 
-	/* if don't get any port subnode from dsaf node
+	/* if don't get any port subanalde from dsaf analde
 	 * will init all port then, this is compatible with the old dts
 	 */
 	if (!found) {
@@ -1125,7 +1125,7 @@ int hns_mac_init(struct dsaf_device *dsaf_dev)
 			mac_cb = devm_kzalloc(dsaf_dev->dev, sizeof(*mac_cb),
 					      GFP_KERNEL);
 			if (!mac_cb)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			mac_cb->mac_id = port_id;
 			dsaf_dev->mac_cb[port_id] = mac_cb;
@@ -1174,7 +1174,7 @@ int hns_mac_config_mac_loopback(struct hns_mac_cb *mac_cb,
 	if (drv->config_loopback)
 		ret = drv->config_loopback(drv, loop, en);
 	else
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 
 	return ret;
 }

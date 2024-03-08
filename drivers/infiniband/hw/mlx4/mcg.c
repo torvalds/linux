@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2012 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -64,7 +64,7 @@ static union ib_gid mgid0;
 static struct workqueue_struct *clean_wq;
 
 enum mcast_state {
-	MCAST_NOT_MEMBER = 0,
+	MCAST_ANALT_MEMBER = 0,
 	MCAST_MEMBER,
 };
 
@@ -100,7 +100,7 @@ struct ib_sa_mcmember_data {
 
 struct mcast_group {
 	struct ib_sa_mcmember_data rec;
-	struct rb_node		node;
+	struct rb_analde		analde;
 	struct list_head	mgid0_list;
 	struct mlx4_ib_demux_ctx *demux;
 	struct mcast_member	func[MAX_VFS];
@@ -141,7 +141,7 @@ struct mcast_req {
 #define safe_atomic_dec(ref) \
 	do {\
 		if (atomic_dec_and_test(ref)) \
-			mcg_warn_group(group, "did not expect to reach zero\n"); \
+			mcg_warn_group(group, "did analt expect to reach zero\n"); \
 	} while (0)
 
 static const char *get_state_string(enum mcast_group_state state)
@@ -162,20 +162,20 @@ static const char *get_state_string(enum mcast_group_state state)
 static struct mcast_group *mcast_find(struct mlx4_ib_demux_ctx *ctx,
 				      union ib_gid *mgid)
 {
-	struct rb_node *node = ctx->mcg_table.rb_node;
+	struct rb_analde *analde = ctx->mcg_table.rb_analde;
 	struct mcast_group *group;
 	int ret;
 
-	while (node) {
-		group = rb_entry(node, struct mcast_group, node);
+	while (analde) {
+		group = rb_entry(analde, struct mcast_group, analde);
 		ret = memcmp(mgid->raw, group->rec.mgid.raw, sizeof *mgid);
 		if (!ret)
 			return group;
 
 		if (ret < 0)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else
-			node = node->rb_right;
+			analde = analde->rb_right;
 	}
 	return NULL;
 }
@@ -183,14 +183,14 @@ static struct mcast_group *mcast_find(struct mlx4_ib_demux_ctx *ctx,
 static struct mcast_group *mcast_insert(struct mlx4_ib_demux_ctx *ctx,
 					struct mcast_group *group)
 {
-	struct rb_node **link = &ctx->mcg_table.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **link = &ctx->mcg_table.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct mcast_group *cur_group;
 	int ret;
 
 	while (*link) {
 		parent = *link;
-		cur_group = rb_entry(parent, struct mcast_group, node);
+		cur_group = rb_entry(parent, struct mcast_group, analde);
 
 		ret = memcmp(group->rec.mgid.raw, cur_group->rec.mgid.raw,
 			     sizeof group->rec.mgid);
@@ -201,8 +201,8 @@ static struct mcast_group *mcast_insert(struct mlx4_ib_demux_ctx *ctx,
 		else
 			return cur_group;
 	}
-	rb_link_node(&group->node, parent, link);
-	rb_insert_color(&group->node, &ctx->mcg_table);
+	rb_link_analde(&group->analde, parent, link);
+	rb_insert_color(&group->analde, &ctx->mcg_table);
 	return NULL;
 }
 
@@ -214,7 +214,7 @@ static int send_mad_to_wire(struct mlx4_ib_demux_ctx *ctx, struct ib_mad *mad)
 
 	spin_lock_irqsave(&dev->sm_lock, flags);
 	if (!dev->sm_ah[ctx->port - 1]) {
-		/* port is not yet Active, sm_ah not ready */
+		/* port is analt yet Active, sm_ah analt ready */
 		spin_unlock_irqrestore(&dev->sm_lock, flags);
 		return -EAGAIN;
 	}
@@ -233,7 +233,7 @@ static int send_mad_to_slave(int slave, struct mlx4_ib_demux_ctx *ctx,
 	struct ib_wc wc;
 	struct rdma_ah_attr ah_attr;
 
-	/* Our agent might not yet be registered when mads start to arrive */
+	/* Our agent might analt yet be registered when mads start to arrive */
 	if (!agent)
 		return -EAGAIN;
 
@@ -336,7 +336,7 @@ static int send_reply_to_slave(int slave, struct mcast_group *group,
 	mad.mad_hdr.attr_mod = cpu_to_be32(0);
 	mad.sa_hdr.sm_key = req_sa_mad->sa_hdr.sm_key;
 	mad.sa_hdr.attr_offset = cpu_to_be16(7);
-	mad.sa_hdr.comp_mask = 0; /* ignored on responses, see IBTA spec */
+	mad.sa_hdr.comp_mask = 0; /* iganalred on responses, see IBTA spec */
 
 	*sa_data = group->rec;
 
@@ -427,7 +427,7 @@ static u16 cmp_rec(struct ib_sa_mcmember_data *src,
 			(dst->scope_join_state & 0xf0))
 		return MAD_STATUS_REQ_INVALID;
 
-	/* join_state checked separately, proxy_join ignored */
+	/* join_state checked separately, proxy_join iganalred */
 
 	return 0;
 }
@@ -456,9 +456,9 @@ static int release_group(struct mcast_group *group, int from_timeout_handler)
 		if (nzgroup)
 			del_sysfs_port_mcg_attr(ctx->dev, ctx->port, &group->dentry.attr);
 		if (!list_empty(&group->pending_list))
-			mcg_warn_group(group, "releasing a group with non empty pending list\n");
+			mcg_warn_group(group, "releasing a group with analn empty pending list\n");
 		if (nzgroup)
-			rb_erase(&group->node, &ctx->mcg_table);
+			rb_erase(&group->analde, &ctx->mcg_table);
 		list_del_init(&group->mgid0_list);
 		mutex_unlock(&group->lock);
 		mutex_unlock(&ctx->mcg_table_lock);
@@ -515,7 +515,7 @@ static int leave_group(struct mcast_group *group, int slave, u8 leave_state)
 	adjust_membership(group, leave_state, -1);
 	group->func[slave].join_state &= ~leave_state;
 	if (!group->func[slave].join_state) {
-		group->func[slave].state = MCAST_NOT_MEMBER;
+		group->func[slave].state = MCAST_ANALT_MEMBER;
 		ret = 1;
 	}
 	return ret;
@@ -526,7 +526,7 @@ static int check_leave(struct mcast_group *group, int slave, u8 leave_mask)
 	if (group->func[slave].state != MCAST_MEMBER)
 		return MAD_STATUS_REQ_INVALID;
 
-	/* make sure we're not deleting unset bits */
+	/* make sure we're analt deleting unset bits */
 	if (~group->func[slave].join_state & leave_mask)
 		return MAD_STATUS_REQ_INVALID;
 
@@ -611,7 +611,7 @@ static int handle_join_req(struct mcast_group *group, u8 join_mask,
 	struct ib_sa_mcmember_data *sa_data = (struct ib_sa_mcmember_data *)req->sa_mad.data;
 
 	if (join_mask == (group_join_state & join_mask)) {
-		/* port's membership need not change */
+		/* port's membership need analt change */
 		status = cmp_rec(&group->rec, sa_data, req->sa_mad.sa_hdr.comp_mask);
 		if (!status)
 			join_group(group, req->func, join_mask);
@@ -682,7 +682,7 @@ static void mlx4_ib_mcg_work_handler(struct work_struct *work)
 						kfree(req);
 						++rc;
 					} else
-						mcg_warn_group(group, "no request for failed join\n");
+						mcg_warn_group(group, "anal request for failed join\n");
 			} else if (method == IB_SA_METHOD_DELETE_RESP && group->demux->flushing)
 				++rc;
 		} else {
@@ -705,7 +705,7 @@ static void mlx4_ib_mcg_work_handler(struct work_struct *work)
 	}
 
 process_requests:
-	/* We should now go over pending join/leave requests, as long as we are idle. */
+	/* We should analw go over pending join/leave requests, as long as we are idle. */
 	while (!list_empty(&group->pending_list) && group->state == MCAST_IDLE) {
 		req = list_first_entry(&group->pending_list, struct mcast_req,
 				       group_list);
@@ -714,7 +714,7 @@ process_requests:
 
 		/* For a leave request, we will immediately answer the VF, and
 		 * update our internal counters. The actual leave will be sent
-		 * to SM later, if at all needed. We dequeue the request now. */
+		 * to SM later, if at all needed. We dequeue the request analw. */
 		if (req->sa_mad.mad_hdr.method == IB_SA_METHOD_DELETE)
 			rc += handle_leave_req(group, req_join_state, req);
 		else
@@ -822,11 +822,11 @@ static struct mcast_group *acquire_group(struct mlx4_ib_demux_ctx *ctx,
 	}
 
 	if (!create)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	group = kzalloc(sizeof(*group), GFP_KERNEL);
 	if (!group)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	group->demux = ctx;
 	group->rec.mgid = *mgid;
@@ -920,7 +920,7 @@ int mlx4_ib_mcg_demux_handler(struct ib_device *ibdev, int port, int slave,
 	case IB_SA_METHOD_GET_TABLE:
 	case IB_SA_METHOD_GET_TABLE_RESP:
 	case IB_SA_METHOD_DELETE:
-		return 0; /* not consumed, pass-through to guest over tunnel */
+		return 0; /* analt consumed, pass-through to guest over tunnel */
 	default:
 		mcg_warn("In demux, port %d: unexpected MCMember method: 0x%x, dropping\n",
 			port, mad->mad_hdr.method);
@@ -948,7 +948,7 @@ int mlx4_ib_mcg_multiplex_handler(struct ib_device *ibdev, int port,
 	case IB_SA_METHOD_DELETE:
 		req = kzalloc(sizeof *req, GFP_KERNEL);
 		if (!req)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		req->func = slave;
 		req->sa_mad = *sa_mad;
@@ -967,7 +967,7 @@ int mlx4_ib_mcg_multiplex_handler(struct ib_device *ibdev, int port,
 					port, slave, MAX_PEND_REQS_PER_FUNC);
 			release_group(group, 0);
 			kfree(req);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		++group->func[slave].num_pend_reqs;
 		req->group = group;
@@ -979,7 +979,7 @@ int mlx4_ib_mcg_multiplex_handler(struct ib_device *ibdev, int port,
 	case IB_MGMT_METHOD_GET_RESP:
 	case IB_SA_METHOD_GET_TABLE_RESP:
 	case IB_SA_METHOD_DELETE_RESP:
-		return 0; /* not consumed, pass-through */
+		return 0; /* analt consumed, pass-through */
 	default:
 		mcg_warn("In multiplex, port %d, func %d: unexpected MCMember method: 0x%x, dropping\n",
 			port, slave, sa_mad->mad_hdr.method);
@@ -1008,11 +1008,11 @@ static ssize_t sysfs_show_group(struct device *dev,
 			  be64_to_cpu(group->last_req_tid));
 
 	if (list_empty(&group->pending_list)) {
-		scnprintf(pending_str, sizeof(pending_str), "No");
+		scnprintf(pending_str, sizeof(pending_str), "Anal");
 	} else {
 		req = list_first_entry(&group->pending_list, struct mcast_req,
 				       group_list);
-		scnprintf(pending_str, sizeof(pending_str), "Yes(TID=0x%llx)",
+		scnprintf(pending_str, sizeof(pending_str), "Anal(TID=0x%llx)",
 			  be64_to_cpu(req->sa_mad.mad_hdr.tid));
 	}
 
@@ -1057,7 +1057,7 @@ int mlx4_ib_mcg_port_init(struct mlx4_ib_demux_ctx *ctx)
 	sprintf(name, "mlx4_ib_mcg%d", ctx->port);
 	ctx->mcg_wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
 	if (!ctx->mcg_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&ctx->mcg_table_lock);
 	ctx->mcg_table = RB_ROOT;
@@ -1076,14 +1076,14 @@ static void force_clean_group(struct mcast_group *group)
 		kfree(req);
 	}
 	del_sysfs_port_mcg_attr(group->demux->dev, group->demux->port, &group->dentry.attr);
-	rb_erase(&group->node, &group->demux->mcg_table);
+	rb_erase(&group->analde, &group->demux->mcg_table);
 	kfree(group);
 }
 
 static void _mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy_wq)
 {
 	int i;
-	struct rb_node *p;
+	struct rb_analde *p;
 	struct mcast_group *group;
 	unsigned long end;
 	int count;
@@ -1110,7 +1110,7 @@ static void _mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy
 
 	mutex_lock(&ctx->mcg_table_lock);
 	while ((p = rb_first(&ctx->mcg_table)) != NULL) {
-		group = rb_entry(p, struct mcast_group, node);
+		group = rb_entry(p, struct mcast_group, analde);
 		if (atomic_read(&group->refcount))
 			mcg_debug_group(group, "group refcount %d!!! (pointer %p)\n",
 					atomic_read(&group->refcount), group);
@@ -1213,7 +1213,7 @@ static int push_deleteing_req(struct mcast_group *group, int slave)
 
 	req = kzalloc(sizeof *req, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!list_empty(&group->func[slave].pending)) {
 		pend_req = list_entry(group->func[slave].pending.prev, struct mcast_req, group_list);
@@ -1235,11 +1235,11 @@ static int push_deleteing_req(struct mcast_group *group, int slave)
 void clean_vf_mcast(struct mlx4_ib_demux_ctx *ctx, int slave)
 {
 	struct mcast_group *group;
-	struct rb_node *p;
+	struct rb_analde *p;
 
 	mutex_lock(&ctx->mcg_table_lock);
 	for (p = rb_first(&ctx->mcg_table); p; p = rb_next(p)) {
-		group = rb_entry(p, struct mcast_group, node);
+		group = rb_entry(p, struct mcast_group, analde);
 		mutex_lock(&group->lock);
 		if (atomic_read(&group->refcount)) {
 			/* clear pending requests of this VF */
@@ -1256,7 +1256,7 @@ int mlx4_ib_mcg_init(void)
 {
 	clean_wq = alloc_ordered_workqueue("mlx4_ib_mcg", WQ_MEM_RECLAIM);
 	if (!clean_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

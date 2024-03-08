@@ -20,7 +20,7 @@ struct xe_vm;
 #define XE_BO_MAX_PLACEMENTS	3
 
 /* TODO: To be selected with VM_MADVISE */
-#define	XE_BO_PRIORITY_NORMAL	1
+#define	XE_BO_PRIORITY_ANALRMAL	1
 
 /** @xe_bo: XE buffer object */
 struct xe_bo {
@@ -38,8 +38,8 @@ struct xe_bo {
 	struct ttm_place placements[XE_BO_MAX_PLACEMENTS];
 	/** @placement: current placement for this BO */
 	struct ttm_placement placement;
-	/** @ggtt_node: GGTT node if this BO is mapped in the GGTT */
-	struct drm_mm_node ggtt_node;
+	/** @ggtt_analde: GGTT analde if this BO is mapped in the GGTT */
+	struct drm_mm_analde ggtt_analde;
 	/** @vmap: iosys map of this buffer */
 	struct iosys_map vmap;
 	/** @ttm_kmap: TTM bo kmap object for internal use only. Keep off. */
@@ -75,8 +75,8 @@ struct xe_bo {
 		 */
 		bool device_atomic;
 	} props;
-	/** @freed: List node for delayed put. */
-	struct llist_node freed;
+	/** @freed: List analde for delayed put. */
+	struct llist_analde freed;
 	/** @created: Whether the bo has passed initial creation */
 	bool created;
 

@@ -79,7 +79,7 @@ static const struct of_device_id denali_nand_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, denali_nand_dt_ids);
 
 static int denali_dt_chip_init(struct denali_controller *denali,
-			       struct device_node *chip_np)
+			       struct device_analde *chip_np)
 {
 	struct denali_chip *dchip;
 	u32 bank;
@@ -92,7 +92,7 @@ static int denali_dt_chip_init(struct denali_controller *denali,
 	dchip = devm_kzalloc(denali->dev, struct_size(dchip, sels, nsels),
 			     GFP_KERNEL);
 	if (!dchip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dchip->nsels = nsels;
 
@@ -103,7 +103,7 @@ static int denali_dt_chip_init(struct denali_controller *denali,
 
 		dchip->sels[i].bank = bank;
 
-		nand_set_flash_node(&dchip->chip, chip_np);
+		nand_set_flash_analde(&dchip->chip, chip_np);
 	}
 
 	return denali_chip_init(denali, dchip);
@@ -115,12 +115,12 @@ static int denali_dt_probe(struct platform_device *pdev)
 	struct denali_dt *dt;
 	const struct denali_dt_data *data;
 	struct denali_controller *denali;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
 	dt = devm_kzalloc(dev, sizeof(*dt), GFP_KERNEL);
 	if (!dt)
-		return -ENOMEM;
+		return -EANALMEM;
 	denali = &dt->controller;
 
 	data = of_device_get_match_data(dev);
@@ -204,10 +204,10 @@ static int denali_dt_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_assert_rst;
 
-	for_each_child_of_node(dev->of_node, np) {
+	for_each_child_of_analde(dev->of_analde, np) {
 		ret = denali_dt_chip_init(denali, np);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			goto out_remove_denali;
 		}
 	}

@@ -27,8 +27,8 @@ description: |
   Specifying softreset control of devices
   =======================================
 
-  Device nodes should specify the reset channel required in their "resets"
-  property, containing a phandle to the reset device node and an index specifying
+  Device analdes should specify the reset channel required in their "resets"
+  property, containing a phandle to the reset device analde and an index specifying
   which channel to use.
   The index is the bit number within the RCC registers bank, starting from RCC
   base address.

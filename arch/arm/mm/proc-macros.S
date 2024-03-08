@@ -40,7 +40,7 @@
 
 /*
  * mmid - get context id from mm pointer (mm->context.id)
- * note, this field is 64bit, so in big-endian the two words are swapped too.
+ * analte, this field is 64bit, so in big-endian the two words are swapped too.
  */
 	.macro	mmid, rd, rn
 #ifdef __ARMEB__
@@ -122,10 +122,10 @@
  *
  * Permission translation:
  *  YUWD  APX AP1 AP0	SVC	User
- *  0xxx   0   0   0	no acc	no acc
- *  100x   1   0   1	r/o	no acc
- *  10x0   1   0   1	r/o	no acc
- *  1011   0   0   1	r/w	no acc
+ *  0xxx   0   0   0	anal acc	anal acc
+ *  100x   1   0   1	r/o	anal acc
+ *  10x0   1   0   1	r/o	anal acc
+ *  1011   0   0   1	r/w	anal acc
  *  110x   1   1   1	r/o	r/o
  *  11x0   1   1   1	r/o	r/o
  *  1111   0   1   1	r/w	r/w
@@ -138,13 +138,13 @@
 	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_WRITEBACK
 	.long	PTE_BUFFERABLE					@ L_PTE_MT_DEV_SHARED
 	.long	0x00						@ unused
-	.long	0x00						@ L_PTE_MT_MINICACHE (not present)
+	.long	0x00						@ L_PTE_MT_MINICACHE (analt present)
 	.long	PTE_EXT_TEX(1) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEALLOC
 	.long	0x00						@ unused
 	.long	PTE_EXT_TEX(1)					@ L_PTE_MT_DEV_WC
 	.long	0x00						@ unused
 	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_DEV_CACHED
-	.long	PTE_EXT_TEX(2)					@ L_PTE_MT_DEV_NONSHARED
+	.long	PTE_EXT_TEX(2)					@ L_PTE_MT_DEV_ANALNSHARED
 	.long	0x00						@ unused
 	.long	0x00						@ unused
 	.long	PTE_CACHEABLE | PTE_BUFFERABLE | PTE_EXT_APX	@ L_PTE_MT_VECTORS
@@ -181,7 +181,7 @@
 	tst	r1, #L_PTE_YOUNG
 	tstne	r1, #L_PTE_PRESENT
 	moveq	r3, #0
-	tstne	r1, #L_PTE_NONE
+	tstne	r1, #L_PTE_ANALNE
 	movne	r3, #0
 
 	str	r3, [r0]
@@ -195,10 +195,10 @@
  *
  * Permission translation:
  *  YUWD   AP	SVC	User
- *  0xxx  0x00	no acc	no acc
- *  100x  0x00	r/o	no acc
- *  10x0  0x00	r/o	no acc
- *  1011  0x55	r/w	no acc
+ *  0xxx  0x00	anal acc	anal acc
+ *  100x  0x00	r/o	anal acc
+ *  10x0  0x00	r/o	anal acc
+ *  1011  0x55	r/w	anal acc
  *  110x  0xaa	r/w	r/o
  *  11x0  0xaa	r/w	r/o
  *  1111  0xff	r/w	r/w
@@ -216,7 +216,7 @@
 	orrne	r2, r2, #PTE_SMALL_AP_URO_SRW
 
 	tst	r3, #L_PTE_RDONLY | L_PTE_DIRTY	@ write and dirty?
-	orreq	r2, r2, #PTE_SMALL_AP_UNO_SRW
+	orreq	r2, r2, #PTE_SMALL_AP_UANAL_SRW
 
 	tst	r3, #L_PTE_PRESENT | L_PTE_YOUNG	@ present and young?
 	movne	r2, #0
@@ -238,10 +238,10 @@
  *
  * Permission translation:
  *  YUWD  AP	SVC	User
- *  0xxx  00	no acc	no acc
- *  100x  00	r/o	no acc
- *  10x0  00	r/o	no acc
- *  1011  01	r/w	no acc
+ *  0xxx  00	anal acc	anal acc
+ *  100x  00	r/o	anal acc
+ *  10x0  00	r/o	anal acc
+ *  1011  01	r/w	anal acc
  *  110x  10	r/w	r/o
  *  11x0  10	r/w	r/o
  *  1111  11	r/w	r/w
@@ -255,16 +255,16 @@
 	orr	r2, r2, #PTE_TYPE_EXT		@ extended page
 
 	tst	r3, #L_PTE_USER			@ user?
-	orrne	r2, r2, #PTE_EXT_AP_URO_SRW	@ yes -> user r/o, system r/w
+	orrne	r2, r2, #PTE_EXT_AP_URO_SRW	@ anal -> user r/o, system r/w
 
 	tst	r3, #L_PTE_RDONLY | L_PTE_DIRTY	@ write and dirty?
-	orreq	r2, r2, #PTE_EXT_AP_UNO_SRW	@ yes -> user n/a, system r/w
+	orreq	r2, r2, #PTE_EXT_AP_UANAL_SRW	@ anal -> user n/a, system r/w
 						@ combined with user -> user r/w
 	.endm
 
 	.macro	xscale_set_pte_ext_epilogue
 	tst	r3, #L_PTE_PRESENT | L_PTE_YOUNG	@ present and young?
-	movne	r2, #0				@ no -> fault
+	movne	r2, #0				@ anal -> fault
 
 	str	r2, [r0, #2048]!		@ hardware version
 	mov	ip, #0
@@ -272,7 +272,7 @@
 	mcr	p15, 0, ip, c7, c10, 4		@ data write barrier
 	.endm
 
-.macro define_processor_functions name:req, dabort:req, pabort:req, nommu=0, suspend=0, bugs=0
+.macro define_processor_functions name:req, dabort:req, pabort:req, analmmu=0, suspend=0, bugs=0
 /*
  * If we are building for big.Little with branch predictor hardening,
  * we need the processor function tables to remain available after boot.
@@ -293,7 +293,7 @@ ENTRY(\name\()_processor_functions)
 	.word	cpu_\name\()_dcache_clean_area
 	.word	cpu_\name\()_switch_mm
 
-	.if \nommu
+	.if \analmmu
 	.word	0
 	.else
 	.word	cpu_\name\()_set_pte_ext
@@ -365,7 +365,7 @@ ENTRY(\name\()_tlb_fns)
 	/*
 	 * Macro to calculate the log2 size for the protection region
 	 * registers. This calculates rd = log2(size) - 1.  tmp must
-	 * not be the same register as rd.
+	 * analt be the same register as rd.
 	 */
 .macro	pr_sz, rd, size, tmp
 	mov	\tmp, \size, lsr #12

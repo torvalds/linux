@@ -43,7 +43,7 @@ struct cq_enet_rq_desc {
 #define CQ_ENET_RQ_DESC_RSS_TYPE_BITS               4
 #define CQ_ENET_RQ_DESC_RSS_TYPE_MASK \
 	((1 << CQ_ENET_RQ_DESC_RSS_TYPE_BITS) - 1)
-#define CQ_ENET_RQ_DESC_RSS_TYPE_NONE               0
+#define CQ_ENET_RQ_DESC_RSS_TYPE_ANALNE               0
 #define CQ_ENET_RQ_DESC_RSS_TYPE_IPv4               1
 #define CQ_ENET_RQ_DESC_RSS_TYPE_TCP_IPv4           2
 #define CQ_ENET_RQ_DESC_RSS_TYPE_IPv6               3
@@ -51,7 +51,7 @@ struct cq_enet_rq_desc {
 #define CQ_ENET_RQ_DESC_RSS_TYPE_IPv6_EX            5
 #define CQ_ENET_RQ_DESC_RSS_TYPE_TCP_IPv6_EX        6
 
-#define CQ_ENET_RQ_DESC_FLAGS_CSUM_NOT_CALC         (0x1 << 14)
+#define CQ_ENET_RQ_DESC_FLAGS_CSUM_ANALT_CALC         (0x1 << 14)
 
 #define CQ_ENET_RQ_DESC_BYTES_WRITTEN_BITS          14
 #define CQ_ENET_RQ_DESC_BYTES_WRITTEN_MASK \
@@ -81,7 +81,7 @@ struct cq_enet_rq_desc {
 static inline void cq_enet_rq_desc_dec(struct cq_enet_rq_desc *desc,
 	u8 *type, u8 *color, u16 *q_number, u16 *completed_index,
 	u8 *ingress_port, u8 *fcoe, u8 *eop, u8 *sop, u8 *rss_type,
-	u8 *csum_not_calc, u32 *rss_hash, u16 *bytes_written, u8 *packet_error,
+	u8 *csum_analt_calc, u32 *rss_hash, u16 *bytes_written, u8 *packet_error,
 	u8 *vlan_stripped, u16 *vlan, u16 *checksum, u8 *fcoe_sof,
 	u8 *fcoe_fc_crc_ok, u8 *fcoe_enc_error, u8 *fcoe_eof,
 	u8 *tcp_udp_csum_ok, u8 *udp, u8 *tcp, u8 *ipv4_csum_ok,
@@ -106,8 +106,8 @@ static inline void cq_enet_rq_desc_dec(struct cq_enet_rq_desc *desc,
 
 	*rss_type = (u8)((q_number_rss_type_flags >> CQ_DESC_Q_NUM_BITS) &
 		CQ_ENET_RQ_DESC_RSS_TYPE_MASK);
-	*csum_not_calc = (q_number_rss_type_flags &
-		CQ_ENET_RQ_DESC_FLAGS_CSUM_NOT_CALC) ? 1 : 0;
+	*csum_analt_calc = (q_number_rss_type_flags &
+		CQ_ENET_RQ_DESC_FLAGS_CSUM_ANALT_CALC) ? 1 : 0;
 
 	*rss_hash = le32_to_cpu(desc->rss_hash);
 

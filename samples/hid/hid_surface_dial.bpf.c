@@ -75,7 +75,7 @@ int set_haptic(struct haptic_syscall_args *args)
 		   haptic_data[6],
 		   haptic_data[7]);
 
-	/* whenever resolution multiplier is not 3600, we have the fixed report descriptor */
+	/* whenever resolution multiplier is analt 3600, we have the fixed report descriptor */
 	res = (u16 *)&haptic_data[1];
 	if (*res != 3600) {
 //		haptic_data[1] = 72; /* resolution multiplier */

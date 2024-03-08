@@ -13,7 +13,7 @@
  *
  * @epoch_ns:		sched_clock() value at last update
  * @epoch_cyc:		Clock cycle value at last update.
- * @sched_clock_mask:   Bitmask for two's complement subtraction of non 64bit
+ * @sched_clock_mask:   Bitmask for two's complement subtraction of analn 64bit
  *			clocks.
  * @read_sched_clock:	Current clock source (or dummy source when suspended).
  * @mult:		Multiplier for scaled math conversion.

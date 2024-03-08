@@ -12,8 +12,8 @@
  * as Documentation/driver-api/libata.rst
  *
  * AHCI hardware documentation:
- * http://www.intel.com/technology/serialata/pdf/rev1_0.pdf
- * http://www.intel.com/technology/serialata/pdf/rev1_1.pdf
+ * http://www.intel.com/techanallogy/serialata/pdf/rev1_0.pdf
+ * http://www.intel.com/techanallogy/serialata/pdf/rev1_1.pdf
  */
 
 #ifndef _AHCI_H
@@ -64,7 +64,7 @@ enum {
 	RX_FIS_PIO_SETUP	= 0x20,	/* offset of PIO Setup FIS data */
 	RX_FIS_D2H_REG		= 0x40,	/* offset of D2H Register FIS data */
 	RX_FIS_SDB		= 0x58, /* offset of SDB FIS data */
-	RX_FIS_UNK		= 0x60, /* offset of Unknown FIS data */
+	RX_FIS_UNK		= 0x60, /* offset of Unkanalwn FIS data */
 
 	/* global controller registers */
 	HOST_CAP		= 0x00, /* host capabilities */
@@ -97,7 +97,7 @@ enum {
 	HOST_CAP_ALPM		= BIT(26), /* Aggressive Link PM support */
 	HOST_CAP_SSS		= BIT(27), /* Staggered Spin-up */
 	HOST_CAP_MPS		= BIT(28), /* Mechanical presence switch */
-	HOST_CAP_SNTF		= BIT(29), /* SNotification register */
+	HOST_CAP_SNTF		= BIT(29), /* SAnaltification register */
 	HOST_CAP_NCQ		= BIT(30), /* Native Command Queueing */
 	HOST_CAP_64		= BIT(31), /* PCI DAC (64-bit DMA) support */
 
@@ -124,7 +124,7 @@ enum {
 	PORT_SCR_CTL		= 0x2c, /* SATA phy register: SControl */
 	PORT_SCR_ERR		= 0x30, /* SATA phy register: SError */
 	PORT_SCR_ACT		= 0x34, /* SATA phy register: SActive */
-	PORT_SCR_NTF		= 0x3c, /* SATA phy register: SNotification */
+	PORT_SCR_NTF		= 0x3c, /* SATA phy register: SAnaltification */
 	PORT_FBS		= 0x40, /* FIS-based Switching */
 	PORT_DEVSLP		= 0x44, /* device sleep */
 
@@ -134,7 +134,7 @@ enum {
 	PORT_IRQ_HBUS_ERR	= BIT(29), /* host bus fatal error */
 	PORT_IRQ_HBUS_DATA_ERR	= BIT(28), /* host bus data error */
 	PORT_IRQ_IF_ERR		= BIT(27), /* interface fatal error */
-	PORT_IRQ_IF_NONFATAL	= BIT(26), /* interface non-fatal error */
+	PORT_IRQ_IF_ANALNFATAL	= BIT(26), /* interface analn-fatal error */
 	PORT_IRQ_OVERFLOW	= BIT(24), /* xfer exhausted available S/G */
 	PORT_IRQ_BAD_PMP	= BIT(23), /* incorrect port multiplier */
 
@@ -142,7 +142,7 @@ enum {
 	PORT_IRQ_DMPS		= BIT(7),  /* mechanical presence status */
 	PORT_IRQ_CONNECT	= BIT(6),  /* port connect change status */
 	PORT_IRQ_SG_DONE	= BIT(5),  /* descriptor processed */
-	PORT_IRQ_UNK_FIS	= BIT(4),  /* unknown FIS rx'd */
+	PORT_IRQ_UNK_FIS	= BIT(4),  /* unkanalwn FIS rx'd */
 	PORT_IRQ_SDB_FIS	= BIT(3),  /* Set Device Bits FIS rx'd */
 	PORT_IRQ_DMAS_FIS	= BIT(2),  /* DMA Setup FIS rx'd */
 	PORT_IRQ_PIOS_FIS	= BIT(1),  /* PIO Setup FIS rx'd */
@@ -210,26 +210,26 @@ enum {
 
 #define AHCI_HFLAGS(flags)		.private_data	= (void *)(flags)
 
-	AHCI_HFLAG_NO_NCQ		= BIT(0),
-	AHCI_HFLAG_IGN_IRQ_IF_ERR	= BIT(1), /* ignore IRQ_IF_ERR */
-	AHCI_HFLAG_IGN_SERR_INTERNAL	= BIT(2), /* ignore SERR_INTERNAL */
+	AHCI_HFLAG_ANAL_NCQ		= BIT(0),
+	AHCI_HFLAG_IGN_IRQ_IF_ERR	= BIT(1), /* iganalre IRQ_IF_ERR */
+	AHCI_HFLAG_IGN_SERR_INTERNAL	= BIT(2), /* iganalre SERR_INTERNAL */
 	AHCI_HFLAG_32BIT_ONLY		= BIT(3), /* force 32bit */
 	AHCI_HFLAG_MV_PATA		= BIT(4), /* PATA port */
-	AHCI_HFLAG_NO_MSI		= BIT(5), /* no PCI MSI */
-	AHCI_HFLAG_NO_PMP		= BIT(6), /* no PMP */
+	AHCI_HFLAG_ANAL_MSI		= BIT(5), /* anal PCI MSI */
+	AHCI_HFLAG_ANAL_PMP		= BIT(6), /* anal PMP */
 	AHCI_HFLAG_SECT255		= BIT(8), /* max 255 sectors */
-	AHCI_HFLAG_YES_NCQ		= BIT(9), /* force NCQ cap on */
-	AHCI_HFLAG_NO_SUSPEND		= BIT(10), /* don't suspend */
+	AHCI_HFLAG_ANAL_NCQ		= BIT(9), /* force NCQ cap on */
+	AHCI_HFLAG_ANAL_SUSPEND		= BIT(10), /* don't suspend */
 	AHCI_HFLAG_SRST_TOUT_IS_OFFLINE	= BIT(11), /* treat SRST timeout as
 						      link offline */
-	AHCI_HFLAG_NO_SNTF		= BIT(12), /* no sntf */
-	AHCI_HFLAG_NO_FPDMA_AA		= BIT(13), /* no FPDMA AA */
-	AHCI_HFLAG_YES_FBS		= BIT(14), /* force FBS cap on */
-	AHCI_HFLAG_DELAY_ENGINE		= BIT(15), /* do not start engine on
+	AHCI_HFLAG_ANAL_SNTF		= BIT(12), /* anal sntf */
+	AHCI_HFLAG_ANAL_FPDMA_AA		= BIT(13), /* anal FPDMA AA */
+	AHCI_HFLAG_ANAL_FBS		= BIT(14), /* force FBS cap on */
+	AHCI_HFLAG_DELAY_ENGINE		= BIT(15), /* do analt start engine on
 						      port start (wait until
 						      error-handling stage) */
-	AHCI_HFLAG_NO_DEVSLP		= BIT(17), /* no device sleep */
-	AHCI_HFLAG_NO_FBS		= BIT(18), /* no FBS */
+	AHCI_HFLAG_ANAL_DEVSLP		= BIT(17), /* anal device sleep */
+	AHCI_HFLAG_ANAL_FBS		= BIT(18), /* anal FBS */
 
 #ifdef CONFIG_PCI_MSI
 	AHCI_HFLAG_MULTI_MSI		= BIT(20), /* per-port MSI(-X) */
@@ -238,15 +238,15 @@ enum {
 	AHCI_HFLAG_MULTI_MSI		= 0,
 #endif
 	AHCI_HFLAG_WAKE_BEFORE_STOP	= BIT(22), /* wake before DMA stop */
-	AHCI_HFLAG_YES_ALPM		= BIT(23), /* force ALPM cap on */
-	AHCI_HFLAG_NO_WRITE_TO_RO	= BIT(24), /* don't write to read
+	AHCI_HFLAG_ANAL_ALPM		= BIT(23), /* force ALPM cap on */
+	AHCI_HFLAG_ANAL_WRITE_TO_RO	= BIT(24), /* don't write to read
 						      only registers */
 	AHCI_HFLAG_USE_LPM_POLICY	= BIT(25), /* chipset that should use
 						      SATA_MOBILE_LPM_POLICY
 						      as default lpm_policy */
 	AHCI_HFLAG_SUSPEND_PHYS		= BIT(26), /* handle PHYs during
 						      suspend/resume */
-	AHCI_HFLAG_NO_SXS		= BIT(28), /* SXS not supported */
+	AHCI_HFLAG_ANAL_SXS		= BIT(28), /* SXS analt supported */
 	AHCI_HFLAG_43BIT_ONLY		= BIT(29), /* 43bit DMA addr limit */
 
 	/* ap->flags bits */
@@ -362,13 +362,13 @@ struct ahci_host_priv {
 	void			*plat_data;	/* Other platform data */
 	unsigned int		irq;		/* interrupt line */
 	/*
-	 * Optional ahci_start_engine override, if not set this gets set to the
+	 * Optional ahci_start_engine override, if analt set this gets set to the
 	 * default ahci_start_engine during ahci_save_initial_config, this can
 	 * be overridden anytime before the host is activated.
 	 */
 	void			(*start_engine)(struct ata_port *ap);
 	/*
-	 * Optional ahci_stop_engine override, if not set this gets set to the
+	 * Optional ahci_stop_engine override, if analt set this gets set to the
 	 * default ahci_stop_engine during ahci_save_initial_config, this can
 	 * be overridden anytime before the host is activated.
 	 */
@@ -381,7 +381,7 @@ struct ahci_host_priv {
 						  int port);
 };
 
-extern int ahci_ignore_sss;
+extern int ahci_iganalre_sss;
 
 extern const struct attribute_group *ahci_shost_groups[];
 extern const struct attribute_group *ahci_sdev_groups[];
@@ -436,18 +436,18 @@ void ahci_error_handler(struct ata_port *ap);
 u32 ahci_handle_port_intr(struct ata_host *host, u32 irq_masked);
 
 static inline void __iomem *__ahci_port_base(struct ahci_host_priv *hpriv,
-					     unsigned int port_no)
+					     unsigned int port_anal)
 {
 	void __iomem *mmio = hpriv->mmio;
 
-	return mmio + 0x100 + (port_no * 0x80);
+	return mmio + 0x100 + (port_anal * 0x80);
 }
 
 static inline void __iomem *ahci_port_base(struct ata_port *ap)
 {
 	struct ahci_host_priv *hpriv = ap->host->private_data;
 
-	return __ahci_port_base(hpriv, ap->port_no);
+	return __ahci_port_base(hpriv, ap->port_anal);
 }
 
 static inline int ahci_nr_ports(u32 cap)

@@ -12,7 +12,7 @@
  * Copyright (c) 2011 Mircea Gherzan <mgherzan@gmail.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/filter.h>
 #include <linux/bpf.h>
 #include <asm/cpu-features.h>
@@ -21,7 +21,7 @@
 
 #include "bpf_jit_comp.h"
 
-/* MIPS t0-t3 are not available in the n64 ABI */
+/* MIPS t0-t3 are analt available in the n64 ABI */
 #undef MIPS_R_T0
 #undef MIPS_R_T1
 #undef MIPS_R_T2
@@ -113,7 +113,7 @@ static void emit_zext(struct jit_context *ctx, u8 dst)
 	clobber_reg(ctx, dst);
 }
 
-/* Zero extension, if verifier does not do it for us  */
+/* Zero extension, if verifier does analt do it for us  */
 static void emit_zext_ver(struct jit_context *ctx, u8 dst)
 {
 	if (!ctx->program->aux->verifier_zext)
@@ -409,7 +409,7 @@ static void emit_atomic_r64(struct jit_context *ctx,
 	}
 	emit(ctx, scd, t2, off, dst);
 	emit(ctx, LLSC_beqz, t2, -16 - LLSC_offset);
-	emit(ctx, nop); /* Delay slot */
+	emit(ctx, analp); /* Delay slot */
 
 	if (code & BPF_FETCH) {
 		emit(ctx, move, src, t1);
@@ -456,7 +456,7 @@ static int emit_call(struct jit_context *ctx, const struct bpf_insn *insn)
 	/* Emit function call */
 	emit_mov_i64(ctx, tmp, addr & JALR_MASK);
 	emit(ctx, jalr, MIPS_R_RA, tmp);
-	emit(ctx, nop); /* Delay slot */
+	emit(ctx, analp); /* Delay slot */
 
 	/* Restore caller-saved registers */
 	pop_regs(ctx, ctx->clobbered & JIT_CALLER_REGS, 0, 0);
@@ -511,7 +511,7 @@ static int emit_tail_call(struct jit_context *ctx)
 
 	/* if (prog == 0) goto out */
 	emit(ctx, beqz, tmp, get_offset(ctx, 1)); /* PC += off(1) if tmp == 0*/
-	emit(ctx, nop);                           /* Delay slot              */
+	emit(ctx, analp);                           /* Delay slot              */
 
 	/* func = prog->bpf_func + 8 (prologue skip offset) */
 	off = offsetof(struct bpf_prog, bpf_func);
@@ -843,7 +843,7 @@ int build_insn(const struct bpf_insn *insn, struct jit_context *ctx)
 		emit_stx(ctx, dst, src, off, BPF_SIZE(code));
 		break;
 	/* Speculation barrier */
-	case BPF_ST | BPF_NOSPEC:
+	case BPF_ST | BPF_ANALSPEC:
 		break;
 	/* Atomics */
 	case BPF_STX | BPF_ATOMIC | BPF_W:
@@ -870,7 +870,7 @@ int build_insn(const struct bpf_insn *insn, struct jit_context *ctx)
 				emit_sext(ctx, src, src);
 				emit_atomic_r(ctx, tmp, src, off, imm);
 				emit_zext_ver(ctx, src);
-			} else { /* 32-bit, no fetch */
+			} else { /* 32-bit, anal fetch */
 				emit_sext(ctx, MIPS_R_T4, src);
 				emit_atomic_r(ctx, dst, MIPS_R_T4, off, imm);
 			}
@@ -892,7 +892,7 @@ int build_insn(const struct bpf_insn *insn, struct jit_context *ctx)
 			}
 			break;
 		default:
-			goto notyet;
+			goto analtyet;
 		}
 		break;
 	/* PC += off if dst == src */
@@ -1057,10 +1057,10 @@ int build_insn(const struct bpf_insn *insn, struct jit_context *ctx)
 
 	default:
 invalid:
-		pr_err_once("unknown opcode %02x\n", code);
+		pr_err_once("unkanalwn opcode %02x\n", code);
 		return -EINVAL;
-notyet:
-		pr_info_once("*** NOT YET: opcode %02x ***\n", code);
+analtyet:
+		pr_info_once("*** ANALT YET: opcode %02x ***\n", code);
 		return -EFAULT;
 toofar:
 		pr_info_once("*** TOO FAR: jump at %u opcode %02x ***\n",

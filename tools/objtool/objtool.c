@@ -106,7 +106,7 @@ struct objtool_file *objtool_open_read(const char *_objname)
 	INIT_LIST_HEAD(&file.mcount_loc_list);
 	INIT_LIST_HEAD(&file.endbr_list);
 	INIT_LIST_HEAD(&file.call_list);
-	file.ignore_unreachables = opts.no_unreachable;
+	file.iganalre_unreachables = opts.anal_unreachable;
 	file.hints = false;
 
 	return &file;
@@ -114,7 +114,7 @@ struct objtool_file *objtool_open_read(const char *_objname)
 
 void objtool_pv_add(struct objtool_file *f, int idx, struct symbol *func)
 {
-	if (!opts.noinstr)
+	if (!opts.analinstr)
 		return;
 
 	if (!f->pv_ops) {
@@ -126,7 +126,7 @@ void objtool_pv_add(struct objtool_file *f, int idx, struct symbol *func)
 	 * These functions will be patched into native code,
 	 * see paravirt_patch().
 	 */
-	if (!strcmp(func->name, "_paravirt_nop") ||
+	if (!strcmp(func->name, "_paravirt_analp") ||
 	    !strcmp(func->name, "_paravirt_ident_64"))
 		return;
 
@@ -140,7 +140,7 @@ void objtool_pv_add(struct objtool_file *f, int idx, struct symbol *func)
 
 int main(int argc, const char **argv)
 {
-	static const char *UNUSED = "OBJTOOL_NOT_IMPLEMENTED";
+	static const char *UNUSED = "OBJTOOL_ANALT_IMPLEMENTED";
 
 	/* libsubcmd init */
 	exec_cmd_init("objtool", UNUSED, UNUSED, UNUSED);

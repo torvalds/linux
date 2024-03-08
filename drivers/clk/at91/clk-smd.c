@@ -120,7 +120,7 @@ at91sam9x5_clk_register_smd(struct regmap *regmap, const char *name,
 
 	smd = kzalloc(sizeof(*smd), GFP_KERNEL);
 	if (!smd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &at91sam9x5_smd_ops;

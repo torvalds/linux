@@ -8,12 +8,12 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
-#include <media/cec-notifier.h>
+#include <media/cec-analtifier.h>
 #include <media/cec-pin.h>
 
 struct cec_gpio {
 	struct cec_adapter	*adap;
-	struct cec_notifier	*notifier;
+	struct cec_analtifier	*analtifier;
 	struct device		*dev;
 
 	struct gpio_desc	*cec_gpio;
@@ -146,7 +146,7 @@ static int cec_gpio_read_hpd(struct cec_adapter *adap)
 	struct cec_gpio *cec = cec_get_drvdata(adap);
 
 	if (!cec->hpd_gpio)
-		return -ENOTTY;
+		return -EANALTTY;
 	return gpiod_get_value(cec->hpd_gpio);
 }
 
@@ -155,7 +155,7 @@ static int cec_gpio_read_5v(struct cec_adapter *adap)
 	struct cec_gpio *cec = cec_get_drvdata(adap);
 
 	if (!cec->v5_gpio)
-		return -ENOTTY;
+		return -EANALTTY;
 	return gpiod_get_value(cec->v5_gpio);
 }
 
@@ -178,7 +178,7 @@ static int cec_gpio_probe(struct platform_device *pdev)
 	u32 caps = CEC_CAP_DEFAULTS | CEC_CAP_MONITOR_ALL | CEC_CAP_MONITOR_PIN;
 	int ret;
 
-	hdmi_dev = cec_notifier_parse_hdmi_phandle(dev);
+	hdmi_dev = cec_analtifier_parse_hdmi_phandle(dev);
 	if (PTR_ERR(hdmi_dev) == -EPROBE_DEFER)
 		return PTR_ERR(hdmi_dev);
 	if (IS_ERR(hdmi_dev))
@@ -186,7 +186,7 @@ static int cec_gpio_probe(struct platform_device *pdev)
 
 	cec = devm_kzalloc(dev, sizeof(*cec), GFP_KERNEL);
 	if (!cec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cec->dev = dev;
 
@@ -209,7 +209,7 @@ static int cec_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(cec->adap);
 
 	ret = devm_request_irq(dev, cec->cec_irq, cec_gpio_irq_handler,
-			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_NO_AUTOEN,
+			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ANAL_AUTOEN,
 			       cec->adap->name, cec);
 	if (ret)
 		goto del_adap;
@@ -239,23 +239,23 @@ static int cec_gpio_probe(struct platform_device *pdev)
 	}
 
 	if (!IS_ERR(hdmi_dev)) {
-		cec->notifier = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+		cec->analtifier = cec_analtifier_cec_adap_register(hdmi_dev, NULL,
 							       cec->adap);
-		if (!cec->notifier) {
-			ret = -ENOMEM;
+		if (!cec->analtifier) {
+			ret = -EANALMEM;
 			goto del_adap;
 		}
 	}
 
 	ret = cec_register_adapter(cec->adap, &pdev->dev);
 	if (ret)
-		goto unreg_notifier;
+		goto unreg_analtifier;
 
 	platform_set_drvdata(pdev, cec);
 	return 0;
 
-unreg_notifier:
-	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
+unreg_analtifier:
+	cec_analtifier_cec_adap_unregister(cec->analtifier, cec->adap);
 del_adap:
 	cec_delete_adapter(cec->adap);
 	return ret;
@@ -265,7 +265,7 @@ static void cec_gpio_remove(struct platform_device *pdev)
 {
 	struct cec_gpio *cec = platform_get_drvdata(pdev);
 
-	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
+	cec_analtifier_cec_adap_unregister(cec->analtifier, cec->adap);
 	cec_unregister_adapter(cec->adap);
 }
 

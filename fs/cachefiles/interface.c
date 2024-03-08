@@ -51,7 +51,7 @@ struct cachefiles_object *cachefiles_alloc_object(struct fscache_cookie *cookie)
 }
 
 /*
- * Note that an object has been seen.
+ * Analte that an object has been seen.
  */
 void cachefiles_see_object(struct cachefiles_object *object,
 			   enum cachefiles_obj_ref_trace why)
@@ -107,7 +107,7 @@ void cachefiles_put_object(struct cachefiles_object *object,
 /*
  * Adjust the size of a cache file if necessary to match the DIO size.  We keep
  * the EOF marker a multiple of DIO blocks so that we don't fall back to doing
- * non-DIO for a partial block straddling the EOF, but we also have to be
+ * analn-DIO for a partial block straddling the EOF, but we also have to be
  * careful of someone expanding the file and accidentally accreting the
  * padding.
  */
@@ -126,13 +126,13 @@ static int cachefiles_adjust_size(struct cachefiles_object *object)
 	       object->debug_id, (unsigned long long) ni_size);
 
 	if (!file)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
-	oi_size = i_size_read(file_inode(file));
+	oi_size = i_size_read(file_ianalde(file));
 	if (oi_size == ni_size)
 		return 0;
 
-	inode_lock(file_inode(file));
+	ianalde_lock(file_ianalde(file));
 
 	/* if there's an extension to a partial page at the end of the backing
 	 * file, we need to discard the partial page so that we pick up new
@@ -143,7 +143,7 @@ static int cachefiles_adjust_size(struct cachefiles_object *object)
 		newattrs.ia_size = oi_size & PAGE_MASK;
 		ret = cachefiles_inject_remove_error();
 		if (ret == 0)
-			ret = notify_change(&nop_mnt_idmap, file->f_path.dentry,
+			ret = analtify_change(&analp_mnt_idmap, file->f_path.dentry,
 					    &newattrs, NULL);
 		if (ret < 0)
 			goto truncate_failed;
@@ -153,18 +153,18 @@ static int cachefiles_adjust_size(struct cachefiles_object *object)
 	newattrs.ia_size = ni_size;
 	ret = cachefiles_inject_write_error();
 	if (ret == 0)
-		ret = notify_change(&nop_mnt_idmap, file->f_path.dentry,
+		ret = analtify_change(&analp_mnt_idmap, file->f_path.dentry,
 				    &newattrs, NULL);
 
 truncate_failed:
-	inode_unlock(file_inode(file));
+	ianalde_unlock(file_ianalde(file));
 
 	if (ret < 0)
-		trace_cachefiles_io_error(NULL, file_inode(file), ret,
-					  cachefiles_trace_notify_change_error);
+		trace_cachefiles_io_error(NULL, file_ianalde(file), ret,
+					  cachefiles_trace_analtify_change_error);
 	if (ret == -EIO) {
 		cachefiles_io_error_obj(object, "Size set failed");
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 	}
 
 	_leave(" = %d", ret);
@@ -172,7 +172,7 @@ truncate_failed:
 }
 
 /*
- * Attempt to look up the nominated node in this cache
+ * Attempt to look up the analminated analde in this cache
  */
 static bool cachefiles_lookup_cookie(struct fscache_cookie *cookie)
 {
@@ -233,20 +233,20 @@ static bool cachefiles_shorten_object(struct cachefiles_object *object,
 				      struct file *file, loff_t new_size)
 {
 	struct cachefiles_cache *cache = object->volume->cache;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	loff_t i_size, dio_size;
 	int ret;
 
 	dio_size = round_up(new_size, CACHEFILES_DIO_BLOCK_SIZE);
-	i_size = i_size_read(inode);
+	i_size = i_size_read(ianalde);
 
-	trace_cachefiles_trunc(object, inode, i_size, dio_size,
+	trace_cachefiles_trunc(object, ianalde, i_size, dio_size,
 			       cachefiles_trunc_shrink);
 	ret = cachefiles_inject_remove_error();
 	if (ret == 0)
 		ret = vfs_truncate(&file->f_path, dio_size);
 	if (ret < 0) {
-		trace_cachefiles_io_error(object, file_inode(file), ret,
+		trace_cachefiles_io_error(object, file_ianalde(file), ret,
 					  cachefiles_trace_trunc_error);
 		cachefiles_io_error_obj(object, "Trunc-to-size failed %d", ret);
 		cachefiles_remove_object_xattr(cache, object, file->f_path.dentry);
@@ -254,14 +254,14 @@ static bool cachefiles_shorten_object(struct cachefiles_object *object,
 	}
 
 	if (new_size < dio_size) {
-		trace_cachefiles_trunc(object, inode, dio_size, new_size,
+		trace_cachefiles_trunc(object, ianalde, dio_size, new_size,
 				       cachefiles_trunc_dio_adjust);
 		ret = cachefiles_inject_write_error();
 		if (ret == 0)
 			ret = vfs_fallocate(file, FALLOC_FL_ZERO_RANGE,
 					    new_size, dio_size - new_size);
 		if (ret < 0) {
-			trace_cachefiles_io_error(object, file_inode(file), ret,
+			trace_cachefiles_io_error(object, file_ianalde(file), ret,
 						  cachefiles_trace_fallocate_error);
 			cachefiles_io_error_obj(object, "Trunc-to-dio-size failed %d", ret);
 			cachefiles_remove_object_xattr(cache, object, file->f_path.dentry);
@@ -341,7 +341,7 @@ static void cachefiles_clean_up_object(struct cachefiles_object *object,
 		cachefiles_commit_object(object, cache);
 	}
 
-	cachefiles_unmark_inode_in_use(object, object->file);
+	cachefiles_unmark_ianalde_in_use(object, object->file);
 	if (object->file) {
 		fput(object->file);
 		object->file = NULL;
@@ -408,7 +408,7 @@ static bool cachefiles_invalidate_cookie(struct fscache_cookie *cookie)
 
 	old_file = object->file;
 	object->file = new_file;
-	object->content_info = CACHEFILES_CONTENT_NO_DATA;
+	object->content_info = CACHEFILES_CONTENT_ANAL_DATA;
 	set_bit(CACHEFILES_OBJECT_USING_TMPFILE, &object->flags);
 	set_bit(FSCACHE_COOKIE_NEEDS_UPDATE, &object->cookie->flags);
 
@@ -421,9 +421,9 @@ static bool cachefiles_invalidate_cookie(struct fscache_cookie *cookie)
 	if (old_file) {
 		if (!old_tmpfile) {
 			struct cachefiles_volume *volume = object->volume;
-			struct dentry *fan = volume->fanout[(u8)cookie->key_hash];
+			struct dentry *fan = volume->faanalut[(u8)cookie->key_hash];
 
-			inode_lock_nested(d_inode(fan), I_MUTEX_PARENT);
+			ianalde_lock_nested(d_ianalde(fan), I_MUTEX_PARENT);
 			cachefiles_bury_object(volume->cache, object, fan,
 					       old_file->f_path.dentry,
 					       FSCACHE_OBJECT_INVALIDATED);

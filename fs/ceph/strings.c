@@ -57,7 +57,7 @@ const char *ceph_mds_op_name(int op)
 	case CEPH_MDS_OP_LOOKUP:  return "lookup";
 	case CEPH_MDS_OP_LOOKUPHASH:  return "lookuphash";
 	case CEPH_MDS_OP_LOOKUPPARENT:  return "lookupparent";
-	case CEPH_MDS_OP_LOOKUPINO:  return "lookupino";
+	case CEPH_MDS_OP_LOOKUPIANAL:  return "lookupianal";
 	case CEPH_MDS_OP_LOOKUPNAME:  return "lookupname";
 	case CEPH_MDS_OP_GETATTR:  return "getattr";
 	case CEPH_MDS_OP_GETVXATTR:  return "getvxattr";
@@ -67,7 +67,7 @@ const char *ceph_mds_op_name(int op)
 	case CEPH_MDS_OP_SETLAYOUT: return "setlayou";
 	case CEPH_MDS_OP_SETDIRLAYOUT: return "setdirlayout";
 	case CEPH_MDS_OP_READDIR: return "readdir";
-	case CEPH_MDS_OP_MKNOD: return "mknod";
+	case CEPH_MDS_OP_MKANALD: return "mkanald";
 	case CEPH_MDS_OP_LINK: return "link";
 	case CEPH_MDS_OP_UNLINK: return "unlink";
 	case CEPH_MDS_OP_RENAME: return "rename";

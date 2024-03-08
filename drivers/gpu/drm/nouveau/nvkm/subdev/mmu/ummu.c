@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -60,7 +60,7 @@ nvkm_ummu_heap(struct nvkm_ummu *ummu, void *argv, u32 argc)
 	union {
 		struct nvif_mmu_heap_v0 v0;
 	} *args = argv;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	u8 index;
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
@@ -80,7 +80,7 @@ nvkm_ummu_type(struct nvkm_ummu *ummu, void *argv, u32 argc)
 	union {
 		struct nvif_mmu_type_v0 v0;
 	} *args = argv;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	u8 type, index;
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
@@ -110,7 +110,7 @@ nvkm_ummu_kind(struct nvkm_ummu *ummu, void *argv, u32 argc)
 		struct nvif_mmu_kind_v0 v0;
 	} *args = argv;
 	const u8 *kind = NULL;
-	int ret = -ENOSYS, count = 0;
+	int ret = -EANALSYS, count = 0;
 	u8 kind_inv = 0;
 
 	if (mmu->func->kind)
@@ -158,7 +158,7 @@ nvkm_ummu_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 	} *args = argv;
 	struct nvkm_mmu *mmu = device->mmu;
 	struct nvkm_ummu *ummu;
-	int ret = -ENOSYS, kinds = 0;
+	int ret = -EANALSYS, kinds = 0;
 	u8 unused = 0;
 
 	if (mmu->func->kind)
@@ -173,7 +173,7 @@ nvkm_ummu_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 		return ret;
 
 	if (!(ummu = kzalloc(sizeof(*ummu), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_object_ctor(&nvkm_ummu, oclass, &ummu->object);
 	ummu->mmu = mmu;
 	*pobject = &ummu->object;

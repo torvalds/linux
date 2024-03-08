@@ -5,7 +5,7 @@
 #define HW_ROP2_COPY 0xc
 #define HW_ROP2_XOR 0x6
 
-/* notes: below address are the offset value from de_base_address (0x100000)*/
+/* analtes: below address are the offset value from de_base_address (0x100000)*/
 
 /* for sm718/750/502 de_base is at mmreg_1mb*/
 #define DE_BASE_ADDR_TYPE1 0x100000
@@ -25,7 +25,7 @@
 #define DE_SOURCE_WRAP                                  BIT(31)
 #define DE_SOURCE_X_K1_SHIFT                            16
 #define DE_SOURCE_X_K1_MASK                             (0x3fff << 16)
-#define DE_SOURCE_X_K1_MONO_MASK			(0x1f << 16)
+#define DE_SOURCE_X_K1_MOANAL_MASK			(0x1f << 16)
 #define DE_SOURCE_Y_K2_MASK                             0xffff
 
 #define DE_DESTINATION                                  0x4
@@ -69,12 +69,12 @@
 #define DE_CONTROL_COMMAND_TEXTURE_LOAD                 (0xe << 16)
 #define DE_CONTROL_ROP_SELECT                           BIT(15)
 #define DE_CONTROL_ROP2_SOURCE                          BIT(14)
-#define DE_CONTROL_MONO_DATA_SHIFT                      12
-#define DE_CONTROL_MONO_DATA_MASK                       (0x3 << 12)
-#define DE_CONTROL_MONO_DATA_NOT_PACKED                 (0x0 << 12)
-#define DE_CONTROL_MONO_DATA_8_PACKED                   (0x1 << 12)
-#define DE_CONTROL_MONO_DATA_16_PACKED                  (0x2 << 12)
-#define DE_CONTROL_MONO_DATA_32_PACKED                  (0x3 << 12)
+#define DE_CONTROL_MOANAL_DATA_SHIFT                      12
+#define DE_CONTROL_MOANAL_DATA_MASK                       (0x3 << 12)
+#define DE_CONTROL_MOANAL_DATA_ANALT_PACKED                 (0x0 << 12)
+#define DE_CONTROL_MOANAL_DATA_8_PACKED                   (0x1 << 12)
+#define DE_CONTROL_MOANAL_DATA_16_PACKED                  (0x2 << 12)
+#define DE_CONTROL_MOANAL_DATA_32_PACKED                  (0x3 << 12)
 #define DE_CONTROL_REPEAT_ROTATE                        BIT(11)
 #define DE_CONTROL_TRANSPARENCY_MATCH                   BIT(10)
 #define DE_CONTROL_TRANSPARENCY_SELECT                  BIT(9)
@@ -147,11 +147,11 @@
 #define DE_CLIP_BR_BOTTOM_MASK                          (0xffff << 16)
 #define DE_CLIP_BR_RIGHT_MASK                           0x1fff
 
-#define DE_MONO_PATTERN_LOW                             0x000034
-#define DE_MONO_PATTERN_LOW_PATTERN_MASK                0xffffffff
+#define DE_MOANAL_PATTERN_LOW                             0x000034
+#define DE_MOANAL_PATTERN_LOW_PATTERN_MASK                0xffffffff
 
-#define DE_MONO_PATTERN_HIGH                            0x000038
-#define DE_MONO_PATTERN_HIGH_PATTERN_MASK               0xffffffff
+#define DE_MOANAL_PATTERN_HIGH                            0x000038
+#define DE_MOANAL_PATTERN_HIGH_PATTERN_MASK               0xffffffff
 
 #define DE_WINDOW_WIDTH                                 0x00003C
 #define DE_WINDOW_WIDTH_DST_SHIFT                       16
@@ -222,7 +222,7 @@ int sm750_hw_copyarea(struct lynx_accel *accel,
  * @pSrcbuf: pointer to start of source buffer in system memory
  * @srcDelta: Pitch value (in bytes) of the source buffer, +ive means top down
  *>-----      and -ive mean button up
- * @startBit: Mono data can start at any bit in a byte, this value should be
+ * @startBit: Moanal data can start at any bit in a byte, this value should be
  *>-----      0 to 7
  * @dBase: Address of destination: offset in frame buffer
  * @dPitch: Pitch value of destination surface in BYTE
@@ -231,8 +231,8 @@ int sm750_hw_copyarea(struct lynx_accel *accel,
  * @dy: Starting y coordinate of destination surface
  * @width: width of rectangle in pixel value
  * @height: height of rectangle in pixel value
- * @fColor: Foreground color (corresponding to a 1 in the monochrome data
- * @bColor: Background color (corresponding to a 0 in the monochrome data
+ * @fColor: Foreground color (corresponding to a 1 in the moanalchrome data
+ * @bColor: Background color (corresponding to a 0 in the moanalchrome data
  * @rop2: ROP value
  */
 int sm750_hw_imageblit(struct lynx_accel *accel, const char *pSrcbuf,

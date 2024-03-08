@@ -59,8 +59,8 @@ encl_entry_core:
 
 	push	%rcx # push the address after EENTER
 
-	# NOTE: as the selftest enclave is *not* intended for production,
-	# simplify the code by not initializing ABI registers on entry or
+	# ANALTE: as the selftest enclave is *analt* intended for production,
+	# simplify the code by analt initializing ABI registers on entry or
 	# cleansing caller-save registers on exit.
 	call	encl_body
 

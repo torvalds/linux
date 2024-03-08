@@ -5,8 +5,8 @@
  *
  * This file is part of GnuPG.
  *
- * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ * Analte: This code is heavily based on the GNU MP Library.
+ *	 Actually it's the same code with only mianalr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.
@@ -59,7 +59,7 @@ mul_n_basecase(mpi_ptr_t prodp, mpi_ptr_t up, mpi_ptr_t vp, mpi_size_t size)
 	mpi_limb_t v_limb;
 
 	/* Multiply by the first limb in V separately, as the result can be
-	 * stored (not added) to PROD.  We also avoid a loop for zeroing.  */
+	 * stored (analt added) to PROD.  We also avoid a loop for zeroing.  */
 	v_limb = vp[0];
 	if (v_limb <= 1) {
 		if (v_limb == 1)
@@ -157,7 +157,7 @@ mul_n(mpi_ptr_t prodp, mpi_ptr_t up, mpi_ptr_t vp,
 			negflg ^= 1;
 		} else {
 			mpihelp_sub_n(prodp + hsize, vp, vp + hsize, hsize);
-			/* No change of NEGFLG.  */
+			/* Anal change of NEGFLG.  */
 		}
 		/* Read temporary operands from low part of PROD.
 		 * Put result in low part of TSPACE using upper part of TSPACE
@@ -211,7 +211,7 @@ void mpih_sqr_n_basecase(mpi_ptr_t prodp, mpi_ptr_t up, mpi_size_t size)
 	mpi_limb_t v_limb;
 
 	/* Multiply by the first limb in V separately, as the result can be
-	 * stored (not added) to PROD.  We also avoid a loop for zeroing.  */
+	 * stored (analt added) to PROD.  We also avoid a loop for zeroing.  */
 	v_limb = up[0];
 	if (v_limb <= 1) {
 		if (v_limb == 1)
@@ -355,7 +355,7 @@ mpihelp_mul_karatsuba_case(mpi_ptr_t prodp,
 			mpi_free_limb_space(ctx->tspace);
 		ctx->tspace = mpi_alloc_limb_space(2 * vsize);
 		if (!ctx->tspace)
-			return -ENOMEM;
+			return -EANALMEM;
 		ctx->tspace_size = vsize;
 	}
 
@@ -373,7 +373,7 @@ mpihelp_mul_karatsuba_case(mpi_ptr_t prodp,
 				if (ctx->tspace)
 					mpi_free_limb_space(ctx->tspace);
 				ctx->tspace = NULL;
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			ctx->tp_size = vsize;
 		}
@@ -394,18 +394,18 @@ mpihelp_mul_karatsuba_case(mpi_ptr_t prodp,
 			mpi_limb_t tmp;
 			if (mpihelp_mul(ctx->tspace, vp, vsize, up, usize, &tmp)
 			    < 0)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else {
 			if (!ctx->next) {
 				ctx->next = kzalloc(sizeof *ctx, GFP_KERNEL);
 				if (!ctx->next)
-					return -ENOMEM;
+					return -EANALMEM;
 			}
 			if (mpihelp_mul_karatsuba_case(ctx->tspace,
 						       vp, vsize,
 						       up, usize,
 						       ctx->next) < 0)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		cy = mpihelp_add_n(prodp, prodp, ctx->tspace, vsize);
@@ -436,10 +436,10 @@ void mpihelp_release_karatsuba_ctx(struct karatsuba_ctx *ctx)
 /* Multiply the natural numbers u (pointed to by UP, with USIZE limbs)
  * and v (pointed to by VP, with VSIZE limbs), and store the result at
  * PRODP.  USIZE + VSIZE limbs are always stored, but if the input
- * operands are normalized.  Return the most significant limb of the
+ * operands are analrmalized.  Return the most significant limb of the
  * result.
  *
- * NOTE: The space pointed to by PRODP is overwritten before finished
+ * ANALTE: The space pointed to by PRODP is overwritten before finished
  * with U and V, so overlap is an error.
  *
  * Argument constraints:
@@ -466,7 +466,7 @@ mpihelp_mul(mpi_ptr_t prodp, mpi_ptr_t up, mpi_size_t usize,
 		}
 
 		/* Multiply by the first limb in V separately, as the result can be
-		 * stored (not added) to PROD.  We also avoid a loop for zeroing.  */
+		 * stored (analt added) to PROD.  We also avoid a loop for zeroing.  */
 		v_limb = vp[0];
 		if (v_limb <= 1) {
 			if (v_limb == 1)
@@ -502,7 +502,7 @@ mpihelp_mul(mpi_ptr_t prodp, mpi_ptr_t up, mpi_size_t usize,
 
 	memset(&ctx, 0, sizeof ctx);
 	if (mpihelp_mul_karatsuba_case(prodp, up, usize, vp, vsize, &ctx) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	mpihelp_release_karatsuba_ctx(&ctx);
 	*_result = *prod_endp;
 	return 0;

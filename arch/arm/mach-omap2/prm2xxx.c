@@ -3,14 +3,14 @@
  * OMAP2xxx PRM module functions
  *
  * Copyright (C) 2010-2012 Texas Instruments, Inc.
- * Copyright (C) 2010 Nokia Corporation
- * Benoît Cousson
+ * Copyright (C) 2010 Analkia Corporation
+ * Beanalît Cousson
  * Paul Walmsley
  * Rajendra Nayak <rnayak@ti.com>
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -101,7 +101,7 @@ static int omap2xxx_pwrst_to_common_pwrst(u8 omap2xxx_pwrst)
  * omap2xxx_prm_dpll_reset - use DPLL reset to reboot the OMAP SoC
  *
  * Set the DPLL reset bit, which should reboot the SoC.  This is the
- * recommended way to restart the SoC.  No return value.
+ * recommended way to restart the SoC.  Anal return value.
  */
 static void omap2xxx_prm_dpll_reset(void)
 {

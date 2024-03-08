@@ -16,14 +16,14 @@
 
 .macro _for var:req, from:req, to:req, insn:vararg
 	.macro _for__body \var:req
-		.noaltmacro
+		.analaltmacro
 		\insn
 		.altmacro
 	.endm
 
 	.altmacro
 	__for \from, \to
-	.noaltmacro
+	.analaltmacro
 
 	.purgem _for__body
 .endm

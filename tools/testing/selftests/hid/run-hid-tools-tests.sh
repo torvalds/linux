@@ -3,22 +3,22 @@
 # Runs tests for the HID subsystem
 
 if ! command -v python3 > /dev/null 2>&1; then
-	echo "hid-tools: [SKIP] python3 not installed"
+	echo "hid-tools: [SKIP] python3 analt installed"
 	exit 77
 fi
 
 if ! python3 -c "import pytest" > /dev/null 2>&1; then
-	echo "hid: [SKIP/ pytest module not installed"
+	echo "hid: [SKIP/ pytest module analt installed"
 	exit 77
 fi
 
 if ! python3 -c "import pytest_tap" > /dev/null 2>&1; then
-	echo "hid: [SKIP/ pytest_tap module not installed"
+	echo "hid: [SKIP/ pytest_tap module analt installed"
 	exit 77
 fi
 
 if ! python3 -c "import hidtools" > /dev/null 2>&1; then
-	echo "hid: [SKIP/ hid-tools module not installed"
+	echo "hid: [SKIP/ hid-tools module analt installed"
 	exit 77
 fi
 

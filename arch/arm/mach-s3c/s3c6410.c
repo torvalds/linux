@@ -6,7 +6,7 @@
 //	http://armlinux.simtec.co.uk/
 
 /*
- * NOTE: Code in this file is not used when booting with Device Tree support.
+ * ANALTE: Code in this file is analt used when booting with Device Tree support.
  */
 
 #include <linux/kernel.h>
@@ -68,7 +68,7 @@ static struct device s3c6410_dev = {
 
 static int __init s3c6410_core_init(void)
 {
-	/* Not applicable when using DT. */
+	/* Analt applicable when using DT. */
 	if (of_have_populated_dt() || !soc_is_s3c64xx())
 		return 0;
 

@@ -966,7 +966,7 @@ const struct mv88e6xxx_irq_ops mv88e6393x_watchdog_ops = {
 static irqreturn_t mv88e6xxx_g2_watchdog_thread_fn(int irq, void *dev_id)
 {
 	struct mv88e6xxx_chip *chip = dev_id;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	mv88e6xxx_reg_lock(chip);
 	if (chip->info->ops->watchdog_ops->irq_action)
@@ -1078,7 +1078,7 @@ static irqreturn_t mv88e6xxx_g2_irq_thread_fn(int irq, void *dev_id)
 		}
 	}
 out:
-	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
+	return (nhandled > 0 ? IRQ_HANDLED : IRQ_ANALNE);
 }
 
 static void mv88e6xxx_g2_irq_bus_lock(struct irq_data *d)
@@ -1116,7 +1116,7 @@ static int mv88e6xxx_g2_irq_domain_map(struct irq_domain *d,
 
 	irq_set_chip_data(irq, d->host_data);
 	irq_set_chip_and_handler(irq, &chip->g2_irq.chip, handle_level_irq);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -1155,9 +1155,9 @@ int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
 		return err;
 
 	chip->g2_irq.domain = irq_domain_add_simple(
-		chip->dev->of_node, 16, 0, &mv88e6xxx_g2_irq_domain_ops, chip);
+		chip->dev->of_analde, 16, 0, &mv88e6xxx_g2_irq_domain_ops, chip);
 	if (!chip->g2_irq.domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (irq = 0; irq < 16; irq++)
 		irq_create_mapping(chip->g2_irq.domain, irq);

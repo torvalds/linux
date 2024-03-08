@@ -14,7 +14,7 @@
 #if BITS_PER_LONG == 32
 
 /*
- * No traps on overflows for any of these...
+ * Anal traps on overflows for any of these...
  */
 
 #define do_div64_32(res, high, low, base) ({				\
@@ -23,8 +23,8 @@
 									\
 	__asm__(							\
 	"	.set	push					\n"	\
-	"	.set	noat					\n"	\
-	"	.set	noreorder				\n"	\
+	"	.set	analat					\n"	\
+	"	.set	analreorder				\n"	\
 	"	move	%2, $0					\n"	\
 	"	move	%3, $0					\n"	\
 	"	b	1f					\n"	\

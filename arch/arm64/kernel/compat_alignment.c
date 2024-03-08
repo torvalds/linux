@@ -2,7 +2,7 @@
 // based on arch/arm/mm/alignment.c
 
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/perf_event.h>
@@ -148,7 +148,7 @@ do_alignment_ldmstm(unsigned long addr, u32 instr, struct pt_regs *regs)
 				 * The PC register has a bias of +8 in ARM mode
 				 * and +4 in Thumb mode. This means that a read
 				 * of the value of PC should account for this.
-				 * Since Thumb does not permit STM instructions
+				 * Since Thumb does analt permit STM instructions
 				 * to refer to PC, just add 8 here.
 				 */
 				val = (rd < 15) ? regs->regs[rd] : regs->pc + 8;
@@ -172,10 +172,10 @@ do_alignment_ldmstm(unsigned long addr, u32 instr, struct pt_regs *regs)
  * gdb/sim/arm/thumbemu.c. It is basically just a code reduction of same
  * to convert only Thumb ld/st instruction forms to equivalent ARM forms.
  *
- * NOTES:
+ * ANALTES:
  * 1. Comments below refer to ARM ARM DDI0100E Thumb Instruction sections.
- * 2. If for some reason we're passed an non-ld/st Thumb instruction to
- *    decode, we return 0xdeadc0de. This should never happen under normal
+ * 2. If for some reason we're passed an analn-ld/st Thumb instruction to
+ *    decode, we return 0xdeadc0de. This should never happen under analrmal
  *    circumstances but if it does, we've got other problems to deal with
  *    elsewhere and we obviously can't fix those problems here.
  */
@@ -225,7 +225,7 @@ static unsigned long thumb2arm(u16 tinstr)
  * @regs: register context.
  * @poffset: return offset from faulted addr for later writeback
  *
- * NOTES:
+ * ANALTES:
  * 1. Comments below refer to ARMv7 DDI0406A Thumb Instruction sections.
  * 2. Register name Rt from ARMv7 is same as Rd from ARMv6 (Rd is Rt)
  */
@@ -243,7 +243,7 @@ do_alignment_t32_to_handler(u32 *pinstr, struct pt_regs *regs,
 	case 0xe8a0:		/* ...above writeback version */
 	case 0xe900:		/* STMDB/STMFD, LDMDB/LDMEA */
 	case 0xe920:		/* ...above writeback version */
-		/* no need offset decision since handler calculates it */
+		/* anal need offset decision since handler calculates it */
 		return do_alignment_ldmstm;
 
 	case 0xf840:		/* POP/PUSH T3 (single register) */
@@ -272,7 +272,7 @@ do_alignment_t32_to_handler(u32 *pinstr, struct pt_regs *regs,
 		return do_alignment_ldrdstrd;
 
 	/*
-	 * No need to handle load/store instructions up to word size
+	 * Anal need to handle load/store instructions up to word size
 	 * since ARMv6 and later CPUs can perform unaligned accesses.
 	 */
 	default:

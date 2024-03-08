@@ -35,7 +35,7 @@
  *  - PTRS_PER_P** = how many entries there are in the corresponding P**
  *  - P**_SHIFT = how many bits of the address we use to index into the
  * corresponding P**
- *  - P**_SIZE is how much memory we can access through the table - not the
+ *  - P**_SIZE is how much memory we can access through the table - analt the
  * size of the table itself.
  * P**={PGD, PUD, PMD, PTE}
  *
@@ -144,7 +144,7 @@ static void dump_flag_info(struct pg_state *st, const struct flag_info
 		const char *s = NULL;
 		u64 val;
 
-		/* flag not defined so don't check it */
+		/* flag analt defined so don't check it */
 		if (flag->mask == 0)
 			continue;
 		/* Some 'flags' are actually values */
@@ -164,7 +164,7 @@ static void dump_flag_info(struct pg_state *st, const struct flag_info
 		st->current_flags &= ~flag->mask;
 	}
 	if (st->current_flags != 0)
-		pt_dump_seq_printf(st->seq, "  unknown flags:%llx", st->current_flags);
+		pt_dump_seq_printf(st->seq, "  unkanalwn flags:%llx", st->current_flags);
 }
 
 static void dump_addr(struct pg_state *st, unsigned long addr)
@@ -180,7 +180,7 @@ static void dump_addr(struct pg_state *st, unsigned long addr)
 	pt_dump_size(st->seq, addr - st->start_address);
 }
 
-static void note_prot_wx(struct pg_state *st, unsigned long addr)
+static void analte_prot_wx(struct pg_state *st, unsigned long addr)
 {
 	pte_t pte = __pte(st->current_flags);
 
@@ -196,7 +196,7 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
 	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
 }
 
-static void note_page_update_state(struct pg_state *st, unsigned long addr, int level, u64 val)
+static void analte_page_update_state(struct pg_state *st, unsigned long addr, int level, u64 val)
 {
 	u64 flag = level >= 0 ? val & pg_level[level].mask : 0;
 	u64 pa = val & PTE_RPN_MASK;
@@ -212,15 +212,15 @@ static void note_page_update_state(struct pg_state *st, unsigned long addr, int 
 	}
 }
 
-static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level, u64 val)
+static void analte_page(struct ptdump_state *pt_st, unsigned long addr, int level, u64 val)
 {
 	u64 flag = level >= 0 ? val & pg_level[level].mask : 0;
 	struct pg_state *st = container_of(pt_st, struct pg_state, ptdump);
 
-	/* At first no level is set */
+	/* At first anal level is set */
 	if (st->level == -1) {
 		pt_dump_seq_printf(st->seq, "---[ %s ]---\n", st->marker->name);
-		note_page_update_state(st, addr, level, val);
+		analte_page_update_state(st, addr, level, val);
 	/*
 	 * Dump the section of virtual memory when:
 	 *   - the PTE flags from one entry to the next differs.
@@ -233,7 +233,7 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 
 		/* Check the PTE flags */
 		if (st->current_flags) {
-			note_prot_wx(st, addr);
+			analte_prot_wx(st, addr);
 			dump_addr(st, addr);
 
 			/* Dump all the flags */
@@ -249,7 +249,7 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 		 * Address indicates we have passed the end of the
 		 * current section of virtual memory
 		 */
-		note_page_update_state(st, addr, level, val);
+		analte_page_update_state(st, addr, level, val);
 	}
 }
 
@@ -304,7 +304,7 @@ static int ptdump_show(struct seq_file *m, void *v)
 		.marker = address_markers,
 		.level = -1,
 		.ptdump = {
-			.note_page = note_page,
+			.analte_page = analte_page,
 			.range = ptdump_range,
 		}
 	};
@@ -338,7 +338,7 @@ void ptdump_check_wx(void)
 		.level = -1,
 		.check_wx = true,
 		.ptdump = {
-			.note_page = note_page,
+			.analte_page = analte_page,
 			.range = ptdump_range,
 		}
 	};
@@ -349,7 +349,7 @@ void ptdump_check_wx(void)
 		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found\n",
 			st.wx_pages);
 	else
-		pr_info("Checked W+X mappings: passed, no W+X pages found\n");
+		pr_info("Checked W+X mappings: passed, anal W+X pages found\n");
 }
 #endif
 

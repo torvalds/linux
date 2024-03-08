@@ -7,7 +7,7 @@
 #include <linux/jiffies.h>
 #include <net/mac80211.h>
 
-#include "fw/notif-wait.h"
+#include "fw/analtif-wait.h"
 #include "iwl-trans.h"
 #include "fw-api.h"
 #include "time-event.h"
@@ -19,7 +19,7 @@
  * For the high priority TE use a time event type that has similar priority to
  * the FW's action scan priority.
  */
-#define IWL_MVM_ROC_TE_TYPE_NORMAL TE_P2P_DEVICE_DISCOVERABLE
+#define IWL_MVM_ROC_TE_TYPE_ANALRMAL TE_P2P_DEVICE_DISCOVERABLE
 #define IWL_MVM_ROC_TE_TYPE_MGMT_TX TE_P2P_CLIENT_ASSOC
 
 void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
@@ -54,7 +54,7 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 	 * This will cause the TX path to drop offchannel transmissions.
 	 * That would also be done by mac80211, but it is racy, in particular
 	 * in the case that the time event actually completed in the firmware
-	 * (which is handled in iwl_mvm_te_handle_notif).
+	 * (which is handled in iwl_mvm_te_handle_analtif).
 	 */
 	clear_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
 
@@ -75,7 +75,7 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 		 * NB: access to this pointer would be racy, but the flush bit
 		 * can only be set when we had a P2P-Device VIF, and we have a
 		 * flush of this work in iwl_mvm_prepare_mac_removal() so it's
-		 * not really racy.
+		 * analt really racy.
 		 */
 
 		if (!WARN_ON(!mvm->p2p_device_vif)) {
@@ -97,7 +97,7 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 				iwl_mvm_binding_remove_vif(mvm, vif);
 			}
 
-			/* Do not remove the PHY context as removing and adding
+			/* Do analt remove the PHY context as removing and adding
 			 * a PHY context has timing overheads. Leaving it
 			 * configured in FW would be useful in case the next ROC
 			 * is with the same channel.
@@ -110,7 +110,7 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 	 * This will cause the TX path to drop offchannel transmissions.
 	 * That would also be done by mac80211, but it is racy, in particular
 	 * in the case that the time event actually completed in the firmware
-	 * (which is handled in iwl_mvm_te_handle_notif).
+	 * (which is handled in iwl_mvm_te_handle_analtif).
 	 */
 	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status)) {
 		/* do the same in case of hot spot 2.0 */
@@ -145,7 +145,7 @@ static void iwl_mvm_roc_finished(struct iwl_mvm *mvm)
 	schedule_work(&mvm->roc_done_wk);
 }
 
-static void iwl_mvm_csa_noa_start(struct iwl_mvm *mvm)
+static void iwl_mvm_csa_anala_start(struct iwl_mvm *mvm)
 {
 	struct ieee80211_vif *csa_vif;
 
@@ -155,16 +155,16 @@ static void iwl_mvm_csa_noa_start(struct iwl_mvm *mvm)
 	if (!csa_vif || !csa_vif->bss_conf.csa_active)
 		goto out_unlock;
 
-	IWL_DEBUG_TE(mvm, "CSA NOA started\n");
+	IWL_DEBUG_TE(mvm, "CSA ANALA started\n");
 
 	/*
-	 * CSA NoA is started but we still have beacons to
+	 * CSA AnalA is started but we still have beacons to
 	 * transmit on the current channel.
-	 * So we just do nothing here and the switch
+	 * So we just do analthing here and the switch
 	 * will be performed on the last TBTT.
 	 */
 	if (!ieee80211_beacon_cntdwn_is_complete(csa_vif)) {
-		IWL_WARN(mvm, "CSA NOA started too early\n");
+		IWL_WARN(mvm, "CSA ANALA started too early\n");
 		goto out_unlock;
 	}
 
@@ -208,7 +208,7 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 
 	if (vif->cfg.assoc) {
 		/*
-		 * When not associated, this will be called from
+		 * When analt associated, this will be called from
 		 * iwl_mvm_event_mlme_callback_ini()
 		 */
 		iwl_dbg_tlv_time_point(&mvm->fwrt,
@@ -221,24 +221,24 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 }
 
 static void
-iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
+iwl_mvm_te_handle_analtify_csa(struct iwl_mvm *mvm,
 			     struct iwl_mvm_time_event_data *te_data,
-			     struct iwl_time_event_notif *notif)
+			     struct iwl_time_event_analtif *analtif)
 {
 	struct ieee80211_vif *vif = te_data->vif;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (!notif->status)
+	if (!analtif->status)
 		IWL_DEBUG_TE(mvm, "CSA time event failed to start\n");
 
 	switch (te_data->vif->type) {
 	case NL80211_IFTYPE_AP:
-		if (!notif->status)
+		if (!analtif->status)
 			mvmvif->csa_failed = true;
-		iwl_mvm_csa_noa_start(mvm);
+		iwl_mvm_csa_anala_start(mvm);
 		break;
 	case NL80211_IFTYPE_STATION:
-		if (!notif->status) {
+		if (!analtif->status) {
 			iwl_mvm_connection_loss(mvm, vif,
 						"CSA TE failed to start");
 			break;
@@ -258,7 +258,7 @@ iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
 }
 
 static void iwl_mvm_te_check_trigger(struct iwl_mvm *mvm,
-				     struct iwl_time_event_notif *notif,
+				     struct iwl_time_event_analtif *analtif,
 				     struct iwl_mvm_time_event_data *te_data)
 {
 	struct iwl_fw_dbg_trigger_tlv *trig;
@@ -281,15 +281,15 @@ static void iwl_mvm_te_check_trigger(struct iwl_mvm *mvm,
 			le32_to_cpu(te_trig->time_events[i].status_bitmap);
 
 		if (trig_te_id != te_data->id ||
-		    !(trig_action_bitmap & le32_to_cpu(notif->action)) ||
-		    !(trig_status_bitmap & BIT(le32_to_cpu(notif->status))))
+		    !(trig_action_bitmap & le32_to_cpu(analtif->action)) ||
+		    !(trig_status_bitmap & BIT(le32_to_cpu(analtif->status))))
 			continue;
 
 		iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
 					"Time event %d Action 0x%x received status: %d",
 					te_data->id,
-					le32_to_cpu(notif->action),
-					le32_to_cpu(notif->status));
+					le32_to_cpu(analtif->action),
+					le32_to_cpu(analtif->status));
 		break;
 	}
 }
@@ -307,39 +307,39 @@ static void iwl_mvm_p2p_roc_finished(struct iwl_mvm *mvm)
 }
 
 /*
- * Handles a FW notification for an event that is known to the driver.
+ * Handles a FW analtification for an event that is kanalwn to the driver.
  *
  * @mvm: the mvm component
  * @te_data: the time event data
- * @notif: the notification data corresponding the time event data.
+ * @analtif: the analtification data corresponding the time event data.
  */
-static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
+static void iwl_mvm_te_handle_analtif(struct iwl_mvm *mvm,
 				    struct iwl_mvm_time_event_data *te_data,
-				    struct iwl_time_event_notif *notif)
+				    struct iwl_time_event_analtif *analtif)
 {
 	lockdep_assert_held(&mvm->time_event_lock);
 
-	IWL_DEBUG_TE(mvm, "Handle time event notif - UID = 0x%x action %d\n",
-		     le32_to_cpu(notif->unique_id),
-		     le32_to_cpu(notif->action));
+	IWL_DEBUG_TE(mvm, "Handle time event analtif - UID = 0x%x action %d\n",
+		     le32_to_cpu(analtif->unique_id),
+		     le32_to_cpu(analtif->action));
 
-	iwl_mvm_te_check_trigger(mvm, notif, te_data);
+	iwl_mvm_te_check_trigger(mvm, analtif, te_data);
 
 	/*
-	 * The FW sends the start/end time event notifications even for events
+	 * The FW sends the start/end time event analtifications even for events
 	 * that it fails to schedule. This is indicated in the status field of
-	 * the notification. This happens in cases that the scheduler cannot
+	 * the analtification. This happens in cases that the scheduler cananalt
 	 * find a schedule that can handle the event (for example requesting a
 	 * P2P Device discoveribility, while there are other higher priority
 	 * events in the system).
 	 */
-	if (!le32_to_cpu(notif->status)) {
+	if (!le32_to_cpu(analtif->status)) {
 		const char *msg;
 
-		if (notif->action & cpu_to_le32(TE_V2_NOTIF_HOST_EVENT_START))
-			msg = "Time Event start notification failure";
+		if (analtif->action & cpu_to_le32(TE_V2_ANALTIF_HOST_EVENT_START))
+			msg = "Time Event start analtification failure";
 		else
-			msg = "Time Event end notification failure";
+			msg = "Time Event end analtification failure";
 
 		IWL_DEBUG_TE(mvm, "%s\n", msg);
 
@@ -349,7 +349,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 		}
 	}
 
-	if (le32_to_cpu(notif->action) & TE_V2_NOTIF_HOST_EVENT_END) {
+	if (le32_to_cpu(analtif->action) & TE_V2_ANALTIF_HOST_EVENT_END) {
 		IWL_DEBUG_TE(mvm,
 			     "TE ended - current time %lu, estimated end %lu\n",
 			     jiffies, te_data->end_jiffies);
@@ -367,25 +367,25 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 			 */
 			if (te_data->id == TE_CHANNEL_SWITCH_PERIOD) {
 				IWL_DEBUG_TE(mvm,
-					     "No beacon heard and the CS time event is over, don't disconnect\n");
+					     "Anal beacon heard and the CS time event is over, don't disconnect\n");
 				break;
 			}
 
 			/*
-			 * By now, we should have finished association
-			 * and know the dtim period.
+			 * By analw, we should have finished association
+			 * and kanalw the dtim period.
 			 */
 			iwl_mvm_te_check_disconnect(mvm, te_data->vif,
 				!te_data->vif->cfg.assoc ?
-				"Not associated and the time event is over already..." :
-				"No beacon heard and the time event is over already...");
+				"Analt associated and the time event is over already..." :
+				"Anal beacon heard and the time event is over already...");
 			break;
 		default:
 			break;
 		}
 
 		iwl_mvm_te_clear_data(mvm, te_data);
-	} else if (le32_to_cpu(notif->action) & TE_V2_NOTIF_HOST_EVENT_START) {
+	} else if (le32_to_cpu(analtif->action) & TE_V2_ANALTIF_HOST_EVENT_START) {
 		te_data->running = true;
 		te_data->end_jiffies = TU_TO_EXP_TIME(te_data->duration);
 
@@ -393,21 +393,21 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 			set_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
 			ieee80211_ready_on_channel(mvm->hw);
 		} else if (te_data->id == TE_CHANNEL_SWITCH_PERIOD) {
-			iwl_mvm_te_handle_notify_csa(mvm, te_data, notif);
+			iwl_mvm_te_handle_analtify_csa(mvm, te_data, analtif);
 		}
 	} else {
-		IWL_WARN(mvm, "Got TE with unknown action\n");
+		IWL_WARN(mvm, "Got TE with unkanalwn action\n");
 	}
 }
 
-void iwl_mvm_rx_roc_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_roc_analtif(struct iwl_mvm *mvm,
 			  struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_roc_notif *notif = (void *)pkt->data;
+	struct iwl_roc_analtif *analtif = (void *)pkt->data;
 
-	if (le32_to_cpu(notif->success) && le32_to_cpu(notif->started) &&
-	    le32_to_cpu(notif->activity) == ROC_ACTIVITY_HOTSPOT) {
+	if (le32_to_cpu(analtif->success) && le32_to_cpu(analtif->started) &&
+	    le32_to_cpu(analtif->activity) == ROC_ACTIVITY_HOTSPOT) {
 		set_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status);
 		ieee80211_ready_on_channel(mvm->hw);
 	} else {
@@ -419,30 +419,30 @@ void iwl_mvm_rx_roc_notif(struct iwl_mvm *mvm,
 /*
  * Handle A Aux ROC time event
  */
-static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
-					   struct iwl_time_event_notif *notif)
+static int iwl_mvm_aux_roc_te_handle_analtif(struct iwl_mvm *mvm,
+					   struct iwl_time_event_analtif *analtif)
 {
 	struct iwl_mvm_time_event_data *aux_roc_te = NULL, *te_data;
 
 	list_for_each_entry(te_data, &mvm->aux_roc_te_list, list) {
-		if (le32_to_cpu(notif->unique_id) == te_data->uid) {
+		if (le32_to_cpu(analtif->unique_id) == te_data->uid) {
 			aux_roc_te = te_data;
 			break;
 		}
 	}
-	if (!aux_roc_te) /* Not a Aux ROC time event */
+	if (!aux_roc_te) /* Analt a Aux ROC time event */
 		return -EINVAL;
 
-	iwl_mvm_te_check_trigger(mvm, notif, te_data);
+	iwl_mvm_te_check_trigger(mvm, analtif, te_data);
 
 	IWL_DEBUG_TE(mvm,
-		     "Aux ROC time event notification  - UID = 0x%x action %d (error = %d)\n",
-		     le32_to_cpu(notif->unique_id),
-		     le32_to_cpu(notif->action), le32_to_cpu(notif->status));
+		     "Aux ROC time event analtification  - UID = 0x%x action %d (error = %d)\n",
+		     le32_to_cpu(analtif->unique_id),
+		     le32_to_cpu(analtif->action), le32_to_cpu(analtif->status));
 
-	if (!le32_to_cpu(notif->status) ||
-	    le32_to_cpu(notif->action) == TE_V2_NOTIF_HOST_EVENT_END) {
-		/* End TE, notify mac80211 */
+	if (!le32_to_cpu(analtif->status) ||
+	    le32_to_cpu(analtif->action) == TE_V2_ANALTIF_HOST_EVENT_END) {
+		/* End TE, analtify mac80211 */
 		ieee80211_remain_on_channel_expired(mvm->hw);
 		iwl_mvm_roc_finished(mvm); /* flush aux queue */
 		list_del(&te_data->list); /* remove from list */
@@ -450,14 +450,14 @@ static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
 		te_data->vif = NULL;
 		te_data->uid = 0;
 		te_data->id = TE_MAX;
-	} else if (le32_to_cpu(notif->action) == TE_V2_NOTIF_HOST_EVENT_START) {
+	} else if (le32_to_cpu(analtif->action) == TE_V2_ANALTIF_HOST_EVENT_START) {
 		set_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status);
 		te_data->running = true;
 		ieee80211_ready_on_channel(mvm->hw); /* Start TE */
 	} else {
 		IWL_DEBUG_TE(mvm,
-			     "ERROR: Unknown Aux ROC Time Event (action = %d)\n",
-			     le32_to_cpu(notif->action));
+			     "ERROR: Unkanalwn Aux ROC Time Event (action = %d)\n",
+			     le32_to_cpu(analtif->action));
 		return -EINVAL;
 	}
 
@@ -465,46 +465,46 @@ static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
 }
 
 /*
- * The Rx handler for time event notifications
+ * The Rx handler for time event analtifications
  */
-void iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_time_event_analtif(struct iwl_mvm *mvm,
 				 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_time_event_notif *notif = (void *)pkt->data;
+	struct iwl_time_event_analtif *analtif = (void *)pkt->data;
 	struct iwl_mvm_time_event_data *te_data, *tmp;
 
-	IWL_DEBUG_TE(mvm, "Time event notification - UID = 0x%x action %d\n",
-		     le32_to_cpu(notif->unique_id),
-		     le32_to_cpu(notif->action));
+	IWL_DEBUG_TE(mvm, "Time event analtification - UID = 0x%x action %d\n",
+		     le32_to_cpu(analtif->unique_id),
+		     le32_to_cpu(analtif->action));
 
 	spin_lock_bh(&mvm->time_event_lock);
 	/* This time event is triggered for Aux ROC request */
-	if (!iwl_mvm_aux_roc_te_handle_notif(mvm, notif))
+	if (!iwl_mvm_aux_roc_te_handle_analtif(mvm, analtif))
 		goto unlock;
 
 	list_for_each_entry_safe(te_data, tmp, &mvm->time_event_list, list) {
-		if (le32_to_cpu(notif->unique_id) == te_data->uid)
-			iwl_mvm_te_handle_notif(mvm, te_data, notif);
+		if (le32_to_cpu(analtif->unique_id) == te_data->uid)
+			iwl_mvm_te_handle_analtif(mvm, te_data, analtif);
 	}
 unlock:
 	spin_unlock_bh(&mvm->time_event_lock);
 }
 
-static bool iwl_mvm_te_notif(struct iwl_notif_wait_data *notif_wait,
+static bool iwl_mvm_te_analtif(struct iwl_analtif_wait_data *analtif_wait,
 			     struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_mvm *mvm =
-		container_of(notif_wait, struct iwl_mvm, notif_wait);
+		container_of(analtif_wait, struct iwl_mvm, analtif_wait);
 	struct iwl_mvm_time_event_data *te_data = data;
-	struct iwl_time_event_notif *resp;
+	struct iwl_time_event_analtif *resp;
 	int resp_len = iwl_rx_packet_payload_len(pkt);
 
-	if (WARN_ON(pkt->hdr.cmd != TIME_EVENT_NOTIFICATION))
+	if (WARN_ON(pkt->hdr.cmd != TIME_EVENT_ANALTIFICATION))
 		return true;
 
 	if (WARN_ON_ONCE(resp_len != sizeof(*resp))) {
-		IWL_ERR(mvm, "Invalid TIME_EVENT_NOTIFICATION response\n");
+		IWL_ERR(mvm, "Invalid TIME_EVENT_ANALTIFICATION response\n");
 		return true;
 	}
 
@@ -514,20 +514,20 @@ static bool iwl_mvm_te_notif(struct iwl_notif_wait_data *notif_wait,
 	if (le32_to_cpu(resp->unique_id) != te_data->uid)
 		return false;
 
-	IWL_DEBUG_TE(mvm, "TIME_EVENT_NOTIFICATION response - UID = 0x%x\n",
+	IWL_DEBUG_TE(mvm, "TIME_EVENT_ANALTIFICATION response - UID = 0x%x\n",
 		     te_data->uid);
 	if (!resp->status)
 		IWL_ERR(mvm,
-			"TIME_EVENT_NOTIFICATION received but not executed\n");
+			"TIME_EVENT_ANALTIFICATION received but analt executed\n");
 
 	return true;
 }
 
-static bool iwl_mvm_time_event_response(struct iwl_notif_wait_data *notif_wait,
+static bool iwl_mvm_time_event_response(struct iwl_analtif_wait_data *analtif_wait,
 					struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_mvm *mvm =
-		container_of(notif_wait, struct iwl_mvm, notif_wait);
+		container_of(analtif_wait, struct iwl_mvm, analtif_wait);
 	struct iwl_mvm_time_event_data *te_data = data;
 	struct iwl_time_event_resp *resp;
 	int resp_len = iwl_rx_packet_payload_len(pkt);
@@ -542,7 +542,7 @@ static bool iwl_mvm_time_event_response(struct iwl_notif_wait_data *notif_wait,
 
 	resp = (void *)pkt->data;
 
-	/* we should never get a response to another TIME_EVENT_CMD here */
+	/* we should never get a response to aanalther TIME_EVENT_CMD here */
 	if (WARN_ON_ONCE(le32_to_cpu(resp->id) != te_data->id))
 		return false;
 
@@ -558,7 +558,7 @@ static int iwl_mvm_time_event_send_add(struct iwl_mvm *mvm,
 				       struct iwl_time_event_cmd *te_cmd)
 {
 	static const u16 time_event_response[] = { TIME_EVENT_CMD };
-	struct iwl_notification_wait wait_time_event;
+	struct iwl_analtification_wait wait_time_event;
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -578,15 +578,15 @@ static int iwl_mvm_time_event_send_add(struct iwl_mvm *mvm,
 	spin_unlock_bh(&mvm->time_event_lock);
 
 	/*
-	 * Use a notification wait, which really just processes the
+	 * Use a analtification wait, which really just processes the
 	 * command response and doesn't wait for anything, in order
 	 * to be able to process the response and get the UID inside
 	 * the RX path. Using CMD_WANT_SKB doesn't work because it
 	 * stores the buffer and then wakes up this thread, by which
-	 * time another notification (that the time event started)
+	 * time aanalther analtification (that the time event started)
 	 * might already be processed unsuccessfully.
 	 */
-	iwl_init_notification_wait(&mvm->notif_wait, &wait_time_event,
+	iwl_init_analtification_wait(&mvm->analtif_wait, &wait_time_event,
 				   time_event_response,
 				   ARRAY_SIZE(time_event_response),
 				   iwl_mvm_time_event_response, te_data);
@@ -595,12 +595,12 @@ static int iwl_mvm_time_event_send_add(struct iwl_mvm *mvm,
 					    sizeof(*te_cmd), te_cmd);
 	if (ret) {
 		IWL_ERR(mvm, "Couldn't send TIME_EVENT_CMD: %d\n", ret);
-		iwl_remove_notification(&mvm->notif_wait, &wait_time_event);
+		iwl_remove_analtification(&mvm->analtif_wait, &wait_time_event);
 		goto out_clear_te;
 	}
 
-	/* No need to wait for anything, so just pass 1 (0 isn't valid) */
-	ret = iwl_wait_notification(&mvm->notif_wait, &wait_time_event, 1);
+	/* Anal need to wait for anything, so just pass 1 (0 isn't valid) */
+	ret = iwl_wait_analtification(&mvm->analtif_wait, &wait_time_event, 1);
 	/* should never fail */
 	WARN_ON_ONCE(ret);
 
@@ -616,19 +616,19 @@ static int iwl_mvm_time_event_send_add(struct iwl_mvm *mvm,
 void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 			     struct ieee80211_vif *vif,
 			     u32 duration, u32 min_duration,
-			     u32 max_delay, bool wait_for_notif)
+			     u32 max_delay, bool wait_for_analtif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
-	const u16 te_notif_response[] = { TIME_EVENT_NOTIFICATION };
-	struct iwl_notification_wait wait_te_notif;
+	const u16 te_analtif_response[] = { TIME_EVENT_ANALTIFICATION };
+	struct iwl_analtification_wait wait_te_analtif;
 	struct iwl_time_event_cmd time_cmd = {};
 
 	lockdep_assert_held(&mvm->mutex);
 
 	if (te_data->running &&
 	    time_after(te_data->end_jiffies, TU_TO_EXP_TIME(min_duration))) {
-		IWL_DEBUG_TE(mvm, "We have enough time in the current TE: %u\n",
+		IWL_DEBUG_TE(mvm, "We have eanalugh time in the current TE: %u\n",
 			     jiffies_to_msecs(te_data->end_jiffies - jiffies));
 		return;
 	}
@@ -638,11 +638,11 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 			     te_data->uid,
 			     jiffies_to_msecs(te_data->end_jiffies - jiffies));
 		/*
-		 * we don't have enough time
+		 * we don't have eanalugh time
 		 * cancel the current TE and issue a new one
 		 * Of course it would be better to remove the old one only
 		 * when the new one is added, but we don't care if we are off
-		 * channel for a bit. All we need to do, is not to return
+		 * channel for a bit. All we need to do, is analt to return
 		 * before we actually begin to be on the channel.
 		 */
 		iwl_mvm_stop_session_protection(mvm, vif);
@@ -655,35 +655,35 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 
 	time_cmd.apply_time = cpu_to_le32(0);
 
-	time_cmd.max_frags = TE_V2_FRAG_NONE;
+	time_cmd.max_frags = TE_V2_FRAG_ANALNE;
 	time_cmd.max_delay = cpu_to_le32(max_delay);
-	/* TODO: why do we need to interval = bi if it is not periodic? */
+	/* TODO: why do we need to interval = bi if it is analt periodic? */
 	time_cmd.interval = cpu_to_le32(1);
 	time_cmd.duration = cpu_to_le32(duration);
 	time_cmd.repeat = 1;
-	time_cmd.policy = cpu_to_le16(TE_V2_NOTIF_HOST_EVENT_START |
-				      TE_V2_NOTIF_HOST_EVENT_END |
+	time_cmd.policy = cpu_to_le16(TE_V2_ANALTIF_HOST_EVENT_START |
+				      TE_V2_ANALTIF_HOST_EVENT_END |
 				      TE_V2_START_IMMEDIATELY);
 
-	if (!wait_for_notif) {
+	if (!wait_for_analtif) {
 		iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd);
 		return;
 	}
 
 	/*
-	 * Create notification_wait for the TIME_EVENT_NOTIFICATION to use
+	 * Create analtification_wait for the TIME_EVENT_ANALTIFICATION to use
 	 * right after we send the time event
 	 */
-	iwl_init_notification_wait(&mvm->notif_wait, &wait_te_notif,
-				   te_notif_response,
-				   ARRAY_SIZE(te_notif_response),
-				   iwl_mvm_te_notif, te_data);
+	iwl_init_analtification_wait(&mvm->analtif_wait, &wait_te_analtif,
+				   te_analtif_response,
+				   ARRAY_SIZE(te_analtif_response),
+				   iwl_mvm_te_analtif, te_data);
 
-	/* If TE was sent OK - wait for the notification that started */
+	/* If TE was sent OK - wait for the analtification that started */
 	if (iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd)) {
 		IWL_ERR(mvm, "Failed to add TE to protect session\n");
-		iwl_remove_notification(&mvm->notif_wait, &wait_te_notif);
-	} else if (iwl_wait_notification(&mvm->notif_wait, &wait_te_notif,
+		iwl_remove_analtification(&mvm->analtif_wait, &wait_te_analtif);
+	} else if (iwl_wait_analtification(&mvm->analtif_wait, &wait_te_analtif,
 					 TU_TO_JIFFIES(max_delay))) {
 		IWL_ERR(mvm, "Failed to protect session until TE\n");
 	}
@@ -790,7 +790,7 @@ static bool __iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 	} else {
 		/* It is possible that by the time we try to remove it, the
 		 * time event has already ended and removed. In such a case
-		 * there is no need to send a removal command.
+		 * there is anal need to send a removal command.
 		 */
 		if (id == TE_MAX) {
 			IWL_DEBUG_TE(mvm, "TE 0x%x has already ended\n", *uid);
@@ -804,7 +804,7 @@ static bool __iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 /*
  * Explicit request to remove a aux roc time event. The removal of a time
  * event needs to be synchronized with the flow of a time event's end
- * notification, which also removes the time event from the op mode
+ * analtification, which also removes the time event from the op mode
  * data structures.
  */
 static void iwl_mvm_remove_aux_roc_te(struct iwl_mvm *mvm,
@@ -835,7 +835,7 @@ static void iwl_mvm_remove_aux_roc_te(struct iwl_mvm *mvm,
 
 /*
  * Explicit request to remove a time event. The removal of a time event needs to
- * be synchronized with the flow of a time event's end notification, which also
+ * be synchronized with the flow of a time event's end analtification, which also
  * removes the time event from the op mode data structures.
  */
 void iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
@@ -885,7 +885,7 @@ void iwl_mvm_stop_session_protection(struct iwl_mvm *mvm,
 		}
 	} else if (id != TE_BSS_STA_AGGRESSIVE_ASSOC) {
 		IWL_DEBUG_TE(mvm,
-			     "don't remove TE with id=%u (not session protection)\n",
+			     "don't remove TE with id=%u (analt session protection)\n",
 			     id);
 		return;
 	}
@@ -893,19 +893,19 @@ void iwl_mvm_stop_session_protection(struct iwl_mvm *mvm,
 	iwl_mvm_remove_time_event(mvm, mvmvif, te_data);
 }
 
-void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_session_protect_analtif(struct iwl_mvm *mvm,
 				      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_mvm_session_prot_notif *notif = (void *)pkt->data;
+	struct iwl_mvm_session_prot_analtif *analtif = (void *)pkt->data;
 	unsigned int ver =
 		iwl_fw_lookup_cmd_ver(mvm->fw,
 				      WIDE_ID(MAC_CONF_GROUP,
 					      SESSION_PROTECTION_CMD), 2);
-	int id = le32_to_cpu(notif->mac_link_id);
+	int id = le32_to_cpu(analtif->mac_link_id);
 	struct ieee80211_vif *vif;
 	struct iwl_mvm_vif *mvmvif;
-	unsigned int notif_link_id;
+	unsigned int analtif_link_id;
 
 	rcu_read_lock();
 
@@ -918,7 +918,7 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 		if (!link_conf)
 			goto out_unlock;
 
-		notif_link_id = link_conf->link_id;
+		analtif_link_id = link_conf->link_id;
 		vif = link_conf->vif;
 	}
 
@@ -928,17 +928,17 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (WARN(ver > 2 && mvmvif->time_event_data.link_id >= 0 &&
-		 mvmvif->time_event_data.link_id != notif_link_id,
-		 "SESION_PROTECTION_NOTIF was received for link %u, while the current time event is on link %u\n",
-		 notif_link_id, mvmvif->time_event_data.link_id))
+		 mvmvif->time_event_data.link_id != analtif_link_id,
+		 "SESION_PROTECTION_ANALTIF was received for link %u, while the current time event is on link %u\n",
+		 analtif_link_id, mvmvif->time_event_data.link_id))
 		goto out_unlock;
 
-	/* The vif is not a P2P_DEVICE, maintain its time_event_data */
+	/* The vif is analt a P2P_DEVICE, maintain its time_event_data */
 	if (vif->type != NL80211_IFTYPE_P2P_DEVICE) {
 		struct iwl_mvm_time_event_data *te_data =
 			&mvmvif->time_event_data;
 
-		if (!le32_to_cpu(notif->status)) {
+		if (!le32_to_cpu(analtif->status)) {
 			iwl_mvm_te_check_disconnect(mvm, vif,
 						    "Session protection failure");
 			spin_lock_bh(&mvm->time_event_lock);
@@ -946,21 +946,21 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 			spin_unlock_bh(&mvm->time_event_lock);
 		}
 
-		if (le32_to_cpu(notif->start)) {
+		if (le32_to_cpu(analtif->start)) {
 			spin_lock_bh(&mvm->time_event_lock);
-			te_data->running = le32_to_cpu(notif->start);
+			te_data->running = le32_to_cpu(analtif->start);
 			te_data->end_jiffies =
 				TU_TO_EXP_TIME(te_data->duration);
 			spin_unlock_bh(&mvm->time_event_lock);
 		} else {
 			/*
-			 * By now, we should have finished association
-			 * and know the dtim period.
+			 * By analw, we should have finished association
+			 * and kanalw the dtim period.
 			 */
 			iwl_mvm_te_check_disconnect(mvm, vif,
 						    !vif->cfg.assoc ?
-						    "Not associated and the session protection is over already..." :
-						    "No beacon heard and the session protection is over already...");
+						    "Analt associated and the session protection is over already..." :
+						    "Anal beacon heard and the session protection is over already...");
 			spin_lock_bh(&mvm->time_event_lock);
 			iwl_mvm_te_clear_data(mvm, te_data);
 			spin_unlock_bh(&mvm->time_event_lock);
@@ -969,15 +969,15 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 		goto out_unlock;
 	}
 
-	if (!le32_to_cpu(notif->status) || !le32_to_cpu(notif->start)) {
-		/* End TE, notify mac80211 */
+	if (!le32_to_cpu(analtif->status) || !le32_to_cpu(analtif->start)) {
+		/* End TE, analtify mac80211 */
 		mvmvif->time_event_data.id = SESSION_PROTECT_CONF_MAX_ID;
 		mvmvif->time_event_data.link_id = -1;
 		iwl_mvm_p2p_roc_finished(mvm);
 		ieee80211_remain_on_channel_expired(mvm->hw);
-	} else if (le32_to_cpu(notif->start)) {
+	} else if (le32_to_cpu(analtif->start)) {
 		if (WARN_ON(mvmvif->time_event_data.id !=
-				le32_to_cpu(notif->conf_id)))
+				le32_to_cpu(analtif->conf_id)))
 			goto out_unlock;
 		set_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
 		ieee80211_ready_on_channel(mvm->hw); /* Start TE */
@@ -1010,7 +1010,7 @@ iwl_mvm_start_p2p_roc_session_protection(struct iwl_mvm *mvm,
 	mvmvif->time_event_data.link_id = 0;
 
 	switch (type) {
-	case IEEE80211_ROC_TYPE_NORMAL:
+	case IEEE80211_ROC_TYPE_ANALRMAL:
 		mvmvif->time_event_data.id =
 			SESSION_PROTECT_CONF_P2P_DEVICE_DISCOV;
 		break;
@@ -1053,8 +1053,8 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color));
 
 	switch (type) {
-	case IEEE80211_ROC_TYPE_NORMAL:
-		time_cmd.id = cpu_to_le32(IWL_MVM_ROC_TE_TYPE_NORMAL);
+	case IEEE80211_ROC_TYPE_ANALRMAL:
+		time_cmd.id = cpu_to_le32(IWL_MVM_ROC_TE_TYPE_ANALRMAL);
 		break;
 	case IEEE80211_ROC_TYPE_MGMT_TX:
 		time_cmd.id = cpu_to_le32(IWL_MVM_ROC_TE_TYPE_MGMT_TX);
@@ -1069,7 +1069,7 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/*
 	 * The P2P Device TEs can have lower priority than other events
-	 * that are being scheduled by the driver/fw, and thus it might not be
+	 * that are being scheduled by the driver/fw, and thus it might analt be
 	 * scheduled. To improve the chances of it being scheduled, allow them
 	 * to be fragmented, and in addition allow them to be delayed.
 	 */
@@ -1077,8 +1077,8 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	time_cmd.max_delay = cpu_to_le32(MSEC_TO_TU(duration/2));
 	time_cmd.duration = cpu_to_le32(MSEC_TO_TU(duration));
 	time_cmd.repeat = 1;
-	time_cmd.policy = cpu_to_le16(TE_V2_NOTIF_HOST_EVENT_START |
-				      TE_V2_NOTIF_HOST_EVENT_END |
+	time_cmd.policy = cpu_to_le16(TE_V2_ANALTIF_HOST_EVENT_START |
+				      TE_V2_ANALTIF_HOST_EVENT_END |
 				      TE_V2_START_IMMEDIATELY);
 
 	return iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd);
@@ -1145,9 +1145,9 @@ static void iwl_mvm_roc_station_remove(struct iwl_mvm *mvm,
 {
 	u32 cmd_id = WIDE_ID(MAC_CONF_GROUP, ROC_CMD);
 	u8 fw_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
-					  IWL_FW_CMD_VER_UNKNOWN);
+					  IWL_FW_CMD_VER_UNKANALWN);
 
-	if (fw_ver == IWL_FW_CMD_VER_UNKNOWN)
+	if (fw_ver == IWL_FW_CMD_VER_UNKANALWN)
 		iwl_mvm_remove_aux_roc_te(mvm, mvmvif,
 					  &mvmvif->hs_time_event_data);
 	else if (fw_ver == 3)
@@ -1180,7 +1180,7 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	te_data = iwl_mvm_get_roc_te(mvm);
 	if (!te_data) {
-		IWL_WARN(mvm, "No remain on channel event\n");
+		IWL_WARN(mvm, "Anal remain on channel event\n");
 		return;
 	}
 
@@ -1239,7 +1239,7 @@ int iwl_mvm_schedule_csa_period(struct iwl_mvm *mvm,
 		/*
 		 * Remove the session protection time event to allow the
 		 * channel switch. If we got here, we just heard a beacon so
-		 * the session protection is not needed anymore anyway.
+		 * the session protection is analt needed anymore anyway.
 		 */
 		iwl_mvm_remove_time_event(mvm, mvmvif, te_data);
 	}
@@ -1249,11 +1249,11 @@ int iwl_mvm_schedule_csa_period(struct iwl_mvm *mvm,
 		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color));
 	time_cmd.id = cpu_to_le32(TE_CHANNEL_SWITCH_PERIOD);
 	time_cmd.apply_time = cpu_to_le32(apply_time);
-	time_cmd.max_frags = TE_V2_FRAG_NONE;
+	time_cmd.max_frags = TE_V2_FRAG_ANALNE;
 	time_cmd.duration = cpu_to_le32(duration);
 	time_cmd.repeat = 1;
 	time_cmd.interval = cpu_to_le32(1);
-	time_cmd.policy = cpu_to_le16(TE_V2_NOTIF_HOST_EVENT_START |
+	time_cmd.policy = cpu_to_le16(TE_V2_ANALTIF_HOST_EVENT_START |
 				      TE_V2_ABSENCE);
 	if (!apply_time)
 		time_cmd.policy |= cpu_to_le16(TE_V2_START_IMMEDIATELY);
@@ -1261,20 +1261,20 @@ int iwl_mvm_schedule_csa_period(struct iwl_mvm *mvm,
 	return iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd);
 }
 
-static bool iwl_mvm_session_prot_notif(struct iwl_notif_wait_data *notif_wait,
+static bool iwl_mvm_session_prot_analtif(struct iwl_analtif_wait_data *analtif_wait,
 				       struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_mvm *mvm =
-		container_of(notif_wait, struct iwl_mvm, notif_wait);
-	struct iwl_mvm_session_prot_notif *resp;
+		container_of(analtif_wait, struct iwl_mvm, analtif_wait);
+	struct iwl_mvm_session_prot_analtif *resp;
 	int resp_len = iwl_rx_packet_payload_len(pkt);
 
-	if (WARN_ON(pkt->hdr.cmd != SESSION_PROTECTION_NOTIF ||
+	if (WARN_ON(pkt->hdr.cmd != SESSION_PROTECTION_ANALTIF ||
 		    pkt->hdr.group_id != MAC_CONF_GROUP))
 		return true;
 
 	if (WARN_ON_ONCE(resp_len != sizeof(*resp))) {
-		IWL_ERR(mvm, "Invalid SESSION_PROTECTION_NOTIF response\n");
+		IWL_ERR(mvm, "Invalid SESSION_PROTECTION_ANALTIF response\n");
 		return true;
 	}
 
@@ -1282,7 +1282,7 @@ static bool iwl_mvm_session_prot_notif(struct iwl_notif_wait_data *notif_wait,
 
 	if (!resp->status)
 		IWL_ERR(mvm,
-			"TIME_EVENT_NOTIFICATION received but not executed\n");
+			"TIME_EVENT_ANALTIFICATION received but analt executed\n");
 
 	return true;
 }
@@ -1290,13 +1290,13 @@ static bool iwl_mvm_session_prot_notif(struct iwl_notif_wait_data *notif_wait,
 void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif,
 					 u32 duration, u32 min_duration,
-					 bool wait_for_notif,
+					 bool wait_for_analtif,
 					 unsigned int link_id)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
-	const u16 notif[] = { WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_NOTIF) };
-	struct iwl_notification_wait wait_notif;
+	const u16 analtif[] = { WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_ANALTIF) };
+	struct iwl_analtification_wait wait_analtif;
 	int mac_link_id = iwl_mvm_get_session_prot_id(mvm, vif, link_id);
 	struct iwl_mvm_session_prot_cmd cmd = {
 		.id_and_color = cpu_to_le32(mac_link_id),
@@ -1313,7 +1313,7 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 	spin_lock_bh(&mvm->time_event_lock);
 	if (te_data->running && te_data->link_id == link_id &&
 	    time_after(te_data->end_jiffies, TU_TO_EXP_TIME(min_duration))) {
-		IWL_DEBUG_TE(mvm, "We have enough time in the current TE: %u\n",
+		IWL_DEBUG_TE(mvm, "We have eanalugh time in the current TE: %u\n",
 			     jiffies_to_msecs(te_data->end_jiffies - jiffies));
 		spin_unlock_bh(&mvm->time_event_lock);
 
@@ -1334,7 +1334,7 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 	IWL_DEBUG_TE(mvm, "Add new session protection, duration %d TU\n",
 		     le32_to_cpu(cmd.duration_tu));
 
-	if (!wait_for_notif) {
+	if (!wait_for_analtif) {
 		if (iwl_mvm_send_cmd_pdu(mvm,
 					 WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_CMD),
 					 0, sizeof(cmd), &cmd)) {
@@ -1344,16 +1344,16 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 		return;
 	}
 
-	iwl_init_notification_wait(&mvm->notif_wait, &wait_notif,
-				   notif, ARRAY_SIZE(notif),
-				   iwl_mvm_session_prot_notif, NULL);
+	iwl_init_analtification_wait(&mvm->analtif_wait, &wait_analtif,
+				   analtif, ARRAY_SIZE(analtif),
+				   iwl_mvm_session_prot_analtif, NULL);
 
 	if (iwl_mvm_send_cmd_pdu(mvm,
 				 WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_CMD),
 				 0, sizeof(cmd), &cmd)) {
-		iwl_remove_notification(&mvm->notif_wait, &wait_notif);
+		iwl_remove_analtification(&mvm->analtif_wait, &wait_analtif);
 		goto send_cmd_err;
-	} else if (iwl_wait_notification(&mvm->notif_wait, &wait_notif,
+	} else if (iwl_wait_analtification(&mvm->analtif_wait, &wait_analtif,
 					 TU_TO_JIFFIES(100))) {
 		IWL_ERR(mvm,
 			"Failed to protect session until session protection\n");

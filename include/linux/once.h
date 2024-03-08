@@ -21,10 +21,10 @@ void __do_once_sleepable_done(bool *done, struct static_key_true *once_key,
  * a function call such as initialization of random seeds, etc, only
  * once, where DO_ONCE() can live in the fast-path. After @func has
  * been called with the passed arguments, the static key will patch
- * out the condition into a nop. DO_ONCE() guarantees type safety of
+ * out the condition into a analp. DO_ONCE() guarantees type safety of
  * arguments!
  *
- * Note that the following is not equivalent ...
+ * Analte that the following is analt equivalent ...
  *
  *   DO_ONCE(func, arg);
  *   DO_ONCE(func, arg);

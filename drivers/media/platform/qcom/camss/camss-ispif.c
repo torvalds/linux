@@ -102,7 +102,7 @@ enum ispif_intf_cmd {
 	CMD_ENABLE_FRAME_BOUNDARY = 0x1,
 	CMD_DISABLE_IMMEDIATELY = 0x2,
 	CMD_ALL_DISABLE_IMMEDIATELY = 0xaaaaaaaa,
-	CMD_ALL_NO_CHANGE = 0xffffffff,
+	CMD_ALL_ANAL_CHANGE = 0xffffffff,
 };
 
 static const u32 ispif_formats_8x16[] = {
@@ -273,7 +273,7 @@ static int ispif_vfe_reset(struct ispif_device *ispif, u8 vfe_id)
 	if (vfe_id >= camss->res->vfe_num) {
 		dev_err(camss->dev,
 			"Error: asked reset for invalid VFE%d\n", vfe_id);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	reinit_completion(&ispif->reset_complete[vfe_id]);
@@ -389,8 +389,8 @@ static int ispif_set_power(struct v4l2_subdev *sd, int on)
 			goto exit;
 		}
 
-		ispif->intf_cmd[line->vfe_id].cmd_0 = CMD_ALL_NO_CHANGE;
-		ispif->intf_cmd[line->vfe_id].cmd_1 = CMD_ALL_NO_CHANGE;
+		ispif->intf_cmd[line->vfe_id].cmd_0 = CMD_ALL_ANAL_CHANGE;
+		ispif->intf_cmd[line->vfe_id].cmd_1 = CMD_ALL_ANAL_CHANGE;
 
 		ispif->power_count++;
 	} else {
@@ -813,7 +813,7 @@ static int ispif_set_stream(struct v4l2_subdev *sd, int enable)
 
 	if (enable) {
 		if (!media_pad_remote_pad_first(&line->pads[MSM_ISPIF_PAD_SINK]))
-			return -ENOLINK;
+			return -EANALLINK;
 
 		/* Config */
 
@@ -908,14 +908,14 @@ static void ispif_try_format(struct ispif_line *line,
 			if (fmt->code == line->formats[i])
 				break;
 
-		/* If not found, use UYVY as default */
+		/* If analt found, use UYVY as default */
 		if (i >= line->nformats)
 			fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 
 		fmt->width = clamp_t(u32, fmt->width, 1, 8191);
 		fmt->height = clamp_t(u32, fmt->height, 1, 8191);
 
-		fmt->field = V4L2_FIELD_NONE;
+		fmt->field = V4L2_FIELD_ANALNE;
 		fmt->colorspace = V4L2_COLORSPACE_SRGB;
 
 		break;
@@ -1119,7 +1119,7 @@ int msm_ispif_subdev_init(struct camss *camss,
 	ispif->line = devm_kcalloc(dev, ispif->line_num,
 				   sizeof(*ispif->line), GFP_KERNEL);
 	if (!ispif->line)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ispif->line_num; i++) {
 		ispif->line[i].ispif = ispif;
@@ -1183,7 +1183,7 @@ int msm_ispif_subdev_init(struct camss *camss,
 				    ispif->nclocks, sizeof(*ispif->clock),
 				    GFP_KERNEL);
 	if (!ispif->clock)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ispif->nclocks; i++) {
 		struct camss_clock *clock = &ispif->clock[i];
@@ -1205,7 +1205,7 @@ int msm_ispif_subdev_init(struct camss *camss,
 					      sizeof(*ispif->clock_for_reset),
 					      GFP_KERNEL);
 	if (!ispif->clock_for_reset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ispif->nclocks_for_reset; i++) {
 		struct camss_clock *clock = &ispif->clock_for_reset[i];
@@ -1359,7 +1359,7 @@ static const struct media_entity_operations ispif_media_ops = {
 };
 
 /*
- * msm_ispif_register_entities - Register subdev node for ISPIF module
+ * msm_ispif_register_entities - Register subdev analde for ISPIF module
  * @ispif: ISPIF device
  * @v4l2_dev: V4L2 device
  *
@@ -1383,7 +1383,7 @@ int msm_ispif_register_entities(struct ispif_device *ispif,
 
 		v4l2_subdev_init(sd, &ispif_v4l2_ops);
 		sd->internal_ops = &ispif_v4l2_internal_ops;
-		sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+		sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 		snprintf(sd->name, ARRAY_SIZE(sd->name), "%s%d",
 			 MSM_ISPIF_NAME, i);
 		v4l2_set_subdevdata(sd, &ispif->line[i]);
@@ -1430,7 +1430,7 @@ error:
 }
 
 /*
- * msm_ispif_unregister_entities - Unregister ISPIF module subdev node
+ * msm_ispif_unregister_entities - Unregister ISPIF module subdev analde
  * @ispif: ISPIF device
  */
 void msm_ispif_unregister_entities(struct ispif_device *ispif)

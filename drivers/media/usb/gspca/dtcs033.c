@@ -62,7 +62,7 @@ static int reg_reqs(struct gspca_dev *gspca_dev,
 
 		if (gspca_dev->usb_err < 0) {
 
-			gspca_err(gspca_dev, "usb error request no: %d / %d\n",
+			gspca_err(gspca_dev, "usb error request anal: %d / %d\n",
 				  i, n_reqs);
 		} else if (preq->bRequestType & USB_DIR_IN) {
 
@@ -84,13 +84,13 @@ static int reg_reqs(struct gspca_dev *gspca_dev,
 #define DT_COLS (640)
 static const struct v4l2_pix_format dtcs033_mode[] = {
 	/* raw Bayer patterned output */
-	{DT_COLS, 480, V4L2_PIX_FMT_GREY, V4L2_FIELD_NONE,
+	{DT_COLS, 480, V4L2_PIX_FMT_GREY, V4L2_FIELD_ANALNE,
 		.bytesperline = DT_COLS,
 		.sizeimage = DT_COLS*480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 	},
 	/* this mode will demosaic the Bayer pattern */
-	{DT_COLS, 480, V4L2_PIX_FMT_SRGGB8, V4L2_FIELD_NONE,
+	{DT_COLS, 480, V4L2_PIX_FMT_SRGGB8, V4L2_FIELD_ANALNE,
 		.bytesperline = DT_COLS,
 		.sizeimage = DT_COLS*480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -228,7 +228,7 @@ static int dtcs033_init_controls(struct gspca_dev *gspca_dev)
 				V4L2_CID_GAIN,
 				14,  33,  1,  24);/* [dB] */
 	if (hdl->error) {
-		gspca_err(gspca_dev, "Could not initialize controls: %d\n",
+		gspca_err(gspca_dev, "Could analt initialize controls: %d\n",
 			  hdl->error);
 		return hdl->error;
 	}

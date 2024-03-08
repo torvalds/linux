@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1 WITH Linux-syscall-analte */
 /* taskstats.h - exporting per-task statistics
  *
  * Copyright (C) Shailabh Nagar, IBM Corp. 2006
@@ -58,25 +58,25 @@ struct taskstats {
 	 *
 	 * All values, until comment "Delay accounting fields end" are
 	 * available only if delay accounting is enabled, even though the last
-	 * few fields are not delays
+	 * few fields are analt delays
 	 *
 	 * xxx_count is the number of delay values recorded
-	 * xxx_delay_total is the corresponding cumulative delay in nanoseconds
+	 * xxx_delay_total is the corresponding cumulative delay in naanalseconds
 	 *
 	 * xxx_delay_total wraps around to zero on overflow
 	 * xxx_count incremented regardless of overflow
 	 */
 
 	/* Delay waiting for cpu, while runnable
-	 * count, delay_total NOT updated atomically
+	 * count, delay_total ANALT updated atomically
 	 */
 	__u64	cpu_count __attribute__((aligned(8)));
 	__u64	cpu_delay_total;
 
 	/* Following four fields atomically updated using task->delays->lock */
 
-	/* Delay waiting for synchronous block I/O to complete
-	 * does not account for delays in I/O submission
+	/* Delay waiting for synchroanalus block I/O to complete
+	 * does analt account for delays in I/O submission
 	 */
 	__u64	blkio_count;
 	__u64	blkio_delay_total;
@@ -88,15 +88,15 @@ struct taskstats {
 	/* cpu "wall-clock" running time
 	 * On some architectures, value will adjust for cpu time stolen
 	 * from the kernel in involuntary waits due to virtualization.
-	 * Value is cumulative, in nanoseconds, without a corresponding count
+	 * Value is cumulative, in naanalseconds, without a corresponding count
 	 * and wraps around to zero silently on overflow
 	 */
 	__u64	cpu_run_real_total;
 
 	/* cpu "virtual" running time
-	 * Uses time intervals seen by the kernel i.e. no adjustment
+	 * Uses time intervals seen by the kernel i.e. anal adjustment
 	 * for kernel's involuntary waits due to virtualization.
-	 * Value is cumulative, in nanoseconds, without a corresponding count
+	 * Value is cumulative, in naanalseconds, without a corresponding count
 	 * and wraps around to zero silently on overflow
 	 */
 	__u64	cpu_run_virtual_total;
@@ -119,7 +119,7 @@ struct taskstats {
 					/* Elapsed time [usec] */
 	__u64	ac_utime;		/* User CPU time [usec] */
 	__u64	ac_stime;		/* SYstem CPU time [usec] */
-	__u64	ac_minflt;		/* Minor Page Fault Count */
+	__u64	ac_minflt;		/* Mianalr Page Fault Count */
 	__u64	ac_majflt;		/* Major Page Fault Count */
 	/* Basic Accounting Fields end */
 
@@ -156,7 +156,7 @@ struct taskstats {
 	__u64	cancelled_write_bytes;	/* bytes of cancelled write I/O */
 
 	__u64  nvcsw;			/* voluntary_ctxt_switches */
-	__u64  nivcsw;			/* nonvoluntary_ctxt_switches */
+	__u64  nivcsw;			/* analnvoluntary_ctxt_switches */
 
 	/* time accounting for SMT machines */
 	__u64	ac_utimescaled;		/* utime scaled on frequency etc */
@@ -180,19 +180,19 @@ struct taskstats {
 
 	/* v12 begin */
 	__u32   ac_tgid;	/* thread group ID */
-	/* Thread group walltime up to now. This is total process walltime if
+	/* Thread group walltime up to analw. This is total process walltime if
 	 * AGROUP flag is set.
 	 */
 	__u64	ac_tgetime __attribute__((aligned(8)));
 	/* Lightweight information to identify process binary files.
 	 * This leaves userspace to match this to a file system path, using
-	 * MAJOR() and MINOR() macros to identify a device and mount point,
-	 * the inode to identify the executable file. This is /proc/self/exe
+	 * MAJOR() and MIANALR() macros to identify a device and mount point,
+	 * the ianalde to identify the executable file. This is /proc/self/exe
 	 * at the end, so matching the most recent exec(). Values are zero
 	 * for kernel threads.
 	 */
 	__u64   ac_exe_dev;     /* program binary device ID */
-	__u64   ac_exe_inode;   /* program binary inode number */
+	__u64   ac_exe_ianalde;   /* program binary ianalde number */
 	/* v12 end */
 
 	/* v13: Delay waiting for write-protect copy */
@@ -207,7 +207,7 @@ struct taskstats {
 
 /*
  * Commands sent from userspace
- * Not versioned. New commands should only be inserted at the enum's end
+ * Analt versioned. New commands should only be inserted at the enum's end
  * prior to __TASKSTATS_CMD_MAX
  */
 
@@ -227,7 +227,7 @@ enum {
 	TASKSTATS_TYPE_STATS,		/* taskstats structure */
 	TASKSTATS_TYPE_AGGR_PID,	/* contains pid + stats */
 	TASKSTATS_TYPE_AGGR_TGID,	/* contains tgid + stats */
-	TASKSTATS_TYPE_NULL,		/* contains nothing */
+	TASKSTATS_TYPE_NULL,		/* contains analthing */
 	__TASKSTATS_TYPE_MAX,
 };
 

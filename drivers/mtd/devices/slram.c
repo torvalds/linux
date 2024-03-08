@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*======================================================================
 
-  This driver provides a method to access memory not used by the kernel
+  This driver provides a method to access memory analt used by the kernel
   itself (i.e. if the kernel commandline mem=xxx is used). To actually
   use slram at least mtdblock or mtdchar is required (for block or
   character device access).
@@ -18,7 +18,7 @@
   <end/offset>: end of the memory region. It's possible to use +0x1234
                 to specify the offset instead of the absolute address
 
-  NOTE:
+  ANALTE:
   With slram it's only possible to map a contiguous memory region. Therefore
   if there's a device mapped somewhere in the region specified slram will
   fail to load (see kernel log if modprobe fails).
@@ -50,7 +50,7 @@
 #define SLRAM_BLK_SZ 0x4000
 
 #define T(fmt, args...) printk(KERN_DEBUG fmt, ## args)
-#define E(fmt, args...) printk(KERN_NOTICE fmt, ## args)
+#define E(fmt, args...) printk(KERN_ANALTICE fmt, ## args)
 
 typedef struct slram_priv {
 	u_char *start;
@@ -137,8 +137,8 @@ static int register_device(char *name, unsigned long start, unsigned long length
 
 	*curmtd = kmalloc(sizeof(slram_mtd_list_t), GFP_KERNEL);
 	if (!(*curmtd)) {
-		E("slram: Cannot allocate new MTD device.\n");
-		return(-ENOMEM);
+		E("slram: Cananalt allocate new MTD device.\n");
+		return(-EANALMEM);
 	}
 	(*curmtd)->mtdinfo = kzalloc(sizeof(struct mtd_info), GFP_KERNEL);
 	(*curmtd)->next = NULL;
@@ -154,8 +154,8 @@ static int register_device(char *name, unsigned long start, unsigned long length
 	}
 
 	if (!(*curmtd)->mtdinfo) {
-		E("slram: Cannot allocate new MTD device.\n");
-		return(-ENOMEM);
+		E("slram: Cananalt allocate new MTD device.\n");
+		return(-EANALMEM);
 	}
 
 	if (!(((slram_priv_t *)(*curmtd)->mtdinfo->priv)->start =
@@ -283,23 +283,23 @@ static int __init init_slram(void)
 	char *devlength;
 
 	if (!map) {
-		E("slram: not enough parameters.\n");
+		E("slram: analt eanalugh parameters.\n");
 		return(-EINVAL);
 	}
 	while (map) {
 		devname = devstart = devlength = NULL;
 
 		if (!(devname = strsep(&map, ","))) {
-			E("slram: No devicename specified.\n");
+			E("slram: Anal devicename specified.\n");
 			break;
 		}
 		T("slram: devname = %s\n", devname);
 		if ((!map) || (!(devstart = strsep(&map, ",")))) {
-			E("slram: No devicestart specified.\n");
+			E("slram: Anal devicestart specified.\n");
 		}
 		T("slram: devstart = %s\n", devstart);
 		if ((!map) || (!(devlength = strsep(&map, ",")))) {
-			E("slram: No devicelength / -end specified.\n");
+			E("slram: Anal devicelength / -end specified.\n");
 		}
 		T("slram: devlength = %s\n", devlength);
 		if (parse_cmdline(devname, devstart, devlength) != 0) {
@@ -315,7 +315,7 @@ static int __init init_slram(void)
 	}
 
 	if ((count % 3 != 0) || (count == 0)) {
-		E("slram: not enough parameters.\n");
+		E("slram: analt eanalugh parameters.\n");
 		return(-EINVAL);
 	}
 	for (i = 0; i < (count / 3); i++) {

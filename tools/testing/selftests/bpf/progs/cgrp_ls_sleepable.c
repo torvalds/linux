@@ -10,7 +10,7 @@ char _license[] SEC("license") = "GPL";
 
 struct {
 	__uint(type, BPF_MAP_TYPE_CGRP_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, long);
 } map_a SEC(".maps");
@@ -41,11 +41,11 @@ int cgroup_iter(struct bpf_iter__cgroup *ctx)
 	return 0;
 }
 
-static void __no_rcu_lock(struct cgroup *cgrp)
+static void __anal_rcu_lock(struct cgroup *cgrp)
 {
 	long *ptr;
 
-	/* Note that trace rcu is held in sleepable prog, so we can use
+	/* Analte that trace rcu is held in sleepable prog, so we can use
 	 * bpf_cgrp_storage_get() in sleepable prog.
 	 */
 	ptr = bpf_cgrp_storage_get(&map_a, cgrp, 0,
@@ -55,7 +55,7 @@ static void __no_rcu_lock(struct cgroup *cgrp)
 }
 
 SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
-int cgrp1_no_rcu_lock(void *ctx)
+int cgrp1_anal_rcu_lock(void *ctx)
 {
 	struct task_struct *task;
 	struct cgroup *cgrp;
@@ -69,13 +69,13 @@ int cgrp1_no_rcu_lock(void *ctx)
 	if (!cgrp)
 		return 0;
 
-	__no_rcu_lock(cgrp);
+	__anal_rcu_lock(cgrp);
 	bpf_cgroup_release(cgrp);
 	return 0;
 }
 
 SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
-int no_rcu_lock(void *ctx)
+int anal_rcu_lock(void *ctx)
 {
 	struct task_struct *task;
 
@@ -84,12 +84,12 @@ int no_rcu_lock(void *ctx)
 		return 0;
 
 	/* task->cgroups is untrusted in sleepable prog outside of RCU CS */
-	__no_rcu_lock(task->cgroups->dfl_cgrp);
+	__anal_rcu_lock(task->cgroups->dfl_cgrp);
 	return 0;
 }
 
 SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
-int yes_rcu_lock(void *ctx)
+int anal_rcu_lock(void *ctx)
 {
 	struct task_struct *task;
 	struct cgroup *cgrp;

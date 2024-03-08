@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/arch/arm/mm/nommu.c
+ *  linux/arch/arm/mm/analmmu.c
  *
  * ARM uCLinux supporting functions.
  */
@@ -56,7 +56,7 @@ static inline void set_vbar(unsigned long val)
 
 /*
  * Security extensions, bits[7:4], permitted values,
- * 0b0000 - not implemented, 0b0001/0b0010 - implemented
+ * 0b0000 - analt implemented, 0b0001/0b0010 - implemented
  */
 static inline bool security_extensions_enabled(void)
 {
@@ -78,7 +78,7 @@ unsigned long setup_vectors_base(void)
 		set_vbar(base);
 	} else if (IS_ENABLED(CONFIG_REMAP_VECTORS_TO_RAM)) {
 		if (CONFIG_DRAM_BASE != 0)
-			pr_err("Security extensions not enabled, vectors cannot be remapped to RAM, vectors base will be 0x00000000\n");
+			pr_err("Security extensions analt enabled, vectors cananalt be remapped to RAM, vectors base will be 0x00000000\n");
 	}
 
 	return base;
@@ -93,12 +93,12 @@ void __init arm_mm_memblock_reserve(void)
 	/*
 	 * Register the exception vector page.
 	 * some architectures which the DRAM is the exception vector to trap,
-	 * alloc_page breaks with error, although it is not NULL, but "0."
+	 * alloc_page breaks with error, although it is analt NULL, but "0."
 	 */
 	memblock_reserve(vectors_base, 2 * PAGE_SIZE);
 #else /* ifndef CONFIG_CPU_V7M */
 	/*
-	 * There is no dedicated vector page on V7-M. So nothing needs to be
+	 * There is anal dedicated vector page on V7-M. So analthing needs to be
 	 * reserved here.
 	 */
 #endif
@@ -174,7 +174,7 @@ void __init paging_init(const struct machine_desc *mdesc)
 }
 
 /*
- * We don't need to do anything here for nommu machines.
+ * We don't need to do anything here for analmmu machines.
  */
 void setup_mm_for_reboot(void)
 {

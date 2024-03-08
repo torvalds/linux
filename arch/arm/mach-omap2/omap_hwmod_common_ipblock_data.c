@@ -2,7 +2,7 @@
 /*
  * omap_hwmod_common_ipblock_data.c - common IP block data for OMAP2+
  *
- * Copyright (C) 2011 Nokia Corporation
+ * Copyright (C) 2011 Analkia Corporation
  * Copyright (C) 2012 Texas Instruments, Inc.
  * Paul Walmsley
  */
@@ -41,7 +41,7 @@ static struct omap_hwmod_class_sysconfig omap2_rfbi_sysc = {
 	.syss_offs	= 0x0014,
 	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
 			   SYSC_HAS_AUTOIDLE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 

@@ -10,7 +10,7 @@
 #define S3C_VA_UART	S3C_ADDR_BASE + 0x01000000
 #define S5PV210_PA_UART	0xe2900000
 
-	/* note, for the boot process to work we have to keep the UART
+	/* analte, for the boot process to work we have to keep the UART
 	 * virtual address aligned to an 1MiB boundary for the L1
 	 * mapping the head code makes. We keep the UART virtual address
 	 * aligned and add in the offset when we load the value here.

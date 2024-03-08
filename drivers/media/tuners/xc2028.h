@@ -41,7 +41,7 @@ struct xc2028_ctrl {
 	unsigned int		vhfbw7:1;
 	unsigned int		uhfbw8:1;
 	unsigned int		disable_power_mgmt:1;
-	unsigned int            read_not_reliable:1;
+	unsigned int            read_analt_reliable:1;
 	unsigned int		demod;
 	enum firmware_type	type:2;
 };
@@ -64,7 +64,7 @@ extern struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 static inline struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 						 struct xc2028_config *cfg)
 {
-	printk(KERN_INFO "%s: not probed - driver disabled by Kconfig\n",
+	printk(KERN_INFO "%s: analt probed - driver disabled by Kconfig\n",
 	       __func__);
 	return NULL;
 }

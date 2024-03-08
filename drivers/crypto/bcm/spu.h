@@ -21,7 +21,7 @@
 #include <crypto/sha2.h>
 
 enum spu_cipher_alg {
-	CIPHER_ALG_NONE = 0x0,
+	CIPHER_ALG_ANALNE = 0x0,
 	CIPHER_ALG_RC4 = 0x1,
 	CIPHER_ALG_DES = 0x2,
 	CIPHER_ALG_3DES = 0x3,
@@ -30,7 +30,7 @@ enum spu_cipher_alg {
 };
 
 enum spu_cipher_mode {
-	CIPHER_MODE_NONE = 0x0,
+	CIPHER_MODE_ANALNE = 0x0,
 	CIPHER_MODE_ECB = 0x0,
 	CIPHER_MODE_CBC = 0x1,
 	CIPHER_MODE_OFB = 0x2,
@@ -43,7 +43,7 @@ enum spu_cipher_mode {
 };
 
 enum spu_cipher_type {
-	CIPHER_TYPE_NONE = 0x0,
+	CIPHER_TYPE_ANALNE = 0x0,
 	CIPHER_TYPE_DES = 0x0,
 	CIPHER_TYPE_3DES = 0x0,
 	CIPHER_TYPE_INIT = 0x0,	/* used for ARC4 */
@@ -54,7 +54,7 @@ enum spu_cipher_type {
 };
 
 enum hash_alg {
-	HASH_ALG_NONE = 0x0,
+	HASH_ALG_ANALNE = 0x0,
 	HASH_ALG_MD5 = 0x1,
 	HASH_ALG_SHA1 = 0x2,
 	HASH_ALG_SHA224 = 0x3,
@@ -71,7 +71,7 @@ enum hash_alg {
 };
 
 enum hash_mode {
-	HASH_MODE_NONE = 0x0,
+	HASH_MODE_ANALNE = 0x0,
 	HASH_MODE_HASH = 0x0,
 	HASH_MODE_XCBC = 0x0,
 	HASH_MODE_CMAC = 0x1,
@@ -84,7 +84,7 @@ enum hash_mode {
 };
 
 enum hash_type {
-	HASH_TYPE_NONE = 0x0,
+	HASH_TYPE_ANALNE = 0x0,
 	HASH_TYPE_FULL = 0x0,
 	HASH_TYPE_INIT = 0x1,
 	HASH_TYPE_UPDT = 0x2,
@@ -168,7 +168,7 @@ struct spu_aead_parms {
  */
 #define SPU_INVALID_ICV  1
 
-/* Indicates no limit to the length of the payload in a SPU message */
+/* Indicates anal limit to the length of the payload in a SPU message */
 #define SPU_MAX_PAYLOAD_INF  0xFFFFFFFF
 
 /* Size of XTS tweak ("i" parameter), in bytes */

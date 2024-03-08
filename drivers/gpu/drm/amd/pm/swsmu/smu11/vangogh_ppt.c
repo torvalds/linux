@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -37,7 +37,7 @@
 #include <asm/processor.h>
 
 /*
- * DO NOT use these for err/warn/info/debug messages.
+ * DO ANALT use these for err/warn/info/debug messages.
  * Use dev_err, dev_warn, dev_info and dev_dbg instead.
  * They are more MGPU friendly.
  */
@@ -81,10 +81,10 @@ static struct cmn2asic_msg_mapping vangogh_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(PowerUpIspByTile,               PPSMC_MSG_PowerUpIspByTile,		0),
 	MSG_MAP(PowerDownVcn,                   PPSMC_MSG_PowerDownVcn,			0),
 	MSG_MAP(PowerUpVcn,                     PPSMC_MSG_PowerUpVcn,			0),
-	MSG_MAP(RlcPowerNotify,                 PPSMC_MSG_RlcPowerNotify,		0),
+	MSG_MAP(RlcPowerAnaltify,                 PPSMC_MSG_RlcPowerAnaltify,		0),
 	MSG_MAP(SetHardMinVcn,                  PPSMC_MSG_SetHardMinVcn,		0),
 	MSG_MAP(SetSoftMinGfxclk,               PPSMC_MSG_SetSoftMinGfxclk,		0),
-	MSG_MAP(ActiveProcessNotify,            PPSMC_MSG_ActiveProcessNotify,		0),
+	MSG_MAP(ActiveProcessAnaltify,            PPSMC_MSG_ActiveProcessAnaltify,		0),
 	MSG_MAP(SetHardMinIspiclkByFreq,        PPSMC_MSG_SetHardMinIspiclkByFreq,	0),
 	MSG_MAP(SetHardMinIspxclkByFreq,        PPSMC_MSG_SetHardMinIspxclkByFreq,	0),
 	MSG_MAP(SetDriverDramAddrHigh,          PPSMC_MSG_SetDriverDramAddrHigh,	0),
@@ -264,7 +264,7 @@ err2_out:
 err1_out:
 	kfree(smu_table->metrics_table);
 err0_out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int vangogh_get_legacy_smu_metrics_data(struct smu_context *smu,
@@ -430,7 +430,7 @@ static int vangogh_allocate_dpm_context(struct smu_context *smu)
 	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_11_0_dpm_context),
 				       GFP_KERNEL);
 	if (!smu_dpm->dpm_context)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smu_dpm->dpm_context_size = sizeof(struct smu_11_0_dpm_context);
 
@@ -1024,7 +1024,7 @@ static int vangogh_get_power_profile_mode(struct smu_context *smu,
 	for (i = 0; i < PP_SMC_POWER_PROFILE_COUNT; i++) {
 		/*
 		 * Conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT
-		 * Not all profile modes are supported on vangogh.
+		 * Analt all profile modes are supported on vangogh.
 		 */
 		workload_type = smu_cmn_to_asic_specific_index(smu,
 							       CMN2ASIC_MAPPING_WORKLOAD,
@@ -1064,7 +1064,7 @@ static int vangogh_set_power_profile_mode(struct smu_context *smu, long *input, 
 		return -EINVAL;
 	}
 
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_ActiveProcessNotify,
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_ActiveProcessAnaltify,
 				    1 << workload_type,
 				    NULL);
 	if (ret) {
@@ -1564,7 +1564,7 @@ static int vangogh_read_sensor(struct smu_context *smu,
 		*size = smu->cpu_core_num * sizeof(uint16_t);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -2015,14 +2015,14 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 
 	if (!(smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL)) {
 		dev_warn(smu->adev->dev,
-			"pp_od_clk_voltage is not accessible if power_dpm_force_performance_level is not in manual mode!\n");
+			"pp_od_clk_voltage is analt accessible if power_dpm_force_performance_level is analt in manual mode!\n");
 		return -EINVAL;
 	}
 
 	switch (type) {
 	case PP_OD_EDIT_CCLK_VDDC_TABLE:
 		if (size != 3) {
-			dev_err(smu->adev->dev, "Input parameter number not correct (should be 4 for processor)\n");
+			dev_err(smu->adev->dev, "Input parameter number analt correct (should be 4 for processor)\n");
 			return -EINVAL;
 		}
 		if (input[0] >= smu->cpu_core_num) {
@@ -2050,7 +2050,7 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 		break;
 	case PP_OD_EDIT_SCLK_VDDC_TABLE:
 		if (size != 2) {
-			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			dev_err(smu->adev->dev, "Input parameter number analt correct\n");
 			return -EINVAL;
 		}
 
@@ -2076,7 +2076,7 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 		break;
 	case PP_OD_RESTORE_DEFAULT_TABLE:
 		if (size != 0) {
-			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			dev_err(smu->adev->dev, "Input parameter number analt correct\n");
 			return -EINVAL;
 		} else {
 			smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
@@ -2087,7 +2087,7 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 		break;
 	case PP_OD_COMMIT_DPM_TABLE:
 		if (size != 0) {
-			dev_err(smu->adev->dev, "Input parameter number not correct\n");
+			dev_err(smu->adev->dev, "Input parameter number analt correct\n");
 			return -EINVAL;
 		} else {
 			if (smu->gfx_actual_hard_min_freq > smu->gfx_actual_soft_max_freq) {
@@ -2113,7 +2113,7 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 			}
 
 			if (smu->adev->pm.fw_version < 0x43f1b00) {
-				dev_warn(smu->adev->dev, "CPUSoftMax/CPUSoftMin are not supported, please update SBIOS!\n");
+				dev_warn(smu->adev->dev, "CPUSoftMax/CPUSoftMin are analt supported, please update SBIOS!\n");
 				break;
 			}
 
@@ -2137,7 +2137,7 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 		}
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return ret;
@@ -2193,13 +2193,13 @@ static int vangogh_get_dpm_clock_table(struct smu_context *smu, struct dpm_clock
 	return 0;
 }
 
-static int vangogh_notify_rlc_state(struct smu_context *smu, bool en)
+static int vangogh_analtify_rlc_state(struct smu_context *smu, bool en)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
 	if (adev->pm.fw_version >= 0x43f1700 && !en)
-		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RlcPowerNotify,
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RlcPowerAnaltify,
 						      RLC_STATUS_OFF, NULL);
 
 	return ret;
@@ -2229,7 +2229,7 @@ static int vangogh_post_smu_init(struct smu_context *smu)
 		dev_info(adev->dev, "If GFX DPM or power gate disabled, disable GFXOFF\n");
 	}
 
-	/* if all CUs are active, no need to power off any WGPs */
+	/* if all CUs are active, anal need to power off any WGPs */
 	if (total_cu == adev->gfx.cu_info.number)
 		return 0;
 
@@ -2242,9 +2242,9 @@ static int vangogh_post_smu_init(struct smu_context *smu)
 
 	aon_bits = hweight32(tmp) * adev->gfx.config.max_sh_per_se * adev->gfx.config.max_shader_engines;
 
-	/* Do not request any WGPs less than set in the AON_WGP_MASK */
+	/* Do analt request any WGPs less than set in the AON_WGP_MASK */
 	if (aon_bits > req_active_wgps) {
-		dev_info(adev->dev, "Number of always on WGPs greater than active WGPs: WGP power save not requested.\n");
+		dev_info(adev->dev, "Number of always on WGPs greater than active WGPs: WGP power save analt requested.\n");
 		return 0;
 	} else {
 		return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RequestActiveWgp, req_active_wgps, NULL);
@@ -2286,7 +2286,7 @@ static int vangogh_mode2_reset(struct smu_context *smu)
  * Return:
  * * 0	- GFXOFF (default if enabled).
  * * 1	- Transition out of GFX State.
- * * 2	- Not in GFXOFF.
+ * * 2	- Analt in GFXOFF.
  * * 3	- Transition into GFXOFF.
  */
 static u32 vangogh_get_gfxoff_status(struct smu_context *smu)
@@ -2352,7 +2352,7 @@ static int vangogh_get_ppt_limit(struct smu_context *smu,
 							smu->smu_power.power_context;
 
 	if (!power_context)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (type == SMU_FAST_PPT_LIMIT) {
 		switch (level) {
@@ -2382,8 +2382,8 @@ static int vangogh_set_power_limit(struct smu_context *smu,
 	int ret = 0;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
-		dev_err(smu->adev->dev, "Setting new power limit is not supported!\n");
-		return -EOPNOTSUPP;
+		dev_err(smu->adev->dev, "Setting new power limit is analt supported!\n");
+		return -EOPANALTSUPP;
 	}
 
 	switch (limit_type) {
@@ -2503,7 +2503,7 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.init_power = smu_v11_0_init_power,
 	.fini_power = smu_v11_0_fini_power,
 	.register_irq_handler = smu_v11_0_register_irq_handler,
-	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
+	.analtify_memory_pool_location = smu_v11_0_analtify_memory_pool_location,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
 	.send_smc_msg = smu_cmn_send_smc_msg,
 	.dpm_set_vcn_enable = vangogh_dpm_set_vcn_enable,
@@ -2522,7 +2522,7 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.print_clk_levels = vangogh_common_print_clk_levels,
 	.set_default_dpm_table = vangogh_set_default_dpm_tables,
 	.set_fine_grain_gfx_freq_parameters = vangogh_set_fine_grain_gfx_freq_parameters,
-	.notify_rlc_state = vangogh_notify_rlc_state,
+	.analtify_rlc_state = vangogh_analtify_rlc_state,
 	.feature_is_enabled = smu_cmn_feature_is_enabled,
 	.set_power_profile_mode = vangogh_set_power_profile_mode,
 	.get_power_profile_mode = vangogh_get_power_profile_mode,

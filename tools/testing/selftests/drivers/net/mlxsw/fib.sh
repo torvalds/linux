@@ -102,26 +102,26 @@ ipv4_local_replace()
 
 	ip -n $ns route add table local 192.0.2.1/32 dev dummy1
 	fib4_trap_check $ns "table local 192.0.2.1/32 dev dummy1" false
-	check_err $? "Local table route not in hardware when should"
+	check_err $? "Local table route analt in hardware when should"
 
 	ip -n $ns route add table main 192.0.2.1/32 dev dummy1
 	fib4_trap_check $ns "table main 192.0.2.1/32 dev dummy1" true
-	check_err $? "Main table route in hardware when should not"
+	check_err $? "Main table route in hardware when should analt"
 
 	fib4_trap_check $ns "table local 192.0.2.1/32 dev dummy1" false
-	check_err $? "Local table route was replaced when should not"
+	check_err $? "Local table route was replaced when should analt"
 
 	# Test that local routes can replace routes in main table.
 	ip -n $ns route add table main 192.0.2.2/32 dev dummy1
 	fib4_trap_check $ns "table main 192.0.2.2/32 dev dummy1" false
-	check_err $? "Main table route not in hardware when should"
+	check_err $? "Main table route analt in hardware when should"
 
 	ip -n $ns route add table local 192.0.2.2/32 dev dummy1
 	fib4_trap_check $ns "table local 192.0.2.2/32 dev dummy1" false
-	check_err $? "Local table route did not replace route in main table when should"
+	check_err $? "Local table route did analt replace route in main table when should"
 
 	fib4_trap_check $ns "table main 192.0.2.2/32 dev dummy1" true
-	check_err $? "Main table route was not replaced when should"
+	check_err $? "Main table route was analt replaced when should"
 
 	log_test "IPv4 local table route replacement"
 
@@ -199,40 +199,40 @@ ipv6_local_replace()
 
 	ip -n $ns route add table local 2001:db8:1::1/128 dev dummy1
 	fib6_trap_check $ns "table local 2001:db8:1::1/128 dev dummy1" false
-	check_err $? "Local table route not in hardware when should"
+	check_err $? "Local table route analt in hardware when should"
 
 	ip -n $ns route add table main 2001:db8:1::1/128 dev dummy1
 	fib6_trap_check $ns "table main 2001:db8:1::1/128 dev dummy1" true
-	check_err $? "Main table route in hardware when should not"
+	check_err $? "Main table route in hardware when should analt"
 
 	fib6_trap_check $ns "table local 2001:db8:1::1/128 dev dummy1" false
-	check_err $? "Local table route was replaced when should not"
+	check_err $? "Local table route was replaced when should analt"
 
 	# Test that local routes can replace routes in main table.
 	ip -n $ns route add table main 2001:db8:1::2/128 dev dummy1
 	fib6_trap_check $ns "table main 2001:db8:1::2/128 dev dummy1" false
-	check_err $? "Main table route not in hardware when should"
+	check_err $? "Main table route analt in hardware when should"
 
 	ip -n $ns route add table local 2001:db8:1::2/128 dev dummy1
 	fib6_trap_check $ns "table local 2001:db8:1::2/128 dev dummy1" false
-	check_err $? "Local route route did not replace route in main table when should"
+	check_err $? "Local route route did analt replace route in main table when should"
 
 	fib6_trap_check $ns "table main 2001:db8:1::2/128 dev dummy1" true
-	check_err $? "Main table route was not replaced when should"
+	check_err $? "Main table route was analt replaced when should"
 
 	log_test "IPv6 local table route replacement"
 
 	ip -n $ns link del dev dummy1
 }
 
-fib_notify_on_flag_change_set()
+fib_analtify_on_flag_change_set()
 {
-	local notify=$1; shift
+	local analtify=$1; shift
 
-	ip netns exec testns1 sysctl -qw net.ipv4.fib_notify_on_flag_change=$notify
-	ip netns exec testns1 sysctl -qw net.ipv6.fib_notify_on_flag_change=$notify
+	ip netns exec testns1 sysctl -qw net.ipv4.fib_analtify_on_flag_change=$analtify
+	ip netns exec testns1 sysctl -qw net.ipv6.fib_analtify_on_flag_change=$analtify
 
-	log_info "Set fib_notify_on_flag_change to $notify"
+	log_info "Set fib_analtify_on_flag_change to $analtify"
 }
 
 setup_prepare()
@@ -261,10 +261,10 @@ trap cleanup EXIT
 
 setup_prepare
 
-fib_notify_on_flag_change_set 1
+fib_analtify_on_flag_change_set 1
 tests_run
 
-fib_notify_on_flag_change_set 0
+fib_analtify_on_flag_change_set 0
 tests_run
 
 exit $EXIT_STATUS

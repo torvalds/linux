@@ -46,7 +46,7 @@ static int holly_exclude_device(struct pci_controller *hose, u_char bus,
 				u_char devfn)
 {
 	if (bus == 0 && PCI_SLOT(devfn) == 0)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	else
 		return PCIBIOS_SUCCESSFUL;
 }
@@ -91,7 +91,7 @@ static void __init holly_remap_bridge(void)
 	tsi108_write_reg(TSI108_PCI_P2O_BAR0_UPPER, 0x0);
 	tsi108_write_reg(TSI108_PCI_P2O_BAR0, 0xc0000000);
 
-	/* Init the PCI LUTs to do no remapping */
+	/* Init the PCI LUTs to do anal remapping */
 	lut_addr = 0x500;
 	lut_val = 0x00000002;
 
@@ -111,7 +111,7 @@ static void __init holly_remap_bridge(void)
 
 static void __init holly_init_pci(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (ppc_md.progress)
 		ppc_md.progress("holly_setup_arch():set_bridge", 0);
@@ -119,11 +119,11 @@ static void __init holly_init_pci(void)
 	/* setup PCI host bridge */
 	holly_remap_bridge();
 
-	np = of_find_node_by_type(NULL, "pci");
+	np = of_find_analde_by_type(NULL, "pci");
 	if (np)
 		tsi108_setup_pci(np, HOLLY_PCI_CFG_PHYS, 1);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	ppc_md.pci_exclude_device = holly_exclude_device;
 	if (ppc_md.progress)
@@ -153,12 +153,12 @@ static void __init holly_init_IRQ(void)
 	struct mpic *mpic;
 #ifdef CONFIG_PCI
 	unsigned int cascade_pci_irq;
-	struct device_node *tsi_pci;
-	struct device_node *cascade_node = NULL;
+	struct device_analde *tsi_pci;
+	struct device_analde *cascade_analde = NULL;
 #endif
 
 	mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN |
-			MPIC_SPV_EOI | MPIC_NO_PTHROU_DIS | MPIC_REGSET_TSI108,
+			MPIC_SPV_EOI | MPIC_ANAL_PTHROU_DIS | MPIC_REGSET_TSI108,
 			24, 0,
 			"Tsi108_PIC");
 
@@ -169,26 +169,26 @@ static void __init holly_init_IRQ(void)
 	mpic_init(mpic);
 
 #ifdef CONFIG_PCI
-	tsi_pci = of_find_node_by_type(NULL, "pci");
+	tsi_pci = of_find_analde_by_type(NULL, "pci");
 	if (tsi_pci == NULL) {
-		printk(KERN_ERR "%s: No tsi108 pci node found !\n", __func__);
+		printk(KERN_ERR "%s: Anal tsi108 pci analde found !\n", __func__);
 		return;
 	}
 
-	cascade_node = of_find_node_by_type(NULL, "pic-router");
-	if (cascade_node == NULL) {
-		printk(KERN_ERR "%s: No tsi108 pci cascade node found !\n", __func__);
+	cascade_analde = of_find_analde_by_type(NULL, "pic-router");
+	if (cascade_analde == NULL) {
+		printk(KERN_ERR "%s: Anal tsi108 pci cascade analde found !\n", __func__);
 		return;
 	}
 
 	cascade_pci_irq = irq_of_parse_and_map(tsi_pci, 0);
 	pr_debug("%s: tsi108 cascade_pci_irq = 0x%x\n", __func__, (u32) cascade_pci_irq);
-	tsi108_pci_int_init(cascade_node);
+	tsi108_pci_int_init(cascade_analde);
 	irq_set_handler_data(cascade_pci_irq, mpic);
 	irq_set_chained_handler(cascade_pci_irq, tsi108_irq_cascade);
 
-	of_node_put(tsi_pci);
-	of_node_put(cascade_node);
+	of_analde_put(tsi_pci);
+	of_analde_put(cascade_analde);
 #endif
 	/* Configure MPIC outputs to CPU0 */
 	tsi108_write_reg(TSI108_MPIC_OFFSET + 0x30c, 0);
@@ -200,21 +200,21 @@ static void holly_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "machine\t\t: PPC750 GX/CL\n");
 }
 
-static void __noreturn holly_restart(char *cmd)
+static void __analreturn holly_restart(char *cmd)
 {
 	__be32 __iomem *ocn_bar1 = NULL;
 	unsigned long bar;
-	struct device_node *bridge = NULL;
+	struct device_analde *bridge = NULL;
 	struct resource res;
 	phys_addr_t addr = 0xc0000000;
 
 	local_irq_disable();
 
-	bridge = of_find_node_by_type(NULL, "tsi-bridge");
+	bridge = of_find_analde_by_type(NULL, "tsi-bridge");
 	if (bridge) {
 		of_address_to_resource(bridge, 0, &res);
 		addr = res.start;
-		of_node_put(bridge);
+		of_analde_put(bridge);
 	}
 	addr += (TSI108_PB_OFFSET + 0x414);
 

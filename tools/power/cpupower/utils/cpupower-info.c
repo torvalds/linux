@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  (C) 2011 Thomas Renninger <trenn@suse.de>, Novell Inc.
+ *  (C) 2011 Thomas Renninger <trenn@suse.de>, Analvell Inc.
  */
 
 
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <getopt.h>
 #include <sys/utsname.h>
@@ -22,7 +22,7 @@ static struct option set_opts[] = {
 
 static void print_wrong_arg_exit(void)
 {
-	printf(_("invalid or unknown argument\n"));
+	printf(_("invalid or unkanalwn argument\n"));
 	exit(EXIT_FAILURE);
 }
 
@@ -44,7 +44,7 @@ int cmd_info(int argc, char **argv)
 	ret = uname(&uts);
 	if (!ret && (!strcmp(uts.machine, "ppc64le") ||
 		     !strcmp(uts.machine, "ppc64"))) {
-		fprintf(stderr, _("Subcommand not supported on POWER.\n"));
+		fprintf(stderr, _("Subcommand analt supported on POWER.\n"));
 		return ret;
 	}
 
@@ -80,7 +80,7 @@ int cmd_info(int argc, char **argv)
 			params.perf_bias = 0;
 			printf(_("Intel's performance bias setting needs root privileges\n"));
 		} else if (!(cpupower_cpu_info.caps & CPUPOWER_CAP_PERF_BIAS)) {
-			printf(_("System does not support Intel's performance"
+			printf(_("System does analt support Intel's performance"
 				 " bias setting\n"));
 			params.perf_bias = 0;
 		}
@@ -104,7 +104,7 @@ int cmd_info(int argc, char **argv)
 			ret = cpupower_intel_get_perf_bias(cpu);
 			if (ret < 0) {
 				fprintf(stderr,
-			_("Could not read perf-bias value[%d]\n"), ret);
+			_("Could analt read perf-bias value[%d]\n"), ret);
 				exit(EXIT_FAILURE);
 			} else
 				printf(_("perf-bias: %d\n"), ret);

@@ -6,7 +6,7 @@
  * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
  *
  * Some code borrowed from https://github.com/xairy/kasan-prototype by
- *        Andrey Konovalov <andreyknvl@gmail.com>
+ *        Andrey Koanalvalov <andreyknvl@gmail.com>
  */
 
 #include <linux/bitops.h>
@@ -56,7 +56,7 @@ size_t kasan_get_alloc_size(void *object, struct kmem_cache *cache)
 	 */
 
 	/*
-	 * The loop below returns 0 for freed objects, for which KASAN cannot
+	 * The loop below returns 0 for freed objects, for which KASAN cananalt
 	 * calculate the allocation size based on the metadata.
 	 */
 	shadow = (u8 *)kasan_mem_to_shadow(object);

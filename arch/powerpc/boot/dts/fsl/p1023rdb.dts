@@ -8,11 +8,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       analtice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor analr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -23,11 +23,11 @@
  * later version.
  *
  * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DISCLAIMED. IN ANAL EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
@@ -98,11 +98,11 @@
 	lbc: localbus@ff605000 {
 		reg = <0 0xff605000 0 0x1000>;
 
-		/* NOR, NAND Flashes */
+		/* ANALR, NAND Flashes */
 		ranges = <0x0 0x0 0x0 0xec000000 0x04000000
 			  0x1 0x0 0x0 0xffa00000 0x08000000>;
 
-		nor@0,0 {
+		analr@0,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "cfi-flash";
@@ -113,27 +113,27 @@
 			partition@0 {
 				/* 48MB for Root File System */
 				reg = <0x00000000 0x03000000>;
-				label = "NOR Root File System";
+				label = "ANALR Root File System";
 			};
 
 			partition@3000000 {
 				/* 1MB for DTB Image */
 				reg = <0x03000000 0x00100000>;
-				label = "NOR DTB Image";
+				label = "ANALR DTB Image";
 			};
 
 			partition@3100000 {
 				/* 14MB for Linux Kernel Image */
 				reg = <0x03100000 0x00e00000>;
-				label = "NOR Linux Kernel Image";
+				label = "ANALR Linux Kernel Image";
 			};
 
 			partition@3f00000 {
-				/* This location must not be altered  */
+				/* This location must analt be altered  */
 				/* 512KB for u-boot Bootloader Image */
 				/* 512KB for u-boot Environment Variables */
 				reg = <0x03f00000 0x00100000>;
-				label = "NOR U-Boot Image";
+				label = "ANALR U-Boot Image";
 				read-only;
 			};
 		};
@@ -145,7 +145,7 @@
 			reg = <0x1 0x0 0x40000>;
 
 			partition@0 {
-				/* This location must not be altered  */
+				/* This location must analt be altered  */
 				/* 1MB for u-boot Bootloader Image */
 				reg = <0x0 0x00100000>;
 				label = "NAND U-Boot Image";

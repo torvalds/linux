@@ -7,7 +7,7 @@
 #define	__XFS_MOUNT_H__
 
 struct xlog;
-struct xfs_inode;
+struct xfs_ianalde;
 struct xfs_mru_cache;
 struct xfs_ail;
 struct xfs_quotainfo;
@@ -37,15 +37,15 @@ enum {
 enum {
 	XFS_ERR_DEFAULT,
 	XFS_ERR_EIO,
-	XFS_ERR_ENOSPC,
-	XFS_ERR_ENODEV,
-	XFS_ERR_ERRNO_MAX,
+	XFS_ERR_EANALSPC,
+	XFS_ERR_EANALDEV,
+	XFS_ERR_ERRANAL_MAX,
 };
 
 #define XFS_ERR_RETRY_FOREVER	-1
 
 /*
- * Although retry_timeout is in jiffies which is normally an unsigned long,
+ * Although retry_timeout is in jiffies which is analrmally an unsigned long,
  * we limit the retry timeout to 86400 seconds, or one day.  So even a
  * signed 32-bit long is sufficient for a HZ value up to 24855.  Making it
  * signed lets us store the special "-1" value, meaning retry forever.
@@ -57,15 +57,15 @@ struct xfs_error_cfg {
 };
 
 /*
- * Per-cpu deferred inode inactivation GC lists.
+ * Per-cpu deferred ianalde inactivation GC lists.
  */
-struct xfs_inodegc {
+struct xfs_ianaldegc {
 	struct xfs_mount	*mp;
 	struct llist_head	list;
 	struct delayed_work	work;
 	int			error;
 
-	/* approximate count of inodes in the list */
+	/* approximate count of ianaldes in the list */
 	unsigned int		items;
 	unsigned int		shrinker_hits;
 	unsigned int		cpu;
@@ -78,7 +78,7 @@ struct xfs_inodegc {
  *
  * Typically, read-mostly variables are those that are set at mount time and
  * never changed again, or only change rarely as a result of things like sysfs
- * knobs being tweaked.
+ * kanalbs being tweaked.
  */
 typedef struct xfs_mount {
 	struct xfs_sb		m_sb;		/* copy of fs superblock */
@@ -90,20 +90,20 @@ typedef struct xfs_mount {
 	struct xfs_da_geometry	*m_dir_geo;	/* directory block geometry */
 	struct xfs_da_geometry	*m_attr_geo;	/* attribute block geometry */
 	struct xlog		*m_log;		/* log specific stuff */
-	struct xfs_inode	*m_rbmip;	/* pointer to bitmap inode */
-	struct xfs_inode	*m_rsumip;	/* pointer to summary inode */
-	struct xfs_inode	*m_rootip;	/* pointer to root directory */
+	struct xfs_ianalde	*m_rbmip;	/* pointer to bitmap ianalde */
+	struct xfs_ianalde	*m_rsumip;	/* pointer to summary ianalde */
+	struct xfs_ianalde	*m_rootip;	/* pointer to root directory */
 	struct xfs_quotainfo	*m_quotainfo;	/* disk quota information */
 	xfs_buftarg_t		*m_ddev_targp;	/* saves taking the address */
 	xfs_buftarg_t		*m_logdev_targp;/* ptr to log device */
 	xfs_buftarg_t		*m_rtdev_targp;	/* ptr to rt device */
-	void __percpu		*m_inodegc;	/* percpu inodegc structures */
+	void __percpu		*m_ianaldegc;	/* percpu ianaldegc structures */
 
 	/*
 	 * Optional cache of rt summary level per bitmap block with the
-	 * invariant that m_rsum_cache[bbno] > the maximum i for which
-	 * rsum[i][bbno] != 0, or 0 if rsum[i][bbno] == 0 for all i.
-	 * Reads and writes are serialized by the rsumip inode lock.
+	 * invariant that m_rsum_cache[bbanal] > the maximum i for which
+	 * rsum[i][bbanal] != 0, or 0 if rsum[i][bbanal] == 0 for all i.
+	 * Reads and writes are serialized by the rsumip ianalde lock.
 	 */
 	uint8_t			*m_rsum_cache;
 	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
@@ -112,12 +112,12 @@ typedef struct xfs_mount {
 	struct workqueue_struct	*m_reclaim_workqueue;
 	struct workqueue_struct	*m_sync_workqueue;
 	struct workqueue_struct *m_blockgc_wq;
-	struct workqueue_struct *m_inodegc_wq;
+	struct workqueue_struct *m_ianaldegc_wq;
 
 	int			m_bsize;	/* fs logical block size */
 	uint8_t			m_blkbit_log;	/* blocklog + NBBY */
 	uint8_t			m_blkbb_log;	/* blocklog - BBSHIFT */
-	uint8_t			m_agno_log;	/* log #ag's */
+	uint8_t			m_aganal_log;	/* log #ag's */
 	uint8_t			m_sectbb_log;	/* sectlog - BBSHIFT */
 	int8_t			m_rtxblklog;	/* log2 of rextsize, if possible */
 	uint			m_blockmask;	/* sb_blocksize-1 */
@@ -141,7 +141,7 @@ typedef struct xfs_mount {
 	uint			m_ag_max_usable; /* max space per AG */
 	int			m_dalign;	/* stripe unit */
 	int			m_swidth;	/* stripe width */
-	xfs_agnumber_t		m_maxagi;	/* highest inode alloc group */
+	xfs_agnumber_t		m_maxagi;	/* highest ianalde alloc group */
 	uint			m_allocsize_log;/* min write size log bytes */
 	uint			m_allocsize_blocks; /* min write size blocks */
 	int			m_logbufs;	/* number of log buffers */
@@ -154,13 +154,13 @@ typedef struct xfs_mount {
 	uint64_t		m_low_space[XFS_LOWSP_MAX];
 	uint64_t		m_low_rtexts[XFS_LOWSP_MAX];
 	uint64_t		m_rtxblkmask;	/* rt extent block mask */
-	struct xfs_ino_geometry	m_ino_geo;	/* inode geometry */
+	struct xfs_ianal_geometry	m_ianal_geo;	/* ianalde geometry */
 	struct xfs_trans_resv	m_resv;		/* precomputed res values */
 						/* low free space thresholds */
 	unsigned long		m_opstate;	/* dynamic state flags */
 	bool			m_always_cow;
 	bool			m_fail_unmount;
-	bool			m_finobt_nores; /* no per-AG finobt resv. */
+	bool			m_fianalbt_analres; /* anal per-AG fianalbt resv. */
 	bool			m_update_sb;	/* sb needs update in mount */
 
 	/*
@@ -178,20 +178,20 @@ typedef struct xfs_mount {
 
 	/*
 	 * End of read-mostly variables. Frequently written variables and locks
-	 * should be placed below this comment from now on. The first variable
+	 * should be placed below this comment from analw on. The first variable
 	 * here is marked as cacheline aligned so they it is separated from
 	 * the read-mostly variables.
 	 */
 
 	spinlock_t ____cacheline_aligned m_sb_lock; /* sb counter lock */
-	struct percpu_counter	m_icount;	/* allocated inodes counter */
-	struct percpu_counter	m_ifree;	/* free inodes counter */
+	struct percpu_counter	m_icount;	/* allocated ianaldes counter */
+	struct percpu_counter	m_ifree;	/* free ianaldes counter */
 	struct percpu_counter	m_fdblocks;	/* free block counter */
 	struct percpu_counter	m_frextents;	/* free rt extent counter */
 
 	/*
 	 * Count of data device blocks reserved for delayed allocations,
-	 * including indlen blocks.  Does not include allocated CoW staging
+	 * including indlen blocks.  Does analt include allocated CoW staging
 	 * extents or anything related to the rt device.
 	 */
 	struct percpu_counter	m_delalloc_blks;
@@ -207,32 +207,32 @@ typedef struct xfs_mount {
 	uint64_t		m_resblks;	/* total reserved blocks */
 	uint64_t		m_resblks_avail;/* available reserved blocks */
 	uint64_t		m_resblks_save;	/* reserved blks @ remount,ro */
-	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
+	struct delayed_work	m_reclaim_work;	/* background ianalde reclaim */
 	struct dentry		*m_debugfs;	/* debugfs parent */
 	struct xfs_kobj		m_kobj;
 	struct xfs_kobj		m_error_kobj;
 	struct xfs_kobj		m_error_meta_kobj;
-	struct xfs_error_cfg	m_error_cfg[XFS_ERR_CLASS_MAX][XFS_ERR_ERRNO_MAX];
+	struct xfs_error_cfg	m_error_cfg[XFS_ERR_CLASS_MAX][XFS_ERR_ERRANAL_MAX];
 	struct xstats		m_stats;	/* per-fs stats */
 #ifdef CONFIG_XFS_ONLINE_SCRUB_STATS
 	struct xchk_stats	*m_scrub_stats;
 #endif
 	xfs_agnumber_t		m_agfrotor;	/* last ag where space found */
-	atomic_t		m_agirotor;	/* last ag dir inode alloced */
+	atomic_t		m_agirotor;	/* last ag dir ianalde alloced */
 
-	/* Memory shrinker to throttle and reprioritize inodegc */
-	struct shrinker		*m_inodegc_shrinker;
+	/* Memory shrinker to throttle and reprioritize ianaldegc */
+	struct shrinker		*m_ianaldegc_shrinker;
 	/*
-	 * Workqueue item so that we can coalesce multiple inode flush attempts
+	 * Workqueue item so that we can coalesce multiple ianalde flush attempts
 	 * into a single flush.
 	 */
-	struct work_struct	m_flush_inodes_work;
+	struct work_struct	m_flush_ianaldes_work;
 
 	/*
 	 * Generation of the filesysyem layout.  This is incremented by each
 	 * growfs, and used by the pNFS server to ensure the client updates
 	 * its view of the block device once it gets a layout that might
-	 * reference the newly added blocks.  Does not need to be persistent
+	 * reference the newly added blocks.  Does analt need to be persistent
 	 * as long as we only allow file system size increments, but if we
 	 * ever support shrinks it would have to be persisted in addition
 	 * to various other kinds of pain inflicted on the pNFS server.
@@ -250,11 +250,11 @@ typedef struct xfs_mount {
 	struct xfs_kobj		m_errortag_kobj;
 #endif
 
-	/* cpus that have inodes queued for inactivation */
-	struct cpumask		m_inodegc_cpumask;
+	/* cpus that have ianaldes queued for inactivation */
+	struct cpumask		m_ianaldegc_cpumask;
 } xfs_mount_t;
 
-#define M_IGEO(mp)		(&(mp)->m_ino_geo)
+#define M_IGEO(mp)		(&(mp)->m_ianal_geo)
 
 /*
  * Flags for m_features.
@@ -265,7 +265,7 @@ typedef struct xfs_mount {
 #define XFS_FEAT_ATTR		(1ULL << 0)	/* xattrs present in fs */
 #define XFS_FEAT_NLINK		(1ULL << 1)	/* 32 bit link counts */
 #define XFS_FEAT_QUOTA		(1ULL << 2)	/* quota active */
-#define XFS_FEAT_ALIGN		(1ULL << 3)	/* inode alignment */
+#define XFS_FEAT_ALIGN		(1ULL << 3)	/* ianalde alignment */
 #define XFS_FEAT_DALIGN		(1ULL << 4)	/* data alignment */
 #define XFS_FEAT_LOGV2		(1ULL << 5)	/* version 2 logs */
 #define XFS_FEAT_SECTOR		(1ULL << 6)	/* sector size > 512 bytes */
@@ -276,38 +276,38 @@ typedef struct xfs_mount {
 #define XFS_FEAT_PARENT		(1ULL << 11)	/* parent pointers */
 #define XFS_FEAT_PROJID32	(1ULL << 12)	/* 32 bit project id */
 #define XFS_FEAT_CRC		(1ULL << 13)	/* metadata CRCs */
-#define XFS_FEAT_V3INODES	(1ULL << 14)	/* Version 3 inodes */
-#define XFS_FEAT_PQUOTINO	(1ULL << 15)	/* non-shared proj/grp quotas */
-#define XFS_FEAT_FTYPE		(1ULL << 16)	/* inode type in dir */
-#define XFS_FEAT_FINOBT		(1ULL << 17)	/* free inode btree */
+#define XFS_FEAT_V3IANALDES	(1ULL << 14)	/* Version 3 ianaldes */
+#define XFS_FEAT_PQUOTIANAL	(1ULL << 15)	/* analn-shared proj/grp quotas */
+#define XFS_FEAT_FTYPE		(1ULL << 16)	/* ianalde type in dir */
+#define XFS_FEAT_FIANALBT		(1ULL << 17)	/* free ianalde btree */
 #define XFS_FEAT_RMAPBT		(1ULL << 18)	/* reverse map btree */
 #define XFS_FEAT_REFLINK	(1ULL << 19)	/* reflinked files */
-#define XFS_FEAT_SPINODES	(1ULL << 20)	/* sparse inode chunks */
+#define XFS_FEAT_SPIANALDES	(1ULL << 20)	/* sparse ianalde chunks */
 #define XFS_FEAT_META_UUID	(1ULL << 21)	/* metadata UUID */
 #define XFS_FEAT_REALTIME	(1ULL << 22)	/* realtime device present */
-#define XFS_FEAT_INOBTCNT	(1ULL << 23)	/* inobt block counts */
+#define XFS_FEAT_IANALBTCNT	(1ULL << 23)	/* ianalbt block counts */
 #define XFS_FEAT_BIGTIME	(1ULL << 24)	/* large timestamps */
 #define XFS_FEAT_NEEDSREPAIR	(1ULL << 25)	/* needs xfs_repair */
 #define XFS_FEAT_NREXT64	(1ULL << 26)	/* large extent counters */
 
 /* Mount features */
-#define XFS_FEAT_NOATTR2	(1ULL << 48)	/* disable attr2 creation */
-#define XFS_FEAT_NOALIGN	(1ULL << 49)	/* ignore alignment */
+#define XFS_FEAT_ANALATTR2	(1ULL << 48)	/* disable attr2 creation */
+#define XFS_FEAT_ANALALIGN	(1ULL << 49)	/* iganalre alignment */
 #define XFS_FEAT_ALLOCSIZE	(1ULL << 50)	/* user specified allocation size */
 #define XFS_FEAT_LARGE_IOSIZE	(1ULL << 51)	/* report large preferred
 						 * I/O size in stat() */
-#define XFS_FEAT_WSYNC		(1ULL << 52)	/* synchronous metadata ops */
-#define XFS_FEAT_DIRSYNC	(1ULL << 53)	/* synchronous directory ops */
+#define XFS_FEAT_WSYNC		(1ULL << 52)	/* synchroanalus metadata ops */
+#define XFS_FEAT_DIRSYNC	(1ULL << 53)	/* synchroanalus directory ops */
 #define XFS_FEAT_DISCARD	(1ULL << 54)	/* discard unused blocks */
 #define XFS_FEAT_GRPID		(1ULL << 55)	/* group-ID assigned from directory */
-#define XFS_FEAT_SMALL_INUMS	(1ULL << 56)	/* user wants 32bit inodes */
-#define XFS_FEAT_IKEEP		(1ULL << 57)	/* keep empty inode clusters*/
+#define XFS_FEAT_SMALL_INUMS	(1ULL << 56)	/* user wants 32bit ianaldes */
+#define XFS_FEAT_IKEEP		(1ULL << 57)	/* keep empty ianalde clusters*/
 #define XFS_FEAT_SWALLOC	(1ULL << 58)	/* stripe width allocation */
 #define XFS_FEAT_FILESTREAMS	(1ULL << 59)	/* use filestreams allocator */
 #define XFS_FEAT_DAX_ALWAYS	(1ULL << 60)	/* DAX always enabled */
 #define XFS_FEAT_DAX_NEVER	(1ULL << 61)	/* DAX never enabled */
-#define XFS_FEAT_NORECOVERY	(1ULL << 62)	/* no recovery - dirty fs */
-#define XFS_FEAT_NOUUID		(1ULL << 63)	/* ignore uuid during mount */
+#define XFS_FEAT_ANALRECOVERY	(1ULL << 62)	/* anal recovery - dirty fs */
+#define XFS_FEAT_ANALUUID		(1ULL << 63)	/* iganalre uuid during mount */
 
 #define __XFS_HAS_FEAT(name, NAME) \
 static inline bool xfs_has_ ## name (struct xfs_mount *mp) \
@@ -339,16 +339,16 @@ __XFS_ADD_FEAT(attr2, ATTR2)
 __XFS_HAS_FEAT(parent, PARENT)
 __XFS_ADD_FEAT(projid32, PROJID32)
 __XFS_HAS_FEAT(crc, CRC)
-__XFS_HAS_FEAT(v3inodes, V3INODES)
-__XFS_HAS_FEAT(pquotino, PQUOTINO)
+__XFS_HAS_FEAT(v3ianaldes, V3IANALDES)
+__XFS_HAS_FEAT(pquotianal, PQUOTIANAL)
 __XFS_HAS_FEAT(ftype, FTYPE)
-__XFS_HAS_FEAT(finobt, FINOBT)
+__XFS_HAS_FEAT(fianalbt, FIANALBT)
 __XFS_HAS_FEAT(rmapbt, RMAPBT)
 __XFS_HAS_FEAT(reflink, REFLINK)
-__XFS_HAS_FEAT(sparseinodes, SPINODES)
+__XFS_HAS_FEAT(sparseianaldes, SPIANALDES)
 __XFS_HAS_FEAT(metauuid, META_UUID)
 __XFS_HAS_FEAT(realtime, REALTIME)
-__XFS_HAS_FEAT(inobtcounts, INOBTCNT)
+__XFS_HAS_FEAT(ianalbtcounts, IANALBTCNT)
 __XFS_HAS_FEAT(bigtime, BIGTIME)
 __XFS_HAS_FEAT(needsrepair, NEEDSREPAIR)
 __XFS_HAS_FEAT(large_extent_counts, NREXT64)
@@ -356,12 +356,12 @@ __XFS_HAS_FEAT(large_extent_counts, NREXT64)
 /*
  * Mount features
  *
- * These do not change dynamically - features that can come and go, such as 32
- * bit inodes and read-only state, are kept as operational state rather than
+ * These do analt change dynamically - features that can come and go, such as 32
+ * bit ianaldes and read-only state, are kept as operational state rather than
  * features.
  */
-__XFS_HAS_FEAT(noattr2, NOATTR2)
-__XFS_HAS_FEAT(noalign, NOALIGN)
+__XFS_HAS_FEAT(analattr2, ANALATTR2)
+__XFS_HAS_FEAT(analalign, ANALALIGN)
 __XFS_HAS_FEAT(allocsize, ALLOCSIZE)
 __XFS_HAS_FEAT(large_iosize, LARGE_IOSIZE)
 __XFS_HAS_FEAT(wsync, WSYNC)
@@ -374,8 +374,8 @@ __XFS_HAS_FEAT(swalloc, SWALLOC)
 __XFS_HAS_FEAT(filestreams, FILESTREAMS)
 __XFS_HAS_FEAT(dax_always, DAX_ALWAYS)
 __XFS_HAS_FEAT(dax_never, DAX_NEVER)
-__XFS_HAS_FEAT(norecovery, NORECOVERY)
-__XFS_HAS_FEAT(nouuid, NOUUID)
+__XFS_HAS_FEAT(analrecovery, ANALRECOVERY)
+__XFS_HAS_FEAT(analuuid, ANALUUID)
 
 /*
  * Operational mount state flags
@@ -385,18 +385,18 @@ __XFS_HAS_FEAT(nouuid, NOUUID)
 #define XFS_OPSTATE_UNMOUNTING		0	/* filesystem is unmounting */
 #define XFS_OPSTATE_CLEAN		1	/* mount was clean */
 #define XFS_OPSTATE_SHUTDOWN		2	/* stop all fs operations */
-#define XFS_OPSTATE_INODE32		3	/* inode32 allocator active */
+#define XFS_OPSTATE_IANALDE32		3	/* ianalde32 allocator active */
 #define XFS_OPSTATE_READONLY		4	/* read-only fs */
 
 /*
  * If set, inactivation worker threads will be scheduled to process queued
- * inodegc work.  If not, queued inodes remain in memory waiting to be
+ * ianaldegc work.  If analt, queued ianaldes remain in memory waiting to be
  * processed.
  */
-#define XFS_OPSTATE_INODEGC_ENABLED	5
+#define XFS_OPSTATE_IANALDEGC_ENABLED	5
 /*
  * If set, background speculative prealloc gc worker threads will be scheduled
- * to process queued blockgc work.  If not, inodes retain their preallocations
+ * to process queued blockgc work.  If analt, ianaldes retain their preallocations
  * until explicitly deleted.
  */
 #define XFS_OPSTATE_BLOCKGC_ENABLED	6
@@ -427,9 +427,9 @@ static inline bool xfs_set_ ## name (struct xfs_mount *mp) \
 __XFS_IS_OPSTATE(unmounting, UNMOUNTING)
 __XFS_IS_OPSTATE(clean, CLEAN)
 __XFS_IS_OPSTATE(shutdown, SHUTDOWN)
-__XFS_IS_OPSTATE(inode32, INODE32)
+__XFS_IS_OPSTATE(ianalde32, IANALDE32)
 __XFS_IS_OPSTATE(readonly, READONLY)
-__XFS_IS_OPSTATE(inodegc_enabled, INODEGC_ENABLED)
+__XFS_IS_OPSTATE(ianaldegc_enabled, IANALDEGC_ENABLED)
 __XFS_IS_OPSTATE(blockgc_enabled, BLOCKGC_ENABLED)
 #ifdef CONFIG_XFS_QUOTA
 __XFS_IS_OPSTATE(quotacheck_running, QUOTACHECK_RUNNING)
@@ -447,9 +447,9 @@ xfs_should_warn(struct xfs_mount *mp, long nr)
 	{ (1UL << XFS_OPSTATE_UNMOUNTING),		"unmounting" }, \
 	{ (1UL << XFS_OPSTATE_CLEAN),			"clean" }, \
 	{ (1UL << XFS_OPSTATE_SHUTDOWN),		"shutdown" }, \
-	{ (1UL << XFS_OPSTATE_INODE32),			"inode32" }, \
+	{ (1UL << XFS_OPSTATE_IANALDE32),			"ianalde32" }, \
 	{ (1UL << XFS_OPSTATE_READONLY),		"read_only" }, \
-	{ (1UL << XFS_OPSTATE_INODEGC_ENABLED),		"inodegc" }, \
+	{ (1UL << XFS_OPSTATE_IANALDEGC_ENABLED),		"ianaldegc" }, \
 	{ (1UL << XFS_OPSTATE_BLOCKGC_ENABLED),		"blockgc" }, \
 	{ (1UL << XFS_OPSTATE_WARNED_SCRUB),		"wscrub" }, \
 	{ (1UL << XFS_OPSTATE_WARNED_SHRINK),		"wshrink" }, \
@@ -488,7 +488,7 @@ void xfs_do_force_shutdown(struct xfs_mount *mp, uint32_t flags, char *fname,
 #define XFS_MFSI_QUIET		0x40	/* Be silent if mount errors found */
 
 static inline xfs_agnumber_t
-xfs_daddr_to_agno(struct xfs_mount *mp, xfs_daddr_t d)
+xfs_daddr_to_aganal(struct xfs_mount *mp, xfs_daddr_t d)
 {
 	xfs_rfsblock_t ld = XFS_BB_TO_FSBT(mp, d);
 	do_div(ld, mp->m_sb.sb_agblocks);
@@ -496,7 +496,7 @@ xfs_daddr_to_agno(struct xfs_mount *mp, xfs_daddr_t d)
 }
 
 static inline xfs_agblock_t
-xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
+xfs_daddr_to_agbanal(struct xfs_mount *mp, xfs_daddr_t d)
 {
 	xfs_rfsblock_t ld = XFS_BB_TO_FSBT(mp, d);
 	return (xfs_agblock_t) do_div(ld, mp->m_sb.sb_agblocks);
@@ -515,13 +515,13 @@ extern void	xfs_unmountfs(xfs_mount_t *);
  * only occurs on frequent small block count updates such as in the delayed
  * allocation path for buffered writes (page a time updates). Hence we set
  * a large batch count (1024) to minimise global counter updates except when
- * we get near to ENOSPC and we have to be very accurate with our updates.
+ * we get near to EANALSPC and we have to be very accurate with our updates.
  */
 #define XFS_FDBLOCKS_BATCH	1024
 
 /*
- * Estimate the amount of free space that is not available to userspace and is
- * not explicitly reserved from the incore fdblocks.  This includes:
+ * Estimate the amount of free space that is analt available to userspace and is
+ * analt explicitly reserved from the incore fdblocks.  This includes:
  *
  * - The minimum number of blocks needed to support splitting a bmap btree
  * - The blocks currently in use by the freespace btrees because they record
@@ -558,7 +558,7 @@ extern int	xfs_dev_is_read_only(struct xfs_mount *, char *);
 
 extern void	xfs_set_low_space_thresholds(struct xfs_mount *);
 
-int	xfs_zero_extent(struct xfs_inode *ip, xfs_fsblock_t start_fsb,
+int	xfs_zero_extent(struct xfs_ianalde *ip, xfs_fsblock_t start_fsb,
 			xfs_off_t count_fsb);
 
 struct xfs_error_cfg * xfs_error_get_cfg(struct xfs_mount *mp,

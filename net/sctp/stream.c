@@ -32,14 +32,14 @@ static void sctp_stream_shrink_out(struct sctp_stream *stream, __u16 outcnt)
 	outq = &asoc->outqueue;
 
 	list_for_each_entry_safe(ch, temp, &outq->out_chunk_list, list) {
-		__u16 sid = sctp_chunk_stream_no(ch);
+		__u16 sid = sctp_chunk_stream_anal(ch);
 
 		if (sid < outcnt)
 			continue;
 
 		sctp_sched_dequeue_common(outq, ch);
-		/* No need to call dequeue_done here because
-		 * the chunks are not scheduled by now.
+		/* Anal need to call dequeue_done here because
+		 * the chunks are analt scheduled by analw.
 		 */
 
 		/* Mark as failed send. */
@@ -66,7 +66,7 @@ static void sctp_stream_free_ext(struct sctp_stream *stream, __u16 sid)
 }
 
 /* Migrates chunks from stream queues to new stream queues if needed,
- * but not across associations. Also, removes those chunks to streams
+ * but analt across associations. Also, removes those chunks to streams
  * higher than the new max.
  */
 static void sctp_stream_outq_migrate(struct sctp_stream *stream,
@@ -133,7 +133,7 @@ int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 	struct sctp_sched_ops *sched = sctp_sched_ops_from_stream(stream);
 	int i, ret = 0;
 
-	gfp |= __GFP_NOWARN;
+	gfp |= __GFP_ANALWARN;
 
 	/* Initial stream->out size may be very big, so free it and alloc
 	 * a new one with new outcnt to save memory if needed.
@@ -168,7 +168,7 @@ int sctp_stream_init_ext(struct sctp_stream *stream, __u16 sid)
 
 	soute = kzalloc(sizeof(*soute), GFP_KERNEL);
 	if (!soute)
-		return -ENOMEM;
+		return -EANALMEM;
 	SCTP_SO(stream, sid)->ext = soute;
 
 	ret = sctp_sched_init_sid(stream, sid, GFP_KERNEL);
@@ -274,7 +274,7 @@ int sctp_send_reset_streams(struct sctp_association *asoc,
 
 	if (!asoc->peer.reconf_capable ||
 	    !(asoc->strreset_enable & SCTP_ENABLE_RESET_STREAM_REQ)) {
-		retval = -ENOPROTOOPT;
+		retval = -EANALPROTOOPT;
 		goto out;
 	}
 
@@ -318,7 +318,7 @@ int sctp_send_reset_streams(struct sctp_association *asoc,
 
 	nstr_list = kcalloc(str_nums, sizeof(__be16), GFP_KERNEL);
 	if (!nstr_list) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 
@@ -336,7 +336,7 @@ int sctp_send_reset_streams(struct sctp_association *asoc,
 	kfree(nstr_list);
 
 	if (!chunk) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 
@@ -386,7 +386,7 @@ int sctp_send_reset_assoc(struct sctp_association *asoc)
 
 	if (!asoc->peer.reconf_capable ||
 	    !(asoc->strreset_enable & SCTP_ENABLE_RESET_ASSOC_REQ))
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	if (asoc->strreset_outstanding)
 		return -EINPROGRESS;
@@ -396,7 +396,7 @@ int sctp_send_reset_assoc(struct sctp_association *asoc)
 
 	chunk = sctp_make_strreset_tsnreq(asoc);
 	if (!chunk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Block further xmit of data until this request is completed */
 	for (i = 0; i < stream->outcnt; i++)
@@ -432,7 +432,7 @@ int sctp_send_add_streams(struct sctp_association *asoc,
 
 	if (!asoc->peer.reconf_capable ||
 	    !(asoc->strreset_enable & SCTP_ENABLE_CHANGE_ASSOC_REQ)) {
-		retval = -ENOPROTOOPT;
+		retval = -EANALPROTOOPT;
 		goto out;
 	}
 
@@ -459,7 +459,7 @@ int sctp_send_add_streams(struct sctp_association *asoc,
 
 	chunk = sctp_make_strreset_addstrm(asoc, out, in);
 	if (!chunk) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out;
 	}
 
@@ -535,7 +535,7 @@ struct sctp_chunk *sctp_process_strreset_outreq(
 
 	if (TSN_lt(asoc->strreset_inseq, request_seq) ||
 	    TSN_lt(request_seq, asoc->strreset_inseq - 2)) {
-		result = SCTP_STRRESET_ERR_BAD_SEQNO;
+		result = SCTP_STRRESET_ERR_BAD_SEQANAL;
 		goto err;
 	} else if (TSN_lt(request_seq, asoc->strreset_inseq)) {
 		i = asoc->strreset_inseq - request_seq - 1;
@@ -544,7 +544,7 @@ struct sctp_chunk *sctp_process_strreset_outreq(
 	}
 	asoc->strreset_inseq++;
 
-	/* Check strreset_enable after inseq inc, as sender cannot tell
+	/* Check strreset_enable after inseq inc, as sender cananalt tell
 	 * the peer doesn't enable strreset after receiving response with
 	 * result denied, as well as to keep consistent with bsd.
 	 */
@@ -618,7 +618,7 @@ struct sctp_chunk *sctp_process_strreset_inreq(
 	request_seq = ntohl(inreq->request_seq);
 	if (TSN_lt(asoc->strreset_inseq, request_seq) ||
 	    TSN_lt(request_seq, asoc->strreset_inseq - 2)) {
-		result = SCTP_STRRESET_ERR_BAD_SEQNO;
+		result = SCTP_STRRESET_ERR_BAD_SEQANAL;
 		goto err;
 	} else if (TSN_lt(request_seq, asoc->strreset_inseq)) {
 		i = asoc->strreset_inseq - request_seq - 1;
@@ -694,7 +694,7 @@ struct sctp_chunk *sctp_process_strreset_tsnreq(
 	request_seq = ntohl(tsnreq->request_seq);
 	if (TSN_lt(asoc->strreset_inseq, request_seq) ||
 	    TSN_lt(request_seq, asoc->strreset_inseq - 2)) {
-		result = SCTP_STRRESET_ERR_BAD_SEQNO;
+		result = SCTP_STRRESET_ERR_BAD_SEQANAL;
 		goto err;
 	} else if (TSN_lt(request_seq, asoc->strreset_inseq)) {
 		i = asoc->strreset_inseq - request_seq - 1;
@@ -732,14 +732,14 @@ struct sctp_chunk *sctp_process_strreset_tsnreq(
 
 	/* G1: Compute an appropriate value for the Receiver's Next TSN -- the
 	 *     TSN that the peer should use to send the next DATA chunk.  The
-	 *     value SHOULD be the smallest TSN not acknowledged by the
+	 *     value SHOULD be the smallest TSN analt ackanalwledged by the
 	 *     receiver of the request plus 2^31.
 	 */
 	init_tsn = sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map) + (1 << 31);
 	sctp_tsnmap_init(&asoc->peer.tsn_map, SCTP_TSN_MAP_INITIAL,
 			 init_tsn, GFP_ATOMIC);
 
-	/* G3: The same processing as though a SACK chunk with no gap report
+	/* G3: The same processing as though a SACK chunk with anal gap report
 	 *     and a cumulative TSN ACK of the Sender's Next TSN minus 1 were
 	 *     received MUST be performed.
 	 */
@@ -790,7 +790,7 @@ struct sctp_chunk *sctp_process_strreset_addstrm_out(
 	request_seq = ntohl(addstrm->request_seq);
 	if (TSN_lt(asoc->strreset_inseq, request_seq) ||
 	    TSN_lt(request_seq, asoc->strreset_inseq - 2)) {
-		result = SCTP_STRRESET_ERR_BAD_SEQNO;
+		result = SCTP_STRRESET_ERR_BAD_SEQANAL;
 		goto err;
 	} else if (TSN_lt(request_seq, asoc->strreset_inseq)) {
 		i = asoc->strreset_inseq - request_seq - 1;
@@ -862,7 +862,7 @@ struct sctp_chunk *sctp_process_strreset_addstrm_in(
 	request_seq = ntohl(addstrm->request_seq);
 	if (TSN_lt(asoc->strreset_inseq, request_seq) ||
 	    TSN_lt(request_seq, asoc->strreset_inseq - 2)) {
-		result = SCTP_STRRESET_ERR_BAD_SEQNO;
+		result = SCTP_STRRESET_ERR_BAD_SEQANAL;
 		goto err;
 	} else if (TSN_lt(request_seq, asoc->strreset_inseq)) {
 		i = asoc->strreset_inseq - request_seq - 1;
@@ -929,7 +929,7 @@ struct sctp_chunk *sctp_process_strreset_resp(
 
 	result = ntohl(resp->result);
 	if (result != SCTP_STRRESET_PERFORMED) {
-		/* if in progress, do nothing but retransmit */
+		/* if in progress, do analthing but retransmit */
 		if (result == SCTP_STRRESET_IN_PROGRESS)
 			return NULL;
 		else if (result == SCTP_STRRESET_DENIED)
@@ -1012,7 +1012,7 @@ struct sctp_chunk *sctp_process_strreset_resp(
 					 stsn, GFP_ATOMIC);
 
 			/* Clean up sacked and abandoned queues only. As the
-			 * out_chunk_list may not be empty, splice it to temp,
+			 * out_chunk_list may analt be empty, splice it to temp,
 			 * then get it back after sctp_outq_free is done.
 			 */
 			list_splice_init(&asoc->outqueue.out_chunk_list, &temp);

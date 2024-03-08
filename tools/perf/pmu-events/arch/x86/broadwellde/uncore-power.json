@@ -323,7 +323,7 @@
         "EventCode": "0x73",
         "EventName": "UNC_P_FREQ_MIN_IO_P_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when IO P Limit is preventing us from dropping the frequency lower.  This algorithm monitors the needs to the IO subsystem on both local and remote sockets and will maintain a frequency high enough to maintain good IO BW.  This is necessary for when all the IA cores on a socket are idle but a user still would like to maintain high IO Bandwidth.",
+        "PublicDescription": "Counts the number of cycles when IO P Limit is preventing us from dropping the frequency lower.  This algorithm monitors the needs to the IO subsystem on both local and remote sockets and will maintain a frequency high eanalugh to maintain good IO BW.  This is necessary for when all the IA cores on a socket are idle but a user still would like to maintain high IO Bandwidth.",
         "Unit": "PCU"
     },
     {
@@ -331,7 +331,7 @@
         "EventCode": "0x74",
         "EventName": "UNC_P_FREQ_TRANS_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the system is changing frequency.  This can not be filtered by thread ID.  One can also use it with the occupancy counter that monitors number of threads in C0 to estimate the performance impact that frequency transitions had on the system.",
+        "PublicDescription": "Counts the number of cycles when the system is changing frequency.  This can analt be filtered by thread ID.  One can also use it with the occupancy counter that monitors number of threads in C0 to estimate the performance impact that frequency transitions had on the system.",
         "Unit": "PCU"
     },
     {
@@ -347,7 +347,7 @@
         "EventCode": "0x2A",
         "EventName": "UNC_P_PKG_RESIDENCY_C0_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the package was in C0.  This event can be used in conjunction with edge detect to count C0 entrances (or exits using invert).  Residency events do not include transition times.",
+        "PublicDescription": "Counts the number of cycles when the package was in C0.  This event can be used in conjunction with edge detect to count C0 entrances (or exits using invert).  Residency events do analt include transition times.",
         "Unit": "PCU"
     },
     {
@@ -355,7 +355,7 @@
         "EventCode": "0x4E",
         "EventName": "UNC_P_PKG_RESIDENCY_C1E_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the package was in C1E.  This event can be used in conjunction with edge detect to count C1E entrances (or exits using invert).  Residency events do not include transition times.",
+        "PublicDescription": "Counts the number of cycles when the package was in C1E.  This event can be used in conjunction with edge detect to count C1E entrances (or exits using invert).  Residency events do analt include transition times.",
         "Unit": "PCU"
     },
     {
@@ -363,7 +363,7 @@
         "EventCode": "0x2B",
         "EventName": "UNC_P_PKG_RESIDENCY_C2E_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the package was in C2E.  This event can be used in conjunction with edge detect to count C2E entrances (or exits using invert).  Residency events do not include transition times.",
+        "PublicDescription": "Counts the number of cycles when the package was in C2E.  This event can be used in conjunction with edge detect to count C2E entrances (or exits using invert).  Residency events do analt include transition times.",
         "Unit": "PCU"
     },
     {
@@ -371,7 +371,7 @@
         "EventCode": "0x2C",
         "EventName": "UNC_P_PKG_RESIDENCY_C3_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the package was in C3.  This event can be used in conjunction with edge detect to count C3 entrances (or exits using invert).  Residency events do not include transition times.",
+        "PublicDescription": "Counts the number of cycles when the package was in C3.  This event can be used in conjunction with edge detect to count C3 entrances (or exits using invert).  Residency events do analt include transition times.",
         "Unit": "PCU"
     },
     {
@@ -379,7 +379,7 @@
         "EventCode": "0x2D",
         "EventName": "UNC_P_PKG_RESIDENCY_C6_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the package was in C6.  This event can be used in conjunction with edge detect to count C6 entrances (or exits using invert).  Residency events do not include transition times.",
+        "PublicDescription": "Counts the number of cycles when the package was in C6.  This event can be used in conjunction with edge detect to count C6 entrances (or exits using invert).  Residency events do analt include transition times.",
         "Unit": "PCU"
     },
     {
@@ -387,7 +387,7 @@
         "EventCode": "0x2E",
         "EventName": "UNC_P_PKG_RESIDENCY_C7_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the package was in C7.  This event can be used in conjunction with edge detect to count C7 entrances (or exits using invert).  Residency events do not include transition times.",
+        "PublicDescription": "Counts the number of cycles when the package was in C7.  This event can be used in conjunction with edge detect to count C7 entrances (or exits using invert).  Residency events do analt include transition times.",
         "Unit": "PCU"
     },
     {
@@ -451,7 +451,7 @@
         "EventCode": "0x42",
         "EventName": "UNC_P_VR_HOT_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "VR Hot : Number of cycles that a CPU SVID VR is hot.  Does not cover DRAM VRs",
+        "PublicDescription": "VR Hot : Number of cycles that a CPU SVID VR is hot.  Does analt cover DRAM VRs",
         "Unit": "PCU"
     }
 ]

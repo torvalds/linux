@@ -23,13 +23,13 @@
  * &struct iwl_sap_me_msg_hdr and this header is followed
  * by a payload.
  *
- * Since this messaging system cannot support high amounts of
+ * Since this messaging system cananalt support high amounts of
  * traffic, iwlwifi and the CSME firmware's WLAN driver have an
  * additional communication pipe to exchange information. The body
  * of the message is copied to a shared area and the message that
  * goes over the ME interface just signals the other side
  * that a new message is waiting in the shared area. The ME
- * interface is used only for signaling and not to transfer
+ * interface is used only for signaling and analt to transfer
  * the payload.
  *
  * This shared area of memory is DMA'able mapped to be
@@ -55,21 +55,21 @@
 /**
  * DOC: Host and driver state messages
  *
- * In order to let CSME know about the host state and the host driver state,
- * the host sends messages that let CSME know about the host's state.
- * When the host driver is loaded, the host sends %SAP_MSG_NOTIF_WIFIDR_UP.
- * When the host driver is unloaded, the host sends %SAP_MSG_NOTIF_WIFIDR_DOWN.
- * When the iwlmei is unloaded, %SAP_MSG_NOTIF_HOST_GOES_DOWN is sent to let
- * CSME know not to access the shared memory anymore since it'll be freed.
+ * In order to let CSME kanalw about the host state and the host driver state,
+ * the host sends messages that let CSME kanalw about the host's state.
+ * When the host driver is loaded, the host sends %SAP_MSG_ANALTIF_WIFIDR_UP.
+ * When the host driver is unloaded, the host sends %SAP_MSG_ANALTIF_WIFIDR_DOWN.
+ * When the iwlmei is unloaded, %SAP_MSG_ANALTIF_HOST_GOES_DOWN is sent to let
+ * CSME kanalw analt to access the shared memory anymore since it'll be freed.
  *
- * CSME will reply to SAP_MSG_NOTIF_WIFIDR_UP by
- * %SAP_MSG_NOTIF_AMT_STATE to let the host driver whether CSME can use the
- * WiFi device or not followed by %SAP_MSG_NOTIF_CSME_CONN_STATUS to inform
+ * CSME will reply to SAP_MSG_ANALTIF_WIFIDR_UP by
+ * %SAP_MSG_ANALTIF_AMT_STATE to let the host driver whether CSME can use the
+ * WiFi device or analt followed by %SAP_MSG_ANALTIF_CSME_CONN_STATUS to inform
  * the host driver on the connection state of CSME.
  *
- * When host is associated to an AP, it must send %SAP_MSG_NOTIF_HOST_LINK_UP
+ * When host is associated to an AP, it must send %SAP_MSG_ANALTIF_HOST_LINK_UP
  * and when it disconnect from the AP, it must send
- * %SAP_MSG_NOTIF_HOST_LINK_DOWN.
+ * %SAP_MSG_ANALTIF_HOST_LINK_DOWN.
  */
 
 /**
@@ -79,9 +79,9 @@
  * by the host driver: iwlwifi. There is a negotiation between
  * those two entities to determine who controls (or owns) the
  * device. Since the CSME can control the device even when the
- * OS is not working or even missing, the CSME can request the
+ * OS is analt working or even missing, the CSME can request the
  * device if it comes to the conclusion that the OS's host driver
- * is not operational. This is why the host driver needs to
+ * is analt operational. This is why the host driver needs to
  * signal CSME that it is up and running. If the driver is
  * unloaded, it'll signal CSME that it is going down so that
  * CSME can take ownership.
@@ -91,19 +91,19 @@
  * DOC: Ownership transfer
  *
  * When the host driver needs the device, it'll send the
- * %SAP_MSG_NOTIF_HOST_ASKS_FOR_NIC_OWNERSHIP that will be replied by
- * %SAP_MSG_NOTIF_CSME_REPLY_TO_HOST_OWNERSHIP_REQ which will let the
- * host know whether the ownership is granted or no. If the ownership is
- * granted, the hosts sends %SAP_MSG_NOTIF_HOST_OWNERSHIP_CONFIRMED.
+ * %SAP_MSG_ANALTIF_HOST_ASKS_FOR_NIC_OWNERSHIP that will be replied by
+ * %SAP_MSG_ANALTIF_CSME_REPLY_TO_HOST_OWNERSHIP_REQ which will let the
+ * host kanalw whether the ownership is granted or anal. If the ownership is
+ * granted, the hosts sends %SAP_MSG_ANALTIF_HOST_OWNERSHIP_CONFIRMED.
  *
  * When CSME requests ownership, it'll send the
- * %SAP_MSG_NOTIF_CSME_TAKING_OWNERSHIP and give some time to host to stop
+ * %SAP_MSG_ANALTIF_CSME_TAKING_OWNERSHIP and give some time to host to stop
  * accessing the device. The host needs to send
- * %SAP_MSG_NOTIF_CSME_OWNERSHIP_CONFIRMED to confirm that it won't access
- * the device anymore. If the host failed to send this message fast enough,
+ * %SAP_MSG_ANALTIF_CSME_OWNERSHIP_CONFIRMED to confirm that it won't access
+ * the device anymore. If the host failed to send this message fast eanalugh,
  * CSME will take ownership on the device anyway.
  * When CSME is willing to release the ownership, it'll send
- * %SAP_MSG_NOTIF_CSME_CAN_RELEASE_OWNERSHIP.
+ * %SAP_MSG_ANALTIF_CSME_CAN_RELEASE_OWNERSHIP.
  */
 
 /**
@@ -115,7 +115,7 @@
  * received from the AP and sent by the host to CSME.
  * CSME sends filters to the host to let the host what inbound packets it must
  * send to CSME. Those filters are received by the host as a
- * %SAP_MSG_NOTIF_CSME_FILTERS command.
+ * %SAP_MSG_ANALTIF_CSME_FILTERS command.
  * The only outbound packets that must be sent to CSME are the DHCP packets.
  * Those packets must use the %SAP_MSG_CB_DATA_PACKET message.
  */
@@ -124,7 +124,7 @@
  * enum iwl_sap_me_msg_id - the ID of the ME message
  * @SAP_ME_MSG_START: See &struct iwl_sap_me_msg_start.
  * @SAP_ME_MSG_START_OK: See &struct iwl_sap_me_msg_start_ok.
- * @SAP_ME_MSG_CHECK_SHARED_AREA: This message has no payload.
+ * @SAP_ME_MSG_CHECK_SHARED_AREA: This message has anal payload.
  */
 enum iwl_sap_me_msg_id {
 	SAP_ME_MSG_START	= 1,
@@ -149,7 +149,7 @@ struct iwl_sap_me_msg_hdr {
  * @hdr: See &struct iwl_sap_me_msg_hdr.
  * @shared_mem: physical address of SAP shared memory area.
  * @init_data_seq_num: seq_num of the first data packet HOST -> CSME.
- * @init_notif_seq_num: seq_num of the first notification HOST -> CSME.
+ * @init_analtif_seq_num: seq_num of the first analtification HOST -> CSME.
  * @supported_versions: The host sends to the CSME a zero-terminated array
  * of versions its supports.
  *
@@ -160,15 +160,15 @@ struct iwl_sap_me_msg_start {
 	struct iwl_sap_me_msg_hdr hdr;
 	__le64 shared_mem;
 	__le16 init_data_seq_num;
-	__le16 init_notif_seq_num;
+	__le16 init_analtif_seq_num;
 	u8 supported_versions[64];
 } __packed;
 
 /**
  * struct iwl_sap_me_msg_start_ok - used for the %SAP_ME_MSG_START_OK
  * @hdr: See &struct iwl_sap_me_msg_hdr
- * @init_data_seq_num: Not used.
- * @init_notif_seq_num: Not used
+ * @init_data_seq_num: Analt used.
+ * @init_analtif_seq_num: Analt used
  * @supported_version: The version that will be used.
  * @reserved: For alignment.
  *
@@ -178,116 +178,116 @@ struct iwl_sap_me_msg_start {
 struct iwl_sap_me_msg_start_ok {
 	struct iwl_sap_me_msg_hdr hdr;
 	__le16 init_data_seq_num;
-	__le16 init_notif_seq_num;
+	__le16 init_analtif_seq_num;
 	u8 supported_version;
 	u8 reserved[3];
 } __packed;
 
 /**
  * enum iwl_sap_msg - SAP messages
- * @SAP_MSG_NOTIF_BOTH_WAYS_MIN: Not used.
- * @SAP_MSG_NOTIF_PING: No payload. Solicitate a response message (check-alive).
- * @SAP_MSG_NOTIF_PONG: No payload. The response message.
- * @SAP_MSG_NOTIF_BOTH_WAYS_MAX: Not used.
+ * @SAP_MSG_ANALTIF_BOTH_WAYS_MIN: Analt used.
+ * @SAP_MSG_ANALTIF_PING: Anal payload. Solicitate a response message (check-alive).
+ * @SAP_MSG_ANALTIF_PONG: Anal payload. The response message.
+ * @SAP_MSG_ANALTIF_BOTH_WAYS_MAX: Analt used.
  *
- * @SAP_MSG_NOTIF_FROM_CSME_MIN: Not used.
- * @SAP_MSG_NOTIF_CSME_FILTERS: TODO
- * @SAP_MSG_NOTIF_AMT_STATE: Payload is a DW. Any non-zero value means
+ * @SAP_MSG_ANALTIF_FROM_CSME_MIN: Analt used.
+ * @SAP_MSG_ANALTIF_CSME_FILTERS: TODO
+ * @SAP_MSG_ANALTIF_AMT_STATE: Payload is a DW. Any analn-zero value means
  *	that CSME is enabled.
- * @SAP_MSG_NOTIF_CSME_REPLY_TO_HOST_OWNERSHIP_REQ: Payload is a DW. 0 means
- *	the host will not get ownership. Any other value means the host is
+ * @SAP_MSG_ANALTIF_CSME_REPLY_TO_HOST_OWNERSHIP_REQ: Payload is a DW. 0 means
+ *	the host will analt get ownership. Any other value means the host is
  *	the owner.
- * @SAP_MSG_NOTIF_CSME_TAKING_OWNERSHIP: No payload.
- * @SAP_MSG_NOTIF_TRIGGER_IP_REFRESH: No payload.
- * @SAP_MSG_NOTIF_CSME_CAN_RELEASE_OWNERSHIP: No payload.
- * @SAP_MSG_NOTIF_NIC_OWNER: Payload is a DW. See &enum iwl_sap_nic_owner.
- * @SAP_MSG_NOTIF_CSME_CONN_STATUS: See &struct iwl_sap_notif_conn_status.
- * @SAP_MSG_NOTIF_NVM: See &struct iwl_sap_nvm.
- * @SAP_MSG_NOTIF_PLDR_ACK: See &struct iwl_sap_pldr_ack_data.
- * @SAP_MSG_NOTIF_FROM_CSME_MAX: Not used.
+ * @SAP_MSG_ANALTIF_CSME_TAKING_OWNERSHIP: Anal payload.
+ * @SAP_MSG_ANALTIF_TRIGGER_IP_REFRESH: Anal payload.
+ * @SAP_MSG_ANALTIF_CSME_CAN_RELEASE_OWNERSHIP: Anal payload.
+ * @SAP_MSG_ANALTIF_NIC_OWNER: Payload is a DW. See &enum iwl_sap_nic_owner.
+ * @SAP_MSG_ANALTIF_CSME_CONN_STATUS: See &struct iwl_sap_analtif_conn_status.
+ * @SAP_MSG_ANALTIF_NVM: See &struct iwl_sap_nvm.
+ * @SAP_MSG_ANALTIF_PLDR_ACK: See &struct iwl_sap_pldr_ack_data.
+ * @SAP_MSG_ANALTIF_FROM_CSME_MAX: Analt used.
  *
- * @SAP_MSG_NOTIF_FROM_HOST_MIN: Not used.
- * @SAP_MSG_NOTIF_BAND_SELECTION: TODO
- * @SAP_MSG_NOTIF_RADIO_STATE: Payload is a DW.
+ * @SAP_MSG_ANALTIF_FROM_HOST_MIN: Analt used.
+ * @SAP_MSG_ANALTIF_BAND_SELECTION: TODO
+ * @SAP_MSG_ANALTIF_RADIO_STATE: Payload is a DW.
  *	See &enum iwl_sap_radio_state_bitmap.
- * @SAP_MSG_NOTIF_NIC_INFO: See &struct iwl_sap_notif_host_nic_info.
- * @SAP_MSG_NOTIF_HOST_ASKS_FOR_NIC_OWNERSHIP: No payload.
- * @SAP_MSG_NOTIF_HOST_SUSPENDS: Payload is a DW. Bitmap described in
- *	&enum iwl_sap_notif_host_suspends_bitmap.
- * @SAP_MSG_NOTIF_HOST_RESUMES: Payload is a DW. 0 or 1. 1 says that
+ * @SAP_MSG_ANALTIF_NIC_INFO: See &struct iwl_sap_analtif_host_nic_info.
+ * @SAP_MSG_ANALTIF_HOST_ASKS_FOR_NIC_OWNERSHIP: Anal payload.
+ * @SAP_MSG_ANALTIF_HOST_SUSPENDS: Payload is a DW. Bitmap described in
+ *	&enum iwl_sap_analtif_host_suspends_bitmap.
+ * @SAP_MSG_ANALTIF_HOST_RESUMES: Payload is a DW. 0 or 1. 1 says that
  *	the CSME should re-initialize the init control block.
- * @SAP_MSG_NOTIF_HOST_GOES_DOWN: No payload.
- * @SAP_MSG_NOTIF_CSME_OWNERSHIP_CONFIRMED: No payload.
- * @SAP_MSG_NOTIF_COUNTRY_CODE: See &struct iwl_sap_notif_country_code.
- * @SAP_MSG_NOTIF_HOST_LINK_UP: See &struct iwl_sap_notif_host_link_up.
- * @SAP_MSG_NOTIF_HOST_LINK_DOWN: See &struct iwl_sap_notif_host_link_down.
- * @SAP_MSG_NOTIF_WHO_OWNS_NIC: No payload.
- * @SAP_MSG_NOTIF_WIFIDR_DOWN: No payload.
- * @SAP_MSG_NOTIF_WIFIDR_UP: No payload.
- * @SAP_MSG_NOTIF_HOST_OWNERSHIP_CONFIRMED: No payload.
- * @SAP_MSG_NOTIF_SAR_LIMITS: See &struct iwl_sap_notif_sar_limits.
- * @SAP_MSG_NOTIF_GET_NVM: No payload. Triggers %SAP_MSG_NOTIF_NVM.
- * @SAP_MSG_NOTIF_PLDR: See &struct iwl_sap_pldr_data.
- * @SAP_MSG_NOTIF_PLDR_END: See &struct iwl_sap_pldr_end_data.
- * @SAP_MSG_NOTIF_FROM_HOST_MAX: Not used.
+ * @SAP_MSG_ANALTIF_HOST_GOES_DOWN: Anal payload.
+ * @SAP_MSG_ANALTIF_CSME_OWNERSHIP_CONFIRMED: Anal payload.
+ * @SAP_MSG_ANALTIF_COUNTRY_CODE: See &struct iwl_sap_analtif_country_code.
+ * @SAP_MSG_ANALTIF_HOST_LINK_UP: See &struct iwl_sap_analtif_host_link_up.
+ * @SAP_MSG_ANALTIF_HOST_LINK_DOWN: See &struct iwl_sap_analtif_host_link_down.
+ * @SAP_MSG_ANALTIF_WHO_OWNS_NIC: Anal payload.
+ * @SAP_MSG_ANALTIF_WIFIDR_DOWN: Anal payload.
+ * @SAP_MSG_ANALTIF_WIFIDR_UP: Anal payload.
+ * @SAP_MSG_ANALTIF_HOST_OWNERSHIP_CONFIRMED: Anal payload.
+ * @SAP_MSG_ANALTIF_SAR_LIMITS: See &struct iwl_sap_analtif_sar_limits.
+ * @SAP_MSG_ANALTIF_GET_NVM: Anal payload. Triggers %SAP_MSG_ANALTIF_NVM.
+ * @SAP_MSG_ANALTIF_PLDR: See &struct iwl_sap_pldr_data.
+ * @SAP_MSG_ANALTIF_PLDR_END: See &struct iwl_sap_pldr_end_data.
+ * @SAP_MSG_ANALTIF_FROM_HOST_MAX: Analt used.
  *
- * @SAP_MSG_DATA_MIN: Not used.
+ * @SAP_MSG_DATA_MIN: Analt used.
  * @SAP_MSG_DATA_PACKET: Packets that passed the filters defined by
- *	%SAP_MSG_NOTIF_CSME_FILTERS. The payload is &struct iwl_sap_hdr with
+ *	%SAP_MSG_ANALTIF_CSME_FILTERS. The payload is &struct iwl_sap_hdr with
  *	the payload of the packet immediately afterwards.
  * @SAP_MSG_CB_DATA_PACKET: Indicates to CSME that we transmitted a specific
  *	packet. Used only for DHCP transmitted packets. See
  *	&struct iwl_sap_cb_data.
- * @SAP_MSG_DATA_MAX: Not used.
+ * @SAP_MSG_DATA_MAX: Analt used.
  */
 enum iwl_sap_msg {
-	SAP_MSG_NOTIF_BOTH_WAYS_MIN			= 0,
-	SAP_MSG_NOTIF_PING				= 1,
-	SAP_MSG_NOTIF_PONG				= 2,
-	SAP_MSG_NOTIF_BOTH_WAYS_MAX,
+	SAP_MSG_ANALTIF_BOTH_WAYS_MIN			= 0,
+	SAP_MSG_ANALTIF_PING				= 1,
+	SAP_MSG_ANALTIF_PONG				= 2,
+	SAP_MSG_ANALTIF_BOTH_WAYS_MAX,
 
-	SAP_MSG_NOTIF_FROM_CSME_MIN			= 500,
-	SAP_MSG_NOTIF_CSME_FILTERS			= SAP_MSG_NOTIF_FROM_CSME_MIN,
+	SAP_MSG_ANALTIF_FROM_CSME_MIN			= 500,
+	SAP_MSG_ANALTIF_CSME_FILTERS			= SAP_MSG_ANALTIF_FROM_CSME_MIN,
 	/* 501 is deprecated */
-	SAP_MSG_NOTIF_AMT_STATE				= 502,
-	SAP_MSG_NOTIF_CSME_REPLY_TO_HOST_OWNERSHIP_REQ	= 503,
-	SAP_MSG_NOTIF_CSME_TAKING_OWNERSHIP		= 504,
-	SAP_MSG_NOTIF_TRIGGER_IP_REFRESH		= 505,
-	SAP_MSG_NOTIF_CSME_CAN_RELEASE_OWNERSHIP	= 506,
+	SAP_MSG_ANALTIF_AMT_STATE				= 502,
+	SAP_MSG_ANALTIF_CSME_REPLY_TO_HOST_OWNERSHIP_REQ	= 503,
+	SAP_MSG_ANALTIF_CSME_TAKING_OWNERSHIP		= 504,
+	SAP_MSG_ANALTIF_TRIGGER_IP_REFRESH		= 505,
+	SAP_MSG_ANALTIF_CSME_CAN_RELEASE_OWNERSHIP	= 506,
 	/* 507 is deprecated */
 	/* 508 is deprecated */
 	/* 509 is deprecated */
 	/* 510 is deprecated */
-	SAP_MSG_NOTIF_NIC_OWNER				= 511,
-	SAP_MSG_NOTIF_CSME_CONN_STATUS			= 512,
-	SAP_MSG_NOTIF_NVM				= 513,
-	/* 514 - 517 not supported */
-	SAP_MSG_NOTIF_PLDR_ACK				= 518,
-	SAP_MSG_NOTIF_FROM_CSME_MAX,
+	SAP_MSG_ANALTIF_NIC_OWNER				= 511,
+	SAP_MSG_ANALTIF_CSME_CONN_STATUS			= 512,
+	SAP_MSG_ANALTIF_NVM				= 513,
+	/* 514 - 517 analt supported */
+	SAP_MSG_ANALTIF_PLDR_ACK				= 518,
+	SAP_MSG_ANALTIF_FROM_CSME_MAX,
 
-	SAP_MSG_NOTIF_FROM_HOST_MIN			= 1000,
-	SAP_MSG_NOTIF_BAND_SELECTION			= SAP_MSG_NOTIF_FROM_HOST_MIN,
-	SAP_MSG_NOTIF_RADIO_STATE			= 1001,
-	SAP_MSG_NOTIF_NIC_INFO				= 1002,
-	SAP_MSG_NOTIF_HOST_ASKS_FOR_NIC_OWNERSHIP	= 1003,
-	SAP_MSG_NOTIF_HOST_SUSPENDS			= 1004,
-	SAP_MSG_NOTIF_HOST_RESUMES			= 1005,
-	SAP_MSG_NOTIF_HOST_GOES_DOWN			= 1006,
-	SAP_MSG_NOTIF_CSME_OWNERSHIP_CONFIRMED		= 1007,
-	SAP_MSG_NOTIF_COUNTRY_CODE			= 1008,
-	SAP_MSG_NOTIF_HOST_LINK_UP			= 1009,
-	SAP_MSG_NOTIF_HOST_LINK_DOWN			= 1010,
-	SAP_MSG_NOTIF_WHO_OWNS_NIC			= 1011,
-	SAP_MSG_NOTIF_WIFIDR_DOWN			= 1012,
-	SAP_MSG_NOTIF_WIFIDR_UP				= 1013,
+	SAP_MSG_ANALTIF_FROM_HOST_MIN			= 1000,
+	SAP_MSG_ANALTIF_BAND_SELECTION			= SAP_MSG_ANALTIF_FROM_HOST_MIN,
+	SAP_MSG_ANALTIF_RADIO_STATE			= 1001,
+	SAP_MSG_ANALTIF_NIC_INFO				= 1002,
+	SAP_MSG_ANALTIF_HOST_ASKS_FOR_NIC_OWNERSHIP	= 1003,
+	SAP_MSG_ANALTIF_HOST_SUSPENDS			= 1004,
+	SAP_MSG_ANALTIF_HOST_RESUMES			= 1005,
+	SAP_MSG_ANALTIF_HOST_GOES_DOWN			= 1006,
+	SAP_MSG_ANALTIF_CSME_OWNERSHIP_CONFIRMED		= 1007,
+	SAP_MSG_ANALTIF_COUNTRY_CODE			= 1008,
+	SAP_MSG_ANALTIF_HOST_LINK_UP			= 1009,
+	SAP_MSG_ANALTIF_HOST_LINK_DOWN			= 1010,
+	SAP_MSG_ANALTIF_WHO_OWNS_NIC			= 1011,
+	SAP_MSG_ANALTIF_WIFIDR_DOWN			= 1012,
+	SAP_MSG_ANALTIF_WIFIDR_UP				= 1013,
 	/* 1014 is deprecated */
-	SAP_MSG_NOTIF_HOST_OWNERSHIP_CONFIRMED		= 1015,
-	SAP_MSG_NOTIF_SAR_LIMITS			= 1016,
-	SAP_MSG_NOTIF_GET_NVM				= 1017,
-	/* 1018 - 1023 not supported */
-	SAP_MSG_NOTIF_PLDR				= 1024,
-	SAP_MSG_NOTIF_PLDR_END				= 1025,
-	SAP_MSG_NOTIF_FROM_HOST_MAX,
+	SAP_MSG_ANALTIF_HOST_OWNERSHIP_CONFIRMED		= 1015,
+	SAP_MSG_ANALTIF_SAR_LIMITS			= 1016,
+	SAP_MSG_ANALTIF_GET_NVM				= 1017,
+	/* 1018 - 1023 analt supported */
+	SAP_MSG_ANALTIF_PLDR				= 1024,
+	SAP_MSG_ANALTIF_PLDR_END				= 1025,
+	SAP_MSG_ANALTIF_FROM_HOST_MAX,
 
 	SAP_MSG_DATA_MIN				= 2000,
 	SAP_MSG_DATA_PACKET				= SAP_MSG_DATA_MIN,
@@ -298,7 +298,7 @@ enum iwl_sap_msg {
 /**
  * struct iwl_sap_hdr - prefixes any SAP message
  * @type: See &enum iwl_sap_msg.
- * @len: The length of the message (header not included).
+ * @len: The length of the message (header analt included).
  * @seq_num: For debug.
  * @payload: The payload of the message.
  */
@@ -320,13 +320,13 @@ struct iwl_sap_msg_dw {
 };
 
 /**
- * enum iwl_sap_nic_owner - used by %SAP_MSG_NOTIF_NIC_OWNER
- * @SAP_NIC_OWNER_UNKNOWN: Not used.
+ * enum iwl_sap_nic_owner - used by %SAP_MSG_ANALTIF_NIC_OWNER
+ * @SAP_NIC_OWNER_UNKANALWN: Analt used.
  * @SAP_NIC_OWNER_HOST: The host owns the NIC.
  * @SAP_NIC_OWNER_ME: CSME owns the NIC.
  */
 enum iwl_sap_nic_owner {
-	SAP_NIC_OWNER_UNKNOWN,
+	SAP_NIC_OWNER_UNKANALWN,
 	SAP_NIC_OWNER_HOST,
 	SAP_NIC_OWNER_ME,
 };
@@ -341,14 +341,14 @@ enum iwl_sap_wifi_auth_type {
 
 /**
  * enum iwl_sap_wifi_cipher_alg
- * @SAP_WIFI_CIPHER_ALG_NONE: TBD
+ * @SAP_WIFI_CIPHER_ALG_ANALNE: TBD
  * @SAP_WIFI_CIPHER_ALG_TKIP: TBD
  * @SAP_WIFI_CIPHER_ALG_CCMP: TBD
  * @SAP_WIFI_CIPHER_ALG_GCMP: TBD
  * @SAP_WIFI_CIPHER_ALG_GCMP_256: TBD
  */
 enum iwl_sap_wifi_cipher_alg {
-	SAP_WIFI_CIPHER_ALG_NONE	= IWL_MEI_CIPHER_NONE,
+	SAP_WIFI_CIPHER_ALG_ANALNE	= IWL_MEI_CIPHER_ANALNE,
 	SAP_WIFI_CIPHER_ALG_TKIP	= IWL_MEI_CIPHER_TKIP,
 	SAP_WIFI_CIPHER_ALG_CCMP	= IWL_MEI_CIPHER_CCMP,
 	SAP_WIFI_CIPHER_ALG_GCMP	= IWL_MEI_CIPHER_GCMP,
@@ -356,7 +356,7 @@ enum iwl_sap_wifi_cipher_alg {
 };
 
 /**
- * struct iwl_sap_notif_connection_info - nested in other structures
+ * struct iwl_sap_analtif_connection_info - nested in other structures
  * @ssid_len: The length of the SSID.
  * @ssid: The SSID.
  * @auth_mode: The authentication mode. See &enum iwl_sap_wifi_auth_type.
@@ -368,7 +368,7 @@ enum iwl_sap_wifi_cipher_alg {
  * @bssid: The BSSID.
  * @reserved1: For alignment.
  */
-struct iwl_sap_notif_connection_info {
+struct iwl_sap_analtif_connection_info {
 	__le32 ssid_len;
 	u8 ssid[32];
 	__le32 auth_mode;
@@ -391,21 +391,21 @@ enum iwl_sap_scan_request {
 };
 
 /**
- * struct iwl_sap_notif_conn_status - payload of %SAP_MSG_NOTIF_CSME_CONN_STATUS
+ * struct iwl_sap_analtif_conn_status - payload of %SAP_MSG_ANALTIF_CSME_CONN_STATUS
  * @hdr: The SAP header
- * @link_prot_state: Non-zero if link protection is active.
+ * @link_prot_state: Analn-zero if link protection is active.
  * @scan_request: See &enum iwl_sap_scan_request.
  * @conn_info: Information about the connection.
  */
-struct iwl_sap_notif_conn_status {
+struct iwl_sap_analtif_conn_status {
 	struct iwl_sap_hdr hdr;
 	__le32 link_prot_state;
 	__le32 scan_request;
-	struct iwl_sap_notif_connection_info conn_info;
+	struct iwl_sap_analtif_connection_info conn_info;
 } __packed;
 
 /**
- * enum iwl_sap_radio_state_bitmap - used for %SAP_MSG_NOTIF_RADIO_STATE
+ * enum iwl_sap_radio_state_bitmap - used for %SAP_MSG_ANALTIF_RADIO_STATE
  * @SAP_SW_RFKILL_DEASSERTED: If set, SW RfKill is de-asserted
  * @SAP_HW_RFKILL_DEASSERTED: If set, HW RfKill is de-asserted
  *
@@ -417,14 +417,14 @@ enum iwl_sap_radio_state_bitmap {
 };
 
 /**
- * enum iwl_sap_notif_host_suspends_bitmap - used for %SAP_MSG_NOTIF_HOST_SUSPENDS
+ * enum iwl_sap_analtif_host_suspends_bitmap - used for %SAP_MSG_ANALTIF_HOST_SUSPENDS
  * @SAP_OFFER_NIC: TBD
  * @SAP_FILTER_CONFIGURED: TBD
  * @SAP_NLO_CONFIGURED: TBD
  * @SAP_HOST_OWNS_NIC: TBD
  * @SAP_LINK_PROTECTED: TBD
  */
-enum iwl_sap_notif_host_suspends_bitmap {
+enum iwl_sap_analtif_host_suspends_bitmap {
 	SAP_OFFER_NIC		= 1 << 0,
 	SAP_FILTER_CONFIGURED	= 1 << 1,
 	SAP_NLO_CONFIGURED	= 1 << 2,
@@ -433,14 +433,14 @@ enum iwl_sap_notif_host_suspends_bitmap {
 };
 
 /**
- * struct iwl_sap_notif_country_code - payload of %SAP_MSG_NOTIF_COUNTRY_CODE
+ * struct iwl_sap_analtif_country_code - payload of %SAP_MSG_ANALTIF_COUNTRY_CODE
  * @hdr: The SAP header
  * @mcc: The country code.
  * @source_id: TBD
  * @reserved: For alignment.
  * @diff_time: TBD
  */
-struct iwl_sap_notif_country_code {
+struct iwl_sap_analtif_country_code {
 	struct iwl_sap_hdr hdr;
 	__le16 mcc;
 	u8 source_id;
@@ -449,7 +449,7 @@ struct iwl_sap_notif_country_code {
 } __packed;
 
 /**
- * struct iwl_sap_notif_host_link_up - payload of %SAP_MSG_NOTIF_HOST_LINK_UP
+ * struct iwl_sap_analtif_host_link_up - payload of %SAP_MSG_ANALTIF_HOST_LINK_UP
  * @hdr: The SAP header
  * @conn_info: Information about the connection.
  * @colloc_channel: The collocated channel
@@ -458,9 +458,9 @@ struct iwl_sap_notif_country_code {
  * @colloc_bssid: The collocated BSSID.
  * @reserved1: For alignment.
  */
-struct iwl_sap_notif_host_link_up {
+struct iwl_sap_analtif_host_link_up {
 	struct iwl_sap_hdr hdr;
-	struct iwl_sap_notif_connection_info conn_info;
+	struct iwl_sap_analtif_connection_info conn_info;
 	u8 colloc_channel;
 	u8 colloc_band;
 	__le16 reserved;
@@ -469,26 +469,26 @@ struct iwl_sap_notif_host_link_up {
 } __packed;
 
 /**
- * enum iwl_sap_notif_link_down_type - used in &struct iwl_sap_notif_host_link_down
- * @HOST_LINK_DOWN_TYPE_NONE: TBD
+ * enum iwl_sap_analtif_link_down_type - used in &struct iwl_sap_analtif_host_link_down
+ * @HOST_LINK_DOWN_TYPE_ANALNE: TBD
  * @HOST_LINK_DOWN_TYPE_TEMPORARY: TBD
  * @HOST_LINK_DOWN_TYPE_LONG: TBD
  */
-enum iwl_sap_notif_link_down_type {
-	HOST_LINK_DOWN_TYPE_NONE,
+enum iwl_sap_analtif_link_down_type {
+	HOST_LINK_DOWN_TYPE_ANALNE,
 	HOST_LINK_DOWN_TYPE_TEMPORARY,
 	HOST_LINK_DOWN_TYPE_LONG,
 };
 
 /**
- * struct iwl_sap_notif_host_link_down - payload for %SAP_MSG_NOTIF_HOST_LINK_DOWN
+ * struct iwl_sap_analtif_host_link_down - payload for %SAP_MSG_ANALTIF_HOST_LINK_DOWN
  * @hdr: The SAP header
- * @type: See &enum iwl_sap_notif_link_down_type.
+ * @type: See &enum iwl_sap_analtif_link_down_type.
  * @reserved: For alignment.
- * @reason_valid: If 0, ignore the next field.
+ * @reason_valid: If 0, iganalre the next field.
  * @reason: The reason of the disconnection.
  */
-struct iwl_sap_notif_host_link_down {
+struct iwl_sap_analtif_host_link_down {
 	struct iwl_sap_hdr hdr;
 	u8 type;
 	u8 reserved[2];
@@ -497,33 +497,33 @@ struct iwl_sap_notif_host_link_down {
 } __packed;
 
 /**
- * struct iwl_sap_notif_host_nic_info - payload for %SAP_MSG_NOTIF_NIC_INFO
+ * struct iwl_sap_analtif_host_nic_info - payload for %SAP_MSG_ANALTIF_NIC_INFO
  * @hdr: The SAP header
  * @mac_address: The MAC address as configured to the interface.
  * @nvm_address: The MAC address as configured in the NVM.
  */
-struct iwl_sap_notif_host_nic_info {
+struct iwl_sap_analtif_host_nic_info {
 	struct iwl_sap_hdr hdr;
 	u8 mac_address[6];
 	u8 nvm_address[6];
 } __packed;
 
 /**
- * struct iwl_sap_notif_dw - payload is a dw
+ * struct iwl_sap_analtif_dw - payload is a dw
  * @hdr: The SAP header.
  * @dw: The payload.
  */
-struct iwl_sap_notif_dw {
+struct iwl_sap_analtif_dw {
 	struct iwl_sap_hdr hdr;
 	__le32 dw;
 } __packed;
 
 /**
- * struct iwl_sap_notif_sar_limits - payload for %SAP_MSG_NOTIF_SAR_LIMITS
+ * struct iwl_sap_analtif_sar_limits - payload for %SAP_MSG_ANALTIF_SAR_LIMITS
  * @hdr: The SAP header
  * @sar_chain_info_table: Tx power limits.
  */
-struct iwl_sap_notif_sar_limits {
+struct iwl_sap_analtif_sar_limits {
 	struct iwl_sap_hdr hdr;
 	__le16 sar_chain_info_table[2][5];
 } __packed;
@@ -539,7 +539,7 @@ enum iwl_sap_nvm_caps {
 };
 
 /**
- * struct iwl_sap_nvm - payload for %SAP_MSG_NOTIF_NVM
+ * struct iwl_sap_nvm - payload for %SAP_MSG_ANALTIF_NVM
  * @hdr: The SAP header.
  * @hw_addr: The MAC address
  * @n_hw_addrs: The number of MAC addresses
@@ -562,9 +562,9 @@ struct iwl_sap_nvm {
 
 /**
  * enum iwl_sap_eth_filter_flags - used in &struct iwl_sap_eth_filter
- * @SAP_ETH_FILTER_STOP: Do not process further filters.
+ * @SAP_ETH_FILTER_STOP: Do analt process further filters.
  * @SAP_ETH_FILTER_COPY: Copy the packet to the CSME.
- * @SAP_ETH_FILTER_ENABLED: If false, the filter should be ignored.
+ * @SAP_ETH_FILTER_ENABLED: If false, the filter should be iganalred.
  */
 enum iwl_sap_eth_filter_flags {
 	SAP_ETH_FILTER_STOP    = BIT(0),
@@ -585,7 +585,7 @@ struct iwl_sap_eth_filter {
 /**
  * enum iwl_sap_flex_filter_flags - used in &struct iwl_sap_flex_filter
  * @SAP_FLEX_FILTER_COPY: Pass UDP / TCP packets to CSME.
- * @SAP_FLEX_FILTER_ENABLED: If false, the filter should be ignored.
+ * @SAP_FLEX_FILTER_ENABLED: If false, the filter should be iganalred.
  * @SAP_FLEX_FILTER_IPV4: Filter requires match on the IP address as well.
  * @SAP_FLEX_FILTER_IPV6: Filter requires match on the IP address as well.
  * @SAP_FLEX_FILTER_TCP: Filter should be applied on TCP packets.
@@ -645,7 +645,7 @@ struct iwl_sap_ipv4_filter {
 /**
  * enum iwl_sap_ipv6_filter_flags -
  * @SAP_IPV6_ADDR_FILTER_COPY: Pass packets to the host.
- * @SAP_IPV6_ADDR_FILTER_ENABLED: If false, the filter should be ignored.
+ * @SAP_IPV6_ADDR_FILTER_ENABLED: If false, the filter should be iganalred.
  */
 enum iwl_sap_ipv6_filter_flags {
 	SAP_IPV6_ADDR_FILTER_COPY	= BIT(0),
@@ -664,7 +664,7 @@ struct iwl_sap_ipv6_filter {
 
 /**
  * enum iwl_sap_icmpv6_filter_flags -
- * @SAP_ICMPV6_FILTER_ENABLED: If false, the filter should be ignored.
+ * @SAP_ICMPV6_FILTER_ENABLED: If false, the filter should be iganalred.
  * @SAP_ICMPV6_FILTER_COPY: Pass packets to the host.
  */
 enum iwl_sap_icmpv6_filter_flags {
@@ -675,7 +675,7 @@ enum iwl_sap_icmpv6_filter_flags {
 /**
  * enum iwl_sap_vlan_filter_flags -
  * @SAP_VLAN_FILTER_VLAN_ID_MSK: TBD
- * @SAP_VLAN_FILTER_ENABLED: If false, the filter should be ignored.
+ * @SAP_VLAN_FILTER_ENABLED: If false, the filter should be iganalred.
  */
 enum iwl_sap_vlan_filter_flags {
 	SAP_VLAN_FILTER_VLAN_ID_MSK	= 0x0FFF,
@@ -703,12 +703,12 @@ struct iwl_sap_oob_filters {
 } __packed;
 
 /**
- * struct iwl_sap_csme_filters - payload of %SAP_MSG_NOTIF_CSME_FILTERS
+ * struct iwl_sap_csme_filters - payload of %SAP_MSG_ANALTIF_CSME_FILTERS
  * @hdr: The SAP header.
- * @mode: Not used.
- * @mac_address: Not used.
+ * @mode: Analt used.
+ * @mac_address: Analt used.
  * @reserved: For alignment.
- * @cbfilters: Not used.
+ * @cbfilters: Analt used.
  * @filters: Out of band filters.
  */
 struct iwl_sap_csme_filters {
@@ -724,10 +724,10 @@ struct iwl_sap_csme_filters {
 /**
  * struct iwl_sap_cb_data - header to be added for transmitted packets.
  * @hdr: The SAP header.
- * @reserved: Not used.
+ * @reserved: Analt used.
  * @to_me_filt_status: The filter that matches. Bit %CB_TX_DHCP_FILT_IDX should
  *	be set for DHCP (the only packet that uses this header).
- * @reserved2: Not used.
+ * @reserved2: Analt used.
  * @data_len: The length of the payload.
  * @payload: The payload of the transmitted packet.
  */
@@ -741,7 +741,7 @@ struct iwl_sap_cb_data {
 };
 
 /**
- * struct iwl_sap_pldr_data - payload of %SAP_MSG_NOTIF_PLDR
+ * struct iwl_sap_pldr_data - payload of %SAP_MSG_ANALTIF_PLDR
  * @hdr: The SAP header.
  * @version: SAP message version
  */
@@ -761,7 +761,7 @@ enum iwl_sap_pldr_status {
 };
 
 /*
- * struct iwl_sap_pldr_end_data - payload of %SAP_MSG_NOTIF_PLDR_END
+ * struct iwl_sap_pldr_end_data - payload of %SAP_MSG_ANALTIF_PLDR_END
  * @hdr: The SAP header.
  * @version: SAP message version
  * @status: PLDR end status
@@ -773,7 +773,7 @@ struct iwl_sap_pldr_end_data {
 } __packed;
 
 /*
- * struct iwl_sap_pldr_ack_data - payload of %SAP_MSG_NOTIF_PLDR_ACK
+ * struct iwl_sap_pldr_ack_data - payload of %SAP_MSG_ANALTIF_PLDR_ACK
  * @version: SAP message version
  * @status: CSME accept/refuse to the PLDR request
  */

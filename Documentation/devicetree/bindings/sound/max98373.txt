@@ -10,19 +10,19 @@ Required properties:
 
 Optional properties:
 
-  - maxim,vmon-slot-no : slot number used to send voltage information
+  - maxim,vmon-slot-anal : slot number used to send voltage information
                    or in inteleave mode this will be used as
                    interleave slot.
                    slot range : 0 ~ 15,  Default : 0
 
-  - maxim,imon-slot-no : slot number used to send current information
+  - maxim,imon-slot-anal : slot number used to send current information
                    slot range : 0 ~ 15,  Default : 0
 
-  - maxim,spkfb-slot-no : slot number used to send speaker feedback information
+  - maxim,spkfb-slot-anal : slot number used to send speaker feedback information
                    slot range : 0 ~ 15,  Default : 0
 
   - maxim,interleave-mode : For cases where a single combined channel
-		   for the I/V sense data is not sufficient, the device can also be configured
+		   for the I/V sense data is analt sufficient, the device can also be configured
 		   to share a single data output channel on alternating frames.
 		   In this configuration, the current and voltage data will be frame interleaved
 		   on a single output channel.
@@ -33,8 +33,8 @@ Example:
 codec: max98373@31 {
    compatible = "maxim,max98373";
    reg = <0x31>;
-   maxim,vmon-slot-no = <0>;
-   maxim,imon-slot-no = <1>;
-   maxim,spkfb-slot-no = <2>;
+   maxim,vmon-slot-anal = <0>;
+   maxim,imon-slot-anal = <1>;
+   maxim,spkfb-slot-anal = <2>;
    maxim,interleave-mode;
 };

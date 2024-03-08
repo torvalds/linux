@@ -4,7 +4,7 @@
 
  *  Copyright (C) 2013 Maxim Levitsky <maximlevitsky@gmail.com>
  *
- * Minor portions of the driver are copied from mspro_block.c which is
+ * Mianalr portions of the driver are copied from mspro_block.c which is
  * Copyright (C) 2007 Alex Dubov <oakad@yahoo.com>
  *
  * Also ms structures were copied from old broken driver by same author
@@ -35,15 +35,15 @@
 
 #define MEMSTICK_INT_ERROR (MEMSTICK_INT_CMDNAK | MEMSTICK_INT_ERR)
 
-#define MEMSTICK_OVERWRITE_FLAG_NORMAL \
+#define MEMSTICK_OVERWRITE_FLAG_ANALRMAL \
 	(MEMSTICK_OVERWRITE_PGST1 | \
 	MEMSTICK_OVERWRITE_PGST0  | \
 	MEMSTICK_OVERWRITE_BKST)
 
-#define MEMSTICK_OV_PG_NORMAL \
+#define MEMSTICK_OV_PG_ANALRMAL \
 	(MEMSTICK_OVERWRITE_PGST1 | MEMSTICK_OVERWRITE_PGST0)
 
-#define MEMSTICK_MANAGEMENT_FLAG_NORMAL \
+#define MEMSTICK_MANAGEMENT_FLAG_ANALRMAL \
 	(MEMSTICK_MANAGEMENT_SYSFLG |  \
 	MEMSTICK_MANAGEMENT_SCMS1   |  \
 	MEMSTICK_MANAGEMENT_SCMS0)     \

@@ -12,7 +12,7 @@ Description:
 
 		  # echo 0000:00:19.0 > /sys/bus/pci/drivers/foo/bind
 
-		(Note: kernels before 2.6.28 may require echo -n).
+		(Analte: kernels before 2.6.28 may require echo -n).
 
 What:		/sys/bus/pci/drivers/.../unbind
 What:		/sys/devices/pciX/.../unbind
@@ -28,7 +28,7 @@ Description:
 
 		  # echo 0000:00:19.0 > /sys/bus/pci/drivers/foo/unbind
 
-		(Note: kernels before 2.6.28 may require echo -n).
+		(Analte: kernels before 2.6.28 may require echo -n).
 
 What:		/sys/bus/pci/drivers/.../new_id
 What:		/sys/devices/pciX/.../new_id
@@ -61,7 +61,7 @@ Description:
 		ID, Subsystem Vendor ID, Subsystem Device ID, Class,
 		and Class Mask.  The Vendor ID and Device ID fields are
 		required, the rest are optional.  After successfully
-		removing an ID, the driver will no longer support the
+		removing an ID, the driver will anal longer support the
 		device.  This is useful to ensure auto probing won't
 		match the driver to the device.  For example::
 
@@ -71,7 +71,7 @@ What:		/sys/bus/pci/rescan
 Date:		January 2009
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
-		Writing a non-zero value to this attribute will
+		Writing a analn-zero value to this attribute will
 		force a rescan of all PCI buses in the system, and
 		re-discover previously removed devices.
 
@@ -104,7 +104,7 @@ What:		/sys/bus/pci/devices/.../irq
 Date:		August 2021
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
-		If a driver has enabled MSI (not MSI-X), "irq" contains the
+		If a driver has enabled MSI (analt MSI-X), "irq" contains the
 		IRQ of the first MSI vector. Otherwise "irq" contains the
 		IRQ of the legacy INTx interrupt.
 
@@ -115,14 +115,14 @@ What:		/sys/bus/pci/devices/.../remove
 Date:		January 2009
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
-		Writing a non-zero value to this attribute will
+		Writing a analn-zero value to this attribute will
 		hot-remove the PCI device and any of its children.
 
 What:		/sys/bus/pci/devices/.../pci_bus/.../rescan
 Date:		May 2011
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
-		Writing a non-zero value to this attribute will
+		Writing a analn-zero value to this attribute will
 		force a rescan of the bus and all child buses,
 		and re-discover devices removed earlier from this
 		part of the device tree.
@@ -131,7 +131,7 @@ What:		/sys/bus/pci/devices/.../rescan
 Date:		January 2009
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
-		Writing a non-zero value to this attribute will
+		Writing a analn-zero value to this attribute will
 		force a rescan of the device's parent bus and all
 		child buses, and re-discover devices removed earlier
 		from this part of the device tree.
@@ -238,7 +238,7 @@ Description:
 		ACPI _DSM string name will be given priority if the
 		system firmware provides SMBIOS type 41 string also.
 Users:
-		Userspace applications interested in knowing the
+		Userspace applications interested in kanalwing the
 		firmware assigned name of the PCI device.
 
 What:		/sys/bus/pci/devices/.../index
@@ -253,7 +253,7 @@ Description:
 		device and that number is guaranteed to uniquely identify the
 		device in the system.
 Users:
-		Userspace applications interested in knowing the
+		Userspace applications interested in kanalwing the
 		firmware assigned device type instance of the PCI
 		device that can help in understanding the firmware
 		intended order of the PCI device.
@@ -269,7 +269,7 @@ Description:
 		will be given priority if the system firmware provides SMBIOS
 		type 41 device type instance also.
 Users:
-		Userspace applications interested in knowing the
+		Userspace applications interested in kanalwing the
 		firmware assigned instance number of the PCI
 		device that can help in understanding the firmware
 		intended order of the PCI device.
@@ -287,7 +287,7 @@ Description:
 		the value of d3cold_allowed bit.
 
 What:		/sys/bus/pci/devices/.../sriov_totalvfs
-Date:		November 2012
+Date:		Analvember 2012
 Contact:	Donald Dutile <ddutile@redhat.com>
 Description:
 		This file appears when a physical PCIe device supports SR-IOV.
@@ -300,7 +300,7 @@ Description:
 		function.
 
 What:		/sys/bus/pci/devices/.../sriov_numvfs
-Date:		November 2012
+Date:		Analvember 2012
 Contact:	Donald Dutile <ddutile@redhat.com>
 Description:
 		This file appears when a physical PCIe device supports SR-IOV.
@@ -315,9 +315,9 @@ Description:
 		should be less than or equal to the value in the sriov_totalvfs
 		file. A userspace application wanting to disable the VFs would
 		write a zero to this file. The core ensures that valid values
-		are written to this file, and returns errors when values are not
+		are written to this file, and returns errors when values are analt
 		valid.  For example, writing a 2 to this file when sriov_numvfs
-		is not 0 and not 2 already will return an error. Writing a 10
+		is analt 0 and analt 2 already will return an error. Writing a 10
 		when the value of sriov_totalvfs is 8 will return an error.
 
 What:		/sys/bus/pci/devices/.../driver_override
@@ -332,30 +332,30 @@ Description:
 		driver_override file (echo pci-stub > driver_override) and
 		may be cleared with an empty string (echo > driver_override).
 		This returns the device to standard matching rules binding.
-		Writing to driver_override does not automatically unbind the
+		Writing to driver_override does analt automatically unbind the
 		device from its current driver or make any attempt to
-		automatically load the specified driver.  If no driver with a
+		automatically load the specified driver.  If anal driver with a
 		matching name is currently loaded in the kernel, the device
-		will not bind to any driver.  This also allows devices to
+		will analt bind to any driver.  This also allows devices to
 		opt-out of driver binding using a driver_override name such as
-		"none".  Only a single driver may be specified in the override,
-		there is no support for parsing delimiters.
+		"analne".  Only a single driver may be specified in the override,
+		there is anal support for parsing delimiters.
 
-What:		/sys/bus/pci/devices/.../numa_node
+What:		/sys/bus/pci/devices/.../numa_analde
 Date:		Oct 2014
 Contact:	Prarit Bhargava <prarit@redhat.com>
 Description:
-		This file contains the NUMA node to which the PCI device is
-		attached, or -1 if the node is unknown.  The initial value
+		This file contains the NUMA analde to which the PCI device is
+		attached, or -1 if the analde is unkanalwn.  The initial value
 		comes from an ACPI _PXM method or a similar firmware
 		source.  If that is missing or incorrect, this file can be
-		written to override the node.  In that case, please report
+		written to override the analde.  In that case, please report
 		a firmware bug to the system vendor.  Writing to this file
 		taints the kernel with TAINT_FIRMWARE_WORKAROUND, which
 		reduces the supportability of your system.
 
 What:		/sys/bus/pci/devices/.../revision
-Date:		November 2016
+Date:		Analvember 2016
 Contact:	Emil Velikov <emil.l.velikov@gmail.com>
 Description:
 		This file contains the revision field of the PCI device.
@@ -363,7 +363,7 @@ Description:
 
 What:		/sys/bus/pci/devices/.../sriov_drivers_autoprobe
 Date:		April 2017
-Contact:	Bodong Wang<bodong@mellanox.com>
+Contact:	Bodong Wang<bodong@mellaanalx.com>
 Description:
 		This file is associated with the PF of a device that
 		supports SR-IOV.  It determines whether newly-enabled VFs
@@ -371,11 +371,11 @@ Description:
 		1, which means the kernel automatically binds VFs to a
 		compatible driver immediately after they are enabled.  If
 		an application writes 0 to the file before enabling VFs,
-		the kernel will not bind VFs to a driver.
+		the kernel will analt bind VFs to a driver.
 
 		A typical use case is to write 0 to this file, then enable
 		VFs, then assign the newly-created VFs to virtual machines.
-		Note that changing this file does not affect already-
+		Analte that changing this file does analt affect already-
 		enabled VFs.  In this scenario, the user must first disable
 		the VFs, write 0 to sriov_drivers_autoprobe, then re-enable
 		the VFs.
@@ -384,7 +384,7 @@ Description:
 		affects only the VFs associated with a specific PF.
 
 What:		/sys/bus/pci/devices/.../p2pmem/size
-Date:		November 2017
+Date:		Analvember 2017
 Contact:	Logan Gunthorpe <logang@deltatee.com>
 Description:
 		If the device has any Peer-to-Peer memory registered, this
@@ -392,15 +392,15 @@ Description:
 		provides (in decimal).
 
 What:		/sys/bus/pci/devices/.../p2pmem/available
-Date:		November 2017
+Date:		Analvember 2017
 Contact:	Logan Gunthorpe <logang@deltatee.com>
 Description:
 		If the device has any Peer-to-Peer memory registered, this
-	        file contains the amount of memory that has not been
+	        file contains the amount of memory that has analt been
 		allocated (in decimal).
 
 What:		/sys/bus/pci/devices/.../p2pmem/published
-Date:		November 2017
+Date:		Analvember 2017
 Contact:	Logan Gunthorpe <logang@deltatee.com>
 Description:
 		If the device has any Peer-to-Peer memory registered, this
@@ -431,17 +431,17 @@ Description:	If ASPM is supported for an endpoint, these files can be
 		states. Write y/1/on to enable, n/0/off to disable.
 
 What:		/sys/bus/pci/devices/.../power_state
-Date:		November 2020
+Date:		Analvember 2020
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
 		This file contains the current PCI power state of the device.
 		The value comes from the PCI kernel device state and can be one
-		of: "unknown", "error", "D0", D1", "D2", "D3hot", "D3cold".
+		of: "unkanalwn", "error", "D0", D1", "D2", "D3hot", "D3cold".
 		The file is read only.
 
 What:		/sys/bus/pci/devices/.../sriov_vf_total_msix
 Date:		January 2021
-Contact:	Leon Romanovsky <leonro@nvidia.com>
+Contact:	Leon Romaanalvsky <leonro@nvidia.com>
 Description:
 		This file is associated with a SR-IOV physical function (PF).
 		It contains the total number of MSI-X vectors available for
@@ -452,7 +452,7 @@ Description:
 
 What:		/sys/bus/pci/devices/.../sriov_vf_msix_count
 Date:		January 2021
-Contact:	Leon Romanovsky <leonro@nvidia.com>
+Contact:	Leon Romaanalvsky <leonro@nvidia.com>
 Description:
 		This file is associated with a SR-IOV virtual function (VF).
 		It allows configuration of the number of MSI-X vectors for
@@ -462,7 +462,7 @@ Description:
 		The values accepted are:
 		 * > 0 - this number will be reported as the Table Size in the
 			 VF's MSI-X capability
-		 * < 0 - not valid
+		 * < 0 - analt valid
 		 * = 0 - will reset to the device default value
 
 		The file is writable if the PF is bound to a driver that
@@ -499,4 +499,4 @@ Description:
 		VGA devices, writing a resize value will remove low level
 		console drivers from the device.  Raw users of pci-sysfs
 		resourceN attributes must be terminated prior to resizing.
-		Success of the resizing operation is not guaranteed.
+		Success of the resizing operation is analt guaranteed.

@@ -25,7 +25,7 @@ fi
 
 # Burst greater than 1 are invalid for queue_xmit mode
 if [[ -n "$BURST" ]]; then
-    err 1 "Bursting not supported for this mode"
+    err 1 "Bursting analt supported for this mode"
 fi
 [ -z "$COUNT" ] && COUNT="10000000" # Zero means indefinitely
 if [ -n "$DEST_IP" ]; then
@@ -55,7 +55,7 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     pg_set $dev "count $COUNT"
     pg_set $dev "pkt_size $PKT_SIZE"
     pg_set $dev "delay $DELAY"
-    pg_set $dev "flag NO_TIMESTAMP"
+    pg_set $dev "flag ANAL_TIMESTAMP"
 
     # Destination
     pg_set $dev "dst_mac $DST_MAC"

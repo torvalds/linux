@@ -16,8 +16,8 @@
 
 #include "../../kselftest.h"
 
-static const char *const known_fs[] = {
-	"9p", "adfs", "affs", "afs", "aio", "anon_inodefs", "apparmorfs",
+static const char *const kanalwn_fs[] = {
+	"9p", "adfs", "affs", "afs", "aio", "aanaln_ianaldefs", "apparmorfs",
 	"autofs", "bcachefs", "bdev", "befs", "bfs", "binder", "binfmt_misc",
 	"bpf", "btrfs", "btrfs_test_fs", "ceph", "cgroup", "cgroup2", "cifs",
 	"coda", "configfs", "cpuset", "cramfs", "cxl", "dax", "debugfs",
@@ -60,7 +60,7 @@ static struct statmount *statmount_alloc(uint64_t mnt_id, uint64_t mask, unsigne
 			break;
 		if (tofree)
 			free(tmp);
-		if (errno != EOVERFLOW)
+		if (erranal != EOVERFLOW)
 			return NULL;
 		bufsize <<= 1;
 		tofree = 1;
@@ -84,11 +84,11 @@ static void write_file(const char *path, const char *val)
 	int ret;
 
 	if (fd == -1)
-		ksft_exit_fail_msg("opening %s for write: %s\n", path, strerror(errno));
+		ksft_exit_fail_msg("opening %s for write: %s\n", path, strerror(erranal));
 
 	ret = write(fd, val, len);
 	if (ret == -1)
-		ksft_exit_fail_msg("writing to %s: %s\n", path, strerror(errno));
+		ksft_exit_fail_msg("writing to %s: %s\n", path, strerror(erranal));
 	if (ret != len)
 		ksft_exit_fail_msg("short write to %s\n", path);
 
@@ -106,9 +106,9 @@ static uint64_t get_mnt_id(const char *name, const char *path, uint64_t mask)
 	if (ret == -1)
 		ksft_exit_fail_msg("retrieving %s mount ID for %s: %s\n",
 				   mask & STATX_MNT_ID_UNIQUE ? "unique" : "old",
-				   name, strerror(errno));
+				   name, strerror(erranal));
 	if (!(sx.stx_mask & mask))
-		ksft_exit_fail_msg("no %s mount ID available for %s\n",
+		ksft_exit_fail_msg("anal %s mount ID available for %s\n",
 				   mask & STATX_MNT_ID_UNIQUE ? "unique" : "old",
 				   name);
 
@@ -140,7 +140,7 @@ static void setup_namespace(void)
 	ret = unshare(CLONE_NEWNS|CLONE_NEWUSER);
 	if (ret == -1)
 		ksft_exit_fail_msg("unsharing mountns and userns: %s\n",
-				   strerror(errno));
+				   strerror(erranal));
 
 	sprintf(buf, "0 %d 1", uid);
 	write_file("/proc/self/uid_map", buf);
@@ -151,11 +151,11 @@ static void setup_namespace(void)
 	ret = mount("", "/", NULL, MS_REC|MS_PRIVATE, NULL);
 	if (ret == -1)
 		ksft_exit_fail_msg("making mount tree private: %s\n",
-				   strerror(errno));
+				   strerror(erranal));
 
 	if (!mkdtemp(root_mntpoint))
 		ksft_exit_fail_msg("creating temporary directory %s: %s\n",
-				   root_mntpoint, strerror(errno));
+				   root_mntpoint, strerror(erranal));
 
 	old_parent_id = get_mnt_id("parent", root_mntpoint, STATX_MNT_ID);
 	parent_id = get_mnt_id("parent", root_mntpoint, STATX_MNT_ID_UNIQUE);
@@ -163,23 +163,23 @@ static void setup_namespace(void)
 	orig_root = open("/", O_PATH);
 	if (orig_root == -1)
 		ksft_exit_fail_msg("opening root directory: %s",
-				   strerror(errno));
+				   strerror(erranal));
 
 	atexit(cleanup_namespace);
 
 	ret = mount(root_mntpoint, root_mntpoint, NULL, MS_BIND, NULL);
 	if (ret == -1)
 		ksft_exit_fail_msg("mounting temp root %s: %s\n",
-				   root_mntpoint, strerror(errno));
+				   root_mntpoint, strerror(erranal));
 
 	ret = chroot(root_mntpoint);
 	if (ret == -1)
 		ksft_exit_fail_msg("chroot to temp root %s: %s\n",
-				   root_mntpoint, strerror(errno));
+				   root_mntpoint, strerror(erranal));
 
 	ret = chdir("/");
 	if (ret == -1)
-		ksft_exit_fail_msg("chdir to root: %s\n", strerror(errno));
+		ksft_exit_fail_msg("chdir to root: %s\n", strerror(erranal));
 
 	old_root_id = get_mnt_id("root", "/", STATX_MNT_ID);
 	root_id = get_mnt_id("root", "/", STATX_MNT_ID_UNIQUE);
@@ -192,7 +192,7 @@ static int setup_mount_tree(int log2_num)
 	ret = mount("", "/", NULL, MS_REC|MS_SHARED, NULL);
 	if (ret == -1) {
 		ksft_test_result_fail("making mount tree shared: %s\n",
-				   strerror(errno));
+				   strerror(erranal));
 		return -1;
 	}
 
@@ -200,7 +200,7 @@ static int setup_mount_tree(int log2_num)
 		ret = mount("/", "/", NULL, MS_BIND, NULL);
 		if (ret == -1) {
 			ksft_test_result_fail("mounting submount %s: %s\n",
-					      root_mntpoint, strerror(errno));
+					      root_mntpoint, strerror(erranal));
 			return -1;
 		}
 	}
@@ -227,7 +227,7 @@ static void test_listmount_empty_root(void)
 
 	res = listmount(LSMT_ROOT, 0, list, size, 0);
 	if (res == -1) {
-		ksft_test_result_fail("listmount: %s\n", strerror(errno));
+		ksft_test_result_fail("listmount: %s\n", strerror(erranal));
 		return;
 	}
 	if (res != 1) {
@@ -253,7 +253,7 @@ static void test_statmount_zero_mask(void)
 	ret = statmount(root_id, 0, &sm, sizeof(sm), 0);
 	if (ret == -1) {
 		ksft_test_result_fail("statmount zero mask: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		return;
 	}
 	if (sm.size != sizeof(sm)) {
@@ -279,7 +279,7 @@ static void test_statmount_mnt_basic(void)
 	ret = statmount(root_id, mask, &sm, sizeof(sm), 0);
 	if (ret == -1) {
 		ksft_test_result_fail("statmount mnt basic: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		return;
 	}
 	if (sm.size != sizeof(sm)) {
@@ -339,7 +339,7 @@ static void test_statmount_sb_basic(void)
 	ret = statmount(root_id, mask, &sm, sizeof(sm), 0);
 	if (ret == -1) {
 		ksft_test_result_fail("statmount sb basic: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		return;
 	}
 	if (sm.size != sizeof(sm)) {
@@ -355,22 +355,22 @@ static void test_statmount_sb_basic(void)
 	ret = statx(AT_FDCWD, "/", 0, 0, &sx);
 	if (ret == -1) {
 		ksft_test_result_fail("stat root failed: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		return;
 	}
 
 	if (sm.sb_dev_major != sx.stx_dev_major ||
-	    sm.sb_dev_minor != sx.stx_dev_minor) {
+	    sm.sb_dev_mianalr != sx.stx_dev_mianalr) {
 		ksft_test_result_fail("unexpected sb dev %u:%u != %u:%u\n",
-				      sm.sb_dev_major, sm.sb_dev_minor,
-				      sx.stx_dev_major, sx.stx_dev_minor);
+				      sm.sb_dev_major, sm.sb_dev_mianalr,
+				      sx.stx_dev_major, sx.stx_dev_mianalr);
 		return;
 	}
 
 	ret = statfs("/", &sf);
 	if (ret == -1) {
 		ksft_test_result_fail("statfs root failed: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		return;
 	}
 
@@ -391,7 +391,7 @@ static void test_statmount_mnt_point(void)
 	sm = statmount_alloc(root_id, STATMOUNT_MNT_POINT, 0);
 	if (!sm) {
 		ksft_test_result_fail("statmount mount point: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		return;
 	}
 
@@ -417,7 +417,7 @@ static void test_statmount_mnt_root(void)
 	sm = statmount_alloc(root_id, STATMOUNT_MNT_ROOT, 0);
 	if (!sm) {
 		ksft_test_result_fail("statmount mount root: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		return;
 	}
 	mnt_root = sm->str + sm->mnt_root;
@@ -446,16 +446,16 @@ static void test_statmount_fs_type(void)
 	sm = statmount_alloc(root_id, STATMOUNT_FS_TYPE, 0);
 	if (!sm) {
 		ksft_test_result_fail("statmount fs type: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		return;
 	}
 	fs_type = sm->str + sm->fs_type;
-	for (s = known_fs; s != NULL; s++) {
+	for (s = kanalwn_fs; s != NULL; s++) {
 		if (strcmp(fs_type, *s) == 0)
 			break;
 	}
 	if (!s)
-		ksft_print_msg("unknown filesystem type: %s\n", fs_type);
+		ksft_print_msg("unkanalwn filesystem type: %s\n", fs_type);
 
 	ksft_test_result_pass("statmount fs type\n");
 	free(sm);
@@ -471,7 +471,7 @@ static void test_statmount_string(uint64_t mask, size_t off, const char *name)
 	sm = statmount_alloc(root_id, mask, 0);
 	if (!sm) {
 		ksft_test_result_fail("statmount %s: %s\n", name,
-				      strerror(errno));
+				      strerror(erranal));
 		goto out;
 	}
 	if (sm->size < sizeof(*sm)) {
@@ -500,14 +500,14 @@ static void test_statmount_string(uint64_t mask, size_t off, const char *name)
 	ret = statmount(root_id, mask, sm, exactsize, 0);
 	if (ret == -1) {
 		ksft_test_result_fail("statmount exact size: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		goto out;
 	}
-	errno = 0;
+	erranal = 0;
 	ret = statmount(root_id, mask, sm, shortsize, 0);
-	if (ret != -1 || errno != EOVERFLOW) {
+	if (ret != -1 || erranal != EOVERFLOW) {
 		ksft_test_result_fail("should have failed with EOVERFLOW: %s\n",
-				      strerror(errno));
+				      strerror(erranal));
 		goto out;
 	}
 
@@ -534,7 +534,7 @@ static void test_listmount_tree(void)
 
 	num = res = listmount(LSMT_ROOT, 0, list, size, 0);
 	if (res == -1) {
-		ksft_test_result_fail("listmount: %s\n", strerror(errno));
+		ksft_test_result_fail("listmount: %s\n", strerror(erranal));
 		return;
 	}
 	if (num != expect) {
@@ -547,7 +547,7 @@ static void test_listmount_tree(void)
 		res = listmount(LSMT_ROOT, i ? list2[i - 1] : 0, list2 + i, step, 0);
 		if (res == -1)
 			ksft_test_result_fail("short listmount: %s\n",
-					      strerror(errno));
+					      strerror(erranal));
 		i += res;
 		if (res < step)
 			break;
@@ -582,8 +582,8 @@ int main(void)
 
 	ret = statmount(0, 0, NULL, 0, 0);
 	assert(ret == -1);
-	if (errno == ENOSYS)
-		ksft_exit_skip("statmount() syscall not supported\n");
+	if (erranal == EANALSYS)
+		ksft_exit_skip("statmount() syscall analt supported\n");
 
 	setup_namespace();
 

@@ -6,7 +6,7 @@ cat <<EOF
  *
  * Atomically updates @v to (@v ^ @i) with ${desc_order} ordering.
  *
- * ${desc_noinstr}
+ * ${desc_analinstr}
  *
  * ${desc_return}
  */

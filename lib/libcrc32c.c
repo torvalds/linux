@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* 
  * CRC32C
- *@Article{castagnoli-crc,
- * author =       { Guy Castagnoli and Stefan Braeuer and Martin Herrman},
+ *@Article{castaganalli-crc,
+ * author =       { Guy Castaganalli and Stefan Braeuer and Martin Herrman},
  * title =        {{Optimization of Cyclic Redundancy-Check Codes with 24
  *                 and 32 Parity Bits}},
  * journal =      IEEE Transactions on Communication,
@@ -69,6 +69,6 @@ module_init(libcrc32c_mod_init);
 module_exit(libcrc32c_mod_fini);
 
 MODULE_AUTHOR("Clay Haapala <chaapala@cisco.com>");
-MODULE_DESCRIPTION("CRC32c (Castagnoli) calculations");
+MODULE_DESCRIPTION("CRC32c (Castaganalli) calculations");
 MODULE_LICENSE("GPL");
 MODULE_SOFTDEP("pre: crc32c");

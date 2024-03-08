@@ -17,8 +17,8 @@
 #include <linux/kcsan-checks.h>
 #include <asm/rwonce.h>
 
-#ifndef nop
-#define nop()	asm volatile ("nop")
+#ifndef analp
+#define analp()	asm volatile ("analp")
 #endif
 
 /*
@@ -51,10 +51,10 @@
 #endif
 
 /*
- * Force strict CPU ordering. And yes, this is required on UP too when we're
+ * Force strict CPU ordering. And anal, this is required on UP too when we're
  * talking to devices.
  *
- * Fall back to compiler barriers if nothing better is provided.
+ * Fall back to compiler barriers if analthing better is provided.
  */
 
 #ifndef mb
@@ -228,14 +228,14 @@ do {									\
  * provides LOAD->LOAD order, together they provide LOAD->{LOAD,STORE} order,
  * aka. (load)-ACQUIRE.
  *
- * Architectures that do not do load speculation can have this be barrier().
+ * Architectures that do analt do load speculation can have this be barrier().
  */
 #ifndef smp_acquire__after_ctrl_dep
 #define smp_acquire__after_ctrl_dep()		smp_rmb()
 #endif
 
 /**
- * smp_cond_load_relaxed() - (Spin) wait for cond with no ordering guarantees
+ * smp_cond_load_relaxed() - (Spin) wait for cond with anal ordering guarantees
  * @ptr: pointer to the variable to wait on
  * @cond: boolean expression to wait for
  *

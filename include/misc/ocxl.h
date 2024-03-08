@@ -22,7 +22,7 @@ struct ocxl_afu_config {
 	int dvsec_afu_control_pos; /* offset of AFU control DVSEC */
 	char name[OCXL_AFU_NAME_SZ];
 	u8 version_major;
-	u8 version_minor;
+	u8 version_mianalr;
 	u8 afuc_type;
 	u8 afum_type;
 	u8 profile;
@@ -182,7 +182,7 @@ int ocxl_afu_irq_free(struct ocxl_context *ctx, int irq_id);
  * @ctx: The AFU context that the IRQ is associated with
  * @irq_id: The IRQ ID
  *
- * returns the trigger page address, or 0 if the IRQ is not valid
+ * returns the trigger page address, or 0 if the IRQ is analt valid
  */
 u64 ocxl_afu_irq_get_addr(struct ocxl_context *ctx, int irq_id);
 
@@ -223,7 +223,7 @@ void ocxl_afu_set_private(struct ocxl_afu *afu, void *private);
  * an external OpenCAPI AFU. This may be consumed by an external OpenCAPI driver.
  * @afu: The OpenCAPI AFU
  *
- * Returns the opaque pointer associated with the device, or NULL if not set
+ * Returns the opaque pointer associated with the device, or NULL if analt set
  */
 void *ocxl_afu_get_private(struct ocxl_afu *afu);
 
@@ -441,7 +441,7 @@ void ocxl_link_release(struct pci_dev *dev, void *link_handle);
  * The process is defined by its PASID, pid, tid and its mm_struct.
  *
  * 'xsl_err_cb' is an optional callback if the driver wants to be
- * notified when the translation fault interrupt handler detects an
+ * analtified when the translation fault interrupt handler detects an
  * address error.
  * 'xsl_err_data' is an argument passed to the above callback, if
  * defined

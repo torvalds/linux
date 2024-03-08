@@ -393,7 +393,7 @@ static const struct snd_soc_dai_ops ssm4567_dai_ops = {
 	.mute_stream	= ssm4567_mute,
 	.set_fmt	= ssm4567_set_dai_fmt,
 	.set_tdm_slot	= ssm4567_set_tdm_slot,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver ssm4567_dai = {
@@ -450,7 +450,7 @@ static int ssm4567_i2c_probe(struct i2c_client *i2c)
 
 	ssm4567 = devm_kzalloc(&i2c->dev, sizeof(*ssm4567), GFP_KERNEL);
 	if (ssm4567 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, ssm4567);
 

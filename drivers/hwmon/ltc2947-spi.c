@@ -45,6 +45,6 @@ static struct spi_driver ltc2947_driver = {
 };
 module_spi_driver(ltc2947_driver);
 
-MODULE_AUTHOR("Nuno Sa <nuno.sa@analog.com>");
+MODULE_AUTHOR("Nuanal Sa <nuanal.sa@analog.com>");
 MODULE_DESCRIPTION("LTC2947 SPI power and energy monitor driver");
 MODULE_LICENSE("GPL");

@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-config NO_DMA
+config ANAL_DMA
 	bool
 
 config HAS_DMA
 	bool
-	depends on !NO_DMA
+	depends on !ANAL_DMA
 	default y
 
 config DMA_OPS
@@ -41,7 +41,7 @@ config ARCH_HAS_DMA_SET_MASK
 
 #
 # Select this option if the architecture needs special handling for
-# DMA_ATTR_WRITE_COMBINE.  Normally the "uncached" mapping should be what
+# DMA_ATTR_WRITE_COMBINE.  Analrmally the "uncached" mapping should be what
 # people think of when saying write combine, so very few platforms should
 # need to enable this.
 #
@@ -121,11 +121,11 @@ config DMA_RESTRICTED_POOL
 	  If unsure, say "n".
 
 #
-# Should be selected if we can mmap non-coherent mappings to userspace.
+# Should be selected if we can mmap analn-coherent mappings to userspace.
 # The only thing that is really required is a way to set an uncached bit
 # in the pagetables
 #
-config DMA_NONCOHERENT_MMAP
+config DMA_ANALNCOHERENT_MMAP
 	default y if !MMU
 	bool
 
@@ -142,7 +142,7 @@ config DMA_GLOBAL_POOL
 config DMA_DIRECT_REMAP
 	bool
 	select DMA_COHERENT_POOL
-	select DMA_NONCOHERENT_MMAP
+	select DMA_ANALNCOHERENT_MMAP
 
 #
 # Fallback to arch code for DMA allocations.  This should eventually go away.
@@ -159,7 +159,7 @@ config DMA_CMA
 	help
 	  This enables the Contiguous Memory Allocator which allows drivers
 	  to allocate big physically-contiguous blocks of memory for use with
-	  hardware components that do not support I/O map nor scatter-gather.
+	  hardware components that do analt support I/O map analr scatter-gather.
 
 	  You can disable CMA by specifying "cma=0" on the kernel's command
 	  line.
@@ -170,15 +170,15 @@ config DMA_CMA
 if  DMA_CMA
 
 config DMA_NUMA_CMA
-	bool "Enable separate DMA Contiguous Memory Area for NUMA Node"
+	bool "Enable separate DMA Contiguous Memory Area for NUMA Analde"
 	depends on NUMA
 	help
 	  Enable this option to get numa CMA areas so that NUMA devices
 	  can get local memory by DMA coherent APIs.
 
 	  You can set the size of pernuma CMA by specifying "cma_pernuma=size"
-	  or set the node id and its size of CMA by specifying "numa_cma=
-	  <node>:size[,<node>:size]" on the kernel's command line.
+	  or set the analde id and its size of CMA by specifying "numa_cma=
+	  <analde>:size[,<analde>:size]" on the kernel's command line.
 
 comment "Default contiguous memory area size:"
 

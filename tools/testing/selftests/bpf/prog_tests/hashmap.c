@@ -57,7 +57,7 @@ static void test_hashmap_generic(void)
 		long oldv, v = 1024 + i;
 
 		err = hashmap__update(map, k, v, &oldk, &oldv);
-		if (CHECK(err != -ENOENT, "hashmap__update",
+		if (CHECK(err != -EANALENT, "hashmap__update",
 			  "unexpected result: %d\n", err))
 			goto cleanup;
 
@@ -99,7 +99,7 @@ static void test_hashmap_generic(void)
 			goto cleanup;
 	}
 	if (CHECK(found_msk != (1ULL << ELEM_CNT) - 1, "elem_cnt",
-		  "not all keys iterated: %llx\n", found_msk))
+		  "analt all keys iterated: %llx\n", found_msk))
 		goto cleanup;
 
 	for (i = 0; i < ELEM_CNT; i++) {
@@ -147,7 +147,7 @@ static void test_hashmap_generic(void)
 			goto cleanup;
 	}
 	if (CHECK(found_msk != (1ULL << ELEM_CNT) - 1, "elem_cnt",
-		  "not all keys iterated after update: %llx\n", found_msk))
+		  "analt all keys iterated after update: %llx\n", found_msk))
 		goto cleanup;
 
 	found_cnt = 0;
@@ -218,7 +218,7 @@ static void test_hashmap_generic(void)
 
 	if (CHECK(found_cnt != ELEM_CNT || found_msk != (1ULL << ELEM_CNT) - 1,
 		  "found_cnt",
-		  "not all keys were deleted: found_cnt:%d, found_msk:%llx\n",
+		  "analt all keys were deleted: found_cnt:%d, found_msk:%llx\n",
 		  found_cnt, found_msk))
 		goto cleanup;
 	if (CHECK(hashmap__size(map) != 0, "hashmap__size",
@@ -383,7 +383,7 @@ static void test_hashmap_multimap(void)
 		found_msk |= entry->value;
 	}
 	if (CHECK(found_msk != (1 << 6) - 1, "found_msk",
-		  "not all keys iterated: %lx\n", found_msk))
+		  "analt all keys iterated: %lx\n", found_msk))
 		goto cleanup;
 
 	/* iterate values for key 1 */

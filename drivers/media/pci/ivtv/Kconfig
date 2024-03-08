@@ -34,7 +34,7 @@ config VIDEO_IVTV_ALSA
 	depends on VIDEO_IVTV && SND
 	select SND_PCM
 	help
-	  This driver provides an ALSA interface as another method for user
+	  This driver provides an ALSA interface as aanalther method for user
 	  applications to obtain PCM audio data from Conexant cx23415/cx23416
 	  based PCI TV cards supported by the ivtv driver.
 
@@ -62,13 +62,13 @@ config VIDEO_FB_IVTV_FORCE_PAT
 	bool "force cx23415 framebuffer init with x86 PAT enabled"
 	depends on VIDEO_FB_IVTV && X86_PAT
 	help
-	  With PAT enabled, the cx23415 framebuffer driver does not
+	  With PAT enabled, the cx23415 framebuffer driver does analt
 	  utilize write-combined caching on the framebuffer memory.
 	  For this reason, the driver will by default disable itself
-	  when initializied on a kernel with PAT enabled (i.e. not
-	  using the nopat kernel parameter).
+	  when initializied on a kernel with PAT enabled (i.e. analt
+	  using the analpat kernel parameter).
 
-	  The driver is not easily upgradable to the PAT-aware
+	  The driver is analt easily upgradable to the PAT-aware
 	  ioremap_wc() API since the firmware hides the address
 	  ranges that should be marked write-combined from the driver.
 

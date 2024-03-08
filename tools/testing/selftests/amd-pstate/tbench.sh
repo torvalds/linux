@@ -4,7 +4,7 @@
 # Testing and monitor the cpu desire performance, frequency, load,
 # power consumption and throughput etc.when this script trigger tbench
 # test cases.
-# 1) Run tbench benchmark on specific governors, ondemand or schedutil.
+# 1) Run tbench benchmark on specific goveranalrs, ondemand or schedutil.
 # 2) Run tbench benchmark comparative test on acpi-cpufreq kernel driver.
 # 3) Get desire performance, frequency, load by perf.
 # 4) Get power consumption and throughput by amd_pstate_trace.py.
@@ -18,9 +18,9 @@ else
 	FILE_TBENCH=DONE
 fi
 
-tbench_governors=("ondemand" "schedutil")
+tbench_goveranalrs=("ondemand" "schedutil")
 
-# $1: governor, $2: round, $3: des-perf, $4: freq, $5: load, $6: performance, $7: energy, $8: performance per watt
+# $1: goveranalr, $2: round, $3: des-perf, $4: freq, $5: load, $6: performance, $7: energy, $8: performance per watt
 store_csv_tbench()
 {
 	echo "$1, $2, $3, $4, $5, $6, $7, $8" | tee -a $OUTFILE_TBENCH.csv > /dev/null 2>&1
@@ -60,7 +60,7 @@ post_clear_tbench()
 
 }
 
-# $1: governor, $2: loop
+# $1: goveranalr, $2: loop
 run_tbench()
 {
 	echo "Launching amd pstate tracer for $1 #$2 tracer_interval: $TRACER_INTERVAL"
@@ -80,7 +80,7 @@ run_tbench()
 	done
 }
 
-# $1: governor, $2: loop
+# $1: goveranalr, $2: loop
 parse_tbench()
 {
 	awk '{print $5}' results/tracer-tbench-$1-$2/cpu.csv | sed -e '1d' | sed s/,// > $OUTFILE_TBENCH-des-perf-$1-$2.log
@@ -103,8 +103,8 @@ parse_tbench()
 	en_sum=$(awk 'BEGIN {sum=0};{sum += $1};END {print sum}' $OUTFILE_TBENCH-energy-$1-$2.log)
 	printf "Tbench-$1-#$2 power consumption(J): $en_sum\n" | tee -a $OUTFILE_TBENCH.result
 
-	# Permance is throughput per second, denoted T/t, where T is throught rendered in t seconds.
-	# It is well known that P=E/t, where P is power measured in watts(W), E is energy measured in joules(J),
+	# Permance is throughput per second, deanalted T/t, where T is throught rendered in t seconds.
+	# It is well kanalwn that P=E/t, where P is power measured in watts(W), E is energy measured in joules(J),
 	# and t is time measured in seconds(s). This means that performance per watt becomes
 	#       T/t   T/t    T
 	#       --- = --- = ---
@@ -118,7 +118,7 @@ parse_tbench()
 	store_csv_tbench "$driver_name-$1" $2 $avg_des_perf $avg_freq $avg_load $tp_sum $en_sum $ppw
 }
 
-# $1: governor
+# $1: goveranalr
 loop_tbench()
 {
 	printf "\nTbench total test times is $LOOP_TIMES for $1\n\n"
@@ -129,7 +129,7 @@ loop_tbench()
 	done
 }
 
-# $1: governor
+# $1: goveranalr
 gather_tbench()
 {
 	printf "Tbench test result for $1 (loops:$LOOP_TIMES)" | tee -a $OUTFILE_TBENCH.result
@@ -161,8 +161,8 @@ gather_tbench()
 	avg_en=$(awk 'BEGIN {sum=0};{sum += $1};END {print sum/'$LOOP_TIMES'}' $OUTFILE_TBENCH-energy-$1.log)
 	printf "Tbench-$1 avg power consumption(J): $avg_en\n" | tee -a $OUTFILE_TBENCH.result
 
-	# Permance is throughput per second, denoted T/t, where T is throught rendered in t seconds.
-	# It is well known that P=E/t, where P is power measured in watts(W), E is energy measured in joules(J),
+	# Permance is throughput per second, deanalted T/t, where T is throught rendered in t seconds.
+	# It is well kanalwn that P=E/t, where P is power measured in watts(W), E is energy measured in joules(J),
 	# and t is time measured in seconds(s). This means that performance per watt becomes
 	#       T/t   T/t    T
 	#       --- = --- = ---
@@ -176,7 +176,7 @@ gather_tbench()
 	store_csv_tbench "$driver_name-$1" "Average" $avg_des_perf $avg_freq $avg_load $avg_tp $avg_en $ppw
 }
 
-# $1: base scaling_driver $2: base governor $3: comparative scaling_driver $4: comparative governor
+# $1: base scaling_driver $2: base goveranalr $3: comparative scaling_driver $4: comparative goveranalr
 __calc_comp_tbench()
 {
 	base=`grep "$1-$2" $OUTFILE_TBENCH.csv | grep "Average"`
@@ -231,16 +231,16 @@ __calc_comp_tbench()
 calc_comp_tbench()
 {
 	# acpi-cpufreq-ondemand VS acpi-cpufreq-schedutil
-	__calc_comp_tbench ${all_scaling_names[0]} ${tbench_governors[0]} ${all_scaling_names[0]} ${tbench_governors[1]}
+	__calc_comp_tbench ${all_scaling_names[0]} ${tbench_goveranalrs[0]} ${all_scaling_names[0]} ${tbench_goveranalrs[1]}
 
 	# amd-pstate-ondemand VS amd-pstate-schedutil
-	__calc_comp_tbench ${all_scaling_names[1]} ${tbench_governors[0]} ${all_scaling_names[1]} ${tbench_governors[1]}
+	__calc_comp_tbench ${all_scaling_names[1]} ${tbench_goveranalrs[0]} ${all_scaling_names[1]} ${tbench_goveranalrs[1]}
 
 	# acpi-cpufreq-ondemand VS amd-pstate-ondemand
-	__calc_comp_tbench ${all_scaling_names[0]} ${tbench_governors[0]} ${all_scaling_names[1]} ${tbench_governors[0]}
+	__calc_comp_tbench ${all_scaling_names[0]} ${tbench_goveranalrs[0]} ${all_scaling_names[1]} ${tbench_goveranalrs[0]}
 
 	# acpi-cpufreq-schedutil VS amd-pstate-schedutil
-	__calc_comp_tbench ${all_scaling_names[0]} ${tbench_governors[1]} ${all_scaling_names[1]} ${tbench_governors[1]}
+	__calc_comp_tbench ${all_scaling_names[0]} ${tbench_goveranalrs[1]} ${all_scaling_names[1]} ${tbench_goveranalrs[1]}
 }
 
 # $1: file_name, $2: title, $3: ylable, $4: column
@@ -284,20 +284,20 @@ plot_png_tbench()
 
 		if ($flag == 1) {
 			plot \
-			"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${tbench_governors[0]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${tbench_governors[0]}", \
-			"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${tbench_governors[1]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${tbench_governors[1]}"
+			"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${tbench_goveranalrs[0]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${tbench_goveranalrs[0]}", \
+			"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${tbench_goveranalrs[1]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${tbench_goveranalrs[1]}"
 		} else {
 			if ($flag == 2) {
 				plot \
-				"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${tbench_governors[0]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${tbench_governors[0]}", \
-				"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${tbench_governors[1]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${tbench_governors[1]}"
+				"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${tbench_goveranalrs[0]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${tbench_goveranalrs[0]}", \
+				"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${tbench_goveranalrs[1]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${tbench_goveranalrs[1]}"
 			} else {
 				if ($flag == 3 ) {
 					plot \
-					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${tbench_governors[0]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${tbench_governors[0]}", \
-					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${tbench_governors[1]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${tbench_governors[1]}", \
-					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${tbench_governors[0]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${tbench_governors[0]}", \
-					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${tbench_governors[1]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${tbench_governors[1]}"
+					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${tbench_goveranalrs[0]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${tbench_goveranalrs[0]}", \
+					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[0]}-${tbench_goveranalrs[1]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[0]}-${tbench_goveranalrs[1]}", \
+					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${tbench_goveranalrs[0]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${tbench_goveranalrs[0]}", \
+					"<(sed -n -e 's/,//g' -e '/${all_scaling_names[1]}-${tbench_goveranalrs[1]}/p' $OUTFILE_TBENCH.csv)" using $4:xtic(2) title "${all_scaling_names[1]}-${tbench_goveranalrs[1]}"
 				}
 			}
 		}
@@ -313,21 +313,21 @@ amd_pstate_tbench()
 
 	pre_clear_tbench
 
-	get_lines_csv_tbench "Governor"
+	get_lines_csv_tbench "Goveranalr"
 	if [ $? -eq 0 ]; then
 		# add titles and unit for csv file
-		store_csv_tbench "Governor" "Round" "Des-perf" "Freq" "Load" "Performance" "Energy" "Performance Per Watt"
+		store_csv_tbench "Goveranalr" "Round" "Des-perf" "Freq" "Load" "Performance" "Energy" "Performance Per Watt"
 		store_csv_tbench "Unit" "" "" "GHz" "" "MB/s" "J" "MB/J"
 	fi
 
-	backup_governor
-	for governor in ${tbench_governors[*]} ; do
-		printf "\nSpecified governor is $governor\n\n"
-		switch_governor $governor
-		loop_tbench $governor
-		gather_tbench $governor
+	backup_goveranalr
+	for goveranalr in ${tbench_goveranalrs[*]} ; do
+		printf "\nSpecified goveranalr is $goveranalr\n\n"
+		switch_goveranalr $goveranalr
+		loop_tbench $goveranalr
+		gather_tbench $goveranalr
 	done
-	restore_governor
+	restore_goveranalr
 
 	plot_png_tbench "tbench_perfromance.png" "Tbench Benchmark Performance" "Performance" 6
 	plot_png_tbench "tbench_energy.png" "Tbench Benchmark Energy" "Energy (J)" 7

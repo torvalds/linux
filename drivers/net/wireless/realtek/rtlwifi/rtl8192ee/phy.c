@@ -144,7 +144,7 @@ static u32 _rtl92ee_phy_rf_serial_read(struct ieee80211_hw *hw,
 
 	offset &= 0xff;
 	newoffset = offset;
-	if (RT_CANNOT_IO(hw)) {
+	if (RT_CANANALT_IO(hw)) {
 		pr_err("return all one\n");
 		return 0xFFFFFFFF;
 	}
@@ -187,7 +187,7 @@ static void _rtl92ee_phy_rf_serial_write(struct ieee80211_hw *hw,
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	struct bb_reg_def *pphyreg = &rtlphy->phyreg_def[rfpath];
 
-	if (RT_CANNOT_IO(hw)) {
+	if (RT_CANANALT_IO(hw)) {
 		pr_err("stop\n");
 		return;
 	}
@@ -683,7 +683,7 @@ static bool phy_config_bb_with_hdr_file(struct ieee80211_hw *hw,
 			if (v1 < 0xcdcdcdcd) {
 				_rtl92ee_config_bb_reg(hw, v1, v2);
 			} else {/*This line is the start line of branch.*/
-				/* to protect READ_NEXT_PAIR not overrun */
+				/* to protect READ_NEXT_PAIR analt overrun */
 				if (i >= len - 2)
 					break;
 
@@ -727,7 +727,7 @@ static bool phy_config_bb_with_hdr_file(struct ieee80211_hw *hw,
 				udelay(1);
 				continue;
 		    } else{/*This line is the start line of branch.*/
-			  /* to protect READ_NEXT_PAIR not overrun */
+			  /* to protect READ_NEXT_PAIR analt overrun */
 				if (i >= len - 2)
 					break;
 
@@ -904,7 +904,7 @@ bool rtl92ee_phy_config_rf_with_headerfile(struct ieee80211_hw  *hw,
 		array = RTL8192EE_RADIOA_ARRAY;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 			"Radio_A:RTL8192EE_RADIOA_ARRAY %d\n", len);
-		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Radio No %x\n", rfpath);
+		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Radio Anal %x\n", rfpath);
 		for (i = 0; i < len; i = i + 2) {
 			v1 = array[i];
 			v2 = array[i+1];
@@ -912,7 +912,7 @@ bool rtl92ee_phy_config_rf_with_headerfile(struct ieee80211_hw  *hw,
 				_rtl92ee_config_rf_radio_a(hw, v1, v2);
 				continue;
 			} else {/*This line is the start line of branch.*/
-				/* to protect READ_NEXT_PAIR not overrun */
+				/* to protect READ_NEXT_PAIR analt overrun */
 				if (i >= len - 2)
 					break;
 
@@ -951,7 +951,7 @@ bool rtl92ee_phy_config_rf_with_headerfile(struct ieee80211_hw  *hw,
 		array = RTL8192EE_RADIOB_ARRAY;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 			"Radio_A:RTL8192EE_RADIOB_ARRAY %d\n", len);
-		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Radio No %x\n", rfpath);
+		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Radio Anal %x\n", rfpath);
 		for (i = 0; i < len; i = i + 2) {
 			v1 = array[i];
 			v2 = array[i+1];
@@ -959,7 +959,7 @@ bool rtl92ee_phy_config_rf_with_headerfile(struct ieee80211_hw  *hw,
 				_rtl92ee_config_rf_radio_b(hw, v1, v2);
 				continue;
 			} else {/*This line is the start line of branch.*/
-				/* to protect READ_NEXT_PAIR not overrun */
+				/* to protect READ_NEXT_PAIR analt overrun */
 				if (i >= len - 2)
 					break;
 
@@ -1155,9 +1155,9 @@ static u8 _rtl92ee_get_txpower_by_rate(struct ieee80211_hw *hw,
 	s8 diff = 0;
 
 	sec = _rtl92ee_phy_get_ratesection_intxpower_byrate(rf, rate);
-	tx_num = RF_TX_NUM_NONIMPLEMENT;
+	tx_num = RF_TX_NUM_ANALNIMPLEMENT;
 
-	if (tx_num == RF_TX_NUM_NONIMPLEMENT) {
+	if (tx_num == RF_TX_NUM_ANALNIMPLEMENT) {
 		if ((rate >= DESC92C_RATEMCS8 && rate <= DESC92C_RATEMCS15))
 			tx_num = RF_2TX;
 		else
@@ -1638,7 +1638,7 @@ void rtl92ee_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
 						      (u8 *)&iotype);
 			break;
 		default:
-			pr_err("Unknown Scan Backup operation.\n");
+			pr_err("Unkanalwn Scan Backup operation.\n");
 			break;
 		}
 	}
@@ -1679,7 +1679,7 @@ void rtl92ee_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 		rtl_write_byte(rtlpriv, REG_RRSR + 2, reg_prsr_rsc);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkanalwn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 	}
@@ -1688,7 +1688,7 @@ void rtl92ee_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 	case HT_CHANNEL_WIDTH_20:
 		rtl_set_bbreg(hw, RFPGA0_RFMOD, BRFMOD, 0x0);
 		rtl_set_bbreg(hw, RFPGA1_RFMOD, BRFMOD, 0x0);
-		rtl_set_bbreg(hw, ROFDM0_TXPSEUDONOISEWGT,
+		rtl_set_bbreg(hw, ROFDM0_TXPSEUDOANALISEWGT,
 			      (BIT(31) | BIT(30)), 0);
 		break;
 	case HT_CHANNEL_WIDTH_20_40:
@@ -1704,7 +1704,7 @@ void rtl92ee_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 			       HAL_PRIME_CHNL_OFFSET_LOWER) ? 2 : 1);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkanalwn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 	}
@@ -1724,7 +1724,7 @@ void rtl92ee_phy_set_bw_mode(struct ieee80211_hw *hw,
 	if (rtlphy->set_bwmode_inprogress)
 		return;
 	rtlphy->set_bwmode_inprogress = true;
-	if ((!is_hal_stop(rtlhal)) && !(RT_CANNOT_IO(hw))) {
+	if ((!is_hal_stop(rtlhal)) && !(RT_CANANALT_IO(hw))) {
 		rtl92ee_phy_set_bw_mode_callback(hw);
 	} else {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
@@ -1778,7 +1778,7 @@ u8 rtl92ee_phy_sw_chnl(struct ieee80211_hw *hw)
 	rtlphy->sw_chnl_inprogress = true;
 	rtlphy->sw_chnl_stage = 0;
 	rtlphy->sw_chnl_step = 0;
-	if (!(is_hal_stop(rtlhal)) && !(RT_CANNOT_IO(hw))) {
+	if (!(is_hal_stop(rtlhal)) && !(RT_CANANALT_IO(hw))) {
 		rtl92ee_phy_sw_chnl_callback(hw);
 		rtl_dbg(rtlpriv, COMP_CHAN, DBG_LOUD,
 			"sw_chnl_inprogress false schedule workitem current channel %d\n",
@@ -1889,7 +1889,7 @@ static bool _rtl92ee_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 			break;
 		default:
 			rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-				"switch case %#x not processed\n",
+				"switch case %#x analt processed\n",
 				currentcmd->cmdid);
 			break;
 		}
@@ -1910,7 +1910,7 @@ static bool _rtl92ee_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 	struct swchnlcmd *pcmd;
 
 	if (cmdtable == NULL) {
-		WARN_ONCE(true, "rtl8192ee: cmdtable cannot be NULL.\n");
+		WARN_ONCE(true, "rtl8192ee: cmdtable cananalt be NULL.\n");
 		return false;
 	}
 
@@ -2958,7 +2958,7 @@ bool rtl92ee_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype)
 			break;
 		default:
 			rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-				"switch case %#x not processed\n", iotype);
+				"switch case %#x analt processed\n", iotype);
 			break;
 		}
 	} while (false);
@@ -2986,7 +2986,7 @@ static void rtl92ee_phy_set_io(struct ieee80211_hw *hw)
 	case IO_CMD_RESUME_DM_BY_SCAN:
 		rtl92ee_dm_write_dig(hw, rtlphy->initgain_backup.xaagccore1);
 		rtl92ee_dm_write_cck_cca_thres(hw, rtlphy->initgain_backup.cca);
-		rtl_dbg(rtlpriv, COMP_CMD, DBG_TRACE, "no set txpower\n");
+		rtl_dbg(rtlpriv, COMP_CMD, DBG_TRACE, "anal set txpower\n");
 		rtl92ee_phy_set_txpower_level(hw, rtlphy->current_channel);
 		break;
 	case IO_CMD_PAUSE_BAND0_DM_BY_SCAN:
@@ -2998,7 +2998,7 @@ static void rtl92ee_phy_set_io(struct ieee80211_hw *hw)
 		break;
 	default:
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-			"switch case %#x not processed\n",
+			"switch case %#x analt processed\n",
 			rtlphy->current_io_type);
 		break;
 	}
@@ -3066,7 +3066,7 @@ static bool _rtl92ee_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		if (mac->link_state == MAC80211_LINKED)
 			rtlpriv->cfg->ops->led_control(hw, LED_CTL_LINK);
 		else
-			rtlpriv->cfg->ops->led_control(hw, LED_CTL_NO_LINK);
+			rtlpriv->cfg->ops->led_control(hw, LED_CTL_ANAL_LINK);
 		break;
 	case ERFOFF:
 		for (queue_id = 0, i = 0;
@@ -3103,7 +3103,7 @@ static bool _rtl92ee_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		} else {
 			if (ppsc->rfoff_reason == RF_CHANGE_BY_IPS) {
 				rtlpriv->cfg->ops->led_control(hw,
-							LED_CTL_NO_LINK);
+							LED_CTL_ANAL_LINK);
 			} else {
 				rtlpriv->cfg->ops->led_control(hw,
 							LED_CTL_POWER_OFF);
@@ -3145,7 +3145,7 @@ static bool _rtl92ee_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		break;
 	default:
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-			"switch case %#x not processed\n", rfpwr_state);
+			"switch case %#x analt processed\n", rfpwr_state);
 		bresult = false;
 		break;
 	}

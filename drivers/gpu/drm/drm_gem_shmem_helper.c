@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2018 Noralf Trønnes
+ * Copyright 2018 Analralf Trønnes
  */
 
 #include <linux/dma-buf.h>
@@ -29,7 +29,7 @@ MODULE_IMPORT_NS(DMA_BUF);
  * DOC: overview
  *
  * This library provides helpers for GEM objects backed by shmem buffers
- * allocated using anonymous pageable memory.
+ * allocated using aanalnymous pageable memory.
  *
  * Functions that operate on the GEM object receive struct &drm_gem_shmem_object.
  * For GEM callback helpers in struct &drm_gem_object functions, see likewise
@@ -66,7 +66,7 @@ __drm_gem_shmem_create(struct drm_device *dev, size_t size, bool private)
 	} else {
 		shmem = kzalloc(sizeof(*shmem), GFP_KERNEL);
 		if (!shmem)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		obj = &shmem->base;
 	}
 
@@ -94,12 +94,12 @@ __drm_gem_shmem_create(struct drm_device *dev, size_t size, bool private)
 		/*
 		 * Our buffers are kept pinned, so allocating them
 		 * from the MOVABLE zone is a really bad idea, and
-		 * conflicts with CMA. See comments above new_inode()
+		 * conflicts with CMA. See comments above new_ianalde()
 		 * why this is required _and_ expected if you're
 		 * going to pin these pages.
 		 */
 		mapping_set_gfp_mask(obj->filp->f_mapping, GFP_HIGHUSER |
-				     __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+				     __GFP_RETRY_MAYFAIL | __GFP_ANALWARN);
 	}
 
 	return shmem;
@@ -340,7 +340,7 @@ int drm_gem_shmem_vmap(struct drm_gem_shmem_object *shmem,
 		shmem->vaddr = vmap(shmem->pages, obj->size >> PAGE_SHIFT,
 				    VM_MAP, prot);
 		if (!shmem->vaddr)
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 		else
 			iosys_map_set_vaddr(map, shmem->vaddr);
 	}
@@ -415,14 +415,14 @@ drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
 	 * and handle has the id what user can see.
 	 */
 	ret = drm_gem_handle_create(file_priv, &shmem->base, handle);
-	/* drop reference from allocate - handle holds it now. */
+	/* drop reference from allocate - handle holds it analw. */
 	drm_gem_object_put(&shmem->base);
 
 	return ret;
 }
 
-/* Update madvise status, returns true if not purged, else
- * false or -errno.
+/* Update madvise status, returns true if analt purged, else
+ * false or -erranal.
  */
 int drm_gem_shmem_madvise(struct drm_gem_shmem_object *shmem, int madv)
 {
@@ -455,17 +455,17 @@ void drm_gem_shmem_purge(struct drm_gem_shmem_object *shmem)
 
 	shmem->madv = -1;
 
-	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
+	drm_vma_analde_unmap(&obj->vma_analde, dev->aanaln_ianalde->i_mapping);
 	drm_gem_free_mmap_offset(obj);
 
 	/* Our goal here is to return as much of the memory as
 	 * is possible back to the system as we are called from OOM.
 	 * To do this we must instruct the shmfs to drop all of its
-	 * backing pages, *now*.
+	 * backing pages, *analw*.
 	 */
-	shmem_truncate_range(file_inode(obj->filp), 0, (loff_t)-1);
+	shmem_truncate_range(file_ianalde(obj->filp), 0, (loff_t)-1);
 
-	invalidate_mapping_pages(file_inode(obj->filp)->i_mapping, 0, (loff_t)-1);
+	invalidate_mapping_pages(file_ianalde(obj->filp)->i_mapping, 0, (loff_t)-1);
 }
 EXPORT_SYMBOL(drm_gem_shmem_purge);
 
@@ -716,10 +716,10 @@ err_put_pages:
  *
  * This is the main function for drivers to get at backing storage, and it hides
  * and difference between dma-buf imported and natively allocated objects.
- * drm_gem_shmem_get_sg_table() should not be directly called by drivers.
+ * drm_gem_shmem_get_sg_table() should analt be directly called by drivers.
  *
  * Returns:
- * A pointer to the scatter/gather table of pinned pages or errno on failure.
+ * A pointer to the scatter/gather table of pinned pages or erranal on failure.
  */
 struct sg_table *drm_gem_shmem_get_pages_sgt(struct drm_gem_shmem_object *shmem)
 {
@@ -738,13 +738,13 @@ EXPORT_SYMBOL_GPL(drm_gem_shmem_get_pages_sgt);
 
 /**
  * drm_gem_shmem_prime_import_sg_table - Produce a shmem GEM object from
- *                 another driver's scatter/gather table of pinned pages
+ *                 aanalther driver's scatter/gather table of pinned pages
  * @dev: Device to import into
  * @attach: DMA-BUF attachment
  * @sgt: Scatter/gather table of pinned pages
  *
  * This function imports a scatter/gather table exported via DMA-BUF by
- * another driver. Drivers that use the shmem helpers should set this as their
+ * aanalther driver. Drivers that use the shmem helpers should set this as their
  * &drm_driver.gem_prime_import_sg_table callback.
  *
  * Returns:

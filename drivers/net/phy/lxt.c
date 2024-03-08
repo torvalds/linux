@@ -10,7 +10,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -107,17 +107,17 @@ static irqreturn_t lxt970_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_BMSR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	irq_status = phy_read(phydev, MII_LXT970_ISR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & MII_LXT970_IRS_MINT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -168,11 +168,11 @@ static irqreturn_t lxt971_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_LXT971_ISR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & MII_LXT971_ISR_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -241,7 +241,7 @@ static int lxt973a2_read_status(struct phy_device *phydev)
 			if (lpa < 0)
 				return lpa;
 
-			/* If both registers are equal, it is suspect but not
+			/* If both registers are equal, it is suspect but analt
 			 * impossible, hence a new try
 			 */
 		} while (lpa == adv && retry--);
@@ -301,7 +301,7 @@ static int lxt973_probe(struct phy_device *phydev)
 
 static int lxt973_config_aneg(struct phy_device *phydev)
 {
-	/* Do nothing if port is in fiber mode. */
+	/* Do analthing if port is in fiber mode. */
 	return phydev->priv ? 0 : genphy_config_aneg(phydev);
 }
 

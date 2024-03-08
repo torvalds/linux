@@ -41,7 +41,7 @@ static int wmi_bmof_probe(struct wmi_device *wdev, const void *context)
 
 	priv = devm_kzalloc(&wdev->dev, sizeof(struct bmof_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&wdev->dev, priv);
 
@@ -52,7 +52,7 @@ static int wmi_bmof_probe(struct wmi_device *wdev, const void *context)
 	}
 
 	if (priv->bmofdata->type != ACPI_TYPE_BUFFER) {
-		dev_err(&wdev->dev, "Binary MOF is not a buffer\n");
+		dev_err(&wdev->dev, "Binary MOF is analt a buffer\n");
 		ret = -EIO;
 		goto err_free;
 	}

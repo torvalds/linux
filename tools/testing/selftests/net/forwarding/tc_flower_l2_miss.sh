@@ -62,9 +62,9 @@ switch_destroy()
 	tc qdisc del dev $swp2 clsact
 
 	ip link set dev $swp2 down
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 analmaster
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 	ip link del dev br1
 }
 
@@ -76,11 +76,11 @@ test_l2_miss_unicast()
 
 	RET=0
 
-	# Unknown unicast.
+	# Unkanalwn unicast.
 	tc filter add dev $swp2 egress protocol ipv4 handle 101 pref 1 \
 	   flower indev $swp1 l2_miss 1 dst_mac $dmac src_ip $sip \
 	   dst_ip $dip action pass
-	# Known unicast.
+	# Kanalwn unicast.
 	tc filter add dev $swp2 egress protocol ipv4 handle 102 pref 1 \
 	   flower indev $swp1 l2_miss 0 dst_mac $dmac src_ip $sip \
 	   dst_ip $dip action pass
@@ -89,10 +89,10 @@ test_l2_miss_unicast()
 	$MZ $h1 -a own -b $dmac -t ip -A $sip -B $dip -c 1 -p 100 -q
 
 	tc_check_packets "dev $swp2 egress" 101 1
-	check_err $? "Unknown unicast filter was not hit before adding FDB entry"
+	check_err $? "Unkanalwn unicast filter was analt hit before adding FDB entry"
 
 	tc_check_packets "dev $swp2 egress" 102 0
-	check_err $? "Known unicast filter was hit before adding FDB entry"
+	check_err $? "Kanalwn unicast filter was hit before adding FDB entry"
 
 	# Adding FDB entry.
 	bridge fdb replace $dmac dev $swp2 master static
@@ -100,10 +100,10 @@ test_l2_miss_unicast()
 	$MZ $h1 -a own -b $dmac -t ip -A $sip -B $dip -c 1 -p 100 -q
 
 	tc_check_packets "dev $swp2 egress" 101 1
-	check_err $? "Unknown unicast filter was hit after adding FDB entry"
+	check_err $? "Unkanalwn unicast filter was hit after adding FDB entry"
 
 	tc_check_packets "dev $swp2 egress" 102 1
-	check_err $? "Known unicast filter was not hit after adding FDB entry"
+	check_err $? "Kanalwn unicast filter was analt hit after adding FDB entry"
 
 	# Deleting FDB entry.
 	bridge fdb del $dmac dev $swp2 master static
@@ -111,10 +111,10 @@ test_l2_miss_unicast()
 	$MZ $h1 -a own -b $dmac -t ip -A $sip -B $dip -c 1 -p 100 -q
 
 	tc_check_packets "dev $swp2 egress" 101 2
-	check_err $? "Unknown unicast filter was not hit after deleting FDB entry"
+	check_err $? "Unkanalwn unicast filter was analt hit after deleting FDB entry"
 
 	tc_check_packets "dev $swp2 egress" 102 1
-	check_err $? "Known unicast filter was hit after deleting FDB entry"
+	check_err $? "Kanalwn unicast filter was hit after deleting FDB entry"
 
 	tc filter del dev $swp2 egress protocol ipv4 pref 1 handle 102 flower
 	tc filter del dev $swp2 egress protocol ipv4 pref 1 handle 101 flower
@@ -146,7 +146,7 @@ test_l2_miss_multicast_common()
 	$MZ $mode $h1 -a own -b $dmac -t ip -A $sip -B $dip -c 1 -p 100 -q
 
 	tc_check_packets "dev $swp2 egress" 101 1
-	check_err $? "Unregistered multicast filter was not hit before adding MDB entry"
+	check_err $? "Unregistered multicast filter was analt hit before adding MDB entry"
 
 	tc_check_packets "dev $swp2 egress" 102 0
 	check_err $? "Registered multicast filter was hit before adding MDB entry"
@@ -160,7 +160,7 @@ test_l2_miss_multicast_common()
 	check_err $? "Unregistered multicast filter was hit after adding MDB entry"
 
 	tc_check_packets "dev $swp2 egress" 102 1
-	check_err $? "Registered multicast filter was not hit after adding MDB entry"
+	check_err $? "Registered multicast filter was analt hit after adding MDB entry"
 
 	# Deleting MDB entry.
 	bridge mdb del dev br1 port $swp2 grp $dip
@@ -168,7 +168,7 @@ test_l2_miss_multicast_common()
 	$MZ $mode $h1 -a own -b $dmac -t ip -A $sip -B $dip -c 1 -p 100 -q
 
 	tc_check_packets "dev $swp2 egress" 101 2
-	check_err $? "Unregistered multicast filter was not hit after deleting MDB entry"
+	check_err $? "Unregistered multicast filter was analt hit after deleting MDB entry"
 
 	tc_check_packets "dev $swp2 egress" 102 1
 	check_err $? "Registered multicast filter was hit after deleting MDB entry"
@@ -219,7 +219,7 @@ test_l2_miss_multicast()
 	# as the querier and assign it a valid IPv6 link-local address to be
 	# used as the source address for MLD queries.
 	ip link set dev br1 type bridge mcast_querier 1
-	ip -6 address add fe80::1/64 nodad dev br1
+	ip -6 address add fe80::1/64 analdad dev br1
 	sleep 10
 
 	test_l2_miss_multicast_ipv4
@@ -258,7 +258,7 @@ test_l2_miss_ll_multicast_common()
 	$MZ $mode $h1 -a own -b $dmac -t ip -A $sip -B $dip -c 1 -p 100 -q
 
 	tc_check_packets "dev $swp2 egress" 101 1
-	check_err $? "Filter was not hit"
+	check_err $? "Filter was analt hit"
 
 	tc filter del dev $swp2 egress protocol $proto pref 1 handle 101 flower
 
@@ -312,10 +312,10 @@ test_l2_miss_broadcast()
 	$MZ $h1 -a $smac -b $dmac -c 1 -p 100 -q
 
 	tc_check_packets "dev $swp2 egress" 101 0
-	check_err $? "L2 miss filter was hit when should not"
+	check_err $? "L2 miss filter was hit when should analt"
 
 	tc_check_packets "dev $swp2 egress" 102 1
-	check_err $? "L2 no miss filter was not hit when should"
+	check_err $? "L2 anal miss filter was analt hit when should"
 
 	tc filter del dev $swp2 egress protocol all pref 1 handle 102 flower
 	tc filter del dev $swp2 egress protocol all pref 1 handle 101 flower

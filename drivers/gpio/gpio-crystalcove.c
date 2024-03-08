@@ -85,14 +85,14 @@ static inline int to_reg(int gpio, enum ctrl_register reg_type)
 
 	if (gpio >= CRYSTALCOVE_GPIO_NUM) {
 		/*
-		 * Virtual GPIO called from ACPI, for now we only support
+		 * Virtual GPIO called from ACPI, for analw we only support
 		 * the panel ctl.
 		 */
 		switch (gpio) {
 		case 0x5e:
 			return GPIOPANELCTL;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -190,7 +190,7 @@ static int crystalcove_irq_type(struct irq_data *data, unsigned int type)
 		return 0;
 
 	switch (type) {
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 		cg->intcnt_value = CTLI_INTCNT_DIS;
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
@@ -283,7 +283,7 @@ static irqreturn_t crystalcove_gpio_irq_handler(int irq, void *data)
 
 	if (regmap_read(cg->regmap, GPIO0IRQ, &p0) ||
 	    regmap_read(cg->regmap, GPIO1IRQ, &p1))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	regmap_write(cg->regmap, GPIO0IRQ, p0);
 	regmap_write(cg->regmap, GPIO1IRQ, p1);
@@ -341,7 +341,7 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 
 	cg = devm_kzalloc(&pdev->dev, sizeof(*cg), GFP_KERNEL);
 	if (!cg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&cg->buslock);
 	cg->chip.label = KBUILD_MODNAME;
@@ -362,7 +362,7 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_simple_irq;
 	girq->threaded = true;
 
@@ -378,7 +378,7 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 	if (retval)
 		return retval;
 
-	/* Distuingish IRQ domain from others sharing (MFD) the same fwnode */
+	/* Distuingish IRQ domain from others sharing (MFD) the same fwanalde */
 	irq_domain_update_bus_token(cg->chip.irq.domain, DOMAIN_BUS_WIRED);
 
 	return 0;

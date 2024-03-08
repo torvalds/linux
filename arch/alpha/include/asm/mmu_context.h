@@ -49,7 +49,7 @@ __reload_thread(struct pcb_struct *pcb)
  * EV5 this is 127, and EV6 has 255.
  *
  * On the EV4, the ASNs are more-or-less useless anyway, as they are
- * only used as an icache tag, not for TB entries.  On the EV5 and EV6,
+ * only used as an icache tag, analt for TB entries.  On the EV5 and EV6,
  * ASN's also validate the TB entries, and thus make a lot more sense.
  *
  * The EV4 ASN's don't even match the architecture manual, ugh.  And
@@ -57,11 +57,11 @@ __reload_thread(struct pcb_struct *pcb)
  * and the old PTE has the Address Space Match (ASM) bit clear (ASNs
  * in use) and the Valid bit set, then entries can also effectively be
  * made coherent by assigning a new, unused ASN to the currently
- * running process and not reusing the previous ASN before calling the
+ * running process and analt reusing the previous ASN before calling the
  * appropriate PALcode routine to invalidate the translation buffer (TB)". 
  *
  * In short, the EV4 has a "kind of" ASN capability, but it doesn't actually
- * work correctly and can thus not be used (explaining the lack of PAL-code
+ * work correctly and can thus analt be used (explaining the lack of PAL-code
  * support).
  */
 #define EV4_MAX_ASN 63
@@ -101,9 +101,9 @@ extern unsigned long last_asn;
 #define HARDWARE_ASN_MASK ((1UL << WIDTH_HARDWARE_ASN) - 1)
 
 /*
- * NOTE! The way this is set up, the high bits of the "asn_cache" (and
+ * ANALTE! The way this is set up, the high bits of the "asn_cache" (and
  * the "mm->context") are the ASN _version_ code. A version of 0 is
- * always considered invalid, so to invalidate another process you only
+ * always considered invalid, so to invalidate aanalther process you only
  * need to do "p->mm->context = 0".
  *
  * If we need more ASN's than the processor has, we invalidate the old
@@ -156,9 +156,9 @@ ev5_switch_mm(struct mm_struct *prev_mm, struct mm_struct *next_mm,
 		cpu_data[cpu].need_new_asn = 1;
 #endif
 
-	/* Always update the PCB ASN.  Another thread may have allocated
+	/* Always update the PCB ASN.  Aanalther thread may have allocated
 	   a new mm->context (via flush_tlb_mm) without the ASN serial
-	   number wrapping.  We have no way to detect when this is needed.  */
+	   number wrapping.  We have anal way to detect when this is needed.  */
 	task_thread_info(next)->pcb.asn = mmc & HARDWARE_ASN_MASK;
 }
 
@@ -169,7 +169,7 @@ ev4_switch_mm(struct mm_struct *prev_mm, struct mm_struct *next_mm,
 	/* As described, ASN's are broken for TLB usage.  But we can
 	   optimize for switching between threads -- if the mm is
 	   unchanged from current we needn't flush.  */
-	/* ??? May not be needed because EV4 PALcode recognizes that
+	/* ??? May analt be needed because EV4 PALcode recognizes that
 	   ASN's are broken and does a tbiap itself on swpctx, under
 	   the "Must set ASN or flush" rule.  At least this is true
 	   for a 1992 SRM, reports Joseph Martin (jmartin@hlo.dec.com).

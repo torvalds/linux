@@ -126,10 +126,10 @@ static const unsigned int emmc_clk_pins[]	= { BOOT_8 };
 static const unsigned int emmc_cmd_pins[]	= { BOOT_10 };
 static const unsigned int emmc_ds_pins[]	= { BOOT_15 };
 
-static const unsigned int nor_d_pins[]		= { BOOT_11 };
-static const unsigned int nor_q_pins[]		= { BOOT_12 };
-static const unsigned int nor_c_pins[]		= { BOOT_13 };
-static const unsigned int nor_cs_pins[]		= { BOOT_15 };
+static const unsigned int analr_d_pins[]		= { BOOT_11 };
+static const unsigned int analr_q_pins[]		= { BOOT_12 };
+static const unsigned int analr_c_pins[]		= { BOOT_13 };
+static const unsigned int analr_cs_pins[]		= { BOOT_15 };
 
 static const unsigned int spi_mosi_pins[]	= { GPIOX_8 };
 static const unsigned int spi_miso_pins[]	= { GPIOX_9 };
@@ -502,10 +502,10 @@ static struct meson_pmx_group meson_gxl_periphs_groups[] = {
 	GROUP(emmc_clk,		7,	30),
 	GROUP(emmc_cmd,		7,	29),
 	GROUP(emmc_ds,		7,	28),
-	GROUP(nor_d,		7,	13),
-	GROUP(nor_q,		7,	12),
-	GROUP(nor_c,		7,	11),
-	GROUP(nor_cs,		7,	10),
+	GROUP(analr_d,		7,	13),
+	GROUP(analr_q,		7,	12),
+	GROUP(analr_c,		7,	11),
+	GROUP(analr_cs,		7,	10),
 	GROUP(nand_ce0,		7,	7),
 	GROUP(nand_ce1,		7,	6),
 	GROUP(nand_rb0,		7,	5),
@@ -604,8 +604,8 @@ static const char * const emmc_groups[] = {
 	"emmc_nand_d07", "emmc_clk", "emmc_cmd", "emmc_ds",
 };
 
-static const char * const nor_groups[] = {
-	"nor_d", "nor_q", "nor_c", "nor_cs",
+static const char * const analr_groups[] = {
+	"analr_d", "analr_q", "analr_c", "analr_cs",
 };
 
 static const char * const spi_groups[] = {
@@ -766,7 +766,7 @@ static const char * const cec_ao_groups[] = {
 static struct meson_pmx_func meson_gxl_periphs_functions[] = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(emmc),
-	FUNCTION(nor),
+	FUNCTION(analr),
 	FUNCTION(spi),
 	FUNCTION(sdcard),
 	FUNCTION(sdio),

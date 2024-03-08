@@ -17,7 +17,7 @@
    832 allows transferring 4kiB within 5 frames. */
 #define MAX_TRANSFER_SIZE_FULLSPEED	832
 
-/* Low speed: there is no reason to schedule in very big
+/* Low speed: there is anal reason to schedule in very big
    chunks; often the requested long transfers are for
    string descriptors containing short strings. */
 #define MAX_TRANSFER_SIZE_LOWSPEED	64
@@ -54,7 +54,7 @@
 #define		HCINT_SF	(1 << 2)	/* start frame */
 #define		HCINT_RD	(1 << 3)	/* resume detect */
 #define		HCINT_UE	(1 << 4)	/* unrecoverable error */
-#define		HCINT_FNO	(1 << 5)	/* frame number overflow */
+#define		HCINT_FANAL	(1 << 5)	/* frame number overflow */
 #define		HCINT_RHSC	(1 << 6)	/* root hub status change */
 #define		HCINT_OC	(1 << 30)	/* ownership change */
 #define		HCINT_MIE	(1 << 31)	/* master interrupt enable */
@@ -67,11 +67,11 @@
 #define	HCRHDESCA	0x12
 #define		RH_A_NDP	(0x3 << 0)	/* # downstream ports */
 #define		RH_A_PSM	(1 << 8)	/* power switching mode */
-#define		RH_A_NPS	(1 << 9)	/* no power switching */
+#define		RH_A_NPS	(1 << 9)	/* anal power switching */
 #define		RH_A_DT		(1 << 10)	/* device type (mbz) */
 #define		RH_A_OCPM	(1 << 11)	/* overcurrent protection
 						   mode */
-#define		RH_A_NOCP	(1 << 12)	/* no overcurrent protection */
+#define		RH_A_ANALCP	(1 << 12)	/* anal overcurrent protection */
 #define		RH_A_POTPGT	(0xff << 24)	/* power on -> power good
 						   time */
 #define	HCRHDESCB	0x13
@@ -107,7 +107,7 @@
 #define	HCRHPORT2	0x16
 #define	HCHWCFG		0x20
 #define		HCHWCFG_15KRSEL		(1 << 12)
-#define		HCHWCFG_CLKNOTSTOP	(1 << 11)
+#define		HCHWCFG_CLKANALTSTOP	(1 << 11)
 #define		HCHWCFG_ANALOG_OC	(1 << 10)
 #define		HCHWCFG_DACK_MODE	(1 << 8)
 #define		HCHWCFG_EOT_POL		(1 << 7)
@@ -211,12 +211,12 @@ struct ptd {
 #define PTD_FMT(v)		(((v) << 7) & PTD_FMT_MSK)
 
 /*  Hardware transfer status codes -- CC from ptd->count */
-#define TD_CC_NOERROR      0x00
+#define TD_CC_ANALERROR      0x00
 #define TD_CC_CRC          0x01
 #define TD_CC_BITSTUFFING  0x02
 #define TD_CC_DATATOGGLEM  0x03
 #define TD_CC_STALL        0x04
-#define TD_DEVNOTRESP      0x05
+#define TD_DEVANALTRESP      0x05
 #define TD_PIDCHECKFAIL    0x06
 #define TD_UNEXPECTEDPID   0x07
 #define TD_DATAOVERRUN     0x08
@@ -225,16 +225,16 @@ struct ptd {
 #define TD_BUFFEROVERRUN   0x0C
 #define TD_BUFFERUNDERRUN  0x0D
     /* 0x0E, 0x0F reserved for HCD */
-#define TD_NOTACCESSED     0x0F
+#define TD_ANALTACCESSED     0x0F
 
-/* map PTD status codes (CC) to errno values */
+/* map PTD status codes (CC) to erranal values */
 static const int cc_to_error[16] = {
-	/* No  Error  */ 0,
+	/* Anal  Error  */ 0,
 	/* CRC Error  */ -EILSEQ,
 	/* Bit Stuff  */ -EPROTO,
 	/* Data Togg  */ -EILSEQ,
 	/* Stall      */ -EPIPE,
-	/* DevNotResp */ -ETIME,
+	/* DevAnaltResp */ -ETIME,
 	/* PIDCheck   */ -EPROTO,
 	/* UnExpPID   */ -EPROTO,
 	/* DataOver   */ -EOVERFLOW,
@@ -242,7 +242,7 @@ static const int cc_to_error[16] = {
 	/* (for hw)   */ -EIO,
 	/* (for hw)   */ -EIO,
 	/* BufferOver */ -ECOMM,
-	/* BuffUnder  */ -ENOSR,
+	/* BuffUnder  */ -EANALSR,
 	/* (for HCD)  */ -EALREADY,
 	/* (for HCD)  */ -EALREADY
 };
@@ -512,8 +512,8 @@ static inline void isp116x_show_regs_log(struct isp116x *isp116x)
 	else				__s = "iso";	\
 	__s;})
 #define PIPEDIR(pipe)   ({ usb_pipein(pipe) ? "in" : "out"; })
-#define URB_NOTSHORT(urb) ({ (urb)->transfer_flags & URB_SHORT_NOT_OK ? \
-	"short_not_ok" : ""; })
+#define URB_ANALTSHORT(urb) ({ (urb)->transfer_flags & URB_SHORT_ANALT_OK ? \
+	"short_analt_ok" : ""; })
 
 /* print debug info about the URB */
 static void urb_dbg(struct urb *urb, char *msg)
@@ -528,7 +528,7 @@ static void urb_dbg(struct urb *urb, char *msg)
 	DBG("%s: FA %d ep%d%s %s: len %d/%d %s\n", msg,
 	    usb_pipedevice(pipe), usb_pipeendpoint(pipe),
 	    PIPEDIR(pipe), PIPETYPE(pipe),
-	    urb->transfer_buffer_length, urb->actual_length, URB_NOTSHORT(urb));
+	    urb->transfer_buffer_length, urb->actual_length, URB_ANALTSHORT(urb));
 }
 
 #else

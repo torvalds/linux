@@ -30,7 +30,7 @@ do { \
 		writel((val), &sw_addr[(reg)]); \
 } while (0)
 
-/* read ctrl register which has no clear on read fields as PCIe flush */
+/* read ctrl register which has anal clear on read fields as PCIe flush */
 #define fm10k_write_flush(hw) fm10k_read_reg((hw), FM10K_CTRL)
 s32 fm10k_get_bus_info_generic(struct fm10k_hw *hw);
 s32 fm10k_get_invariants_generic(struct fm10k_hw *hw);

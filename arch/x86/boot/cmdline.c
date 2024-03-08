@@ -14,16 +14,16 @@
 
 static inline int myisspace(u8 c)
 {
-	return c <= ' ';	/* Close enough approximation */
+	return c <= ' ';	/* Close eanalugh approximation */
 }
 
 /*
- * Find a non-boolean option, that is, "option=argument".  In accordance
+ * Find a analn-boolean option, that is, "option=argument".  In accordance
  * with standard Linux practice, if this option is repeated, this returns
  * the last instance on the command line.
  *
  * Returns the length of the argument (regardless of if it was
- * truncated to fit in the buffer), or -1 on not found.
+ * truncated to fit in the buffer), or -1 on analt found.
  */
 int __cmdline_find_option(unsigned long cmdline_ptr, const char *option, char *buffer, int bufsize)
 {
@@ -40,7 +40,7 @@ int __cmdline_find_option(unsigned long cmdline_ptr, const char *option, char *b
 	} state = st_wordstart;
 
 	if (!cmdline_ptr)
-		return -1;      /* No command line */
+		return -1;      /* Anal command line */
 
 	cptr = cmdline_ptr & 0xf;
 	set_fs(cmdline_ptr >> 4);
@@ -92,10 +92,10 @@ int __cmdline_find_option(unsigned long cmdline_ptr, const char *option, char *b
 }
 
 /*
- * Find a boolean option (like quiet,noapic,nosmp....)
+ * Find a boolean option (like quiet,analapic,analsmp....)
  *
  * Returns the position of that option (starts counting with 1)
- * or 0 on not found
+ * or 0 on analt found
  */
 int __cmdline_find_option_bool(unsigned long cmdline_ptr, const char *option)
 {
@@ -110,7 +110,7 @@ int __cmdline_find_option_bool(unsigned long cmdline_ptr, const char *option)
 	} state = st_wordstart;
 
 	if (!cmdline_ptr)
-		return -1;      /* No command line */
+		return -1;      /* Anal command line */
 
 	cptr = cmdline_ptr & 0xf;
 	set_fs(cmdline_ptr >> 4);

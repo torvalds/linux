@@ -4,14 +4,14 @@
  *
  * Copyright (c) 2003 Patrick Mochel
  * Copyright (c) 2003 Open Source Development Lab
- * Copyright (c) 2009 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+ * Copyright (c) 2009 Rafael J. Wysocki <rjw@sisk.pl>, Analvell Inc.
  */
 
 #define pr_fmt(fmt) "PM: " fmt
 
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/cpu.h>
@@ -84,7 +84,7 @@ void s2idle_set_ops(const struct platform_s2idle_ops *ops)
 
 static void s2idle_begin(void)
 {
-	s2idle_state = S2IDLE_STATE_NONE;
+	s2idle_state = S2IDLE_STATE_ANALNE;
 }
 
 static void s2idle_enter(void)
@@ -111,7 +111,7 @@ static void s2idle_enter(void)
 	raw_spin_lock_irq(&s2idle_lock);
 
  out:
-	s2idle_state = S2IDLE_STATE_NONE;
+	s2idle_state = S2IDLE_STATE_ANALNE;
 	raw_spin_unlock_irq(&s2idle_lock);
 
 	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_TO_IDLE, false);
@@ -127,7 +127,7 @@ static void s2idle_loop(void)
 	 * Thus s2idle_enter() should be called right after all devices have
 	 * been suspended.
 	 *
-	 * Wakeups during the noirq suspend of devices may be spurious, so try
+	 * Wakeups during the analirq suspend of devices may be spurious, so try
 	 * to avoid them upfront.
 	 */
 	for (;;) {
@@ -152,7 +152,7 @@ void s2idle_wake(void)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&s2idle_lock, flags);
-	if (s2idle_state > S2IDLE_STATE_NONE) {
+	if (s2idle_state > S2IDLE_STATE_ANALNE) {
 		s2idle_state = S2IDLE_STATE_WAKE;
 		swake_up_one(&s2idle_wait_head);
 	}
@@ -166,7 +166,7 @@ static bool valid_state(suspend_state_t state)
 	 * The PM_SUSPEND_STANDBY and PM_SUSPEND_MEM states require low-level
 	 * support and need to be valid to the low-level implementation.
 	 *
-	 * No ->valid() or ->enter() callback implies that none are valid.
+	 * Anal ->valid() or ->enter() callback implies that analne are valid.
 	 */
 	return suspend_ops && suspend_ops->valid && suspend_ops->valid(state) &&
 		suspend_ops->enter;
@@ -259,7 +259,7 @@ static int platform_suspend_prepare_late(suspend_state_t state)
 		s2idle_ops->prepare() : 0;
 }
 
-static int platform_suspend_prepare_noirq(suspend_state_t state)
+static int platform_suspend_prepare_analirq(suspend_state_t state)
 {
 	if (state == PM_SUSPEND_TO_IDLE)
 		return s2idle_ops && s2idle_ops->prepare_late ?
@@ -268,7 +268,7 @@ static int platform_suspend_prepare_noirq(suspend_state_t state)
 	return suspend_ops->prepare_late ? suspend_ops->prepare_late() : 0;
 }
 
-static void platform_resume_noirq(suspend_state_t state)
+static void platform_resume_analirq(suspend_state_t state)
 {
 	if (state == PM_SUSPEND_TO_IDLE) {
 		if (s2idle_ops && s2idle_ops->restore_early)
@@ -345,7 +345,7 @@ static int suspend_test(int level)
  * @state: Target system sleep state.
  *
  * Common code run for every system sleep state that can be entered (except for
- * hibernation).  Run suspend notifiers, allocate the "suspend" console and
+ * hibernation).  Run suspend analtifiers, allocate the "suspend" console and
  * freeze processes.
  */
 static int suspend_prepare(suspend_state_t state)
@@ -357,7 +357,7 @@ static int suspend_prepare(suspend_state_t state)
 
 	pm_prepare_console();
 
-	error = pm_notifier_call_chain_robust(PM_SUSPEND_PREPARE, PM_POST_SUSPEND);
+	error = pm_analtifier_call_chain_robust(PM_SUSPEND_PREPARE, PM_POST_SUSPEND);
 	if (error)
 		goto Restore;
 
@@ -369,7 +369,7 @@ static int suspend_prepare(suspend_state_t state)
 
 	suspend_stats.failed_freeze++;
 	dpm_save_failed_step(SUSPEND_FREEZE);
-	pm_notifier_call_chain(PM_POST_SUSPEND);
+	pm_analtifier_call_chain(PM_POST_SUSPEND);
  Restore:
 	pm_restore_console();
 	return error;
@@ -390,7 +390,7 @@ void __weak arch_suspend_enable_irqs(void)
 /**
  * suspend_enter - Make the system enter the given sleep state.
  * @state: System sleep state to enter.
- * @wakeup: Returns information that the sleep state should not be re-entered.
+ * @wakeup: Returns information that the sleep state should analt be re-entered.
  *
  * This function should be called after devices have been suspended.
  */
@@ -411,12 +411,12 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	if (error)
 		goto Devices_early_resume;
 
-	error = dpm_suspend_noirq(PMSG_SUSPEND);
+	error = dpm_suspend_analirq(PMSG_SUSPEND);
 	if (error) {
-		pr_err("noirq suspend of devices failed\n");
+		pr_err("analirq suspend of devices failed\n");
 		goto Platform_early_resume;
 	}
-	error = platform_suspend_prepare_noirq(state);
+	error = platform_suspend_prepare_analirq(state);
 	if (error)
 		goto Platform_wake;
 
@@ -461,8 +461,8 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	pm_sleep_enable_secondary_cpus();
 
  Platform_wake:
-	platform_resume_noirq(state);
-	dpm_resume_noirq(PMSG_RESUME);
+	platform_resume_analirq(state);
+	dpm_resume_analirq(PMSG_RESUME);
 
  Platform_early_resume:
 	platform_resume_early(state);
@@ -485,12 +485,12 @@ int suspend_devices_and_enter(suspend_state_t state)
 	bool wakeup = false;
 
 	if (!sleep_state_supported(state))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	pm_suspend_target_state = state;
 
 	if (state == PM_SUSPEND_TO_IDLE)
-		pm_set_suspend_no_platform();
+		pm_set_suspend_anal_platform();
 
 	error = platform_suspend_begin(state);
 	if (error)
@@ -533,12 +533,12 @@ int suspend_devices_and_enter(suspend_state_t state)
  * suspend_finish - Clean up before finishing the suspend sequence.
  *
  * Call platform code to clean up, restart processes, and free the console that
- * we've allocated. This routine is not called for hibernation.
+ * we've allocated. This routine is analt called for hibernation.
  */
 static void suspend_finish(void)
 {
 	suspend_thaw_processes();
-	pm_notifier_call_chain(PM_POST_SUSPEND);
+	pm_analtifier_call_chain(PM_POST_SUSPEND);
 	pm_restore_console();
 }
 
@@ -546,8 +546,8 @@ static void suspend_finish(void)
  * enter_state - Do common work needed to enter system sleep state.
  * @state: System sleep state to enter.
  *
- * Make sure that no one else is trying to put the system into a sleep state.
- * Fail if that's not the case.  Otherwise, prepare for system suspend, make the
+ * Make sure that anal one else is trying to put the system into a sleep state.
+ * Fail if that's analt the case.  Otherwise, prepare for system suspend, make the
  * system enter the given sleep state and clean up after wakeup.
  */
 static int enter_state(suspend_state_t state)
@@ -557,8 +557,8 @@ static int enter_state(suspend_state_t state)
 	trace_suspend_resume(TPS("suspend_enter"), state, true);
 	if (state == PM_SUSPEND_TO_IDLE) {
 #ifdef CONFIG_PM_DEBUG
-		if (pm_test_level != TEST_NONE && pm_test_level <= TEST_CPUS) {
-			pr_warn("Unsupported test mode for suspend to idle, please choose none/freezer/devices/platform.\n");
+		if (pm_test_level != TEST_ANALNE && pm_test_level <= TEST_CPUS) {
+			pr_warn("Unsupported test mode for suspend to idle, please choose analne/freezer/devices/platform.\n");
 			return -EAGAIN;
 		}
 #endif
@@ -619,7 +619,7 @@ int pm_suspend(suspend_state_t state)
 	error = enter_state(state);
 	if (error) {
 		suspend_stats.fail++;
-		dpm_save_failed_errno(error);
+		dpm_save_failed_erranal(error);
 	} else {
 		suspend_stats.success++;
 	}

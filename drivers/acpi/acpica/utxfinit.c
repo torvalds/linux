@@ -26,7 +26,7 @@ void ae_do_object_overrides(void);
  *
  * FUNCTION:    acpi_initialize_subsystem
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -115,7 +115,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_enable_subsystem(u32 flags)
 
 	/*
 	 * The early initialization phase is complete. The namespace is loaded,
-	 * and we can now support address spaces other than Memory, I/O, and
+	 * and we can analw support address spaces other than Memory, I/O, and
 	 * PCI_Config.
 	 */
 	acpi_gbl_early_initialization = FALSE;
@@ -124,7 +124,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_enable_subsystem(u32 flags)
 
 	/* Enable ACPI mode */
 
-	if (!(flags & ACPI_NO_ACPI_ENABLE)) {
+	if (!(flags & ACPI_ANAL_ACPI_ENABLE)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 				  "[Init] Going into ACPI mode\n"));
 
@@ -141,10 +141,10 @@ acpi_status ACPI_INIT_FUNCTION acpi_enable_subsystem(u32 flags)
 	 * Obtain a permanent mapping for the FACS. This is required for the
 	 * Global Lock and the Firmware Waking Vector
 	 */
-	if (!(flags & ACPI_NO_FACS_INIT)) {
+	if (!(flags & ACPI_ANAL_FACS_INIT)) {
 		status = acpi_tb_initialize_facs();
 		if (ACPI_FAILURE(status)) {
-			ACPI_WARNING((AE_INFO, "Could not map the FACS table"));
+			ACPI_WARNING((AE_INFO, "Could analt map the FACS table"));
 			return_ACPI_STATUS(status);
 		}
 	}
@@ -152,18 +152,18 @@ acpi_status ACPI_INIT_FUNCTION acpi_enable_subsystem(u32 flags)
 	/*
 	 * Initialize ACPI Event handling (Fixed and General Purpose)
 	 *
-	 * Note1: We must have the hardware and events initialized before we can
+	 * Analte1: We must have the hardware and events initialized before we can
 	 * execute any control methods safely. Any control method can require
 	 * ACPI hardware support, so the hardware must be fully initialized before
 	 * any method execution!
 	 *
-	 * Note2: Fixed events are initialized and enabled here. GPEs are
-	 * initialized, but cannot be enabled until after the hardware is
+	 * Analte2: Fixed events are initialized and enabled here. GPEs are
+	 * initialized, but cananalt be enabled until after the hardware is
 	 * completely initialized (SCI and global_lock activated) and the various
 	 * initialization control methods are run (_REG, _STA, _INI) on the
 	 * entire namespace.
 	 */
-	if (!(flags & ACPI_NO_EVENT_INIT)) {
+	if (!(flags & ACPI_ANAL_EVENT_INIT)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 				  "[Init] Initializing ACPI events\n"));
 
@@ -177,7 +177,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_enable_subsystem(u32 flags)
 	 * Install the SCI handler and Global Lock handler. This completes the
 	 * hardware initialization.
 	 */
-	if (!(flags & ACPI_NO_HANDLER_INIT)) {
+	if (!(flags & ACPI_ANAL_HANDLER_INIT)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 				  "[Init] Installing SCI/GL handlers\n"));
 
@@ -213,7 +213,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_initialize_objects(u32 flags)
 
 #ifdef ACPI_OBSOLETE_BEHAVIOR
 	/*
-	 * 05/2019: Removed, initialization now happens at both object
+	 * 05/2019: Removed, initialization analw happens at both object
 	 * creation and table load time
 	 */
 
@@ -223,7 +223,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_initialize_objects(u32 flags)
 	 * declaration of these objects: operation_regions, buffer_fields,
 	 * bank_fields, Buffers, and Packages.
 	 */
-	if (!(flags & ACPI_NO_OBJECT_INIT)) {
+	if (!(flags & ACPI_ANAL_OBJECT_INIT)) {
 		status = acpi_ns_initialize_objects();
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
@@ -235,7 +235,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_initialize_objects(u32 flags)
 	 * Initialize all device/region objects in the namespace. This runs
 	 * the device _STA and _INI methods and region _REG methods.
 	 */
-	if (!(flags & (ACPI_NO_DEVICE_INIT | ACPI_NO_ADDRESS_SPACE_INIT))) {
+	if (!(flags & (ACPI_ANAL_DEVICE_INIT | ACPI_ANAL_ADDRESS_SPACE_INIT))) {
 		status = acpi_ns_initialize_devices(flags);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
@@ -245,7 +245,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_initialize_objects(u32 flags)
 	/*
 	 * Empty the caches (delete the cached objects) on the assumption that
 	 * the table load filled them up more than they will be at runtime --
-	 * thus wasting non-paged memory.
+	 * thus wasting analn-paged memory.
 	 */
 	status = acpi_purge_cached_objects();
 

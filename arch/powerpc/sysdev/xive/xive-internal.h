@@ -47,7 +47,7 @@ struct xive_ops {
 	void	(*prepare_cpu)(unsigned int cpu, struct xive_cpu *xc);
 	void	(*setup_cpu)(unsigned int cpu, struct xive_cpu *xc);
 	void	(*teardown_cpu)(unsigned int cpu, struct xive_cpu *xc);
-	bool	(*match)(struct device_node *np);
+	bool	(*match)(struct device_analde *np);
 	void	(*shutdown)(void);
 
 	void	(*update_pending)(struct xive_cpu *xc);
@@ -62,7 +62,7 @@ struct xive_ops {
 	const char *name;
 };
 
-bool xive_core_init(struct device_node *np, const struct xive_ops *ops,
+bool xive_core_init(struct device_analde *np, const struct xive_ops *ops,
 		    void __iomem *area, u32 offset, u8 max_prio);
 __be32 *xive_queue_page_alloc(unsigned int cpu, u32 queue_shift);
 int xive_core_debug_init(void);

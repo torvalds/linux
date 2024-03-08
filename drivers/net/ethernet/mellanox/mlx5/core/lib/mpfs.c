@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -62,9 +62,9 @@ static int del_l2table_entry_cmd(struct mlx5_core_dev *dev, u32 index)
 	return mlx5_cmd_exec_in(dev, delete_l2_table_entry, in);
 }
 
-/* UC L2 table hash node */
-struct l2table_node {
-	struct l2addr_node node;
+/* UC L2 table hash analde */
+struct l2table_analde {
+	struct l2addr_analde analde;
 	u32                index; /* index in HW l2 table */
 	int                ref_count;
 };
@@ -82,7 +82,7 @@ static int alloc_l2table_index(struct mlx5_mpfs *l2table, u32 *ix)
 
 	*ix = find_first_zero_bit(l2table->bitmap, l2table->size);
 	if (*ix >= l2table->size)
-		err = -ENOSPC;
+		err = -EANALSPC;
 	else
 		__set_bit(*ix, l2table->bitmap);
 
@@ -104,14 +104,14 @@ int mlx5_mpfs_init(struct mlx5_core_dev *dev)
 
 	mpfs = kzalloc(sizeof(*mpfs), GFP_KERNEL);
 	if (!mpfs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&mpfs->lock);
 	mpfs->size   = l2table_size;
 	mpfs->bitmap = bitmap_zalloc(l2table_size, GFP_KERNEL);
 	if (!mpfs->bitmap) {
 		kfree(mpfs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev->priv.mpfs = mpfs;
@@ -133,7 +133,7 @@ void mlx5_mpfs_cleanup(struct mlx5_core_dev *dev)
 int mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u8 *mac)
 {
 	struct mlx5_mpfs *mpfs = dev->priv.mpfs;
-	struct l2table_node *l2addr;
+	struct l2table_analde *l2addr;
 	int err = 0;
 	u32 index;
 
@@ -142,7 +142,7 @@ int mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u8 *mac)
 
 	mutex_lock(&mpfs->lock);
 
-	l2addr = l2addr_hash_find(mpfs->hash, mac, struct l2table_node);
+	l2addr = l2addr_hash_find(mpfs->hash, mac, struct l2table_analde);
 	if (l2addr) {
 		l2addr->ref_count++;
 		goto out;
@@ -152,9 +152,9 @@ int mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u8 *mac)
 	if (err)
 		goto out;
 
-	l2addr = l2addr_hash_add(mpfs->hash, mac, struct l2table_node, GFP_KERNEL);
+	l2addr = l2addr_hash_add(mpfs->hash, mac, struct l2table_analde, GFP_KERNEL);
 	if (!l2addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto hash_add_err;
 	}
 
@@ -181,7 +181,7 @@ EXPORT_SYMBOL(mlx5_mpfs_add_mac);
 int mlx5_mpfs_del_mac(struct mlx5_core_dev *dev, u8 *mac)
 {
 	struct mlx5_mpfs *mpfs = dev->priv.mpfs;
-	struct l2table_node *l2addr;
+	struct l2table_analde *l2addr;
 	int err = 0;
 	u32 index;
 
@@ -190,9 +190,9 @@ int mlx5_mpfs_del_mac(struct mlx5_core_dev *dev, u8 *mac)
 
 	mutex_lock(&mpfs->lock);
 
-	l2addr = l2addr_hash_find(mpfs->hash, mac, struct l2table_node);
+	l2addr = l2addr_hash_find(mpfs->hash, mac, struct l2table_analde);
 	if (!l2addr) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto unlock;
 	}
 

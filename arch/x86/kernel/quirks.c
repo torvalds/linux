@@ -30,7 +30,7 @@ static void quirk_intel_irqbalance(struct pci_dev *dev)
 	pci_write_config_byte(dev, 0xf4, config|0x2);
 
 	/*
-	 * read xTPR register.  We may not have a pci_dev for device 8
+	 * read xTPR register.  We may analt have a pci_dev for device 8
 	 * because it might be hidden until the above write.
 	 */
 	pci_bus_read_config_word(dev->bus, PCI_DEVFN(8, 0), 0x4c, &word);
@@ -38,9 +38,9 @@ static void quirk_intel_irqbalance(struct pci_dev *dev)
 	if (!(word & (1 << 13))) {
 		dev_info(&dev->dev, "Intel E7520/7320/7525 detected; "
 			"disabling irq balancing and affinity\n");
-		noirqdebug_setup("");
+		analirqdebug_setup("");
 #ifdef CONFIG_PROC_FS
-		no_irq_affinity = 1;
+		anal_irq_affinity = 1;
 #endif
 	}
 
@@ -60,7 +60,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_E7520_MCH,
 unsigned long force_hpet_address;
 
 static enum {
-	NONE_FORCE_HPET_RESUME,
+	ANALNE_FORCE_HPET_RESUME,
 	OLD_ICH_FORCE_HPET_RESUME,
 	ICH_FORCE_HPET_RESUME,
 	VT8237_FORCE_HPET_RESUME,
@@ -106,7 +106,7 @@ static void ich_force_enable_hpet(struct pci_dev *dev)
 	rcba &= 0xFFFFC000;
 	if (rcba == 0) {
 		dev_printk(KERN_DEBUG, &dev->dev, "RCBA disabled; "
-			"cannot force enable HPET\n");
+			"cananalt force enable HPET\n");
 		return;
 	}
 
@@ -114,7 +114,7 @@ static void ich_force_enable_hpet(struct pci_dev *dev)
 	rcba_base = ioremap(rcba, 0x4000);
 	if (rcba_base == NULL) {
 		dev_printk(KERN_DEBUG, &dev->dev, "ioremap failed; "
-			"cannot force enable HPET\n");
+			"cananalt force enable HPET\n");
 		return;
 	}
 
@@ -122,7 +122,7 @@ static void ich_force_enable_hpet(struct pci_dev *dev)
 	val = readl(rcba_base + 0x3404);
 
 	if (val & 0x80) {
-		/* HPET is enabled in HPTC. Just not reported by BIOS */
+		/* HPET is enabled in HPTC. Just analt reported by BIOS */
 		val = val & 0x3;
 		force_hpet_address = 0xFED00000 | (val << 12);
 		dev_printk(KERN_DEBUG, &dev->dev, "Force enabled HPET at "
@@ -179,7 +179,7 @@ static struct pci_dev *cached_dev;
 
 static void hpet_print_force_info(void)
 {
-	printk(KERN_INFO "HPET not enabled in BIOS. "
+	printk(KERN_INFO "HPET analt enabled in BIOS. "
 	       "You might try hpet=force boot option\n");
 }
 
@@ -241,7 +241,7 @@ static void old_ich_force_enable_hpet(struct pci_dev *dev)
 	val = gen_cntl >> 15;
 	val &= 0x7;
 	if (val & 0x4) {
-		/* HPET is enabled in HPTC. Just not reported by BIOS */
+		/* HPET is enabled in HPTC. Just analt reported by BIOS */
 		val &= 0x3;
 		force_hpet_address = 0xFED00000 | (val << 12);
 		dev_printk(KERN_DEBUG, &dev->dev, "Force enabled HPET at "
@@ -508,7 +508,7 @@ static void e6xx_force_enable_hpet(struct pci_dev *dev)
 		return;
 
 	force_hpet_address = 0xFED00000;
-	force_hpet_resume_type = NONE_FORCE_HPET_RESUME;
+	force_hpet_resume_type = ANALNE_FORCE_HPET_RESUME;
 	dev_printk(KERN_DEBUG, &dev->dev, "Force enabled HPET at "
 		"0x%lx\n", force_hpet_address);
 }
@@ -533,12 +533,12 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS,
 #endif
 
 #if defined(CONFIG_PCI) && defined(CONFIG_NUMA)
-/* Set correct numa_node information for AMD NB functions */
-static void quirk_amd_nb_node(struct pci_dev *dev)
+/* Set correct numa_analde information for AMD NB functions */
+static void quirk_amd_nb_analde(struct pci_dev *dev)
 {
 	struct pci_dev *nb_ht;
 	unsigned int devfn;
-	u32 node;
+	u32 analde;
 	u32 val;
 
 	devfn = PCI_DEVFN(PCI_SLOT(dev->devfn), 0);
@@ -547,59 +547,59 @@ static void quirk_amd_nb_node(struct pci_dev *dev)
 		return;
 
 	pci_read_config_dword(nb_ht, 0x60, &val);
-	node = pcibus_to_node(dev->bus) | (val & 7);
+	analde = pcibus_to_analde(dev->bus) | (val & 7);
 	/*
-	 * Some hardware may return an invalid node ID,
+	 * Some hardware may return an invalid analde ID,
 	 * so check it first:
 	 */
-	if (node_online(node))
-		set_dev_node(&dev->dev, node);
+	if (analde_online(analde))
+		set_dev_analde(&dev->dev, analde);
 	pci_dev_put(nb_ht);
 }
 
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB_ADDRMAP,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB_MEMCTL,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB_MISC,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_10H_NB_HT,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_10H_NB_MAP,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_10H_NB_DRAM,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_10H_NB_MISC,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_10H_NB_LINK,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_15H_NB_F0,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_15H_NB_F1,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_15H_NB_F2,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_15H_NB_F3,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_15H_NB_F4,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_15H_NB_F5,
-			quirk_amd_nb_node);
+			quirk_amd_nb_analde);
 
 #endif
 
 #ifdef CONFIG_PCI
 /*
- * Processor does not ensure DRAM scrub read/write sequence
+ * Processor does analt ensure DRAM scrub read/write sequence
  * is atomic wrt accesses to CC6 save state area. Therefore
  * if a concurrent scrub read/write access is to same address
- * the entry may appear as if it is not written. This quirk
+ * the entry may appear as if it is analt written. This quirk
  * applies to Fam16h models 00h-0Fh
  *
  * See "Revision Guide" for AMD F16h models 00h-0fh,
- * document 51810 rev. 3.04, Nov 2013
+ * document 51810 rev. 3.04, Analv 2013
  */
 static void amd_disable_seq_and_redirect_scrub(struct pci_dev *dev)
 {

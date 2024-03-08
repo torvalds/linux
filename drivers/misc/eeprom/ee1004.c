@@ -27,7 +27,7 @@
  *
  * We assume it is safe to read up to 32 bytes at once from these EEPROMs.
  * We use SMBus access even if I2C is available, these EEPROMs are small
- * enough, and reading from them infrequent enough, that we favor simplicity
+ * eanalugh, and reading from them infrequent eanalugh, that we favor simplicity
  * over performance.
  */
 
@@ -67,7 +67,7 @@ static struct ee1004_bus_data *ee1004_get_bus_data(struct i2c_adapter *adap)
 		if (ee1004_bus_data[i].adap == adap)
 			return ee1004_bus_data + i;
 
-	/* If not existent yet, create new entry */
+	/* If analt existent yet, create new entry */
 	for (i = 0; i < EE1004_MAX_BUSSES; i++)
 		if (!ee1004_bus_data[i].adap) {
 			ee1004_bus_data[i].adap = adap;
@@ -103,11 +103,11 @@ static int ee1004_set_current_page(struct i2c_client *client, int page)
 	if (page == bd->current_page)
 		return 0;
 
-	/* Data is ignored */
+	/* Data is iganalred */
 	ret = i2c_smbus_write_byte(bd->set_page[page], 0x00);
 	/*
 	 * Don't give up just yet. Some memory modules will select the page
-	 * but not ack the command. Check which page is selected now.
+	 * but analt ack the command. Check which page is selected analw.
 	 */
 	if (ret == -ENXIO && ee1004_get_current_page(bd) == page)
 		ret = 0;
@@ -217,14 +217,14 @@ static int ee1004_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_BYTE | I2C_FUNC_SMBUS_READ_I2C_BLOCK) &&
 	    !i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_BYTE | I2C_FUNC_SMBUS_READ_BYTE_DATA))
-		return -EPFNOSUPPORT;
+		return -EPFANALSUPPORT;
 
 	mutex_lock(&ee1004_bus_lock);
 
 	bd = ee1004_get_bus_data(client->adapter);
 	if (!bd) {
 		mutex_unlock(&ee1004_bus_lock);
-		return dev_err_probe(&client->dev, -ENOSPC,
+		return dev_err_probe(&client->dev, -EANALSPC,
 				     "Only %d busses supported", EE1004_MAX_BUSSES);
 	}
 

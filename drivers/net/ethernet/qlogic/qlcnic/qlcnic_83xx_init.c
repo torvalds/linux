@@ -13,7 +13,7 @@
 #define QLC_83XX_RESET_TEMPLATE_ADDR		0x4F0000
 #define QLC_83XX_RESET_SEQ_VERSION		0x0101
 
-#define QLC_83XX_OPCODE_NOP			0x0000
+#define QLC_83XX_OPCODE_ANALP			0x0000
 #define QLC_83XX_OPCODE_WRITE_LIST		0x0001
 #define QLC_83XX_OPCODE_READ_WRITE_LIST		0x0002
 #define QLC_83XX_OPCODE_POLL_LIST		0x0004
@@ -118,7 +118,7 @@ struct qlc_83xx_quad_entry {
 	u32 ar_value;
 } __packed;
 static const char *const qlc_83xx_idc_states[] = {
-	"Unknown",
+	"Unkanalwn",
 	"Cold",
 	"Init",
 	"Ready",
@@ -181,13 +181,13 @@ static int qlcnic_83xx_idc_update_audit_reg(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-static void qlcnic_83xx_idc_update_minor_version(struct qlcnic_adapter *adapter)
+static void qlcnic_83xx_idc_update_mianalr_version(struct qlcnic_adapter *adapter)
 {
 	u32 val;
 
 	val = QLCRDX(adapter->ahw, QLC_83XX_IDC_MIN_VERSION);
 	val = val & ~(0x3 << (adapter->portnum * 2));
-	val = val | (QLC_83XX_IDC_MINOR_VERSION << (adapter->portnum * 2));
+	val = val | (QLC_83XX_IDC_MIANALR_VERSION << (adapter->portnum * 2));
 	QLCWRX(adapter->ahw, QLC_83XX_IDC_MIN_VERSION, val);
 }
 
@@ -231,7 +231,7 @@ qlcnic_83xx_idc_update_drv_presence_reg(struct qlcnic_adapter *adapter,
 		val = val & ~(1 << adapter->portnum);
 
 	QLCWRX(adapter->ahw, QLC_83XX_IDC_DRV_PRESENCE, val);
-	qlcnic_83xx_idc_update_minor_version(adapter);
+	qlcnic_83xx_idc_update_mianalr_version(adapter);
 
 	if (lock)
 		qlcnic_83xx_unlock_driver(adapter);
@@ -321,7 +321,7 @@ static int qlcnic_83xx_idc_check_timeout(struct qlcnic_adapter *adapter,
  *
  * Check ACK wait limit and clear the functions which failed to ACK
  *
- * Return 0 if all functions have acknowledged the reset request.
+ * Return 0 if all functions have ackanalwledged the reset request.
  **/
 static int qlcnic_83xx_idc_check_reset_ack_reg(struct qlcnic_adapter *adapter)
 {
@@ -392,7 +392,7 @@ static int qlcnic_83xx_idc_tx_soft_reset(struct qlcnic_adapter *adapter)
  *
  * @adapter: adapter structure
  * Detach net interface, stop TX and cleanup resources before the HW reset.
- * Returns: None
+ * Returns: Analne
  *
  **/
 static void qlcnic_83xx_idc_detach_driver(struct qlcnic_adapter *adapter)
@@ -422,7 +422,7 @@ static void qlcnic_83xx_idc_detach_driver(struct qlcnic_adapter *adapter)
  * @adapter: adapter structure
  *
  * Re-attach and re-enable net interface
- * Returns: None
+ * Returns: Analne
  *
  **/
 static void qlcnic_83xx_idc_attach_driver(struct qlcnic_adapter *adapter)
@@ -722,9 +722,9 @@ int qlcnic_83xx_idc_vnic_pf_entry(struct qlcnic_adapter *adapter)
 		if (ahw->idc.vnic_state != QLCNIC_DEV_NPAR_OPER) {
 			qlcnic_83xx_idc_update_idc_params(adapter);
 
-			/* If the previous state is UNKNOWN, device will be
+			/* If the previous state is UNKANALWN, device will be
 			   already attached properly by Init routine*/
-			if (ahw->idc.prev_state != QLC_83XX_IDC_DEV_UNKNOWN) {
+			if (ahw->idc.prev_state != QLC_83XX_IDC_DEV_UNKANALWN) {
 				if (qlcnic_83xx_idc_reattach_driver(adapter))
 					return -EIO;
 			}
@@ -736,11 +736,11 @@ int qlcnic_83xx_idc_vnic_pf_entry(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-static int qlcnic_83xx_idc_unknown_state(struct qlcnic_adapter *adapter)
+static int qlcnic_83xx_idc_unkanalwn_state(struct qlcnic_adapter *adapter)
 {
 	adapter->ahw->idc.err_code = -EIO;
 	dev_err(&adapter->pdev->dev,
-		"%s: Device in unknown state\n", __func__);
+		"%s: Device in unkanalwn state\n", __func__);
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	return 0;
 }
@@ -994,8 +994,8 @@ static int qlcnic_83xx_idc_check_state_validity(struct qlcnic_adapter *adapter,
 		return 1;
 	}
 
-	if ((cur == QLC_83XX_IDC_DEV_UNKNOWN) &&
-	    (prev == QLC_83XX_IDC_DEV_UNKNOWN)) {
+	if ((cur == QLC_83XX_IDC_DEV_UNKANALWN) &&
+	    (prev == QLC_83XX_IDC_DEV_UNKANALWN)) {
 		if ((next != QLC_83XX_IDC_DEV_COLD) &&
 		    (next != QLC_83XX_IDC_DEV_READY)) {
 			dev_err(&adapter->pdev->dev,
@@ -1099,7 +1099,7 @@ static void qlcnic_83xx_periodic_tasks(struct qlcnic_adapter *adapter)
  * Poll device state periodically and perform state specific
  * actions defined by Inter Driver Communication (IDC) protocol.
  *
- * Returns: None
+ * Returns: Analne
  *
  **/
 void qlcnic_83xx_idc_poll_dev_state(struct work_struct *work)
@@ -1112,7 +1112,7 @@ void qlcnic_83xx_idc_poll_dev_state(struct work_struct *work)
 
 	if (qlcnic_83xx_idc_check_state_validity(adapter, state)) {
 		qlcnic_83xx_idc_log_state_history(adapter);
-		adapter->ahw->idc.curr_state = QLC_83XX_IDC_DEV_UNKNOWN;
+		adapter->ahw->idc.curr_state = QLC_83XX_IDC_DEV_UNKANALWN;
 	} else {
 		adapter->ahw->idc.curr_state = state;
 	}
@@ -1137,7 +1137,7 @@ void qlcnic_83xx_idc_poll_dev_state(struct work_struct *work)
 		qlcnic_83xx_idc_quiesce_state(adapter);
 		break;
 	default:
-		qlcnic_83xx_idc_unknown_state(adapter);
+		qlcnic_83xx_idc_unkanalwn_state(adapter);
 		return;
 	}
 	adapter->ahw->idc.prev_state = adapter->ahw->idc.curr_state;
@@ -1164,8 +1164,8 @@ static void qlcnic_83xx_setup_idc_parameters(struct qlcnic_adapter *adapter)
 		adapter->reset_ack_timeo = ((idc_params >> 16) & 0xFFFF);
 	}
 
-	adapter->ahw->idc.curr_state = QLC_83XX_IDC_DEV_UNKNOWN;
-	adapter->ahw->idc.prev_state = QLC_83XX_IDC_DEV_UNKNOWN;
+	adapter->ahw->idc.curr_state = QLC_83XX_IDC_DEV_UNKANALWN;
+	adapter->ahw->idc.prev_state = QLC_83XX_IDC_DEV_UNKANALWN;
 	adapter->ahw->idc.delay = QLC_83XX_IDC_FW_POLL_DELAY;
 	adapter->ahw->idc.err_code = 0;
 	adapter->ahw->idc.collect_dump = 0;
@@ -1176,7 +1176,7 @@ static void qlcnic_83xx_setup_idc_parameters(struct qlcnic_adapter *adapter)
 
 	/* Check if reset recovery is disabled */
 	if (!qlcnic_auto_fw_reset) {
-		/* Propagate do not reset request to other functions */
+		/* Propagate do analt reset request to other functions */
 		val = QLCRDX(adapter->ahw, QLC_83XX_IDC_CTRL);
 		val = val | QLC_83XX_IDC_DISABLE_FW_RESET_RECOVERY;
 		QLCWRX(adapter->ahw, QLC_83XX_IDC_CTRL, val);
@@ -1329,7 +1329,7 @@ static int qlcnic_83xx_copy_bootloader(struct qlcnic_adapter *adapter)
 
 	p_cache = vzalloc(size);
 	if (p_cache == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = qlcnic_83xx_lockless_flash_read32(adapter, src, p_cache,
 						size / sizeof(u32));
@@ -1364,7 +1364,7 @@ static int qlcnic_83xx_copy_fw_file(struct qlcnic_adapter *adapter)
 	if (!temp) {
 		release_firmware(fw);
 		fw_info->fw = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	temp_le = (__le32 *)fw->data;
@@ -1701,7 +1701,7 @@ static int qlcnic_83xx_get_reset_instruction_template(struct qlcnic_adapter *p_d
 	ahw->reset.seq_error = 0;
 	ahw->reset.buff = kzalloc(QLC_83XX_RESTART_TEMPLATE_SIZE, GFP_KERNEL);
 	if (ahw->reset.buff == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p_buff = p_dev->ahw->reset.buff;
 	addr = QLC_83XX_RESET_TEMPLATE_ADDR;
@@ -1966,10 +1966,10 @@ static void qlcnic_83xx_template_end(struct qlcnic_adapter *p_dev)
 * Template provides instructions to stop, restart and initalize firmware.
 * These instructions are abstracted as a series of read, write and
 * poll operations on hardware registers. Register information and operation
-* specifics are not exposed to the driver. Driver reads the template from
+* specifics are analt exposed to the driver. Driver reads the template from
 * flash and executes the instructions located at pre-defined offsets.
 *
-* Returns: None
+* Returns: Analne
 * */
 static void qlcnic_83xx_exec_template_cmd(struct qlcnic_adapter *p_dev,
 					  char *p_buff)
@@ -1987,7 +1987,7 @@ static void qlcnic_83xx_exec_template_cmd(struct qlcnic_adapter *p_dev,
 		p_hdr = (struct qlc_83xx_entry_hdr *)entry;
 
 		switch (p_hdr->cmd) {
-		case QLC_83XX_OPCODE_NOP:
+		case QLC_83XX_OPCODE_ANALP:
 			break;
 		case QLC_83XX_OPCODE_WRITE_LIST:
 			qlcnic_83xx_write_list(p_dev, p_hdr);
@@ -2018,7 +2018,7 @@ static void qlcnic_83xx_exec_template_cmd(struct qlcnic_adapter *p_dev,
 			break;
 		default:
 			dev_err(&p_dev->pdev->dev,
-				"%s: Unknown opcode 0x%04x in template %d\n",
+				"%s: Unkanalwn opcode 0x%04x in template %d\n",
 				__func__, p_hdr->cmd, index);
 			break;
 		}
@@ -2097,7 +2097,7 @@ static int qlcnic_83xx_run_post(struct qlcnic_adapter *adapter)
 
 	ret = request_firmware(&fw_info->fw, fw_info->fw_file_name, dev);
 	if (ret) {
-		dev_err(dev, "POST firmware can not be loaded, skipping POST\n");
+		dev_err(dev, "POST firmware can analt be loaded, skipping POST\n");
 		return 0;
 	}
 
@@ -2174,7 +2174,7 @@ static int qlcnic_83xx_load_fw_image_from_host(struct qlcnic_adapter *adapter)
 	if (request_firmware(&fw_info->fw, fw_info->fw_file_name,
 			     &(adapter->pdev->dev))) {
 		dev_err(&adapter->pdev->dev,
-			"No file FW image, loading flash FW image.\n");
+			"Anal file FW image, loading flash FW image.\n");
 		QLC_SHARED_REG_WR32(adapter, QLCNIC_FW_IMG_VALID,
 				    QLC_83XX_BOOT_FROM_FLASH);
 	} else {
@@ -2217,7 +2217,7 @@ static int qlcnic_83xx_restart_hw(struct qlcnic_adapter *adapter)
 		if (err)
 			return err;
 
-		/* No need to run POST in next reset sequence */
+		/* Anal need to run POST in next reset sequence */
 		adapter->ahw->run_post = false;
 
 		/* Again reset the adapter to load regular firmware  */
@@ -2390,7 +2390,7 @@ static int qlcnic_83xx_get_fw_info(struct qlcnic_adapter *adapter)
 
 	ahw->fw_info = kzalloc(sizeof(*fw_info), GFP_KERNEL);
 	if (!ahw->fw_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 	} else {
 		fw_info = ahw->fw_info;
 		switch (pdev->device) {
@@ -2476,7 +2476,7 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter)
 	if (qlcnic_83xx_read_flash_descriptor_table(adapter) ||
 	    qlcnic_83xx_read_flash_mfg_id(adapter)) {
 		dev_err(&adapter->pdev->dev, "Failed reading flash mfg id\n");
-		err = -ENOTRECOVERABLE;
+		err = -EANALTRECOVERABLE;
 		goto detach_mbx;
 	}
 

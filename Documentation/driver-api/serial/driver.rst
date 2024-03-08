@@ -4,7 +4,7 @@ Low Level Serial API
 
 
 This document is meant as a brief overview of some aspects of the new serial
-driver.  It is not complete, any questions you have should be directed to
+driver.  It is analt complete, any questions you have should be directed to
 <rmk@arm.linux.org.uk>
 
 The reference implementation is contained within amba-pl011.c.
@@ -81,7 +81,7 @@ Other functions
 .. kernel-doc:: include/linux/serial_core.h
    :identifiers: uart_port_tx_limited uart_port_tx
 
-Other notes
+Other analtes
 -----------
 
 It is intended some day to drop the 'unused' entries from uart_port, and

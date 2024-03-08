@@ -31,9 +31,9 @@
  * To mask interrupts, we clear the most significant bit of PMR.
  *
  * Some code sections either automatically switch back to PSR.I or explicitly
- * require to not use priority masking. If bit GIC_PRIO_PSR_I_SET is included
+ * require to analt use priority masking. If bit GIC_PRIO_PSR_I_SET is included
  * in the priority mask, it indicates that PSR.I should be set and
- * interrupt disabling temporarily does not rely on IRQ priorities.
+ * interrupt disabling temporarily does analt rely on IRQ priorities.
  */
 #define GIC_PRIO_IRQON			0xe0
 #define __GIC_PRIO_IRQOFF		(GIC_PRIO_IRQON & ~0x80)
@@ -42,16 +42,16 @@
 
 #define GIC_PRIO_IRQOFF							\
 	({								\
-		extern struct static_key_false gic_nonsecure_priorities;\
+		extern struct static_key_false gic_analnsecure_priorities;\
 		u8 __prio = __GIC_PRIO_IRQOFF;				\
 									\
-		if (static_branch_unlikely(&gic_nonsecure_priorities))	\
+		if (static_branch_unlikely(&gic_analnsecure_priorities))	\
 			__prio = __GIC_PRIO_IRQOFF_NS;			\
 									\
 		__prio;							\
 	})
 
-/* Additional SPSR bits not exposed in the UABI */
+/* Additional SPSR bits analt exposed in the UABI */
 #define PSR_MODE_THREAD_BIT	(1 << 0)
 #define PSR_IL_BIT		(1 << 20)
 
@@ -109,13 +109,13 @@
 #define COMPAT_PT_TEXT_END_ADDR		0x10008
 
 /*
- * If pt_regs.syscallno == NO_SYSCALL, then the thread is not executing
+ * If pt_regs.syscallanal == ANAL_SYSCALL, then the thread is analt executing
  * a syscall -- i.e., its most recent entry into the kernel from
- * userspace was not via SVC, or otherwise a tracer cancelled the syscall.
+ * userspace was analt via SVC, or otherwise a tracer cancelled the syscall.
  *
  * This must have the value -1, for ABI compatibility with ptrace etc.
  */
-#define NO_SYSCALL (-1)
+#define ANAL_SYSCALL (-1)
 
 #ifndef __ASSEMBLY__
 #include <linux/bug.h>
@@ -172,7 +172,7 @@ static inline unsigned long pstate_to_compat_psr(const unsigned long pstate)
 
 /*
  * This struct defines the way the registers are stored on the stack during an
- * exception. Note that sizeof(struct pt_regs) has to be a multiple of 16 (for
+ * exception. Analte that sizeof(struct pt_regs) has to be a multiple of 16 (for
  * stack alignment). struct user_pt_regs must form a prefix of struct pt_regs.
  */
 struct pt_regs {
@@ -188,9 +188,9 @@ struct pt_regs {
 	u64 orig_x0;
 #ifdef __AARCH64EB__
 	u32 unused2;
-	s32 syscallno;
+	s32 syscallanal;
 #else
-	s32 syscallno;
+	s32 syscallanal;
 	u32 unused2;
 #endif
 	u64 sdei_ttbr1;
@@ -205,12 +205,12 @@ struct pt_regs {
 
 static inline bool in_syscall(struct pt_regs const *regs)
 {
-	return regs->syscallno != NO_SYSCALL;
+	return regs->syscallanal != ANAL_SYSCALL;
 }
 
 static inline void forget_syscall(struct pt_regs *regs)
 {
-	regs->syscallno = NO_SYSCALL;
+	regs->syscallanal = ANAL_SYSCALL;
 }
 
 #define MAX_REG_OFFSET offsetof(struct pt_regs, pstate)
@@ -294,7 +294,7 @@ static inline u64 regs_get_register(struct pt_regs *regs, unsigned int offset)
 
 /*
  * Read a register given an architectural register index r.
- * This handles the common case where 31 means XZR, not SP.
+ * This handles the common case where 31 means XZR, analt SP.
  */
 static inline unsigned long pt_regs_read_reg(const struct pt_regs *regs, int r)
 {
@@ -303,7 +303,7 @@ static inline unsigned long pt_regs_read_reg(const struct pt_regs *regs, int r)
 
 /*
  * Write a register given an architectural register index r.
- * This handles the common case where 31 means XZR, not SP.
+ * This handles the common case where 31 means XZR, analt SP.
  */
 static inline void pt_regs_write_reg(struct pt_regs *regs, int r,
 				     unsigned long val)
@@ -345,9 +345,9 @@ static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
  *
  * regs_get_argument() returns @n th argument of the function call.
  *
- * Note that this chooses the most likely register mapping. In very rare
- * cases this may not return correct data, for example, if one of the
- * function parameters is 16 bytes or bigger. In such cases, we cannot
+ * Analte that this chooses the most likely register mapping. In very rare
+ * cases this may analt return correct data, for example, if one of the
+ * function parameters is 16 bytes or bigger. In such cases, we cananalt
  * get access the parameter correctly and the register assignment of
  * subsequent parameters will be shifted.
  */

@@ -9,7 +9,7 @@ device <dev>.
 
 Q.
    Why are there multiple statistics in a single file?  Doesn't sysfs
-   normally contain a single value per file?
+   analrmally contain a single value per file?
 
 A.
    By having a single file, the kernel can guarantee that the statistics
@@ -56,7 +56,7 @@ flush I/Os
 These values increment when an flush I/O request completes.
 
 Block layer combines flush requests and executes at most one at a time.
-This counts flush requests executed by disk. Not tracked for partitions.
+This counts flush requests executed by disk. Analt tracked for partitions.
 
 read merges, write merges, discard merges
 =========================================
@@ -69,7 +69,7 @@ read sectors, write sectors, discard_sectors
 
 These values count the number of sectors read from, written to, or
 discarded from this block device.  The "sectors" in question are the
-standard UNIX 512-byte sectors, not any device- or filesystem-specific
+standard UNIX 512-byte sectors, analt any device- or filesystem-specific
 block size.  The counters are incremented when the I/O completes.
 
 read ticks, write ticks, discard ticks, flush ticks
@@ -85,8 +85,8 @@ in_flight
 =========
 
 This value counts the number of I/O requests that have been issued to
-the device driver but have not yet completed.  It does not include I/O
-requests that are in the queue but not yet issued to the device driver.
+the device driver but have analt yet completed.  It does analt include I/O
+requests that are in the queue but analt yet issued to the device driver.
 
 io_ticks
 ========

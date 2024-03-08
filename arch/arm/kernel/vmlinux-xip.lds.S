@@ -4,7 +4,7 @@
  * Written by Martin Mares <mj@atrey.karlin.mff.cuni.cz>
  */
 
-/* No __ro_after_init data in the .rodata section - which will always be ro */
+/* Anal __ro_after_init data in the .rodata section - which will always be ro */
 #define RO_AFTER_INIT_DATA
 
 #include <linux/sizes.h>
@@ -27,9 +27,9 @@ jiffies = jiffies_64 + 4;
 SECTIONS
 {
 	/*
-	 * XXX: The linker does not define how output sections are
+	 * XXX: The linker does analt define how output sections are
 	 * assigned to input sections when there are multiple statements
-	 * matching the same input section name.  There is no documented
+	 * matching the same input section name.  There is anal documented
 	 * order of matching.
 	 *
 	 * unwind exit sections must be discarded before the rest of the
@@ -137,7 +137,7 @@ SECTIONS
 
 	/*
 	 * End of copied data. We need a dummy section to get its LMA.
-	 * Also located before final ALIGN() as trailing padding is not stored
+	 * Also located before final ALIGN() as trailing padding is analt stored
 	 * in the resulting binary file and useless to copy.
 	 */
 	.data.endmark : AT(ADDR(.data.endmark) - LOAD_OFFSET) { }
@@ -166,7 +166,7 @@ SECTIONS
  */
 ASSERT((__proc_info_end - __proc_info_begin), "missing CPU support")
 #ifndef CONFIG_COMPILE_TEST
-ASSERT((__arch_info_end - __arch_info_begin), "no machine record defined")
+ASSERT((__arch_info_end - __arch_info_begin), "anal machine record defined")
 #endif
 
 #ifdef CONFIG_XIP_DEFLATED_DATA

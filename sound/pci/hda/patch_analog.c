@@ -41,9 +41,9 @@ static const struct snd_kcontrol_new ad_beep_mixer[] = {
 };
 
 #define set_beep_amp(spec, nid, idx, dir) \
-	((spec)->beep_amp = HDA_COMPOSE_AMP_VAL(nid, 1, idx, dir)) /* mono */
+	((spec)->beep_amp = HDA_COMPOSE_AMP_VAL(nid, 1, idx, dir)) /* moanal */
 #else
-#define set_beep_amp(spec, nid, idx, dir) /* NOP */
+#define set_beep_amp(spec, nid, idx, dir) /* ANALP */
 #endif
 
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
@@ -60,7 +60,7 @@ static int create_beep_ctls(struct hda_codec *codec)
 		struct snd_kcontrol *kctl;
 		kctl = snd_ctl_new1(knew, codec);
 		if (!kctl)
-			return -ENOMEM;
+			return -EANALMEM;
 		kctl->private_value = spec->beep_amp;
 		err = snd_hda_ctl_add(codec, 0, kctl);
 		if (err < 0)
@@ -172,8 +172,8 @@ static int ad198x_parse_auto_config(struct hda_codec *codec, bool indep_hp)
 	int err;
 
 	codec->spdif_status_reset = 1;
-	codec->no_trigger_sense = 1;
-	codec->no_sticky_stream = 1;
+	codec->anal_trigger_sense = 1;
+	codec->anal_sticky_stream = 1;
 
 	spec->gen.indep_hp = indep_hp;
 	if (!spec->gen.add_stereo_mix_input)
@@ -199,7 +199,7 @@ static int alloc_ad_spec(struct hda_codec *codec)
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	codec->spec = spec;
 	snd_hda_gen_spec_init(&spec->gen);
 	codec->patch_ops = ad198x_auto_patch_ops;
@@ -210,7 +210,7 @@ static int alloc_ad_spec(struct hda_codec *codec)
  * AD1986A fixup codes
  */
 
-/* Lenovo N100 seems to report the reversed bit for HP jack-sensing */
+/* Leanalvo N100 seems to report the reversed bit for HP jack-sensing */
 static void ad_fixup_inv_jack_detect(struct hda_codec *codec,
 				     const struct hda_fixup *fix, int action)
 {
@@ -258,7 +258,7 @@ enum {
 	AD1986A_FIXUP_LAPTOP_IMIC,
 	AD1986A_FIXUP_EAPD,
 	AD1986A_FIXUP_EAPD_MIX_IN,
-	AD1986A_FIXUP_EASYNOTE,
+	AD1986A_FIXUP_EASYANALTE,
 };
 
 static const struct hda_fixup ad1986a_fixups[] = {
@@ -327,7 +327,7 @@ static const struct hda_fixup ad1986a_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = ad1986a_fixup_eapd_mix_in,
 	},
-	[AD1986A_FIXUP_EASYNOTE] = {
+	[AD1986A_FIXUP_EASYANALTE] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = (const struct hda_pintbl[]) {
 			{ 0x1a, 0x0421402f }, /* headphone */
@@ -361,10 +361,10 @@ static const struct snd_pci_quirk ad1986a_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x144d, 0xc01e, "FSC V2060", AD1986A_FIXUP_LAPTOP),
 	SND_PCI_QUIRK_MASK(0x144d, 0xff00, 0xc000, "Samsung", AD1986A_FIXUP_SAMSUNG),
 	SND_PCI_QUIRK(0x144d, 0xc027, "Samsung Q1", AD1986A_FIXUP_ULTRA),
-	SND_PCI_QUIRK(0x1631, 0xc022, "PackardBell EasyNote MX65", AD1986A_FIXUP_EASYNOTE),
-	SND_PCI_QUIRK(0x17aa, 0x2066, "Lenovo N100", AD1986A_FIXUP_INV_JACK_DETECT),
-	SND_PCI_QUIRK(0x17aa, 0x1011, "Lenovo M55", AD1986A_FIXUP_3STACK),
-	SND_PCI_QUIRK(0x17aa, 0x1017, "Lenovo A60", AD1986A_FIXUP_3STACK),
+	SND_PCI_QUIRK(0x1631, 0xc022, "PackardBell EasyAnalte MX65", AD1986A_FIXUP_EASYANALTE),
+	SND_PCI_QUIRK(0x17aa, 0x2066, "Leanalvo N100", AD1986A_FIXUP_INV_JACK_DETECT),
+	SND_PCI_QUIRK(0x17aa, 0x1011, "Leanalvo M55", AD1986A_FIXUP_3STACK),
+	SND_PCI_QUIRK(0x17aa, 0x1017, "Leanalvo A60", AD1986A_FIXUP_3STACK),
 	{}
 };
 
@@ -406,11 +406,11 @@ static int patch_ad1986a(struct hda_codec *codec)
 
 	/* AD1986A has a hardware problem that it can't share a stream
 	 * with multiple output pins.  The copy of front to surrounds
-	 * causes noisy or silent outputs at a certain timing, e.g.
+	 * causes analisy or silent outputs at a certain timing, e.g.
 	 * changing the volume.
 	 * So, let's disable the shared stream.
 	 */
-	spec->gen.multiout.no_share_stream = 1;
+	spec->gen.multiout.anal_share_stream = 1;
 	/* give fixed DAC/pin pairs */
 	spec->gen.preferred_dacs = preferred_pairs;
 
@@ -507,7 +507,7 @@ static int ad1983_add_spdif_mux_ctl(struct hda_codec *codec)
 		return 0;
 	spec->num_smux_conns = num_conns;
 	if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &ad1983_auto_smux_mixer))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -527,7 +527,7 @@ static int patch_ad1983(struct hda_codec *codec)
 	spec->gen.beep_nid = 0x10;
 	set_beep_amp(spec, 0x10, 0, HDA_OUTPUT);
 
-	/* limit the loopback routes not to confuse the parser */
+	/* limit the loopback routes analt to confuse the parser */
 	snd_hda_override_conn_list(codec, 0x0c, ARRAY_SIZE(conn_0c), conn_0c);
 	snd_hda_override_conn_list(codec, 0x0d, ARRAY_SIZE(conn_0d), conn_0d);
 
@@ -593,9 +593,9 @@ static const struct hda_fixup ad1981_fixups[] = {
 };
 
 static const struct snd_pci_quirk ad1981_fixup_tbl[] = {
-	SND_PCI_QUIRK_VENDOR(0x1014, "Lenovo", AD1981_FIXUP_AMP_OVERRIDE),
+	SND_PCI_QUIRK_VENDOR(0x1014, "Leanalvo", AD1981_FIXUP_AMP_OVERRIDE),
 	SND_PCI_QUIRK_VENDOR(0x103c, "HP", AD1981_FIXUP_HP_EAPD),
-	SND_PCI_QUIRK_VENDOR(0x17aa, "Lenovo", AD1981_FIXUP_AMP_OVERRIDE),
+	SND_PCI_QUIRK_VENDOR(0x17aa, "Leanalvo", AD1981_FIXUP_AMP_OVERRIDE),
 	/* HP nx6320 (reversed SSID, H/W bug) */
 	SND_PCI_QUIRK(0x30b0, 0x103c, "HP nx6320", AD1981_FIXUP_HP_EAPD),
 	{}
@@ -608,7 +608,7 @@ static int patch_ad1981(struct hda_codec *codec)
 
 	err = alloc_ad_spec(codec);
 	if (err < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	spec = codec->spec;
 
 	spec->gen.mixer_nid = 0x0e;
@@ -649,7 +649,7 @@ static int patch_ad1981(struct hda_codec *codec)
  * port-F 0x16 (mute)    <- 0x2a         <- 06
  * port-G 0x24 (mute)    <- 0x27         <- 05
  * port-H 0x25 (mute)    <- 0x28         <- 0a
- * mono   0x13 (mute/amp)<- 0x1e <- 0x36 <- 03/04/06
+ * moanal   0x13 (mute/amp)<- 0x1e <- 0x36 <- 03/04/06
  *
  * DAC0 = 03h, DAC1 = 04h, DAC2 = 05h, DAC3 = 06h, DAC4 = 0ah
  * (*) DAC2/3/4 are swapped to DAC3/4/2 on AD198A rev.2 due to a h/w bug.
@@ -848,7 +848,7 @@ static int ad1988_add_spdif_mux_ctl(struct hda_codec *codec)
 	for (i = 0; i < num_conns; i++) {
 		struct nid_path *path = snd_array_new(&spec->gen.paths);
 		if (!path)
-			return -ENOMEM;
+			return -EANALMEM;
 		*path = fake_paths[i];
 		if (!i)
 			path->active = 1;
@@ -856,7 +856,7 @@ static int ad1988_add_spdif_mux_ctl(struct hda_codec *codec)
 	}
 
 	if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &ad1988_auto_smux_mixer))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	codec->patch_ops.init = ad1988_auto_init;
 
@@ -1017,7 +1017,7 @@ static void ad1884_fixup_thinkpad(struct hda_codec *codec,
 		spec->eapd_nid = 0x12;
 		/* Analog PC Beeper - allow firmware/ACPI beeps */
 		spec->beep_amp = HDA_COMPOSE_AMP_VAL(0x20, 3, 3, HDA_INPUT);
-		spec->gen.beep_nid = 0; /* no digital beep */
+		spec->gen.beep_nid = 0; /* anal digital beep */
 	}
 }
 
@@ -1068,7 +1068,7 @@ static const struct hda_fixup ad1884_fixups[] = {
 static const struct snd_pci_quirk ad1884_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x2a82, "HP Touchsmart", AD1884_FIXUP_HP_TOUCHSMART),
 	SND_PCI_QUIRK_VENDOR(0x103c, "HP", AD1884_FIXUP_HP_EAPD),
-	SND_PCI_QUIRK_VENDOR(0x17aa, "Lenovo Thinkpad", AD1884_FIXUP_THINKPAD),
+	SND_PCI_QUIRK_VENDOR(0x17aa, "Leanalvo Thinkpad", AD1884_FIXUP_THINKPAD),
 	{}
 };
 

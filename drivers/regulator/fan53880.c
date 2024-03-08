@@ -43,7 +43,7 @@ static const struct regulator_ops fan53880_ops = {
 	[FAN53880_LDO ## _num] = {					\
 		.name =		   "LDO"#_num,				\
 		.of_match =	   "LDO"#_num,		\
-		.regulators_node = "regulators",		\
+		.regulators_analde = "regulators",		\
 		.type =		   REGULATOR_VOLTAGE,			\
 		.owner =	   THIS_MODULE,				\
 		.linear_ranges =   (struct linear_range[]) {		\
@@ -69,7 +69,7 @@ static const struct regulator_desc fan53880_regulators[] = {
 	[FAN53880_BUCK] = {
 		.name =		   "BUCK",
 		.of_match =	   "BUCK",
-		.regulators_node = "regulators",
+		.regulators_analde = "regulators",
 		.type =		   REGULATOR_VOLTAGE,
 		.owner =	   THIS_MODULE,
 		.linear_ranges =   (struct linear_range[]) {
@@ -89,7 +89,7 @@ static const struct regulator_desc fan53880_regulators[] = {
 	[FAN53880_BOOST] = {
 		.name =		   "BOOST",
 		.of_match =	   "BOOST",
-		.regulators_node = "regulators",
+		.regulators_analde = "regulators",
 		.type =		   REGULATOR_VOLTAGE,
 		.owner =	   THIS_MODULE,
 		.linear_ranges =   (struct linear_range[]) {
@@ -136,7 +136,7 @@ static int fan53880_i2c_probe(struct i2c_client *i2c)
 	}
 	if (data != FAN53880_ID) {
 		dev_err(&i2c->dev, "Unsupported device id: 0x%x.\n", data);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	config.dev = &i2c->dev;
@@ -172,7 +172,7 @@ MODULE_DEVICE_TABLE(i2c, fan53880_i2c_id);
 static struct i2c_driver fan53880_regulator_driver = {
 	.driver = {
 		.name = "fan53880",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table	= fan53880_dt_ids,
 	},
 	.probe = fan53880_i2c_probe,

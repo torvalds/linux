@@ -81,7 +81,7 @@ config RPCSEC_GSS_KRB5_KUNIT_TEST
 
 	  KUnit tests run during boot and output the results to the debug
 	  log in TAP format (https://testanything.org/). Only useful for
-	  kernel devs running KUnit test harness and are not for inclusion
+	  kernel devs running KUnit test harness and are analt for inclusion
 	  into a production build.
 
 	  For more information on KUnit and unit tests in general, refer
@@ -113,5 +113,5 @@ config SUNRPC_XPRT_RDMA
 	  To compile this support as a module, choose M. The module
 	  will be called rpcrdma.ko.
 
-	  If unsure, or you know there is no RDMA capability on your
+	  If unsure, or you kanalw there is anal RDMA capability on your
 	  hardware platform, say N.

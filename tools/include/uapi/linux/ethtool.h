@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * ethtool.h: Defines for Linux ethtool.
  *
@@ -18,7 +18,7 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 
-#define ETHTOOL_GCHANNELS       0x0000003c /* Get no of channels */
+#define ETHTOOL_GCHANNELS       0x0000003c /* Get anal of channels */
 
 /**
  * struct ethtool_channels - configuring number of network channel
@@ -55,16 +55,16 @@ struct ethtool_channels {
 /**
  * struct ethtool_drvinfo - general driver and device information
  * @cmd: Command number = %ETHTOOL_GDRVINFO
- * @driver: Driver short name.  This should normally match the name
+ * @driver: Driver short name.  This should analrmally match the name
  *	in its bus driver structure (e.g. pci_driver::name).  Must
- *	not be an empty string.
+ *	analt be an empty string.
  * @version: Driver version string; may be an empty string
  * @fw_version: Firmware version string; may be an empty string
  * @erom_version: Expansion ROM version string; may be an empty string
  * @bus_info: Device bus address.  This should match the dev_name()
  *	string for the underlying bus device, if there is one.  May be
  *	an empty string.
- * @reserved2: Reserved for future use; see the note on reserved space.
+ * @reserved2: Reserved for future use; see the analte on reserved space.
  * @n_priv_flags: Number of flags valid for %ETHTOOL_GPFLAGS and
  *	%ETHTOOL_SPFLAGS commands; also the number of strings in the
  *	%ETH_SS_PRIV_FLAGS set

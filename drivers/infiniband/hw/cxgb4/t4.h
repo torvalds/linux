@@ -12,17 +12,17 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -158,8 +158,8 @@ static inline void init_wr_hdr(union t4_wr *wqe, u16 wrid,
 #define T4_ERR_OPCODE                      0x16 /* invalid rdma opcode */
 #define T4_ERR_DDP_QUEUE_NUM               0x17 /* invalid ddp queue number */
 #define T4_ERR_MSN                         0x18 /* MSN error */
-#define T4_ERR_TBIT                        0x19 /* tag bit not set correctly */
-#define T4_ERR_MO                          0x1A /* MO not 0 for TERMINATE  */
+#define T4_ERR_TBIT                        0x19 /* tag bit analt set correctly */
+#define T4_ERR_MO                          0x1A /* MO analt 0 for TERMINATE  */
 						/* or READ_REQ */
 #define T4_ERR_MSN_GAP                     0x1B
 #define T4_ERR_MSN_RANGE                   0x1C
@@ -321,7 +321,7 @@ static inline pgprot_t t4_pgprot_wc(pgprot_t prot)
 #if defined(__i386__) || defined(__x86_64__) || defined(CONFIG_PPC64)
 	return pgprot_writecombine(prot);
 #else
-	return pgprot_noncached(prot);
+	return pgprot_analncached(prot);
 #endif
 }
 
@@ -772,7 +772,7 @@ static inline int t4_valid_cqe(struct t4_cq *cq, struct t4_cqe *cqe)
 	return (CQE_GENBIT(cqe) == cq->gen);
 }
 
-static inline int t4_cq_notempty(struct t4_cq *cq)
+static inline int t4_cq_analtempty(struct t4_cq *cq)
 {
 	return cq->sw_in_use || t4_valid_cqe(cq, &cq->queue[cq->cidx]);
 }
@@ -798,7 +798,7 @@ static inline int t4_next_hw_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 		*cqe = &cq->queue[cq->cidx];
 		ret = 0;
 	} else
-		ret = -ENODATA;
+		ret = -EANALDATA;
 	return ret;
 }
 
@@ -807,7 +807,7 @@ static inline int t4_next_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 	int ret = 0;
 
 	if (cq->error)
-		ret = -ENODATA;
+		ret = -EANALDATA;
 	else if (cq->sw_in_use)
 		*cqe = &cq->sw_queue[cq->sw_cidx];
 	else

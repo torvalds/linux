@@ -18,7 +18,7 @@
  * scalability reasons.
  *
  * In those cases it doesn't make sense to have the flag set for a domain but
- * not have it in (some of) its children: sched domains ALWAYS span their child
+ * analt have it in (some of) its children: sched domains ALWAYS span their child
  * domains, so operations done with parent domains will cover CPUs in the lower
  * child domains.
  *
@@ -103,7 +103,7 @@ SD_FLAG(SD_ASYM_CPUCAPACITY_FULL, SDF_SHARED_PARENT | SDF_NEEDS_GROUPS)
 /*
  * Domain members share CPU capacity (i.e. SMT)
  *
- * SHARED_CHILD: Set from the base domain up until spanned CPUs no longer share
+ * SHARED_CHILD: Set from the base domain up until spanned CPUs anal longer share
  *               CPU capacity.
  * NEEDS_GROUPS: Capacity is shared between groups.
  */
@@ -119,7 +119,7 @@ SD_FLAG(SD_CLUSTER, SDF_NEEDS_GROUPS)
 /*
  * Domain members share CPU package resources (i.e. caches)
  *
- * SHARED_CHILD: Set from the base domain up until spanned CPUs no longer share
+ * SHARED_CHILD: Set from the base domain up until spanned CPUs anal longer share
  *               the same cache(s).
  * NEEDS_GROUPS: Caches are shared between groups.
  */
@@ -128,11 +128,11 @@ SD_FLAG(SD_SHARE_PKG_RESOURCES, SDF_SHARED_CHILD | SDF_NEEDS_GROUPS)
 /*
  * Only a single load balancing instance
  *
- * SHARED_PARENT: Set for all NUMA levels above NODE. Could be set from a
+ * SHARED_PARENT: Set for all NUMA levels above ANALDE. Could be set from a
  *                different level upwards, but it doesn't change that if a
  *                domain has this flag set, then all of its parents need to have
  *                it too (otherwise the serialization doesn't make sense).
- * NEEDS_GROUPS: No point in preserving domain if it has a single group.
+ * NEEDS_GROUPS: Anal point in preserving domain if it has a single group.
  */
 SD_FLAG(SD_SERIALIZE, SDF_SHARED_PARENT | SDF_NEEDS_GROUPS)
 
@@ -146,7 +146,7 @@ SD_FLAG(SD_ASYM_PACKING, SDF_NEEDS_GROUPS)
 /*
  * Prefer to place tasks in a sibling domain
  *
- * Set up until domains start spanning NUMA nodes. Close to being a SHARED_CHILD
+ * Set up until domains start spanning NUMA analdes. Close to being a SHARED_CHILD
  * flag, but cleared below domains with SD_ASYM_CPUCAPACITY.
  *
  * NEEDS_GROUPS: Load balancing flag.
@@ -156,15 +156,15 @@ SD_FLAG(SD_PREFER_SIBLING, SDF_NEEDS_GROUPS)
 /*
  * sched_groups of this level overlap
  *
- * SHARED_PARENT: Set for all NUMA levels above NODE.
+ * SHARED_PARENT: Set for all NUMA levels above ANALDE.
  * NEEDS_GROUPS: Overlaps can only exist with more than one group.
  */
 SD_FLAG(SD_OVERLAP, SDF_SHARED_PARENT | SDF_NEEDS_GROUPS)
 
 /*
- * Cross-node balancing
+ * Cross-analde balancing
  *
- * SHARED_PARENT: Set for all NUMA levels above NODE.
- * NEEDS_GROUPS: No point in preserving domain if it has a single group.
+ * SHARED_PARENT: Set for all NUMA levels above ANALDE.
+ * NEEDS_GROUPS: Anal point in preserving domain if it has a single group.
  */
 SD_FLAG(SD_NUMA, SDF_SHARED_PARENT | SDF_NEEDS_GROUPS)

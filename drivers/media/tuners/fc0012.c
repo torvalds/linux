@@ -68,7 +68,7 @@ static int fc0012_init(struct dvb_frontend *fe)
 		0x82,	/* reg. 0x0b: Output Clock is same as clock frequency,
 			   may also be 0x83 */
 		0xfc,	/* reg. 0x0c: depending on AGC Up-Down mode, may need 0xf8 */
-		0x02,	/* reg. 0x0d: AGC Not Forcing & LNA Forcing, 0x02 for DVB-T */
+		0x02,	/* reg. 0x0d: AGC Analt Forcing & LNA Forcing, 0x02 for DVB-T */
 		0x00,	/* reg. 0x0e */
 		0x00,	/* reg. 0x0f */
 		0x00,	/* reg. 0x10: may also be 0x0d */
@@ -246,7 +246,7 @@ static int fc0012_set_params(struct dvb_frontend *fe)
 			break;
 		}
 	} else {
-		dev_err(&priv->i2c->dev, "%s: modulation type not supported!\n",
+		dev_err(&priv->i2c->dev, "%s: modulation type analt supported!\n",
 				KBUILD_MODNAME);
 		return -EINVAL;
 	}
@@ -437,7 +437,7 @@ struct dvb_frontend *fc0012_attach(struct dvb_frontend *fe,
 
 	priv = kzalloc(sizeof(struct fc0012_priv), GFP_KERNEL);
 	if (!priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		dev_err(&i2c->dev, "%s: kzalloc() failed\n", KBUILD_MODNAME);
 		goto err;
 	}
@@ -456,7 +456,7 @@ struct dvb_frontend *fc0012_attach(struct dvb_frontend *fe,
 	case 0xa1:
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 

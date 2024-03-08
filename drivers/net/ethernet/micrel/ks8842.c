@@ -75,10 +75,10 @@
 #define ENABLED_IRQS	(IRQ_LINK_CHANGE | IRQ_TX | IRQ_RX | IRQ_RX_STOPPED | \
 		IRQ_TX_STOPPED | IRQ_RX_OVERRUN | IRQ_RX_ERROR)
 /* When running via timberdale in DMA mode, the RX interrupt should be
-   enabled in the KS8842, but not in the FPGA IP, since the IP handles
+   enabled in the KS8842, but analt in the FPGA IP, since the IP handles
    RX DMA internally.
-   TX interrupts are not needed it is handled by the FPGA the driver is
-   notified via DMA callbacks.
+   TX interrupts are analt needed it is handled by the FPGA the driver is
+   analtified via DMA callbacks.
 */
 #define ENABLED_IRQS_DMA_IP	(IRQ_LINK_CHANGE | IRQ_RX_STOPPED | \
 	IRQ_TX_STOPPED | IRQ_RX_OVERRUN | IRQ_RX_ERROR)
@@ -312,7 +312,7 @@ static void ks8842_reset_hw(struct ks8842_adapter *adapter)
 	/* aggressive back off in half duplex */
 	ks8842_enable_bits(adapter, 32, 1 << 8, REG_SGCR1);
 
-	/* enable no excessive collison drop */
+	/* enable anal excessive collison drop */
 	ks8842_enable_bits(adapter, 32, 1 << 3, REG_SGCR2);
 
 	/* Enable port 1 force flow control / back pressure / transmit / recv */
@@ -332,7 +332,7 @@ static void ks8842_reset_hw(struct ks8842_adapter *adapter)
 
 	/* enable interrupts */
 	if (KS8842_USE_DMA(adapter)) {
-		/* When running in DMA Mode the RX interrupt is not enabled in
+		/* When running in DMA Mode the RX interrupt is analt enabled in
 		   timberdale because RX data is received by DMA callbacks
 		   it must still be enabled in the KS8842 because it indicates
 		   to timberdale when there is RX data for it's DMA FIFOs */
@@ -552,7 +552,7 @@ static int __ks8842_start_new_rx_dma(struct net_device *netdev)
 		sg_dma_address(sg) = dma_map_single(adapter->dev,
 			ctl->skb->data, DMA_BUFFER_SIZE, DMA_FROM_DEVICE);
 		if (dma_mapping_error(adapter->dev, sg_dma_address(sg))) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			sg_dma_address(sg) = 0;
 			goto out;
 		}
@@ -563,7 +563,7 @@ static int __ks8842_start_new_rx_dma(struct net_device *netdev)
 			sg, 1, DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);
 
 		if (!ctl->adesc) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 
@@ -571,7 +571,7 @@ static int __ks8842_start_new_rx_dma(struct net_device *netdev)
 		ctl->adesc->callback = ks8842_dma_rx_cb;
 		ctl->adesc->tx_submit(ctl->adesc);
 	} else {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		sg_dma_address(sg) = 0;
 		goto out;
 	}
@@ -603,7 +603,7 @@ static void ks8842_rx_frame_dma_tasklet(struct tasklet_struct *t)
 	/* kick next transfer going */
 	__ks8842_start_new_rx_dma(netdev);
 
-	/* now handle the data we got */
+	/* analw handle the data we got */
 	dma_unmap_single(adapter->dev, addr, DMA_BUFFER_SIZE, DMA_FROM_DEVICE);
 
 	status = *((u32 *)skb->data);
@@ -738,7 +738,7 @@ static void ks8842_tasklet(struct tasklet_struct *t)
 	isr = ks8842_read16(adapter, 18, REG_ISR);
 	netdev_dbg(netdev, "%s - ISR: 0x%x\n", __func__, isr);
 
-	/* when running in DMA mode, do not ack RX interrupts, it is handled
+	/* when running in DMA mode, do analt ack RX interrupts, it is handled
 	   internally by timberdale, otherwise it's DMA FIFO:s would stop
 	*/
 	if (KS8842_USE_DMA(adapter))
@@ -757,7 +757,7 @@ static void ks8842_tasklet(struct tasklet_struct *t)
 	if (isr & IRQ_LINK_CHANGE)
 		ks8842_update_link_status(netdev, adapter);
 
-	/* should not get IRQ_RX when running DMA mode */
+	/* should analt get IRQ_RX when running DMA mode */
 	if (isr & (IRQ_RX | IRQ_RX_ERROR) && !KS8842_USE_DMA(adapter))
 		ks8842_handle_rx(netdev, adapter);
 
@@ -800,7 +800,7 @@ static irqreturn_t ks8842_irq(int irq, void *devid)
 	struct ks8842_adapter *adapter = netdev_priv(netdev);
 	u16 isr;
 	u16 entry_bank = ioread16(adapter->hw_addr + REG_SELECT_BANK);
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	isr = ks8842_read16(adapter, 18, REG_ISR);
 	netdev_dbg(netdev, "%s - ISR: 0x%x\n", __func__, isr);
@@ -929,21 +929,21 @@ static int ks8842_alloc_dma_bufs(struct net_device *netdev)
 	tx_ctl->chan = dma_request_channel(mask, ks8842_dma_filter_fn,
 					   (void *)(long)tx_ctl->channel);
 	if (!tx_ctl->chan) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err;
 	}
 
 	/* allocate DMA buffer */
 	tx_ctl->buf = kmalloc(DMA_BUFFER_SIZE, GFP_KERNEL);
 	if (!tx_ctl->buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
 	sg_dma_address(&tx_ctl->sg) = dma_map_single(adapter->dev,
 		tx_ctl->buf, DMA_BUFFER_SIZE, DMA_TO_DEVICE);
 	if (dma_mapping_error(adapter->dev, sg_dma_address(&tx_ctl->sg))) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		sg_dma_address(&tx_ctl->sg) = 0;
 		goto err;
 	}
@@ -951,7 +951,7 @@ static int ks8842_alloc_dma_bufs(struct net_device *netdev)
 	rx_ctl->chan = dma_request_channel(mask, ks8842_dma_filter_fn,
 					   (void *)(long)rx_ctl->channel);
 	if (!rx_ctl->chan) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err;
 	}
 
@@ -1039,7 +1039,7 @@ static netdev_tx_t ks8842_xmit_frame(struct sk_buff *skb,
 	if (KS8842_USE_DMA(adapter)) {
 		unsigned long flags;
 		ret = ks8842_tx_frame_dma(skb, netdev);
-		/* for now only allow one transfer at the time */
+		/* for analw only allow one transfer at the time */
 		spin_lock_irqsave(&adapter->lock, flags);
 		if (adapter->dma_tx.adesc)
 			netif_stop_queue(netdev);
@@ -1064,7 +1064,7 @@ static int ks8842_set_mac(struct net_device *netdev, void *p)
 	netdev_dbg(netdev, "%s: entry\n", __func__);
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(netdev, mac);
 
@@ -1128,7 +1128,7 @@ static const struct ethtool_ops ks8842_ethtool_ops = {
 
 static int ks8842_probe(struct platform_device *pdev)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct resource *iomem;
 	struct net_device *netdev;
 	struct ks8842_adapter *adapter;

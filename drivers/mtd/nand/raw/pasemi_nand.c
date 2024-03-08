@@ -60,7 +60,7 @@ static void pasemi_hwcontrol(struct nand_chip *chip, int cmd,
 {
 	struct pasemi_ddata *ddata = container_of(chip, struct pasemi_ddata, chip);
 
-	if (cmd == NAND_CMD_NONE)
+	if (cmd == NAND_CMD_ANALNE)
 		return;
 
 	if (ctrl & NAND_CLE)
@@ -83,7 +83,7 @@ static int pasemi_device_ready(struct nand_chip *chip)
 static int pasemi_attach_chip(struct nand_chip *chip)
 {
 	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
-	    chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+	    chip->ecc.algo == NAND_ECC_ALGO_UNKANALWN)
 		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	return 0;
@@ -97,7 +97,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct pci_dev *pdev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct resource res;
 	struct nand_chip *chip;
 	struct nand_controller *controller;
@@ -115,7 +115,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	/* Allocate memory for MTD device structure and private data */
 	ddata = kzalloc(sizeof(*ddata), GFP_KERNEL);
 	if (!ddata) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	platform_set_drvdata(ofdev, ddata);
@@ -141,7 +141,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 
 	pdev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa008, NULL);
 	if (!pdev) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_ior;
 	}
 
@@ -176,7 +176,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 
 	if (mtd_device_register(pasemi_nand_mtd, NULL, 0)) {
 		dev_err(dev, "Unable to register MTD device\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_cleanup_nand;
 	}
 

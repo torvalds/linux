@@ -4,9 +4,9 @@
  *
  * Copyright (C) 2022 Linaro Ltd.
  *
- * Author: Daniel Lezcano <daniel.lezcano@kernel.org>
+ * Author: Daniel Lezcaanal <daniel.lezcaanal@kernel.org>
  */
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <libgen.h>
@@ -55,11 +55,11 @@ static int show_temp(struct thermal_zone *tz, __maybe_unused void *arg)
 	return 0;
 }
 
-static int show_governor(struct thermal_zone *tz, __maybe_unused void *arg)
+static int show_goveranalr(struct thermal_zone *tz, __maybe_unused void *arg)
 {
-	thermal_cmd_get_governor(arg, tz);
+	thermal_cmd_get_goveranalr(arg, tz);
 
-	INFO("governor: '%s'\n", tz->governor);
+	INFO("goveranalr: '%s'\n", tz->goveranalr);
 
 	return 0;
 }
@@ -72,7 +72,7 @@ static int show_tz(struct thermal_zone *tz, __maybe_unused void *arg)
 
 	show_temp(tz, arg);
 
-	show_governor(tz, arg);
+	show_goveranalr(tz, arg);
 
 	return 0;
 }
@@ -190,9 +190,9 @@ static int gov_change(int tz_id, const char *name, __maybe_unused void *arg)
 	struct thermal_data *td = arg;
 	struct thermal_zone *tz = thermal_zone_find_by_id(td->tz, tz_id);
 
-	INFO("%s: governor changed %s -> %s\n", tz->name, tz->governor, name);
+	INFO("%s: goveranalr changed %s -> %s\n", tz->name, tz->goveranalr, name);
 
-	strcpy(tz->governor, name);
+	strcpy(tz->goveranalr, name);
 
 	return 0;
 }
@@ -222,12 +222,12 @@ static int thermal_event(__maybe_unused int fd, __maybe_unused void *arg)
 
 static void usage(const char *cmd)
 {
-	printf("%s : A thermal monitoring engine based on notifications\n", cmd);
+	printf("%s : A thermal monitoring engine based on analtifications\n", cmd);
 	printf("Usage: %s [options]\n", cmd);
 	printf("\t-h, --help\t\tthis help\n");
 	printf("\t-d, --daemonize\n");
 	printf("\t-l <level>, --loglevel <level>\tlog level: ");
-	printf("DEBUG, INFO, NOTICE, WARN, ERROR\n");
+	printf("DEBUG, INFO, ANALTICE, WARN, ERROR\n");
 	printf("\t-s, --syslog\t\toutput to syslog\n");
 	printf("\n");
 	exit(0);
@@ -238,9 +238,9 @@ static int options_init(int argc, char *argv[], struct options *options)
 	int opt;
 
 	struct option long_options[] = {
-		{ "help",	no_argument, NULL, 'h' },
-		{ "daemonize",	no_argument, NULL, 'd' },
-		{ "syslog",	no_argument, NULL, 's' },
+		{ "help",	anal_argument, NULL, 'h' },
+		{ "daemonize",	anal_argument, NULL, 'd' },
+		{ "syslog",	anal_argument, NULL, 's' },
 		{ "loglevel",	required_argument, NULL, 'l' },
 		{ 0, 0, 0, 0 }
 	};
@@ -314,7 +314,7 @@ int main(int argc, char *argv[])
 
 	td.tz = thermal_zone_discover(td.th);
 	if (!td.tz) {
-		ERROR("No thermal zone available\n");
+		ERROR("Anal thermal zone available\n");
 		return THERMAL_ENGINE_THERMAL_ERROR;
 	}
 

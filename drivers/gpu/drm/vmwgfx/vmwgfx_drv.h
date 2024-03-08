@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -50,7 +50,7 @@
 
 /*
  * FIXME: vmwgfx_drm.h needs to be last due to dependencies.
- * uapi headers should not depend on header files outside uapi/.
+ * uapi headers should analt depend on header files outside uapi/.
  */
 #include <drm/vmwgfx_drm.h>
 
@@ -58,7 +58,7 @@
 #define VMWGFX_DRIVER_NAME "vmwgfx"
 #define VMWGFX_DRIVER_DATE "20211206"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 20
+#define VMWGFX_DRIVER_MIANALR 20
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_DISPLAYS 16
@@ -100,9 +100,9 @@
 #define VMW_RES_SHADER ttm_driver_type4
 #define VMW_RES_HT_ORDER 12
 
-#define VMW_CURSOR_SNOOP_FORMAT SVGA3D_A8R8G8B8
-#define VMW_CURSOR_SNOOP_WIDTH 64
-#define VMW_CURSOR_SNOOP_HEIGHT 64
+#define VMW_CURSOR_SANALOP_FORMAT SVGA3D_A8R8G8B8
+#define VMW_CURSOR_SANALOP_WIDTH 64
+#define VMW_CURSOR_SANALOP_HEIGHT 64
 
 #define MKSSTAT_CAPACITY_LOG2 5U
 #define MKSSTAT_CAPACITY (1U << MKSSTAT_CAPACITY_LOG2)
@@ -113,7 +113,7 @@ struct vmw_fpriv {
 };
 
 struct vmwgfx_hash_item {
-	struct hlist_node head;
+	struct hlist_analde head;
 	unsigned long key;
 };
 
@@ -143,21 +143,21 @@ struct vmw_res_func;
  * @dev_priv: Pointer to the device private for this resource. Immutable.
  * @id: Device id. Protected by @dev_priv::resource_lock.
  * @guest_memory_size: Guest memory buffer size. Immutable.
- * @res_dirty: Resource contains data not yet in the guest memory buffer.
+ * @res_dirty: Resource contains data analt yet in the guest memory buffer.
  * Protected by resource reserved.
- * @guest_memory_dirty: Guest memory buffer contains data not yet in the HW
+ * @guest_memory_dirty: Guest memory buffer contains data analt yet in the HW
  * resource. Protected by resource reserved.
  * @coherent: Emulate coherency by tracking vm accesses.
  * @guest_memory_bo: The guest memory buffer if any. Protected by resource
  * reserved.
  * @guest_memory_offset: Offset into the guest memory buffer if any. Protected
- * by resource reserved. Note that only a few resource types can have a
+ * by resource reserved. Analte that only a few resource types can have a
  * @guest_memory_offset different from zero.
  * @pin_count: The pin count for this resource. A pinned resource has a
- * pin-count greater than zero. It is not on the resource LRU lists and its
+ * pin-count greater than zero. It is analt on the resource LRU lists and its
  * guest memory buffer is pinned. Hence it can't be evicted.
  * @func: Method vtable for this resource. Immutable.
- * @mob_node; Node for the MOB guest memory rbtree. Protected by
+ * @mob_analde; Analde for the MOB guest memory rbtree. Protected by
  * @guest_memory_bo reserved.
  * @lru_head: List head for the LRU list. Protected by @dev_priv::resource_lock.
  * @binding_head: List head for the context binding list. Protected by
@@ -182,7 +182,7 @@ struct vmw_resource {
 	unsigned long guest_memory_offset;
 	unsigned long pin_count;
 	const struct vmw_res_func *func;
-	struct rb_node mob_node;
+	struct rb_analde mob_analde;
 	struct list_head lru_head;
 	struct list_head binding_head;
 	struct vmw_resource_dirty *dirty;
@@ -217,7 +217,7 @@ enum vmw_cmdbuf_res_type {
 
 struct vmw_cmdbuf_res_manager;
 
-struct vmw_cursor_snooper {
+struct vmw_cursor_sanaloper {
 	size_t age;
 	uint32_t *image;
 };
@@ -242,7 +242,7 @@ struct vmw_surface_offset;
  * @num_sizes: Size of @sizes. For GB surface this should always be 1.
  * @base_size: Surface dimension.
  * @sizes: Array representing mip sizes. Legacy only.
- * @scanout: Whether this surface will be used for scanout.
+ * @scaanalut: Whether this surface will be used for scaanalut.
  *
  * This tracks metadata for both legacy and guest backed surface.
  */
@@ -259,7 +259,7 @@ struct vmw_surface_metadata {
 	u32 buffer_byte_stride;
 	struct drm_vmw_size base_size;
 	struct drm_vmw_size *sizes;
-	bool scanout;
+	bool scaanalut;
 };
 
 /**
@@ -267,14 +267,14 @@ struct vmw_surface_metadata {
  *
  * @res: The base resource for this surface.
  * @metadata: Metadata for this surface resource.
- * @snooper: Cursor data. Legacy surface only.
+ * @sanaloper: Cursor data. Legacy surface only.
  * @offsets: Legacy surface only.
  * @view_list: List of views bound to this surface.
  */
 struct vmw_surface {
 	struct vmw_resource res;
 	struct vmw_surface_metadata metadata;
-	struct vmw_cursor_snooper snooper;
+	struct vmw_cursor_sanaloper sanaloper;
 	struct vmw_surface_offset *offsets;
 	struct list_head view_list;
 };
@@ -293,7 +293,7 @@ struct vmw_fifo_state {
 /**
  * struct vmw_res_cache_entry - resource information cache entry
  * @handle: User-space handle of a resource.
- * @res: Non-ref-counted pointer to the resource.
+ * @res: Analn-ref-counted pointer to the resource.
  * @valid_handle: Whether the @handle member is valid.
  * @valid: Whether the entry is valid, which also implies that the execbuf
  * code holds a reference to the resource, and it's placed on the
@@ -411,7 +411,7 @@ struct vmw_ctx_validation_info;
  * @staged_cmd_res: List of staged command buffer managed resources in this
  * command buffer
  * @ctx_list: List of context resources referenced in this command buffer
- * @dx_ctx_node: Validation metadata of the current DX context
+ * @dx_ctx_analde: Validation metadata of the current DX context
  * @dx_query_mob: The MOB used for DX queries
  * @dx_query_ctx: The DX context used for the last DX query
  * @man: Pointer to the command buffer managed resource manager
@@ -435,7 +435,7 @@ struct vmw_sw_context{
 	bool staged_bindings_inuse;
 	struct list_head staged_cmd_res;
 	struct list_head ctx_list;
-	struct vmw_ctx_validation_info *dx_ctx_node;
+	struct vmw_ctx_validation_info *dx_ctx_analde;
 	struct vmw_bo *dx_query_mob;
 	struct vmw_resource *dx_query_ctx;
 	struct vmw_cmdbuf_res_manager *man;
@@ -573,7 +573,7 @@ struct vmw_private {
 	int cmdbuf_waiters; /* Protected by waiter_lock */
 	int error_waiters; /* Protected by waiter_lock */
 	int fifo_queue_waiters; /* Protected by waiter_lock */
-	uint32_t last_read_seqno;
+	uint32_t last_read_seqanal;
 	struct vmw_fence_manager *fman;
 	uint32_t irq_mask; /* Updates protected by waiter_lock */
 
@@ -599,7 +599,7 @@ struct vmw_private {
 	/**
 	 * PM management.
 	 */
-	struct notifier_block pm_nb;
+	struct analtifier_block pm_nb;
 	bool refuse_hibernation;
 	bool suspend_locked;
 
@@ -724,7 +724,7 @@ static inline uint32_t vmw_read(struct vmw_private *dev_priv,
  * has_sm4_context - Does the device support SM4 context.
  * @dev_priv: Device private.
  *
- * Return: Bool value if device support SM4 context or not.
+ * Return: Bool value if device support SM4 context or analt.
  */
 static inline bool has_sm4_context(const struct vmw_private *dev_priv)
 {
@@ -735,7 +735,7 @@ static inline bool has_sm4_context(const struct vmw_private *dev_priv)
  * has_sm4_1_context - Does the device support SM4_1 context.
  * @dev_priv: Device private.
  *
- * Return: Bool value if device support SM4_1 context or not.
+ * Return: Bool value if device support SM4_1 context or analt.
  */
 static inline bool has_sm4_1_context(const struct vmw_private *dev_priv)
 {
@@ -746,7 +746,7 @@ static inline bool has_sm4_1_context(const struct vmw_private *dev_priv)
  * has_sm5_context - Does the device support SM5 context.
  * @dev_priv: Device private.
  *
- * Return: Bool value if device support SM5 context or not.
+ * Return: Bool value if device support SM5 context or analt.
  */
 static inline bool has_sm5_context(const struct vmw_private *dev_priv)
 {
@@ -757,7 +757,7 @@ static inline bool has_sm5_context(const struct vmw_private *dev_priv)
  * has_gl43_context - Does the device support GL43 context.
  * @dev_priv: Device private.
  *
- * Return: Bool value if device support SM5 context or not.
+ * Return: Bool value if device support SM5 context or analt.
  */
 static inline bool has_gl43_context(const struct vmw_private *dev_priv)
 {
@@ -798,7 +798,7 @@ vmw_resource_reference_unless_doomed(struct vmw_resource *res);
 extern int vmw_resource_validate(struct vmw_resource *res, bool intr,
 				 bool dirtying);
 extern int vmw_resource_reserve(struct vmw_resource *res, bool interruptible,
-				bool no_backup);
+				bool anal_backup);
 extern bool vmw_resource_needs_backup(const struct vmw_resource *res);
 extern int vmw_user_lookup_handle(struct vmw_private *dev_priv,
 				  struct drm_file *filp,
@@ -818,7 +818,7 @@ extern int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_user_stream_lookup(struct vmw_private *dev_priv,
 				  struct ttm_object_file *tfile,
-				  uint32_t *inout_id,
+				  uint32_t *ianalut_id,
 				  struct vmw_resource **out);
 extern void vmw_resource_unreserve(struct vmw_resource *res,
 				   bool dirty_set,
@@ -826,7 +826,7 @@ extern void vmw_resource_unreserve(struct vmw_resource *res,
 				   bool switch_guest_memory,
 				   struct vmw_bo *new_guest_memory,
 				   unsigned long new_guest_memory_offset);
-extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
+extern void vmw_query_move_analtify(struct ttm_buffer_object *bo,
 				  struct ttm_resource *old_mem,
 				  struct ttm_resource *new_mem);
 int vmw_query_readback_all(struct vmw_bo *dx_query_mob);
@@ -847,7 +847,7 @@ int vmw_resources_clean(struct vmw_bo *vbo, pgoff_t start,
  */
 static inline bool vmw_resource_mob_attached(const struct vmw_resource *res)
 {
-	return !RB_EMPTY_NODE(&res->mob_node);
+	return !RB_EMPTY_ANALDE(&res->mob_analde);
 }
 
 /**
@@ -890,7 +890,7 @@ extern void *
 vmw_cmd_ctx_reserve(struct vmw_private *dev_priv, uint32_t bytes, int ctx_id);
 extern void vmw_cmd_commit(struct vmw_private *dev_priv, uint32_t bytes);
 extern void vmw_cmd_commit_flush(struct vmw_private *dev_priv, uint32_t bytes);
-extern int vmw_cmd_send_fence(struct vmw_private *dev_priv, uint32_t *seqno);
+extern int vmw_cmd_send_fence(struct vmw_private *dev_priv, uint32_t *seqanal);
 extern bool vmw_supports_3d(struct vmw_private *dev_priv);
 extern void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason);
 extern bool vmw_fifo_have_pitchlock(struct vmw_private *dev_priv);
@@ -1033,17 +1033,17 @@ bool vmw_cmd_describe(const void *buf, u32 *size, char const **cmd);
 
 extern int vmw_irq_install(struct vmw_private *dev_priv);
 extern void vmw_irq_uninstall(struct drm_device *dev);
-extern bool vmw_seqno_passed(struct vmw_private *dev_priv,
-				uint32_t seqno);
+extern bool vmw_seqanal_passed(struct vmw_private *dev_priv,
+				uint32_t seqanal);
 extern int vmw_fallback_wait(struct vmw_private *dev_priv,
 			     bool lazy,
 			     bool fifo_idle,
-			     uint32_t seqno,
+			     uint32_t seqanal,
 			     bool interruptible,
 			     unsigned long timeout);
-extern void vmw_update_seqno(struct vmw_private *dev_priv);
-extern void vmw_seqno_waiter_add(struct vmw_private *dev_priv);
-extern void vmw_seqno_waiter_remove(struct vmw_private *dev_priv);
+extern void vmw_update_seqanal(struct vmw_private *dev_priv);
+extern void vmw_seqanal_waiter_add(struct vmw_private *dev_priv);
+extern void vmw_seqanal_waiter_remove(struct vmw_private *dev_priv);
 extern void vmw_goal_waiter_add(struct vmw_private *dev_priv);
 extern void vmw_goal_waiter_remove(struct vmw_private *dev_priv);
 extern void vmw_generic_waiter_add(struct vmw_private *dev_priv, u32 flag,
@@ -1060,7 +1060,7 @@ int vmw_kms_close(struct vmw_private *dev_priv);
 int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv);
-void vmw_kms_cursor_snoop(struct vmw_surface *srf,
+void vmw_kms_cursor_sanalop(struct vmw_surface *srf,
 			  struct ttm_object_file *tfile,
 			  struct ttm_buffer_object *bo,
 			  SVGA3dCmdHeader *header);
@@ -1282,7 +1282,7 @@ extern const SVGACOTableType vmw_cotable_scrub_order[];
 extern struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
 					      struct vmw_resource *ctx,
 					      u32 type);
-extern int vmw_cotable_notify(struct vmw_resource *res, int id);
+extern int vmw_cotable_analtify(struct vmw_resource *res, int id);
 extern int vmw_cotable_scrub(struct vmw_resource *res, bool readback);
 extern void vmw_cotable_add_resource(struct vmw_resource *ctx,
 				     struct list_head *head);

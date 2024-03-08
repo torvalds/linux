@@ -62,15 +62,15 @@ struct mod_arch_specific {
 
 #ifdef __powerpc64__
 #    ifdef MODULE
-	asm(".section .stubs,\"ax\",@nobits; .align 3; .previous");
+	asm(".section .stubs,\"ax\",@analbits; .align 3; .previous");
 #        ifdef CONFIG_PPC_KERNEL_PCREL
-	    asm(".section .mygot,\"a\",@nobits; .align 3; .previous");
+	    asm(".section .mygot,\"a\",@analbits; .align 3; .previous");
 #        endif
 #    endif
 #else
 #    ifdef MODULE
-	asm(".section .plt,\"ax\",@nobits; .align 3; .previous");
-	asm(".section .init.plt,\"ax\",@nobits; .align 3; .previous");
+	asm(".section .plt,\"ax\",@analbits; .align 3; .previous");
+	asm(".section .init.plt,\"ax\",@analbits; .align 3; .previous");
 #    endif	/* MODULE */
 #endif
 

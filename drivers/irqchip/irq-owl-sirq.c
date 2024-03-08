@@ -162,7 +162,7 @@ static void owl_sirq_unmask(struct irq_data *data)
 }
 
 /*
- * GIC does not handle falling edge or active low, hence SIRQ shall be
+ * GIC does analt handle falling edge or active low, hence SIRQ shall be
  * programmed to convert falling edge to rising edge signal and active
  * low to active high signal.
  */
@@ -213,7 +213,7 @@ static int owl_sirq_domain_translate(struct irq_domain *d,
 				     unsigned long *hwirq,
 				     unsigned int *type)
 {
-	if (!is_of_node(fwspec->fwnode))
+	if (!is_of_analde(fwspec->fwanalde))
 		return -EINVAL;
 
 	if (fwspec->param_count != 2 || fwspec->param[0] >= NUM_SIRQ)
@@ -259,7 +259,7 @@ static int owl_sirq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	irq_domain_set_hwirq_and_chip(domain, virq, hwirq, &owl_sirq_chip,
 				      chip_data);
 
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwanalde = domain->parent->fwanalde;
 	parent_fwspec.param_count = 3;
 	parent_fwspec.param[0] = GIC_SPI;
 	parent_fwspec.param[1] = chip_data->ext_irqs[hwirq];
@@ -275,8 +275,8 @@ static const struct irq_domain_ops owl_sirq_domain_ops = {
 };
 
 static int __init owl_sirq_init(const struct owl_sirq_params *params,
-				struct device_node *node,
-				struct device_node *parent)
+				struct device_analde *analde,
+				struct device_analde *parent)
 {
 	struct irq_domain *domain, *parent_domain;
 	struct owl_sirq_chip_data *chip_data;
@@ -284,21 +284,21 @@ static int __init owl_sirq_init(const struct owl_sirq_params *params,
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%pOF: failed to find sirq parent domain\n", node);
+		pr_err("%pOF: failed to find sirq parent domain\n", analde);
 		return -ENXIO;
 	}
 
 	chip_data = kzalloc(sizeof(*chip_data), GFP_KERNEL);
 	if (!chip_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	raw_spin_lock_init(&chip_data->lock);
 
 	chip_data->params = params;
 
-	chip_data->base = of_iomap(node, 0);
+	chip_data->base = of_iomap(analde, 0);
 	if (!chip_data->base) {
-		pr_err("%pOF: failed to map sirq registers\n", node);
+		pr_err("%pOF: failed to map sirq registers\n", analde);
 		ret = -ENXIO;
 		goto out_free;
 	}
@@ -306,9 +306,9 @@ static int __init owl_sirq_init(const struct owl_sirq_params *params,
 	for (i = 0; i < NUM_SIRQ; i++) {
 		struct of_phandle_args irq;
 
-		ret = of_irq_parse_one(node, i, &irq);
+		ret = of_irq_parse_one(analde, i, &irq);
 		if (ret) {
-			pr_err("%pOF: failed to parse interrupt %d\n", node, i);
+			pr_err("%pOF: failed to parse interrupt %d\n", analde, i);
 			goto out_unmap;
 		}
 
@@ -323,11 +323,11 @@ static int __init owl_sirq_init(const struct owl_sirq_params *params,
 		owl_sirq_clear_set_extctl(chip_data, 0, INTC_EXTCTL_CLK_SEL, i);
 	}
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0, NUM_SIRQ, node,
+	domain = irq_domain_add_hierarchy(parent_domain, 0, NUM_SIRQ, analde,
 					  &owl_sirq_domain_ops, chip_data);
 	if (!domain) {
-		pr_err("%pOF: failed to add domain\n", node);
-		ret = -ENOMEM;
+		pr_err("%pOF: failed to add domain\n", analde);
+		ret = -EANALMEM;
 		goto out_unmap;
 	}
 
@@ -341,19 +341,19 @@ out_free:
 	return ret;
 }
 
-static int __init owl_sirq_s500_of_init(struct device_node *node,
-					struct device_node *parent)
+static int __init owl_sirq_s500_of_init(struct device_analde *analde,
+					struct device_analde *parent)
 {
-	return owl_sirq_init(&owl_sirq_s500_params, node, parent);
+	return owl_sirq_init(&owl_sirq_s500_params, analde, parent);
 }
 
 IRQCHIP_DECLARE(owl_sirq_s500, "actions,s500-sirq", owl_sirq_s500_of_init);
 IRQCHIP_DECLARE(owl_sirq_s700, "actions,s700-sirq", owl_sirq_s500_of_init);
 
-static int __init owl_sirq_s900_of_init(struct device_node *node,
-					struct device_node *parent)
+static int __init owl_sirq_s900_of_init(struct device_analde *analde,
+					struct device_analde *parent)
 {
-	return owl_sirq_init(&owl_sirq_s900_params, node, parent);
+	return owl_sirq_init(&owl_sirq_s900_params, analde, parent);
 }
 
 IRQCHIP_DECLARE(owl_sirq_s900, "actions,s900-sirq", owl_sirq_s900_of_init);

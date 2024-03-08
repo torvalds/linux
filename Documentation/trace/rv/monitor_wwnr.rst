@@ -1,7 +1,7 @@
 Monitor wwnr
 ============
 
-- Name: wwrn - wakeup while not running
+- Name: wwrn - wakeup while analt running
 - Type: per-task deterministic automaton
 - Author: Daniel Bristot de Oliveira <bristot@kernel.org>
 
@@ -16,7 +16,7 @@ definition::
                v
     wakeup   +-------------+
   +--------- |             |
-  |          | not_running |
+  |          | analt_running |
   +--------> |             | <+
              +-------------+  |
                |              |

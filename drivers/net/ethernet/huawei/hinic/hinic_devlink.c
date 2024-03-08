@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -132,7 +132,7 @@ static int hinic_flash_fw(struct hinic_devlink_priv *priv, const u8 *data,
 
 	fw_update_msg = kzalloc(sizeof(*fw_update_msg), GFP_KERNEL);
 	if (!fw_update_msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	up_total_len = host_image->image_info.up_total_len;
 
@@ -319,7 +319,7 @@ static void chip_fault_show(struct devlink_fmsg *fmsg,
 			    struct hinic_fault_event *event)
 {
 	const char * const level_str[FAULT_LEVEL_MAX + 1] = {
-		"fatal", "reset", "flr", "general", "suggestion", "Unknown"};
+		"fatal", "reset", "flr", "general", "suggestion", "Unkanalwn"};
 	u8 fault_level;
 
 	fault_level = (event->event.chip.err_level < FAULT_LEVEL_MAX) ?
@@ -327,7 +327,7 @@ static void chip_fault_show(struct devlink_fmsg *fmsg,
 	if (fault_level == FAULT_LEVEL_SERIOUS_FLR)
 		devlink_fmsg_u32_pair_put(fmsg, "Function level err func_id",
 					  (u32)event->event.chip.func_id);
-	devlink_fmsg_u8_pair_put(fmsg, "module_id", event->event.chip.node_id);
+	devlink_fmsg_u8_pair_put(fmsg, "module_id", event->event.chip.analde_id);
 	devlink_fmsg_u32_pair_put(fmsg, "err_type", (u32)event->event.chip.err_type);
 	devlink_fmsg_string_pair_put(fmsg, "err_level", level_str[fault_level]);
 	devlink_fmsg_u32_pair_put(fmsg, "err_csr_addr",
@@ -341,7 +341,7 @@ static void fault_report_show(struct devlink_fmsg *fmsg,
 {
 	const char * const type_str[FAULT_TYPE_MAX + 1] = {
 		"chip", "ucode", "mem rd timeout", "mem wr timeout",
-		"reg rd timeout", "reg wr timeout", "phy fault", "Unknown"};
+		"reg rd timeout", "reg wr timeout", "phy fault", "Unkanalwn"};
 	u8 fault_type;
 
 	fault_type = (event->type < FAULT_TYPE_MAX) ? event->type : FAULT_TYPE_MAX;

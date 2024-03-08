@@ -24,7 +24,7 @@
 
 /*
  * Use IPv6 port labeling if IPv6 is enabled and secmarks
- * are not being used.
+ * are analt being used.
  */
 #if IS_ENABLED(CONFIG_IPV6) && !defined(CONFIG_SECURITY_SMACK_NETFILTER)
 #define SMACK_IPV6_PORT_LABELING 1
@@ -42,7 +42,7 @@
 
 /*
  * This is the repository for labels seen so that it is
- * not necessary to keep allocating tiny chuncks of memory
+ * analt necessary to keep allocating tiny chuncks of memory
  * and so that they can be shared.
  *
  * Labels are never modified in place. Anytime a label
@@ -60,13 +60,13 @@
  * The cipso value associated with the label gets stored here, too.
  *
  * Keep the access rules for this subject label here so that
- * the entire set of rules does not need to be examined every
+ * the entire set of rules does analt need to be examined every
  * time.
  */
-struct smack_known {
+struct smack_kanalwn {
 	struct list_head		list;
-	struct hlist_node		smk_hashed;
-	char				*smk_known;
+	struct hlist_analde		smk_hashed;
+	char				*smk_kanalwn;
 	u32				smk_secid;
 	struct netlbl_lsm_secattr	smk_netlabel;	/* on wire labels */
 	struct list_head		smk_rules;	/* access rules */
@@ -83,10 +83,10 @@ struct smack_known {
 #define SMK_CIPSOLEN	24
 
 struct superblock_smack {
-	struct smack_known	*smk_root;
-	struct smack_known	*smk_floor;
-	struct smack_known	*smk_hat;
-	struct smack_known	*smk_default;
+	struct smack_kanalwn	*smk_root;
+	struct smack_kanalwn	*smk_floor;
+	struct smack_kanalwn	*smk_hat;
+	struct smack_kanalwn	*smk_default;
 	int			smk_flags;
 };
 
@@ -97,9 +97,9 @@ struct superblock_smack {
 #define SMK_SB_UNTRUSTED	0x02
 
 struct socket_smack {
-	struct smack_known	*smk_out;	/* outbound label */
-	struct smack_known	*smk_in;	/* inbound label */
-	struct smack_known	*smk_packet;	/* TCP peer label */
+	struct smack_kanalwn	*smk_out;	/* outbound label */
+	struct smack_kanalwn	*smk_in;	/* inbound label */
+	struct smack_kanalwn	*smk_packet;	/* TCP peer label */
 	int			smk_state;	/* netlabel socket states */
 };
 #define	SMK_NETLBL_UNSET	0
@@ -108,36 +108,36 @@ struct socket_smack {
 #define	SMK_NETLBL_REQSKB	3
 
 /*
- * Inode smack data
+ * Ianalde smack data
  */
-struct inode_smack {
-	struct smack_known	*smk_inode;	/* label of the fso */
-	struct smack_known	*smk_task;	/* label of the task */
-	struct smack_known	*smk_mmap;	/* label of the mmap domain */
-	int			smk_flags;	/* smack inode flags */
+struct ianalde_smack {
+	struct smack_kanalwn	*smk_ianalde;	/* label of the fso */
+	struct smack_kanalwn	*smk_task;	/* label of the task */
+	struct smack_kanalwn	*smk_mmap;	/* label of the mmap domain */
+	int			smk_flags;	/* smack ianalde flags */
 };
 
 struct task_smack {
-	struct smack_known	*smk_task;	/* label for access control */
-	struct smack_known	*smk_forked;	/* label when forked */
-	struct smack_known	*smk_transmuted;/* label when transmuted */
+	struct smack_kanalwn	*smk_task;	/* label for access control */
+	struct smack_kanalwn	*smk_forked;	/* label when forked */
+	struct smack_kanalwn	*smk_transmuted;/* label when transmuted */
 	struct list_head	smk_rules;	/* per task access rules */
 	struct mutex		smk_rules_lock;	/* lock for the rules */
 	struct list_head	smk_relabel;	/* transit allowed labels */
 };
 
-#define	SMK_INODE_INSTANT	0x01	/* inode is instantiated */
-#define	SMK_INODE_TRANSMUTE	0x02	/* directory is transmuting */
-#define	SMK_INODE_CHANGED	0x04	/* smack was transmuted (unused) */
-#define	SMK_INODE_IMPURE	0x08	/* involved in an impure transaction */
+#define	SMK_IANALDE_INSTANT	0x01	/* ianalde is instantiated */
+#define	SMK_IANALDE_TRANSMUTE	0x02	/* directory is transmuting */
+#define	SMK_IANALDE_CHANGED	0x04	/* smack was transmuted (unused) */
+#define	SMK_IANALDE_IMPURE	0x08	/* involved in an impure transaction */
 
 /*
  * A label access rule.
  */
 struct smack_rule {
 	struct list_head	list;
-	struct smack_known	*smk_subject;
-	struct smack_known	*smk_object;
+	struct smack_kanalwn	*smk_subject;
+	struct smack_kanalwn	*smk_object;
 	int			smk_access;
 };
 
@@ -149,7 +149,7 @@ struct smk_net4addr {
 	struct in_addr		smk_host;	/* network address */
 	struct in_addr		smk_mask;	/* network mask */
 	int			smk_masks;	/* mask size */
-	struct smack_known	*smk_label;	/* label */
+	struct smack_kanalwn	*smk_label;	/* label */
 };
 
 /*
@@ -160,7 +160,7 @@ struct smk_net6addr {
 	struct in6_addr		smk_host;	/* network address */
 	struct in6_addr		smk_mask;	/* network mask */
 	int			smk_masks;	/* mask size */
-	struct smack_known	*smk_label;	/* label */
+	struct smack_kanalwn	*smk_label;	/* label */
 };
 
 /*
@@ -170,15 +170,15 @@ struct smk_port_label {
 	struct list_head	list;
 	struct sock		*smk_sock;	/* socket initialized on */
 	unsigned short		smk_port;	/* the port number */
-	struct smack_known	*smk_in;	/* inbound label */
-	struct smack_known	*smk_out;	/* outgoing label */
+	struct smack_kanalwn	*smk_in;	/* inbound label */
+	struct smack_kanalwn	*smk_out;	/* outgoing label */
 	short			smk_sock_type;	/* Socket type */
 	short			smk_can_reuse;
 };
 
-struct smack_known_list_elem {
+struct smack_kanalwn_list_elem {
 	struct list_head	list;
-	struct smack_known	*smk_label;
+	struct smack_kanalwn	*smk_label;
 };
 
 enum {
@@ -197,7 +197,7 @@ enum {
  * CIPSO defaults.
  */
 #define SMACK_CIPSO_DOI_DEFAULT		3	/* Historical */
-#define SMACK_CIPSO_DOI_INVALID		-1	/* Not a DOI */
+#define SMACK_CIPSO_DOI_INVALID		-1	/* Analt a DOI */
 #define SMACK_CIPSO_DIRECT_DEFAULT	250	/* Arbitrary */
 #define SMACK_CIPSO_MAPPED_DEFAULT	251	/* Also arbitrary */
 #define SMACK_CIPSO_MAXLEVEL            255     /* CIPSO 2.2 standard */
@@ -244,7 +244,7 @@ enum {
  */
 #define MAY_ANYREAD	(MAY_READ | MAY_EXEC)
 #define MAY_READWRITE	(MAY_READ | MAY_WRITE)
-#define MAY_NOT		0
+#define MAY_ANALT		0
 
 /*
  * Number of access types used by Smack (rwxatlb)
@@ -261,7 +261,7 @@ struct smack_audit_data {
 };
 
 /*
- * Smack audit data; is empty if CONFIG_AUDIT not set
+ * Smack audit data; is empty if CONFIG_AUDIT analt set
  * to save some stack
  */
 struct smk_audit_info {
@@ -275,21 +275,21 @@ struct smk_audit_info {
  * These functions are in smack_access.c
  */
 int smk_access_entry(char *, char *, struct list_head *);
-int smk_access(struct smack_known *, struct smack_known *,
+int smk_access(struct smack_kanalwn *, struct smack_kanalwn *,
 	       int, struct smk_audit_info *);
-int smk_tskacc(struct task_smack *, struct smack_known *,
+int smk_tskacc(struct task_smack *, struct smack_kanalwn *,
 	       u32, struct smk_audit_info *);
-int smk_curacc(struct smack_known *, u32, struct smk_audit_info *);
-struct smack_known *smack_from_secid(const u32);
+int smk_curacc(struct smack_kanalwn *, u32, struct smk_audit_info *);
+struct smack_kanalwn *smack_from_secid(const u32);
 char *smk_parse_smack(const char *string, int len);
 int smk_netlbl_mls(int, char *, struct netlbl_lsm_secattr *, int);
-struct smack_known *smk_import_entry(const char *, int);
-void smk_insert_entry(struct smack_known *skp);
-struct smack_known *smk_find_entry(const char *);
+struct smack_kanalwn *smk_import_entry(const char *, int);
+void smk_insert_entry(struct smack_kanalwn *skp);
+struct smack_kanalwn *smk_find_entry(const char *);
 bool smack_privileged(int cap);
 bool smack_privileged_cred(int cap, const struct cred *cred);
 void smk_destroy_label_list(struct list_head *list);
-int smack_populate_secattr(struct smack_known *skp);
+int smack_populate_secattr(struct smack_kanalwn *skp);
 
 /*
  * Shared data.
@@ -297,22 +297,22 @@ int smack_populate_secattr(struct smack_known *skp);
 extern int smack_enabled __initdata;
 extern int smack_cipso_direct;
 extern int smack_cipso_mapped;
-extern struct smack_known *smack_net_ambient;
-extern struct smack_known *smack_syslog_label;
+extern struct smack_kanalwn *smack_net_ambient;
+extern struct smack_kanalwn *smack_syslog_label;
 #ifdef CONFIG_SECURITY_SMACK_BRINGUP
-extern struct smack_known *smack_unconfined;
+extern struct smack_kanalwn *smack_unconfined;
 #endif
 extern int smack_ptrace_rule;
 extern struct lsm_blob_sizes smack_blob_sizes;
 
-extern struct smack_known smack_known_floor;
-extern struct smack_known smack_known_hat;
-extern struct smack_known smack_known_huh;
-extern struct smack_known smack_known_star;
-extern struct smack_known smack_known_web;
+extern struct smack_kanalwn smack_kanalwn_floor;
+extern struct smack_kanalwn smack_kanalwn_hat;
+extern struct smack_kanalwn smack_kanalwn_huh;
+extern struct smack_kanalwn smack_kanalwn_star;
+extern struct smack_kanalwn smack_kanalwn_web;
 
-extern struct mutex	smack_known_lock;
-extern struct list_head smack_known_list;
+extern struct mutex	smack_kanalwn_lock;
+extern struct list_head smack_kanalwn_list;
 extern struct list_head smk_net4addr_list;
 extern struct list_head smk_net6addr_list;
 
@@ -320,7 +320,7 @@ extern struct mutex     smack_onlycap_lock;
 extern struct list_head smack_onlycap_list;
 
 #define SMACK_HASH_SLOTS 16
-extern struct hlist_head smack_known_hash[SMACK_HASH_SLOTS];
+extern struct hlist_head smack_kanalwn_hash[SMACK_HASH_SLOTS];
 extern struct kmem_cache *smack_rule_cache;
 
 static inline struct task_smack *smack_cred(const struct cred *cred)
@@ -328,23 +328,23 @@ static inline struct task_smack *smack_cred(const struct cred *cred)
 	return cred->security + smack_blob_sizes.lbs_cred;
 }
 
-static inline struct smack_known **smack_file(const struct file *file)
+static inline struct smack_kanalwn **smack_file(const struct file *file)
 {
-	return (struct smack_known **)(file->f_security +
+	return (struct smack_kanalwn **)(file->f_security +
 				       smack_blob_sizes.lbs_file);
 }
 
-static inline struct inode_smack *smack_inode(const struct inode *inode)
+static inline struct ianalde_smack *smack_ianalde(const struct ianalde *ianalde)
 {
-	return inode->i_security + smack_blob_sizes.lbs_inode;
+	return ianalde->i_security + smack_blob_sizes.lbs_ianalde;
 }
 
-static inline struct smack_known **smack_msg_msg(const struct msg_msg *msg)
+static inline struct smack_kanalwn **smack_msg_msg(const struct msg_msg *msg)
 {
 	return msg->security + smack_blob_sizes.lbs_msg_msg;
 }
 
-static inline struct smack_known **smack_ipc(const struct kern_ipc_perm *ipc)
+static inline struct smack_kanalwn **smack_ipc(const struct kern_ipc_perm *ipc)
 {
 	return ipc->security + smack_blob_sizes.lbs_ipc;
 }
@@ -358,33 +358,33 @@ static inline struct superblock_smack *smack_superblock(
 /*
  * Is the directory transmuting?
  */
-static inline int smk_inode_transmutable(const struct inode *isp)
+static inline int smk_ianalde_transmutable(const struct ianalde *isp)
 {
-	struct inode_smack *sip = smack_inode(isp);
-	return (sip->smk_flags & SMK_INODE_TRANSMUTE) != 0;
+	struct ianalde_smack *sip = smack_ianalde(isp);
+	return (sip->smk_flags & SMK_IANALDE_TRANSMUTE) != 0;
 }
 
 /*
- * Present a pointer to the smack label entry in an inode blob.
+ * Present a pointer to the smack label entry in an ianalde blob.
  */
-static inline struct smack_known *smk_of_inode(const struct inode *isp)
+static inline struct smack_kanalwn *smk_of_ianalde(const struct ianalde *isp)
 {
-	struct inode_smack *sip = smack_inode(isp);
-	return sip->smk_inode;
+	struct ianalde_smack *sip = smack_ianalde(isp);
+	return sip->smk_ianalde;
 }
 
 /*
  * Present a pointer to the smack label entry in an task blob.
  */
-static inline struct smack_known *smk_of_task(const struct task_smack *tsp)
+static inline struct smack_kanalwn *smk_of_task(const struct task_smack *tsp)
 {
 	return tsp->smk_task;
 }
 
-static inline struct smack_known *smk_of_task_struct_obj(
+static inline struct smack_kanalwn *smk_of_task_struct_obj(
 						const struct task_struct *t)
 {
-	struct smack_known *skp;
+	struct smack_kanalwn *skp;
 	const struct cred *cred;
 
 	rcu_read_lock();
@@ -400,7 +400,7 @@ static inline struct smack_known *smk_of_task_struct_obj(
 /*
  * Present a pointer to the forked smack label entry in an task blob.
  */
-static inline struct smack_known *smk_of_forked(const struct task_smack *tsp)
+static inline struct smack_kanalwn *smk_of_forked(const struct task_smack *tsp)
 {
 	return tsp->smk_forked;
 }
@@ -408,7 +408,7 @@ static inline struct smack_known *smk_of_forked(const struct task_smack *tsp)
 /*
  * Present a pointer to the smack label in the current task blob.
  */
-static inline struct smack_known *smk_of_current(void)
+static inline struct smack_kanalwn *smk_of_current(void)
 {
 	return smk_of_task(smack_cred(current_cred()));
 }
@@ -428,7 +428,7 @@ void smack_log(char *subject_label, char *object_label,
 
 /*
  * some inline functions to set up audit data
- * they do nothing if CONFIG_AUDIT is not set
+ * they do analthing if CONFIG_AUDIT is analt set
  *
  */
 static inline void smk_ad_init(struct smk_audit_info *a, const char *func,
@@ -458,10 +458,10 @@ static inline void smk_ad_setfield_u_fs_path_dentry(struct smk_audit_info *a,
 {
 	a->a.u.dentry = d;
 }
-static inline void smk_ad_setfield_u_fs_inode(struct smk_audit_info *a,
-					      struct inode *i)
+static inline void smk_ad_setfield_u_fs_ianalde(struct smk_audit_info *a,
+					      struct ianalde *i)
 {
-	a->a.u.inode = i;
+	a->a.u.ianalde = i;
 }
 static inline void smk_ad_setfield_u_fs_path(struct smk_audit_info *a,
 					     struct path p)
@@ -474,7 +474,7 @@ static inline void smk_ad_setfield_u_net_sk(struct smk_audit_info *a,
 	a->a.u.net->sk = sk;
 }
 
-#else /* no AUDIT */
+#else /* anal AUDIT */
 
 static inline void smk_ad_init(struct smk_audit_info *a, const char *func,
 			       char type)
@@ -488,8 +488,8 @@ static inline void smk_ad_setfield_u_fs_path_dentry(struct smk_audit_info *a,
 						    struct dentry *d)
 {
 }
-static inline void smk_ad_setfield_u_fs_inode(struct smk_audit_info *a,
-					      struct inode *i)
+static inline void smk_ad_setfield_u_fs_ianalde(struct smk_audit_info *a,
+					      struct ianalde *i)
 {
 }
 static inline void smk_ad_setfield_u_fs_path(struct smk_audit_info *a,

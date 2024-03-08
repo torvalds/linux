@@ -324,7 +324,7 @@ static int ads1100_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, data);
@@ -400,8 +400,8 @@ static int ads1100_runtime_resume(struct device *dev)
 
 	/*
 	 * We'll always change the mode bit in the config register, so there is
-	 * no need here to "force" a write to the config register. If the device
-	 * has been power-cycled, we'll re-write its config register now.
+	 * anal need here to "force" a write to the config register. If the device
+	 * has been power-cycled, we'll re-write its config register analw.
 	 */
 	return ads1100_set_config_bits(data, ADS1100_CFG_SC,
 				       ADS1100_CONTINUOUS);

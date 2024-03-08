@@ -18,7 +18,7 @@
 struct nf_ct_ftp_master {
 	/* Valid seq positions for cmd matching after newline */
 	u_int32_t seq_aft_nl[IP_CT_DIR_MAX][NUM_SEQ_TO_REMEMBER];
-	/* 0 means seq_match_aft_nl not set */
+	/* 0 means seq_match_aft_nl analt set */
 	u_int16_t seq_aft_nl_num[IP_CT_DIR_MAX];
 	/* pickup sequence tracking, useful for conntrackd */
 	u_int16_t flags[IP_CT_DIR_MAX];

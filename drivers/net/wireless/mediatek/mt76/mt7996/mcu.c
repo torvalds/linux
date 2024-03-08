@@ -98,7 +98,7 @@ mt7996_mcu_get_sta_nss(u16 mcs_map)
 	for (nss = 8; nss > 0; nss--) {
 		u8 nss_mcs = (mcs_map >> (2 * (nss - 1))) & 3;
 
-		if (nss_mcs != IEEE80211_VHT_MCS_NOT_SUPPORTED)
+		if (nss_mcs != IEEE80211_VHT_MCS_ANALT_SUPPORTED)
 			break;
 	}
 
@@ -144,7 +144,7 @@ mt7996_mcu_set_sta_he_mcs(struct ieee80211_sta *sta, __le16 *he_mcs,
 			mcs = IEEE80211_HE_MCS_SUPPORT_0_11;
 			break;
 		default:
-			mcs = IEEE80211_HE_MCS_NOT_SUPPORTED;
+			mcs = IEEE80211_HE_MCS_ANALT_SUPPORTED;
 			break;
 		}
 		mcs_map &= ~(0x3 << (nss * 2));
@@ -405,7 +405,7 @@ out:
 		type = "WA";
 		break;
 	default:
-		type = "unknown";
+		type = "unkanalwn";
 		break;
 	}
 
@@ -559,20 +559,20 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
 }
 
 static void
-mt7996_mcu_rx_thermal_notify(struct mt7996_dev *dev, struct sk_buff *skb)
+mt7996_mcu_rx_thermal_analtify(struct mt7996_dev *dev, struct sk_buff *skb)
 {
-#define THERMAL_NOTIFY_TAG 0x4
-#define THERMAL_NOTIFY 0x2
+#define THERMAL_ANALTIFY_TAG 0x4
+#define THERMAL_ANALTIFY 0x2
 	struct mt76_phy *mphy = &dev->mt76.phy;
-	struct mt7996_mcu_thermal_notify *n;
+	struct mt7996_mcu_thermal_analtify *n;
 	struct mt7996_phy *phy;
 
-	n = (struct mt7996_mcu_thermal_notify *)skb->data;
+	n = (struct mt7996_mcu_thermal_analtify *)skb->data;
 
-	if (le16_to_cpu(n->tag) != THERMAL_NOTIFY_TAG)
+	if (le16_to_cpu(n->tag) != THERMAL_ANALTIFY_TAG)
 		return;
 
-	if (n->event_id != THERMAL_NOTIFY)
+	if (n->event_id != THERMAL_ANALTIFY)
 		return;
 
 	if (n->band_idx > MT_BAND2)
@@ -610,7 +610,7 @@ mt7996_mcu_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
 		mt7996_mcu_rx_ext_event(dev, skb);
 		break;
 	case MCU_UNI_EVENT_THERMAL:
-		mt7996_mcu_rx_thermal_notify(dev, skb);
+		mt7996_mcu_rx_thermal_analtify(dev, skb);
 		break;
 	default:
 		break;
@@ -1054,7 +1054,7 @@ __mt7996_mcu_alloc_bss_req(struct mt76_dev *dev, struct mt76_vif *mvif, int len)
 
 	skb = mt76_mcu_msg_alloc(dev, NULL, len);
 	if (!skb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	skb_put_data(skb, &hdr, sizeof(hdr));
 
@@ -1096,7 +1096,7 @@ int mt7996_mcu_add_bss_info(struct mt7996_phy *phy,
 		if (vif->bss_conf.he_support)
 			mt7996_mcu_bss_he_tlv(skb, vif, phy);
 
-		/* this tag is necessary no matter if the vif is MLD */
+		/* this tag is necessary anal matter if the vif is MLD */
 		mt7996_mcu_bss_mld_tlv(skb, vif);
 	}
 
@@ -1291,7 +1291,7 @@ mt7996_mcu_sta_vht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
 	struct sta_rec_vht *vht;
 	struct tlv *tlv;
 
-	/* For 6G band, this tlv is necessary to let hw work normally */
+	/* For 6G band, this tlv is necessary to let hw work analrmally */
 	if (!sta->deflink.he_6ghz_capa.capa && !sta->deflink.vht_cap.vht_supported)
 		return;
 
@@ -1814,7 +1814,7 @@ int mt7996_mcu_set_fixed_rate_ctrl(struct mt7996_dev *dev,
 
 	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, &hdr, sizeof(hdr));
 
@@ -2201,8 +2201,8 @@ mt7996_mcu_sta_key_tlv(struct mt76_wcid *wcid,
 		u8 cipher;
 
 		cipher = mt76_connac_mcu_get_cipher(key->cipher);
-		if (cipher == MCU_CIPHER_NONE)
-			return -EOPNOTSUPP;
+		if (cipher == MCU_CIPHER_ANALNE)
+			return -EOPANALTSUPP;
 
 		sec_key = &sec->key[0];
 		sec_key->wlan_idx = cpu_to_le16(wcid->idx);
@@ -2320,9 +2320,9 @@ int mt7996_mcu_bcn_prot_enable(struct mt7996_dev *dev, struct ieee80211_vif *vif
 		break;
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 	default:
-		dev_err(dev->mt76.dev, "Not supported Bigtk Cipher\n");
+		dev_err(dev->mt76.dev, "Analt supported Bigtk Cipher\n");
 		dev_kfree_skb(skb);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	pn[0]++;
@@ -2422,12 +2422,12 @@ mt7996_mcu_beacon_mbss(struct sk_buff *rskb, struct sk_buff *skb,
 			const struct ieee80211_bssid_index *idx;
 			const u8 *idx_ie;
 
-			/* not a valid BSS profile */
+			/* analt a valid BSS profile */
 			if (sub_elem->id || sub_elem->datalen < 4)
 				continue;
 
 			/* Find WLAN_EID_MULTI_BSSID_IDX
-			 * in the merged nontransmitted profile
+			 * in the merged analntransmitted profile
 			 */
 			idx_ie = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX,
 						  sub_elem->data, sub_elem->datalen);
@@ -2486,7 +2486,7 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
 	struct bss_bcn_content_tlv *bcn;
 	int len;
 
-	if (vif->bss_conf.nontransmitted)
+	if (vif->bss_conf.analntransmitted)
 		return 0;
 
 	rskb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &mvif->mt76,
@@ -2544,7 +2544,7 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
 	u8 *buf, interval;
 	int len;
 
-	if (vif->bss_conf.nontransmitted)
+	if (vif->bss_conf.analntransmitted)
 		return 0;
 
 	rskb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &mvif->mt76,
@@ -2646,7 +2646,7 @@ static int mt7996_load_patch(struct mt7996_dev *dev)
 	switch (sem) {
 	case PATCH_IS_DL:
 		return 0;
-	case PATCH_NOT_DL_SEM_SUCCESS:
+	case PATCH_ANALT_DL_SEM_SUCCESS:
 		break;
 	default:
 		dev_err(dev->mt76.dev, "Failed to get patch semaphore\n");
@@ -2875,7 +2875,7 @@ static int mt7996_load_firmware(struct mt7996_dev *dev)
 		ret = mt7996_firmware_state(dev, false);
 		if (ret) {
 			dev_err(dev->mt76.dev,
-				"Firmware is not ready for download\n");
+				"Firmware is analt ready for download\n");
 			return ret;
 		}
 	}
@@ -2985,7 +2985,7 @@ mt7996_mcu_init_rx_airtime(struct mt7996_dev *dev)
 	len = sizeof(hdr) + num * sizeof(struct vow_rx_airtime);
 	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, &hdr, sizeof(hdr));
 
@@ -3002,10 +3002,10 @@ int mt7996_mcu_init_firmware(struct mt7996_dev *dev)
 {
 	int ret;
 
-	/* force firmware operation mode into normal state,
+	/* force firmware operation mode into analrmal state,
 	 * which should be set before firmware download stage.
 	 */
-	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
+	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_ANALRMAL_MODE);
 
 	ret = mt7996_driver_own(dev, 0);
 	if (ret)
@@ -3084,7 +3084,7 @@ int mt7996_mcu_set_hdr_trans(struct mt7996_dev *dev, bool hdr_trans)
 
 	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, &hdr, sizeof(hdr));
 
@@ -3129,7 +3129,7 @@ int mt7996_mcu_set_tx(struct mt7996_dev *dev, struct ieee80211_vif *vif)
 
 	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, &hdr, sizeof(hdr));
 
@@ -3424,7 +3424,7 @@ int mt7996_mcu_set_chan_info(struct mt7996_phy *phy, u16 tag)
 	};
 
 	if (phy->mt76->hw->conf.flags & IEEE80211_CONF_MONITOR)
-		req.switch_reason = CH_SWITCH_NORMAL;
+		req.switch_reason = CH_SWITCH_ANALRMAL;
 	else if (phy->mt76->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL ||
 		 phy->mt76->hw->conf.flags & IEEE80211_CONF_IDLE)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
@@ -3432,7 +3432,7 @@ int mt7996_mcu_set_chan_info(struct mt7996_phy *phy, u16 tag)
 					  NL80211_IFTYPE_AP))
 		req.switch_reason = CH_SWITCH_DFS;
 	else
-		req.switch_reason = CH_SWITCH_NORMAL;
+		req.switch_reason = CH_SWITCH_ANALRMAL;
 
 	if (tag == UNI_CHANNEL_SWITCH)
 		req.rx_path = hweight8(req.rx_path);
@@ -3473,7 +3473,7 @@ static int mt7996_mcu_set_eeprom_flash(struct mt7996_dev *dev)
 		msg_len = sizeof(req) + eep_len;
 		skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, msg_len);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		req.len = cpu_to_le16(msg_len - 4);
 		req.format = FIELD_PREP(MAX_PAGE_IDX_MASK, total - 1) |
@@ -3644,7 +3644,7 @@ int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch)
 		UNI_MIB_TX_TIME,
 		UNI_MIB_RX_TIME,
 		UNI_MIB_OBSS_AIRTIME,
-		UNI_MIB_NON_WIFI_TIME,
+		UNI_MIB_ANALN_WIFI_TIME,
 	};
 	struct mt76_channel_state *state = phy->mt76->chan_state;
 	struct mt76_channel_state *state_ts = &phy->state_ts;
@@ -3858,7 +3858,7 @@ int mt7996_mcu_set_txbf(struct mt7996_dev *dev, u8 action)
 
 	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, &hdr, sizeof(hdr));
 
@@ -3924,7 +3924,7 @@ mt7996_mcu_set_obss_spr_pd(struct mt7996_phy *phy,
 			   struct ieee80211_he_obss_pd *he_obss_pd)
 {
 	struct mt7996_dev *dev = phy->dev;
-	u8 max_th = 82, non_srg_max_th = 62;
+	u8 max_th = 82, analn_srg_max_th = 62;
 	struct {
 		u8 band_idx;
 		u8 __rsv[3];
@@ -3932,7 +3932,7 @@ mt7996_mcu_set_obss_spr_pd(struct mt7996_phy *phy,
 		__le16 tag;
 		__le16 len;
 
-		u8 pd_th_non_srg;
+		u8 pd_th_analn_srg;
 		u8 pd_th_srg;
 		u8 period_offs;
 		u8 rcpi_src;
@@ -3959,12 +3959,12 @@ mt7996_mcu_set_obss_spr_pd(struct mt7996_phy *phy,
 		return ret;
 
 	if (he_obss_pd->sr_ctrl &
-	    IEEE80211_HE_SPR_NON_SRG_OBSS_PD_SR_DISALLOWED)
-		req.pd_th_non_srg = max_th;
-	else if (he_obss_pd->sr_ctrl & IEEE80211_HE_SPR_NON_SRG_OFFSET_PRESENT)
-		req.pd_th_non_srg  = max_th - he_obss_pd->non_srg_max_offset;
+	    IEEE80211_HE_SPR_ANALN_SRG_OBSS_PD_SR_DISALLOWED)
+		req.pd_th_analn_srg = max_th;
+	else if (he_obss_pd->sr_ctrl & IEEE80211_HE_SPR_ANALN_SRG_OFFSET_PRESENT)
+		req.pd_th_analn_srg  = max_th - he_obss_pd->analn_srg_max_offset;
 	else
-		req.pd_th_non_srg  = non_srg_max_th;
+		req.pd_th_analn_srg  = analn_srg_max_th;
 
 	if (he_obss_pd->sr_ctrl & IEEE80211_HE_SPR_SRG_INFORMATION_PRESENT)
 		req.pd_th_srg = max_th - he_obss_pd->max_offset;
@@ -4003,7 +4003,7 @@ mt7996_mcu_set_obss_spr_siga(struct mt7996_phy *phy, struct ieee80211_vif *vif,
 	else
 		return 0;
 
-	/* switch to normal AP mode */
+	/* switch to analrmal AP mode */
 	ret = mt7996_mcu_enable_obss_spr(phy, UNI_CMD_SR_ENABLE_MODE, 0);
 	if (ret)
 		return ret;
@@ -4079,7 +4079,7 @@ int mt7996_mcu_add_obss_spr(struct mt7996_phy *phy, struct ieee80211_vif *vif,
 	if (ret)
 		return ret;
 
-	/* set SRG/non-SRG OBSS PD threshold */
+	/* set SRG/analn-SRG OBSS PD threshold */
 	ret = mt7996_mcu_set_obss_spr_pd(phy, he_obss_pd);
 	if (ret)
 		return ret;
@@ -4117,7 +4117,7 @@ int mt7996_mcu_update_bss_color(struct mt7996_dev *dev, struct ieee80211_vif *vi
 }
 
 #define TWT_AGRT_TRIGGER	BIT(0)
-#define TWT_AGRT_ANNOUNCE	BIT(1)
+#define TWT_AGRT_ANANALUNCE	BIT(1)
 #define TWT_AGRT_PROTECT	BIT(2)
 
 int mt7996_mcu_twt_agrt_update(struct mt7996_dev *dev,
@@ -4167,7 +4167,7 @@ int mt7996_mcu_twt_agrt_update(struct mt7996_dev *dev,
 	if (flow->protection)
 		req.agrt_params |= TWT_AGRT_PROTECT;
 	if (!flow->flowtype)
-		req.agrt_params |= TWT_AGRT_ANNOUNCE;
+		req.agrt_params |= TWT_AGRT_ANANALUNCE;
 	if (flow->trigger)
 		req.agrt_params |= TWT_AGRT_TRIGGER;
 
@@ -4473,7 +4473,7 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
 	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL,
 				 sizeof(req) + MT7996_SKU_RATE_NUM);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, &req, sizeof(req));
 	/* cck and ofdm */

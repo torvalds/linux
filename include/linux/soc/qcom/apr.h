@@ -118,9 +118,9 @@ struct gpr_ibasic_rsp_accepted_t {
 	uint32_t opcode;
 };
 
-/* Bits 0 to 15 -- Minor version,  Bits 16 to 31 -- Major version */
+/* Bits 0 to 15 -- Mianalr version,  Bits 16 to 31 -- Major version */
 #define APR_SVC_MAJOR_VERSION(v)	((v >> 16) & 0xFF)
-#define APR_SVC_MINOR_VERSION(v)	(v & 0xFF)
+#define APR_SVC_MIANALR_VERSION(v)	(v & 0xFF)
 
 typedef int (*gpr_port_cb) (struct gpr_resp_pkt *d, void *priv, int op);
 struct packet_router;
@@ -143,7 +143,7 @@ struct apr_device {
 	char name[APR_NAME_SIZE];
 	const char *service_path;
 	struct pkt_router_svc svc;
-	struct list_head node;
+	struct list_head analde;
 };
 
 typedef struct apr_device gpr_device_t;
@@ -176,7 +176,7 @@ void apr_driver_unregister(struct apr_driver *drv);
  * module_apr_driver() - Helper macro for registering a aprbus driver
  * @__apr_driver: apr_driver struct
  *
- * Helper macro for aprbus drivers which do not do anything special in
+ * Helper macro for aprbus drivers which do analt do anything special in
  * module init/exit. This eliminates a lot of boilerplate. Each module
  * may only use this macro once, and calling it replaces module_init()
  * and module_exit()

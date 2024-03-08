@@ -10,7 +10,7 @@
 static ssize_t pm_status_read(struct file *f, char __user *buf, size_t count,
 			      loff_t *pos)
 {
-	struct adf_accel_dev *accel_dev = file_inode(f)->i_private;
+	struct adf_accel_dev *accel_dev = file_ianalde(f)->i_private;
 	struct adf_pm pm = accel_dev->power_management;
 
 	if (pm.print_pm_status)

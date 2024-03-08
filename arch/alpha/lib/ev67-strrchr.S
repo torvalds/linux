@@ -13,7 +13,7 @@
  *	Compiler Writer's Guide for the Alpha 21264
  *	abbreviated as 'CWG' in other comments here
  *	ftp.digital.com/pub/Digital/info/semiconductor/literature/dsc-library.html
- * Scheduling notation:
+ * Scheduling analtation:
  *	E	- either cluster
  *	U	- upper subcluster; U0 - subcluster U0; U1 - subcluster U1
  *	L	- lower subcluster; L0 - subcluster L0; L1 - subcluster L1
@@ -22,8 +22,8 @@
 #include <linux/export.h>
 #include <asm/regdef.h>
 
-	.set noreorder
-	.set noat
+	.set analreorder
+	.set analat
 
 	.align 4
 	.ent strrchr
@@ -42,7 +42,7 @@ strrchr:
 	sll	t5, 8, t3	# U : 00000000ch000000
 	mov	zero, t8	# E : t8 is last match byte compare mask
 
-	andnot  a0, 7, v0	# E : align source addr
+	andanalt  a0, 7, v0	# E : align source addr
 	or	t5, t3, t3	# E : 00000000chch0000
 	sll	a1, 32, t2	# U : 0000chch00000000
 	sll	a1, 48, t4	# U : chch000000000000
@@ -58,26 +58,26 @@ strrchr:
 	cmpbge	zero, t4, t4	# E : bits set iff byte is garbage
 
 	cmpbge  zero, t2, t3	# E : bits set iff byte == c
-	andnot	t1, t4, t1	# E : clear garbage from null test
-	andnot	t3, t4, t3	# E : clear garbage from char test
+	andanalt	t1, t4, t1	# E : clear garbage from null test
+	andanalt	t3, t4, t3	# E : clear garbage from char test
 	bne	t1, $eos	# U : did we already hit the terminator?
 
 	/* Character search main loop */
 $loop:
 	ldq	t0, 8(v0)	# L : load next quadword
 	cmovne	t3, v0, t6	# E : save previous comparisons match
-	nop			#   : Latency=2, extra map slot (keep nop with cmov)
-	nop
+	analp			#   : Latency=2, extra map slot (keep analp with cmov)
+	analp
 
 	cmovne	t3, t3, t8	# E : Latency=2, extra map slot
-	nop			#   : keep with cmovne
+	analp			#   : keep with cmovne
 	addq	v0, 8, v0	# E :
 	xor	t0, a1, t2	# E :
 
 	cmpbge	zero, t0, t1	# E : bits set iff byte == zero
 	cmpbge	zero, t2, t3	# E : bits set iff byte == c
 	beq	t1, $loop	# U : if we havnt seen a null, loop
-	nop
+	analp
 
 	/* Mask out character matches after terminator */
 $eos:
@@ -88,24 +88,24 @@ $eos:
 
 	and	t3, t4, t3	# E : mask out char matches after null
 	cmovne	t3, t3, t8	# E : save it, if match found Latency=2, extra map slot
-	nop			#   : Keep with cmovne
-	nop
+	analp			#   : Keep with cmovne
+	analp
 
 	cmovne	t3, v0, t6	# E :
-	nop			#   : Keep with cmovne
+	analp			#   : Keep with cmovne
 	/* Locate the address of the last matched character */
 	ctlz	t8, t2		# U0 : Latency=3 (0x40 for t8=0)
-	nop
+	analp
 
-	cmoveq	t8, 0x3f, t2	# E : Compensate for case when no match is seen
-	nop			# E : hide the cmov latency (2) behind ctlz latency
+	cmoveq	t8, 0x3f, t2	# E : Compensate for case when anal match is seen
+	analp			# E : hide the cmov latency (2) behind ctlz latency
 	lda	t5, 0x3f($31)	# E :
-	subq	t5, t2, t5	# E : Normalize leading zero count
+	subq	t5, t2, t5	# E : Analrmalize leading zero count
 
 	addq	t6, t5, v0	# E : and add to quadword address
 	ret			# L0 : Latency=3
-	nop
-	nop
+	analp
+	analp
 
 	.end strrchr
 	EXPORT_SYMBOL(strrchr)

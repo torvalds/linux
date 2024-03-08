@@ -44,7 +44,7 @@ ia_css_fpn_dump(
     unsigned int level)
 {
 	if (!fpn) return;
-	ia_css_debug_dtrace(level, "Fixed Pattern Noise Reduction:\n");
+	ia_css_debug_dtrace(level, "Fixed Pattern Analise Reduction:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
 			    "fpn_shift", fpn->shift);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",

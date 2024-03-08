@@ -113,8 +113,8 @@ static const struct soc_enum da7219_alc_anticlip_step =
 
 /* Input/Output Enums */
 static const char * const da7219_gain_ramp_rate_txt[] = {
-	"Nominal Rate * 8", "Nominal Rate", "Nominal Rate / 8",
-	"Nominal Rate / 16"
+	"Analminal Rate * 8", "Analminal Rate", "Analminal Rate / 8",
+	"Analminal Rate / 16"
 };
 
 static const struct soc_enum da7219_gain_ramp_rate =
@@ -478,7 +478,7 @@ static const struct snd_kcontrol_new da7219_snd_controls[] = {
 	/* Mics */
 	SOC_SINGLE_TLV("Mic Volume", DA7219_MIC_1_GAIN,
 		       DA7219_MIC_1_AMP_GAIN_SHIFT, DA7219_MIC_1_AMP_GAIN_MAX,
-		       DA7219_NO_INVERT, da7219_mic_gain_tlv),
+		       DA7219_ANAL_INVERT, da7219_mic_gain_tlv),
 	SOC_SINGLE("Mic Switch", DA7219_MIC_1_CTRL,
 		   DA7219_MIC_1_AMP_MUTE_EN_SHIFT, DA7219_SWITCH_EN_MAX,
 		   DA7219_INVERT),
@@ -486,7 +486,7 @@ static const struct snd_kcontrol_new da7219_snd_controls[] = {
 	/* Mixer Input */
 	SOC_SINGLE_EXT_TLV("Mixin Volume", DA7219_MIXIN_L_GAIN,
 			   DA7219_MIXIN_L_AMP_GAIN_SHIFT,
-			   DA7219_MIXIN_L_AMP_GAIN_MAX, DA7219_NO_INVERT,
+			   DA7219_MIXIN_L_AMP_GAIN_MAX, DA7219_ANAL_INVERT,
 			   snd_soc_get_volsw, da7219_mixin_gain_put,
 			   da7219_mixin_gain_tlv),
 	SOC_SINGLE("Mixin Switch", DA7219_MIXIN_L_CTRL,
@@ -494,22 +494,22 @@ static const struct snd_kcontrol_new da7219_snd_controls[] = {
 		   DA7219_INVERT),
 	SOC_SINGLE("Mixin Gain Ramp Switch", DA7219_MIXIN_L_CTRL,
 		   DA7219_MIXIN_L_AMP_RAMP_EN_SHIFT, DA7219_SWITCH_EN_MAX,
-		   DA7219_NO_INVERT),
+		   DA7219_ANAL_INVERT),
 	SOC_SINGLE("Mixin ZC Gain Switch", DA7219_MIXIN_L_CTRL,
 		   DA7219_MIXIN_L_AMP_ZC_EN_SHIFT, DA7219_SWITCH_EN_MAX,
-		   DA7219_NO_INVERT),
+		   DA7219_ANAL_INVERT),
 
 	/* ADC */
 	SOC_SINGLE_TLV("Capture Digital Volume", DA7219_ADC_L_GAIN,
 		       DA7219_ADC_L_DIGITAL_GAIN_SHIFT,
-		       DA7219_ADC_L_DIGITAL_GAIN_MAX, DA7219_NO_INVERT,
+		       DA7219_ADC_L_DIGITAL_GAIN_MAX, DA7219_ANAL_INVERT,
 		       da7219_adc_dig_gain_tlv),
 	SOC_SINGLE("Capture Digital Switch", DA7219_ADC_L_CTRL,
 		   DA7219_ADC_L_MUTE_EN_SHIFT, DA7219_SWITCH_EN_MAX,
 		   DA7219_INVERT),
 	SOC_SINGLE("Capture Digital Gain Ramp Switch", DA7219_ADC_L_CTRL,
 		   DA7219_ADC_L_RAMP_EN_SHIFT, DA7219_SWITCH_EN_MAX,
-		   DA7219_NO_INVERT),
+		   DA7219_ANAL_INVERT),
 
 	/* ALC */
 	SOC_ENUM("ALC Attack Rate", da7219_alc_attack_rate),
@@ -517,8 +517,8 @@ static const struct snd_kcontrol_new da7219_snd_controls[] = {
 	SOC_ENUM("ALC Hold Time", da7219_alc_hold_time),
 	SOC_ENUM("ALC Envelope Attack Rate", da7219_alc_env_attack_rate),
 	SOC_ENUM("ALC Envelope Release Rate", da7219_alc_env_release_rate),
-	SOC_SINGLE_TLV("ALC Noise Threshold", DA7219_ALC_NOISE,
-		       DA7219_ALC_NOISE_SHIFT, DA7219_ALC_THRESHOLD_MAX,
+	SOC_SINGLE_TLV("ALC Analise Threshold", DA7219_ALC_ANALISE,
+		       DA7219_ALC_ANALISE_SHIFT, DA7219_ALC_THRESHOLD_MAX,
 		       DA7219_INVERT, da7219_alc_threshold_tlv),
 	SOC_SINGLE_TLV("ALC Min Threshold", DA7219_ALC_TARGET_MIN,
 		       DA7219_ALC_THRESHOLD_MIN_SHIFT, DA7219_ALC_THRESHOLD_MAX,
@@ -528,24 +528,24 @@ static const struct snd_kcontrol_new da7219_snd_controls[] = {
 		       DA7219_INVERT, da7219_alc_threshold_tlv),
 	SOC_SINGLE_TLV("ALC Max Attenuation", DA7219_ALC_GAIN_LIMITS,
 		       DA7219_ALC_ATTEN_MAX_SHIFT, DA7219_ALC_ATTEN_GAIN_MAX,
-		       DA7219_NO_INVERT, da7219_alc_gain_tlv),
+		       DA7219_ANAL_INVERT, da7219_alc_gain_tlv),
 	SOC_SINGLE_TLV("ALC Max Volume", DA7219_ALC_GAIN_LIMITS,
 		       DA7219_ALC_GAIN_MAX_SHIFT, DA7219_ALC_ATTEN_GAIN_MAX,
-		       DA7219_NO_INVERT, da7219_alc_gain_tlv),
+		       DA7219_ANAL_INVERT, da7219_alc_gain_tlv),
 	SOC_SINGLE_RANGE_TLV("ALC Min Analog Volume", DA7219_ALC_ANA_GAIN_LIMITS,
 			     DA7219_ALC_ANA_GAIN_MIN_SHIFT,
 			     DA7219_ALC_ANA_GAIN_MIN, DA7219_ALC_ANA_GAIN_MAX,
-			     DA7219_NO_INVERT, da7219_alc_ana_gain_tlv),
+			     DA7219_ANAL_INVERT, da7219_alc_ana_gain_tlv),
 	SOC_SINGLE_RANGE_TLV("ALC Max Analog Volume", DA7219_ALC_ANA_GAIN_LIMITS,
 			     DA7219_ALC_ANA_GAIN_MAX_SHIFT,
 			     DA7219_ALC_ANA_GAIN_MIN, DA7219_ALC_ANA_GAIN_MAX,
-			     DA7219_NO_INVERT, da7219_alc_ana_gain_tlv),
+			     DA7219_ANAL_INVERT, da7219_alc_ana_gain_tlv),
 	SOC_ENUM("ALC Anticlip Step", da7219_alc_anticlip_step),
 	SOC_SINGLE("ALC Anticlip Switch", DA7219_ALC_ANTICLIP_CTRL,
 		   DA7219_ALC_ANTIPCLIP_EN_SHIFT, DA7219_SWITCH_EN_MAX,
-		   DA7219_NO_INVERT),
+		   DA7219_ANAL_INVERT),
 	SOC_SINGLE_EXT("ALC Switch", DA7219_ALC_CTRL1, DA7219_ALC_EN_SHIFT,
-		       DA7219_SWITCH_EN_MAX, DA7219_NO_INVERT,
+		       DA7219_SWITCH_EN_MAX, DA7219_ANAL_INVERT,
 		       snd_soc_get_volsw, da7219_alc_sw_put),
 
 	/* Input High-Pass Filters */
@@ -556,7 +556,7 @@ static const struct snd_kcontrol_new da7219_snd_controls[] = {
 	/* Sidetone Filter */
 	SOC_SINGLE_TLV("Sidetone Volume", DA7219_SIDETONE_GAIN,
 		       DA7219_SIDETONE_GAIN_SHIFT, DA7219_SIDETONE_GAIN_MAX,
-		       DA7219_NO_INVERT, da7219_sidetone_gain_tlv),
+		       DA7219_ANAL_INVERT, da7219_sidetone_gain_tlv),
 	SOC_SINGLE("Sidetone Switch", DA7219_SIDETONE_CTRL,
 		   DA7219_SIDETONE_MUTE_EN_SHIFT, DA7219_SWITCH_EN_MAX,
 		   DA7219_INVERT),
@@ -564,29 +564,29 @@ static const struct snd_kcontrol_new da7219_snd_controls[] = {
 	/* Tone Generator */
 	SOC_SINGLE_EXT_TLV("ToneGen Volume", DA7219_TONE_GEN_CFG2,
 			   DA7219_TONE_GEN_GAIN_SHIFT, DA7219_TONE_GEN_GAIN_MAX,
-			   DA7219_NO_INVERT, da7219_volsw_locked_get,
+			   DA7219_ANAL_INVERT, da7219_volsw_locked_get,
 			   da7219_volsw_locked_put, da7219_tonegen_gain_tlv),
 	SOC_ENUM_EXT("ToneGen DTMF Key", da7219_tonegen_dtmf_key,
 		     da7219_enum_locked_get, da7219_enum_locked_put),
 	SOC_SINGLE_EXT("ToneGen DTMF Switch", DA7219_TONE_GEN_CFG1,
 		       DA7219_DTMF_EN_SHIFT, DA7219_SWITCH_EN_MAX,
-		       DA7219_NO_INVERT, da7219_volsw_locked_get,
+		       DA7219_ANAL_INVERT, da7219_volsw_locked_get,
 		       da7219_volsw_locked_put),
 	SOC_ENUM_EXT("ToneGen Sinewave Gen Type", da7219_tonegen_swg_sel,
 		     da7219_enum_locked_get, da7219_enum_locked_put),
 	SOC_SINGLE_EXT("ToneGen Sinewave1 Freq", DA7219_TONE_GEN_FREQ1_L,
-		       DA7219_FREQ1_L_SHIFT, DA7219_FREQ_MAX, DA7219_NO_INVERT,
+		       DA7219_FREQ1_L_SHIFT, DA7219_FREQ_MAX, DA7219_ANAL_INVERT,
 		       da7219_tonegen_freq_get, da7219_tonegen_freq_put),
 	SOC_SINGLE_EXT("ToneGen Sinewave2 Freq", DA7219_TONE_GEN_FREQ2_L,
-		       DA7219_FREQ2_L_SHIFT, DA7219_FREQ_MAX, DA7219_NO_INVERT,
+		       DA7219_FREQ2_L_SHIFT, DA7219_FREQ_MAX, DA7219_ANAL_INVERT,
 		       da7219_tonegen_freq_get, da7219_tonegen_freq_put),
 	SOC_SINGLE_EXT("ToneGen On Time", DA7219_TONE_GEN_ON_PER,
 		       DA7219_BEEP_ON_PER_SHIFT, DA7219_BEEP_ON_OFF_MAX,
-		       DA7219_NO_INVERT, da7219_volsw_locked_get,
+		       DA7219_ANAL_INVERT, da7219_volsw_locked_get,
 		       da7219_volsw_locked_put),
 	SOC_SINGLE("ToneGen Off Time", DA7219_TONE_GEN_OFF_PER,
 		   DA7219_BEEP_OFF_PER_SHIFT, DA7219_BEEP_ON_OFF_MAX,
-		   DA7219_NO_INVERT),
+		   DA7219_ANAL_INVERT),
 
 	/* Gain ramping */
 	SOC_ENUM("Gain Ramp Rate", da7219_gain_ramp_rate),
@@ -600,50 +600,50 @@ static const struct snd_kcontrol_new da7219_snd_controls[] = {
 	/* DAC 5-Band Equaliser */
 	SOC_SINGLE_TLV("DAC EQ Band1 Volume", DA7219_DAC_FILTERS2,
 		       DA7219_DAC_EQ_BAND1_SHIFT, DA7219_DAC_EQ_BAND_MAX,
-		       DA7219_NO_INVERT, da7219_dac_eq_band_tlv),
+		       DA7219_ANAL_INVERT, da7219_dac_eq_band_tlv),
 	SOC_SINGLE_TLV("DAC EQ Band2 Volume", DA7219_DAC_FILTERS2,
 		       DA7219_DAC_EQ_BAND2_SHIFT, DA7219_DAC_EQ_BAND_MAX,
-		       DA7219_NO_INVERT, da7219_dac_eq_band_tlv),
+		       DA7219_ANAL_INVERT, da7219_dac_eq_band_tlv),
 	SOC_SINGLE_TLV("DAC EQ Band3 Volume", DA7219_DAC_FILTERS3,
 		       DA7219_DAC_EQ_BAND3_SHIFT, DA7219_DAC_EQ_BAND_MAX,
-		       DA7219_NO_INVERT, da7219_dac_eq_band_tlv),
+		       DA7219_ANAL_INVERT, da7219_dac_eq_band_tlv),
 	SOC_SINGLE_TLV("DAC EQ Band4 Volume", DA7219_DAC_FILTERS3,
 		       DA7219_DAC_EQ_BAND4_SHIFT, DA7219_DAC_EQ_BAND_MAX,
-		       DA7219_NO_INVERT, da7219_dac_eq_band_tlv),
+		       DA7219_ANAL_INVERT, da7219_dac_eq_band_tlv),
 	SOC_SINGLE_TLV("DAC EQ Band5 Volume", DA7219_DAC_FILTERS4,
 		       DA7219_DAC_EQ_BAND5_SHIFT, DA7219_DAC_EQ_BAND_MAX,
-		       DA7219_NO_INVERT, da7219_dac_eq_band_tlv),
+		       DA7219_ANAL_INVERT, da7219_dac_eq_band_tlv),
 	SOC_SINGLE_EXT("DAC EQ Switch", DA7219_DAC_FILTERS4,
 		       DA7219_DAC_EQ_EN_SHIFT, DA7219_SWITCH_EN_MAX,
-		       DA7219_NO_INVERT, da7219_volsw_locked_get,
+		       DA7219_ANAL_INVERT, da7219_volsw_locked_get,
 		       da7219_volsw_locked_put),
 
 	/* DAC Softmute */
 	SOC_ENUM("DAC Soft Mute Rate", da7219_dac_softmute_rate),
 	SOC_SINGLE_EXT("DAC Soft Mute Switch", DA7219_DAC_FILTERS5,
 		       DA7219_DAC_SOFTMUTE_EN_SHIFT, DA7219_SWITCH_EN_MAX,
-		       DA7219_NO_INVERT, da7219_volsw_locked_get,
+		       DA7219_ANAL_INVERT, da7219_volsw_locked_get,
 		       da7219_volsw_locked_put),
 
-	/* DAC Noise Gate */
+	/* DAC Analise Gate */
 	SOC_ENUM("DAC NG Setup Time", da7219_dac_ng_setup_time),
 	SOC_ENUM("DAC NG Rampup Rate", da7219_dac_ng_rampup_rate),
 	SOC_ENUM("DAC NG Rampdown Rate", da7219_dac_ng_rampdown_rate),
 	SOC_SINGLE_TLV("DAC NG Off Threshold", DA7219_DAC_NG_OFF_THRESH,
 		       DA7219_DAC_NG_OFF_THRESHOLD_SHIFT,
-		       DA7219_DAC_NG_THRESHOLD_MAX, DA7219_NO_INVERT,
+		       DA7219_DAC_NG_THRESHOLD_MAX, DA7219_ANAL_INVERT,
 		       da7219_dac_ng_threshold_tlv),
 	SOC_SINGLE_TLV("DAC NG On Threshold", DA7219_DAC_NG_ON_THRESH,
 		       DA7219_DAC_NG_ON_THRESHOLD_SHIFT,
-		       DA7219_DAC_NG_THRESHOLD_MAX, DA7219_NO_INVERT,
+		       DA7219_DAC_NG_THRESHOLD_MAX, DA7219_ANAL_INVERT,
 		       da7219_dac_ng_threshold_tlv),
 	SOC_SINGLE("DAC NG Switch", DA7219_DAC_NG_CTRL, DA7219_DAC_NG_EN_SHIFT,
-		   DA7219_SWITCH_EN_MAX, DA7219_NO_INVERT),
+		   DA7219_SWITCH_EN_MAX, DA7219_ANAL_INVERT),
 
 	/* DACs */
 	SOC_DOUBLE_R_EXT_TLV("Playback Digital Volume", DA7219_DAC_L_GAIN,
 			     DA7219_DAC_R_GAIN, DA7219_DAC_L_DIGITAL_GAIN_SHIFT,
-			     DA7219_DAC_DIGITAL_GAIN_MAX, DA7219_NO_INVERT,
+			     DA7219_DAC_DIGITAL_GAIN_MAX, DA7219_ANAL_INVERT,
 			     da7219_volsw_locked_get, da7219_volsw_locked_put,
 			     da7219_dac_dig_gain_tlv),
 	SOC_DOUBLE_R_EXT("Playback Digital Switch", DA7219_DAC_L_CTRL,
@@ -652,18 +652,18 @@ static const struct snd_kcontrol_new da7219_snd_controls[] = {
 			 da7219_volsw_locked_get, da7219_volsw_locked_put),
 	SOC_DOUBLE_R("Playback Digital Gain Ramp Switch", DA7219_DAC_L_CTRL,
 		     DA7219_DAC_R_CTRL, DA7219_DAC_L_RAMP_EN_SHIFT,
-		     DA7219_SWITCH_EN_MAX, DA7219_NO_INVERT),
+		     DA7219_SWITCH_EN_MAX, DA7219_ANAL_INVERT),
 
 	/* CP */
 	SOC_ENUM("Charge Pump Track Mode", da7219_cp_track_mode),
 	SOC_SINGLE("Charge Pump Threshold", DA7219_CP_VOL_THRESHOLD1,
 		   DA7219_CP_THRESH_VDD2_SHIFT, DA7219_CP_THRESH_VDD2_MAX,
-		   DA7219_NO_INVERT),
+		   DA7219_ANAL_INVERT),
 
 	/* Headphones */
 	SOC_DOUBLE_R_EXT_TLV("Headphone Volume", DA7219_HP_L_GAIN,
 			     DA7219_HP_R_GAIN, DA7219_HP_L_AMP_GAIN_SHIFT,
-			     DA7219_HP_AMP_GAIN_MAX, DA7219_NO_INVERT,
+			     DA7219_HP_AMP_GAIN_MAX, DA7219_ANAL_INVERT,
 			     da7219_volsw_locked_get, da7219_volsw_locked_put,
 			     da7219_hp_gain_tlv),
 	SOC_DOUBLE_R_EXT("Headphone Switch", DA7219_HP_L_CTRL, DA7219_HP_R_CTRL,
@@ -672,10 +672,10 @@ static const struct snd_kcontrol_new da7219_snd_controls[] = {
 			 da7219_volsw_locked_put),
 	SOC_DOUBLE_R("Headphone Gain Ramp Switch", DA7219_HP_L_CTRL,
 		     DA7219_HP_R_CTRL, DA7219_HP_L_AMP_RAMP_EN_SHIFT,
-		     DA7219_SWITCH_EN_MAX, DA7219_NO_INVERT),
+		     DA7219_SWITCH_EN_MAX, DA7219_ANAL_INVERT),
 	SOC_DOUBLE_R("Headphone ZC Gain Switch", DA7219_HP_L_CTRL,
 		     DA7219_HP_R_CTRL, DA7219_HP_L_AMP_ZC_EN_SHIFT,
-		     DA7219_SWITCH_EN_MAX, DA7219_NO_INVERT),
+		     DA7219_SWITCH_EN_MAX, DA7219_ANAL_INVERT),
 };
 
 
@@ -731,31 +731,31 @@ static const struct snd_kcontrol_new da7219_out_dacr_sel_mux =
 static const struct snd_kcontrol_new da7219_mixin_controls[] = {
 	SOC_DAPM_SINGLE("Mic Switch", DA7219_MIXIN_L_SELECT,
 			DA7219_MIXIN_L_MIX_SELECT_SHIFT,
-			DA7219_SWITCH_EN_MAX, DA7219_NO_INVERT),
+			DA7219_SWITCH_EN_MAX, DA7219_ANAL_INVERT),
 };
 
 static const struct snd_kcontrol_new da7219_mixout_l_controls[] = {
 	SOC_DAPM_SINGLE("DACL Switch", DA7219_MIXOUT_L_SELECT,
 			DA7219_MIXOUT_L_MIX_SELECT_SHIFT,
-			DA7219_SWITCH_EN_MAX, DA7219_NO_INVERT),
+			DA7219_SWITCH_EN_MAX, DA7219_ANAL_INVERT),
 };
 
 static const struct snd_kcontrol_new da7219_mixout_r_controls[] = {
 	SOC_DAPM_SINGLE("DACR Switch", DA7219_MIXOUT_R_SELECT,
 			DA7219_MIXOUT_R_MIX_SELECT_SHIFT,
-			DA7219_SWITCH_EN_MAX, DA7219_NO_INVERT),
+			DA7219_SWITCH_EN_MAX, DA7219_ANAL_INVERT),
 };
 
 #define DA7219_DMIX_ST_CTRLS(reg)					\
 	SOC_DAPM_SINGLE("Out FilterL Switch", reg,			\
 			DA7219_DMIX_ST_SRC_OUTFILT1L_SHIFT,		\
-			DA7219_SWITCH_EN_MAX, DA7219_NO_INVERT),	\
+			DA7219_SWITCH_EN_MAX, DA7219_ANAL_INVERT),	\
 	SOC_DAPM_SINGLE("Out FilterR Switch", reg,			\
 			DA7219_DMIX_ST_SRC_OUTFILT1R_SHIFT,		\
-			DA7219_SWITCH_EN_MAX, DA7219_NO_INVERT),	\
+			DA7219_SWITCH_EN_MAX, DA7219_ANAL_INVERT),	\
 	SOC_DAPM_SINGLE("Sidetone Switch", reg,				\
 			DA7219_DMIX_ST_SRC_SIDETONE_SHIFT,		\
-			DA7219_SWITCH_EN_MAX, DA7219_NO_INVERT)		\
+			DA7219_SWITCH_EN_MAX, DA7219_ANAL_INVERT)		\
 
 static const struct snd_kcontrol_new da7219_st_out_filtl_mix_controls[] = {
 	DA7219_DMIX_ST_CTRLS(DA7219_DROUTING_ST_OUTFILT_1L),
@@ -781,7 +781,7 @@ static int da7219_mic_pga_event(struct snd_soc_dapm_widget *w,
 		if (da7219->micbias_on_event) {
 			/*
 			 * Delay only for first capture after bias enabled to
-			 * avoid possible DC offset related noise.
+			 * avoid possible DC offset related analise.
 			 */
 			da7219->micbias_on_event = false;
 			msleep(da7219->mic_pga_delay);
@@ -827,7 +827,7 @@ static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component, DA7219_PC_COUNT,
 				    DA7219_PC_FREERUN_MASK, 0);
 
-		/* Slave mode, if SRM not enabled no need for status checks */
+		/* Slave mode, if SRM analt enabled anal need for status checks */
 		pll_ctrl = snd_soc_component_read(component, DA7219_PLL_CTRL);
 		if ((pll_ctrl & DA7219_PLL_MODE_MASK) != DA7219_PLL_MODE_SRM)
 			return 0;
@@ -932,11 +932,11 @@ static int da7219_gain_ramp_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 	case SND_SOC_DAPM_PRE_PMD:
-		/* Ensure nominal gain ramping for DAPM sequence */
+		/* Ensure analminal gain ramping for DAPM sequence */
 		da7219->gain_ramp_ctrl =
 			snd_soc_component_read(component, DA7219_GAIN_RAMP_CTRL);
 		snd_soc_component_write(component, DA7219_GAIN_RAMP_CTRL,
-			      DA7219_GAIN_RAMP_RATE_NOMINAL);
+			      DA7219_GAIN_RAMP_RATE_ANALMINAL);
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 	case SND_SOC_DAPM_POST_PMD:
@@ -957,7 +957,7 @@ static int da7219_gain_ramp_event(struct snd_soc_dapm_widget *w,
 static const struct snd_soc_dapm_widget da7219_dapm_widgets[] = {
 	/* Input Supplies */
 	SND_SOC_DAPM_SUPPLY("Mic Bias", DA7219_MICBIAS_CTRL,
-			    DA7219_MICBIAS1_EN_SHIFT, DA7219_NO_INVERT,
+			    DA7219_MICBIAS1_EN_SHIFT, DA7219_ANAL_INVERT,
 			    NULL, 0),
 
 	/* Inputs */
@@ -965,104 +965,104 @@ static const struct snd_soc_dapm_widget da7219_dapm_widgets[] = {
 
 	/* Input PGAs */
 	SND_SOC_DAPM_PGA_E("Mic PGA", DA7219_MIC_1_CTRL,
-			   DA7219_MIC_1_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			   DA7219_MIC_1_AMP_EN_SHIFT, DA7219_ANAL_INVERT,
 			   NULL, 0, da7219_mic_pga_event, SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_PGA_E("Mixin PGA", DA7219_MIXIN_L_CTRL,
-			   DA7219_MIXIN_L_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			   DA7219_MIXIN_L_AMP_EN_SHIFT, DA7219_ANAL_INVERT,
 			   NULL, 0, da7219_settling_event, SND_SOC_DAPM_POST_PMU),
 
 	/* Input Filters */
 	SND_SOC_DAPM_ADC("ADC", NULL, DA7219_ADC_L_CTRL, DA7219_ADC_L_EN_SHIFT,
-			 DA7219_NO_INVERT),
+			 DA7219_ANAL_INVERT),
 
 	/* Tone Generator */
 	SND_SOC_DAPM_SIGGEN("TONE"),
 	SND_SOC_DAPM_PGA("Tone Generator", DA7219_TONE_GEN_CFG1,
-			 DA7219_START_STOPN_SHIFT, DA7219_NO_INVERT, NULL, 0),
+			 DA7219_START_STOPN_SHIFT, DA7219_ANAL_INVERT, NULL, 0),
 
 	/* Sidetone Input */
 	SND_SOC_DAPM_ADC("Sidetone Filter", NULL, DA7219_SIDETONE_CTRL,
-			 DA7219_SIDETONE_EN_SHIFT, DA7219_NO_INVERT),
+			 DA7219_SIDETONE_EN_SHIFT, DA7219_ANAL_INVERT),
 
 	/* Input Mixer Supply */
 	SND_SOC_DAPM_SUPPLY("Mixer In Supply", DA7219_MIXIN_L_CTRL,
-			    DA7219_MIXIN_L_MIX_EN_SHIFT, DA7219_NO_INVERT,
+			    DA7219_MIXIN_L_MIX_EN_SHIFT, DA7219_ANAL_INVERT,
 			    NULL, 0),
 
 	/* Input Mixer */
-	SND_SOC_DAPM_MIXER("Mixer In", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Mixer In", SND_SOC_ANALPM, 0, 0,
 			   da7219_mixin_controls,
 			   ARRAY_SIZE(da7219_mixin_controls)),
 
 	/* Input Muxes */
-	SND_SOC_DAPM_MUX("Out DAIL Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Out DAIL Mux", SND_SOC_ANALPM, 0, 0,
 			 &da7219_out_dail_sel_mux),
-	SND_SOC_DAPM_MUX("Out DAIR Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Out DAIR Mux", SND_SOC_ANALPM, 0, 0,
 			 &da7219_out_dair_sel_mux),
 
 	/* DAI Supply */
 	SND_SOC_DAPM_SUPPLY("DAI", DA7219_DAI_CTRL, DA7219_DAI_EN_SHIFT,
-			    DA7219_NO_INVERT, da7219_dai_event,
+			    DA7219_ANAL_INVERT, da7219_dai_event,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* DAI */
 	SND_SOC_DAPM_AIF_OUT("DAIOUT", "Capture", 0, DA7219_DAI_TDM_CTRL,
-			     DA7219_DAI_OE_SHIFT, DA7219_NO_INVERT),
-	SND_SOC_DAPM_AIF_IN("DAIIN", "Playback", 0, SND_SOC_NOPM, 0, 0),
+			     DA7219_DAI_OE_SHIFT, DA7219_ANAL_INVERT),
+	SND_SOC_DAPM_AIF_IN("DAIIN", "Playback", 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Output Muxes */
-	SND_SOC_DAPM_MUX("Out DACL Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Out DACL Mux", SND_SOC_ANALPM, 0, 0,
 			 &da7219_out_dacl_sel_mux),
-	SND_SOC_DAPM_MUX("Out DACR Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Out DACR Mux", SND_SOC_ANALPM, 0, 0,
 			 &da7219_out_dacr_sel_mux),
 
 	/* Output Mixers */
-	SND_SOC_DAPM_MIXER("Mixer Out FilterL", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Mixer Out FilterL", SND_SOC_ANALPM, 0, 0,
 			   da7219_mixout_l_controls,
 			   ARRAY_SIZE(da7219_mixout_l_controls)),
-	SND_SOC_DAPM_MIXER("Mixer Out FilterR", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Mixer Out FilterR", SND_SOC_ANALPM, 0, 0,
 			   da7219_mixout_r_controls,
 			   ARRAY_SIZE(da7219_mixout_r_controls)),
 
 	/* Sidetone Mixers */
-	SND_SOC_DAPM_MIXER("ST Mixer Out FilterL", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("ST Mixer Out FilterL", SND_SOC_ANALPM, 0, 0,
 			   da7219_st_out_filtl_mix_controls,
 			   ARRAY_SIZE(da7219_st_out_filtl_mix_controls)),
-	SND_SOC_DAPM_MIXER("ST Mixer Out FilterR", SND_SOC_NOPM, 0,
+	SND_SOC_DAPM_MIXER("ST Mixer Out FilterR", SND_SOC_ANALPM, 0,
 			   0, da7219_st_out_filtr_mix_controls,
 			   ARRAY_SIZE(da7219_st_out_filtr_mix_controls)),
 
 	/* DACs */
 	SND_SOC_DAPM_DAC_E("DACL", NULL, DA7219_DAC_L_CTRL,
-			   DA7219_DAC_L_EN_SHIFT, DA7219_NO_INVERT,
+			   DA7219_DAC_L_EN_SHIFT, DA7219_ANAL_INVERT,
 			   da7219_settling_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_DAC_E("DACR", NULL, DA7219_DAC_R_CTRL,
-			   DA7219_DAC_R_EN_SHIFT, DA7219_NO_INVERT,
+			   DA7219_DAC_R_EN_SHIFT, DA7219_ANAL_INVERT,
 			   da7219_settling_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* Output PGAs */
 	SND_SOC_DAPM_PGA_E("Mixout Left PGA", DA7219_MIXOUT_L_CTRL,
-			   DA7219_MIXOUT_L_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			   DA7219_MIXOUT_L_AMP_EN_SHIFT, DA7219_ANAL_INVERT,
 			   NULL, 0, da7219_mixout_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_PGA_E("Mixout Right PGA", DA7219_MIXOUT_R_CTRL,
-			   DA7219_MIXOUT_R_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			   DA7219_MIXOUT_R_AMP_EN_SHIFT, DA7219_ANAL_INVERT,
 			   NULL, 0, da7219_mixout_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_SUPPLY_S("Headphone Left PGA", 1, DA7219_HP_L_CTRL,
-			      DA7219_HP_L_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			      DA7219_HP_L_AMP_EN_SHIFT, DA7219_ANAL_INVERT,
 			      da7219_settling_event,
 			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S("Headphone Right PGA", 1, DA7219_HP_R_CTRL,
-			      DA7219_HP_R_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			      DA7219_HP_R_AMP_EN_SHIFT, DA7219_ANAL_INVERT,
 			      da7219_settling_event,
 			      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* Output Supplies */
 	SND_SOC_DAPM_SUPPLY_S("Charge Pump", 0, DA7219_CP_CTRL,
-			      DA7219_CP_EN_SHIFT, DA7219_NO_INVERT,
+			      DA7219_CP_EN_SHIFT, DA7219_ANAL_INVERT,
 			      da7219_settling_event,
 			      SND_SOC_DAPM_POST_PMU),
 
@@ -1189,7 +1189,7 @@ static int da7219_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				    DA7219_PLL_MCLK_SQR_EN_MASK, 0);
 		break;
 	default:
-		dev_err(codec_dai->dev, "Unknown clock source %d\n", clk_id);
+		dev_err(codec_dai->dev, "Unkanalwn clock source %d\n", clk_id);
 		mutex_unlock(&da7219->pll_lock);
 		return -EINVAL;
 	}
@@ -1260,7 +1260,7 @@ int da7219_set_pll(struct snd_soc_component *component, int source, unsigned int
 				    DA7219_PLL_MODE_MASK, pll_ctrl);
 		return 0;
 	case DA7219_SYSCLK_PLL:
-		pll_ctrl |= DA7219_PLL_MODE_NORMAL;
+		pll_ctrl |= DA7219_PLL_MODE_ANALRMAL;
 		break;
 	case DA7219_SYSCLK_PLL_SRM:
 		pll_ctrl |= DA7219_PLL_MODE_SRM;
@@ -1433,7 +1433,7 @@ static int da7219_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	u32 frame_size;
 	int ret;
 
-	/* No channels enabled so disable TDM */
+	/* Anal channels enabled so disable TDM */
 	if (!tx_mask) {
 		snd_soc_component_update_bits(component, DA7219_DAI_TDM_CTRL,
 				    DA7219_DAI_TDM_CH_EN_MASK |
@@ -1837,7 +1837,7 @@ static int da7219_set_bias_level(struct snd_soc_component *component,
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		/* Only disable master bias if we're not a wake-up source */
+		/* Only disable master bias if we're analt a wake-up source */
 		if (!da7219->wakeup_source)
 			snd_soc_component_update_bits(component, DA7219_REFERENCES,
 					    DA7219_BIAS_EN_MASK, 0);
@@ -2126,7 +2126,7 @@ static const struct clk_ops da7219_dai_clk_ops[DA7219_DAI_NUM_CLKS] = {
 static int da7219_register_dai_clks(struct snd_soc_component *component)
 {
 	struct device *dev = component->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
 	struct da7219_pdata *pdata = da7219->pdata;
 	const char *parent_name;
@@ -2138,7 +2138,7 @@ static int da7219_register_dai_clks(struct snd_soc_component *component)
 		clk_data = kzalloc(struct_size(clk_data, hws, DA7219_DAI_NUM_CLKS),
 				   GFP_KERNEL);
 		if (!clk_data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		clk_data->num = DA7219_DAI_NUM_CLKS;
 		da7219->clk_hw_data = clk_data;
@@ -2178,7 +2178,7 @@ static int da7219_register_dai_clks(struct snd_soc_component *component)
 
 		init.name = pdata->dai_clk_names[i];
 		init.ops = &da7219_dai_clk_ops[i];
-		init.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_GATE;
+		init.flags = CLK_GET_RATE_ANALCACHE | CLK_SET_RATE_GATE;
 		dai_clk_hw->init = &init;
 
 		ret = clk_hw_register(dev, dai_clk_hw);
@@ -2197,7 +2197,7 @@ static int da7219_register_dai_clks(struct snd_soc_component *component)
 							  "%s", dev_name(dev));
 			if (!dai_clk_lookup) {
 				clk_hw_unregister(dai_clk_hw);
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err;
 			} else {
 				da7219->dai_clks_lookup[i] = dai_clk_lookup;
@@ -2207,7 +2207,7 @@ static int da7219_register_dai_clks(struct snd_soc_component *component)
 
 	/* If we're using DT, then register as provider accordingly */
 	if (np) {
-		ret = of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
+		ret = of_clk_add_hw_provider(dev->of_analde, of_clk_hw_onecell_get,
 					     da7219->clk_hw_data);
 		if (ret) {
 			dev_err(dev, "Failed to register clock provider\n");
@@ -2234,7 +2234,7 @@ err:
 static void da7219_free_dai_clks(struct snd_soc_component *component)
 {
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
-	struct device_node *np = component->dev->of_node;
+	struct device_analde *np = component->dev->of_analde;
 	int i;
 
 	if (np)
@@ -2367,7 +2367,7 @@ static struct reg_default da7219_reg_defaults[] = {
 	{ DA7219_DIG_CTRL, 0x00 },
 	{ DA7219_ALC_CTRL2, 0x00 },
 	{ DA7219_ALC_CTRL3, 0x00 },
-	{ DA7219_ALC_NOISE, 0x3F },
+	{ DA7219_ALC_ANALISE, 0x3F },
 	{ DA7219_ALC_TARGET_MIN, 0x3F },
 	{ DA7219_ALC_TARGET_MAX, 0x00 },
 	{ DA7219_ALC_GAIN_LIMITS, 0xFF },
@@ -2466,7 +2466,7 @@ static int da7219_probe(struct snd_soc_component *component)
 	regmap_read(da7219->regmap, DA7219_SYSTEM_ACTIVE, &system_active);
 	if (system_active) {
 		regmap_write(da7219->regmap, DA7219_GAIN_RAMP_CTRL,
-			     DA7219_GAIN_RAMP_RATE_NOMINAL);
+			     DA7219_GAIN_RAMP_RATE_ANALMINAL);
 		regmap_write(da7219->regmap, DA7219_SYSTEM_MODES_INPUT, 0x00);
 		regmap_write(da7219->regmap, DA7219_SYSTEM_MODES_OUTPUT, 0x01);
 
@@ -2503,7 +2503,7 @@ static int da7219_probe(struct snd_soc_component *component)
 		goto err_disable_reg;
 	}
 
-	switch (rev & DA7219_CHIP_MINOR_MASK) {
+	switch (rev & DA7219_CHIP_MIANALR_MASK) {
 	case 0:
 		ret = regmap_register_patch(da7219->regmap, da7219_rev_aa_patch,
 					    ARRAY_SIZE(da7219_rev_aa_patch));
@@ -2523,7 +2523,7 @@ static int da7219_probe(struct snd_soc_component *component)
 	/* Check if MCLK provided */
 	da7219->mclk = clk_get(component->dev, "mclk");
 	if (IS_ERR(da7219->mclk)) {
-		if (PTR_ERR(da7219->mclk) != -ENOENT) {
+		if (PTR_ERR(da7219->mclk) != -EANALENT) {
 			ret = PTR_ERR(da7219->mclk);
 			goto err_disable_reg;
 		} else {
@@ -2607,7 +2607,7 @@ static int da7219_suspend(struct snd_soc_component *component)
 {
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
 
-	/* Suspend AAD if we're not a wake-up source */
+	/* Suspend AAD if we're analt a wake-up source */
 	if (!da7219->wakeup_source)
 		da7219_aad_suspend(component);
 
@@ -2673,7 +2673,7 @@ static int da7219_i2c_probe(struct i2c_client *i2c)
 	da7219 = devm_kzalloc(dev, sizeof(struct da7219_priv),
 			      GFP_KERNEL);
 	if (!da7219)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, da7219);
 

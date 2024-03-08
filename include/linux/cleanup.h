@@ -14,11 +14,11 @@
  * __free(name):
  *	variable attribute to add a scoped based cleanup to the variable.
  *
- * no_free_ptr(var):
- *	like a non-atomic xchg(var, NULL), such that the cleanup function will
+ * anal_free_ptr(var):
+ *	like a analn-atomic xchg(var, NULL), such that the cleanup function will
  *	be inhibited -- provided it sanely deals with a NULL value.
  *
- *	NOTE: this has __must_check semantics so that it is harder to accidentally
+ *	ANALTE: this has __must_check semantics so that it is harder to accidentally
  *	leak the resource.
  *
  * return_ptr(p):
@@ -40,7 +40,7 @@
  *	return_ptr(p);
  * }
  *
- * NOTE: the DEFINE_FREE()'s @free expression includes a NULL test even though
+ * ANALTE: the DEFINE_FREE()'s @free expression includes a NULL test even though
  * kfree() is fine to be called with a NULL value. This is on purpose. This way
  * the compiler sees the end of our alloc_obj() function as:
  *
@@ -72,10 +72,10 @@ static inline __must_check
 const volatile void * __must_check_fn(const volatile void *val)
 { return val; }
 
-#define no_free_ptr(p) \
+#define anal_free_ptr(p) \
 	((typeof(p)) __must_check_fn(__get_and_null_ptr(p)))
 
-#define return_ptr(p)	return no_free_ptr(p)
+#define return_ptr(p)	return anal_free_ptr(p)
 
 
 /*
@@ -131,7 +131,7 @@ static inline class_##_name##_t class_##_name##ext##_constructor(_init_args) \
  *	mutex_lock_interruptible().
  *
  * guard(name):
- *	an anonymous instance of the (guard) class, not recommended for
+ *	an aanalnymous instance of the (guard) class, analt recommended for
  *	conditional locks.
  *
  * scoped_guard (name, args...) { }:
@@ -139,7 +139,7 @@ static inline class_##_name##_t class_##_name##ext##_constructor(_init_args) \
  *	explicit name 'scope') is declard in a for-loop such that its scope is
  *	bound to the next (compound) statement.
  *
- *	for conditional locks the loop body is skipped when the lock is not
+ *	for conditional locks the loop body is skipped when the lock is analt
  *	acquired.
  *
  * scoped_cond_guard (name, fail, args...) { }:

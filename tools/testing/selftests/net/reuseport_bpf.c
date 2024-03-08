@@ -7,7 +7,7 @@
  * Additionally, a few edge cases in the implementation are tested.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <fcntl.h>
 #include <linux/bpf.h>
@@ -119,11 +119,11 @@ static void attach_ebpf(int fd, uint16_t mod)
 
 	bpf_fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
 	if (bpf_fd < 0)
-		error(1, errno, "ebpf error. log:\n%s\n", bpf_log_buf);
+		error(1, erranal, "ebpf error. log:\n%s\n", bpf_log_buf);
 
 	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_REUSEPORT_EBPF, &bpf_fd,
 			sizeof(bpf_fd)))
-		error(1, errno, "failed to set SO_ATTACH_REUSEPORT_EBPF");
+		error(1, erranal, "failed to set SO_ATTACH_REUSEPORT_EBPF");
 
 	close(bpf_fd);
 }
@@ -144,7 +144,7 @@ static void attach_cbpf(int fd, uint16_t mod)
 	};
 
 	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_REUSEPORT_CBPF, &p, sizeof(p)))
-		error(1, errno, "failed to set SO_ATTACH_REUSEPORT_CBPF");
+		error(1, erranal, "failed to set SO_ATTACH_REUSEPORT_CBPF");
 }
 
 static void build_recv_group(const struct test_params p, int fd[], uint16_t mod,
@@ -157,27 +157,27 @@ static void build_recv_group(const struct test_params p, int fd[], uint16_t mod,
 	for (i = 0; i < p.recv_socks; ++i) {
 		fd[i] = socket(p.recv_family, p.protocol, 0);
 		if (fd[i] < 0)
-			error(1, errno, "failed to create recv %d", i);
+			error(1, erranal, "failed to create recv %d", i);
 
 		opt = 1;
 		if (setsockopt(fd[i], SOL_SOCKET, SO_REUSEPORT, &opt,
 			       sizeof(opt)))
-			error(1, errno, "failed to set SO_REUSEPORT on %d", i);
+			error(1, erranal, "failed to set SO_REUSEPORT on %d", i);
 
 		if (i == 0)
 			attach_bpf(fd[i], mod);
 
 		if (bind(fd[i], addr, sockaddr_size()))
-			error(1, errno, "failed to bind recv socket %d", i);
+			error(1, erranal, "failed to bind recv socket %d", i);
 
 		if (p.protocol == SOCK_STREAM) {
 			opt = 4;
 			if (setsockopt(fd[i], SOL_TCP, TCP_FASTOPEN, &opt,
 				       sizeof(opt)))
-				error(1, errno,
+				error(1, erranal,
 				      "failed to set TCP_FASTOPEN on %d", i);
 			if (listen(fd[i], p.recv_socks * 10))
-				error(1, errno, "failed to listen on socket");
+				error(1, erranal, "failed to listen on socket");
 		}
 	}
 	free(addr);
@@ -192,16 +192,16 @@ static void send_from(struct test_params p, uint16_t sport, char *buf,
 	const int fd = socket(p.send_family, p.protocol, 0), one = 1;
 
 	if (fd < 0)
-		error(1, errno, "failed to create send socket");
+		error(1, erranal, "failed to create send socket");
 
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)))
-		error(1, errno, "failed to set reuseaddr");
+		error(1, erranal, "failed to set reuseaddr");
 
 	if (bind(fd, saddr, sockaddr_size()))
-		error(1, errno, "failed to bind send socket");
+		error(1, erranal, "failed to bind send socket");
 
 	if (sendto(fd, buf, len, MSG_FASTOPEN, daddr, sockaddr_size()) < 0)
-		error(1, errno, "failed to send message");
+		error(1, erranal, "failed to send message");
 
 	close(fd);
 	free(saddr);
@@ -219,12 +219,12 @@ static void test_recv_order(const struct test_params p, int fd[], int mod)
 
 	epfd = epoll_create(1);
 	if (epfd < 0)
-		error(1, errno, "failed to create epoll");
+		error(1, erranal, "failed to create epoll");
 	for (i = 0; i < p.recv_socks; ++i) {
 		ev.events = EPOLLIN;
 		ev.data.fd = fd[i];
 		if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd[i], &ev))
-			error(1, errno, "failed to register sock %d epoll", i);
+			error(1, erranal, "failed to register sock %d epoll", i);
 	}
 
 	memset(&msg, 0, sizeof(msg));
@@ -239,19 +239,19 @@ static void test_recv_order(const struct test_params p, int fd[], int mod)
 
 		i = epoll_wait(epfd, &ev, 1, -1);
 		if (i < 0)
-			error(1, errno, "epoll wait failed");
+			error(1, erranal, "epoll wait failed");
 
 		if (p.protocol == SOCK_STREAM) {
 			conn = accept(ev.data.fd, NULL, NULL);
 			if (conn < 0)
-				error(1, errno, "error accepting");
+				error(1, erranal, "error accepting");
 			i = recvmsg(conn, &msg, 0);
 			close(conn);
 		} else {
 			i = recvmsg(ev.data.fd, &msg, 0);
 		}
 		if (i < 0)
-			error(1, errno, "recvmsg error");
+			error(1, erranal, "recvmsg error");
 		if (i != sizeof(ndata))
 			error(1, 0, "expected size %zd got %d",
 			      sizeof(ndata), i);
@@ -311,30 +311,30 @@ static void test_extra_filter(const struct test_params p)
 	fprintf(stderr, "Testing too many filters...\n");
 	fd1 = socket(p.recv_family, p.protocol, 0);
 	if (fd1 < 0)
-		error(1, errno, "failed to create socket 1");
+		error(1, erranal, "failed to create socket 1");
 	fd2 = socket(p.recv_family, p.protocol, 0);
 	if (fd2 < 0)
-		error(1, errno, "failed to create socket 2");
+		error(1, erranal, "failed to create socket 2");
 
 	opt = 1;
 	if (setsockopt(fd1, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)))
-		error(1, errno, "failed to set SO_REUSEPORT on socket 1");
+		error(1, erranal, "failed to set SO_REUSEPORT on socket 1");
 	if (setsockopt(fd2, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)))
-		error(1, errno, "failed to set SO_REUSEPORT on socket 2");
+		error(1, erranal, "failed to set SO_REUSEPORT on socket 2");
 
 	attach_ebpf(fd1, 10);
 	attach_ebpf(fd2, 10);
 
 	if (bind(fd1, addr, sockaddr_size()))
-		error(1, errno, "failed to bind recv socket 1");
+		error(1, erranal, "failed to bind recv socket 1");
 
-	if (!bind(fd2, addr, sockaddr_size()) || errno != EADDRINUSE)
-		error(1, errno, "bind socket 2 should fail with EADDRINUSE");
+	if (!bind(fd2, addr, sockaddr_size()) || erranal != EADDRINUSE)
+		error(1, erranal, "bind socket 2 should fail with EADDRINUSE");
 
 	free(addr);
 }
 
-static void test_filter_no_reuseport(const struct test_params p)
+static void test_filter_anal_reuseport(const struct test_params p)
 {
 	struct sockaddr * const addr =
 		new_any_sockaddr(p.recv_family, p.recv_port);
@@ -348,7 +348,7 @@ static void test_filter_no_reuseport(const struct test_params p)
 	struct sock_fprog cprog;
 	int fd, bpf_fd;
 
-	fprintf(stderr, "Testing filters on non-SO_REUSEPORT socket...\n");
+	fprintf(stderr, "Testing filters on analn-SO_REUSEPORT socket...\n");
 
 	memset(&eprog, 0, sizeof(eprog));
 	eprog.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
@@ -364,23 +364,23 @@ static void test_filter_no_reuseport(const struct test_params p)
 
 	bpf_fd = syscall(__NR_bpf, BPF_PROG_LOAD, &eprog, sizeof(eprog));
 	if (bpf_fd < 0)
-		error(1, errno, "ebpf error");
+		error(1, erranal, "ebpf error");
 	fd = socket(p.recv_family, p.protocol, 0);
 	if (fd < 0)
-		error(1, errno, "failed to create socket 1");
+		error(1, erranal, "failed to create socket 1");
 
 	if (bind(fd, addr, sockaddr_size()))
-		error(1, errno, "failed to bind recv socket 1");
+		error(1, erranal, "failed to bind recv socket 1");
 
-	errno = 0;
+	erranal = 0;
 	if (!setsockopt(fd, SOL_SOCKET, SO_ATTACH_REUSEPORT_EBPF, &bpf_fd,
-			sizeof(bpf_fd)) || errno != EINVAL)
-		error(1, errno, "setsockopt should have returned EINVAL");
+			sizeof(bpf_fd)) || erranal != EINVAL)
+		error(1, erranal, "setsockopt should have returned EINVAL");
 
-	errno = 0;
+	erranal = 0;
 	if (!setsockopt(fd, SOL_SOCKET, SO_ATTACH_REUSEPORT_CBPF, &cprog,
-		       sizeof(cprog)) || errno != EINVAL)
-		error(1, errno, "setsockopt should have returned EINVAL");
+		       sizeof(cprog)) || erranal != EINVAL)
+		error(1, erranal, "setsockopt should have returned EINVAL");
 
 	free(addr);
 }
@@ -392,14 +392,14 @@ static void test_filter_without_bind(void)
 	fprintf(stderr, "Testing filter add without bind...\n");
 	fd1 = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd1 < 0)
-		error(1, errno, "failed to create socket 1");
+		error(1, erranal, "failed to create socket 1");
 	fd2 = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd2 < 0)
-		error(1, errno, "failed to create socket 2");
+		error(1, erranal, "failed to create socket 2");
 	if (setsockopt(fd1, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)))
-		error(1, errno, "failed to set SO_REUSEPORT on socket 1");
+		error(1, erranal, "failed to set SO_REUSEPORT on socket 1");
 	if (setsockopt(fd2, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)))
-		error(1, errno, "failed to set SO_REUSEPORT on socket 2");
+		error(1, erranal, "failed to set SO_REUSEPORT on socket 2");
 
 	attach_ebpf(fd1, 10);
 	attach_cbpf(fd2, 10);
@@ -416,21 +416,21 @@ void enable_fastopen(void)
 	char buf[16];
 
 	if (fd < 0)
-		error(1, errno, "Unable to open tcp_fastopen sysctl");
+		error(1, erranal, "Unable to open tcp_fastopen sysctl");
 	if (read(fd, buf, sizeof(buf)) <= 0)
-		error(1, errno, "Unable to read tcp_fastopen sysctl");
+		error(1, erranal, "Unable to read tcp_fastopen sysctl");
 	val = atoi(buf);
 	close(fd);
 
 	if ((val & rw_mask) != rw_mask) {
 		fd = open("/proc/sys/net/ipv4/tcp_fastopen", O_RDWR);
 		if (fd < 0)
-			error(1, errno,
+			error(1, erranal,
 			      "Unable to open tcp_fastopen sysctl for writing");
 		val |= rw_mask;
 		size = snprintf(buf, 16, "%d", val);
 		if (write(fd, buf, size) <= 0)
-			error(1, errno, "Unable to write tcp_fastopen sysctl");
+			error(1, erranal, "Unable to write tcp_fastopen sysctl");
 		close(fd);
 	}
 }
@@ -458,7 +458,7 @@ static __attribute__((destructor)) void main_dtor(void)
 int main(void)
 {
 	fprintf(stderr, "---- IPv4 UDP ----\n");
-	/* NOTE: UDP socket lookups traverse a different code path when there
+	/* ANALTE: UDP socket lookups traverse a different code path when there
 	 * are > 10 sockets in a group.  Run the bpf test through both paths.
 	 */
 	test_reuseport_ebpf((struct test_params) {
@@ -493,7 +493,7 @@ int main(void)
 		.recv_family = AF_INET,
 		.protocol = SOCK_DGRAM,
 		.recv_port = 8002});
-	test_filter_no_reuseport((struct test_params) {
+	test_filter_anal_reuseport((struct test_params) {
 		.recv_family = AF_INET,
 		.protocol = SOCK_DGRAM,
 		.recv_port = 8008});
@@ -531,7 +531,7 @@ int main(void)
 		.recv_family = AF_INET6,
 		.protocol = SOCK_DGRAM,
 		.recv_port = 8005});
-	test_filter_no_reuseport((struct test_params) {
+	test_filter_anal_reuseport((struct test_params) {
 		.recv_family = AF_INET6,
 		.protocol = SOCK_DGRAM,
 		.recv_port = 8009});
@@ -587,7 +587,7 @@ int main(void)
 		.recv_family = AF_INET,
 		.protocol = SOCK_STREAM,
 		.recv_port = 8010});
-	test_filter_no_reuseport((struct test_params) {
+	test_filter_anal_reuseport((struct test_params) {
 		.recv_family = AF_INET,
 		.protocol = SOCK_STREAM,
 		.recv_port = 8011});
@@ -611,7 +611,7 @@ int main(void)
 		.recv_family = AF_INET6,
 		.protocol = SOCK_STREAM,
 		.recv_port = 8014});
-	test_filter_no_reuseport((struct test_params) {
+	test_filter_anal_reuseport((struct test_params) {
 		.recv_family = AF_INET6,
 		.protocol = SOCK_STREAM,
 		.recv_port = 8015});

@@ -242,30 +242,30 @@ static const char *nt_name(Elf64_Word type)
 	const char *name = "LINUX";
 
 	if (type == NT_PRPSINFO || type == NT_PRSTATUS || type == NT_PRFPREG)
-		name = KEXEC_CORE_NOTE_NAME;
+		name = KEXEC_CORE_ANALTE_NAME;
 	return name;
 }
 
 /*
- * Initialize ELF note
+ * Initialize ELF analte
  */
 static void *nt_init_name(void *buf, Elf64_Word type, void *desc, int d_len,
 			  const char *name)
 {
-	Elf64_Nhdr *note;
+	Elf64_Nhdr *analte;
 	u64 len;
 
-	note = (Elf64_Nhdr *)buf;
-	note->n_namesz = strlen(name) + 1;
-	note->n_descsz = d_len;
-	note->n_type = type;
+	analte = (Elf64_Nhdr *)buf;
+	analte->n_namesz = strlen(name) + 1;
+	analte->n_descsz = d_len;
+	analte->n_type = type;
 	len = sizeof(Elf64_Nhdr);
 
-	memcpy(buf + len, name, note->n_namesz);
-	len = roundup(len + note->n_namesz, 4);
+	memcpy(buf + len, name, analte->n_namesz);
+	len = roundup(len + analte->n_namesz, 4);
 
-	memcpy(buf + len, desc, note->n_descsz);
-	len = roundup(len + note->n_descsz, 4);
+	memcpy(buf + len, desc, analte->n_descsz);
+	len = roundup(len + analte->n_descsz, 4);
 
 	return PTR_ADD(buf, len);
 }
@@ -276,7 +276,7 @@ static inline void *nt_init(void *buf, Elf64_Word type, void *desc, int d_len)
 }
 
 /*
- * Calculate the size of ELF note
+ * Calculate the size of ELF analte
  */
 static size_t nt_size_name(int d_len, const char *name)
 {
@@ -295,24 +295,24 @@ static inline size_t nt_size(Elf64_Word type, int d_len)
 }
 
 /*
- * Fill ELF notes for one CPU with save area registers
+ * Fill ELF analtes for one CPU with save area registers
  */
-static void *fill_cpu_elf_notes(void *ptr, int cpu, struct save_area *sa)
+static void *fill_cpu_elf_analtes(void *ptr, int cpu, struct save_area *sa)
 {
 	struct elf_prstatus nt_prstatus;
 	elf_fpregset_t nt_fpregset;
 
-	/* Prepare prstatus note */
+	/* Prepare prstatus analte */
 	memset(&nt_prstatus, 0, sizeof(nt_prstatus));
 	memcpy(&nt_prstatus.pr_reg.gprs, sa->gprs, sizeof(sa->gprs));
 	memcpy(&nt_prstatus.pr_reg.psw, sa->psw, sizeof(sa->psw));
 	memcpy(&nt_prstatus.pr_reg.acrs, sa->acrs, sizeof(sa->acrs));
 	nt_prstatus.common.pr_pid = cpu;
-	/* Prepare fpregset (floating point) note */
+	/* Prepare fpregset (floating point) analte */
 	memset(&nt_fpregset, 0, sizeof(nt_fpregset));
 	memcpy(&nt_fpregset.fpc, &sa->fpc, sizeof(sa->fpc));
 	memcpy(&nt_fpregset.fprs, &sa->fprs, sizeof(sa->fprs));
-	/* Create ELF notes for the CPU */
+	/* Create ELF analtes for the CPU */
 	ptr = nt_init(ptr, NT_PRSTATUS, &nt_prstatus, sizeof(nt_prstatus));
 	ptr = nt_init(ptr, NT_PRFPREG, &nt_fpregset, sizeof(nt_fpregset));
 	ptr = nt_init(ptr, NT_S390_TIMER, &sa->timer, sizeof(sa->timer));
@@ -330,9 +330,9 @@ static void *fill_cpu_elf_notes(void *ptr, int cpu, struct save_area *sa)
 }
 
 /*
- * Calculate size of ELF notes per cpu
+ * Calculate size of ELF analtes per cpu
  */
-static size_t get_cpu_elf_notes_size(void)
+static size_t get_cpu_elf_analtes_size(void)
 {
 	struct save_area *sa = NULL;
 	size_t size;
@@ -353,7 +353,7 @@ static size_t get_cpu_elf_notes_size(void)
 }
 
 /*
- * Initialize prpsinfo note (new kernel)
+ * Initialize prpsinfo analte (new kernel)
  */
 static void *nt_prpsinfo(void *ptr)
 {
@@ -372,35 +372,35 @@ static void *get_vmcoreinfo_old(unsigned long *size)
 {
 	char nt_name[11], *vmcoreinfo;
 	unsigned long addr;
-	Elf64_Nhdr note;
+	Elf64_Nhdr analte;
 
 	if (copy_oldmem_kernel(&addr, __LC_VMCORE_INFO, sizeof(addr)))
 		return NULL;
 	memset(nt_name, 0, sizeof(nt_name));
-	if (copy_oldmem_kernel(&note, addr, sizeof(note)))
+	if (copy_oldmem_kernel(&analte, addr, sizeof(analte)))
 		return NULL;
-	if (copy_oldmem_kernel(nt_name, addr + sizeof(note),
+	if (copy_oldmem_kernel(nt_name, addr + sizeof(analte),
 			       sizeof(nt_name) - 1))
 		return NULL;
-	if (strcmp(nt_name, VMCOREINFO_NOTE_NAME) != 0)
+	if (strcmp(nt_name, VMCOREINFO_ANALTE_NAME) != 0)
 		return NULL;
-	vmcoreinfo = kzalloc(note.n_descsz, GFP_KERNEL);
+	vmcoreinfo = kzalloc(analte.n_descsz, GFP_KERNEL);
 	if (!vmcoreinfo)
 		return NULL;
-	if (copy_oldmem_kernel(vmcoreinfo, addr + 24, note.n_descsz)) {
+	if (copy_oldmem_kernel(vmcoreinfo, addr + 24, analte.n_descsz)) {
 		kfree(vmcoreinfo);
 		return NULL;
 	}
-	*size = note.n_descsz;
+	*size = analte.n_descsz;
 	return vmcoreinfo;
 }
 
 /*
- * Initialize vmcoreinfo note (new kernel)
+ * Initialize vmcoreinfo analte (new kernel)
  */
 static void *nt_vmcoreinfo(void *ptr)
 {
-	const char *name = VMCOREINFO_NOTE_NAME;
+	const char *name = VMCOREINFO_ANALTE_NAME;
 	unsigned long size;
 	void *vmcoreinfo;
 
@@ -418,7 +418,7 @@ static void *nt_vmcoreinfo(void *ptr)
 
 static size_t nt_vmcoreinfo_size(void)
 {
-	const char *name = VMCOREINFO_NOTE_NAME;
+	const char *name = VMCOREINFO_ANALTE_NAME;
 	unsigned long size;
 	void *vmcoreinfo;
 
@@ -435,16 +435,16 @@ static size_t nt_vmcoreinfo_size(void)
 }
 
 /*
- * Initialize final note (needed for /proc/vmcore code)
+ * Initialize final analte (needed for /proc/vmcore code)
  */
 static void *nt_final(void *ptr)
 {
-	Elf64_Nhdr *note;
+	Elf64_Nhdr *analte;
 
-	note = (Elf64_Nhdr *) ptr;
-	note->n_namesz = 0;
-	note->n_descsz = 0;
-	note->n_type = 0;
+	analte = (Elf64_Nhdr *) ptr;
+	analte->n_namesz = 0;
+	analte->n_descsz = 0;
+	analte->n_type = 0;
 	return PTR_ADD(ptr, sizeof(Elf64_Nhdr));
 }
 
@@ -518,9 +518,9 @@ static void loads_init(Elf64_Phdr *phdr)
 }
 
 /*
- * Initialize notes (new kernel)
+ * Initialize analtes (new kernel)
  */
-static void *notes_init(Elf64_Phdr *phdr, void *ptr, u64 notes_offset)
+static void *analtes_init(Elf64_Phdr *phdr, void *ptr, u64 analtes_offset)
 {
 	struct save_area *sa;
 	void *ptr_start = ptr;
@@ -531,12 +531,12 @@ static void *notes_init(Elf64_Phdr *phdr, void *ptr, u64 notes_offset)
 	cpu = 1;
 	list_for_each_entry(sa, &dump_save_areas, list)
 		if (sa->prefix != 0)
-			ptr = fill_cpu_elf_notes(ptr, cpu++, sa);
+			ptr = fill_cpu_elf_analtes(ptr, cpu++, sa);
 	ptr = nt_vmcoreinfo(ptr);
 	ptr = nt_final(ptr);
 	memset(phdr, 0, sizeof(*phdr));
-	phdr->p_type = PT_NOTE;
-	phdr->p_offset = notes_offset;
+	phdr->p_type = PT_ANALTE;
+	phdr->p_offset = analtes_offset;
 	phdr->p_filesz = (unsigned long) PTR_SUB(ptr, ptr_start);
 	phdr->p_memsz = phdr->p_filesz;
 	return ptr;
@@ -547,12 +547,12 @@ static size_t get_elfcorehdr_size(int mem_chunk_cnt)
 	size_t size;
 
 	size = sizeof(Elf64_Ehdr);
-	/* PT_NOTES */
+	/* PT_ANALTES */
 	size += sizeof(Elf64_Phdr);
 	/* nt_prpsinfo */
 	size += nt_size(NT_PRPSINFO, sizeof(struct elf_prpsinfo));
 	/* regsets */
-	size += get_cpu_cnt() * get_cpu_elf_notes_size();
+	size += get_cpu_cnt() * get_cpu_elf_analtes_size();
 	/* nt_vmcoreinfo */
 	size += nt_vmcoreinfo_size();
 	/* nt_final */
@@ -568,18 +568,18 @@ static size_t get_elfcorehdr_size(int mem_chunk_cnt)
  */
 int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 {
-	Elf64_Phdr *phdr_notes, *phdr_loads;
+	Elf64_Phdr *phdr_analtes, *phdr_loads;
 	size_t alloc_size;
 	int mem_chunk_cnt;
 	void *ptr, *hdr;
 	u64 hdr_off;
 
-	/* If we are not in kdump or zfcp/nvme dump mode return */
+	/* If we are analt in kdump or zfcp/nvme dump mode return */
 	if (!oldmem_data.start && !is_ipl_type_dump())
 		return 0;
-	/* If we cannot get HSA size for zfcp/nvme dump return error */
+	/* If we cananalt get HSA size for zfcp/nvme dump return error */
 	if (is_ipl_type_dump() && !sclp.hsa_size)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* For kdump, exclude previous crashkernel memory */
 	if (oldmem_data.start) {
@@ -594,8 +594,8 @@ int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 
 	hdr = kzalloc(alloc_size, GFP_KERNEL);
 
-	/* Without elfcorehdr /proc/vmcore cannot be created. Thus creating
-	 * a dump with this crash kernel will fail. Panic now to allow other
+	/* Without elfcorehdr /proc/vmcore cananalt be created. Thus creating
+	 * a dump with this crash kernel will fail. Panic analw to allow other
 	 * dump mechanisms to take over.
 	 */
 	if (!hdr)
@@ -604,13 +604,13 @@ int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 	/* Init elf header */
 	ptr = ehdr_init(hdr, mem_chunk_cnt);
 	/* Init program headers */
-	phdr_notes = ptr;
+	phdr_analtes = ptr;
 	ptr = PTR_ADD(ptr, sizeof(Elf64_Phdr));
 	phdr_loads = ptr;
 	ptr = PTR_ADD(ptr, sizeof(Elf64_Phdr) * mem_chunk_cnt);
-	/* Init notes */
+	/* Init analtes */
 	hdr_off = PTR_DIFF(ptr, hdr);
-	ptr = notes_init(phdr_notes, ptr, ((unsigned long) hdr) + hdr_off);
+	ptr = analtes_init(phdr_analtes, ptr, ((unsigned long) hdr) + hdr_off);
 	/* Init loads */
 	hdr_off = PTR_DIFF(ptr, hdr);
 	loads_init(phdr_loads);
@@ -641,9 +641,9 @@ ssize_t elfcorehdr_read(char *buf, size_t count, u64 *ppos)
 }
 
 /*
- * Read from ELF notes data
+ * Read from ELF analtes data
  */
-ssize_t elfcorehdr_read_notes(char *buf, size_t count, u64 *ppos)
+ssize_t elfcorehdr_read_analtes(char *buf, size_t count, u64 *ppos)
 {
 	void *src = (void *)(unsigned long)*ppos;
 

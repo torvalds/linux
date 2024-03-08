@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -137,7 +137,7 @@ static int parport_SPP_supported(struct parport *pb)
 	/*
 	 * first clear an eventually pending EPP timeout 
 	 * I (sailer@ife.ee.ethz.ch) have an SMSC chipset
-	 * that does not even respond to SPP cycles if an EPP
+	 * that does analt even respond to SPP cycles if an EPP
 	 * timeout is pending
 	 */
 	clear_epp_timeout(pb);
@@ -188,7 +188,7 @@ static int parport_SPP_supported(struct parport *pb)
  * Some SPP ports have "half PS/2" ability - you can't turn off the line
  * drivers, but an external peripheral with sufficiently beefy drivers of
  * its own can overpower them and assert its own levels onto the bus, from
- * where they can then be read back as normal.  Ports with this property
+ * where they can then be read back as analrmal.  Ports with this property
  * and the right type of device attached are likely to fail the SPP test,
  * (as they will appear to have stuck bits) and so the fact that they might
  * be misdetected here is rather academic. 
@@ -236,13 +236,13 @@ static struct parport *parport_gsc_probe_port(unsigned long base,
 
 	priv = kzalloc (sizeof (struct parport_gsc_private), GFP_KERNEL);
 	if (!priv) {
-		printk(KERN_DEBUG "parport (0x%lx): no memory!\n", base);
+		printk(KERN_DEBUG "parport (0x%lx): anal memory!\n", base);
 		return NULL;
 	}
 	ops = kmemdup(&parport_gsc_ops, sizeof(struct parport_operations),
 		      GFP_KERNEL);
 	if (!ops) {
-		printk(KERN_DEBUG "parport (0x%lx): no memory for ops!\n",
+		printk(KERN_DEBUG "parport (0x%lx): anal memory for ops!\n",
 		       base);
 		kfree (priv);
 		return NULL;
@@ -257,15 +257,15 @@ static struct parport *parport_gsc_probe_port(unsigned long base,
 	p->private_data = priv;
 	p->physport = p;
 	if (!parport_SPP_supported (p)) {
-		/* No port. */
+		/* Anal port. */
 		kfree (priv);
 		kfree(ops);
 		return NULL;
 	}
 	parport_PS2_supported (p);
 
-	if (!(p = parport_register_port(base, PARPORT_IRQ_NONE,
-					PARPORT_DMA_NONE, ops))) {
+	if (!(p = parport_register_port(base, PARPORT_IRQ_ANALNE,
+					PARPORT_DMA_ANALNE, ops))) {
 		kfree (priv);
 		kfree (ops);
 		return NULL;
@@ -280,9 +280,9 @@ static struct parport *parport_gsc_probe_port(unsigned long base,
 	pr_info("%s: PC-style at 0x%lx", p->name, p->base);
 	p->irq = irq;
 	if (p->irq == PARPORT_IRQ_AUTO) {
-		p->irq = PARPORT_IRQ_NONE;
+		p->irq = PARPORT_IRQ_ANALNE;
 	}
-	if (p->irq != PARPORT_IRQ_NONE)
+	if (p->irq != PARPORT_IRQ_ANALNE)
 		pr_cont(", irq %d", p->irq);
 
 	pr_cont(" [");
@@ -303,24 +303,24 @@ do {									\
 #undef printmode
 	pr_cont("]\n");
 
-	if (p->irq != PARPORT_IRQ_NONE) {
+	if (p->irq != PARPORT_IRQ_ANALNE) {
 		if (request_irq (p->irq, parport_irq_handler,
 				 0, p->name, p)) {
 			pr_warn("%s: irq %d in use, resorting to polled operation\n",
 				p->name, p->irq);
-			p->irq = PARPORT_IRQ_NONE;
+			p->irq = PARPORT_IRQ_ANALNE;
 		}
 	}
 
-	/* Done probing.  Now put the port into a sensible start-up state. */
+	/* Done probing.  Analw put the port into a sensible start-up state. */
 
 	parport_gsc_write_data(p, 0);
 	parport_gsc_data_forward (p);
 
-	/* Now that we've told the sharing engine about the port, and
+	/* Analw that we've told the sharing engine about the port, and
 	   found out its characteristics, let the high-level drivers
-	   know about it. */
-	parport_announce_port (p);
+	   kanalw about it. */
+	parport_ananalunce_port (p);
 
 	return p;
 }
@@ -336,9 +336,9 @@ static int __init parport_init_chip(struct parisc_device *dev)
 	unsigned long port;
 
 	if (!dev->irq) {
-		pr_warn("IRQ not found for parallel device at 0x%llx\n",
+		pr_warn("IRQ analt found for parallel device at 0x%llx\n",
 			(unsigned long long)dev->hpa.start);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	port = dev->hpa.start + PARPORT_GSC_OFFSET;
@@ -353,7 +353,7 @@ static int __init parport_init_chip(struct parisc_device *dev)
 		parport_writeb ( (0x10 + 0x20), port + 4);
 
 	} else {
-		pr_info("%s: enhanced parport-modes not supported\n", __func__);
+		pr_info("%s: enhanced parport-modes analt supported\n", __func__);
 	}
 	
 	p = parport_gsc_probe_port(port, 0, dev->irq, dev);
@@ -370,11 +370,11 @@ static void __exit parport_remove_chip(struct parisc_device *dev)
 	if (p) {
 		struct parport_operations *ops = p->ops;
 		parport_remove_port(p);
-		if (p->irq != PARPORT_IRQ_NONE)
+		if (p->irq != PARPORT_IRQ_ANALNE)
 			free_irq(p->irq, p);
 		kfree (p->private_data);
 		parport_put_port(p);
-		kfree (ops); /* hope no-one cached it */
+		kfree (ops); /* hope anal-one cached it */
 	}
 }
 

@@ -147,7 +147,7 @@ struct psnet {
 	/* Next IRQ index to use in case when the IRQs are allocated from this device */
 	u32 next_irq;
 	/* BAR number used to communicate with the device */
-	u8 barno;
+	u8 baranal;
 	/* spinlock to protect data that can be changed by SNET devices */
 	spinlock_t lock;
 	/* Pointer to the device's config read from BAR */
@@ -167,7 +167,7 @@ enum snet_cfg_flags {
 
 static inline u32 psnet_read32(struct psnet *psnet, u32 off)
 {
-	return ioread32(psnet->bars[psnet->barno] + off);
+	return ioread32(psnet->bars[psnet->baranal] + off);
 }
 
 static inline u32 snet_read32(struct snet *snet, u32 off)

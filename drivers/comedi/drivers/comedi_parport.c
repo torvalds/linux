@@ -149,11 +149,11 @@ static int parport_intr_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -213,7 +213,7 @@ static irqreturn_t parport_interrupt(int irq, void *d)
 
 	ctrl = inb(dev->iobase + PARPORT_CTRL_REG);
 	if (!(ctrl & PARPORT_CTRL_IRQ_ENA))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	comedi_buf_write_samples(s, &val, 1);
 	comedi_handle_events(dev, s);

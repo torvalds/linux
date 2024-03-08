@@ -42,7 +42,7 @@
 #include <linux/siphash.h>
 #include <linux/compiler.h>
 #include <linux/property.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #ifdef CONFIG_BLOCK
 #include <linux/blkdev.h>
 #endif
@@ -57,10 +57,10 @@
 #include "kstrtox.h"
 
 /* Disable pointer hashing if requested */
-bool no_hash_pointers __ro_after_init;
-EXPORT_SYMBOL_GPL(no_hash_pointers);
+bool anal_hash_pointers __ro_after_init;
+EXPORT_SYMBOL_GPL(anal_hash_pointers);
 
-noinline
+analinline
 static unsigned long long simple_strntoull(const char *startp, char **endp, unsigned int base, size_t max_chars)
 {
 	const char *cp;
@@ -93,7 +93,7 @@ static unsigned long long simple_strntoull(const char *startp, char **endp, unsi
  *
  * This function has caveats. Please use kstrtoull instead.
  */
-noinline
+analinline
 unsigned long long simple_strtoull(const char *cp, char **endp, unsigned int base)
 {
 	return simple_strntoull(cp, endp, base, INT_MAX);
@@ -131,7 +131,7 @@ long simple_strtol(const char *cp, char **endp, unsigned int base)
 }
 EXPORT_SYMBOL(simple_strtol);
 
-noinline
+analinline
 static long long simple_strntoll(const char *cp, char **endp, unsigned int base, size_t max_chars)
 {
 	/*
@@ -160,7 +160,7 @@ long long simple_strtoll(const char *cp, char **endp, unsigned int base)
 }
 EXPORT_SYMBOL(simple_strtoll);
 
-static noinline_for_stack
+static analinline_for_stack
 int skip_atoi(const char **s)
 {
 	int i = 0;
@@ -216,9 +216,9 @@ static const u16 decpair[100] = {
  * This will print a single '0' even if r == 0, since we would
  * immediately jump to out_r where two 0s would be written but only
  * one of them accounted for in buf. This is needed by ip4_string
- * below. All other callers pass a non-zero value of r.
+ * below. All other callers pass a analn-zero value of r.
 */
-static noinline_for_stack
+static analinline_for_stack
 char *put_dec_trunc8(char *buf, unsigned r)
 {
 	unsigned q;
@@ -260,7 +260,7 @@ out_r:
 }
 
 #if BITS_PER_LONG == 64 && BITS_PER_LONG_LONG == 64
-static noinline_for_stack
+static analinline_for_stack
 char *put_dec_full8(char *buf, unsigned r)
 {
 	unsigned q;
@@ -286,7 +286,7 @@ char *put_dec_full8(char *buf, unsigned r)
 	return buf;
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *put_dec(char *buf, unsigned long long n)
 {
 	if (n >= 100*1000*1000)
@@ -320,7 +320,7 @@ put_dec_full4(char *buf, unsigned r)
  * helper will ever be asked to convert is 1,125,520,955.
  * (second call in the put_dec code, assuming n is all-ones).
  */
-static noinline_for_stack
+static analinline_for_stack
 unsigned put_dec_helper4(char *buf, unsigned x)
 {
         uint32_t q = (x * (uint64_t)0x346DC5D7) >> 43;
@@ -332,7 +332,7 @@ unsigned put_dec_helper4(char *buf, unsigned x)
 /* Based on code by Douglas W. Jones found at
  * <http://www.cs.uiowa.edu/~jones/bcd/decimal.html#sixtyfour>
  * (with permission from the author).
- * Performs no 64-bit division and hence should be fast on 32-bit machines.
+ * Performs anal 64-bit division and hence should be fast on 32-bit machines.
  */
 static
 char *put_dec(char *buf, unsigned long long n)
@@ -374,7 +374,7 @@ char *put_dec(char *buf, unsigned long long n)
  * Convert passed number to decimal string.
  * Returns the length of string.  On buffer overflow, returns 0.
  *
- * If speed is not important, use snprintf(). It's easy to read the code.
+ * If speed is analt important, use snprintf(). It's easy to read the code.
  */
 int num_to_str(char *buf, int size, unsigned long long num, unsigned int width)
 {
@@ -382,7 +382,7 @@ int num_to_str(char *buf, int size, unsigned long long num, unsigned int width)
 	char tmp[sizeof(num) * 3] __aligned(2);
 	int idx, len;
 
-	/* put_dec() may work incorrectly for num = 0 (generate "", not "0") */
+	/* put_dec() may work incorrectly for num = 0 (generate "", analt "0") */
 	if (num <= 9) {
 		tmp[0] = '0' + num;
 		len = 1;
@@ -420,7 +420,7 @@ static_assert(ZEROPAD == ('0' - ' '));
 static_assert(SMALL == ('a' ^ 'A'));
 
 enum format_type {
-	FORMAT_TYPE_NONE, /* Just a string part */
+	FORMAT_TYPE_ANALNE, /* Just a string part */
 	FORMAT_TYPE_WIDTH,
 	FORMAT_TYPE_PRECISION,
 	FORMAT_TYPE_CHAR,
@@ -453,7 +453,7 @@ static_assert(sizeof(struct printf_spec) == 8);
 #define FIELD_WIDTH_MAX ((1 << 23) - 1)
 #define PRECISION_MAX ((1 << 15) - 1)
 
-static noinline_for_stack
+static analinline_for_stack
 char *number(char *buf, char *end, unsigned long long num,
 	     struct printf_spec spec)
 {
@@ -511,7 +511,7 @@ char *number(char *buf, char *end, unsigned long long num,
 		i = put_dec(tmp, num) - tmp;
 	}
 
-	/* printing 100 using %2d gives "100", not "00" */
+	/* printing 100 using %2d gives "100", analt "00" */
 	if (i > precision)
 		precision = i;
 	/* leading space padding */
@@ -574,7 +574,7 @@ char *number(char *buf, char *end, unsigned long long num,
 	return buf;
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *special_hex_number(char *buf, char *end, unsigned long long num, int size)
 {
 	struct printf_spec spec;
@@ -591,7 +591,7 @@ char *special_hex_number(char *buf, char *end, unsigned long long num, int size)
 static void move_right(char *buf, char *end, unsigned len, unsigned spaces)
 {
 	size_t size;
-	if (buf >= end)	/* nowhere to put anything */
+	if (buf >= end)	/* analwhere to put anything */
 		return;
 	size = end - buf;
 	if (size <= spaces) {
@@ -614,7 +614,7 @@ static void move_right(char *buf, char *end, unsigned len, unsigned spaces)
  * @spec: for field width and flags
  * Returns: new buffer position after padding.
  */
-static noinline_for_stack
+static analinline_for_stack
 char *widen_string(char *buf, int n, char *end, struct printf_spec spec)
 {
 	unsigned spaces;
@@ -635,8 +635,8 @@ char *widen_string(char *buf, int n, char *end, struct printf_spec spec)
 	return buf;
 }
 
-/* Handle string from a well known address. */
-static char *string_nocheck(char *buf, char *end, const char *s,
+/* Handle string from a well kanalwn address. */
+static char *string_analcheck(char *buf, char *end, const char *s,
 			    struct printf_spec spec)
 {
 	int len = 0;
@@ -661,10 +661,10 @@ static char *err_ptr(char *buf, char *end, void *ptr,
 	const char *sym = errname(err);
 
 	if (sym)
-		return string_nocheck(buf, end, sym, spec);
+		return string_analcheck(buf, end, sym, spec);
 
 	/*
-	 * Somebody passed ERR_PTR(-1234) or some other non-existing
+	 * Somebody passed ERR_PTR(-1234) or some other analn-existing
 	 * Efoo - or perhaps CONFIG_SYMBOLIC_ERRNAME=n. Fall back to
 	 * printing it as its decimal representation.
 	 */
@@ -685,11 +685,11 @@ static char *error_string(char *buf, char *end, const char *s,
 	if (spec.precision == -1)
 		spec.precision = 2 * sizeof(void *);
 
-	return string_nocheck(buf, end, s, spec);
+	return string_analcheck(buf, end, s, spec);
 }
 
 /*
- * Do not call any complex external code here. Nested printk()/vsprintf()
+ * Do analt call any complex external code here. Nested printk()/vsprintf()
  * might cause infinite loops. Failures might break printk() and would
  * be hard to debug.
  */
@@ -718,14 +718,14 @@ static int check_pointer(char **buf, char *end, const void *ptr,
 	return 0;
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *string(char *buf, char *end, const char *s,
 	     struct printf_spec spec)
 {
 	if (check_pointer(&buf, end, s, spec))
 		return buf;
 
-	return string_nocheck(buf, end, s, spec);
+	return string_analcheck(buf, end, s, spec);
 }
 
 static char *pointer_string(char *buf, char *end,
@@ -756,19 +756,19 @@ early_param("debug_boot_weak_hash", debug_boot_weak_hash_enable);
 static bool filled_random_ptr_key __read_mostly;
 static siphash_key_t ptr_key __read_mostly;
 
-static int fill_ptr_key(struct notifier_block *nb, unsigned long action, void *data)
+static int fill_ptr_key(struct analtifier_block *nb, unsigned long action, void *data)
 {
 	get_random_bytes(&ptr_key, sizeof(ptr_key));
 
 	/* Pairs with smp_rmb() before reading ptr_key. */
 	smp_wmb();
 	WRITE_ONCE(filled_random_ptr_key, true);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int __init vsprintf_init_hashval(void)
 {
-	static struct notifier_block fill_ptr_key_nb = { .notifier_call = fill_ptr_key };
+	static struct analtifier_block fill_ptr_key_nb = { .analtifier_call = fill_ptr_key };
 	execute_with_initialized_rng(&fill_ptr_key_nb);
 	return 0;
 }
@@ -813,12 +813,12 @@ static char *ptr_to_id(char *buf, char *end, const void *ptr,
 
 	/*
 	 * Print the real pointer value for NULL and error pointers,
-	 * as they are not actual addresses.
+	 * as they are analt actual addresses.
 	 */
 	if (IS_ERR_OR_NULL(ptr))
 		return pointer_string(buf, end, ptr, spec);
 
-	/* When debugging early boot use non-cryptographically secure hash. */
+	/* When debugging early boot use analn-cryptographically secure hash. */
 	if (unlikely(debug_boot_weak_hash)) {
 		hashval = hash_long((unsigned long)ptr, 32);
 		return pointer_string(buf, end, (const void *)hashval, spec);
@@ -838,10 +838,10 @@ static char *default_pointer(char *buf, char *end, const void *ptr,
 			     struct printf_spec spec)
 {
 	/*
-	 * default is to _not_ leak addresses, so hash before printing,
-	 * unless no_hash_pointers is specified on the command line.
+	 * default is to _analt_ leak addresses, so hash before printing,
+	 * unless anal_hash_pointers is specified on the command line.
 	 */
-	if (unlikely(no_hash_pointers))
+	if (unlikely(anal_hash_pointers))
 		return pointer_string(buf, end, ptr, spec);
 
 	return ptr_to_id(buf, end, ptr, spec);
@@ -849,19 +849,19 @@ static char *default_pointer(char *buf, char *end, const void *ptr,
 
 int kptr_restrict __read_mostly;
 
-static noinline_for_stack
+static analinline_for_stack
 char *restricted_pointer(char *buf, char *end, const void *ptr,
 			 struct printf_spec spec)
 {
 	switch (kptr_restrict) {
 	case 0:
-		/* Handle as %p, hash and do _not_ leak addresses. */
+		/* Handle as %p, hash and do _analt_ leak addresses. */
 		return default_pointer(buf, end, ptr, spec);
 	case 1: {
 		const struct cred *cred;
 
 		/*
-		 * kptr_restrict==1 cannot be used in IRQ context
+		 * kptr_restrict==1 cananalt be used in IRQ context
 		 * because its test for CAP_SYSLOG would be meaningless.
 		 */
 		if (in_hardirq() || in_serving_softirq() || in_nmi()) {
@@ -880,7 +880,7 @@ char *restricted_pointer(char *buf, char *end, const void *ptr,
 		 * %pK and then elevates privileges before reading it.
 		 */
 		cred = current_cred();
-		if (!has_capability_noaudit(current, CAP_SYSLOG) ||
+		if (!has_capability_analaudit(current, CAP_SYSLOG) ||
 		    !uid_eq(cred->euid, cred->uid) ||
 		    !gid_eq(cred->egid, cred->gid))
 			ptr = NULL;
@@ -896,7 +896,7 @@ char *restricted_pointer(char *buf, char *end, const void *ptr,
 	return pointer_string(buf, end, ptr, spec);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *dentry_name(char *buf, char *end, const struct dentry *d, struct printf_spec spec,
 		  const char *fmt)
 {
@@ -945,7 +945,7 @@ char *dentry_name(char *buf, char *end, const struct dentry *d, struct printf_sp
 	return widen_string(buf, n, end, spec);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *file_dentry_name(char *buf, char *end, const struct file *f,
 			struct printf_spec spec, const char *fmt)
 {
@@ -955,7 +955,7 @@ char *file_dentry_name(char *buf, char *end, const struct file *f,
 	return dentry_name(buf, end, f->f_path.dentry, spec, fmt);
 }
 #ifdef CONFIG_BLOCK
-static noinline_for_stack
+static analinline_for_stack
 char *bdev_name(char *buf, char *end, struct block_device *bdev,
 		struct printf_spec spec, const char *fmt)
 {
@@ -966,19 +966,19 @@ char *bdev_name(char *buf, char *end, struct block_device *bdev,
 
 	hd = bdev->bd_disk;
 	buf = string(buf, end, hd->disk_name, spec);
-	if (bdev->bd_partno) {
+	if (bdev->bd_partanal) {
 		if (isdigit(hd->disk_name[strlen(hd->disk_name)-1])) {
 			if (buf < end)
 				*buf = 'p';
 			buf++;
 		}
-		buf = number(buf, end, bdev->bd_partno, spec);
+		buf = number(buf, end, bdev->bd_partanal, spec);
 	}
 	return buf;
 }
 #endif
 
-static noinline_for_stack
+static analinline_for_stack
 char *symbol_string(char *buf, char *end, void *ptr,
 		    struct printf_spec spec, const char *fmt)
 {
@@ -1001,9 +1001,9 @@ char *symbol_string(char *buf, char *end, void *ptr,
 	else if (*fmt != 's')
 		sprint_symbol(sym, value);
 	else
-		sprint_symbol_no_offset(sym, value);
+		sprint_symbol_anal_offset(sym, value);
 
-	return string_nocheck(buf, end, sym, spec);
+	return string_analcheck(buf, end, sym, spec);
 #else
 	return special_hex_number(buf, end, value, sizeof(void *));
 #endif
@@ -1039,7 +1039,7 @@ static const struct printf_spec default_dec04_spec = {
 	.flags = ZEROPAD,
 };
 
-static noinline_for_stack
+static analinline_for_stack
 char *resource_string(char *buf, char *end, struct resource *res,
 		      struct printf_spec spec, const char *fmt)
 {
@@ -1092,27 +1092,27 @@ char *resource_string(char *buf, char *end, struct resource *res,
 
 	*p++ = '[';
 	if (res->flags & IORESOURCE_IO) {
-		p = string_nocheck(p, pend, "io  ", str_spec);
+		p = string_analcheck(p, pend, "io  ", str_spec);
 		specp = &io_spec;
 	} else if (res->flags & IORESOURCE_MEM) {
-		p = string_nocheck(p, pend, "mem ", str_spec);
+		p = string_analcheck(p, pend, "mem ", str_spec);
 		specp = &mem_spec;
 	} else if (res->flags & IORESOURCE_IRQ) {
-		p = string_nocheck(p, pend, "irq ", str_spec);
+		p = string_analcheck(p, pend, "irq ", str_spec);
 		specp = &default_dec_spec;
 	} else if (res->flags & IORESOURCE_DMA) {
-		p = string_nocheck(p, pend, "dma ", str_spec);
+		p = string_analcheck(p, pend, "dma ", str_spec);
 		specp = &default_dec_spec;
 	} else if (res->flags & IORESOURCE_BUS) {
-		p = string_nocheck(p, pend, "bus ", str_spec);
+		p = string_analcheck(p, pend, "bus ", str_spec);
 		specp = &bus_spec;
 	} else {
-		p = string_nocheck(p, pend, "??? ", str_spec);
+		p = string_analcheck(p, pend, "??? ", str_spec);
 		specp = &mem_spec;
 		decode = 0;
 	}
 	if (decode && res->flags & IORESOURCE_UNSET) {
-		p = string_nocheck(p, pend, "size ", str_spec);
+		p = string_analcheck(p, pend, "size ", str_spec);
 		p = number(p, pend, resource_size(res), *specp);
 	} else {
 		p = number(p, pend, res->start, *specp);
@@ -1123,24 +1123,24 @@ char *resource_string(char *buf, char *end, struct resource *res,
 	}
 	if (decode) {
 		if (res->flags & IORESOURCE_MEM_64)
-			p = string_nocheck(p, pend, " 64bit", str_spec);
+			p = string_analcheck(p, pend, " 64bit", str_spec);
 		if (res->flags & IORESOURCE_PREFETCH)
-			p = string_nocheck(p, pend, " pref", str_spec);
+			p = string_analcheck(p, pend, " pref", str_spec);
 		if (res->flags & IORESOURCE_WINDOW)
-			p = string_nocheck(p, pend, " window", str_spec);
+			p = string_analcheck(p, pend, " window", str_spec);
 		if (res->flags & IORESOURCE_DISABLED)
-			p = string_nocheck(p, pend, " disabled", str_spec);
+			p = string_analcheck(p, pend, " disabled", str_spec);
 	} else {
-		p = string_nocheck(p, pend, " flags ", str_spec);
+		p = string_analcheck(p, pend, " flags ", str_spec);
 		p = number(p, pend, res->flags, default_flag_spec);
 	}
 	*p++ = ']';
 	*p = '\0';
 
-	return string_nocheck(buf, end, sym, spec);
+	return string_analcheck(buf, end, sym, spec);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *hex_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 		 const char *fmt)
 {
@@ -1149,7 +1149,7 @@ char *hex_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 	char separator;
 
 	if (spec.field_width == 0)
-		/* nothing to print */
+		/* analthing to print */
 		return buf;
 
 	if (check_pointer(&buf, end, addr, spec))
@@ -1191,7 +1191,7 @@ char *hex_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 	return buf;
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *bitmap_string(char *buf, char *end, const unsigned long *bitmap,
 		    struct printf_spec spec, const char *fmt)
 {
@@ -1235,7 +1235,7 @@ char *bitmap_string(char *buf, char *end, const unsigned long *bitmap,
 	return buf;
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *bitmap_list_string(char *buf, char *end, const unsigned long *bitmap,
 			 struct printf_spec spec, const char *fmt)
 {
@@ -1265,7 +1265,7 @@ char *bitmap_list_string(char *buf, char *end, const unsigned long *bitmap,
 	return buf;
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *mac_address_string(char *buf, char *end, u8 *addr,
 			 struct printf_spec spec, const char *fmt)
 {
@@ -1303,10 +1303,10 @@ char *mac_address_string(char *buf, char *end, u8 *addr,
 	}
 	*p = '\0';
 
-	return string_nocheck(buf, end, mac_addr, spec);
+	return string_analcheck(buf, end, mac_addr, spec);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *ip4_string(char *p, const u8 *addr, const char *fmt)
 {
 	int i;
@@ -1356,7 +1356,7 @@ char *ip4_string(char *p, const u8 *addr, const char *fmt)
 	return p;
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *ip6_compressed_string(char *p, const char *addr)
 {
 	int i, j, range;
@@ -1439,7 +1439,7 @@ char *ip6_compressed_string(char *p, const char *addr)
 	return p;
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *ip6_string(char *p, const char *addr, const char *fmt)
 {
 	int i;
@@ -1455,7 +1455,7 @@ char *ip6_string(char *p, const char *addr, const char *fmt)
 	return p;
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *ip6_addr_string(char *buf, char *end, const u8 *addr,
 		      struct printf_spec spec, const char *fmt)
 {
@@ -1466,10 +1466,10 @@ char *ip6_addr_string(char *buf, char *end, const u8 *addr,
 	else
 		ip6_string(ip6_addr, addr, fmt);
 
-	return string_nocheck(buf, end, ip6_addr, spec);
+	return string_analcheck(buf, end, ip6_addr, spec);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *ip4_addr_string(char *buf, char *end, const u8 *addr,
 		      struct printf_spec spec, const char *fmt)
 {
@@ -1477,10 +1477,10 @@ char *ip4_addr_string(char *buf, char *end, const u8 *addr,
 
 	ip4_string(ip4_addr, addr, fmt);
 
-	return string_nocheck(buf, end, ip4_addr, spec);
+	return string_analcheck(buf, end, ip4_addr, spec);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *ip6_addr_string_sa(char *buf, char *end, const struct sockaddr_in6 *sa,
 			 struct printf_spec spec, const char *fmt)
 {
@@ -1539,10 +1539,10 @@ char *ip6_addr_string_sa(char *buf, char *end, const struct sockaddr_in6 *sa,
 	}
 	*p = '\0';
 
-	return string_nocheck(buf, end, ip6_addr, spec);
+	return string_analcheck(buf, end, ip6_addr, spec);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *ip4_addr_string_sa(char *buf, char *end, const struct sockaddr_in *sa,
 			 struct printf_spec spec, const char *fmt)
 {
@@ -1574,10 +1574,10 @@ char *ip4_addr_string_sa(char *buf, char *end, const struct sockaddr_in *sa,
 	}
 	*p = '\0';
 
-	return string_nocheck(buf, end, ip4_addr, spec);
+	return string_analcheck(buf, end, ip4_addr, spec);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *ip_addr_string(char *buf, char *end, const void *ptr,
 		     struct printf_spec spec, const char *fmt)
 {
@@ -1612,7 +1612,7 @@ char *ip_addr_string(char *buf, char *end, const void *ptr,
 	return error_string(buf, end, err_fmt_msg, spec);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *escaped_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 		     const char *fmt)
 {
@@ -1622,7 +1622,7 @@ char *escaped_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 	int len;
 
 	if (spec.field_width == 0)
-		return buf;				/* nothing to print */
+		return buf;				/* analthing to print */
 
 	if (check_pointer(&buf, end, addr, spec))
 		return buf;
@@ -1664,7 +1664,7 @@ char *escaped_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 	/*
 	 * string_escape_mem() writes as many characters as it can to
 	 * the given buffer, and returns the total size of the output
-	 * had the buffer been big enough.
+	 * had the buffer been big eanalugh.
 	 */
 	buf += string_escape_mem(addr, len, buf, buf < end ? end - buf : 0, flags, NULL);
 
@@ -1686,7 +1686,7 @@ static char *va_format(char *buf, char *end, struct va_format *va_fmt,
 	return buf;
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *uuid_string(char *buf, char *end, const u8 *addr,
 		  struct printf_spec spec, const char *fmt)
 {
@@ -1728,10 +1728,10 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
 
 	*p = 0;
 
-	return string_nocheck(buf, end, uuid, spec);
+	return string_analcheck(buf, end, uuid, spec);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *netdev_bits(char *buf, char *end, const void *addr,
 		  struct printf_spec spec,  const char *fmt)
 {
@@ -1753,7 +1753,7 @@ char *netdev_bits(char *buf, char *end, const void *addr,
 	return special_hex_number(buf, end, num, size);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *fourcc_string(char *buf, char *end, const u32 *fourcc,
 		    struct printf_spec spec, const char *fmt)
 {
@@ -1774,7 +1774,7 @@ char *fourcc_string(char *buf, char *end, const u32 *fourcc,
 	for (i = 0; i < sizeof(u32); i++) {
 		unsigned char c = val >> (i * 8);
 
-		/* Print non-control ASCII characters as-is, dot otherwise */
+		/* Print analn-control ASCII characters as-is, dot otherwise */
 		*p++ = isascii(c) && isprint(c) ? c : '.';
 	}
 
@@ -1791,7 +1791,7 @@ char *fourcc_string(char *buf, char *end, const u32 *fourcc,
 	return string(buf, end, output, spec);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *address_val(char *buf, char *end, const void *addr,
 		  struct printf_spec spec, const char *fmt)
 {
@@ -1816,7 +1816,7 @@ char *address_val(char *buf, char *end, const void *addr,
 	return special_hex_number(buf, end, num, size);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *date_str(char *buf, char *end, const struct rtc_time *tm, bool r)
 {
 	int year = tm->tm_year + (r ? 0 : 1900);
@@ -1835,7 +1835,7 @@ char *date_str(char *buf, char *end, const struct rtc_time *tm, bool r)
 	return number(buf, end, tm->tm_mday, default_dec02_spec);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *time_str(char *buf, char *end, const struct rtc_time *tm, bool r)
 {
 	buf = number(buf, end, tm->tm_hour, default_dec02_spec);
@@ -1851,7 +1851,7 @@ char *time_str(char *buf, char *end, const struct rtc_time *tm, bool r)
 	return number(buf, end, tm->tm_sec, default_dec02_spec);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *rtc_str(char *buf, char *end, const struct rtc_time *tm,
 	      struct printf_spec spec, const char *fmt)
 {
@@ -1901,7 +1901,7 @@ char *rtc_str(char *buf, char *end, const struct rtc_time *tm,
 	return buf;
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *time64_str(char *buf, char *end, const time64_t time,
 		 struct printf_spec spec, const char *fmt)
 {
@@ -1924,7 +1924,7 @@ char *time64_str(char *buf, char *end, const time64_t time,
 	return rtc_str(buf, end, &rtc_time, spec, fmt);
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *time_and_date(char *buf, char *end, void *ptr, struct printf_spec spec,
 		    const char *fmt)
 {
@@ -1938,7 +1938,7 @@ char *time_and_date(char *buf, char *end, void *ptr, struct printf_spec spec,
 	}
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *clock(char *buf, char *end, struct clk *clk, struct printf_spec spec,
 	    const char *fmt)
 {
@@ -1997,8 +1997,8 @@ struct page_flags_fields {
 static const struct page_flags_fields pff[] = {
 	{SECTIONS_WIDTH, SECTIONS_PGSHIFT, SECTIONS_MASK,
 	 &default_dec_spec, "section"},
-	{NODES_WIDTH, NODES_PGSHIFT, NODES_MASK,
-	 &default_dec_spec, "node"},
+	{ANALDES_WIDTH, ANALDES_PGSHIFT, ANALDES_MASK,
+	 &default_dec_spec, "analde"},
 	{ZONES_WIDTH, ZONES_PGSHIFT, ZONES_MASK,
 	 &default_dec_spec, "zone"},
 	{LAST_CPUPID_WIDTH, LAST_CPUPID_PGSHIFT, LAST_CPUPID_MASK,
@@ -2073,7 +2073,7 @@ char *format_page_type(char *buf, char *end, unsigned int page_type)
 	return buf;
 }
 
-static noinline_for_stack
+static analinline_for_stack
 char *flags_string(char *buf, char *end, void *flags_ptr,
 		   struct printf_spec spec, const char *fmt)
 {
@@ -2103,35 +2103,35 @@ char *flags_string(char *buf, char *end, void *flags_ptr,
 	return format_flags(buf, end, flags, names);
 }
 
-static noinline_for_stack
-char *fwnode_full_name_string(struct fwnode_handle *fwnode, char *buf,
+static analinline_for_stack
+char *fwanalde_full_name_string(struct fwanalde_handle *fwanalde, char *buf,
 			      char *end)
 {
 	int depth;
 
-	/* Loop starting from the root node to the current node. */
-	for (depth = fwnode_count_parents(fwnode); depth >= 0; depth--) {
+	/* Loop starting from the root analde to the current analde. */
+	for (depth = fwanalde_count_parents(fwanalde); depth >= 0; depth--) {
 		/*
-		 * Only get a reference for other nodes (i.e. parent nodes).
-		 * fwnode refcount may be 0 here.
+		 * Only get a reference for other analdes (i.e. parent analdes).
+		 * fwanalde refcount may be 0 here.
 		 */
-		struct fwnode_handle *__fwnode = depth ?
-			fwnode_get_nth_parent(fwnode, depth) : fwnode;
+		struct fwanalde_handle *__fwanalde = depth ?
+			fwanalde_get_nth_parent(fwanalde, depth) : fwanalde;
 
-		buf = string(buf, end, fwnode_get_name_prefix(__fwnode),
+		buf = string(buf, end, fwanalde_get_name_prefix(__fwanalde),
 			     default_str_spec);
-		buf = string(buf, end, fwnode_get_name(__fwnode),
+		buf = string(buf, end, fwanalde_get_name(__fwanalde),
 			     default_str_spec);
 
 		if (depth)
-			fwnode_handle_put(__fwnode);
+			fwanalde_handle_put(__fwanalde);
 	}
 
 	return buf;
 }
 
-static noinline_for_stack
-char *device_node_string(char *buf, char *end, struct device_node *dn,
+static analinline_for_stack
+char *device_analde_string(char *buf, char *end, struct device_analde *dn,
 			 struct printf_spec spec, const char *fmt)
 {
 	char tbuf[sizeof("xxxx") + 1];
@@ -2168,11 +2168,11 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 
 		switch (*fmt) {
 		case 'f':	/* full_name */
-			buf = fwnode_full_name_string(of_fwnode_handle(dn), buf,
+			buf = fwanalde_full_name_string(of_fwanalde_handle(dn), buf,
 						      end);
 			break;
 		case 'n':	/* name */
-			p = fwnode_get_name(of_fwnode_handle(dn));
+			p = fwanalde_get_name(of_fwanalde_handle(dn));
 			precision = str_spec.precision;
 			str_spec.precision = strchrnul(p, '@') - p;
 			buf = string(buf, end, p, str_spec);
@@ -2182,18 +2182,18 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 			buf = number(buf, end, (unsigned int)dn->phandle, default_dec_spec);
 			break;
 		case 'P':	/* path-spec */
-			p = fwnode_get_name(of_fwnode_handle(dn));
+			p = fwanalde_get_name(of_fwanalde_handle(dn));
 			if (!p[1])
 				p = "/";
 			buf = string(buf, end, p, str_spec);
 			break;
 		case 'F':	/* flags */
-			tbuf[0] = of_node_check_flag(dn, OF_DYNAMIC) ? 'D' : '-';
-			tbuf[1] = of_node_check_flag(dn, OF_DETACHED) ? 'd' : '-';
-			tbuf[2] = of_node_check_flag(dn, OF_POPULATED) ? 'P' : '-';
-			tbuf[3] = of_node_check_flag(dn, OF_POPULATED_BUS) ? 'B' : '-';
+			tbuf[0] = of_analde_check_flag(dn, OF_DYNAMIC) ? 'D' : '-';
+			tbuf[1] = of_analde_check_flag(dn, OF_DETACHED) ? 'd' : '-';
+			tbuf[2] = of_analde_check_flag(dn, OF_POPULATED) ? 'P' : '-';
+			tbuf[3] = of_analde_check_flag(dn, OF_POPULATED_BUS) ? 'B' : '-';
 			tbuf[4] = 0;
-			buf = string_nocheck(buf, end, tbuf, str_spec);
+			buf = string_analcheck(buf, end, tbuf, str_spec);
 			break;
 		case 'c':	/* major compatible string */
 			ret = of_property_read_string(dn, "compatible", &p);
@@ -2204,10 +2204,10 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 			has_mult = false;
 			of_property_for_each_string(dn, "compatible", prop, p) {
 				if (has_mult)
-					buf = string_nocheck(buf, end, ",", str_spec);
-				buf = string_nocheck(buf, end, "\"", str_spec);
+					buf = string_analcheck(buf, end, ",", str_spec);
+				buf = string_analcheck(buf, end, "\"", str_spec);
 				buf = string(buf, end, p, str_spec);
-				buf = string_nocheck(buf, end, "\"", str_spec);
+				buf = string_analcheck(buf, end, "\"", str_spec);
 
 				has_mult = true;
 			}
@@ -2220,8 +2220,8 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 	return widen_string(buf, buf - buf_start, end, spec);
 }
 
-static noinline_for_stack
-char *fwnode_string(char *buf, char *end, struct fwnode_handle *fwnode,
+static analinline_for_stack
+char *fwanalde_string(char *buf, char *end, struct fwanalde_handle *fwanalde,
 		    struct printf_spec spec, const char *fmt)
 {
 	struct printf_spec str_spec = spec;
@@ -2232,48 +2232,48 @@ char *fwnode_string(char *buf, char *end, struct fwnode_handle *fwnode,
 	if (*fmt != 'w')
 		return error_string(buf, end, "(%pf?)", spec);
 
-	if (check_pointer(&buf, end, fwnode, spec))
+	if (check_pointer(&buf, end, fwanalde, spec))
 		return buf;
 
 	fmt++;
 
 	switch (*fmt) {
 	case 'P':	/* name */
-		buf = string(buf, end, fwnode_get_name(fwnode), str_spec);
+		buf = string(buf, end, fwanalde_get_name(fwanalde), str_spec);
 		break;
 	case 'f':	/* full_name */
 	default:
-		buf = fwnode_full_name_string(fwnode, buf, end);
+		buf = fwanalde_full_name_string(fwanalde, buf, end);
 		break;
 	}
 
 	return widen_string(buf, buf - buf_start, end, spec);
 }
 
-int __init no_hash_pointers_enable(char *str)
+int __init anal_hash_pointers_enable(char *str)
 {
-	if (no_hash_pointers)
+	if (anal_hash_pointers)
 		return 0;
 
-	no_hash_pointers = true;
+	anal_hash_pointers = true;
 
 	pr_warn("**********************************************************\n");
-	pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
+	pr_warn("**   ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE   **\n");
 	pr_warn("**                                                      **\n");
 	pr_warn("** This system shows unhashed kernel memory addresses   **\n");
 	pr_warn("** via the console, logs, and other interfaces. This    **\n");
 	pr_warn("** might reduce the security of your system.            **\n");
 	pr_warn("**                                                      **\n");
-	pr_warn("** If you see this message and you are not debugging    **\n");
+	pr_warn("** If you see this message and you are analt debugging    **\n");
 	pr_warn("** the kernel, report this immediately to your system   **\n");
 	pr_warn("** administrator!                                       **\n");
 	pr_warn("**                                                      **\n");
-	pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
+	pr_warn("**   ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE ANALTICE   **\n");
 	pr_warn("**********************************************************\n");
 
 	return 0;
 }
-early_param("no_hash_pointers", no_hash_pointers_enable);
+early_param("anal_hash_pointers", anal_hash_pointers_enable);
 
 /* Used for Rust formatting ('%pA'). */
 char *rust_fmt_argument(char *buf, char *end, void *ptr);
@@ -2286,7 +2286,7 @@ char *rust_fmt_argument(char *buf, char *end, void *ptr);
  * Please update scripts/checkpatch.pl when adding/removing conversion
  * characters.  (Search for "check for vsprintf extension").
  *
- * Right now we handle:
+ * Right analw we handle:
  *
  * - 'S' For symbolic direct pointers (or function descriptors) with offset
  * - 's' For symbolic direct pointers (or function descriptors) without offset
@@ -2303,10 +2303,10 @@ char *rust_fmt_argument(char *buf, char *end, void *ptr);
  *       format string '%32b[l]' or through '%*b[l]', [l] selects
  *       range-list format instead of hex format
  * - 'M' For a 6-byte MAC address, it prints the address in the
- *       usual colon-separated hex notation
+ *       usual colon-separated hex analtation
  * - 'm' For a 6-byte MAC address, it prints the hex address without colons
  * - 'MF' For a 6-byte MAC FDDI address, it prints the address
- *       with a dash-separated hex notation
+ *       with a dash-separated hex analtation
  * - '[mM]R' For a 6-byte MAC address, Reverse order (Bluetooth)
  * - 'I' [46] for IPv4/IPv6 addresses printed in the usual way
  *       IPv4 uses dot-separated decimal without leading 0's (1.2.3.4)
@@ -2323,7 +2323,7 @@ char *rust_fmt_argument(char *buf, char *end, void *ptr);
  * - '[Ii][4S][hnbl]' IPv4 addresses in host, network, big or little endian order
  * - 'I[6S]c' for IPv6 addresses printed as specified by
  *       https://tools.ietf.org/html/rfc5952
- * - 'E[achnops]' For an escaped buffer, where rules are defined by combination
+ * - 'E[achanalps]' For an escaped buffer, where rules are defined by combination
  *                of the following flags (see string_escape_mem() for the
  *                details):
  *                  a - ESCAPE_ANY
@@ -2348,10 +2348,10 @@ char *rust_fmt_argument(char *buf, char *end, void *ptr);
  * - 'V' For a struct va_format which contains a format string * and va_list *,
  *       call vsnprintf(->format, *->va_list).
  *       Implements a "recursive vsnprintf".
- *       Do not use this feature without some mechanism to verify the
+ *       Do analt use this feature without some mechanism to verify the
  *       correctness of the format string and va_list arguments.
  * - 'K' For a kernel pointer that should be hidden from unprivileged users.
- *       Use only for procfs, sysfs and similar files, not printk(); please
+ *       Use only for procfs, sysfs and similar files, analt printk(); please
  *       read the documentation (path below) first.
  * - 'NF' For a netdev_features_t
  * - '4cc' V4L2 or DRM FourCC code, with endianness and raw numerical value.
@@ -2359,7 +2359,7 @@ char *rust_fmt_argument(char *buf, char *end, void *ptr);
  *            a certain separator (' ' by default):
  *              C colon
  *              D dash
- *              N no separator
+ *              N anal separator
  *            The maximum supported length is 64 bytes of the input. Consider
  *            to use print_hex_dump() for the larger input.
  * - 'a[pd]' For address types [p] phys_addr_t, [d] dma_addr_t and derivatives
@@ -2381,17 +2381,17 @@ char *rust_fmt_argument(char *buf, char *end, void *ptr);
  *       v vma flags (VM_*) given as pointer to unsigned long
  * - 'OF[fnpPcCF]'  For a device tree object
  *                  Without any optional arguments prints the full_name
- *                  f device node full_name
- *                  n device node name
- *                  p device node phandle
- *                  P device node path spec (name + @unit)
- *                  F device node flags
+ *                  f device analde full_name
+ *                  n device analde name
+ *                  p device analde phandle
+ *                  P device analde path spec (name + @unit)
+ *                  F device analde flags
  *                  c major compatible string
  *                  C full compatible string
- * - 'fw[fP]'	For a firmware node (struct fwnode_handle) pointer
- *		Without an option prints the full name of the node
+ * - 'fw[fP]'	For a firmware analde (struct fwanalde_handle) pointer
+ *		Without an option prints the full name of the analde
  *		f full name
- *		P node name, including a possible unit address
+ *		P analde name, including a possible unit address
  * - 'x' For printing the address unmodified. Equivalent to "%lx".
  *       Please read the documentation (path below) before using!
  * - '[ku]s' For a BPF/tracing related format specifier, e.g. used out of
@@ -2402,14 +2402,14 @@ char *rust_fmt_argument(char *buf, char *end, void *ptr);
  * ** When making changes please also update:
  *	Documentation/core-api/printk-formats.rst
  *
- * Note: The default behaviour (unadorned %p) is to hash the address,
+ * Analte: The default behaviour (unadorned %p) is to hash the address,
  * rendering it useful as a unique identifier.
  *
  * There is also a '%pA' format specifier, but it is only intended to be used
- * from Rust code to format core::fmt::Arguments. Do *not* use it from C.
+ * from Rust code to format core::fmt::Arguments. Do *analt* use it from C.
  * See rust/kernel/print.rs for details.
  */
-static noinline_for_stack
+static analinline_for_stack
 char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	      struct printf_spec spec)
 {
@@ -2477,19 +2477,19 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	case 'G':
 		return flags_string(buf, end, ptr, spec, fmt);
 	case 'O':
-		return device_node_string(buf, end, ptr, spec, fmt + 1);
+		return device_analde_string(buf, end, ptr, spec, fmt + 1);
 	case 'f':
-		return fwnode_string(buf, end, ptr, spec, fmt + 1);
+		return fwanalde_string(buf, end, ptr, spec, fmt + 1);
 	case 'A':
 		if (!IS_ENABLED(CONFIG_RUST)) {
-			WARN_ONCE(1, "Please remove %%pA from non-Rust code\n");
+			WARN_ONCE(1, "Please remove %%pA from analn-Rust code\n");
 			return error_string(buf, end, "(%pA?)", spec);
 		}
 		return rust_fmt_argument(buf, end, ptr);
 	case 'x':
 		return pointer_string(buf, end, ptr, spec);
 	case 'e':
-		/* %pe with a non-ERR_PTR gets treated as plain %p */
+		/* %pe with a analn-ERR_PTR gets treated as plain %p */
 		if (!IS_ERR(ptr))
 			return default_pointer(buf, end, ptr, spec);
 		return err_ptr(buf, end, ptr, spec);
@@ -2527,7 +2527,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
  * @precision: precision of a number
  * @qualifier: qualifier of a number (long, size_t, ...)
  */
-static noinline_for_stack
+static analinline_for_stack
 int format_decode(const char *fmt, struct printf_spec *spec)
 {
 	const char *start = fmt;
@@ -2539,7 +2539,7 @@ int format_decode(const char *fmt, struct printf_spec *spec)
 			spec->field_width = -spec->field_width;
 			spec->flags |= LEFT;
 		}
-		spec->type = FORMAT_TYPE_NONE;
+		spec->type = FORMAT_TYPE_ANALNE;
 		goto precision;
 	}
 
@@ -2548,19 +2548,19 @@ int format_decode(const char *fmt, struct printf_spec *spec)
 		if (spec->precision < 0)
 			spec->precision = 0;
 
-		spec->type = FORMAT_TYPE_NONE;
+		spec->type = FORMAT_TYPE_ANALNE;
 		goto qualifier;
 	}
 
 	/* By default */
-	spec->type = FORMAT_TYPE_NONE;
+	spec->type = FORMAT_TYPE_ANALNE;
 
 	for (; *fmt ; ++fmt) {
 		if (*fmt == '%')
 			break;
 	}
 
-	/* Return the current non-format string */
+	/* Return the current analn-format string */
 	if (fmt != start || !*fmt)
 		return fmt - start;
 
@@ -2745,11 +2745,11 @@ set_precision(struct printf_spec *spec, int prec)
  * be generated for the given input, excluding the trailing
  * '\0', as per ISO C99. If you want to have the exact
  * number of characters written into @buf as return value
- * (not including the trailing '\0'), use vscnprintf(). If the
+ * (analt including the trailing '\0'), use vscnprintf(). If the
  * return is greater than or equal to @size, the resulting
  * string is truncated.
  *
- * If you're not already dealing with a va_list consider using snprintf().
+ * If you're analt already dealing with a va_list consider using snprintf().
  */
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 {
@@ -2758,7 +2758,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 	struct printf_spec spec = {0};
 
 	/* Reject out-of-range values early.  Large positive sizes are
-	   used for unknown buffer sizes. */
+	   used for unkanalwn buffer sizes. */
 	if (WARN_ON_ONCE(size > INT_MAX))
 		return 0;
 
@@ -2778,7 +2778,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		fmt += read;
 
 		switch (spec.type) {
-		case FORMAT_TYPE_NONE: {
+		case FORMAT_TYPE_ANALNE: {
 			int copy = read;
 			if (str < end) {
 				if (copy > end - str)
@@ -2840,7 +2840,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		case FORMAT_TYPE_INVALID:
 			/*
 			 * Presumably the arguments passed gcc's type
-			 * checking, but there is no safe or sane way
+			 * checking, but there is anal safe or sane way
 			 * for us to continue parsing the format and
 			 * fetching from the va_list; the remaining
 			 * specifiers and arguments would be out of
@@ -2913,10 +2913,10 @@ EXPORT_SYMBOL(vsnprintf);
  * @args: Arguments for the format string
  *
  * The return value is the number of characters which have been written into
- * the @buf not including the trailing '\0'. If @size is == 0 the function
+ * the @buf analt including the trailing '\0'. If @size is == 0 the function
  * returns 0.
  *
- * If you're not already dealing with a va_list consider using scnprintf().
+ * If you're analt already dealing with a va_list consider using scnprintf().
  *
  * See the vsnprintf() documentation for format string extensions over C99.
  */
@@ -2970,7 +2970,7 @@ EXPORT_SYMBOL(snprintf);
  * @fmt: The format string to use
  * @...: Arguments for the format string
  *
- * The return value is the number of characters written into @buf not including
+ * The return value is the number of characters written into @buf analt including
  * the trailing '\0'. If @size is == 0 the function returns 0.
  */
 
@@ -2997,7 +2997,7 @@ EXPORT_SYMBOL(scnprintf);
  * into @buf. Use vsnprintf() or vscnprintf() in order to avoid
  * buffer overflows.
  *
- * If you're not already dealing with a va_list consider using sprintf().
+ * If you're analt already dealing with a va_list consider using sprintf().
  *
  * See the vsnprintf() documentation for format string extensions over C99.
  */
@@ -3042,18 +3042,18 @@ EXPORT_SYMBOL(sprintf);
 /**
  * vbin_printf - Parse a format string and place args' binary value in a buffer
  * @bin_buf: The buffer to place args' binary value
- * @size: The size of the buffer(by words(32bits), not characters)
+ * @size: The size of the buffer(by words(32bits), analt characters)
  * @fmt: The format string to use
  * @args: Arguments for the format string
  *
- * The format follows C99 vsnprintf, except %n is ignored, and its argument
+ * The format follows C99 vsnprintf, except %n is iganalred, and its argument
  * is skipped.
  *
  * The return value is the number of words(32bits) which would be generated for
  * the given input.
  *
- * NOTE:
- * If the return value is greater than @size, the resulting bin_buf is NOT
+ * ANALTE:
+ * If the return value is greater than @size, the resulting bin_buf is ANALT
  * valid for bstr_printf().
  */
 int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
@@ -3095,7 +3095,7 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
 		fmt += read;
 
 		switch (spec.type) {
-		case FORMAT_TYPE_NONE:
+		case FORMAT_TYPE_ANALNE:
 		case FORMAT_TYPE_PERCENT_CHAR:
 			break;
 		case FORMAT_TYPE_INVALID:
@@ -3130,7 +3130,7 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
 		}
 
 		case FORMAT_TYPE_PTR:
-			/* Dereferenced pointers must be done now */
+			/* Dereferenced pointers must be done analw */
 			switch (*fmt) {
 			/* Dereference of functions is still OK */
 			case 'S':
@@ -3211,7 +3211,7 @@ EXPORT_SYMBOL_GPL(vbin_printf);
  * be generated for the given input, excluding the trailing
  * '\0', as per ISO C99. If you want to have the exact
  * number of characters written into @buf as return value
- * (not including the trailing '\0'), use vscnprintf(). If the
+ * (analt including the trailing '\0'), use vscnprintf(). If the
  * return is greater than or equal to @size, the resulting
  * string is truncated.
  */
@@ -3255,7 +3255,7 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 		fmt += read;
 
 		switch (spec.type) {
-		case FORMAT_TYPE_NONE: {
+		case FORMAT_TYPE_ANALNE: {
 			int copy = read;
 			if (str < end) {
 				if (copy > end - str)
@@ -3306,7 +3306,7 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 		case FORMAT_TYPE_PTR: {
 			bool process = false;
 			int copy, len;
-			/* Non function dereferences were already done */
+			/* Analn function dereferences were already done */
 			switch (*fmt) {
 			case 'S':
 			case 's':
@@ -3407,7 +3407,7 @@ EXPORT_SYMBOL_GPL(bstr_printf);
 /**
  * bprintf - Parse a format string and place args' binary value in a buffer
  * @bin_buf: The buffer to place args' binary value
- * @size: The size of the buffer(by words(32bits), not characters)
+ * @size: The size of the buffer(by words(32bits), analt characters)
  * @fmt: The format string to use
  * @...: Arguments for the format string
  *
@@ -3453,14 +3453,14 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 	while (*fmt) {
 		/* skip any white space in format */
 		/* white space in format matches any amount of
-		 * white space, including none, in the input.
+		 * white space, including analne, in the input.
 		 */
 		if (isspace(*fmt)) {
 			fmt = skip_spaces(++fmt);
 			str = skip_spaces(str);
 		}
 
-		/* anything that is not a conversion must match exactly */
+		/* anything that is analt a conversion must match exactly */
 		if (*fmt != '%' && *fmt) {
 			if (*fmt++ != *str++)
 				break;
@@ -3478,7 +3478,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 			if (!*str)
 				break;
 			while (!isspace(*fmt) && *fmt != '%' && *fmt) {
-				/* '%*[' not yet supported, invalid format */
+				/* '%*[' analt yet supported, invalid format */
 				if (*fmt == '[')
 					return num;
 				fmt++;
@@ -3548,7 +3548,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 			/* first, skip leading white space in buffer */
 			str = skip_spaces(str);
 
-			/* now copy until next white space */
+			/* analw copy until next white space */
 			while (*str && !isspace(*str) && field_width--)
 				*s++ = *str++;
 			*s = '\0';
@@ -3558,11 +3558,11 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 		/*
 		 * Warning: This implementation of the '[' conversion specifier
 		 * deviates from its glibc counterpart in the following ways:
-		 * (1) It does NOT support ranges i.e. '-' is NOT a special
+		 * (1) It does ANALT support ranges i.e. '-' is ANALT a special
 		 *     character
-		 * (2) It cannot match the closing bracket ']' itself
+		 * (2) It cananalt match the closing bracket ']' itself
 		 * (3) A field width is required
-		 * (4) '%*[' (discard matching input) is currently not supported
+		 * (4) '%*[' (discard matching input) is currently analt supported
 		 *
 		 * Example usage:
 		 * ret = sscanf("00:0a:95","%2[^:]:%2[^:]:%2[^:]",
@@ -3587,7 +3587,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 			for ( ; *fmt && *fmt != ']'; ++fmt, ++len)
 				__set_bit((u8)*fmt, set);
 
-			/* no ']' or no character set found */
+			/* anal ']' or anal character set found */
 			if (!*fmt || !len)
 				return num;
 			++fmt;
@@ -3598,7 +3598,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 				__clear_bit(0, set);
 			}
 
-			/* match must be non-empty */
+			/* match must be analn-empty */
 			if (!test_bit((u8)*str, set))
 				return num;
 

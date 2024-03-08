@@ -11,11 +11,11 @@
 #define __MFD_TI_LMU_H__
 
 #include <linux/gpio.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/regmap.h>
 #include <linux/gpio/consumer.h>
 
-/* Notifier event */
+/* Analtifier event */
 #define LMU_EVENT_MONITOR_DONE		0x01
 
 enum ti_lmu_id {
@@ -76,12 +76,12 @@ enum lm363x_regulator_id {
  * @dev:	Parent device pointer
  * @regmap:	Used for i2c communcation on accessing registers
  * @en_gpio:	GPIO for HWEN pin [Optional]
- * @notifier:	Notifier for reporting hwmon event
+ * @analtifier:	Analtifier for reporting hwmon event
  */
 struct ti_lmu {
 	struct device *dev;
 	struct regmap *regmap;
 	struct gpio_desc *en_gpio;
-	struct blocking_notifier_head notifier;
+	struct blocking_analtifier_head analtifier;
 };
 #endif

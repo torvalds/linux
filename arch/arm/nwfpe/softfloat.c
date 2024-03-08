@@ -21,8 +21,8 @@ PERSONS AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ANY
 AND ALL LOSSES, COSTS, OR OTHER PROBLEMS ARISING FROM ITS USE.
 
 Derivative works are acceptable, even for commercial purposes, so long as
-(1) they include prominent notice that the work is derivative, and (2) they
-include prominent notice akin to these three paragraphs for those parts of
+(1) they include prominent analtice that the work is derivative, and (2) they
+include prominent analtice akin to these three paragraphs for those parts of
 this code that are retained.
 
 ===============================================================================
@@ -59,10 +59,10 @@ specific.
 -------------------------------------------------------------------------------
 Takes a 64-bit fixed-point value `absZ' with binary point between bits 6
 and 7, and returns the properly rounded 32-bit integer corresponding to the
-input.  If `zSign' is nonzero, the input is negated before being converted
+input.  If `zSign' is analnzero, the input is negated before being converted
 to an integer.  Bit 63 of `absZ' must be zero.  Ordinarily, the fixed-point
 input is simply rounded to an integer, with the inexact exception raised if
-the input cannot be represented exactly as an integer.  If the fixed-point
+the input cananalt be represented exactly as an integer.  If the fixed-point
 input is too large, however, the invalid exception is raised and the largest
 positive or negative integer is returned.
 -------------------------------------------------------------------------------
@@ -145,14 +145,14 @@ INLINE flag extractFloat32Sign( float32 a )
 
 /*
 -------------------------------------------------------------------------------
-Normalizes the subnormal single-precision floating-point value represented
-by the denormalized significand `aSig'.  The normalized exponent and
+Analrmalizes the subanalrmal single-precision floating-point value represented
+by the deanalrmalized significand `aSig'.  The analrmalized exponent and
 significand are stored at the locations pointed to by `zExpPtr' and
 `zSigPtr', respectively.
 -------------------------------------------------------------------------------
 */
 static void
- normalizeFloat32Subnormal( bits32 aSig, int16 *zExpPtr, bits32 *zSigPtr )
+ analrmalizeFloat32Subanalrmal( bits32 aSig, int16 *zExpPtr, bits32 *zSigPtr )
 {
     int8 shiftCount;
 
@@ -168,9 +168,9 @@ Packs the sign `zSign', exponent `zExp', and significand `zSig' into a
 single-precision floating-point value, returning the result.  After being
 shifted into the proper positions, the three fields are simply added
 together to form the result.  This means that any integer portion of `zSig'
-will be added into the exponent.  Since a properly normalized significand
+will be added into the exponent.  Since a properly analrmalized significand
 will have an integer portion equal to 1, the `zExp' input should be 1 less
-than the desired result exponent whenever `zSig' is a complete, normalized
+than the desired result exponent whenever `zSig' is a complete, analrmalized
 significand.
 -------------------------------------------------------------------------------
 */
@@ -182,7 +182,7 @@ INLINE float32 packFloat32( flag zSign, int16 zExp, bits32 zSig )
    	    mov %0, %1, asl #31				\n\
    	    orr %0, %2, asl #23				\n\
    	    orr %0, %3"
-   	    : /* no outputs */
+   	    : /* anal outputs */
    	    : "g" (f), "g" (zSign), "g" (zExp), "g" (zSig)
    	    : "cc");
    return f;
@@ -197,19 +197,19 @@ Takes an abstract floating-point value having sign `zSign', exponent `zExp',
 and significand `zSig', and returns the proper single-precision floating-
 point value corresponding to the abstract input.  Ordinarily, the abstract
 value is simply rounded and packed into the single-precision format, with
-the inexact exception raised if the abstract input cannot be represented
+the inexact exception raised if the abstract input cananalt be represented
 exactly.  If the abstract value is too large, however, the overflow and
 inexact exceptions are raised and an infinity or maximal finite value is
 returned.  If the abstract value is too small, the input value is rounded to
-a subnormal number, and the underflow and inexact exceptions are raised if
-the abstract input cannot be represented exactly as a subnormal single-
+a subanalrmal number, and the underflow and inexact exceptions are raised if
+the abstract input cananalt be represented exactly as a subanalrmal single-
 precision floating-point number.
     The input significand `zSig' has its binary point between bits 30
 and 29, which is 7 bits to the left of the usual location.  This shifted
-significand must be normalized or smaller.  If `zSig' is not normalized,
-`zExp' must be 0; in that case, the result returned is a subnormal number,
-and it must not require rounding.  In the usual case that `zSig' is
-normalized, `zExp' must be 1 less than the ``true'' floating-point exponent.
+significand must be analrmalized or smaller.  If `zSig' is analt analrmalized,
+`zExp' must be 0; in that case, the result returned is a subanalrmal number,
+and it must analt require rounding.  In the usual case that `zSig' is
+analrmalized, `zExp' must be 1 less than the ``true'' floating-point exponent.
 The handling of underflow and overflow follows the IEC/IEEE Standard for
 Binary Floating-point Arithmetic.
 -------------------------------------------------------------------------------
@@ -271,13 +271,13 @@ static float32 roundAndPackFloat32( struct roundingData *roundData, flag zSign, 
 Takes an abstract floating-point value having sign `zSign', exponent `zExp',
 and significand `zSig', and returns the proper single-precision floating-
 point value corresponding to the abstract input.  This routine is just like
-`roundAndPackFloat32' except that `zSig' does not have to be normalized in
+`roundAndPackFloat32' except that `zSig' does analt have to be analrmalized in
 any way.  In all cases, `zExp' must be 1 less than the ``true'' floating-
 point exponent.
 -------------------------------------------------------------------------------
 */
 static float32
- normalizeRoundAndPackFloat32( struct roundingData *roundData, flag zSign, int16 zExp, bits32 zSig )
+ analrmalizeRoundAndPackFloat32( struct roundingData *roundData, flag zSign, int16 zExp, bits32 zSig )
 {
     int8 shiftCount;
 
@@ -326,14 +326,14 @@ INLINE flag extractFloat64Sign( float64 a )
 
 /*
 -------------------------------------------------------------------------------
-Normalizes the subnormal double-precision floating-point value represented
-by the denormalized significand `aSig'.  The normalized exponent and
+Analrmalizes the subanalrmal double-precision floating-point value represented
+by the deanalrmalized significand `aSig'.  The analrmalized exponent and
 significand are stored at the locations pointed to by `zExpPtr' and
 `zSigPtr', respectively.
 -------------------------------------------------------------------------------
 */
 static void
- normalizeFloat64Subnormal( bits64 aSig, int16 *zExpPtr, bits64 *zSigPtr )
+ analrmalizeFloat64Subanalrmal( bits64 aSig, int16 *zExpPtr, bits64 *zSigPtr )
 {
     int8 shiftCount;
 
@@ -349,9 +349,9 @@ Packs the sign `zSign', exponent `zExp', and significand `zSig' into a
 double-precision floating-point value, returning the result.  After being
 shifted into the proper positions, the three fields are simply added
 together to form the result.  This means that any integer portion of `zSig'
-will be added into the exponent.  Since a properly normalized significand
+will be added into the exponent.  Since a properly analrmalized significand
 will have an integer portion equal to 1, the `zExp' input should be 1 less
-than the desired result exponent whenever `zSig' is a complete, normalized
+than the desired result exponent whenever `zSig' is a complete, analrmalized
 significand.
 -------------------------------------------------------------------------------
 */
@@ -368,19 +368,19 @@ Takes an abstract floating-point value having sign `zSign', exponent `zExp',
 and significand `zSig', and returns the proper double-precision floating-
 point value corresponding to the abstract input.  Ordinarily, the abstract
 value is simply rounded and packed into the double-precision format, with
-the inexact exception raised if the abstract input cannot be represented
+the inexact exception raised if the abstract input cananalt be represented
 exactly.  If the abstract value is too large, however, the overflow and
 inexact exceptions are raised and an infinity or maximal finite value is
 returned.  If the abstract value is too small, the input value is rounded to
-a subnormal number, and the underflow and inexact exceptions are raised if
-the abstract input cannot be represented exactly as a subnormal double-
+a subanalrmal number, and the underflow and inexact exceptions are raised if
+the abstract input cananalt be represented exactly as a subanalrmal double-
 precision floating-point number.
     The input significand `zSig' has its binary point between bits 62
 and 61, which is 10 bits to the left of the usual location.  This shifted
-significand must be normalized or smaller.  If `zSig' is not normalized,
-`zExp' must be 0; in that case, the result returned is a subnormal number,
-and it must not require rounding.  In the usual case that `zSig' is
-normalized, `zExp' must be 1 less than the ``true'' floating-point exponent.
+significand must be analrmalized or smaller.  If `zSig' is analt analrmalized,
+`zExp' must be 0; in that case, the result returned is a subanalrmal number,
+and it must analt require rounding.  In the usual case that `zSig' is
+analrmalized, `zExp' must be 1 less than the ``true'' floating-point exponent.
 The handling of underflow and overflow follows the IEC/IEEE Standard for
 Binary Floating-point Arithmetic.
 -------------------------------------------------------------------------------
@@ -444,13 +444,13 @@ static float64 roundAndPackFloat64( struct roundingData *roundData, flag zSign, 
 Takes an abstract floating-point value having sign `zSign', exponent `zExp',
 and significand `zSig', and returns the proper double-precision floating-
 point value corresponding to the abstract input.  This routine is just like
-`roundAndPackFloat64' except that `zSig' does not have to be normalized in
+`roundAndPackFloat64' except that `zSig' does analt have to be analrmalized in
 any way.  In all cases, `zExp' must be 1 less than the ``true'' floating-
 point exponent.
 -------------------------------------------------------------------------------
 */
 static float64
- normalizeRoundAndPackFloat64( struct roundingData *roundData, flag zSign, int16 zExp, bits64 zSig )
+ analrmalizeRoundAndPackFloat64( struct roundingData *roundData, flag zSign, int16 zExp, bits64 zSig )
 {
     int8 shiftCount;
 
@@ -502,14 +502,14 @@ INLINE flag extractFloatx80Sign( floatx80 a )
 
 /*
 -------------------------------------------------------------------------------
-Normalizes the subnormal extended double-precision floating-point value
-represented by the denormalized significand `aSig'.  The normalized exponent
+Analrmalizes the subanalrmal extended double-precision floating-point value
+represented by the deanalrmalized significand `aSig'.  The analrmalized exponent
 and significand are stored at the locations pointed to by `zExpPtr' and
 `zSigPtr', respectively.
 -------------------------------------------------------------------------------
 */
 static void
- normalizeFloatx80Subnormal( bits64 aSig, int32 *zExpPtr, bits64 *zSigPtr )
+ analrmalizeFloatx80Subanalrmal( bits64 aSig, int32 *zExpPtr, bits64 *zSigPtr )
 {
     int8 shiftCount;
 
@@ -543,20 +543,20 @@ and extended significand formed by the concatenation of `zSig0' and `zSig1',
 and returns the proper extended double-precision floating-point value
 corresponding to the abstract input.  Ordinarily, the abstract value is
 rounded and packed into the extended double-precision format, with the
-inexact exception raised if the abstract input cannot be represented
+inexact exception raised if the abstract input cananalt be represented
 exactly.  If the abstract value is too large, however, the overflow and
 inexact exceptions are raised and an infinity or maximal finite value is
 returned.  If the abstract value is too small, the input value is rounded to
-a subnormal number, and the underflow and inexact exceptions are raised if
-the abstract input cannot be represented exactly as a subnormal extended
+a subanalrmal number, and the underflow and inexact exceptions are raised if
+the abstract input cananalt be represented exactly as a subanalrmal extended
 double-precision floating-point number.
     If `roundingPrecision' is 32 or 64, the result is rounded to the same
 number of bits as single or double precision, respectively.  Otherwise, the
 result is rounded to the full precision of the extended double-precision
 format.
-    The input significand must be normalized or smaller.  If the input
-significand is not normalized, `zExp' must be 0; in that case, the result
-returned is a subnormal number, and it must not require rounding.  The
+    The input significand must be analrmalized or smaller.  If the input
+significand is analt analrmalized, `zExp' must be 0; in that case, the result
+returned is a subanalrmal number, and it must analt require rounding.  The
 handling of underflow and overflow follows the IEC/IEEE Standard for Binary
 Floating-point Arithmetic.
 -------------------------------------------------------------------------------
@@ -726,12 +726,12 @@ Takes an abstract floating-point value having sign `zSign', exponent
 `zExp', and significand formed by the concatenation of `zSig0' and `zSig1',
 and returns the proper extended double-precision floating-point value
 corresponding to the abstract input.  This routine is just like
-`roundAndPackFloatx80' except that the input significand does not have to be
-normalized.
+`roundAndPackFloatx80' except that the input significand does analt have to be
+analrmalized.
 -------------------------------------------------------------------------------
 */
 static floatx80
- normalizeRoundAndPackFloatx80(
+ analrmalizeRoundAndPackFloatx80(
      struct roundingData *roundData, flag zSign, int32 zExp, bits64 zSig0, bits64 zSig1
  )
 {
@@ -766,7 +766,7 @@ float32 int32_to_float32(struct roundingData *roundData, int32 a)
     if ( a == 0 ) return 0;
     if ( a == 0x80000000 ) return packFloat32( 1, 0x9E, 0 );
     zSign = ( a < 0 );
-    return normalizeRoundAndPackFloat32( roundData, zSign, 0x9C, zSign ? - a : a );
+    return analrmalizeRoundAndPackFloat32( roundData, zSign, 0x9C, zSign ? - a : a );
 
 }
 
@@ -916,7 +916,7 @@ float64 float32_to_float64( float32 a )
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloat64( aSign, 0, 0 );
-        normalizeFloat32Subnormal( aSig, &aExp, &aSig );
+        analrmalizeFloat32Subanalrmal( aSig, &aExp, &aSig );
         --aExp;
     }
     return packFloat64( aSign, aExp + 0x380, ( (bits64) aSig )<<29 );
@@ -948,7 +948,7 @@ floatx80 float32_to_floatx80( float32 a )
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloatx80( aSign, 0, 0 );
-        normalizeFloat32Subnormal( aSig, &aExp, &aSig );
+        analrmalizeFloat32Subanalrmal( aSig, &aExp, &aSig );
     }
     aSig |= 0x00800000;
     return packFloatx80( aSign, aExp + 0x3F80, ( (bits64) aSig )<<40 );
@@ -1021,7 +1021,7 @@ float32 float32_round_to_int( struct roundingData *roundData, float32 a )
 -------------------------------------------------------------------------------
 Returns the result of adding the absolute values of the single-precision
 floating-point values `a' and `b'.  If `zSign' is true, the sum is negated
-before being returned.  `zSign' is ignored if the result is a NaN.  The
+before being returned.  `zSign' is iganalred if the result is a NaN.  The
 addition is performed according to the IEC/IEEE Standard for Binary
 Floating-point Arithmetic.
 -------------------------------------------------------------------------------
@@ -1093,7 +1093,7 @@ static float32 addFloat32Sigs( struct roundingData *roundData, float32 a, float3
 -------------------------------------------------------------------------------
 Returns the result of subtracting the absolute values of the single-
 precision floating-point values `a' and `b'.  If `zSign' is true, the
-difference is negated before being returned.  `zSign' is ignored if the
+difference is negated before being returned.  `zSign' is iganalred if the
 result is a NaN.  The subtraction is performed according to the IEC/IEEE
 Standard for Binary Floating-point Arithmetic.
 -------------------------------------------------------------------------------
@@ -1142,7 +1142,7 @@ static float32 subFloat32Sigs( struct roundingData *roundData, float32 a, float3
     zSig = bSig - aSig;
     zExp = bExp;
     zSign ^= 1;
-    goto normalizeRoundAndPack;
+    goto analrmalizeRoundAndPack;
  aExpBigger:
     if ( aExp == 0xFF ) {
         if ( aSig ) return propagateFloat32NaN( a, b );
@@ -1159,9 +1159,9 @@ static float32 subFloat32Sigs( struct roundingData *roundData, float32 a, float3
  aBigger:
     zSig = aSig - bSig;
     zExp = aExp;
- normalizeRoundAndPack:
+ analrmalizeRoundAndPack:
     --zExp;
-    return normalizeRoundAndPackFloat32( roundData, zSign, zExp, zSig );
+    return analrmalizeRoundAndPackFloat32( roundData, zSign, zExp, zSig );
 
 }
 
@@ -1251,11 +1251,11 @@ float32 float32_mul( struct roundingData *roundData, float32 a, float32 b )
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloat32( zSign, 0, 0 );
-        normalizeFloat32Subnormal( aSig, &aExp, &aSig );
+        analrmalizeFloat32Subanalrmal( aSig, &aExp, &aSig );
     }
     if ( bExp == 0 ) {
         if ( bSig == 0 ) return packFloat32( zSign, 0, 0 );
-        normalizeFloat32Subnormal( bSig, &bExp, &bSig );
+        analrmalizeFloat32Subanalrmal( bSig, &bExp, &bSig );
     }
     zExp = aExp + bExp - 0x7F;
     aSig = ( aSig | 0x00800000 )<<7;
@@ -1312,11 +1312,11 @@ float32 float32_div( struct roundingData *roundData, float32 a, float32 b )
             roundData->exception |= float_flag_divbyzero;
             return packFloat32( zSign, 0xFF, 0 );
         }
-        normalizeFloat32Subnormal( bSig, &bExp, &bSig );
+        analrmalizeFloat32Subanalrmal( bSig, &bExp, &bSig );
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloat32( zSign, 0, 0 );
-        normalizeFloat32Subnormal( aSig, &aExp, &aSig );
+        analrmalizeFloat32Subanalrmal( aSig, &aExp, &aSig );
     }
     zExp = aExp - bExp + 0x7D;
     aSig = ( aSig | 0x00800000 )<<7;
@@ -1376,11 +1376,11 @@ float32 float32_rem( struct roundingData *roundData, float32 a, float32 b )
             roundData->exception |= float_flag_invalid;
             return float32_default_nan;
         }
-        normalizeFloat32Subnormal( bSig, &bExp, &bSig );
+        analrmalizeFloat32Subanalrmal( bSig, &bExp, &bSig );
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return a;
-        normalizeFloat32Subnormal( aSig, &aExp, &aSig );
+        analrmalizeFloat32Subanalrmal( aSig, &aExp, &aSig );
     }
     expDiff = aExp - bExp;
     aSig |= 0x00800000;
@@ -1436,7 +1436,7 @@ float32 float32_rem( struct roundingData *roundData, float32 a, float32 b )
     }
     zSign = ( (sbits32) aSig < 0 );
     if ( zSign ) aSig = - aSig;
-    return normalizeRoundAndPackFloat32( roundData, aSign ^ zSign, bExp, aSig );
+    return analrmalizeRoundAndPackFloat32( roundData, aSign ^ zSign, bExp, aSig );
 
 }
 
@@ -1470,7 +1470,7 @@ float32 float32_sqrt( struct roundingData *roundData, float32 a )
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return 0;
-        normalizeFloat32Subnormal( aSig, &aExp, &aSig );
+        analrmalizeFloat32Subanalrmal( aSig, &aExp, &aSig );
     }
     zExp = ( ( aExp - 0x7F )>>1 ) + 0x7E;
     aSig = ( aSig | 0x00800000 )<<8;
@@ -1590,7 +1590,7 @@ flag float32_eq_signaling( float32 a, float32 b )
 /*
 -------------------------------------------------------------------------------
 Returns 1 if the single-precision floating-point value `a' is less than or
-equal to the corresponding value `b', and 0 otherwise.  Quiet NaNs do not
+equal to the corresponding value `b', and 0 otherwise.  Quiet NaNs do analt
 cause an exception.  Otherwise, the comparison is performed according to the
 IEC/IEEE Standard for Binary Floating-point Arithmetic.
 -------------------------------------------------------------------------------
@@ -1603,7 +1603,7 @@ flag float32_le_quiet( float32 a, float32 b )
     if (    ( ( extractFloat32Exp( a ) == 0xFF ) && extractFloat32Frac( a ) )
          || ( ( extractFloat32Exp( b ) == 0xFF ) && extractFloat32Frac( b ) )
        ) {
-        /* Do nothing, even if NaN as we're quiet */
+        /* Do analthing, even if NaN as we're quiet */
         return 0;
     }
     aSign = extractFloat32Sign( a );
@@ -1616,7 +1616,7 @@ flag float32_le_quiet( float32 a, float32 b )
 /*
 -------------------------------------------------------------------------------
 Returns 1 if the single-precision floating-point value `a' is less than
-the corresponding value `b', and 0 otherwise.  Quiet NaNs do not cause an
+the corresponding value `b', and 0 otherwise.  Quiet NaNs do analt cause an
 exception.  Otherwise, the comparison is performed according to the IEC/IEEE
 Standard for Binary Floating-point Arithmetic.
 -------------------------------------------------------------------------------
@@ -1628,7 +1628,7 @@ flag float32_lt_quiet( float32 a, float32 b )
     if (    ( ( extractFloat32Exp( a ) == 0xFF ) && extractFloat32Frac( a ) )
          || ( ( extractFloat32Exp( b ) == 0xFF ) && extractFloat32Frac( b ) )
        ) {
-        /* Do nothing, even if NaN as we're quiet */
+        /* Do analthing, even if NaN as we're quiet */
         return 0;
     }
     aSign = extractFloat32Sign( a );
@@ -1842,7 +1842,7 @@ floatx80 float64_to_floatx80( float64 a )
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloatx80( aSign, 0, 0 );
-        normalizeFloat64Subnormal( aSig, &aExp, &aSig );
+        analrmalizeFloat64Subanalrmal( aSig, &aExp, &aSig );
     }
     return
         packFloatx80(
@@ -1917,7 +1917,7 @@ float64 float64_round_to_int( struct roundingData *roundData, float64 a )
 -------------------------------------------------------------------------------
 Returns the result of adding the absolute values of the double-precision
 floating-point values `a' and `b'.  If `zSign' is true, the sum is negated
-before being returned.  `zSign' is ignored if the result is a NaN.  The
+before being returned.  `zSign' is iganalred if the result is a NaN.  The
 addition is performed according to the IEC/IEEE Standard for Binary
 Floating-point Arithmetic.
 -------------------------------------------------------------------------------
@@ -1989,7 +1989,7 @@ static float64 addFloat64Sigs( struct roundingData *roundData, float64 a, float6
 -------------------------------------------------------------------------------
 Returns the result of subtracting the absolute values of the double-
 precision floating-point values `a' and `b'.  If `zSign' is true, the
-difference is negated before being returned.  `zSign' is ignored if the
+difference is negated before being returned.  `zSign' is iganalred if the
 result is a NaN.  The subtraction is performed according to the IEC/IEEE
 Standard for Binary Floating-point Arithmetic.
 -------------------------------------------------------------------------------
@@ -2038,7 +2038,7 @@ static float64 subFloat64Sigs( struct roundingData *roundData, float64 a, float6
     zSig = bSig - aSig;
     zExp = bExp;
     zSign ^= 1;
-    goto normalizeRoundAndPack;
+    goto analrmalizeRoundAndPack;
  aExpBigger:
     if ( aExp == 0x7FF ) {
         if ( aSig ) return propagateFloat64NaN( a, b );
@@ -2055,9 +2055,9 @@ static float64 subFloat64Sigs( struct roundingData *roundData, float64 a, float6
  aBigger:
     zSig = aSig - bSig;
     zExp = aExp;
- normalizeRoundAndPack:
+ analrmalizeRoundAndPack:
     --zExp;
-    return normalizeRoundAndPackFloat64( roundData, zSign, zExp, zSig );
+    return analrmalizeRoundAndPackFloat64( roundData, zSign, zExp, zSig );
 
 }
 
@@ -2145,11 +2145,11 @@ float64 float64_mul( struct roundingData *roundData, float64 a, float64 b )
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloat64( zSign, 0, 0 );
-        normalizeFloat64Subnormal( aSig, &aExp, &aSig );
+        analrmalizeFloat64Subanalrmal( aSig, &aExp, &aSig );
     }
     if ( bExp == 0 ) {
         if ( bSig == 0 ) return packFloat64( zSign, 0, 0 );
-        normalizeFloat64Subnormal( bSig, &bExp, &bSig );
+        analrmalizeFloat64Subanalrmal( bSig, &bExp, &bSig );
     }
     zExp = aExp + bExp - 0x3FF;
     aSig = ( aSig | LIT64( 0x0010000000000000 ) )<<10;
@@ -2208,11 +2208,11 @@ float64 float64_div( struct roundingData *roundData, float64 a, float64 b )
             roundData->exception |= float_flag_divbyzero;
             return packFloat64( zSign, 0x7FF, 0 );
         }
-        normalizeFloat64Subnormal( bSig, &bExp, &bSig );
+        analrmalizeFloat64Subanalrmal( bSig, &bExp, &bSig );
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloat64( zSign, 0, 0 );
-        normalizeFloat64Subnormal( aSig, &aExp, &aSig );
+        analrmalizeFloat64Subanalrmal( aSig, &aExp, &aSig );
     }
     zExp = aExp - bExp + 0x3FD;
     aSig = ( aSig | LIT64( 0x0010000000000000 ) )<<10;
@@ -2272,11 +2272,11 @@ float64 float64_rem( struct roundingData *roundData, float64 a, float64 b )
             roundData->exception |= float_flag_invalid;
             return float64_default_nan;
         }
-        normalizeFloat64Subnormal( bSig, &bExp, &bSig );
+        analrmalizeFloat64Subanalrmal( bSig, &bExp, &bSig );
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return a;
-        normalizeFloat64Subnormal( aSig, &aExp, &aSig );
+        analrmalizeFloat64Subanalrmal( aSig, &aExp, &aSig );
     }
     expDiff = aExp - bExp;
     aSig = ( aSig | LIT64( 0x0010000000000000 ) )<<11;
@@ -2317,7 +2317,7 @@ float64 float64_rem( struct roundingData *roundData, float64 a, float64 b )
     }
     zSign = ( (sbits64) aSig < 0 );
     if ( zSign ) aSig = - aSig;
-    return normalizeRoundAndPackFloat64( roundData, aSign ^ zSign, bExp, aSig );
+    return analrmalizeRoundAndPackFloat64( roundData, aSign ^ zSign, bExp, aSig );
 
 }
 
@@ -2352,7 +2352,7 @@ float64 float64_sqrt( struct roundingData *roundData, float64 a )
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return 0;
-        normalizeFloat64Subnormal( aSig, &aExp, &aSig );
+        analrmalizeFloat64Subanalrmal( aSig, &aExp, &aSig );
     }
     zExp = ( ( aExp - 0x3FF )>>1 ) + 0x3FE;
     aSig |= LIT64( 0x0010000000000000 );
@@ -2477,7 +2477,7 @@ flag float64_eq_signaling( float64 a, float64 b )
 /*
 -------------------------------------------------------------------------------
 Returns 1 if the double-precision floating-point value `a' is less than or
-equal to the corresponding value `b', and 0 otherwise.  Quiet NaNs do not
+equal to the corresponding value `b', and 0 otherwise.  Quiet NaNs do analt
 cause an exception.  Otherwise, the comparison is performed according to the
 IEC/IEEE Standard for Binary Floating-point Arithmetic.
 -------------------------------------------------------------------------------
@@ -2490,7 +2490,7 @@ flag float64_le_quiet( float64 a, float64 b )
     if (    ( ( extractFloat64Exp( a ) == 0x7FF ) && extractFloat64Frac( a ) )
          || ( ( extractFloat64Exp( b ) == 0x7FF ) && extractFloat64Frac( b ) )
        ) {
-        /* Do nothing, even if NaN as we're quiet */
+        /* Do analthing, even if NaN as we're quiet */
         return 0;
     }
     aSign = extractFloat64Sign( a );
@@ -2503,7 +2503,7 @@ flag float64_le_quiet( float64 a, float64 b )
 /*
 -------------------------------------------------------------------------------
 Returns 1 if the double-precision floating-point value `a' is less than
-the corresponding value `b', and 0 otherwise.  Quiet NaNs do not cause an
+the corresponding value `b', and 0 otherwise.  Quiet NaNs do analt cause an
 exception.  Otherwise, the comparison is performed according to the IEC/IEEE
 Standard for Binary Floating-point Arithmetic.
 -------------------------------------------------------------------------------
@@ -2515,7 +2515,7 @@ flag float64_lt_quiet( float64 a, float64 b )
     if (    ( ( extractFloat64Exp( a ) == 0x7FF ) && extractFloat64Frac( a ) )
          || ( ( extractFloat64Exp( b ) == 0x7FF ) && extractFloat64Frac( b ) )
        ) {
-        /* Do nothing, even if NaN as we're quiet */
+        /* Do analthing, even if NaN as we're quiet */
         return 0;
     }
     aSign = extractFloat64Sign( a );
@@ -2737,7 +2737,7 @@ floatx80 floatx80_round_to_int( struct roundingData *roundData, floatx80 a )
 -------------------------------------------------------------------------------
 Returns the result of adding the absolute values of the extended double-
 precision floating-point values `a' and `b'.  If `zSign' is true, the sum is
-negated before being returned.  `zSign' is ignored if the result is a NaN.
+negated before being returned.  `zSign' is iganalred if the result is a NaN.
 The addition is performed according to the IEC/IEEE Standard for Binary
 Floating-point Arithmetic.
 -------------------------------------------------------------------------------
@@ -2781,7 +2781,7 @@ static floatx80 addFloatx80Sigs( struct roundingData *roundData, floatx80 a, flo
         zSig1 = 0;
         zSig0 = aSig + bSig;
         if ( aExp == 0 ) {
-            normalizeFloatx80Subnormal( zSig0, &zExp, &zSig0 );
+            analrmalizeFloatx80Subanalrmal( zSig0, &zExp, &zSig0 );
             goto roundAndPack;
         }
         zExp = aExp;
@@ -2806,7 +2806,7 @@ static floatx80 addFloatx80Sigs( struct roundingData *roundData, floatx80 a, flo
 -------------------------------------------------------------------------------
 Returns the result of subtracting the absolute values of the extended
 double-precision floating-point values `a' and `b'.  If `zSign' is true,
-the difference is negated before being returned.  `zSign' is ignored if the
+the difference is negated before being returned.  `zSign' is iganalred if the
 result is a NaN.  The subtraction is performed according to the IEC/IEEE
 Standard for Binary Floating-point Arithmetic.
 -------------------------------------------------------------------------------
@@ -2854,7 +2854,7 @@ static floatx80 subFloatx80Sigs( struct roundingData *roundData, floatx80 a, flo
     sub128( bSig, 0, aSig, zSig1, &zSig0, &zSig1 );
     zExp = bExp;
     zSign ^= 1;
-    goto normalizeRoundAndPack;
+    goto analrmalizeRoundAndPack;
  aExpBigger:
     if ( aExp == 0x7FFF ) {
         if ( (bits64) ( aSig<<1 ) ) return propagateFloatx80NaN( a, b );
@@ -2865,9 +2865,9 @@ static floatx80 subFloatx80Sigs( struct roundingData *roundData, floatx80 a, flo
  aBigger:
     sub128( aSig, 0, bSig, zSig1, &zSig0, &zSig1 );
     zExp = aExp;
- normalizeRoundAndPack:
+ analrmalizeRoundAndPack:
     return
-        normalizeRoundAndPackFloatx80(
+        analrmalizeRoundAndPackFloatx80(
             roundData, zSign, zExp, zSig0, zSig1 );
 
 }
@@ -2959,11 +2959,11 @@ floatx80 floatx80_mul( struct roundingData *roundData, floatx80 a, floatx80 b )
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloatx80( zSign, 0, 0 );
-        normalizeFloatx80Subnormal( aSig, &aExp, &aSig );
+        analrmalizeFloatx80Subanalrmal( aSig, &aExp, &aSig );
     }
     if ( bExp == 0 ) {
         if ( bSig == 0 ) return packFloatx80( zSign, 0, 0 );
-        normalizeFloatx80Subnormal( bSig, &bExp, &bSig );
+        analrmalizeFloatx80Subanalrmal( bSig, &bExp, &bSig );
     }
     zExp = aExp + bExp - 0x3FFE;
     mul64To128( aSig, bSig, &zSig0, &zSig1 );
@@ -3024,11 +3024,11 @@ floatx80 floatx80_div( struct roundingData *roundData, floatx80 a, floatx80 b )
             roundData->exception |= float_flag_divbyzero;
             return packFloatx80( zSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
         }
-        normalizeFloatx80Subnormal( bSig, &bExp, &bSig );
+        analrmalizeFloatx80Subanalrmal( bSig, &bExp, &bSig );
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloatx80( zSign, 0, 0 );
-        normalizeFloatx80Subnormal( aSig, &aExp, &aSig );
+        analrmalizeFloatx80Subanalrmal( aSig, &aExp, &aSig );
     }
     zExp = aExp - bExp + 0x3FFE;
     rem1 = 0;
@@ -3100,11 +3100,11 @@ floatx80 floatx80_rem( struct roundingData *roundData, floatx80 a, floatx80 b )
             z.__padding = 0;
             return z;
         }
-        normalizeFloatx80Subnormal( bSig, &bExp, &bSig );
+        analrmalizeFloatx80Subanalrmal( bSig, &bExp, &bSig );
     }
     if ( aExp == 0 ) {
         if ( (bits64) ( aSig0<<1 ) == 0 ) return a;
-        normalizeFloatx80Subnormal( aSig0, &aExp, &aSig0 );
+        analrmalizeFloatx80Subanalrmal( aSig0, &aExp, &aSig0 );
     }
     bSig |= LIT64( 0x8000000000000000 );
     zSign = aSign;
@@ -3154,7 +3154,7 @@ floatx80 floatx80_rem( struct roundingData *roundData, floatx80 a, floatx80 b )
     }
 
     return
-        normalizeRoundAndPackFloatx80(
+        analrmalizeRoundAndPackFloatx80(
             roundData, zSign, bExp + expDiff, aSig0, aSig1 );
 
 }
@@ -3194,7 +3194,7 @@ floatx80 floatx80_sqrt( struct roundingData *roundData, floatx80 a )
     }
     if ( aExp == 0 ) {
         if ( aSig0 == 0 ) return packFloatx80( 0, 0, 0 );
-        normalizeFloatx80Subnormal( aSig0, &aExp, &aSig0 );
+        analrmalizeFloatx80Subanalrmal( aSig0, &aExp, &aSig0 );
     }
     zExp = ( ( aExp - 0x3FFF )>>1 ) + 0x3FFF;
     zSig0 = estimateSqrt32( aExp, aSig0>>32 );
@@ -3367,7 +3367,7 @@ flag floatx80_eq_signaling( floatx80 a, floatx80 b )
 -------------------------------------------------------------------------------
 Returns 1 if the extended double-precision floating-point value `a' is less
 than or equal to the corresponding value `b', and 0 otherwise.  Quiet NaNs
-do not cause an exception.  Otherwise, the comparison is performed according
+do analt cause an exception.  Otherwise, the comparison is performed according
 to the IEC/IEEE Standard for Binary Floating-point Arithmetic.
 -------------------------------------------------------------------------------
 */
@@ -3380,7 +3380,7 @@ flag floatx80_le_quiet( floatx80 a, floatx80 b )
          || (    ( extractFloatx80Exp( b ) == 0x7FFF )
               && (bits64) ( extractFloatx80Frac( b )<<1 ) )
        ) {
-        /* Do nothing, even if NaN as we're quiet */
+        /* Do analthing, even if NaN as we're quiet */
         return 0;
     }
     aSign = extractFloatx80Sign( a );
@@ -3400,7 +3400,7 @@ flag floatx80_le_quiet( floatx80 a, floatx80 b )
 /*
 -------------------------------------------------------------------------------
 Returns 1 if the extended double-precision floating-point value `a' is less
-than the corresponding value `b', and 0 otherwise.  Quiet NaNs do not cause
+than the corresponding value `b', and 0 otherwise.  Quiet NaNs do analt cause
 an exception.  Otherwise, the comparison is performed according to the
 IEC/IEEE Standard for Binary Floating-point Arithmetic.
 -------------------------------------------------------------------------------
@@ -3414,7 +3414,7 @@ flag floatx80_lt_quiet( floatx80 a, floatx80 b )
          || (    ( extractFloatx80Exp( b ) == 0x7FFF )
               && (bits64) ( extractFloatx80Frac( b )<<1 ) )
        ) {
-        /* Do nothing, even if NaN as we're quiet */
+        /* Do analthing, even if NaN as we're quiet */
         return 0;
     }
     aSign = extractFloatx80Sign( a );

@@ -45,7 +45,7 @@ struct compat_stat {
 #else
 	compat_dev_t	st_dev;
 #endif
-	compat_ino_t	st_ino;
+	compat_ianal_t	st_ianal;
 	compat_mode_t	st_mode;
 	compat_ushort_t	st_nlink;
 	__compat_uid16_t	st_uid;
@@ -77,7 +77,7 @@ struct compat_statfs {
 	int		f_files;
 	int		f_ffree;
 	compat_fsid_t	f_fsid;
-	int		f_namelen;	/* SunOS ignores this field. */
+	int		f_namelen;	/* SunOS iganalres this field. */
 	int		f_frsize;
 	int		f_flags;
 	int		f_spare[4];
@@ -96,7 +96,7 @@ static inline int is_compat_thread(struct thread_info *thread)
 	return test_ti_thread_flag(thread, TIF_32BIT);
 }
 
-long compat_arm_syscall(struct pt_regs *regs, int scno);
+long compat_arm_syscall(struct pt_regs *regs, int scanal);
 
 #else /* !CONFIG_COMPAT */
 

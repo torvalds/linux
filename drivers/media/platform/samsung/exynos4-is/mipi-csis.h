@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Samsung S5P/EXYNOS4 SoC series MIPI-CSI receiver driver
+ * Samsung S5P/EXYANALS4 SoC series MIPI-CSI receiver driver
  *
  * Copyright (C) 2011 Samsung Electronics Co., Ltd.
  */

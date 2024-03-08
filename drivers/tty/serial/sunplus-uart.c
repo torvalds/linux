@@ -4,16 +4,16 @@
  *
  * Author: Hammer Hsieh <hammerh0314@gmail.com>
  *
- * Note1: This driver is 8250-like uart, but are not register compatible.
+ * Analte1: This driver is 8250-like uart, but are analt register compatible.
  *
- * Note2: On some buses, for preventing data incoherence, must do a read
+ * Analte2: On some buses, for preventing data incoherence, must do a read
  * for ensure write made it to hardware. In this driver, function startup
- * and shutdown did not do a read but only do a write directly. For what?
+ * and shutdown did analt do a read but only do a write directly. For what?
  * In Sunplus bus communication between memory bus and peripheral bus with
  * posted write, it will send a specific command after last write command
  * to make sure write done. Then memory bus identify the specific command
  * and send done signal back to master device. After master device received
- * done signal, then proceed next write command. It is no need to do a read
+ * done signal, then proceed next write command. It is anal need to do a read
  * before write.
  */
 #include <linux/clk.h>
@@ -50,9 +50,9 @@
 #define SUP_UART_LSR_FE			BIT(4) /* frame error status */
 #define SUP_UART_LSR_OE			BIT(3) /* overrun error status */
 #define SUP_UART_LSR_PE			BIT(2) /* parity error status */
-#define SUP_UART_LSR_RX			BIT(1) /* 1: receive fifo not empty */
-#define SUP_UART_LSR_TX			BIT(0) /* 1: transmit fifo is not full */
-#define SUP_UART_LSR_TX_NOT_FULL	1
+#define SUP_UART_LSR_RX			BIT(1) /* 1: receive fifo analt empty */
+#define SUP_UART_LSR_TX			BIT(0) /* 1: transmit fifo is analt full */
+#define SUP_UART_LSR_TX_ANALT_FULL	1
 #define SUP_UART_LSR_BRK_ERROR_BITS	GENMASK(5, 2)
 
 /* Line Control Register bits */
@@ -82,11 +82,11 @@ static void sp_uart_put_char(struct uart_port *port, unsigned int ch)
 	writel(ch, port->membase + SUP_UART_DATA);
 }
 
-static u32 sunplus_tx_buf_not_full(struct uart_port *port)
+static u32 sunplus_tx_buf_analt_full(struct uart_port *port)
 {
 	unsigned int lsr = readl(port->membase + SUP_UART_LSR);
 
-	return (lsr & SUP_UART_LSR_TX) ? SUP_UART_LSR_TX_NOT_FULL : 0;
+	return (lsr & SUP_UART_LSR_TX) ? SUP_UART_LSR_TX_ANALT_FULL : 0;
 }
 
 static unsigned int sunplus_tx_empty(struct uart_port *port)
@@ -219,7 +219,7 @@ static void transmit_chars(struct uart_port *port)
 		uart_xmit_advance(port, 1);
 		if (uart_circ_empty(xmit))
 			break;
-	} while (sunplus_tx_buf_not_full(port));
+	} while (sunplus_tx_buf_analt_full(port));
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
@@ -235,7 +235,7 @@ static void receive_chars(struct uart_port *port)
 
 	do {
 		ch = readl(port->membase + SUP_UART_DATA);
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		port->icount.rx++;
 
 		if (unlikely(lsr & SUP_UART_LSR_BRK_ERROR_BITS)) {
@@ -244,7 +244,7 @@ static void receive_chars(struct uart_port *port)
 				port->icount.brk++;
 				flag = TTY_BREAK;
 				if (uart_handle_break(port))
-					goto ignore_char;
+					goto iganalre_char;
 			} else if (lsr & SUP_UART_LSR_PE) {
 				port->icount.parity++;
 				flag = TTY_PARITY;
@@ -257,15 +257,15 @@ static void receive_chars(struct uart_port *port)
 				port->icount.overrun++;
 		}
 
-		if (port->ignore_status_mask & SUP_DUMMY_READ)
-			goto ignore_char;
+		if (port->iganalre_status_mask & SUP_DUMMY_READ)
+			goto iganalre_char;
 
 		if (uart_handle_sysrq_char(port, ch))
-			goto ignore_char;
+			goto iganalre_char;
 
 		uart_insert_char(port, lsr, SUP_UART_LSR_OE, ch, flag);
 
-ignore_char:
+iganalre_char:
 		lsr = readl(port->membase + SUP_UART_LSR);
 	} while (lsr & SUP_UART_LSR_RX);
 
@@ -383,21 +383,21 @@ static void sunplus_set_termios(struct uart_port *port,
 	if (termios->c_iflag & (BRKINT | PARMRK))
 		port->read_status_mask |= SUP_UART_LSR_BC;
 
-	/* Characters to ignore */
-	port->ignore_status_mask = 0;
+	/* Characters to iganalre */
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= SUP_UART_LSR_FE | SUP_UART_LSR_PE;
+		port->iganalre_status_mask |= SUP_UART_LSR_FE | SUP_UART_LSR_PE;
 
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= SUP_UART_LSR_BC;
+		port->iganalre_status_mask |= SUP_UART_LSR_BC;
 
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= SUP_UART_LSR_OE;
+			port->iganalre_status_mask |= SUP_UART_LSR_OE;
 	}
 
-	/* Ignore all characters if CREAD is not set */
+	/* Iganalre all characters if CREAD is analt set */
 	if ((termios->c_cflag & CREAD) == 0) {
-		port->ignore_status_mask |= SUP_DUMMY_READ;
+		port->iganalre_status_mask |= SUP_DUMMY_READ;
 		/* flush rx data FIFO */
 		writel(0, port->membase + SUP_UART_RX_RESIDUE);
 	}
@@ -433,7 +433,7 @@ static void sunplus_config_port(struct uart_port *port, int type)
 
 static int sunplus_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_SUNPLUS)
+	if (ser->type != PORT_UNKANALWN && ser->type != PORT_SUNPLUS)
 		return -EINVAL;
 
 	return 0;
@@ -468,7 +468,7 @@ static int sunplus_poll_get_char(struct uart_port *port)
 	unsigned int lsr = readl(port->membase + SUP_UART_LSR);
 
 	if (!(lsr & SUP_UART_LSR_RX))
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	return readl(port->membase + SUP_UART_DATA);
 }
@@ -543,7 +543,7 @@ static int __init sunplus_console_setup(struct console *co, char *options)
 
 	sup = sunplus_console_ports[co->index];
 	if (!sup)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -572,7 +572,7 @@ static struct uart_driver sunplus_uart_driver = {
 	.driver_name	= "sunplus_uart",
 	.dev_name	= "ttySUP",
 	.major		= TTY_MAJOR,
-	.minor		= 64,
+	.mianalr		= 64,
 	.nr		= SUP_UART_NR,
 	.cons		= SERIAL_SUNPLUS_CONSOLE,
 };
@@ -594,18 +594,18 @@ static int sunplus_uart_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq;
 
-	pdev->id = of_alias_get_id(pdev->dev.of_node, "serial");
+	pdev->id = of_alias_get_id(pdev->dev.of_analde, "serial");
 
 	if (pdev->id < 0 || pdev->id >= SUP_UART_NR)
 		return -EINVAL;
 
 	sup = devm_kzalloc(&pdev->dev, sizeof(*sup), GFP_KERNEL);
 	if (!sup)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sup->clk = devm_clk_get_optional(&pdev->dev, NULL);
 	if (IS_ERR(sup->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(sup->clk), "clk not found\n");
+		return dev_err_probe(&pdev->dev, PTR_ERR(sup->clk), "clk analt found\n");
 
 	ret = clk_prepare_enable(sup->clk);
 	if (ret)
@@ -617,13 +617,13 @@ static int sunplus_uart_probe(struct platform_device *pdev)
 
 	sup->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(sup->rstc))
-		return dev_err_probe(&pdev->dev, PTR_ERR(sup->rstc), "rstc not found\n");
+		return dev_err_probe(&pdev->dev, PTR_ERR(sup->rstc), "rstc analt found\n");
 
 	port = &sup->port;
 
 	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(port->membase))
-		return dev_err_probe(&pdev->dev, PTR_ERR(port->membase), "membase not found\n");
+		return dev_err_probe(&pdev->dev, PTR_ERR(port->membase), "membase analt found\n");
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -757,7 +757,7 @@ static int __init
 sunplus_uart_early_setup(struct earlycon_device *dev, const char *opt)
 {
 	if (!(dev->port.membase || dev->port.iobase))
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev->con->write = sunplus_uart_early_write;
 

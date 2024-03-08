@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -92,7 +92,7 @@ static int queue_cb(const struct nlmsghdr *nlh, void *data)
 				ntohs(ph->hw_protocol), ph->hook);
 
 		if (ph->hook >= 5) {
-			fprintf(stderr, "Unknown hook %d\n", ph->hook);
+			fprintf(stderr, "Unkanalwn hook %d\n", ph->hook);
 			return MNL_CB_ERROR;
 		}
 
@@ -101,12 +101,12 @@ static int queue_cb(const struct nlmsghdr *nlh, void *data)
 
 			if (tb[NFQA_SKB_INFO])
 				skbinfo = ntohl(mnl_attr_get_u32(tb[NFQA_SKB_INFO]));
-			if (skbinfo & NFQA_SKB_CSUMNOTREADY)
-				printf(" csumnotready");
+			if (skbinfo & NFQA_SKB_CSUMANALTREADY)
+				printf(" csumanaltready");
 			if (skbinfo & NFQA_SKB_GSO)
 				printf(" gso");
-			if (skbinfo & NFQA_SKB_CSUM_NOTVERIFIED)
-				printf(" csumnotverified");
+			if (skbinfo & NFQA_SKB_CSUM_ANALTVERIFIED)
+				printf(" csumanaltverified");
 			puts("");
 		}
 
@@ -264,7 +264,7 @@ static void sleep_ms(uint32_t delay)
 
 	ts.tv_nsec = delay * 1000llu * 1000llu;
 
-	nanosleep(&ts, NULL);
+	naanalsleep(&ts, NULL);
 }
 
 static int mainloop(void)
@@ -290,11 +290,11 @@ static int mainloop(void)
 
 		ret = mnl_socket_recvfrom(nl, buf, buflen);
 		if (ret == -1) {
-			if (errno == ENOBUFS || errno == EINTR)
+			if (erranal == EANALBUFS || erranal == EINTR)
 				continue;
 
-			if (errno == EAGAIN) {
-				errno = 0;
+			if (erranal == EAGAIN) {
+				erranal = 0;
 				ret = 0;
 				break;
 			}
@@ -356,7 +356,7 @@ static void parse_opts(int argc, char **argv)
 		case 'd':
 			opts.delay_ms = atoi(optarg);
 			if (opts.delay_ms == 0) {
-				fprintf(stderr, "Expected nonzero delay (in milliseconds)\n");
+				fprintf(stderr, "Expected analnzero delay (in milliseconds)\n");
 				exit(1);
 			}
 			break;
@@ -373,7 +373,7 @@ static void parse_opts(int argc, char **argv)
 	}
 
 	if (opts.verdict != NF_ACCEPT && (opts.verdict >> 16 == opts.queue_num)) {
-		fprintf(stderr, "Cannot use same destination and source queue\n");
+		fprintf(stderr, "Cananalt use same destination and source queue\n");
 		exit(1);
 	}
 }

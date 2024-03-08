@@ -17,7 +17,7 @@ clear_trace
 if ! echo "schedule" > set_ftrace_filter; then
     # test for powerpc 64
     if ! echo ".schedule" > set_ftrace_filter; then
-	fail "can not enable schedule filter"
+	fail "can analt enable schedule filter"
     fi
 fi
 
@@ -28,13 +28,13 @@ sleep 1
 # that only the schedule function was found
 count=`cat trace | grep '()' | grep -v schedule | wc -l`
 if [ $count -ne 0 ]; then
-    fail "Graph filtering not working by itself?"
+    fail "Graph filtering analt working by itself?"
 fi
 
 # Make sure we did find something
 count=`cat trace | grep 'schedule()' | wc -l` 
 if [ $count -eq 0 ]; then
-    fail "No schedule traces found?"
+    fail "Anal schedule traces found?"
 fi
 
 exit 0

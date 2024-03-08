@@ -37,7 +37,7 @@ details.
 
 Userspace is allowed to *limit* or *mask* CPU features according to the rules
 outlined by the architecture in DDI0487J.a D19.1.3 'Principles of the ID
-scheme for fields in ID register'. KVM does not allow ID register values that
+scheme for fields in ID register'. KVM does analt allow ID register values that
 exceed the capabilities of the system.
 
 .. warning::

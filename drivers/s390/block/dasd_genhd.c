@@ -43,7 +43,7 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 	struct dasd_device *base;
 	int len, rc;
 
-	/* Make sure the minor for this device exists. */
+	/* Make sure the mianalr for this device exists. */
 	base = block->base;
 	if (base->devindex >= DASD_PER_MAJOR)
 		return -EBUSY;
@@ -53,7 +53,7 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 	block->tag_set.nr_hw_queues = nr_hw_queues;
 	block->tag_set.queue_depth = queue_depth;
 	block->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
-	block->tag_set.numa_node = NUMA_NO_NODE;
+	block->tag_set.numa_analde = NUMA_ANAL_ANALDE;
 	rc = blk_mq_alloc_tag_set(&block->tag_set);
 	if (rc)
 		return rc;
@@ -66,8 +66,8 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 
 	/* Initialize gendisk structure. */
 	gdp->major = DASD_MAJOR;
-	gdp->first_minor = base->devindex << DASD_PARTN_BITS;
-	gdp->minors = 1 << DASD_PARTN_BITS;
+	gdp->first_mianalr = base->devindex << DASD_PARTN_BITS;
+	gdp->mianalrs = 1 << DASD_PARTN_BITS;
 	gdp->fops = &dasd_device_operations;
 
 	/*
@@ -136,7 +136,7 @@ int dasd_scan_partitions(struct dasd_block *block)
 		DBF_DEV_EVENT(DBF_ERR, block->base,
 			      "scan partitions error, blkdev_get returned %ld",
 			      PTR_ERR(bdev_handle));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mutex_lock(&block->gdp->open_mutex);
@@ -148,11 +148,11 @@ int dasd_scan_partitions(struct dasd_block *block)
 
 	/*
 	 * Since the matching bdev_release() call to the
-	 * bdev_open_by_path() in this function is not called before
+	 * bdev_open_by_path() in this function is analt called before
 	 * dasd_destroy_partitions the offline open_count limit needs to be
 	 * increased from 0 to 1. This is done by setting device->bdev_handle
 	 * (see dasd_generic_set_offline). As long as the partition detection
-	 * is running no offline should be allowed. That is why the assignment
+	 * is running anal offline should be allowed. That is why the assignment
 	 * to block->bdev_handle is done AFTER the BLKRRPART ioctl.
 	 */
 	block->bdev_handle = bdev_handle;
@@ -160,7 +160,7 @@ int dasd_scan_partitions(struct dasd_block *block)
 }
 
 /*
- * Remove all inodes in the system for a device, delete the
+ * Remove all ianaldes in the system for a device, delete the
  * partitions and make device unusable by setting its size to zero.
  */
 void dasd_destroy_partitions(struct dasd_block *block)

@@ -55,21 +55,21 @@ struct wm_adsp {
 };
 
 #define WM_ADSP1(wname, num) \
-	SND_SOC_DAPM_PGA_E(wname, SND_SOC_NOPM, num, 0, NULL, 0, \
+	SND_SOC_DAPM_PGA_E(wname, SND_SOC_ANALPM, num, 0, NULL, 0, \
 		wm_adsp1_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD)
 
 #define WM_ADSP2_PRELOAD_SWITCH(wname, num) \
-	SOC_SINGLE_EXT(wname " Preload Switch", SND_SOC_NOPM, num, 1, 0, \
+	SOC_SINGLE_EXT(wname " Preload Switch", SND_SOC_ANALPM, num, 1, 0, \
 		wm_adsp2_preloader_get, wm_adsp2_preloader_put)
 
 #define WM_ADSP2(wname, num, event_fn) \
 	SND_SOC_DAPM_SPK(wname " Preload", NULL), \
 {	.id = snd_soc_dapm_supply, .name = wname " Preloader", \
-	.reg = SND_SOC_NOPM, .shift = num, .event = event_fn, \
+	.reg = SND_SOC_ANALPM, .shift = num, .event = event_fn, \
 	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD, \
 	.subseq = 100, /* Ensure we run after SYSCLK supply widget */ }, \
 {	.id = snd_soc_dapm_out_drv, .name = wname, \
-	.reg = SND_SOC_NOPM, .shift = num, .event = wm_adsp_event, \
+	.reg = SND_SOC_ANALPM, .shift = num, .event = wm_adsp_event, \
 	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD }
 
 #define WM_ADSP_FW_CONTROL(dspname, num) \

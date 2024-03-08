@@ -39,8 +39,8 @@
 
 /*
  * U-type IMMs contain the upper 20bits [31:20] of an immediate with
- * the rest filled in by zeros, so no shifting required. Similarly,
- * bit31 contains the signed state, so no sign extension necessary.
+ * the rest filled in by zeros, so anal shifting required. Similarly,
+ * bit31 contains the signed state, so anal sign extension necessary.
  */
 #define RV_U_IMM_SIGN_OPOFF	31
 #define RV_U_IMM_31_12_OPOFF	0

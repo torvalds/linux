@@ -27,7 +27,7 @@ static inline void fill_ldt(struct desc_struct *desc, const struct user_desc *in
 
 	desc->s			= 1;
 	desc->dpl		= 0x3;
-	desc->p			= info->seg_not_present ^ 1;
+	desc->p			= info->seg_analt_present ^ 1;
 	desc->limit1		= (info->limit & 0xf0000) >> 16;
 	desc->avl		= info->useable;
 	desc->d			= info->seg_32bit;
@@ -337,8 +337,8 @@ static inline void refresh_tss_limit(void)
  *
  * The optimization here is that the TSS limit only matters for Linux if the
  * IO bitmap is in use.  If the TSS limit gets forced to its minimum value,
- * everything works except that IO bitmap will be ignored and all CPL 3 IO
- * instructions will #GP, which is exactly what we want for normal tasks.
+ * everything works except that IO bitmap will be iganalred and all CPL 3 IO
+ * instructions will #GP, which is exactly what we want for analrmal tasks.
  */
 static inline void invalidate_tss_limit(void)
 {
@@ -350,7 +350,7 @@ static inline void invalidate_tss_limit(void)
 		this_cpu_write(__tss_limit_invalid, true);
 }
 
-/* This intentionally ignores lm, since 32-bit apps don't have that field. */
+/* This intentionally iganalres lm, since 32-bit apps don't have that field. */
 #define LDT_empty(info)					\
 	((info)->base_addr		== 0	&&	\
 	 (info)->limit			== 0	&&	\
@@ -358,10 +358,10 @@ static inline void invalidate_tss_limit(void)
 	 (info)->read_exec_only		== 1	&&	\
 	 (info)->seg_32bit		== 0	&&	\
 	 (info)->limit_in_pages		== 0	&&	\
-	 (info)->seg_not_present	== 1	&&	\
+	 (info)->seg_analt_present	== 1	&&	\
 	 (info)->useable		== 0)
 
-/* Lots of programs expect an all-zero user_desc to mean "no segment at all". */
+/* Lots of programs expect an all-zero user_desc to mean "anal segment at all". */
 static inline bool LDT_zero(const struct user_desc *info)
 {
 	return (info->base_addr		== 0 &&
@@ -370,7 +370,7 @@ static inline bool LDT_zero(const struct user_desc *info)
 		info->read_exec_only	== 0 &&
 		info->seg_32bit		== 0 &&
 		info->limit_in_pages	== 0 &&
-		info->seg_not_present	== 0 &&
+		info->seg_analt_present	== 0 &&
 		info->useable		== 0);
 }
 

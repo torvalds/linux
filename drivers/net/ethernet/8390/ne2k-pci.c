@@ -10,7 +10,7 @@
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
  * Drivers based on or derived from this code fall under the GPL and must
- * retain the authorship, copyright and license notice.  This file is not
+ * retain the authorship, copyright and license analtice.  This file is analt
  * a complete program and may only be used when the entire operating
  * system is licensed under the GPL.
  *
@@ -43,13 +43,13 @@
 static int full_duplex[MAX_UNITS];
 static int options[MAX_UNITS];
 
-/* Force a non std. amount of memory.  Units are 256 byte pages. */
+/* Force a analn std. amount of memory.  Units are 256 byte pages. */
 /* #define PACKETBUF_MEMSIZE	0x40 */
 
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -95,7 +95,7 @@ MODULE_PARM_DESC(full_duplex, "full duplex setting(s) (1)");
 /* #define NE_RW_BUGFIX */
 
 /* Flags.  We rename an existing ei_status field to store flags!
- * Thus only the low 8 bits are usable for non-init-time flags.
+ * Thus only the low 8 bits are usable for analn-init-time flags.
  */
 #define ne2k_flags reg0
 
@@ -160,7 +160,7 @@ static const struct pci_device_id ne2k_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, ne2k_pci_tbl);
 
 
-/* ---- No user-serviceable parts below ---- */
+/* ---- Anal user-serviceable parts below ---- */
 
 #define NE_BASE	 (dev->base_addr)
 #define NE_CMD		0x00
@@ -187,7 +187,7 @@ static const struct ethtool_ops ne2k_pci_ethtool_ops;
 
 
 
-/* There is no room in the standard 8390 structure for extra info we need,
+/* There is anal room in the standard 8390 structure for extra info we need,
  * so we build a meta/outer-wrapper structure..
  */
 struct ne2k_pci_card {
@@ -246,7 +246,7 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 	irq = pdev->irq;
 
 	if (!ioaddr || ((pci_resource_flags(pdev, 0) & IORESOURCE_IO) == 0)) {
-		dev_err(&pdev->dev, "no I/O resource at PCI BAR #0\n");
+		dev_err(&pdev->dev, "anal I/O resource at PCI BAR #0\n");
 		goto err_out;
 	}
 
@@ -264,10 +264,10 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 	{
 		int regd;
 
-		outb(E8390_NODMA + E8390_PAGE1 + E8390_STOP, ioaddr + E8390_CMD);
+		outb(E8390_ANALDMA + E8390_PAGE1 + E8390_STOP, ioaddr + E8390_CMD);
 		regd = inb(ioaddr + 0x0d);
 		outb(0xff, ioaddr + 0x0d);
-		outb(E8390_NODMA + E8390_PAGE0, ioaddr + E8390_CMD);
+		outb(E8390_ANALDMA + E8390_PAGE0, ioaddr + E8390_CMD);
 		/* Clear the counter by reading. */
 		inb(ioaddr + EN0_COUNTER0);
 		if (inb(ioaddr + EN0_COUNTER0) != 0) {
@@ -281,7 +281,7 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 	/* Allocate net_device, dev->priv; fill in 8390 specific dev fields. */
 	dev = alloc_ei_netdev();
 	if (!dev) {
-		dev_err(&pdev->dev, "cannot allocate ethernet device\n");
+		dev_err(&pdev->dev, "cananalt allocate ethernet device\n");
 		goto err_out_free_res;
 	}
 	dev->netdev_ops = &ne2k_netdev_ops;
@@ -290,7 +290,7 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	/* Reset card. Who knows what dain-bramaged state it was left in. */
+	/* Reset card. Who kanalws what dain-bramaged state it was left in. */
 	{
 		unsigned long reset_start_time = jiffies;
 
@@ -303,7 +303,7 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 			/* Limit wait: '2' avoids jiffy roll-over. */
 			if (jiffies - reset_start_time > 2) {
 				dev_err(&pdev->dev,
-					"Card failure (no reset ack).\n");
+					"Card failure (anal reset ack).\n");
 				goto err_out_free_netdev;
 			}
 		/* Ack all intr. */
@@ -319,7 +319,7 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 	{
 		struct {unsigned char value, offset; } program_seq[] = {
 			/* Select page 0 */
-			{E8390_NODMA + E8390_PAGE0 + E8390_STOP, E8390_CMD},
+			{E8390_ANALDMA + E8390_PAGE0 + E8390_STOP, E8390_CMD},
 			/* Set word-wide access */
 			{0x49,	EN0_DCFG},
 			/* Clear the count regs. */
@@ -345,7 +345,7 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 
 	}
 
-	/* Note: all PCI cards have at least 16 bit access, so we don't have
+	/* Analte: all PCI cards have at least 16 bit access, so we don't have
 	 * to check for 8 bit cards.  Most cards permit 32 bit access.
 	 */
 	if (flags & ONLY_32BIT_IO) {
@@ -378,7 +378,7 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 
 	ei_status.rx_start_page = start_page + TX_PAGES;
 #ifdef PACKETBUF_MEMSIZE
-	/* Allow the packet buffer size to be overridden by know-it-alls. */
+	/* Allow the packet buffer size to be overridden by kanalw-it-alls. */
 	ei_status.stop_page = ei_status.tx_start_page + PACKETBUF_MEMSIZE;
 #endif
 
@@ -409,7 +409,7 @@ err_out_free_res:
 	release_region(ioaddr, NE_IO_EXTENT);
 err_out:
 	pci_disable_device(pdev);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* Magic incantation sequence for full duplex on the supported cards.
@@ -418,11 +418,11 @@ static inline int set_realtek_fdx(struct net_device *dev)
 {
 	long ioaddr = dev->base_addr;
 
-	outb(0xC0 + E8390_NODMA, ioaddr + NE_CMD); /* Page 3 */
+	outb(0xC0 + E8390_ANALDMA, ioaddr + NE_CMD); /* Page 3 */
 	outb(0xC0, ioaddr + 0x01); /* Enable writes to CONFIG3 */
 	outb(0x40, ioaddr + 0x06); /* Enable full duplex */
 	outb(0x00, ioaddr + 0x01); /* Disable writes to CONFIG3 */
-	outb(E8390_PAGE0 + E8390_NODMA, ioaddr + NE_CMD); /* Page 0 */
+	outb(E8390_PAGE0 + E8390_ANALDMA, ioaddr + NE_CMD); /* Page 0 */
 	return 0;
 }
 
@@ -441,7 +441,7 @@ static int ne2k_pci_set_fdx(struct net_device *dev)
 	else if (ei_status.ne2k_flags & HOLTEK_FDX)
 		return set_holtek_fdx(dev);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ne2k_pci_open(struct net_device *dev)
@@ -482,10 +482,10 @@ static void ne2k_pci_reset_8390(struct net_device *dev)
 	ei_status.txing = 0;
 	ei_status.dmaing = 0;
 
-	/* This check _should_not_ be necessary, omit eventually. */
+	/* This check _should_analt_ be necessary, omit eventually. */
 	while ((inb(NE_BASE+EN0_ISR) & ENISR_RESET) == 0)
 		if (jiffies - reset_start_time > 2) {
-			netdev_err(dev, "%s did not complete.\n", __func__);
+			netdev_err(dev, "%s did analt complete.\n", __func__);
 			break;
 		}
 	/* Ack intr. */
@@ -512,7 +512,7 @@ static void ne2k_pci_get_8390_hdr(struct net_device *dev,
 	}
 
 	ei_status.dmaing |= 0x01;
-	outb(E8390_NODMA + E8390_PAGE0 + E8390_START, nic_base + NE_CMD);
+	outb(E8390_ANALDMA + E8390_PAGE0 + E8390_START, nic_base + NE_CMD);
 	outb(sizeof(struct e8390_pkt_hdr), nic_base + EN0_RCNTLO);
 	outb(0, nic_base + EN0_RCNTHI);
 	outb(0, nic_base + EN0_RSARLO);		/* On page boundary */
@@ -554,7 +554,7 @@ static void ne2k_pci_block_input(struct net_device *dev, int count,
 	ei_status.dmaing |= 0x01;
 	if (ei_status.ne2k_flags & ONLY_32BIT_IO)
 		count = (count + 3) & 0xFFFC;
-	outb(E8390_NODMA + E8390_PAGE0 + E8390_START, nic_base + NE_CMD);
+	outb(E8390_ANALDMA + E8390_PAGE0 + E8390_START, nic_base + NE_CMD);
 	outb(count & 0xff, nic_base + EN0_RCNTLO);
 	outb(count >> 8, nic_base + EN0_RCNTHI);
 	outb(ring_offset & 0xff, nic_base + EN0_RSARLO);
@@ -609,13 +609,13 @@ static void ne2k_pci_block_output(struct net_device *dev, int count,
 	}
 	ei_status.dmaing |= 0x01;
 	/* We should already be in page 0, but to be safe... */
-	outb(E8390_PAGE0+E8390_START+E8390_NODMA, nic_base + NE_CMD);
+	outb(E8390_PAGE0+E8390_START+E8390_ANALDMA, nic_base + NE_CMD);
 
 #ifdef NE_RW_BUGFIX
 	/* Handle the read-before-write bug the same way as the
 	 * Crynwr packet driver -- the NatSemi method doesn't work.
 	 * Actually this doesn't always work either, but if you have
-	 * problems with your NEx000 this is better than nothing!
+	 * problems with your NEx000 this is better than analthing!
 	 */
 	outb(0x42, nic_base + EN0_RCNTLO);
 	outb(0x00, nic_base + EN0_RCNTHI);
@@ -625,7 +625,7 @@ static void ne2k_pci_block_output(struct net_device *dev, int count,
 #endif
 	outb(ENISR_RDC, nic_base + EN0_ISR);
 
-	/* Now the normal output. */
+	/* Analw the analrmal output. */
 	outb(count & 0xff, nic_base + EN0_RCNTLO);
 	outb(count >> 8,   nic_base + EN0_RCNTHI);
 	outb(0x00, nic_base + EN0_RSARLO);

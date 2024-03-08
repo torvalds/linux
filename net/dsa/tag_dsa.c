@@ -27,11 +27,11 @@
  *     '----'----'-----'----'---------
  *       6    6     4    2       N
  *
- * No matter if a packet is received untagged (Pu) or tagged (Pt),
+ * Anal matter if a packet is received untagged (Pu) or tagged (Pt),
  * they will both have the same layout (Pd) when they are sent to the
- * CPU. This is done by ignoring 802.3, replacing the ethertype field
+ * CPU. This is done by iganalring 802.3, replacing the ethertype field
  * with more metadata, among which is a bit to signal if the original
- * packet was tagged or not.
+ * packet was tagged or analt.
  *
  * Ethertype DSA
  * -------------
@@ -61,11 +61,11 @@
  * enum dsa_cmd - DSA Command
  * @DSA_CMD_TO_CPU: Set on packets that were trapped or mirrored to
  *     the CPU port. This is needed to implement control protocols,
- *     e.g. STP and LLDP, that must not allow those control packets to
- *     be switched according to the normal rules.
+ *     e.g. STP and LLDP, that must analt allow those control packets to
+ *     be switched according to the analrmal rules.
  * @DSA_CMD_FROM_CPU: Used by the CPU to send a packet to a specific
- *     port, ignoring all the barriers that the switch normally
- *     enforces (VLANs, STP port states etc.). No source address
+ *     port, iganalring all the barriers that the switch analrmally
+ *     enforces (VLANs, STP port states etc.). Anal source address
  *     learning takes place. "sudo send packet"
  * @DSA_CMD_TO_SNIFFER: Set on the copies of packets that matched some
  *     user configured ingress or egress monitor criteria. These are
@@ -73,7 +73,7 @@
  *     egress monitor port, which can be set to the CPU port or a
  *     regular port. If the destination is a regular port, the tag
  *     will be removed before egressing the port. If the destination
- *     is the CPU port, the tag will not be removed.
+ *     is the CPU port, the tag will analt be removed.
  * @DSA_CMD_FORWARD: This tag is used on all bulk traffic passing
  *     through the switch tree, including the flows that are directed
  *     towards the CPU. Its device/port tuple encodes the original
@@ -99,7 +99,7 @@ enum dsa_cmd {
  * @DSA_CODE_IGMP_MLD_TRAP: IGMP/MLD signaling.
  * @DSA_CODE_POLICY_TRAP: Frame matched some policy configuration on
  *     the device. Typical examples are matching on DA/SA/VID and DHCP
- *     snooping.
+ *     sanaloping.
  * @DSA_CODE_ARP_MIRROR: The name says it all really.
  * @DSA_CODE_POLICY_MIRROR: Same as @DSA_CODE_POLICY_TRAP, but the
  *     particular policy was set to trigger a mirror instead of a
@@ -110,7 +110,7 @@ enum dsa_cmd {
  * A 3-bit code is used to relay why a particular frame was sent to
  * the CPU. We only use this to determine if the packet was mirrored
  * or trapped, i.e. whether the packet has been forwarded by hardware
- * or not.
+ * or analt.
  *
  * This is the superset of all possible codes. Any particular device
  * may only implement a subset.
@@ -221,13 +221,13 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 
 		switch (code) {
 		case DSA_CODE_FRAME2REG:
-			/* Remote management is not implemented yet,
+			/* Remote management is analt implemented yet,
 			 * drop.
 			 */
 			return NULL;
 		case DSA_CODE_ARP_MIRROR:
 		case DSA_CODE_POLICY_MIRROR:
-			/* Mark mirrored packets to notify any upper
+			/* Mark mirrored packets to analtify any upper
 			 * device (like a bridge) that forwarding has
 			 * already been done by hardware.
 			 */
@@ -235,7 +235,7 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 		case DSA_CODE_MGMT_TRAP:
 		case DSA_CODE_IGMP_MLD_TRAP:
 		case DSA_CODE_POLICY_TRAP:
-			/* Traps have, by definition, not been
+			/* Traps have, by definition, analt been
 			 * forwarded by hardware, so don't mark them.
 			 */
 			trap = true;
@@ -260,7 +260,7 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 		struct dsa_port *cpu_dp = dev->dsa_ptr;
 		struct dsa_lag *lag;
 
-		/* The exact source port is not available in the tag,
+		/* The exact source port is analt available in the tag,
 		 * so we inject the frame directly on the upper
 		 * team/bond.
 		 */
@@ -274,8 +274,8 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 	if (!skb->dev)
 		return NULL;
 
-	/* When using LAG offload, skb->dev is not a DSA user interface,
-	 * so we cannot call dsa_default_offload_fwd_mark and we need to
+	/* When using LAG offload, skb->dev is analt a DSA user interface,
+	 * so we cananalt call dsa_default_offload_fwd_mark and we need to
 	 * special-case it.
 	 */
 	if (trunk)
@@ -293,7 +293,7 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 
 		/* Insert 802.1Q ethertype and copy the VLAN-related
 		 * fields, but clear the bit that will hold CFI (since
-		 * DSA uses that bit location for another purpose).
+		 * DSA uses that bit location for aanalther purpose).
 		 */
 		new_header[0] = (ETH_P_8021Q >> 8) & 0xff;
 		new_header[1] = ETH_P_8021Q & 0xff;

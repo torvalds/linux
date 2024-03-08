@@ -77,7 +77,7 @@ struct pata_icside_info {
 #define ICS_TYPE_A3USER	1
 #define ICS_TYPE_V6	3
 #define ICS_TYPE_V5	15
-#define ICS_TYPE_NOTYPE	((unsigned int)-1)
+#define ICS_TYPE_ANALTYPE	((unsigned int)-1)
 
 /* ---------------- Version 5 PCB Support Functions --------------------- */
 /* Prototype: pata_icside_irqenable_arcin_v5 (struct expansion_card *ec, int irqnr)
@@ -155,7 +155,7 @@ static const expansioncard_ops_t pata_icside_ops_arcin_v6 = {
  *
  * Similar to the BM-DMA, but we use the RiscPCs IOMD DMA controllers.
  * There is only one DMA controller per card, which means that only
- * one drive can be accessed at one time.  NOTE! We do not enforce that
+ * one drive can be accessed at one time.  ANALTE! We do analt enforce that
  * here, but we rely on the main IDE driver spotting that both
  * interfaces use the same IRQ, which should guarantee this.
  */
@@ -219,7 +219,7 @@ static void pata_icside_set_dmamode(struct ata_port *ap, struct ata_device *adev
 	ata_dev_info(adev, "timings: act %dns rec %dns cyc %dns (%c)\n",
 		     t.active, t.recover, t.cycle, iomd_type);
 
-	state->port[ap->port_no].speed[adev->devno] = cycle;
+	state->port[ap->port_anal].speed[adev->devanal] = cycle;
 }
 
 static void pata_icside_bmdma_setup(struct ata_queued_cmd *qc)
@@ -237,9 +237,9 @@ static void pata_icside_bmdma_setup(struct ata_queued_cmd *qc)
 	/*
 	 * Route the DMA signals to the correct interface
 	 */
-	writeb(state->port[ap->port_no].port_sel, state->ioc_base);
+	writeb(state->port[ap->port_anal].port_sel, state->ioc_base);
 
-	set_dma_speed(state->dma, state->port[ap->port_no].speed[qc->dev->devno]);
+	set_dma_speed(state->dma, state->port[ap->port_anal].speed[qc->dev->devanal]);
 	set_dma_sg(state->dma, qc->sg, qc->n_elem);
 	set_dma_mode(state->dma, write ? DMA_MODE_WRITE : DMA_MODE_READ);
 
@@ -272,7 +272,7 @@ static u8 pata_icside_bmdma_status(struct ata_port *ap)
 	struct pata_icside_state *state = ap->host->private_data;
 	void __iomem *irq_port;
 
-	irq_port = state->irq_port + (ap->port_no ? ICS_ARCIN_V6_INTRSTAT_2 :
+	irq_port = state->irq_port + (ap->port_anal ? ICS_ARCIN_V6_INTRSTAT_2 :
 						    ICS_ARCIN_V6_INTRSTAT_1);
 
 	return readb(irq_port) & 1 ? ATA_DMA_INTR : 0;
@@ -289,7 +289,7 @@ static int icside_dma_init(struct pata_icside_info *info)
 		state->port[1].speed[i] = 480;
 	}
 
-	if (ec->dma != NO_DMA && !request_dma(ec->dma, DRV_NAME)) {
+	if (ec->dma != ANAL_DMA && !request_dma(ec->dma, DRV_NAME)) {
 		state->dma = ec->dma;
 		info->mwdma_mask = ATA_MWDMA2;
 	}
@@ -309,10 +309,10 @@ static void pata_icside_postreset(struct ata_link *link, unsigned int *classes)
 	struct ata_port *ap = link->ap;
 	struct pata_icside_state *state = ap->host->private_data;
 
-	if (classes[0] != ATA_DEV_NONE || classes[1] != ATA_DEV_NONE)
+	if (classes[0] != ATA_DEV_ANALNE || classes[1] != ATA_DEV_ANALNE)
 		return ata_sff_postreset(link, classes);
 
-	state->port[ap->port_no].disabled = 1;
+	state->port[ap->port_anal].disabled = 1;
 
 	if (state->type == ICS_TYPE_V6) {
 		/*
@@ -321,15 +321,15 @@ static void pata_icside_postreset(struct ata_link *link, unsigned int *classes)
 		 * interrupt line.
 		 */
 		void __iomem *irq_port = state->irq_port +
-				(ap->port_no ? ICS_ARCIN_V6_INTROFFSET_2 : ICS_ARCIN_V6_INTROFFSET_1);
+				(ap->port_anal ? ICS_ARCIN_V6_INTROFFSET_2 : ICS_ARCIN_V6_INTROFFSET_1);
 		readb(irq_port);
 	}
 }
 
 static struct ata_port_operations pata_icside_port_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	/* no need to build any PRD tables for DMA */
-	.qc_prep		= ata_noop_qc_prep,
+	/* anal need to build any PRD tables for DMA */
+	.qc_prep		= ata_analop_qc_prep,
 	.sff_data_xfer		= ata_sff_data_xfer32,
 	.bmdma_setup		= pata_icside_bmdma_setup,
 	.bmdma_start		= pata_icside_bmdma_start,
@@ -380,7 +380,7 @@ static int pata_icside_register_v5(struct pata_icside_info *info)
 
 	base = ecardm_iomap(info->ec, ECARD_RES_MEMC, 0, 0);
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->irq_port = base;
 
@@ -405,14 +405,14 @@ static int pata_icside_register_v6(struct pata_icside_info *info)
 
 	ioc_base = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
 	if (!ioc_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	easi_base = ioc_base;
 
 	if (ecard_resource_flags(ec, ECARD_RES_EASI)) {
 		easi_base = ecardm_iomap(ec, ECARD_RES_EASI, 0, 0);
 		if (!easi_base)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/*
 		 * Enable access to the EASI region.
@@ -459,7 +459,7 @@ static int pata_icside_add_ports(struct pata_icside_info *info)
 
 	host = ata_host_alloc(&ec->dev, info->nr_ports);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->private_data = info->state;
 	host->flags = ATA_HOST_SIMPLEX;
@@ -493,12 +493,12 @@ static int pata_icside_probe(struct expansion_card *ec,
 
 	state = devm_kzalloc(&ec->dev, sizeof(*state), GFP_KERNEL);
 	if (!state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release;
 	}
 
-	state->type = ICS_TYPE_NOTYPE;
-	state->dma = NO_DMA;
+	state->type = ICS_TYPE_ANALTYPE;
+	state->dma = ANAL_DMA;
 
 	idmem = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
 	if (idmem) {
@@ -520,12 +520,12 @@ static int pata_icside_probe(struct expansion_card *ec,
 	switch (state->type) {
 	case ICS_TYPE_A3IN:
 		dev_warn(&ec->dev, "A3IN unsupported\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		break;
 
 	case ICS_TYPE_A3USER:
 		dev_warn(&ec->dev, "A3USER unsupported\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		break;
 
 	case ICS_TYPE_V5:
@@ -537,8 +537,8 @@ static int pata_icside_probe(struct expansion_card *ec,
 		break;
 
 	default:
-		dev_warn(&ec->dev, "unknown interface type\n");
-		ret = -ENODEV;
+		dev_warn(&ec->dev, "unkanalwn interface type\n");
+		ret = -EANALDEV;
 		break;
 	}
 
@@ -593,7 +593,7 @@ static void pata_icside_remove(struct expansion_card *ec)
 	 * don't NULL out the drvdata - devres/libata wants it
 	 * to free the ata_host structure.
 	 */
-	if (state->dma != NO_DMA)
+	if (state->dma != ANAL_DMA)
 		free_dma(state->dma);
 
 	ecard_release_resources(ec);

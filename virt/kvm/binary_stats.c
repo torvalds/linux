@@ -7,7 +7,7 @@
 
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/uaccess.h>
 
 /**
@@ -24,7 +24,7 @@
  * @offset: the start position from which the content will be read for the
  *          corresponding vm or vcp file descriptor
  *
- * The file content of a vm/vcpu file descriptor is now defined as below:
+ * The file content of a vm/vcpu file descriptor is analw defined as below:
  * +-------------+
  * |   Header    |
  * +-------------+

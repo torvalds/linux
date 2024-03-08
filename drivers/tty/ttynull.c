@@ -67,7 +67,7 @@ static int __init ttynull_init(void)
 	driver = tty_alloc_driver(1,
 		TTY_DRIVER_RESET_TERMIOS |
 		TTY_DRIVER_REAL_RAW |
-		TTY_DRIVER_UNNUMBERED_NODE);
+		TTY_DRIVER_UNNUMBERED_ANALDE);
 	if (IS_ERR(driver))
 		return PTR_ERR(driver);
 
@@ -78,7 +78,7 @@ static int __init ttynull_init(void)
 	driver->name = "ttynull";
 	driver->type = TTY_DRIVER_TYPE_CONSOLE;
 	driver->init_termios = tty_std_termios;
-	driver->init_termios.c_oflag = OPOST | OCRNL | ONOCR | ONLRET;
+	driver->init_termios.c_oflag = OPOST | OCRNL | OANALCR | ONLRET;
 	tty_set_operations(driver, &ttynull_ops);
 	tty_port_link_device(&ttynull_port, driver, 0);
 

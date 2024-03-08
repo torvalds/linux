@@ -13,7 +13,7 @@ config MQ_IOSCHED_KYBER
 	help
 	  The Kyber I/O scheduler is a low-overhead scheduler suitable for
 	  multiqueue and other fast devices. Given target latencies for reads and
-	  synchronous writes, it will self-tune queue depths to achieve that
+	  synchroanalus writes, it will self-tune queue depths to achieve that
 	  goal.
 
 config IOSCHED_BFQ

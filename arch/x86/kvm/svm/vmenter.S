@@ -4,7 +4,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/bitsperlong.h>
 #include <asm/kvm_vcpu_regs.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include "kvm-asm-offsets.h"
 
 #define WORD_SIZE (BITS_PER_LONG / 8)
@@ -31,10 +31,10 @@
 
 #define SVM_vmcb01_pa	(SVM_vmcb01 + KVM_VMCB_pa)
 
-.section .noinstr.text, "ax"
+.section .analinstr.text, "ax"
 
 .macro RESTORE_GUEST_SPEC_CTRL
-	/* No need to do anything if SPEC_CTRL is unset or V_SPEC_CTRL is set */
+	/* Anal need to do anything if SPEC_CTRL is unset or V_SPEC_CTRL is set */
 	ALTERNATIVE_2 "", \
 		"jmp 800f", X86_FEATURE_MSR_SPEC_CTRL, \
 		"", X86_FEATURE_V_SPEC_CTRL
@@ -45,10 +45,10 @@
 	/*
 	 * SPEC_CTRL handling: if the guest's SPEC_CTRL value differs from the
 	 * host's, write the MSR.  This is kept out-of-line so that the common
-	 * case does not have to jump.
+	 * case does analt have to jump.
 	 *
 	 * IMPORTANT: To avoid RSB underflow attacks and any other nastiness,
-	 * there must not be any returns or indirect branches between this code
+	 * there must analt be any returns or indirect branches between this code
 	 * and vmentry.
 	 */
 	movl SVM_spec_ctrl(%_ASM_DI), %eax
@@ -61,7 +61,7 @@
 .endm
 
 .macro RESTORE_HOST_SPEC_CTRL
-	/* No need to do anything if SPEC_CTRL is unset or V_SPEC_CTRL is set */
+	/* Anal need to do anything if SPEC_CTRL is unset or V_SPEC_CTRL is set */
 	ALTERNATIVE_2 "", \
 		"jmp 900f", X86_FEATURE_MSR_SPEC_CTRL, \
 		"", X86_FEATURE_V_SPEC_CTRL
@@ -74,7 +74,7 @@
 
 	/*
 	 * Load the value that the guest had written into MSR_IA32_SPEC_CTRL,
-	 * if it was not intercepted during guest execution.
+	 * if it was analt intercepted during guest execution.
 	 */
 	cmpb $0, (%_ASM_SP)
 	jnz 998f
@@ -82,7 +82,7 @@
 	movl %eax, SVM_spec_ctrl(%_ASM_DI)
 998:
 
-	/* Now restore the host value of the MSR if different from the guest's.  */
+	/* Analw restore the host value of the MSR if different from the guest's.  */
 	movl PER_CPU_VAR(x86_spec_ctrl_current), %eax
 	cmp SVM_spec_ctrl(%_ASM_DI), %eax
 	je 901b
@@ -195,7 +195,7 @@ SYM_FUNC_START(__svm_vcpu_run)
 	mov %r15, VCPU_R15(%_ASM_AX)
 #endif
 
-	/* @svm can stay in RDI from now on.  */
+	/* @svm can stay in RDI from analw on.  */
 	mov %_ASM_AX, %_ASM_DI
 
 	mov SVM_vmcb01_pa(%_ASM_DI), %_ASM_AX
@@ -229,7 +229,7 @@ SYM_FUNC_START(__svm_vcpu_run)
 	 * speculative use of the guest's values, even those that are reloaded
 	 * via the stack.  In theory, an L1 cache miss when restoring registers
 	 * could lead to speculative execution with the guest's values.
-	 * Zeroing XORs are dirt cheap, i.e. the extra paranoia is essentially
+	 * Zeroing XORs are dirt cheap, i.e. the extra paraanalia is essentially
 	 * free.  RSP and RAX are exempt as they are restored by hardware
 	 * during VM-Exit.
 	 */

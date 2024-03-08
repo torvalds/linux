@@ -119,7 +119,7 @@ static int inv_icm42600_accel_update_scan_mode(struct iio_dev *indio_dev,
 
 	if (*scan_mask & INV_ICM42600_SCAN_MASK_ACCEL_3AXIS) {
 		/* enable accel sensor */
-		conf.mode = INV_ICM42600_SENSOR_MODE_LOW_NOISE;
+		conf.mode = INV_ICM42600_SENSOR_MODE_LOW_ANALISE;
 		ret = inv_icm42600_set_accel_conf(st, &conf, &sleep_accel);
 		if (ret)
 			goto out_unlock;
@@ -174,7 +174,7 @@ static int inv_icm42600_accel_read_sensor(struct inv_icm42600_state *st,
 	mutex_lock(&st->lock);
 
 	/* enable accel sensor */
-	conf.mode = INV_ICM42600_SENSOR_MODE_LOW_NOISE;
+	conf.mode = INV_ICM42600_SENSOR_MODE_LOW_ANALISE;
 	ret = inv_icm42600_set_accel_conf(st, &conf, NULL);
 	if (ret)
 		goto exit;
@@ -195,7 +195,7 @@ exit:
 	return ret;
 }
 
-/* IIO format int + nano */
+/* IIO format int + naanal */
 static const int inv_icm42600_accel_scale[] = {
 	/* +/- 16G => 0.004788403 m/s-2 */
 	[2 * INV_ICM42600_ACCEL_FS_16G] = 0,
@@ -220,7 +220,7 @@ static int inv_icm42600_accel_read_scale(struct inv_icm42600_state *st,
 
 	*val = inv_icm42600_accel_scale[2 * idx];
 	*val2 = inv_icm42600_accel_scale[2 * idx + 1];
-	return IIO_VAL_INT_PLUS_NANO;
+	return IIO_VAL_INT_PLUS_NAANAL;
 }
 
 static int inv_icm42600_accel_write_scale(struct inv_icm42600_state *st,
@@ -586,7 +586,7 @@ static int inv_icm42600_accel_read_avail(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
 		*vals = inv_icm42600_accel_scale;
-		*type = IIO_VAL_INT_PLUS_NANO;
+		*type = IIO_VAL_INT_PLUS_NAANAL;
 		*length = ARRAY_SIZE(inv_icm42600_accel_scale);
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -644,7 +644,7 @@ static int inv_icm42600_accel_write_raw_get_fmt(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_CALIBBIAS:
@@ -712,11 +712,11 @@ struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st)
 
 	name = devm_kasprintf(dev, GFP_KERNEL, "%s-accel", st->name);
 	if (!name)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*ts));
 	if (!indio_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * clock period is 32kHz (31250ns)
@@ -753,7 +753,7 @@ int inv_icm42600_accel_parse_fifo(struct iio_dev *indio_dev)
 	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
 	struct inv_sensors_timestamp *ts = iio_priv(indio_dev);
 	ssize_t i, size;
-	unsigned int no;
+	unsigned int anal;
 	const void *accel, *gyro, *timestamp;
 	const int8_t *temp;
 	unsigned int odr;
@@ -761,21 +761,21 @@ int inv_icm42600_accel_parse_fifo(struct iio_dev *indio_dev)
 	struct inv_icm42600_accel_buffer buffer;
 
 	/* parse all fifo packets */
-	for (i = 0, no = 0; i < st->fifo.count; i += size, ++no) {
+	for (i = 0, anal = 0; i < st->fifo.count; i += size, ++anal) {
 		size = inv_icm42600_fifo_decode_packet(&st->fifo.data[i],
 				&accel, &gyro, &temp, &timestamp, &odr);
 		/* quit if error or FIFO is empty */
 		if (size <= 0)
 			return size;
 
-		/* skip packet if no accel data or data is invalid */
+		/* skip packet if anal accel data or data is invalid */
 		if (accel == NULL || !inv_icm42600_fifo_is_data_valid(accel))
 			continue;
 
 		/* update odr */
 		if (odr & INV_ICM42600_SENSOR_ACCEL)
 			inv_sensors_timestamp_apply_odr(ts, st->fifo.period,
-							st->fifo.nb.total, no);
+							st->fifo.nb.total, anal);
 
 		/* buffer is copied to userspace, zeroing it to avoid any data leak */
 		memset(&buffer, 0, sizeof(buffer));

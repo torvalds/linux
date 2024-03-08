@@ -17,7 +17,7 @@
  * 1.1: Original.
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		1
+#define DRIVER_MIANALR		1
 #define DRIVER_PATCHLEVEL	0
 
 #endif

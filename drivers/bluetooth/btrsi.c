@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -66,7 +66,7 @@ static int rsi_hci_send_pkt(struct hci_dev *hdev, struct sk_buff *skb)
 		/* Insufficient skb headroom - allocate a new skb */
 		new_skb = skb_realloc_headroom(skb, RSI_HEADROOM_FOR_BT_HAL);
 		if (unlikely(!new_skb))
-			return -ENOMEM;
+			return -EANALMEM;
 		bt_cb(new_skb)->pkt_type = hci_skb_pkt_type(skb);
 		kfree_skb(skb);
 		skb = new_skb;
@@ -95,7 +95,7 @@ static int rsi_hci_recv_pkt(void *priv, const u8 *pkt)
 
 	skb = dev_alloc_skb(pkt_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(skb->data, pkt + RSI_FRAME_DESC_SIZE, pkt_len);
 	skb_put(skb, pkt_len);
@@ -114,7 +114,7 @@ static int rsi_hci_attach(void *priv, struct rsi_proto_ops *ops)
 
 	h_adapter = kzalloc(sizeof(*h_adapter), GFP_KERNEL);
 	if (!h_adapter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	h_adapter->priv = priv;
 	ops->set_bt_context(priv, h_adapter);

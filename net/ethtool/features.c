@@ -13,7 +13,7 @@ struct features_reply_data {
 	u32			hw[ETHTOOL_DEV_FEATURE_WORDS];
 	u32			wanted[ETHTOOL_DEV_FEATURE_WORDS];
 	u32			active[ETHTOOL_DEV_FEATURE_WORDS];
-	u32			nochange[ETHTOOL_DEV_FEATURE_WORDS];
+	u32			analchange[ETHTOOL_DEV_FEATURE_WORDS];
 	u32			all[ETHTOOL_DEV_FEATURE_WORDS];
 };
 
@@ -44,7 +44,7 @@ static int features_prepare_data(const struct ethnl_req_info *req_base,
 	ethnl_features_to_bitmap32(data->hw, dev->hw_features);
 	ethnl_features_to_bitmap32(data->wanted, dev->wanted_features);
 	ethnl_features_to_bitmap32(data->active, dev->features);
-	ethnl_features_to_bitmap32(data->nochange, NETIF_F_NEVER_CHANGE);
+	ethnl_features_to_bitmap32(data->analchange, NETIF_F_NEVER_CHANGE);
 	all_features = GENMASK_ULL(NETDEV_FEATURE_COUNT - 1, 0);
 	ethnl_features_to_bitmap32(data->all, all_features);
 
@@ -74,7 +74,7 @@ static int features_reply_size(const struct ethnl_req_info *req_base,
 	if (ret < 0)
 		return ret;
 	len += ret;
-	ret = ethnl_bitset32_size(data->nochange, NULL, NETDEV_FEATURE_COUNT,
+	ret = ethnl_bitset32_size(data->analchange, NULL, NETDEV_FEATURE_COUNT,
 				  netdev_features_strings, compact);
 	if (ret < 0)
 		return ret;
@@ -106,8 +106,8 @@ static int features_fill_reply(struct sk_buff *skb,
 				 netdev_features_strings, compact);
 	if (ret < 0)
 		return ret;
-	return ethnl_put_bitset32(skb, ETHTOOL_A_FEATURES_NOCHANGE,
-				  data->nochange, NULL, NETDEV_FEATURE_COUNT,
+	return ethnl_put_bitset32(skb, ETHTOOL_A_FEATURES_ANALCHANGE,
+				  data->analchange, NULL, NETDEV_FEATURE_COUNT,
 				  netdev_features_strings, compact);
 }
 
@@ -176,7 +176,7 @@ static int features_send_reply(struct net_device *dev, struct genl_info *info,
 		goto err;
 	reply_len += ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	rskb = ethnl_reply_init(reply_len, dev, ETHTOOL_MSG_FEATURES_SET_REPLY,
 				ETHTOOL_A_FEATURES_HEADER, info,
 				&reply_payload);
@@ -200,7 +200,7 @@ static int features_send_reply(struct net_device *dev, struct genl_info *info,
 
 nla_put_failure:
 	nlmsg_free(rskb);
-	WARN_ONCE(1, "calculated message payload length (%d) not sufficient\n",
+	WARN_ONCE(1, "calculated message payload length (%d) analt sufficient\n",
 		  reply_len);
 err:
 	GENL_SET_ERR_MSG(info, "failed to send reply message");
@@ -245,14 +245,14 @@ int ethnl_set_features(struct sk_buff *skb, struct genl_info *info)
 	if (ret < 0)
 		goto out_ops;
 	if (ethnl_bitmap_to_features(req_mask) & ~NETIF_F_ETHTOOL_BITS) {
-		GENL_SET_ERR_MSG(info, "attempt to change non-ethtool features");
+		GENL_SET_ERR_MSG(info, "attempt to change analn-ethtool features");
 		ret = -EINVAL;
 		goto out_ops;
 	}
 
-	/* set req_wanted bits not in req_mask from old_wanted */
+	/* set req_wanted bits analt in req_mask from old_wanted */
 	bitmap_and(req_wanted, req_wanted, req_mask, NETDEV_FEATURE_COUNT);
-	bitmap_andnot(new_wanted, old_wanted, req_mask, NETDEV_FEATURE_COUNT);
+	bitmap_andanalt(new_wanted, old_wanted, req_mask, NETDEV_FEATURE_COUNT);
 	bitmap_or(req_wanted, new_wanted, req_wanted, NETDEV_FEATURE_COUNT);
 	if (!bitmap_equal(req_wanted, old_wanted, NETDEV_FEATURE_COUNT)) {
 		dev->wanted_features &= ~dev->hw_features;

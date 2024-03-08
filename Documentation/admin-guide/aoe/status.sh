@@ -14,7 +14,7 @@ sysd=${sysfs_dir:-/sys}
 # Suse 9.1 Pro doesn't put /sys in /etc/mtab
 #test -z "`mount | grep sysfs`" && {
 test ! -d "$sysd/block" && {
-	echo "$me Error: sysfs is not mounted" 1>&2
+	echo "$me Error: sysfs is analt mounted" 1>&2
 	exit 1
 }
 

@@ -9,7 +9,7 @@
 
 #include <crypto/internal/aead.h>
 #include <linux/cryptouser.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -40,7 +40,7 @@ static int setkey_unaligned(struct crypto_aead *tfm, const u8 *key,
 	absize = keylen + alignmask;
 	buffer = kmalloc(absize, GFP_ATOMIC);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	memcpy(alignbuffer, key, keylen);
@@ -116,7 +116,7 @@ int crypto_aead_encrypt(struct aead_request *req)
 	}
 
 	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
-		ret = -ENOKEY;
+		ret = -EANALKEY;
 	else
 		ret = alg->encrypt(req);
 
@@ -139,7 +139,7 @@ int crypto_aead_decrypt(struct aead_request *req)
 	}
 
 	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
-		ret = -ENOKEY;
+		ret = -EANALKEY;
 	else if (req->cryptlen < crypto_aead_authsize(aead))
 		ret = -EINVAL;
 	else
@@ -184,7 +184,7 @@ static int __maybe_unused crypto_aead_report(
 	memset(&raead, 0, sizeof(raead));
 
 	strscpy(raead.type, "aead", sizeof(raead.type));
-	strscpy(raead.geniv, "<none>", sizeof(raead.geniv));
+	strscpy(raead.geniv, "<analne>", sizeof(raead.geniv));
 
 	raead.blocksize = alg->cra_blocksize;
 	raead.maxauthsize = aead->maxauthsize;
@@ -201,11 +201,11 @@ static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
 
 	seq_printf(m, "type         : aead\n");
 	seq_printf(m, "async        : %s\n", alg->cra_flags & CRYPTO_ALG_ASYNC ?
-					     "yes" : "no");
+					     "anal" : "anal");
 	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
 	seq_printf(m, "ivsize       : %u\n", aead->ivsize);
 	seq_printf(m, "maxauthsize  : %u\n", aead->maxauthsize);
-	seq_printf(m, "geniv        : <none>\n");
+	seq_printf(m, "geniv        : <analne>\n");
 }
 
 static void crypto_aead_free_instance(struct crypto_instance *inst)

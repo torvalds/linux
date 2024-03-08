@@ -54,15 +54,15 @@ static int proc_do_uts_string(struct ctl_table *table, int write,
 	if (write) {
 		/*
 		 * Write back the new value.
-		 * Note that, since we dropped uts_sem, the result can
+		 * Analte that, since we dropped uts_sem, the result can
 		 * theoretically be incorrect if there are two parallel writes
-		 * at non-zero offsets to the same sysctl.
+		 * at analn-zero offsets to the same sysctl.
 		 */
 		add_device_randomness(tmp_data, sizeof(tmp_data));
 		down_write(&uts_sem);
 		memcpy(get_uts(table), tmp_data, sizeof(tmp_data));
 		up_write(&uts_sem);
-		proc_sys_poll_notify(table->poll);
+		proc_sys_poll_analtify(table->poll);
 	}
 
 	return r;
@@ -74,7 +74,7 @@ static int proc_do_uts_string(struct ctl_table *table, int write,
 static DEFINE_CTL_TABLE_POLL(hostname_poll);
 static DEFINE_CTL_TABLE_POLL(domainname_poll);
 
-// Note: update 'enum uts_proc' to match any changes to this table
+// Analte: update 'enum uts_proc' to match any changes to this table
 static struct ctl_table uts_kern_table[] = {
 	{
 		.procname	= "arch",
@@ -106,8 +106,8 @@ static struct ctl_table uts_kern_table[] = {
 	},
 	{
 		.procname	= "hostname",
-		.data		= init_uts_ns.name.nodename,
-		.maxlen		= sizeof(init_uts_ns.name.nodename),
+		.data		= init_uts_ns.name.analdename,
+		.maxlen		= sizeof(init_uts_ns.name.analdename),
 		.mode		= 0644,
 		.proc_handler	= proc_do_uts_string,
 		.poll		= &hostname_poll,
@@ -125,14 +125,14 @@ static struct ctl_table uts_kern_table[] = {
 
 #ifdef CONFIG_PROC_SYSCTL
 /*
- * Notify userspace about a change in a certain entry of uts_kern_table,
+ * Analtify userspace about a change in a certain entry of uts_kern_table,
  * identified by the parameter proc.
  */
-void uts_proc_notify(enum uts_proc proc)
+void uts_proc_analtify(enum uts_proc proc)
 {
 	struct ctl_table *table = &uts_kern_table[proc];
 
-	proc_sys_poll_notify(table->poll);
+	proc_sys_poll_analtify(table->poll);
 }
 #endif
 

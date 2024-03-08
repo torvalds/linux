@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -61,14 +61,14 @@ bool dml2_is_stereo_timing(const struct dc_stream_state *stream);
  * @out_hw_context : Handle to the new hardware context.
  *
  *
- * Return: None.
+ * Return: Analne.
  */
 void dml2_dc_construct_pipes(struct dc_state *context, struct dml_mode_support_info_st *dml_mode_support_st,
 		struct resource_context *out_hw_context);
 
 /*
  * dml2_predict_pipe_split - This function is the dml2 version of predict split pipe. It predicts a
- * if pipe split is required or not and returns the output as a bool.
+ * if pipe split is required or analt and returns the output as a bool.
  * @context : dc_state.
  * @pipe : old_index is the index of the pipe as derived from pipe_idx.
  * @index : index of the pipe
@@ -97,7 +97,7 @@ enum dc_status dml2_build_mapped_resource(const struct dc *dc, struct dc_state *
  * @support : This structure has the DML intermediate outputs required to populate rq_regs.
  *
  *
- * Return: None.
+ * Return: Analne.
  */
 
  /*
@@ -112,7 +112,7 @@ enum dc_status dml2_build_mapped_resource(const struct dc *dc, struct dc_state *
   *				This helps provide pipe_index in the pipe_cnt loop.
   *
   *
-  * Return: None.
+  * Return: Analne.
   */
 void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *context, struct resource_context *out_new_hw_state, struct dml2_context *in_ctx, unsigned int pipe_cnt);
 
@@ -121,7 +121,7 @@ void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *cont
  * and return the number of streams.
  * @dml2 : Handle for dml2 context
  * @dml_dispcfg : dml_dispcfg is the DML2 struct representing the current display config
- * Return : None.
+ * Return : Analne.
  */
 void dml2_apply_det_buffer_allocation_policy(struct dml2_context *in_ctx, struct dml_display_cfg_st *dml_dispcfg);
 
@@ -138,7 +138,7 @@ bool dml2_verify_det_buffer_configuration(struct dml2_context *in_ctx, struct dc
 /*
  * dml2_initialize_det_scratch - This function will initialize the DET scratch space as per requirements.
  * @dml2 : Handle for dml2 context
- * Return : None
+ * Return : Analne
  */
 void dml2_initialize_det_scratch(struct dml2_context *in_ctx);
 #endif

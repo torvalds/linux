@@ -29,7 +29,7 @@
 #define ONFI_FEATURE_NV_DDR		BIT(5)
 #define ONFI_FEATURE_EXT_PARAM_PAGE	BIT(7)
 
-/* ONFI timing mode, used in both asynchronous and synchronous mode */
+/* ONFI timing mode, used in both asynchroanalus and synchroanalus mode */
 #define ONFI_DATA_INTERFACE_SDR		0
 #define ONFI_DATA_INTERFACE_NVDDR	BIT(4)
 #define ONFI_DATA_INTERFACE_NVDDR2	BIT(5)
@@ -39,7 +39,7 @@
 #define ONFI_TIMING_MODE_3		BIT(3)
 #define ONFI_TIMING_MODE_4		BIT(4)
 #define ONFI_TIMING_MODE_5		BIT(5)
-#define ONFI_TIMING_MODE_UNKNOWN	BIT(6)
+#define ONFI_TIMING_MODE_UNKANALWN	BIT(6)
 #define ONFI_TIMING_MODE_PARAM(x)	FIELD_GET(GENMASK(3, 0), (x))
 
 /* ONFI feature number/address */
@@ -157,20 +157,20 @@ struct onfi_ext_param_page {
 	 * The actual size of the Extended Parameter Page is in
 	 * @ext_param_page_length of nand_onfi_params{}.
 	 * The following are the variable length sections.
-	 * So we do not add any fields below. Please see the ONFI spec.
+	 * So we do analt add any fields below. Please see the ONFI spec.
 	 */
 } __packed;
 
 /**
  * struct onfi_params - ONFI specific parameters that will be reused
- * @version: ONFI version (BCD encoded), 0 if ONFI is not supported
+ * @version: ONFI version (BCD encoded), 0 if ONFI is analt supported
  * @tPROG: Page program time
  * @tBERS: Block erase time
  * @tR: Page read time
  * @tCCS: Change column setup time
  * @fast_tCAD: Command/Address/Data slow or fast delay (NV-DDR only)
- * @sdr_timing_modes: Supported asynchronous/SDR timing modes
- * @nvddr_timing_modes: Supported source synchronous/NV-DDR timing modes
+ * @sdr_timing_modes: Supported asynchroanalus/SDR timing modes
+ * @nvddr_timing_modes: Supported source synchroanalus/NV-DDR timing modes
  * @vendor_revision: Vendor specific revision number
  * @vendor: Vendor specific data
  */

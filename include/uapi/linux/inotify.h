@@ -1,24 +1,24 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
- * Inode based directory notification for Linux
+ * Ianalde based directory analtification for Linux
  *
  * Copyright (C) 2005 John McCutchan
  */
 
-#ifndef _UAPI_LINUX_INOTIFY_H
-#define _UAPI_LINUX_INOTIFY_H
+#ifndef _UAPI_LINUX_IANALTIFY_H
+#define _UAPI_LINUX_IANALTIFY_H
 
-/* For O_CLOEXEC and O_NONBLOCK */
+/* For O_CLOEXEC and O_ANALNBLOCK */
 #include <linux/fcntl.h>
 #include <linux/types.h>
 
 /*
- * struct inotify_event - structure read from the inotify device for each event
+ * struct ianaltify_event - structure read from the ianaltify device for each event
  *
  * When you are watching a directory, you will receive the filename for events
  * such as IN_CREATE, IN_DELETE, IN_OPEN, IN_CLOSE, ..., relative to the wd.
  */
-struct inotify_event {
+struct ianaltify_event {
 	__s32		wd;		/* watch descriptor */
 	__u32		mask;		/* watch mask */
 	__u32		cookie;		/* cookie to synchronize two events */
@@ -31,7 +31,7 @@ struct inotify_event {
 #define IN_MODIFY		0x00000002	/* File was modified */
 #define IN_ATTRIB		0x00000004	/* Metadata changed */
 #define IN_CLOSE_WRITE		0x00000008	/* Writtable file was closed */
-#define IN_CLOSE_NOWRITE	0x00000010	/* Unwrittable file closed */
+#define IN_CLOSE_ANALWRITE	0x00000010	/* Unwrittable file closed */
 #define IN_OPEN			0x00000020	/* File was opened */
 #define IN_MOVED_FROM		0x00000040	/* File was moved from X */
 #define IN_MOVED_TO		0x00000080	/* File was moved to Y */
@@ -43,10 +43,10 @@ struct inotify_event {
 /* the following are legal events.  they are sent as needed to any watch */
 #define IN_UNMOUNT		0x00002000	/* Backing fs was unmounted */
 #define IN_Q_OVERFLOW		0x00004000	/* Event queued overflowed */
-#define IN_IGNORED		0x00008000	/* File was ignored */
+#define IN_IGANALRED		0x00008000	/* File was iganalred */
 
 /* helper events */
-#define IN_CLOSE		(IN_CLOSE_WRITE | IN_CLOSE_NOWRITE) /* close */
+#define IN_CLOSE		(IN_CLOSE_WRITE | IN_CLOSE_ANALWRITE) /* close */
 #define IN_MOVE			(IN_MOVED_FROM | IN_MOVED_TO) /* moves */
 
 /* special flags */
@@ -60,25 +60,25 @@ struct inotify_event {
 
 /*
  * All of the events - we build the list by hand so that we can add flags in
- * the future and not break backward compatibility.  Apps will get only the
+ * the future and analt break backward compatibility.  Apps will get only the
  * events that they originally wanted.  Be sure to add new events here!
  */
 #define IN_ALL_EVENTS	(IN_ACCESS | IN_MODIFY | IN_ATTRIB | IN_CLOSE_WRITE | \
-			 IN_CLOSE_NOWRITE | IN_OPEN | IN_MOVED_FROM | \
+			 IN_CLOSE_ANALWRITE | IN_OPEN | IN_MOVED_FROM | \
 			 IN_MOVED_TO | IN_DELETE | IN_CREATE | IN_DELETE_SELF | \
 			 IN_MOVE_SELF)
 
-/* Flags for sys_inotify_init1.  */
+/* Flags for sys_ianaltify_init1.  */
 #define IN_CLOEXEC O_CLOEXEC
-#define IN_NONBLOCK O_NONBLOCK
+#define IN_ANALNBLOCK O_ANALNBLOCK
 
 /*
- * ioctl numbers: inotify uses 'I' prefix for all ioctls,
+ * ioctl numbers: ianaltify uses 'I' prefix for all ioctls,
  * except historical FIONREAD, which is based on 'T'.
  *
- * INOTIFY_IOC_SETNEXTWD: set desired number of next created
+ * IANALTIFY_IOC_SETNEXTWD: set desired number of next created
  * watch descriptor.
  */
-#define INOTIFY_IOC_SETNEXTWD	_IOW('I', 0, __s32)
+#define IANALTIFY_IOC_SETNEXTWD	_IOW('I', 0, __s32)
 
-#endif /* _UAPI_LINUX_INOTIFY_H */
+#endif /* _UAPI_LINUX_IANALTIFY_H */

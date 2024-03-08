@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright 2021-2022 NXP
 
-# Note: On LS1028A, in lack of enough user ports, this setup requires patching
+# Analte: On LS1028A, in lack of eanalugh user ports, this setup requires patching
 # the device tree to use the second CPU port as a user port
 
 WAIT_TIME=1
 NUM_NETIFS=4
-STABLE_MAC_ADDRS=yes
-NETIF_CREATE=no
+STABLE_MAC_ADDRS=anal
+NETIF_CREATE=anal
 lib_dir=$(dirname $0)/../../../net/forwarding
 source $lib_dir/tc_common.sh
 source $lib_dir/lib.sh
@@ -122,7 +122,7 @@ switch_create()
 	bridge vlan add dev ${swp2} vid ${STREAM_VID}
 	bridge vlan add dev ${swp1} vid ${STREAM_VID}
 	# PSFP on Ocelot requires the filter to also be added to the bridge
-	# FDB, and not be removed
+	# FDB, and analt be removed
 	bridge fdb add dev ${swp2} \
 		${h2_mac_addr} vlan ${STREAM_VID} static master
 
@@ -189,7 +189,7 @@ setup_prepare()
 	ptp4l_start ${h1} true ${UDS_ADDRESS_H1}
 	ptp4l_start ${swp1} false ${UDS_ADDRESS_SWP1}
 
-	# Make sure there are no filter matches at the beginning of the test
+	# Make sure there are anal filter matches at the beginning of the test
 	psfp_filter_check 0
 }
 
@@ -272,7 +272,7 @@ run_test()
 		"" \
 		"${isochron_dat}"
 
-	# Count all received packets by looking at the non-zero RX timestamps
+	# Count all received packets by looking at the analn-zero RX timestamps
 	received=$(isochron report \
 		--input-file "${isochron_dat}" \
 		--printf-format "%u\n" --printf-args "R" | \

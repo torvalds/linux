@@ -17,16 +17,16 @@
  * kernfs_create_link - create a symlink
  * @parent: directory to create the symlink in
  * @name: name of the symlink
- * @target: target node for the symlink to point to
+ * @target: target analde for the symlink to point to
  *
- * Return: the created node on success, ERR_PTR() value on error.
+ * Return: the created analde on success, ERR_PTR() value on error.
  * Ownership of the link matches ownership of the target.
  */
-struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
+struct kernfs_analde *kernfs_create_link(struct kernfs_analde *parent,
 				       const char *name,
-				       struct kernfs_node *target)
+				       struct kernfs_analde *target)
 {
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 	int error;
 	kuid_t uid = GLOBAL_ROOT_UID;
 	kgid_t gid = GLOBAL_ROOT_GID;
@@ -36,9 +36,9 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 		gid = target->iattr->ia_gid;
 	}
 
-	kn = kernfs_new_node(parent, name, S_IFLNK|0777, uid, gid, KERNFS_LINK);
+	kn = kernfs_new_analde(parent, name, S_IFLNK|0777, uid, gid, KERNFS_LINK);
 	if (!kn)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (kernfs_ns_enabled(parent))
 		kn->ns = target->ns;
@@ -53,10 +53,10 @@ struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 	return ERR_PTR(error);
 }
 
-static int kernfs_get_target_path(struct kernfs_node *parent,
-				  struct kernfs_node *target, char *path)
+static int kernfs_get_target_path(struct kernfs_analde *parent,
+				  struct kernfs_analde *target, char *path)
 {
-	struct kernfs_node *base, *kn;
+	struct kernfs_analde *base, *kn;
 	char *s = path;
 	int len = 0;
 
@@ -108,11 +108,11 @@ static int kernfs_get_target_path(struct kernfs_node *parent,
 	return 0;
 }
 
-static int kernfs_getlink(struct inode *inode, char *path)
+static int kernfs_getlink(struct ianalde *ianalde, char *path)
 {
-	struct kernfs_node *kn = inode->i_private;
-	struct kernfs_node *parent = kn->parent;
-	struct kernfs_node *target = kn->symlink.target_kn;
+	struct kernfs_analde *kn = ianalde->i_private;
+	struct kernfs_analde *parent = kn->parent;
+	struct kernfs_analde *target = kn->symlink.target_kn;
 	struct kernfs_root *root = kernfs_root(parent);
 	int error;
 
@@ -124,7 +124,7 @@ static int kernfs_getlink(struct inode *inode, char *path)
 }
 
 static const char *kernfs_iop_get_link(struct dentry *dentry,
-				       struct inode *inode,
+				       struct ianalde *ianalde,
 				       struct delayed_call *done)
 {
 	char *body;
@@ -134,8 +134,8 @@ static const char *kernfs_iop_get_link(struct dentry *dentry,
 		return ERR_PTR(-ECHILD);
 	body = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!body)
-		return ERR_PTR(-ENOMEM);
-	error = kernfs_getlink(inode, body);
+		return ERR_PTR(-EANALMEM);
+	error = kernfs_getlink(ianalde, body);
 	if (unlikely(error < 0)) {
 		kfree(body);
 		return ERR_PTR(error);
@@ -144,7 +144,7 @@ static const char *kernfs_iop_get_link(struct dentry *dentry,
 	return body;
 }
 
-const struct inode_operations kernfs_symlink_iops = {
+const struct ianalde_operations kernfs_symlink_iops = {
 	.listxattr	= kernfs_iop_listxattr,
 	.get_link	= kernfs_iop_get_link,
 	.setattr	= kernfs_iop_setattr,

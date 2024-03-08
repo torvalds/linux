@@ -10,7 +10,7 @@ description:
   Many Memory Controllers need to add properties to peripheral devices.
   They could be common properties like reg or they could be controller
   specific like delay in clock or data lines, etc. These properties need
-  to be defined in the peripheral node because they are per-peripheral
+  to be defined in the peripheral analde because they are per-peripheral
   and there can be multiple peripherals attached to a controller. All
   those properties are listed here. The controller specific properties
   should go in their own separate schema that should be referenced

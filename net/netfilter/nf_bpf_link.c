@@ -51,11 +51,11 @@ get_proto_defrag_hook(struct bpf_nf_link *link,
 	}
 
 	if (hook && try_module_get(hook->owner)) {
-		/* Once we have a refcnt on the module, we no longer need RCU */
+		/* Once we have a refcnt on the module, we anal longer need RCU */
 		hook = rcu_pointer_handoff(hook);
 	} else {
 		WARN_ONCE(!hook, "%s has bad registration", mod);
-		hook = ERR_PTR(-ENOENT);
+		hook = ERR_PTR(-EANALENT);
 	}
 	rcu_read_unlock();
 
@@ -95,7 +95,7 @@ static int bpf_nf_enable_defrag(struct bpf_nf_link *link)
 		return 0;
 #endif
 	default:
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	}
 }
 
@@ -116,7 +116,7 @@ static void bpf_nf_link_release(struct bpf_link *link)
 	if (nf_link->dead)
 		return;
 
-	/* do not double release in case .detach was already called */
+	/* do analt double release in case .detach was already called */
 	if (!cmpxchg(&nf_link->dead, 0, 1)) {
 		nf_unregister_net_hook(nf_link->net, &nf_link->hook_ops);
 		bpf_nf_disable_defrag(nf_link);
@@ -162,7 +162,7 @@ static int bpf_nf_link_fill_link_info(const struct bpf_link *link,
 static int bpf_nf_link_update(struct bpf_link *link, struct bpf_prog *new_prog,
 			      struct bpf_prog *old_prog)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct bpf_link_ops bpf_nf_link_lops = {
@@ -185,11 +185,11 @@ static int bpf_nf_check_pf_and_hooks(const union bpf_attr *attr)
 			return -EPROTO;
 		break;
 	default:
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	}
 
 	if (attr->link_create.netfilter.flags & ~BPF_F_NETFILTER_IP_DEFRAG)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* make sure conntrack confirm is always last */
 	prio = attr->link_create.netfilter.priority;
@@ -199,7 +199,7 @@ static int bpf_nf_check_pf_and_hooks(const union bpf_attr *attr)
 		return -ERANGE;  /* e.g. conntrack confirm */
 	else if ((attr->link_create.netfilter.flags & BPF_F_NETFILTER_IP_DEFRAG) &&
 		 prio <= NF_IP_PRI_CONNTRACK_DEFRAG)
-		return -ERANGE;  /* cannot use defrag if prog runs before nf_defrag */
+		return -ERANGE;  /* cananalt use defrag if prog runs before nf_defrag */
 
 	return 0;
 }
@@ -220,7 +220,7 @@ int bpf_nf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 
 	link = kzalloc(sizeof(*link), GFP_USER);
 	if (!link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bpf_link_init(&link->link, BPF_LINK_TYPE_NETFILTER, &bpf_nf_link_lops, prog);
 

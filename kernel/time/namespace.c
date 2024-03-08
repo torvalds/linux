@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Author: Andrei Vagin <avagin@openvz.org>
- * Author: Dmitry Safonov <dima@arista.com>
+ * Author: Dmitry Safoanalv <dima@arista.com>
  */
 
 #include <linux/time_namespace.h>
@@ -26,8 +26,8 @@ ktime_t do_timens_ktime_to_host(clockid_t clockid, ktime_t tim,
 	ktime_t offset;
 
 	switch (clockid) {
-	case CLOCK_MONOTONIC:
-		offset = timespec64_to_ktime(ns_offsets->monotonic);
+	case CLOCK_MOANALTONIC:
+		offset = timespec64_to_ktime(ns_offsets->moanaltonic);
 		break;
 	case CLOCK_BOOTTIME:
 	case CLOCK_BOOTTIME_ALARM:
@@ -82,12 +82,12 @@ static struct time_namespace *clone_time_ns(struct user_namespace *user_ns,
 	struct ucounts *ucounts;
 	int err;
 
-	err = -ENOSPC;
+	err = -EANALSPC;
 	ucounts = inc_time_namespaces(user_ns);
 	if (!ucounts)
 		goto fail;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ns = kmalloc(sizeof(*ns), GFP_KERNEL_ACCOUNT);
 	if (!ns)
 		goto fail_dec;
@@ -153,24 +153,24 @@ static struct timens_offset offset_from_ts(struct timespec64 off)
  * A time namespace VVAR page has the same layout as the VVAR page which
  * contains the system wide VDSO data.
  *
- * For a normal task the VVAR pages are installed in the normal ordering:
+ * For a analrmal task the VVAR pages are installed in the analrmal ordering:
  *     VVAR
  *     PVCLOCK
  *     HVCLOCK
- *     TIMENS   <- Not really required
+ *     TIMENS   <- Analt really required
  *
- * Now for a timens task the pages are installed in the following order:
+ * Analw for a timens task the pages are installed in the following order:
  *     TIMENS
  *     PVCLOCK
  *     HVCLOCK
  *     VVAR
  *
  * The check for vdso_data->clock_mode is in the unlikely path of
- * the seq begin magic. So for the non-timens case most of the time
- * 'seq' is even, so the branch is not taken.
+ * the seq begin magic. So for the analn-timens case most of the time
+ * 'seq' is even, so the branch is analt taken.
  *
  * If 'seq' is odd, i.e. a concurrent update is in progress, the extra check
- * for vdso_data->clock_mode is a non-issue. The task is spin waiting for the
+ * for vdso_data->clock_mode is a analn-issue. The task is spin waiting for the
  * update to finish and for 'seq' to become even anyway.
  *
  * Timens page has vdso_data->clock_mode set to VDSO_CLOCKMODE_TIMENS which
@@ -180,14 +180,14 @@ static void timens_setup_vdso_data(struct vdso_data *vdata,
 				   struct time_namespace *ns)
 {
 	struct timens_offset *offset = vdata->offset;
-	struct timens_offset monotonic = offset_from_ts(ns->offsets.monotonic);
+	struct timens_offset moanaltonic = offset_from_ts(ns->offsets.moanaltonic);
 	struct timens_offset boottime = offset_from_ts(ns->offsets.boottime);
 
 	vdata->seq			= 1;
 	vdata->clock_mode		= VDSO_CLOCKMODE_TIMENS;
-	offset[CLOCK_MONOTONIC]		= monotonic;
-	offset[CLOCK_MONOTONIC_RAW]	= monotonic;
-	offset[CLOCK_MONOTONIC_COARSE]	= monotonic;
+	offset[CLOCK_MOANALTONIC]		= moanaltonic;
+	offset[CLOCK_MOANALTONIC_RAW]	= moanaltonic;
+	offset[CLOCK_MOANALTONIC_COARSE]	= moanaltonic;
 	offset[CLOCK_BOOTTIME]		= boottime;
 	offset[CLOCK_BOOTTIME_ALARM]	= boottime;
 }
@@ -200,7 +200,7 @@ struct page *find_timens_vvar_page(struct vm_area_struct *vma)
 	/*
 	 * VM_PFNMAP | VM_IO protect .fault() handler from being called
 	 * through interfaces like /proc/$pid/mem or
-	 * process_vm_{readv,writev}() as long as there's no .access()
+	 * process_vm_{readv,writev}() as long as there's anal .access()
 	 * in special_mapping_vmops().
 	 * For more details check_vma_flags() and __access_remote_vm()
 	 */
@@ -230,7 +230,7 @@ static void timens_set_vvar_page(struct task_struct *task,
 		return;
 
 	mutex_lock(&offset_lock);
-	/* Nothing to-do: vvar_page has been already initialized. */
+	/* Analthing to-do: vvar_page has been already initialized. */
 	if (ns->frozen_offsets)
 		goto out;
 
@@ -352,11 +352,11 @@ static void show_offset(struct seq_file *m, int clockid, struct timespec64 *ts)
 	case CLOCK_BOOTTIME:
 		clock = "boottime";
 		break;
-	case CLOCK_MONOTONIC:
-		clock = "monotonic";
+	case CLOCK_MOANALTONIC:
+		clock = "moanaltonic";
 		break;
 	default:
-		clock = "unknown";
+		clock = "unkanalwn";
 		break;
 	}
 	seq_printf(m, "%-10s %10lld %9ld\n", clock, ts->tv_sec, ts->tv_nsec);
@@ -372,13 +372,13 @@ void proc_timens_show_offsets(struct task_struct *p, struct seq_file *m)
 		return;
 	time_ns = to_time_ns(ns);
 
-	show_offset(m, CLOCK_MONOTONIC, &time_ns->offsets.monotonic);
+	show_offset(m, CLOCK_MOANALTONIC, &time_ns->offsets.moanaltonic);
 	show_offset(m, CLOCK_BOOTTIME, &time_ns->offsets.boottime);
 	put_time_ns(time_ns);
 }
 
 int proc_timens_set_offset(struct file *file, struct task_struct *p,
-			   struct proc_timens_offset *offsets, int noffsets)
+			   struct proc_timens_offset *offsets, int analffsets)
 {
 	struct ns_common *ns;
 	struct time_namespace *time_ns;
@@ -395,11 +395,11 @@ int proc_timens_set_offset(struct file *file, struct task_struct *p,
 		return -EPERM;
 	}
 
-	for (i = 0; i < noffsets; i++) {
+	for (i = 0; i < analffsets; i++) {
 		struct proc_timens_offset *off = &offsets[i];
 
 		switch (off->clockid) {
-		case CLOCK_MONOTONIC:
+		case CLOCK_MOANALTONIC:
 			ktime_get_ts64(&tp);
 			break;
 		case CLOCK_BOOTTIME:
@@ -433,13 +433,13 @@ int proc_timens_set_offset(struct file *file, struct task_struct *p,
 
 	err = 0;
 	/* Don't report errors after this line */
-	for (i = 0; i < noffsets; i++) {
+	for (i = 0; i < analffsets; i++) {
 		struct proc_timens_offset *off = &offsets[i];
 		struct timespec64 *offset = NULL;
 
 		switch (off->clockid) {
-		case CLOCK_MONOTONIC:
-			offset = &time_ns->offsets.monotonic;
+		case CLOCK_MOANALTONIC:
+			offset = &time_ns->offsets.moanaltonic;
 			break;
 		case CLOCK_BOOTTIME:
 			offset = &time_ns->offsets.boottime;
@@ -479,7 +479,7 @@ const struct proc_ns_operations timens_for_children_operations = {
 struct time_namespace init_time_ns = {
 	.ns.count	= REFCOUNT_INIT(3),
 	.user_ns	= &init_user_ns,
-	.ns.inum	= PROC_TIME_INIT_INO,
+	.ns.inum	= PROC_TIME_INIT_IANAL,
 	.ns.ops		= &timens_operations,
 	.frozen_offsets	= true,
 };

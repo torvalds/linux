@@ -27,7 +27,7 @@
 
 /*
  * Based on experiments count is never more than 1, as the MSR overhead
- * is enough to finish the command. So here this is the worst case number.
+ * is eanalugh to finish the command. So here this is the worst case number.
  */
 #define OS_MAILBOX_RETRY_COUNT		3
 
@@ -91,7 +91,7 @@ struct msrl_action {
 	struct isst_if_mbox_cmd *mbox_cmd;
 };
 
-/* revisit, smp_call_function_single should be enough for atomic mailbox! */
+/* revisit, smp_call_function_single should be eanalugh for atomic mailbox! */
 static void msrl_update_func(void *info)
 {
 	struct msrl_action *act = info;
@@ -120,7 +120,7 @@ static long isst_if_mbox_proc_cmd(u8 *cmd_ptr, int *write_only, int resume)
 	/*
 	 * To complete mailbox command, we need to access two MSRs.
 	 * So we don't want race to complete a mailbox transcation.
-	 * Here smp_call ensures that msrl_update_func() has no race
+	 * Here smp_call ensures that msrl_update_func() has anal race
 	 * and also with wait flag, wait for completion.
 	 * smp_call_function_single is using get_cpu() and put_cpu().
 	 */
@@ -141,7 +141,7 @@ static long isst_if_mbox_proc_cmd(u8 *cmd_ptr, int *write_only, int resume)
 }
 
 
-static int isst_pm_notify(struct notifier_block *nb,
+static int isst_pm_analtify(struct analtifier_block *nb,
 			       unsigned long mode, void *_unused)
 {
 	switch (mode) {
@@ -156,8 +156,8 @@ static int isst_pm_notify(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block isst_pm_nb = {
-	.notifier_call = isst_pm_notify,
+static struct analtifier_block isst_pm_nb = {
+	.analtifier_call = isst_pm_analtify,
 };
 
 static const struct x86_cpu_id isst_if_cpu_ids[] = {
@@ -175,7 +175,7 @@ static int __init isst_if_mbox_init(void)
 
 	id = x86_match_cpu(isst_if_cpu_ids);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check presence of mailbox MSRs */
 	ret = rdmsrl_safe(MSR_OS_MAILBOX_INTERFACE, &data);
@@ -195,7 +195,7 @@ static int __init isst_if_mbox_init(void)
 	if (ret)
 		return ret;
 
-	ret = register_pm_notifier(&isst_pm_nb);
+	ret = register_pm_analtifier(&isst_pm_nb);
 	if (ret)
 		isst_if_cdev_unregister(ISST_IF_DEV_MBOX);
 
@@ -205,7 +205,7 @@ module_init(isst_if_mbox_init)
 
 static void __exit isst_if_mbox_exit(void)
 {
-	unregister_pm_notifier(&isst_pm_nb);
+	unregister_pm_analtifier(&isst_pm_nb);
 	isst_if_cdev_unregister(ISST_IF_DEV_MBOX);
 }
 module_exit(isst_if_mbox_exit)

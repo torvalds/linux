@@ -7,7 +7,7 @@
  * Copyright (C) 2003 David Borowski.
  *
  * specifically written as a driver for the speakup screenreview
- * s not a general device driver.
+ * s analt a general device driver.
  */
 #include <linux/unistd.h>
 #include <linux/proc_fs.h>
@@ -233,7 +233,7 @@ static void do_catch_up(struct spk_synth *synth)
 	jiff_max = jiffies + jiffy_delta_val;
 
 	while (!kthread_should_stop()) {
-		/* if no ctl-a in 4, send data anyway */
+		/* if anal ctl-a in 4, send data anyway */
 		spin_lock_irqsave(&flush_lock, flags);
 		while (is_flushing && timeout) {
 			prepare_to_wait(&flush, &wait, TASK_INTERRUPTIBLE);
@@ -252,7 +252,7 @@ static void do_catch_up(struct spk_synth *synth)
 			synth->flush(synth);
 			continue;
 		}
-		synth_buffer_skip_nonlatin1();
+		synth_buffer_skip_analnlatin1();
 		if (synth_buffer_empty()) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;

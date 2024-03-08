@@ -41,8 +41,8 @@
 #define DPAA2_ETH_L2_MAX_FRM(mtu)	((mtu) + VLAN_ETH_HLEN)
 
 /* Set the taildrop threshold (in bytes) to allow the enqueue of a large
- * enough number of jumbo frames in the Rx queues (length of the current
- * frame is not taken into account when making the taildrop decision)
+ * eanalugh number of jumbo frames in the Rx queues (length of the current
+ * frame is analt taken into account when making the taildrop decision)
  */
 #define DPAA2_ETH_FQ_TAILDROP_THRESH	(1024 * 1024)
 
@@ -78,7 +78,7 @@
 #define DPAA2_ETH_CG_TAILDROP_THRESH(priv)				\
 	(1024 * dpaa2_eth_queue_count(priv) / dpaa2_eth_tc_count(priv))
 
-/* Congestion group notification threshold: when this many frames accumulate
+/* Congestion group analtification threshold: when this many frames accumulate
  * on the Rx queues belonging to the same TC, the MAC is instructed to send
  * PFC frames for that TC.
  * When number of pending frames drops below exit threshold transmission of
@@ -103,11 +103,11 @@
 #define DPAA2_ETH_RX_BUF_SIZE \
 	(DPAA2_ETH_RX_BUF_RAW_SIZE - DPAA2_ETH_RX_BUF_TAILROOM)
 
-/* Hardware annotation area in RX/TX buffers */
+/* Hardware ananaltation area in RX/TX buffers */
 #define DPAA2_ETH_RX_HWA_SIZE		64
 #define DPAA2_ETH_TX_HWA_SIZE		128
 
-/* PTP nominal frequency 1GHz */
+/* PTP analminal frequency 1GHz */
 #define DPAA2_PTP_CLK_PERIOD_NS		1
 
 /* Due to a limitation in WRIOP 1.0.0, the RX buffer data must be aligned
@@ -125,12 +125,12 @@
 #define DPAA2_ETH_MAX_BPS		9
 
 /* We are accommodating a skb backpointer and some S/G info
- * in the frame's software annotation. The hardware
+ * in the frame's software ananaltation. The hardware
  * options are either 0 or 64, so we choose the latter.
  */
 #define DPAA2_ETH_SWA_SIZE		64
 
-/* We store different information in the software annotation area of a Tx frame
+/* We store different information in the software ananaltation area of a Tx frame
  * based on what type of frame it is
  */
 enum dpaa2_eth_swa_type {
@@ -172,7 +172,7 @@ struct dpaa2_eth_swa {
 	};
 };
 
-/* Annotation valid bits in FD FRC */
+/* Ananaltation valid bits in FD FRC */
 #define DPAA2_FD_FRC_FASV		0x8000
 #define DPAA2_FD_FRC_FAEADV		0x4000
 #define DPAA2_FD_FRC_FAPRV		0x2000
@@ -187,10 +187,10 @@ struct dpaa2_eth_swa {
 					 FD_CTRL_FSE	| \
 					 FD_CTRL_FAERR)
 
-/* Annotation bits in FD CTRL */
+/* Ananaltation bits in FD CTRL */
 #define DPAA2_FD_CTRL_ASAL		0x00020000	/* ASAL = 128B */
 
-/* Frame annotation status */
+/* Frame ananaltation status */
 struct dpaa2_fas {
 	u8 reserved;
 	u8 ppid;
@@ -198,18 +198,18 @@ struct dpaa2_fas {
 	__le32 status;
 };
 
-/* Frame annotation status word is located in the first 8 bytes
- * of the buffer's hardware annoatation area
+/* Frame ananaltation status word is located in the first 8 bytes
+ * of the buffer's hardware ananalatation area
  */
 #define DPAA2_FAS_OFFSET		0
 #define DPAA2_FAS_SIZE			(sizeof(struct dpaa2_fas))
 
 /* Timestamp is located in the next 8 bytes of the buffer's
- * hardware annotation area
+ * hardware ananaltation area
  */
 #define DPAA2_TS_OFFSET			0x8
 
-/* Frame annotation parse results */
+/* Frame ananaltation parse results */
 struct dpaa2_fapr {
 	/* 64-bit word 1 */
 	__le32 faf_lo;
@@ -252,7 +252,7 @@ struct dpaa2_fapr {
 #define DPAA2_FAPR_OFFSET		0x10
 #define DPAA2_FAPR_SIZE			sizeof((struct dpaa2_fapr))
 
-/* Frame annotation egress action descriptor */
+/* Frame ananaltation egress action descriptor */
 #define DPAA2_FAEAD_OFFSET		0x58
 
 struct dpaa2_faead {
@@ -284,7 +284,7 @@ static inline void ns_to_ptp_tstamp(struct ptp_tstamp *tstamp, u64 ns)
 	tstamp->nsec = nsec;
 }
 
-/* Accessors for the hardware annotation fields that we use */
+/* Accessors for the hardware ananaltation fields that we use */
 static inline void *dpaa2_get_hwa(void *buf_addr, bool swa)
 {
 	return buf_addr + (swa ? DPAA2_ETH_SWA_SIZE : 0);
@@ -310,7 +310,7 @@ static inline struct dpaa2_faead *dpaa2_get_faead(void *buf_addr, bool swa)
 	return dpaa2_get_hwa(buf_addr, swa) + DPAA2_FAEAD_OFFSET;
 }
 
-/* Error and status bits in the frame annotation status word */
+/* Error and status bits in the frame ananaltation status word */
 /* Debug frame, otherwise supposed to be discarded */
 #define DPAA2_FAS_DISC			0x80000000
 /* MACSEC frame */
@@ -368,7 +368,7 @@ static inline struct dpaa2_faead *dpaa2_get_faead(void *buf_addr, bool swa)
 /* Number of times to retry DPIO portal operations while waiting
  * for portal to finish executing current command and become
  * available. We want to avoid being stuck in a while loop in case
- * hardware becomes unresponsive, but not give up too easily if
+ * hardware becomes unresponsive, but analt give up too easily if
  * the portal really is busy for valid reasons
  */
 #define DPAA2_ETH_SWP_BUSY_RETRIES	1000
@@ -411,7 +411,7 @@ struct dpaa2_eth_ch_stats {
 	__u64 xdp_tx;
 	__u64 xdp_tx_err;
 	__u64 xdp_redirect;
-	/* Must be last, does not show up in ethtool stats */
+	/* Must be last, does analt show up in ethtool stats */
 	__u64 frames;
 	__u64 frames_per_cdan;
 	__u64 bytes_per_cdan;
@@ -484,7 +484,7 @@ struct dpaa2_eth_bp {
 };
 
 struct dpaa2_eth_channel {
-	struct dpaa2_io_notification_ctx nctx;
+	struct dpaa2_io_analtification_ctx nctx;
 	struct fsl_mc_device *dpcon;
 	int dpcon_id;
 	int ch_id;
@@ -563,7 +563,7 @@ struct dpaa2_eth_priv {
 	unsigned long features;
 	struct dpni_attr dpni_attrs;
 	u16 dpni_ver_major;
-	u16 dpni_ver_minor;
+	u16 dpni_ver_mianalr;
 	u16 tx_data_offset;
 	void __iomem *onestep_reg_base;
 	u8 ptp_correction_off;
@@ -588,7 +588,7 @@ struct dpaa2_eth_priv {
 
 	/* Standard statistics */
 	struct rtnl_link_stats64 __percpu *percpu_stats;
-	/* Extra stats, in addition to the ones known by the kernel */
+	/* Extra stats, in addition to the ones kanalwn by the kernel */
 	struct dpaa2_eth_drv_stats __percpu *percpu_extras;
 
 	u16 mc_token;
@@ -622,7 +622,7 @@ struct dpaa2_eth_priv {
 	struct work_struct	tx_onestep_tstamp;
 	struct sk_buff_head	tx_skbs;
 	/* The one-step timestamping configuration on hardware
-	 * registers could only be done when no one-step
+	 * registers could only be done when anal one-step
 	 * timestamping frames are in flight. So we use a mutex
 	 * lock here to make sure the lock is released by last
 	 * one-step timestamping packet through TX confirmation
@@ -664,10 +664,10 @@ extern int dpaa2_phc_index;
 extern struct ptp_qoriq *dpaa2_ptp;
 
 static inline int dpaa2_eth_cmp_dpni_ver(struct dpaa2_eth_priv *priv,
-					 u16 ver_major, u16 ver_minor)
+					 u16 ver_major, u16 ver_mianalr)
 {
 	if (priv->dpni_ver_major == ver_major)
-		return priv->dpni_ver_minor - ver_minor;
+		return priv->dpni_ver_mianalr - ver_mianalr;
 	return priv->dpni_ver_major - ver_major;
 }
 
@@ -675,14 +675,14 @@ static inline int dpaa2_eth_cmp_dpni_ver(struct dpaa2_eth_priv *priv,
  * for configuring the Rx flow hash key
  */
 #define DPNI_RX_DIST_KEY_VER_MAJOR	7
-#define DPNI_RX_DIST_KEY_VER_MINOR	5
+#define DPNI_RX_DIST_KEY_VER_MIANALR	5
 
 #define dpaa2_eth_has_legacy_dist(priv)					\
 	(dpaa2_eth_cmp_dpni_ver((priv), DPNI_RX_DIST_KEY_VER_MAJOR,	\
-				DPNI_RX_DIST_KEY_VER_MINOR) < 0)
+				DPNI_RX_DIST_KEY_VER_MIANALR) < 0)
 
 #define dpaa2_eth_fs_enabled(priv)	\
-	(!((priv)->dpni_attrs.options & DPNI_OPT_NO_FS))
+	(!((priv)->dpni_attrs.options & DPNI_OPT_ANAL_FS))
 
 #define dpaa2_eth_fs_mask_enabled(priv)	\
 	((priv)->dpni_attrs.options & DPNI_OPT_HAS_KEY_MASKING)
@@ -715,17 +715,17 @@ enum dpaa2_eth_rx_dist {
 #define DPAA2_ETH_DIST_ALL		(~0ULL)
 
 #define DPNI_PTP_ONESTEP_VER_MAJOR 8
-#define DPNI_PTP_ONESTEP_VER_MINOR 2
+#define DPNI_PTP_ONESTEP_VER_MIANALR 2
 #define DPAA2_ETH_FEATURE_ONESTEP_CFG_DIRECT BIT(0)
 #define DPAA2_PTP_SINGLE_STEP_ENABLE	BIT(31)
 #define DPAA2_PTP_SINGLE_STEP_CH	BIT(7)
 #define DPAA2_PTP_SINGLE_CORRECTION_OFF(v) ((v) << 8)
 
 #define DPNI_PAUSE_VER_MAJOR		7
-#define DPNI_PAUSE_VER_MINOR		13
+#define DPNI_PAUSE_VER_MIANALR		13
 #define dpaa2_eth_has_pause_support(priv)			\
 	(dpaa2_eth_cmp_dpni_ver((priv), DPNI_PAUSE_VER_MAJOR,	\
-				DPNI_PAUSE_VER_MINOR) >= 0)
+				DPNI_PAUSE_VER_MIANALR) >= 0)
 
 static inline bool dpaa2_eth_tx_pause_enabled(u64 link_options)
 {
@@ -743,18 +743,18 @@ static inline unsigned int dpaa2_eth_needed_headroom(struct sk_buff *skb)
 	unsigned int headroom = DPAA2_ETH_SWA_SIZE + DPAA2_ETH_TX_BUF_ALIGN;
 
 	/* If we don't have an skb (e.g. XDP buffer), we only need space for
-	 * the software annotation area
+	 * the software ananaltation area
 	 */
 	if (!skb)
 		return headroom;
 
-	/* For non-linear skbs we have no headroom requirement, as we build a
+	/* For analn-linear skbs we have anal headroom requirement, as we build a
 	 * SG frame with a newly allocated SGT buffer
 	 */
-	if (skb_is_nonlinear(skb))
+	if (skb_is_analnlinear(skb))
 		return 0;
 
-	/* If we have Tx timestamping, need 128B hardware annotation */
+	/* If we have Tx timestamping, need 128B hardware ananaltation */
 	if (skb->cb[0])
 		headroom += DPAA2_ETH_TX_HWA_SIZE;
 
@@ -762,7 +762,7 @@ static inline unsigned int dpaa2_eth_needed_headroom(struct sk_buff *skb)
 }
 
 /* Extra headroom space requested to hardware, in order to make sure there's
- * no realloc'ing in forwarding scenarios
+ * anal realloc'ing in forwarding scenarios
  */
 static inline unsigned int dpaa2_eth_rx_head_room(struct dpaa2_eth_priv *priv)
 {

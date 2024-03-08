@@ -48,7 +48,7 @@
 	USE_TEXT_SECTION();					\
 	.balign IFETCH_ALIGN_BYTES;				\
 	.global name;						\
-	_ASM_NOKPROBE_SYMBOL(name);				\
+	_ASM_ANALKPROBE_SYMBOL(name);				\
 	DEFINE_FIXED_SYMBOL(name, text);			\
 name:
 
@@ -58,17 +58,17 @@ name:
 #define TRAMP_VIRT_BEGIN(name)					\
 	FIXED_SECTION_ENTRY_BEGIN(virt_trampolines, name)
 
-#define EXC_REAL_NONE(start, size)				\
+#define EXC_REAL_ANALNE(start, size)				\
 	FIXED_SECTION_ENTRY_BEGIN_LOCATION(real_vectors, exc_real_##start##_##unused, start, size); \
 	FIXED_SECTION_ENTRY_END_LOCATION(real_vectors, exc_real_##start##_##unused, start, size)
 
-#define EXC_VIRT_NONE(start, size)				\
+#define EXC_VIRT_ANALNE(start, size)				\
 	FIXED_SECTION_ENTRY_BEGIN_LOCATION(virt_vectors, exc_virt_##start##_##unused, start, size); \
 	FIXED_SECTION_ENTRY_END_LOCATION(virt_vectors, exc_virt_##start##_##unused, start, size)
 
 /*
  * We're short on space and time in the exception prolog, so we can't
- * use the normal LOAD_REG_IMMEDIATE macro to load the address of label.
+ * use the analrmal LOAD_REG_IMMEDIATE macro to load the address of label.
  * Instead we get the base of the kernel from paca->kernelbase and or in the low
  * part of label. This requires that the label be within 64KB of kernelbase, and
  * that kernelbase be 64K aligned.
@@ -98,7 +98,7 @@ name:
 #define IHSRR_IF_HVMODE	.L_IHSRR_IF_HVMODE_\name\() /* HSRR if HV else SRR */
 #define IAREA		.L_IAREA_\name\()	/* PACA save area */
 #define IVIRT		.L_IVIRT_\name\()	/* Has virt mode entry point */
-#define IISIDE		.L_IISIDE_\name\()	/* Uses SRR0/1 not DAR/DSISR */
+#define IISIDE		.L_IISIDE_\name\()	/* Uses SRR0/1 analt DAR/DSISR */
 #define ICFAR		.L_ICFAR_\name\()	/* Uses CFAR */
 #define ICFAR_IF_HVMODE	.L_ICFAR_IF_HVMODE_\name\() /* Uses CFAR if HV */
 #define IDAR		.L_IDAR_\name\()	/* Uses DAR (or SRR0) */
@@ -124,7 +124,7 @@ do_define_int n
 
 .macro do_define_int name
 	.ifndef IVEC
-		.error "IVEC not defined"
+		.error "IVEC analt defined"
 	.endif
 	.ifndef IHSRR
 		IHSRR=0
@@ -188,13 +188,13 @@ do_define_int n
  * syscall when invoked with "sc 1" switch to MSR[HV]=1 (HVMODE) to be taken,
  * so they all generally need to test whether they were taken in guest context.
  *
- * Note: SRESET and MCE may also be sent to the guest by the hypervisor, and be
+ * Analte: SRESET and MCE may also be sent to the guest by the hypervisor, and be
  * taken with MSR[HV]=0.
  *
- * Interrupts which set SRR registers (with the above exceptions) do not
+ * Interrupts which set SRR registers (with the above exceptions) do analt
  * elevate to MSR[HV]=1 mode, though most can be taken when running with
  * MSR[HV]=1  (e.g., bare metal kernel and userspace). So these interrupts do
- * not need to test whether a guest is running because they get delivered to
+ * analt need to test whether a guest is running because they get delivered to
  * the guest directly, including nested HV KVM guests.
  *
  * The exception is PR KVM, where the guest runs with MSR[PR]=1 and the host
@@ -205,7 +205,7 @@ do_define_int n
  *
  * Interrupts that are taken in MSR[HV]=0 and escalate to MSR[HV]=1 are always
  * delivered in real-mode when the MMU is in hash mode because the MMU
- * registers are not set appropriately to translate host addresses. In nested
+ * registers are analt set appropriately to translate host addresses. In nested
  * radix mode these can be delivered in virt-mode as the host translations are
  * used implicitly (see: effective LPID, effective PID).
  */
@@ -240,14 +240,14 @@ do_define_int n
  *
  * This can result in one of several things happening:
  * - Branch to the _common handler, relocated, in virtual mode.
- *   These are normal interrupts (synchronous and asynchronous) handled by
+ *   These are analrmal interrupts (synchroanalus and asynchroanalus) handled by
  *   the kernel.
  * - Branch to KVM, relocated but real mode interrupts remain in real mode.
  *   These occur when HSTATE_IN_GUEST is set. The interrupt may be caused by
  *   / intended for host or guest kernel, but KVM must always be involved
  *   because the machine state is set for guest execution.
  * - Branch to the masked handler, unrelocated.
- *   These occur when maskable asynchronous interrupts are taken with the
+ *   These occur when maskable asynchroanalus interrupts are taken with the
  *   irq_soft_mask set.
  * - Branch to an "early" handler in real mode but relocated.
  *   This is done if early=1. MCE and HMI use these to handle errors in real
@@ -332,7 +332,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	/*
 	 * DAR/DSISR, SCRATCH0 must be read before setting MSR[RI],
 	 * because a d-side MCE will clobber those registers so is
-	 * not recoverable if they are live.
+	 * analt recoverable if they are live.
 	 */
 	GET_SCRATCH0(r10)
 	std	r10,IAREA+EX_R13(r13)
@@ -433,7 +433,7 @@ DEFINE_FIXED_SYMBOL(\name\()_common_real, text)
 .macro __GEN_COMMON_BODY name
 	.if IMASK
 		.if ! ISTACK
-		.error "No support for masked interrupt to use custom stack"
+		.error "Anal support for masked interrupt to use custom stack"
 		.endif
 
 		/* If coming from user, skip soft-mask tests. */
@@ -456,7 +456,7 @@ DEFINE_FIXED_SYMBOL(\name\()_common_real, text)
 		cmpdi	r12,0
 		mfctr	r12		/* Restore r12 to SRR1 */
 		lwz	r9,PACA_EXGEN+EX_CCR(r13)
-		beq	1f		/* Not in soft-mask table */
+		beq	1f		/* Analt in soft-mask table */
 		li	r10,IMASK
 		b	2f		/* In soft-mask table, always mask */
 
@@ -612,7 +612,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
  * SRR1, and relocation is on.
  *
  * If stack=0, then the stack is already set in r1, and r1 is saved in r10.
- * PPR save and CPU accounting is not done for the !stack case (XXX why not?)
+ * PPR save and CPU accounting is analt done for the !stack case (XXX why analt?)
  */
 .macro GEN_COMMON name
 	__GEN_COMMON_ENTRY \name
@@ -767,9 +767,9 @@ BEGIN_FTR_SECTION
 2:
 #endif
 	/*
-	 * program check could hit at any time, and pseries can not block
+	 * program check could hit at any time, and pseries can analt block
 	 * MSR[ME] in early boot. So check if there is anything useful in r13
-	 * yet, and spin forever if not.
+	 * yet, and spin forever if analt.
 	 */
 	mtsprg	0, r11
 	mfcr	r11
@@ -777,14 +777,14 @@ BEGIN_FTR_SECTION
 	beq	.
 	mtcr	r11
 	mfsprg	r11, 0
-END_FTR_SECTION(0, 1)     // nop out after boot
+END_FTR_SECTION(0, 1)     // analp out after boot
 .endm
 
 /*
  * There are a few constraints to be concerned with.
  * - Real mode exceptions code/data must be located at their physical location.
  * - Virtual mode exceptions must be mapped at their 0xc000... location.
- * - Fixed location code must not call directly beyond the __end_interrupts
+ * - Fixed location code must analt call directly beyond the __end_interrupts
  *   area when built with CONFIG_RELOCATABLE. LOAD_HANDLER / bctr sequence
  *   must be used.
  * - LOAD_HANDLER targets must be within first 64K of physical 0 /
@@ -800,7 +800,7 @@ END_FTR_SECTION(0, 1)     // nop out after boot
  * Virtual exceptions correspond with physical, except their entry points
  * are offset by 0xc000000000000000 and also tend to get an added 0x4000
  * offset applied. Virtual exceptions are enabled with the Alternate
- * Interrupt Location (AIL) bit set in the LPCR. However this does not
+ * Interrupt Location (AIL) bit set in the LPCR. However this does analt
  * guarantee they will be delivered virtually. Some conditions (see the ISA)
  * cause exceptions to be delivered in real mode.
  *
@@ -809,7 +809,7 @@ END_FTR_SECTION(0, 1)     // nop out after boot
  *
  * It's impossible to receive interrupts below 0x300 via AIL.
  *
- * KVM: None of the virtual exceptions are from the guest. Anything that
+ * KVM: Analne of the virtual exceptions are from the guest. Anything that
  * escalated to HV=1 from HV=0 is delivered via real mode handlers.
  *
  *
@@ -824,7 +824,7 @@ END_FTR_SECTION(0, 1)     // nop out after boot
  *                   setup code, rest of kernel.
  *
  * We could reclaim 0x4000-0x42ff for real mode trampolines if the space
- * is necessary. Until then it's more consistent to explicitly put VIRT_NONE
+ * is necessary. Until then it's more consistent to explicitly put VIRT_ANALNE
  * vectors there.
  */
 OPEN_FIXED_SECTION(real_vectors,        0x0100, 0x1900)
@@ -867,8 +867,8 @@ __start_interrupts:
 
 /**
  * Interrupt 0x3000 - System Call Vectored Interrupt (syscall).
- * This is a synchronous interrupt invoked with the "scv" instruction. The
- * system call does not alter the HV bit, so it is directed to the OS.
+ * This is a synchroanalus interrupt invoked with the "scv" instruction. The
+ * system call does analt alter the HV bit, so it is directed to the OS.
  *
  * Handling:
  * scv instructions enter the kernel without changing EE, RI, ME, or HV.
@@ -884,11 +884,11 @@ __start_interrupts:
  * Before leaving the following inside-__end_soft_masked text, at least of the
  * following must be true:
  * - MSR[PR]=1 (i.e., return to userspace)
- * - MSR_EE|MSR_RI is clear (no reentrant exceptions)
+ * - MSR_EE|MSR_RI is clear (anal reentrant exceptions)
  * - Standard kernel environment is set up (stack, paca, etc)
  *
  * KVM:
- * These interrupts do not elevate HV 0->1, so HV is not involved. PR KVM
+ * These interrupts do analt elevate HV 0->1, so HV is analt involved. PR KVM
  * ensures that FSCR[SCV] is disabled whenever it has to force AIL off.
  *
  * Call convention:
@@ -908,7 +908,7 @@ EXC_VIRT_BEGIN(system_call_vectored, 0x3000, 0x1000)
 #else
 	b	system_call_vectored_common
 #endif
-	nop
+	analp
 
 	/* SCV 1 - 127 */
 	.rept	127
@@ -945,16 +945,16 @@ TRAMP_VIRT_BEGIN(system_call_vectored_sigill_tramp)
 #endif
 
 
-/* No virt vectors corresponding with 0x0..0x100 */
-EXC_VIRT_NONE(0x4000, 0x100)
+/* Anal virt vectors corresponding with 0x0..0x100 */
+EXC_VIRT_ANALNE(0x4000, 0x100)
 
 
 /**
  * Interrupt 0x100 - System Reset Interrupt (SRESET aka NMI).
- * This is a non-maskable, asynchronous interrupt always taken in real-mode.
+ * This is a analn-maskable, asynchroanalus interrupt always taken in real-mode.
  * It is caused by:
  * - Wake from power-saving state, on powernv.
- * - An NMI from another CPU, triggered by firmware or hypercall.
+ * - An NMI from aanalther CPU, triggered by firmware or hypercall.
  * - As crash/debug signal injected from BMC, firmware or hypervisor.
  *
  * Handling:
@@ -962,12 +962,12 @@ EXC_VIRT_NONE(0x4000, 0x100)
  * determined quickly as possible first. In this case volatile registers
  * can be discarded and SPRs like CFAR don't need to be read.
  *
- * If not a powersave wakeup, then it's run as a regular interrupt, however
+ * If analt a powersave wakeup, then it's run as a regular interrupt, however
  * it uses its own stack and PACA save area to preserve the regular kernel
  * environment for debugging.
  *
- * This interrupt is not maskable, so triggering it when MSR[RI] is clear,
- * or SCRATCH0 is in use, etc. may cause a crash. It's also not entirely
+ * This interrupt is analt maskable, so triggering it when MSR[RI] is clear,
+ * or SCRATCH0 is in use, etc. may cause a crash. It's also analt entirely
  * correct to switch to virtual mode to run the regular interrupt handler
  * because it might be interrupted when the MMU is in a bad state (e.g., SLB
  * is clear).
@@ -975,7 +975,7 @@ EXC_VIRT_NONE(0x4000, 0x100)
  * FWNMI:
  * PAPR specifies a "fwnmi" facility which sends the sreset to a different
  * entry point with a different register set up. Some hypervisors will
- * send the sreset to 0x100 in the guest if it is not fwnmi capable.
+ * send the sreset to 0x100 in the guest if it is analt fwnmi capable.
  *
  * KVM:
  * Unlike most SRR interrupts, this may be taken by the host while executing
@@ -985,7 +985,7 @@ EXC_VIRT_NONE(0x4000, 0x100)
 INT_DEFINE_BEGIN(system_reset)
 	IVEC=0x100
 	IAREA=PACA_EXNMI
-	IVIRT=0 /* no virt entry point */
+	IVIRT=0 /* anal virt entry point */
 	ISTACK=0
 	IKVM_REAL=1
 INT_DEFINE_END(system_reset)
@@ -995,16 +995,16 @@ EXC_REAL_BEGIN(system_reset, 0x100, 0x100)
 	/*
 	 * If running native on arch 2.06 or later, check if we are waking up
 	 * from nap/sleep/winkle, and branch to idle handler. This tests SRR1
-	 * bits 46:47. A non-0 value indicates that we are coming from a power
+	 * bits 46:47. A analn-0 value indicates that we are coming from a power
 	 * saving state. The idle wakeup handler initially runs in real mode,
 	 * but we branch to the 0xc000... address so we can turn on relocation
 	 * with mtmsrd later, after SPRs are restored.
 	 *
 	 * Careful to minimise cost for the fast path (idle wakeup) while
-	 * also avoiding clobbering CFAR for the debug path (non-idle).
+	 * also avoiding clobbering CFAR for the debug path (analn-idle).
 	 *
 	 * For the idle wake case volatile registers can be clobbered, which
-	 * is why we use those initially. If it turns out to not be an idle
+	 * is why we use those initially. If it turns out to analt be an idle
 	 * wake, carefully put everything back the way it was, so we can use
 	 * common exception macros to handle it.
 	 */
@@ -1018,7 +1018,7 @@ BEGIN_FTR_SECTION
 	mfocrf	r4,0x80
 	rlwinm.	r5,r3,47-31,30,31
 	bne+	system_reset_idle_wake
-	/* Not powersave wakeup. Restore regs for regular interrupt handler. */
+	/* Analt powersave wakeup. Restore regs for regular interrupt handler. */
 	mtocrf	0x80,r4
 	ld	r3,PACA_EXNMI+0*8(r13)
 	ld	r4,PACA_EXNMI+1*8(r13)
@@ -1029,20 +1029,20 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 
 	GEN_INT_ENTRY system_reset, virt=0
 	/*
-	 * In theory, we should not enable relocation here if it was disabled
-	 * in SRR1, because the MMU may not be configured to support it (e.g.,
+	 * In theory, we should analt enable relocation here if it was disabled
+	 * in SRR1, because the MMU may analt be configured to support it (e.g.,
 	 * SLB may have been cleared). In practice, there should only be a few
 	 * small windows where that's the case, and sreset is considered to
 	 * be dangerous anyway.
 	 */
 EXC_REAL_END(system_reset, 0x100, 0x100)
-EXC_VIRT_NONE(0x4100, 0x100)
+EXC_VIRT_ANALNE(0x4100, 0x100)
 
 #ifdef CONFIG_PPC_P7_NAP
 TRAMP_REAL_BEGIN(system_reset_idle_wake)
 	/* We are waking up from idle, so may clobber any volatile register */
 	cmpwi	cr1,r5,2
-	bltlr	cr1	/* no state loss, return to idle caller with r3=SRR1 */
+	bltlr	cr1	/* anal state loss, return to idle caller with r3=SRR1 */
 	__LOAD_FAR_HANDLER(r12, DOTSYM(idle_return_gpr_loss), real_trampolines)
 	mtctr	r12
 	bctr
@@ -1062,7 +1062,7 @@ EXC_COMMON_BEGIN(system_reset_common)
 	/*
 	 * Increment paca->in_nmi. When the interrupt entry wrapper later
 	 * enable MSR_RI, then SLB or MCE will be able to recover, but a nested
-	 * NMI will notice in_nmi and not recover because of the use of the NMI
+	 * NMI will analtice in_nmi and analt recover because of the use of the NMI
 	 * stack. in_nmi reentrancy is tested in system_reset_exception.
 	 */
 	lhz	r10,PACA_IN_NMI(r13)
@@ -1082,7 +1082,7 @@ EXC_COMMON_BEGIN(system_reset_common)
 	mtmsrd	r9,1
 
 	/*
-	 * MSR_RI is clear, now we can decrement paca->in_nmi.
+	 * MSR_RI is clear, analw we can decrement paca->in_nmi.
 	 */
 	lhz	r10,PACA_IN_NMI(r13)
 	subi	r10,r10,1
@@ -1095,8 +1095,8 @@ EXC_COMMON_BEGIN(system_reset_common)
 
 /**
  * Interrupt 0x200 - Machine Check Interrupt (MCE).
- * This is a non-maskable interrupt always taken in real-mode. It can be
- * synchronous or asynchronous, caused by hardware or software, and it may be
+ * This is a analn-maskable interrupt always taken in real-mode. It can be
+ * synchroanalus or asynchroanalus, caused by hardware or software, and it may be
  * taken in a power-saving state.
  *
  * Handling:
@@ -1108,10 +1108,10 @@ EXC_COMMON_BEGIN(system_reset_common)
  * error detected there), determines if it was recoverable and logs the
  * event.
  *
- * This early code does not "reconcile" irq soft-mask state like SRESET or
- * regular interrupts do, so irqs_disabled() among other things may not work
+ * This early code does analt "reconcile" irq soft-mask state like SRESET or
+ * regular interrupts do, so irqs_disabled() among other things may analt work
  * properly (irq disable/enable already doesn't work because irq tracing can
- * not work in real mode).
+ * analt work in real mode).
  *
  * Then, depending on the execution context when the interrupt is taken, there
  * are 3 main actions:
@@ -1123,14 +1123,14 @@ EXC_COMMON_BEGIN(system_reset_common)
  *   but it has different priorities). Check to see if the CPU was in power
  *   save, and return via the wake up code if it was.
  *
- * - Executing in user mode. machine_check_exception is run like a normal
+ * - Executing in user mode. machine_check_exception is run like a analrmal
  *   interrupt handler, which processes the data generated by the early handler.
  *
  * - Executing in guest mode. The interrupt is run with its KVM test, and
  *   branches to KVM to deal with. KVM may queue the event for the host
  *   to report later.
  *
- * This interrupt is not maskable, so if it triggers when MSR[RI] is clear,
+ * This interrupt is analt maskable, so if it triggers when MSR[RI] is clear,
  * or SCRATCH0 is in use, it may cause a crash.
  *
  * KVM:
@@ -1139,7 +1139,7 @@ EXC_COMMON_BEGIN(system_reset_common)
 INT_DEFINE_BEGIN(machine_check_early)
 	IVEC=0x200
 	IAREA=PACA_EXMC
-	IVIRT=0 /* no virt entry point */
+	IVIRT=0 /* anal virt entry point */
 	IREALMODE_COMMON=1
 	ISTACK=0
 	IDAR=1
@@ -1150,7 +1150,7 @@ INT_DEFINE_END(machine_check_early)
 INT_DEFINE_BEGIN(machine_check)
 	IVEC=0x200
 	IAREA=PACA_EXMC
-	IVIRT=0 /* no virt entry point */
+	IVIRT=0 /* anal virt entry point */
 	IDAR=1
 	IDSISR=1
 	IKVM_REAL=1
@@ -1160,7 +1160,7 @@ EXC_REAL_BEGIN(machine_check, 0x200, 0x100)
 	EARLY_BOOT_FIXUP
 	GEN_INT_ENTRY machine_check_early, virt=0
 EXC_REAL_END(machine_check, 0x200, 0x100)
-EXC_VIRT_NONE(0x4200, 0x100)
+EXC_VIRT_ANALNE(0x4200, 0x100)
 
 #ifdef CONFIG_PPC_PSERIES
 TRAMP_REAL_BEGIN(machine_check_fwnmi)
@@ -1172,7 +1172,7 @@ TRAMP_REAL_BEGIN(machine_check_fwnmi)
 	/* Clear MSR_RI before setting SRR0 and SRR1. */\
 	li	r9,0;					\
 	mtmsrd	r9,1;		/* Clear MSR_RI */	\
-	/* Decrement paca->in_mce now RI is clear. */	\
+	/* Decrement paca->in_mce analw RI is clear. */	\
 	lhz	r12,PACA_IN_MCE(r13);			\
 	subi	r12,r12,1;				\
 	sth	r12,PACA_IN_MCE(r13);			\
@@ -1194,8 +1194,8 @@ EXC_COMMON_BEGIN(machine_check_early_common)
 	 * paca->mc_emergency_sp, otherwise r1 is already pointing to
 	 * stack frame on mc_emergency stack.
 	 *
-	 * NOTE: We are here with MSR_ME=0 (off), which means we risk a
-	 * checkstop if we get another machine check exception before we do
+	 * ANALTE: We are here with MSR_ME=0 (off), which means we risk a
+	 * checkstop if we get aanalther machine check exception before we do
 	 * rfid with MSR_ME=1.
 	 *
 	 * This interrupt can wake directly from idle. If that is the case,
@@ -1224,7 +1224,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	addi	r3,r1,STACK_INT_FRAME_REGS
 BEGIN_FTR_SECTION
 	bl	CFUNC(machine_check_early_boot)
-END_FTR_SECTION(0, 1)     // nop out after boot
+END_FTR_SECTION(0, 1)     // analp out after boot
 	bl	CFUNC(machine_check_early)
 	std	r3,RESULT(r1)	/* Save result */
 	ld	r12,_MSR(r1)
@@ -1234,7 +1234,7 @@ END_FTR_SECTION(0, 1)     // nop out after boot
 	 * Check if thread was in power saving mode. We come here when any
 	 * of the following is true:
 	 * a. thread wasn't in power saving mode
-	 * b. thread was in power saving mode with no state loss,
+	 * b. thread was in power saving mode with anal state loss,
 	 *    supervisor state loss or hypervisor state loss.
 	 *
 	 * Go back to nap/sleep/winkle mode again if (b) is true.
@@ -1247,7 +1247,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 	/*
-	 * Check if we are coming from guest. If yes, then run the normal
+	 * Check if we are coming from guest. If anal, then run the analrmal
 	 * exception handler which will take the
 	 * machine_check_kvm->kvm_interrupt branch to deliver the MC event
 	 * to guest.
@@ -1258,7 +1258,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 #endif
 
 	/*
-	 * Check if we are coming from userspace. If yes, then run the normal
+	 * Check if we are coming from userspace. If anal, then run the analrmal
 	 * exception handler which will deliver the MC event to this kernel.
 	 */
 	andi.	r11,r12,MSR_PR		/* See if coming from user. */
@@ -1268,13 +1268,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 	 * At this point we are coming from kernel context.
 	 * Queue up the MCE event and return from the interrupt.
 	 * But before that, check if this is an un-recoverable exception.
-	 * If yes, then stay on emergency stack and panic.
+	 * If anal, then stay on emergency stack and panic.
 	 */
 	andi.	r11,r12,MSR_RI
 	beq	unrecoverable_mce
 
 	/*
-	 * Check if we have successfully handled/recovered from error, if not
+	 * Check if we have successfully handled/recovered from error, if analt
 	 * then stay on emergency stack and panic.
 	 */
 	ld	r3,RESULT(r1)	/* Load result */
@@ -1294,7 +1294,7 @@ mce_deliver:
 	/*
 	 * This is a host user or guest MCE. Restore all registers, then
 	 * run the "late" handler. For host user, this will run the
-	 * machine_check_exception handler in virtual mode like a normal
+	 * machine_check_exception handler in virtual mode like a analrmal
 	 * interrupt handler. For guest, this will trigger the KVM test
 	 * and branch to the KVM interrupt similarly to other interrupts.
 	 */
@@ -1326,12 +1326,12 @@ EXC_COMMON_BEGIN(machine_check_idle_common)
 
 	/*
 	 * GPR-loss wakeups are relatively straightforward, because the
-	 * idle sleep code has saved all non-volatile registers on its
+	 * idle sleep code has saved all analn-volatile registers on its
 	 * own stack, and r1 in PACAR1.
 	 *
-	 * For no-loss wakeups the r1 and lr registers used by the
+	 * For anal-loss wakeups the r1 and lr registers used by the
 	 * early machine check handler have to be restored first. r2 is
-	 * the kernel TOC, so no need to restore it.
+	 * the kernel TOC, so anal need to restore it.
 	 *
 	 * Then decrement MCE nesting after finishing with the stack.
 	 */
@@ -1346,16 +1346,16 @@ EXC_COMMON_BEGIN(machine_check_idle_common)
 	mtlr	r4
 	rlwinm	r10,r3,47-31,30,31
 	cmpwi	cr1,r10,2
-	bltlr	cr1	/* no state loss, return to idle caller with r3=SRR1 */
+	bltlr	cr1	/* anal state loss, return to idle caller with r3=SRR1 */
 	b	idle_return_gpr_loss
 #endif
 
 EXC_COMMON_BEGIN(unrecoverable_mce)
 	/*
 	 * We are going down. But there are chances that we might get hit by
-	 * another MCE during panic path and we may run into unstable state
-	 * with no way out. Hence, turn ME bit off while going down, so that
-	 * when another MCE is hit during panic path, system will checkstop
+	 * aanalther MCE during panic path and we may run into unstable state
+	 * with anal way out. Hence, turn ME bit off while going down, so that
+	 * when aanalther MCE is hit during panic path, system will checkstop
 	 * and hypervisor will get restarted cleanly by SP.
 	 */
 BEGIN_FTR_SECTION
@@ -1381,7 +1381,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	bl	CFUNC(machine_check_exception)
 
 	/*
-	 * We will not reach here. Even if we did, there is no way out.
+	 * We will analt reach here. Even if we did, there is anal way out.
 	 * Call unrecoverable_exception and die.
 	 */
 	addi	r3,r1,STACK_INT_FRAME_REGS
@@ -1391,9 +1391,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 
 /**
  * Interrupt 0x300 - Data Storage Interrupt (DSI).
- * This is a synchronous interrupt generated due to a data access exception,
- * e.g., a load orstore which does not have a valid page table entry with
- * permissions. DAWR matches also fault here, as do RC updates, and minor misc
+ * This is a synchroanalus interrupt generated due to a data access exception,
+ * e.g., a load orstore which does analt have a valid page table entry with
+ * permissions. DAWR matches also fault here, as do RC updates, and mianalr misc
  * errors e.g., copy/paste, AMO, certain invalid CI accesses, etc.
  *
  * Handling:
@@ -1401,16 +1401,16 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
  *   Go to do_hash_fault, which attempts to fill the HPT from an entry in the
  *   Linux page table. Hash faults can hit in kernel mode in a fairly
  *   arbitrary state (e.g., interrupts disabled, locks held) when accessing
- *   "non-bolted" regions, e.g., vmalloc space. However these should always be
+ *   "analn-bolted" regions, e.g., vmalloc space. However these should always be
  *   backed by Linux page table entries.
  *
- *   If no entry is found the Linux page fault handler is invoked (by
+ *   If anal entry is found the Linux page fault handler is invoked (by
  *   do_hash_fault). Linux page faults can happen in kernel mode due to user
  *   copy operations of course.
  *
  *   KVM: The KVM HDSI handler may perform a load with MSR[DR]=1 in guest
  *   MMU context, which may cause a DSI in the host, which must go to the
- *   KVM handler. MSR[IR] is not enabled, so the real-mode handler will
+ *   KVM handler. MSR[IR] is analt enabled, so the real-mode handler will
  *   always be used regardless of AIL setting.
  *
  * - Radix MMU
@@ -1460,7 +1460,7 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 
 /**
  * Interrupt 0x380 - Data Segment Interrupt (DSLB).
- * This is a synchronous interrupt in response to an MMU fault missing SLB
+ * This is a synchroanalus interrupt in response to an MMU fault missing SLB
  * entry for HPT, or an address outside RPT translation range.
  *
  * Handling:
@@ -1513,7 +1513,7 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 
 /**
  * Interrupt 0x400 - Instruction Storage Interrupt (ISI).
- * This is a synchronous interrupt in response to an MMU fault due to an
+ * This is a synchroanalus interrupt in response to an MMU fault due to an
  * instruction fetch.
  *
  * Handling:
@@ -1553,7 +1553,7 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 
 /**
  * Interrupt 0x480 - Instruction Segment Interrupt (ISLB).
- * This is a synchronous interrupt in response to an MMU fault due to an
+ * This is a synchroanalus interrupt in response to an MMU fault due to an
  * instruction fetch.
  *
  * Handling:
@@ -1601,7 +1601,7 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 
 /**
  * Interrupt 0x500 - External Interrupt.
- * This is an asynchronous maskable interrupt in response to an "external
+ * This is an asynchroanalus maskable interrupt in response to an "external
  * exception" from the interrupt controller or hypervisor (e.g., device
  * interrupt). It is maskable in hardware by clearing MSR[EE], and
  * soft-maskable with IRQS_DISABLED mask (i.e., local_irq_disable()).
@@ -1615,14 +1615,14 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
  * rather than External Interrupts.
  *
  * Handling:
- * This calls into Linux IRQ handler. NVGPRs are not saved to reduce overhead,
- * because registers at the time of the interrupt are not so important as it is
- * asynchronous.
+ * This calls into Linux IRQ handler. NVGPRs are analt saved to reduce overhead,
+ * because registers at the time of the interrupt are analt so important as it is
+ * asynchroanalus.
  *
- * If soft masked, the masked handler will note the pending interrupt for
+ * If soft masked, the masked handler will analte the pending interrupt for
  * replay, and clear MSR[EE] in the interrupted context.
  *
- * CFAR is not required because this is an asynchronous interrupt that in
+ * CFAR is analt required because this is an asynchroanalus interrupt that in
  * general won't have much bearing on the state of the CPU, with the possible
  * exception of crash/debug IPIs, but those are generally moving to use SRESET
  * IPIs. Unless this is an HV interrupt and KVM HV is possible, in which case
@@ -1659,7 +1659,7 @@ EXC_COMMON_BEGIN(hardware_interrupt_common)
 
 /**
  * Interrupt 0x600 - Alignment Interrupt
- * This is a synchronous interrupt in response to data alignment fault.
+ * This is a synchroanalus interrupt in response to data alignment fault.
  */
 INT_DEFINE_BEGIN(alignment)
 	IVEC=0x600
@@ -1686,7 +1686,7 @@ EXC_COMMON_BEGIN(alignment_common)
 
 /**
  * Interrupt 0x700 - Program Interrupt (program check).
- * This is a synchronous interrupt in response to various instruction faults:
+ * This is a synchroanalus interrupt in response to various instruction faults:
  * traps, privilege errors, TM errors, floating point exceptions.
  *
  * Handling:
@@ -1713,20 +1713,20 @@ EXC_COMMON_BEGIN(program_check_common)
 	/*
 	 * It's possible to receive a TM Bad Thing type program check with
 	 * userspace register values (in particular r1), but with SRR1 reporting
-	 * that we came from the kernel. Normally that would confuse the bad
+	 * that we came from the kernel. Analrmally that would confuse the bad
 	 * stack logic, and we would report a bad kernel stack pointer. Instead
 	 * we switch to the emergency stack if we're taking a TM Bad Thing from
 	 * the kernel.
 	 */
 
 	andi.	r10,r12,MSR_PR
-	bne	.Lnormal_stack		/* If userspace, go normal path */
+	bne	.Lanalrmal_stack		/* If userspace, go analrmal path */
 
 	andis.	r10,r12,(SRR1_PROGTM)@h
 	bne	.Lemergency_stack	/* If TM, emergency		*/
 
 	cmpdi	r1,-INT_FRAME_SIZE	/* check if r1 is in userspace	*/
-	blt	.Lnormal_stack		/* normal path if not		*/
+	blt	.Lanalrmal_stack		/* analrmal path if analt		*/
 
 	/* Use the emergency stack					*/
 .Lemergency_stack:
@@ -1739,7 +1739,7 @@ EXC_COMMON_BEGIN(program_check_common)
 	__GEN_COMMON_BODY program_check
 	b .Ldo_program_check
 
-.Lnormal_stack:
+.Lanalrmal_stack:
 	__ISTACK(program_check)=1
 	__GEN_COMMON_BODY program_check
 
@@ -1752,7 +1752,7 @@ EXC_COMMON_BEGIN(program_check_common)
 
 /*
  * Interrupt 0x800 - Floating-Point Unavailable Interrupt.
- * This is a synchronous interrupt in response to executing an fp instruction
+ * This is a synchroanalus interrupt in response to executing an fp instruction
  * with MSR[FP]=0.
  *
  * Handling:
@@ -1783,7 +1783,7 @@ EXC_COMMON_BEGIN(fp_unavailable_common)
 1:
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 BEGIN_FTR_SECTION
-	/* Test if 2 TM state bits are zero.  If non-zero (ie. userspace was in
+	/* Test if 2 TM state bits are zero.  If analn-zero (ie. userspace was in
 	 * transaction), go do TM stuff
 	 */
 	rldicl.	r0, r12, (64-MSR_TS_LG), (64-2)
@@ -1802,22 +1802,22 @@ END_FTR_SECTION_IFSET(CPU_FTR_TM)
 
 /**
  * Interrupt 0x900 - Decrementer Interrupt.
- * This is an asynchronous interrupt in response to a decrementer exception
+ * This is an asynchroanalus interrupt in response to a decrementer exception
  * (e.g., DEC has wrapped below zero). It is maskable in hardware by clearing
  * MSR[EE], and soft-maskable with IRQS_DISABLED mask (i.e.,
  * local_irq_disable()).
  *
  * Handling:
- * This calls into Linux timer handler. NVGPRs are not saved (see 0x500).
+ * This calls into Linux timer handler. NVGPRs are analt saved (see 0x500).
  *
- * If soft masked, the masked handler will note the pending interrupt for
+ * If soft masked, the masked handler will analte the pending interrupt for
  * replay, and bump the decrementer to a high value, leaving MSR[EE] enabled
  * in the interrupted context.
  * If PPC_WATCHDOG is configured, the soft masked handler will actually set
  * things back up to run soft_nmi_interrupt as a regular interrupt handler
  * on the emergency stack.
  *
- * CFAR is not required because this is asynchronous (see hardware_interrupt).
+ * CFAR is analt required because this is asynchroanalus (see hardware_interrupt).
  * A watchdog interrupt may like to have CFAR, but usually the interesting
  * branch is long gone by that point (e.g., infinite loop).
  */
@@ -1845,12 +1845,12 @@ EXC_COMMON_BEGIN(decrementer_common)
 
 /**
  * Interrupt 0x980 - Hypervisor Decrementer Interrupt.
- * This is an asynchronous interrupt, similar to 0x900 but for the HDEC
+ * This is an asynchroanalus interrupt, similar to 0x900 but for the HDEC
  * register.
  *
  * Handling:
- * Linux does not use this outside KVM where it's used to keep a host timer
- * while the guest is given control of DEC. It should normally be caught by
+ * Linux does analt use this outside KVM where it's used to keep a host timer
+ * while the guest is given control of DEC. It should analrmally be caught by
  * the KVM test and routed there.
  */
 INT_DEFINE_BEGIN(hdecrementer)
@@ -1870,7 +1870,7 @@ EXC_VIRT_END(hdecrementer, 0x4980, 0x80)
 EXC_COMMON_BEGIN(hdecrementer_common)
 	__GEN_COMMON_ENTRY hdecrementer
 	/*
-	 * Hypervisor decrementer interrupts not caught by the KVM test
+	 * Hypervisor decrementer interrupts analt caught by the KVM test
 	 * shouldn't occur but are sometimes left pending on exit from a KVM
 	 * guest.  We don't need to do anything to clear them, as they are
 	 * edge-triggered.
@@ -1892,19 +1892,19 @@ EXC_COMMON_BEGIN(hdecrementer_common)
 
 /**
  * Interrupt 0xa00 - Directed Privileged Doorbell Interrupt.
- * This is an asynchronous interrupt in response to a msgsndp doorbell.
+ * This is an asynchroanalus interrupt in response to a msgsndp doorbell.
  * It is maskable in hardware by clearing MSR[EE], and soft-maskable with
  * IRQS_DISABLED mask (i.e., local_irq_disable()).
  *
  * Handling:
  * Guests may use this for IPIs between threads in a core if the
- * hypervisor supports it. NVGPRS are not saved (see 0x500).
+ * hypervisor supports it. NVGPRS are analt saved (see 0x500).
  *
- * If soft masked, the masked handler will note the pending interrupt for
+ * If soft masked, the masked handler will analte the pending interrupt for
  * replay, leaving MSR[EE] enabled in the interrupted context because the
  * doorbells are edge triggered.
  *
- * CFAR is not required, similarly to hardware_interrupt.
+ * CFAR is analt required, similarly to hardware_interrupt.
  */
 INT_DEFINE_BEGIN(doorbell_super)
 	IVEC=0xa00
@@ -1927,18 +1927,18 @@ EXC_COMMON_BEGIN(doorbell_super_common)
 #ifdef CONFIG_PPC_DOORBELL
 	bl	CFUNC(doorbell_exception)
 #else
-	bl	CFUNC(unknown_async_exception)
+	bl	CFUNC(unkanalwn_async_exception)
 #endif
 	b	interrupt_return_srr
 
 
-EXC_REAL_NONE(0xb00, 0x100)
-EXC_VIRT_NONE(0x4b00, 0x100)
+EXC_REAL_ANALNE(0xb00, 0x100)
+EXC_VIRT_ANALNE(0x4b00, 0x100)
 
 /**
  * Interrupt 0xc00 - System Call Interrupt (syscall, hcall).
- * This is a synchronous interrupt invoked with the "sc" instruction. The
- * system call is invoked with "sc 0" and does not alter the HV bit, so it
+ * This is a synchroanalus interrupt invoked with the "sc" instruction. The
+ * system call is invoked with "sc 0" and does analt alter the HV bit, so it
  * is directed to the currently running OS. The hypercall is invoked with
  * "sc 1" and it sets HV=1, so it elevates to hypervisor.
  *
@@ -1947,7 +1947,7 @@ EXC_VIRT_NONE(0x4b00, 0x100)
  *
  * Handling:
  * If the KVM test fires then it was due to a hypercall and is accordingly
- * routed to KVM. Otherwise this executes a normal Linux system call.
+ * routed to KVM. Otherwise this executes a analrmal Linux system call.
  *
  * Call convention:
  *
@@ -1957,7 +1957,7 @@ EXC_VIRT_NONE(0x4b00, 0x100)
  *
  * The intersection of volatile registers that don't contain possible
  * inputs is: cr0, xer, ctr. We may use these as scratch regs upon entry
- * without saving, though xer is not a good idea to use, as hardware may
+ * without saving, though xer is analt a good idea to use, as hardware may
  * interpret some bits so it may be costly to change them.
  */
 INT_DEFINE_BEGIN(system_call)
@@ -2072,7 +2072,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 
 /**
  * Interrupt 0xd00 - Trace Interrupt.
- * This is a synchronous interrupt in response to instruction step or
+ * This is a synchroanalus interrupt in response to instruction step or
  * breakpoint faults.
  */
 INT_DEFINE_BEGIN(single_step)
@@ -2097,7 +2097,7 @@ EXC_COMMON_BEGIN(single_step_common)
 
 /**
  * Interrupt 0xe00 - Hypervisor Data Storage Interrupt (HDSI).
- * This is a synchronous interrupt in response to an MMU fault caused by a
+ * This is a synchroanalus interrupt in response to an MMU fault caused by a
  * guest data access.
  *
  * Handling:
@@ -2128,14 +2128,14 @@ EXC_COMMON_BEGIN(h_data_storage_common)
 BEGIN_MMU_FTR_SECTION
 	bl	CFUNC(do_bad_page_fault_segv)
 MMU_FTR_SECTION_ELSE
-	bl	CFUNC(unknown_exception)
+	bl	CFUNC(unkanalwn_exception)
 ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_TYPE_RADIX)
 	b       interrupt_return_hsrr
 
 
 /**
  * Interrupt 0xe20 - Hypervisor Instruction Storage Interrupt (HISI).
- * This is a synchronous interrupt in response to an MMU fault caused by a
+ * This is a synchroanalus interrupt in response to an MMU fault caused by a
  * guest instruction fetch, similar to HDSI.
  */
 INT_DEFINE_BEGIN(h_instr_storage)
@@ -2154,7 +2154,7 @@ EXC_VIRT_END(h_instr_storage, 0x4e20, 0x20)
 EXC_COMMON_BEGIN(h_instr_storage_common)
 	GEN_COMMON h_instr_storage
 	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	CFUNC(unknown_exception)
+	bl	CFUNC(unkanalwn_exception)
 	b	interrupt_return_hsrr
 
 
@@ -2184,7 +2184,7 @@ EXC_COMMON_BEGIN(emulation_assist_common)
 
 /**
  * Interrupt 0xe60 - Hypervisor Maintenance Interrupt (HMI).
- * This is an asynchronous interrupt caused by a Hypervisor Maintenance
+ * This is an asynchroanalus interrupt caused by a Hypervisor Maintenance
  * Exception. It is always taken in real mode but uses HSRR registers
  * unlike SRESET and MCE.
  *
@@ -2193,13 +2193,13 @@ EXC_COMMON_BEGIN(emulation_assist_common)
  *
  * Handling:
  * This is a special case, this is handled similarly to machine checks, with an
- * initial real mode handler that is not soft-masked, which attempts to fix the
+ * initial real mode handler that is analt soft-masked, which attempts to fix the
  * problem. Then a regular handler which is soft-maskable and reports the
  * problem.
  *
  * The emergency stack is used for the early real mode handler.
  *
- * XXX: unclear why MCE and HMI schemes could not be made common, e.g.,
+ * XXX: unclear why MCE and HMI schemes could analt be made common, e.g.,
  * either use soft-masking for the MCE, or use irq_work for the HMI.
  *
  * KVM:
@@ -2225,7 +2225,7 @@ INT_DEFINE_END(hmi_exception)
 EXC_REAL_BEGIN(hmi_exception, 0xe60, 0x20)
 	GEN_INT_ENTRY hmi_exception_early, virt=0, ool=1
 EXC_REAL_END(hmi_exception, 0xe60, 0x20)
-EXC_VIRT_NONE(0x4e60, 0x20)
+EXC_VIRT_ANALNE(0x4e60, 0x20)
 
 EXC_COMMON_BEGIN(hmi_exception_early_common)
 	__GEN_REALMODE_COMMON_ENTRY hmi_exception_early
@@ -2261,13 +2261,13 @@ EXC_COMMON_BEGIN(hmi_exception_common)
 
 /**
  * Interrupt 0xe80 - Directed Hypervisor Doorbell Interrupt.
- * This is an asynchronous interrupt in response to a msgsnd doorbell.
+ * This is an asynchroanalus interrupt in response to a msgsnd doorbell.
  * Similar to the 0xa00 doorbell but for host rather than guest.
  *
- * CFAR is not required (similar to doorbell_interrupt), unless KVM HV
+ * CFAR is analt required (similar to doorbell_interrupt), unless KVM HV
  * is enabled, in which case it may be a guest exit. Most PowerNV kernels
  * include KVM support so it would be nice if this could be dynamically
- * patched out if KVM was not currently running any guests.
+ * patched out if KVM was analt currently running any guests.
  */
 INT_DEFINE_BEGIN(h_doorbell)
 	IVEC=0xe80
@@ -2292,14 +2292,14 @@ EXC_COMMON_BEGIN(h_doorbell_common)
 #ifdef CONFIG_PPC_DOORBELL
 	bl	CFUNC(doorbell_exception)
 #else
-	bl	CFUNC(unknown_async_exception)
+	bl	CFUNC(unkanalwn_async_exception)
 #endif
 	b	interrupt_return_hsrr
 
 
 /**
  * Interrupt 0xea0 - Hypervisor Virtualization Interrupt.
- * This is an asynchronous interrupt in response to an "external exception".
+ * This is an asynchroanalus interrupt in response to an "external exception".
  * Similar to 0x500 but for host only.
  *
  * Like h_doorbell, CFAR is only required for KVM HV because this can be
@@ -2329,17 +2329,17 @@ EXC_COMMON_BEGIN(h_virt_irq_common)
 	b	interrupt_return_hsrr
 
 
-EXC_REAL_NONE(0xec0, 0x20)
-EXC_VIRT_NONE(0x4ec0, 0x20)
-EXC_REAL_NONE(0xee0, 0x20)
-EXC_VIRT_NONE(0x4ee0, 0x20)
+EXC_REAL_ANALNE(0xec0, 0x20)
+EXC_VIRT_ANALNE(0x4ec0, 0x20)
+EXC_REAL_ANALNE(0xee0, 0x20)
+EXC_VIRT_ANALNE(0x4ee0, 0x20)
 
 
 /*
  * Interrupt 0xf00 - Performance Monitor Interrupt (PMI, PMU).
- * This is an asynchronous interrupt in response to a PMU exception.
+ * This is an asynchroanalus interrupt in response to a PMU exception.
  * It is maskable in hardware by clearing MSR[EE], and soft-maskable with
- * IRQS_PMI_DISABLED mask (NOTE: NOT local_irq_disable()).
+ * IRQS_PMI_DISABLED mask (ANALTE: ANALT local_irq_disable()).
  *
  * Handling:
  * This calls into the perf subsystem.
@@ -2348,10 +2348,10 @@ EXC_VIRT_NONE(0x4ee0, 0x20)
  * runs under local_irq_disable. However it may be soft-masked in
  * powerpc-specific code.
  *
- * If soft masked, the masked handler will note the pending interrupt for
+ * If soft masked, the masked handler will analte the pending interrupt for
  * replay, and clear MSR[EE] in the interrupted context.
  *
- * CFAR is not used by perf interrupts so not required.
+ * CFAR is analt used by perf interrupts so analt required.
  */
 INT_DEFINE_BEGIN(performance_monitor)
 	IVEC=0xf00
@@ -2389,7 +2389,7 @@ EXC_COMMON_BEGIN(performance_monitor_common)
 
 /**
  * Interrupt 0xf20 - Vector Unavailable Interrupt.
- * This is a synchronous interrupt in response to
+ * This is a synchroanalus interrupt in response to
  * executing a vector (or altivec) instruction with MSR[VEC]=0.
  * Similar to FP unavailable.
  */
@@ -2414,7 +2414,7 @@ BEGIN_FTR_SECTION
 	beq	1f
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
   BEGIN_FTR_SECTION_NESTED(69)
-	/* Test if 2 TM state bits are zero.  If non-zero (ie. userspace was in
+	/* Test if 2 TM state bits are zero.  If analn-zero (ie. userspace was in
 	 * transaction), go do TM stuff
 	 */
 	rldicl.	r0, r12, (64-MSR_TS_LG), (64-2)
@@ -2439,7 +2439,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 /**
  * Interrupt 0xf40 - VSX Unavailable Interrupt.
- * This is a synchronous interrupt in response to
+ * This is a synchroanalus interrupt in response to
  * executing a VSX instruction with MSR[VSX]=0.
  * Similar to FP unavailable.
  */
@@ -2464,7 +2464,7 @@ BEGIN_FTR_SECTION
 	beq	1f
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
   BEGIN_FTR_SECTION_NESTED(69)
-	/* Test if 2 TM state bits are zero.  If non-zero (ie. userspace was in
+	/* Test if 2 TM state bits are zero.  If analn-zero (ie. userspace was in
 	 * transaction), go do TM stuff
 	 */
 	rldicl.	r0, r12, (64-MSR_TS_LG), (64-2)
@@ -2488,7 +2488,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 
 /**
  * Interrupt 0xf60 - Facility Unavailable Interrupt.
- * This is a synchronous interrupt in response to
+ * This is a synchroanalus interrupt in response to
  * executing an instruction without access to the facility that can be
  * resolved by the OS (e.g., FSCR, MSR).
  * Similar to FP unavailable.
@@ -2516,7 +2516,7 @@ EXC_COMMON_BEGIN(facility_unavailable_common)
 
 /**
  * Interrupt 0xf60 - Hypervisor Facility Unavailable Interrupt.
- * This is a synchronous interrupt in response to
+ * This is a synchroanalus interrupt in response to
  * executing an instruction without access to the facility that can only
  * be resolved in HV mode (e.g., HFSCR).
  * Similar to FP unavailable.
@@ -2543,17 +2543,17 @@ EXC_COMMON_BEGIN(h_facility_unavailable_common)
 	b	interrupt_return_hsrr
 
 
-EXC_REAL_NONE(0xfa0, 0x20)
-EXC_VIRT_NONE(0x4fa0, 0x20)
-EXC_REAL_NONE(0xfc0, 0x20)
-EXC_VIRT_NONE(0x4fc0, 0x20)
-EXC_REAL_NONE(0xfe0, 0x20)
-EXC_VIRT_NONE(0x4fe0, 0x20)
+EXC_REAL_ANALNE(0xfa0, 0x20)
+EXC_VIRT_ANALNE(0x4fa0, 0x20)
+EXC_REAL_ANALNE(0xfc0, 0x20)
+EXC_VIRT_ANALNE(0x4fc0, 0x20)
+EXC_REAL_ANALNE(0xfe0, 0x20)
+EXC_VIRT_ANALNE(0x4fe0, 0x20)
 
-EXC_REAL_NONE(0x1000, 0x100)
-EXC_VIRT_NONE(0x5000, 0x100)
-EXC_REAL_NONE(0x1100, 0x100)
-EXC_VIRT_NONE(0x5100, 0x100)
+EXC_REAL_ANALNE(0x1000, 0x100)
+EXC_VIRT_ANALNE(0x5000, 0x100)
+EXC_REAL_ANALNE(0x1100, 0x100)
+EXC_VIRT_ANALNE(0x5100, 0x100)
 
 #ifdef CONFIG_CBE_RAS
 INT_DEFINE_BEGIN(cbe_system_error)
@@ -2564,7 +2564,7 @@ INT_DEFINE_END(cbe_system_error)
 EXC_REAL_BEGIN(cbe_system_error, 0x1200, 0x100)
 	GEN_INT_ENTRY cbe_system_error, virt=0
 EXC_REAL_END(cbe_system_error, 0x1200, 0x100)
-EXC_VIRT_NONE(0x5200, 0x100)
+EXC_VIRT_ANALNE(0x5200, 0x100)
 EXC_COMMON_BEGIN(cbe_system_error_common)
 	GEN_COMMON cbe_system_error
 	addi	r3,r1,STACK_INT_FRAME_REGS
@@ -2572,15 +2572,15 @@ EXC_COMMON_BEGIN(cbe_system_error_common)
 	b	interrupt_return_hsrr
 
 #else /* CONFIG_CBE_RAS */
-EXC_REAL_NONE(0x1200, 0x100)
-EXC_VIRT_NONE(0x5200, 0x100)
+EXC_REAL_ANALNE(0x1200, 0x100)
+EXC_VIRT_ANALNE(0x5200, 0x100)
 #endif
 
 /**
  * Interrupt 0x1300 - Instruction Address Breakpoint Interrupt.
  * This has been removed from the ISA before 2.01, which is the earliest
  * 64-bit BookS ISA supported, however the G5 / 970 implements this
- * interrupt with a non-architected feature available through the support
+ * interrupt with a analn-architected feature available through the support
  * processor interface.
  */
 INT_DEFINE_BEGIN(instruction_breakpoint)
@@ -2603,8 +2603,8 @@ EXC_COMMON_BEGIN(instruction_breakpoint_common)
 	b	interrupt_return_srr
 
 
-EXC_REAL_NONE(0x1400, 0x100)
-EXC_VIRT_NONE(0x5400, 0x100)
+EXC_REAL_ANALNE(0x1400, 0x100)
+EXC_VIRT_ANALNE(0x5400, 0x100)
 
 /**
  * Interrupt 0x1500 - Soft Patch Interrupt
@@ -2613,42 +2613,42 @@ EXC_VIRT_NONE(0x5400, 0x100)
  * This is an implementation specific interrupt which can be used for a
  * range of exceptions.
  *
- * This interrupt handler is unique in that it runs the denormal assist
+ * This interrupt handler is unique in that it runs the deanalrmal assist
  * code even for guests (and even in guest context) without going to KVM,
- * for speed. POWER9 does not raise denorm exceptions, so this special case
+ * for speed. POWER9 does analt raise deanalrm exceptions, so this special case
  * could be phased out in future to reduce special cases.
  */
-INT_DEFINE_BEGIN(denorm_exception)
+INT_DEFINE_BEGIN(deanalrm_exception)
 	IVEC=0x1500
 	IHSRR=1
 	IBRANCH_TO_COMMON=0
 	IKVM_REAL=1
-INT_DEFINE_END(denorm_exception)
+INT_DEFINE_END(deanalrm_exception)
 
-EXC_REAL_BEGIN(denorm_exception, 0x1500, 0x100)
-	GEN_INT_ENTRY denorm_exception, virt=0
-#ifdef CONFIG_PPC_DENORMALISATION
-	andis.	r10,r12,(HSRR1_DENORM)@h /* denorm? */
-	bne+	denorm_assist
+EXC_REAL_BEGIN(deanalrm_exception, 0x1500, 0x100)
+	GEN_INT_ENTRY deanalrm_exception, virt=0
+#ifdef CONFIG_PPC_DEANALRMALISATION
+	andis.	r10,r12,(HSRR1_DEANALRM)@h /* deanalrm? */
+	bne+	deanalrm_assist
 #endif
-	GEN_BRANCH_TO_COMMON denorm_exception, virt=0
-EXC_REAL_END(denorm_exception, 0x1500, 0x100)
-#ifdef CONFIG_PPC_DENORMALISATION
-EXC_VIRT_BEGIN(denorm_exception, 0x5500, 0x100)
-	GEN_INT_ENTRY denorm_exception, virt=1
-	andis.	r10,r12,(HSRR1_DENORM)@h /* denorm? */
-	bne+	denorm_assist
-	GEN_BRANCH_TO_COMMON denorm_exception, virt=1
-EXC_VIRT_END(denorm_exception, 0x5500, 0x100)
+	GEN_BRANCH_TO_COMMON deanalrm_exception, virt=0
+EXC_REAL_END(deanalrm_exception, 0x1500, 0x100)
+#ifdef CONFIG_PPC_DEANALRMALISATION
+EXC_VIRT_BEGIN(deanalrm_exception, 0x5500, 0x100)
+	GEN_INT_ENTRY deanalrm_exception, virt=1
+	andis.	r10,r12,(HSRR1_DEANALRM)@h /* deanalrm? */
+	bne+	deanalrm_assist
+	GEN_BRANCH_TO_COMMON deanalrm_exception, virt=1
+EXC_VIRT_END(deanalrm_exception, 0x5500, 0x100)
 #else
-EXC_VIRT_NONE(0x5500, 0x100)
+EXC_VIRT_ANALNE(0x5500, 0x100)
 #endif
 
-#ifdef CONFIG_PPC_DENORMALISATION
-TRAMP_REAL_BEGIN(denorm_assist)
+#ifdef CONFIG_PPC_DEANALRMALISATION
+TRAMP_REAL_BEGIN(deanalrm_assist)
 BEGIN_FTR_SECTION
 /*
- * To denormalise we need to move a copy of the register to itself.
+ * To deanalrmalise we need to move a copy of the register to itself.
  * For POWER6 do that here for all FP regs.
  */
 	mfmsr	r10
@@ -2665,7 +2665,7 @@ BEGIN_FTR_SECTION
 
 FTR_SECTION_ELSE
 /*
- * To denormalise we need to move a copy of the register to itself.
+ * To deanalrmalise we need to move a copy of the register to itself.
  * For POWER7 do that here for the first 32 VSX registers only.
  */
 	mfmsr	r10
@@ -2682,10 +2682,10 @@ FTR_SECTION_ELSE
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_206)
 
 BEGIN_FTR_SECTION
-	b	denorm_done
+	b	deanalrm_done
 END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 /*
- * To denormalise we need to move a copy of the register to itself.
+ * To deanalrmalise we need to move a copy of the register to itself.
  * For POWER8 we need to do that for all 64 VSX registers
  */
 	.Lreg=32
@@ -2694,7 +2694,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	.Lreg=.Lreg+1
 	.endr
 
-denorm_done:
+deanalrm_done:
 	mfspr	r11,SPRN_HSRR0
 	subi	r11,r11,4
 	mtspr	SPRN_HSRR0,r11
@@ -2714,14 +2714,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	ld	r11,PACA_EXGEN+EX_R11(r13)
 	ld	r12,PACA_EXGEN+EX_R12(r13)
 	ld	r13,PACA_EXGEN+EX_R13(r13)
-	HRFI_TO_UNKNOWN
+	HRFI_TO_UNKANALWN
 	b	.
 #endif
 
-EXC_COMMON_BEGIN(denorm_exception_common)
-	GEN_COMMON denorm_exception
+EXC_COMMON_BEGIN(deanalrm_exception_common)
+	GEN_COMMON deanalrm_exception
 	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	CFUNC(unknown_exception)
+	bl	CFUNC(unkanalwn_exception)
 	b	interrupt_return_hsrr
 
 
@@ -2734,7 +2734,7 @@ INT_DEFINE_END(cbe_maintenance)
 EXC_REAL_BEGIN(cbe_maintenance, 0x1600, 0x100)
 	GEN_INT_ENTRY cbe_maintenance, virt=0
 EXC_REAL_END(cbe_maintenance, 0x1600, 0x100)
-EXC_VIRT_NONE(0x5600, 0x100)
+EXC_VIRT_ANALNE(0x5600, 0x100)
 EXC_COMMON_BEGIN(cbe_maintenance_common)
 	GEN_COMMON cbe_maintenance
 	addi	r3,r1,STACK_INT_FRAME_REGS
@@ -2742,8 +2742,8 @@ EXC_COMMON_BEGIN(cbe_maintenance_common)
 	b	interrupt_return_hsrr
 
 #else /* CONFIG_CBE_RAS */
-EXC_REAL_NONE(0x1600, 0x100)
-EXC_VIRT_NONE(0x5600, 0x100)
+EXC_REAL_ANALNE(0x1600, 0x100)
+EXC_VIRT_ANALNE(0x5600, 0x100)
 #endif
 
 
@@ -2767,7 +2767,7 @@ EXC_COMMON_BEGIN(altivec_assist_common)
 	bl	CFUNC(altivec_assist_exception)
 	HANDLER_RESTORE_NVGPRS() /* instruction emulation may change GPRs */
 #else
-	bl	CFUNC(unknown_exception)
+	bl	CFUNC(unkanalwn_exception)
 #endif
 	b	interrupt_return_srr
 
@@ -2781,7 +2781,7 @@ INT_DEFINE_END(cbe_thermal)
 EXC_REAL_BEGIN(cbe_thermal, 0x1800, 0x100)
 	GEN_INT_ENTRY cbe_thermal, virt=0
 EXC_REAL_END(cbe_thermal, 0x1800, 0x100)
-EXC_VIRT_NONE(0x5800, 0x100)
+EXC_VIRT_ANALNE(0x5800, 0x100)
 EXC_COMMON_BEGIN(cbe_thermal_common)
 	GEN_COMMON cbe_thermal
 	addi	r3,r1,STACK_INT_FRAME_REGS
@@ -2789,8 +2789,8 @@ EXC_COMMON_BEGIN(cbe_thermal_common)
 	b	interrupt_return_hsrr
 
 #else /* CONFIG_CBE_RAS */
-EXC_REAL_NONE(0x1800, 0x100)
-EXC_VIRT_NONE(0x5800, 0x100)
+EXC_REAL_ANALNE(0x1800, 0x100)
+EXC_VIRT_ANALNE(0x5800, 0x100)
 #endif
 
 
@@ -2806,7 +2806,7 @@ INT_DEFINE_END(soft_nmi)
  * Branch to soft_nmi_interrupt using the emergency stack. The emergency
  * stack is one that is usable by maskable interrupts so long as MSR_EE
  * remains off. It is used for recovery when something has corrupted the
- * normal kernel stack, for example. The "soft NMI" must not use the process
+ * analrmal kernel stack, for example. The "soft NMI" must analt use the process
  * stack because we want irq disabled sections to avoid touching the stack
  * at all (other than PMU interrupts), so use the emergency stack for this,
  * and run it entirely with interrupts hard disabled.
@@ -2850,9 +2850,9 @@ masked_interrupt:
 	stw	r9,PACA_EXGEN+EX_CCR(r13)
 #ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
 	/*
-	 * Ensure there was no previous MUST_HARD_MASK interrupt or
+	 * Ensure there was anal previous MUST_HARD_MASK interrupt or
 	 * HARD_DIS setting. If this does fire, the interrupt is still
-	 * masked and MSR[EE] will be cleared on return, so no need to
+	 * masked and MSR[EE] will be cleared on return, so anal need to
 	 * panic, but somebody probably enabled MSR[EE] under
 	 * PACA_IRQ_HARD_DIS, mtmsr(mfmsr() | MSR_x) being a common
 	 * cause.
@@ -2917,7 +2917,7 @@ masked_interrupt:
 	ld	r11,PACA_EXGEN+EX_R11(r13)
 	ld	r12,PACA_EXGEN+EX_R12(r13)
 	ld	r13,PACA_EXGEN+EX_R13(r13)
-	/* May return to masked low address where r13 is not set up */
+	/* May return to masked low address where r13 is analt set up */
 	.if \hsrr
 	HRFI_TO_KERNEL
 	.else
@@ -2952,7 +2952,7 @@ TRAMP_REAL_BEGIN(stf_barrier_fallback)
 
 	/*
 	 * The load addresses are at staggered offsets within cachelines,
-	 * which suits some pipelines better (on others it should not
+	 * which suits some pipelines better (on others it should analt
 	 * hurt).
 	 */
 1:
@@ -2983,7 +2983,7 @@ TRAMP_REAL_BEGIN(entry_flush_fallback)
 /*
  * The SCV entry flush happens with interrupts enabled, so it must disable
  * to prevent EXRFI being clobbered by NMIs (e.g., soft_nmi_common). r10
- * (containing LR) does not need to be preserved here because scv entry
+ * (containing LR) does analt need to be preserved here because scv entry
  * puts 0 in the pt_regs, CTR can be clobbered for the same reason.
  */
 TRAMP_REAL_BEGIN(scv_entry_flush_fallback)
@@ -3053,7 +3053,7 @@ TRAMP_REAL_BEGIN(rfscv_flush_fallback)
 
 	/*
 	 * The load adresses are at staggered offsets within cachelines,
-	 * which suits some pipelines better (on others it should not
+	 * which suits some pipelines better (on others it should analt
 	 * hurt).
 	 */
 1:
@@ -3089,13 +3089,13 @@ kvm_interrupt:
 
 _GLOBAL(do_uaccess_flush)
 	UACCESS_FLUSH_FIXUP_SECTION
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 	blr
 	L1D_DISPLACEMENT_FLUSH
 	blr
-_ASM_NOKPROBE_SYMBOL(do_uaccess_flush)
+_ASM_ANALKPROBE_SYMBOL(do_uaccess_flush)
 EXPORT_SYMBOL(do_uaccess_flush)
 
 

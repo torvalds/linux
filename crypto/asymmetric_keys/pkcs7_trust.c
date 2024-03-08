@@ -31,16 +31,16 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 	kenter(",%u,", sinfo->index);
 
 	if (sinfo->unsupported_crypto) {
-		kleave(" = -ENOPKG [cached]");
-		return -ENOPKG;
+		kleave(" = -EANALPKG [cached]");
+		return -EANALPKG;
 	}
 
 	for (x509 = sinfo->signer; x509; x509 = x509->signer) {
 		if (x509->seen) {
 			if (x509->verified)
 				goto verified;
-			kleave(" = -ENOKEY [cached]");
-			return -ENOKEY;
+			kleave(" = -EANALKEY [cached]");
+			return -EANALKEY;
 		}
 		x509->seen = true;
 
@@ -59,15 +59,15 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 				 sinfo->index, x509->index, key_serial(key));
 			goto matched;
 		}
-		if (key == ERR_PTR(-ENOMEM))
-			return -ENOMEM;
+		if (key == ERR_PTR(-EANALMEM))
+			return -EANALMEM;
 
 		 /* Self-signed certificates form roots of their own, and if we
-		  * don't know them, then we can't accept them.
+		  * don't kanalw them, then we can't accept them.
 		  */
 		if (x509->signer == x509) {
-			kleave(" = -ENOKEY [unknown self-signed]");
-			return -ENOKEY;
+			kleave(" = -EANALKEY [unkanalwn self-signed]");
+			return -EANALKEY;
 		}
 
 		might_sleep();
@@ -75,7 +75,7 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 		sig = last->sig;
 	}
 
-	/* No match - see if the root certificate has a signer amongst the
+	/* Anal match - see if the root certificate has a signer amongst the
 	 * trusted keys.
 	 */
 	if (last && (last->sig->auth_ids[0] || last->sig->auth_ids[1])) {
@@ -89,7 +89,7 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 				 sinfo->index, x509->index, key_serial(key));
 			goto matched;
 		}
-		if (PTR_ERR(key) != -ENOKEY)
+		if (PTR_ERR(key) != -EANALKEY)
 			return PTR_ERR(key);
 	}
 
@@ -105,17 +105,17 @@ static int pkcs7_validate_trust_one(struct pkcs7_message *pkcs7,
 		sig = sinfo->sig;
 		goto matched;
 	}
-	if (PTR_ERR(key) != -ENOKEY)
+	if (PTR_ERR(key) != -EANALKEY)
 		return PTR_ERR(key);
 
-	kleave(" = -ENOKEY [no backref]");
-	return -ENOKEY;
+	kleave(" = -EANALKEY [anal backref]");
+	return -EANALKEY;
 
 matched:
 	ret = verify_signature(key, sig);
 	key_put(key);
 	if (ret < 0) {
-		if (ret == -ENOMEM)
+		if (ret == -EANALMEM)
 			return ret;
 		kleave(" = -EKEYREJECTED [verify %d]", ret);
 		return -EKEYREJECTED;
@@ -137,7 +137,7 @@ verified:
  * @trust_keyring: Signing certificates to use as starting points
  *
  * Validate that the certificate chain inside the PKCS#7 message intersects
- * keys we already know and trust.
+ * keys we already kanalw and trust.
  *
  * Returns, in order of descending priority:
  *
@@ -147,20 +147,20 @@ verified:
  *  (*) 0 if at least one signature chain intersects with the keys in the trust
  *	keyring, or:
  *
- *  (*) -ENOPKG if a suitable crypto module couldn't be found for a check on a
+ *  (*) -EANALPKG if a suitable crypto module couldn't be found for a check on a
  *	chain.
  *
- *  (*) -ENOKEY if we couldn't find a match for any of the signature chains in
+ *  (*) -EANALKEY if we couldn't find a match for any of the signature chains in
  *	the message.
  *
- * May also return -ENOMEM.
+ * May also return -EANALMEM.
  */
 int pkcs7_validate_trust(struct pkcs7_message *pkcs7,
 			 struct key *trust_keyring)
 {
 	struct pkcs7_signed_info *sinfo;
 	struct x509_certificate *p;
-	int cached_ret = -ENOKEY;
+	int cached_ret = -EANALKEY;
 	int ret;
 
 	for (p = pkcs7->certs; p; p = p->next)
@@ -169,11 +169,11 @@ int pkcs7_validate_trust(struct pkcs7_message *pkcs7,
 	for (sinfo = pkcs7->signed_infos; sinfo; sinfo = sinfo->next) {
 		ret = pkcs7_validate_trust_one(pkcs7, sinfo, trust_keyring);
 		switch (ret) {
-		case -ENOKEY:
+		case -EANALKEY:
 			continue;
-		case -ENOPKG:
-			if (cached_ret == -ENOKEY)
-				cached_ret = -ENOPKG;
+		case -EANALPKG:
+			if (cached_ret == -EANALKEY)
+				cached_ret = -EANALPKG;
 			continue;
 		case 0:
 			cached_ret = 0;

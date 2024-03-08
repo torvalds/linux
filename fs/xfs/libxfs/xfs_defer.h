@@ -39,7 +39,7 @@ void xfs_defer_item_unpause(struct xfs_trans *tp, struct xfs_defer_pending *dfp)
 
 struct xfs_defer_pending *xfs_defer_add(struct xfs_trans *tp, struct list_head *h,
 		const struct xfs_defer_op_type *ops);
-int xfs_defer_finish_noroll(struct xfs_trans **tp);
+int xfs_defer_finish_analroll(struct xfs_trans **tp);
 int xfs_defer_finish(struct xfs_trans **tp);
 int xfs_defer_finish_one(struct xfs_trans *tp, struct xfs_defer_pending *dfp);
 void xfs_defer_cancel(struct xfs_trans *);
@@ -77,7 +77,7 @@ extern const struct xfs_defer_op_type xfs_attr_defer_type;
 /*
  * Deferred operation item relogging limits.
  */
-#define XFS_DEFER_OPS_NR_INODES	2	/* join up to two inodes */
+#define XFS_DEFER_OPS_NR_IANALDES	2	/* join up to two ianaldes */
 #define XFS_DEFER_OPS_NR_BUFS	2	/* join up to two buffers */
 
 /* Resources that must be held across a transaction roll. */
@@ -85,8 +85,8 @@ struct xfs_defer_resources {
 	/* held buffers */
 	struct xfs_buf		*dr_bp[XFS_DEFER_OPS_NR_BUFS];
 
-	/* inodes with no unlock flags */
-	struct xfs_inode	*dr_ip[XFS_DEFER_OPS_NR_INODES];
+	/* ianaldes with anal unlock flags */
+	struct xfs_ianalde	*dr_ip[XFS_DEFER_OPS_NR_IANALDES];
 
 	/* number of held buffers */
 	unsigned short		dr_bufs;
@@ -94,8 +94,8 @@ struct xfs_defer_resources {
 	/* bitmap of ordered buffers */
 	unsigned short		dr_ordered;
 
-	/* number of held inodes */
-	unsigned short		dr_inos;
+	/* number of held ianaldes */
+	unsigned short		dr_ianals;
 };
 
 /*
@@ -122,7 +122,7 @@ struct xfs_defer_capture {
 
 /*
  * Functions to capture a chain of deferred operations and continue them later.
- * This doesn't normally happen except log recovery.
+ * This doesn't analrmally happen except log recovery.
  */
 int xfs_defer_ops_capture_and_commit(struct xfs_trans *tp,
 		struct list_head *capture_list);

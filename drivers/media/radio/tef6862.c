@@ -6,7 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -70,12 +70,12 @@ static int tef6862_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *v)
 	if (v->index > 0)
 		return -EINVAL;
 
-	/* only support FM for now */
+	/* only support FM for analw */
 	strscpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = TEF6862_LO_FREQ;
 	v->rangehigh = TEF6862_HI_FREQ;
-	v->rxsubchans = V4L2_TUNER_SUB_MONO;
+	v->rxsubchans = V4L2_TUNER_SUB_MOANAL;
 	v->capability = V4L2_TUNER_CAP_LOW;
 	v->audmode = V4L2_TUNER_MODE_STEREO;
 	v->signal = tef6862_sigstr(v4l2_get_subdevdata(sd));
@@ -155,7 +155,7 @@ static int tef6862_probe(struct i2c_client *client)
 
 	state = kzalloc(sizeof(struct tef6862_state), GFP_KERNEL);
 	if (state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	state->freq = TEF6862_LO_FREQ;
 
 	sd = &state->sd;

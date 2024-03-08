@@ -7,7 +7,7 @@
  * Copyright (c) 2011 DENX Software Engineering GmbH
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mii.h>
@@ -77,11 +77,11 @@ static irqreturn_t am79c_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_AM79C_IR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & MII_AM79C_IR_IMASK_STAT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 

@@ -21,10 +21,10 @@ static void snd_emu10k1_proc_spdif_status(struct snd_emu10k1 * emu,
 					  int status_reg,
 					  int rate_reg)
 {
-	static const char * const clkaccy[4] = { "1000ppm", "50ppm", "variable", "unknown" };
+	static const char * const clkaccy[4] = { "1000ppm", "50ppm", "variable", "unkanalwn" };
 	static const int samplerate[16] = { 44100, 1, 48000, 32000, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
 	static const char * const channel[16] = { "unspec", "left", "right", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15" };
-	static const char * const emphasis[8] = { "none", "50/15 usec 2 channel", "2", "3", "4", "5", "6", "7" };
+	static const char * const emphasis[8] = { "analne", "50/15 usec 2 channel", "2", "3", "4", "5", "6", "7" };
 	unsigned int status, rate = 0;
 	
 	status = snd_emu10k1_ptr_read(emu, status_reg, 0);
@@ -32,9 +32,9 @@ static void snd_emu10k1_proc_spdif_status(struct snd_emu10k1 * emu,
 	snd_iprintf(buffer, "\n%s\n", title);
 
 	if (status != 0xffffffff) {
-		snd_iprintf(buffer, "Professional Mode     : %s\n", (status & SPCS_PROFESSIONAL) ? "yes" : "no");
-		snd_iprintf(buffer, "Not Audio Data        : %s\n", (status & SPCS_NOTAUDIODATA) ? "yes" : "no");
-		snd_iprintf(buffer, "Copyright             : %s\n", (status & SPCS_COPYRIGHT) ? "yes" : "no");
+		snd_iprintf(buffer, "Professional Mode     : %s\n", (status & SPCS_PROFESSIONAL) ? "anal" : "anal");
+		snd_iprintf(buffer, "Analt Audio Data        : %s\n", (status & SPCS_ANALTAUDIODATA) ? "anal" : "anal");
+		snd_iprintf(buffer, "Copyright             : %s\n", (status & SPCS_COPYRIGHT) ? "anal" : "anal");
 		snd_iprintf(buffer, "Emphasis              : %s\n", emphasis[(status & SPCS_EMPHASISMASK) >> 3]);
 		snd_iprintf(buffer, "Mode                  : %i\n", (status & SPCS_MODEMASK) >> 6);
 		snd_iprintf(buffer, "Category Code         : 0x%x\n", (status & SPCS_CATEGORYCODEMASK) >> 8);
@@ -53,7 +53,7 @@ static void snd_emu10k1_proc_spdif_status(struct snd_emu10k1 * emu,
 			snd_iprintf(buffer, "Estimated Sample Rate : %d\n", ((rate & 0xFFFFF ) * 375) >> 11); 
 		}
 	} else {
-		snd_iprintf(buffer, "No signal detected.\n");
+		snd_iprintf(buffer, "Anal signal detected.\n");
 	}
 
 }
@@ -196,7 +196,7 @@ static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry,
 		else
 			snd_iprintf(buffer, "\nS/PDIF mode: %s%s\n",
 				    value & EMU_HANA_SPDIF_MODE_RX_PRO ? "professional" : "consumer",
-				    value & EMU_HANA_SPDIF_MODE_RX_NOCOPY ? ", no copy" : "");
+				    value & EMU_HANA_SPDIF_MODE_RX_ANALCOPY ? ", anal copy" : "");
 	} else {
 		snd_emu10k1_proc_spdif_status(emu, buffer, "CD-ROM S/PDIF In", CDCS, CDSRCS);
 		snd_emu10k1_proc_spdif_status(emu, buffer, "Optical or Coax S/PDIF In", GPSCS, GPSRCS);
@@ -219,7 +219,7 @@ static void snd_emu10k1_proc_rates_read(struct snd_info_entry *entry,
 	for (n = 0; n < 4; n++) {
 		tmp = val >> (16 + (n*4));
 		if (tmp & 0x8) snd_iprintf(buffer, "Channel %d: Rate=%d\n", n, samplerate[tmp & 0x7]);
-		else snd_iprintf(buffer, "Channel %d: No input\n", n);
+		else snd_iprintf(buffer, "Channel %d: Anal input\n", n);
 	}
 }
 
@@ -289,8 +289,8 @@ static const char * const emu10k1_const_entries[] = {
 	"C_00100000",
 	"GPR_ACCU",
 	"GPR_COND",
-	"GPR_NOISE0",
-	"GPR_NOISE1",
+	"GPR_ANALISE0",
+	"GPR_ANALISE1",
 	"GPR_IRQ",
 	"GPR_DBAC",
 	"GPR_DBACE",
@@ -402,7 +402,7 @@ static ssize_t snd_emu10k1_fx8010_read(struct snd_info_entry *entry,
 
 	tmp = kmalloc(count + 8, GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (idx = 0; idx < ((pos & 3) + count + 3) >> 2; idx++) {
 		unsigned int val;
 		val = snd_emu10k1_ptr_read(emu, offset + idx + (pos >> 2), 0);

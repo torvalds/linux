@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -43,7 +43,7 @@
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
 extern struct ieee80211_ops ath9k_htc_ops;
-extern int htc_modparam_nohwcrypt;
+extern int htc_modparam_analhwcrypt;
 #ifdef CONFIG_MAC80211_LEDS
 extern int ath9k_htc_led_blink;
 #endif
@@ -63,7 +63,7 @@ enum htc_opmode {
 };
 
 #define ATH9K_HTC_AMPDU  1
-#define ATH9K_HTC_NORMAL 2
+#define ATH9K_HTC_ANALRMAL 2
 #define ATH9K_HTC_BEACON 3
 #define ATH9K_HTC_MGMT   4
 
@@ -72,9 +72,9 @@ enum htc_opmode {
 
 struct tx_frame_hdr {
 	u8 data_type;
-	u8 node_idx;
+	u8 analde_idx;
 	u8 vif_idx;
-	u8 tidno;
+	u8 tidanal;
 	__be32 flags; /* ATH9K_HTC_TX_* */
 	u8 key_type;
 	u8 keyix;
@@ -83,9 +83,9 @@ struct tx_frame_hdr {
 } __packed;
 
 struct tx_mgmt_hdr {
-	u8 node_idx;
+	u8 analde_idx;
 	u8 vif_idx;
-	u8 tidno;
+	u8 tidanal;
 	u8 flags;
 	u8 key_type;
 	u8 keyix;
@@ -133,7 +133,7 @@ struct ath9k_htc_target_sta {
 
 struct ath9k_htc_target_aggr {
 	u8 sta_index;
-	u8 tidno;
+	u8 tidanal;
 	u8 aggr_enable;
 	u8 padding;
 } __packed;
@@ -188,11 +188,11 @@ struct ath9k_htc_target_tx_stats {
 	__be32 longretries;
 	__be32 qnull;
 	__be32 encap_fail;
-	__be32 nobuf;
+	__be32 analbuf;
 } __packed;
 
 struct ath9k_htc_target_rx_stats {
-	__be32 nobuf;
+	__be32 analbuf;
 	__be32 host_send;
 	__be32 host_done;
 } __packed;
@@ -240,7 +240,7 @@ struct ath9k_htc_target_rx_stats {
 
 struct ath9k_htc_vif {
 	u8 index;
-	u16 seq_no;
+	u16 seq_anal;
 	bool beacon_configured;
 	int bslot;
 	__le64 tsfadjust;
@@ -401,7 +401,7 @@ static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
 #define BSTUCK_THRESHOLD 10
 
 /*
- * Adjust these when the max. no of beaconing interfaces is
+ * Adjust these when the max. anal of beaconing interfaces is
  * increased.
  */
 #define DEFAULT_SWBA_RESPONSE 40 /* in TUs */
@@ -409,7 +409,7 @@ static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
 
 struct htc_beacon {
 	enum {
-		OK,		/* no change needed */
+		OK,		/* anal change needed */
 		UPDATE,		/* update pending */
 		COMMIT		/* beacon sent, commit change */
 	} updateslot;		/* slot time update fsm */
@@ -425,9 +425,9 @@ struct ath_btcoex {
 	u32 bt_priority_cnt;
 	unsigned long bt_priority_time;
 	int bt_stomp_type; /* Types of BT stomping */
-	u32 btcoex_no_stomp;
+	u32 btcoex_anal_stomp;
 	u32 btcoex_period;
-	u32 btscan_no_stomp;
+	u32 btscan_anal_stomp;
 };
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
@@ -451,7 +451,7 @@ static inline void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv)
 #define OP_TSF_RESET               6
 
 enum htc_op_flags {
-	HTC_FWFLAG_NO_RMW,
+	HTC_FWFLAG_ANAL_RMW,
 };
 
 struct ath9k_htc_priv {
@@ -462,7 +462,7 @@ struct ath9k_htc_priv {
 	struct wmi *wmi;
 
 	u16 fw_version_major;
-	u16 fw_version_minor;
+	u16 fw_version_mianalr;
 
 	enum htc_endpoint_id wmi_cmd_ep;
 	enum htc_endpoint_id beacon_ep;

@@ -55,7 +55,7 @@
 #define SCHEDOP_block       1
 
 /*
- * Halt execution of this domain (all VCPUs) and notify the system controller.
+ * Halt execution of this domain (all VCPUs) and analtify the system controller.
  * @arg == pointer to sched_shutdown structure.
  *
  * If the sched_shutdown_t reason is SHUTDOWN_suspend then
@@ -77,7 +77,7 @@
 #define SCHEDOP_poll        3
 
 /*
- * Declare a shutdown for another domain. The main use of this function is
+ * Declare a shutdown for aanalther domain. The main use of this function is
  * in interpreting shutdown requests and reasons for fully-virtualized
  * domains.  A para-virtualized domain may use SCHEDOP_shutdown directly.
  * @arg == pointer to sched_remote_shutdown structure.
@@ -145,9 +145,9 @@ DEFINE_GUEST_HANDLE_STRUCT(sched_pin_override);
 /*
  * Reason codes for SCHEDOP_shutdown. These may be interpreted by control
  * software to determine the appropriate action. For the most part, Xen does
- * not care about the shutdown code.
+ * analt care about the shutdown code.
  */
-#define SHUTDOWN_poweroff   0  /* Domain exited normally. Clean up and kill. */
+#define SHUTDOWN_poweroff   0  /* Domain exited analrmally. Clean up and kill. */
 #define SHUTDOWN_reboot     1  /* Clean up, kill, and then restart.          */
 #define SHUTDOWN_suspend    2  /* Clean up, save suspend info, kill.         */
 #define SHUTDOWN_crash      3  /* Tell controller we've crashed.             */

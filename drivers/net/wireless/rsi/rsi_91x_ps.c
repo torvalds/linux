@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -24,8 +24,8 @@
 char *str_psstate(enum ps_state state)
 {
 	switch (state) {
-	case PS_NONE:
-		return "PS_NONE";
+	case PS_ANALNE:
+		return "PS_ANALNE";
 	case PS_DISABLE_REQ_SENT:
 		return "PS_DISABLE_REQ_SENT";
 	case PS_ENABLE_REQ_SENT:
@@ -67,9 +67,9 @@ void rsi_default_ps_params(struct rsi_hw *adapter)
 
 void rsi_enable_ps(struct rsi_hw *adapter, struct ieee80211_vif *vif)
 {
-	if (adapter->ps_state != PS_NONE) {
+	if (adapter->ps_state != PS_ANALNE) {
 		rsi_dbg(ERR_ZONE,
-			"%s: Cannot accept enable PS in %s state\n",
+			"%s: Cananalt accept enable PS in %s state\n",
 			__func__, str_psstate(adapter->ps_state));
 		return;
 	}
@@ -89,7 +89,7 @@ void rsi_disable_ps(struct rsi_hw *adapter, struct ieee80211_vif *vif)
 {
 	if (adapter->ps_state != PS_ENABLED) {
 		rsi_dbg(ERR_ZONE,
-			"%s: Cannot accept disable PS in %s state\n",
+			"%s: Cananalt accept disable PS in %s state\n",
 			__func__, str_psstate(adapter->ps_state));
 		return;
 	}
@@ -131,7 +131,7 @@ int rsi_handle_ps_confirm(struct rsi_hw *adapter, u8 *msg)
 		break;
 	case RSI_WAKEUP_REQUEST:
 		if (adapter->ps_state == PS_DISABLE_REQ_SENT)
-			rsi_modify_ps_state(adapter, PS_NONE);
+			rsi_modify_ps_state(adapter, PS_ANALNE);
 		break;
 	default:
 		rsi_dbg(ERR_ZONE,

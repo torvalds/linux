@@ -245,7 +245,7 @@
 			compatible = "brcm,bcm63268-ohci", "generic-ohci";
 			reg = <0x10002600 0x100>;
 			big-endian;
-			no-big-frame-no;
+			anal-big-frame-anal;
 
 			interrupt-parent = <&periph_intc>;
 			interrupts = <9>;

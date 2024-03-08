@@ -14,7 +14,7 @@ description:
   Socionext SC2A11B (Synquacer) SoC based boards
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

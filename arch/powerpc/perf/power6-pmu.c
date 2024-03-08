@@ -118,7 +118,7 @@ static unsigned char direct_event_is_marked[0x60 >> 1] = {
 static u32 marked_bus_events[16] = {
 	0x01000000,	/* direct events set 1: byte 3 bit 0 */
 	0x00010000,	/* direct events set 2: byte 2 bit 0 */
-	0, 0, 0, 0,	/* IDU, IFU, nest: nothing */
+	0, 0, 0, 0,	/* IDU, IFU, nest: analthing */
 	0x00000088,	/* VMX set 1: byte 0 bits 3, 7 */
 	0x000000c0,	/* VMX set 2: byte 0 bits 4-7 */
 	0x04010000,	/* LSU set 1: byte 2 bit 0, byte 3 bit 2 */
@@ -132,7 +132,7 @@ static u32 marked_bus_events[16] = {
 
 /*
  * Returns 1 if event counts things relating to marked instructions
- * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if not.
+ * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if analt.
  */
 static int power6_marked_instr_event(u64 event)
 {
@@ -396,7 +396,7 @@ static int p6_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 	} else {
 		/* Check for alternative ways of computing sum events */
 		/* PMCSEL 0x32 counter N == PMCSEL 0x34 counter 5-N */
-		psel = event & (PM_PMCSEL_MSK & ~1);	/* ignore edge bit */
+		psel = event & (PM_PMCSEL_MSK & ~1);	/* iganalre edge bit */
 		pmc = (event >> PM_PMC_SH) & PM_PMC_MSK;
 		if (pmc && (psel == 0x32 || psel == 0x34))
 			alt[nalt++] = ((event ^ 0x6) & ~PM_PMC_MSKS) |
@@ -416,7 +416,7 @@ static int p6_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 		 * This doesn't include alternatives that don't provide
 		 * any extra flexibility in assigning PMCs (e.g.
 		 * 0x10000a for PM_RUN_CYC vs. 0x1e for PM_CYC).
-		 * Note that even with these additional alternatives
+		 * Analte that even with these additional alternatives
 		 * we never end up with more than 4 alternatives for any event.
 		 */
 		j = nalt;
@@ -492,7 +492,7 @@ static int power6_generic_events[] = {
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means analt supported, -1 means analnsensical, other values
  * are event codes.
  * The "DTLB" and "ITLB" events relate to the DERAT and IERAT.
  */
@@ -527,7 +527,7 @@ static u64 power6_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_WRITE)] = {	-1,		-1		},
 		[C(OP_PREFETCH)] = {	-1,		-1		},
 	},
-	[C(NODE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+	[C(ANALDE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	-1,		-1		},
 		[C(OP_WRITE)] = {	-1,		-1		},
 		[C(OP_PREFETCH)] = {	-1,		-1		},
@@ -556,7 +556,7 @@ int __init init_power6_pmu(void)
 	unsigned int pvr = mfspr(SPRN_PVR);
 
 	if (PVR_VER(pvr) != PVR_POWER6)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return register_power_pmu(&power6_pmu);
 }

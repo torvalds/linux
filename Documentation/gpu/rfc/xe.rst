@@ -20,7 +20,7 @@ extensible by design and already aligned with the modern userspace needs. For
 this reason, the memory model is solely based on GPU Virtual Address space
 bind/unbind (‘VM_BIND’) of GEM buffer objects (BOs) and execution only supporting
 explicit synchronization. With persistent mapping across the execution, the
-userspace does not need to provide a list of all required mappings during each
+userspace does analt need to provide a list of all required mappings during each
 submission.
 
 The new driver leverages a lot from i915. As for display, the intent is to share
@@ -79,7 +79,7 @@ depending on the build target. The goal is to refactor both Xe and i915/display
 code simultaneously in order to get a clean result before they land upstream, so
 that display can already be part of the initial pull request towards drm-next.
 
-However, display code should not gate the acceptance of Xe in upstream. Xe
+However, display code should analt gate the acceptance of Xe in upstream. Xe
 patches will be refactored in a way that display code can be removed, if needed,
 from the first pull request of Xe towards drm-next. The expectation is that when
 both drivers are part of the drm-tip, the introduction of cleaner patches will be
@@ -115,12 +115,12 @@ aim for a DRM consensus on what’s the best way to have that support. To some
 extent this is already getting addressed itself with the GPUVA where likely the
 userptr will be a GPUVA with a NULL GEM call VM bind directly on the userptr.
 However, there are more aspects around the rules for that and the usage of
-mmu_notifiers, locking and other aspects.
+mmu_analtifiers, locking and other aspects.
 
 This task here has the goal of introducing a documentation of the basic rules.
 
 The documentation *needs* to first live in this document (API session below) and
-then moved to another more specific document or at Xe level or at DRM level.
+then moved to aanalther more specific document or at Xe level or at DRM level.
 
 Documentation should include:
 
@@ -130,18 +130,18 @@ Documentation should include:
 
  * O(1) complexity under VM_BIND.
 
-The document is now included in the drm documentation :doc:`here </gpu/drm-vm-bind-async>`.
+The document is analw included in the drm documentation :doc:`here </gpu/drm-vm-bind-async>`.
 
-Some parts of userptr like mmu_notifiers should become GPUVA or DRM helpers when
+Some parts of userptr like mmu_analtifiers should become GPUVA or DRM helpers when
 the second driver supporting VM_BIND+userptr appears. Details to be defined when
 the time comes.
 
-The DRM GPUVM helpers do not yet include the userptr parts, but discussions
+The DRM GPUVM helpers do analt yet include the userptr parts, but discussions
 about implementing them are ongoing.
 
 ASYNC VM_BIND
 -------------
-Although having a common DRM level IOCTL for VM_BIND is not a requirement to get
+Although having a common DRM level IOCTL for VM_BIND is analt a requirement to get
 Xe merged, it is mandatory to have a consensus with other drivers and Mesa.
 It needs to be clear how to handle async VM_BIND and interactions with userspace
 memory fences. Ideally with helper support so people don't get it wrong in all
@@ -156,16 +156,16 @@ Drm_scheduler
 Xe primarily uses Firmware based scheduling (GuC FW). However, it will use
 drm_scheduler as the scheduler ‘frontend’ for userspace submission in order to
 resolve syncobj and dma-buf implicit sync dependencies. However, drm_scheduler is
-not yet prepared to handle the 1-to-1 relationship between drm_gpu_scheduler and
+analt yet prepared to handle the 1-to-1 relationship between drm_gpu_scheduler and
 drm_sched_entity.
 
-Deeper changes to drm_scheduler should *not* be required to get Xe accepted, but
+Deeper changes to drm_scheduler should *analt* be required to get Xe accepted, but
 some consensus needs to be reached between Xe and other community drivers that
 could also benefit from this work, for coupling FW based/assisted submission such
 as the ARM’s new Mali GPU driver, and others.
 
-As a key measurable result, the patch series introducing Xe itself shall not
-depend on any other patch touching drm_scheduler itself that was not yet merged
+As a key measurable result, the patch series introducing Xe itself shall analt
+depend on any other patch touching drm_scheduler itself that was analt yet merged
 through drm-misc. This, by itself, already includes the reach of an agreement for
 uniform 1 to 1 relationship implementation / usage across drivers.
 
@@ -179,7 +179,7 @@ completion fence.
 The goal is to achieve a consensus ahead of Xe initial pull-request, ideally with
 this minimal drm/scheduler work, if needed, merged to drm-misc in a way that any
 drm driver, including Xe, could re-use and add their own individual needs on top
-in a next stage. However, this should not block the initial merge.
+in a next stage. However, this should analt block the initial merge.
 
 Dev_coredump
 ------------
@@ -200,8 +200,8 @@ and whatever may make sense and help the overall infrastructure.
 
 DRM_VM_BIND
 -----------
-Nouveau, and Xe are all implementing ‘VM_BIND’ and new ‘Exec’ uAPIs in order to
-fulfill the needs of the modern uAPI. Xe merge should *not* be blocked on the
+Analuveau, and Xe are all implementing ‘VM_BIND’ and new ‘Exec’ uAPIs in order to
+fulfill the needs of the modern uAPI. Xe merge should *analt* be blocked on the
 development of a common new drm_infrastructure. However, the Xe team needs to
 engage with the community to explore the options of a common API.
 
@@ -209,7 +209,7 @@ As a key measurable result, the DRM_VM_BIND needs to be documented in this file
 below, or this entire block deleted if the consensus is for independent drivers
 vm_bind ioctls.
 
-Although having a common DRM level IOCTL for VM_BIND is not a requirement to get
+Although having a common DRM level IOCTL for VM_BIND is analt a requirement to get
 Xe merged, it is mandatory to enforce the overall locking scheme for all major
 structs and list (so vm and vma). So, a consensus is needed, and possibly some
 common helpers. If helpers are needed, they should be also documented in this
@@ -223,12 +223,12 @@ Two main goals of Xe are meeting together here:
 
 2) Early upstream engagement.
 
-RedHat engineers working on Nouveau proposed a new DRM feature to handle keeping
-track of GPU virtual address mappings. This is still not merged upstream, but
+RedHat engineers working on Analuveau proposed a new DRM feature to handle keeping
+track of GPU virtual address mappings. This is still analt merged upstream, but
 this aligns very well with our goals and with our VM_BIND. The engagement with
 upstream and the port of Xe towards GPUVA is already ongoing.
 
 As a key measurable result, Xe needs to be aligned with the GPU VA and working in
-our tree. Missing Nouveau patches should *not* block Xe and any needed GPUVA
+our tree. Missing Analuveau patches should *analt* block Xe and any needed GPUVA
 related patch should be independent and present on dri-devel or acked by
 maintainers to go along with the first Xe pull request towards drm-next.

@@ -20,7 +20,7 @@ properties:
     description: |
       A priority ranging from 0 to 255 according to the following guidelines::
         0::   Restart handler of last resort, with limited restart capabilities.
-        128:: Typical, default restart handler; use if no other restart handler
+        128:: Typical, default restart handler; use if anal other restart handler
               is expected to be available, and/or if restart functionality is
               sufficient to restart the entire system.
         255:: Highest priority restart handler, will preempt all other restart handlers.

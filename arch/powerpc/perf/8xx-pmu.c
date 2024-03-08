@@ -64,9 +64,9 @@ static int event_type(struct perf_event *event)
 	case PERF_TYPE_RAW:
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int mpc8xx_pmu_event_init(struct perf_event *event)
@@ -181,8 +181,8 @@ static struct pmu mpc8xx_pmu = {
 	.add		= mpc8xx_pmu_add,
 	.del		= mpc8xx_pmu_del,
 	.read		= mpc8xx_pmu_read,
-	.capabilities	= PERF_PMU_CAP_NO_INTERRUPT |
-			  PERF_PMU_CAP_NO_NMI,
+	.capabilities	= PERF_PMU_CAP_ANAL_INTERRUPT |
+			  PERF_PMU_CAP_ANAL_NMI,
 };
 
 static int init_mpc8xx_pmu(void)

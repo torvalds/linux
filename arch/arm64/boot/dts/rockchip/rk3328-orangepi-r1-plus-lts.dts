@@ -20,7 +20,7 @@
 	rx_delay = <0x05>;
 
 	mdio {
-		/delete-node/ ethernet-phy@1;
+		/delete-analde/ ethernet-phy@1;
 
 		yt8531c: ethernet-phy@0 {
 			compatible = "ethernet-phy-ieee802.3-c22";

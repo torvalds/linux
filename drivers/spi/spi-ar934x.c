@@ -182,7 +182,7 @@ static int ar934x_spi_probe(struct platform_device *pdev)
 	ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*sp));
 	if (!ctlr) {
 		dev_info(&pdev->dev, "failed to allocate spi controller\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* disable flash mapping and expose spi controller registers */
@@ -195,7 +195,7 @@ static int ar934x_spi_probe(struct platform_device *pdev)
 	ctlr->transfer_one_message = ar934x_spi_transfer_one_message;
 	ctlr->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(24) |
 				   SPI_BPW_MASK(16) | SPI_BPW_MASK(8);
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_analde = pdev->dev.of_analde;
 	ctlr->num_chipselect = 3;
 
 	dev_set_drvdata(&pdev->dev, ctlr);

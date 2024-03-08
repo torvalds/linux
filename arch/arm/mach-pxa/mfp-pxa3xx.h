@@ -139,7 +139,7 @@
 #define GPIO5_2_GPIO		MFP_CFG(GPIO5_2, AF0)
 #define GPIO6_2_GPIO		MFP_CFG(GPIO6_2, AF0)
 
-/* NOTE: usage of these two functions is not recommended,
+/* ANALTE: usage of these two functions is analt recommended,
  * use pxa3xx_mfp_config() instead.
  */
 static inline unsigned long pxa3xx_mfp_read(int mfp)

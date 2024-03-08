@@ -17,7 +17,7 @@ static const struct seq_operations _##name##_seq_ops = { \
 }
 
 #define DEBUGFS_SEQ_FILE_OPEN(name) \
-static int _##name##_open(struct inode *inode, struct file *s) \
+static int _##name##_open(struct ianalde *ianalde, struct file *s) \
 { \
 	struct seq_file *seq; \
 	int ret; \
@@ -25,7 +25,7 @@ static int _##name##_open(struct inode *inode, struct file *s) \
 	if (ret) \
 		return ret; \
 	seq = s->private_data; \
-	seq->private = inode->i_private; \
+	seq->private = ianalde->i_private; \
 	return 0; \
 }
 

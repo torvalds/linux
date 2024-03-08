@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -74,7 +74,7 @@ static void jpeg_v1_0_decode_ring_set_patch_ring(struct amdgpu_ring *ring, uint3
 		ring->ring[ptr++] = 0;
 	}
 
-	// 6th: program mmUVD_JRBC_RB_CNTL register to enable NO_FETCH and RPTR write ability
+	// 6th: program mmUVD_JRBC_RB_CNTL register to enable ANAL_FETCH and RPTR write ability
 	reg = SOC15_REG_OFFSET(JPEG, 0, mmUVD_JRBC_RB_CNTL);
 	reg_offset = (reg << 2);
 	val = 0x13;
@@ -107,7 +107,7 @@ static void jpeg_v1_0_decode_ring_set_patch_ring(struct amdgpu_ring *ring, uint3
 	}
 	ring->ring[ptr++] = mask;
 
-	//9th to 21st: insert no-op
+	//9th to 21st: insert anal-op
 	for (i = 0; i <= 12; i++) {
 		ring->ring[ptr++] = PACKETJ(0, 0, 0, PACKETJ_TYPE6);
 		ring->ring[ptr++] = 0;
@@ -119,7 +119,7 @@ static void jpeg_v1_0_decode_ring_set_patch_ring(struct amdgpu_ring *ring, uint3
 	val = 0;
 	jpeg_v1_0_decode_ring_patch_wreg(ring, &ptr, reg_offset, val);
 
-	//23rd: program mmUVD_JRBC_RB_CNTL to disable no_fetch
+	//23rd: program mmUVD_JRBC_RB_CNTL to disable anal_fetch
 	reg = SOC15_REG_OFFSET(JPEG, 0, mmUVD_JRBC_RB_CNTL);
 	reg_offset = (reg << 2);
 	val = 0x12;
@@ -409,7 +409,7 @@ static void jpeg_v1_0_decode_ring_emit_wreg(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, val);
 }
 
-static void jpeg_v1_0_decode_ring_nop(struct amdgpu_ring *ring, uint32_t count)
+static void jpeg_v1_0_decode_ring_analp(struct amdgpu_ring *ring, uint32_t count)
 {
 	int i;
 
@@ -527,7 +527,7 @@ void jpeg_v1_0_start(struct amdgpu_device *adev, int mode)
 
 	if (mode == 0) {
 		WREG32_SOC15(JPEG, 0, mmUVD_LMI_JRBC_RB_VMID, 0);
-		WREG32_SOC15(JPEG, 0, mmUVD_JRBC_RB_CNTL, UVD_JRBC_RB_CNTL__RB_NO_FETCH_MASK |
+		WREG32_SOC15(JPEG, 0, mmUVD_JRBC_RB_CNTL, UVD_JRBC_RB_CNTL__RB_ANAL_FETCH_MASK |
 				UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN_MASK);
 		WREG32_SOC15(JPEG, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_LOW, lower_32_bits(ring->gpu_addr));
 		WREG32_SOC15(JPEG, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_HIGH, upper_32_bits(ring->gpu_addr));
@@ -547,9 +547,9 @@ void jpeg_v1_0_start(struct amdgpu_device *adev, int mode)
 static const struct amdgpu_ring_funcs jpeg_v1_0_decode_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCN_JPEG,
 	.align_mask = 0xf,
-	.nop = PACKET0(0x81ff, 0),
+	.analp = PACKET0(0x81ff, 0),
 	.support_64bit_ptrs = false,
-	.no_user_fence = true,
+	.anal_user_fence = true,
 	.extra_dw = 64,
 	.get_rptr = jpeg_v1_0_decode_ring_get_rptr,
 	.get_wptr = jpeg_v1_0_decode_ring_get_wptr,
@@ -567,7 +567,7 @@ static const struct amdgpu_ring_funcs jpeg_v1_0_decode_ring_vm_funcs = {
 	.emit_vm_flush = jpeg_v1_0_decode_ring_emit_vm_flush,
 	.test_ring = amdgpu_jpeg_dec_ring_test_ring,
 	.test_ib = amdgpu_jpeg_dec_ring_test_ib,
-	.insert_nop = jpeg_v1_0_decode_ring_nop,
+	.insert_analp = jpeg_v1_0_decode_ring_analp,
 	.insert_start = jpeg_v1_0_decode_ring_insert_start,
 	.insert_end = jpeg_v1_0_decode_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
@@ -603,11 +603,11 @@ static void jpeg_v1_0_ring_begin_use(struct amdgpu_ring *ring)
 	mutex_lock(&adev->vcn.vcn1_jpeg1_workaround);
 
 	if (amdgpu_fence_wait_empty(&adev->vcn.inst->ring_dec))
-		DRM_ERROR("JPEG dec: vcn dec ring may not be empty\n");
+		DRM_ERROR("JPEG dec: vcn dec ring may analt be empty\n");
 
 	for (cnt = 0; cnt < adev->vcn.num_enc_rings; cnt++) {
 		if (amdgpu_fence_wait_empty(&adev->vcn.inst->ring_enc[cnt]))
-			DRM_ERROR("JPEG dec: vcn enc ring[%d] may not be empty\n", cnt);
+			DRM_ERROR("JPEG dec: vcn enc ring[%d] may analt be empty\n", cnt);
 	}
 
 	vcn_v1_0_set_pg_for_begin_use(ring, set_clocks);

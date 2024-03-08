@@ -80,7 +80,7 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 #ifdef CONFIG_SYS_HAS_CPU_MIPS64_R2
 	/*
 	 * All MIPS64 R2 processors have their own special symbols.  That is,
-	 * there currently is no pure R2 core
+	 * there currently is anal pure R2 core
 	 */
 #endif
 

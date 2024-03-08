@@ -166,7 +166,7 @@ static int spdif_out_trigger(struct snd_pcm_substream *substream, int cmd,
 			ctrl &= ~SPDIF_OPMODE_MASK;
 			if (!host->saved_params.mute)
 				ctrl |= SPDIF_OPMODE_AUD_DATA |
-					SPDIF_STATE_NORMAL;
+					SPDIF_STATE_ANALRMAL;
 			else
 				ctrl |= SPDIF_OPMODE_MUTE_PCM;
 			writel(ctrl, host->io_base + SPDIF_OUT_CTRL);
@@ -201,7 +201,7 @@ static int spdif_mute(struct snd_soc_dai *dai, int mute, int direction)
 		val |= SPDIF_OPMODE_MUTE_PCM;
 	else {
 		if (host->running)
-			val |= SPDIF_OPMODE_AUD_DATA | SPDIF_STATE_NORMAL;
+			val |= SPDIF_OPMODE_AUD_DATA | SPDIF_STATE_ANALRMAL;
 		else
 			val |= SPDIF_OPMODE_OFF;
 	}
@@ -257,7 +257,7 @@ static const struct snd_soc_dai_ops spdif_out_dai_ops = {
 	.shutdown	= spdif_out_shutdown,
 	.trigger	= spdif_out_trigger,
 	.hw_params	= spdif_out_hw_params,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver spdif_out_dai = {
@@ -287,7 +287,7 @@ static int spdif_out_probe(struct platform_device *pdev)
 
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(host->io_base))

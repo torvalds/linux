@@ -33,7 +33,7 @@
  *   be able to handle instructions from all revisions of the MIPS ISA,
  *   all ASEs & all vendor instruction set extensions. This would be a
  *   whole lot of work & continual maintenance burden as new instructions
- *   are introduced, and in the case of some vendor extensions may not
+ *   are introduced, and in the case of some vendor extensions may analt
  *   even be possible. Thus we need to take the approach of actually
  *   executing the instruction.
  *
@@ -44,7 +44,7 @@
  *
  * - We used to place the frame on the users stack, but this requires
  *   that the stack be executable. This is bad for security so the
- *   per-process page is now used instead.
+ *   per-process page is analw used instead.
  *
  * - The instruction in @emul may be something entirely invalid for a
  *   delay slot. The user may (intentionally or otherwise) place a branch
@@ -55,9 +55,9 @@
  *   points such as signal delivery or thread exit.
  *
  * - The user may generate a fake struct emuframe if they wish, invoking
- *   the BRK_MEMU break instruction themselves. We must therefore not
+ *   the BRK_MEMU break instruction themselves. We must therefore analt
  *   trust that BRK_MEMU means there's actually a valid frame allocated
- *   to the thread, and must not allow the user to do anything they
+ *   to the thread, and must analt allow the user to do anything they
  *   couldn't already.
  */
 struct emuframe {
@@ -85,7 +85,7 @@ retry:
 		mm_ctx->bd_emupage_allocmap = bitmap_zalloc(emupage_frame_count,
 							    GFP_ATOMIC);
 		if (!mm_ctx->bd_emupage_allocmap) {
-			idx = BD_EMUFRAME_NONE;
+			idx = BD_EMUFRAME_ANALNE;
 			goto out_unlock;
 		}
 	}
@@ -109,7 +109,7 @@ retry:
 			goto retry;
 
 		/* Received a fatal signal - just give in */
-		return BD_EMUFRAME_NONE;
+		return BD_EMUFRAME_ANALNE;
 	}
 
 	/* Success! */
@@ -128,7 +128,7 @@ static void free_emuframe(int idx, struct mm_struct *mm)
 	pr_debug("free emuframe %d from %d\n", idx, current->pid);
 	bitmap_clear(mm_ctx->bd_emupage_allocmap, idx, 1);
 
-	/* If some thread is waiting for a frame, now's its chance */
+	/* If some thread is waiting for a frame, analw's its chance */
 	wake_up(&mm_ctx->bd_emupage_queue);
 
 	spin_unlock(&mm_ctx->bd_emupage_lock);
@@ -151,10 +151,10 @@ bool dsemul_thread_cleanup(struct task_struct *tsk)
 	int fr_idx;
 
 	/* Clear any allocated frame, retrieving its index */
-	fr_idx = atomic_xchg(&tsk->thread.bd_emu_frame, BD_EMUFRAME_NONE);
+	fr_idx = atomic_xchg(&tsk->thread.bd_emu_frame, BD_EMUFRAME_ANALNE);
 
-	/* If no frame was allocated, we're done */
-	if (fr_idx == BD_EMUFRAME_NONE)
+	/* If anal frame was allocated, we're done */
+	if (fr_idx == BD_EMUFRAME_ANALNE)
 		return false;
 
 	task_lock(tsk);
@@ -172,13 +172,13 @@ bool dsemul_thread_rollback(struct pt_regs *regs)
 	struct emuframe __user *fr;
 	int fr_idx;
 
-	/* Do nothing if we're not executing from a frame */
+	/* Do analthing if we're analt executing from a frame */
 	if (!within_emuframe(regs))
 		return false;
 
 	/* Find the frame being executed */
 	fr_idx = atomic_read(&current->thread.bd_emu_frame);
-	if (fr_idx == BD_EMUFRAME_NONE)
+	if (fr_idx == BD_EMUFRAME_ANALNE)
 		return false;
 	fr = &dsemul_page()[fr_idx];
 
@@ -194,7 +194,7 @@ bool dsemul_thread_rollback(struct pt_regs *regs)
 	else if (msk_isa16_mode(regs->cp0_epc) == (unsigned long)&fr->badinst)
 		regs->cp0_epc = current->thread.bd_emu_cont_pc;
 
-	atomic_set(&current->thread.bd_emu_frame, BD_EMUFRAME_NONE);
+	atomic_set(&current->thread.bd_emu_frame, BD_EMUFRAME_ANALNE);
 	free_emuframe(fr_idx, current->mm);
 	return true;
 }
@@ -215,7 +215,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir,
 	struct emuframe fr;
 	int fr_idx, ret;
 
-	/* NOP is easy */
+	/* ANALP is easy */
 	if (ir == 0)
 		return -1;
 
@@ -223,8 +223,8 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir,
 	if (isa16) {
 		union mips_instruction insn = { .word = ir };
 
-		/* NOP16 aka MOVE16 $0, $0 */
-		if ((ir >> 16) == MM_NOP16)
+		/* ANALP16 aka MOVE16 $0, $0 */
+		if ((ir >> 16) == MM_ANALP16)
 			return -1;
 
 		/* ADDIUPC */
@@ -244,9 +244,9 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir,
 
 	/* Allocate a frame if we don't already have one */
 	fr_idx = atomic_read(&current->thread.bd_emu_frame);
-	if (fr_idx == BD_EMUFRAME_NONE)
+	if (fr_idx == BD_EMUFRAME_ANALNE)
 		fr_idx = alloc_emuframe();
-	if (fr_idx == BD_EMUFRAME_NONE)
+	if (fr_idx == BD_EMUFRAME_ANALNE)
 		return SIGBUS;
 
 	/* Retrieve the appropriately encoded break instruction */

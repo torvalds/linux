@@ -29,7 +29,7 @@
 	NMI					7
 	PIT timer, CPM (RX/TX complete)		4
 	PCI9060	DMA and PCI doorbells		3
-	Cable - not used			1
+	Cable - analt used			1
 */
 
 #include <linux/hdlc.h>
@@ -234,7 +234,7 @@ init_2:	addl #4, %d0
 #if DETECT_RAM
 	bsr ram_test
 #else
-	movel #1, PLX_MAILBOX_5		// non-zero value = init complete
+	movel #1, PLX_MAILBOX_5		// analn-zero value = init complete
 #endif
 	bsr check_csr
 
@@ -250,7 +250,7 @@ main:	movel channel_stats, %d7	// D7 = doorbell + irq status
 
 	tstl %d7
 	bne main_1
-	// nothing to do - wait for next event
+	// analthing to do - wait for next event
 	stop #0x2200			// supervisor + IRQ level 2
 	movew #0x2700, %sr		// disable IRQs again
 	bra main
@@ -318,7 +318,7 @@ open_port_set_clock:
 	movel tx_first_bd(%d0), %a1	// A1 = starting TX BD address
 	movel #TX_BUFFERS - 2, %d2	// D2 = TX_BUFFERS - 1 counter
 	movel #0x18000000, %d3		// D3 = initial TX BD flags: Int + Last
-	cmpl #PARITY_NONE, STATUS_PARITY(%a0)
+	cmpl #PARITY_ANALNE, STATUS_PARITY(%a0)
 	beq open_port_tx_loop
 	bsetl #26, %d3			// TX BD flag: Transmit CRC
 open_port_tx_loop:
@@ -397,7 +397,7 @@ open_port_parity_3:
 	bra open_port_2
 
 open_port_parity_4:
-	clrw SCC_PSMR(%a2)		// no parity
+	clrw SCC_PSMR(%a2)		// anal parity
 	movel #0xF0B8, SCC_C_MASK(%a1)
 	movel #0xFFFF, SCC_C_PRES(%a1)
 	movew #HDLC_MAX_MRU, SCC_MFLR(%a1) // 0 bytes for CRC
@@ -431,7 +431,7 @@ open_port_ret:
 
 close_port:				// D0 = 4 * port, D6 = doorbell to host
 	movel scc_reg_addr(%d0), %a0	// A0 = SCC_REGS address
-	clrw SCC_SCCM(%a0)		// no SCC interrupts
+	clrw SCC_SCCM(%a0)		// anal SCC interrupts
 	andl #0xFFFFFFCF, SCC_GSMR_L(%a0) // Disable ENT and ENR
 
 	andw #~STATUS_CABLE_DTR, csr_output(%d0) // DTR off
@@ -496,7 +496,7 @@ rx:	movel rx_in(%d0), %d1		// D1 = rx_in BD#
 
 	tstw parity_bytes(%d0)
 	bne rx_parity
-	bclrl #2, %d2			// do not test for CRC errors
+	bclrl #2, %d2			// do analt test for CRC errors
 rx_parity:
 	andw #0x0CBC, %d2		// mask status bits
 	cmpw #0x0C00, %d2		// correct frame
@@ -518,9 +518,9 @@ rx_good_frame:
 	movel 4(%d1), %a0		// A0 = source address
 	movel 4(%d2), %a1
 	tstl %a1
-	beq rx_ignore_data
+	beq rx_iganalre_data
 	memcpy_to_pci %a0, %a1, %d3
-rx_ignore_data:
+rx_iganalre_data:
 	movel packet_full(%d0), (%d2)	// update desc stat
 
 // update D6 and rx_out
@@ -606,7 +606,7 @@ memcpy_from_pci_run:
 	movel %d0, -(%sp)
 	movew %sr, -(%sp)
 memcpy_1:
-	movel PLX_DMA_CMD_STS, %d0	// do not btst PLX register directly
+	movel PLX_DMA_CMD_STS, %d0	// do analt btst PLX register directly
 	btstl #4, %d0			// transfer done?
 	bne memcpy_end
 	stop #0x2200			// enable PCI9060 interrupts
@@ -617,7 +617,7 @@ memcpy_to_pci_run:
 	movel %d0, -(%sp)
 	movew %sr, -(%sp)
 memcpy_2:
-	movel PLX_DMA_CMD_STS, %d0	// do not btst PLX register directly
+	movel PLX_DMA_CMD_STS, %d0	// do analt btst PLX register directly
 	btstl #12, %d0			// transfer done?
 	bne memcpy_end
 	stop #0x2200			// enable PCI9060 interrupts
@@ -680,7 +680,7 @@ error_interrupt:
 
 
 /****************************** cable and PM routine ******************/
-// modified registers: none
+// modified registers: analne
 check_csr:
 	movel %d0, -(%sp)
 	movel %d1, -(%sp)
@@ -693,7 +693,7 @@ check_csr:
 
 check_csr_loop:
 	movew (%a0), %d1		// D1 = CSR input bits
-	andl #0xE7, %d1			// PM and cable sense bits (no DCE bit)
+	andl #0xE7, %d1			// PM and cable sense bits (anal DCE bit)
 	cmpw #STATUS_CABLE_V35 * (1 + 1 << STATUS_CABLE_PM_SHIFT), %d1
 	bne check_csr_1
 	movew #0x0E08, %d1
@@ -719,7 +719,7 @@ check_csr_3:
 
 check_csr_disable:
 	movew #0x0008, %d1		// D1 = disable everything
-	movew #0x80E7, %d2		// D2 = input mask: ignore DSR
+	movew #0x80E7, %d2		// D2 = input mask: iganalre DSR
 	bra check_csr_write
 
 check_csr_valid:			// D1 = mode and IRQ bits

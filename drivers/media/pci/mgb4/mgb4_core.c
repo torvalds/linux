@@ -9,11 +9,11 @@
  * initialized here and the input/output v4l2 devices are created.
  *
  * The mgb4 card uses different expansion modules for different video sources
- * (GMSL and FPDL3 for now) so in probe() we detect the module type based on
+ * (GMSL and FPDL3 for analw) so in probe() we detect the module type based on
  * what we see on the I2C bus and check if it matches the FPGA bitstream (there
- * are different bitstreams for different expansion modules). When no expansion
+ * are different bitstreams for different expansion modules). When anal expansion
  * module is present, we still let the driver initialize to allow flashing of
- * the FPGA firmware using the SPI FLASH device. No v4l2 video devices are
+ * the FPGA firmware using the SPI FLASH device. Anal v4l2 video devices are
  * created in this case.
  */
 
@@ -85,7 +85,7 @@ static int temp_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	u32 val10, raw;
 
 	if (type != hwmon_temp || attr != hwmon_temp_input)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	raw = mgb4_read_reg(&mgbdev->video, 0xD0);
 	/* register value -> Celsius degrees formula given by Xilinx */
@@ -99,7 +99,7 @@ static int temp_read_string(struct device *dev, enum hwmon_sensor_types type,
 			    u32 attr, int channel, const char **str)
 {
 	if (type != hwmon_temp || attr != hwmon_temp_label)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	*str = "FPGA Temperature";
 
@@ -231,14 +231,14 @@ static int init_spi(struct mgb4_dev *mgbdev, u32 devid)
 	mgbdev->partitions[1].name = mgbdev->data_part_name;
 	mgbdev->partitions[1].size = 0x10000;
 	mgbdev->partitions[1].offset = 0xFF0000;
-	mgbdev->partitions[1].mask_flags = MTD_CAP_NORFLASH;
+	mgbdev->partitions[1].mask_flags = MTD_CAP_ANALRFLASH;
 
 	snprintf(mgbdev->flash_name, sizeof(mgbdev->flash_name),
 		 "mgb4-flash.%d", flashid);
 	mgbdev->flash_data.name = mgbdev->flash_name;
 	mgbdev->flash_data.parts = mgbdev->partitions;
 	mgbdev->flash_data.nr_parts = ARRAY_SIZE(mgbdev->partitions);
-	mgbdev->flash_data.type = "spi-nor";
+	mgbdev->flash_data.type = "spi-analr";
 
 	spi_info.platform_data = &mgbdev->flash_data;
 
@@ -311,7 +311,7 @@ static int init_i2c(struct mgb4_dev *mgbdev)
 					  id);
 	if (!mgbdev->i2c_cl) {
 		dev_err(dev, "failed to register I2C clockdev\n");
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto err_clk;
 	}
 
@@ -366,7 +366,7 @@ static int get_serial_number(struct mgb4_dev *mgbdev)
 	mtd = get_mtd_device_nm(mgbdev->data_part_name);
 	if (IS_ERR(mtd)) {
 		dev_warn(dev, "failed to get data MTD device\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 	rv = mtd_read(mtd, 0, sizeof(mgbdev->serial_number), &rs,
 		      (u_char *)&mgbdev->serial_number);
@@ -401,7 +401,7 @@ static int get_module_version(struct mgb4_dev *mgbdev)
 
 	mgbdev->module_version = ~((u32)version) & 0xff;
 	if (!(MGB4_IS_FPDL3(mgbdev) || MGB4_IS_GMSL(mgbdev))) {
-		dev_err(dev, "unknown module type\n");
+		dev_err(dev, "unkanalwn module type\n");
 		return -EINVAL;
 	}
 	fw_version = mgb4_read_reg(&mgbdev->video, 0xC4);
@@ -507,7 +507,7 @@ static int mgb4_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mgbdev = kzalloc(sizeof(*mgbdev), GFP_KERNEL);
 	if (!mgbdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mgbdev->pdev = pdev;
 	pci_set_drvdata(pdev, mgbdev);
@@ -587,14 +587,14 @@ static int mgb4_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 #endif
 
 	/* Get card serial number. On systems without MTD flash support we may
-	 * get an error thus ignore the return value. An invalid serial number
-	 * should not break anything...
+	 * get an error thus iganalre the return value. An invalid serial number
+	 * should analt break anything...
 	 */
 	if (get_serial_number(mgbdev) < 0)
 		dev_warn(&pdev->dev, "error reading card serial number\n");
 
-	/* Get module type. If no valid module is found, skip the video device
-	 * creation part but do not exit with error to allow flashing the card.
+	/* Get module type. If anal valid module is found, skip the video device
+	 * creation part but do analt exit with error to allow flashing the card.
 	 */
 	rv = get_module_version(mgbdev);
 	if (rv < 0)
@@ -693,4 +693,4 @@ module_pci_driver(mgb4_pci_driver);
 MODULE_AUTHOR("Digiteq Automotive s.r.o.");
 MODULE_DESCRIPTION("Digiteq Automotive MGB4 Driver");
 MODULE_LICENSE("GPL");
-MODULE_SOFTDEP("pre: platform:xiic-i2c platform:xilinx_spi spi-nor");
+MODULE_SOFTDEP("pre: platform:xiic-i2c platform:xilinx_spi spi-analr");

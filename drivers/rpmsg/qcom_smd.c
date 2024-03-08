@@ -57,8 +57,8 @@
  *
  * The remote processor does the equivalent when it transfer data and upon
  * receiving the interrupt we check the channel info for new data and delivers
- * this to the attached device. If the device is not ready to receive the data
- * we leave it in the ring buffer for now.
+ * this to the attached device. If the device is analt ready to receive the data
+ * we leave it in the ring buffer for analw.
  */
 
 struct smd_channel_info;
@@ -96,7 +96,7 @@ static const struct {
  * struct qcom_smd_edge - representing a remote processor
  * @dev:		device associated with this edge
  * @name:		name of this edge
- * @of_node:		of_node handle for information related to this edge
+ * @of_analde:		of_analde handle for information related to this edge
  * @edge_id:		identifier of this edge
  * @remote_pid:		identifier of remote processor
  * @irq:		interrupt for signals on this edge
@@ -118,7 +118,7 @@ struct qcom_smd_edge {
 
 	const char *name;
 
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	unsigned edge_id;
 	unsigned remote_pid;
 
@@ -373,7 +373,7 @@ static void qcom_smd_signal_channel(struct qcom_smd_channel *channel)
 
 	if (edge->mbox_chan) {
 		/*
-		 * We can ignore a failing mbox_send_message() as the only
+		 * We can iganalre a failing mbox_send_message() as the only
 		 * possible cause is that the FIFO in the framework is full of
 		 * other writes to the same bit.
 		 */
@@ -736,7 +736,7 @@ static int qcom_smd_write_fifo(struct qcom_smd_channel *channel,
  * @wait:	flag to indicate if write can wait
  *
  * This is a blocking write of len bytes into the channel's tx ring buffer and
- * signal the remote end. It will sleep until there is enough space available
+ * signal the remote end. It will sleep until there is eanalugh space available
  * in the tx buffer, utilizing the fBLOCKREADINTR signaling mechanism to avoid
  * polling.
  */
@@ -825,7 +825,7 @@ static int qcom_smd_channel_open(struct qcom_smd_channel *channel,
 	bb_size = min(channel->fifo_size, SZ_4K);
 	channel->bounce_buffer = kmalloc(bb_size, GFP_KERNEL);
 	if (!channel->bounce_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qcom_smd_channel_set_callback(channel, cb);
 	qcom_smd_channel_set_state(channel, SMD_CHANNEL_OPENING);
@@ -836,7 +836,7 @@ static int qcom_smd_channel_open(struct qcom_smd_channel *channel,
 			channel->remote_state == SMD_CHANNEL_OPENED,
 			HZ);
 	if (!ret) {
-		dev_err(&edge->dev, "remote side did not enter opening state\n");
+		dev_err(&edge->dev, "remote side did analt enter opening state\n");
 		goto out_close_timeout;
 	}
 
@@ -847,7 +847,7 @@ static int qcom_smd_channel_open(struct qcom_smd_channel *channel,
 			channel->remote_state == SMD_CHANNEL_OPENED,
 			HZ);
 	if (!ret) {
-		dev_err(&edge->dev, "remote side did not enter open state\n");
+		dev_err(&edge->dev, "remote side did analt enter open state\n");
 		goto out_close_timeout;
 	}
 
@@ -998,23 +998,23 @@ static __poll_t qcom_smd_poll(struct rpmsg_endpoint *ept,
 	poll_wait(filp, &channel->fblockread_event, wait);
 
 	if (qcom_smd_get_tx_avail(channel) > 20)
-		mask |= EPOLLOUT | EPOLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 
 	return mask;
 }
 
 /*
- * Finds the device_node for the smd child interested in this channel.
+ * Finds the device_analde for the smd child interested in this channel.
  */
-static struct device_node *qcom_smd_match_channel(struct device_node *edge_node,
+static struct device_analde *qcom_smd_match_channel(struct device_analde *edge_analde,
 						  const char *channel)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	const char *name;
 	const char *key;
 	int ret;
 
-	for_each_available_child_of_node(edge_node, child) {
+	for_each_available_child_of_analde(edge_analde, child) {
 		key = "qcom,smd-channels";
 		ret = of_property_read_string(child, key, &name);
 		if (ret)
@@ -1027,7 +1027,7 @@ static struct device_node *qcom_smd_match_channel(struct device_node *edge_node,
 	return NULL;
 }
 
-static int qcom_smd_announce_create(struct rpmsg_device *rpdev)
+static int qcom_smd_ananalunce_create(struct rpmsg_device *rpdev)
 {
 	struct qcom_smd_endpoint *qept = to_smd_endpoint(rpdev->ept);
 	struct qcom_smd_channel *channel = qept->qsch;
@@ -1046,7 +1046,7 @@ static int qcom_smd_announce_create(struct rpmsg_device *rpdev)
 
 static const struct rpmsg_device_ops qcom_smd_device_ops = {
 	.create_ept = qcom_smd_create_ept,
-	.announce_create = qcom_smd_announce_create,
+	.ananalunce_create = qcom_smd_ananalunce_create,
 };
 
 static const struct rpmsg_endpoint_ops qcom_smd_endpoint_ops = {
@@ -1079,7 +1079,7 @@ static int qcom_smd_create_device(struct qcom_smd_channel *channel)
 
 	qsdev = kzalloc(sizeof(*qsdev), GFP_KERNEL);
 	if (!qsdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Link qsdev to our SMD edge */
 	qsdev->edge = edge;
@@ -1093,7 +1093,7 @@ static int qcom_smd_create_device(struct qcom_smd_channel *channel)
 	rpdev->src = RPMSG_ADDR_ANY;
 	rpdev->dst = RPMSG_ADDR_ANY;
 
-	rpdev->dev.of_node = qcom_smd_match_channel(edge->of_node, channel->name);
+	rpdev->dev.of_analde = qcom_smd_match_channel(edge->of_analde, channel->name);
 	rpdev->dev.parent = &edge->dev;
 	rpdev->dev.release = qcom_smd_release_device;
 
@@ -1106,7 +1106,7 @@ static int qcom_smd_create_chrdev(struct qcom_smd_edge *edge)
 
 	qsdev = kzalloc(sizeof(*qsdev), GFP_KERNEL);
 	if (!qsdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qsdev->edge = edge;
 	qsdev->rpdev.ops = &qcom_smd_device_ops;
@@ -1134,12 +1134,12 @@ static struct qcom_smd_channel *qcom_smd_create_channel(struct qcom_smd_edge *ed
 
 	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
 	if (!channel)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	channel->edge = edge;
 	channel->name = kstrdup(name, GFP_KERNEL);
 	if (!channel->name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_channel;
 	}
 
@@ -1164,7 +1164,7 @@ static struct qcom_smd_channel *qcom_smd_create_channel(struct qcom_smd_edge *ed
 		channel->info = info;
 	} else {
 		dev_err(&edge->dev,
-			"channel info of size %zu not supported\n", info_size);
+			"channel info of size %zu analt supported\n", info_size);
 		ret = -EINVAL;
 		goto free_name_and_channel;
 	}
@@ -1334,13 +1334,13 @@ static void qcom_channel_state_worker(struct work_struct *work)
 }
 
 /*
- * Parses an of_node describing an edge.
+ * Parses an of_analde describing an edge.
  */
 static int qcom_smd_parse_edge(struct device *dev,
-			       struct device_node *node,
+			       struct device_analde *analde,
 			       struct qcom_smd_edge *edge)
 {
-	struct device_node *syscon_np;
+	struct device_analde *syscon_np;
 	const char *key;
 	int irq;
 	int ret;
@@ -1351,84 +1351,84 @@ static int qcom_smd_parse_edge(struct device *dev,
 	INIT_WORK(&edge->scan_work, qcom_channel_scan_worker);
 	INIT_WORK(&edge->state_work, qcom_channel_state_worker);
 
-	edge->of_node = of_node_get(node);
+	edge->of_analde = of_analde_get(analde);
 
 	key = "qcom,smd-edge";
-	ret = of_property_read_u32(node, key, &edge->edge_id);
+	ret = of_property_read_u32(analde, key, &edge->edge_id);
 	if (ret) {
 		dev_err(dev, "edge missing %s property\n", key);
-		goto put_node;
+		goto put_analde;
 	}
 
 	edge->remote_pid = QCOM_SMEM_HOST_ANY;
 	key = "qcom,remote-pid";
-	of_property_read_u32(node, key, &edge->remote_pid);
+	of_property_read_u32(analde, key, &edge->remote_pid);
 
 	edge->mbox_client.dev = dev;
-	edge->mbox_client.knows_txdone = true;
+	edge->mbox_client.kanalws_txdone = true;
 	edge->mbox_chan = mbox_request_channel(&edge->mbox_client, 0);
 	if (IS_ERR(edge->mbox_chan)) {
-		if (PTR_ERR(edge->mbox_chan) != -ENODEV) {
+		if (PTR_ERR(edge->mbox_chan) != -EANALDEV) {
 			ret = PTR_ERR(edge->mbox_chan);
-			goto put_node;
+			goto put_analde;
 		}
 
 		edge->mbox_chan = NULL;
 
-		syscon_np = of_parse_phandle(node, "qcom,ipc", 0);
+		syscon_np = of_parse_phandle(analde, "qcom,ipc", 0);
 		if (!syscon_np) {
-			dev_err(dev, "no qcom,ipc node\n");
-			ret = -ENODEV;
-			goto put_node;
+			dev_err(dev, "anal qcom,ipc analde\n");
+			ret = -EANALDEV;
+			goto put_analde;
 		}
 
-		edge->ipc_regmap = syscon_node_to_regmap(syscon_np);
-		of_node_put(syscon_np);
+		edge->ipc_regmap = syscon_analde_to_regmap(syscon_np);
+		of_analde_put(syscon_np);
 		if (IS_ERR(edge->ipc_regmap)) {
 			ret = PTR_ERR(edge->ipc_regmap);
-			goto put_node;
+			goto put_analde;
 		}
 
 		key = "qcom,ipc";
-		ret = of_property_read_u32_index(node, key, 1, &edge->ipc_offset);
+		ret = of_property_read_u32_index(analde, key, 1, &edge->ipc_offset);
 		if (ret < 0) {
-			dev_err(dev, "no offset in %s\n", key);
-			goto put_node;
+			dev_err(dev, "anal offset in %s\n", key);
+			goto put_analde;
 		}
 
-		ret = of_property_read_u32_index(node, key, 2, &edge->ipc_bit);
+		ret = of_property_read_u32_index(analde, key, 2, &edge->ipc_bit);
 		if (ret < 0) {
-			dev_err(dev, "no bit in %s\n", key);
-			goto put_node;
+			dev_err(dev, "anal bit in %s\n", key);
+			goto put_analde;
 		}
 	}
 
-	ret = of_property_read_string(node, "label", &edge->name);
+	ret = of_property_read_string(analde, "label", &edge->name);
 	if (ret < 0)
-		edge->name = node->name;
+		edge->name = analde->name;
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(analde, 0);
 	if (!irq) {
 		dev_err(dev, "required smd interrupt missing\n");
 		ret = -EINVAL;
-		goto put_node;
+		goto put_analde;
 	}
 
 	ret = devm_request_irq(dev, irq,
 			       qcom_smd_edge_intr, IRQF_TRIGGER_RISING,
-			       node->name, edge);
+			       analde->name, edge);
 	if (ret) {
 		dev_err(dev, "failed to request smd irq\n");
-		goto put_node;
+		goto put_analde;
 	}
 
 	edge->irq = irq;
 
 	return 0;
 
-put_node:
-	of_node_put(node);
-	edge->of_node = NULL;
+put_analde:
+	of_analde_put(analde);
+	edge->of_analde = NULL;
 
 	return ret;
 }
@@ -1467,14 +1467,14 @@ static struct attribute *qcom_smd_edge_attrs[] = {
 ATTRIBUTE_GROUPS(qcom_smd_edge);
 
 /**
- * qcom_smd_register_edge() - register an edge based on an device_node
+ * qcom_smd_register_edge() - register an edge based on an device_analde
  * @parent:    parent device for the edge
- * @node:      device_node describing the edge
+ * @analde:      device_analde describing the edge
  *
  * Return: an edge reference, or negative ERR_PTR() on failure.
  */
 struct qcom_smd_edge *qcom_smd_register_edge(struct device *parent,
-					     struct device_node *node)
+					     struct device_analde *analde)
 {
 	struct qcom_smd_edge *edge;
 	int ret;
@@ -1484,15 +1484,15 @@ struct qcom_smd_edge *qcom_smd_register_edge(struct device *parent,
 
 	edge = kzalloc(sizeof(*edge), GFP_KERNEL);
 	if (!edge)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init_waitqueue_head(&edge->new_channel_event);
 
 	edge->dev.parent = parent;
 	edge->dev.release = qcom_smd_edge_release;
-	edge->dev.of_node = node;
+	edge->dev.of_analde = analde;
 	edge->dev.groups = qcom_smd_edge_groups;
-	dev_set_name(&edge->dev, "%s:%pOFn", dev_name(parent), node);
+	dev_set_name(&edge->dev, "%s:%pOFn", dev_name(parent), analde);
 	ret = device_register(&edge->dev);
 	if (ret) {
 		pr_err("failed to register smd edge\n");
@@ -1500,7 +1500,7 @@ struct qcom_smd_edge *qcom_smd_register_edge(struct device *parent,
 		return ERR_PTR(ret);
 	}
 
-	ret = qcom_smd_parse_edge(&edge->dev, node, edge);
+	ret = qcom_smd_parse_edge(&edge->dev, analde, edge);
 	if (ret) {
 		dev_err(&edge->dev, "failed to parse smd edge\n");
 		goto unregister_dev;
@@ -1555,13 +1555,13 @@ EXPORT_SYMBOL(qcom_smd_unregister_edge);
 
 static int qcom_smd_probe(struct platform_device *pdev)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
 	if (!qcom_smem_is_available())
 		return -EPROBE_DEFER;
 
-	for_each_available_child_of_node(pdev->dev.of_node, node)
-		qcom_smd_register_edge(&pdev->dev, node);
+	for_each_available_child_of_analde(pdev->dev.of_analde, analde)
+		qcom_smd_register_edge(&pdev->dev, analde);
 
 	return 0;
 }
@@ -1582,7 +1582,7 @@ static int qcom_smd_remove_edge(struct device *dev, void *data)
 static void qcom_smd_remove(struct platform_device *pdev)
 {
 	/*
-	 * qcom_smd_remove_edge always returns zero, so there is no need to
+	 * qcom_smd_remove_edge always returns zero, so there is anal need to
 	 * check the return value of device_for_each_child.
 	 */
 	device_for_each_child(&pdev->dev, NULL, qcom_smd_remove_edge);

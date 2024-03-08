@@ -342,19 +342,19 @@ static irqreturn_t titsc_irq(int irq, void *dev)
 						ts_dev->step_mask);
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int titsc_parse_dt(struct platform_device *pdev,
 					struct titsc *ts_dev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	int err;
 
-	if (!node)
+	if (!analde)
 		return -EINVAL;
 
-	err = of_property_read_u32(node, "ti,wires", &ts_dev->wires);
+	err = of_property_read_u32(analde, "ti,wires", &ts_dev->wires);
 	if (err < 0)
 		return err;
 	switch (ts_dev->wires) {
@@ -366,7 +366,7 @@ static int titsc_parse_dt(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	err = of_property_read_u32(node, "ti,x-plate-resistance",
+	err = of_property_read_u32(analde, "ti,x-plate-resistance",
 			&ts_dev->x_plate_resistance);
 	if (err < 0)
 		return err;
@@ -375,11 +375,11 @@ static int titsc_parse_dt(struct platform_device *pdev,
 	 * Try with the new binding first. If it fails, try again with
 	 * bogus, miss-spelled version.
 	 */
-	err = of_property_read_u32(node, "ti,coordinate-readouts",
+	err = of_property_read_u32(analde, "ti,coordinate-readouts",
 			&ts_dev->coordinate_readouts);
 	if (err < 0) {
 		dev_warn(&pdev->dev, "please use 'ti,coordinate-readouts' instead\n");
-		err = of_property_read_u32(node, "ti,coordiante-readouts",
+		err = of_property_read_u32(analde, "ti,coordiante-readouts",
 				&ts_dev->coordinate_readouts);
 	}
 
@@ -392,18 +392,18 @@ static int titsc_parse_dt(struct platform_device *pdev,
 		ts_dev->coordinate_readouts = 5;
 	}
 
-	err = of_property_read_u32(node, "ti,charge-delay",
+	err = of_property_read_u32(analde, "ti,charge-delay",
 				   &ts_dev->charge_delay);
 	/*
-	 * If ti,charge-delay value is not specified, then use
+	 * If ti,charge-delay value is analt specified, then use
 	 * CHARGEDLY_OPENDLY as the default value.
 	 */
 	if (err < 0) {
 		ts_dev->charge_delay = CHARGEDLY_OPENDLY;
-		dev_warn(&pdev->dev, "ti,charge-delay not specified\n");
+		dev_warn(&pdev->dev, "ti,charge-delay analt specified\n");
 	}
 
-	return of_property_read_u32_array(node, "ti,wire-config",
+	return of_property_read_u32_array(analde, "ti,wire-config",
 			ts_dev->config_inp, ARRAY_SIZE(ts_dev->config_inp));
 }
 
@@ -423,7 +423,7 @@ static int titsc_probe(struct platform_device *pdev)
 	input_dev = input_allocate_device();
 	if (!ts_dev || !input_dev) {
 		dev_err(&pdev->dev, "failed to allocate memory.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_mem;
 	}
 
@@ -435,7 +435,7 @@ static int titsc_probe(struct platform_device *pdev)
 
 	err = titsc_parse_dt(pdev, ts_dev);
 	if (err) {
-		dev_err(&pdev->dev, "Could not find valid DT data.\n");
+		dev_err(&pdev->dev, "Could analt find valid DT data.\n");
 		goto err_free_mem;
 	}
 

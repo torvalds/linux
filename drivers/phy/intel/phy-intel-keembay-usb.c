@@ -204,7 +204,7 @@ static int keembay_usb_phy_init(struct phy *phy)
 				       val, val & PHY0_SRAM_INIT_DONE_MASK,
 				       USEC_PER_MSEC, 10 * USEC_PER_MSEC);
 	if (ret) {
-		dev_err(priv->dev, "SRAM init not done: %d\n", ret);
+		dev_err(priv->dev, "SRAM init analt done: %d\n", ret);
 		return ret;
 	}
 
@@ -241,7 +241,7 @@ static int keembay_usb_phy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource_byname(pdev, "cpr-apb-base");
 	if (IS_ERR(base))
@@ -261,7 +261,7 @@ static int keembay_usb_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->regmap_slv))
 		return PTR_ERR(priv->regmap_slv);
 
-	generic_phy = devm_phy_create(dev, dev->of_node, &ops);
+	generic_phy = devm_phy_create(dev, dev->of_analde, &ops);
 	if (IS_ERR(generic_phy))
 		return dev_err_probe(dev, PTR_ERR(generic_phy),
 				     "failed to create PHY\n");

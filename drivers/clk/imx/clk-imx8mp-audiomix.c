@@ -189,7 +189,7 @@ static int clk_imx8mp_audiomix_probe(struct platform_device *pdev)
 			    struct_size(priv, hws, IMX8MP_CLK_AUDIOMIX_END),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->num = IMX8MP_CLK_AUDIOMIX_END;
 
@@ -221,7 +221,7 @@ static int clk_imx8mp_audiomix_probe(struct platform_device *pdev)
 	hw = devm_clk_hw_register_mux_parent_data_table(dev,
 		"sai_pll_ref_sel", clk_imx8mp_audiomix_pll_parents,
 		ARRAY_SIZE(clk_imx8mp_audiomix_pll_parents),
-		CLK_SET_RATE_NO_REPARENT, base + SAI_PLL_GNRL_CTL,
+		CLK_SET_RATE_ANAL_REPARENT, base + SAI_PLL_GNRL_CTL,
 		0, 2, 0, NULL, NULL);
 	priv->hws[IMX8MP_CLK_AUDIOMIX_SAI_PLL_REF_SEL] = hw;
 
@@ -234,7 +234,7 @@ static int clk_imx8mp_audiomix_probe(struct platform_device *pdev)
 	hw = devm_clk_hw_register_mux_parent_data_table(dev,
 		"sai_pll_bypass", clk_imx8mp_audiomix_pll_bypass_sels,
 		ARRAY_SIZE(clk_imx8mp_audiomix_pll_bypass_sels),
-		CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
+		CLK_SET_RATE_ANAL_REPARENT | CLK_SET_RATE_PARENT,
 		base + SAI_PLL_GNRL_CTL, 16, 1, 0, NULL, NULL);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);

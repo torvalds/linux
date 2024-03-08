@@ -130,20 +130,20 @@ enum {
 #define UFS_MASK(mask, offset)		((mask) << (offset))
 
 /* UFS Version 08h */
-#define MINOR_VERSION_NUM_MASK		UFS_MASK(0xFFFF, 0)
+#define MIANALR_VERSION_NUM_MASK		UFS_MASK(0xFFFF, 0)
 #define MAJOR_VERSION_NUM_MASK		UFS_MASK(0xFFFF, 16)
 
 #define UFSHCD_NUM_RESERVED	1
 /*
  * Controller UFSHCI version
  * - 2.x and newer use the following scheme:
- *   major << 8 + minor << 4
+ *   major << 8 + mianalr << 4
  * - 1.x has been converted to match this in
  *   ufshcd_get_ufs_version()
  */
-static inline u32 ufshci_version(u32 major, u32 minor)
+static inline u32 ufshci_version(u32 major, u32 mianalr)
 {
-	return (major << 8) + (minor << 4);
+	return (major << 8) + (mianalr << 4);
 }
 
 /*
@@ -257,8 +257,8 @@ enum {
 #define UIC_TRANSPORT_LAYER_ERROR		0x80000000
 #define UIC_TRANSPORT_LAYER_ERROR_CODE_MASK	0x7F
 #define UIC_TRANSPORT_UNSUPPORTED_HEADER_TYPE	0x1
-#define UIC_TRANSPORT_UNKNOWN_CPORTID		0x2
-#define UIC_TRANSPORT_NO_CONNECTION_RX		0x4
+#define UIC_TRANSPORT_UNKANALWN_CPORTID		0x2
+#define UIC_TRANSPORT_ANAL_CONNECTION_RX		0x4
 #define UIC_TRANSPORT_CONTROLLED_SEGMENT_DROPPING	0x8
 #define UIC_TRANSPORT_BAD_TC			0x10
 #define UIC_TRANSPORT_E2E_CREDIT_OVERFOW	0x20
@@ -442,7 +442,7 @@ enum {
 
 /* UTP Transfer Request Data Direction (DD) */
 enum utp_data_direction {
-	UTP_NO_DATA_TRANSFER	= 0,
+	UTP_ANAL_DATA_TRANSFER	= 0,
 	UTP_HOST_TO_DEVICE	= 1,
 	UTP_DEVICE_TO_HOST	= 2,
 };

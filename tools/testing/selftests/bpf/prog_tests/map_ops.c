@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2023 Meta Platforms, Inc. and affiliates. */
 
-#include <errno.h>
+#include <erranal.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
@@ -91,8 +91,8 @@ static void map_ops_update_delete_subtest(void)
 	ASSERT_OK(skel->bss->err, "map_delete_existing");
 
 	map_delete();
-	ASSERT_LT(skel->bss->err, 0, "map_delete_non_existing");
-	ASSERT_EQ(skel->bss->err, -ENOENT, "map_delete_non_existing");
+	ASSERT_LT(skel->bss->err, 0, "map_delete_analn_existing");
+	ASSERT_EQ(skel->bss->err, -EANALENT, "map_delete_analn_existing");
 
 teardown:
 	teardown(&skel);
@@ -120,11 +120,11 @@ static void map_ops_push_peek_pop_subtest(void)
 
 	map_peek();
 	ASSERT_LT(skel->bss->err, 0, "map_peek_when_empty");
-	ASSERT_EQ(skel->bss->err, -ENOENT, "map_peek_when_empty");
+	ASSERT_EQ(skel->bss->err, -EANALENT, "map_peek_when_empty");
 
 	map_pop();
 	ASSERT_LT(skel->bss->err, 0, "map_pop_when_empty");
-	ASSERT_EQ(skel->bss->err, -ENOENT, "map_pop_when_empty");
+	ASSERT_EQ(skel->bss->err, -EANALENT, "map_pop_when_empty");
 
 teardown:
 	teardown(&skel);
@@ -139,7 +139,7 @@ static void map_ops_for_each_subtest(void)
 
 	map_for_each_pass();
 	/* expect to iterate over 1 element */
-	ASSERT_EQ(skel->bss->err, 1, "map_for_each_no_flags");
+	ASSERT_EQ(skel->bss->err, 1, "map_for_each_anal_flags");
 
 	map_for_each_fail();
 	ASSERT_LT(skel->bss->err, 0, "map_for_each_with_flags");

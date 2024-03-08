@@ -15,7 +15,7 @@ Required Properties:
   and released, see also
   Documentation/devicetree/bindings/input/matrix-keymap.txt
 
-Note: keypad,num-rows and keypad,num-columns are required, and must be equal
+Analte: keypad,num-rows and keypad,num-columns are required, and must be equal
 since LPC32xx only supports square matrices
 
 Example:

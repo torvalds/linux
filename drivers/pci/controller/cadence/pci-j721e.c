@@ -35,7 +35,7 @@
 #define LINK_STATUS			GENMASK(1, 0)
 
 enum link_status {
-	NO_RECEIVERS_DETECTED,
+	ANAL_RECEIVERS_DETECTED,
 	LINK_TRAINING_IN_PROGRESS,
 	LINK_UP_DL_IN_PROGRESS,
 	LINK_UP_DL_COMPLETED,
@@ -102,7 +102,7 @@ static irqreturn_t j721e_pcie_link_irq_handler(int irq, void *priv)
 
 	reg = j721e_pcie_intd_readl(pcie, STATUS_REG_SYS_2);
 	if (!(reg & pcie->linkdown_irq_regfield))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	dev_err(dev, "LINK DOWN!\n");
 
@@ -183,7 +183,7 @@ static int j721e_pcie_set_link_speed(struct j721e_pcie *pcie,
 				     struct regmap *syscon, unsigned int offset)
 {
 	struct device *dev = pcie->cdns_pcie->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int link_speed;
 	u32 val = 0;
 	int ret;
@@ -223,20 +223,20 @@ static int j721e_pcie_set_lane_count(struct j721e_pcie *pcie,
 static int j721e_pcie_ctrl_init(struct j721e_pcie *pcie)
 {
 	struct device *dev = pcie->cdns_pcie->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct of_phandle_args args;
 	unsigned int offset = 0;
 	struct regmap *syscon;
 	int ret;
 
-	syscon = syscon_regmap_lookup_by_phandle(node, "ti,syscon-pcie-ctrl");
+	syscon = syscon_regmap_lookup_by_phandle(analde, "ti,syscon-pcie-ctrl");
 	if (IS_ERR(syscon)) {
 		dev_err(dev, "Unable to get ti,syscon-pcie-ctrl regmap\n");
 		return PTR_ERR(syscon);
 	}
 
-	/* Do not error out to maintain old DT compatibility */
-	ret = of_parse_phandle_with_fixed_args(node, "ti,syscon-pcie-ctrl", 1,
+	/* Do analt error out to maintain old DT compatibility */
+	ret = of_parse_phandle_with_fixed_args(analde, "ti,syscon-pcie-ctrl", 1,
 					       0, &args);
 	if (!ret)
 		offset = args.args[0];
@@ -383,7 +383,7 @@ static const struct of_device_id of_j721e_pcie_match[] = {
 static int j721e_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct pci_host_bridge *bridge;
 	const struct j721e_pcie_data *data;
 	struct cdns_pcie *cdns_pcie;
@@ -406,16 +406,16 @@ static int j721e_pcie_probe(struct platform_device *pdev)
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (mode) {
 	case PCI_MODE_RC:
 		if (!IS_ENABLED(CONFIG_PCIE_CADENCE_HOST))
-			return -ENODEV;
+			return -EANALDEV;
 
 		bridge = devm_pci_alloc_host_bridge(dev, sizeof(*rc));
 		if (!bridge)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (!data->byte_access_allowed)
 			bridge->ops = &cdns_ti_pcie_host_ops;
@@ -430,11 +430,11 @@ static int j721e_pcie_probe(struct platform_device *pdev)
 		break;
 	case PCI_MODE_EP:
 		if (!IS_ENABLED(CONFIG_PCIE_CADENCE_EP))
-			return -ENODEV;
+			return -EANALDEV;
 
 		ep = devm_kzalloc(dev, sizeof(*ep), GFP_KERNEL);
 		if (!ep)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ep->quirk_detect_quiet_flag = data->quirk_detect_quiet_flag;
 		ep->quirk_disable_flr = data->quirk_disable_flr;
@@ -462,9 +462,9 @@ static int j721e_pcie_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 	pcie->user_cfg_base = base;
 
-	ret = of_property_read_u32(node, "num-lanes", &num_lanes);
+	ret = of_property_read_u32(analde, "num-lanes", &num_lanes);
 	if (ret || num_lanes > data->max_lanes) {
-		dev_warn(dev, "num-lanes property not provided or invalid, setting num-lanes to 1\n");
+		dev_warn(dev, "num-lanes property analt provided or invalid, setting num-lanes to 1\n");
 		num_lanes = 1;
 	}
 

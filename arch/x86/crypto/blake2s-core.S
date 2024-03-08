@@ -56,9 +56,9 @@ SYM_FUNC_START(blake2s_compress_ssse3)
 	movdqu		0x20(%rdi),%xmm14
 	movq		%rcx,%xmm15
 	leaq		SIGMA+0xa0(%rip),%r8
-	jmp		.Lbeginofloop
+	jmp		.Lbegianalfloop
 	.align		32
-.Lbeginofloop:
+.Lbegianalfloop:
 	movdqa		%xmm0,%xmm10
 	movdqa		%xmm1,%xmm11
 	paddq		%xmm15,%xmm14
@@ -166,7 +166,7 @@ SYM_FUNC_START(blake2s_compress_ssse3)
 	pxor		%xmm11,%xmm1
 	addq		$0x40,%rsi
 	decq		%rdx
-	jnz		.Lbeginofloop
+	jnz		.Lbegianalfloop
 	movdqu		%xmm0,(%rdi)
 	movdqu		%xmm1,0x10(%rdi)
 	movdqu		%xmm14,0x20(%rdi)

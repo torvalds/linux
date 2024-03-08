@@ -4,7 +4,7 @@
 #exit status
 #0: success
 #1: fail
-#4: skip test - including run as non-root user
+#4: skip test - including run as analn-root user
 
 BASE=${0%/*}
 DEBUGFS=
@@ -49,7 +49,7 @@ prerequisite()
 	[ $(id -u) -eq 0 ] || skip "must be run as root"
 
 	DEBUGFS=$(grep -w debugfs /proc/mounts | cut -f2 -d' ')
-	[ -d "$DEBUGFS" ] || skip "debugfs is not mounted"
+	[ -d "$DEBUGFS" ] || skip "debugfs is analt mounted"
 
 	GPIO_DEBUGFS=$DEBUGFS/$module
 }
@@ -127,7 +127,7 @@ set_line()
 		active-high)
 			active_opt=
 			;;
-		bias-none)
+		bias-analne)
 			bias_opt=
 			;;
 		pull-down)
@@ -231,7 +231,7 @@ test_line()
 			set_mock 1
 			assert_line 1
 
-			set_line bias-none
+			set_line bias-analne
 		fi
 
 		# test input active-low
@@ -265,9 +265,9 @@ test_line()
 	release_line
 }
 
-test_no_line()
+test_anal_line()
 {
-	log test_no_line "$*"
+	log test_anal_line "$*"
 	[ ! -e "$GPIO_DEBUGFS/$1/$2" ] || fail "unexpected line $1:$2"
 }
 
@@ -279,7 +279,7 @@ test_no_line()
 # the gpiochips expected to be created.
 #
 # For each gpiochip the fence post lines, 0 and n-1, are tested, and the
-# line on the far side of the fence post, n, is tested to not exist.
+# line on the far side of the fence post, n, is tested to analt exist.
 #
 # If the $random flag is set then a random line in the middle of the
 # gpiochip is tested as well.
@@ -304,7 +304,7 @@ insmod_test()
 			test_line $gc $((RANDOM % ($width - 2) + 1))
 		fi
 		test_line $gc $(($width - 1))
-		test_no_line $gc $width
+		test_anal_line $gc $width
 	done
 	[ "${1:-}" ] && fail "missing expected chip of width $1"
 	remove_module || fail "failed to remove module with error $?"
@@ -331,7 +331,7 @@ while getopts ":frvt:" opt; do
 done
 shift $((OPTIND - 1))
 
-[ "${1:-}" ] && fail "unknown argument '$1'"
+[ "${1:-}" ] && fail "unkanalwn argument '$1'"
 
 prerequisite
 
@@ -350,7 +350,7 @@ cdev_v1)
 cdev)
 	;;
 *)
-	fail "unknown interface type: $dev_type"
+	fail "unkanalwn interface type: $dev_type"
 	;;
 esac
 
@@ -381,9 +381,9 @@ echo "2.1 gpio overflow"
 # Currently: The max number of gpio(1024) is defined in arm architecture.
 insmod_test "-1,1024"
 if [ "$full_test" ]; then
-	echo "2.2 no lines defined"
+	echo "2.2 anal lines defined"
 	insmod_test "0,0"
-	echo "2.3 ignore range overlap"
+	echo "2.3 iganalre range overlap"
 	insmod_test "0,32,0,1" 32
 	insmod_test "0,32,1,5" 32
 	insmod_test "0,32,30,35" 32

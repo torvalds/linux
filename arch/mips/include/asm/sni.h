@@ -190,8 +190,8 @@ extern unsigned int sni_brd_type;
  */
 #define PCIMT_EISA_BASE		CKSEG1ADDR(0xb0000000)
 
-/* PCI EISA Interrupt acknowledge  */
-#define PCIMT_INT_ACKNOWLEDGE	CKSEG1ADDR(0xba000000)
+/* PCI EISA Interrupt ackanalwledge  */
+#define PCIMT_INT_ACKANALWLEDGE	CKSEG1ADDR(0xba000000)
 
 /*
  *  SNI ID PROM

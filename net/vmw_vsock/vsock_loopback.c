@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2013-2019 Red Hat, Inc.
  * Authors: Asias He <asias@redhat.com>
- *          Stefan Hajnoczi <stefanha@redhat.com>
- *          Stefano Garzarella <sgarzare@redhat.com>
+ *          Stefan Hajanalczi <stefanha@redhat.com>
+ *          Stefaanal Garzarella <sgarzare@redhat.com>
  *
  */
 #include <linux/spinlock.h>
@@ -85,18 +85,18 @@ static struct virtio_transport loopback_transport = {
 
 		.msgzerocopy_allow        = vsock_loopback_msgzerocopy_allow,
 
-		.notify_poll_in           = virtio_transport_notify_poll_in,
-		.notify_poll_out          = virtio_transport_notify_poll_out,
-		.notify_recv_init         = virtio_transport_notify_recv_init,
-		.notify_recv_pre_block    = virtio_transport_notify_recv_pre_block,
-		.notify_recv_pre_dequeue  = virtio_transport_notify_recv_pre_dequeue,
-		.notify_recv_post_dequeue = virtio_transport_notify_recv_post_dequeue,
-		.notify_send_init         = virtio_transport_notify_send_init,
-		.notify_send_pre_block    = virtio_transport_notify_send_pre_block,
-		.notify_send_pre_enqueue  = virtio_transport_notify_send_pre_enqueue,
-		.notify_send_post_enqueue = virtio_transport_notify_send_post_enqueue,
-		.notify_buffer_size       = virtio_transport_notify_buffer_size,
-		.notify_set_rcvlowat      = virtio_transport_notify_set_rcvlowat,
+		.analtify_poll_in           = virtio_transport_analtify_poll_in,
+		.analtify_poll_out          = virtio_transport_analtify_poll_out,
+		.analtify_recv_init         = virtio_transport_analtify_recv_init,
+		.analtify_recv_pre_block    = virtio_transport_analtify_recv_pre_block,
+		.analtify_recv_pre_dequeue  = virtio_transport_analtify_recv_pre_dequeue,
+		.analtify_recv_post_dequeue = virtio_transport_analtify_recv_post_dequeue,
+		.analtify_send_init         = virtio_transport_analtify_send_init,
+		.analtify_send_pre_block    = virtio_transport_analtify_send_pre_block,
+		.analtify_send_pre_enqueue  = virtio_transport_analtify_send_pre_enqueue,
+		.analtify_send_post_enqueue = virtio_transport_analtify_send_post_enqueue,
+		.analtify_buffer_size       = virtio_transport_analtify_buffer_size,
+		.analtify_set_rcvlowat      = virtio_transport_analtify_set_rcvlowat,
 
 		.read_skb = virtio_transport_read_skb,
 	},
@@ -135,7 +135,7 @@ static int __init vsock_loopback_init(void)
 
 	vsock->workqueue = alloc_workqueue("vsock-loopback", 0, 0);
 	if (!vsock->workqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_queue_head_init(&vsock->pkt_queue);
 	INIT_WORK(&vsock->pkt_work, vsock_loopback_work);
@@ -168,6 +168,6 @@ static void __exit vsock_loopback_exit(void)
 module_init(vsock_loopback_init);
 module_exit(vsock_loopback_exit);
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Stefano Garzarella <sgarzare@redhat.com>");
+MODULE_AUTHOR("Stefaanal Garzarella <sgarzare@redhat.com>");
 MODULE_DESCRIPTION("loopback transport for vsock");
 MODULE_ALIAS_NETPROTO(PF_VSOCK);

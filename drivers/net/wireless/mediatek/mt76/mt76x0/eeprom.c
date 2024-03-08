@@ -38,7 +38,7 @@ mt76x0_efuse_physical_size_check(struct mt76x02_dev *dev)
 
 	if (MT_EFUSE_USAGE_MAP_SIZE - cnt_free < 5) {
 		dev_err(dev->mt76.dev,
-			"driver does not support default EEPROM\n");
+			"driver does analt support default EEPROM\n");
 		return -EINVAL;
 	}
 
@@ -54,7 +54,7 @@ static void mt76x0_set_chip_cap(struct mt76x02_dev *dev)
 	dev_dbg(dev->mt76.dev, "2GHz %d 5GHz %d\n",
 		dev->mphy.cap.has_2ghz, dev->mphy.cap.has_5ghz);
 
-	if (dev->no_2ghz) {
+	if (dev->anal_2ghz) {
 		dev->mphy.cap.has_2ghz = false;
 		dev_dbg(dev->mt76.dev, "mask out 2GHz support\n");
 	}
@@ -69,7 +69,7 @@ static void mt76x0_set_chip_cap(struct mt76x02_dev *dev)
 
 	if (nic_conf1 & MT_EE_NIC_CONF_1_HW_RF_CTRL)
 		dev_dbg(dev->mt76.dev,
-			"driver does not support HW RF ctrl\n");
+			"driver does analt support HW RF ctrl\n");
 
 	if (!mt76x02_field_valid(nic_conf0 >> 8))
 		return;

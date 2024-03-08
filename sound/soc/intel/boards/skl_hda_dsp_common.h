@@ -50,7 +50,7 @@ static inline int skl_hda_hdmi_build_controls(struct snd_soc_card *card)
 	struct snd_soc_component *component;
 	struct skl_hda_hdmi_pcm *pcm;
 
-	/* HDMI disabled, do not create controls */
+	/* HDMI disabled, do analt create controls */
 	if (list_empty(&ctx->hdmi_pcm_list))
 		return 0;
 

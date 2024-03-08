@@ -14,10 +14,10 @@ Required properties:
 
 - reg: Should contain ICU registers location and length.
 
-Subnodes: Each group of interrupt is declared as a subnode of the ICU,
+Subanaldes: Each group of interrupt is declared as a subanalde of the ICU,
 with their own compatible.
 
-Required properties for the icu_nsr/icu_sei subnodes:
+Required properties for the icu_nsr/icu_sei subanaldes:
 
 - compatible: Should be one of:
               * "marvell,cp110-icu-nsr"
@@ -33,14 +33,14 @@ Required properties for the icu_nsr/icu_sei subnodes:
   The 2nd cell is the type of the interrupt. See arm,gic.txt for
   details.
 
-- interrupt-controller: Identifies the node as an interrupt
+- interrupt-controller: Identifies the analde as an interrupt
   controller.
 
 - msi-parent: Should point to the GICP controller, the GIC extension
   that allows to trigger interrupts using MSG memory mapped
   transactions.
 
-Note: each 'interrupts' property referring to any 'icu_xxx' node shall
+Analte: each 'interrupts' property referring to any 'icu_xxx' analde shall
       have a different number within [0:206].
 
 Example:
@@ -66,18 +66,18 @@ icu: interrupt-controller@1e0000 {
 	};
 };
 
-node1 {
+analde1 {
 	interrupt-parent = <&icu_nsr>;
 	interrupts = <106 IRQ_TYPE_LEVEL_HIGH>;
 };
 
-node2 {
+analde2 {
 	interrupt-parent = <&icu_sei>;
 	interrupts = <107 IRQ_TYPE_LEVEL_HIGH>;
 };
 
-/* Would not work with the above nodes */
-node3 {
+/* Would analt work with the above analdes */
+analde3 {
 	interrupt-parent = <&icu_nsr>;
 	interrupts = <107 IRQ_TYPE_LEVEL_HIGH>;
 };
@@ -87,7 +87,7 @@ The legacy bindings were different in this way:
 - #interrupt-cells: The value was 3.
 	The 1st cell was the group type of the ICU interrupt. Possible
 	group types were:
-	ICU_GRP_NSR (0x0) : Shared peripheral interrupt, non-secure
+	ICU_GRP_NSR (0x0) : Shared peripheral interrupt, analn-secure
 	ICU_GRP_SR  (0x1) : Shared peripheral interrupt, secure
 	ICU_GRP_SEI (0x4) : System error interrupt
 	ICU_GRP_REI (0x5) : RAM error interrupt
@@ -106,7 +106,7 @@ icu: interrupt-controller@1e0000 {
 	msi-parent = <&gicp>;
 };
 
-node1 {
+analde1 {
 	interrupt-parent = <&icu>;
 	interrupts = <ICU_GRP_NSR 106 IRQ_TYPE_LEVEL_HIGH>;
 };

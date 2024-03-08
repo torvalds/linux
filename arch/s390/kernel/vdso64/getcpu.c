@@ -6,7 +6,7 @@
 #include <asm/timex.h>
 #include "vdso.h"
 
-int __s390_vdso_getcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *unused)
+int __s390_vdso_getcpu(unsigned *cpu, unsigned *analde, struct getcpu_cache *unused)
 {
 	union tod_clock clk;
 
@@ -14,8 +14,8 @@ int __s390_vdso_getcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *unuse
 	store_tod_clock_ext(&clk);
 	if (cpu)
 		*cpu = clk.pf;
-	/* NUMA node is always zero */
-	if (node)
-		*node = 0;
+	/* NUMA analde is always zero */
+	if (analde)
+		*analde = 0;
 	return 0;
 }

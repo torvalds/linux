@@ -126,7 +126,7 @@ static int _kdb_bp_install(struct pt_regs *regs, kdb_bp_t *bp)
 {
 	int ret;
 	/*
-	 * Install the breakpoint, if it is not already installed.
+	 * Install the breakpoint, if it is analt already installed.
 	 */
 
 	if (KDB_DEBUG(BP))
@@ -193,13 +193,13 @@ void kdb_bp_install(struct pt_regs *regs)
  *	Remove kdb_breakpoints upon entry to the kernel debugger.
  *
  * Parameters:
- *	None.
+ *	Analne.
  * Outputs:
- *	None.
+ *	Analne.
  * Returns:
- *	None.
+ *	Analne.
  * Locking:
- *	None.
+ *	Analne.
  * Remarks:
  */
 void kdb_bp_remove(void)
@@ -225,13 +225,13 @@ void kdb_bp_remove(void)
  *	Internal function to format and print a breakpoint entry.
  *
  * Parameters:
- *	None.
+ *	Analne.
  * Outputs:
- *	None.
+ *	Analne.
  * Returns:
- *	None.
+ *	Analne.
  * Locking:
- *	None.
+ *	Analne.
  * Remarks:
  */
 
@@ -263,11 +263,11 @@ static void kdb_printbp(kdb_bp_t *bp, int i)
  *	argc	Count of arguments in argv
  *	argv	Space delimited command line arguments
  * Outputs:
- *	None.
+ *	Analne.
  * Returns:
- *	Zero for success, a kdb diagnostic if failure.
+ *	Zero for success, a kdb diaganalstic if failure.
  * Locking:
- *	None.
+ *	Analne.
  * Remarks:
  *
  *	bp	Set breakpoint on all cpus.  Only use hardware assist if need.
@@ -276,7 +276,7 @@ static void kdb_printbp(kdb_bp_t *bp, int i)
 
 static int kdb_bp(int argc, const char **argv)
 {
-	int i, bpno;
+	int i, bpanal;
 	kdb_bp_t *bp, *bp_check;
 	int diag;
 	char *symname = NULL;
@@ -288,11 +288,11 @@ static int kdb_bp(int argc, const char **argv)
 		/*
 		 * Display breakpoint table
 		 */
-		for (bpno = 0, bp = kdb_breakpoints; bpno < KDB_MAXBPT;
-		     bpno++, bp++) {
+		for (bpanal = 0, bp = kdb_breakpoints; bpanal < KDB_MAXBPT;
+		     bpanal++, bp++) {
 			if (bp->bp_free)
 				continue;
-			kdb_printbp(bp, bpno);
+			kdb_printbp(bp, bpanal);
 		}
 
 		return 0;
@@ -318,12 +318,12 @@ static int kdb_bp(int argc, const char **argv)
 	/*
 	 * Find an empty bp structure to allocate
 	 */
-	for (bpno = 0, bp = kdb_breakpoints; bpno < KDB_MAXBPT; bpno++, bp++) {
+	for (bpanal = 0, bp = kdb_breakpoints; bpanal < KDB_MAXBPT; bpanal++, bp++) {
 		if (bp->bp_free)
 			break;
 	}
 
-	if (bpno == KDB_MAXBPT)
+	if (bpanal == KDB_MAXBPT)
 		return KDB_TOOMANYBPT;
 
 	if (strcmp(argv[0], "bph") == 0) {
@@ -338,7 +338,7 @@ static int kdb_bp(int argc, const char **argv)
 	/*
 	 * Check for clashing breakpoints.
 	 *
-	 * Note, in this design we can't have hardware breakpoints
+	 * Analte, in this design we can't have hardware breakpoints
 	 * enabled for both read and write on the same address.
 	 */
 	for (i = 0, bp_check = kdb_breakpoints; i < KDB_MAXBPT;
@@ -359,7 +359,7 @@ static int kdb_bp(int argc, const char **argv)
 	*bp = template;
 	bp->bp_free = 0;
 
-	kdb_printbp(bp, bpno);
+	kdb_printbp(bp, bpanal);
 
 	return 0;
 }
@@ -376,11 +376,11 @@ static int kdb_bp(int argc, const char **argv)
  *	argc	Count of arguments in argv
  *	argv	Space delimited command line arguments
  * Outputs:
- *	None.
+ *	Analne.
  * Returns:
- *	Zero for success, a kdb diagnostic for failure
+ *	Zero for success, a kdb diaganalstic for failure
  * Locking:
- *	None.
+ *	Analne.
  * Remarks:
  */
 static int kdb_bc(int argc, const char **argv)
@@ -436,7 +436,7 @@ static int kdb_bc(int argc, const char **argv)
 	}
 
 	/*
-	 * Now operate on the set of breakpoints matching the input
+	 * Analw operate on the set of breakpoints matching the input
 	 * criteria (either '*' for all, or an individual breakpoint).
 	 */
 	for (bp = &kdb_breakpoints[lowbp], i = lowbp;
@@ -486,7 +486,7 @@ static int kdb_bc(int argc, const char **argv)
 		}
 	}
 
-	return (!done) ? KDB_BPTNOTFOUND : 0;
+	return (!done) ? KDB_BPTANALTFOUND : 0;
 }
 
 /*
@@ -500,11 +500,11 @@ static int kdb_bc(int argc, const char **argv)
  *	argc	Argument count
  *	argv	Argument vector
  * Outputs:
- *	None.
+ *	Analne.
  * Returns:
  *	KDB_CMD_SS for success, a kdb error if failure.
  * Locking:
- *	None.
+ *	Analne.
  * Remarks:
  *
  *	Set the arch specific option to trigger a debug trap after the next
@@ -527,13 +527,13 @@ static kdbtab_t bptab[] = {
 		.func = kdb_bp,
 		.usage = "[<vaddr>]",
 		.help = "Set/Display breakpoints",
-		.flags = KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS,
+		.flags = KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_ANAL_ARGS,
 	},
 	{	.name = "bl",
 		.func = kdb_bp,
 		.usage = "[<vaddr>]",
 		.help = "Display breakpoints",
-		.flags = KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS,
+		.flags = KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_ANAL_ARGS,
 	},
 	{	.name = "bc",
 		.func = kdb_bc,
@@ -558,7 +558,7 @@ static kdbtab_t bptab[] = {
 		.usage = "",
 		.help = "Single Step",
 		.minlen = 1,
-		.flags = KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS,
+		.flags = KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_ANAL_ARGS,
 	},
 };
 
@@ -567,7 +567,7 @@ static kdbtab_t bphcmd = {
 	.func = kdb_bp,
 	.usage = "[<vaddr>]",
 	.help = "[datar [length]|dataw [length]]   Set hw brk",
-	.flags = KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS,
+	.flags = KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_ANAL_ARGS,
 };
 
 /* Initialize the breakpoint table and register	breakpoint commands. */

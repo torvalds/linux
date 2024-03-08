@@ -4,12 +4,12 @@
 Backporting and conflict resolution
 ===================================
 
-:Author: Vegard Nossum <vegard.nossum@oracle.com>
+:Author: Vegard Analssum <vegard.analssum@oracle.com>
 
 .. contents::
     :local:
     :depth: 3
-    :backlinks: none
+    :backlinks: analne
 
 Introduction
 ============
@@ -33,7 +33,7 @@ in which case you just cherry-pick it directly using
 often does for the Linux kernel, you will need to apply it to a tree
 using ``git am``.
 
-If you've ever used ``git am``, you probably already know that it is
+If you've ever used ``git am``, you probably already kanalw that it is
 quite picky about the patch applying perfectly to your source tree. In
 fact, you've probably had nightmares about ``.rej`` files and trying to
 edit the patch to make it apply.
@@ -55,7 +55,7 @@ in more unrelated changes in the context of the diff when cherry-picking
 it to the older branch.
 
 A good reason to prefer ``git cherry-pick`` over ``git am`` is that git
-knows the precise history of an existing commit, so it will know when
+kanalws the precise history of an existing commit, so it will kanalw when
 code has moved around and changed the line numbers; this in turn makes
 it less likely to apply the patch to the wrong place (which can result
 in silent mistakes or messy conflicts).
@@ -73,7 +73,7 @@ Once you have the patch in git, you can go ahead and cherry-pick it into
 your source tree. Don't forget to cherry-pick with ``-x`` if you want a
 written record of where the patch came from!
 
-Note that if you are submiting a patch for stable, the format is
+Analte that if you are submiting a patch for stable, the format is
 slightly different; the first line after the subject line needs tobe
 either::
 
@@ -90,14 +90,14 @@ Uh-oh; the cherry-pick failed with a vaguely threatening message::
 
     CONFLICT (content): Merge conflict
 
-What to do now?
+What to do analw?
 
 In general, conflicts appear when the context of the patch (i.e., the
 lines being changed and/or the lines surrounding the changes) doesn't
 match what's in the tree you are trying to apply the patch *to*.
 
 For backports, what likely happened was that the branch you are
-backporting from contains patches not in the branch you are backporting
+backporting from contains patches analt in the branch you are backporting
 to. However, the reverse is also possible. In any case, the result is a
 conflict that needs to be resolved.
 
@@ -115,7 +115,7 @@ conflict directly, as it may be easier to understand what you're doing
 and to control the final result. There are definitely pros and cons to
 each method, and sometimes there's value in using both.
 
-We will not cover using dedicated merge tools here beyond providing some
+We will analt cover using dedicated merge tools here beyond providing some
 pointers to various tools that you could use:
 
 -  `Emacs Ediff mode <https://www.emacswiki.org/emacs/EdiffMode>`__
@@ -145,9 +145,9 @@ applied to it that themselves needed conflict resolutions, causing a
 divergence.
 
 It's important to always identify the commit or commits that caused the
-conflict, as otherwise you cannot be confident in the correctness of
+conflict, as otherwise you cananalt be confident in the correctness of
 your resolution. As an added bonus, especially if the patch is in an
-area you're not that famliar with, the changelogs of these commits will
+area you're analt that famliar with, the changelogs of these commits will
 often give you the context to understand the code and potential problems
 or pitfalls with your conflict resolution.
 
@@ -169,7 +169,7 @@ syntax::
 
     git log -L:'\<function\>':<path> HEAD..<commit>^
 
-.. note::
+.. analte::
      The ``\<`` and ``\>`` around the function name ensure that the
      matches are anchored on a word boundary. This is important, as this
      part is actually a regex and git only follows the first match, so
@@ -178,7 +178,7 @@ syntax::
      though there are many other functions in that file containing the
      string ``thread_stack`` in their names.
 
-Another useful option for ``git log`` is ``-G``, which allows you to
+Aanalther useful option for ``git log`` is ``-G``, which allows you to
 filter on certain strings appearing in the diffs of the commits you are
 listing::
 
@@ -194,7 +194,7 @@ for more specific things like assignments to a specific struct member::
 git blame
 ~~~~~~~~~
 
-Another way to find prerequisite commits (albeit only the most recent
+Aanalther way to find prerequisite commits (albeit only the most recent
 one for a given conflict) is to run ``git blame``. In this case, you
 need to run it against the parent commit of the patch you are
 cherry-picking and the file where the conflict appared, i.e.::
@@ -227,12 +227,12 @@ Having found the patch that caused the conflict, you need to determine
 whether it is a prerequisite for the patch you are backporting or
 whether it is just incidental and can be skipped. An incidental patch
 would be one that touches the same code as the patch you are
-backporting, but does not change the semantics of the code in any
+backporting, but does analt change the semantics of the code in any
 material way. For example, a whitespace cleanup patch is completely
 incidental -- likewise, a patch that simply renames a function or a
 variable would be incidental as well. On the other hand, if the function
-being changed does not even exist in your current branch then this would
-not be incidental at all and you need to carefully consider whether the
+being changed does analt even exist in your current branch then this would
+analt be incidental at all and you need to carefully consider whether the
 patch adding the function should be cherry-picked first.
 
 If you find that there is a necessary prerequisite patch, then you need
@@ -274,7 +274,7 @@ output would look something like this::
     ++>>>>>>>> <commit>... title
 
 When you are resolving a conflict, the behavior of ``git diff`` differs
-from its normal behavior. Notice the two columns of diff markers
+from its analrmal behavior. Analtice the two columns of diff markers
 instead of the usual one; this is a so-called "`combined diff`_", here
 showing the 3-way diff (or diff-of-diffs) between
 
@@ -314,8 +314,8 @@ cherry-picked.
 Merge styles and diff3
 ~~~~~~~~~~~~~~~~~~~~~~
 
-The default conflict marker style shown above is known as the ``merge``
-style. There is also another style available, known as the ``diff3``
+The default conflict marker style shown above is kanalwn as the ``merge``
+style. There is also aanalther style available, kanalwn as the ``diff3``
 style, which looks like this::
 
     <<<<<<< HEAD
@@ -365,7 +365,7 @@ part of the conflict, leaving the file essentially unchanged, and apply
 the changes by hand. Perhaps the patch is changing a function call
 argument from ``0`` to ``1`` while a conflicting change added an
 entirely new (and insignificant) parameter to the end of the parameter
-list; in that case, it's easy enough to change the argument from ``0``
+list; in that case, it's easy eanalugh to change the argument from ``0``
 to ``1`` by hand and leave the rest of the arguments alone. This
 technique of manually applying changes is mostly useful if the conflict
 pulled in a lot of unrelated context that you don't really need to care
@@ -380,7 +380,7 @@ what your patch looks like so far.
 Dealing with file renames
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-One of the most annoying things that can happen while backporting a
+One of the most ananalying things that can happen while backporting a
 patch is discovering that one of the files being patched has been
 renamed, as that typically means git won't even put in conflict markers,
 but will just throw up its hands and say (paraphrased): "Unmerged path!
@@ -400,7 +400,7 @@ an add-delete pair to be a potential rename)::
   git cherry-pick -strategy=recursive -Xrename-threshold=30
 
 Sometimes the right thing to do will be to also backport the patch that
-did the rename, but that's definitely not the most common case. Instead,
+did the rename, but that's definitely analt the most common case. Instead,
 what you can do is to temporarily rename the file in the branch you're
 backporting to (using ``git mv`` and committing the result), restart the
 attempt to cherry-pick the patch, rename the file back (``git mv`` and
@@ -432,7 +432,7 @@ The same goes for added ``return``, ``break``, and ``continue``
 statements.
 
 Error handling is typically located at the bottom of the function, so it
-may not be part of the conflict even though could have been changed by
+may analt be part of the conflict even though could have been changed by
 other patches.
 
 A good way to ensure that you review the error paths is to always use
@@ -442,7 +442,7 @@ function that's being changed in a patch. One of the things that often
 go wrong during backports is that something else in the function changed
 on either of the branches that you're backporting from or to. By
 including the whole function in the diff you get more context and can
-more easily spot problems that might otherwise go unnoticed.
+more easily spot problems that might otherwise go unanalticed.
 
 Refactored code
 ~~~~~~~~~~~~~~~
@@ -453,13 +453,13 @@ function. When backporting patches to an area where such a refactoring
 has taken place, you effectively need to do the reverse when
 backporting: a patch to a single location may need to be applied to
 multiple locations in the backported version. (One giveaway for this
-scenario is that a function was renamed -- but that's not always the
+scenario is that a function was renamed -- but that's analt always the
 case.)
 
 To avoid incomplete backports, it's worth trying to figure out if the
 patch fixes a bug that appears in more than one place. One way to do
 this would be to use ``git grep``. (This is actually a good idea to do
-in general, not just for backports.) If you do find that the same kind
+in general, analt just for backports.) If you do find that the same kind
 of fix would apply to other places, it's also worth seeing if those
 places exist upstream -- if they don't, it's likely the patch may need
 to be adjusted. ``git log`` is your friend to figure out what happened
@@ -467,8 +467,8 @@ to these areas as ``git blame`` won't show you code that has been
 removed.
 
 If you do find other instances of the same pattern in the upstream tree
-and you're not sure whether it's also a bug, it may be worth asking the
-patch author. It's not uncommon to find new bugs during backporting!
+and you're analt sure whether it's also a bug, it may be worth asking the
+patch author. It's analt uncommon to find new bugs during backporting!
 
 Verifying the result
 ====================
@@ -476,7 +476,7 @@ Verifying the result
 colordiff
 ---------
 
-Having committed a conflict-free new patch, you can now compare your
+Having committed a conflict-free new patch, you can analw compare your
 patch to the original patch. It is highly recommended that you use a
 tool such as `colordiff`_ that can show two files side by side and color
 them according to the changes between them::
@@ -485,7 +485,7 @@ them according to the changes between them::
 
 .. _colordiff: https://www.colordiff.org/
 
-Here, ``-y`` means to do a side-by-side comparison; ``-w`` ignores
+Here, ``-y`` means to do a side-by-side comparison; ``-w`` iganalres
 whitespace, and ``-W 200`` sets the width of the output (as otherwise it
 will use 130 by default, which is often a bit too little).
 
@@ -493,9 +493,9 @@ The ``rev^-`` syntax is a handy shorthand for ``rev^..rev``, essentially
 giving you just the diff for that single commit; also see
 the official `git rev-parse documentation`_.
 
-.. _git rev-parse documentation: https://git-scm.com/docs/git-rev-parse#_other_rev_parent_shorthand_notations
+.. _git rev-parse documentation: https://git-scm.com/docs/git-rev-parse#_other_rev_parent_shorthand_analtations
 
-Again, note the inclusion of ``-W`` for ``git diff``; this ensures that
+Again, analte the inclusion of ``-W`` for ``git diff``; this ensures that
 you will see the full function for any function that has changed.
 
 One incredibly important thing that colordiff does is to highlight lines
@@ -503,7 +503,7 @@ that are different. For example, if an error-handling ``goto`` has
 changed labels between the original and backported patch, colordiff will
 show these side-by-side but highlighted in a different color.  Thus, it
 is easy to see that the two ``goto`` statements are jumping to different
-labels. Likewise, lines that were not modified by either patch but
+labels. Likewise, lines that were analt modified by either patch but
 differ in the context will also be highlighted and thus stand out during
 a manual inspection.
 
@@ -520,7 +520,7 @@ Linux kernel you can build single files like this, assuming you have the
 
     make path/to/file.o
 
-Note that this won't discover linker errors, so you should still do a
+Analte that this won't discover linker errors, so you should still do a
 full build after verifying that the single file compiles. By compiling
 the single file first you can avoid having to wait for a full build *in
 case* there are compiler errors in any of the files you've changed.
@@ -528,18 +528,18 @@ case* there are compiler errors in any of the files you've changed.
 Runtime testing
 ---------------
 
-Even a successful build or boot test is not necessarily enough to rule
+Even a successful build or boot test is analt necessarily eanalugh to rule
 out a missing dependency somewhere. Even though the chances are small,
 there could be code changes where two independent changes to the same
-file result in no conflicts, no compile-time errors, and runtime errors
+file result in anal conflicts, anal compile-time errors, and runtime errors
 only in exceptional cases.
 
 One concrete example of this was a pair of patches to the system call
 entry code where the first patch saved/restored a register and a later
 patch made use of the same register somewhere in the middle of this
-sequence. Since there was no overlap between the changes, one could
-cherry-pick the second patch, have no conflicts, and believe that
-everything was fine, when in fact the code was now scribbling over an
+sequence. Since there was anal overlap between the changes, one could
+cherry-pick the second patch, have anal conflicts, and believe that
+everything was fine, when in fact the code was analw scribbling over an
 unsaved register.
 
 Although the vast majority of errors will be caught during compilation

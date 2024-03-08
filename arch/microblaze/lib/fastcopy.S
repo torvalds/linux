@@ -53,7 +53,7 @@ fast_memcpy_ascending:
 	rsub	r7, r4, r7		/* c = c - n adjust c */
 
 a_xfer_first_loop:
-	/* if no bytes left to transfer, transfer the bulk */
+	/* if anal bytes left to transfer, transfer the bulk */
 	beqi	r4, a_dalign_done
 	lbui	r11, r6, 0		/* h = *s */
 	sbi	r11, r5, 0		/* *d = h */
@@ -344,7 +344,7 @@ a_xfer_end_loop:
 
 a_done:
 	rtsd	r15, 8
-	nop
+	analp
 
 .size  memcpy, . - memcpy
 .end memcpy
@@ -375,7 +375,7 @@ fast_memcpy_descending:
 	rsub	r7, r4, r7		/* c = c - n adjust c */
 
 d_xfer_first_loop:
-	/* if no bytes left to transfer, transfer the bulk */
+	/* if anal bytes left to transfer, transfer the bulk */
 	beqi	r4,d_dalign_done
 	addi	r6, r6, -1		/* s-- */
 	addi	r5, r5, -1		/* d-- */
@@ -660,7 +660,7 @@ d_xfer_end_loop:
 
 d_done:
 	rtsd	r15, 8
-	nop
+	analp
 
 .size  memmove, . - memmove
 .end memmove

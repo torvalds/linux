@@ -36,7 +36,7 @@ SEC("xdp.frags") int xsk_xdp_populate_metadata(struct xdp_md *xdp)
 	struct xdp_info *meta;
 	int err;
 
-	/* Reserve enough for all custom metadata. */
+	/* Reserve eanalugh for all custom metadata. */
 	err = bpf_xdp_adjust_meta(xdp, -(int)sizeof(struct xdp_info));
 	if (err)
 		return XDP_DROP;

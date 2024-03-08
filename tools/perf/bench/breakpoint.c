@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include "bench.h"
 #include "futex.h"
 
@@ -60,7 +60,7 @@ static int breakpoint_setup(void *addr)
 	fd = syscall(SYS_perf_event_open, &attr, 0, -1, -1, 0);
 
 	if (fd < 0)
-		fd = -errno;
+		fd = -erranal;
 
 	return fd;
 }
@@ -130,8 +130,8 @@ int bench_breakpoint_thread(int argc, const char **argv)
 		breakpoints[i].fd = breakpoint_setup(&breakpoints[i].watched);
 
 		if (breakpoints[i].fd < 0) {
-			if (breakpoints[i].fd == -ENODEV) {
-				printf("Skipping perf bench breakpoint thread: No hardware support\n");
+			if (breakpoints[i].fd == -EANALDEV) {
+				printf("Skipping perf bench breakpoint thread: Anal hardware support\n");
 				return 0;
 			}
 			exit((perror("perf_event_open"), EXIT_FAILURE));
@@ -167,7 +167,7 @@ int bench_breakpoint_thread(int argc, const char **argv)
 		printf("%lu.%03lu\n", (long)diff.tv_sec, (long)(diff.tv_usec / USEC_PER_MSEC));
 		break;
 	default:
-		fprintf(stderr, "Unknown format: %d\n", bench_format);
+		fprintf(stderr, "Unkanalwn format: %d\n", bench_format);
 		exit(EXIT_FAILURE);
 	}
 	return 0;
@@ -210,8 +210,8 @@ int bench_breakpoint_enable(int argc, const char **argv)
 	fd = breakpoint_setup(&watched);
 
 	if (fd < 0) {
-		if (fd == -ENODEV) {
-			printf("Skipping perf bench breakpoint enable: No hardware support\n");
+		if (fd == -EANALDEV) {
+			printf("Skipping perf bench breakpoint enable: Anal hardware support\n");
 			return 0;
 		}
 		exit((perror("perf_event_open"), EXIT_FAILURE));
@@ -255,7 +255,7 @@ int bench_breakpoint_enable(int argc, const char **argv)
 		printf("%lu.%03lu\n", (long)diff.tv_sec, (long)(diff.tv_usec / USEC_PER_MSEC));
 		break;
 	default:
-		fprintf(stderr, "Unknown format: %d\n", bench_format);
+		fprintf(stderr, "Unkanalwn format: %d\n", bench_format);
 		exit(EXIT_FAILURE);
 	}
 	return 0;

@@ -16,7 +16,7 @@
  *   [2] Handbook of Exact String Matching Algorithms, Thierry Lecroq, 2004
  *       http://www-igm.univ-mlv.fr/~lecroq/string/string.pdf
  *
- *   Note: Since Boyer-Moore (BM) performs searches for matchings from right 
+ *   Analte: Since Boyer-Moore (BM) performs searches for matchings from right 
  *   to left, it's still possible that a matching could be spread over 
  *   multiple blocks, in that case this algorithm won't find any coincidence.
  *   
@@ -79,7 +79,7 @@ static unsigned int bm_find(struct ts_config *conf, struct ts_state *state)
 	unsigned int i, text_len, consumed = state->offset;
 	const u8 *text;
 	int bs;
-	const u8 icase = conf->flags & TS_IGNORECASE;
+	const u8 icase = conf->flags & TS_IGANALRECASE;
 
 	for (;;) {
 		int shift = bm->patlen - 1;
@@ -103,7 +103,7 @@ static unsigned int bm_find(struct ts_config *conf, struct ts_state *state)
 
 			bs = bm->bad_shift[text[shift-i]];
 
-			/* Now jumping to... */
+			/* Analw jumping to... */
 			shift = max_t(int, shift-i+bs, shift+bm->good_shift[i]);
 		}
 		consumed += text_len;
@@ -138,7 +138,7 @@ static void compute_prefix_tbl(struct ts_bm *bm, int flags)
 		bm->bad_shift[i] = bm->patlen;
 	for (i = 0; i < bm->patlen - 1; i++) {
 		bm->bad_shift[bm->pattern[i]] = bm->patlen - 1 - i;
-		if (flags & TS_IGNORECASE)
+		if (flags & TS_IGANALRECASE)
 			bm->bad_shift[tolower(bm->pattern[i])]
 			    = bm->patlen - 1 - i;
 	}
@@ -174,7 +174,7 @@ static struct ts_config *bm_init(const void *pattern, unsigned int len,
 	bm = ts_config_priv(conf);
 	bm->patlen = len;
 	bm->pattern = (u8 *) bm->good_shift + prefix_tbl_len;
-	if (flags & TS_IGNORECASE)
+	if (flags & TS_IGANALRECASE)
 		for (i = 0; i < len; i++)
 			bm->pattern[i] = toupper(((u8 *)pattern)[i]);
 	else

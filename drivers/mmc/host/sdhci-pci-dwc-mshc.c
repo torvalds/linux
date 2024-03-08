@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SDHCI driver for Synopsys DWC_MSHC controller
+ * SDHCI driver for Syanalpsys DWC_MSHC controller
  *
- * Copyright (C) 2018 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2018 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * Authors:
- *	Prabu Thangamuthu <prabu.t@synopsys.com>
- *	Manjunath M B <manjumb@synopsys.com>
+ *	Prabu Thangamuthu <prabu.t@syanalpsys.com>
+ *	Manjunath M B <manjumb@syanalpsys.com>
  */
 
 #include "sdhci.h"
@@ -14,7 +14,7 @@
 
 #define SDHCI_VENDOR_PTR_R	0xE8
 
-/* Synopsys vendor specific registers */
+/* Syanalpsys vendor specific registers */
 #define SDHC_GPIO_OUT		0x34
 #define SDHC_AT_CTRL_R		0x40
 #define SDHC_SW_TUNE_EN		0x00000010

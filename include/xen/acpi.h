@@ -18,12 +18,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -40,9 +40,9 @@
 #include <xen/xen.h>
 #include <linux/acpi.h>
 
-int xen_acpi_notify_hypervisor_sleep(u8 sleep_state,
+int xen_acpi_analtify_hypervisor_sleep(u8 sleep_state,
 				     u32 pm1a_cnt, u32 pm1b_cnd);
-int xen_acpi_notify_hypervisor_extended_sleep(u8 sleep_state,
+int xen_acpi_analtify_hypervisor_extended_sleep(u8 sleep_state,
 				     u32 val_a, u32 val_b);
 
 static inline int xen_acpi_suspend_lowlevel(void)
@@ -60,9 +60,9 @@ static inline void xen_acpi_sleep_register(void)
 {
 	if (xen_initial_domain()) {
 		acpi_os_set_prepare_sleep(
-			&xen_acpi_notify_hypervisor_sleep);
+			&xen_acpi_analtify_hypervisor_sleep);
 		acpi_os_set_prepare_extended_sleep(
-			&xen_acpi_notify_hypervisor_extended_sleep);
+			&xen_acpi_analtify_hypervisor_extended_sleep);
 
 		acpi_suspend_lowlevel = xen_acpi_suspend_lowlevel;
 	}

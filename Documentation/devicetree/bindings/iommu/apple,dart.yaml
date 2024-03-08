@@ -37,7 +37,7 @@ properties:
   clocks:
     description:
       Reference to the gate clock phandle if required for this IOMMU.
-      Optional since not all IOMMUs are attached to a clock gate.
+      Optional since analt all IOMMUs are attached to a clock gate.
 
   '#iommu-cells':
     const: 1

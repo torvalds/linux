@@ -165,9 +165,9 @@ static int rx6110_data_to_rtc_tm(u8 *data, struct rtc_time *tm)
  * @tm: holds date and time
  *
  * BUG: The HW assumes every year that is a multiple of 4 to be a leap
- * year. Next time this is wrong is 2100, which will not be a leap year
+ * year. Next time this is wrong is 2100, which will analt be a leap year
  *
- * Note: If STOP is not set/cleared, the clock will start when the seconds
+ * Analte: If STOP is analt set/cleared, the clock will start when the seconds
  *       register is written
  *
  */
@@ -355,7 +355,7 @@ static int rx6110_spi_probe(struct spi_device *spi)
 
 	rx6110 = devm_kzalloc(&spi->dev, sizeof(*rx6110), GFP_KERNEL);
 	if (!rx6110)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx6110->regmap = devm_regmap_init_spi(spi, &regmap_spi_config);
 	if (IS_ERR(rx6110->regmap)) {
@@ -431,7 +431,7 @@ static int rx6110_i2c_probe(struct i2c_client *client)
 
 	rx6110 = devm_kzalloc(&client->dev, sizeof(*rx6110), GFP_KERNEL);
 	if (!rx6110)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx6110->regmap = devm_regmap_init_i2c(client, &regmap_i2c_config);
 	if (IS_ERR(rx6110->regmap)) {

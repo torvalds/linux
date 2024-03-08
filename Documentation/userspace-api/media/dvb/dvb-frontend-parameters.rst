@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. c:type:: dvb_frontend_parameters
 
@@ -11,11 +11,11 @@ on the kind of hardware you are using.
 
 The struct ``dvb_frontend_parameters`` uses a union with specific
 per-system parameters. However, as newer delivery systems required more
-data, the structure size weren't enough to fit, and just extending its
+data, the structure size weren't eanalugh to fit, and just extending its
 size would break the existing applications. So, those parameters were
 replaced by the usage of
 :ref:`FE_GET_PROPERTY/FE_SET_PROPERTY <FE_GET_PROPERTY>`
-ioctl's. The new API is flexible enough to add new parameters to
+ioctl's. The new API is flexible eanalugh to add new parameters to
 existing delivery systems, and to add newer delivery systems.
 
 So, newer applications should use

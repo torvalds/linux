@@ -129,7 +129,7 @@ SYM_CODE_START_LOCAL(\label)
 SYM_CODE_END(\label)
 .endm
 
-	/* None of these should ever happen */
+	/* Analne of these should ever happen */
 	invalid_vector	el2t_sync_invalid
 	invalid_vector	el2t_irq_invalid
 	invalid_vector	el2t_fiq_invalid
@@ -168,7 +168,7 @@ check_preamble_length 661b, 662b
 .macro invalid_vect target
 	.align 7
 661:
-	nop
+	analp
 	stp	x0, x1, [sp, #-16]!
 662:
 	/* Check valid_vect */
@@ -179,22 +179,22 @@ check_preamble_length 661b, 662b
 .endm
 
 SYM_CODE_START(__kvm_hyp_vector)
-	invalid_vect	el2t_sync_invalid	// Synchronous EL2t
+	invalid_vect	el2t_sync_invalid	// Synchroanalus EL2t
 	invalid_vect	el2t_irq_invalid	// IRQ EL2t
 	invalid_vect	el2t_fiq_invalid	// FIQ EL2t
 	invalid_vect	el2t_error_invalid	// Error EL2t
 
-	valid_vect	el2_sync		// Synchronous EL2h
+	valid_vect	el2_sync		// Synchroanalus EL2h
 	invalid_vect	el2h_irq_invalid	// IRQ EL2h
 	invalid_vect	el2h_fiq_invalid	// FIQ EL2h
 	valid_vect	el2_error		// Error EL2h
 
-	valid_vect	el1_sync		// Synchronous 64-bit EL1
+	valid_vect	el1_sync		// Synchroanalus 64-bit EL1
 	valid_vect	el1_irq			// IRQ 64-bit EL1
 	valid_vect	el1_fiq			// FIQ 64-bit EL1
 	valid_vect	el1_error		// Error 64-bit EL1
 
-	valid_vect	el1_sync		// Synchronous 32-bit EL1
+	valid_vect	el1_sync		// Synchroanalus 32-bit EL1
 	valid_vect	el1_irq			// IRQ 32-bit EL1
 	valid_vect	el1_fiq			// FIQ 32-bit EL1
 	valid_vect	el1_error		// Error 32-bit EL1
@@ -226,7 +226,7 @@ SYM_CODE_END(__kvm_hyp_vector)
 	.if \indirect != 0
 	alternative_cb ARM64_ALWAYS_SYSTEM, kvm_patch_vector_branch
 	/*
-	 * For ARM64_SPECTRE_V3A configurations, these NOPs get replaced with:
+	 * For ARM64_SPECTRE_V3A configurations, these ANALPs get replaced with:
 	 *
 	 * movz	x0, #(addr & 0xffff)
 	 * movk	x0, #((addr >> 16) & 0xffff), lsl #16
@@ -237,10 +237,10 @@ SYM_CODE_END(__kvm_hyp_vector)
 	 * addr = kern_hyp_va(__kvm_hyp_vector) + vector-offset + KVM_VECTOR_PREAMBLE.
 	 * See kvm_patch_vector_branch for details.
 	 */
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
 	alternative_cb_end
 	.endif
 	b	__kvm_hyp_vector + (1b - 0b + KVM_VECTOR_PREAMBLE)

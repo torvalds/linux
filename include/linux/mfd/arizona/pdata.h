@@ -106,7 +106,7 @@ struct arizona_pdata {
 	bool jd_gpio5;
 
 	/** Internal pull on GPIO5 is disabled when used for jack detection */
-	bool jd_gpio5_nopull;
+	bool jd_gpio5_analpull;
 
 	/** set to true if jackdet contact opens on insert */
 	bool jd_invert;
@@ -170,7 +170,7 @@ struct arizona_pdata {
 	int inmode[ARIZONA_MAX_INPUT];
 
 	/** Mode for outputs */
-	int out_mono[ARIZONA_MAX_OUTPUT];
+	int out_moanal[ARIZONA_MAX_OUTPUT];
 
 	/** Limit output volumes */
 	unsigned int out_vol_limit[2 * ARIZONA_MAX_OUTPUT];

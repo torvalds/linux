@@ -27,7 +27,7 @@ static intel_wakeref_t perf_begin(struct intel_gt *gt)
 
 	/* Boost gpufreq to max [waitboost] and keep it fixed */
 	atomic_inc(&gt->rps.num_waiters);
-	queue_work(gt->i915->unordered_wq, &gt->rps.work);
+	queue_work(gt->i915->uanalrdered_wq, &gt->rps.work);
 	flush_work(&gt->rps.work);
 
 	return wakeref;
@@ -200,7 +200,7 @@ out:
 			if (err)
 				break;
 
-			cycles[i] = rq->hwsp_seqno[3] - rq->hwsp_seqno[2];
+			cycles[i] = rq->hwsp_seqanal[3] - rq->hwsp_seqanal[2];
 		}
 		i915_vma_put(batch);
 		intel_engine_pm_put(engine);
@@ -216,7 +216,7 @@ out:
 	return err;
 }
 
-static struct i915_vma *create_nop_batch(struct intel_context *ce)
+static struct i915_vma *create_analp_batch(struct intel_context *ce)
 {
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
@@ -258,7 +258,7 @@ err_put:
 	return ERR_PTR(err);
 }
 
-static int perf_mi_noop(void *arg)
+static int perf_mi_analop(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
@@ -272,7 +272,7 @@ static int perf_mi_noop(void *arg)
 	wakeref = perf_begin(gt);
 	for_each_engine(engine, gt, id) {
 		struct intel_context *ce = engine->kernel_context;
-		struct i915_vma *base, *nop;
+		struct i915_vma *base, *analp;
 		u32 cycles[COUNT];
 		int i;
 
@@ -295,17 +295,17 @@ static int perf_mi_noop(void *arg)
 			break;
 		}
 
-		nop = create_nop_batch(ce);
-		if (IS_ERR(nop)) {
-			err = PTR_ERR(nop);
+		analp = create_analp_batch(ce);
+		if (IS_ERR(analp)) {
+			err = PTR_ERR(analp);
 			i915_vma_put(base);
 			intel_engine_pm_put(engine);
 			break;
 		}
 
-		err = i915_vma_sync(nop);
+		err = i915_vma_sync(analp);
 		if (err) {
-			i915_vma_put(nop);
+			i915_vma_put(analp);
 			i915_vma_put(base);
 			intel_engine_pm_put(engine);
 			break;
@@ -335,8 +335,8 @@ static int perf_mi_noop(void *arg)
 				goto out;
 
 			err = rq->engine->emit_bb_start(rq,
-							i915_vma_offset(nop),
-							i915_vma_size(nop),
+							i915_vma_offset(analp),
+							i915_vma_size(analp),
 							0);
 			if (err)
 				goto out;
@@ -356,16 +356,16 @@ out:
 				break;
 
 			cycles[i] =
-				(rq->hwsp_seqno[4] - rq->hwsp_seqno[3]) -
-				(rq->hwsp_seqno[3] - rq->hwsp_seqno[2]);
+				(rq->hwsp_seqanal[4] - rq->hwsp_seqanal[3]) -
+				(rq->hwsp_seqanal[3] - rq->hwsp_seqanal[2]);
 		}
-		i915_vma_put(nop);
+		i915_vma_put(analp);
 		i915_vma_put(base);
 		intel_engine_pm_put(engine);
 		if (err)
 			break;
 
-		pr_info("%s: 16K MI_NOOP cycles: %u\n",
+		pr_info("%s: 16K MI_ANALOP cycles: %u\n",
 			engine->name, trifilter(cycles));
 	}
 	if (perf_end(gt, wakeref))
@@ -378,7 +378,7 @@ int intel_engine_cs_perf_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(perf_mi_bb_start),
-		SUBTEST(perf_mi_noop),
+		SUBTEST(perf_mi_analop),
 	};
 
 	if (intel_gt_is_wedged(to_gt(i915)))

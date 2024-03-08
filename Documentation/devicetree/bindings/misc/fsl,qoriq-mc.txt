@@ -56,7 +56,7 @@ Required properties:
                         this machine and must always be present
 
                        -the second region is the MC control registers. This
-                        region may not be present in some scenarios, such
+                        region may analt be present in some scenarios, such
                         as in the device tree presented to a virtual machine.
 
     - ranges
@@ -79,26 +79,26 @@ Required properties:
         Value type: <u32>
         Definition: Must be 1.
 
-Sub-nodes:
+Sub-analdes:
 
-        The fsl-mc node may optionally have dpmac sub-nodes that describe
+        The fsl-mc analde may optionally have dpmac sub-analdes that describe
         the relationship between the Ethernet MACs which belong to the MC
         and the Ethernet PHYs on the system board.
 
-        The dpmac nodes must be under a node named "dpmacs" which contains
+        The dpmac analdes must be under a analde named "dpmacs" which contains
         the following properties:
 
             - #address-cells
               Value type: <u32>
-              Definition: Must be present if dpmac sub-nodes are defined and must
+              Definition: Must be present if dpmac sub-analdes are defined and must
                           have a value of 1.
 
             - #size-cells
               Value type: <u32>
-              Definition: Must be present if dpmac sub-nodes are defined and must
+              Definition: Must be present if dpmac sub-analdes are defined and must
                           have a value of 0.
 
-        These nodes must have the following properties:
+        These analdes must have the following properties:
 
             - compatible
               Value type: <string>
@@ -110,7 +110,7 @@ Sub-nodes:
 
             - phy-handle
               Value type: <phandle>
-              Definition: Specifies the phandle to the PHY device node associated
+              Definition: Specifies the phandle to the PHY device analde associated
                           with the this dpmac.
 Optional properties:
 
@@ -138,8 +138,8 @@ Deprecated properties:
 
     - msi-parent
         Value type: <phandle>
-        Definition: Describes the MSI controller node handling message
-                    interrupts for the MC. When there is no translation
+        Definition: Describes the MSI controller analde handling message
+                    interrupts for the MC. When there is anal translation
                     between the ICID and deviceID this property can be used
                     to describe the MSI controller used by the devices on the
                     mc-bus.

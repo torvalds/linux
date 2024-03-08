@@ -24,7 +24,7 @@ struct xe_vm;
 enum xe_exec_queue_priority {
 	XE_EXEC_QUEUE_PRIORITY_UNSET = -2, /* For execlist usage only */
 	XE_EXEC_QUEUE_PRIORITY_LOW = 0,
-	XE_EXEC_QUEUE_PRIORITY_NORMAL,
+	XE_EXEC_QUEUE_PRIORITY_ANALRMAL,
 	XE_EXEC_QUEUE_PRIORITY_HIGH,
 	XE_EXEC_QUEUE_PRIORITY_KERNEL,
 
@@ -41,7 +41,7 @@ struct xe_exec_queue {
 	/** @gt: graphics tile this exec queue can submit to */
 	struct xe_gt *gt;
 	/**
-	 * @hwe: A hardware of the same class. May (physical engine) or may not
+	 * @hwe: A hardware of the same class. May (physical engine) or may analt
 	 * (virtual engine) be where jobs actual engine up running. Should never
 	 * really be used for submissions.
 	 */
@@ -65,12 +65,12 @@ struct xe_exec_queue {
 
 	/**
 	 * @last_fence: last fence on exec queue, protected by vm->lock in write
-	 * mode if bind exec queue, protected by dma resv lock if non-bind exec
+	 * mode if bind exec queue, protected by dma resv lock if analn-bind exec
 	 * queue
 	 */
 	struct dma_fence *last_fence;
 
-/* queue no longer allowed to submit */
+/* queue anal longer allowed to submit */
 #define EXEC_QUEUE_FLAG_BANNED			BIT(0)
 /* queue used for kernel submission only */
 #define EXEC_QUEUE_FLAG_KERNEL			BIT(1)
@@ -112,8 +112,8 @@ struct xe_exec_queue {
 		struct {
 			/** @composite_fence_ctx: context composite fence */
 			u64 composite_fence_ctx;
-			/** @composite_fence_seqno: seqno for composite fence */
-			u32 composite_fence_seqno;
+			/** @composite_fence_seqanal: seqanal for composite fence */
+			u32 composite_fence_seqanal;
 		} parallel;
 		/**
 		 * @bind: bind submission state
@@ -121,8 +121,8 @@ struct xe_exec_queue {
 		struct {
 			/** @fence_ctx: context bind fence */
 			u64 fence_ctx;
-			/** @fence_seqno: seqno for bind fence */
-			u32 fence_seqno;
+			/** @fence_seqanal: seqanal for bind fence */
+			u32 fence_seqanal;
 		} bind;
 	};
 
@@ -142,8 +142,8 @@ struct xe_exec_queue {
 		struct dma_fence *pfence;
 		/** @context: preemption fence context */
 		u64 context;
-		/** @seqno: preemption fence seqno */
-		u32 seqno;
+		/** @seqanal: preemption fence seqanal */
+		u32 seqanal;
 		/** @link: link into VM's list of exec queues */
 		struct list_head link;
 		/** @lock: preemption fences lock */

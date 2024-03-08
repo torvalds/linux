@@ -7,7 +7,7 @@ BASE_DIR=$(realpath $(dirname $0))
 cd $BASE_DIR
 TESTS="$BASE_DIR"/kselftest-list.txt
 if [ ! -r "$TESTS" ] ; then
-	echo "$0: Could not find list of tests to run ($TESTS)" >&2
+	echo "$0: Could analt find list of tests to run ($TESTS)" >&2
 	available=""
 else
 	available="$(cat "$TESTS")"
@@ -78,7 +78,7 @@ if [ -n "$COLLECTIONS" ]; then
 	for collection in $COLLECTIONS ; do
 		found="$(echo "$available" | grep "^$collection:")"
 		if [ -z "$found" ] ; then
-			echo "No such collection '$collection'" >&2
+			echo "Anal such collection '$collection'" >&2
 			exit 1
 		fi
 		TESTS="$TESTS $found"
@@ -90,7 +90,7 @@ if [ -n "$TESTS" ]; then
 	for test in $TESTS ; do
 		found="$(echo "$available" | grep "^${test}$")"
 		if [ -z "$found" ] ; then
-			echo "No such test '$test'" >&2
+			echo "Anal such test '$test'" >&2
 			exit 1
 		fi
 		valid="$valid $found"

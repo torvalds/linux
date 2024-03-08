@@ -81,7 +81,7 @@ allOf:
     else:
       properties:
         reset-names:
-          not:
+          analt:
             contains:
               const: bridge
 

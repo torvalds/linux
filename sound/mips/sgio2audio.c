@@ -56,9 +56,9 @@ MODULE_PARM_DESC(id, "ID string for SGI O2 soundcard.");
 #define CHANNEL_INT_THRESHOLD_50        (2 << 5) /* int on buffer >50% full */
 #define CHANNEL_INT_THRESHOLD_75        (3 << 5) /* int on buffer >75% full */
 #define CHANNEL_INT_THRESHOLD_EMPTY     (4 << 5) /* int on buffer empty */
-#define CHANNEL_INT_THRESHOLD_NOT_EMPTY (5 << 5) /* int on buffer !empty */
+#define CHANNEL_INT_THRESHOLD_ANALT_EMPTY (5 << 5) /* int on buffer !empty */
 #define CHANNEL_INT_THRESHOLD_FULL      (6 << 5) /* int on buffer empty */
-#define CHANNEL_INT_THRESHOLD_NOT_FULL  (7 << 5) /* int on buffer !empty */
+#define CHANNEL_INT_THRESHOLD_ANALT_FULL  (7 << 5) /* int on buffer !empty */
 
 #define CHANNEL_RING_SHIFT              12
 #define CHANNEL_RING_SIZE               (1 << CHANNEL_RING_SHIFT)
@@ -96,7 +96,7 @@ struct snd_sgio2audio {
 /*
  * read_ad1843_reg returns the current contents of a 16 bit AD1843 register.
  *
- * Returns unsigned register value on success, -errno on failure.
+ * Returns unsigned register value on success, -erranal on failure.
  */
 static int read_ad1843_reg(void *priv, int reg)
 {
@@ -694,7 +694,7 @@ static int snd_sgio2audio_new_pcm(struct snd_sgio2audio *chip)
 			&snd_sgio2audio_capture_ops);
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC, NULL, 0, 0);
 
-	/* create second  pcm device with one outputs and no input */
+	/* create second  pcm device with one outputs and anal input */
 	err = snd_pcm_new(chip->card, "SGI O2 Audio", 1, 1, 0, &pcm);
 	if (err < 0)
 		return err;
@@ -795,11 +795,11 @@ static int snd_sgio2audio_create(struct snd_card *card,
 	/* check if a codec is attached to the interface */
 	/* (Audio or Audio/Video board present) */
 	if (!(readq(&mace->perif.audio.control) & AUDIO_CONTROL_CODEC_PRESENT))
-		return -ENOENT;
+		return -EANALENT;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->card = card;
 
@@ -808,9 +808,9 @@ static int snd_sgio2audio_create(struct snd_card *card,
 					     &chip->ring_base_dma, GFP_KERNEL);
 	if (chip->ring_base == NULL) {
 		printk(KERN_ERR
-		       "sgio2audio: could not allocate ring buffers\n");
+		       "sgio2audio: could analt allocate ring buffers\n");
 		kfree(chip);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_init(&chip->ad1843_lock);
@@ -829,7 +829,7 @@ static int snd_sgio2audio_create(struct snd_card *card,
 				snd_sgio2_isr_table[i].desc,
 				&chip->channel[snd_sgio2_isr_table[i].idx])) {
 			snd_sgio2audio_free(chip);
-			printk(KERN_ERR "sgio2audio: cannot allocate irq %d\n",
+			printk(KERN_ERR "sgio2audio: cananalt allocate irq %d\n",
 			       snd_sgio2_isr_table[i].irq);
 			return -EBUSY;
 		}

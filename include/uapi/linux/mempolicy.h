@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * NUMA memory policies for Linux.
  * Copyright 2003,2004 Andi Kleen SuSE Labs
@@ -6,7 +6,7 @@
 #ifndef _UAPI_LINUX_MEMPOLICY_H
 #define _UAPI_LINUX_MEMPOLICY_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 
 /*
@@ -27,8 +27,8 @@ enum {
 };
 
 /* Flags for set_mempolicy */
-#define MPOL_F_STATIC_NODES	(1 << 15)
-#define MPOL_F_RELATIVE_NODES	(1 << 14)
+#define MPOL_F_STATIC_ANALDES	(1 << 15)
+#define MPOL_F_RELATIVE_ANALDES	(1 << 14)
 #define MPOL_F_NUMA_BALANCING	(1 << 13) /* Optimize with NUMA balancing if possible */
 
 /*
@@ -36,10 +36,10 @@ enum {
  * either set_mempolicy() or mbind().
  */
 #define MPOL_MODE_FLAGS							\
-	(MPOL_F_STATIC_NODES | MPOL_F_RELATIVE_NODES | MPOL_F_NUMA_BALANCING)
+	(MPOL_F_STATIC_ANALDES | MPOL_F_RELATIVE_ANALDES | MPOL_F_NUMA_BALANCING)
 
 /* Flags for get_mempolicy */
-#define MPOL_F_NODE	(1<<0)	/* return next IL mode instead of node mask */
+#define MPOL_F_ANALDE	(1<<0)	/* return next IL mode instead of analde mask */
 #define MPOL_F_ADDR	(1<<1)	/* look up vma using address */
 #define MPOL_F_MEMS_ALLOWED (1<<2) /* return allowed memories */
 
@@ -62,7 +62,7 @@ enum {
  */
 #define MPOL_F_SHARED  (1 << 0)	/* identify shared policies */
 #define MPOL_F_MOF	(1 << 3) /* this policy wants migrate on fault */
-#define MPOL_F_MORON	(1 << 4) /* Migrate On protnone Reference On Node */
+#define MPOL_F_MORON	(1 << 4) /* Migrate On protanalne Reference On Analde */
 
 /*
  * These bit locations are exposed in the vm.zone_reclaim_mode sysctl

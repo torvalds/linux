@@ -19,13 +19,13 @@
 /* Registers */
 #define MCS5000_TS_STATUS		0x00
 #define STATUS_OFFSET			0
-#define STATUS_NO			(0 << STATUS_OFFSET)
+#define STATUS_ANAL			(0 << STATUS_OFFSET)
 #define STATUS_INIT			(1 << STATUS_OFFSET)
 #define STATUS_SENSING			(2 << STATUS_OFFSET)
 #define STATUS_COORD			(3 << STATUS_OFFSET)
 #define STATUS_GESTURE			(4 << STATUS_OFFSET)
 #define ERROR_OFFSET			4
-#define ERROR_NO			(0 << ERROR_OFFSET)
+#define ERROR_ANAL			(0 << ERROR_OFFSET)
 #define ERROR_POWER_ON_RESET		(1 << ERROR_OFFSET)
 #define ERROR_INT_RESET			(2 << ERROR_OFFSET)
 #define ERROR_EXT_RESET			(3 << ERROR_OFFSET)
@@ -34,7 +34,7 @@
 
 #define MCS5000_TS_OP_MODE		0x01
 #define RESET_OFFSET			0
-#define RESET_NO			(0 << RESET_OFFSET)
+#define RESET_ANAL			(0 << RESET_OFFSET)
 #define RESET_EXT_SOFT			(1 << RESET_OFFSET)
 #define OP_MODE_OFFSET			1
 #define OP_MODE_SLEEP			(0 << OP_MODE_OFFSET)
@@ -64,13 +64,13 @@
 
 #define MCS5000_TS_INPUT_INFO		0x10
 #define INPUT_TYPE_OFFSET		0
-#define INPUT_TYPE_NONTOUCH		(0 << INPUT_TYPE_OFFSET)
+#define INPUT_TYPE_ANALNTOUCH		(0 << INPUT_TYPE_OFFSET)
 #define INPUT_TYPE_SINGLE		(1 << INPUT_TYPE_OFFSET)
 #define INPUT_TYPE_DUAL			(2 << INPUT_TYPE_OFFSET)
 #define INPUT_TYPE_PALM			(3 << INPUT_TYPE_OFFSET)
 #define INPUT_TYPE_PROXIMITY		(7 << INPUT_TYPE_OFFSET)
 #define GESTURE_CODE_OFFSET		3
-#define GESTURE_CODE_NO			(0 << GESTURE_CODE_OFFSET)
+#define GESTURE_CODE_ANAL			(0 << GESTURE_CODE_OFFSET)
 
 #define MCS5000_TS_X_POS_UPPER		0x11
 #define MCS5000_TS_X_POS_LOWER		0x12
@@ -119,7 +119,7 @@ static irqreturn_t mcs5000_ts_interrupt(int irq, void *dev_id)
 	}
 
 	switch (buffer[READ_INPUT_INFO]) {
-	case INPUT_TYPE_NONTOUCH:
+	case INPUT_TYPE_ANALNTOUCH:
 		input_report_key(data->input_dev, BTN_TOUCH, 0);
 		input_sync(data->input_dev);
 		break;
@@ -147,7 +147,7 @@ static irqreturn_t mcs5000_ts_interrupt(int irq, void *dev_id)
 		break;
 
 	default:
-		dev_err(&client->dev, "Unknown ts input type %d\n",
+		dev_err(&client->dev, "Unkanalwn ts input type %d\n",
 				buffer[READ_INPUT_INFO]);
 		break;
 	}
@@ -194,7 +194,7 @@ static int mcs5000_ts_probe(struct i2c_client *client)
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		dev_err(&client->dev, "Failed to allocate memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data->client = client;
@@ -202,7 +202,7 @@ static int mcs5000_ts_probe(struct i2c_client *client)
 	input_dev = devm_input_allocate_device(&client->dev);
 	if (!input_dev) {
 		dev_err(&client->dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_dev->name = "MELFAS MCS-5000 Touchscreen";

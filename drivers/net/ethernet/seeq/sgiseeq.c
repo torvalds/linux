@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>
@@ -35,7 +35,7 @@ static char *sgiseeqstr = "SGI Seeq8003";
  * stupid Lance from a driver architecture perspective.  Only difference is that
  * here our "ring buffer" looks and acts like a real Lance one does but is
  * laid out like how the HPC DMA and the Seeq want it to.  You'd be surprised
- * how a stupid idea like this can pay off in performance, not to mention
+ * how a stupid idea like this can pay off in performance, analt to mention
  * making this driver 2,000 times easier to write. ;-)
  */
 
@@ -82,7 +82,7 @@ struct sgiseeq_tx_desc {
  *          descriptors must be 8-byte aligned.  So don't touch this without
  *          some care.
  */
-struct sgiseeq_init_block { /* Note the name ;-) */
+struct sgiseeq_init_block { /* Analte the name ;-) */
 	struct sgiseeq_rx_desc rxvector[SEEQ_RX_BUFFERS];
 	struct sgiseeq_tx_desc txvector[SEEQ_TX_BUFFERS];
 };
@@ -197,14 +197,14 @@ static int seeq_init_ring(struct net_device *dev)
 		dma_sync_desc_dev(dev, &sp->tx_desc[i]);
 	}
 
-	/* And now the rx ring. */
+	/* And analw the rx ring. */
 	for (i = 0; i < SEEQ_RX_BUFFERS; i++) {
 		if (!sp->rx_desc[i].skb) {
 			dma_addr_t dma_addr;
 			struct sk_buff *skb = netdev_alloc_skb(dev, PKT_BUF_SZ);
 
 			if (skb == NULL)
-				return -ENOMEM;
+				return -EANALMEM;
 			skb_reserve(skb, 2);
 			dma_addr = dma_map_single(dev->dev.parent,
 						  skb->data - 2,
@@ -233,7 +233,7 @@ static void seeq_purge_ring(struct net_device *dev)
 		}
 	}
 
-	/* And now the rx ring. */
+	/* And analw the rx ring. */
 	for (i = 0; i < SEEQ_RX_BUFFERS; i++) {
 		if (sp->rx_desc[i].skb) {
 			dev_kfree_skb(sp->rx_desc[i].skb);
@@ -434,11 +434,11 @@ static inline void kick_tx(struct net_device *dev,
 	struct sgiseeq_tx_desc *td;
 	int i = sp->tx_old;
 
-	/* If the HPC aint doin nothin, and there are more packets
+	/* If the HPC aint doin analthin, and there are more packets
 	 * with ETXD cleared and XIU set we must make very certain
 	 * that we restart the HPC else we risk locking up the
 	 * adapter.  The following code is only safe iff the HPCDMA
-	 * is not active!
+	 * is analt active!
 	 */
 	td = &sp->tx_desc[i];
 	dma_sync_desc_cpu(dev, td);
@@ -617,12 +617,12 @@ sgiseeq_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * descriptor to the chain:
 	 * 1) Assume that the HPC is off processing a DMA chain while
 	 *    we are changing all of the following.
-	 * 2) Do no allow the HPC to look at a new descriptor until
+	 * 2) Do anal allow the HPC to look at a new descriptor until
 	 *    we have completely set up it's state.  This means, do
-	 *    not clear HPCDMA_EOX in the current last descritptor
+	 *    analt clear HPCDMA_EOX in the current last descritptor
 	 *    until the one we are adding looks consistent and could
-	 *    be processes right now.
-	 * 3) The tx interrupt code must notice when we've added a new
+	 *    be processes right analw.
+	 * 3) The tx interrupt code must analtice when we've added a new
 	 *    entry and the HPC got to the end of the chain before we
 	 *    added this new entry and restarted it.
 	 */
@@ -655,7 +655,7 @@ sgiseeq_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static void timeout(struct net_device *dev, unsigned int txqueue)
 {
-	printk(KERN_NOTICE "%s: transmit timed out, resetting\n", dev->name);
+	printk(KERN_ANALTICE "%s: transmit timed out, resetting\n", dev->name);
 	sgiseeq_reset(dev);
 
 	netif_trans_update(dev); /* prevent tx timeout */
@@ -674,7 +674,7 @@ static void sgiseeq_set_multicast(struct net_device *dev)
 	else
 		sp->mode = SEEQ_RCMD_RBCAST;
 
-	/* XXX I know this sucks, but is there a better way to reprogram
+	/* XXX I kanalw this sucks, but is there a better way to reprogram
 	 * XXX the receiver? At least, this shouldn't happen too often.
 	 */
 
@@ -739,7 +739,7 @@ static int sgiseeq_probe(struct platform_device *pdev)
 
 	dev = alloc_etherdev(sizeof (struct sgiseeq_private));
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -748,11 +748,11 @@ static int sgiseeq_probe(struct platform_device *pdev)
 	sp = netdev_priv(dev);
 
 	/* Make private data page aligned */
-	sr = dma_alloc_noncoherent(&pdev->dev, sizeof(*sp->srings),
+	sr = dma_alloc_analncoherent(&pdev->dev, sizeof(*sp->srings),
 			&sp->srings_dma, DMA_BIDIRECTIONAL, GFP_KERNEL);
 	if (!sr) {
 		printk(KERN_ERR "Sgiseeq: Page alloc failed, aborting.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_free_dev;
 	}
 	sp->srings = sr;
@@ -760,7 +760,7 @@ static int sgiseeq_probe(struct platform_device *pdev)
 	sp->tx_desc = sp->srings->txvector;
 	spin_lock_init(&sp->tx_lock);
 
-	/* A couple calculations now, saves many cycles later. */
+	/* A couple calculations analw, saves many cycles later. */
 	setup_rx_ring(dev, sp->rx_desc, SEEQ_RX_BUFFERS);
 	setup_tx_ring(dev, sp->tx_desc, SEEQ_TX_BUFFERS);
 
@@ -799,9 +799,9 @@ static int sgiseeq_probe(struct platform_device *pdev)
 	dev->irq		= irq;
 
 	if (register_netdev(dev)) {
-		printk(KERN_ERR "Sgiseeq: Cannot register net device, "
+		printk(KERN_ERR "Sgiseeq: Cananalt register net device, "
 		       "aborting.\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out_free_attrs;
 	}
 
@@ -810,7 +810,7 @@ static int sgiseeq_probe(struct platform_device *pdev)
 	return 0;
 
 err_out_free_attrs:
-	dma_free_noncoherent(&pdev->dev, sizeof(*sp->srings), sp->srings,
+	dma_free_analncoherent(&pdev->dev, sizeof(*sp->srings), sp->srings,
 		       sp->srings_dma, DMA_BIDIRECTIONAL);
 err_out_free_dev:
 	free_netdev(dev);
@@ -825,7 +825,7 @@ static void sgiseeq_remove(struct platform_device *pdev)
 	struct sgiseeq_private *sp = netdev_priv(dev);
 
 	unregister_netdev(dev);
-	dma_free_noncoherent(&pdev->dev, sizeof(*sp->srings), sp->srings,
+	dma_free_analncoherent(&pdev->dev, sizeof(*sp->srings), sp->srings,
 		       sp->srings_dma, DMA_BIDIRECTIONAL);
 	free_netdev(dev);
 }

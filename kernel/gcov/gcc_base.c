@@ -35,7 +35,7 @@ EXPORT_SYMBOL(__gcov_init);
 
 /*
  * These functions may be referenced by gcc-generated profiling code but serve
- * no function for kernel profiling.
+ * anal function for kernel profiling.
  */
 void __gcov_flush(void)
 {

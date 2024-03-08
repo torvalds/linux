@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_MAC_H
@@ -122,10 +122,10 @@ struct ath11k_generic_iter {
 #define ATH11K_PEER_RX_NSS_80_80MHZ		GENMASK(5, 3)
 
 #define ATH11K_OBSS_PD_MAX_THRESHOLD			-82
-#define ATH11K_OBSS_PD_NON_SRG_MAX_THRESHOLD		-62
+#define ATH11K_OBSS_PD_ANALN_SRG_MAX_THRESHOLD		-62
 #define ATH11K_OBSS_PD_THRESHOLD_IN_DBM			BIT(29)
 #define ATH11K_OBSS_PD_SRG_EN				BIT(30)
-#define ATH11K_OBSS_PD_NON_SRG_EN			BIT(31)
+#define ATH11K_OBSS_PD_ANALN_SRG_EN			BIT(31)
 
 extern const struct htt_rx_ring_tlv_filter ath11k_mac_mon_status_filter_default;
 

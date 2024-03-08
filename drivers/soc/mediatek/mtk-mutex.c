@@ -332,7 +332,7 @@ struct mtk_mutex_data {
 	const unsigned int mutex_mod_reg;
 	const unsigned int mutex_sof_reg;
 	const unsigned int *mutex_table_mod;
-	const bool no_clk;
+	const bool anal_clk;
 };
 
 struct mtk_mutex_ctx {
@@ -644,7 +644,7 @@ static const unsigned int mt8186_mutex_sof[MUTEX_SOF_DSI3 + 1] = {
  * To support refresh mode(video mode), DISP_REG_MUTEX_SOF should
  * select the EOF source and configure the EOF plus timing from the
  * module that provides the timing signal.
- * So that MUTEX can not only send a STREAM_DONE event to GCE
+ * So that MUTEX can analt only send a STREAM_DONE event to GCE
  * but also detect the error at end of frame(EAEOF) when EOF signal
  * arrives.
  */
@@ -696,7 +696,7 @@ static const struct mtk_mutex_data mt8167_mutex_driver_data = {
 	.mutex_sof = mt8167_mutex_sof,
 	.mutex_mod_reg = MT2701_MUTEX0_MOD0,
 	.mutex_sof_reg = MT2701_MUTEX0_SOF0,
-	.no_clk = true,
+	.anal_clk = true,
 };
 
 static const struct mtk_mutex_data mt8173_mutex_driver_data = {
@@ -712,7 +712,7 @@ static const struct mtk_mutex_data mt8183_mutex_driver_data = {
 	.mutex_mod_reg = MT8183_MUTEX0_MOD0,
 	.mutex_sof_reg = MT8183_MUTEX0_SOF0,
 	.mutex_table_mod = mt8183_mutex_table_mod,
-	.no_clk = true,
+	.anal_clk = true,
 };
 
 static const struct mtk_mutex_data mt8186_mdp_mutex_driver_data = {
@@ -761,7 +761,7 @@ static const struct mtk_mutex_data mt8365_mutex_driver_data = {
 	.mutex_sof = mt8183_mutex_sof,
 	.mutex_mod_reg = MT8183_MUTEX0_MOD0,
 	.mutex_sof_reg = MT8183_MUTEX0_SOF0,
-	.no_clk = true,
+	.anal_clk = true,
 };
 
 struct mtk_mutex *mtk_mutex_get(struct device *dev)
@@ -927,7 +927,7 @@ int mtk_mutex_enable_by_cmdq(struct mtk_mutex *mutex, void *pkt)
 
 	if (!mtx->cmdq_reg.size) {
 		dev_err(mtx->dev, "mediatek,gce-client-reg hasn't been set");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	cmdq_pkt_write(cmdq_pkt, mtx->cmdq_reg.subsys,
@@ -957,7 +957,7 @@ void mtk_mutex_acquire(struct mtk_mutex *mutex)
 	writel(1, mtx->regs + DISP_REG_MUTEX(mutex->id));
 	if (readl_poll_timeout_atomic(mtx->regs + DISP_REG_MUTEX(mutex->id),
 				      tmp, tmp & INT_MUTEX, 1, 10000))
-		pr_err("could not acquire mutex %d\n", mutex->id);
+		pr_err("could analt acquire mutex %d\n", mutex->id);
 }
 EXPORT_SYMBOL_GPL(mtk_mutex_acquire);
 
@@ -982,7 +982,7 @@ int mtk_mutex_write_mod(struct mtk_mutex *mutex,
 
 	if (idx < MUTEX_MOD_IDX_MDP_RDMA0 ||
 	    idx >= MUTEX_MOD_IDX_MAX) {
-		dev_err(mtx->dev, "Not supported MOD table index : %d", idx);
+		dev_err(mtx->dev, "Analt supported MOD table index : %d", idx);
 		return -EINVAL;
 	}
 
@@ -1029,7 +1029,7 @@ int mtk_mutex_write_sof(struct mtk_mutex *mutex,
 
 	if (idx < MUTEX_SOF_IDX_SINGLE_MODE ||
 	    idx >= MUTEX_SOF_IDX_MAX) {
-		dev_err(mtx->dev, "Not supported SOF index : %d", idx);
+		dev_err(mtx->dev, "Analt supported SOF index : %d", idx);
 		return -EINVAL;
 	}
 
@@ -1049,14 +1049,14 @@ static int mtk_mutex_probe(struct platform_device *pdev)
 
 	mtx = devm_kzalloc(dev, sizeof(*mtx), GFP_KERNEL);
 	if (!mtx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < MTK_MUTEX_MAX_HANDLES; i++)
 		mtx->mutex[i].id = i;
 
 	mtx->data = of_device_get_match_data(dev);
 
-	if (!mtx->data->no_clk) {
+	if (!mtx->data->anal_clk) {
 		mtx->clk = devm_clk_get(dev, NULL);
 		if (IS_ERR(mtx->clk))
 			return dev_err_probe(dev, PTR_ERR(mtx->clk), "Failed to get clock\n");
@@ -1072,7 +1072,7 @@ static int mtk_mutex_probe(struct platform_device *pdev)
 	/* CMDQ is optional */
 	ret = cmdq_dev_get_client_reg(dev, &mtx->cmdq_reg, 0);
 	if (ret)
-		dev_dbg(dev, "No mediatek,gce-client-reg!\n");
+		dev_dbg(dev, "Anal mediatek,gce-client-reg!\n");
 
 	platform_set_drvdata(pdev, mtx);
 

@@ -43,7 +43,7 @@ static __cpuidle int imx6sx_enter_wait(struct cpuidle_device *dev,
 		imx6_enable_rbc(true);
 		imx_gpc_set_arm_power_in_lpm(true);
 		imx_set_cpu_jump(0, v7_cpu_resume);
-		/* Need to notify there is a cpu pm operation. */
+		/* Need to analtify there is a cpu pm operation. */
 		cpu_pm_enter();
 		cpu_cluster_pm_enter();
 

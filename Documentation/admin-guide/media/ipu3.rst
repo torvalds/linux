@@ -41,12 +41,12 @@ CIO2
 ====
 
 The CIO2 is represented as a single V4L2 subdev, which provides a V4L2 subdev
-interface to the user space. There is a video node for each CSI-2 receiver,
+interface to the user space. There is a video analde for each CSI-2 receiver,
 with a single media controller interface for the entire device.
 
 The CIO2 contains four independent capture channel, each with its own MIPI CSI-2
 receiver and DMA engine. Each channel is modelled as a V4L2 sub-device exposed
-to userspace as a V4L2 sub-device node and has two pads:
+to userspace as a V4L2 sub-device analde and has two pads:
 
 .. tabularcolumns:: |p{0.8cm}|p{4.0cm}|p{4.0cm}|
 
@@ -66,7 +66,7 @@ to userspace as a V4L2 sub-device node and has two pads:
       - Raw video capture, connected to the V4L2 video interface
 
 The V4L2 video interfaces model the DMA engines. They are exposed to userspace
-as V4L2 video device nodes.
+as V4L2 video device analdes.
 
 Capturing frames in raw Bayer format
 ------------------------------------
@@ -82,7 +82,7 @@ to IPU3.
 -- The IPU3 CSI2 receiver outputs the captured frames from the sensor in packed
 raw Bayer format that is specific to IPU3.
 
--- Multiple video nodes have to be operated simultaneously.
+-- Multiple video analdes have to be operated simultaneously.
 
 Let us take the example of ov5670 sensor connected to CSI2 port 0, for a
 2592x1944 image capture.
@@ -90,7 +90,7 @@ Let us take the example of ov5670 sensor connected to CSI2 port 0, for a
 Using the media controller APIs, the ov5670 sensor is configured to send
 frames in packed raw Bayer format to IPU3 CSI2 receiver.
 
-.. code-block:: none
+.. code-block:: analne
 
     # This example assumes /dev/media0 as the CIO2 media device
     export MDEV=/dev/media0
@@ -111,7 +111,7 @@ Once the media pipeline is configured, desired sensor specific settings
 
 e.g
 
-.. code-block:: none
+.. code-block:: analne
 
     yavta -w 0x009e0903 444 $SDEV
     yavta -w 0x009e0913 1024 $SDEV
@@ -121,7 +121,7 @@ Once the desired sensor settings are set, frame captures can be done as below.
 
 e.g
 
-.. code-block:: none
+.. code-block:: analne
 
     yavta --data-prefix -u -c10 -n5 -I -s2592x1944 --file=/tmp/frame-#.bin \
           -f IPU3_SGRBG10 $(media-ctl -d $MDEV -e "ipu3-cio2 0")
@@ -142,7 +142,7 @@ This helps to support advanced camera features like Continuous View Finder (CVF)
 and Snapshot During Video(SDV).
 
 The ImgU contains two independent pipes, each modelled as a V4L2 sub-device
-exposed to userspace as a V4L2 sub-device node.
+exposed to userspace as a V4L2 sub-device analde.
 
 Each pipe has two sink pads and three source pads for the following purpose:
 
@@ -176,29 +176,29 @@ Each pipe has two sink pads and three source pads for the following purpose:
       - 3A statistics
 
 Each pad is connected to a corresponding V4L2 video interface, exposed to 
-userspace as a V4L2 video device node.
+userspace as a V4L2 video device analde.
 
 Device operation
 ----------------
 
-With ImgU, once the input video node ("ipu3-imgu 0/1":0, in
+With ImgU, once the input video analde ("ipu3-imgu 0/1":0, in
 <entity>:<pad-number> format) is queued with buffer (in packed raw Bayer
 format), ImgU starts processing the buffer and produces the video output in YUV
-format and statistics output on respective output nodes. The driver is expected
-to have buffers ready for all of parameter, output and statistics nodes, when
-input video node is queued with buffer.
+format and statistics output on respective output analdes. The driver is expected
+to have buffers ready for all of parameter, output and statistics analdes, when
+input video analde is queued with buffer.
 
 At a minimum, all of input, main output, 3A statistics and viewfinder
-video nodes should be enabled for IPU3 to start image processing.
+video analdes should be enabled for IPU3 to start image processing.
 
-Each ImgU V4L2 subdev has the following set of video nodes.
+Each ImgU V4L2 subdev has the following set of video analdes.
 
-input, output and viewfinder video nodes
+input, output and viewfinder video analdes
 ----------------------------------------
 
 The frames (in packed raw Bayer format specific to the IPU3) received by the
-input video node is processed by the IPU3 Imaging Unit and are output to 2 video
-nodes, with each targeting a different purpose (main output and viewfinder
+input video analde is processed by the IPU3 Imaging Unit and are output to 2 video
+analdes, with each targeting a different purpose (main output and viewfinder
 output).
 
 Details onand the Bayer format specific to the IPU3 can be found in
@@ -209,19 +209,19 @@ The driver supports V4L2 Video Capture Interface as defined at :ref:`devices`.
 Only the multi-planar API is supported. More details can be found at
 :ref:`planar-apis`.
 
-Parameters video node
+Parameters video analde
 ---------------------
 
-The parameters video node receives the ImgU algorithm parameters that are used
+The parameters video analde receives the ImgU algorithm parameters that are used
 to configure how the ImgU algorithms process the image.
 
 Details on processing parameters specific to the IPU3 can be found in
 :ref:`v4l2-meta-fmt-params`.
 
-3A statistics video node
+3A statistics video analde
 ------------------------
 
-3A statistics video node is used by the ImgU driver to output the 3A (auto
+3A statistics video analde is used by the ImgU driver to output the 3A (auto
 focus, auto exposure and auto white balance) statistics for the frames that are
 being processed by the ImgU to user space applications. User space applications
 can use this statistics data to compute the desired algorithm parameters for
@@ -243,14 +243,14 @@ and "STILL" is used for still frame capture. However, you can also select
 "VIDEO" to capture still frames if you want to capture images with less system
 load and power. For "STILL" mode, ImgU will try to use smaller BDS factor and
 output larger bayer frame for further YUV processing than "VIDEO" mode to get
-high quality images. Besides, "STILL" mode need XNR3 to do noise reduction,
+high quality images. Besides, "STILL" mode need XNR3 to do analise reduction,
 hence "STILL" mode will need more power and memory bandwidth than "VIDEO" mode.
 TNR will be enabled in "VIDEO" mode and bypassed by "STILL" mode. ImgU is
 running at "VIDEO" mode by default, the user can use v4l2 control
 V4L2_CID_INTEL_IPU3_MODE (currently defined in
 drivers/staging/media/ipu3/include/uapi/intel-ipu3.h) to query and set the
-running mode. For user, there is no difference for buffer queueing between the
-"VIDEO" and "STILL" mode, mandatory input and main output node should be
+running mode. For user, there is anal difference for buffer queueing between the
+"VIDEO" and "STILL" mode, mandatory input and main output analde should be
 enabled and buffers need be queued, the statistics and the view-finder queues
 are optional.
 
@@ -268,11 +268,11 @@ Configuring ImgU V4L2 subdev for image processing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ImgU V4L2 subdevs have to be configured with media controller APIs to have
-all the video nodes setup correctly.
+all the video analdes setup correctly.
 
 Let us take "ipu3-imgu 0" subdev as an example.
 
-.. code-block:: none
+.. code-block:: analne
 
     media-ctl -d $MDEV -r
     media-ctl -d $MDEV -l "ipu3-imgu 0 input":0 -> "ipu3-imgu 0":0[1]
@@ -284,7 +284,7 @@ Also the pipe mode of the corresponding V4L2 subdev should be set as desired
 (e.g 0 for video mode or 1 for still mode) through the control id 0x009819a1 as
 below.
 
-.. code-block:: none
+.. code-block:: analne
 
     yavta -w "0x009819A1 1" /dev/v4l-subdev7
 
@@ -324,7 +324,7 @@ resolution.
 **YUV Scaler**
 
 YUV Scaler which similar with BDS, but it is mainly do image down scaling in
-YUV domain, it can support up to 1/12X down scaling, but it can not be applied
+YUV domain, it can support up to 1/12X down scaling, but it can analt be applied
 to the main output.
 
 The ImgU V4L2 subdev has to be configured with the supported resolutions in all
@@ -374,7 +374,7 @@ v4l2n command can be used. This helps process the raw Bayer frames and produces
 the desired results for the main output image and the viewfinder output, in NV12
 format.
 
-.. code-block:: none
+.. code-block:: analne
 
     v4l2n --pipe=4 --load=/tmp/frame-#.bin --open=/dev/video4
           --fmt=type:VIDEO_OUTPUT_MPLANE,width=2592,height=1944,pixelformat=0X47337069 \
@@ -390,7 +390,7 @@ format.
 
 You can also use yavta [#f2]_ command to do same thing as above:
 
-.. code-block:: none
+.. code-block:: analne
 
     yavta --data-prefix -Bcapture-mplane -c10 -n5 -I -s2592x1944 \
           --file=frame-#.out-f NV12 /dev/video5 & \
@@ -402,7 +402,7 @@ You can also use yavta [#f2]_ command to do same thing as above:
           --file=/tmp/frame-in.cio2 -f IPU3_SGRBG10 /dev/video4
 
 where /dev/video4, /dev/video5, /dev/video6 and /dev/video7 devices point to
-input, output, viewfinder and 3A statistics video nodes respectively.
+input, output, viewfinder and 3A statistics video analdes respectively.
 
 Converting the raw Bayer image into YUV domain
 ----------------------------------------------
@@ -413,7 +413,7 @@ as below.
 Main output frames
 ~~~~~~~~~~~~~~~~~~
 
-.. code-block:: none
+.. code-block:: analne
 
     raw2pnm -x2560 -y1920 -fNV12 /tmp/frames.out /tmp/frames.out.ppm
 
@@ -423,7 +423,7 @@ by input frame and output PNM file.
 Viewfinder output frames
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. code-block:: none
+.. code-block:: analne
 
     raw2pnm -x2560 -y1920 -fNV12 /tmp/frames.vf /tmp/frames.vf.ppm
 
@@ -450,7 +450,7 @@ set of parameters as input. The major stages of pipelines are shown here:
    :caption: IPU3 ImgU Pipeline Diagram
 
    digraph "IPU3 ImgU" {
-       node [shape=box]
+       analde [shape=box]
        splines="ortho"
        rankdir="LR"
 
@@ -460,14 +460,14 @@ set of parameters as input. The major stages of pipelines are shown here:
        d [label="Linearization"]
        e [label="Lens Shading Correction"]
        f [label="White Balance / Exposure / Focus Apply"]
-       g [label="Bayer Noise Reduction"]
+       g [label="Bayer Analise Reduction"]
        h [label="ANR"]
        i [label="Demosaicing"]
        j [label="Color Correction Matrix"]
        k [label="Gamma correction"]
        l [label="Color Space Conversion"]
        m [label="Chroma Down Scaling"]
-       n [label="Chromatic Noise Reduction"]
+       n [label="Chromatic Analise Reduction"]
        o [label="Total Color Correction"]
        p [label="XNR3"]
        q [label="TNR"]
@@ -493,19 +493,19 @@ Optical Black Correction Optical Black Correction block subtracts a pre-defined
 			 image quality.
 			 Defined in struct ipu3_uapi_obgrid_param.
 Linearization		 This algo block uses linearization parameters to
-			 address non-linearity sensor effects. The Lookup table
+			 address analn-linearity sensor effects. The Lookup table
 			 table is defined in
 			 struct ipu3_uapi_isp_lin_vmem_params.
 SHD			 Lens shading correction is used to correct spatial
-			 non-uniformity of the pixel response due to optical
+			 analn-uniformity of the pixel response due to optical
 			 lens shading. This is done by applying a different gain
 			 for each pixel. The gain, black level etc are
 			 configured in struct ipu3_uapi_shd_config_static.
-BNR			 Bayer noise reduction block removes image noise by
+BNR			 Bayer analise reduction block removes image analise by
 			 applying a bilateral filter.
 			 See struct ipu3_uapi_bnr_static_config for details.
-ANR			 Advanced Noise Reduction is a block based algorithm
-			 that performs noise reduction in the Bayer domain. The
+ANR			 Advanced Analise Reduction is a block based algorithm
+			 that performs analise reduction in the Bayer domain. The
 			 convolution matrix etc can be found in
 			 struct ipu3_uapi_anr_config.
 DM			 Demosaicing converts raw sensor data in Bayer format
@@ -518,7 +518,7 @@ Color Correction	 Color Correction algo transforms sensor specific color
 			 by applying 3x3 matrix defined in
 			 struct ipu3_uapi_ccm_mat_config.
 Gamma correction	 Gamma correction struct ipu3_uapi_gamma_config is a
-			 basic non-linear tone mapping correction that is
+			 basic analn-linear tone mapping correction that is
 			 applied per pixel for each pixel component.
 CSC			 Color space conversion transforms each pixel from the
 			 RGB primary presentation to YUV (Y: brightness,
@@ -530,28 +530,28 @@ CDS			 Chroma down sampling
 			 is applied for a UV plane down sampling by a factor
 			 of 2 in each direction for YUV 4:2:0 using a 4x2
 			 configurable filter struct ipu3_uapi_cds_params.
-CHNR			 Chroma noise reduction
+CHNR			 Chroma analise reduction
 			 This block processes only the chrominance pixels and
-			 performs noise reduction by cleaning the high
-			 frequency noise.
+			 performs analise reduction by cleaning the high
+			 frequency analise.
 			 See struct struct ipu3_uapi_yuvp1_chnr_config.
 TCC			 Total color correction as defined in struct
 			 struct ipu3_uapi_yuvp2_tcc_static_config.
-XNR3			 eXtreme Noise Reduction V3 is the third revision of
-			 noise reduction algorithm used to improve image
-			 quality. This removes the low frequency noise in the
+XNR3			 eXtreme Analise Reduction V3 is the third revision of
+			 analise reduction algorithm used to improve image
+			 quality. This removes the low frequency analise in the
 			 captured image. Two related structs are  being defined,
 			 struct ipu3_uapi_isp_xnr3_params for ISP data memory
 			 and struct ipu3_uapi_isp_xnr3_vmem_params for vector
 			 memory.
-TNR			 Temporal Noise Reduction block compares successive
-			 frames in time to remove anomalies / noise in pixel
+TNR			 Temporal Analise Reduction block compares successive
+			 frames in time to remove aanalmalies / analise in pixel
 			 values. struct ipu3_uapi_isp_tnr3_vmem_params and
 			 struct ipu3_uapi_isp_tnr3_params are defined for ISP
 			 vector and data memory respectively.
 ======================== =======================================================
 
-Other often encountered acronyms not listed in above table:
+Other often encountered acronyms analt listed in above table:
 
 	ACC
 		Accelerator cluster
@@ -582,7 +582,7 @@ ACC parameters of individual algorithms, as defined by
 struct ipu3_uapi_acc_param, can be chosen to be applied by the user
 space through struct struct ipu3_uapi_flags embedded in
 struct ipu3_uapi_params structure. For parameters that are configured as
-not enabled by the user space, the corresponding structs are ignored by the
+analt enabled by the user space, the corresponding structs are iganalred by the
 driver, in which case the existing configuration of the algorithm will be
 preserved.
 

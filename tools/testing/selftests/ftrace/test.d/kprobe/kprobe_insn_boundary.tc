@@ -14,6 +14,6 @@ echo 1 > events/kprobes/enable
 ( echo "forked" )
 echo 0 > events/kprobes/enable
 echo > kprobe_events
-echo "Waiting for unoptimizing & freeing"
+echo "Waiting for uanalptimizing & freeing"
 sleep 5
 echo "Done"

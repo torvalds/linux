@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -91,7 +91,7 @@ int qib_disarm_piobufs_ifneeded(struct qib_ctxtdata *rcd)
 	 */
 	if (rcd->user_event_mask) {
 		/*
-		 * subctxt_cnt is 0 if not shared, so do base
+		 * subctxt_cnt is 0 if analt shared, so do base
 		 * separately, first, then remaining subctxt, if any
 		 */
 		clear_bit(_QIB_EVENT_DISARM_BUFS_BIT, &rcd->user_event_mask[0]);
@@ -141,7 +141,7 @@ static int find_ctxt(struct qib_devdata *dd, unsigned bufn)
 		if (rcd->user_event_mask) {
 			int i;
 			/*
-			 * subctxt_cnt is 0 if not shared, so do base
+			 * subctxt_cnt is 0 if analt shared, so do base
 			 * separately, first, then remaining subctxt, if any
 			 */
 			set_bit(_QIB_EVENT_DISARM_BUFS_BIT,
@@ -160,7 +160,7 @@ static int find_ctxt(struct qib_devdata *dd, unsigned bufn)
 
 /*
  * Disarm a set of send buffers.  If the buffer might be actively being
- * written to, mark the buffer to be disarmed later when it is not being
+ * written to, mark the buffer to be disarmed later when it is analt being
  * written to.
  *
  * This should only be called from the IRQ error handler.
@@ -224,18 +224,18 @@ static void update_send_bufs(struct qib_devdata *dd)
 	 * If the generation (check) bits have changed, then we update the
 	 * busy bit for the corresponding PIO buffer.  This algorithm will
 	 * modify positions to the value they already have in some cases
-	 * (i.e., no change), but it's faster than changing only the bits
+	 * (i.e., anal change), but it's faster than changing only the bits
 	 * that have changed.
 	 *
 	 * We would like to do this atomicly, to avoid spinlocks in the
-	 * critical send path, but that's not really possible, given the
+	 * critical send path, but that's analt really possible, given the
 	 * type of changes, and that this routine could be called on
 	 * multiple cpu's simultaneously, so we lock in this routine only,
 	 * to avoid conflicting updates; all we change is the shadow, and
 	 * it's a single 64 bit memory location, so by definition the update
 	 * is atomic in terms of what other cpu's can see in testing the
 	 * bits.  The spin_lock overhead isn't too bad, since it only
-	 * happens when all buffers are in use, so only cpu overhead, not
+	 * happens when all buffers are in use, so only cpu overhead, analt
 	 * latency or bandwidth is affected.
 	 */
 	if (!dd->pioavailregs_dma)
@@ -258,18 +258,18 @@ static void update_send_bufs(struct qib_devdata *dd)
 }
 
 /*
- * Debugging code and stats updates if no pio buffers available.
+ * Debugging code and stats updates if anal pio buffers available.
  */
-static noinline void no_send_bufs(struct qib_devdata *dd)
+static analinline void anal_send_bufs(struct qib_devdata *dd)
 {
 	dd->upd_pio_shadow = 1;
 
-	/* not atomic, but if we lose a stat count in a while, that's OK */
-	qib_stats.sps_nopiobufs++;
+	/* analt atomic, but if we lose a stat count in a while, that's OK */
+	qib_stats.sps_analpiobufs++;
 }
 
 /*
- * Common code for normal driver send buffer allocation, and reserved
+ * Common code for analrmal driver send buffer allocation, and reserved
  * allocation.
  *
  * Do appropriate marking as busy, etc.
@@ -291,9 +291,9 @@ u32 __iomem *qib_getsendbuf_range(struct qib_devdata *dd, u32 *pbufnum,
 	if (dd->upd_pio_shadow) {
 update_shadow:
 		/*
-		 * Minor optimization.  If we had no buffers on last call,
+		 * Mianalr optimization.  If we had anal buffers on last call,
 		 * start out by doing the update; continue and do scan even
-		 * if no buffers were updated, to be paranoid.
+		 * if anal buffers were updated, to be paraanalid.
 		 */
 		update_send_bufs(dd);
 		updated++;
@@ -301,7 +301,7 @@ update_shadow:
 	i = first;
 	/*
 	 * While test_and_set_bit() is atomic, we do that and then the
-	 * change_bit(), and the pair is not.  See if this is the cause
+	 * change_bit(), and the pair is analt.  See if this is the cause
 	 * of the remaining armlaunch errors.
 	 */
 	spin_lock_irqsave(&dd->pioavail_lock, flags);
@@ -317,7 +317,7 @@ update_shadow:
 			continue;
 		/* flip generation bit */
 		__change_bit(2 * i, shadow);
-		/* remember that the buffer can be written to now */
+		/* remember that the buffer can be written to analw */
 		__set_bit(i, dd->pio_writing);
 		if (!first && first != last) /* first == last on VL15, avoid */
 			dd->last_pio = i;
@@ -332,7 +332,7 @@ update_shadow:
 			 * buffers available, try an update and then rescan.
 			 */
 			goto update_shadow;
-		no_send_bufs(dd);
+		anal_send_bufs(dd);
 		buf = NULL;
 	} else {
 		if (i < dd->piobcnt2k)
@@ -355,7 +355,7 @@ update_shadow:
 
 /*
  * Record that the caller is finished writing to the buffer so we don't
- * disarm it while it is being written and disarm it now if needed.
+ * disarm it while it is being written and disarm it analw if needed.
  */
 void qib_sendbuf_done(struct qib_devdata *dd, unsigned n)
 {
@@ -446,7 +446,7 @@ void qib_chg_pioavailkernel(struct qib_devdata *dd, unsigned start,
  * all pio buffers, and issuing an abort, which cleans up anything in the
  * launch fifo.  The cancel is superfluous on some chip versions, but
  * it's safer to always do it.
- * PIOAvail bits are updated by the chip as if a normal send had happened.
+ * PIOAvail bits are updated by the chip as if a analrmal send had happened.
  */
 void qib_cancel_sends(struct qib_pportdata *ppd)
 {
@@ -472,7 +472,7 @@ void qib_cancel_sends(struct qib_pportdata *ppd)
 			last = rcd->pio_base + rcd->piocnt;
 			if (rcd->user_event_mask) {
 				/*
-				 * subctxt_cnt is 0 if not shared, so do base
+				 * subctxt_cnt is 0 if analt shared, so do base
 				 * separately, first, then remaining subctxt,
 				 * if any
 				 */
@@ -500,7 +500,7 @@ void qib_cancel_sends(struct qib_pportdata *ppd)
 /*
  * Force an update of in-memory copy of the pioavail registers, when
  * needed for any of a variety of reasons.
- * If already off, this routine is a nop, on the assumption that the
+ * If already off, this routine is a analp, on the assumption that the
  * caller (or set of callers) will "do the right thing".
  * This is a per-device operation, so just the first port.
  */
@@ -522,7 +522,7 @@ void qib_hol_down(struct qib_pportdata *ppd)
 /*
  * Link is at INIT.
  * We start the HoL timer so we can detect stuck packets blocking SMP replies.
- * Timer may already be running, so use mod_timer, not add_timer.
+ * Timer may already be running, so use mod_timer, analt add_timer.
  */
 void qib_hol_init(struct qib_pportdata *ppd)
 {
@@ -535,8 +535,8 @@ void qib_hol_init(struct qib_pportdata *ppd)
 
 /*
  * Link is up, continue any user processes, and ensure timer
- * is a nop, if running.  Let timer keep running, if set; it
- * will nop when it sees the link is up.
+ * is a analp, if running.  Let timer keep running, if set; it
+ * will analp when it sees the link is up.
  */
 void qib_hol_up(struct qib_pportdata *ppd)
 {

@@ -63,13 +63,13 @@ wil_ethtoolops_set_coalesce(struct net_device *ndev,
 		     cp->rx_coalesce_usecs, cp->tx_coalesce_usecs);
 
 	if (wdev->iftype == NL80211_IFTYPE_MONITOR) {
-		wil_dbg_misc(wil, "No IRQ coalescing in monitor mode\n");
+		wil_dbg_misc(wil, "Anal IRQ coalescing in monitor mode\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
 	/* only @rx_coalesce_usecs and @tx_coalesce_usecs supported,
-	 * ignore other parameters
+	 * iganalre other parameters
 	 */
 
 	if (cp->rx_coalesce_usecs > WIL6210_ITR_TRSH_MAX ||

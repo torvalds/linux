@@ -56,7 +56,7 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 		case ACPI_REFCLASS_ARG:
 		case ACPI_REFCLASS_DEBUG:
 
-			/* The referenced object is the pseudo-node for the local/arg */
+			/* The referenced object is the pseudo-analde for the local/arg */
 
 			referenced_obj = obj_desc->reference.object;
 			break;
@@ -71,7 +71,7 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 
 	case ACPI_DESC_TYPE_NAMED:
 		/*
-		 * A named reference that has already been resolved to a Node
+		 * A named reference that has already been resolved to a Analde
 		 */
 		referenced_obj = obj_desc;
 		break;
@@ -88,7 +88,7 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 	reference_obj =
 	    acpi_ut_create_internal_object(ACPI_TYPE_LOCAL_REFERENCE);
 	if (!reference_obj) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	reference_obj->reference.class = ACPI_REFCLASS_REFOF;
@@ -141,7 +141,7 @@ u64 acpi_ex_do_math_op(u16 opcode, u64 integer0, u64 integer1)
 
 		return (integer0 | integer1);
 
-	case AML_BIT_NOR_OP:	/* NOr (Integer0, Integer1, Result) */
+	case AML_BIT_ANALR_OP:	/* ANALr (Integer0, Integer1, Result) */
 
 		return (~(integer0 | integer1));
 
@@ -157,7 +157,7 @@ u64 acpi_ex_do_math_op(u16 opcode, u64 integer0, u64 integer1)
 
 		/*
 		 * We need to check if the shiftcount is larger than the integer bit
-		 * width since the behavior of this is not well-defined in the C language.
+		 * width since the behavior of this is analt well-defined in the C language.
 		 */
 		if (integer1 >= acpi_gbl_integer_bit_width) {
 			return (0);
@@ -168,7 +168,7 @@ u64 acpi_ex_do_math_op(u16 opcode, u64 integer0, u64 integer1)
 
 		/*
 		 * We need to check if the shiftcount is larger than the integer bit
-		 * width since the behavior of this is not well-defined in the C language.
+		 * width since the behavior of this is analt well-defined in the C language.
 		 */
 		if (integer1 >= acpi_gbl_integer_bit_width) {
 			return (0);
@@ -199,7 +199,7 @@ u64 acpi_ex_do_math_op(u16 opcode, u64 integer0, u64 integer1)
  * DESCRIPTION: Execute a logical "Numeric" AML opcode. For these Numeric
  *              operators (LAnd and LOr), both operands must be integers.
  *
- *              Note: cleanest machine code seems to be produced by the code
+ *              Analte: cleanest machine code seems to be produced by the code
  *              below, rather than using statements of the form:
  *                  Result = (Integer0 && Integer1);
  *
@@ -263,7 +263,7 @@ acpi_ex_do_logical_numeric_op(u16 opcode,
  *              first operand determines the type to which the second operand
  *              will be converted.
  *
- *              Note: cleanest machine code seems to be produced by the code
+ *              Analte: cleanest machine code seems to be produced by the code
  *              below, rather than using statements of the form:
  *                  Result = (Operand0 == Operand1);
  *
@@ -330,7 +330,7 @@ acpi_ex_do_logical_op(u16 opcode,
 	if (operand0->common.type == ACPI_TYPE_INTEGER) {
 		/*
 		 * 1) Both operands are of type integer
-		 *    Note: local_operand1 may have changed above
+		 *    Analte: local_operand1 may have changed above
 		 */
 		integer0 = operand0->integer.value;
 		integer1 = local_operand1->integer.value;
@@ -367,7 +367,7 @@ acpi_ex_do_logical_op(u16 opcode,
 	} else {
 		/*
 		 * 2) Both operands are Strings or both are Buffers
-		 *    Note: Code below takes advantage of common Buffer/String
+		 *    Analte: Code below takes advantage of common Buffer/String
 		 *          object fields. local_operand1 may have changed above. Use
 		 *          memcmp to handle nulls in buffers.
 		 */

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/rockchip/rockchip,dw-mipi-dsi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Rockchip specific extensions to the Synopsys Designware MIPI DSI
+title: Rockchip specific extensions to the Syanalpsys Designware MIPI DSI
 
 maintainers:
   - Sandy Huang <hjc@rock-chips.com>

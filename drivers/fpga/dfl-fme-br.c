@@ -7,7 +7,7 @@
  * Authors:
  *   Wu Hao <hao.wu@intel.com>
  *   Joseph Grecco <joe.grecco@intel.com>
- *   Enno Luebbers <enno.luebbers@intel.com>
+ *   Enanal Luebbers <enanal.luebbers@intel.com>
  *   Tim Whisonant <tim.whisonant@intel.com>
  *   Ananda Ravuri <ananda.ravuri@intel.com>
  *   Henry Mitchel <henry.mitchel@intel.com>
@@ -36,7 +36,7 @@ static int fme_bridge_enable_set(struct fpga_bridge *bridge, bool enable)
 						    &priv->pdata->port_id,
 						    dfl_fpga_check_port_id);
 		if (!port_pdev)
-			return -ENODEV;
+			return -EANALDEV;
 
 		priv->port_pdev = port_pdev;
 	}
@@ -44,7 +44,7 @@ static int fme_bridge_enable_set(struct fpga_bridge *bridge, bool enable)
 	if (priv->port_pdev && !priv->port_ops) {
 		ops = dfl_fpga_port_ops_get(priv->port_pdev);
 		if (!ops || !ops->enable_set)
-			return -ENOENT;
+			return -EANALENT;
 
 		priv->port_ops = ops;
 	}
@@ -64,7 +64,7 @@ static int fme_br_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->pdata = dev_get_platdata(dev);
 

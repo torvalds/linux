@@ -13,7 +13,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if analt, write to the Free Software
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
@@ -76,18 +76,18 @@ engine_cmd_dtable:
 
 .align 4
 sec_dtable:
-.b16 #sec_copy_prep #sec_do_inout
+.b16 #sec_copy_prep #sec_do_ianalut
 .b16 #sec_store_prep #sec_do_out
-.b16 #sec_ecb_e_prep #sec_do_inout
-.b16 #sec_ecb_d_prep #sec_do_inout
-.b16 #sec_cbc_e_prep #sec_do_inout
-.b16 #sec_cbc_d_prep #sec_do_inout
-.b16 #sec_pcbc_e_prep #sec_do_inout
-.b16 #sec_pcbc_d_prep #sec_do_inout
-.b16 #sec_cfb_e_prep #sec_do_inout
-.b16 #sec_cfb_d_prep #sec_do_inout
-.b16 #sec_ofb_prep #sec_do_inout
-.b16 #sec_ctr_prep #sec_do_inout
+.b16 #sec_ecb_e_prep #sec_do_ianalut
+.b16 #sec_ecb_d_prep #sec_do_ianalut
+.b16 #sec_cbc_e_prep #sec_do_ianalut
+.b16 #sec_cbc_d_prep #sec_do_ianalut
+.b16 #sec_pcbc_e_prep #sec_do_ianalut
+.b16 #sec_pcbc_d_prep #sec_do_ianalut
+.b16 #sec_cfb_e_prep #sec_do_ianalut
+.b16 #sec_cfb_d_prep #sec_do_ianalut
+.b16 #sec_ofb_prep #sec_do_ianalut
+.b16 #sec_ctr_prep #sec_do_ianalut
 .b16 #sec_cbc_mac_prep #sec_do_in
 .b16 #sec_cmac_finish_complete_prep #sec_do_in
 .b16 #sec_cmac_finish_partial_prep #sec_do_in
@@ -137,7 +137,7 @@ ih:
 
 	and $r2 $r1 0x8
 	cmpu b32 $r2 0
-	bra e #noctx
+	bra e #analctx
 
 		// context switch... prepare the regs for xfer
 		mov $r2 0x7700
@@ -165,14 +165,14 @@ ih:
 			mov $r4 1
 			iowr I[$r3 + 0x200] $r4
 
-		bra #noctx
+		bra #analctx
 
 		ctxload:
-			// no channel loaded - perhaps we're requested to load one
+			// anal channel loaded - perhaps we're requested to load one
 			iord $r4 I[$r3 + 0x100]
 			shl b32 $r15 $r4 1
 			cmps b32 $r15 0
-			// if bit 30 of next channel not set, probably PFIFO is just
+			// if bit 30 of next channel analt set, probably PFIFO is just
 			// killing a context. do a faux load, without the active bit.
 			bra nc #dummyload
 
@@ -194,10 +194,10 @@ ih:
 			mov $r5 2
 			iowr I[$r3 + 0x200] $r5
 
-	noctx:
+	analctx:
 	and $r2 $r1 0x4
 	cmpu b32 $r2 0
-	bra e #nocmd
+	bra e #analcmd
 
 		// incoming fifo command.
 		mov $r3 0x1900
@@ -208,7 +208,7 @@ ih:
 		// shift the addr to proper position if we need to interrupt later
 		shl b32 $r2 0x10
 
-		// mthd 0 and 0x100 [NAME, NOP]: ignore
+		// mthd 0 and 0x100 [NAME, ANALP]: iganalre
 		and $r5 $r4 0x7bf
 		cmpu b32 $r5 0
 		bra e #cmddone
@@ -294,7 +294,7 @@ ih:
 		mov $r4 1
 		iowr I[$r3] $r4
 
-	nocmd:
+	analcmd:
 	// ack the processed interrupts
 	and $r1 $r1 0xc
 	iowr I[$r0 + 0x100] $r1
@@ -343,10 +343,10 @@ cmd_cond_mode:
 	cmpu b32 $r3 5
 	bra nc #return
 
-	// otherwise, no error.
+	// otherwise, anal error.
 	bclr $flags $p1
 
-	// if < 2, no QUERY object is involved
+	// if < 2, anal QUERY object is involved
 	cmpu b32 $r3 2
 	bra nc #cmd_cond_mode_queryful
 
@@ -402,7 +402,7 @@ cmd_cond_mode:
 	xbit $r5 $flags z
 	and $r4 $r5
 
-	// and negate or not, depending on mode
+	// and negate or analt, depending on mode
 	cmpu b32 $r3 3
 	xbit $r5 $flags z
 	xor $r4 $r5
@@ -431,7 +431,7 @@ sec_cmd_mode:
 	ret
 
 sec_cmd_length:
-	// nop if length == 0
+	// analp if length == 0
 	cmpu b32 $r3 0
 	bra e #sec_cmd_mode_return
 
@@ -672,11 +672,11 @@ sec_do_out:
 	bra ne #sec_do_out_loop
 	ret
 
-sec_do_inout:
+sec_do_ianalut:
 	add b32 $r3 $r5
 	mov $r9 #swap
 	sethi $r9 0x20000
-	sec_do_inout_loop:
+	sec_do_ianalut_loop:
 		mov $xdbase $r4
 		xdld $r5 $r9
 		xdwait
@@ -692,7 +692,7 @@ sec_do_inout:
 		add b32 $r5 0x10
 		add b32 $r7 0x10
 		cmpu b32 $r5 $r3
-	bra ne #sec_do_inout_loop
+	bra ne #sec_do_ianalut_loop
 	ret
 
 .align 0x100

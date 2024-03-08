@@ -8,7 +8,7 @@
 #include <linux/export.h>
 #include <asm/ppc_asm.h>
 
-_GLOBAL(ucall_norets)
-EXPORT_SYMBOL_GPL(ucall_norets)
+_GLOBAL(ucall_analrets)
+EXPORT_SYMBOL_GPL(ucall_analrets)
 	sc	2	/* Invoke the ultravisor */
 	blr		/* Return r3 = status */

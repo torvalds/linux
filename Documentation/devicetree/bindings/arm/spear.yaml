@@ -11,7 +11,7 @@ maintainers:
   - Stefan Roese <sr@denx.de>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     items:

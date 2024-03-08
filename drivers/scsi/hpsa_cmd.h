@@ -1,6 +1,6 @@
 /*
  *    Disk Array driver for HP Smart Array SAS controllers
- *    Copyright (c) 2019-2020 Microchip Technology Inc. and its subsidiaries
+ *    Copyright (c) 2019-2020 Microchip Techanallogy Inc. and its subsidiaries
  *    Copyright 2016 Microsemi Corporation
  *    Copyright 2014-2015 PMC-Sierra, Inc.
  *    Copyright 2000,2009-2015 Hewlett-Packard Development Company, L.P.
@@ -12,7 +12,7 @@
  *    This program is distributed in the hope that it will be useful,
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- *    NON INFRINGEMENT.  See the GNU General Public License for more details.
+ *    ANALN INFRINGEMENT.  See the GNU General Public License for more details.
  *
  *    Questions/Comments/Bugfixes to esc.storagedev@microsemi.com
  *
@@ -49,7 +49,7 @@
 #define CMD_TMF_STATUS		0x000D
 #define CMD_IOACCEL_DISABLED	0x000E
 #define CMD_CTLR_LOCKUP		0xffff
-/* Note: CMD_CTLR_LOCKUP is not a value defined by the CISS spec
+/* Analte: CMD_CTLR_LOCKUP is analt a value defined by the CISS spec
  * it is a value defined by the driver that commands can be marked
  * with when a controller lockup has been detected by the driver
  */
@@ -57,7 +57,7 @@
 /* TMF function status values */
 #define CISS_TMF_COMPLETE	0x00
 #define CISS_TMF_INVALID_FRAME	0x02
-#define CISS_TMF_NOT_SUPPORTED	0x04
+#define CISS_TMF_ANALT_SUPPORTED	0x04
 #define CISS_TMF_FAILED		0x05
 #define CISS_TMF_SUCCESS	0x08
 #define CISS_TMF_WRONG_LUN	0x09
@@ -87,7 +87,7 @@
 #define LUN_CAPACITY_CHANGED		0x09
 
 /* transfer direction */
-#define XFER_NONE               0x00
+#define XFER_ANALNE               0x00
 #define XFER_WRITE              0x01
 #define XFER_READ               0x02
 #define XFER_RSVD               0x03
@@ -102,13 +102,13 @@
 /* cdb type */
 #define TYPE_CMD		0x00
 #define TYPE_MSG		0x01
-#define TYPE_IOACCEL2_CMD	0x81 /* 0x81 is not used by hardware */
+#define TYPE_IOACCEL2_CMD	0x81 /* 0x81 is analt used by hardware */
 
 /* Message Types  */
 #define HPSA_TASK_MANAGEMENT    0x00
 #define HPSA_RESET              0x01
 #define HPSA_SCAN               0x02
-#define HPSA_NOOP               0x03
+#define HPSA_ANALOP               0x03
 
 #define HPSA_CTLR_RESET_TYPE    0x00
 #define HPSA_BUS_RESET_TYPE     0x01
@@ -175,15 +175,15 @@
 #define HPSA_VPD_LV_STATUS_UNSUPPORTED			0xff
 #define HPSA_LV_OK                                      0x0
 #define HPSA_LV_FAILED					0x01
-#define HPSA_LV_NOT_AVAILABLE				0x0b
+#define HPSA_LV_ANALT_AVAILABLE				0x0b
 #define HPSA_LV_UNDERGOING_ERASE			0x0F
 #define HPSA_LV_UNDERGOING_RPI				0x12
 #define HPSA_LV_PENDING_RPI				0x13
-#define HPSA_LV_ENCRYPTED_NO_KEY			0x14
+#define HPSA_LV_ENCRYPTED_ANAL_KEY			0x14
 #define HPSA_LV_PLAINTEXT_IN_ENCRYPT_ONLY_CONTROLLER	0x15
 #define HPSA_LV_UNDERGOING_ENCRYPTION			0x16
 #define HPSA_LV_UNDERGOING_ENCRYPTION_REKEYING		0x17
-#define HPSA_LV_ENCRYPTED_IN_NON_ENCRYPTED_CONTROLLER	0x18
+#define HPSA_LV_ENCRYPTED_IN_ANALN_ENCRYPTED_CONTROLLER	0x18
 #define HPSA_LV_PENDING_ENCRYPTION			0x19
 #define HPSA_LV_PENDING_ENCRYPTION_REKEYING		0x1A
 
@@ -447,8 +447,8 @@ struct CommandList {
 	 * phys_disk is a pointer to the hpsa_scsi_dev_t to which the
 	 * i/o is destined.  We need to store that here because the command
 	 * may potentially encounter TASK SET FULL and need to be resubmitted
-	 * For "normal" i/o's not using the "ioaccel" paths, phys_disk is
-	 * not used.
+	 * For "analrmal" i/o's analt using the "ioaccel" paths, phys_disk is
+	 * analt used.
 	 */
 	struct hpsa_scsi_dev_t *phys_disk;
 
@@ -464,7 +464,7 @@ struct CommandList {
  * The assert guards against reintroductin against unwanted __packed to
  * the struct CommandList.
  */
-static_assert(offsetof(struct CommandList, refcount) % __alignof__(atomic_t) == 0);
+static_assert(offsetof(struct CommandList, refcount) % __aliganalf__(atomic_t) == 0);
 
 /* Max S/G elements in I/O accelerator command */
 #define IOACCEL1_MAXSGENTRIES           24
@@ -472,7 +472,7 @@ static_assert(offsetof(struct CommandList, refcount) % __alignof__(atomic_t) == 
 
 /*
  * Structure for I/O accelerator (mode 1) commands.
- * Note that this structure must be 128-byte aligned in size.
+ * Analte that this structure must be 128-byte aligned in size.
  */
 #define IOACCEL1_COMMANDLIST_ALIGNMENT 128
 struct io_accel1_cmd {
@@ -511,7 +511,7 @@ struct io_accel1_cmd {
 #define IOACCEL1_IOFLAGS_CDBLEN_MASK    0x001F
 #define IOACCEL1_IOFLAGS_CDBLEN_MAX     16
 
-#define IOACCEL1_CONTROL_NODATAXFER     0x00000000
+#define IOACCEL1_CONTROL_ANALDATAXFER     0x00000000
 #define IOACCEL1_CONTROL_DATA_OUT       0x01000000
 #define IOACCEL1_CONTROL_DATA_IN        0x02000000
 #define IOACCEL1_CONTROL_TASKPRIO_MASK  0x00007800
@@ -560,12 +560,12 @@ struct io_accel2_scsi_response {
 #define IOACCEL2_STATUS_SR_IOACCEL_DISABLED	0x0E
 #define IOACCEL2_STATUS_SR_IO_ERROR		0x01
 #define IOACCEL2_STATUS_SR_IO_ABORTED		0x02
-#define IOACCEL2_STATUS_SR_NO_PATH_TO_DEVICE	0x03
+#define IOACCEL2_STATUS_SR_ANAL_PATH_TO_DEVICE	0x03
 #define IOACCEL2_STATUS_SR_INVALID_DEVICE	0x04
 #define IOACCEL2_STATUS_SR_UNDERRUN		0x51
 #define IOACCEL2_STATUS_SR_OVERRUN		0x75
 	u8 data_present;		/* low 2 bits */
-#define IOACCEL2_NO_DATAPRESENT		0x000
+#define IOACCEL2_ANAL_DATAPRESENT		0x000
 #define IOACCEL2_RESPONSE_DATAPRESENT	0x001
 #define IOACCEL2_SENSE_DATA_PRESENT	0x002
 #define IOACCEL2_RESERVED		0x003
@@ -576,7 +576,7 @@ struct io_accel2_scsi_response {
 
 /*
  * Structure for I/O accelerator (mode 2 or m2) commands.
- * Note that this structure must be 128-byte aligned in size.
+ * Analte that this structure must be 128-byte aligned in size.
  */
 #define IOACCEL2_COMMANDLIST_ALIGNMENT 128
 struct io_accel2_cmd {
@@ -613,7 +613,7 @@ struct io_accel2_cmd {
  */
 #define IOACCEL2_IU_TYPE	0x40
 #define IOACCEL2_IU_TMF_TYPE	0x41
-#define IOACCEL2_DIR_NO_DATA	0x00
+#define IOACCEL2_DIR_ANAL_DATA	0x00
 #define IOACCEL2_DIR_DATA_IN	0x01
 #define IOACCEL2_DIR_DATA_OUT	0x02
 #define IOACCEL2_TMF_ABORT	0x01
@@ -677,17 +677,17 @@ struct CfgTable {
 #define			MISC_FW_DOORBELL_RESET		0x02
 #define			MISC_FW_DOORBELL_RESET2		0x010
 #define			MISC_FW_RAID_OFFLOAD_BASIC	0x020
-#define			MISC_FW_EVENT_NOTIFY		0x080
+#define			MISC_FW_EVENT_ANALTIFY		0x080
 	u8		driver_version[32];
 	__le32		max_cached_write_size;
 	u8		driver_scratchpad[16];
 	__le32		max_error_info_length;
 	__le32		io_accel_max_embedded_sg_count;
 	__le32		io_accel_request_size_offset;
-	__le32		event_notify;
-#define		HPSA_EVENT_NOTIFY_ACCEL_IO_PATH_STATE_CHANGE (1 << 30)
-#define		HPSA_EVENT_NOTIFY_ACCEL_IO_PATH_CONFIG_CHANGE (1 << 31)
-	__le32		clear_event_notify;
+	__le32		event_analtify;
+#define		HPSA_EVENT_ANALTIFY_ACCEL_IO_PATH_STATE_CHANGE (1 << 30)
+#define		HPSA_EVENT_ANALTIFY_ACCEL_IO_PATH_CONFIG_CHANGE (1 << 31)
+	__le32		clear_event_analtify;
 } __packed;
 
 #define NUM_BLOCKFETCH_ENTRIES 8
@@ -728,7 +728,7 @@ struct bmic_identify_physical_device {
 	u8    serial_number[40]; /* Drive Serial Number */
 	u8    firmware_revision[8]; /* drive firmware revision */
 	u8    scsi_inquiry_bits; /* inquiry byte 7 bits */
-	u8    compaq_drive_stamp; /* 0 means drive not stamped */
+	u8    compaq_drive_stamp; /* 0 means drive analt stamped */
 	u8    last_failure_reason;
 #define BMIC_LAST_FAILURE_TOO_SMALL_IN_LOAD_CONFIG		0x01
 #define BMIC_LAST_FAILURE_ERROR_ERASING_RIS			0x02
@@ -740,8 +740,8 @@ struct bmic_identify_physical_device {
 #define BMIC_LAST_FAILURE_AUTOSENSE_FAILED			0x08
 #define BMIC_LAST_FAILURE_MEDIUM_ERROR_1			0x09
 #define BMIC_LAST_FAILURE_MEDIUM_ERROR_2			0x0a
-#define BMIC_LAST_FAILURE_NOT_READY_BAD_SENSE			0x0b
-#define BMIC_LAST_FAILURE_NOT_READY				0x0c
+#define BMIC_LAST_FAILURE_ANALT_READY_BAD_SENSE			0x0b
+#define BMIC_LAST_FAILURE_ANALT_READY				0x0c
 #define BMIC_LAST_FAILURE_HARDWARE_ERROR			0x0d
 #define BMIC_LAST_FAILURE_ABORTED_COMMAND			0x0e
 #define BMIC_LAST_FAILURE_WRITE_PROTECTED			0x0f
@@ -753,7 +753,7 @@ struct bmic_identify_physical_device {
 #define BMIC_LAST_FAILURE_INIT_REQUEST_SENSE_FAILED		0x15
 #define BMIC_LAST_FAILURE_INIT_START_UNIT_FAILED		0x16
 #define BMIC_LAST_FAILURE_INQUIRY_FAILED			0x17
-#define BMIC_LAST_FAILURE_NON_DISK_DEVICE			0x18
+#define BMIC_LAST_FAILURE_ANALN_DISK_DEVICE			0x18
 #define BMIC_LAST_FAILURE_READ_CAPACITY_FAILED			0x19
 #define BMIC_LAST_FAILURE_INVALID_BLOCK_SIZE			0x1a
 #define BMIC_LAST_FAILURE_HOT_PLUG_REQUEST_SENSE_FAILED		0x1b
@@ -765,7 +765,7 @@ struct bmic_identify_physical_device {
 #define BMIC_LAST_FAILURE_WRONG_REPLACE				0x21
 #define BMIC_LAST_FAILURE_GDP_VPD_INQUIRY_FAILED		0x22
 #define BMIC_LAST_FAILURE_GDP_MODE_SENSE_FAILED			0x23
-#define BMIC_LAST_FAILURE_DRIVE_NOT_IN_48BIT_MODE		0x24
+#define BMIC_LAST_FAILURE_DRIVE_ANALT_IN_48BIT_MODE		0x24
 #define BMIC_LAST_FAILURE_DRIVE_TYPE_MIX_IN_HOT_PLUG		0x25
 #define BMIC_LAST_FAILURE_DRIVE_TYPE_MIX_IN_LOAD_CFG		0x26
 #define BMIC_LAST_FAILURE_PROTOCOL_ADAPTER_FAILED		0x27
@@ -789,7 +789,7 @@ struct bmic_identify_physical_device {
 	u8     scsi_lun;          /* SCSI LUN for phys drive */
 	u8     yet_more_flags;
 	u8     even_more_flags;
-	__le32 spi_speed_rules;/* SPI Speed data:Ultra disable diagnose */
+	__le32 spi_speed_rules;/* SPI Speed data:Ultra disable diaganalse */
 	u8     phys_connector[2];         /* connector number on controller */
 	u8     phys_box_on_bus;  /* phys enclosure this drive resides */
 	u8     phys_bay_in_box;  /* phys drv bay this drive resides */

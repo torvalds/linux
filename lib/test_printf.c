@@ -31,9 +31,9 @@
 #define PAD_SIZE 16
 #define FILL_CHAR '$'
 
-#define NOWARN(option, comment, block) \
+#define ANALWARN(option, comment, block) \
 	__diag_push(); \
-	__diag_ignore_all(#option, comment); \
+	__diag_iganalre_all(#option, comment); \
 	block \
 	__diag_pop();
 
@@ -78,7 +78,7 @@ do_test(int bufsize, const char *expect, int elen,
 
 	written = min(bufsize-1, elen);
 	if (test_buffer[written]) {
-		pr_warn("vsnprintf(buf, %d, \"%s\", ...) did not nul-terminate buffer\n",
+		pr_warn("vsnprintf(buf, %d, \"%s\", ...) did analt nul-terminate buffer\n",
 			bufsize, fmt);
 		return 1;
 	}
@@ -120,8 +120,8 @@ __test(const char *expect, int elen, const char *fmt, ...)
 
 	/*
 	 * Every fmt+args is subjected to four tests: Three where we
-	 * tell vsnprintf varying buffer sizes (plenty, not quite
-	 * enough and 0), and then we also test that kvasprintf would
+	 * tell vsnprintf varying buffer sizes (plenty, analt quite
+	 * eanalugh and 0), and then we also test that kvasprintf would
 	 * be able to print it as expected.
 	 */
 	failed_tests += do_test(BUF_SIZE, expect, elen, fmt, ap);
@@ -149,7 +149,7 @@ __test(const char *expect, int elen, const char *fmt, ...)
 static void __init
 test_basic(void)
 {
-	/* Work around annoying "warning: zero-length gnu_printf format string". */
+	/* Work around ananalying "warning: zero-length gnu_printf format string". */
 	char nul = '\0';
 
 	test("", &nul);
@@ -164,14 +164,14 @@ test_number(void)
 	test("0x1234abcd  ", "%#-12x", 0x1234abcd);
 	test("  0x1234abcd", "%#12x", 0x1234abcd);
 	test("0|001| 12|+123| 1234|-123|-1234", "%d|%03d|%3d|%+d|% d|%+d|% d", 0, 1, 12, 123, 1234, -123, -1234);
-	NOWARN(-Wformat, "Intentionally test narrowing conversion specifiers.", {
+	ANALWARN(-Wformat, "Intentionally test narrowing conversion specifiers.", {
 		test("0|1|1|128|255", "%hhu|%hhu|%hhu|%hhu|%hhu", 0, 1, 257, 128, -1);
 		test("0|1|1|-128|-1", "%hhd|%hhd|%hhd|%hhd|%hhd", 0, 1, 257, 128, -1);
 		test("2015122420151225", "%ho%ho%#ho", 1037, 5282, -11627);
 	})
 	/*
 	 * POSIX/C99: »The result of converting zero with an explicit
-	 * precision of zero shall be no characters.« Hence the output
+	 * precision of zero shall be anal characters.« Hence the output
 	 * from the below test should really be "00|0||| ". However,
 	 * the kernel's printf also produces a single 0 in that
 	 * case. This test case simply documents the current
@@ -195,7 +195,7 @@ test_string(void)
 	 * omitted (as in %.s), the precision should be taken to be
 	 * 0. However, the kernel's printf behave exactly opposite,
 	 * treating a negative precision as 0 and treating an omitted
-	 * precision specifier as if no precision was given.
+	 * precision specifier as if anal precision was given.
 	 *
 	 * These test cases document the current behaviour; should
 	 * anyone ever feel the need to follow the standards more
@@ -214,7 +214,7 @@ test_string(void)
 #define PTR_WIDTH 16
 #define PTR ((void *)0xffff0123456789abUL)
 #define PTR_STR "ffff0123456789ab"
-#define PTR_VAL_NO_CRNG "(____ptrval____)"
+#define PTR_VAL_ANAL_CRNG "(____ptrval____)"
 #define ZEROS "00000000"	/* hex 32 zero bits */
 #define ONES "ffffffff"		/* hex 32 one bits */
 
@@ -229,9 +229,9 @@ plain_format(void)
 	if (nchars != PTR_WIDTH)
 		return -1;
 
-	if (strncmp(buf, PTR_VAL_NO_CRNG, PTR_WIDTH) == 0) {
-		pr_warn("crng possibly not yet initialized. plain 'p' buffer contains \"%s\"",
-			PTR_VAL_NO_CRNG);
+	if (strncmp(buf, PTR_VAL_ANAL_CRNG, PTR_WIDTH) == 0) {
+		pr_warn("crng possibly analt yet initialized. plain 'p' buffer contains \"%s\"",
+			PTR_VAL_ANAL_CRNG);
 		return 0;
 	}
 
@@ -246,7 +246,7 @@ plain_format(void)
 #define PTR_WIDTH 8
 #define PTR ((void *)0x456789ab)
 #define PTR_STR "456789ab"
-#define PTR_VAL_NO_CRNG "(ptrval)"
+#define PTR_VAL_ANAL_CRNG "(ptrval)"
 #define ZEROS ""
 #define ONES ""
 
@@ -269,9 +269,9 @@ plain_hash_to_buffer(const void *p, char *buf, size_t len)
 	if (nchars != PTR_WIDTH)
 		return -1;
 
-	if (strncmp(buf, PTR_VAL_NO_CRNG, PTR_WIDTH) == 0) {
-		pr_warn("crng possibly not yet initialized. plain 'p' buffer contains \"%s\"",
-			PTR_VAL_NO_CRNG);
+	if (strncmp(buf, PTR_VAL_ANAL_CRNG, PTR_WIDTH) == 0) {
+		pr_warn("crng possibly analt yet initialized. plain 'p' buffer contains \"%s\"",
+			PTR_VAL_ANAL_CRNG);
 		return 0;
 	}
 
@@ -295,7 +295,7 @@ plain_hash(void)
 }
 
 /*
- * We can't use test() to test %p because we don't know what output to expect
+ * We can't use test() to test %p because we don't kanalw what output to expect
  * after an address is hashed.
  */
 static void __init
@@ -303,7 +303,7 @@ plain(void)
 {
 	int err;
 
-	if (no_hash_pointers) {
+	if (anal_hash_pointers) {
 		pr_warn("skipping plain 'p' tests");
 		skipped_tests += 2;
 		return;
@@ -311,7 +311,7 @@ plain(void)
 
 	err = plain_hash();
 	if (err) {
-		pr_warn("plain 'p' does not appear to be hashed\n");
+		pr_warn("plain 'p' does analt appear to be hashed\n");
 		failed_tests++;
 		return;
 	}
@@ -330,7 +330,7 @@ test_hashed(const char *fmt, const void *p)
 	int ret;
 
 	/*
-	 * No need to increase failed test counter since this is assumed
+	 * Anal need to increase failed test counter since this is assumed
 	 * to be called after plain().
 	 */
 	ret = plain_hash_to_buffer(p, buf, PLAIN_BUF_SIZE);
@@ -593,8 +593,8 @@ struct page_flags_test {
 static const struct page_flags_test pft[] = {
 	{SECTIONS_WIDTH, SECTIONS_PGSHIFT, SECTIONS_MASK,
 	 "%d", "section"},
-	{NODES_WIDTH, NODES_PGSHIFT, NODES_MASK,
-	 "%d", "node"},
+	{ANALDES_WIDTH, ANALDES_PGSHIFT, ANALDES_MASK,
+	 "%d", "analde"},
 	{ZONES_WIDTH, ZONES_PGSHIFT, ZONES_MASK,
 	 "%d", "zone"},
 	{LAST_CPUPID_WIDTH, LAST_CPUPID_PGSHIFT, LAST_CPUPID_MASK,
@@ -604,11 +604,11 @@ static const struct page_flags_test pft[] = {
 };
 
 static void __init
-page_flags_test(int section, int node, int zone, int last_cpupid,
+page_flags_test(int section, int analde, int zone, int last_cpupid,
 		int kasan_tag, unsigned long flags, const char *name,
 		char *cmp_buf)
 {
-	unsigned long values[] = {section, node, zone, last_cpupid, kasan_tag};
+	unsigned long values[] = {section, analde, zone, last_cpupid, kasan_tag};
 	unsigned long size;
 	bool append = false;
 	int i;
@@ -690,7 +690,7 @@ flags(void)
 	gfp = __GFP_HIGH;
 	test("__GFP_HIGH", "%pGg", &gfp);
 
-	/* Any flags not translated by the table should remain numeric */
+	/* Any flags analt translated by the table should remain numeric */
 	gfp = ~__GFP_BITS_MASK;
 	snprintf(cmp_buffer, BUF_SIZE, "%#lx", (unsigned long) gfp);
 	test(cmp_buffer, "%pGg", &gfp);
@@ -715,31 +715,31 @@ flags(void)
 	kfree(cmp_buffer);
 }
 
-static void __init fwnode_pointer(void)
+static void __init fwanalde_pointer(void)
 {
-	const struct software_node first = { .name = "first" };
-	const struct software_node second = { .name = "second", .parent = &first };
-	const struct software_node third = { .name = "third", .parent = &second };
-	const struct software_node *group[] = { &first, &second, &third, NULL };
+	const struct software_analde first = { .name = "first" };
+	const struct software_analde second = { .name = "second", .parent = &first };
+	const struct software_analde third = { .name = "third", .parent = &second };
+	const struct software_analde *group[] = { &first, &second, &third, NULL };
 	const char * const full_name_second = "first/second";
 	const char * const full_name_third = "first/second/third";
 	const char * const second_name = "second";
 	const char * const third_name = "third";
 	int rval;
 
-	rval = software_node_register_node_group(group);
+	rval = software_analde_register_analde_group(group);
 	if (rval) {
-		pr_warn("cannot register softnodes; rval %d\n", rval);
+		pr_warn("cananalt register softanaldes; rval %d\n", rval);
 		return;
 	}
 
-	test(full_name_second, "%pfw", software_node_fwnode(&second));
-	test(full_name_third, "%pfw", software_node_fwnode(&third));
-	test(full_name_third, "%pfwf", software_node_fwnode(&third));
-	test(second_name, "%pfwP", software_node_fwnode(&second));
-	test(third_name, "%pfwP", software_node_fwnode(&third));
+	test(full_name_second, "%pfw", software_analde_fwanalde(&second));
+	test(full_name_third, "%pfw", software_analde_fwanalde(&third));
+	test(full_name_third, "%pfwf", software_analde_fwanalde(&third));
+	test(second_name, "%pfwP", software_analde_fwanalde(&second));
+	test(third_name, "%pfwP", software_analde_fwanalde(&third));
 
-	software_node_unregister_node_group(group);
+	software_analde_unregister_analde_group(group);
 }
 
 static void __init fourcc_pointer(void)
@@ -764,12 +764,12 @@ errptr(void)
 {
 	test("-1234", "%pe", ERR_PTR(-1234));
 
-	/* Check that %pe with a non-ERR_PTR gets treated as ordinary %p. */
+	/* Check that %pe with a analn-ERR_PTR gets treated as ordinary %p. */
 	BUILD_BUG_ON(IS_ERR(PTR));
 	test_hashed("%pe", PTR);
 
 #ifdef CONFIG_SYMBOLIC_ERRNAME
-	test("(-ENOTSOCK)", "(%pe)", ERR_PTR(-ENOTSOCK));
+	test("(-EANALTSOCK)", "(%pe)", ERR_PTR(-EANALTSOCK));
 	test("(-EAGAIN)", "(%pe)", ERR_PTR(-EAGAIN));
 	BUILD_BUG_ON(EAGAIN != EWOULDBLOCK);
 	test("(-EAGAIN)", "(%pe)", ERR_PTR(-EWOULDBLOCK));
@@ -803,7 +803,7 @@ test_pointer(void)
 	netdev_features();
 	flags();
 	errptr();
-	fwnode_pointer();
+	fwanalde_pointer();
 	fourcc_pointer();
 }
 

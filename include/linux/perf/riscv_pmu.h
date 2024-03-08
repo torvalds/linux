@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2018 SiFive
- * Copyright (C) 2018 Andes Technology Corporation
+ * Copyright (C) 2018 Andes Techanallogy Corporation
  * Copyright (C) 2021 Western Digital Corporation or its affiliates.
  *
  */
@@ -20,7 +20,7 @@
  */
 
 #define RISCV_MAX_COUNTERS	64
-#define RISCV_OP_UNSUPP		(-EOPNOTSUPP)
+#define RISCV_OP_UNSUPP		(-EOPANALTSUPP)
 #define RISCV_PMU_SBI_PDEV_NAME	"riscv-pmu-sbi"
 #define RISCV_PMU_LEGACY_PDEV_NAME	"riscv-pmu-legacy"
 
@@ -61,8 +61,8 @@ struct riscv_pmu {
 	uint8_t		(*csr_index)(struct perf_event *event);
 
 	struct cpu_hw_events	__percpu *hw_events;
-	struct hlist_node	node;
-	struct notifier_block   riscv_pm_nb;
+	struct hlist_analde	analde;
+	struct analtifier_block   riscv_pm_nb;
 };
 
 #define to_riscv_pmu(p) (container_of(p, struct riscv_pmu, pmu))

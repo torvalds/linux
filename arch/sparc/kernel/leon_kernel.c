@@ -5,7 +5,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/interrupt.h>
@@ -202,7 +202,7 @@ static struct irq_chip leon_irq = {
 
 /*
  * Build a LEON IRQ for the edge triggered LEON IRQ controller:
- *  Edge (normal) IRQ           - handle_simple_irq, ack=DON'T-CARE, never ack
+ *  Edge (analrmal) IRQ           - handle_simple_irq, ack=DON'T-CARE, never ack
  *  Level IRQ (PCI|Level-GPIO)  - handle_fasteoi_irq, ack=1, ack after ISR
  *  Per-CPU Edge                - handle_percpu_irq, ack=0
  */
@@ -303,7 +303,7 @@ static irqreturn_t leon_percpu_timer_ce_interrupt(int irq, void *unused)
 void __init leon_init_timers(void)
 {
 	int irq, eirq;
-	struct device_node *rootnp, *np, *nnp;
+	struct device_analde *rootnp, *np, *nnp;
 	struct property *pp;
 	int len;
 	int icsel;
@@ -325,7 +325,7 @@ void __init leon_init_timers(void)
 	master_l10_counter = (u32 __iomem *)&dummy_master_l10_counter;
 	dummy_master_l10_counter = 0;
 
-	rootnp = of_find_node_by_path("/ambapp0");
+	rootnp = of_find_analde_by_path("/ambapp0");
 	if (!rootnp)
 		goto bad;
 
@@ -335,9 +335,9 @@ void __init leon_init_timers(void)
 		amba_system_id = *(unsigned long *)pp->value;
 
 	/* Find IRQMP IRQ Controller Registers base adr otherwise bail out */
-	np = of_find_node_by_name(rootnp, "GAISLER_IRQMP");
+	np = of_find_analde_by_name(rootnp, "GAISLER_IRQMP");
 	if (!np) {
-		np = of_find_node_by_name(rootnp, "01_00d");
+		np = of_find_analde_by_name(rootnp, "01_00d");
 		if (!np)
 			goto bad;
 	}
@@ -350,9 +350,9 @@ void __init leon_init_timers(void)
 	nnp = rootnp;
 
 retry:
-	np = of_find_node_by_name(nnp, "GAISLER_GPTIMER");
+	np = of_find_analde_by_name(nnp, "GAISLER_GPTIMER");
 	if (!np) {
-		np = of_find_node_by_name(nnp, "01_011");
+		np = of_find_analde_by_name(nnp, "01_011");
 		if (!np)
 			goto bad;
 	}
@@ -404,7 +404,7 @@ retry:
 	 * IRQ controllers, each mapped on a 4Kb boundary.
 	 * Each CPU may be routed to different IRQCTRLs, however
 	 * we assume that all CPUs (in SMP system) is routed to the
-	 * same IRQ Controller, and for non-SMP only one IRQCTRL is
+	 * same IRQ Controller, and for analn-SMP only one IRQCTRL is
 	 * accessed anyway.
 	 * In AMP systems, Linux must run on CPU0 for the time being.
 	 */
@@ -428,10 +428,10 @@ retry:
 		/*
 		 * In SMP, sun4m adds a IPI handler to IRQ trap handler that
 		 * LEON never must take, sun4d and LEON overwrites the branch
-		 * with a NOP.
+		 * with a ANALP.
 		 */
 		local_irq_save(flags);
-		patchme_maybe_smp_msg[0] = 0x01000000; /* NOP out the branch */
+		patchme_maybe_smp_msg[0] = 0x01000000; /* ANALP out the branch */
 		local_ops->cache_all();
 		local_irq_restore(flags);
 	}
@@ -464,7 +464,7 @@ retry:
 			      LEON3_GPTIMER_IRQEN);
 	return;
 bad:
-	printk(KERN_ERR "No Timer/irqctrl found\n");
+	printk(KERN_ERR "Anal Timer/irqctrl found\n");
 	BUG();
 	return;
 }

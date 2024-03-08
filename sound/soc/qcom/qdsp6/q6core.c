@@ -12,7 +12,7 @@
 #include <linux/jiffies.h>
 #include <linux/soc/qcom/apr.h>
 #include "q6core.h"
-#include "q6dsp-errno.h"
+#include "q6dsp-erranal.h"
 
 #define ADSP_STATE_READY_TIMEOUT_MS    3000
 #define Q6_READY_TIMEOUT_MS 100
@@ -43,7 +43,7 @@ struct avcs_svc_api_info {
 
 struct avcs_cmdrsp_get_fwk_version {
 	uint32_t build_major_version;
-	uint32_t build_minor_version;
+	uint32_t build_mianalr_version;
 	uint32_t build_branch_version;
 	uint32_t build_subbranch_version;
 	uint32_t num_services;
@@ -106,7 +106,7 @@ static int q6core_callback(struct apr_device *adev, struct apr_resp_pkt *data)
 							fwk->num_services),
 					    GFP_ATOMIC);
 		if (!core->fwk_version)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		core->fwk_version_supported = true;
 		core->resp_received = true;
@@ -123,7 +123,7 @@ static int q6core_callback(struct apr_device *adev, struct apr_resp_pkt *data)
 							v->num_services),
 					    GFP_ATOMIC);
 		if (!core->svc_version)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		core->get_version_supported = true;
 		core->resp_received = true;
@@ -169,7 +169,7 @@ static int q6core_get_fwk_versions(struct q6core *core)
 		core->resp_received = false;
 
 		if (!core->fwk_version_supported)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		else
 			return 0;
 	}
@@ -229,7 +229,7 @@ static bool __q6core_is_adsp_ready(struct q6core *core)
 			return true;
 	}
 
-	/* assume that the adsp is up if we not support this command */
+	/* assume that the adsp is up if we analt support this command */
 	if (!core->get_state_supported)
 		return true;
 
@@ -247,14 +247,14 @@ static bool __q6core_is_adsp_ready(struct q6core *core)
 int q6core_get_svc_api_info(int svc_id, struct q6core_svc_api_info *ainfo)
 {
 	int i;
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (!g_core || !ainfo)
 		return 0;
 
 	mutex_lock(&g_core->lock);
 	if (!g_core->is_version_requested) {
-		if (q6core_get_fwk_versions(g_core) == -ENOTSUPP)
+		if (q6core_get_fwk_versions(g_core) == -EANALTSUPP)
 			q6core_get_svc_versions(g_core);
 		g_core->is_version_requested = true;
 	}
@@ -296,7 +296,7 @@ EXPORT_SYMBOL_GPL(q6core_get_svc_api_info);
 /**
  * q6core_is_adsp_ready() - Get status of adsp
  *
- * Return: Will be an true if adsp is ready and false if not.
+ * Return: Will be an true if adsp is ready and false if analt.
  */
 bool q6core_is_adsp_ready(void)
 {
@@ -329,7 +329,7 @@ static int q6core_probe(struct apr_device *adev)
 {
 	g_core = kzalloc(sizeof(*g_core), GFP_KERNEL);
 	if (!g_core)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&adev->dev, g_core);
 

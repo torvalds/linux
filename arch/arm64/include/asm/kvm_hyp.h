@@ -18,7 +18,7 @@ DECLARE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
 
 /*
  * Unified accessors for registers that have a different encoding
- * between VHE and non-VHE. They must be specified without their "ELx"
+ * between VHE and analn-VHE. They must be specified without their "ELx"
  * encoding, but with the SYS_ prefix, as defined in asm/sysreg.h.
  */
 
@@ -118,7 +118,7 @@ u64 __guest_enter(struct kvm_vcpu *vcpu);
 bool kvm_host_psci_handler(struct kvm_cpu_context *host_ctxt, u32 func_id);
 
 #ifdef __KVM_NVHE_HYPERVISOR__
-void __noreturn __hyp_do_panic(struct kvm_cpu_context *host_ctxt, u64 spsr,
+void __analreturn __hyp_do_panic(struct kvm_cpu_context *host_ctxt, u64 spsr,
 			       u64 elr, u64 par);
 #endif
 
@@ -127,7 +127,7 @@ void __pkvm_init_switch_pgd(phys_addr_t phys, unsigned long size,
 			    phys_addr_t pgd, void *sp, void *cont_fn);
 int __pkvm_init(phys_addr_t phys, unsigned long size, unsigned long nr_cpus,
 		unsigned long *per_cpu_base, u32 hyp_va_bits);
-void __noreturn __host_enter(struct kvm_cpu_context *host_ctxt);
+void __analreturn __host_enter(struct kvm_cpu_context *host_ctxt);
 #endif
 
 extern u64 kvm_nvhe_sym(id_aa64pfr0_el1_sys_val);

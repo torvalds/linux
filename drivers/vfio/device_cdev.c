@@ -20,16 +20,16 @@ void vfio_init_device_cdev(struct vfio_device *device)
  * device access via the fd opened by this function is blocked until
  * .open_device() is called successfully during BIND_IOMMUFD.
  */
-int vfio_device_fops_cdev_open(struct inode *inode, struct file *filep)
+int vfio_device_fops_cdev_open(struct ianalde *ianalde, struct file *filep)
 {
-	struct vfio_device *device = container_of(inode->i_cdev,
+	struct vfio_device *device = container_of(ianalde->i_cdev,
 						  struct vfio_device, cdev);
 	struct vfio_device_file *df;
 	int ret;
 
 	/* Paired with the put in vfio_device_fops_release() */
 	if (!vfio_device_try_get_registration(device))
-		return -ENODEV;
+		return -EANALDEV;
 
 	df = vfio_allocate_device_file(device);
 	if (IS_ERR(df)) {
@@ -80,7 +80,7 @@ long vfio_df_ioctl_bind_iommufd(struct vfio_device_file *df,
 		return ret;
 
 	mutex_lock(&device->dev_set->lock);
-	/* one device cannot be bound twice */
+	/* one device cananalt be bound twice */
 	if (df->access_granted) {
 		ret = -EINVAL;
 		goto out_unlock;
@@ -136,9 +136,9 @@ void vfio_df_unbind_iommufd(struct vfio_device_file *df)
 	struct vfio_device *device = df->device;
 
 	/*
-	 * In the time of close, there is no contention with another one
+	 * In the time of close, there is anal contention with aanalther one
 	 * changing this flag.  So read df->access_granted without lock
-	 * and no smp_load_acquire() is ok.
+	 * and anal smp_load_acquire() is ok.
 	 */
 	if (!df->access_granted)
 		return;
@@ -210,19 +210,19 @@ int vfio_df_ioctl_detach_pt(struct vfio_device_file *df,
 	return 0;
 }
 
-static char *vfio_device_devnode(const struct device *dev, umode_t *mode)
+static char *vfio_device_devanalde(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "vfio/devices/%s", dev_name(dev));
 }
 
 int vfio_cdev_init(struct class *device_class)
 {
-	device_class->devnode = vfio_device_devnode;
+	device_class->devanalde = vfio_device_devanalde;
 	return alloc_chrdev_region(&device_devt, 0,
-				   MINORMASK + 1, "vfio-dev");
+				   MIANALRMASK + 1, "vfio-dev");
 }
 
 void vfio_cdev_cleanup(void)
 {
-	unregister_chrdev_region(device_devt, MINORMASK + 1);
+	unregister_chrdev_region(device_devt, MIANALRMASK + 1);
 }

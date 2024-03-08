@@ -19,7 +19,7 @@ config PSTORE_DEFAULT_KMSG_BYTES
 	default "10240"
 	help
 	  Defines default size of pstore kernel log storage.
-	  Can be enlarged if needed, not recommended to shrink it.
+	  Can be enlarged if needed, analt recommended to shrink it.
 
 config PSTORE_COMPRESS
 	bool "Pstore compression (deflate)"
@@ -39,7 +39,7 @@ config PSTORE_CONSOLE
 	depends on PSTORE
 	help
 	  When the option is enabled, pstore will log all kernel
-	  messages, even if no oops or panic happened.
+	  messages, even if anal oops or panic happened.
 
 config PSTORE_PMSG
 	bool "Log user space messages"
@@ -76,7 +76,7 @@ config PSTORE_RAM
 	  This enables panic and oops messages to be logged to a circular
 	  buffer in RAM where it can be read back at some later point.
 
-	  Note that for historical reasons, the module will be named
+	  Analte that for historical reasons, the module will be named
 	  "ramoops.ko".
 
 	  For more information, see Documentation/admin-guide/ramoops.rst.
@@ -110,8 +110,8 @@ config PSTORE_BLK_BLKDEV
 	  Which block device should be used for pstore/blk.
 
 	  It accepts the following variants:
-	  1) <hex_major><hex_minor> device number in hexadecimal representation,
-	     with no leading 0x, for example b302.
+	  1) <hex_major><hex_mianalr> device number in hexadecimal representation,
+	     with anal leading 0x, for example b302.
 	  2) /dev/<disk_name> represents the device name of disk
 	  3) /dev/<disk_name><decimal> represents the device name and number
 	     of partition - device number of disk plus the partition number
@@ -124,11 +124,11 @@ config PSTORE_BLK_BLKDEV
 	     filled hex representation of the 32-bit "NT disk signature", and PP
 	     is a zero-filled hex representation of the 1-based partition number.
 	  6) PARTUUID=<UUID>/PARTNROFF=<int> to select a partition in relation
-	     to a partition with a known unique id.
-	  7) <major>:<minor> major and minor number of the device separated by
+	     to a partition with a kanalwn unique id.
+	  7) <major>:<mianalr> major and mianalr number of the device separated by
 	     a colon.
 
-	  NOTE that, both Kconfig and module parameters can configure
+	  ANALTE that, both Kconfig and module parameters can configure
 	  pstore/blk, but module parameters have priority over Kconfig.
 
 config PSTORE_BLK_KMSG_SIZE
@@ -139,7 +139,7 @@ config PSTORE_BLK_KMSG_SIZE
 	  This just sets size of kmsg dump (oops, panic, etc) log for
 	  pstore/blk. The size is in KB and must be a multiple of 4.
 
-	  NOTE that, both Kconfig and module parameters can configure
+	  ANALTE that, both Kconfig and module parameters can configure
 	  pstore/blk, but module parameters have priority over Kconfig.
 
 config PSTORE_BLK_MAX_REASON
@@ -151,7 +151,7 @@ config PSTORE_BLK_MAX_REASON
 	  2 (KMSG_DUMP_OOPS), see include/linux/kmsg_dump.h's
 	  enum kmsg_dump_reason for more details.
 
-	  NOTE that, both Kconfig and module parameters can configure
+	  ANALTE that, both Kconfig and module parameters can configure
 	  pstore/blk, but module parameters have priority over Kconfig.
 
 config PSTORE_BLK_PMSG_SIZE
@@ -163,7 +163,7 @@ config PSTORE_BLK_PMSG_SIZE
 	  This just sets size of pmsg (pmsg_size) for pstore/blk. The size is
 	  in KB and must be a multiple of 4.
 
-	  NOTE that, both Kconfig and module parameters can configure
+	  ANALTE that, both Kconfig and module parameters can configure
 	  pstore/blk, but module parameters have priority over Kconfig.
 
 config PSTORE_BLK_CONSOLE_SIZE
@@ -175,7 +175,7 @@ config PSTORE_BLK_CONSOLE_SIZE
 	  This just sets size of console log (console_size) to store via
 	  pstore/blk. The size is in KB and must be a multiple of 4.
 
-	  NOTE that, both Kconfig and module parameters can configure
+	  ANALTE that, both Kconfig and module parameters can configure
 	  pstore/blk, but module parameters have priority over Kconfig.
 
 config PSTORE_BLK_FTRACE_SIZE
@@ -187,5 +187,5 @@ config PSTORE_BLK_FTRACE_SIZE
 	  This just sets size of ftrace log (ftrace_size) for pstore/blk. The
 	  size is in KB and must be a multiple of 4.
 
-	  NOTE that, both Kconfig and module parameters can configure
+	  ANALTE that, both Kconfig and module parameters can configure
 	  pstore/blk, but module parameters have priority over Kconfig.

@@ -38,7 +38,7 @@
  *    Btrfs qgroup will updates its numbers, based on dirty extents traced
  *    in previous step.
  *
- *    Normally at qgroup rescan and transaction commit time.
+ *    Analrmally at qgroup rescan and transaction commit time.
  */
 
 /*
@@ -84,20 +84,20 @@
  * 3a) COW happens for OB
  *     If we are going to COW tree block OB, we check OB's bytenr against
  *     tree X's swapped_blocks structure.
- *     If it doesn't fit any, nothing will happen.
+ *     If it doesn't fit any, analthing will happen.
  *
  * 3b) COW happens for NA
  *     Check NA's bytenr against tree X's swapped_blocks, and get a hit.
  *     Then we do subtree scan on both subtrees OA and NA.
  *     Resulting 6 tree blocks to be scanned (OA, OC, OD, NA, NC, ND).
  *
- *     Then no matter what we do to subvolume tree X, qgroup numbers will
+ *     Then anal matter what we do to subvolume tree X, qgroup numbers will
  *     still be correct.
  *     Then NA's record gets removed from X's swapped_blocks.
  *
  * 4)  Transaction commit
- *     Any record in X's swapped_blocks gets removed, since there is no
- *     modification to the swapped subtrees, no need to trigger heavy qgroup
+ *     Any record in X's swapped_blocks gets removed, since there is anal
+ *     modification to the swapped subtrees, anal need to trigger heavy qgroup
  *     subtree rescan for them.
  */
 
@@ -109,14 +109,14 @@
  * count backwards from the MSB.
  */
 #define BTRFS_QGROUP_RUNTIME_FLAG_CANCEL_RESCAN		(1ULL << 63)
-#define BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING		(1ULL << 62)
+#define BTRFS_QGROUP_RUNTIME_FLAG_ANAL_ACCOUNTING		(1ULL << 62)
 
 /*
  * Record a dirty extent, and info qgroup to update quota on it
  * TODO: Use kmem cache to alloc it.
  */
 struct btrfs_qgroup_extent_record {
-	struct rb_node node;
+	struct rb_analde analde;
 	u64 bytenr;
 	u64 num_bytes;
 
@@ -134,7 +134,7 @@ struct btrfs_qgroup_extent_record {
 };
 
 struct btrfs_qgroup_swapped_block {
-	struct rb_node node;
+	struct rb_analde analde;
 
 	int level;
 	bool trace_leaf;
@@ -187,7 +187,7 @@ enum btrfs_qgroup_rsv_type {
  * *currently* meta is just reserve-and-clear during transaction.
  *
  * TODO: Add new type for reservation which can survive transaction commit.
- * Current metadata reservation behavior is not suitable for such case.
+ * Current metadata reservation behavior is analt suitable for such case.
  */
 struct btrfs_qgroup_rsv {
 	u64 values[BTRFS_QGROUP_RSV_LAST];
@@ -254,7 +254,7 @@ struct btrfs_qgroup {
 	 *	qgroup_iterator_nested_clean(all_qgroups);
 	 */
 	struct list_head nested_iterator;
-	struct rb_node node;	  /* tree of qgroups */
+	struct rb_analde analde;	  /* tree of qgroups */
 
 	/*
 	 * temp variables for accounting operations
@@ -323,7 +323,7 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info);
 void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info);
 struct btrfs_delayed_extent_op;
 
-int btrfs_qgroup_trace_extent_nolock(
+int btrfs_qgroup_trace_extent_anallock(
 		struct btrfs_fs_info *fs_info,
 		struct btrfs_delayed_ref_root *delayed_refs,
 		struct btrfs_qgroup_extent_record *record);
@@ -342,7 +342,7 @@ int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans);
 int btrfs_run_qgroups(struct btrfs_trans_handle *trans);
 int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
-			 u64 objectid, u64 inode_rootid,
+			 u64 objectid, u64 ianalde_rootid,
 			 struct btrfs_qgroup_inherit *inherit);
 void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 			       u64 ref_root, u64 num_bytes,
@@ -354,17 +354,17 @@ int btrfs_verify_qgroup_counts(struct btrfs_fs_info *fs_info, u64 qgroupid,
 #endif
 
 /* New io_tree based accurate qgroup reserve API */
-int btrfs_qgroup_reserve_data(struct btrfs_inode *inode,
+int btrfs_qgroup_reserve_data(struct btrfs_ianalde *ianalde,
 			struct extent_changeset **reserved, u64 start, u64 len);
-int btrfs_qgroup_release_data(struct btrfs_inode *inode, u64 start, u64 len, u64 *released);
-int btrfs_qgroup_free_data(struct btrfs_inode *inode,
+int btrfs_qgroup_release_data(struct btrfs_ianalde *ianalde, u64 start, u64 len, u64 *released);
+int btrfs_qgroup_free_data(struct btrfs_ianalde *ianalde,
 			   struct extent_changeset *reserved, u64 start,
 			   u64 len, u64 *freed);
 int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 			      enum btrfs_qgroup_rsv_type type, bool enforce);
 int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 				enum btrfs_qgroup_rsv_type type, bool enforce,
-				bool noflush);
+				bool analflush);
 /* Reserve metadata space for pertrans and prealloc type */
 static inline int btrfs_qgroup_reserve_meta_pertrans(struct btrfs_root *root,
 				int num_bytes, bool enforce)
@@ -375,11 +375,11 @@ static inline int btrfs_qgroup_reserve_meta_pertrans(struct btrfs_root *root,
 }
 static inline int btrfs_qgroup_reserve_meta_prealloc(struct btrfs_root *root,
 						     int num_bytes, bool enforce,
-						     bool noflush)
+						     bool analflush)
 {
 	return __btrfs_qgroup_reserve_meta(root, num_bytes,
 					   BTRFS_QGROUP_RSV_META_PREALLOC,
-					   enforce, noflush);
+					   enforce, analflush);
 }
 
 void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,
@@ -403,7 +403,7 @@ static inline void btrfs_qgroup_free_meta_prealloc(struct btrfs_root *root,
 
 void btrfs_qgroup_free_meta_all_pertrans(struct btrfs_root *root);
 void btrfs_qgroup_convert_reserved_meta(struct btrfs_root *root, int num_bytes);
-void btrfs_qgroup_check_reserved_leak(struct btrfs_inode *inode);
+void btrfs_qgroup_check_reserved_leak(struct btrfs_ianalde *ianalde);
 
 /* btrfs_qgroup_swapped_blocks related functions */
 void btrfs_qgroup_init_swapped_blocks(

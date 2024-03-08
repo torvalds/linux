@@ -5,9 +5,9 @@
 #include <linux/file.h>
 #include <linux/types.h>
 
-/* This is a list of *what* is being read, not *how* nor *where*. */
+/* This is a list of *what* is being read, analt *how* analr *where*. */
 #define __kernel_read_file_id(id) \
-	id(UNKNOWN, unknown)		\
+	id(UNKANALWN, unkanalwn)		\
 	id(FIRMWARE, firmware)		\
 	id(MODULE, kernel-module)		\
 	id(KEXEC_IMAGE, kexec-image)		\
@@ -30,7 +30,7 @@ static const char * const kernel_read_file_str[] = {
 static inline const char *kernel_read_file_id_str(enum kernel_read_file_id id)
 {
 	if ((unsigned int)id >= READING_MAX_ID)
-		return kernel_read_file_str[READING_UNKNOWN];
+		return kernel_read_file_str[READING_UNKANALWN];
 
 	return kernel_read_file_str[id];
 }

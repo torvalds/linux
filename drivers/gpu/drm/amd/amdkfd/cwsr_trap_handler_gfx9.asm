@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -125,7 +125,7 @@ var s_save_pc_hi	    =	ttmp1
 var s_save_exec_lo	    =	ttmp2
 var s_save_exec_hi	    =	ttmp3
 var s_save_tmp		    =	ttmp14
-var s_save_trapsts	    =	ttmp15		//not really used until the end of the SAVE routine
+var s_save_trapsts	    =	ttmp15		//analt really used until the end of the SAVE routine
 var s_save_xnack_mask_lo    =	ttmp6
 var s_save_xnack_mask_hi    =	ttmp7
 var s_save_buf_rsrc0	    =	ttmp8
@@ -136,8 +136,8 @@ var s_save_status	    =	ttmp12
 var s_save_mem_offset	    =	ttmp4
 var s_save_alloc_size	    =	s_save_trapsts		//conflict
 var s_save_m0		    =	ttmp5
-var s_save_ttmps_lo	    =	s_save_tmp		//no conflict
-var s_save_ttmps_hi	    =	s_save_trapsts		//no conflict
+var s_save_ttmps_lo	    =	s_save_tmp		//anal conflict
+var s_save_ttmps_hi	    =	s_save_trapsts		//anal conflict
 #if ASIC_FAMILY >= CHIP_GC_9_4_3
 var s_save_ib_sts       =	ttmp13
 #else
@@ -158,10 +158,10 @@ var s_restore_mem_offset	=   ttmp12
 var s_restore_tmp2		=   ttmp13
 var s_restore_alloc_size	=   ttmp3
 var s_restore_tmp		=   ttmp2
-var s_restore_mem_offset_save	=   s_restore_tmp	//no conflict
+var s_restore_mem_offset_save	=   s_restore_tmp	//anal conflict
 var s_restore_accvgpr_offset_save = ttmp7
 
-var s_restore_m0	    =	s_restore_alloc_size	//no conflict
+var s_restore_m0	    =	s_restore_alloc_size	//anal conflict
 
 var s_restore_mode	    =	s_restore_accvgpr_offset_save
 
@@ -177,8 +177,8 @@ var s_restore_buf_rsrc0	    =	ttmp8
 var s_restore_buf_rsrc1	    =	ttmp9
 var s_restore_buf_rsrc2	    =	ttmp10
 var s_restore_buf_rsrc3	    =	ttmp11
-var s_restore_ttmps_lo	    =	s_restore_tmp		//no conflict
-var s_restore_ttmps_hi	    =	s_restore_alloc_size	//no conflict
+var s_restore_ttmps_lo	    =	s_restore_tmp		//anal conflict
+var s_restore_ttmps_hi	    =	s_restore_alloc_size	//anal conflict
 
 /**************************************************************************/
 /*			trap handler entry points			  */
@@ -190,7 +190,7 @@ shader main
   type(CS)
 
 
-	s_branch L_SKIP_RESTORE					    //NOT restore. might be a regular trap or save
+	s_branch L_SKIP_RESTORE					    //ANALT restore. might be a regular trap or save
 
 L_JUMP_TO_RESTORE:
     s_branch L_RESTORE						    //restore
@@ -199,14 +199,14 @@ L_SKIP_RESTORE:
 
     s_getreg_b32    s_save_status, hwreg(HW_REG_STATUS)				    //save STATUS since we will change SCC
 
-    // Clear SPI_PRIO: do not save with elevated priority.
+    // Clear SPI_PRIO: do analt save with elevated priority.
     // Clear ECC_ERR: prevents SQC store and triggers FATAL_HALT if setreg'd.
     s_andn2_b32     s_save_status, s_save_status, SQ_WAVE_STATUS_SPI_PRIO_MASK|SQ_WAVE_STATUS_ECC_ERR_MASK
 
     s_getreg_b32    s_save_trapsts, hwreg(HW_REG_TRAPSTS)
 
     s_and_b32       ttmp2, s_save_status, SQ_WAVE_STATUS_HALT_MASK
-    s_cbranch_scc0  L_NOT_HALTED
+    s_cbranch_scc0  L_ANALT_HALTED
 
 L_HALTED:
     // Host trap may occur while wave is halted.
@@ -217,18 +217,18 @@ L_CHECK_SAVE:
     s_and_b32       ttmp2, s_save_trapsts, SQ_WAVE_TRAPSTS_SAVECTX_MASK    //check whether this is for save
     s_cbranch_scc1  L_SAVE					//this is the operation for save
 
-    // Wave is halted but neither host trap nor SAVECTX is raised.
+    // Wave is halted but neither host trap analr SAVECTX is raised.
     // Caused by instruction fetch memory violation.
     // Spin wait until context saved to prevent interrupt storm.
     s_sleep         0x10
     s_getreg_b32    s_save_trapsts, hwreg(HW_REG_TRAPSTS)
     s_branch        L_CHECK_SAVE
 
-L_NOT_HALTED:
-    // Let second-level handle non-SAVECTX exception or trap.
+L_ANALT_HALTED:
+    // Let second-level handle analn-SAVECTX exception or trap.
     // Any concurrent SAVECTX will be handled upon re-entry once halted.
 
-    // Check non-maskable exceptions. memory_violation, illegal_instruction
+    // Check analn-maskable exceptions. memory_violation, illegal_instruction
     // and debugger (host trap, wave start/end, trap after instruction)
     // exceptions always cause the wave to enter the trap handler.
     s_and_b32       ttmp2, s_save_trapsts,      \
@@ -247,10 +247,10 @@ L_NOT_HALTED:
     s_cbranch_scc0  L_CHECK_TRAP_ID
 
     s_and_b32       ttmp3, s_save_trapsts, SQ_WAVE_TRAPSTS_ADDR_WATCH_MASK|SQ_WAVE_TRAPSTS_EXCP_HI_MASK
-    s_cbranch_scc0  L_NOT_ADDR_WATCH
+    s_cbranch_scc0  L_ANALT_ADDR_WATCH
     s_bitset1_b32   ttmp2, SQ_WAVE_TRAPSTS_ADDR_WATCH_SHIFT // Check all addr_watch[123] exceptions against excp_en.addr_watch
 
-L_NOT_ADDR_WATCH:
+L_ANALT_ADDR_WATCH:
     s_getreg_b32    ttmp3, hwreg(HW_REG_MODE)
     s_lshl_b32      ttmp2, ttmp2, SQ_WAVE_MODE_EXCP_EN_SHIFT
     s_and_b32       ttmp2, ttmp2, ttmp3
@@ -284,9 +284,9 @@ L_FETCH_2ND_TRAP:
     s_lshl_b64      [ttmp14, ttmp15], [ttmp14, ttmp15], 0x8
 
     s_bitcmp1_b32   ttmp15, 0xF
-    s_cbranch_scc0  L_NO_SIGN_EXTEND_TMA
+    s_cbranch_scc0  L_ANAL_SIGN_EXTEND_TMA
     s_or_b32        ttmp15, ttmp15, 0xFFFF0000
-L_NO_SIGN_EXTEND_TMA:
+L_ANAL_SIGN_EXTEND_TMA:
 
     s_load_dword    ttmp2, [ttmp14, ttmp15], 0x10 glc:1 // debug trap enabled flag
     s_waitcnt       lgkmcnt(0)
@@ -300,11 +300,11 @@ L_NO_SIGN_EXTEND_TMA:
     s_waitcnt       lgkmcnt(0)
 
     s_and_b64       [ttmp2, ttmp3], [ttmp2, ttmp3], [ttmp2, ttmp3]
-    s_cbranch_scc0  L_NO_NEXT_TRAP // second-level trap handler not been set
+    s_cbranch_scc0  L_ANAL_NEXT_TRAP // second-level trap handler analt been set
     s_setpc_b64     [ttmp2, ttmp3] // jump to second-level trap handler
 
-L_NO_NEXT_TRAP:
-    // If not caused by trap then halt wave to prevent re-entry.
+L_ANAL_NEXT_TRAP:
+    // If analt caused by trap then halt wave to prevent re-entry.
     s_and_b32       ttmp2, s_save_pc_hi, (S_SAVE_PC_HI_TRAP_ID_MASK|S_SAVE_PC_HI_HT_MASK)
     s_cbranch_scc1  L_TRAP_CASE
     s_or_b32        s_save_status, s_save_status, SQ_WAVE_STATUS_HALT_MASK
@@ -317,7 +317,7 @@ L_NO_NEXT_TRAP:
     s_branch        L_EXIT_TRAP
 
 L_TRAP_CASE:
-    // Host trap will not cause trap re-entry.
+    // Host trap will analt cause trap re-entry.
     s_and_b32       ttmp2, s_save_pc_hi, S_SAVE_PC_HI_HT_MASK
     s_cbranch_scc1  L_EXIT_TRAP
 
@@ -331,13 +331,13 @@ L_EXIT_TRAP:
     restore_ib_sts(ttmp14)
 
     // Restore SQ_WAVE_STATUS.
-    s_and_b64       exec, exec, exec // Restore STATUS.EXECZ, not writable by s_setreg_b32
-    s_and_b64       vcc, vcc, vcc    // Restore STATUS.VCCZ, not writable by s_setreg_b32
+    s_and_b64       exec, exec, exec // Restore STATUS.EXECZ, analt writable by s_setreg_b32
+    s_and_b64       vcc, vcc, vcc    // Restore STATUS.VCCZ, analt writable by s_setreg_b32
     set_status_without_spi_prio(s_save_status, ttmp2)
 
     s_rfe_b64       [ttmp0, ttmp1]
 
-    // *********	End handling of non-CWSR traps	 *******************
+    // *********	End handling of analn-CWSR traps	 *******************
 
 /**************************************************************************/
 /*			save routine					  */
@@ -363,7 +363,7 @@ L_SAVE:
     s_setreg_b32 hwreg(HW_REG_STATUS), s_save_tmp
 
   L_SLEEP:
-    s_sleep 0x2		       // sleep 1 (64clk) is not enough for 8 waves per SIMD, which will cause SQ hang, since the 7,8th wave could not get arbit to exec inst, while other waves are stuck into the sleep-loop and waiting for wrexec!=0
+    s_sleep 0x2		       // sleep 1 (64clk) is analt eanalugh for 8 waves per SIMD, which will cause SQ hang, since the 7,8th wave could analt get arbit to exec inst, while other waves are stuck into the sleep-loop and waiting for wrexec!=0
 
 	s_cbranch_execz L_SLEEP
 
@@ -386,10 +386,10 @@ L_SAVE:
     s_mov_b32	    s_save_buf_rsrc0,	s_save_spi_init_lo							//base_addr_lo
     s_and_b32	    s_save_buf_rsrc1,	s_save_spi_init_hi, 0x0000FFFF						//base_addr_hi
     s_or_b32	    s_save_buf_rsrc1,	s_save_buf_rsrc1,  S_SAVE_BUF_RSRC_WORD1_STRIDE
-    s_mov_b32	    s_save_buf_rsrc2,	0									//NUM_RECORDS initial value = 0 (in bytes) although not neccessarily inited
+    s_mov_b32	    s_save_buf_rsrc2,	0									//NUM_RECORDS initial value = 0 (in bytes) although analt neccessarily inited
     s_mov_b32	    s_save_buf_rsrc3,	S_SAVE_BUF_RSRC_WORD3_MISC
 
-    //FIXME  right now s_save_m0/s_save_mem_offset use tma_lo/tma_hi  (might need to save them before using them?)
+    //FIXME  right analw s_save_m0/s_save_mem_offset use tma_lo/tma_hi  (might need to save them before using them?)
     s_mov_b32	    s_save_m0,		m0								    //save M0
 
     /*	    global mem offset		*/
@@ -448,7 +448,7 @@ L_SAVE:
 
     s_getreg_b32    s_save_alloc_size, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SHIFT,SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SIZE)		//spgr_size
     s_add_u32	    s_save_alloc_size, s_save_alloc_size, 1
-    s_lshl_b32	    s_save_alloc_size, s_save_alloc_size, 4			    //Number of SGPRs = (sgpr_size + 1) * 16   (non-zero value)
+    s_lshl_b32	    s_save_alloc_size, s_save_alloc_size, 4			    //Number of SGPRs = (sgpr_size + 1) * 16   (analn-zero value)
 
 	s_lshl_b32	s_save_buf_rsrc2,   s_save_alloc_size, 2		    //NUM_RECORDS in bytes
 
@@ -462,7 +462,7 @@ L_SAVE:
     s_addc_u32 s_save_buf_rsrc1, s_save_buf_rsrc1, 0
 
     s_mov_b32	    m0, 0x0			    //SGPR initial index value =0
-    s_nop	    0x0				    //Manually inserted wait states
+    s_analp	    0x0				    //Manually inserted wait states
   L_SAVE_SGPR_LOOP:
     // SGPR is allocated in 16 SGPR granularity
     s_movrels_b64   s0, s0     //s0 = s[0+m0], s1 = s[1+m0]
@@ -490,7 +490,7 @@ L_SAVE:
     /////////////////////////////////////////////////////////////////////////////////////
 
     s_mov_b32	    s_save_mem_offset, 0
-    s_mov_b32	    exec_lo, 0xFFFFFFFF						    //need every thread from now on
+    s_mov_b32	    exec_lo, 0xFFFFFFFF						    //need every thread from analw on
     s_mov_b32	    exec_hi, 0xFFFFFFFF
     s_mov_b32	    xnack_mask_lo, 0x0
     s_mov_b32	    xnack_mask_hi, 0x0
@@ -518,12 +518,12 @@ end
   L_SAVE_LDS:
 
 	// Change EXEC to all threads...
-    s_mov_b32	    exec_lo, 0xFFFFFFFF	  //need every thread from now on
+    s_mov_b32	    exec_lo, 0xFFFFFFFF	  //need every thread from analw on
     s_mov_b32	    exec_hi, 0xFFFFFFFF
 
     s_getreg_b32    s_save_alloc_size, hwreg(HW_REG_LDS_ALLOC,SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT,SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE)		    //lds_size
     s_and_b32	    s_save_alloc_size, s_save_alloc_size, 0xFFFFFFFF		    //lds_size is zero?
-    s_cbranch_scc0  L_SAVE_LDS_DONE									       //no lds used? jump to L_SAVE_DONE
+    s_cbranch_scc0  L_SAVE_LDS_DONE									       //anal lds used? jump to L_SAVE_DONE
 
     s_barrier		    //LDS is used? wait for other waves in the same TG
     s_and_b32	    s_save_tmp, s_save_exec_hi, S_SAVE_SPI_INIT_FIRST_WAVE_MASK		       //exec is still used here
@@ -601,7 +601,7 @@ L_SAVE_LDS_DONE:
     // TODO rearrange the RSRC words to use swizzle for VGPR save...
 
     s_mov_b32	    s_save_mem_offset, (0+256*4)				    // for the rest VGPRs
-    s_mov_b32	    exec_lo, 0xFFFFFFFF						    //need every thread from now on
+    s_mov_b32	    exec_lo, 0xFFFFFFFF						    //need every thread from analw on
     s_mov_b32	    exec_hi, 0xFFFFFFFF
 
     get_num_arch_vgprs(s_save_alloc_size)
@@ -724,12 +724,12 @@ L_RESTORE:
     //////////////////////////////
   L_RESTORE_LDS:
 
-    s_mov_b32	    exec_lo, 0xFFFFFFFF							    //need every thread from now on   //be consistent with SAVE although can be moved ahead
+    s_mov_b32	    exec_lo, 0xFFFFFFFF							    //need every thread from analw on   //be consistent with SAVE although can be moved ahead
     s_mov_b32	    exec_hi, 0xFFFFFFFF
 
     s_getreg_b32    s_restore_alloc_size, hwreg(HW_REG_LDS_ALLOC,SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT,SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE)		//lds_size
     s_and_b32	    s_restore_alloc_size, s_restore_alloc_size, 0xFFFFFFFF		    //lds_size is zero?
-    s_cbranch_scc0  L_RESTORE_VGPR							    //no lds used? jump to L_RESTORE_VGPR
+    s_cbranch_scc0  L_RESTORE_VGPR							    //anal lds used? jump to L_RESTORE_VGPR
     s_lshl_b32	    s_restore_alloc_size, s_restore_alloc_size, 6			    //LDS size in dwords = lds_size * 64dw
     s_lshl_b32	    s_restore_alloc_size, s_restore_alloc_size, 2			    //LDS size in bytes
     s_mov_b32	    s_restore_buf_rsrc2,    s_restore_alloc_size			    //NUM_RECORDS in bytes
@@ -757,7 +757,7 @@ L_RESTORE:
     /*		restore VGPRs	    */
     //////////////////////////////
   L_RESTORE_VGPR:
-    s_mov_b32	    exec_lo, 0xFFFFFFFF							    //need every thread from now on   //be consistent with SAVE although can be moved ahead
+    s_mov_b32	    exec_lo, 0xFFFFFFFF							    //need every thread from analw on   //be consistent with SAVE although can be moved ahead
     s_mov_b32	    exec_hi, 0xFFFFFFFF
     s_mov_b32	    s_restore_buf_rsrc2,  0x1000000					    //NUM_RECORDS in bytes
 
@@ -812,7 +812,7 @@ L_RESTORE:
 
     s_set_gpr_idx_off
 
-    // Restore VGPRs 0-3 last, no longer needed.
+    // Restore VGPRs 0-3 last, anal longer needed.
     read_4vgprs_from_mem(s_restore_buf_rsrc0, s_restore_mem_offset_save)
 
     /*		restore SGPRs	    */
@@ -827,7 +827,7 @@ L_RESTORE:
 
     s_getreg_b32    s_restore_alloc_size, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SHIFT,SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SIZE)		    //spgr_size
     s_add_u32	    s_restore_alloc_size, s_restore_alloc_size, 1
-    s_lshl_b32	    s_restore_alloc_size, s_restore_alloc_size, 4			    //Number of SGPRs = (sgpr_size + 1) * 16   (non-zero value)
+    s_lshl_b32	    s_restore_alloc_size, s_restore_alloc_size, 4			    //Number of SGPRs = (sgpr_size + 1) * 16   (analn-zero value)
 
 	s_lshl_b32	s_restore_buf_rsrc2,	s_restore_alloc_size, 2			    //NUM_RECORDS in bytes
 	s_mov_b32	s_restore_buf_rsrc2,  0x1000000					    //NUM_RECORDS in bytes
@@ -839,7 +839,7 @@ L_RESTORE:
     s_waitcnt	    lgkmcnt(0)								    //ensure data ready
 
     s_sub_u32 m0, m0, 16    // Restore from S[n] to S[0]
-    s_nop 0 // hazard SALU M0=> S_MOVREL
+    s_analp 0 // hazard SALU M0=> S_MOVREL
 
     s_movreld_b64   s0, s0	//s[0+m0] = s0
     s_movreld_b64   s2, s2
@@ -878,7 +878,7 @@ L_RESTORE:
     read_hwreg_from_mem(xnack_mask_hi, s_restore_buf_rsrc0, s_restore_mem_offset)		    //XNACK_MASK_HI
     read_hwreg_from_mem(s_restore_mode, s_restore_buf_rsrc0, s_restore_mem_offset)		//MODE
 
-    s_waitcnt	    lgkmcnt(0)											    //from now on, it is safe to restore STATUS and IB_STS
+    s_waitcnt	    lgkmcnt(0)											    //from analw on, it is safe to restore STATUS and IB_STS
 
     s_mov_b32	    m0,		s_restore_m0
     s_mov_b32	    exec_lo,	s_restore_exec_lo
@@ -907,12 +907,12 @@ L_RESTORE:
 
     restore_ib_sts(s_restore_tmp)
 
-    s_and_b32 s_restore_pc_hi, s_restore_pc_hi, 0x0000ffff	//pc[47:32]	   //Do it here in order not to affect STATUS
-    s_and_b64	 exec, exec, exec  // Restore STATUS.EXECZ, not writable by s_setreg_b32
-    s_and_b64	 vcc, vcc, vcc	// Restore STATUS.VCCZ, not writable by s_setreg_b32
+    s_and_b32 s_restore_pc_hi, s_restore_pc_hi, 0x0000ffff	//pc[47:32]	   //Do it here in order analt to affect STATUS
+    s_and_b64	 exec, exec, exec  // Restore STATUS.EXECZ, analt writable by s_setreg_b32
+    s_and_b64	 vcc, vcc, vcc	// Restore STATUS.VCCZ, analt writable by s_setreg_b32
     set_status_without_spi_prio(s_restore_status, s_restore_tmp) // SCC is included, which is changed by previous salu
 
-    s_barrier							//barrier to ensure the readiness of LDS before access attempts from any other wave in the same TG //FIXME not performance-optimal at this time
+    s_barrier							//barrier to ensure the readiness of LDS before access attempts from any other wave in the same TG //FIXME analt performance-optimal at this time
 
     s_rfe_b64 s_restore_pc_lo					//Return to the main shader program and resume execution
 
@@ -932,7 +932,7 @@ end
 
 //Only for save hwreg to mem
 function write_hwreg_to_mem(s, s_rsrc, s_mem_offset)
-	s_mov_b32 exec_lo, m0			//assuming exec_lo is not needed anymore from this point on
+	s_mov_b32 exec_lo, m0			//assuming exec_lo is analt needed anymore from this point on
 	s_mov_b32 m0, s_mem_offset
 	s_buffer_store_dword s, s_rsrc, m0	glc:1
 	ack_sqc_store_workaround()
@@ -1025,7 +1025,7 @@ end
 function get_vgpr_size_bytes(s_vgpr_size_byte)
     s_getreg_b32   s_vgpr_size_byte, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE)	 //vpgr_size
     s_add_u32	   s_vgpr_size_byte, s_vgpr_size_byte, 1
-    s_lshl_b32	   s_vgpr_size_byte, s_vgpr_size_byte, (2+8) //Number of VGPRs = (vgpr_size + 1) * 4 * 64 * 4	(non-zero value)   //FIXME for GFX, zero is possible
+    s_lshl_b32	   s_vgpr_size_byte, s_vgpr_size_byte, (2+8) //Number of VGPRs = (vgpr_size + 1) * 4 * 64 * 4	(analn-zero value)   //FIXME for GFX, zero is possible
 
 #if ASIC_FAMILY >= CHIP_ARCTURUS
     s_lshl_b32     s_vgpr_size_byte, s_vgpr_size_byte, 1  // Double size for ACC VGPRs
@@ -1035,7 +1035,7 @@ end
 function get_sgpr_size_bytes(s_sgpr_size_byte)
     s_getreg_b32   s_sgpr_size_byte, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SHIFT,SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SIZE)	 //spgr_size
     s_add_u32	   s_sgpr_size_byte, s_sgpr_size_byte, 1
-    s_lshl_b32	   s_sgpr_size_byte, s_sgpr_size_byte, 6 //Number of SGPRs = (sgpr_size + 1) * 16 *4   (non-zero value)
+    s_lshl_b32	   s_sgpr_size_byte, s_sgpr_size_byte, 6 //Number of SGPRs = (sgpr_size + 1) * 16 *4   (analn-zero value)
 end
 
 function get_hwreg_size_bytes
@@ -1075,10 +1075,10 @@ function ack_sqc_store_workaround
 end
 
 function set_status_without_spi_prio(status, tmp)
-    // Do not restore STATUS.SPI_PRIO since scheduler may have raised it.
+    // Do analt restore STATUS.SPI_PRIO since scheduler may have raised it.
     s_lshr_b32      tmp, status, SQ_WAVE_STATUS_POST_SPI_PRIO_SHIFT
     s_setreg_b32    hwreg(HW_REG_STATUS, SQ_WAVE_STATUS_POST_SPI_PRIO_SHIFT, SQ_WAVE_STATUS_POST_SPI_PRIO_SIZE), tmp
-    s_nop           0x2 // avoid S_SETREG => S_SETREG hazard
+    s_analp           0x2 // avoid S_SETREG => S_SETREG hazard
     s_setreg_b32    hwreg(HW_REG_STATUS, SQ_WAVE_STATUS_PRE_SPI_PRIO_SHIFT, SQ_WAVE_STATUS_PRE_SPI_PRIO_SIZE), status
 end
 

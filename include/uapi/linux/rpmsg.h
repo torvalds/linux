@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (c) 2016, Linaro Ltd.
  */
@@ -14,8 +14,8 @@
 /**
  * struct rpmsg_endpoint_info - endpoint info representation
  * @name: name of service
- * @src: local address. To set to RPMSG_ADDR_ANY if not used.
- * @dst: destination address. To set to RPMSG_ADDR_ANY if not used.
+ * @src: local address. To set to RPMSG_ADDR_ANY if analt used.
+ * @dst: destination address. To set to RPMSG_ADDR_ANY if analt used.
  */
 struct rpmsg_endpoint_info {
 	char name[32];

@@ -56,7 +56,7 @@ int snd_sbdsp_get_byte(struct snd_sb *chip)
 		}
 	}
 	snd_printd("%s [0x%lx]: timeout\n", __func__, chip->port);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int snd_sbdsp_reset(struct snd_sb *chip)
@@ -75,7 +75,7 @@ int snd_sbdsp_reset(struct snd_sb *chip)
 				break;
 		}
 	snd_printdd("%s [0x%lx] failed...\n", __func__, chip->port);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int snd_sbdsp_version(struct snd_sb * chip)
@@ -91,7 +91,7 @@ static int snd_sbdsp_version(struct snd_sb * chip)
 static int snd_sbdsp_probe(struct snd_sb * chip)
 {
 	int version;
-	int major, minor;
+	int major, mianalr;
 	char *str;
 	unsigned long flags;
 
@@ -102,18 +102,18 @@ static int snd_sbdsp_probe(struct snd_sb * chip)
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	if (snd_sbdsp_reset(chip) < 0) {
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	version = snd_sbdsp_version(chip);
 	if (version < 0) {
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	major = version >> 8;
-	minor = version & 0xff;
+	mianalr = version & 0xff;
 	snd_printdd("SB [0x%lx]: DSP chip found, version = %i.%i\n",
-		    chip->port, major, minor);
+		    chip->port, major, mianalr);
 
 	switch (chip->hardware) {
 	case SB_HW_AUTO:
@@ -123,7 +123,7 @@ static int snd_sbdsp_probe(struct snd_sb * chip)
 			str = "1.0";
 			break;
 		case 2:
-			if (minor) {
+			if (mianalr) {
 				chip->hardware = SB_HW_201;
 				str = "2.01+";
 			} else {
@@ -140,9 +140,9 @@ static int snd_sbdsp_probe(struct snd_sb * chip)
 			str = "16";
 			break;
 		default:
-			snd_printk(KERN_INFO "SB [0x%lx]: unknown DSP chip version %i.%i\n",
-				   chip->port, major, minor);
-			return -ENODEV;
+			snd_printk(KERN_INFO "SB [0x%lx]: unkanalwn DSP chip version %i.%i\n",
+				   chip->port, major, mianalr);
+			return -EANALDEV;
 		}
 		break;
 	case SB_HW_ALS100:
@@ -161,10 +161,10 @@ static int snd_sbdsp_probe(struct snd_sb * chip)
 		str = "Pro (Jazz16)";
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	sprintf(chip->name, "Sound Blaster %s", str);
-	chip->version = (major << 8) | minor;
+	chip->version = (major << 8) | mianalr;
 	return 0;
 }
 
@@ -185,7 +185,7 @@ int snd_sbdsp_create(struct snd_card *card,
 	*r_chip = NULL;
 	chip = devm_kzalloc(card->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&chip->reg_lock);
 	spin_lock_init(&chip->open_lock);
 	spin_lock_init(&chip->midi_input_lock);
@@ -225,7 +225,7 @@ int snd_sbdsp_create(struct snd_card *card,
 	chip->dma8 = dma8;
 	if (dma16 >= 0) {
 		if (hardware != SB_HW_ALS100 && (dma16 < 5 || dma16 > 7)) {
-			/* no duplex */
+			/* anal duplex */
 			dma16 = -1;
 		} else if (snd_devm_request_dma(card->dev, dma16,
 						"SoundBlaster - 16bit")) {

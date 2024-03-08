@@ -9,7 +9,7 @@
 #define __DT_BINDINGS_CLOCK_HI6220_H
 
 /* clk in Hi6220 AO (always on) controller */
-#define HI6220_NONE_CLOCK	0
+#define HI6220_ANALNE_CLOCK	0
 
 /* fixed rate clocks */
 #define HI6220_REF32K		1

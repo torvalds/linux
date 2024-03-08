@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -85,9 +85,9 @@
 #define DPREFCLK_CNTL__DPREFCLK_SRC_SEL_MASK                                                                  0x00000007L
 //DCE_VERSION
 #define DCE_VERSION__MAJOR_VERSION__SHIFT                                                                     0x0
-#define DCE_VERSION__MINOR_VERSION__SHIFT                                                                     0x8
+#define DCE_VERSION__MIANALR_VERSION__SHIFT                                                                     0x8
 #define DCE_VERSION__MAJOR_VERSION_MASK                                                                       0x000000FFL
-#define DCE_VERSION__MINOR_VERSION_MASK                                                                       0x0000FF00L
+#define DCE_VERSION__MIANALR_VERSION_MASK                                                                       0x0000FF00L
 //DCCG_GTC_CNTL
 #define DCCG_GTC_CNTL__DCCG_GTC_ENABLE__SHIFT                                                                 0x0
 #define DCCG_GTC_CNTL__DCCG_GTC_ENABLE_MASK                                                                   0x00000001L
@@ -460,10 +460,10 @@
 #define DISP_INTERRUPT_STATUS__OPTC1_DATA_UNDERFLOW_INTERRUPT__SHIFT                                          0x1
 #define DISP_INTERRUPT_STATUS__OTG1_IHC_SNAPSHOT_INTERRUPT__SHIFT                                             0x4
 #define DISP_INTERRUPT_STATUS__OTG1_IHC_FORCE_VSYNC_NEXT_LINE_INTERRUPT__SHIFT                                0x5
-#define DISP_INTERRUPT_STATUS__OTG1_IHC_FORCE_COUNT_NOW_INTERRUPT__SHIFT                                      0x6
+#define DISP_INTERRUPT_STATUS__OTG1_IHC_FORCE_COUNT_ANALW_INTERRUPT__SHIFT                                      0x6
 #define DISP_INTERRUPT_STATUS__OTG1_IHC_TRIGA_INTERRUPT__SHIFT                                                0x7
 #define DISP_INTERRUPT_STATUS__OTG1_IHC_TRIGB_INTERRUPT__SHIFT                                                0x8
-#define DISP_INTERRUPT_STATUS__OTG1_IHC_VSYNC_NOM_INTERRUPT__SHIFT                                            0x9
+#define DISP_INTERRUPT_STATUS__OTG1_IHC_VSYNC_ANALM_INTERRUPT__SHIFT                                            0x9
 #define DISP_INTERRUPT_STATUS__OTG1_IHC_SET_V_TOTAL_MIN_EVENT_OCCURED_INT__SHIFT                              0xa
 #define DISP_INTERRUPT_STATUS__DIGA_DP_FAST_TRAINING_COMPLETE_INTERRUPT__SHIFT                                0xf
 #define DISP_INTERRUPT_STATUS__DIGA_DP_VID_STREAM_DISABLE_INTERRUPT__SHIFT                                    0x10
@@ -483,10 +483,10 @@
 #define DISP_INTERRUPT_STATUS__OPTC1_DATA_UNDERFLOW_INTERRUPT_MASK                                            0x00000002L
 #define DISP_INTERRUPT_STATUS__OTG1_IHC_SNAPSHOT_INTERRUPT_MASK                                               0x00000010L
 #define DISP_INTERRUPT_STATUS__OTG1_IHC_FORCE_VSYNC_NEXT_LINE_INTERRUPT_MASK                                  0x00000020L
-#define DISP_INTERRUPT_STATUS__OTG1_IHC_FORCE_COUNT_NOW_INTERRUPT_MASK                                        0x00000040L
+#define DISP_INTERRUPT_STATUS__OTG1_IHC_FORCE_COUNT_ANALW_INTERRUPT_MASK                                        0x00000040L
 #define DISP_INTERRUPT_STATUS__OTG1_IHC_TRIGA_INTERRUPT_MASK                                                  0x00000080L
 #define DISP_INTERRUPT_STATUS__OTG1_IHC_TRIGB_INTERRUPT_MASK                                                  0x00000100L
-#define DISP_INTERRUPT_STATUS__OTG1_IHC_VSYNC_NOM_INTERRUPT_MASK                                              0x00000200L
+#define DISP_INTERRUPT_STATUS__OTG1_IHC_VSYNC_ANALM_INTERRUPT_MASK                                              0x00000200L
 #define DISP_INTERRUPT_STATUS__OTG1_IHC_SET_V_TOTAL_MIN_EVENT_OCCURED_INT_MASK                                0x00000400L
 #define DISP_INTERRUPT_STATUS__DIGA_DP_FAST_TRAINING_COMPLETE_INTERRUPT_MASK                                  0x00008000L
 #define DISP_INTERRUPT_STATUS__DIGA_DP_VID_STREAM_DISABLE_INTERRUPT_MASK                                      0x00010000L
@@ -543,37 +543,37 @@
 #define AZALIA_UNDERFLOW_FILLER_SAMPLE__AZALIA_UNDERFLOW_FILLER_SAMPLE__SHIFT                                 0x0
 #define AZALIA_UNDERFLOW_FILLER_SAMPLE__AZALIA_UNDERFLOW_FILLER_SAMPLE_MASK                                   0xFFFFFFFFL
 //AZALIA_DATA_DMA_CONTROL
-#define AZALIA_DATA_DMA_CONTROL__DATA_DMA_NON_SNOOP__SHIFT                                                    0x0
-#define AZALIA_DATA_DMA_CONTROL__INPUT_DATA_DMA_NON_SNOOP__SHIFT                                              0x2
-#define AZALIA_DATA_DMA_CONTROL__DATA_DMA_ISOCHRONOUS__SHIFT                                                  0x4
-#define AZALIA_DATA_DMA_CONTROL__INPUT_DATA_DMA_ISOCHRONOUS__SHIFT                                            0x6
+#define AZALIA_DATA_DMA_CONTROL__DATA_DMA_ANALN_SANALOP__SHIFT                                                    0x0
+#define AZALIA_DATA_DMA_CONTROL__INPUT_DATA_DMA_ANALN_SANALOP__SHIFT                                              0x2
+#define AZALIA_DATA_DMA_CONTROL__DATA_DMA_ISOCHROANALUS__SHIFT                                                  0x4
+#define AZALIA_DATA_DMA_CONTROL__INPUT_DATA_DMA_ISOCHROANALUS__SHIFT                                            0x6
 #define AZALIA_DATA_DMA_CONTROL__AZALIA_IOC_GENERATION_METHOD__SHIFT                                          0x10
 #define AZALIA_DATA_DMA_CONTROL__AZALIA_UNDERFLOW_CONTROL__SHIFT                                              0x11
-#define AZALIA_DATA_DMA_CONTROL__DATA_DMA_NON_SNOOP_MASK                                                      0x00000003L
-#define AZALIA_DATA_DMA_CONTROL__INPUT_DATA_DMA_NON_SNOOP_MASK                                                0x0000000CL
-#define AZALIA_DATA_DMA_CONTROL__DATA_DMA_ISOCHRONOUS_MASK                                                    0x00000030L
-#define AZALIA_DATA_DMA_CONTROL__INPUT_DATA_DMA_ISOCHRONOUS_MASK                                              0x000000C0L
+#define AZALIA_DATA_DMA_CONTROL__DATA_DMA_ANALN_SANALOP_MASK                                                      0x00000003L
+#define AZALIA_DATA_DMA_CONTROL__INPUT_DATA_DMA_ANALN_SANALOP_MASK                                                0x0000000CL
+#define AZALIA_DATA_DMA_CONTROL__DATA_DMA_ISOCHROANALUS_MASK                                                    0x00000030L
+#define AZALIA_DATA_DMA_CONTROL__INPUT_DATA_DMA_ISOCHROANALUS_MASK                                              0x000000C0L
 #define AZALIA_DATA_DMA_CONTROL__AZALIA_IOC_GENERATION_METHOD_MASK                                            0x00010000L
 #define AZALIA_DATA_DMA_CONTROL__AZALIA_UNDERFLOW_CONTROL_MASK                                                0x00020000L
 //AZALIA_BDL_DMA_CONTROL
-#define AZALIA_BDL_DMA_CONTROL__BDL_DMA_NON_SNOOP__SHIFT                                                      0x0
-#define AZALIA_BDL_DMA_CONTROL__INPUT_BDL_DMA_NON_SNOOP__SHIFT                                                0x2
-#define AZALIA_BDL_DMA_CONTROL__BDL_DMA_ISOCHRONOUS__SHIFT                                                    0x4
-#define AZALIA_BDL_DMA_CONTROL__INPUT_BDL_DMA_ISOCHRONOUS__SHIFT                                              0x6
-#define AZALIA_BDL_DMA_CONTROL__BDL_DMA_NON_SNOOP_MASK                                                        0x00000003L
-#define AZALIA_BDL_DMA_CONTROL__INPUT_BDL_DMA_NON_SNOOP_MASK                                                  0x0000000CL
-#define AZALIA_BDL_DMA_CONTROL__BDL_DMA_ISOCHRONOUS_MASK                                                      0x00000030L
-#define AZALIA_BDL_DMA_CONTROL__INPUT_BDL_DMA_ISOCHRONOUS_MASK                                                0x000000C0L
+#define AZALIA_BDL_DMA_CONTROL__BDL_DMA_ANALN_SANALOP__SHIFT                                                      0x0
+#define AZALIA_BDL_DMA_CONTROL__INPUT_BDL_DMA_ANALN_SANALOP__SHIFT                                                0x2
+#define AZALIA_BDL_DMA_CONTROL__BDL_DMA_ISOCHROANALUS__SHIFT                                                    0x4
+#define AZALIA_BDL_DMA_CONTROL__INPUT_BDL_DMA_ISOCHROANALUS__SHIFT                                              0x6
+#define AZALIA_BDL_DMA_CONTROL__BDL_DMA_ANALN_SANALOP_MASK                                                        0x00000003L
+#define AZALIA_BDL_DMA_CONTROL__INPUT_BDL_DMA_ANALN_SANALOP_MASK                                                  0x0000000CL
+#define AZALIA_BDL_DMA_CONTROL__BDL_DMA_ISOCHROANALUS_MASK                                                      0x00000030L
+#define AZALIA_BDL_DMA_CONTROL__INPUT_BDL_DMA_ISOCHROANALUS_MASK                                                0x000000C0L
 //AZALIA_RIRB_AND_DP_CONTROL
-#define AZALIA_RIRB_AND_DP_CONTROL__RIRB_NON_SNOOP__SHIFT                                                     0x0
-#define AZALIA_RIRB_AND_DP_CONTROL__DP_DMA_NON_SNOOP__SHIFT                                                   0x4
+#define AZALIA_RIRB_AND_DP_CONTROL__RIRB_ANALN_SANALOP__SHIFT                                                     0x0
+#define AZALIA_RIRB_AND_DP_CONTROL__DP_DMA_ANALN_SANALOP__SHIFT                                                   0x4
 #define AZALIA_RIRB_AND_DP_CONTROL__DP_UPDATE_FREQ_DIVIDER__SHIFT                                             0x5
-#define AZALIA_RIRB_AND_DP_CONTROL__RIRB_NON_SNOOP_MASK                                                       0x00000001L
-#define AZALIA_RIRB_AND_DP_CONTROL__DP_DMA_NON_SNOOP_MASK                                                     0x00000010L
+#define AZALIA_RIRB_AND_DP_CONTROL__RIRB_ANALN_SANALOP_MASK                                                       0x00000001L
+#define AZALIA_RIRB_AND_DP_CONTROL__DP_DMA_ANALN_SANALOP_MASK                                                     0x00000010L
 #define AZALIA_RIRB_AND_DP_CONTROL__DP_UPDATE_FREQ_DIVIDER_MASK                                               0x000001E0L
 //AZALIA_CORB_DMA_CONTROL
-#define AZALIA_CORB_DMA_CONTROL__CORB_DMA_NON_SNOOP__SHIFT                                                    0x0
-#define AZALIA_CORB_DMA_CONTROL__CORB_DMA_ISOCHRONOUS__SHIFT                                                  0x4
+#define AZALIA_CORB_DMA_CONTROL__CORB_DMA_ANALN_SANALOP__SHIFT                                                    0x0
+#define AZALIA_CORB_DMA_CONTROL__CORB_DMA_ISOCHROANALUS__SHIFT                                                  0x4
 
 
 // addressBlock: dce_dc_hda_azf0root_dispdec
@@ -683,7 +683,7 @@
 
 // addressBlock: dce_dc_dchubbub_hubbub_sdpif_dispdec
 //DCHUBBUB_SDPIF_CFG0
-#define DCHUBBUB_SDPIF_CFG0__SDPIF_NO_OUTSTANDING_REQ__SHIFT                                                  0x0
+#define DCHUBBUB_SDPIF_CFG0__SDPIF_ANAL_OUTSTANDING_REQ__SHIFT                                                  0x0
 #define DCHUBBUB_SDPIF_CFG0__SDPIF_PORT_STATUS__SHIFT                                                         0x1
 #define DCHUBBUB_SDPIF_CFG0__SDPIF_DATA_RESPONSE_STATUS__SHIFT                                                0x3
 #define DCHUBBUB_SDPIF_CFG0__SDPIF_RESPONSE_STATUS__SHIFT                                                     0x6
@@ -694,7 +694,7 @@
 #define DCHUBBUB_SDPIF_CFG0__SDPIF_REQ_CREDIT_EN__SHIFT                                                       0xe
 #define DCHUBBUB_SDPIF_CFG0__SDPIF_PORT_CONTROL__SHIFT                                                        0xf
 #define DCHUBBUB_SDPIF_CFG0__SDPIF_CREDIT_DISCONNECT_DELAY__SHIFT                                             0x19
-#define DCHUBBUB_SDPIF_CFG0__SDPIF_NO_OUTSTANDING_REQ_MASK                                                    0x00000001L
+#define DCHUBBUB_SDPIF_CFG0__SDPIF_ANAL_OUTSTANDING_REQ_MASK                                                    0x00000001L
 #define DCHUBBUB_SDPIF_CFG0__SDPIF_PORT_STATUS_MASK                                                           0x00000006L
 #define DCHUBBUB_SDPIF_CFG0__SDPIF_DATA_RESPONSE_STATUS_MASK                                                  0x00000038L
 #define DCHUBBUB_SDPIF_CFG0__SDPIF_RESPONSE_STATUS_MASK                                                       0x000003C0L
@@ -735,11 +735,11 @@
 #define DCHUBBUB_SDPIF_CFG1__SDPIF_PRQ_ERROR_DETECT_EN__SHIFT                                                 0x0
 #define DCHUBBUB_SDPIF_CFG1__SDPIF_PRQ_ERROR_STATUS__SHIFT                                                    0x1
 #define DCHUBBUB_SDPIF_CFG1__SDPIF_PRQ_ERROR_STATUS_CLEAR__SHIFT                                              0x2
-#define DCHUBBUB_SDPIF_CFG1__SDPIF_FORCE_SNOOP__SHIFT                                                         0x8
+#define DCHUBBUB_SDPIF_CFG1__SDPIF_FORCE_SANALOP__SHIFT                                                         0x8
 #define DCHUBBUB_SDPIF_CFG1__SDPIF_PRQ_ERROR_DETECT_EN_MASK                                                   0x00000001L
 #define DCHUBBUB_SDPIF_CFG1__SDPIF_PRQ_ERROR_STATUS_MASK                                                      0x00000002L
 #define DCHUBBUB_SDPIF_CFG1__SDPIF_PRQ_ERROR_STATUS_CLEAR_MASK                                                0x00000004L
-#define DCHUBBUB_SDPIF_CFG1__SDPIF_FORCE_SNOOP_MASK                                                           0x00000100L
+#define DCHUBBUB_SDPIF_CFG1__SDPIF_FORCE_SANALOP_MASK                                                           0x00000100L
 
 
 // addressBlock: dce_dc_dchubbub_hubbub_ret_path_dispdec
@@ -822,13 +822,13 @@
 #define DCHUBBUB_ARB_DRAM_STATE_CNTL__DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE__SHIFT                     0x1
 #define DCHUBBUB_ARB_DRAM_STATE_CNTL__DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_VALUE__SHIFT                     0x4
 #define DCHUBBUB_ARB_DRAM_STATE_CNTL__DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_ENABLE__SHIFT                    0x5
-#define DCHUBBUB_ARB_DRAM_STATE_CNTL__DCHUBBUB_ARB_DO_NOT_FORCE_URGENCY_AND_SELF_REFRESH_DURING_DRAM_CLOCK_NBPSTATE_CHANGE_REQUEST__SHIFT  0x8
+#define DCHUBBUB_ARB_DRAM_STATE_CNTL__DCHUBBUB_ARB_DO_ANALT_FORCE_URGENCY_AND_SELF_REFRESH_DURING_DRAM_CLOCK_NBPSTATE_CHANGE_REQUEST__SHIFT  0x8
 #define DCHUBBUB_ARB_DRAM_STATE_CNTL__DCHUBBUB_ARB_FORCE_URGENCY_DURING_DRAM_CLOCK_NBPSTATE_CHANGE_REQUEST_REGARDLESS_OF_ALLOW_SIGNAL__SHIFT  0x9
 #define DCHUBBUB_ARB_DRAM_STATE_CNTL__DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_VALUE_MASK                        0x00000001L
 #define DCHUBBUB_ARB_DRAM_STATE_CNTL__DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE_MASK                       0x00000002L
 #define DCHUBBUB_ARB_DRAM_STATE_CNTL__DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_VALUE_MASK                       0x00000010L
 #define DCHUBBUB_ARB_DRAM_STATE_CNTL__DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_ENABLE_MASK                      0x00000020L
-#define DCHUBBUB_ARB_DRAM_STATE_CNTL__DCHUBBUB_ARB_DO_NOT_FORCE_URGENCY_AND_SELF_REFRESH_DURING_DRAM_CLOCK_NBPSTATE_CHANGE_REQUEST_MASK  0x00000100L
+#define DCHUBBUB_ARB_DRAM_STATE_CNTL__DCHUBBUB_ARB_DO_ANALT_FORCE_URGENCY_AND_SELF_REFRESH_DURING_DRAM_CLOCK_NBPSTATE_CHANGE_REQUEST_MASK  0x00000100L
 #define DCHUBBUB_ARB_DRAM_STATE_CNTL__DCHUBBUB_ARB_FORCE_URGENCY_DURING_DRAM_CLOCK_NBPSTATE_CHANGE_REQUEST_REGARDLESS_OF_ALLOW_SIGNAL_MASK  0x00000200L
 //DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A
 #define DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A__DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A__SHIFT                   0x0
@@ -1095,7 +1095,7 @@
 #define HUBP0_DCHUBP_REQ_SIZE_CONFIG_C__MPTE_GROUP_SIZE_C_MASK                                                0x07000000L
 //HUBP0_DCHUBP_CNTL
 #define HUBP0_DCHUBP_CNTL__HUBP_BLANK_EN__SHIFT                                                               0x0
-#define HUBP0_DCHUBP_CNTL__HUBP_NO_OUTSTANDING_REQ__SHIFT                                                     0x1
+#define HUBP0_DCHUBP_CNTL__HUBP_ANAL_OUTSTANDING_REQ__SHIFT                                                     0x1
 #define HUBP0_DCHUBP_CNTL__HUBP_DISABLE__SHIFT                                                                0x2
 #define HUBP0_DCHUBP_CNTL__HUBP_IN_BLANK__SHIFT                                                               0x3
 #define HUBP0_DCHUBP_CNTL__HUBP_VTG_SEL__SHIFT                                                                0x4
@@ -1103,7 +1103,7 @@
 #define HUBP0_DCHUBP_CNTL__HUBP_DISABLE_STOP_DATA_DURING_VM__SHIFT                                            0x9
 #define HUBP0_DCHUBP_CNTL__HUBP_TTU_DISABLE__SHIFT                                                            0xc
 #define HUBP0_DCHUBP_CNTL__HUBP_TTU_MODE__SHIFT                                                               0xd
-#define HUBP0_DCHUBP_CNTL__HUBP_XRQ_NO_OUTSTANDING_REQ__SHIFT                                                 0x10
+#define HUBP0_DCHUBP_CNTL__HUBP_XRQ_ANAL_OUTSTANDING_REQ__SHIFT                                                 0x10
 #define HUBP0_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS__SHIFT                                                         0x14
 #define HUBP0_DCHUBP_CNTL__HUBP_TIMEOUT_THRESHOLD__SHIFT                                                      0x18
 #define HUBP0_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS_CLEAR__SHIFT                                                   0x1a
@@ -1111,7 +1111,7 @@
 #define HUBP0_DCHUBP_CNTL__HUBP_UNDERFLOW_STATUS__SHIFT                                                       0x1c
 #define HUBP0_DCHUBP_CNTL__HUBP_UNDERFLOW_CLEAR__SHIFT                                                        0x1f
 #define HUBP0_DCHUBP_CNTL__HUBP_BLANK_EN_MASK                                                                 0x00000001L
-#define HUBP0_DCHUBP_CNTL__HUBP_NO_OUTSTANDING_REQ_MASK                                                       0x00000002L
+#define HUBP0_DCHUBP_CNTL__HUBP_ANAL_OUTSTANDING_REQ_MASK                                                       0x00000002L
 #define HUBP0_DCHUBP_CNTL__HUBP_DISABLE_MASK                                                                  0x00000004L
 #define HUBP0_DCHUBP_CNTL__HUBP_IN_BLANK_MASK                                                                 0x00000008L
 #define HUBP0_DCHUBP_CNTL__HUBP_VTG_SEL_MASK                                                                  0x000000F0L
@@ -1119,7 +1119,7 @@
 #define HUBP0_DCHUBP_CNTL__HUBP_DISABLE_STOP_DATA_DURING_VM_MASK                                              0x00000200L
 #define HUBP0_DCHUBP_CNTL__HUBP_TTU_DISABLE_MASK                                                              0x00001000L
 #define HUBP0_DCHUBP_CNTL__HUBP_TTU_MODE_MASK                                                                 0x0000E000L
-#define HUBP0_DCHUBP_CNTL__HUBP_XRQ_NO_OUTSTANDING_REQ_MASK                                                   0x000F0000L
+#define HUBP0_DCHUBP_CNTL__HUBP_XRQ_ANAL_OUTSTANDING_REQ_MASK                                                   0x000F0000L
 #define HUBP0_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS_MASK                                                           0x00F00000L
 #define HUBP0_DCHUBP_CNTL__HUBP_TIMEOUT_THRESHOLD_MASK                                                        0x03000000L
 #define HUBP0_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS_CLEAR_MASK                                                     0x04000000L
@@ -1263,12 +1263,12 @@
 #define HUBPREQ0_DCSURF_FLIP_CONTROL2__SURFACE_GSL_ENABLE__SHIFT                                              0x8
 #define HUBPREQ0_DCSURF_FLIP_CONTROL2__SURFACE_GSL_MASK__SHIFT                                                0x9
 #define HUBPREQ0_DCSURF_FLIP_CONTROL2__SURFACE_TRIPLE_BUFFER_ENABLE__SHIFT                                    0xa
-#define HUBPREQ0_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_NO_LATCH__SHIFT                                     0xc
+#define HUBPREQ0_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_ANAL_LATCH__SHIFT                                     0xc
 #define HUBPREQ0_DCSURF_FLIP_CONTROL2__SURFACE_FLIP_PENDING_MIN_TIME_MASK                                     0x000000FFL
 #define HUBPREQ0_DCSURF_FLIP_CONTROL2__SURFACE_GSL_ENABLE_MASK                                                0x00000100L
 #define HUBPREQ0_DCSURF_FLIP_CONTROL2__SURFACE_GSL_MASK_MASK                                                  0x00000200L
 #define HUBPREQ0_DCSURF_FLIP_CONTROL2__SURFACE_TRIPLE_BUFFER_ENABLE_MASK                                      0x00000400L
-#define HUBPREQ0_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_NO_LATCH_MASK                                       0x00001000L
+#define HUBPREQ0_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_ANAL_LATCH_MASK                                       0x00001000L
 //HUBPREQ0_DCSURF_SURFACE_FLIP_INTERRUPT
 #define HUBPREQ0_DCSURF_SURFACE_FLIP_INTERRUPT__SURFACE_FLIP_INT_MASK__SHIFT                                  0x0
 #define HUBPREQ0_DCSURF_SURFACE_FLIP_INTERRUPT__SURFACE_FLIP_INT_TYPE__SHIFT                                  0x1
@@ -1422,18 +1422,18 @@
 //HUBPREQ0_FLIP_PARAMETERS_2
 #define HUBPREQ0_FLIP_PARAMETERS_2__REFCYC_PER_META_CHUNK_FLIP_L__SHIFT                                       0x0
 #define HUBPREQ0_FLIP_PARAMETERS_2__REFCYC_PER_META_CHUNK_FLIP_L_MASK                                         0x007FFFFFL
-//HUBPREQ0_NOM_PARAMETERS_4
-#define HUBPREQ0_NOM_PARAMETERS_4__DST_Y_PER_META_ROW_NOM_L__SHIFT                                            0x0
-#define HUBPREQ0_NOM_PARAMETERS_4__DST_Y_PER_META_ROW_NOM_L_MASK                                              0x0001FFFFL
-//HUBPREQ0_NOM_PARAMETERS_5
-#define HUBPREQ0_NOM_PARAMETERS_5__REFCYC_PER_META_CHUNK_NOM_L__SHIFT                                         0x0
-#define HUBPREQ0_NOM_PARAMETERS_5__REFCYC_PER_META_CHUNK_NOM_L_MASK                                           0x007FFFFFL
-//HUBPREQ0_NOM_PARAMETERS_6
-#define HUBPREQ0_NOM_PARAMETERS_6__DST_Y_PER_META_ROW_NOM_C__SHIFT                                            0x0
-#define HUBPREQ0_NOM_PARAMETERS_6__DST_Y_PER_META_ROW_NOM_C_MASK                                              0x0001FFFFL
-//HUBPREQ0_NOM_PARAMETERS_7
-#define HUBPREQ0_NOM_PARAMETERS_7__REFCYC_PER_META_CHUNK_NOM_C__SHIFT                                         0x0
-#define HUBPREQ0_NOM_PARAMETERS_7__REFCYC_PER_META_CHUNK_NOM_C_MASK                                           0x007FFFFFL
+//HUBPREQ0_ANALM_PARAMETERS_4
+#define HUBPREQ0_ANALM_PARAMETERS_4__DST_Y_PER_META_ROW_ANALM_L__SHIFT                                            0x0
+#define HUBPREQ0_ANALM_PARAMETERS_4__DST_Y_PER_META_ROW_ANALM_L_MASK                                              0x0001FFFFL
+//HUBPREQ0_ANALM_PARAMETERS_5
+#define HUBPREQ0_ANALM_PARAMETERS_5__REFCYC_PER_META_CHUNK_ANALM_L__SHIFT                                         0x0
+#define HUBPREQ0_ANALM_PARAMETERS_5__REFCYC_PER_META_CHUNK_ANALM_L_MASK                                           0x007FFFFFL
+//HUBPREQ0_ANALM_PARAMETERS_6
+#define HUBPREQ0_ANALM_PARAMETERS_6__DST_Y_PER_META_ROW_ANALM_C__SHIFT                                            0x0
+#define HUBPREQ0_ANALM_PARAMETERS_6__DST_Y_PER_META_ROW_ANALM_C_MASK                                              0x0001FFFFL
+//HUBPREQ0_ANALM_PARAMETERS_7
+#define HUBPREQ0_ANALM_PARAMETERS_7__REFCYC_PER_META_CHUNK_ANALM_C__SHIFT                                         0x0
+#define HUBPREQ0_ANALM_PARAMETERS_7__REFCYC_PER_META_CHUNK_ANALM_C_MASK                                           0x007FFFFFL
 //HUBPREQ0_PER_LINE_DELIVERY_PRE
 #define HUBPREQ0_PER_LINE_DELIVERY_PRE__REFCYC_PER_LINE_DELIVERY_PRE_L__SHIFT                                 0x0
 #define HUBPREQ0_PER_LINE_DELIVERY_PRE__REFCYC_PER_LINE_DELIVERY_PRE_C__SHIFT                                 0x10
@@ -1528,9 +1528,9 @@
 #define HUBPRET0_HUBPRET_MEM_PWR_STATUS__DMROB_MEM_PWR_STATE_MASK                                             0x0000000CL
 #define HUBPRET0_HUBPRET_MEM_PWR_STATUS__PIXCDC_MEM_PWR_STATE_MASK                                            0x00000030L
 //HUBPRET0_HUBPRET_READ_LINE_CTRL0
-#define HUBPRET0_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_NONACTIVE__SHIFT                         0x0
+#define HUBPRET0_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_ANALNACTIVE__SHIFT                         0x0
 #define HUBPRET0_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_VBLANK_MAXIMUM__SHIFT                                0x10
-#define HUBPRET0_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_NONACTIVE_MASK                           0x0000FFFFL
+#define HUBPRET0_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_ANALNACTIVE_MASK                           0x0000FFFFL
 #define HUBPRET0_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_VBLANK_MAXIMUM_MASK                                  0x3FFF0000L
 //HUBPRET0_HUBPRET_READ_LINE_CTRL1
 #define HUBPRET0_HUBPRET_READ_LINE_CTRL1__PIPE_READ_LINE_REPORTED_WHEN_REQ_DISABLED__SHIFT                    0x0
@@ -1602,7 +1602,7 @@
 #define CURSOR0_0_CURSOR_CONTROL__CURSOR_2X_MAGNIFY__SHIFT                                                    0x4
 #define CURSOR0_0_CURSOR_CONTROL__CURSOR_MODE__SHIFT                                                          0x8
 #define CURSOR0_0_CURSOR_CONTROL__CURSOR_TMZ__SHIFT                                                           0xc
-#define CURSOR0_0_CURSOR_CONTROL__CURSOR_SNOOP__SHIFT                                                         0xd
+#define CURSOR0_0_CURSOR_CONTROL__CURSOR_SANALOP__SHIFT                                                         0xd
 #define CURSOR0_0_CURSOR_CONTROL__CURSOR_SYSTEM__SHIFT                                                        0xe
 #define CURSOR0_0_CURSOR_CONTROL__CURSOR_PITCH__SHIFT                                                         0x10
 #define CURSOR0_0_CURSOR_CONTROL__CURSOR_XY_POSITION_ROTATION_AND_MIRRORING_BYPASS__SHIFT                     0x14
@@ -1613,7 +1613,7 @@
 #define CURSOR0_0_CURSOR_CONTROL__CURSOR_2X_MAGNIFY_MASK                                                      0x00000010L
 #define CURSOR0_0_CURSOR_CONTROL__CURSOR_MODE_MASK                                                            0x00000700L
 #define CURSOR0_0_CURSOR_CONTROL__CURSOR_TMZ_MASK                                                             0x00001000L
-#define CURSOR0_0_CURSOR_CONTROL__CURSOR_SNOOP_MASK                                                           0x00002000L
+#define CURSOR0_0_CURSOR_CONTROL__CURSOR_SANALOP_MASK                                                           0x00002000L
 #define CURSOR0_0_CURSOR_CONTROL__CURSOR_SYSTEM_MASK                                                          0x00004000L
 #define CURSOR0_0_CURSOR_CONTROL__CURSOR_PITCH_MASK                                                           0x00030000L
 #define CURSOR0_0_CURSOR_CONTROL__CURSOR_XY_POSITION_ROTATION_AND_MIRRORING_BYPASS_MASK                       0x00100000L
@@ -1664,11 +1664,11 @@
 //CURSOR0_0_DMDATA_ADDRESS_HIGH
 #define CURSOR0_0_DMDATA_ADDRESS_HIGH__DMDATA_ADDRESS_HIGH__SHIFT                                             0x0
 #define CURSOR0_0_DMDATA_ADDRESS_HIGH__DMDATA_SYSTEM__SHIFT                                                   0x1c
-#define CURSOR0_0_DMDATA_ADDRESS_HIGH__DMDATA_SNOOP__SHIFT                                                    0x1d
+#define CURSOR0_0_DMDATA_ADDRESS_HIGH__DMDATA_SANALOP__SHIFT                                                    0x1d
 #define CURSOR0_0_DMDATA_ADDRESS_HIGH__DMDATA_TMZ__SHIFT                                                      0x1e
 #define CURSOR0_0_DMDATA_ADDRESS_HIGH__DMDATA_ADDRESS_HIGH_MASK                                               0x0000FFFFL
 #define CURSOR0_0_DMDATA_ADDRESS_HIGH__DMDATA_SYSTEM_MASK                                                     0x10000000L
-#define CURSOR0_0_DMDATA_ADDRESS_HIGH__DMDATA_SNOOP_MASK                                                      0x20000000L
+#define CURSOR0_0_DMDATA_ADDRESS_HIGH__DMDATA_SANALOP_MASK                                                      0x20000000L
 #define CURSOR0_0_DMDATA_ADDRESS_HIGH__DMDATA_TMZ_MASK                                                        0x40000000L
 //CURSOR0_0_DMDATA_ADDRESS_LOW
 #define CURSOR0_0_DMDATA_ADDRESS_LOW__DMDATA_ADDRESS_LOW__SHIFT                                               0x0
@@ -1816,7 +1816,7 @@
 #define HUBP1_DCHUBP_REQ_SIZE_CONFIG_C__MPTE_GROUP_SIZE_C_MASK                                                0x07000000L
 //HUBP1_DCHUBP_CNTL
 #define HUBP1_DCHUBP_CNTL__HUBP_BLANK_EN__SHIFT                                                               0x0
-#define HUBP1_DCHUBP_CNTL__HUBP_NO_OUTSTANDING_REQ__SHIFT                                                     0x1
+#define HUBP1_DCHUBP_CNTL__HUBP_ANAL_OUTSTANDING_REQ__SHIFT                                                     0x1
 #define HUBP1_DCHUBP_CNTL__HUBP_DISABLE__SHIFT                                                                0x2
 #define HUBP1_DCHUBP_CNTL__HUBP_IN_BLANK__SHIFT                                                               0x3
 #define HUBP1_DCHUBP_CNTL__HUBP_VTG_SEL__SHIFT                                                                0x4
@@ -1824,7 +1824,7 @@
 #define HUBP1_DCHUBP_CNTL__HUBP_DISABLE_STOP_DATA_DURING_VM__SHIFT                                            0x9
 #define HUBP1_DCHUBP_CNTL__HUBP_TTU_DISABLE__SHIFT                                                            0xc
 #define HUBP1_DCHUBP_CNTL__HUBP_TTU_MODE__SHIFT                                                               0xd
-#define HUBP1_DCHUBP_CNTL__HUBP_XRQ_NO_OUTSTANDING_REQ__SHIFT                                                 0x10
+#define HUBP1_DCHUBP_CNTL__HUBP_XRQ_ANAL_OUTSTANDING_REQ__SHIFT                                                 0x10
 #define HUBP1_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS__SHIFT                                                         0x14
 #define HUBP1_DCHUBP_CNTL__HUBP_TIMEOUT_THRESHOLD__SHIFT                                                      0x18
 #define HUBP1_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS_CLEAR__SHIFT                                                   0x1a
@@ -1832,7 +1832,7 @@
 #define HUBP1_DCHUBP_CNTL__HUBP_UNDERFLOW_STATUS__SHIFT                                                       0x1c
 #define HUBP1_DCHUBP_CNTL__HUBP_UNDERFLOW_CLEAR__SHIFT                                                        0x1f
 #define HUBP1_DCHUBP_CNTL__HUBP_BLANK_EN_MASK                                                                 0x00000001L
-#define HUBP1_DCHUBP_CNTL__HUBP_NO_OUTSTANDING_REQ_MASK                                                       0x00000002L
+#define HUBP1_DCHUBP_CNTL__HUBP_ANAL_OUTSTANDING_REQ_MASK                                                       0x00000002L
 #define HUBP1_DCHUBP_CNTL__HUBP_DISABLE_MASK                                                                  0x00000004L
 #define HUBP1_DCHUBP_CNTL__HUBP_IN_BLANK_MASK                                                                 0x00000008L
 #define HUBP1_DCHUBP_CNTL__HUBP_VTG_SEL_MASK                                                                  0x000000F0L
@@ -1840,7 +1840,7 @@
 #define HUBP1_DCHUBP_CNTL__HUBP_DISABLE_STOP_DATA_DURING_VM_MASK                                              0x00000200L
 #define HUBP1_DCHUBP_CNTL__HUBP_TTU_DISABLE_MASK                                                              0x00001000L
 #define HUBP1_DCHUBP_CNTL__HUBP_TTU_MODE_MASK                                                                 0x0000E000L
-#define HUBP1_DCHUBP_CNTL__HUBP_XRQ_NO_OUTSTANDING_REQ_MASK                                                   0x000F0000L
+#define HUBP1_DCHUBP_CNTL__HUBP_XRQ_ANAL_OUTSTANDING_REQ_MASK                                                   0x000F0000L
 #define HUBP1_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS_MASK                                                           0x00F00000L
 #define HUBP1_DCHUBP_CNTL__HUBP_TIMEOUT_THRESHOLD_MASK                                                        0x03000000L
 #define HUBP1_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS_CLEAR_MASK                                                     0x04000000L
@@ -2006,12 +2006,12 @@
 #define HUBPREQ1_DCSURF_FLIP_CONTROL2__SURFACE_GSL_ENABLE__SHIFT                                              0x8
 #define HUBPREQ1_DCSURF_FLIP_CONTROL2__SURFACE_GSL_MASK__SHIFT                                                0x9
 #define HUBPREQ1_DCSURF_FLIP_CONTROL2__SURFACE_TRIPLE_BUFFER_ENABLE__SHIFT                                    0xa
-#define HUBPREQ1_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_NO_LATCH__SHIFT                                     0xc
+#define HUBPREQ1_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_ANAL_LATCH__SHIFT                                     0xc
 #define HUBPREQ1_DCSURF_FLIP_CONTROL2__SURFACE_FLIP_PENDING_MIN_TIME_MASK                                     0x000000FFL
 #define HUBPREQ1_DCSURF_FLIP_CONTROL2__SURFACE_GSL_ENABLE_MASK                                                0x00000100L
 #define HUBPREQ1_DCSURF_FLIP_CONTROL2__SURFACE_GSL_MASK_MASK                                                  0x00000200L
 #define HUBPREQ1_DCSURF_FLIP_CONTROL2__SURFACE_TRIPLE_BUFFER_ENABLE_MASK                                      0x00000400L
-#define HUBPREQ1_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_NO_LATCH_MASK                                       0x00001000L
+#define HUBPREQ1_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_ANAL_LATCH_MASK                                       0x00001000L
 //HUBPREQ1_DCSURF_SURFACE_FLIP_INTERRUPT
 #define HUBPREQ1_DCSURF_SURFACE_FLIP_INTERRUPT__SURFACE_FLIP_INT_MASK__SHIFT                                  0x0
 #define HUBPREQ1_DCSURF_SURFACE_FLIP_INTERRUPT__SURFACE_FLIP_INT_TYPE__SHIFT                                  0x1
@@ -2165,18 +2165,18 @@
 //HUBPREQ1_FLIP_PARAMETERS_2
 #define HUBPREQ1_FLIP_PARAMETERS_2__REFCYC_PER_META_CHUNK_FLIP_L__SHIFT                                       0x0
 #define HUBPREQ1_FLIP_PARAMETERS_2__REFCYC_PER_META_CHUNK_FLIP_L_MASK                                         0x007FFFFFL
-//HUBPREQ1_NOM_PARAMETERS_4
-#define HUBPREQ1_NOM_PARAMETERS_4__DST_Y_PER_META_ROW_NOM_L__SHIFT                                            0x0
-#define HUBPREQ1_NOM_PARAMETERS_4__DST_Y_PER_META_ROW_NOM_L_MASK                                              0x0001FFFFL
-//HUBPREQ1_NOM_PARAMETERS_5
-#define HUBPREQ1_NOM_PARAMETERS_5__REFCYC_PER_META_CHUNK_NOM_L__SHIFT                                         0x0
-#define HUBPREQ1_NOM_PARAMETERS_5__REFCYC_PER_META_CHUNK_NOM_L_MASK                                           0x007FFFFFL
-//HUBPREQ1_NOM_PARAMETERS_6
-#define HUBPREQ1_NOM_PARAMETERS_6__DST_Y_PER_META_ROW_NOM_C__SHIFT                                            0x0
-#define HUBPREQ1_NOM_PARAMETERS_6__DST_Y_PER_META_ROW_NOM_C_MASK                                              0x0001FFFFL
-//HUBPREQ1_NOM_PARAMETERS_7
-#define HUBPREQ1_NOM_PARAMETERS_7__REFCYC_PER_META_CHUNK_NOM_C__SHIFT                                         0x0
-#define HUBPREQ1_NOM_PARAMETERS_7__REFCYC_PER_META_CHUNK_NOM_C_MASK                                           0x007FFFFFL
+//HUBPREQ1_ANALM_PARAMETERS_4
+#define HUBPREQ1_ANALM_PARAMETERS_4__DST_Y_PER_META_ROW_ANALM_L__SHIFT                                            0x0
+#define HUBPREQ1_ANALM_PARAMETERS_4__DST_Y_PER_META_ROW_ANALM_L_MASK                                              0x0001FFFFL
+//HUBPREQ1_ANALM_PARAMETERS_5
+#define HUBPREQ1_ANALM_PARAMETERS_5__REFCYC_PER_META_CHUNK_ANALM_L__SHIFT                                         0x0
+#define HUBPREQ1_ANALM_PARAMETERS_5__REFCYC_PER_META_CHUNK_ANALM_L_MASK                                           0x007FFFFFL
+//HUBPREQ1_ANALM_PARAMETERS_6
+#define HUBPREQ1_ANALM_PARAMETERS_6__DST_Y_PER_META_ROW_ANALM_C__SHIFT                                            0x0
+#define HUBPREQ1_ANALM_PARAMETERS_6__DST_Y_PER_META_ROW_ANALM_C_MASK                                              0x0001FFFFL
+//HUBPREQ1_ANALM_PARAMETERS_7
+#define HUBPREQ1_ANALM_PARAMETERS_7__REFCYC_PER_META_CHUNK_ANALM_C__SHIFT                                         0x0
+#define HUBPREQ1_ANALM_PARAMETERS_7__REFCYC_PER_META_CHUNK_ANALM_C_MASK                                           0x007FFFFFL
 //HUBPREQ1_PER_LINE_DELIVERY_PRE
 #define HUBPREQ1_PER_LINE_DELIVERY_PRE__REFCYC_PER_LINE_DELIVERY_PRE_L__SHIFT                                 0x0
 #define HUBPREQ1_PER_LINE_DELIVERY_PRE__REFCYC_PER_LINE_DELIVERY_PRE_C__SHIFT                                 0x10
@@ -2269,9 +2269,9 @@
 #define HUBPRET1_HUBPRET_MEM_PWR_STATUS__DMROB_MEM_PWR_STATE_MASK                                             0x0000000CL
 #define HUBPRET1_HUBPRET_MEM_PWR_STATUS__PIXCDC_MEM_PWR_STATE_MASK                                            0x00000030L
 //HUBPRET1_HUBPRET_READ_LINE_CTRL0
-#define HUBPRET1_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_NONACTIVE__SHIFT                         0x0
+#define HUBPRET1_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_ANALNACTIVE__SHIFT                         0x0
 #define HUBPRET1_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_VBLANK_MAXIMUM__SHIFT                                0x10
-#define HUBPRET1_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_NONACTIVE_MASK                           0x0000FFFFL
+#define HUBPRET1_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_ANALNACTIVE_MASK                           0x0000FFFFL
 #define HUBPRET1_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_VBLANK_MAXIMUM_MASK                                  0x3FFF0000L
 //HUBPRET1_HUBPRET_READ_LINE_CTRL1
 #define HUBPRET1_HUBPRET_READ_LINE_CTRL1__PIPE_READ_LINE_REPORTED_WHEN_REQ_DISABLED__SHIFT                    0x0
@@ -2343,7 +2343,7 @@
 #define CURSOR0_1_CURSOR_CONTROL__CURSOR_2X_MAGNIFY__SHIFT                                                    0x4
 #define CURSOR0_1_CURSOR_CONTROL__CURSOR_MODE__SHIFT                                                          0x8
 #define CURSOR0_1_CURSOR_CONTROL__CURSOR_TMZ__SHIFT                                                           0xc
-#define CURSOR0_1_CURSOR_CONTROL__CURSOR_SNOOP__SHIFT                                                         0xd
+#define CURSOR0_1_CURSOR_CONTROL__CURSOR_SANALOP__SHIFT                                                         0xd
 #define CURSOR0_1_CURSOR_CONTROL__CURSOR_SYSTEM__SHIFT                                                        0xe
 #define CURSOR0_1_CURSOR_CONTROL__CURSOR_PITCH__SHIFT                                                         0x10
 #define CURSOR0_1_CURSOR_CONTROL__CURSOR_XY_POSITION_ROTATION_AND_MIRRORING_BYPASS__SHIFT                     0x14
@@ -2354,7 +2354,7 @@
 #define CURSOR0_1_CURSOR_CONTROL__CURSOR_2X_MAGNIFY_MASK                                                      0x00000010L
 #define CURSOR0_1_CURSOR_CONTROL__CURSOR_MODE_MASK                                                            0x00000700L
 #define CURSOR0_1_CURSOR_CONTROL__CURSOR_TMZ_MASK                                                             0x00001000L
-#define CURSOR0_1_CURSOR_CONTROL__CURSOR_SNOOP_MASK                                                           0x00002000L
+#define CURSOR0_1_CURSOR_CONTROL__CURSOR_SANALOP_MASK                                                           0x00002000L
 #define CURSOR0_1_CURSOR_CONTROL__CURSOR_SYSTEM_MASK                                                          0x00004000L
 #define CURSOR0_1_CURSOR_CONTROL__CURSOR_PITCH_MASK                                                           0x00030000L
 #define CURSOR0_1_CURSOR_CONTROL__CURSOR_XY_POSITION_ROTATION_AND_MIRRORING_BYPASS_MASK                       0x00100000L
@@ -2405,11 +2405,11 @@
 //CURSOR0_1_DMDATA_ADDRESS_HIGH
 #define CURSOR0_1_DMDATA_ADDRESS_HIGH__DMDATA_ADDRESS_HIGH__SHIFT                                             0x0
 #define CURSOR0_1_DMDATA_ADDRESS_HIGH__DMDATA_SYSTEM__SHIFT                                                   0x1c
-#define CURSOR0_1_DMDATA_ADDRESS_HIGH__DMDATA_SNOOP__SHIFT                                                    0x1d
+#define CURSOR0_1_DMDATA_ADDRESS_HIGH__DMDATA_SANALOP__SHIFT                                                    0x1d
 #define CURSOR0_1_DMDATA_ADDRESS_HIGH__DMDATA_TMZ__SHIFT                                                      0x1e
 #define CURSOR0_1_DMDATA_ADDRESS_HIGH__DMDATA_ADDRESS_HIGH_MASK                                               0x0000FFFFL
 #define CURSOR0_1_DMDATA_ADDRESS_HIGH__DMDATA_SYSTEM_MASK                                                     0x10000000L
-#define CURSOR0_1_DMDATA_ADDRESS_HIGH__DMDATA_SNOOP_MASK                                                      0x20000000L
+#define CURSOR0_1_DMDATA_ADDRESS_HIGH__DMDATA_SANALOP_MASK                                                      0x20000000L
 #define CURSOR0_1_DMDATA_ADDRESS_HIGH__DMDATA_TMZ_MASK                                                        0x40000000L
 //CURSOR0_1_DMDATA_ADDRESS_LOW
 #define CURSOR0_1_DMDATA_ADDRESS_LOW__DMDATA_ADDRESS_LOW__SHIFT                                               0x0
@@ -2555,7 +2555,7 @@
 #define HUBP2_DCHUBP_REQ_SIZE_CONFIG_C__MPTE_GROUP_SIZE_C_MASK                                                0x07000000L
 //HUBP2_DCHUBP_CNTL
 #define HUBP2_DCHUBP_CNTL__HUBP_BLANK_EN__SHIFT                                                               0x0
-#define HUBP2_DCHUBP_CNTL__HUBP_NO_OUTSTANDING_REQ__SHIFT                                                     0x1
+#define HUBP2_DCHUBP_CNTL__HUBP_ANAL_OUTSTANDING_REQ__SHIFT                                                     0x1
 #define HUBP2_DCHUBP_CNTL__HUBP_DISABLE__SHIFT                                                                0x2
 #define HUBP2_DCHUBP_CNTL__HUBP_IN_BLANK__SHIFT                                                               0x3
 #define HUBP2_DCHUBP_CNTL__HUBP_VTG_SEL__SHIFT                                                                0x4
@@ -2563,7 +2563,7 @@
 #define HUBP2_DCHUBP_CNTL__HUBP_DISABLE_STOP_DATA_DURING_VM__SHIFT                                            0x9
 #define HUBP2_DCHUBP_CNTL__HUBP_TTU_DISABLE__SHIFT                                                            0xc
 #define HUBP2_DCHUBP_CNTL__HUBP_TTU_MODE__SHIFT                                                               0xd
-#define HUBP2_DCHUBP_CNTL__HUBP_XRQ_NO_OUTSTANDING_REQ__SHIFT                                                 0x10
+#define HUBP2_DCHUBP_CNTL__HUBP_XRQ_ANAL_OUTSTANDING_REQ__SHIFT                                                 0x10
 #define HUBP2_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS__SHIFT                                                         0x14
 #define HUBP2_DCHUBP_CNTL__HUBP_TIMEOUT_THRESHOLD__SHIFT                                                      0x18
 #define HUBP2_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS_CLEAR__SHIFT                                                   0x1a
@@ -2571,7 +2571,7 @@
 #define HUBP2_DCHUBP_CNTL__HUBP_UNDERFLOW_STATUS__SHIFT                                                       0x1c
 #define HUBP2_DCHUBP_CNTL__HUBP_UNDERFLOW_CLEAR__SHIFT                                                        0x1f
 #define HUBP2_DCHUBP_CNTL__HUBP_BLANK_EN_MASK                                                                 0x00000001L
-#define HUBP2_DCHUBP_CNTL__HUBP_NO_OUTSTANDING_REQ_MASK                                                       0x00000002L
+#define HUBP2_DCHUBP_CNTL__HUBP_ANAL_OUTSTANDING_REQ_MASK                                                       0x00000002L
 #define HUBP2_DCHUBP_CNTL__HUBP_DISABLE_MASK                                                                  0x00000004L
 #define HUBP2_DCHUBP_CNTL__HUBP_IN_BLANK_MASK                                                                 0x00000008L
 #define HUBP2_DCHUBP_CNTL__HUBP_VTG_SEL_MASK                                                                  0x000000F0L
@@ -2579,7 +2579,7 @@
 #define HUBP2_DCHUBP_CNTL__HUBP_DISABLE_STOP_DATA_DURING_VM_MASK                                              0x00000200L
 #define HUBP2_DCHUBP_CNTL__HUBP_TTU_DISABLE_MASK                                                              0x00001000L
 #define HUBP2_DCHUBP_CNTL__HUBP_TTU_MODE_MASK                                                                 0x0000E000L
-#define HUBP2_DCHUBP_CNTL__HUBP_XRQ_NO_OUTSTANDING_REQ_MASK                                                   0x000F0000L
+#define HUBP2_DCHUBP_CNTL__HUBP_XRQ_ANAL_OUTSTANDING_REQ_MASK                                                   0x000F0000L
 #define HUBP2_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS_MASK                                                           0x00F00000L
 #define HUBP2_DCHUBP_CNTL__HUBP_TIMEOUT_THRESHOLD_MASK                                                        0x03000000L
 #define HUBP2_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS_CLEAR_MASK                                                     0x04000000L
@@ -2746,12 +2746,12 @@
 #define HUBPREQ2_DCSURF_FLIP_CONTROL2__SURFACE_GSL_ENABLE__SHIFT                                              0x8
 #define HUBPREQ2_DCSURF_FLIP_CONTROL2__SURFACE_GSL_MASK__SHIFT                                                0x9
 #define HUBPREQ2_DCSURF_FLIP_CONTROL2__SURFACE_TRIPLE_BUFFER_ENABLE__SHIFT                                    0xa
-#define HUBPREQ2_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_NO_LATCH__SHIFT                                     0xc
+#define HUBPREQ2_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_ANAL_LATCH__SHIFT                                     0xc
 #define HUBPREQ2_DCSURF_FLIP_CONTROL2__SURFACE_FLIP_PENDING_MIN_TIME_MASK                                     0x000000FFL
 #define HUBPREQ2_DCSURF_FLIP_CONTROL2__SURFACE_GSL_ENABLE_MASK                                                0x00000100L
 #define HUBPREQ2_DCSURF_FLIP_CONTROL2__SURFACE_GSL_MASK_MASK                                                  0x00000200L
 #define HUBPREQ2_DCSURF_FLIP_CONTROL2__SURFACE_TRIPLE_BUFFER_ENABLE_MASK                                      0x00000400L
-#define HUBPREQ2_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_NO_LATCH_MASK                                       0x00001000L
+#define HUBPREQ2_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_ANAL_LATCH_MASK                                       0x00001000L
 //HUBPREQ2_DCSURF_SURFACE_FLIP_INTERRUPT
 #define HUBPREQ2_DCSURF_SURFACE_FLIP_INTERRUPT__SURFACE_FLIP_INT_MASK__SHIFT                                  0x0
 #define HUBPREQ2_DCSURF_SURFACE_FLIP_INTERRUPT__SURFACE_FLIP_INT_TYPE__SHIFT                                  0x1
@@ -2906,18 +2906,18 @@
 //HUBPREQ2_FLIP_PARAMETERS_2
 #define HUBPREQ2_FLIP_PARAMETERS_2__REFCYC_PER_META_CHUNK_FLIP_L__SHIFT                                       0x0
 #define HUBPREQ2_FLIP_PARAMETERS_2__REFCYC_PER_META_CHUNK_FLIP_L_MASK                                         0x007FFFFFL
-//HUBPREQ2_NOM_PARAMETERS_4
-#define HUBPREQ2_NOM_PARAMETERS_4__DST_Y_PER_META_ROW_NOM_L__SHIFT                                            0x0
-#define HUBPREQ2_NOM_PARAMETERS_4__DST_Y_PER_META_ROW_NOM_L_MASK                                              0x0001FFFFL
-//HUBPREQ2_NOM_PARAMETERS_5
-#define HUBPREQ2_NOM_PARAMETERS_5__REFCYC_PER_META_CHUNK_NOM_L__SHIFT                                         0x0
-#define HUBPREQ2_NOM_PARAMETERS_5__REFCYC_PER_META_CHUNK_NOM_L_MASK                                           0x007FFFFFL
-//HUBPREQ2_NOM_PARAMETERS_6
-#define HUBPREQ2_NOM_PARAMETERS_6__DST_Y_PER_META_ROW_NOM_C__SHIFT                                            0x0
-#define HUBPREQ2_NOM_PARAMETERS_6__DST_Y_PER_META_ROW_NOM_C_MASK                                              0x0001FFFFL
-//HUBPREQ2_NOM_PARAMETERS_7
-#define HUBPREQ2_NOM_PARAMETERS_7__REFCYC_PER_META_CHUNK_NOM_C__SHIFT                                         0x0
-#define HUBPREQ2_NOM_PARAMETERS_7__REFCYC_PER_META_CHUNK_NOM_C_MASK                                           0x007FFFFFL
+//HUBPREQ2_ANALM_PARAMETERS_4
+#define HUBPREQ2_ANALM_PARAMETERS_4__DST_Y_PER_META_ROW_ANALM_L__SHIFT                                            0x0
+#define HUBPREQ2_ANALM_PARAMETERS_4__DST_Y_PER_META_ROW_ANALM_L_MASK                                              0x0001FFFFL
+//HUBPREQ2_ANALM_PARAMETERS_5
+#define HUBPREQ2_ANALM_PARAMETERS_5__REFCYC_PER_META_CHUNK_ANALM_L__SHIFT                                         0x0
+#define HUBPREQ2_ANALM_PARAMETERS_5__REFCYC_PER_META_CHUNK_ANALM_L_MASK                                           0x007FFFFFL
+//HUBPREQ2_ANALM_PARAMETERS_6
+#define HUBPREQ2_ANALM_PARAMETERS_6__DST_Y_PER_META_ROW_ANALM_C__SHIFT                                            0x0
+#define HUBPREQ2_ANALM_PARAMETERS_6__DST_Y_PER_META_ROW_ANALM_C_MASK                                              0x0001FFFFL
+//HUBPREQ2_ANALM_PARAMETERS_7
+#define HUBPREQ2_ANALM_PARAMETERS_7__REFCYC_PER_META_CHUNK_ANALM_C__SHIFT                                         0x0
+#define HUBPREQ2_ANALM_PARAMETERS_7__REFCYC_PER_META_CHUNK_ANALM_C_MASK                                           0x007FFFFFL
 //HUBPREQ2_PER_LINE_DELIVERY_PRE
 #define HUBPREQ2_PER_LINE_DELIVERY_PRE__REFCYC_PER_LINE_DELIVERY_PRE_L__SHIFT                                 0x0
 #define HUBPREQ2_PER_LINE_DELIVERY_PRE__REFCYC_PER_LINE_DELIVERY_PRE_C__SHIFT                                 0x10
@@ -3010,9 +3010,9 @@
 #define HUBPRET2_HUBPRET_MEM_PWR_STATUS__DMROB_MEM_PWR_STATE_MASK                                             0x0000000CL
 #define HUBPRET2_HUBPRET_MEM_PWR_STATUS__PIXCDC_MEM_PWR_STATE_MASK                                            0x00000030L
 //HUBPRET2_HUBPRET_READ_LINE_CTRL0
-#define HUBPRET2_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_NONACTIVE__SHIFT                         0x0
+#define HUBPRET2_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_ANALNACTIVE__SHIFT                         0x0
 #define HUBPRET2_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_VBLANK_MAXIMUM__SHIFT                                0x10
-#define HUBPRET2_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_NONACTIVE_MASK                           0x0000FFFFL
+#define HUBPRET2_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_ANALNACTIVE_MASK                           0x0000FFFFL
 #define HUBPRET2_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_VBLANK_MAXIMUM_MASK                                  0x3FFF0000L
 //HUBPRET2_HUBPRET_READ_LINE_CTRL1
 #define HUBPRET2_HUBPRET_READ_LINE_CTRL1__PIPE_READ_LINE_REPORTED_WHEN_REQ_DISABLED__SHIFT                    0x0
@@ -3082,7 +3082,7 @@
 #define CURSOR0_2_CURSOR_CONTROL__CURSOR_2X_MAGNIFY__SHIFT                                                    0x4
 #define CURSOR0_2_CURSOR_CONTROL__CURSOR_MODE__SHIFT                                                          0x8
 #define CURSOR0_2_CURSOR_CONTROL__CURSOR_TMZ__SHIFT                                                           0xc
-#define CURSOR0_2_CURSOR_CONTROL__CURSOR_SNOOP__SHIFT                                                         0xd
+#define CURSOR0_2_CURSOR_CONTROL__CURSOR_SANALOP__SHIFT                                                         0xd
 #define CURSOR0_2_CURSOR_CONTROL__CURSOR_SYSTEM__SHIFT                                                        0xe
 #define CURSOR0_2_CURSOR_CONTROL__CURSOR_PITCH__SHIFT                                                         0x10
 #define CURSOR0_2_CURSOR_CONTROL__CURSOR_XY_POSITION_ROTATION_AND_MIRRORING_BYPASS__SHIFT                     0x14
@@ -3093,7 +3093,7 @@
 #define CURSOR0_2_CURSOR_CONTROL__CURSOR_2X_MAGNIFY_MASK                                                      0x00000010L
 #define CURSOR0_2_CURSOR_CONTROL__CURSOR_MODE_MASK                                                            0x00000700L
 #define CURSOR0_2_CURSOR_CONTROL__CURSOR_TMZ_MASK                                                             0x00001000L
-#define CURSOR0_2_CURSOR_CONTROL__CURSOR_SNOOP_MASK                                                           0x00002000L
+#define CURSOR0_2_CURSOR_CONTROL__CURSOR_SANALOP_MASK                                                           0x00002000L
 #define CURSOR0_2_CURSOR_CONTROL__CURSOR_SYSTEM_MASK                                                          0x00004000L
 #define CURSOR0_2_CURSOR_CONTROL__CURSOR_PITCH_MASK                                                           0x00030000L
 #define CURSOR0_2_CURSOR_CONTROL__CURSOR_XY_POSITION_ROTATION_AND_MIRRORING_BYPASS_MASK                       0x00100000L
@@ -3144,11 +3144,11 @@
 //CURSOR0_2_DMDATA_ADDRESS_HIGH
 #define CURSOR0_2_DMDATA_ADDRESS_HIGH__DMDATA_ADDRESS_HIGH__SHIFT                                             0x0
 #define CURSOR0_2_DMDATA_ADDRESS_HIGH__DMDATA_SYSTEM__SHIFT                                                   0x1c
-#define CURSOR0_2_DMDATA_ADDRESS_HIGH__DMDATA_SNOOP__SHIFT                                                    0x1d
+#define CURSOR0_2_DMDATA_ADDRESS_HIGH__DMDATA_SANALOP__SHIFT                                                    0x1d
 #define CURSOR0_2_DMDATA_ADDRESS_HIGH__DMDATA_TMZ__SHIFT                                                      0x1e
 #define CURSOR0_2_DMDATA_ADDRESS_HIGH__DMDATA_ADDRESS_HIGH_MASK                                               0x0000FFFFL
 #define CURSOR0_2_DMDATA_ADDRESS_HIGH__DMDATA_SYSTEM_MASK                                                     0x10000000L
-#define CURSOR0_2_DMDATA_ADDRESS_HIGH__DMDATA_SNOOP_MASK                                                      0x20000000L
+#define CURSOR0_2_DMDATA_ADDRESS_HIGH__DMDATA_SANALOP_MASK                                                      0x20000000L
 #define CURSOR0_2_DMDATA_ADDRESS_HIGH__DMDATA_TMZ_MASK                                                        0x40000000L
 //CURSOR0_2_DMDATA_ADDRESS_LOW
 #define CURSOR0_2_DMDATA_ADDRESS_LOW__DMDATA_ADDRESS_LOW__SHIFT                                               0x0
@@ -3296,7 +3296,7 @@
 #define HUBP3_DCHUBP_REQ_SIZE_CONFIG_C__MPTE_GROUP_SIZE_C_MASK                                                0x07000000L
 //HUBP3_DCHUBP_CNTL
 #define HUBP3_DCHUBP_CNTL__HUBP_BLANK_EN__SHIFT                                                               0x0
-#define HUBP3_DCHUBP_CNTL__HUBP_NO_OUTSTANDING_REQ__SHIFT                                                     0x1
+#define HUBP3_DCHUBP_CNTL__HUBP_ANAL_OUTSTANDING_REQ__SHIFT                                                     0x1
 #define HUBP3_DCHUBP_CNTL__HUBP_DISABLE__SHIFT                                                                0x2
 #define HUBP3_DCHUBP_CNTL__HUBP_IN_BLANK__SHIFT                                                               0x3
 #define HUBP3_DCHUBP_CNTL__HUBP_VTG_SEL__SHIFT                                                                0x4
@@ -3304,7 +3304,7 @@
 #define HUBP3_DCHUBP_CNTL__HUBP_DISABLE_STOP_DATA_DURING_VM__SHIFT                                            0x9
 #define HUBP3_DCHUBP_CNTL__HUBP_TTU_DISABLE__SHIFT                                                            0xc
 #define HUBP3_DCHUBP_CNTL__HUBP_TTU_MODE__SHIFT                                                               0xd
-#define HUBP3_DCHUBP_CNTL__HUBP_XRQ_NO_OUTSTANDING_REQ__SHIFT                                                 0x10
+#define HUBP3_DCHUBP_CNTL__HUBP_XRQ_ANAL_OUTSTANDING_REQ__SHIFT                                                 0x10
 #define HUBP3_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS__SHIFT                                                         0x14
 #define HUBP3_DCHUBP_CNTL__HUBP_TIMEOUT_THRESHOLD__SHIFT                                                      0x18
 #define HUBP3_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS_CLEAR__SHIFT                                                   0x1a
@@ -3312,7 +3312,7 @@
 #define HUBP3_DCHUBP_CNTL__HUBP_UNDERFLOW_STATUS__SHIFT                                                       0x1c
 #define HUBP3_DCHUBP_CNTL__HUBP_UNDERFLOW_CLEAR__SHIFT                                                        0x1f
 #define HUBP3_DCHUBP_CNTL__HUBP_BLANK_EN_MASK                                                                 0x00000001L
-#define HUBP3_DCHUBP_CNTL__HUBP_NO_OUTSTANDING_REQ_MASK                                                       0x00000002L
+#define HUBP3_DCHUBP_CNTL__HUBP_ANAL_OUTSTANDING_REQ_MASK                                                       0x00000002L
 #define HUBP3_DCHUBP_CNTL__HUBP_DISABLE_MASK                                                                  0x00000004L
 #define HUBP3_DCHUBP_CNTL__HUBP_IN_BLANK_MASK                                                                 0x00000008L
 #define HUBP3_DCHUBP_CNTL__HUBP_VTG_SEL_MASK                                                                  0x000000F0L
@@ -3320,7 +3320,7 @@
 #define HUBP3_DCHUBP_CNTL__HUBP_DISABLE_STOP_DATA_DURING_VM_MASK                                              0x00000200L
 #define HUBP3_DCHUBP_CNTL__HUBP_TTU_DISABLE_MASK                                                              0x00001000L
 #define HUBP3_DCHUBP_CNTL__HUBP_TTU_MODE_MASK                                                                 0x0000E000L
-#define HUBP3_DCHUBP_CNTL__HUBP_XRQ_NO_OUTSTANDING_REQ_MASK                                                   0x000F0000L
+#define HUBP3_DCHUBP_CNTL__HUBP_XRQ_ANAL_OUTSTANDING_REQ_MASK                                                   0x000F0000L
 #define HUBP3_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS_MASK                                                           0x00F00000L
 #define HUBP3_DCHUBP_CNTL__HUBP_TIMEOUT_THRESHOLD_MASK                                                        0x03000000L
 #define HUBP3_DCHUBP_CNTL__HUBP_TIMEOUT_STATUS_CLEAR_MASK                                                     0x04000000L
@@ -3487,12 +3487,12 @@
 #define HUBPREQ3_DCSURF_FLIP_CONTROL2__SURFACE_GSL_ENABLE__SHIFT                                              0x8
 #define HUBPREQ3_DCSURF_FLIP_CONTROL2__SURFACE_GSL_MASK__SHIFT                                                0x9
 #define HUBPREQ3_DCSURF_FLIP_CONTROL2__SURFACE_TRIPLE_BUFFER_ENABLE__SHIFT                                    0xa
-#define HUBPREQ3_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_NO_LATCH__SHIFT                                     0xc
+#define HUBPREQ3_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_ANAL_LATCH__SHIFT                                     0xc
 #define HUBPREQ3_DCSURF_FLIP_CONTROL2__SURFACE_FLIP_PENDING_MIN_TIME_MASK                                     0x000000FFL
 #define HUBPREQ3_DCSURF_FLIP_CONTROL2__SURFACE_GSL_ENABLE_MASK                                                0x00000100L
 #define HUBPREQ3_DCSURF_FLIP_CONTROL2__SURFACE_GSL_MASK_MASK                                                  0x00000200L
 #define HUBPREQ3_DCSURF_FLIP_CONTROL2__SURFACE_TRIPLE_BUFFER_ENABLE_MASK                                      0x00000400L
-#define HUBPREQ3_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_NO_LATCH_MASK                                       0x00001000L
+#define HUBPREQ3_DCSURF_FLIP_CONTROL2__SURFACE_INUSE_RAED_ANAL_LATCH_MASK                                       0x00001000L
 //HUBPREQ3_DCSURF_SURFACE_FLIP_INTERRUPT
 #define HUBPREQ3_DCSURF_SURFACE_FLIP_INTERRUPT__SURFACE_FLIP_INT_MASK__SHIFT                                  0x0
 #define HUBPREQ3_DCSURF_SURFACE_FLIP_INTERRUPT__SURFACE_FLIP_INT_TYPE__SHIFT                                  0x1
@@ -3646,18 +3646,18 @@
 //HUBPREQ3_FLIP_PARAMETERS_2
 #define HUBPREQ3_FLIP_PARAMETERS_2__REFCYC_PER_META_CHUNK_FLIP_L__SHIFT                                       0x0
 #define HUBPREQ3_FLIP_PARAMETERS_2__REFCYC_PER_META_CHUNK_FLIP_L_MASK                                         0x007FFFFFL
-//HUBPREQ3_NOM_PARAMETERS_4
-#define HUBPREQ3_NOM_PARAMETERS_4__DST_Y_PER_META_ROW_NOM_L__SHIFT                                            0x0
-#define HUBPREQ3_NOM_PARAMETERS_4__DST_Y_PER_META_ROW_NOM_L_MASK                                              0x0001FFFFL
-//HUBPREQ3_NOM_PARAMETERS_5
-#define HUBPREQ3_NOM_PARAMETERS_5__REFCYC_PER_META_CHUNK_NOM_L__SHIFT                                         0x0
-#define HUBPREQ3_NOM_PARAMETERS_5__REFCYC_PER_META_CHUNK_NOM_L_MASK                                           0x007FFFFFL
-//HUBPREQ3_NOM_PARAMETERS_6
-#define HUBPREQ3_NOM_PARAMETERS_6__DST_Y_PER_META_ROW_NOM_C__SHIFT                                            0x0
-#define HUBPREQ3_NOM_PARAMETERS_6__DST_Y_PER_META_ROW_NOM_C_MASK                                              0x0001FFFFL
-//HUBPREQ3_NOM_PARAMETERS_7
-#define HUBPREQ3_NOM_PARAMETERS_7__REFCYC_PER_META_CHUNK_NOM_C__SHIFT                                         0x0
-#define HUBPREQ3_NOM_PARAMETERS_7__REFCYC_PER_META_CHUNK_NOM_C_MASK                                           0x007FFFFFL
+//HUBPREQ3_ANALM_PARAMETERS_4
+#define HUBPREQ3_ANALM_PARAMETERS_4__DST_Y_PER_META_ROW_ANALM_L__SHIFT                                            0x0
+#define HUBPREQ3_ANALM_PARAMETERS_4__DST_Y_PER_META_ROW_ANALM_L_MASK                                              0x0001FFFFL
+//HUBPREQ3_ANALM_PARAMETERS_5
+#define HUBPREQ3_ANALM_PARAMETERS_5__REFCYC_PER_META_CHUNK_ANALM_L__SHIFT                                         0x0
+#define HUBPREQ3_ANALM_PARAMETERS_5__REFCYC_PER_META_CHUNK_ANALM_L_MASK                                           0x007FFFFFL
+//HUBPREQ3_ANALM_PARAMETERS_6
+#define HUBPREQ3_ANALM_PARAMETERS_6__DST_Y_PER_META_ROW_ANALM_C__SHIFT                                            0x0
+#define HUBPREQ3_ANALM_PARAMETERS_6__DST_Y_PER_META_ROW_ANALM_C_MASK                                              0x0001FFFFL
+//HUBPREQ3_ANALM_PARAMETERS_7
+#define HUBPREQ3_ANALM_PARAMETERS_7__REFCYC_PER_META_CHUNK_ANALM_C__SHIFT                                         0x0
+#define HUBPREQ3_ANALM_PARAMETERS_7__REFCYC_PER_META_CHUNK_ANALM_C_MASK                                           0x007FFFFFL
 //HUBPREQ3_PER_LINE_DELIVERY_PRE
 #define HUBPREQ3_PER_LINE_DELIVERY_PRE__REFCYC_PER_LINE_DELIVERY_PRE_L__SHIFT                                 0x0
 #define HUBPREQ3_PER_LINE_DELIVERY_PRE__REFCYC_PER_LINE_DELIVERY_PRE_C__SHIFT                                 0x10
@@ -3750,9 +3750,9 @@
 #define HUBPRET3_HUBPRET_MEM_PWR_STATUS__DMROB_MEM_PWR_STATE_MASK                                             0x0000000CL
 #define HUBPRET3_HUBPRET_MEM_PWR_STATUS__PIXCDC_MEM_PWR_STATE_MASK                                            0x00000030L
 //HUBPRET3_HUBPRET_READ_LINE_CTRL0
-#define HUBPRET3_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_NONACTIVE__SHIFT                         0x0
+#define HUBPRET3_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_ANALNACTIVE__SHIFT                         0x0
 #define HUBPRET3_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_VBLANK_MAXIMUM__SHIFT                                0x10
-#define HUBPRET3_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_NONACTIVE_MASK                           0x0000FFFFL
+#define HUBPRET3_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_INTERVAL_IN_ANALNACTIVE_MASK                           0x0000FFFFL
 #define HUBPRET3_HUBPRET_READ_LINE_CTRL0__PIPE_READ_LINE_VBLANK_MAXIMUM_MASK                                  0x3FFF0000L
 //HUBPRET3_HUBPRET_READ_LINE_CTRL1
 #define HUBPRET3_HUBPRET_READ_LINE_CTRL1__PIPE_READ_LINE_REPORTED_WHEN_REQ_DISABLED__SHIFT                    0x0
@@ -3824,7 +3824,7 @@
 #define CURSOR0_3_CURSOR_CONTROL__CURSOR_2X_MAGNIFY__SHIFT                                                    0x4
 #define CURSOR0_3_CURSOR_CONTROL__CURSOR_MODE__SHIFT                                                          0x8
 #define CURSOR0_3_CURSOR_CONTROL__CURSOR_TMZ__SHIFT                                                           0xc
-#define CURSOR0_3_CURSOR_CONTROL__CURSOR_SNOOP__SHIFT                                                         0xd
+#define CURSOR0_3_CURSOR_CONTROL__CURSOR_SANALOP__SHIFT                                                         0xd
 #define CURSOR0_3_CURSOR_CONTROL__CURSOR_SYSTEM__SHIFT                                                        0xe
 #define CURSOR0_3_CURSOR_CONTROL__CURSOR_PITCH__SHIFT                                                         0x10
 #define CURSOR0_3_CURSOR_CONTROL__CURSOR_XY_POSITION_ROTATION_AND_MIRRORING_BYPASS__SHIFT                     0x14
@@ -3835,7 +3835,7 @@
 #define CURSOR0_3_CURSOR_CONTROL__CURSOR_2X_MAGNIFY_MASK                                                      0x00000010L
 #define CURSOR0_3_CURSOR_CONTROL__CURSOR_MODE_MASK                                                            0x00000700L
 #define CURSOR0_3_CURSOR_CONTROL__CURSOR_TMZ_MASK                                                             0x00001000L
-#define CURSOR0_3_CURSOR_CONTROL__CURSOR_SNOOP_MASK                                                           0x00002000L
+#define CURSOR0_3_CURSOR_CONTROL__CURSOR_SANALOP_MASK                                                           0x00002000L
 #define CURSOR0_3_CURSOR_CONTROL__CURSOR_SYSTEM_MASK                                                          0x00004000L
 #define CURSOR0_3_CURSOR_CONTROL__CURSOR_PITCH_MASK                                                           0x00030000L
 #define CURSOR0_3_CURSOR_CONTROL__CURSOR_XY_POSITION_ROTATION_AND_MIRRORING_BYPASS_MASK                       0x00100000L
@@ -3886,11 +3886,11 @@
 //CURSOR0_3_DMDATA_ADDRESS_HIGH
 #define CURSOR0_3_DMDATA_ADDRESS_HIGH__DMDATA_ADDRESS_HIGH__SHIFT                                             0x0
 #define CURSOR0_3_DMDATA_ADDRESS_HIGH__DMDATA_SYSTEM__SHIFT                                                   0x1c
-#define CURSOR0_3_DMDATA_ADDRESS_HIGH__DMDATA_SNOOP__SHIFT                                                    0x1d
+#define CURSOR0_3_DMDATA_ADDRESS_HIGH__DMDATA_SANALOP__SHIFT                                                    0x1d
 #define CURSOR0_3_DMDATA_ADDRESS_HIGH__DMDATA_TMZ__SHIFT                                                      0x1e
 #define CURSOR0_3_DMDATA_ADDRESS_HIGH__DMDATA_ADDRESS_HIGH_MASK                                               0x0000FFFFL
 #define CURSOR0_3_DMDATA_ADDRESS_HIGH__DMDATA_SYSTEM_MASK                                                     0x10000000L
-#define CURSOR0_3_DMDATA_ADDRESS_HIGH__DMDATA_SNOOP_MASK                                                      0x20000000L
+#define CURSOR0_3_DMDATA_ADDRESS_HIGH__DMDATA_SANALOP_MASK                                                      0x20000000L
 #define CURSOR0_3_DMDATA_ADDRESS_HIGH__DMDATA_TMZ_MASK                                                        0x40000000L
 //CURSOR0_3_DMDATA_ADDRESS_LOW
 #define CURSOR0_3_DMDATA_ADDRESS_LOW__DMDATA_ADDRESS_LOW__SHIFT                                               0x0
@@ -5619,9 +5619,9 @@
 #define CM0_CM_3DLUT_READ_WRITE_CONTROL__CM_3DLUT_30BIT_EN_MASK                                               0x00000100L
 #define CM0_CM_3DLUT_READ_WRITE_CONTROL__CM_3DLUT_CONFIG_STATUS_MASK                                          0x00003000L
 #define CM0_CM_3DLUT_READ_WRITE_CONTROL__CM_3DLUT_READ_SEL_MASK                                               0x00030000L
-//CM0_CM_3DLUT_OUT_NORM_FACTOR
-#define CM0_CM_3DLUT_OUT_NORM_FACTOR__CM_3DLUT_OUT_NORM_FACTOR__SHIFT                                         0x0
-#define CM0_CM_3DLUT_OUT_NORM_FACTOR__CM_3DLUT_OUT_NORM_FACTOR_MASK                                           0x0000FFFFL
+//CM0_CM_3DLUT_OUT_ANALRM_FACTOR
+#define CM0_CM_3DLUT_OUT_ANALRM_FACTOR__CM_3DLUT_OUT_ANALRM_FACTOR__SHIFT                                         0x0
+#define CM0_CM_3DLUT_OUT_ANALRM_FACTOR__CM_3DLUT_OUT_ANALRM_FACTOR_MASK                                           0x0000FFFFL
 //CM0_CM_3DLUT_OUT_OFFSET_R
 #define CM0_CM_3DLUT_OUT_OFFSET_R__CM_3DLUT_OUT_OFFSET_R__SHIFT                                               0x0
 #define CM0_CM_3DLUT_OUT_OFFSET_R__CM_3DLUT_OUT_SCALE_R__SHIFT                                                0x10
@@ -7336,9 +7336,9 @@
 #define CM1_CM_3DLUT_READ_WRITE_CONTROL__CM_3DLUT_30BIT_EN_MASK                                               0x00000100L
 #define CM1_CM_3DLUT_READ_WRITE_CONTROL__CM_3DLUT_CONFIG_STATUS_MASK                                          0x00003000L
 #define CM1_CM_3DLUT_READ_WRITE_CONTROL__CM_3DLUT_READ_SEL_MASK                                               0x00030000L
-//CM1_CM_3DLUT_OUT_NORM_FACTOR
-#define CM1_CM_3DLUT_OUT_NORM_FACTOR__CM_3DLUT_OUT_NORM_FACTOR__SHIFT                                         0x0
-#define CM1_CM_3DLUT_OUT_NORM_FACTOR__CM_3DLUT_OUT_NORM_FACTOR_MASK                                           0x0000FFFFL
+//CM1_CM_3DLUT_OUT_ANALRM_FACTOR
+#define CM1_CM_3DLUT_OUT_ANALRM_FACTOR__CM_3DLUT_OUT_ANALRM_FACTOR__SHIFT                                         0x0
+#define CM1_CM_3DLUT_OUT_ANALRM_FACTOR__CM_3DLUT_OUT_ANALRM_FACTOR_MASK                                           0x0000FFFFL
 //CM1_CM_3DLUT_OUT_OFFSET_R
 #define CM1_CM_3DLUT_OUT_OFFSET_R__CM_3DLUT_OUT_OFFSET_R__SHIFT                                               0x0
 #define CM1_CM_3DLUT_OUT_OFFSET_R__CM_3DLUT_OUT_SCALE_R__SHIFT                                                0x10
@@ -9045,9 +9045,9 @@
 #define CM2_CM_3DLUT_READ_WRITE_CONTROL__CM_3DLUT_30BIT_EN_MASK                                               0x00000100L
 #define CM2_CM_3DLUT_READ_WRITE_CONTROL__CM_3DLUT_CONFIG_STATUS_MASK                                          0x00003000L
 #define CM2_CM_3DLUT_READ_WRITE_CONTROL__CM_3DLUT_READ_SEL_MASK                                               0x00030000L
-//CM2_CM_3DLUT_OUT_NORM_FACTOR
-#define CM2_CM_3DLUT_OUT_NORM_FACTOR__CM_3DLUT_OUT_NORM_FACTOR__SHIFT                                         0x0
-#define CM2_CM_3DLUT_OUT_NORM_FACTOR__CM_3DLUT_OUT_NORM_FACTOR_MASK                                           0x0000FFFFL
+//CM2_CM_3DLUT_OUT_ANALRM_FACTOR
+#define CM2_CM_3DLUT_OUT_ANALRM_FACTOR__CM_3DLUT_OUT_ANALRM_FACTOR__SHIFT                                         0x0
+#define CM2_CM_3DLUT_OUT_ANALRM_FACTOR__CM_3DLUT_OUT_ANALRM_FACTOR_MASK                                           0x0000FFFFL
 //CM2_CM_3DLUT_OUT_OFFSET_R
 #define CM2_CM_3DLUT_OUT_OFFSET_R__CM_3DLUT_OUT_OFFSET_R__SHIFT                                               0x0
 #define CM2_CM_3DLUT_OUT_OFFSET_R__CM_3DLUT_OUT_SCALE_R__SHIFT                                                0x10
@@ -10756,9 +10756,9 @@
 #define CM3_CM_3DLUT_READ_WRITE_CONTROL__CM_3DLUT_30BIT_EN_MASK                                               0x00000100L
 #define CM3_CM_3DLUT_READ_WRITE_CONTROL__CM_3DLUT_CONFIG_STATUS_MASK                                          0x00003000L
 #define CM3_CM_3DLUT_READ_WRITE_CONTROL__CM_3DLUT_READ_SEL_MASK                                               0x00030000L
-//CM3_CM_3DLUT_OUT_NORM_FACTOR
-#define CM3_CM_3DLUT_OUT_NORM_FACTOR__CM_3DLUT_OUT_NORM_FACTOR__SHIFT                                         0x0
-#define CM3_CM_3DLUT_OUT_NORM_FACTOR__CM_3DLUT_OUT_NORM_FACTOR_MASK                                           0x0000FFFFL
+//CM3_CM_3DLUT_OUT_ANALRM_FACTOR
+#define CM3_CM_3DLUT_OUT_ANALRM_FACTOR__CM_3DLUT_OUT_ANALRM_FACTOR__SHIFT                                         0x0
+#define CM3_CM_3DLUT_OUT_ANALRM_FACTOR__CM_3DLUT_OUT_ANALRM_FACTOR_MASK                                           0x0000FFFFL
 //CM3_CM_3DLUT_OUT_OFFSET_R
 #define CM3_CM_3DLUT_OUT_OFFSET_R__CM_3DLUT_OUT_OFFSET_R__SHIFT                                               0x0
 #define CM3_CM_3DLUT_OUT_OFFSET_R__CM_3DLUT_OUT_SCALE_R__SHIFT                                                0x10
@@ -11377,23 +11377,23 @@
 #define MPC_OUT0_MUX__MPC_OUT_FLOW_CONTROL_MODE_MASK                                                          0x00000400L
 #define MPC_OUT0_MUX__MPC_OUT_FLOW_CONTROL_COUNT0_MASK                                                        0x000FF800L
 #define MPC_OUT0_MUX__MPC_OUT_FLOW_CONTROL_COUNT1_MASK                                                        0xFFF00000L
-//MPC_OUT0_DENORM_CONTROL
-#define MPC_OUT0_DENORM_CONTROL__MPC_OUT_DENORM_CLAMP_MIN_R_CR__SHIFT                                         0x0
-#define MPC_OUT0_DENORM_CONTROL__MPC_OUT_DENORM_CLAMP_MAX_R_CR__SHIFT                                         0xc
-#define MPC_OUT0_DENORM_CONTROL__MPC_OUT_DENORM_MODE__SHIFT                                                   0x18
-#define MPC_OUT0_DENORM_CONTROL__MPC_OUT_DENORM_CLAMP_MIN_R_CR_MASK                                           0x00000FFFL
-#define MPC_OUT0_DENORM_CONTROL__MPC_OUT_DENORM_CLAMP_MAX_R_CR_MASK                                           0x00FFF000L
-#define MPC_OUT0_DENORM_CONTROL__MPC_OUT_DENORM_MODE_MASK                                                     0x07000000L
-//MPC_OUT0_DENORM_CLAMP_G_Y
-#define MPC_OUT0_DENORM_CLAMP_G_Y__MPC_OUT_DENORM_CLAMP_MIN_G_Y__SHIFT                                        0x0
-#define MPC_OUT0_DENORM_CLAMP_G_Y__MPC_OUT_DENORM_CLAMP_MAX_G_Y__SHIFT                                        0xc
-#define MPC_OUT0_DENORM_CLAMP_G_Y__MPC_OUT_DENORM_CLAMP_MIN_G_Y_MASK                                          0x00000FFFL
-#define MPC_OUT0_DENORM_CLAMP_G_Y__MPC_OUT_DENORM_CLAMP_MAX_G_Y_MASK                                          0x00FFF000L
-//MPC_OUT0_DENORM_CLAMP_B_CB
-#define MPC_OUT0_DENORM_CLAMP_B_CB__MPC_OUT_DENORM_CLAMP_MIN_B_CB__SHIFT                                      0x0
-#define MPC_OUT0_DENORM_CLAMP_B_CB__MPC_OUT_DENORM_CLAMP_MAX_B_CB__SHIFT                                      0xc
-#define MPC_OUT0_DENORM_CLAMP_B_CB__MPC_OUT_DENORM_CLAMP_MIN_B_CB_MASK                                        0x00000FFFL
-#define MPC_OUT0_DENORM_CLAMP_B_CB__MPC_OUT_DENORM_CLAMP_MAX_B_CB_MASK                                        0x00FFF000L
+//MPC_OUT0_DEANALRM_CONTROL
+#define MPC_OUT0_DEANALRM_CONTROL__MPC_OUT_DEANALRM_CLAMP_MIN_R_CR__SHIFT                                         0x0
+#define MPC_OUT0_DEANALRM_CONTROL__MPC_OUT_DEANALRM_CLAMP_MAX_R_CR__SHIFT                                         0xc
+#define MPC_OUT0_DEANALRM_CONTROL__MPC_OUT_DEANALRM_MODE__SHIFT                                                   0x18
+#define MPC_OUT0_DEANALRM_CONTROL__MPC_OUT_DEANALRM_CLAMP_MIN_R_CR_MASK                                           0x00000FFFL
+#define MPC_OUT0_DEANALRM_CONTROL__MPC_OUT_DEANALRM_CLAMP_MAX_R_CR_MASK                                           0x00FFF000L
+#define MPC_OUT0_DEANALRM_CONTROL__MPC_OUT_DEANALRM_MODE_MASK                                                     0x07000000L
+//MPC_OUT0_DEANALRM_CLAMP_G_Y
+#define MPC_OUT0_DEANALRM_CLAMP_G_Y__MPC_OUT_DEANALRM_CLAMP_MIN_G_Y__SHIFT                                        0x0
+#define MPC_OUT0_DEANALRM_CLAMP_G_Y__MPC_OUT_DEANALRM_CLAMP_MAX_G_Y__SHIFT                                        0xc
+#define MPC_OUT0_DEANALRM_CLAMP_G_Y__MPC_OUT_DEANALRM_CLAMP_MIN_G_Y_MASK                                          0x00000FFFL
+#define MPC_OUT0_DEANALRM_CLAMP_G_Y__MPC_OUT_DEANALRM_CLAMP_MAX_G_Y_MASK                                          0x00FFF000L
+//MPC_OUT0_DEANALRM_CLAMP_B_CB
+#define MPC_OUT0_DEANALRM_CLAMP_B_CB__MPC_OUT_DEANALRM_CLAMP_MIN_B_CB__SHIFT                                      0x0
+#define MPC_OUT0_DEANALRM_CLAMP_B_CB__MPC_OUT_DEANALRM_CLAMP_MAX_B_CB__SHIFT                                      0xc
+#define MPC_OUT0_DEANALRM_CLAMP_B_CB__MPC_OUT_DEANALRM_CLAMP_MIN_B_CB_MASK                                        0x00000FFFL
+#define MPC_OUT0_DEANALRM_CLAMP_B_CB__MPC_OUT_DEANALRM_CLAMP_MAX_B_CB_MASK                                        0x00FFF000L
 //MPC_OUT1_MUX
 #define MPC_OUT1_MUX__MPC_OUT_MUX__SHIFT                                                                      0x0
 #define MPC_OUT1_MUX__MPC_OUT_RATE_CONTROL_OVFL_ERROR__SHIFT                                                  0x5
@@ -11413,23 +11413,23 @@
 #define MPC_OUT1_MUX__MPC_OUT_FLOW_CONTROL_MODE_MASK                                                          0x00000400L
 #define MPC_OUT1_MUX__MPC_OUT_FLOW_CONTROL_COUNT0_MASK                                                        0x000FF800L
 #define MPC_OUT1_MUX__MPC_OUT_FLOW_CONTROL_COUNT1_MASK                                                        0xFFF00000L
-//MPC_OUT1_DENORM_CONTROL
-#define MPC_OUT1_DENORM_CONTROL__MPC_OUT_DENORM_CLAMP_MIN_R_CR__SHIFT                                         0x0
-#define MPC_OUT1_DENORM_CONTROL__MPC_OUT_DENORM_CLAMP_MAX_R_CR__SHIFT                                         0xc
-#define MPC_OUT1_DENORM_CONTROL__MPC_OUT_DENORM_MODE__SHIFT                                                   0x18
-#define MPC_OUT1_DENORM_CONTROL__MPC_OUT_DENORM_CLAMP_MIN_R_CR_MASK                                           0x00000FFFL
-#define MPC_OUT1_DENORM_CONTROL__MPC_OUT_DENORM_CLAMP_MAX_R_CR_MASK                                           0x00FFF000L
-#define MPC_OUT1_DENORM_CONTROL__MPC_OUT_DENORM_MODE_MASK                                                     0x07000000L
-//MPC_OUT1_DENORM_CLAMP_G_Y
-#define MPC_OUT1_DENORM_CLAMP_G_Y__MPC_OUT_DENORM_CLAMP_MIN_G_Y__SHIFT                                        0x0
-#define MPC_OUT1_DENORM_CLAMP_G_Y__MPC_OUT_DENORM_CLAMP_MAX_G_Y__SHIFT                                        0xc
-#define MPC_OUT1_DENORM_CLAMP_G_Y__MPC_OUT_DENORM_CLAMP_MIN_G_Y_MASK                                          0x00000FFFL
-#define MPC_OUT1_DENORM_CLAMP_G_Y__MPC_OUT_DENORM_CLAMP_MAX_G_Y_MASK                                          0x00FFF000L
-//MPC_OUT1_DENORM_CLAMP_B_CB
-#define MPC_OUT1_DENORM_CLAMP_B_CB__MPC_OUT_DENORM_CLAMP_MIN_B_CB__SHIFT                                      0x0
-#define MPC_OUT1_DENORM_CLAMP_B_CB__MPC_OUT_DENORM_CLAMP_MAX_B_CB__SHIFT                                      0xc
-#define MPC_OUT1_DENORM_CLAMP_B_CB__MPC_OUT_DENORM_CLAMP_MIN_B_CB_MASK                                        0x00000FFFL
-#define MPC_OUT1_DENORM_CLAMP_B_CB__MPC_OUT_DENORM_CLAMP_MAX_B_CB_MASK                                        0x00FFF000L
+//MPC_OUT1_DEANALRM_CONTROL
+#define MPC_OUT1_DEANALRM_CONTROL__MPC_OUT_DEANALRM_CLAMP_MIN_R_CR__SHIFT                                         0x0
+#define MPC_OUT1_DEANALRM_CONTROL__MPC_OUT_DEANALRM_CLAMP_MAX_R_CR__SHIFT                                         0xc
+#define MPC_OUT1_DEANALRM_CONTROL__MPC_OUT_DEANALRM_MODE__SHIFT                                                   0x18
+#define MPC_OUT1_DEANALRM_CONTROL__MPC_OUT_DEANALRM_CLAMP_MIN_R_CR_MASK                                           0x00000FFFL
+#define MPC_OUT1_DEANALRM_CONTROL__MPC_OUT_DEANALRM_CLAMP_MAX_R_CR_MASK                                           0x00FFF000L
+#define MPC_OUT1_DEANALRM_CONTROL__MPC_OUT_DEANALRM_MODE_MASK                                                     0x07000000L
+//MPC_OUT1_DEANALRM_CLAMP_G_Y
+#define MPC_OUT1_DEANALRM_CLAMP_G_Y__MPC_OUT_DEANALRM_CLAMP_MIN_G_Y__SHIFT                                        0x0
+#define MPC_OUT1_DEANALRM_CLAMP_G_Y__MPC_OUT_DEANALRM_CLAMP_MAX_G_Y__SHIFT                                        0xc
+#define MPC_OUT1_DEANALRM_CLAMP_G_Y__MPC_OUT_DEANALRM_CLAMP_MIN_G_Y_MASK                                          0x00000FFFL
+#define MPC_OUT1_DEANALRM_CLAMP_G_Y__MPC_OUT_DEANALRM_CLAMP_MAX_G_Y_MASK                                          0x00FFF000L
+//MPC_OUT1_DEANALRM_CLAMP_B_CB
+#define MPC_OUT1_DEANALRM_CLAMP_B_CB__MPC_OUT_DEANALRM_CLAMP_MIN_B_CB__SHIFT                                      0x0
+#define MPC_OUT1_DEANALRM_CLAMP_B_CB__MPC_OUT_DEANALRM_CLAMP_MAX_B_CB__SHIFT                                      0xc
+#define MPC_OUT1_DEANALRM_CLAMP_B_CB__MPC_OUT_DEANALRM_CLAMP_MIN_B_CB_MASK                                        0x00000FFFL
+#define MPC_OUT1_DEANALRM_CLAMP_B_CB__MPC_OUT_DEANALRM_CLAMP_MAX_B_CB_MASK                                        0x00FFF000L
 // addressBlock: dce_dc_mpc_mpcc_ogam0_dispdec
 //MPCC_OGAM0_MPCC_OGAM_MODE
 #define MPCC_OGAM0_MPCC_OGAM_MODE__MPCC_OGAM_MODE__SHIFT                                                      0x0
@@ -14240,11 +14240,11 @@
 #define OTG0_OTG_V_TOTAL_INT_STATUS__OTG_SET_V_TOTAL_MIN_EVENT_OCCURED_INT_MASK                               0x00000010L
 #define OTG0_OTG_V_TOTAL_INT_STATUS__OTG_SET_V_TOTAL_MIN_EVENT_OCCURED_ACK_MASK                               0x00000100L
 #define OTG0_OTG_V_TOTAL_INT_STATUS__OTG_SET_V_TOTAL_MIN_EVENT_OCCURED_MSK_MASK                               0x00001000L
-//OTG0_OTG_VSYNC_NOM_INT_STATUS
-#define OTG0_OTG_VSYNC_NOM_INT_STATUS__OTG_VSYNC_NOM__SHIFT                                                   0x0
-#define OTG0_OTG_VSYNC_NOM_INT_STATUS__OTG_VSYNC_NOM_INT_CLEAR__SHIFT                                         0x4
-#define OTG0_OTG_VSYNC_NOM_INT_STATUS__OTG_VSYNC_NOM_MASK                                                     0x00000001L
-#define OTG0_OTG_VSYNC_NOM_INT_STATUS__OTG_VSYNC_NOM_INT_CLEAR_MASK                                           0x00000010L
+//OTG0_OTG_VSYNC_ANALM_INT_STATUS
+#define OTG0_OTG_VSYNC_ANALM_INT_STATUS__OTG_VSYNC_ANALM__SHIFT                                                   0x0
+#define OTG0_OTG_VSYNC_ANALM_INT_STATUS__OTG_VSYNC_ANALM_INT_CLEAR__SHIFT                                         0x4
+#define OTG0_OTG_VSYNC_ANALM_INT_STATUS__OTG_VSYNC_ANALM_MASK                                                     0x00000001L
+#define OTG0_OTG_VSYNC_ANALM_INT_STATUS__OTG_VSYNC_ANALM_INT_CLEAR_MASK                                           0x00000010L
 //OTG0_OTG_V_BLANK_START_END
 #define OTG0_OTG_V_BLANK_START_END__OTG_V_BLANK_START__SHIFT                                                  0x0
 #define OTG0_OTG_V_BLANK_START_END__OTG_V_BLANK_END__SHIFT                                                    0x10
@@ -14314,17 +14314,17 @@
 //OTG0_OTG_TRIGB_MANUAL_TRIG
 #define OTG0_OTG_TRIGB_MANUAL_TRIG__OTG_TRIGB_MANUAL_TRIG__SHIFT                                              0x0
 #define OTG0_OTG_TRIGB_MANUAL_TRIG__OTG_TRIGB_MANUAL_TRIG_MASK                                                0x00000001L
-//OTG0_OTG_FORCE_COUNT_NOW_CNTL
-#define OTG0_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_MODE__SHIFT                                        0x0
-#define OTG0_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_CHECK__SHIFT                                       0x4
-#define OTG0_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_TRIG_SEL__SHIFT                                    0x8
-#define OTG0_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_OCCURRED__SHIFT                                    0x10
-#define OTG0_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_CLEAR__SHIFT                                       0x18
-#define OTG0_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_MODE_MASK                                          0x00000003L
-#define OTG0_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_CHECK_MASK                                         0x00000010L
-#define OTG0_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_TRIG_SEL_MASK                                      0x00000100L
-#define OTG0_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_OCCURRED_MASK                                      0x00010000L
-#define OTG0_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_CLEAR_MASK                                         0x01000000L
+//OTG0_OTG_FORCE_COUNT_ANALW_CNTL
+#define OTG0_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_MODE__SHIFT                                        0x0
+#define OTG0_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_CHECK__SHIFT                                       0x4
+#define OTG0_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_TRIG_SEL__SHIFT                                    0x8
+#define OTG0_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_OCCURRED__SHIFT                                    0x10
+#define OTG0_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_CLEAR__SHIFT                                       0x18
+#define OTG0_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_MODE_MASK                                          0x00000003L
+#define OTG0_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_CHECK_MASK                                         0x00000010L
+#define OTG0_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_TRIG_SEL_MASK                                      0x00000100L
+#define OTG0_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_OCCURRED_MASK                                      0x00010000L
+#define OTG0_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_CLEAR_MASK                                         0x01000000L
 //OTG0_OTG_STEREO_FORCE_NEXT_EYE
 #define OTG0_OTG_STEREO_FORCE_NEXT_EYE__OTG_STEREO_FORCE_NEXT_EYE__SHIFT                                      0x0
 #define OTG0_OTG_STEREO_FORCE_NEXT_EYE__OTG_AVSYNC_FRAME_COUNTER__SHIFT                                       0x8
@@ -14398,9 +14398,9 @@
 #define OTG0_OTG_STATUS_POSITION__OTG_HORZ_COUNT__SHIFT                                                       0x10
 #define OTG0_OTG_STATUS_POSITION__OTG_VERT_COUNT_MASK                                                         0x00007FFFL
 #define OTG0_OTG_STATUS_POSITION__OTG_HORZ_COUNT_MASK                                                         0x7FFF0000L
-//OTG0_OTG_NOM_VERT_POSITION
-#define OTG0_OTG_NOM_VERT_POSITION__OTG_VERT_COUNT_NOM__SHIFT                                                 0x0
-#define OTG0_OTG_NOM_VERT_POSITION__OTG_VERT_COUNT_NOM_MASK                                                   0x00007FFFL
+//OTG0_OTG_ANALM_VERT_POSITION
+#define OTG0_OTG_ANALM_VERT_POSITION__OTG_VERT_COUNT_ANALM__SHIFT                                                 0x0
+#define OTG0_OTG_ANALM_VERT_POSITION__OTG_VERT_COUNT_ANALM_MASK                                                   0x00007FFFL
 //OTG0_OTG_STATUS_FRAME_COUNT
 #define OTG0_OTG_STATUS_FRAME_COUNT__OTG_FRAME_COUNT__SHIFT                                                   0x0
 #define OTG0_OTG_STATUS_FRAME_COUNT__OTG_FRAME_COUNT_MASK                                                     0x00FFFFFFL
@@ -14479,30 +14479,30 @@
 //OTG0_OTG_INTERRUPT_CONTROL
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_SNAPSHOT_INT_MSK__SHIFT                                               0x0
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_SNAPSHOT_INT_TYPE__SHIFT                                              0x1
-#define OTG0_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_NOW_INT_MSK__SHIFT                                        0x8
-#define OTG0_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_NOW_INT_TYPE__SHIFT                                       0x9
+#define OTG0_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_ANALW_INT_MSK__SHIFT                                        0x8
+#define OTG0_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_ANALW_INT_TYPE__SHIFT                                       0x9
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_FORCE_VSYNC_NEXT_LINE_INT_MSK__SHIFT                                  0x10
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_FORCE_VSYNC_NEXT_LINE_INT_TYPE__SHIFT                                 0x11
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_TRIGA_INT_MSK__SHIFT                                                  0x18
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_TRIGB_INT_MSK__SHIFT                                                  0x19
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_TRIGA_INT_TYPE__SHIFT                                                 0x1a
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_TRIGB_INT_TYPE__SHIFT                                                 0x1b
-#define OTG0_OTG_INTERRUPT_CONTROL__OTG_VSYNC_NOM_INT_MSK__SHIFT                                              0x1c
-#define OTG0_OTG_INTERRUPT_CONTROL__OTG_VSYNC_NOM_INT_TYPE__SHIFT                                             0x1d
+#define OTG0_OTG_INTERRUPT_CONTROL__OTG_VSYNC_ANALM_INT_MSK__SHIFT                                              0x1c
+#define OTG0_OTG_INTERRUPT_CONTROL__OTG_VSYNC_ANALM_INT_TYPE__SHIFT                                             0x1d
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_GSL_VSYNC_GAP_INT_MSK__SHIFT                                          0x1e
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_GSL_VSYNC_GAP_INT_TYPE__SHIFT                                         0x1f
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_SNAPSHOT_INT_MSK_MASK                                                 0x00000001L
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_SNAPSHOT_INT_TYPE_MASK                                                0x00000002L
-#define OTG0_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_NOW_INT_MSK_MASK                                          0x00000100L
-#define OTG0_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_NOW_INT_TYPE_MASK                                         0x00000200L
+#define OTG0_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_ANALW_INT_MSK_MASK                                          0x00000100L
+#define OTG0_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_ANALW_INT_TYPE_MASK                                         0x00000200L
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_FORCE_VSYNC_NEXT_LINE_INT_MSK_MASK                                    0x00010000L
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_FORCE_VSYNC_NEXT_LINE_INT_TYPE_MASK                                   0x00020000L
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_TRIGA_INT_MSK_MASK                                                    0x01000000L
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_TRIGB_INT_MSK_MASK                                                    0x02000000L
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_TRIGA_INT_TYPE_MASK                                                   0x04000000L
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_TRIGB_INT_TYPE_MASK                                                   0x08000000L
-#define OTG0_OTG_INTERRUPT_CONTROL__OTG_VSYNC_NOM_INT_MSK_MASK                                                0x10000000L
-#define OTG0_OTG_INTERRUPT_CONTROL__OTG_VSYNC_NOM_INT_TYPE_MASK                                               0x20000000L
+#define OTG0_OTG_INTERRUPT_CONTROL__OTG_VSYNC_ANALM_INT_MSK_MASK                                                0x10000000L
+#define OTG0_OTG_INTERRUPT_CONTROL__OTG_VSYNC_ANALM_INT_TYPE_MASK                                               0x20000000L
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_GSL_VSYNC_GAP_INT_MSK_MASK                                            0x40000000L
 #define OTG0_OTG_INTERRUPT_CONTROL__OTG_GSL_VSYNC_GAP_INT_TYPE_MASK                                           0x80000000L
 //OTG0_OTG_UPDATE_LOCK
@@ -14807,12 +14807,12 @@
 #define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_INT_STATUS__SHIFT                                                0x9
 #define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_EVENT_CLEAR__SHIFT                                               0xa
 #define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_STATUS__SHIFT                                                    0xb
-#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_INT_EN__SHIFT                                            0xc
-#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_INT_TYPE__SHIFT                                          0xd
-#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_EVENT_OCCURRED__SHIFT                                    0xe
-#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_INT_STATUS__SHIFT                                        0xf
-#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_EVENT_CLEAR__SHIFT                                       0x10
-#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_STATUS__SHIFT                                            0x11
+#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_INT_EN__SHIFT                                            0xc
+#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_INT_TYPE__SHIFT                                          0xd
+#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_EVENT_OCCURRED__SHIFT                                    0xe
+#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_INT_STATUS__SHIFT                                        0xf
+#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_EVENT_CLEAR__SHIFT                                       0x10
+#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_STATUS__SHIFT                                            0x11
 #define OTG0_OTG_GLOBAL_SYNC_STATUS__VREADY_INT_EN__SHIFT                                                     0x12
 #define OTG0_OTG_GLOBAL_SYNC_STATUS__VREADY_INT_TYPE__SHIFT                                                   0x13
 #define OTG0_OTG_GLOBAL_SYNC_STATUS__VREADY_EVENT_OCCURRED__SHIFT                                             0x14
@@ -14832,12 +14832,12 @@
 #define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_INT_STATUS_MASK                                                  0x00000200L
 #define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_EVENT_CLEAR_MASK                                                 0x00000400L
 #define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_STATUS_MASK                                                      0x00000800L
-#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_INT_EN_MASK                                              0x00001000L
-#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_INT_TYPE_MASK                                            0x00002000L
-#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_EVENT_OCCURRED_MASK                                      0x00004000L
-#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_INT_STATUS_MASK                                          0x00008000L
-#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_EVENT_CLEAR_MASK                                         0x00010000L
-#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_STATUS_MASK                                              0x00020000L
+#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_INT_EN_MASK                                              0x00001000L
+#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_INT_TYPE_MASK                                            0x00002000L
+#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_EVENT_OCCURRED_MASK                                      0x00004000L
+#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_INT_STATUS_MASK                                          0x00008000L
+#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_EVENT_CLEAR_MASK                                         0x00010000L
+#define OTG0_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_STATUS_MASK                                              0x00020000L
 #define OTG0_OTG_GLOBAL_SYNC_STATUS__VREADY_INT_EN_MASK                                                       0x00040000L
 #define OTG0_OTG_GLOBAL_SYNC_STATUS__VREADY_INT_TYPE_MASK                                                     0x00080000L
 #define OTG0_OTG_GLOBAL_SYNC_STATUS__VREADY_EVENT_OCCURRED_MASK                                               0x00100000L
@@ -15014,11 +15014,11 @@
 #define OTG1_OTG_V_TOTAL_INT_STATUS__OTG_SET_V_TOTAL_MIN_EVENT_OCCURED_INT_MASK                               0x00000010L
 #define OTG1_OTG_V_TOTAL_INT_STATUS__OTG_SET_V_TOTAL_MIN_EVENT_OCCURED_ACK_MASK                               0x00000100L
 #define OTG1_OTG_V_TOTAL_INT_STATUS__OTG_SET_V_TOTAL_MIN_EVENT_OCCURED_MSK_MASK                               0x00001000L
-//OTG1_OTG_VSYNC_NOM_INT_STATUS
-#define OTG1_OTG_VSYNC_NOM_INT_STATUS__OTG_VSYNC_NOM__SHIFT                                                   0x0
-#define OTG1_OTG_VSYNC_NOM_INT_STATUS__OTG_VSYNC_NOM_INT_CLEAR__SHIFT                                         0x4
-#define OTG1_OTG_VSYNC_NOM_INT_STATUS__OTG_VSYNC_NOM_MASK                                                     0x00000001L
-#define OTG1_OTG_VSYNC_NOM_INT_STATUS__OTG_VSYNC_NOM_INT_CLEAR_MASK                                           0x00000010L
+//OTG1_OTG_VSYNC_ANALM_INT_STATUS
+#define OTG1_OTG_VSYNC_ANALM_INT_STATUS__OTG_VSYNC_ANALM__SHIFT                                                   0x0
+#define OTG1_OTG_VSYNC_ANALM_INT_STATUS__OTG_VSYNC_ANALM_INT_CLEAR__SHIFT                                         0x4
+#define OTG1_OTG_VSYNC_ANALM_INT_STATUS__OTG_VSYNC_ANALM_MASK                                                     0x00000001L
+#define OTG1_OTG_VSYNC_ANALM_INT_STATUS__OTG_VSYNC_ANALM_INT_CLEAR_MASK                                           0x00000010L
 //OTG1_OTG_V_BLANK_START_END
 #define OTG1_OTG_V_BLANK_START_END__OTG_V_BLANK_START__SHIFT                                                  0x0
 #define OTG1_OTG_V_BLANK_START_END__OTG_V_BLANK_END__SHIFT                                                    0x10
@@ -15088,17 +15088,17 @@
 //OTG1_OTG_TRIGB_MANUAL_TRIG
 #define OTG1_OTG_TRIGB_MANUAL_TRIG__OTG_TRIGB_MANUAL_TRIG__SHIFT                                              0x0
 #define OTG1_OTG_TRIGB_MANUAL_TRIG__OTG_TRIGB_MANUAL_TRIG_MASK                                                0x00000001L
-//OTG1_OTG_FORCE_COUNT_NOW_CNTL
-#define OTG1_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_MODE__SHIFT                                        0x0
-#define OTG1_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_CHECK__SHIFT                                       0x4
-#define OTG1_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_TRIG_SEL__SHIFT                                    0x8
-#define OTG1_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_OCCURRED__SHIFT                                    0x10
-#define OTG1_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_CLEAR__SHIFT                                       0x18
-#define OTG1_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_MODE_MASK                                          0x00000003L
-#define OTG1_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_CHECK_MASK                                         0x00000010L
-#define OTG1_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_TRIG_SEL_MASK                                      0x00000100L
-#define OTG1_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_OCCURRED_MASK                                      0x00010000L
-#define OTG1_OTG_FORCE_COUNT_NOW_CNTL__OTG_FORCE_COUNT_NOW_CLEAR_MASK                                         0x01000000L
+//OTG1_OTG_FORCE_COUNT_ANALW_CNTL
+#define OTG1_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_MODE__SHIFT                                        0x0
+#define OTG1_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_CHECK__SHIFT                                       0x4
+#define OTG1_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_TRIG_SEL__SHIFT                                    0x8
+#define OTG1_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_OCCURRED__SHIFT                                    0x10
+#define OTG1_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_CLEAR__SHIFT                                       0x18
+#define OTG1_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_MODE_MASK                                          0x00000003L
+#define OTG1_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_CHECK_MASK                                         0x00000010L
+#define OTG1_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_TRIG_SEL_MASK                                      0x00000100L
+#define OTG1_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_OCCURRED_MASK                                      0x00010000L
+#define OTG1_OTG_FORCE_COUNT_ANALW_CNTL__OTG_FORCE_COUNT_ANALW_CLEAR_MASK                                         0x01000000L
 //OTG1_OTG_STEREO_FORCE_NEXT_EYE
 #define OTG1_OTG_STEREO_FORCE_NEXT_EYE__OTG_STEREO_FORCE_NEXT_EYE__SHIFT                                      0x0
 #define OTG1_OTG_STEREO_FORCE_NEXT_EYE__OTG_AVSYNC_FRAME_COUNTER__SHIFT                                       0x8
@@ -15174,9 +15174,9 @@
 #define OTG1_OTG_STATUS_POSITION__OTG_HORZ_COUNT__SHIFT                                                       0x10
 #define OTG1_OTG_STATUS_POSITION__OTG_VERT_COUNT_MASK                                                         0x00007FFFL
 #define OTG1_OTG_STATUS_POSITION__OTG_HORZ_COUNT_MASK                                                         0x7FFF0000L
-//OTG1_OTG_NOM_VERT_POSITION
-#define OTG1_OTG_NOM_VERT_POSITION__OTG_VERT_COUNT_NOM__SHIFT                                                 0x0
-#define OTG1_OTG_NOM_VERT_POSITION__OTG_VERT_COUNT_NOM_MASK                                                   0x00007FFFL
+//OTG1_OTG_ANALM_VERT_POSITION
+#define OTG1_OTG_ANALM_VERT_POSITION__OTG_VERT_COUNT_ANALM__SHIFT                                                 0x0
+#define OTG1_OTG_ANALM_VERT_POSITION__OTG_VERT_COUNT_ANALM_MASK                                                   0x00007FFFL
 //OTG1_OTG_STATUS_FRAME_COUNT
 #define OTG1_OTG_STATUS_FRAME_COUNT__OTG_FRAME_COUNT__SHIFT                                                   0x0
 #define OTG1_OTG_STATUS_FRAME_COUNT__OTG_FRAME_COUNT_MASK                                                     0x00FFFFFFL
@@ -15255,30 +15255,30 @@
 //OTG1_OTG_INTERRUPT_CONTROL
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_SNAPSHOT_INT_MSK__SHIFT                                               0x0
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_SNAPSHOT_INT_TYPE__SHIFT                                              0x1
-#define OTG1_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_NOW_INT_MSK__SHIFT                                        0x8
-#define OTG1_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_NOW_INT_TYPE__SHIFT                                       0x9
+#define OTG1_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_ANALW_INT_MSK__SHIFT                                        0x8
+#define OTG1_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_ANALW_INT_TYPE__SHIFT                                       0x9
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_FORCE_VSYNC_NEXT_LINE_INT_MSK__SHIFT                                  0x10
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_FORCE_VSYNC_NEXT_LINE_INT_TYPE__SHIFT                                 0x11
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_TRIGA_INT_MSK__SHIFT                                                  0x18
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_TRIGB_INT_MSK__SHIFT                                                  0x19
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_TRIGA_INT_TYPE__SHIFT                                                 0x1a
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_TRIGB_INT_TYPE__SHIFT                                                 0x1b
-#define OTG1_OTG_INTERRUPT_CONTROL__OTG_VSYNC_NOM_INT_MSK__SHIFT                                              0x1c
-#define OTG1_OTG_INTERRUPT_CONTROL__OTG_VSYNC_NOM_INT_TYPE__SHIFT                                             0x1d
+#define OTG1_OTG_INTERRUPT_CONTROL__OTG_VSYNC_ANALM_INT_MSK__SHIFT                                              0x1c
+#define OTG1_OTG_INTERRUPT_CONTROL__OTG_VSYNC_ANALM_INT_TYPE__SHIFT                                             0x1d
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_GSL_VSYNC_GAP_INT_MSK__SHIFT                                          0x1e
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_GSL_VSYNC_GAP_INT_TYPE__SHIFT                                         0x1f
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_SNAPSHOT_INT_MSK_MASK                                                 0x00000001L
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_SNAPSHOT_INT_TYPE_MASK                                                0x00000002L
-#define OTG1_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_NOW_INT_MSK_MASK                                          0x00000100L
-#define OTG1_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_NOW_INT_TYPE_MASK                                         0x00000200L
+#define OTG1_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_ANALW_INT_MSK_MASK                                          0x00000100L
+#define OTG1_OTG_INTERRUPT_CONTROL__OTG_FORCE_COUNT_ANALW_INT_TYPE_MASK                                         0x00000200L
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_FORCE_VSYNC_NEXT_LINE_INT_MSK_MASK                                    0x00010000L
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_FORCE_VSYNC_NEXT_LINE_INT_TYPE_MASK                                   0x00020000L
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_TRIGA_INT_MSK_MASK                                                    0x01000000L
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_TRIGB_INT_MSK_MASK                                                    0x02000000L
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_TRIGA_INT_TYPE_MASK                                                   0x04000000L
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_TRIGB_INT_TYPE_MASK                                                   0x08000000L
-#define OTG1_OTG_INTERRUPT_CONTROL__OTG_VSYNC_NOM_INT_MSK_MASK                                                0x10000000L
-#define OTG1_OTG_INTERRUPT_CONTROL__OTG_VSYNC_NOM_INT_TYPE_MASK                                               0x20000000L
+#define OTG1_OTG_INTERRUPT_CONTROL__OTG_VSYNC_ANALM_INT_MSK_MASK                                                0x10000000L
+#define OTG1_OTG_INTERRUPT_CONTROL__OTG_VSYNC_ANALM_INT_TYPE_MASK                                               0x20000000L
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_GSL_VSYNC_GAP_INT_MSK_MASK                                            0x40000000L
 #define OTG1_OTG_INTERRUPT_CONTROL__OTG_GSL_VSYNC_GAP_INT_TYPE_MASK                                           0x80000000L
 //OTG1_OTG_UPDATE_LOCK
@@ -15583,12 +15583,12 @@
 #define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_INT_STATUS__SHIFT                                                0x9
 #define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_EVENT_CLEAR__SHIFT                                               0xa
 #define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_STATUS__SHIFT                                                    0xb
-#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_INT_EN__SHIFT                                            0xc
-#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_INT_TYPE__SHIFT                                          0xd
-#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_EVENT_OCCURRED__SHIFT                                    0xe
-#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_INT_STATUS__SHIFT                                        0xf
-#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_EVENT_CLEAR__SHIFT                                       0x10
-#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_STATUS__SHIFT                                            0x11
+#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_INT_EN__SHIFT                                            0xc
+#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_INT_TYPE__SHIFT                                          0xd
+#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_EVENT_OCCURRED__SHIFT                                    0xe
+#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_INT_STATUS__SHIFT                                        0xf
+#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_EVENT_CLEAR__SHIFT                                       0x10
+#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_STATUS__SHIFT                                            0x11
 #define OTG1_OTG_GLOBAL_SYNC_STATUS__VREADY_INT_EN__SHIFT                                                     0x12
 #define OTG1_OTG_GLOBAL_SYNC_STATUS__VREADY_INT_TYPE__SHIFT                                                   0x13
 #define OTG1_OTG_GLOBAL_SYNC_STATUS__VREADY_EVENT_OCCURRED__SHIFT                                             0x14
@@ -15608,12 +15608,12 @@
 #define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_INT_STATUS_MASK                                                  0x00000200L
 #define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_EVENT_CLEAR_MASK                                                 0x00000400L
 #define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_STATUS_MASK                                                      0x00000800L
-#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_INT_EN_MASK                                              0x00001000L
-#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_INT_TYPE_MASK                                            0x00002000L
-#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_EVENT_OCCURRED_MASK                                      0x00004000L
-#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_INT_STATUS_MASK                                          0x00008000L
-#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_EVENT_CLEAR_MASK                                         0x00010000L
-#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_NO_LOCK_STATUS_MASK                                              0x00020000L
+#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_INT_EN_MASK                                              0x00001000L
+#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_INT_TYPE_MASK                                            0x00002000L
+#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_EVENT_OCCURRED_MASK                                      0x00004000L
+#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_INT_STATUS_MASK                                          0x00008000L
+#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_EVENT_CLEAR_MASK                                         0x00010000L
+#define OTG1_OTG_GLOBAL_SYNC_STATUS__VUPDATE_ANAL_LOCK_STATUS_MASK                                              0x00020000L
 #define OTG1_OTG_GLOBAL_SYNC_STATUS__VREADY_INT_EN_MASK                                                       0x00040000L
 #define OTG1_OTG_GLOBAL_SYNC_STATUS__VREADY_INT_TYPE_MASK                                                     0x00080000L
 #define OTG1_OTG_GLOBAL_SYNC_STATUS__VREADY_EVENT_OCCURRED_MASK                                               0x00100000L
@@ -15761,7 +15761,7 @@
 //DC_I2C_ARBITRATION
 #define DC_I2C_ARBITRATION__DC_I2C_SW_PRIORITY__SHIFT                                                         0x0
 #define DC_I2C_ARBITRATION__DC_I2C_REG_RW_CNTL_STATUS__SHIFT                                                  0x2
-#define DC_I2C_ARBITRATION__DC_I2C_NO_QUEUED_SW_GO__SHIFT                                                     0x4
+#define DC_I2C_ARBITRATION__DC_I2C_ANAL_QUEUED_SW_GO__SHIFT                                                     0x4
 #define DC_I2C_ARBITRATION__DC_I2C_ABORT_HW_XFER__SHIFT                                                       0x8
 #define DC_I2C_ARBITRATION__DC_I2C_ABORT_SW_XFER__SHIFT                                                       0xc
 #define DC_I2C_ARBITRATION__DC_I2C_SW_USE_I2C_REG_REQ__SHIFT                                                  0x14
@@ -15770,7 +15770,7 @@
 #define DC_I2C_ARBITRATION__DC_I2C_DMCU_DONE_USING_I2C_REG__SHIFT                                             0x19
 #define DC_I2C_ARBITRATION__DC_I2C_SW_PRIORITY_MASK                                                           0x00000003L
 #define DC_I2C_ARBITRATION__DC_I2C_REG_RW_CNTL_STATUS_MASK                                                    0x0000000CL
-#define DC_I2C_ARBITRATION__DC_I2C_NO_QUEUED_SW_GO_MASK                                                       0x00000010L
+#define DC_I2C_ARBITRATION__DC_I2C_ANAL_QUEUED_SW_GO_MASK                                                       0x00000010L
 #define DC_I2C_ARBITRATION__DC_I2C_ABORT_HW_XFER_MASK                                                         0x00000100L
 #define DC_I2C_ARBITRATION__DC_I2C_ABORT_SW_XFER_MASK                                                         0x00001000L
 #define DC_I2C_ARBITRATION__DC_I2C_SW_USE_I2C_REG_REQ_MASK                                                    0x00100000L
@@ -16366,7 +16366,7 @@
 #define DP_AUX0_AUX_CONTROL__AUX_RESET_DONE__SHIFT                                                            0x5
 #define DP_AUX0_AUX_CONTROL__AUX_LS_READ_EN__SHIFT                                                            0x8
 #define DP_AUX0_AUX_CONTROL__AUX_LS_UPDATE_DISABLE__SHIFT                                                     0xc
-#define DP_AUX0_AUX_CONTROL__AUX_IGNORE_HPD_DISCON__SHIFT                                                     0x10
+#define DP_AUX0_AUX_CONTROL__AUX_IGANALRE_HPD_DISCON__SHIFT                                                     0x10
 #define DP_AUX0_AUX_CONTROL__AUX_MODE_DET_EN__SHIFT                                                           0x12
 #define DP_AUX0_AUX_CONTROL__AUX_HPD_SEL__SHIFT                                                               0x14
 #define DP_AUX0_AUX_CONTROL__AUX_IMPCAL_REQ_EN__SHIFT                                                         0x18
@@ -16379,7 +16379,7 @@
 #define DP_AUX0_AUX_CONTROL__AUX_RESET_DONE_MASK                                                              0x00000020L
 #define DP_AUX0_AUX_CONTROL__AUX_LS_READ_EN_MASK                                                              0x00000100L
 #define DP_AUX0_AUX_CONTROL__AUX_LS_UPDATE_DISABLE_MASK                                                       0x00001000L
-#define DP_AUX0_AUX_CONTROL__AUX_IGNORE_HPD_DISCON_MASK                                                       0x00010000L
+#define DP_AUX0_AUX_CONTROL__AUX_IGANALRE_HPD_DISCON_MASK                                                       0x00010000L
 #define DP_AUX0_AUX_CONTROL__AUX_MODE_DET_EN_MASK                                                             0x00040000L
 #define DP_AUX0_AUX_CONTROL__AUX_HPD_SEL_MASK                                                                 0x00700000L
 #define DP_AUX0_AUX_CONTROL__AUX_IMPCAL_REQ_EN_MASK                                                           0x01000000L
@@ -16399,8 +16399,8 @@
 //DP_AUX0_AUX_ARB_CONTROL
 #define DP_AUX0_AUX_ARB_CONTROL__AUX_ARB_PRIORITY__SHIFT                                                      0x0
 #define DP_AUX0_AUX_ARB_CONTROL__AUX_REG_RW_CNTL_STATUS__SHIFT                                                0x2
-#define DP_AUX0_AUX_ARB_CONTROL__AUX_NO_QUEUED_SW_GO__SHIFT                                                   0x8
-#define DP_AUX0_AUX_ARB_CONTROL__AUX_NO_QUEUED_LS_GO__SHIFT                                                   0xa
+#define DP_AUX0_AUX_ARB_CONTROL__AUX_ANAL_QUEUED_SW_GO__SHIFT                                                   0x8
+#define DP_AUX0_AUX_ARB_CONTROL__AUX_ANAL_QUEUED_LS_GO__SHIFT                                                   0xa
 #define DP_AUX0_AUX_ARB_CONTROL__AUX_SW_USE_AUX_REG_REQ__SHIFT                                                0x10
 #define DP_AUX0_AUX_ARB_CONTROL__AUX_SW_PENDING_USE_AUX_REG_REQ__SHIFT                                        0x10
 #define DP_AUX0_AUX_ARB_CONTROL__AUX_SW_DONE_USING_AUX_REG__SHIFT                                             0x11
@@ -16409,8 +16409,8 @@
 #define DP_AUX0_AUX_ARB_CONTROL__AUX_DMCU_DONE_USING_AUX_REG__SHIFT                                           0x19
 #define DP_AUX0_AUX_ARB_CONTROL__AUX_ARB_PRIORITY_MASK                                                        0x00000003L
 #define DP_AUX0_AUX_ARB_CONTROL__AUX_REG_RW_CNTL_STATUS_MASK                                                  0x0000000CL
-#define DP_AUX0_AUX_ARB_CONTROL__AUX_NO_QUEUED_SW_GO_MASK                                                     0x00000100L
-#define DP_AUX0_AUX_ARB_CONTROL__AUX_NO_QUEUED_LS_GO_MASK                                                     0x00000400L
+#define DP_AUX0_AUX_ARB_CONTROL__AUX_ANAL_QUEUED_SW_GO_MASK                                                     0x00000100L
+#define DP_AUX0_AUX_ARB_CONTROL__AUX_ANAL_QUEUED_LS_GO_MASK                                                     0x00000400L
 #define DP_AUX0_AUX_ARB_CONTROL__AUX_SW_USE_AUX_REG_REQ_MASK                                                  0x00010000L
 #define DP_AUX0_AUX_ARB_CONTROL__AUX_SW_PENDING_USE_AUX_REG_REQ_MASK                                          0x00010000L
 #define DP_AUX0_AUX_ARB_CONTROL__AUX_SW_DONE_USING_AUX_REG_MASK                                               0x00020000L
@@ -16438,13 +16438,13 @@
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_OVERFLOW__SHIFT                                                      0x8
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_HPD_DISCON__SHIFT                                                       0x9
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_PARTIAL_BYTE__SHIFT                                                  0xa
-#define DP_AUX0_AUX_SW_STATUS__AUX_SW_NON_AUX_MODE__SHIFT                                                     0xb
+#define DP_AUX0_AUX_SW_STATUS__AUX_SW_ANALN_AUX_MODE__SHIFT                                                     0xb
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_MIN_COUNT_VIOL__SHIFT                                                0xc
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_INVALID_STOP__SHIFT                                                  0xe
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_SYNC_INVALID_L__SHIFT                                                0x11
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_SYNC_INVALID_H__SHIFT                                                0x12
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_INVALID_START__SHIFT                                                 0x13
-#define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_RECV_NO_DET__SHIFT                                                   0x14
+#define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_RECV_ANAL_DET__SHIFT                                                   0x14
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_RECV_INVALID_H__SHIFT                                                0x16
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_RECV_INVALID_L__SHIFT                                                0x17
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_REPLY_BYTE_COUNT__SHIFT                                                 0x18
@@ -16456,13 +16456,13 @@
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_OVERFLOW_MASK                                                        0x00000100L
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK                                                         0x00000200L
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_PARTIAL_BYTE_MASK                                                    0x00000400L
-#define DP_AUX0_AUX_SW_STATUS__AUX_SW_NON_AUX_MODE_MASK                                                       0x00000800L
+#define DP_AUX0_AUX_SW_STATUS__AUX_SW_ANALN_AUX_MODE_MASK                                                       0x00000800L
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_MIN_COUNT_VIOL_MASK                                                  0x00001000L
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_INVALID_STOP_MASK                                                    0x00004000L
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_SYNC_INVALID_L_MASK                                                  0x00020000L
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_SYNC_INVALID_H_MASK                                                  0x00040000L
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_INVALID_START_MASK                                                   0x00080000L
-#define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_RECV_NO_DET_MASK                                                     0x00100000L
+#define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_RECV_ANAL_DET_MASK                                                     0x00100000L
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_RECV_INVALID_H_MASK                                                  0x00400000L
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_RX_RECV_INVALID_L_MASK                                                  0x00800000L
 #define DP_AUX0_AUX_SW_STATUS__AUX_SW_REPLY_BYTE_COUNT_MASK                                                   0x1F000000L
@@ -16475,13 +16475,13 @@
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_OVERFLOW__SHIFT                                                      0x8
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_HPD_DISCON__SHIFT                                                       0x9
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_PARTIAL_BYTE__SHIFT                                                  0xa
-#define DP_AUX0_AUX_LS_STATUS__AUX_LS_NON_AUX_MODE__SHIFT                                                     0xb
+#define DP_AUX0_AUX_LS_STATUS__AUX_LS_ANALN_AUX_MODE__SHIFT                                                     0xb
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_MIN_COUNT_VIOL__SHIFT                                                0xc
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_INVALID_STOP__SHIFT                                                  0xe
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_SYNC_INVALID_L__SHIFT                                                0x11
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_SYNC_INVALID_H__SHIFT                                                0x12
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_INVALID_START__SHIFT                                                 0x13
-#define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_RECV_NO_DET__SHIFT                                                   0x14
+#define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_RECV_ANAL_DET__SHIFT                                                   0x14
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_RECV_INVALID_H__SHIFT                                                0x16
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_RECV_INVALID_L__SHIFT                                                0x17
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_REPLY_BYTE_COUNT__SHIFT                                                 0x18
@@ -16495,13 +16495,13 @@
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_OVERFLOW_MASK                                                        0x00000100L
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_HPD_DISCON_MASK                                                         0x00000200L
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_PARTIAL_BYTE_MASK                                                    0x00000400L
-#define DP_AUX0_AUX_LS_STATUS__AUX_LS_NON_AUX_MODE_MASK                                                       0x00000800L
+#define DP_AUX0_AUX_LS_STATUS__AUX_LS_ANALN_AUX_MODE_MASK                                                       0x00000800L
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_MIN_COUNT_VIOL_MASK                                                  0x00001000L
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_INVALID_STOP_MASK                                                    0x00004000L
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_SYNC_INVALID_L_MASK                                                  0x00020000L
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_SYNC_INVALID_H_MASK                                                  0x00040000L
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_INVALID_START_MASK                                                   0x00080000L
-#define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_RECV_NO_DET_MASK                                                     0x00100000L
+#define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_RECV_ANAL_DET_MASK                                                     0x00100000L
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_RECV_INVALID_H_MASK                                                  0x00400000L
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_RX_RECV_INVALID_L_MASK                                                  0x00800000L
 #define DP_AUX0_AUX_LS_STATUS__AUX_LS_REPLY_BYTE_COUNT_MASK                                                   0x1F000000L
@@ -16590,7 +16590,7 @@
 #define DP_AUX1_AUX_CONTROL__AUX_RESET_DONE__SHIFT                                                            0x5
 #define DP_AUX1_AUX_CONTROL__AUX_LS_READ_EN__SHIFT                                                            0x8
 #define DP_AUX1_AUX_CONTROL__AUX_LS_UPDATE_DISABLE__SHIFT                                                     0xc
-#define DP_AUX1_AUX_CONTROL__AUX_IGNORE_HPD_DISCON__SHIFT                                                     0x10
+#define DP_AUX1_AUX_CONTROL__AUX_IGANALRE_HPD_DISCON__SHIFT                                                     0x10
 #define DP_AUX1_AUX_CONTROL__AUX_MODE_DET_EN__SHIFT                                                           0x12
 #define DP_AUX1_AUX_CONTROL__AUX_HPD_SEL__SHIFT                                                               0x14
 #define DP_AUX1_AUX_CONTROL__AUX_IMPCAL_REQ_EN__SHIFT                                                         0x18
@@ -16603,7 +16603,7 @@
 #define DP_AUX1_AUX_CONTROL__AUX_RESET_DONE_MASK                                                              0x00000020L
 #define DP_AUX1_AUX_CONTROL__AUX_LS_READ_EN_MASK                                                              0x00000100L
 #define DP_AUX1_AUX_CONTROL__AUX_LS_UPDATE_DISABLE_MASK                                                       0x00001000L
-#define DP_AUX1_AUX_CONTROL__AUX_IGNORE_HPD_DISCON_MASK                                                       0x00010000L
+#define DP_AUX1_AUX_CONTROL__AUX_IGANALRE_HPD_DISCON_MASK                                                       0x00010000L
 #define DP_AUX1_AUX_CONTROL__AUX_MODE_DET_EN_MASK                                                             0x00040000L
 #define DP_AUX1_AUX_CONTROL__AUX_HPD_SEL_MASK                                                                 0x00700000L
 #define DP_AUX1_AUX_CONTROL__AUX_IMPCAL_REQ_EN_MASK                                                           0x01000000L
@@ -16623,8 +16623,8 @@
 //DP_AUX1_AUX_ARB_CONTROL
 #define DP_AUX1_AUX_ARB_CONTROL__AUX_ARB_PRIORITY__SHIFT                                                      0x0
 #define DP_AUX1_AUX_ARB_CONTROL__AUX_REG_RW_CNTL_STATUS__SHIFT                                                0x2
-#define DP_AUX1_AUX_ARB_CONTROL__AUX_NO_QUEUED_SW_GO__SHIFT                                                   0x8
-#define DP_AUX1_AUX_ARB_CONTROL__AUX_NO_QUEUED_LS_GO__SHIFT                                                   0xa
+#define DP_AUX1_AUX_ARB_CONTROL__AUX_ANAL_QUEUED_SW_GO__SHIFT                                                   0x8
+#define DP_AUX1_AUX_ARB_CONTROL__AUX_ANAL_QUEUED_LS_GO__SHIFT                                                   0xa
 #define DP_AUX1_AUX_ARB_CONTROL__AUX_SW_USE_AUX_REG_REQ__SHIFT                                                0x10
 #define DP_AUX1_AUX_ARB_CONTROL__AUX_SW_PENDING_USE_AUX_REG_REQ__SHIFT                                        0x10
 #define DP_AUX1_AUX_ARB_CONTROL__AUX_SW_DONE_USING_AUX_REG__SHIFT                                             0x11
@@ -16633,8 +16633,8 @@
 #define DP_AUX1_AUX_ARB_CONTROL__AUX_DMCU_DONE_USING_AUX_REG__SHIFT                                           0x19
 #define DP_AUX1_AUX_ARB_CONTROL__AUX_ARB_PRIORITY_MASK                                                        0x00000003L
 #define DP_AUX1_AUX_ARB_CONTROL__AUX_REG_RW_CNTL_STATUS_MASK                                                  0x0000000CL
-#define DP_AUX1_AUX_ARB_CONTROL__AUX_NO_QUEUED_SW_GO_MASK                                                     0x00000100L
-#define DP_AUX1_AUX_ARB_CONTROL__AUX_NO_QUEUED_LS_GO_MASK                                                     0x00000400L
+#define DP_AUX1_AUX_ARB_CONTROL__AUX_ANAL_QUEUED_SW_GO_MASK                                                     0x00000100L
+#define DP_AUX1_AUX_ARB_CONTROL__AUX_ANAL_QUEUED_LS_GO_MASK                                                     0x00000400L
 #define DP_AUX1_AUX_ARB_CONTROL__AUX_SW_USE_AUX_REG_REQ_MASK                                                  0x00010000L
 #define DP_AUX1_AUX_ARB_CONTROL__AUX_SW_PENDING_USE_AUX_REG_REQ_MASK                                          0x00010000L
 #define DP_AUX1_AUX_ARB_CONTROL__AUX_SW_DONE_USING_AUX_REG_MASK                                               0x00020000L
@@ -16662,13 +16662,13 @@
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_OVERFLOW__SHIFT                                                      0x8
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_HPD_DISCON__SHIFT                                                       0x9
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_PARTIAL_BYTE__SHIFT                                                  0xa
-#define DP_AUX1_AUX_SW_STATUS__AUX_SW_NON_AUX_MODE__SHIFT                                                     0xb
+#define DP_AUX1_AUX_SW_STATUS__AUX_SW_ANALN_AUX_MODE__SHIFT                                                     0xb
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_MIN_COUNT_VIOL__SHIFT                                                0xc
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_INVALID_STOP__SHIFT                                                  0xe
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_SYNC_INVALID_L__SHIFT                                                0x11
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_SYNC_INVALID_H__SHIFT                                                0x12
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_INVALID_START__SHIFT                                                 0x13
-#define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_RECV_NO_DET__SHIFT                                                   0x14
+#define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_RECV_ANAL_DET__SHIFT                                                   0x14
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_RECV_INVALID_H__SHIFT                                                0x16
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_RECV_INVALID_L__SHIFT                                                0x17
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_REPLY_BYTE_COUNT__SHIFT                                                 0x18
@@ -16680,13 +16680,13 @@
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_OVERFLOW_MASK                                                        0x00000100L
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK                                                         0x00000200L
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_PARTIAL_BYTE_MASK                                                    0x00000400L
-#define DP_AUX1_AUX_SW_STATUS__AUX_SW_NON_AUX_MODE_MASK                                                       0x00000800L
+#define DP_AUX1_AUX_SW_STATUS__AUX_SW_ANALN_AUX_MODE_MASK                                                       0x00000800L
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_MIN_COUNT_VIOL_MASK                                                  0x00001000L
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_INVALID_STOP_MASK                                                    0x00004000L
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_SYNC_INVALID_L_MASK                                                  0x00020000L
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_SYNC_INVALID_H_MASK                                                  0x00040000L
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_INVALID_START_MASK                                                   0x00080000L
-#define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_RECV_NO_DET_MASK                                                     0x00100000L
+#define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_RECV_ANAL_DET_MASK                                                     0x00100000L
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_RECV_INVALID_H_MASK                                                  0x00400000L
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_RX_RECV_INVALID_L_MASK                                                  0x00800000L
 #define DP_AUX1_AUX_SW_STATUS__AUX_SW_REPLY_BYTE_COUNT_MASK                                                   0x1F000000L
@@ -16699,13 +16699,13 @@
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_OVERFLOW__SHIFT                                                      0x8
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_HPD_DISCON__SHIFT                                                       0x9
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_PARTIAL_BYTE__SHIFT                                                  0xa
-#define DP_AUX1_AUX_LS_STATUS__AUX_LS_NON_AUX_MODE__SHIFT                                                     0xb
+#define DP_AUX1_AUX_LS_STATUS__AUX_LS_ANALN_AUX_MODE__SHIFT                                                     0xb
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_MIN_COUNT_VIOL__SHIFT                                                0xc
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_INVALID_STOP__SHIFT                                                  0xe
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_SYNC_INVALID_L__SHIFT                                                0x11
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_SYNC_INVALID_H__SHIFT                                                0x12
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_INVALID_START__SHIFT                                                 0x13
-#define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_RECV_NO_DET__SHIFT                                                   0x14
+#define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_RECV_ANAL_DET__SHIFT                                                   0x14
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_RECV_INVALID_H__SHIFT                                                0x16
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_RECV_INVALID_L__SHIFT                                                0x17
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_REPLY_BYTE_COUNT__SHIFT                                                 0x18
@@ -16719,13 +16719,13 @@
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_OVERFLOW_MASK                                                        0x00000100L
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_HPD_DISCON_MASK                                                         0x00000200L
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_PARTIAL_BYTE_MASK                                                    0x00000400L
-#define DP_AUX1_AUX_LS_STATUS__AUX_LS_NON_AUX_MODE_MASK                                                       0x00000800L
+#define DP_AUX1_AUX_LS_STATUS__AUX_LS_ANALN_AUX_MODE_MASK                                                       0x00000800L
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_MIN_COUNT_VIOL_MASK                                                  0x00001000L
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_INVALID_STOP_MASK                                                    0x00004000L
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_SYNC_INVALID_L_MASK                                                  0x00020000L
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_SYNC_INVALID_H_MASK                                                  0x00040000L
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_INVALID_START_MASK                                                   0x00080000L
-#define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_RECV_NO_DET_MASK                                                     0x00100000L
+#define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_RECV_ANAL_DET_MASK                                                     0x00100000L
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_RECV_INVALID_H_MASK                                                  0x00400000L
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_RX_RECV_INVALID_L_MASK                                                  0x00800000L
 #define DP_AUX1_AUX_LS_STATUS__AUX_LS_REPLY_BYTE_COUNT_MASK                                                   0x1F000000L
@@ -16904,7 +16904,7 @@
 #define DIG0_HDMI_CONTROL__HDMI_KEEPOUT_MODE__SHIFT                                                           0x0
 #define DIG0_HDMI_CONTROL__HDMI_DATA_SCRAMBLE_EN__SHIFT                                                       0x1
 #define DIG0_HDMI_CONTROL__HDMI_CLOCK_CHANNEL_RATE__SHIFT                                                     0x2
-#define DIG0_HDMI_CONTROL__HDMI_NO_EXTRA_NULL_PACKET_FILLED__SHIFT                                            0x3
+#define DIG0_HDMI_CONTROL__HDMI_ANAL_EXTRA_NULL_PACKET_FILLED__SHIFT                                            0x3
 #define DIG0_HDMI_CONTROL__HDMI_PACKET_GEN_VERSION__SHIFT                                                     0x4
 #define DIG0_HDMI_CONTROL__HDMI_ERROR_ACK__SHIFT                                                              0x8
 #define DIG0_HDMI_CONTROL__HDMI_ERROR_MASK__SHIFT                                                             0x9
@@ -16913,7 +16913,7 @@
 #define DIG0_HDMI_CONTROL__HDMI_KEEPOUT_MODE_MASK                                                             0x00000001L
 #define DIG0_HDMI_CONTROL__HDMI_DATA_SCRAMBLE_EN_MASK                                                         0x00000002L
 #define DIG0_HDMI_CONTROL__HDMI_CLOCK_CHANNEL_RATE_MASK                                                       0x00000004L
-#define DIG0_HDMI_CONTROL__HDMI_NO_EXTRA_NULL_PACKET_FILLED_MASK                                              0x00000008L
+#define DIG0_HDMI_CONTROL__HDMI_ANAL_EXTRA_NULL_PACKET_FILLED_MASK                                              0x00000008L
 #define DIG0_HDMI_CONTROL__HDMI_PACKET_GEN_VERSION_MASK                                                       0x00000010L
 #define DIG0_HDMI_CONTROL__HDMI_ERROR_ACK_MASK                                                                0x00000100L
 #define DIG0_HDMI_CONTROL__HDMI_ERROR_MASK_MASK                                                               0x00000200L
@@ -18397,7 +18397,7 @@
 #define DIG1_HDMI_CONTROL__HDMI_KEEPOUT_MODE__SHIFT                                                           0x0
 #define DIG1_HDMI_CONTROL__HDMI_DATA_SCRAMBLE_EN__SHIFT                                                       0x1
 #define DIG1_HDMI_CONTROL__HDMI_CLOCK_CHANNEL_RATE__SHIFT                                                     0x2
-#define DIG1_HDMI_CONTROL__HDMI_NO_EXTRA_NULL_PACKET_FILLED__SHIFT                                            0x3
+#define DIG1_HDMI_CONTROL__HDMI_ANAL_EXTRA_NULL_PACKET_FILLED__SHIFT                                            0x3
 #define DIG1_HDMI_CONTROL__HDMI_PACKET_GEN_VERSION__SHIFT                                                     0x4
 #define DIG1_HDMI_CONTROL__HDMI_ERROR_ACK__SHIFT                                                              0x8
 #define DIG1_HDMI_CONTROL__HDMI_ERROR_MASK__SHIFT                                                             0x9
@@ -18406,7 +18406,7 @@
 #define DIG1_HDMI_CONTROL__HDMI_KEEPOUT_MODE_MASK                                                             0x00000001L
 #define DIG1_HDMI_CONTROL__HDMI_DATA_SCRAMBLE_EN_MASK                                                         0x00000002L
 #define DIG1_HDMI_CONTROL__HDMI_CLOCK_CHANNEL_RATE_MASK                                                       0x00000004L
-#define DIG1_HDMI_CONTROL__HDMI_NO_EXTRA_NULL_PACKET_FILLED_MASK                                              0x00000008L
+#define DIG1_HDMI_CONTROL__HDMI_ANAL_EXTRA_NULL_PACKET_FILLED_MASK                                              0x00000008L
 #define DIG1_HDMI_CONTROL__HDMI_PACKET_GEN_VERSION_MASK                                                       0x00000010L
 #define DIG1_HDMI_CONTROL__HDMI_ERROR_ACK_MASK                                                                0x00000100L
 #define DIG1_HDMI_CONTROL__HDMI_ERROR_MASK_MASK                                                               0x00000200L
@@ -20253,7 +20253,7 @@
 #define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__VCFG__SHIFT                        0x2
 #define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRE__SHIFT                         0x3
 #define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__COPY__SHIFT                        0x4
-#define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__NON_AUDIO__SHIFT                   0x5
+#define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__ANALN_AUDIO__SHIFT                   0x5
 #define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRO__SHIFT                         0x6
 #define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__L__SHIFT                           0x7
 #define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__CC__SHIFT                          0x8
@@ -20263,7 +20263,7 @@
 #define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__VCFG_MASK                          0x00000004L
 #define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRE_MASK                           0x00000008L
 #define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__COPY_MASK                          0x00000010L
-#define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__NON_AUDIO_MASK                     0x00000020L
+#define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__ANALN_AUDIO_MASK                     0x00000020L
 #define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRO_MASK                           0x00000040L
 #define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__L_MASK                             0x00000080L
 #define AZF0ENDPOINT0_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__CC_MASK                            0x00007F00L
@@ -20798,7 +20798,7 @@
 #define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__VCFG__SHIFT                        0x2
 #define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRE__SHIFT                         0x3
 #define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__COPY__SHIFT                        0x4
-#define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__NON_AUDIO__SHIFT                   0x5
+#define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__ANALN_AUDIO__SHIFT                   0x5
 #define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRO__SHIFT                         0x6
 #define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__L__SHIFT                           0x7
 #define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__CC__SHIFT                          0x8
@@ -20808,7 +20808,7 @@
 #define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__VCFG_MASK                          0x00000004L
 #define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRE_MASK                           0x00000008L
 #define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__COPY_MASK                          0x00000010L
-#define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__NON_AUDIO_MASK                     0x00000020L
+#define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__ANALN_AUDIO_MASK                     0x00000020L
 #define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRO_MASK                           0x00000040L
 #define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__L_MASK                             0x00000080L
 #define AZF0ENDPOINT1_AZALIA_F0_CODEC_CONVERTER_CONTROL_DIGITAL_CONVERTER__CC_MASK                            0x00007F00L
@@ -21344,7 +21344,7 @@
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__VCFG__SHIFT             0x2
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRE__SHIFT              0x3
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__COPY__SHIFT             0x4
-#define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__NON_AUDIO__SHIFT        0x5
+#define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__ANALN_AUDIO__SHIFT        0x5
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRO__SHIFT              0x6
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__L__SHIFT                0x7
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__CC__SHIFT               0x8
@@ -21354,7 +21354,7 @@
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__VCFG_MASK               0x00000004L
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRE_MASK                0x00000008L
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__COPY_MASK               0x00000010L
-#define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__NON_AUDIO_MASK          0x00000020L
+#define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__ANALN_AUDIO_MASK          0x00000020L
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRO_MASK                0x00000040L
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__L_MASK                  0x00000080L
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__CC_MASK                 0x00007F00L
@@ -21627,7 +21627,7 @@
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__VCFG__SHIFT             0x2
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRE__SHIFT              0x3
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__COPY__SHIFT             0x4
-#define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__NON_AUDIO__SHIFT        0x5
+#define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__ANALN_AUDIO__SHIFT        0x5
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRO__SHIFT              0x6
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__L__SHIFT                0x7
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__CC__SHIFT               0x8
@@ -21637,7 +21637,7 @@
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__VCFG_MASK               0x00000004L
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRE_MASK                0x00000008L
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__COPY_MASK               0x00000010L
-#define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__NON_AUDIO_MASK          0x00000020L
+#define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__ANALN_AUDIO_MASK          0x00000020L
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRO_MASK                0x00000040L
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__L_MASK                  0x00000080L
 #define AZF0INPUTENDPOINT0_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__CC_MASK                 0x00007F00L
@@ -21885,7 +21885,7 @@
 #define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__VCFG__SHIFT             0x2
 #define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRE__SHIFT              0x3
 #define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__COPY__SHIFT             0x4
-#define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__NON_AUDIO__SHIFT        0x5
+#define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__ANALN_AUDIO__SHIFT        0x5
 #define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRO__SHIFT              0x6
 #define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__L__SHIFT                0x7
 #define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__CC__SHIFT               0x8
@@ -21895,7 +21895,7 @@
 #define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__VCFG_MASK               0x00000004L
 #define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRE_MASK                0x00000008L
 #define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__COPY_MASK               0x00000010L
-#define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__NON_AUDIO_MASK          0x00000020L
+#define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__ANALN_AUDIO_MASK          0x00000020L
 #define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__PRO_MASK                0x00000040L
 #define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__L_MASK                  0x00000080L
 #define AZF0INPUTENDPOINT1_AZALIA_F0_CODEC_INPUT_CONVERTER_CONTROL_DIGITAL_CONVERTER__CC_MASK                 0x00007F00L

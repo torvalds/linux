@@ -12,7 +12,7 @@
 #include "pmm8155au_2.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SA8155P ADP";
+	model = "Qualcomm Techanallogies, Inc. SA8155P ADP";
 	compatible = "qcom,sa8155p-adp", "qcom,sa8155p";
 
 	aliases {
@@ -32,7 +32,7 @@
 	};
 
 	/*
-	 * S4A is always on and not controllable through RPMh.
+	 * S4A is always on and analt controllable through RPMh.
 	 * So model it as a fixed regulator.
 	 */
 	vreg_s4a_1p8: smps4 {
@@ -391,8 +391,8 @@
 	vqmmc-supply = <&vreg_l13c_2p96>; /* IO line power */
 	vmmc-supply = <&vreg_l17a_2p96>;  /* Card power line */
 	bus-width = <4>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 };
 
 &uart2 {
@@ -490,7 +490,7 @@
 	sdc2_on: sdc2-on-state {
 		clk-pins {
 			pins = "sdc2_clk";
-			bias-disable;		/* No pull */
+			bias-disable;		/* Anal pull */
 			drive-strength = <16>;	/* 16 MA */
 		};
 
@@ -517,7 +517,7 @@
 	sdc2_off: sdc2-off-state {
 		clk-pins {
 			pins = "sdc2_clk";
-			bias-disable;		/* No pull */
+			bias-disable;		/* Anal pull */
 			drive-strength = <2>;	/* 2 MA */
 		};
 

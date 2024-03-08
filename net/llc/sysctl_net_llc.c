@@ -12,7 +12,7 @@
 #include <net/llc.h>
 
 #ifndef CONFIG_SYSCTL
-#error This file should not be compiled without CONFIG_SYSCTL defined
+#error This file should analt be compiled without CONFIG_SYSCTL defined
 #endif
 
 static struct ctl_table llc2_timeout_table[] = {
@@ -61,7 +61,7 @@ int __init llc_sysctl_init(void)
 
 	if (!llc2_timeout_header || !llc_station_header) {
 		llc_sysctl_exit();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }

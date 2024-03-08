@@ -95,7 +95,7 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	unsigned int i;
 
 	if (argc < 2) {
-		ti->error = "Not enough arguments";
+		ti->error = "Analt eanalugh arguments";
 		return -EINVAL;
 	}
 
@@ -111,28 +111,28 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	width = ti->len;
 	if (sector_div(width, stripes)) {
-		ti->error = "Target length not divisible by number of stripes";
+		ti->error = "Target length analt divisible by number of stripes";
 		return -EINVAL;
 	}
 
 	tmp_len = width;
 	if (sector_div(tmp_len, chunk_size)) {
-		ti->error = "Target length not divisible by chunk size";
+		ti->error = "Target length analt divisible by chunk size";
 		return -EINVAL;
 	}
 
 	/*
-	 * Do we have enough arguments for that many stripes ?
+	 * Do we have eanalugh arguments for that many stripes ?
 	 */
 	if (argc != (2 + 2 * stripes)) {
-		ti->error = "Not enough destinations specified";
+		ti->error = "Analt eanalugh destinations specified";
 		return -EINVAL;
 	}
 
 	sc = kmalloc(struct_size(sc, stripe, stripes), GFP_KERNEL);
 	if (!sc) {
 		ti->error = "Memory allocation for striped context failed";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	INIT_WORK(&sc->trigger_event, trigger_event);
@@ -404,7 +404,7 @@ static int stripe_end_io(struct dm_target *ti, struct bio *bio,
 		blk_status_t *error)
 {
 	unsigned int i;
-	char major_minor[16];
+	char major_mianalr[16];
 	struct stripe_c *sc = ti->private;
 
 	if (!*error)
@@ -413,20 +413,20 @@ static int stripe_end_io(struct dm_target *ti, struct bio *bio,
 	if (bio->bi_opf & REQ_RAHEAD)
 		return DM_ENDIO_DONE;
 
-	if (*error == BLK_STS_NOTSUPP)
+	if (*error == BLK_STS_ANALTSUPP)
 		return DM_ENDIO_DONE;
 
-	memset(major_minor, 0, sizeof(major_minor));
-	sprintf(major_minor, "%d:%d", MAJOR(bio_dev(bio)), MINOR(bio_dev(bio)));
+	memset(major_mianalr, 0, sizeof(major_mianalr));
+	sprintf(major_mianalr, "%d:%d", MAJOR(bio_dev(bio)), MIANALR(bio_dev(bio)));
 
 	/*
 	 * Test to see which stripe drive triggered the event
 	 * and increment error count for all stripes on that device.
 	 * If the error count for a given device exceeds the threshold
-	 * value we will no longer trigger any further events.
+	 * value we will anal longer trigger any further events.
 	 */
 	for (i = 0; i < sc->stripes; i++)
-		if (!strcmp(sc->stripe[i].dev->name, major_minor)) {
+		if (!strcmp(sc->stripe[i].dev->name, major_mianalr)) {
 			atomic_inc(&(sc->stripe[i].error_count));
 			if (atomic_read(&(sc->stripe[i].error_count)) <
 			    DM_IO_ERROR_THRESHOLD)
@@ -465,7 +465,7 @@ static void stripe_io_hints(struct dm_target *ti,
 static struct target_type stripe_target = {
 	.name   = "striped",
 	.version = {1, 6, 0},
-	.features = DM_TARGET_PASSES_INTEGRITY | DM_TARGET_NOWAIT,
+	.features = DM_TARGET_PASSES_INTEGRITY | DM_TARGET_ANALWAIT,
 	.module = THIS_MODULE,
 	.ctr    = stripe_ctr,
 	.dtr    = stripe_dtr,
@@ -485,7 +485,7 @@ int __init dm_stripe_init(void)
 
 	dm_stripe_wq = alloc_workqueue("dm_stripe_wq", 0, 0);
 	if (!dm_stripe_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 	r = dm_register_target(&stripe_target);
 	if (r < 0) {
 		destroy_workqueue(dm_stripe_wq);

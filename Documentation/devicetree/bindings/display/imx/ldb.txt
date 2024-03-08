@@ -3,8 +3,8 @@ Device-Tree bindings for LVDS Display Bridge (ldb)
 LVDS Display Bridge
 ===================
 
-The LVDS Display Bridge device tree node contains up to two lvds-channel
-nodes describing each of the two LVDS encoder channels of the bridge.
+The LVDS Display Bridge device tree analde contains up to two lvds-channel
+analdes describing each of the two LVDS encoder channels of the bridge.
 
 Required properties:
  - #address-cells : should be <1>
@@ -34,9 +34,9 @@ Required properties:
         Documentation/devicetree/bindings/clock/imx6q-clock.yaml.
 
 Optional properties:
- - pinctrl-names : should be "default" on i.MX53, not used on i.MX6q
+ - pinctrl-names : should be "default" on i.MX53, analt used on i.MX6q
  - pinctrl-0 : a phandle pointing to LVDS pin settings on i.MX53,
-               not used on i.MX6q
+               analt used on i.MX6q
  - fsl,dual-channel : boolean. if it exists, only LVDS channel 0 should
    be configured - one input will be distributed on both outputs in dual
    channel mode
@@ -44,13 +44,13 @@ Optional properties:
 LVDS Channel
 ============
 
-Each LVDS Channel has to contain either an of graph link to a panel device node
-or a display-timings node that describes the video timings for the connected
+Each LVDS Channel has to contain either an of graph link to a panel device analde
+or a display-timings analde that describes the video timings for the connected
 LVDS display as well as the fsl,data-mapping and fsl,data-width properties.
 
 Required properties:
  - reg : should be <0> or <1>
- - port: Input and output port nodes with endpoint definitions as defined in
+ - port: Input and output port analdes with endpoint definitions as defined in
    Documentation/devicetree/bindings/graph.txt.
    On i.MX5, the internal two-input-multiplexer is used. Due to hardware
    limitations, only one input port (port@[0,1]) can be used for each channel
@@ -63,7 +63,7 @@ Required properties:
 
 Optional properties (required if display-timings are used):
  - ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
- - display-timings : A node that describes the display timings as defined in
+ - display-timings : A analde that describes the display timings as defined in
    Documentation/devicetree/bindings/display/panel/display-timing.txt.
  - fsl,data-mapping : should be "spwg" or "jeida"
                       This describes how the color bits are laid out in the

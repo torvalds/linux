@@ -227,7 +227,7 @@ struct test tests[] = {
 		.retval = BPF_OK,
 	},
 	{
-		.name = "ipv4-no-frag",
+		.name = "ipv4-anal-frag",
 		.pkt.ipv4 = {
 			.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
 			.iph.ihl = 5,
@@ -277,7 +277,7 @@ struct test tests[] = {
 		.retval = BPF_OK,
 	},
 	{
-		.name = "ipv6-no-frag",
+		.name = "ipv6-anal-frag",
 		.pkt.ipv6_frag = {
 			.eth.h_proto = __bpf_constant_htons(ETH_P_IPV6),
 			.iph.nexthdr = IPPROTO_FRAGMENT,
@@ -323,7 +323,7 @@ struct test tests[] = {
 		.retval = BPF_OK,
 	},
 	{
-		.name = "ipv6-no-flow-label",
+		.name = "ipv6-anal-flow-label",
 		.pkt.ipv6 = {
 			.eth.h_proto = __bpf_constant_htons(ETH_P_IPV6),
 			.iph.nexthdr = IPPROTO_TCP,
@@ -399,7 +399,7 @@ struct test tests[] = {
 		.retval = BPF_OK,
 	},
 	{
-		.name = "ipip-no-encap",
+		.name = "ipip-anal-encap",
 		.pkt.ipip = {
 			.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
 			.iph.ihl = 5,
@@ -450,7 +450,7 @@ struct test tests[] = {
 static int create_tap(const char *ifname)
 {
 	struct ifreq ifr = {
-		.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_NAPI | IFF_NAPI_FRAGS,
+		.ifr_flags = IFF_TAP | IFF_ANAL_PI | IFF_NAPI | IFF_NAPI_FRAGS,
 	};
 	int fd, ret;
 
@@ -559,7 +559,7 @@ static void run_tests_skb_less(int tap_fd, struct bpf_map *keys)
 			continue;
 
 		err = tx_tap(tap_fd, &tests[i].pkt, sizeof(tests[i].pkt));
-		CHECK(err < 0, "tx_tap", "err %d errno %d\n", err, errno);
+		CHECK(err < 0, "tx_tap", "err %d erranal %d\n", err, erranal);
 
 		/* check the stored flow_keys only if BPF_OK expected */
 		if (tests[i].retval != BPF_OK)
@@ -584,13 +584,13 @@ static void test_skb_less_prog_attach(struct bpf_flow *skel, int tap_fd)
 		return;
 
 	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
-	if (CHECK(err, "bpf_prog_attach", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "bpf_prog_attach", "err %d erranal %d\n", err, erranal))
 		return;
 
 	run_tests_skb_less(tap_fd, skel->maps.last_dissection);
 
 	err = bpf_prog_detach2(prog_fd, 0, BPF_FLOW_DISSECTOR);
-	CHECK(err, "bpf_prog_detach2", "err %d errno %d\n", err, errno);
+	CHECK(err, "bpf_prog_detach2", "err %d erranal %d\n", err, erranal);
 }
 
 static void test_skb_less_link_create(struct bpf_flow *skel, int tap_fd)
@@ -599,7 +599,7 @@ static void test_skb_less_link_create(struct bpf_flow *skel, int tap_fd)
 	int err, net_fd;
 
 	net_fd = open("/proc/self/ns/net", O_RDONLY);
-	if (CHECK(net_fd < 0, "open(/proc/self/ns/net)", "err %d\n", errno))
+	if (CHECK(net_fd < 0, "open(/proc/self/ns/net)", "err %d\n", erranal))
 		return;
 
 	link = bpf_program__attach_netns(skel->progs._dissect, net_fd);
@@ -661,15 +661,15 @@ void test_flow_dissector(void)
 	}
 
 	/* Do the same tests but for skb-less flow dissector.
-	 * We use a known path in the net/tun driver that calls
+	 * We use a kanalwn path in the net/tun driver that calls
 	 * eth_get_headlen and we manually export bpf_flow_keys
 	 * via BPF map in this case.
 	 */
 
 	tap_fd = create_tap("tap0");
-	CHECK(tap_fd < 0, "create_tap", "tap_fd %d errno %d\n", tap_fd, errno);
+	CHECK(tap_fd < 0, "create_tap", "tap_fd %d erranal %d\n", tap_fd, erranal);
 	err = ifup("tap0");
-	CHECK(err, "ifup", "err %d errno %d\n", err, errno);
+	CHECK(err, "ifup", "err %d erranal %d\n", err, erranal);
 
 	/* Test direct prog attachment */
 	test_skb_less_prog_attach(skel, tap_fd);

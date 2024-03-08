@@ -1,7 +1,7 @@
 /*-*- linux-c -*-
  *  linux/drivers/video/savage/savage_accel.c -- Hardware Acceleration
  *
- *      Copyright (C) 2004 Antonino Daplas<adaplas@pol.net>
+ *      Copyright (C) 2004 Antonianal Daplas<adaplas@pol.net>
  *      All Rights Reserved
  *
  *  This file is subject to the terms and conditions of the GNU General Public
@@ -113,7 +113,7 @@ void savagefb_imageblit(struct fb_info *info, const struct fb_image *image)
 	}
 
 	cmd = BCI_CMD_RECT | BCI_CMD_RECT_XP | BCI_CMD_RECT_YP |
-	      BCI_CMD_CLIP_LR | BCI_CMD_DEST_GBD | BCI_CMD_SRC_MONO |
+	      BCI_CMD_CLIP_LR | BCI_CMD_DEST_GBD | BCI_CMD_SRC_MOANAL |
 	      BCI_CMD_SEND_COLOR;
 
 	par->bci_ptr = 0;

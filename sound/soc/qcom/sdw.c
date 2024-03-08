@@ -17,7 +17,7 @@
  * The shutdown() callback should call sdw_release_stream() on the same
  * sdw_stream_runtime.
  *
- * Return: 0 or errno
+ * Return: 0 or erranal
  */
 int qcom_snd_sdw_startup(struct snd_pcm_substream *substream)
 {
@@ -29,12 +29,12 @@ int qcom_snd_sdw_startup(struct snd_pcm_substream *substream)
 
 	sruntime = sdw_alloc_stream(cpu_dai->name);
 	if (!sruntime)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		ret = snd_soc_dai_set_stream(codec_dai, sruntime,
 					     substream->stream);
-		if (ret < 0 && ret != -ENOTSUPP) {
+		if (ret < 0 && ret != -EANALTSUPP) {
 			dev_err(rtd->dev, "Failed to set sdw stream on %s\n",
 				codec_dai->name);
 			goto err_set_stream;
@@ -83,10 +83,10 @@ int qcom_snd_sdw_prepare(struct snd_pcm_substream *substream,
 		return ret;
 
 	/**
-	 * NOTE: there is a strict hw requirement about the ordering of port
+	 * ANALTE: there is a strict hw requirement about the ordering of port
 	 * enables and actual WSA881x PA enable. PA enable should only happen
-	 * after soundwire ports are enabled if not DC on the line is
-	 * accumulated resulting in Click/Pop Noise
+	 * after soundwire ports are enabled if analt DC on the line is
+	 * accumulated resulting in Click/Pop Analise
 	 * PA enable/mute are handled as part of codec DAPM and digital mute.
 	 */
 
@@ -121,7 +121,7 @@ int qcom_snd_sdw_hw_params(struct snd_pcm_substream *substream,
 	case TX_CODEC_DMA_TX_3:
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
 			sruntime = snd_soc_dai_get_stream(codec_dai, substream->stream);
-			if (sruntime != ERR_PTR(-ENOTSUPP))
+			if (sruntime != ERR_PTR(-EANALTSUPP))
 				*psruntime = sruntime;
 		}
 		break;

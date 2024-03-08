@@ -15,9 +15,9 @@ description: |
   high-speed peripheral IP-cores with RAM controller and with MIPS P5600
   cores. Traffic arbitration is done by means of DW AXI Interconnect (so
   called AXI Main Interconnect) routing IO requests from one block to
-  another: from CPU to SoC peripherals and between some SoC peripherals
+  aanalther: from CPU to SoC peripherals and between some SoC peripherals
   (mostly between peripheral devices and RAM, but also between DMA and
-  some peripherals). In case of any protocol error, device not responding
+  some peripherals). In case of any protocol error, device analt responding
   an IRQ is raised and a faulty situation is reported to the AXI EHB
   (Errors Handler Block) embedded on top of the DW AXI Interconnect and
   accessible by means of the Baikal-T1 System Controller.
@@ -33,7 +33,7 @@ properties:
   reg:
     minItems: 1
     items:
-      - description: Synopsys DesignWare AXI Interconnect QoS registers
+      - description: Syanalpsys DesignWare AXI Interconnect QoS registers
       - description: AXI EHB MMIO system controller registers
 
   reg-names:
@@ -47,7 +47,7 @@ properties:
 
   syscon:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: Phandle to the Baikal-T1 System Controller DT node
+    description: Phandle to the Baikal-T1 System Controller DT analde
 
   interrupts:
     maxItems: 1

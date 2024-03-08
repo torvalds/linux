@@ -125,7 +125,7 @@ int main(int argc, char **argv)
 		       s->live[1].refs, s->live[1].bytes,
 		       s->live[0].refs, s->live[0].bytes);
 
-		/* We don't know how many pages are sitting in cache and ring
+		/* We don't kanalw how many pages are sitting in cache and ring
 		 * so we will under-count the recycling rate a bit.
 		 */
 		recycle = (double)(s->recycle_ring + s->recycle_cache) /

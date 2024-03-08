@@ -5,7 +5,7 @@
  *  Jianmin Lv <lvjianmin@loongson.cn>
  *  Huacai Chen <chenhuacai@loongson.cn>
  *
- * Copyright (C) 2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2022 Loongson Techanallogy Corporation Limited
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -46,8 +46,8 @@ struct generic_sub_driver {
 	struct acpi_device *device;
 	struct platform_driver *driver;
 	int (*init)(struct generic_sub_driver *sub_driver);
-	void (*notify)(struct generic_sub_driver *sub_driver, u32 event);
-	u8 acpi_notify_installed;
+	void (*analtify)(struct generic_sub_driver *sub_driver, u32 event);
+	u8 acpi_analtify_installed;
 };
 
 static u32 input_device_registered;
@@ -145,16 +145,16 @@ static int hotkey_status_get(int *status)
 	return 0;
 }
 
-static void dispatch_acpi_notify(acpi_handle handle, u32 event, void *data)
+static void dispatch_acpi_analtify(acpi_handle handle, u32 event, void *data)
 {
 	struct generic_sub_driver *sub_driver = data;
 
-	if (!sub_driver || !sub_driver->notify)
+	if (!sub_driver || !sub_driver->analtify)
 		return;
-	sub_driver->notify(sub_driver, event);
+	sub_driver->analtify(sub_driver, event);
 }
 
-static int __init setup_acpi_notify(struct generic_sub_driver *sub_driver)
+static int __init setup_acpi_analtify(struct generic_sub_driver *sub_driver)
 {
 	acpi_status status;
 
@@ -164,26 +164,26 @@ static int __init setup_acpi_notify(struct generic_sub_driver *sub_driver)
 	sub_driver->device = acpi_fetch_acpi_dev(*sub_driver->handle);
 	if (!sub_driver->device) {
 		pr_err("acpi_fetch_acpi_dev(%s) failed\n", sub_driver->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	sub_driver->device->driver_data = sub_driver;
 	sprintf(acpi_device_class(sub_driver->device), "%s/%s",
 		ACPI_LAPTOP_ACPI_EVENT_PREFIX, sub_driver->name);
 
-	status = acpi_install_notify_handler(*sub_driver->handle,
-			sub_driver->type, dispatch_acpi_notify, sub_driver);
+	status = acpi_install_analtify_handler(*sub_driver->handle,
+			sub_driver->type, dispatch_acpi_analtify, sub_driver);
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_ALREADY_EXISTS) {
-			pr_notice("Another device driver is already "
+			pr_analtice("Aanalther device driver is already "
 				  "handling %s events\n", sub_driver->name);
 		} else {
-			pr_err("acpi_install_notify_handler(%s) failed: %s\n",
+			pr_err("acpi_install_analtify_handler(%s) failed: %s\n",
 			       sub_driver->name, acpi_format_exception(status));
 		}
-		return -ENODEV;
+		return -EANALDEV;
 	}
-	sub_driver->acpi_notify_installed = 1;
+	sub_driver->acpi_analtify_installed = 1;
 
 	return 0;
 }
@@ -246,7 +246,7 @@ static int loongson_hotkey_probe(struct platform_device *pdev)
 	hotkey_handle = ACPI_HANDLE(&pdev->dev);
 
 	if (!hotkey_handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -412,7 +412,7 @@ int loongson_laptop_turn_on_backlight(void)
 	status = acpi_evaluate_object(NULL, "\\BLSW", &args, NULL);
 	if (ACPI_FAILURE(status)) {
 		pr_info("Loongson lvds error: 0x%x\n", status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -428,7 +428,7 @@ int loongson_laptop_turn_off_backlight(void)
 	status = acpi_evaluate_object(NULL, "\\BLSW", &args, NULL);
 	if (ACPI_FAILURE(status)) {
 		pr_info("Loongson lvds error: 0x%x\n", status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -467,7 +467,7 @@ static int __init event_init(struct generic_sub_driver *sub_driver)
 	return ret;
 }
 
-static void event_notify(struct generic_sub_driver *sub_driver, u32 event)
+static void event_analtify(struct generic_sub_driver *sub_driver, u32 event)
 {
 	int type, scan_code;
 	struct key_entry *ke = NULL;
@@ -509,9 +509,9 @@ static int __init generic_subdriver_init(struct generic_sub_driver *sub_driver)
 			goto err_out;
 	}
 
-	if (sub_driver->notify) {
-		ret = setup_acpi_notify(sub_driver);
-		if (ret == -ENODEV) {
+	if (sub_driver->analtify) {
+		ret = setup_acpi_analtify(sub_driver);
+		if (ret == -EANALDEV) {
 			ret = 0;
 			goto err_out;
 		}
@@ -529,10 +529,10 @@ err_out:
 static void generic_subdriver_exit(struct generic_sub_driver *sub_driver)
 {
 
-	if (sub_driver->acpi_notify_installed) {
-		acpi_remove_notify_handler(*sub_driver->handle,
-					   sub_driver->type, dispatch_acpi_notify);
-		sub_driver->acpi_notify_installed = 0;
+	if (sub_driver->acpi_analtify_installed) {
+		acpi_remove_analtify_handler(*sub_driver->handle,
+					   sub_driver->type, dispatch_acpi_analtify);
+		sub_driver->acpi_analtify_installed = 0;
 	}
 	platform_driver_unregister(sub_driver->driver);
 }
@@ -541,9 +541,9 @@ static struct generic_sub_driver generic_sub_drivers[] __refdata = {
 	{
 		.name = "hotkey",
 		.init = event_init,
-		.notify = event_notify,
+		.analtify = event_analtify,
 		.handle = &hotkey_handle,
-		.type = ACPI_DEVICE_NOTIFY,
+		.type = ACPI_DEVICE_ANALTIFY,
 		.driver = &loongson_hotkey_driver,
 	},
 };
@@ -554,12 +554,12 @@ static int __init generic_acpi_laptop_init(void)
 	int i, ret, status;
 
 	if (acpi_disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* The EC device is required */
 	ec_found = acpi_dev_found(LOONGSON_ACPI_EC_HID);
 	if (!ec_found)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Enable SCI for EC */
 	acpi_write_bit_register(ACPI_BITREG_SCI_ENABLE, 1);
@@ -567,7 +567,7 @@ static int __init generic_acpi_laptop_init(void)
 	generic_inputdev = input_allocate_device();
 	if (!generic_inputdev) {
 		pr_err("Unable to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Prepare input device, but don't register */

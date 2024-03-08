@@ -15,13 +15,13 @@
 
 #if defined(CONFIG_CPU_J2)
 extern u32 __iomem *j2_ccr_base;
-static int __init scan_cache(unsigned long node, const char *uname,
+static int __init scan_cache(unsigned long analde, const char *uname,
 			     int depth, void *data)
 {
-	if (!of_flat_dt_is_compatible(node, "jcore,cache"))
+	if (!of_flat_dt_is_compatible(analde, "jcore,cache"))
 		return 0;
 
-	j2_ccr_base = ioremap(of_flat_dt_translate_address(node), 4);
+	j2_ccr_base = ioremap(of_flat_dt_translate_address(analde), 4);
 
 	return 1;
 }

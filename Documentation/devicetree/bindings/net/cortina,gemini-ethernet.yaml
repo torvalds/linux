@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   This ethernet controller is found in the Gemini SoC family:
-  StorLink SL3512 and SL3516, also known as Cortina Systems
+  StorLink SL3512 and SL3516, also kanalwn as Cortina Systems
   CS3512 and CS3516.
 
 properties:
@@ -31,9 +31,9 @@ properties:
 
   ranges: true
 
-# The subnodes represents the two ethernet ports in this device.
-# They are not independent of each other since they share resources
-# in the parent node, and are thus children.
+# The subanaldes represents the two ethernet ports in this device.
+# They are analt independent of each other since they share resources
+# in the parent analde, and are thus children.
 patternProperties:
   "^ethernet-port@[0-9]+$":
     type: object
@@ -53,7 +53,7 @@ patternProperties:
       interrupts:
         maxItems: 1
         description: should contain the interrupt line of the port.
-                     this is nominally a level interrupt active high.
+                     this is analminally a level interrupt active high.
 
       resets:
         maxItems: 1

@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/of.h>
 #include <linux/proc_fs.h>
@@ -199,7 +199,7 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 		if ((res->flags ^ r->flags) & type_mask)
 			continue;
 
-		/* We cannot allocate a non-prefetching resource
+		/* We cananalt allocate a analn-prefetching resource
 		   from a pre-fetching area */
 		if ((r->flags & IORESOURCE_PREFETCH) &&
 		    !(res->flags & IORESOURCE_PREFETCH))
@@ -219,7 +219,7 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 
 		max = avail.end;
 
-		/* Don't bother if available space isn't large enough */
+		/* Don't bother if available space isn't large eanalugh */
 		if (size > max - min_used + 1)
 			continue;
 
@@ -229,7 +229,7 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 		if (ret == 0)
 			return 0;
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -280,7 +280,7 @@ EXPORT_SYMBOL(pci_bus_alloc_resource);
 
 /*
  * The @idx resource of @dev should be a PCI-PCI bridge window.  If this
- * resource fits inside a window of an upstream bridge, do nothing.  If it
+ * resource fits inside a window of an upstream bridge, do analthing.  If it
  * overlaps an upstream window but extends outside it, clip the resource so
  * it fits completely inside.
  */
@@ -304,10 +304,10 @@ bool pci_bus_clip_resource(struct pci_dev *dev, int idx)
 		end = min(r->end, res->end);
 
 		if (start > end)
-			continue;	/* no overlap */
+			continue;	/* anal overlap */
 
 		if (res->start == start && res->end == end)
-			return false;	/* no change */
+			return false;	/* anal change */
 
 		res->start = start;
 		res->end = end;
@@ -333,17 +333,17 @@ void __weak pcibios_bus_add_device(struct pci_dev *pdev) { }
  */
 void pci_bus_add_device(struct pci_dev *dev)
 {
-	struct device_node *dn = dev->dev.of_node;
+	struct device_analde *dn = dev->dev.of_analde;
 	int retval;
 
 	/*
-	 * Can not put in pci_device_add yet because resources
-	 * are not assigned yet for some devices.
+	 * Can analt put in pci_device_add yet because resources
+	 * are analt assigned yet for some devices.
 	 */
 	pcibios_bus_add_device(dev);
 	pci_fixup_device(pci_fixup_final, dev);
 	if (pci_is_bridge(dev))
-		of_pci_make_dev_node(dev);
+		of_pci_make_dev_analde(dev);
 	pci_create_sysfs_dev_files(dev);
 	pci_proc_attach_device(dev);
 	pci_bridge_d3_update(dev);

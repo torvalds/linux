@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/qcom,usb-snps-femto-v2.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Synopsys Femto High-Speed USB PHY V2
+title: Qualcomm Syanalpsys Femto High-Speed USB PHY V2
 
 maintainers:
   - Wesley Cheng <quic_wcheng@quicinc.com>
@@ -54,13 +54,13 @@ properties:
       - description: PHY core reset
 
   vdda-pll-supply:
-    description: phandle to the regulator VDD supply node.
+    description: phandle to the regulator VDD supply analde.
 
   vdda18-supply:
-    description: phandle to the regulator 1.8V supply node.
+    description: phandle to the regulator 1.8V supply analde.
 
   vdda33-supply:
-    description: phandle to the regulator 3.3V supply node.
+    description: phandle to the regulator 3.3V supply analde.
 
   qcom,hs-disconnect-bp:
     description:
@@ -144,7 +144,7 @@ properties:
     description:
       This adjusts the low- and full-speed single-ended source
       impedance while driving high. The following adjustment values are based
-      on nominal process, voltage, and temperature.
+      on analminal process, voltage, and temperature.
       The hardware accepts only discrete values. The value closest to the
       provided input will be chosen as the override value for this param.
     minimum: -1053

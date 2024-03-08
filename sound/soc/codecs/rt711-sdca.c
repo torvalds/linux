@@ -178,7 +178,7 @@ static unsigned int rt711_sdca_button_detect(struct rt711_sdca_priv *rt711)
 	if (ret < 0)
 		return 0;
 
-	/* if owner is device then there is no button event from device */
+	/* if owner is device then there is anal button event from device */
 	if (owner == 1)
 		return 0;
 
@@ -484,9 +484,9 @@ static void rt711_sdca_jack_init(struct rt711_sdca_priv *rt711)
 		}
 
 		/* set SCP_SDCA_IntMask1[0]=1 */
-		sdw_write_no_pm(rt711->slave, SDW_SCP_SDCA_INTMASK1, SDW_SCP_SDCA_INTMASK_SDCA_0);
+		sdw_write_anal_pm(rt711->slave, SDW_SCP_SDCA_INTMASK1, SDW_SCP_SDCA_INTMASK_SDCA_0);
 		/* set SCP_SDCA_IntMask2[0]=1 */
-		sdw_write_no_pm(rt711->slave, SDW_SCP_SDCA_INTMASK2, SDW_SCP_SDCA_INTMASK_SDCA_8);
+		sdw_write_anal_pm(rt711->slave, SDW_SCP_SDCA_INTMASK2, SDW_SCP_SDCA_INTMASK_SDCA_8);
 		dev_dbg(&rt711->slave->dev, "in %s enable\n", __func__);
 	} else {
 		/* disable HID 1/2 event */
@@ -518,8 +518,8 @@ static int rt711_sdca_set_jack_detect(struct snd_soc_component *component,
 			return ret;
 		}
 
-		/* pm_runtime not enabled yet */
-		dev_dbg(component->dev,	"%s: skipping jack init for now\n", __func__);
+		/* pm_runtime analt enabled yet */
+		dev_dbg(component->dev,	"%s: skipping jack init for analw\n", __func__);
 		return 0;
 	}
 
@@ -800,9 +800,9 @@ static const struct snd_kcontrol_new rt711_sdca_snd_controls[] = {
 		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT711_SDCA_ENT_USER_FU05, RT711_SDCA_CTL_FU_VOLUME, CH_R),
 		0x57, 0x57, 0,
 		rt711_sdca_set_gain_get, rt711_sdca_set_gain_put, out_vol_tlv),
-	SOC_DOUBLE_EXT("FU1E Capture Switch", SND_SOC_NOPM, 0, 1, 1, 0,
+	SOC_DOUBLE_EXT("FU1E Capture Switch", SND_SOC_ANALPM, 0, 1, 1, 0,
 		rt711_sdca_fu1e_capture_get, rt711_sdca_fu1e_capture_put),
-	SOC_DOUBLE_EXT("FU0F Capture Switch", SND_SOC_NOPM, 0, 1, 1, 0,
+	SOC_DOUBLE_EXT("FU0F Capture Switch", SND_SOC_ANALPM, 0, 1, 1, 0,
 		rt711_sdca_fu0f_capture_get, rt711_sdca_fu0f_capture_put),
 	SOC_DOUBLE_R_EXT_TLV("FU1E Capture Volume",
 		SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT711_SDCA_ENT_USER_FU1E, RT711_SDCA_CTL_FU_VOLUME, CH_L),
@@ -901,10 +901,10 @@ static const char * const adc_mux_text[] = {
 };
 
 static SOC_ENUM_SINGLE_DECL(
-	rt711_adc22_enum, SND_SOC_NOPM, 0, adc_mux_text);
+	rt711_adc22_enum, SND_SOC_ANALPM, 0, adc_mux_text);
 
 static SOC_ENUM_SINGLE_DECL(
-	rt711_adc23_enum, SND_SOC_NOPM, 0, adc_mux_text);
+	rt711_adc23_enum, SND_SOC_ANALPM, 0, adc_mux_text);
 
 static const struct snd_kcontrol_new rt711_sdca_adc22_mux =
 	SOC_DAPM_ENUM_EXT("ADC 22 Mux", rt711_adc22_enum,
@@ -1143,40 +1143,40 @@ static const struct snd_soc_dapm_widget rt711_sdca_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("LINE1"),
 	SND_SOC_DAPM_INPUT("LINE2"),
 
-	SND_SOC_DAPM_PGA_E("LINE1 Power", SND_SOC_NOPM,
+	SND_SOC_DAPM_PGA_E("LINE1 Power", SND_SOC_ANALPM,
 		0, 0, NULL, 0, rt711_sdca_line1_power_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_PGA_E("LINE2 Power", SND_SOC_NOPM,
+	SND_SOC_DAPM_PGA_E("LINE2 Power", SND_SOC_ANALPM,
 		0, 0, NULL, 0, rt711_sdca_line2_power_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_SUPPLY("PDE 28", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("PDE 28", SND_SOC_ANALPM, 0, 0,
 		rt711_sdca_pde28_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_SUPPLY("PDE 29", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("PDE 29", SND_SOC_ANALPM, 0, 0,
 		rt711_sdca_pde29_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_SUPPLY("PDE 2A", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("PDE 2A", SND_SOC_ANALPM, 0, 0,
 		rt711_sdca_pde2a_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
-	SND_SOC_DAPM_DAC_E("FU 05", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_DAC_E("FU 05", NULL, SND_SOC_ANALPM, 0, 0,
 		rt711_sdca_fu05_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_ADC_E("FU 0F", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("FU 0F", NULL, SND_SOC_ANALPM, 0, 0,
 		rt711_sdca_fu0f_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_ADC_E("FU 1E", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("FU 1E", NULL, SND_SOC_ANALPM, 0, 0,
 		rt711_sdca_fu1e_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_MUX("ADC 22 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 22 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt711_sdca_adc22_mux),
-	SND_SOC_DAPM_MUX("ADC 23 Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("ADC 23 Mux", SND_SOC_ANALPM, 0, 0,
 		&rt711_sdca_adc23_mux),
 
-	SND_SOC_DAPM_AIF_IN("DP3RX", "DP3 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP2TX", "DP2 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP4TX", "DP4 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DP3RX", "DP3 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP2TX", "DP2 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP4TX", "DP4 Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route rt711_sdca_audio_map[] = {
@@ -1318,7 +1318,7 @@ static int rt711_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = RT711_SDCA_RATE_192000HZ;
 		break;
 	default:
-		dev_err(component->dev, "Rate %d is not supported\n",
+		dev_err(component->dev, "Rate %d is analt supported\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -1406,7 +1406,7 @@ int rt711_sdca_init(struct device *dev, struct regmap *regmap,
 
 	rt711 = devm_kzalloc(dev, sizeof(*rt711), GFP_KERNEL);
 	if (!rt711)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, rt711);
 	rt711->slave = slave;
@@ -1448,14 +1448,14 @@ int rt711_sdca_init(struct device *dev, struct regmap *regmap,
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);
 
-	/* make sure the device does not suspend immediately */
+	/* make sure the device does analt suspend immediately */
 	pm_runtime_mark_last_busy(dev);
 
 	pm_runtime_enable(dev);
 
-	/* important note: the device is NOT tagged as 'active' and will remain
+	/* important analte: the device is ANALT tagged as 'active' and will remain
 	 * 'suspended' until the hardware is enumerated/initialized. This is required
-	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does analt silently
 	 * fail with -EACCESS because of race conditions between card creation and enumeration
 	 */
 
@@ -1543,7 +1543,7 @@ int rt711_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 		pm_runtime_set_active(&slave->dev);
 	}
 
-	pm_runtime_get_noresume(&slave->dev);
+	pm_runtime_get_analresume(&slave->dev);
 
 	rt711_sdca_reset(rt711);
 
@@ -1574,7 +1574,7 @@ int rt711_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 
 	/*
 	 * if set_jack callback occurred early than io_init,
-	 * we set up the jack detection function now
+	 * we set up the jack detection function analw
 	 */
 	if (rt711->hs_jack)
 		rt711_sdca_jack_init(rt711);

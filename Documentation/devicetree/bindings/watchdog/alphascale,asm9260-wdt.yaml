@@ -42,7 +42,7 @@ properties:
   alphascale,mode:
     description: |
       Specifies the reset mode of operation. If set to sw, then reset is handled
-      via interrupt request, if set to debug, then it does nothing and logs.
+      via interrupt request, if set to debug, then it does analthing and logs.
     $ref: /schemas/types.yaml#/definitions/string
     enum: [hw, sw, debug]
     default: hw

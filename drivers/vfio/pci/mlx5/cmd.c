@@ -15,7 +15,7 @@ static int mlx5vf_is_migratable(struct mlx5_core_dev *mdev, u16 func_id)
 
 	query_cap = kzalloc(query_sz, GFP_KERNEL);
 	if (!query_cap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mlx5_vport_get_other_func_cap(mdev, func_id, query_cap,
 					    MLX5_CAP_GENERAL_2);
@@ -24,7 +24,7 @@ static int mlx5vf_is_migratable(struct mlx5_core_dev *mdev, u16 func_id)
 
 	cap = MLX5_ADDR_OF(query_hca_cap_out, query_cap, capability);
 	if (!MLX5_GET(cmd_hca_cap_2, cap, migratable))
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 out:
 	kfree(query_cap);
 	return ret;
@@ -44,11 +44,11 @@ int mlx5vf_cmd_suspend_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod)
 
 	lockdep_assert_held(&mvdev->state_mutex);
 	if (mvdev->mdev_detach)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	/*
 	 * In case PRE_COPY is used, saving_migf is exposed while the device is
-	 * running. Make sure to run only once there is no active save command.
+	 * running. Make sure to run only once there is anal active save command.
 	 * Running both in parallel, might end-up with a failure in the save
 	 * command once it will try to turn on 'tracking' on a suspended device.
 	 */
@@ -62,7 +62,7 @@ int mlx5vf_cmd_suspend_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod)
 	MLX5_SET(suspend_vhca_in, in, vhca_id, mvdev->vhca_id);
 	MLX5_SET(suspend_vhca_in, in, op_mod, op_mod);
 
-	err = mlx5_cmd_exec_inout(mvdev->mdev, suspend_vhca, in, out);
+	err = mlx5_cmd_exec_ianalut(mvdev->mdev, suspend_vhca, in, out);
 	if (migf)
 		complete(&migf->save_comp);
 
@@ -76,13 +76,13 @@ int mlx5vf_cmd_resume_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod)
 
 	lockdep_assert_held(&mvdev->state_mutex);
 	if (mvdev->mdev_detach)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	MLX5_SET(resume_vhca_in, in, opcode, MLX5_CMD_OP_RESUME_VHCA);
 	MLX5_SET(resume_vhca_in, in, vhca_id, mvdev->vhca_id);
 	MLX5_SET(resume_vhca_in, in, op_mod, op_mod);
 
-	return mlx5_cmd_exec_inout(mvdev->mdev, resume_vhca, in, out);
+	return mlx5_cmd_exec_ianalut(mvdev->mdev, resume_vhca, in, out);
 }
 
 int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
@@ -96,11 +96,11 @@ int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
 
 	lockdep_assert_held(&mvdev->state_mutex);
 	if (mvdev->mdev_detach)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	/*
 	 * In case PRE_COPY is used, saving_migf is exposed while device is
-	 * running. Make sure to run only once there is no active save command.
+	 * running. Make sure to run only once there is anal active save command.
 	 * Running both in parallel, might end-up with a failure in the
 	 * incremental query command on un-tracked vhca.
 	 */
@@ -131,7 +131,7 @@ int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
 		 query_flags & MLX5VF_QUERY_INC);
 	MLX5_SET(query_vhca_migration_state_in, in, chunk, mvdev->chunk_mode);
 
-	ret = mlx5_cmd_exec_inout(mvdev->mdev, query_vhca_migration_state, in,
+	ret = mlx5_cmd_exec_ianalut(mvdev->mdev, query_vhca_migration_state, in,
 				  out);
 	if (inc)
 		complete(&mvdev->saving_migf->save_comp);
@@ -156,19 +156,19 @@ static void set_tracker_error(struct mlx5vf_pci_core_device *mvdev)
 	complete(&mvdev->tracker_comp);
 }
 
-static int mlx5fv_vf_event(struct notifier_block *nb,
+static int mlx5fv_vf_event(struct analtifier_block *nb,
 			   unsigned long event, void *data)
 {
 	struct mlx5vf_pci_core_device *mvdev =
 		container_of(nb, struct mlx5vf_pci_core_device, nb);
 
 	switch (event) {
-	case MLX5_PF_NOTIFY_ENABLE_VF:
+	case MLX5_PF_ANALTIFY_ENABLE_VF:
 		mutex_lock(&mvdev->state_mutex);
 		mvdev->mdev_detach = false;
 		mlx5vf_state_mutex_unlock(mvdev);
 		break;
-	case MLX5_PF_NOTIFY_DISABLE_VF:
+	case MLX5_PF_ANALTIFY_DISABLE_VF:
 		mlx5vf_cmd_close_migratable(mvdev);
 		mutex_lock(&mvdev->state_mutex);
 		mvdev->mdev_detach = true;
@@ -199,7 +199,7 @@ void mlx5vf_cmd_remove_migratable(struct mlx5vf_pci_core_device *mvdev)
 	if (!mvdev->migrate_cap)
 		return;
 
-	mlx5_sriov_blocking_notifier_unregister(mvdev->mdev, mvdev->vf_id,
+	mlx5_sriov_blocking_analtifier_unregister(mvdev->mdev, mvdev->vf_id,
 						&mvdev->nb);
 	destroy_workqueue(mvdev->cb_wq);
 }
@@ -239,8 +239,8 @@ void mlx5vf_cmd_set_migratable(struct mlx5vf_pci_core_device *mvdev,
 
 	mutex_init(&mvdev->state_mutex);
 	spin_lock_init(&mvdev->reset_lock);
-	mvdev->nb.notifier_call = mlx5fv_vf_event;
-	ret = mlx5_sriov_blocking_notifier_register(mvdev->mdev, mvdev->vf_id,
+	mvdev->nb.analtifier_call = mlx5fv_vf_event;
+	ret = mlx5_sriov_blocking_analtifier_register(mvdev->mdev, mvdev->vf_id,
 						    &mvdev->nb);
 	if (ret) {
 		destroy_workqueue(mvdev->cb_wq);
@@ -279,7 +279,7 @@ static int mlx5vf_cmd_get_vhca_id(struct mlx5_core_dev *mdev, u16 function_id,
 	out_size = MLX5_ST_SZ_BYTES(query_hca_cap_out);
 	out = kzalloc(out_size, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
 	MLX5_SET(query_hca_cap_in, in, other_function, 1);
@@ -288,7 +288,7 @@ static int mlx5vf_cmd_get_vhca_id(struct mlx5_core_dev *mdev, u16 function_id,
 		 MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE << 1 |
 		 HCA_CAP_OPMOD_GET_CUR);
 
-	ret = mlx5_cmd_exec_inout(mdev, query_hca_cap, in, out);
+	ret = mlx5_cmd_exec_ianalut(mdev, query_hca_cap, in, out);
 	if (ret)
 		goto err_exec;
 
@@ -317,7 +317,7 @@ static int _create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(create_mkey_in, in, translations_octword_actual_size,
 		 DIV_ROUND_UP(npages, 2));
@@ -360,7 +360,7 @@ static int mlx5vf_dma_data_buffer(struct mlx5_vhca_data_buffer *buf)
 
 	lockdep_assert_held(&mvdev->state_mutex);
 	if (mvdev->mdev_detach)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (buf->dmaed || !buf->allocated_length)
 		return -EINVAL;
@@ -412,7 +412,7 @@ mlx5vf_alloc_data_buffer(struct mlx5_vf_migration_file *migf,
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL_ACCOUNT);
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	buf->dma_dir = dma_dir;
 	buf->migf = migf;
@@ -422,7 +422,7 @@ mlx5vf_alloc_data_buffer(struct mlx5_vf_migration_file *migf,
 		if (ret)
 			goto end;
 
-		if (dma_dir != DMA_NONE) {
+		if (dma_dir != DMA_ANALNE) {
 			ret = mlx5vf_dma_data_buffer(buf);
 			if (ret)
 				goto end;
@@ -452,7 +452,7 @@ mlx5vf_get_data_buffer(struct mlx5_vf_migration_file *migf,
 
 	lockdep_assert_held(&migf->mvdev->state_mutex);
 	if (migf->mvdev->mdev_detach)
-		return ERR_PTR(-ENOTCONN);
+		return ERR_PTR(-EANALTCONN);
 
 	INIT_LIST_HEAD(&free_list);
 
@@ -466,7 +466,7 @@ mlx5vf_get_data_buffer(struct mlx5_vf_migration_file *migf,
 			}
 			/*
 			 * Prevent holding redundant buffers. Put in a free
-			 * list and call at the end not under the spin lock
+			 * list and call at the end analt under the spin lock
 			 * (&migf->list_lock) to mlx5vf_free_data_buffer which
 			 * might sleep.
 			 */
@@ -627,7 +627,7 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 
 	lockdep_assert_held(&mvdev->state_mutex);
 	if (mvdev->mdev_detach)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	err = wait_for_completion_interruptible(&migf->save_comp);
 	if (err)
@@ -654,7 +654,7 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	async_data->stop_copy_chunk = !track;
 	async_data->out = kvzalloc(out_size, GFP_KERNEL);
 	if (!async_data->out) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -669,7 +669,7 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 
 		if (!header_buf) {
 			header_buf = mlx5vf_get_data_buffer(migf,
-				sizeof(struct mlx5_vf_migration_header), DMA_NONE);
+				sizeof(struct mlx5_vf_migration_header), DMA_ANALNE);
 			if (IS_ERR(header_buf)) {
 				err = PTR_ERR(header_buf);
 				goto err_free;
@@ -712,7 +712,7 @@ int mlx5vf_cmd_load_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 
 	lockdep_assert_held(&mvdev->state_mutex);
 	if (mvdev->mdev_detach)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (!buf->dmaed) {
 		err = mlx5vf_dma_data_buffer(buf);
@@ -726,7 +726,7 @@ int mlx5vf_cmd_load_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	MLX5_SET(load_vhca_state_in, in, vhca_id, mvdev->vhca_id);
 	MLX5_SET(load_vhca_state_in, in, mkey, buf->mkey);
 	MLX5_SET(load_vhca_state_in, in, size, buf->length);
-	return mlx5_cmd_exec_inout(mvdev->mdev, load_vhca_state, in, out);
+	return mlx5_cmd_exec_ianalut(mvdev->mdev, load_vhca_state, in, out);
 }
 
 int mlx5vf_cmd_alloc_pd(struct mlx5_vf_migration_file *migf)
@@ -735,7 +735,7 @@ int mlx5vf_cmd_alloc_pd(struct mlx5_vf_migration_file *migf)
 
 	lockdep_assert_held(&migf->mvdev->state_mutex);
 	if (migf->mvdev->mdev_detach)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	err = mlx5_core_alloc_pd(migf->mvdev->mdev, &migf->pdn);
 	return err;
@@ -783,16 +783,16 @@ void mlx5fv_cmd_clean_migf_resources(struct mlx5_vf_migration_file *migf)
 
 static int mlx5vf_create_tracker(struct mlx5_core_dev *mdev,
 				 struct mlx5vf_pci_core_device *mvdev,
-				 struct rb_root_cached *ranges, u32 nnodes)
+				 struct rb_root_cached *ranges, u32 nanaldes)
 {
 	int max_num_range =
 		MLX5_CAP_ADV_VIRTUALIZATION(mdev, pg_track_max_num_range);
 	struct mlx5_vhca_page_tracker *tracker = &mvdev->tracker;
 	int record_size = MLX5_ST_SZ_BYTES(page_track_range);
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {};
-	struct interval_tree_node *node = NULL;
+	struct interval_tree_analde *analde = NULL;
 	u64 total_ranges_len = 0;
-	u32 num_ranges = nnodes;
+	u32 num_ranges = nanaldes;
 	u8 log_addr_space_size;
 	void *range_list_ptr;
 	void *obj_context;
@@ -803,7 +803,7 @@ static int mlx5vf_create_tracker(struct mlx5_core_dev *mdev,
 	int i;
 
 	if (num_ranges > max_num_range) {
-		vfio_combine_iova_ranges(ranges, nnodes, max_num_range);
+		vfio_combine_iova_ranges(ranges, nanaldes, max_num_range);
 		num_ranges = max_num_range;
 	}
 
@@ -811,7 +811,7 @@ static int mlx5vf_create_tracker(struct mlx5_core_dev *mdev,
 				 record_size * num_ranges;
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd_hdr = MLX5_ADDR_OF(create_page_track_obj_in, in,
 			       general_obj_in_cmd_hdr);
@@ -830,25 +830,25 @@ static int mlx5vf_create_tracker(struct mlx5_core_dev *mdev,
 	MLX5_SET(page_track, obj_context, num_ranges, num_ranges);
 
 	range_list_ptr = MLX5_ADDR_OF(page_track, obj_context, track_range);
-	node = interval_tree_iter_first(ranges, 0, ULONG_MAX);
+	analde = interval_tree_iter_first(ranges, 0, ULONG_MAX);
 	for (i = 0; i < num_ranges; i++) {
 		void *addr_range_i_base = range_list_ptr + record_size * i;
-		unsigned long length = node->last - node->start + 1;
+		unsigned long length = analde->last - analde->start + 1;
 
 		MLX5_SET64(page_track_range, addr_range_i_base, start_address,
-			   node->start);
+			   analde->start);
 		MLX5_SET64(page_track_range, addr_range_i_base, length, length);
 		total_ranges_len += length;
-		node = interval_tree_iter_next(node, 0, ULONG_MAX);
+		analde = interval_tree_iter_next(analde, 0, ULONG_MAX);
 	}
 
-	WARN_ON(node);
+	WARN_ON(analde);
 	log_addr_space_size = ilog2(roundup_pow_of_two(total_ranges_len));
 	if (log_addr_space_size <
 	    (MLX5_CAP_ADV_VIRTUALIZATION(mdev, pg_track_log_min_addr_space)) ||
 	    log_addr_space_size >
 	    (MLX5_CAP_ADV_VIRTUALIZATION(mdev, pg_track_log_max_addr_space))) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -909,8 +909,8 @@ static int alloc_cq_frag_buf(struct mlx5_core_dev *mdev,
 	u8 log_wq_sz = ilog2(cqe_size);
 	int err;
 
-	err = mlx5_frag_buf_alloc_node(mdev, nent * cqe_size, frag_buf,
-				       mdev->priv.numa_node);
+	err = mlx5_frag_buf_alloc_analde(mdev, nent * cqe_size, frag_buf,
+				       mdev->priv.numa_analde);
 	if (err)
 		return err;
 
@@ -950,7 +950,7 @@ static void mlx5vf_cq_event(struct mlx5_core_cq *mcq, enum mlx5_event type)
 				       tracker.cq.mcq));
 }
 
-static int mlx5vf_event_notifier(struct notifier_block *nb, unsigned long type,
+static int mlx5vf_event_analtifier(struct analtifier_block *nb, unsigned long type,
 				 void *data)
 {
 	struct mlx5_vhca_page_tracker *tracker =
@@ -979,7 +979,7 @@ static int mlx5vf_event_notifier(struct notifier_block *nb, unsigned long type,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void mlx5vf_cq_complete(struct mlx5_core_cq *mcq,
@@ -1006,7 +1006,7 @@ static int mlx5vf_create_cq(struct mlx5_core_dev *mdev,
 
 	cq = &tracker->cq;
 	ncqe = roundup_pow_of_two(ncqe);
-	err = mlx5_db_alloc_node(mdev, &cq->db, mdev->priv.numa_node);
+	err = mlx5_db_alloc_analde(mdev, &cq->db, mdev->priv.numa_analde);
 	if (err)
 		return err;
 
@@ -1024,7 +1024,7 @@ static int mlx5vf_create_cq(struct mlx5_core_dev *mdev,
 		cq->buf.frag_buf.npages;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_buff;
 	}
 
@@ -1048,7 +1048,7 @@ static int mlx5vf_create_cq(struct mlx5_core_dev *mdev,
 	if (err)
 		goto err_vec;
 
-	mlx5_cq_arm(&cq->mcq, MLX5_CQ_DB_REQ_NOT, tracker->uar->map,
+	mlx5_cq_arm(&cq->mcq, MLX5_CQ_DB_REQ_ANALT, tracker->uar->map,
 		    cq->mcq.cons_index);
 	kvfree(in);
 	return 0;
@@ -1077,9 +1077,9 @@ mlx5vf_create_rc_qp(struct mlx5_core_dev *mdev,
 
 	qp = kzalloc(sizeof(*qp), GFP_KERNEL_ACCOUNT);
 	if (!qp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	err = mlx5_db_alloc_node(mdev, &qp->db, mdev->priv.numa_node);
+	err = mlx5_db_alloc_analde(mdev, &qp->db, mdev->priv.numa_analde);
 	if (err)
 		goto err_free;
 
@@ -1087,9 +1087,9 @@ mlx5vf_create_rc_qp(struct mlx5_core_dev *mdev,
 		qp->rq.wqe_cnt = roundup_pow_of_two(max_recv_wr);
 		log_rq_stride = ilog2(MLX5_SEND_WQE_DS);
 		log_rq_sz = ilog2(qp->rq.wqe_cnt);
-		err = mlx5_frag_buf_alloc_node(mdev,
+		err = mlx5_frag_buf_alloc_analde(mdev,
 			wq_get_byte_sz(log_rq_sz, log_rq_stride),
-			&qp->buf, mdev->priv.numa_node);
+			&qp->buf, mdev->priv.numa_analde);
 		if (err)
 			goto err_db_free;
 		mlx5_init_fbc(qp->buf.frags, log_rq_stride, log_rq_sz, &qp->rq.fbc);
@@ -1101,7 +1101,7 @@ mlx5vf_create_rc_qp(struct mlx5_core_dev *mdev,
 		qp->buf.npages;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_in;
 	}
 
@@ -1115,12 +1115,12 @@ mlx5vf_create_rc_qp(struct mlx5_core_dev *mdev,
 	MLX5_SET(qpc, qpc, ts_format, mlx5_get_qp_default_ts(mdev));
 	if (MLX5_CAP_GEN(mdev, cqe_version) == 1)
 		MLX5_SET(qpc, qpc, user_index, 0xFFFFFF);
-	MLX5_SET(qpc, qpc, no_sq, 1);
+	MLX5_SET(qpc, qpc, anal_sq, 1);
 	if (max_recv_wr) {
 		MLX5_SET(qpc, qpc, cqn_rcv, tracker->cq.mcq.cqn);
 		MLX5_SET(qpc, qpc, log_rq_stride, log_rq_stride - 4);
 		MLX5_SET(qpc, qpc, log_rq_size, log_rq_sz);
-		MLX5_SET(qpc, qpc, rq_type, MLX5_NON_ZERO_RQ);
+		MLX5_SET(qpc, qpc, rq_type, MLX5_ANALN_ZERO_RQ);
 		MLX5_SET64(qpc, qpc, dbr_addr, qp->db.dma);
 		mlx5_fill_page_frag_array(&qp->buf,
 					  (__be64 *)MLX5_ADDR_OF(create_qp_in,
@@ -1258,7 +1258,7 @@ static int alloc_recv_pages(struct mlx5_vhca_recv_buf *recv_buf,
 	recv_buf->page_list = kvcalloc(npages, sizeof(*recv_buf->page_list),
 				       GFP_KERNEL_ACCOUNT);
 	if (!recv_buf->page_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (;;) {
 		filled = alloc_pages_bulk_array(GFP_KERNEL_ACCOUNT,
@@ -1282,7 +1282,7 @@ err:
 	}
 
 	kvfree(recv_buf->page_list);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int register_dma_recv_pages(struct mlx5_core_dev *mdev,
@@ -1294,7 +1294,7 @@ static int register_dma_recv_pages(struct mlx5_core_dev *mdev,
 				       sizeof(*recv_buf->dma_addrs),
 				       GFP_KERNEL_ACCOUNT);
 	if (!recv_buf->dma_addrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < recv_buf->npages; i++) {
 		recv_buf->dma_addrs[i] = dma_map_page(mdev->device,
@@ -1312,7 +1312,7 @@ error:
 				 PAGE_SIZE, DMA_FROM_DEVICE);
 
 	kvfree(recv_buf->dma_addrs);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void unregister_dma_recv_pages(struct mlx5_core_dev *mdev,
@@ -1379,7 +1379,7 @@ _mlx5vf_free_page_tracker_resources(struct mlx5vf_pci_core_device *mvdev)
 
 	WARN_ON(mvdev->mdev_detach);
 
-	mlx5_eq_notifier_unregister(mdev, &tracker->nb);
+	mlx5_eq_analtifier_unregister(mdev, &tracker->nb);
 	mlx5vf_cmd_destroy_tracker(mdev, tracker->id);
 	mlx5vf_destroy_qp(mdev, tracker->fw_qp);
 	mlx5vf_free_qp_recv_resources(mdev, tracker->host_qp);
@@ -1407,7 +1407,7 @@ end:
 }
 
 int mlx5vf_start_page_tracker(struct vfio_device *vdev,
-			      struct rb_root_cached *ranges, u32 nnodes,
+			      struct rb_root_cached *ranges, u32 nanaldes,
 			      u64 *page_size)
 {
 	struct mlx5vf_pci_core_device *mvdev = container_of(
@@ -1424,7 +1424,7 @@ int mlx5vf_start_page_tracker(struct vfio_device *vdev,
 
 	mutex_lock(&mvdev->state_mutex);
 	if (mvdev->mdev_detach) {
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 		goto end;
 	}
 
@@ -1489,12 +1489,12 @@ int mlx5vf_start_page_tracker(struct vfio_device *vdev,
 
 	tracker->host_qp = host_qp;
 	tracker->fw_qp = fw_qp;
-	err = mlx5vf_create_tracker(mdev, mvdev, ranges, nnodes);
+	err = mlx5vf_create_tracker(mdev, mvdev, ranges, nanaldes);
 	if (err)
 		goto err_activate;
 
-	MLX5_NB_INIT(&tracker->nb, mlx5vf_event_notifier, NOTIFY_ANY);
-	mlx5_eq_notifier_register(mdev, &tracker->nb);
+	MLX5_NB_INIT(&tracker->nb, mlx5vf_event_analtifier, ANALTIFY_ANY);
+	mlx5_eq_analtifier_register(mdev, &tracker->nb);
 	*page_size = host_qp->tracked_page_size;
 	mvdev->log_active = true;
 	mlx5vf_state_mutex_unlock(mvdev);
@@ -1556,7 +1556,7 @@ mlx5vf_rq_cqe(struct mlx5_vhca_qp *qp, struct mlx5_cqe64 *cqe,
 	size = be32_to_cpu(cqe->byte_cnt);
 	ix = be16_to_cpu(cqe->wqe_counter) & (qp->rq.wqe_cnt - 1);
 
-	/* zero length CQE, no data */
+	/* zero length CQE, anal data */
 	WARN_ON(!size && *tracker_status == MLX5_PAGE_TRACK_STATE_REPORTING);
 	if (size)
 		set_report_output(size, ix, qp, dirty);
@@ -1630,7 +1630,7 @@ int mlx5vf_tracker_read_and_clear(struct vfio_device *vdev, unsigned long iova,
 	}
 
 	if (mvdev->mdev_detach) {
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 		goto end;
 	}
 
@@ -1646,7 +1646,7 @@ int mlx5vf_tracker_read_and_clear(struct vfio_device *vdev, unsigned long iova,
 		poll_err = mlx5vf_cq_poll_one(cq, tracker->host_qp, dirty,
 					      &tracker->status);
 		if (poll_err == CQ_EMPTY) {
-			mlx5_cq_arm(&cq->mcq, MLX5_CQ_DB_REQ_NOT, tracker->uar->map,
+			mlx5_cq_arm(&cq->mcq, MLX5_CQ_DB_REQ_ANALT, tracker->uar->map,
 				    cq->mcq.cons_index);
 			poll_err = mlx5vf_cq_poll_one(cq, tracker->host_qp,
 						      dirty, &tracker->status);

@@ -125,7 +125,7 @@ int msm_atomic_init_pending_timer(struct msm_pending_timer *timer,
 
 	msm_hrtimer_work_init(&timer->work, timer->worker,
 			      msm_atomic_pending_work,
-			      CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+			      CLOCK_MOANALTONIC, HRTIMER_MODE_ABS);
 
 	return 0;
 }
@@ -222,7 +222,7 @@ void msm_atomic_commit_tail(struct drm_atomic_state *state)
 	trace_msm_atomic_wait_flush_finish(crtc_mask);
 
 	/*
-	 * Now that there is no in-progress flush, prepare the
+	 * Analw that there is anal in-progress flush, prepare the
 	 * current update:
 	 */
 	if (kms->funcs->prepare_commit)

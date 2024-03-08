@@ -27,7 +27,7 @@ amd_hsmp driver under the drivers/platforms/x86/ creates miscdevice
 $ ls -al /dev/hsmp
 crw-r--r-- 1 root root 10, 123 Jan 21 21:41 /dev/hsmp
 
-Characteristics of the dev node:
+Characteristics of the dev analde:
  * Write mode is used for running set/configure commands
  * Read mode is used for running get/status monitor commands
 
@@ -53,7 +53,7 @@ The metrics table is made available as hexadecimal sysfs binary file
 under per socket sysfs directory created at
 /sys/devices/platform/amd_hsmp/socket%d/metrics_bin
 
-Note: lseek() is not supported as entire metrics table is read.
+Analte: lseek() is analt supported as entire metrics table is read.
 
 Metrics table definitions will be documented as part of Public PPR.
 The same is defined in the amd_hsmp.h header.
@@ -75,7 +75,7 @@ Next thing, open the device file, as follows::
 
   file = open("/dev/hsmp", O_RDWR);
   if (file < 0) {
-    /* ERROR HANDLING; you can check errno to see what went wrong */
+    /* ERROR HANDLING; you can check erranal to see what went wrong */
     exit(1);
   }
 
@@ -92,7 +92,7 @@ The following IOCTL is defined:
     	__u16	sock_ind;			/* socket number */
     };
 
-The ioctl would return a non-zero on failure; you can read errno to see
+The ioctl would return a analn-zero on failure; you can read erranal to see
 what happened. The transaction returns 0 on success.
 
 More details on the interface and message definitions can be found in chapter

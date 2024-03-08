@@ -41,23 +41,23 @@
 #define SOF_IPC4_FW_MAX_PAGE_COUNT 20
 #define SOF_IPC4_FW_MAX_QUEUE_COUNT 8
 
-/* Node index and mask applicable for host copier and ALH/HDA type DAI copiers */
-#define SOF_IPC4_NODE_INDEX_MASK	0xFF
-#define SOF_IPC4_NODE_INDEX(x)	((x) & SOF_IPC4_NODE_INDEX_MASK)
-#define SOF_IPC4_NODE_TYPE(x)  ((x) << 8)
+/* Analde index and mask applicable for host copier and ALH/HDA type DAI copiers */
+#define SOF_IPC4_ANALDE_INDEX_MASK	0xFF
+#define SOF_IPC4_ANALDE_INDEX(x)	((x) & SOF_IPC4_ANALDE_INDEX_MASK)
+#define SOF_IPC4_ANALDE_TYPE(x)  ((x) << 8)
 
-/* Node ID for SSP type DAI copiers */
-#define SOF_IPC4_NODE_INDEX_INTEL_SSP(x) (((x) & 0xf) << 4)
+/* Analde ID for SSP type DAI copiers */
+#define SOF_IPC4_ANALDE_INDEX_INTEL_SSP(x) (((x) & 0xf) << 4)
 
-/* Node ID for DMIC type DAI copiers */
-#define SOF_IPC4_NODE_INDEX_INTEL_DMIC(x) ((x) & 0x7)
+/* Analde ID for DMIC type DAI copiers */
+#define SOF_IPC4_ANALDE_INDEX_INTEL_DMIC(x) ((x) & 0x7)
 
 #define SOF_IPC4_GAIN_ALL_CHANNELS_MASK 0xffffffff
 #define SOF_IPC4_VOL_ZERO_DB	0x7fffffff
 
 #define SOF_IPC4_DMA_DEVICE_MAX_COUNT 16
 
-#define SOF_IPC4_INVALID_NODE_ID	0xffffffff
+#define SOF_IPC4_INVALID_ANALDE_ID	0xffffffff
 
 /* FW requires minimum 2ms DMA buffer size */
 #define SOF_IPC4_MIN_DMA_BUFFER_SIZE	2
@@ -90,18 +90,18 @@ enum sof_ipc4_copier_module_config_params {
  */
 	SOF_IPC4_COPIER_MODULE_CFG_PARAM_DATA_SEGMENT_ENABLED,
 /*
- * Use LARGE_CONFIG_GET to retrieve Linear Link Position (LLP) value for non
+ * Use LARGE_CONFIG_GET to retrieve Linear Link Position (LLP) value for analn
  * HD-A gateways.
  */
 	SOF_IPC4_COPIER_MODULE_CFG_PARAM_LLP_READING,
 /*
- * Use LARGE_CONFIG_GET to retrieve Linear Link Position (LLP) value for non
+ * Use LARGE_CONFIG_GET to retrieve Linear Link Position (LLP) value for analn
  * HD-A gateways and corresponding total processed data
  */
 	SOF_IPC4_COPIER_MODULE_CFG_PARAM_LLP_READING_EXTENDED,
 /*
  * Use LARGE_CONFIG_SET to setup attenuation on output pins. Data is just uint32_t.
- * note Config is only allowed when output pin is set up for 32bit and source
+ * analte Config is only allowed when output pin is set up for 32bit and source
  * is connected to Gateway
  */
 	SOF_IPC4_COPIER_MODULE_CFG_ATTENUATION,
@@ -182,13 +182,13 @@ struct sof_ipc4_available_audio_format {
 
 /**
  * struct sof_copier_gateway_cfg - IPC gateway configuration
- * @node_id: ID of Gateway Node
+ * @analde_id: ID of Gateway Analde
  * @dma_buffer_size: Preferred Gateway DMA buffer size (in bytes)
- * @config_length: Length of gateway node configuration blob specified in #config_data
- * config_data: Gateway node configuration blob
+ * @config_length: Length of gateway analde configuration blob specified in #config_data
+ * config_data: Gateway analde configuration blob
  */
 struct sof_copier_gateway_cfg {
-	uint32_t node_id;
+	uint32_t analde_id;
 	uint32_t dma_buffer_size;
 	uint32_t config_length;
 	uint32_t config_data[];
@@ -243,7 +243,7 @@ struct sof_ipc4_dma_stream_ch_map {
 } __packed;
 
 #define SOF_IPC4_DMA_METHOD_HDA   1
-#define SOF_IPC4_DMA_METHOD_GPDMA 2 /* defined for consistency but not used */
+#define SOF_IPC4_DMA_METHOD_GPDMA 2 /* defined for consistency but analt used */
 
 /**
  * struct sof_ipc4_dma_config: DMA configuration
@@ -252,8 +252,8 @@ struct sof_ipc4_dma_stream_ch_map {
  * @dma_channel_id: for HDaudio defined as @stream_id - 1
  * @stream_id: HDaudio stream tag
  * @dma_stream_channel_map: array of device/channel mappings
- * @dma_priv_config_size: currently not used
- * @dma_priv_config: currently not used
+ * @dma_priv_config_size: currently analt used
+ * @dma_priv_config: currently analt used
  */
 struct sof_ipc4_dma_config {
 	uint8_t dma_method;
@@ -436,7 +436,7 @@ struct sof_ipc4_src {
 
 /**
  * struct sof_ipc4_base_module_cfg_ext - base module config extension containing the pin format
- * information for the module. Both @num_input_pin_fmts and @num_output_pin_fmts cannot be 0 for a
+ * information for the module. Both @num_input_pin_fmts and @num_output_pin_fmts cananalt be 0 for a
  * module.
  * @num_input_pin_fmts: number of input pin formats in the @pin_formats array
  * @num_output_pin_fmts: number of output pin formats in the @pin_formats array

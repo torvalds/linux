@@ -55,7 +55,7 @@ examples:
   - |
     // Mux topology with multiple MCTP-handling busses under
     // a single mctp-i2c-controller.
-    // i2c1 and i2c6 can have MCTP devices, i2c5 does not.
+    // i2c1 and i2c6 can have MCTP devices, i2c5 does analt.
     #include <dt-bindings/i2c/i2c.h>
 
     i2c1: i2c {

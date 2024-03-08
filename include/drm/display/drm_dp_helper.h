@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -126,7 +126,7 @@ static inline bool
 drm_dp_fast_training_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return dpcd[DP_DPCD_REV] >= 0x11 &&
-		(dpcd[DP_MAX_DOWNSPREAD] & DP_NO_AUX_HANDSHAKE_LINK_TRAINING);
+		(dpcd[DP_MAX_DOWNSPREAD] & DP_ANAL_AUX_HANDSHAKE_LINK_TRAINING);
 }
 
 static inline bool
@@ -227,19 +227,19 @@ drm_dp_alternate_scrambler_reset_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 			DP_ALTERNATE_SCRAMBLER_RESET_CAP;
 }
 
-/* Ignore MSA timing for Adaptive Sync support on DP 1.4 */
+/* Iganalre MSA timing for Adaptive Sync support on DP 1.4 */
 static inline bool
 drm_dp_sink_can_do_video_without_timing_msa(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return dpcd[DP_DOWN_STREAM_PORT_COUNT] &
-		DP_MSA_TIMING_PAR_IGNORED;
+		DP_MSA_TIMING_PAR_IGANALRED;
 }
 
 /**
  * drm_edp_backlight_supported() - Check an eDP DPCD for VESA backlight support
  * @edp_dpcd: The DPCD to check
  *
- * Note that currently this function will return %false for panels which support various DPCD
+ * Analte that currently this function will return %false for panels which support various DPCD
  * backlight features but which require the brightness be set through PWM, and don't support setting
  * the brightness level via the DPCD.
  *
@@ -360,7 +360,7 @@ struct drm_dp_aux {
 	/**
 	 * @hw_mutex: internal mutex used for locking transfers.
 	 *
-	 * Note that if the underlying hardware is shared among multiple
+	 * Analte that if the underlying hardware is shared among multiple
 	 * channels, the driver needs to do additional locking to
 	 * prevent concurrent access.
 	 */
@@ -397,18 +397,18 @@ struct drm_dp_aux {
 	 * the &drm_dp_aux_msg structure. The retry logic and i2c
 	 * helpers assume this is the case.
 	 *
-	 * Also note that this callback can be called no matter the
-	 * state @dev is in and also no matter what state the panel is
+	 * Also analte that this callback can be called anal matter the
+	 * state @dev is in and also anal matter what state the panel is
 	 * in. It's expected:
 	 *
 	 * - If the @dev providing the AUX bus is currently unpowered then
 	 *   it will power itself up for the transfer.
 	 *
-	 * - If we're on eDP (using a drm_panel) and the panel is not in a
-	 *   state where it can respond (it's not powered or it's in a
+	 * - If we're on eDP (using a drm_panel) and the panel is analt in a
+	 *   state where it can respond (it's analt powered or it's in a
 	 *   low power state) then this function may return an error, but
-	 *   not crash. It's up to the caller of this code to make sure that
-	 *   the panel is powered on if getting an error back is not OK. If a
+	 *   analt crash. It's up to the caller of this code to make sure that
+	 *   the panel is powered on if getting an error back is analt OK. If a
 	 *   drm_panel driver is initiating a DP AUX transfer it may power
 	 *   itself up however it wants. All other code should ensure that
 	 *   the pre_enable() bridge chain (which eventually calls the
@@ -425,21 +425,21 @@ struct drm_dp_aux {
 	 *
 	 * This function will efficiently wait for the HPD signal to be
 	 * asserted. The `wait_us` parameter that is passed in says that we
-	 * know that the HPD signal is expected to be asserted within `wait_us`
+	 * kanalw that the HPD signal is expected to be asserted within `wait_us`
 	 * microseconds. This function could wait for longer than `wait_us` if
 	 * the logic in the DP controller has a long debouncing time. The
 	 * important thing is that if this function returns success that the
 	 * DP controller is ready to send AUX transactions.
 	 *
 	 * This function returns 0 if HPD was asserted or -ETIMEDOUT if time
-	 * expired and HPD wasn't asserted. This function should not print
+	 * expired and HPD wasn't asserted. This function should analt print
 	 * timeout errors to the log.
 	 *
 	 * The semantics of this function are designed to match the
 	 * readx_poll_timeout() function. That means a `wait_us` of 0 means
 	 * to wait forever. Like readx_poll_timeout(), this function may sleep.
 	 *
-	 * NOTE: this function specifically reports the state of the HPD pin
+	 * ANALTE: this function specifically reports the state of the HPD pin
 	 * that's associated with the DP AUX channel. This is different from
 	 * the HPD concept in much of the rest of DRM which is more about
 	 * physical presence of a display. For eDP, for instance, a display is
@@ -586,7 +586,7 @@ struct drm_dp_dpcd_ident {
 	u8 device_id[6];
 	u8 hw_rev;
 	u8 sw_major_rev;
-	u8 sw_minor_rev;
+	u8 sw_mianalr_rev;
 } __packed;
 
 /**
@@ -618,24 +618,24 @@ enum drm_dp_quirk {
 	 */
 	DP_DPCD_QUIRK_CONSTANT_N,
 	/**
-	 * @DP_DPCD_QUIRK_NO_PSR:
+	 * @DP_DPCD_QUIRK_ANAL_PSR:
 	 *
-	 * The device does not support PSR even if reports that it supports or
+	 * The device does analt support PSR even if reports that it supports or
 	 * driver still need to implement proper handling for such device.
 	 */
-	DP_DPCD_QUIRK_NO_PSR,
+	DP_DPCD_QUIRK_ANAL_PSR,
 	/**
-	 * @DP_DPCD_QUIRK_NO_SINK_COUNT:
+	 * @DP_DPCD_QUIRK_ANAL_SINK_COUNT:
 	 *
-	 * The device does not set SINK_COUNT to a non-zero value.
-	 * The driver should ignore SINK_COUNT during detection. Note that
+	 * The device does analt set SINK_COUNT to a analn-zero value.
+	 * The driver should iganalre SINK_COUNT during detection. Analte that
 	 * drm_dp_read_sink_count_cap() automatically checks for this quirk.
 	 */
-	DP_DPCD_QUIRK_NO_SINK_COUNT,
+	DP_DPCD_QUIRK_ANAL_SINK_COUNT,
 	/**
 	 * @DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD:
 	 *
-	 * The device supports MST DSC despite not supporting Virtual DPCD.
+	 * The device supports MST DSC despite analt supporting Virtual DPCD.
 	 * The DSC caps can be read from the physical aux instead.
 	 */
 	DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD,

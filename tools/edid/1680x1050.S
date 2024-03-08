@@ -14,7 +14,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
 */
 
@@ -36,7 +36,7 @@
 #define DPI 96
 #define VFREQ 60 /* Hz */
 #define TIMING_NAME "Linux WSXGA"
-/* No ESTABLISHED_TIMINGx_BITS */
+/* Anal ESTABLISHED_TIMINGx_BITS */
 #define HSYNC_POL 1
 #define VSYNC_POL 1
 

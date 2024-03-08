@@ -45,7 +45,7 @@
 #define ICE_FDIR_MAX_FLTRS		16384
 
 /* IP v4 has 2 flag bits that enable fragment processing: DF and MF. DF
- * requests that the packet not be fragmented. MF indicates that a packet has
+ * requests that the packet analt be fragmented. MF indicates that a packet has
  * been fragmented.
  */
 #define ICE_FDIR_IPV4_PKT_FLAG_MF		0x20
@@ -58,7 +58,7 @@ enum ice_fltr_prgm_desc_dest {
 };
 
 enum ice_fltr_prgm_desc_fd_status {
-	ICE_FLTR_PRGM_DESC_FD_STATUS_NONE,
+	ICE_FLTR_PRGM_DESC_FD_STATUS_ANALNE,
 	ICE_FLTR_PRGM_DESC_FD_STATUS_FD_ID,
 };
 
@@ -149,14 +149,14 @@ struct ice_fdir_l2tpv3 {
 struct ice_fdir_extra {
 	u8 dst_mac[ETH_ALEN];	/* dest MAC address */
 	u8 src_mac[ETH_ALEN];	/* src MAC address */
-	__be16 ether_type;	/* for NON_IP_L2 */
+	__be16 ether_type;	/* for ANALN_IP_L2 */
 	u32 usr_def[2];		/* user data */
 	__be16 vlan_type;	/* VLAN ethertype */
 	__be16 vlan_tag;	/* VLAN tag info */
 };
 
 struct ice_fdir_fltr {
-	struct list_head fltr_node;
+	struct list_head fltr_analde;
 	enum ice_fltr_ptype flow_type;
 
 	union {

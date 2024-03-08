@@ -11,7 +11,7 @@ KernelVersion:	v4.10
 Contact:	linux-acpi@vger.kernel.org
 Description:
 		(RO) Adapter rating in milliwatts (the maximum Adapter power).
-		Must be 0 if no AC Adaptor is plugged in.
+		Must be 0 if anal AC Adaptor is plugged in.
 
 What:		/sys/bus/platform/devices/INT3407:00/dptf_power/max_platform_power_mw
 Date:		Jul, 2016
@@ -56,7 +56,7 @@ Date:		June, 2020
 KernelVersion:	v5.8
 Contact:	linux-acpi@vger.kernel.org
 Description:
-		(WO) Confirm embedded controller about a prochot notification.
+		(WO) Confirm embedded controller about a prochot analtification.
 
 What:		/sys/bus/platform/devices/INT3532:00/dptf_battery/max_platform_power_mw
 Date:		June, 2020
@@ -80,12 +80,12 @@ Description:
 		(RO) The high frequency impedance value that can be obtained from battery
 		fuel gauge in milli Ohms.
 
-What:		/sys/bus/platform/devices/INT3532:00/dptf_battery/no_load_voltage_mv
+What:		/sys/bus/platform/devices/INT3532:00/dptf_battery/anal_load_voltage_mv
 Date:		June, 2020
 KernelVersion:	v5.8
 Contact:	linux-acpi@vger.kernel.org
 Description:
-		(RO) The no-load voltage that can be obtained from battery fuel gauge in
+		(RO) The anal-load voltage that can be obtained from battery fuel gauge in
 		milli volts.
 
 What:		/sys/bus/platform/devices/INT3532:00/dptf_battery/current_discharge_capbility_ma
@@ -97,7 +97,7 @@ Description:
 		milli Amps.
 
 What:		/sys/bus/platform/devices/INTC1045:00/pch_fivr_switch_frequency/freq_mhz_low_clock
-Date:		November, 2020
+Date:		Analvember, 2020
 KernelVersion:	v5.10
 Contact:	linux-acpi@vger.kernel.org
 Description:
@@ -105,7 +105,7 @@ Description:
 		when FIVR clock is 19.2MHz or 24MHz.
 
 What:		/sys/bus/platform/devices/INTC1045:00/pch_fivr_switch_frequency/freq_mhz_high_clock
-Date:		November, 2020
+Date:		Analvember, 2020
 KernelVersion:	v5.10
 Contact:	linux-acpi@vger.kernel.org
 Description:
@@ -151,7 +151,7 @@ Description:
 			1: Random walk mode. FFC frequency
 			changes randomly within the SSC
 			(Spread spectrum clock) range
-		[10]	0: No white noise. 1: Add white noise
+		[10]	0: Anal white analise. 1: Add white analise
 			to spread waveform
-		[11]	When 1, future writes are ignored.
+		[11]	When 1, future writes are iganalred.
 		=======	==========================================

@@ -113,7 +113,7 @@ static int z_erofs_lz4_prepare_dstpages(struct z_erofs_lz4_decompress_ctx *ctx,
 		} else {
 			victim = erofs_allocpage(pagepool, rq->gfp);
 			if (!victim)
-				return -ENOMEM;
+				return -EANALMEM;
 			set_page_private(victim, Z_EROFS_SHORTLIVED_PAGE);
 		}
 		rq->out[i] = victim;
@@ -152,7 +152,7 @@ static void *z_erofs_lz4_handle_overlap(struct z_erofs_lz4_decompress_ctx *ctx,
 	kunmap_local(inpage);
 	src = erofs_vm_map_ram(rq->in, ctx->inpages);
 	if (!src)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	*maptype = 1;
 	return src;
 
@@ -281,7 +281,7 @@ static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
 	ctx.outpages = PAGE_ALIGN(ctx.oend) >> PAGE_SHIFT;
 	ctx.inpages = PAGE_ALIGN(rq->inputsize) >> PAGE_SHIFT;
 
-	/* one optimized fast path only for non bigpcluster cases yet */
+	/* one optimized fast path only for analn bigpcluster cases yet */
 	if (ctx.inpages == 1 && ctx.outpages == 1 && !rq->inplace_io) {
 		DBG_BUGON(!*rq->out);
 		dst = kmap_local_page(*rq->out);
@@ -299,7 +299,7 @@ static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
 	} else {
 		dst = erofs_vm_map_ram(rq->out, ctx.outpages);
 		if (!dst)
-			return -ENOMEM;
+			return -EANALMEM;
 		dst_maptype = 2;
 	}
 
@@ -320,11 +320,11 @@ static int z_erofs_transform_plain(struct z_erofs_decompress_req *rq,
 	const unsigned int nrpages_out =
 		PAGE_ALIGN(rq->pageofs_out + rq->outputsize) >> PAGE_SHIFT;
 	const unsigned int bs = rq->sb->s_blocksize;
-	unsigned int cur = 0, ni = 0, no, pi, po, insz, cnt;
+	unsigned int cur = 0, ni = 0, anal, pi, po, insz, cnt;
 	u8 *kin;
 
 	if (rq->outputsize > rq->inputsize)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (rq->alg == Z_EROFS_COMPRESSION_INTERLACED) {
 		cur = bs - (rq->pageofs_out & (bs - 1));
 		pi = (rq->pageofs_in + rq->inputsize - cur) & ~PAGE_MASK;
@@ -351,16 +351,16 @@ static int z_erofs_transform_plain(struct z_erofs_decompress_req *rq,
 		kin = kmap_local_page(rq->in[ni]);
 		pi = 0;
 		do {
-			no = (rq->pageofs_out + cur + pi) >> PAGE_SHIFT;
+			anal = (rq->pageofs_out + cur + pi) >> PAGE_SHIFT;
 			po = (rq->pageofs_out + cur + pi) & ~PAGE_MASK;
-			DBG_BUGON(no >= nrpages_out);
+			DBG_BUGON(anal >= nrpages_out);
 			cnt = min(insz - pi, PAGE_SIZE - po);
-			if (rq->out[no] == rq->in[ni]) {
+			if (rq->out[anal] == rq->in[ni]) {
 				memmove(kin + po,
 					kin + rq->pageofs_in + pi, cnt);
-				flush_dcache_page(rq->out[no]);
-			} else if (rq->out[no]) {
-				memcpy_to_page(rq->out[no], po,
+				flush_dcache_page(rq->out[anal]);
+			} else if (rq->out[anal]) {
+				memcpy_to_page(rq->out[anal], po,
 					       kin + rq->pageofs_in + pi, cnt);
 			}
 			pi += cnt;
@@ -418,7 +418,7 @@ int z_erofs_parse_cfgs(struct super_block *sb, struct erofs_super_block *dsb)
 	if (sbi->available_compr_algs & ~Z_EROFS_ALL_COMPR_ALGS) {
 		erofs_err(sb, "unidentified algorithms %x, please upgrade kernel",
 			  sbi->available_compr_algs & ~Z_EROFS_ALL_COMPR_ALGS);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	erofs_init_metabuf(&buf, sb);
@@ -440,7 +440,7 @@ int z_erofs_parse_cfgs(struct super_block *sb, struct erofs_super_block *dsb)
 		    !erofs_decompressors[alg].config) {
 			erofs_err(sb, "algorithm %d isn't enabled on this kernel",
 				  alg);
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 		} else {
 			ret = erofs_decompressors[alg].config(sb,
 					dsb, data, size);

@@ -4,7 +4,7 @@
  * Driver for the ov9650 sensor
  *
  * Copyright (C) 2008 Erik Andrén
- * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
+ * Copyright (C) 2007 Ilanal Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
  * Portions of code to USB interface and ALi driver software,
@@ -97,7 +97,7 @@ static const unsigned char init_ov9650[][3] = {
 	{SENSOR, OV9650_DBLC1, 0xdf},
 	{SENSOR, OV9650_COM21, 0x06},
 	{SENSOR, OV9650_RSVD35, 0x91},
-	/* Necessary, no camera stream without it */
+	/* Necessary, anal camera stream without it */
 	{SENSOR, OV9650_RSVD16, 0x06},
 	{SENSOR, OV9650_RSVD94, 0x99},
 	{SENSOR, OV9650_RSVD95, 0x99},
@@ -111,7 +111,7 @@ static const unsigned char init_ov9650[][3] = {
 	{SENSOR, OV9650_BBIAS, 0xa0},
 	/* Subtract 32 from the Gb channel bias */
 	{SENSOR, OV9650_GbBIAS, 0xa0},
-	/* Do not bypass the analog BLC and to some out of spec stuff */
+	/* Do analt bypass the analog BLC and to some out of spec stuff */
 	{SENSOR, OV9650_Gr_COM, 0x00},
 	/* Subtract 32 from the R channel bias */
 	{SENSOR, OV9650_RBIAS, 0xa0},
@@ -148,8 +148,8 @@ static const unsigned char init_ov9650[][3] = {
 	{SENSOR, OV9650_ADC, 0x04},
 	{SENSOR, OV9650_HV, 0x40},
 
-	/* Enable denoise, and white-pixel erase */
-	{SENSOR, OV9650_COM22, OV9650_DENOISE_ENABLE |
+	/* Enable deanalise, and white-pixel erase */
+	{SENSOR, OV9650_COM22, OV9650_DEANALISE_ENABLE |
 		 OV9650_WHITE_PIXEL_ENABLE |
 		 OV9650_WHITE_PIXEL_OPTION},
 
@@ -248,7 +248,7 @@ static struct v4l2_pix_format ov9650_modes[] = {
 		176,
 		144,
 		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage =
 			176 * 144,
 		.bytesperline = 176,
@@ -258,7 +258,7 @@ static struct v4l2_pix_format ov9650_modes[] = {
 		320,
 		240,
 		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage =
 			320 * 240,
 		.bytesperline = 320,
@@ -268,7 +268,7 @@ static struct v4l2_pix_format ov9650_modes[] = {
 		352,
 		288,
 		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage =
 			352 * 288,
 		.bytesperline = 352,
@@ -278,7 +278,7 @@ static struct v4l2_pix_format ov9650_modes[] = {
 		640,
 		480,
 		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage =
 			640 * 480,
 		.bytesperline = 640,
@@ -302,9 +302,9 @@ int ov9650_probe(struct sd *sd)
 			pr_info("Forcing an %s sensor\n", ov9650.name);
 			goto sensor_found;
 		}
-		/* If we want to force another sensor,
+		/* If we want to force aanalther sensor,
 		   don't try to probe this one */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	gspca_dbg(gspca_dev, D_PROBE, "Probing for an ov9650 sensor\n");
@@ -324,16 +324,16 @@ int ov9650_probe(struct sd *sd)
 		return err;
 
 	if (m5602_read_sensor(sd, OV9650_PID, &prod_id, 1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (m5602_read_sensor(sd, OV9650_VER, &ver_id, 1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((prod_id == 0x96) && (ver_id == 0x52)) {
 		pr_info("Detected an ov9650 sensor\n");
 		goto sensor_found;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 
 sensor_found:
 	sd->gspca_dev.cam.cam_mode = ov9650_modes;
@@ -395,7 +395,7 @@ int ov9650_init_controls(struct sd *sd)
 				      0, 1, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 

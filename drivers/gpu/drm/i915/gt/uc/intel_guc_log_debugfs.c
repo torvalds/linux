@@ -84,7 +84,7 @@ static int guc_log_level_get(void *data, u64 *val)
 	struct intel_guc_log *log = data;
 
 	if (!log->vma)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*val = intel_guc_log_get_level(log);
 
@@ -96,7 +96,7 @@ static int guc_log_level_set(void *data, u64 val)
 	struct intel_guc_log *log = data;
 
 	if (!log->vma)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return intel_guc_log_set_level(log, val);
 }
@@ -105,12 +105,12 @@ DEFINE_SIMPLE_ATTRIBUTE(guc_log_level_fops,
 			guc_log_level_get, guc_log_level_set,
 			"%lld\n");
 
-static int guc_log_relay_open(struct inode *inode, struct file *file)
+static int guc_log_relay_open(struct ianalde *ianalde, struct file *file)
 {
-	struct intel_guc_log *log = inode->i_private;
+	struct intel_guc_log *log = ianalde->i_private;
 
 	if (!intel_guc_is_ready(log_to_guc(log)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	file->private_data = log;
 
@@ -143,9 +143,9 @@ guc_log_relay_write(struct file *filp,
 	return ret ?: cnt;
 }
 
-static int guc_log_relay_release(struct inode *inode, struct file *file)
+static int guc_log_relay_release(struct ianalde *ianalde, struct file *file)
 {
-	struct intel_guc_log *log = inode->i_private;
+	struct intel_guc_log *log = ianalde->i_private;
 
 	intel_guc_log_relay_close(log);
 	return 0;

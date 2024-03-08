@@ -1,6 +1,6 @@
 /*
  * Intel 3200/3210 Memory Controller kernel module
- * Copyright (C) 2008-2009 Akamai Technologies, Inc.
+ * Copyright (C) 2008-2009 Akamai Techanallogies, Inc.
  * Portions by Hitoshi Mitake <h.mitake@gmail.com>.
  *
  * This file may be distributed under the terms of the
@@ -15,7 +15,7 @@
 #include <linux/io.h>
 #include "edac_module.h"
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #define EDAC_MOD_STR        "i3200_edac"
 
@@ -44,15 +44,15 @@
 #define I3200_ERRSTS		0xc8	/* Error Status Register (16b)
 		 *
 		 * 15    reserved
-		 * 14    Isochronous TBWRR Run Behind FIFO Full
+		 * 14    Isochroanalus TBWRR Run Behind FIFO Full
 		 *       (ITCV)
-		 * 13    Isochronous TBWRR Run Behind FIFO Put
+		 * 13    Isochroanalus TBWRR Run Behind FIFO Put
 		 *       (ITSTV)
 		 * 12    reserved
 		 * 11    MCH Thermal Sensor Event
 		 *       for SMI/SCI/SERR (GTSE)
 		 * 10    reserved
-		 *  9    LOCK to non-DRAM Memory Flag (LCKF)
+		 *  9    LOCK to analn-DRAM Memory Flag (LCKF)
 		 *  8    reserved
 		 *  7    DRAM Throttle Flag (DTF)
 		 *  6:2  reserved
@@ -171,7 +171,7 @@ static void i3200_clear_error_info(struct mem_ctl_info *mci)
 
 	/*
 	 * Clear any error bits.
-	 * (Yes, we really clear bits by writing 1 to them.)
+	 * (Anal, we really clear bits by writing 1 to them.)
 	 */
 	pci_write_bits16(pdev, I3200_ERRSTS, I3200_ERRSTS_BITS,
 		I3200_ERRSTS_BITS);
@@ -187,7 +187,7 @@ static void i3200_get_and_clear_error_info(struct mem_ctl_info *mci,
 	pdev = to_pci_dev(mci->pdev);
 
 	/*
-	 * This is a mess because there is no atomic way to read all the
+	 * This is a mess because there is anal atomic way to read all the
 	 * registers at once and the registers can transition from CE being
 	 * overwritten by UE.
 	 */
@@ -204,7 +204,7 @@ static void i3200_get_and_clear_error_info(struct mem_ctl_info *mci,
 	/*
 	 * If the error is the same for both reads then the first set
 	 * of reads is valid.  If there is a change then there is a CE
-	 * with no info and the second set of reads is valid and
+	 * with anal info and the second set of reads is valid and
 	 * should be UE info.
 	 */
 	if ((info->errsts ^ info->errsts2) & I3200_ERRSTS_BITS) {
@@ -281,7 +281,7 @@ static void __iomem *i3200_map_mchbar(struct pci_dev *pdev)
 
 	window = ioremap(u.mchbar, I3200_MMR_WINDOW_SIZE);
 	if (!window)
-		printk(KERN_ERR "i3200: cannot map mmio space at 0x%llx\n",
+		printk(KERN_ERR "i3200: cananalt map mmio space at 0x%llx\n",
 			(unsigned long long)u.mchbar);
 
 	return window;
@@ -347,7 +347,7 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 
 	window = i3200_map_mchbar(pdev);
 	if (!window)
-		return -ENODEV;
+		return -EANALDEV;
 
 	i3200_get_drbs(window, drbs);
 	nr_channels = how_many_channels(pdev);
@@ -361,7 +361,7 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers,
 			    sizeof(struct i3200_priv));
 	if (!mci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edac_dbg(3, "MC: init mci\n");
 
@@ -403,14 +403,14 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 			dimm->nr_pages = nr_pages;
 			dimm->grain = nr_pages << PAGE_SHIFT;
 			dimm->mtype = MEM_DDR2;
-			dimm->dtype = DEV_UNKNOWN;
-			dimm->edac_mode = EDAC_UNKNOWN;
+			dimm->dtype = DEV_UNKANALWN;
+			dimm->edac_mode = EDAC_UNKANALWN;
 		}
 	}
 
 	i3200_clear_error_info(mci);
 
-	rc = -ENODEV;
+	rc = -EANALDEV;
 	if (edac_mc_add_mc(mci)) {
 		edac_dbg(3, "MC: failed edac_mc_add_mc()\n");
 		goto fail;
@@ -500,14 +500,14 @@ static int __init i3200_init(void)
 				PCI_DEVICE_ID_INTEL_3200_HB, NULL);
 		if (!mci_pdev) {
 			edac_dbg(0, "i3200 pci_get_device fail\n");
-			pci_rc = -ENODEV;
+			pci_rc = -EANALDEV;
 			goto fail1;
 		}
 
 		pci_rc = i3200_init_one(mci_pdev, i3200_pci_tbl);
 		if (pci_rc < 0) {
 			edac_dbg(0, "i3200 init fail\n");
-			pci_rc = -ENODEV;
+			pci_rc = -EANALDEV;
 			goto fail1;
 		}
 	}
@@ -538,7 +538,7 @@ module_init(i3200_init);
 module_exit(i3200_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Akamai Technologies, Inc.");
+MODULE_AUTHOR("Akamai Techanallogies, Inc.");
 MODULE_DESCRIPTION("MC support for Intel 3200 memory hub controllers");
 
 module_param(edac_op_state, int, 0444);

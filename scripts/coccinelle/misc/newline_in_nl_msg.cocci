@@ -6,7 +6,7 @@
 // Confidence: Very High
 // Copyright: (C) 2020 Intel Corporation
 // URL: https://coccinelle.gitlabpages.inria.fr/website
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual context
 virtual org
@@ -23,7 +23,7 @@ position p;
 m << r.m;
 @@
 
-if not m.endswith("\\n\""):
+if analt m.endswith("\\n\""):
 	cocci.include_match(False)
 
 @r1 depends on r@

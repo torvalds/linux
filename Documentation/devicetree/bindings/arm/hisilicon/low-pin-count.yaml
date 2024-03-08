@@ -12,15 +12,15 @@ maintainers:
 description: |
   Hisilicon HiP06 SoCs implement a Low Pin Count (LPC) controller, which
   provides I/O access to some legacy ISA devices.
-  HiP06 is based on arm64 architecture where there is no I/O space. So, the
-  I/O ports here are not CPU addresses, and there is no 'ranges' property in
-  LPC device node.
+  HiP06 is based on arm64 architecture where there is anal I/O space. So, the
+  I/O ports here are analt CPU addresses, and there is anal 'ranges' property in
+  LPC device analde.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^isa@[0-9a-f]+$'
     description: |
-      The node name before '@' must be "isa" to represent the binding stick
+      The analde name before '@' must be "isa" to represent the binding stick
       to the ISA/EISA binding specification.
 
   compatible:

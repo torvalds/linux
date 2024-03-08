@@ -3,7 +3,7 @@
 #define INCLUDE_XEN_OPS_H
 
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/efi.h>
 #include <linux/virtio_anchor.h>
 #include <xen/features.h>
@@ -29,8 +29,8 @@ void xen_arch_suspend(void);
 
 void xen_reboot(int reason);
 
-void xen_resume_notifier_register(struct notifier_block *nb);
-void xen_resume_notifier_unregister(struct notifier_block *nb);
+void xen_resume_analtifier_register(struct analtifier_block *nb);
+void xen_resume_analtifier_unregister(struct analtifier_block *nb);
 
 bool xen_vcpu_stolen(int vcpu);
 void xen_setup_runstate_info(int cpu);
@@ -46,12 +46,12 @@ extern unsigned long *xen_contiguous_bitmap;
 #if defined(CONFIG_XEN_PV)
 int xen_remap_pfn(struct vm_area_struct *vma, unsigned long addr,
 		  xen_pfn_t *pfn, int nr, int *err_ptr, pgprot_t prot,
-		  unsigned int domid, bool no_translate);
+		  unsigned int domid, bool anal_translate);
 #else
 static inline int xen_remap_pfn(struct vm_area_struct *vma, unsigned long addr,
 				xen_pfn_t *pfn, int nr, int *err_ptr,
 				pgprot_t prot,  unsigned int domid,
-				bool no_translate)
+				bool anal_translate)
 {
 	BUG();
 	return 0;
@@ -72,7 +72,7 @@ int xen_xlate_unmap_gfn_range(struct vm_area_struct *vma,
 #else
 /*
  * These two functions are called from arch/x86/xen/mmu.c and so stubs
- * are needed for a configuration not specifying CONFIG_XEN_AUTO_XLATE.
+ * are needed for a configuration analt specifying CONFIG_XEN_AUTO_XLATE.
  */
 static inline int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
 					    unsigned long addr,
@@ -81,13 +81,13 @@ static inline int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
 					    unsigned int domid,
 					    struct page **pages)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int xen_xlate_unmap_gfn_range(struct vm_area_struct *vma,
 					    int nr, struct page **pages)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -153,7 +153,7 @@ static inline int xen_remap_domain_mfn_array(struct vm_area_struct *vma,
 					     pgprot_t prot, unsigned int domid)
 {
 	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return xen_remap_pfn(vma, addr, mfn, nr, err_ptr, prot, domid,
 			     true);
@@ -178,7 +178,7 @@ static inline int xen_remap_domain_gfn_range(struct vm_area_struct *vma,
 					     struct page **pages)
 {
 	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return xen_remap_pfn(vma, addr, &gfn, nr, NULL, prot, domid, false);
 }
@@ -189,7 +189,7 @@ int xen_unmap_domain_gfn_range(struct vm_area_struct *vma,
 int xen_xlate_map_ballooned_pages(xen_pfn_t **pfns, void **vaddr,
 				  unsigned long nr_grant_frames);
 
-bool xen_running_on_version_or_later(unsigned int major, unsigned int minor);
+bool xen_running_on_version_or_later(unsigned int major, unsigned int mianalr);
 
 void xen_efi_runtime_setup(void);
 

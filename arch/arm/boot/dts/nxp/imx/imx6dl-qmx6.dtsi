@@ -87,7 +87,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "sst,sst25vf032b", "jedec,spi-nor";
+		compatible = "sst,sst25vf032b", "jedec,spi-analr";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 
@@ -322,7 +322,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
-	no-1-8-v;
+	anal-1-8-v;
 	keep-power-in-suspend;
 	wakeup-source;
 	vmmc-supply = <&reg_3p3v>;
@@ -333,9 +333,9 @@
 	/* eMMC module */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
-	non-removable;
+	analn-removable;
 	bus-width = <8>;
-	no-1-8-v;
+	anal-1-8-v;
 	keep-power-in-suspend;
 	wakeup-source;
 	vmmc-supply = <&reg_3p3v>;
@@ -532,7 +532,7 @@
 			>;
 		};
 
-		/* SPI1 bus does not leave System on Module */
+		/* SPI1 bus does analt leave System on Module */
 		pinctrl_spi1: spi1 {
 			fsl,pins = <
 				MX6QDL_PAD_EIM_D16__ECSPI1_SCLK		0x100b1

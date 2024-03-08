@@ -3,7 +3,7 @@
  *  sst_mfld_platform.h - Intel MID Platform driver header file
  *
  *  Copyright (C) 2010 Intel Corp
- *  Author: Vinod Koul <vinod.koul@intel.com>
+ *  Author: Vianald Koul <vianald.koul@intel.com>
  *  Author: Harsha Priya <priya.harsha@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -21,7 +21,7 @@ extern const struct snd_compress_ops sst_platform_compress_ops;
 
 #define DRV_NAME "sst"
 
-#define SST_MONO		1
+#define SST_MOANAL		1
 #define SST_STEREO		2
 #define SST_MAX_CAP		5
 
@@ -67,7 +67,7 @@ enum sst_audio_device_type {
 /* PCM Parameters */
 struct sst_pcm_params {
 	u16 codec;	/* codec type */
-	u8 num_chan;	/* 1=Mono, 2=Stereo */
+	u8 num_chan;	/* 1=Moanal, 2=Stereo */
 	u8 pcm_wd_sz;	/* 16/24 - bit*/
 	u32 reserved;	/* Bitrate in bits per second */
 	u32 sfreq;	/* Sampling rate in Hz */
@@ -90,7 +90,7 @@ struct sst_compress_cb {
 	void *param;
 	void (*compr_cb)(void *param);
 	void *drain_cb_param;
-	void (*drain_notify)(void *param);
+	void (*drain_analtify)(void *param);
 };
 
 struct compress_sst_ops {

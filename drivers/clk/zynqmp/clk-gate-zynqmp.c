@@ -100,14 +100,14 @@ static const struct clk_ops zynqmp_clk_gate_ops = {
  * @clk_id:		Id of this clock
  * @parents:		Name of this clock's parents
  * @num_parents:	Number of parents
- * @nodes:		Clock topology node
+ * @analdes:		Clock topology analde
  *
  * Return: clock hardware of the registered clock gate
  */
 struct clk_hw *zynqmp_clk_register_gate(const char *name, u32 clk_id,
 					const char * const *parents,
 					u8 num_parents,
-					const struct clock_topology *nodes)
+					const struct clock_topology *analdes)
 {
 	struct zynqmp_clk_gate *gate;
 	struct clk_hw *hw;
@@ -117,18 +117,18 @@ struct clk_hw *zynqmp_clk_register_gate(const char *name, u32 clk_id,
 	/* allocate the gate */
 	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 	if (!gate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &zynqmp_clk_gate_ops;
 
-	init.flags = zynqmp_clk_map_common_ccf_flags(nodes->flag);
+	init.flags = zynqmp_clk_map_common_ccf_flags(analdes->flag);
 
 	init.parent_names = parents;
 	init.num_parents = 1;
 
 	/* struct clk_gate assignments */
-	gate->flags = nodes->type_flag;
+	gate->flags = analdes->type_flag;
 	gate->hw.init = &init;
 	gate->clk_id = clk_id;
 

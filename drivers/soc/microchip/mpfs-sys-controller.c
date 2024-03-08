@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2020-2021 Microchip Corporation. All rights reserved.
  *
- * Author: Conor Dooley <conor.dooley@microchip.com>
+ * Author: Coanalr Dooley <coanalr.dooley@microchip.com>
  *
  */
 
@@ -56,7 +56,7 @@ int mpfs_blocking_transaction(struct mpfs_sys_controller *sys_controller, struct
 	/*
 	 * Unfortunately, the system controller will only deliver an interrupt
 	 * if a service succeeds. mbox_send_message() will block until the busy
-	 * flag is gone. If the busy flag is gone but no interrupt has arrived
+	 * flag is gone. If the busy flag is gone but anal interrupt has arrived
 	 * to trigger the rx callback then the service can be deemed to have
 	 * failed.
 	 * The caller can then interrogate msg::response::resp_status to
@@ -129,23 +129,23 @@ static int mpfs_sys_controller_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mpfs_sys_controller *sys_controller;
-	struct device_node *np;
+	struct device_analde *np;
 	int i, ret;
 
 	sys_controller = kzalloc(sizeof(*sys_controller), GFP_KERNEL);
 	if (!sys_controller)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	np = of_parse_phandle(dev->of_node, "microchip,bitstream-flash", 0);
+	np = of_parse_phandle(dev->of_analde, "microchip,bitstream-flash", 0);
 	if (!np)
-		goto no_flash;
+		goto anal_flash;
 
-	sys_controller->flash = of_get_mtd_device_by_node(np);
-	of_node_put(np);
+	sys_controller->flash = of_get_mtd_device_by_analde(np);
+	of_analde_put(np);
 	if (IS_ERR(sys_controller->flash))
 		return dev_err_probe(dev, PTR_ERR(sys_controller->flash), "Failed to get flash\n");
 
-no_flash:
+anal_flash:
 	sys_controller->client.dev = dev;
 	sys_controller->client.rx_callback = mpfs_sys_controller_rx_callback;
 	sys_controller->client.tx_block = 1U;
@@ -196,12 +196,12 @@ struct mpfs_sys_controller *mpfs_sys_controller_get(struct device *dev)
 	int ret;
 
 	if (!dev->parent)
-		goto err_no_device;
+		goto err_anal_device;
 
-	match = of_match_node(mpfs_sys_controller_of_match,  dev->parent->of_node);
-	of_node_put(dev->parent->of_node);
+	match = of_match_analde(mpfs_sys_controller_of_match,  dev->parent->of_analde);
+	of_analde_put(dev->parent->of_analde);
 	if (!match)
-		goto err_no_device;
+		goto err_anal_device;
 
 	sys_controller = dev_get_drvdata(dev->parent);
 	if (!sys_controller)
@@ -216,12 +216,12 @@ struct mpfs_sys_controller *mpfs_sys_controller_get(struct device *dev)
 
 	return sys_controller;
 
-err_no_device:
-	dev_dbg(dev, "Parent device was not an MPFS system controller\n");
-	return ERR_PTR(-ENODEV);
+err_anal_device:
+	dev_dbg(dev, "Parent device was analt an MPFS system controller\n");
+	return ERR_PTR(-EANALDEV);
 
 err_bad_device:
-	dev_dbg(dev, "MPFS system controller found but could not register as a sub device\n");
+	dev_dbg(dev, "MPFS system controller found but could analt register as a sub device\n");
 	return ERR_PTR(-EPROBE_DEFER);
 }
 EXPORT_SYMBOL(mpfs_sys_controller_get);
@@ -237,5 +237,5 @@ static struct platform_driver mpfs_sys_controller_driver = {
 module_platform_driver(mpfs_sys_controller_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
+MODULE_AUTHOR("Coanalr Dooley <coanalr.dooley@microchip.com>");
 MODULE_DESCRIPTION("MPFS system controller driver");

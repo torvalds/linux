@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -61,7 +61,7 @@ enum rport_type_fcoe {
 	FDISC_VFPORT	= 0x2,		/* 0xfffffe */
 	NS_VNPORT	= 0x3,		/* 0xfffffc */
 	REG_FC4_VNPORT	= 0x4,		/* any FC4 type VN_PORT */
-	REG_VNPORT	= 0x5,		/* 0xfffxxx - non FC4 port in switch */
+	REG_VNPORT	= 0x5,		/* 0xfffxxx - analn FC4 port in switch */
 	FDMI_VNPORT	= 0x6,		/* 0xfffffa */
 	FAB_CTLR_VNPORT	= 0x7,		/* 0xfffffd */
 };
@@ -156,8 +156,8 @@ struct fw_rdev_wr {
 			__be16 r4;
 			__be16 def_time2wait;
 			__be16 def_time2ret;
-			__be16 nop_out_intrvl;
-			__be16 non_scsi_to;
+			__be16 analp_out_intrvl;
+			__be16 analn_scsi_to;
 			__be16 isid;
 			__be16 tsid;
 			__be16 port;
@@ -438,8 +438,8 @@ struct fw_fcoe_stats_cmd {
 			__be16 fka_prd_chg;
 			__be16 fc_map_chg;
 			__be16 vfid_chg;
-			u8   no_fka_req;
-			u8   no_vnp;
+			u8   anal_fka_req;
+			u8   anal_vnp;
 		} fcf_stats;
 		struct fw_fcoe_pcb_stats {
 			__be64 tx_bytes;
@@ -454,7 +454,7 @@ struct fw_fcoe_stats_cmd {
 			__be16 fdisc_inv_sparm;
 			__be16 flogi_rjt;
 			__be16 fdisc_rjt;
-			__be16 no_ssn;
+			__be16 anal_ssn;
 			__be16 mac_flt_fail;
 			__be16 inv_fr_rcvd;
 		} pcb_stats;
@@ -468,19 +468,19 @@ struct fw_fcoe_stats_cmd {
 			__be32 adap_abrt_rsp;
 			__be32 host_ios_req;
 			__be16 ssn_offl_ios;
-			__be16 ssn_not_rdy_ios;
+			__be16 ssn_analt_rdy_ios;
 			u8   rx_data_ddp_err;
 			u8   ddp_flt_set_err;
 			__be16 rx_data_fr_err;
 			u8   bad_st_abrt_req;
-			u8   no_io_abrt_req;
+			u8   anal_io_abrt_req;
 			u8   abort_tmo;
 			u8   abort_tmo_2;
 			__be32 abort_req;
-			u8   no_ppod_res_tmo;
+			u8   anal_ppod_res_tmo;
 			u8   bp_tmo;
 			u8   adap_auto_cls;
-			u8   no_io_cls_req;
+			u8   anal_io_cls_req;
 			__be32 host_cls_req;
 			__be64 unsol_cmd_rcvd;
 			__be32 plogi_req_rcvd;

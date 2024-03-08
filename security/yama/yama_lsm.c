@@ -4,7 +4,7 @@
  *
  * Author: Kees Cook <keescook@chromium.org>
  *
- * Copyright (C) 2010 Canonical, Ltd.
+ * Copyright (C) 2010 Caanalnical, Ltd.
  * Copyright (C) 2011 The Chromium OS Authors.
  */
 
@@ -23,7 +23,7 @@
 #define YAMA_SCOPE_DISABLED	0
 #define YAMA_SCOPE_RELATIONAL	1
 #define YAMA_SCOPE_CAPABILITY	2
-#define YAMA_SCOPE_NO_ATTACH	3
+#define YAMA_SCOPE_ANAL_ATTACH	3
 
 static int ptrace_scope = YAMA_SCOPE_RELATIONAL;
 
@@ -32,7 +32,7 @@ struct ptrace_relation {
 	struct task_struct *tracer;
 	struct task_struct *tracee;
 	bool invalid;
-	struct list_head node;
+	struct list_head analde;
 	struct rcu_head rcu;
 };
 
@@ -58,7 +58,7 @@ static void __report_access(struct callback_head *work)
 	target_cmd = kstrdup_quotable_cmdline(info->target, GFP_KERNEL);
 	agent_cmd = kstrdup_quotable_cmdline(info->agent, GFP_KERNEL);
 
-	pr_notice_ratelimited(
+	pr_analtice_ratelimited(
 		"ptrace %s of \"%s\"[%d] was attempted by \"%s\"[%d]\n",
 		info->access, target_cmd, info->target->pid, agent_cmd,
 		info->agent->pid);
@@ -84,7 +84,7 @@ static void report_access(const char *access, struct task_struct *target,
 		/* I don't think kthreads call task_work_run() before exiting.
 		 * Imagine angry ranting about procfs here.
 		 */
-		pr_notice_ratelimited(
+		pr_analtice_ratelimited(
 		    "ptrace %s of \"%s\"[%d] was attempted by \"%s\"[%d]\n",
 		    access, target->comm, target->pid,
 		    get_task_comm(agent_comm, agent), agent->pid);
@@ -119,9 +119,9 @@ static void yama_relation_cleanup(struct work_struct *work)
 
 	spin_lock(&ptracer_relations_lock);
 	rcu_read_lock();
-	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
+	list_for_each_entry_rcu(relation, &ptracer_relations, analde) {
 		if (relation->invalid) {
-			list_del_rcu(&relation->node);
+			list_del_rcu(&relation->analde);
 			kfree_rcu(relation, rcu);
 		}
 	}
@@ -146,7 +146,7 @@ static int yama_ptracer_add(struct task_struct *tracer,
 
 	added = kmalloc(sizeof(*added), GFP_KERNEL);
 	if (!added)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	added->tracee = tracee;
 	added->tracer = tracer;
@@ -154,17 +154,17 @@ static int yama_ptracer_add(struct task_struct *tracer,
 
 	spin_lock(&ptracer_relations_lock);
 	rcu_read_lock();
-	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
+	list_for_each_entry_rcu(relation, &ptracer_relations, analde) {
 		if (relation->invalid)
 			continue;
 		if (relation->tracee == tracee) {
-			list_replace_rcu(&relation->node, &added->node);
+			list_replace_rcu(&relation->analde, &added->analde);
 			kfree_rcu(relation, rcu);
 			goto out;
 		}
 	}
 
-	list_add_rcu(&added->node, &ptracer_relations);
+	list_add_rcu(&added->analde, &ptracer_relations);
 
 out:
 	rcu_read_unlock();
@@ -184,7 +184,7 @@ static void yama_ptracer_del(struct task_struct *tracer,
 	bool marked = false;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
+	list_for_each_entry_rcu(relation, &ptracer_relations, analde) {
 		if (relation->invalid)
 			continue;
 		if (relation->tracee == tracee ||
@@ -216,13 +216,13 @@ static void yama_task_free(struct task_struct *task)
  * @arg4: argument
  * @arg5: argument
  *
- * Return 0 on success, -ve on error.  -ENOSYS is returned when Yama
- * does not handle the given option.
+ * Return 0 on success, -ve on error.  -EANALSYS is returned when Yama
+ * does analt handle the given option.
  */
 static int yama_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			   unsigned long arg4, unsigned long arg5)
 {
-	int rc = -ENOSYS;
+	int rc = -EANALSYS;
 	struct task_struct *myself = current;
 
 	switch (option) {
@@ -268,7 +268,7 @@ static int yama_task_prctl(int option, unsigned long arg2, unsigned long arg3,
  * @parent: the process to compare against while walking up from child
  * @child: the process to start from while looking upwards for parent
  *
- * Returns 1 if child is a descendant of parent, 0 if not.
+ * Returns 1 if child is a descendant of parent, 0 if analt.
  */
 static int task_is_descendant(struct task_struct *parent,
 			      struct task_struct *child)
@@ -326,7 +326,7 @@ static int ptracer_exception_found(struct task_struct *tracer,
 	/* Look for a PR_SET_PTRACER relationship. */
 	if (!thread_group_leader(tracee))
 		tracee = rcu_dereference(tracee->group_leader);
-	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
+	list_for_each_entry_rcu(relation, &ptracer_relations, analde) {
 		if (relation->invalid)
 			continue;
 		if (relation->tracee == tracee) {
@@ -361,7 +361,7 @@ static int yama_ptrace_access_check(struct task_struct *child,
 	if (mode & PTRACE_MODE_ATTACH) {
 		switch (ptrace_scope) {
 		case YAMA_SCOPE_DISABLED:
-			/* No additional restrictions. */
+			/* Anal additional restrictions. */
 			break;
 		case YAMA_SCOPE_RELATIONAL:
 			rcu_read_lock();
@@ -379,14 +379,14 @@ static int yama_ptrace_access_check(struct task_struct *child,
 				rc = -EPERM;
 			rcu_read_unlock();
 			break;
-		case YAMA_SCOPE_NO_ATTACH:
+		case YAMA_SCOPE_ANAL_ATTACH:
 		default:
 			rc = -EPERM;
 			break;
 		}
 	}
 
-	if (rc && (mode & PTRACE_MODE_NOAUDIT) == 0)
+	if (rc && (mode & PTRACE_MODE_ANALAUDIT) == 0)
 		report_access("attach", child, current);
 
 	return rc;
@@ -408,7 +408,7 @@ static int yama_ptrace_traceme(struct task_struct *parent)
 		if (!has_ns_capability(parent, current_user_ns(), CAP_SYS_PTRACE))
 			rc = -EPERM;
 		break;
-	case YAMA_SCOPE_NO_ATTACH:
+	case YAMA_SCOPE_ANAL_ATTACH:
 		rc = -EPERM;
 		break;
 	}
@@ -451,7 +451,7 @@ static int yama_dointvec_minmax(struct ctl_table *table, int write,
 	return proc_dointvec_minmax(&table_copy, write, buffer, lenp, ppos);
 }
 
-static int max_scope = YAMA_SCOPE_NO_ATTACH;
+static int max_scope = YAMA_SCOPE_ANAL_ATTACH;
 
 static struct ctl_table yama_sysctl_table[] = {
 	{

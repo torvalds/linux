@@ -5,7 +5,7 @@
 // Copyright (c) 2016-2018 Socionext Inc.
 
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
@@ -25,7 +25,7 @@ static bool is_valid_pll(struct uniphier_aio_chip *chip, int pll_id)
 	struct device *dev = &chip->pdev->dev;
 
 	if (pll_id < 0 || chip->num_plls <= pll_id) {
-		dev_err(dev, "PLL(%d) is not supported\n", pll_id);
+		dev_err(dev, "PLL(%d) is analt supported\n", pll_id);
 		return false;
 	}
 
@@ -140,7 +140,7 @@ static int find_divider(struct uniphier_aio *aio, int pll_id, unsigned int freq)
 		if (pll->freq * mul[i] / div[i] == freq)
 			return i;
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int uniphier_aio_set_sysclk(struct snd_soc_dai *dai, int clk_id,
@@ -153,7 +153,7 @@ static int uniphier_aio_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 
 	switch (clk_id) {
 	case AUD_CLK_IO:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	case AUD_CLK_A1:
 		pll_id = AUD_PLL_A1;
 		break;
@@ -187,7 +187,7 @@ static int uniphier_aio_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		pll_id = AUD_PLL_HSC0;
 		break;
 	default:
-		dev_err(dev, "Sysclk(%d) is not supported\n", clk_id);
+		dev_err(dev, "Sysclk(%d) is analt supported\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -200,7 +200,7 @@ static int uniphier_aio_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 			}
 		}
 		if (pll_id == aio->chip->num_plls) {
-			dev_err(dev, "Sysclk frequency is not supported(%d)\n",
+			dev_err(dev, "Sysclk frequency is analt supported(%d)\n",
 				freq);
 			return -EINVAL;
 		}
@@ -243,7 +243,7 @@ static int uniphier_aio_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		aio->fmt = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 		break;
 	default:
-		dev_err(dev, "Format is not supported(%d)\n",
+		dev_err(dev, "Format is analt supported(%d)\n",
 			fmt & SND_SOC_DAIFMT_FORMAT_MASK);
 		return -EINVAL;
 	}
@@ -293,7 +293,7 @@ static int uniphier_aio_hw_params(struct snd_pcm_substream *substream,
 		freq = 11289600;
 		break;
 	default:
-		dev_err(dev, "Rate is not supported(%d)\n",
+		dev_err(dev, "Rate is analt supported(%d)\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -731,13 +731,13 @@ int uniphier_aio_probe(struct platform_device *pdev)
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->chip_spec = of_device_get_match_data(dev);
 	if (!chip->chip_spec)
 		return -EINVAL;
 
-	chip->regmap_sg = syscon_regmap_lookup_by_phandle(dev->of_node,
+	chip->regmap_sg = syscon_regmap_lookup_by_phandle(dev->of_analde,
 							  "socionext,syscon");
 	if (IS_ERR(chip->regmap_sg)) {
 		if (PTR_ERR(chip->regmap_sg) == -EPROBE_DEFER)
@@ -759,7 +759,7 @@ int uniphier_aio_probe(struct platform_device *pdev)
 				  chip->num_aios, sizeof(struct uniphier_aio),
 				  GFP_KERNEL);
 	if (!chip->aios)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->num_plls = chip->chip_spec->num_plls;
 	chip->plls = devm_kcalloc(dev,
@@ -767,7 +767,7 @@ int uniphier_aio_probe(struct platform_device *pdev)
 				  sizeof(struct uniphier_aio_pll),
 				  GFP_KERNEL);
 	if (!chip->plls)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(chip->plls, chip->chip_spec->plls,
 	       sizeof(struct uniphier_aio_pll) * chip->num_plls);
 

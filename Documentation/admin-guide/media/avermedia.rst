@@ -1,12 +1,12 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ======================================
-Avermedia DVB-T on BT878 Release Notes
+Avermedia DVB-T on BT878 Release Analtes
 ======================================
 
 February 14th 2006
 
-.. note::
+.. analte::
 
    Several other Avermedia devices are supported. For a more
    broader and updated content about that, please check:
@@ -23,7 +23,7 @@ The Avermedia DVB-T is a budget PCI DVB card. It has 3 inputs:
 * SVIDEO Input (Mini-DIN)
 
 The  RF  Tuner  Input  is the input to the tuner module of the
-card.  The  Tuner  is  otherwise known as the "Frontend" . The
+card.  The  Tuner  is  otherwise kanalwn as the "Frontend" . The
 Frontend of the Avermedia DVB-T is a Microtune 7202D. A timely
 post  to  the  linux-dvb  mailing  list  ascertained  that the
 Microtune  7202D  is  supported  by the sp887x driver which is
@@ -31,7 +31,7 @@ found in the dvb-hw CVS module.
 
 The  DVB-T card is based around the BT878 chip which is a very
 common multimedia bridge and often found on Analogue TV cards.
-There is no on-board MPEG2 decoder, which means that all MPEG2
+There is anal on-board MPEG2 decoder, which means that all MPEG2
 decoding  must  be done in software, or if you have one, on an
 MPEG2 hardware decoding card or chipset.
 
@@ -39,25 +39,25 @@ MPEG2 hardware decoding card or chipset.
 Getting the card going
 ~~~~~~~~~~~~~~~~~~~~~~
 
-At  this  stage,  it  has  not  been  able  to  ascertain  the
-functionality  of the remaining device nodes in respect of the
+At  this  stage,  it  has  analt  been  able  to  ascertain  the
+functionality  of the remaining device analdes in respect of the
 Avermedia  DVBT.  However,  full  functionality  in respect of
 tuning,  receiving  and  supplying  the  MPEG2  data stream is
 possible  with the currently available versions of the driver.
 It  may be possible that additional functionality is available
 from  the  card  (i.e.  viewing the additional analogue inputs
-that  the card presents), but this has not been tested yet. If
+that  the card presents), but this has analt been tested yet. If
 I get around to this, I'll update the document with whatever I
 find.
 
 To  power  up  the  card,  load  the  following modules in the
 following order:
 
-* modprobe bttv (normally loaded automatically)
+* modprobe bttv (analrmally loaded automatically)
 * modprobe dvb-bt8xx (or place dvb-bt8xx in /etc/modules)
 
 Insertion  of  these  modules  into  the  running  kernel will
-activate the appropriate DVB device nodes. It is then possible
+activate the appropriate DVB device analdes. It is then possible
 to start accessing the card with utilities such as scan, tzap,
 dvbstream etc.
 
@@ -66,18 +66,18 @@ Please use  the  command "get_dvb_firmware sp887x" to download
 it. Then copy it to /usr/lib/hotplug/firmware or /lib/firmware/
 (depending on configuration of firmware hotplug).
 
-Known Limitations
+Kanalwn Limitations
 ~~~~~~~~~~~~~~~~~
 
 At  present  I can say with confidence that the frontend tunes
 via /dev/dvb/adapter{x}/frontend0 and supplies an MPEG2 stream
-via   /dev/dvb/adapter{x}/dvr0.   I   have   not   tested  the
+via   /dev/dvb/adapter{x}/dvr0.   I   have   analt   tested  the
 functionality  of any other part of the card yet. I will do so
 over time and update this document.
 
 There  are some limitations in the i2c layer due to a returned
 error message inconsistency. Although this generates errors in
-dmesg  and  the  system logs, it does not appear to affect the
+dmesg  and  the  system logs, it does analt appear to affect the
 ability of the frontend to function correctly.
 
 Further Update

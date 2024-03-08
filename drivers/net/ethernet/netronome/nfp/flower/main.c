@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #include <linux/etherdevice.h>
 #include <linux/lockdep.h>
@@ -137,7 +137,7 @@ nfp_flower_internal_port_event_handler(struct nfp_app *app,
 	    nfp_flower_internal_port_can_offload(app, netdev))
 		nfp_flower_free_internal_port_id(app, netdev);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void nfp_flower_internal_port_init(struct nfp_flower_priv *priv)
@@ -151,15 +151,15 @@ static void nfp_flower_internal_port_cleanup(struct nfp_flower_priv *priv)
 	idr_destroy(&priv->internal_ports.port_ids);
 }
 
-static struct nfp_flower_non_repr_priv *
-nfp_flower_non_repr_priv_lookup(struct nfp_app *app, struct net_device *netdev)
+static struct nfp_flower_analn_repr_priv *
+nfp_flower_analn_repr_priv_lookup(struct nfp_app *app, struct net_device *netdev)
 {
 	struct nfp_flower_priv *priv = app->priv;
-	struct nfp_flower_non_repr_priv *entry;
+	struct nfp_flower_analn_repr_priv *entry;
 
 	ASSERT_RTNL();
 
-	list_for_each_entry(entry, &priv->non_repr_priv, list)
+	list_for_each_entry(entry, &priv->analn_repr_priv, list)
 		if (entry->netdev == netdev)
 			return entry;
 
@@ -167,18 +167,18 @@ nfp_flower_non_repr_priv_lookup(struct nfp_app *app, struct net_device *netdev)
 }
 
 void
-__nfp_flower_non_repr_priv_get(struct nfp_flower_non_repr_priv *non_repr_priv)
+__nfp_flower_analn_repr_priv_get(struct nfp_flower_analn_repr_priv *analn_repr_priv)
 {
-	non_repr_priv->ref_count++;
+	analn_repr_priv->ref_count++;
 }
 
-struct nfp_flower_non_repr_priv *
-nfp_flower_non_repr_priv_get(struct nfp_app *app, struct net_device *netdev)
+struct nfp_flower_analn_repr_priv *
+nfp_flower_analn_repr_priv_get(struct nfp_app *app, struct net_device *netdev)
 {
 	struct nfp_flower_priv *priv = app->priv;
-	struct nfp_flower_non_repr_priv *entry;
+	struct nfp_flower_analn_repr_priv *entry;
 
-	entry = nfp_flower_non_repr_priv_lookup(app, netdev);
+	entry = nfp_flower_analn_repr_priv_lookup(app, netdev);
 	if (entry)
 		goto inc_ref;
 
@@ -187,33 +187,33 @@ nfp_flower_non_repr_priv_get(struct nfp_app *app, struct net_device *netdev)
 		return NULL;
 
 	entry->netdev = netdev;
-	list_add(&entry->list, &priv->non_repr_priv);
+	list_add(&entry->list, &priv->analn_repr_priv);
 
 inc_ref:
-	__nfp_flower_non_repr_priv_get(entry);
+	__nfp_flower_analn_repr_priv_get(entry);
 	return entry;
 }
 
 void
-__nfp_flower_non_repr_priv_put(struct nfp_flower_non_repr_priv *non_repr_priv)
+__nfp_flower_analn_repr_priv_put(struct nfp_flower_analn_repr_priv *analn_repr_priv)
 {
-	if (--non_repr_priv->ref_count)
+	if (--analn_repr_priv->ref_count)
 		return;
 
-	list_del(&non_repr_priv->list);
-	kfree(non_repr_priv);
+	list_del(&analn_repr_priv->list);
+	kfree(analn_repr_priv);
 }
 
 void
-nfp_flower_non_repr_priv_put(struct nfp_app *app, struct net_device *netdev)
+nfp_flower_analn_repr_priv_put(struct nfp_app *app, struct net_device *netdev)
 {
-	struct nfp_flower_non_repr_priv *entry;
+	struct nfp_flower_analn_repr_priv *entry;
 
-	entry = nfp_flower_non_repr_priv_lookup(app, netdev);
+	entry = nfp_flower_analn_repr_priv_lookup(app, netdev);
 	if (!entry)
 		return;
 
-	__nfp_flower_non_repr_priv_put(entry);
+	__nfp_flower_analn_repr_priv_put(entry);
 }
 
 static enum nfp_repr_type
@@ -308,7 +308,7 @@ nfp_flower_wait_repr_reify(struct nfp_app *app, atomic_t *replies, int tot_repl)
 	if (!wait_event_timeout(priv->reify_wait_queue,
 				atomic_read(replies) >= tot_repl,
 				NFP_FL_REPLY_TIMEOUT)) {
-		nfp_warn(app->cpp, "Not all reprs responded to reify\n");
+		nfp_warn(app->cpp, "Analt all reprs responded to reify\n");
 		return -EIO;
 	}
 
@@ -356,7 +356,7 @@ nfp_flower_repr_netdev_preclean(struct nfp_app *app, struct net_device *netdev)
 	atomic_set(replies, 0);
 	err = nfp_flower_cmsg_portreify(repr, false);
 	if (err) {
-		nfp_warn(app->cpp, "Failed to notify firmware about repr destruction\n");
+		nfp_warn(app->cpp, "Failed to analtify firmware about repr destruction\n");
 		return;
 	}
 
@@ -393,7 +393,7 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 
 	reprs = nfp_reprs_alloc(cnt);
 	if (!reprs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < cnt; i++) {
 		struct net_device *repr;
@@ -402,13 +402,13 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 
 		repr = nfp_repr_alloc(app);
 		if (!repr) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_reprs_clean;
 		}
 
 		repr_priv = kzalloc(sizeof(*repr_priv), GFP_KERNEL);
 		if (!repr_priv) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			nfp_repr_free(repr);
 			goto err_reprs_clean;
 		}
@@ -417,7 +417,7 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 		nfp_repr->app_priv = repr_priv;
 		repr_priv->nfp_repr = nfp_repr;
 
-		/* For now we only support 1 PF */
+		/* For analw we only support 1 PF */
 		WARN_ON(repr_type == NFP_REPR_TYPE_PF && i);
 
 		port = nfp_port_alloc(app, port_type, repr);
@@ -462,7 +462,7 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 	reify_cnt = nfp_flower_reprs_reify(app, repr_type, true);
 	if (reify_cnt < 0) {
 		err = reify_cnt;
-		nfp_warn(app->cpp, "Failed to notify firmware about repr creation\n");
+		nfp_warn(app->cpp, "Failed to analtify firmware about repr creation\n");
 		goto err_reprs_remove;
 	}
 
@@ -504,11 +504,11 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 
 	ctrl_skb = nfp_flower_cmsg_mac_repr_start(app, eth_tbl->count);
 	if (!ctrl_skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reprs = nfp_reprs_alloc(eth_tbl->max_index + 1);
 	if (!reprs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_ctrl_skb;
 	}
 
@@ -520,13 +520,13 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 
 		repr = nfp_repr_alloc(app);
 		if (!repr) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_reprs_clean;
 		}
 
 		repr_priv = kzalloc(sizeof(*repr_priv), GFP_KERNEL);
 		if (!repr_priv) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			nfp_repr_free(repr);
 			goto err_reprs_clean;
 		}
@@ -586,7 +586,7 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 	reify_cnt = nfp_flower_reprs_reify(app, NFP_REPR_TYPE_PHYS_PORT, true);
 	if (reify_cnt < 0) {
 		err = reify_cnt;
-		nfp_warn(app->cpp, "Failed to notify firmware about repr creation\n");
+		nfp_warn(app->cpp, "Failed to analtify firmware about repr creation\n");
 		goto err_reprs_remove;
 	}
 
@@ -616,7 +616,7 @@ static int nfp_flower_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
 
 	eth_hw_addr_random(nn->dp.netdev);
 	netif_keep_dst(nn->dp.netdev);
-	nn->vnic_no_name = true;
+	nn->vnic_anal_name = true;
 
 	return 0;
 
@@ -688,7 +688,7 @@ static void nfp_flower_wait_host_bit(struct nfp_app *app)
 					 &err);
 		if (time_is_before_eq_jiffies(err_at)) {
 			nfp_warn(app->cpp,
-				 "HOST_ACK bit not propagated in FW.\n");
+				 "HOST_ACK bit analt propagated in FW.\n");
 			break;
 		}
 		usleep_range(1000, 2000);
@@ -696,7 +696,7 @@ static void nfp_flower_wait_host_bit(struct nfp_app *app)
 
 	if (err)
 		nfp_warn(app->cpp,
-			 "Could not read global features entry from FW\n");
+			 "Could analt read global features entry from FW\n");
 }
 
 static int nfp_flower_sync_feature_bits(struct nfp_app *app)
@@ -710,7 +710,7 @@ static int nfp_flower_sync_feature_bits(struct nfp_app *app)
 				 NFP_FL_FEATS_HOST_ACK);
 	if (!err)
 		nfp_flower_wait_host_bit(app);
-	else if (err != -ENOENT)
+	else if (err != -EANALENT)
 		return err;
 
 	/* Tell the firmware that the driver supports lag. */
@@ -719,8 +719,8 @@ static int nfp_flower_sync_feature_bits(struct nfp_app *app)
 	if (!err) {
 		app_priv->flower_en_feats |= NFP_FL_ENABLE_LAG;
 		nfp_flower_lag_init(&app_priv->nfp_lag);
-	} else if (err == -ENOENT) {
-		nfp_warn(app->cpp, "LAG not supported by FW.\n");
+	} else if (err == -EANALENT) {
+		nfp_warn(app->cpp, "LAG analt supported by FW.\n");
 	} else {
 		return err;
 	}
@@ -732,14 +732,14 @@ static int nfp_flower_sync_feature_bits(struct nfp_app *app)
 		if (!err) {
 			app_priv->flower_en_feats |= NFP_FL_ENABLE_FLOW_MERGE;
 			nfp_flower_internal_port_init(app_priv);
-		} else if (err == -ENOENT) {
+		} else if (err == -EANALENT) {
 			nfp_warn(app->cpp,
-				 "Flow merge not supported by FW.\n");
+				 "Flow merge analt supported by FW.\n");
 		} else {
 			return err;
 		}
 	} else {
-		nfp_warn(app->cpp, "Flow mod/merge not supported by FW.\n");
+		nfp_warn(app->cpp, "Flow mod/merge analt supported by FW.\n");
 	}
 
 	return 0;
@@ -800,7 +800,7 @@ static int nfp_flower_init(struct nfp_app *app)
 		ctx_count = BIT(17);
 	}
 
-	/* We need to ensure hardware has enough flower capabilities. */
+	/* We need to ensure hardware has eanalugh flower capabilities. */
 	if (version != NFP_FLOWER_ALLOWED_VER) {
 		nfp_warn(app->cpp, "FlowerNIC: unsupported firmware version\n");
 		return -EINVAL;
@@ -808,7 +808,7 @@ static int nfp_flower_init(struct nfp_app *app)
 
 	app_priv = vzalloc(sizeof(struct nfp_flower_priv));
 	if (!app_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	app_priv->total_mem_units = num_mems;
 	app_priv->active_mem_unit = 0;
@@ -843,7 +843,7 @@ static int nfp_flower_init(struct nfp_app *app)
 		nfp_flower_qos_init(app);
 
 	INIT_LIST_HEAD(&app_priv->indr_block_cb_priv);
-	INIT_LIST_HEAD(&app_priv->non_repr_priv);
+	INIT_LIST_HEAD(&app_priv->analn_repr_priv);
 	app_priv->pre_tun_rule_cnt = 0;
 
 	return 0;
@@ -903,7 +903,7 @@ nfp_flower_repr_change_mtu(struct nfp_app *app, struct net_device *netdev,
 		return 0;
 
 	if (!(app_priv->flower_ext_feats & NFP_FL_NBI_MTU_SETTING)) {
-		nfp_err(app->cpp, "Physical port MTU setting not supported\n");
+		nfp_err(app->cpp, "Physical port MTU setting analt supported\n");
 		return -EINVAL;
 	}
 
@@ -929,7 +929,7 @@ nfp_flower_repr_change_mtu(struct nfp_app *app, struct net_device *netdev,
 		spin_lock_bh(&app_priv->mtu_conf.lock);
 		app_priv->mtu_conf.requested_val = 0;
 		spin_unlock_bh(&app_priv->mtu_conf.lock);
-		nfp_warn(app->cpp, "MTU change not verified with fw\n");
+		nfp_warn(app->cpp, "MTU change analt verified with fw\n");
 		return -EIO;
 	}
 
@@ -980,12 +980,12 @@ nfp_flower_netdev_event(struct nfp_app *app, struct net_device *netdev,
 
 	if (app_priv->flower_en_feats & NFP_FL_ENABLE_LAG) {
 		ret = nfp_flower_lag_netdev_event(app_priv, netdev, event, ptr);
-		if (ret & NOTIFY_STOP_MASK)
+		if (ret & ANALTIFY_STOP_MASK)
 			return ret;
 	}
 
 	ret = nfp_flower_internal_port_event_handler(app, netdev, event);
-	if (ret & NOTIFY_STOP_MASK)
+	if (ret & ANALTIFY_STOP_MASK)
 		return ret;
 
 	return nfp_tunnel_mac_event_handler(app, netdev, event, ptr);

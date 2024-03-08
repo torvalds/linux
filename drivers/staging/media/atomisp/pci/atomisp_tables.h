@@ -34,8 +34,8 @@ static struct ia_css_cc_config nega_cc_config = {
 	.matrix	 = {255, 29, 120, 0, 374, 342, 0, 672, -301},
 };
 
-/*Mono image effect table*/
-static struct ia_css_cc_config mono_cc_config = {
+/*Moanal image effect table*/
+static struct ia_css_cc_config moanal_cc_config = {
 	.fraction_bits  = 8,
 	.matrix	 = {255, 29, 120, 0, 0, 0, 0, 0, 0},
 };

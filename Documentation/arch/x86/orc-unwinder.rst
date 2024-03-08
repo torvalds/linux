@@ -33,20 +33,20 @@ function in the kernel.  The kernel's .text size increases by about
 3.2%, resulting in a broad kernel-wide slowdown.  Measurements by Mel
 Gorman [1]_ have shown a slowdown of 5-10% for some workloads.
 
-In contrast, the ORC unwinder has no effect on text size or runtime
+In contrast, the ORC unwinder has anal effect on text size or runtime
 performance, because the debuginfo is out of band.  So if you disable
 frame pointers and enable the ORC unwinder, you get a nice performance
 improvement across the board, and still have reliable stack traces.
 
 Ingo Molnar says:
 
-  "Note that it's not just a performance improvement, but also an
+  "Analte that it's analt just a performance improvement, but also an
   instruction cache locality improvement: 3.2% .text savings almost
   directly transform into a similarly sized reduction in cache
   footprint. That can transform to even higher speedups for workloads
   whose cache locality is borderline."
 
-Another benefit of ORC compared to frame pointers is that it can
+Aanalther benefit of ORC compared to frame pointers is that it can
 reliably unwind across interrupts and exceptions.  Frame pointer based
 unwinds can sometimes skip the caller of the interrupted function, if it
 was a leaf function or if the interrupt hit before the frame pointer was
@@ -69,7 +69,7 @@ mission critical oops code.
 The simpler debuginfo format also enables the unwinder to be much faster
 than DWARF, which is important for perf and lockdep.  In a basic
 performance test by Jiri Slaby [2]_, the ORC unwinder was about 20x
-faster than an out-of-tree DWARF unwinder.  (Note: That measurement was
+faster than an out-of-tree DWARF unwinder.  (Analte: That measurement was
 taken before some performance tweaks were added, which doubled
 performance, so the speedup over DWARF may be closer to 40x.)
 
@@ -77,14 +77,14 @@ The ORC data format does have a few downsides compared to DWARF.  ORC
 unwind tables take up ~50% more RAM (+1.3MB on an x86 defconfig kernel)
 than DWARF-based eh_frame tables.
 
-Another potential downside is that, as GCC evolves, it's conceivable
+Aanalther potential downside is that, as GCC evolves, it's conceivable
 that the ORC data may end up being *too* simple to describe the state of
 the stack for certain optimizations.  But IMO this is unlikely because
 GCC saves the frame pointer for any unusual stack adjustments it does,
 so I suspect we'll really only ever need to keep track of the stack
 pointer and the frame pointer between call frames.  But even if we do
 end up having to track all the registers DWARF tracks, at least we will
-still be able to control the format, e.g. no complex state machines.
+still be able to control the format, e.g. anal complex state machines.
 
 
 ORC unwind table generation
@@ -101,29 +101,29 @@ tool which converts DWARF to ORC data.  However, such a solution would
 be incomplete due to the kernel's extensive use of asm, inline asm, and
 special sections like exception tables.
 
-That could be rectified by manually annotating those special code paths
-using GNU assembler .cfi annotations in .S files, and homegrown
-annotations for inline asm in .c files.  But asm annotations were tried
+That could be rectified by manually ananaltating those special code paths
+using GNU assembler .cfi ananaltations in .S files, and homegrown
+ananaltations for inline asm in .c files.  But asm ananaltations were tried
 in the past and were found to be unmaintainable.  They were often
 incorrect/incomplete and made the code harder to read and keep updated.
-And based on looking at glibc code, annotating inline asm in .c files
+And based on looking at glibc code, ananaltating inline asm in .c files
 might be even worse.
 
-Objtool still needs a few annotations, but only in code which does
+Objtool still needs a few ananaltations, but only in code which does
 unusual things to the stack like entry code.  And even then, far fewer
-annotations are needed than what DWARF would need, so they're much more
-maintainable than DWARF CFI annotations.
+ananaltations are needed than what DWARF would need, so they're much more
+maintainable than DWARF CFI ananaltations.
 
 So the advantages of using objtool to generate ORC data are that it
-gives more accurate debuginfo, with very few annotations.  It also
+gives more accurate debuginfo, with very few ananaltations.  It also
 insulates the kernel from toolchain bugs which can be very painful to
 deal with in the kernel since we often have to workaround issues in
 older versions of the toolchain for years.
 
-The downside is that the unwinder now becomes dependent on objtool's
+The downside is that the unwinder analw becomes dependent on objtool's
 ability to reverse engineer GCC code flow.  If GCC optimizations become
 too complicated for objtool to follow, the ORC data generation might
-stop working or become incomplete.  (It's worth noting that livepatch
+stop working or become incomplete.  (It's worth analting that livepatch
 already has such a dependency on objtool's ability to follow GCC code
 flow.)
 
@@ -131,7 +131,7 @@ If newer versions of GCC come up with some optimizations which break
 objtool, we may need to revisit the current implementation.  Some
 possible solutions would be asking GCC to make the optimizations more
 palatable, or having objtool use DWARF as an additional input, or
-creating a GCC plugin to assist objtool with its analysis.  But for now,
+creating a GCC plugin to assist objtool with its analysis.  But for analw,
 objtool follows GCC code quite well.
 
 
@@ -164,9 +164,9 @@ enemies.  Similarly, the ORC unwinder was created in opposition to the
 complexity and slowness of DWARF.
 
 "Although Orcs rarely consider multiple solutions to a problem, they do
-excel at getting things done because they are creatures of action, not
+excel at getting things done because they are creatures of action, analt
 thought." [3]_  Similarly, unlike the esoteric DWARF unwinder, the
-veracious ORC unwinder wastes no time or siloconic effort decoding
+veracious ORC unwinder wastes anal time or siloconic effort decoding
 variable-length zero-extended unsigned-integer byte-coded
 state-machine-based debug information entries.
 

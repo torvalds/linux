@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2001-2003 Patrick Mochel <mochel@osdl.org>
  * Copyright (c) 2004-2009 Greg Kroah-Hartman <gregkh@suse.de>
- * Copyright (c) 2008-2009 Novell Inc.
+ * Copyright (c) 2008-2009 Analvell Inc.
  *
  */
 
@@ -51,7 +51,7 @@ void _dev_err(const struct device *dev, const char *fmt, ...);
 __printf(2, 3) __cold
 void _dev_warn(const struct device *dev, const char *fmt, ...);
 __printf(2, 3) __cold
-void _dev_notice(const struct device *dev, const char *fmt, ...);
+void _dev_analtice(const struct device *dev, const char *fmt, ...);
 __printf(2, 3) __cold
 void _dev_info(const struct device *dev, const char *fmt, ...);
 
@@ -89,7 +89,7 @@ static inline __printf(2, 3)
 void _dev_warn(const struct device *dev, const char *fmt, ...)
 {}
 static inline __printf(2, 3)
-void _dev_notice(const struct device *dev, const char *fmt, ...)
+void _dev_analtice(const struct device *dev, const char *fmt, ...)
 {}
 static inline __printf(2, 3)
 void _dev_info(const struct device *dev, const char *fmt, ...)
@@ -114,7 +114,7 @@ void _dev_info(const struct device *dev, const char *fmt, ...)
  * Some callsites directly call dev_printk rather than going through the
  * dev_<level> infrastructure, so we need to emit here as well as inside those
  * level-specific macros. Only one index entry will be produced, either way,
- * since dev_printk's `fmt` isn't known at compile time if going through the
+ * since dev_printk's `fmt` isn't kanalwn at compile time if going through the
  * dev_<level> macros.
  *
  * dev_fmt() isn't called for dev_printk when used directly, as it's used by
@@ -144,8 +144,8 @@ void _dev_info(const struct device *dev, const char *fmt, ...)
 	dev_printk_index_wrap(_dev_err, KERN_ERR, dev, dev_fmt(fmt), ##__VA_ARGS__)
 #define dev_warn(dev, fmt, ...) \
 	dev_printk_index_wrap(_dev_warn, KERN_WARNING, dev, dev_fmt(fmt), ##__VA_ARGS__)
-#define dev_notice(dev, fmt, ...) \
-	dev_printk_index_wrap(_dev_notice, KERN_NOTICE, dev, dev_fmt(fmt), ##__VA_ARGS__)
+#define dev_analtice(dev, fmt, ...) \
+	dev_printk_index_wrap(_dev_analtice, KERN_ANALTICE, dev, dev_fmt(fmt), ##__VA_ARGS__)
 #define dev_info(dev, fmt, ...) \
 	dev_printk_index_wrap(_dev_info, KERN_INFO, dev, dev_fmt(fmt), ##__VA_ARGS__)
 
@@ -192,8 +192,8 @@ do {									\
 	dev_level_once(dev_err, dev, fmt, ##__VA_ARGS__)
 #define dev_warn_once(dev, fmt, ...)					\
 	dev_level_once(dev_warn, dev, fmt, ##__VA_ARGS__)
-#define dev_notice_once(dev, fmt, ...)					\
-	dev_level_once(dev_notice, dev, fmt, ##__VA_ARGS__)
+#define dev_analtice_once(dev, fmt, ...)					\
+	dev_level_once(dev_analtice, dev, fmt, ##__VA_ARGS__)
 #define dev_info_once(dev, fmt, ...)					\
 	dev_level_once(dev_info, dev, fmt, ##__VA_ARGS__)
 #define dev_dbg_once(dev, fmt, ...)					\
@@ -218,8 +218,8 @@ do {									\
 	dev_level_ratelimited(dev_err, dev, fmt, ##__VA_ARGS__)
 #define dev_warn_ratelimited(dev, fmt, ...)				\
 	dev_level_ratelimited(dev_warn, dev, fmt, ##__VA_ARGS__)
-#define dev_notice_ratelimited(dev, fmt, ...)				\
-	dev_level_ratelimited(dev_notice, dev, fmt, ##__VA_ARGS__)
+#define dev_analtice_ratelimited(dev, fmt, ...)				\
+	dev_level_ratelimited(dev_analtice, dev, fmt, ##__VA_ARGS__)
 #define dev_info_ratelimited(dev, fmt, ...)				\
 	dev_level_ratelimited(dev_info, dev, fmt, ##__VA_ARGS__)
 #if defined(CONFIG_DYNAMIC_DEBUG) || \

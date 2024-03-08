@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -49,10 +49,10 @@ static const char *wmi_cmd_to_name(enum wmi_cmd_id wmi_cmd)
 		return "WMI_FLUSH_RECV_CMDID";
 	case WMI_SET_MODE_CMDID:
 		return "WMI_SET_MODE_CMDID";
-	case WMI_NODE_CREATE_CMDID:
-		return "WMI_NODE_CREATE_CMDID";
-	case WMI_NODE_REMOVE_CMDID:
-		return "WMI_NODE_REMOVE_CMDID";
+	case WMI_ANALDE_CREATE_CMDID:
+		return "WMI_ANALDE_CREATE_CMDID";
+	case WMI_ANALDE_REMOVE_CMDID:
+		return "WMI_ANALDE_REMOVE_CMDID";
 	case WMI_VAP_REMOVE_CMDID:
 		return "WMI_VAP_REMOVE_CMDID";
 	case WMI_VAP_CREATE_CMDID:
@@ -73,8 +73,8 @@ static const char *wmi_cmd_to_name(enum wmi_cmd_id wmi_cmd)
 		return "WMI_TX_AGGR_ENABLE_CMDID";
 	case WMI_TGT_DETACH_CMDID:
 		return "WMI_TGT_DETACH_CMDID";
-	case WMI_NODE_UPDATE_CMDID:
-		return "WMI_NODE_UPDATE_CMDID";
+	case WMI_ANALDE_UPDATE_CMDID:
+		return "WMI_ANALDE_UPDATE_CMDID";
 	case WMI_INT_STATS_CMDID:
 		return "WMI_INT_STATS_CMDID";
 	case WMI_TX_STATS_CMDID:
@@ -238,7 +238,7 @@ static void ath9k_wmi_ctrl_rx(void *priv, struct sk_buff *skb,
 
 	/* Check if there has been a timeout. */
 	spin_lock_irqsave(&wmi->wmi_lock, flags);
-	if (be16_to_cpu(hdr->seq_no) != wmi->last_seq_id) {
+	if (be16_to_cpu(hdr->seq_anal) != wmi->last_seq_id) {
 		spin_unlock_irqrestore(&wmi->wmi_lock, flags);
 		goto free_skb;
 	}
@@ -291,7 +291,7 @@ static int ath9k_wmi_cmd_issue(struct wmi *wmi,
 
 	hdr = skb_push(skb, sizeof(struct wmi_cmd_hdr));
 	hdr->command_id = cpu_to_be16(cmd);
-	hdr->seq_no = cpu_to_be16(++wmi->tx_seq_id);
+	hdr->seq_anal = cpu_to_be16(++wmi->tx_seq_id);
 
 	spin_lock_irqsave(&wmi->wmi_lock, flags);
 
@@ -323,7 +323,7 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 
 	skb = alloc_skb(headroom + cmd_len, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_reserve(skb, headroom);
 

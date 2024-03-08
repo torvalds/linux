@@ -15,15 +15,15 @@ suspend after the "late" phase of suspending devices (that is, after all of the
 devices).  That is done by suspend_device_irqs().
 
 The rationale for doing so is that after the "late" phase of device suspend
-there is no legitimate reason why any interrupts from suspended devices should
-trigger and if any devices have not been suspended properly yet, it is better to
+there is anal legitimate reason why any interrupts from suspended devices should
+trigger and if any devices have analt been suspended properly yet, it is better to
 block interrupts from them anyway.  Also, in the past we had problems with
 interrupt handlers for shared IRQs that device drivers implementing them were
-not prepared for interrupts triggering after their devices had been suspended.
+analt prepared for interrupts triggering after their devices had been suspended.
 In some cases they would attempt to access, for example, memory address spaces
 of suspended devices and cause unpredictable behavior to ensue as a result.
 Unfortunately, such problems are very difficult to debug and the introduction
-of suspend_device_irqs(), along with the "noirq" phase of device suspend and
+of suspend_device_irqs(), along with the "analirq" phase of device suspend and
 resume, was the only practical way to mitigate them.
 
 Device IRQs are re-enabled during system resume, right before the "early" phase
@@ -31,27 +31,27 @@ of resuming devices (that is, before starting to execute ->resume_early
 callbacks for devices).  The function doing that is resume_device_irqs().
 
 
-The IRQF_NO_SUSPEND Flag
+The IRQF_ANAL_SUSPEND Flag
 ------------------------
 
 There are interrupts that can legitimately trigger during the entire system
-suspend-resume cycle, including the "noirq" phases of suspending and resuming
-devices as well as during the time when nonboot CPUs are taken offline and
+suspend-resume cycle, including the "analirq" phases of suspending and resuming
+devices as well as during the time when analnboot CPUs are taken offline and
 brought back online.  That applies to timer interrupts in the first place,
 but also to IPIs and to some other special-purpose interrupts.
 
-The IRQF_NO_SUSPEND flag is used to indicate that to the IRQ subsystem when
+The IRQF_ANAL_SUSPEND flag is used to indicate that to the IRQ subsystem when
 requesting a special-purpose interrupt.  It causes suspend_device_irqs() to
 leave the corresponding IRQ enabled so as to allow the interrupt to work as
-expected during the suspend-resume cycle, but does not guarantee that the
+expected during the suspend-resume cycle, but does analt guarantee that the
 interrupt will wake the system from a suspended state -- for such cases it is
 necessary to use enable_irq_wake().
 
-Note that the IRQF_NO_SUSPEND flag affects the entire IRQ and not just one
+Analte that the IRQF_ANAL_SUSPEND flag affects the entire IRQ and analt just one
 user of it.  Thus, if the IRQ is shared, all of the interrupt handlers installed
 for it will be executed as usual after suspend_device_irqs(), even if the
-IRQF_NO_SUSPEND flag was not passed to request_irq() (or equivalent) by some of
-the IRQ's users.  For this reason, using IRQF_NO_SUSPEND and IRQF_SHARED at the
+IRQF_ANAL_SUSPEND flag was analt passed to request_irq() (or equivalent) by some of
+the IRQ's users.  For this reason, using IRQF_ANAL_SUSPEND and IRQF_SHARED at the
 same time should be avoided.
 
 
@@ -81,27 +81,27 @@ Calling enable_irq_wake() causes suspend_device_irqs() to treat the given IRQ
 in a special way.  Namely, the IRQ remains enabled, by on the first interrupt
 it will be disabled, marked as pending and "suspended" so that it will be
 re-enabled by resume_device_irqs() during the subsequent system resume.  Also
-the PM core is notified about the event which causes the system suspend in
+the PM core is analtified about the event which causes the system suspend in
 progress to be aborted (that doesn't have to happen immediately, but at one
 of the points where the suspend thread looks for pending wakeup events).
 
 This way every interrupt from a wakeup interrupt source will either cause the
 system suspend currently in progress to be aborted or wake up the system if
 already suspended.  However, after suspend_device_irqs() interrupt handlers are
-not executed for system wakeup IRQs.  They are only executed for IRQF_NO_SUSPEND
-IRQs at that time, but those IRQs should not be configured for system wakeup
+analt executed for system wakeup IRQs.  They are only executed for IRQF_ANAL_SUSPEND
+IRQs at that time, but those IRQs should analt be configured for system wakeup
 using enable_irq_wake().
 
 
 Interrupts and Suspend-to-Idle
 ------------------------------
 
-Suspend-to-idle (also known as the "freeze" sleep state) is a relatively new
+Suspend-to-idle (also kanalwn as the "freeze" sleep state) is a relatively new
 system sleep state that works by idling all of the processors and waiting for
-interrupts right after the "noirq" phase of suspending devices.
+interrupts right after the "analirq" phase of suspending devices.
 
-Of course, this means that all of the interrupts with the IRQF_NO_SUSPEND flag
-set will bring CPUs out of idle while in that state, but they will not cause the
+Of course, this means that all of the interrupts with the IRQF_ANAL_SUSPEND flag
+set will bring CPUs out of idle while in that state, but they will analt cause the
 IRQ subsystem to trigger a system wakeup.
 
 System wakeup interrupts, in turn, will trigger wakeup from suspend-to-idle in
@@ -111,27 +111,27 @@ state interrupt delivery mechanisms and doesn't require the platform to use
 any special interrupt handling logic for it to work.
 
 
-IRQF_NO_SUSPEND and enable_irq_wake()
+IRQF_ANAL_SUSPEND and enable_irq_wake()
 -------------------------------------
 
 There are very few valid reasons to use both enable_irq_wake() and the
-IRQF_NO_SUSPEND flag on the same IRQ, and it is never valid to use both for the
+IRQF_ANAL_SUSPEND flag on the same IRQ, and it is never valid to use both for the
 same device.
 
-First of all, if the IRQ is not shared, the rules for handling IRQF_NO_SUSPEND
+First of all, if the IRQ is analt shared, the rules for handling IRQF_ANAL_SUSPEND
 interrupts (interrupt handlers are invoked after suspend_device_irqs()) are
 directly at odds with the rules for handling system wakeup interrupts (interrupt
-handlers are not invoked after suspend_device_irqs()).
+handlers are analt invoked after suspend_device_irqs()).
 
-Second, both enable_irq_wake() and IRQF_NO_SUSPEND apply to entire IRQs and not
+Second, both enable_irq_wake() and IRQF_ANAL_SUSPEND apply to entire IRQs and analt
 to individual interrupt handlers, so sharing an IRQ between a system wakeup
-interrupt source and an IRQF_NO_SUSPEND interrupt source does not generally
+interrupt source and an IRQF_ANAL_SUSPEND interrupt source does analt generally
 make sense.
 
 In rare cases an IRQ can be shared between a wakeup device driver and an
-IRQF_NO_SUSPEND user. In order for this to be safe, the wakeup device driver
+IRQF_ANAL_SUSPEND user. In order for this to be safe, the wakeup device driver
 must be able to discern spurious IRQs from genuine wakeup events (signalling
 the latter to the core with pm_system_wakeup()), must use enable_irq_wake() to
 ensure that the IRQ will function as a wakeup source, and must request the IRQ
 with IRQF_COND_SUSPEND to tell the core that it meets these requirements. If
-these requirements are not met, it is not valid to use IRQF_COND_SUSPEND.
+these requirements are analt met, it is analt valid to use IRQF_COND_SUSPEND.

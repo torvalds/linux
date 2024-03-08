@@ -4,7 +4,7 @@
  *
  *    The IT8213 is a very Intel ICH like device for timing purposes, having
  *    a similar register layout and the same split clock arrangement. Cable
- *    detection is different, and it does not have slave channels or all the
+ *    detection is different, and it does analt have slave channels or all the
  *    clutter of later ICH/SATA setups.
  */
 
@@ -26,7 +26,7 @@
  *	@link: link
  *	@deadline: deadline jiffies for the operation
  *
- *	Filter out ports by the enable bits before doing the normal reset
+ *	Filter out ports by the enable bits before doing the analrmal reset
  *	and probe.
  */
 
@@ -37,8 +37,8 @@ static int it8213_pre_reset(struct ata_link *link, unsigned long deadline)
 	};
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	if (!pci_test_config_bits(pdev, &it8213_enable_bits[ap->port_no]))
-		return -ENOENT;
+	if (!pci_test_config_bits(pdev, &it8213_enable_bits[ap->port_anal]))
+		return -EANALENT;
 
 	return ata_sff_prereset(link, deadline);
 }
@@ -69,14 +69,14 @@ static int it8213_cable_detect(struct ata_port *ap)
  *	Set PIO mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void it8213_set_piomode (struct ata_port *ap, struct ata_device *adev)
 {
 	unsigned int pio	= adev->pio_mode - XFER_PIO_0;
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
-	unsigned int master_port = ap->port_no ? 0x42 : 0x40;
+	unsigned int master_port = ap->port_anal ? 0x42 : 0x40;
 	u16 master_data;
 	int control = 0;
 
@@ -103,7 +103,7 @@ static void it8213_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	pci_read_config_word(dev, master_port, &master_data);
 
 	/* Set PPE, IE, and TIME as appropriate */
-	if (adev->devno == 0) {
+	if (adev->devanal == 0) {
 		master_data &= 0xCCF0;
 		master_data |= control;
 		master_data |= (timings[pio][0] << 12) |
@@ -134,7 +134,7 @@ static void it8213_set_piomode (struct ata_port *ap, struct ata_device *adev)
  *	This device is basically an ICH alike.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void it8213_set_dmamode (struct ata_port *ap, struct ata_device *adev)
@@ -142,7 +142,7 @@ static void it8213_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
 	u16 master_data;
 	u8 speed		= adev->dma_mode;
-	int devid		= adev->devno;
+	int devid		= adev->devanal;
 	u8 udma_enable;
 
 	static const	 /* ISP  RTC */
@@ -212,7 +212,7 @@ static void it8213_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 			pci_read_config_byte(dev, 0x44, &slave_data);
 			slave_data &= 0xF0;
 			/* Load the matching timing */
-			slave_data |= ((timings[pio][0] << 2) | timings[pio][1]) << (ap->port_no ? 4 : 0);
+			slave_data |= ((timings[pio][0] << 2) | timings[pio][1]) << (ap->port_anal ? 4 : 0);
 			pci_write_config_byte(dev, 0x44, slave_data);
 		} else { 	/* Master */
 			master_data &= 0xCCF4;	/* Mask out IORDY|TIME1|DMAONLY
@@ -253,7 +253,7 @@ static struct ata_port_operations it8213_ops = {
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, or -ERRNO value.
+ *	Zero on success, or -ERRANAL value.
  */
 
 static int it8213_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)

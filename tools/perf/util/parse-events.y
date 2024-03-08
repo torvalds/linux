@@ -10,7 +10,7 @@
 #define YYDEBUG 1
 #endif
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include "pmu.h"
@@ -24,8 +24,8 @@ void parse_events_error(YYLTYPE *loc, void *parse_state, void *scanner, char con
 
 #define PE_ABORT(val) \
 do { \
-	if (val == -ENOMEM) \
-		YYNOMEM; \
+	if (val == -EANALMEM) \
+		YYANALMEM; \
 	YYABORT; \
 } while (0)
 
@@ -45,8 +45,8 @@ static void free_list_evsel(struct list_head* list_evsel)
 {
 	struct evsel *evsel, *tmp;
 
-	list_for_each_entry_safe(evsel, tmp, list_evsel, core.node) {
-		list_del_init(&evsel->core.node);
+	list_for_each_entry_safe(evsel, tmp, list_evsel, core.analde) {
+		list_del_init(&evsel->core.analde);
 		evsel__delete(evsel);
 	}
 	free(list_evsel);
@@ -255,7 +255,7 @@ PE_EVENT_NAME event_def
 	free($1);
 	if (err) {
 		free_list_evsel($2);
-		YYNOMEM;
+		YYANALMEM;
 	}
 	$$ = $2;
 }
@@ -289,7 +289,7 @@ PE_NAME opt_pmu_config
 	list = alloc_list();
 	if (!list) {
 		CLEANUP;
-		YYNOMEM;
+		YYANALMEM;
 	}
 	/* Attempt to add to list assuming $1 is a PMU name. */
 	if (parse_events_add_pmu(parse_state, list, $1, $2, /*auto_merge_stats=*/false, &@1)) {
@@ -299,7 +299,7 @@ PE_NAME opt_pmu_config
 		/* Failure to add, try wildcard expansion of $1 as a PMU name. */
 		if (asprintf(&pattern, "%s*", $1) < 0) {
 			CLEANUP;
-			YYNOMEM;
+			YYANALMEM;
 		}
 
 		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
@@ -384,7 +384,7 @@ value_sym '/' event_config '/'
 
 	list = alloc_list();
 	if (!list)
-		YYNOMEM;
+		YYANALMEM;
 	err = parse_events_add_numeric(_parse_state, list, type, config, $3, wildcard);
 	parse_events_terms__delete($3);
 	if (err) {
@@ -404,7 +404,7 @@ value_sym sep_slash_slash_dc
 
 	list = alloc_list();
 	if (!list)
-		YYNOMEM;
+		YYANALMEM;
 	err = parse_events_add_numeric(_parse_state, list, type, config, /*head_config=*/NULL, wildcard);
 	if (err)
 		PE_ABORT(err);
@@ -418,10 +418,10 @@ PE_VALUE_SYM_TOOL sep_slash_slash_dc
 
 	list = alloc_list();
 	if (!list)
-		YYNOMEM;
+		YYANALMEM;
 	err = parse_events_add_tool(_parse_state, list, $1);
 	if (err)
-		YYNOMEM;
+		YYANALMEM;
 	$$ = list;
 }
 
@@ -434,7 +434,7 @@ PE_LEGACY_CACHE opt_event_config
 
 	list = alloc_list();
 	if (!list)
-		YYNOMEM;
+		YYANALMEM;
 
 	err = parse_events_add_cache(list, &parse_state->idx, $1, parse_state, $2);
 
@@ -455,7 +455,7 @@ PE_PREFIX_MEM PE_VALUE PE_BP_SLASH PE_VALUE PE_BP_COLON PE_MODIFIER_BP opt_event
 
 	list = alloc_list();
 	if (!list)
-		YYNOMEM;
+		YYANALMEM;
 
 	err = parse_events_add_breakpoint(_parse_state, list,
 					  $2, $6, $4, $7);
@@ -475,7 +475,7 @@ PE_PREFIX_MEM PE_VALUE PE_BP_SLASH PE_VALUE opt_event_config
 
 	list = alloc_list();
 	if (!list)
-		YYNOMEM;
+		YYANALMEM;
 
 	err = parse_events_add_breakpoint(_parse_state, list,
 					  $2, NULL, $4, $5);
@@ -494,7 +494,7 @@ PE_PREFIX_MEM PE_VALUE PE_BP_COLON PE_MODIFIER_BP opt_event_config
 
 	list = alloc_list();
 	if (!list)
-		YYNOMEM;
+		YYANALMEM;
 
 	err = parse_events_add_breakpoint(_parse_state, list,
 					  $2, $4, 0, $5);
@@ -514,7 +514,7 @@ PE_PREFIX_MEM PE_VALUE opt_event_config
 
 	list = alloc_list();
 	if (!list)
-		YYNOMEM;
+		YYANALMEM;
 	err = parse_events_add_breakpoint(_parse_state, list,
 					  $2, NULL, 0, $3);
 	parse_events_terms__delete($3);
@@ -535,7 +535,7 @@ tracepoint_name opt_event_config
 
 	list = alloc_list();
 	if (!list)
-		YYNOMEM;
+		YYANALMEM;
 	if (error)
 		error->idx = @1.first_column;
 
@@ -568,7 +568,7 @@ PE_VALUE ':' PE_VALUE opt_event_config
 
 	list = alloc_list();
 	if (!list)
-		YYNOMEM;
+		YYANALMEM;
 	err = parse_events_add_numeric(_parse_state, list, (u32)$1, $3, $4,
 				       /*wildcard=*/false);
 	parse_events_terms__delete($4);
@@ -588,11 +588,11 @@ PE_RAW opt_event_config
 
 	list = alloc_list();
 	if (!list)
-		YYNOMEM;
-	errno = 0;
+		YYANALMEM;
+	erranal = 0;
 	num = strtoull($1 + 1, NULL, 16);
 	/* Given the lexer will only give [a-fA-F0-9]+ a failure here should be impossible. */
-	if (errno)
+	if (erranal)
 		YYABORT;
 	free($1);
 	err = parse_events_add_numeric(_parse_state, list, PERF_TYPE_RAW, num, $2,
@@ -661,7 +661,7 @@ event_term
 	struct parse_events_term *term = $1;
 
 	if (!head)
-		YYNOMEM;
+		YYANALMEM;
 	parse_events_terms__init(head);
 	list_add_tail(&term->list, &head->terms);
 	$$ = head;
@@ -700,7 +700,7 @@ name_or_raw '=' PE_VALUE
 {
 	struct parse_events_term *term;
 	int err = parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
-					 $1, $3, /*novalue=*/false, &@1, &@3);
+					 $1, $3, /*analvalue=*/false, &@1, &@3);
 
 	if (err) {
 		free($1);
@@ -727,7 +727,7 @@ PE_LEGACY_CACHE
 {
 	struct parse_events_term *term;
 	int err = parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE,
-					 $1, /*num=*/1, /*novalue=*/true, &@1, /*loc_val=*/NULL);
+					 $1, /*num=*/1, /*analvalue=*/true, &@1, /*loc_val=*/NULL);
 
 	if (err) {
 		free($1);
@@ -740,7 +740,7 @@ PE_NAME
 {
 	struct parse_events_term *term;
 	int err = parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
-					 $1, /*num=*/1, /*novalue=*/true, &@1, /*loc_val=*/NULL);
+					 $1, /*num=*/1, /*analvalue=*/true, &@1, /*loc_val=*/NULL);
 
 	if (err) {
 		free($1);
@@ -753,7 +753,7 @@ PE_TERM_HW
 {
 	struct parse_events_term *term;
 	int err = parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_HARDWARE,
-					 $1.str, $1.num & 255, /*novalue=*/false,
+					 $1.str, $1.num & 255, /*analvalue=*/false,
 					 &@1, /*loc_val=*/NULL);
 
 	if (err) {
@@ -802,7 +802,7 @@ PE_TERM '=' PE_VALUE
 {
 	struct parse_events_term *term;
 	int err = parse_events_term__num(&term, $1,
-					 /*config=*/NULL, $3, /*novalue=*/false,
+					 /*config=*/NULL, $3, /*analvalue=*/false,
 					 &@1, &@3);
 
 	if (err)
@@ -815,7 +815,7 @@ PE_TERM
 {
 	struct parse_events_term *term;
 	int err = parse_events_term__num(&term, $1,
-					 /*config=*/NULL, /*num=*/1, /*novalue=*/true,
+					 /*config=*/NULL, /*num=*/1, /*analvalue=*/true,
 					 &@1, /*loc_val=*/NULL);
 
 	if (err)
@@ -831,7 +831,7 @@ PE_DRV_CFG_TERM
 	int err;
 
 	if (!config)
-		YYNOMEM;
+		YYANALMEM;
 	err = parse_events_term__str(&term, PARSE_EVENTS__TERM_TYPE_DRV_CFG, config, $1, &@1, NULL);
 	if (err) {
 		free($1);

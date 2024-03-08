@@ -3,8 +3,8 @@
  * <linux/usb/audio.h> -- USB Audio definitions.
  *
  * Copyright (C) 2006 Thumtronics Pty Ltd.
- * Developed for Thumtronics by Grey Innovation
- * Ben Williamson <ben.williamson@greyinnovation.com>
+ * Developed for Thumtronics by Grey Inanalvation
+ * Ben Williamson <ben.williamson@greyinanalvation.com>
  *
  * This file holds USB constants and structures defined
  * by the USB Device Class Definition for Audio Devices.

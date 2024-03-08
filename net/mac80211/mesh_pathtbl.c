@@ -86,7 +86,7 @@ static void mesh_path_rht_free(void *ptr, void *tblptr)
 
 static void mesh_table_init(struct mesh_table *tbl)
 {
-	INIT_HLIST_HEAD(&tbl->known_gates);
+	INIT_HLIST_HEAD(&tbl->kanalwn_gates);
 	INIT_HLIST_HEAD(&tbl->walk_head);
 	atomic_set(&tbl->entries,  0);
 	spin_lock_init(&tbl->gates_lock);
@@ -172,7 +172,7 @@ static void prepare_for_gate(struct sk_buff *skb, char *dst_addr,
 }
 
 /**
- * mesh_path_move_to_queue - Move or copy frames from one mpath queue to another
+ * mesh_path_move_to_queue - Move or copy frames from one mpath queue to aanalther
  *
  * @gate_mpath: An active mpath the frames will be sent to (i.e. the gate)
  * @from_mpath: The failed mpath
@@ -260,7 +260,7 @@ static struct mesh_path *mpath_lookup(struct mesh_table *tbl, const u8 *dst,
  * @sdata: local subif
  * @dst: hardware address (ETH_ALEN length) of destination
  *
- * Returns: pointer to the mesh path structure, or NULL if not found
+ * Returns: pointer to the mesh path structure, or NULL if analt found
  *
  * Locking: must be called within a read rcu section.
  */
@@ -303,7 +303,7 @@ __mesh_path_lookup_by_idx(struct mesh_table *tbl, int idx)
  * @idx: index
  * @sdata: local subif, or NULL for all entries
  *
- * Returns: pointer to the mesh path structure, or NULL if not found.
+ * Returns: pointer to the mesh path structure, or NULL if analt found.
  *
  * Locking: must be called within a read rcu section.
  */
@@ -318,7 +318,7 @@ mesh_path_lookup_by_idx(struct ieee80211_sub_if_data *sdata, int idx)
  * @idx: index
  * @sdata: local subif, or NULL for all entries
  *
- * Returns: pointer to the proxy path structure, or NULL if not found.
+ * Returns: pointer to the proxy path structure, or NULL if analt found.
  *
  * Locking: must be called within a read rcu section.
  */
@@ -352,13 +352,13 @@ int mesh_path_add_gate(struct mesh_path *mpath)
 	mpath->sdata->u.mesh.num_gates++;
 
 	spin_lock(&tbl->gates_lock);
-	hlist_add_head_rcu(&mpath->gate_list, &tbl->known_gates);
+	hlist_add_head_rcu(&mpath->gate_list, &tbl->kanalwn_gates);
 	spin_unlock(&tbl->gates_lock);
 
 	spin_unlock_bh(&mpath->state_lock);
 
 	mpath_dbg(mpath->sdata,
-		  "Mesh path: Recorded new gate: %pM. %d known gates\n",
+		  "Mesh path: Recorded new gate: %pM. %d kanalwn gates\n",
 		  mpath->dst, mpath->sdata->u.mesh.num_gates);
 	err = 0;
 err_rcu:
@@ -367,8 +367,8 @@ err_rcu:
 }
 
 /**
- * mesh_gate_del - remove a mesh gate from the list of known gates
- * @tbl: table which holds our list of known gates
+ * mesh_gate_del - remove a mesh gate from the list of kanalwn gates
+ * @tbl: table which holds our list of kanalwn gates
  * @mpath: gate mpath
  */
 static void mesh_gate_del(struct mesh_table *tbl, struct mesh_path *mpath)
@@ -384,12 +384,12 @@ static void mesh_gate_del(struct mesh_table *tbl, struct mesh_path *mpath)
 	spin_unlock_bh(&tbl->gates_lock);
 
 	mpath_dbg(mpath->sdata,
-		  "Mesh path: Deleted gate: %pM. %d known gates\n",
+		  "Mesh path: Deleted gate: %pM. %d kanalwn gates\n",
 		  mpath->dst, mpath->sdata->u.mesh.num_gates);
 }
 
 /**
- * mesh_gate_num - number of gates known to this interface
+ * mesh_gate_num - number of gates kanalwn to this interface
  * @sdata: subif data
  *
  * Returns: The number of gates
@@ -473,7 +473,7 @@ void mesh_fast_tx_cache(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 	u8 *qc;
 
-	if (sdata->noack_map ||
+	if (sdata->analack_map ||
 	    !ieee80211_is_data_qos(hdr->frame_control))
 		return;
 
@@ -602,7 +602,7 @@ void mesh_fast_tx_gc(struct ieee80211_sub_if_data *sdata)
 	unsigned long timeout = msecs_to_jiffies(MESH_FAST_TX_CACHE_TIMEOUT);
 	struct mesh_tx_cache *cache;
 	struct ieee80211_mesh_fast_tx *entry;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
 	cache = &sdata->u.mesh.tx_cache;
 	if (atomic_read(&cache->rht.nelems) < MESH_FAST_TX_CACHE_THRESHOLD_SIZE)
@@ -620,7 +620,7 @@ void mesh_fast_tx_flush_mpath(struct mesh_path *mpath)
 	struct ieee80211_sub_if_data *sdata = mpath->sdata;
 	struct mesh_tx_cache *cache = &sdata->u.mesh.tx_cache;
 	struct ieee80211_mesh_fast_tx *entry;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
 	cache = &sdata->u.mesh.tx_cache;
 	spin_lock_bh(&cache->walk_lock);
@@ -635,7 +635,7 @@ void mesh_fast_tx_flush_sta(struct ieee80211_sub_if_data *sdata,
 {
 	struct mesh_tx_cache *cache = &sdata->u.mesh.tx_cache;
 	struct ieee80211_mesh_fast_tx *entry;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
 	cache = &sdata->u.mesh.tx_cache;
 	spin_lock_bh(&cache->walk_lock);
@@ -676,17 +676,17 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
 
 	if (ether_addr_equal(dst, sdata->vif.addr))
 		/* never add ourselves as neighbours */
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	if (is_multicast_ether_addr(dst))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	if (atomic_add_unless(&sdata->u.mesh.mpaths, 1, MESH_MAX_MPATHS) == 0)
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 
 	new_mpath = mesh_path_new(sdata, dst, GFP_ATOMIC);
 	if (!new_mpath)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tbl = &sdata->u.mesh.mesh_paths;
 	spin_lock_bh(&tbl->walk_lock);
@@ -719,15 +719,15 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
 
 	if (ether_addr_equal(dst, sdata->vif.addr))
 		/* never add ourselves as neighbours */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (is_multicast_ether_addr(dst))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	new_mpath = mesh_path_new(sdata, dst, GFP_ATOMIC);
 
 	if (!new_mpath)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(new_mpath->mpp, mpp, ETH_ALEN);
 	tbl = &sdata->u.mesh.mpp_paths;
@@ -755,8 +755,8 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
  *
  * @sta: broken peer link
  *
- * This function must be called from the rate control algorithm if enough
- * delivery errors suggest that a peer link is no longer usable.
+ * This function must be called from the rate control algorithm if eanalugh
+ * delivery errors suggest that a peer link is anal longer usable.
  */
 void mesh_plink_broken(struct sta_info *sta)
 {
@@ -815,7 +815,7 @@ static void __mesh_path_del(struct mesh_table *tbl, struct mesh_path *mpath)
  *
  * @sta: mesh peer to match
  *
- * RCU notes: this function is called when a mesh plink transitions from
+ * RCU analtes: this function is called when a mesh plink transitions from
  * PLINK_ESTAB to any other state, since PLINK_ESTAB state is the only one that
  * allows path creation. This will happen before the sta can be freed (because
  * sta_info_destroy() calls this) so any reader in a rcu read block will be
@@ -826,7 +826,7 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct mesh_table *tbl = &sdata->u.mesh.mesh_paths;
 	struct mesh_path *mpath;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
 	spin_lock_bh(&tbl->walk_lock);
 	hlist_for_each_entry_safe(mpath, n, &tbl->walk_head, walk_list) {
@@ -841,7 +841,7 @@ static void mpp_flush_by_proxy(struct ieee80211_sub_if_data *sdata,
 {
 	struct mesh_table *tbl = &sdata->u.mesh.mpp_paths;
 	struct mesh_path *mpath;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
 	spin_lock_bh(&tbl->walk_lock);
 	hlist_for_each_entry_safe(mpath, n, &tbl->walk_head, walk_list) {
@@ -854,7 +854,7 @@ static void mpp_flush_by_proxy(struct ieee80211_sub_if_data *sdata,
 static void table_flush_by_iface(struct mesh_table *tbl)
 {
 	struct mesh_path *mpath;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
 	spin_lock_bh(&tbl->walk_lock);
 	hlist_for_each_entry_safe(mpath, n, &tbl->walk_head, walk_list) {
@@ -929,7 +929,7 @@ int mesh_path_del(struct ieee80211_sub_if_data *sdata, const u8 *addr)
  *
  * @mpath: mesh path to activate
  *
- * Locking: the state_lock of the mpath structure must NOT be held when calling
+ * Locking: the state_lock of the mpath structure must ANALT be held when calling
  * this function.
  */
 void mesh_path_tx_pending(struct mesh_path *mpath)
@@ -940,7 +940,7 @@ void mesh_path_tx_pending(struct mesh_path *mpath)
 }
 
 /**
- * mesh_path_send_to_gates - sends pending frames to all known mesh gates
+ * mesh_path_send_to_gates - sends pending frames to all kanalwn mesh gates
  *
  * @mpath: mesh path whose queue will be emptied
  *
@@ -962,7 +962,7 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 	tbl = &sdata->u.mesh.mesh_paths;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gate, &tbl->known_gates, gate_list) {
+	hlist_for_each_entry_rcu(gate, &tbl->kanalwn_gates, gate_list) {
 		if (gate->flags & MESH_PATH_ACTIVE) {
 			mpath_dbg(sdata, "Forwarding to %pM\n", gate->dst);
 			mesh_path_move_to_queue(gate, from_mpath, copy);
@@ -970,12 +970,12 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 			copy = true;
 		} else {
 			mpath_dbg(sdata,
-				  "Not forwarding to %pM (flags %#x)\n",
+				  "Analt forwarding to %pM (flags %#x)\n",
 				  gate->dst, gate->flags);
 		}
 	}
 
-	hlist_for_each_entry_rcu(gate, &tbl->known_gates, gate_list) {
+	hlist_for_each_entry_rcu(gate, &tbl->kanalwn_gates, gate_list) {
 		mpath_dbg(sdata, "Sending to %pM\n", gate->dst);
 		mesh_path_tx_pending(gate);
 	}
@@ -985,7 +985,7 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 }
 
 /**
- * mesh_path_discard_frame - discard a frame whose path could not be resolved
+ * mesh_path_discard_frame - discard a frame whose path could analt be resolved
  *
  * @skb: frame to discard
  * @sdata: network subif the frame was to be sent through
@@ -996,7 +996,7 @@ void mesh_path_discard_frame(struct ieee80211_sub_if_data *sdata,
 			     struct sk_buff *skb)
 {
 	ieee80211_free_txskb(&sdata->local->hw, skb);
-	sdata->u.mesh.mshstats.dropped_frames_no_route++;
+	sdata->u.mesh.mshstats.dropped_frames_anal_route++;
 }
 
 /**
@@ -1052,7 +1052,7 @@ void mesh_path_tbl_expire(struct ieee80211_sub_if_data *sdata,
 			  struct mesh_table *tbl)
 {
 	struct mesh_path *mpath;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
 	spin_lock_bh(&tbl->walk_lock);
 	hlist_for_each_entry_safe(mpath, n, &tbl->walk_head, walk_list) {

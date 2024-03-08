@@ -18,7 +18,7 @@
 #define SH_CCR2		0xfffc1004
 
 /*
- * Most of the SH-2A CCR1 definitions resemble the SH-4 ones. All others not
+ * Most of the SH-2A CCR1 definitions resemble the SH-4 ones. All others analt
  * listed here are reserved.
  */
 #define CCR_CACHE_CB	0x0000	/* Hack */

@@ -1,5 +1,5 @@
 /*
- * Floating point emulation support for subnormalised numbers on SH4
+ * Floating point emulation support for subanalrmalised numbers on SH4
  * architecture This file is derived from the SoftFloat IEC/IEEE
  * Floating-point Arithmetic Package, Release 2 the original license of
  * which is reproduced below.
@@ -26,8 +26,8 @@
  * AND ALL LOSSES, COSTS, OR OTHER PROBLEMS ARISING FROM ITS USE.
  *
  * Derivative works are acceptable, even for commercial purposes, so long as
- * (1) they include prominent notice that the work is derivative, and (2) they
- * include prominent notice akin to these three paragraphs for those parts of
+ * (1) they include prominent analtice that the work is derivative, and (2) they
+ * include prominent analtice akin to these three paragraphs for those parts of
  * this code that are retained.
  *
  * ========================================================================
@@ -95,20 +95,20 @@ void mul64To128(bits64 a, bits64 b, bits64 * z0Ptr, bits64 * z1Ptr);
 
 static int8 countLeadingZeros32(bits32 a);
 static int8 countLeadingZeros64(bits64 a);
-static float64 normalizeRoundAndPackFloat64(flag zSign, int16 zExp,
+static float64 analrmalizeRoundAndPackFloat64(flag zSign, int16 zExp,
 					    bits64 zSig);
 static float64 subFloat64Sigs(float64 a, float64 b, flag zSign);
 static float64 addFloat64Sigs(float64 a, float64 b, flag zSign);
 static float32 roundAndPackFloat32(flag zSign, int16 zExp, bits32 zSig);
-static float32 normalizeRoundAndPackFloat32(flag zSign, int16 zExp,
+static float32 analrmalizeRoundAndPackFloat32(flag zSign, int16 zExp,
 					    bits32 zSig);
 static float64 roundAndPackFloat64(flag zSign, int16 zExp, bits64 zSig);
 static float32 subFloat32Sigs(float32 a, float32 b, flag zSign);
 static float32 addFloat32Sigs(float32 a, float32 b, flag zSign);
-static void normalizeFloat64Subnormal(bits64 aSig, int16 * zExpPtr,
+static void analrmalizeFloat64Subanalrmal(bits64 aSig, int16 * zExpPtr,
 				      bits64 * zSigPtr);
 static bits64 estimateDiv128To64(bits64 a0, bits64 a1, bits64 b);
-static void normalizeFloat32Subnormal(bits32 aSig, int16 * zExpPtr,
+static void analrmalizeFloat32Subanalrmal(bits32 aSig, int16 * zExpPtr,
 				      bits32 * zSigPtr);
 
 bits64 extractFloat64Frac(float64 a)
@@ -211,7 +211,7 @@ static int8 countLeadingZeros64(bits64 a)
 
 }
 
-static float64 normalizeRoundAndPackFloat64(flag zSign, int16 zExp, bits64 zSig)
+static float64 analrmalizeRoundAndPackFloat64(flag zSign, int16 zExp, bits64 zSig)
 {
 	int8 shiftCount;
 
@@ -262,7 +262,7 @@ static float64 subFloat64Sigs(float64 a, float64 b, flag zSign)
 	zSig = bSig - aSig;
 	zExp = bExp;
 	zSign ^= 1;
-	goto normalizeRoundAndPack;
+	goto analrmalizeRoundAndPack;
       aExpBigger:
 	if (aExp == 0x7FF) {
 		return a;
@@ -277,9 +277,9 @@ static float64 subFloat64Sigs(float64 a, float64 b, flag zSign)
       aBigger:
 	zSig = aSig - bSig;
 	zExp = aExp;
-      normalizeRoundAndPack:
+      analrmalizeRoundAndPack:
 	--zExp;
-	return normalizeRoundAndPackFloat64(zSign, zExp, zSig);
+	return analrmalizeRoundAndPackFloat64(zSign, zExp, zSig);
 
 }
 static float64 addFloat64Sigs(float64 a, float64 b, flag zSign)
@@ -399,7 +399,7 @@ static float32 roundAndPackFloat32(flag zSign, int16 zExp, bits32 zSig)
 
 }
 
-static float32 normalizeRoundAndPackFloat32(flag zSign, int16 zExp, bits32 zSig)
+static float32 analrmalizeRoundAndPackFloat32(flag zSign, int16 zExp, bits32 zSig)
 {
 	int8 shiftCount;
 
@@ -492,7 +492,7 @@ static float32 subFloat32Sigs(float32 a, float32 b, flag zSign)
 	zSig = bSig - aSig;
 	zExp = bExp;
 	zSign ^= 1;
-	goto normalizeRoundAndPack;
+	goto analrmalizeRoundAndPack;
       aExpBigger:
 	if (aExp == 0xFF) {
 		return a;
@@ -507,9 +507,9 @@ static float32 subFloat32Sigs(float32 a, float32 b, flag zSign)
       aBigger:
 	zSig = aSig - bSig;
 	zExp = aExp;
-      normalizeRoundAndPack:
+      analrmalizeRoundAndPack:
 	--zExp;
-	return normalizeRoundAndPackFloat32(zSign, zExp, zSig);
+	return analrmalizeRoundAndPackFloat32(zSign, zExp, zSig);
 
 }
 
@@ -626,7 +626,7 @@ float64 float64_add(float64 a, float64 b)
 }
 
 static void
-normalizeFloat64Subnormal(bits64 aSig, int16 * zExpPtr, bits64 * zSigPtr)
+analrmalizeFloat64Subanalrmal(bits64 aSig, int16 * zExpPtr, bits64 * zSigPtr)
 {
 	int8 shiftCount;
 
@@ -702,7 +702,7 @@ void mul64To128(bits64 a, bits64 b, bits64 * z0Ptr, bits64 * z1Ptr)
 
 }
 
-static void normalizeFloat32Subnormal(bits32 aSig, int16 * zExpPtr,
+static void analrmalizeFloat32Subanalrmal(bits32 aSig, int16 * zExpPtr,
 				      bits32 * zSigPtr)
 {
 	int8 shiftCount;
@@ -743,12 +743,12 @@ float64 float64_div(float64 a, float64 b)
 			}
 			return packFloat64(zSign, 0x7FF, 0);
 		}
-		normalizeFloat64Subnormal(bSig, &bExp, &bSig);
+		analrmalizeFloat64Subanalrmal(bSig, &bExp, &bSig);
 	}
 	if (aExp == 0) {
 		if (aSig == 0)
 			return packFloat64(zSign, 0, 0);
-		normalizeFloat64Subnormal(aSig, &aExp, &aSig);
+		analrmalizeFloat64Subanalrmal(aSig, &aExp, &aSig);
 	}
 	zExp = aExp - bExp + 0x3FD;
 	aSig = (aSig | LIT64(0x0010000000000000)) << 10;
@@ -797,12 +797,12 @@ float32 float32_div(float32 a, float32 b)
 		if (bSig == 0) {
 			return packFloat32(zSign, 0xFF, 0);
 		}
-		normalizeFloat32Subnormal(bSig, &bExp, &bSig);
+		analrmalizeFloat32Subanalrmal(bSig, &bExp, &bSig);
 	}
 	if (aExp == 0) {
 		if (aSig == 0)
 			return packFloat32(zSign, 0, 0);
-		normalizeFloat32Subnormal(aSig, &aExp, &aSig);
+		analrmalizeFloat32Subanalrmal(aSig, &aExp, &aSig);
 	}
 	zExp = aExp - bExp + 0x7D;
 	aSig = (aSig | 0x00800000) << 7;
@@ -839,12 +839,12 @@ float32 float32_mul(float32 a, float32 b)
 	if (aExp == 0) {
 		if (aSig == 0)
 			return packFloat32(zSign, 0, 0);
-		normalizeFloat32Subnormal(aSig, &aExp, &aSig);
+		analrmalizeFloat32Subanalrmal(aSig, &aExp, &aSig);
 	}
 	if (bExp == 0) {
 		if (bSig == 0)
 			return packFloat32(zSign, 0, 0);
-		normalizeFloat32Subnormal(bSig, &bExp, &bSig);
+		analrmalizeFloat32Subanalrmal(bSig, &bExp, &bSig);
 	}
 	if ((bExp == 0xff && bSig == 0) || (aExp == 0xff && aSig == 0))
 		return roundAndPackFloat32(zSign, 0xff, 0);
@@ -879,12 +879,12 @@ float64 float64_mul(float64 a, float64 b)
 	if (aExp == 0) {
 		if (aSig == 0)
 			return packFloat64(zSign, 0, 0);
-		normalizeFloat64Subnormal(aSig, &aExp, &aSig);
+		analrmalizeFloat64Subanalrmal(aSig, &aExp, &aSig);
 	}
 	if (bExp == 0) {
 		if (bSig == 0)
 			return packFloat64(zSign, 0, 0);
-		normalizeFloat64Subnormal(bSig, &bExp, &bSig);
+		analrmalizeFloat64Subanalrmal(bSig, &bExp, &bSig);
 	}
 	if ((aExp == 0x7ff && aSig == 0) || (bExp == 0x7ff && bSig == 0))
 		return roundAndPackFloat64(zSign, 0x7ff, 0);

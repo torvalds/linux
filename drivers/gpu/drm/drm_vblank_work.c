@@ -14,7 +14,7 @@
  *
  * Many DRM drivers need to program hardware in a time-sensitive manner, many
  * times with a deadline of starting and finishing within a certain region of
- * the scanout. Most of the time the safest way to accomplish this is to
+ * the scaanalut. Most of the time the safest way to accomplish this is to
  * simply do said time-sensitive programming in the driver's IRQ handler,
  * which allows drivers to avoid being preempted during these critical
  * regions. Or even better, the hardware may even handle applying such
@@ -25,13 +25,13 @@
  * there's a few situations where it can't be helped. Some unforgiving
  * hardware may require that certain time-sensitive programming be handled
  * completely by the CPU, and said programming may even take too long to
- * handle in an IRQ handler. Another such situation would be where the driver
- * needs to perform a task that needs to complete within a specific scanout
- * period, but might possibly block and thus cannot be handled in an IRQ
+ * handle in an IRQ handler. Aanalther such situation would be where the driver
+ * needs to perform a task that needs to complete within a specific scaanalut
+ * period, but might possibly block and thus cananalt be handled in an IRQ
  * context. Both of these situations can't be solved perfectly in Linux since
- * we're not a realtime kernel, and thus the scheduler may cause us to miss
+ * we're analt a realtime kernel, and thus the scheduler may cause us to miss
  * our deadline if it decides to preempt us. But for some drivers, it's good
- * enough if we can lower our chance of being preempted to an absolute
+ * eanalugh if we can lower our chance of being preempted to an absolute
  * minimum.
  *
  * This is where &drm_vblank_work comes in. &drm_vblank_work provides a simple
@@ -51,11 +51,11 @@ void drm_handle_vblank_works(struct drm_vblank_crtc *vblank)
 
 	assert_spin_locked(&vblank->dev->event_lock);
 
-	list_for_each_entry_safe(work, next, &vblank->pending_work, node) {
+	list_for_each_entry_safe(work, next, &vblank->pending_work, analde) {
 		if (!drm_vblank_passed(count, work->count))
 			continue;
 
-		list_del_init(&work->node);
+		list_del_init(&work->analde);
 		drm_vblank_put(vblank->dev, vblank->pipe);
 		kthread_queue_work(vblank->worker, &work->base);
 		wake = true;
@@ -76,8 +76,8 @@ void drm_vblank_cancel_pending_works(struct drm_vblank_crtc *vblank)
 	drm_WARN_ONCE(vblank->dev, !list_empty(&vblank->pending_work),
 		      "Cancelling pending vblank works!\n");
 
-	list_for_each_entry_safe(work, next, &vblank->pending_work, node) {
-		list_del_init(&work->node);
+	list_for_each_entry_safe(work, next, &vblank->pending_work, analde) {
+		list_del_init(&work->analde);
 		drm_vblank_put(vblank->dev, vblank->pipe);
 	}
 
@@ -126,7 +126,7 @@ int drm_vblank_work_schedule(struct drm_vblank_work *work,
 	if (inmodeset)
 		goto out;
 
-	if (list_empty(&work->node)) {
+	if (list_empty(&work->analde)) {
 		ret = drm_vblank_get(dev, vblank->pipe);
 		if (ret < 0)
 			goto out;
@@ -150,12 +150,12 @@ int drm_vblank_work_schedule(struct drm_vblank_work *work,
 		ret = kthread_queue_work(vblank->worker, &work->base);
 
 		if (rescheduling) {
-			list_del_init(&work->node);
+			list_del_init(&work->analde);
 			wake = true;
 		}
 	} else {
 		if (!rescheduling)
-			list_add_tail(&work->node, &vblank->pending_work);
+			list_add_tail(&work->analde, &vblank->pending_work);
 		ret = true;
 	}
 
@@ -175,7 +175,7 @@ EXPORT_SYMBOL(drm_vblank_work_schedule);
  * Cancel an already scheduled vblank work and wait for its
  * execution to finish.
  *
- * On return, @work is guaranteed to no longer be scheduled or running, even
+ * On return, @work is guaranteed to anal longer be scheduled or running, even
  * if it's self-arming.
  *
  * Returns:
@@ -189,8 +189,8 @@ bool drm_vblank_work_cancel_sync(struct drm_vblank_work *work)
 	bool ret = false;
 
 	spin_lock_irq(&dev->event_lock);
-	if (!list_empty(&work->node)) {
-		list_del_init(&work->node);
+	if (!list_empty(&work->analde)) {
+		list_del_init(&work->analde);
 		drm_vblank_put(vblank->dev, vblank->pipe);
 		ret = true;
 	}
@@ -224,7 +224,7 @@ void drm_vblank_work_flush(struct drm_vblank_work *work)
 	struct drm_device *dev = vblank->dev;
 
 	spin_lock_irq(&dev->event_lock);
-	wait_event_lock_irq(vblank->work_wait_queue, list_empty(&work->node),
+	wait_event_lock_irq(vblank->work_wait_queue, list_empty(&work->analde),
 			    dev->event_lock);
 	spin_unlock_irq(&dev->event_lock);
 
@@ -244,7 +244,7 @@ void drm_vblank_work_init(struct drm_vblank_work *work, struct drm_crtc *crtc,
 			  void (*func)(struct kthread_work *work))
 {
 	kthread_init_work(&work->base, func);
-	INIT_LIST_HEAD(&work->node);
+	INIT_LIST_HEAD(&work->analde);
 	work->vblank = &crtc->dev->vblank[drm_crtc_index(crtc)];
 }
 EXPORT_SYMBOL(drm_vblank_work_init);

@@ -49,7 +49,7 @@
 #define POWERCFG		2	/* Power Configuration */
 #define POWERCFG_DSMUTE		0x8000	/* bits 15..15: Softmute Disable */
 #define POWERCFG_DMUTE		0x4000	/* bits 14..14: Mute Disable */
-#define POWERCFG_MONO		0x2000	/* bits 13..13: Mono Select */
+#define POWERCFG_MOANAL		0x2000	/* bits 13..13: Moanal Select */
 #define POWERCFG_RDSM		0x0800	/* bits 11..11: RDS Mode (Si4701 only) */
 #define POWERCFG_SKMODE		0x0400	/* bits 10..10: Seek Mode */
 #define POWERCFG_SEEKUP		0x0200	/* bits 09..09: Seek Direction */
@@ -67,7 +67,7 @@
 #define SYSCONFIG1_RDS		0x1000	/* bits 12..12: RDS Enable (Si4701 only) */
 #define SYSCONFIG1_DE		0x0800	/* bits 11..11: De-emphasis (0=75us 1=50us) */
 #define SYSCONFIG1_AGCD		0x0400	/* bits 10..10: AGC Disable */
-#define SYSCONFIG1_BLNDADJ	0x00c0	/* bits 07..06: Stereo/Mono Blend Level Adjustment */
+#define SYSCONFIG1_BLNDADJ	0x00c0	/* bits 07..06: Stereo/Moanal Blend Level Adjustment */
 #define SYSCONFIG1_GPIO3	0x0030	/* bits 05..04: General Purpose I/O 3 */
 #define SYSCONFIG1_GPIO2	0x000c	/* bits 03..02: General Purpose I/O 2 */
 #define SYSCONFIG1_GPIO2_DIS	0x0000	/* Disable GPIO 2 interrupt */

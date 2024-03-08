@@ -9,7 +9,7 @@
 #include "volumes.h"
 #include "disk-io.h"
 #include "block-group.h"
-#include "btrfs_inode.h"
+#include "btrfs_ianalde.h"
 
 #define BTRFS_DEFAULT_RECLAIM_THRESH           			(75)
 
@@ -117,8 +117,8 @@ static inline int btrfs_check_zoned_mode(const struct btrfs_fs_info *fs_info)
 	if (!btrfs_is_zoned(fs_info))
 		return 0;
 
-	btrfs_err(fs_info, "zoned block devices support is not enabled");
-	return -EOPNOTSUPP;
+	btrfs_err(fs_info, "zoned block devices support is analt enabled");
+	return -EOPANALTSUPP;
 }
 
 static inline int btrfs_check_mountopts_zoned(struct btrfs_fs_info *info,
@@ -197,14 +197,14 @@ static inline int btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
 static inline int btrfs_zoned_issue_zeroout(struct btrfs_device *device,
 					    u64 physical, u64 length)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int btrfs_sync_zone_write_pointer(struct btrfs_device *tgt_dev,
 						u64 logical, u64 physical_start,
 						u64 physical_pos)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline bool btrfs_zone_activate(struct btrfs_block_group *block_group)
@@ -282,16 +282,16 @@ static inline void btrfs_dev_set_empty_zone_bit(struct btrfs_device *device,
 						u64 pos, bool set)
 {
 	struct btrfs_zoned_device_info *zone_info = device->zone_info;
-	unsigned int zno;
+	unsigned int zanal;
 
 	if (!zone_info)
 		return;
 
-	zno = pos >> zone_info->zone_size_shift;
+	zanal = pos >> zone_info->zone_size_shift;
 	if (set)
-		set_bit(zno, zone_info->empty_zones);
+		set_bit(zanal, zone_info->empty_zones);
 	else
-		clear_bit(zno, zone_info->empty_zones);
+		clear_bit(zanal, zone_info->empty_zones);
 }
 
 static inline void btrfs_dev_set_zone_empty(struct btrfs_device *device, u64 pos)
@@ -319,15 +319,15 @@ static inline bool btrfs_check_device_zone_type(const struct btrfs_fs_info *fs_i
 			(bdev_zone_sectors(bdev) << SECTOR_SHIFT);
 	}
 
-	/* Do not allow Host Managed zoned device. */
+	/* Do analt allow Host Managed zoned device. */
 	return !bdev_is_zoned(bdev);
 }
 
 static inline bool btrfs_check_super_location(struct btrfs_device *device, u64 pos)
 {
 	/*
-	 * On a non-zoned device, any address is OK. On a zoned device,
-	 * non-SEQUENTIAL WRITE REQUIRED zones are capable.
+	 * On a analn-zoned device, any address is OK. On a zoned device,
+	 * analn-SEQUENTIAL WRITE REQUIRED zones are capable.
 	 */
 	return device->zone_info == NULL || !btrfs_dev_is_sequential(device, pos);
 }
@@ -374,17 +374,17 @@ static inline void btrfs_clear_treelog_bg(struct btrfs_block_group *bg)
 	spin_unlock(&fs_info->treelog_bg_lock);
 }
 
-static inline void btrfs_zoned_data_reloc_lock(struct btrfs_inode *inode)
+static inline void btrfs_zoned_data_reloc_lock(struct btrfs_ianalde *ianalde)
 {
-	struct btrfs_root *root = inode->root;
+	struct btrfs_root *root = ianalde->root;
 
 	if (btrfs_is_data_reloc_root(root) && btrfs_is_zoned(root->fs_info))
 		mutex_lock(&root->fs_info->zoned_data_reloc_io_lock);
 }
 
-static inline void btrfs_zoned_data_reloc_unlock(struct btrfs_inode *inode)
+static inline void btrfs_zoned_data_reloc_unlock(struct btrfs_ianalde *ianalde)
 {
-	struct btrfs_root *root = inode->root;
+	struct btrfs_root *root = ianalde->root;
 
 	if (btrfs_is_data_reloc_root(root) && btrfs_is_zoned(root->fs_info))
 		mutex_unlock(&root->fs_info->zoned_data_reloc_io_lock);

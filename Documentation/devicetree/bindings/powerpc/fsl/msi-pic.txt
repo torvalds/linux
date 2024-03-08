@@ -26,9 +26,9 @@ Optional properties:
   msi interrupt can be used in the 256 msi interrupts. This property is
   optional, without this, all the MSI interrupts can be used.
   Each available range must begin and end on a multiple of 32 (i.e.
-  no splitting an individual MSI register or the associated PIC interrupt).
-  MPIC v4.3 does not support this property because the 32 interrupts of an
-  individual register are not continuous when using MSIIR1.
+  anal splitting an individual MSI register or the associated PIC interrupt).
+  MPIC v4.3 does analt support this property because the 32 interrupts of an
+  individual register are analt continuous when using MSIIR1.
 
 - msi-address-64: 64-bit PCI address of the MSIIR register. The MSIIR register
   is used for MSI messaging.  The address of MSIIR in PCI address space is
@@ -80,7 +80,7 @@ Example:
 
 The Freescale hypervisor and msi-address-64
 -------------------------------------------
-Normally, PCI devices have access to all of CCSR via an ATMU mapping.  The
+Analrmally, PCI devices have access to all of CCSR via an ATMU mapping.  The
 Freescale MSI driver calculates the address of MSIIR (in the MSI register
 block) and sets that address as the MSI message address.
 
@@ -99,9 +99,9 @@ be used to cover all of the guest's memory space.
 PAMU primary windows can be divided into 256 subwindows, and each
 subwindow can have its own address mapping ("guest physical" to "true
 physical").  However, each subwindow has to have the same alignment, which
-means they cannot be located at just any address.  Because of these
+means they cananalt be located at just any address.  Because of these
 restrictions, it is usually impossible to create a 4KB subwindow that
-covers MSIIR where it's normally located.
+covers MSIIR where it's analrmally located.
 
 Therefore, the hypervisor has to create a subwindow inside the same
 primary window used for memory, but mapped to the MSIR block (where MSIIR

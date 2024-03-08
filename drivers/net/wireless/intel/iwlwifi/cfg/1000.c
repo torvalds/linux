@@ -56,7 +56,7 @@ static const struct iwl_eeprom_params iwl1000_eeprom_params = {
 		EEPROM_REG_BAND_4_CHANNELS,
 		EEPROM_REG_BAND_5_CHANNELS,
 		EEPROM_REG_BAND_24_HT40_CHANNELS,
-		EEPROM_REGULATORY_BAND_NO_HT40,
+		EEPROM_REGULATORY_BAND_ANAL_HT40,
 	}
 };
 
@@ -74,13 +74,13 @@ static const struct iwl_eeprom_params iwl1000_eeprom_params = {
 	.led_mode = IWL_LED_BLINK
 
 const struct iwl_cfg iwl1000_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 1000 BGN",
+	.name = "Intel(R) Centrianal(R) Wireless-N 1000 BGN",
 	IWL_DEVICE_1000,
 	.ht_params = &iwl1000_ht_params,
 };
 
 const struct iwl_cfg iwl1000_bg_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 1000 BG",
+	.name = "Intel(R) Centrianal(R) Wireless-N 1000 BG",
 	IWL_DEVICE_1000,
 };
 
@@ -99,13 +99,13 @@ const struct iwl_cfg iwl1000_bg_cfg = {
 	.rx_with_siso_diversity = true
 
 const struct iwl_cfg iwl100_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 100 BGN",
+	.name = "Intel(R) Centrianal(R) Wireless-N 100 BGN",
 	IWL_DEVICE_100,
 	.ht_params = &iwl1000_ht_params,
 };
 
 const struct iwl_cfg iwl100_bg_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 100 BG",
+	.name = "Intel(R) Centrianal(R) Wireless-N 100 BG",
 	IWL_DEVICE_100,
 };
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,11 +29,11 @@
 #include "dc_bios_types.h"
 #include "bios_parser_helper.h"
 
-/* use atomfirmware_bringup.h only. Not atombios.h anymore */
+/* use atomfirmware_bringup.h only. Analt atombios.h anymore */
 
 struct atom_data_revision {
 	uint32_t major;
-	uint32_t minor;
+	uint32_t mianalr;
 };
 
 struct object_info_table {
@@ -45,7 +45,7 @@ struct object_info_table {
 };
 
 enum spread_spectrum_id {
-	SS_ID_UNKNOWN = 0,
+	SS_ID_UNKANALWN = 0,
 	SS_ID_DP1 = 0xf1,
 	SS_ID_DP2 = 0xf2,
 	SS_ID_LVLINK_2700MHZ = 0xf3,

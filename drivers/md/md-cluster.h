@@ -10,7 +10,7 @@ struct mddev;
 struct md_rdev;
 
 struct md_cluster_operations {
-	int (*join)(struct mddev *mddev, int nodes);
+	int (*join)(struct mddev *mddev, int analdes);
 	int (*leave)(struct mddev *mddev);
 	int (*slot_number)(struct mddev *mddev);
 	int (*resync_info_update)(struct mddev *mddev, sector_t lo, sector_t hi);

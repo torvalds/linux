@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2022 Richtek Technology Corp.
+ * Copyright (c) 2022 Richtek Techanallogy Corp.
  *
  * ChiYuan Huang <cy_huang@richtek.com>
  */
@@ -478,7 +478,7 @@ out:
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put(dev);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -532,11 +532,11 @@ static int rtq6056_probe(struct i2c_client *i2c)
 	int ret;
 
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = iio_priv(indio_dev);
 	priv->dev = dev;
@@ -557,7 +557,7 @@ static int rtq6056_probe(struct i2c_client *i2c)
 				     "Failed to get manufacturer info\n");
 
 	if (vendor_id != RTQ6056_VENDOR_ID)
-		return dev_err_probe(dev, -ENODEV,
+		return dev_err_probe(dev, -EANALDEV,
 				     "Invalid vendor id 0x%04x\n", vendor_id);
 
 	ret = devm_regmap_field_bulk_alloc(dev, regmap, priv->rm_fields,

@@ -55,7 +55,7 @@ struct stv0900_table{
 };
 
 enum fe_stv0900_error {
-	STV0900_NO_ERROR = 0,
+	STV0900_ANAL_ERROR = 0,
 	STV0900_INVALID_HANDLE,
 	STV0900_BAD_PARAMETER,
 	STV0900_I2C_ERROR,
@@ -86,16 +86,16 @@ enum fe_stv0900_ldpc_state {
 };
 
 enum fe_stv0900_signal_type {
-	STV0900_NOAGC1 = 0,
+	STV0900_ANALAGC1 = 0,
 	STV0900_AGC1OK,
-	STV0900_NOTIMING,
+	STV0900_ANALTIMING,
 	STV0900_ANALOGCARRIER,
 	STV0900_TIMINGOK,
-	STV0900_NOAGC2,
+	STV0900_ANALAGC2,
 	STV0900_AGC2OK,
-	STV0900_NOCARRIER,
+	STV0900_ANALCARRIER,
 	STV0900_CARRIEROK,
-	STV0900_NODATA,
+	STV0900_ANALDATA,
 	STV0900_DATAOK,
 	STV0900_OUTOFRANGE,
 	STV0900_RANGEOK
@@ -111,7 +111,7 @@ enum fe_stv0900_tracking_standard {
 	STV0900_DVBS2_STANDARD,
 	STV0900_DSS_STANDARD,
 	STV0900_TURBOCODE_STANDARD,
-	STV0900_UNKNOWN_STANDARD
+	STV0900_UNKANALWN_STANDARD
 };
 
 enum fe_stv0900_search_standard {
@@ -123,9 +123,9 @@ enum fe_stv0900_search_standard {
 };
 
 enum fe_stv0900_search_algo {
-	STV0900_BLIND_SEARCH,/* offset freq and SR are Unknown */
-	STV0900_COLD_START,/* only the SR is known */
-	STV0900_WARM_START/* offset freq and SR are known */
+	STV0900_BLIND_SEARCH,/* offset freq and SR are Unkanalwn */
+	STV0900_COLD_START,/* only the SR is kanalwn */
+	STV0900_WARM_START/* offset freq and SR are kanalwn */
 };
 
 enum fe_stv0900_modulation {
@@ -133,7 +133,7 @@ enum fe_stv0900_modulation {
 	STV0900_8PSK,
 	STV0900_16APSK,
 	STV0900_32APSK,
-	STV0900_UNKNOWN
+	STV0900_UNKANALWN
 };
 
 enum fe_stv0900_modcode {
@@ -166,7 +166,7 @@ enum fe_stv0900_modcode {
 	STV0900_32APSK_56,
 	STV0900_32APSK_89,
 	STV0900_32APSK_910,
-	STV0900_MODCODE_UNKNOWN
+	STV0900_MODCODE_UNKANALWN
 };
 
 enum fe_stv0900_fec {/*DVBS1, DSS and turbo code puncture rate*/
@@ -178,7 +178,7 @@ enum fe_stv0900_fec {/*DVBS1, DSS and turbo code puncture rate*/
 	STV0900_FEC_6_7,/*for DSS only */
 	STV0900_FEC_7_8,
 	STV0900_FEC_8_9,/*for turbo code only*/
-	STV0900_FEC_UNKNOWN
+	STV0900_FEC_UNKANALWN
 };
 
 enum fe_stv0900_frame_length {
@@ -199,13 +199,13 @@ enum fe_stv0900_rolloff {
 
 enum fe_stv0900_search_iq {
 	STV0900_IQ_AUTO,
-	STV0900_IQ_AUTO_NORMAL_FIRST,
-	STV0900_IQ_FORCE_NORMAL,
+	STV0900_IQ_AUTO_ANALRMAL_FIRST,
+	STV0900_IQ_FORCE_ANALRMAL,
 	STV0900_IQ_FORCE_SWAPPED
 };
 
 enum stv0900_iq_inversion {
-	STV0900_IQ_NORMAL,
+	STV0900_IQ_ANALRMAL,
 	STV0900_IQ_SWAPPED
 };
 
@@ -278,7 +278,7 @@ struct stv0900_signal_info {
 	enum fe_stv0900_rolloff			rolloff;
 
 	s32 Power;/* Power of the RF signal (dBm) */
-	s32 C_N;/* Carrier to noise ratio (dB x10)*/
+	s32 C_N;/* Carrier to analise ratio (dB x10)*/
 	u32 BER;/* Bit error rate (x10^7) */
 
 };
@@ -303,7 +303,7 @@ struct stv0900_internal{
 	enum fe_stv0900_search_algo	srch_algo[2];
 	/* search standard: Auto, DVBS1/DSS only or DVBS2 only*/
 	enum fe_stv0900_search_standard	srch_standard[2];
-	/* inversion search : auto, auto norma first, normal or inverted */
+	/* inversion search : auto, auto analrma first, analrmal or inverted */
 	enum fe_stv0900_search_iq	srch_iq_inv[2];
 	enum fe_stv0900_modcode		modcode[2];
 	enum fe_stv0900_modulation	modulation[2];

@@ -343,7 +343,7 @@ static int wm8904_configure_clocking(struct snd_soc_component *component)
 		break;
 
 	default:
-		dev_err(component->dev, "System clock not configured\n");
+		dev_err(component->dev, "System clock analt configured\n");
 		return -EINVAL;
 	}
 
@@ -579,7 +579,7 @@ static const struct snd_kcontrol_new wm8904_adc_snd_controls[] = {
 SOC_DOUBLE_R_TLV("Digital Capture Volume", WM8904_ADC_DIGITAL_VOLUME_LEFT,
 		 WM8904_ADC_DIGITAL_VOLUME_RIGHT, 1, 119, 0, digital_tlv),
 
-/* No TLV since it depends on mode */
+/* Anal TLV since it depends on mode */
 SOC_DOUBLE_R("Capture Volume", WM8904_ANALOGUE_LEFT_INPUT_0,
 	     WM8904_ANALOGUE_RIGHT_INPUT_0, 0, 31, 0),
 SOC_DOUBLE_R("Capture Switch", WM8904_ANALOGUE_LEFT_INPUT_0,
@@ -939,14 +939,14 @@ SND_SOC_DAPM_INPUT("IN3R"),
 
 SND_SOC_DAPM_SUPPLY("MICBIAS", WM8904_MIC_BIAS_CONTROL_0, 0, 0, NULL, 0),
 
-SND_SOC_DAPM_MUX("Left Capture Mux", SND_SOC_NOPM, 0, 0, &lin_mux),
-SND_SOC_DAPM_MUX("Left Capture Inverting Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("Left Capture Mux", SND_SOC_ANALPM, 0, 0, &lin_mux),
+SND_SOC_DAPM_MUX("Left Capture Inverting Mux", SND_SOC_ANALPM, 0, 0,
 		 &lin_inv_mux),
-SND_SOC_DAPM_MUX("Left Capture Mode", SND_SOC_NOPM, 0, 0, &lin_mode),
-SND_SOC_DAPM_MUX("Right Capture Mux", SND_SOC_NOPM, 0, 0, &rin_mux),
-SND_SOC_DAPM_MUX("Right Capture Inverting Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("Left Capture Mode", SND_SOC_ANALPM, 0, 0, &lin_mode),
+SND_SOC_DAPM_MUX("Right Capture Mux", SND_SOC_ANALPM, 0, 0, &rin_mux),
+SND_SOC_DAPM_MUX("Right Capture Inverting Mux", SND_SOC_ANALPM, 0, 0,
 		 &rin_inv_mux),
-SND_SOC_DAPM_MUX("Right Capture Mode", SND_SOC_NOPM, 0, 0, &rin_mode),
+SND_SOC_DAPM_MUX("Right Capture Mode", SND_SOC_ANALPM, 0, 0, &rin_mode),
 
 SND_SOC_DAPM_PGA("Left Capture PGA", WM8904_POWER_MANAGEMENT_0, 1, 0,
 		 NULL, 0),
@@ -956,19 +956,19 @@ SND_SOC_DAPM_PGA("Right Capture PGA", WM8904_POWER_MANAGEMENT_0, 0, 0,
 SND_SOC_DAPM_ADC("ADCL", NULL, WM8904_POWER_MANAGEMENT_6, 1, 0),
 SND_SOC_DAPM_ADC("ADCR", NULL, WM8904_POWER_MANAGEMENT_6, 0, 0),
 
-SND_SOC_DAPM_MUX("AIFOUTL Mux", SND_SOC_NOPM, 0, 0, &aifoutl_mux),
-SND_SOC_DAPM_MUX("AIFOUTR Mux", SND_SOC_NOPM, 0, 0, &aifoutr_mux),
+SND_SOC_DAPM_MUX("AIFOUTL Mux", SND_SOC_ANALPM, 0, 0, &aifoutl_mux),
+SND_SOC_DAPM_MUX("AIFOUTR Mux", SND_SOC_ANALPM, 0, 0, &aifoutr_mux),
 
-SND_SOC_DAPM_AIF_OUT("AIFOUTL", "Capture", 0, SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_AIF_OUT("AIFOUTR", "Capture", 1, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIFOUTL", "Capture", 0, SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIFOUTR", "Capture", 1, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_widget wm8904_dac_dapm_widgets[] = {
-SND_SOC_DAPM_AIF_IN("AIFINL", "Playback", 0, SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_AIF_IN("AIFINR", "Playback", 1, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIFINL", "Playback", 0, SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIFINR", "Playback", 1, SND_SOC_ANALPM, 0, 0),
 
-SND_SOC_DAPM_MUX("DACL Mux", SND_SOC_NOPM, 0, 0, &aifinl_mux),
-SND_SOC_DAPM_MUX("DACR Mux", SND_SOC_NOPM, 0, 0, &aifinr_mux),
+SND_SOC_DAPM_MUX("DACL Mux", SND_SOC_ANALPM, 0, 0, &aifinl_mux),
+SND_SOC_DAPM_MUX("DACR Mux", SND_SOC_ANALPM, 0, 0, &aifinr_mux),
 
 SND_SOC_DAPM_DAC("DACL", NULL, WM8904_POWER_MANAGEMENT_6, 3, 0),
 SND_SOC_DAPM_DAC("DACR", NULL, WM8904_POWER_MANAGEMENT_6, 2, 0),
@@ -976,17 +976,17 @@ SND_SOC_DAPM_DAC("DACR", NULL, WM8904_POWER_MANAGEMENT_6, 2, 0),
 SND_SOC_DAPM_SUPPLY("Charge pump", WM8904_CHARGE_PUMP_0, 0, 0, cp_event,
 		    SND_SOC_DAPM_POST_PMU),
 
-SND_SOC_DAPM_PGA("HPL PGA", SND_SOC_NOPM, 1, 0, NULL, 0),
-SND_SOC_DAPM_PGA("HPR PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("HPL PGA", SND_SOC_ANALPM, 1, 0, NULL, 0),
+SND_SOC_DAPM_PGA("HPR PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-SND_SOC_DAPM_PGA("LINEL PGA", SND_SOC_NOPM, 1, 0, NULL, 0),
-SND_SOC_DAPM_PGA("LINER PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("LINEL PGA", SND_SOC_ANALPM, 1, 0, NULL, 0),
+SND_SOC_DAPM_PGA("LINER PGA", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-SND_SOC_DAPM_PGA_E("Headphone Output", SND_SOC_NOPM, WM8904_ANALOGUE_HP_0,
+SND_SOC_DAPM_PGA_E("Headphone Output", SND_SOC_ANALPM, WM8904_ANALOGUE_HP_0,
 		   0, NULL, 0, out_pga_event,
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_PGA_E("Line Output", SND_SOC_NOPM, WM8904_ANALOGUE_LINEOUT_0,
+SND_SOC_DAPM_PGA_E("Line Output", SND_SOC_ANALPM, WM8904_ANALOGUE_LINEOUT_0,
 		   0, NULL, 0, out_pga_event,
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
@@ -1026,7 +1026,7 @@ static const struct snd_kcontrol_new liner_mux =
 	SOC_DAPM_ENUM("LINER Mux", liner_enum);
 
 static const char *sidetone_text[] = {
-	"None", "Left", "Right"
+	"Analne", "Left", "Right"
 };
 
 static SOC_ENUM_SINGLE_DECL(dacl_sidetone_enum, WM8904_DAC_DIGITAL_0, 2,
@@ -1043,16 +1043,16 @@ static const struct snd_kcontrol_new dacr_sidetone_mux =
 
 static const struct snd_soc_dapm_widget wm8904_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("Class G", WM8904_CLASS_W_0, 0, 1, NULL, 0),
-SND_SOC_DAPM_PGA("Left Bypass", SND_SOC_NOPM, 0, 0, NULL, 0),
-SND_SOC_DAPM_PGA("Right Bypass", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Left Bypass", SND_SOC_ANALPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Right Bypass", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-SND_SOC_DAPM_MUX("Left Sidetone", SND_SOC_NOPM, 0, 0, &dacl_sidetone_mux),
-SND_SOC_DAPM_MUX("Right Sidetone", SND_SOC_NOPM, 0, 0, &dacr_sidetone_mux),
+SND_SOC_DAPM_MUX("Left Sidetone", SND_SOC_ANALPM, 0, 0, &dacl_sidetone_mux),
+SND_SOC_DAPM_MUX("Right Sidetone", SND_SOC_ANALPM, 0, 0, &dacr_sidetone_mux),
 
-SND_SOC_DAPM_MUX("HPL Mux", SND_SOC_NOPM, 0, 0, &hpl_mux),
-SND_SOC_DAPM_MUX("HPR Mux", SND_SOC_NOPM, 0, 0, &hpr_mux),
-SND_SOC_DAPM_MUX("LINEL Mux", SND_SOC_NOPM, 0, 0, &linel_mux),
-SND_SOC_DAPM_MUX("LINER Mux", SND_SOC_NOPM, 0, 0, &liner_mux),
+SND_SOC_DAPM_MUX("HPL Mux", SND_SOC_ANALPM, 0, 0, &hpl_mux),
+SND_SOC_DAPM_MUX("HPR Mux", SND_SOC_ANALPM, 0, 0, &hpr_mux),
+SND_SOC_DAPM_MUX("LINEL Mux", SND_SOC_ANALPM, 0, 0, &linel_mux),
+SND_SOC_DAPM_MUX("LINER Mux", SND_SOC_ANALPM, 0, 0, &liner_mux),
 };
 
 static const struct snd_soc_dapm_route core_intercon[] = {
@@ -1462,7 +1462,7 @@ static int wm8904_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion analt valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -1518,7 +1518,7 @@ static int wm8904_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	if (slots == 0)
 		goto out;
 
-	/* Note that we allow configurations we can't handle ourselves - 
+	/* Analte that we allow configurations we can't handle ourselves - 
 	 * for example, we can generate clocks for slots 2 and up even if
 	 * we can't use those slots ourselves.
 	 */
@@ -1636,7 +1636,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 		return -EINVAL;
 	}
 
-	/* Now, calculate N.K */
+	/* Analw, calculate N.K */
 	Ndiv = target / Fref;
 
 	fll_div->n = Ndiv;
@@ -1653,7 +1653,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range analw rounding is done */
 	fll_div->k = K / 10;
 
 	pr_debug("N=%x K=%x FLL_FRATIO=%x FLL_OUTDIV=%x FLL_CLK_REF_DIV=%x\n",
@@ -1708,7 +1708,7 @@ static int wm8904_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 
 	case WM8904_FLL_FREE_RUNNING:
 		dev_dbg(component->dev, "Using free running FLL\n");
-		/* Force 12MHz and output/4 for now */
+		/* Force 12MHz and output/4 for analw */
 		Fout = 12000000;
 		Fref = 12000000;
 
@@ -1717,7 +1717,7 @@ static int wm8904_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown FLL ID %d\n", fll_id);
+		dev_err(component->dev, "Unkanalwn FLL ID %d\n", fll_id);
 		return -EINVAL;
 	}
 
@@ -1813,7 +1813,7 @@ static int wm8904_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 
 	switch (clk_id) {
 	case WM8904_CLK_AUTO:
-		/* We don't have any rate constraints, so just ignore the
+		/* We don't have any rate constraints, so just iganalre the
 		 * request to disable constraining.
 		 */
 		if (!freq)
@@ -1884,7 +1884,7 @@ static int wm8904_set_bias_level(struct snd_soc_component *component,
 				    WM8904_VMID_RES_MASK,
 				    0x1 << WM8904_VMID_RES_SHIFT);
 
-		/* Normal bias current */
+		/* Analrmal bias current */
 		snd_soc_component_update_bits(component, WM8904_BIAS_CONTROL_0,
 				    WM8904_ISEL_MASK, 2 << WM8904_ISEL_SHIFT);
 		break;
@@ -1970,7 +1970,7 @@ static const struct snd_soc_dai_ops wm8904_dai_ops = {
 	.set_pll = wm8904_set_fll,
 	.hw_params = wm8904_hw_params,
 	.mute_stream = wm8904_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8904_dai = {
@@ -2112,7 +2112,7 @@ static int wm8904_probe(struct snd_soc_component *component)
 		memset(&wm8904_dai.capture, 0, sizeof(wm8904_dai.capture));
 		break;
 	default:
-		dev_err(component->dev, "Unknown device type %d\n",
+		dev_err(component->dev, "Unkanalwn device type %d\n",
 			wm8904->devtype);
 		return -EINVAL;
 	}
@@ -2179,7 +2179,7 @@ static int wm8904_i2c_probe(struct i2c_client *i2c)
 	wm8904 = devm_kzalloc(&i2c->dev, sizeof(struct wm8904_priv),
 			      GFP_KERNEL);
 	if (wm8904 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8904->mclk = devm_clk_get(&i2c->dev, "mclk");
 	if (IS_ERR(wm8904->mclk)) {
@@ -2196,10 +2196,10 @@ static int wm8904_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
-	if (i2c->dev.of_node) {
+	if (i2c->dev.of_analde) {
 		const struct of_device_id *match;
 
-		match = of_match_node(wm8904_of_match, i2c->dev.of_node);
+		match = of_match_analde(wm8904_of_match, i2c->dev.of_analde);
 		if (match == NULL)
 			return -EINVAL;
 		wm8904->devtype = (uintptr_t)match->data;
@@ -2235,7 +2235,7 @@ static int wm8904_i2c_probe(struct i2c_client *i2c)
 		goto err_enable;
 	}
 	if (val != 0x8904) {
-		dev_err(&i2c->dev, "Device is not a WM8904, ID is %x\n", val);
+		dev_err(&i2c->dev, "Device is analt a WM8904, ID is %x\n", val);
 		ret = -EINVAL;
 		goto err_enable;
 	}
@@ -2304,7 +2304,7 @@ static int wm8904_i2c_probe(struct i2c_client *i2c)
 	regmap_update_bits(wm8904->regmap, WM8904_CLASS_W_0,
 			    WM8904_CP_DYN_PWR, WM8904_CP_DYN_PWR);
 
-	/* Use normal bias source */
+	/* Use analrmal bias source */
 	regmap_update_bits(wm8904->regmap, WM8904_BIAS_CONTROL_0,
 			    WM8904_POBCTRL, 0);
 

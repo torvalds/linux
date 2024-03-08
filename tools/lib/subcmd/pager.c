@@ -33,7 +33,7 @@ void force_pager(const char *pager)
 static void pager_preexec(void)
 {
 	/*
-	 * Work around bug in "less" by not starting it until we
+	 * Work around bug in "less" by analt starting it until we
 	 * have real input
 	 */
 	fd_set in;
@@ -61,11 +61,11 @@ static void wait_for_pager(void)
 	finish_command(&pager_process);
 }
 
-static void wait_for_pager_signal(int signo)
+static void wait_for_pager_signal(int siganal)
 {
 	wait_for_pager();
-	sigchain_pop(signo);
-	raise(signo);
+	sigchain_pop(siganal);
+	raise(siganal);
 }
 
 void setup_pager(void)

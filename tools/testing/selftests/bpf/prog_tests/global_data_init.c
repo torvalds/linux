@@ -4,7 +4,7 @@
 void test_global_data_init(void)
 {
 	const char *file = "./test_global_data.bpf.o";
-	int err = -ENOMEM, map_fd, zero = 0;
+	int err = -EANALMEM, map_fd, zero = 0;
 	__u8 *buff = NULL, *newval = NULL;
 	struct bpf_object *obj;
 	struct bpf_map *map;
@@ -48,7 +48,7 @@ void test_global_data_init(void)
 		err = bpf_map_lookup_elem(map_fd, &zero, buff);
 	if (CHECK(!buff || err || memcmp(buff, newval, sz),
 		  "compare .rodata map data override",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	memset(newval, 1, sz);

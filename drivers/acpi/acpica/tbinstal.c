@@ -22,7 +22,7 @@ ACPI_MODULE_NAME("tbinstal")
  *              override                - Whether override should be performed
  *              table_index             - Where the table index is returned
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Install an ACPI table into the global data structure. The
  *              table override mechanism is called to allow the host
@@ -91,7 +91,7 @@ acpi_tb_install_table_with_override(struct acpi_table_desc *new_table_desc,
  *              When this function is called by "Load" or "LoadTable" opcodes,
  *              or by acpi_load_table() API, the "Reload" parameter is set.
  *              After successfully returning from this function, table is
- *              "INSTALLED" but not "VALIDATED".
+ *              "INSTALLED" but analt "VALIDATED".
  *
  ******************************************************************************/
 
@@ -113,19 +113,19 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 	    acpi_tb_acquire_temp_table(&new_table_desc, address, flags, table);
 	if (ACPI_FAILURE(status)) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not acquire table length at %8.8X%8.8X",
+			    "Could analt acquire table length at %8.8X%8.8X",
 			    ACPI_FORMAT_UINT64(address)));
 		return_ACPI_STATUS(status);
 	}
 
 	/*
-	 * Optionally do not load any SSDTs from the RSDT/XSDT. This can
+	 * Optionally do analt load any SSDTs from the RSDT/XSDT. This can
 	 * be useful for debugging ACPI problems on some machines.
 	 */
 	if (!reload &&
 	    acpi_gbl_disable_ssdt_table_install &&
 	    ACPI_COMPARE_NAMESEG(&new_table_desc.signature, ACPI_SIG_SSDT)) {
-		ACPI_INFO(("Ignoring installation of %4.4s at %8.8X%8.8X",
+		ACPI_INFO(("Iganalring installation of %4.4s at %8.8X%8.8X",
 			   new_table_desc.signature.ascii,
 			   ACPI_FORMAT_UINT64(address)));
 		goto release_and_exit;
@@ -164,7 +164,7 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 	/* Invoke table handler */
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-	acpi_tb_notify_table(ACPI_TABLE_EVENT_INSTALL, new_table_desc.pointer);
+	acpi_tb_analtify_table(ACPI_TABLE_EVENT_INSTALL, new_table_desc.pointer);
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 
 unlock_and_exit:
@@ -188,10 +188,10 @@ release_and_exit:
  * PARAMETERS:  old_table_desc      - Validated table descriptor to be
  *                                    overridden
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Attempt table override by calling the OSL override functions.
- *              Note: If the table is overridden, then the entire new table
+ *              Analte: If the table is overridden, then the entire new table
  *              is acquired and returned by this function.
  *              Before/after invocation, the table descriptor is in a state
  *              that is "VALIDATED".
@@ -231,12 +231,12 @@ void acpi_tb_override_table(struct acpi_table_desc *old_table_desc)
 		goto finish_override;
 	}
 
-	return;			/* There was no override */
+	return;			/* There was anal override */
 
 finish_override:
 
 	/*
-	 * Validate and verify a table before overriding, no nested table
+	 * Validate and verify a table before overriding, anal nested table
 	 * duplication check as it's too complicated and unnecessary.
 	 */
 	status = acpi_tb_verify_temp_table(&new_table_desc, NULL, NULL);
@@ -250,7 +250,7 @@ finish_override:
 		   ACPI_FORMAT_UINT64(old_table_desc->address),
 		   override_type, ACPI_FORMAT_UINT64(new_table_desc.address)));
 
-	/* We can now uninstall the original table */
+	/* We can analw uninstall the original table */
 
 	acpi_tb_uninstall_table(old_table_desc);
 
@@ -274,7 +274,7 @@ finish_override:
  *
  * PARAMETERS:  table_desc          - Table descriptor
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Delete one internal ACPI table
  *

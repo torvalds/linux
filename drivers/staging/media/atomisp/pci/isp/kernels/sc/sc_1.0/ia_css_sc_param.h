@@ -25,7 +25,7 @@ struct sh_css_isp_sc_params {
 
 /* Number of horizontal slice times for interpolated gain:
  *
- * The start position of the internal frame does not match the start position of the shading table.
+ * The start position of the internal frame does analt match the start position of the shading table.
  * To get a vector of shading gains (interpolated horizontally and vertically)
  * which matches a vector on the internal frame,
  * vec_slice is used for 2 adjacent vectors of shading gains.

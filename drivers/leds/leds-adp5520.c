@@ -98,7 +98,7 @@ static int adp5520_led_probe(struct platform_device *pdev)
 
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "missing platform data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (pdata->num_leds > ADP5520_01_MAXLEDS) {
@@ -110,7 +110,7 @@ static int adp5520_led_probe(struct platform_device *pdev)
 	led = devm_kcalloc(&pdev->dev, pdata->num_leds, sizeof(*led),
 				GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = adp5520_led_prepare(pdev);
 	if (ret) {

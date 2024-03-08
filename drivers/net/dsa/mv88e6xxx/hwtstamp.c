@@ -22,7 +22,7 @@ static int mv88e6xxx_port_ptp_read(struct mv88e6xxx_chip *chip, int port,
 				   int addr, u16 *data, int len)
 {
 	if (!chip->info->ops->avb_ops->port_ptp_read)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return chip->info->ops->avb_ops->port_ptp_read(chip, port, addr,
 						       data, len);
@@ -32,7 +32,7 @@ static int mv88e6xxx_port_ptp_write(struct mv88e6xxx_chip *chip, int port,
 				    int addr, u16 data)
 {
 	if (!chip->info->ops->avb_ops->port_ptp_write)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return chip->info->ops->avb_ops->port_ptp_write(chip, port, addr,
 							data);
@@ -42,7 +42,7 @@ static int mv88e6xxx_ptp_write(struct mv88e6xxx_chip *chip, int addr,
 			       u16 data)
 {
 	if (!chip->info->ops->avb_ops->ptp_write)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return chip->info->ops->avb_ops->ptp_write(chip, addr, data);
 }
@@ -51,14 +51,14 @@ static int mv88e6xxx_ptp_read(struct mv88e6xxx_chip *chip, int addr,
 			      u16 *data)
 {
 	if (!chip->info->ops->avb_ops->ptp_read)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return chip->info->ops->avb_ops->ptp_read(chip, addr, data, 1);
 }
 
 /* TX_TSTAMP_TIMEOUT: This limits the time spent polling for a TX
  * timestamp. When working properly, hardware will produce a timestamp
- * within 1ms. Software may enounter delays due to MDIO contention, so
+ * within 1ms. Software may eanalunter delays due to MDIO contention, so
  * the timeout is set accordingly.
  */
 #define TX_TSTAMP_TIMEOUT	msecs_to_jiffies(40)
@@ -73,7 +73,7 @@ int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,
 	ptp_ops = chip->info->ops->ptp_ops;
 
 	if (!chip->info->ptp_support)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_HARDWARE |
@@ -111,19 +111,19 @@ static int mv88e6xxx_set_hwtstamp_config(struct mv88e6xxx_chip *chip, int port,
 		return -ERANGE;
 	}
 
-	/* The switch supports timestamping both L2 and L4; one cannot be
+	/* The switch supports timestamping both L2 and L4; one cananalt be
 	 * disabled independently of the other.
 	 */
 
 	if (!(BIT(config->rx_filter) & ptp_ops->rx_filters)) {
-		config->rx_filter = HWTSTAMP_FILTER_NONE;
+		config->rx_filter = HWTSTAMP_FILTER_ANALNE;
 		dev_dbg(chip->dev, "Unsupported rx_filter %d\n",
 			config->rx_filter);
 		return -ERANGE;
 	}
 
 	switch (config->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		tstamp_enable = false;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
@@ -139,7 +139,7 @@ static int mv88e6xxx_set_hwtstamp_config(struct mv88e6xxx_chip *chip, int port,
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	default:
-		config->rx_filter = HWTSTAMP_FILTER_NONE;
+		config->rx_filter = HWTSTAMP_FILTER_ANALNE;
 		return -ERANGE;
 	}
 
@@ -177,7 +177,7 @@ int mv88e6xxx_port_hwtstamp_set(struct dsa_switch *ds, int port,
 	int err;
 
 	if (!chip->info->ptp_support)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 		return -EFAULT;
@@ -201,14 +201,14 @@ int mv88e6xxx_port_hwtstamp_get(struct dsa_switch *ds, int port,
 	struct hwtstamp_config *config = &ps->tstamp_config;
 
 	if (!chip->info->ptp_support)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
 		-EFAULT : 0;
 }
 
 /* Returns a pointer to the PTP header if the caller should time stamp,
- * or NULL if the caller should not.
+ * or NULL if the caller should analt.
  */
 static struct ptp_header *mv88e6xxx_should_tstamp(struct mv88e6xxx_chip *chip,
 						  int port, struct sk_buff *skb,
@@ -395,13 +395,13 @@ static int mv88e6xxx_txtstamp_work(struct mv88e6xxx_chip *chip,
 		return 1;
 	}
 
-	/* We have the timestamp; go ahead and clear valid now */
+	/* We have the timestamp; go ahead and clear valid analw */
 	mv88e6xxx_reg_lock(chip);
 	mv88e6xxx_port_ptp_write(chip, ps->port_id, ptp_ops->dep_sts_reg, 0);
 	mv88e6xxx_reg_unlock(chip);
 
 	status = departure_block[0] & MV88E6XXX_PTP_TS_STATUS_MASK;
-	if (status != MV88E6XXX_PTP_TS_STATUS_NORMAL) {
+	if (status != MV88E6XXX_PTP_TS_STATUS_ANALRMAL) {
 		dev_warn(chip->dev, "p%d: tx timestamp overrun\n", ps->port_id);
 		goto free_and_clear_skb;
 	}
@@ -424,7 +424,7 @@ static int mv88e6xxx_txtstamp_work(struct mv88e6xxx_chip *chip,
 		departure_block[0], ps->tx_seq_id, departure_block[3]);
 
 	/* skb_complete_tx_timestamp() will free up the client to make
-	 * another timestamp-able transmit. We have to be ready for it
+	 * aanalther timestamp-able transmit. We have to be ready for it
 	 * -- by clearing the ps->tx_skb "flag" -- beforehand.
 	 */
 
@@ -474,7 +474,7 @@ void mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
 	unsigned int type;
 
 	type = ptp_classify_raw(skb);
-	if (type == PTP_CLASS_NONE)
+	if (type == PTP_CLASS_ANALNE)
 		return;
 
 	hdr = mv88e6xxx_should_tstamp(chip, port, skb, type);

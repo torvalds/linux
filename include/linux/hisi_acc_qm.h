@@ -15,17 +15,17 @@
 
 /* qm user domain */
 #define QM_ARUSER_M_CFG_1		0x100088
-#define AXUSER_SNOOP_ENABLE		BIT(30)
+#define AXUSER_SANALOP_ENABLE		BIT(30)
 #define AXUSER_CMD_TYPE			GENMASK(14, 12)
-#define AXUSER_CMD_SMMU_NORMAL		1
+#define AXUSER_CMD_SMMU_ANALRMAL		1
 #define AXUSER_NS			BIT(6)
-#define AXUSER_NO			BIT(5)
+#define AXUSER_ANAL			BIT(5)
 #define AXUSER_FP			BIT(4)
 #define AXUSER_SSV			BIT(0)
-#define AXUSER_BASE			(AXUSER_SNOOP_ENABLE |		\
+#define AXUSER_BASE			(AXUSER_SANALOP_ENABLE |		\
 					FIELD_PREP(AXUSER_CMD_TYPE,	\
-					AXUSER_CMD_SMMU_NORMAL) |	\
-					AXUSER_NS | AXUSER_NO | AXUSER_FP)
+					AXUSER_CMD_SMMU_ANALRMAL) |	\
+					AXUSER_NS | AXUSER_ANAL | AXUSER_FP)
 #define QM_ARUSER_M_CFG_ENABLE		0x100090
 #define ARUSER_M_CFG_ENABLE		0xfffffffe
 #define QM_AWUSER_M_CFG_1		0x100098
@@ -97,12 +97,12 @@
 #define QM_DOORBELL_PAGE_NR		1
 
 /* uacce mode of the driver */
-#define UACCE_MODE_NOUACCE		0 /* don't use uacce */
+#define UACCE_MODE_ANALUACCE		0 /* don't use uacce */
 #define UACCE_MODE_SVA			1 /* use uacce sva mode */
 #define UACCE_MODE_DESC	"0(default) means only register to crypto, 1 means both register to crypto and uacce"
 
 enum qm_stop_reason {
-	QM_NORMAL,
+	QM_ANALRMAL,
 	QM_SOFT_RESET,
 	QM_DOWN,
 };
@@ -137,7 +137,7 @@ enum qm_debug_file {
 
 enum qm_vf_state {
 	QM_READY = 0,
-	QM_NOT_READY,
+	QM_ANALT_READY,
 };
 
 enum qm_misc_ctl_bits {
@@ -170,7 +170,7 @@ struct dfx_diff_registers {
 struct qm_dfx {
 	atomic64_t err_irq_cnt;
 	atomic64_t aeq_irq_cnt;
-	atomic64_t abnormal_irq_cnt;
+	atomic64_t abanalrmal_irq_cnt;
 	atomic64_t create_qp_err_cnt;
 	atomic64_t mb_err_cnt;
 };
@@ -324,7 +324,7 @@ struct hisi_qm {
 	void __iomem *io_base;
 	void __iomem *db_io_base;
 
-	/* Capbility version, 0: not supports */
+	/* Capbility version, 0: analt supports */
 	u32 cap_ver;
 	u32 sqe_size;
 	u32 qp_base;
@@ -441,7 +441,7 @@ static inline int q_num_set(const char *val, const struct kernel_param *kp,
 	pdev = pci_get_device(PCI_VENDOR_ID_HUAWEI, device, NULL);
 	if (!pdev) {
 		q_num = min_t(u32, QM_QNUM_V1, QM_QNUM_V2);
-		pr_info("No device found currently, suppose queue number is %u\n",
+		pr_info("Anal device found currently, suppose queue number is %u\n",
 			q_num);
 	} else {
 		if (pdev->revision == QM_HW_V1)
@@ -487,7 +487,7 @@ static inline int mode_set(const char *val, const struct kernel_param *kp)
 
 	ret = kstrtou32(val, 10, &n);
 	if (ret != 0 || (n != UACCE_MODE_SVA &&
-			 n != UACCE_MODE_NOUACCE))
+			 n != UACCE_MODE_ANALUACCE))
 		return -EINVAL;
 
 	return param_set_int(val, kp);
@@ -558,8 +558,8 @@ struct hisi_acc_sgl_pool *hisi_acc_create_sgl_pool(struct device *dev,
 						   u32 count, u32 sge_nr);
 void hisi_acc_free_sgl_pool(struct device *dev,
 			    struct hisi_acc_sgl_pool *pool);
-int hisi_qm_alloc_qps_node(struct hisi_qm_list *qm_list, int qp_num,
-			   u8 alg_type, int node, struct hisi_qp **qps);
+int hisi_qm_alloc_qps_analde(struct hisi_qm_list *qm_list, int qp_num,
+			   u8 alg_type, int analde, struct hisi_qp **qps);
 void hisi_qm_free_qps(struct hisi_qp **qps, int qp_num);
 void hisi_qm_dev_shutdown(struct pci_dev *pdev);
 void hisi_qm_wait_task_finish(struct hisi_qm *qm, struct hisi_qm_list *qm_list);

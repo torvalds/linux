@@ -119,7 +119,7 @@ static int cgroup_storage_delete(struct cgroup *cgroup, struct bpf_map *map)
 
 	sdata = cgroup_storage_lookup(cgroup, map, false);
 	if (!sdata)
-		return -ENOENT;
+		return -EANALENT;
 
 	bpf_selem_unlink(SELEM(sdata), false);
 	return 0;
@@ -142,9 +142,9 @@ static long bpf_cgrp_storage_delete_elem(struct bpf_map *map, void *key)
 	return err;
 }
 
-static int notsupp_get_next_key(struct bpf_map *map, void *key, void *next_key)
+static int analtsupp_get_next_key(struct bpf_map *map, void *key, void *next_key)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
@@ -181,7 +181,7 @@ BPF_CALL_5(bpf_cgrp_storage_get, struct bpf_map *, map, struct cgroup *, cgroup,
 	if (!percpu_ref_is_dying(&cgroup->self.refcnt) &&
 	    (flags & BPF_LOCAL_STORAGE_GET_F_CREATE))
 		sdata = bpf_local_storage_update(cgroup, (struct bpf_local_storage_map *)map,
-						 value, BPF_NOEXIST, gfp_flags);
+						 value, BPF_ANALEXIST, gfp_flags);
 
 unlock:
 	bpf_cgrp_storage_unlock();
@@ -209,7 +209,7 @@ const struct bpf_map_ops cgrp_storage_map_ops = {
 	.map_alloc_check = bpf_local_storage_map_alloc_check,
 	.map_alloc = cgroup_storage_map_alloc,
 	.map_free = cgroup_storage_map_free,
-	.map_get_next_key = notsupp_get_next_key,
+	.map_get_next_key = analtsupp_get_next_key,
 	.map_lookup_elem = bpf_cgrp_storage_lookup_elem,
 	.map_update_elem = bpf_cgrp_storage_update_elem,
 	.map_delete_elem = bpf_cgrp_storage_delete_elem,

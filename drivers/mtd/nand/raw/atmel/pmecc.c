@@ -17,7 +17,7 @@
  *	Copyright 2000 Steven J. Hill (sjhill@cotw.com)
  *
  *   Add Hardware ECC support for AT91SAM9260 / AT91SAM9263
- *	Richard Genoud (richard.genoud@gmail.com), Adeneo Copyright 2007
+ *	Richard Geanalud (richard.geanalud@gmail.com), Adeneo Copyright 2007
  *
  *   Derived from Das U-Boot source code
  *	(u-boot-1.1.5/board/atmel/at91sam9263ek/nand.c)
@@ -56,7 +56,7 @@
 #define PMECC_GF_DIMENSION_13			13
 #define PMECC_GF_DIMENSION_14			14
 
-/* Primitive Polynomial used by PMECC */
+/* Primitive Polyanalmial used by PMECC */
 #define PMECC_GF_13_PRIMITIVE_POLY		0x201b
 #define PMECC_GF_14_PRIMITIVE_POLY		0x4443
 
@@ -185,7 +185,7 @@ static const struct atmel_pmecc_gf_tables *pmecc_gf_tables_1024;
 
 static inline int deg(unsigned int poly)
 {
-	/* polynomial degree is the most-significant bit index */
+	/* polyanalmial degree is the most-significant bit index */
 	return fls(poly) - 1;
 }
 
@@ -196,7 +196,7 @@ static int atmel_pmecc_build_gf_tables(int mm, unsigned int poly,
 	const unsigned int k = BIT(deg(poly));
 	unsigned int nn = BIT(mm) - 1;
 
-	/* primitive polynomial must be of degree m */
+	/* primitive polyanalmial must be of degree m */
 	if (k != (1u << mm))
 		return -EINVAL;
 
@@ -204,7 +204,7 @@ static int atmel_pmecc_build_gf_tables(int mm, unsigned int poly,
 		gf_tables->alpha_to[i] = x;
 		gf_tables->index_of[x] = i;
 		if (i && (x == 1))
-			/* polynomial is not primitive (a^i=1 with 0<i<2^m-1) */
+			/* polyanalmial is analt primitive (a^i=1 with 0<i<2^m-1) */
 			return -EINVAL;
 		x <<= 1;
 		if (x & k)
@@ -237,7 +237,7 @@ atmel_pmecc_create_gf_tables(const struct atmel_pmecc_user_req *req)
 			    (2 * table_size * sizeof(u16)),
 			    GFP_KERNEL);
 	if (!gf_tables)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	gf_tables->alpha_to = (void *)(gf_tables + 1);
 	gf_tables->index_of = gf_tables->alpha_to + table_size;
@@ -364,7 +364,7 @@ atmel_pmecc_create_user(struct atmel_pmecc *pmecc,
 
 	user = kzalloc(size, GFP_KERNEL);
 	if (!user)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	user->pmecc = pmecc;
 
@@ -518,7 +518,7 @@ static void atmel_pmecc_get_sigma(struct atmel_pmecc_user *user)
 
 	/* discrepancy set to 1 */
 	dmu[0] = 1;
-	/* polynom order set to 0 */
+	/* polyanalm order set to 0 */
 	lmu[0] = 0;
 	delta[0] = (mu[0] * 2 - lmu[0]) >> 1;
 
@@ -533,7 +533,7 @@ static void atmel_pmecc_get_sigma(struct atmel_pmecc_user *user)
 	/* discrepancy set to S1 */
 	dmu[1] = si[1];
 
-	/* polynom order set to 0 */
+	/* polyanalm order set to 0 */
 	lmu[1] = 0;
 
 	delta[1] = (mu[1] * 2 - lmu[1]) >> 1;
@@ -563,11 +563,11 @@ static void atmel_pmecc_get_sigma(struct atmel_pmecc_user *user)
 				return;
 			}
 
-			/* copy polynom */
+			/* copy polyanalm */
 			for (j = 0; j <= lmu[i] >> 1; j++)
 				smu[(i + 1) * num + j] = smu[i * num + j];
 
-			/* copy previous polynom order to the next */
+			/* copy previous polyanalm order to the next */
 			lmu[i + 1] = lmu[i];
 		} else {
 			ro = 0;
@@ -583,7 +583,7 @@ static void atmel_pmecc_get_sigma(struct atmel_pmecc_user *user)
 			/* compute difference */
 			diff = (mu[i] - mu[ro]);
 
-			/* Compute degree of the new smu polynomial */
+			/* Compute degree of the new smu polyanalmial */
 			if ((lmu[i] >> 1) > ((lmu[ro] >> 1) + diff))
 				lmu[i + 1] = lmu[i];
 			else
@@ -616,7 +616,7 @@ static void atmel_pmecc_get_sigma(struct atmel_pmecc_user *user)
 		/* In either case compute delta */
 		delta[i + 1] = (mu[i + 1] * 2 - lmu[i + 1]) >> 1;
 
-		/* Do not compute discrepancy for the last iteration */
+		/* Do analt compute discrepancy for the last iteration */
 		if (i >= strength)
 			continue;
 
@@ -681,7 +681,7 @@ static int atmel_pmecc_err_location(struct atmel_pmecc_user *user)
 		return err_nbr - 1;
 
 	/*
-	 * Number of roots does not match the degree of smu
+	 * Number of roots does analt match the degree of smu
 	 * unable to correct error.
 	 */
 	return -EBADMSG;
@@ -837,7 +837,7 @@ static struct atmel_pmecc *atmel_pmecc_create(struct platform_device *pdev,
 
 	pmecc = devm_kzalloc(dev, sizeof(*pmecc), GFP_KERNEL);
 	if (!pmecc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pmecc->caps = caps;
 	pmecc->dev = dev;
@@ -865,14 +865,14 @@ static void devm_atmel_pmecc_put(struct device *dev, void *res)
 	put_device((*pmecc)->dev);
 }
 
-static struct atmel_pmecc *atmel_pmecc_get_by_node(struct device *userdev,
-						   struct device_node *np)
+static struct atmel_pmecc *atmel_pmecc_get_by_analde(struct device *userdev,
+						   struct device_analde *np)
 {
 	struct platform_device *pdev;
 	struct atmel_pmecc *pmecc, **ptr;
 	int ret;
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_analde(np);
 	if (!pdev)
 		return ERR_PTR(-EPROBE_DEFER);
 	pmecc = platform_get_drvdata(pdev);
@@ -883,7 +883,7 @@ static struct atmel_pmecc *atmel_pmecc_get_by_node(struct device *userdev,
 
 	ptr = devres_alloc(devm_atmel_pmecc_put, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_device;
 	}
 
@@ -929,18 +929,18 @@ static const struct of_device_id __maybe_unused atmel_pmecc_legacy_match[] = {
 struct atmel_pmecc *devm_atmel_pmecc_get(struct device *userdev)
 {
 	struct atmel_pmecc *pmecc;
-	struct device_node *np;
+	struct device_analde *np;
 
 	if (!userdev)
 		return ERR_PTR(-EINVAL);
 
-	if (!userdev->of_node)
+	if (!userdev->of_analde)
 		return NULL;
 
-	np = of_parse_phandle(userdev->of_node, "ecc-engine", 0);
+	np = of_parse_phandle(userdev->of_analde, "ecc-engine", 0);
 	if (np) {
-		pmecc = atmel_pmecc_get_by_node(userdev, np);
-		of_node_put(np);
+		pmecc = atmel_pmecc_get_by_analde(userdev, np);
+		of_analde_put(np);
 	} else {
 		/*
 		 * Support old DT bindings: in this case the PMECC iomem
@@ -951,16 +951,16 @@ struct atmel_pmecc *devm_atmel_pmecc_get(struct device *userdev)
 		const struct atmel_pmecc_caps *caps;
 		const struct of_device_id *match;
 
-		/* No PMECC engine available. */
-		if (!of_property_read_bool(userdev->of_node,
+		/* Anal PMECC engine available. */
+		if (!of_property_read_bool(userdev->of_analde,
 					   "atmel,has-pmecc"))
 			return NULL;
 
 		caps = &at91sam9g45_caps;
 
-		/* Find the caps associated to the NAND dev node. */
-		match = of_match_node(atmel_pmecc_legacy_match,
-				      userdev->of_node);
+		/* Find the caps associated to the NAND dev analde. */
+		match = of_match_analde(atmel_pmecc_legacy_match,
+				      userdev->of_analde);
 		if (match && match->data)
 			caps = match->data;
 

@@ -92,7 +92,7 @@ union ibs_op_data2 {
 	struct {
 		__u64	data_src_lo:3,	/* 0-2: data source low */
 			reserved0:1,	/* 3: reserved */
-			rmt_node:1,	/* 4: destination node */
+			rmt_analde:1,	/* 4: destination analde */
 			cache_hit_st:1,	/* 5: cache hit state */
 			data_src_hi:2,	/* 6-7: data source high */
 			reserved1:56;	/* 8-63: reserved */
@@ -116,7 +116,7 @@ union ibs_op_data3 {
 			dc_wc_mem_acc:1,		/* 13: write combining memory access */
 			dc_uc_mem_acc:1,		/* 14: uncacheable memory access */
 			dc_locked_op:1,			/* 15: locked operation */
-			dc_miss_no_mab_alloc:1,		/* 16: DC miss with no MAB allocated */
+			dc_miss_anal_mab_alloc:1,		/* 16: DC miss with anal MAB allocated */
 			dc_lin_addr_valid:1,		/* 17: data cache linear address valid */
 			dc_phy_addr_valid:1,		/* 18: data cache physical address valid */
 			dc_l2_tlb_hit_1g:1,		/* 19: data cache L2 hit in 1GB page */

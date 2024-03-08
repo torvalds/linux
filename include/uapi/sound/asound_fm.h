@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 #ifndef __SOUND_ASOUND_FM_H
 #define __SOUND_ASOUND_FM_H
 
@@ -7,7 +7,7 @@
  *
  *  Interface file between ALSA driver & user space
  *  Copyright (c) 1994-98 by Jaroslav Kysela <perex@perex.cz>,
- *                           4Front Technologies
+ *                           4Front Techanallogies
  *
  *  Direct FM control
  */
@@ -21,7 +21,7 @@ struct snd_dm_fm_info {
 };
 
 /*
- *  Data structure composing an FM "note" or sound event.
+ *  Data structure composing an FM "analte" or sound event.
  */
 
 struct snd_dm_fm_voice {
@@ -49,11 +49,11 @@ struct snd_dm_fm_voice {
 };
 
 /*
- *  This describes an FM note by its voice, octave, frequency number (10bit)
+ *  This describes an FM analte by its voice, octave, frequency number (10bit)
  *  and key on/off.
  */
 
-struct snd_dm_fm_note {
+struct snd_dm_fm_analte {
 	unsigned char voice;	/* 0-17 voice channel */
 	unsigned char octave;	/* 3 bits: what octave to play */
 	unsigned int fnum;	/* 10 bits: frequency number */
@@ -61,7 +61,7 @@ struct snd_dm_fm_note {
 };
 
 /*
- *  FM parameters that apply globally to all voices, and thus are not "notes"
+ *  FM parameters that apply globally to all voices, and thus are analt "analtes"
  */
 
 struct snd_dm_fm_params {
@@ -84,7 +84,7 @@ struct snd_dm_fm_params {
 
 #define SNDRV_DM_FM_IOCTL_INFO		_IOR('H', 0x20, struct snd_dm_fm_info)
 #define SNDRV_DM_FM_IOCTL_RESET		_IO ('H', 0x21)
-#define SNDRV_DM_FM_IOCTL_PLAY_NOTE	_IOW('H', 0x22, struct snd_dm_fm_note)
+#define SNDRV_DM_FM_IOCTL_PLAY_ANALTE	_IOW('H', 0x22, struct snd_dm_fm_analte)
 #define SNDRV_DM_FM_IOCTL_SET_VOICE	_IOW('H', 0x23, struct snd_dm_fm_voice)
 #define SNDRV_DM_FM_IOCTL_SET_PARAMS	_IOW('H', 0x24, struct snd_dm_fm_params)
 #define SNDRV_DM_FM_IOCTL_SET_MODE	_IOW('H', 0x25, int)
@@ -94,7 +94,7 @@ struct snd_dm_fm_params {
 #define SNDRV_DM_FM_IOCTL_CLEAR_PATCHES	_IO ('H', 0x40)
 
 #define SNDRV_DM_FM_OSS_IOCTL_RESET		0x20
-#define SNDRV_DM_FM_OSS_IOCTL_PLAY_NOTE		0x21
+#define SNDRV_DM_FM_OSS_IOCTL_PLAY_ANALTE		0x21
 #define SNDRV_DM_FM_OSS_IOCTL_SET_VOICE		0x22
 #define SNDRV_DM_FM_OSS_IOCTL_SET_PARAMS	0x23
 #define SNDRV_DM_FM_OSS_IOCTL_SET_MODE		0x24

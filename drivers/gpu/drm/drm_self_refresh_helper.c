@@ -29,7 +29,7 @@
  * (see &drm_self_refresh_helper_init/&drm_self_refresh_helper_cleanup).
  * The connector is responsible for setting
  * &drm_connector_state.self_refresh_aware to true at runtime if it is SR-aware
- * (meaning it knows how to initiate self refresh on the panel).
+ * (meaning it kanalws how to initiate self refresh on the panel).
  *
  * Once a crtc has enabled SR using &drm_self_refresh_helper_init, the
  * helpers will monitor activity and call back into the driver to enable/disable
@@ -38,7 +38,7 @@
  * that tells you to disable/enable SR on the panel instead of power-cycling it.
  *
  * During SR, drivers may choose to fully disable their crtc/encoder/bridge
- * hardware (in which case no driver changes are necessary), or they can inspect
+ * hardware (in which case anal driver changes are necessary), or they can inspect
  * &drm_crtc_state.self_refresh_active if they want to enter low power mode
  * without full disable (in case full disable/enable is too slow).
  *
@@ -46,7 +46,7 @@
  * pipe that is in SR mode. If a crtc is driving multiple connectors, all
  * connectors must be SR aware and all will enter/exit SR mode at the same time.
  *
- * If the crtc and connector are SR aware, but the panel connected does not
+ * If the crtc and connector are SR aware, but the panel connected does analt
  * support it (or is otherwise unable to enter SR), the driver should fail
  * atomic_check when &drm_crtc_state.self_refresh_active is true.
  */
@@ -82,7 +82,7 @@ static void drm_self_refresh_helper_entry_work(struct work_struct *work)
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_drop_locks;
 	}
 
@@ -178,7 +178,7 @@ EXPORT_SYMBOL(drm_self_refresh_helper_update_avg_times);
  * Called at the end of atomic check. This function checks the state for flags
  * incompatible with self refresh exit and changes them. This is a bit
  * disingenuous since userspace is expecting one thing and we're giving it
- * another. However in order to keep self refresh entirely hidden from
+ * aanalther. However in order to keep self refresh entirely hidden from
  * userspace, this is required.
  *
  * At the end, we queue up the self refresh entry work so we can enter PSR after
@@ -227,7 +227,7 @@ EXPORT_SYMBOL(drm_self_refresh_helper_alter_state);
  * drm_self_refresh_helper_init - Initializes self refresh helpers for a crtc
  * @crtc: the crtc which supports self refresh supported displays
  *
- * Returns zero if successful or -errno on failure
+ * Returns zero if successful or -erranal on failure
  */
 int drm_self_refresh_helper_init(struct drm_crtc *crtc)
 {
@@ -239,7 +239,7 @@ int drm_self_refresh_helper_init(struct drm_crtc *crtc)
 
 	sr_data = kzalloc(sizeof(*sr_data), GFP_KERNEL);
 	if (!sr_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_DELAYED_WORK(&sr_data->entry_work,
 			  drm_self_refresh_helper_entry_work);
@@ -249,7 +249,7 @@ int drm_self_refresh_helper_init(struct drm_crtc *crtc)
 	ewma_psr_time_init(&sr_data->exit_avg_ms);
 
 	/*
-	 * Seed the averages so they're non-zero (and sufficiently large
+	 * Seed the averages so they're analn-zero (and sufficiently large
 	 * for even poorly performing panels). As time goes on, this will be
 	 * averaged out and the values will trend to their true value.
 	 */

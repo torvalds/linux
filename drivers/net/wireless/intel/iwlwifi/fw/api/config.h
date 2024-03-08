@@ -53,7 +53,7 @@ enum iwl_calib_cfg {
 	IWL_CALIB_CFG_RX_IQ_IDX			= BIT(10),
 	IWL_CALIB_CFG_RX_IQ_SKEW_IDX		= BIT(11),
 	IWL_CALIB_CFG_SENSITIVITY_IDX		= BIT(12),
-	IWL_CALIB_CFG_CHAIN_NOISE_IDX		= BIT(13),
+	IWL_CALIB_CFG_CHAIN_ANALISE_IDX		= BIT(13),
 	IWL_CALIB_CFG_DISCONNECTED_ANT_IDX	= BIT(14),
 	IWL_CALIB_CFG_ANT_COUPLING_IDX		= BIT(15),
 	IWL_CALIB_CFG_DAC_IDX			= BIT(16),
@@ -69,7 +69,7 @@ enum iwl_calib_cfg {
  *
  * @filter_cfg_chains: filter config id for LMAC1 chain A, LMAC1 chain B,
  *	LMAC2 chain A, LMAC2 chain B (in that order)
- *	values: 0: no filter; 0xffffffff: reserved; otherwise: filter id
+ *	values: 0: anal filter; 0xffffffff: reserved; otherwise: filter id
  */
 struct iwl_phy_specific_cfg {
 	__le32 filter_cfg_chains[4];
@@ -105,7 +105,7 @@ struct iwl_phy_cfg_cmd_v3 {
  * Ids of dc2dc configuration flags
  */
 enum iwl_dc2dc_config_id {
-	DCDC_LOW_POWER_MODE_MSK_SET  = 0x1, /* not used */
+	DCDC_LOW_POWER_MODE_MSK_SET  = 0x1, /* analt used */
 	DCDC_FREQ_TUNE_SET = 0x2,
 }; /* MARKER_ID_API_E_VER_1 */
 

@@ -18,7 +18,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/memblock.h>
 
 #include <asm/pci-bridge.h>

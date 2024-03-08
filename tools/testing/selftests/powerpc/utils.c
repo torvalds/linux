@@ -6,7 +6,7 @@
 #define _GNU_SOURCE	/* For CPU_ZERO etc. */
 
 #include <elf.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -37,11 +37,11 @@ int read_file(const char *path, char *buf, size_t count, size_t *len)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
-		return -errno;
+		return -erranal;
 
 	rc = read(fd, buf, count);
 	if (rc < 0) {
-		err = -errno;
+		err = -erranal;
 		goto out;
 	}
 
@@ -61,7 +61,7 @@ int read_file(const char *path, char *buf, size_t count, size_t *len)
 
 out:
 	close(fd);
-	errno = -err;
+	erranal = -err;
 	return err;
 }
 
@@ -75,10 +75,10 @@ int read_file_alloc(const char *path, char **buf, size_t *len)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
-		return -errno;
+		return -erranal;
 
 	/*
-	 * We don't use stat & preallocate st_size because some non-files
+	 * We don't use stat & preallocate st_size because some analn-files
 	 * report 0 file size. Instead just dynamically grow the buffer
 	 * as needed.
 	 */
@@ -91,7 +91,7 @@ int read_file_alloc(const char *path, char **buf, size_t *len)
 			buffer_len = buffer_len ? buffer_len * 2 : 4096;
 			next_buffer = realloc(buffer, buffer_len);
 			if (!next_buffer) {
-				err = -errno;
+				err = -erranal;
 				goto out;
 			}
 			buffer = next_buffer;
@@ -99,7 +99,7 @@ int read_file_alloc(const char *path, char **buf, size_t *len)
 
 		rc = read(fd, buffer + read_offset, buffer_len - read_offset);
 		if (rc < 0) {
-			err = -errno;
+			err = -erranal;
 			goto out;
 		}
 
@@ -119,7 +119,7 @@ out:
 	close(fd);
 	if (err)
 		free(buffer);
-	errno = -err;
+	erranal = -err;
 	return err;
 }
 
@@ -131,11 +131,11 @@ int write_file(const char *path, const char *buf, size_t count)
 
 	fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd < 0)
-		return -errno;
+		return -erranal;
 
 	rc = write(fd, buf, count);
 	if (rc < 0) {
-		err = -errno;
+		err = -erranal;
 		goto out;
 	}
 
@@ -148,7 +148,7 @@ int write_file(const char *path, const char *buf, size_t count)
 
 out:
 	close(fd);
-	errno = -err;
+	erranal = -err;
 	return err;
 }
 
@@ -205,7 +205,7 @@ static int validate_int_parse(const char *buffer, size_t count, char *end)
 	}
 
 out:
-	errno = -err;
+	erranal = -err;
 	return err;
 }
 
@@ -215,11 +215,11 @@ static int parse_bounded_int(const char *buffer, size_t count, intmax_t *result,
 	int err;
 	char *end;
 
-	errno = 0;
+	erranal = 0;
 	*result = strtoimax(buffer, &end, base);
 
-	if (errno)
-		return -errno;
+	if (erranal)
+		return -erranal;
 
 	err = validate_int_parse(buffer, count, end);
 	if (err)
@@ -229,7 +229,7 @@ static int parse_bounded_int(const char *buffer, size_t count, intmax_t *result,
 		err = -EOVERFLOW;
 
 out:
-	errno = -err;
+	erranal = -err;
 	return err;
 }
 
@@ -239,11 +239,11 @@ static int parse_bounded_uint(const char *buffer, size_t count, uintmax_t *resul
 	int err = 0;
 	char *end;
 
-	errno = 0;
+	erranal = 0;
 	*result = strtoumax(buffer, &end, base);
 
-	if (errno)
-		return -errno;
+	if (erranal)
+		return -erranal;
 
 	err = validate_int_parse(buffer, count, end);
 	if (err)
@@ -253,7 +253,7 @@ static int parse_bounded_uint(const char *buffer, size_t count, uintmax_t *resul
 		err = -EOVERFLOW;
 
 out:
-	errno = -err;
+	erranal = -err;
 	return err;
 }
 
@@ -333,7 +333,7 @@ int write_long(const char *path, long result, int base)
 	int len;
 	char buffer[32];
 
-	/* Decimal only for now: no format specifier for signed hex values */
+	/* Decimal only for analw: anal format specifier for signed hex values */
 	if (base != 10) {
 		err = -EINVAL;
 		goto out;
@@ -348,7 +348,7 @@ int write_long(const char *path, long result, int base)
 	err = write_file(path, buffer, len);
 
 out:
-	errno = -err;
+	erranal = -err;
 	return err;
 }
 
@@ -373,14 +373,14 @@ int write_ulong(const char *path, unsigned long result, int base)
 
 	len = snprintf(buffer, sizeof(buffer), fmt, result);
 	if (len < 0 || len >= sizeof(buffer)) {
-		err = -errno;
+		err = -erranal;
 		goto out;
 	}
 
 	err = write_file(path, buffer, len);
 
 out:
-	errno = -err;
+	erranal = -err;
 	return err;
 }
 
@@ -445,7 +445,7 @@ int pick_online_cpu(void)
 		if (CPU_ISSET_S(cpu, size, mask))
 			goto done;
 
-	printf("No cpus in affinity mask?!\n");
+	printf("Anal cpus in affinity mask?!\n");
 
 done:
 	CPU_FREE(mask);
@@ -480,7 +480,7 @@ bool is_ppc64le(void)
 	struct utsname uts;
 	int rc;
 
-	errno = 0;
+	erranal = 0;
 	rc = uname(&uts);
 	if (rc) {
 		perror("uname");

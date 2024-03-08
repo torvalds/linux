@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-// Copyright (c) 2021 T-Chip Intelligent Technology Co., Ltd
+// Copyright (c) 2021 T-Chip Intelligent Techanallogy Co., Ltd
 
 /dts-v1/;
 
@@ -52,7 +52,7 @@
 &pinctrl {
 	ir {
 		ir_int: ir-int {
-			rockchip,pins = <2 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -64,19 +64,19 @@
 
 	wifi {
 		wifi_en: wifi-en {
-			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		wifi_host_wake: wifi-host-wake {
-			rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none_4ma>;
+			rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_analne_4ma>;
 		};
 
 		bt_rst: bt-rst {
-			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_en: bt-en {
-			rockchip,pins = <1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

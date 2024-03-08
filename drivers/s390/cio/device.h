@@ -6,7 +6,7 @@
 #include <linux/atomic.h>
 #include <linux/timer.h>
 #include <linux/wait.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/kernel_stat.h>
 #include "io_sch.h"
 
@@ -14,7 +14,7 @@
  * states of the device statemachine
  */
 enum dev_state {
-	DEV_STATE_NOT_OPER,
+	DEV_STATE_ANALT_OPER,
 	DEV_STATE_SENSE_ID,
 	DEV_STATE_OFFLINE,
 	DEV_STATE_VERIFY,
@@ -25,7 +25,7 @@ enum dev_state {
 	/* states to wait for i/o completion before doing something */
 	DEV_STATE_TIMEOUT_KILL,
 	DEV_STATE_QUIESCE,
-	/* special states for devices gone not operational */
+	/* special states for devices gone analt operational */
 	DEV_STATE_DISCONNECTED,
 	DEV_STATE_DISCONNECTED_SENSE_ID,
 	DEV_STATE_CMFCHANGE,
@@ -36,10 +36,10 @@ enum dev_state {
 };
 
 /*
- * asynchronous events of the device statemachine
+ * asynchroanalus events of the device statemachine
  */
 enum dev_event {
-	DEV_EVENT_NOTOPER,
+	DEV_EVENT_ANALTOPER,
 	DEV_EVENT_INTERRUPT,
 	DEV_EVENT_TIMEOUT,
 	DEV_EVENT_VERIFY,
@@ -76,7 +76,7 @@ dev_fsm_event(struct ccw_device *cdev, enum dev_event dev_event)
 static inline int
 dev_fsm_final_state(struct ccw_device *cdev)
 {
-	return (cdev->private->state == DEV_STATE_NOT_OPER ||
+	return (cdev->private->state == DEV_STATE_ANALT_OPER ||
 		cdev->private->state == DEV_STATE_OFFLINE ||
 		cdev->private->state == DEV_STATE_ONLINE ||
 		cdev->private->state == DEV_STATE_BOXED);
@@ -112,7 +112,7 @@ void ccw_request_start(struct ccw_device *);
 int ccw_request_cancel(struct ccw_device *cdev);
 void ccw_request_handler(struct ccw_device *cdev);
 void ccw_request_timeout(struct ccw_device *cdev);
-void ccw_request_notoper(struct ccw_device *cdev);
+void ccw_request_analtoper(struct ccw_device *cdev);
 
 /* Function prototypes for sense id stuff. */
 void ccw_device_sense_id_start(struct ccw_device *);
@@ -130,9 +130,9 @@ int ccw_device_stlck(struct ccw_device *);
 /* Helper function for machine check handling. */
 void ccw_device_trigger_reprobe(struct ccw_device *);
 void ccw_device_kill_io(struct ccw_device *);
-int ccw_device_notify(struct ccw_device *, int);
+int ccw_device_analtify(struct ccw_device *, int);
 void ccw_device_set_disconnected(struct ccw_device *cdev);
-void ccw_device_set_notoper(struct ccw_device *cdev);
+void ccw_device_set_analtoper(struct ccw_device *cdev);
 
 void ccw_device_timeout(struct timer_list *t);
 void ccw_device_set_timeout(struct ccw_device *, int);

@@ -7,7 +7,7 @@
 #include <linux/build_bug.h>
 
 enum bug_trap_type {
-	BUG_TRAP_TYPE_NONE = 0,
+	BUG_TRAP_TYPE_ANALNE = 0,
 	BUG_TRAP_TYPE_WARN = 1,
 	BUG_TRAP_TYPE_BUG = 2,
 };

@@ -23,22 +23,22 @@ cleanup() {
 
 trap cleanup EXIT TERM
 
-NO=1
+ANAL=1
 
 xpass() { # pass test command
-  echo "test case $NO ($*)... "
+  echo "test case $ANAL ($*)... "
   if ! ($@ && echo "\t\t[OK]"); then
      echo "\t\t[NG]"; NG=$((NG + 1))
   fi
-  NO=$((NO + 1))
+  ANAL=$((ANAL + 1))
 }
 
 xfail() { # fail test command
-  echo "test case $NO ($*)... "
+  echo "test case $ANAL ($*)... "
   if ! (! $@ && echo "\t\t[OK]"); then
      echo "\t\t[NG]"; NG=$((NG + 1))
   fi
-  NO=$((NO + 1))
+  ANAL=$((ANAL + 1))
 }
 
 echo "Basic command test"
@@ -78,14 +78,14 @@ echo "File size check"
 new_size=$(stat -c %s $INITRD)
 xpass test $new_size -eq $initrd_size
 
-echo "No error messge while applying"
+echo "Anal error messge while applying"
 dd if=/dev/zero of=$INITRD bs=4096 count=1
 printf " \0\0\0 \0\0\0" >> $INITRD
 $BOOTCONF -a $TEMPCONF $INITRD > $OUTFILE 2>&1
 xfail grep -i "failed" $OUTFILE
 xfail grep -i "error" $OUTFILE
 
-echo "Max node number check"
+echo "Max analde number check"
 
 awk '
 BEGIN {
@@ -97,7 +97,7 @@ BEGIN {
 ' > $TEMPCONF
 xpass $BOOTCONF -a $TEMPCONF $INITRD
 
-echo "badnode" >> $TEMPCONF
+echo "badanalde" >> $TEMPCONF
 xfail $BOOTCONF -a $TEMPCONF $INITRD
 
 echo "Max filesize check"
@@ -183,7 +183,7 @@ done
 
 echo
 echo "=== Summary ==="
-echo "# of Passed: $(expr $NO - $NG - 1)"
+echo "# of Passed: $(expr $ANAL - $NG - 1)"
 echo "# of Failed: $NG"
 
 echo

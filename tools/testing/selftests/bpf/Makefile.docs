@@ -5,7 +5,7 @@ include ../../../scripts/utilities.mak
 
 INSTALL ?= install
 RM ?= rm -f
-RMDIR ?= rmdir --ignore-fail-on-non-empty
+RMDIR ?= rmdir --iganalre-fail-on-analn-empty
 
 ifeq ($(V),1)
   Q =
@@ -50,7 +50,7 @@ $(OUTPUT)bpf-$1.rst: ../../../../include/uapi/linux/bpf.h
 
 $(OUTPUT)%.$2: $(OUTPUT)%.rst
 ifndef RST2MAN_DEP
-	$$(error "rst2man not found, but required to generate man pages")
+	$$(error "rst2man analt found, but required to generate man pages")
 endif
 	$$(QUIET_GEN)rst2man --exit-status=1 $$< > $$@.tmp
 	$$(QUIET_GEN)mv $$@.tmp $$@

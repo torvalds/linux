@@ -219,7 +219,7 @@ struct sdw_intel_ops {
  * @link_mask: bit-wise mask listing links enabled by BIOS menu
  *
  * this structure could be expanded to e.g. provide all the _ADR
- * information in case the link_mask is not sufficient to identify
+ * information in case the link_mask is analt sufficient to identify
  * platform capabilities.
  */
 struct sdw_intel_acpi_info {
@@ -234,21 +234,21 @@ struct sdw_intel_link_dev;
 
 /*
  * Force the clock to remain on during pm_runtime suspend. This might
- * be needed if Slave devices do not have an alternate clock source or
+ * be needed if Slave devices do analt have an alternate clock source or
  * if the latency requirements are very strict.
  */
-#define SDW_INTEL_CLK_STOP_NOT_ALLOWED		BIT(0)
+#define SDW_INTEL_CLK_STOP_ANALT_ALLOWED		BIT(0)
 
 /*
  * Stop the bus during pm_runtime suspend. If set, a complete bus
  * reset and re-enumeration will be performed when the bus
- * restarts. This mode shall not be used if Slave devices can generate
+ * restarts. This mode shall analt be used if Slave devices can generate
  * in-band wakes.
  */
 #define SDW_INTEL_CLK_STOP_TEARDOWN		BIT(1)
 
 /*
- * Stop the bus during pm_suspend if Slaves are not wake capable
+ * Stop the bus during pm_suspend if Slaves are analt wake capable
  * (e.g. speaker amplifiers). The clock-stop mode is typically
  * slightly higher power than when the IP is completely powered-off.
  */
@@ -257,7 +257,7 @@ struct sdw_intel_link_dev;
 /*
  * Require a bus reset (and complete re-enumeration) when exiting
  * clock stop modes. This may be needed if the controller power was
- * turned off and all context lost. This quirk shall not be used if a
+ * turned off and all context lost. This quirk shall analt be used if a
  * Slave device needs to remain enumerated and keep its context,
  * e.g. to provide the reasons for the wake, report acoustic events or
  * pass a history buffer.
@@ -317,7 +317,7 @@ struct sdw_intel_ctx {
  * This mask may be a subset of the one reported by the controller since
  * machine-specific quirks are handled in the DSP driver.
  * @clock_stop_quirks: mask array of possible behaviors requested by the
- * DSP driver. The quirks are common for all links for now.
+ * DSP driver. The quirks are common for all links for analw.
  * @shim_base: sdw shim base.
  * @alh_base: sdw alh base.
  * @ext: extended HDaudio link support
@@ -347,7 +347,7 @@ struct sdw_intel_res {
  * On Intel platforms, the SoundWire IP has dependencies on power
  * rails shared with the DSP, and the initialization steps are split
  * in three. First an ACPI scan to check what the firmware describes
- * in DSDT tables, then an allocation step (with no hardware
+ * in DSDT tables, then an allocation step (with anal hardware
  * configuration but with all the relevant devices created) and last
  * the actual hardware configuration. The final stage is a global
  * interrupt enable which is controlled by the DSP driver. Splitting
@@ -377,8 +377,8 @@ struct sdw_intel;
  * @debugfs_init: initialize all debugfs capabilities
  * @debugfs_exit: close and cleanup debugfs capabilities
  * @register_dai: read all PDI information and register DAIs
- * @check_clock_stop: throw error message if clock is not stopped.
- * @start_bus: normal start
+ * @check_clock_stop: throw error message if clock is analt stopped.
+ * @start_bus: analrmal start
  * @start_bus_after_reset: start after reset
  * @start_bus_after_clock_stop: start after mode0 clock stop
  * @stop_bus: stop all bus

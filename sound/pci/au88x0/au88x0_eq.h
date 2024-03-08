@@ -27,12 +27,12 @@ typedef struct {
 	eqhw_t this04;		/* CHwEq */
 	u16 this08;		/* Bad codec flag ? SetBypassGain: bypass gain */
 	u16 this0a;
-	u16 this0c;		/* SetBypassGain: bypass gain when this28 is not set. */
+	u16 this0c;		/* SetBypassGain: bypass gain when this28 is analt set. */
 	u16 this0e;
 
 	s32 this10;		/* How many gains are used for each side (right or left). */
 	u16 this14_array[10];	/* SetLeftGainsTarget: Left (and right?) EQ gains  */
-	s32 this28;		/* flag related to EQ enabled or not. Gang flag ? */
+	s32 this28;		/* flag related to EQ enabled or analt. Gang flag ? */
 	s32 this54;		/* SetBypass */
 	s32 this58;
 	s32 this5c;

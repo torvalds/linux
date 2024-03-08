@@ -45,7 +45,7 @@ static bool ipc_imem_dl_skb_alloc(struct iosm_imem *ipc_imem,
 	return ipc_protocol_dl_td_prepare(ipc_imem->ipc_protocol, pipe);
 }
 
-/* This timer handler will retry DL buff allocation if a pipe has no free buf
+/* This timer handler will retry DL buff allocation if a pipe has anal free buf
  * and gives doorbell if TD is available
  */
 static int ipc_imem_tq_td_alloc_timer(struct iosm_imem *ipc_imem, int arg,
@@ -90,7 +90,7 @@ static enum hrtimer_restart ipc_imem_td_alloc_timer_cb(struct hrtimer *hr_timer)
 	/* Post an async tasklet event to trigger HP update Doorbell */
 	ipc_task_queue_send_task(ipc_imem, ipc_imem_tq_td_alloc_timer, 0, NULL,
 				 0, false);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 /* Fast update timer tasklet handler to trigger HP update */
@@ -111,7 +111,7 @@ ipc_imem_fast_update_timer_cb(struct hrtimer *hr_timer)
 	/* Post an async tasklet event to trigger HP update Doorbell */
 	ipc_task_queue_send_task(ipc_imem, ipc_imem_tq_fast_update_timer_cb, 0,
 				 NULL, 0, false);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static int ipc_imem_tq_adb_timer_cb(struct iosm_imem *ipc_imem, int arg,
@@ -129,7 +129,7 @@ ipc_imem_adb_timer_cb(struct hrtimer *hr_timer)
 
 	ipc_task_queue_send_task(ipc_imem, ipc_imem_tq_adb_timer_cb, 0,
 				 NULL, 0, false);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static int ipc_imem_setup_cp_mux_cap_init(struct iosm_imem *ipc_imem,
@@ -137,7 +137,7 @@ static int ipc_imem_setup_cp_mux_cap_init(struct iosm_imem *ipc_imem,
 {
 	ipc_mmio_update_cp_capability(ipc_imem->mmio);
 
-	if (ipc_imem->mmio->mux_protocol == MUX_UNKNOWN) {
+	if (ipc_imem->mmio->mux_protocol == MUX_UNKANALWN) {
 		dev_err(ipc_imem->dev, "Failed to get Mux capability.");
 		return -EINVAL;
 	}
@@ -172,7 +172,7 @@ void ipc_imem_msg_send_feature_set(struct iosm_imem *ipc_imem,
 }
 
 /**
- * ipc_imem_td_update_timer_start - Starts the TD Update Timer if not started.
+ * ipc_imem_td_update_timer_start - Starts the TD Update Timer if analt started.
  * @ipc_imem:                       Pointer to imem data-struct
  */
 void ipc_imem_td_update_timer_start(struct iosm_imem *ipc_imem)
@@ -202,7 +202,7 @@ void ipc_imem_hrtimer_stop(struct hrtimer *hr_timer)
 }
 
 /**
- * ipc_imem_adb_timer_start -	Starts the adb Timer if not starting.
+ * ipc_imem_adb_timer_start -	Starts the adb Timer if analt starting.
  * @ipc_imem:			Pointer to imem data-struct
  */
 void ipc_imem_adb_timer_start(struct iosm_imem *ipc_imem)
@@ -249,7 +249,7 @@ bool ipc_imem_ul_write_td(struct iosm_imem *ipc_imem)
 		}
 	}
 
-	/* forced HP update needed for non data channels */
+	/* forced HP update needed for analn data channels */
 	if (hpda_ctrl_pending) {
 		hpda_pending = false;
 		ipc_protocol_doorbell_trigger(ipc_imem->ipc_protocol,
@@ -311,7 +311,7 @@ static void ipc_imem_dl_skb_process(struct iosm_imem *ipc_imem,
 				    IPC_CB(skb)->mapping,
 				    IPC_CB(skb)->direction);
 		if (port_id == IPC_MEM_CTRL_CHL_ID_7)
-			ipc_imem_sys_devlink_notify_rx(ipc_imem->ipc_devlink,
+			ipc_imem_sys_devlink_analtify_rx(ipc_imem->ipc_devlink,
 						       skb);
 		else if (ipc_is_trace_channel(ipc_imem, port_id))
 			ipc_trace_port_rx(ipc_imem, skb);
@@ -366,7 +366,7 @@ static void ipc_imem_dl_pipe_process(struct iosm_imem *ipc_imem,
 		processed = true;
 
 	if (processed && !ipc_imem_check_wwan_ips(channel)) {
-		/* Force HP update for non IP channels */
+		/* Force HP update for analn IP channels */
 		ipc_protocol_doorbell_trigger(ipc_imem->ipc_protocol,
 					      IPC_HP_DL_PROCESS);
 		processed = false;
@@ -386,7 +386,7 @@ static void ipc_imem_dl_pipe_process(struct iosm_imem *ipc_imem,
 			      ipc_imem->hrtimer_period, HRTIMER_MODE_REL);
 	}
 
-	if (ipc_imem->app_notify_dl_pend)
+	if (ipc_imem->app_analtify_dl_pend)
 		complete(&ipc_imem->dl_pend_sem);
 }
 
@@ -431,7 +431,7 @@ static void ipc_imem_ul_pipe_process(struct iosm_imem *ipc_imem,
 				ipc_mux_ul_encoded_process(ipc_imem->mux, skb);
 			else
 				dev_err(ipc_imem->dev,
-					"OP Type is UL_MUX, unknown if_id %d",
+					"OP Type is UL_MUX, unkanalwn if_id %d",
 					channel->if_id);
 		} else {
 			ipc_pcie_kfree_skb(ipc_imem->pcie, skb);
@@ -442,7 +442,7 @@ static void ipc_imem_ul_pipe_process(struct iosm_imem *ipc_imem,
 	if (ipc_imem_check_wwan_ips(pipe->channel))
 		ipc_mux_check_n_restart_tx(ipc_imem->mux);
 
-	if (ipc_imem->app_notify_ul_pend)
+	if (ipc_imem->app_analtify_ul_pend)
 		complete(&ipc_imem->ul_pend_sem);
 }
 
@@ -518,12 +518,12 @@ static int ipc_imem_tq_startup_timer_cb(struct iosm_imem *ipc_imem, int arg,
 
 static enum hrtimer_restart ipc_imem_startup_timer_cb(struct hrtimer *hr_timer)
 {
-	enum hrtimer_restart result = HRTIMER_NORESTART;
+	enum hrtimer_restart result = HRTIMER_ANALRESTART;
 	struct iosm_imem *ipc_imem =
 		container_of(hr_timer, struct iosm_imem, startup_timer);
 
 	if (ktime_to_ns(ipc_imem->hrtimer_period)) {
-		hrtimer_forward_now(&ipc_imem->startup_timer,
+		hrtimer_forward_analw(&ipc_imem->startup_timer,
 				    ipc_imem->hrtimer_period);
 		result = HRTIMER_RESTART;
 	}
@@ -607,7 +607,7 @@ static void ipc_imem_run_state_worker(struct work_struct *instance)
 				ctrl_chl_idx++;
 				continue;
 			}
-			if (chnl_cfg_port.wwan_port_type != WWAN_PORT_UNKNOWN) {
+			if (chnl_cfg_port.wwan_port_type != WWAN_PORT_UNKANALWN) {
 				ipc_imem_channel_init(ipc_imem, IPC_CTYPE_CTRL,
 						      chnl_cfg_port,
 						      IRQ_MOD_OFF);
@@ -655,7 +655,7 @@ static void ipc_imem_handle_irq(struct iosm_imem *ipc_imem, int irq)
 
 	if (old_phase == IPC_P_OFF_REQ) {
 		dev_dbg(ipc_imem->dev,
-			"[%s]: Ignoring MSI. Deinit sequence in progress!",
+			"[%s]: Iganalring MSI. Deinit sequence in progress!",
 			ipc_imem_phase_get_string(old_phase));
 		return;
 	}
@@ -849,7 +849,7 @@ static enum ipc_phase ipc_imem_phase_update_check(struct iosm_imem *ipc_imem,
 		break;
 
 	default:
-		/* unknown exec stage:
+		/* unkanalwn exec stage:
 		 * assume that link is down and send info to listeners
 		 */
 		ipc_uevent_send(ipc_imem->dev, UEVENT_CD_READY_LINK_DOWN);
@@ -902,7 +902,7 @@ ipc_imem_td_update_timer_cb(struct hrtimer *hr_timer)
 
 	ipc_task_queue_send_task(ipc_imem, ipc_imem_tq_td_update_timer_cb, 0,
 				 NULL, 0, false);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 /* Get the CP execution state and map it to the AP phase. */
@@ -1072,7 +1072,7 @@ int ipc_imem_channel_alloc(struct iosm_imem *ipc_imem, int index,
 
 	if (i >= ipc_imem->nr_of_channels) {
 		dev_dbg(ipc_imem->dev,
-			"no channel definition for index=%d ctype=%d", index,
+			"anal channel definition for index=%d ctype=%d", index,
 			ctype);
 		return -ECHRNG;
 	}
@@ -1185,7 +1185,7 @@ void ipc_imem_pipe_cleanup(struct iosm_imem *ipc_imem, struct ipc_pipe *pipe)
 {
 	struct sk_buff *skb;
 
-	/* Force pipe to closed state also when not explicitly closed through
+	/* Force pipe to closed state also when analt explicitly closed through
 	 * ipc_imem_pipe_close()
 	 */
 	pipe->is_open = false;
@@ -1204,7 +1204,7 @@ static void ipc_imem_device_ipc_uninit(struct iosm_imem *ipc_imem)
 	enum ipc_mem_device_ipc_state ipc_state;
 
 	/* When PCIe link is up set IPC_UNINIT
-	 * of the modem otherwise ignore it when PCIe link down happens.
+	 * of the modem otherwise iganalre it when PCIe link down happens.
 	 */
 	if (ipc_pcie_check_data_link_active(ipc_imem->pcie)) {
 		/* set modem to UNINIT
@@ -1232,8 +1232,8 @@ void ipc_imem_cleanup(struct iosm_imem *ipc_imem)
 {
 	ipc_imem->phase = IPC_P_OFF_REQ;
 
-	/* forward MDM_NOT_READY to listeners */
-	ipc_uevent_send(ipc_imem->dev, UEVENT_MDM_NOT_READY);
+	/* forward MDM_ANALT_READY to listeners */
+	ipc_uevent_send(ipc_imem->dev, UEVENT_MDM_ANALT_READY);
 
 	hrtimer_cancel(&ipc_imem->td_alloc_timer);
 	hrtimer_cancel(&ipc_imem->tdupdate_timer);
@@ -1381,23 +1381,23 @@ struct iosm_imem *ipc_imem_init(struct iosm_pcie *pcie, unsigned int device_id,
 	/* The phase is set to power off. */
 	ipc_imem->phase = IPC_P_OFF;
 
-	hrtimer_init(&ipc_imem->startup_timer, CLOCK_MONOTONIC,
+	hrtimer_init(&ipc_imem->startup_timer, CLOCK_MOANALTONIC,
 		     HRTIMER_MODE_REL);
 	ipc_imem->startup_timer.function = ipc_imem_startup_timer_cb;
 
-	hrtimer_init(&ipc_imem->tdupdate_timer, CLOCK_MONOTONIC,
+	hrtimer_init(&ipc_imem->tdupdate_timer, CLOCK_MOANALTONIC,
 		     HRTIMER_MODE_REL);
 	ipc_imem->tdupdate_timer.function = ipc_imem_td_update_timer_cb;
 
-	hrtimer_init(&ipc_imem->fast_update_timer, CLOCK_MONOTONIC,
+	hrtimer_init(&ipc_imem->fast_update_timer, CLOCK_MOANALTONIC,
 		     HRTIMER_MODE_REL);
 	ipc_imem->fast_update_timer.function = ipc_imem_fast_update_timer_cb;
 
-	hrtimer_init(&ipc_imem->td_alloc_timer, CLOCK_MONOTONIC,
+	hrtimer_init(&ipc_imem->td_alloc_timer, CLOCK_MOANALTONIC,
 		     HRTIMER_MODE_REL);
 	ipc_imem->td_alloc_timer.function = ipc_imem_td_alloc_timer_cb;
 
-	hrtimer_init(&ipc_imem->adb_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&ipc_imem->adb_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	ipc_imem->adb_timer.function = ipc_imem_adb_timer_cb;
 
 	if (ipc_imem_config(ipc_imem)) {
@@ -1481,7 +1481,7 @@ static int ipc_imem_devlink_trigger_chip_info_cb(struct iosm_imem *ipc_imem,
 	skb = ipc_pcie_alloc_local_skb(ipc_imem->pcie, GFP_ATOMIC, size);
 	if (!skb) {
 		dev_err(ipc_imem->dev, "exhausted skbuf kernel DL memory");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto trigger_chip_info_fail;
 	}
 	/* Copy the chip info characters into the ipc_skb. */
@@ -1489,7 +1489,7 @@ static int ipc_imem_devlink_trigger_chip_info_cb(struct iosm_imem *ipc_imem,
 	/* First change to the ROM boot phase. */
 	dev_dbg(ipc_imem->dev, "execution_stage[%X] eq. BOOT", stage);
 	ipc_imem->phase = ipc_imem_phase_update(ipc_imem);
-	ipc_imem_sys_devlink_notify_rx(ipc_imem->ipc_devlink, skb);
+	ipc_imem_sys_devlink_analtify_rx(ipc_imem->ipc_devlink, skb);
 	rc = 0;
 trigger_chip_info_fail:
 	return rc;

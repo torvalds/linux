@@ -6,7 +6,7 @@
  *
  * This part handles card-specific data and detection
  *
- * Copyright (C) 2000 Serguei Miridonov <mirsev@cicese.mx>
+ * Copyright (C) 2000 Serguei Miridoanalv <mirsev@cicese.mx>
  */
 
 #ifndef __ZORAN_DEVICE_H__

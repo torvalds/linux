@@ -31,9 +31,9 @@
 #define SOF_DAI_FMT_CONT	(1 << 4) /**< continuous clock */
 #define SOF_DAI_FMT_GATED	(0 << 4) /**< clock is gated */
 
-#define SOF_DAI_FMT_NB_NF	(0 << 8) /**< normal bit clock + frame */
-#define SOF_DAI_FMT_NB_IF	(2 << 8) /**< normal BCLK + inv FRM */
-#define SOF_DAI_FMT_IB_NF	(3 << 8) /**< invert BCLK + nor FRM */
+#define SOF_DAI_FMT_NB_NF	(0 << 8) /**< analrmal bit clock + frame */
+#define SOF_DAI_FMT_NB_IF	(2 << 8) /**< analrmal BCLK + inv FRM */
+#define SOF_DAI_FMT_IB_NF	(3 << 8) /**< invert BCLK + analr FRM */
 #define SOF_DAI_FMT_IB_IF	(4 << 8) /**< invert BCLK + FRM */
 
 #define SOF_DAI_FMT_CBP_CFP	(0 << 12) /**< codec bclk provider & frame provider */
@@ -58,7 +58,7 @@
  * commands.
  */
 #define SOF_DAI_CONFIG_FLAGS_CMD_MASK	0xF
-#define SOF_DAI_CONFIG_FLAGS_NONE	0 /**< DAI_CONFIG sent without stage information */
+#define SOF_DAI_CONFIG_FLAGS_ANALNE	0 /**< DAI_CONFIG sent without stage information */
 #define SOF_DAI_CONFIG_FLAGS_HW_PARAMS	BIT(0) /**< DAI_CONFIG sent during hw_params stage */
 #define SOF_DAI_CONFIG_FLAGS_HW_FREE	BIT(1) /**< DAI_CONFIG sent during hw_free stage */
 /**< DAI_CONFIG sent during pause trigger. Only available ABI 3.20 onwards */
@@ -74,7 +74,7 @@
 
 /** \brief Types of DAI */
 enum sof_ipc_dai_type {
-	SOF_DAI_INTEL_NONE = 0,		/**< None */
+	SOF_DAI_INTEL_ANALNE = 0,		/**< Analne */
 	SOF_DAI_INTEL_SSP,		/**< Intel SSP */
 	SOF_DAI_INTEL_DMIC,		/**< Intel DMIC */
 	SOF_DAI_INTEL_HDA,		/**< Intel HD/A */
@@ -99,7 +99,7 @@ struct sof_ipc_dai_config {
 
 	/* physical protocol and clocking */
 	uint16_t format;	/**< SOF_DAI_FMT_ */
-	uint8_t group_id;	/**< group ID, 0 means no group (ABI 3.17) */
+	uint8_t group_id;	/**< group ID, 0 means anal group (ABI 3.17) */
 	uint8_t flags;		/**< SOF_DAI_CONFIG_FLAGS_ (ABI 3.19) */
 
 	/* reserved for future use */

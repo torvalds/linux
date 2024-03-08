@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _XT_POLICY_H
 #define _XT_POLICY_H
 
@@ -12,7 +12,7 @@
 enum xt_policy_flags {
 	XT_POLICY_MATCH_IN	= 0x1,
 	XT_POLICY_MATCH_OUT	= 0x2,
-	XT_POLICY_MATCH_NONE	= 0x4,
+	XT_POLICY_MATCH_ANALNE	= 0x4,
 	XT_POLICY_MATCH_STRICT	= 0x8,
 };
 

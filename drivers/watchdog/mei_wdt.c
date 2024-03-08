@@ -33,18 +33,18 @@
 #define MEI_MC_START_WD_TIMER_REQ  0x13
 #define MEI_MC_START_WD_TIMER_RES  0x83
 #define   MEI_WDT_STATUS_SUCCESS 0
-#define   MEI_WDT_WDSTATE_NOT_REQUIRED 0x1
+#define   MEI_WDT_WDSTATE_ANALT_REQUIRED 0x1
 #define MEI_MC_STOP_WD_TIMER_REQ   0x14
 
 /**
  * enum mei_wdt_state - internal watchdog state
  *
  * @MEI_WDT_PROBE: wd in probing stage
- * @MEI_WDT_IDLE: wd is idle and not opened
+ * @MEI_WDT_IDLE: wd is idle and analt opened
  * @MEI_WDT_START: wd was opened, start was called
  * @MEI_WDT_RUNNING: wd is expecting keep alive pings
  * @MEI_WDT_STOPPING: wd is stopping and will move to IDLE
- * @MEI_WDT_NOT_REQUIRED: wd device is not required
+ * @MEI_WDT_ANALT_REQUIRED: wd device is analt required
  */
 enum mei_wdt_state {
 	MEI_WDT_PROBE,
@@ -52,7 +52,7 @@ enum mei_wdt_state {
 	MEI_WDT_START,
 	MEI_WDT_RUNNING,
 	MEI_WDT_STOPPING,
-	MEI_WDT_NOT_REQUIRED,
+	MEI_WDT_ANALT_REQUIRED,
 };
 
 static const char *mei_wdt_state_str(enum mei_wdt_state state)
@@ -68,10 +68,10 @@ static const char *mei_wdt_state_str(enum mei_wdt_state state)
 		return "RUNNING";
 	case MEI_WDT_STOPPING:
 		return "STOPPING";
-	case MEI_WDT_NOT_REQUIRED:
-		return "NOT_REQUIRED";
+	case MEI_WDT_ANALT_REQUIRED:
+		return "ANALT_REQUIRED";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -161,7 +161,7 @@ struct mei_wdt_stop_request {
  * @wdt: mei watchdog device
  *
  * Return: 0 on success,
- *         negative errno code on failure
+ *         negative erranal code on failure
  */
 static int mei_wdt_ping(struct mei_wdt *wdt)
 {
@@ -189,7 +189,7 @@ static int mei_wdt_ping(struct mei_wdt *wdt)
  * @wdt: mei watchdog device
  *
  * Return: 0 on success,
- *         negative errno code on failure
+ *         negative erranal code on failure
  */
 static int mei_wdt_stop(struct mei_wdt *wdt)
 {
@@ -215,7 +215,7 @@ static int mei_wdt_stop(struct mei_wdt *wdt)
  *
  * @wdd: watchdog device
  *
- * Return: 0 on success or -ENODEV;
+ * Return: 0 on success or -EANALDEV;
  */
 static int mei_wdt_ops_start(struct watchdog_device *wdd)
 {
@@ -231,7 +231,7 @@ static int mei_wdt_ops_start(struct watchdog_device *wdd)
  *
  * @wdd: watchdog device
  *
- * Return: 0 if success, negative errno code for failure
+ * Return: 0 if success, negative erranal code for failure
  */
 static int mei_wdt_ops_stop(struct watchdog_device *wdd)
 {
@@ -257,7 +257,7 @@ static int mei_wdt_ops_stop(struct watchdog_device *wdd)
  *
  * @wdd: watchdog device
  *
- * Return: 0 if success, negative errno code on failure
+ * Return: 0 if success, negative erranal code on failure
  */
 static int mei_wdt_ops_ping(struct watchdog_device *wdd)
 {
@@ -287,7 +287,7 @@ static int mei_wdt_ops_ping(struct watchdog_device *wdd)
  * @wdd: watchdog device
  * @timeout: timeout value to set
  *
- * Return: 0 if success, negative errno code for failure
+ * Return: 0 if success, negative erranal code for failure
  */
 static int mei_wdt_ops_set_timeout(struct watchdog_device *wdd,
 				   unsigned int timeout)
@@ -310,7 +310,7 @@ static const struct watchdog_ops wd_ops = {
 	.set_timeout = mei_wdt_ops_set_timeout,
 };
 
-/* not const as the firmware_version field need to be retrieved */
+/* analt const as the firmware_version field need to be retrieved */
 static struct watchdog_info wd_info = {
 	.identity = INTEL_AMT_WATCHDOG_ID,
 	.options  = WDIOF_KEEPALIVEPING |
@@ -354,7 +354,7 @@ static void mei_wdt_unregister(struct mei_wdt *wdt)
  *
  * @wdt: mei watchdog device
  *
- * Return: 0 if success, negative errno code for failure
+ * Return: 0 if success, negative erranal code for failure
  */
 static int mei_wdt_register(struct mei_wdt *wdt)
 {
@@ -448,16 +448,16 @@ static void mei_wdt_rx(struct mei_cl_device *cldev)
 	 * deadlock on watchdog core mutex.
 	 */
 	if (wdt->state == MEI_WDT_RUNNING) {
-		if (res.wdstate & MEI_WDT_WDSTATE_NOT_REQUIRED) {
-			wdt->state = MEI_WDT_NOT_REQUIRED;
+		if (res.wdstate & MEI_WDT_WDSTATE_ANALT_REQUIRED) {
+			wdt->state = MEI_WDT_ANALT_REQUIRED;
 			schedule_work(&wdt->unregister);
 		}
 		goto out;
 	}
 
 	if (wdt->state == MEI_WDT_PROBE) {
-		if (res.wdstate & MEI_WDT_WDSTATE_NOT_REQUIRED) {
-			wdt->state = MEI_WDT_NOT_REQUIRED;
+		if (res.wdstate & MEI_WDT_WDSTATE_ANALT_REQUIRED) {
+			wdt->state = MEI_WDT_ANALT_REQUIRED;
 		} else {
 			/* stop the watchdog and register watchdog device */
 			mei_wdt_stop(wdt);
@@ -466,7 +466,7 @@ static void mei_wdt_rx(struct mei_cl_device *cldev)
 		return;
 	}
 
-	dev_warn(&cldev->dev, "not in correct state %s[%d]\n",
+	dev_warn(&cldev->dev, "analt in correct state %s[%d]\n",
 			 mei_wdt_state_str(wdt->state), wdt->state);
 
 out:
@@ -475,15 +475,15 @@ out:
 }
 
 /**
- * mei_wdt_notif - callback for event notification
+ * mei_wdt_analtif - callback for event analtification
  *
  * @cldev: bus device
  */
-static void mei_wdt_notif(struct mei_cl_device *cldev)
+static void mei_wdt_analtif(struct mei_cl_device *cldev)
 {
 	struct mei_wdt *wdt = mei_cldev_get_drvdata(cldev);
 
-	if (wdt->state != MEI_WDT_NOT_REQUIRED)
+	if (wdt->state != MEI_WDT_ANALT_REQUIRED)
 		return;
 
 	mei_wdt_register(wdt);
@@ -565,7 +565,7 @@ static int mei_wdt_probe(struct mei_cl_device *cldev,
 
 	wdt = kzalloc(sizeof(struct mei_wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->timeout = MEI_WDT_DEFAULT_TIMEOUT;
 	wdt->state = MEI_WDT_PROBE;
@@ -579,21 +579,21 @@ static int mei_wdt_probe(struct mei_cl_device *cldev,
 
 	ret = mei_cldev_enable(cldev);
 	if (ret < 0) {
-		dev_err(&cldev->dev, "Could not enable cl device\n");
+		dev_err(&cldev->dev, "Could analt enable cl device\n");
 		goto err_out;
 	}
 
 	ret = mei_cldev_register_rx_cb(wdt->cldev, mei_wdt_rx);
 	if (ret) {
-		dev_err(&cldev->dev, "Could not reg rx event ret=%d\n", ret);
+		dev_err(&cldev->dev, "Could analt reg rx event ret=%d\n", ret);
 		goto err_disable;
 	}
 
-	ret = mei_cldev_register_notif_cb(wdt->cldev, mei_wdt_notif);
-	/* on legacy devices notification is not supported
+	ret = mei_cldev_register_analtif_cb(wdt->cldev, mei_wdt_analtif);
+	/* on legacy devices analtification is analt supported
 	 */
-	if (ret && ret != -EOPNOTSUPP) {
-		dev_err(&cldev->dev, "Could not reg notif event ret=%d\n", ret);
+	if (ret && ret != -EOPANALTSUPP) {
+		dev_err(&cldev->dev, "Could analt reg analtif event ret=%d\n", ret);
 		goto err_disable;
 	}
 

@@ -8,7 +8,7 @@ Introduction
 ============
 
 The Linux MUSB subsystem is part of the larger Linux USB subsystem. It
-provides support for embedded USB Device Controllers (UDC) that do not
+provides support for embedded USB Device Controllers (UDC) that do analt
 use Universal Host Controller Interface (UHCI) or Open Host Controller
 Interface (OHCI).
 
@@ -70,10 +70,10 @@ sitting in between the controller driver and the controller hardware.
 
 Just like a Linux USB driver needs to register itself with the Linux USB
 subsystem, the MUSB glue layer needs first to register itself with the
-MUSB controller driver. This will allow the controller driver to know
+MUSB controller driver. This will allow the controller driver to kanalw
 about which device the glue layer supports and which functions to call
 when a supported device is detected or released; remember we are talking
-about an embedded controller chip here, so no insertion or removal at
+about an embedded controller chip here, so anal insertion or removal at
 run-time.
 
 All of this information is passed to the MUSB controller driver through
@@ -90,8 +90,8 @@ a :c:type:`platform_driver` structure defined in the glue layer as::
 The probe and remove function pointers are called when a matching device
 is detected and, respectively, released. The name string describes the
 device supported by this glue layer. In the current case it matches a
-platform_device structure declared in ``arch/mips/jz4740/platform.c``. Note
-that we are not using device tree bindings here.
+platform_device structure declared in ``arch/mips/jz4740/platform.c``. Analte
+that we are analt using device tree bindings here.
 
 In order to register itself to the controller driver, the glue layer
 goes through a few steps, basically allocating the controller hardware
@@ -115,7 +115,7 @@ information related to the device clock operation.
 Let's go through the steps of the probe function that leads the glue
 layer to register itself to the controller driver.
 
-.. note::
+.. analte::
 
    For the sake of readability each function will be split in logical
    parts, each part being shown as if it was independent from the others.
@@ -132,12 +132,12 @@ layer to register itself to the controller driver.
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
-	    return -ENOMEM;
+	    return -EANALMEM;
 
 	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
 	if (!musb) {
 	    dev_err(&pdev->dev, "failed to allocate musb device\n");
-	    return -ENOMEM;
+	    return -EANALMEM;
 	}
 
 	clk = devm_clk_get(&pdev->dev, "udc");
@@ -224,7 +224,7 @@ driver (line 16). Platform data will be discussed in
 :ref:`musb-dev-platform-data`, but here we are looking at the
 ``platform_ops`` function pointer (line 5) in ``musb_hdrc_platform_data``
 structure (line 3). This function pointer allows the MUSB controller
-driver to know which function to call for device operation::
+driver to kanalw which function to call for device operation::
 
     static const struct musb_platform_ops jz4740_musb_ops = {
 	.init       = jz4740_musb_init,
@@ -236,7 +236,7 @@ called by the controller driver when needed. Fact is the JZ4740 MUSB
 controller is a basic controller, lacking some features found in other
 controllers, otherwise we may also have pointers to a few other
 functions like a power management function or a function to switch
-between OTG and non-OTG modes, for instance.
+between OTG and analn-OTG modes, for instance.
 
 At that point of the registration process, the controller driver
 actually calls the init function:
@@ -248,11 +248,11 @@ actually calls the init function:
     {
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (!musb->xceiv) {
-	    pr_err("HS UDC: no transceiver configured\n");
-	    return -ENODEV;
+	    pr_err("HS UDC: anal transceiver configured\n");
+	    return -EANALDEV;
 	}
 
-	/* Silicon does not implement ConfigData register.
+	/* Silicon does analt implement ConfigData register.
 	 * Set dyn_fifo to avoid reading EP config from hardware.
 	 */
 	musb->dyn_fifo = true;
@@ -286,7 +286,7 @@ will be discussed later in :ref:`musb-dev-quirks` and
 Acting as the counterpart of init, the exit function releases the MUSB
 PHY driver when the controller hardware itself is about to be released.
 
-Again, note that init and exit are fairly simple in this case due to the
+Again, analte that init and exit are fairly simple in this case due to the
 basic set of features of the JZ4740 controller hardware. When writing an
 musb glue layer for a more complex controller hardware, you might need
 to take care of more processing in those two functions.
@@ -313,7 +313,7 @@ into the probe function::
 
 This is the last part of the device registration process where the glue
 layer adds the controller hardware device to Linux kernel device
-hierarchy: at this stage, all known information about the device is
+hierarchy: at this stage, all kanalwn information about the device is
 passed on to the Linux USB core stack:
 
    .. code-block:: c
@@ -347,7 +347,7 @@ registration, the glue layer is also responsible for handling the IRQs:
     static irqreturn_t jz4740_musb_interrupt(int irq, void *__hci)
     {
 	unsigned long   flags;
-	irqreturn_t     retval = IRQ_NONE;
+	irqreturn_t     retval = IRQ_ANALNE;
 	struct musb     *musb = __hci;
 
 	spin_lock_irqsave(&musb->lock, flags);
@@ -391,12 +391,12 @@ Then the relevant interrupt registers are read (line 9 to 11):
 -  ``MUSB_INTRRX``: indicates which of the interrupts for TX endpoints are
    currently active.
 
-Note that :c:func:`musb_readb` is used to read 8-bit registers at most, while
+Analte that :c:func:`musb_readb` is used to read 8-bit registers at most, while
 :c:func:`musb_readw` allows us to read at most 16-bit registers. There are
 other functions that can be used depending on the size of your device
 registers. See ``musb_io.h`` for more information.
 
-Instruction on line 18 is another quirk specific to the JZ4740 USB
+Instruction on line 18 is aanalther quirk specific to the JZ4740 USB
 device controller, which will be discussed later in :ref:`musb-dev-quirks`.
 
 The glue layer still needs to register the IRQ handler though. Remember
@@ -411,7 +411,7 @@ the instruction on line 14 of the init function::
 
 This instruction sets a pointer to the glue layer IRQ handler function,
 in order for the controller hardware to call the handler back when an
-IRQ comes from the controller hardware. The interrupt handler is now
+IRQ comes from the controller hardware. The interrupt handler is analw
 implemented and registered.
 
 .. _musb-dev-platform-data:
@@ -471,13 +471,13 @@ Device Controller (UDC):
 The ``jz4740_udc_xceiv_device`` platform device structure (line 2)
 describes the UDC transceiver with a name and id number.
 
-At the time of this writing, note that ``usb_phy_gen_xceiv`` is the
+At the time of this writing, analte that ``usb_phy_gen_xceiv`` is the
 specific name to be used for all transceivers that are either built-in
-with reference USB IP or autonomous and doesn't require any PHY
-programming. You will need to set ``CONFIG_NOP_USB_XCEIV=y`` in the
+with reference USB IP or autoanalmous and doesn't require any PHY
+programming. You will need to set ``CONFIG_ANALP_USB_XCEIV=y`` in the
 kernel configuration to make use of the corresponding transceiver
 driver. The id field could be set to -1 (equivalent to
-``PLATFORM_DEVID_NONE``), -2 (equivalent to ``PLATFORM_DEVID_AUTO``) or
+``PLATFORM_DEVID_ANALNE``), -2 (equivalent to ``PLATFORM_DEVID_AUTO``) or
 start with 0 for the first device of this kind if we want a specific id
 number.
 
@@ -502,8 +502,8 @@ describes the UDC itself.
 The ``musb-jz4740`` name (line 22) defines the MUSB driver that is used
 for this device; remember this is in fact the name that we used in the
 ``jz4740_driver`` platform driver structure in :ref:`musb-basics`.
-The id field (line 23) is set to -1 (equivalent to ``PLATFORM_DEVID_NONE``)
-since we do not need an id for the device: the MUSB controller driver was
+The id field (line 23) is set to -1 (equivalent to ``PLATFORM_DEVID_ANALNE``)
+since we do analt need an id for the device: the MUSB controller driver was
 already set to allocate an automatic id in :ref:`musb-basics`. In the dev field
 we care for DMA related information here. The ``dma_mask`` field (line 25)
 defines the width of the DMA mask that is going to be used, and
@@ -514,7 +514,7 @@ structure defined before, while the ``num_resources`` field (line 28) keeps
 track of the number of arrays defined in the resource structure (in this
 case there were two resource arrays defined before).
 
-With this quick overview of the UDC platform data at the ``arch/`` level now
+With this quick overview of the UDC platform data at the ``arch/`` level analw
 done, let's get back to the MUSB glue layer specific platform data in
 ``drivers/usb/musb/jz4740.c``:
 
@@ -522,7 +522,7 @@ done, let's get back to the MUSB glue layer specific platform data in
     :emphasize-lines: 3,5,7-9,11
 
     static struct musb_hdrc_config jz4740_musb_config = {
-	/* Silicon does not implement USB OTG. */
+	/* Silicon does analt implement USB OTG. */
 	.multipoint = 0,
 	/* Max EPs scanned, driver will decide which EP can be used. */
 	.num_eps    = 4,
@@ -543,11 +543,11 @@ through the ``jz4740_musb_config`` :c:type:`musb_hdrc_config` structure.
 
 Defining the OTG capability of the controller hardware, the multipoint
 member (line 3) is set to 0 (equivalent to false) since the JZ4740 UDC
-is not OTG compatible. Then ``num_eps`` (line 5) defines the number of USB
+is analt OTG compatible. Then ``num_eps`` (line 5) defines the number of USB
 endpoints of the controller hardware, including endpoint 0: here we have
 3 endpoints + endpoint 0. Next is ``ram_bits`` (line 7) which is the width
 of the RAM address bus for the MUSB controller hardware. This
-information is needed when the controller driver cannot automatically
+information is needed when the controller driver cananalt automatically
 configure endpoints by reading the relevant controller hardware
 registers. This issue will be discussed when we get to device quirks in
 :ref:`musb-dev-quirks`. Last two fields (line 8 and 9) are also
@@ -578,7 +578,7 @@ the result of an incomplete implementation of the USB On-the-Go
 specification.
 
 The JZ4740 UDC exhibits such quirks, some of which we will discuss here
-for the sake of insight even though these might not be found in the
+for the sake of insight even though these might analt be found in the
 controller hardware you are working on.
 
 Let's get back to the init function first:
@@ -590,11 +590,11 @@ Let's get back to the init function first:
     {
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (!musb->xceiv) {
-	    pr_err("HS UDC: no transceiver configured\n");
-	    return -ENODEV;
+	    pr_err("HS UDC: anal transceiver configured\n");
+	    return -EANALDEV;
 	}
 
-	/* Silicon does not implement ConfigData register.
+	/* Silicon does analt implement ConfigData register.
 	 * Set dyn_fifo to avoid reading EP config from hardware.
 	 */
 	musb->dyn_fifo = true;
@@ -625,17 +625,17 @@ its direction (either ``FIFO_TX`` for the controller driver to send packets
 in the controller hardware, or ``FIFO_RX`` to receive packets from
 hardware), and maxpacket defines the maximum size of each data packet
 that can be transmitted over that endpoint. Reading from the table, the
-controller driver knows that endpoint 1 can be used to send and receive
+controller driver kanalws that endpoint 1 can be used to send and receive
 USB data packets of 512 bytes at once (this is in fact a bulk in/out
 endpoint), and endpoint 2 can be used to send data packets of 64 bytes
 at once (this is in fact an interrupt endpoint).
 
-Note that there is no information about endpoint 0 here: that one is
+Analte that there is anal information about endpoint 0 here: that one is
 implemented by default in every silicon design, with a predefined
 configuration according to the USB specification. For more examples of
 endpoint configuration tables, see ``musb_core.c``.
 
-Let's now get back to the interrupt handler function:
+Let's analw get back to the interrupt handler function:
 
    .. code-block:: c
     :emphasize-lines: 18-19
@@ -643,7 +643,7 @@ Let's now get back to the interrupt handler function:
     static irqreturn_t jz4740_musb_interrupt(int irq, void *__hci)
     {
 	unsigned long   flags;
-	irqreturn_t     retval = IRQ_NONE;
+	irqreturn_t     retval = IRQ_ANALNE;
 	struct musb     *musb = __hci;
 
 	spin_lock_irqsave(&musb->lock, flags);
@@ -679,7 +679,7 @@ are actually implemented in the register.
 
 These are only a couple of the quirks found in the JZ4740 USB device
 controller. Some others were directly addressed in the MUSB core since
-the fixes were generic enough to provide a better handling of the issues
+the fixes were generic eanalugh to provide a better handling of the issues
 for others controller hardware eventually.
 
 Conclusion
@@ -690,11 +690,11 @@ this documentation tries to show the ins and outs of this exercise.
 
 The JZ4740 USB device controller being fairly simple, I hope its glue
 layer serves as a good example for the curious mind. Used with the
-current MUSB glue layers, this documentation should provide enough
+current MUSB glue layers, this documentation should provide eanalugh
 guidance to get started; should anything gets out of hand, the linux-usb
-mailing list archive is another helpful resource to browse through.
+mailing list archive is aanalther helpful resource to browse through.
 
-Acknowledgements
+Ackanalwledgements
 ================
 
 Many thanks to Lars-Peter Clausen and Maarten ter Huurne for answering
@@ -712,7 +712,7 @@ USB Home Page: https://www.usb.org
 linux-usb Mailing List Archives: https://marc.info/?l=linux-usb
 
 USB On-the-Go Basics:
-https://www.maximintegrated.com/app-notes/index.mvp/id/1822
+https://www.maximintegrated.com/app-analtes/index.mvp/id/1822
 
 :ref:`Writing USB Device Drivers <writing-usb-driver>`
 

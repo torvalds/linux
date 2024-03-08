@@ -59,7 +59,7 @@ avs_max98373_be_fixup(struct snd_soc_pcm_runtime *runrime, struct snd_pcm_hw_par
 	channels->min = channels->max = 2;
 
 	/* set SSP0 to 16 bit */
-	snd_mask_none(fmt);
+	snd_mask_analne(fmt);
 	snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
 	return 0;
 }
@@ -104,7 +104,7 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl = devm_kzalloc(dev, sizeof(*dl), GFP_KERNEL);
 	platform = devm_kzalloc(dev, sizeof(*platform), GFP_KERNEL);
 	if (!dl || !platform)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform->name = platform_name;
 
@@ -113,7 +113,7 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl->cpus = devm_kzalloc(dev, sizeof(*dl->cpus), GFP_KERNEL);
 	dl->codecs = devm_kzalloc(dev, sizeof(*dl->codecs) * 2, GFP_KERNEL);
 	if (!dl->name || !dl->cpus || !dl->codecs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dl->cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
 					    AVS_STRING_FMT("SSP", " Pin", ssp_port, tdm_slot));
@@ -123,7 +123,7 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl->codecs[1].dai_name = devm_kasprintf(dev, GFP_KERNEL, MAX98373_CODEC_NAME);
 	if (!dl->cpus->dai_name || !dl->codecs[0].name || !dl->codecs[0].dai_name ||
 	    !dl->codecs[1].name || !dl->codecs[1].dai_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dl->num_cpus = 1;
 	dl->num_codecs = 2;
@@ -132,11 +132,11 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl->id = 0;
 	dl->dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
 	dl->be_hw_params_fixup = avs_max98373_be_fixup;
-	dl->nonatomic = 1;
-	dl->no_pcm = 1;
+	dl->analnatomic = 1;
+	dl->anal_pcm = 1;
 	dl->dpcm_capture = 1;
 	dl->dpcm_playback = 1;
-	dl->ignore_pmdown_time = 1;
+	dl->iganalre_pmdown_time = 1;
 	dl->ops = &avs_max98373_ops;
 
 	*dai_link = dl;
@@ -168,7 +168,7 @@ static int avs_max98373_probe(struct platform_device *pdev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->name = "avs_max98373";
 	card->dev = dev;

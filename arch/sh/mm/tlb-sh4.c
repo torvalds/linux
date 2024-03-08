@@ -58,7 +58,7 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 	__raw_writel(pteval, MMU_PTEL);
 
 	/* Load the TLB */
-	asm volatile("ldtlb": /* no output */ : /* no input */ : "memory");
+	asm volatile("ldtlb": /* anal output */ : /* anal input */ : "memory");
 	local_irq_restore(flags);
 }
 
@@ -67,7 +67,7 @@ void local_flush_tlb_one(unsigned long asid, unsigned long page)
 	unsigned long addr, data;
 
 	/*
-	 * NOTE: PTEH.ASID should be set to this MM
+	 * ANALTE: PTEH.ASID should be set to this MM
 	 *       _AND_ we need to write ASID to the array.
 	 *
 	 * It would be simple if we didn't need to set PTEH.ASID...

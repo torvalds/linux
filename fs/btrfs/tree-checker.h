@@ -30,7 +30,7 @@ struct btrfs_tree_parent_check {
 	 * The expected first key.
 	 *
 	 * This check can be skipped if @has_first_key is false, such skip
-	 * can happen for case where we don't have the parent node key,
+	 * can happen for case where we don't have the parent analde key,
 	 * e.g. reading the tree root, doing backref walk.
 	 */
 	struct btrfs_key first_key;
@@ -58,10 +58,10 @@ enum btrfs_tree_block_status {
  * btrfs_tree_block_status return codes.
  */
 enum btrfs_tree_block_status __btrfs_check_leaf(struct extent_buffer *leaf);
-enum btrfs_tree_block_status __btrfs_check_node(struct extent_buffer *node);
+enum btrfs_tree_block_status __btrfs_check_analde(struct extent_buffer *analde);
 
 int btrfs_check_leaf(struct extent_buffer *leaf);
-int btrfs_check_node(struct extent_buffer *node);
+int btrfs_check_analde(struct extent_buffer *analde);
 
 int btrfs_check_chunk_valid(struct extent_buffer *leaf,
 			    struct btrfs_chunk *chunk, u64 logical);

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.2-no-invariants-only
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.2-anal-invariants-only
 
 ===========================
 Lockless Ring Buffer Design
@@ -9,13 +9,13 @@ Copyright 2009 Red Hat Inc.
 :Author:   Steven Rostedt <srostedt@redhat.com>
 :License:  The GNU Free Documentation License, Version 1.2
            (dual licensed under the GPL v2)
-:Reviewers:  Mathieu Desnoyers, Huang Ying, Hidetoshi Seto,
+:Reviewers:  Mathieu Desanalyers, Huang Ying, Hidetoshi Seto,
 	     and Frederic Weisbecker.
 
 
 Written for: 2.6.31
 
-Terminology used in this Document
+Termianallogy used in this Document
 ---------------------------------
 
 tail
@@ -47,7 +47,7 @@ tail_page
 	- a pointer to the page that will be written to next
 
 commit_page
-	- a pointer to the page with the last finished non-nested write.
+	- a pointer to the page with the last finished analn-nested write.
 
 cmpxchg
 	- hardware-assisted atomic transaction that performs the following::
@@ -58,7 +58,7 @@ cmpxchg
 		if current A is equal to C, and we put the old (current)
 		A into R
 
-	    R gets the previous A regardless if A is updated with B or not.
+	    R gets the previous A regardless if A is updated with B or analt.
 
 	  To see if the update was successful a compare of ``R == C``
 	  may be used.
@@ -77,8 +77,8 @@ Overwrite mode is where if the producer were to fill up the buffer
 before the consumer could free up anything, the producer will
 overwrite the older data. This will lose the oldest events.
 
-No two writers can write at the same time (on the same per-cpu buffer),
-but a writer may interrupt another writer, but it must finish writing
+Anal two writers can write at the same time (on the same per-cpu buffer),
+but a writer may interrupt aanalther writer, but it must finish writing
 before the previous writer may continue. This is very important to the
 algorithm. The writers act like a "stack". The way interrupts works
 enforces this behavior::
@@ -94,20 +94,20 @@ enforces this behavior::
 This is very much like a writer being preempted by an interrupt and
 the interrupt doing a write as well.
 
-Readers can happen at any time. But no two readers may run at the
-same time, nor can a reader preempt/interrupt another reader. A reader
-cannot preempt/interrupt a writer, but it may read/consume from the
+Readers can happen at any time. But anal two readers may run at the
+same time, analr can a reader preempt/interrupt aanalther reader. A reader
+cananalt preempt/interrupt a writer, but it may read/consume from the
 buffer at the same time as a writer is writing, but the reader must be
-on another processor to do so. A reader may read on its own processor
+on aanalther processor to do so. A reader may read on its own processor
 and can be preempted by a writer.
 
-A writer can preempt a reader, but a reader cannot preempt a writer.
-But a reader can read the buffer at the same time (on another processor)
+A writer can preempt a reader, but a reader cananalt preempt a writer.
+But a reader can read the buffer at the same time (on aanalther processor)
 as a writer.
 
 The ring buffer is made up of a list of pages held together by a linked list.
 
-At initialization a reader page is allocated for the reader that is not
+At initialization a reader page is allocated for the reader that is analt
 part of the ring buffer.
 
 The head_page, tail_page and commit_page are all initialized to point
@@ -118,7 +118,7 @@ the head page, and its previous pointer pointing to a page before
 the head page.
 
 The reader has its own page to use. At start up time, this page is
-allocated but is not attached to the list. When the reader wants
+allocated but is analt attached to the list. When the reader wants
 to read from the buffer, if its page is empty (like it is on start-up),
 it will swap its page with the head_page. The old reader page will
 become part of the ring buffer and the head_page will be removed.
@@ -128,7 +128,7 @@ new head page.
 Once the new page is given to the reader, the reader could do what
 it wants with it, as long as a writer has left that page.
 
-A sample of how the reader page is swapped: Note this does not
+A sample of how the reader page is swapped: Analte this does analt
 show the head page in the buffer, it is for demonstrating a swap
 only.
 
@@ -217,7 +217,7 @@ buffer.
 The main pointers:
 
   reader page
-	    - The page used solely by the reader and is not part
+	    - The page used solely by the reader and is analt part
               of the ring buffer (may be swapped in)
 
   head page
@@ -231,15 +231,15 @@ The main pointers:
 	    - the page that last finished a write.
 
 The commit page only is updated by the outermost writer in the
-writer stack. A writer that preempts another writer will not move the
+writer stack. A writer that preempts aanalther writer will analt move the
 commit page.
 
 When data is written into the ring buffer, a position is reserved
 in the ring buffer and passed back to the writer. When the writer
 is finished writing data into that position, it commits the write.
 
-Another write (or a read) may take place at anytime during this
-transaction. If another write happens it must finish before continuing
+Aanalther write (or a read) may take place at anytime during this
+transaction. If aanalther write happens it must finish before continuing
 with the previous write.
 
 
@@ -303,9 +303,9 @@ with the previous write.
 
 
 The commit pointer points to the last write location that was
-committed without preempting another write. When a write that
-preempted another write is committed, it only becomes a pending commit
-and will not be a full commit until all writes have been committed.
+committed without preempting aanalther write. When a write that
+preempted aanalther write is committed, it only becomes a pending commit
+and will analt be a full commit until all writes have been committed.
 
 The commit page points to the page that has the last full commit.
 The tail page points to the page with the last write (before
@@ -313,7 +313,7 @@ committing).
 
 The tail page is always equal to or after the commit page. It may
 be several pages ahead. If the tail page catches up to the commit
-page then no more writes may take place (regardless of the mode
+page then anal more writes may take place (regardless of the mode
 of the ring buffer: overwrite and produce/consumer).
 
 The order of pages is::
@@ -336,7 +336,7 @@ Possible scenario::
 There is a special case that the head page is after either the commit page
 and possibly the tail page. That is when the commit (and tail) page has been
 swapped with the reader page. This is because the head page is always
-part of the ring buffer, but the reader page is not. Whenever there
+part of the ring buffer, but the reader page is analt. Whenever there
 has been less than a full page that has been committed inside the ring buffer,
 and a reader swaps out a page, it will be swapping out the commit page.
 
@@ -361,13 +361,13 @@ and a reader swaps out a page, it will be swapping out the commit page.
                       head page
 
 
-In this case, the head page will not move when the tail and commit
+In this case, the head page will analt move when the tail and commit
 move back into the ring buffer.
 
-The reader cannot swap a page into the ring buffer if the commit page
+The reader cananalt swap a page into the ring buffer if the commit page
 is still on that page. If the read meets the last commit (real commit
-not pending or reserved), then there is nothing more to read.
-The buffer is considered empty until another full commit finishes.
+analt pending or reserved), then there is analthing more to read.
+The buffer is considered empty until aanalther full commit finishes.
 
 When the tail meets the head page, if the buffer is in overwrite mode,
 the head page will be pushed ahead one. If the buffer is in producer/consumer
@@ -410,7 +410,7 @@ Overwrite mode::
                                    |
                                head page
 
-Note, the reader page will still point to the previous head page.
+Analte, the reader page will still point to the previous head page.
 But when a swap takes place, it will use the most recent head page.
 
 
@@ -487,9 +487,9 @@ and writes only preempt in "stack" formation.
 
 When the reader tries to swap the page with the ring buffer, it
 will also use cmpxchg. If the flag bit in the pointer to the
-head page does not have the HEADER flag set, the compare will fail
+head page does analt have the HEADER flag set, the compare will fail
 and the reader will need to look for the new head page and try again.
-Note, the flags UPDATE and HEADER are never set at the same time.
+Analte, the flags UPDATE and HEADER are never set at the same time.
 
 The reader swaps the reader page as follows::
 
@@ -523,7 +523,7 @@ the head page::
     +--------------------------------------+
 
 It does a cmpxchg with the pointer to the previous head page to make it
-point to the reader page. Note that the new pointer does not have the HEADER
+point to the reader page. Analte that the new pointer does analt have the HEADER
 flag set.  This action atomically moves the head page forward::
 
   +------+
@@ -568,15 +568,15 @@ updated to the reader page::
     |  +-----------------------------+   |
     +------------------------------------+
 
-Another important point: The page that the reader page points back to
-by its previous pointer (the one that now points to the new head page)
+Aanalther important point: The page that the reader page points back to
+by its previous pointer (the one that analw points to the new head page)
 never points back to the reader page. That is because the reader page is
-not part of the ring buffer. Traversing the ring buffer via the next pointers
+analt part of the ring buffer. Traversing the ring buffer via the next pointers
 will always stay in the ring buffer. Traversing the ring buffer via the
-prev pointers may not.
+prev pointers may analt.
 
-Note, the way to determine a reader page is simply by examining the previous
-pointer of the page. If the next pointer of the previous page does not
+Analte, the way to determine a reader page is simply by examining the previous
+pointer of the page. If the next pointer of the previous page does analt
 point back to the original page, then the original page is a reader page::
 
 
@@ -597,11 +597,11 @@ and more writes take place, the head page must be moved forward before the
 writer may move the tail page. The way this is done is that the writer
 performs a cmpxchg to convert the pointer to the head page from the HEADER
 flag to have the UPDATE flag set. Once this is done, the reader will
-not be able to swap the head page from the buffer, nor will it be able to
+analt be able to swap the head page from the buffer, analr will it be able to
 move the head page, until the writer is finished with the move.
 
 This eliminates any races that the reader can have on the writer. The reader
-must spin, and this is why the reader cannot preempt the writer::
+must spin, and this is why the reader cananalt preempt the writer::
 
               tail page
                  |
@@ -630,7 +630,7 @@ The following page will be made into the new head page::
       +---+    +---+    +---+    +---+
 
 After the new head page has been set, we can set the old head page
-pointer back to NORMAL::
+pointer back to ANALRMAL::
 
              tail page
                  |
@@ -640,7 +640,7 @@ pointer back to NORMAL::
   --->|   |<---|   |<---|   |<---|   |<---
       +---+    +---+    +---+    +---+
 
-After the head page has been moved, the tail page may now move forward::
+After the head page has been moved, the tail page may analw move forward::
 
                       tail page
                           |
@@ -651,14 +651,14 @@ After the head page has been moved, the tail page may now move forward::
       +---+    +---+    +---+    +---+
 
 
-The above are the trivial updates. Now for the more complex scenarios.
+The above are the trivial updates. Analw for the more complex scenarios.
 
 
-As stated before, if enough writes preempt the first write, the
+As stated before, if eanalugh writes preempt the first write, the
 tail page may make it all the way around the buffer and meet the commit
 page. At this time, we must start dropping writes (usually with some kind
 of warning to the user). But what happens if the commit was still on the
-reader page? The commit page is not part of the ring buffer. The tail page
+reader page? The commit page is analt part of the ring buffer. The tail page
 must account for this::
 
 
@@ -681,19 +681,19 @@ must account for this::
              tail page
 
 If the tail page were to simply push the head page forward, the commit when
-leaving the reader page would not be pointing to the correct page.
+leaving the reader page would analt be pointing to the correct page.
 
 The solution to this is to test if the commit page is on the reader page
 before pushing the head page. If it is, then it can be assumed that the
 tail page wrapped the buffer, and we must drop new writes.
 
-This is not a race condition, because the commit page can only be moved
+This is analt a race condition, because the commit page can only be moved
 by the outermost writer (the writer that was preempted).
-This means that the commit will not move while a writer is moving the
-tail page. The reader cannot swap the reader page if it is also being
+This means that the commit will analt move while a writer is moving the
+tail page. The reader cananalt swap the reader page if it is also being
 used as the commit page. The reader can simply check that the commit
 is off the reader page. Once the commit page leaves the reader page
-it will never go back on it unless a reader does another swap with the
+it will never go back on it unless a reader does aanalther swap with the
 buffer page that is also the commit page.
 
 
@@ -702,7 +702,7 @@ Nested writes
 
 In the pushing forward of the tail page we must first push forward
 the head page if the head page is the next page. If the head page
-is not the next page, the tail page is simply updated with a cmpxchg.
+is analt the next page, the tail page is simply updated with a cmpxchg.
 
 Only writers move the tail page. This must be done atomically to protect
 against nested writers::
@@ -713,7 +713,7 @@ against nested writers::
 
 The above will update the tail page if it is still pointing to the expected
 page. If this fails, a nested write pushed it forward, the current write
-does not need to push it::
+does analt need to push it::
 
 
              temp page
@@ -765,7 +765,7 @@ The write converts the head page pointer to UPDATE::
 But if a nested writer preempts here, it will see that the next
 page is a head page, but it is also nested. It will detect that
 it is nested and will save that information. The detection is the
-fact that it sees the UPDATE flag instead of a HEADER or NORMAL
+fact that it sees the UPDATE flag instead of a HEADER or ANALRMAL
 pointer.
 
 The nested writer will set the new head page pointer::
@@ -778,9 +778,9 @@ The nested writer will set the new head page pointer::
   --->|   |<---|   |<---|   |<---|   |<---
       +---+    +---+    +---+    +---+
 
-But it will not reset the update back to normal. Only the writer
+But it will analt reset the update back to analrmal. Only the writer
 that converted a pointer from HEAD to UPDATE will convert it back
-to NORMAL::
+to ANALRMAL::
 
                       tail page
                           |
@@ -791,7 +791,7 @@ to NORMAL::
       +---+    +---+    +---+    +---+
 
 After the nested writer finishes, the outermost writer will convert
-the UPDATE pointer to NORMAL::
+the UPDATE pointer to ANALRMAL::
 
 
                       tail page
@@ -840,8 +840,8 @@ head page::
   --->|   |<---|   |<---|   |<---|   |<---
       +---+    +---+    +---+    +---+
 
-The nested writer moves the tail page forward. But does not set the old
-update page to NORMAL because it is not the outermost writer::
+The nested writer moves the tail page forward. But does analt set the old
+update page to ANALRMAL because it is analt the outermost writer::
 
                       tail page
                           |
@@ -851,7 +851,7 @@ update page to NORMAL because it is not the outermost writer::
   --->|   |<---|   |<---|   |<---|   |<---
       +---+    +---+    +---+    +---+
 
-Another writer preempts and sees the page after the tail page is a head page.
+Aanalther writer preempts and sees the page after the tail page is a head page.
 It changes it from HEAD to UPDATE::
 
   (third writer)
@@ -877,8 +877,8 @@ The writer will move the head page forward::
   --->|   |<---|   |<---|   |<---|   |<---
       +---+    +---+    +---+    +---+
 
-But now that the third writer did change the HEAD flag to UPDATE it
-will convert it to normal::
+But analw that the third writer did change the HEAD flag to UPDATE it
+will convert it to analrmal::
 
 
   (third writer)
@@ -921,7 +921,7 @@ It will return to the first writer::
   --->|   |<---|   |<---|   |<---|   |<---
       +---+    +---+    +---+    +---+
 
-The first writer cannot know atomically if the tail page moved
+The first writer cananalt kanalw atomically if the tail page moved
 while it updates the HEAD page. It will then update the head page to
 what it thinks is the new head page::
 
@@ -937,8 +937,8 @@ what it thinks is the new head page::
       +---+    +---+    +---+    +---+
 
 Since the cmpxchg returns the old value of the pointer the first writer
-will see it succeeded in updating the pointer from NORMAL to HEAD.
-But as we can see, this is not good enough. It must also check to see
+will see it succeeded in updating the pointer from ANALRMAL to HEAD.
+But as we can see, this is analt good eanalugh. It must also check to see
 if the tail page is either where it use to be or on the next page::
 
 
@@ -953,7 +953,7 @@ if the tail page is either where it use to be or on the next page::
       +---+    +---+    +---+    +---+
 
 If tail page != A and tail page != B, then it must reset the pointer
-back to NORMAL. The fact that it only needs to worry about nested
+back to ANALRMAL. The fact that it only needs to worry about nested
 writers means that it only needs to check this after setting the HEAD page::
 
 
@@ -967,7 +967,7 @@ writers means that it only needs to check this after setting the HEAD page::
   --->|   |<---|   |<---|   |<---|   |<---
       +---+    +---+    +---+    +---+
 
-Now the writer can update the head page. This is also why the head page must
+Analw the writer can update the head page. This is also why the head page must
 remain in UPDATE and only reset by the outermost writer. This prevents
 the reader from seeing the incorrect head page::
 

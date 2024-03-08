@@ -18,7 +18,7 @@
 					   Meter */
 #define SUNI_MC			0x01	/* Master Configuration */
 #define SUNI_MIS		0x02	/* Master Interrupt Status */
-			  /* no 0x03 */
+			  /* anal 0x03 */
 #define SUNI_MCM		0x04	/* Master Clock Monitor */
 #define SUNI_MCT		0x05	/* Master Control */
 #define SUNI_CSCS		0x06	/* Clock Synthesis Control and Status */
@@ -29,7 +29,7 @@
 #define SUNI_RSOP_SBL		0x12	/* RSOP Section BIP-8 LSB */
 #define SUNI_RSOP_SBM		0x13	/* RSOP Section BIP-8 MSB */
 #define SUNI_TSOP_CTRL		0x14	/* TSOP Control */
-#define SUNI_TSOP_DIAG		0x15	/* TSOP Diagnostic */
+#define SUNI_TSOP_DIAG		0x15	/* TSOP Diaganalstic */
 			     /* 0x16-0x17 reserved */
 #define SUNI_RLOP_CS		0x18	/* RLOP Control/Status */
 #define SUNI_RLOP_IES		0x19	/* RLOP Interrupt Enable/Status */
@@ -40,7 +40,7 @@
 #define SUNI_RLOP_LF 		0x1E	/* RLOP Line FEBE */
 #define SUNI_RLOP_LFM		0x1F	/* RLOP Line FEBE MSB */
 #define SUNI_TLOP_CTRL		0x20	/* TLOP Control */
-#define SUNI_TLOP_DIAG		0x21	/* TLOP Diagnostic */
+#define SUNI_TLOP_DIAG		0x21	/* TLOP Diaganalstic */
 			     /* 0x22-0x27 reserved */
 #define SUNI_SSTB_CTRL		0x28
 #define SUNI_RPOP_SC		0x30	/* RPOP Status/Control */
@@ -57,7 +57,7 @@
 #define SUNI_RPOP_PBC		0x3D	/* RPOP Path BIP-8 Configuration */
 #define SUNI_RPOP_RC		0x3D	/* RPOP Ring Control (PM5355) */
 			     /* 0x3E-0x3F reserved */
-#define SUNI_TPOP_CD		0x40	/* TPOP Control/Diagnostic */
+#define SUNI_TPOP_CD		0x40	/* TPOP Control/Diaganalstic */
 #define SUNI_TPOP_PC		0x41	/* TPOP Pointer Control */
 			     /* 0x42-0x44 reserved */
 #define SUNI_TPOP_APL		0x45	/* TPOP Arbitrary Pointer LSB */
@@ -104,17 +104,17 @@
 #define SUNI_MRI_TYPE_PM5350	0x7	/* S/UNI 155 ULTRA */
 #define SUNI_MRI_TYPE_PM5355	0x1	/* S/UNI 622 */
 #define SUNI_MRI_RESET		0x80	/* RW, reset & power down chip
-					   0: normal operation
+					   0: analrmal operation
 					   1: reset & low power */
 
 /* MCM is reg 0x4 */
 #define SUNI_MCM_LLE		0x20	/* line loopback (PM5355) */
-#define SUNI_MCM_DLE		0x10	/* diagnostic loopback (PM5355) */
+#define SUNI_MCM_DLE		0x10	/* diaganalstic loopback (PM5355) */
 
 /* MCT is reg 5 */
 #define SUNI_MCT_LOOPT		0x01	/* RW, timing source, 0: from
 					   TRCLK+/- */
-#define SUNI_MCT_DLE		0x02	/* RW, diagnostic loopback */
+#define SUNI_MCT_DLE		0x02	/* RW, diaganalstic loopback */
 #define SUNI_MCT_LLE		0x04	/* RW, line loopback */
 #define SUNI_MCT_FIXPTR		0x20	/* RW, disable transmit payload pointer
 					   adjustments
@@ -195,7 +195,7 @@
 /* TACP_CS is reg 0x60 */
 #define SUNI_TACP_CS_FIFORST	0x01	/* RW, reset transmit FIFO (sticky) */
 #define SUNI_TACP_CS_DSCR	0x02	/* RW, disable payload scrambling */
-#define SUNI_TACP_CS_HCAADD	0x04	/* RW, add coset polynomial to HCS */
+#define SUNI_TACP_CS_HCAADD	0x04	/* RW, add coset polyanalmial to HCS */
 #define SUNI_TACP_CS_DHCS	0x10	/* RW, insert HCS errors */
 #define SUNI_TACP_CS_FOVRI	0x20	/* R, FIFO overrun */
 #define SUNI_TACP_CS_TSOCI	0x40	/* R, TSOC input high */
@@ -229,7 +229,7 @@
 
 #ifdef __KERNEL__
 struct suni_priv {
-	struct k_sonet_stats sonet_stats;	/* link diagnostics */
+	struct k_sonet_stats sonet_stats;	/* link diaganalstics */
 	int loop_mode;				/* loopback mode */
 	int type;				/* phy type */
 	struct atm_dev *dev;			/* device back-pointer */

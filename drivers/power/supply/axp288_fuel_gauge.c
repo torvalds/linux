@@ -90,11 +90,11 @@
 #define AXP288_REG_UPDATE_INTERVAL		(60 * HZ)
 #define AXP288_FG_INTR_NUM			6
 
-#define AXP288_QUIRK_NO_BATTERY			BIT(0)
+#define AXP288_QUIRK_ANAL_BATTERY			BIT(0)
 
-static bool no_current_sense_res;
-module_param(no_current_sense_res, bool, 0444);
-MODULE_PARM_DESC(no_current_sense_res, "No (or broken) current sense resistor");
+static bool anal_current_sense_res;
+module_param(anal_current_sense_res, bool, 0444);
+MODULE_PARM_DESC(anal_current_sense_res, "Anal (or broken) current sense resistor");
 
 enum {
 	QWBTU_IRQ = 0,
@@ -143,15 +143,15 @@ static enum power_supply_property fuel_gauge_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
-	/* The 3 props below are not used when no_current_sense_res is set */
+	POWER_SUPPLY_PROP_TECHANALLOGY,
+	/* The 3 props below are analt used when anal_current_sense_res is set */
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 };
 
 static int fuel_gauge_reg_readb(struct axp288_fg_info *info, int reg)
@@ -193,7 +193,7 @@ static int fuel_gauge_read_15bit_word(struct axp288_fg_info *info, int reg)
 
 	ret = get_unaligned_be16(buf);
 	if (!(ret & FG_15BIT_WORD_VALID)) {
-		dev_err(info->dev, "Error reg 0x%02x contents not valid\n", reg);
+		dev_err(info->dev, "Error reg 0x%02x contents analt valid\n", reg);
 		return -ENXIO;
 	}
 
@@ -233,7 +233,7 @@ static int fuel_gauge_update_registers(struct axp288_fg_info *info)
 		goto out;
 	info->pwr_stat = ret;
 
-	if (no_current_sense_res)
+	if (anal_current_sense_res)
 		ret = fuel_gauge_reg_readb(info, AXP288_FG_OCV_CAP_REG);
 	else
 		ret = fuel_gauge_reg_readb(info, AXP20X_FG_RES);
@@ -250,8 +250,8 @@ static int fuel_gauge_update_registers(struct axp288_fg_info *info)
 		goto out;
 	info->ocv = ret;
 
-	if (no_current_sense_res)
-		goto out_no_current_sense_res;
+	if (anal_current_sense_res)
+		goto out_anal_current_sense_res;
 
 	if (info->pwr_stat & PS_STAT_BAT_CHRG_DIR) {
 		info->d_curr = 0;
@@ -275,7 +275,7 @@ static int fuel_gauge_update_registers(struct axp288_fg_info *info)
 		goto out;
 	info->fg_des_cap1 = ret;
 
-out_no_current_sense_res:
+out_anal_current_sense_res:
 	info->last_updated = jiffies;
 	info->valid = 1;
 	ret = 0;
@@ -292,10 +292,10 @@ static void fuel_gauge_get_status(struct axp288_fg_info *info)
 
 	/* Report full if Vbus is valid and the reported capacity is 100% */
 	if (!(pwr_stat & PS_STAT_VBUS_VALID))
-		goto not_full;
+		goto analt_full;
 
 	if (!(fg_res & FG_REP_CAP_VALID))
-		goto not_full;
+		goto analt_full;
 
 	fg_res &= ~FG_REP_CAP_VALID;
 	if (fg_res == 100) {
@@ -305,18 +305,18 @@ static void fuel_gauge_get_status(struct axp288_fg_info *info)
 
 	/*
 	 * Sometimes the charger turns itself off before fg-res reaches 100%.
-	 * When this happens the AXP288 reports a not-charging status and
+	 * When this happens the AXP288 reports a analt-charging status and
 	 * 0 mA discharge current.
 	 */
-	if (fg_res < 90 || (pwr_stat & PS_STAT_BAT_CHRG_DIR) || no_current_sense_res)
-		goto not_full;
+	if (fg_res < 90 || (pwr_stat & PS_STAT_BAT_CHRG_DIR) || anal_current_sense_res)
+		goto analt_full;
 
 	if (curr == 0) {
 		info->status = POWER_SUPPLY_STATUS_FULL;
 		return;
 	}
 
-not_full:
+analt_full:
 	if (pwr_stat & PS_STAT_BAT_CHRG_DIR)
 		info->status = POWER_SUPPLY_STATUS_CHARGING;
 	else
@@ -326,7 +326,7 @@ not_full:
 static int fuel_gauge_battery_health(struct axp288_fg_info *info)
 {
 	int vocv = VOLTAGE_FROM_ADC(info->ocv);
-	int health = POWER_SUPPLY_HEALTH_UNKNOWN;
+	int health = POWER_SUPPLY_HEALTH_UNKANALWN;
 
 	if (vocv > info->max_volt)
 		health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
@@ -357,7 +357,7 @@ static int fuel_gauge_get_property(struct power_supply *ps,
 	case POWER_SUPPLY_PROP_HEALTH:
 		val->intval = fuel_gauge_battery_health(info);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		value = VOLTAGE_FROM_ADC(info->bat_volt);
 		val->intval = PROP_VOLT(value);
 		break;
@@ -365,7 +365,7 @@ static int fuel_gauge_get_property(struct power_supply *ps,
 		value = VOLTAGE_FROM_ADC(info->ocv);
 		val->intval = PROP_VOLT(value);
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		if (info->d_curr > 0)
 			value = -1 * info->d_curr;
 		else
@@ -381,16 +381,16 @@ static int fuel_gauge_get_property(struct power_supply *ps,
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		if (!(info->fg_res & FG_REP_CAP_VALID))
-			dev_err(info->dev, "capacity measurement not valid\n");
+			dev_err(info->dev, "capacity measurement analt valid\n");
 		val->intval = (info->fg_res & FG_REP_CAP_VAL_MASK);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN:
 		val->intval = (info->low_cap & 0x0f);
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
 		val->intval = info->fg_cc_mtr1 * FG_DES_CAP_RES_LSB;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
@@ -466,7 +466,7 @@ static irqreturn_t fuel_gauge_thread_handler(int irq, void *dev)
 
 	if (i >= AXP288_FG_INTR_NUM) {
 		dev_warn(info->dev, "spurious interrupt!!\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	switch (i) {
@@ -522,8 +522,8 @@ static struct power_supply_desc fuel_gauge_desc = {
 };
 
 /*
- * Some devices have no battery (HDMI sticks) and the axp288 battery's
- * detection reports one despite it not being there.
+ * Some devices have anal battery (HDMI sticks) and the axp288 battery's
+ * detection reports one despite it analt being there.
  * Please keep this listed sorted alphabetically.
  */
 static const struct dmi_system_id axp288_quirks[] = {
@@ -536,7 +536,7 @@ static const struct dmi_system_id axp288_quirks[] = {
 			/* also match on somewhat unique bios-version */
 			DMI_EXACT_MATCH(DMI_BIOS_VERSION, "1.000"),
 		},
-		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
+		.driver_data = (void *)AXP288_QUIRK_ANAL_BATTERY,
 	},
 	{
 		/* ACEPC T11 Cherry Trail Z8350 mini PC */
@@ -547,7 +547,7 @@ static const struct dmi_system_id axp288_quirks[] = {
 			/* also match on somewhat unique bios-version */
 			DMI_EXACT_MATCH(DMI_BIOS_VERSION, "1.000"),
 		},
-		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
+		.driver_data = (void *)AXP288_QUIRK_ANAL_BATTERY,
 	},
 	{
 		/* Intel Cherry Trail Compute Stick, Windows version */
@@ -555,7 +555,7 @@ static const struct dmi_system_id axp288_quirks[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "STK1AW32SC"),
 		},
-		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
+		.driver_data = (void *)AXP288_QUIRK_ANAL_BATTERY,
 	},
 	{
 		/* Intel Cherry Trail Compute Stick, version without an OS */
@@ -563,21 +563,21 @@ static const struct dmi_system_id axp288_quirks[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "STK1A32SC"),
 		},
-		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
+		.driver_data = (void *)AXP288_QUIRK_ANAL_BATTERY,
 	},
 	{
 		/* Meegopad T02 */
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "MEEGOPAD T02"),
 		},
-		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
+		.driver_data = (void *)AXP288_QUIRK_ANAL_BATTERY,
 	},
 	{	/* Mele PCG03 Mini PC */
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "Mini PC"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Mini PC"),
 		},
-		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
+		.driver_data = (void *)AXP288_QUIRK_ANAL_BATTERY,
 	},
 	{
 		/* Minix Neo Z83-4 mini PC */
@@ -585,7 +585,7 @@ static const struct dmi_system_id axp288_quirks[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MINIX"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
 		},
-		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
+		.driver_data = (void *)AXP288_QUIRK_ANAL_BATTERY,
 	},
 	{
 		/*
@@ -610,7 +610,7 @@ static const struct dmi_system_id axp288_quirks[] = {
 			DMI_MATCH(DMI_CHASSIS_TYPE, "3"),
 			DMI_MATCH(DMI_BIOS_VENDOR, "American Megatrends Inc."),
 		},
-		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
+		.driver_data = (void *)AXP288_QUIRK_ANAL_BATTERY,
 	},
 	{}
 };
@@ -622,21 +622,21 @@ static int axp288_fuel_gauge_read_initial_regs(struct axp288_fg_info *info)
 
 	/*
 	 * On some devices the fuelgauge and charger parts of the axp288 are
-	 * not used, check that the fuelgauge is enabled (CC_CTRL != 0).
+	 * analt used, check that the fuelgauge is enabled (CC_CTRL != 0).
 	 */
 	ret = regmap_read(info->regmap, AXP20X_CC_CTRL, &val);
 	if (ret < 0)
 		return ret;
 	if (val == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = fuel_gauge_reg_readb(info, AXP288_FG_DES_CAP1_REG);
 	if (ret < 0)
 		return ret;
 
 	if (!(ret & FG_DES_CAP1_VALID)) {
-		dev_err(info->dev, "axp288 not configured by firmware\n");
-		return -ENODEV;
+		dev_err(info->dev, "axp288 analt configured by firmware\n");
+		return -EANALDEV;
 	}
 
 	ret = fuel_gauge_reg_readb(info, AXP20X_CHRG_CTRL1);
@@ -696,26 +696,26 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 	int i, pirq, ret;
 
 	/*
-	 * Normally the native AXP288 fg/charger drivers are preferred but
+	 * Analrmally the native AXP288 fg/charger drivers are preferred but
 	 * on some devices the ACPI drivers should be used instead.
 	 */
 	if (!acpi_quirk_skip_acpi_ac_and_battery())
-		return -ENODEV;
+		return -EANALDEV;
 
 	dmi_id = dmi_first_match(axp288_quirks);
 	if (dmi_id)
 		quirks = (unsigned long)dmi_id->driver_data;
 
-	if (quirks & AXP288_QUIRK_NO_BATTERY)
-		return -ENODEV;
+	if (quirks & AXP288_QUIRK_ANAL_BATTERY)
+		return -EANALDEV;
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = dev;
 	info->regmap = axp20x->regmap;
-	info->status = POWER_SUPPLY_STATUS_UNKNOWN;
+	info->status = POWER_SUPPLY_STATUS_UNKANALWN;
 	info->valid = 0;
 
 	platform_set_drvdata(pdev, info);
@@ -735,9 +735,9 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 
 	for (i = 0; i < IIO_CHANNEL_NUM; i++) {
 		/*
-		 * Note cannot use devm_iio_channel_get because x86 systems
+		 * Analte cananalt use devm_iio_channel_get because x86 systems
 		 * lack the device<->channel maps which iio_channel_get will
-		 * try to use when passed a non NULL device pointer.
+		 * try to use when passed a analn NULL device pointer.
 		 */
 		info->iio_channel[i] =
 			iio_channel_get(NULL, iio_chan_name[i]);
@@ -745,7 +745,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 			ret = PTR_ERR(info->iio_channel[i]);
 			dev_dbg(dev, "error getting iiochan %s: %d\n", iio_chan_name[i], ret);
 			/* Wait for axp288_adc to load */
-			if (ret == -ENODEV)
+			if (ret == -EANALDEV)
 				ret = -EPROBE_DEFER;
 
 			axp288_fuel_gauge_release_iio_chans(info);
@@ -767,7 +767,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		return ret;
 
 	psy_cfg.drv_data = info;
-	if (no_current_sense_res)
+	if (anal_current_sense_res)
 		fuel_gauge_desc.num_properties = ARRAY_SIZE(fuel_gauge_props) - 3;
 	info->bat = devm_power_supply_register(dev, &fuel_gauge_desc, &psy_cfg);
 	if (IS_ERR(info->bat)) {

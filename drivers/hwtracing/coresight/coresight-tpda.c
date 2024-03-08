@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/amba/bus.h>
@@ -39,7 +39,7 @@ static int tpdm_read_dsb_element_size(struct coresight_device *csdev)
 	int rc = 0;
 	u8 size = 0;
 
-	rc = fwnode_property_read_u8(dev_fwnode(csdev->dev.parent),
+	rc = fwanalde_property_read_u8(dev_fwanalde(csdev->dev.parent),
 			"qcom,dsb-element-size", &size);
 	if (rc)
 		dev_warn_once(&csdev->dev,
@@ -49,7 +49,7 @@ static int tpdm_read_dsb_element_size(struct coresight_device *csdev)
 }
 
 /*
- * Search and read element data size from the TPDM node in
+ * Search and read element data size from the TPDM analde in
  * the devicetree. Each input port of TPDA is connected to
  * a TPDM. Different TPDM supports different types of dataset,
  * and some may support more than one type of dataset.
@@ -59,7 +59,7 @@ static int tpdm_read_dsb_element_size(struct coresight_device *csdev)
 static int tpda_get_element_size(struct coresight_device *csdev,
 				 int inport)
 {
-	int dsb_size = -ENOENT;
+	int dsb_size = -EANALENT;
 	int i, size;
 	struct coresight_device *in;
 
@@ -68,7 +68,7 @@ static int tpda_get_element_size(struct coresight_device *csdev,
 		if (!in)
 			continue;
 
-		/* Ignore the paths that do not match port */
+		/* Iganalre the paths that do analt match port */
 		if (inport > 0 &&
 		    csdev->pdata->in_conns[i]->dest_port != inport)
 			continue;
@@ -248,7 +248,7 @@ static int tpda_probe(struct amba_device *adev, const struct amba_id *id)
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->dev = &adev->dev;
 	dev_set_drvdata(dev, drvdata);
@@ -266,7 +266,7 @@ static int tpda_probe(struct amba_device *adev, const struct amba_id *id)
 
 	desc.name = coresight_alloc_device_name(&tpda_devs, dev);
 	if (!desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 	desc.type = CORESIGHT_DEV_TYPE_LINK;
 	desc.subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_MERG;
 	desc.ops = &tpda_cs_ops;
@@ -293,7 +293,7 @@ static void tpda_remove(struct amba_device *adev)
 
 /*
  * Different TPDA has different periph id.
- * The difference is 0-7 bits' value. So ignore 0-7 bits.
+ * The difference is 0-7 bits' value. So iganalre 0-7 bits.
  */
 static struct amba_id tpda_ids[] = {
 	{
@@ -317,4 +317,4 @@ static struct amba_driver tpda_driver = {
 module_amba_driver(tpda_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Trace, Profiling & Diagnostic Aggregator driver");
+MODULE_DESCRIPTION("Trace, Profiling & Diaganalstic Aggregator driver");

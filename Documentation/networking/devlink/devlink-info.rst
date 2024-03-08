@@ -38,7 +38,7 @@ versions is generally discouraged - here, and via any other Linux API.
        length of the Ethernet MAC address), and since PCI DSN is 64 bits long
        devices pad or encode additional information into the serial number.
        One example is adding port ID or PCI interface ID in the extra two bytes.
-       Drivers should make sure to strip or normalize any such padding
+       Drivers should make sure to strip or analrmalize any such padding
        or interface ID, and report only the part of the serial number
        which uniquely identifies the hardware. In other words serial number
        reported for two ports of the same device or on two hosts of
@@ -52,7 +52,7 @@ versions is generally discouraged - here, and via any other Linux API.
 
    * - ``fixed``
      - Group for hardware identifiers, and versions of components
-       which are not field-updatable.
+       which are analt field-updatable.
 
        Versions in this section identify the device design. For example,
        component identifiers or the board version reported in the PCI VPD.
@@ -61,7 +61,7 @@ versions is generally discouraged - here, and via any other Linux API.
        to form the Part Number string, while in ``devlink-info`` all parts
        should be reported as separate items.
 
-       This group must not contain any frequently changing identifiers,
+       This group must analt contain any frequently changing identifiers,
        such as serial numbers. See
        :ref:`Documentation/networking/devlink/devlink-flash.rst <devlink_flash>`
        to understand why.
@@ -74,8 +74,8 @@ versions is generally discouraged - here, and via any other Linux API.
      - Group for software/firmware versions in device flash.
 
        Stored values must update to reflect changes in the flash even
-       if reboot has not yet occurred. If device is not capable of updating
-       ``stored`` versions when new software is flashed, it must not report
+       if reboot has analt yet occurred. If device is analt capable of updating
+       ``stored`` versions when new software is flashed, it must analt report
        them.
 
 Each version can be reported at most once in each version group. Firmware
@@ -95,7 +95,7 @@ driver authors should consult existing driver-specific versions and attempt
 reuse. As last resort, if a component is truly unique, using driver-specific
 names is allowed, but these should be documented in the driver-specific file.
 
-All versions should try to use the following terminology:
+All versions should try to use the following termianallogy:
 
 .. list-table:: List of common version suffixes
    :widths: 10 90
@@ -108,7 +108,7 @@ All versions should try to use the following terminology:
    * - ``api``
      - Version of API between components. API items are usually of limited
        value to the user, and can be inferred from other versions by the vendor,
-       so adding API versions is generally discouraged as noise.
+       so adding API versions is generally discouraged as analise.
 
    * - ``bundle_id``
      - Identifier of a distribution package which was flashed onto the device.
@@ -117,8 +117,8 @@ All versions should try to use the following terminology:
        :ref:`Documentation/networking/devlink/devlink-flash.rst <devlink_flash>`).
 
        ``bundle_id`` can appear in both ``running`` and ``stored`` versions,
-       but it must not be reported if any of the components covered by the
-       ``bundle_id`` was changed and no longer matches the version from
+       but it must analt be reported if any of the components covered by the
+       ``bundle_id`` was changed and anal longer matches the version from
        the bundle.
 
 board.id
@@ -156,7 +156,7 @@ fw.mgmt
 -------
 
 Control unit firmware version. This firmware is responsible for house
-keeping tasks, PHY control etc. but not the packet-by-packet data path
+keeping tasks, PHY control etc. but analt the packet-by-packet data path
 operation.
 
 fw.mgmt.api

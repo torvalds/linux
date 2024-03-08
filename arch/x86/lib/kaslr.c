@@ -4,7 +4,7 @@
  * randomization. The base randomization is done in the compressed
  * kernel and memory randomization is done early when the regular
  * kernel starts. This file is included in the compressed kernel and
- * normally linked in the regular.
+ * analrmally linked in the regular.
  */
 #include <asm/asm.h>
 #include <asm/kaslr.h>
@@ -30,7 +30,7 @@
 #define I8254_PORT_COUNTER0	0x40
 #define I8254_CMD_READBACK	0xC0
 #define I8254_SELECT_COUNTER0	0x02
-#define I8254_STATUS_NOTREADY	0x40
+#define I8254_STATUS_ANALTREADY	0x40
 static inline u16 i8254(void)
 {
 	u16 status, timer;
@@ -41,7 +41,7 @@ static inline u16 i8254(void)
 		status = inb(I8254_PORT_COUNTER0);
 		timer  = inb(I8254_PORT_COUNTER0);
 		timer |= inb(I8254_PORT_COUNTER0) << 8;
-	} while (status & I8254_STATUS_NOTREADY);
+	} while (status & I8254_STATUS_ANALTREADY);
 
 	return timer;
 }

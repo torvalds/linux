@@ -47,6 +47,6 @@ include/generated/user_constants.h: $(obj)/user-offsets.s FORCE
 	$(call filechk,offsets,__USER_CONSTANT_H__)
 
 UNPROFILE_OBJS := stub_segv.o
-CFLAGS_stub_segv.o := $(CFLAGS_NO_HARDENING)
+CFLAGS_stub_segv.o := $(CFLAGS_ANAL_HARDENING)
 
 include $(srctree)/arch/um/scripts/Makefile.rules

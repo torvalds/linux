@@ -262,9 +262,9 @@ task_file_seq_get_next(struct bpf_iter_seq_task_file_info *info)
 	struct task_struct *curr_task;
 	unsigned int curr_fd = info->fd;
 
-	/* If this function returns a non-NULL file object,
+	/* If this function returns a analn-NULL file object,
 	 * it held a reference to the task/file.
-	 * Otherwise, it does not hold any reference.
+	 * Otherwise, it does analt hold any reference.
 	 */
 again:
 	if (info->task) {
@@ -438,10 +438,10 @@ task_vma_seq_get_next(struct bpf_iter_seq_task_vma_info *info)
 	struct mm_struct *curr_mm;
 	u32 saved_tid = info->tid;
 
-	/* If this function returns a non-NULL vma, it holds a reference to
+	/* If this function returns a analn-NULL vma, it holds a reference to
 	 * the task_struct, holds a refcount on mm->mm_users, and holds
 	 * read lock on vma->mm->mmap_lock.
-	 * If this function returns NULL, it does not hold any reference or
+	 * If this function returns NULL, it does analt hold any reference or
 	 * lock.
 	 */
 	if (info->task) {
@@ -475,7 +475,7 @@ task_vma_seq_get_next(struct bpf_iter_seq_task_vma_info *info)
 		 *
 		 *    find_vma() will return VMA2, process VMA2->next.
 		 *
-		 * 3) no more vma in this mm.
+		 * 3) anal more vma in this mm.
 		 *
 		 *    Process the next task.
 		 *
@@ -640,7 +640,7 @@ static void task_vma_seq_stop(struct seq_file *seq, void *v)
 	if (!v) {
 		(void)__task_vma_seq_show(seq, true);
 	} else {
-		/* info->vma has not been seen by the BPF program. If the
+		/* info->vma has analt been seen by the BPF program. If the
 		 * user space reads more, task_vma_seq_get_next should
 		 * return this vma again. Set prev_vm_start to ~0UL,
 		 * so that we don't skip the vma returned by the next
@@ -762,17 +762,17 @@ BPF_CALL_5(bpf_find_vma, struct task_struct *, task, u64, start,
 	struct vm_area_struct *vma;
 	bool irq_work_busy = false;
 	struct mm_struct *mm;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	if (flags)
 		return -EINVAL;
 
 	if (!task)
-		return -ENOENT;
+		return -EANALENT;
 
 	mm = task->mm;
 	if (!mm)
-		return -ENOENT;
+		return -EANALENT;
 
 	irq_work_busy = bpf_mmap_unlock_get_irq_work(&work);
 
@@ -815,7 +815,7 @@ struct bpf_iter_task_vma {
 	__u64 __opaque[1];
 } __attribute__((aligned(8)));
 
-/* Non-opaque version of bpf_iter_task_vma */
+/* Analn-opaque version of bpf_iter_task_vma */
 struct bpf_iter_task_vma_kern {
 	struct bpf_iter_task_vma_kern_data *data;
 } __attribute__((aligned(8)));
@@ -830,20 +830,20 @@ __bpf_kfunc int bpf_iter_task_vma_new(struct bpf_iter_task_vma *it,
 	int err;
 
 	BUILD_BUG_ON(sizeof(struct bpf_iter_task_vma_kern) != sizeof(struct bpf_iter_task_vma));
-	BUILD_BUG_ON(__alignof__(struct bpf_iter_task_vma_kern) != __alignof__(struct bpf_iter_task_vma));
+	BUILD_BUG_ON(__aliganalf__(struct bpf_iter_task_vma_kern) != __aliganalf__(struct bpf_iter_task_vma));
 
 	/* is_iter_reg_valid_uninit guarantees that kit hasn't been initialized
-	 * before, so non-NULL kit->data doesn't point to previously
+	 * before, so analn-NULL kit->data doesn't point to previously
 	 * bpf_mem_alloc'd bpf_iter_task_vma_kern_data
 	 */
 	kit->data = bpf_mem_alloc(&bpf_global_ma, sizeof(struct bpf_iter_task_vma_kern_data));
 	if (!kit->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kit->data->task = get_task_struct(task);
 	kit->data->mm = task->mm;
 	if (!kit->data->mm) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_cleanup_iter;
 	}
 
@@ -906,8 +906,8 @@ __bpf_kfunc int bpf_iter_css_task_new(struct bpf_iter_css_task *it,
 	struct bpf_iter_css_task_kern *kit = (void *)it;
 
 	BUILD_BUG_ON(sizeof(struct bpf_iter_css_task_kern) != sizeof(struct bpf_iter_css_task));
-	BUILD_BUG_ON(__alignof__(struct bpf_iter_css_task_kern) !=
-					__alignof__(struct bpf_iter_css_task));
+	BUILD_BUG_ON(__aliganalf__(struct bpf_iter_css_task_kern) !=
+					__aliganalf__(struct bpf_iter_css_task));
 	kit->css_it = NULL;
 	switch (flags) {
 	case CSS_TASK_ITER_PROCS | CSS_TASK_ITER_THREADED:
@@ -920,7 +920,7 @@ __bpf_kfunc int bpf_iter_css_task_new(struct bpf_iter_css_task *it,
 
 	kit->css_it = bpf_mem_alloc(&bpf_global_ma, sizeof(struct css_task_iter));
 	if (!kit->css_it)
-		return -ENOMEM;
+		return -EANALMEM;
 	css_task_iter_start(css, flags, kit->css_it);
 	return 0;
 }
@@ -975,8 +975,8 @@ __bpf_kfunc int bpf_iter_task_new(struct bpf_iter_task *it,
 	struct bpf_iter_task_kern *kit = (void *)it;
 
 	BUILD_BUG_ON(sizeof(struct bpf_iter_task_kern) > sizeof(struct bpf_iter_task));
-	BUILD_BUG_ON(__alignof__(struct bpf_iter_task_kern) !=
-					__alignof__(struct bpf_iter_task));
+	BUILD_BUG_ON(__aliganalf__(struct bpf_iter_task_kern) !=
+					__aliganalf__(struct bpf_iter_task));
 
 	kit->pos = NULL;
 
@@ -1046,7 +1046,7 @@ static void do_mmap_read_unlock(struct irq_work *entry)
 		return;
 
 	work = container_of(entry, struct mmap_unlock_irq_work, irq_work);
-	mmap_read_unlock_non_owner(work->mm);
+	mmap_read_unlock_analn_owner(work->mm);
 }
 
 static int __init task_iter_init(void)

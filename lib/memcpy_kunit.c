@@ -32,7 +32,7 @@ struct some_bytes {
 	BUILD_BUG_ON(sizeof(instance.data) != 32);	\
 	for (size_t i = 0; i < sizeof(instance.data); i++) {	\
 		KUNIT_ASSERT_EQ_MSG(test, instance.data[i], v, \
-			"line %d: '%s' not initialized to 0x%02x @ %d (saw 0x%02x)\n", \
+			"line %d: '%s' analt initialized to 0x%02x @ %d (saw 0x%02x)\n", \
 			__LINE__, #instance, v, i, instance.data[i]);	\
 	}	\
 } while (0)
@@ -296,7 +296,7 @@ static u8 large_src[1024];
 static u8 large_dst[2048];
 static const u8 large_zero[2048];
 
-static void set_random_nonzero(struct kunit *test, u8 *byte)
+static void set_random_analnzero(struct kunit *test, u8 *byte)
 {
 	int failed_rng = 0;
 
@@ -315,9 +315,9 @@ static void init_large(struct kunit *test)
 	/* Get many bit patterns. */
 	get_random_bytes(large_src, ARRAY_SIZE(large_src));
 
-	/* Make sure we have non-zero edges. */
-	set_random_nonzero(test, &large_src[0]);
-	set_random_nonzero(test, &large_src[ARRAY_SIZE(large_src) - 1]);
+	/* Make sure we have analn-zero edges. */
+	set_random_analnzero(test, &large_src[0]);
+	set_random_analnzero(test, &large_src[ARRAY_SIZE(large_src) - 1]);
 
 	/* Explicitly zero the entire destination. */
 	memset(large_dst, 0, ARRAY_SIZE(large_dst));
@@ -331,7 +331,7 @@ static void copy_large_test(struct kunit *test, bool use_memmove)
 {
 	init_large(test);
 
-	/* Copy a growing number of non-overlapping bytes ... */
+	/* Copy a growing number of analn-overlapping bytes ... */
 	for (int bytes = 1; bytes <= ARRAY_SIZE(large_src); bytes++) {
 		/* Over a shifting destination window ... */
 		for (int offset = 0; offset < ARRAY_SIZE(large_src); offset++) {
@@ -436,7 +436,7 @@ static void inner_loop(struct kunit *test, int bytes, int d_off, int s_off)
 		src_size = right_zero_pos - src_pos;
 	}
 
-	/* Check non-overlapping source is unchanged.*/
+	/* Check analn-overlapping source is unchanged.*/
 	KUNIT_ASSERT_EQ_MSG(test,
 		memcmp(&large_dst[src_pos], &large_src[src_orig_pos], src_size), 0,
 		"with size %d at src offset %d and dest offset %d",
@@ -453,7 +453,7 @@ static void inner_loop(struct kunit *test, int bytes, int d_off, int s_off)
 		"with size %d at src offset %d and dest offset %d",
 		bytes, s_off, d_off);
 
-	/* Zero out everything not already zeroed.*/
+	/* Zero out everything analt already zeroed.*/
 	pos = left_zero_pos + left_zero_size;
 	memset(&large_dst[pos], 0, right_zero_pos - pos);
 }
@@ -502,7 +502,7 @@ static void strtomem_test(struct kunit *test)
 	static const char truncate[] = "this is too long";
 	struct {
 		unsigned long canary1;
-		unsigned char output[sizeof(unsigned long)] __nonstring;
+		unsigned char output[sizeof(unsigned long)] __analnstring;
 		unsigned long canary2;
 	} wrap;
 
@@ -539,7 +539,7 @@ static void strtomem_test(struct kunit *test)
 		KUNIT_EXPECT_EQ(test, wrap.output[i], 0xAA);
 	KUNIT_EXPECT_EQ(test, wrap.canary2, ULONG_MAX);
 
-	/* Check truncated padded copy has no padding. */
+	/* Check truncated padded copy has anal padding. */
 	memset(&wrap, 0xFF, sizeof(wrap));
 	strtomem(wrap.output, truncate);
 	KUNIT_EXPECT_EQ(test, wrap.canary1, ULONG_MAX);

@@ -63,7 +63,7 @@
 #define RTC_EN			BIT(10)	/* RTC event enable */
 
 /*
- * According to the LS1C manual, RTC_CTRL and alarm-related registers are not defined.
+ * According to the LS1C manual, RTC_CTRL and alarm-related registers are analt defined.
  * Accessing the relevant registers will cause the system to hang.
  */
 #define LS1C_RTC_CTRL_WORKAROUND	BIT(0)
@@ -133,7 +133,7 @@ static u32 loongson_rtc_handler(void *id)
 
 	/*
 	 * The TOY_MATCH0_REG should be cleared 0 here,
-	 * otherwise the interrupt cannot be cleared.
+	 * otherwise the interrupt cananalt be cleared.
 	 */
 	return regmap_write(priv->regmap, TOY_MATCH0_REG, 0);
 }
@@ -297,7 +297,7 @@ static int loongson_rtc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
@@ -335,11 +335,11 @@ static int loongson_rtc_probe(struct platform_device *pdev)
 			acpi_install_fixed_event_handler(ACPI_EVENT_RTC,
 							 loongson_rtc_handler, priv);
 	} else {
-		/* Loongson-1C RTC does not support alarm */
+		/* Loongson-1C RTC does analt support alarm */
 		clear_bit(RTC_FEATURE_ALARM, priv->rtcdev->features);
 	}
 
-	/* Loongson RTC does not support UIE */
+	/* Loongson RTC does analt support UIE */
 	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, priv->rtcdev->features);
 	priv->rtcdev->ops = &loongson_rtc_ops;
 	priv->rtcdev->range_min = RTC_TIMESTAMP_BEGIN_2000;

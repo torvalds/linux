@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/export.h>
 #include <linux/io.h>
@@ -27,7 +27,7 @@ static unsigned long arch_get_unmapped_area_common(struct file *filp,
 	struct vm_unmapped_area_info info;
 
 	if (unlikely(len > TASK_SIZE))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (flags & MAP_FIXED) {
 		/* Even MAP_FIXED mappings must reside within TASK_SIZE */
@@ -35,7 +35,7 @@ static unsigned long arch_get_unmapped_area_common(struct file *filp,
 			return -EINVAL;
 
 		/*
-		 * We do not accept a shared mapping if it would violate
+		 * We do analt accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
 		if ((flags & MAP_SHARED) &&
@@ -96,7 +96,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr0,
 }
 
 /*
- * There is no need to export this but sched.h declares the function as
+ * There is anal need to export this but sched.h declares the function as
  * extern so making it static here results in an error.
  */
 unsigned long arch_get_unmapped_area_topdown(struct file *filp,
@@ -126,7 +126,7 @@ int valid_phys_addr_range(phys_addr_t addr, size_t size)
 {
 	/*
 	 * Check whether addr is covered by a memory region without the
-	 * MEMBLOCK_NOMAP attribute, and whether that region covers the
+	 * MEMBLOCK_ANALMAP attribute, and whether that region covers the
 	 * entire range. In theory, this could lead to false negatives
 	 * if the range is covered by distinct but adjacent memory regions
 	 * that only differ in other attributes. However, few of such
@@ -138,7 +138,7 @@ int valid_phys_addr_range(phys_addr_t addr, size_t size)
 }
 
 /*
- * Do not allow /dev/mem mappings beyond the supported physical range.
+ * Do analt allow /dev/mem mappings beyond the supported physical range.
  */
 int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
 {

@@ -17,7 +17,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fb.h>
 #include <linux/io.h>
 #include <linux/pci.h>
@@ -29,14 +29,14 @@ static const struct fb_fix_screeninfo mdpy_fb_fix = {
 	.id		= "mdpy-fb",
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_TRUECOLOR,
-	.accel		= FB_ACCEL_NONE,
+	.accel		= FB_ACCEL_ANALNE,
 };
 
 static const struct fb_var_screeninfo mdpy_fb_var = {
 	.height		= -1,
 	.width		= -1,
-	.activate	= FB_ACTIVATE_NOW,
-	.vmode		= FB_VMODE_NONINTERLACED,
+	.activate	= FB_ACTIVATE_ANALW,
+	.vmode		= FB_VMODE_ANALNINTERLACED,
 
 	.bits_per_pixel = 32,
 	.transp.offset	= 24,
@@ -55,7 +55,7 @@ struct mdpy_fb_par {
 	u32 palette[PSEUDO_PALETTE_SIZE];
 };
 
-static int mdpy_fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int mdpy_fb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 			      u_int transp, struct fb_info *info)
 {
 	u32 *pal = info->pseudo_palette;
@@ -64,7 +64,7 @@ static int mdpy_fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	u32 cb = blue >> (16 - info->var.blue.length);
 	u32 value, mask;
 
-	if (regno >= PSEUDO_PALETTE_SIZE)
+	if (reganal >= PSEUDO_PALETTE_SIZE)
 		return -EINVAL;
 
 	value = (cr << info->var.red.offset) |
@@ -75,7 +75,7 @@ static int mdpy_fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		mask <<= info->var.transp.offset;
 		value |= mask;
 	}
-	pal[regno] = value;
+	pal[reganal] = value;
 
 	return 0;
 }
@@ -133,7 +133,7 @@ static int mdpy_fb_probe(struct pci_dev *pdev,
 
 	info = framebuffer_alloc(sizeof(struct mdpy_fb_par), &pdev->dev);
 	if (!info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_release_regions;
 	}
 	pci_set_drvdata(pdev, info);
@@ -168,7 +168,7 @@ static int mdpy_fb_probe(struct pci_dev *pdev,
 		goto err_unmap;
 	}
 
-	pci_info(pdev, "fb%d registered\n", info->node);
+	pci_info(pdev, "fb%d registered\n", info->analde);
 	return 0;
 
 err_unmap:

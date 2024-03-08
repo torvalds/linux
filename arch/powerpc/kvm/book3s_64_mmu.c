@@ -45,7 +45,7 @@ static struct kvmppc_slb *kvmppc_mmu_book3s_64_find_slbe(
 			return &vcpu->arch.slb[i];
 	}
 
-	dprintk("KVM: No SLB entry found for 0x%lx [%llx | %llx]\n",
+	dprintk("KVM: Anal SLB entry found for 0x%lx [%llx | %llx]\n",
 		eaddr, esid, esid_1t);
 	for (i = 0; i < vcpu->arch.slb_nr; i++) {
 	    if (vcpu->arch.slb[i].vsid)
@@ -225,7 +225,7 @@ static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 	slbe = kvmppc_mmu_book3s_64_find_slbe(vcpu, eaddr);
 	if (!slbe)
-		goto no_seg_found;
+		goto anal_seg_found;
 
 	avpn = kvmppc_mmu_book3s_64_get_avpn(slbe, eaddr);
 	v_val = avpn & HPTE_V_AVPN;
@@ -246,12 +246,12 @@ static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 do_second:
 	ptegp = kvmppc_mmu_book3s_64_get_pteg(vcpu, slbe, eaddr, second);
 	if (kvm_is_error_hva(ptegp))
-		goto no_page_found;
+		goto anal_page_found;
 
 	if(copy_from_user(pteg, (void __user *)ptegp, sizeof(pteg))) {
 		printk_ratelimited(KERN_ERR
 			"KVM: Can't copy data from 0x%lx!\n", ptegp);
-		goto no_page_found;
+		goto anal_page_found;
 	}
 
 	if ((kvmppc_get_msr(vcpu) & MSR_PR) && slbe->Kp)
@@ -279,7 +279,7 @@ do_second:
 
 	if (!found) {
 		if (second)
-			goto no_page_found;
+			goto anal_page_found;
 		v_val |= HPTE_V_SECONDARY;
 		second = true;
 		goto do_second;
@@ -323,14 +323,14 @@ do_second:
 		"-> 0x%lx\n",
 		eaddr, avpn, gpte->vpage, gpte->raddr);
 
-	/* Update PTE R and C bits, so the guest's swapper knows we used the
+	/* Update PTE R and C bits, so the guest's swapper kanalws we used the
 	 * page */
 	if (gpte->may_read && !(r & HPTE_R_R)) {
 		/*
 		 * Set the accessed flag.
 		 * We have to write this back with a single byte write
-		 * because another vcpu may be accessing this on
-		 * non-PAPR platforms such as mac99, and this is
+		 * because aanalther vcpu may be accessing this on
+		 * analn-PAPR platforms such as mac99, and this is
 		 * what real hardware does.
 		 */
                 char __user *addr = (char __user *) (ptegp + (i + 1) * sizeof(u64));
@@ -351,11 +351,11 @@ do_second:
 		return -EPERM;
 	return 0;
 
-no_page_found:
+anal_page_found:
 	mutex_unlock(&vcpu->kvm->arch.hpt_mutex);
-	return -ENOENT;
+	return -EANALENT;
 
-no_seg_found:
+anal_seg_found:
 	dprintk("KVM MMU: Trigger segment fault\n");
 	return -EINVAL;
 }
@@ -419,7 +419,7 @@ static int kvmppc_mmu_book3s_64_slbfee(struct kvm_vcpu *vcpu, gva_t eaddr,
 		return 0;
 	}
 	*ret_slb = 0;
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static u64 kvmppc_mmu_book3s_64_slbmfee(struct kvm_vcpu *vcpu, u64 slb_nr)
@@ -604,7 +604,7 @@ static int kvmppc_mmu_book3s_64_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 		break;
 	case MSR_DR|MSR_IR:
 		if (!slb)
-			goto no_slb;
+			goto anal_slb;
 
 		break;
 	default:
@@ -617,7 +617,7 @@ static int kvmppc_mmu_book3s_64_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 	 * Mark this as a 64k segment if the host is using
 	 * 64k pages, the host MMU supports 64k pages and
 	 * the guest segment page size is >= 64k,
-	 * but not if this segment contains the magic page.
+	 * but analt if this segment contains the magic page.
 	 */
 	if (pagesize >= MMU_PAGE_64K &&
 	    mmu_psize_defs[MMU_PAGE_64K].shift &&
@@ -631,7 +631,7 @@ static int kvmppc_mmu_book3s_64_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 	*vsid = gvsid;
 	return 0;
 
-no_slb:
+anal_slb:
 	/* Catch magic page case */
 	if (unlikely(mp_ea) &&
 	    unlikely(esid == (mp_ea >> SID_SHIFT)) &&

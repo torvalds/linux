@@ -102,21 +102,21 @@ static int cvt_ump_midi1_to_legacy(u32 data, unsigned char *buf)
 static int cvt_ump_midi2_to_legacy(const union snd_ump_midi2_msg *midi2,
 				   unsigned char *buf)
 {
-	unsigned char status = midi2->note.status;
-	unsigned char channel = midi2->note.channel;
+	unsigned char status = midi2->analte.status;
+	unsigned char channel = midi2->analte.channel;
 	u16 v;
 
 	buf[0] = (status << 4) | channel;
 	switch (status) {
-	case UMP_MSG_STATUS_NOTE_OFF:
-	case UMP_MSG_STATUS_NOTE_ON:
-		buf[1] = midi2->note.note;
-		buf[2] = downscale_16_to_7bit(midi2->note.velocity);
-		if (status == UMP_MSG_STATUS_NOTE_ON && !buf[2])
+	case UMP_MSG_STATUS_ANALTE_OFF:
+	case UMP_MSG_STATUS_ANALTE_ON:
+		buf[1] = midi2->analte.analte;
+		buf[2] = downscale_16_to_7bit(midi2->analte.velocity);
+		if (status == UMP_MSG_STATUS_ANALTE_ON && !buf[2])
 			buf[2] = 1;
 		return 3;
 	case UMP_MSG_STATUS_POLY_PRESSURE:
-		buf[1] = midi2->paf.note;
+		buf[1] = midi2->paf.analte;
 		buf[2] = downscale_32_to_7bit(midi2->paf.data);
 		return 3;
 	case UMP_MSG_STATUS_CC:
@@ -336,9 +336,9 @@ static int cvt_legacy_cmd_to_ump(struct ump_cvt_to_ump *cvt,
 	channel = *buf & 0x0f;
 	cc = &cvt->bank[channel];
 
-	/* special handling: treat note-on with 0 velocity as note-off */
-	if (status == UMP_MSG_STATUS_NOTE_ON && !buf[2])
-		status = UMP_MSG_STATUS_NOTE_OFF;
+	/* special handling: treat analte-on with 0 velocity as analte-off */
+	if (status == UMP_MSG_STATUS_ANALTE_ON && !buf[2])
+		status = UMP_MSG_STATUS_ANALTE_OFF;
 
 	/* initialize the packet */
 	data[0] = ump_compose(UMP_MSG_TYPE_MIDI2_CHANNEL_VOICE,
@@ -346,13 +346,13 @@ static int cvt_legacy_cmd_to_ump(struct ump_cvt_to_ump *cvt,
 	data[1] = 0;
 
 	switch (status) {
-	case UMP_MSG_STATUS_NOTE_ON:
-	case UMP_MSG_STATUS_NOTE_OFF:
-		midi2->note.note = buf[1];
-		midi2->note.velocity = upscale_7_to_16bit(buf[2]);
+	case UMP_MSG_STATUS_ANALTE_ON:
+	case UMP_MSG_STATUS_ANALTE_OFF:
+		midi2->analte.analte = buf[1];
+		midi2->analte.velocity = upscale_7_to_16bit(buf[2]);
 		break;
 	case UMP_MSG_STATUS_POLY_PRESSURE:
-		midi2->paf.note = buf[1];
+		midi2->paf.analte = buf[1];
 		midi2->paf.data = upscale_7_to_32bit(buf[2]);
 		break;
 	case UMP_MSG_STATUS_CC:

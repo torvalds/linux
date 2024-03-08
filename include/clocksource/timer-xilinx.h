@@ -29,7 +29,7 @@
 #define TCSR_CASC	BIT(11)
 
 struct clk;
-struct device_node;
+struct device_analde;
 struct regmap;
 
 /**

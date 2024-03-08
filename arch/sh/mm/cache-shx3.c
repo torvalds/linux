@@ -12,7 +12,7 @@
 #include <linux/io.h>
 #include <asm/cache.h>
 
-#define CCR_CACHE_SNM	0x40000		/* Hardware-assisted synonym avoidance */
+#define CCR_CACHE_SNM	0x40000		/* Hardware-assisted syanalnym avoidance */
 #define CCR_CACHE_IBE	0x1000000	/* ICBI broadcast */
 
 void __init shx3_cache_init(void)
@@ -30,7 +30,7 @@ void __init shx3_cache_init(void)
 		boot_cpu_data.icache.n_aliases = 0;
 		boot_cpu_data.dcache.n_aliases = 0;
 
-		pr_info("Enabling hardware synonym avoidance\n");
+		pr_info("Enabling hardware syanalnym avoidance\n");
 	}
 
 #ifdef CONFIG_SMP

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2010-2011 Canonical Ltd <jeremy.kerr@canonical.com>
+ * Copyright (C) 2010-2011 Caanalnical Ltd <jeremy.kerr@caanalnical.com>
  * Copyright (C) 2011-2012 Mike Turquette, Linaro Ltd <mturquette@linaro.org>
  *
  * Gated clock implementation
@@ -21,8 +21,8 @@
  * Traits of this clock:
  * prepare - clk_(un)prepare only ensures parent is (un)prepared
  * enable - clk_enable and clk_disable are functional & control gating
- * rate - inherits rate from parent.  No clk_set_rate support
- * parent - fixed parent.  No clk_set_parent support
+ * rate - inherits rate from parent.  Anal clk_set_rate support
+ * parent - fixed parent.  Anal clk_set_parent support
  */
 
 struct clk_gate2 {
@@ -146,7 +146,7 @@ struct clk_hw *clk_hw_register_gate2(struct device *dev, const char *name,
 
 	gate = kzalloc(sizeof(struct clk_gate2), GFP_KERNEL);
 	if (!gate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* struct clk_gate2 assignments */
 	gate->reg = reg;

@@ -100,7 +100,7 @@ size_t store_gcov_u64(void *buffer, size_t off, u64 v)
 
 #ifdef CONFIG_MODULES
 /* Update list and generate events when modules are unloaded. */
-static int gcov_module_notifier(struct notifier_block *nb, unsigned long event,
+static int gcov_module_analtifier(struct analtifier_block *nb, unsigned long event,
 				void *data)
 {
 	struct module *mod = data;
@@ -108,7 +108,7 @@ static int gcov_module_notifier(struct notifier_block *nb, unsigned long event,
 	struct gcov_info *prev = NULL;
 
 	if (event != MODULE_STATE_GOING)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	mutex_lock(&gcov_lock);
 
 	/* Remove entries located in module from linked list. */
@@ -123,16 +123,16 @@ static int gcov_module_notifier(struct notifier_block *nb, unsigned long event,
 
 	mutex_unlock(&gcov_lock);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block gcov_nb = {
-	.notifier_call	= gcov_module_notifier,
+static struct analtifier_block gcov_nb = {
+	.analtifier_call	= gcov_module_analtifier,
 };
 
 static int __init gcov_init(void)
 {
-	return register_module_notifier(&gcov_nb);
+	return register_module_analtifier(&gcov_nb);
 }
 device_initcall(gcov_init);
 #endif /* CONFIG_MODULES */

@@ -3,16 +3,16 @@
  *
  * OMAP2 GP timer support.
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  *
  * Update to use new clocksource/clockevent layers
  * Author: Kevin Hilman, MontaVista Software, Inc. <source@mvista.com>
  * Copyright (C) 2007 MontaVista Software, Inc.
  *
  * Original driver:
- * Copyright (C) 2005 Nokia Corporation
- * Author: Paul Mundt <paul.mundt@nokia.com>
- *         Juha Yrjölä <juha.yrjola@nokia.com>
+ * Copyright (C) 2005 Analkia Corporation
+ * Author: Paul Mundt <paul.mundt@analkia.com>
+ *         Juha Yrjölä <juha.yrjola@analkia.com>
  * OMAP Dual-mode timer framework support by Timo Teras
  *
  * Some parts based off of TI's 24xx code:
@@ -80,10 +80,10 @@ static void __init realtime_counter_init(void)
 
 	if (soc_is_dra7xx()) {
 		/*
-		 * Errata i856 says the 32.768KHz crystal does not start at
+		 * Errata i856 says the 32.768KHz crystal does analt start at
 		 * power on, so the CPU falls back to an emulated 32KHz clock
 		 * based on sysclk / 610 instead. This causes the master counter
-		 * frequency to not be 6.144MHz but at sysclk / 610 * 375 / 2
+		 * frequency to analt be 6.144MHz but at sysclk / 610 * 375 / 2
 		 * (OR sysclk * 75 / 244)
 		 *
 		 * This affects at least the DRA7/AM572x 1.0, 1.1 revisions.
@@ -92,7 +92,7 @@ static void __init realtime_counter_init(void)
 		 * later.
 		 *
 		 * Either case can be detected by using the two speedselect bits
-		 * If they are not 0, then the 32.768KHz clock driving the
+		 * If they are analt 0, then the 32.768KHz clock driving the
 		 * coarse counter that corrects the fine counter every time it
 		 * ticks is actually rate/610 rather than 32.768KHz and we
 		 * should compensate to avoid the 570ppm (at 20MHz, much worse

@@ -4,7 +4,7 @@ Contact:	Saravana Kannan <saravanak@google.com>
 Description:
 		Provide a place in sysfs for the device link objects in the
 		kernel at any given time.  The name of a device link directory,
-		denoted as ... above, is of the form <supplier>--<consumer>
+		deanalted as ... above, is of the form <supplier>--<consumer>
 		where <supplier> is the supplier bus:device name and <consumer>
 		is the consumer bus:device name.
 
@@ -28,7 +28,7 @@ Description:
 		'supplier unbind' means the device link will be removed when
 		the supplier's driver is unbound from the supplier device.
 
-		'never' means the device link will not be automatically removed
+		'never' means the device link will analt be automatically removed
 		when as long as the supplier and consumer devices themselves
 		are still present.
 
@@ -50,7 +50,7 @@ Description:
 		This will be one of the following strings:
 
 		===   ========================================
-		'0'   Does not affect runtime power management
+		'0'   Does analt affect runtime power management
 		'1'   Affects runtime power management
 		===   ========================================
 
@@ -70,19 +70,19 @@ Description:
 
 		This will be one of the following strings:
 
-		- 'not tracked'
+		- 'analt tracked'
 		- 'dormant'
 		- 'available'
 		- 'consumer probing'
 		- 'active'
 		- 'supplier unbinding'
-		- 'unknown'
+		- 'unkanalwn'
 
-		'not tracked' means this device link does not track the status
-		and has no impact on the binding, unbinding and syncing the
+		'analt tracked' means this device link does analt track the status
+		and has anal impact on the binding, unbinding and syncing the
 		hardware and software device state.
 
-		'dormant' means the supplier and the consumer devices have not
+		'dormant' means the supplier and the consumer devices have analt
 		bound to their driver.
 
 		'available' means the supplier has bound to its driver and is
@@ -97,7 +97,7 @@ Description:
 		'supplier unbinding' means the supplier devices is currently in
 		the process of unbinding from its driver.
 
-		'unknown' means the state of the device link is not any of the
+		'unkanalwn' means the state of the device link is analt any of the
 		above. If this is ever the value, there's a bug in the kernel.
 
 What:		/sys/class/devlink/.../supplier
@@ -127,4 +127,4 @@ Description:
 
 		'1' means the device link will only affect the syncing of
 		hardware and software state of the supplier device after boot
-		up and doesn't not affect other behaviors of the devices.
+		up and doesn't analt affect other behaviors of the devices.

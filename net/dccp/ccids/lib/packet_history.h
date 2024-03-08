@@ -30,24 +30,24 @@
 /**
  *  tfrc_tx_hist_entry  -  Simple singly-linked TX history list
  *  @next:  next oldest entry (LIFO order)
- *  @seqno: sequence number of this entry
- *  @stamp: send time of packet with sequence number @seqno
+ *  @seqanal: sequence number of this entry
+ *  @stamp: send time of packet with sequence number @seqanal
  */
 struct tfrc_tx_hist_entry {
 	struct tfrc_tx_hist_entry *next;
-	u64			  seqno;
+	u64			  seqanal;
 	ktime_t			  stamp;
 };
 
 static inline struct tfrc_tx_hist_entry *
-	tfrc_tx_hist_find_entry(struct tfrc_tx_hist_entry *head, u64 seqno)
+	tfrc_tx_hist_find_entry(struct tfrc_tx_hist_entry *head, u64 seqanal)
 {
-	while (head != NULL && head->seqno != seqno)
+	while (head != NULL && head->seqanal != seqanal)
 		head = head->next;
 	return head;
 }
 
-int tfrc_tx_hist_add(struct tfrc_tx_hist_entry **headp, u64 seqno);
+int tfrc_tx_hist_add(struct tfrc_tx_hist_entry **headp, u64 seqanal);
 void tfrc_tx_hist_purge(struct tfrc_tx_hist_entry **headp);
 
 /* Subtraction a-b modulo-16, respects circular wrap-around */
@@ -58,13 +58,13 @@ void tfrc_tx_hist_purge(struct tfrc_tx_hist_entry **headp);
 
 /**
  * tfrc_rx_hist_entry - Store information about a single received packet
- * @tfrchrx_seqno:	DCCP packet sequence number
+ * @tfrchrx_seqanal:	DCCP packet sequence number
  * @tfrchrx_ccval:	window counter value of packet (RFC 4342, 8.1)
  * @tfrchrx_ndp:	the NDP count (if any) of the packet
  * @tfrchrx_tstamp:	actual receive time of packet
  */
 struct tfrc_rx_hist_entry {
-	u64		 tfrchrx_seqno:48,
+	u64		 tfrchrx_seqanal:48,
 			 tfrchrx_ccval:4,
 			 tfrchrx_type:4;
 	u64		 tfrchrx_ndp:48;
@@ -94,7 +94,7 @@ static inline u8 tfrc_rx_hist_index(const struct tfrc_rx_hist *h, const u8 n)
 }
 
 /**
- * tfrc_rx_hist_last_rcv - entry with highest-received-seqno so far
+ * tfrc_rx_hist_last_rcv - entry with highest-received-seqanal so far
  */
 static inline struct tfrc_rx_hist_entry *
 			tfrc_rx_hist_last_rcv(const struct tfrc_rx_hist *h)
@@ -112,7 +112,7 @@ static inline struct tfrc_rx_hist_entry *
 }
 
 /**
- * tfrc_rx_hist_loss_prev - entry with highest-received-seqno before loss was detected
+ * tfrc_rx_hist_loss_prev - entry with highest-received-seqanal before loss was detected
  */
 static inline struct tfrc_rx_hist_entry *
 			tfrc_rx_hist_loss_prev(const struct tfrc_rx_hist *h)

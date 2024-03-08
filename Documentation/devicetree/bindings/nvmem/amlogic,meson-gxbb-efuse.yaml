@@ -25,7 +25,7 @@ properties:
     maxItems: 1
 
   secure-monitor:
-    description: phandle to the secure-monitor node
+    description: phandle to the secure-monitor analde
     $ref: /schemas/types.yaml#/definitions/phandle
 
 required:

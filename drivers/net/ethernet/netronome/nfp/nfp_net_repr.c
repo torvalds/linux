@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #include <linux/etherdevice.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 #include <linux/lockdep.h>
 #include <net/dst_metadata.h>
 
@@ -326,7 +326,7 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 	repr->port = port;
 	repr->dst = metadata_dst_alloc(0, METADATA_HW_PORT_MUX, GFP_KERNEL);
 	if (!repr->dst)
-		return -ENOMEM;
+		return -EANALMEM;
 	repr->dst->u.port_info.port_id = cmsg_port_id;
 	repr->dst->u.port_info.lower_dev = pf_netdev;
 
@@ -385,7 +385,7 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 	netdev->features &= ~NETIF_F_HW_VLAN_STAG_RX;
 	netif_set_tso_max_segs(netdev, NFP_NET_LSO_MAX_SEGS);
 
-	netdev->priv_flags |= IFF_NO_QUEUE | IFF_DISABLE_NETPOLL;
+	netdev->priv_flags |= IFF_ANAL_QUEUE | IFF_DISABLE_NETPOLL;
 	netdev->features |= NETIF_F_LLTX;
 
 	if (nfp_app_has_tc(app)) {

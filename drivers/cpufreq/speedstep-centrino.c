@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * cpufreq driver for Enhanced SpeedStep, as found in Intel's Pentium
- * M (part of the Centrino chipset).
+ * M (part of the Centrianal chipset).
  *
  * Since the original Pentium M, most new Intel CPUs support Enhanced
  * SpeedStep.
@@ -68,16 +68,16 @@ struct cpu_model
 
 	struct cpufreq_frequency_table *op_points; /* clock/voltage pairs */
 };
-static int centrino_verify_cpu_id(const struct cpuinfo_x86 *c,
+static int centrianal_verify_cpu_id(const struct cpuinfo_x86 *c,
 				  const struct cpu_id *x);
 
 /* Operating points for current CPU */
-static DEFINE_PER_CPU(struct cpu_model *, centrino_model);
-static DEFINE_PER_CPU(const struct cpu_id *, centrino_cpu);
+static DEFINE_PER_CPU(struct cpu_model *, centrianal_model);
+static DEFINE_PER_CPU(const struct cpu_id *, centrianal_cpu);
 
-static struct cpufreq_driver centrino_driver;
+static struct cpufreq_driver centrianal_driver;
 
-#ifdef CONFIG_X86_SPEEDSTEP_CENTRINO_TABLE
+#ifdef CONFIG_X86_SPEEDSTEP_CENTRIANAL_TABLE
 
 /* Computes the correct form for IA32_PERF_CTL MSR for a particular
    frequency/voltage operating point; frequency in MHz, volts in mV.
@@ -231,34 +231,34 @@ static struct cpu_model models[] =
 #undef _BANIAS
 #undef BANIAS
 
-static int centrino_cpu_init_table(struct cpufreq_policy *policy)
+static int centrianal_cpu_init_table(struct cpufreq_policy *policy)
 {
 	struct cpuinfo_x86 *cpu = &cpu_data(policy->cpu);
 	struct cpu_model *model;
 
 	for(model = models; model->cpu_id != NULL; model++)
-		if (centrino_verify_cpu_id(cpu, model->cpu_id) &&
+		if (centrianal_verify_cpu_id(cpu, model->cpu_id) &&
 		    (model->model_name == NULL ||
 		     strcmp(cpu->x86_model_id, model->model_name) == 0))
 			break;
 
 	if (model->cpu_id == NULL) {
-		/* No match at all */
-		pr_debug("no support for CPU model \"%s\": "
+		/* Anal match at all */
+		pr_debug("anal support for CPU model \"%s\": "
 		       "send /proc/cpuinfo to " MAINTAINER "\n",
 		       cpu->x86_model_id);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (model->op_points == NULL) {
-		/* Matched a non-match */
-		pr_debug("no table support for CPU model \"%s\"\n",
+		/* Matched a analn-match */
+		pr_debug("anal table support for CPU model \"%s\"\n",
 		       cpu->x86_model_id);
 		pr_debug("try using the acpi-cpufreq driver\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
-	per_cpu(centrino_model, policy->cpu) = model;
+	per_cpu(centrianal_model, policy->cpu) = model;
 
 	pr_debug("found \"%s\": max frequency: %dkHz\n",
 	       model->model_name, model->max_freq);
@@ -267,13 +267,13 @@ static int centrino_cpu_init_table(struct cpufreq_policy *policy)
 }
 
 #else
-static inline int centrino_cpu_init_table(struct cpufreq_policy *policy)
+static inline int centrianal_cpu_init_table(struct cpufreq_policy *policy)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
-#endif /* CONFIG_X86_SPEEDSTEP_CENTRINO_TABLE */
+#endif /* CONFIG_X86_SPEEDSTEP_CENTRIANAL_TABLE */
 
-static int centrino_verify_cpu_id(const struct cpuinfo_x86 *c,
+static int centrianal_verify_cpu_id(const struct cpuinfo_x86 *c,
 				  const struct cpu_id *x)
 {
 	if ((c->x86 == x->x86) &&
@@ -283,38 +283,38 @@ static int centrino_verify_cpu_id(const struct cpuinfo_x86 *c,
 	return 0;
 }
 
-/* To be called only after centrino_model is initialized */
+/* To be called only after centrianal_model is initialized */
 static unsigned extract_clock(unsigned msr, unsigned int cpu, int failsafe)
 {
 	int i;
 
 	/*
 	 * Extract clock in kHz from PERF_CTL value
-	 * for centrino, as some DSDTs are buggy.
+	 * for centrianal, as some DSDTs are buggy.
 	 * Ideally, this can be done using the acpi_data structure.
 	 */
-	if ((per_cpu(centrino_cpu, cpu) == &cpu_ids[CPU_BANIAS]) ||
-	    (per_cpu(centrino_cpu, cpu) == &cpu_ids[CPU_DOTHAN_A1]) ||
-	    (per_cpu(centrino_cpu, cpu) == &cpu_ids[CPU_DOTHAN_B0])) {
+	if ((per_cpu(centrianal_cpu, cpu) == &cpu_ids[CPU_BANIAS]) ||
+	    (per_cpu(centrianal_cpu, cpu) == &cpu_ids[CPU_DOTHAN_A1]) ||
+	    (per_cpu(centrianal_cpu, cpu) == &cpu_ids[CPU_DOTHAN_B0])) {
 		msr = (msr >> 8) & 0xff;
 		return msr * 100000;
 	}
 
-	if ((!per_cpu(centrino_model, cpu)) ||
-	    (!per_cpu(centrino_model, cpu)->op_points))
+	if ((!per_cpu(centrianal_model, cpu)) ||
+	    (!per_cpu(centrianal_model, cpu)->op_points))
 		return 0;
 
 	msr &= 0xffff;
 	for (i = 0;
-		per_cpu(centrino_model, cpu)->op_points[i].frequency
+		per_cpu(centrianal_model, cpu)->op_points[i].frequency
 							!= CPUFREQ_TABLE_END;
 	     i++) {
-		if (msr == per_cpu(centrino_model, cpu)->op_points[i].driver_data)
-			return per_cpu(centrino_model, cpu)->
+		if (msr == per_cpu(centrianal_model, cpu)->op_points[i].driver_data)
+			return per_cpu(centrianal_model, cpu)->
 							op_points[i].frequency;
 	}
 	if (failsafe)
-		return per_cpu(centrino_model, cpu)->op_points[i-1].frequency;
+		return per_cpu(centrianal_model, cpu)->op_points[i-1].frequency;
 	else
 		return 0;
 }
@@ -331,7 +331,7 @@ static unsigned int get_cur_freq(unsigned int cpu)
 	if (unlikely(clock_freq == 0)) {
 		/*
 		 * On some CPUs, we can see transient MSR values (which are
-		 * not present in _PSS), while CPU is doing some automatic
+		 * analt present in _PSS), while CPU is doing some automatic
 		 * P-state transition (like TM2). Get the last freq set 
 		 * in PERF_CTL.
 		 */
@@ -342,7 +342,7 @@ static unsigned int get_cur_freq(unsigned int cpu)
 }
 
 
-static int centrino_cpu_init(struct cpufreq_policy *policy)
+static int centrianal_cpu_init(struct cpufreq_policy *policy)
 {
 	struct cpuinfo_x86 *cpu = &cpu_data(policy->cpu);
 	unsigned l, h;
@@ -351,33 +351,33 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 	/* Only Intel makes Enhanced Speedstep-capable CPUs */
 	if (cpu->x86_vendor != X86_VENDOR_INTEL ||
 	    !cpu_has(cpu, X86_FEATURE_EST))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (cpu_has(cpu, X86_FEATURE_CONSTANT_TSC))
-		centrino_driver.flags |= CPUFREQ_CONST_LOOPS;
+		centrianal_driver.flags |= CPUFREQ_CONST_LOOPS;
 
 	if (policy->cpu != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < N_IDS; i++)
-		if (centrino_verify_cpu_id(cpu, &cpu_ids[i]))
+		if (centrianal_verify_cpu_id(cpu, &cpu_ids[i]))
 			break;
 
 	if (i != N_IDS)
-		per_cpu(centrino_cpu, policy->cpu) = &cpu_ids[i];
+		per_cpu(centrianal_cpu, policy->cpu) = &cpu_ids[i];
 
-	if (!per_cpu(centrino_cpu, policy->cpu)) {
+	if (!per_cpu(centrianal_cpu, policy->cpu)) {
 		pr_debug("found unsupported CPU with "
 		"Enhanced SpeedStep: send /proc/cpuinfo to "
 		MAINTAINER "\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	if (centrino_cpu_init_table(policy))
-		return -ENODEV;
+	if (centrianal_cpu_init_table(policy))
+		return -EANALDEV;
 
 	/* Check to see if Enhanced SpeedStep is enabled, and try to
-	   enable it if not. */
+	   enable it if analt. */
 	rdmsr(MSR_IA32_MISC_ENABLE, l, h);
 
 	if (!(l & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP)) {
@@ -389,37 +389,37 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 		rdmsr(MSR_IA32_MISC_ENABLE, l, h);
 		if (!(l & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP)) {
 			pr_info("couldn't enable Enhanced SpeedStep\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
 	policy->cpuinfo.transition_latency = 10000;
 						/* 10uS transition latency */
-	policy->freq_table = per_cpu(centrino_model, policy->cpu)->op_points;
+	policy->freq_table = per_cpu(centrianal_model, policy->cpu)->op_points;
 
 	return 0;
 }
 
-static int centrino_cpu_exit(struct cpufreq_policy *policy)
+static int centrianal_cpu_exit(struct cpufreq_policy *policy)
 {
 	unsigned int cpu = policy->cpu;
 
-	if (!per_cpu(centrino_model, cpu))
-		return -ENODEV;
+	if (!per_cpu(centrianal_model, cpu))
+		return -EANALDEV;
 
-	per_cpu(centrino_model, cpu) = NULL;
+	per_cpu(centrianal_model, cpu) = NULL;
 
 	return 0;
 }
 
 /**
- * centrino_target - set a new CPUFreq policy
+ * centrianal_target - set a new CPUFreq policy
  * @policy: new policy
  * @index: index of target frequency
  *
  * Sets a new CPUFreq policy.
  */
-static int centrino_target(struct cpufreq_policy *policy, unsigned int index)
+static int centrianal_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	unsigned int	msr, oldmsr = 0, h = 0, cpu = policy->cpu;
 	int			retval = 0;
@@ -428,15 +428,15 @@ static int centrino_target(struct cpufreq_policy *policy, unsigned int index)
 	cpumask_var_t covered_cpus;
 
 	if (unlikely(!zalloc_cpumask_var(&covered_cpus, GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (unlikely(per_cpu(centrino_model, cpu) == NULL)) {
-		retval = -ENODEV;
+	if (unlikely(per_cpu(centrianal_model, cpu) == NULL)) {
+		retval = -EANALDEV;
 		goto out;
 	}
 
 	first_cpu = 1;
-	op_points = &per_cpu(centrino_model, cpu)->op_points[index];
+	op_points = &per_cpu(centrianal_model, cpu)->op_points[index];
 	for_each_cpu(j, policy->cpus) {
 		int good_cpu;
 
@@ -465,7 +465,7 @@ static int centrino_target(struct cpufreq_policy *policy, unsigned int index)
 		if (first_cpu) {
 			rdmsr_on_cpu(good_cpu, MSR_IA32_PERF_CTL, &oldmsr, &h);
 			if (msr == (oldmsr & 0xffff)) {
-				pr_debug("no change needed - msr was and needs "
+				pr_debug("anal change needed - msr was and needs "
 					"to be %x\n", oldmsr);
 				retval = 0;
 				goto out;
@@ -503,13 +503,13 @@ out:
 	return retval;
 }
 
-static struct cpufreq_driver centrino_driver = {
-	.name		= "centrino", /* should be speedstep-centrino,
+static struct cpufreq_driver centrianal_driver = {
+	.name		= "centrianal", /* should be speedstep-centrianal,
 					 but there's a 16 char limit */
-	.init		= centrino_cpu_init,
-	.exit		= centrino_cpu_exit,
+	.init		= centrianal_cpu_init,
+	.exit		= centrianal_cpu_exit,
 	.verify		= cpufreq_generic_frequency_table_verify,
-	.target_index	= centrino_target,
+	.target_index	= centrianal_target,
 	.get		= get_cur_freq,
 	.attr		= cpufreq_generic_attr,
 };
@@ -519,7 +519,7 @@ static struct cpufreq_driver centrino_driver = {
  * the generic CPU IDs don't have a way to match for steppings
  * or ASCII model IDs.
  */
-static const struct x86_cpu_id centrino_ids[] = {
+static const struct x86_cpu_id centrianal_ids[] = {
 	X86_MATCH_VENDOR_FAM_MODEL_FEATURE(INTEL,  6,  9, X86_FEATURE_EST, NULL),
 	X86_MATCH_VENDOR_FAM_MODEL_FEATURE(INTEL,  6, 13, X86_FEATURE_EST, NULL),
 	X86_MATCH_VENDOR_FAM_MODEL_FEATURE(INTEL, 15,  3, X86_FEATURE_EST, NULL),
@@ -528,34 +528,34 @@ static const struct x86_cpu_id centrino_ids[] = {
 };
 
 /**
- * centrino_init - initializes the Enhanced SpeedStep CPUFreq driver
+ * centrianal_init - initializes the Enhanced SpeedStep CPUFreq driver
  *
- * Initializes the Enhanced SpeedStep support. Returns -ENODEV on
- * unsupported devices, -ENOENT if there's no voltage table for this
+ * Initializes the Enhanced SpeedStep support. Returns -EANALDEV on
+ * unsupported devices, -EANALENT if there's anal voltage table for this
  * particular CPU model, -EINVAL on problems during initiatization,
  * and zero on success.
  *
- * This is quite picky.  Not only does the CPU have to advertise the
+ * This is quite picky.  Analt only does the CPU have to advertise the
  * "est" flag in the cpuid capability flags, we look for a specific
  * CPU model and stepping, and we need to have the exact model name in
- * our voltage tables.  That is, be paranoid about not releasing
+ * our voltage tables.  That is, be paraanalid about analt releasing
  * someone's valuable magic smoke.
  */
-static int __init centrino_init(void)
+static int __init centrianal_init(void)
 {
-	if (!x86_match_cpu(centrino_ids))
-		return -ENODEV;
-	return cpufreq_register_driver(&centrino_driver);
+	if (!x86_match_cpu(centrianal_ids))
+		return -EANALDEV;
+	return cpufreq_register_driver(&centrianal_driver);
 }
 
-static void __exit centrino_exit(void)
+static void __exit centrianal_exit(void)
 {
-	cpufreq_unregister_driver(&centrino_driver);
+	cpufreq_unregister_driver(&centrianal_driver);
 }
 
 MODULE_AUTHOR ("Jeremy Fitzhardinge <jeremy@goop.org>");
 MODULE_DESCRIPTION ("Enhanced SpeedStep driver for Intel Pentium M processors.");
 MODULE_LICENSE ("GPL");
 
-late_initcall(centrino_init);
-module_exit(centrino_exit);
+late_initcall(centrianal_init);
+module_exit(centrianal_exit);

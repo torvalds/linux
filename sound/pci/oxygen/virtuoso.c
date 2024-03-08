@@ -66,10 +66,10 @@ static int xonar_probe(struct pci_dev *pci,
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		++dev;
-		return -ENOENT;
+		return -EANALENT;
 	}
 	err = oxygen_pci_probe(pci, index[dev], id[dev], THIS_MODULE,
 			       xonar_ids, get_xonar_model);

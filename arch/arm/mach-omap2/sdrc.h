@@ -6,7 +6,7 @@
  * OMAP2/3 SDRC/SMS macros and prototypes
  *
  * Copyright (C) 2007-2008, 2012 Texas Instruments, Inc.
- * Copyright (C) 2007-2008 Nokia Corporation
+ * Copyright (C) 2007-2008 Analkia Corporation
  *
  * Paul Walmsley
  * Tony Lindgren
@@ -165,10 +165,10 @@ u32 omap2xxx_sdrc_reprogram(u32 level, u32 force);
  * As long as you scale down, most parameters are still work, they just
  * become sub-optimal. The RFR value goes in the opposite direction. If you
  * don't adjust it down as your clock period increases the refresh interval
- * will not be met. Setting all parameters for complete worst case may work,
+ * will analt be met. Setting all parameters for complete worst case may work,
  * but may cut memory performance by 2x. Due to errata the DLLs need to be
  * unlocked and their value needs run time calibration. A dynamic call is
- * need for that as no single right value exists across production samples.
+ * need for that as anal single right value exists across production samples.
  *
  * Only the FULL speed values are given. Current code is such that rate
  * changes must be made at DPLLoutx2. The actual value adjustment for low

@@ -110,7 +110,7 @@ static void parse_args(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	char line[BUFSIZE], sym[BUFSIZE] = "<unknown>";
+	char line[BUFSIZE], sym[BUFSIZE] = "<unkanalwn>";
 	unsigned char insn_buff[16];
 	struct insn insn;
 	int insns = 0;

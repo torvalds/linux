@@ -27,7 +27,7 @@ static void mmc_hsq_modify_threshold(struct mmc_hsq *hsq)
 	struct mmc_request *mrq;
 	unsigned int tag, need_change = 0;
 
-	mmc->hsq_depth = HSQ_NORMAL_DEPTH;
+	mmc->hsq_depth = HSQ_ANALRMAL_DEPTH;
 	for (tag = 0; tag < HSQ_NUM_SLOTS; tag++) {
 		mrq = hsq->slot[tag].mrq;
 		if (mrq && mrq->data &&
@@ -49,7 +49,7 @@ static void mmc_hsq_pump_requests(struct mmc_hsq *hsq)
 
 	spin_lock_irqsave(&hsq->lock, flags);
 
-	/* Make sure we are not already running a request now */
+	/* Make sure we are analt already running a request analw */
 	if (hsq->mrq || hsq->recovery_halt) {
 		spin_unlock_irqrestore(&hsq->lock, flags);
 		return;
@@ -76,11 +76,11 @@ static void mmc_hsq_pump_requests(struct mmc_hsq *hsq)
 
 	/*
 	 * If returning BUSY from request_atomic(), which means the card
-	 * may be busy now, and we should change to non-atomic context to
+	 * may be busy analw, and we should change to analn-atomic context to
 	 * try again for this unusual case, to avoid time-consuming operations
 	 * in the atomic context.
 	 *
-	 * Note: we just give a warning for other error cases, since the host
+	 * Analte: we just give a warning for other error cases, since the host
 	 * driver will handle them.
 	 */
 	if (ret == -EBUSY)
@@ -94,7 +94,7 @@ static void mmc_hsq_update_next_tag(struct mmc_hsq *hsq, int remains)
 	int tag;
 
 	/*
-	 * If there are no remain requests in software queue, then set a invalid
+	 * If there are anal remain requests in software queue, then set a invalid
 	 * tag.
 	 */
 	if (!remains) {
@@ -126,7 +126,7 @@ static void mmc_hsq_post_request(struct mmc_hsq *hsq)
 		wake_up(&hsq->wait_queue);
 	}
 
-	/* Do not pump new request in recovery mode. */
+	/* Do analt pump new request in recovery mode. */
 	if (hsq->recovery_halt) {
 		spin_unlock_irqrestore(&hsq->lock, flags);
 		return;
@@ -221,7 +221,7 @@ static int mmc_hsq_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		return -ESHUTDOWN;
 	}
 
-	/* Do not queue any new requests in recovery mode. */
+	/* Do analt queue any new requests in recovery mode. */
 	if (hsq->recovery_halt) {
 		spin_unlock_irq(&hsq->lock);
 		return -EBUSY;
@@ -230,7 +230,7 @@ static int mmc_hsq_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	hsq->slot[tag].mrq = mrq;
 
 	/*
-	 * Set the next tag as current request tag if no available
+	 * Set the next tag as current request tag if anal available
 	 * next tag.
 	 */
 	if (hsq->next_tag == HSQ_INVALID_TAG) {
@@ -304,7 +304,7 @@ static void mmc_hsq_disable(struct mmc_host *mmc)
 				 mmc_hsq_queue_is_idle(hsq, &ret),
 				 msecs_to_jiffies(timeout));
 	if (ret == 0) {
-		pr_warn("could not stop mmc software queue\n");
+		pr_warn("could analt stop mmc software queue\n");
 		return;
 	}
 
@@ -353,12 +353,12 @@ int mmc_hsq_init(struct mmc_hsq *hsq, struct mmc_host *mmc)
 	hsq->slot = devm_kcalloc(mmc_dev(mmc), hsq->num_slots,
 				 sizeof(struct hsq_slot), GFP_KERNEL);
 	if (!hsq->slot)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hsq->mmc = mmc;
 	hsq->mmc->cqe_private = hsq;
 	mmc->cqe_ops = &mmc_hsq_ops;
-	mmc->hsq_depth = HSQ_NORMAL_DEPTH;
+	mmc->hsq_depth = HSQ_ANALRMAL_DEPTH;
 
 	for (i = 0; i < HSQ_NUM_SLOTS; i++)
 		hsq->tag_slot[i] = HSQ_INVALID_TAG;

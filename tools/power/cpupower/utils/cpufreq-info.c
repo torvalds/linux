@@ -6,7 +6,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -29,7 +29,7 @@ static unsigned int count_cpus(void)
 
 	fp = fopen("/proc/stat", "r");
 	if (!fp) {
-		printf(_("Couldn't count the number of CPUs (%s: %s), assuming 1\n"), "/proc/stat", strerror(errno));
+		printf(_("Couldn't count the number of CPUs (%s: %s), assuming 1\n"), "/proc/stat", strerror(erranal));
 		return 1;
 	}
 
@@ -61,7 +61,7 @@ static void proc_cpufreq_output(void)
 	unsigned int max_pctg = 0;
 	unsigned long min, max;
 
-	printf(_("          minimum CPU frequency  -  maximum CPU frequency  -  governor\n"));
+	printf(_("          minimum CPU frequency  -  maximum CPU frequency  -  goveranalr\n"));
 
 	nr_cpus = count_cpus();
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
@@ -77,18 +77,18 @@ static void proc_cpufreq_output(void)
 		}
 		printf("CPU%3d    %9lu kHz (%3d %%)  -  %9lu kHz (%3d %%)  -  %s\n",
 			cpu , policy->min, max ? min_pctg : 0, policy->max,
-			max ? max_pctg : 0, policy->governor);
+			max ? max_pctg : 0, policy->goveranalr);
 
 		cpufreq_put_policy(policy);
 	}
 }
 
-static int no_rounding;
+static int anal_rounding;
 static void print_duration(unsigned long duration)
 {
 	unsigned long tmp;
 
-	if (no_rounding) {
+	if (anal_rounding) {
 		if (duration > 1000000)
 			printf("%u.%06u ms", ((unsigned int) duration/1000000),
 				((unsigned int) duration%1000000));
@@ -125,7 +125,7 @@ static void print_duration(unsigned long duration)
 
 static int get_boost_mode_x86(unsigned int cpu)
 {
-	int support, active, b_states = 0, ret, pstate_no, i;
+	int support, active, b_states = 0, ret, pstate_anal, i;
 	/* ToDo: Make this more global */
 	unsigned long pstates[MAX_HW_PSTATES] = {0,};
 
@@ -143,8 +143,8 @@ static int get_boost_mode_x86(unsigned int cpu)
 
 	printf(_("  boost state support:\n"));
 
-	printf(_("    Supported: %s\n"), support ? _("yes") : _("no"));
-	printf(_("    Active: %s\n"), active ? _("yes") : _("no"));
+	printf(_("    Supported: %s\n"), support ? _("anal") : _("anal"));
+	printf(_("    Active: %s\n"), active ? _("anal") : _("anal"));
 
 	if (cpupower_cpu_info.vendor == X86_VENDOR_AMD &&
 	    cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_PSTATE) {
@@ -152,13 +152,13 @@ static int get_boost_mode_x86(unsigned int cpu)
 	} else if ((cpupower_cpu_info.vendor == X86_VENDOR_AMD &&
 		    cpupower_cpu_info.family >= 0x10) ||
 		   cpupower_cpu_info.vendor == X86_VENDOR_HYGON) {
-		ret = decode_pstates(cpu, b_states, pstates, &pstate_no);
+		ret = decode_pstates(cpu, b_states, pstates, &pstate_anal);
 		if (ret)
 			return ret;
 
 		printf(_("    Boost States: %d\n"), b_states);
-		printf(_("    Total States: %d\n"), pstate_no);
-		for (i = 0; i < pstate_no; i++) {
+		printf(_("    Total States: %d\n"), pstate_anal);
+		for (i = 0; i < pstate_anal; i++) {
 			if (!pstates[i])
 				continue;
 			if (i < b_states)
@@ -220,11 +220,11 @@ static int get_boost_mode(unsigned int cpu)
 	if (freqs) {
 		printf(_("  boost frequency steps: "));
 		while (freqs->next) {
-			print_speed(freqs->frequency, no_rounding);
+			print_speed(freqs->frequency, anal_rounding);
 			printf(", ");
 			freqs = freqs->next;
 		}
-		print_speed(freqs->frequency, no_rounding);
+		print_speed(freqs->frequency, anal_rounding);
 		printf("\n");
 		cpufreq_put_available_frequencies(freqs);
 	}
@@ -243,7 +243,7 @@ static int get_freq_kernel(unsigned int cpu, unsigned int human)
 		return -EINVAL;
 	}
 	if (human) {
-		print_speed(freq, no_rounding);
+		print_speed(freq, anal_rounding);
 	} else
 		printf("%lu", freq);
 	printf(_(" (asserted by call to kernel)\n"));
@@ -262,7 +262,7 @@ static int get_freq_hardware(unsigned int cpu, unsigned int human)
 		return -EINVAL;
 	}
 	if (human) {
-		print_speed(freq, no_rounding);
+		print_speed(freq, anal_rounding);
 	} else
 		printf("%lu", freq);
 	printf(_(" (asserted by call to hardware)\n"));
@@ -276,15 +276,15 @@ static int get_hardware_limits(unsigned int cpu, unsigned int human)
 	unsigned long min, max;
 
 	if (cpufreq_get_hardware_limits(cpu, &min, &max)) {
-		printf(_("Not Available\n"));
+		printf(_("Analt Available\n"));
 		return -EINVAL;
 	}
 
 	if (human) {
 		printf(_("  hardware limits: "));
-		print_speed(min, no_rounding);
+		print_speed(min, anal_rounding);
 		printf(" - ");
-		print_speed(max, no_rounding);
+		print_speed(max, anal_rounding);
 		printf("\n");
 	} else {
 		printf("%lu %lu\n", min, max);
@@ -298,7 +298,7 @@ static int get_driver(unsigned int cpu)
 {
 	char *driver = cpufreq_get_driver(cpu);
 	if (!driver) {
-		printf(_("  no or unknown cpufreq driver is active on this CPU\n"));
+		printf(_("  anal or unkanalwn cpufreq driver is active on this CPU\n"));
 		return -EINVAL;
 	}
 	printf("  driver: %s\n", driver);
@@ -316,37 +316,37 @@ static int get_policy(unsigned int cpu)
 		return -EINVAL;
 	}
 	printf(_("  current policy: frequency should be within "));
-	print_speed(policy->min, no_rounding);
+	print_speed(policy->min, anal_rounding);
 	printf(_(" and "));
-	print_speed(policy->max, no_rounding);
+	print_speed(policy->max, anal_rounding);
 
 	printf(".\n                  ");
-	printf(_("The governor \"%s\" may decide which speed to use\n"
+	printf(_("The goveranalr \"%s\" may decide which speed to use\n"
 	       "                  within this range.\n"),
-	       policy->governor);
+	       policy->goveranalr);
 	cpufreq_put_policy(policy);
 	return 0;
 }
 
-/* --governors / -g */
+/* --goveranalrs / -g */
 
-static int get_available_governors(unsigned int cpu)
+static int get_available_goveranalrs(unsigned int cpu)
 {
-	struct cpufreq_available_governors *governors =
-		cpufreq_get_available_governors(cpu);
+	struct cpufreq_available_goveranalrs *goveranalrs =
+		cpufreq_get_available_goveranalrs(cpu);
 
-	printf(_("  available cpufreq governors: "));
-	if (!governors) {
-		printf(_("Not Available\n"));
+	printf(_("  available cpufreq goveranalrs: "));
+	if (!goveranalrs) {
+		printf(_("Analt Available\n"));
 		return -EINVAL;
 	}
 
-	while (governors->next) {
-		printf("%s ", governors->governor);
-		governors = governors->next;
+	while (goveranalrs->next) {
+		printf("%s ", goveranalrs->goveranalr);
+		goveranalrs = goveranalrs->next;
 	}
-	printf("%s\n", governors->governor);
-	cpufreq_put_available_governors(governors);
+	printf("%s\n", goveranalrs->goveranalr);
+	cpufreq_put_available_goveranalrs(goveranalrs);
 	return 0;
 }
 
@@ -359,7 +359,7 @@ static int get_affected_cpus(unsigned int cpu)
 
 	printf(_("  CPUs which need to have their frequency coordinated by software: "));
 	if (!cpus) {
-		printf(_("Not Available\n"));
+		printf(_("Analt Available\n"));
 		return -EINVAL;
 	}
 
@@ -380,7 +380,7 @@ static int get_related_cpus(unsigned int cpu)
 
 	printf(_("  CPUs which run at the same hardware frequency: "));
 	if (!cpus) {
-		printf(_("Not Available\n"));
+		printf(_("Analt Available\n"));
 		return -EINVAL;
 	}
 
@@ -402,7 +402,7 @@ static int get_freq_stats(unsigned int cpu, unsigned int human)
 	struct cpufreq_stats *stats = cpufreq_get_stats(cpu, &total_time);
 	while (stats) {
 		if (human) {
-			print_speed(stats->frequency, no_rounding);
+			print_speed(stats->frequency, anal_rounding);
 			printf(":%.2f%%",
 				(100.0 * stats->time_in_state) / total_time);
 		} else
@@ -426,7 +426,7 @@ static int get_latency(unsigned int cpu, unsigned int human)
 
 	printf(_("  maximum transition latency: "));
 	if (!latency || latency == UINT_MAX) {
-		printf(_(" Cannot determine or is not supported.\n"));
+		printf(_(" Cananalt determine or is analt supported.\n"));
 		return -EINVAL;
 	}
 
@@ -444,7 +444,7 @@ static int get_perf_cap(unsigned int cpu)
 {
 	if (cpupower_cpu_info.vendor == X86_VENDOR_AMD &&
 	    cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_PSTATE)
-		amd_pstate_show_perf_and_freq(cpu, no_rounding);
+		amd_pstate_show_perf_and_freq(cpu, anal_rounding);
 
 	return 0;
 }
@@ -463,16 +463,16 @@ static void debug_output_one(unsigned int cpu)
 	if (freqs) {
 		printf(_("  available frequency steps:  "));
 		while (freqs->next) {
-			print_speed(freqs->frequency, no_rounding);
+			print_speed(freqs->frequency, anal_rounding);
 			printf(", ");
 			freqs = freqs->next;
 		}
-		print_speed(freqs->frequency, no_rounding);
+		print_speed(freqs->frequency, anal_rounding);
 		printf("\n");
 		cpufreq_put_available_frequencies(freqs);
 	}
 
-	get_available_governors(cpu);
+	get_available_goveranalrs(cpu);
 	get_policy(cpu);
 	if (get_freq_hardware(cpu, 1) < 0)
 		get_freq_kernel(cpu, 1);
@@ -481,22 +481,22 @@ static void debug_output_one(unsigned int cpu)
 }
 
 static struct option info_opts[] = {
-	{"debug",	 no_argument,		 NULL,	 'e'},
-	{"boost",	 no_argument,		 NULL,	 'b'},
-	{"freq",	 no_argument,		 NULL,	 'f'},
-	{"hwfreq",	 no_argument,		 NULL,	 'w'},
-	{"hwlimits",	 no_argument,		 NULL,	 'l'},
-	{"driver",	 no_argument,		 NULL,	 'd'},
-	{"policy",	 no_argument,		 NULL,	 'p'},
-	{"governors",	 no_argument,		 NULL,	 'g'},
-	{"related-cpus",  no_argument,	 NULL,	 'r'},
-	{"affected-cpus", no_argument,	 NULL,	 'a'},
-	{"stats",	 no_argument,		 NULL,	 's'},
-	{"latency",	 no_argument,		 NULL,	 'y'},
-	{"proc",	 no_argument,		 NULL,	 'o'},
-	{"human",	 no_argument,		 NULL,	 'm'},
-	{"no-rounding", no_argument,	 NULL,	 'n'},
-	{"performance", no_argument,	 NULL,	 'c'},
+	{"debug",	 anal_argument,		 NULL,	 'e'},
+	{"boost",	 anal_argument,		 NULL,	 'b'},
+	{"freq",	 anal_argument,		 NULL,	 'f'},
+	{"hwfreq",	 anal_argument,		 NULL,	 'w'},
+	{"hwlimits",	 anal_argument,		 NULL,	 'l'},
+	{"driver",	 anal_argument,		 NULL,	 'd'},
+	{"policy",	 anal_argument,		 NULL,	 'p'},
+	{"goveranalrs",	 anal_argument,		 NULL,	 'g'},
+	{"related-cpus",  anal_argument,	 NULL,	 'r'},
+	{"affected-cpus", anal_argument,	 NULL,	 'a'},
+	{"stats",	 anal_argument,		 NULL,	 's'},
+	{"latency",	 anal_argument,		 NULL,	 'y'},
+	{"proc",	 anal_argument,		 NULL,	 'o'},
+	{"human",	 anal_argument,		 NULL,	 'm'},
+	{"anal-rounding", anal_argument,	 NULL,	 'n'},
+	{"performance", anal_argument,	 NULL,	 'c'},
 	{ },
 };
 
@@ -550,10 +550,10 @@ int cmd_freq_info(int argc, char **argv)
 			human = 1;
 			break;
 		case 'n':
-			no_rounding = 1;
+			anal_rounding = 1;
 			break;
 		default:
-			fprintf(stderr, "invalid or unknown argument\n");
+			fprintf(stderr, "invalid or unkanalwn argument\n");
 			return EXIT_FAILURE;
 		}
 	} while (cont);
@@ -582,7 +582,7 @@ int cmd_freq_info(int argc, char **argv)
 		       "more than one output-specific argument\n"));
 		return -EINVAL;
 	case '?':
-		printf(_("invalid or unknown argument\n"));
+		printf(_("invalid or unkanalwn argument\n"));
 		return -EINVAL;
 	case 'o':
 		proc_cpufreq_output();
@@ -617,7 +617,7 @@ int cmd_freq_info(int argc, char **argv)
 			ret = get_related_cpus(cpu);
 			break;
 		case 'g':
-			ret = get_available_governors(cpu);
+			ret = get_available_goveranalrs(cpu);
 			break;
 		case 'p':
 			ret = get_policy(cpu);

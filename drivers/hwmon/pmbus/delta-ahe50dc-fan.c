@@ -18,15 +18,15 @@ static int ahe50dc_fan_write_byte(struct i2c_client *client, int page, u8 value)
 {
 	/*
 	 * The CLEAR_FAULTS operation seems to sometimes (unpredictably, perhaps
-	 * 5% of the time or so) trigger a problematic phenomenon in which the
+	 * 5% of the time or so) trigger a problematic pheanalmeanaln in which the
 	 * fan speeds surge momentarily and at least some (perhaps all?) of the
 	 * system's power outputs experience a glitch.
 	 *
-	 * However, according to Delta it should be OK to simply not send any
+	 * However, according to Delta it should be OK to simply analt send any
 	 * CLEAR_FAULTS commands (the device doesn't seem to be capable of
 	 * reporting any faults anyway), so just blackhole them unconditionally.
 	 */
-	return value == PMBUS_CLEAR_FAULTS ? -EOPNOTSUPP : -ENODATA;
+	return value == PMBUS_CLEAR_FAULTS ? -EOPANALTSUPP : -EANALDATA;
 }
 
 static int ahe50dc_fan_read_word_data(struct i2c_client *client, int page, int phase, int reg)
@@ -35,7 +35,7 @@ static int ahe50dc_fan_read_word_data(struct i2c_client *client, int page, int p
 	if (page == 1) {
 		if (reg == PMBUS_READ_TEMPERATURE_1)
 			return i2c_smbus_read_word_data(client, AHE50DC_PMBUS_READ_TEMP4);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/*
@@ -59,9 +59,9 @@ static int ahe50dc_fan_read_word_data(struct i2c_client *client, int page, int p
 	case PMBUS_READ_FAN_SPEED_2:
 	case PMBUS_READ_FAN_SPEED_3:
 	case PMBUS_READ_FAN_SPEED_4:
-		return -ENODATA;
+		return -EANALDATA;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -90,10 +90,10 @@ static struct pmbus_driver_info ahe50dc_fan_info = {
 /*
  * CAPABILITY returns 0xff, which appears to be this device's way indicating
  * it doesn't support something (and if we enable I2C_CLIENT_PEC on seeing bit
- * 7 being set it generates bad PECs, so let's not go there).
+ * 7 being set it generates bad PECs, so let's analt go there).
  */
 static struct pmbus_platform_data ahe50dc_fan_data = {
-	.flags = PMBUS_NO_CAPABILITY,
+	.flags = PMBUS_ANAL_CAPABILITY,
 };
 
 static int ahe50dc_fan_probe(struct i2c_client *client)

@@ -3,7 +3,7 @@
 FAQ
 ===
 
-.. note::
+.. analte::
 
      1. With Digital TV, a single physical channel may have different
 	contents inside it. The specs call each one as a *service*.
@@ -22,7 +22,7 @@ Some very frequently asked questions about Linux Digital TV support
 
 1. The signal seems to die a few seconds after tuning.
 
-	It's not a bug, it's a feature. Because the frontends have
+	It's analt a bug, it's a feature. Because the frontends have
 	significant power requirements (and hence get very hot), they
 	are powered down if they are unused (i.e. if the frontend device
 	is closed). The ``dvb-core`` module parameter ``dvb_shutdown_timeout``
@@ -77,10 +77,10 @@ Some very frequently asked questions about Linux Digital TV support
 	newer versions of it).
 
 	If you are lucky you can just use one of the supplied channel
-	transponders. If not, you may need to seek for such info at
+	transponders. If analt, you may need to seek for such info at
 	the Internet and create a new file. There are several sites with
 	contains physical channel lists. For cable and satellite, usually
-	knowing how to tune into a single channel is enough for the
+	kanalwing how to tune into a single channel is eanalugh for the
 	scanning tool to identify the other channels. On some places,
 	this could also work for terrestrial transmissions.
 
@@ -143,7 +143,7 @@ Some very frequently asked questions about Linux Digital TV support
 	http://www.mythtv.org/
 		MythTV - analog TV and digital TV PVR
 
-	http://dvbsnoop.sourceforge.net/
+	http://dvbsanalop.sourceforge.net/
 		DVB sniffer program to monitor, analyze, debug, dump
 		or view dvb/mpeg/dsm-cc/mhp stream information (TS,
 		PES, SECTION)
@@ -152,10 +152,10 @@ Some very frequently asked questions about Linux Digital TV support
 
 	That could be due to a lot of problems. On my personal experience,
 	usually TV cards need stronger signals than TV sets, and are more
-	sensitive to noise. So, perhaps you just need a better antenna or
+	sensitive to analise. So, perhaps you just need a better antenna or
 	cabling. Yet, it could also be some hardware or driver issue.
 
-	For example, if you are using a Technotrend/Hauppauge DVB-C card
+	For example, if you are using a Techanaltrend/Hauppauge DVB-C card
 	*without* analog module, you might have to use module parameter
 	adac=-1 (dvb-ttpci.o).
 
@@ -170,7 +170,7 @@ Some very frequently asked questions about Linux Digital TV support
 
 	    https://lore.kernel.org/linux-media/
 
-	If none of this works, you can try sending an e-mail to the
+	If analne of this works, you can try sending an e-mail to the
 	linux-media ML and see if someone else could shed some light.
 	The e-mail is linux-media AT vger.kernel.org.
 
@@ -183,13 +183,13 @@ Some very frequently asked questions about Linux Digital TV support
 	configured with ``ifconfig`` or with ``ip addr``.
 
 	If ``tcpdump`` doesn't give you any output, check the statistics
-	which ``ifconfig`` or ``netstat -ni`` outputs. (Note: If the MAC
+	which ``ifconfig`` or ``netstat -ni`` outputs. (Analte: If the MAC
 	address is wrong, ``dvb_net`` won't get any input; thus you have to
-	run ``tcpdump`` before checking the statistics.) If there are no
+	run ``tcpdump`` before checking the statistics.) If there are anal
 	packets at all then maybe the PID is wrong. If there are error packets,
-	then either the PID is wrong or the stream does not conform to
+	then either the PID is wrong or the stream does analt conform to
 	the MPE standard (EN 301 192, http://www.etsi.org/). You can
-	use e.g. ``dvbsnoop`` for debugging.
+	use e.g. ``dvbsanalop`` for debugging.
 
 6. The ``dvb_net`` device doesn't give me any multicast packets
 

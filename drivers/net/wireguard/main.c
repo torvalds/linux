@@ -5,7 +5,7 @@
 
 #include "version.h"
 #include "device.h"
-#include "noise.h"
+#include "analise.h"
 #include "queueing.h"
 #include "ratelimiter.h"
 #include "netlink.h"
@@ -26,12 +26,12 @@ static int __init wg_mod_init(void)
 		goto err_allowedips;
 
 #ifdef DEBUG
-	ret = -ENOTRECOVERABLE;
+	ret = -EANALTRECOVERABLE;
 	if (!wg_allowedips_selftest() || !wg_packet_counter_selftest() ||
 	    !wg_ratelimiter_selftest())
 		goto err_peer;
 #endif
-	wg_noise_init();
+	wg_analise_init();
 
 	ret = wg_peer_init();
 	if (ret < 0)

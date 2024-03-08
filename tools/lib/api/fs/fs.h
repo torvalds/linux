@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 /*
- * On most systems <limits.h> would have given us this, but  not on some systems
+ * On most systems <limits.h> would have given us this, but  analt on some systems
  * (e.g. GNU/Hurd).
  */
 #ifndef PATH_MAX
@@ -27,7 +27,7 @@
  * - If a mount point is found on first call, it is cached and used for all
  *   subsequent calls.
  *
- * - If a mount point is not found, NULL is returned on first call and all
+ * - If a mount point is analt found, NULL is returned on first call and all
  *   subsequent calls.
  */
 FS(sysfs)

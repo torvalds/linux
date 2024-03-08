@@ -30,7 +30,7 @@
 
 #define DW_PER_PAGE (PAGE_SIZE / sizeof(u32))
 
-static int live_nop_switch(void *arg)
+static int live_analp_switch(void *arg)
 {
 	const unsigned int nctx = 1024;
 	struct drm_i915_private *i915 = arg;
@@ -39,7 +39,7 @@ static int live_nop_switch(void *arg)
 	struct igt_live_test t;
 	struct file *file;
 	unsigned long n;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	/*
 	 * Create as many contexts as we can feasibly get away with
@@ -58,7 +58,7 @@ static int live_nop_switch(void *arg)
 
 	ctx = kcalloc(nctx, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_file;
 	}
 
@@ -131,7 +131,7 @@ static int live_nop_switch(void *arg)
 				/*
 				 * This space is left intentionally blank.
 				 *
-				 * We do not actually want to perform any
+				 * We do analt actually want to perform any
 				 * action with this request, we just want
 				 * to measure the latency in allocation
 				 * and submission of our breadcrumbs -
@@ -320,7 +320,7 @@ static int live_parallel_switch(void *arg)
 	data = kcalloc(count, sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		i915_gem_context_unlock_engines(ctx);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_file;
 	}
 
@@ -505,7 +505,7 @@ out:
 	return err;
 }
 
-static noinline int cpu_check(struct drm_i915_gem_object *obj,
+static analinline int cpu_check(struct drm_i915_gem_object *obj,
 			      unsigned int idx, unsigned int max)
 {
 	unsigned int needs_flush;
@@ -660,7 +660,7 @@ static int igt_ctx_exec(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	/*
 	 * Create a few different contexts (with different mm) and write
@@ -684,7 +684,7 @@ static int igt_ctx_exec(void *arg)
 			continue;
 
 		if (!engine->context_size)
-			continue; /* No logical context support in HW */
+			continue; /* Anal logical context support in HW */
 
 		file = mock_file(i915);
 		if (IS_ERR(file))
@@ -725,7 +725,7 @@ static int igt_ctx_exec(void *arg)
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       engine->name,
-				       str_yes_no(i915_gem_context_has_full_ppgtt(ctx)),
+				       str_anal_anal(i915_gem_context_has_full_ppgtt(ctx)),
 				       err);
 				intel_context_put(ce);
 				kernel_context_close(ctx);
@@ -809,7 +809,7 @@ static int igt_shared_ctx_exec(void *arg)
 		goto out_file;
 	}
 
-	if (!parent->vm) { /* not full-ppgtt; nothing to share */
+	if (!parent->vm) { /* analt full-ppgtt; analthing to share */
 		err = 0;
 		goto out_file;
 	}
@@ -859,7 +859,7 @@ static int igt_shared_ctx_exec(void *arg)
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       engine->name,
-				       str_yes_no(i915_gem_context_has_full_ppgtt(ctx)),
+				       str_anal_anal(i915_gem_context_has_full_ppgtt(ctx)),
 				       err);
 				intel_context_put(ce);
 				kernel_context_close(ctx);
@@ -1055,13 +1055,13 @@ __sseu_prepare(const char *name,
 
 	*spin = kzalloc(sizeof(**spin), GFP_KERNEL);
 	if (!*spin)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = igt_spinner_init(*spin, ce->engine->gt);
 	if (ret)
 		goto err_free;
 
-	rq = igt_spinner_create_request(*spin, ce, MI_NOOP);
+	rq = igt_spinner_create_request(*spin, ce, MI_ANALOP);
 	if (IS_ERR(rq)) {
 		ret = PTR_ERR(rq);
 		goto err_fini;
@@ -1146,7 +1146,7 @@ __check_rpcs(const char *name, u32 rpcs, int slices, unsigned int expected,
 		return slices;
 	}
 
-	pr_err("%s: %s slice count %d is not %u%s\n",
+	pr_err("%s: %s slice count %d is analt %u%s\n",
 	       name, prefix, slices, expected, suffix);
 
 	pr_info("RPCS=0x%x; %u%sx%u%s\n",
@@ -1378,7 +1378,7 @@ static int igt_ctx_readonly(void *arg)
 	IGT_TIMEOUT(end_time);
 	LIST_HEAD(objects);
 	struct file *file;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	/*
 	 * Create a few read-only objects (with the occasional writable object)
@@ -1437,7 +1437,7 @@ static int igt_ctx_readonly(void *arg)
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       ce->engine->name,
-				       str_yes_no(i915_gem_context_has_full_ppgtt(ctx)),
+				       str_anal_anal(i915_gem_context_has_full_ppgtt(ctx)),
 				       err);
 				i915_gem_context_unlock_engines(ctx);
 				goto out_file;
@@ -1489,18 +1489,18 @@ out_file:
 
 static int check_scratch(struct i915_address_space *vm, u64 offset)
 {
-	struct drm_mm_node *node;
+	struct drm_mm_analde *analde;
 
 	mutex_lock(&vm->mutex);
-	node = __drm_mm_interval_first(&vm->mm,
+	analde = __drm_mm_interval_first(&vm->mm,
 				       offset, offset + sizeof(u32) - 1);
 	mutex_unlock(&vm->mutex);
-	if (!node || node->start > offset)
+	if (!analde || analde->start > offset)
 		return 0;
 
-	GEM_BUG_ON(offset >= node->start + node->size);
+	GEM_BUG_ON(offset >= analde->start + analde->size);
 
-	pr_err("Target offset 0x%08x_%08x overlaps with a node in the mm!\n",
+	pr_err("Target offset 0x%08x_%08x overlaps with a analde in the mm!\n",
 	       upper_32_bits(offset), lower_32_bits(offset));
 	return -EINVAL;
 }
@@ -1749,10 +1749,10 @@ static int check_scratch_page(struct i915_gem_context *ctx, u32 *out)
 
 	vm = ctx->vm;
 	if (!vm)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!vm->scratch[0]) {
-		pr_err("No scratch page!\n");
+		pr_err("Anal scratch page!\n");
 		return -EINVAL;
 	}
 
@@ -1785,7 +1785,7 @@ static int igt_vm_isolation(void *arg)
 		return 0;
 
 	/*
-	 * The simple goal here is that a write into one context is not
+	 * The simple goal here is that a write into one context is analt
 	 * observed in a second (separate page tables and scratch).
 	 */
 
@@ -1846,7 +1846,7 @@ static int igt_vm_isolation(void *arg)
 		if (!intel_engine_can_store_dword(engine))
 			continue;
 
-		/* Not all engines have their own GPR! */
+		/* Analt all engines have their own GPR! */
 		if (GRAPHICS_VER(i915) < 8 && engine->class != RENDER_CLASS)
 			continue;
 
@@ -1854,10 +1854,10 @@ static int igt_vm_isolation(void *arg)
 			u32 value = 0xc5c5c5c5;
 			u64 offset;
 
-			/* Leave enough space at offset 0 for the batch */
+			/* Leave eanalugh space at offset 0 for the batch */
 			offset = igt_random_offset(&prng,
 						   I915_GTT_PAGE_SIZE, vm_total,
-						   sizeof(u32), alignof_dword);
+						   sizeof(u32), aliganalf_dword);
 
 			err = write_to_scratch(ctx_a, engine, obj_a,
 					       offset, 0xdeadbeef);
@@ -1899,7 +1899,7 @@ out_file:
 int i915_gem_context_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
-		SUBTEST(live_nop_switch),
+		SUBTEST(live_analp_switch),
 		SUBTEST(live_parallel_switch),
 		SUBTEST(igt_ctx_exec),
 		SUBTEST(igt_ctx_readonly),

@@ -25,7 +25,7 @@
 #define WQUEUES_STACK_ALLOC	(MAX_STACK_ALLOC - FRONTEND_STACK_ALLOC)
 #define N_INLINE_POLL_ENTRIES	(WQUEUES_STACK_ALLOC / sizeof(struct poll_table_entry))
 
-#define DEFAULT_POLLMASK (EPOLLIN | EPOLLOUT | EPOLLRDNORM | EPOLLWRNORM)
+#define DEFAULT_POLLMASK (EPOLLIN | EPOLLOUT | EPOLLRDANALRM | EPOLLWRANALRM)
 
 struct poll_table_struct;
 
@@ -35,8 +35,8 @@ struct poll_table_struct;
 typedef void (*poll_queue_proc)(struct file *, wait_queue_head_t *, struct poll_table_struct *);
 
 /*
- * Do not touch the structure directly, use the access functions
- * poll_does_not_wait() and poll_requested_events() instead.
+ * Do analt touch the structure directly, use the access functions
+ * poll_does_analt_wait() and poll_requested_events() instead.
  */
 typedef struct poll_table_struct {
 	poll_queue_proc _qproc;
@@ -50,18 +50,18 @@ static inline void poll_wait(struct file * filp, wait_queue_head_t * wait_addres
 }
 
 /*
- * Return true if it is guaranteed that poll will not wait. This is the case
- * if the poll() of another file descriptor in the set got an event, so there
- * is no need for waiting.
+ * Return true if it is guaranteed that poll will analt wait. This is the case
+ * if the poll() of aanalther file descriptor in the set got an event, so there
+ * is anal need for waiting.
  */
-static inline bool poll_does_not_wait(const poll_table *p)
+static inline bool poll_does_analt_wait(const poll_table *p)
 {
 	return p == NULL || p->_qproc == NULL;
 }
 
 /*
  * Return the set of events that the application wants to poll for.
- * This is useful for drivers that need to know whether a DMA transfer has
+ * This is useful for drivers that need to kanalw whether a DMA transfer has
  * to be started implicitly on poll(). You typically only want to do that
  * if the application is actually polling for POLLIN and/or POLLOUT.
  */
@@ -128,7 +128,7 @@ static inline __u16 mangle_poll(__poll_t val)
 	__u16 v = (__force __u16)val;
 #define M(X) __MAP(v, (__force __u16)EPOLL##X, POLL##X)
 	return M(IN) | M(OUT) | M(PRI) | M(ERR) | M(NVAL) |
-		M(RDNORM) | M(RDBAND) | M(WRNORM) | M(WRBAND) |
+		M(RDANALRM) | M(RDBAND) | M(WRANALRM) | M(WRBAND) |
 		M(HUP) | M(RDHUP) | M(MSG);
 #undef M
 }
@@ -137,7 +137,7 @@ static inline __poll_t demangle_poll(u16 val)
 {
 #define M(X) (__force __poll_t)__MAP(val, POLL##X, (__force __u16)EPOLL##X)
 	return M(IN) | M(OUT) | M(PRI) | M(ERR) | M(NVAL) |
-		M(RDNORM) | M(RDBAND) | M(WRNORM) | M(WRBAND) |
+		M(RDANALRM) | M(RDBAND) | M(WRANALRM) | M(WRBAND) |
 		M(HUP) | M(RDHUP) | M(MSG);
 #undef M
 }

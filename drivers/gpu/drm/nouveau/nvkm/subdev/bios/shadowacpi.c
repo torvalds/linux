@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -44,7 +44,7 @@ acpi_read_bios(acpi_handle rom_handle, u8 *bios, u32 offset, u32 length)
 	if (ACPI_FAILURE(status)) {
 		pr_info("failed to evaluate ROM got %s\n",
 			acpi_format_exception(status));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	obj = (union acpi_object *)buffer.pointer;
 	length = min(length, obj->buffer.length);
@@ -58,7 +58,7 @@ acpi_read_bios(acpi_handle rom_handle, u8 *bios, u32 offset, u32 length)
 
 /* This version of the shadow function disobeys the ACPI spec and tries
  * to fetch in units of more than 4KiB at a time.  This is a LOT faster
- * on some systems, such as Lenovo W530.
+ * on some systems, such as Leanalvo W530.
  */
 static u32
 acpi_read_fast(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
@@ -110,15 +110,15 @@ acpi_init(struct nvkm_bios *bios, const char *name)
 
 	dhandle = ACPI_HANDLE(bios->subdev.device->dev);
 	if (!dhandle)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	status = acpi_get_handle(dhandle, "_ROM", &rom_handle);
 	if (ACPI_FAILURE(status))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return rom_handle;
 #else
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 #endif
 }
 

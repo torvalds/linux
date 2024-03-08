@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
-/* Copyright 2021, 2022 Innovative Advantage Inc. */
+/* Copyright 2021, 2022 Inanalvative Advantage Inc. */
 
 #ifndef _MFD_OCELOT_H
 #define _MFD_OCELOT_H

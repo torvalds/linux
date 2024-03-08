@@ -79,7 +79,7 @@
 #define PWR_STATUS_WB			BIT(27)	/* MT7622 */
 
 enum clk_id {
-	CLK_NONE,
+	CLK_ANALNE,
 	CLK_MM,
 	CLK_MFG,
 	CLK_VENC,
@@ -415,7 +415,7 @@ static void init_clks(struct platform_device *pdev, struct clk **clk)
 {
 	int i;
 
-	for (i = CLK_NONE + 1; i < CLK_MAX; i++)
+	for (i = CLK_ANALNE + 1; i < CLK_MAX; i++)
 		clk[i] = devm_clk_get(&pdev->dev, clk_names[i]);
 }
 
@@ -432,7 +432,7 @@ static struct scp *init_scp(struct platform_device *pdev,
 
 	scp = devm_kzalloc(&pdev->dev, sizeof(*scp), GFP_KERNEL);
 	if (!scp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	scp->ctrl_reg.pwr_sta_offs = scp_ctrl_reg->pwr_sta_offs;
 	scp->ctrl_reg.pwr_sta2nd_offs = scp_ctrl_reg->pwr_sta2nd_offs;
@@ -449,19 +449,19 @@ static struct scp *init_scp(struct platform_device *pdev,
 	scp->domains = devm_kcalloc(&pdev->dev,
 				num, sizeof(*scp->domains), GFP_KERNEL);
 	if (!scp->domains)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pd_data = &scp->pd_data;
 
 	pd_data->domains = devm_kcalloc(&pdev->dev,
 			num, sizeof(*pd_data->domains), GFP_KERNEL);
 	if (!pd_data->domains)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	scp->infracfg = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	scp->infracfg = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 			"infracfg");
 	if (IS_ERR(scp->infracfg)) {
-		dev_err(&pdev->dev, "Cannot find infracfg controller: %ld\n",
+		dev_err(&pdev->dev, "Cananalt find infracfg controller: %ld\n",
 				PTR_ERR(scp->infracfg));
 		return ERR_CAST(scp->infracfg);
 	}
@@ -472,7 +472,7 @@ static struct scp *init_scp(struct platform_device *pdev,
 
 		scpd->supply = devm_regulator_get_optional(&pdev->dev, data->name);
 		if (IS_ERR(scpd->supply)) {
-			if (PTR_ERR(scpd->supply) == -ENODEV)
+			if (PTR_ERR(scpd->supply) == -EANALDEV)
 				scpd->supply = NULL;
 			else
 				return ERR_CAST(scpd->supply);
@@ -538,14 +538,14 @@ static void mtk_register_power_domains(struct platform_device *pdev,
 	}
 
 	/*
-	 * We are not allowed to fail here since there is no way to unregister
+	 * We are analt allowed to fail here since there is anal way to unregister
 	 * a power domain. Once registered above we have to keep the domains
 	 * valid.
 	 */
 
 	pd_data = &scp->pd_data;
 
-	ret = of_genpd_add_provider_onecell(pdev->dev.of_node, pd_data);
+	ret = of_genpd_add_provider_onecell(pdev->dev.of_analde, pd_data);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to add OF provider: %d\n", ret);
 }
@@ -561,7 +561,7 @@ static const struct scp_domain_data scp_domain_data_mt2701[] = {
 		.ctl_offs = SPM_CONN_PWR_CON,
 		.bus_prot_mask = MT2701_TOP_AXI_PROT_EN_CONN_M |
 				 MT2701_TOP_AXI_PROT_EN_CONN_S,
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
 	[MT2701_POWER_DOMAIN_DISP] = {
@@ -605,7 +605,7 @@ static const struct scp_domain_data scp_domain_data_mt2701[] = {
 		.sta_mask = PWR_STATUS_BDP,
 		.ctl_offs = SPM_BDP_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
 	[MT2701_POWER_DOMAIN_ETH] = {
@@ -630,7 +630,7 @@ static const struct scp_domain_data scp_domain_data_mt2701[] = {
 		.name = "ifr_msc",
 		.sta_mask = PWR_STATUS_IFR_MSC,
 		.ctl_offs = SPM_IFR_MSC_PWR_CON,
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
 };
@@ -690,7 +690,7 @@ static const struct scp_domain_data scp_domain_data_mt2712[] = {
 		.ctl_offs = SPM_USB_PWR_CON,
 		.sram_pdn_bits = GENMASK(10, 8),
 		.sram_pdn_ack_bits = GENMASK(14, 12),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
 	[MT2712_POWER_DOMAIN_USB2] = {
@@ -699,7 +699,7 @@ static const struct scp_domain_data scp_domain_data_mt2712[] = {
 		.ctl_offs = SPM_USB2_PWR_CON,
 		.sram_pdn_bits = GENMASK(10, 8),
 		.sram_pdn_ack_bits = GENMASK(14, 12),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
 	[MT2712_POWER_DOMAIN_MFG] = {
@@ -718,7 +718,7 @@ static const struct scp_domain_data scp_domain_data_mt2712[] = {
 		.ctl_offs = 0x02c0,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(16, 16),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
 	[MT2712_POWER_DOMAIN_MFG_SC2] = {
@@ -727,7 +727,7 @@ static const struct scp_domain_data scp_domain_data_mt2712[] = {
 		.ctl_offs = 0x02c4,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(16, 16),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
 	[MT2712_POWER_DOMAIN_MFG_SC3] = {
@@ -736,7 +736,7 @@ static const struct scp_domain_data scp_domain_data_mt2712[] = {
 		.ctl_offs = 0x01f8,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(16, 16),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
 };
@@ -769,7 +769,7 @@ static const struct scp_domain_data scp_domain_data_mt6797[] = {
 		.ctl_offs = 0x304,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(15, 12),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 	},
 	[MT6797_POWER_DOMAIN_ISP] = {
 		.name = "isp",
@@ -777,7 +777,7 @@ static const struct scp_domain_data scp_domain_data_mt6797[] = {
 		.ctl_offs = 0x308,
 		.sram_pdn_bits = GENMASK(9, 8),
 		.sram_pdn_ack_bits = GENMASK(13, 12),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 	},
 	[MT6797_POWER_DOMAIN_MM] = {
 		.name = "mm",
@@ -794,7 +794,7 @@ static const struct scp_domain_data scp_domain_data_mt6797[] = {
 		.ctl_offs = 0x314,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(15, 12),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 	},
 	[MT6797_POWER_DOMAIN_MFG_ASYNC] = {
 		.name = "mfg_async",
@@ -810,7 +810,7 @@ static const struct scp_domain_data scp_domain_data_mt6797[] = {
 		.ctl_offs = 0x310,
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 	},
 };
 
@@ -835,7 +835,7 @@ static const struct scp_domain_data scp_domain_data_mt7622[] = {
 		.ctl_offs = SPM_ETHSYS_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(15, 12),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 		.bus_prot_mask = MT7622_TOP_AXI_PROT_EN_ETHSYS,
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
@@ -865,7 +865,7 @@ static const struct scp_domain_data scp_domain_data_mt7622[] = {
 		.ctl_offs = SPM_WB_PWR_CON,
 		.sram_pdn_bits = 0,
 		.sram_pdn_ack_bits = 0,
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 		.bus_prot_mask = MT7622_TOP_AXI_PROT_EN_WB,
 		.caps = MTK_SCPD_ACTIVE_WAKEUP | MTK_SCPD_FWAIT_SRAM,
 	},
@@ -882,7 +882,7 @@ static const struct scp_domain_data scp_domain_data_mt7623a[] = {
 		.ctl_offs = SPM_CONN_PWR_CON,
 		.bus_prot_mask = MT2701_TOP_AXI_PROT_EN_CONN_M |
 				 MT2701_TOP_AXI_PROT_EN_CONN_S,
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
 	[MT7623A_POWER_DOMAIN_ETH] = {
@@ -907,7 +907,7 @@ static const struct scp_domain_data scp_domain_data_mt7623a[] = {
 		.name = "ifr_msc",
 		.sta_mask = PWR_STATUS_IFR_MSC,
 		.ctl_offs = SPM_IFR_MSC_PWR_CON,
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
 };
@@ -965,7 +965,7 @@ static const struct scp_domain_data scp_domain_data_mt8173[] = {
 		.ctl_offs = SPM_AUDIO_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(15, 12),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 	},
 	[MT8173_POWER_DOMAIN_USB] = {
 		.name = "usb",
@@ -973,7 +973,7 @@ static const struct scp_domain_data scp_domain_data_mt8173[] = {
 		.ctl_offs = SPM_USB_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(15, 12),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
 	[MT8173_POWER_DOMAIN_MFG_ASYNC] = {
@@ -990,7 +990,7 @@ static const struct scp_domain_data scp_domain_data_mt8173[] = {
 		.ctl_offs = SPM_MFG_2D_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(13, 12),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 	},
 	[MT8173_POWER_DOMAIN_MFG] = {
 		.name = "mfg",
@@ -998,11 +998,11 @@ static const struct scp_domain_data scp_domain_data_mt8173[] = {
 		.ctl_offs = SPM_MFG_PWR_CON,
 		.sram_pdn_bits = GENMASK(13, 8),
 		.sram_pdn_ack_bits = GENMASK(21, 16),
-		.clk_id = {CLK_NONE},
+		.clk_id = {CLK_ANALNE},
 		.bus_prot_mask = MT8173_TOP_AXI_PROT_EN_MFG_S |
 			MT8173_TOP_AXI_PROT_EN_MFG_M0 |
 			MT8173_TOP_AXI_PROT_EN_MFG_M1 |
-			MT8173_TOP_AXI_PROT_EN_MFG_SNOOP_OUT,
+			MT8173_TOP_AXI_PROT_EN_MFG_SANALOP_OUT,
 	},
 };
 

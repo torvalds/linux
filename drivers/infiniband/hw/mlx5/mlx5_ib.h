@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2013-2020, Mellanox Technologies inc. All rights reserved.
+ * Copyright (c) 2013-2020, Mellaanalx Techanallogies inc. All rights reserved.
  * Copyright (c) 2020, Intel Corporation. All rights reserved.
  */
 
@@ -56,7 +56,7 @@ __mlx5_log_page_size_to_bitmap(unsigned int log_pgsz_bits,
 		      BITS_PER_LONG - 1);
 
 	/*
-	 * Despite a command allowing it, the device does not support lower than
+	 * Despite a command allowing it, the device does analt support lower than
 	 * 4k page size.
 	 */
 	pgsz_shift = max_t(unsigned int, MLX5_ADAPTER_PAGE_SHIFT, pgsz_shift);
@@ -133,8 +133,8 @@ enum {
 };
 
 enum mlx5_ib_mad_ifc_flags {
-	MLX5_MAD_IFC_IGNORE_MKEY	= 1,
-	MLX5_MAD_IFC_IGNORE_BKEY	= 2,
+	MLX5_MAD_IFC_IGANALRE_MKEY	= 1,
+	MLX5_MAD_IFC_IGANALRE_BKEY	= 2,
 	MLX5_MAD_IFC_NET_VIEW		= 4,
 };
 
@@ -538,7 +538,7 @@ struct mlx5_ib_qp {
 	 */
 	enum ib_qp_type		type;
 	/* A flag to indicate if there's a new counter is configured
-	 * but not take effective
+	 * but analt take effective
 	 */
 	u32                     counter_pending;
 	u16			gsi_lag_port;
@@ -577,8 +577,8 @@ struct mlx5_ib_cq {
 	struct list_head	list_recv_qp;
 	u32			create_flags;
 	struct list_head	wc_list;
-	enum ib_cq_notify_flags notify_flags;
-	struct work_struct	notify_work;
+	enum ib_cq_analtify_flags analtify_flags;
+	struct work_struct	analtify_work;
 	u16			private_flags; /* Use mlx5_ib_cq_pr_flags */
 };
 
@@ -747,7 +747,7 @@ struct umr_common {
 	/* Protects from UMR QP overflow
 	 */
 	struct semaphore	sem;
-	/* Protects from using UMR while the UMR is not active
+	/* Protects from using UMR while the UMR is analt active
 	 */
 	struct mutex lock;
 	unsigned int state;
@@ -775,7 +775,7 @@ struct mlx5_cache_ent {
 
 	char                    name[4];
 
-	struct rb_node		node;
+	struct rb_analde		analde;
 	struct mlx5r_cache_rb_key rb_key;
 
 	u8 is_tmp:1;
@@ -870,9 +870,9 @@ struct mlx5_roce {
 	 */
 	rwlock_t		netdev_lock;
 	struct net_device	*netdev;
-	struct notifier_block	nb;
-	struct netdev_net_notifier nn;
-	struct notifier_block	mdev_nb;
+	struct analtifier_block	nb;
+	struct netdev_net_analtifier nn;
+	struct analtifier_block	mdev_nb;
 	struct net_device	*tracking_netdev;
 	atomic_t		tx_port_affinity;
 	enum ib_port_state last_port_state;
@@ -949,12 +949,12 @@ enum mlx5_ib_stages {
 	MLX5_IB_STAGE_INIT,
 	MLX5_IB_STAGE_FS,
 	MLX5_IB_STAGE_CAPS,
-	MLX5_IB_STAGE_NON_DEFAULT_CB,
+	MLX5_IB_STAGE_ANALN_DEFAULT_CB,
 	MLX5_IB_STAGE_ROCE,
 	MLX5_IB_STAGE_QP,
 	MLX5_IB_STAGE_SRQ,
 	MLX5_IB_STAGE_DEVICE_RESOURCES,
-	MLX5_IB_STAGE_DEVICE_NOTIFIER,
+	MLX5_IB_STAGE_DEVICE_ANALTIFIER,
 	MLX5_IB_STAGE_ODP,
 	MLX5_IB_STAGE_COUNTERS,
 	MLX5_IB_STAGE_CONG_DEBUGFS,
@@ -985,7 +985,7 @@ struct mlx5_ib_multiport_info {
 	struct list_head list;
 	struct mlx5_ib_dev *ibdev;
 	struct mlx5_core_dev *mdev;
-	struct notifier_block mdev_events;
+	struct analtifier_block mdev_events;
 	struct completion unref_comp;
 	u64 sys_image_guid;
 	u32 mdev_refcnt;
@@ -1068,7 +1068,7 @@ struct mlx5_ib_lb_state {
 };
 
 struct mlx5_ib_pf_eq {
-	struct notifier_block irq_nb;
+	struct analtifier_block irq_nb;
 	struct mlx5_ib_dev *dev;
 	struct mlx5_eq *core;
 	struct work_struct work;
@@ -1108,13 +1108,13 @@ struct mlx5_special_mkeys {
 struct mlx5_macsec {
 	struct mutex lock; /* Protects mlx5_macsec internal contexts */
 	struct list_head macsec_devices_list;
-	struct notifier_block blocking_events_nb;
+	struct analtifier_block blocking_events_nb;
 };
 
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;
-	struct notifier_block		mdev_events;
+	struct analtifier_block		mdev_events;
 	int				num_ports;
 	/* serialize update of capability mask
 	 */
@@ -1314,7 +1314,7 @@ int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		      struct ib_udata *udata);
 int mlx5_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
 int mlx5_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
-int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
+int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_analtify_flags flags);
 int mlx5_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata);
 struct ib_mr *mlx5_ib_get_dma_mr(struct ib_pd *pd, int acc);
@@ -1365,8 +1365,8 @@ int mlx5_query_mad_ifc_max_pkeys(struct ib_device *ibdev,
 				 u16 *max_pkeys);
 int mlx5_query_mad_ifc_vendor_id(struct ib_device *ibdev,
 				 u32 *vendor_id);
-int mlx5_query_mad_ifc_node_desc(struct mlx5_ib_dev *dev, char *node_desc);
-int mlx5_query_mad_ifc_node_guid(struct mlx5_ib_dev *dev, __be64 *node_guid);
+int mlx5_query_mad_ifc_analde_desc(struct mlx5_ib_dev *dev, char *analde_desc);
+int mlx5_query_mad_ifc_analde_guid(struct mlx5_ib_dev *dev, __be64 *analde_guid);
 int mlx5_query_mad_ifc_pkey(struct ib_device *ibdev, u32 port, u16 index,
 			    u16 *pkey);
 int mlx5_query_mad_ifc_gids(struct ib_device *ibdev, u32 port, int index,
@@ -1443,19 +1443,19 @@ mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 			   enum ib_uverbs_advise_mr_advice advice, u32 flags,
 			   struct ib_sge *sg_list, u32 num_sge)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline int mlx5_ib_init_dmabuf_mr(struct mlx5_ib_mr *mr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 
-extern const struct mmu_interval_notifier_ops mlx5_mn_ops;
+extern const struct mmu_interval_analtifier_ops mlx5_mn_ops;
 
 /* Needed for rep profile */
 void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
@@ -1471,7 +1471,7 @@ int mlx5_ib_set_vf_link_state(struct ib_device *device, int vf,
 int mlx5_ib_get_vf_stats(struct ib_device *device, int vf,
 			 u32 port, struct ifla_vf_stats *stats);
 int mlx5_ib_get_vf_guid(struct ib_device *device, int vf, u32 port,
-			struct ifla_vf_guid *node_guid,
+			struct ifla_vf_guid *analde_guid,
 			struct ifla_vf_guid *port_guid);
 int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u32 port,
 			u64 guid, int type);
@@ -1521,10 +1521,10 @@ static inline int is_qp1(enum ib_qp_type qp_type)
 static inline u32 check_cq_create_flags(u32 flags)
 {
 	/*
-	 * It returns non-zero value for unsupported CQ
+	 * It returns analn-zero value for unsupported CQ
 	 * create flags, otherwise it returns zero.
 	 */
-	return (flags & ~(IB_UVERBS_CQ_FLAGS_IGNORE_OVERRUN |
+	return (flags & ~(IB_UVERBS_CQ_FLAGS_IGANALRE_OVERRUN |
 			  IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION));
 }
 
@@ -1618,9 +1618,9 @@ static inline bool mlx5_ib_lag_should_assign_affinity(struct mlx5_ib_dev *dev)
 {
 	/*
 	 * If the driver is in hash mode and the port_select_flow_table_bypass cap
-	 * is supported, it means that the driver no longer needs to assign the port
+	 * is supported, it means that the driver anal longer needs to assign the port
 	 * affinity by default. If a user wants to set the port affinity explicitly,
-	 * the user has a dedicated API to do that, so there is no need to assign
+	 * the user has a dedicated API to do that, so there is anal need to assign
 	 * the port affinity by default.
 	 */
 	if (dev->lag_active &&
@@ -1643,7 +1643,7 @@ static inline bool rt_supported(int ts_cap)
 }
 
 /*
- * PCI Peer to Peer is a trainwreck. If no switch is present then things
+ * PCI Peer to Peer is a trainwreck. If anal switch is present then things
  * sometimes work, depending on the pci_distance_p2p logic for excluding broken
  * root complexes. However if a switch is present in the path, then things get
  * really ugly depending on how the switch is setup. This table assumes that the
@@ -1663,11 +1663,11 @@ static inline bool rt_supported(int ts_cap)
  * 111       1   0  fails (completion is routed to root but root didn't see req)
  * 111       1   1  OK
  *
- * Unfortunately we cannot reliably know if a switch is present or what the
+ * Unfortunately we cananalt reliably kanalw if a switch is present or what the
  * CR/RR/DT ACS settings are, as in a VM that is all hidden. Assume that
  * CR/RR/DT is 111 if the ATS cap is enabled and follow the last three rows.
  *
- * For now assume if the umem is a dma_buf then it is P2P.
+ * For analw assume if the umem is a dma_buf then it is P2P.
  */
 static inline bool mlx5_umem_needs_ats(struct mlx5_ib_dev *dev,
 				       struct ib_umem *umem, int access_flags)

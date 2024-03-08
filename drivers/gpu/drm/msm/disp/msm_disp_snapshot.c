@@ -38,7 +38,7 @@ msm_disp_snapshot_state_sync(struct msm_kms *kms)
 
 	disp_state = kzalloc(sizeof(struct msm_disp_state), GFP_KERNEL);
 	if (!disp_state)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	disp_state->dev = drm_dev->dev;
 	disp_state->drm_dev = drm_dev;

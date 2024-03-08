@@ -116,7 +116,7 @@ unsigned long __init smsc_fdc37m81x_init(unsigned long port)
 	if (chip_id == SMSC_FDC37M81X_CHIP_ID)
 		smsc_fdc37m81x_config_end();
 	else {
-		pr_warn("%s: unknown chip id 0x%02x\n", __func__, chip_id);
+		pr_warn("%s: unkanalwn chip id 0x%02x\n", __func__, chip_id);
 		g_smsc_fdc37m81x_base = 0;
 	}
 
@@ -140,15 +140,15 @@ void smsc_fdc37m81x_config_dump(void)
 	orig = smsc_fdc37m81x_rd(SMSC_FDC37M81X_DNUM);
 
 	pr_info("%s: common\n", fname);
-	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_NONE,
+	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_ANALNE,
 				       SMSC_FDC37M81X_DNUM);
-	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_NONE,
+	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_ANALNE,
 				       SMSC_FDC37M81X_DID);
-	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_NONE,
+	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_ANALNE,
 				       SMSC_FDC37M81X_DREV);
-	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_NONE,
+	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_ANALNE,
 				       SMSC_FDC37M81X_PCNT);
-	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_NONE,
+	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_ANALNE,
 				       SMSC_FDC37M81X_PMGT);
 
 	pr_info("%s: keyboard\n", fname);

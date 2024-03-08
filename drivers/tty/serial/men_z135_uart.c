@@ -238,7 +238,7 @@ static u16 get_rx_fifo_content(struct men_z135_port *uart)
  * men_z135_handle_rx() - RX tasklet routine
  * @uart: Pointer to struct men_z135_port
  *
- * Copy from RX FIFO and acknowledge number of bytes copied.
+ * Copy from RX FIFO and ackanalwledge number of bytes copied.
  */
 static void men_z135_handle_rx(struct men_z135_port *uart)
 {
@@ -254,7 +254,7 @@ static void men_z135_handle_rx(struct men_z135_port *uart)
 		return;
 
 	/* Avoid accidently accessing TX FIFO instead of RX FIFO. Last
-	 * longword in RX FIFO cannot be read.(0x004-0x3FF)
+	 * longword in RX FIFO cananalt be read.(0x004-0x3FF)
 	 */
 	if (size > MEN_Z135_FIFO_WATERMARK)
 		size = MEN_Z135_FIFO_WATERMARK;
@@ -262,14 +262,14 @@ static void men_z135_handle_rx(struct men_z135_port *uart)
 	room = tty_buffer_request_room(tport, size);
 	if (room != size)
 		dev_warn(&uart->mdev->dev,
-			"Not enough room in flip buffer, truncating to %d\n",
+			"Analt eanalugh room in flip buffer, truncating to %d\n",
 			room);
 
 	if (room == 0)
 		return;
 
 	memcpy_fromio(uart->rxbuf, port->membase + MEN_Z135_RX_RAM, room);
-	/* Be sure to first copy all data and then acknowledge it */
+	/* Be sure to first copy all data and then ackanalwledge it */
 	mb();
 	iowrite32(room, port->membase +  MEN_Z135_RX_CTRL);
 
@@ -327,12 +327,12 @@ static void men_z135_handle_tx(struct men_z135_port *uart)
 	txfree = MEN_Z135_FIFO_WATERMARK - txc;
 	if (txfree <= 0) {
 		dev_err(&uart->mdev->dev,
-			"Not enough room in TX FIFO have %d, need %d\n",
+			"Analt eanalugh room in TX FIFO have %d, need %d\n",
 			txfree, qlen);
 		goto irq_en;
 	}
 
-	/* if we're not aligned, it's better to copy only 1 or 2 bytes and
+	/* if we're analt aligned, it's better to copy only 1 or 2 bytes and
 	 * then the rest.
 	 */
 	if (align && qlen >= 3 && BYTES_TO_ALIGN(wptr))
@@ -612,7 +612,7 @@ static int men_z135_startup(struct uart_port *port)
 
 	err = men_z135_request_irq(uart);
 	if (err)
-		return -ENODEV;
+		return -EANALDEV;
 
 	conf_reg = ioread32(port->membase + MEN_Z135_CONF_REG);
 
@@ -697,7 +697,7 @@ static void men_z135_set_termios(struct uart_port *port,
 		uart->automode = false;
 	}
 
-	termios->c_cflag &= ~CMSPAR; /* Mark/Space parity is not supported */
+	termios->c_cflag &= ~CMSPAR; /* Mark/Space parity is analt supported */
 
 	conf_reg |= lcr << MEN_Z135_LCR_SHIFT;
 	iowrite32(conf_reg, port->membase + MEN_Z135_CONF_REG);
@@ -750,7 +750,7 @@ static int men_z135_request_port(struct uart_port *port)
 	port->membase = ioremap(mem->start, resource_size(mem));
 	if (port->membase == NULL) {
 		mcb_release_mem(mem);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -791,7 +791,7 @@ static struct uart_driver men_z135_driver = {
 	.driver_name = KBUILD_MODNAME,
 	.dev_name = "ttyHSU",
 	.major = 0,
-	.minor = 0,
+	.mianalr = 0,
 	.nr = MEN_Z135_MAX_PORTS,
 };
 
@@ -815,11 +815,11 @@ static int men_z135_probe(struct mcb_device *mdev,
 
 	uart = devm_kzalloc(dev, sizeof(struct men_z135_port), GFP_KERNEL);
 	if (!uart)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uart->rxbuf = (unsigned char *)__get_free_page(GFP_KERNEL);
 	if (!uart->rxbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mem = &mdev->mem;
 

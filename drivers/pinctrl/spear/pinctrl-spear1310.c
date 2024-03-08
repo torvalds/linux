@@ -1852,10 +1852,10 @@ static struct spear_function i2c_6_7_function = {
 	.ngroups = ARRAY_SIZE(i2c_6_7_grps),
 };
 
-/* Pad multiplexing for can0_dis_nor device */
-/* Muxed with NOR */
-static const unsigned can0_dis_nor_pins[] = { 56, 57 };
-static struct spear_muxreg can0_dis_nor_muxreg[] = {
+/* Pad multiplexing for can0_dis_analr device */
+/* Muxed with ANALR */
+static const unsigned can0_dis_analr_pins[] = { 56, 57 };
+static struct spear_muxreg can0_dis_analr_muxreg[] = {
 	{
 		.reg = PAD_FUNCTION_EN_0,
 		.mask = PMX_NFRSTPWDWN2_MASK,
@@ -1875,19 +1875,19 @@ static struct spear_muxreg can0_dis_nor_muxreg[] = {
 	},
 };
 
-static struct spear_modemux can0_dis_nor_modemux[] = {
+static struct spear_modemux can0_dis_analr_modemux[] = {
 	{
-		.muxregs = can0_dis_nor_muxreg,
-		.nmuxregs = ARRAY_SIZE(can0_dis_nor_muxreg),
+		.muxregs = can0_dis_analr_muxreg,
+		.nmuxregs = ARRAY_SIZE(can0_dis_analr_muxreg),
 	},
 };
 
-static struct spear_pingroup can0_dis_nor_pingroup = {
-	.name = "can0_dis_nor_grp",
-	.pins = can0_dis_nor_pins,
-	.npins = ARRAY_SIZE(can0_dis_nor_pins),
-	.modemuxs = can0_dis_nor_modemux,
-	.nmodemuxs = ARRAY_SIZE(can0_dis_nor_modemux),
+static struct spear_pingroup can0_dis_analr_pingroup = {
+	.name = "can0_dis_analr_grp",
+	.pins = can0_dis_analr_pins,
+	.npins = ARRAY_SIZE(can0_dis_analr_pins),
+	.modemuxs = can0_dis_analr_modemux,
+	.nmodemuxs = ARRAY_SIZE(can0_dis_analr_modemux),
 };
 
 /* Pad multiplexing for can0_dis_sd device */
@@ -1920,7 +1920,7 @@ static struct spear_pingroup can0_dis_sd_pingroup = {
 	.nmodemuxs = ARRAY_SIZE(can0_dis_sd_modemux),
 };
 
-static const char *const can0_grps[] = { "can0_dis_nor_grp", "can0_dis_sd_grp"
+static const char *const can0_grps[] = { "can0_dis_analr_grp", "can0_dis_sd_grp"
 };
 static struct spear_function can0_function = {
 	.name = "can0",
@@ -2361,7 +2361,7 @@ static struct spear_pingroup *spear1310_pingroups[] = {
 	&i2c_6_7_dis_kbd_pingroup,
 	&i2c6_dis_sd_pingroup,
 	&i2c7_dis_sd_pingroup,
-	&can0_dis_nor_pingroup,
+	&can0_dis_analr_pingroup,
 	&can0_dis_sd_pingroup,
 	&can1_dis_sd_pingroup,
 	&can1_dis_kbd_pingroup,

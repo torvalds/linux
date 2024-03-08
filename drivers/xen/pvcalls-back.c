@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * (c) 2017 Stefano Stabellini <stefano@aporeto.com>
+ * (c) 2017 Stefaanal Stabellini <stefaanal@aporeto.com>
  */
 
 #include <linux/inet.h>
@@ -145,7 +145,7 @@ static bool pvcalls_conn_back_read(void *opaque)
 	if (ret == -EAGAIN) /* shouldn't happen */
 		return true;
 	if (!ret)
-		ret = -ENOTCONN;
+		ret = -EANALTCONN;
 	spin_lock_irqsave(&map->sock->sk->sk_receive_queue.lock, flags);
 	if (ret > 0 && !skb_queue_empty(&map->sock->sk->sk_receive_queue))
 		atomic_inc(&map->read);
@@ -158,9 +158,9 @@ static bool pvcalls_conn_back_read(void *opaque)
 		intf->in_error = ret;
 	} else
 		intf->in_prod = prod + ret;
-	/* update the indexes, then notify the other end */
+	/* update the indexes, then analtify the other end */
 	virt_wmb();
-	notify_remote_via_irq(map->irq);
+	analtify_remote_via_irq(map->irq);
 
 	return true;
 }
@@ -216,13 +216,13 @@ static bool pvcalls_conn_back_write(struct sock_mapping *map)
 		intf->out_cons = cons + ret;
 		prod = intf->out_prod;
 	}
-	/* update the indexes, then notify the other end */
+	/* update the indexes, then analtify the other end */
 	virt_wmb();
 	if (prod != cons + ret) {
 		atomic_inc(&map->write);
 		atomic_inc(&map->io);
 	}
-	notify_remote_via_irq(map->irq);
+	analtify_remote_via_irq(map->irq);
 
 	return true;
 }
@@ -271,7 +271,7 @@ static int pvcalls_back_socket(struct xenbus_device *dev,
 	    req->u.socket.type != SOCK_STREAM ||
 	    (req->u.socket.protocol != IPPROTO_IP &&
 	     req->u.socket.protocol != AF_INET))
-		ret = -EAFNOSUPPORT;
+		ret = -EAFANALSUPPORT;
 	else
 		ret = 0;
 
@@ -294,7 +294,7 @@ static void pvcalls_sk_state_change(struct sock *sock)
 		return;
 
 	atomic_inc(&map->read);
-	notify_remote_via_irq(map->irq);
+	analtify_remote_via_irq(map->irq);
 }
 
 static void pvcalls_sk_data_ready(struct sock *sock)
@@ -523,7 +523,7 @@ static void __pvcalls_back_accept(struct work_struct *work)
 	struct socket *sock;
 	struct xen_pvcalls_response *rsp;
 	struct xen_pvcalls_request *req;
-	int notify;
+	int analtify;
 	int ret = -EINVAL;
 	unsigned long flags;
 
@@ -548,7 +548,7 @@ static void __pvcalls_back_accept(struct work_struct *work)
 	sock->type = mappass->sock->type;
 	sock->ops = mappass->sock->ops;
 
-	ret = inet_accept(mappass->sock, sock, O_NONBLOCK, true);
+	ret = inet_accept(mappass->sock, sock, O_ANALNBLOCK, true);
 	if (ret == -EAGAIN) {
 		sock_release(sock);
 		return;
@@ -576,9 +576,9 @@ out_error:
 	rsp->cmd = req->cmd;
 	rsp->u.accept.id = req->u.accept.id;
 	rsp->ret = ret;
-	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&fedata->ring, notify);
-	if (notify)
-		notify_remote_via_irq(fedata->irq);
+	RING_PUSH_RESPONSES_AND_CHECK_ANALTIFY(&fedata->ring, analtify);
+	if (analtify)
+		analtify_remote_via_irq(fedata->irq);
 
 	mappass->reqcopy.cmd = 0;
 }
@@ -589,7 +589,7 @@ static void pvcalls_pass_sk_data_ready(struct sock *sock)
 	struct pvcalls_fedata *fedata;
 	struct xen_pvcalls_response *rsp;
 	unsigned long flags;
-	int notify;
+	int analtify;
 
 	trace_sk_data_ready(sock);
 
@@ -609,9 +609,9 @@ static void pvcalls_pass_sk_data_ready(struct sock *sock)
 		mappass->reqcopy.cmd = 0;
 		spin_unlock_irqrestore(&mappass->copy_lock, flags);
 
-		RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&fedata->ring, notify);
-		if (notify)
-			notify_remote_via_irq(mappass->fedata->irq);
+		RING_PUSH_RESPONSES_AND_CHECK_ANALTIFY(&fedata->ring, analtify);
+		if (analtify)
+			analtify_remote_via_irq(mappass->fedata->irq);
 	} else {
 		spin_unlock_irqrestore(&mappass->copy_lock, flags);
 		queue_work(mappass->wq, &mappass->register_work);
@@ -630,7 +630,7 @@ static int pvcalls_back_bind(struct xenbus_device *dev,
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (map == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -638,7 +638,7 @@ static int pvcalls_back_bind(struct xenbus_device *dev,
 	spin_lock_init(&map->copy_lock);
 	map->wq = alloc_ordered_workqueue("pvcalls_wq", 0);
 	if (!map->wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -743,7 +743,7 @@ static int pvcalls_back_accept(struct xenbus_device *dev,
 	spin_unlock_irqrestore(&mappass->copy_lock, flags);
 	queue_work(mappass->wq, &mappass->register_work);
 
-	/* Tell the caller we don't need to send back a notification yet */
+	/* Tell the caller we don't need to send back a analtification yet */
 	return -1;
 
 out_error:
@@ -797,7 +797,7 @@ static int pvcalls_back_poll(struct xenbus_device *dev,
 	}
 	spin_unlock_irqrestore(&mappass->copy_lock, flags);
 
-	/* Tell the caller we don't need to send back a notification yet */
+	/* Tell the caller we don't need to send back a analtification yet */
 	return -1;
 
 out:
@@ -848,7 +848,7 @@ static int pvcalls_back_handle_cmd(struct xenbus_device *dev,
 				&fedata->ring, fedata->ring.rsp_prod_pvt++);
 		rsp->req_id = req->req_id;
 		rsp->cmd = req->cmd;
-		rsp->ret = -ENOTSUPP;
+		rsp->ret = -EANALTSUPP;
 		break;
 	}
 	}
@@ -857,7 +857,7 @@ static int pvcalls_back_handle_cmd(struct xenbus_device *dev,
 
 static void pvcalls_back_work(struct pvcalls_fedata *fedata)
 {
-	int notify, notify_all = 0, more = 1;
+	int analtify, analtify_all = 0, more = 1;
 	struct xen_pvcalls_request req;
 	struct xenbus_device *dev = fedata->dev;
 
@@ -868,15 +868,15 @@ static void pvcalls_back_work(struct pvcalls_fedata *fedata)
 					  &req);
 
 			if (!pvcalls_back_handle_cmd(dev, &req)) {
-				RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(
-					&fedata->ring, notify);
-				notify_all += notify;
+				RING_PUSH_RESPONSES_AND_CHECK_ANALTIFY(
+					&fedata->ring, analtify);
+				analtify_all += analtify;
 			}
 		}
 
-		if (notify_all) {
-			notify_remote_via_irq(fedata->irq);
-			notify_all = 0;
+		if (analtify_all) {
+			analtify_remote_via_irq(fedata->irq);
+			analtify_all = 0;
 		}
 
 		RING_FINAL_CHECK_FOR_REQUESTS(&fedata->ring, more);
@@ -932,7 +932,7 @@ static int backend_connect(struct xenbus_device *dev)
 
 	fedata = kzalloc(sizeof(struct pvcalls_fedata), GFP_KERNEL);
 	if (!fedata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fedata->irq = -1;
 	err = xenbus_scanf(XBT_NIL, dev->otherend, "port", "%u",
@@ -1043,25 +1043,25 @@ again:
 
 	err = xenbus_transaction_start(&xbt);
 	if (err) {
-		pr_warn("%s cannot create xenstore transaction\n", __func__);
+		pr_warn("%s cananalt create xenstore transaction\n", __func__);
 		return err;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "versions", "%s",
+	err = xenbus_printf(xbt, dev->analdename, "versions", "%s",
 			    PVCALLS_VERSIONS);
 	if (err) {
 		pr_warn("%s write out 'versions' failed\n", __func__);
 		goto abort;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "max-page-order", "%u",
+	err = xenbus_printf(xbt, dev->analdename, "max-page-order", "%u",
 			    MAX_RING_ORDER);
 	if (err) {
 		pr_warn("%s write out 'max-page-order' failed\n", __func__);
 		goto abort;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "function-calls",
+	err = xenbus_printf(xbt, dev->analdename, "function-calls",
 			    XENBUS_FUNCTIONS_CALLS);
 	if (err) {
 		pr_warn("%s write out 'function-calls' failed\n", __func__);
@@ -1074,7 +1074,7 @@ abort:
 	if (err) {
 		if (err == -EAGAIN && !abort)
 			goto again;
-		pr_warn("%s cannot complete xenstore transaction\n", __func__);
+		pr_warn("%s cananalt complete xenstore transaction\n", __func__);
 		return err;
 	}
 
@@ -1174,7 +1174,7 @@ static void pvcalls_back_changed(struct xenbus_device *dev,
 			break;
 		device_unregister(&dev->dev);
 		break;
-	case XenbusStateUnknown:
+	case XenbusStateUnkanalwn:
 		set_backend_state(dev, XenbusStateClosed);
 		device_unregister(&dev->dev);
 		break;
@@ -1214,7 +1214,7 @@ static int __init pvcalls_back_init(void)
 	int ret;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = xenbus_register_backend(&pvcalls_back_driver);
 	if (ret < 0)
@@ -1243,5 +1243,5 @@ static void __exit pvcalls_back_fin(void)
 module_exit(pvcalls_back_fin);
 
 MODULE_DESCRIPTION("Xen PV Calls backend driver");
-MODULE_AUTHOR("Stefano Stabellini <sstabellini@kernel.org>");
+MODULE_AUTHOR("Stefaanal Stabellini <sstabellini@kernel.org>");
 MODULE_LICENSE("GPL");

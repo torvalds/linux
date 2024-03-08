@@ -7,7 +7,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/init.h>
@@ -31,7 +31,7 @@ EXPORT_SYMBOL(mdio_device_free);
 
 static void mdio_device_release(struct device *dev)
 {
-	fwnode_handle_put(dev->fwnode);
+	fwanalde_handle_put(dev->fwanalde);
 	kfree(to_mdio_device(dev));
 }
 
@@ -53,7 +53,7 @@ struct mdio_device *mdio_device_create(struct mii_bus *bus, int addr)
 	/* We allocate the device, and initialize the default values */
 	mdiodev = kzalloc(sizeof(*mdiodev), GFP_KERNEL);
 	if (!mdiodev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mdiodev->dev.release = mdio_device_release;
 	mdiodev->dev.parent = &bus->dev;

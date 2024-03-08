@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2020 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2020 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <net/net_namespace.h>
 
@@ -62,13 +62,13 @@ static int mlxsw_sp_flow_block_bind(struct mlxsw_sp *mlxsw_sp,
 		return -EEXIST;
 
 	if (ingress && block->ingress_blocker_rule_count) {
-		NL_SET_ERR_MSG_MOD(extack, "Block cannot be bound to ingress because it contains unsupported rules");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Block cananalt be bound to ingress because it contains unsupported rules");
+		return -EOPANALTSUPP;
 	}
 
 	if (!ingress && block->egress_blocker_rule_count) {
-		NL_SET_ERR_MSG_MOD(extack, "Block cannot be bound to egress because it contains unsupported rules");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Block cananalt be bound to egress because it contains unsupported rules");
+		return -EOPANALTSUPP;
 	}
 
 	err = mlxsw_sp_mall_port_bind(block, mlxsw_sp_port, extack);
@@ -77,7 +77,7 @@ static int mlxsw_sp_flow_block_bind(struct mlxsw_sp *mlxsw_sp,
 
 	binding = kzalloc(sizeof(*binding), GFP_KERNEL);
 	if (!binding) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_binding_alloc;
 	}
 	binding->mlxsw_sp_port = mlxsw_sp_port;
@@ -113,7 +113,7 @@ static int mlxsw_sp_flow_block_unbind(struct mlxsw_sp *mlxsw_sp,
 
 	binding = mlxsw_sp_flow_block_lookup(block, mlxsw_sp_port, ingress);
 	if (!binding)
-		return -ENOENT;
+		return -EANALENT;
 
 	list_del(&binding->list);
 
@@ -144,7 +144,7 @@ static int mlxsw_sp_flow_block_mall_cb(struct mlxsw_sp_flow_block *flow_block,
 		mlxsw_sp_mall_destroy(flow_block, f);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -167,7 +167,7 @@ static int mlxsw_sp_flow_block_flower_cb(struct mlxsw_sp_flow_block *flow_block,
 		mlxsw_sp_flower_tmplt_destroy(mlxsw_sp, flow_block, f);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -177,7 +177,7 @@ static int mlxsw_sp_flow_block_cb(enum tc_setup_type type,
 	struct mlxsw_sp_flow_block *flow_block = cb_priv;
 
 	if (mlxsw_sp_flow_block_disabled(flow_block))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_CLSMATCHALL:
@@ -185,7 +185,7 @@ static int mlxsw_sp_flow_block_cb(enum tc_setup_type type,
 	case TC_SETUP_CLSFLOWER:
 		return mlxsw_sp_flow_block_flower_cb(flow_block, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -213,7 +213,7 @@ static int mlxsw_sp_setup_tc_block_bind(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!block_cb) {
 		flow_block = mlxsw_sp_flow_block_create(mlxsw_sp, f->net);
 		if (!flow_block)
-			return -ENOMEM;
+			return -EANALMEM;
 		block_cb = flow_block_cb_alloc(mlxsw_sp_flow_block_cb,
 					       mlxsw_sp, flow_block,
 					       mlxsw_sp_tc_block_release);
@@ -290,6 +290,6 @@ int mlxsw_sp_setup_tc_block_clsact(struct mlxsw_sp_port *mlxsw_sp_port,
 		mlxsw_sp_setup_tc_block_unbind(mlxsw_sp_port, f, ingress);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }

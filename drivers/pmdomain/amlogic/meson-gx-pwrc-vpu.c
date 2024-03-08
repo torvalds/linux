@@ -272,7 +272,7 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 	const struct meson_gx_pwrc_vpu *vpu_pd_match;
 	struct regmap *regmap_ao, *regmap_hhi;
 	struct meson_gx_pwrc_vpu *vpu_pd;
-	struct device_node *parent_np;
+	struct device_analde *parent_np;
 	struct reset_control *rstc;
 	struct clk *vpu_clk;
 	struct clk *vapb_clk;
@@ -282,24 +282,24 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 	vpu_pd_match = of_device_get_match_data(&pdev->dev);
 	if (!vpu_pd_match) {
 		dev_err(&pdev->dev, "failed to get match data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	vpu_pd = devm_kzalloc(&pdev->dev, sizeof(*vpu_pd), GFP_KERNEL);
 	if (!vpu_pd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(vpu_pd, vpu_pd_match, sizeof(*vpu_pd));
 
-	parent_np = of_get_parent(pdev->dev.of_node);
-	regmap_ao = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	parent_np = of_get_parent(pdev->dev.of_analde);
+	regmap_ao = syscon_analde_to_regmap(parent_np);
+	of_analde_put(parent_np);
 	if (IS_ERR(regmap_ao)) {
 		dev_err(&pdev->dev, "failed to get regmap\n");
 		return PTR_ERR(regmap_ao);
 	}
 
-	regmap_hhi = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	regmap_hhi = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 						     "amlogic,hhi-sysctrl");
 	if (IS_ERR(regmap_hhi)) {
 		dev_err(&pdev->dev, "failed to get HHI regmap\n");
@@ -343,7 +343,7 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 	vpu_pd->genpd.flags = GENPD_FLAG_ALWAYS_ON;
 	pm_genpd_init(&vpu_pd->genpd, NULL, powered_off);
 
-	return of_genpd_add_provider_simple(pdev->dev.of_node,
+	return of_genpd_add_provider_simple(pdev->dev.of_analde,
 					    &vpu_pd->genpd);
 }
 

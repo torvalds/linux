@@ -8,7 +8,7 @@ Linux can also be an I2C slave if the I2C controller in use has slave
 functionality. For that to work, one needs slave support in the bus driver plus
 a hardware independent software backend providing the actual functionality. An
 example for the latter is the slave-eeprom driver, which acts as a dual memory
-driver. While another I2C master on the bus can access it like a regular
+driver. While aanalther I2C master on the bus can access it like a regular
 EEPROM, the Linux I2C slave can access the content via sysfs and handle data as
 needed. The backend driver and the I2C bus driver communicate via events. Here
 is a small graph visualizing the data flow and the means by which data is
@@ -24,7 +24,7 @@ use a character device, be in-kernel only, or something completely different::
   ----------------------------------------------------------------+--  I2C
   --------------------------------------------------------------+----  Bus
 
-Note: Technically, there is also the I2C core between the backend and the
+Analte: Technically, there is also the I2C core between the backend and the
 driver. However, at this time of writing, the layer is transparent.
 
 
@@ -62,7 +62,7 @@ The bus driver sends an event to the backend using the following function::
 'client' describes the I2C slave device. 'event' is one of the special event
 types described hereafter. 'val' holds an u8 value for the data byte to be
 read/written and is thus bidirectional. The pointer to val must always be
-provided even if val is not used for an event, i.e. don't use NULL here. 'ret'
+provided even if val is analt used for an event, i.e. don't use NULL here. 'ret'
 is the return value from the backend. Mandatory events must be provided by the
 bus drivers and must be checked for by backend drivers.
 
@@ -72,13 +72,13 @@ Event types:
 
   'val': unused
 
-  'ret': 0 if the backend is ready, otherwise some errno
+  'ret': 0 if the backend is ready, otherwise some erranal
 
-Another I2C master wants to write data to us. This event should be sent once
-our own address and the write bit was detected. The data did not arrive yet, so
-there is nothing to process or return. After returning, the bus driver must
+Aanalther I2C master wants to write data to us. This event should be sent once
+our own address and the write bit was detected. The data did analt arrive yet, so
+there is analthing to process or return. After returning, the bus driver must
 always ack the address phase. If 'ret' is zero, backend initialization or
-wakeup is done and further data may be received. If 'ret' is an errno, the bus
+wakeup is done and further data may be received. If 'ret' is an erranal, the bus
 driver should nack all incoming bytes until the next stop condition to enforce
 a retry of the transmission.
 
@@ -88,7 +88,7 @@ a retry of the transmission.
 
   'ret': always 0
 
-Another I2C master wants to read data from us. This event should be sent once
+Aanalther I2C master wants to read data from us. This event should be sent once
 our own address and the read bit was detected. After returning, the bus driver
 should transmit the first byte.
 
@@ -96,10 +96,10 @@ should transmit the first byte.
 
   'val': bus driver delivers received byte
 
-  'ret': 0 if the byte should be acked, some errno if the byte should be nacked
+  'ret': 0 if the byte should be acked, some erranal if the byte should be nacked
 
-Another I2C master has sent a byte to us which needs to be set in 'val'. If 'ret'
-is zero, the bus driver should ack this byte. If 'ret' is an errno, then the byte
+Aanalther I2C master has sent a byte to us which needs to be set in 'val'. If 'ret'
+is zero, the bus driver should ack this byte. If 'ret' is an erranal, then the byte
 should be nacked.
 
 * I2C_SLAVE_READ_PROCESSED (mandatory)
@@ -108,8 +108,8 @@ should be nacked.
 
   'ret': always 0
 
-The bus driver requests the next byte to be sent to another I2C master in
-'val'. Important: This does not mean that the previous byte has been acked, it
+The bus driver requests the next byte to be sent to aanalther I2C master in
+'val'. Important: This does analt mean that the previous byte has been acked, it
 only means that the previous byte is shifted out to the bus! To ensure seamless
 transmission, most hardware requests the next byte when the previous one is
 still shifted out. If the master sends NACK and stops reading after the byte
@@ -154,9 +154,9 @@ If you want to add slave support to the bus driver:
 
 * Catch the slave interrupts and send appropriate i2c_slave_events to the backend.
 
-Note that most hardware supports being master _and_ slave on the same bus. So,
+Analte that most hardware supports being master _and_ slave on the same bus. So,
 if you extend a bus driver, please make sure that the driver supports that as
-well. In almost all cases, slave support does not need to disable the master
+well. In almost all cases, slave support does analt need to disable the master
 functionality.
 
 Check the i2c-rcar driver as an example.
@@ -165,18 +165,18 @@ Check the i2c-rcar driver as an example.
 About ACK/NACK
 --------------
 
-It is good behaviour to always ACK the address phase, so the master knows if a
+It is good behaviour to always ACK the address phase, so the master kanalws if a
 device is basically present or if it mysteriously disappeared. Using NACK to
 state being busy is troublesome. SMBus demands to always ACK the address phase,
 while the I2C specification is more loose on that. Most I2C controllers also
-automatically ACK when detecting their slave addresses, so there is no option
-to NACK them. For those reasons, this API does not support NACK in the address
+automatically ACK when detecting their slave addresses, so there is anal option
+to NACK them. For those reasons, this API does analt support NACK in the address
 phase.
 
-Currently, there is no slave event to report if the master did ACK or NACK a
+Currently, there is anal slave event to report if the master did ACK or NACK a
 byte when it reads from us. We could make this an optional event if the need
 arises. However, cases should be extremely rare because the master is expected
-to send STOP after that and we have an event for that. Also, keep in mind not
+to send STOP after that and we have an event for that. Also, keep in mind analt
 all I2C controllers have the possibility to report that event.
 
 
@@ -191,7 +191,7 @@ this time of writing. Some points to keep in mind when using buffers:
   byte-based transactions as the ultimate fallback anyhow because this is how
   the majority of HW works.
 
-* For backends simulating hardware registers, buffers are largely not helpful
+* For backends simulating hardware registers, buffers are largely analt helpful
   because after each byte written an action should be immediately triggered.
   For reads, the data kept in the buffer might get stale if the backend just
   updated a register because of internal processing.

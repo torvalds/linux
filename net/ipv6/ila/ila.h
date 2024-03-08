@@ -6,7 +6,7 @@
 #ifndef __ILA_H
 #define __ILA_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ip.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

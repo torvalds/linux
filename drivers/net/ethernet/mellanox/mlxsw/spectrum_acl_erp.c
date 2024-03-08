@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/bitmap.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/genalloc.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
@@ -94,7 +94,7 @@ static void
 mlxsw_sp_acl_erp_first_mask_destroy(struct mlxsw_sp_acl_erp_table *erp_table,
 				    struct mlxsw_sp_acl_erp *erp);
 static void
-mlxsw_sp_acl_erp_no_mask_destroy(struct mlxsw_sp_acl_erp_table *erp_table,
+mlxsw_sp_acl_erp_anal_mask_destroy(struct mlxsw_sp_acl_erp_table *erp_table,
 				 struct mlxsw_sp_acl_erp *erp);
 
 static const struct mlxsw_sp_acl_erp_table_ops erp_multiple_masks_ops = {
@@ -112,16 +112,16 @@ static const struct mlxsw_sp_acl_erp_table_ops erp_single_mask_ops = {
 	.erp_destroy = mlxsw_sp_acl_erp_first_mask_destroy,
 };
 
-static const struct mlxsw_sp_acl_erp_table_ops erp_no_mask_ops = {
+static const struct mlxsw_sp_acl_erp_table_ops erp_anal_mask_ops = {
 	.erp_create = mlxsw_sp_acl_erp_first_mask_create,
-	.erp_destroy = mlxsw_sp_acl_erp_no_mask_destroy,
+	.erp_destroy = mlxsw_sp_acl_erp_anal_mask_destroy,
 };
 
 static bool
 mlxsw_sp_acl_erp_table_is_used(const struct mlxsw_sp_acl_erp_table *erp_table)
 {
 	return erp_table->ops != &erp_single_mask_ops &&
-	       erp_table->ops != &erp_no_mask_ops;
+	       erp_table->ops != &erp_anal_mask_ops;
 }
 
 static unsigned int
@@ -152,7 +152,7 @@ static int mlxsw_sp_acl_erp_id_get(struct mlxsw_sp_acl_erp_table *erp_table,
 		return 0;
 	}
 
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 static void mlxsw_sp_acl_erp_id_put(struct mlxsw_sp_acl_erp_table *erp_table,
@@ -256,7 +256,7 @@ mlxsw_sp_acl_erp_generic_create(struct mlxsw_sp_acl_erp_table *erp_table,
 
 	erp = kzalloc(sizeof(*erp), GFP_KERNEL);
 	if (!erp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = mlxsw_sp_acl_erp_id_get(erp_table, &erp->id);
 	if (err)
@@ -312,7 +312,7 @@ mlxsw_sp_acl_erp_table_alloc(struct mlxsw_sp_acl_erp_core *erp_core,
 
 	index = gen_pool_alloc(erp_core->erp_tables, num_rows * entry_size);
 	if (!index)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	*p_index = index - MLXSW_SP_ACL_ERP_GENALLOC_OFFSET;
 
@@ -358,7 +358,7 @@ static int mlxsw_sp_acl_erp_index_get(struct mlxsw_sp_acl_erp_table *erp_table,
 		return 0;
 	}
 
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 static void mlxsw_sp_acl_erp_index_put(struct mlxsw_sp_acl_erp_table *erp_table,
@@ -445,8 +445,8 @@ mlxsw_sp_acl_erp_table_disable(struct mlxsw_sp_acl_erp_table *erp_table)
 	struct mlxsw_sp_acl_erp *master_rp;
 
 	master_rp = mlxsw_sp_acl_erp_table_master_rp(erp_table);
-	/* It is possible we do not have a master RP when we disable the
-	 * table when there are no rules in the A-TCAM and the last C-TCAM
+	/* It is possible we do analt have a master RP when we disable the
+	 * table when there are anal rules in the A-TCAM and the last C-TCAM
 	 * rule is deleted
 	 */
 	mlxsw_reg_pererp_pack(pererp_pl, region->id, false, false, 0, 0,
@@ -488,7 +488,7 @@ mlxsw_sp_acl_erp_table_expand(struct mlxsw_sp_acl_erp_table *erp_table)
 		return 0;
 
 	if (erp_table->num_max_atcam_erps == MLXSW_SP_ACL_ERP_MAX_PER_REGION)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	num_erps = old_num_erps + erp_core->num_erp_banks;
 	err = mlxsw_sp_acl_erp_table_alloc(erp_core, num_erps,
@@ -598,7 +598,7 @@ mlxsw_sp_acl_erp_region_table_trans(struct mlxsw_sp_acl_erp_table *erp_table)
 		goto err_table_master_rp_add;
 
 	/* Update Bloom filter before enabling eRP table, as rules
-	 * on the master RP were not set to Bloom filter up to this
+	 * on the master RP were analt set to Bloom filter up to this
 	 * point.
 	 */
 	err = mlxsw_acl_erp_table_bf_add(erp_table, master_rp);
@@ -680,7 +680,7 @@ static void mlxsw_sp_acl_erp_region_erp_del(struct mlxsw_sp_acl_erp *erp)
 static int
 mlxsw_sp_acl_erp_region_ctcam_enable(struct mlxsw_sp_acl_erp_table *erp_table)
 {
-	/* No need to re-enable lookup in the C-TCAM */
+	/* Anal need to re-enable lookup in the C-TCAM */
 	if (erp_table->num_ctcam_erps > 1)
 		return 0;
 
@@ -704,7 +704,7 @@ __mlxsw_sp_acl_erp_table_other_inc(struct mlxsw_sp_acl_erp_table *erp_table,
 	int err;
 
 	/* If there are C-TCAM eRP or deltas in use we need to transition
-	 * the region to use eRP table, if it is not already done
+	 * the region to use eRP table, if it is analt already done
 	 */
 	if (!mlxsw_sp_acl_erp_table_is_used(erp_table)) {
 		err = mlxsw_sp_acl_erp_region_table_trans(erp_table);
@@ -739,7 +739,7 @@ __mlxsw_sp_acl_erp_table_other_dec(struct mlxsw_sp_acl_erp_table *erp_table,
 {
 	(*dec_num)--;
 
-	/* If there are no C-TCAM eRP or deltas in use, the state we
+	/* If there are anal C-TCAM eRP or deltas in use, the state we
 	 * transition to depends on the number of A-TCAM eRPs currently
 	 * in use.
 	 */
@@ -756,7 +756,7 @@ __mlxsw_sp_acl_erp_table_other_dec(struct mlxsw_sp_acl_erp_table *erp_table,
 		break;
 	case 1:
 		/* We only kept the eRP table because we had C-TCAM
-		 * eRPs in use. Now that the last C-TCAM eRP is gone we
+		 * eRPs in use. Analw that the last C-TCAM eRP is gone we
 		 * can stop using the table and transition to use the
 		 * master mask
 		 */
@@ -764,7 +764,7 @@ __mlxsw_sp_acl_erp_table_other_dec(struct mlxsw_sp_acl_erp_table *erp_table,
 		erp_table->ops = &erp_single_mask_ops;
 		break;
 	case 0:
-		/* There are no more eRPs of any kind used by the region
+		/* There are anal more eRPs of any kind used by the region
 		 * so free its eRP table and transition to initial state
 		 */
 		mlxsw_sp_acl_erp_table_disable(erp_table);
@@ -772,7 +772,7 @@ __mlxsw_sp_acl_erp_table_other_dec(struct mlxsw_sp_acl_erp_table *erp_table,
 					    erp_table->num_max_atcam_erps,
 					    erp_table->aregion->type,
 					    erp_table->base_index);
-		erp_table->ops = &erp_no_mask_ops;
+		erp_table->ops = &erp_anal_mask_ops;
 		break;
 	default:
 		break;
@@ -800,7 +800,7 @@ mlxsw_sp_acl_erp_ctcam_mask_create(struct mlxsw_sp_acl_erp_table *erp_table,
 
 	erp = kzalloc(sizeof(*erp), GFP_KERNEL);
 	if (!erp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	memcpy(&erp->key, key, sizeof(*key));
 	bitmap_from_arr32(erp->mask_bitmap, (u32 *) key->mask,
@@ -991,11 +991,11 @@ mlxsw_sp_acl_erp_first_mask_destroy(struct mlxsw_sp_acl_erp_table *erp_table,
 				    struct mlxsw_sp_acl_erp *erp)
 {
 	mlxsw_sp_acl_erp_generic_destroy(erp);
-	erp_table->ops = &erp_no_mask_ops;
+	erp_table->ops = &erp_anal_mask_ops;
 }
 
 static void
-mlxsw_sp_acl_erp_no_mask_destroy(struct mlxsw_sp_acl_erp_table *erp_table,
+mlxsw_sp_acl_erp_anal_mask_destroy(struct mlxsw_sp_acl_erp_table *erp_table,
 				 struct mlxsw_sp_acl_erp *erp)
 {
 	WARN_ON(1);
@@ -1176,7 +1176,7 @@ mlxsw_sp_acl_erp_delta_fill(const struct mlxsw_sp_acl_erp_key *parent_key,
 		/* The masks are the same, this can happen in case eRPs with
 		 * the same mask were created in both A-TCAM and C-TCAM.
 		 * The only possible condition under which this can happen
-		 * is identical rule insertion. Delta is not possible here.
+		 * is identical rule insertion. Delta is analt possible here.
 		 */
 		return -EINVAL;
 	}
@@ -1223,7 +1223,7 @@ static int mlxsw_sp_acl_erp_hints_obj_cmp(const void *obj1, const void *obj2)
 	const struct mlxsw_sp_acl_erp_key *key2 = obj2;
 
 	/* For hints purposes, two objects are considered equal
-	 * in case the masks are the same. Does not matter what
+	 * in case the masks are the same. Does analt matter what
 	 * the "ctcam" value is.
 	 */
 	return memcmp(key1->mask, key2->mask, sizeof(key1->mask));
@@ -1250,7 +1250,7 @@ static void *mlxsw_sp_acl_erp_delta_create(void *priv, void *parent_obj,
 
 	delta = kzalloc(sizeof(*delta), GFP_KERNEL);
 	if (!delta)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	delta->start = delta_start;
 	delta->mask = delta_mask;
 
@@ -1293,7 +1293,7 @@ static void *mlxsw_sp_acl_erp_root_create(void *priv, void *obj,
 	if (!key->ctcam &&
 	    root_id != OBJAGG_OBJ_ROOT_ID_INVALID &&
 	    root_id >= MLXSW_SP_ACL_ERP_MAX_PER_REGION)
-		return ERR_PTR(-ENOBUFS);
+		return ERR_PTR(-EANALBUFS);
 	return erp_table->ops->erp_create(erp_table, key);
 }
 
@@ -1324,7 +1324,7 @@ mlxsw_sp_acl_erp_table_create(struct mlxsw_sp_acl_atcam_region *aregion,
 
 	erp_table = kzalloc(sizeof(*erp_table), GFP_KERNEL);
 	if (!erp_table)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	erp_table->objagg = objagg_create(&mlxsw_sp_acl_erp_objagg_ops,
 					  hints, aregion);
@@ -1334,7 +1334,7 @@ mlxsw_sp_acl_erp_table_create(struct mlxsw_sp_acl_atcam_region *aregion,
 	}
 
 	erp_table->erp_core = aregion->atcam->erp_core;
-	erp_table->ops = &erp_no_mask_ops;
+	erp_table->ops = &erp_anal_mask_ops;
 	INIT_LIST_HEAD(&erp_table->atcam_erps_list);
 	erp_table->aregion = aregion;
 	mutex_init(&erp_table->objagg_lock);
@@ -1403,7 +1403,7 @@ mlxsw_sp_acl_erp_hints_check(struct mlxsw_sp *mlxsw_sp,
 		goto err_hints_stats_get;
 	}
 
-	/* Very basic criterion for now. */
+	/* Very basic criterion for analw. */
 	if (hstats->root_count < ostats->root_count)
 		*p_rehash_needed = true;
 
@@ -1472,7 +1472,7 @@ int mlxsw_sp_acl_erp_region_init(struct mlxsw_sp_acl_atcam_region *aregion,
 	if (err)
 		goto err_erp_master_mask_init;
 
-	/* Initialize the region to not use the eRP table */
+	/* Initialize the region to analt use the eRP table */
 	err = mlxsw_sp_acl_erp_region_param_init(aregion);
 	if (err)
 		goto err_erp_region_param_init;
@@ -1533,7 +1533,7 @@ static int mlxsw_sp_acl_erp_tables_init(struct mlxsw_sp *mlxsw_sp,
 
 	erp_core->erp_tables = gen_pool_create(0, -1);
 	if (!erp_core->erp_tables)
-		return -ENOMEM;
+		return -EANALMEM;
 	gen_pool_set_algo(erp_core->erp_tables, gen_pool_best_fit, NULL);
 
 	err = gen_pool_add(erp_core->erp_tables,
@@ -1578,7 +1578,7 @@ int mlxsw_sp_acl_erps_init(struct mlxsw_sp *mlxsw_sp,
 
 	erp_core = kzalloc(sizeof(*erp_core), GFP_KERNEL);
 	if (!erp_core)
-		return -ENOMEM;
+		return -EANALMEM;
 	erp_core->mlxsw_sp = mlxsw_sp;
 	atcam->erp_core = erp_core;
 

@@ -23,14 +23,14 @@ static dma_addr_t physaddr(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct msm_drm_private *priv = obj->dev->dev_private;
-	return (((dma_addr_t)msm_obj->vram_node->start) << PAGE_SHIFT) +
+	return (((dma_addr_t)msm_obj->vram_analde->start) << PAGE_SHIFT) +
 			priv->vram.paddr;
 }
 
 static bool use_pages(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-	return !msm_obj->vram_node;
+	return !msm_obj->vram_analde;
 }
 
 /*
@@ -41,7 +41,7 @@ static bool use_pages(struct drm_gem_object *obj)
  *
  * On top of this, we have the added headache, that depending on
  * display generation, the display's iommu may be wired up to either
- * the toplevel drm device (mdss), or to the mdp sub-node, meaning
+ * the toplevel drm device (mdss), or to the mdp sub-analde, meaning
  * that here we either have dma-direct or iommu ops.
  *
  * Let this be a cautionary tail of abstraction gone wrong.
@@ -104,7 +104,7 @@ static void update_lru(struct drm_gem_object *obj)
 	mutex_unlock(&priv->lru.lock);
 }
 
-/* allocate pages from VRAM carveout, used when no IOMMU: */
+/* allocate pages from VRAM carveout, used when anal IOMMU: */
 static struct page **get_pages_vram(struct drm_gem_object *obj, int npages)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
@@ -115,10 +115,10 @@ static struct page **get_pages_vram(struct drm_gem_object *obj, int npages)
 
 	p = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!p)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock(&priv->vram.lock);
-	ret = drm_mm_insert_node(&priv->vram.mm, msm_obj->vram_node, npages);
+	ret = drm_mm_insert_analde(&priv->vram.mm, msm_obj->vram_analde, npages);
 	spin_unlock(&priv->vram.lock);
 	if (ret) {
 		kvfree(p);
@@ -151,7 +151,7 @@ static struct page **get_pages(struct drm_gem_object *obj)
 			p = get_pages_vram(obj, npages);
 
 		if (IS_ERR(p)) {
-			DRM_DEV_ERROR(dev->dev, "could not get pages: %ld\n",
+			DRM_DEV_ERROR(dev->dev, "could analt get pages: %ld\n",
 					PTR_ERR(p));
 			return p;
 		}
@@ -167,8 +167,8 @@ static struct page **get_pages(struct drm_gem_object *obj)
 			return ptr;
 		}
 
-		/* For non-cached buffers, ensure the new pages are clean
-		 * because display controller, GPU, etc. are not coherent:
+		/* For analn-cached buffers, ensure the new pages are clean
+		 * because display controller, GPU, etc. are analt coherent:
 		 */
 		if (msm_obj->flags & MSM_BO_WC)
 			sync_for_device(msm_obj);
@@ -185,7 +185,7 @@ static void put_pages_vram(struct drm_gem_object *obj)
 	struct msm_drm_private *priv = obj->dev->dev_private;
 
 	spin_lock(&priv->vram.lock);
-	drm_mm_remove_node(msm_obj->vram_node);
+	drm_mm_remove_analde(msm_obj->vram_analde);
 	spin_unlock(&priv->vram.lock);
 
 	kvfree(msm_obj->pages);
@@ -197,9 +197,9 @@ static void put_pages(struct drm_gem_object *obj)
 
 	if (msm_obj->pages) {
 		if (msm_obj->sgt) {
-			/* For non-cached buffers, ensure the new
+			/* For analn-cached buffers, ensure the new
 			 * pages are clean because display controller,
-			 * GPU, etc. are not coherent:
+			 * GPU, etc. are analt coherent:
 			 */
 			if (msm_obj->flags & MSM_BO_WC)
 				sync_for_cpu(msm_obj);
@@ -301,7 +301,7 @@ static vm_fault_t msm_gem_fault(struct vm_fault *vmf)
 	 */
 	err = msm_gem_lock_interruptible(obj);
 	if (err) {
-		ret = VM_FAULT_NOPAGE;
+		ret = VM_FAULT_ANALPAGE;
 		goto out;
 	}
 
@@ -310,7 +310,7 @@ static vm_fault_t msm_gem_fault(struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 	}
 
-	/* make sure we have pages attached now */
+	/* make sure we have pages attached analw */
 	pages = get_pages(obj);
 	if (IS_ERR(pages)) {
 		ret = vmf_error(PTR_ERR(pages));
@@ -345,11 +345,11 @@ static uint64_t mmap_offset(struct drm_gem_object *obj)
 	ret = drm_gem_create_mmap_offset(obj);
 
 	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "could not allocate mmap offset\n");
+		DRM_DEV_ERROR(dev->dev, "could analt allocate mmap offset\n");
 		return 0;
 	}
 
-	return drm_vma_node_offset_addr(&obj->vma_node);
+	return drm_vma_analde_offset_addr(&obj->vma_analde);
 }
 
 uint64_t msm_gem_mmap_offset(struct drm_gem_object *obj)
@@ -372,7 +372,7 @@ static struct msm_gem_vma *add_vma(struct drm_gem_object *obj,
 
 	vma = msm_gem_vma_new(aspace);
 	if (!vma)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	list_add_tail(&vma->list, &msm_obj->vmas);
 
@@ -512,7 +512,7 @@ void msm_gem_unpin_locked(struct drm_gem_object *obj)
 
 /* Special unpin path for use in fence-signaling path, avoiding the need
  * to hold the obj lock by only depending on things that a protected by
- * the LRU lock.  In particular we know that that we already have backing
+ * the LRU lock.  In particular we kanalw that that we already have backing
  * and and that the object's dma_resv has the fence for the current
  * submit/job which will prevent us racing against page eviction.
  */
@@ -616,7 +616,7 @@ static int clear_iova(struct drm_gem_object *obj,
 
 /*
  * Get the requested iova but don't pin it.  Fails if the requested iova is
- * not available.  Doesn't need a put because iovas are currently valid for
+ * analt available.  Doesn't need a put because iovas are currently valid for
  * the life of the object.
  *
  * Setting an iova of zero will clear the vma.
@@ -646,7 +646,7 @@ int msm_gem_set_iova(struct drm_gem_object *obj,
 
 /*
  * Unpin a iova by updating the reference counts. The memory isn't actually
- * purged until something else (shrinker, mm_notifier, destroy, etc) decides
+ * purged until something else (shrinker, mm_analtifier, destroy, etc) decides
  * to get rid of it
  */
 void msm_gem_unpin_iova(struct drm_gem_object *obj,
@@ -668,7 +668,7 @@ int msm_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 	args->pitch = align_pitch(args->width, args->bpp);
 	args->size  = PAGE_ALIGN(args->pitch * args->height);
 	return msm_gem_new_handle(dev, file, args->size,
-			MSM_BO_SCANOUT | MSM_BO_WC, &args->handle, "dumb");
+			MSM_BO_SCAANALUT | MSM_BO_WC, &args->handle, "dumb");
 }
 
 int msm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
@@ -680,7 +680,7 @@ int msm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 	/* GEM does all our handle to object mapping */
 	obj = drm_gem_object_lookup(file, handle);
 	if (obj == NULL) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto fail;
 	}
 
@@ -701,7 +701,7 @@ static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
 	msm_gem_assert_locked(obj);
 
 	if (obj->import_attach)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	pages = msm_gem_pin_pages_locked(obj, madv);
 	if (IS_ERR(pages))
@@ -721,7 +721,7 @@ static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
 		msm_obj->vaddr = vmap(pages, obj->size >> PAGE_SHIFT,
 				VM_MAP, msm_gem_pgprot(msm_obj, PAGE_KERNEL));
 		if (msm_obj->vaddr == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 	}
@@ -753,7 +753,7 @@ void *msm_gem_get_vaddr(struct drm_gem_object *obj)
 /*
  * Don't use this!  It is for the very special case of dumping
  * submits from GPU hangs or faults, were the bo may already
- * be MSM_MADV_DONTNEED, but we know the buffer is still on the
+ * be MSM_MADV_DONTNEED, but we kanalw the buffer is still on the
  * active list.
  */
 void *msm_gem_get_vaddr_active(struct drm_gem_object *obj)
@@ -779,8 +779,8 @@ void msm_gem_put_vaddr(struct drm_gem_object *obj)
 	msm_gem_unlock(obj);
 }
 
-/* Update madvise status, returns true if not purged, else
- * false or -errno.
+/* Update madvise status, returns true if analt purged, else
+ * false or -erranal.
  */
 int msm_gem_madvise(struct drm_gem_object *obj, unsigned madv)
 {
@@ -822,7 +822,7 @@ void msm_gem_purge(struct drm_gem_object *obj)
 
 	msm_gem_vunmap(obj);
 
-	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
+	drm_vma_analde_unmap(&obj->vma_analde, dev->aanaln_ianalde->i_mapping);
 
 	put_pages(obj);
 
@@ -838,11 +838,11 @@ void msm_gem_purge(struct drm_gem_object *obj)
 	/* Our goal here is to return as much of the memory as
 	 * is possible back to the system as we are called from OOM.
 	 * To do this we must instruct the shmfs to drop all of its
-	 * backing pages, *now*.
+	 * backing pages, *analw*.
 	 */
-	shmem_truncate_range(file_inode(obj->filp), 0, (loff_t)-1);
+	shmem_truncate_range(file_ianalde(obj->filp), 0, (loff_t)-1);
 
-	invalidate_mapping_pages(file_inode(obj->filp)->i_mapping,
+	invalidate_mapping_pages(file_ianalde(obj->filp)->i_mapping,
 			0, (loff_t)-1);
 }
 
@@ -860,7 +860,7 @@ void msm_gem_evict(struct drm_gem_object *obj)
 	/* Get rid of any iommu mapping(s): */
 	put_iova_spaces(obj, false);
 
-	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
+	drm_vma_analde_unmap(&obj->vma_analde, dev->aanaln_ianalde->i_mapping);
 
 	put_pages(obj);
 }
@@ -892,7 +892,7 @@ int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
 {
 	bool write = !!(op & MSM_PREP_WRITE);
 	unsigned long remain =
-		op & MSM_PREP_NOSYNC ? 0 : timeout_to_jiffies(timeout);
+		op & MSM_PREP_ANALSYNC ? 0 : timeout_to_jiffies(timeout);
 	long ret;
 
 	if (op & MSM_PREP_BOOST) {
@@ -925,7 +925,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m,
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct dma_resv *robj = obj->resv;
 	struct msm_gem_vma *vma;
-	uint64_t off = drm_vma_node_start(&obj->vma_node);
+	uint64_t off = drm_vma_analde_start(&obj->vma_analde);
 	const char *madv;
 
 	msm_gem_lock(obj);
@@ -1007,7 +1007,7 @@ void msm_gem_describe_objects(struct list_head *list, struct seq_file *m)
 	struct msm_gem_object *msm_obj;
 
 	seq_puts(m, "   flags       id ref  offset   kaddr            size     madv      name\n");
-	list_for_each_entry(msm_obj, list, node) {
+	list_for_each_entry(msm_obj, list, analde) {
 		struct drm_gem_object *obj = &msm_obj->base;
 		seq_puts(m, "   ");
 		msm_gem_describe(obj, m, &stats);
@@ -1034,7 +1034,7 @@ static void msm_gem_free_object(struct drm_gem_object *obj)
 	struct msm_drm_private *priv = dev->dev_private;
 
 	mutex_lock(&priv->obj_lock);
-	list_del(&msm_obj->node);
+	list_del(&msm_obj->analde);
 	mutex_unlock(&priv->obj_lock);
 
 	put_iova_spaces(obj, true);
@@ -1042,7 +1042,7 @@ static void msm_gem_free_object(struct drm_gem_object *obj)
 	if (obj->import_attach) {
 		GEM_WARN_ON(msm_obj->vaddr);
 
-		/* Don't drop the pages for imported dmabuf, as they are not
+		/* Don't drop the pages for imported dmabuf, as they are analt
 		 * ours, just free the array we allocated:
 		 */
 		kvfree(msm_obj->pages);
@@ -1090,7 +1090,7 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 
 	ret = drm_gem_handle_create(file, obj, handle);
 
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	drm_gem_object_put(obj);
 
 	return ret;
@@ -1151,12 +1151,12 @@ static int msm_gem_new_impl(struct drm_device *dev,
 
 	msm_obj = kzalloc(sizeof(*msm_obj), GFP_KERNEL);
 	if (!msm_obj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msm_obj->flags = flags;
 	msm_obj->madv = MSM_MADV_WILLNEED;
 
-	INIT_LIST_HEAD(&msm_obj->node);
+	INIT_LIST_HEAD(&msm_obj->analde);
 	INIT_LIST_HEAD(&msm_obj->vmas);
 
 	*obj = &msm_obj->base;
@@ -1177,7 +1177,7 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev, uint32_t size, uint32
 
 	if (!msm_use_mmu(dev))
 		use_vram = true;
-	else if ((flags & (MSM_BO_STOLEN | MSM_BO_SCANOUT)) && priv->vram.size)
+	else if ((flags & (MSM_BO_STOLEN | MSM_BO_SCAANALUT)) && priv->vram.size)
 		use_vram = true;
 
 	if (GEM_WARN_ON(use_vram && !priv->vram.size))
@@ -1210,7 +1210,7 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev, uint32_t size, uint32
 			goto fail;
 		}
 
-		to_msm_bo(obj)->vram_node = &vma->node;
+		to_msm_bo(obj)->vram_analde = &vma->analde;
 
 		msm_gem_lock(obj);
 		pages = get_pages(obj);
@@ -1228,7 +1228,7 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev, uint32_t size, uint32
 		/*
 		 * Our buffers are kept pinned, so allocating them from the
 		 * MOVABLE zone is a really bad idea, and conflicts with CMA.
-		 * See comments above new_inode() why this is required _and_
+		 * See comments above new_ianalde() why this is required _and_
 		 * expected if you're going to pin these pages.
 		 */
 		mapping_set_gfp_mask(obj->filp->f_mapping, GFP_HIGHUSER);
@@ -1237,7 +1237,7 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev, uint32_t size, uint32
 	drm_gem_lru_move_tail(&priv->lru.unbacked, obj);
 
 	mutex_lock(&priv->obj_lock);
-	list_add_tail(&msm_obj->node, &priv->objects);
+	list_add_tail(&msm_obj->analde, &priv->objects);
 	mutex_unlock(&priv->obj_lock);
 
 	ret = drm_gem_create_mmap_offset(obj);
@@ -1262,7 +1262,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 
 	/* if we don't have IOMMU, don't bother pretending we can import: */
 	if (!msm_use_mmu(dev)) {
-		DRM_DEV_ERROR(dev->dev, "cannot import without IOMMU\n");
+		DRM_DEV_ERROR(dev->dev, "cananalt import without IOMMU\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1282,7 +1282,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	msm_obj->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!msm_obj->pages) {
 		msm_gem_unlock(obj);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -1297,7 +1297,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	drm_gem_lru_move_tail(&priv->lru.pinned, obj);
 
 	mutex_lock(&priv->obj_lock);
-	list_add_tail(&msm_obj->node, &priv->objects);
+	list_add_tail(&msm_obj->analde, &priv->objects);
 	mutex_unlock(&priv->obj_lock);
 
 	ret = drm_gem_create_mmap_offset(obj);

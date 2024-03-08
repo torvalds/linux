@@ -81,7 +81,7 @@ static void unpoison_page(struct page *page)
 	kasan_disable_current();
 	/*
 	 * Page poisoning when enabled poisons each and every page
-	 * that is freed to buddy. Thus no extra check is done to
+	 * that is freed to buddy. Thus anal extra check is done to
 	 * see if a page was poisoned.
 	 */
 	check_poison_mem(page, kasan_reset_tag(addr), PAGE_SIZE);
@@ -100,6 +100,6 @@ void __kernel_unpoison_pages(struct page *page, int n)
 #ifndef CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC
 void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
-	/* This function does nothing, all work is done via poison pages */
+	/* This function does analthing, all work is done via poison pages */
 }
 #endif

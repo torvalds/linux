@@ -3,7 +3,7 @@
  * Texas Instruments System Control Interface Protocol
  *
  * Copyright (C) 2015-2016 Texas Instruments Incorporated - https://www.ti.com/
- *	Nishanth Menon
+ *	Nishanth Meanaln
  */
 
 #ifndef __TISCI_PROTOCOL_H
@@ -13,14 +13,14 @@
  * struct ti_sci_version_info - version information structure
  * @abi_major:	Major ABI version. Change here implies risk of backward
  *		compatibility break.
- * @abi_minor:	Minor ABI version. Change here implies new feature addition,
+ * @abi_mianalr:	Mianalr ABI version. Change here implies new feature addition,
  *		or compatible change in ABI.
- * @firmware_revision:	Firmware revision (not usually used).
- * @firmware_description: Firmware description (not usually used).
+ * @firmware_revision:	Firmware revision (analt usually used).
+ * @firmware_description: Firmware description (analt usually used).
  */
 struct ti_sci_version_info {
 	u8 abi_major;
-	u8 abi_minor;
+	u8 abi_mianalr;
 	u16 firmware_revision;
 	char firmware_description[32];
 };
@@ -86,13 +86,13 @@ struct ti_sci_core_ops {
  *		Returns 0 for successful request, else returns
  *		corresponding error message.
  *
- * NOTE: for all these functions, the following parameters are generic in
+ * ANALTE: for all these functions, the following parameters are generic in
  * nature:
  * -handle:	Pointer to TISCI handle as retrieved by *ti_sci_get_handle
  * -id:		Device Identifier
  *
- * Request for the device - NOTE: the client MUST maintain integrity of
- * usage count by balancing get_device with put_device. No refcounting is
+ * Request for the device - ANALTE: the client MUST maintain integrity of
+ * usage count by balancing get_device with put_device. Anal refcounting is
  * managed by driver for that purpose.
  */
 struct ti_sci_dev_ops {
@@ -148,7 +148,7 @@ struct ti_sci_dev_ops {
  * @get_freq:	Get the Clock frequency
  *		- current_freq: Frequency in Hz that the clock is at.
  *
- * NOTE: for all these functions, the following parameters are generic in
+ * ANALTE: for all these functions, the following parameters are generic in
  * nature:
  * -handle:	Pointer to TISCI handle as retrieved by *ti_sci_get_handle
  * -did:	Device identifier this request is for
@@ -156,16 +156,16 @@ struct ti_sci_dev_ops {
  *		Each device has it's own set of clock inputs. This indexes
  *		which clock input to modify.
  * -min_freq:	The minimum allowable frequency in Hz. This is the minimum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does analt account for clock
  *		tolerances and jitter.
  * -target_freq: The target clock frequency in Hz. A frequency will be
  *		processed as close to this target frequency as possible.
  * -max_freq:	The maximum allowable frequency in Hz. This is the maximum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does analt account for clock
  *		tolerances and jitter.
  *
- * Request for the clock - NOTE: the client MUST maintain integrity of
- * usage count by balancing get_clock with put_clock. No refcounting is
+ * Request for the clock - ANALTE: the client MUST maintain integrity of
+ * usage count by balancing get_clock with put_clock. Anal refcounting is
  * managed by driver for that purpose.
  */
 struct ti_sci_clk_ops {
@@ -219,7 +219,7 @@ struct ti_sci_resource_desc {
  *			- s_host: Host processing entity to which the
  *				  resources are allocated
  *
- * NOTE: for these functions, all the parameters are consolidated and defined
+ * ANALTE: for these functions, all the parameters are consolidated and defined
  * as below:
  * - handle:	Pointer to TISCI handle as retrieved by *ti_sci_get_handle
  * - dev_id:	TISCI device ID.
@@ -280,7 +280,7 @@ struct ti_sci_rm_irq_ops {
 /* RA config.asel parameter is valid for RM ring configure TISCI message */
 #define TI_SCI_MSG_VALUE_RM_RING_ASEL_VALID	BIT(7)
 
-#define TI_SCI_MSG_VALUE_RM_ALL_NO_ORDER \
+#define TI_SCI_MSG_VALUE_RM_ALL_ANAL_ORDER \
 	(TI_SCI_MSG_VALUE_RM_RING_ADDR_LO_VALID | \
 	TI_SCI_MSG_VALUE_RM_RING_ADDR_HI_VALID | \
 	TI_SCI_MSG_VALUE_RM_RING_COUNT_VALID | \
@@ -346,7 +346,7 @@ struct ti_sci_rm_psil_ops {
 #define TI_SCI_RM_UDMAP_CHAN_TYPE_3RDP_BCOPY_PBVR	13
 
 #define TI_SCI_RM_UDMAP_RX_FLOW_DESC_HOST		0
-#define TI_SCI_RM_UDMAP_RX_FLOW_DESC_MONO		2
+#define TI_SCI_RM_UDMAP_RX_FLOW_DESC_MOANAL		2
 
 #define TI_SCI_RM_UDMAP_CHAN_BURST_SIZE_64_BYTES	1
 #define TI_SCI_RM_UDMAP_CHAN_BURST_SIZE_128_BYTES	2
@@ -413,8 +413,8 @@ struct ti_sci_msg_rm_udmap_rx_ch_cfg {
 	u32 valid_params;
 #define TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_FLOWID_START_VALID      BIT(9)
 #define TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_FLOWID_CNT_VALID        BIT(10)
-#define TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_IGNORE_SHORT_VALID      BIT(11)
-#define TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_IGNORE_LONG_VALID       BIT(12)
+#define TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_IGANALRE_SHORT_VALID      BIT(11)
+#define TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_IGANALRE_LONG_VALID       BIT(12)
 	u16 nav_id;
 	u16 index;
 	u16 rx_fetch_size;
@@ -428,8 +428,8 @@ struct ti_sci_msg_rm_udmap_rx_ch_cfg {
 	u8 rx_pause_on_err;
 	u8 rx_atype;
 	u8 rx_chan_type;
-	u8 rx_ignore_short;
-	u8 rx_ignore_long;
+	u8 rx_iganalre_short;
+	u8 rx_iganalre_long;
 	u8 rx_burst_size;
 };
 
@@ -503,13 +503,13 @@ struct ti_sci_rm_udmap_ops {
  * @request:	Request to control a physical processor. The requesting host
  *		should be in the processor access list
  * @release:	Relinquish a physical processor control
- * @handover:	Handover a physical processor control to another host
+ * @handover:	Handover a physical processor control to aanalther host
  *		in the permitted list
  * @set_config:	Set base configuration of a processor
  * @set_control: Setup limited control flags in specific cases
  * @get_status: Get the state of physical processor
  *
- * NOTE: The following paramteres are generic in nature for all these ops,
+ * ANALTE: The following paramteres are generic in nature for all these ops,
  * -handle:	Pointer to TI SCI handle as retrieved by *ti_sci_get_handle
  * -pid:	Processor ID
  * -hid:	Host ID
@@ -576,7 +576,7 @@ struct ti_sci_resource {
 const struct ti_sci_handle *ti_sci_get_handle(struct device *dev);
 int ti_sci_put_handle(const struct ti_sci_handle *handle);
 const struct ti_sci_handle *devm_ti_sci_get_handle(struct device *dev);
-const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_node *np,
+const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_analde *np,
 						  const char *property);
 const struct ti_sci_handle *devm_ti_sci_get_by_phandle(struct device *dev,
 						       const char *property);
@@ -609,7 +609,7 @@ const struct ti_sci_handle *devm_ti_sci_get_handle(struct device *dev)
 }
 
 static inline
-const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_node *np,
+const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_analde *np,
 						  const char *property)
 {
 	return ERR_PTR(-EINVAL);

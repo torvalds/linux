@@ -3,14 +3,14 @@
  * Support for dynamic reconfiguration for PCI, Memory, and CPU
  * Hotplug and Dynamic Logical Partitioning on RPA platforms.
  *
- * Copyright (C) 2009 Nathan Fontenot
+ * Copyright (C) 2009 Nathan Fonteanalt
  * Copyright (C) 2009 IBM Corporation
  */
 
 #define pr_fmt(fmt)	"dlpar: " fmt
 
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>
@@ -74,9 +74,9 @@ static struct property *dlpar_parse_cc_property(struct cc_workarea *ccwa)
 	return prop;
 }
 
-static struct device_node *dlpar_parse_cc_node(struct cc_workarea *ccwa)
+static struct device_analde *dlpar_parse_cc_analde(struct cc_workarea *ccwa)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	const char *name;
 
 	dn = kzalloc(sizeof(*dn), GFP_KERNEL);
@@ -90,13 +90,13 @@ static struct device_node *dlpar_parse_cc_node(struct cc_workarea *ccwa)
 		return NULL;
 	}
 
-	of_node_set_flag(dn, OF_DYNAMIC);
-	of_node_init(dn);
+	of_analde_set_flag(dn, OF_DYNAMIC);
+	of_analde_init(dn);
 
 	return dn;
 }
 
-static void dlpar_free_one_cc_node(struct device_node *dn)
+static void dlpar_free_one_cc_analde(struct device_analde *dn)
 {
 	struct property *prop;
 
@@ -110,15 +110,15 @@ static void dlpar_free_one_cc_node(struct device_node *dn)
 	kfree(dn);
 }
 
-void dlpar_free_cc_nodes(struct device_node *dn)
+void dlpar_free_cc_analdes(struct device_analde *dn)
 {
 	if (dn->child)
-		dlpar_free_cc_nodes(dn->child);
+		dlpar_free_cc_analdes(dn->child);
 
 	if (dn->sibling)
-		dlpar_free_cc_nodes(dn->sibling);
+		dlpar_free_cc_analdes(dn->sibling);
 
-	dlpar_free_one_cc_node(dn);
+	dlpar_free_one_cc_analde(dn);
 }
 
 #define COMPLETE	0
@@ -129,12 +129,12 @@ void dlpar_free_cc_nodes(struct device_node *dn)
 #define MORE_MEMORY     5
 #define ERR_CFG_USE     -9003
 
-struct device_node *dlpar_configure_connector(__be32 drc_index,
-					      struct device_node *parent)
+struct device_analde *dlpar_configure_connector(__be32 drc_index,
+					      struct device_analde *parent)
 {
-	struct device_node *dn;
-	struct device_node *first_dn = NULL;
-	struct device_node *last_dn = NULL;
+	struct device_analde *dn;
+	struct device_analde *first_dn = NULL;
+	struct device_analde *last_dn = NULL;
 	struct property *property;
 	struct property *last_property = NULL;
 	struct cc_workarea *ccwa;
@@ -144,7 +144,7 @@ struct device_node *dlpar_configure_connector(__be32 drc_index,
 	int rc = -1;
 
 	cc_token = rtas_function_token(RTAS_FN_IBM_CONFIGURE_CONNECTOR);
-	if (cc_token == RTAS_UNKNOWN_SERVICE)
+	if (cc_token == RTAS_UNKANALWN_SERVICE)
 		return NULL;
 
 	work_area = rtas_work_area_alloc(SZ_4K);
@@ -165,7 +165,7 @@ struct device_node *dlpar_configure_connector(__be32 drc_index,
 			break;
 
 		case NEXT_SIBLING:
-			dn = dlpar_parse_cc_node(ccwa);
+			dn = dlpar_parse_cc_analde(ccwa);
 			if (!dn)
 				goto cc_error;
 
@@ -175,7 +175,7 @@ struct device_node *dlpar_configure_connector(__be32 drc_index,
 			break;
 
 		case NEXT_CHILD:
-			dn = dlpar_parse_cc_node(ccwa);
+			dn = dlpar_parse_cc_analde(ccwa);
 			if (!dn)
 				goto cc_error;
 
@@ -222,7 +222,7 @@ cc_error:
 
 	if (rc) {
 		if (first_dn)
-			dlpar_free_cc_nodes(first_dn);
+			dlpar_free_cc_analdes(first_dn);
 
 		return NULL;
 	}
@@ -230,37 +230,37 @@ cc_error:
 	return first_dn;
 }
 
-int dlpar_attach_node(struct device_node *dn, struct device_node *parent)
+int dlpar_attach_analde(struct device_analde *dn, struct device_analde *parent)
 {
 	int rc;
 
 	dn->parent = parent;
 
-	rc = of_attach_node(dn);
+	rc = of_attach_analde(dn);
 	if (rc) {
-		printk(KERN_ERR "Failed to add device node %pOF\n", dn);
+		printk(KERN_ERR "Failed to add device analde %pOF\n", dn);
 		return rc;
 	}
 
 	return 0;
 }
 
-int dlpar_detach_node(struct device_node *dn)
+int dlpar_detach_analde(struct device_analde *dn)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	int rc;
 
 	child = of_get_next_child(dn, NULL);
 	while (child) {
-		dlpar_detach_node(child);
+		dlpar_detach_analde(child);
 		child = of_get_next_child(dn, child);
 	}
 
-	rc = of_detach_node(dn);
+	rc = of_detach_analde(dn);
 	if (rc)
 		return rc;
 
-	of_node_put(dn);
+	of_analde_put(dn);
 
 	return 0;
 }
@@ -454,7 +454,7 @@ static int dlpar_parse_id_type(char **cmd, struct pseries_hp_errorlog *hp_elog)
 		hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_IC;
 		arg = strsep(cmd, " ");
 		if (!arg) {
-			pr_err("No DRC count specified.\n");
+			pr_err("Anal DRC count specified.\n");
 			return -EINVAL;
 		}
 
@@ -465,7 +465,7 @@ static int dlpar_parse_id_type(char **cmd, struct pseries_hp_errorlog *hp_elog)
 
 		arg = strsep(cmd, " ");
 		if (!arg) {
-			pr_err("No DRC Index specified.\n");
+			pr_err("Anal DRC Index specified.\n");
 			return -EINVAL;
 		}
 
@@ -480,7 +480,7 @@ static int dlpar_parse_id_type(char **cmd, struct pseries_hp_errorlog *hp_elog)
 		hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_INDEX;
 		arg = strsep(cmd, " ");
 		if (!arg) {
-			pr_err("No DRC Index specified.\n");
+			pr_err("Anal DRC Index specified.\n");
 			return -EINVAL;
 		}
 
@@ -494,7 +494,7 @@ static int dlpar_parse_id_type(char **cmd, struct pseries_hp_errorlog *hp_elog)
 		hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_COUNT;
 		arg = strsep(cmd, " ");
 		if (!arg) {
-			pr_err("No DRC count specified.\n");
+			pr_err("Anal DRC count specified.\n");
 			return -EINVAL;
 		}
 
@@ -522,7 +522,7 @@ static ssize_t dlpar_store(const struct class *class, const struct class_attribu
 
 	args = argbuf = kstrdup(buf, GFP_KERNEL);
 	if (!argbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Parse out the request from the user, this will be in the form:
@@ -546,7 +546,7 @@ dlpar_store_out:
 	kfree(argbuf);
 
 	if (rc)
-		pr_err("Could not handle DLPAR request \"%s\"\n", buf);
+		pr_err("Could analt handle DLPAR request \"%s\"\n", buf);
 
 	return rc ? rc : count;
 }
@@ -566,7 +566,7 @@ int __init dlpar_workqueue_init(void)
 
 	pseries_hp_wq = alloc_ordered_workqueue("pseries hotplug workqueue", 0);
 
-	return pseries_hp_wq ? 0 : -ENOMEM;
+	return pseries_hp_wq ? 0 : -EANALMEM;
 }
 
 static int __init dlpar_sysfs_init(void)

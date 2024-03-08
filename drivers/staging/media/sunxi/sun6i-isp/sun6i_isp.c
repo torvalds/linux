@@ -97,7 +97,7 @@ static int sun6i_isp_table_setup(struct sun6i_isp_device *isp_dev,
 	table->data = dma_alloc_coherent(isp_dev->dev, table->size,
 					 &table->address, GFP_KERNEL);
 	if (!table->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -177,7 +177,7 @@ static void sun6i_isp_tables_cleanup(struct sun6i_isp_device *isp_dev)
 /* Media */
 
 static const struct media_device_ops sun6i_isp_media_ops = {
-	.link_notify = v4l2_pipeline_link_notify,
+	.link_analtify = v4l2_pipeline_link_analtify,
 };
 
 /* V4L2 */
@@ -246,7 +246,7 @@ static irqreturn_t sun6i_isp_interrupt(int irq, void *private)
 	regmap_read(regmap, SUN6I_ISP_FE_INT_EN_REG, &enable);
 
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	else if (!(status & enable))
 		goto complete;
 
@@ -258,7 +258,7 @@ static irqreturn_t sun6i_isp_interrupt(int irq, void *private)
 	 * giving a params-load as well.
 	 *
 	 * Because both frame finish and params-load are received almost
-	 * at the same time (one ISR call), handle them in chronology order.
+	 * at the same time (one ISR call), handle them in chroanallogy order.
 	 */
 
 	if (status & SUN6I_ISP_FE_INT_STA_FINISH)
@@ -431,7 +431,7 @@ static int sun6i_isp_probe(struct platform_device *platform_dev)
 
 	isp_dev = devm_kzalloc(dev, sizeof(*isp_dev), GFP_KERNEL);
 	if (!isp_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	isp_dev->dev = dev;
 	platform_set_drvdata(platform_dev, isp_dev);

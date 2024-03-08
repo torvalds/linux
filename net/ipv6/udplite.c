@@ -38,7 +38,7 @@ static int udplitev6_err(struct sk_buff *skb,
 static const struct inet6_protocol udplitev6_protocol = {
 	.handler	=	udplitev6_rcv,
 	.err_handler	=	udplitev6_err,
-	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
+	.flags		=	INET6_PROTO_ANALPOLICY|INET6_PROTO_FINAL,
 };
 
 struct proto udplitev6_prot = {
@@ -114,7 +114,7 @@ static int __net_init udplite6_proc_init_net(struct net *net)
 	if (!proc_create_net_data("udplite6", 0444, net->proc_net,
 			&udp6_seq_ops, sizeof(struct udp_iter_state),
 			&udplite6_seq_afinfo))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

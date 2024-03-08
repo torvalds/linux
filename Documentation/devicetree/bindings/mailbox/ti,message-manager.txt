@@ -7,7 +7,7 @@ manager is broken up into queues in different address regions that are called
 "proxies" - each instance is unidirectional and is instantiated at SoC
 integration level to indicate receive or transmit path.
 
-Message Manager Device Node:
+Message Manager Device Analde:
 ===========================
 Required properties:
 --------------------

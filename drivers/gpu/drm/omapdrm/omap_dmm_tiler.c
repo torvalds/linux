@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
@@ -115,7 +115,7 @@ static u32 dmm_read_wa(struct dmm *dmm, u32 reg)
 
 	/*
 	 * As per i878 workaround, the DMA is used to access the DMM registers.
-	 * Make sure that the readl is not moved by the compiler or the CPU
+	 * Make sure that the readl is analt moved by the compiler or the CPU
 	 * earlier than the DMA finished writing the value to memory.
 	 */
 	rmb();
@@ -130,7 +130,7 @@ static void dmm_write_wa(struct dmm *dmm, u32 val, u32 reg)
 	writel(val, dmm->wa_dma_data);
 	/*
 	 * As per i878 workaround, the DMA is used to access the DMM registers.
-	 * Make sure that the writel is not moved by the compiler or the CPU, so
+	 * Make sure that the writel is analt moved by the compiler or the CPU, so
 	 * the data will be in place before we start the DMA to do the actual
 	 * register write.
 	 */
@@ -184,7 +184,7 @@ static int dmm_workaround_init(struct dmm *dmm)
 	dmm->wa_dma_data = dma_alloc_coherent(dmm->dev,  sizeof(u32),
 					      &dmm->wa_dma_handle, GFP_KERNEL);
 	if (!dmm->wa_dma_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_MEMCPY, mask);
@@ -192,7 +192,7 @@ static int dmm_workaround_init(struct dmm *dmm)
 	dmm->wa_dma_chan = dma_request_channel(mask, NULL, NULL);
 	if (!dmm->wa_dma_chan) {
 		dma_free_coherent(dmm->dev, 4, dmm->wa_dma_data, dmm->wa_dma_handle);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -264,7 +264,7 @@ static void release_engine(struct refill_engine *engine)
 	unsigned long flags;
 
 	spin_lock_irqsave(&list_lock, flags);
-	list_add(&engine->idle_node, &omap_dmm->idle_head);
+	list_add(&engine->idle_analde, &omap_dmm->idle_head);
 	spin_unlock_irqrestore(&list_lock, flags);
 
 	atomic_inc(&omap_dmm->engine_counter);
@@ -320,8 +320,8 @@ static struct dmm_txn *dmm_txn_init(struct dmm *dmm, struct tcm *tcm)
 	spin_lock_irqsave(&list_lock, flags);
 	if (!list_empty(&dmm->idle_head)) {
 		engine = list_entry(dmm->idle_head.next, struct refill_engine,
-					idle_node);
-		list_del(&engine->idle_node);
+					idle_analde);
+		list_del(&engine->idle_analde);
 	}
 	spin_unlock_irqrestore(&list_lock, flags);
 
@@ -405,9 +405,9 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 	wmb();
 
 	/*
-	 * NOTE: the wmb() above should be enough, but there seems to be a bug
+	 * ANALTE: the wmb() above should be eanalugh, but there seems to be a bug
 	 * in OMAP's memory barrier implementation, which in some rare cases may
-	 * cause the writes not to be observable after wmb().
+	 * cause the writes analt to be observable after wmb().
 	 */
 
 	/* read back to ensure the data is in RAM */
@@ -423,7 +423,7 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 		goto cleanup;
 	}
 
-	/* mark whether it is async to denote list management in IRQ handler */
+	/* mark whether it is async to deanalte list management in IRQ handler */
 	engine->async = wait ? false : true;
 	reinit_completion(&engine->compl);
 	/* verify that the irq handler sees the 'async' and completion value */
@@ -466,12 +466,12 @@ static int fill(struct tcm_area *area, struct page **pages,
 	/*
 	 * FIXME
 	 *
-	 * Asynchronous fill does not work reliably, as the driver does not
+	 * Asynchroanalus fill does analt work reliably, as the driver does analt
 	 * handle errors in the async code paths. The fill operation may
 	 * silently fail, leading to leaking DMM engines, which may eventually
 	 * lead to deadlock if we run out of DMM engines.
 	 *
-	 * For now, always set 'wait' so that we only use sync fills. Async
+	 * For analw, always set 'wait' so that we only use sync fills. Async
 	 * fills should be fixed, or alternatively we could decide to only
 	 * support sync fills and so the whole async code path could be removed.
 	 */
@@ -480,7 +480,7 @@ static int fill(struct tcm_area *area, struct page **pages,
 
 	txn = dmm_txn_init(omap_dmm, area->tcm);
 	if (IS_ERR_OR_NULL(txn))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tcm_for_each_slice(slice, *area, area_s) {
 		struct pat_area p_area = {
@@ -502,7 +502,7 @@ static int fill(struct tcm_area *area, struct page **pages,
  * Pin/unpin
  */
 
-/* note: slots for which pages[i] == NULL are filled w/ dummy page
+/* analte: slots for which pages[i] == NULL are filled w/ dummy page
  */
 int tiler_pin(struct tiler_block *block, struct page **pages,
 		u32 npages, u32 roll, bool wait)
@@ -536,7 +536,7 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, u16 w,
 
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
 	if (!block)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	BUG_ON(!validfmt(fmt));
 
@@ -556,12 +556,12 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, u16 w,
 			&block->area);
 	if (ret) {
 		kfree(block);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/* add to allocation list */
 	spin_lock_irqsave(&list_lock, flags);
-	list_add(&block->alloc_node, &omap_dmm->alloc_head);
+	list_add(&block->alloc_analde, &omap_dmm->alloc_head);
 	spin_unlock_irqrestore(&list_lock, flags);
 
 	return block;
@@ -574,24 +574,24 @@ struct tiler_block *tiler_reserve_1d(size_t size)
 	unsigned long flags;
 
 	if (!block)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	block->fmt = TILFMT_PAGE;
 
 	if (tcm_reserve_1d(containers[TILFMT_PAGE], num_pages,
 				&block->area)) {
 		kfree(block);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	spin_lock_irqsave(&list_lock, flags);
-	list_add(&block->alloc_node, &omap_dmm->alloc_head);
+	list_add(&block->alloc_analde, &omap_dmm->alloc_head);
 	spin_unlock_irqrestore(&list_lock, flags);
 
 	return block;
 }
 
-/* note: if you have pin'd pages, you should have already unpin'd first! */
+/* analte: if you have pin'd pages, you should have already unpin'd first! */
 int tiler_release(struct tiler_block *block)
 {
 	int ret = tcm_free(&block->area);
@@ -601,7 +601,7 @@ int tiler_release(struct tiler_block *block)
 		dev_err(omap_dmm->dev, "failed to release block\n");
 
 	spin_lock_irqsave(&list_lock, flags);
-	list_del(&block->alloc_node);
+	list_del(&block->alloc_analde);
 	spin_unlock_irqrestore(&list_lock, flags);
 
 	kfree(block);
@@ -737,8 +737,8 @@ static void omap_dmm_remove(struct platform_device *dev)
 		/* free all area regions */
 		spin_lock_irqsave(&list_lock, flags);
 		list_for_each_entry_safe(block, _block, &omap_dmm->alloc_head,
-					alloc_node) {
-			list_del(&block->alloc_node);
+					alloc_analde) {
+			list_del(&block->alloc_analde);
 			kfree(block);
 		}
 		spin_unlock_irqrestore(&list_lock, flags);
@@ -782,13 +782,13 @@ static int omap_dmm_probe(struct platform_device *dev)
 
 	init_waitqueue_head(&omap_dmm->engine_queue);
 
-	if (dev->dev.of_node) {
+	if (dev->dev.of_analde) {
 		const struct of_device_id *match;
 
-		match = of_match_node(dmm_of_match, dev->dev.of_node);
+		match = of_match_analde(dmm_of_match, dev->dev.of_analde);
 		if (!match) {
-			dev_err(&dev->dev, "failed to find matching device node\n");
-			ret = -ENODEV;
+			dev_err(&dev->dev, "failed to find matching device analde\n");
+			ret = -EANALDEV;
 			goto fail;
 		}
 
@@ -818,8 +818,8 @@ static int omap_dmm_probe(struct platform_device *dev)
 
 	if (of_machine_is_compatible("ti,dra7")) {
 		/*
-		 * DRA7 Errata i878 says that MPU should not be used to access
-		 * RAM and DMM at the same time. As it's not possible to prevent
+		 * DRA7 Errata i878 says that MPU should analt be used to access
+		 * RAM and DMM at the same time. As it's analt possible to prevent
 		 * MPU accessing RAM, we need to access DMM via a proxy.
 		 */
 		if (!dmm_workaround_init(omap_dmm)) {
@@ -860,8 +860,8 @@ static int omap_dmm_probe(struct platform_device *dev)
 
 	omap_dmm->dummy_page = alloc_page(GFP_KERNEL | __GFP_DMA32);
 	if (!omap_dmm->dummy_page) {
-		dev_err(&dev->dev, "could not allocate dummy page\n");
-		ret = -ENOMEM;
+		dev_err(&dev->dev, "could analt allocate dummy page\n");
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -877,8 +877,8 @@ static int omap_dmm_probe(struct platform_device *dev)
 					   REFILL_BUFFER_SIZE * omap_dmm->num_engines,
 					   &omap_dmm->refill_pa, GFP_KERNEL);
 	if (!omap_dmm->refill_va) {
-		dev_err(&dev->dev, "could not allocate refill memory\n");
-		ret = -ENOMEM;
+		dev_err(&dev->dev, "could analt allocate refill memory\n");
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -886,7 +886,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 	omap_dmm->engines = kcalloc(omap_dmm->num_engines,
 				    sizeof(*omap_dmm->engines), GFP_KERNEL);
 	if (!omap_dmm->engines) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -899,19 +899,19 @@ static int omap_dmm_probe(struct platform_device *dev)
 						(REFILL_BUFFER_SIZE * i);
 		init_completion(&omap_dmm->engines[i].compl);
 
-		list_add(&omap_dmm->engines[i].idle_node, &omap_dmm->idle_head);
+		list_add(&omap_dmm->engines[i].idle_analde, &omap_dmm->idle_head);
 	}
 
 	omap_dmm->tcm = kcalloc(omap_dmm->num_lut, sizeof(*omap_dmm->tcm),
 				GFP_KERNEL);
 	if (!omap_dmm->tcm) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
 	/* init containers */
 	/* Each LUT is associated with a TCM (container manager).  We use the
-	   lut_id to denote the lut_id used to identify the correct LUT for
+	   lut_id to deanalte the lut_id used to identify the correct LUT for
 	   programming during reill operations */
 	for (i = 0; i < omap_dmm->num_lut; i++) {
 		omap_dmm->tcm[i] = sita_init(omap_dmm->container_width,
@@ -919,7 +919,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 
 		if (!omap_dmm->tcm[i]) {
 			dev_err(&dev->dev, "failed to allocate container\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 
@@ -962,7 +962,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 
 	/* Enable all interrupts for each refill engine except
 	 * ERR_LUT_MISS<n> (which is just advisory, and we don't care
-	 * about because we want to be able to refill live scanout
+	 * about because we want to be able to refill live scaanalut
 	 * buffers for accelerated pan/scroll) and FILL_DSC<n> which
 	 * we just generally don't care about.
 	 */
@@ -990,8 +990,8 @@ fail:
 
 #ifdef CONFIG_DEBUG_FS
 
-static const char *alphabet = "abcdefghijklmnopqrstuvwxyz"
-				"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+static const char *alphabet = "abcdefghijklmanalpqrstuvwxyz"
+				"ABCDEFGHIJKLMANALPQRSTUVWXYZ0123456789";
 static const char *special = ".,:;'\"`~!^-+";
 
 static void fill_map(char **map, int xdiv, int ydiv, struct tcm_area *a,
@@ -1077,7 +1077,7 @@ int tiler_map_show(struct seq_file *s, void *arg)
 
 
 	if (!omap_dmm) {
-		/* early return if dmm/tiler device is not initialized */
+		/* early return if dmm/tiler device is analt initialized */
 		return 0;
 	}
 
@@ -1101,7 +1101,7 @@ int tiler_map_show(struct seq_file *s, void *arg)
 
 		spin_lock_irqsave(&list_lock, flags);
 
-		list_for_each_entry(block, &omap_dmm->alloc_head, alloc_node) {
+		list_for_each_entry(block, &omap_dmm->alloc_head, alloc_analde) {
 			if (block->area.tcm == omap_dmm->tcm[lut_idx]) {
 				if (block->fmt != TILFMT_PAGE) {
 					fill_map(map, xdiv, ydiv, &block->area,
@@ -1165,7 +1165,7 @@ static int omap_dmm_resume(struct device *dev)
 	int i;
 
 	if (!omap_dmm)
-		return -ENODEV;
+		return -EANALDEV;
 
 	area = (struct tcm_area) {
 		.tcm = NULL,

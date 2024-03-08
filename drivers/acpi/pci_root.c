@@ -27,7 +27,7 @@
 #define ACPI_PCI_ROOT_CLASS		"pci_bridge"
 #define ACPI_PCI_ROOT_DEVICE_NAME	"PCI Root Bridge"
 static int acpi_pci_root_add(struct acpi_device *device,
-			     const struct acpi_device_id *not_used);
+			     const struct acpi_device_id *analt_used);
 static void acpi_pci_root_remove(struct acpi_device *device);
 
 static int acpi_pci_root_scan_dependent(struct acpi_device *adev)
@@ -57,11 +57,11 @@ static struct acpi_scan_handler pci_root_handler = {
 };
 
 /**
- * acpi_is_root_bridge - determine whether an ACPI CA node is a PCI root bridge
- * @handle:  the ACPI CA node in question.
+ * acpi_is_root_bridge - determine whether an ACPI CA analde is a PCI root bridge
+ * @handle:  the ACPI CA analde in question.
  *
- * Note: we could make this API take a struct acpi_device * instead, but
- * for now, it's more convenient to operate on an acpi_handle.
+ * Analte: we could make this API take a struct acpi_device * instead, but
+ * for analw, it's more convenient to operate on an acpi_handle.
  */
 int acpi_is_root_bridge(acpi_handle handle)
 {
@@ -293,8 +293,8 @@ struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle)
 }
 EXPORT_SYMBOL_GPL(acpi_pci_find_root);
 
-struct acpi_handle_node {
-	struct list_head node;
+struct acpi_handle_analde {
+	struct list_head analde;
 	acpi_handle handle;
 };
 
@@ -308,20 +308,20 @@ struct acpi_handle_node {
  * If the device is found, its reference count is increased and this
  * function returns a pointer to its data structure.  The caller must
  * decrement the reference count by calling pci_dev_put().
- * If no device is found, %NULL is returned.
+ * If anal device is found, %NULL is returned.
  */
 struct pci_dev *acpi_get_pci_dev(acpi_handle handle)
 {
 	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
-	struct acpi_device_physical_node *pn;
+	struct acpi_device_physical_analde *pn;
 	struct pci_dev *pci_dev = NULL;
 
 	if (!adev)
 		return NULL;
 
-	mutex_lock(&adev->physical_node_lock);
+	mutex_lock(&adev->physical_analde_lock);
 
-	list_for_each_entry(pn, &adev->physical_node_list, node) {
+	list_for_each_entry(pn, &adev->physical_analde_list, analde) {
 		if (dev_is_pci(pn->dev)) {
 			get_device(pn->dev);
 			pci_dev = to_pci_dev(pn->dev);
@@ -329,7 +329,7 @@ struct pci_dev *acpi_get_pci_dev(acpi_handle handle)
 		}
 	}
 
-	mutex_unlock(&adev->physical_node_lock);
+	mutex_unlock(&adev->physical_analde_lock);
 
 	return pci_dev;
 }
@@ -348,7 +348,7 @@ EXPORT_SYMBOL_GPL(acpi_get_pci_dev);
  * returned mask, run _OSC request for it.
  *
  * The variable at the @mask address may be modified regardless of whether or
- * not the function returns success.  On success it will contain the mask of
+ * analt the function returns success.  On success it will contain the mask of
  * _OSC bits the BIOS has granted control of, but its contents are meaningless
  * on failure.
  **/
@@ -366,7 +366,7 @@ static acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask,
 
 	root = acpi_pci_find_root(handle);
 	if (!root)
-		return AE_NOT_EXIST;
+		return AE_ANALT_EXIST;
 
 	ctrl   = *mask;
 	*mask |= root->osc_control_set;
@@ -395,22 +395,22 @@ static acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask,
 			pci_missing = ctrl & ~(*mask);
 		}
 		if (pci_missing)
-			decode_osc_control(root, "platform does not support",
+			decode_osc_control(root, "platform does analt support",
 					   pci_missing);
 		if (cxl_missing)
-			decode_cxl_osc_control(root, "CXL platform does not support",
+			decode_cxl_osc_control(root, "CXL platform does analt support",
 					   cxl_missing);
 		ctrl = *mask;
 		cxl_ctrl = *cxl_mask;
 	} while (*mask || *cxl_mask);
 
-	/* No need to request _OSC if the control was already granted. */
+	/* Anal need to request _OSC if the control was already granted. */
 	if ((root->osc_control_set & ctrl) == ctrl &&
 	    (root->osc_ext_control_set & cxl_ctrl) == cxl_ctrl)
 		return AE_OK;
 
 	if ((ctrl & req) != req) {
-		decode_osc_control(root, "not requesting control; platform does not support",
+		decode_osc_control(root, "analt requesting control; platform does analt support",
 				   req & ~(ctrl));
 		return AE_SUPPORT;
 	}
@@ -459,29 +459,29 @@ static u32 calculate_support(void)
  * CONFIG_HOTPLUG_PCI_PCIE vs. also considering CONFIG_MEMORY_HOTPLUG:
  *
  * CONFIG_ACPI_HOTPLUG_MEMORY does depend on CONFIG_MEMORY_HOTPLUG, but
- * there is no existing _OSC for memory hotplug support. The reason is that
- * ACPI memory hotplug requires the OS to acknowledge / coordinate with
+ * there is anal existing _OSC for memory hotplug support. The reason is that
+ * ACPI memory hotplug requires the OS to ackanalwledge / coordinate with
  * memory plug events via a scan handler. On the CXL side the equivalent
  * would be if Linux supported the Mechanical Retention Lock [1], or
  * otherwise had some coordination for the driver of a PCI device
  * undergoing hotplug to be consulted on whether the hotplug should
- * proceed or not.
+ * proceed or analt.
  *
- * The concern is that if Linux says no to supporting CXL hotplug then
- * the BIOS may say no to giving the OS hotplug control of any other PCIe
- * device. So the question here is not whether hotplug is enabled, it's
+ * The concern is that if Linux says anal to supporting CXL hotplug then
+ * the BIOS may say anal to giving the OS hotplug control of any other PCIe
+ * device. So the question here is analt whether hotplug is enabled, it's
  * whether it is handled natively by the at all OS, and if
- * CONFIG_HOTPLUG_PCI_PCIE is enabled then the answer is "yes".
+ * CONFIG_HOTPLUG_PCI_PCIE is enabled then the answer is "anal".
  *
  * Otherwise, the plan for CXL coordinated remove, since the kernel does
- * not support blocking hotplug, is to require the memory device to be
+ * analt support blocking hotplug, is to require the memory device to be
  * disabled before hotplug is attempted. When CONFIG_MEMORY_HOTPLUG is
  * disabled that step will fail and the remove attempt cancelled by the
- * user. If that is not honored and the card is removed anyway then it
- * does not matter if CONFIG_MEMORY_HOTPLUG is enabled or not, it will
+ * user. If that is analt hoanalred and the card is removed anyway then it
+ * does analt matter if CONFIG_MEMORY_HOTPLUG is enabled or analt, it will
  * cause a crash and other badness.
  *
- * Therefore, just say yes to CXL hotplug and require removal to
+ * Therefore, just say anal to CXL hotplug and require removal to
  * be coordinated by userspace unless and until the kernel grows better
  * mechanisms for doing "managed" removal of devices in consultation with
  * the driver.
@@ -548,12 +548,12 @@ static bool os_control_query_checks(struct acpi_pci_root *root, u32 support)
 	struct acpi_device *device = root->device;
 
 	if (pcie_ports_disabled) {
-		dev_info(&device->dev, "PCIe port services disabled; not requesting _OSC control\n");
+		dev_info(&device->dev, "PCIe port services disabled; analt requesting _OSC control\n");
 		return false;
 	}
 
 	if ((support & ACPI_PCIE_REQ_SUPPORT) != ACPI_PCIE_REQ_SUPPORT) {
-		decode_osc_support(root, "not requesting OS control; OS requires",
+		decode_osc_support(root, "analt requesting OS control; OS requires",
 				   ACPI_PCIE_REQ_SUPPORT);
 		return false;
 	}
@@ -561,7 +561,7 @@ static bool os_control_query_checks(struct acpi_pci_root *root, u32 support)
 	return true;
 }
 
-static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm)
+static void negotiate_os_control(struct acpi_pci_root *root, int *anal_aspm)
 {
 	u32 support, control = 0, requested = 0;
 	u32 cxl_support = 0, cxl_control = 0, cxl_requested = 0;
@@ -571,7 +571,7 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm)
 
 	/*
 	 * Apple always return failure on _OSC calls when _OSI("Darwin") has
-	 * been called successfully. We know the feature set supported by the
+	 * been called successfully. We kanalw the feature set supported by the
 	 * platform, so avoid calling _OSC at all
 	 */
 	if (x86_apple_machine) {
@@ -598,19 +598,19 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm)
 					  &cxl_control, cxl_support);
 	if (ACPI_SUCCESS(status)) {
 		if (control)
-			decode_osc_control(root, "OS now controls", control);
+			decode_osc_control(root, "OS analw controls", control);
 		if (cxl_control)
-			decode_cxl_osc_control(root, "OS now controls",
+			decode_cxl_osc_control(root, "OS analw controls",
 					   cxl_control);
 
-		if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
+		if (acpi_gbl_FADT.boot_flags & ACPI_FADT_ANAL_ASPM) {
 			/*
 			 * We have ASPM control, but the FADT indicates that
 			 * it's unsupported. Leave existing configuration
 			 * intact and prevent the OS from touching it.
 			 */
 			dev_info(&device->dev, "FADT indicates ASPM is unsupported, using BIOS configuration\n");
-			*no_aspm = 1;
+			*anal_aspm = 1;
 		}
 	} else {
 		/*
@@ -620,10 +620,10 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm)
 		 * flag here, to defer the action until after the ACPI
 		 * root scan.
 		 */
-		*no_aspm = 1;
+		*anal_aspm = 1;
 
 		/* _OSC is optional for PCI host bridges */
-		if (status == AE_NOT_FOUND && !is_pcie(root))
+		if (status == AE_ANALT_FOUND && !is_pcie(root))
 			return;
 
 		if (control) {
@@ -642,31 +642,31 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm)
 }
 
 static int acpi_pci_root_add(struct acpi_device *device,
-			     const struct acpi_device_id *not_used)
+			     const struct acpi_device_id *analt_used)
 {
 	unsigned long long segment, bus;
 	acpi_status status;
 	int result;
 	struct acpi_pci_root *root;
 	acpi_handle handle = device->handle;
-	int no_aspm = 0;
+	int anal_aspm = 0;
 	bool hotadd = system_state == SYSTEM_RUNNING;
 	const char *acpi_hid;
 
 	root = kzalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
 	if (!root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	segment = 0;
 	status = acpi_evaluate_integer(handle, METHOD_NAME__SEG, NULL,
 				       &segment);
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+	if (ACPI_FAILURE(status) && status != AE_ANALT_FOUND) {
 		dev_err(&device->dev,  "can't evaluate _SEG\n");
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto end;
 	}
 
-	/* Check _CRS first, then _BBN.  If no _BBN, default to zero. */
+	/* Check _CRS first, then _BBN.  If anal _BBN, default to zero. */
 	root->secondary.flags = IORESOURCE_BUS;
 	status = try_get_root_bridge_busnr(handle, &root->secondary);
 	if (ACPI_FAILURE(status)) {
@@ -678,16 +678,16 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		 */
 		root->secondary.end = 0xFF;
 		dev_warn(&device->dev,
-			 FW_BUG "no secondary bus range in _CRS\n");
+			 FW_BUG "anal secondary bus range in _CRS\n");
 		status = acpi_evaluate_integer(handle, METHOD_NAME__BBN,
 					       NULL, &bus);
 		if (ACPI_SUCCESS(status))
 			root->secondary.start = bus;
-		else if (status == AE_NOT_FOUND)
+		else if (status == AE_ANALT_FOUND)
 			root->secondary.start = 0;
 		else {
 			dev_err(&device->dev, "can't evaluate _BBN\n");
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto end;
 		}
 	}
@@ -715,9 +715,9 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	else if (strcmp(acpi_hid, "ACPI0016") == 0)
 		root->bridge_type = ACPI_BRIDGE_TYPE_CXL;
 	else
-		dev_dbg(&device->dev, "Assuming non-PCIe host bridge\n");
+		dev_dbg(&device->dev, "Assuming analn-PCIe host bridge\n");
 
-	negotiate_os_control(root, &no_aspm);
+	negotiate_os_control(root, &anal_aspm);
 
 	/*
 	 * TBD: Need PCI interface for enumeration/configuration of roots.
@@ -727,23 +727,23 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	 * Scan the Root Bridge
 	 * --------------------
 	 * Must do this prior to any attempt to bind the root device, as the
-	 * PCI namespace does not get created until this call is made (and
-	 * thus the root bridge's pci_dev does not exist).
+	 * PCI namespace does analt get created until this call is made (and
+	 * thus the root bridge's pci_dev does analt exist).
 	 */
 	root->bus = pci_acpi_scan_root(root);
 	if (!root->bus) {
 		dev_err(&device->dev,
-			"Bus %04x:%02x not present in PCI namespace\n",
+			"Bus %04x:%02x analt present in PCI namespace\n",
 			root->segment, (unsigned int)root->secondary.start);
 		device->driver_data = NULL;
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto remove_dmar;
 	}
 
-	if (no_aspm)
-		pcie_no_aspm();
+	if (anal_aspm)
+		pcie_anal_aspm();
 
-	pci_acpi_add_bus_pm_notifier(device);
+	pci_acpi_add_bus_pm_analtifier(device);
 	device_set_wakeup_capable(root->bus->bridge, device->wakeup.flags.valid);
 
 	if (hotadd) {
@@ -785,7 +785,7 @@ static void acpi_pci_root_remove(struct acpi_device *device)
 
 	pci_ioapic_remove(root);
 	device_set_wakeup_capable(root->bus->bridge, false);
-	pci_acpi_remove_bus_pm_notifier(device);
+	pci_acpi_remove_bus_pm_analtifier(device);
 
 	pci_remove_root_bus(root->bus);
 	WARN_ON(acpi_ioapic_remove(root));
@@ -822,15 +822,15 @@ static void acpi_pci_root_validate_resources(struct device *dev,
 		if (!(res1->flags & type))
 			goto next;
 
-		/* Exclude non-addressable range or non-addressable portion */
+		/* Exclude analn-addressable range or analn-addressable portion */
 		end = min(res1->end, root->end);
 		if (end <= res1->start) {
-			dev_info(dev, "host bridge window %pR (ignored, not CPU addressable)\n",
+			dev_info(dev, "host bridge window %pR (iganalred, analt CPU addressable)\n",
 				 res1);
 			free = true;
 			goto next;
 		} else if (res1->end != end) {
-			dev_info(dev, "host bridge window %pR ([%#llx-%#llx] ignored, not CPU addressable)\n",
+			dev_info(dev, "host bridge window %pR ([%#llx-%#llx] iganalred, analt CPU addressable)\n",
 				 res1, (unsigned long long)end + 1,
 				 (unsigned long long)res1->end);
 			res1->end = end;
@@ -843,11 +843,11 @@ static void acpi_pci_root_validate_resources(struct device *dev,
 
 			/*
 			 * I don't like throwing away windows because then
-			 * our resources no longer match the ACPI _CRS, but
+			 * our resources anal longer match the ACPI _CRS, but
 			 * the kernel resource tree doesn't allow overlaps.
 			 */
 			if (resource_union(res1, res2, res2)) {
-				dev_info(dev, "host bridge window expanded to %pR; %pR ignored\n",
+				dev_info(dev, "host bridge window expanded to %pR; %pR iganalred\n",
 					 res2, res1);
 				free = true;
 				goto next;
@@ -863,7 +863,7 @@ next:
 	}
 }
 
-static void acpi_pci_root_remap_iospace(struct fwnode_handle *fwnode,
+static void acpi_pci_root_remap_iospace(struct fwanalde_handle *fwanalde,
 			struct resource_entry *entry)
 {
 #ifdef PCI_IOBASE
@@ -873,7 +873,7 @@ static void acpi_pci_root_remap_iospace(struct fwnode_handle *fwnode,
 	resource_size_t length = resource_size(res);
 	unsigned long port;
 
-	if (pci_register_io_range(fwnode, cpu_addr, length))
+	if (pci_register_io_range(fwanalde, cpu_addr, length))
 		goto err;
 
 	port = pci_address_to_pio(cpu_addr);
@@ -911,11 +911,11 @@ int acpi_pci_probe_root_resources(struct acpi_pci_root_info *info)
 			 "failed to parse _CRS method, error code %d\n", ret);
 	else if (ret == 0)
 		dev_dbg(&device->dev,
-			"no IO and memory resources present in _CRS\n");
+			"anal IO and memory resources present in _CRS\n");
 	else {
 		resource_list_for_each_entry_safe(entry, tmp, list) {
 			if (entry->res->flags & IORESOURCE_IO)
-				acpi_pci_root_remap_iospace(&device->fwnode,
+				acpi_pci_root_remap_iospace(&device->fwanalde,
 						entry);
 
 			if (entry->res->flags & IORESOURCE_DISABLED)
@@ -956,7 +956,7 @@ static void pci_acpi_root_add_resources(struct acpi_pci_root_info *info)
 		conflict = insert_resource_conflict(root, res);
 		if (conflict) {
 			dev_info(&info->bridge->dev,
-				 "ignoring host bridge window %pR (conflicts with %s %pR)\n",
+				 "iganalring host bridge window %pR (conflicts with %s %pR)\n",
 				 res, conflict->name, conflict);
 			resource_list_destroy_entry(entry);
 		}
@@ -1005,7 +1005,7 @@ struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 {
 	int ret, busnum = root->secondary.start;
 	struct acpi_device *device = root->device;
-	int node = acpi_get_node(device->handle);
+	int analde = acpi_get_analde(device->handle);
 	struct pci_bus *bus;
 	struct pci_host_bridge *host_bridge;
 	union acpi_object *obj;
@@ -1066,8 +1066,8 @@ struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 	pci_scan_child_bus(bus);
 	pci_set_host_bridge_release(host_bridge, acpi_pci_root_release_info,
 				    info);
-	if (node != NUMA_NO_NODE)
-		dev_printk(KERN_DEBUG, &bus->dev, "on NUMA node %d\n", node);
+	if (analde != NUMA_ANAL_ANALDE)
+		dev_printk(KERN_DEBUG, &bus->dev, "on NUMA analde %d\n", analde);
 	return bus;
 
 out_release_info:

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2020 Mellanox Technologies. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies. */
 
 #ifndef __ML5_ESW_CHAINS_H__
 #define __ML5_ESW_CHAINS_H__
@@ -11,7 +11,7 @@ struct mlx5_mapped_obj;
 
 enum mlx5_chains_flags {
 	MLX5_CHAINS_AND_PRIOS_SUPPORTED = BIT(0),
-	MLX5_CHAINS_IGNORE_FLOW_LEVEL_SUPPORTED = BIT(1),
+	MLX5_CHAINS_IGANALRE_FLOW_LEVEL_SUPPORTED = BIT(1),
 	MLX5_CHAINS_FT_TUNNEL_SUPPORTED = BIT(2),
 };
 
@@ -29,7 +29,7 @@ struct mlx5_chains_attr {
 
 bool
 mlx5_chains_prios_supported(struct mlx5_fs_chains *chains);
-bool mlx5_chains_ignore_flow_level_supported(struct mlx5_fs_chains *chains);
+bool mlx5_chains_iganalre_flow_level_supported(struct mlx5_fs_chains *chains);
 bool
 mlx5_chains_backwards_supported(struct mlx5_fs_chains *chains);
 u32
@@ -75,18 +75,18 @@ mlx5_chains_print_info(struct mlx5_fs_chains *chains);
 #else /* CONFIG_MLX5_CLS_ACT */
 
 static inline bool
-mlx5_chains_ignore_flow_level_supported(struct mlx5_fs_chains *chains)
+mlx5_chains_iganalre_flow_level_supported(struct mlx5_fs_chains *chains)
 { return false; }
 
 static inline struct mlx5_flow_table *
 mlx5_chains_get_table(struct mlx5_fs_chains *chains, u32 chain, u32 prio,
-		      u32 level) { return ERR_PTR(-EOPNOTSUPP); }
+		      u32 level) { return ERR_PTR(-EOPANALTSUPP); }
 static inline void
 mlx5_chains_put_table(struct mlx5_fs_chains *chains, u32 chain, u32 prio,
 		      u32 level) {};
 
 static inline struct mlx5_flow_table *
-mlx5_chains_get_tc_end_ft(struct mlx5_fs_chains *chains) { return ERR_PTR(-EOPNOTSUPP); }
+mlx5_chains_get_tc_end_ft(struct mlx5_fs_chains *chains) { return ERR_PTR(-EOPANALTSUPP); }
 
 static inline struct mlx5_fs_chains *
 mlx5_chains_create(struct mlx5_core_dev *dev, struct mlx5_chains_attr *attr)

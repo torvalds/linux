@@ -309,7 +309,7 @@ static const struct regmap_config rt711_sdw_regmap = {
 	.val_bits = 8,
 	.readable_reg = rt711_readable_register,
 	.max_register = 0xff01,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -357,7 +357,7 @@ static int rt711_read_prop(struct sdw_slave *slave)
 						sizeof(*prop->src_dpn_prop),
 						GFP_KERNEL);
 	if (!prop->src_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	dpn = prop->src_dpn_prop;
@@ -370,13 +370,13 @@ static int rt711_read_prop(struct sdw_slave *slave)
 		i++;
 	}
 
-	/* do this again for sink now */
+	/* do this again for sink analw */
 	nval = hweight32(prop->sink_ports);
 	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
 						sizeof(*prop->sink_dpn_prop),
 						GFP_KERNEL);
 	if (!prop->sink_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	j = 0;
 	dpn = prop->sink_dpn_prop;
@@ -512,13 +512,13 @@ static int __maybe_unused rt711_dev_system_suspend(struct device *dev)
 	 */
 	mutex_lock(&rt711->disable_irq_lock);
 	rt711->disable_irq = true;
-	ret = sdw_update_no_pm(slave, SDW_SCP_INTMASK1,
+	ret = sdw_update_anal_pm(slave, SDW_SCP_INTMASK1,
 			       SDW_SCP_INT1_IMPL_DEF, 0);
 	mutex_unlock(&rt711->disable_irq_lock);
 
 	if (ret < 0) {
 		/* log but don't prevent suspend from happening */
-		dev_dbg(&slave->dev, "%s: could not disable imp-def interrupts\n:", __func__);
+		dev_dbg(&slave->dev, "%s: could analt disable imp-def interrupts\n:", __func__);
 	}
 
 	return rt711_dev_suspend(dev);
@@ -538,7 +538,7 @@ static int __maybe_unused rt711_dev_resume(struct device *dev)
 	if (!slave->unattach_request) {
 		if (rt711->disable_irq == true) {
 			mutex_lock(&rt711->disable_irq_lock);
-			sdw_write_no_pm(slave, SDW_SCP_INTMASK1, SDW_SCP_INT1_IMPL_DEF);
+			sdw_write_anal_pm(slave, SDW_SCP_INTMASK1, SDW_SCP_INT1_IMPL_DEF);
 			rt711->disable_irq = false;
 			mutex_unlock(&rt711->disable_irq_lock);
 		}
@@ -548,7 +548,7 @@ static int __maybe_unused rt711_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT711_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "Initialization analt complete, timed out\n");
 		return -ETIMEDOUT;
 	}
 

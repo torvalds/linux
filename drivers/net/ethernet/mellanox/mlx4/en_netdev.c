@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -99,7 +99,7 @@ int mlx4_en_alloc_tx_queue_per_tc(struct net_device *dev, u8 tc)
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&mdev->state_lock);
 	memcpy(&new_prof, priv->prof, sizeof(struct mlx4_en_port_profile));
@@ -146,7 +146,7 @@ static int __mlx4_en_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	struct tc_mqprio_qopt *mqprio = type_data;
 
 	if (type != TC_SETUP_QDISC_MQPRIO)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (mqprio->num_tc && mqprio->num_tc != MLX4_EN_NUM_UP_HIGH)
 		return -EINVAL;
@@ -176,7 +176,7 @@ struct mlx4_en_filter {
 	u8 activated;			/* Used to prevent expiry before filter
 					 * is attached
 					 */
-	struct hlist_node filter_chain;
+	struct hlist_analde filter_chain;
 };
 
 static void mlx4_en_filter_rfs_expire(struct mlx4_en_priv *priv);
@@ -193,7 +193,7 @@ static enum mlx4_net_trans_rule_id mlx4_ip_proto_to_trans_rule_id(u8 ip_proto)
 	}
 };
 
-/* Must not acquire state_lock, as its corresponding work_sync
+/* Must analt acquire state_lock, as its corresponding work_sync
  * is done under it.
  */
 static void mlx4_en_filter_work(struct work_struct *work)
@@ -240,9 +240,9 @@ static void mlx4_en_filter_work(struct work_struct *work)
 	__be64 mac_mask = cpu_to_be64(MLX4_MAC_MASK << 16);
 
 	if (spec_tcp_udp.id >= MLX4_NET_TRANS_RULE_NUM) {
-		en_warn(priv, "RFS: ignoring unsupported ip protocol (%d)\n",
+		en_warn(priv, "RFS: iganalring unsupported ip protocol (%d)\n",
 			filter->ip_proto);
-		goto ignore;
+		goto iganalre;
 	}
 	list_add_tail(&spec_eth.list, &rule.list);
 	list_add_tail(&spec_ip.list, &rule.list);
@@ -256,7 +256,7 @@ static void mlx4_en_filter_work(struct work_struct *work)
 
 	if (filter->reg_id) {
 		rc = mlx4_flow_detach(priv->mdev->dev, filter->reg_id);
-		if (rc && rc != -ENOENT)
+		if (rc && rc != -EANALENT)
 			en_err(priv, "Error detaching flow. rc = %d\n", rc);
 	}
 
@@ -264,7 +264,7 @@ static void mlx4_en_filter_work(struct work_struct *work)
 	if (rc)
 		en_err(priv, "Error attaching flow. err = %d\n", rc);
 
-ignore:
+iganalre:
 	mlx4_en_filter_rfs_expire(priv);
 
 	filter->activated = 1;
@@ -309,7 +309,7 @@ mlx4_en_filter_alloc(struct mlx4_en_priv *priv, int rxq_index, __be32 src_ip,
 
 	filter->flow_id = flow_id;
 
-	filter->id = priv->last_filter_id++ % RPS_NO_FILTER;
+	filter->id = priv->last_filter_id++ % RPS_ANAL_FILTER;
 
 	list_add_tail(&filter->next, &priv->filters);
 	hlist_add_head(&filter->filter_chain,
@@ -327,7 +327,7 @@ static void mlx4_en_filter_free(struct mlx4_en_filter *filter)
 	list_del(&filter->next);
 
 	rc = mlx4_flow_detach(priv->mdev->dev, filter->reg_id);
-	if (rc && rc != -ENOENT)
+	if (rc && rc != -EANALENT)
 		en_err(priv, "Error detaching flow. rc = %d\n", rc);
 
 	kfree(filter);
@@ -374,17 +374,17 @@ mlx4_en_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 	int ret = 0;
 
 	if (skb->encapsulation)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (skb->protocol != htons(ETH_P_IP))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	ip = (const struct iphdr *)(skb->data + nhoff);
 	if (ip_is_fragment(ip))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if ((ip->protocol != IPPROTO_TCP) && (ip->protocol != IPPROTO_UDP))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	ports = (const __be16 *)(skb->data + nhoff + 4 * ip->ihl);
 
 	ip_proto = ip->protocol;
@@ -406,7 +406,7 @@ mlx4_en_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 					      src_ip, dst_ip, ip_proto,
 					      src_port, dst_port, flow_id);
 		if (!filter) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 	}
@@ -545,7 +545,7 @@ static int mlx4_en_tunnel_steer_add(struct mlx4_en_priv *priv,
 
 	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN ||
 	    priv->mdev->dev->caps.dmfs_high_steer_mode == MLX4_STEERING_DMFS_A0_STATIC)
-		return 0; /* do nothing */
+		return 0; /* do analthing */
 
 	err = mlx4_tunnel_steer_add(priv->mdev->dev, addr, priv->port, qpn,
 				    MLX4_DOMAIN_NIC, reg_id);
@@ -708,7 +708,7 @@ static int mlx4_en_replace_mac(struct mlx4_en_priv *priv, int qpn,
 		struct hlist_head *bucket;
 		unsigned int mac_hash;
 		struct mlx4_mac_entry *entry;
-		struct hlist_node *tmp;
+		struct hlist_analde *tmp;
 		u64 prev_mac_u64 = ether_addr_to_u64(prev_mac);
 
 		bucket = &priv->mac_hash[prev_mac[MLX4_EN_MAC_HASH_IDX]];
@@ -790,7 +790,7 @@ static int mlx4_en_set_mac(struct net_device *dev, void *addr)
 	int err;
 
 	if (!is_valid_ether_addr(saddr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	mutex_lock(&mdev->state_lock);
 	memcpy(new_mac, saddr->sa_data, ETH_ALEN);
@@ -843,7 +843,7 @@ static void update_mclist_flags(struct mlx4_en_priv *priv,
 	bool found;
 
 	/* Find all the entries that should be removed from dst,
-	 * These are the entries that are not found in src
+	 * These are the entries that are analt found in src
 	 */
 	list_for_each_entry(dst_tmp, dst, list) {
 		found = false;
@@ -857,14 +857,14 @@ static void update_mclist_flags(struct mlx4_en_priv *priv,
 			dst_tmp->action = MCLIST_REM;
 	}
 
-	/* Add entries that exist in src but not in dst
+	/* Add entries that exist in src but analt in dst
 	 * mark them as need to add
 	 */
 	list_for_each_entry(src_tmp, src, list) {
 		found = false;
 		list_for_each_entry(dst_tmp, dst, list) {
 			if (ether_addr_equal(dst_tmp->addr, src_tmp->addr)) {
-				dst_tmp->action = MCLIST_NONE;
+				dst_tmp->action = MCLIST_ANALNE;
 				found = true;
 				break;
 			}
@@ -1138,7 +1138,7 @@ static void mlx4_en_do_uc_filter(struct mlx4_en_priv *priv,
 {
 	struct netdev_hw_addr *ha;
 	struct mlx4_mac_entry *entry;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	bool found;
 	u64 mac;
 	int err = 0;
@@ -1147,7 +1147,7 @@ static void mlx4_en_do_uc_filter(struct mlx4_en_priv *priv,
 	int removed = 0;
 	u32 prev_flags;
 
-	/* Note that we do not need to protect our mac_hash traversal with rcu,
+	/* Analte that we do analt need to protect our mac_hash traversal with rcu,
 	 * since all modification code is protected by mdev->state_lock
 	 */
 
@@ -1164,7 +1164,7 @@ static void mlx4_en_do_uc_filter(struct mlx4_en_priv *priv,
 				}
 			}
 
-			/* MAC address of the port is not in uc list */
+			/* MAC address of the port is analt in uc list */
 			if (ether_addr_equal_64bits(entry->mac,
 						    priv->current_mac))
 				found = true;
@@ -1185,7 +1185,7 @@ static void mlx4_en_do_uc_filter(struct mlx4_en_priv *priv,
 		}
 	}
 
-	/* if we didn't remove anything, there is no use in trying to add
+	/* if we didn't remove anything, there is anal use in trying to add
 	 * again once we are in a forced promisc mode state
 	 */
 	if ((priv->flags & MLX4_EN_FLAG_FORCE_PROMISC) && 0 == removed)
@@ -1262,11 +1262,11 @@ static void mlx4_en_do_set_rx_mode(struct work_struct *work)
 
 	mutex_lock(&mdev->state_lock);
 	if (!mdev->device_up) {
-		en_dbg(HW, priv, "Card is not up, ignoring rx mode change.\n");
+		en_dbg(HW, priv, "Card is analt up, iganalring rx mode change.\n");
 		goto out;
 	}
 	if (!priv->port_up) {
-		en_dbg(HW, priv, "Port is down, ignoring rx mode change.\n");
+		en_dbg(HW, priv, "Port is down, iganalring rx mode change.\n");
 		goto out;
 	}
 
@@ -1289,7 +1289,7 @@ static void mlx4_en_do_set_rx_mode(struct work_struct *work)
 		goto out;
 	}
 
-	/* Not in promiscuous mode */
+	/* Analt in promiscuous mode */
 	if (priv->flags & MLX4_EN_FLAG_PROMISC)
 		mlx4_en_clear_promisc_mode(priv, mdev);
 
@@ -1316,7 +1316,7 @@ static int mlx4_en_set_rss_steer_rules(struct mlx4_en_priv *priv)
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto alloc_err;
 	}
 
@@ -1343,7 +1343,7 @@ static void mlx4_en_delete_rss_steer_rules(struct mlx4_en_priv *priv)
 	unsigned int i;
 	int qpn = priv->base_qpn;
 	struct hlist_head *bucket;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct mlx4_mac_entry *entry;
 
 	for (i = 0; i < MLX4_EN_MAC_HASH_SIZE; ++i) {
@@ -1524,7 +1524,7 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 		if (priv->port_up) {
 			err = mlx4_en_DUMP_ETH_STATS(mdev, priv->port, 0);
 			if (err)
-				en_dbg(HW, priv, "Could not update stats\n");
+				en_dbg(HW, priv, "Could analt update stats\n");
 
 			mlx4_en_auto_moderation(priv);
 		}
@@ -1596,12 +1596,12 @@ static void mlx4_en_linkstate_work(struct work_struct *work)
 static int mlx4_en_init_affinity_hint(struct mlx4_en_priv *priv, int ring_idx)
 {
 	struct mlx4_en_rx_ring *ring = priv->rx_ring[ring_idx];
-	int numa_node = priv->mdev->dev->numa_node;
+	int numa_analde = priv->mdev->dev->numa_analde;
 
 	if (!zalloc_cpumask_var(&ring->affinity_mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	cpumask_set_cpu(cpumask_local_spread(ring_idx, numa_node),
+	cpumask_set_cpu(cpumask_local_spread(ring_idx, numa_analde),
 			ring->affinity_mask);
 	return 0;
 }
@@ -1910,7 +1910,7 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 
 	spin_lock_bh(&priv->stats_lock);
 	mlx4_en_fold_software_stats(dev);
-	/* Set port as not active */
+	/* Set port as analt active */
 	priv->port_up = false;
 	spin_unlock_bh(&priv->stats_lock);
 
@@ -2069,7 +2069,7 @@ static void mlx4_en_clear_stats(struct net_device *dev)
 		priv->rx_ring[i]->bytes = 0;
 		priv->rx_ring[i]->packets = 0;
 		priv->rx_ring[i]->csum_ok = 0;
-		priv->rx_ring[i]->csum_none = 0;
+		priv->rx_ring[i]->csum_analne = 0;
 		priv->rx_ring[i]->csum_complete = 0;
 	}
 }
@@ -2083,7 +2083,7 @@ static int mlx4_en_open(struct net_device *dev)
 	mutex_lock(&mdev->state_lock);
 
 	if (!mdev->device_up) {
-		en_err(priv, "Cannot open - device down/disabled\n");
+		en_err(priv, "Cananalt open - device down/disabled\n");
 		err = -EBUSY;
 		goto out;
 	}
@@ -2153,33 +2153,33 @@ static int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 {
 	struct mlx4_en_port_profile *prof = priv->prof;
 	int i, t;
-	int node;
+	int analde;
 
 	/* Create tx Rings */
 	for (t = 0; t < MLX4_EN_NUM_TX_TYPES; t++) {
 		for (i = 0; i < priv->tx_ring_num[t]; i++) {
-			node = cpu_to_node(i % num_online_cpus());
+			analde = cpu_to_analde(i % num_online_cpus());
 			if (mlx4_en_create_cq(priv, &priv->tx_cq[t][i],
-					      prof->tx_ring_size, i, t, node))
+					      prof->tx_ring_size, i, t, analde))
 				goto err;
 
 			if (mlx4_en_create_tx_ring(priv, &priv->tx_ring[t][i],
 						   prof->tx_ring_size,
-						   TXBB_SIZE, node, i))
+						   TXBB_SIZE, analde, i))
 				goto err;
 		}
 	}
 
 	/* Create rx Rings */
 	for (i = 0; i < priv->rx_ring_num; i++) {
-		node = cpu_to_node(i % num_online_cpus());
+		analde = cpu_to_analde(i % num_online_cpus());
 		if (mlx4_en_create_cq(priv, &priv->rx_cq[i],
-				      prof->rx_ring_size, i, RX, node))
+				      prof->rx_ring_size, i, RX, analde))
 			goto err;
 
 		if (mlx4_en_create_rx_ring(priv, &priv->rx_ring[i],
 					   prof->rx_ring_size, priv->stride,
-					   node, i))
+					   analde, i))
 			goto err;
 
 	}
@@ -2209,7 +2209,7 @@ err:
 				mlx4_en_destroy_cq(priv, &priv->tx_cq[t][i]);
 		}
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 
@@ -2258,7 +2258,7 @@ err_free_tx:
 		kfree(dst->tx_ring[t]);
 		kfree(dst->tx_cq[t]);
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void mlx4_en_update_priv(struct mlx4_en_priv *dst,
@@ -2304,7 +2304,7 @@ int mlx4_en_try_alloc_resources(struct mlx4_en_priv *priv,
 			kfree(tmp->tx_ring[t]);
 			kfree(tmp->tx_cq[t]);
 		}
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* All rx_rings has the same xdp_prog.  Pick the first one. */
@@ -2351,7 +2351,7 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
 		mlx4_en_remove_timestamp(mdev);
 
-	/* Detach the netdev so tasks would not attempt to access it */
+	/* Detach the netdev so tasks would analt attempt to access it */
 	mutex_lock(&mdev->state_lock);
 	mdev->pndev[priv->port] = NULL;
 	mdev->upper[priv->port] = NULL;
@@ -2390,7 +2390,7 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 
 	if (priv->tx_ring_num[TX_XDP] &&
 	    !mlx4_en_check_xdp_mtu(dev, new_mtu))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dev->mtu = new_mtu;
 
@@ -2440,7 +2440,7 @@ static int mlx4_en_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 
 	/* RX HW timestamp */
 	switch (config.rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_SOME:
@@ -2465,7 +2465,7 @@ static int mlx4_en_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 
 	if (mlx4_en_reset_config(dev, config, dev->features)) {
 		config.tx_type = HWTSTAMP_TX_OFF;
-		config.rx_filter = HWTSTAMP_FILTER_NONE;
+		config.rx_filter = HWTSTAMP_FILTER_ANALNE;
 	}
 
 	return copy_to_user(ifr->ifr_data, &config,
@@ -2488,7 +2488,7 @@ static int mlx4_en_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGHWTSTAMP:
 		return mlx4_en_hwtstamp_get(dev, ifr);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -2498,7 +2498,7 @@ static netdev_features_t mlx4_en_fix_features(struct net_device *netdev,
 	struct mlx4_en_priv *en_priv = netdev_priv(netdev);
 	struct mlx4_en_dev *mdev = en_priv->mdev;
 
-	/* Since there is no support for separate RX C-TAG/S-TAG vlan accel
+	/* Since there is anal support for separate RX C-TAG/S-TAG vlan accel
 	 * enable/disable make sure S-TAG flag is always in same state as
 	 * C-TAG.
 	 */
@@ -2525,12 +2525,12 @@ static int mlx4_en_set_features(struct net_device *netdev,
 	}
 
 	if (DEV_FEATURE_CHANGED(netdev, features, NETIF_F_RXALL)) {
-		u8 ignore_fcs_value = (features & NETIF_F_RXALL) ? 1 : 0;
+		u8 iganalre_fcs_value = (features & NETIF_F_RXALL) ? 1 : 0;
 
 		en_info(priv, "Turn %s RX-ALL\n",
-			ignore_fcs_value ? "ON" : "OFF");
+			iganalre_fcs_value ? "ON" : "OFF");
 		ret = mlx4_SET_PORT_fcs_check(priv->mdev->dev,
-					      priv->port, ignore_fcs_value);
+					      priv->port, iganalre_fcs_value);
 		if (ret)
 			return ret;
 	}
@@ -2636,7 +2636,7 @@ static int mlx4_en_get_phys_port_id(struct net_device *dev,
 	u64 phys_port_id = mdev->caps.phys_port_id[priv->port];
 
 	if (!phys_port_id)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ppid->id_len = sizeof(phys_port_id);
 	for (i = PORT_ID_BYTE_LEN - 1; i >= 0; --i) {
@@ -2705,9 +2705,9 @@ static int mlx4_en_set_tx_maxrate(struct net_device *dev, int queue_index, u32 m
 	int err;
 
 	if (!(priv->mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_QP_RATE_LIMIT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* rate provided to us in Mbs, check if it fits into 12 bits, if not use Gbs */
+	/* rate provided to us in Mbs, check if it fits into 12 bits, if analt use Gbs */
 	if (maxrate >> 12) {
 		params.rate_unit = MLX4_QP_RATE_LIMIT_GBS;
 		params.rate_val  = maxrate / 1000;
@@ -2739,7 +2739,7 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 
 	xdp_ring_num = prog ? priv->rx_ring_num : 0;
 
-	/* No need to reconfigure buffers when simply swapping the
+	/* Anal need to reconfigure buffers when simply swapping the
 	 * program for a new one.
 	 */
 	if (priv->tx_ring_num[TX_XDP] == xdp_ring_num) {
@@ -2760,11 +2760,11 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 	}
 
 	if (!mlx4_en_check_xdp_mtu(dev, dev->mtu))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (prog)
 		bpf_prog_add(prog, priv->rx_ring_num - 1);
@@ -2777,7 +2777,7 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 		tx_changed = 1;
 		new_prof.tx_ring_num[TX] =
 			MAX_TX_RINGS - ALIGN(xdp_ring_num, priv->prof->num_up);
-		en_warn(priv, "Reducing the number of TX rings, to not exceed the max total rings number.\n");
+		en_warn(priv, "Reducing the number of TX rings, to analt exceed the max total rings number.\n");
 	}
 
 	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof, false);
@@ -2894,10 +2894,10 @@ static const struct xdp_metadata_ops mlx4_xdp_metadata_ops = {
 	.xmo_rx_hash			= mlx4_en_xdp_rx_hash,
 };
 
-int mlx4_en_netdev_event(struct notifier_block *this,
+int mlx4_en_netdev_event(struct analtifier_block *this,
 			 unsigned long event, void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = netdev_analtifier_info_to_dev(ptr);
 	u8 port = 0;
 	struct mlx4_en_dev *mdev;
 	struct mlx4_dev *dev;
@@ -2907,7 +2907,7 @@ int mlx4_en_netdev_event(struct notifier_block *this,
 	u8 v2p_port2 = 0;
 
 	if (!net_eq(dev_net(ndev), &init_net))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	mdev = container_of(this, struct mlx4_en_dev, netdev_nb);
 	dev = mdev->dev;
@@ -2921,26 +2921,26 @@ int mlx4_en_netdev_event(struct notifier_block *this,
 			port = i;
 		mdev->upper[i] = mdev->pndev[i] ?
 			netdev_master_upper_dev_get(mdev->pndev[i]) : NULL;
-		/* condition not met: network device is a slave */
+		/* condition analt met: network device is a slave */
 		if (!mdev->upper[i])
 			do_bond = false;
 		if (num_eth_ports < 2)
 			continue;
-		/* condition not met: same master */
+		/* condition analt met: same master */
 		if (mdev->upper[i] != mdev->upper[i-1])
 			do_bond = false;
 	}
-	/* condition not met: 2 salves */
+	/* condition analt met: 2 salves */
 	do_bond = (num_eth_ports ==  2) ? do_bond : false;
 
-	/* handle only events that come with enough info */
+	/* handle only events that come with eanalugh info */
 	if ((do_bond && (event != NETDEV_BONDING_INFO)) || !port)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (do_bond) {
-		struct netdev_notifier_bonding_info *notifier_info = ptr;
+		struct netdev_analtifier_bonding_info *analtifier_info = ptr;
 		struct netdev_bonding_info *bonding_info =
-			&notifier_info->bonding_info;
+			&analtifier_info->bonding_info;
 
 		/* required mode 1, 2 or 4 */
 		if ((bonding_info->master.bond_mode != BOND_MODE_ACTIVEBACKUP) &&
@@ -3005,7 +3005,7 @@ int mlx4_en_netdev_event(struct notifier_block *this,
 
 	mlx4_queue_bond_work(dev, do_bond, v2p_port1, v2p_port2);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 void mlx4_en_update_pfc_stats_bitmap(struct mlx4_dev *dev,
@@ -3108,7 +3108,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev = alloc_etherdev_mqs(sizeof(struct mlx4_en_priv),
 				 MAX_TX_RINGS, MAX_RX_RINGS);
 	if (dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	netif_set_real_num_tx_queues(dev, prof->tx_ring_num[TX]);
 	netif_set_real_num_rx_queues(dev, prof->rx_ring_num);
@@ -3157,14 +3157,14 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 					   sizeof(struct mlx4_en_tx_ring *),
 					   GFP_KERNEL);
 		if (!priv->tx_ring[t]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		priv->tx_cq[t] = kcalloc(MAX_TX_RINGS,
 					 sizeof(struct mlx4_en_cq *),
 					 GFP_KERNEL);
 		if (!priv->tx_cq[t]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 	}
@@ -3206,8 +3206,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->max_mtu = mdev->dev->caps.eth_mtu_cap[priv->port];
 
 	if (mdev->dev->caps.rx_checksum_flags_port[priv->port] &
-	    MLX4_RX_CSUM_MODE_VAL_NON_TCP_UDP)
-		priv->flags |= MLX4_EN_FLAG_RX_CSUM_NON_TCP_UDP;
+	    MLX4_RX_CSUM_MODE_VAL_ANALN_TCP_UDP)
+		priv->flags |= MLX4_EN_FLAG_RX_CSUM_ANALN_TCP_UDP;
 
 	/* Set default MAC */
 	dev->addr_len = ETH_ALEN;
@@ -3237,7 +3237,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	/* Initialize time stamping config */
 	priv->hwtstamp_config.flags = 0;
 	priv->hwtstamp_config.tx_type = HWTSTAMP_TX_OFF;
-	priv->hwtstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+	priv->hwtstamp_config.rx_filter = HWTSTAMP_FILTER_ANALNE;
 
 	/* Allocate page for receive rings */
 	err = mlx4_alloc_hwq_res(mdev->dev, &priv->res,
@@ -3334,7 +3334,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	if (mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_FCS_KEEP)
 		dev->hw_features |= NETIF_F_RXFCS;
 
-	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_IGNORE_FCS)
+	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_IGANALRE_FCS)
 		dev->hw_features |= NETIF_F_RXALL;
 
 	if (mdev->dev->caps.steering_mode ==
@@ -3352,7 +3352,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 		priv->rss_hash_fn = ETH_RSS_HASH_XOR;
 	} else {
 		en_warn(priv,
-			"No RSS hash capabilities exposed, using Toeplitz\n");
+			"Anal RSS hash capabilities exposed, using Toeplitz\n");
 		priv->rss_hash_fn = ETH_RSS_HASH_TOP;
 	}
 
@@ -3451,18 +3451,18 @@ int mlx4_en_reset_config(struct net_device *dev,
 	    priv->hwtstamp_config.rx_filter == ts_config.rx_filter &&
 	    !DEV_FEATURE_CHANGED(dev, features, NETIF_F_HW_VLAN_CTAG_RX) &&
 	    !DEV_FEATURE_CHANGED(dev, features, NETIF_F_RXFCS))
-		return 0; /* Nothing to change */
+		return 0; /* Analthing to change */
 
 	if (DEV_FEATURE_CHANGED(dev, features, NETIF_F_HW_VLAN_CTAG_RX) &&
 	    (features & NETIF_F_HW_VLAN_CTAG_RX) &&
-	    (priv->hwtstamp_config.rx_filter != HWTSTAMP_FILTER_NONE)) {
+	    (priv->hwtstamp_config.rx_filter != HWTSTAMP_FILTER_ANALNE)) {
 		en_warn(priv, "Can't turn ON rx vlan offload while time-stamping rx filter is ON\n");
 		return -EINVAL;
 	}
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&mdev->state_lock);
 
@@ -3485,7 +3485,7 @@ int mlx4_en_reset_config(struct net_device *dev,
 			dev->features |= NETIF_F_HW_VLAN_CTAG_RX;
 		else
 			dev->features &= ~NETIF_F_HW_VLAN_CTAG_RX;
-	} else if (ts_config.rx_filter == HWTSTAMP_FILTER_NONE) {
+	} else if (ts_config.rx_filter == HWTSTAMP_FILTER_ANALNE) {
 		/* RX time-stamping is OFF, update the RX vlan offload
 		 * to the latest wanted state
 		 */
@@ -3506,7 +3506,7 @@ int mlx4_en_reset_config(struct net_device *dev,
 	 * Regardless of the caller's choice,
 	 * Turn Off RX vlan offload in case of time-stamping is ON
 	 */
-	if (ts_config.rx_filter != HWTSTAMP_FILTER_NONE) {
+	if (ts_config.rx_filter != HWTSTAMP_FILTER_ANALNE) {
 		if (dev->features & NETIF_F_HW_VLAN_CTAG_RX)
 			en_warn(priv, "Turning off RX vlan offload since RX time-stamping is ON\n");
 		dev->features &= ~NETIF_F_HW_VLAN_CTAG_RX;

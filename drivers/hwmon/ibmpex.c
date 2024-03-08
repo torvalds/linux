@@ -84,7 +84,7 @@ struct ibmpex_bmc_data {
 	int			rx_recv_type;
 
 	unsigned char		sensor_major;
-	unsigned char		sensor_minor;
+	unsigned char		sensor_mianalr;
 
 	unsigned char		num_sensors;
 	struct ibmpex_sensor_data	*sensors;
@@ -140,15 +140,15 @@ static int ibmpex_ver_check(struct ibmpex_bmc_data *data)
 	wait_for_completion(&data->read_complete);
 
 	if (data->rx_result || data->rx_msg_len != 6)
-		return -ENOENT;
+		return -EANALENT;
 
 	data->sensor_major = data->rx_msg_data[0];
-	data->sensor_minor = data->rx_msg_data[1];
+	data->sensor_mianalr = data->rx_msg_data[1];
 
 	dev_info(data->bmc_device,
 		 "Found BMC with sensor interface v%d.%d %d-%02d-%02d on interface %d\n",
 		 data->sensor_major,
-		 data->sensor_minor,
+		 data->sensor_mianalr,
 		 extract_value(data->rx_msg_data, 2),
 		 data->rx_msg_data[4],
 		 data->rx_msg_data[5],
@@ -166,7 +166,7 @@ static int ibmpex_query_sensor_count(struct ibmpex_bmc_data *data)
 	wait_for_completion(&data->read_complete);
 
 	if (data->rx_result || data->rx_msg_len != 1)
-		return -ENOENT;
+		return -EANALENT;
 
 	return data->rx_msg_data[0];
 }
@@ -181,7 +181,7 @@ static int ibmpex_query_sensor_name(struct ibmpex_bmc_data *data, int sensor)
 	wait_for_completion(&data->read_complete);
 
 	if (data->rx_result || data->rx_msg_len < 1)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -198,7 +198,7 @@ static int ibmpex_query_sensor_data(struct ibmpex_bmc_data *data, int sensor)
 	if (data->rx_result || data->rx_msg_len < 26) {
 		dev_err(data->bmc_device, "Error reading sensor %d.\n",
 			sensor);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return 0;
@@ -332,7 +332,7 @@ static int create_sensor(struct ibmpex_bmc_data *data, int type,
 
 	n = kmalloc(32, GFP_KERNEL);
 	if (!n)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (type == TEMP_SENSOR)
 		sprintf(n, "temp%d_input%s",
@@ -369,13 +369,13 @@ static int ibmpex_find_sensors(struct ibmpex_bmc_data *data)
 
 	err = ibmpex_query_sensor_count(data);
 	if (err <= 0)
-		return -ENOENT;
+		return -EANALENT;
 	data->num_sensors = err;
 
 	data->sensors = kcalloc(data->num_sensors, sizeof(*data->sensors),
 				GFP_KERNEL);
 	if (!data->sensors)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < data->num_sensors; i++) {
 		err = ibmpex_query_sensor_name(data, i);
@@ -492,7 +492,7 @@ static void ibmpex_register_bmc(int iface, struct device *dev)
 	dev_set_drvdata(dev, data);
 	list_add_tail(&data->list, &driver_data.bmc_data);
 
-	/* Now go find all the sensors */
+	/* Analw go find all the sensors */
 	err = ibmpex_find_sensors(data);
 	if (err) {
 		dev_err(data->bmc_device, "Error %d finding sensors\n", err);
@@ -561,7 +561,7 @@ static void ibmpex_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 	if (msg->msg.data_len > 0)
 		data->rx_result = msg->msg.data[0];
 	else
-		data->rx_result = IPMI_UNKNOWN_ERR_COMPLETION_CODE;
+		data->rx_result = IPMI_UNKANALWN_ERR_COMPLETION_CODE;
 
 	if (msg->msg.data_len > 1) {
 		data->rx_msg_len = msg->msg.data_len - 1;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2013-2020, Mellanox Technologies inc. All rights reserved.
+ * Copyright (c) 2013-2020, Mellaanalx Techanallogies inc. All rights reserved.
  */
 
 #include "mlx5_ib.h"
@@ -68,7 +68,7 @@ static const struct mlx5_ib_counter vport_retrans_q_cnts[] = {
 		MLX5_BYTE_OFF(query_cong_statistics_out, _name ## _high)}
 
 static const struct mlx5_ib_counter cong_cnts[] = {
-	INIT_CONG_COUNTER(rp_cnp_ignored),
+	INIT_CONG_COUNTER(rp_cnp_iganalred),
 	INIT_CONG_COUNTER(rp_cnp_handled),
 	INIT_CONG_COUNTER(np_ecn_marked_roce_packets),
 	INIT_CONG_COUNTER(np_cnp_sent),
@@ -154,7 +154,7 @@ static int mlx5_ib_read_counters(struct ib_counters *counters,
 	mread_attr.out = kcalloc(mcounters->counters_num, sizeof(u64),
 				 GFP_KERNEL);
 	if (!mread_attr.out) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_bound;
 	}
 
@@ -221,7 +221,7 @@ static const struct mlx5_ib_counters *get_counters(struct mlx5_ib_dev *dev,
  * @port_num:	Zero based port number
  *
  * mlx5_ib_get_counters_id() Returns counters set id to use for given
- * device port combination in switchdev and non switchdev mode of the
+ * device port combination in switchdev and analn switchdev mode of the
  * parent device.
  */
 u16 mlx5_ib_get_counters_id(struct mlx5_ib_dev *dev, u32 port_num)
@@ -282,7 +282,7 @@ static int mlx5_ib_query_q_counters(struct mlx5_core_dev *mdev,
 
 	MLX5_SET(query_q_counter_in, in, opcode, MLX5_CMD_OP_QUERY_Q_COUNTER);
 	MLX5_SET(query_q_counter_in, in, counter_set_id, set_id);
-	ret = mlx5_cmd_exec_inout(mdev, query_q_counter, in, out);
+	ret = mlx5_cmd_exec_ianalut(mdev, query_q_counter, in, out);
 	if (ret)
 		return ret;
 
@@ -306,7 +306,7 @@ static int mlx5_ib_query_ext_ppcnt_counters(struct mlx5_ib_dev *dev,
 
 	out = kvzalloc(sz, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(ppcnt_reg, in, local_port, 1);
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_ETHERNET_EXTENDED_COUNTERS_GROUP);
@@ -342,14 +342,14 @@ static int mlx5_ib_query_q_counters_vport(struct mlx5_ib_dev *dev,
 
 	mdev = mlx5_eswitch_get_core_dev(dev->port[port_num].rep->esw);
 	if (!mdev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	MLX5_SET(query_q_counter_in, in, opcode, MLX5_CMD_OP_QUERY_Q_COUNTER);
 	MLX5_SET(query_q_counter_in, in, other_vport, 1);
 	MLX5_SET(query_q_counter_in, in, vport_number,
 		 dev->port[port_num].rep->vport);
 	MLX5_SET(query_q_counter_in, in, aggregate, 1);
-	ret = mlx5_cmd_exec_inout(mdev, query_q_counter, in, out);
+	ret = mlx5_cmd_exec_ianalut(mdev, query_q_counter, in, out);
 	if (ret)
 		return ret;
 
@@ -401,9 +401,9 @@ static int do_get_hw_stats(struct ib_device *ibdev,
 			port_num = 1;
 		mdev = mlx5_ib_get_native_port_mdev(dev, port_num, NULL);
 		if (!mdev) {
-			/* If port is not affiliated yet, its in down state
+			/* If port is analt affiliated yet, its in down state
 			 * which doesn't have any counters yet, so it would be
-			 * zero. So no need to read from the HCA.
+			 * zero. So anal need to read from the HCA.
 			 */
 			goto done;
 		}
@@ -551,7 +551,7 @@ static int mlx5_ib_counter_bind_qp(struct rdma_counter *counter,
 		MLX5_SET(alloc_q_counter_in, in, opcode,
 			 MLX5_CMD_OP_ALLOC_Q_COUNTER);
 		MLX5_SET(alloc_q_counter_in, in, uid, MLX5_SHARED_RESOURCE_UID);
-		err = mlx5_cmd_exec_inout(dev->mdev, alloc_q_counter, in, out);
+		err = mlx5_cmd_exec_ianalut(dev->mdev, alloc_q_counter, in, out);
 		if (err)
 			return err;
 		counter->id =
@@ -710,7 +710,7 @@ static int __mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev,
 	cnts->num_q_counters = num_counters;
 
 	if (is_vport)
-		goto skip_non_qcounters;
+		goto skip_analn_qcounters;
 
 	if (MLX5_CAP_GEN(dev->mdev, cc_query_allowed)) {
 		cnts->num_cong_counters = ARRAY_SIZE(cong_cnts);
@@ -731,13 +731,13 @@ static int __mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev,
 			       ft_field_support_2_nic_transmit_rdma.bth_opcode))
 		num_op_counters += ARRAY_SIZE(rdmatx_cnp_op_cnts);
 
-skip_non_qcounters:
+skip_analn_qcounters:
 	cnts->num_op_counters = num_op_counters;
 	num_counters += num_op_counters;
 	cnts->descs = kcalloc(num_counters,
 			      sizeof(struct rdma_stat_desc), GFP_KERNEL);
 	if (!cnts->descs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cnts->offsets = kcalloc(num_counters,
 				sizeof(*cnts->offsets), GFP_KERNEL);
@@ -749,7 +749,7 @@ skip_non_qcounters:
 err:
 	kfree(cnts->descs);
 	cnts->descs = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void mlx5_ib_dealloc_counters(struct mlx5_ib_dev *dev)
@@ -819,7 +819,7 @@ static int mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev)
 		MLX5_SET(alloc_q_counter_in, in, uid,
 			 is_shared ? MLX5_SHARED_RESOURCE_UID : 0);
 
-		err = mlx5_cmd_exec_inout(dev->mdev, alloc_q_counter, in, out);
+		err = mlx5_cmd_exec_ianalut(dev->mdev, alloc_q_counter, in, out);
 		if (err) {
 			mlx5_ib_warn(dev,
 				     "couldn't allocate queue counter for port %d, err %d\n",
@@ -902,7 +902,7 @@ int mlx5_ib_flow_counters_set_data(struct ib_counters *ibcounters,
 				    sizeof(*desc_data),
 				    GFP_KERNEL);
 		if (!desc_data)
-			return  -ENOMEM;
+			return  -EANALMEM;
 
 		if (copy_from_user(desc_data,
 				   u64_to_user_ptr(cntrs_data->counters_data),
@@ -937,7 +937,7 @@ int mlx5_ib_flow_counters_set_data(struct ib_counters *ibcounters,
 			goto free_hndl;
 
 	} else if (!mcounters->cntrs_max_index) {
-		/* counters not bound yet, must have udata passed */
+		/* counters analt bound yet, must have udata passed */
 		ret = -EINVAL;
 		goto free_hndl;
 	}

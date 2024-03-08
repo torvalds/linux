@@ -56,10 +56,10 @@ static int mxl111sf_tuner_program_regs(struct mxl111sf_tuner_state *state,
 }
 
 static int mxl1x1sf_tuner_top_master_ctrl(struct mxl111sf_tuner_state *state,
-					  int onoff)
+					  int oanalff)
 {
 	return (state->cfg->top_master_ctrl) ?
-		state->cfg->top_master_ctrl(state->mxl_state, onoff) :
+		state->cfg->top_master_ctrl(state->mxl_state, oanalff) :
 		-EINVAL;
 }
 
@@ -250,10 +250,10 @@ fail:
 
 #if 0
 static int mxl1x1sf_tuner_loop_thru_ctrl(struct mxl111sf_tuner_state *state,
-					 int onoff)
+					 int oanalff)
 {
 	return mxl111sf_tuner_write_reg(state, V6_TUNER_LOOP_THRU_CTRL_REG,
-					onoff ? 1 : 0);
+					oanalff ? 1 : 0);
 }
 #endif
 
@@ -289,12 +289,12 @@ static int mxl111sf_tuner_set_params(struct dvb_frontend *fe)
 			bw = 8;
 			break;
 		default:
-			pr_err("%s: bandwidth not set!", __func__);
+			pr_err("%s: bandwidth analt set!", __func__);
 			return -EINVAL;
 		}
 		break;
 	default:
-		pr_err("%s: modulation type not supported!", __func__);
+		pr_err("%s: modulation type analt supported!", __func__);
 		return -EINVAL;
 	}
 	ret = mxl1x1sf_tune_rf(fe, c->frequency, bw);

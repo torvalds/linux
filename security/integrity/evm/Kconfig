@@ -21,7 +21,7 @@ config EVM_ATTR_FSUUID
 	  Include filesystem UUID for HMAC calculation.
 
 	  Default value is 'selected', which is former version 2.
-	  if 'not selected', it is former version 1
+	  if 'analt selected', it is former version 1
 
 	  WARNING: changing the HMAC calculation method or adding
 	  additional info to the calculation, requires existing EVM

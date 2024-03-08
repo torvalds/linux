@@ -547,9 +547,9 @@
 /* MAIR_ELx memory attributes (used by Linux) */
 #define MAIR_ATTR_DEVICE_nGnRnE		UL(0x00)
 #define MAIR_ATTR_DEVICE_nGnRE		UL(0x04)
-#define MAIR_ATTR_NORMAL_NC		UL(0x44)
-#define MAIR_ATTR_NORMAL_TAGGED		UL(0xf0)
-#define MAIR_ATTR_NORMAL		UL(0xff)
+#define MAIR_ATTR_ANALRMAL_NC		UL(0x44)
+#define MAIR_ATTR_ANALRMAL_TAGGED		UL(0xf0)
+#define MAIR_ATTR_ANALRMAL		UL(0xff)
 #define MAIR_ATTR_MASK			UL(0xff)
 
 /* Position the attr at the correct index */
@@ -570,7 +570,7 @@
 #define ARM64_MIN_PARANGE_BITS		32
 
 #define ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_DEFAULT	0x0
-#define ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_NONE		0x1
+#define ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_ANALNE		0x1
 #define ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_MIN		0x2
 #define ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_MAX		0x7
 
@@ -701,7 +701,7 @@
  * Permission Indirection Extension (PIE) permission encodings.
  * Encodings with the _O suffix, have overlays applied (Permission Overlay Extension).
  */
-#define PIE_NONE_O	0x0
+#define PIE_ANALNE_O	0x0
 #define PIE_R_O		0x1
 #define PIE_X_O		0x2
 #define PIE_RX_O	0x3
@@ -718,7 +718,7 @@
 
 #define ARM64_FEATURE_FIELD_BITS	4
 
-/* Defined for compatibility only, do not add new users. */
+/* Defined for compatibility only, do analt add new users. */
 #define ARM64_FEATURE_MASK(x)	(x##_MASK)
 
 #ifdef __ASSEMBLY__
@@ -777,7 +777,7 @@
 })
 
 /*
- * The "Z" constraint normally means a zero immediate, but when combined with
+ * The "Z" constraint analrmally means a zero immediate, but when combined with
  * the "%x0" template means XZR.
  */
 #define write_sysreg(v, r) do {					\
@@ -821,9 +821,9 @@
 
 #define read_sysreg_par() ({						\
 	u64 par;							\
-	asm(ALTERNATIVE("nop", "dmb sy", ARM64_WORKAROUND_1508412));	\
+	asm(ALTERNATIVE("analp", "dmb sy", ARM64_WORKAROUND_1508412));	\
 	par = read_sysreg(par_el1);					\
-	asm(ALTERNATIVE("nop", "dmb sy", ARM64_WORKAROUND_1508412));	\
+	asm(ALTERNATIVE("analp", "dmb sy", ARM64_WORKAROUND_1508412));	\
 	par;								\
 })
 

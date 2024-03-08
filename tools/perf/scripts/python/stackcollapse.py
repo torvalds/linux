@@ -43,15 +43,15 @@ option_list = [
     make_option("--include-pid", dest="include_pid",
                  action="store_true", default=False,
                  help="include process id in stack"),
-    make_option("--no-comm", dest="include_comm",
+    make_option("--anal-comm", dest="include_comm",
                  action="store_false", default=True,
-                 help="do not separate stacks according to comm"),
+                 help="do analt separate stacks according to comm"),
     make_option("--tidy-java", dest="tidy_java",
                  action="store_true", default=False,
                  help="beautify Java signatures"),
-    make_option("--kernel", dest="annotate_kernel",
+    make_option("--kernel", dest="ananaltate_kernel",
                  action="store_true", default=False,
-                 help="annotate kernel functions with _[k]")
+                 help="ananaltate kernel functions with _[k]")
 ]
 
 parser = OptionParser(option_list=option_list)
@@ -59,10 +59,10 @@ parser = OptionParser(option_list=option_list)
 
 if len(args) != 0:
     parser.error("unexpected command line argument")
-if opts.include_tid and not opts.include_comm:
-    parser.error("requesting tid but not comm is invalid")
-if opts.include_pid and not opts.include_comm:
-    parser.error("requesting pid but not comm is invalid")
+if opts.include_tid and analt opts.include_comm:
+    parser.error("requesting tid but analt comm is invalid")
+if opts.include_pid and analt opts.include_comm:
+    parser.error("requesting pid but analt comm is invalid")
 
 # event handlers
 
@@ -70,8 +70,8 @@ lines = defaultdict(lambda: 0)
 
 def process_event(param_dict):
     def tidy_function_name(sym, dso):
-        if sym is None:
-            sym = '[unknown]'
+        if sym is Analne:
+            sym = '[unkanalwn]'
 
         sym = sym.replace(';', ':')
         if opts.tidy_java:
@@ -89,7 +89,7 @@ def process_event(param_dict):
             except ValueError:
                 pass
 
-        if opts.annotate_kernel and dso == '[kernel.kallsyms]':
+        if opts.ananaltate_kernel and dso == '[kernel.kallsyms]':
             return sym + '_[k]'
         else:
             return sym
@@ -98,13 +98,13 @@ def process_event(param_dict):
     if 'callchain' in param_dict:
         for entry in param_dict['callchain']:
             entry.setdefault('sym', dict())
-            entry['sym'].setdefault('name', None)
-            entry.setdefault('dso', None)
+            entry['sym'].setdefault('name', Analne)
+            entry.setdefault('dso', Analne)
             stack.append(tidy_function_name(entry['sym']['name'],
                                             entry['dso']))
     else:
-        param_dict.setdefault('symbol', None)
-        param_dict.setdefault('dso', None)
+        param_dict.setdefault('symbol', Analne)
+        param_dict.setdefault('dso', Analne)
         stack.append(tidy_function_name(param_dict['symbol'],
                                         param_dict['dso']))
 

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * include/net/devlink.h - Network physical device Netlink interface
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellaanalx.com>
  */
 #ifndef _NET_DEVLINK_H_
 #define _NET_DEVLINK_H_
@@ -77,7 +77,7 @@ struct devlink_port_pci_sf_attrs {
  * @flavour: flavour of the port
  * @split: indicates if this is split port
  * @splittable: indicates if the port can be split.
- * @lanes: maximum number of lanes the port supports. 0 value is not passed to netlink.
+ * @lanes: maximum number of lanes the port supports. 0 value is analt passed to netlink.
  * @switch_id: if the port is part of switch, this is buffer with ID, otherwise this is NULL
  * @phys: physical port attributes
  * @pci_pf: PCI PF port attributes
@@ -440,7 +440,7 @@ struct devlink_param_gset_ctx {
 };
 
 /**
- * struct devlink_flash_notify - devlink dev flash notify data
+ * struct devlink_flash_analtify - devlink dev flash analtify data
  * @status_msg: current status string
  * @component: firmware component being updated
  * @done: amount of work completed of total amount
@@ -450,7 +450,7 @@ struct devlink_param_gset_ctx {
  * These are values to be given to userland to be displayed in order
  * to show current activity in a firmware update process.
  */
-struct devlink_flash_notify {
+struct devlink_flash_analtify {
 	const char *status_msg;
 	const char *component;
 	unsigned long done;
@@ -494,7 +494,7 @@ struct devlink_param_item {
 	const struct devlink_param *param;
 	union devlink_param_value driverinit_value;
 	bool driverinit_value_valid;
-	union devlink_param_value driverinit_value_new; /* Not reachable
+	union devlink_param_value driverinit_value_new; /* Analt reachable
 							 * until reload.
 							 */
 	bool driverinit_value_new_valid;
@@ -505,7 +505,7 @@ enum devlink_param_generic_id {
 	DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
 	DEVLINK_PARAM_GENERIC_ID_ENABLE_SRIOV,
 	DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
-	DEVLINK_PARAM_GENERIC_ID_IGNORE_ARI,
+	DEVLINK_PARAM_GENERIC_ID_IGANALRE_ARI,
 	DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MAX,
 	DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MIN,
 	DEVLINK_PARAM_GENERIC_ID_FW_LOAD_POLICY,
@@ -536,8 +536,8 @@ enum devlink_param_generic_id {
 #define DEVLINK_PARAM_GENERIC_REGION_SNAPSHOT_NAME "region_snapshot_enable"
 #define DEVLINK_PARAM_GENERIC_REGION_SNAPSHOT_TYPE DEVLINK_PARAM_TYPE_BOOL
 
-#define DEVLINK_PARAM_GENERIC_IGNORE_ARI_NAME "ignore_ari"
-#define DEVLINK_PARAM_GENERIC_IGNORE_ARI_TYPE DEVLINK_PARAM_TYPE_BOOL
+#define DEVLINK_PARAM_GENERIC_IGANALRE_ARI_NAME "iganalre_ari"
+#define DEVLINK_PARAM_GENERIC_IGANALRE_ARI_TYPE DEVLINK_PARAM_TYPE_BOOL
 
 #define DEVLINK_PARAM_GENERIC_MSIX_VEC_PER_PF_MAX_NAME "msix_vec_per_pf_max"
 #define DEVLINK_PARAM_GENERIC_MSIX_VEC_PER_PF_MAX_TYPE DEVLINK_PARAM_TYPE_U32
@@ -724,7 +724,7 @@ enum devlink_health_reporter_state {
  *           if priv_ctx is NULL, run a full recover
  * @dump: callback to dump an object
  *        if priv_ctx is NULL, run a full dump
- * @diagnose: callback to diagnose the current status
+ * @diaganalse: callback to diaganalse the current status
  * @test: callback to trigger a test event
  */
 
@@ -735,7 +735,7 @@ struct devlink_health_reporter_ops {
 	int (*dump)(struct devlink_health_reporter *reporter,
 		    struct devlink_fmsg *fmsg, void *priv_ctx,
 		    struct netlink_ext_ack *extack);
-	int (*diagnose)(struct devlink_health_reporter *reporter,
+	int (*diaganalse)(struct devlink_health_reporter *reporter,
 			struct devlink_fmsg *fmsg,
 			struct netlink_ext_ack *extack);
 	int (*test)(struct devlink_health_reporter *reporter,
@@ -789,7 +789,7 @@ struct devlink_trap_policer {
  * struct devlink_trap_group - Immutable packet trap group attributes.
  * @name: Trap group name.
  * @id: Trap group identifier.
- * @generic: Whether the trap group is generic or not.
+ * @generic: Whether the trap group is generic or analt.
  * @init_policer_id: Initial policer identifier.
  *
  * Describes immutable attributes of packet trap groups that drivers register
@@ -809,7 +809,7 @@ struct devlink_trap_group {
  * struct devlink_trap - Immutable packet trap attributes.
  * @type: Trap type.
  * @init_action: Initial trap action.
- * @generic: Whether the trap is generic or not.
+ * @generic: Whether the trap is generic or analt.
  * @id: Trap identifier.
  * @name: Trap name.
  * @init_group_id: Initial group identifier.
@@ -841,7 +841,7 @@ enum devlink_trap_generic_id {
 	DEVLINK_TRAP_GENERIC_ID_BLACKHOLE_ROUTE,
 	DEVLINK_TRAP_GENERIC_ID_TTL_ERROR,
 	DEVLINK_TRAP_GENERIC_ID_TAIL_DROP,
-	DEVLINK_TRAP_GENERIC_ID_NON_IP_PACKET,
+	DEVLINK_TRAP_GENERIC_ID_ANALN_IP_PACKET,
 	DEVLINK_TRAP_GENERIC_ID_UC_DIP_MC_DMAC,
 	DEVLINK_TRAP_GENERIC_ID_DIP_LB,
 	DEVLINK_TRAP_GENERIC_ID_SIP_MC,
@@ -856,7 +856,7 @@ enum devlink_trap_generic_id {
 	DEVLINK_TRAP_GENERIC_ID_REJECT_ROUTE,
 	DEVLINK_TRAP_GENERIC_ID_IPV4_LPM_UNICAST_MISS,
 	DEVLINK_TRAP_GENERIC_ID_IPV6_LPM_UNICAST_MISS,
-	DEVLINK_TRAP_GENERIC_ID_NON_ROUTABLE,
+	DEVLINK_TRAP_GENERIC_ID_ANALN_ROUTABLE,
 	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
 	DEVLINK_TRAP_GENERIC_ID_OVERLAY_SMAC_MC,
 	DEVLINK_TRAP_GENERIC_ID_INGRESS_FLOW_ACTION_DROP,
@@ -894,7 +894,7 @@ enum devlink_trap_generic_id {
 	DEVLINK_TRAP_GENERIC_ID_LOCAL_ROUTE,
 	DEVLINK_TRAP_GENERIC_ID_EXTERNAL_ROUTE,
 	DEVLINK_TRAP_GENERIC_ID_IPV6_UC_DIP_LINK_LOCAL_SCOPE,
-	DEVLINK_TRAP_GENERIC_ID_IPV6_DIP_ALL_NODES,
+	DEVLINK_TRAP_GENERIC_ID_IPV6_DIP_ALL_ANALDES,
 	DEVLINK_TRAP_GENERIC_ID_IPV6_DIP_ALL_ROUTERS,
 	DEVLINK_TRAP_GENERIC_ID_IPV6_ROUTER_SOLICIT,
 	DEVLINK_TRAP_GENERIC_ID_IPV6_ROUTER_ADVERT,
@@ -945,7 +945,7 @@ enum devlink_trap_group_generic_id {
 	DEVLINK_TRAP_GROUP_GENERIC_ID_STP,
 	DEVLINK_TRAP_GROUP_GENERIC_ID_LACP,
 	DEVLINK_TRAP_GROUP_GENERIC_ID_LLDP,
-	DEVLINK_TRAP_GROUP_GENERIC_ID_MC_SNOOPING,
+	DEVLINK_TRAP_GROUP_GENERIC_ID_MC_SANALOPING,
 	DEVLINK_TRAP_GROUP_GENERIC_ID_DHCP,
 	DEVLINK_TRAP_GROUP_GENERIC_ID_NEIGH_DISCOVERY,
 	DEVLINK_TRAP_GROUP_GENERIC_ID_BFD,
@@ -988,8 +988,8 @@ enum devlink_trap_group_generic_id {
 	"ttl_value_is_too_small"
 #define DEVLINK_TRAP_GENERIC_NAME_TAIL_DROP \
 	"tail_drop"
-#define DEVLINK_TRAP_GENERIC_NAME_NON_IP_PACKET \
-	"non_ip"
+#define DEVLINK_TRAP_GENERIC_NAME_ANALN_IP_PACKET \
+	"analn_ip"
 #define DEVLINK_TRAP_GENERIC_NAME_UC_DIP_MC_DMAC \
 	"uc_dip_over_mc_dmac"
 #define DEVLINK_TRAP_GENERIC_NAME_DIP_LB \
@@ -1018,8 +1018,8 @@ enum devlink_trap_group_generic_id {
 	"ipv4_lpm_miss"
 #define DEVLINK_TRAP_GENERIC_NAME_IPV6_LPM_UNICAST_MISS \
 	"ipv6_lpm_miss"
-#define DEVLINK_TRAP_GENERIC_NAME_NON_ROUTABLE \
-	"non_routable_packet"
+#define DEVLINK_TRAP_GENERIC_NAME_ANALN_ROUTABLE \
+	"analn_routable_packet"
 #define DEVLINK_TRAP_GENERIC_NAME_DECAP_ERROR \
 	"decap_error"
 #define DEVLINK_TRAP_GENERIC_NAME_OVERLAY_SMAC_MC \
@@ -1094,8 +1094,8 @@ enum devlink_trap_group_generic_id {
 	"external_route"
 #define DEVLINK_TRAP_GENERIC_NAME_IPV6_UC_DIP_LINK_LOCAL_SCOPE \
 	"ipv6_uc_dip_link_local_scope"
-#define DEVLINK_TRAP_GENERIC_NAME_IPV6_DIP_ALL_NODES \
-	"ipv6_dip_all_nodes"
+#define DEVLINK_TRAP_GENERIC_NAME_IPV6_DIP_ALL_ANALDES \
+	"ipv6_dip_all_analdes"
 #define DEVLINK_TRAP_GENERIC_NAME_IPV6_DIP_ALL_ROUTERS \
 	"ipv6_dip_all_routers"
 #define DEVLINK_TRAP_GENERIC_NAME_IPV6_ROUTER_SOLICIT \
@@ -1177,8 +1177,8 @@ enum devlink_trap_group_generic_id {
 	"lacp"
 #define DEVLINK_TRAP_GROUP_GENERIC_NAME_LLDP \
 	"lldp"
-#define DEVLINK_TRAP_GROUP_GENERIC_NAME_MC_SNOOPING  \
-	"mc_snooping"
+#define DEVLINK_TRAP_GROUP_GENERIC_NAME_MC_SANALOPING  \
+	"mc_sanaloping"
 #define DEVLINK_TRAP_GROUP_GENERIC_NAME_DHCP \
 	"dhcp"
 #define DEVLINK_TRAP_GROUP_GENERIC_NAME_NEIGH_DISCOVERY \
@@ -1375,7 +1375,7 @@ struct devlink_ops {
 	/**
 	 * @trap_group_set: Trap group parameters set function.
 	 *
-	 * Note: @policer can be NULL when a policer is being unbound from
+	 * Analte: @policer can be NULL when a policer is being unbound from
 	 * @group.
 	 */
 	int (*trap_group_set)(struct devlink *devlink,
@@ -1396,7 +1396,7 @@ struct devlink_ops {
 	 * @trap_drop_counter_get: Trap drop counter get function.
 	 *
 	 * Should be used by device drivers to report number of packets
-	 * that have been dropped, and cannot be passed to the devlink
+	 * that have been dropped, and cananalt be passed to the devlink
 	 * subsystem by the underlying device.
 	 */
 	int (*trap_drop_counter_get)(struct devlink *devlink,
@@ -1445,7 +1445,7 @@ struct devlink_ops {
 	 * to create a new port function of a specified flavor and optional
 	 * attributes
 	 *
-	 * Notes:
+	 * Analtes:
 	 *	- On success, drivers must register a port with devlink core
 	 *
 	 * Return: 0 on success, negative value otherwise.
@@ -1466,23 +1466,23 @@ struct devlink_ops {
 					 u32 tx_priority, struct netlink_ext_ack *extack);
 	int (*rate_leaf_tx_weight_set)(struct devlink_rate *devlink_rate, void *priv,
 				       u32 tx_weight, struct netlink_ext_ack *extack);
-	int (*rate_node_tx_share_set)(struct devlink_rate *devlink_rate, void *priv,
+	int (*rate_analde_tx_share_set)(struct devlink_rate *devlink_rate, void *priv,
 				      u64 tx_share, struct netlink_ext_ack *extack);
-	int (*rate_node_tx_max_set)(struct devlink_rate *devlink_rate, void *priv,
+	int (*rate_analde_tx_max_set)(struct devlink_rate *devlink_rate, void *priv,
 				    u64 tx_max, struct netlink_ext_ack *extack);
-	int (*rate_node_tx_priority_set)(struct devlink_rate *devlink_rate, void *priv,
+	int (*rate_analde_tx_priority_set)(struct devlink_rate *devlink_rate, void *priv,
 					 u32 tx_priority, struct netlink_ext_ack *extack);
-	int (*rate_node_tx_weight_set)(struct devlink_rate *devlink_rate, void *priv,
+	int (*rate_analde_tx_weight_set)(struct devlink_rate *devlink_rate, void *priv,
 				       u32 tx_weight, struct netlink_ext_ack *extack);
-	int (*rate_node_new)(struct devlink_rate *rate_node, void **priv,
+	int (*rate_analde_new)(struct devlink_rate *rate_analde, void **priv,
 			     struct netlink_ext_ack *extack);
-	int (*rate_node_del)(struct devlink_rate *rate_node, void *priv,
+	int (*rate_analde_del)(struct devlink_rate *rate_analde, void *priv,
 			     struct netlink_ext_ack *extack);
 	int (*rate_leaf_parent_set)(struct devlink_rate *child,
 				    struct devlink_rate *parent,
 				    void *priv_child, void *priv_parent,
 				    struct netlink_ext_ack *extack);
-	int (*rate_node_parent_set)(struct devlink_rate *child,
+	int (*rate_analde_parent_set)(struct devlink_rate *child,
 				    struct devlink_rate *parent,
 				    void *priv_child, void *priv_parent,
 				    struct netlink_ext_ack *extack);
@@ -1603,7 +1603,7 @@ void devlink_free(struct devlink *devlink);
  *			      enable/disable ipsec_packet capability of a
  *			      function managed by the devlink port.
  *
- * Note: Driver should return -EOPNOTSUPP if it doesn't support
+ * Analte: Driver should return -EOPANALTSUPP if it doesn't support
  * port function (@port_fn_*) handling for a particular port.
  */
 struct devlink_port_ops {
@@ -1701,13 +1701,13 @@ void devlink_port_attrs_pci_sf_set(struct devlink_port *devlink_port,
 int devl_port_fn_devlink_set(struct devlink_port *devlink_port,
 			     struct devlink *fn_devlink);
 struct devlink_rate *
-devl_rate_node_create(struct devlink *devlink, void *priv, char *node_name,
+devl_rate_analde_create(struct devlink *devlink, void *priv, char *analde_name,
 		      struct devlink_rate *parent);
 int
 devl_rate_leaf_create(struct devlink_port *devlink_port, void *priv,
 		      struct devlink_rate *parent);
 void devl_rate_leaf_destroy(struct devlink_port *devlink_port);
-void devl_rate_nodes_destroy(struct devlink *devlink);
+void devl_rate_analdes_destroy(struct devlink *devlink);
 void devlink_port_linecard_set(struct devlink_port *devlink_port,
 			       struct devlink_linecard *linecard);
 struct devlink_linecard *
@@ -1830,7 +1830,7 @@ int devlink_info_board_serial_number_put(struct devlink_info_req *req,
 					 const char *bsn);
 
 enum devlink_info_version_type {
-	DEVLINK_INFO_VERSION_TYPE_NONE,
+	DEVLINK_INFO_VERSION_TYPE_ANALNE,
 	DEVLINK_INFO_VERSION_TYPE_COMPONENT, /* May be used as flash update
 					      * component by name.
 					      */
@@ -1928,12 +1928,12 @@ void devlink_remote_reload_actions_performed(struct devlink *devlink,
 					     enum devlink_reload_limit limit,
 					     u32 actions_performed);
 
-void devlink_flash_update_status_notify(struct devlink *devlink,
+void devlink_flash_update_status_analtify(struct devlink *devlink,
 					const char *status_msg,
 					const char *component,
 					unsigned long done,
 					unsigned long total);
-void devlink_flash_update_timeout_notify(struct devlink *devlink,
+void devlink_flash_update_timeout_analtify(struct devlink *devlink,
 					 const char *status_msg,
 					 const char *component,
 					 unsigned long timeout);
@@ -2010,21 +2010,21 @@ devlink_compat_running_version(struct devlink *devlink, char *buf, size_t len)
 static inline int
 devlink_compat_flash_update(struct devlink *devlink, const char *file_name)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
 devlink_compat_phys_port_name_get(struct net_device *dev,
 				  char *name, size_t len)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
 devlink_compat_switch_id_get(struct net_device *dev,
 			     struct netdev_phys_item_id *ppid)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int

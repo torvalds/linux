@@ -6,7 +6,7 @@
  *
  * During bootup, before any driver core device is registered,
  * devtmpfs, a tmpfs-based filesystem is created. Every driver-core
- * device which requests a device node, will add a node in this
+ * device which requests a device analde, will add a analde in this
  * filesystem.
  * By default, all devices are named after the name of the device,
  * owned by root and have a default mode of 0600. Subsystems can
@@ -32,7 +32,7 @@
 #include "base.h"
 
 #ifdef CONFIG_DEVTMPFS_SAFE
-#define DEVTMPFS_MFLAGS       (MS_SILENT | MS_NOEXEC | MS_NOSUID)
+#define DEVTMPFS_MFLAGS       (MS_SILENT | MS_ANALEXEC | MS_ANALSUID)
 #else
 #define DEVTMPFS_MFLAGS       (MS_SILENT)
 #endif
@@ -111,7 +111,7 @@ static int devtmpfs_submit_req(struct req *req, const char *tmp)
 	return req->err;
 }
 
-int devtmpfs_create_node(struct device *dev)
+int devtmpfs_create_analde(struct device *dev)
 {
 	const char *tmp = NULL;
 	struct req req;
@@ -122,9 +122,9 @@ int devtmpfs_create_node(struct device *dev)
 	req.mode = 0;
 	req.uid = GLOBAL_ROOT_UID;
 	req.gid = GLOBAL_ROOT_GID;
-	req.name = device_get_devnode(dev, &req.mode, &req.uid, &req.gid, &tmp);
+	req.name = device_get_devanalde(dev, &req.mode, &req.uid, &req.gid, &tmp);
 	if (!req.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (req.mode == 0)
 		req.mode = 0600;
@@ -138,7 +138,7 @@ int devtmpfs_create_node(struct device *dev)
 	return devtmpfs_submit_req(&req, tmp);
 }
 
-int devtmpfs_delete_node(struct device *dev)
+int devtmpfs_delete_analde(struct device *dev)
 {
 	const char *tmp = NULL;
 	struct req req;
@@ -146,9 +146,9 @@ int devtmpfs_delete_node(struct device *dev)
 	if (!thread)
 		return 0;
 
-	req.name = device_get_devnode(dev, NULL, NULL, NULL, &tmp);
+	req.name = device_get_devanalde(dev, NULL, NULL, NULL, &tmp);
 	if (!req.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req.mode = 0;
 	req.dev = dev;
@@ -166,24 +166,24 @@ static int dev_mkdir(const char *name, umode_t mode)
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	err = vfs_mkdir(&nop_mnt_idmap, d_inode(path.dentry), dentry, mode);
+	err = vfs_mkdir(&analp_mnt_idmap, d_ianalde(path.dentry), dentry, mode);
 	if (!err)
-		/* mark as kernel-created inode */
-		d_inode(dentry)->i_private = &thread;
+		/* mark as kernel-created ianalde */
+		d_ianalde(dentry)->i_private = &thread;
 	done_path_create(&path, dentry);
 	return err;
 }
 
-static int create_path(const char *nodepath)
+static int create_path(const char *analdepath)
 {
 	char *path;
 	char *s;
 	int err = 0;
 
-	/* parent directories do not exist, create them */
-	path = kstrdup(nodepath, GFP_KERNEL);
+	/* parent directories do analt exist, create them */
+	path = kstrdup(analdepath, GFP_KERNEL);
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s = path;
 	for (;;) {
@@ -201,22 +201,22 @@ static int create_path(const char *nodepath)
 	return err;
 }
 
-static int handle_create(const char *nodename, umode_t mode, kuid_t uid,
+static int handle_create(const char *analdename, umode_t mode, kuid_t uid,
 			 kgid_t gid, struct device *dev)
 {
 	struct dentry *dentry;
 	struct path path;
 	int err;
 
-	dentry = kern_path_create(AT_FDCWD, nodename, &path, 0);
-	if (dentry == ERR_PTR(-ENOENT)) {
-		create_path(nodename);
-		dentry = kern_path_create(AT_FDCWD, nodename, &path, 0);
+	dentry = kern_path_create(AT_FDCWD, analdename, &path, 0);
+	if (dentry == ERR_PTR(-EANALENT)) {
+		create_path(analdename);
+		dentry = kern_path_create(AT_FDCWD, analdename, &path, 0);
 	}
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	err = vfs_mknod(&nop_mnt_idmap, d_inode(path.dentry), dentry, mode,
+	err = vfs_mkanald(&analp_mnt_idmap, d_ianalde(path.dentry), dentry, mode,
 			dev->devt);
 	if (!err) {
 		struct iattr newattrs;
@@ -225,12 +225,12 @@ static int handle_create(const char *nodename, umode_t mode, kuid_t uid,
 		newattrs.ia_uid = uid;
 		newattrs.ia_gid = gid;
 		newattrs.ia_valid = ATTR_MODE|ATTR_UID|ATTR_GID;
-		inode_lock(d_inode(dentry));
-		notify_change(&nop_mnt_idmap, dentry, &newattrs, NULL);
-		inode_unlock(d_inode(dentry));
+		ianalde_lock(d_ianalde(dentry));
+		analtify_change(&analp_mnt_idmap, dentry, &newattrs, NULL);
+		ianalde_unlock(d_ianalde(dentry));
 
-		/* mark as kernel-created inode */
-		d_inode(dentry)->i_private = &thread;
+		/* mark as kernel-created ianalde */
+		d_ianalde(dentry)->i_private = &thread;
 	}
 	done_path_create(&path, dentry);
 	return err;
@@ -246,28 +246,28 @@ static int dev_rmdir(const char *name)
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 	if (d_really_is_positive(dentry)) {
-		if (d_inode(dentry)->i_private == &thread)
-			err = vfs_rmdir(&nop_mnt_idmap, d_inode(parent.dentry),
+		if (d_ianalde(dentry)->i_private == &thread)
+			err = vfs_rmdir(&analp_mnt_idmap, d_ianalde(parent.dentry),
 					dentry);
 		else
 			err = -EPERM;
 	} else {
-		err = -ENOENT;
+		err = -EANALENT;
 	}
 	dput(dentry);
-	inode_unlock(d_inode(parent.dentry));
+	ianalde_unlock(d_ianalde(parent.dentry));
 	path_put(&parent);
 	return err;
 }
 
-static int delete_path(const char *nodepath)
+static int delete_path(const char *analdepath)
 {
 	char *path;
 	int err = 0;
 
-	path = kstrdup(nodepath, GFP_KERNEL);
+	path = kstrdup(analdepath, GFP_KERNEL);
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (;;) {
 		char *base;
@@ -285,10 +285,10 @@ static int delete_path(const char *nodepath)
 	return err;
 }
 
-static int dev_mynode(struct device *dev, struct inode *inode, struct kstat *stat)
+static int dev_myanalde(struct device *dev, struct ianalde *ianalde, struct kstat *stat)
 {
 	/* did we create it */
-	if (inode->i_private != &thread)
+	if (ianalde->i_private != &thread)
 		return 0;
 
 	/* does the dev_t match */
@@ -306,14 +306,14 @@ static int dev_mynode(struct device *dev, struct inode *inode, struct kstat *sta
 	return 1;
 }
 
-static int handle_remove(const char *nodename, struct device *dev)
+static int handle_remove(const char *analdename, struct device *dev)
 {
 	struct path parent;
 	struct dentry *dentry;
 	int deleted = 0;
 	int err;
 
-	dentry = kern_path_locked(nodename, &parent);
+	dentry = kern_path_locked(analdename, &parent);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
@@ -322,10 +322,10 @@ static int handle_remove(const char *nodename, struct device *dev)
 		struct path p = {.mnt = parent.mnt, .dentry = dentry};
 		err = vfs_getattr(&p, &stat, STATX_TYPE | STATX_MODE,
 				  AT_STATX_SYNC_AS_STAT);
-		if (!err && dev_mynode(dev, d_inode(dentry), &stat)) {
+		if (!err && dev_myanalde(dev, d_ianalde(dentry), &stat)) {
 			struct iattr newattrs;
 			/*
-			 * before unlinking this node, reset permissions
+			 * before unlinking this analde, reset permissions
 			 * of possible references like hardlinks
 			 */
 			newattrs.ia_uid = GLOBAL_ROOT_UID;
@@ -333,23 +333,23 @@ static int handle_remove(const char *nodename, struct device *dev)
 			newattrs.ia_mode = stat.mode & ~0777;
 			newattrs.ia_valid =
 				ATTR_UID|ATTR_GID|ATTR_MODE;
-			inode_lock(d_inode(dentry));
-			notify_change(&nop_mnt_idmap, dentry, &newattrs, NULL);
-			inode_unlock(d_inode(dentry));
-			err = vfs_unlink(&nop_mnt_idmap, d_inode(parent.dentry),
+			ianalde_lock(d_ianalde(dentry));
+			analtify_change(&analp_mnt_idmap, dentry, &newattrs, NULL);
+			ianalde_unlock(d_ianalde(dentry));
+			err = vfs_unlink(&analp_mnt_idmap, d_ianalde(parent.dentry),
 					 dentry, NULL);
-			if (!err || err == -ENOENT)
+			if (!err || err == -EANALENT)
 				deleted = 1;
 		}
 	} else {
-		err = -ENOENT;
+		err = -EANALENT;
 	}
 	dput(dentry);
-	inode_unlock(d_inode(parent.dentry));
+	ianalde_unlock(d_ianalde(parent.dentry));
 
 	path_put(&parent);
-	if (deleted && strchr(nodename, '/'))
-		delete_path(nodename);
+	if (deleted && strchr(analdename, '/'))
+		delete_path(analdename);
 	return err;
 }
 
@@ -386,7 +386,7 @@ static int handle(const char *name, umode_t mode, kuid_t uid, kgid_t gid,
 		return handle_remove(name, dev);
 }
 
-static void __noreturn devtmpfs_work_loop(void)
+static void __analreturn devtmpfs_work_loop(void)
 {
 	while (1) {
 		spin_lock(&req_lock);
@@ -409,7 +409,7 @@ static void __noreturn devtmpfs_work_loop(void)
 	}
 }
 
-static noinline int __init devtmpfs_setup(void *p)
+static analinline int __init devtmpfs_setup(void *p)
 {
 	int err;
 
@@ -429,7 +429,7 @@ out:
 /*
  * The __ref is because devtmpfs_setup needs to be __init for the routines it
  * calls.  That call is done while devtmpfs_init, which is marked __init,
- * synchronously waits for it to complete.
+ * synchroanalusly waits for it to complete.
  */
 static int __ref devtmpfsd(void *p)
 {
@@ -444,7 +444,7 @@ static int __ref devtmpfsd(void *p)
 
 /*
  * Create devtmpfs instance, driver-core devices will add their device
- * nodes here.
+ * analdes here.
  */
 int __init devtmpfs_init(void)
 {

@@ -3,14 +3,14 @@
  *
  *  Copyright (C) 2000, 2001  Paolo Alberelli
  *  Copyright (C) 2003 - 2008  Paul Mundt
- *  Copyright (C) 2003, 2004  Richard Curnow
+ *  Copyright (C) 2003, 2004  Richard Curanalw
  *
  * Provides a debugfs file that lists out the ASIDs currently associated
  * with the processes.
  *
  * In the SH-5 case, if the DM.PC register is examined through the debug
  * link, this shows ASID + PC. To make use of this, the PID->ASID
- * relationship needs to be known. This is primarily for debugging.
+ * relationship needs to be kanalwn. This is primarily for debugging.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive

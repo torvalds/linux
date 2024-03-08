@@ -16,6 +16,6 @@ Description:
 		applications, the reference frequency used by the PLL may
 		change during runtime. This attribute allows the user to
 		adjust the reference frequency accordingly.
-		The value written has no effect until out_altvoltageY_frequency
+		The value written has anal effect until out_altvoltageY_frequency
 		is updated. Consider to use out_altvoltageY_powerdown to power
 		down the PLL and its RFOut buffers during REFin changes.

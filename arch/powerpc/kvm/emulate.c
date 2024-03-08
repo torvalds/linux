@@ -37,7 +37,7 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 #endif
 
 #ifdef CONFIG_BOOKE
-	/* On BOOKE, DEC = 0 is as good as decrementer not enabled */
+	/* On BOOKE, DEC = 0 is as good as decrementer analt enabled */
 	if (vcpu->arch.dec == 0)
 		return;
 #endif
@@ -108,14 +108,14 @@ static int kvmppc_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		kvmppc_set_sprg3(vcpu, spr_val);
 		break;
 
-	/* PIR can legally be written, but we ignore it */
+	/* PIR can legally be written, but we iganalre it */
 	case SPRN_PIR: break;
 
 	default:
 		emulated = vcpu->kvm->arch.kvm_ops->emulate_mtspr(vcpu, sprn,
 								  spr_val);
 		if (emulated == EMULATE_FAIL)
-			printk(KERN_INFO "mtspr: unknown spr "
+			printk(KERN_INFO "mtspr: unkanalwn spr "
 				"0x%x\n", sprn);
 		break;
 	}
@@ -144,7 +144,7 @@ static int kvmppc_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		spr_val = vcpu->vcpu_id;
 		break;
 
-	/* Note: mftb and TBRL/TBWL are user-accessible, so
+	/* Analte: mftb and TBRL/TBWL are user-accessible, so
 	 * the guest can always access the real TB anyways.
 	 * In fact, we probably will never see these traps. */
 	case SPRN_TBWL:
@@ -166,7 +166,7 @@ static int kvmppc_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 	case SPRN_SPRG3:
 		spr_val = kvmppc_get_sprg3(vcpu);
 		break;
-	/* Note: SPRG4-7 are user-readable, so we don't get
+	/* Analte: SPRG4-7 are user-readable, so we don't get
 	 * a trap. */
 
 	case SPRN_DEC:
@@ -176,7 +176,7 @@ static int kvmppc_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		emulated = vcpu->kvm->arch.kvm_ops->emulate_mfspr(vcpu, sprn,
 								  &spr_val);
 		if (unlikely(emulated == EMULATE_FAIL)) {
-			printk(KERN_INFO "mfspr: unknown spr "
+			printk(KERN_INFO "mfspr: unkanalwn spr "
 				"0x%x\n", sprn);
 		}
 		break;

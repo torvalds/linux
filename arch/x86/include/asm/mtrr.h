@@ -13,7 +13,7 @@
     Library General Public License for more details.
 
     You should have received a copy of the GNU Library General Public
-    License along with this library; if not, write to the Free
+    License along with this library; if analt, write to the Free
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     Richard Gooch may be reached by email at  rgooch@atnf.csiro.au
@@ -53,7 +53,7 @@ struct mtrr_state_type {
 };
 
 /*
- * The following functions are for use by other drivers that cannot use
+ * The following functions are for use by other drivers that cananalt use
  * arch_phys_wc_add and arch_phys_wc_del.
  */
 # ifdef CONFIG_MTRR
@@ -85,7 +85,7 @@ static inline void mtrr_overwrite_state(struct mtrr_var_range *var,
 static inline u8 mtrr_type_lookup(u64 addr, u64 end, u8 *uniform)
 {
 	/*
-	 * Return the default MTRR type, without any known other types in
+	 * Return the default MTRR type, without any kanalwn other types in
 	 * that range.
 	 */
 	*uniform = 1;
@@ -97,20 +97,20 @@ static inline u8 mtrr_type_lookup(u64 addr, u64 end, u8 *uniform)
 static inline int mtrr_add(unsigned long base, unsigned long size,
 			   unsigned int type, bool increment)
 {
-    return -ENODEV;
+    return -EANALDEV;
 }
 static inline int mtrr_add_page(unsigned long base, unsigned long size,
 				unsigned int type, bool increment)
 {
-    return -ENODEV;
+    return -EANALDEV;
 }
 static inline int mtrr_del(int reg, unsigned long base, unsigned long size)
 {
-    return -ENODEV;
+    return -EANALDEV;
 }
 static inline int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 {
-    return -ENODEV;
+    return -EANALDEV;
 }
 static inline int mtrr_trim_uncached_memory(unsigned long end_pfn)
 {

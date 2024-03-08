@@ -37,21 +37,21 @@
 
 struct w1_eprom_data {
 	size_t size;
-	int (*read)(struct w1_slave *sl, int pageno);
+	int (*read)(struct w1_slave *sl, int pageanal);
 	u8 eprom[W1_DS2505_SIZE];
 	DECLARE_BITMAP(page_present, W1_DS2505_SIZE / W1_PAGE_SIZE);
 	char nvmem_name[64];
 };
 
-static int w1_ds2502_read_page(struct w1_slave *sl, int pageno)
+static int w1_ds2502_read_page(struct w1_slave *sl, int pageanal)
 {
 	struct w1_eprom_data *data = sl->family_data;
-	int pgoff = pageno * W1_PAGE_SIZE;
+	int pgoff = pageanal * W1_PAGE_SIZE;
 	int ret = -EIO;
 	u8 buf[3];
 	u8 crc8;
 
-	if (test_bit(pageno, data->page_present))
+	if (test_bit(pageanal, data->page_present))
 		return 0; /* page already present */
 
 	mutex_lock(&sl->master->bus_mutex);
@@ -74,14 +74,14 @@ static int w1_ds2502_read_page(struct w1_slave *sl, int pageno)
 	if (w1_calc_crc8(&data->eprom[pgoff], W1_PAGE_SIZE) != crc8)
 		goto err;
 
-	set_bit(pageno, data->page_present); /* mark page present */
+	set_bit(pageanal, data->page_present); /* mark page present */
 	ret = 0;
 err:
 	mutex_unlock(&sl->master->bus_mutex);
 	return ret;
 }
 
-static int w1_ds2505_read_page(struct w1_slave *sl, int pageno)
+static int w1_ds2505_read_page(struct w1_slave *sl, int pageanal)
 {
 	struct w1_eprom_data *data = sl->family_data;
 	int redir_retries = 16;
@@ -91,10 +91,10 @@ static int w1_ds2505_read_page(struct w1_slave *sl, int pageno)
 	u8 redir;
 	u16 crc;
 
-	if (test_bit(pageno, data->page_present))
+	if (test_bit(pageanal, data->page_present))
 		return 0; /* page already present */
 
-	epoff = pgoff = pageno * W1_PAGE_SIZE;
+	epoff = pgoff = pageanal * W1_PAGE_SIZE;
 	mutex_lock(&sl->master->bus_mutex);
 
 retry:
@@ -130,7 +130,7 @@ retry:
 	if (crc != CRC16_VALID)
 		goto err;
 
-	set_bit(pageno, data->page_present);
+	set_bit(pageanal, data->page_present);
 	ret = 0;
 err:
 	mutex_unlock(&sl->master->bus_mutex);
@@ -179,7 +179,7 @@ static int w1_eprom_add_slave(struct w1_slave *sl)
 
 	data = devm_kzalloc(&sl->dev, sizeof(struct w1_eprom_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sl->family_data = data;
 	switch (sl->family->fid) {

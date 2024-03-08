@@ -3,7 +3,7 @@
  * arch/arm/include/asm/probes.h
  *
  * Original contents copied from arch/arm/include/asm/kprobes.h
- * which contains the following notice...
+ * which contains the following analtice...
  *
  * Copyright (C) 2006, 2007 Motorola Inc.
  */
@@ -41,7 +41,7 @@ struct arch_probes_insn {
 
 /*
  * We assume one instruction can consume at most 64 bytes stack, which is
- * 'push {r0-r15}'. Instructions consume more or unknown stack space like
+ * 'push {r0-r15}'. Instructions consume more or unkanalwn stack space like
  * 'str r0, [sp, #-80]' and 'str r0, [sp, r1]' should be prohibit to probe.
  */
 #define MAX_STACK_SIZE			64

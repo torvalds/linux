@@ -56,7 +56,7 @@ static int can_validate(struct nlattr *tb[], struct nlattr *data[],
 	int err;
 
 	/* Make sure that valid CAN FD configurations always consist of
-	 * - nominal/arbitration bittiming
+	 * - analminal/arbitration bittiming
 	 * - data bittiming
 	 * - control mode with CAN_CTRLMODE_FD set
 	 * - TDC parameters are coherent (details below)
@@ -82,12 +82,12 @@ static int can_validate(struct nlattr *tb[], struct nlattr *data[],
 
 		/* CAN_CTRLMODE_TDC_{AUTO,MANUAL} are mutually exclusive */
 		if (tdc_flags == CAN_CTRLMODE_TDC_MASK)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		/* If one of the CAN_CTRLMODE_TDC_* flag is set then
 		 * TDC must be set and vice-versa
 		 */
 		if (!!tdc_flags != !!data[IFLA_CAN_TDC])
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		/* If providing TDC parameters, at least TDCO is
 		 * needed. TDCV is needed if and only if
 		 * CAN_CTRLMODE_TDC_MANUAL is set
@@ -103,25 +103,25 @@ static int can_validate(struct nlattr *tb[], struct nlattr *data[],
 
 			if (tb_tdc[IFLA_CAN_TDC_TDCV]) {
 				if (tdc_flags & CAN_CTRLMODE_TDC_AUTO)
-					return -EOPNOTSUPP;
+					return -EOPANALTSUPP;
 			} else {
 				if (tdc_flags & CAN_CTRLMODE_TDC_MANUAL)
-					return -EOPNOTSUPP;
+					return -EOPANALTSUPP;
 			}
 
 			if (!tb_tdc[IFLA_CAN_TDC_TDCO])
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 		}
 	}
 
 	if (is_can_fd) {
 		if (!data[IFLA_CAN_BITTIMING] || !data[IFLA_CAN_DATA_BITTIMING])
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	if (data[IFLA_CAN_DATA_BITTIMING] || data[IFLA_CAN_TDC]) {
 		if (!is_can_fd)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	if (data[IFLA_CAN_DATA_BITTIMING]) {
@@ -145,7 +145,7 @@ static int can_tdc_changelink(struct can_priv *priv, const struct nlattr *nla,
 	int err;
 
 	if (!tdc_const || !can_tdc_is_enabled(priv))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = nla_parse_nested(tb_tdc, IFLA_CAN_TDC_MAX, nla,
 			       can_tdc_policy, extack);
@@ -198,7 +198,7 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 	if (data[IFLA_CAN_BITTIMING]) {
 		struct can_bittiming bt;
 
-		/* Do not allow changing bittiming while running */
+		/* Do analt allow changing bittiming while running */
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 
@@ -209,7 +209,7 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 		 */
 		if (!priv->bittiming_const && !priv->do_set_bittiming &&
 		    !priv->bitrate_const)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		memcpy(&bt, nla_data(data[IFLA_CAN_BITTIMING]), sizeof(bt));
 		err = can_get_bittiming(dev, &bt,
@@ -242,7 +242,7 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 		u32 ctrlstatic;
 		u32 maskedflags;
 
-		/* Do not allow changing controller mode while running */
+		/* Do analt allow changing controller mode while running */
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 		cm = nla_data(data[IFLA_CAN_CTRLMODE]);
@@ -251,15 +251,15 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 
 		/* check whether provided bits are allowed to be passed */
 		if (maskedflags & ~(priv->ctrlmode_supported | ctrlstatic))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
-		/* do not check for static fd-non-iso if 'fd' is disabled */
+		/* do analt check for static fd-analn-iso if 'fd' is disabled */
 		if (!(maskedflags & CAN_CTRLMODE_FD))
-			ctrlstatic &= ~CAN_CTRLMODE_FD_NON_ISO;
+			ctrlstatic &= ~CAN_CTRLMODE_FD_ANALN_ISO;
 
 		/* make sure static options are provided by configuration */
 		if ((maskedflags & ctrlstatic) != ctrlstatic)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		/* clear bits to be modified and copy the flag values */
 		priv->ctrlmode &= ~cm->mask;
@@ -285,17 +285,17 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 	}
 
 	if (data[IFLA_CAN_RESTART_MS]) {
-		/* Do not allow changing restart delay while running */
+		/* Do analt allow changing restart delay while running */
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 		priv->restart_ms = nla_get_u32(data[IFLA_CAN_RESTART_MS]);
 	}
 
 	if (data[IFLA_CAN_RESTART]) {
-		/* Do not allow a restart while not running */
+		/* Do analt allow a restart while analt running */
 		if (!(dev->flags & IFF_UP))
 			return -EINVAL;
-		err = can_restart_now(dev);
+		err = can_restart_analw(dev);
 		if (err)
 			return err;
 	}
@@ -303,7 +303,7 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 	if (data[IFLA_CAN_DATA_BITTIMING]) {
 		struct can_bittiming dbt;
 
-		/* Do not allow changing bittiming while running */
+		/* Do analt allow changing bittiming while running */
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 
@@ -314,7 +314,7 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 		 */
 		if (!priv->data_bittiming_const && !priv->do_set_data_bittiming &&
 		    !priv->data_bitrate_const)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		memcpy(&dbt, nla_data(data[IFLA_CAN_DATA_BITTIMING]),
 		       sizeof(dbt));
@@ -343,13 +343,13 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 				return err;
 			}
 		} else if (!tdc_mask) {
-			/* Neither of TDC parameters nor TDC flags are
+			/* Neither of TDC parameters analr TDC flags are
 			 * provided: do calculation
 			 */
 			can_calc_tdco(&priv->tdc, priv->tdc_const, &dbt,
 				      &priv->ctrlmode, priv->ctrlmode_supported);
 		} /* else: both CAN_CTRLMODE_TDC_{AUTO,MANUAL} are explicitly
-		   * turned off. TDC is disabled: do nothing
+		   * turned off. TDC is disabled: do analthing
 		   */
 
 		memcpy(&priv->data_bittiming, &dbt, sizeof(dbt));
@@ -368,7 +368,7 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 		unsigned int i;
 
 		if (!priv->do_set_termination)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		/* check whether given value is supported by the interface */
 		for (i = 0; i < num_term; i++) {
@@ -547,7 +547,7 @@ static int can_fill_info(struct sk_buff *skb, const struct net_device *dev)
 		priv->do_get_state(dev, &state);
 
 	if ((priv->bittiming.bitrate != CAN_BITRATE_UNSET &&
-	     priv->bittiming.bitrate != CAN_BITRATE_UNKNOWN &&
+	     priv->bittiming.bitrate != CAN_BITRATE_UNKANALWN &&
 	     nla_put(skb, IFLA_CAN_BITTIMING,
 		     sizeof(priv->bittiming), &priv->bittiming)) ||
 
@@ -628,7 +628,7 @@ static int can_newlink(struct net *src_net, struct net_device *dev,
 		       struct nlattr *tb[], struct nlattr *data[],
 		       struct netlink_ext_ack *extack)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void can_dellink(struct net_device *dev, struct list_head *head)

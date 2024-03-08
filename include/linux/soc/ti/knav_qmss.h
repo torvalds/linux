@@ -30,30 +30,30 @@
  * enum knav_queue_ctrl_cmd -	queue operations.
  * @KNAV_QUEUE_GET_ID:		Get the ID number for an open queue
  * @KNAV_QUEUE_FLUSH:		forcibly empty a queue if possible
- * @KNAV_QUEUE_SET_NOTIFIER:	Set a notifier callback to a queue handle.
- * @KNAV_QUEUE_ENABLE_NOTIFY:	Enable notifier callback for a queue handle.
- * @KNAV_QUEUE_DISABLE_NOTIFY:	Disable notifier callback for a queue handle.
+ * @KNAV_QUEUE_SET_ANALTIFIER:	Set a analtifier callback to a queue handle.
+ * @KNAV_QUEUE_ENABLE_ANALTIFY:	Enable analtifier callback for a queue handle.
+ * @KNAV_QUEUE_DISABLE_ANALTIFY:	Disable analtifier callback for a queue handle.
  * @KNAV_QUEUE_GET_COUNT:	Get number of queues.
  */
 enum knav_queue_ctrl_cmd {
 	KNAV_QUEUE_GET_ID,
 	KNAV_QUEUE_FLUSH,
-	KNAV_QUEUE_SET_NOTIFIER,
-	KNAV_QUEUE_ENABLE_NOTIFY,
-	KNAV_QUEUE_DISABLE_NOTIFY,
+	KNAV_QUEUE_SET_ANALTIFIER,
+	KNAV_QUEUE_ENABLE_ANALTIFY,
+	KNAV_QUEUE_DISABLE_ANALTIFY,
 	KNAV_QUEUE_GET_COUNT
 };
 
-/* Queue notifier callback prototype */
-typedef void (*knav_queue_notify_fn)(void *arg);
+/* Queue analtifier callback prototype */
+typedef void (*knav_queue_analtify_fn)(void *arg);
 
 /**
- * struct knav_queue_notify_config:	Notifier configuration
- * @fn:					Notifier function
- * @fn_arg:				Notifier function arguments
+ * struct knav_queue_analtify_config:	Analtifier configuration
+ * @fn:					Analtifier function
+ * @fn_arg:				Analtifier function arguments
  */
-struct knav_queue_notify_config {
-	knav_queue_notify_fn fn;
+struct knav_queue_analtify_config {
+	knav_queue_analtify_fn fn;
 	void *fn_arg;
 };
 

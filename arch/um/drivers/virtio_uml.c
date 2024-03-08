@@ -59,7 +59,7 @@ struct virtio_uml_device {
 	u8 status;
 	u8 registered:1;
 	u8 suspended:1;
-	u8 no_vq_suspend:1;
+	u8 anal_vq_suspend:1;
 
 	u8 config_changed_irq:1;
 	uint64_t vq_irq_vq_map;
@@ -140,7 +140,7 @@ static int vhost_user_recv(struct virtio_uml_device *vu_dev,
 	 * time message while doing so, e.g. one that tells us to update
 	 * our idea of how long we can run without scheduling.
 	 *
-	 * Thus, we need to not just read() from the given fd, but need
+	 * Thus, we need to analt just read() from the given fd, but need
 	 * to also handle messages for the simulation time - this function
 	 * does that for us while waiting for the given fd to be readable.
 	 */
@@ -271,7 +271,7 @@ out:
 	return rc;
 }
 
-static int vhost_user_send_no_payload(struct virtio_uml_device *vu_dev,
+static int vhost_user_send_anal_payload(struct virtio_uml_device *vu_dev,
 				      bool need_response, u32 request)
 {
 	struct vhost_user_msg msg = {
@@ -281,7 +281,7 @@ static int vhost_user_send_no_payload(struct virtio_uml_device *vu_dev,
 	return vhost_user_send(vu_dev, need_response, &msg, NULL, 0);
 }
 
-static int vhost_user_send_no_payload_fd(struct virtio_uml_device *vu_dev,
+static int vhost_user_send_anal_payload_fd(struct virtio_uml_device *vu_dev,
 					 u32 request, int fd)
 {
 	struct vhost_user_msg msg = {
@@ -305,13 +305,13 @@ static int vhost_user_send_u64(struct virtio_uml_device *vu_dev,
 
 static int vhost_user_set_owner(struct virtio_uml_device *vu_dev)
 {
-	return vhost_user_send_no_payload(vu_dev, false, VHOST_USER_SET_OWNER);
+	return vhost_user_send_anal_payload(vu_dev, false, VHOST_USER_SET_OWNER);
 }
 
 static int vhost_user_get_features(struct virtio_uml_device *vu_dev,
 				   u64 *features)
 {
-	int rc = vhost_user_send_no_payload(vu_dev, true,
+	int rc = vhost_user_send_anal_payload(vu_dev, true,
 					    VHOST_USER_GET_FEATURES);
 
 	if (rc)
@@ -328,7 +328,7 @@ static int vhost_user_set_features(struct virtio_uml_device *vu_dev,
 static int vhost_user_get_protocol_features(struct virtio_uml_device *vu_dev,
 					    u64 *protocol_features)
 {
-	int rc = vhost_user_send_no_payload(vu_dev, true,
+	int rc = vhost_user_send_anal_payload(vu_dev, true,
 			VHOST_USER_GET_PROTOCOL_FEATURES);
 
 	if (rc)
@@ -375,7 +375,7 @@ static irqreturn_t vu_req_read_message(struct virtio_uml_device *vu_dev,
 		u8 extra_payload[512];
 	} msg;
 	int rc;
-	irqreturn_t irq_rc = IRQ_NONE;
+	irqreturn_t irq_rc = IRQ_ANALNE;
 
 	while (1) {
 		rc = vhost_user_recv_req(vu_dev, &msg.msg,
@@ -399,9 +399,9 @@ static irqreturn_t vu_req_read_message(struct virtio_uml_device *vu_dev,
 			}
 			break;
 		case VHOST_USER_SLAVE_IOTLB_MSG:
-			/* not supported - VIRTIO_F_ACCESS_PLATFORM */
-		case VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG:
-			/* not supported - VHOST_USER_PROTOCOL_F_HOST_NOTIFIER */
+			/* analt supported - VIRTIO_F_ACCESS_PLATFORM */
+		case VHOST_USER_SLAVE_VRING_HOST_ANALTIFIER_MSG:
+			/* analt supported - VHOST_USER_PROTOCOL_F_HOST_ANALTIFIER */
 		default:
 			vu_err(vu_dev, "unexpected slave request %d\n",
 			       msg.msg.header.request);
@@ -414,7 +414,7 @@ static irqreturn_t vu_req_read_message(struct virtio_uml_device *vu_dev,
 			vhost_user_reply(vu_dev, &msg.msg, response);
 		irq_rc = IRQ_HANDLED;
 	}
-	/* mask EAGAIN as we try non-blocking read until socket is empty */
+	/* mask EAGAIN as we try analn-blocking read until socket is empty */
 	vu_dev->recv_rc = (rc == -EAGAIN) ? 0 : rc;
 	return irq_rc;
 }
@@ -434,7 +434,7 @@ static irqreturn_t vu_req_interrupt(int irq, void *data)
 
 		virtio_device_for_each_vq((&vu_dev->vdev), vq) {
 			if (vu_dev->vq_irq_vq_map & BIT_ULL(vq->index))
-				vring_interrupt(0 /* ignored */, vq);
+				vring_interrupt(0 /* iganalred */, vq);
 		}
 		vu_dev->vq_irq_vq_map = 0;
 	} else if (vu_dev->config_changed_irq) {
@@ -455,7 +455,7 @@ static int vhost_user_init_slave_req(struct virtio_uml_device *vu_dev)
 {
 	int rc, req_fds[2];
 
-	/* Use a pipe for slave req fd, SIGIO is not supported for eventfd */
+	/* Use a pipe for slave req fd, SIGIO is analt supported for eventfd */
 	rc = os_pipe(req_fds, true, true);
 	if (rc < 0)
 		return rc;
@@ -470,7 +470,7 @@ static int vhost_user_init_slave_req(struct virtio_uml_device *vu_dev)
 
 	vu_dev->irq = rc;
 
-	rc = vhost_user_send_no_payload_fd(vu_dev, VHOST_USER_SET_SLAVE_REQ_FD,
+	rc = vhost_user_send_anal_payload_fd(vu_dev, VHOST_USER_SET_SLAVE_REQ_FD,
 					   req_fds[1]);
 	if (rc)
 		goto err_free_irq;
@@ -637,33 +637,33 @@ static int vhost_user_set_mem_table(struct virtio_uml_device *vu_dev)
 	 *
 	 * Essentially, setup_physmem() uses a file to mmap() our physmem,
 	 * but the code and data we *already* have is omitted. To us, this
-	 * is no difference, since they both become part of our address
+	 * is anal difference, since they both become part of our address
 	 * space and memory consumption. To somebody looking in from the
 	 * outside, however, it is different because the part of our memory
-	 * consumption that's already part of the binary (code/data) is not
-	 * mapped from the file, so it's not visible to another mmap from
+	 * consumption that's already part of the binary (code/data) is analt
+	 * mapped from the file, so it's analt visible to aanalther mmap from
 	 * the file descriptor.
 	 *
 	 * Thus, don't advertise this space to the vhost-user slave. This
 	 * means that the slave will likely abort or similar when we give
-	 * it an address from the hidden range, since it's not marked as
+	 * it an address from the hidden range, since it's analt marked as
 	 * a valid address, but at least that way we detect the issue and
 	 * don't just have the slave read an all-zeroes buffer from the
 	 * shared memory file, or write something there that we can never
 	 * see (depending on the direction of the virtqueue traffic.)
 	 *
 	 * Since we usually don't want to use .text for virtio buffers,
-	 * this effectively means that you cannot use
-	 *  1) global variables, which are in the .bss and not in the shm
+	 * this effectively means that you cananalt use
+	 *  1) global variables, which are in the .bss and analt in the shm
 	 *     file-backed memory
 	 *  2) the stack in some processes, depending on where they have
-	 *     their stack (or maybe only no interrupt stack?)
+	 *     their stack (or maybe only anal interrupt stack?)
 	 *
-	 * The stack is already not typically valid for DMA, so this isn't
+	 * The stack is already analt typically valid for DMA, so this isn't
 	 * much of a restriction, but global variables might be encountered.
 	 *
 	 * It might be possible to fix it by copying around the data that's
-	 * between bss_start and where we map the file now, but it's not
+	 * between bss_start and where we map the file analw, but it's analt
 	 * something that you typically encounter with virtio drivers, so
 	 * it didn't seem worthwhile.
 	 */
@@ -774,7 +774,7 @@ static int vhost_user_set_vring_enable(struct virtio_uml_device *vu_dev,
 
 /* Virtio interface */
 
-static bool vu_notify(struct virtqueue *vq)
+static bool vu_analtify(struct virtqueue *vq)
 {
 	struct virtio_uml_vq_info *info = vq->priv;
 	const uint64_t n = 1;
@@ -806,7 +806,7 @@ static irqreturn_t vu_interrupt(int irq, void *opaque)
 	struct virtio_uml_vq_info *info = vq->priv;
 	uint64_t n;
 	int rc;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	do {
 		rc = os_read_file(info->call_fd, &n, sizeof(n));
@@ -881,7 +881,7 @@ static void vu_del_vqs(struct virtio_device *vdev)
 	struct virtqueue *vq, *n;
 	u64 features;
 
-	/* Note: reverse order as a workaround to a decoding bug in snabb */
+	/* Analte: reverse order as a workaround to a decoding bug in snabb */
 	list_for_each_entry_reverse(vq, &vdev->vqs, list)
 		WARN_ON(vhost_user_set_vring_enable(vu_dev, vq->index, false));
 
@@ -899,16 +899,16 @@ static int vu_setup_vq_call_fd(struct virtio_uml_device *vu_dev,
 	int call_fds[2];
 	int rc;
 
-	/* no call FD needed/desired in this case */
+	/* anal call FD needed/desired in this case */
 	if (vu_dev->protocol_features &
-			BIT_ULL(VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS) &&
+			BIT_ULL(VHOST_USER_PROTOCOL_F_INBAND_ANALTIFICATIONS) &&
 	    vu_dev->protocol_features &
 			BIT_ULL(VHOST_USER_PROTOCOL_F_SLAVE_REQ)) {
 		info->call_fd = -1;
 		return 0;
 	}
 
-	/* Use a pipe for call fd, since SIGIO is not supported for eventfd */
+	/* Use a pipe for call fd, since SIGIO is analt supported for eventfd */
 	rc = os_pipe(call_fds, true, true);
 	if (rc < 0)
 		return rc;
@@ -949,16 +949,16 @@ static struct virtqueue *vu_setup_vq(struct virtio_device *vdev,
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto error_kzalloc;
 	}
 	snprintf(info->name, sizeof(info->name), "%s.%d-%s", pdev->name,
 		 pdev->id, name);
 
 	vq = vring_create_virtqueue(index, num, PAGE_SIZE, vdev, true, true,
-				    ctx, vu_notify, callback, info->name);
+				    ctx, vu_analtify, callback, info->name);
 	if (!vq) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto error_create;
 	}
 	vq->priv = info;
@@ -966,7 +966,7 @@ static struct virtqueue *vu_setup_vq(struct virtio_device *vdev,
 	num = virtqueue_get_vring_size(vq);
 
 	if (vu_dev->protocol_features &
-			BIT_ULL(VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS)) {
+			BIT_ULL(VHOST_USER_PROTOCOL_F_INBAND_ANALTIFICATIONS)) {
 		info->kick_fd = -1;
 	} else {
 		rc = os_eventfd(0, 0);
@@ -1022,7 +1022,7 @@ static int vu_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	int i, queue_idx = 0, rc;
 	struct virtqueue *vq;
 
-	/* not supported for now */
+	/* analt supported for analw */
 	if (WARN_ON(nvqs > 64))
 		return -EINVAL;
 
@@ -1112,7 +1112,7 @@ static void virtio_uml_release_dev(struct device *d)
 
 	time_travel_propagate_time();
 
-	/* might not have been opened due to not negotiating the feature */
+	/* might analt have been opened due to analt negotiating the feature */
 	if (vu_dev->req_fd >= 0) {
 		um_free_irq(vu_dev->irq, vu_dev);
 		os_close_file(vu_dev->req_fd);
@@ -1122,17 +1122,17 @@ static void virtio_uml_release_dev(struct device *d)
 	kfree(vu_dev);
 }
 
-void virtio_uml_set_no_vq_suspend(struct virtio_device *vdev,
-				  bool no_vq_suspend)
+void virtio_uml_set_anal_vq_suspend(struct virtio_device *vdev,
+				  bool anal_vq_suspend)
 {
 	struct virtio_uml_device *vu_dev = to_virtio_uml_device(vdev);
 
 	if (WARN_ON(vdev->config != &virtio_uml_config_ops))
 		return;
 
-	vu_dev->no_vq_suspend = no_vq_suspend;
+	vu_dev->anal_vq_suspend = anal_vq_suspend;
 	dev_info(&vdev->dev, "%sabled VQ suspend\n",
-		 no_vq_suspend ? "dis" : "en");
+		 anal_vq_suspend ? "dis" : "en");
 }
 
 static void vu_of_conn_broken(struct work_struct *wk)
@@ -1158,7 +1158,7 @@ static void vu_of_conn_broken(struct work_struct *wk)
 static struct virtio_uml_platform_data *
 virtio_uml_create_pdata(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct virtio_uml_platform_data *pdata;
 	int ret;
 
@@ -1167,7 +1167,7 @@ virtio_uml_create_pdata(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_WORK(&pdata->conn_broken_wk, vu_of_conn_broken);
 	pdata->pdev = pdev;
@@ -1198,7 +1198,7 @@ static int virtio_uml_probe(struct platform_device *pdev)
 
 	vu_dev = kzalloc(sizeof(*vu_dev), GFP_KERNEL);
 	if (!vu_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vu_dev->pdata = pdata;
 	vu_dev->vdev.dev.parent = &pdev->dev;
@@ -1318,7 +1318,7 @@ static int vu_cmdline_set(const char *device, const struct kernel_param *kp)
 
 	socket_path = kmemdup_nul(device, ids - device, GFP_KERNEL);
 	if (!socket_path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata.virtio_device_id = (u32) virtio_device_id;
 	pdata.socket_path = socket_path;
@@ -1401,7 +1401,7 @@ static int virtio_uml_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct virtio_uml_device *vu_dev = platform_get_drvdata(pdev);
 
-	if (!vu_dev->no_vq_suspend) {
+	if (!vu_dev->anal_vq_suspend) {
 		struct virtqueue *vq;
 
 		virtio_device_for_each_vq((&vu_dev->vdev), vq) {
@@ -1424,7 +1424,7 @@ static int virtio_uml_resume(struct platform_device *pdev)
 {
 	struct virtio_uml_device *vu_dev = platform_get_drvdata(pdev);
 
-	if (!vu_dev->no_vq_suspend) {
+	if (!vu_dev->anal_vq_suspend) {
 		struct virtqueue *vq;
 
 		virtio_device_for_each_vq((&vu_dev->vdev), vq) {

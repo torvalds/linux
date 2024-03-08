@@ -27,12 +27,12 @@ struct max98504_priv {
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[MAX98504_NUM_SUPPLIES];
 	unsigned int pcm_rx_channels;
-	bool brownout_enable;
-	unsigned int brownout_threshold;
-	unsigned int brownout_attenuation;
-	unsigned int brownout_attack_hold;
-	unsigned int brownout_timed_hold;
-	unsigned int brownout_release_rate;
+	bool browanalut_enable;
+	unsigned int browanalut_threshold;
+	unsigned int browanalut_attenuation;
+	unsigned int browanalut_attack_hold;
+	unsigned int browanalut_timed_hold;
+	unsigned int browanalut_release_rate;
 };
 
 static struct reg_default max98504_reg_defaults[] = {
@@ -133,23 +133,23 @@ static int max98504_component_probe(struct snd_soc_component *c)
 	regmap_write(map, MAX98504_SOFTWARE_RESET, 0x1);
 	msleep(20);
 
-	if (!max98504->brownout_enable)
+	if (!max98504->browanalut_enable)
 		return 0;
 
-	regmap_write(map, MAX98504_PVDD_BROWNOUT_ENABLE, 0x1);
+	regmap_write(map, MAX98504_PVDD_BROWANALUT_ENABLE, 0x1);
 
-	regmap_write(map, MAX98504_PVDD_BROWNOUT_CONFIG_1,
-		     (max98504->brownout_threshold & 0x1f) << 3 |
-		     (max98504->brownout_attenuation & 0x3));
+	regmap_write(map, MAX98504_PVDD_BROWANALUT_CONFIG_1,
+		     (max98504->browanalut_threshold & 0x1f) << 3 |
+		     (max98504->browanalut_attenuation & 0x3));
 
-	regmap_write(map, MAX98504_PVDD_BROWNOUT_CONFIG_2,
-		     max98504->brownout_attack_hold & 0xff);
+	regmap_write(map, MAX98504_PVDD_BROWANALUT_CONFIG_2,
+		     max98504->browanalut_attack_hold & 0xff);
 
-	regmap_write(map, MAX98504_PVDD_BROWNOUT_CONFIG_3,
-		     max98504->brownout_timed_hold & 0xff);
+	regmap_write(map, MAX98504_PVDD_BROWANALUT_CONFIG_3,
+		     max98504->browanalut_timed_hold & 0xff);
 
-	regmap_write(map, MAX98504_PVDD_BROWNOUT_CONFIG_4,
-		     max98504->brownout_release_rate & 0xff);
+	regmap_write(map, MAX98504_PVDD_BROWANALUT_CONFIG_4,
+		     max98504->browanalut_release_rate & 0xff);
 
 	return 0;
 }
@@ -162,7 +162,7 @@ static void max98504_component_remove(struct snd_soc_component *c)
 }
 
 static const char *spk_source_mux_text[] = {
-	"PCM Monomix", "Analog In", "PDM Left", "PDM Right"
+	"PCM Moanalmix", "Analog In", "PDM Left", "PDM Right"
 };
 
 static const struct soc_enum spk_source_mux_enum =
@@ -175,7 +175,7 @@ static const struct snd_kcontrol_new spk_source_mux =
 
 static const struct snd_soc_dapm_route max98504_dapm_routes[] = {
 	{ "SPKOUT", NULL, "Global Enable" },
-	{ "SPK Source", "PCM Monomix", "DAC PCM" },
+	{ "SPK Source", "PCM Moanalmix", "DAC PCM" },
 	{ "SPK Source", "Analog In", "AIN" },
 	{ "SPK Source", "PDM Left", "DAC PDM" },
 	{ "SPK Source", "PDM Right", "DAC PDM" },
@@ -185,13 +185,13 @@ static const struct snd_soc_dapm_widget max98504_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Global Enable", MAX98504_GLOBAL_ENABLE,
 		0, 0, NULL, 0),
 	SND_SOC_DAPM_INPUT("AIN"),
-	SND_SOC_DAPM_AIF_OUT("AIF2OUTL", "AIF2 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF2OUTR", "AIF2 Capture", 1, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC_E("DAC PCM", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_AIF_OUT("AIF2OUTL", "AIF2 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF2OUTR", "AIF2 Capture", 1, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC_E("DAC PCM", NULL, SND_SOC_ANALPM, 0, 0,
 		max98504_pcm_rx_ev,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_DAC("DAC PDM", NULL, MAX98504_PDM_RX_ENABLE, 0, 0),
-	SND_SOC_DAPM_MUX("SPK Source", SND_SOC_NOPM, 0, 0, &spk_source_mux),
+	SND_SOC_DAPM_MUX("SPK Source", SND_SOC_ANALPM, 0, 0, &spk_source_mux),
 	SND_SOC_DAPM_REG(snd_soc_dapm_spk, "SPKOUT",
 		MAX98504_SPEAKER_ENABLE, 0, 1, 1, 0),
 };
@@ -308,27 +308,27 @@ static const struct regmap_config max98504_regmap = {
 static int max98504_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct max98504_priv *max98504;
 	int i, ret;
 
 	max98504 = devm_kzalloc(dev, sizeof(*max98504), GFP_KERNEL);
 	if (!max98504)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (node) {
-		if (!of_property_read_u32(node, "maxim,brownout-threshold",
-					&max98504->brownout_threshold))
-			max98504->brownout_enable = true;
+	if (analde) {
+		if (!of_property_read_u32(analde, "maxim,browanalut-threshold",
+					&max98504->browanalut_threshold))
+			max98504->browanalut_enable = true;
 
-		of_property_read_u32(node, "maxim,brownout-attenuation",
-					&max98504->brownout_attenuation);
-		of_property_read_u32(node, "maxim,brownout-attack-hold-ms",
-					&max98504->brownout_attack_hold);
-		of_property_read_u32(node, "maxim,brownout-timed-hold-ms",
-					&max98504->brownout_timed_hold);
-		of_property_read_u32(node, "maxim,brownout-release-rate-ms",
-					&max98504->brownout_release_rate);
+		of_property_read_u32(analde, "maxim,browanalut-attenuation",
+					&max98504->browanalut_attenuation);
+		of_property_read_u32(analde, "maxim,browanalut-attack-hold-ms",
+					&max98504->browanalut_attack_hold);
+		of_property_read_u32(analde, "maxim,browanalut-timed-hold-ms",
+					&max98504->browanalut_timed_hold);
+		of_property_read_u32(analde, "maxim,browanalut-release-rate-ms",
+					&max98504->browanalut_release_rate);
 	}
 
 	max98504->regmap = devm_regmap_init_i2c(client, &max98504_regmap);

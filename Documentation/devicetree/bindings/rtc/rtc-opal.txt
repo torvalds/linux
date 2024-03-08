@@ -5,7 +5,7 @@ Required properties:
 - compatible: Should be "ibm,opal-rtc"
 
 Optional properties:
-- wakeup-source: Decides if the wakeup is supported or not
+- wakeup-source: Decides if the wakeup is supported or analt
 		 (Legacy property supported: "has-tpo")
 
 Example:

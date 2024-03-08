@@ -109,7 +109,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 {
 	struct tb10x_gpio *tb10x_gpio;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret = -EBUSY;
 	u32 ngpio;
 
@@ -121,20 +121,20 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 
 	tb10x_gpio = devm_kzalloc(dev, sizeof(*tb10x_gpio), GFP_KERNEL);
 	if (tb10x_gpio == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tb10x_gpio->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(tb10x_gpio->base))
 		return PTR_ERR(tb10x_gpio->base);
 
 	tb10x_gpio->gc.label =
-		devm_kasprintf(dev, GFP_KERNEL, "%pOF", pdev->dev.of_node);
+		devm_kasprintf(dev, GFP_KERNEL, "%pOF", pdev->dev.of_analde);
 	if (!tb10x_gpio->gc.label)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Initialize generic GPIO with one single register for reading and setting
-	 * the lines, no special set or clear registers and a data direction register
+	 * the lines, anal special set or clear registers and a data direction register
 	 * wher 1 means "output".
 	 */
 	ret = bgpio_init(&tb10x_gpio->gc, dev, 4,
@@ -161,7 +161,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(dev, &tb10x_gpio->gc, tb10x_gpio);
 	if (ret < 0) {
-		dev_err(dev, "Could not add gpiochip.\n");
+		dev_err(dev, "Could analt add gpiochip.\n");
 		return ret;
 	}
 
@@ -178,7 +178,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 		tb10x_gpio->irq		= ret;
 
 		ret = devm_request_irq(dev, ret, tb10x_gpio_irq_cascade,
-				IRQF_TRIGGER_NONE | IRQF_SHARED,
+				IRQF_TRIGGER_ANALNE | IRQF_SHARED,
 				dev_name(dev), tb10x_gpio);
 		if (ret != 0)
 			return ret;
@@ -187,12 +187,12 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 						tb10x_gpio->gc.ngpio,
 						&irq_generic_chip_ops, NULL);
 		if (!tb10x_gpio->domain) {
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ret = irq_alloc_domain_generic_chips(tb10x_gpio->domain,
 				tb10x_gpio->gc.ngpio, 1, tb10x_gpio->gc.label,
-				handle_edge_irq, IRQ_NOREQUEST, IRQ_NOPROBE,
+				handle_edge_irq, IRQ_ANALREQUEST, IRQ_ANALPROBE,
 				IRQ_GC_INIT_MASK_CACHE);
 		if (ret)
 			goto err_remove_domain;

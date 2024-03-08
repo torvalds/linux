@@ -159,7 +159,7 @@ static int em_ipt_change(struct net *net, void *data, int data_len,
 	mdata_len = XT_ALIGN(nla_len(tb[TCA_EM_IPT_MATCH_DATA]));
 	im = kzalloc(sizeof(*im) + mdata_len, GFP_KERNEL);
 	if (!im) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 

@@ -22,11 +22,11 @@ voltages of the board.
 The voltage sensors are connected to the ADC inputs of the BMC which is
 a PIC16F917 Mikrocontroller.
 
-Usage Notes
+Usage Analtes
 -----------
 
 This driver is part of the MFD driver named "menf21bmc" and does
-not auto-detect devices.
+analt auto-detect devices.
 You will have to instantiate the MFD driver explicitly.
 Please see Documentation/i2c/instantiating-devices.rst for
 details.

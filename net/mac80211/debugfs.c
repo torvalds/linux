@@ -437,7 +437,7 @@ static ssize_t reset_write(struct file *file, const char __user *user_buf,
 static const struct file_operations reset_ops = {
 	.write = reset_write,
 	.open = simple_open,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 #endif
 
@@ -456,7 +456,7 @@ static const char *hw_flag_names[] = {
 	FLAG(SUPPORTS_DYNAMIC_PS),
 	FLAG(MFP_CAPABLE),
 	FLAG(WANT_MONITOR_VIF),
-	FLAG(NO_AUTO_VIF),
+	FLAG(ANAL_AUTO_VIF),
 	FLAG(SW_CRYPTO_CONTROL),
 	FLAG(SUPPORT_FAST_XMIT),
 	FLAG(REPORTS_TX_ACK_STATUS),
@@ -488,7 +488,7 @@ static const char *hw_flag_names[] = {
 	FLAG(BUFF_MMPDU_TXQ),
 	FLAG(SUPPORTS_VHT_EXT_NSS_BW),
 	FLAG(STA_MMPDU_TXQ),
-	FLAG(TX_STATUS_NO_AMPDU_LEN),
+	FLAG(TX_STATUS_ANAL_AMPDU_LEN),
 	FLAG(SUPPORTS_MULTI_BSSID),
 	FLAG(SUPPORTS_ONLY_HE_MULTI_BSSID),
 	FLAG(AMPDU_KEYBORDER_SUPPORT),
@@ -512,7 +512,7 @@ static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 	int i;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* fail compilation if somebody adds or removes
 	 * a flag without updating the name array above
@@ -544,7 +544,7 @@ static ssize_t misc_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos = buf;
 	end = buf + bufsz - 1;
@@ -688,7 +688,7 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_STATS_ADD(tx_handlers_drop);
 	DEBUGFS_STATS_ADD(tx_handlers_queued);
 	DEBUGFS_STATS_ADD(tx_handlers_drop_wep);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_not_assoc);
+	DEBUGFS_STATS_ADD(tx_handlers_drop_analt_assoc);
 	DEBUGFS_STATS_ADD(tx_handlers_drop_unauth_port);
 	DEBUGFS_STATS_ADD(rx_handlers_drop);
 	DEBUGFS_STATS_ADD(rx_handlers_queued);

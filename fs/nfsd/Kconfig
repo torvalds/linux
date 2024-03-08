@@ -3,7 +3,7 @@ config NFSD
 	tristate "NFS server support"
 	depends on INET
 	depends on FILE_LOCKING
-	depends on FSNOTIFY
+	depends on FSANALTIFY
 	select LOCKD
 	select SUNRPC
 	select EXPORTFS
@@ -56,7 +56,7 @@ config NFSD_V3_ACL
 	  This protocol extension allows applications on NFS clients to
 	  manipulate POSIX Access Control Lists on files residing on NFS
 	  servers.  NFS servers enforce POSIX ACLs on local files whether
-	  this protocol is available or not.
+	  this protocol is available or analt.
 
 	  This option enables support in your system's NFS server for the
 	  NFSv3 ACL protocol extension allowing NFS clients to manipulate
@@ -132,7 +132,7 @@ config NFSD_FLEXFILELAYOUT
 
 	  Warning, this server implements the bare minimum functionality
 	  to be a flex file server - it is for testing the client,
-	  not for use in production.
+	  analt for use in production.
 
 	  If unsure, say N.
 
@@ -156,7 +156,7 @@ config NFSD_V4_SECURITY_LABEL
 	SELinux and Smack to label files to facilitate enforcement of their policies.
 	Without this an NFSv4 mount will have the same label on each file.
 
-	If you do not wish to enable fine-grained security labels SELinux or
+	If you do analt wish to enable fine-grained security labels SELinux or
 	Smack policies on NFSv4 files, say N.
 
 config NFSD_LEGACY_CLIENT_TRACKING

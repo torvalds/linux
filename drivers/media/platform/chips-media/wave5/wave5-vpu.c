@@ -139,7 +139,7 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->vdb_register = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->vdb_register))
@@ -166,16 +166,16 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node, "sram-size",
+	ret = of_property_read_u32(pdev->dev.of_analde, "sram-size",
 				   &dev->sram_size);
 	if (ret) {
-		dev_warn(&pdev->dev, "sram-size not found\n");
+		dev_warn(&pdev->dev, "sram-size analt found\n");
 		dev->sram_size = 0;
 	}
 
-	dev->sram_pool = of_gen_pool_get(pdev->dev.of_node, "sram", 0);
+	dev->sram_pool = of_gen_pool_get(pdev->dev.of_analde, "sram", 0);
 	if (!dev->sram_pool)
-		dev_warn(&pdev->dev, "sram node not found\n");
+		dev_warn(&pdev->dev, "sram analde analt found\n");
 
 	dev->product_code = wave5_vdi_read_register(dev, VPU_PRODUCT_CODE_REGISTER);
 	ret = wave5_vdi_init(&pdev->dev);

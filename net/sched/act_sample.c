@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * net/sched/act_sample.c - Packet sampling tc action
- * Copyright (c) 2017 Yotam Gigi <yotamg@mellanox.com>
+ * Copyright (c) 2017 Yotam Gigi <yotamg@mellaanalx.com>
  */
 
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
@@ -100,7 +100,7 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	psample_group_num = nla_get_u32(tb[TCA_SAMPLE_PSAMPLE_GROUP]);
 	psample_group = psample_group_get(net, psample_group_num);
 	if (!psample_group) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_chain;
 	}
 
@@ -138,7 +138,7 @@ static void tcf_sample_cleanup(struct tc_action *a)
 	struct tcf_sample *s = to_sample(a);
 	struct psample_group *psample_group;
 
-	/* last reference to action, no need to lock */
+	/* last reference to action, anal need to lock */
 	psample_group = rcu_dereference_protected(s->psample_group, 1);
 	RCU_INIT_POINTER(s->psample_group, NULL);
 	if (psample_group)
@@ -154,7 +154,7 @@ static bool tcf_sample_dev_ok_push(struct net_device *dev)
 	case ARPHRD_IPGRE:
 	case ARPHRD_IP6GRE:
 	case ARPHRD_VOID:
-	case ARPHRD_NONE:
+	case ARPHRD_ANALNE:
 		return false;
 	default:
 		return true;

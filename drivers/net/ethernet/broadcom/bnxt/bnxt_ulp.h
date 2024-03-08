@@ -70,7 +70,7 @@ struct bnxt_en_dev {
 							 * driver.
 							 */
 	int				l2_db_size_nc;	/* Doorbell BAR size in
-							 * bytes mapped as non-
+							 * bytes mapped as analn-
 							 * cacheable.
 							 */
 	int				l2_db_offset;	/* Doorbell offset in

@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/nubus.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
@@ -33,7 +33,7 @@
 /* Globals */
 
 /* The "nubus.populate_procfs" parameter makes slot resources available in
- * procfs. It's deprecated and disabled by default because procfs is no longer
+ * procfs. It's deprecated and disabled by default because procfs is anal longer
  * thought to be suitable for that and some board ROMs make it too expensive.
  */
 bool nubus_populate_procfs;
@@ -52,7 +52,7 @@ LIST_HEAD(nubus_func_rsrcs);
    A map of 0x0f, as found in the MacOS ROM, means that all bytelanes
    are valid.
 
-   A map of 0xf0 means that no bytelanes are valid (We pray that we
+   A map of 0xf0 means that anal bytelanes are valid (We pray that we
    will never encounter this, but stranger things have happened)
 
    A map of 0xe1 means that only the MSB of each long word is actually
@@ -64,7 +64,7 @@ LIST_HEAD(nubus_func_rsrcs);
    Etcetera, etcetera.  Hopefully this clears up some confusion over
    what the following code actually does.  */
 
-static inline int not_useful(void *p, int map)
+static inline int analt_useful(void *p, int map)
 {
 	unsigned long pv = (unsigned long)p;
 
@@ -82,7 +82,7 @@ static unsigned long nubus_get_rom(unsigned char **ptr, int len, int map)
 
 	while (len) {
 		v <<= 8;
-		while (not_useful(p, map))
+		while (analt_useful(p, map))
 			p++;
 		v |= *p++;
 		len--;
@@ -98,7 +98,7 @@ static void nubus_rewind(unsigned char **ptr, int len, int map)
 	while (len) {
 		do {
 			p--;
-		} while (not_useful(p, map));
+		} while (analt_useful(p, map));
 		len--;
 	}
 	*ptr = p;
@@ -109,7 +109,7 @@ static void nubus_advance(unsigned char **ptr, int len, int map)
 	unsigned char *p = *ptr;
 
 	while (len) {
-		while (not_useful(p, map))
+		while (analt_useful(p, map))
 			p++;
 		p++;
 		len--;
@@ -130,7 +130,7 @@ static void nubus_move(unsigned char **ptr, int len, int map)
 		pr_err("%s: moved out of slot address space!\n", __func__);
 }
 
-/* Now, functions to read the sResource tree */
+/* Analw, functions to read the sResource tree */
 
 /* Each sResource entry consists of a 1-byte ID and a 3-byte data
    field.  If that data field contains an offset, then obviously we
@@ -218,7 +218,7 @@ void nubus_seq_write_rsrc_mem(struct seq_file *m,
 		seq_write(m, buf, buf_size);
 		len -= buf_size;
 	}
-	/* If not, write out individual bytes */
+	/* If analt, write out individual bytes */
 	while (len--)
 		seq_putc(m, nubus_get_rom(&p, 1, dirent->mask));
 }
@@ -252,7 +252,7 @@ int nubus_get_board_dir(const struct nubus_board *board,
 	dir->done = 0;
 	dir->mask = board->lanes;
 
-	/* Now dereference it (the first directory is always the board
+	/* Analw dereference it (the first directory is always the board
 	   directory) */
 	if (nubus_readdir(dir, &ent) == -1)
 		return -1;
@@ -294,7 +294,7 @@ int nubus_readdir(struct nubus_dir *nd, struct nubus_dirent *ent)
 
 	/* First byte is the resource ID */
 	ent->type = resid >> 24;
-	/* Low 3 bytes might contain data (or might not) */
+	/* Low 3 bytes might contain data (or might analt) */
 	ent->data = resid & 0xffffff;
 	ent->mask = nd->mask;
 	return 0;
@@ -386,7 +386,7 @@ static int __init nubus_get_display_vidmode(struct nubus_board *board,
 			break;
 		}
 		default:
-			pr_debug("        unknown resource 0x%02x, data 0x%06x\n",
+			pr_debug("        unkanalwn resource 0x%02x, data 0x%06x\n",
 				ent.type, ent.data);
 			nubus_proc_add_rsrc_mem(dir.procdir, &ent, 0);
 		}
@@ -409,7 +409,7 @@ static int __init nubus_get_display_resource(struct nubus_rsrc *fres,
 		nubus_get_display_vidmode(fres->board, procdir, ent);
 		break;
 	default:
-		pr_debug("    unknown resource 0x%02x, data 0x%06x\n",
+		pr_debug("    unkanalwn resource 0x%02x, data 0x%06x\n",
 			ent->type, ent->data);
 		nubus_proc_add_rsrc_mem(procdir, ent, 0);
 	}
@@ -431,7 +431,7 @@ static int __init nubus_get_network_resource(struct nubus_rsrc *fres,
 		break;
 	}
 	default:
-		pr_debug("    unknown resource 0x%02x, data 0x%06x\n",
+		pr_debug("    unkanalwn resource 0x%02x, data 0x%06x\n",
 			ent->type, ent->data);
 		nubus_proc_add_rsrc_mem(procdir, ent, 0);
 	}
@@ -464,7 +464,7 @@ static int __init nubus_get_cpu_resource(struct nubus_rsrc *fres,
 		break;
 	}
 	default:
-		pr_debug("    unknown resource 0x%02x, data 0x%06x\n",
+		pr_debug("    unkanalwn resource 0x%02x, data 0x%06x\n",
 			ent->type, ent->data);
 		nubus_proc_add_rsrc_mem(procdir, ent, 0);
 	}
@@ -486,7 +486,7 @@ static int __init nubus_get_private_resource(struct nubus_rsrc *fres,
 		nubus_get_cpu_resource(fres, procdir, ent);
 		break;
 	default:
-		pr_debug("    unknown resource 0x%02x, data 0x%06x\n",
+		pr_debug("    unkanalwn resource 0x%02x, data 0x%06x\n",
 			ent->type, ent->data);
 		nubus_proc_add_rsrc_mem(procdir, ent, 0);
 	}
@@ -548,7 +548,7 @@ nubus_get_functional_resource(struct nubus_board *board, int slot,
 			nubus_get_block_rsrc_dir(board, dir.procdir, &ent);
 			break;
 		}
-		case NUBUS_RESID_MINOR_BASEOS:
+		case NUBUS_RESID_MIANALR_BASEOS:
 		{
 			/* We will need this in order to support
 			   multiple framebuffers.  It might be handy
@@ -560,7 +560,7 @@ nubus_get_functional_resource(struct nubus_board *board, int slot,
 			nubus_proc_add_rsrc_mem(dir.procdir, &ent, 4);
 			break;
 		}
-		case NUBUS_RESID_MINOR_LENGTH:
+		case NUBUS_RESID_MIANALR_LENGTH:
 		{
 			/* Ditto */
 			u32 length;
@@ -615,7 +615,7 @@ static int __init nubus_get_vendorinfo(struct nubus_board *board,
 	struct nubus_dir dir;
 	struct nubus_dirent ent;
 	static char *vendor_fields[6] = { "ID", "serial", "revision",
-	                                  "part", "date", "unknown field" };
+	                                  "part", "date", "unkanalwn field" };
 
 	pr_debug("    vendor info:\n");
 	nubus_get_subdir(parent, &dir);
@@ -650,7 +650,7 @@ static int __init nubus_get_board_resource(struct nubus_board *board, int slot,
 		case NUBUS_RESID_TYPE:
 		{
 			unsigned short nbtdata[4];
-			/* This type is always the same, and is not
+			/* This type is always the same, and is analt
 			   useful except insofar as it tells us that
 			   we really are looking at a board resource. */
 			nubus_get_rsrc_mem(nbtdata, &ent, 8);
@@ -658,7 +658,7 @@ static int __init nubus_get_board_resource(struct nubus_board *board, int slot,
 				nbtdata[0], nbtdata[1], nbtdata[2], nbtdata[3]);
 			if (nbtdata[0] != 1 || nbtdata[1] != 0 ||
 			    nbtdata[2] != 0 || nbtdata[3] != 0)
-				pr_err("Slot %X: sResource is not a board resource!\n",
+				pr_err("Slot %X: sResource is analt a board resource!\n",
 				       slot);
 			nubus_proc_add_rsrc_mem(dir.procdir, &ent, 8);
 			break;
@@ -713,7 +713,7 @@ static int __init nubus_get_board_resource(struct nubus_board *board, int slot,
 			nubus_proc_add_rsrc(dir.procdir, &ent);
 			break;
 		default:
-			pr_debug("    unknown resource 0x%02x, data 0x%06x\n",
+			pr_debug("    unkanalwn resource 0x%02x, data 0x%06x\n",
 				ent.type, ent.data);
 			nubus_proc_add_rsrc_mem(dir.procdir, &ent, 0);
 		}
@@ -776,7 +776,7 @@ static void __init nubus_add_board(int slot, int bytelanes)
 	/*
 	 *	I wonder how the CRC is meant to work -
 	 *		any takers ?
-	 * CSA: According to MAC docs, not all cards pass the CRC anyway,
+	 * CSA: According to MAC docs, analt all cards pass the CRC anyway,
 	 * since the initial Macintosh ROM releases skipped the check.
 	 */
 
@@ -798,7 +798,7 @@ static void __init nubus_add_board(int slot, int bytelanes)
 	 */
 	if (nubus_readdir(&dir, &ent) == -1) {
 		/* We can't have this! */
-		pr_err("Slot %X: Board resource not found!\n", slot);
+		pr_err("Slot %X: Board resource analt found!\n", slot);
 		kfree(board);
 		return;
 	}
@@ -854,7 +854,7 @@ static void __init nubus_probe_slot(int slot)
 			continue;
 		/* Check that this value is actually *on* one of the
 		   bytelanes it claims are valid! */
-		if (not_useful(rp, dp))
+		if (analt_useful(rp, dp))
 			continue;
 
 		/* Looks promising.  Let's put it on the list. */

@@ -24,7 +24,7 @@
 #ifdef CONFIG_PPC64
 #define cpu_relax()							\
 	asm volatile(ASM_FTR_IFCLR(					\
-		/* Pre-POWER10 uses low ; medium priority nops */	\
+		/* Pre-POWER10 uses low ; medium priority analps */	\
 		"or 1,1,1 ; or 2,2,2",					\
 		/* POWER10 onward uses pause_short (wait 2,0) */	\
 		PPC_WAIT(2, 0),						\

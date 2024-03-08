@@ -134,11 +134,11 @@ static void test_parse_test_list_file(void)
 	fprintf(fp, "# comment\n");
 	fprintf(fp, "  test_with_spaces    \n");
 	fprintf(fp, "testA/subtest    # comment\n");
-	fprintf(fp, "testB#comment with no space\n");
+	fprintf(fp, "testB#comment with anal space\n");
 	fprintf(fp, "testB # duplicate\n");
 	fprintf(fp, "testA/subtest # subtest duplicate\n");
 	fprintf(fp, "testA/subtest2\n");
-	fprintf(fp, "testC_no_eof_newline");
+	fprintf(fp, "testC_anal_eof_newline");
 	fflush(fp);
 
 	if (!ASSERT_OK(ferror(fp), "prepare tmp"))
@@ -156,7 +156,7 @@ static void test_parse_test_list_file(void)
 	ASSERT_OK(strcmp("subtest", set.tests[1].subtests[0]), "test 1 subtest 0");
 	ASSERT_OK(strcmp("subtest2", set.tests[1].subtests[1]), "test 1 subtest 1");
 	ASSERT_OK(strcmp("testB", set.tests[2].name), "test 2 name");
-	ASSERT_OK(strcmp("testC_no_eof_newline", set.tests[3].name), "test 3 name");
+	ASSERT_OK(strcmp("testC_anal_eof_newline", set.tests[3].name), "test 3 name");
 
 	free_test_filter_set(&set);
 

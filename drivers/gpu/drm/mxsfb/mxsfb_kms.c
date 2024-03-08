@@ -73,7 +73,7 @@ static void mxsfb_set_formats(struct mxsfb_drm_private *mxsfb,
 	case DRM_FORMAT_XRGB8888:
 		dev_dbg(drm->dev, "Setting up XRGB8888 mode\n");
 		ctrl |= CTRL_WORD_LENGTH_24;
-		/* Do not use packed pixels = one pixel per word instead. */
+		/* Do analt use packed pixels = one pixel per word instead. */
 		ctrl1 |= CTRL1_SET_BYTE_PACKAGING(0x7);
 		break;
 	}
@@ -89,7 +89,7 @@ static void mxsfb_set_formats(struct mxsfb_drm_private *mxsfb,
 		ctrl |= CTRL_BUS_WIDTH_24;
 		break;
 	default:
-		dev_err(drm->dev, "Unknown media bus format 0x%x\n", bus_format);
+		dev_err(drm->dev, "Unkanalwn media bus format 0x%x\n", bus_format);
 		break;
 	}
 
@@ -181,15 +181,15 @@ static void mxsfb_enable_controller(struct mxsfb_drm_private *mxsfb)
 	 * bridged 1920x1080 panel (and likely on other setups too), where
 	 * the image on the panel shifts to the right and wraps around.
 	 * This happens either when the controller is enabled on boot or
-	 * even later during run time. The condition does not correct
+	 * even later during run time. The condition does analt correct
 	 * itself automatically, i.e. the display image remains shifted.
 	 *
-	 * It seems this problem is known and is due to sporadic underflows
+	 * It seems this problem is kanalwn and is due to sporadic underflows
 	 * of the LCDIF FIFO. While the LCDIF IP does have underflow/overflow
 	 * IRQs, neither of the IRQs trigger and neither IRQ status bit is
 	 * asserted when this condition occurs.
 	 *
-	 * All known revisions of the LCDIF IP have CTRL1 RECOVER_ON_UNDERFLOW
+	 * All kanalwn revisions of the LCDIF IP have CTRL1 RECOVER_ON_UNDERFLOW
 	 * bit, which is described in the reference manual since i.MX23 as
 	 * "
 	 *   Set this bit to enable the LCDIF block to recover in the next
@@ -275,7 +275,7 @@ static int mxsfb_reset_block(struct mxsfb_drm_private *mxsfb)
 	return 0;
 }
 
-static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb,
+static void mxsfb_crtc_mode_set_analfb(struct mxsfb_drm_private *mxsfb,
 				     struct drm_bridge_state *bridge_state,
 				     const u32 bus_format)
 {
@@ -371,13 +371,13 @@ static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 
 		if (bus_format == MEDIA_BUS_FMT_FIXED) {
 			dev_warn_once(drm->dev,
-				      "Bridge does not provide bus format, assuming MEDIA_BUS_FMT_RGB888_1X24.\n"
+				      "Bridge does analt provide bus format, assuming MEDIA_BUS_FMT_RGB888_1X24.\n"
 				      "Please fix bridge driver by handling atomic_get_input_bus_fmts.\n");
 			bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 		}
 	}
 
-	/* If there is no bridge, use bus format from connector */
+	/* If there is anal bridge, use bus format from connector */
 	if (!bus_format && mxsfb->connector->display_info.num_bus_formats)
 		bus_format = mxsfb->connector->display_info.bus_formats[0];
 
@@ -385,7 +385,7 @@ static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (!bus_format)
 		bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 
-	mxsfb_crtc_mode_set_nofb(mxsfb, bridge_state, bus_format);
+	mxsfb_crtc_mode_set_analfb(mxsfb, bridge_state, bus_format);
 
 	/* Write cur_buf as well to avoid an initial corrupt frame */
 	dma_addr = drm_fb_dma_get_gem_addr(new_pstate->fb, new_pstate, 0);
@@ -445,7 +445,7 @@ static int mxsfb_crtc_set_crc_source(struct drm_crtc *crtc, const char *source)
 	struct mxsfb_drm_private *mxsfb;
 
 	if (!crtc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mxsfb = to_mxsfb_drm_private(crtc->dev);
 
@@ -463,10 +463,10 @@ static int mxsfb_crtc_verify_crc_source(struct drm_crtc *crtc,
 					const char *source, size_t *values_cnt)
 {
 	if (!crtc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (source && strcmp(source, "auto") != 0) {
-		DRM_DEBUG_DRIVER("Unknown CRC source %s for %s\n",
+		DRM_DEBUG_DRIVER("Unkanalwn CRC source %s for %s\n",
 				 source, crtc->name);
 		return -EINVAL;
 	}
@@ -530,8 +530,8 @@ static int mxsfb_plane_atomic_check(struct drm_plane *plane,
 						   &mxsfb->crtc);
 
 	return drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						   DRM_PLANE_NO_SCALING,
-						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
 						   false, true);
 }
 
@@ -566,7 +566,7 @@ static void mxsfb_plane_overlay_atomic_update(struct drm_plane *plane,
 	}
 
 	/*
-	 * HACK: The hardware seems to output 64 bytes of data of unknown
+	 * HACK: The hardware seems to output 64 bytes of data of unkanalwn
 	 * origin, and then to proceed with the framebuffer. Until the reason
 	 * is understood, live with the 16 initial invalid pixels on the first
 	 * line and start 64 bytes within the framebuffer.
@@ -718,5 +718,5 @@ int mxsfb_kms_init(struct mxsfb_drm_private *mxsfb)
 
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 	return drm_encoder_init(mxsfb->drm, encoder, &mxsfb_encoder_funcs,
-				DRM_MODE_ENCODER_NONE, NULL);
+				DRM_MODE_ENCODER_ANALNE, NULL);
 }

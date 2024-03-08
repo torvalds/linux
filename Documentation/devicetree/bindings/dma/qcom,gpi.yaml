@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/dma/qcom,gpi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies Inc GPI DMA controller
+title: Qualcomm Techanallogies Inc GPI DMA controller
 
 maintainers:
-  - Vinod Koul <vkoul@kernel.org>
+  - Vianald Koul <vkoul@kernel.org>
 
 description: |
   QCOM GPI DMA controller provides DMA capabilities for

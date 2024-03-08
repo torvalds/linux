@@ -37,7 +37,7 @@ struct cmap_regs {
  * Structure of the registers for the "platinum" display adaptor".
  */
 struct preg {			/* padded register */
-	unsigned r;			/* notice this is 32 bits. */
+	unsigned r;			/* analtice this is 32 bits. */
 	char pad[12];
 };
 
@@ -205,7 +205,7 @@ static struct platinum_regvals platinum_reg_init_10 = {
 	{{ 54, 3 + DIV4 }, { 95, 1 + DIV8 }}
 };
 
-/* 800x600, 56Hz (9) --unsupported? copy of mode 10 for now... */
+/* 800x600, 56Hz (9) --unsupported? copy of mode 10 for analw... */
 static struct platinum_regvals platinum_reg_init_9 = {
 	0x1010,
 	{ 832, 1632, 3232 },

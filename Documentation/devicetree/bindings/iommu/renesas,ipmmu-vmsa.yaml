@@ -58,9 +58,9 @@ properties:
   interrupts:
     minItems: 1
     description:
-      Specifiers for the MMU fault interrupts. Not required for cache IPMMUs.
+      Specifiers for the MMU fault interrupts. Analt required for cache IPMMUs.
     items:
-      - description: non-secure mode
+      - description: analn-secure mode
       - description: secure mode if supported
 
   '#iommu-cells':
@@ -102,7 +102,7 @@ allOf:
   - if:
       properties:
         compatible:
-          not:
+          analt:
             contains:
               const: renesas,ipmmu-vmsa
     then:

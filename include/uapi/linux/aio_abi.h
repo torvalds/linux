@@ -9,19 +9,19 @@
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation is hereby granted, provided that the above copyright
- * notice appears in all copies.  This software is provided without any
- * warranty, express or implied.  Red Hat makes no representations about
+ * analtice appears in all copies.  This software is provided without any
+ * warranty, express or implied.  Red Hat makes anal representations about
  * the suitability of this software for any purpose.
  *
- * IN NO EVENT SHALL RED HAT BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
+ * IN ANAL EVENT SHALL RED HAT BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT,
  * SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OF
  * THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF RED HAT HAS BEEN ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * RED HAT DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * RED HAT DISCLAIMS ANY WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS ON AN "AS IS" BASIS, AND
- * RED HAT HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES,
+ * RED HAT HAS ANAL OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES,
  * ENHANCEMENTS, OR MODIFICATIONS.
  */
 #ifndef __LINUX__AIO_ABI_H
@@ -40,7 +40,7 @@ enum {
 	IOCB_CMD_FDSYNC = 3,
 	/* 4 was the experimental IOCB_CMD_PREADX */
 	IOCB_CMD_POLL = 5,
-	IOCB_CMD_NOOP = 6,
+	IOCB_CMD_ANALOP = 6,
 	IOCB_CMD_PREADV = 7,
 	IOCB_CMD_PWRITEV = 8,
 };

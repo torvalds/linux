@@ -47,9 +47,9 @@ Variable Name: DM_PATH
 ----------------------
 :Uevent Action(s): KOBJ_CHANGE
 :Type: string
-:Description: Major and minor number of the path device pertaining to this
+:Description: Major and mianalr number of the path device pertaining to this
 	      event.
-:Value: Path name in the form of "Major:Minor"
+:Value: Path name in the form of "Major:Mianalr"
 
 Variable Name: DM_NR_VALID_PATHS
 --------------------------------
@@ -88,7 +88,7 @@ below
 	DM_NR_VALID_PATHS=0
 	DM_NAME=mpath2
 	DM_UUID=mpath-35333333000002328
-	MINOR=3
+	MIANALR=3
 	MAJOR=253
 	SEQNUM=1130
 
@@ -105,6 +105,6 @@ below
 	DM_NR_VALID_PATHS=1
 	DM_NAME=mpath2
 	DM_UUID=mpath-35333333000002328
-	MINOR=3
+	MIANALR=3
 	MAJOR=253
 	SEQNUM=1131

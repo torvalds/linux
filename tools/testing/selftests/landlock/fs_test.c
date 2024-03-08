@@ -117,7 +117,7 @@ static bool supports_filesystem(const char *const filesystem)
 	FILE *const inf = fopen("/proc/filesystems", "r");
 
 	/*
-	 * Consider that the filesystem is supported if we cannot get the
+	 * Consider that the filesystem is supported if we cananalt get the
 	 * supported ones.
 	 */
 	if (!inf)
@@ -127,9 +127,9 @@ static bool supports_filesystem(const char *const filesystem)
 	if (!filesystem)
 		goto out;
 
-	len = snprintf(str, sizeof(str), "nodev\t%s\n", filesystem);
+	len = snprintf(str, sizeof(str), "analdev\t%s\n", filesystem);
 	if (len >= sizeof(str))
-		/* Ignores too-long filesystem names. */
+		/* Iganalres too-long filesystem names. */
 		goto out;
 
 	res = fgrep(inf, str);
@@ -168,10 +168,10 @@ static void mkdir_parents(struct __test_metadata *const _metadata,
 			continue;
 		walker[i] = '\0';
 		err = mkdir(parent, 0700);
-		ASSERT_FALSE(err && errno != EEXIST)
+		ASSERT_FALSE(err && erranal != EEXIST)
 		{
 			TH_LOG("Failed to create directory \"%s\": %s", parent,
-			       strerror(errno));
+			       strerror(erranal));
 		}
 		walker[i] = '/';
 	}
@@ -185,7 +185,7 @@ static void create_directory(struct __test_metadata *const _metadata,
 	ASSERT_EQ(0, mkdir(path, 0700))
 	{
 		TH_LOG("Failed to create directory \"%s\": %s", path,
-		       strerror(errno));
+		       strerror(erranal));
 	}
 }
 
@@ -193,10 +193,10 @@ static void create_file(struct __test_metadata *const _metadata,
 			const char *const path)
 {
 	mkdir_parents(_metadata, path);
-	ASSERT_EQ(0, mknod(path, S_IFREG | 0700, 0))
+	ASSERT_EQ(0, mkanald(path, S_IFREG | 0700, 0))
 	{
 		TH_LOG("Failed to create file \"%s\": %s", path,
-		       strerror(errno));
+		       strerror(erranal));
 	}
 }
 
@@ -207,12 +207,12 @@ static int remove_path(const char *const path)
 
 	walker = strdup(path);
 	if (!walker) {
-		err = ENOMEM;
+		err = EANALMEM;
 		goto out;
 	}
 	if (unlink(path) && rmdir(path)) {
-		if (errno != ENOENT && errno != ENOTDIR)
-			err = errno;
+		if (erranal != EANALENT && erranal != EANALTDIR)
+			err = erranal;
 		goto out;
 	}
 	for (i = strlen(walker); i > 0; i--) {
@@ -221,8 +221,8 @@ static int remove_path(const char *const path)
 		walker[i] = '\0';
 		ret = rmdir(walker);
 		if (ret) {
-			if (errno != ENOTEMPTY && errno != EBUSY)
-				err = errno;
+			if (erranal != EANALTEMPTY && erranal != EBUSY)
+				err = erranal;
 			goto out;
 		}
 		if (strcmp(walker, TMP_DIR) == 0)
@@ -262,7 +262,7 @@ static void prepare_layout_opt(struct __test_metadata *const _metadata,
 	create_directory(_metadata, TMP_DIR);
 
 	/*
-	 * Do not pollute the rest of the system: creates a private mount point
+	 * Do analt pollute the rest of the system: creates a private mount point
 	 * for tests relying on pivot_root(2) and move_mount(2).
 	 */
 	set_cap(_metadata, CAP_SYS_ADMIN);
@@ -270,9 +270,9 @@ static void prepare_layout_opt(struct __test_metadata *const _metadata,
 	ASSERT_EQ(0, mount_opt(mnt, TMP_DIR))
 	{
 		TH_LOG("Failed to mount the %s filesystem: %s", mnt->type,
-		       strerror(errno));
+		       strerror(erranal));
 		/*
-		 * FIXTURE_TEARDOWN() is not called when FIXTURE_SETUP()
+		 * FIXTURE_TEARDOWN() is analt called when FIXTURE_SETUP()
 		 * failed, so we need to explicitly do a minimal cleanup to
 		 * avoid cascading errors with other tests that don't depend on
 		 * the same filesystem.
@@ -387,13 +387,13 @@ static int test_open_rel(const int dirfd, const char *const path,
 	/* Works with file and directories. */
 	fd = openat(dirfd, path, flags | O_CLOEXEC);
 	if (fd < 0)
-		return errno;
+		return erranal;
 	/*
-	 * Mixing error codes from close(2) and open(2) should not lead to any
+	 * Mixing error codes from close(2) and open(2) should analt lead to any
 	 * (access type) confusion for this test.
 	 */
 	if (close(fd) != 0)
-		return errno;
+		return erranal;
 	return 0;
 }
 
@@ -402,7 +402,7 @@ static int test_open(const char *const path, const int flags)
 	return test_open_rel(AT_FDCWD, path, flags);
 }
 
-TEST_F_FORK(layout1, no_restriction)
+TEST_F_FORK(layout1, anal_restriction)
 {
 	ASSERT_EQ(0, test_open(dir_s1d1, O_RDONLY));
 	ASSERT_EQ(0, test_open(file1_s1d1, O_RDONLY));
@@ -446,16 +446,16 @@ TEST_F_FORK(layout1, inval)
 	ASSERT_LE(0, ruleset_fd);
 	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
 					&path_beneath, 0));
-	/* Returns EBADF because ruleset_fd is not a landlock-ruleset FD. */
-	ASSERT_EQ(EBADF, errno);
+	/* Returns EBADF because ruleset_fd is analt a landlock-ruleset FD. */
+	ASSERT_EQ(EBADF, erranal);
 	ASSERT_EQ(0, close(ruleset_fd));
 
 	ruleset_fd = open(dir_s1d1, O_DIRECTORY | O_CLOEXEC);
 	ASSERT_LE(0, ruleset_fd);
 	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
 					&path_beneath, 0));
-	/* Returns EBADFD because ruleset_fd is not a valid ruleset. */
-	ASSERT_EQ(EBADFD, errno);
+	/* Returns EBADFD because ruleset_fd is analt a valid ruleset. */
+	ASSERT_EQ(EBADFD, erranal);
 	ASSERT_EQ(0, close(ruleset_fd));
 
 	/* Gets a real ruleset. */
@@ -477,7 +477,7 @@ TEST_F_FORK(layout1, inval)
 	path_beneath.parent_fd = ruleset_fd;
 	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
 					&path_beneath, 0));
-	ASSERT_EQ(EBADFD, errno);
+	ASSERT_EQ(EBADFD, erranal);
 
 	/* Checks unhandled allowed_access. */
 	path_beneath.parent_fd =
@@ -488,34 +488,34 @@ TEST_F_FORK(layout1, inval)
 	path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_EXECUTE;
 	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
 					&path_beneath, 0));
-	ASSERT_EQ(EINVAL, errno);
+	ASSERT_EQ(EINVAL, erranal);
 	path_beneath.allowed_access &= ~LANDLOCK_ACCESS_FS_EXECUTE;
 
 	/* Tests with denied-by-default access right. */
 	path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_REFER;
 	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
 					&path_beneath, 0));
-	ASSERT_EQ(EINVAL, errno);
+	ASSERT_EQ(EINVAL, erranal);
 	path_beneath.allowed_access &= ~LANDLOCK_ACCESS_FS_REFER;
 
-	/* Test with unknown (64-bits) value. */
+	/* Test with unkanalwn (64-bits) value. */
 	path_beneath.allowed_access |= (1ULL << 60);
 	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
 					&path_beneath, 0));
-	ASSERT_EQ(EINVAL, errno);
+	ASSERT_EQ(EINVAL, erranal);
 	path_beneath.allowed_access &= ~(1ULL << 60);
 
-	/* Test with no access. */
+	/* Test with anal access. */
 	path_beneath.allowed_access = 0;
 	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
 					&path_beneath, 0));
-	ASSERT_EQ(ENOMSG, errno);
+	ASSERT_EQ(EANALMSG, erranal);
 	path_beneath.allowed_access &= ~(1ULL << 60);
 
 	ASSERT_EQ(0, close(path_beneath.parent_fd));
 
 	/* Enforces the ruleset. */
-	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+	ASSERT_EQ(0, prctl(PR_SET_ANAL_NEW_PRIVS, 1, 0, 0, 0));
 	ASSERT_EQ(0, landlock_restrict_self(ruleset_fd, 0));
 
 	ASSERT_EQ(0, close(ruleset_fd));
@@ -583,7 +583,7 @@ TEST_F_FORK(layout1, file_and_dir_access_rights)
 			ASSERT_EQ(0, err);
 		} else {
 			ASSERT_EQ(-1, err);
-			ASSERT_EQ(EINVAL, errno);
+			ASSERT_EQ(EINVAL, erranal);
 		}
 	}
 	ASSERT_EQ(0, close(path_beneath_file.parent_fd));
@@ -591,7 +591,7 @@ TEST_F_FORK(layout1, file_and_dir_access_rights)
 	ASSERT_EQ(0, close(ruleset_fd));
 }
 
-TEST_F_FORK(layout0, ruleset_with_unknown_access)
+TEST_F_FORK(layout0, ruleset_with_unkanalwn_access)
 {
 	__u64 access_mask;
 
@@ -603,11 +603,11 @@ TEST_F_FORK(layout0, ruleset_with_unknown_access)
 
 		ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr,
 						      sizeof(ruleset_attr), 0));
-		ASSERT_EQ(EINVAL, errno);
+		ASSERT_EQ(EINVAL, erranal);
 	}
 }
 
-TEST_F_FORK(layout0, rule_with_unknown_access)
+TEST_F_FORK(layout0, rule_with_unkanalwn_access)
 {
 	__u64 access;
 	struct landlock_path_beneath_attr path_beneath = {};
@@ -628,7 +628,7 @@ TEST_F_FORK(layout0, rule_with_unknown_access)
 		EXPECT_EQ(-1, landlock_add_rule(ruleset_fd,
 						LANDLOCK_RULE_PATH_BENEATH,
 						&path_beneath, 0));
-		EXPECT_EQ(EINVAL, errno);
+		EXPECT_EQ(EINVAL, erranal);
 	}
 	ASSERT_EQ(0, close(path_beneath.parent_fd));
 	ASSERT_EQ(0, close(ruleset_fd));
@@ -660,7 +660,7 @@ TEST_F_FORK(layout1, rule_with_unhandled_access)
 			EXPECT_EQ(0, err);
 		} else {
 			EXPECT_EQ(-1, err);
-			EXPECT_EQ(EINVAL, errno);
+			EXPECT_EQ(EINVAL, erranal);
 		}
 	}
 
@@ -680,13 +680,13 @@ static void add_path_beneath(struct __test_metadata *const _metadata,
 	ASSERT_LE(0, path_beneath.parent_fd)
 	{
 		TH_LOG("Failed to open directory \"%s\": %s", path,
-		       strerror(errno));
+		       strerror(erranal));
 	}
 	ASSERT_EQ(0, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
 				       &path_beneath, 0))
 	{
 		TH_LOG("Failed to update the ruleset with \"%s\": %s", path,
-		       strerror(errno));
+		       strerror(erranal));
 	}
 	ASSERT_EQ(0, close(path_beneath.parent_fd));
 }
@@ -719,7 +719,7 @@ static int create_ruleset(struct __test_metadata *const _metadata,
 
 	ASSERT_NE(NULL, rules)
 	{
-		TH_LOG("No rule list");
+		TH_LOG("Anal rule list");
 	}
 	ASSERT_NE(NULL, rules[0].path)
 	{
@@ -730,7 +730,7 @@ static int create_ruleset(struct __test_metadata *const _metadata,
 		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
 	ASSERT_LE(0, ruleset_fd)
 	{
-		TH_LOG("Failed to create a ruleset: %s", strerror(errno));
+		TH_LOG("Failed to create a ruleset: %s", strerror(erranal));
 	}
 
 	for (i = 0; rules[i].path; i++) {
@@ -770,13 +770,13 @@ TEST_F_FORK(layout0, proc_nsfs)
 	ASSERT_EQ(EACCES, test_open("/proc/self/ns", O_RDONLY));
 	/*
 	 * Because nsfs is an internal filesystem, /proc/self/ns/mnt is a
-	 * disconnected path.  Such path cannot be identified and must then be
+	 * disconnected path.  Such path cananalt be identified and must then be
 	 * allowed.
 	 */
 	ASSERT_EQ(0, test_open("/proc/self/ns/mnt", O_RDONLY));
 
 	/*
-	 * Checks that it is not possible to add nsfs-like filesystem
+	 * Checks that it is analt possible to add nsfs-like filesystem
 	 * references to a ruleset.
 	 */
 	path_beneath.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE |
@@ -785,7 +785,7 @@ TEST_F_FORK(layout0, proc_nsfs)
 	ASSERT_LE(0, path_beneath.parent_fd);
 	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
 					&path_beneath, 0));
-	ASSERT_EQ(EBADFD, errno);
+	ASSERT_EQ(EBADFD, erranal);
 	ASSERT_EQ(0, close(path_beneath.parent_fd));
 }
 
@@ -805,9 +805,9 @@ TEST_F_FORK(layout0, unpriv)
 	ruleset_fd = create_ruleset(_metadata, ACCESS_RO, rules);
 	ASSERT_LE(0, ruleset_fd);
 	ASSERT_EQ(-1, landlock_restrict_self(ruleset_fd, 0));
-	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(EPERM, erranal);
 
-	/* enforce_ruleset() calls prctl(no_new_privs). */
+	/* enforce_ruleset() calls prctl(anal_new_privs). */
 	enforce_ruleset(_metadata, ruleset_fd);
 	ASSERT_EQ(0, close(ruleset_fd));
 }
@@ -866,7 +866,7 @@ TEST_F_FORK(layout1, effective_access)
 	reg_fd = open(file1_s2d2, O_RDONLY | O_CLOEXEC);
 	ASSERT_LE(0, reg_fd);
 	ASSERT_EQ(-1, write(reg_fd, &buf, 1));
-	ASSERT_EQ(EBADF, errno);
+	ASSERT_EQ(EBADF, erranal);
 	ASSERT_EQ(0, close(reg_fd));
 }
 
@@ -879,7 +879,7 @@ TEST_F_FORK(layout1, unhandled_access)
 		},
 		{},
 	};
-	/* Here, we only handle read accesses, not write accesses. */
+	/* Here, we only handle read accesses, analt write accesses. */
 	const int ruleset_fd = create_ruleset(_metadata, ACCESS_RO, rules);
 
 	ASSERT_LE(0, ruleset_fd);
@@ -887,8 +887,8 @@ TEST_F_FORK(layout1, unhandled_access)
 	ASSERT_EQ(0, close(ruleset_fd));
 
 	/*
-	 * Because the policy does not handle LANDLOCK_ACCESS_FS_WRITE_FILE,
-	 * opening for write-only should be allowed, but not read-write.
+	 * Because the policy does analt handle LANDLOCK_ACCESS_FS_WRITE_FILE,
+	 * opening for write-only should be allowed, but analt read-write.
 	 */
 	ASSERT_EQ(0, test_open(file1_s1d1, O_WRONLY));
 	ASSERT_EQ(EACCES, test_open(file1_s1d1, O_RDWR));
@@ -962,7 +962,7 @@ TEST_F_FORK(layout1, layer_rule_unions)
 		{},
 	};
 	const struct rule layer3[] = {
-		/* Only allows write (but not read) to dir_s1d3. */
+		/* Only allows write (but analt read) to dir_s1d3. */
 		{
 			.path = dir_s1d2,
 			.access = LANDLOCK_ACCESS_FS_WRITE_FILE,
@@ -1019,7 +1019,7 @@ TEST_F_FORK(layout1, layer_rule_unions)
 	ASSERT_EQ(0, test_open(file1_s1d3, O_RDWR));
 	ASSERT_EQ(EACCES, test_open(dir_s1d1, O_RDONLY | O_DIRECTORY));
 
-	/* Only allows write (but not read) to dir_s1d3. */
+	/* Only allows write (but analt read) to dir_s1d3. */
 	ruleset_fd = create_ruleset(_metadata, ACCESS_RW, layer3);
 	ASSERT_LE(0, ruleset_fd);
 	enforce_ruleset(_metadata, ruleset_fd);
@@ -1040,12 +1040,12 @@ TEST_F_FORK(layout1, layer_rule_unions)
 	/* Checks s1d3 hierarchy with layer3. */
 	ASSERT_EQ(EACCES, test_open(file1_s1d3, O_RDONLY));
 	ASSERT_EQ(0, test_open(file1_s1d3, O_WRONLY));
-	/* dir_s1d3 should now deny READ_FILE and WRITE_FILE (O_RDWR). */
+	/* dir_s1d3 should analw deny READ_FILE and WRITE_FILE (O_RDWR). */
 	ASSERT_EQ(EACCES, test_open(file1_s1d3, O_RDWR));
 	ASSERT_EQ(EACCES, test_open(dir_s1d1, O_RDONLY | O_DIRECTORY));
 }
 
-TEST_F_FORK(layout1, non_overlapping_accesses)
+TEST_F_FORK(layout1, analn_overlapping_accesses)
 {
 	const struct rule layer1[] = {
 		{
@@ -1072,9 +1072,9 @@ TEST_F_FORK(layout1, non_overlapping_accesses)
 	enforce_ruleset(_metadata, ruleset_fd);
 	ASSERT_EQ(0, close(ruleset_fd));
 
-	ASSERT_EQ(-1, mknod(file1_s1d1, S_IFREG | 0700, 0));
-	ASSERT_EQ(EACCES, errno);
-	ASSERT_EQ(0, mknod(file1_s1d2, S_IFREG | 0700, 0));
+	ASSERT_EQ(-1, mkanald(file1_s1d1, S_IFREG | 0700, 0));
+	ASSERT_EQ(EACCES, erranal);
+	ASSERT_EQ(0, mkanald(file1_s1d2, S_IFREG | 0700, 0));
 	ASSERT_EQ(0, unlink(file1_s1d2));
 
 	ruleset_fd = create_ruleset(_metadata, LANDLOCK_ACCESS_FS_REMOVE_FILE,
@@ -1084,13 +1084,13 @@ TEST_F_FORK(layout1, non_overlapping_accesses)
 	ASSERT_EQ(0, close(ruleset_fd));
 
 	/* Unchanged accesses for file creation. */
-	ASSERT_EQ(-1, mknod(file1_s1d1, S_IFREG | 0700, 0));
-	ASSERT_EQ(EACCES, errno);
-	ASSERT_EQ(0, mknod(file1_s1d2, S_IFREG | 0700, 0));
+	ASSERT_EQ(-1, mkanald(file1_s1d1, S_IFREG | 0700, 0));
+	ASSERT_EQ(EACCES, erranal);
+	ASSERT_EQ(0, mkanald(file1_s1d2, S_IFREG | 0700, 0));
 
 	/* Checks file removing. */
 	ASSERT_EQ(-1, unlink(file1_s1d2));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(0, unlink(file1_s1d3));
 }
 
@@ -1143,7 +1143,7 @@ TEST_F_FORK(layout1, interleaved_masked_accesses)
 	};
 	const struct rule layer4_read_write[] = {
 		/*
-		 * Try to confuse the deny access by denying write (but not
+		 * Try to confuse the deny access by denying write (but analt
 		 * read) access via its grandparent directory.
 		 */
 		{
@@ -1166,7 +1166,7 @@ TEST_F_FORK(layout1, interleaved_masked_accesses)
 	const struct rule layer6_execute[] = {
 		/*
 		 * Restricts an unrelated file hierarchy with a new access
-		 * (non-overlapping) type.
+		 * (analn-overlapping) type.
 		 */
 		{
 			.path = dir_s2d1,
@@ -1272,7 +1272,7 @@ TEST_F_FORK(layout1, interleaved_masked_accesses)
 	enforce_ruleset(_metadata, ruleset_fd);
 	ASSERT_EQ(0, close(ruleset_fd));
 
-	/* Checks read access is now denied with layer 7. */
+	/* Checks read access is analw denied with layer 7. */
 	ASSERT_EQ(EACCES, test_open(file1_s1d3, O_RDONLY));
 	ASSERT_EQ(EACCES, test_open(file1_s1d3, O_WRONLY));
 	ASSERT_EQ(EACCES, test_open(file2_s1d3, O_WRONLY));
@@ -1308,21 +1308,21 @@ TEST_F_FORK(layout1, inherit_subset)
 	ASSERT_EQ(0, test_open(dir_s1d3, O_RDONLY | O_DIRECTORY));
 
 	/*
-	 * Tests shared rule extension: the following rules should not grant
+	 * Tests shared rule extension: the following rules should analt grant
 	 * any new access, only remove some.  Once enforced, these rules are
 	 * ANDed with the previous ones.
 	 */
 	add_path_beneath(_metadata, ruleset_fd, LANDLOCK_ACCESS_FS_WRITE_FILE,
 			 dir_s1d2);
 	/*
-	 * According to ruleset_fd, dir_s1d2 should now have the
+	 * According to ruleset_fd, dir_s1d2 should analw have the
 	 * LANDLOCK_ACCESS_FS_READ_FILE and LANDLOCK_ACCESS_FS_WRITE_FILE
 	 * access rights (even if this directory is opened a second time).
 	 * However, when enforcing this updated ruleset, the ruleset tied to
 	 * the current process (i.e. its domain) will still only have the
 	 * dir_s1d2 with LANDLOCK_ACCESS_FS_READ_FILE and
 	 * LANDLOCK_ACCESS_FS_READ_DIR accesses, but
-	 * LANDLOCK_ACCESS_FS_WRITE_FILE must not be allowed because it would
+	 * LANDLOCK_ACCESS_FS_WRITE_FILE must analt be allowed because it would
 	 * be a privilege escalation.
 	 */
 	enforce_ruleset(_metadata, ruleset_fd);
@@ -1363,9 +1363,9 @@ TEST_F_FORK(layout1, inherit_subset)
 	ASSERT_EQ(0, test_open(dir_s1d3, O_RDONLY | O_DIRECTORY));
 
 	/*
-	 * Now, dir_s1d3 get a new rule tied to it, only allowing
+	 * Analw, dir_s1d3 get a new rule tied to it, only allowing
 	 * LANDLOCK_ACCESS_FS_WRITE_FILE.  The (kernel internal) difference is
-	 * that there was no rule tied to it before.
+	 * that there was anal rule tied to it before.
 	 */
 	add_path_beneath(_metadata, ruleset_fd, LANDLOCK_ACCESS_FS_WRITE_FILE,
 			 dir_s1d3);
@@ -1374,7 +1374,7 @@ TEST_F_FORK(layout1, inherit_subset)
 
 	/*
 	 * Same tests and results as above, except for open(dir_s1d3) which is
-	 * now denied because the new rule mask the rule previously inherited
+	 * analw denied because the new rule mask the rule previously inherited
 	 * from dir_s1d2.
 	 */
 
@@ -1417,7 +1417,7 @@ TEST_F_FORK(layout1, inherit_superset)
 	/* File access is allowed for file1_s1d3. */
 	ASSERT_EQ(0, test_open(file1_s1d3, O_RDONLY));
 
-	/* Now dir_s1d2, parent of dir_s1d3, gets a new rule tied to it. */
+	/* Analw dir_s1d2, parent of dir_s1d3, gets a new rule tied to it. */
 	add_path_beneath(_metadata, ruleset_fd,
 			 LANDLOCK_ACCESS_FS_READ_FILE |
 				 LANDLOCK_ACCESS_FS_READ_DIR,
@@ -1452,7 +1452,7 @@ TEST_F_FORK(layout0, max_layers)
 	for (i = 0; i < 2; i++) {
 		err = landlock_restrict_self(ruleset_fd, 0);
 		ASSERT_EQ(-1, err);
-		ASSERT_EQ(E2BIG, errno);
+		ASSERT_EQ(E2BIG, erranal);
 	}
 	ASSERT_EQ(0, close(ruleset_fd));
 }
@@ -1466,7 +1466,7 @@ TEST_F_FORK(layout1, empty_or_same_ruleset)
 	ruleset_fd =
 		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
 	ASSERT_LE(-1, ruleset_fd);
-	ASSERT_EQ(ENOMSG, errno);
+	ASSERT_EQ(EANALMSG, erranal);
 
 	/* Enforces policy which deny read access to all files. */
 	ruleset_attr.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE;
@@ -1617,7 +1617,7 @@ TEST_F_FORK(layout1, rule_inside_mount_ns)
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	ASSERT_EQ(0, syscall(__NR_pivot_root, dir_s3d2, dir_s3d3))
 	{
-		TH_LOG("Failed to pivot root: %s", strerror(errno));
+		TH_LOG("Failed to pivot root: %s", strerror(erranal));
 	};
 	ASSERT_EQ(0, chdir("/"));
 	clear_cap(_metadata, CAP_SYS_ADMIN);
@@ -1648,9 +1648,9 @@ TEST_F_FORK(layout1, mount_and_pivot)
 
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	ASSERT_EQ(-1, mount(NULL, dir_s3d2, NULL, MS_RDONLY, NULL));
-	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(EPERM, erranal);
 	ASSERT_EQ(-1, syscall(__NR_pivot_root, dir_s3d2, dir_s3d3));
-	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(EPERM, erranal);
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 }
 
@@ -1671,7 +1671,7 @@ TEST_F_FORK(layout1, move_mount)
 	ASSERT_EQ(0, syscall(__NR_move_mount, AT_FDCWD, dir_s3d2, AT_FDCWD,
 			     dir_s1d2, 0))
 	{
-		TH_LOG("Failed to move mount: %s", strerror(errno));
+		TH_LOG("Failed to move mount: %s", strerror(erranal));
 	}
 
 	ASSERT_EQ(0, syscall(__NR_move_mount, AT_FDCWD, dir_s1d2, AT_FDCWD,
@@ -1684,7 +1684,7 @@ TEST_F_FORK(layout1, move_mount)
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	ASSERT_EQ(-1, syscall(__NR_move_mount, AT_FDCWD, dir_s3d2, AT_FDCWD,
 			      dir_s1d2, 0));
-	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(EPERM, erranal);
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 }
 
@@ -1734,20 +1734,20 @@ TEST_F_FORK(layout1, topology_changes_with_net_and_fs)
 	/* Mount, remount, move_mount, umount, and pivot_root checks. */
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	ASSERT_EQ(-1, mount_opt(&mnt_tmp, dir_s1d2));
-	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(EPERM, erranal);
 	ASSERT_EQ(-1, mount(NULL, dir_s3d2, NULL, MS_PRIVATE | MS_REC, NULL));
-	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(EPERM, erranal);
 	ASSERT_EQ(-1, syscall(__NR_move_mount, AT_FDCWD, dir_s3d2, AT_FDCWD,
 			      dir_s2d2, 0));
-	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(EPERM, erranal);
 	ASSERT_EQ(-1, umount(dir_s3d2));
-	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(EPERM, erranal);
 	ASSERT_EQ(-1, syscall(__NR_pivot_root, dir_s3d2, dir_s3d3));
-	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(EPERM, erranal);
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 }
 
-TEST_F_FORK(layout1, release_inodes)
+TEST_F_FORK(layout1, release_ianaldes)
 {
 	const struct rule rules[] = {
 		{
@@ -1777,8 +1777,8 @@ TEST_F_FORK(layout1, release_inodes)
 
 	ASSERT_EQ(0, test_open(file1_s1d1, O_RDONLY));
 	ASSERT_EQ(EACCES, test_open(dir_s3d2, O_RDONLY));
-	/* This dir_s3d3 would not be allowed and does not exist anyway. */
-	ASSERT_EQ(ENOENT, test_open(dir_s3d3, O_RDONLY));
+	/* This dir_s3d3 would analt be allowed and does analt exist anyway. */
+	ASSERT_EQ(EANALENT, test_open(dir_s3d3, O_RDONLY));
 }
 
 enum relative_access {
@@ -1792,8 +1792,8 @@ static void test_relative_path(struct __test_metadata *const _metadata,
 			       const enum relative_access rel)
 {
 	/*
-	 * Common layer to check that chroot doesn't ignore it (i.e. a chroot
-	 * is not a disconnected root directory).
+	 * Common layer to check that chroot doesn't iganalre it (i.e. a chroot
+	 * is analt a disconnected root directory).
 	 */
 	const struct rule layer1_base[] = {
 		{
@@ -1854,7 +1854,7 @@ static void test_relative_path(struct __test_metadata *const _metadata,
 		/* Do chroot into dir_s1d2 (relative to dir_s2d2). */
 		ASSERT_EQ(0, chroot("../../s1d1/s1d2"))
 		{
-			TH_LOG("Failed to chroot: %s", strerror(errno));
+			TH_LOG("Failed to chroot: %s", strerror(erranal));
 		}
 		dirfd = AT_FDCWD;
 		break;
@@ -1862,7 +1862,7 @@ static void test_relative_path(struct __test_metadata *const _metadata,
 		/* Do chroot into dir_s1d2. */
 		ASSERT_EQ(0, chroot("."))
 		{
-			TH_LOG("Failed to chroot: %s", strerror(errno));
+			TH_LOG("Failed to chroot: %s", strerror(erranal));
 		}
 		dirfd = AT_FDCWD;
 		break;
@@ -1934,13 +1934,13 @@ static void copy_binary(struct __test_metadata *const _metadata,
 	dst_fd = open(dst_path, O_WRONLY | O_TRUNC | O_CLOEXEC);
 	ASSERT_LE(0, dst_fd)
 	{
-		TH_LOG("Failed to open \"%s\": %s", dst_path, strerror(errno));
+		TH_LOG("Failed to open \"%s\": %s", dst_path, strerror(erranal));
 	}
 	src_fd = open(BINARY_PATH, O_RDONLY | O_CLOEXEC);
 	ASSERT_LE(0, src_fd)
 	{
 		TH_LOG("Failed to open \"" BINARY_PATH "\": %s",
-		       strerror(errno));
+		       strerror(erranal));
 	}
 	ASSERT_EQ(0, fstat(src_fd, &statbuf));
 	ASSERT_EQ(statbuf.st_size,
@@ -1961,9 +1961,9 @@ static void test_execute(struct __test_metadata *const _metadata, const int err,
 		ASSERT_EQ(err ? -1 : 0, execve(path, argv, NULL))
 		{
 			TH_LOG("Failed to execute \"%s\": %s", path,
-			       strerror(errno));
+			       strerror(erranal));
 		};
-		ASSERT_EQ(err, errno);
+		ASSERT_EQ(err, erranal);
 		_exit(_metadata->passed ? 2 : 1);
 		return;
 	}
@@ -1972,7 +1972,7 @@ static void test_execute(struct __test_metadata *const _metadata, const int err,
 	ASSERT_EQ(err ? 2 : 0, WEXITSTATUS(status))
 	{
 		TH_LOG("Unexpected return code for \"%s\": %s", path,
-		       strerror(errno));
+		       strerror(erranal));
 	};
 }
 
@@ -2037,15 +2037,15 @@ TEST_F_FORK(layout1, link)
 	ASSERT_EQ(0, close(ruleset_fd));
 
 	ASSERT_EQ(-1, link(file2_s1d1, file1_s1d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	/* Denies linking because of reparenting. */
 	ASSERT_EQ(-1, link(file1_s2d1, file1_s1d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, link(file2_s1d2, file1_s1d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, link(file2_s1d3, file1_s1d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	ASSERT_EQ(0, link(file2_s1d2, file1_s1d2));
 	ASSERT_EQ(0, link(file2_s1d3, file1_s1d3));
@@ -2067,14 +2067,14 @@ TEST_F_FORK(layout1, link)
 static int test_rename(const char *const oldpath, const char *const newpath)
 {
 	if (rename(oldpath, newpath))
-		return errno;
+		return erranal;
 	return 0;
 }
 
 static int test_exchange(const char *const oldpath, const char *const newpath)
 {
 	if (renameat2(AT_FDCWD, oldpath, AT_FDCWD, newpath, RENAME_EXCHANGE))
-		return errno;
+		return erranal;
 	return 0;
 }
 
@@ -2106,47 +2106,47 @@ TEST_F_FORK(layout1, rename_file)
 	 * but to a different directory (which also allows file removal).
 	 */
 	ASSERT_EQ(-1, rename(file1_s2d3, file1_s1d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d3, AT_FDCWD, file1_s1d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d3, AT_FDCWD, dir_s1d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	/*
 	 * Tries to replace a file, from a directory that denies file removal,
 	 * to a different directory (which allows file removal).
 	 */
 	ASSERT_EQ(-1, rename(file1_s2d1, file1_s1d3));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d1, AT_FDCWD, file1_s1d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_s2d2, AT_FDCWD, file1_s1d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	/* Exchanges files and directories that partially allow removal. */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_s2d2, AT_FDCWD, file1_s2d1,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
-	/* Checks that file1_s2d1 cannot be removed (instead of ENOTDIR). */
+	ASSERT_EQ(EACCES, erranal);
+	/* Checks that file1_s2d1 cananalt be removed (instead of EANALTDIR). */
 	ASSERT_EQ(-1, rename(dir_s2d2, file1_s2d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d1, AT_FDCWD, dir_s2d2,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
-	/* Checks that file1_s1d1 cannot be removed (instead of EISDIR). */
+	ASSERT_EQ(EACCES, erranal);
+	/* Checks that file1_s1d1 cananalt be removed (instead of EISDIR). */
 	ASSERT_EQ(-1, rename(file1_s1d1, dir_s1d2));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	/* Renames files with different parents. */
 	ASSERT_EQ(-1, rename(file1_s2d2, file1_s1d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(0, unlink(file1_s1d3));
 	ASSERT_EQ(-1, rename(file1_s2d1, file1_s1d3));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	/* Exchanges and renames files with same parent. */
 	ASSERT_EQ(0, renameat2(AT_FDCWD, file2_s2d3, AT_FDCWD, file1_s2d3,
@@ -2188,12 +2188,12 @@ TEST_F_FORK(layout1, rename_dir)
 	/* Exchanges and renames directory to a different parent. */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_s2d3, AT_FDCWD, dir_s1d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, rename(dir_s2d3, dir_s1d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d2, AT_FDCWD, dir_s1d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	/*
 	 * Exchanges directory to the same parent, which doesn't allow
@@ -2201,16 +2201,16 @@ TEST_F_FORK(layout1, rename_dir)
 	 */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_s1d1, AT_FDCWD, dir_s2d1,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
-	/* Checks that dir_s1d2 cannot be removed (instead of ENOTDIR). */
+	ASSERT_EQ(EACCES, erranal);
+	/* Checks that dir_s1d2 cananalt be removed (instead of EANALTDIR). */
 	ASSERT_EQ(-1, rename(dir_s1d2, file1_s1d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s1d1, AT_FDCWD, dir_s1d2,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
-	/* Checks that dir_s1d2 cannot be removed (instead of EISDIR). */
+	ASSERT_EQ(EACCES, erranal);
+	/* Checks that dir_s1d2 cananalt be removed (instead of EISDIR). */
 	ASSERT_EQ(-1, rename(file1_s1d1, dir_s1d2));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	/*
 	 * Exchanges and renames directory to the same parent, which allows
@@ -2245,22 +2245,22 @@ TEST_F_FORK(layout1, reparent_refer)
 	ASSERT_EQ(0, close(ruleset_fd));
 
 	ASSERT_EQ(-1, rename(dir_s1d2, dir_s2d1));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, rename(dir_s1d2, dir_s2d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, rename(dir_s1d2, dir_s2d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	ASSERT_EQ(-1, rename(dir_s1d3, dir_s2d1));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, rename(dir_s1d3, dir_s2d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	/*
 	 * Moving should only be allowed when the source and the destination
 	 * parent directory have REFER.
 	 */
 	ASSERT_EQ(-1, rename(dir_s1d3, dir_s2d3));
-	ASSERT_EQ(ENOTEMPTY, errno);
+	ASSERT_EQ(EANALTEMPTY, erranal);
 	ASSERT_EQ(0, unlink(file1_s2d3));
 	ASSERT_EQ(0, unlink(file2_s2d3));
 	ASSERT_EQ(0, rename(dir_s1d3, dir_s2d3));
@@ -2297,7 +2297,7 @@ static void refer_denied_by_default(struct __test_metadata *const _metadata,
 	ASSERT_EQ(0, close(ruleset_fd));
 
 	/*
-	 * Now, either the first or the second layer does not handle
+	 * Analw, either the first or the second layer does analt handle
 	 * LANDLOCK_ACCESS_FS_REFER, which means that any different-parent
 	 * renames and links are denied, thus making the layer handling
 	 * LANDLOCK_ACCESS_FS_REFER null and void.
@@ -2326,7 +2326,7 @@ const struct rule layer_dir_s1d1_execute[] = {
 
 const struct rule layer_dir_s2d1_execute[] = {
 	{
-		/* Does not match a parent directory. */
+		/* Does analt match a parent directory. */
 		.path = dir_s2d1,
 		.access = LANDLOCK_ACCESS_FS_EXECUTE,
 	},
@@ -2335,8 +2335,8 @@ const struct rule layer_dir_s2d1_execute[] = {
 
 /*
  * Tests precedence over renames: denied by default for different parent
- * directories, *with* a rule matching a parent directory, but not directly
- * denying access (with MAKE_REG nor REMOVE).
+ * directories, *with* a rule matching a parent directory, but analt directly
+ * denying access (with MAKE_REG analr REMOVE).
  */
 TEST_F_FORK(layout1, refer_denied_by_default1)
 {
@@ -2346,7 +2346,7 @@ TEST_F_FORK(layout1, refer_denied_by_default1)
 
 /*
  * Same test but this time turning around the ABI version order: the first
- * layer does not handle LANDLOCK_ACCESS_FS_REFER.
+ * layer does analt handle LANDLOCK_ACCESS_FS_REFER.
  */
 TEST_F_FORK(layout1, refer_denied_by_default2)
 {
@@ -2356,8 +2356,8 @@ TEST_F_FORK(layout1, refer_denied_by_default2)
 
 /*
  * Tests precedence over renames: denied by default for different parent
- * directories, *without* a rule matching a parent directory, but not directly
- * denying access (with MAKE_REG nor REMOVE).
+ * directories, *without* a rule matching a parent directory, but analt directly
+ * denying access (with MAKE_REG analr REMOVE).
  */
 TEST_F_FORK(layout1, refer_denied_by_default3)
 {
@@ -2367,7 +2367,7 @@ TEST_F_FORK(layout1, refer_denied_by_default3)
 
 /*
  * Same test but this time turning around the ABI version order: the first
- * layer does not handle LANDLOCK_ACCESS_FS_REFER.
+ * layer does analt handle LANDLOCK_ACCESS_FS_REFER.
  */
 TEST_F_FORK(layout1, refer_denied_by_default4)
 {
@@ -2410,43 +2410,43 @@ TEST_F_FORK(layout1, reparent_link)
 
 	/* Denies linking because of missing MAKE_REG. */
 	ASSERT_EQ(-1, link(file2_s1d1, file1_s1d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	/* Denies linking because of missing source and destination REFER. */
 	ASSERT_EQ(-1, link(file1_s2d1, file1_s1d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	/* Denies linking because of missing source REFER. */
 	ASSERT_EQ(-1, link(file1_s2d1, file1_s1d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	/* Denies linking because of missing MAKE_REG. */
 	ASSERT_EQ(-1, link(file1_s2d2, file1_s1d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	/* Denies linking because of missing destination REFER. */
 	ASSERT_EQ(-1, link(file1_s2d2, file1_s1d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	/* Allows linking because of REFER and MAKE_REG. */
 	ASSERT_EQ(0, link(file1_s2d2, file1_s1d3));
 	ASSERT_EQ(0, unlink(file1_s2d2));
 	/* Reverse linking denied because of missing MAKE_REG. */
 	ASSERT_EQ(-1, link(file1_s1d3, file1_s2d2));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(0, unlink(file1_s2d3));
 	/* Checks reverse linking. */
 	ASSERT_EQ(0, link(file1_s1d3, file1_s2d3));
 	ASSERT_EQ(0, unlink(file1_s1d3));
 
 	/*
-	 * This is OK for a file link, but it should not be allowed for a
+	 * This is OK for a file link, but it should analt be allowed for a
 	 * directory rename (because of the superset of access rights.
 	 */
 	ASSERT_EQ(0, link(file1_s2d3, file1_s1d3));
 	ASSERT_EQ(0, unlink(file1_s1d3));
 
 	ASSERT_EQ(-1, link(file2_s1d2, file1_s1d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, link(file2_s1d3, file1_s1d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	ASSERT_EQ(0, link(file2_s1d2, file1_s1d2));
 	ASSERT_EQ(0, link(file2_s1d3, file1_s1d3));
@@ -2488,57 +2488,57 @@ TEST_F_FORK(layout1, reparent_rename)
 	/* Denies renaming because of missing MAKE_REG. */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file2_s1d1, AT_FDCWD, file1_s1d1,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s1d1, AT_FDCWD, file2_s1d1,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(0, unlink(file1_s1d1));
 	ASSERT_EQ(-1, rename(file2_s1d1, file1_s1d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	/* Even denies same file exchange. */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file2_s1d1, AT_FDCWD, file2_s1d1,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	/* Denies renaming because of missing source and destination REFER. */
 	ASSERT_EQ(-1, rename(file1_s2d1, file1_s1d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	/*
 	 * Denies renaming because of missing MAKE_REG, source and destination
 	 * REFER.
 	 */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d1, AT_FDCWD, file2_s1d1,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file2_s1d1, AT_FDCWD, file1_s2d1,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	/* Denies renaming because of missing source REFER. */
 	ASSERT_EQ(-1, rename(file1_s2d1, file1_s1d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	/* Denies renaming because of missing MAKE_REG. */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d1, AT_FDCWD, file2_s1d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	/* Denies renaming because of missing MAKE_REG. */
 	ASSERT_EQ(-1, rename(file1_s2d2, file1_s1d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	/* Denies renaming because of missing destination REFER*/
 	ASSERT_EQ(-1, rename(file1_s2d2, file1_s1d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	/* Denies exchange because of one missing MAKE_REG. */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d2, AT_FDCWD, file2_s1d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	/* Allows renaming because of REFER and MAKE_REG. */
 	ASSERT_EQ(0, rename(file1_s2d2, file1_s1d3));
 
 	/* Reverse renaming denied because of missing MAKE_REG. */
 	ASSERT_EQ(-1, rename(file1_s1d3, file1_s2d2));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(0, unlink(file1_s2d3));
 	ASSERT_EQ(0, rename(file1_s1d3, file1_s2d3));
 
@@ -2549,14 +2549,14 @@ TEST_F_FORK(layout1, reparent_rename)
 	ASSERT_EQ(0, rename(file1_s1d3, file1_s2d3));
 
 	/*
-	 * This is OK for a file rename, but it should not be allowed for a
+	 * This is OK for a file rename, but it should analt be allowed for a
 	 * directory rename (because of the superset of access rights).
 	 */
 	ASSERT_EQ(0, rename(file1_s2d3, file1_s1d3));
 	ASSERT_EQ(0, rename(file1_s1d3, file1_s2d3));
 
 	/*
-	 * Tests superset restrictions applied to directories.  Not only the
+	 * Tests superset restrictions applied to directories.  Analt only the
 	 * dir_s2d3's parent (dir_s2d2) should be taken into account but also
 	 * access rights tied to dir_s2d3. dir_s2d2 is missing one access right
 	 * compared to dir_s1d3/file1_s1d3 (MAKE_REG) but it is provided
@@ -2565,22 +2565,22 @@ TEST_F_FORK(layout1, reparent_rename)
 	ASSERT_EQ(0, rename(dir_s2d3, file1_s1d3));
 	ASSERT_EQ(0, rename(file1_s1d3, dir_s2d3));
 	/*
-	 * The first rename is allowed but not the exchange because dir_s1d3's
+	 * The first rename is allowed but analt the exchange because dir_s1d3's
 	 * parent (dir_s1d2) doesn't have REFER.
 	 */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d3, AT_FDCWD, dir_s1d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_s1d3, AT_FDCWD, file1_s2d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, rename(file1_s2d3, dir_s1d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	ASSERT_EQ(-1, rename(file2_s1d2, file1_s1d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, rename(file2_s1d3, file1_s1d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	/* Renaming in the same directory is always allowed. */
 	ASSERT_EQ(0, rename(file2_s1d2, file1_s1d2));
@@ -2589,12 +2589,12 @@ TEST_F_FORK(layout1, reparent_rename)
 	ASSERT_EQ(0, unlink(file1_s1d2));
 	/* Denies because of missing source MAKE_REG and destination REFER. */
 	ASSERT_EQ(-1, rename(dir_s2d3, file1_s1d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	ASSERT_EQ(0, unlink(file1_s1d3));
 	/* Denies because of missing source MAKE_REG and REFER. */
 	ASSERT_EQ(-1, rename(dir_s2d2, file1_s1d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 }
 
 static void
@@ -2641,7 +2641,7 @@ reparent_exdev_layers_enforce2(struct __test_metadata *const _metadata)
 	};
 	/*
 	 * Same checks as before but with a second layer and a new MAKE_DIR
-	 * rule (and no explicit handling of REFER).
+	 * rule (and anal explicit handling of REFER).
 	 */
 	const int ruleset_fd =
 		create_ruleset(_metadata, LANDLOCK_ACCESS_FS_MAKE_DIR, layer2);
@@ -2675,7 +2675,7 @@ TEST_F_FORK(layout1, reparent_exdev_layers_rename1)
 
 	/*
 	 * However, moving the file1_s1d3 file below dir_s2d3 is allowed
-	 * because it cannot inherit MAKE_REG right (which is dedicated to
+	 * because it cananalt inherit MAKE_REG right (which is dedicated to
 	 * directories).
 	 */
 	ASSERT_EQ(0, rename(file1_s1d3, file1_s2d3));
@@ -2683,26 +2683,26 @@ TEST_F_FORK(layout1, reparent_exdev_layers_rename1)
 	reparent_exdev_layers_enforce2(_metadata);
 
 	/*
-	 * Moving the dir_s1d3 directory below dir_s2d2 is now denied because
-	 * MAKE_DIR is not tied to dir_s2d2.
+	 * Moving the dir_s1d3 directory below dir_s2d2 is analw denied because
+	 * MAKE_DIR is analt tied to dir_s2d2.
 	 */
 	ASSERT_EQ(-1, rename(dir_s1d3, file1_s2d2));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	/*
 	 * Moving the dir_s1d3 directory below dir_s2d3 is forbidden because it
 	 * would grants MAKE_REG and MAKE_DIR rights to it.
 	 */
 	ASSERT_EQ(-1, rename(dir_s1d3, file1_s2d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	/*
 	 * Moving the file2_s1d3 file below dir_s2d3 is denied because the
-	 * second layer does not handle REFER, which is always denied by
+	 * second layer does analt handle REFER, which is always denied by
 	 * default.
 	 */
 	ASSERT_EQ(-1, rename(file2_s1d3, file1_s2d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 }
 
 TEST_F_FORK(layout1, reparent_exdev_layers_rename2)
@@ -2711,42 +2711,42 @@ TEST_F_FORK(layout1, reparent_exdev_layers_rename2)
 
 	/* Checks EACCES predominance over EXDEV. */
 	ASSERT_EQ(-1, rename(file1_s1d1, file1_s2d2));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, rename(file1_s1d2, file1_s2d2));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, rename(file1_s1d1, file1_s2d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	/* Modify layout! */
 	ASSERT_EQ(0, rename(file1_s1d2, file1_s2d3));
 
 	/* Without REFER source. */
 	ASSERT_EQ(-1, rename(dir_s1d1, file1_s2d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, rename(dir_s1d2, file1_s2d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	reparent_exdev_layers_enforce2(_metadata);
 
 	/* Checks EACCES predominance over EXDEV. */
 	ASSERT_EQ(-1, rename(file1_s1d1, file1_s2d2));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	/* Checks with actual file2_s1d2. */
 	ASSERT_EQ(-1, rename(file2_s1d2, file1_s2d2));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, rename(file1_s1d1, file1_s2d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	/*
-	 * Modifying the layout is now denied because the second layer does not
+	 * Modifying the layout is analw denied because the second layer does analt
 	 * handle REFER, which is always denied by default.
 	 */
 	ASSERT_EQ(-1, rename(file2_s1d2, file1_s2d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	/* Without REFER source, EACCES wins over EXDEV. */
 	ASSERT_EQ(-1, rename(dir_s1d1, file1_s2d2));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, rename(dir_s1d2, file1_s2d2));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 }
 
 TEST_F_FORK(layout1, reparent_exdev_layers_exchange1)
@@ -2764,10 +2764,10 @@ TEST_F_FORK(layout1, reparent_exdev_layers_exchange1)
 	/* Error predominance with file exchange: returns EXDEV and EACCES. */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s1d1, AT_FDCWD, file1_s2d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d3, AT_FDCWD, file1_s1d1,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	/*
 	 * Checks with directories which creation could be allowed, but denied
@@ -2775,10 +2775,10 @@ TEST_F_FORK(layout1, reparent_exdev_layers_exchange1)
 	 */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_file1_s1d2, AT_FDCWD,
 				dir_file2_s2d3, RENAME_EXCHANGE));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_file2_s2d3, AT_FDCWD,
 				dir_file1_s1d2, RENAME_EXCHANGE));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	/* Checks with same access rights. */
 	ASSERT_EQ(0, renameat2(AT_FDCWD, dir_s1d3, AT_FDCWD, dir_s2d3,
@@ -2797,7 +2797,7 @@ TEST_F_FORK(layout1, reparent_exdev_layers_exchange1)
 	 *
 	 * Moving a file (file1_s2d2) to a directory which only grants more
 	 * directory-related access rights is allowed, and at the same time
-	 * moving a directory (dir_file2_s2d3) to another directory which
+	 * moving a directory (dir_file2_s2d3) to aanalther directory which
 	 * grants less access rights is allowed too.
 	 *
 	 * See layout1.reparent_exdev_layers_exchange3 for inverted arguments.
@@ -2811,46 +2811,46 @@ TEST_F_FORK(layout1, reparent_exdev_layers_exchange1)
 	 */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_file2_s2d3, AT_FDCWD, file1_s2d2,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d2, AT_FDCWD, dir_file2_s2d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	reparent_exdev_layers_enforce2(_metadata);
 
 	/* Error predominance with file exchange: returns EXDEV and EACCES. */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s1d1, AT_FDCWD, file1_s2d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d3, AT_FDCWD, file1_s1d1,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
-	/* Checks with directories which creation is now denied. */
+	/* Checks with directories which creation is analw denied. */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_file1_s1d2, AT_FDCWD,
 				dir_file2_s2d3, RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_file2_s2d3, AT_FDCWD,
 				dir_file1_s1d2, RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	/* Checks with different (child-only) access rights. */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_s1d3, AT_FDCWD, dir_s2d3,
 				RENAME_EXCHANGE));
 	/* Denied because of MAKE_DIR. */
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_s2d3, AT_FDCWD, dir_s1d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	/* Checks with different (child-only) access rights. */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_s2d3, AT_FDCWD, dir_file1_s1d2,
 				RENAME_EXCHANGE));
 	/* Denied because of MAKE_DIR. */
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_file1_s1d2, AT_FDCWD, dir_s2d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	/* See layout1.reparent_exdev_layers_exchange2 for complement. */
 }
@@ -2868,10 +2868,10 @@ TEST_F_FORK(layout1, reparent_exdev_layers_exchange2)
 	/* Checks that exchange between file and directory are consistent. */
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d2, AT_FDCWD, dir_file2_s2d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_file2_s2d3, AT_FDCWD, file1_s2d2,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 }
 
 TEST_F_FORK(layout1, reparent_exdev_layers_exchange3)
@@ -2892,10 +2892,10 @@ TEST_F_FORK(layout1, reparent_exdev_layers_exchange3)
 			       RENAME_EXCHANGE));
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d2, AT_FDCWD, dir_file2_s2d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_file2_s2d3, AT_FDCWD, file1_s2d2,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 }
 
 TEST_F_FORK(layout1, reparent_remove)
@@ -2929,23 +2929,23 @@ TEST_F_FORK(layout1, reparent_remove)
 
 	/* Access denied because of wrong/swapped remove file/dir. */
 	ASSERT_EQ(-1, rename(file1_s1d1, dir_s2d2));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, rename(dir_s2d2, file1_s1d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s1d1, AT_FDCWD, dir_s2d2,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s1d1, AT_FDCWD, dir_s2d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	/* Access allowed thanks to the matching rights. */
 	ASSERT_EQ(-1, rename(file1_s2d1, dir_s1d2));
-	ASSERT_EQ(EISDIR, errno);
+	ASSERT_EQ(EISDIR, erranal);
 	ASSERT_EQ(-1, rename(dir_s1d2, file1_s2d1));
-	ASSERT_EQ(ENOTDIR, errno);
+	ASSERT_EQ(EANALTDIR, erranal);
 	ASSERT_EQ(-1, rename(dir_s1d3, file1_s2d1));
-	ASSERT_EQ(ENOTDIR, errno);
+	ASSERT_EQ(EANALTDIR, erranal);
 	ASSERT_EQ(0, unlink(file1_s2d1));
 	ASSERT_EQ(0, unlink(file1_s1d3));
 	ASSERT_EQ(0, unlink(file2_s1d3));
@@ -2957,7 +2957,7 @@ TEST_F_FORK(layout1, reparent_remove)
 			       RENAME_EXCHANGE));
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d2, AT_FDCWD, dir_s1d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 }
 
 TEST_F_FORK(layout1, reparent_dom_superset)
@@ -3002,13 +3002,13 @@ TEST_F_FORK(layout1, reparent_dom_superset)
 	ASSERT_EQ(0, close(ruleset_fd));
 
 	ASSERT_EQ(-1, rename(file1_s1d2, file1_s2d1));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	/*
 	 * Moving file1_s1d2 beneath dir_s2d3 would grant it the READ_FILE
 	 * access right.
 	 */
 	ASSERT_EQ(-1, rename(file1_s1d2, file1_s2d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	/*
 	 * Moving file1_s1d2 should be allowed even if dir_s2d2 grants a
 	 * superset of access rights compared to dir_s1d2, because file1_s1d2
@@ -3018,13 +3018,13 @@ TEST_F_FORK(layout1, reparent_dom_superset)
 	ASSERT_EQ(0, rename(file1_s2d2, file1_s1d2));
 
 	ASSERT_EQ(-1, rename(dir_s1d3, file1_s2d1));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	/*
 	 * Moving dir_s1d3 beneath dir_s2d3 would grant it the MAKE_FIFO access
 	 * right.
 	 */
 	ASSERT_EQ(-1, rename(dir_s1d3, file1_s2d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	/*
 	 * Moving dir_s1d3 should be allowed even if dir_s2d2 grants a superset
 	 * of access rights compared to dir_s1d2, because dir_s1d3 already has
@@ -3037,11 +3037,11 @@ TEST_F_FORK(layout1, reparent_dom_superset)
 	 * Moving file1_s2d3 beneath dir_s1d2 is allowed, but moving it back
 	 * will be denied because the new inherited access rights from dir_s1d2
 	 * will be less than the destination (original) dir_s2d3.  This is a
-	 * sinkhole scenario where we cannot move back files or directories.
+	 * sinkhole scenario where we cananalt move back files or directories.
 	 */
 	ASSERT_EQ(0, rename(file1_s2d3, file2_s1d2));
 	ASSERT_EQ(-1, rename(file2_s1d2, file1_s2d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 	ASSERT_EQ(0, unlink(file2_s1d2));
 	ASSERT_EQ(0, unlink(file2_s2d3));
 	/*
@@ -3050,7 +3050,7 @@ TEST_F_FORK(layout1, reparent_dom_superset)
 	 */
 	ASSERT_EQ(0, rename(dir_s2d3, file2_s1d2));
 	ASSERT_EQ(-1, rename(file2_s1d2, dir_s2d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 }
 
 TEST_F_FORK(layout1, remove_dir)
@@ -3079,15 +3079,15 @@ TEST_F_FORK(layout1, remove_dir)
 	ASSERT_EQ(0, mkdir(dir_s1d3, 0700));
 	ASSERT_EQ(0, unlinkat(AT_FDCWD, dir_s1d3, AT_REMOVEDIR));
 
-	/* dir_s1d2 itself cannot be removed. */
+	/* dir_s1d2 itself cananalt be removed. */
 	ASSERT_EQ(-1, rmdir(dir_s1d2));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, unlinkat(AT_FDCWD, dir_s1d2, AT_REMOVEDIR));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, rmdir(dir_s1d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, unlinkat(AT_FDCWD, dir_s1d1, AT_REMOVEDIR));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 }
 
 TEST_F_FORK(layout1, remove_file)
@@ -3107,9 +3107,9 @@ TEST_F_FORK(layout1, remove_file)
 	ASSERT_EQ(0, close(ruleset_fd));
 
 	ASSERT_EQ(-1, unlink(file1_s1d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, unlinkat(AT_FDCWD, file1_s1d1, 0));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(0, unlink(file1_s1d2));
 	ASSERT_EQ(0, unlinkat(AT_FDCWD, file1_s1d3, 0));
 }
@@ -3131,10 +3131,10 @@ static void test_make_file(struct __test_metadata *const _metadata,
 
 	ASSERT_EQ(0, unlink(file1_s1d1));
 	ASSERT_EQ(0, unlink(file2_s1d1));
-	ASSERT_EQ(0, mknod(file2_s1d1, mode | 0400, dev))
+	ASSERT_EQ(0, mkanald(file2_s1d1, mode | 0400, dev))
 	{
 		TH_LOG("Failed to make file \"%s\": %s", file2_s1d1,
-		       strerror(errno));
+		       strerror(erranal));
 	};
 
 	ASSERT_EQ(0, unlink(file1_s1d2));
@@ -3146,23 +3146,23 @@ static void test_make_file(struct __test_metadata *const _metadata,
 	enforce_ruleset(_metadata, ruleset_fd);
 	ASSERT_EQ(0, close(ruleset_fd));
 
-	ASSERT_EQ(-1, mknod(file1_s1d1, mode | 0400, dev));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(-1, mkanald(file1_s1d1, mode | 0400, dev));
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, link(file2_s1d1, file1_s1d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, rename(file2_s1d1, file1_s1d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
-	ASSERT_EQ(0, mknod(file1_s1d2, mode | 0400, dev))
+	ASSERT_EQ(0, mkanald(file1_s1d2, mode | 0400, dev))
 	{
 		TH_LOG("Failed to make file \"%s\": %s", file1_s1d2,
-		       strerror(errno));
+		       strerror(erranal));
 	};
 	ASSERT_EQ(0, link(file1_s1d2, file2_s1d2));
 	ASSERT_EQ(0, unlink(file2_s1d2));
 	ASSERT_EQ(0, rename(file1_s1d2, file2_s1d2));
 
-	ASSERT_EQ(0, mknod(file1_s1d3, mode | 0400, dev));
+	ASSERT_EQ(0, mkanald(file1_s1d3, mode | 0400, dev));
 	ASSERT_EQ(0, link(file1_s1d3, file2_s1d3));
 	ASSERT_EQ(0, unlink(file2_s1d3));
 	ASSERT_EQ(0, rename(file1_s1d3, file2_s1d3));
@@ -3171,7 +3171,7 @@ static void test_make_file(struct __test_metadata *const _metadata,
 TEST_F_FORK(layout1, make_char)
 {
 	/* Creates a /dev/null device. */
-	set_cap(_metadata, CAP_MKNOD);
+	set_cap(_metadata, CAP_MKANALD);
 	test_make_file(_metadata, LANDLOCK_ACCESS_FS_MAKE_CHAR, S_IFCHR,
 		       makedev(1, 3));
 }
@@ -3179,7 +3179,7 @@ TEST_F_FORK(layout1, make_char)
 TEST_F_FORK(layout1, make_block)
 {
 	/* Creates a /dev/loop0 device. */
-	set_cap(_metadata, CAP_MKNOD);
+	set_cap(_metadata, CAP_MKANALD);
 	test_make_file(_metadata, LANDLOCK_ACCESS_FS_MAKE_BLOCK, S_IFBLK,
 		       makedev(7, 0));
 }
@@ -3220,7 +3220,7 @@ TEST_F_FORK(layout1, make_sym)
 
 	ASSERT_EQ(0, unlink(file1_s1d1));
 	ASSERT_EQ(0, unlink(file2_s1d1));
-	ASSERT_EQ(0, symlink("none", file2_s1d1));
+	ASSERT_EQ(0, symlink("analne", file2_s1d1));
 
 	ASSERT_EQ(0, unlink(file1_s1d2));
 	ASSERT_EQ(0, unlink(file2_s1d2));
@@ -3231,19 +3231,19 @@ TEST_F_FORK(layout1, make_sym)
 	enforce_ruleset(_metadata, ruleset_fd);
 	ASSERT_EQ(0, close(ruleset_fd));
 
-	ASSERT_EQ(-1, symlink("none", file1_s1d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(-1, symlink("analne", file1_s1d1));
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, link(file2_s1d1, file1_s1d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(-1, rename(file2_s1d1, file1_s1d1));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
-	ASSERT_EQ(0, symlink("none", file1_s1d2));
+	ASSERT_EQ(0, symlink("analne", file1_s1d2));
 	ASSERT_EQ(0, link(file1_s1d2, file2_s1d2));
 	ASSERT_EQ(0, unlink(file2_s1d2));
 	ASSERT_EQ(0, rename(file1_s1d2, file2_s1d2));
 
-	ASSERT_EQ(0, symlink("none", file1_s1d3));
+	ASSERT_EQ(0, symlink("analne", file1_s1d3));
 	ASSERT_EQ(0, link(file1_s1d3, file2_s1d3));
 	ASSERT_EQ(0, unlink(file2_s1d3));
 	ASSERT_EQ(0, rename(file1_s1d3, file2_s1d3));
@@ -3272,7 +3272,7 @@ TEST_F_FORK(layout1, make_dir)
 
 	/* Uses file_* as directory names. */
 	ASSERT_EQ(-1, mkdir(file1_s1d1, 0700));
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 	ASSERT_EQ(0, mkdir(file1_s1d2, 0700));
 	ASSERT_EQ(0, mkdir(file1_s1d3, 0700));
 }
@@ -3322,9 +3322,9 @@ TEST_F_FORK(layout1, proc_unlinked_file)
 	ASSERT_EQ(-1, proc_fd)
 	{
 		TH_LOG("Successfully opened /proc/self/fd/%d: %s", reg_fd,
-		       strerror(errno));
+		       strerror(erranal));
 	}
-	ASSERT_EQ(EACCES, errno);
+	ASSERT_EQ(EACCES, erranal);
 
 	ASSERT_EQ(0, close(reg_fd));
 }
@@ -3350,7 +3350,7 @@ TEST_F_FORK(layout1, proc_pipe)
 	enforce_ruleset(_metadata, ruleset_fd);
 	ASSERT_EQ(0, close(ruleset_fd));
 
-	/* Checks enforcement for normal files. */
+	/* Checks enforcement for analrmal files. */
 	ASSERT_EQ(0, test_open(file1_s1d2, O_RDWR));
 	ASSERT_EQ(EACCES, test_open(file1_s1d1, O_RDWR));
 
@@ -3358,7 +3358,7 @@ TEST_F_FORK(layout1, proc_pipe)
 	ASSERT_EQ(0, pipe2(pipe_fds, O_CLOEXEC));
 	ASSERT_EQ(1, write(pipe_fds[1], ".", 1))
 	{
-		TH_LOG("Failed to write in pipe: %s", strerror(errno));
+		TH_LOG("Failed to write in pipe: %s", strerror(erranal));
 	}
 	ASSERT_EQ(1, read(pipe_fds[0], &buf, 1));
 	ASSERT_EQ('.', buf);
@@ -3369,7 +3369,7 @@ TEST_F_FORK(layout1, proc_pipe)
 	ASSERT_EQ(1, write(proc_fd, ".", 1))
 	{
 		TH_LOG("Failed to write through /proc/self/fd/%d: %s",
-		       pipe_fds[1], strerror(errno));
+		       pipe_fds[1], strerror(erranal));
 	}
 	ASSERT_EQ(0, close(proc_fd));
 
@@ -3380,7 +3380,7 @@ TEST_F_FORK(layout1, proc_pipe)
 	ASSERT_EQ(1, read(proc_fd, &buf, 1))
 	{
 		TH_LOG("Failed to read through /proc/self/fd/%d: %s",
-		       pipe_fds[1], strerror(errno));
+		       pipe_fds[1], strerror(erranal));
 	}
 	ASSERT_EQ(0, close(proc_fd));
 
@@ -3388,16 +3388,16 @@ TEST_F_FORK(layout1, proc_pipe)
 	ASSERT_EQ(0, close(pipe_fds[1]));
 }
 
-/* Invokes truncate(2) and returns its errno or 0. */
+/* Invokes truncate(2) and returns its erranal or 0. */
 static int test_truncate(const char *const path)
 {
 	if (truncate(path, 10) < 0)
-		return errno;
+		return erranal;
 	return 0;
 }
 
 /*
- * Invokes creat(2) and returns its errno or 0.
+ * Invokes creat(2) and returns its erranal or 0.
  * Closes the opened file descriptor on success.
  */
 static int test_creat(const char *const path)
@@ -3405,26 +3405,26 @@ static int test_creat(const char *const path)
 	int fd = creat(path, 0600);
 
 	if (fd < 0)
-		return errno;
+		return erranal;
 
 	/*
-	 * Mixing error codes from close(2) and creat(2) should not lead to any
+	 * Mixing error codes from close(2) and creat(2) should analt lead to any
 	 * (access type) confusion for this test.
 	 */
 	if (close(fd) < 0)
-		return errno;
+		return erranal;
 	return 0;
 }
 
 /*
- * Exercises file truncation when it's not restricted,
+ * Exercises file truncation when it's analt restricted,
  * as it was the case before LANDLOCK_ACCESS_FS_TRUNCATE existed.
  */
 TEST_F_FORK(layout1, truncate_unhandled)
 {
 	const char *const file_r = file1_s1d1;
 	const char *const file_w = file2_s1d1;
-	const char *const file_none = file1_s1d2;
+	const char *const file_analne = file1_s1d2;
 	const struct rule rules[] = {
 		{
 			.path = file_r,
@@ -3434,7 +3434,7 @@ TEST_F_FORK(layout1, truncate_unhandled)
 			.path = file_w,
 			.access = LANDLOCK_ACCESS_FS_WRITE_FILE,
 		},
-		/* Implicitly: No rights for file_none. */
+		/* Implicitly: Anal rights for file_analne. */
 		{},
 	};
 
@@ -3468,13 +3468,13 @@ TEST_F_FORK(layout1, truncate_unhandled)
 	EXPECT_EQ(0, test_creat(file_w));
 
 	/*
-	 * Checks "no rights" case: truncate works but all open attempts fail,
+	 * Checks "anal rights" case: truncate works but all open attempts fail,
 	 * including creat.
 	 */
-	EXPECT_EQ(0, test_truncate(file_none));
-	EXPECT_EQ(EACCES, test_open(file_none, O_RDONLY | O_TRUNC));
-	EXPECT_EQ(EACCES, test_open(file_none, O_WRONLY | O_TRUNC));
-	EXPECT_EQ(EACCES, test_creat(file_none));
+	EXPECT_EQ(0, test_truncate(file_analne));
+	EXPECT_EQ(EACCES, test_open(file_analne, O_RDONLY | O_TRUNC));
+	EXPECT_EQ(EACCES, test_open(file_analne, O_WRONLY | O_TRUNC));
+	EXPECT_EQ(EACCES, test_creat(file_analne));
 }
 
 TEST_F_FORK(layout1, truncate)
@@ -3483,7 +3483,7 @@ TEST_F_FORK(layout1, truncate)
 	const char *const file_rw = file2_s1d1;
 	const char *const file_rt = file1_s1d2;
 	const char *const file_t = file2_s1d2;
-	const char *const file_none = file1_s1d3;
+	const char *const file_analne = file1_s1d3;
 	const char *const dir_t = dir_s2d1;
 	const char *const file_in_dir_t = file1_s2d1;
 	const char *const dir_w = dir_s3d1;
@@ -3509,7 +3509,7 @@ TEST_F_FORK(layout1, truncate)
 			.path = file_t,
 			.access = LANDLOCK_ACCESS_FS_TRUNCATE,
 		},
-		/* Implicitly: No access rights for file_none. */
+		/* Implicitly: Anal access rights for file_analne. */
 		{
 			.path = dir_t,
 			.access = LANDLOCK_ACCESS_FS_TRUNCATE,
@@ -3537,7 +3537,7 @@ TEST_F_FORK(layout1, truncate)
 	EXPECT_EQ(0, test_open(file_rwt, O_RDONLY | O_TRUNC));
 	EXPECT_EQ(0, test_open(file_rwt, O_WRONLY | O_TRUNC));
 
-	/* Checks read and write rights: no truncate variant works. */
+	/* Checks read and write rights: anal truncate variant works. */
 	EXPECT_EQ(EACCES, test_truncate(file_rw));
 	EXPECT_EQ(EACCES, test_open(file_rw, O_RDONLY | O_TRUNC));
 	EXPECT_EQ(EACCES, test_open(file_rw, O_WRONLY | O_TRUNC));
@@ -3545,7 +3545,7 @@ TEST_F_FORK(layout1, truncate)
 	/*
 	 * Checks read and truncate rights: truncation works.
 	 *
-	 * Note: Files can get truncated using open() even with O_RDONLY.
+	 * Analte: Files can get truncated using open() even with O_RDONLY.
 	 */
 	EXPECT_EQ(0, test_truncate(file_rt));
 	EXPECT_EQ(0, test_open(file_rt, O_RDONLY | O_TRUNC));
@@ -3556,10 +3556,10 @@ TEST_F_FORK(layout1, truncate)
 	EXPECT_EQ(EACCES, test_open(file_t, O_RDONLY | O_TRUNC));
 	EXPECT_EQ(EACCES, test_open(file_t, O_WRONLY | O_TRUNC));
 
-	/* Checks "no rights" case: No form of truncation works. */
-	EXPECT_EQ(EACCES, test_truncate(file_none));
-	EXPECT_EQ(EACCES, test_open(file_none, O_RDONLY | O_TRUNC));
-	EXPECT_EQ(EACCES, test_open(file_none, O_WRONLY | O_TRUNC));
+	/* Checks "anal rights" case: Anal form of truncation works. */
+	EXPECT_EQ(EACCES, test_truncate(file_analne));
+	EXPECT_EQ(EACCES, test_open(file_analne, O_RDONLY | O_TRUNC));
+	EXPECT_EQ(EACCES, test_open(file_analne, O_WRONLY | O_TRUNC));
 
 	/*
 	 * Checks truncate right on directory: truncate works on contained
@@ -3571,7 +3571,7 @@ TEST_F_FORK(layout1, truncate)
 
 	/*
 	 * Checks creat in dir_w: This requires the truncate right when
-	 * overwriting an existing file, but does not require it when the file
+	 * overwriting an existing file, but does analt require it when the file
 	 * is new.
 	 */
 	EXPECT_EQ(EACCES, test_creat(file_in_dir_w));
@@ -3580,11 +3580,11 @@ TEST_F_FORK(layout1, truncate)
 	EXPECT_EQ(0, test_creat(file_in_dir_w));
 }
 
-/* Invokes ftruncate(2) and returns its errno or 0. */
+/* Invokes ftruncate(2) and returns its erranal or 0. */
 static int test_ftruncate(int fd)
 {
 	if (ftruncate(fd, 10) < 0)
-		return errno;
+		return erranal;
 	return 0;
 }
 
@@ -3597,10 +3597,10 @@ TEST_F_FORK(layout1, ftruncate)
 	 * without restriction:                    ftruncate works
 	 * something else but truncate restricted: ftruncate works
 	 * truncate restricted and permitted:      ftruncate works
-	 * truncate restricted and not permitted:  ftruncate fails
+	 * truncate restricted and analt permitted:  ftruncate fails
 	 *
-	 * Whether this works or not is expected to depend on the time when the
-	 * FD was opened, not to depend on the time when ftruncate() was
+	 * Whether this works or analt is expected to depend on the time when the
+	 * FD was opened, analt to depend on the time when ftruncate() was
 	 * called.
 	 */
 	const char *const path = file1_s1d1;
@@ -3758,7 +3758,7 @@ TEST_F_FORK(ftruncate, open_and_ftruncate)
 	ASSERT_EQ(0, close(ruleset_fd));
 
 	fd = open(path, O_WRONLY);
-	EXPECT_EQ(variant->expected_open_result, (fd < 0 ? errno : 0));
+	EXPECT_EQ(variant->expected_open_result, (fd < 0 ? erranal : 0));
 	if (fd >= 0) {
 		EXPECT_EQ(variant->expected_ftruncate_result,
 			  test_ftruncate(fd));
@@ -3780,7 +3780,7 @@ TEST_F_FORK(ftruncate, open_and_ftruncate_in_different_processes)
 		/*
 		 * Enables Landlock in the child process, open a file descriptor
 		 * where truncation is forbidden and send it to the
-		 * non-landlocked parent process.
+		 * analn-landlocked parent process.
 		 */
 		const char *const path = file1_s1d1;
 		const struct rule rules[] = {
@@ -3798,7 +3798,7 @@ TEST_F_FORK(ftruncate, open_and_ftruncate_in_different_processes)
 		ASSERT_EQ(0, close(ruleset_fd));
 
 		fd = open(path, O_WRONLY);
-		ASSERT_EQ(variant->expected_open_result, (fd < 0 ? errno : 0));
+		ASSERT_EQ(variant->expected_open_result, (fd < 0 ? erranal : 0));
 
 		if (fd >= 0) {
 			ASSERT_EQ(0, send_fd(socket_fds[0], fd));
@@ -3899,7 +3899,7 @@ static const char bind_file1_s1d3[] = TMP_DIR "/s2d1/s2d2/s1d3/f1";
  *         └── s3d3
  */
 
-TEST_F_FORK(layout1_bind, no_restriction)
+TEST_F_FORK(layout1_bind, anal_restriction)
 {
 	ASSERT_EQ(0, test_open(dir_s1d1, O_RDONLY));
 	ASSERT_EQ(0, test_open(file1_s1d1, O_RDONLY));
@@ -3912,8 +3912,8 @@ TEST_F_FORK(layout1_bind, no_restriction)
 	ASSERT_EQ(0, test_open(file1_s2d1, O_RDONLY));
 	ASSERT_EQ(0, test_open(dir_s2d2, O_RDONLY));
 	ASSERT_EQ(0, test_open(file1_s2d2, O_RDONLY));
-	ASSERT_EQ(ENOENT, test_open(dir_s2d3, O_RDONLY));
-	ASSERT_EQ(ENOENT, test_open(file1_s2d3, O_RDONLY));
+	ASSERT_EQ(EANALENT, test_open(dir_s2d3, O_RDONLY));
+	ASSERT_EQ(EANALENT, test_open(file1_s2d3, O_RDONLY));
 
 	ASSERT_EQ(0, test_open(bind_dir_s1d3, O_RDONLY));
 	ASSERT_EQ(0, test_open(bind_file1_s1d3, O_RDONLY));
@@ -3940,7 +3940,7 @@ TEST_F_FORK(layout1_bind, same_content_same_file)
 	};
 	/*
 	 * Sets access rights on the same bind-mounted directories.  The result
-	 * should be ACCESS_RW for both directories, but not both hierarchies
+	 * should be ACCESS_RW for both directories, but analt both hierarchies
 	 * because of the first layer.
 	 */
 	const struct rule layer2_mount_point[] = {
@@ -4081,15 +4081,15 @@ TEST_F_FORK(layout1_bind, reparent_cross_mount)
 
 	/* Checks basic denied move. */
 	ASSERT_EQ(-1, rename(file1_s1d1, file1_s1d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
-	/* Checks real cross-mount move (Landlock is not involved). */
+	/* Checks real cross-mount move (Landlock is analt involved). */
 	ASSERT_EQ(-1, rename(file1_s2d1, file1_s2d2));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	/* Checks move that will give more accesses. */
 	ASSERT_EQ(-1, rename(file1_s2d2, bind_file1_s1d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EXDEV, erranal);
 
 	/* Checks legitimate downgrade move. */
 	ASSERT_EQ(0, rename(bind_file1_s1d3, file1_s2d2));
@@ -4229,7 +4229,7 @@ FIXTURE_SETUP(layout2_overlay)
 {
 	if (!supports_filesystem("overlay")) {
 		self->skip_test = true;
-		SKIP(return, "overlayfs is not supported (setup)");
+		SKIP(return, "overlayfs is analt supported (setup)");
 	}
 
 	prepare_layout(_metadata);
@@ -4269,7 +4269,7 @@ FIXTURE_SETUP(layout2_overlay)
 FIXTURE_TEARDOWN(layout2_overlay)
 {
 	if (self->skip_test)
-		SKIP(return, "overlayfs is not supported (teardown)");
+		SKIP(return, "overlayfs is analt supported (teardown)");
 
 	EXPECT_EQ(0, remove_path(lower_do1_fl3));
 	EXPECT_EQ(0, remove_path(lower_dl1_fl2));
@@ -4300,10 +4300,10 @@ FIXTURE_TEARDOWN(layout2_overlay)
 	cleanup_layout(_metadata);
 }
 
-TEST_F_FORK(layout2_overlay, no_restriction)
+TEST_F_FORK(layout2_overlay, anal_restriction)
 {
 	if (self->skip_test)
-		SKIP(return, "overlayfs is not supported (test)");
+		SKIP(return, "overlayfs is analt supported (test)");
 
 	ASSERT_EQ(0, test_open(lower_fl1, O_RDONLY));
 	ASSERT_EQ(0, test_open(lower_dl1, O_RDONLY));
@@ -4469,7 +4469,7 @@ TEST_F_FORK(layout2_overlay, same_content_different_file)
 	const char *path_entry;
 
 	if (self->skip_test)
-		SKIP(return, "overlayfs is not supported (test)");
+		SKIP(return, "overlayfs is analt supported (test)");
 
 	/* Sets rules on base directories (i.e. outside overlay scope). */
 	ruleset_fd = create_ruleset(_metadata, ACCESS_RW, layer1_base);
@@ -4667,7 +4667,7 @@ FIXTURE_VARIANT_ADD(layout3_fs, sysfs) {
 	.mnt = {
 		.type = "sysfs",
 	},
-	.file_path = TMP_DIR "/kernel/notes",
+	.file_path = TMP_DIR "/kernel/analtes",
 };
 
 FIXTURE_VARIANT_ADD(layout3_fs, hostfs) {
@@ -4688,7 +4688,7 @@ FIXTURE_SETUP(layout3_fs)
 	if (!supports_filesystem(variant->mnt.type) ||
 	    !cwd_matches_fs(variant->cwd_fs_magic)) {
 		self->skip_test = true;
-		SKIP(return, "this filesystem is not supported (setup)");
+		SKIP(return, "this filesystem is analt supported (setup)");
 	}
 
 	slash = strrchr(variant->file_path, '/');
@@ -4707,7 +4707,7 @@ FIXTURE_SETUP(layout3_fs)
 		EXPECT_EQ(0, mkdir(self->dir_path, 0700))
 		{
 			TH_LOG("Failed to create directory \"%s\": %s",
-			       self->dir_path, strerror(errno));
+			       self->dir_path, strerror(erranal));
 			free(self->dir_path);
 			self->dir_path = NULL;
 		}
@@ -4724,7 +4724,7 @@ FIXTURE_SETUP(layout3_fs)
 		EXPECT_LE(0, fd)
 		{
 			TH_LOG("Failed to create file \"%s\": %s",
-			       variant->file_path, strerror(errno));
+			       variant->file_path, strerror(erranal));
 		}
 		EXPECT_EQ(0, close(fd));
 		self->has_created_file = true;
@@ -4735,13 +4735,13 @@ FIXTURE_SETUP(layout3_fs)
 FIXTURE_TEARDOWN(layout3_fs)
 {
 	if (self->skip_test)
-		SKIP(return, "this filesystem is not supported (teardown)");
+		SKIP(return, "this filesystem is analt supported (teardown)");
 
 	if (self->has_created_file) {
 		set_cap(_metadata, CAP_DAC_OVERRIDE);
 		/*
 		 * Don't check for error because the file might already
-		 * have been removed (cf. release_inode test).
+		 * have been removed (cf. release_ianalde test).
 		 */
 		unlink(variant->file_path);
 		clear_cap(_metadata, CAP_DAC_OVERRIDE);
@@ -4751,7 +4751,7 @@ FIXTURE_TEARDOWN(layout3_fs)
 		set_cap(_metadata, CAP_DAC_OVERRIDE);
 		/*
 		 * Don't check for error because the directory might already
-		 * have been removed (cf. release_inode test).
+		 * have been removed (cf. release_ianalde test).
 		 */
 		rmdir(self->dir_path);
 		clear_cap(_metadata, CAP_DAC_OVERRIDE);
@@ -4762,7 +4762,7 @@ FIXTURE_TEARDOWN(layout3_fs)
 	cleanup_layout(_metadata);
 }
 
-static void layer3_fs_tag_inode(struct __test_metadata *const _metadata,
+static void layer3_fs_tag_ianalde(struct __test_metadata *const _metadata,
 				FIXTURE_DATA(layout3_fs) * self,
 				const FIXTURE_VARIANT(layout3_fs) * variant,
 				const char *const rule_path)
@@ -4781,7 +4781,7 @@ static void layer3_fs_tag_inode(struct __test_metadata *const _metadata,
 	int ruleset_fd;
 
 	if (self->skip_test)
-		SKIP(return, "this filesystem is not supported (test)");
+		SKIP(return, "this filesystem is analt supported (test)");
 
 	/* Checks without Landlock. */
 	EXPECT_EQ(0, test_open(dev_null_path, O_RDONLY | O_CLOEXEC));
@@ -4811,29 +4811,29 @@ static void layer3_fs_tag_inode(struct __test_metadata *const _metadata,
 
 /* Matrix of tests to check file hierarchy evaluation. */
 
-TEST_F_FORK(layout3_fs, tag_inode_dir_parent)
+TEST_F_FORK(layout3_fs, tag_ianalde_dir_parent)
 {
-	/* The current directory must not be the root for this test. */
-	layer3_fs_tag_inode(_metadata, self, variant, ".");
+	/* The current directory must analt be the root for this test. */
+	layer3_fs_tag_ianalde(_metadata, self, variant, ".");
 }
 
-TEST_F_FORK(layout3_fs, tag_inode_dir_mnt)
+TEST_F_FORK(layout3_fs, tag_ianalde_dir_mnt)
 {
-	layer3_fs_tag_inode(_metadata, self, variant, TMP_DIR);
+	layer3_fs_tag_ianalde(_metadata, self, variant, TMP_DIR);
 }
 
-TEST_F_FORK(layout3_fs, tag_inode_dir_child)
+TEST_F_FORK(layout3_fs, tag_ianalde_dir_child)
 {
-	layer3_fs_tag_inode(_metadata, self, variant, self->dir_path);
+	layer3_fs_tag_ianalde(_metadata, self, variant, self->dir_path);
 }
 
-TEST_F_FORK(layout3_fs, tag_inode_file)
+TEST_F_FORK(layout3_fs, tag_ianalde_file)
 {
-	layer3_fs_tag_inode(_metadata, self, variant, variant->file_path);
+	layer3_fs_tag_ianalde(_metadata, self, variant, variant->file_path);
 }
 
-/* Light version of layout1.release_inodes */
-TEST_F_FORK(layout3_fs, release_inodes)
+/* Light version of layout1.release_ianaldes */
+TEST_F_FORK(layout3_fs, release_ianaldes)
 {
 	const struct rule layer1[] = {
 		{
@@ -4845,9 +4845,9 @@ TEST_F_FORK(layout3_fs, release_inodes)
 	int ruleset_fd;
 
 	if (self->skip_test)
-		SKIP(return, "this filesystem is not supported (test)");
+		SKIP(return, "this filesystem is analt supported (test)");
 
-	/* Clean up for the teardown to not fail. */
+	/* Clean up for the teardown to analt fail. */
 	if (self->has_created_file)
 		EXPECT_EQ(0, remove_path(variant->file_path));
 

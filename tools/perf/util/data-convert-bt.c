@@ -6,7 +6,7 @@
  * Copyright (C) 2014, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
@@ -93,7 +93,7 @@ struct convert {
 
 	u64			events_size;
 	u64			events_count;
-	u64			non_sample_count;
+	u64			analn_sample_count;
 
 	/* Ordered events configured queue size. */
 	u64			queue_size;
@@ -235,7 +235,7 @@ static unsigned long long adjust_signedness(unsigned long long value_int, int si
 		break;
 	case 8:
 		/*
-		 * For 64 bit value, return it self. There is no need
+		 * For 64 bit value, return it self. There is anal need
 		 * to fill high bit.
 		 */
 		/* Fall through */
@@ -602,7 +602,7 @@ static int add_generic_values(struct ctf_writer *cw,
 
 	/*
 	 * missing:
-	 *   PERF_SAMPLE_TIME         - not needed as we have it in
+	 *   PERF_SAMPLE_TIME         - analt needed as we have it in
 	 *                              ctf event header
 	 *   PERF_SAMPLE_READ         - TODO
 	 *   PERF_SAMPLE_RAW          - tracepoint fields are handled separately
@@ -782,7 +782,7 @@ static int get_sample_cpu(struct ctf_writer *cw, struct perf_sample *sample,
 #define STREAM_FLUSH_COUNT 100000
 
 /*
- * Currently we have no other way to determine the
+ * Currently we have anal other way to determine the
  * time for the stream flush other than keep track
  * of the number of events and check it against
  * threshold.
@@ -863,14 +863,14 @@ static int process_sample_event(struct perf_tool *tool,
 	return cs ? 0 : -1;
 }
 
-#define __NON_SAMPLE_SET_FIELD(_name, _type, _field) 	\
+#define __ANALN_SAMPLE_SET_FIELD(_name, _type, _field) 	\
 do {							\
 	ret = value_set_##_type(cw, event, #_field, _event->_name._field);\
 	if (ret)					\
 		return -1;				\
 } while(0)
 
-#define __FUNC_PROCESS_NON_SAMPLE(_name, body) 	\
+#define __FUNC_PROCESS_ANALN_SAMPLE(_name, body) 	\
 static int process_##_name##_event(struct perf_tool *tool,	\
 				   union perf_event *_event,	\
 				   struct perf_sample *sample,	\
@@ -883,7 +883,7 @@ static int process_##_name##_event(struct perf_tool *tool,	\
 	struct ctf_stream *cs;					\
 	int ret;						\
 								\
-	c->non_sample_count++;					\
+	c->analn_sample_count++;					\
 	c->events_size += _event->header.size;			\
 	event = bt_ctf_event_create(event_class);		\
 	if (!event) {						\
@@ -906,40 +906,40 @@ static int process_##_name##_event(struct perf_tool *tool,	\
 	return perf_event__process_##_name(tool, _event, sample, machine);\
 }
 
-__FUNC_PROCESS_NON_SAMPLE(comm,
-	__NON_SAMPLE_SET_FIELD(comm, u32, pid);
-	__NON_SAMPLE_SET_FIELD(comm, u32, tid);
-	__NON_SAMPLE_SET_FIELD(comm, string, comm);
+__FUNC_PROCESS_ANALN_SAMPLE(comm,
+	__ANALN_SAMPLE_SET_FIELD(comm, u32, pid);
+	__ANALN_SAMPLE_SET_FIELD(comm, u32, tid);
+	__ANALN_SAMPLE_SET_FIELD(comm, string, comm);
 )
-__FUNC_PROCESS_NON_SAMPLE(fork,
-	__NON_SAMPLE_SET_FIELD(fork, u32, pid);
-	__NON_SAMPLE_SET_FIELD(fork, u32, ppid);
-	__NON_SAMPLE_SET_FIELD(fork, u32, tid);
-	__NON_SAMPLE_SET_FIELD(fork, u32, ptid);
-	__NON_SAMPLE_SET_FIELD(fork, u64, time);
+__FUNC_PROCESS_ANALN_SAMPLE(fork,
+	__ANALN_SAMPLE_SET_FIELD(fork, u32, pid);
+	__ANALN_SAMPLE_SET_FIELD(fork, u32, ppid);
+	__ANALN_SAMPLE_SET_FIELD(fork, u32, tid);
+	__ANALN_SAMPLE_SET_FIELD(fork, u32, ptid);
+	__ANALN_SAMPLE_SET_FIELD(fork, u64, time);
 )
 
-__FUNC_PROCESS_NON_SAMPLE(exit,
-	__NON_SAMPLE_SET_FIELD(fork, u32, pid);
-	__NON_SAMPLE_SET_FIELD(fork, u32, ppid);
-	__NON_SAMPLE_SET_FIELD(fork, u32, tid);
-	__NON_SAMPLE_SET_FIELD(fork, u32, ptid);
-	__NON_SAMPLE_SET_FIELD(fork, u64, time);
+__FUNC_PROCESS_ANALN_SAMPLE(exit,
+	__ANALN_SAMPLE_SET_FIELD(fork, u32, pid);
+	__ANALN_SAMPLE_SET_FIELD(fork, u32, ppid);
+	__ANALN_SAMPLE_SET_FIELD(fork, u32, tid);
+	__ANALN_SAMPLE_SET_FIELD(fork, u32, ptid);
+	__ANALN_SAMPLE_SET_FIELD(fork, u64, time);
 )
-__FUNC_PROCESS_NON_SAMPLE(mmap,
-	__NON_SAMPLE_SET_FIELD(mmap, u32, pid);
-	__NON_SAMPLE_SET_FIELD(mmap, u32, tid);
-	__NON_SAMPLE_SET_FIELD(mmap, u64_hex, start);
-	__NON_SAMPLE_SET_FIELD(mmap, string, filename);
+__FUNC_PROCESS_ANALN_SAMPLE(mmap,
+	__ANALN_SAMPLE_SET_FIELD(mmap, u32, pid);
+	__ANALN_SAMPLE_SET_FIELD(mmap, u32, tid);
+	__ANALN_SAMPLE_SET_FIELD(mmap, u64_hex, start);
+	__ANALN_SAMPLE_SET_FIELD(mmap, string, filename);
 )
-__FUNC_PROCESS_NON_SAMPLE(mmap2,
-	__NON_SAMPLE_SET_FIELD(mmap2, u32, pid);
-	__NON_SAMPLE_SET_FIELD(mmap2, u32, tid);
-	__NON_SAMPLE_SET_FIELD(mmap2, u64_hex, start);
-	__NON_SAMPLE_SET_FIELD(mmap2, string, filename);
+__FUNC_PROCESS_ANALN_SAMPLE(mmap2,
+	__ANALN_SAMPLE_SET_FIELD(mmap2, u32, pid);
+	__ANALN_SAMPLE_SET_FIELD(mmap2, u32, tid);
+	__ANALN_SAMPLE_SET_FIELD(mmap2, u64_hex, start);
+	__ANALN_SAMPLE_SET_FIELD(mmap2, string, filename);
 )
-#undef __NON_SAMPLE_SET_FIELD
-#undef __FUNC_PROCESS_NON_SAMPLE
+#undef __ANALN_SAMPLE_SET_FIELD
+#undef __FUNC_PROCESS_ANALN_SAMPLE
 
 /* If dup < 0, add a prefix. Else, add _dupl_X suffix. */
 static char *change_name(char *name, char *orig_name, int dup)
@@ -954,7 +954,7 @@ static char *change_name(char *name, char *orig_name, int dup)
 		goto out;
 	/*
 	 * Add '_' prefix to potential keywork.  According to
-	 * Mathieu Desnoyers (https://lore.kernel.org/lkml/1074266107.40857.1422045946295.JavaMail.zimbra@efficios.com),
+	 * Mathieu Desanalyers (https://lore.kernel.org/lkml/1074266107.40857.1422045946295.JavaMail.zimbra@efficios.com),
 	 * further CTF spec updating may require us to use '$'.
 	 */
 	if (dup < 0)
@@ -1101,7 +1101,7 @@ static int add_generic_types(struct ctf_writer *cw, struct evsel *evsel,
 
 	/*
 	 * missing:
-	 *   PERF_SAMPLE_TIME         - not needed as we have it in
+	 *   PERF_SAMPLE_TIME         - analt needed as we have it in
 	 *                              ctf event header
 	 *   PERF_SAMPLE_READ         - TODO
 	 *   PERF_SAMPLE_CALLCHAIN    - TODO
@@ -1223,7 +1223,7 @@ static int setup_events(struct ctf_writer *cw, struct perf_session *session)
 	return 0;
 }
 
-#define __NON_SAMPLE_ADD_FIELD(t, n)						\
+#define __ANALN_SAMPLE_ADD_FIELD(t, n)						\
 	do {							\
 		pr2("  field '%s'\n", #n);			\
 		if (bt_ctf_event_class_add_field(event_class, cw->data.t, #n)) {\
@@ -1232,7 +1232,7 @@ static int setup_events(struct ctf_writer *cw, struct perf_session *session)
 		}						\
 	} while(0)
 
-#define __FUNC_ADD_NON_SAMPLE_EVENT_CLASS(_name, body) 		\
+#define __FUNC_ADD_ANALN_SAMPLE_EVENT_CLASS(_name, body) 		\
 static int add_##_name##_event(struct ctf_writer *cw)		\
 {								\
 	struct bt_ctf_event_class *event_class;			\
@@ -1255,45 +1255,45 @@ static int add_##_name##_event(struct ctf_writer *cw)		\
 	return 0;						\
 }
 
-__FUNC_ADD_NON_SAMPLE_EVENT_CLASS(comm,
-	__NON_SAMPLE_ADD_FIELD(u32, pid);
-	__NON_SAMPLE_ADD_FIELD(u32, tid);
-	__NON_SAMPLE_ADD_FIELD(string, comm);
+__FUNC_ADD_ANALN_SAMPLE_EVENT_CLASS(comm,
+	__ANALN_SAMPLE_ADD_FIELD(u32, pid);
+	__ANALN_SAMPLE_ADD_FIELD(u32, tid);
+	__ANALN_SAMPLE_ADD_FIELD(string, comm);
 )
 
-__FUNC_ADD_NON_SAMPLE_EVENT_CLASS(fork,
-	__NON_SAMPLE_ADD_FIELD(u32, pid);
-	__NON_SAMPLE_ADD_FIELD(u32, ppid);
-	__NON_SAMPLE_ADD_FIELD(u32, tid);
-	__NON_SAMPLE_ADD_FIELD(u32, ptid);
-	__NON_SAMPLE_ADD_FIELD(u64, time);
+__FUNC_ADD_ANALN_SAMPLE_EVENT_CLASS(fork,
+	__ANALN_SAMPLE_ADD_FIELD(u32, pid);
+	__ANALN_SAMPLE_ADD_FIELD(u32, ppid);
+	__ANALN_SAMPLE_ADD_FIELD(u32, tid);
+	__ANALN_SAMPLE_ADD_FIELD(u32, ptid);
+	__ANALN_SAMPLE_ADD_FIELD(u64, time);
 )
 
-__FUNC_ADD_NON_SAMPLE_EVENT_CLASS(exit,
-	__NON_SAMPLE_ADD_FIELD(u32, pid);
-	__NON_SAMPLE_ADD_FIELD(u32, ppid);
-	__NON_SAMPLE_ADD_FIELD(u32, tid);
-	__NON_SAMPLE_ADD_FIELD(u32, ptid);
-	__NON_SAMPLE_ADD_FIELD(u64, time);
+__FUNC_ADD_ANALN_SAMPLE_EVENT_CLASS(exit,
+	__ANALN_SAMPLE_ADD_FIELD(u32, pid);
+	__ANALN_SAMPLE_ADD_FIELD(u32, ppid);
+	__ANALN_SAMPLE_ADD_FIELD(u32, tid);
+	__ANALN_SAMPLE_ADD_FIELD(u32, ptid);
+	__ANALN_SAMPLE_ADD_FIELD(u64, time);
 )
 
-__FUNC_ADD_NON_SAMPLE_EVENT_CLASS(mmap,
-	__NON_SAMPLE_ADD_FIELD(u32, pid);
-	__NON_SAMPLE_ADD_FIELD(u32, tid);
-	__NON_SAMPLE_ADD_FIELD(u64_hex, start);
-	__NON_SAMPLE_ADD_FIELD(string, filename);
+__FUNC_ADD_ANALN_SAMPLE_EVENT_CLASS(mmap,
+	__ANALN_SAMPLE_ADD_FIELD(u32, pid);
+	__ANALN_SAMPLE_ADD_FIELD(u32, tid);
+	__ANALN_SAMPLE_ADD_FIELD(u64_hex, start);
+	__ANALN_SAMPLE_ADD_FIELD(string, filename);
 )
 
-__FUNC_ADD_NON_SAMPLE_EVENT_CLASS(mmap2,
-	__NON_SAMPLE_ADD_FIELD(u32, pid);
-	__NON_SAMPLE_ADD_FIELD(u32, tid);
-	__NON_SAMPLE_ADD_FIELD(u64_hex, start);
-	__NON_SAMPLE_ADD_FIELD(string, filename);
+__FUNC_ADD_ANALN_SAMPLE_EVENT_CLASS(mmap2,
+	__ANALN_SAMPLE_ADD_FIELD(u32, pid);
+	__ANALN_SAMPLE_ADD_FIELD(u32, tid);
+	__ANALN_SAMPLE_ADD_FIELD(u64_hex, start);
+	__ANALN_SAMPLE_ADD_FIELD(string, filename);
 )
-#undef __NON_SAMPLE_ADD_FIELD
-#undef __FUNC_ADD_NON_SAMPLE_EVENT_CLASS
+#undef __ANALN_SAMPLE_ADD_FIELD
+#undef __FUNC_ADD_ANALN_SAMPLE_EVENT_CLASS
 
-static int setup_non_sample_events(struct ctf_writer *cw,
+static int setup_analn_sample_events(struct ctf_writer *cw,
 				   struct perf_session *session __maybe_unused)
 {
 	int ret;
@@ -1341,14 +1341,14 @@ static int setup_streams(struct ctf_writer *cw, struct perf_session *session)
 
 	/*
 	 * Try to get the number of cpus used in the data file,
-	 * if not present fallback to the MAX_CPUS.
+	 * if analt present fallback to the MAX_CPUS.
 	 */
 	ncpus = ph->env.nr_cpus_avail ?: MAX_CPUS;
 
 	stream = zalloc(sizeof(*stream) * ncpus);
 	if (!stream) {
 		pr_err("Failed to allocate streams.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cw->stream     = stream;
@@ -1661,7 +1661,7 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 	if (setup_events(cw, session))
 		goto free_writer;
 
-	if (opts->all && setup_non_sample_events(cw, session))
+	if (opts->all && setup_analn_sample_events(cw, session))
 		goto free_writer;
 
 	if (setup_streams(cw, session))
@@ -1682,10 +1682,10 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 		(double) c.events_size / 1024.0 / 1024.0,
 		c.events_count);
 
-	if (!c.non_sample_count)
+	if (!c.analn_sample_count)
 		fprintf(stderr, ") ]\n");
 	else
-		fprintf(stderr, ", %" PRIu64 " non-samples) ]\n", c.non_sample_count);
+		fprintf(stderr, ", %" PRIu64 " analn-samples) ]\n", c.analn_sample_count);
 
 	cleanup_events(session);
 	perf_session__delete(session);

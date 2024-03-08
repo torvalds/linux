@@ -40,7 +40,7 @@ SHOW_TYPE
 
 #define SHOW_FIELD							\
 	EM( V4L2_FIELD_ANY,		"ANY" )				\
-	EM( V4L2_FIELD_NONE,		"NONE" )			\
+	EM( V4L2_FIELD_ANALNE,		"ANALNE" )			\
 	EM( V4L2_FIELD_TOP,		"TOP" )				\
 	EM( V4L2_FIELD_BOTTOM,		"BOTTOM" )			\
 	EM( V4L2_FIELD_INTERLACED,	"INTERLACED" )			\
@@ -53,7 +53,7 @@ SHOW_TYPE
 SHOW_FIELD
 
 /*
- * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * Analw redefine the EM() and EMe() macros to map the enums to the strings
  * that will be printed in the output.
  */
 #undef EM
@@ -61,7 +61,7 @@ SHOW_FIELD
 #define EM(a, b)	{a, b},
 #define EMe(a, b)	{a, b}
 
-/* V4L2_TC_TYPE_* are macros, not defines, they do not need processing */
+/* V4L2_TC_TYPE_* are macros, analt defines, they do analt need processing */
 
 #define show_timecode_type(type)					\
 	__print_symbolic(type,						\
@@ -82,11 +82,11 @@ SHOW_FIELD
 		{ V4L2_BUF_FLAG_ERROR,		     "ERROR" },		      \
 		{ V4L2_BUF_FLAG_TIMECODE,	     "TIMECODE" },	      \
 		{ V4L2_BUF_FLAG_PREPARED,	     "PREPARED" },	      \
-		{ V4L2_BUF_FLAG_NO_CACHE_INVALIDATE, "NO_CACHE_INVALIDATE" }, \
-		{ V4L2_BUF_FLAG_NO_CACHE_CLEAN,	     "NO_CACHE_CLEAN" },      \
+		{ V4L2_BUF_FLAG_ANAL_CACHE_INVALIDATE, "ANAL_CACHE_INVALIDATE" }, \
+		{ V4L2_BUF_FLAG_ANAL_CACHE_CLEAN,	     "ANAL_CACHE_CLEAN" },      \
 		{ V4L2_BUF_FLAG_TIMESTAMP_MASK,	     "TIMESTAMP_MASK" },      \
-		{ V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN,   "TIMESTAMP_UNKNOWN" },   \
-		{ V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC, "TIMESTAMP_MONOTONIC" }, \
+		{ V4L2_BUF_FLAG_TIMESTAMP_UNKANALWN,   "TIMESTAMP_UNKANALWN" },   \
+		{ V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC, "TIMESTAMP_MOANALTONIC" }, \
 		{ V4L2_BUF_FLAG_TIMESTAMP_COPY,	     "TIMESTAMP_COPY" },      \
 		{ V4L2_BUF_FLAG_LAST,                "LAST" })
 
@@ -98,12 +98,12 @@ SHOW_FIELD
 		{ V4L2_TC_USERBITS_8BITCHARS,	"USERBITS_8BITCHARS" })
 
 DECLARE_EVENT_CLASS(v4l2_event_class,
-	TP_PROTO(int minor, struct v4l2_buffer *buf),
+	TP_PROTO(int mianalr, struct v4l2_buffer *buf),
 
-	TP_ARGS(minor, buf),
+	TP_ARGS(mianalr, buf),
 
 	TP_STRUCT__entry(
-		__field(int, minor)
+		__field(int, mianalr)
 		__field(u32, index)
 		__field(u32, type)
 		__field(u32, bytesused)
@@ -124,7 +124,7 @@ DECLARE_EVENT_CLASS(v4l2_event_class,
 	),
 
 	TP_fast_assign(
-		__entry->minor = minor;
+		__entry->mianalr = mianalr;
 		__entry->index = buf->index;
 		__entry->type = buf->type;
 		__entry->bytesused = buf->bytesused;
@@ -144,11 +144,11 @@ DECLARE_EVENT_CLASS(v4l2_event_class,
 		__entry->sequence = buf->sequence;
 	),
 
-	TP_printk("minor = %d, index = %u, type = %s, bytesused = %u, "
+	TP_printk("mianalr = %d, index = %u, type = %s, bytesused = %u, "
 		  "flags = %s, field = %s, timestamp = %llu, "
 		  "timecode = { type = %s, flags = %s, frames = %u, "
 		  "seconds = %u, minutes = %u, hours = %u, "
-		  "userbits = { %u %u %u %u } }, sequence = %u", __entry->minor,
+		  "userbits = { %u %u %u %u } }, sequence = %u", __entry->mianalr,
 		  __entry->index, show_type(__entry->type),
 		  __entry->bytesused,
 		  show_flags(__entry->flags),
@@ -169,13 +169,13 @@ DECLARE_EVENT_CLASS(v4l2_event_class,
 )
 
 DEFINE_EVENT(v4l2_event_class, v4l2_dqbuf,
-	TP_PROTO(int minor, struct v4l2_buffer *buf),
-	TP_ARGS(minor, buf)
+	TP_PROTO(int mianalr, struct v4l2_buffer *buf),
+	TP_ARGS(mianalr, buf)
 );
 
 DEFINE_EVENT(v4l2_event_class, v4l2_qbuf,
-	TP_PROTO(int minor, struct v4l2_buffer *buf),
-	TP_ARGS(minor, buf)
+	TP_PROTO(int mianalr, struct v4l2_buffer *buf),
+	TP_ARGS(mianalr, buf)
 );
 
 DECLARE_EVENT_CLASS(vb2_v4l2_event_class,
@@ -183,7 +183,7 @@ DECLARE_EVENT_CLASS(vb2_v4l2_event_class,
 	TP_ARGS(q, vb),
 
 	TP_STRUCT__entry(
-		__field(int, minor)
+		__field(int, mianalr)
 		__field(u32, flags)
 		__field(u32, field)
 		__field(u64, timestamp)
@@ -204,7 +204,7 @@ DECLARE_EVENT_CLASS(vb2_v4l2_event_class,
 		struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 		struct v4l2_fh *owner = q->owner;
 
-		__entry->minor = owner ? owner->vdev->minor : -1;
+		__entry->mianalr = owner ? owner->vdev->mianalr : -1;
 		__entry->flags = vbuf->flags;
 		__entry->field = vbuf->field;
 		__entry->timestamp = vb->timestamp;
@@ -221,10 +221,10 @@ DECLARE_EVENT_CLASS(vb2_v4l2_event_class,
 		__entry->sequence = vbuf->sequence;
 	),
 
-	TP_printk("minor=%d flags = %s, field = %s, "
+	TP_printk("mianalr=%d flags = %s, field = %s, "
 		  "timestamp = %llu, timecode = { type = %s, flags = %s, "
 		  "frames = %u, seconds = %u, minutes = %u, hours = %u, "
-		  "userbits = { %u %u %u %u } }, sequence = %u", __entry->minor,
+		  "userbits = { %u %u %u %u } }, sequence = %u", __entry->mianalr,
 		  show_flags(__entry->flags),
 		  show_field(__entry->field),
 		  __entry->timestamp,

@@ -12,7 +12,7 @@ Optional properties:
 -------------------
 - interrupts:		The interrupt on the parent the controller is
 			connected to.
-- interrupt-controller: Marks the device node as an interrupt controller.
+- interrupt-controller: Marks the device analde as an interrupt controller.
 - #interrupt-cells:	is <2> and their usage is compliant to the 2 cells
 			variant of <../interrupt-controller/interrupts.txt>
 			IRQ numbers for different interrupt source of MAX77620
@@ -23,7 +23,7 @@ Optional properties:
 
 [1] Documentation/devicetree/bindings/power/power-controller.txt
 
-Optional subnodes and their properties:
+Optional subanaldes and their properties:
 =======================================
 
 Flexible power sequence configurations:
@@ -60,13 +60,13 @@ corresponds to its flexible sequencer configuration register.
 	Global Low Power Mode (GLPM):	In this state, regulators are set in
 					low power mode at the sequencing event.
 
-The configuration parameters of FPS is provided through sub-node "fps"
-and their child for FPS specific. The child node name for FPS are "fps0",
+The configuration parameters of FPS is provided through sub-analde "fps"
+and their child for FPS specific. The child analde name for FPS are "fps0",
 "fps1", and "fps2" for FPS0, FPS1 and FPS2 respectively.
 
 The FPS configurations like FPS source, power up and power down slots for
 regulators, GPIOs and 32kHz clocks are provided in their respective
-configuration nodes which is explained in respective sub-system DT
+configuration analdes which is explained in respective sub-system DT
 binding document.
 
 There is need for different FPS configuration parameters based on system
@@ -105,7 +105,7 @@ Optional properties:
 						to set the PMIC state to low
 						power.
 					Absence of this property or other value
-					will not change device state when FPS
+					will analt change device state when FPS
 					event get cleared.
 
 Here supported time periods by device in microseconds are as follows:
@@ -117,7 +117,7 @@ MAX77663 supports 20, 40, 80, 160, 320, 640, 1280 and 2540 microseconds.
 			1: Enables POK(Power OK) to control nRST_IO and GPIO1
 			POK function.
 			0: Disables POK control.
-			if property missing, do not configure MPOK bit.
+			if property missing, do analt configure MPOK bit.
 			If POK mapping is enabled for GPIO1/nRST_IO then,
 			GPIO1/nRST_IO pins are HIGH only if all rails
 			that have POK control enabled are HIGH.
@@ -138,7 +138,7 @@ max77620@3c {
 	reg = <0x3c>;
 
 	interrupt-parent = <&intc>;
-	interrupts = <0 86 IRQ_TYPE_NONE>;
+	interrupts = <0 86 IRQ_TYPE_ANALNE>;
 
 	interrupt-controller;
 	#interrupt-cells = <2>;

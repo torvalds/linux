@@ -156,7 +156,7 @@ static int u8500_prcc_reset_xlate(struct reset_controller_dev *rcdev,
 	return PRCC_RESET_LINE(prcc_num, bit);
 }
 
-void u8500_prcc_reset_init(struct device_node *np, struct u8500_prcc_reset *ur)
+void u8500_prcc_reset_init(struct device_analde *np, struct u8500_prcc_reset *ur)
 {
 	struct reset_controller_dev *rcdev = &ur->rcdev;
 	int ret;
@@ -171,7 +171,7 @@ void u8500_prcc_reset_init(struct device_node *np, struct u8500_prcc_reset *ur)
 
 	rcdev->owner = THIS_MODULE;
 	rcdev->ops = &u8500_prcc_reset_ops;
-	rcdev->of_node = np;
+	rcdev->of_analde = np;
 	rcdev->of_reset_n_cells = 2;
 	rcdev->of_xlate = u8500_prcc_reset_xlate;
 

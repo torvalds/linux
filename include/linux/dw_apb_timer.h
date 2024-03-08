@@ -5,7 +5,7 @@
  *
  * Shared with ARM platforms, Jamie Iles, Picochip 2011
  *
- * Support for the Synopsys DesignWare APB Timers.
+ * Support for the Syanalpsys DesignWare APB Timers.
  */
 #ifndef __DW_APB_TIMER_H__
 #define __DW_APB_TIMER_H__

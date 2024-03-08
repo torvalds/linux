@@ -64,9 +64,9 @@ prom_cmdline(void)
 }
 
 /* Drop into the prom, but completely terminate the program.
- * No chance of continuing.
+ * Anal chance of continuing.
  */
-void __noreturn
+void __analreturn
 prom_halt(void)
 {
 	unsigned long flags;
@@ -98,9 +98,9 @@ prom_get_idprom(char *idbuf, int num_bytes)
 {
 	int len;
 
-	len = prom_getproplen(prom_root_node, "idprom");
+	len = prom_getproplen(prom_root_analde, "idprom");
 	if((len>num_bytes) || (len==-1)) return 0xff;
-	if(!prom_getproperty(prom_root_node, "idprom", idbuf, num_bytes))
+	if(!prom_getproperty(prom_root_analde, "idprom", idbuf, num_bytes))
 		return idbuf[0];
 
 	return 0xff;

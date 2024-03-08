@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXSW_CORE_H
 #define _MLXSW_CORE_H
@@ -49,7 +49,7 @@ void mlxsw_core_linecards_set(struct mlxsw_core *mlxsw_core,
 			      struct mlxsw_linecards *linecard);
 
 bool
-mlxsw_core_fw_rev_minor_subminor_validate(const struct mlxsw_fw_rev *rev,
+mlxsw_core_fw_rev_mianalr_submianalr_validate(const struct mlxsw_fw_rev *rev,
 					  const struct mlxsw_fw_rev *req_rev);
 
 int mlxsw_core_driver_register(struct mlxsw_driver *mlxsw_driver);
@@ -121,7 +121,7 @@ struct mlxsw_listener {
 	enum mlxsw_reg_hpkt_action dis_action; /* Action when disabled */
 	u8 en_trap_group; /* Trap group when enabled */
 	u8 dis_trap_group; /* Trap group when disabled */
-	u8 is_ctrl:1, /* should go via control buffer or not */
+	u8 is_ctrl:1, /* should go via control buffer or analt */
 	   is_event:1,
 	   enabled_on_register:1; /* Trap should be enabled when listener
 				   * is registered.
@@ -433,7 +433,7 @@ struct mlxsw_driver {
 			     u64 *p_single_size, u64 *p_double_size,
 			     u64 *p_linear_size);
 
-	/* Notify a driver that a timestamped packet was transmitted. Driver
+	/* Analtify a driver that a timestamped packet was transmitted. Driver
 	 * is responsible for freeing the passed-in SKB.
 	 */
 	void (*ptp_transmitted)(struct mlxsw_core *mlxsw_core,
@@ -503,9 +503,9 @@ struct mlxsw_bus {
 
 struct mlxsw_fw_rev {
 	u16 major;
-	u16 minor;
-	u16 subminor;
-	u16 can_reset_minor;
+	u16 mianalr;
+	u16 submianalr;
+	u16 can_reset_mianalr;
 };
 
 struct mlxsw_bus_info {
@@ -602,8 +602,8 @@ struct mlxsw_linecard_bdev;
 
 struct mlxsw_linecard_device_info {
 	u16 fw_major;
-	u16 fw_minor;
-	u16 fw_sub_minor;
+	u16 fw_mianalr;
+	u16 fw_sub_mianalr;
 	char psid[MLXSW_REG_MGIR_FW_INFO_PSID_SIZE];
 };
 

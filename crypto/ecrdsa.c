@@ -2,7 +2,7 @@
 /*
  * Elliptic Curve (Russian) Digital Signature Algorithm for Cryptographic API
  *
- * Copyright (c) 2019 Vitaly Chikunov <vt@altlinux.org>
+ * Copyright (c) 2019 Vitaly Chikuanalv <vt@altlinux.org>
  *
  * References:
  * GOST 34.10-2018, GOST R 34.10-2012, RFC 7091, ISO/IEC 14888-3:2018.
@@ -214,7 +214,7 @@ static int ecrdsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 		ctx->digest_oid	= OID_gost2012Digest512;
 		ctx->digest_len	= 512 / 8;
 	} else
-		return -ENOPKG;
+		return -EANALPKG;
 	ctx->algo_oid = algo;
 
 	/* Parse SubjectPublicKeyInfo.AlgorithmIdentifier.parameters. */
@@ -227,7 +227,7 @@ static int ecrdsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 	 */
 	if (!ctx->curve ||
 	    ctx->curve->g.ndigits * sizeof(u64) != ctx->digest_len)
-		return -ENOPKG;
+		return -EANALPKG;
 	/*
 	 * Key is two 256- or 512-bit coordinates which should match
 	 * curve size.
@@ -235,7 +235,7 @@ static int ecrdsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 	if ((ctx->key_len != (2 * 256 / 8) &&
 	     ctx->key_len != (2 * 512 / 8)) ||
 	    ctx->key_len != ctx->curve->g.ndigits * sizeof(u64) * 2)
-		return -ENOPKG;
+		return -EANALPKG;
 
 	ndigits = ctx->key_len / sizeof(u64) / 2;
 	ctx->pub_key = ECC_POINT_INIT(ctx->_pubp[0], ctx->_pubp[1], ndigits);
@@ -292,6 +292,6 @@ module_init(ecrdsa_mod_init);
 module_exit(ecrdsa_mod_fini);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Vitaly Chikunov <vt@altlinux.org>");
+MODULE_AUTHOR("Vitaly Chikuanalv <vt@altlinux.org>");
 MODULE_DESCRIPTION("EC-RDSA generic algorithm");
 MODULE_ALIAS_CRYPTO("ecrdsa-generic");

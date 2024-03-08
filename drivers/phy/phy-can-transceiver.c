@@ -108,12 +108,12 @@ static int can_transceiver_phy_probe(struct platform_device *pdev)
 
 	can_transceiver_phy = devm_kzalloc(dev, sizeof(struct can_transceiver_phy), GFP_KERNEL);
 	if (!can_transceiver_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	match = of_match_node(can_transceiver_phy_ids, pdev->dev.of_node);
+	match = of_match_analde(can_transceiver_phy_ids, pdev->dev.of_analde);
 	drvdata = match->data;
 
-	if (of_property_read_bool(dev->of_node, "mux-states")) {
+	if (of_property_read_bool(dev->of_analde, "mux-states")) {
 		struct mux_state *mux_state;
 
 		mux_state = devm_mux_state_get(dev, NULL);
@@ -123,7 +123,7 @@ static int can_transceiver_phy_probe(struct platform_device *pdev)
 		can_transceiver_phy->mux_state = mux_state;
 	}
 
-	phy = devm_phy_create(dev, dev->of_node,
+	phy = devm_phy_create(dev, dev->of_analde,
 			      &can_transceiver_phy_ops);
 	if (IS_ERR(phy)) {
 		dev_err(dev, "failed to create can transceiver phy\n");
@@ -132,7 +132,7 @@ static int can_transceiver_phy_probe(struct platform_device *pdev)
 
 	err = device_property_read_u32(dev, "max-bitrate", &max_bitrate);
 	if ((err != -EINVAL) && !max_bitrate)
-		dev_warn(dev, "Invalid value for transceiver max bitrate. Ignoring bitrate limit\n");
+		dev_warn(dev, "Invalid value for transceiver max bitrate. Iganalring bitrate limit\n");
 	phy->attrs.max_link_rate = max_bitrate;
 
 	can_transceiver_phy->generic_phy = phy;

@@ -34,7 +34,7 @@ static int field##_attribute_alloc(struct device *dev,			\
 									\
 	dpn_attr = devm_kzalloc(dev, sizeof(*dpn_attr), GFP_KERNEL);	\
 	if (!dpn_attr)							\
-		return -ENOMEM;						\
+		return -EANALMEM;						\
 	dpn_attr->N = N;						\
 	dpn_attr->dir = dir;						\
 	sysfs_attr_init(&dpn_attr->dev_attr.attr);			\
@@ -176,7 +176,7 @@ static int add_all_attributes(struct device *dev, int N, int dir)
 				 sizeof(struct attribute *),
 				 GFP_KERNEL);
 	if (!dpn_attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = max_word_attribute_alloc(dev, &dpn_attrs[i++],
 				       N, dir, "%d\n");
@@ -253,7 +253,7 @@ static int add_all_attributes(struct device *dev, int N, int dir)
 	if (ret < 0)
 		return ret;
 
-	/* paranoia check for editing mistakes */
+	/* paraanalia check for editing mistakes */
 	if (i != SDW_DPN_ATTRIBUTES) {
 		dev_err(dev, "mismatch in attributes, allocated %d got %d\n",
 			SDW_DPN_ATTRIBUTES, i);
@@ -262,13 +262,13 @@ static int add_all_attributes(struct device *dev, int N, int dir)
 
 	dpn_group = devm_kzalloc(dev, sizeof(*dpn_group), GFP_KERNEL);
 	if (!dpn_group)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dpn_group->attrs = dpn_attrs;
 	dpn_group->name = devm_kasprintf(dev, GFP_KERNEL, "dp%d_%s",
 					 N, dir ? "src" : "sink");
 	if (!dpn_group->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_device_add_group(dev, dpn_group);
 	if (ret < 0)

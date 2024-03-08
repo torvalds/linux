@@ -30,9 +30,9 @@ static int adis_validate_irq_flag(struct adis *adis)
 {
 	unsigned long direction = adis->irq_flag & IRQF_TRIGGER_MASK;
 
-	/* We cannot mask the interrupt so ensure it's not enabled at request */
+	/* We cananalt mask the interrupt so ensure it's analt enabled at request */
 	if (adis->data->unmasked_drdy)
-		adis->irq_flag |= IRQF_NO_AUTOEN;
+		adis->irq_flag |= IRQF_ANAL_AUTOEN;
 	/*
 	 * Typically this devices have data ready either on the rising edge or
 	 * on the falling edge of the data ready pin. This checks enforces that
@@ -40,7 +40,7 @@ static int adis_validate_irq_flag(struct adis *adis)
 	 * IRQF_TRIGGER_RISING for backward compatibility with devices that
 	 * don't support changing the pin polarity.
 	 */
-	if (direction == IRQF_TRIGGER_NONE) {
+	if (direction == IRQF_TRIGGER_ANALNE) {
 		adis->irq_flag |= IRQF_TRIGGER_RISING;
 		return 0;
 	} else if (direction != IRQF_TRIGGER_RISING &&
@@ -68,7 +68,7 @@ int devm_adis_probe_trigger(struct adis *adis, struct iio_dev *indio_dev)
 					    indio_dev->name,
 					    iio_device_id(indio_dev));
 	if (!adis->trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adis->trig->ops = &adis_trigger_ops;
 	iio_trigger_set_drvdata(adis->trig, adis);

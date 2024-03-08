@@ -2,7 +2,7 @@
 /*
  * Kernel module for testing static keys.
  *
- * Copyright 2015 Akamai Technologies Inc. All Rights Reserved
+ * Copyright 2015 Akamai Techanallogies Inc. All Rights Reserved
  *
  * Authors:
  *      Jason Baron       <jbaron@akamai.com>

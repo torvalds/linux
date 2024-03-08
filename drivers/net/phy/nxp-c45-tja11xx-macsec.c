@@ -140,10 +140,10 @@
 #define ADAPTER_EN	BIT(6)
 #define MACSEC_EN	BIT(5)
 
-#define MACSEC_INOV1HS			0x0140
-#define MACSEC_INOV2HS			0x0144
-#define MACSEC_INOD1HS			0x0148
-#define MACSEC_INOD2HS			0x014C
+#define MACSEC_IANALV1HS			0x0140
+#define MACSEC_IANALV2HS			0x0144
+#define MACSEC_IANALD1HS			0x0148
+#define MACSEC_IANALD2HS			0x014C
 #define MACSEC_RXSCIPUS			0x0150
 #define MACSEC_RXSCIPDS			0x0154
 #define MACSEC_RXSCIPLS			0x0158
@@ -428,12 +428,12 @@ static struct nxp_c45_sa *nxp_c45_sa_alloc(struct list_head *sa_list, void *sa,
 		first = pos;
 		occurrences++;
 		if (occurrences >= 2)
-			return ERR_PTR(-ENOSPC);
+			return ERR_PTR(-EANALSPC);
 	}
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (first)
 		tmp->is_key_a = !first->is_key_a;
@@ -533,7 +533,7 @@ static void nxp_c45_rx_sa_read_stats(struct phy_device *phydev,
 				     struct macsec_rx_sa_stats *stats)
 {
 	nxp_c45_macsec_read(phydev, sa->regs->ipis, &stats->InPktsInvalid);
-	nxp_c45_macsec_read(phydev, sa->regs->ipnvs, &stats->InPktsNotValid);
+	nxp_c45_macsec_read(phydev, sa->regs->ipnvs, &stats->InPktsAnaltValid);
 	nxp_c45_macsec_read(phydev, sa->regs->ipos, &stats->InPktsOK);
 }
 
@@ -867,11 +867,11 @@ static void nxp_c45_rx_sc_clear_stats(struct phy_device *phydev,
 		if (pos->type == RX_SA)
 			nxp_c45_rx_sa_clear_stats(phydev, pos);
 
-	nxp_c45_macsec_write(phydev, MACSEC_INOD1HS, 0);
-	nxp_c45_macsec_write(phydev, MACSEC_INOD2HS, 0);
+	nxp_c45_macsec_write(phydev, MACSEC_IANALD1HS, 0);
+	nxp_c45_macsec_write(phydev, MACSEC_IANALD2HS, 0);
 
-	nxp_c45_macsec_write(phydev, MACSEC_INOV1HS, 0);
-	nxp_c45_macsec_write(phydev, MACSEC_INOV2HS, 0);
+	nxp_c45_macsec_write(phydev, MACSEC_IANALV1HS, 0);
+	nxp_c45_macsec_write(phydev, MACSEC_IANALV2HS, 0);
 
 	nxp_c45_macsec_write(phydev, MACSEC_RXSCIPDS, 0);
 	nxp_c45_macsec_write(phydev, MACSEC_RXSCIPLS, 0);
@@ -993,20 +993,20 @@ static int nxp_c45_mdo_add_secy(struct macsec_context *ctx)
 
 	idx = find_first_zero_bit(priv->macsec->tx_sc_bitmap, TX_SC_MAX);
 	if (idx == TX_SC_MAX)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	phy_secy = kzalloc(sizeof(*phy_secy), GFP_KERNEL);
 	if (!phy_secy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&phy_secy->sa_list);
 	phy_secy->secy = ctx->secy;
 	phy_secy->secy_id = idx;
 
-	/* If the point to point mode should be enabled, we should have no
+	/* If the point to point mode should be enabled, we should have anal
 	 * SecY added yet.
 	 */
-	can_rx_sc0_impl = list_count_nodes(&priv->macsec->secy_list) == 0;
+	can_rx_sc0_impl = list_count_analdes(&priv->macsec->secy_list) == 0;
 	if (!nxp_c45_secy_valid(phy_secy, can_rx_sc0_impl)) {
 		kfree(phy_secy);
 		return -EINVAL;
@@ -1063,7 +1063,7 @@ static int nxp_c45_mdo_upd_secy(struct macsec_context *ctx)
 	/* If the point to point mode should be enabled, we should have only
 	 * one SecY added, respectively the updated one.
 	 */
-	can_rx_sc0_impl = list_count_nodes(&priv->macsec->secy_list) == 1;
+	can_rx_sc0_impl = list_count_analdes(&priv->macsec->secy_list) == 1;
 	if (!nxp_c45_secy_valid(phy_secy, can_rx_sc0_impl))
 		return -EINVAL;
 	phy_secy->rx_sc0_impl = nxp_c45_rx_sc0_impl(phy_secy);
@@ -1132,7 +1132,7 @@ static int nxp_c45_mdo_add_rxsc(struct macsec_context *ctx)
 		return PTR_ERR(phy_secy);
 
 	if (phy_secy->rx_sc)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (phy_secy->secy->tx_sc.end_station &&
 	    !nxp_c45_port_is_1(ctx->rx_sc->sci))
@@ -1391,17 +1391,17 @@ static int nxp_c45_mdo_get_dev_stats(struct macsec_context *ctx)
 
 	if (phy_secy->secy->validate_frames == MACSEC_VALIDATE_STRICT)
 		nxp_c45_macsec_read32_64(phydev, MACSEC_INPWTS,
-					 &dev_stats->InPktsNoTag);
+					 &dev_stats->InPktsAnalTag);
 	else
 		nxp_c45_macsec_read32_64(phydev, MACSEC_INPWTS,
 					 &dev_stats->InPktsUntagged);
 
 	if (phy_secy->secy->validate_frames == MACSEC_VALIDATE_STRICT)
 		nxp_c45_macsec_read32_64(phydev, MACSEC_IPSNFS,
-					 &dev_stats->InPktsNoSCI);
+					 &dev_stats->InPktsAnalSCI);
 	else
 		nxp_c45_macsec_read32_64(phydev, MACSEC_IPSNFS,
-					 &dev_stats->InPktsUnknownSCI);
+					 &dev_stats->InPktsUnkanalwnSCI);
 
 	/* Always 0. */
 	dev_stats->InPktsOverrun = 0;
@@ -1496,20 +1496,20 @@ static int nxp_c45_mdo_get_rx_sc_stats(struct macsec_context *ctx)
 		nxp_c45_rx_sa_read_stats(phydev, pos, &rx_sa_stats);
 
 		stats->InPktsInvalid += rx_sa_stats.InPktsInvalid;
-		stats->InPktsNotValid += rx_sa_stats.InPktsNotValid;
+		stats->InPktsAnaltValid += rx_sa_stats.InPktsAnaltValid;
 		stats->InPktsOK += rx_sa_stats.InPktsOK;
 	}
 
 	for (i = 0; i < MACSEC_NUM_AN; i++) {
 		nxp_c45_macsec_read(phydev, MACSEC_RXAN0INUSS + i * 4, &reg);
-		stats->InPktsNotUsingSA += reg;
+		stats->InPktsAnaltUsingSA += reg;
 		nxp_c45_macsec_read(phydev, MACSEC_RXAN0IPUSS + i * 4, &reg);
 		stats->InPktsUnusedSA += reg;
 	}
 
-	nxp_c45_macsec_read64(phydev, MACSEC_INOD1HS,
+	nxp_c45_macsec_read64(phydev, MACSEC_IANALD1HS,
 			      &stats->InOctetsDecrypted);
-	nxp_c45_macsec_read64(phydev, MACSEC_INOV1HS,
+	nxp_c45_macsec_read64(phydev, MACSEC_IANALV1HS,
 			      &stats->InOctetsValidated);
 
 	nxp_c45_macsec_read32_64(phydev, MACSEC_RXSCIPDS,
@@ -1544,7 +1544,7 @@ static int nxp_c45_mdo_get_rx_sa_stats(struct macsec_context *ctx)
 
 	nxp_c45_rx_sa_read_stats(phydev, sa, stats);
 	nxp_c45_macsec_read(phydev, MACSEC_RXAN0INUSS + an * 4,
-			    &stats->InPktsNotUsingSA);
+			    &stats->InPktsAnaltUsingSA);
 	nxp_c45_macsec_read(phydev, MACSEC_RXAN0IPUSS + an * 4,
 			    &stats->InPktsUnusedSA);
 
@@ -1657,7 +1657,7 @@ int nxp_c45_macsec_probe(struct phy_device *phydev)
 
 	priv->macsec = devm_kzalloc(dev, sizeof(*priv->macsec), GFP_KERNEL);
 	if (!priv->macsec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&priv->macsec->secy_list);
 	phydev->macsec_ops = &nxp_c45_macsec_ops;

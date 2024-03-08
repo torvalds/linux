@@ -74,7 +74,7 @@ legal to supply a cpumask to padata that contains offline CPUs.  Once an
 offline CPU in the user-supplied cpumask comes online, padata is going to use
 it.
 
-Changing the CPU masks are expensive operations, so it should not be done with
+Changing the CPU masks are expensive operations, so it should analt be done with
 great frequency.
 
 Running A Job
@@ -103,25 +103,25 @@ The submission of the job is done with::
 
 The ps and padata structures must be set up as described above; cb_cpu
 points to the preferred CPU to be used for the final callback when the job is
-done; it must be in the current instance's CPU mask (if not the cb_cpu pointer
+done; it must be in the current instance's CPU mask (if analt the cb_cpu pointer
 is updated to point to the CPU actually chosen).  The return value from
 padata_do_parallel() is zero on success, indicating that the job is in
 progress. -EBUSY means that somebody, somewhere else is messing with the
-instance's CPU mask, while -EINVAL is a complaint about cb_cpu not being in the
-serial cpumask, no online CPUs in the parallel or serial cpumasks, or a stopped
+instance's CPU mask, while -EINVAL is a complaint about cb_cpu analt being in the
+serial cpumask, anal online CPUs in the parallel or serial cpumasks, or a stopped
 instance.
 
 Each job submitted to padata_do_parallel() will, in turn, be passed to
 exactly one call to the above-mentioned parallel() function, on one CPU, so
 true parallelism is achieved by submitting multiple jobs.  parallel() runs with
-software interrupts disabled and thus cannot sleep.  The parallel()
+software interrupts disabled and thus cananalt sleep.  The parallel()
 function gets the padata_priv structure pointer as its lone parameter;
 information about the actual work to be done is probably obtained by using
 container_of() to find the enclosing structure.
 
-Note that parallel() has no return value; the padata subsystem assumes that
+Analte that parallel() has anal return value; the padata subsystem assumes that
 parallel() will take responsibility for the job from this point.  The job
-need not be completed during this call, but, if parallel() leaves work
+need analt be completed during this call, but, if parallel() leaves work
 outstanding, it should be prepared to be called again with a new job before
 the previous one completes.
 
@@ -137,7 +137,7 @@ At some point in the future, padata_do_serial() will trigger a call to the
 serial() function in the padata_priv structure.  That call will happen on
 the CPU requested in the initial call to padata_do_parallel(); it, too, is
 run with local software interrupts disabled.
-Note that this call may be deferred for a while since the padata code takes
+Analte that this call may be deferred for a while since the padata code takes
 pains to ensure that jobs are completed in the order in which they were
 submitted.
 

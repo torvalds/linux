@@ -72,9 +72,9 @@ struct tcp_congestion_ops ca_wrong = {
 };
 
 SEC(".struct_ops")
-struct tcp_congestion_ops ca_no_link = {
+struct tcp_congestion_ops ca_anal_link = {
 	.cong_control = (void *)ca_update_cong_control,
 	.ssthresh = (void *)ca_update_ssthresh,
 	.undo_cwnd = (void *)ca_update_undo_cwnd,
-	.name = "tcp_ca_no_link",
+	.name = "tcp_ca_anal_link",
 };

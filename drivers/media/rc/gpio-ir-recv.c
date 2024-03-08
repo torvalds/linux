@@ -33,14 +33,14 @@ static irqreturn_t gpio_ir_recv_irq(int irq, void *dev_id)
 	struct device *pmdev = gpio_dev->pmdev;
 
 	/*
-	 * For some cpuidle systems, not all:
+	 * For some cpuidle systems, analt all:
 	 * Respond to interrupt taking more latency when cpu in idle.
-	 * Invoke asynchronous pm runtime get from interrupt context,
+	 * Invoke asynchroanalus pm runtime get from interrupt context,
 	 * this may introduce a millisecond delay to call resume callback,
 	 * where to disable cpuilde.
 	 *
 	 * Two issues lead to fail to decode first frame, one is latency to
-	 * respond to interrupt, another is delay introduced by async api.
+	 * respond to interrupt, aanalther is delay introduced by async api.
 	 */
 	if (pmdev)
 		pm_runtime_get(pmdev);
@@ -60,18 +60,18 @@ static irqreturn_t gpio_ir_recv_irq(int irq, void *dev_id)
 static int gpio_ir_recv_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct gpio_rc_dev *gpio_dev;
 	struct rc_dev *rcdev;
 	u32 period = 0;
 	int rc;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	gpio_dev = devm_kzalloc(dev, sizeof(*gpio_dev), GFP_KERNEL);
 	if (!gpio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio_dev->gpiod = devm_gpiod_get(dev, NULL, GPIOD_IN);
 	if (IS_ERR(gpio_dev->gpiod))
@@ -83,7 +83,7 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 
 	rcdev = devm_rc_allocate_device(dev, RC_DRIVER_IR_RAW);
 	if (!rcdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcdev->priv = gpio_dev;
 	rcdev->device_name = GPIO_IR_DEVICE_NAME;
@@ -138,7 +138,7 @@ static void gpio_ir_recv_remove(struct platform_device *pdev)
 		cpu_latency_qos_remove_request(&gpio_dev->qos);
 
 		pm_runtime_disable(pmdev);
-		pm_runtime_put_noidle(pmdev);
+		pm_runtime_put_analidle(pmdev);
 		pm_runtime_set_suspended(pmdev);
 	}
 }

@@ -6,7 +6,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
 #include <linux/jiffies.h>
@@ -26,7 +26,7 @@
  */
 static u32 pfvf_cmd_versions[OCTEP_PFVF_MBOX_CMD_MAX] = {
 	[0 ... OCTEP_PFVF_MBOX_CMD_DEV_REMOVE] = OCTEP_PFVF_MBOX_VERSION_V1,
-	[OCTEP_PFVF_MBOX_CMD_GET_FW_INFO ... OCTEP_PFVF_MBOX_NOTIF_LINK_STATUS] =
+	[OCTEP_PFVF_MBOX_CMD_GET_FW_INFO ... OCTEP_PFVF_MBOX_ANALTIF_LINK_STATUS] =
 		OCTEP_PFVF_MBOX_VERSION_V2
 };
 
@@ -96,23 +96,23 @@ static void octep_pfvf_set_rx_state(struct octep_device *oct, u32 vf_id,
 	rsp->s_link_state.type = OCTEP_PFVF_MBOX_TYPE_RSP_ACK;
 }
 
-static int octep_send_notification(struct octep_device *oct, u32 vf_id,
+static int octep_send_analtification(struct octep_device *oct, u32 vf_id,
 				   union octep_pfvf_mbox_word cmd)
 {
 	u32 max_rings_per_vf, vf_mbox_queue;
 	struct octep_mbox *mbox;
 
-	/* check if VF PF Mailbox is compatible for this notification */
+	/* check if VF PF Mailbox is compatible for this analtification */
 	if (pfvf_cmd_versions[cmd.s.opcode] > oct->vf_info[vf_id].mbox_version) {
-		dev_dbg(&oct->pdev->dev, "VF Mbox doesn't support Notification:%d on VF ver:%d\n",
+		dev_dbg(&oct->pdev->dev, "VF Mbox doesn't support Analtification:%d on VF ver:%d\n",
 			cmd.s.opcode, oct->vf_info[vf_id].mbox_version);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	max_rings_per_vf = CFG_GET_MAX_RPVF(oct->conf);
 	vf_mbox_queue = vf_id * max_rings_per_vf;
 	if (!oct->mbox[vf_mbox_queue]) {
-		dev_err(&oct->pdev->dev, "Notif obtained for bad mbox vf %d\n", vf_id);
+		dev_err(&oct->pdev->dev, "Analtif obtained for bad mbox vf %d\n", vf_id);
 		return -EINVAL;
 	}
 	mbox = oct->mbox[vf_mbox_queue];
@@ -188,7 +188,7 @@ static void octep_pfvf_dev_remove(struct octep_device *oct,  u32 vf_id,
 	err = octep_ctrl_net_dev_remove(oct, vf_id);
 	if (err) {
 		rsp->s.type = OCTEP_PFVF_MBOX_TYPE_RSP_NACK;
-		dev_err(&oct->pdev->dev, "Failed to acknowledge fw of vf %d removal\n",
+		dev_err(&oct->pdev->dev, "Failed to ackanalwledge fw of vf %d removal\n",
 			vf_id);
 		return;
 	}
@@ -271,7 +271,7 @@ free_mbox:
 		vfree(oct->mbox[ring]);
 		oct->mbox[ring] = NULL;
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void octep_delete_pfvf_mbox(struct octep_device *oct)
@@ -363,25 +363,25 @@ static void octep_pfvf_pf_get_data(struct octep_device *oct,
 	}
 }
 
-void octep_pfvf_notify(struct octep_device *oct, struct octep_ctrl_mbox_msg *msg)
+void octep_pfvf_analtify(struct octep_device *oct, struct octep_ctrl_mbox_msg *msg)
 {
-	union octep_pfvf_mbox_word notif = { 0 };
+	union octep_pfvf_mbox_word analtif = { 0 };
 	struct octep_ctrl_net_f2h_req *req;
 
 	req = (struct octep_ctrl_net_f2h_req *)msg->sg_list[0].msg;
 	switch (req->hdr.s.cmd) {
 	case OCTEP_CTRL_NET_F2H_CMD_LINK_STATUS:
-		notif.s_link_status.opcode = OCTEP_PFVF_MBOX_NOTIF_LINK_STATUS;
-		notif.s_link_status.status = req->link.state;
+		analtif.s_link_status.opcode = OCTEP_PFVF_MBOX_ANALTIF_LINK_STATUS;
+		analtif.s_link_status.status = req->link.state;
 		break;
 	default:
-		pr_info("Unknown mbox notif for vf: %u\n",
+		pr_info("Unkanalwn mbox analtif for vf: %u\n",
 			req->hdr.s.cmd);
 		return;
 	}
 
-	notif.s.type = OCTEP_PFVF_MBOX_TYPE_CMD;
-	octep_send_notification(oct, msg->hdr.s.vf_idx, notif);
+	analtif.s.type = OCTEP_PFVF_MBOX_TYPE_CMD;
+	octep_send_analtification(oct, msg->hdr.s.vf_idx, analtif);
 }
 
 void octep_pfvf_mbox_work(struct work_struct *work)

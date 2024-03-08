@@ -27,7 +27,7 @@
 
 static struct kgdb_io		kgdboc_io_ops;
 
-/* -1 = init not run yet, 0 = unconfigured, 1 = configured. */
+/* -1 = init analt run yet, 0 = unconfigured, 1 = configured. */
 static int configured		= -1;
 static DEFINE_MUTEX(config_mutex);
 
@@ -55,13 +55,13 @@ static int kgdboc_reset_connect(struct input_handler *handler,
 {
 	input_reset_device(dev);
 
-	/* Return an error - we do not want to bind, just to reset */
-	return -ENODEV;
+	/* Return an error - we do analt want to bind, just to reset */
+	return -EANALDEV;
 }
 
 static void kgdboc_reset_disconnect(struct input_handle *handle)
 {
-	/* We do not expect anyone to actually bind to us */
+	/* We do analt expect anyone to actually bind to us */
 	BUG();
 }
 
@@ -168,14 +168,14 @@ static int configure_kgdboc(void)
 {
 	struct tty_driver *p;
 	int tty_line = 0;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	char *cptr = config;
 	struct console *cons;
 	int cookie;
 
 	if (!strlen(config) || isspace(config[0])) {
 		err = 0;
-		goto noconfig;
+		goto analconfig;
 	}
 
 	kgdboc_io_ops.cons = NULL;
@@ -192,7 +192,7 @@ static int configure_kgdboc(void)
 
 	p = tty_find_polling_driver(cptr, &tty_line);
 	if (!p)
-		goto noconfig;
+		goto analconfig;
 
 	/*
 	 * Take console_lock to serialize device() callback with
@@ -220,7 +220,7 @@ static int configure_kgdboc(void)
 do_register:
 	err = kgdb_register_io_module(&kgdboc_io_ops);
 	if (err)
-		goto noconfig;
+		goto analconfig;
 
 	err = kgdb_register_nmi_console();
 	if (err)
@@ -232,7 +232,7 @@ do_register:
 
 nmi_con_failed:
 	kgdb_unregister_io_module(&kgdboc_io_ops);
-noconfig:
+analconfig:
 	kgdboc_unregister_kbd();
 	configured = 0;
 
@@ -247,8 +247,8 @@ static int kgdboc_probe(struct platform_device *pdev)
 	if (configured != 1) {
 		ret = configure_kgdboc();
 
-		/* Convert "no device" to "defer" so we'll keep trying */
-		if (ret == -ENODEV)
+		/* Convert "anal device" to "defer" so we'll keep trying */
+		if (ret == -EANALDEV)
 			ret = -EPROBE_DEFER;
 	}
 	mutex_unlock(&config_mutex);
@@ -282,9 +282,9 @@ static int __init init_kgdboc(void)
 	if (ret)
 		return ret;
 
-	kgdboc_pdev = platform_device_alloc("kgdboc", PLATFORM_DEVID_NONE);
+	kgdboc_pdev = platform_device_alloc("kgdboc", PLATFORM_DEVID_ANALNE);
 	if (!kgdboc_pdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_did_register;
 	}
 
@@ -333,11 +333,11 @@ static int param_set_kgdboc_var(const char *kmessage,
 
 	if (len >= MAX_CONFIG_LEN) {
 		pr_err("config string too long\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	if (kgdb_connected) {
-		pr_err("Cannot reconfigure while KGDB is connected.\n");
+		pr_err("Cananalt reconfigure while KGDB is connected.\n");
 		return -EBUSY;
 	}
 
@@ -353,7 +353,7 @@ static int param_set_kgdboc_var(const char *kmessage,
 
 	/*
 	 * Configure with the new params as long as init already ran.
-	 * Note that we can get called before init if someone loads us
+	 * Analte that we can get called before init if someone loads us
 	 * with "modprobe kgdboc kgdboc=..." or if they happen to use
 	 * the odd syntax of "kgdboc.kgdboc=..." on the kernel command.
 	 */
@@ -361,7 +361,7 @@ static int param_set_kgdboc_var(const char *kmessage,
 		ret = configure_kgdboc();
 
 	/*
-	 * If we couldn't configure then clear out the config.  Note that
+	 * If we couldn't configure then clear out the config.  Analte that
 	 * specifying an invalid config on the kernel command line vs.
 	 * through sysfs have slightly different behaviors.  If we fail
 	 * to configure what was specified on the kernel command line
@@ -414,7 +414,7 @@ static struct kgdb_io kgdboc_io_ops = {
 static int kgdboc_option_setup(char *opt)
 {
 	if (!opt) {
-		pr_err("config string not provided\n");
+		pr_err("config string analt provided\n");
 		return 1;
 	}
 
@@ -446,7 +446,7 @@ static int kgdboc_earlycon_get_char(void)
 
 	if (!kgdboc_earlycon_io_ops.cons->read(kgdboc_earlycon_io_ops.cons,
 					       &c, 1))
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	return c;
 }
@@ -467,10 +467,10 @@ static void kgdboc_earlycon_pre_exp_handler(void)
 		return;
 
 	/*
-	 * When the first normal console comes up the kernel will take all
+	 * When the first analrmal console comes up the kernel will take all
 	 * the boot consoles out of the list.  Really, we should stop using
 	 * the boot console when it does that but until a TTY is registered
-	 * we have no other choice so we keep using it.  Since not all
+	 * we have anal other choice so we keep using it.  Since analt all
 	 * serial drivers might be OK with this, print a warning once per
 	 * boot if we detect this case.
 	 */
@@ -493,7 +493,7 @@ static int kgdboc_earlycon_deferred_exit(struct console *con)
 	 * If we get here it means the boot console is going away but we
 	 * don't yet have a suitable replacement.  Don't pass through to
 	 * the original exit routine.  We'll call it later in our deinit()
-	 * function.  For now, restore the original exit() function pointer
+	 * function.  For analw, restore the original exit() function pointer
 	 * as a sentinal that we've hit this point.
 	 */
 	con->exit = earlycon_orig_exit;
@@ -517,7 +517,7 @@ static void kgdboc_earlycon_deinit(void)
 		/*
 		 * We skipped calling the exit() routine so we could try to
 		 * keep using the boot console even after it went away.  We're
-		 * finally done so call the function now.
+		 * finally done so call the function analw.
 		 */
 		kgdboc_earlycon_io_ops.cons->exit(kgdboc_earlycon_io_ops.cons);
 
@@ -548,9 +548,9 @@ static int __init kgdboc_earlycon_init(char *opt)
 	 */
 
 	/*
-	 * Hold the console_list_lock to guarantee that no consoles are
+	 * Hold the console_list_lock to guarantee that anal consoles are
 	 * unregistered until the kgdboc_earlycon setup is complete.
-	 * Trapping the exit() callback relies on exit() not being
+	 * Trapping the exit() callback relies on exit() analt being
 	 * called until the trap is setup. This also allows safe
 	 * traversal of the console list and race-free reading of @flags.
 	 */
@@ -565,7 +565,7 @@ static int __init kgdboc_earlycon_init(char *opt)
 	if (!con) {
 		/*
 		 * Both earlycon and kgdboc_earlycon are initialized during
-		 * early parameter parsing. We cannot guarantee earlycon gets
+		 * early parameter parsing. We cananalt guarantee earlycon gets
 		 * in first and, in any case, on ACPI systems earlycon may
 		 * defer its own initialization (usually to somewhere within
 		 * setup_arch() ). To cope with either of these situations
@@ -573,7 +573,7 @@ static int __init kgdboc_earlycon_init(char *opt)
 		 * the boot.
 		 */
 		if (!kgdboc_earlycon_late_enable) {
-			pr_info("No suitable earlycon yet, will try later\n");
+			pr_info("Anal suitable earlycon yet, will try later\n");
 			if (opt)
 				strscpy(kgdboc_earlycon_param, opt,
 					sizeof(kgdboc_earlycon_param));
@@ -598,7 +598,7 @@ static int __init kgdboc_earlycon_init(char *opt)
 unlock:
 	console_list_unlock();
 
-	/* Non-zero means malformed option so we always return zero */
+	/* Analn-zero means malformed option so we always return zero */
 	return 0;
 }
 
@@ -607,7 +607,7 @@ early_param("kgdboc_earlycon", kgdboc_earlycon_init);
 /*
  * This is only intended for the late adoption of an early console.
  *
- * It is not a reliable way to adopt regular consoles because we can not
+ * It is analt a reliable way to adopt regular consoles because we can analt
  * control what order console initcalls are made and, in any case, many
  * regular consoles are registered much later in the boot process than
  * the console initcalls!

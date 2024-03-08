@@ -202,8 +202,8 @@ int _l2_to_ip6tun_ingress_redirect(struct __sk_buff *skb)
 	return bpf_redirect(*ifindex, 0);
 }
 
-SEC("drop_non_tun_vip")
-int _drop_non_tun_vip(struct __sk_buff *skb)
+SEC("drop_analn_tun_vip")
+int _drop_analn_tun_vip(struct __sk_buff *skb)
 {
 	struct bpf_tunnel_key tkey = {};
 	void *data = (void *)(long)skb->data;

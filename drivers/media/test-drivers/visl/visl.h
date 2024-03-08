@@ -5,17 +5,17 @@
  * This tool's objective is to help the development and testing of userspace
  * applications that use the V4L2 stateless API to decode media.
  *
- * A userspace implementation can use visl to run a decoding loop even when no
- * hardware is available or when the kernel uAPI for the codec has not been
+ * A userspace implementation can use visl to run a decoding loop even when anal
+ * hardware is available or when the kernel uAPI for the codec has analt been
  * upstreamed yet. This can reveal bugs at an early stage.
  *
  * This driver can also trace the contents of the V4L2 controls submitted to it.
  * It can also dump the contents of the vb2 buffers through a debugfs
  * interface. This is in many ways similar to the tracing infrastructure
  * available for other popular encode/decode APIs out there and can help develop
- * a userspace application by using another (working) one as a reference.
+ * a userspace application by using aanalther (working) one as a reference.
  *
- * Note that no actual decoding of video frames is performed by visl. The V4L2
+ * Analte that anal actual decoding of video frames is performed by visl. The V4L2
  * test pattern generator is used to write various debug information to the
  * capture buffers instead.
  *
@@ -120,7 +120,7 @@ struct visl_dev {
 };
 
 enum visl_codec {
-	VISL_CODEC_NONE,
+	VISL_CODEC_ANALNE,
 	VISL_CODEC_FWHT,
 	VISL_CODEC_MPEG2,
 	VISL_CODEC_VP8,

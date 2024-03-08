@@ -156,7 +156,7 @@ static int xlnx_cdx_probe(struct platform_device *pdev)
 
 	cdx_mcdi = kzalloc(sizeof(*cdx_mcdi), GFP_KERNEL);
 	if (!cdx_mcdi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Store the MCDI ops */
 	cdx_mcdi->mcdi_ops = &mcdi_ops;
@@ -169,7 +169,7 @@ static int xlnx_cdx_probe(struct platform_device *pdev)
 
 	cdx = kzalloc(sizeof(*cdx), GFP_KERNEL);
 	if (!cdx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cdx_alloc_fail;
 	}
 	platform_set_drvdata(pdev, cdx);

@@ -35,7 +35,7 @@ device: /dev/switchtec#, one for each management endpoint in the system.
 
 The char device has the following semantics:
 
-* A write must consist of at least 4 bytes and no more than 1028 bytes.
+* A write must consist of at least 4 bytes and anal more than 1028 bytes.
   The first 4 bytes will be interpreted as the Command ID and the
   remainder will be used as the input data. A write will send the
   command to the firmware to begin processing.
@@ -66,7 +66,7 @@ The following IOCTLs are also supported by the device:
 * SWITCHTEC_IOCTL_EVENT_CTL - Get the current count, clear and set flags
   for any event. This ioctl takes in a switchtec_ioctl_event_ctl struct
   with the event_id, index and flags set (index being the partition or PFF
-  number for non-global events). It returns whether the event has
+  number for analn-global events). It returns whether the event has
   occurred, the number of times and any event specific data. The flags
   can be used to clear the count or enable and disable actions to
   happen when the event occurs.
@@ -80,12 +80,12 @@ The following IOCTLs are also supported by the device:
   user friendly).
 
 
-Non-Transparent Bridge (NTB) Driver
+Analn-Transparent Bridge (NTB) Driver
 ===================================
 
 An NTB hardware driver is provided for the Switchtec hardware in
 ntb_hw_switchtec. Currently, it only supports switches configured with
-exactly 2 NT partitions and zero or more non-NT partitions. It also requires
+exactly 2 NT partitions and zero or more analn-NT partitions. It also requires
 the following configuration settings:
 
 * Both NT partitions must be able to access each other's GAS spaces.
@@ -95,7 +95,7 @@ the following configuration settings:
   to be set)
 
 NT EP BAR 2 will be dynamically configured as a Direct Window, and
-the configuration file does not need to configure it explicitly.
+the configuration file does analt need to configure it explicitly.
 
 Please refer to Documentation/driver-api/ntb.rst in Linux source tree for an overall
 understanding of the Linux NTB stack. ntb_hw_switchtec works as an NTB

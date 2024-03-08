@@ -149,7 +149,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define PM_CTRL_LCKDET_TIMER_DEF	0xC
 #define PM_CTRL_PM_REQ_TIMER_MASK	0xFUL
 #define PM_CTRL_PM_REQ_TIMER_SHIFT	20	/* pm_request_l1 time > @
-						 * ->L0s not L1 */
+						 * ->L0s analt L1 */
 #define PM_CTRL_PM_REQ_TO_DEF		0xF
 #define PMCTRL_TXL1_AFTER_L0S		BIT(19)	/* l1dv2.0+ */
 #define L1D_PMCTRL_L1_ENTRY_TM_MASK	7UL	/* l1dv2.0+, 3bits */
@@ -197,7 +197,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define MASTER_REV_NUM_SHIFT		16
 #define MASTER_CTRL_INT_RDCLR		BIT(14)
 #define MASTER_CTRL_CLK_SEL_DIS		BIT(12)	/* 1:alwys sel pclk from
-						 * serdes, not sw to 25M */
+						 * serdes, analt sw to 25M */
 #define MASTER_CTRL_RX_ITIMER_EN	BIT(11)	/* IRQ MODURATION FOR RX */
 #define MASTER_CTRL_TX_ITIMER_EN	BIT(10)	/* MODURATION FOR TX/RX */
 #define MASTER_CTRL_MANU_INT		BIT(9)	/* SOFT MANUAL INT */
@@ -239,7 +239,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define GPHY_CTRL_LPW_EXIT		BIT(6)
 #define GPHY_CTRL_GATE_25M_EN		BIT(5)
 #define GPHY_CTRL_REV_ANEG		BIT(4)
-#define GPHY_CTRL_ANEG_NOW		BIT(3)
+#define GPHY_CTRL_ANEG_ANALW		BIT(3)
 #define GPHY_CTRL_LED_MODE		BIT(2)
 #define GPHY_CTRL_RTL_MODE		BIT(1)
 #define GPHY_CTRL_EXT_RESET		BIT(0)	/* 1:out of DSP RST status */
@@ -303,7 +303,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 
 /* BIST Control and Status Register0 (for the Packet Memory) */
 #define REG_BIST0_CTRL              	0x141c
-#define BIST0_NOW                   	0x1
+#define BIST0_ANALW                   	0x1
 #define BIST0_SRAM_FAIL             	0x2 /* 1: The SRAM failure is
 					     * un-repairable  because
 					     * it has address decoder
@@ -313,7 +313,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 
 /* BIST Control and Status Register1(for the retry buffer of PCI Express) */
 #define REG_BIST1_CTRL			0x1420
-#define BIST1_NOW                   	0x1
+#define BIST1_ANALW                   	0x1
 #define BIST1_SRAM_FAIL             	0x2
 #define BIST1_FUSE_FLAG             	0x4
 
@@ -421,8 +421,8 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define MAC_HALF_DUPLX_CTRL_RETRY_SHIFT 12
 #define MAC_HALF_DUPLX_CTRL_RETRY_MASK  0xf
 #define MAC_HALF_DUPLX_CTRL_EXC_DEF_EN  0x10000
-#define MAC_HALF_DUPLX_CTRL_NO_BACK_C   0x20000
-#define MAC_HALF_DUPLX_CTRL_NO_BACK_P   0x40000 /* No back-off on backpressure,
+#define MAC_HALF_DUPLX_CTRL_ANAL_BACK_C   0x20000
+#define MAC_HALF_DUPLX_CTRL_ANAL_BACK_P   0x40000 /* Anal back-off on backpressure,
 						 * immediately start the
 						 * transmission after back pressure */
 #define MAC_HALF_DUPLX_CTRL_ABEBE        0x80000 /* 1: Alternative Binary Exponential Back-off Enabled */
@@ -596,7 +596,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define REG_RXQ_CTRL                	0x15A0
 #define ASPM_THRUPUT_LIMIT_MASK		0x3
 #define ASPM_THRUPUT_LIMIT_SHIFT	0
-#define ASPM_THRUPUT_LIMIT_NO		0x00
+#define ASPM_THRUPUT_LIMIT_ANAL		0x00
 #define ASPM_THRUPUT_LIMIT_1M		0x01
 #define ASPM_THRUPUT_LIMIT_10M		0x02
 #define ASPM_THRUPUT_LIMIT_100M		0x03
@@ -635,7 +635,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 
 /* DMA Engine Control Register */
 #define REG_DMA_CTRL			0x15C0
-#define DMA_CTRL_SMB_NOW                BIT(31)
+#define DMA_CTRL_SMB_ANALW                BIT(31)
 #define DMA_CTRL_WPEND_CLR              BIT(30)
 #define DMA_CTRL_RPEND_CLR              BIT(29)
 #define DMA_CTRL_WDLY_CNT_MASK          0xFUL
@@ -727,7 +727,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 /* Interrupt Mask Register */
 #define REG_IMR				0x1604
 
-#define IMR_NORMAL_MASK		(\
+#define IMR_ANALRMAL_MASK		(\
 		ISR_MANUAL	|\
 		ISR_HW_RXF_OV	|\
 		ISR_RFD0_UR	|\
@@ -814,7 +814,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 
 #define GIGA_CR_1000T_MS_VALUE		0x0800  /* 1=Configure PHY as Master 0=Configure PHY as Slave */
 #define GIGA_CR_1000T_MS_ENABLE		0x1000  /* 1=Master/Slave manual config value 0=Automatic Master/Slave config */
-#define GIGA_CR_1000T_TEST_MODE_NORMAL	0x0000  /* Normal Operation */
+#define GIGA_CR_1000T_TEST_MODE_ANALRMAL	0x0000  /* Analrmal Operation */
 #define GIGA_CR_1000T_TEST_MODE_1	0x2000  /* Transmit Waveform test */
 #define GIGA_CR_1000T_TEST_MODE_2	0x4000  /* Master Transmit Jitter test */
 #define GIGA_CR_1000T_TEST_MODE_3	0x6000  /* Slave Transmit Jitter test */
@@ -852,7 +852,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define MII_CDTS			0x1C
 #define CDTS_STATUS_OFF			8
 #define CDTS_STATUS_BITS		2
-#define CDTS_STATUS_NORMAL		0
+#define CDTS_STATUS_ANALRMAL		0
 #define CDTS_STATUS_SHORT		1
 #define CDTS_STATUS_OPEN		2
 #define CDTS_STATUS_INVALID		3
@@ -938,7 +938,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define MIIDBG_HIBNEG                   0x0B
 #define HIBNEG_PSHIB_EN                 0x8000
 #define HIBNEG_WAKE_BOTH                0x4000
-#define HIBNEG_ONOFF_ANACHG_SUDEN       0x2000
+#define HIBNEG_OANALFF_ANACHG_SUDEN       0x2000
 #define HIBNEG_HIB_PULSE                0x1000
 #define HIBNEG_GATE_25M_EN              0x800
 #define HIBNEG_RST_80U                  0x400
@@ -991,7 +991,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define L1C_LEGCYPS_DEF                 0x36DD
 
 #define MIIDBG_TST100BTCFG              0x36
-#define TST100BTCFG_NORMAL_BW_EN        0x8000
+#define TST100BTCFG_ANALRMAL_BW_EN        0x8000
 #define TST100BTCFG_BADLNK_BYPASS       0x4000
 #define TST100BTCFG_SHORTCABL_TH_MASK   0x3FU
 #define TST100BTCFG_SHORTCABL_TH_SHIFT  8

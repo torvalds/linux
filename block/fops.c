@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include "blk.h"
 
-static inline struct inode *bdev_file_inode(struct file *file)
+static inline struct ianalde *bdev_file_ianalde(struct file *file)
 {
 	return file->f_mapping->host;
 }
@@ -62,7 +62,7 @@ static ssize_t __blkdev_direct_IO_simple(struct kiocb *iocb,
 		vecs = kmalloc_array(nr_pages, sizeof(struct bio_vec),
 				     GFP_KERNEL);
 		if (!vecs)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (iov_iter_rw(iter) == READ) {
@@ -83,14 +83,14 @@ static ssize_t __blkdev_direct_IO_simple(struct kiocb *iocb,
 	if (iov_iter_rw(iter) == WRITE)
 		task_io_account_write(ret);
 
-	if (iocb->ki_flags & IOCB_NOWAIT)
-		bio.bi_opf |= REQ_NOWAIT;
+	if (iocb->ki_flags & IOCB_ANALWAIT)
+		bio.bi_opf |= REQ_ANALWAIT;
 
 	submit_bio_wait(&bio);
 
 	bio_release_pages(&bio, should_dirty);
 	if (unlikely(bio.bi_status))
-		ret = blk_status_to_errno(bio.bi_status);
+		ret = blk_status_to_erranal(bio.bi_status);
 
 out:
 	if (vecs != inline_vecs)
@@ -138,7 +138,7 @@ static void blkdev_bio_end_io(struct bio *bio)
 				ret = dio->size;
 				iocb->ki_pos += ret;
 			} else {
-				ret = blk_status_to_errno(dio->bio.bi_status);
+				ret = blk_status_to_erranal(dio->bio.bi_status);
 			}
 
 			dio->iocb->ki_complete(iocb, ret);
@@ -213,12 +213,12 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 			bio_endio(bio);
 			break;
 		}
-		if (iocb->ki_flags & IOCB_NOWAIT) {
+		if (iocb->ki_flags & IOCB_ANALWAIT) {
 			/*
-			 * This is nonblocking IO, and we need to allocate
-			 * another bio if we have data left to map. As we
-			 * cannot guarantee that one of the sub bios will not
-			 * fail getting issued FOR NOWAIT and as error results
+			 * This is analnblocking IO, and we need to allocate
+			 * aanalther bio if we have data left to map. As we
+			 * cananalt guarantee that one of the sub bios will analt
+			 * fail getting issued FOR ANALWAIT and as error results
 			 * are coalesced across all of them, be safe and ask for
 			 * a retry of this from blocking context.
 			 */
@@ -229,7 +229,7 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 				blk_finish_plug(&plug);
 				return -EAGAIN;
 			}
-			bio->bi_opf |= REQ_NOWAIT;
+			bio->bi_opf |= REQ_ANALWAIT;
 		}
 
 		if (is_read) {
@@ -265,7 +265,7 @@ static ssize_t __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	__set_current_state(TASK_RUNNING);
 
 	if (!ret)
-		ret = blk_status_to_errno(dio->bio.bi_status);
+		ret = blk_status_to_erranal(dio->bio.bi_status);
 	if (likely(!ret))
 		ret = dio->size;
 
@@ -285,7 +285,7 @@ static void blkdev_bio_end_io_async(struct bio *bio)
 		ret = dio->size;
 		iocb->ki_pos += ret;
 	} else {
-		ret = blk_status_to_errno(bio->bi_status);
+		ret = blk_status_to_erranal(bio->bi_status);
 	}
 
 	iocb->ki_complete(iocb, ret);
@@ -350,8 +350,8 @@ static ssize_t __blkdev_direct_IO_async(struct kiocb *iocb,
 		task_io_account_write(bio->bi_iter.bi_size);
 	}
 
-	if (iocb->ki_flags & IOCB_NOWAIT)
-		bio->bi_opf |= REQ_NOWAIT;
+	if (iocb->ki_flags & IOCB_ANALWAIT)
+		bio->bi_opf |= REQ_ANALWAIT;
 
 	if (iocb->ki_flags & IOCB_HIPRI) {
 		bio->bi_opf |= REQ_POLLED;
@@ -379,11 +379,11 @@ static ssize_t blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	return __blkdev_direct_IO(iocb, iter, bio_max_segs(nr_pages));
 }
 
-static int blkdev_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
+static int blkdev_iomap_begin(struct ianalde *ianalde, loff_t offset, loff_t length,
 		unsigned int flags, struct iomap *iomap, struct iomap *srcmap)
 {
-	struct block_device *bdev = I_BDEV(inode);
-	loff_t isize = i_size_read(inode);
+	struct block_device *bdev = I_BDEV(ianalde);
+	loff_t isize = i_size_read(ianalde);
 
 	iomap->bdev = bdev;
 	iomap->offset = ALIGN_DOWN(offset, bdev_logical_block_size(bdev));
@@ -392,7 +392,7 @@ static int blkdev_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	iomap->type = IOMAP_MAPPED;
 	iomap->addr = iomap->offset;
 	iomap->length = isize - iomap->offset;
-	iomap->flags |= IOMAP_F_BUFFER_HEAD; /* noop for !CONFIG_BUFFER_HEAD */
+	iomap->flags |= IOMAP_F_BUFFER_HEAD; /* analop for !CONFIG_BUFFER_HEAD */
 	return 0;
 }
 
@@ -401,17 +401,17 @@ static const struct iomap_ops blkdev_iomap_ops = {
 };
 
 #ifdef CONFIG_BUFFER_HEAD
-static int blkdev_get_block(struct inode *inode, sector_t iblock,
+static int blkdev_get_block(struct ianalde *ianalde, sector_t iblock,
 		struct buffer_head *bh, int create)
 {
-	bh->b_bdev = I_BDEV(inode);
+	bh->b_bdev = I_BDEV(ianalde);
 	bh->b_blocknr = iblock;
 	set_buffer_mapped(bh);
 	return 0;
 }
 
 /*
- * We cannot call mpage_writepages() as it does not take the buffer lock.
+ * We cananalt call mpage_writepages() as it does analt take the buffer lock.
  * We must use block_write_full_folio() directly which holds the buffer
  * lock.  The buffer lock provides the synchronisation with writeback
  * that filesystems rely on when they use the blockdev's mapping.
@@ -467,7 +467,7 @@ const struct address_space_operations def_blk_aops = {
 	.writepages	= blkdev_writepages,
 	.write_begin	= blkdev_write_begin,
 	.write_end	= blkdev_write_end,
-	.migrate_folio	= buffer_migrate_folio_norefs,
+	.migrate_folio	= buffer_migrate_folio_analrefs,
 	.is_dirty_writeback = buffer_check_dirty_writeback,
 };
 #else /* CONFIG_BUFFER_HEAD */
@@ -482,16 +482,16 @@ static void blkdev_readahead(struct readahead_control *rac)
 }
 
 static int blkdev_map_blocks(struct iomap_writepage_ctx *wpc,
-		struct inode *inode, loff_t offset)
+		struct ianalde *ianalde, loff_t offset)
 {
-	loff_t isize = i_size_read(inode);
+	loff_t isize = i_size_read(ianalde);
 
 	if (WARN_ON_ONCE(offset >= isize))
 		return -EIO;
 	if (offset >= wpc->iomap.offset &&
 	    offset < wpc->iomap.offset + wpc->iomap.length)
 		return 0;
-	return blkdev_iomap_begin(inode, offset, isize - offset,
+	return blkdev_iomap_begin(ianalde, offset, isize - offset,
 				  IOMAP_WRITE, &wpc->iomap, NULL);
 }
 
@@ -521,17 +521,17 @@ const struct address_space_operations def_blk_aops = {
 #endif /* CONFIG_BUFFER_HEAD */
 
 /*
- * for a block special file file_inode(file)->i_size is zero
+ * for a block special file file_ianalde(file)->i_size is zero
  * so we compute the size by hand (just as in block_read/write above)
  */
 static loff_t blkdev_llseek(struct file *file, loff_t offset, int whence)
 {
-	struct inode *bd_inode = bdev_file_inode(file);
+	struct ianalde *bd_ianalde = bdev_file_ianalde(file);
 	loff_t retval;
 
-	inode_lock(bd_inode);
-	retval = fixed_size_llseek(file, offset, whence, i_size_read(bd_inode));
-	inode_unlock(bd_inode);
+	ianalde_lock(bd_ianalde);
+	retval = fixed_size_llseek(file, offset, whence, i_size_read(bd_ianalde));
+	ianalde_unlock(bd_ianalde);
 	return retval;
 }
 
@@ -546,12 +546,12 @@ static int blkdev_fsync(struct file *filp, loff_t start, loff_t end,
 		return error;
 
 	/*
-	 * There is no need to serialise calls to blkdev_issue_flush with
+	 * There is anal need to serialise calls to blkdev_issue_flush with
 	 * i_mutex and doing so causes performance issues with concurrent
 	 * O_SYNC writers to a block device.
 	 */
 	error = blkdev_issue_flush(bdev);
-	if (error == -EOPNOTSUPP)
+	if (error == -EOPANALTSUPP)
 		error = 0;
 
 	return error;
@@ -563,7 +563,7 @@ static int blkdev_fsync(struct file *filp, loff_t start, loff_t end,
  *
  * Look at file open flags and generate corresponding block open flags from
  * them. The function works both for file just being open (e.g. during ->open
- * callback) and for file that is already open. This is actually non-trivial
+ * callback) and for file that is already open. This is actually analn-trivial
  * (see comment in the function).
  */
 blk_mode_t file_to_blk_mode(struct file *file)
@@ -589,7 +589,7 @@ blk_mode_t file_to_blk_mode(struct file *file)
 	/*
 	 * If all bits in O_ACCMODE set (aka O_RDWR | O_WRONLY), the floppy
 	 * driver has historically allowed ioctls as if the file was opened for
-	 * writing, but does not allow and actual reads or writes.
+	 * writing, but does analt allow and actual reads or writes.
 	 */
 	if ((file->f_flags & O_ACCMODE) == (O_RDWR | O_WRONLY))
 		mode |= BLK_OPEN_WRITE_IOCTL;
@@ -597,7 +597,7 @@ blk_mode_t file_to_blk_mode(struct file *file)
 	return mode;
 }
 
-static int blkdev_open(struct inode *inode, struct file *filp)
+static int blkdev_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct bdev_handle *handle;
 	blk_mode_t mode;
@@ -612,21 +612,21 @@ static int blkdev_open(struct inode *inode, struct file *filp)
 	filp->f_mode |= FMODE_BUF_RASYNC | FMODE_CAN_ODIRECT;
 
 	mode = file_to_blk_mode(filp);
-	handle = bdev_open_by_dev(inode->i_rdev, mode,
+	handle = bdev_open_by_dev(ianalde->i_rdev, mode,
 			mode & BLK_OPEN_EXCL ? filp : NULL, NULL);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
-	if (bdev_nowait(handle->bdev))
-		filp->f_mode |= FMODE_NOWAIT;
+	if (bdev_analwait(handle->bdev))
+		filp->f_mode |= FMODE_ANALWAIT;
 
-	filp->f_mapping = handle->bdev->bd_inode->i_mapping;
+	filp->f_mapping = handle->bdev->bd_ianalde->i_mapping;
 	filp->f_wb_err = filemap_sample_wb_err(filp->f_mapping);
 	filp->private_data = handle;
 	return 0;
 }
 
-static int blkdev_release(struct inode *inode, struct file *filp)
+static int blkdev_release(struct ianalde *ianalde, struct file *filp)
 {
 	bdev_release(filp->private_data);
 	return 0;
@@ -665,14 +665,14 @@ static ssize_t blkdev_buffered_write(struct kiocb *iocb, struct iov_iter *from)
  * Write data to the block device.  Only intended for the block device itself
  * and the raw driver which basically is a fake block device.
  *
- * Does not take i_mutex for the write and thus is not for general purpose
+ * Does analt take i_mutex for the write and thus is analt for general purpose
  * use.
  */
 static ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct block_device *bdev = I_BDEV(file->f_mapping->host);
-	struct inode *bd_inode = bdev->bd_inode;
+	struct ianalde *bd_ianalde = bdev->bd_ianalde;
 	loff_t size = bdev_nr_bytes(bdev);
 	size_t shorted = 0;
 	ssize_t ret;
@@ -680,17 +680,17 @@ static ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (bdev_read_only(bdev))
 		return -EPERM;
 
-	if (IS_SWAPFILE(bd_inode) && !is_hibernate_resume_dev(bd_inode->i_rdev))
+	if (IS_SWAPFILE(bd_ianalde) && !is_hibernate_resume_dev(bd_ianalde->i_rdev))
 		return -ETXTBSY;
 
 	if (!iov_iter_count(from))
 		return 0;
 
 	if (iocb->ki_pos >= size)
-		return -ENOSPC;
+		return -EANALSPC;
 
-	if ((iocb->ki_flags & (IOCB_NOWAIT | IOCB_DIRECT)) == IOCB_NOWAIT)
-		return -EOPNOTSUPP;
+	if ((iocb->ki_flags & (IOCB_ANALWAIT | IOCB_DIRECT)) == IOCB_ANALWAIT)
+		return -EOPANALTSUPP;
 
 	size -= iocb->ki_pos;
 	if (iov_iter_count(from) > size) {
@@ -764,20 +764,20 @@ reexpand:
 
 #define	BLKDEV_FALLOC_FL_SUPPORTED					\
 		(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |		\
-		 FALLOC_FL_ZERO_RANGE | FALLOC_FL_NO_HIDE_STALE)
+		 FALLOC_FL_ZERO_RANGE | FALLOC_FL_ANAL_HIDE_STALE)
 
 static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 			     loff_t len)
 {
-	struct inode *inode = bdev_file_inode(file);
-	struct block_device *bdev = I_BDEV(inode);
+	struct ianalde *ianalde = bdev_file_ianalde(file);
+	struct block_device *bdev = I_BDEV(ianalde);
 	loff_t end = start + len - 1;
 	loff_t isize;
 	int error;
 
 	/* Fail if we don't recognize the flags. */
 	if (mode & ~BLKDEV_FALLOC_FL_SUPPORTED)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Don't go off the end of the device. */
 	isize = bdev_nr_bytes(bdev);
@@ -797,7 +797,7 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 	if ((start | len) & (bdev_logical_block_size(bdev) - 1))
 		return -EINVAL;
 
-	filemap_invalidate_lock(inode->i_mapping);
+	filemap_invalidate_lock(ianalde->i_mapping);
 
 	/*
 	 * Invalidate the page cache, including dirty pages, for valid
@@ -812,7 +812,7 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 
 		error = blkdev_issue_zeroout(bdev, start >> SECTOR_SHIFT,
 					     len >> SECTOR_SHIFT, GFP_KERNEL,
-					     BLKDEV_ZERO_NOUNMAP);
+					     BLKDEV_ZERO_ANALUNMAP);
 		break;
 	case FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE:
 		error = truncate_bdev_range(bdev, file_to_blk_mode(file), start, end);
@@ -821,9 +821,9 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 
 		error = blkdev_issue_zeroout(bdev, start >> SECTOR_SHIFT,
 					     len >> SECTOR_SHIFT, GFP_KERNEL,
-					     BLKDEV_ZERO_NOFALLBACK);
+					     BLKDEV_ZERO_ANALFALLBACK);
 		break;
-	case FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE | FALLOC_FL_NO_HIDE_STALE:
+	case FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE | FALLOC_FL_ANAL_HIDE_STALE:
 		error = truncate_bdev_range(bdev, file_to_blk_mode(file), start, end);
 		if (error)
 			goto fail;
@@ -832,19 +832,19 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 					     len >> SECTOR_SHIFT, GFP_KERNEL);
 		break;
 	default:
-		error = -EOPNOTSUPP;
+		error = -EOPANALTSUPP;
 	}
 
  fail:
-	filemap_invalidate_unlock(inode->i_mapping);
+	filemap_invalidate_unlock(ianalde->i_mapping);
 	return error;
 }
 
 static int blkdev_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode *bd_inode = bdev_file_inode(file);
+	struct ianalde *bd_ianalde = bdev_file_ianalde(file);
 
-	if (bdev_read_only(I_BDEV(bd_inode)))
+	if (bdev_read_only(I_BDEV(bd_ianalde)))
 		return generic_file_readonly_mmap(file, vma);
 
 	return generic_file_mmap(file, vma);

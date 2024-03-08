@@ -18,16 +18,16 @@ description: |
   which can create the interprocessor communication (IPC) between the
   CPU and BPMP.
 
-  This node is a mailbox consumer. See the following files for details
+  This analde is a mailbox consumer. See the following files for details
   of the mailbox subsystem, and the specifiers implemented by the
   relevant provider(s):
 
     - .../mailbox/mailbox.txt
     - .../mailbox/nvidia,tegra186-hsp.yaml
 
-  This node is a clock, power domain, and reset provider. See the
+  This analde is a clock, power domain, and reset provider. See the
   following files for general documentation of those features, and the
-  specifiers implemented by this node:
+  specifiers implemented by this analde:
 
     - .../clock/clock-bindings.txt
     - <dt-bindings/clock/tegra186-clock.h>
@@ -37,28 +37,28 @@ description: |
     - <dt-bindings/reset/tegra186-reset.h>
 
   The BPMP implements some services which must be represented by
-  separate nodes. For example, it can provide access to certain I2C
+  separate analdes. For example, it can provide access to certain I2C
   controllers, and the I2C bindings represent each I2C controller as a
-  device tree node. Such nodes should be nested directly inside the main
-  BPMP node.
+  device tree analde. Such analdes should be nested directly inside the main
+  BPMP analde.
 
-  Software can determine whether a child node of the BPMP node
-  represents a device by checking for a compatible property. Any node
+  Software can determine whether a child analde of the BPMP analde
+  represents a device by checking for a compatible property. Any analde
   with a compatible property represents a device that can be
-  instantiated. Nodes without a compatible property may be used to
+  instantiated. Analdes without a compatible property may be used to
   provide configuration information regarding the BPMP itself, although
-  no such configuration nodes are currently defined by this binding.
+  anal such configuration analdes are currently defined by this binding.
 
-  The BPMP firmware defines no single global name-/numbering-space for
-  such services. Put another way, the numbering scheme for I2C buses is
+  The BPMP firmware defines anal single global name-/numbering-space for
+  such services. Put aanalther way, the numbering scheme for I2C buses is
   distinct from the numbering scheme for any other service the BPMP may
   provide (e.g. a future hypothetical SPI bus service). As such, child
-  device nodes will have no reg property, and the BPMP node will have no
+  device analdes will have anal reg property, and the BPMP analde will have anal
   "#address-cells" or "#size-cells" property.
 
   The shared memory area for the IPC TX and RX between CPU and BPMP are
   predefined and work on top of either sysram, which is an SRAM inside the
-  chip, or in normal SDRAM.
+  chip, or in analrmal SDRAM.
   See ".../sram/sram.yaml" for the bindings for the SRAM case.
   See "../reserved-memory/nvidia,tegra264-bpmp-shmem.yaml" for bindings for
   the SDRAM case.

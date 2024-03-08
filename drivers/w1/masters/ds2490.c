@@ -103,16 +103,16 @@
 
 /* Result Register flags */
 #define RR_DETECT			0xA5 /* New device detected */
-#define RR_NRS				0x01 /* Reset no presence or ... */
+#define RR_NRS				0x01 /* Reset anal presence or ... */
 #define RR_SH				0x02 /* short on reset or set path */
 #define RR_APP				0x04 /* alarming presence on reset */
-#define RR_VPP				0x08 /* 12V expected not seen */
+#define RR_VPP				0x08 /* 12V expected analt seen */
 #define RR_CMP				0x10 /* compare error */
 #define RR_CRC				0x20 /* CRC error detected */
 #define RR_RDP				0x40 /* redirected page */
 #define RR_EOS				0x80 /* end of search error */
 
-#define SPEED_NORMAL			0x00
+#define SPEED_ANALRMAL			0x00
 #define SPEED_FLEXIBLE			0x01
 #define SPEED_OVERDRIVE			0x02
 
@@ -131,11 +131,11 @@ struct ds_device {
 	int			ep[NUM_EP];
 
 	/* Strong PullUp
-	 * 0: pullup not active, else duration in milliseconds
+	 * 0: pullup analt active, else duration in milliseconds
 	 */
 	int			spu_sleep;
 	/* spu_bit contains COMM_SPU or 0 depending on if the strong pullup
-	 * should be active or not for writes.
+	 * should be active or analt for writes.
 	 */
 	u16			spu_bit;
 
@@ -249,13 +249,13 @@ static void ds_dump_status(struct ds_device *ds_dev, unsigned char *buf, int cou
 		}
 		dev_dbg(dev, "Result Register Value: 0x%02x", buf[i]);
 		if (buf[i] & RR_NRS)
-			dev_dbg(dev, "NRS: Reset no presence or ...\n");
+			dev_dbg(dev, "NRS: Reset anal presence or ...\n");
 		if (buf[i] & RR_SH)
 			dev_dbg(dev, "SH: short on reset or set path\n");
 		if (buf[i] & RR_APP)
 			dev_dbg(dev, "APP: alarming presence on reset\n");
 		if (buf[i] & RR_VPP)
-			dev_dbg(dev, "VPP: 12V expected not seen\n");
+			dev_dbg(dev, "VPP: 12V expected analt seen\n");
 		if (buf[i] & RR_CMP)
 			dev_dbg(dev, "CMP: compare error\n");
 		if (buf[i] & RR_CRC)
@@ -478,10 +478,10 @@ static int ds_reset(struct ds_device *dev)
 	 * detect some conditions such as short, alarming presence, or
 	 * detect if a new device was detected.
 	 *
-	 * COMM_SE which allows SPEED_NORMAL, SPEED_FLEXIBLE, SPEED_OVERDRIVE:
+	 * COMM_SE which allows SPEED_ANALRMAL, SPEED_FLEXIBLE, SPEED_OVERDRIVE:
 	 * Select the data transfer rate.
 	 */
-	err = ds_send_control(dev, COMM_1_WIRE_RESET | COMM_IM, SPEED_NORMAL);
+	err = ds_send_control(dev, COMM_1_WIRE_RESET | COMM_IM, SPEED_ANALRMAL);
 	if (err)
 		return err;
 
@@ -493,7 +493,7 @@ static int ds_set_speed(struct ds_device *dev, int speed)
 {
 	int err;
 
-	if (speed != SPEED_NORMAL && speed != SPEED_FLEXIBLE && speed != SPEED_OVERDRIVE)
+	if (speed != SPEED_ANALRMAL && speed != SPEED_FLEXIBLE && speed != SPEED_OVERDRIVE)
 		return -EINVAL;
 
 	if (speed != SPEED_OVERDRIVE)
@@ -513,14 +513,14 @@ static int ds_set_pullup(struct ds_device *dev, int delay)
 {
 	int err = 0;
 	u8 del = 1 + (u8)(delay >> 4);
-	/* Just storing delay would not get the trunication and roundup. */
+	/* Just storing delay would analt get the trunication and roundup. */
 	int ms = del<<4;
 
 	/* Enable spu_bit if a delay is set. */
 	dev->spu_bit = delay ? COMM_SPU : 0;
 	/* If delay is zero, it has already been disabled, if the time is
 	 * the same as the hardware was last programmed to, there is also
-	 * nothing more to do.  Compare with the recalculated value ms
+	 * analthing more to do.  Compare with the recalculated value ms
 	 * rather than del or delay which can have a different value.
 	 */
 	if (delay == 0 || ms == dev->spu_sleep)
@@ -560,7 +560,7 @@ static int ds_write_bit(struct ds_device *dev, u8 bit)
 	int err;
 	struct ds_status st;
 
-	/* Set COMM_ICP to write without a readback.  Note, this will
+	/* Set COMM_ICP to write without a readback.  Analte, this will
 	 * produce one time slot, a down followed by an up with COMM_D
 	 * only determing the timing.
 	 */
@@ -690,7 +690,7 @@ static void ds9490r_search(void *data, struct w1_master *master,
 	 *
 	 * If the number of devices found is less than or equal to the
 	 * search_limit, that number of IDs will be returned.  If there are
-	 * more, search_limit IDs will be returned followed by a non-zero
+	 * more, search_limit IDs will be returned followed by a analn-zero
 	 * discrepency value.
 	 */
 	struct ds_device *dev = data;
@@ -763,7 +763,7 @@ static void ds9490r_search(void *data, struct w1_master *master,
 			for (i = 0; i < err/8; ++i) {
 				found_ids[found++] = buf[i];
 				/*
-				 * can't know if there will be a discrepancy
+				 * can't kanalw if there will be a discrepancy
 				 * value after until the next id
 				 */
 				if (found == search_limit) {
@@ -974,11 +974,11 @@ static int ds_w1_init(struct ds_device *dev)
 	 * This is necessary because a block write will wait for data
 	 * to be placed in the output buffer and block any later
 	 * commands which will keep accumulating and the device will
-	 * not be idle.  Another case is removing the ds2490 module
+	 * analt be idle.  Aanalther case is removing the ds2490 module
 	 * while a bus search is in progress, somehow a few commands
 	 * get through, but the input transfers fail leaving data in
 	 * the input buffer.  This will cause the next read to fail
-	 * see the note in ds_recv_data.
+	 * see the analte in ds_recv_data.
 	 */
 	ds_reset_device(dev);
 
@@ -1020,11 +1020,11 @@ static int ds_probe(struct usb_interface *intf,
 
 	dev = kzalloc(sizeof(struct ds_device), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->udev = usb_get_dev(udev);
 	if (!dev->udev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_free;
 	}
 	memset(dev->ep, 0, sizeof(dev->ep));
@@ -1051,7 +1051,7 @@ static int ds_probe(struct usb_interface *intf,
 
 	iface_desc = intf->cur_altsetting;
 	if (iface_desc->desc.bNumEndpoints != NUM_EP-1) {
-		dev_err(&dev->udev->dev, "Num endpoints=%d. It is not DS9490R.\n",
+		dev_err(&dev->udev->dev, "Num endpoints=%d. It is analt DS9490R.\n",
 			iface_desc->desc.bNumEndpoints);
 		err = -EINVAL;
 		goto err_out_clear;

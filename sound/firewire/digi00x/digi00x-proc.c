@@ -57,7 +57,7 @@ static void proc_read_clock(struct snd_info_entry *entry,
 
 	if (snd_dg00x_stream_check_external_clock(dg00x, &detect) < 0)
 		return;
-	snd_iprintf(buf, "External source: %s\n", detect ? "detected" : "not");
+	snd_iprintf(buf, "External source: %s\n", detect ? "detected" : "analt");
 	if (!detect)
 		return;
 
@@ -70,7 +70,7 @@ void snd_dg00x_proc_init(struct snd_dg00x *dg00x)
 	struct snd_info_entry *root, *entry;
 
 	/*
-	 * All nodes are automatically removed at snd_card_disconnect(),
+	 * All analdes are automatically removed at snd_card_disconnect(),
 	 * by following to link list.
 	 */
 	root = snd_info_create_card_entry(dg00x->card, "firewire",

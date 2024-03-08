@@ -54,26 +54,26 @@
 #define S3C2410_WATCHDOG_ATBOOT		(0)
 #define S3C2410_WATCHDOG_DEFAULT_TIME	(15)
 
-#define EXYNOS5_RST_STAT_REG_OFFSET		0x0404
-#define EXYNOS5_WDT_DISABLE_REG_OFFSET		0x0408
-#define EXYNOS5_WDT_MASK_RESET_REG_OFFSET	0x040c
-#define EXYNOS850_CLUSTER0_NONCPU_OUT		0x1220
-#define EXYNOS850_CLUSTER0_NONCPU_INT_EN	0x1244
-#define EXYNOS850_CLUSTER1_NONCPU_OUT		0x1620
-#define EXYNOS850_CLUSTER1_NONCPU_INT_EN	0x1644
-#define EXYNOSAUTOV9_CLUSTER1_NONCPU_OUT	0x1520
-#define EXYNOSAUTOV9_CLUSTER1_NONCPU_INT_EN	0x1544
+#define EXYANALS5_RST_STAT_REG_OFFSET		0x0404
+#define EXYANALS5_WDT_DISABLE_REG_OFFSET		0x0408
+#define EXYANALS5_WDT_MASK_RESET_REG_OFFSET	0x040c
+#define EXYANALS850_CLUSTER0_ANALNCPU_OUT		0x1220
+#define EXYANALS850_CLUSTER0_ANALNCPU_INT_EN	0x1244
+#define EXYANALS850_CLUSTER1_ANALNCPU_OUT		0x1620
+#define EXYANALS850_CLUSTER1_ANALNCPU_INT_EN	0x1644
+#define EXYANALSAUTOV9_CLUSTER1_ANALNCPU_OUT	0x1520
+#define EXYANALSAUTOV9_CLUSTER1_ANALNCPU_INT_EN	0x1544
 
-#define EXYNOS850_CLUSTER0_WDTRESET_BIT		24
-#define EXYNOS850_CLUSTER1_WDTRESET_BIT		23
-#define EXYNOSAUTOV9_CLUSTER0_WDTRESET_BIT	25
-#define EXYNOSAUTOV9_CLUSTER1_WDTRESET_BIT	24
+#define EXYANALS850_CLUSTER0_WDTRESET_BIT		24
+#define EXYANALS850_CLUSTER1_WDTRESET_BIT		23
+#define EXYANALSAUTOV9_CLUSTER0_WDTRESET_BIT	25
+#define EXYANALSAUTOV9_CLUSTER1_WDTRESET_BIT	24
 
-#define GS_CLUSTER0_NONCPU_OUT			0x1220
-#define GS_CLUSTER1_NONCPU_OUT			0x1420
-#define GS_CLUSTER0_NONCPU_INT_EN		0x1244
-#define GS_CLUSTER1_NONCPU_INT_EN		0x1444
-#define GS_CLUSTER2_NONCPU_INT_EN		0x1644
+#define GS_CLUSTER0_ANALNCPU_OUT			0x1220
+#define GS_CLUSTER1_ANALNCPU_OUT			0x1420
+#define GS_CLUSTER0_ANALNCPU_INT_EN		0x1244
+#define GS_CLUSTER1_ANALNCPU_INT_EN		0x1444
+#define GS_CLUSTER2_ANALNCPU_INT_EN		0x1644
 #define GS_RST_STAT_REG_OFFSET			0x3B44
 
 /**
@@ -90,11 +90,11 @@
  * %QUIRK_HAS_WTCLRINT_REG: Watchdog block has WTCLRINT register. It's used to
  * clear the interrupt once the interrupt service routine is complete. It's
  * write-only, writing any values to this register clears the interrupt, but
- * reading is not permitted.
+ * reading is analt permitted.
  *
  * %QUIRK_HAS_PMU_MASK_RESET: PMU block has the register for disabling/enabling
  * WDT reset request. On old SoCs it's usually called MASK_WDT_RESET_REQUEST,
- * new SoCs have CLUSTERx_NONCPU_INT_EN register, which 'mask_bit' value is
+ * new SoCs have CLUSTERx_ANALNCPU_INT_EN register, which 'mask_bit' value is
  * inverted compared to the former one.
  *
  * %QUIRK_HAS_PMU_RST_STAT: PMU block has RST_STAT (reset status) register,
@@ -106,7 +106,7 @@
  * register. If 'mask_bit' bit is set, PMU will disable WDT reset when
  * corresponding processor is in reset state.
  *
- * %QUIRK_HAS_PMU_CNT_EN: PMU block has some register (e.g. CLUSTERx_NONCPU_OUT)
+ * %QUIRK_HAS_PMU_CNT_EN: PMU block has some register (e.g. CLUSTERx_ANALNCPU_OUT)
  * with "watchdog counter enable" bit. That bit should be set to make watchdog
  * counter running.
  *
@@ -126,24 +126,24 @@
 	(QUIRK_HAS_PMU_MASK_RESET | QUIRK_HAS_PMU_RST_STAT | \
 	 QUIRK_HAS_PMU_AUTO_DISABLE | QUIRK_HAS_PMU_CNT_EN)
 
-static bool nowayout	= WATCHDOG_NOWAYOUT;
+static bool analwayout	= WATCHDOG_ANALWAYOUT;
 static int tmr_margin;
 static int tmr_atboot	= S3C2410_WATCHDOG_ATBOOT;
-static int soft_noboot;
+static int soft_analboot;
 
 module_param(tmr_margin,  int, 0);
 module_param(tmr_atboot,  int, 0);
-module_param(nowayout,   bool, 0);
-module_param(soft_noboot, int, 0);
+module_param(analwayout,   bool, 0);
+module_param(soft_analboot, int, 0);
 
 MODULE_PARM_DESC(tmr_margin, "Watchdog tmr_margin in seconds. (default="
 		__MODULE_STRING(S3C2410_WATCHDOG_DEFAULT_TIME) ")");
 MODULE_PARM_DESC(tmr_atboot,
 		"Watchdog is started at boot time if set to 1, default="
 			__MODULE_STRING(S3C2410_WATCHDOG_ATBOOT));
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
-MODULE_PARM_DESC(soft_noboot, "Watchdog action, set to 1 to ignore reboots, 0 to reboot (default 0)");
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+			__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
+MODULE_PARM_DESC(soft_analboot, "Watchdog action, set to 1 to iganalre reboots, 0 to reboot (default 0)");
 
 /**
  * struct s3c2410_wdt_variant - Per-variant config data
@@ -185,7 +185,7 @@ struct s3c2410_wdt {
 	unsigned long		wtcon_save;
 	unsigned long		wtdat_save;
 	struct watchdog_device	wdt_device;
-	struct notifier_block	freq_transition;
+	struct analtifier_block	freq_transition;
 	const struct s3c2410_wdt_variant *drv_data;
 	struct regmap *pmureg;
 };
@@ -199,91 +199,91 @@ static const struct s3c2410_wdt_variant drv_data_s3c6410 = {
 	.quirks = QUIRK_HAS_WTCLRINT_REG,
 };
 
-static const struct s3c2410_wdt_variant drv_data_exynos5250  = {
-	.disable_reg = EXYNOS5_WDT_DISABLE_REG_OFFSET,
-	.mask_reset_reg = EXYNOS5_WDT_MASK_RESET_REG_OFFSET,
+static const struct s3c2410_wdt_variant drv_data_exyanals5250  = {
+	.disable_reg = EXYANALS5_WDT_DISABLE_REG_OFFSET,
+	.mask_reset_reg = EXYANALS5_WDT_MASK_RESET_REG_OFFSET,
 	.mask_bit = 20,
-	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
+	.rst_stat_reg = EXYANALS5_RST_STAT_REG_OFFSET,
 	.rst_stat_bit = 20,
 	.quirks = QUIRK_HAS_WTCLRINT_REG | QUIRK_HAS_PMU_MASK_RESET | \
 		  QUIRK_HAS_PMU_RST_STAT | QUIRK_HAS_PMU_AUTO_DISABLE,
 };
 
-static const struct s3c2410_wdt_variant drv_data_exynos5420 = {
-	.disable_reg = EXYNOS5_WDT_DISABLE_REG_OFFSET,
-	.mask_reset_reg = EXYNOS5_WDT_MASK_RESET_REG_OFFSET,
+static const struct s3c2410_wdt_variant drv_data_exyanals5420 = {
+	.disable_reg = EXYANALS5_WDT_DISABLE_REG_OFFSET,
+	.mask_reset_reg = EXYANALS5_WDT_MASK_RESET_REG_OFFSET,
 	.mask_bit = 0,
-	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
+	.rst_stat_reg = EXYANALS5_RST_STAT_REG_OFFSET,
 	.rst_stat_bit = 9,
 	.quirks = QUIRK_HAS_WTCLRINT_REG | QUIRK_HAS_PMU_MASK_RESET | \
 		  QUIRK_HAS_PMU_RST_STAT | QUIRK_HAS_PMU_AUTO_DISABLE,
 };
 
-static const struct s3c2410_wdt_variant drv_data_exynos7 = {
-	.disable_reg = EXYNOS5_WDT_DISABLE_REG_OFFSET,
-	.mask_reset_reg = EXYNOS5_WDT_MASK_RESET_REG_OFFSET,
+static const struct s3c2410_wdt_variant drv_data_exyanals7 = {
+	.disable_reg = EXYANALS5_WDT_DISABLE_REG_OFFSET,
+	.mask_reset_reg = EXYANALS5_WDT_MASK_RESET_REG_OFFSET,
 	.mask_bit = 23,
-	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
+	.rst_stat_reg = EXYANALS5_RST_STAT_REG_OFFSET,
 	.rst_stat_bit = 23,	/* A57 WDTRESET */
 	.quirks = QUIRK_HAS_WTCLRINT_REG | QUIRK_HAS_PMU_MASK_RESET | \
 		  QUIRK_HAS_PMU_RST_STAT | QUIRK_HAS_PMU_AUTO_DISABLE,
 };
 
-static const struct s3c2410_wdt_variant drv_data_exynos850_cl0 = {
-	.mask_reset_reg = EXYNOS850_CLUSTER0_NONCPU_INT_EN,
+static const struct s3c2410_wdt_variant drv_data_exyanals850_cl0 = {
+	.mask_reset_reg = EXYANALS850_CLUSTER0_ANALNCPU_INT_EN,
 	.mask_bit = 2,
 	.mask_reset_inv = true,
-	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
-	.rst_stat_bit = EXYNOS850_CLUSTER0_WDTRESET_BIT,
-	.cnt_en_reg = EXYNOS850_CLUSTER0_NONCPU_OUT,
+	.rst_stat_reg = EXYANALS5_RST_STAT_REG_OFFSET,
+	.rst_stat_bit = EXYANALS850_CLUSTER0_WDTRESET_BIT,
+	.cnt_en_reg = EXYANALS850_CLUSTER0_ANALNCPU_OUT,
 	.cnt_en_bit = 7,
 	.quirks = QUIRK_HAS_WTCLRINT_REG | QUIRK_HAS_PMU_MASK_RESET | \
 		  QUIRK_HAS_PMU_RST_STAT | QUIRK_HAS_PMU_CNT_EN,
 };
 
-static const struct s3c2410_wdt_variant drv_data_exynos850_cl1 = {
-	.mask_reset_reg = EXYNOS850_CLUSTER1_NONCPU_INT_EN,
+static const struct s3c2410_wdt_variant drv_data_exyanals850_cl1 = {
+	.mask_reset_reg = EXYANALS850_CLUSTER1_ANALNCPU_INT_EN,
 	.mask_bit = 2,
 	.mask_reset_inv = true,
-	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
-	.rst_stat_bit = EXYNOS850_CLUSTER1_WDTRESET_BIT,
-	.cnt_en_reg = EXYNOS850_CLUSTER1_NONCPU_OUT,
+	.rst_stat_reg = EXYANALS5_RST_STAT_REG_OFFSET,
+	.rst_stat_bit = EXYANALS850_CLUSTER1_WDTRESET_BIT,
+	.cnt_en_reg = EXYANALS850_CLUSTER1_ANALNCPU_OUT,
 	.cnt_en_bit = 7,
 	.quirks = QUIRK_HAS_WTCLRINT_REG | QUIRK_HAS_PMU_MASK_RESET | \
 		  QUIRK_HAS_PMU_RST_STAT | QUIRK_HAS_PMU_CNT_EN,
 };
 
-static const struct s3c2410_wdt_variant drv_data_exynosautov9_cl0 = {
-	.mask_reset_reg = EXYNOS850_CLUSTER0_NONCPU_INT_EN,
+static const struct s3c2410_wdt_variant drv_data_exyanalsautov9_cl0 = {
+	.mask_reset_reg = EXYANALS850_CLUSTER0_ANALNCPU_INT_EN,
 	.mask_bit = 2,
 	.mask_reset_inv = true,
-	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
-	.rst_stat_bit = EXYNOSAUTOV9_CLUSTER0_WDTRESET_BIT,
-	.cnt_en_reg = EXYNOS850_CLUSTER0_NONCPU_OUT,
+	.rst_stat_reg = EXYANALS5_RST_STAT_REG_OFFSET,
+	.rst_stat_bit = EXYANALSAUTOV9_CLUSTER0_WDTRESET_BIT,
+	.cnt_en_reg = EXYANALS850_CLUSTER0_ANALNCPU_OUT,
 	.cnt_en_bit = 7,
 	.quirks = QUIRK_HAS_WTCLRINT_REG | QUIRK_HAS_PMU_MASK_RESET |
 		  QUIRK_HAS_PMU_RST_STAT | QUIRK_HAS_PMU_CNT_EN,
 };
 
-static const struct s3c2410_wdt_variant drv_data_exynosautov9_cl1 = {
-	.mask_reset_reg = EXYNOSAUTOV9_CLUSTER1_NONCPU_INT_EN,
+static const struct s3c2410_wdt_variant drv_data_exyanalsautov9_cl1 = {
+	.mask_reset_reg = EXYANALSAUTOV9_CLUSTER1_ANALNCPU_INT_EN,
 	.mask_bit = 2,
 	.mask_reset_inv = true,
-	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
-	.rst_stat_bit = EXYNOSAUTOV9_CLUSTER1_WDTRESET_BIT,
-	.cnt_en_reg = EXYNOSAUTOV9_CLUSTER1_NONCPU_OUT,
+	.rst_stat_reg = EXYANALS5_RST_STAT_REG_OFFSET,
+	.rst_stat_bit = EXYANALSAUTOV9_CLUSTER1_WDTRESET_BIT,
+	.cnt_en_reg = EXYANALSAUTOV9_CLUSTER1_ANALNCPU_OUT,
 	.cnt_en_bit = 7,
 	.quirks = QUIRK_HAS_WTCLRINT_REG | QUIRK_HAS_PMU_MASK_RESET |
 		  QUIRK_HAS_PMU_RST_STAT | QUIRK_HAS_PMU_CNT_EN,
 };
 
 static const struct s3c2410_wdt_variant drv_data_gs101_cl0 = {
-	.mask_reset_reg = GS_CLUSTER0_NONCPU_INT_EN,
+	.mask_reset_reg = GS_CLUSTER0_ANALNCPU_INT_EN,
 	.mask_bit = 2,
 	.mask_reset_inv = true,
 	.rst_stat_reg = GS_RST_STAT_REG_OFFSET,
 	.rst_stat_bit = 0,
-	.cnt_en_reg = GS_CLUSTER0_NONCPU_OUT,
+	.cnt_en_reg = GS_CLUSTER0_ANALNCPU_OUT,
 	.cnt_en_bit = 8,
 	.quirks = QUIRK_HAS_PMU_RST_STAT | QUIRK_HAS_PMU_MASK_RESET |
 		  QUIRK_HAS_PMU_CNT_EN | QUIRK_HAS_WTCLRINT_REG |
@@ -291,12 +291,12 @@ static const struct s3c2410_wdt_variant drv_data_gs101_cl0 = {
 };
 
 static const struct s3c2410_wdt_variant drv_data_gs101_cl1 = {
-	.mask_reset_reg = GS_CLUSTER1_NONCPU_INT_EN,
+	.mask_reset_reg = GS_CLUSTER1_ANALNCPU_INT_EN,
 	.mask_bit = 2,
 	.mask_reset_inv = true,
 	.rst_stat_reg = GS_RST_STAT_REG_OFFSET,
 	.rst_stat_bit = 1,
-	.cnt_en_reg = GS_CLUSTER1_NONCPU_OUT,
+	.cnt_en_reg = GS_CLUSTER1_ANALNCPU_OUT,
 	.cnt_en_bit = 7,
 	.quirks = QUIRK_HAS_PMU_RST_STAT | QUIRK_HAS_PMU_MASK_RESET |
 		  QUIRK_HAS_PMU_CNT_EN | QUIRK_HAS_WTCLRINT_REG |
@@ -310,16 +310,16 @@ static const struct of_device_id s3c2410_wdt_match[] = {
 	  .data = &drv_data_s3c2410 },
 	{ .compatible = "samsung,s3c6410-wdt",
 	  .data = &drv_data_s3c6410 },
-	{ .compatible = "samsung,exynos5250-wdt",
-	  .data = &drv_data_exynos5250 },
-	{ .compatible = "samsung,exynos5420-wdt",
-	  .data = &drv_data_exynos5420 },
-	{ .compatible = "samsung,exynos7-wdt",
-	  .data = &drv_data_exynos7 },
-	{ .compatible = "samsung,exynos850-wdt",
-	  .data = &drv_data_exynos850_cl0 },
-	{ .compatible = "samsung,exynosautov9-wdt",
-	  .data = &drv_data_exynosautov9_cl0 },
+	{ .compatible = "samsung,exyanals5250-wdt",
+	  .data = &drv_data_exyanals5250 },
+	{ .compatible = "samsung,exyanals5420-wdt",
+	  .data = &drv_data_exyanals5420 },
+	{ .compatible = "samsung,exyanals7-wdt",
+	  .data = &drv_data_exyanals7 },
+	{ .compatible = "samsung,exyanals850-wdt",
+	  .data = &drv_data_exyanals850_cl0 },
+	{ .compatible = "samsung,exyanalsautov9-wdt",
+	  .data = &drv_data_exyanalsautov9_cl0 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c2410_wdt_match);
@@ -476,7 +476,7 @@ static int s3c2410wdt_start(struct watchdog_device *wdd)
 	wtcon = readl(wdt->reg_base + S3C2410_WTCON);
 	wtcon |= S3C2410_WTCON_ENABLE | S3C2410_WTCON_DIV128;
 
-	if (soft_noboot) {
+	if (soft_analboot) {
 		wtcon |= S3C2410_WTCON_INTEN;
 		wtcon &= ~S3C2410_WTCON_RSTEN;
 	} else {
@@ -595,7 +595,7 @@ static const struct watchdog_device s3c2410_wdd = {
 
 /* interrupt handler code */
 
-static irqreturn_t s3c2410wdt_irq(int irqno, void *param)
+static irqreturn_t s3c2410wdt_irq(int irqanal, void *param)
 {
 	struct s3c2410_wdt *wdt = platform_get_drvdata(param);
 
@@ -640,14 +640,14 @@ s3c2410_get_wdt_drv_data(struct platform_device *pdev, struct s3c2410_wdt *wdt)
 	}
 
 #ifdef CONFIG_OF
-	/* Choose Exynos850/ExynosAutov9 driver data w.r.t. cluster index */
-	if (variant == &drv_data_exynos850_cl0 ||
-	    variant == &drv_data_exynosautov9_cl0 ||
+	/* Choose Exyanals850/ExyanalsAutov9 driver data w.r.t. cluster index */
+	if (variant == &drv_data_exyanals850_cl0 ||
+	    variant == &drv_data_exyanalsautov9_cl0 ||
 	    variant == &drv_data_gs101_cl0) {
 		u32 index;
 		int err;
 
-		err = of_property_read_u32(dev->of_node,
+		err = of_property_read_u32(dev->of_analde,
 					   "samsung,cluster-index", &index);
 		if (err)
 			return dev_err_probe(dev, -EINVAL, "failed to get cluster index\n");
@@ -656,10 +656,10 @@ s3c2410_get_wdt_drv_data(struct platform_device *pdev, struct s3c2410_wdt *wdt)
 		case 0:
 			break;
 		case 1:
-			if (variant == &drv_data_exynos850_cl0)
-				variant = &drv_data_exynos850_cl1;
-			else if (variant == &drv_data_exynosautov9_cl0)
-				variant = &drv_data_exynosautov9_cl1;
+			if (variant == &drv_data_exyanals850_cl0)
+				variant = &drv_data_exyanals850_cl1;
+			else if (variant == &drv_data_exyanalsautov9_cl0)
+				variant = &drv_data_exyanalsautov9_cl1;
 			else if (variant == &drv_data_gs101_cl0)
 				variant = &drv_data_gs101_cl1;
 			break;
@@ -688,7 +688,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->dev = dev;
 	spin_lock_init(&wdt->lock);
@@ -699,7 +699,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		return ret;
 
 	if (wdt->drv_data->quirks & QUIRKS_HAVE_PMUREG) {
-		wdt->pmureg = syscon_regmap_lookup_by_phandle(dev->of_node,
+		wdt->pmureg = syscon_regmap_lookup_by_phandle(dev->of_analde,
 						"samsung,syscon-phandle");
 		if (IS_ERR(wdt->pmureg))
 			return dev_err_probe(dev, PTR_ERR(wdt->pmureg),
@@ -720,7 +720,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(wdt->bus_clk), "failed to get bus clock\n");
 
 	/*
-	 * "watchdog_src" clock is optional; if it's not present -- just skip it
+	 * "watchdog_src" clock is optional; if it's analt present -- just skip it
 	 * and use "watchdog" clock as both bus and source clock.
 	 */
 	wdt->src_clk = devm_clk_get_optional_enabled(dev, "watchdog_src");
@@ -733,7 +733,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(&wdt->wdt_device, wdt);
 
 	/* see if we can actually set the requested timer margin, and if
-	 * not, try the default value */
+	 * analt, try the default value */
 
 	watchdog_init_timeout(&wdt->wdt_device, tmr_margin, dev);
 	ret = s3c2410wdt_set_heartbeat(&wdt->wdt_device,
@@ -753,7 +753,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	if (ret != 0)
 		return dev_err_probe(dev, ret, "failed to install irq (%d)\n", ret);
 
-	watchdog_set_nowayout(&wdt->wdt_device, nowayout);
+	watchdog_set_analwayout(&wdt->wdt_device, analwayout);
 	watchdog_set_restart_priority(&wdt->wdt_device, 128);
 
 	wdt->wdt_device.bootstatus = s3c2410wdt_get_bootstatus(wdt);
@@ -762,10 +762,10 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	s3c2410wdt_mask_dbgack(wdt);
 
 	/*
-	 * If "tmr_atboot" param is non-zero, start the watchdog right now. Also
+	 * If "tmr_atboot" param is analn-zero, start the watchdog right analw. Also
 	 * set WDOG_HW_RUNNING bit, so that watchdog core can kick the watchdog.
 	 *
-	 * If we're not enabling the watchdog, then ensure it is disabled if it
+	 * If we're analt enabling the watchdog, then ensure it is disabled if it
 	 * has been left running from the bootloader or other source.
 	 */
 	if (tmr_atboot) {
@@ -823,7 +823,7 @@ static int s3c2410wdt_suspend(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	/* Note that WTCNT doesn't need to be saved. */
+	/* Analte that WTCNT doesn't need to be saved. */
 	s3c2410wdt_stop(&wdt->wdt_device);
 
 	return 0;

@@ -11,7 +11,7 @@ long ret = 0;
 void *user_ptr = 0;
 char buf[256] = {};
 
-SEC("tracepoint/syscalls/sys_enter_nanosleep")
+SEC("tracepoint/syscalls/sys_enter_naanalsleep")
 int on_write(void *ctx)
 {
 	if (pid != (bpf_get_current_pid_tgid() >> 32))

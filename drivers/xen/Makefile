@@ -5,7 +5,7 @@ obj-y	+= mem-reservation.o
 obj-y	+= events/
 obj-y	+= xenbus/
 
-CFLAGS_features.o			:= -fno-stack-protector
+CFLAGS_features.o			:= -fanal-stack-protector
 
 dom0-$(CONFIG_ARM64) += arm-device.o
 dom0-$(CONFIG_PCI) += pci.o

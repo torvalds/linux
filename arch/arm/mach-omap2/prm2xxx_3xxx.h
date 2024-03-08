@@ -3,7 +3,7 @@
  * OMAP2xxx/3xxx-common Power/Reset Management (PRM) register definitions
  *
  * Copyright (C) 2007-2009, 2011-2012 Texas Instruments, Inc.
- * Copyright (C) 2008-2010 Nokia Corporation
+ * Copyright (C) 2008-2010 Analkia Corporation
  * Paul Walmsley
  *
  * The PRM hardware modules on the OMAP2/3 are quite similar to each
@@ -40,8 +40,8 @@
 #define PM_WKST1					PM_WKST
 #define PM_WKDEP					0x00c8
 #define PM_EVGENCTRL					0x00d4
-#define PM_EVGENONTIM					0x00d8
-#define PM_EVGENOFFTIM					0x00dc
+#define PM_EVGEANALNTIM					0x00d8
+#define PM_EVGEANALFFTIM					0x00dc
 
 
 #ifndef __ASSEMBLER__
@@ -130,13 +130,13 @@ extern int omap2_clkdm_clear_all_wkdeps(struct clockdomain *clkdm);
  * since they tend to make more sense
  */
 
-/* PM_EVGENONTIM_MPU */
-/* Named PM_EVEGENONTIM_MPU on the 24XX */
+/* PM_EVGEANALNTIM_MPU */
+/* Named PM_EVEGEANALNTIM_MPU on the 24XX */
 #define OMAP_ONTIMEVAL_SHIFT				0
 #define OMAP_ONTIMEVAL_MASK				(0xffffffff << 0)
 
-/* PM_EVGENOFFTIM_MPU */
-/* Named PM_EVEGENOFFTIM_MPU on the 24XX */
+/* PM_EVGEANALFFTIM_MPU */
+/* Named PM_EVEGEANALFFTIM_MPU on the 24XX */
 #define OMAP_OFFTIMEVAL_SHIFT				0
 #define OMAP_OFFTIMEVAL_MASK				(0xffffffff << 0)
 
@@ -179,7 +179,7 @@ extern int omap2_clkdm_clear_all_wkdeps(struct clockdomain *clkdm);
 /*
  * Bits common to module-shared registers
  *
- * Not all registers of a particular type support all of these bits -
+ * Analt all registers of a particular type support all of these bits -
  * check TRM if you are unsure
  */
 

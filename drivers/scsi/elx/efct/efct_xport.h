@@ -11,7 +11,7 @@ enum efct_xport_ctrl {
 	EFCT_XPORT_PORT_ONLINE = 1,
 	EFCT_XPORT_PORT_OFFLINE,
 	EFCT_XPORT_SHUTDOWN,
-	EFCT_XPORT_POST_NODE_EVENT,
+	EFCT_XPORT_POST_ANALDE_EVENT,
 	EFCT_XPORT_WWNN_SET,
 	EFCT_XPORT_WWPN_SET,
 };
@@ -68,9 +68,9 @@ struct efct_xport_link_stats {
 	u32		received_eofdti_count;
 	u32		received_eofni_count;
 	u32		received_soff_count;
-	u32		received_dropped_no_aer_count;
-	u32		received_dropped_no_available_rpi_resources_count;
-	u32		received_dropped_no_available_xri_resources_count;
+	u32		received_dropped_anal_aer_count;
+	u32		received_dropped_anal_available_rpi_resources_count;
+	u32		received_dropped_anal_available_xri_resources_count;
 };
 
 struct efct_xport_host_stats {
@@ -85,9 +85,9 @@ struct efct_xport_host_stats {
 	u32		total_exchanges_responder;
 	u32		receive_p_bsy_count;
 	u32		receive_f_bsy_count;
-	u32		dropped_frames_due_to_no_rq_buffer_count;
+	u32		dropped_frames_due_to_anal_rq_buffer_count;
 	u32		empty_rq_timeout_count;
-	u32		dropped_frames_due_to_no_xri_count;
+	u32		dropped_frames_due_to_anal_xri_count;
 	u32		empty_xri_pool_count;
 };
 
@@ -117,13 +117,13 @@ struct efct_xport {
 	/* wwnn requested by user for primary nport */
 	u64			req_wwnn;
 
-	/* Nodes */
-	/* number of allocated nodes */
-	u32			nodes_count;
+	/* Analdes */
+	/* number of allocated analdes */
+	u32			analdes_count;
 	/* used to track how often IO pool is empty */
 	atomic_t		io_alloc_failed_count;
-	/* array of pointers to nodes */
-	struct efc_node		**nodes;
+	/* array of pointers to analdes */
+	struct efc_analde		**analdes;
 
 	/* Io pool and counts */
 	/* pointer to IO pool */
@@ -145,7 +145,7 @@ struct efct_xport {
 	atomic_t		io_active_count;
 	/* count of pending IOS */
 	atomic_t		io_pending_count;
-	/* non-zero if efct_scsi_check_pending is executing */
+	/* analn-zero if efct_scsi_check_pending is executing */
 	atomic_t		io_pending_recursing;
 
 	/* Port */
@@ -159,7 +159,7 @@ struct efct_xport {
 };
 
 struct efct_rport_data {
-	struct efc_node		*node;
+	struct efc_analde		*analde;
 };
 
 struct efct_xport *

@@ -58,7 +58,7 @@ enum nfs_param {
 	Opt_lock,
 	Opt_lookupcache,
 	Opt_migration,
-	Opt_minorversion,
+	Opt_mianalrversion,
 	Opt_mountaddr,
 	Opt_mounthost,
 	Opt_mountport,
@@ -97,7 +97,7 @@ enum nfs_param {
 enum {
 	Opt_local_lock_all,
 	Opt_local_lock_flock,
-	Opt_local_lock_none,
+	Opt_local_lock_analne,
 	Opt_local_lock_posix,
 };
 
@@ -105,19 +105,19 @@ static const struct constant_table nfs_param_enums_local_lock[] = {
 	{ "all",		Opt_local_lock_all },
 	{ "flock",	Opt_local_lock_flock },
 	{ "posix",	Opt_local_lock_posix },
-	{ "none",		Opt_local_lock_none },
+	{ "analne",		Opt_local_lock_analne },
 	{}
 };
 
 enum {
 	Opt_lookupcache_all,
-	Opt_lookupcache_none,
+	Opt_lookupcache_analne,
 	Opt_lookupcache_positive,
 };
 
 static const struct constant_table nfs_param_enums_lookupcache[] = {
 	{ "all",		Opt_lookupcache_all },
-	{ "none",		Opt_lookupcache_none },
+	{ "analne",		Opt_lookupcache_analne },
 	{ "pos",		Opt_lookupcache_positive },
 	{ "positive",		Opt_lookupcache_positive },
 	{}
@@ -137,10 +137,10 @@ static const struct constant_table nfs_param_enums_write[] = {
 };
 
 static const struct fs_parameter_spec nfs_fs_parameters[] = {
-	fsparam_flag_no("ac",		Opt_ac),
+	fsparam_flag_anal("ac",		Opt_ac),
 	fsparam_u32   ("acdirmax",	Opt_acdirmax),
 	fsparam_u32   ("acdirmin",	Opt_acdirmin),
-	fsparam_flag_no("acl",		Opt_acl),
+	fsparam_flag_anal("acl",		Opt_acl),
 	fsparam_u32   ("acregmax",	Opt_acregmax),
 	fsparam_u32   ("acregmin",	Opt_acregmin),
 	fsparam_u32   ("actimeo",	Opt_actimeo),
@@ -148,18 +148,18 @@ static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_flag  ("bg",		Opt_bg),
 	fsparam_u32   ("bsize",		Opt_bsize),
 	fsparam_string("clientaddr",	Opt_clientaddr),
-	fsparam_flag_no("cto",		Opt_cto),
+	fsparam_flag_anal("cto",		Opt_cto),
 	fsparam_flag  ("fg",		Opt_fg),
-	fsparam_flag_no("fsc",		Opt_fscache_flag),
+	fsparam_flag_anal("fsc",		Opt_fscache_flag),
 	fsparam_string("fsc",		Opt_fscache),
 	fsparam_flag  ("hard",		Opt_hard),
 	__fsparam(NULL, "intr",		Opt_intr,
-		  fs_param_neg_with_no|fs_param_deprecated, NULL),
+		  fs_param_neg_with_anal|fs_param_deprecated, NULL),
 	fsparam_enum  ("local_lock",	Opt_local_lock, nfs_param_enums_local_lock),
-	fsparam_flag_no("lock",		Opt_lock),
+	fsparam_flag_anal("lock",		Opt_lock),
 	fsparam_enum  ("lookupcache",	Opt_lookupcache, nfs_param_enums_lookupcache),
-	fsparam_flag_no("migration",	Opt_migration),
-	fsparam_u32   ("minorversion",	Opt_minorversion),
+	fsparam_flag_anal("migration",	Opt_migration),
+	fsparam_u32   ("mianalrversion",	Opt_mianalrversion),
 	fsparam_string("mountaddr",	Opt_mountaddr),
 	fsparam_string("mounthost",	Opt_mounthost),
 	fsparam_u32   ("mountport",	Opt_mountport),
@@ -170,16 +170,16 @@ static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_u32   ("max_connect",	Opt_max_connect),
 	fsparam_string("nfsvers",	Opt_vers),
 	fsparam_u32   ("port",		Opt_port),
-	fsparam_flag_no("posix",	Opt_posix),
+	fsparam_flag_anal("posix",	Opt_posix),
 	fsparam_string("proto",		Opt_proto),
-	fsparam_flag_no("rdirplus",	Opt_rdirplus),
+	fsparam_flag_anal("rdirplus",	Opt_rdirplus),
 	fsparam_flag  ("rdma",		Opt_rdma),
-	fsparam_flag_no("resvport",	Opt_resvport),
+	fsparam_flag_anal("resvport",	Opt_resvport),
 	fsparam_u32   ("retrans",	Opt_retrans),
 	fsparam_string("retry",		Opt_retry),
 	fsparam_u32   ("rsize",		Opt_rsize),
 	fsparam_string("sec",		Opt_sec),
-	fsparam_flag_no("sharecache",	Opt_sharecache),
+	fsparam_flag_anal("sharecache",	Opt_sharecache),
 	fsparam_flag  ("sloppy",	Opt_sloppy),
 	fsparam_flag  ("soft",		Opt_soft),
 	fsparam_flag  ("softerr",	Opt_softerr),
@@ -187,7 +187,7 @@ static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_string("source",	Opt_source),
 	fsparam_flag  ("tcp",		Opt_tcp),
 	fsparam_u32   ("timeo",		Opt_timeo),
-	fsparam_flag_no("trunkdiscovery", Opt_trunkdiscovery),
+	fsparam_flag_anal("trunkdiscovery", Opt_trunkdiscovery),
 	fsparam_flag  ("udp",		Opt_udp),
 	fsparam_flag  ("v2",		Opt_v),
 	fsparam_flag  ("v3",		Opt_v),
@@ -248,7 +248,7 @@ enum {
 	Opt_sec_lkey,
 	Opt_sec_lkeyi,
 	Opt_sec_lkeyp,
-	Opt_sec_none,
+	Opt_sec_analne,
 	Opt_sec_spkm,
 	Opt_sec_spkmi,
 	Opt_sec_spkmp,
@@ -263,8 +263,8 @@ static const struct constant_table nfs_secflavor_tokens[] = {
 	{ "lkey",	Opt_sec_lkey },
 	{ "lkeyi",	Opt_sec_lkeyi },
 	{ "lkeyp",	Opt_sec_lkeyp },
-	{ "none",	Opt_sec_none },
-	{ "null",	Opt_sec_none },
+	{ "analne",	Opt_sec_analne },
+	{ "null",	Opt_sec_analne },
 	{ "spkm3",	Opt_sec_spkm },
 	{ "spkm3i",	Opt_sec_spkmi },
 	{ "spkm3p",	Opt_sec_spkmp },
@@ -273,14 +273,14 @@ static const struct constant_table nfs_secflavor_tokens[] = {
 };
 
 enum {
-	Opt_xprtsec_none,
+	Opt_xprtsec_analne,
 	Opt_xprtsec_tls,
 	Opt_xprtsec_mtls,
 	nr__Opt_xprtsec
 };
 
 static const struct constant_table nfs_xprtsec_policies[] = {
-	{ "none",	Opt_xprtsec_none },
+	{ "analne",	Opt_xprtsec_analne },
 	{ "tls",	Opt_xprtsec_tls },
 	{ "mtls",	Opt_xprtsec_mtls },
 	{}
@@ -289,7 +289,7 @@ static const struct constant_table nfs_xprtsec_policies[] = {
 /*
  * Sanity-check a server address provided by the mount command.
  *
- * Address family must be initialized, and address must not be
+ * Address family must be initialized, and address must analt be
  * the ANY address for that family.
  */
 static int nfs_verify_server_address(struct sockaddr_storage *addr)
@@ -340,7 +340,7 @@ static int nfs_validate_transport_protocol(struct fs_context *fc,
 		ctx->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 	}
 
-	if (ctx->xprtsec.policy != RPC_XPRTSEC_NONE)
+	if (ctx->xprtsec.policy != RPC_XPRTSEC_ANALNE)
 		switch (ctx->nfs_server.protocol) {
 		case XPRT_TRANSPORT_TCP:
 			ctx->nfs_server.protocol = XPRT_TRANSPORT_TCP_TLS;
@@ -353,7 +353,7 @@ static int nfs_validate_transport_protocol(struct fs_context *fc,
 out_invalid_transport_udp:
 	return nfs_invalf(fc, "NFS: Unsupported transport protocol udp");
 out_invalid_xprtsec_policy:
-	return nfs_invalf(fc, "NFS: Transport does not support xprtsec");
+	return nfs_invalf(fc, "NFS: Transport does analt support xprtsec");
 }
 
 /*
@@ -376,7 +376,7 @@ static void nfs_set_mount_transport_protocol(struct nfs_fs_context *ctx)
 }
 
 /*
- * Add 'flavor' to 'auth_info' if not already present.
+ * Add 'flavor' to 'auth_info' if analt already present.
  * Returns true if 'flavor' ends up in the list, false otherwise
  */
 static int nfs_auth_info_add(struct fs_context *fc,
@@ -416,7 +416,7 @@ static int nfs_parse_security_flavors(struct fs_context *fc,
 		if (!*p)
 			continue;
 		switch (lookup_constant(nfs_secflavor_tokens, p, -1)) {
-		case Opt_sec_none:
+		case Opt_sec_analne:
 			pseudoflavor = RPC_AUTH_NULL;
 			break;
 		case Opt_sec_sys:
@@ -450,7 +450,7 @@ static int nfs_parse_security_flavors(struct fs_context *fc,
 			pseudoflavor = RPC_AUTH_GSS_SPKMP;
 			break;
 		default:
-			return nfs_invalf(fc, "NFS: sec=%s option not recognized", p);
+			return nfs_invalf(fc, "NFS: sec=%s option analt recognized", p);
 		}
 
 		ret = nfs_auth_info_add(fc, &ctx->auth_info, pseudoflavor);
@@ -469,11 +469,11 @@ static int nfs_parse_xprtsec_policy(struct fs_context *fc,
 	trace_nfs_mount_assign(param->key, param->string);
 
 	switch (lookup_constant(nfs_xprtsec_policies, param->string, -1)) {
-	case Opt_xprtsec_none:
-		ctx->xprtsec.policy = RPC_XPRTSEC_NONE;
+	case Opt_xprtsec_analne:
+		ctx->xprtsec.policy = RPC_XPRTSEC_ANALNE;
 		break;
 	case Opt_xprtsec_tls:
-		ctx->xprtsec.policy = RPC_XPRTSEC_TLS_ANON;
+		ctx->xprtsec.policy = RPC_XPRTSEC_TLS_AANALN;
 		break;
 	case Opt_xprtsec_mtls:
 		ctx->xprtsec.policy = RPC_XPRTSEC_TLS_X509;
@@ -501,21 +501,21 @@ static int nfs_parse_version_string(struct fs_context *fc,
 	case Opt_vers_4:
 		/* Backward compatibility option. In future,
 		 * the mount program should always supply
-		 * a NFSv4 minor version number.
+		 * a NFSv4 mianalr version number.
 		 */
 		ctx->version = 4;
 		break;
 	case Opt_vers_4_0:
 		ctx->version = 4;
-		ctx->minorversion = 0;
+		ctx->mianalrversion = 0;
 		break;
 	case Opt_vers_4_1:
 		ctx->version = 4;
-		ctx->minorversion = 1;
+		ctx->mianalrversion = 1;
 		break;
 	case Opt_vers_4_2:
 		ctx->version = 4;
-		ctx->minorversion = 2;
+		ctx->mianalrversion = 2;
 		break;
 	default:
 		return nfs_invalf(fc, "NFS: Unsupported NFS version");
@@ -539,7 +539,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 
 	opt = fs_parse(fc, nfs_fs_parameters, param, &result);
 	if (opt < 0)
-		return (opt == -ENOPARAM && ctx->sloppy) ? 1 : opt;
+		return (opt == -EANALPARAM && ctx->sloppy) ? 1 : opt;
 
 	if (fc->security)
 		ctx->has_sec_mnt_opts = 1;
@@ -547,13 +547,13 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 	switch (opt) {
 	case Opt_source:
 		if (fc->source)
-			return nfs_invalf(fc, "NFS: Multiple sources not supported");
+			return nfs_invalf(fc, "NFS: Multiple sources analt supported");
 		fc->source = param->string;
 		param->string = NULL;
 		break;
 
 		/*
-		 * boolean options:  foo/nofoo
+		 * boolean options:  foo/analfoo
 		 */
 	case Opt_soft:
 		ctx->flags |= NFS_MOUNT_SOFT;
@@ -582,9 +582,9 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		break;
 	case Opt_cto:
 		if (result.negated)
-			ctx->flags |= NFS_MOUNT_NOCTO;
+			ctx->flags |= NFS_MOUNT_ANALCTO;
 		else
-			ctx->flags &= ~NFS_MOUNT_NOCTO;
+			ctx->flags &= ~NFS_MOUNT_ANALCTO;
 		break;
 	case Opt_trunkdiscovery:
 		if (result.negated)
@@ -594,16 +594,16 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		break;
 	case Opt_ac:
 		if (result.negated)
-			ctx->flags |= NFS_MOUNT_NOAC;
+			ctx->flags |= NFS_MOUNT_ANALAC;
 		else
-			ctx->flags &= ~NFS_MOUNT_NOAC;
+			ctx->flags &= ~NFS_MOUNT_ANALAC;
 		break;
 	case Opt_lock:
 		if (result.negated) {
-			ctx->flags |= NFS_MOUNT_NONLM;
+			ctx->flags |= NFS_MOUNT_ANALNLM;
 			ctx->flags |= (NFS_MOUNT_LOCAL_FLOCK | NFS_MOUNT_LOCAL_FCNTL);
 		} else {
-			ctx->flags &= ~NFS_MOUNT_NONLM;
+			ctx->flags &= ~NFS_MOUNT_ANALNLM;
 			ctx->flags &= ~(NFS_MOUNT_LOCAL_FLOCK | NFS_MOUNT_LOCAL_FCNTL);
 		}
 		break;
@@ -621,15 +621,15 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		break;
 	case Opt_acl:
 		if (result.negated)
-			ctx->flags |= NFS_MOUNT_NOACL;
+			ctx->flags |= NFS_MOUNT_ANALACL;
 		else
-			ctx->flags &= ~NFS_MOUNT_NOACL;
+			ctx->flags &= ~NFS_MOUNT_ANALACL;
 		break;
 	case Opt_rdirplus:
 		if (result.negated)
-			ctx->flags |= NFS_MOUNT_NORDIRPLUS;
+			ctx->flags |= NFS_MOUNT_ANALRDIRPLUS;
 		else
-			ctx->flags &= ~NFS_MOUNT_NORDIRPLUS;
+			ctx->flags &= ~NFS_MOUNT_ANALRDIRPLUS;
 		break;
 	case Opt_sharecache:
 		if (result.negated)
@@ -639,9 +639,9 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		break;
 	case Opt_resvport:
 		if (result.negated)
-			ctx->flags |= NFS_MOUNT_NORESVPORT;
+			ctx->flags |= NFS_MOUNT_ANALRESVPORT;
 		else
-			ctx->flags &= ~NFS_MOUNT_NORESVPORT;
+			ctx->flags &= ~NFS_MOUNT_ANALRESVPORT;
 		break;
 	case Opt_fscache_flag:
 		if (result.negated)
@@ -723,10 +723,10 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 			goto out_of_bounds;
 		ctx->mount_server.version = result.uint_32;
 		break;
-	case Opt_minorversion:
-		if (result.uint_32 > NFS4_MAX_MINOR_VERSION)
+	case Opt_mianalrversion:
+		if (result.uint_32 > NFS4_MAX_MIANALR_VERSION)
 			goto out_of_bounds;
-		ctx->minorversion = result.uint_32;
+		ctx->mianalrversion = result.uint_32;
 		break;
 
 		/*
@@ -812,7 +812,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		case Opt_xprt_tcp:
 			ctx->mount_server.protocol = XPRT_TRANSPORT_TCP;
 			break;
-		case Opt_xprt_rdma: /* not used for side protocols */
+		case Opt_xprt_rdma: /* analt used for side protocols */
 		default:
 			goto out_bad_transport;
 		}
@@ -865,14 +865,14 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		trace_nfs_mount_assign(param->key, param->string);
 		switch (result.uint_32) {
 		case Opt_lookupcache_all:
-			ctx->flags &= ~(NFS_MOUNT_LOOKUP_CACHE_NONEG|NFS_MOUNT_LOOKUP_CACHE_NONE);
+			ctx->flags &= ~(NFS_MOUNT_LOOKUP_CACHE_ANALNEG|NFS_MOUNT_LOOKUP_CACHE_ANALNE);
 			break;
 		case Opt_lookupcache_positive:
-			ctx->flags &= ~NFS_MOUNT_LOOKUP_CACHE_NONE;
-			ctx->flags |= NFS_MOUNT_LOOKUP_CACHE_NONEG;
+			ctx->flags &= ~NFS_MOUNT_LOOKUP_CACHE_ANALNE;
+			ctx->flags |= NFS_MOUNT_LOOKUP_CACHE_ANALNEG;
 			break;
-		case Opt_lookupcache_none:
-			ctx->flags |= NFS_MOUNT_LOOKUP_CACHE_NONEG|NFS_MOUNT_LOOKUP_CACHE_NONE;
+		case Opt_lookupcache_analne:
+			ctx->flags |= NFS_MOUNT_LOOKUP_CACHE_ANALNEG|NFS_MOUNT_LOOKUP_CACHE_ANALNE;
 			break;
 		default:
 			goto out_invalid_value;
@@ -891,7 +891,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		case Opt_local_lock_posix:
 			ctx->flags |= NFS_MOUNT_LOCAL_FCNTL;
 			break;
-		case Opt_local_lock_none:
+		case Opt_local_lock_analne:
 			ctx->flags &= ~(NFS_MOUNT_LOCAL_FLOCK |
 					NFS_MOUNT_LOCAL_FCNTL);
 			break;
@@ -946,7 +946,7 @@ out_bad_transport:
  * and the export path.  If the hostname starts with a left square
  * bracket, then it may contain colons.
  *
- * Note: caller frees hostname and export path, even on error.
+ * Analte: caller frees hostname and export path, even on error.
  */
 static int nfs_parse_source(struct fs_context *fc,
 			    size_t maxnamlen, size_t maxpathlen)
@@ -975,7 +975,7 @@ static int nfs_parse_source(struct fs_context *fc,
 			goto out_bad_devname;
 		len = end - dev_name;
 
-		/* kill possible hostname list: not supported */
+		/* kill possible hostname list: analt supported */
 		comma = memchr(dev_name, ',', len);
 		if (comma)
 			len = comma - dev_name;
@@ -989,22 +989,22 @@ static int nfs_parse_source(struct fs_context *fc,
 	/* N.B. caller will free nfs_server.hostname in all cases */
 	ctx->nfs_server.hostname = kmemdup_nul(dev_name, len, GFP_KERNEL);
 	if (!ctx->nfs_server.hostname)
-		goto out_nomem;
+		goto out_analmem;
 	len = strlen(++end);
 	if (len > maxpathlen)
 		goto out_path;
 	ctx->nfs_server.export_path = kmemdup_nul(end, len, GFP_KERNEL);
 	if (!ctx->nfs_server.export_path)
-		goto out_nomem;
+		goto out_analmem;
 
 	trace_nfs_mount_path(ctx->nfs_server.export_path);
 	return 0;
 
 out_bad_devname:
-	return nfs_invalf(fc, "NFS: device name not in host:path format");
-out_nomem:
-	nfs_errorf(fc, "NFS: not enough memory to parse device name");
-	return -ENOMEM;
+	return nfs_invalf(fc, "NFS: device name analt in host:path format");
+out_analmem:
+	nfs_errorf(fc, "NFS: analt eanalugh memory to parse device name");
+	return -EANALMEM;
 out_hostname:
 	nfs_errorf(fc, "NFS: server hostname too long");
 	return -ENAMETOOLONG;
@@ -1019,7 +1019,7 @@ static inline bool is_remount_fc(struct fs_context *fc)
 }
 
 /*
- * Parse monolithic NFS2/NFS3 mount data
+ * Parse moanallithic NFS2/NFS3 mount data
  * - fills in the mount root filehandle
  *
  * For option strings, user space handles the following behaviors:
@@ -1034,7 +1034,7 @@ static inline bool is_remount_fc(struct fs_context *fc)
  * + breaking back: trying proto=udp after proto=tcp, v2 after v3,
  *   mountproto=tcp after mountproto=udp, and so on
  */
-static int nfs23_parse_monolithic(struct fs_context *fc,
+static int nfs23_parse_moanallithic(struct fs_context *fc,
 				  struct nfs_mount_data *data)
 {
 	struct nfs_fs_context *ctx = nfs_fc2context(fc);
@@ -1044,7 +1044,7 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 	int ret;
 
 	if (data == NULL)
-		goto out_no_data;
+		goto out_anal_data;
 
 	ctx->version = NFS_DEFAULT_VERSION;
 	switch (data->version) {
@@ -1056,7 +1056,7 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 		fallthrough;
 	case 3:
 		if (data->flags & NFS_MOUNT_VER3)
-			goto out_no_v3;
+			goto out_anal_v3;
 		data->root.size = NFS2_FHSIZE;
 		memcpy(data->root.data, data->old_root.data, NFS2_FHSIZE);
 		/* Turn off security negotiation */
@@ -1064,7 +1064,7 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 		fallthrough;
 	case 4:
 		if (data->flags & NFS_MOUNT_SECFLAVOUR)
-			goto out_no_sec;
+			goto out_anal_sec;
 		fallthrough;
 	case 5:
 		memset(data->context, 0, sizeof(data->context));
@@ -1116,14 +1116,14 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 		ctx->nfs_server.port = ntohs(data->addr.sin_port);
 		if (sap->ss_family != AF_INET ||
 		    !nfs_verify_server_address(sap))
-			goto out_no_address;
+			goto out_anal_address;
 
 		if (!(data->flags & NFS_MOUNT_TCP))
 			ctx->nfs_server.protocol = XPRT_TRANSPORT_UDP;
 		/* N.B. caller will free nfs_server.hostname in all cases */
 		ctx->nfs_server.hostname = kstrdup(data->hostname, GFP_KERNEL);
 		if (!ctx->nfs_server.hostname)
-			goto out_nomem;
+			goto out_analmem;
 
 		ctx->namlen		= data->namlen;
 		ctx->bsize		= data->bsize;
@@ -1133,7 +1133,7 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 		else
 			ctx->selected_flavor = RPC_AUTH_UNIX;
 
-		if (!(data->flags & NFS_MOUNT_NONLM))
+		if (!(data->flags & NFS_MOUNT_ANALNLM))
 			ctx->flags &= ~(NFS_MOUNT_LOCAL_FLOCK|
 					 NFS_MOUNT_LOCAL_FCNTL);
 		else
@@ -1144,7 +1144,7 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 		 * The legacy version 6 binary mount data from userspace has a
 		 * field used only to transport selinux information into the
 		 * kernel.  To continue to support that functionality we
-		 * have a touch of selinux knowledge here in the NFS code. The
+		 * have a touch of selinux kanalwledge here in the NFS code. The
 		 * userspace code converted context=blah to just blah so we are
 		 * converting back to the full string selinux understands.
 		 */
@@ -1175,25 +1175,25 @@ static int nfs23_parse_monolithic(struct fs_context *fc,
 	return 0;
 
 generic:
-	return generic_parse_monolithic(fc, data);
+	return generic_parse_moanallithic(fc, data);
 
-out_no_data:
+out_anal_data:
 	if (is_remount_fc(fc)) {
 		ctx->skip_reconfig_option_check = true;
 		return 0;
 	}
 	return nfs_invalf(fc, "NFS: mount program didn't pass any mount data");
 
-out_no_v3:
-	return nfs_invalf(fc, "NFS: nfs_mount_data version does not support v3");
+out_anal_v3:
+	return nfs_invalf(fc, "NFS: nfs_mount_data version does analt support v3");
 
-out_no_sec:
+out_anal_sec:
 	return nfs_invalf(fc, "NFS: nfs_mount_data version supports only AUTH_SYS");
 
-out_nomem:
-	return -ENOMEM;
+out_analmem:
+	return -EANALMEM;
 
-out_no_address:
+out_anal_address:
 	return nfs_invalf(fc, "NFS: mount program didn't pass remote address");
 
 out_invalid_fh:
@@ -1266,7 +1266,7 @@ static void nfs4_compat_mount_data_conv(struct nfs4_mount_data *data)
 /*
  * Validate NFSv4 mount options
  */
-static int nfs4_parse_monolithic(struct fs_context *fc,
+static int nfs4_parse_moanallithic(struct fs_context *fc,
 				 struct nfs4_mount_data *data)
 {
 	struct nfs_fs_context *ctx = nfs_fc2context(fc);
@@ -1284,20 +1284,20 @@ static int nfs4_parse_monolithic(struct fs_context *fc,
 	ctx->version = 4;
 
 	if (data->version != 1)
-		return generic_parse_monolithic(fc, data);
+		return generic_parse_moanallithic(fc, data);
 
 	if (in_compat_syscall())
 		nfs4_compat_mount_data_conv(data);
 
 	if (data->host_addrlen > sizeof(ctx->nfs_server.address))
-		goto out_no_address;
+		goto out_anal_address;
 	if (data->host_addrlen == 0)
-		goto out_no_address;
+		goto out_anal_address;
 	ctx->nfs_server.addrlen = data->host_addrlen;
 	if (copy_from_user(sap, data->host_addr, data->host_addrlen))
 		return -EFAULT;
 	if (!nfs_verify_server_address(sap))
-		goto out_no_address;
+		goto out_anal_address;
 	ctx->nfs_server.port = ntohs(((struct sockaddr_in *)sap)->sin_port);
 
 	if (data->auth_flavourlen) {
@@ -1355,26 +1355,26 @@ out_inval_auth:
 	return nfs_invalf(fc, "NFS4: Invalid number of RPC auth flavours %d",
 		      data->auth_flavourlen);
 
-out_no_address:
+out_anal_address:
 	return nfs_invalf(fc, "NFS4: mount program didn't pass remote address");
 }
 #endif
 
 /*
- * Parse a monolithic block of data from sys_mount().
+ * Parse a moanallithic block of data from sys_mount().
  */
-static int nfs_fs_context_parse_monolithic(struct fs_context *fc,
+static int nfs_fs_context_parse_moanallithic(struct fs_context *fc,
 					   void *data)
 {
 	if (fc->fs_type == &nfs_fs_type)
-		return nfs23_parse_monolithic(fc, data);
+		return nfs23_parse_moanallithic(fc, data);
 
 #if IS_ENABLED(CONFIG_NFS_V4)
 	if (fc->fs_type == &nfs4_fs_type)
-		return nfs4_parse_monolithic(fc, data);
+		return nfs4_parse_moanallithic(fc, data);
 #endif
 
-	return nfs_invalf(fc, "NFS: Unsupported monolithic data version");
+	return nfs_invalf(fc, "NFS: Unsupported moanallithic data version");
 }
 
 /*
@@ -1391,14 +1391,14 @@ static int nfs_fs_context_validate(struct fs_context *fc)
 	int ret;
 
 	if (!fc->source)
-		goto out_no_device_name;
+		goto out_anal_device_name;
 
 	/* Check for sanity first. */
-	if (ctx->minorversion && ctx->version != 4)
-		goto out_minorversion_mismatch;
+	if (ctx->mianalrversion && ctx->version != 4)
+		goto out_mianalrversion_mismatch;
 
 	if (ctx->options & NFS_OPTION_MIGRATION &&
-	    (ctx->version != 4 || ctx->minorversion != 0))
+	    (ctx->version != 4 || ctx->mianalrversion != 0))
 		goto out_migration_misuse;
 
 	/* Verify that any proto=/mountproto= options match the address
@@ -1419,7 +1419,7 @@ static int nfs_fs_context_validate(struct fs_context *fc)
 	}
 
 	if (!nfs_verify_server_address(sap))
-		goto out_no_address;
+		goto out_anal_address;
 
 	ret = nfs_validate_transport_protocol(fc, ctx);
 	if (ret)
@@ -1433,11 +1433,11 @@ static int nfs_fs_context_validate(struct fs_context *fc)
 				port = NFS_PORT;
 			max_namelen = NFS4_MAXNAMLEN;
 			max_pathlen = NFS4_MAXPATHLEN;
-			ctx->flags &= ~(NFS_MOUNT_NONLM | NFS_MOUNT_NOACL |
+			ctx->flags &= ~(NFS_MOUNT_ANALNLM | NFS_MOUNT_ANALACL |
 					NFS_MOUNT_VER3 | NFS_MOUNT_LOCAL_FLOCK |
 					NFS_MOUNT_LOCAL_FCNTL);
 		} else {
-			goto out_v4_not_compiled;
+			goto out_v4_analt_compiled;
 		}
 	} else {
 		nfs_set_mount_transport_protocol(ctx);
@@ -1469,22 +1469,22 @@ static int nfs_fs_context_validate(struct fs_context *fc)
 	}
 	return 0;
 
-out_no_device_name:
-	return nfs_invalf(fc, "NFS: Device name not specified");
-out_v4_not_compiled:
-	nfs_errorf(fc, "NFS: NFSv4 is not compiled into kernel");
-	return -EPROTONOSUPPORT;
-out_no_address:
+out_anal_device_name:
+	return nfs_invalf(fc, "NFS: Device name analt specified");
+out_v4_analt_compiled:
+	nfs_errorf(fc, "NFS: NFSv4 is analt compiled into kernel");
+	return -EPROTOANALSUPPORT;
+out_anal_address:
 	return nfs_invalf(fc, "NFS: mount program didn't pass remote address");
 out_mountproto_mismatch:
-	return nfs_invalf(fc, "NFS: Mount server address does not match mountproto= option");
+	return nfs_invalf(fc, "NFS: Mount server address does analt match mountproto= option");
 out_proto_mismatch:
-	return nfs_invalf(fc, "NFS: Server address does not match proto= option");
-out_minorversion_mismatch:
-	return nfs_invalf(fc, "NFS: Mount option vers=%u does not support minorversion=%u",
-			  ctx->version, ctx->minorversion);
+	return nfs_invalf(fc, "NFS: Server address does analt match proto= option");
+out_mianalrversion_mismatch:
+	return nfs_invalf(fc, "NFS: Mount option vers=%u does analt support mianalrversion=%u",
+			  ctx->version, ctx->mianalrversion);
 out_migration_misuse:
-	return nfs_invalf(fc, "NFS: 'Migration' not supported for this NFS version");
+	return nfs_invalf(fc, "NFS: 'Migration' analt supported for this NFS version");
 out_version_unavailable:
 	nfs_errorf(fc, "NFS: Version unavailable");
 	return ret;
@@ -1518,12 +1518,12 @@ static int nfs_fs_context_dup(struct fs_context *fc, struct fs_context *src_fc)
 
 	ctx = kmemdup(src, sizeof(struct nfs_fs_context), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->mntfh = nfs_alloc_fhandle();
 	if (!ctx->mntfh) {
 		kfree(ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	nfs_copy_fh(ctx->mntfh, src->mntfh);
 
@@ -1562,7 +1562,7 @@ static const struct fs_context_operations nfs_fs_context_ops = {
 	.free			= nfs_fs_context_free,
 	.dup			= nfs_fs_context_dup,
 	.parse_param		= nfs_fs_context_parse_param,
-	.parse_monolithic	= nfs_fs_context_parse_monolithic,
+	.parse_moanallithic	= nfs_fs_context_parse_moanallithic,
 	.get_tree		= nfs_get_tree,
 	.reconfigure		= nfs_reconfigure,
 };
@@ -1578,12 +1578,12 @@ static int nfs_init_fs_context(struct fs_context *fc)
 
 	ctx = kzalloc(sizeof(struct nfs_fs_context), GFP_KERNEL);
 	if (unlikely(!ctx))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->mntfh = nfs_alloc_fhandle();
 	if (unlikely(!ctx->mntfh)) {
 		kfree(ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ctx->protofamily	= AF_UNSPEC;
@@ -1608,7 +1608,7 @@ static int nfs_init_fs_context(struct fs_context *fc)
 		ctx->nfs_server.port	= nfss->port;
 		ctx->nfs_server.addrlen	= nfss->nfs_client->cl_addrlen;
 		ctx->version		= nfss->nfs_client->rpc_ops->version;
-		ctx->minorversion	= nfss->nfs_client->cl_minorversion;
+		ctx->mianalrversion	= nfss->nfs_client->cl_mianalrversion;
 
 		memcpy(&ctx->nfs_server._address, &nfss->nfs_client->cl_addr,
 			ctx->nfs_server.addrlen);
@@ -1631,11 +1631,11 @@ static int nfs_init_fs_context(struct fs_context *fc)
 		ctx->nfs_server.port	= NFS_UNSPEC_PORT;
 		ctx->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 		ctx->selected_flavor	= RPC_AUTH_MAXFLAVOR;
-		ctx->minorversion	= 0;
+		ctx->mianalrversion	= 0;
 		ctx->need_mount		= true;
-		ctx->xprtsec.policy	= RPC_XPRTSEC_NONE;
-		ctx->xprtsec.cert_serial	= TLS_NO_CERT;
-		ctx->xprtsec.privkey_serial	= TLS_NO_PRIVKEY;
+		ctx->xprtsec.policy	= RPC_XPRTSEC_ANALNE;
+		ctx->xprtsec.cert_serial	= TLS_ANAL_CERT;
+		ctx->xprtsec.privkey_serial	= TLS_ANAL_PRIVKEY;
 
 		fc->s_iflags		|= SB_I_STABLE_WRITES;
 	}

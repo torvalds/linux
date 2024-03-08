@@ -14,7 +14,7 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 
 #include <linux/uaccess.h>
@@ -45,7 +45,7 @@ static int reboot_count = NUM_PRESSES_REBOOT; /* Number of presses to reboot */
  * to be performed by the kernel on different numbers of button presses ;).
  * However, if an attempt to register a 33rd entry (perhaps a stuck loop
  * somewhere registering the same entry over and over?) it will fail to
- * do so and return -ENOMEM. If an attempt is made to register a null pointer,
+ * do so and return -EANALMEM. If an attempt is made to register a null pointer,
  * it will fail to do so and return -EINVAL.
  * Because callbacks can be unregistered at random the list can become
  * fragmented, so we need to search through the list until we find the first
@@ -58,7 +58,7 @@ int button_add_callback (void (*callback) (void), int count)
 {
 	int lp = 0;
 	if (callback_count == 32) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (!callback) {
 		return -EINVAL;
@@ -72,12 +72,12 @@ int button_add_callback (void (*callback) (void), int count)
 
 /*
  * This function is called by other drivers to deregister a callback function.
- * If you attempt to unregister a callback which does not exist, it will fail
+ * If you attempt to unregister a callback which does analt exist, it will fail
  * with -EINVAL. If there is more than one entry with the same address,
  * because it searches the list from end to beginning, it will unregister the
  * last one to be registered first (FILO- First In Last Out).
- * Note that this is not necessarily true if the entries are not submitted
- * at the same time, because another driver could have unregistered a callback
+ * Analte that this is analt necessarily true if the entries are analt submitted
+ * at the same time, because aanalther driver could have unregistered a callback
  * between the submissions creating a gap earlier in the list, which would
  * be filled first at submission time.
  */
@@ -185,17 +185,17 @@ static int button_read (struct file *filp, char __user *buffer,
 static const struct file_operations button_fops = {
 	.owner		= THIS_MODULE,
 	.read		= button_read,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 /* 
- * This structure is the misc device structure, which specifies the minor
+ * This structure is the misc device structure, which specifies the mianalr
  * device number (158 in this case), the name of the device (for /proc/misc),
  * and the address of the above file operations structure.
  */
 
 static struct miscdevice button_misc_device = {
-	BUTTON_MINOR,
+	BUTTON_MIANALR,
 	"nwbutton",
 	&button_fops,
 };
@@ -203,7 +203,7 @@ static struct miscdevice button_misc_device = {
 /*
  * This function is called to initialise the driver, either from misc.c at
  * bootup if the driver is compiled into the kernel, or from init_module
- * below at module insert time. It attempts to register the device node
+ * below at module insert time. It attempts to register the device analde
  * and the IRQ and fails with a warning message if either fails, though
  * neither ever should because the device number and IRQ are unique to
  * this driver.
@@ -212,20 +212,20 @@ static struct miscdevice button_misc_device = {
 static int __init nwbutton_init(void)
 {
 	if (!machine_is_netwinder())
-		return -ENODEV;
+		return -EANALDEV;
 
 	printk (KERN_INFO "NetWinder Button Driver Version %s (C) Alex Holden "
 			"<alex@linuxhacker.org> 1998.\n", VERSION);
 
 	if (misc_register (&button_misc_device)) {
 		printk (KERN_WARNING "nwbutton: Couldn't register device 10, "
-				"%d.\n", BUTTON_MINOR);
+				"%d.\n", BUTTON_MIANALR);
 		return -EBUSY;
 	}
 
 	if (request_irq (IRQ_NETWINDER_BUTTON, button_handler, 0,
 			"nwbutton", NULL)) {
-		printk (KERN_WARNING "nwbutton: IRQ %d is not free.\n",
+		printk (KERN_WARNING "nwbutton: IRQ %d is analt free.\n",
 				IRQ_NETWINDER_BUTTON);
 		misc_deregister (&button_misc_device);
 		return -EIO;

@@ -11,10 +11,10 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/timer.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
 #include <linux/device.h>
@@ -231,10 +231,10 @@ static int mv_u3d_queue_trb(struct mv_u3d_ep *ep, struct mv_u3d_req *req)
 	else
 		ep_context = &(u3d->ep_context[ep->ep_num * 2 + direction]);
 
-	/* check if the pipe is empty or not */
+	/* check if the pipe is empty or analt */
 	if (!list_empty(&ep->queue)) {
-		dev_err(u3d->dev, "add trb to non-empty queue!\n");
-		retval = -ENOMEM;
+		dev_err(u3d->dev, "add trb to analn-empty queue!\n");
+		retval = -EANALMEM;
 		WARN_ON(1);
 	} else {
 		ep_context->rsvd0 = cpu_to_le32(1);
@@ -284,9 +284,9 @@ static struct mv_u3d_trb *mv_u3d_build_trb_one(struct mv_u3d_req *req,
 		return NULL;
 
 	/*
-	 * Be careful that no _GFP_HIGHMEM is set,
-	 * or we can not use dma_to_virt
-	 * cannot use GFP_KERNEL in spin lock
+	 * Be careful that anal _GFP_HIGHMEM is set,
+	 * or we can analt use dma_to_virt
+	 * cananalt use GFP_KERNEL in spin lock
 	 */
 	trb_hw = dma_pool_alloc(u3d->trb_pool, GFP_ATOMIC, dma);
 	if (!trb_hw) {
@@ -309,7 +309,7 @@ static struct mv_u3d_trb *mv_u3d_build_trb_one(struct mv_u3d_req *req,
 	if (req->ep->ep_num == 0)
 		trb_hw->ctrl.type = TYPE_DATA;
 	else
-		trb_hw->ctrl.type = TYPE_NORMAL;
+		trb_hw->ctrl.type = TYPE_ANALRMAL;
 
 	req->req.actual += *length;
 
@@ -320,7 +320,7 @@ static struct mv_u3d_trb *mv_u3d_build_trb_one(struct mv_u3d_req *req,
 		trb_hw->ctrl.dir = 0;
 
 	/* Enable interrupt for the last trb of a request */
-	if (!req->req.no_interrupt)
+	if (!req->req.anal_interrupt)
 		trb_hw->ctrl.ioc = 1;
 
 	trb_hw->ctrl.chain = 0;
@@ -355,7 +355,7 @@ static int mv_u3d_build_trb_chain(struct mv_u3d_req *req, unsigned *length,
 	if (req->ep->ep_num == 0)
 		trb->trb_hw->ctrl.type = TYPE_DATA;
 	else
-		trb->trb_hw->ctrl.type = TYPE_NORMAL;
+		trb->trb_hw->ctrl.type = TYPE_ANALRMAL;
 
 	req->req.actual += *length;
 
@@ -377,7 +377,7 @@ static int mv_u3d_build_trb_chain(struct mv_u3d_req *req, unsigned *length,
 		*is_last = 0;
 
 	/* Enable interrupt for the last trb of a request */
-	if (*is_last && !req->req.no_interrupt)
+	if (*is_last && !req->req.anal_interrupt)
 		trb->trb_hw->ctrl.ioc = 1;
 
 	if (*is_last)
@@ -393,8 +393,8 @@ static int mv_u3d_build_trb_chain(struct mv_u3d_req *req, unsigned *length,
 }
 
 /* generate TRB linked list for a request
- * usb controller only supports continous trb chain,
- * that trb structure physical address should be continous.
+ * usb controller only supports contianalus trb chain,
+ * that trb structure physical address should be contianalus.
  */
 static int mv_u3d_req_to_trb(struct mv_u3d_req *req)
 {
@@ -412,7 +412,7 @@ static int mv_u3d_req_to_trb(struct mv_u3d_req *req)
 	INIT_LIST_HEAD(&req->trb_list);
 
 	length = req->req.length - req->req.actual;
-	/* normally the request transfer length is less than 16KB.
+	/* analrmally the request transfer length is less than 16KB.
 	 * we use buil_trb_one() to optimize it.
 	 */
 	if (length <= (unsigned)MV_U3D_EP_MAX_LENGTH_TRANSFER) {
@@ -428,12 +428,12 @@ static int mv_u3d_req_to_trb(struct mv_u3d_req *req)
 
 		trb = kcalloc(trb_num, sizeof(*trb), GFP_ATOMIC);
 		if (!trb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		trb_hw = kcalloc(trb_num, sizeof(*trb_hw), GFP_ATOMIC);
 		if (!trb_hw) {
 			kfree(trb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		do {
@@ -532,7 +532,7 @@ static int mv_u3d_ep_enable(struct usb_ep *_ep,
 	ep = container_of(_ep, struct mv_u3d_ep, ep);
 	u3d = ep->u3d;
 
-	if (!u3d->driver || u3d->gadget.speed == USB_SPEED_UNKNOWN)
+	if (!u3d->driver || u3d->gadget.speed == USB_SPEED_UNKANALWN)
 		return -ESHUTDOWN;
 
 	direction = mv_u3d_ep_dir(ep);
@@ -547,7 +547,7 @@ static int mv_u3d_ep_enable(struct usb_ep *_ep,
 	case USB_ENDPOINT_XFER_BULK:
 		if (maxburst > 16) {
 			dev_dbg(u3d->dev,
-				"max burst should not be greater "
+				"max burst should analt be greater "
 				"than 16 on bulk ep\n");
 			maxburst = 1;
 			_ep->maxburst = maxburst;
@@ -564,7 +564,7 @@ static int mv_u3d_ep_enable(struct usb_ep *_ep,
 		if (maxburst != 1) {
 			dev_dbg(u3d->dev,
 				"max burst should be 1 on int ep "
-				"if transfer size is not 1024\n");
+				"if transfer size is analt 1024\n");
 			maxburst = 1;
 			_ep->maxburst = maxburst;
 		}
@@ -573,7 +573,7 @@ static int mv_u3d_ep_enable(struct usb_ep *_ep,
 		if (maxburst != 1) {
 			dev_dbg(u3d->dev,
 				"max burst should be 1 on isoc ep "
-				"if transfer size is not 1024\n");
+				"if transfer size is analt 1024\n");
 			maxburst = 1;
 			_ep->maxburst = maxburst;
 		}
@@ -691,7 +691,7 @@ static void mv_u3d_ep_fifo_flush(struct usb_ep *_ep)
 	unsigned int loops;
 	u32 tmp;
 
-	/* if endpoint is not enabled, cannot flush endpoint */
+	/* if endpoint is analt enabled, cananalt flush endpoint */
 	if (!ep->enabled)
 		return;
 
@@ -815,7 +815,7 @@ mv_u3d_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 			return -EMSGSIZE;
 	}
 
-	if (!u3d->driver || u3d->gadget.speed == USB_SPEED_UNKNOWN) {
+	if (!u3d->driver || u3d->gadget.speed == USB_SPEED_UNKANALWN) {
 		dev_err(u3d->dev,
 			"bad params of driver/speed\n");
 		return -ESHUTDOWN;
@@ -829,7 +829,7 @@ mv_u3d_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	list_add_tail(&req->list, &ep->req_list);
 	spin_unlock_irqrestore(&ep->req_lock, flags);
 	if (!is_first_req) {
-		dev_dbg(u3d->dev, "list is not empty\n");
+		dev_dbg(u3d->dev, "list is analt empty\n");
 		return 0;
 	}
 
@@ -872,7 +872,7 @@ static int mv_u3d_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		goto out;
 	}
 
-	/* The request is in progress, or completed but not dequeued */
+	/* The request is in progress, or completed but analt dequeued */
 	if (ep->queue.next == &req->queue) {
 		_req->status = -ECONNRESET;
 		mv_u3d_ep_fifo_flush(_ep);
@@ -955,7 +955,7 @@ static int mv_u3d_ep_set_halt_wedge(struct usb_ep *_ep, int halt, int wedge)
 	}
 
 	if (ep->ep.desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
-		status = -EOPNOTSUPP;
+		status = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -1146,7 +1146,7 @@ static int mv_u3d_vbus_session(struct usb_gadget *gadget, int is_active)
 	/*
 	 * 1. external VBUS detect: we can disable/enable clock on demand.
 	 * 2. UDC VBUS detect: we have to enable clock all the time.
-	 * 3. No VBUS detect: we have to enable clock all the time.
+	 * 3. Anal VBUS detect: we have to enable clock all the time.
 	 */
 	if (u3d->driver && u3d->softconnect && u3d->vbus_active) {
 		retval = mv_u3d_enable(u3d);
@@ -1179,7 +1179,7 @@ out:
  * reporting how much power the device may consume.  For example, this
  * could affect how quickly batteries are recharged.
  *
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erranal.
  */
 static int mv_u3d_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 {
@@ -1270,7 +1270,7 @@ static int mv_u3d_stop(struct usb_gadget *g)
 
 	mv_u3d_controller_stop(u3d);
 	/* stop all usb activities */
-	u3d->gadget.speed = USB_SPEED_UNKNOWN;
+	u3d->gadget.speed = USB_SPEED_UNKANALWN;
 	mv_u3d_stop_activity(u3d, NULL);
 	mv_u3d_disable(u3d);
 
@@ -1287,7 +1287,7 @@ static int mv_u3d_stop(struct usb_gadget *g)
 
 /* device controller usb_gadget_ops structure */
 static const struct usb_gadget_ops mv_u3d_ops = {
-	/* notify controller that VBUS is powered or not */
+	/* analtify controller that VBUS is powered or analt */
 	.vbus_session	= mv_u3d_vbus_session,
 
 	/* constrain controller's VBUS power usage */
@@ -1452,7 +1452,7 @@ static void mv_u3d_irq_process_link_change(struct mv_u3d *u3d)
 		dev_dbg(u3d->dev, "vbus invalid\n");
 		u3d->usb_state = USB_STATE_ATTACHED;
 		u3d->vbus_valid_detect = 1;
-		/* if external vbus detect is not supported,
+		/* if external vbus detect is analt supported,
 		 * we handle it here.
 		 */
 		if (!u3d->vbus) {
@@ -1470,7 +1470,7 @@ static void mv_u3d_ch9setaddress(struct mv_u3d *u3d,
 
 	if (u3d->usb_state != USB_STATE_DEFAULT) {
 		dev_err(u3d->dev,
-			"%s, cannot setaddr in this state (%d)\n",
+			"%s, cananalt setaddr in this state (%d)\n",
 			__func__, u3d->usb_state);
 		goto err;
 	}
@@ -1562,7 +1562,7 @@ static void mv_u3d_handle_setup_packet(struct mv_u3d *u3d, u8 ep_num,
 			}
 			spin_lock(&u3d->lock);
 		} else {
-			/* no DATA phase, STATUS phase from gadget */
+			/* anal DATA phase, STATUS phase from gadget */
 			u3d->ep0_dir = MV_U3D_EP_DIR_IN;
 			u3d->ep0_state = MV_U3D_STATUS_STAGE;
 			spin_unlock(&u3d->lock);
@@ -1688,7 +1688,7 @@ static irqreturn_t mv_u3d_irq(int irq, void *dev)
 	if (status == 0) {
 		spin_unlock(&u3d->lock);
 		dev_err(u3d->dev, "irq error!\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (status & MV_U3D_USBINT_VBUS_VALID) {
@@ -1701,7 +1701,7 @@ static irqreturn_t mv_u3d_irq(int irq, void *dev)
 
 			u3d->usb_state = USB_STATE_POWERED;
 			u3d->vbus_valid_detect = 0;
-			/* if external vbus detect is not supported,
+			/* if external vbus detect is analt supported,
 			 * we handle it here.
 			 */
 			if (!u3d->vbus) {
@@ -1710,7 +1710,7 @@ static irqreturn_t mv_u3d_irq(int irq, void *dev)
 				spin_lock(&u3d->lock);
 			}
 		} else
-			dev_err(u3d->dev, "vbus bit is not set\n");
+			dev_err(u3d->dev, "vbus bit is analt set\n");
 	}
 
 	/* RX data is already in the 16KB FIFO.*/
@@ -1787,13 +1787,13 @@ static int mv_u3d_probe(struct platform_device *dev)
 
 	if (!dev_get_platdata(&dev->dev)) {
 		dev_err(&dev->dev, "missing platform_data\n");
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto err_pdata;
 	}
 
 	u3d = kzalloc(sizeof(*u3d), GFP_KERNEL);
 	if (!u3d) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_alloc_private;
 	}
 
@@ -1812,8 +1812,8 @@ static int mv_u3d_probe(struct platform_device *dev)
 
 	r = platform_get_resource_byname(dev, IORESOURCE_MEM, "capregs");
 	if (!r) {
-		dev_err(&dev->dev, "no I/O memory resource defined\n");
-		retval = -ENODEV;
+		dev_err(&dev->dev, "anal I/O memory resource defined\n");
+		retval = -EANALDEV;
 		goto err_get_cap_regs;
 	}
 
@@ -1854,7 +1854,7 @@ static int mv_u3d_probe(struct platform_device *dev)
 	u3d->max_eps = 16;
 
 	/*
-	 * some platform will use usb to download image, it may not disconnect
+	 * some platform will use usb to download image, it may analt disconnect
 	 * usb gadget before loading kernel. So first stop u3d here.
 	 */
 	mv_u3d_controller_stop(u3d);
@@ -1871,7 +1871,7 @@ static int mv_u3d_probe(struct platform_device *dev)
 					&u3d->ep_context_dma, GFP_KERNEL);
 	if (!u3d->ep_context) {
 		dev_err(&dev->dev, "allocate ep context memory failed\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_alloc_ep_context;
 	}
 	u3d->ep_context_size = size;
@@ -1884,21 +1884,21 @@ static int mv_u3d_probe(struct platform_device *dev)
 			MV_U3D_DMA_BOUNDARY);
 
 	if (!u3d->trb_pool) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_alloc_trb_pool;
 	}
 
 	size = u3d->max_eps * sizeof(struct mv_u3d_ep) * 2;
 	u3d->eps = kzalloc(size, GFP_KERNEL);
 	if (!u3d->eps) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_alloc_eps;
 	}
 
 	/* initialize ep0 status request structure */
 	u3d->status_req = kzalloc(sizeof(struct mv_u3d_req) + 8, GFP_KERNEL);
 	if (!u3d->status_req) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_alloc_status_req;
 	}
 	INIT_LIST_HEAD(&u3d->status_req->queue);
@@ -1908,15 +1908,15 @@ static int mv_u3d_probe(struct platform_device *dev)
 					+ sizeof(struct mv_u3d_req);
 	u3d->status_req->req.dma = virt_to_phys(u3d->status_req->req.buf);
 
-	u3d->resume_state = USB_STATE_NOTATTACHED;
+	u3d->resume_state = USB_STATE_ANALTATTACHED;
 	u3d->usb_state = USB_STATE_ATTACHED;
 	u3d->ep0_dir = MV_U3D_EP_DIR_OUT;
 	u3d->remote_wakeup = 0;
 
 	r = platform_get_resource(dev, IORESOURCE_IRQ, 0);
 	if (!r) {
-		dev_err(&dev->dev, "no IRQ resource defined\n");
-		retval = -ENODEV;
+		dev_err(&dev->dev, "anal IRQ resource defined\n");
+		retval = -EANALDEV;
 		goto err_get_irq;
 	}
 	u3d->irq = r->start;
@@ -1925,7 +1925,7 @@ static int mv_u3d_probe(struct platform_device *dev)
 	u3d->gadget.ops = &mv_u3d_ops;	/* usb_gadget_ops */
 	u3d->gadget.ep0 = &u3d->eps[1].ep;	/* gadget ep0 */
 	INIT_LIST_HEAD(&u3d->gadget.ep_list);	/* ep_list */
-	u3d->gadget.speed = USB_SPEED_UNKNOWN;	/* speed */
+	u3d->gadget.speed = USB_SPEED_UNKANALWN;	/* speed */
 
 	/* the "gadget" abstracts/virtualizes the controller */
 	u3d->gadget.name = driver_name;		/* gadget name */
@@ -1937,7 +1937,7 @@ static int mv_u3d_probe(struct platform_device *dev)
 		u3d->irq = 0;
 		dev_err(&dev->dev, "Request irq %d for u3d failed\n",
 			u3d->irq);
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto err_request_irq;
 	}
 
@@ -1995,7 +1995,7 @@ static int mv_u3d_suspend(struct device *dev)
 
 	/*
 	 * only cable is unplugged, usb can suspend.
-	 * So do not care about clock_gating == 1, it is handled by
+	 * So do analt care about clock_gating == 1, it is handled by
 	 * vbus session.
 	 */
 	if (!u3d->clock_gating) {

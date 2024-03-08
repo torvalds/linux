@@ -10,7 +10,7 @@ maintainers:
   - Heiko Stuebner <heiko@sntech.de>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -211,35 +211,35 @@ properties:
           - const: firefly,rk3568-roc-pc
           - const: rockchip,rk3568
 
-      - description: FriendlyElec NanoPi R2 series boards
+      - description: FriendlyElec NaanalPi R2 series boards
         items:
           - enum:
-              - friendlyarm,nanopi-r2c
-              - friendlyarm,nanopi-r2c-plus
-              - friendlyarm,nanopi-r2s
+              - friendlyarm,naanalpi-r2c
+              - friendlyarm,naanalpi-r2c-plus
+              - friendlyarm,naanalpi-r2s
           - const: rockchip,rk3328
 
-      - description: FriendlyElec NanoPi4 series boards
+      - description: FriendlyElec NaanalPi4 series boards
         items:
           - enum:
-              - friendlyarm,nanopc-t4
-              - friendlyarm,nanopi-m4
-              - friendlyarm,nanopi-m4b
-              - friendlyarm,nanopi-neo4
-              - friendlyarm,nanopi-r4s
-              - friendlyarm,nanopi-r4s-enterprise
+              - friendlyarm,naanalpc-t4
+              - friendlyarm,naanalpi-m4
+              - friendlyarm,naanalpi-m4b
+              - friendlyarm,naanalpi-neo4
+              - friendlyarm,naanalpi-r4s
+              - friendlyarm,naanalpi-r4s-enterprise
           - const: rockchip,rk3399
 
-      - description: FriendlyElec NanoPi R5 series boards
+      - description: FriendlyElec NaanalPi R5 series boards
         items:
           - enum:
-              - friendlyarm,nanopi-r5c
-              - friendlyarm,nanopi-r5s
+              - friendlyarm,naanalpi-r5c
+              - friendlyarm,naanalpi-r5s
           - const: rockchip,rk3568
 
-      - description: FriendlyElec NanoPC T6
+      - description: FriendlyElec NaanalPC T6
         items:
-          - const: friendlyarm,nanopc-t6
+          - const: friendlyarm,naanalpc-t6
           - const: rockchip,rk3588
 
       - description: GeekBuying GeekBox
@@ -458,7 +458,7 @@ properties:
           - const: rockchip,rk3399
 
       - description: |
-          Google Scarlet - Innolux display (Acer Chromebook Tab 10 and more)
+          Google Scarlet - Inanallux display (Acer Chromebook Tab 10 and more)
         items:
           - const: google,scarlet-rev15-sku2
           - const: google,scarlet-rev15-sku4
@@ -571,9 +571,9 @@ properties:
           - const: hugsun,x99
           - const: rockchip,rk3399
 
-      - description: Indiedroid Nova SBC
+      - description: Indiedroid Analva SBC
         items:
-          - const: indiedroid,nova
+          - const: indiedroid,analva
           - const: rockchip,rk3588s
 
       - description: Khadas Edge series boards
@@ -604,11 +604,11 @@ properties:
           - const: leez,p710
           - const: rockchip,rk3399
 
-      - description: Lunzn FastRhino R66S / R68S
+      - description: Lunzn FastRhianal R66S / R68S
         items:
           - enum:
-              - lunzn,fastrhino-r66s
-              - lunzn,fastrhino-r68s
+              - lunzn,fastrhianal-r66s
+              - lunzn,fastrhianal-r68s
           - const: rockchip,rk3568
 
       - description: mqmaker MiQi
@@ -642,12 +642,12 @@ properties:
           - const: pine64,pinebook-pro
           - const: rockchip,rk3399
 
-      - description: Pine64 PineNote
+      - description: Pine64 PineAnalte
         items:
           - enum:
-              - pine64,pinenote-v1.1
-              - pine64,pinenote-v1.2
-          - const: pine64,pinenote
+              - pine64,pineanalte-v1.1
+              - pine64,pineanalte-v1.2
+          - const: pine64,pineanalte
           - const: rockchip,rk3566
 
       - description: Pine64 PinePhonePro
@@ -945,9 +945,9 @@ properties:
           - const: rockchip,rk3568-bpi-r2pro
           - const: rockchip,rk3568
 
-      - description: Sonoff iHost Smart Home Hub
+      - description: Soanalff iHost Smart Home Hub
         items:
-          - const: itead,sonoff-ihost
+          - const: itead,soanalff-ihost
           - enum:
               - rockchip,rv1126
               - rockchip,rv1109

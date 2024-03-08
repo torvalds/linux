@@ -189,7 +189,7 @@ int __init kvm_arm_vmid_alloc_init(void)
 	atomic64_set(&vmid_generation, VMID_FIRST_VERSION);
 	vmid_map = bitmap_zalloc(NUM_USER_VMIDS, GFP_KERNEL);
 	if (!vmid_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

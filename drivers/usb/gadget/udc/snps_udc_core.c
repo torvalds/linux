@@ -8,12 +8,12 @@
 
 /*
  * This file does the core driver implementation for the UDC that is based
- * on Synopsys device controller IP (different than HS OTG IP) that is either
+ * on Syanalpsys device controller IP (different than HS OTG IP) that is either
  * connected through PCI bus or integrated to SoC platforms.
  */
 
 /* Driver strings */
-#define UDC_MOD_DESCRIPTION		"Synopsys USB Device Controller"
+#define UDC_MOD_DESCRIPTION		"Syanalpsys USB Device Controller"
 #define UDC_DRIVER_VERSION_STRING	"01.00.0206"
 
 #include <linux/module.h>
@@ -23,7 +23,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -61,7 +61,7 @@ static DEFINE_SPINLOCK(udc_stall_spinlock);
 
 /*
 * slave mode: pending bytes in rx fifo after nyet,
-* used if EPIN irq came but no req was available
+* used if EPIN irq came but anal req was available
 */
 static unsigned int udc_rxfifo_pending;
 
@@ -76,14 +76,14 @@ static int stop_timer;
 /* set_rde -- Is used to control enabling of RX DMA. Problem is
  * that UDC has only one bit (RDE) to enable/disable RX DMA for
  * all OUT endpoints. So we have to handle race conditions like
- * when OUT data reaches the fifo but no request was queued yet.
- * This cannot be solved by letting the RX DMA disabled until a
+ * when OUT data reaches the fifo but anal request was queued yet.
+ * This cananalt be solved by letting the RX DMA disabled until a
  * request gets queued because there may be other OUT packets
- * in the FIFO (important for not blocking control traffic).
+ * in the FIFO (important for analt blocking control traffic).
  * The value of set_rde controls the corresponding timer.
  *
- * set_rde -1 == not used, means it is alloed to be set to 0 or 1
- * set_rde  0 == do not touch RDE, do no start the RDE timer
+ * set_rde -1 == analt used, means it is alloed to be set to 0 or 1
+ * set_rde  0 == do analt touch RDE, do anal start the RDE timer
  * set_rde  1 == timer function will look whether FIFO has data
  * set_rde  2 == set by timer function to enable RX DMA on next call
  */
@@ -306,7 +306,7 @@ static u32 cnak_pending;
 static void UDC_QUEUE_CNAK(struct udc_ep *ep, unsigned num)
 {
 	if (readl(&ep->regs->ctl) & AMD_BIT(UDC_EPCTL_NAK)) {
-		DBG(ep->dev, "NAK could not be cleared for ep%d\n", num);
+		DBG(ep->dev, "NAK could analt be cleared for ep%d\n", num);
 		cnak_pending |= 1 << (num);
 		ep->naking = 1;
 	} else
@@ -336,7 +336,7 @@ udc_ep_enable(struct usb_ep *usbep, const struct usb_endpoint_descriptor *desc)
 
 	DBG(dev, "udc_ep_enable() ep %d\n", ep->num);
 
-	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN)
+	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKANALWN)
 		return -ESHUTDOWN;
 
 	spin_lock_irqsave(&dev->lock, iflags);
@@ -567,7 +567,7 @@ static void udc_free_dma_chain(struct udc *dev, struct udc_request *req)
 
 	DBG(dev, "free chain req = %p\n", req);
 
-	/* do not free first desc., will be done by free for request */
+	/* do analt free first desc., will be done by free for request */
 	for (i = 1; i < req->chain_len; i++) {
 		td = phys_to_virt(addr);
 		addr_next = (dma_addr_t)td->next;
@@ -774,7 +774,7 @@ static int udc_create_dma_chain(
 	if (!ep->in)
 		req->td_data->status &= AMD_CLEAR_BIT(UDC_DMA_IN_STS_L);
 
-	/* alloc only new desc's if not already available */
+	/* alloc only new desc's if analt already available */
 	len = req->req.length / ep->ep.maxpacket;
 	if (req->req.length % ep->ep.maxpacket)
 		len++;
@@ -795,7 +795,7 @@ static int udc_create_dma_chain(
 			td = dma_pool_alloc(ep->dev->data_requests,
 					    gfp_flags, &dma_addr);
 			if (!td)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			td->status = 0;
 		} else if (i == buf_len) {
@@ -883,12 +883,12 @@ static int prep_dma(struct udc_ep *ep, struct udc_request *req, gfp_t gfp)
 	/* set last bit */
 	req->td_data->status |= AMD_BIT(UDC_DMA_IN_STS_L);
 
-	/* build/re-init dma chain if maxpkt scatter mode, not for EP0 */
+	/* build/re-init dma chain if maxpkt scatter mode, analt for EP0 */
 	if (use_dma_ppb) {
 
 		retval = udc_create_dma_chain(ep, req, ep->ep.maxpacket, gfp);
 		if (retval != 0) {
-			if (retval == -ENOMEM)
+			if (retval == -EANALMEM)
 				DBG(ep->dev, "Out of DMA memory\n");
 			return retval;
 		}
@@ -1069,7 +1069,7 @@ udc_queue(struct usb_ep *usbep, struct usb_request *usbreq, gfp_t gfp)
 	VDBG(ep->dev, "udc_queue(): ep%d-in=%d\n", ep->num, ep->in);
 	dev = ep->dev;
 
-	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN)
+	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKANALWN)
 		return -ESHUTDOWN;
 
 	/* map dma (usually done before) */
@@ -1100,13 +1100,13 @@ udc_queue(struct usb_ep *usbep, struct usb_request *usbreq, gfp_t gfp)
 			 * if set_config or set_intf is waiting for ack by zlp
 			 * then set CSR_DONE
 			 */
-			if (dev->set_cfg_not_acked) {
+			if (dev->set_cfg_analt_acked) {
 				tmp = readl(&dev->regs->ctl);
 				tmp |= AMD_BIT(UDC_DEVCTL_CSR_DONE);
 				writel(tmp, &dev->regs->ctl);
-				dev->set_cfg_not_acked = 0;
+				dev->set_cfg_analt_acked = 0;
 			}
-			/* setup command is ACK'ed now by zlp */
+			/* setup command is ACK'ed analw by zlp */
 			if (dev->waiting_zlp_ack_ep0in) {
 				/* clear NAK by writing CNAK in EP0_IN */
 				tmp = readl(&dev->ep[UDC_EP0IN_IX].regs->ctl);
@@ -1184,7 +1184,7 @@ udc_queue(struct usb_ep *usbep, struct usb_request *usbreq, gfp_t gfp)
 	} else if (ep->dma) {
 
 		/*
-		 * prep_dma not used for OUT ep's, this is not possible
+		 * prep_dma analt used for OUT ep's, this is analt possible
 		 * for PPB modes, because of chain creation reasons
 		 */
 		if (ep->in) {
@@ -1317,7 +1317,7 @@ udc_set_halt(struct usb_ep *usbep, int halt)
 	ep = container_of(usbep, struct udc_ep, ep);
 	if (!ep->ep.desc && (ep->num != 0 && ep->num != UDC_EP0OUT_IX))
 		return -EINVAL;
-	if (!ep->dev->driver || ep->dev->gadget.speed == USB_SPEED_UNKNOWN)
+	if (!ep->dev->driver || ep->dev->gadget.speed == USB_SPEED_UNKANALWN)
 		return -ESHUTDOWN;
 
 	spin_lock_irqsave(&udc_stall_spinlock, iflags);
@@ -1328,7 +1328,7 @@ udc_set_halt(struct usb_ep *usbep, int halt)
 		else {
 			/*
 			 * set STALL
-			 * rxfifo empty not taken into acount
+			 * rxfifo empty analt taken into acount
 			 */
 			tmp = readl(&ep->regs->ctl);
 			tmp |= AMD_BIT(UDC_EPCTL_S);
@@ -1375,15 +1375,15 @@ static const struct usb_ep_ops udc_ep_ops = {
 	.dequeue	= udc_dequeue,
 
 	.set_halt	= udc_set_halt,
-	/* fifo ops not implemented */
+	/* fifo ops analt implemented */
 };
 
 /*-------------------------------------------------------------------------*/
 
-/* Get frame counter (not implemented) */
+/* Get frame counter (analt implemented) */
 static int udc_get_frame(struct usb_gadget *gadget)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /* Initiates a remote wakeup */
@@ -1458,7 +1458,7 @@ void udc_basic_init(struct udc *dev)
 
 	DBG(dev, "udc_basic_init()\n");
 
-	dev->gadget.speed = USB_SPEED_UNKNOWN;
+	dev->gadget.speed = USB_SPEED_UNKANALWN;
 
 	/* stop RDE timer */
 	if (timer_pending(&udc_timer)) {
@@ -1498,7 +1498,7 @@ static int startup_registers(struct udc *dev)
 	/* init controller by soft reset */
 	udc_soft_reset(dev);
 
-	/* mask not needed interrupts */
+	/* mask analt needed interrupts */
 	udc_mask_unused_interrupts(dev);
 
 	/* put into initial config */
@@ -1555,22 +1555,22 @@ static void udc_setup_endpoints(struct udc *dev)
 		}
 		ep->regs = &dev->ep_regs[tmp];
 		/*
-		 * ep will be reset only if ep was not enabled before to avoid
+		 * ep will be reset only if ep was analt enabled before to avoid
 		 * disabling ep interrupts when ENUM interrupt occurs but ep is
-		 * not enabled by gadget driver
+		 * analt enabled by gadget driver
 		 */
 		if (!ep->ep.desc)
 			ep_init(dev->regs, ep);
 
 		if (use_dma) {
 			/*
-			 * ep->dma is not really used, just to indicate that
+			 * ep->dma is analt really used, just to indicate that
 			 * DMA is active: remove this
 			 * dma regs = dev control regs
 			 */
 			ep->dma = &dev->regs->ctl;
 
-			/* nak OUT endpoints until enable - not for ep0 */
+			/* nak OUT endpoints until enable - analt for ep0 */
 			if (tmp != UDC_EP0IN_IX && tmp != UDC_EP0OUT_IX
 						&& tmp > UDC_EPIN_NUM) {
 				/* set NAK */
@@ -1722,7 +1722,7 @@ static void udc_timer_function(struct timer_list *unused)
 		} else if (readl(&udc->regs->sts)
 				& AMD_BIT(UDC_DEVSTS_RXFIFO_EMPTY)) {
 			/*
-			 * if fifo empty setup polling, do not just
+			 * if fifo empty setup polling, do analt just
 			 * open the fifo
 			 */
 			udc_timer.expires = jiffies + HZ/UDC_RDE_TIMER_DIV;
@@ -1730,7 +1730,7 @@ static void udc_timer_function(struct timer_list *unused)
 				add_timer(&udc_timer);
 		} else {
 			/*
-			 * fifo contains data now, setup timer for opening
+			 * fifo contains data analw, setup timer for opening
 			 * the fifo when timer expires to be able to receive
 			 * setup packets, when data packets gets queued by
 			 * gadget layer then timer will forced to expire with
@@ -1755,7 +1755,7 @@ static void udc_timer_function(struct timer_list *unused)
 static void udc_handle_halt_state(struct udc_ep *ep)
 {
 	u32 tmp;
-	/* set stall as long not halted */
+	/* set stall as long analt halted */
 	if (ep->halted == 1) {
 		tmp = readl(&ep->regs->ctl);
 		/* STALL cleared ? */
@@ -1765,7 +1765,7 @@ static void udc_handle_halt_state(struct udc_ep *ep)
 			 * even on receivng of CLEAR_FEATURE HALT. So
 			 * we would set STALL again here to be compliant.
 			 * But with current mass storage drivers this does
-			 * not work (would produce endless host retries).
+			 * analt work (would produce endless host retries).
 			 * So we clear halt on CLEAR_FEATURE.
 			 *
 			DBG(ep->dev, "ep %d: set STALL again\n", ep->num);
@@ -1936,7 +1936,7 @@ static int amd5536_udc_start(struct usb_gadget *g,
 	dev->driver = driver;
 
 	/* Some gadget drivers use both ep0 directions.
-	 * NOTE: to gadget driver, ep0 is just one endpoint...
+	 * ANALTE: to gadget driver, ep0 is just one endpoint...
 	 */
 	dev->ep[UDC_EP0OUT_IX].ep.driver_data =
 		dev->ep[UDC_EP0IN_IX].ep.driver_data;
@@ -2030,14 +2030,14 @@ static void udc_ep0_set_rde(struct udc *dev)
 {
 	if (use_dma) {
 		/*
-		 * only enable RXDMA when no data endpoint enabled
+		 * only enable RXDMA when anal data endpoint enabled
 		 * or data is queued
 		 */
 		if (!dev->data_ep_enabled || dev->data_ep_queued) {
 			udc_set_rde(dev);
 		} else {
 			/*
-			 * setup timer for enabling RDE (to not enable
+			 * setup timer for enabling RDE (to analt enable
 			 * RXFIFO DMA for data endpoints to early)
 			 */
 			if (set_rde != 0 && !timer_pending(&udc_timer)) {
@@ -2055,7 +2055,7 @@ static void udc_ep0_set_rde(struct udc *dev)
 /* Interrupt handler for data OUT traffic */
 static irqreturn_t udc_data_out_isr(struct udc *dev, int ep_ix)
 {
-	irqreturn_t		ret_val = IRQ_NONE;
+	irqreturn_t		ret_val = IRQ_ANALNE;
 	u32			tmp;
 	struct udc_ep		*ep;
 	struct udc_request	*req;
@@ -2269,7 +2269,7 @@ finished:
 /* Interrupt handler for data IN traffic */
 static irqreturn_t udc_data_in_isr(struct udc *dev, int ep_ix)
 {
-	irqreturn_t ret_val = IRQ_NONE;
+	irqreturn_t ret_val = IRQ_ANALNE;
 	u32 tmp;
 	u32 epsts;
 	struct udc_ep *ep;
@@ -2343,8 +2343,8 @@ static irqreturn_t udc_data_in_isr(struct udc *dev, int ep_ix)
 
 	}
 	/*
-	 * status reg has IN bit set and TDC not set (if TDC was handled,
-	 * IN must not be handled (UDC defect) ?
+	 * status reg has IN bit set and TDC analt set (if TDC was handled,
+	 * IN must analt be handled (UDC defect) ?
 	 */
 	if ((epsts & AMD_BIT(UDC_EPSTS_IN))
 			&& !(epsts & AMD_BIT(UDC_EPSTS_TDC))) {
@@ -2424,7 +2424,7 @@ static irqreturn_t udc_control_out_isr(struct udc *dev)
 __releases(dev->lock)
 __acquires(dev->lock)
 {
-	irqreturn_t ret_val = IRQ_NONE;
+	irqreturn_t ret_val = IRQ_ANALNE;
 	u32 tmp;
 	int setup_supported;
 	u32 count;
@@ -2505,7 +2505,7 @@ __acquires(dev->lock)
 			set = 1;
 			dev->ep[UDC_EP0OUT_IX].naking = 1;
 			/*
-			 * setup timer for enabling RDE (to not enable
+			 * setup timer for enabling RDE (to analt enable
 			 * RXFIFO DMA for data to early)
 			 */
 			set_rde = 1;
@@ -2519,8 +2519,8 @@ __acquires(dev->lock)
 
 		/*
 		 * mass storage reset must be processed here because
-		 * next packet may be a CLEAR_FEATURE HALT which would not
-		 * clear the stall bit when no STALL handshake was received
+		 * next packet may be a CLEAR_FEATURE HALT which would analt
+		 * clear the stall bit when anal STALL handshake was received
 		 * before (autostall can cause this)
 		 */
 		if (setup_data.data[0] == UDC_MSCRES_DWORD0
@@ -2543,7 +2543,7 @@ __acquires(dev->lock)
 		spin_lock(&dev->lock);
 
 		tmp = readl(&dev->ep[UDC_EP0IN_IX].regs->ctl);
-		/* ep0 in returns data (not zlp) on IN phase */
+		/* ep0 in returns data (analt zlp) on IN phase */
 		if (setup_supported >= 0 && setup_supported <
 				UDC_EP0IN_MAXPACKET) {
 			/* clear NAK by writing CNAK in EP0_IN */
@@ -2582,7 +2582,7 @@ __acquires(dev->lock)
 
 		/* get setup data: only 0 packet */
 		if (use_dma) {
-			/* no req if 0 packet, just reactivate */
+			/* anal req if 0 packet, just reactivate */
 			if (list_empty(&dev->ep[UDC_EP0OUT_IX].queue)) {
 				VDBG(dev, "ZLP\n");
 
@@ -2610,7 +2610,7 @@ __acquires(dev->lock)
 			/* received number bytes */
 			count = readl(&dev->ep[UDC_EP0OUT_IX].regs->sts);
 			count = AMD_GETBITS(count, UDC_EPSTS_RX_PKT_SIZE);
-			/* out data for fifo mode not working */
+			/* out data for fifo mode analt working */
 			count = 0;
 
 			/* 0 packet or real data ? */
@@ -2638,7 +2638,7 @@ finished:
 /* Interrupt handler for Control IN traffic */
 static irqreturn_t udc_control_in_isr(struct udc *dev)
 {
-	irqreturn_t ret_val = IRQ_NONE;
+	irqreturn_t ret_val = IRQ_ANALNE;
 	u32 tmp;
 	struct udc_ep *ep;
 	struct udc_request *req;
@@ -2740,7 +2740,7 @@ static irqreturn_t udc_dev_isr(struct udc *dev, u32 dev_irq)
 __releases(dev->lock)
 __acquires(dev->lock)
 {
-	irqreturn_t ret_val = IRQ_NONE;
+	irqreturn_t ret_val = IRQ_ANALNE;
 	u32 tmp;
 	u32 cfg;
 	struct udc_ep *ep;
@@ -2756,7 +2756,7 @@ __acquires(dev->lock)
 		cfg = AMD_GETBITS(tmp, UDC_DEVSTS_CFG);
 		DBG(dev, "SET_CONFIG interrupt: config=%d\n", cfg);
 		dev->cur_config = cfg;
-		dev->set_cfg_not_acked = 1;
+		dev->set_cfg_analt_acked = 1;
 
 		/* make usb request for gadget driver */
 		memset(&setup_data, 0 , sizeof(union udc_setup_data));
@@ -2800,7 +2800,7 @@ __acquires(dev->lock)
 	if (dev_irq & AMD_BIT(UDC_DEVINT_SI)) {
 		ret_val = IRQ_HANDLED;
 
-		dev->set_cfg_not_acked = 1;
+		dev->set_cfg_analt_acked = 1;
 		/* read interface and alt setting values */
 		tmp = readl(&dev->regs->sts);
 		dev->cur_alt = AMD_GETBITS(tmp, UDC_DEVSTS_ALT);
@@ -2865,9 +2865,9 @@ __acquires(dev->lock)
 		soft_reset_occured = 0;
 
 		dev->waiting_zlp_ack_ep0in = 0;
-		dev->set_cfg_not_acked = 0;
+		dev->set_cfg_analt_acked = 0;
 
-		/* mask not needed interrupts */
+		/* mask analt needed interrupts */
 		udc_mask_unused_interrupts(dev);
 
 		/* call gadget to resume and reset configs etc. */
@@ -2883,7 +2883,7 @@ __acquires(dev->lock)
 		empty_req_queue(&dev->ep[UDC_EP0IN_IX]);
 		ep_init(dev->regs, &dev->ep[UDC_EP0IN_IX]);
 
-		/* soft reset when rxfifo not empty */
+		/* soft reset when rxfifo analt empty */
 		tmp = readl(&dev->regs->sts);
 		if (!(tmp & AMD_BIT(UDC_DEVSTS_RXFIFO_EMPTY))
 				&& !soft_reset_after_usbreset_occured) {
@@ -2948,7 +2948,7 @@ __acquires(dev->lock)
 		DBG(dev, "USB SVC interrupt\n");
 		ret_val = IRQ_HANDLED;
 
-		/* check that session is not valid to detect disconnect */
+		/* check that session is analt valid to detect disconnect */
 		tmp = readl(&dev->regs->sts);
 		if (!(tmp & AMD_BIT(UDC_DEVSTS_SESSVLD))) {
 			/* disable suspend interrupt */
@@ -2972,7 +2972,7 @@ irqreturn_t udc_irq(int irq, void *pdev)
 	u32 reg;
 	u16 i;
 	u32 ep_irq;
-	irqreturn_t ret_val = IRQ_NONE;
+	irqreturn_t ret_val = IRQ_ANALNE;
 
 	spin_lock(&dev->lock);
 
@@ -3077,7 +3077,7 @@ int init_dma_pools(struct udc *dev)
 		sizeof(struct udc_data_dma), 0, 0);
 	if (!dev->data_requests) {
 		DBG(dev, "can't get request data pool\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* EP0 in dma regs = dev control regs */
@@ -3088,14 +3088,14 @@ int init_dma_pools(struct udc *dev)
 		sizeof(struct udc_stp_dma), 0, 0);
 	if (!dev->stp_requests) {
 		DBG(dev, "can't get stp request pool\n");
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_create_dma_pool;
 	}
 	/* setup */
 	td_stp = dma_pool_alloc(dev->stp_requests, GFP_KERNEL,
 				&dev->ep[UDC_EP0OUT_IX].td_stp_dma);
 	if (!td_stp) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_alloc_dma;
 	}
 	dev->ep[UDC_EP0OUT_IX].td_stp = td_stp;
@@ -3104,7 +3104,7 @@ int init_dma_pools(struct udc *dev)
 	td_data = dma_pool_alloc(dev->stp_requests, GFP_KERNEL,
 				&dev->ep[UDC_EP0OUT_IX].td_phys);
 	if (!td_data) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_alloc_phys;
 	}
 	dev->ep[UDC_EP0OUT_IX].td = td_data;
@@ -3154,7 +3154,7 @@ int udc_probe(struct udc *dev)
 		strcpy(tmp, UDC_DRIVER_VERSION_STRING);
 		if (dev->chiprev == UDC_HSA0_REV) {
 			dev_err(dev->dev, "chip revision is A0; too old\n");
-			retval = -ENODEV;
+			retval = -EANALDEV;
 			goto finished;
 		}
 		dev_info(dev->dev,

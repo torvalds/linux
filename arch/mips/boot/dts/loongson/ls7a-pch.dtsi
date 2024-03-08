@@ -32,7 +32,7 @@
 			clock-frequency = <50000000>;
 			interrupt-parent = <&pic>;
 			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
-			no-loopback-test;
+			anal-loopback-test;
 		};
 
 		ls7a_uart1: serial@10080100 {
@@ -42,7 +42,7 @@
 			clock-frequency = <50000000>;
 			interrupt-parent = <&pic>;
 			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
-			no-loopback-test;
+			anal-loopback-test;
 		};
 
 		ls7a_uart2: serial@10080200 {
@@ -52,7 +52,7 @@
 			clock-frequency = <50000000>;
 			interrupt-parent = <&pic>;
 			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
-			no-loopback-test;
+			anal-loopback-test;
 		};
 
 		ls7a_uart3: serial@10080300 {
@@ -62,7 +62,7 @@
 			clock-frequency = <50000000>;
 			interrupt-parent = <&pic>;
 			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
-			no-loopback-test;
+			anal-loopback-test;
 		};
 
 		pci@1a000000 {

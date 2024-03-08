@@ -208,7 +208,7 @@ static int power7_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 
 /*
  * Returns 1 if event counts things relating to marked instructions
- * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if not.
+ * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if analt.
  */
 static int power7_marked_instr_event(u64 event)
 {
@@ -320,7 +320,7 @@ static void power7_disable_pmc(unsigned int pmc, struct mmcr_regs *mmcr)
 
 static int power7_generic_events[] = {
 	[PERF_COUNT_HW_CPU_CYCLES] =			PM_CYC,
-	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =	PM_GCT_NOSLOT_CYC,
+	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =	PM_GCT_ANALSLOT_CYC,
 	[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] =	PM_CMPLU_STALL,
 	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_INST_CMPL,
 	[PERF_COUNT_HW_CACHE_REFERENCES] =		PM_LD_REF_L1,
@@ -333,7 +333,7 @@ static int power7_generic_events[] = {
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means analt supported, -1 means analnsensical, other values
  * are event codes.
  */
 static u64 power7_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
@@ -367,7 +367,7 @@ static u64 power7_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_WRITE)] = {	-1,		-1	},
 		[C(OP_PREFETCH)] = {	-1,		-1	},
 	},
-	[C(NODE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+	[C(ANALDE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	-1,		-1	},
 		[C(OP_WRITE)] = {	-1,		-1	},
 		[C(OP_PREFETCH)] = {	-1,		-1	},
@@ -376,7 +376,7 @@ static u64 power7_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 
 
 GENERIC_EVENT_ATTR(cpu-cycles,			PM_CYC);
-GENERIC_EVENT_ATTR(stalled-cycles-frontend,	PM_GCT_NOSLOT_CYC);
+GENERIC_EVENT_ATTR(stalled-cycles-frontend,	PM_GCT_ANALSLOT_CYC);
 GENERIC_EVENT_ATTR(stalled-cycles-backend,	PM_CMPLU_STALL);
 GENERIC_EVENT_ATTR(instructions,		PM_INST_CMPL);
 GENERIC_EVENT_ATTR(cache-references,		PM_LD_REF_L1);
@@ -392,7 +392,7 @@ GENERIC_EVENT_ATTR(branch-misses,		PM_BR_MPRED);
 
 static struct attribute *power7_events_attr[] = {
 	GENERIC_EVENT_PTR(PM_CYC),
-	GENERIC_EVENT_PTR(PM_GCT_NOSLOT_CYC),
+	GENERIC_EVENT_PTR(PM_GCT_ANALSLOT_CYC),
 	GENERIC_EVENT_PTR(PM_CMPLU_STALL),
 	GENERIC_EVENT_PTR(PM_INST_CMPL),
 	GENERIC_EVENT_PTR(PM_LD_REF_L1),
@@ -450,7 +450,7 @@ int __init init_power7_pmu(void)
 	unsigned int pvr = mfspr(SPRN_PVR);
 
 	if (PVR_VER(pvr) != PVR_POWER7 && PVR_VER(pvr) != PVR_POWER7p)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (PVR_VER(pvr) == PVR_POWER7p)
 		power7_pmu.flags |= PPMU_SIAR_VALID;

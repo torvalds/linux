@@ -232,7 +232,7 @@ int mac802154_llsec_key_add(struct mac802154_llsec *sec,
 
 		/* Don't allow multiple instances of the same AES key to have
 		 * different allowed frame types/command frame ids, as this is
-		 * not possible in the 802.15.4 PIB.
+		 * analt possible in the 802.15.4 PIB.
 		 */
 		if (pos->key->frame_types != key->frame_types ||
 		    pos->key->cmd_frame_ids != key->cmd_frame_ids)
@@ -243,7 +243,7 @@ int mac802154_llsec_key_add(struct mac802154_llsec *sec,
 
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!mkey)
 		mkey = llsec_key_alloc(key);
@@ -262,7 +262,7 @@ int mac802154_llsec_key_add(struct mac802154_llsec *sec,
 
 fail:
 	kfree_sensitive(new);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int mac802154_llsec_key_del(struct mac802154_llsec *sec,
@@ -282,7 +282,7 @@ int mac802154_llsec_key_del(struct mac802154_llsec *sec,
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static bool llsec_dev_use_shortaddr(__le16 short_addr)
@@ -363,7 +363,7 @@ int mac802154_llsec_dev_add(struct mac802154_llsec *sec,
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->dev = *dev;
 	spin_lock_init(&entry->lock);
@@ -372,7 +372,7 @@ int mac802154_llsec_dev_add(struct mac802154_llsec *sec,
 	if (llsec_dev_use_shortaddr(dev->short_addr))
 		hash_add_rcu(sec->devices_short, &entry->bucket_s, skey);
 	else
-		INIT_HLIST_NODE(&entry->bucket_s);
+		INIT_HLIST_ANALDE(&entry->bucket_s);
 
 	hash_add_rcu(sec->devices_hw, &entry->bucket_hw, hwkey);
 	list_add_tail_rcu(&entry->dev.list, &sec->table.devices);
@@ -391,7 +391,7 @@ int mac802154_llsec_dev_del(struct mac802154_llsec *sec, __le64 device_addr)
 
 	pos = llsec_dev_find_long(sec, device_addr);
 	if (!pos)
-		return -ENOENT;
+		return -EANALENT;
 
 	hash_del_rcu(&pos->bucket_s);
 	hash_del_rcu(&pos->bucket_hw);
@@ -428,14 +428,14 @@ int mac802154_llsec_devkey_add(struct mac802154_llsec *sec,
 	dev = llsec_dev_find_long(sec, dev_addr);
 
 	if (!dev)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (llsec_devkey_find(dev, &key->key_id))
 		return -EEXIST;
 
 	devkey = kmalloc(sizeof(*devkey), GFP_KERNEL);
 	if (!devkey)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devkey->devkey = *key;
 	list_add_tail_rcu(&devkey->devkey.list, &dev->dev.keys);
@@ -452,11 +452,11 @@ int mac802154_llsec_devkey_del(struct mac802154_llsec *sec,
 	dev = llsec_dev_find_long(sec, dev_addr);
 
 	if (!dev)
-		return -ENOENT;
+		return -EANALENT;
 
 	devkey = llsec_devkey_find(dev, &key->key_id);
 	if (!devkey)
-		return -ENOENT;
+		return -EANALENT;
 
 	list_del_rcu(&devkey->devkey.list);
 	kfree_rcu(devkey, rcu);
@@ -494,7 +494,7 @@ int mac802154_llsec_seclevel_add(struct mac802154_llsec *sec,
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->level = *sl;
 
@@ -510,7 +510,7 @@ int mac802154_llsec_seclevel_del(struct mac802154_llsec *sec,
 
 	pos = llsec_find_seclevel(sec, sl);
 	if (!pos)
-		return -ENOENT;
+		return -EANALENT;
 
 	list_del_rcu(&pos->level.list);
 	kfree_rcu(pos, rcu);
@@ -550,7 +550,7 @@ llsec_lookup_key(struct mac802154_llsec *sec,
 	struct mac802154_llsec_key *key;
 
 	if (key_id_mode == IEEE802154_SCF_KEY_IMPLICIT &&
-	    devaddr.mode == IEEE802154_ADDR_NONE) {
+	    devaddr.mode == IEEE802154_ADDR_ANALNE) {
 		if (hdr->fc.type == IEEE802154_FC_TYPE_BEACON) {
 			devaddr.extended_addr = sec->params.coord_hwaddr;
 			devaddr.mode = IEEE802154_ADDR_LONG;
@@ -660,7 +660,7 @@ llsec_do_encrypt_auth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 
 	req = aead_request_alloc(llsec_tfm_by_len(key, authlen), GFP_ATOMIC);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	assoclen = skb->mac_len;
 
@@ -714,7 +714,7 @@ int mac802154_llsec_encrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 		return -EINVAL;
 
 	if (!hdr.fc.security_enabled ||
-	    (hdr.sec.level == IEEE802154_SCF_SECLEVEL_NONE)) {
+	    (hdr.sec.level == IEEE802154_SCF_SECLEVEL_ANALNE)) {
 		skb_push(skb, hlen);
 		return 0;
 	}
@@ -735,7 +735,7 @@ int mac802154_llsec_encrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 
 	key = llsec_lookup_key(sec, &hdr, &hdr.dest, NULL);
 	if (!key) {
-		rc = -ENOKEY;
+		rc = -EANALKEY;
 		goto fail_read;
 	}
 
@@ -780,7 +780,7 @@ llsec_lookup_dev(struct mac802154_llsec *sec,
 	struct ieee802154_addr devaddr = *addr;
 	struct mac802154_llsec_device *dev = NULL;
 
-	if (devaddr.mode == IEEE802154_ADDR_NONE &&
+	if (devaddr.mode == IEEE802154_ADDR_ANALNE &&
 	    llsec_recover_addr(sec, &devaddr) < 0)
 		return NULL;
 
@@ -869,7 +869,7 @@ llsec_do_decrypt_auth(struct sk_buff *skb, const struct mac802154_llsec *sec,
 
 	req = aead_request_alloc(llsec_tfm_by_len(key, authlen), GFP_ATOMIC);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	assoclen = skb->mac_len;
 
@@ -919,7 +919,7 @@ llsec_update_devkey_record(struct mac802154_llsec_device *dev,
 
 		next = kzalloc(sizeof(*devkey), GFP_ATOMIC);
 		if (!next)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		next->devkey.key_id = *in_key;
 
@@ -947,7 +947,7 @@ llsec_update_devkey_info(struct mac802154_llsec_device *dev,
 	if (dev->dev.key_mode == IEEE802154_LLSEC_DEVKEY_RESTRICT) {
 		devkey = llsec_devkey_find(dev, in_key);
 		if (!devkey)
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	if (dev->dev.key_mode == IEEE802154_LLSEC_DEVKEY_RECORD) {
@@ -1004,7 +1004,7 @@ int mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 
 	key = llsec_lookup_key(sec, &hdr, &hdr.source, &key_id);
 	if (!key) {
-		err = -ENOKEY;
+		err = -EANALKEY;
 		goto fail;
 	}
 

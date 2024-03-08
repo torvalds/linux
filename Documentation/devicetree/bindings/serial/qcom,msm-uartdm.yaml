@@ -17,7 +17,7 @@ description: |
   software perspective it's mostly compatible with the MSM serial UART except
   that it supports reading and writing multiple characters at a time.
 
-  Note:: Aliases may be defined to ensure the correct ordering of the UARTs.
+  Analte:: Aliases may be defined to ensure the correct ordering of the UARTs.
   The alias serialN will result in the UART being assigned port N.  If any
   serialN alias exists, then an alias must exist for each enabled UART.  The
   serialN aliases should be in a .dts file instead of in a .dtsi file.
@@ -121,5 +121,5 @@ examples:
         dma-names = "tx", "rx";
         power-domains = <&rpmpd MSM8996_VDDCX>;
         operating-points-v2 = <&uart_opp_table>;
-        interconnects = <&pnoc MASTER_BLSP_1 &bimc SLAVE_EBI_CH0>;
+        interconnects = <&panalc MASTER_BLSP_1 &bimc SLAVE_EBI_CH0>;
     };

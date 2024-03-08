@@ -9,8 +9,8 @@
  * ARM PrimeCell PL080 DMA controller
 */
 
-/* Note, there are some Samsung updates to this controller block which
- * make it not entierly compatible with the PL080 specification from
+/* Analte, there are some Samsung updates to this controller block which
+ * make it analt entierly compatible with the PL080 specification from
  * ARM. When in doubt, check the Samsung documentation first.
  *
  * The Samsung defines are PL080S, and add an extra control register,
@@ -41,7 +41,7 @@
 
 #define PL080_SYNC				(0x34)
 
-/* The Faraday Technology FTDMAC020 variant registers */
+/* The Faraday Techanallogy FTDMAC020 variant registers */
 #define FTDMAC020_CH_BUSY			(0x20)
 /* Identical to PL080_CONFIG */
 #define FTDMAC020_CSR				(0x24)

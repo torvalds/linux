@@ -61,7 +61,7 @@ enum lp8788_int_id {
 	LP8788_INT_ENTER_SYS_SUPPORT,
 	LP8788_INT_EXIT_SYS_SUPPORT,
 	LP8788_INT_BATT_LOW,
-	LP8788_INT_NO_BATT,
+	LP8788_INT_ANAL_BATT,
 
 	LP8788_INT_MAX = 24,
 };
@@ -84,7 +84,7 @@ enum lp8788_ext_ldo_en_id {
 };
 
 enum lp8788_charger_event {
-	NO_CHARGER,
+	ANAL_CHARGER,
 	CHARGER_DETECTED,
 };
 
@@ -216,7 +216,7 @@ struct lp8788_charger_platform_data {
  * @rise_time             : brightness ramp up step time
  * @fall_time             : brightness ramp down step time
  * @pwm_pol               : pwm polarity setting when bl_mode is pwm based
- * @period_ns             : platform specific pwm period value. unit is nano.
+ * @period_ns             : platform specific pwm period value. unit is naanal.
 			    Only valid when bl_mode is LP8788_BL_COMB_PWM_BASED
  */
 struct lp8788_backlight_platform_data {

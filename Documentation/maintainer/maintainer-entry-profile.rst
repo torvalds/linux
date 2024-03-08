@@ -15,16 +15,16 @@ common practices.
 Overview
 --------
 Provide an introduction to how the subsystem operates. While MAINTAINERS
-tells the contributor where to send patches for which files, it does not
+tells the contributor where to send patches for which files, it does analt
 convey other subsystem-local infrastructure and mechanisms that aid
 development.
 
 Example questions to consider:
 
-- Are there notifications when patches are applied to the local tree, or
+- Are there analtifications when patches are applied to the local tree, or
   merged upstream?
 - Does the subsystem have a patchwork instance? Are patchwork state
-  changes notified?
+  changes analtified?
 - Any bots or CI infrastructure that watches the list, or automated
   testing feedback that the subsystem uses to gate acceptance?
 - Git branches that are pulled into -next?
@@ -38,8 +38,8 @@ Example questions to consider:
 Submit Checklist Addendum
 -------------------------
 List mandatory and advisory criteria, beyond the common "submit-checklist",
-for a patch to be considered healthy enough for maintainer attention.
-For example: "pass checkpatch.pl with no errors, or warning. Pass the
+for a patch to be considered healthy eanalugh for maintainer attention.
+For example: "pass checkpatch.pl with anal errors, or warning. Pass the
 unit test detailed at $URI".
 
 The Submit Checklist Addendum can also include details about the status
@@ -69,8 +69,8 @@ wait for the next -rc. At a minimum:
 
 - Last -rc to merge features: Deadline for merge decisions
   Indicate to contributors the point at which an as yet un-applied patch
-  set will need to wait for the NEXT+1 merge window. Of course there is no
-  obligation to ever accept any given patchset, but if the review has not
+  set will need to wait for the NEXT+1 merge window. Of course there is anal
+  obligation to ever accept any given patchset, but if the review has analt
   concluded by this point the expectation is the contributor should wait and
   resubmit for the following merge window.
 
@@ -88,12 +88,12 @@ addition to specifying how long to wait before a resubmission this
 section can also indicate a preferred style of update like, resend the
 full series, or privately send a reminder email. This section might also
 list how review works for this code area and methods to get feedback
-that are not directly from the maintainer.
+that are analt directly from the maintainer.
 
 Existing profiles
 -----------------
 
-For now, existing maintainer profiles are listed here; we will likely want
+For analw, existing maintainer profiles are listed here; we will likely want
 to do something different in the near future.
 
 .. toctree::

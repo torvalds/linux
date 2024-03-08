@@ -23,11 +23,11 @@
 #define IMX_SIP_SET_CPUFREQ		0x00
 
 static struct imx_sc_ipc *ccm_ipc_handle;
-static struct device_node *pd_np;
+static struct device_analde *pd_np;
 static struct platform_driver imx_clk_scu_driver;
 static const struct imx_clk_scu_rsrc_table *rsrc_table;
 
-struct imx_scu_clk_node {
+struct imx_scu_clk_analde {
 	const char *name;
 	u32 rsrc;
 	u8 clk_type;
@@ -35,7 +35,7 @@ struct imx_scu_clk_node {
 	int num_parents;
 
 	struct clk_hw *hw;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct list_head imx_scu_clks[IMX_SC_R_LAST];
@@ -191,7 +191,7 @@ static bool imx_scu_clk_is_valid(u32 rsrc_id)
 	return p != NULL;
 }
 
-int imx_clk_scu_init(struct device_node *np,
+int imx_clk_scu_init(struct device_analde *np,
 		     const struct imx_clk_scu_rsrc_table *data)
 {
 	u32 clk_cells;
@@ -208,7 +208,7 @@ int imx_clk_scu_init(struct device_node *np,
 			INIT_LIST_HEAD(&imx_scu_clks[i]);
 
 		/* pd_np will be used to attach power domains later */
-		pd_np = of_find_compatible_node(NULL, NULL, "fsl,scu-pd");
+		pd_np = of_find_compatible_analde(NULL, NULL, "fsl,scu-pd");
 		if (!pd_np)
 			return -EINVAL;
 
@@ -221,7 +221,7 @@ int imx_clk_scu_init(struct device_node *np,
 /*
  * clk_scu_recalc_rate - Get clock rate for a SCU clock
  * @hw: clock to get rate for
- * @parent_rate: parent rate provided by common clock framework, not used
+ * @parent_rate: parent rate provided by common clock framework, analt used
  *
  * Gets the current clock rate of a SCU clock. Returns the current
  * clock rate, or zero in failure.
@@ -273,7 +273,7 @@ static int clk_scu_determine_rate(struct clk_hw *hw,
  * clk_scu_round_rate - Round clock rate for a SCU clock
  * @hw: clock to round rate for
  * @rate: rate to round
- * @parent_rate: parent rate provided by common clock framework, not used
+ * @parent_rate: parent rate provided by common clock framework, analt used
  *
  * Returns the current clock rate, or zero in failure.
  */
@@ -312,7 +312,7 @@ static int clk_scu_atf_set_cpu_rate(struct clk_hw *hw, unsigned long rate,
  * clk_scu_set_rate - Set rate for a SCU clock
  * @hw: clock to change rate for
  * @rate: target rate for the clock
- * @parent_rate: rate of the clock parent, not used for SCU clocks
+ * @parent_rate: rate of the clock parent, analt used for SCU clocks
  *
  * Sets a clock frequency for a SCU clock. Returns the SCU
  * protocol status.
@@ -477,7 +477,7 @@ struct clk_hw *__imx_clk_scu(struct device *dev, const char *name,
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
 	if (!clk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	clk->rsrc_id = rsrc_id;
 	clk->clk_type = clk_type;
@@ -494,13 +494,13 @@ struct clk_hw *__imx_clk_scu(struct device *dev, const char *name,
 	init.num_parents = num_parents;
 
 	/*
-	 * Note on MX8, the clocks are tightly coupled with power domain
+	 * Analte on MX8, the clocks are tightly coupled with power domain
 	 * that once the power domain is off, the clock status may be
-	 * lost. So we make it NOCACHE to let user to retrieve the real
+	 * lost. So we make it ANALCACHE to let user to retrieve the real
 	 * clock status from HW instead of using the possible invalid
 	 * cached rate.
 	 */
-	init.flags = CLK_GET_RATE_NOCACHE;
+	init.flags = CLK_GET_RATE_ANALCACHE;
 	clk->hw.init = &init;
 
 	hw = &clk->hw;
@@ -523,20 +523,20 @@ struct clk_hw *imx_scu_of_clk_src_get(struct of_phandle_args *clkspec,
 	unsigned int rsrc = clkspec->args[0];
 	unsigned int idx = clkspec->args[1];
 	struct list_head *scu_clks = data;
-	struct imx_scu_clk_node *clk;
+	struct imx_scu_clk_analde *clk;
 
-	list_for_each_entry(clk, &scu_clks[rsrc], node) {
+	list_for_each_entry(clk, &scu_clks[rsrc], analde) {
 		if (clk->clk_type == idx)
 			return clk->hw;
 	}
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static int imx_clk_scu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct imx_scu_clk_node *clk = dev_get_platdata(dev);
+	struct imx_scu_clk_analde *clk = dev_get_platdata(dev);
 	struct clk_hw *hw;
 	int ret;
 
@@ -563,7 +563,7 @@ static int imx_clk_scu_probe(struct platform_device *pdev)
 	}
 
 	clk->hw = hw;
-	list_add_tail(&clk->node, &imx_scu_clks[clk->rsrc]);
+	list_add_tail(&clk->analde, &imx_scu_clks[clk->rsrc]);
 
 	if (!((clk->rsrc == IMX_SC_R_A35) || (clk->rsrc == IMX_SC_R_A53) ||
 	    (clk->rsrc == IMX_SC_R_A72))) {
@@ -588,7 +588,7 @@ static int __maybe_unused imx_clk_scu_suspend(struct device *dev)
 
 	clk->parent = clk_hw_get_parent(&clk->hw);
 
-	/* DC SS needs to handle bypass clock using non-cached clock rate */
+	/* DC SS needs to handle bypass clock using analn-cached clock rate */
 	if (clk->rsrc_id == IMX_SC_R_DC_0_VIDEO0 ||
 		clk->rsrc_id == IMX_SC_R_DC_0_VIDEO1 ||
 		clk->rsrc_id == IMX_SC_R_DC_1_VIDEO0 ||
@@ -644,7 +644,7 @@ static int __maybe_unused imx_clk_scu_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops imx_clk_scu_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(imx_clk_scu_suspend,
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(imx_clk_scu_suspend,
 				      imx_clk_scu_resume)
 };
 
@@ -675,7 +675,7 @@ static int imx_clk_scu_attach_pd(struct device *dev, u32 rsrc_id)
 static bool imx_clk_is_resource_owned(u32 rsrc)
 {
 	/*
-	 * A-core resources are special. SCFW reports they are not "owned" by
+	 * A-core resources are special. SCFW reports they are analt "owned" by
 	 * current partition but linux can still adjust them for cpufreq.
 	 */
 	if (rsrc == IMX_SC_R_A53 || rsrc == IMX_SC_R_A72 || rsrc == IMX_SC_R_A35)
@@ -688,7 +688,7 @@ struct clk_hw *imx_clk_scu_alloc_dev(const char *name,
 				     const char * const *parents,
 				     int num_parents, u32 rsrc_id, u8 clk_type)
 {
-	struct imx_scu_clk_node clk = {
+	struct imx_scu_clk_analde clk = {
 		.name = name,
 		.rsrc = rsrc_id,
 		.clk_type = clk_type,
@@ -704,11 +704,11 @@ struct clk_hw *imx_clk_scu_alloc_dev(const char *name,
 	if (!imx_clk_is_resource_owned(rsrc_id))
 		return NULL;
 
-	pdev = platform_device_alloc(name, PLATFORM_DEVID_NONE);
+	pdev = platform_device_alloc(name, PLATFORM_DEVID_ANALNE);
 	if (!pdev) {
 		pr_err("%s: failed to allocate scu clk dev rsrc %d type %d\n",
 		       name, rsrc_id, clk_type);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	ret = platform_device_add_data(pdev, &clk, sizeof(clk));
@@ -741,11 +741,11 @@ struct clk_hw *imx_clk_scu_alloc_dev(const char *name,
 
 void imx_clk_scu_unregister(void)
 {
-	struct imx_scu_clk_node *clk, *n;
+	struct imx_scu_clk_analde *clk, *n;
 	int i;
 
 	for (i = 0; i < IMX_SC_R_LAST; i++) {
-		list_for_each_entry_safe(clk, n, &imx_scu_clks[i], node) {
+		list_for_each_entry_safe(clk, n, &imx_scu_clks[i], analde) {
 			clk_hw_unregister(clk->hw);
 			kfree(clk);
 		}
@@ -819,7 +819,7 @@ static int clk_gpr_mux_scu_set_parent(struct clk_hw *hw, u8 index)
 }
 
 static const struct clk_ops clk_gpr_mux_scu_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.get_parent = clk_gpr_mux_scu_get_parent,
 	.set_parent = clk_gpr_mux_scu_set_parent,
 };
@@ -868,7 +868,7 @@ struct clk_hw *__imx_clk_gpr_scu(const char *name, const char * const *parent_na
 				 int num_parents, u32 rsrc_id, u8 gpr_id, u8 flags,
 				 bool invert)
 {
-	struct imx_scu_clk_node *clk_node;
+	struct imx_scu_clk_analde *clk_analde;
 	struct clk_gpr_scu *clk;
 	struct clk_hw *hw;
 	struct clk_init_data init;
@@ -877,24 +877,24 @@ struct clk_hw *__imx_clk_gpr_scu(const char *name, const char * const *parent_na
 	if (rsrc_id >= IMX_SC_R_LAST || gpr_id >= IMX_SC_C_LAST)
 		return ERR_PTR(-EINVAL);
 
-	clk_node = kzalloc(sizeof(*clk_node), GFP_KERNEL);
-	if (!clk_node)
-		return ERR_PTR(-ENOMEM);
+	clk_analde = kzalloc(sizeof(*clk_analde), GFP_KERNEL);
+	if (!clk_analde)
+		return ERR_PTR(-EANALMEM);
 
 	if (!imx_scu_clk_is_valid(rsrc_id)) {
-		kfree(clk_node);
+		kfree(clk_analde);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (!imx_clk_is_resource_owned(rsrc_id)) {
-		kfree(clk_node);
+		kfree(clk_analde);
 		return NULL;
 	}
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
 	if (!clk) {
-		kfree(clk_node);
-		return ERR_PTR(-ENOMEM);
+		kfree(clk_analde);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	clk->rsrc_id = rsrc_id;
@@ -922,12 +922,12 @@ struct clk_hw *__imx_clk_gpr_scu(const char *name, const char * const *parent_na
 	ret = clk_hw_register(NULL, hw);
 	if (ret) {
 		kfree(clk);
-		kfree(clk_node);
+		kfree(clk_analde);
 		hw = ERR_PTR(ret);
 	} else {
-		clk_node->hw = hw;
-		clk_node->clk_type = gpr_id;
-		list_add_tail(&clk_node->node, &imx_scu_clks[rsrc_id]);
+		clk_analde->hw = hw;
+		clk_analde->clk_type = gpr_id;
+		list_add_tail(&clk_analde->analde, &imx_scu_clks[rsrc_id]);
 	}
 
 	return hw;

@@ -28,7 +28,7 @@
 #include <trace/events/bpf_test_run.h>
 
 struct bpf_test_timer {
-	enum { NO_PREEMPT, NO_MIGRATE } mode;
+	enum { ANAL_PREEMPT, ANAL_MIGRATE } mode;
 	u32 i;
 	u64 time_start, time_spent;
 };
@@ -37,7 +37,7 @@ static void bpf_test_timer_enter(struct bpf_test_timer *t)
 	__acquires(rcu)
 {
 	rcu_read_lock();
-	if (t->mode == NO_PREEMPT)
+	if (t->mode == ANAL_PREEMPT)
 		preempt_disable();
 	else
 		migrate_disable();
@@ -50,7 +50,7 @@ static void bpf_test_timer_leave(struct bpf_test_timer *t)
 {
 	t->time_start = 0;
 
-	if (t->mode == NO_PREEMPT)
+	if (t->mode == ANAL_PREEMPT)
 		preempt_enable();
 	else
 		migrate_enable();
@@ -85,7 +85,7 @@ static bool bpf_test_timer_continue(struct bpf_test_timer *t, int iterations,
 		bpf_test_timer_enter(t);
 	}
 
-	/* Do another round. */
+	/* Do aanalther round. */
 	return true;
 
 reset:
@@ -159,19 +159,19 @@ static void xdp_test_run_init_page(struct page *page, void *arg)
 static int xdp_test_run_setup(struct xdp_test_data *xdp, struct xdp_buff *orig_ctx)
 {
 	struct page_pool *pp;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct page_pool_params pp_params = {
 		.order = 0,
 		.flags = 0,
 		.pool_size = xdp->batch_size,
-		.nid = NUMA_NO_NODE,
+		.nid = NUMA_ANAL_ANALDE,
 		.init_callback = xdp_test_run_init_page,
 		.init_arg = xdp,
 	};
 
 	xdp->frames = kvmalloc_array(xdp->batch_size, sizeof(void *), GFP_KERNEL);
 	if (!xdp->frames)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xdp->skbs = kvmalloc_array(xdp->batch_size, sizeof(void *), GFP_KERNEL);
 	if (!xdp->skbs)
@@ -258,7 +258,7 @@ static int xdp_recv_frames(struct xdp_frame **frames, int nframes,
 	if (unlikely(n == 0)) {
 		for (i = 0; i < nframes; i++)
 			xdp_return_frame(frames[i]);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < nframes; i++) {
@@ -293,12 +293,12 @@ static int xdp_test_run_batch(struct xdp_test_data *xdp, struct bpf_prog *prog,
 	batch_sz = min_t(u32, repeat, xdp->batch_size);
 
 	local_bh_disable();
-	xdp_set_return_frame_no_direct();
+	xdp_set_return_frame_anal_direct();
 
 	for (i = 0; i < batch_sz; i++) {
 		page = page_pool_dev_alloc_pages(xdp->pp);
 		if (!page) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 
@@ -321,7 +321,7 @@ static int xdp_test_run_batch(struct xdp_test_data *xdp, struct bpf_prog *prog,
 
 		switch (act) {
 		case XDP_TX:
-			/* we can't do a real XDP_TX since we're not in the
+			/* we can't do a real XDP_TX since we're analt in the
 			 * driver, so turn it into a REDIRECT back to the same
 			 * index
 			 */
@@ -356,7 +356,7 @@ out:
 			err = ret;
 	}
 
-	xdp_clear_return_frame_no_direct();
+	xdp_clear_return_frame_anal_direct();
 	local_bh_enable();
 	return err;
 }
@@ -366,7 +366,7 @@ static int bpf_test_run_xdp_live(struct bpf_prog *prog, struct xdp_buff *ctx,
 
 {
 	struct xdp_test_data xdp = { .batch_size = batch_size };
-	struct bpf_test_timer t = { .mode = NO_MIGRATE };
+	struct bpf_test_timer t = { .mode = ANAL_MIGRATE };
 	int ret;
 
 	if (!repeat)
@@ -395,7 +395,7 @@ static int bpf_test_run(struct bpf_prog *prog, void *ctx, u32 repeat,
 	struct bpf_prog_array_item item = {.prog = prog};
 	struct bpf_run_ctx *old_ctx;
 	struct bpf_cg_run_ctx run_ctx;
-	struct bpf_test_timer t = { NO_MIGRATE };
+	struct bpf_test_timer t = { ANAL_MIGRATE };
 	enum bpf_cgroup_storage_type stype;
 	int ret;
 
@@ -405,7 +405,7 @@ static int bpf_test_run(struct bpf_prog *prog, void *ctx, u32 repeat,
 			item.cgroup_storage[stype] = NULL;
 			for_each_cgroup_storage_type(stype)
 				bpf_cgroup_storage_free(item.cgroup_storage[stype]);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -442,19 +442,19 @@ static int bpf_test_finish(const union bpf_attr *kattr,
 	u32 copy_size = size;
 
 	/* Clamp copy if the user has provided a size hint, but copy the full
-	 * buffer if not to retain old behaviour.
+	 * buffer if analt to retain old behaviour.
 	 */
 	if (kattr->test.data_size_out &&
 	    copy_size > kattr->test.data_size_out) {
 		copy_size = kattr->test.data_size_out;
-		err = -ENOSPC;
+		err = -EANALSPC;
 	}
 
 	if (data_out) {
 		int len = sinfo ? copy_size - sinfo->xdp_frags_size : copy_size;
 
 		if (len < 0) {
-			err = -ENOSPC;
+			err = -EANALSPC;
 			goto out;
 		}
 
@@ -469,7 +469,7 @@ static int bpf_test_finish(const union bpf_attr *kattr,
 				skb_frag_t *frag = &sinfo->frags[i];
 
 				if (offset >= copy_size) {
-					err = -ENOSPC;
+					err = -EANALSPC;
 					break;
 				}
 
@@ -492,7 +492,7 @@ static int bpf_test_finish(const union bpf_attr *kattr,
 		goto out;
 	if (copy_to_user(&uattr->test.duration, &duration, sizeof(duration)))
 		goto out;
-	if (err != -ENOSPC)
+	if (err != -EANALSPC)
 		err = 0;
 out:
 	trace_bpf_test_finish(&err);
@@ -511,27 +511,27 @@ __bpf_kfunc int bpf_fentry_test1(int a)
 }
 EXPORT_SYMBOL_GPL(bpf_fentry_test1);
 
-int noinline bpf_fentry_test2(int a, u64 b)
+int analinline bpf_fentry_test2(int a, u64 b)
 {
 	return a + b;
 }
 
-int noinline bpf_fentry_test3(char a, int b, u64 c)
+int analinline bpf_fentry_test3(char a, int b, u64 c)
 {
 	return a + b + c;
 }
 
-int noinline bpf_fentry_test4(void *a, char b, int c, u64 d)
+int analinline bpf_fentry_test4(void *a, char b, int c, u64 d)
 {
 	return (long)a + b + c + d;
 }
 
-int noinline bpf_fentry_test5(u64 a, void *b, short c, int d, u64 e)
+int analinline bpf_fentry_test5(u64 a, void *b, short c, int d, u64 e)
 {
 	return a + (long)b + c + d + e;
 }
 
-int noinline bpf_fentry_test6(u64 a, void *b, short c, int d, void *e, u64 f)
+int analinline bpf_fentry_test6(u64 a, void *b, short c, int d, void *e, u64 f)
 {
 	return a + (long)b + c + d + (long)e + f;
 }
@@ -540,13 +540,13 @@ struct bpf_fentry_test_t {
 	struct bpf_fentry_test_t *a;
 };
 
-int noinline bpf_fentry_test7(struct bpf_fentry_test_t *arg)
+int analinline bpf_fentry_test7(struct bpf_fentry_test_t *arg)
 {
 	asm volatile ("": "+r"(arg));
 	return (long)arg;
 }
 
-int noinline bpf_fentry_test8(struct bpf_fentry_test_t *arg)
+int analinline bpf_fentry_test8(struct bpf_fentry_test_t *arg)
 {
 	return (long)arg->a;
 }
@@ -556,7 +556,7 @@ __bpf_kfunc u32 bpf_fentry_test9(u32 *a)
 	return *a;
 }
 
-void noinline bpf_fentry_test_sinfo(struct skb_shared_info *sinfo)
+void analinline bpf_fentry_test_sinfo(struct skb_shared_info *sinfo)
 {
 }
 
@@ -573,7 +573,7 @@ __bpf_kfunc int bpf_modify_return_test2(int a, int *b, short c, int d,
 	return a + *b + c + d + (long)e + f + g;
 }
 
-int noinline bpf_fentry_shadow_test(int a)
+int analinline bpf_fentry_shadow_test(int a)
 {
 	return a + 1;
 }
@@ -604,7 +604,7 @@ __bpf_kfunc void bpf_kfunc_call_test_release_dtor(void *p)
 {
 	bpf_kfunc_call_test_release(p);
 }
-CFI_NOSEAL(bpf_kfunc_call_test_release_dtor);
+CFI_ANALSEAL(bpf_kfunc_call_test_release_dtor);
 
 __bpf_kfunc void bpf_kfunc_call_memb_release(struct prog_test_member *p)
 {
@@ -613,7 +613,7 @@ __bpf_kfunc void bpf_kfunc_call_memb_release(struct prog_test_member *p)
 __bpf_kfunc void bpf_kfunc_call_memb_release_dtor(void *p)
 {
 }
-CFI_NOSEAL(bpf_kfunc_call_memb_release_dtor);
+CFI_ANALSEAL(bpf_kfunc_call_memb_release_dtor);
 
 __bpf_kfunc_end_defs();
 
@@ -648,7 +648,7 @@ static void *bpf_test_init(const union bpf_attr *kattr, u32 user_size,
 	size = SKB_DATA_ALIGN(size);
 	data = kzalloc(size + headroom + tailroom, GFP_USER);
 	if (!data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (copy_from_user(data + headroom, data_in, user_size)) {
 		kfree(data);
@@ -794,7 +794,7 @@ static void *bpf_ctx_init(const union bpf_attr *kattr, u32 max_size)
 
 	data = kzalloc(max_size, GFP_USER);
 	if (!data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (data_in) {
 		err = bpf_check_uarg_tail_zero(USER_BPFPTR(data_in), max_size, size);
@@ -825,14 +825,14 @@ static int bpf_ctx_finish(const union bpf_attr *kattr,
 
 	if (copy_size > kattr->test.ctx_size_out) {
 		copy_size = kattr->test.ctx_size_out;
-		err = -ENOSPC;
+		err = -EANALSPC;
 	}
 
 	if (copy_to_user(data_out, data, copy_size))
 		goto out;
 	if (copy_to_user(&uattr->test.ctx_size_out, &size, sizeof(size)))
 		goto out;
-	if (err != -ENOSPC)
+	if (err != -EANALSPC)
 		err = 0;
 out:
 	return err;
@@ -844,7 +844,7 @@ out:
  * @from: check from this position
  * @to: check up until (excluding) this position
  *
- * This function returns true if the there is a non-zero byte
+ * This function returns true if the there is a analn-zero byte
  * in the buf in the range [from,to).
  */
 static inline bool range_is_zero(void *buf, size_t from, size_t to)
@@ -1000,7 +1000,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 	if (!sk) {
 		kfree(data);
 		kfree(ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	sock_init_data(NULL, sk);
 
@@ -1009,7 +1009,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 		kfree(data);
 		kfree(ctx);
 		sk_free(sk);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	skb->sk = sk;
 
@@ -1018,7 +1018,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 	if (ctx && ctx->ifindex > 1) {
 		dev = dev_get_by_index(net, ctx->ifindex);
 		if (!dev) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto out;
 		}
 	}
@@ -1061,7 +1061,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 			int nhead = HH_DATA_ALIGN(hh_len - skb_headroom(skb));
 
 			if (pskb_expand_head(skb, nhead, 0, GFP_USER)) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 		}
@@ -1070,8 +1070,8 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 	convert_skb_to___skb(skb, ctx);
 
 	size = skb->len;
-	/* bpf program can never convert linear skb to non-linear */
-	if (WARN_ON_ONCE(skb_is_nonlinear(skb)))
+	/* bpf program can never convert linear skb to analn-linear */
+	if (WARN_ON_ONCE(skb_is_analnlinear(skb)))
 		size = skb_headlen(skb);
 	ret = bpf_test_finish(kattr, uattr, skb->data, NULL, size, retval,
 			      duration);
@@ -1109,7 +1109,7 @@ static int xdp_convert_md_to_buff(struct xdp_md *xdp_md, struct xdp_buff *xdp)
 		device = dev_get_by_index(current->nsproxy->net_ns,
 					  ingress_ifindex);
 		if (!device)
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (rx_queue_index >= device->real_num_rx_queues)
 			goto free_dev;
@@ -1120,7 +1120,7 @@ static int xdp_convert_md_to_buff(struct xdp_md *xdp_md, struct xdp_buff *xdp)
 			goto free_dev;
 
 		xdp->rxq = &rxqueue->xdp_rxq;
-		/* The device is now tracked in the xdp->rxq for later
+		/* The device is analw tracked in the xdp->rxq for later
 		 * dev_put()
 		 */
 	}
@@ -1231,13 +1231,13 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 			u32 data_len;
 
 			if (sinfo->nr_frags == MAX_SKB_FRAGS) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 
 			page = alloc_page(GFP_KERNEL);
 			if (!page) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 
@@ -1311,7 +1311,7 @@ int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
 				     const union bpf_attr *kattr,
 				     union bpf_attr __user *uattr)
 {
-	struct bpf_test_timer t = { NO_PREEMPT };
+	struct bpf_test_timer t = { ANAL_PREEMPT };
 	u32 size = kattr->test.data_size_in;
 	struct bpf_flow_dissector ctx = {};
 	u32 repeat = kattr->test.repeat;
@@ -1379,7 +1379,7 @@ out:
 int bpf_prog_test_run_sk_lookup(struct bpf_prog *prog, const union bpf_attr *kattr,
 				union bpf_attr __user *uattr)
 {
-	struct bpf_test_timer t = { NO_PREEMPT };
+	struct bpf_test_timer t = { ANAL_PREEMPT };
 	struct bpf_prog_array *progs = NULL;
 	struct bpf_sk_lookup_kern ctx = {};
 	u32 repeat = kattr->test.repeat;
@@ -1434,13 +1434,13 @@ int bpf_prog_test_run_sk_lookup(struct bpf_prog *prog, const union bpf_attr *kat
 #endif
 
 	default:
-		ret = -EAFNOSUPPORT;
+		ret = -EAFANALSUPPORT;
 		goto out;
 	}
 
 	progs = bpf_prog_array_alloc(1, GFP_KERNEL);
 	if (!progs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1458,8 +1458,8 @@ int bpf_prog_test_run_sk_lookup(struct bpf_prog *prog, const union bpf_attr *kat
 
 	user_ctx->cookie = 0;
 	if (ctx.selected_sk) {
-		if (ctx.selected_sk->sk_reuseport && !ctx.no_reuseport) {
-			ret = -EOPNOTSUPP;
+		if (ctx.selected_sk->sk_reuseport && !ctx.anal_reuseport) {
+			ret = -EOPANALTSUPP;
 			goto out;
 		}
 
@@ -1623,7 +1623,7 @@ int bpf_prog_test_run_nf(struct bpf_prog *prog,
 
 	skb = slab_build_skb(data);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

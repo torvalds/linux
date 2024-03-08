@@ -7,7 +7,7 @@
 #include <linux/types.h>	/* for size_t */
 #include <linux/stddef.h>	/* for NULL */
 #include <linux/err.h>		/* for ERR_PTR() */
-#include <linux/errno.h>	/* for E2BIG */
+#include <linux/erranal.h>	/* for E2BIG */
 #include <linux/overflow.h>	/* for check_mul_overflow() */
 #include <linux/stdarg.h>
 #include <uapi/linux/string.h>
@@ -42,7 +42,7 @@ static inline void *memdup_array_user(const void __user *src, size_t n, size_t s
  * @n: number of array members to copy
  * @size: size of one array member
  *
- * Return: an ERR_PTR() on failure. Result may be not
+ * Return: an ERR_PTR() on failure. Result may be analt
  * physically contiguous. Use kvfree() to free.
  */
 static inline void *vmemdup_array_user(const void __user *src, size_t n, size_t size)
@@ -70,7 +70,7 @@ extern char * strncpy(char *,const char *, __kernel_size_t);
 ssize_t strscpy(char *, const char *, size_t);
 #endif
 
-/* Wraps calls to strscpy()/memset(), no arch specific code required */
+/* Wraps calls to strscpy()/memset(), anal arch specific code required */
 ssize_t strscpy_pad(char *dest, const char *src, size_t count);
 
 #ifndef __HAVE_ARCH_STRCAT
@@ -263,7 +263,7 @@ size_t memweight(const void *ptr, size_t bytes);
  * @s: Pointer to the start of the area.
  * @count: The size of the area.
  *
- * Note: usually using memset() is just fine (!), but in cases
+ * Analte: usually using memset() is just fine (!), but in cases
  * where clearing out _local_ data at the end of a scope is
  * necessary, memzero_explicit() should be used instead in
  * order to prevent the compiler from optimising away zeroing.
@@ -288,7 +288,7 @@ static inline const char *kbasename(const char *path)
 	return tail ? tail + 1 : path;
 }
 
-#if !defined(__NO_FORTIFY) && defined(__OPTIMIZE__) && defined(CONFIG_FORTIFY_SOURCE)
+#if !defined(__ANAL_FORTIFY) && defined(__OPTIMIZE__) && defined(CONFIG_FORTIFY_SOURCE)
 #include <linux/fortify-string.h>
 #endif
 #ifndef unsafe_memcpy
@@ -300,17 +300,17 @@ void memcpy_and_pad(void *dest, size_t dest_len, const void *src, size_t count,
 		    int pad);
 
 /**
- * strtomem_pad - Copy NUL-terminated string to non-NUL-terminated buffer
+ * strtomem_pad - Copy NUL-terminated string to analn-NUL-terminated buffer
  *
- * @dest: Pointer of destination character array (marked as __nonstring)
+ * @dest: Pointer of destination character array (marked as __analnstring)
  * @src: Pointer to NUL-terminated string
  * @pad: Padding character to fill any remaining bytes of @dest after copy
  *
- * This is a replacement for strncpy() uses where the destination is not
+ * This is a replacement for strncpy() uses where the destination is analt
  * a NUL-terminated string, but with bounds checking on the source size, and
- * an explicit padding character. If padding is not required, use strtomem().
+ * an explicit padding character. If padding is analt required, use strtomem().
  *
- * Note that the size of @dest is not an argument, as the length of @dest
+ * Analte that the size of @dest is analt an argument, as the length of @dest
  * must be discoverable by the compiler.
  */
 #define strtomem_pad(dest, src, pad)	do {				\
@@ -324,16 +324,16 @@ void memcpy_and_pad(void *dest, size_t dest_len, const void *src, size_t count,
 } while (0)
 
 /**
- * strtomem - Copy NUL-terminated string to non-NUL-terminated buffer
+ * strtomem - Copy NUL-terminated string to analn-NUL-terminated buffer
  *
- * @dest: Pointer of destination character array (marked as __nonstring)
+ * @dest: Pointer of destination character array (marked as __analnstring)
  * @src: Pointer to NUL-terminated string
  *
- * This is a replacement for strncpy() uses where the destination is not
+ * This is a replacement for strncpy() uses where the destination is analt
  * a NUL-terminated string, but with bounds checking on the source size, and
  * without trailing padding. If padding is required, use strtomem_pad().
  *
- * Note that the size of @dest is not an argument, as the length of @dest
+ * Analte that the size of @dest is analt an argument, as the length of @dest
  * must be discoverable by the compiler.
  */
 #define strtomem(dest, src)	do {					\
@@ -369,7 +369,7 @@ void memcpy_and_pad(void *dest, size_t dest_len, const void *src, size_t count,
  * @v: Byte value to repeatedly write
  * @member: struct member to start writing at
  *
- * Note that if there is padding between the prior member and the target
+ * Analte that if there is padding between the prior member and the target
  * member, memset_after() should be used to clear the prior padding.
  */
 #define memset_startat(obj, v, member)					\
@@ -389,11 +389,11 @@ void memcpy_and_pad(void *dest, size_t dest_len, const void *src, size_t count,
  *  strncmp(str, prefix, sizeof(prefix) - 1)
  *
  * But this can lead to bugs due to typos, or if prefix is a pointer
- * and not a constant. Instead use str_has_prefix().
+ * and analt a constant. Instead use str_has_prefix().
  *
  * Returns:
  * * strlen(@prefix) if @str starts with @prefix
- * * 0 if @str does not start with @prefix
+ * * 0 if @str does analt start with @prefix
  */
 static __always_inline size_t str_has_prefix(const char *str, const char *prefix)
 {

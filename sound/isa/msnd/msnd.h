@@ -111,7 +111,7 @@
 #define	HPIO_210		6
 #define	HPIO_3E0		7
 
-#define	HPMEM_NONE		0
+#define	HPMEM_ANALNE		0
 #define	HPMEM_B000		1
 #define	HPMEM_C800		2
 #define	HPMEM_D000		3
@@ -120,7 +120,7 @@
 #define	HPMEM_E000		6
 #define	HPMEM_E800		7
 
-#define	HPIRQ_NONE		0
+#define	HPIRQ_ANALNE		0
 #define HPIRQ_5			1
 #define HPIRQ_7			2
 #define HPIRQ_9			3

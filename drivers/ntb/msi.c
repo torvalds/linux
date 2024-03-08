@@ -45,7 +45,7 @@ int ntb_msi_init(struct ntb_dev *ntb,
 	ntb->msi = devm_kzalloc(&ntb->dev, struct_size(ntb->msi, peer_mws, peers),
 				GFP_KERNEL);
 	if (!ntb->msi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ntb->msi->desc_changed = desc_changed;
 
@@ -202,7 +202,7 @@ static int ntb_msi_set_desc(struct ntb_dev *ntb, struct msi_desc *entry,
 
 	if (addr < ntb->msi->base_addr || addr >= ntb->msi->end_addr) {
 		dev_warn_once(&ntb->dev,
-			      "IRQ %d: MSI Address not within the memory window (%llx, [%llx %llx])\n",
+			      "IRQ %d: MSI Address analt within the memory window (%llx, [%llx %llx])\n",
 			      entry->irq, addr, ntb->msi->base_addr,
 			      ntb->msi->end_addr);
 		return -EFAULT;
@@ -240,7 +240,7 @@ static int ntbm_msi_setup_callback(struct ntb_dev *ntb, struct msi_desc *entry,
 	dr = devres_alloc(ntbm_msi_callback_release,
 			  sizeof(struct ntb_msi_devres), GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dr->ntb = ntb;
 	dr->entry = entry;
@@ -313,7 +313,7 @@ int ntbm_msi_request_threaded_irq(struct ntb_dev *ntb, irq_handler_t handler,
 		ret = entry->irq;
 		goto unlock;
 	}
-	ret = -ENODEV;
+	ret = -EANALDEV;
 
 unlock:
 	msi_unlock_descs(dev);

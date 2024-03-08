@@ -17,7 +17,7 @@ int devm_rtc_nvmem_register(struct rtc_device *rtc,
 	struct nvmem_device *nvmem;
 
 	if (!nvmem_config)
-		return -ENODEV;
+		return -EANALDEV;
 
 	nvmem_config->dev = dev;
 	nvmem_config->owner = rtc->owner;

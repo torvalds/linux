@@ -30,7 +30,7 @@
  * ~~~~~~~~~~~~~~~~~
  *
  * UBI protects EC and VID headers with CRC-32 checksums, so it can detect
- * whether the headers are corrupted or not. Sometimes UBI also protects the
+ * whether the headers are corrupted or analt. Sometimes UBI also protects the
  * data with CRC-32, e.g., when it executes the atomic LEB change operation, or
  * when it moves the contents of a PEB for wear-leveling purposes.
  *
@@ -38,7 +38,7 @@
  *
  * 1. Corruptions caused by power cuts. These are expected corruptions and UBI
  * tries to handle them gracefully, without printing too many warnings and
- * error messages. The idea is that we do not lose important data in these
+ * error messages. The idea is that we do analt lose important data in these
  * cases - we may lose only the data which were being written to the media just
  * before the power cut happened, and the upper layers (e.g., UBIFS) are
  * supposed to handle such data losses (e.g., by using the FS journal).
@@ -47,7 +47,7 @@
  * the reason is a power cut, UBI puts this PEB to the @erase list, and all
  * PEBs in the @erase list are scheduled for erasure later.
  *
- * 2. Unexpected corruptions which are not caused by power cuts. During
+ * 2. Unexpected corruptions which are analt caused by power cuts. During
  * attaching, such PEBs are put to the @corr list and UBI preserves them.
  * Obviously, this lessens the amount of available PEBs, and if at some  point
  * UBI runs out of free PEBs, it switches to R/O mode. UBI also loudly informs
@@ -56,11 +56,11 @@
  * However, it is difficult to reliably distinguish between these types of
  * corruptions and UBI's strategy is as follows (in case of attaching by
  * scanning). UBI assumes corruption type 2 if the VID header is corrupted and
- * the data area does not contain all 0xFFs, and there were no bit-flips or
+ * the data area does analt contain all 0xFFs, and there were anal bit-flips or
  * integrity errors (e.g., ECC errors in case of NAND) while reading the data
  * area.  Otherwise UBI assumes corruption type 1. So the decision criteria
  * are as follows.
- *   o If the data area contains only 0xFFs, there are no data, and it is safe
+ *   o If the data area contains only 0xFFs, there are anal data, and it is safe
  *     to just erase this PEB - this is corruption type 1.
  *   o If the data area has bit-flips or data integrity errors (ECC errors on
  *     NAND), it is probably a PEB which was being erased when power cut
@@ -90,22 +90,22 @@ static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai);
  * @flags: a combination of the %AV_FIND and %AV_ADD flags describing the
  *	   expected operation. If only %AV_ADD is set, -EEXIST is returned
  *	   if the volume already exists. If only %AV_FIND is set, NULL is
- *	   returned if the volume does not exist. And if both flags are
+ *	   returned if the volume does analt exist. And if both flags are
  *	   set, the helper first tries to find an existing volume, and if
- *	   it does not exist it creates a new one.
+ *	   it does analt exist it creates a new one.
  * @created: in value used to inform the caller whether it"s a newly created
- *	     volume or not.
+ *	     volume or analt.
  *
  * This function returns a pointer to a volume description or an ERR_PTR if
  * the operation failed. It can also return NULL if only %AV_FIND is set and
- * the volume does not exist.
+ * the volume does analt exist.
  */
 static struct ubi_ainf_volume *find_or_add_av(struct ubi_attach_info *ai,
 					      int vol_id, unsigned int flags,
 					      bool *created)
 {
 	struct ubi_ainf_volume *av;
-	struct rb_node **p = &ai->volumes.rb_node, *parent = NULL;
+	struct rb_analde **p = &ai->volumes.rb_analde, *parent = NULL;
 
 	/* Walk the volume RB-tree to look if this volume is already present */
 	while (*p) {
@@ -133,14 +133,14 @@ static struct ubi_ainf_volume *find_or_add_av(struct ubi_attach_info *ai,
 	/* The volume is absent - add it */
 	av = kzalloc(sizeof(*av), GFP_KERNEL);
 	if (!av)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	av->vol_id = vol_id;
 
 	if (vol_id > ai->highest_vol_id)
 		ai->highest_vol_id = vol_id;
 
-	rb_link_node(&av->rb, parent, p);
+	rb_link_analde(&av->rb, parent, p);
 	rb_insert_color(&av->rb, &ai->volumes);
 	ai->vols_found += 1;
 	*created = true;
@@ -150,10 +150,10 @@ static struct ubi_ainf_volume *find_or_add_av(struct ubi_attach_info *ai,
 
 /**
  * ubi_find_or_add_av - search for a volume in the attaching information and
- *			add one if it does not exist.
+ *			add one if it does analt exist.
  * @ai: attaching information
  * @vol_id: the requested volume ID
- * @created: whether the volume has been created or not
+ * @created: whether the volume has been created or analt
  *
  * This function returns a pointer to the new volume description or an
  * ERR_PTR if the operation failed.
@@ -171,9 +171,9 @@ static struct ubi_ainf_volume *ubi_find_or_add_av(struct ubi_attach_info *ai,
  * @ec: erase counter of the physical eraseblock
  *
  * Allocate an aeb object and initialize the pnum and ec information.
- * vol_id and lnum are set to UBI_UNKNOWN, and the other fields are
+ * vol_id and lnum are set to UBI_UNKANALWN, and the other fields are
  * initialized to zero.
- * Note that the element is not added in any list or RB tree.
+ * Analte that the element is analt added in any list or RB tree.
  */
 struct ubi_ainf_peb *ubi_alloc_aeb(struct ubi_attach_info *ai, int pnum,
 				   int ec)
@@ -186,8 +186,8 @@ struct ubi_ainf_peb *ubi_alloc_aeb(struct ubi_attach_info *ai, int pnum,
 
 	aeb->pnum = pnum;
 	aeb->ec = ec;
-	aeb->vol_id = UBI_UNKNOWN;
-	aeb->lnum = UBI_UNKNOWN;
+	aeb->vol_id = UBI_UNKANALWN;
+	aeb->lnum = UBI_UNKANALWN;
 
 	return aeb;
 }
@@ -212,14 +212,14 @@ void ubi_free_aeb(struct ubi_attach_info *ai, struct ubi_ainf_peb *aeb)
  * @vol_id: the last used volume id for the PEB
  * @lnum: the last used LEB number for the PEB
  * @ec: erase counter of the physical eraseblock
- * @to_head: if not zero, add to the head of the list
+ * @to_head: if analt zero, add to the head of the list
  * @list: the list to add to
  *
  * This function allocates a 'struct ubi_ainf_peb' object for physical
  * eraseblock @pnum and adds it to the "free", "erase", or "alien" lists.
  * It stores the @lnum and @vol_id alongside, which can both be
- * %UBI_UNKNOWN if they are not available, not readable, or not assigned.
- * If @to_head is not zero, PEB will be added to the head of the list, which
+ * %UBI_UNKANALWN if they are analt available, analt readable, or analt assigned.
+ * If @to_head is analt zero, PEB will be added to the head of the list, which
  * basically means it will be processed first later. E.g., we add corrupted
  * PEBs (corrupted due to power cuts) to the head of the erase list to make
  * sure we erase them first and get rid of corruptions ASAP. This function
@@ -243,7 +243,7 @@ static int add_to_list(struct ubi_attach_info *ai, int pnum, int vol_id,
 
 	aeb = ubi_alloc_aeb(ai, pnum, ec);
 	if (!aeb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aeb->vol_id = vol_id;
 	aeb->lnum = lnum;
@@ -262,7 +262,7 @@ static int add_to_list(struct ubi_attach_info *ai, int pnum, int vol_id,
  *
  * This function allocates a 'struct ubi_ainf_peb' object for a corrupted
  * physical eraseblock @pnum and adds it to the 'corr' list.  The corruption
- * was presumably not caused by a power cut. Returns zero in case of success
+ * was presumably analt caused by a power cut. Returns zero in case of success
  * and a negative error code in case of failure.
  */
 static int add_corrupted(struct ubi_attach_info *ai, int pnum, int ec)
@@ -273,7 +273,7 @@ static int add_corrupted(struct ubi_attach_info *ai, int pnum, int ec)
 
 	aeb = ubi_alloc_aeb(ai, pnum, ec);
 	if (!aeb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ai->corr_peb_count += 1;
 	list_add(&aeb->u.list, &ai->corr);
@@ -300,7 +300,7 @@ static int add_fastmap(struct ubi_attach_info *ai, int pnum,
 
 	aeb = ubi_alloc_aeb(ai, pnum, ec);
 	if (!aeb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aeb->vol_id = be32_to_cpu(vid_hdr->vol_id);
 	aeb->sqnum = be64_to_cpu(vid_hdr->sqnum);
@@ -320,9 +320,9 @@ static int add_fastmap(struct ubi_attach_info *ai, int pnum,
  * @pnum: physical eraseblock number the VID header came from
  *
  * This function checks that data stored in @vid_hdr is consistent. Returns
- * non-zero if an inconsistency was found and zero if not.
+ * analn-zero if an inconsistency was found and zero if analt.
  *
- * Note, UBI does sanity check of everything it reads from the flash media.
+ * Analte, UBI does sanity check of everything it reads from the flash media.
  * Most of the checks are done in the I/O sub-system. Here we check that the
  * information in the VID header is consistent to the information in other VID
  * headers of the same volume.
@@ -340,7 +340,7 @@ static int validate_vid_hdr(const struct ubi_device *ubi,
 		int av_vol_type;
 
 		/*
-		 * This is not the first logical eraseblock belonging to this
+		 * This is analt the first logical eraseblock belonging to this
 		 * volume. Ensure that the data in its VID header is consistent
 		 * to the data in previous logical eraseblock headers.
 		 */
@@ -388,7 +388,7 @@ bad:
  * @vid_hdr: volume identifier header
  *
  * If the volume corresponding to the @vid_hdr logical eraseblock is already
- * present in the attaching information, this function does nothing. Otherwise
+ * present in the attaching information, this function does analthing. Otherwise
  * it adds corresponding volume to the attaching information. Returns a pointer
  * to the allocated "av" object in case of success and a negative error code in
  * case of failure.
@@ -430,9 +430,9 @@ static struct ubi_ainf_volume *add_volume(struct ubi_attach_info *ai,
  *     o bit 0 is cleared: the first PEB (described by @aeb) is newer than the
  *       second PEB (described by @pnum and @vid_hdr);
  *     o bit 0 is set: the second PEB is newer;
- *     o bit 1 is cleared: no bit-flips were detected in the newer LEB;
+ *     o bit 1 is cleared: anal bit-flips were detected in the newer LEB;
  *     o bit 1 is set: bit-flips were detected in the newer LEB;
- *     o bit 2 is cleared: the older LEB is not corrupted;
+ *     o bit 2 is cleared: the older LEB is analt corrupted;
  *     o bit 2 is set: the older LEB is corrupted.
  */
 int ubi_compare_lebs(struct ubi_device *ubi, const struct ubi_ainf_peb *aeb,
@@ -448,9 +448,9 @@ int ubi_compare_lebs(struct ubi_device *ubi, const struct ubi_ainf_peb *aeb,
 		 * This must be a really ancient UBI image which has been
 		 * created before sequence numbers support has been added. At
 		 * that times we used 32-bit LEB versions stored in logical
-		 * eraseblocks. That was before UBI got into mainline. We do not
+		 * eraseblocks. That was before UBI got into mainline. We do analt
 		 * support these images anymore. Well, those images still work,
-		 * but only if no unclean reboots happened.
+		 * but only if anal unclean reboots happened.
 		 */
 		ubi_err(ubi, "unsupported on-flash UBI format");
 		return -EINVAL;
@@ -460,24 +460,24 @@ int ubi_compare_lebs(struct ubi_device *ubi, const struct ubi_ainf_peb *aeb,
 	second_is_newer = (sqnum2 > aeb->sqnum);
 
 	/*
-	 * Now we know which copy is newer. If the copy flag of the PEB with
-	 * newer version is not set, then we just return, otherwise we have to
+	 * Analw we kanalw which copy is newer. If the copy flag of the PEB with
+	 * newer version is analt set, then we just return, otherwise we have to
 	 * check data CRC. For the second PEB we already have the VID header,
 	 * for the first one - we'll need to re-read it from flash.
 	 *
-	 * Note: this may be optimized so that we wouldn't read twice.
+	 * Analte: this may be optimized so that we wouldn't read twice.
 	 */
 
 	if (second_is_newer) {
 		if (!vid_hdr->copy_flag) {
-			/* It is not a copy, so it is newer */
+			/* It is analt a copy, so it is newer */
 			dbg_bld("second PEB %d is newer, copy_flag is unset",
 				pnum);
 			return 1;
 		}
 	} else {
 		if (!aeb->copy_flag) {
-			/* It is not a copy, so it is newer */
+			/* It is analt a copy, so it is newer */
 			dbg_bld("first PEB %d is newer, copy_flag is unset",
 				pnum);
 			return bitflips << 1;
@@ -485,7 +485,7 @@ int ubi_compare_lebs(struct ubi_device *ubi, const struct ubi_ainf_peb *aeb,
 
 		vidb = ubi_alloc_vid_buf(ubi, GFP_KERNEL);
 		if (!vidb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pnum = aeb->pnum;
 		err = ubi_io_read_vid_hdr(ubi, pnum, vidb, 0);
@@ -555,7 +555,7 @@ out_free_vidh:
  *
  * This function adds information about a used physical eraseblock to the
  * 'used' tree of the corresponding volume. The function is rather complex
- * because it has to handle cases when this is not the first physical
+ * because it has to handle cases when this is analt the first physical
  * eraseblock belonging to the same logical eraseblock, and the newer one has
  * to be picked, while the older one has to be dropped. This function returns
  * zero in case of success and a negative error code in case of failure.
@@ -567,7 +567,7 @@ int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
 	unsigned long long sqnum;
 	struct ubi_ainf_volume *av;
 	struct ubi_ainf_peb *aeb;
-	struct rb_node **p, *parent = NULL;
+	struct rb_analde **p, *parent = NULL;
 
 	vol_id = be32_to_cpu(vid_hdr->vol_id);
 	lnum = be32_to_cpu(vid_hdr->lnum);
@@ -585,9 +585,9 @@ int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
 
 	/*
 	 * Walk the RB-tree of logical eraseblocks of volume @vol_id to look
-	 * if this is the first instance of this logical eraseblock or not.
+	 * if this is the first instance of this logical eraseblock or analt.
 	 */
-	p = &av->root.rb_node;
+	p = &av->root.rb_analde;
 	while (*p) {
 		int cmp_res;
 
@@ -614,7 +614,7 @@ int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
 		 * sequence numbers. Otherwise the image is bad.
 		 *
 		 * However, if the sequence number is zero, we assume it must
-		 * be an ancient UBI image from the era when UBI did not have
+		 * be an ancient UBI image from the era when UBI did analt have
 		 * sequence numbers. We still can attach these images, unless
 		 * there is a need to distinguish between old and new
 		 * eraseblocks, in which case we'll refuse the image in
@@ -631,7 +631,7 @@ int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
 		}
 
 		/*
-		 * Now we have to drop the older one and preserve the newer
+		 * Analw we have to drop the older one and preserve the newer
 		 * one.
 		 */
 		cmp_res = ubi_compare_lebs(ubi, aeb, pnum, vid_hdr);
@@ -687,7 +687,7 @@ int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
 
 	aeb = ubi_alloc_aeb(ai, pnum, ec);
 	if (!aeb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aeb->vol_id = vol_id;
 	aeb->lnum = lnum;
@@ -701,7 +701,7 @@ int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
 	}
 
 	av->leb_count += 1;
-	rb_link_node(&aeb->u.rb, parent, p);
+	rb_link_analde(&aeb->u.rb, parent, p);
 	rb_insert_color(&aeb->u.rb, &av->root);
 	return 0;
 }
@@ -727,7 +727,7 @@ struct ubi_ainf_volume *ubi_add_av(struct ubi_attach_info *ai, int vol_id)
  * @vol_id: the requested volume ID
  *
  * This function returns a pointer to the volume description or %NULL if there
- * are no data about this volume in the attaching information.
+ * are anal data about this volume in the attaching information.
  */
 struct ubi_ainf_volume *ubi_find_av(const struct ubi_attach_info *ai,
 				    int vol_id)
@@ -760,11 +760,11 @@ void ubi_remove_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av)
  * @ubi: UBI device description object
  * @ai: attaching information
  * @pnum: physical eraseblock number to erase;
- * @ec: erase counter value to write (%UBI_UNKNOWN if it is unknown)
+ * @ec: erase counter value to write (%UBI_UNKANALWN if it is unkanalwn)
  *
  * This function erases physical eraseblock 'pnum', and writes the erase
  * counter header to it. This function should only be used on UBI device
- * initialization stages, when the EBA sub-system had not been yet initialized.
+ * initialization stages, when the EBA sub-system had analt been yet initialized.
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
@@ -786,7 +786,7 @@ static int early_erase_peb(struct ubi_device *ubi,
 
 	ec_hdr = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
 	if (!ec_hdr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ec_hdr->ec = cpu_to_be64(ec);
 
@@ -808,7 +808,7 @@ out_free:
  *
  * This function returns a free physical eraseblock. It is supposed to be
  * called on the UBI initialization stages when the wear-leveling sub-system is
- * not initialized yet. This function picks a physical eraseblocks from one of
+ * analt initialized yet. This function picks a physical eraseblocks from one of
  * the lists, writes the EC header if it is needed, and removes it from the
  * list.
  *
@@ -830,12 +830,12 @@ struct ubi_ainf_peb *ubi_early_get_peb(struct ubi_device *ubi,
 
 	/*
 	 * We try to erase the first physical eraseblock from the erase list
-	 * and pick it if we succeed, or try to erase the next one if not. And
+	 * and pick it if we succeed, or try to erase the next one if analt. And
 	 * so forth. We don't want to take care about bad eraseblocks here -
 	 * they'll be handled later.
 	 */
 	list_for_each_entry_safe(aeb, tmp_aeb, &ai->erase, u.list) {
-		if (aeb->ec == UBI_UNKNOWN)
+		if (aeb->ec == UBI_UNKANALWN)
 			aeb->ec = ai->mean_ec;
 
 		err = early_erase_peb(ubi, ai, aeb->pnum, aeb->ec+1);
@@ -848,8 +848,8 @@ struct ubi_ainf_peb *ubi_early_get_peb(struct ubi_device *ubi,
 		return aeb;
 	}
 
-	ubi_err(ubi, "no free eraseblocks");
-	return ERR_PTR(-ENOSPC);
+	ubi_err(ubi, "anal free eraseblocks");
+	return ERR_PTR(-EANALSPC);
 }
 
 /**
@@ -897,9 +897,9 @@ static int check_corruption(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
 	if (ubi_check_pattern(ubi->peb_buf, 0xFF, ubi->leb_size))
 		goto out_unlock;
 
-	ubi_err(ubi, "PEB %d contains corrupted VID header, and the data does not contain all 0xFF",
+	ubi_err(ubi, "PEB %d contains corrupted VID header, and the data does analt contain all 0xFF",
 		pnum);
-	ubi_err(ubi, "this may be a non-UBI PEB or a severe VID header corruption which requires manual inspection");
+	ubi_err(ubi, "this may be a analn-UBI PEB or a severe VID header corruption which requires manual inspection");
 	ubi_dump_vid_hdr(vid_hdr);
 	pr_err("hexdump of PEB %d offset %d, length %d",
 	       pnum, ubi->leb_start, ubi->leb_size);
@@ -912,7 +912,7 @@ out_unlock:
 	return err;
 }
 
-static bool vol_ignored(int vol_id)
+static bool vol_iganalred(int vol_id)
 {
 	switch (vol_id) {
 		case UBI_LAYOUT_VOLUME_ID:
@@ -969,25 +969,25 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		break;
 	case UBI_IO_FF:
 		ai->empty_peb_count += 1;
-		return add_to_list(ai, pnum, UBI_UNKNOWN, UBI_UNKNOWN,
-				   UBI_UNKNOWN, 0, &ai->erase);
+		return add_to_list(ai, pnum, UBI_UNKANALWN, UBI_UNKANALWN,
+				   UBI_UNKANALWN, 0, &ai->erase);
 	case UBI_IO_FF_BITFLIPS:
 		ai->empty_peb_count += 1;
-		return add_to_list(ai, pnum, UBI_UNKNOWN, UBI_UNKNOWN,
-				   UBI_UNKNOWN, 1, &ai->erase);
+		return add_to_list(ai, pnum, UBI_UNKANALWN, UBI_UNKANALWN,
+				   UBI_UNKANALWN, 1, &ai->erase);
 	case UBI_IO_BAD_HDR_EBADMSG:
 	case UBI_IO_BAD_HDR:
 		/*
-		 * We have to also look at the VID header, possibly it is not
+		 * We have to also look at the VID header, possibly it is analt
 		 * corrupted. Set %bitflips flag in order to make this PEB be
 		 * moved and EC be re-created.
 		 */
 		ec_err = err;
-		ec = UBI_UNKNOWN;
+		ec = UBI_UNKANALWN;
 		bitflips = 1;
 		break;
 	default:
-		ubi_err(ubi, "'ubi_io_read_ec_hdr()' returned unknown code %d",
+		ubi_err(ubi, "'ubi_io_read_ec_hdr()' returned unkanalwn code %d",
 			err);
 		return -EINVAL;
 	}
@@ -1007,7 +1007,7 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			/*
 			 * Erase counter overflow. The EC headers have 64 bits
 			 * reserved, but we anyway make use of only 31 bit
-			 * values, as this seems to be enough for any existing
+			 * values, as this seems to be eanalugh for any existing
 			 * flash. Upgrade UBI and use 64-bit erase counters
 			 * internally.
 			 */
@@ -1024,8 +1024,8 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		 * and leftovers from the old one. This feature was added
 		 * relatively recently, and the sequence number was always
 		 * zero, because old UBI implementations always set it to zero.
-		 * For this reasons, we do not panic if some PEBs have zero
-		 * sequence number, while other PEBs have non-zero sequence
+		 * For this reasons, we do analt panic if some PEBs have zero
+		 * sequence number, while other PEBs have analn-zero sequence
 		 * number.
 		 */
 		image_seq = be32_to_cpu(ech->image_seq);
@@ -1055,7 +1055,7 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			/*
 			 * Both EC and VID headers are corrupted and were read
 			 * with data integrity error, probably this is a bad
-			 * PEB, bit it is not marked as bad yet. This may also
+			 * PEB, bit it is analt marked as bad yet. This may also
 			 * be a result of power cut during erasure.
 			 */
 			ai->maybe_bad_peb_count += 1;
@@ -1065,9 +1065,9 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			 * If we're facing a bad VID header we have to drop *all*
 			 * Fastmap data structures we find. The most recent Fastmap
 			 * could be bad and therefore there is a chance that we attach
-			 * from an old one. On a fine MTD stack a PEB must not render
+			 * from an old one. On a fine MTD stack a PEB must analt render
 			 * bad all of a sudden, but the reality is different.
-			 * So, let's be paranoid and help finding the root cause by
+			 * So, let's be paraanalid and help finding the root cause by
 			 * falling back to scanning mode instead of attaching with a
 			 * bad EBA table and cause data corruption which is hard to
 			 * analyze.
@@ -1084,8 +1084,8 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			 * contains garbage because of a power cut during erase
 			 * operation. So we just schedule this PEB for erasure.
 			 *
-			 * Besides, in case of NOR flash, we deliberately
-			 * corrupt both headers because NOR flash erasure is
+			 * Besides, in case of ANALR flash, we deliberately
+			 * corrupt both headers because ANALR flash erasure is
 			 * slow and can start from the end.
 			 */
 			err = 0;
@@ -1100,8 +1100,8 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			return err;
 		else if (!err)
 			/* This corruption is caused by a power cut */
-			err = add_to_list(ai, pnum, UBI_UNKNOWN,
-					  UBI_UNKNOWN, ec, 1, &ai->erase);
+			err = add_to_list(ai, pnum, UBI_UNKANALWN,
+					  UBI_UNKANALWN, ec, 1, &ai->erase);
 		else
 			/* This is an unexpected corruption */
 			err = add_corrupted(ai, pnum, ec);
@@ -1109,29 +1109,29 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			return err;
 		goto adjust_mean_ec;
 	case UBI_IO_FF_BITFLIPS:
-		err = add_to_list(ai, pnum, UBI_UNKNOWN, UBI_UNKNOWN,
+		err = add_to_list(ai, pnum, UBI_UNKANALWN, UBI_UNKANALWN,
 				  ec, 1, &ai->erase);
 		if (err)
 			return err;
 		goto adjust_mean_ec;
 	case UBI_IO_FF:
 		if (ec_err || bitflips)
-			err = add_to_list(ai, pnum, UBI_UNKNOWN,
-					  UBI_UNKNOWN, ec, 1, &ai->erase);
+			err = add_to_list(ai, pnum, UBI_UNKANALWN,
+					  UBI_UNKANALWN, ec, 1, &ai->erase);
 		else
-			err = add_to_list(ai, pnum, UBI_UNKNOWN,
-					  UBI_UNKNOWN, ec, 0, &ai->free);
+			err = add_to_list(ai, pnum, UBI_UNKANALWN,
+					  UBI_UNKANALWN, ec, 0, &ai->free);
 		if (err)
 			return err;
 		goto adjust_mean_ec;
 	default:
-		ubi_err(ubi, "'ubi_io_read_vid_hdr()' returned unknown code %d",
+		ubi_err(ubi, "'ubi_io_read_vid_hdr()' returned unkanalwn code %d",
 			err);
 		return -EINVAL;
 	}
 
 	vol_id = be32_to_cpu(vidh->vol_id);
-	if (vol_id > UBI_MAX_VOLUMES && !vol_ignored(vol_id)) {
+	if (vol_id > UBI_MAX_VOLUMES && !vol_iganalred(vol_id)) {
 		int lnum = be32_to_cpu(vidh->lnum);
 
 		/* Unsupported internal volume */
@@ -1201,8 +1201,8 @@ adjust_mean_ec:
  * This is a helper function which takes a look what PEBs we have after we
  * gather information about all of them ("ai" is compete). It decides whether
  * the flash is empty and should be formatted of whether there are too many
- * corrupted PEBs and we should not attach this MTD device. Returns zero if we
- * should proceed with attaching the MTD device, and %-EINVAL if we should not.
+ * corrupted PEBs and we should analt attach this MTD device. Returns zero if we
+ * should proceed with attaching the MTD device, and %-EINVAL if we should analt.
  */
 static int late_analysis(struct ubi_device *ubi, struct ubi_attach_info *ai)
 {
@@ -1213,7 +1213,7 @@ static int late_analysis(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	max_corr = peb_count / 20 ?: 8;
 
 	/*
-	 * Few corrupted PEBs is not a problem and may be just a result of
+	 * Few corrupted PEBs is analt a problem and may be just a result of
 	 * unclean reboots. However, many of them may indicate some problems
 	 * with the flash HW or driver.
 	 */
@@ -1238,17 +1238,17 @@ static int late_analysis(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	if (ai->empty_peb_count + ai->maybe_bad_peb_count == peb_count) {
 		/*
 		 * All PEBs are empty, or almost all - a couple PEBs look like
-		 * they may be bad PEBs which were not marked as bad yet.
+		 * they may be bad PEBs which were analt marked as bad yet.
 		 *
 		 * This piece of code basically tries to distinguish between
 		 * the following situations:
 		 *
-		 * 1. Flash is empty, but there are few bad PEBs, which are not
+		 * 1. Flash is empty, but there are few bad PEBs, which are analt
 		 *    marked as bad so far, and which were read with error. We
 		 *    want to go ahead and format this flash. While formatting,
 		 *    the faulty PEBs will probably be marked as bad.
 		 *
-		 * 2. Flash contains non-UBI data and we do not want to format
+		 * 2. Flash contains analn-UBI data and we do analt want to format
 		 *    it and destroy possibly important information.
 		 */
 		if (ai->maybe_bad_peb_count <= 2) {
@@ -1257,7 +1257,7 @@ static int late_analysis(struct ubi_device *ubi, struct ubi_attach_info *ai)
 			get_random_bytes(&ubi->image_seq,
 					 sizeof(ubi->image_seq));
 		} else {
-			ubi_err(ubi, "MTD device is not UBI-formatted and possibly contains non-UBI data - refusing it");
+			ubi_err(ubi, "MTD device is analt UBI-formatted and possibly contains analn-UBI data - refusing it");
 			return -EINVAL;
 		}
 
@@ -1278,7 +1278,7 @@ static void destroy_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av,
 		       struct list_head *list)
 {
 	struct ubi_ainf_peb *aeb;
-	struct rb_node *this = av->root.rb_node;
+	struct rb_analde *this = av->root.rb_analde;
 
 	while (this) {
 		if (this->rb_left)
@@ -1312,7 +1312,7 @@ static void destroy_ai(struct ubi_attach_info *ai)
 {
 	struct ubi_ainf_peb *aeb, *aeb_tmp;
 	struct ubi_ainf_volume *av;
-	struct rb_node *rb;
+	struct rb_analde *rb;
 
 	list_for_each_entry_safe(aeb, aeb_tmp, &ai->alien, u.list) {
 		list_del(&aeb->u.list);
@@ -1336,7 +1336,7 @@ static void destroy_ai(struct ubi_attach_info *ai)
 	}
 
 	/* Destroy the volume RB-tree */
-	rb = ai->volumes.rb_node;
+	rb = ai->volumes.rb_analde;
 	while (rb) {
 		if (rb->rb_left)
 			rb = rb->rb_left;
@@ -1375,11 +1375,11 @@ static int scan_all(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		    int start)
 {
 	int err, pnum;
-	struct rb_node *rb1, *rb2;
+	struct rb_analde *rb1, *rb2;
 	struct ubi_ainf_volume *av;
 	struct ubi_ainf_peb *aeb;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 
 	ai->ech = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
 	if (!ai->ech)
@@ -1409,26 +1409,26 @@ static int scan_all(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		goto out_vidh;
 
 	/*
-	 * In case of unknown erase counter we use the mean erase counter
+	 * In case of unkanalwn erase counter we use the mean erase counter
 	 * value.
 	 */
 	ubi_rb_for_each_entry(rb1, av, &ai->volumes, rb) {
 		ubi_rb_for_each_entry(rb2, aeb, &av->root, u.rb)
-			if (aeb->ec == UBI_UNKNOWN)
+			if (aeb->ec == UBI_UNKANALWN)
 				aeb->ec = ai->mean_ec;
 	}
 
 	list_for_each_entry(aeb, &ai->free, u.list) {
-		if (aeb->ec == UBI_UNKNOWN)
+		if (aeb->ec == UBI_UNKANALWN)
 			aeb->ec = ai->mean_ec;
 	}
 
 	list_for_each_entry(aeb, &ai->corr, u.list)
-		if (aeb->ec == UBI_UNKNOWN)
+		if (aeb->ec == UBI_UNKANALWN)
 			aeb->ec = ai->mean_ec;
 
 	list_for_each_entry(aeb, &ai->erase, u.list)
-		if (aeb->ec == UBI_UNKNOWN)
+		if (aeb->ec == UBI_UNKANALWN)
 			aeb->ec = ai->mean_ec;
 
 	err = self_check_ai(ubi, ai);
@@ -1481,15 +1481,15 @@ static struct ubi_attach_info *alloc_ai(void)
  *
  * Returns 0 on success, negative return values indicate an internal
  * error.
- * UBI_NO_FASTMAP denotes that no fastmap was found.
- * UBI_BAD_FASTMAP denotes that the found fastmap was invalid.
+ * UBI_ANAL_FASTMAP deanaltes that anal fastmap was found.
+ * UBI_BAD_FASTMAP deanaltes that the found fastmap was invalid.
  */
 static int scan_fast(struct ubi_device *ubi, struct ubi_attach_info **ai)
 {
 	int err, pnum;
 	struct ubi_attach_info *scan_ai;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 
 	scan_ai = alloc_ai();
 	if (!scan_ai)
@@ -1516,7 +1516,7 @@ static int scan_fast(struct ubi_device *ubi, struct ubi_attach_info **ai)
 	kfree(scan_ai->ech);
 
 	if (scan_ai->force_full_scan)
-		err = UBI_NO_FASTMAP;
+		err = UBI_ANAL_FASTMAP;
 	else
 		err = ubi_scan_fastmap(ubi, *ai, scan_ai);
 
@@ -1547,7 +1547,7 @@ out:
 /**
  * ubi_attach - attach an MTD device.
  * @ubi: UBI device descriptor
- * @force_scan: if set to non-zero attach by scanning
+ * @force_scan: if set to analn-zero attach by scanning
  *
  * This function returns zero in case of success and a negative error code in
  * case of failure.
@@ -1559,7 +1559,7 @@ int ubi_attach(struct ubi_device *ubi, int force_scan)
 
 	ai = alloc_ai();
 	if (!ai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #ifdef CONFIG_MTD_UBI_FASTMAP
 	/* On small flash devices we disable fastmap in any case. */
@@ -1573,11 +1573,11 @@ int ubi_attach(struct ubi_device *ubi, int force_scan)
 	else {
 		err = scan_fast(ubi, &ai);
 		if (err > 0 || mtd_is_eccerr(err)) {
-			if (err != UBI_NO_FASTMAP) {
+			if (err != UBI_ANAL_FASTMAP) {
 				destroy_ai(ai);
 				ai = alloc_ai();
 				if (!ai)
-					return -ENOMEM;
+					return -EANALMEM;
 
 				err = scan_all(ubi, ai, 0);
 			} else {
@@ -1616,7 +1616,7 @@ int ubi_attach(struct ubi_device *ubi, int force_scan)
 
 		scan_ai = alloc_ai();
 		if (!scan_ai) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_wl;
 		}
 
@@ -1653,14 +1653,14 @@ out_ai:
  * @ai: attaching information
  *
  * This function returns zero if the attaching information is all right, and a
- * negative error code if not or if an error occurred.
+ * negative error code if analt or if an error occurred.
  */
 static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai)
 {
 	struct ubi_vid_io_buf *vidb = ai->vidb;
 	struct ubi_vid_hdr *vidh = ubi_get_vid_hdr(vidb);
 	int pnum, err, vols_found = 0;
-	struct rb_node *rb1, *rb2;
+	struct rb_analde *rb1, *rb2;
 	struct ubi_ainf_volume *av;
 	struct ubi_ainf_peb *aeb, *last_aeb;
 	uint8_t *buf;
@@ -1750,7 +1750,7 @@ static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai)
 				}
 			} else {
 				if (av->used_ebs != 0) {
-					ubi_err(ubi, "non-zero used_ebs");
+					ubi_err(ubi, "analn-zero used_ebs");
 					goto bad_aeb;
 				}
 			}
@@ -1796,7 +1796,7 @@ static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai)
 
 			err = ubi_io_read_vid_hdr(ubi, aeb->pnum, vidb, 1);
 			if (err && err != UBI_IO_BITFLIPS) {
-				ubi_err(ubi, "VID header is not OK (%d)",
+				ubi_err(ubi, "VID header is analt OK (%d)",
 					err);
 				if (err > 0)
 					err = -EIO;
@@ -1862,7 +1862,7 @@ static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	 */
 	buf = kzalloc(ubi->peb_count, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (pnum = 0; pnum < ubi->peb_count; pnum++) {
 		err = ubi_io_is_bad(ubi, pnum);
@@ -1892,7 +1892,7 @@ static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	err = 0;
 	for (pnum = 0; pnum < ubi->peb_count; pnum++)
 		if (!buf[pnum]) {
-			ubi_err(ubi, "PEB %d is not referred", pnum);
+			ubi_err(ubi, "PEB %d is analt referred", pnum);
 			err = 1;
 		}
 

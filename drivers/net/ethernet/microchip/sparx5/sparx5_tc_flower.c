@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip VCAP API
  *
- * Copyright (c) 2022 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include <net/tc_act/tc_gate.h>
@@ -71,7 +71,7 @@ sparx5_tc_flower_handler_basic_usage(struct vcap_tc_flower_parse_usage *st)
 
 	if (mt.mask->n_proto) {
 		st->l3_proto = be16_to_cpu(mt.key->n_proto);
-		if (!sparx5_vcap_is_known_etype(st->admin, st->l3_proto)) {
+		if (!sparx5_vcap_is_kanalwn_etype(st->admin, st->l3_proto)) {
 			err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_ETYPE,
 						    st->l3_proto, ~0);
 			if (err)
@@ -154,7 +154,7 @@ sparx5_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 					value = 3; /* follow up fragment */
 					mask = 0x3;
 				} else {
-					value = 0; /* no fragment */
+					value = 0; /* anal fragment */
 					mask = 0x3;
 				}
 			}
@@ -163,7 +163,7 @@ sparx5_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 				value = 3; /* follow up fragment */
 				mask = 0x3;
 			} else {
-				value = 0; /* no fragment */
+				value = 0; /* anal fragment */
 				mask = 0x3;
 			}
 		}
@@ -189,7 +189,7 @@ sparx5_tc_flower_handler_cvlan_usage(struct vcap_tc_flower_parse_usage *st)
 {
 	if (st->admin->vtype != VCAP_TYPE_IS0) {
 		NL_SET_ERR_MSG_MOD(st->fco->common.extack,
-				   "cvlan not supported in this VCAP");
+				   "cvlan analt supported in this VCAP");
 		return -EINVAL;
 	}
 
@@ -251,7 +251,7 @@ static int sparx5_tc_use_dissectors(struct vcap_tc_flower_parse_usage *st,
 	if (st->frule->match.dissector->used_keys ^ st->used_keys) {
 		NL_SET_ERR_MSG_MOD(st->fco->common.extack,
 				   "Unsupported match item");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return err;
@@ -269,12 +269,12 @@ static int sparx5_tc_flower_action_check(struct vcap_control *vctrl,
 	int idx;
 
 	if (!flow_action_has_entries(act)) {
-		NL_SET_ERR_MSG_MOD(fco->common.extack, "No actions");
+		NL_SET_ERR_MSG_MOD(fco->common.extack, "Anal actions");
 		return -EINVAL;
 	}
 
 	if (!flow_action_basic_hw_stats_check(act, fco->common.extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	flow_action_for_each(idx, actent, act) {
 		if (action_mask & BIT(actent->id)) {
@@ -287,7 +287,7 @@ static int sparx5_tc_flower_action_check(struct vcap_control *vctrl,
 	}
 
 	/* Check if last action is a goto
-	 * The last chain/lookup does not need to have a goto action
+	 * The last chain/lookup does analt need to have a goto action
 	 */
 	if (last_actent->id == FLOW_ACTION_GOTO) {
 		/* Check if the destination chain is in one of the VCAPs */
@@ -308,29 +308,29 @@ static int sparx5_tc_flower_action_check(struct vcap_control *vctrl,
 	if (action_mask & BIT(FLOW_ACTION_TRAP) &&
 	    action_mask & BIT(FLOW_ACTION_ACCEPT)) {
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
-				   "Cannot combine pass and trap action");
-		return -EOPNOTSUPP;
+				   "Cananalt combine pass and trap action");
+		return -EOPANALTSUPP;
 	}
 
 	if (action_mask & BIT(FLOW_ACTION_VLAN_PUSH) &&
 	    action_mask & BIT(FLOW_ACTION_VLAN_POP)) {
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
-				   "Cannot combine vlan push and pop action");
-		return -EOPNOTSUPP;
+				   "Cananalt combine vlan push and pop action");
+		return -EOPANALTSUPP;
 	}
 
 	if (action_mask & BIT(FLOW_ACTION_VLAN_PUSH) &&
 	    action_mask & BIT(FLOW_ACTION_VLAN_MANGLE)) {
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
-				   "Cannot combine vlan push and modify action");
-		return -EOPNOTSUPP;
+				   "Cananalt combine vlan push and modify action");
+		return -EOPANALTSUPP;
 	}
 
 	if (action_mask & BIT(FLOW_ACTION_VLAN_POP) &&
 	    action_mask & BIT(FLOW_ACTION_VLAN_MANGLE)) {
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
-				   "Cannot combine vlan pop and modify action");
-		return -EOPNOTSUPP;
+				   "Cananalt combine vlan pop and modify action");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -361,7 +361,7 @@ static int sparx5_tc_add_rule_counter(struct vcap_admin *admin,
 		vcap_rule_set_counter_id(vrule, vrule->id);
 		break;
 	default:
-		pr_err("%s:%d: vcap type: %d not supported\n",
+		pr_err("%s:%d: vcap type: %d analt supported\n",
 		       __func__, __LINE__, admin->vtype);
 		break;
 	}
@@ -432,7 +432,7 @@ static int sparx5_tc_select_protocol_keyset(struct net_device *ndev,
 		return -EPROTO;
 
 	if (l3_proto == ETH_P_ALL && count < portkeysetlist.cnt)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (idx = 0; idx < SPX5_MAX_RULE_SIZE; ++idx) {
 		mru = &multi->rule[idx];
@@ -453,7 +453,7 @@ static int sparx5_tc_select_protocol_keyset(struct net_device *ndev,
 
 		vcap_set_rule_set_keyset(vrule, mru->keyset);
 		if (count > 1)
-			/* Some keysets do not have a type field */
+			/* Some keysets do analt have a type field */
 			vcap_rule_mod_key_u32(vrule, VCAP_KF_TYPE,
 					      mru->value,
 					      ~mru->mask);
@@ -490,14 +490,14 @@ static int sparx5_tc_add_rule_copy(struct vcap_control *vctrl,
 	vcap_filter_rule_keys(vrule, keylist, ARRAY_SIZE(keylist), true);
 	err = vcap_set_rule_set_keyset(vrule, rule->keyset);
 	if (err) {
-		pr_err("%s:%d: could not set keyset %s in rule: %u\n",
+		pr_err("%s:%d: could analt set keyset %s in rule: %u\n",
 		       __func__, __LINE__,
 		       vcap_keyset_name(vctrl, rule->keyset),
 		       vrule->id);
 		goto out;
 	}
 
-	/* Some keysets do not have a type field, so ignore return value */
+	/* Some keysets do analt have a type field, so iganalre return value */
 	vcap_rule_mod_key_u32(vrule, VCAP_KF_TYPE, rule->value, ~rule->mask);
 
 	err = vcap_set_rule_set_actionset(vrule, erule->actionset);
@@ -510,14 +510,14 @@ static int sparx5_tc_add_rule_copy(struct vcap_control *vctrl,
 
 	err = vcap_val_rule(vrule, ETH_P_ALL);
 	if (err) {
-		pr_err("%s:%d: could not validate rule: %u\n",
+		pr_err("%s:%d: could analt validate rule: %u\n",
 		       __func__, __LINE__, vrule->id);
 		vcap_set_tc_exterr(fco, vrule);
 		goto out;
 	}
 	err = vcap_add_rule(vrule);
 	if (err) {
-		pr_err("%s:%d: could not add rule: %u\n",
+		pr_err("%s:%d: could analt add rule: %u\n",
 		       __func__, __LINE__, vrule->id);
 		goto out;
 	}
@@ -570,8 +570,8 @@ static int sparx5_tc_set_actionset(struct vcap_admin *admin,
 		pr_err("%s:%d: %s\n", __func__, __LINE__, "Invalid VCAP type");
 		return -EINVAL;
 	}
-	/* Do not overwrite any current actionset */
-	if (vrule->actionset == VCAP_AFS_NO_VALUE)
+	/* Do analt overwrite any current actionset */
+	if (vrule->actionset == VCAP_AFS_ANAL_VALUE)
 		err = vcap_set_rule_set_actionset(vrule, aset);
 	return err;
 }
@@ -670,7 +670,7 @@ static int sparx5_tc_add_rule_link(struct vcap_control *vctrl,
 	} else {
 		pr_err("%s:%d: unsupported chain destination: %d\n",
 		       __func__, __LINE__, to_cid);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 out:
 	return err;
@@ -728,21 +728,21 @@ static int sparx5_tc_flower_parse_act_police(struct sparx5_policer *pol,
 	pol->burst = act->police.burst;
 	pol->idx = act->hw_index;
 
-	/* rate is now in kbit */
+	/* rate is analw in kbit */
 	if (pol->rate > DIV_ROUND_UP(SPX5_SDLB_GROUP_RATE_MAX, 1000)) {
 		NL_SET_ERR_MSG_MOD(extack, "Maximum rate exceeded");
 		return -EINVAL;
 	}
 
 	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
-		NL_SET_ERR_MSG_MOD(extack, "Offload not supported when exceed action is not drop");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Offload analt supported when exceed action is analt drop");
+		return -EOPANALTSUPP;
 	}
 
-	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
-	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
-		NL_SET_ERR_MSG_MOD(extack, "Offload not supported when conform action is not pipe or ok");
-		return -EOPNOTSUPP;
+	if (act->police.analtexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.analtexceed.act_id != FLOW_ACTION_ACCEPT) {
+		NL_SET_ERR_MSG_MOD(extack, "Offload analt supported when conform action is analt pipe or ok");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -793,7 +793,7 @@ static int sparx5_tc_flower_psfp_setup(struct sparx5 *sparx5,
 	if (ret < 0)
 		return ret;
 
-	/* Streams are classified by ISDX - map ISDX 1:1 to sfid for now. */
+	/* Streams are classified by ISDX - map ISDX 1:1 to sfid for analw. */
 	sparx5_isdx_conf_set(sparx5, psfp_sfid, psfp_sfid, psfp_fmid);
 
 	ret = vcap_rule_add_action_bit(vrule, VCAP_AF_ISDX_ADD_REPLACE_SEL,
@@ -846,8 +846,8 @@ static int sparx5_tc_action_trap(struct vcap_admin *admin,
 		break;
 	default:
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
-				   "Trap action not supported in this VCAP");
-		err = -EOPNOTSUPP;
+				   "Trap action analt supported in this VCAP");
+		err = -EOPANALTSUPP;
 		break;
 	}
 	return err;
@@ -865,8 +865,8 @@ static int sparx5_tc_action_vlan_pop(struct vcap_admin *admin,
 		break;
 	default:
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
-				   "VLAN pop action not supported in this VCAP");
-		return -EOPNOTSUPP;
+				   "VLAN pop action analt supported in this VCAP");
+		return -EOPANALTSUPP;
 	}
 
 	switch (tpid) {
@@ -902,8 +902,8 @@ static int sparx5_tc_action_vlan_modify(struct vcap_admin *admin,
 		break;
 	default:
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
-				   "VLAN modify action not supported in this VCAP");
-		return -EOPNOTSUPP;
+				   "VLAN modify action analt supported in this VCAP");
+		return -EOPANALTSUPP;
 	}
 
 	switch (tpid) {
@@ -968,14 +968,14 @@ static int sparx5_tc_action_vlan_push(struct vcap_admin *admin,
 		break;
 	default:
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
-				   "VLAN push action not supported in this VCAP");
-		return -EOPNOTSUPP;
+				   "VLAN push action analt supported in this VCAP");
+		return -EOPANALTSUPP;
 	}
 
 	if (tpid == ETH_P_8021AD) {
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
-				   "Cannot push on double tagged frames");
-		return -EOPNOTSUPP;
+				   "Cananalt push on double tagged frames");
+		return -EOPANALTSUPP;
 	}
 
 	err = sparx5_tc_action_vlan_modify(admin, vrule, fco, act, act_tpid);
@@ -1184,7 +1184,7 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 		default:
 			NL_SET_ERR_MSG_MOD(fco->common.extack,
 					   "Unsupported TC action");
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			goto out;
 		}
 	}
@@ -1202,7 +1202,7 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 						       state.l3_proto, &multi);
 		if (err) {
 			NL_SET_ERR_MSG_MOD(fco->common.extack,
-					   "No matching port keyset for filter protocol and keys");
+					   "Anal matching port keyset for filter protocol and keys");
 			goto out;
 		}
 	}
@@ -1216,7 +1216,7 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 	err = vcap_add_rule(vrule);
 	if (err)
 		NL_SET_ERR_MSG_MOD(fco->common.extack,
-				   "Could not add the filter");
+				   "Could analt add the filter");
 
 	if (state.l3_proto == ETH_P_ALL)
 		err = sparx5_tc_add_remaining_rules(vctrl, fco, vrule, admin,
@@ -1250,15 +1250,15 @@ static void sparx5_tc_free_psfp_resources(struct sparx5 *sparx5,
 	sgid = sparx5_psfp_sf_get_sg(sparx5, sfid);
 
 	if (fmid && sparx5_psfp_fm_del(sparx5, fmid) < 0)
-		pr_err("%s:%d Could not delete invalid fmid: %d", __func__,
+		pr_err("%s:%d Could analt delete invalid fmid: %d", __func__,
 		       __LINE__, fmid);
 
 	if (sgid && sparx5_psfp_sg_del(sparx5, sgid) < 0)
-		pr_err("%s:%d Could not delete invalid sgid: %d", __func__,
+		pr_err("%s:%d Could analt delete invalid sgid: %d", __func__,
 		       __LINE__, sgid);
 
 	if (sparx5_psfp_sf_del(sparx5, sfid) < 0)
-		pr_err("%s:%d Could not delete invalid sfid: %d", __func__,
+		pr_err("%s:%d Could analt delete invalid sfid: %d", __func__,
 		       __LINE__, sfid);
 
 	sparx5_isdx_conf_set(sparx5, isdx, 0, 0);
@@ -1288,7 +1288,7 @@ static int sparx5_tc_flower_destroy(struct net_device *ndev,
 				    struct vcap_admin *admin)
 {
 	struct sparx5_port *port = netdev_priv(ndev);
-	int err = -ENOENT, count = 0, rule_id;
+	int err = -EANALENT, count = 0, rule_id;
 	struct vcap_control *vctrl;
 
 	vctrl = port->sparx5->vcap_ctrl;
@@ -1304,12 +1304,12 @@ static int sparx5_tc_flower_destroy(struct net_device *ndev,
 			err = sparx5_tc_free_rule_resources(ndev, vctrl,
 							    rule_id);
 			if (err)
-				pr_err("%s:%d: could not free resources %d\n",
+				pr_err("%s:%d: could analt free resources %d\n",
 				       __func__, __LINE__, rule_id);
 		}
 		err = vcap_del_rule(vctrl, ndev, rule_id);
 		if (err) {
-			pr_err("%s:%d: could not delete rule %d\n",
+			pr_err("%s:%d: could analt delete rule %d\n",
 			       __func__, __LINE__, rule_id);
 			break;
 		}
@@ -1355,7 +1355,7 @@ static int sparx5_tc_flower_template_create(struct net_device *ndev,
 
 	if (admin->vtype == VCAP_TYPE_ES0) {
 		pr_err("%s:%d: %s\n", __func__, __LINE__,
-		       "VCAP does not support templates");
+		       "VCAP does analt support templates");
 		return -EINVAL;
 	}
 
@@ -1368,11 +1368,11 @@ static int sparx5_tc_flower_template_create(struct net_device *ndev,
 
 	ftp = kzalloc(sizeof(*ftp), GFP_KERNEL);
 	if (!ftp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ftp->cid = fco->common.chain_index;
-	ftp->orig = VCAP_KFS_NO_VALUE;
-	ftp->keyset = VCAP_KFS_NO_VALUE;
+	ftp->orig = VCAP_KFS_ANAL_VALUE;
+	ftp->keyset = VCAP_KFS_ANAL_VALUE;
 
 	vctrl = port->sparx5->vcap_ctrl;
 	vrule = vcap_alloc_rule(vctrl, ndev, fco->common.chain_index,
@@ -1399,8 +1399,8 @@ static int sparx5_tc_flower_template_create(struct net_device *ndev,
 	kslist.max = ARRAY_SIZE(keysets);
 	if (!vcap_rule_find_keysets(vrule, &kslist)) {
 		pr_err("%s:%d: %s\n", __func__, __LINE__,
-		       "Could not find a suitable keyset");
-		err = -ENOENT;
+		       "Could analt find a suitable keyset");
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -1432,7 +1432,7 @@ static int sparx5_tc_flower_template_destroy(struct net_device *ndev,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5_tc_flower_template *ftp, *tmp;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	/* Rules using the template are removed by the tc framework */
 	list_for_each_entry_safe(ftp, tmp, &port->tc_templates, list) {
@@ -1478,6 +1478,6 @@ int sparx5_tc_flower(struct net_device *ndev, struct flow_cls_offload *fco,
 	case FLOW_CLS_TMPLT_DESTROY:
 		return sparx5_tc_flower_template_destroy(ndev, fco, admin);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }

@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 
 /*
- * This driver can only access the non-USB portions of STw4811, the register
+ * This driver can only access the analn-USB portions of STw4811, the register
  * range 0x00-0x10 dealing with USB is bound to the two special I2C pins used
  * for USB control.
  */
@@ -181,7 +181,7 @@ static int stw481x_probe(struct i2c_client *client)
 
 	stw481x = devm_kzalloc(&client->dev, sizeof(*stw481x), GFP_KERNEL);
 	if (!stw481x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, stw481x);
 	stw481x->client = client;

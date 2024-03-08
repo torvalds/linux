@@ -22,8 +22,8 @@
 #define CAP11XX_REG_MAIN_CONTROL_DLSEEP		BIT(4)
 #define CAP11XX_REG_GENERAL_STATUS	0x02
 #define CAP11XX_REG_SENSOR_INPUT	0x03
-#define CAP11XX_REG_NOISE_FLAG_STATUS	0x0a
-#define CAP11XX_REG_SENOR_DELTA(X)	(0x10 + (X))
+#define CAP11XX_REG_ANALISE_FLAG_STATUS	0x0a
+#define CAP11XX_REG_SEANALR_DELTA(X)	(0x10 + (X))
 #define CAP11XX_REG_SENSITIVITY_CONTROL	0x1f
 #define CAP11XX_REG_SENSITIVITY_CONTROL_DELTA_SENSE_MASK	0x70
 #define CAP11XX_REG_CONFIG		0x20
@@ -40,7 +40,7 @@
 #define CAP11XX_REG_MT_PATTERN		0x2d
 #define CAP11XX_REG_RECALIB_CONFIG	0x2f
 #define CAP11XX_REG_SENSOR_THRESH(X)	(0x30 + (X))
-#define CAP11XX_REG_SENSOR_NOISE_THRESH	0x38
+#define CAP11XX_REG_SENSOR_ANALISE_THRESH	0x38
 #define CAP11XX_REG_STANDBY_CHANNEL	0x40
 #define CAP11XX_REG_STANDBY_CONFIG	0x41
 #define CAP11XX_REG_STANDBY_SENSITIVITY	0x42
@@ -104,7 +104,7 @@ struct cap11xx_hw_model {
 	u8 product_id;
 	unsigned int num_channels;
 	unsigned int num_leds;
-	bool no_gain;
+	bool anal_gain;
 };
 
 enum {
@@ -118,20 +118,20 @@ enum {
 };
 
 static const struct cap11xx_hw_model cap11xx_devices[] = {
-	[CAP1106] = { .product_id = 0x55, .num_channels = 6, .num_leds = 0, .no_gain = false },
-	[CAP1126] = { .product_id = 0x53, .num_channels = 6, .num_leds = 2, .no_gain = false },
-	[CAP1188] = { .product_id = 0x50, .num_channels = 8, .num_leds = 8, .no_gain = false },
-	[CAP1203] = { .product_id = 0x6d, .num_channels = 3, .num_leds = 0, .no_gain = true },
-	[CAP1206] = { .product_id = 0x67, .num_channels = 6, .num_leds = 0, .no_gain = true },
-	[CAP1293] = { .product_id = 0x6f, .num_channels = 3, .num_leds = 0, .no_gain = false },
-	[CAP1298] = { .product_id = 0x71, .num_channels = 8, .num_leds = 0, .no_gain = false },
+	[CAP1106] = { .product_id = 0x55, .num_channels = 6, .num_leds = 0, .anal_gain = false },
+	[CAP1126] = { .product_id = 0x53, .num_channels = 6, .num_leds = 2, .anal_gain = false },
+	[CAP1188] = { .product_id = 0x50, .num_channels = 8, .num_leds = 8, .anal_gain = false },
+	[CAP1203] = { .product_id = 0x6d, .num_channels = 3, .num_leds = 0, .anal_gain = true },
+	[CAP1206] = { .product_id = 0x67, .num_channels = 6, .num_leds = 0, .anal_gain = true },
+	[CAP1293] = { .product_id = 0x6f, .num_channels = 3, .num_leds = 0, .anal_gain = false },
+	[CAP1298] = { .product_id = 0x71, .num_channels = 8, .num_leds = 0, .anal_gain = false },
 };
 
 static const struct reg_default cap11xx_reg_defaults[] = {
 	{ CAP11XX_REG_MAIN_CONTROL,		0x00 },
 	{ CAP11XX_REG_GENERAL_STATUS,		0x00 },
 	{ CAP11XX_REG_SENSOR_INPUT,		0x00 },
-	{ CAP11XX_REG_NOISE_FLAG_STATUS,	0x00 },
+	{ CAP11XX_REG_ANALISE_FLAG_STATUS,	0x00 },
 	{ CAP11XX_REG_SENSITIVITY_CONTROL,	0x2f },
 	{ CAP11XX_REG_CONFIG,			0x20 },
 	{ CAP11XX_REG_SENSOR_ENABLE,		0x3f },
@@ -151,7 +151,7 @@ static const struct reg_default cap11xx_reg_defaults[] = {
 	{ CAP11XX_REG_SENSOR_THRESH(3),		0x40 },
 	{ CAP11XX_REG_SENSOR_THRESH(4),		0x40 },
 	{ CAP11XX_REG_SENSOR_THRESH(5),		0x40 },
-	{ CAP11XX_REG_SENSOR_NOISE_THRESH,	0x01 },
+	{ CAP11XX_REG_SENSOR_ANALISE_THRESH,	0x01 },
 	{ CAP11XX_REG_STANDBY_CHANNEL,		0x00 },
 	{ CAP11XX_REG_STANDBY_CONFIG,		0x39 },
 	{ CAP11XX_REG_STANDBY_SENSITIVITY,	0x02 },
@@ -167,12 +167,12 @@ static bool cap11xx_volatile_reg(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case CAP11XX_REG_MAIN_CONTROL:
 	case CAP11XX_REG_SENSOR_INPUT:
-	case CAP11XX_REG_SENOR_DELTA(0):
-	case CAP11XX_REG_SENOR_DELTA(1):
-	case CAP11XX_REG_SENOR_DELTA(2):
-	case CAP11XX_REG_SENOR_DELTA(3):
-	case CAP11XX_REG_SENOR_DELTA(4):
-	case CAP11XX_REG_SENOR_DELTA(5):
+	case CAP11XX_REG_SEANALR_DELTA(0):
+	case CAP11XX_REG_SEANALR_DELTA(1):
+	case CAP11XX_REG_SEANALR_DELTA(2):
+	case CAP11XX_REG_SEANALR_DELTA(3):
+	case CAP11XX_REG_SEANALR_DELTA(4):
+	case CAP11XX_REG_SEANALR_DELTA(5):
 		return true;
 	}
 
@@ -213,18 +213,18 @@ static int cap11xx_write_calib_sens_config_2(struct cap11xx_priv *priv)
 
 static int cap11xx_init_keys(struct cap11xx_priv *priv)
 {
-	struct device_node *node = priv->dev->of_node;
+	struct device_analde *analde = priv->dev->of_analde;
 	struct device *dev = priv->dev;
 	int i, error;
 	u32 u32_val;
 
-	if (!node) {
-		dev_err(dev, "Corresponding DT entry is not available\n");
-		return -ENODEV;
+	if (!analde) {
+		dev_err(dev, "Corresponding DT entry is analt available\n");
+		return -EANALDEV;
 	}
 
-	if (!of_property_read_u32(node, "microchip,sensor-gain", &u32_val)) {
-		if (priv->model->no_gain) {
+	if (!of_property_read_u32(analde, "microchip,sensor-gain", &u32_val)) {
+		if (priv->model->anal_gain) {
 			dev_warn(dev,
 				 "This model doesn't support 'sensor-gain'\n");
 		} else if (is_power_of_2(u32_val) && u32_val <= 8) {
@@ -242,7 +242,7 @@ static int cap11xx_init_keys(struct cap11xx_priv *priv)
 		}
 	}
 
-	if (of_property_read_bool(node, "microchip,irq-active-high")) {
+	if (of_property_read_bool(analde, "microchip,irq-active-high")) {
 		if (priv->id == CAP1106 ||
 		    priv->id == CAP1126 ||
 		    priv->id == CAP1188) {
@@ -258,7 +258,7 @@ static int cap11xx_init_keys(struct cap11xx_priv *priv)
 		}
 	}
 
-	if (!of_property_read_u32(node, "microchip,sensitivity-delta-sense", &u32_val)) {
+	if (!of_property_read_u32(analde, "microchip,sensitivity-delta-sense", &u32_val)) {
 		if (!is_power_of_2(u32_val) || u32_val > 128) {
 			dev_err(dev, "Invalid sensitivity-delta-sense value %u\n", u32_val);
 			return -EINVAL;
@@ -276,7 +276,7 @@ static int cap11xx_init_keys(struct cap11xx_priv *priv)
 			return error;
 	}
 
-	if (!of_property_read_u32_array(node, "microchip,input-threshold",
+	if (!of_property_read_u32_array(analde, "microchip,input-threshold",
 					priv->thresholds, priv->model->num_channels)) {
 		for (i = 0; i < priv->model->num_channels; i++) {
 			if (priv->thresholds[i] > 127) {
@@ -293,7 +293,7 @@ static int cap11xx_init_keys(struct cap11xx_priv *priv)
 		}
 	}
 
-	if (!of_property_read_u32_array(node, "microchip,calib-sensitivity",
+	if (!of_property_read_u32_array(analde, "microchip,calib-sensitivity",
 					priv->calib_sensitivities,
 					priv->model->num_channels)) {
 		if (priv->id == CAP1293 || priv->id == CAP1298) {
@@ -323,7 +323,7 @@ static int cap11xx_init_keys(struct cap11xx_priv *priv)
 	}
 
 	for (i = 0; i < priv->model->num_channels; i++) {
-		if (!of_property_read_u32_index(node, "microchip,signal-guard",
+		if (!of_property_read_u32_index(analde, "microchip,signal-guard",
 						i, &u32_val)) {
 			if (u32_val > 1)
 				return -EINVAL;
@@ -349,7 +349,7 @@ static int cap11xx_init_keys(struct cap11xx_priv *priv)
 	for (i = 0; i < priv->model->num_channels; i++)
 		priv->keycodes[i] = KEY_A + i;
 
-	of_property_read_u32_array(node, "linux,keycodes",
+	of_property_read_u32_array(analde, "linux,keycodes",
 				   priv->keycodes, priv->model->num_channels);
 
 	/* Disable autorepeat. The Linux input system has its own handling. */
@@ -368,7 +368,7 @@ static irqreturn_t cap11xx_thread_func(int irq_num, void *data)
 
 	/*
 	 * Deassert interrupt. This needs to be done before reading the status
-	 * registers, which will not carry valid values otherwise.
+	 * registers, which will analt carry valid values otherwise.
 	 */
 	ret = regmap_update_bits(priv->regmap, CAP11XX_REG_MAIN_CONTROL, 1, 0);
 	if (ret < 0)
@@ -436,9 +436,9 @@ static int cap11xx_led_set(struct led_classdev *cdev,
 static int cap11xx_init_leds(struct device *dev,
 			     struct cap11xx_priv *priv, int num_leds)
 {
-	struct device_node *node = dev->of_node, *child;
+	struct device_analde *analde = dev->of_analde, *child;
 	struct cap11xx_led *led;
-	int cnt = of_get_child_count(node);
+	int cnt = of_get_child_count(analde);
 	int error;
 
 	if (!num_leds || !cnt)
@@ -449,7 +449,7 @@ static int cap11xx_init_leds(struct device *dev,
 
 	led = devm_kcalloc(dev, cnt, sizeof(struct cap11xx_led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->leds = led;
 
@@ -465,7 +465,7 @@ static int cap11xx_init_leds(struct device *dev,
 	if (error)
 		return error;
 
-	for_each_child_of_node(node, child) {
+	for_each_child_of_analde(analde, child) {
 		u32 reg;
 
 		led->cdev.name =
@@ -479,7 +479,7 @@ static int cap11xx_init_leds(struct device *dev,
 
 		error = of_property_read_u32(child, "reg", &reg);
 		if (error != 0 || reg >= num_leds) {
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 
@@ -488,7 +488,7 @@ static int cap11xx_init_leds(struct device *dev,
 
 		error = devm_led_classdev_register(dev, &led->cdev);
 		if (error) {
-			of_node_put(child);
+			of_analde_put(child);
 			return error;
 		}
 
@@ -530,7 +530,7 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client)
 			    struct_size(priv, keycodes, cap->num_channels),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 
@@ -577,13 +577,13 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client)
 
 	priv->idev = devm_input_allocate_device(dev);
 	if (!priv->idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->idev->name = "CAP11XX capacitive touch sensor";
 	priv->idev->id.bustype = BUS_I2C;
 	priv->idev->evbit[0] = BIT_MASK(EV_KEY);
 
-	if (of_property_read_bool(dev->of_node, "autorepeat"))
+	if (of_property_read_bool(dev->of_analde, "autorepeat"))
 		__set_bit(EV_REP, priv->idev->evbit);
 
 	for (i = 0; i < cap->num_channels; i++)
@@ -609,7 +609,7 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client)
 	input_set_drvdata(priv->idev, priv);
 
 	/*
-	 * Put the device in deep sleep mode for now.
+	 * Put the device in deep sleep mode for analw.
 	 * ->open() will bring it back once the it is actually needed.
 	 */
 	cap11xx_set_sleep(priv, true);

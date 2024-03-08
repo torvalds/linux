@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -45,7 +45,7 @@ static const struct rhashtable_params ht_parms = {
 	.nelem_hint = 768,
 	.key_len = RDS_BOUND_KEY_LEN,
 	.key_offset = offsetof(struct rds_sock, rs_bound_key),
-	.head_offset = offsetof(struct rds_sock, rs_bound_node),
+	.head_offset = offsetof(struct rds_sock, rs_bound_analde),
 	.max_size = 16384,
 	.min_size = 1024,
 };
@@ -66,7 +66,7 @@ static inline void __rds_create_bind_key(u8 *key, const struct in6_addr *addr,
 /*
  * Return the rds_sock bound at the given local address.
  *
- * The rx path can race with rds_release.  We notice if rds_release() has
+ * The rx path can race with rds_release.  We analtice if rds_release() has
  * marked this socket and don't return a rs ref to the rx path.
  */
 struct rds_sock *rds_find_bound(const struct in6_addr *addr, __be16 port,
@@ -79,7 +79,7 @@ struct rds_sock *rds_find_bound(const struct in6_addr *addr, __be16 port,
 	rcu_read_lock();
 	rs = rhashtable_lookup(&bind_hash_table, key, ht_parms);
 	if (rs && (sock_flag(rds_rs_to_sk(rs), SOCK_DEAD) ||
-		   !refcount_inc_not_zero(&rds_rs_to_sk(rs)->sk_refcnt)))
+		   !refcount_inc_analt_zero(&rds_rs_to_sk(rs)->sk_refcnt)))
 		rs = NULL;
 
 	rcu_read_unlock();
@@ -90,7 +90,7 @@ struct rds_sock *rds_find_bound(const struct in6_addr *addr, __be16 port,
 	return rs;
 }
 
-/* returns -ve errno or +ve port */
+/* returns -ve erranal or +ve port */
 static int rds_add_bound(struct rds_sock *rs, const struct in6_addr *addr,
 			 __be16 *port, __u32 scope_id)
 {
@@ -124,10 +124,10 @@ static int rds_add_bound(struct rds_sock *rs, const struct in6_addr *addr,
 		net_get_random_once(&rs->rs_hash_initval,
 				    sizeof(rs->rs_hash_initval));
 		rs->rs_bound_port = cpu_to_be16(rover);
-		rs->rs_bound_node.next = NULL;
+		rs->rs_bound_analde.next = NULL;
 		rds_sock_addref(rs);
 		if (!rhashtable_insert_fast(&bind_hash_table,
-					    &rs->rs_bound_node, ht_parms)) {
+					    &rs->rs_bound_analde, ht_parms)) {
 			*port = rs->rs_bound_port;
 			rs->rs_bound_scope_id = scope_id;
 			ret = 0;
@@ -137,7 +137,7 @@ static int rds_add_bound(struct rds_sock *rs, const struct in6_addr *addr,
 		} else {
 			rs->rs_bound_addr = in6addr_any;
 			rds_sock_put(rs);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 	} while (rover++ != last);
@@ -155,7 +155,7 @@ void rds_remove_bound(struct rds_sock *rs)
 		 rs, &rs->rs_bound_addr,
 		 ntohs(rs->rs_bound_port));
 
-	rhashtable_remove_fast(&bind_hash_table, &rs->rs_bound_node, ht_parms);
+	rhashtable_remove_fast(&bind_hash_table, &rs->rs_bound_analde, ht_parms);
 	rds_sock_put(rs);
 	rs->rs_bound_addr = in6addr_any;
 }
@@ -223,14 +223,14 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	}
 	lock_sock(sk);
 
-	/* RDS socket does not allow re-binding. */
+	/* RDS socket does analt allow re-binding. */
 	if (!ipv6_addr_any(&rs->rs_bound_addr)) {
 		ret = -EINVAL;
 		goto out;
 	}
 	/* Socket is connected.  The binding address should have the same
 	 * scope ID as the connected address, except the case when one is
-	 * non-link local address (scope_id is 0).
+	 * analn-link local address (scope_id is 0).
 	 */
 	if (!ipv6_addr_any(&rs->rs_conn_addr) && scope_id &&
 	    rs->rs_bound_scope_id &&
@@ -247,15 +247,15 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		if (!trans->laddr_check ||
 		    trans->laddr_check(sock_net(sock->sk),
 				       binding_addr, scope_id) != 0) {
-			ret = -ENOPROTOOPT;
+			ret = -EANALPROTOOPT;
 			goto out;
 		}
 	} else {
 		trans = rds_trans_get_preferred(sock_net(sock->sk),
 						binding_addr, scope_id);
 		if (!trans) {
-			ret = -EADDRNOTAVAIL;
-			pr_info_ratelimited("RDS: %s could not find a transport for %pI6c, load rds_tcp or rds_rdma?\n",
+			ret = -EADDRANALTAVAIL;
+			pr_info_ratelimited("RDS: %s could analt find a transport for %pI6c, load rds_tcp or rds_rdma?\n",
 					    __func__, binding_addr);
 			goto out;
 		}

@@ -22,7 +22,7 @@ MODULE_PARM_DESC(time_secs, "lockup time in seconds, default 0");
 
 static unsigned int time_nsecs;
 module_param(time_nsecs, uint, 0600);
-MODULE_PARM_DESC(time_nsecs, "nanoseconds part of lockup time, default 0");
+MODULE_PARM_DESC(time_nsecs, "naanalseconds part of lockup time, default 0");
 
 static unsigned int cooldown_secs;
 module_param(cooldown_secs, uint, 0600);
@@ -30,7 +30,7 @@ MODULE_PARM_DESC(cooldown_secs, "cooldown time between iterations in seconds, de
 
 static unsigned int cooldown_nsecs;
 module_param(cooldown_nsecs, uint, 0600);
-MODULE_PARM_DESC(cooldown_nsecs, "nanoseconds part of cooldown, default 0");
+MODULE_PARM_DESC(cooldown_nsecs, "naanalseconds part of cooldown, default 0");
 
 static unsigned int iterations = 1;
 module_param(iterations, uint, 0600);
@@ -83,7 +83,7 @@ MODULE_PARM_DESC(measure_lock_wait, "measure lock wait time");
 
 static unsigned long lock_wait_threshold = ULONG_MAX;
 module_param(lock_wait_threshold, ulong, 0400);
-MODULE_PARM_DESC(lock_wait_threshold, "print lock wait time longer than this in nanoseconds, default off");
+MODULE_PARM_DESC(lock_wait_threshold, "print lock wait time longer than this in naanalseconds, default off");
 
 static bool test_disable_irq;
 module_param_named(disable_irq, test_disable_irq, bool, 0400);
@@ -142,14 +142,14 @@ module_param(reallocate_pages, bool, 0400);
 MODULE_PARM_DESC(reallocate_pages, "free and allocate pages between iterations");
 
 struct file *test_file;
-static struct inode *test_inode;
+static struct ianalde *test_ianalde;
 static char test_file_path[256];
 module_param_string(file_path, test_file_path, sizeof(test_file_path), 0400);
 MODULE_PARM_DESC(file_path, "file path to test");
 
-static bool test_lock_inode;
-module_param_named(lock_inode, test_lock_inode, bool, 0400);
-MODULE_PARM_DESC(lock_inode, "lock file -> inode -> i_rwsem");
+static bool test_lock_ianalde;
+module_param_named(lock_ianalde, test_lock_ianalde, bool, 0400);
+MODULE_PARM_DESC(lock_ianalde, "lock file -> ianalde -> i_rwsem");
 
 static bool test_lock_mapping;
 module_param_named(lock_mapping, test_lock_mapping, bool, 0400);
@@ -175,13 +175,13 @@ static void test_lock(bool master, bool verbose)
 
 	if (lock_mutex_ptr && master) {
 		if (verbose)
-			pr_notice("lock mutex %ps\n", (void *)lock_mutex_ptr);
+			pr_analtice("lock mutex %ps\n", (void *)lock_mutex_ptr);
 		mutex_lock((struct mutex *)lock_mutex_ptr);
 	}
 
 	if (lock_rwsem_ptr && master) {
 		if (verbose)
-			pr_notice("lock rw_semaphore %ps\n",
+			pr_analtice("lock rw_semaphore %ps\n",
 				  (void *)lock_rwsem_ptr);
 		if (lock_read)
 			down_read((struct rw_semaphore *)lock_rwsem_ptr);
@@ -191,7 +191,7 @@ static void test_lock(bool master, bool verbose)
 
 	if (lock_mmap_sem && master) {
 		if (verbose)
-			pr_notice("lock mmap_lock pid=%d\n", main_task->pid);
+			pr_analtice("lock mmap_lock pid=%d\n", main_task->pid);
 		if (lock_read)
 			mmap_read_lock(main_task->mm);
 		else
@@ -212,14 +212,14 @@ static void test_lock(bool master, bool verbose)
 
 	if (lock_spinlock_ptr && master) {
 		if (verbose)
-			pr_notice("lock spinlock %ps\n",
+			pr_analtice("lock spinlock %ps\n",
 				  (void *)lock_spinlock_ptr);
 		spin_lock((spinlock_t *)lock_spinlock_ptr);
 	}
 
 	if (lock_rwlock_ptr && master) {
 		if (verbose)
-			pr_notice("lock rwlock %ps\n",
+			pr_analtice("lock rwlock %ps\n",
 				  (void *)lock_rwlock_ptr);
 		if (lock_read)
 			read_lock((rwlock_t *)lock_rwlock_ptr);
@@ -239,7 +239,7 @@ static void test_lock(bool master, bool verbose)
 		} while (max_wait != cur_wait);
 
 		if (cur_wait > lock_wait_threshold)
-			pr_notice_ratelimited("lock wait %lld ns\n", cur_wait);
+			pr_analtice_ratelimited("lock wait %lld ns\n", cur_wait);
 	}
 }
 
@@ -251,14 +251,14 @@ static void test_unlock(bool master, bool verbose)
 		else
 			write_unlock((rwlock_t *)lock_rwlock_ptr);
 		if (verbose)
-			pr_notice("unlock rwlock %ps\n",
+			pr_analtice("unlock rwlock %ps\n",
 				  (void *)lock_rwlock_ptr);
 	}
 
 	if (lock_spinlock_ptr && master) {
 		spin_unlock((spinlock_t *)lock_spinlock_ptr);
 		if (verbose)
-			pr_notice("unlock spinlock %ps\n",
+			pr_analtice("unlock spinlock %ps\n",
 				  (void *)lock_spinlock_ptr);
 	}
 
@@ -280,7 +280,7 @@ static void test_unlock(bool master, bool verbose)
 		else
 			mmap_write_unlock(main_task->mm);
 		if (verbose)
-			pr_notice("unlock mmap_lock pid=%d\n", main_task->pid);
+			pr_analtice("unlock mmap_lock pid=%d\n", main_task->pid);
 	}
 
 	if (lock_rwsem_ptr && master) {
@@ -289,14 +289,14 @@ static void test_unlock(bool master, bool verbose)
 		else
 			up_write((struct rw_semaphore *)lock_rwsem_ptr);
 		if (verbose)
-			pr_notice("unlock rw_semaphore %ps\n",
+			pr_analtice("unlock rw_semaphore %ps\n",
 				  (void *)lock_rwsem_ptr);
 	}
 
 	if (lock_mutex_ptr && master) {
 		mutex_unlock((struct mutex *)lock_mutex_ptr);
 		if (verbose)
-			pr_notice("unlock mutex %ps\n",
+			pr_analtice("unlock mutex %ps\n",
 				  (void *)lock_mutex_ptr);
 	}
 }
@@ -352,7 +352,7 @@ static void test_lockup(bool master)
 	unsigned int iter = 0;
 	LIST_HEAD(pages);
 
-	pr_notice("Start on CPU%d\n", raw_smp_processor_id());
+	pr_analtice("Start on CPU%d\n", raw_smp_processor_id());
 
 	test_lock(master, true);
 
@@ -392,7 +392,7 @@ static void test_lockup(bool master)
 			test_alloc_pages(&pages);
 	}
 
-	pr_notice("Finish on CPU%d in %lld ns\n", raw_smp_processor_id(),
+	pr_analtice("Finish on CPU%d in %lld ns\n", raw_smp_processor_id(),
 		  local_clock() - lockup_start);
 
 	test_free_pages(&pages);
@@ -424,8 +424,8 @@ static bool test_kernel_ptr(unsigned long addr, int size)
 		return true;
 	}
 
-	if (get_kernel_nofault(buf, ptr) ||
-	    get_kernel_nofault(buf, ptr + size - 1)) {
+	if (get_kernel_analfault(buf, ptr) ||
+	    get_kernel_analfault(buf, ptr + size - 1)) {
 		pr_err("invalid kernel ptr: %#lx\n", addr);
 		return true;
 	}
@@ -442,7 +442,7 @@ static bool __maybe_unused test_magic(unsigned long addr, int offset,
 	if (!addr)
 		return false;
 
-	if (get_kernel_nofault(magic, ptr) || magic != expected) {
+	if (get_kernel_analfault(magic, ptr) || magic != expected) {
 		pr_err("invalid magic at %#lx + %#x = %#x, expected %#x\n",
 		       addr, offset, magic, expected);
 		return true;
@@ -471,7 +471,7 @@ static int __init test_lockup_init(void)
 		wait_state = TASK_RUNNING;
 		break;
 	default:
-		pr_err("unknown state=%s\n", state);
+		pr_err("unkanalwn state=%s\n", state);
 		return -EINVAL;
 	}
 
@@ -526,7 +526,7 @@ static int __init test_lockup_init(void)
 	}
 
 	if (lock_mmap_sem && !main_task->mm) {
-		pr_err("no mm to lock mmap_lock\n");
+		pr_err("anal mm to lock mmap_lock\n");
 		return -EINVAL;
 	}
 
@@ -536,24 +536,24 @@ static int __init test_lockup_init(void)
 			pr_err("failed to open %s: %ld\n", test_file_path, PTR_ERR(test_file));
 			return PTR_ERR(test_file);
 		}
-		test_inode = file_inode(test_file);
-	} else if (test_lock_inode ||
+		test_ianalde = file_ianalde(test_file);
+	} else if (test_lock_ianalde ||
 		   test_lock_mapping ||
 		   test_lock_sb_umount) {
-		pr_err("no file to lock\n");
+		pr_err("anal file to lock\n");
 		return -EINVAL;
 	}
 
-	if (test_lock_inode && test_inode)
-		lock_rwsem_ptr = (unsigned long)&test_inode->i_rwsem;
+	if (test_lock_ianalde && test_ianalde)
+		lock_rwsem_ptr = (unsigned long)&test_ianalde->i_rwsem;
 
 	if (test_lock_mapping && test_file && test_file->f_mapping)
 		lock_rwsem_ptr = (unsigned long)&test_file->f_mapping->i_mmap_rwsem;
 
-	if (test_lock_sb_umount && test_inode)
-		lock_rwsem_ptr = (unsigned long)&test_inode->i_sb->s_umount;
+	if (test_lock_sb_umount && test_ianalde)
+		lock_rwsem_ptr = (unsigned long)&test_ianalde->i_sb->s_umount;
 
-	pr_notice("START pid=%d time=%u +%u ns cooldown=%u +%u ns iterations=%u state=%s %s%s%s%s%s%s%s%s%s%s%s\n",
+	pr_analtice("START pid=%d time=%u +%u ns cooldown=%u +%u ns iterations=%u state=%s %s%s%s%s%s%s%s%s%s%s%s\n",
 		  main_task->pid, time_secs, time_nsecs,
 		  cooldown_secs, cooldown_nsecs, iterations, state,
 		  all_cpus ? "all_cpus " : "",
@@ -569,7 +569,7 @@ static int __init test_lockup_init(void)
 		  reacquire_locks ? "reacquire_locks " : "");
 
 	if (alloc_pages_nr)
-		pr_notice("ALLOCATE PAGES nr=%u order=%u gfp=%pGg %s\n",
+		pr_analtice("ALLOCATE PAGES nr=%u order=%u gfp=%pGg %s\n",
 			  alloc_pages_nr, alloc_pages_order, &alloc_pages_gfp,
 			  reallocate_pages ? "reallocate_pages " : "");
 
@@ -596,14 +596,14 @@ static int __init test_lockup_init(void)
 	}
 
 	if (measure_lock_wait)
-		pr_notice("Maximum lock wait: %lld ns\n",
+		pr_analtice("Maximum lock wait: %lld ns\n",
 			  atomic64_read(&max_lock_wait));
 
 	if (alloc_pages_nr)
-		pr_notice("Page allocation failed %u times\n",
+		pr_analtice("Page allocation failed %u times\n",
 			  atomic_read(&alloc_pages_failed));
 
-	pr_notice("FINISH in %llu ns\n", local_clock() - test_start);
+	pr_analtice("FINISH in %llu ns\n", local_clock() - test_start);
 
 	if (test_file)
 		fput(test_file);

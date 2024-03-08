@@ -79,7 +79,7 @@ void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src,
 		       unsigned int bytes, int nrounds)
 {
 	/* s390 chacha20 implementation has 20 rounds hard-coded,
-	 * it cannot handle a block of data or less, but otherwise
+	 * it cananalt handle a block of data or less, but otherwise
 	 * it can handle data of arbitrary size
 	 */
 	if (bytes <= CHACHA_BLOCK_SIZE || nrounds != 20 || !cpu_has_vx())

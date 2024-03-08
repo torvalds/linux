@@ -129,7 +129,7 @@ static const char * const meson_g12a_phy_names[] = {
  * two U2 PHY controls register blocks like G12A.
  * AXG has the similar scheme, thus needs the same tweak.
  * Handling the first PHY on slot 1 would need a large amount of code
- * changes, and the current management is generic enough to handle it
+ * changes, and the current management is generic eanalugh to handle it
  * correctly when only the "usb2-phy1" phy is specified on-par with the
  * DT bindings.
  */
@@ -518,7 +518,7 @@ static int dwc3_meson_g12a_role_set(struct usb_role_switch *sw,
 	struct dwc3_meson_g12a *priv = usb_role_switch_get_drvdata(sw);
 	enum phy_mode mode;
 
-	if (role == USB_ROLE_NONE)
+	if (role == USB_ROLE_ANALNE)
 		return 0;
 
 	mode = (role == USB_ROLE_HOST) ? PHY_MODE_USB_HOST
@@ -562,14 +562,14 @@ static struct device *dwc3_meson_g12_find_child(struct device *dev,
 						const char *compatible)
 {
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_get_compatible_child(dev->of_node, compatible);
+	np = of_get_compatible_child(dev->of_analde, compatible);
 	if (!np)
 		return NULL;
 
-	pdev = of_find_device_by_node(np);
-	of_node_put(np);
+	pdev = of_find_device_by_analde(np);
+	of_analde_put(np);
 	if (!pdev)
 		return NULL;
 
@@ -658,7 +658,7 @@ static int dwc3_meson_g12a_setup_regmaps(struct dwc3_meson_g12a *priv,
 		u2p_regmap_config.name = devm_kasprintf(priv->dev, GFP_KERNEL,
 							"u2p-%d", i);
 		if (!u2p_regmap_config.name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		priv->u2p_regmap[i] = devm_regmap_init_mmio(priv->dev,
 						base + (i * U2P_REG_SIZE),
@@ -698,13 +698,13 @@ static int dwc3_meson_g12a_probe(struct platform_device *pdev)
 {
 	struct dwc3_meson_g12a	*priv;
 	struct device		*dev = &pdev->dev;
-	struct device_node	*np = dev->of_node;
+	struct device_analde	*np = dev->of_analde;
 	void __iomem *base;
 	int ret, i;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -845,7 +845,7 @@ static void dwc3_meson_g12a_remove(struct platform_device *pdev)
 	}
 
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_set_suspended(dev);
 
 	reset_control_rearm(priv->reset);

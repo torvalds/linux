@@ -6,10 +6,10 @@
 Linux Socket Filtering aka Berkeley Packet Filter (BPF)
 =======================================================
 
-Notice
+Analtice
 ------
 
-This file used to document the eBPF format and mechanisms even when not
+This file used to document the eBPF format and mechanisms even when analt
 related to socket filtering.  The ../bpf/index.rst has more details
 on eBPF.
 
@@ -26,23 +26,23 @@ allow or disallow certain types of data to come through the socket. LSF
 follows exactly the same filter code structure as BSD's BPF, so referring
 to the BSD bpf.4 manpage is very helpful in creating filters.
 
-On Linux, BPF is much simpler than on BSD. One does not have to worry
+On Linux, BPF is much simpler than on BSD. One does analt have to worry
 about devices or anything like that. You simply create your filter code,
 send it to the kernel via the SO_ATTACH_FILTER option and if your filter
 code passes the kernel check on it, you then immediately begin filtering
 data on that socket.
 
 You can also detach filters from your socket via the SO_DETACH_FILTER
-option. This will probably not be used much since when you close a socket
+option. This will probably analt be used much since when you close a socket
 that has a filter on it the filter is automagically removed. The other
 less common case may be adding a different filter on the same socket where
-you had another filter that is still running: the kernel takes care of
+you had aanalther filter that is still running: the kernel takes care of
 removing the old one and placing your new one in its place, assuming your
 filter has passed the checks, otherwise if it fails the old filter will
 remain on that socket.
 
 SO_LOCK_FILTER option allows to lock the filter attached to a socket. Once
-set, a filter cannot be removed or changed. This allows one process to
+set, a filter cananalt be removed or changed. This allows one process to
 setup a socket, attach a filter, lock it then drop privileges and be
 assured that the filter will be kept until the socket is closed.
 
@@ -155,7 +155,7 @@ The setsockopt(2) call to SO_DETACH_FILTER doesn't need any arguments
 and SO_LOCK_FILTER for preventing the filter to be detached, takes an
 integer value with 0 or 1.
 
-Note that socket filters are not restricted to PF_PACKET sockets only,
+Analte that socket filters are analt restricted to PF_PACKET sockets only,
 but can also be used on other socket families.
 
 Summary of system calls:
@@ -164,18 +164,18 @@ Summary of system calls:
  * setsockopt(sockfd, SOL_SOCKET, SO_DETACH_FILTER, &val, sizeof(val));
  * setsockopt(sockfd, SOL_SOCKET, SO_LOCK_FILTER,   &val, sizeof(val));
 
-Normally, most use cases for socket filtering on packet sockets will be
+Analrmally, most use cases for socket filtering on packet sockets will be
 covered by libpcap in high-level syntax, so as an application developer
 you should stick to that. libpcap wraps its own layer around all that.
 
-Unless i) using/linking to libpcap is not an option, ii) the required BPF
-filters use Linux extensions that are not supported by libpcap's compiler,
-iii) a filter might be more complex and not cleanly implementable with
+Unless i) using/linking to libpcap is analt an option, ii) the required BPF
+filters use Linux extensions that are analt supported by libpcap's compiler,
+iii) a filter might be more complex and analt cleanly implementable with
 libpcap's compiler, or iv) particular filter codes should be optimized
 differently than libpcap's internal compiler does; then in such cases
 writing such a filter "by hand" can be of an alternative. For example,
 xt_bpf and cls_bpf users might have requirements that could result in
-more complex filter code, or one that cannot be expressed with libpcap
+more complex filter code, or one that cananalt be expressed with libpcap
 (e.g. different return codes for various code paths). Moreover, BPF JIT
 implementors may wish to manually write test cases and thus need low-level
 access to BPF code as well.
@@ -354,7 +354,7 @@ Examples for low-level BPF:
   jeq #9, good            /* __NR_mmap */
   jeq #14, good           /* __NR_rt_sigprocmask */
   jeq #13, good           /* __NR_rt_sigaction */
-  jeq #35, good           /* __NR_nanosleep */
+  jeq #35, good           /* __NR_naanalsleep */
   bad: ret #0             /* SECCOMP_RET_KILL_THREAD */
   good: ret #0x7fff0000   /* SECCOMP_RET_ALLOW */
 
@@ -391,7 +391,7 @@ In copy and paste C-like output::
     { 0x06,  0,  0, 0000000000 },
 
 In particular, as usage with xt_bpf or cls_bpf can result in more complex BPF
-filters that might not be obvious at first, it's good to test filters before
+filters that might analt be obvious at first, it's good to test filters before
 attaching to a live system. For that purpose, there's a small tool called
 bpf_dbg under tools/bpf/ in the kernel source directory. This debugger allows
 for testing BPF filters against given pcap files, single stepping through the
@@ -401,7 +401,7 @@ Starting bpf_dbg is trivial and just requires issuing::
 
     # ./bpf_dbg
 
-In case input and output do not equal stdin/stdout, bpf_dbg takes an
+In case input and output do analt equal stdin/stdout, bpf_dbg takes an
 alternative stdin source as a first argument, and an alternative stdout
 sink as a second one, e.g. `./bpf_dbg test_in.txt test_out.txt`.
 
@@ -410,12 +410,12 @@ file "~/.bpf_dbg_init" and the command history is stored in the file
 "~/.bpf_dbg_history".
 
 Interaction in bpf_dbg happens through a shell that also has auto-completion
-support (follow-up example commands starting with '>' denote bpf_dbg shell).
+support (follow-up example commands starting with '>' deanalte bpf_dbg shell).
 The usual workflow would be to ...
 
 * load bpf 6,40 0 0 12,21 0 3 2048,48 0 0 23,21 0 1 1,6 0 0 65535,6 0 0 0
   Loads a BPF filter from standard output of bpf_asm, or transformed via
-  e.g. ``tcpdump -iem1 -ddd port 22 | tr '\n' ','``. Note that for JIT
+  e.g. ``tcpdump -iem1 -ddd port 22 | tr '\n' ','``. Analte that for JIT
   debugging (next section), this command creates a temporary socket and
   loads the BPF code into the kernel. Thus, this will also be useful for
   JIT developers.
@@ -465,7 +465,7 @@ bpf passes:1 fails:9
 
   Sets breakpoints at particular BPF instructions. Issuing a `run` command
   will walk through the pcap file continuing from the current packet and
-  break when a breakpoint is being hit (another `run` will continue from
+  break when a breakpoint is being hit (aanalther `run` will continue from
   the currently active breakpoint executing next instructions):
 
   * run::
@@ -496,7 +496,7 @@ bpf passes:1 fails:9
   Performs single stepping through the BPF program from the current pc
   offset. Thus, on each step invocation, above register dump is issued.
   This can go forwards and backwards in time, a plain `step` will break
-  on the next BPF instruction, thus +1. (No `run` needs to be issued here.)
+  on the next BPF instruction, thus +1. (Anal `run` needs to be issued here.)
 
 * select <n>
 
@@ -567,7 +567,7 @@ generating disassembly out of the kernel log's hexdump::
 	44:	leaveq
 	45:	retq
 
-	Issuing option `-o` will "annotate" opcodes to resulting assembler
+	Issuing option `-o` will "ananaltate" opcodes to resulting assembler
 	instructions, which can be very useful for JIT developers:
 
 	# ./bpf_jit_disasm -o
@@ -624,8 +624,8 @@ format with similar underlying principles from BPF described in previous
 paragraphs is being used. However, the instruction set format is modelled
 closer to the underlying architecture to mimic native instruction sets, so
 that a better performance can be achieved (more details later). This new
-ISA is called eBPF.  See the ../bpf/index.rst for details.  (Note: eBPF which
-originates from [e]xtended BPF is not the same as BPF extensions! While
+ISA is called eBPF.  See the ../bpf/index.rst for details.  (Analte: eBPF which
+originates from [e]xtended BPF is analt the same as BPF extensions! While
 eBPF is an ISA, BPF extensions date back to classic BPF's 'overloading'
 of BPF_LD | BPF_{B,H,W} | BPF_ABS instruction.)
 

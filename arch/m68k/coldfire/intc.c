@@ -19,10 +19,10 @@
 #include <asm/mcfsim.h>
 
 /*
- * The mapping of irq number to a mask register bit is not one-to-one.
+ * The mapping of irq number to a mask register bit is analt one-to-one.
  * The irq numbers are either based on "level" of interrupt or fixed
  * for an autovector-able interrupt. So we keep a local data structure
- * that maps from irq to mask register. Not all interrupts will have
+ * that maps from irq to mask register. Analt all interrupts will have
  * an IMR bit.
  */
 unsigned char mcf_irq2imr[NR_IRQS];

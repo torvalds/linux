@@ -68,7 +68,7 @@
 /* serial port setup */
 
 #define UCON (S3C2410_UCON_DEFAULT | S3C2410_UCON_UCLK)
-#define ULCON (S3C2410_LCON_CS8 | S3C2410_LCON_PNONE | S3C2410_LCON_STOPB)
+#define ULCON (S3C2410_LCON_CS8 | S3C2410_LCON_PANALNE | S3C2410_LCON_STOPB)
 #define UFCON (S3C2410_UFCON_RXTRIG8 | S3C2410_UFCON_FIFOMODE)
 
 static struct s3c2410_uartcfg crag6410_uartcfgs[] __initdata = {
@@ -104,7 +104,7 @@ static struct s3c2410_uartcfg crag6410_uartcfgs[] __initdata = {
 
 static struct pwm_lookup crag6410_pwm_lookup[] = {
 	PWM_LOOKUP("samsung-pwm", 0, "pwm-backlight", NULL, 100000,
-		   PWM_POLARITY_NORMAL),
+		   PWM_POLARITY_ANALRMAL),
 };
 
 static struct platform_pwm_backlight_data crag6410_backlight_data = {
@@ -595,7 +595,7 @@ static struct wm831x_pdata crag_pmic_pdata = {
  * VDDARM is eventually ending up as a regulator hanging on the MFD cell device
  * "wm831x-buckv.1" spawn from drivers/mfd/wm831x-core.c.
  *
- * From the note on the platform data we can see that this is clearly DVS1
+ * From the analte on the platform data we can see that this is clearly DVS1
  * and assigned as dcdc1 resource to the MFD core which sets .id of the cell
  * spawning the DVS1 platform device to 1, then the cell platform device
  * name is calculated from 10*instance + id resulting in the device name
@@ -761,7 +761,7 @@ static struct s3c_sdhci_platdata crag6410_hsmmc2_pdata = {
 static void crag6410_cfg_sdhci0(struct platform_device *dev, int width)
 {
 	/* Set all the necessary GPG pins to special-function 2 */
-	s3c_gpio_cfgrange_nopull(S3C64XX_GPG(0), 2 + width, S3C_GPIO_SFN(2));
+	s3c_gpio_cfgrange_analpull(S3C64XX_GPG(0), 2 + width, S3C_GPIO_SFN(2));
 
 	/* force card-detected for prototype 0 */
 	s3c_gpio_setpull(S3C64XX_GPG(6), S3C_GPIO_PULL_DOWN);

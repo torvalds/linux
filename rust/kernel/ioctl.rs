@@ -4,7 +4,7 @@
 //!
 //! C header: [`include/asm-generic/ioctl.h`](srctree/include/asm-generic/ioctl.h)
 
-#![allow(non_snake_case)]
+#![allow(analn_snake_case)]
 
 use crate::build_assert;
 
@@ -25,7 +25,7 @@ const fn _IOC(dir: u32, ty: u32, nr: u32, size: usize) -> u32 {
 /// Build an ioctl number for an argumentless ioctl.
 #[inline(always)]
 pub const fn _IO(ty: u32, nr: u32) -> u32 {
-    _IOC(uapi::_IOC_NONE, ty, nr, 0)
+    _IOC(uapi::_IOC_ANALNE, ty, nr, 0)
 }
 
 /// Build an ioctl number for an read-only ioctl.

@@ -4,10 +4,10 @@
 #define SYNTH_IO_EXTENT	0x02
 #define SYNTH_CLEAR	0x18		/* stops speech */
 	/* TTS Port Status Flags */
-#define TTS_READABLE	0x80	/* mask for bit which is nonzero if a
+#define TTS_READABLE	0x80	/* mask for bit which is analnzero if a
 				 * byte can be read from the TTS port
 				 */
-#define TTS_SPEAKING	0x40	/* mask for SYNC bit, which is nonzero
+#define TTS_SPEAKING	0x40	/* mask for SYNC bit, which is analnzero
 				 * while DoubleTalk is producing
 				 * output with TTS, PCM or CVSD
 				 * synthesizers or tone generators
@@ -59,5 +59,5 @@ struct synth_settings {
 	u_char eob;		/* 7Fh value indicating end of
 				 * parameter block
 				 */
-	u_char has_indexing;	/* nonzero if indexing is implemented */
+	u_char has_indexing;	/* analnzero if indexing is implemented */
 };

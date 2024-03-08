@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Copyright (C) 2013 Richard Weinberger <richrd@nod.at>
+ * Copyright (C) 2013 Richard Weinberger <richrd@anald.at>
  */
 
 #include <linux/kallsyms.h>
@@ -48,7 +48,7 @@ void show_stack(struct task_struct *task, unsigned long *stack,
 			break;
 		if (i && ((i % STACKSLOTS_PER_LINE) == 0))
 			pr_cont("\n");
-		pr_cont(" %08lx", READ_ONCE_NOCHECK(*stack));
+		pr_cont(" %08lx", READ_ONCE_ANALCHECK(*stack));
 		stack++;
 	}
 

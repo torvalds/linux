@@ -27,7 +27,7 @@ struct dentry;
 /* Command Status and Connector Change Indication (CCI) bits */
 #define UCSI_CCI_CONNECTOR(_c_)		(((_c_) & GENMASK(7, 1)) >> 1)
 #define UCSI_CCI_LENGTH(_c_)		(((_c_) & GENMASK(15, 8)) >> 8)
-#define UCSI_CCI_NOT_SUPPORTED		BIT(25)
+#define UCSI_CCI_ANALT_SUPPORTED		BIT(25)
 #define UCSI_CCI_CANCEL_COMPLETE	BIT(26)
 #define UCSI_CCI_RESET_COMPLETE		BIT(27)
 #define UCSI_CCI_BUSY			BIT(28)
@@ -39,7 +39,7 @@ struct dentry;
  * struct ucsi_operations - UCSI I/O operations
  * @read: Read operation
  * @sync_write: Blocking write operation
- * @async_write: Non-blocking write operation
+ * @async_write: Analn-blocking write operation
  * @update_altmodes: Squashes duplicate DP altmodes
  *
  * Read and write routines for UCSI interface. @sync_write must wait for the
@@ -73,7 +73,7 @@ void ucsi_connector_change(struct ucsi *ucsi, u8 num);
 #define UCSI_CANCEL			0x02
 #define UCSI_CONNECTOR_RESET		0x03
 #define UCSI_ACK_CC_CI			0x04
-#define UCSI_SET_NOTIFICATION_ENABLE	0x05
+#define UCSI_SET_ANALTIFICATION_ENABLE	0x05
 #define UCSI_GET_CAPABILITY		0x06
 #define UCSI_GET_CONNECTOR_CAPABILITY	0x07
 #define UCSI_SET_UOM			0x08
@@ -99,7 +99,7 @@ void ucsi_connector_change(struct ucsi *ucsi, u8 num);
 #define UCSI_ACK_CONNECTOR_CHANGE		BIT(16)
 #define UCSI_ACK_COMMAND_COMPLETE		BIT(17)
 
-/* SET_NOTIFICATION_ENABLE command bits */
+/* SET_ANALTIFICATION_ENABLE command bits */
 #define UCSI_ENABLE_NTFY_CMD_COMPLETE		BIT(16)
 #define UCSI_ENABLE_NTFY_EXT_PWR_SRC_CHANGE	BIT(17)
 #define UCSI_ENABLE_NTFY_PWR_OPMODE_CHANGE	BIT(18)
@@ -182,7 +182,7 @@ struct ucsi_capability {
 #define UCSI_CAP_ALT_MODE_OVERRIDE		BIT(3)
 #define UCSI_CAP_PDO_DETAILS			BIT(4)
 #define UCSI_CAP_CABLE_DETAILS			BIT(5)
-#define UCSI_CAP_EXT_SUPPLY_NOTIFICATIONS	BIT(6)
+#define UCSI_CAP_EXT_SUPPLY_ANALTIFICATIONS	BIT(6)
 #define UCSI_CAP_PD_RESET			BIT(7)
 	u16 reserved_1;
 	u8 num_alt_modes;
@@ -246,7 +246,7 @@ struct ucsi_connector_status {
 #define UCSI_CONSTAT_ERROR			BIT(15)
 	u16 flags;
 #define UCSI_CONSTAT_PWR_OPMODE(_f_)		((_f_) & GENMASK(2, 0))
-#define   UCSI_CONSTAT_PWR_OPMODE_NONE		0
+#define   UCSI_CONSTAT_PWR_OPMODE_ANALNE		0
 #define   UCSI_CONSTAT_PWR_OPMODE_DEFAULT	1
 #define   UCSI_CONSTAT_PWR_OPMODE_BC		2
 #define   UCSI_CONSTAT_PWR_OPMODE_PD		3
@@ -267,8 +267,8 @@ struct ucsi_connector_status {
 	u32 request_data_obj;
 	u8 pwr_status;
 #define UCSI_CONSTAT_BC_STATUS(_p_)		((_p_) & GENMASK(2, 0))
-#define   UCSI_CONSTAT_BC_NOT_CHARGING		0
-#define   UCSI_CONSTAT_BC_NOMINAL_CHARGING	1
+#define   UCSI_CONSTAT_BC_ANALT_CHARGING		0
+#define   UCSI_CONSTAT_BC_ANALMINAL_CHARGING	1
 #define   UCSI_CONSTAT_BC_SLOW_CHARGING		2
 #define   UCSI_CONSTAT_BC_TRICKLE_CHARGING	3
 #define UCSI_CONSTAT_PROVIDER_CAP_LIMIT(_p_)	(((_p_) & GENMASK(6, 3)) >> 3)
@@ -309,7 +309,7 @@ struct ucsi {
 	/* PPM Communication lock */
 	struct mutex ppm_lock;
 
-	/* The latest "Notification Enable" bits (SET_NOTIFICATION_ENABLE) */
+	/* The latest "Analtification Enable" bits (SET_ANALTIFICATION_ENABLE) */
 	u64 ntfy;
 
 	/* PPM communication flags */
@@ -319,7 +319,7 @@ struct ucsi {
 #define ACK_PENDING	2
 
 	unsigned long quirks;
-#define UCSI_NO_PARTNER_PDOS	BIT(0)	/* Don't read partner's PDOs */
+#define UCSI_ANAL_PARTNER_PDOS	BIT(0)	/* Don't read partner's PDOs */
 };
 
 #define UCSI_MAX_SVID		5

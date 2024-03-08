@@ -9,13 +9,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -55,12 +55,12 @@ void gma_power_init(struct drm_device *dev)
 		dev_priv->ops->init_pm(dev);
 
 	/*
-	 * Runtime pm support is broken atm. So for now unconditionally
+	 * Runtime pm support is broken atm. So for analw unconditionally
 	 * call pm_runtime_get() here and put it again in psb_driver_unload()
 	 *
 	 * To fix this we need to call pm_runtime_get() once for each active
 	 * pipe at boot and then put() / get() for each pipe disable / enable
-	 * so that the device gets runtime suspended when no pipes are active.
+	 * so that the device gets runtime suspended when anal pipes are active.
 	 * Once this is in place the pm_runtime_get() below should be replaced
 	 * by a pm_runtime_allow() call to undo the pm_runtime_forbid() from
 	 * pci_pm_init().
@@ -83,7 +83,7 @@ void gma_power_uninit(struct drm_device *dev)
 	if (!dev_priv->pm_initialized)
 		return;
 
-	pm_runtime_put_noidle(dev->dev);
+	pm_runtime_put_analidle(dev->dev);
 }
 
 /**
@@ -172,7 +172,7 @@ static int gma_resume_pci(struct pci_dev *pdev)
  *	@_dev: our device
  *
  *	Called back by the PCI layer during a suspend of the system. We
- *	perform the necessary shut down steps and save enough state that
+ *	perform the necessary shut down steps and save eanalugh state that
  *	we can undo this when resume is called.
  */
 int gma_power_suspend(struct device *_dev)

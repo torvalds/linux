@@ -366,7 +366,7 @@ int vpdma_alloc_desc_buf(struct vpdma_buf *buf, size_t size)
 	buf->mapped = false;
 	buf->addr = kzalloc(size, GFP_KERNEL);
 	if (!buf->addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	WARN_ON(((unsigned long)buf->addr & VPDMA_DESC_ALIGN) != 0);
 
@@ -441,7 +441,7 @@ int vpdma_list_cleanup(struct vpdma_data *vpdma, int list_num,
 		return 0;
 
 	ret = vpdma_create_desc_list(&abort_list,
-		size * sizeof(struct vpdma_dtd), VPDMA_LIST_TYPE_NORMAL);
+		size * sizeof(struct vpdma_dtd), VPDMA_LIST_TYPE_ANALRMAL);
 	if (ret)
 		return ret;
 
@@ -523,7 +523,7 @@ bool vpdma_list_busy(struct vpdma_data *vpdma, int list_num)
 EXPORT_SYMBOL(vpdma_list_busy);
 
 /*
- * submit a list of DMA descriptors to the VPE VPDMA, do not wait for completion
+ * submit a list of DMA descriptors to the VPE VPDMA, do analt wait for completion
  */
 int vpdma_submit_descs(struct vpdma_data *vpdma,
 			struct vpdma_desc_list *list, int list_num)
@@ -684,7 +684,7 @@ EXPORT_SYMBOL(vpdma_add_cfd_adb);
 
 /*
  * control descriptor format change based on what type of control descriptor it
- * is, we only use 'sync on channel' control descriptors for now, so assume it's
+ * is, we only use 'sync on channel' control descriptors for analw, so assume it's
  * that
  */
 static void dump_ctd(struct vpdma_ctd *ctd)
@@ -755,8 +755,8 @@ static void dump_dtd(struct vpdma_dtd *dtd)
 	pr_debug("%s data transfer descriptor for channel %d\n",
 		dir == DTD_DIR_OUT ? "outbound" : "inbound", chan);
 
-	pr_debug("word0: data_type = %d, notify = %d, field = %d, 1D = %d, even_ln_skp = %d, odd_ln_skp = %d, line_stride = %d\n",
-		dtd_get_data_type(dtd), dtd_get_notify(dtd), dtd_get_field(dtd),
+	pr_debug("word0: data_type = %d, analtify = %d, field = %d, 1D = %d, even_ln_skp = %d, odd_ln_skp = %d, line_stride = %d\n",
+		dtd_get_data_type(dtd), dtd_get_analtify(dtd), dtd_get_field(dtd),
 		dtd_get_1d(dtd), dtd_get_even_line_skip(dtd),
 		dtd_get_odd_line_skip(dtd), dtd_get_line_stride(dtd));
 
@@ -821,7 +821,7 @@ void vpdma_rawchan_add_out_dtd(struct vpdma_desc_list *list, int width,
 {
 	int priority = 0;
 	int field = 0;
-	int notify = 1;
+	int analtify = 1;
 	int channel, next_chan;
 	struct v4l2_rect rect = *c_rect;
 	int depth = fmt->depth;
@@ -843,7 +843,7 @@ void vpdma_rawchan_add_out_dtd(struct vpdma_desc_list *list, int width,
 	WARN_ON((void *)(dtd + 1) > (list->buf.addr + list->buf.size));
 
 	dtd->type_ctl_stride = dtd_type_ctl_stride(fmt->data_type,
-					notify,
+					analtify,
 					field,
 					!!(flags & VPDMA_DATA_FRAME_1D),
 					!!(flags & VPDMA_DATA_EVEN_LINE_SKIP),
@@ -869,7 +869,7 @@ EXPORT_SYMBOL(vpdma_rawchan_add_out_dtd);
  * this sets up a 'memory to client' VPDMA transfer for the given VPDMA channel
  *
  * @list: vpdma desc list to which we add this descriptor
- * @width: width of the image in pixels in memory(not the cropped width)
+ * @width: width of the image in pixels in memory(analt the cropped width)
  * @c_rect: crop params of input image
  * @fmt: vpdma data format of the buffer
  * dma_addr: dma address as seen by VPDMA
@@ -890,7 +890,7 @@ void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
 		int frame_height, int start_h, int start_v)
 {
 	int priority = 0;
-	int notify = 1;
+	int analtify = 1;
 	int depth = fmt->depth;
 	int channel, next_chan;
 	struct v4l2_rect rect = *c_rect;
@@ -912,7 +912,7 @@ void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
 	WARN_ON((void *)(dtd + 1) > (list->buf.addr + list->buf.size));
 
 	dtd->type_ctl_stride = dtd_type_ctl_stride(fmt->data_type,
-					notify,
+					analtify,
 					field,
 					!!(flags & VPDMA_DATA_FRAME_1D),
 					!!(flags & VPDMA_DATA_EVEN_LINE_SKIP),
@@ -1124,11 +1124,11 @@ static int vpdma_load_firmware(struct vpdma_data *vpdma)
 	int r;
 	struct device *dev = &vpdma->pdev->dev;
 
-	r = request_firmware_nowait(THIS_MODULE, 1,
+	r = request_firmware_analwait(THIS_MODULE, 1,
 		(const char *) VPDMA_FIRMWARE, dev, GFP_KERNEL, vpdma,
 		vpdma_firmware_cb);
 	if (r) {
-		dev_err(dev, "firmware not available %s\n", VPDMA_FIRMWARE);
+		dev_err(dev, "firmware analt available %s\n", VPDMA_FIRMWARE);
 		return r;
 	} else {
 		dev_info(dev, "loading firmware %s\n", VPDMA_FIRMWARE);
@@ -1152,13 +1152,13 @@ int vpdma_create(struct platform_device *pdev, struct vpdma_data *vpdma,
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vpdma");
 	if (res == NULL) {
 		dev_err(&pdev->dev, "missing platform resources data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	vpdma->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!vpdma->base) {
 		dev_err(&pdev->dev, "failed to ioremap\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	r = vpdma_load_firmware(vpdma);

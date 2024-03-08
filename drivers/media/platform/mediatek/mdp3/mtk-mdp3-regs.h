@@ -43,7 +43,7 @@
 #define MDP_COLOR_IS_YUV(c)		(MDP_COLOR_GET_GROUP(c) == 1)
 
 enum mdp_color {
-	MDP_COLOR_UNKNOWN	= 0,
+	MDP_COLOR_UNKANALWN	= 0,
 
 	/* MDP_COLOR_FULLG8 */
 	MDP_COLOR_FULLG8_RGGB	= MDP_COLOR(0, 0, 0, 0, 1, 0, 0,  8, 2,  0, 21),
@@ -104,7 +104,7 @@ enum mdp_color {
 	MDP_COLOR_BAYER14	= MDP_COLOR_BAYER14_BGGR,
 
 	MDP_COLOR_RGB48		= MDP_COLOR(0, 0, 0, 0, 1, 0, 0, 48, 0,  0, 23),
-	/* For bayer+mono raw-16 */
+	/* For bayer+moanal raw-16 */
 	MDP_COLOR_RGB565_RAW	= MDP_COLOR(0, 0, 0, 0, 1, 0, 0, 16, 2,  0, 0),
 
 	MDP_COLOR_BAYER8_UNPAK	= MDP_COLOR(0, 0, 0, 0, 1, 0, 0,  8, 2,  0, 22),
@@ -239,7 +239,7 @@ enum mdp_ycbcr_profile {
 	MDP_YCBCR_PROFILE_JPEG,
 	MDP_YCBCR_PROFILE_FULL_BT601 = MDP_YCBCR_PROFILE_JPEG,
 
-	/* Colorspaces not support for capture */
+	/* Colorspaces analt support for capture */
 	/* V4L2_YCBCR_ENC_BT2020 and V4L2_QUANTIZATION_LIM_RANGE */
 	MDP_YCBCR_PROFILE_BT2020,
 	/* V4L2_YCBCR_ENC_709 and V4L2_QUANTIZATION_FULL_RANGE */
@@ -280,7 +280,7 @@ struct mdp_limit {
 };
 
 enum mdp_stream_type {
-	MDP_STREAM_TYPE_UNKNOWN,
+	MDP_STREAM_TYPE_UNKANALWN,
 	MDP_STREAM_TYPE_BITBLT,
 	MDP_STREAM_TYPE_GPU_BITBLT,
 	MDP_STREAM_TYPE_DUAL_BITBLT,
@@ -344,7 +344,7 @@ struct mdp_frameparam {
 	atomic_t		state;
 	const struct mdp_limit	*limit;
 	u32			type;	/* enum mdp_stream_type */
-	u32			frame_no;
+	u32			frame_anal;
 	struct mdp_frame	output;
 	struct mdp_frame	captures[MDP_MAX_CAPTURES];
 	u32			num_captures;

@@ -1,10 +1,10 @@
 CAN Device Tree Bindings
 ------------------------
 
-(c) 2006-2009 Secret Lab Technologies Ltd
+(c) 2006-2009 Secret Lab Techanallogies Ltd
 Grant Likely <grant.likely@secretlab.ca>
 
-fsl,mpc5200-mscan nodes
+fsl,mpc5200-mscan analdes
 -----------------------
 In addition to the required compatible-, reg- and interrupt-properties, you can
 also specify which clock source shall be used for the controller:
@@ -12,10 +12,10 @@ also specify which clock source shall be used for the controller:
 - fsl,mscan-clock-source : a string describing the clock source. Valid values
 			   are:	"ip" for ip bus clock
 				 "ref" for reference clock (XTAL)
-			   "ref" is default in case this property is not
+			   "ref" is default in case this property is analt
 			   present.
 
-fsl,mpc5121-mscan nodes
+fsl,mpc5121-mscan analdes
 -----------------------
 In addition to the required compatible-, reg- and interrupt-properties, you can
 also specify which clock source and divider shall be used for the controller:
@@ -24,16 +24,16 @@ also specify which clock source and divider shall be used for the controller:
 			   are:	"ip" for ip bus clock
 				"ref" for reference clock
 				"sys" for system clock
-			   If this property is not present, an optimal CAN
+			   If this property is analt present, an optimal CAN
 			   clock source and frequency based on the system
-			   clock will be selected. If this is not possible,
+			   clock will be selected. If this is analt possible,
 			   the reference clock will be used.
 
 - fsl,mscan-clock-divider: for the reference and system clock, an additional
 			   clock divider can be specified. By default, a
 			   value of 1 is used.
 
-Note that the MPC5121 Rev. 1 processor is not supported.
+Analte that the MPC5121 Rev. 1 processor is analt supported.
 
 Examples:
 	can@1300 {

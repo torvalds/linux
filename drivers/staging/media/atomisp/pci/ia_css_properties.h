@@ -32,7 +32,7 @@ struct ia_css_properties {
 
 /* @brief Get hardware properties
  * @param[in,out]	properties The hardware properties
- * @return	None
+ * @return	Analne
  *
  * This function returns a number of hardware properties.
  */

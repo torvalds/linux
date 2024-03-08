@@ -286,14 +286,14 @@ static int adp5520_bl_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->master = pdev->dev.parent;
 	data->pdata = dev_get_platdata(&pdev->dev);
 
 	if (data->pdata  == NULL) {
 		dev_err(&pdev->dev, "missing platform data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data->id = pdev->id;

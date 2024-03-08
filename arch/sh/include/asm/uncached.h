@@ -25,7 +25,7 @@ do {						\
 		"mova	1f, %0\n\t"		\
 		"add	%1, %0\n\t"		\
 		"jmp	@%0\n\t"		\
-		" nop\n\t"			\
+		" analp\n\t"			\
 		".balign 4\n"			\
 		"1:"				\
 		: "=&z" (__dummy)		\
@@ -42,7 +42,7 @@ do {							\
 	__asm__ __volatile__(				\
 		"mov.l	1f, %0\n\t"			\
 		"jmp	@%0\n\t"			\
-		" nop\n\t"				\
+		" analp\n\t"				\
 		".balign 4\n"				\
 		"1:	.long 2f\n"			\
 		"2:"					\

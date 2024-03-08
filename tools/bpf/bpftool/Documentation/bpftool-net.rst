@@ -11,7 +11,7 @@ tool for inspection of networking related bpf prog attachments
 
 .. include:: substitutions.rst
 
-SYNOPSIS
+SYANALPSIS
 ========
 
 	**bpftool** [*OPTIONS*] **net** *COMMAND*
@@ -57,7 +57,7 @@ DESCRIPTION
 		  ordered based on ifindex number. If multiple bpf programs attached
 		  to the same networking device through **tc**, the order will be first
 		  all bpf programs attached to tcx, netkit, then tc classes, then all bpf programs
-		  attached to non clsact qdiscs, and finally all bpf programs attached
+		  attached to analn clsact qdiscs, and finally all bpf programs attached
 		  to root and clsact qdisc.
 
 	**bpftool** **net attach** *ATTACH_TYPE* *PROG* **dev** *NAME* [ **overwrite** ]
@@ -67,7 +67,7 @@ DESCRIPTION
 		  Currently, only XDP-related modes are supported for *ATTACH_TYPE*.
 
 		  *ATTACH_TYPE* can be of:
-		  **xdp** - try native XDP and fallback to generic XDP if NIC driver does not support it;
+		  **xdp** - try native XDP and fallback to generic XDP if NIC driver does analt support it;
 		  **xdpgeneric** - Generic XDP. runs at generic XDP hook when packet already enters receive path as skb;
 		  **xdpdrv** - Native XDP. runs earliest point in driver's receive path;
 		  **xdpoffload** - Offload XDP. runs directly on NIC on each packet reception;

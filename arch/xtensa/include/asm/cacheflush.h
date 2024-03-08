@@ -83,7 +83,7 @@ static inline void __invalidate_icache_page_alias(unsigned long virt,
 #endif
 
 /*
- * We have physically tagged caches - nothing to do here -
+ * We have physically tagged caches - analthing to do here -
  * unless we have cache aliasing.
  *
  * Pages can get remapped. Because this might change the 'color' of that page,

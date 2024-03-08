@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2021, Mellanox Technologies inc. All rights reserved. */
+/* Copyright (c) 2021, Mellaanalx Techanallogies inc. All rights reserved. */
 
 #include "en/fs_tt_redirect.h"
 #include "fs_core.h"
@@ -92,7 +92,7 @@ mlx5e_fs_tt_redirect_udp_add_rule(struct mlx5e_flow_steering *fs,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ft = fs_udp->tables[type].t;
 
@@ -156,7 +156,7 @@ static int fs_udp_create_groups(struct mlx5e_flow_table *ft, enum fs_udp_type ty
 		kfree(ft->g);
 		ft->g = NULL;
 		kvfree(in);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mc = MLX5_ADDR_OF(create_flow_group_in, in, match_criteria);
@@ -327,7 +327,7 @@ int mlx5e_fs_tt_redirect_udp_create(struct mlx5e_flow_steering *fs)
 
 	udp = kzalloc(sizeof(*udp), GFP_KERNEL);
 	if (!udp)
-		return -ENOMEM;
+		return -EANALMEM;
 	mlx5e_fs_set_udp(fs, udp);
 
 	for (i = 0; i < FS_UDP_NUM_TYPES; i++) {
@@ -374,7 +374,7 @@ mlx5e_fs_tt_redirect_any_add_rule(struct mlx5e_flow_steering *fs,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ft = fs_any->table.t;
 
@@ -438,7 +438,7 @@ static int fs_any_create_groups(struct mlx5e_flow_table *ft)
 		kfree(ft->g);
 		ft->g = NULL;
 		kvfree(in);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Match on ethertype */
@@ -591,7 +591,7 @@ int mlx5e_fs_tt_redirect_any_create(struct mlx5e_flow_steering *fs)
 
 	fs_any = kzalloc(sizeof(*fs_any), GFP_KERNEL);
 	if (!fs_any)
-		return -ENOMEM;
+		return -EANALMEM;
 	mlx5e_fs_set_any(fs, fs_any);
 
 	err = fs_any_create_table(fs);

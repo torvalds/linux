@@ -27,7 +27,7 @@
 #include <linux/iio/sysfs.h>
 
 #define SGP_WORD_LEN				2
-#define SGP_CRC8_POLYNOMIAL			0x31
+#define SGP_CRC8_POLYANALMIAL			0x31
 #define SGP_CRC8_INIT				0xff
 #define SGP_CRC8_LEN				1
 #define SGP_CMD(cmd_word)			cpu_to_be16(cmd_word)
@@ -43,7 +43,7 @@
 #define SGP_VERS_GEN(data)	((((data)->feature_set) & 0x0600) >> 9)
 #define SGP_VERS_ENG_BIT(data)	((((data)->feature_set) & 0x0100) >> 8)
 #define SGP_VERS_MAJOR(data)	((((data)->feature_set) & 0x00e0) >> 5)
-#define SGP_VERS_MINOR(data)	(((data)->feature_set) & 0x001f)
+#define SGP_VERS_MIANALR(data)	(((data)->feature_set) & 0x001f)
 
 DECLARE_CRC8_TABLE(sgp_crc8_table);
 
@@ -77,7 +77,7 @@ enum sgp_cmd {
 
 struct sgp_version {
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 };
 
 struct sgp_crc_word {
@@ -122,14 +122,14 @@ struct sgp_device {
 static const struct sgp_version supported_versions_sgp30[] = {
 	{
 		.major = 1,
-		.minor = 0,
+		.mianalr = 0,
 	},
 };
 
 static const struct sgp_version supported_versions_sgpc3[] = {
 	{
 		.major = 0,
-		.minor = 4,
+		.mianalr = 4,
 	},
 };
 
@@ -150,7 +150,7 @@ static const struct iio_chan_spec sgp30_channels[] = {
 	},
 	{
 		.type = IIO_CONCENTRATION,
-		.channel2 = IIO_MOD_ETHANOL,
+		.channel2 = IIO_MOD_ETHAANALL,
 		.modified = 1,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.address = SGP30_SIG_ETOH_IDX,
@@ -174,7 +174,7 @@ static const struct iio_chan_spec sgpc3_channels[] = {
 	},
 	{
 		.type = IIO_CONCENTRATION,
-		.channel2 = IIO_MOD_ETHANOL,
+		.channel2 = IIO_MOD_ETHAANALL,
 		.modified = 1,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.address = SGPC3_SIG_ETOH_IDX,
@@ -355,7 +355,7 @@ static int sgp_read_raw(struct iio_dev *indio_dev,
 		case SGPC3_IAQ_TVOC_IDX:
 			*val = 0;
 			*val2 = be16_to_cpu(words[1].value);
-			ret = IIO_VAL_INT_PLUS_NANO;
+			ret = IIO_VAL_INT_PLUS_NAANAL;
 			break;
 		case SGP30_IAQ_CO2EQ_IDX:
 			*val = 0;
@@ -416,29 +416,29 @@ static int sgp_check_compat(struct sgp_data *data,
 	struct device *dev = &data->client->dev;
 	const struct sgp_version *supported_versions;
 	u16 ix, num_fs;
-	u16 product, generation, major, minor;
+	u16 product, generation, major, mianalr;
 
-	/* driver does not match product */
+	/* driver does analt match product */
 	generation = SGP_VERS_GEN(data);
 	if (generation != 0) {
 		dev_err(dev,
 			"incompatible product generation %d != 0", generation);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	product = SGP_VERS_PRODUCT(data);
 	if (product != product_id) {
 		dev_err(dev, "sensor reports a different product: 0x%04x\n",
 			product);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (SGP_VERS_RESERVED(data))
 		dev_warn(dev, "reserved bit is set\n");
 
-	/* engineering samples are not supported: no interface guarantees */
+	/* engineering samples are analt supported: anal interface guarantees */
 	if (SGP_VERS_ENG_BIT(data))
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (product) {
 	case SGP30:
@@ -450,19 +450,19 @@ static int sgp_check_compat(struct sgp_data *data,
 		num_fs = ARRAY_SIZE(supported_versions_sgpc3);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	major = SGP_VERS_MAJOR(data);
-	minor = SGP_VERS_MINOR(data);
+	mianalr = SGP_VERS_MIANALR(data);
 	for (ix = 0; ix < num_fs; ix++) {
 		if (major == supported_versions[ix].major &&
-		    minor >= supported_versions[ix].minor)
+		    mianalr >= supported_versions[ix].mianalr)
 			return 0;
 	}
-	dev_err(dev, "unsupported sgp version: %d.%d\n", major, minor);
+	dev_err(dev, "unsupported sgp version: %d.%d\n", major, mianalr);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void sgp_init(struct sgp_data *data)
@@ -510,14 +510,14 @@ static int sgp_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	match_data = i2c_get_match_data(client);
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
-	crc8_populate_msb(sgp_crc8_table, SGP_CRC8_POLYNOMIAL);
+	crc8_populate_msb(sgp_crc8_table, SGP_CRC8_POLYANALMIAL);
 	mutex_init(&data->data_lock);
 
 	/* get feature set version and write it to client data */

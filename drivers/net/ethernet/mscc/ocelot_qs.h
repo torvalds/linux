@@ -16,7 +16,7 @@
 #define XTR_PRUNED         0x04000080U
 #define XTR_ABORT          0x05000080U
 #define XTR_ESCAPE         0x06000080U
-#define XTR_NOT_READY      0x07000080U
+#define XTR_ANALT_READY      0x07000080U
 #define XTR_VALID_BYTES(x) (4 - (((x) >> 24) & 3))
 
 #define QS_XTR_GRP_CFG_RSZ                                0x4

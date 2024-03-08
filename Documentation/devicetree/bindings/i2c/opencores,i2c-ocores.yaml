@@ -39,7 +39,7 @@ properties:
       clock-frequency property is meant to control the bus frequency for i2c bus
       drivers, but it was incorrectly used to specify i2c controller input clock
       frequency. So the following rules are set to fix this situation:
-      - if clock-frequency is present and neither opencores,ip-clock-frequency nor
+      - if clock-frequency is present and neither opencores,ip-clock-frequency analr
         clocks are, then clock-frequency specifies i2c controller clock frequency.
         This is to keep backwards compatibility with setups using old DTB. i2c bus
         frequency is fixed at 100 KHz.
@@ -69,7 +69,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Frequency of the controller clock in Hz. Mutually exclusive with clocks.
-      See the note above.
+      See the analte above.
 
 required:
   - compatible

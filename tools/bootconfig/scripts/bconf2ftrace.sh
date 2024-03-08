@@ -52,12 +52,12 @@ fi
 TRACEFS=`grep -m 1 -w tracefs /proc/mounts | cut -f 2 -d " "`
 if [ -z "$TRACEFS" ]; then
 	if ! grep -wq debugfs /proc/mounts; then
-		echo "Error: No tracefs/debugfs was mounted." 1>&2
+		echo "Error: Anal tracefs/debugfs was mounted." 1>&2
 		exit 1
 	fi
 	TRACEFS=`grep -m 1 -w debugfs /proc/mounts | cut -f 2 -d " "`/tracing
 	if [ ! -d $TRACEFS ]; then
-		echo "Error: ftrace is not enabled on this kernel." 1>&2
+		echo "Error: ftrace is analt enabled on this kernel." 1>&2
 		exit 1
 	fi
 fi
@@ -257,8 +257,8 @@ setup_instance() { # [instance]
 	set_value_of ${instance}.tracer ${instancedir}/current_tracer
 	set_array_of ${instance}.ftrace.filters \
 		${instancedir}/set_ftrace_filter
-	set_array_of ${instance}.ftrace.notrace \
-		${instancedir}/set_ftrace_notrace
+	set_array_of ${instance}.ftrace.analtrace \
+		${instancedir}/set_ftrace_analtrace
 
 	if xbc_has_key ${instance}.alloc_snapshot; then
 		run_cmd "echo 1 > ${instancedir}/snapshot"
@@ -283,7 +283,7 @@ fi
 
 set_value_of kernel.fgraph_max_depth $TRACEFS/max_graph_depth
 set_array_of kernel.fgraph_filters $TRACEFS/set_graph_function
-set_array_of kernel.fgraph_notraces $TRACEFS/set_graph_notrace
+set_array_of kernel.fgraph_analtraces $TRACEFS/set_graph_analtrace
 
 # Per-instance/per-event configs
 if ! xbc_has_branch "ftrace" ; then

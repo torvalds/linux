@@ -34,7 +34,7 @@
 #define AMD_PMF_RESULT_OK                    0x01
 #define AMD_PMF_RESULT_CMD_REJECT_BUSY       0xFC
 #define AMD_PMF_RESULT_CMD_REJECT_PREREQ     0xFD
-#define AMD_PMF_RESULT_CMD_UNKNOWN           0xFE
+#define AMD_PMF_RESULT_CMD_UNKANALWN           0xFE
 #define AMD_PMF_RESULT_FAILED                0xFF
 
 /* List of supported CPU ids */
@@ -58,18 +58,18 @@ static bool force_load;
 module_param(force_load, bool, 0444);
 MODULE_PARM_DESC(force_load, "Force load this driver on supported older platforms (experimental)");
 
-static int amd_pmf_pwr_src_notify_call(struct notifier_block *nb, unsigned long event, void *data)
+static int amd_pmf_pwr_src_analtify_call(struct analtifier_block *nb, unsigned long event, void *data)
 {
-	struct amd_pmf_dev *pmf = container_of(nb, struct amd_pmf_dev, pwr_src_notifier);
+	struct amd_pmf_dev *pmf = container_of(nb, struct amd_pmf_dev, pwr_src_analtifier);
 
 	if (event != PSY_EVENT_PROP_CHANGED)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	if (is_apmf_func_supported(pmf, APMF_FUNC_AUTO_MODE) ||
 	    is_apmf_func_supported(pmf, APMF_FUNC_DYN_SLIDER_DC) ||
 	    is_apmf_func_supported(pmf, APMF_FUNC_DYN_SLIDER_AC)) {
 		if ((pmf->amt_enabled || pmf->cnqf_enabled) && is_pprof_balanced(pmf))
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 	}
 
 	if (is_apmf_func_supported(pmf, APMF_FUNC_STATIC_SLIDER_GRANULAR))
@@ -78,7 +78,7 @@ static int amd_pmf_pwr_src_notify_call(struct notifier_block *nb, unsigned long 
 	if (is_apmf_func_supported(pmf, APMF_FUNC_OS_POWER_SLIDER_UPDATE))
 		amd_pmf_power_slider_update_event(pmf);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int current_power_limits_show(struct seq_file *seq, void *unused)
@@ -223,11 +223,11 @@ int amd_pmf_send_cmd(struct amd_pmf_dev *dev, u8 message, bool get, u32 arg, u32
 		}
 		break;
 	case AMD_PMF_RESULT_CMD_REJECT_BUSY:
-		dev_err(dev->dev, "SMU not ready. err: 0x%x\n", val);
+		dev_err(dev->dev, "SMU analt ready. err: 0x%x\n", val);
 		rc = -EBUSY;
 		goto out_unlock;
-	case AMD_PMF_RESULT_CMD_UNKNOWN:
-		dev_err(dev->dev, "SMU cmd unknown. err: 0x%x\n", val);
+	case AMD_PMF_RESULT_CMD_UNKANALWN:
+		dev_err(dev->dev, "SMU cmd unkanalwn. err: 0x%x\n", val);
 		rc = -EINVAL;
 		goto out_unlock;
 	case AMD_PMF_RESULT_CMD_REJECT_PREREQ:
@@ -260,7 +260,7 @@ int amd_pmf_set_dram_addr(struct amd_pmf_dev *dev, bool alloc_buffer)
 	if (alloc_buffer) {
 		dev->buf = kzalloc(sizeof(dev->m_table), GFP_KERNEL);
 		if (!dev->buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	phys_addr = virt_to_phys(dev->buf);
@@ -329,15 +329,15 @@ static void amd_pmf_init_features(struct amd_pmf_dev *dev)
 	if (is_apmf_func_supported(dev, APMF_FUNC_STATIC_SLIDER_GRANULAR) ||
 	    is_apmf_func_supported(dev, APMF_FUNC_OS_POWER_SLIDER_UPDATE)) {
 		amd_pmf_init_sps(dev);
-		dev->pwr_src_notifier.notifier_call = amd_pmf_pwr_src_notify_call;
-		power_supply_reg_notifier(&dev->pwr_src_notifier);
+		dev->pwr_src_analtifier.analtifier_call = amd_pmf_pwr_src_analtify_call;
+		power_supply_reg_analtifier(&dev->pwr_src_analtifier);
 		dev_dbg(dev->dev, "SPS enabled and Platform Profiles registered\n");
 	}
 
 	amd_pmf_init_smart_pc(dev);
 	if (dev->smart_pc_enabled) {
 		dev_dbg(dev->dev, "Smart PC Solution Enabled\n");
-		/* If Smart PC is enabled, no need to check for other features */
+		/* If Smart PC is enabled, anal need to check for other features */
 		return;
 	}
 
@@ -356,7 +356,7 @@ static void amd_pmf_deinit_features(struct amd_pmf_dev *dev)
 {
 	if (is_apmf_func_supported(dev, APMF_FUNC_STATIC_SLIDER_GRANULAR) ||
 	    is_apmf_func_supported(dev, APMF_FUNC_OS_POWER_SLIDER_UPDATE)) {
-		power_supply_unreg_notifier(&dev->pwr_src_notifier);
+		power_supply_unreg_analtifier(&dev->pwr_src_analtifier);
 		amd_pmf_deinit_sps(dev);
 	}
 
@@ -391,21 +391,21 @@ static int amd_pmf_probe(struct platform_device *pdev)
 
 	id = acpi_match_device(amd_pmf_acpi_ids, &pdev->dev);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (id->driver_data == 0x100 && !force_load)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->dev = &pdev->dev;
 
 	rdev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0, 0));
 	if (!rdev || !pci_match_id(pmf_pci_ids, rdev)) {
 		pci_dev_put(rdev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev->cpu_id = rdev->device;
@@ -414,7 +414,7 @@ static int amd_pmf_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(dev->dev, "error in reading from 0x%x\n", AMD_PMF_BASE_ADDR_LO);
 		pci_dev_put(rdev);
-		return pcibios_err_to_errno(err);
+		return pcibios_err_to_erranal(err);
 	}
 
 	base_addr_lo = val & AMD_PMF_BASE_ADDR_HI_MASK;
@@ -423,7 +423,7 @@ static int amd_pmf_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(dev->dev, "error in reading from 0x%x\n", AMD_PMF_BASE_ADDR_HI);
 		pci_dev_put(rdev);
-		return pcibios_err_to_errno(err);
+		return pcibios_err_to_erranal(err);
 	}
 
 	base_addr_hi = val & AMD_PMF_BASE_ADDR_LO_MASK;
@@ -433,7 +433,7 @@ static int amd_pmf_probe(struct platform_device *pdev)
 	dev->regbase = devm_ioremap(dev->dev, base_addr + AMD_PMF_BASE_ADDR_OFFSET,
 				    AMD_PMF_MAPPING_SIZE);
 	if (!dev->regbase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&dev->lock);
 	mutex_init(&dev->update_mutex);

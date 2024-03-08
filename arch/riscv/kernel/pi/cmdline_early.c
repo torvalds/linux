@@ -10,22 +10,22 @@ static char early_cmdline[COMMAND_LINE_SIZE];
 
 /*
  * Declare the functions that are exported (but prefixed) here so that LLVM
- * does not complain it lacks the 'static' keyword (which, if added, makes
+ * does analt complain it lacks the 'static' keyword (which, if added, makes
  * LLVM complain because the function is actually unused in this file).
  */
 u64 set_satp_mode_from_cmdline(uintptr_t dtb_pa);
-bool set_nokaslr_from_cmdline(uintptr_t dtb_pa);
+bool set_analkaslr_from_cmdline(uintptr_t dtb_pa);
 
 static char *get_early_cmdline(uintptr_t dtb_pa)
 {
 	const char *fdt_cmdline = NULL;
 	unsigned int fdt_cmdline_size = 0;
-	int chosen_node;
+	int chosen_analde;
 
 	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE)) {
-		chosen_node = fdt_path_offset((void *)dtb_pa, "/chosen");
-		if (chosen_node >= 0) {
-			fdt_cmdline = fdt_getprop((void *)dtb_pa, chosen_node,
+		chosen_analde = fdt_path_offset((void *)dtb_pa, "/chosen");
+		if (chosen_analde >= 0) {
+			fdt_cmdline = fdt_getprop((void *)dtb_pa, chosen_analde,
 						  "bootargs", NULL);
 			if (fdt_cmdline) {
 				fdt_cmdline_size = strlen(fdt_cmdline);
@@ -44,11 +44,11 @@ static char *get_early_cmdline(uintptr_t dtb_pa)
 	return early_cmdline;
 }
 
-static u64 match_noXlvl(char *cmdline)
+static u64 match_analXlvl(char *cmdline)
 {
-	if (strstr(cmdline, "no4lvl"))
+	if (strstr(cmdline, "anal4lvl"))
 		return SATP_MODE_48;
-	else if (strstr(cmdline, "no5lvl"))
+	else if (strstr(cmdline, "anal5lvl"))
 		return SATP_MODE_57;
 
 	return 0;
@@ -58,17 +58,17 @@ u64 set_satp_mode_from_cmdline(uintptr_t dtb_pa)
 {
 	char *cmdline = get_early_cmdline(dtb_pa);
 
-	return match_noXlvl(cmdline);
+	return match_analXlvl(cmdline);
 }
 
-static bool match_nokaslr(char *cmdline)
+static bool match_analkaslr(char *cmdline)
 {
-	return strstr(cmdline, "nokaslr");
+	return strstr(cmdline, "analkaslr");
 }
 
-bool set_nokaslr_from_cmdline(uintptr_t dtb_pa)
+bool set_analkaslr_from_cmdline(uintptr_t dtb_pa)
 {
 	char *cmdline = get_early_cmdline(dtb_pa);
 
-	return match_nokaslr(cmdline);
+	return match_analkaslr(cmdline);
 }

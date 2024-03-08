@@ -3,7 +3,7 @@
  * DebugFS code for ST-Ericsson CW1200 mac80211 driver
  *
  * Copyright (c) 2011, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  */
 
 #ifndef CW1200_DEBUG_H_INCLUDED

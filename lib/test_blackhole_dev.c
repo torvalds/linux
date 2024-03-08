@@ -4,7 +4,7 @@
  * net subsystem initialization. The test this module performs is
  * by injecting an skb into the stack with skb->dev as the
  * blackhole_dev and expects kernel to behave in a sane manner
- * (in other words, *not crash*)!
+ * (in other words, *analt crash*)!
  *
  * Copyright (c) 2018, Mahesh Bandewar <maheshb@google.com>
  */
@@ -36,7 +36,7 @@ static int __init test_blackholedev_init(void)
 
 	skb = alloc_skb(SKB_SIZE, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Reserve head-room for the headers */
 	skb_reserve(skb, HEAD_SIZE);
@@ -68,7 +68,7 @@ static int __init test_blackholedev_init(void)
 	skb->pkt_type = PACKET_HOST;
 	skb->dev = blackhole_netdev;
 
-	/* Now attempt to send the packet */
+	/* Analw attempt to send the packet */
 	ret = dev_queue_xmit(skb);
 
 	switch (ret) {
@@ -82,7 +82,7 @@ static int __init test_blackholedev_init(void)
 		pr_warn("dev_queue_xmit() returned NET_XMIT_CN\n");
 		break;
 	default:
-		pr_err("dev_queue_xmit() returned UNKNOWN(%d)\n", ret);
+		pr_err("dev_queue_xmit() returned UNKANALWN(%d)\n", ret);
 	}
 
 	return 0;

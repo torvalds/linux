@@ -2,43 +2,43 @@
 <svg width="113.611mm" height="86.6873mm" version="1.1" viewBox="0 0 113.611 86.6873" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
  <defs>
   <marker id="marker3667" overflow="visible" orient="auto">
-   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="evenodd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
+   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="eveanaldd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
   </marker>
   <marker id="marker3517" overflow="visible" orient="auto">
-   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="evenodd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
+   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="eveanaldd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
   </marker>
   <marker id="marker3373" overflow="visible" orient="auto">
-   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="evenodd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
+   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="eveanaldd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
   </marker>
   <marker id="marker3199" overflow="visible" orient="auto">
-   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="evenodd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
+   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="eveanaldd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
   </marker>
   <marker id="marker3037" overflow="visible" orient="auto">
-   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="evenodd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
+   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="eveanaldd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
   </marker>
   <marker id="marker2779" overflow="visible" orient="auto">
-   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="evenodd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
+   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="eveanaldd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
   </marker>
   <marker id="marker2477" overflow="visible" orient="auto">
-   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="evenodd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
+   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="eveanaldd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
   </marker>
   <marker id="marker2074" overflow="visible" orient="auto">
-   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="evenodd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
+   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="eveanaldd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
   </marker>
   <marker id="marker1964" overflow="visible" orient="auto">
-   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="evenodd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
+   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="eveanaldd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
   </marker>
   <marker id="marker1856" overflow="visible" orient="auto">
-   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="evenodd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
+   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="eveanaldd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
   </marker>
   <marker id="Arrow2Mend" overflow="visible" orient="auto">
-   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="evenodd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
+   <path transform="scale(.6) rotate(180) translate(0)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill-rule="eveanaldd" stroke="#000" stroke-linejoin="round" stroke-width=".625"/>
   </marker>
   <filter id="filter1204" x="-4.19953e-6" y="-5.60084e-6" width="1.00001" height="1.00001" color-interpolation-filters="sRGB">
    <feGaussianBlur stdDeviation="0.00018829868"/>
   </filter>
   <marker id="marker2074-3" overflow="visible" orient="auto">
-   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="evenodd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
+   <path transform="scale(-.6)" d="m8.71859 4.03374-10.9259-4.01772 10.9259-4.01772c-1.7455 2.37206-1.73544 5.61745-6e-7 8.03544z" fill="#28a4ff" fill-rule="eveanaldd" stroke="#28a4ff" stroke-linejoin="round" stroke-width=".625"/>
   </marker>
   <filter id="filter1204-6" x="-4.19953e-6" y="-5.60084e-6" width="1.00001" height="1.00001" color-interpolation-filters="sRGB">
    <feGaussianBlur stdDeviation="0.00018829868"/>
@@ -76,11 +76,11 @@
  </metadata>
  <g transform="translate(-49.0277 -104.823)">
   <g>
-   <path d="m130.534 165.429h-71.1816v-17.5315" fill="none" marker-end="url(#marker2477)" stroke="#28a4ff" stroke-width=".6"/>
-   <path d="m145.034 122.959v-11.5914h-43.1215" fill="none" marker-end="url(#marker3037)" stroke="#28a4ff" stroke-width=".6"/>
+   <path d="m130.534 165.429h-71.1816v-17.5315" fill="analne" marker-end="url(#marker2477)" stroke="#28a4ff" stroke-width=".6"/>
+   <path d="m145.034 122.959v-11.5914h-43.1215" fill="analne" marker-end="url(#marker3037)" stroke="#28a4ff" stroke-width=".6"/>
    <rect x="130.679" y="122.933" width="28.2965" height="45.2319" rx="0" ry="0" fill="#e5e5e5" stroke="#717171" stroke-linecap="square" stroke-width=".499999"/>
-   <path d="m102.044 116.236h23.3126l-0.13388 18.8185h19.9383v3.66603" fill="none" marker-end="url(#marker3199)" stroke="#28a4ff" stroke-width=".6"/>
-   <path d="m59.5006 138.391v-24.2517h20.6338" fill="none" marker-end="url(#marker2779)" stroke="#28a4ff" stroke-width=".6"/>
+   <path d="m102.044 116.236h23.3126l-0.13388 18.8185h19.9383v3.66603" fill="analne" marker-end="url(#marker3199)" stroke="#28a4ff" stroke-width=".6"/>
+   <path d="m59.5006 138.391v-24.2517h20.6338" fill="analne" marker-end="url(#marker2779)" stroke="#28a4ff" stroke-width=".6"/>
    <rect x="78.1389" y="126.411" width="28.0037" height="35.0443" rx="0" ry="0" fill="#e5e5e5" stroke="#717171" stroke-linecap="square" stroke-width=".5"/>
   </g>
   <g fill="#ffcb35" stroke="#000" stroke-linecap="square">
@@ -97,7 +97,7 @@
   </g>
   <ellipse cx="110.386" cy="180.53" rx="10.8866" ry="4.39308" fill="#ffcb35" stroke="#000" stroke-linecap="square" stroke-width=".499999"/>
   <text x="110.90907" y="179.42688" font-size="3.175px" xml:space="preserve"><tspan x="110.90907" y="179.42688" dy="0.60000002" text-align="center" text-anchor="middle">Accessible</tspan><tspan x="110.90907" y="183.39563"><tspan font-size="3.175px" text-align="center" text-anchor="middle">for S</tspan>W</tspan></text>
-  <text x="143.5869" y="179.52795" xml:space="preserve"><tspan x="143.5869" y="179.52795" dy="1 0 0 0 0 0" font-family="sans-serif" font-size="2.82222px" text-align="center" text-anchor="middle" style="font-variant-caps:normal;font-variant-east-asian:normal;font-variant-ligatures:normal;font-variant-numeric:normal">Inaccessible</tspan><tspan x="143.5869" y="183.36786" font-size="3.175px"><tspan font-size="3.175px" text-align="center" text-anchor="middle">for S</tspan>W</tspan></text>
+  <text x="143.5869" y="179.52795" xml:space="preserve"><tspan x="143.5869" y="179.52795" dy="1 0 0 0 0 0" font-family="sans-serif" font-size="2.82222px" text-align="center" text-anchor="middle" style="font-variant-caps:analrmal;font-variant-east-asian:analrmal;font-variant-ligatures:analrmal;font-variant-numeric:analrmal">Inaccessible</tspan><tspan x="143.5869" y="183.36786" font-size="3.175px"><tspan font-size="3.175px" text-align="center" text-anchor="middle">for S</tspan>W</tspan></text>
   <g font-size="3.175px">
    <text x="91.95018" y="115.29005" xml:space="preserve"><tspan x="91.95018" y="115.29005" font-size="3.175px"><tspan font-size="3.175px" text-align="center" text-anchor="middle">Ready</tspan></tspan></text>
    <text x="145.25127" y="130.49019" xml:space="preserve"><tspan x="145.25127" y="130.49019" font-size="3.175px"><tspan font-size="3.175px" text-align="center" text-anchor="middle">TX OK</tspan></tspan></text>
@@ -107,7 +107,7 @@
    <text x="91.648918" y="151.84813" text-align="center" text-anchor="middle" style="line-height:0.9" xml:space="preserve"><tspan x="91.648918" y="151.84813" text-align="center"><tspan font-size="3.175px" text-align="center" text-anchor="middle">Abort in</tspan></tspan><tspan x="91.648918" y="154.70563" text-align="center">progress</tspan></text>
    <text x="59.456043" y="143.91658" xml:space="preserve"><tspan x="59.456043" y="143.91658" font-size="3.175px"><tspan font-size="3.175px" text-align="center" text-anchor="middle">Empty</tspan></tspan></text>
   </g>
-  <g fill="none">
+  <g fill="analne">
    <g stroke="#000">
     <rect x="52.3943" y="171.63" width="106.581" height="16.601" rx="0" ry="0" stroke-linecap="square" stroke-width=".499999"/>
     <g stroke-width=".6">
@@ -136,7 +136,7 @@
    <text transform="matrix(.264583 0 0 .264583 107.77 145.476)" x="38.824219" y="9.1171875" filter="url(#filter1204)" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="38.824219" y="9.1171875" text-align="center">Transmission</tspan><tspan x="38.824219" y="22.317188" text-align="center">sborted</tspan></text>
   </g>
   <g stroke-width="3.77953" text-anchor="middle">
-   <text transform="matrix(.264583 0 0 .264583 107.574 155.948)" x="38.824219" y="9.1171875" filter="url(#filter1204)" font-size="10.6667px" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="38.824219" y="9.1171875" text-align="center">Retransmit</tspan><tspan x="38.824219" y="20.850557" text-align="center">limit reached or</tspan><tspan x="38.824219" y="32.583927" text-align="center">node went bus off</tspan><tspan x="38.824219" y="44.317299" text-align="center"/></text>
+   <text transform="matrix(.264583 0 0 .264583 107.574 155.948)" x="38.824219" y="9.1171875" filter="url(#filter1204)" font-size="10.6667px" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="38.824219" y="9.1171875" text-align="center">Retransmit</tspan><tspan x="38.824219" y="20.850557" text-align="center">limit reached or</tspan><tspan x="38.824219" y="32.583927" text-align="center">analde went bus off</tspan><tspan x="38.824219" y="44.317299" text-align="center"/></text>
    <text transform="matrix(.264583 0 0 .264583 60.7127 177.384)" x="38.824539" y="9.1173134" filter="url(#filter1204-6)" font-size="12px" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="38.824539" y="9.1173134" font-size="12px" stroke-width="3.77953" text-align="center" text-anchor="middle">Transmission result</tspan></text>
    <text transform="matrix(.264583 0 0 .264583 45.6885 173.226)" x="57.727047" y="9.11724" filter="url(#filter1204-6-9)" font-size="12px" text-align="center" style="line-height:1.1" xml:space="preserve"><tspan x="57.727047" y="9.11724" font-size="12px" stroke-width="3.77953" text-align="center" text-anchor="middle">Legend:</tspan></text>
   </g>

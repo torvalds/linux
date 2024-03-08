@@ -18,7 +18,7 @@
 #include <linux/iio/iio.h>
 
 #define MAX5522_MAX_ADDR	15
-#define MAX5522_CTRL_NONE	0
+#define MAX5522_CTRL_ANALNE	0
 #define MAX5522_CTRL_LOAD_IN_A	9
 #define MAX5522_CTRL_LOAD_IN_B	10
 
@@ -140,7 +140,7 @@ static int max5522_spi_probe(struct spi_device *spi)
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*state));
 	if (indio_dev == NULL) {
 		dev_err(&spi->dev, "failed to allocate iio device\n");
-		return  -ENOMEM;
+		return  -EANALMEM;
 	}
 
 	state = iio_priv(indio_dev);
@@ -155,7 +155,7 @@ static int max5522_spi_probe(struct spi_device *spi)
 	state->vrefin_reg = devm_regulator_get(&spi->dev, "vrefin");
 	if (IS_ERR(state->vrefin_reg))
 		return dev_err_probe(&spi->dev, PTR_ERR(state->vrefin_reg),
-				     "Vrefin regulator not specified\n");
+				     "Vrefin regulator analt specified\n");
 
 	ret = regulator_enable(state->vrefin_reg);
 	if (ret) {

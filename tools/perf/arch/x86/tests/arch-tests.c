@@ -26,7 +26,7 @@ DEFINE_SUITE("x86 bp modify", bp_modify);
 DEFINE_SUITE("x86 Sample parsing", x86_sample_parsing);
 DEFINE_SUITE("AMD IBS via core pmu", amd_ibs_via_core_pmu);
 static struct test_case hybrid_tests[] = {
-	TEST_CASE_REASON("x86 hybrid event parsing", hybrid, "not hybrid"),
+	TEST_CASE_REASON("x86 hybrid event parsing", hybrid, "analt hybrid"),
 	{ .name = NULL, }
 };
 

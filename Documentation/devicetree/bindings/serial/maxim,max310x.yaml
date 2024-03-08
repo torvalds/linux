@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/serial/maxim,max310x.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Maxim MAX310X Advanced Universal Asynchronous Receiver-Transmitter (UART)
+title: Maxim MAX310X Advanced Universal Asynchroanalus Receiver-Transmitter (UART)
 
 maintainers:
-  - Hugo Villeneuve <hvilleneuve@dimonoff.com>
+  - Hugo Villeneuve <hvilleneuve@dimoanalff.com>
 
 properties:
   compatible:

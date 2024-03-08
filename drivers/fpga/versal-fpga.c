@@ -28,7 +28,7 @@ static int versal_fpga_ops_write(struct fpga_manager *mgr,
 
 	kbuf = dma_alloc_coherent(mgr->dev.parent, size, &dma_addr, GFP_KERNEL);
 	if (!kbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(kbuf, buf, size);
 	ret = zynqmp_pm_load_pdi(PDI_SRC_DDR, dma_addr);
@@ -50,7 +50,7 @@ static int versal_fpga_probe(struct platform_device *pdev)
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(44));
 	if (ret < 0) {
-		dev_err(dev, "no usable DMA configuration\n");
+		dev_err(dev, "anal usable DMA configuration\n");
 		return ret;
 	}
 

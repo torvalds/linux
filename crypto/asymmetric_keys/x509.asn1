@@ -6,18 +6,18 @@
 -- https://www.rfc-editor.org/rfc/rfc5280#section-4
 
 Certificate ::= SEQUENCE {
-	tbsCertificate		TBSCertificate ({ x509_note_tbs_certificate }),
+	tbsCertificate		TBSCertificate ({ x509_analte_tbs_certificate }),
 	signatureAlgorithm	AlgorithmIdentifier,
-	signature		BIT STRING ({ x509_note_signature })
+	signature		BIT STRING ({ x509_analte_signature })
 	}
 
 TBSCertificate ::= SEQUENCE {
 	version           [ 0 ]	Version DEFAULT,
-	serialNumber		CertificateSerialNumber ({ x509_note_serial }),
-	signature		AlgorithmIdentifier ({ x509_note_sig_algo }),
-	issuer			Name ({ x509_note_issuer }),
+	serialNumber		CertificateSerialNumber ({ x509_analte_serial }),
+	signature		AlgorithmIdentifier ({ x509_analte_sig_algo }),
+	issuer			Name ({ x509_analte_issuer }),
 	validity		Validity,
-	subject			Name ({ x509_note_subject }),
+	subject			Name ({ x509_analte_subject }),
 	subjectPublicKeyInfo	SubjectPublicKeyInfo,
 	issuerUniqueID    [ 1 ]	IMPLICIT UniqueIdentifier OPTIONAL,
 	subjectUniqueID   [ 2 ]	IMPLICIT UniqueIdentifier OPTIONAL,
@@ -28,8 +28,8 @@ Version ::= INTEGER
 CertificateSerialNumber ::= INTEGER
 
 AlgorithmIdentifier ::= SEQUENCE {
-	algorithm		OBJECT IDENTIFIER ({ x509_note_OID }),
-	parameters		ANY OPTIONAL ({ x509_note_params })
+	algorithm		OBJECT IDENTIFIER ({ x509_analte_OID }),
+	parameters		ANY OPTIONAL ({ x509_analte_params })
 }
 
 Name ::= SEQUENCE OF RelativeDistinguishedName
@@ -37,13 +37,13 @@ Name ::= SEQUENCE OF RelativeDistinguishedName
 RelativeDistinguishedName ::= SET OF AttributeValueAssertion
 
 AttributeValueAssertion ::= SEQUENCE {
-	attributeType		OBJECT IDENTIFIER ({ x509_note_OID }),
+	attributeType		OBJECT IDENTIFIER ({ x509_analte_OID }),
 	attributeValue		ANY ({ x509_extract_name_segment })
 	}
 
 Validity ::= SEQUENCE {
-	notBefore		Time ({ x509_note_not_before }),
-	notAfter		Time ({ x509_note_not_after })
+	analtBefore		Time ({ x509_analte_analt_before }),
+	analtAfter		Time ({ x509_analte_analt_after })
 	}
 
 Time ::= CHOICE {
@@ -61,7 +61,7 @@ UniqueIdentifier ::= BIT STRING
 Extensions ::= SEQUENCE OF Extension
 
 Extension ::= SEQUENCE {
-	extnid			OBJECT IDENTIFIER ({ x509_note_OID }),
+	extnid			OBJECT IDENTIFIER ({ x509_analte_OID }),
 	critical		BOOLEAN DEFAULT,
 	extnValue		OCTET STRING ({ x509_process_extension })
 	}

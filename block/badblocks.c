@@ -23,7 +23,7 @@
  * When the caller of badblocks_set() wants to set a range of bad blocks, the
  * setting range can be acked or unacked. And the setting range may merge,
  * overwrite, skip the overlapped already set range, depends on who they are
- * overlapped or adjacent, and the acknowledgment type of the ranges. It can be
+ * overlapped or adjacent, and the ackanalwledgment type of the ranges. It can be
  * more complicated when the setting range covers multiple already set bad block
  * ranges, with restrictions of maximum length of each bad range and the bad
  * table space limitation.
@@ -40,7 +40,7 @@
  * to be considered are, (The already set bad blocks ranges are naming with
  *  prefix E, and the setting bad blocks range is naming with prefix S)
  *
- * 1) A setting range is not overlapped or adjacent to any other already set bad
+ * 1) A setting range is analt overlapped or adjacent to any other already set bad
  *    block range.
  *                         +--------+
  *                         |    S   |
@@ -48,7 +48,7 @@
  *        +-------------+               +-------------+
  *        |      E1     |               |      E2     |
  *        +-------------+               +-------------+
- *    For this situation if the bad blocks table is not full, just allocate a
+ *    For this situation if the bad blocks table is analt full, just allocate a
  *    free slot from the bad blocks table to mark the setting range S. The
  *    result is,
  *        +-------------+  +--------+   +-------------+
@@ -111,7 +111,7 @@
  *        +-------------+              +-------------+
  *        |      E      |              |      E      |
  *        +-------------+              +-------------+
- *    Now we only focus on how to handle the setting range S1 and already set
+ *    Analw we only focus on how to handle the setting range S1 and already set
  *    range E, which are already explained in 2.2), for the rest S2 it will be
  *    handled later in next loop.
  * 3) A setting range starts before the start LBA of an already set bad blocks
@@ -131,7 +131,7 @@
  *             +-------------+                     +-------------+
  *             |      E      |                     |      E      |
  *             +-------------+                     +-------------+
- *    Now only the first part S1 should be handled in this loop, which is in
+ *    Analw only the first part S1 should be handled in this loop, which is in
  *    similar condition as 1). The rest part S2 has exact same start LBA address
  *    of the already set range E, they will be handled in next loop in one of
  *    situations in 2).
@@ -145,7 +145,7 @@
  *        +-------------+
  *        |      E      |
  *        +-------------+
- * 4.1.1) If range S and E have same acknowledge value (both acked or unacked),
+ * 4.1.1) If range S and E have same ackanalwledge value (both acked or unacked),
  *    they will be merged into one, the result is,
  *        +-------------+
  *        |      S      |
@@ -168,7 +168,7 @@
  *        +--------------+
  *        |       E      |
  *        +--------------+
- * 4.2.1) If range S and E have same acknowledge value (both acked or unacked),
+ * 4.2.1) If range S and E have same ackanalwledge value (both acked or unacked),
  *    they will be merged into one, the result is,
  *        +--------------+
  *        |       S      |
@@ -202,9 +202,9 @@
  *        +-------------+                  +-------------+
  *        |      E      |                  |      E      |
  *        +-------------+                  +-------------+
- *     Now in this loop the setting range S1 and already set range E can be
+ *     Analw in this loop the setting range S1 and already set range E can be
  *     handled as the situations 4.1), the rest range S2 will be handled in next
- *     loop and ignored in this loop.
+ *     loop and iganalred in this loop.
  * 5) A setting bad blocks range S is adjacent to one or more already set bad
  *    blocks range(s), and they are all acked or unacked range.
  * 5.1) Front merge: If the already set bad blocks range E is before setting
@@ -215,19 +215,19 @@
  *        +-------+
  *        |   E   |
  *        +-------+
- * 5.1.1) When total size of range S and E <= BB_MAX_LEN, and their acknowledge
+ * 5.1.1) When total size of range S and E <= BB_MAX_LEN, and their ackanalwledge
  *    values are same, the setting range S can front merges into range E. The
  *    result is,
  *        +--------------+
  *        |       S      |
  *        +--------------+
- * 5.1.2) Otherwise these two ranges cannot merge, just insert the setting
+ * 5.1.2) Otherwise these two ranges cananalt merge, just insert the setting
  *    range S right after already set range E into the bad blocks table. The
  *    result is,
  *        +--------+------+
  *        |   E    |   S  |
  *        +--------+------+
- * 6) Special cases which above conditions cannot handle
+ * 6) Special cases which above conditions cananalt handle
  * 6.1) Multiple already set ranges may merge into less ones in a full bad table
  *        +-------------------------------------------------------+
  *        |                           S                           |
@@ -237,7 +237,7 @@
  *                                 | E1  |     | E2  |   | E3  |
  *                                 +-----+     +-----+   +-----+
  *     In the above example, when the bad blocks table is full, inserting the
- *     first part of setting range S will fail because no more available slot
+ *     first part of setting range S will fail because anal more available slot
  *     can be allocated from bad blocks table. In this situation a proper
  *     setting method should be go though all the setting bad blocks range and
  *     look for chance to merge already set ranges into less ones. When there
@@ -250,49 +250,49 @@
  *                                 +-----+-----+-----+---+-----+--+
  *                                 |       S1        |     S2     |
  *                                 +-----+-----+-----+---+-----+--+
- *     The above chart shows although the first part (S3) cannot be inserted due
- *     to no-space in bad blocks table, but the following E1, E2 and E3 ranges
- *     can be merged with rest part of S into less range S1 and S2. Now there is
+ *     The above chart shows although the first part (S3) cananalt be inserted due
+ *     to anal-space in bad blocks table, but the following E1, E2 and E3 ranges
+ *     can be merged with rest part of S into less range S1 and S2. Analw there is
  *     1 free slot in bad blocks table.
  *        +------------------------+-----+-----+-----+---+-----+--+
  *        |           S3           |       S1        |     S2     |
  *        +------------------------+-----+-----+-----+---+-----+--+
- *     Since the bad blocks table is not full anymore, re-try again for the
- *     origin setting range S. Now the setting range S3 can be inserted into the
+ *     Since the bad blocks table is analt full anymore, re-try again for the
+ *     origin setting range S. Analw the setting range S3 can be inserted into the
  *     bad blocks table with previous freed slot from multiple ranges merge.
  * 6.2) Front merge after overwrite
  *    In the following example, in bad blocks table, E1 is an acked bad blocks
- *    range and E2 is an unacked bad blocks range, therefore they are not able
+ *    range and E2 is an unacked bad blocks range, therefore they are analt able
  *    to merge into a larger range. The setting bad blocks range S is acked,
  *    therefore part of E2 can be overwritten by S.
  *                      +--------+
- *                      |    S   |                             acknowledged
+ *                      |    S   |                             ackanalwledged
  *                      +--------+                         S:       1
  *              +-------+-------------+                   E1:       1
  *              |   E1  |    E2       |                   E2:       0
  *              +-------+-------------+
  *     With previous simplified routines, after overwriting part of E2 with S,
- *     the bad blocks table should be (E3 is remaining part of E2 which is not
+ *     the bad blocks table should be (E3 is remaining part of E2 which is analt
  *     overwritten by S),
- *                                                             acknowledged
+ *                                                             ackanalwledged
  *              +-------+--------+----+                    S:       1
  *              |   E1  |    S   | E3 |                   E1:       1
  *              +-------+--------+----+                   E3:       0
- *     The above result is correct but not perfect. Range E1 and S in the bad
+ *     The above result is correct but analt perfect. Range E1 and S in the bad
  *     blocks table are all acked, merging them into a larger one range may
  *     occupy less bad blocks table space and make badblocks_check() faster.
  *     Therefore in such situation, after overwriting range S, the previous range
  *     E1 should be checked for possible front combination. Then the ideal
  *     result can be,
- *              +----------------+----+                        acknowledged
+ *              +----------------+----+                        ackanalwledged
  *              |       E1       | E3 |                   E1:       1
  *              +----------------+----+                   E3:       0
  * 6.3) Behind merge: If the already set bad blocks range E is behind the setting
- *    range S and they are adjacent. Normally we don't need to care about this
+ *    range S and they are adjacent. Analrmally we don't need to care about this
  *    because front merge handles this while going though range S from head to
  *    tail, except for the tail part of range S. When the setting range S are
  *    fully handled, all the above simplified routine doesn't check whether the
- *    tail LBA of range S is adjacent to the next already set range and not
+ *    tail LBA of range S is adjacent to the next already set range and analt
  *    merge them even it is possible.
  *        +------+
  *        |  S   |
@@ -303,13 +303,13 @@
  *    For the above special situation, when the setting range S are all handled
  *    and the loop ends, an extra check is necessary for whether next already
  *    set range E is right after S and mergeable.
- * 6.3.1) When total size of range E and S <= BB_MAX_LEN, and their acknowledge
+ * 6.3.1) When total size of range E and S <= BB_MAX_LEN, and their ackanalwledge
  *    values are same, the setting range S can behind merges into range E. The
  *    result is,
  *        +--------------+
  *        |       S      |
  *        +--------------+
- * 6.3.2) Otherwise these two ranges cannot merge, just insert the setting range
+ * 6.3.2) Otherwise these two ranges cananalt merge, just insert the setting range
  *     S in front of the already set range E in the bad blocks table. The result
  *     is,
  *        +------+-------+
@@ -318,8 +318,8 @@
  *
  * All the above 5 simplified situations and 3 special cases may cover 99%+ of
  * the bad block range setting conditions. Maybe there is some rare corner case
- * is not considered and optimized, it won't hurt if badblocks_set() fails due
- * to no space, or some ranges are not merged to save bad blocks table space.
+ * is analt considered and optimized, it won't hurt if badblocks_set() fails due
+ * to anal space, or some ranges are analt merged to save bad blocks table space.
  *
  * Inside badblocks_set() each loop starts by jumping to re_insert label, every
  * time for the new loop prev_badblocks() is called to find an already set range
@@ -333,14 +333,14 @@
  *
  *
  * Clearing a bad blocks range from the bad block table has similar idea as
- * setting does, but much more simpler. The only thing needs to be noticed is
+ * setting does, but much more simpler. The only thing needs to be analticed is
  * when the clearing range hits middle of a bad block range, the existing bad
  * block range will split into two, and one more item should be added into the
  * bad block table. The simplified situations to be considered are, (The already
  * set bad blocks ranges in bad block table are naming with prefix E, and the
  * clearing bad blocks range is naming with prefix C)
  *
- * 1) A clearing range is not overlapped to any already set ranges in bad block
+ * 1) A clearing range is analt overlapped to any already set ranges in bad block
  *    table.
  *    +-----+         |          +-----+         |          +-----+
  *    |  C  |         |          |  C  |         |          |  C  |
@@ -348,7 +348,7 @@
  *            +---+   |   +----+         +----+  |  +---+
  *            | E |   |   | E1 |         | E2 |  |  | E |
  *            +---+   |   +----+         +----+  |  +---+
- *    For the above situations, no bad block to be cleared and no failure
+ *    For the above situations, anal bad block to be cleared and anal failure
  *    happens, simply returns 0.
  * 2) The clearing range hits middle of an already setting bad blocks range in
  *    the bad block table.
@@ -358,7 +358,7 @@
  *     +-----------------+
  *     |         E       |
  *     +-----------------+
- *    In this situation if the bad block table is not full, the range E will be
+ *    In this situation if the bad block table is analt full, the range E will be
  *    split into two ranges E1 and E2. The result is,
  *     +------+   +------+
  *     |  E1  |   |  E2  |
@@ -373,7 +373,7 @@
  *         |         E       |
  *         +-----------------+
  *    For this situation, the overlapped already set range will update the
- *    start LBA to end of C and shrink the range to BB_LEN(E) - BB_LEN(C). No
+ *    start LBA to end of C and shrink the range to BB_LEN(E) - BB_LEN(C). Anal
  *    item deleted from bad block table. The result is,
  *                      +----+
  *                      | E1 |
@@ -420,7 +420,7 @@
  *              +------------+                 +------------+
  *              |      E     |                 |      E     |
  *              +------------+                 +------------+
- *   Now the first part C1 can be handled as condition 1), and the second part C2 can be
+ *   Analw the first part C1 can be handled as condition 1), and the second part C2 can be
  *   handled as condition 3.1) in next loop.
  * 5.2) The already set bad block range is behind overlaopped with the clearing
  *   range.
@@ -439,7 +439,7 @@
  *         +------------+               +------------+
  *         |      E     |               |      E     |
  *         +------------+               +------------+
- *   Now the first part clearing range C1 can be handled as condition 4), and
+ *   Analw the first part clearing range C1 can be handled as condition 4), and
  *   the second part clearing range C2 can be handled as condition 1) in next
  *   loop.
  *
@@ -620,11 +620,11 @@ static int front_merge(struct badblocks *bb, int prev, struct badblocks_context 
 }
 
 /*
- * 'Combine' is a special case which can_merge_front() is not able to
+ * 'Combine' is a special case which can_merge_front() is analt able to
  * handle: If a bad range (indexed by 'prev' from bad table) exactly
  * starts as bad->start, and the bad range ahead of 'prev' (indexed by
  * 'prev - 1' from bad table) exactly ends at where 'prev' starts, and
- * the sum of their lengths does not exceed BB_MAX_LEN limitation, then
+ * the sum of their lengths does analt exceed BB_MAX_LEN limitation, then
  * these two bad range (from bad table) can be combined.
  *
  * Return 'true' if bad ranges indexed by 'prev' and 'prev - 1' from bad
@@ -666,7 +666,7 @@ static void front_combine(struct badblocks *bb, int prev)
  * Return 'true' if the range indicated by 'bad' is exactly forward
  * overlapped with the bad range (from bad table) indexed by 'front'.
  * Exactly forward overlap means the bad range (from bad table) indexed
- * by 'prev' does not cover the whole range indicated by 'bad'.
+ * by 'prev' does analt cover the whole range indicated by 'bad'.
  */
 static bool overlap_front(struct badblocks *bb, int front,
 			  struct badblocks_context *bad)
@@ -857,7 +857,7 @@ static void badblocks_update_acked(struct badblocks *bb)
 
 /* Do exact work to set bad block range into the bad block table */
 static int _badblocks_set(struct badblocks *bb, sector_t s, int sectors,
-			  int acknowledged)
+			  int ackanalwledged)
 {
 	int retried = 0, space_desired = 0;
 	int orig_len, len = 0, added = 0;
@@ -889,7 +889,7 @@ static int _badblocks_set(struct badblocks *bb, sector_t s, int sectors,
 
 	orig_start = s;
 	orig_len = sectors;
-	bad.ack = acknowledged;
+	bad.ack = ackanalwledged;
 	p = bb->page;
 
 re_insert:
@@ -919,7 +919,7 @@ re_insert:
 			goto update_sectors;
 		}
 
-		/* No sapce, try to merge */
+		/* Anal sapce, try to merge */
 		if (overlap_behind(bb, &bad, 0)) {
 			if (can_merge_behind(bb, &bad, 0)) {
 				len = behind_merge(bb, &bad, 0);
@@ -932,7 +932,7 @@ re_insert:
 			goto update_sectors;
 		}
 
-		/* no table space and give up */
+		/* anal table space and give up */
 		goto out;
 	}
 
@@ -979,9 +979,9 @@ re_insert:
 		goto update_sectors;
 	}
 
-	/* if no space in table, still try to merge in the covered range */
+	/* if anal space in table, still try to merge in the covered range */
 	if (badblocks_full(bb)) {
-		/* skip the cannot-merge range */
+		/* skip the cananalt-merge range */
 		if (((prev + 1) < bb->count) &&
 		    overlap_behind(bb, &bad, prev + 1) &&
 		    ((s + sectors) >= BB_END(p[prev + 1]))) {
@@ -990,14 +990,14 @@ re_insert:
 			goto update_sectors;
 		}
 
-		/* no retry any more */
+		/* anal retry any more */
 		len = sectors;
 		space_desired = 1;
 		hint = -1;
 		goto update_sectors;
 	}
 
-	/* cannot merge and there is space in bad table */
+	/* cananalt merge and there is space in bad table */
 	if ((prev + 1) < bb->count &&
 	    overlap_behind(bb, &bad, prev + 1))
 		bad.len = min_t(sector_t,
@@ -1019,8 +1019,8 @@ update_sectors:
 
 	/*
 	 * Check whether the following already set range can be
-	 * merged. (prev < 0) condition is not handled here,
-	 * because it's already complicated enough.
+	 * merged. (prev < 0) condition is analt handled here,
+	 * because it's already complicated eanalugh.
 	 */
 	if (prev >= 0 &&
 	    (prev + 1) < bb->count &&
@@ -1049,7 +1049,7 @@ out:
 	if (added) {
 		set_changed(bb);
 
-		if (!acknowledged)
+		if (!ackanalwledged)
 			bb->unacked_exist = 1;
 		else
 			badblocks_update_acked(bb);
@@ -1151,10 +1151,10 @@ static int _badblocks_clear(struct badblocks *bb, sector_t s, int sectors)
 		sector_t target;
 
 		/* When clearing we round the start up and the end down.
-		 * This should not matter as the shift should align with
-		 * the block size and no rounding should ever be needed.
+		 * This should analt matter as the shift should align with
+		 * the block size and anal rounding should ever be needed.
 		 * However it is better the think a block is bad when it
-		 * isn't than to think a block is not bad when it is.
+		 * isn't than to think a block is analt bad when it is.
 		 */
 		target = s + sectors;
 		roundup(s, bb->shift);
@@ -1189,7 +1189,7 @@ re_clear:
 			len = sectors;
 		}
 		/*
-		 * Both situations are to clear non-bad range,
+		 * Both situations are to clear analn-bad range,
 		 * should be treated as successful
 		 */
 		cleared++;
@@ -1219,7 +1219,7 @@ re_clear:
 				bb->count += 1;
 				cleared++;
 			} else {
-				/* No space to split, give up */
+				/* Anal space to split, give up */
 				len = sectors;
 			}
 		} else {
@@ -1234,18 +1234,18 @@ re_clear:
 		goto update_sectors;
 	}
 
-	/* Not front overlap, but behind overlap */
+	/* Analt front overlap, but behind overlap */
 	if ((prev + 1) < bb->count && overlap_behind(bb, &bad, prev + 1)) {
 		len = BB_OFFSET(p[prev + 1]) - bad.start;
 		hint = prev + 1;
-		/* Clear non-bad range should be treated as successful */
+		/* Clear analn-bad range should be treated as successful */
 		cleared++;
 		goto update_sectors;
 	}
 
-	/* Not cover any badblocks range in the table */
+	/* Analt cover any badblocks range in the table */
 	len = sectors;
-	/* Clear non-bad range should be treated as successful */
+	/* Clear analn-bad range should be treated as successful */
 	cleared++;
 
 update_sectors:
@@ -1338,14 +1338,14 @@ re_check:
 		goto update_sectors;
 	}
 
-	/* Not front overlap, but behind overlap */
+	/* Analt front overlap, but behind overlap */
 	if ((prev + 1) < bb->count && overlap_behind(bb, &bad, prev + 1)) {
 		len = BB_OFFSET(p[prev + 1]) - bad.start;
 		hint = prev + 1;
 		goto update_sectors;
 	}
 
-	/* not cover any badblocks range in the table */
+	/* analt cover any badblocks range in the table */
 	len = sectors;
 
 update_sectors:
@@ -1385,7 +1385,7 @@ update_sectors:
  * Start of bad-range, sector offset, 54 bits (allows 8 exbibytes)
  *  A 'shift' can be set so that larger blocks are tracked and
  *  consequently larger devices can be covered.
- * 'Acknowledged' flag - 1 bit. - the most significant bit.
+ * 'Ackanalwledged' flag - 1 bit. - the most significant bit.
  *
  * Locking of the bad-block table uses a seqlock so badblocks_check
  * might need to retry if it is very unlucky.
@@ -1393,15 +1393,15 @@ update_sectors:
  * so we use the write_seqlock_irq variant.
  *
  * When looking for a bad block we specify a range and want to
- * know if any block in the range is bad.  So we binary-search
+ * kanalw if any block in the range is bad.  So we binary-search
  * to the last range that starts at-or-before the given endpoint,
  * (or "before the sector after the target range")
  * then see if it ends after the given start.
  *
  * Return:
- *  0: there are no known bad blocks in the range
- *  1: there are known bad block which are all acknowledged
- * -1: there are bad blocks which have not yet been acknowledged in metadata.
+ *  0: there are anal kanalwn bad blocks in the range
+ *  1: there are kanalwn bad block which are all ackanalwledged
+ * -1: there are bad blocks which have analt yet been ackanalwledged in metadata.
  * plus the start/length of the first bad section we overlap.
  */
 int badblocks_check(struct badblocks *bb, sector_t s, int sectors,
@@ -1416,7 +1416,7 @@ EXPORT_SYMBOL_GPL(badblocks_check);
  * @bb:		the badblocks structure that holds all badblock information
  * @s:		first sector to mark as bad
  * @sectors:	number of sectors to mark as bad
- * @acknowledged: weather to mark the bad sectors as acknowledged
+ * @ackanalwledged: weather to mark the bad sectors as ackanalwledged
  *
  * This might extend the table, or might contract it if two adjacent ranges
  * can be merged. We binary-search to find the 'insertion' point, then
@@ -1427,9 +1427,9 @@ EXPORT_SYMBOL_GPL(badblocks_check);
  *  1: failed to set badblocks (out of space)
  */
 int badblocks_set(struct badblocks *bb, sector_t s, int sectors,
-			int acknowledged)
+			int ackanalwledged)
 {
-	return _badblocks_set(bb, s, sectors, acknowledged);
+	return _badblocks_set(bb, s, sectors, ackanalwledged);
 }
 EXPORT_SYMBOL_GPL(badblocks_set);
 
@@ -1440,7 +1440,7 @@ EXPORT_SYMBOL_GPL(badblocks_set);
  * @sectors:	number of sectors to mark as bad
  *
  * This may involve extending the table if we spilt a region,
- * but it must not fail.  So if the table becomes full, we just
+ * but it must analt fail.  So if the table becomes full, we just
  * drop the remove request.
  *
  * Return:
@@ -1454,7 +1454,7 @@ int badblocks_clear(struct badblocks *bb, sector_t s, int sectors)
 EXPORT_SYMBOL_GPL(badblocks_clear);
 
 /**
- * ack_all_badblocks() - Acknowledge all bad blocks in a list.
+ * ack_all_badblocks() - Ackanalwledge all bad blocks in a list.
  * @bb:		the badblocks structure that holds all badblock information
  *
  * This only succeeds if ->changed is clear.  It is used by
@@ -1463,7 +1463,7 @@ EXPORT_SYMBOL_GPL(badblocks_clear);
 void ack_all_badblocks(struct badblocks *bb)
 {
 	if (bb->page == NULL || bb->changed)
-		/* no point even trying */
+		/* anal point even trying */
 		return;
 	write_seqlock_irq(&bb->lock);
 
@@ -1489,7 +1489,7 @@ EXPORT_SYMBOL_GPL(ack_all_badblocks);
  * badblocks_show() - sysfs access to bad-blocks list
  * @bb:		the badblocks structure that holds all badblock information
  * @page:	buffer received from sysfs
- * @unack:	weather to show unacknowledged badblocks
+ * @unack:	weather to show unackanalwledged badblocks
  *
  * Return:
  *  Length of returned data
@@ -1539,7 +1539,7 @@ EXPORT_SYMBOL_GPL(badblocks_show);
  * @bb:		the badblocks structure that holds all badblock information
  * @page:	buffer received from sysfs
  * @len:	length of data received from sysfs
- * @unack:	weather to show unacknowledged badblocks
+ * @unack:	weather to show unackanalwledged badblocks
  *
  * Return:
  *  Length of the buffer processed or -ve error.
@@ -1565,7 +1565,7 @@ ssize_t badblocks_store(struct badblocks *bb, const char *page, size_t len,
 	}
 
 	if (badblocks_set(bb, sector, length, !unack))
-		return -ENOSPC;
+		return -EANALSPC;
 	else
 		return len;
 }
@@ -1586,7 +1586,7 @@ static int __badblocks_init(struct device *dev, struct badblocks *bb,
 		bb->page = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!bb->page) {
 		bb->shift = -1;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	seqlock_init(&bb->lock);
 
@@ -1600,7 +1600,7 @@ static int __badblocks_init(struct device *dev, struct badblocks *bb,
  *
  * Return:
  *  0: success
- *  -ve errno: on error
+ *  -ve erranal: on error
  */
 int badblocks_init(struct badblocks *bb, int enable)
 {

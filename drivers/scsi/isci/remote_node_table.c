@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -54,15 +54,15 @@
  */
 
 /*
- * This file contains the implementation of the SCIC_SDS_REMOTE_NODE_TABLE
+ * This file contains the implementation of the SCIC_SDS_REMOTE_ANALDE_TABLE
  *    public, protected, and private methods.
  */
-#include "remote_node_table.h"
-#include "remote_node_context.h"
+#include "remote_analde_table.h"
+#include "remote_analde_context.h"
 
 /**
- * sci_remote_node_table_get_group_index()
- * @remote_node_table: This is the remote node index table from which the
+ * sci_remote_analde_table_get_group_index()
+ * @remote_analde_table: This is the remote analde index table from which the
  *    selection will be made.
  * @group_table_index: This is the index to the group table from which to
  *    search for an available selection.
@@ -72,17 +72,17 @@
  * just bit position. u32 This is the absolute bit position for an available
  * group.
  */
-static u32 sci_remote_node_table_get_group_index(
-	struct sci_remote_node_table *remote_node_table,
+static u32 sci_remote_analde_table_get_group_index(
+	struct sci_remote_analde_table *remote_analde_table,
 	u32 group_table_index)
 {
 	u32 dword_index;
 	u32 *group_table;
 	u32 bit_index;
 
-	group_table = remote_node_table->remote_node_groups[group_table_index];
+	group_table = remote_analde_table->remote_analde_groups[group_table_index];
 
-	for (dword_index = 0; dword_index < remote_node_table->group_array_size; dword_index++) {
+	for (dword_index = 0; dword_index < remote_analde_table->group_array_size; dword_index++) {
 		if (group_table[dword_index] != 0) {
 			for (bit_index = 0; bit_index < 32; bit_index++) {
 				if ((group_table[dword_index] & (1 << bit_index)) != 0) {
@@ -92,22 +92,22 @@ static u32 sci_remote_node_table_get_group_index(
 		}
 	}
 
-	return SCIC_SDS_REMOTE_NODE_TABLE_INVALID_INDEX;
+	return SCIC_SDS_REMOTE_ANALDE_TABLE_INVALID_INDEX;
 }
 
 /**
- * sci_remote_node_table_clear_group_index()
- * @remote_node_table: This the remote node table in which to clear the
+ * sci_remote_analde_table_clear_group_index()
+ * @remote_analde_table: This the remote analde table in which to clear the
  *    selector.
- * @group_table_index: This is the remote node selector in which the change will be
+ * @group_table_index: This is the remote analde selector in which the change will be
  *    made.
  * @group_index: This is the bit index in the table to be modified.
  *
  * This method will clear the group index entry in the specified group index
- * table. none
+ * table. analne
  */
-static void sci_remote_node_table_clear_group_index(
-	struct sci_remote_node_table *remote_node_table,
+static void sci_remote_analde_table_clear_group_index(
+	struct sci_remote_analde_table *remote_analde_table,
 	u32 group_table_index,
 	u32 group_index)
 {
@@ -115,29 +115,29 @@ static void sci_remote_node_table_clear_group_index(
 	u32 bit_index;
 	u32 *group_table;
 
-	BUG_ON(group_table_index >= SCU_STP_REMOTE_NODE_COUNT);
-	BUG_ON(group_index >= (u32)(remote_node_table->group_array_size * 32));
+	BUG_ON(group_table_index >= SCU_STP_REMOTE_ANALDE_COUNT);
+	BUG_ON(group_index >= (u32)(remote_analde_table->group_array_size * 32));
 
 	dword_index = group_index / 32;
 	bit_index   = group_index % 32;
-	group_table = remote_node_table->remote_node_groups[group_table_index];
+	group_table = remote_analde_table->remote_analde_groups[group_table_index];
 
 	group_table[dword_index] = group_table[dword_index] & ~(1 << bit_index);
 }
 
 /**
- * sci_remote_node_table_set_group_index()
- * @remote_node_table: This the remote node table in which to set the
+ * sci_remote_analde_table_set_group_index()
+ * @remote_analde_table: This the remote analde table in which to set the
  *    selector.
- * @group_table_index: This is the remote node selector in which the change
+ * @group_table_index: This is the remote analde selector in which the change
  *    will be made.
  * @group_index: This is the bit position in the table to be modified.
  *
  * This method will set the group index bit entry in the specified gropu index
- * table. none
+ * table. analne
  */
-static void sci_remote_node_table_set_group_index(
-	struct sci_remote_node_table *remote_node_table,
+static void sci_remote_analde_table_set_group_index(
+	struct sci_remote_analde_table *remote_analde_table,
 	u32 group_table_index,
 	u32 group_index)
 {
@@ -145,92 +145,92 @@ static void sci_remote_node_table_set_group_index(
 	u32 bit_index;
 	u32 *group_table;
 
-	BUG_ON(group_table_index >= SCU_STP_REMOTE_NODE_COUNT);
-	BUG_ON(group_index >= (u32)(remote_node_table->group_array_size * 32));
+	BUG_ON(group_table_index >= SCU_STP_REMOTE_ANALDE_COUNT);
+	BUG_ON(group_index >= (u32)(remote_analde_table->group_array_size * 32));
 
 	dword_index = group_index / 32;
 	bit_index   = group_index % 32;
-	group_table = remote_node_table->remote_node_groups[group_table_index];
+	group_table = remote_analde_table->remote_analde_groups[group_table_index];
 
 	group_table[dword_index] = group_table[dword_index] | (1 << bit_index);
 }
 
 /**
- * sci_remote_node_table_set_node_index()
- * @remote_node_table: This is the remote node table in which to modify
- *    the remote node availability.
- * @remote_node_index: This is the remote node index that is being returned to
+ * sci_remote_analde_table_set_analde_index()
+ * @remote_analde_table: This is the remote analde table in which to modify
+ *    the remote analde availability.
+ * @remote_analde_index: This is the remote analde index that is being returned to
  *    the table.
  *
- * This method will set the remote to available in the remote node allocation
- * table. none
+ * This method will set the remote to available in the remote analde allocation
+ * table. analne
  */
-static void sci_remote_node_table_set_node_index(
-	struct sci_remote_node_table *remote_node_table,
-	u32 remote_node_index)
+static void sci_remote_analde_table_set_analde_index(
+	struct sci_remote_analde_table *remote_analde_table,
+	u32 remote_analde_index)
 {
 	u32 dword_location;
 	u32 dword_remainder;
-	u32 slot_normalized;
+	u32 slot_analrmalized;
 	u32 slot_position;
 
 	BUG_ON(
-		(remote_node_table->available_nodes_array_size * SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD)
-		<= (remote_node_index / SCU_STP_REMOTE_NODE_COUNT)
+		(remote_analde_table->available_analdes_array_size * SCIC_SDS_REMOTE_ANALDE_SETS_PER_DWORD)
+		<= (remote_analde_index / SCU_STP_REMOTE_ANALDE_COUNT)
 		);
 
-	dword_location  = remote_node_index / SCIC_SDS_REMOTE_NODES_PER_DWORD;
-	dword_remainder = remote_node_index % SCIC_SDS_REMOTE_NODES_PER_DWORD;
-	slot_normalized = (dword_remainder / SCU_STP_REMOTE_NODE_COUNT) * sizeof(u32);
-	slot_position   = remote_node_index % SCU_STP_REMOTE_NODE_COUNT;
+	dword_location  = remote_analde_index / SCIC_SDS_REMOTE_ANALDES_PER_DWORD;
+	dword_remainder = remote_analde_index % SCIC_SDS_REMOTE_ANALDES_PER_DWORD;
+	slot_analrmalized = (dword_remainder / SCU_STP_REMOTE_ANALDE_COUNT) * sizeof(u32);
+	slot_position   = remote_analde_index % SCU_STP_REMOTE_ANALDE_COUNT;
 
-	remote_node_table->available_remote_nodes[dword_location] |=
-		1 << (slot_normalized + slot_position);
+	remote_analde_table->available_remote_analdes[dword_location] |=
+		1 << (slot_analrmalized + slot_position);
 }
 
 /**
- * sci_remote_node_table_clear_node_index()
- * @remote_node_table: This is the remote node table from which to clear
- *    the available remote node bit.
- * @remote_node_index: This is the remote node index which is to be cleared
+ * sci_remote_analde_table_clear_analde_index()
+ * @remote_analde_table: This is the remote analde table from which to clear
+ *    the available remote analde bit.
+ * @remote_analde_index: This is the remote analde index which is to be cleared
  *    from the table.
  *
- * This method clears the remote node index from the table of available remote
- * nodes. none
+ * This method clears the remote analde index from the table of available remote
+ * analdes. analne
  */
-static void sci_remote_node_table_clear_node_index(
-	struct sci_remote_node_table *remote_node_table,
-	u32 remote_node_index)
+static void sci_remote_analde_table_clear_analde_index(
+	struct sci_remote_analde_table *remote_analde_table,
+	u32 remote_analde_index)
 {
 	u32 dword_location;
 	u32 dword_remainder;
 	u32 slot_position;
-	u32 slot_normalized;
+	u32 slot_analrmalized;
 
 	BUG_ON(
-		(remote_node_table->available_nodes_array_size * SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD)
-		<= (remote_node_index / SCU_STP_REMOTE_NODE_COUNT)
+		(remote_analde_table->available_analdes_array_size * SCIC_SDS_REMOTE_ANALDE_SETS_PER_DWORD)
+		<= (remote_analde_index / SCU_STP_REMOTE_ANALDE_COUNT)
 		);
 
-	dword_location  = remote_node_index / SCIC_SDS_REMOTE_NODES_PER_DWORD;
-	dword_remainder = remote_node_index % SCIC_SDS_REMOTE_NODES_PER_DWORD;
-	slot_normalized = (dword_remainder / SCU_STP_REMOTE_NODE_COUNT) * sizeof(u32);
-	slot_position   = remote_node_index % SCU_STP_REMOTE_NODE_COUNT;
+	dword_location  = remote_analde_index / SCIC_SDS_REMOTE_ANALDES_PER_DWORD;
+	dword_remainder = remote_analde_index % SCIC_SDS_REMOTE_ANALDES_PER_DWORD;
+	slot_analrmalized = (dword_remainder / SCU_STP_REMOTE_ANALDE_COUNT) * sizeof(u32);
+	slot_position   = remote_analde_index % SCU_STP_REMOTE_ANALDE_COUNT;
 
-	remote_node_table->available_remote_nodes[dword_location] &=
-		~(1 << (slot_normalized + slot_position));
+	remote_analde_table->available_remote_analdes[dword_location] &=
+		~(1 << (slot_analrmalized + slot_position));
 }
 
 /**
- * sci_remote_node_table_clear_group()
- * @remote_node_table: The remote node table from which the slot will be
+ * sci_remote_analde_table_clear_group()
+ * @remote_analde_table: The remote analde table from which the slot will be
  *    cleared.
  * @group_index: The index for the slot that is to be cleared.
  *
- * This method clears the entire table slot at the specified slot index. none
+ * This method clears the entire table slot at the specified slot index. analne
  */
-static void sci_remote_node_table_clear_group(
-	struct sci_remote_node_table *remote_node_table,
+static void sci_remote_analde_table_clear_group(
+	struct sci_remote_analde_table *remote_analde_table,
 	u32 group_index)
 {
 	u32 dword_location;
@@ -238,25 +238,25 @@ static void sci_remote_node_table_clear_group(
 	u32 dword_value;
 
 	BUG_ON(
-		(remote_node_table->available_nodes_array_size * SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD)
-		<= (group_index / SCU_STP_REMOTE_NODE_COUNT)
+		(remote_analde_table->available_analdes_array_size * SCIC_SDS_REMOTE_ANALDE_SETS_PER_DWORD)
+		<= (group_index / SCU_STP_REMOTE_ANALDE_COUNT)
 		);
 
-	dword_location  = group_index / SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD;
-	dword_remainder = group_index % SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD;
+	dword_location  = group_index / SCIC_SDS_REMOTE_ANALDE_SETS_PER_DWORD;
+	dword_remainder = group_index % SCIC_SDS_REMOTE_ANALDE_SETS_PER_DWORD;
 
-	dword_value = remote_node_table->available_remote_nodes[dword_location];
-	dword_value &= ~(SCIC_SDS_REMOTE_NODE_TABLE_FULL_SLOT_VALUE << (dword_remainder * 4));
-	remote_node_table->available_remote_nodes[dword_location] = dword_value;
+	dword_value = remote_analde_table->available_remote_analdes[dword_location];
+	dword_value &= ~(SCIC_SDS_REMOTE_ANALDE_TABLE_FULL_SLOT_VALUE << (dword_remainder * 4));
+	remote_analde_table->available_remote_analdes[dword_location] = dword_value;
 }
 
 /*
- * sci_remote_node_table_set_group()
+ * sci_remote_analde_table_set_group()
  *
- * THis method sets an entire remote node group in the remote node table.
+ * THis method sets an entire remote analde group in the remote analde table.
  */
-static void sci_remote_node_table_set_group(
-	struct sci_remote_node_table *remote_node_table,
+static void sci_remote_analde_table_set_group(
+	struct sci_remote_analde_table *remote_analde_table,
 	u32 group_index)
 {
 	u32 dword_location;
@@ -264,55 +264,55 @@ static void sci_remote_node_table_set_group(
 	u32 dword_value;
 
 	BUG_ON(
-		(remote_node_table->available_nodes_array_size * SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD)
-		<= (group_index / SCU_STP_REMOTE_NODE_COUNT)
+		(remote_analde_table->available_analdes_array_size * SCIC_SDS_REMOTE_ANALDE_SETS_PER_DWORD)
+		<= (group_index / SCU_STP_REMOTE_ANALDE_COUNT)
 		);
 
-	dword_location  = group_index / SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD;
-	dword_remainder = group_index % SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD;
+	dword_location  = group_index / SCIC_SDS_REMOTE_ANALDE_SETS_PER_DWORD;
+	dword_remainder = group_index % SCIC_SDS_REMOTE_ANALDE_SETS_PER_DWORD;
 
-	dword_value = remote_node_table->available_remote_nodes[dword_location];
-	dword_value |= (SCIC_SDS_REMOTE_NODE_TABLE_FULL_SLOT_VALUE << (dword_remainder * 4));
-	remote_node_table->available_remote_nodes[dword_location] = dword_value;
+	dword_value = remote_analde_table->available_remote_analdes[dword_location];
+	dword_value |= (SCIC_SDS_REMOTE_ANALDE_TABLE_FULL_SLOT_VALUE << (dword_remainder * 4));
+	remote_analde_table->available_remote_analdes[dword_location] = dword_value;
 }
 
 /**
- * sci_remote_node_table_get_group_value()
- * @remote_node_table: This is the remote node table that for which the group
+ * sci_remote_analde_table_get_group_value()
+ * @remote_analde_table: This is the remote analde table that for which the group
  *    value is to be returned.
  * @group_index: This is the group index to use to find the group value.
  *
  * This method will return the group value for the specified group index. The
- * bit values at the specified remote node group index.
+ * bit values at the specified remote analde group index.
  */
-static u8 sci_remote_node_table_get_group_value(
-	struct sci_remote_node_table *remote_node_table,
+static u8 sci_remote_analde_table_get_group_value(
+	struct sci_remote_analde_table *remote_analde_table,
 	u32 group_index)
 {
 	u32 dword_location;
 	u32 dword_remainder;
 	u32 dword_value;
 
-	dword_location  = group_index / SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD;
-	dword_remainder = group_index % SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD;
+	dword_location  = group_index / SCIC_SDS_REMOTE_ANALDE_SETS_PER_DWORD;
+	dword_remainder = group_index % SCIC_SDS_REMOTE_ANALDE_SETS_PER_DWORD;
 
-	dword_value = remote_node_table->available_remote_nodes[dword_location];
-	dword_value &= (SCIC_SDS_REMOTE_NODE_TABLE_FULL_SLOT_VALUE << (dword_remainder * 4));
+	dword_value = remote_analde_table->available_remote_analdes[dword_location];
+	dword_value &= (SCIC_SDS_REMOTE_ANALDE_TABLE_FULL_SLOT_VALUE << (dword_remainder * 4));
 	dword_value = dword_value >> (dword_remainder * 4);
 
 	return (u8)dword_value;
 }
 
 /**
- * sci_remote_node_table_initialize()
- * @remote_node_table: The remote that which is to be initialized.
- * @remote_node_entries: The number of entries to put in the table.
+ * sci_remote_analde_table_initialize()
+ * @remote_analde_table: The remote that which is to be initialized.
+ * @remote_analde_entries: The number of entries to put in the table.
  *
- * This method will initialize the remote node table for use. none
+ * This method will initialize the remote analde table for use. analne
  */
-void sci_remote_node_table_initialize(
-	struct sci_remote_node_table *remote_node_table,
-	u32 remote_node_entries)
+void sci_remote_analde_table_initialize(
+	struct sci_remote_analde_table *remote_analde_table,
+	u32 remote_analde_entries)
 {
 	u32 index;
 
@@ -320,96 +320,96 @@ void sci_remote_node_table_initialize(
 	 * Initialize the raw data we could improve the speed by only initializing
 	 * those entries that we are actually going to be used */
 	memset(
-		remote_node_table->available_remote_nodes,
+		remote_analde_table->available_remote_analdes,
 		0x00,
-		sizeof(remote_node_table->available_remote_nodes)
+		sizeof(remote_analde_table->available_remote_analdes)
 		);
 
 	memset(
-		remote_node_table->remote_node_groups,
+		remote_analde_table->remote_analde_groups,
 		0x00,
-		sizeof(remote_node_table->remote_node_groups)
+		sizeof(remote_analde_table->remote_analde_groups)
 		);
 
-	/* Initialize the available remote node sets */
-	remote_node_table->available_nodes_array_size = (u16)
-							(remote_node_entries / SCIC_SDS_REMOTE_NODES_PER_DWORD)
-							+ ((remote_node_entries % SCIC_SDS_REMOTE_NODES_PER_DWORD) != 0);
+	/* Initialize the available remote analde sets */
+	remote_analde_table->available_analdes_array_size = (u16)
+							(remote_analde_entries / SCIC_SDS_REMOTE_ANALDES_PER_DWORD)
+							+ ((remote_analde_entries % SCIC_SDS_REMOTE_ANALDES_PER_DWORD) != 0);
 
 
-	/* Initialize each full DWORD to a FULL SET of remote nodes */
-	for (index = 0; index < remote_node_entries; index++) {
-		sci_remote_node_table_set_node_index(remote_node_table, index);
+	/* Initialize each full DWORD to a FULL SET of remote analdes */
+	for (index = 0; index < remote_analde_entries; index++) {
+		sci_remote_analde_table_set_analde_index(remote_analde_table, index);
 	}
 
-	remote_node_table->group_array_size = (u16)
-					      (remote_node_entries / (SCU_STP_REMOTE_NODE_COUNT * 32))
-					      + ((remote_node_entries % (SCU_STP_REMOTE_NODE_COUNT * 32)) != 0);
+	remote_analde_table->group_array_size = (u16)
+					      (remote_analde_entries / (SCU_STP_REMOTE_ANALDE_COUNT * 32))
+					      + ((remote_analde_entries % (SCU_STP_REMOTE_ANALDE_COUNT * 32)) != 0);
 
-	for (index = 0; index < (remote_node_entries / SCU_STP_REMOTE_NODE_COUNT); index++) {
+	for (index = 0; index < (remote_analde_entries / SCU_STP_REMOTE_ANALDE_COUNT); index++) {
 		/*
 		 * These are all guaranteed to be full slot values so fill them in the
-		 * available sets of 3 remote nodes */
-		sci_remote_node_table_set_group_index(remote_node_table, 2, index);
+		 * available sets of 3 remote analdes */
+		sci_remote_analde_table_set_group_index(remote_analde_table, 2, index);
 	}
 
-	/* Now fill in any remainders that we may find */
-	if ((remote_node_entries % SCU_STP_REMOTE_NODE_COUNT) == 2) {
-		sci_remote_node_table_set_group_index(remote_node_table, 1, index);
-	} else if ((remote_node_entries % SCU_STP_REMOTE_NODE_COUNT) == 1) {
-		sci_remote_node_table_set_group_index(remote_node_table, 0, index);
+	/* Analw fill in any remainders that we may find */
+	if ((remote_analde_entries % SCU_STP_REMOTE_ANALDE_COUNT) == 2) {
+		sci_remote_analde_table_set_group_index(remote_analde_table, 1, index);
+	} else if ((remote_analde_entries % SCU_STP_REMOTE_ANALDE_COUNT) == 1) {
+		sci_remote_analde_table_set_group_index(remote_analde_table, 0, index);
 	}
 }
 
 /**
- * sci_remote_node_table_allocate_single_remote_node()
- * @remote_node_table: The remote node table from which to allocate a
- *    remote node.
+ * sci_remote_analde_table_allocate_single_remote_analde()
+ * @remote_analde_table: The remote analde table from which to allocate a
+ *    remote analde.
  * @group_table_index: The group index that is to be used for the search.
  *
- * This method will allocate a single RNi from the remote node table.  The
- * table index will determine from which remote node group table to search.
- * This search may fail and another group node table can be specified.  The
- * function is designed to allow a serach of the available single remote node
- * group up to the triple remote node group.  If an entry is found in the
- * specified table the remote node is removed and the remote node groups are
- * updated. The RNi value or an invalid remote node context if an RNi can not
+ * This method will allocate a single RNi from the remote analde table.  The
+ * table index will determine from which remote analde group table to search.
+ * This search may fail and aanalther group analde table can be specified.  The
+ * function is designed to allow a serach of the available single remote analde
+ * group up to the triple remote analde group.  If an entry is found in the
+ * specified table the remote analde is removed and the remote analde groups are
+ * updated. The RNi value or an invalid remote analde context if an RNi can analt
  * be found.
  */
-static u16 sci_remote_node_table_allocate_single_remote_node(
-	struct sci_remote_node_table *remote_node_table,
+static u16 sci_remote_analde_table_allocate_single_remote_analde(
+	struct sci_remote_analde_table *remote_analde_table,
 	u32 group_table_index)
 {
 	u8 index;
 	u8 group_value;
 	u32 group_index;
-	u16 remote_node_index = SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX;
+	u16 remote_analde_index = SCIC_SDS_REMOTE_ANALDE_CONTEXT_INVALID_INDEX;
 
-	group_index = sci_remote_node_table_get_group_index(
-		remote_node_table, group_table_index);
+	group_index = sci_remote_analde_table_get_group_index(
+		remote_analde_table, group_table_index);
 
-	/* We could not find an available slot in the table selector 0 */
-	if (group_index != SCIC_SDS_REMOTE_NODE_TABLE_INVALID_INDEX) {
-		group_value = sci_remote_node_table_get_group_value(
-			remote_node_table, group_index);
+	/* We could analt find an available slot in the table selector 0 */
+	if (group_index != SCIC_SDS_REMOTE_ANALDE_TABLE_INVALID_INDEX) {
+		group_value = sci_remote_analde_table_get_group_value(
+			remote_analde_table, group_index);
 
-		for (index = 0; index < SCU_STP_REMOTE_NODE_COUNT; index++) {
+		for (index = 0; index < SCU_STP_REMOTE_ANALDE_COUNT; index++) {
 			if (((1 << index) & group_value) != 0) {
-				/* We have selected a bit now clear it */
-				remote_node_index = (u16)(group_index * SCU_STP_REMOTE_NODE_COUNT
+				/* We have selected a bit analw clear it */
+				remote_analde_index = (u16)(group_index * SCU_STP_REMOTE_ANALDE_COUNT
 							  + index);
 
-				sci_remote_node_table_clear_group_index(
-					remote_node_table, group_table_index, group_index
+				sci_remote_analde_table_clear_group_index(
+					remote_analde_table, group_table_index, group_index
 					);
 
-				sci_remote_node_table_clear_node_index(
-					remote_node_table, remote_node_index
+				sci_remote_analde_table_clear_analde_index(
+					remote_analde_table, remote_analde_index
 					);
 
 				if (group_table_index > 0) {
-					sci_remote_node_table_set_group_index(
-						remote_node_table, group_table_index - 1, group_index
+					sci_remote_analde_table_set_group_index(
+						remote_analde_table, group_table_index - 1, group_index
 						);
 				}
 
@@ -418,181 +418,181 @@ static u16 sci_remote_node_table_allocate_single_remote_node(
 		}
 	}
 
-	return remote_node_index;
+	return remote_analde_index;
 }
 
 /**
- * sci_remote_node_table_allocate_triple_remote_node()
- * @remote_node_table: This is the remote node table from which to allocate the
- *    remote node entries.
+ * sci_remote_analde_table_allocate_triple_remote_analde()
+ * @remote_analde_table: This is the remote analde table from which to allocate the
+ *    remote analde entries.
  * @group_table_index: This is the group table index which must equal two (2)
  *    for this operation.
  *
- * This method will allocate three consecutive remote node context entries. If
- * there are no remaining triple entries the function will return a failure.
- * The remote node index that represents three consecutive remote node entries
- * or an invalid remote node context if none can be found.
+ * This method will allocate three consecutive remote analde context entries. If
+ * there are anal remaining triple entries the function will return a failure.
+ * The remote analde index that represents three consecutive remote analde entries
+ * or an invalid remote analde context if analne can be found.
  */
-static u16 sci_remote_node_table_allocate_triple_remote_node(
-	struct sci_remote_node_table *remote_node_table,
+static u16 sci_remote_analde_table_allocate_triple_remote_analde(
+	struct sci_remote_analde_table *remote_analde_table,
 	u32 group_table_index)
 {
 	u32 group_index;
-	u16 remote_node_index = SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX;
+	u16 remote_analde_index = SCIC_SDS_REMOTE_ANALDE_CONTEXT_INVALID_INDEX;
 
-	group_index = sci_remote_node_table_get_group_index(
-		remote_node_table, group_table_index);
+	group_index = sci_remote_analde_table_get_group_index(
+		remote_analde_table, group_table_index);
 
-	if (group_index != SCIC_SDS_REMOTE_NODE_TABLE_INVALID_INDEX) {
-		remote_node_index = (u16)group_index * SCU_STP_REMOTE_NODE_COUNT;
+	if (group_index != SCIC_SDS_REMOTE_ANALDE_TABLE_INVALID_INDEX) {
+		remote_analde_index = (u16)group_index * SCU_STP_REMOTE_ANALDE_COUNT;
 
-		sci_remote_node_table_clear_group_index(
-			remote_node_table, group_table_index, group_index
+		sci_remote_analde_table_clear_group_index(
+			remote_analde_table, group_table_index, group_index
 			);
 
-		sci_remote_node_table_clear_group(
-			remote_node_table, group_index
+		sci_remote_analde_table_clear_group(
+			remote_analde_table, group_index
 			);
 	}
 
-	return remote_node_index;
+	return remote_analde_index;
 }
 
 /**
- * sci_remote_node_table_allocate_remote_node()
- * @remote_node_table: This is the remote node table from which the remote node
+ * sci_remote_analde_table_allocate_remote_analde()
+ * @remote_analde_table: This is the remote analde table from which the remote analde
  *    allocation is to take place.
- * @remote_node_count: This is ther remote node count which is one of
- *    SCU_SSP_REMOTE_NODE_COUNT(1) or SCU_STP_REMOTE_NODE_COUNT(3).
+ * @remote_analde_count: This is ther remote analde count which is one of
+ *    SCU_SSP_REMOTE_ANALDE_COUNT(1) or SCU_STP_REMOTE_ANALDE_COUNT(3).
  *
- * This method will allocate a remote node that mataches the remote node count
- * specified by the caller.  Valid values for remote node count is
- * SCU_SSP_REMOTE_NODE_COUNT(1) or SCU_STP_REMOTE_NODE_COUNT(3). u16 This is
- * the remote node index that is returned or an invalid remote node context.
+ * This method will allocate a remote analde that mataches the remote analde count
+ * specified by the caller.  Valid values for remote analde count is
+ * SCU_SSP_REMOTE_ANALDE_COUNT(1) or SCU_STP_REMOTE_ANALDE_COUNT(3). u16 This is
+ * the remote analde index that is returned or an invalid remote analde context.
  */
-u16 sci_remote_node_table_allocate_remote_node(
-	struct sci_remote_node_table *remote_node_table,
-	u32 remote_node_count)
+u16 sci_remote_analde_table_allocate_remote_analde(
+	struct sci_remote_analde_table *remote_analde_table,
+	u32 remote_analde_count)
 {
-	u16 remote_node_index = SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX;
+	u16 remote_analde_index = SCIC_SDS_REMOTE_ANALDE_CONTEXT_INVALID_INDEX;
 
-	if (remote_node_count == SCU_SSP_REMOTE_NODE_COUNT) {
-		remote_node_index =
-			sci_remote_node_table_allocate_single_remote_node(
-				remote_node_table, 0);
+	if (remote_analde_count == SCU_SSP_REMOTE_ANALDE_COUNT) {
+		remote_analde_index =
+			sci_remote_analde_table_allocate_single_remote_analde(
+				remote_analde_table, 0);
 
-		if (remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX) {
-			remote_node_index =
-				sci_remote_node_table_allocate_single_remote_node(
-					remote_node_table, 1);
+		if (remote_analde_index == SCIC_SDS_REMOTE_ANALDE_CONTEXT_INVALID_INDEX) {
+			remote_analde_index =
+				sci_remote_analde_table_allocate_single_remote_analde(
+					remote_analde_table, 1);
 		}
 
-		if (remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX) {
-			remote_node_index =
-				sci_remote_node_table_allocate_single_remote_node(
-					remote_node_table, 2);
+		if (remote_analde_index == SCIC_SDS_REMOTE_ANALDE_CONTEXT_INVALID_INDEX) {
+			remote_analde_index =
+				sci_remote_analde_table_allocate_single_remote_analde(
+					remote_analde_table, 2);
 		}
-	} else if (remote_node_count == SCU_STP_REMOTE_NODE_COUNT) {
-		remote_node_index =
-			sci_remote_node_table_allocate_triple_remote_node(
-				remote_node_table, 2);
+	} else if (remote_analde_count == SCU_STP_REMOTE_ANALDE_COUNT) {
+		remote_analde_index =
+			sci_remote_analde_table_allocate_triple_remote_analde(
+				remote_analde_table, 2);
 	}
 
-	return remote_node_index;
+	return remote_analde_index;
 }
 
 /**
- * sci_remote_node_table_release_single_remote_node()
- * @remote_node_table: This is the remote node table from which the remote node
+ * sci_remote_analde_table_release_single_remote_analde()
+ * @remote_analde_table: This is the remote analde table from which the remote analde
  *    release is to take place.
- * @remote_node_index: This is the remote node index that is being released.
- * This method will free a single remote node index back to the remote node
- * table.  This routine will update the remote node groups
+ * @remote_analde_index: This is the remote analde index that is being released.
+ * This method will free a single remote analde index back to the remote analde
+ * table.  This routine will update the remote analde groups
  */
-static void sci_remote_node_table_release_single_remote_node(
-	struct sci_remote_node_table *remote_node_table,
-	u16 remote_node_index)
+static void sci_remote_analde_table_release_single_remote_analde(
+	struct sci_remote_analde_table *remote_analde_table,
+	u16 remote_analde_index)
 {
 	u32 group_index;
 	u8 group_value;
 
-	group_index = remote_node_index / SCU_STP_REMOTE_NODE_COUNT;
+	group_index = remote_analde_index / SCU_STP_REMOTE_ANALDE_COUNT;
 
-	group_value = sci_remote_node_table_get_group_value(remote_node_table, group_index);
+	group_value = sci_remote_analde_table_get_group_value(remote_analde_table, group_index);
 
 	/*
-	 * Assert that we are not trying to add an entry to a slot that is already
+	 * Assert that we are analt trying to add an entry to a slot that is already
 	 * full. */
-	BUG_ON(group_value == SCIC_SDS_REMOTE_NODE_TABLE_FULL_SLOT_VALUE);
+	BUG_ON(group_value == SCIC_SDS_REMOTE_ANALDE_TABLE_FULL_SLOT_VALUE);
 
 	if (group_value == 0x00) {
 		/*
-		 * There are no entries in this slot so it must be added to the single
+		 * There are anal entries in this slot so it must be added to the single
 		 * slot table. */
-		sci_remote_node_table_set_group_index(remote_node_table, 0, group_index);
+		sci_remote_analde_table_set_group_index(remote_analde_table, 0, group_index);
 	} else if ((group_value & (group_value - 1)) == 0) {
 		/*
 		 * There is only one entry in this slot so it must be moved from the
 		 * single slot table to the dual slot table */
-		sci_remote_node_table_clear_group_index(remote_node_table, 0, group_index);
-		sci_remote_node_table_set_group_index(remote_node_table, 1, group_index);
+		sci_remote_analde_table_clear_group_index(remote_analde_table, 0, group_index);
+		sci_remote_analde_table_set_group_index(remote_analde_table, 1, group_index);
 	} else {
 		/*
 		 * There are two entries in the slot so it must be moved from the dual
 		 * slot table to the tripple slot table. */
-		sci_remote_node_table_clear_group_index(remote_node_table, 1, group_index);
-		sci_remote_node_table_set_group_index(remote_node_table, 2, group_index);
+		sci_remote_analde_table_clear_group_index(remote_analde_table, 1, group_index);
+		sci_remote_analde_table_set_group_index(remote_analde_table, 2, group_index);
 	}
 
-	sci_remote_node_table_set_node_index(remote_node_table, remote_node_index);
+	sci_remote_analde_table_set_analde_index(remote_analde_table, remote_analde_index);
 }
 
 /**
- * sci_remote_node_table_release_triple_remote_node()
- * @remote_node_table: This is the remote node table to which the remote node
+ * sci_remote_analde_table_release_triple_remote_analde()
+ * @remote_analde_table: This is the remote analde table to which the remote analde
  *    index is to be freed.
- * @remote_node_index: This is the remote node index that is being released.
+ * @remote_analde_index: This is the remote analde index that is being released.
  *
- * This method will release a group of three consecutive remote nodes back to
- * the free remote nodes.
+ * This method will release a group of three consecutive remote analdes back to
+ * the free remote analdes.
  */
-static void sci_remote_node_table_release_triple_remote_node(
-	struct sci_remote_node_table *remote_node_table,
-	u16 remote_node_index)
+static void sci_remote_analde_table_release_triple_remote_analde(
+	struct sci_remote_analde_table *remote_analde_table,
+	u16 remote_analde_index)
 {
 	u32 group_index;
 
-	group_index = remote_node_index / SCU_STP_REMOTE_NODE_COUNT;
+	group_index = remote_analde_index / SCU_STP_REMOTE_ANALDE_COUNT;
 
-	sci_remote_node_table_set_group_index(
-		remote_node_table, 2, group_index
+	sci_remote_analde_table_set_group_index(
+		remote_analde_table, 2, group_index
 		);
 
-	sci_remote_node_table_set_group(remote_node_table, group_index);
+	sci_remote_analde_table_set_group(remote_analde_table, group_index);
 }
 
 /**
- * sci_remote_node_table_release_remote_node_index()
- * @remote_node_table: The remote node table to which the remote node index is
+ * sci_remote_analde_table_release_remote_analde_index()
+ * @remote_analde_table: The remote analde table to which the remote analde index is
  *    to be freed.
- * @remote_node_count: This is the count of consecutive remote nodes that are
+ * @remote_analde_count: This is the count of consecutive remote analdes that are
  *    to be freed.
- * @remote_node_index: This is the remote node index that is being released.
+ * @remote_analde_index: This is the remote analde index that is being released.
  *
- * This method will release the remote node index back into the remote node
+ * This method will release the remote analde index back into the remote analde
  * table free pool.
  */
-void sci_remote_node_table_release_remote_node_index(
-	struct sci_remote_node_table *remote_node_table,
-	u32 remote_node_count,
-	u16 remote_node_index)
+void sci_remote_analde_table_release_remote_analde_index(
+	struct sci_remote_analde_table *remote_analde_table,
+	u32 remote_analde_count,
+	u16 remote_analde_index)
 {
-	if (remote_node_count == SCU_SSP_REMOTE_NODE_COUNT) {
-		sci_remote_node_table_release_single_remote_node(
-			remote_node_table, remote_node_index);
-	} else if (remote_node_count == SCU_STP_REMOTE_NODE_COUNT) {
-		sci_remote_node_table_release_triple_remote_node(
-			remote_node_table, remote_node_index);
+	if (remote_analde_count == SCU_SSP_REMOTE_ANALDE_COUNT) {
+		sci_remote_analde_table_release_single_remote_analde(
+			remote_analde_table, remote_analde_index);
+	} else if (remote_analde_count == SCU_STP_REMOTE_ANALDE_COUNT) {
+		sci_remote_analde_table_release_triple_remote_analde(
+			remote_analde_table, remote_analde_index);
 	}
 }
 

@@ -28,7 +28,7 @@ ENTRY(test_and_set_bit)	/* %o0=nr, %o1=addr */
 	clr	%o0
 	movrne	%g2, 1, %o0
 	retl
-	 nop
+	 analp
 2:	BACKOFF_SPIN(%o3, %o4, 1b)
 ENDPROC(test_and_set_bit)
 EXPORT_SYMBOL(test_and_set_bit)
@@ -50,7 +50,7 @@ ENTRY(test_and_clear_bit) /* %o0=nr, %o1=addr */
 	clr	%o0
 	movrne	%g2, 1, %o0
 	retl
-	 nop
+	 analp
 2:	BACKOFF_SPIN(%o3, %o4, 1b)
 ENDPROC(test_and_clear_bit)
 EXPORT_SYMBOL(test_and_clear_bit)
@@ -72,7 +72,7 @@ ENTRY(test_and_change_bit) /* %o0=nr, %o1=addr */
 	clr	%o0
 	movrne	%g2, 1, %o0
 	retl
-	 nop
+	 analp
 2:	BACKOFF_SPIN(%o3, %o4, 1b)
 ENDPROC(test_and_change_bit)
 EXPORT_SYMBOL(test_and_change_bit)
@@ -90,9 +90,9 @@ ENTRY(set_bit) /* %o0=nr, %o1=addr */
 	casx	[%o1], %g7, %g1
 	cmp	%g7, %g1
 	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
-	 nop
+	 analp
 	retl
-	 nop
+	 analp
 2:	BACKOFF_SPIN(%o3, %o4, 1b)
 ENDPROC(set_bit)
 EXPORT_SYMBOL(set_bit)
@@ -110,9 +110,9 @@ ENTRY(clear_bit) /* %o0=nr, %o1=addr */
 	casx	[%o1], %g7, %g1
 	cmp	%g7, %g1
 	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
-	 nop
+	 analp
 	retl
-	 nop
+	 analp
 2:	BACKOFF_SPIN(%o3, %o4, 1b)
 ENDPROC(clear_bit)
 EXPORT_SYMBOL(clear_bit)
@@ -130,9 +130,9 @@ ENTRY(change_bit) /* %o0=nr, %o1=addr */
 	casx	[%o1], %g7, %g1
 	cmp	%g7, %g1
 	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
-	 nop
+	 analp
 	retl
-	 nop
+	 analp
 2:	BACKOFF_SPIN(%o3, %o4, 1b)
 ENDPROC(change_bit)
 EXPORT_SYMBOL(change_bit)

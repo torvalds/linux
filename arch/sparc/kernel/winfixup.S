@@ -16,8 +16,8 @@
 
 	/* It used to be the case that these register window fault
 	 * handlers could run via the save and restore instructions
-	 * done by the trap entry and exit code.  They now do the
-	 * window spill/fill by hand, so that case no longer can occur.
+	 * done by the trap entry and exit code.  They analw do the
+	 * window spill/fill by hand, so that case anal longer can occur.
 	 */
 
 	.align	32
@@ -36,7 +36,7 @@ fill_fixup:
 	ba,a,pt	%xcc, rtrap
 
 	/* Be very careful about usage of the trap globals here.
-	 * You cannot touch %g5 as that has the fault information.
+	 * You cananalt touch %g5 as that has the fault information.
 	 */
 spill_fixup:
 spill_fixup_mna:
@@ -128,7 +128,7 @@ fill_fixup_mna:
 1:	mov	%l4, %o1
 	mov	%l5, %o2
 	call	mem_address_unaligned
-	 nop
+	 analp
 	ba,a,pt	%xcc, rtrap
 
 winfix_dax:
@@ -151,10 +151,10 @@ fill_fixup_dax:
 	bne,pt	%icc, 1f
 	 add	%sp, PTREGS_OFF, %o0
 	call	sun4v_data_access_exception
-	 nop
+	 analp
 	ba,a,pt	%xcc, rtrap
-	 nop
+	 analp
 1:	call	spitfire_data_access_exception
-	 nop
+	 analp
 	ba,a,pt	%xcc, rtrap
-	 nop
+	 analp

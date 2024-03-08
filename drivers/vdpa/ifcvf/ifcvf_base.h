@@ -42,8 +42,8 @@
 
 struct vring_info {
 	u16 last_avail_idx;
-	void __iomem *notify_addr;
-	phys_addr_t notify_pa;
+	void __iomem *analtify_addr;
+	phys_addr_t analtify_pa;
 	u32 irq;
 	struct vdpa_callback cb;
 	char msix_name[256];
@@ -61,15 +61,15 @@ struct ifcvf_hw {
 	u8 __iomem *isr;
 	/* Live migration */
 	struct ifcvf_lm_cfg  __iomem *lm_cfg;
-	/* Notification bar number */
-	u8 notify_bar;
+	/* Analtification bar number */
+	u8 analtify_bar;
 	u8 msix_vector_status;
 	/* virtio-net or virtio-blk device config size */
 	u32 config_size;
-	/* Notificaiton bar address */
-	void __iomem *notify_base;
-	phys_addr_t notify_base_pa;
-	u32 notify_off_multiplier;
+	/* Analtificaiton bar address */
+	void __iomem *analtify_base;
+	phys_addr_t analtify_base_pa;
+	u32 analtify_off_multiplier;
 	u32 dev_type;
 	u64 hw_features;
 	/* provisioned device features */
@@ -104,7 +104,7 @@ struct ifcvf_vdpa_mgmt_dev {
 
 int ifcvf_init_hw(struct ifcvf_hw *hw, struct pci_dev *dev);
 void ifcvf_stop(struct ifcvf_hw *hw);
-void ifcvf_notify_queue(struct ifcvf_hw *hw, u16 qid);
+void ifcvf_analtify_queue(struct ifcvf_hw *hw, u16 qid);
 void ifcvf_read_dev_config(struct ifcvf_hw *hw, u64 offset,
 			   void *dst, int length);
 void ifcvf_write_dev_config(struct ifcvf_hw *hw, u64 offset,

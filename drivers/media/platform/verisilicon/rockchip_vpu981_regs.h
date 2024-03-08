@@ -98,7 +98,7 @@
 #define av1_mf1_type			AV1_DEC_REG(9, 5, 0x7)
 #define av1_mf2_type			AV1_DEC_REG(9, 8, 0x7)
 #define av1_mf3_type			AV1_DEC_REG(9, 11, 0x7)
-#define av1_scale_denom_minus9		AV1_DEC_REG(9, 14, 0x7)
+#define av1_scale_deanalm_minus9		AV1_DEC_REG(9, 14, 0x7)
 #define av1_last_active_seg		AV1_DEC_REG(9, 17, 0x7)
 #define av1_context_update_tile_id	AV1_DEC_REG(9, 20, 0xfff)
 

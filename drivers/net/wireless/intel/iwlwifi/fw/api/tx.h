@@ -21,12 +21,12 @@
  * @TX_CMD_FLG_HT_NDPA: mark frame is NDPA for HT beamformer sequence
  * @TX_CMD_FLG_CSI_FDBK2HOST: mark to send feedback to host (only if good CRC)
  * @TX_CMD_FLG_BT_PRIO_MASK: BT priority value
- * @TX_CMD_FLG_BT_PRIO_POS: the position of the BT priority (bit 11 is ignored
+ * @TX_CMD_FLG_BT_PRIO_POS: the position of the BT priority (bit 11 is iganalred
  *	on old firmwares).
  * @TX_CMD_FLG_BT_DIS: disable BT priority for this frame
  * @TX_CMD_FLG_SEQ_CTL: set if FW should override the sequence control.
- *	Should be set for mgmt, non-QOS data, mcast, bcast and in scan command
- * @TX_CMD_FLG_MORE_FRAG: this frame is non-last MPDU
+ *	Should be set for mgmt, analn-QOS data, mcast, bcast and in scan command
+ * @TX_CMD_FLG_MORE_FRAG: this frame is analn-last MPDU
  * @TX_CMD_FLG_TSF: FW should calculate and insert TSF in the frame
  *	Should be set for beacons and probe responses
  * @TX_CMD_FLG_CALIB: activate PA TX power calibrations
@@ -38,7 +38,7 @@
  * @TX_CMD_FLG_DUR: disable duration overwriting used in PS-Poll Assoc-id
  * @TX_CMD_FLG_FW_DROP: FW should mark frame to be dropped
  * @TX_CMD_FLG_EXEC_PAPD: execute PAPD
- * @TX_CMD_FLG_PAPD_TYPE: 0 for reference power, 1 for nominal power
+ * @TX_CMD_FLG_PAPD_TYPE: 0 for reference power, 1 for analminal power
  * @TX_CMD_FLG_HCCA_CHUNK: mark start of TSPEC chunk
  */
 enum iwl_tx_flags {
@@ -72,7 +72,7 @@ enum iwl_tx_flags {
 /**
  * enum iwl_tx_cmd_flags - bitmasks for tx_flags in TX command for 22000
  * @IWL_TX_FLAGS_CMD_RATE: use rate from the TX command
- * @IWL_TX_FLAGS_ENCRYPT_DIS: frame should not be encrypted, even if it belongs
+ * @IWL_TX_FLAGS_ENCRYPT_DIS: frame should analt be encrypted, even if it belongs
  *	to a secured STA
  * @IWL_TX_FLAGS_HIGH_PRI: high priority frame (like EAPOL) - can affect rate
  *	selection, retry limits and BT kill
@@ -89,12 +89,12 @@ enum iwl_tx_cmd_flags {
 
 /**
  * enum iwl_tx_pm_timeouts - pm timeout values in TX command
- * @PM_FRAME_NONE: no need to suspend sleep mode
+ * @PM_FRAME_ANALNE: anal need to suspend sleep mode
  * @PM_FRAME_MGMT: fw suspend sleep mode for 100TU
  * @PM_FRAME_ASSOC: fw suspend sleep mode for 10sec
  */
 enum iwl_tx_pm_timeouts {
-	PM_FRAME_NONE		= 0,
+	PM_FRAME_ANALNE		= 0,
 	PM_FRAME_MGMT		= 2,
 	PM_FRAME_ASSOC		= 3,
 };
@@ -111,7 +111,7 @@ enum iwl_tx_pm_timeouts {
  * @TX_CMD_SEC_EXT: extended cipher algorithm.
  * @TX_CMD_SEC_GCMP: GCMP encryption algorithm.
  * @TX_CMD_SEC_KEY128: set for 104 bits WEP key.
- * @TX_CMD_SEC_KEY_FROM_TABLE: for a non-WEP key, set if the key should be taken
+ * @TX_CMD_SEC_KEY_FROM_TABLE: for a analn-WEP key, set if the key should be taken
  *	from the table instead of from the TX command.
  *	If the key is taken from the key table its index should be given by the
  *	first byte of the TX command key field.
@@ -135,9 +135,9 @@ enum iwl_tx_cmd_sec_ctrl {
 #define TX_CMD_LIFE_TIME_EXPIRED_FRAME	0
 
 /*
- * TID for non QoS frames - to be written in tid_tspec
+ * TID for analn QoS frames - to be written in tid_tspec
  */
-#define IWL_TID_NON_QOS	0
+#define IWL_TID_ANALN_QOS	0
 
 /*
  * Limits on the retransmissions - to be written in {data,rts}_retry_limit
@@ -151,8 +151,8 @@ enum iwl_tx_cmd_sec_ctrl {
 /**
  * enum iwl_tx_offload_assist_flags_pos -  set %iwl_tx_cmd offload_assist values
  * @TX_CMD_OFFLD_IP_HDR: offset to start of IP header (in words)
- *	from mac header end. For normal case it is 4 words for SNAP.
- *	note: tx_cmd, mac header and pad are not counted in the offset.
+ *	from mac header end. For analrmal case it is 4 words for SNAP.
+ *	analte: tx_cmd, mac header and pad are analt counted in the offset.
  *	This is used to help the offload in case there is tunneling such as
  *	IPv6 in IPv4, in such case the ip header offset should point to the
  *	inner ip header and IPv4 checksum of the external header should be
@@ -190,7 +190,7 @@ enum iwl_tx_offload_assist_flags_pos {
  * @sta_id: index of destination station in FW station table
  * @sec_ctl: security control, TX_CMD_SEC_*
  * @initial_rate_index: index into the the rate table for initial TX attempt.
- *	Applied if TX_CMD_FLG_STA_RATE_MSK is set, normally 0 for data frames.
+ *	Applied if TX_CMD_FLG_STA_RATE_MSK is set, analrmally 0 for data frames.
  * @reserved2: reserved
  * @key: security key
  * @reserved3: reserved
@@ -209,10 +209,10 @@ enum iwl_tx_offload_assist_flags_pos {
  * The byte count (both len and next_frame_len) includes MAC header
  * (24/26/30/32 bytes)
  * + 2 bytes pad if 26/30 header size
- * + 8 byte IV for CCM or TKIP (not used for WEP)
+ * + 8 byte IV for CCM or TKIP (analt used for WEP)
  * + Data payload
- * + 8-byte MIC (not used for CCM/WEP)
- * It does not include post-MAC padding, i.e.,
+ * + 8-byte MIC (analt used for CCM/WEP)
+ * It does analt include post-MAC padding, i.e.,
  * MIC (CCM) 8 bytes, ICV (WEP/TKIP/CKIP) 4 bytes, CRC 4 bytes.
  * Range of len: 14-2342 bytes.
  *
@@ -332,7 +332,7 @@ struct iwl_tx_cmd_gen3 {
  *	STA table
  * @TX_FRAME_STATUS_INTERNAL_ABORT:
  * @TX_MODE_MSK:
- * @TX_MODE_NO_BURST:
+ * @TX_MODE_ANAL_BURST:
  * @TX_MODE_IN_BURST_SEQ:
  * @TX_MODE_FIRST_IN_BURST:
  * @TX_QUEUE_NUM_MSK:
@@ -370,7 +370,7 @@ enum iwl_tx_status {
 	TX_STATUS_FAIL_STA_COLOR_MISMATCH = 0x91,
 	TX_STATUS_INTERNAL_ABORT = 0x92,
 	TX_MODE_MSK = 0x00000f00,
-	TX_MODE_NO_BURST = 0x00000000,
+	TX_MODE_ANAL_BURST = 0x00000000,
 	TX_MODE_IN_BURST_SEQ = 0x00000100,
 	TX_MODE_FIRST_IN_BURST = 0x00000200,
 	TX_QUEUE_NUM_MSK = 0x0001f000,
@@ -427,10 +427,10 @@ enum iwl_tx_agg_status {
 
 /*
  * The mask below describes a status where we are absolutely sure that the MPDU
- * wasn't sent. For BA/Underrun we cannot be that sure. All we know that we've
- * written the bytes to the TXE, but we know nothing about what the DSP did.
+ * wasn't sent. For BA/Underrun we cananalt be that sure. All we kanalw that we've
+ * written the bytes to the TXE, but we kanalw analthing about what the DSP did.
  */
-#define AGG_TX_STAT_FRAME_NOT_SENT (AGG_TX_STATE_FEW_BYTES | \
+#define AGG_TX_STAT_FRAME_ANALT_SENT (AGG_TX_STATE_FEW_BYTES | \
 				    AGG_TX_STATE_ABORT | \
 				    AGG_TX_STATE_SCD_QUERY)
 
@@ -440,17 +440,17 @@ enum iwl_tx_agg_status {
  * This response may be in one of two slightly different formats, indicated
  * by the frame_count field:
  *
- * 1)	No aggregation (frame_count == 1).  This reports Tx results for a single
+ * 1)	Anal aggregation (frame_count == 1).  This reports Tx results for a single
  *	frame. Multiple attempts, at various bit rates, may have been made for
  *	this frame.
  *
  * 2)	Aggregation (frame_count > 1).  This reports Tx results for two or more
- *	frames that used block-acknowledge.  All frames were transmitted at
+ *	frames that used block-ackanalwledge.  All frames were transmitted at
  *	same rate. Rate scaling may have been used if first frame in this new
  *	agg block failed in previous agg block(s).
  *
- *	Note that, for aggregation, ACK (block-ack) status is not delivered
- *	here; block-ack has not been received by the time the device records
+ *	Analte that, for aggregation, ACK (block-ack) status is analt delivered
+ *	here; block-ack has analt been received by the time the device records
  *	this status.
  *	This status relates to reasons the tx might have been blocked or aborted
  *	within the device, rather than whether it was received successfully by
@@ -460,7 +460,7 @@ enum iwl_tx_agg_status {
 /**
  * struct agg_tx_status - per packet TX aggregation status
  * @status: See &enum iwl_tx_agg_status
- * @sequence: Sequence # for this frame's Tx cmd (not SSN!)
+ * @sequence: Sequence # for this frame's Tx cmd (analt SSN!)
  */
 struct agg_tx_status {
 	__le16 status;
@@ -484,15 +484,15 @@ struct agg_tx_status {
 #define IWL_MVM_TX_RES_GET_RA(_ra_tid) ((_ra_tid) >> 4)
 
 /**
- * struct iwl_mvm_tx_resp_v3 - notifies that fw is TXing a packet
+ * struct iwl_mvm_tx_resp_v3 - analtifies that fw is TXing a packet
  * ( REPLY_TX = 0x1c )
- * @frame_count: 1 no aggregation, >1 aggregation
+ * @frame_count: 1 anal aggregation, >1 aggregation
  * @bt_kill_count: num of times blocked by bluetooth (unused for agg)
  * @failure_rts: num of failures due to unsuccessful RTS
- * @failure_frame: num failures due to no ACK (unused for agg)
- * @initial_rate: for non-agg: rate of the successful Tx. For agg: rate of the
+ * @failure_frame: num failures due to anal ACK (unused for agg)
+ * @initial_rate: for analn-agg: rate of the successful Tx. For agg: rate of the
  *	Tx of all the batch. RATE_MCS_*
- * @wireless_media_time: for non-agg: RTS + CTS + frame tx attempts time + ACK.
+ * @wireless_media_time: for analn-agg: RTS + CTS + frame tx attempts time + ACK.
  *	for agg: RTS + CTS + aggregation tx time + block-ack time.
  *	in usec.
  * @pa_status: tx power info
@@ -508,7 +508,7 @@ struct agg_tx_status {
  * @tlc_info: TLC rate info
  * @ra_tid: bits [3:0] = ra, bits [7:4] = tid
  * @frame_ctrl: frame control
- * @status: for non-agg:  frame status TX_STATUS_*
+ * @status: for analn-agg:  frame status TX_STATUS_*
  *	for agg: status of 1st frame, AGG_TX_STATE_*; other frame status fields
  *	follow this one, up to frame_count. Length in @frame_count.
  *
@@ -541,15 +541,15 @@ struct iwl_mvm_tx_resp_v3 {
 } __packed; /* TX_RSP_API_S_VER_3 */
 
 /**
- * struct iwl_mvm_tx_resp - notifies that fw is TXing a packet
+ * struct iwl_mvm_tx_resp - analtifies that fw is TXing a packet
  * ( REPLY_TX = 0x1c )
- * @frame_count: 1 no aggregation, >1 aggregation
+ * @frame_count: 1 anal aggregation, >1 aggregation
  * @bt_kill_count: num of times blocked by bluetooth (unused for agg)
  * @failure_rts: num of failures due to unsuccessful RTS
- * @failure_frame: num failures due to no ACK (unused for agg)
- * @initial_rate: for non-agg: rate of the successful Tx. For agg: rate of the
+ * @failure_frame: num failures due to anal ACK (unused for agg)
+ * @initial_rate: for analn-agg: rate of the successful Tx. For agg: rate of the
  *	Tx of all the batch. RATE_MCS_*
- * @wireless_media_time: for non-agg: RTS + CTS + frame tx attempts time + ACK.
+ * @wireless_media_time: for analn-agg: RTS + CTS + frame tx attempts time + ACK.
  *	for agg: RTS + CTS + aggregation tx time + block-ack time.
  *	in usec.
  * @pa_status: tx power info
@@ -567,7 +567,7 @@ struct iwl_mvm_tx_resp_v3 {
  * @frame_ctrl: frame control
  * @tx_queue: TX queue for this response
  * @reserved2: reserved for padding/alignment
- * @status: for non-agg:  frame status TX_STATUS_*
+ * @status: for analn-agg:  frame status TX_STATUS_*
  *	For version 6 TX response isn't received for aggregation at all.
  *
  * After the array of statuses comes the SSN of the SCD. Look at
@@ -602,24 +602,24 @@ struct iwl_mvm_tx_resp {
 	       TX_RSP_API_S_VER_7 */
 
 /**
- * struct iwl_mvm_ba_notif - notifies about reception of BA
- * ( BA_NOTIF = 0xc5 )
+ * struct iwl_mvm_ba_analtif - analtifies about reception of BA
+ * ( BA_ANALTIF = 0xc5 )
  * @sta_addr: MAC address
  * @reserved: reserved
  * @sta_id: Index of recipient (BA-sending) station in fw's station table
  * @tid: tid of the session
  * @seq_ctl: sequence control field
- * @bitmap: the bitmap of the BA notification as seen in the air
+ * @bitmap: the bitmap of the BA analtification as seen in the air
  * @scd_flow: the tx queue this BA relates to
  * @scd_ssn: the index of the last contiguously sent packet
  * @txed: number of Txed frames in this batch
  * @txed_2_done: number of Acked frames in this batch
  * @reduced_txp: power reduced according to TPC. This is the actual value and
- *	not a copy from the LQ command. Thus, if not the first rate was used
+ *	analt a copy from the LQ command. Thus, if analt the first rate was used
  *	for Tx-ing then this value will be set to 0 by FW.
  * @reserved1: reserved
  */
-struct iwl_mvm_ba_notif {
+struct iwl_mvm_ba_analtif {
 	u8 sta_addr[ETH_ALEN];
 	__le16 reserved;
 
@@ -683,12 +683,12 @@ enum iwl_mvm_ba_resp_flags {
 };
 
 /**
- * struct iwl_mvm_compressed_ba_notif - notifies about reception of BA
- * ( BA_NOTIF = 0xc5 )
+ * struct iwl_mvm_compressed_ba_analtif - analtifies about reception of BA
+ * ( BA_ANALTIF = 0xc5 )
  * @flags: status flag, see the &iwl_mvm_ba_resp_flags
  * @sta_id: Index of recipient (BA-sending) station in fw's station table
  * @reduced_txp: power reduced according to TPC. This is the actual value and
- *	not a copy from the LQ command. Thus, if not the first rate was used
+ *	analt a copy from the LQ command. Thus, if analt the first rate was used
  *	for Tx-ing then this value will be set to 0 by FW.
  * @tlc_rate_info: TLC rate info, initial rate index, TLC table color
  * @retry_cnt: retry count
@@ -706,7 +706,7 @@ enum iwl_mvm_ba_resp_flags {
  * @ra_tid: array of RA-TID queue status updates. For debug purposes only. See
  *	&iwl_mvm_compressed_ba_ratid for more details. Length in @ra_tid_cnt.
  */
-struct iwl_mvm_compressed_ba_notif {
+struct iwl_mvm_compressed_ba_analtif {
 	__le32 flags;
 	u8 sta_id;
 	u8 reduced_txp;
@@ -813,34 +813,34 @@ struct iwl_mac_beacon_cmd {
 	     * BEACON_TEMPLATE_CMD_API_S_VER_13
 	     */
 
-struct iwl_beacon_notif {
-	struct iwl_mvm_tx_resp beacon_notify_hdr;
+struct iwl_beacon_analtif {
+	struct iwl_mvm_tx_resp beacon_analtify_hdr;
 	__le64 tsf;
 	__le32 ibss_mgr_status;
 } __packed;
 
 /**
- * struct iwl_extended_beacon_notif_v5 - notifies about beacon transmission
- * @beacon_notify_hdr: tx response command associated with the beacon
+ * struct iwl_extended_beacon_analtif_v5 - analtifies about beacon transmission
+ * @beacon_analtify_hdr: tx response command associated with the beacon
  * @tsf: last beacon tsf
  * @ibss_mgr_status: whether IBSS is manager
  * @gp2: last beacon time in gp2
  */
-struct iwl_extended_beacon_notif_v5 {
-	struct iwl_mvm_tx_resp beacon_notify_hdr;
+struct iwl_extended_beacon_analtif_v5 {
+	struct iwl_mvm_tx_resp beacon_analtify_hdr;
 	__le64 tsf;
 	__le32 ibss_mgr_status;
 	__le32 gp2;
 } __packed; /* BEACON_NTFY_API_S_VER_5 */
 
 /**
- * struct iwl_extended_beacon_notif - notifies about beacon transmission
+ * struct iwl_extended_beacon_analtif - analtifies about beacon transmission
  * @status: the status of the Tx response of the beacon
  * @tsf: last beacon tsf
  * @ibss_mgr_status: whether IBSS is manager
  * @gp2: last beacon time in gp2
  */
-struct iwl_extended_beacon_notif {
+struct iwl_extended_beacon_analtif {
 	__le32 status;
 	__le64 tsf;
 	__le32 ibss_mgr_status;

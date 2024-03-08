@@ -9,7 +9,7 @@ Supported chips:
 
     Addresses scanned: I2C 0x2c - 0x2f
 
-    Datasheet: Still not published
+    Datasheet: Still analt published
 
 Authors:
     - Yuan Mu (Winbond Electronics)
@@ -22,7 +22,7 @@ Module parameters
 * reset int
     (default 0)
 
-    This parameter is not recommended, it will lose motherboard specific
+    This parameter is analt recommended, it will lose motherboard specific
     settings. Use 'reset=1' to reset the chip when loading this module.
 
 * force_subclients=bus,caddr,saddr1,saddr2
@@ -72,7 +72,7 @@ This driver implements support for Winbond W83793G/W83793R chips.
 
 * SmartFan/PWM control
     If you want to set a pwm fan to manual mode, you just need to make sure it
-    is not controlled by any temp channel, for example, you want to set fan1
+    is analt controlled by any temp channel, for example, you want to set fan1
     to manual mode, you need to check the value of temp[1-6]_fan_map, make
     sure bit 0 is cleared in the 6 values. And then set the pwm1 value to
     control the fan.
@@ -94,7 +94,7 @@ This driver implements support for Winbond W83793G/W83793R chips.
 
     SmartFanII works differently, you have to define up to 7 PWM, temperature
     trip points, defining a PWM/temperature curve which the chip will follow.
-    While not fundamentally different from the Thermal Cruise mode, the
+    While analt fundamentally different from the Thermal Cruise mode, the
     implementation is quite different, giving you a finer-grained control.
 
 * Chassis
@@ -103,11 +103,11 @@ This driver implements support for Winbond W83793G/W83793R chips.
 
 * VID and VRM
     The VRM version is detected automatically, don't modify the it unless you
-    *do* know the cpu VRM version and it's not properly detected.
+    *do* kanalw the cpu VRM version and it's analt properly detected.
 
 
-Notes
+Analtes
 -----
 
   Only Fan1-5 and PWM1-3 are guaranteed to always exist, other fan inputs and
-  PWM outputs may or may not exist depending on the chip pin configuration.
+  PWM outputs may or may analt exist depending on the chip pin configuration.

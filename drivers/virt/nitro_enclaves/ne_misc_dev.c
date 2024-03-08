@@ -8,7 +8,7 @@
  * Nitro is a hypervisor that has been developed by Amazon.
  */
 
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/capability.h>
 #include <linux/cpu.h>
 #include <linux/device.h>
@@ -33,9 +33,9 @@
 #include "ne_pci_dev.h"
 
 /**
- * NE_CPUS_SIZE - Size for max 128 CPUs, for now, in a cpu-list string, comma
+ * NE_CPUS_SIZE - Size for max 128 CPUs, for analw, in a cpu-list string, comma
  *		  separated. The NE CPU pool includes CPUs from a single NUMA
- *		  node.
+ *		  analde.
  */
 #define NE_CPUS_SIZE		(512)
 
@@ -65,12 +65,12 @@ static long ne_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 
 static const struct file_operations ne_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 	.unlocked_ioctl	= ne_ioctl,
 };
 
 static struct miscdevice ne_misc_dev = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.name	= "nitro_enclaves",
 	.fops	= &ne_fops,
 	.mode	= 0660,
@@ -106,7 +106,7 @@ MODULE_PARM_DESC(ne_cpus, "<cpu-list> - CPU pool used for Nitro Enclaves");
  * @avail_threads_per_core:	Available full CPU cores to be dedicated to
  *				enclave(s). The cpumasks from the array, indexed
  *				by core id, contain all the threads from the
- *				available cores, that are not set for created
+ *				available cores, that are analt set for created
  *				enclave(s). The full CPU cores are part of the
  *				NE CPU pool.
  * @mutex:			Mutex for the access to the NE CPU pool.
@@ -114,14 +114,14 @@ MODULE_PARM_DESC(ne_cpus, "<cpu-list> - CPU pool used for Nitro Enclaves");
  *				The total number of CPU cores available on the
  *				primary / parent VM.
  * @nr_threads_per_core:	The number of threads that a full CPU core has.
- * @numa_node:			NUMA node of the CPUs in the pool.
+ * @numa_analde:			NUMA analde of the CPUs in the pool.
  */
 struct ne_cpu_pool {
 	cpumask_var_t	*avail_threads_per_core;
 	struct mutex	mutex;
 	unsigned int	nr_parent_vm_cores;
 	unsigned int	nr_threads_per_core;
-	int		numa_node;
+	int		numa_analde;
 };
 
 static struct ne_cpu_pool ne_cpu_pool;
@@ -138,7 +138,7 @@ struct ne_phys_contig_mem_regions {
 
 /**
  * ne_check_enclaves_created() - Verify if at least one enclave has been created.
- * @void:	No parameters provided.
+ * @void:	Anal parameters provided.
  *
  * Context: Process context.
  * Return:
@@ -165,8 +165,8 @@ static bool ne_check_enclaves_created(void)
 
 /**
  * ne_setup_cpu_pool() - Set the NE CPU pool after handling sanity checks such
- *			 as not sharing CPU cores with the primary / parent VM
- *			 or not using CPU 0, which should remain available for
+ *			 as analt sharing CPU cores with the primary / parent VM
+ *			 or analt using CPU 0, which should remain available for
  *			 the primary / parent VM. Offline the CPUs from the
  *			 pool after the checks passed.
  * @ne_cpu_list:	The CPU list used for setting NE CPU pool.
@@ -183,11 +183,11 @@ static int ne_setup_cpu_pool(const char *ne_cpu_list)
 	cpumask_var_t cpu_pool;
 	unsigned int cpu_sibling = 0;
 	unsigned int i = 0;
-	int numa_node = -1;
+	int numa_analde = -1;
 	int rc = -EINVAL;
 
 	if (!zalloc_cpumask_var(&cpu_pool, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ne_cpu_pool.mutex);
 
@@ -200,7 +200,7 @@ static int ne_setup_cpu_pool(const char *ne_cpu_list)
 
 	cpu = cpumask_any(cpu_pool);
 	if (cpu >= nr_cpu_ids) {
-		pr_err("%s: No CPUs available in CPU pool\n", ne_misc_dev.name);
+		pr_err("%s: Anal CPUs available in CPU pool\n", ne_misc_dev.name);
 
 		rc = -EINVAL;
 
@@ -209,7 +209,7 @@ static int ne_setup_cpu_pool(const char *ne_cpu_list)
 
 	/*
 	 * Check if the CPUs are online, to further get info about them
-	 * e.g. numa node, core id, siblings.
+	 * e.g. numa analde, core id, siblings.
 	 */
 	for_each_cpu(cpu, cpu_pool)
 		if (cpu_is_offline(cpu)) {
@@ -222,22 +222,22 @@ static int ne_setup_cpu_pool(const char *ne_cpu_list)
 		}
 
 	/*
-	 * Check if the CPUs from the NE CPU pool are from the same NUMA node.
+	 * Check if the CPUs from the NE CPU pool are from the same NUMA analde.
 	 */
 	for_each_cpu(cpu, cpu_pool)
-		if (numa_node < 0) {
-			numa_node = cpu_to_node(cpu);
-			if (numa_node < 0) {
-				pr_err("%s: Invalid NUMA node %d\n",
-				       ne_misc_dev.name, numa_node);
+		if (numa_analde < 0) {
+			numa_analde = cpu_to_analde(cpu);
+			if (numa_analde < 0) {
+				pr_err("%s: Invalid NUMA analde %d\n",
+				       ne_misc_dev.name, numa_analde);
 
 				rc = -EINVAL;
 
 				goto free_pool_cpumask;
 			}
 		} else {
-			if (numa_node != cpu_to_node(cpu)) {
-				pr_err("%s: CPUs with different NUMA nodes\n",
+			if (numa_analde != cpu_to_analde(cpu)) {
+				pr_err("%s: CPUs with different NUMA analdes\n",
 				       ne_misc_dev.name);
 
 				rc = -EINVAL;
@@ -277,7 +277,7 @@ static int ne_setup_cpu_pool(const char *ne_cpu_list)
 	for_each_cpu(cpu, cpu_pool) {
 		for_each_cpu(cpu_sibling, topology_sibling_cpumask(cpu)) {
 			if (!cpumask_test_cpu(cpu_sibling, cpu_pool)) {
-				pr_err("%s: CPU %d is not in CPU pool\n",
+				pr_err("%s: CPU %d is analt in CPU pool\n",
 				       ne_misc_dev.name, cpu_sibling);
 
 				rc = -EINVAL;
@@ -298,14 +298,14 @@ static int ne_setup_cpu_pool(const char *ne_cpu_list)
 						     sizeof(*ne_cpu_pool.avail_threads_per_core),
 						     GFP_KERNEL);
 	if (!ne_cpu_pool.avail_threads_per_core) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 
 		goto free_pool_cpumask;
 	}
 
 	for (i = 0; i < ne_cpu_pool.nr_parent_vm_cores; i++)
 		if (!zalloc_cpumask_var(&ne_cpu_pool.avail_threads_per_core[i], GFP_KERNEL)) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 
 			goto free_cores_cpumask;
 		}
@@ -329,19 +329,19 @@ static int ne_setup_cpu_pool(const char *ne_cpu_list)
 	}
 
 	/*
-	 * CPUs that are given to enclave(s) should not be considered online
+	 * CPUs that are given to enclave(s) should analt be considered online
 	 * by Linux anymore, as the hypervisor will degrade them to floating.
 	 * The physical CPUs (full cores) are carved out of the primary / parent
 	 * VM and given to the enclave VM. The same number of vCPUs would run
 	 * on less pCPUs for the primary / parent VM.
 	 *
-	 * We offline them here, to not degrade performance and expose correct
+	 * We offline them here, to analt degrade performance and expose correct
 	 * topology to Linux and user space.
 	 */
 	for_each_cpu(cpu, cpu_pool) {
 		rc = remove_cpu(cpu);
 		if (rc != 0) {
-			pr_err("%s: CPU %d is not offlined [rc=%d]\n",
+			pr_err("%s: CPU %d is analt offlined [rc=%d]\n",
 			       ne_misc_dev.name, cpu, rc);
 
 			goto online_cpus;
@@ -350,7 +350,7 @@ static int ne_setup_cpu_pool(const char *ne_cpu_list)
 
 	free_cpumask_var(cpu_pool);
 
-	ne_cpu_pool.numa_node = numa_node;
+	ne_cpu_pool.numa_analde = numa_analde;
 
 	mutex_unlock(&ne_cpu_pool.mutex);
 
@@ -370,7 +370,7 @@ free_pool_cpumask:
 	free_cpumask_var(cpu_pool);
 	ne_cpu_pool.nr_parent_vm_cores = 0;
 	ne_cpu_pool.nr_threads_per_core = 0;
-	ne_cpu_pool.numa_node = -1;
+	ne_cpu_pool.numa_analde = -1;
 	mutex_unlock(&ne_cpu_pool.mutex);
 
 	return rc;
@@ -379,7 +379,7 @@ free_pool_cpumask:
 /**
  * ne_teardown_cpu_pool() - Online the CPUs from the NE CPU pool and cleanup the
  *			    CPU pool.
- * @void:	No parameters provided.
+ * @void:	Anal parameters provided.
  *
  * Context: Process context.
  */
@@ -401,7 +401,7 @@ static void ne_teardown_cpu_pool(void)
 		for_each_cpu(cpu, ne_cpu_pool.avail_threads_per_core[i]) {
 			rc = add_cpu(cpu);
 			if (rc != 0)
-				pr_err("%s: CPU %d is not onlined [rc=%d]\n",
+				pr_err("%s: CPU %d is analt onlined [rc=%d]\n",
 				       ne_misc_dev.name, cpu, rc);
 		}
 
@@ -413,7 +413,7 @@ static void ne_teardown_cpu_pool(void)
 	kfree(ne_cpu_pool.avail_threads_per_core);
 	ne_cpu_pool.nr_parent_vm_cores = 0;
 	ne_cpu_pool.nr_threads_per_core = 0;
-	ne_cpu_pool.numa_node = -1;
+	ne_cpu_pool.numa_analde = -1;
 
 	mutex_unlock(&ne_cpu_pool.mutex);
 }
@@ -488,13 +488,13 @@ static bool ne_donated_cpu(struct ne_enclave *ne_enclave, unsigned int cpu)
 /**
  * ne_get_unused_core_from_cpu_pool() - Get the id of a full core from the
  *					NE CPU pool.
- * @void:	No parameters provided.
+ * @void:	Anal parameters provided.
  *
  * Context: Process context. This function is called with the ne_enclave and
  *	    ne_cpu_pool mutexes held.
  * Return:
  * * Core id.
- * * -1 if no CPU core available in the pool.
+ * * -1 if anal CPU core available in the pool.
  */
 static int ne_get_unused_core_from_cpu_pool(void)
 {
@@ -531,16 +531,16 @@ static int ne_set_enclave_threads_per_core(struct ne_enclave *ne_enclave,
 
 	if (core_id < 0 && vcpu_id == 0) {
 		dev_err_ratelimited(ne_misc_dev.this_device,
-				    "No CPUs available in NE CPU pool\n");
+				    "Anal CPUs available in NE CPU pool\n");
 
-		return -NE_ERR_NO_CPUS_AVAIL_IN_POOL;
+		return -NE_ERR_ANAL_CPUS_AVAIL_IN_POOL;
 	}
 
 	if (core_id < 0) {
 		dev_err_ratelimited(ne_misc_dev.this_device,
-				    "CPU %d is not in NE CPU pool\n", vcpu_id);
+				    "CPU %d is analt in NE CPU pool\n", vcpu_id);
 
-		return -NE_ERR_VCPU_NOT_IN_CPU_POOL;
+		return -NE_ERR_VCPU_ANALT_IN_CPU_POOL;
 	}
 
 	if (core_id >= ne_enclave->nr_parent_vm_cores) {
@@ -593,7 +593,7 @@ static int ne_get_cpu_from_cpu_pool(struct ne_enclave *ne_enclave, u32 *vcpu_id)
 	mutex_lock(&ne_cpu_pool.mutex);
 
 	/*
-	 * If no remaining siblings, get a core from the NE CPU pool and keep
+	 * If anal remaining siblings, get a core from the NE CPU pool and keep
 	 * track of all the threads in the enclave threads per core data structure.
 	 */
 	core_id = ne_get_unused_core_from_cpu_pool();
@@ -621,7 +621,7 @@ unlock_mutex:
  *	    ne_cpu_pool mutexes held.
  * Return:
  * * Core id.
- * * -1 if the provided vCPU is not in the pool.
+ * * -1 if the provided vCPU is analt in the pool.
  */
 static int ne_get_vcpu_core_from_cpu_pool(u32 vcpu_id)
 {
@@ -663,7 +663,7 @@ static int ne_check_cpu_in_cpu_pool(struct ne_enclave *ne_enclave, u32 vcpu_id)
 	}
 
 	/*
-	 * If previously allocated a thread of a core to this enclave, but not
+	 * If previously allocated a thread of a core to this enclave, but analt
 	 * the full core, first check remaining sibling(s).
 	 */
 	for (i = 0; i < ne_enclave->nr_parent_vm_cores; i++)
@@ -673,7 +673,7 @@ static int ne_check_cpu_in_cpu_pool(struct ne_enclave *ne_enclave, u32 vcpu_id)
 	mutex_lock(&ne_cpu_pool.mutex);
 
 	/*
-	 * If no remaining siblings, get from the NE CPU pool the core
+	 * If anal remaining siblings, get from the NE CPU pool the core
 	 * associated with the vCPU and keep track of all the threads in the
 	 * enclave threads per core data structure.
 	 */
@@ -755,14 +755,14 @@ static int ne_sanity_check_user_mem_region(struct ne_enclave *ne_enclave,
 
 	if (mem_region.memory_size & (NE_MIN_MEM_REGION_SIZE - 1)) {
 		dev_err_ratelimited(ne_misc_dev.this_device,
-				    "User space memory size is not multiple of 2 MiB\n");
+				    "User space memory size is analt multiple of 2 MiB\n");
 
 		return -NE_ERR_INVALID_MEM_REGION_SIZE;
 	}
 
 	if (!IS_ALIGNED(mem_region.userspace_addr, NE_MIN_MEM_REGION_SIZE)) {
 		dev_err_ratelimited(ne_misc_dev.this_device,
-				    "User space address is not 2 MiB aligned\n");
+				    "User space address is analt 2 MiB aligned\n");
 
 		return -NE_ERR_UNALIGNED_MEM_REGION_ADDR;
 	}
@@ -812,24 +812,24 @@ static int ne_sanity_check_user_mem_region_page(struct ne_enclave *ne_enclave,
 {
 	if (!PageHuge(mem_region_page)) {
 		dev_err_ratelimited(ne_misc_dev.this_device,
-				    "Not a hugetlbfs page\n");
+				    "Analt a hugetlbfs page\n");
 
-		return -NE_ERR_MEM_NOT_HUGE_PAGE;
+		return -NE_ERR_MEM_ANALT_HUGE_PAGE;
 	}
 
 	if (page_size(mem_region_page) & (NE_MIN_MEM_REGION_SIZE - 1)) {
 		dev_err_ratelimited(ne_misc_dev.this_device,
-				    "Page size not multiple of 2 MiB\n");
+				    "Page size analt multiple of 2 MiB\n");
 
 		return -NE_ERR_INVALID_PAGE_SIZE;
 	}
 
-	if (ne_enclave->numa_node != page_to_nid(mem_region_page)) {
+	if (ne_enclave->numa_analde != page_to_nid(mem_region_page)) {
 		dev_err_ratelimited(ne_misc_dev.this_device,
-				    "Page is not from NUMA node %d\n",
-				    ne_enclave->numa_node);
+				    "Page is analt from NUMA analde %d\n",
+				    ne_enclave->numa_analde);
 
-		return -NE_ERR_MEM_DIFFERENT_NUMA_NODE;
+		return -NE_ERR_MEM_DIFFERENT_NUMA_ANALDE;
 	}
 
 	return 0;
@@ -851,14 +851,14 @@ static int ne_sanity_check_phys_mem_region(u64 phys_mem_region_paddr,
 {
 	if (phys_mem_region_size & (NE_MIN_MEM_REGION_SIZE - 1)) {
 		dev_err_ratelimited(ne_misc_dev.this_device,
-				    "Physical mem region size is not multiple of 2 MiB\n");
+				    "Physical mem region size is analt multiple of 2 MiB\n");
 
 		return -EINVAL;
 	}
 
 	if (!IS_ALIGNED(phys_mem_region_paddr, NE_MIN_MEM_REGION_SIZE)) {
 		dev_err_ratelimited(ne_misc_dev.this_device,
-				    "Physical mem region address is not 2 MiB aligned\n");
+				    "Physical mem region address is analt 2 MiB aligned\n");
 
 		return -EINVAL;
 	}
@@ -930,14 +930,14 @@ static int ne_set_user_memory_region_ioctl(struct ne_enclave *ne_enclave,
 
 	ne_mem_region = kzalloc(sizeof(*ne_mem_region), GFP_KERNEL);
 	if (!ne_mem_region)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max_nr_pages = mem_region.memory_size / NE_MIN_MEM_REGION_SIZE;
 
 	ne_mem_region->pages = kcalloc(max_nr_pages, sizeof(*ne_mem_region->pages),
 				       GFP_KERNEL);
 	if (!ne_mem_region->pages) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 
 		goto free_mem_region;
 	}
@@ -946,7 +946,7 @@ static int ne_set_user_memory_region_ioctl(struct ne_enclave *ne_enclave,
 						  sizeof(*phys_contig_mem_regions.regions),
 						  GFP_KERNEL);
 	if (!phys_contig_mem_regions.regions) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 
 		goto free_mem_region;
 	}
@@ -958,7 +958,7 @@ static int ne_set_user_memory_region_ioctl(struct ne_enclave *ne_enclave,
 			dev_err_ratelimited(ne_misc_dev.this_device,
 					    "Reached max nr of pages in the pages data struct\n");
 
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 
 			goto put_pages;
 		}
@@ -1081,9 +1081,9 @@ static int ne_start_enclave_ioctl(struct ne_enclave *ne_enclave,
 
 	if (!ne_enclave->nr_mem_regions) {
 		dev_err_ratelimited(ne_misc_dev.this_device,
-				    "Enclave has no mem regions\n");
+				    "Enclave has anal mem regions\n");
 
-		return -NE_ERR_NO_MEM_REGIONS_ADDED;
+		return -NE_ERR_ANAL_MEM_REGIONS_ADDED;
 	}
 
 	if (ne_enclave->mem_size < NE_MIN_ENCLAVE_MEM_SIZE) {
@@ -1096,18 +1096,18 @@ static int ne_start_enclave_ioctl(struct ne_enclave *ne_enclave,
 
 	if (!ne_enclave->nr_vcpus) {
 		dev_err_ratelimited(ne_misc_dev.this_device,
-				    "Enclave has no vCPUs\n");
+				    "Enclave has anal vCPUs\n");
 
-		return -NE_ERR_NO_VCPUS_ADDED;
+		return -NE_ERR_ANAL_VCPUS_ADDED;
 	}
 
 	for (i = 0; i < ne_enclave->nr_parent_vm_cores; i++)
 		for_each_cpu(cpu, ne_enclave->threads_per_core[i])
 			if (!cpumask_test_cpu(cpu, ne_enclave->vcpu_ids)) {
 				dev_err_ratelimited(ne_misc_dev.this_device,
-						    "Full CPU cores not used\n");
+						    "Full CPU cores analt used\n");
 
-				return -NE_ERR_FULL_CORES_NOT_USED;
+				return -NE_ERR_FULL_CORES_ANALT_USED;
 			}
 
 	enclave_start_req.enclave_cid = enclave_start_info->enclave_cid;
@@ -1158,11 +1158,11 @@ static long ne_enclave_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 		if (ne_enclave->state != NE_STATE_INIT) {
 			dev_err_ratelimited(ne_misc_dev.this_device,
-					    "Enclave is not in init state\n");
+					    "Enclave is analt in init state\n");
 
 			mutex_unlock(&ne_enclave->enclave_info_mutex);
 
-			return -NE_ERR_NOT_IN_INIT_STATE;
+			return -NE_ERR_ANALT_IN_INIT_STATE;
 		}
 
 		if (vcpu_id >= (ne_enclave->nr_parent_vm_cores *
@@ -1226,11 +1226,11 @@ static long ne_enclave_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 		if (ne_enclave->state != NE_STATE_INIT) {
 			dev_err_ratelimited(ne_misc_dev.this_device,
-					    "Enclave is not in init state\n");
+					    "Enclave is analt in init state\n");
 
 			mutex_unlock(&ne_enclave->enclave_info_mutex);
 
-			return -NE_ERR_NOT_IN_INIT_STATE;
+			return -NE_ERR_ANALT_IN_INIT_STATE;
 		}
 
 		mutex_unlock(&ne_enclave->enclave_info_mutex);
@@ -1270,11 +1270,11 @@ static long ne_enclave_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 		if (ne_enclave->state != NE_STATE_INIT) {
 			dev_err_ratelimited(ne_misc_dev.this_device,
-					    "Enclave is not in init state\n");
+					    "Enclave is analt in init state\n");
 
 			mutex_unlock(&ne_enclave->enclave_info_mutex);
 
-			return -NE_ERR_NOT_IN_INIT_STATE;
+			return -NE_ERR_ANALT_IN_INIT_STATE;
 		}
 
 		rc = ne_set_user_memory_region_ioctl(ne_enclave, mem_region);
@@ -1305,43 +1305,43 @@ static long ne_enclave_ioctl(struct file *file, unsigned int cmd, unsigned long 
 		}
 
 		/*
-		 * Do not use well-known CIDs - 0, 1, 2 - for enclaves.
+		 * Do analt use well-kanalwn CIDs - 0, 1, 2 - for enclaves.
 		 * VMADDR_CID_ANY = -1U
 		 * VMADDR_CID_HYPERVISOR = 0
 		 * VMADDR_CID_LOCAL = 1
 		 * VMADDR_CID_HOST = 2
-		 * Note: 0 is used as a placeholder to auto-generate an enclave CID.
+		 * Analte: 0 is used as a placeholder to auto-generate an enclave CID.
 		 * http://man7.org/linux/man-pages/man7/vsock.7.html
 		 */
 		if (enclave_start_info.enclave_cid > 0 &&
 		    enclave_start_info.enclave_cid <= VMADDR_CID_HOST) {
 			dev_err_ratelimited(ne_misc_dev.this_device,
-					    "Well-known CID value, not to be used for enclaves\n");
+					    "Well-kanalwn CID value, analt to be used for enclaves\n");
 
 			return -NE_ERR_INVALID_ENCLAVE_CID;
 		}
 
 		if (enclave_start_info.enclave_cid == U32_MAX) {
 			dev_err_ratelimited(ne_misc_dev.this_device,
-					    "Well-known CID value, not to be used for enclaves\n");
+					    "Well-kanalwn CID value, analt to be used for enclaves\n");
 
 			return -NE_ERR_INVALID_ENCLAVE_CID;
 		}
 
 		/*
-		 * Do not use the CID of the primary / parent VM for enclaves.
+		 * Do analt use the CID of the primary / parent VM for enclaves.
 		 */
 		if (enclave_start_info.enclave_cid == NE_PARENT_VM_CID) {
 			dev_err_ratelimited(ne_misc_dev.this_device,
-					    "CID of the parent VM, not to be used for enclaves\n");
+					    "CID of the parent VM, analt to be used for enclaves\n");
 
 			return -NE_ERR_INVALID_ENCLAVE_CID;
 		}
 
-		/* 64-bit CIDs are not yet supported for the vsock device. */
+		/* 64-bit CIDs are analt yet supported for the vsock device. */
 		if (enclave_start_info.enclave_cid > U32_MAX) {
 			dev_err_ratelimited(ne_misc_dev.this_device,
-					    "64-bit CIDs not yet supported for the vsock device\n");
+					    "64-bit CIDs analt yet supported for the vsock device\n");
 
 			return -NE_ERR_INVALID_ENCLAVE_CID;
 		}
@@ -1350,11 +1350,11 @@ static long ne_enclave_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 		if (ne_enclave->state != NE_STATE_INIT) {
 			dev_err_ratelimited(ne_misc_dev.this_device,
-					    "Enclave is not in init state\n");
+					    "Enclave is analt in init state\n");
 
 			mutex_unlock(&ne_enclave->enclave_info_mutex);
 
-			return -NE_ERR_NOT_IN_INIT_STATE;
+			return -NE_ERR_ANALT_IN_INIT_STATE;
 		}
 
 		rc = ne_start_enclave_ioctl(ne_enclave, &enclave_start_info);
@@ -1374,7 +1374,7 @@ static long ne_enclave_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	}
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	return 0;
@@ -1464,7 +1464,7 @@ static void ne_pci_dev_remove_enclave_entry(struct ne_enclave *ne_enclave,
 
 /**
  * ne_enclave_release() - Release function provided by the enclave file.
- * @inode:	Inode associated with this file release function.
+ * @ianalde:	Ianalde associated with this file release function.
  * @file:	File associated with this release function.
  *
  * Context: Process context.
@@ -1472,7 +1472,7 @@ static void ne_pci_dev_remove_enclave_entry(struct ne_enclave *ne_enclave,
  * * 0 on success.
  * * Negative return value on failure.
  */
-static int ne_enclave_release(struct inode *inode, struct file *file)
+static int ne_enclave_release(struct ianalde *ianalde, struct file *file)
 {
 	struct ne_pci_dev_cmd_reply cmd_reply = {};
 	struct enclave_stop_req enclave_stop_request = {};
@@ -1569,7 +1569,7 @@ static __poll_t ne_enclave_poll(struct file *file, poll_table *wait)
 
 static const struct file_operations ne_enclave_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 	.poll		= ne_enclave_poll,
 	.unlocked_ioctl	= ne_enclave_ioctl,
 	.release	= ne_enclave_release,
@@ -1608,24 +1608,24 @@ static int ne_create_vm_ioctl(struct ne_pci_dev *ne_pci_dev, u64 __user *slot_ui
 
 	if (i == ne_cpu_pool.nr_parent_vm_cores) {
 		dev_err_ratelimited(ne_misc_dev.this_device,
-				    "No CPUs available in CPU pool\n");
+				    "Anal CPUs available in CPU pool\n");
 
 		mutex_unlock(&ne_cpu_pool.mutex);
 
-		return -NE_ERR_NO_CPUS_AVAIL_IN_POOL;
+		return -NE_ERR_ANAL_CPUS_AVAIL_IN_POOL;
 	}
 
 	mutex_unlock(&ne_cpu_pool.mutex);
 
 	ne_enclave = kzalloc(sizeof(*ne_enclave), GFP_KERNEL);
 	if (!ne_enclave)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&ne_cpu_pool.mutex);
 
 	ne_enclave->nr_parent_vm_cores = ne_cpu_pool.nr_parent_vm_cores;
 	ne_enclave->nr_threads_per_core = ne_cpu_pool.nr_threads_per_core;
-	ne_enclave->numa_node = ne_cpu_pool.numa_node;
+	ne_enclave->numa_analde = ne_cpu_pool.numa_analde;
 
 	mutex_unlock(&ne_cpu_pool.mutex);
 
@@ -1633,20 +1633,20 @@ static int ne_create_vm_ioctl(struct ne_pci_dev *ne_pci_dev, u64 __user *slot_ui
 					       sizeof(*ne_enclave->threads_per_core),
 					       GFP_KERNEL);
 	if (!ne_enclave->threads_per_core) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 
 		goto free_ne_enclave;
 	}
 
 	for (i = 0; i < ne_enclave->nr_parent_vm_cores; i++)
 		if (!zalloc_cpumask_var(&ne_enclave->threads_per_core[i], GFP_KERNEL)) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 
 			goto free_cpumask;
 		}
 
 	if (!zalloc_cpumask_var(&ne_enclave->vcpu_ids, GFP_KERNEL)) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 
 		goto free_cpumask;
 	}
@@ -1661,12 +1661,12 @@ static int ne_create_vm_ioctl(struct ne_pci_dev *ne_pci_dev, u64 __user *slot_ui
 		goto free_cpumask;
 	}
 
-	enclave_file = anon_inode_getfile("ne-vm", &ne_enclave_fops, ne_enclave, O_RDWR);
+	enclave_file = aanaln_ianalde_getfile("ne-vm", &ne_enclave_fops, ne_enclave, O_RDWR);
 	if (IS_ERR(enclave_file)) {
 		rc = PTR_ERR(enclave_file);
 
 		dev_err_ratelimited(ne_misc_dev.this_device,
-				    "Error in anon inode get file [rc=%d]\n", rc);
+				    "Error in aanaln ianalde get file [rc=%d]\n", rc);
 
 		goto put_fd;
 	}
@@ -1751,7 +1751,7 @@ static long ne_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	return 0;

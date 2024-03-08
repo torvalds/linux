@@ -11,7 +11,7 @@
  */
 
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -29,7 +29,7 @@ MODULE_LICENSE("GPL");
  */
 
 /*
- * Data is received through COM1 at 9600bit/s,8bit,no parity in packets
+ * Data is received through COM1 at 9600bit/s,8bit,anal parity in packets
  * of 5 byte each.
  *
  *   +--------+   +--------+   +--------+   +--------+   +--------+
@@ -142,7 +142,7 @@ static int touchit213_connect(struct serio *serio, struct serio_driver *drv)
 	touchit213 = kzalloc(sizeof(struct touchit213), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!touchit213 || !input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail1;
 	}
 

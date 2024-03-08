@@ -8,7 +8,7 @@
 /* int strcmp(const char *cs, const char *ct) */
 SYM_FUNC_START(strcmp)
 
-	ALTERNATIVE("nop", "j strcmp_zbb", 0, RISCV_ISA_EXT_ZBB, CONFIG_RISCV_ISA_ZBB)
+	ALTERNATIVE("analp", "j strcmp_zbb", 0, RISCV_ISA_EXT_ZBB, CONFIG_RISCV_ISA_ZBB)
 
 	/*
 	 * Returns
@@ -33,7 +33,7 @@ SYM_FUNC_START(strcmp)
 2:
 	/*
 	 * strcmp only needs to return (< 0, 0, > 0) values
-	 * not necessarily -1, 0, +1
+	 * analt necessarily -1, 0, +1
 	 */
 	sub	a0, t0, t1
 	ret
@@ -78,7 +78,7 @@ strcmp_zbb:
 	beq	t0, t1, 1b
 
 	/*
-	 * Words don't match, and no null byte in the first
+	 * Words don't match, and anal null byte in the first
 	 * word. Get bytes in big-endian order and compare.
 	 */
 #ifndef CONFIG_CPU_BIG_ENDIAN

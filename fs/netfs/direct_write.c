@@ -11,15 +11,15 @@
 
 static void netfs_cleanup_dio_write(struct netfs_io_request *wreq)
 {
-	struct inode *inode = wreq->inode;
+	struct ianalde *ianalde = wreq->ianalde;
 	unsigned long long end = wreq->start + wreq->len;
 
 	if (!wreq->error &&
-	    i_size_read(inode) < end) {
+	    i_size_read(ianalde) < end) {
 		if (wreq->netfs_ops->update_i_size)
-			wreq->netfs_ops->update_i_size(inode, end);
+			wreq->netfs_ops->update_i_size(ianalde, end);
 		else
-			i_size_write(inode, end);
+			i_size_write(ianalde, end);
 	}
 }
 
@@ -54,11 +54,11 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 		return PTR_ERR(wreq);
 
 	{
-		/* If this is an async op and we're not using a bounce buffer,
+		/* If this is an async op and we're analt using a bounce buffer,
 		 * we have to save the source buffer as the iterator is only
 		 * good until we return.  In such a case, extract an iterator
 		 * to represent as much of the the output buffer as we can
-		 * manage.  Note that the extraction might not be able to
+		 * manage.  Analte that the extraction might analt be able to
 		 * allocate a sufficiently large bvec array and may shorten the
 		 * request.
 		 */
@@ -122,22 +122,22 @@ out:
  * @from: iov_iter with data to write
  *
  * Do an unbuffered write to a file, writing the data directly to the server
- * and not lodging the data in the pagecache.
+ * and analt lodging the data in the pagecache.
  *
  * Return:
- * * Negative error code if no data has been written at all of
- *   vfs_fsync_range() failed for a synchronous write
+ * * Negative error code if anal data has been written at all of
+ *   vfs_fsync_range() failed for a synchroanalus write
  * * Number of bytes written, even for truncated writes
  */
 ssize_t netfs_unbuffered_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
-	struct netfs_inode *ictx = netfs_inode(inode);
+	struct ianalde *ianalde = file->f_mapping->host;
+	struct netfs_ianalde *ictx = netfs_ianalde(ianalde);
 	unsigned long long end;
 	ssize_t ret;
 
-	_enter("%llx,%zx,%llx", iocb->ki_pos, iov_iter_count(from), i_size_read(inode));
+	_enter("%llx,%zx,%llx", iocb->ki_pos, iov_iter_count(from), i_size_read(ianalde));
 
 	if (!iov_iter_count(from))
 		return 0;
@@ -145,7 +145,7 @@ ssize_t netfs_unbuffered_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	trace_netfs_write_iter(iocb, from);
 	netfs_stat(&netfs_n_rh_dio_write);
 
-	ret = netfs_start_io_direct(inode);
+	ret = netfs_start_io_direct(ianalde);
 	if (ret < 0)
 		return ret;
 	ret = generic_write_checks(iocb, from);
@@ -164,11 +164,11 @@ ssize_t netfs_unbuffered_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (end > ictx->zero_point)
 		ictx->zero_point = end;
 
-	fscache_invalidate(netfs_i_cookie(ictx), NULL, i_size_read(inode),
+	fscache_invalidate(netfs_i_cookie(ictx), NULL, i_size_read(ianalde),
 			   FSCACHE_INVAL_DIO_WRITE);
 	ret = netfs_unbuffered_write_iter_locked(iocb, from, NULL);
 out:
-	netfs_end_io_direct(inode);
+	netfs_end_io_direct(ianalde);
 	return ret;
 }
 EXPORT_SYMBOL(netfs_unbuffered_write_iter);

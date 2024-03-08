@@ -26,7 +26,7 @@
  *
  * When a Windows 10 RS5+ host is used, the virtual machine screen
  * resolution is obtained from the host. The "video=hyperv_fb" option is
- * not needed, but still can be used to overwrite what the host specifies.
+ * analt needed, but still can be used to overwrite what the host specifies.
  * The VM resolution on the host could be set by executing the powershell
  * "set-vmvideo" command. For example
  *     set-vmvideo -vmname name -horizontalresolution:1920 \
@@ -36,7 +36,7 @@
  * It could improve the efficiency and performance for framebuffer and VM.
  * This requires to allocate contiguous physical memory from Linux kernel's
  * CMA memory allocator. To enable this, supply a kernel parameter to give
- * enough memory space to CMA allocator for framebuffer. For example:
+ * eanalugh memory space to CMA allocator for framebuffer. For example:
  *    cma=130m
  * This gives 130MB memory to CMA allocator that can be allocated to
  * framebuffer. For reference, 8K resolution (7680x4320) takes about
@@ -53,7 +53,7 @@
 #include <linux/completion.h>
 #include <linux/fb.h>
 #include <linux/pci.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/efi.h>
 #include <linux/console.h>
 
@@ -62,14 +62,14 @@
 /* Hyper-V Synthetic Video Protocol definitions and structures */
 #define MAX_VMBUS_PKT_SIZE 0x4000
 
-#define SYNTHVID_VERSION(major, minor) ((minor) << 16 | (major))
+#define SYNTHVID_VERSION(major, mianalr) ((mianalr) << 16 | (major))
 /* Support for VERSION_WIN7 is removed. #define is retained for reference. */
 #define SYNTHVID_VERSION_WIN7 SYNTHVID_VERSION(3, 0)
 #define SYNTHVID_VERSION_WIN8 SYNTHVID_VERSION(3, 2)
 #define SYNTHVID_VERSION_WIN10 SYNTHVID_VERSION(3, 5)
 
 #define SYNTHVID_VER_GET_MAJOR(ver) (ver & 0x0000ffff)
-#define SYNTHVID_VER_GET_MINOR(ver) ((ver & 0xffff0000) >> 16)
+#define SYNTHVID_VER_GET_MIANALR(ver) ((ver & 0xffff0000) >> 16)
 
 #define SYNTHVID_DEPTH_WIN8 32
 #define SYNTHVID_FB_SIZE_WIN8 (8 * 1024 * 1024)
@@ -257,13 +257,13 @@ struct hvfb_par {
 	u8 init_buf[MAX_VMBUS_PKT_SIZE];
 	u8 recv_buf[MAX_VMBUS_PKT_SIZE];
 
-	/* If true, the VSC notifies the VSP on every framebuffer change */
-	bool synchronous_fb;
+	/* If true, the VSC analtifies the VSP on every framebuffer change */
+	bool synchroanalus_fb;
 
 	/* If true, need to copy from deferred IO mem to framebuffer mem */
 	bool need_docopy;
 
-	struct notifier_block hvfb_panic_nb;
+	struct analtifier_block hvfb_panic_nb;
 
 	/* Memory for deferred IO and frame buffer itself */
 	unsigned char *dio_vp;
@@ -311,7 +311,7 @@ static int synthvid_send_situ(struct hv_device *hdev)
 	struct synthvid_msg msg;
 
 	if (!info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(&msg, 0, sizeof(struct synthvid_msg));
 
@@ -520,7 +520,7 @@ static inline bool synthvid_ver_ge(u32 ver1, u32 ver2)
 {
 	if (SYNTHVID_VER_GET_MAJOR(ver1) > SYNTHVID_VER_GET_MAJOR(ver2) ||
 	    (SYNTHVID_VER_GET_MAJOR(ver1) == SYNTHVID_VER_GET_MAJOR(ver2) &&
-	     SYNTHVID_VER_GET_MINOR(ver1) >= SYNTHVID_VER_GET_MINOR(ver2)))
+	     SYNTHVID_VER_GET_MIANALR(ver1) >= SYNTHVID_VER_GET_MIANALR(ver2)))
 		return true;
 
 	return false;
@@ -549,13 +549,13 @@ static int synthvid_negotiate_ver(struct hv_device *hdev, u32 ver)
 		goto out;
 	}
 	if (!msg->ver_resp.is_accepted) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
 	par->synthvid_version = ver;
-	pr_info("Synthvid Version major %d, minor %d\n",
-		SYNTHVID_VER_GET_MAJOR(ver), SYNTHVID_VER_GET_MINOR(ver));
+	pr_info("Synthvid Version major %d, mianalr %d\n",
+		SYNTHVID_VER_GET_MAJOR(ver), SYNTHVID_VER_GET_MIANALR(ver));
 
 out:
 	return ret;
@@ -588,15 +588,15 @@ static int synthvid_get_supported_resolution(struct hv_device *hdev)
 	}
 
 	if (msg->resolution_resp.resolution_count == 0) {
-		pr_err("No supported resolutions\n");
-		ret = -ENODEV;
+		pr_err("Anal supported resolutions\n");
+		ret = -EANALDEV;
 		goto out;
 	}
 
 	index = msg->resolution_resp.default_resolution_index;
 	if (index >= msg->resolution_resp.resolution_count) {
 		pr_err("Invalid resolution index: %d\n", index);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -641,7 +641,7 @@ static int synthvid_connect_vsp(struct hv_device *hdev)
 	}
 
 	if (ret) {
-		pr_err("Synthetic video device version not accepted\n");
+		pr_err("Synthetic video device version analt accepted\n");
 		goto error;
 	}
 
@@ -688,7 +688,7 @@ static int synthvid_send_config(struct hv_device *hdev)
 	}
 	if (msg->vram_ack.user_ctx != par->mmio_pp) {
 		pr_err("Unable to set VRAM location\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -704,7 +704,7 @@ out:
 /*
  * Delayed work callback:
  * It is scheduled to call whenever update request is received and it has
- * not been called in last HVFB_ONDEMAND_THROTTLE time interval.
+ * analt been called in last HVFB_ONDEMAND_THROTTLE time interval.
  */
 static void hvfb_update_work(struct work_struct *w)
 {
@@ -749,7 +749,7 @@ static void hvfb_update_work(struct work_struct *w)
 
 /*
  * Control the on-demand refresh frequency. It schedules a delayed
- * screen update if it has not yet.
+ * screen update if it has analt yet.
  */
 static void hvfb_ondemand_refresh_throttle(struct hvfb_par *par,
 					   int x1, int y1, int w, int h)
@@ -766,7 +766,7 @@ static void hvfb_ondemand_refresh_throttle(struct hvfb_par *par,
 	par->x2 = max_t(int, par->x2, x2);
 	par->y2 = max_t(int, par->y2, y2);
 
-	/* Schedule a delayed screen update if not yet */
+	/* Schedule a delayed screen update if analt yet */
 	if (par->delayed_refresh == false) {
 		schedule_delayed_work(&par->dwork,
 				      HVFB_ONDEMAND_THROTTLE);
@@ -776,7 +776,7 @@ static void hvfb_ondemand_refresh_throttle(struct hvfb_par *par,
 	spin_unlock_irqrestore(&par->delayed_refresh_lock, flags);
 }
 
-static int hvfb_on_panic(struct notifier_block *nb,
+static int hvfb_on_panic(struct analtifier_block *nb,
 			 unsigned long e, void *p)
 {
 	struct hv_device *hdev;
@@ -788,14 +788,14 @@ static int hvfb_on_panic(struct notifier_block *nb,
 	hdev = device_to_hv_device(info->device);
 
 	if (hv_ringbuffer_spinlock_busy(hdev->channel))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
-	par->synchronous_fb = true;
+	par->synchroanalus_fb = true;
 	if (par->need_docopy)
 		hvfb_docopy(par, 0, dio_fb_size);
 	synthvid_update(info, 0, 0, INT_MAX, INT_MAX);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /* Framebuffer operation handlers */
@@ -826,15 +826,15 @@ static inline u32 chan_to_field(u32 chan, struct fb_bitfield *bf)
 	return ((chan & 0xffff) >> (16 - bf->length)) << bf->offset;
 }
 
-static int hvfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int hvfb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			  unsigned blue, unsigned transp, struct fb_info *info)
 {
 	u32 *pal = info->pseudo_palette;
 
-	if (regno > 15)
+	if (reganal > 15)
 		return -EINVAL;
 
-	pal[regno] = chan_to_field(red, &info->var.red)
+	pal[reganal] = chan_to_field(red, &info->var.red)
 		| chan_to_field(green, &info->var.green)
 		| chan_to_field(blue, &info->var.blue)
 		| chan_to_field(transp, &info->var.transp);
@@ -856,7 +856,7 @@ static void hvfb_ops_damage_area(struct fb_info *info, u32 x, u32 y, u32 width, 
 {
 	struct hvfb_par *par = info->par;
 
-	if (par->synchronous_fb)
+	if (par->synchroanalus_fb)
 		synthvid_update(info, 0, 0, INT_MAX, INT_MAX);
 	else
 		hvfb_ondemand_refresh_throttle(par, x, y, width, height);
@@ -911,7 +911,7 @@ static void hvfb_get_option(struct fb_info *info)
 }
 
 /*
- * Allocate enough contiguous physical memory.
+ * Allocate eanalugh contiguous physical memory.
  * Return physical address if succeeded or -1 if failed.
  */
 static phys_addr_t hvfb_get_phymem(struct hv_device *hdev,
@@ -940,7 +940,7 @@ static phys_addr_t hvfb_get_phymem(struct hv_device *hdev,
 		vmem = dma_alloc_coherent(&hdev->device,
 					  round_up(request_size, PAGE_SIZE),
 					  &dma_handle,
-					  GFP_KERNEL | __GFP_NOWARN);
+					  GFP_KERNEL | __GFP_ANALWARN);
 
 		if (!vmem)
 			return -1;
@@ -984,7 +984,7 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 			PCI_DEVICE_ID_HYPERV_VIDEO, NULL);
 		if (!pdev) {
 			pr_err("Unable to find PCI Hyper-V video\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		base = pci_resource_start(pdev, 0);
@@ -1009,11 +1009,11 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 			par->need_docopy = false;
 			goto getmem_done;
 		}
-		pr_info("Unable to allocate enough contiguous physical memory on Gen 1 VM. Using MMIO instead.\n");
+		pr_info("Unable to allocate eanalugh contiguous physical memory on Gen 1 VM. Using MMIO instead.\n");
 	}
 
 	/*
-	 * Cannot use the contiguous physical memory.
+	 * Cananalt use the contiguous physical memory.
 	 * Allocate mmio space for framebuffer.
 	 */
 	dio_fb_size =
@@ -1070,7 +1070,7 @@ err1:
 	if (!gen2vm)
 		pci_dev_put(pdev);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Release the framebuffer */
@@ -1100,7 +1100,7 @@ static int hvfb_probe(struct hv_device *hdev,
 
 	info = framebuffer_alloc(sizeof(struct hvfb_par), &hdev->device);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	par = info->par;
 	par->info = info;
@@ -1128,7 +1128,7 @@ static int hvfb_probe(struct hv_device *hdev,
 
 	ret = hvfb_getmem(hdev, info);
 	if (ret) {
-		pr_err("No memory for framebuffer\n");
+		pr_err("Anal memory for framebuffer\n");
 		goto error2;
 	}
 
@@ -1149,16 +1149,16 @@ static int hvfb_probe(struct hv_device *hdev,
 		info->var.transp = (struct fb_bitfield){24, 8, 0};
 	}
 
-	info->var.activate = FB_ACTIVATE_NOW;
+	info->var.activate = FB_ACTIVATE_ANALW;
 	info->var.height = -1;
 	info->var.width = -1;
-	info->var.vmode = FB_VMODE_NONINTERLACED;
+	info->var.vmode = FB_VMODE_ANALNINTERLACED;
 
 	strcpy(info->fix.id, KBUILD_MODNAME);
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = FB_VISUAL_TRUECOLOR;
 	info->fix.line_length = screen_width * screen_depth / 8;
-	info->fix.accel = FB_ACCEL_NONE;
+	info->fix.accel = FB_ACCEL_ANALNE;
 
 	info->fbops = &hvfb_ops;
 	info->pseudo_palette = par->pseudo_palette;
@@ -1180,17 +1180,17 @@ static int hvfb_probe(struct hv_device *hdev,
 
 	par->fb_ready = true;
 
-	par->synchronous_fb = false;
+	par->synchroanalus_fb = false;
 
 	/*
-	 * We need to be sure this panic notifier runs _before_ the
+	 * We need to be sure this panic analtifier runs _before_ the
 	 * vmbus disconnect, so order it by priority. It must execute
 	 * before the function hv_panic_vmbus_unload() [drivers/hv/vmbus_drv.c],
 	 * which is almost at the end of list, with priority = INT_MIN + 1.
 	 */
-	par->hvfb_panic_nb.notifier_call = hvfb_on_panic;
+	par->hvfb_panic_nb.analtifier_call = hvfb_on_panic;
 	par->hvfb_panic_nb.priority = INT_MIN + 10,
-	atomic_notifier_chain_register(&panic_notifier_list,
+	atomic_analtifier_chain_register(&panic_analtifier_list,
 				       &par->hvfb_panic_nb);
 
 	return 0;
@@ -1212,7 +1212,7 @@ static void hvfb_remove(struct hv_device *hdev)
 	struct fb_info *info = hv_get_drvdata(hdev);
 	struct hvfb_par *par = info->par;
 
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	atomic_analtifier_chain_unregister(&panic_analtifier_list,
 					 &par->hvfb_panic_nb);
 
 	par->update = false;
@@ -1313,7 +1313,7 @@ static struct hv_driver hvfb_drv = {
 	.suspend = hvfb_suspend,
 	.resume = hvfb_resume,
 	.driver = {
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 
@@ -1333,7 +1333,7 @@ static struct pci_driver hvfb_pci_stub_driver = {
 	.probe =	hvfb_pci_stub_probe,
 	.remove =	hvfb_pci_stub_remove,
 	.driver = {
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	}
 };
 
@@ -1342,7 +1342,7 @@ static int __init hvfb_drv_init(void)
 	int ret;
 
 	if (fb_modesetting_disabled("hyper_fb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = vmbus_driver_register(&hvfb_drv);
 	if (ret != 0)

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_QUERYCAP:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_SUBDEV_QUERYCAP - Query sub-device capabilities
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_SUBDEV_QUERYCAP
@@ -35,8 +35,8 @@ All V4L2 sub-devices support the ``VIDIOC_SUBDEV_QUERYCAP`` ioctl. It is used to
 identify kernel devices compatible with this specification and to obtain
 information about driver and hardware capabilities. The ioctl takes a pointer to
 a struct :c:type:`v4l2_subdev_capability` which is filled by the driver. When
-the driver is not compatible with this specification the ioctl returns
-``ENOTTY`` error code.
+the driver is analt compatible with this specification the ioctl returns
+``EANALTTY`` error code.
 
 .. tabularcolumns:: |p{1.5cm}|p{2.9cm}|p{12.9cm}|
 
@@ -52,7 +52,7 @@ the driver is not compatible with this specification the ioctl returns
       - Version number of the driver.
 
 	The version reported is provided by the V4L2 subsystem following the
-	kernel numbering scheme. However, it may not always return the same
+	kernel numbering scheme. However, it may analt always return the same
 	version as the kernel if, for example, a stable or
 	distribution-modified kernel uses the V4L2 stack from a newer kernel.
 
@@ -88,7 +88,7 @@ the driver is not compatible with this specification the ioctl returns
 
     * - V4L2_SUBDEV_CAP_RO_SUBDEV
       - 0x00000001
-      - The sub-device device node is registered in read-only mode.
+      - The sub-device device analde is registered in read-only mode.
 	Access to the sub-device ioctls that modify the device state is
 	restricted. Refer to each individual subdevice ioctl documentation
 	for a description of which restrictions apply to a read-only sub-device.
@@ -96,9 +96,9 @@ the driver is not compatible with this specification the ioctl returns
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
-ENOTTY
-    The device node is not a V4L2 sub-device.
+EANALTTY
+    The device analde is analt a V4L2 sub-device.

@@ -69,14 +69,14 @@ static int st_magn_i2c_probe(struct i2c_client *client)
 
 	settings = st_magn_get_settings(client->name);
 	if (!settings) {
-		dev_err(&client->dev, "device name %s not recognized.\n",
+		dev_err(&client->dev, "device name %s analt recognized.\n",
 			client->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*mdata));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdata = iio_priv(indio_dev);
 	mdata->sensor_settings = (struct st_sensor_settings *)settings;

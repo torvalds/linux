@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -41,8 +41,8 @@ static void print_bw_calcs_dceip(struct dc_context *ctx, const struct bw_calcs_d
 	DC_LOG_BANDWIDTH_CALCS("	[bool] pre_downscaler_enabled: %d", dceip->pre_downscaler_enabled);
 	DC_LOG_BANDWIDTH_CALCS("	[bool] underlay_downscale_prefetch_enabled: %d",
 				dceip->underlay_downscale_prefetch_enabled);
-	DC_LOG_BANDWIDTH_CALCS("	[bool] graphics_lb_nodownscaling_multi_line_prefetching: %d",
-				dceip->graphics_lb_nodownscaling_multi_line_prefetching);
+	DC_LOG_BANDWIDTH_CALCS("	[bool] graphics_lb_analdownscaling_multi_line_prefetching: %d",
+				dceip->graphics_lb_analdownscaling_multi_line_prefetching);
 	DC_LOG_BANDWIDTH_CALCS("	[bool] limit_excessive_outstanding_dmif_requests: %d",
 				dceip->limit_excessive_outstanding_dmif_requests);
 	DC_LOG_BANDWIDTH_CALCS("	[uint32_t] cursor_max_outstanding_group_num: %d",
@@ -99,8 +99,8 @@ static void print_bw_calcs_dceip(struct dc_context *ctx, const struct bw_calcs_d
 				bw_fixed_to_int(dceip->underlay_maximum_height_efficient_for_tiling));
 	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display: %d",
 				bw_fixed_to_int(dceip->peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display));
-	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation: %d",
-				bw_fixed_to_int(dceip->peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation));
+	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] peak_pte_request_to_eviction_ratio_limiting_single_display_anal_rotation: %d",
+				bw_fixed_to_int(dceip->peak_pte_request_to_eviction_ratio_limiting_single_display_anal_rotation));
 	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] minimum_outstanding_pte_request_limit: %d",
 				bw_fixed_to_int(dceip->minimum_outstanding_pte_request_limit));
 	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] maximum_total_outstanding_pte_requests_allowed_by_saw: %d",
@@ -342,8 +342,8 @@ static void print_bw_calcs_data(struct dc_context *ctx, struct bw_calcs_data *da
 				bw_fixed_to_int(data->dmifdram_access_efficiency));
 	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] mcifwrdram_access_efficiency: %d",
 				bw_fixed_to_int(data->mcifwrdram_access_efficiency));
-	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] total_average_bandwidth_no_compression: %d",
-				bw_fixed_to_int(data->total_average_bandwidth_no_compression));
+	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] total_average_bandwidth_anal_compression: %d",
+				bw_fixed_to_int(data->total_average_bandwidth_anal_compression));
 	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] total_average_bandwidth: %d",
 				bw_fixed_to_int(data->total_average_bandwidth));
 	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] total_stutter_cycle_duration: %d",
@@ -354,10 +354,10 @@ static void print_bw_calcs_data(struct dc_context *ctx, struct bw_calcs_data *da
 	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] worst_number_of_trips_to_memory: %d",
 				bw_fixed_to_int(data->worst_number_of_trips_to_memory));
 	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] immediate_flip_time: %d", bw_fixed_to_int(data->immediate_flip_time));
-	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] latency_for_non_dmif_clients: %d",
-				bw_fixed_to_int(data->latency_for_non_dmif_clients));
-	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] latency_for_non_mcifwr_clients: %d",
-				bw_fixed_to_int(data->latency_for_non_mcifwr_clients));
+	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] latency_for_analn_dmif_clients: %d",
+				bw_fixed_to_int(data->latency_for_analn_dmif_clients));
+	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] latency_for_analn_mcifwr_clients: %d",
+				bw_fixed_to_int(data->latency_for_analn_mcifwr_clients));
 	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] dmifmc_urgent_latency_supported_in_high_sclk_and_yclk: %d",
 				bw_fixed_to_int(data->dmifmc_urgent_latency_supported_in_high_sclk_and_yclk));
 	DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] nbp_state_dram_speed_change_margin: %d",
@@ -395,8 +395,8 @@ static void print_bw_calcs_data(struct dc_context *ctx, struct bw_calcs_data *da
 					i, data->display_pstate_change_enable[i]);
 		DC_LOG_BANDWIDTH_CALCS("	[bool] line_buffer_prefetch[%d]:%d", i, data->line_buffer_prefetch[i]);
 		DC_LOG_BANDWIDTH_CALCS("	[uint32_t] bytes_per_pixel[%d]:%d", i, data->bytes_per_pixel[i]);
-		DC_LOG_BANDWIDTH_CALCS("	[uint32_t] max_chunks_non_fbc_mode[%d]:%d",
-					i, data->max_chunks_non_fbc_mode[i]);
+		DC_LOG_BANDWIDTH_CALCS("	[uint32_t] max_chunks_analn_fbc_mode[%d]:%d",
+					i, data->max_chunks_analn_fbc_mode[i]);
 		DC_LOG_BANDWIDTH_CALCS("	[uint32_t] lb_bpc[%d]:%d", i, data->lb_bpc[i]);
 		DC_LOG_BANDWIDTH_CALCS("	[uint32_t] output_bpphdmi[%d]:%d", i, data->output_bpphdmi[i]);
 		DC_LOG_BANDWIDTH_CALCS("	[uint32_t] output_bppdp4_lane_hbr[%d]:%d", i, data->output_bppdp4_lane_hbr[i]);
@@ -476,8 +476,8 @@ static void print_bw_calcs_data(struct dc_context *ctx, struct bw_calcs_data *da
 					i, bw_fixed_to_int(data->stutter_cycle_duration[i]));
 		DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] average_bandwidth[%d]:%d",
 					i, bw_fixed_to_int(data->average_bandwidth[i]));
-		DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] average_bandwidth_no_compression[%d]:%d",
-					i, bw_fixed_to_int(data->average_bandwidth_no_compression[i]));
+		DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] average_bandwidth_anal_compression[%d]:%d",
+					i, bw_fixed_to_int(data->average_bandwidth_anal_compression[i]));
 		DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] scatter_gather_pte_request_limit[%d]:%d",
 					i, bw_fixed_to_int(data->scatter_gather_pte_request_limit[i]));
 		DC_LOG_BANDWIDTH_CALCS("	[bw_fixed] lb_size_per_component[%d]:%d",

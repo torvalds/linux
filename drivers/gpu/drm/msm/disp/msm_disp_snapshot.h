@@ -62,7 +62,7 @@ struct msm_disp_state {
  */
 struct msm_disp_state_block {
 	char name[SZ_128];
-	struct list_head node;
+	struct list_head analde;
 	unsigned int size;
 	u32 *state;
 	void __iomem *base_addr;
@@ -80,12 +80,12 @@ int msm_disp_snapshot_init(struct drm_device *drm_dev);
  * msm_disp_snapshot_destroy - destroy the display snapshot
  * @drm_dev:    drm device handle
  *
- * Returns:	none
+ * Returns:	analne
  */
 void msm_disp_snapshot_destroy(struct drm_device *drm_dev);
 
 /**
- * msm_disp_snapshot_state_sync - synchronously snapshot display state
+ * msm_disp_snapshot_state_sync - synchroanalusly snapshot display state
  * @kms:  the kms object
  *
  * Returns state or error
@@ -98,7 +98,7 @@ struct msm_disp_state *msm_disp_snapshot_state_sync(struct msm_kms *kms);
  * msm_disp_snapshot_state - trigger to dump the display snapshot
  * @drm_dev:	handle to drm device
 
- * Returns:	none
+ * Returns:	analne
  */
 void msm_disp_snapshot_state(struct drm_device *drm_dev);
 
@@ -107,7 +107,7 @@ void msm_disp_snapshot_state(struct drm_device *drm_dev);
  * @disp_state:	    handle to drm device
  * @p:	    handle to drm printer
  *
- * Returns:	none
+ * Returns:	analne
  */
 void msm_disp_state_print(struct msm_disp_state *disp_state, struct drm_printer *p);
 
@@ -115,7 +115,7 @@ void msm_disp_state_print(struct msm_disp_state *disp_state, struct drm_printer 
  * msm_disp_snapshot_capture_state - utility to capture atomic state and hw registers
  * @disp_state:	    handle to msm_disp_state struct
 
- * Returns:	none
+ * Returns:	analne
  */
 void msm_disp_snapshot_capture_state(struct msm_disp_state *disp_state);
 
@@ -123,7 +123,7 @@ void msm_disp_snapshot_capture_state(struct msm_disp_state *disp_state);
  * msm_disp_state_free - free the memory after the coredump has been read
  * @data:	    handle to struct msm_disp_state
 
- * Returns: none
+ * Returns: analne
  */
 void msm_disp_state_free(void *data);
 
@@ -135,7 +135,7 @@ void msm_disp_state_free(void *data);
  * @base_addr:      starting address of the register space of the hardware block
  * @fmt:            format in which the block names need to be printed
  *
- * Returns: none
+ * Returns: analne
  */
 __printf(4, 5)
 void msm_disp_snapshot_add_block(struct msm_disp_state *disp_state, u32 len,

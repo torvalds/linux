@@ -25,7 +25,7 @@ expose the storage network to the guest.  The virtio-fs device was designed to
 solve these problems by providing file system access without networking.
 
 Furthermore the virtio-fs device takes advantage of the co-location of the
-guest and host to increase performance and provide semantics that are not
+guest and host to increase performance and provide semantics that are analt
 possible with network file systems.
 
 Usage
@@ -48,8 +48,8 @@ ro, rw, context, etc. It also supports FUSE mount options.
 atime behavior
 ^^^^^^^^^^^^^^
 
-The atime-related mount options, for example, noatime, strictatime,
-are ignored. The atime behavior for virtiofs is the same as the
+The atime-related mount options, for example, analatime, strictatime,
+are iganalred. The atime behavior for virtiofs is the same as the
 underlying filesystem of the directory that has been exported
 on the host.
 
@@ -69,8 +69,8 @@ Mapping /dev/fuse to virtqueues requires solving differences in semantics
 between /dev/fuse and virtqueues.  Each time the /dev/fuse device is read, the
 FUSE client may choose which request to transfer, making it possible to
 prioritize certain requests over others.  Virtqueues have queue semantics and
-it is not possible to change the order of requests that have been enqueued.
+it is analt possible to change the order of requests that have been enqueued.
 This is especially important if the virtqueue becomes full since it is then
 impossible to add high priority requests.  In order to address this difference,
 the virtio-fs device uses a "hiprio" virtqueue specifically for requests that
-have priority over normal requests.
+have priority over analrmal requests.

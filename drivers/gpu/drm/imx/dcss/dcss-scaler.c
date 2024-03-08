@@ -164,7 +164,7 @@ static int exp_approx_q(int x)
 
 /**
  * dcss_scaler_gaussian_filter() - Generate gaussian prototype filter.
- * @fc_q: fixed-point cutoff frequency normalized to range [0, 1]
+ * @fc_q: fixed-point cutoff frequency analrmalized to range [0, 1]
  * @use_5_taps: indicates whether to use 5 taps or 7 taps
  * @coef: output filter coefficients
  */
@@ -228,7 +228,7 @@ static void dcss_scaler_gaussian_filter(int fc_q, bool use_5_taps,
 			coef[0][i] = i == (PSC_NUM_TAPS >> 1) ?
 						(1 << PSC_COEFF_PRECISION) : 0;
 
-	/* normalize coef */
+	/* analrmalize coef */
 	for (phase = 0; phase < PSC_STORED_PHASES; phase++) {
 		int sum = 0;
 		s64 ll_temp;
@@ -305,7 +305,7 @@ static int dcss_scaler_ch_init_all(struct dcss_scaler *scl,
 		ch->base_reg = ioremap(ch->base_ofs, SZ_4K);
 		if (!ch->base_reg) {
 			dev_err(scl->dev, "scaler: unable to remap ch base\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ch->scl = scl;
@@ -320,7 +320,7 @@ int dcss_scaler_init(struct dcss_dev *dcss, unsigned long scaler_base)
 
 	scaler = kzalloc(sizeof(*scaler), GFP_KERNEL);
 	if (!scaler)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dcss->scaler = scaler;
 	scaler->dev = dcss->dev;
@@ -337,7 +337,7 @@ int dcss_scaler_init(struct dcss_dev *dcss, unsigned long scaler_base)
 
 		kfree(scaler);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -345,10 +345,10 @@ int dcss_scaler_init(struct dcss_dev *dcss, unsigned long scaler_base)
 
 void dcss_scaler_exit(struct dcss_scaler *scl)
 {
-	int ch_no;
+	int ch_anal;
 
-	for (ch_no = 0; ch_no < 3; ch_no++) {
-		struct dcss_scaler_ch *ch = &scl->ch[ch_no];
+	for (ch_anal = 0; ch_anal < 3; ch_anal++) {
+		struct dcss_scaler_ch *ch = &scl->ch[ch_anal];
 
 		dcss_writel(0, ch->base_reg + DCSS_SCALER_CTRL);
 
@@ -691,7 +691,7 @@ static void dcss_scaler_yuv_coef_set(struct dcss_scaler_ch *ch,
 		src_yres >>= 1;
 	if (dst_format != BUF_FMT_ARGB8888_YUV444)
 		dst_xres >>= 1;
-	if (dst_format == BUF_FMT_YUV420) /* should not happen */
+	if (dst_format == BUF_FMT_YUV420) /* should analt happen */
 		dst_yres >>= 1;
 
 	/* horizontal chroma */

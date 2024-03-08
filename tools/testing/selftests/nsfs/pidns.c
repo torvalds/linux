@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -66,10 +66,10 @@ int main(int argc, char *argv[])
 			return pr_err("Unable to stat %s", path);
 		if (fstat(pns, &st1))
 			return pr_err("Unable to stat the parent pidns");
-		if (st1.st_ino != st2.st_ino)
+		if (st1.st_ianal != st2.st_ianal)
 			return pr_err("NS_GET_PARENT returned a wrong namespace");
 
-		if (ioctl(pns, NS_GET_PARENT) >= 0 || errno != EPERM)
+		if (ioctl(pns, NS_GET_PARENT) >= 0 || erranal != EPERM)
 			return pr_err("Don't get EPERM");
 	}
 

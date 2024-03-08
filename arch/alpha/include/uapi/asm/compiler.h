@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__ALPHA_COMPILER_H
 #define _UAPI__ALPHA_COMPILER_H
 
@@ -6,11 +6,11 @@
  * Herein are macros we use when describing various patterns we want to GCC.
  * In all cases we can get better schedules out of the compiler if we hide
  * as little as possible inside inline assembly.  However, we want to be
- * able to know what we'll get out before giving up inline assembly.  Thus
+ * able to kanalw what we'll get out before giving up inline assembly.  Thus
  * these tests and macros.
  */
 
-#if __GNUC__ == 3 && __GNUC_MINOR__ >= 4 || __GNUC__ > 3
+#if __GNUC__ == 3 && __GNUC_MIANALR__ >= 4 || __GNUC__ > 3
 # define __kernel_insbl(val, shift)	__builtin_alpha_insbl(val, shift)
 # define __kernel_inswl(val, shift)	__builtin_alpha_inswl(val, shift)
 # define __kernel_insql(val, shift)	__builtin_alpha_insql(val, shift)
@@ -50,7 +50,7 @@
 #endif
 
 #ifdef __alpha_cix__
-# if __GNUC__ == 3 && __GNUC_MINOR__ >= 4 || __GNUC__ > 3
+# if __GNUC__ == 3 && __GNUC_MIANALR__ >= 4 || __GNUC__ > 3
 #  define __kernel_cttz(x)		__builtin_ctzl(x)
 #  define __kernel_ctlz(x)		__builtin_clzl(x)
 #  define __kernel_ctpop(x)		__builtin_popcountl(x)
@@ -86,7 +86,7 @@
 
 /* 
  * Beginning with EGCS 1.1, GCC defines __alpha_bwx__ when the BWX 
- * extension is enabled.  Previous versions did not define anything
+ * extension is enabled.  Previous versions did analt define anything
  * we could test during compilation -- too bad, so sad.
  */
 

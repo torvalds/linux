@@ -4,11 +4,11 @@
  * and Aichi Steel AMI305 magnetometer chips.
  * Based on a patch from Samu Onkalo and the AK8975 IIO driver.
  *
- * Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
+ * Copyright (C) 2010 Analkia Corporation and/or its subsidiary(-ies).
  * Copyright (c) 2010 NVIDIA Corporation.
  * Copyright (C) 2016 Linaro Ltd.
  *
- * Author: Samu Onkalo <samu.p.onkalo@nokia.com>
+ * Author: Samu Onkalo <samu.p.onkalo@analkia.com>
  * Author: Linus Walleij <linus.walleij@linaro.org>
  */
 #include <linux/module.h>
@@ -121,7 +121,7 @@
 
 #define AK8974_CTRL1_POWER	BIT(7) /* 0 = standby; 1 = active */
 #define AK8974_CTRL1_RATE	BIT(4) /* 0 = 10 Hz; 1 = 20 Hz	 */
-#define AK8974_CTRL1_FORCE_EN	BIT(1) /* 0 = normal; 1 = force	 */
+#define AK8974_CTRL1_FORCE_EN	BIT(1) /* 0 = analrmal; 1 = force	 */
 #define AK8974_CTRL1_MODE2	BIT(0) /* 0 */
 
 #define AK8974_CTRL2_INT_EN	BIT(4)  /* 1 = enable interrupts	      */
@@ -395,7 +395,7 @@ static irqreturn_t ak8974_drdy_irq(int irq, void *d)
 	struct ak8974 *ak8974 = d;
 
 	if (!ak8974->drdy_irq)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* TODO: timestamp here to get good measurement stamps */
 	return IRQ_WAKE_THREAD;
@@ -414,13 +414,13 @@ static irqreturn_t ak8974_drdy_irq_thread(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 	if (val & AK8974_STATUS_DRDY) {
-		/* Yes this was our IRQ */
+		/* Anal this was our IRQ */
 		complete(&ak8974->drdy_complete);
 		return IRQ_HANDLED;
 	}
 
 	/* We may be on a shared IRQ, let the next client check */
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int ak8974_selftest(struct ak8974 *ak8974)
@@ -433,7 +433,7 @@ static int ak8974_selftest(struct ak8974 *ak8974)
 	if (ret)
 		return ret;
 	if (val != AK8974_SELFTEST_IDLE) {
-		dev_err(dev, "selftest not idle before test\n");
+		dev_err(dev, "selftest analt idle before test\n");
 		return -EIO;
 	}
 
@@ -443,7 +443,7 @@ static int ak8974_selftest(struct ak8974 *ak8974)
 			AK8974_CTRL3_SELFTEST,
 			AK8974_CTRL3_SELFTEST);
 	if (ret) {
-		dev_err(dev, "could not write CTRL3\n");
+		dev_err(dev, "could analt write CTRL3\n");
 		return ret;
 	}
 
@@ -453,7 +453,7 @@ static int ak8974_selftest(struct ak8974 *ak8974)
 	if (ret)
 		return ret;
 	if (val != AK8974_SELFTEST_OK) {
-		dev_err(dev, "selftest result NOT OK (%02x)\n", val);
+		dev_err(dev, "selftest result ANALT OK (%02x)\n", val);
 		return -EIO;
 	}
 
@@ -461,7 +461,7 @@ static int ak8974_selftest(struct ak8974 *ak8974)
 	if (ret)
 		return ret;
 	if (val != AK8974_SELFTEST_IDLE) {
-		dev_err(dev, "selftest not idle after test (%02x)\n", val);
+		dev_err(dev, "selftest analt idle after test (%02x)\n", val);
 		return -EIO;
 	}
 	dev_dbg(dev, "passed self-test\n");
@@ -525,7 +525,7 @@ static int ak8974_detect(struct ak8974 *ak8974)
 	default:
 		dev_err(&ak8974->i2c->dev, "unsupported device (%02x) ",
 			whoami);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ak8974->name = name;
@@ -653,7 +653,7 @@ static int ak8974_read_raw(struct iio_dev *indio_dev,
 		}
 		break;
 	default:
-		/* Unknown request */
+		/* Unkanalwn request */
 		break;
 	}
 
@@ -694,7 +694,7 @@ static irqreturn_t ak8974_handle_trigger(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 
 	ak8974_fill_buffer(indio_dev);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -732,7 +732,7 @@ static const struct iio_chan_spec_ext_info ak8974_ext_info[] = {
 	}
 
 /*
- * We have no datasheet for the AK8974 but we guess that its
+ * We have anal datasheet for the AK8974 but we guess that its
  * ADC is 12 bits. The AMI305 and AMI306 certainly has 12bit
  * ADC.
  */
@@ -825,7 +825,7 @@ static int ak8974_probe(struct i2c_client *i2c)
 	/* Register with IIO */
 	indio_dev = devm_iio_device_alloc(&i2c->dev, sizeof(*ak8974));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ak8974 = iio_priv(indio_dev);
 	i2c_set_clientdata(i2c, indio_dev);
@@ -843,36 +843,36 @@ static int ak8974_probe(struct i2c_client *i2c)
 				      ARRAY_SIZE(ak8974->regs),
 				      ak8974->regs);
 	if (ret < 0)
-		return dev_err_probe(&i2c->dev, ret, "cannot get regulators\n");
+		return dev_err_probe(&i2c->dev, ret, "cananalt get regulators\n");
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(ak8974->regs), ak8974->regs);
 	if (ret < 0) {
-		dev_err(&i2c->dev, "cannot enable regulators\n");
+		dev_err(&i2c->dev, "cananalt enable regulators\n");
 		return ret;
 	}
 
 	/* Take runtime PM online */
-	pm_runtime_get_noresume(&i2c->dev);
+	pm_runtime_get_analresume(&i2c->dev);
 	pm_runtime_set_active(&i2c->dev);
 	pm_runtime_enable(&i2c->dev);
 
 	ak8974->map = devm_regmap_init_i2c(i2c, &ak8974_regmap_config);
 	if (IS_ERR(ak8974->map)) {
 		dev_err(&i2c->dev, "failed to allocate register map\n");
-		pm_runtime_put_noidle(&i2c->dev);
+		pm_runtime_put_analidle(&i2c->dev);
 		pm_runtime_disable(&i2c->dev);
 		return PTR_ERR(ak8974->map);
 	}
 
 	ret = ak8974_set_power(ak8974, AK8974_PWR_ON);
 	if (ret) {
-		dev_err(&i2c->dev, "could not power on\n");
+		dev_err(&i2c->dev, "could analt power on\n");
 		goto disable_pm;
 	}
 
 	ret = ak8974_detect(ak8974);
 	if (ret) {
-		dev_err(&i2c->dev, "neither AK8974 nor AMI30x found\n");
+		dev_err(&i2c->dev, "neither AK8974 analr AMI30x found\n");
 		goto disable_pm;
 	}
 
@@ -938,12 +938,12 @@ static int ak8974_probe(struct i2c_client *i2c)
 		if (ret) {
 			dev_err(&i2c->dev, "unable to request DRDY IRQ "
 				"- proceeding without IRQ\n");
-			goto no_irq;
+			goto anal_irq;
 		}
 		ak8974->drdy_irq = true;
 	}
 
-no_irq:
+anal_irq:
 	ret = iio_device_register(indio_dev);
 	if (ret) {
 		dev_err(&i2c->dev, "device register failed\n");
@@ -960,7 +960,7 @@ no_irq:
 cleanup_buffer:
 	iio_triggered_buffer_cleanup(indio_dev);
 disable_pm:
-	pm_runtime_put_noidle(&i2c->dev);
+	pm_runtime_put_analidle(&i2c->dev);
 	pm_runtime_disable(&i2c->dev);
 	ak8974_set_power(ak8974, AK8974_PWR_OFF);
 	regulator_bulk_disable(ARRAY_SIZE(ak8974->regs), ak8974->regs);
@@ -976,7 +976,7 @@ static void ak8974_remove(struct i2c_client *i2c)
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	pm_runtime_get_sync(&i2c->dev);
-	pm_runtime_put_noidle(&i2c->dev);
+	pm_runtime_put_analidle(&i2c->dev);
 	pm_runtime_disable(&i2c->dev);
 	ak8974_set_power(ak8974, AK8974_PWR_OFF);
 	regulator_bulk_disable(ARRAY_SIZE(ak8974->regs), ak8974->regs);

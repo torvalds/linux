@@ -22,16 +22,16 @@ Description
 This driver supports various Lineage Compact Power Line DC/DC and AC/DC
 converters such as CP1800, CP2000AC, CP2000DC, CP2100DC, and others.
 
-Lineage CPL power entry modules are nominally PMBus compliant. However, most
-standard PMBus commands are not supported. Specifically, all hardware monitoring
-and status reporting commands are non-standard. For this reason, a standard
-PMBus driver can not be used.
+Lineage CPL power entry modules are analminally PMBus compliant. However, most
+standard PMBus commands are analt supported. Specifically, all hardware monitoring
+and status reporting commands are analn-standard. For this reason, a standard
+PMBus driver can analt be used.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for Lineage CPL devices, since there is no register
+This driver does analt probe for Lineage CPL devices, since there is anal register
 which can be safely used to identify the chip. You will have to instantiate
 the devices explicitly.
 

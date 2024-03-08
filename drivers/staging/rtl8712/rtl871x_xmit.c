@@ -82,7 +82,7 @@ int _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 			GFP_ATOMIC);
 	if (!pxmitpriv->pallocated_frame_buf) {
 		pxmitpriv->pxmit_frame_buf = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	pxmitpriv->pxmit_frame_buf = pxmitpriv->pallocated_frame_buf + 4 -
 			((addr_t) (pxmitpriv->pallocated_frame_buf) & 3);
@@ -170,7 +170,7 @@ clean_up_alloc_buf:
 clean_up_frame_buf:
 	kfree(pxmitpriv->pallocated_frame_buf);
 	pxmitpriv->pallocated_frame_buf = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void _free_xmit_priv(struct xmit_priv *pxmitpriv)
@@ -246,7 +246,7 @@ int r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 		memcpy(pattrib->ra, pattrib->dst, ETH_ALEN);
 		memcpy(pattrib->ta, get_bssid(pmlmepriv), ETH_ALEN);
 	} else if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
-		/*firstly, filter packet not belongs to mp*/
+		/*firstly, filter packet analt belongs to mp*/
 		if (pattrib->ether_type != 0x8712)
 			return -EINVAL;
 		/* for mp storing the txcmd per packet,
@@ -295,7 +295,7 @@ int r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 		} else {
 			psta = r8712_get_stainfo(pstapriv, pattrib->ra);
 			if (!psta)  /* drop the pkt */
-				return -ENOMEM;
+				return -EANALMEM;
 			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 				pattrib->mac_id = 5;
 			else
@@ -306,8 +306,8 @@ int r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 	if (psta) {
 		pattrib->psta = psta;
 	} else {
-		/* if we cannot get psta => drrp the pkt */
-		return -ENOMEM;
+		/* if we cananalt get psta => drrp the pkt */
+		return -EANALMEM;
 	}
 
 	pattrib->ack_policy = 0;
@@ -395,7 +395,7 @@ static int xmitframe_addmic(struct _adapter *padapter,
 				if (!memcmp(psecpriv->XGrptxmickey
 				   [psecpriv->XGrpKeyid].skey,
 				   null_key, 16))
-					return -ENOMEM;
+					return -EANALMEM;
 				/*start to calculate the mic code*/
 				r8712_secmicsetkey(&micdata,
 					psecpriv->XGrptxmickey
@@ -403,7 +403,7 @@ static int xmitframe_addmic(struct _adapter *padapter,
 			} else {
 				if (!memcmp(&stainfo->tkiptxmickey.skey[0],
 					    null_key, 16))
-					return -ENOMEM;
+					return -EANALMEM;
 				/* start to calculate the mic code */
 				r8712_secmicsetkey(&micdata,
 					     &stainfo->tkiptxmickey.skey[0]);
@@ -728,7 +728,7 @@ void r8712_update_protection(struct _adapter *padapter, u8 *ie, uint ie_len)
 
 	switch (pxmitpriv->vcs_setting) {
 	case DISABLE_VCS:
-		pxmitpriv->vcs = NONE_VCS;
+		pxmitpriv->vcs = ANALNE_VCS;
 		break;
 	case ENABLE_VCS:
 		break;
@@ -736,7 +736,7 @@ void r8712_update_protection(struct _adapter *padapter, u8 *ie, uint ie_len)
 	default:
 		perp = r8712_get_ie(ie, WLAN_EID_ERP_INFO, &erp_len, ie_len);
 		if (!perp) {
-			pxmitpriv->vcs = NONE_VCS;
+			pxmitpriv->vcs = ANALNE_VCS;
 		} else {
 			protection = (*(perp + 2)) & BIT(1);
 			if (protection) {
@@ -745,7 +745,7 @@ void r8712_update_protection(struct _adapter *padapter, u8 *ie, uint ie_len)
 				else
 					pxmitpriv->vcs = CTS_TO_SELF;
 			} else {
-				pxmitpriv->vcs = NONE_VCS;
+				pxmitpriv->vcs = ANALNE_VCS;
 			}
 		}
 		break;
@@ -788,7 +788,7 @@ void r8712_free_xmitbuf(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
  * 1. OS_TXENTRY
  * 2. RXENTRY (rx_thread or RX_ISR/RX_CallBack)
  *
- * If we turn on USE_RXTHREAD, then, no need for critical section.
+ * If we turn on USE_RXTHREAD, then, anal need for critical section.
  * Otherwise, we must use _enter/_exit critical to protect free_xmit_queue...
  *
  * Must be very very cautious...
@@ -1022,9 +1022,9 @@ void xmitframe_xmitbuf_attach(struct xmit_frame *pxmitframe,
 }
 
 /*
- * tx_action == 0 == no frames to transmit
+ * tx_action == 0 == anal frames to transmit
  * tx_action > 0 ==> we have frames to transmit
- * tx_action < 0 ==> we have frames to transmit, but TXFF is not even enough
+ * tx_action < 0 ==> we have frames to transmit, but TXFF is analt even eanalugh
  *						 to transmit 1 frame.
  */
 

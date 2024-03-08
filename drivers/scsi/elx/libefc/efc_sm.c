@@ -48,7 +48,7 @@ static char *event_name[] = EFC_SM_EVENT_NAME;
 const char *efc_sm_event_name(enum efc_sm_event evt)
 {
 	if (evt > EFC_EVT_LAST)
-		return "unknown";
+		return "unkanalwn";
 
 	return event_name[evt];
 }

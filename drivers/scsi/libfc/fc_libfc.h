@@ -8,7 +8,7 @@
 #ifndef _FC_LIBFC_H_
 #define _FC_LIBFC_H_
 
-#define FC_LIBFC_LOGGING 0x01 /* General logging, not categorized */
+#define FC_LIBFC_LOGGING 0x01 /* General logging, analt categorized */
 #define FC_LPORT_LOGGING 0x02 /* lport layer logging */
 #define FC_DISC_LOGGING	 0x04 /* discovery layer logging */
 #define FC_RPORT_LOGGING 0x08 /* rport layer logging */
@@ -34,19 +34,19 @@ extern unsigned int fc_debug_logging;
 #define FC_LPORT_DBG(lport, fmt, args...)				\
 	FC_CHECK_LOGGING(FC_LPORT_LOGGING,				\
 			 pr_info("host%u: lport %6.6x: " fmt,		\
-				 (lport)->host->host_no,		\
+				 (lport)->host->host_anal,		\
 				 (lport)->port_id, ##args))
 
 #define FC_DISC_DBG(disc, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_DISC_LOGGING,				\
 			 pr_info("host%u: disc: " fmt,			\
-				 fc_disc_lport(disc)->host->host_no,	\
+				 fc_disc_lport(disc)->host->host_anal,	\
 				 ##args))
 
 #define FC_RPORT_ID_DBG(lport, port_id, fmt, args...)			\
 	FC_CHECK_LOGGING(FC_RPORT_LOGGING,				\
 			 pr_info("host%u: rport %6.6x: " fmt,		\
-				 (lport)->host->host_no,		\
+				 (lport)->host->host_anal,		\
 				 (port_id), ##args))
 
 #define FC_RPORT_DBG(rdata, fmt, args...)				\
@@ -60,12 +60,12 @@ extern unsigned int fc_debug_logging;
 			_ep = fc_seq_exch((pkt)->seq_ptr);		\
 			pr_info("host%u: fcp: %6.6x: "			\
 				"xid %04x-%04x: " fmt,			\
-				(pkt)->lp->host->host_no,		\
+				(pkt)->lp->host->host_anal,		\
 				(pkt)->rport->port_id,			\
 				(_ep)->oxid, (_ep)->rxid, ##args);	\
 		} else {						\
 			pr_info("host%u: fcp: %6.6x: " fmt,		\
-				(pkt)->lp->host->host_no,		\
+				(pkt)->lp->host->host_anal,		\
 				(pkt)->rport->port_id, ##args);		\
 		}							\
 	})
@@ -73,13 +73,13 @@ extern unsigned int fc_debug_logging;
 #define FC_EXCH_DBG(exch, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_EXCH_LOGGING,				\
 			 pr_info("host%u: xid %4x: " fmt,		\
-				 (exch)->lp->host->host_no,		\
+				 (exch)->lp->host->host_anal,		\
 				 exch->xid, ##args))
 
 #define FC_SCSI_DBG(lport, fmt, args...)				\
 	FC_CHECK_LOGGING(FC_SCSI_LOGGING,				\
 			 pr_info("host%u: scsi: " fmt,			\
-				 (lport)->host->host_no, ##args))
+				 (lport)->host->host_anal, ##args))
 
 /*
  * FC-4 Providers.

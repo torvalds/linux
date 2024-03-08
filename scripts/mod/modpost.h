@@ -72,11 +72,11 @@
 
 #endif
 
-#define NOFAIL(ptr)   do_nofail((ptr), #ptr)
+#define ANALFAIL(ptr)   do_analfail((ptr), #ptr)
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-void *do_nofail(void *ptr, const char *expr);
+void *do_analfail(void *ptr, const char *expr);
 
 struct buffer {
 	char *p;
@@ -157,10 +157,10 @@ static inline unsigned int get_secindex(const struct elf_info *info,
 }
 
 /*
- * If there's no name there, ignore it; likewise, ignore it if it's
+ * If there's anal name there, iganalre it; likewise, iganalre it if it's
  * one of the magic symbols emitted used by current tools.
  *
- * Internal symbols created by tools should be ignored by modpost.
+ * Internal symbols created by tools should be iganalred by modpost.
  */
 static inline bool is_valid_name(struct elf_info *elf, Elf_Sym *sym)
 {
@@ -210,7 +210,7 @@ modpost_log(enum loglevel loglevel, const char *fmt, ...);
  *         issues as possible.
  *
  * fatal - show the given message, and bail out immediately. This should be
- *         used when there is no point to continue running modpost.
+ *         used when there is anal point to continue running modpost.
  */
 #define warn(fmt, args...)	modpost_log(LOG_WARN, fmt, ##args)
 #define error(fmt, args...)	modpost_log(LOG_ERROR, fmt, ##args)

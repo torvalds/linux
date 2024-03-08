@@ -7,7 +7,7 @@
  * GPIO-MM-12.
  */
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/isa.h>
 #include <linux/kernel.h>
@@ -34,8 +34,8 @@ static const struct regmap_range gpiomm_volatile_ranges[] = {
 	i8255_volatile_regmap_range(0x0), i8255_volatile_regmap_range(0x4),
 };
 static const struct regmap_access_table gpiomm_volatile_table = {
-	.yes_ranges = gpiomm_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(gpiomm_volatile_ranges),
+	.anal_ranges = gpiomm_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(gpiomm_volatile_ranges),
 };
 static const struct regmap_config gpiomm_regmap_config = {
 	.reg_bits = 8,
@@ -73,7 +73,7 @@ static int gpiomm_probe(struct device *dev, unsigned int id)
 
 	regs = devm_ioport_map(dev, base[id], GPIOMM_EXTENT);
 	if (!regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	config.map = devm_regmap_init_mmio(dev, regs, &gpiomm_regmap_config);
 	if (IS_ERR(config.map))

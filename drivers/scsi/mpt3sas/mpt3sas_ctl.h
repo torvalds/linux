@@ -1,10 +1,10 @@
 /*
- * Management Module Support for MPT (Message Passing Technology) based
+ * Management Module Support for MPT (Message Passing Techanallogy) based
  * controllers
  *
  * This code is based on drivers/scsi/mpt3sas/mpt3sas_ctl.h
  * Copyright (C) 2012-2014  LSI Corporation
- * Copyright (C) 2013-2014 Avago Technologies
+ * Copyright (C) 2013-2014 Avago Techanallogies
  *  (mailto: MPT-FusionLinux.pdl@avagotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -17,19 +17,19 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
- * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+ * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but analt limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
 
  * DISCLAIMER OF LIABILITY
- * NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+ * NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -38,7 +38,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -52,11 +52,11 @@
 
 #include "mpt3sas_base.h"
 
-#ifndef MPT2SAS_MINOR
-#define MPT2SAS_MINOR		(MPT_MINOR + 1)
+#ifndef MPT2SAS_MIANALR
+#define MPT2SAS_MIANALR		(MPT_MIANALR + 1)
 #endif
-#ifndef MPT3SAS_MINOR
-#define MPT3SAS_MINOR		(MPT_MINOR + 2)
+#ifndef MPT3SAS_MIANALR
+#define MPT3SAS_MIANALR		(MPT_MIANALR + 2)
 #endif
 #define MPT2SAS_DEV_NAME	"mpt2ctl"
 #define MPT3SAS_DEV_NAME	"mpt3ctl"
@@ -103,8 +103,8 @@
 #define MPT2DIAGBUFFUNIQUEID (0x07075900)
 #define MPT3DIAGBUFFUNIQUEID (0x4252434D)
 
-/* UID not found */
-#define MPT3_DIAG_UID_NOT_FOUND (0xFF)
+/* UID analt found */
+#define MPT3_DIAG_UID_ANALT_FOUND (0xFF)
 
 
 /**
@@ -120,7 +120,7 @@ struct mpt3_ioctl_header {
 };
 
 /**
- * struct mpt3_ioctl_diag_reset - diagnostic reset
+ * struct mpt3_ioctl_diag_reset - diaganalstic reset
  * @hdr - generic header
  */
 struct mpt3_ioctl_diag_reset {
@@ -209,7 +209,7 @@ struct mpt3_ioctl_eventquery {
 	struct mpt3_ioctl_header hdr;
 	uint16_t event_entries;
 	uint16_t rsvd;
-	uint32_t event_types[MPI2_EVENT_NOTIFY_EVENTMASK_WORDS];
+	uint32_t event_types[MPI2_EVENT_ANALTIFY_EVENTMASK_WORDS];
 };
 
 /**
@@ -335,7 +335,7 @@ struct mpt3_ioctl_btdh_mapping {
  * @reserved -
  * @buffer_type - specifies either TRACE, SNAPSHOT, or EXTENDED
  * @application_flags - misc flags
- * @diagnostic_flags - specifies flags affecting command processing
+ * @diaganalstic_flags - specifies flags affecting command processing
  * @product_specific - product specific information
  * @requested_buffer_size - buffers size in bytes
  * @unique_id - tag specified by application that is used to signal ownership
@@ -349,7 +349,7 @@ struct mpt3_diag_register {
 	uint8_t reserved;
 	uint8_t buffer_type;
 	uint16_t application_flags;
-	uint32_t diagnostic_flags;
+	uint32_t diaganalstic_flags;
 	uint32_t product_specific[MPT3_PRODUCT_SPECIFIC_DWORDS];
 	uint32_t requested_buffer_size;
 	uint32_t unique_id;
@@ -374,7 +374,7 @@ struct mpt3_diag_unregister {
  * @reserved -
  * @buffer_type - specifies either TRACE, SNAPSHOT, or EXTENDED
  * @application_flags - misc flags
- * @diagnostic_flags - specifies flags affecting command processing
+ * @diaganalstic_flags - specifies flags affecting command processing
  * @product_specific - product specific information
  * @total_buffer_size - diag buffer size in bytes
  * @driver_added_buffer_size - size of extra space appended to end of buffer
@@ -389,7 +389,7 @@ struct mpt3_diag_query {
 	uint8_t reserved;
 	uint8_t buffer_type;
 	uint16_t application_flags;
-	uint32_t diagnostic_flags;
+	uint32_t diaganalstic_flags;
 	uint32_t product_specific[MPT3_PRODUCT_SPECIFIC_DWORDS];
 	uint32_t total_buffer_size;
 	uint32_t driver_added_buffer_size;
@@ -421,7 +421,7 @@ struct mpt3_diag_release {
  * @bytes_to_read - number of bytes to copy from the drivers buffer into the
  *  application buffer starting at starting_offset.
  * @unique_id - unique id associated with this buffer.
- * @diagnostic_data - data payload
+ * @diaganalstic_data - data payload
  */
 struct mpt3_diag_read_buffer {
 	struct mpt3_ioctl_header hdr;
@@ -431,11 +431,11 @@ struct mpt3_diag_read_buffer {
 	uint32_t starting_offset;
 	uint32_t bytes_to_read;
 	uint32_t unique_id;
-	uint32_t diagnostic_data[1];
+	uint32_t diaganalstic_data[1];
 };
 
 /**
- * struct mpt3_addnl_diag_query - diagnostic buffer release reason
+ * struct mpt3_addnl_diag_query - diaganalstic buffer release reason
  * @hdr - generic header
  * @unique_id - unique id associated with this buffer.
  * @rel_query - release query.

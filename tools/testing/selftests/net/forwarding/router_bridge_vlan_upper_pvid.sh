@@ -91,7 +91,7 @@ router_destroy()
 	ip link set dev $swp2 down
 
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 
 	ip link del dev br1
 }

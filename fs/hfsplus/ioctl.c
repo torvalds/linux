@@ -27,8 +27,8 @@
 static int hfsplus_ioctl_bless(struct file *file, int __user *user_flags)
 {
 	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = d_inode(dentry);
-	struct hfsplus_sb_info *sbi = HFSPLUS_SB(inode->i_sb);
+	struct ianalde *ianalde = d_ianalde(dentry);
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(ianalde->i_sb);
 	struct hfsplus_vh *vh = sbi->s_vhdr;
 	struct hfsplus_vh *bvh = sbi->s_backup_vhdr;
 	u32 cnid = (unsigned long)dentry->d_fsdata;
@@ -40,18 +40,18 @@ static int hfsplus_ioctl_bless(struct file *file, int __user *user_flags)
 
 	/* Directory containing the bootable system */
 	vh->finder_info[0] = bvh->finder_info[0] =
-		cpu_to_be32(parent_ino(dentry));
+		cpu_to_be32(parent_ianal(dentry));
 
 	/*
-	 * Bootloader. Just using the inode here breaks in the case of
+	 * Bootloader. Just using the ianalde here breaks in the case of
 	 * hard links - the firmware wants the ID of the hard link file,
-	 * but the inode points at the indirect inode
+	 * but the ianalde points at the indirect ianalde
 	 */
 	vh->finder_info[1] = bvh->finder_info[1] = cpu_to_be32(cnid);
 
 	/* Per spec, the OS X system folder - same as finder_info[0] here */
 	vh->finder_info[5] = bvh->finder_info[5] =
-		cpu_to_be32(parent_ino(dentry));
+		cpu_to_be32(parent_ianal(dentry));
 
 	mutex_unlock(&sbi->vh_mutex);
 	return 0;
@@ -65,6 +65,6 @@ long hfsplus_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case HFSPLUS_IOC_BLESS:
 		return hfsplus_ioctl_bless(file, argp);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }

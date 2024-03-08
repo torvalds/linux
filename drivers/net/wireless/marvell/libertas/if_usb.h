@@ -31,7 +31,7 @@ struct bootcmd
 
 #define BOOT_CMD_RESP_OK		0x0001
 #define BOOT_CMD_RESP_FAIL		0x0000
-#define BOOT_CMD_RESP_NOT_SUPPORTED	0x0002
+#define BOOT_CMD_RESP_ANALT_SUPPORTED	0x0002
 
 struct bootcmdresp
 {

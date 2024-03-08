@@ -64,7 +64,7 @@ void s390_update_cpu_mhz(void)
 		on_each_cpu(update_cpu_mhz, NULL, 0);
 }
 
-void notrace stop_machine_yield(const struct cpumask *cpumask)
+void analtrace stop_machine_yield(const struct cpumask *cpumask)
 {
 	int cpu, this_cpu;
 

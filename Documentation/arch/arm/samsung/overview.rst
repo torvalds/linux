@@ -19,7 +19,7 @@ Introduction
 Configuration
 -------------
 
-  A number of configurations are supplied, as there is no current way of
+  A number of configurations are supplied, as there is anal current way of
   unifying all the SoCs into one kernel.
 
   s5pc110_defconfig
@@ -41,7 +41,7 @@ Layout
   to get the system running.
 
   plat-s5p is for s5p specific builds, and contains common support for the
-  S5P specific systems. Not all S5Ps use all the features in this directory
+  S5P specific systems. Analt all S5Ps use all the features in this directory
   due to differences in the hardware.
 
 
@@ -64,7 +64,7 @@ Port Contributors
   Roc Wu
   Klaus Fetscher
   Dimitry Andric
-  Shannon Holland
+  Shananaln Holland
   Guillaume Gourat (NexVision)
   Christer Weinigel (wingel) (Acer N30)
   Lucas Correia Villa Real (S3C2400 port)

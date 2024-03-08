@@ -50,7 +50,7 @@ static int cros_typec_cmd_mux_set(struct cros_typec_switch_data *sdata, int port
 
 static int cros_typec_get_mux_state(unsigned long mode, struct typec_altmode *alt)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 	u8 pin_assign;
 
 	if (mode == TYPEC_STATE_SAFE) {
@@ -178,12 +178,12 @@ static void cros_typec_unregister_switches(struct cros_typec_switch_data *sdata)
 }
 
 static int cros_typec_register_mode_switch(struct cros_typec_port *port,
-					   struct fwnode_handle *fwnode)
+					   struct fwanalde_handle *fwanalde)
 {
 	struct typec_mux_desc mode_switch_desc = {
-		.fwnode = fwnode,
+		.fwanalde = fwanalde,
 		.drvdata = port,
-		.name = fwnode_get_name(fwnode),
+		.name = fwanalde_get_name(fwanalde),
 		.set = cros_typec_mode_switch_set,
 	};
 
@@ -192,12 +192,12 @@ static int cros_typec_register_mode_switch(struct cros_typec_port *port,
 	return PTR_ERR_OR_ZERO(port->mode_switch);
 }
 
-static int cros_typec_register_retimer(struct cros_typec_port *port, struct fwnode_handle *fwnode)
+static int cros_typec_register_retimer(struct cros_typec_port *port, struct fwanalde_handle *fwanalde)
 {
 	struct typec_retimer_desc retimer_desc = {
-		.fwnode = fwnode,
+		.fwanalde = fwanalde,
 		.drvdata = port,
-		.name = fwnode_get_name(fwnode),
+		.name = fwanalde_get_name(fwanalde),
 		.set = cros_typec_retimer_set,
 	};
 
@@ -210,40 +210,40 @@ static int cros_typec_register_switches(struct cros_typec_switch_data *sdata)
 {
 	struct cros_typec_port *port;
 	struct device *dev = sdata->dev;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct acpi_device *adev;
 	unsigned long long index;
 	int nports, ret;
 
-	nports = device_get_child_node_count(dev);
+	nports = device_get_child_analde_count(dev);
 	if (nports == 0) {
-		dev_err(dev, "No switch devices found.\n");
-		return -ENODEV;
+		dev_err(dev, "Anal switch devices found.\n");
+		return -EANALDEV;
 	}
 
-	device_for_each_child_node(dev, fwnode) {
+	device_for_each_child_analde(dev, fwanalde) {
 		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 		if (!port) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_switch;
 		}
 
-		adev = to_acpi_device_node(fwnode);
+		adev = to_acpi_device_analde(fwanalde);
 		if (!adev) {
-			dev_err(fwnode->dev, "Couldn't get ACPI device handle\n");
-			ret = -ENODEV;
+			dev_err(fwanalde->dev, "Couldn't get ACPI device handle\n");
+			ret = -EANALDEV;
 			goto err_switch;
 		}
 
 		ret = acpi_evaluate_integer(adev->handle, "_ADR", NULL, &index);
 		if (ACPI_FAILURE(ret)) {
-			dev_err(fwnode->dev, "_ADR wasn't evaluated\n");
-			ret = -ENODATA;
+			dev_err(fwanalde->dev, "_ADR wasn't evaluated\n");
+			ret = -EANALDATA;
 			goto err_switch;
 		}
 
 		if (index >= EC_USB_PD_MAX_PORTS) {
-			dev_err(fwnode->dev, "Invalid port index number: %llu\n", index);
+			dev_err(fwanalde->dev, "Invalid port index number: %llu\n", index);
 			ret = -EINVAL;
 			goto err_switch;
 		}
@@ -251,8 +251,8 @@ static int cros_typec_register_switches(struct cros_typec_switch_data *sdata)
 		port->port_num = index;
 		sdata->ports[index] = port;
 
-		if (fwnode_property_present(fwnode, "retimer-switch")) {
-			ret = cros_typec_register_retimer(port, fwnode);
+		if (fwanalde_property_present(fwanalde, "retimer-switch")) {
+			ret = cros_typec_register_retimer(port, fwanalde);
 			if (ret) {
 				dev_err(dev, "Retimer switch register failed\n");
 				goto err_switch;
@@ -261,10 +261,10 @@ static int cros_typec_register_switches(struct cros_typec_switch_data *sdata)
 			dev_dbg(dev, "Retimer switch registered for index %llu\n", index);
 		}
 
-		if (!fwnode_property_present(fwnode, "mode-switch"))
+		if (!fwanalde_property_present(fwanalde, "mode-switch"))
 			continue;
 
-		ret = cros_typec_register_mode_switch(port, fwnode);
+		ret = cros_typec_register_mode_switch(port, fwanalde);
 		if (ret) {
 			dev_err(dev, "Mode switch register failed\n");
 			goto err_switch;
@@ -275,7 +275,7 @@ static int cros_typec_register_switches(struct cros_typec_switch_data *sdata)
 
 	return 0;
 err_switch:
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 	cros_typec_unregister_switches(sdata);
 	return ret;
 }
@@ -287,7 +287,7 @@ static int cros_typec_switch_probe(struct platform_device *pdev)
 
 	sdata = devm_kzalloc(dev, sizeof(*sdata), GFP_KERNEL);
 	if (!sdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdata->dev = dev;
 	sdata->ec = dev_get_drvdata(pdev->dev.parent);

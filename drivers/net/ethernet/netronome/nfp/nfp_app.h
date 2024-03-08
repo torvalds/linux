@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #ifndef _NFP_APP_H
 #define _NFP_APP_H 1
@@ -68,7 +68,7 @@ extern const struct nfp_app_type app_abm;
  * @port_get_stats_strings:	get strings for extra statistics
  * @start:	start application logic
  * @stop:	stop application logic
- * @netdev_event:	Netdevice notifier event
+ * @netdev_event:	Netdevice analtifier event
  * @ctrl_msg_rx:    control message handler
  * @ctrl_msg_rx_raw:	handler for control messages from data queues
  * @setup_tc:	setup TC ndo
@@ -155,7 +155,7 @@ struct nfp_app_type {
  * @reprs:	array of pointers to representors
  * @type:	pointer to const application ops and info
  * @ctrl_mtu:	MTU to set on the control vNIC (set in .init())
- * @netdev_nb:	Netdevice notifier block
+ * @netdev_nb:	Netdevice analtifier block
  * @priv:	app-specific priv data
  */
 struct nfp_app {
@@ -169,7 +169,7 @@ struct nfp_app {
 	const struct nfp_app_type *type;
 	unsigned int ctrl_mtu;
 
-	struct notifier_block netdev_nb;
+	struct analtifier_block netdev_nb;
 
 	void *priv;
 };
@@ -322,7 +322,7 @@ static inline int nfp_app_setup_tc(struct nfp_app *app,
 				   enum tc_setup_type type, void *type_data)
 {
 	if (!app || !app->type->setup_tc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return app->type->setup_tc(app, netdev, type, type_data);
 }
 
@@ -339,7 +339,7 @@ static inline int nfp_app_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
 				      struct netlink_ext_ack *extack)
 {
 	if (!app || !app->type->xdp_offload)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return app->type->xdp_offload(app, nn, prog, extack);
 }
 
@@ -380,7 +380,7 @@ nfp_app_ctrl_rx_raw(struct nfp_app *app, const void *data, unsigned int len)
 static inline int nfp_app_eswitch_mode_get(struct nfp_app *app, u16 *mode)
 {
 	if (!app->type->eswitch_mode_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	*mode = app->type->eswitch_mode_get(app);
 
@@ -390,14 +390,14 @@ static inline int nfp_app_eswitch_mode_get(struct nfp_app *app, u16 *mode)
 static inline int nfp_app_eswitch_mode_set(struct nfp_app *app, u16 mode)
 {
 	if (!app->type->eswitch_mode_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return app->type->eswitch_mode_set(app, mode);
 }
 
 static inline int nfp_app_sriov_enable(struct nfp_app *app, int num_vfs)
 {
 	if (!app || !app->type->sriov_enable)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return app->type->sriov_enable(app, num_vfs);
 }
 

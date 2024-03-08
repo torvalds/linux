@@ -109,7 +109,7 @@ static void stmpe_work(struct work_struct *work)
 	 * touch_det sometimes get desasserted or just get stuck. This appears
 	 * to be a silicon bug, We still have to clearify this with the
 	 * manufacture. As a workaround We release the key anyway if the
-	 * touch_det keeps coming in after 4ms, while the FIFO contains no value
+	 * touch_det keeps coming in after 4ms, while the FIFO contains anal value
 	 * during the whole time.
 	 */
 	while ((int_sta & (1 << STMPE_IRQ_TOUCH_DET)) && (timeout > 0)) {
@@ -180,7 +180,7 @@ static int stmpe_init_hw(struct stmpe_touch *ts)
 
 	ret = stmpe_enable(stmpe, STMPE_BLOCK_TOUCHSCREEN | STMPE_BLOCK_ADC);
 	if (ret) {
-		dev_err(dev, "Could not enable clock for ADC and TS\n");
+		dev_err(dev, "Could analt enable clock for ADC and TS\n");
 		return ret;
 	}
 
@@ -198,35 +198,35 @@ static int stmpe_init_hw(struct stmpe_touch *ts)
 
 	ret = stmpe_set_bits(stmpe, STMPE_REG_TSC_CFG, tsc_cfg_mask, tsc_cfg);
 	if (ret) {
-		dev_err(dev, "Could not config touch\n");
+		dev_err(dev, "Could analt config touch\n");
 		return ret;
 	}
 
 	ret = stmpe_set_bits(stmpe, STMPE_REG_TSC_FRACTION_Z,
 			STMPE_FRACTION_Z(0xff), STMPE_FRACTION_Z(ts->fraction_z));
 	if (ret) {
-		dev_err(dev, "Could not config touch\n");
+		dev_err(dev, "Could analt config touch\n");
 		return ret;
 	}
 
 	ret = stmpe_set_bits(stmpe, STMPE_REG_TSC_I_DRIVE,
 			STMPE_I_DRIVE(0xff), STMPE_I_DRIVE(ts->i_drive));
 	if (ret) {
-		dev_err(dev, "Could not config touch\n");
+		dev_err(dev, "Could analt config touch\n");
 		return ret;
 	}
 
 	/* set FIFO to 1 for single point reading */
 	ret = stmpe_reg_write(stmpe, STMPE_REG_FIFO_TH, 1);
 	if (ret) {
-		dev_err(dev, "Could not set FIFO\n");
+		dev_err(dev, "Could analt set FIFO\n");
 		return ret;
 	}
 
 	ret = stmpe_set_bits(stmpe, STMPE_REG_TSC_CTRL,
 			STMPE_OP_MODE(0xff), STMPE_OP_MODE(OP_MOD_XYZ));
 	if (ret) {
-		dev_err(dev, "Could not set mode\n");
+		dev_err(dev, "Could analt set mode\n");
 		return ret;
 	}
 
@@ -259,7 +259,7 @@ static void stmpe_ts_close(struct input_dev *dev)
 static void stmpe_ts_get_platform_info(struct platform_device *pdev,
 					struct stmpe_touch *ts)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	u32 val;
 
 	if (np) {
@@ -298,11 +298,11 @@ static int stmpe_input_probe(struct platform_device *pdev)
 
 	ts = devm_kzalloc(&pdev->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev = devm_input_allocate_device(&pdev->dev);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ts);
 	ts->stmpe = stmpe;
@@ -343,7 +343,7 @@ static int stmpe_input_probe(struct platform_device *pdev)
 
 	error = input_register_device(idev);
 	if (error) {
-		dev_err(&pdev->dev, "Could not register input device\n");
+		dev_err(&pdev->dev, "Could analt register input device\n");
 		return error;
 	}
 

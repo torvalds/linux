@@ -6,7 +6,7 @@
 #include <asm/cpufeatures.h>
 #include <asm/alternative.h>
 
-.section .noinstr.text, "ax"
+.section .analinstr.text, "ax"
 
 /*
  * ISO C memset - set a memory block to a byte value. This function uses fast
@@ -23,7 +23,7 @@
  * the disgusting return handling), but that would require some help
  * from the compiler for better calling conventions.
  *
- * The 'rep stosb' itself is small enough to replace the call, but all
+ * The 'rep stosb' itself is small eanalugh to replace the call, but all
  * the register moves blow up the code. And two of them are "needed"
  * only for the return value that is the same as the source input,
  * which the compiler could/should do much better anyway.

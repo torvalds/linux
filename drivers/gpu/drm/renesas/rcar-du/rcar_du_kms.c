@@ -46,7 +46,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.planes = 1,
 		.hsub = 1,
 		.pnmr = PnMR_SPIM_TP | PnMR_DDDF_16BPP,
-		.edf = PnDDCR4_EDF_NONE,
+		.edf = PnDDCR4_EDF_ANALNE,
 	}, {
 		.fourcc = DRM_FORMAT_ARGB1555,
 		.v4l2 = V4L2_PIX_FMT_ARGB555,
@@ -54,14 +54,14 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.planes = 1,
 		.hsub = 1,
 		.pnmr = PnMR_SPIM_ALP | PnMR_DDDF_ARGB,
-		.edf = PnDDCR4_EDF_NONE,
+		.edf = PnDDCR4_EDF_ANALNE,
 	}, {
 		.fourcc = DRM_FORMAT_XRGB1555,
 		.v4l2 = V4L2_PIX_FMT_XRGB555,
 		.bpp = 16,
 		.planes = 1,
 		.pnmr = PnMR_SPIM_ALP | PnMR_DDDF_ARGB,
-		.edf = PnDDCR4_EDF_NONE,
+		.edf = PnDDCR4_EDF_ANALNE,
 	}, {
 		.fourcc = DRM_FORMAT_XRGB8888,
 		.v4l2 = V4L2_PIX_FMT_XBGR32,
@@ -85,7 +85,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.planes = 1,
 		.hsub = 2,
 		.pnmr = PnMR_SPIM_TP_OFF | PnMR_DDDF_YC,
-		.edf = PnDDCR4_EDF_NONE,
+		.edf = PnDDCR4_EDF_ANALNE,
 	}, {
 		.fourcc = DRM_FORMAT_YUYV,
 		.v4l2 = V4L2_PIX_FMT_YUYV,
@@ -93,7 +93,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.planes = 1,
 		.hsub = 2,
 		.pnmr = PnMR_SPIM_TP_OFF | PnMR_DDDF_YC,
-		.edf = PnDDCR4_EDF_NONE,
+		.edf = PnDDCR4_EDF_ANALNE,
 	}, {
 		.fourcc = DRM_FORMAT_NV12,
 		.v4l2 = V4L2_PIX_FMT_NV12M,
@@ -101,7 +101,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.planes = 2,
 		.hsub = 2,
 		.pnmr = PnMR_SPIM_TP_OFF | PnMR_DDDF_YC,
-		.edf = PnDDCR4_EDF_NONE,
+		.edf = PnDDCR4_EDF_ANALNE,
 	}, {
 		.fourcc = DRM_FORMAT_NV21,
 		.v4l2 = V4L2_PIX_FMT_NV21M,
@@ -109,7 +109,7 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.planes = 2,
 		.hsub = 2,
 		.pnmr = PnMR_SPIM_TP_OFF | PnMR_DDDF_YC,
-		.edf = PnDDCR4_EDF_NONE,
+		.edf = PnDDCR4_EDF_ANALNE,
 	}, {
 		.fourcc = DRM_FORMAT_NV16,
 		.v4l2 = V4L2_PIX_FMT_NV16M,
@@ -117,10 +117,10 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.planes = 2,
 		.hsub = 2,
 		.pnmr = PnMR_SPIM_TP_OFF | PnMR_DDDF_YC,
-		.edf = PnDDCR4_EDF_NONE,
+		.edf = PnDDCR4_EDF_ANALNE,
 	},
 	/*
-	 * The following formats are not supported on Gen2 and thus have no
+	 * The following formats are analt supported on Gen2 and thus have anal
 	 * associated .pnmr or .edf settings.
 	 */
 	{
@@ -382,13 +382,13 @@ struct drm_gem_object *rcar_du_gem_prime_import_sg_table(struct drm_device *dev,
 	/* Create a DMA GEM buffer. */
 	dma_obj = kzalloc(sizeof(*dma_obj), GFP_KERNEL);
 	if (!dma_obj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	gem_obj = &dma_obj->base;
 	gem_obj->funcs = &rcar_du_gem_funcs;
 
 	drm_gem_private_object_init(dev, gem_obj, attach->dmabuf->size);
-	dma_obj->map_noncoherent = false;
+	dma_obj->map_analncoherent = false;
 
 	ret = drm_gem_create_mmap_offset(gem_obj);
 	if (ret) {
@@ -459,7 +459,7 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	} else {
 		/*
 		 * On Gen3 the memory interface is handled by the VSP that
-		 * limits the pitch to 65535 bytes and has no alignment
+		 * limits the pitch to 65535 bytes and has anal alignment
 		 * constraint.
 		 */
 		max_pitch = 65535;
@@ -485,7 +485,7 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	for (i = 1; i < format->planes; ++i) {
 		if (mode_cmd->pitches[i] != chroma_pitch) {
 			dev_dbg(dev->dev,
-				"luma and chroma pitches are not compatible\n");
+				"luma and chroma pitches are analt compatible\n");
 			return ERR_PTR(-EINVAL);
 		}
 	}
@@ -569,55 +569,55 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 				     enum rcar_du_output output,
 				     struct of_endpoint *ep)
 {
-	struct device_node *entity;
+	struct device_analde *entity;
 	int ret;
 
 	/* Locate the connected entity and initialize the encoder. */
-	entity = of_graph_get_remote_port_parent(ep->local_node);
+	entity = of_graph_get_remote_port_parent(ep->local_analde);
 	if (!entity) {
 		dev_dbg(rcdu->dev, "unconnected endpoint %pOF, skipping\n",
-			ep->local_node);
-		return -ENODEV;
+			ep->local_analde);
+		return -EANALDEV;
 	}
 
 	if (!of_device_is_available(entity)) {
 		dev_dbg(rcdu->dev,
 			"connected entity %pOF is disabled, skipping\n",
 			entity);
-		of_node_put(entity);
-		return -ENODEV;
+		of_analde_put(entity);
+		return -EANALDEV;
 	}
 
 	ret = rcar_du_encoder_init(rcdu, output, entity);
-	if (ret && ret != -EPROBE_DEFER && ret != -ENOLINK)
+	if (ret && ret != -EPROBE_DEFER && ret != -EANALLINK)
 		dev_warn(rcdu->dev,
 			 "failed to initialize encoder %pOF on output %s (%d), skipping\n",
 			 entity, rcar_du_output_name(output), ret);
 
-	of_node_put(entity);
+	of_analde_put(entity);
 
 	return ret;
 }
 
 static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
 {
-	struct device_node *np = rcdu->dev->of_node;
-	struct device_node *ep_node;
+	struct device_analde *np = rcdu->dev->of_analde;
+	struct device_analde *ep_analde;
 	unsigned int num_encoders = 0;
 
 	/*
 	 * Iterate over the endpoints and create one encoder for each output
 	 * pipeline.
 	 */
-	for_each_endpoint_of_node(np, ep_node) {
+	for_each_endpoint_of_analde(np, ep_analde) {
 		enum rcar_du_output output;
 		struct of_endpoint ep;
 		unsigned int i;
 		int ret;
 
-		ret = of_graph_parse_endpoint(ep_node, &ep);
+		ret = of_graph_parse_endpoint(ep_analde, &ep);
 		if (ret < 0) {
-			of_node_put(ep_node);
+			of_analde_put(ep_analde);
 			return ret;
 		}
 
@@ -641,7 +641,7 @@ static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
 		ret = rcar_du_encoders_init_one(rcdu, output, &ep);
 		if (ret < 0) {
 			if (ret == -EPROBE_DEFER) {
-				of_node_put(ep_node);
+				of_analde_put(ep_analde);
 				return ret;
 			}
 
@@ -665,18 +665,18 @@ static int rcar_du_properties_init(struct rcar_du_device *rcdu)
 		drm_property_create_range(&rcdu->ddev, 0, "colorkey",
 					  0, 0x01ffffff);
 	if (rcdu->props.colorkey == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
 
 static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
 {
-	const struct device_node *np = rcdu->dev->of_node;
+	const struct device_analde *np = rcdu->dev->of_analde;
 	const char *vsps_prop_name = "renesas,vsps";
 	struct of_phandle_args args;
 	struct {
-		struct device_node *np;
+		struct device_analde *np;
 		unsigned int crtcs_mask;
 	} vsps[RCAR_DU_MAX_VSPS] = { { NULL, }, };
 	unsigned int vsps_count = 0;
@@ -686,7 +686,7 @@ static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
 
 	/*
 	 * First parse the DT vsps property to populate the list of VSPs. Each
-	 * entry contains a pointer to the VSP DT node and a bitmask of the
+	 * entry contains a pointer to the VSP DT analde and a bitmask of the
 	 * connected DU CRTCs.
 	 */
 	ret = of_property_count_u32_elems(np, vsps_prop_name);
@@ -717,7 +717,7 @@ static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
 		}
 
 		if (j < vsps_count)
-			of_node_put(args.np);
+			of_analde_put(args.np);
 		else
 			vsps[vsps_count++].np = args.np;
 
@@ -733,7 +733,7 @@ static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
 	}
 
 	/*
-	 * Then initialize all the VSPs from the node pointers and CRTCs bitmask
+	 * Then initialize all the VSPs from the analde pointers and CRTCs bitmask
 	 * computed previously.
 	 */
 	for (i = 0; i < vsps_count; ++i) {
@@ -751,14 +751,14 @@ static int rcar_du_vsps_init(struct rcar_du_device *rcdu)
 
 error:
 	for (i = 0; i < ARRAY_SIZE(vsps); ++i)
-		of_node_put(vsps[i].np);
+		of_analde_put(vsps[i].np);
 
 	return ret;
 }
 
 static int rcar_du_cmm_init(struct rcar_du_device *rcdu)
 {
-	const struct device_node *np = rcdu->dev->of_node;
+	const struct device_analde *np = rcdu->dev->of_analde;
 	unsigned int i;
 	int cells;
 
@@ -775,7 +775,7 @@ static int rcar_du_cmm_init(struct rcar_du_device *rcdu)
 	for (i = 0; i < cells; ++i) {
 		struct platform_device *pdev;
 		struct device_link *link;
-		struct device_node *cmm;
+		struct device_analde *cmm;
 		int ret;
 
 		cmm = of_parse_phandle(np, "renesas,cmms", i);
@@ -786,28 +786,28 @@ static int rcar_du_cmm_init(struct rcar_du_device *rcdu)
 		}
 
 		if (!of_device_is_available(cmm)) {
-			/* It's fine to have a phandle to a non-enabled CMM. */
-			of_node_put(cmm);
+			/* It's fine to have a phandle to a analn-enabled CMM. */
+			of_analde_put(cmm);
 			continue;
 		}
 
-		pdev = of_find_device_by_node(cmm);
+		pdev = of_find_device_by_analde(cmm);
 		if (!pdev) {
-			dev_err(rcdu->dev, "No device found for CMM%u\n", i);
-			of_node_put(cmm);
+			dev_err(rcdu->dev, "Anal device found for CMM%u\n", i);
+			of_analde_put(cmm);
 			return -EINVAL;
 		}
 
-		of_node_put(cmm);
+		of_analde_put(cmm);
 
 		/*
-		 * -ENODEV is used to report that the CMM config option is
+		 * -EANALDEV is used to report that the CMM config option is
 		 * disabled: return 0 and let the DU continue probing.
 		 */
 		ret = rcar_cmm_init(pdev);
 		if (ret) {
 			platform_device_put(pdev);
-			return ret == -ENODEV ? 0 : ret;
+			return ret == -EANALDEV ? 0 : ret;
 		}
 
 		rcdu->cmms[i] = pdev;
@@ -862,7 +862,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
-	dev->mode_config.normalize_zpos = true;
+	dev->mode_config.analrmalize_zpos = true;
 	dev->mode_config.funcs = &rcar_du_mode_config_funcs;
 	dev->mode_config.helper_private = &rcar_du_mode_config_helper;
 
@@ -960,7 +960,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 				     "failed to initialize encoders\n");
 
 	if (ret == 0) {
-		dev_err(rcdu->dev, "error: no encoder could be initialized\n");
+		dev_err(rcdu->dev, "error: anal encoder could be initialized\n");
 		return -EINVAL;
 	}
 
@@ -995,7 +995,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	 * Initialize the default DPAD0 source to the index of the first DU
 	 * channel that can be connected to DPAD0. The exact value doesn't
 	 * matter as it should be overwritten by mode setting for the RGB
-	 * output, but it is nonetheless required to ensure a valid initial
+	 * output, but it is analnetheless required to ensure a valid initial
 	 * hardware configuration on Gen3 where DU0 can't always be connected to
 	 * DPAD0.
 	 */

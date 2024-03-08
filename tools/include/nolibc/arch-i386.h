@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * i386 specific definitions for NOLIBC
+ * i386 specific definitions for ANALLIBC
  * Copyright (C) 2017-2022 Willy Tarreau <w@1wt.eu>
  */
 
-#ifndef _NOLIBC_ARCH_I386_H
-#define _NOLIBC_ARCH_I386_H
+#ifndef _ANALLIBC_ARCH_I386_H
+#define _ANALLIBC_ARCH_I386_H
 
 #include "compiler.h"
 #include "crt.h"
@@ -24,7 +24,7 @@
  *   - the syscall number is always specified last in order to allow to force
  *     some registers before (gcc refuses a %-register at the last position).
  *
- * Also, i386 supports the old_select syscall if newselect is not available
+ * Also, i386 supports the old_select syscall if newselect is analt available
  */
 #define __ARCH_WANT_SYS_OLD_SELECT
 
@@ -162,7 +162,7 @@
  * 2) The deepest stack frame should be set to zero
  *
  */
-void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_stack_protector _start(void)
+void __attribute__((weak, analreturn, optimize("Os", "omit-frame-pointer"))) __anal_stack_protector _start(void)
 {
 	__asm__ volatile (
 		"xor  %ebp, %ebp\n"       /* zero the stack frame                                */
@@ -172,9 +172,9 @@ void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_
 		"sub  $12, %esp\n"        /* sub 12 to keep it aligned after the push %eax       */
 		"push %eax\n"             /* push arg1 on stack to support plain stack modes too */
 		"call _start_c\n"         /* transfer to c runtime                               */
-		"hlt\n"                   /* ensure it does not return                           */
+		"hlt\n"                   /* ensure it does analt return                           */
 	);
 	__builtin_unreachable();
 }
 
-#endif /* _NOLIBC_ARCH_I386_H */
+#endif /* _ANALLIBC_ARCH_I386_H */

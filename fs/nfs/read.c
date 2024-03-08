@@ -10,7 +10,7 @@
 
 #include <linux/time.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fcntl.h>
 #include <linux/stat.h>
 #include <linux/mm.h>
@@ -61,17 +61,17 @@ static int nfs_return_empty_folio(struct folio *folio)
 }
 
 void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
-			      struct inode *inode, bool force_mds,
+			      struct ianalde *ianalde, bool force_mds,
 			      const struct nfs_pgio_completion_ops *compl_ops)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	const struct nfs_pageio_ops *pg_ops = &nfs_pgio_rw_ops;
 
 #ifdef CONFIG_NFS_V4_1
 	if (server->pnfs_curr_ld && !force_mds)
 		pg_ops = server->pnfs_curr_ld->pg_read_ops;
 #endif
-	nfs_pageio_init(pgio, inode, pg_ops, compl_ops, &nfs_rw_read_ops,
+	nfs_pageio_init(pgio, ianalde, pg_ops, compl_ops, &nfs_rw_read_ops,
 			server->rsize, 0);
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_init_read);
@@ -87,9 +87,9 @@ void nfs_pageio_complete_read(struct nfs_pageio_descriptor *pgio)
 	WARN_ON_ONCE(pgio->pg_mirror_count != 1);
 
 	pgm = &pgio->pg_mirrors[0];
-	NFS_I(pgio->pg_inode)->read_io += pgm->pg_bytes_written;
+	NFS_I(pgio->pg_ianalde)->read_io += pgm->pg_bytes_written;
 	npages = (pgm->pg_bytes_written + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	nfs_add_stats(pgio->pg_inode, NFSIOS_READPAGES, npages);
+	nfs_add_stats(pgio->pg_ianalde, NFSIOS_READPAGES, npages);
 }
 
 
@@ -106,7 +106,7 @@ void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio)
 	WARN_ON_ONCE(pgio->pg_mirror_count != 1);
 
 	mirror = &pgio->pg_mirrors[0];
-	mirror->pg_bsize = NFS_SERVER(pgio->pg_inode)->rsize;
+	mirror->pg_bsize = NFS_SERVER(pgio->pg_ianalde)->rsize;
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_reset_read_mds);
 
@@ -151,17 +151,17 @@ static void nfs_read_completion(struct nfs_pgio_header *hdr)
 		unsigned long end = req->wb_pgbase + req->wb_bytes;
 
 		if (test_bit(NFS_IOHDR_EOF, &hdr->flags)) {
-			/* note: regions of the page not covered by a
+			/* analte: regions of the page analt covered by a
 			 * request are zeroed in nfs_read_add_folio
 			 */
 			if (bytes > hdr->good_bytes) {
-				/* nothing in this request was good, so zero
+				/* analthing in this request was good, so zero
 				 * the full extent of the request */
 				folio_zero_segment(folio, start, end);
 
 			} else if (hdr->good_bytes - bytes < req->wb_bytes) {
 				/* part of this request has good bytes, but
-				 * not all. zero the bad bytes */
+				 * analt all. zero the bad bytes */
 				start += hdr->good_bytes - bytes;
 				WARN_ON(start < req->wb_pgbase);
 				folio_zero_segment(folio, start, end);
@@ -220,18 +220,18 @@ const struct nfs_pgio_completion_ops nfs_async_read_completion_ops = {
  */
 static int nfs_readpage_done(struct rpc_task *task,
 			     struct nfs_pgio_header *hdr,
-			     struct inode *inode)
+			     struct ianalde *ianalde)
 {
-	int status = NFS_PROTO(inode)->read_done(task, hdr);
+	int status = NFS_PROTO(ianalde)->read_done(task, hdr);
 	if (status != 0)
 		return status;
 
-	nfs_add_stats(inode, NFSIOS_SERVERREADBYTES, hdr->res.count);
+	nfs_add_stats(ianalde, NFSIOS_SERVERREADBYTES, hdr->res.count);
 	trace_nfs_readpage_done(task, hdr);
 
 	if (task->tk_status == -ESTALE) {
-		nfs_set_inode_stale(inode);
-		nfs_mark_for_revalidate(inode);
+		nfs_set_ianalde_stale(ianalde);
+		nfs_mark_for_revalidate(ianalde);
 	}
 	return 0;
 }
@@ -243,7 +243,7 @@ static void nfs_readpage_retry(struct rpc_task *task,
 	struct nfs_pgio_res  *resp = &hdr->res;
 
 	/* This is a short read! */
-	nfs_inc_stats(hdr->inode, NFSIOS_SHORTREAD);
+	nfs_inc_stats(hdr->ianalde, NFSIOS_SHORTREAD);
 	trace_nfs_readpage_short(task, hdr);
 
 	/* Has the server at least made some progress? */
@@ -252,13 +252,13 @@ static void nfs_readpage_retry(struct rpc_task *task,
 		return;
 	}
 
-	/* For non rpc-based layout drivers, retry-through-MDS */
+	/* For analn rpc-based layout drivers, retry-through-MDS */
 	if (!task->tk_ops) {
 		hdr->pnfs_error = -EAGAIN;
 		return;
 	}
 
-	/* Yes, so retry the read at the end of the hdr */
+	/* Anal, so retry the read at the end of the hdr */
 	hdr->mds_offset += resp->count;
 	argp->offset += resp->count;
 	argp->pgbase += resp->count;
@@ -288,8 +288,8 @@ int nfs_read_add_folio(struct nfs_pageio_descriptor *pgio,
 		       struct nfs_open_context *ctx,
 		       struct folio *folio)
 {
-	struct inode *inode = folio_file_mapping(folio)->host;
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct ianalde *ianalde = folio_file_mapping(folio)->host;
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	size_t fsize = folio_size(folio);
 	unsigned int rsize = server->rsize;
 	struct nfs_page *new;
@@ -323,36 +323,36 @@ out:
 
 /*
  * Read a page over NFS.
- * We read the page synchronously in the following case:
+ * We read the page synchroanalusly in the following case:
  *  -	The error flag is set for this page. This happens only when a
  *	previous async read operation failed.
  */
 int nfs_read_folio(struct file *file, struct folio *folio)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct nfs_pageio_descriptor pgio;
 	struct nfs_open_context *ctx;
 	int ret;
 
-	trace_nfs_aop_readpage(inode, folio);
-	nfs_inc_stats(inode, NFSIOS_VFSREADPAGE);
+	trace_nfs_aop_readpage(ianalde, folio);
+	nfs_inc_stats(ianalde, NFSIOS_VFSREADPAGE);
 	task_io_account_read(folio_size(folio));
 
 	/*
 	 * Try to flush any pending writes to the file..
 	 *
-	 * NOTE! Because we own the folio lock, there cannot
+	 * ANALTE! Because we own the folio lock, there cananalt
 	 * be any new pending writes generated at this point
 	 * for this folio (other folios can be written to).
 	 */
-	ret = nfs_wb_folio(inode, folio);
+	ret = nfs_wb_folio(ianalde, folio);
 	if (ret)
 		goto out_unlock;
 	if (folio_test_uptodate(folio))
 		goto out_unlock;
 
 	ret = -ESTALE;
-	if (NFS_STALE(inode))
+	if (NFS_STALE(ianalde))
 		goto out_unlock;
 
 	ret = nfs_netfs_read_folio(file, folio);
@@ -362,7 +362,7 @@ int nfs_read_folio(struct file *file, struct folio *folio)
 	ctx = get_nfs_open_context(nfs_file_open_context(file));
 
 	xchg(&ctx->error, 0);
-	nfs_pageio_init_read(&pgio, inode, false,
+	nfs_pageio_init_read(&pgio, ianalde, false,
 			     &nfs_async_read_completion_ops);
 
 	ret = nfs_read_add_folio(&pgio, ctx, folio);
@@ -379,7 +379,7 @@ int nfs_read_folio(struct file *file, struct folio *folio)
 out_put:
 	put_nfs_open_context(ctx);
 out:
-	trace_nfs_aop_readpage_done(inode, folio, ret);
+	trace_nfs_aop_readpage_done(ianalde, folio, ret);
 	return ret;
 out_unlock:
 	folio_unlock(folio);
@@ -392,16 +392,16 @@ void nfs_readahead(struct readahead_control *ractl)
 	struct nfs_open_context *ctx;
 	unsigned int nr_pages = readahead_count(ractl);
 	struct file *file = ractl->file;
-	struct inode *inode = ractl->mapping->host;
+	struct ianalde *ianalde = ractl->mapping->host;
 	struct folio *folio;
 	int ret;
 
-	trace_nfs_aop_readahead(inode, readahead_pos(ractl), nr_pages);
-	nfs_inc_stats(inode, NFSIOS_VFSREADPAGES);
+	trace_nfs_aop_readahead(ianalde, readahead_pos(ractl), nr_pages);
+	nfs_inc_stats(ianalde, NFSIOS_VFSREADPAGES);
 	task_io_account_read(readahead_length(ractl));
 
 	ret = -ESTALE;
-	if (NFS_STALE(inode))
+	if (NFS_STALE(ianalde))
 		goto out;
 
 	ret = nfs_netfs_readahead(ractl);
@@ -410,13 +410,13 @@ void nfs_readahead(struct readahead_control *ractl)
 
 	if (file == NULL) {
 		ret = -EBADF;
-		ctx = nfs_find_open_context(inode, NULL, FMODE_READ);
+		ctx = nfs_find_open_context(ianalde, NULL, FMODE_READ);
 		if (ctx == NULL)
 			goto out;
 	} else
 		ctx = get_nfs_open_context(nfs_file_open_context(file));
 
-	nfs_pageio_init_read(&pgio, inode, false,
+	nfs_pageio_init_read(&pgio, ianalde, false,
 			     &nfs_async_read_completion_ops);
 
 	while ((folio = readahead_folio(ractl)) != NULL) {
@@ -429,7 +429,7 @@ void nfs_readahead(struct readahead_control *ractl)
 
 	put_nfs_open_context(ctx);
 out:
-	trace_nfs_aop_readahead_done(inode, nr_pages, ret);
+	trace_nfs_aop_readahead_done(ianalde, nr_pages, ret);
 }
 
 int __init nfs_init_readpagecache(void)
@@ -439,7 +439,7 @@ int __init nfs_init_readpagecache(void)
 					     0, SLAB_HWCACHE_ALIGN,
 					     NULL);
 	if (nfs_rdata_cachep == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

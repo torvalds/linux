@@ -45,7 +45,7 @@ properties:
   regulators:
     type: object
     description: |
-      List of child nodes specifying the regulators, depending on chip variant:
+      List of child analdes specifying the regulators, depending on chip variant:
       * ATC2603C: dcdc[1-3], ldo[1-3,5-8,11,12], switchldo1
       * ATC2609A: dcdc[0-4], ldo[0-9]
 

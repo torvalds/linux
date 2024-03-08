@@ -2,7 +2,7 @@
 /*
  * This file is part of UBIFS.
  *
- * Copyright (C) 2006-2008 Nokia Corporation.
+ * Copyright (C) 2006-2008 Analkia Corporation.
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -12,22 +12,22 @@
  * This file describes UBIFS on-flash format and contains definitions of all the
  * relevant data structures and constants.
  *
- * All UBIFS on-flash objects are stored in the form of nodes. All nodes start
- * with the UBIFS node magic number and have the same common header. Nodes
- * always sit at 8-byte aligned positions on the media and node header sizes are
- * also 8-byte aligned (except for the indexing node and the padding node).
+ * All UBIFS on-flash objects are stored in the form of analdes. All analdes start
+ * with the UBIFS analde magic number and have the same common header. Analdes
+ * always sit at 8-byte aligned positions on the media and analde header sizes are
+ * also 8-byte aligned (except for the indexing analde and the padding analde).
  */
 
 #ifndef __UBIFS_MEDIA_H__
 #define __UBIFS_MEDIA_H__
 
-/* UBIFS node magic number (must not have the padding byte first or last) */
-#define UBIFS_NODE_MAGIC  0x06101831
+/* UBIFS analde magic number (must analt have the padding byte first or last) */
+#define UBIFS_ANALDE_MAGIC  0x06101831
 
 /*
  * UBIFS on-flash format version. This version is increased when the on-flash
  * format is changing. If this happens, UBIFS is will support older versions as
- * well. But older UBIFS code will not support newer formats. Format changes
+ * well. But older UBIFS code will analt support newer formats. Format changes
  * will be rare and only when absolutely necessary, e.g. to fix a bug or to add
  * a new feature.
  *
@@ -38,7 +38,7 @@
 
 /*
  * Read-only compatibility version. If the UBIFS format is changed, older UBIFS
- * implementations will not be able to mount newer formats in read-write mode.
+ * implementations will analt be able to mount newer formats in read-write mode.
  * However, depending on the change, it may be possible to mount newer formats
  * in R/O mode. This is indicated by the R/O compatibility version which is
  * stored in the super-block.
@@ -56,7 +56,7 @@
 #define UBIFS_CRC32_INIT 0xFFFFFFFFU
 
 /*
- * UBIFS does not try to compress data if its length is less than the below
+ * UBIFS does analt try to compress data if its length is less than the below
  * constant.
  */
 #define UBIFS_MIN_COMPR_LEN 128
@@ -64,15 +64,15 @@
 /*
  * If compressed data length is less than %UBIFS_MIN_COMPRESS_DIFF bytes
  * shorter than uncompressed data length, UBIFS prefers to leave this data
- * node uncompress, because it'll be read faster.
+ * analde uncompress, because it'll be read faster.
  */
 #define UBIFS_MIN_COMPRESS_DIFF 64
 
-/* Root inode number */
-#define UBIFS_ROOT_INO 1
+/* Root ianalde number */
+#define UBIFS_ROOT_IANAL 1
 
-/* Lowest inode number used for regular inodes (not UBIFS-only internal ones) */
-#define UBIFS_FIRST_INO 64
+/* Lowest ianalde number used for regular ianaldes (analt UBIFS-only internal ones) */
+#define UBIFS_FIRST_IANAL 64
 
 /*
  * Maximum file name and extended attribute length (must be a multiple of 8,
@@ -84,16 +84,16 @@
 #define UBIFS_MAX_JHEADS 1
 
 /*
- * Size of UBIFS data block. Note, UBIFS is not a block oriented file-system,
- * which means that it does not treat the underlying media as consisting of
- * blocks like in case of hard drives. Do not be confused. UBIFS block is just
- * the maximum amount of data which one data node can have or which can be
- * attached to an inode node.
+ * Size of UBIFS data block. Analte, UBIFS is analt a block oriented file-system,
+ * which means that it does analt treat the underlying media as consisting of
+ * blocks like in case of hard drives. Do analt be confused. UBIFS block is just
+ * the maximum amount of data which one data analde can have or which can be
+ * attached to an ianalde analde.
  */
 #define UBIFS_BLOCK_SIZE  4096
 #define UBIFS_BLOCK_SHIFT 12
 
-/* UBIFS padding byte pattern (must not be first or last byte of node magic) */
+/* UBIFS padding byte pattern (must analt be first or last byte of analde magic) */
 #define UBIFS_PADDING_BYTE 0xCE
 
 /* Maximum possible key length */
@@ -102,26 +102,26 @@
 /* Key length ("simple" format) */
 #define UBIFS_SK_LEN 8
 
-/* Minimum index tree fanout */
-#define UBIFS_MIN_FANOUT 3
+/* Minimum index tree faanalut */
+#define UBIFS_MIN_FAANALUT 3
 
 /* Maximum number of levels in UBIFS indexing B-tree */
 #define UBIFS_MAX_LEVELS 512
 
-/* Maximum amount of data attached to an inode in bytes */
-#define UBIFS_MAX_INO_DATA UBIFS_BLOCK_SIZE
+/* Maximum amount of data attached to an ianalde in bytes */
+#define UBIFS_MAX_IANAL_DATA UBIFS_BLOCK_SIZE
 
-/* LEB Properties Tree fanout (must be power of 2) and fanout shift */
-#define UBIFS_LPT_FANOUT 4
-#define UBIFS_LPT_FANOUT_SHIFT 2
+/* LEB Properties Tree faanalut (must be power of 2) and faanalut shift */
+#define UBIFS_LPT_FAANALUT 4
+#define UBIFS_LPT_FAANALUT_SHIFT 2
 
 /* LEB Properties Tree bit field sizes */
 #define UBIFS_LPT_CRC_BITS 16
 #define UBIFS_LPT_CRC_BYTES 2
 #define UBIFS_LPT_TYPE_BITS 4
 
-/* The key is always at the same position in all keyed nodes */
-#define UBIFS_KEY_OFFSET offsetof(struct ubifs_ino_node, key)
+/* The key is always at the same position in all keyed analdes */
+#define UBIFS_KEY_OFFSET offsetof(struct ubifs_ianal_analde, key)
 
 /* Garbage collector journal head number */
 #define UBIFS_GC_HEAD   0
@@ -131,32 +131,32 @@
 #define UBIFS_DATA_HEAD 2
 
 /*
- * LEB Properties Tree node types.
+ * LEB Properties Tree analde types.
  *
- * UBIFS_LPT_PNODE: LPT leaf node (contains LEB properties)
- * UBIFS_LPT_NNODE: LPT internal node
+ * UBIFS_LPT_PANALDE: LPT leaf analde (contains LEB properties)
+ * UBIFS_LPT_NANALDE: LPT internal analde
  * UBIFS_LPT_LTAB: LPT's own lprops table
  * UBIFS_LPT_LSAVE: LPT's save table (big model only)
- * UBIFS_LPT_NODE_CNT: count of LPT node types
- * UBIFS_LPT_NOT_A_NODE: all ones (15 for 4 bits) is never a valid node type
+ * UBIFS_LPT_ANALDE_CNT: count of LPT analde types
+ * UBIFS_LPT_ANALT_A_ANALDE: all ones (15 for 4 bits) is never a valid analde type
  */
 enum {
-	UBIFS_LPT_PNODE,
-	UBIFS_LPT_NNODE,
+	UBIFS_LPT_PANALDE,
+	UBIFS_LPT_NANALDE,
 	UBIFS_LPT_LTAB,
 	UBIFS_LPT_LSAVE,
-	UBIFS_LPT_NODE_CNT,
-	UBIFS_LPT_NOT_A_NODE = (1 << UBIFS_LPT_TYPE_BITS) - 1,
+	UBIFS_LPT_ANALDE_CNT,
+	UBIFS_LPT_ANALT_A_ANALDE = (1 << UBIFS_LPT_TYPE_BITS) - 1,
 };
 
 /*
- * UBIFS inode types.
+ * UBIFS ianalde types.
  *
  * UBIFS_ITYPE_REG: regular file
  * UBIFS_ITYPE_DIR: directory
  * UBIFS_ITYPE_LNK: soft link
- * UBIFS_ITYPE_BLK: block device node
- * UBIFS_ITYPE_CHR: character device node
+ * UBIFS_ITYPE_BLK: block device analde
+ * UBIFS_ITYPE_CHR: character device analde
  * UBIFS_ITYPE_FIFO: fifo
  * UBIFS_ITYPE_SOCK: socket
  * UBIFS_ITYPES_CNT: count of supported file types
@@ -204,14 +204,14 @@ enum {
 /*
  * Key types.
  *
- * UBIFS_INO_KEY: inode node key
- * UBIFS_DATA_KEY: data node key
- * UBIFS_DENT_KEY: directory entry node key
+ * UBIFS_IANAL_KEY: ianalde analde key
+ * UBIFS_DATA_KEY: data analde key
+ * UBIFS_DENT_KEY: directory entry analde key
  * UBIFS_XENT_KEY: extended attribute entry key
  * UBIFS_KEY_TYPES_CNT: number of supported key types
  */
 enum {
-	UBIFS_INO_KEY,
+	UBIFS_IANAL_KEY,
 	UBIFS_DATA_KEY,
 	UBIFS_DENT_KEY,
 	UBIFS_XENT_KEY,
@@ -234,8 +234,8 @@ enum {
  * The below constants define the absolute minimum values for various UBIFS
  * media areas. Many of them actually depend of flash geometry and the FS
  * configuration (number of journal heads, orphan LEBs, etc). This means that
- * the smallest volume size which can be used for UBIFS cannot be pre-defined
- * by these constants. The file-system that meets the below limitation will not
+ * the smallest volume size which can be used for UBIFS cananalt be pre-defined
+ * by these constants. The file-system that meets the below limitation will analt
  * necessarily mount. UBIFS does run-time calculations and validates the FS
  * size.
  */
@@ -261,64 +261,64 @@ enum {
 			   UBIFS_MIN_LOG_LEBS + UBIFS_MIN_LPT_LEBS + \
 			   UBIFS_MIN_ORPH_LEBS + UBIFS_MIN_MAIN_LEBS)
 
-/* Node sizes (N.B. these are guaranteed to be multiples of 8) */
+/* Analde sizes (N.B. these are guaranteed to be multiples of 8) */
 #define UBIFS_CH_SZ        sizeof(struct ubifs_ch)
-#define UBIFS_INO_NODE_SZ  sizeof(struct ubifs_ino_node)
-#define UBIFS_DATA_NODE_SZ sizeof(struct ubifs_data_node)
-#define UBIFS_DENT_NODE_SZ sizeof(struct ubifs_dent_node)
-#define UBIFS_TRUN_NODE_SZ sizeof(struct ubifs_trun_node)
-#define UBIFS_PAD_NODE_SZ  sizeof(struct ubifs_pad_node)
-#define UBIFS_SB_NODE_SZ   sizeof(struct ubifs_sb_node)
-#define UBIFS_MST_NODE_SZ  sizeof(struct ubifs_mst_node)
-#define UBIFS_REF_NODE_SZ  sizeof(struct ubifs_ref_node)
-#define UBIFS_IDX_NODE_SZ  sizeof(struct ubifs_idx_node)
-#define UBIFS_CS_NODE_SZ   sizeof(struct ubifs_cs_node)
-#define UBIFS_ORPH_NODE_SZ sizeof(struct ubifs_orph_node)
-#define UBIFS_AUTH_NODE_SZ sizeof(struct ubifs_auth_node)
-#define UBIFS_SIG_NODE_SZ  sizeof(struct ubifs_sig_node)
+#define UBIFS_IANAL_ANALDE_SZ  sizeof(struct ubifs_ianal_analde)
+#define UBIFS_DATA_ANALDE_SZ sizeof(struct ubifs_data_analde)
+#define UBIFS_DENT_ANALDE_SZ sizeof(struct ubifs_dent_analde)
+#define UBIFS_TRUN_ANALDE_SZ sizeof(struct ubifs_trun_analde)
+#define UBIFS_PAD_ANALDE_SZ  sizeof(struct ubifs_pad_analde)
+#define UBIFS_SB_ANALDE_SZ   sizeof(struct ubifs_sb_analde)
+#define UBIFS_MST_ANALDE_SZ  sizeof(struct ubifs_mst_analde)
+#define UBIFS_REF_ANALDE_SZ  sizeof(struct ubifs_ref_analde)
+#define UBIFS_IDX_ANALDE_SZ  sizeof(struct ubifs_idx_analde)
+#define UBIFS_CS_ANALDE_SZ   sizeof(struct ubifs_cs_analde)
+#define UBIFS_ORPH_ANALDE_SZ sizeof(struct ubifs_orph_analde)
+#define UBIFS_AUTH_ANALDE_SZ sizeof(struct ubifs_auth_analde)
+#define UBIFS_SIG_ANALDE_SZ  sizeof(struct ubifs_sig_analde)
 
-/* Extended attribute entry nodes are identical to directory entry nodes */
-#define UBIFS_XENT_NODE_SZ UBIFS_DENT_NODE_SZ
-/* Only this does not have to be multiple of 8 bytes */
+/* Extended attribute entry analdes are identical to directory entry analdes */
+#define UBIFS_XENT_ANALDE_SZ UBIFS_DENT_ANALDE_SZ
+/* Only this does analt have to be multiple of 8 bytes */
 #define UBIFS_BRANCH_SZ    sizeof(struct ubifs_branch)
 
-/* Maximum node sizes (N.B. these are guaranteed to be multiples of 8) */
-#define UBIFS_MAX_DATA_NODE_SZ  (UBIFS_DATA_NODE_SZ + UBIFS_BLOCK_SIZE)
-#define UBIFS_MAX_INO_NODE_SZ   (UBIFS_INO_NODE_SZ + UBIFS_MAX_INO_DATA)
-#define UBIFS_MAX_DENT_NODE_SZ  (UBIFS_DENT_NODE_SZ + UBIFS_MAX_NLEN + 1)
-#define UBIFS_MAX_XENT_NODE_SZ  UBIFS_MAX_DENT_NODE_SZ
+/* Maximum analde sizes (N.B. these are guaranteed to be multiples of 8) */
+#define UBIFS_MAX_DATA_ANALDE_SZ  (UBIFS_DATA_ANALDE_SZ + UBIFS_BLOCK_SIZE)
+#define UBIFS_MAX_IANAL_ANALDE_SZ   (UBIFS_IANAL_ANALDE_SZ + UBIFS_MAX_IANAL_DATA)
+#define UBIFS_MAX_DENT_ANALDE_SZ  (UBIFS_DENT_ANALDE_SZ + UBIFS_MAX_NLEN + 1)
+#define UBIFS_MAX_XENT_ANALDE_SZ  UBIFS_MAX_DENT_ANALDE_SZ
 
-/* The largest UBIFS node */
-#define UBIFS_MAX_NODE_SZ UBIFS_MAX_INO_NODE_SZ
+/* The largest UBIFS analde */
+#define UBIFS_MAX_ANALDE_SZ UBIFS_MAX_IANAL_ANALDE_SZ
 
-/* The maxmimum size of a hash, enough for sha512 */
+/* The maxmimum size of a hash, eanalugh for sha512 */
 #define UBIFS_MAX_HASH_LEN 64
 
-/* The maxmimum size of a hmac, enough for hmac(sha512) */
+/* The maxmimum size of a hmac, eanalugh for hmac(sha512) */
 #define UBIFS_MAX_HMAC_LEN 64
 
 /*
  * xattr name of UBIFS encryption context, we don't use a prefix
- * nor a long name to not waste space on the flash.
+ * analr a long name to analt waste space on the flash.
  */
 #define UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT "c"
 
-/* Type field in ubifs_sig_node */
+/* Type field in ubifs_sig_analde */
 #define UBIFS_SIGNATURE_TYPE_PKCS7	1
 
 /*
- * On-flash inode flags.
+ * On-flash ianalde flags.
  *
- * UBIFS_COMPR_FL: use compression for this inode
- * UBIFS_SYNC_FL:  I/O on this inode has to be synchronous
- * UBIFS_IMMUTABLE_FL: inode is immutable
- * UBIFS_APPEND_FL: writes to the inode may only append data
- * UBIFS_DIRSYNC_FL: I/O on this directory inode has to be synchronous
- * UBIFS_XATTR_FL: this inode is the inode for an extended attribute value
- * UBIFS_CRYPT_FL: use encryption for this inode
+ * UBIFS_COMPR_FL: use compression for this ianalde
+ * UBIFS_SYNC_FL:  I/O on this ianalde has to be synchroanalus
+ * UBIFS_IMMUTABLE_FL: ianalde is immutable
+ * UBIFS_APPEND_FL: writes to the ianalde may only append data
+ * UBIFS_DIRSYNC_FL: I/O on this directory ianalde has to be synchroanalus
+ * UBIFS_XATTR_FL: this ianalde is the ianalde for an extended attribute value
+ * UBIFS_CRYPT_FL: use encryption for this ianalde
  *
- * Note, these are on-flash flags which correspond to ioctl flags
- * (@FS_COMPR_FL, etc). They have the same values now, but generally, do not
+ * Analte, these are on-flash flags which correspond to ioctl flags
+ * (@FS_COMPR_FL, etc). They have the same values analw, but generally, do analt
  * have to be the same.
  */
 enum {
@@ -331,20 +331,20 @@ enum {
 	UBIFS_CRYPT_FL     = 0x40,
 };
 
-/* Inode flag bits used by UBIFS */
+/* Ianalde flag bits used by UBIFS */
 #define UBIFS_FL_MASK 0x0000001F
 
 /*
  * UBIFS compression algorithms.
  *
- * UBIFS_COMPR_NONE: no compression
+ * UBIFS_COMPR_ANALNE: anal compression
  * UBIFS_COMPR_LZO: LZO compression
  * UBIFS_COMPR_ZLIB: ZLIB compression
  * UBIFS_COMPR_ZSTD: ZSTD compression
  * UBIFS_COMPR_TYPES_CNT: count of supported compression types
  */
 enum {
-	UBIFS_COMPR_NONE,
+	UBIFS_COMPR_ANALNE,
 	UBIFS_COMPR_LZO,
 	UBIFS_COMPR_ZLIB,
 	UBIFS_COMPR_ZSTD,
@@ -352,70 +352,70 @@ enum {
 };
 
 /*
- * UBIFS node types.
+ * UBIFS analde types.
  *
- * UBIFS_INO_NODE: inode node
- * UBIFS_DATA_NODE: data node
- * UBIFS_DENT_NODE: directory entry node
- * UBIFS_XENT_NODE: extended attribute node
- * UBIFS_TRUN_NODE: truncation node
- * UBIFS_PAD_NODE: padding node
- * UBIFS_SB_NODE: superblock node
- * UBIFS_MST_NODE: master node
- * UBIFS_REF_NODE: LEB reference node
- * UBIFS_IDX_NODE: index node
- * UBIFS_CS_NODE: commit start node
- * UBIFS_ORPH_NODE: orphan node
- * UBIFS_AUTH_NODE: authentication node
- * UBIFS_SIG_NODE: signature node
- * UBIFS_NODE_TYPES_CNT: count of supported node types
+ * UBIFS_IANAL_ANALDE: ianalde analde
+ * UBIFS_DATA_ANALDE: data analde
+ * UBIFS_DENT_ANALDE: directory entry analde
+ * UBIFS_XENT_ANALDE: extended attribute analde
+ * UBIFS_TRUN_ANALDE: truncation analde
+ * UBIFS_PAD_ANALDE: padding analde
+ * UBIFS_SB_ANALDE: superblock analde
+ * UBIFS_MST_ANALDE: master analde
+ * UBIFS_REF_ANALDE: LEB reference analde
+ * UBIFS_IDX_ANALDE: index analde
+ * UBIFS_CS_ANALDE: commit start analde
+ * UBIFS_ORPH_ANALDE: orphan analde
+ * UBIFS_AUTH_ANALDE: authentication analde
+ * UBIFS_SIG_ANALDE: signature analde
+ * UBIFS_ANALDE_TYPES_CNT: count of supported analde types
  *
- * Note, we index arrays by these numbers, so keep them low and contiguous.
- * Node type constants for inodes, direntries and so on have to be the same as
+ * Analte, we index arrays by these numbers, so keep them low and contiguous.
+ * Analde type constants for ianaldes, direntries and so on have to be the same as
  * corresponding key type constants.
  */
 enum {
-	UBIFS_INO_NODE,
-	UBIFS_DATA_NODE,
-	UBIFS_DENT_NODE,
-	UBIFS_XENT_NODE,
-	UBIFS_TRUN_NODE,
-	UBIFS_PAD_NODE,
-	UBIFS_SB_NODE,
-	UBIFS_MST_NODE,
-	UBIFS_REF_NODE,
-	UBIFS_IDX_NODE,
-	UBIFS_CS_NODE,
-	UBIFS_ORPH_NODE,
-	UBIFS_AUTH_NODE,
-	UBIFS_SIG_NODE,
-	UBIFS_NODE_TYPES_CNT,
+	UBIFS_IANAL_ANALDE,
+	UBIFS_DATA_ANALDE,
+	UBIFS_DENT_ANALDE,
+	UBIFS_XENT_ANALDE,
+	UBIFS_TRUN_ANALDE,
+	UBIFS_PAD_ANALDE,
+	UBIFS_SB_ANALDE,
+	UBIFS_MST_ANALDE,
+	UBIFS_REF_ANALDE,
+	UBIFS_IDX_ANALDE,
+	UBIFS_CS_ANALDE,
+	UBIFS_ORPH_ANALDE,
+	UBIFS_AUTH_ANALDE,
+	UBIFS_SIG_ANALDE,
+	UBIFS_ANALDE_TYPES_CNT,
 };
 
 /*
- * Master node flags.
+ * Master analde flags.
  *
- * UBIFS_MST_DIRTY: rebooted uncleanly - master node is dirty
- * UBIFS_MST_NO_ORPHS: no orphan inodes present
+ * UBIFS_MST_DIRTY: rebooted uncleanly - master analde is dirty
+ * UBIFS_MST_ANAL_ORPHS: anal orphan ianaldes present
  * UBIFS_MST_RCVRY: written by recovery
  */
 enum {
 	UBIFS_MST_DIRTY = 1,
-	UBIFS_MST_NO_ORPHS = 2,
+	UBIFS_MST_ANAL_ORPHS = 2,
 	UBIFS_MST_RCVRY = 4,
 };
 
 /*
- * Node group type (used by recovery to recover whole group or none).
+ * Analde group type (used by recovery to recover whole group or analne).
  *
- * UBIFS_NO_NODE_GROUP: this node is not part of a group
- * UBIFS_IN_NODE_GROUP: this node is a part of a group
- * UBIFS_LAST_OF_NODE_GROUP: this node is the last in a group
+ * UBIFS_ANAL_ANALDE_GROUP: this analde is analt part of a group
+ * UBIFS_IN_ANALDE_GROUP: this analde is a part of a group
+ * UBIFS_LAST_OF_ANALDE_GROUP: this analde is the last in a group
  */
 enum {
-	UBIFS_NO_NODE_GROUP = 0,
-	UBIFS_IN_NODE_GROUP,
-	UBIFS_LAST_OF_NODE_GROUP,
+	UBIFS_ANAL_ANALDE_GROUP = 0,
+	UBIFS_IN_ANALDE_GROUP,
+	UBIFS_LAST_OF_ANALDE_GROUP,
 };
 
 /*
@@ -423,7 +423,7 @@ enum {
  *
  * UBIFS_FLG_BIGLPT: if "big" LPT model is used if set
  * UBIFS_FLG_SPACE_FIXUP: first-mount "fixup" of free space within LEBs needed
- * UBIFS_FLG_DOUBLE_HASH: store a 32bit cookie in directory entry nodes to
+ * UBIFS_FLG_DOUBLE_HASH: store a 32bit cookie in directory entry analdes to
  *			  support 64bit cookies for lookups by hash
  * UBIFS_FLG_ENCRYPTION: this filesystem contains encrypted files
  * UBIFS_FLG_AUTHENTICATION: this filesystem contains hashes for authentication
@@ -441,16 +441,16 @@ enum {
 		UBIFS_FLG_AUTHENTICATION)
 
 /**
- * struct ubifs_ch - common header node.
- * @magic: UBIFS node magic number (%UBIFS_NODE_MAGIC)
- * @crc: CRC-32 checksum of the node header
+ * struct ubifs_ch - common header analde.
+ * @magic: UBIFS analde magic number (%UBIFS_ANALDE_MAGIC)
+ * @crc: CRC-32 checksum of the analde header
  * @sqnum: sequence number
- * @len: full node length
- * @node_type: node type
- * @group_type: node group type
+ * @len: full analde length
+ * @analde_type: analde type
+ * @group_type: analde group type
  * @padding: reserved for future, zeroes
  *
- * Every UBIFS node starts with this common part. If the node has a key, the
+ * Every UBIFS analde starts with this common part. If the analde has a key, the
  * key always goes next.
  */
 struct ubifs_ch {
@@ -458,19 +458,19 @@ struct ubifs_ch {
 	__le32 crc;
 	__le64 sqnum;
 	__le32 len;
-	__u8 node_type;
+	__u8 analde_type;
 	__u8 group_type;
 	__u8 padding[2];
 } __packed;
 
 /**
- * union ubifs_dev_desc - device node descriptor.
+ * union ubifs_dev_desc - device analde descriptor.
  * @new: new type device descriptor
  * @huge: huge type device descriptor
  *
- * This data structure describes major/minor numbers of a device node. In an
- * inode is a device node then its data contains an object of this type. UBIFS
- * uses standard Linux "new" and "huge" device node encodings.
+ * This data structure describes major/mianalr numbers of a device analde. In an
+ * ianalde is a device analde then its data contains an object of this type. UBIFS
+ * uses standard Linux "new" and "huge" device analde encodings.
  */
 union ubifs_dev_desc {
 	__le32 new;
@@ -478,41 +478,41 @@ union ubifs_dev_desc {
 } __packed;
 
 /**
- * struct ubifs_ino_node - inode node.
+ * struct ubifs_ianal_analde - ianalde analde.
  * @ch: common header
- * @key: node key
+ * @key: analde key
  * @creat_sqnum: sequence number at time of creation
- * @size: inode size in bytes (amount of uncompressed data)
+ * @size: ianalde size in bytes (amount of uncompressed data)
  * @atime_sec: access time seconds
  * @ctime_sec: creation time seconds
  * @mtime_sec: modification time seconds
- * @atime_nsec: access time nanoseconds
- * @ctime_nsec: creation time nanoseconds
- * @mtime_nsec: modification time nanoseconds
+ * @atime_nsec: access time naanalseconds
+ * @ctime_nsec: creation time naanalseconds
+ * @mtime_nsec: modification time naanalseconds
  * @nlink: number of hard links
  * @uid: owner ID
  * @gid: group ID
  * @mode: access flags
- * @flags: per-inode flags (%UBIFS_COMPR_FL, %UBIFS_SYNC_FL, etc)
- * @data_len: inode data length
- * @xattr_cnt: count of extended attributes this inode has
+ * @flags: per-ianalde flags (%UBIFS_COMPR_FL, %UBIFS_SYNC_FL, etc)
+ * @data_len: ianalde data length
+ * @xattr_cnt: count of extended attributes this ianalde has
  * @xattr_size: summarized size of all extended attributes in bytes
  * @padding1: reserved for future, zeroes
  * @xattr_names: sum of lengths of all extended attribute names belonging to
- *               this inode
- * @compr_type: compression type used for this inode
+ *               this ianalde
+ * @compr_type: compression type used for this ianalde
  * @padding2: reserved for future, zeroes
- * @data: data attached to the inode
+ * @data: data attached to the ianalde
  *
- * Note, even though inode compression type is defined by @compr_type, some
- * nodes of this inode may be compressed with different compressor - this
- * happens if compression type is changed while the inode already has data
- * nodes. But @compr_type will be use for further writes to the inode.
+ * Analte, even though ianalde compression type is defined by @compr_type, some
+ * analdes of this ianalde may be compressed with different compressor - this
+ * happens if compression type is changed while the ianalde already has data
+ * analdes. But @compr_type will be use for further writes to the ianalde.
  *
- * Note, do not forget to amend 'zero_ino_node_unused()' function when changing
+ * Analte, do analt forget to amend 'zero_ianal_analde_unused()' function when changing
  * the padding fields.
  */
-struct ubifs_ino_node {
+struct ubifs_ianal_analde {
 	struct ubifs_ch ch;
 	__u8 key[UBIFS_MAX_KEY_LEN];
 	__le64 creat_sqnum;
@@ -531,29 +531,29 @@ struct ubifs_ino_node {
 	__le32 data_len;
 	__le32 xattr_cnt;
 	__le32 xattr_size;
-	__u8 padding1[4]; /* Watch 'zero_ino_node_unused()' if changing! */
+	__u8 padding1[4]; /* Watch 'zero_ianal_analde_unused()' if changing! */
 	__le32 xattr_names;
 	__le16 compr_type;
-	__u8 padding2[26]; /* Watch 'zero_ino_node_unused()' if changing! */
+	__u8 padding2[26]; /* Watch 'zero_ianal_analde_unused()' if changing! */
 	__u8 data[];
 } __packed;
 
 /**
- * struct ubifs_dent_node - directory entry node.
+ * struct ubifs_dent_analde - directory entry analde.
  * @ch: common header
- * @key: node key
- * @inum: target inode number
+ * @key: analde key
+ * @inum: target ianalde number
  * @padding1: reserved for future, zeroes
- * @type: type of the target inode (%UBIFS_ITYPE_REG, %UBIFS_ITYPE_DIR, etc)
+ * @type: type of the target ianalde (%UBIFS_ITYPE_REG, %UBIFS_ITYPE_DIR, etc)
  * @nlen: name length
  * @cookie: A 32bits random number, used to construct a 64bits
  *          identifier.
  * @name: zero-terminated name
  *
- * Note, do not forget to amend 'zero_dent_node_unused()' function when
+ * Analte, do analt forget to amend 'zero_dent_analde_unused()' function when
  * changing the padding fields.
  */
-struct ubifs_dent_node {
+struct ubifs_dent_analde {
 	struct ubifs_ch ch;
 	__u8 key[UBIFS_MAX_KEY_LEN];
 	__le64 inum;
@@ -565,16 +565,16 @@ struct ubifs_dent_node {
 } __packed;
 
 /**
- * struct ubifs_data_node - data node.
+ * struct ubifs_data_analde - data analde.
  * @ch: common header
- * @key: node key
+ * @key: analde key
  * @size: uncompressed data size in bytes
- * @compr_type: compression type (%UBIFS_COMPR_NONE, %UBIFS_COMPR_LZO, etc)
+ * @compr_type: compression type (%UBIFS_COMPR_ANALNE, %UBIFS_COMPR_LZO, etc)
  * @compr_size: compressed data size in bytes, only valid when data is encrypted
  * @data: data
  *
  */
-struct ubifs_data_node {
+struct ubifs_data_analde {
 	struct ubifs_ch ch;
 	__u8 key[UBIFS_MAX_KEY_LEN];
 	__le32 size;
@@ -584,38 +584,38 @@ struct ubifs_data_node {
 } __packed;
 
 /**
- * struct ubifs_trun_node - truncation node.
+ * struct ubifs_trun_analde - truncation analde.
  * @ch: common header
- * @inum: truncated inode number
+ * @inum: truncated ianalde number
  * @padding: reserved for future, zeroes
  * @old_size: size before truncation
  * @new_size: size after truncation
  *
- * This node exists only in the journal and never goes to the main area. Note,
- * do not forget to amend 'zero_trun_node_unused()' function when changing the
+ * This analde exists only in the journal and never goes to the main area. Analte,
+ * do analt forget to amend 'zero_trun_analde_unused()' function when changing the
  * padding fields.
  */
-struct ubifs_trun_node {
+struct ubifs_trun_analde {
 	struct ubifs_ch ch;
 	__le32 inum;
-	__u8 padding[12]; /* Watch 'zero_trun_node_unused()' if changing! */
+	__u8 padding[12]; /* Watch 'zero_trun_analde_unused()' if changing! */
 	__le64 old_size;
 	__le64 new_size;
 } __packed;
 
 /**
- * struct ubifs_pad_node - padding node.
+ * struct ubifs_pad_analde - padding analde.
  * @ch: common header
- * @pad_len: how many bytes after this node are unused (because padded)
+ * @pad_len: how many bytes after this analde are unused (because padded)
  * @padding: reserved for future, zeroes
  */
-struct ubifs_pad_node {
+struct ubifs_pad_analde {
 	struct ubifs_ch ch;
 	__le32 pad_len;
 } __packed;
 
 /**
- * struct ubifs_sb_node - superblock node.
+ * struct ubifs_sb_analde - superblock analde.
  * @ch: common header
  * @padding: reserved for future, zeroes
  * @key_hash: type of hash function used in keys
@@ -630,7 +630,7 @@ struct ubifs_pad_node {
  * @lpt_lebs: number of LEBs used for lprops table
  * @orph_lebs: number of LEBs used for recording orphans
  * @jhead_cnt: count of journal heads
- * @fanout: tree fanout (max. number of links per indexing node)
+ * @faanalut: tree faanalut (max. number of links per indexing analde)
  * @lsave_cnt: number of LEB numbers in LPT's save table
  * @fmt_version: UBIFS on-flash format version
  * @default_compr: default compression algorithm (%UBIFS_COMPR_LZO, etc)
@@ -639,17 +639,17 @@ struct ubifs_pad_node {
  * @rp_gid: reserve pool GID
  * @rp_size: size of the reserved pool in bytes
  * @padding2: reserved for future, zeroes
- * @time_gran: time granularity in nanoseconds
+ * @time_gran: time granularity in naanalseconds
  * @uuid: UUID generated when the file system image was created
  * @ro_compat_version: UBIFS R/O compatibility version
- * @hmac: HMAC to authenticate the superblock node
- * @hmac_wkm: HMAC of a well known message (the string "UBIFS") as a convenience
+ * @hmac: HMAC to authenticate the superblock analde
+ * @hmac_wkm: HMAC of a well kanalwn message (the string "UBIFS") as a convenience
  *            to the user to check if the correct key is passed.
  * @hash_algo: The hash algo used for this filesystem (one of enum hash_algo)
- * @hash_mst: hash of the master node, only valid for signed images in which the
- *            master node does not contain a hmac
+ * @hash_mst: hash of the master analde, only valid for signed images in which the
+ *            master analde does analt contain a hmac
  */
-struct ubifs_sb_node {
+struct ubifs_sb_analde {
 	struct ubifs_ch ch;
 	__u8 padding[2];
 	__u8 key_hash;
@@ -664,7 +664,7 @@ struct ubifs_sb_node {
 	__le32 lpt_lebs;
 	__le32 orph_lebs;
 	__le32 jhead_cnt;
-	__le32 fanout;
+	__le32 faanalut;
 	__le32 lsave_cnt;
 	__le32 fmt_version;
 	__le16 default_compr;
@@ -683,17 +683,17 @@ struct ubifs_sb_node {
 } __packed;
 
 /**
- * struct ubifs_mst_node - master node.
+ * struct ubifs_mst_analde - master analde.
  * @ch: common header
- * @highest_inum: highest inode number in the committed index
- * @cmt_no: commit number
+ * @highest_inum: highest ianalde number in the committed index
+ * @cmt_anal: commit number
  * @flags: various flags (%UBIFS_MST_DIRTY, etc)
  * @log_lnum: start of the log
- * @root_lnum: LEB number of the root indexing node
+ * @root_lnum: LEB number of the root indexing analde
  * @root_offs: offset within @root_lnum
- * @root_len: root indexing node length
+ * @root_len: root indexing analde length
  * @gc_lnum: LEB reserved for garbage collection (%-1 value means the LEB was
- * not reserved and should be reserved on mount)
+ * analt reserved and should be reserved on mount)
  * @ihead_lnum: LEB number of index head
  * @ihead_offs: offset of index head
  * @index_size: size of index on flash
@@ -702,8 +702,8 @@ struct ubifs_sb_node {
  * @total_used: total used space in bytes (includes only data LEBs)
  * @total_dead: total dead space in bytes (includes only data LEBs)
  * @total_dark: total dark space in bytes (includes only data LEBs)
- * @lpt_lnum: LEB number of LPT root nnode
- * @lpt_offs: offset of LPT root nnode
+ * @lpt_lnum: LEB number of LPT root nanalde
+ * @lpt_offs: offset of LPT root nanalde
  * @nhead_lnum: LEB number of LPT head
  * @nhead_offs: offset of LPT head
  * @ltab_lnum: LEB number of LPT's own lprops table
@@ -714,15 +714,15 @@ struct ubifs_sb_node {
  * @empty_lebs: number of empty logical eraseblocks
  * @idx_lebs: number of indexing logical eraseblocks
  * @leb_cnt: count of LEBs used by file-system
- * @hash_root_idx: the hash of the root index node
+ * @hash_root_idx: the hash of the root index analde
  * @hash_lpt: the hash of the LPT
- * @hmac: HMAC to authenticate the master node
+ * @hmac: HMAC to authenticate the master analde
  * @padding: reserved for future, zeroes
  */
-struct ubifs_mst_node {
+struct ubifs_mst_analde {
 	struct ubifs_ch ch;
 	__le64 highest_inum;
-	__le64 cmt_no;
+	__le64 cmt_anal;
 	__le32 flags;
 	__le32 log_lnum;
 	__le32 root_lnum;
@@ -756,14 +756,14 @@ struct ubifs_mst_node {
 } __packed;
 
 /**
- * struct ubifs_ref_node - logical eraseblock reference node.
+ * struct ubifs_ref_analde - logical eraseblock reference analde.
  * @ch: common header
  * @lnum: the referred logical eraseblock number
  * @offs: start offset in the referred LEB
  * @jhead: journal head number
  * @padding: reserved for future, zeroes
  */
-struct ubifs_ref_node {
+struct ubifs_ref_analde {
 	struct ubifs_ch ch;
 	__le32 lnum;
 	__le32 offs;
@@ -772,17 +772,17 @@ struct ubifs_ref_node {
 } __packed;
 
 /**
- * struct ubifs_auth_node - node for authenticating other nodes
+ * struct ubifs_auth_analde - analde for authenticating other analdes
  * @ch: common header
  * @hmac: The HMAC
  */
-struct ubifs_auth_node {
+struct ubifs_auth_analde {
 	struct ubifs_ch ch;
 	__u8 hmac[];
 } __packed;
 
 /**
- * struct ubifs_sig_node - node for signing other nodes
+ * struct ubifs_sig_analde - analde for signing other analdes
  * @ch: common header
  * @type: type of the signature, currently only UBIFS_SIGNATURE_TYPE_PKCS7
  * supported
@@ -790,7 +790,7 @@ struct ubifs_auth_node {
  * @padding: reserved for future, zeroes
  * @sig: The signature data
  */
-struct ubifs_sig_node {
+struct ubifs_sig_analde {
 	struct ubifs_ch ch;
 	__le32 type;
 	__le32 len;
@@ -800,12 +800,12 @@ struct ubifs_sig_node {
 
 /**
  * struct ubifs_branch - key/reference/length branch
- * @lnum: LEB number of the target node
+ * @lnum: LEB number of the target analde
  * @offs: offset within @lnum
- * @len: target node length
+ * @len: target analde length
  * @key: key
  *
- * In an authenticated UBIFS we have the hash of the referenced node after @key.
+ * In an authenticated UBIFS we have the hash of the referenced analde after @key.
  * This can't be added to the struct type definition because @key is a
  * dynamically sized element already.
  */
@@ -817,13 +817,13 @@ struct ubifs_branch {
 } __packed;
 
 /**
- * struct ubifs_idx_node - indexing node.
+ * struct ubifs_idx_analde - indexing analde.
  * @ch: common header
- * @child_cnt: number of child index nodes
+ * @child_cnt: number of child index analdes
  * @level: tree level
  * @branches: LEB number / offset / length / key branches
  */
-struct ubifs_idx_node {
+struct ubifs_idx_analde {
 	struct ubifs_ch ch;
 	__le16 child_cnt;
 	__le16 level;
@@ -831,25 +831,25 @@ struct ubifs_idx_node {
 } __packed;
 
 /**
- * struct ubifs_cs_node - commit start node.
+ * struct ubifs_cs_analde - commit start analde.
  * @ch: common header
- * @cmt_no: commit number
+ * @cmt_anal: commit number
  */
-struct ubifs_cs_node {
+struct ubifs_cs_analde {
 	struct ubifs_ch ch;
-	__le64 cmt_no;
+	__le64 cmt_anal;
 } __packed;
 
 /**
- * struct ubifs_orph_node - orphan node.
+ * struct ubifs_orph_analde - orphan analde.
  * @ch: common header
- * @cmt_no: commit number (also top bit is set on the last node of the commit)
- * @inos: inode numbers of orphans
+ * @cmt_anal: commit number (also top bit is set on the last analde of the commit)
+ * @ianals: ianalde numbers of orphans
  */
-struct ubifs_orph_node {
+struct ubifs_orph_analde {
 	struct ubifs_ch ch;
-	__le64 cmt_no;
-	__le64 inos[];
+	__le64 cmt_anal;
+	__le64 ianals[];
 } __packed;
 
 #endif /* __UBIFS_MEDIA_H__ */

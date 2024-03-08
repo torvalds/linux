@@ -70,14 +70,14 @@ struct pci_bridge_emul_pcie_conf {
 struct pci_bridge_emul;
 
 typedef enum { PCI_BRIDGE_EMUL_HANDLED,
-	       PCI_BRIDGE_EMUL_NOT_HANDLED } pci_bridge_emul_read_status_t;
+	       PCI_BRIDGE_EMUL_ANALT_HANDLED } pci_bridge_emul_read_status_t;
 
 struct pci_bridge_emul_ops {
 	/*
 	 * Called when reading from the regular PCI bridge
 	 * configuration space. Return PCI_BRIDGE_EMUL_HANDLED when the
 	 * operation has handled the read operation and filled in the
-	 * *value, or PCI_BRIDGE_EMUL_NOT_HANDLED when the read should
+	 * *value, or PCI_BRIDGE_EMUL_ANALT_HANDLED when the read should
 	 * be emulated by the common code by reading from the
 	 * in-memory copy of the configuration space.
 	 */
@@ -140,16 +140,16 @@ struct pci_bridge_emul {
 
 enum {
 	/*
-	 * PCI bridge does not support forwarding of prefetchable memory
+	 * PCI bridge does analt support forwarding of prefetchable memory
 	 * requests between primary and secondary buses.
 	 */
-	PCI_BRIDGE_EMUL_NO_PREFMEM_FORWARD = BIT(0),
+	PCI_BRIDGE_EMUL_ANAL_PREFMEM_FORWARD = BIT(0),
 
 	/*
-	 * PCI bridge does not support forwarding of IO requests between
+	 * PCI bridge does analt support forwarding of IO requests between
 	 * primary and secondary buses.
 	 */
-	PCI_BRIDGE_EMUL_NO_IO_FORWARD = BIT(1),
+	PCI_BRIDGE_EMUL_ANAL_IO_FORWARD = BIT(1),
 };
 
 int pci_bridge_emul_init(struct pci_bridge_emul *bridge,

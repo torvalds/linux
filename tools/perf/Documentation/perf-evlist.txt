@@ -5,7 +5,7 @@ NAME
 ----
 perf-evlist - List the event names in a perf.data file
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf evlist <options>'

@@ -72,7 +72,7 @@ static int bcm963xx_parse_imagetag_partitions(struct mtd_info *master,
 
 	buf = vmalloc(sizeof(struct bcm_tag));
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get the tag */
 	ret = bcm963xx_read_imagetag(master, "rootfs", 0, buf);
@@ -152,7 +152,7 @@ static int bcm963xx_parse_imagetag_partitions(struct mtd_info *master,
 
 	parts = kzalloc(sizeof(*parts) * nrparts + 10 * nrparts, GFP_KERNEL);
 	if (!parts) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

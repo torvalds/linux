@@ -57,7 +57,7 @@ int sof_apl_ops_init(struct snd_sof_dev *sdev)
 
 		sdev->private = kzalloc(sizeof(*ipc4_data), GFP_KERNEL);
 		if (!sdev->private)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ipc4_data = sdev->private;
 		ipc4_data->manifest_fw_hdr_offset = SOF_MAN4_FW_HDR_OFFSET;

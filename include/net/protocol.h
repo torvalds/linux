@@ -40,7 +40,7 @@ struct net_protocol {
 	/* This returns an error if we weren't able to handle the error. */
 	int			(*err_handler)(struct sk_buff *skb, u32 info);
 
-	unsigned int		no_policy:1,
+	unsigned int		anal_policy:1,
 				/* does the protocol do more stringent
 				 * icmp tag validation than simple
 				 * socket lookup?
@@ -61,13 +61,13 @@ struct inet6_protocol {
 	unsigned int	flags;	/* INET6_PROTO_xxx */
 };
 
-#define INET6_PROTO_NOPOLICY	0x1
+#define INET6_PROTO_ANALPOLICY	0x1
 #define INET6_PROTO_FINAL	0x2
 #endif
 
 struct net_offload {
 	struct offload_callbacks callbacks;
-	unsigned int		 flags;	/* Flags used by IPv6 for now */
+	unsigned int		 flags;	/* Flags used by IPv6 for analw */
 };
 /* This should be set for any extension header which is compatible with GSO. */
 #define INET6_PROTO_GSO_EXTHDR	0x1

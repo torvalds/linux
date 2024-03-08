@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -35,7 +35,7 @@
  * DRM formats are little endian.  Define host endian variants for the
  * most common formats here, to reduce the #ifdefs needed in drivers.
  *
- * Note that the DRM_FORMAT_BIG_ENDIAN flag should only be used in
+ * Analte that the DRM_FORMAT_BIG_ENDIAN flag should only be used in
  * case the format can't be specified otherwise, so we don't end up
  * with two values describing the same format.
  */
@@ -68,7 +68,7 @@ struct drm_format_info {
 	 *
 	 * Color depth (number of bits per pixel excluding padding bits),
 	 * valid for a subset of RGB formats only. This is a legacy field, do
-	 * not use in new code and set to 0 for new formats.
+	 * analt use in new code and set to 0 for new formats.
 	 */
 	u8 depth;
 
@@ -94,7 +94,7 @@ struct drm_format_info {
 		 * each other in a byte aligned memory region. Together with
 		 * @block_w and @block_h this is used to properly describe tiles
 		 * in tiled formats or to describe groups of pixels in packed
-		 * formats for which the memory needed for a single pixel is not
+		 * formats for which the memory needed for a single pixel is analt
 		 * byte aligned.
 		 *
 		 * @cpp has been kept for historical reasons because there are
@@ -102,9 +102,9 @@ struct drm_format_info {
 		 * generic code paths the preferred way is to use
 		 * @char_per_block, drm_format_info_block_width() and
 		 * drm_format_info_block_height() which allows handling both
-		 * block and non-block formats in the same way.
+		 * block and analn-block formats in the same way.
 		 *
-		 * For formats that are intended to be used only with non-linear
+		 * For formats that are intended to be used only with analn-linear
 		 * modifiers both @cpp and @char_per_block must be 0 in the
 		 * generic format table. Drivers could supply accurate
 		 * information from their drm_mode_config.get_format_info hook

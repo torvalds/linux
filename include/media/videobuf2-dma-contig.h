@@ -17,9 +17,9 @@
 #include <linux/dma-mapping.h>
 
 static inline dma_addr_t
-vb2_dma_contig_plane_dma_addr(struct vb2_buffer *vb, unsigned int plane_no)
+vb2_dma_contig_plane_dma_addr(struct vb2_buffer *vb, unsigned int plane_anal)
 {
-	dma_addr_t *addr = vb2_plane_cookie(vb, plane_no);
+	dma_addr_t *addr = vb2_plane_cookie(vb, plane_anal);
 
 	return *addr;
 }

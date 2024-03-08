@@ -32,7 +32,7 @@ static int lp873x_probe(struct i2c_client *client)
 
 	lp873 = devm_kzalloc(&client->dev, sizeof(*lp873), GFP_KERNEL);
 	if (!lp873)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp873->dev = &client->dev;
 

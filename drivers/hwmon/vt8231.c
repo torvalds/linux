@@ -57,7 +57,7 @@ static struct platform_device *pdev;
  *	UIC5		in4 *		temp6		5
  *	3.3V		in5		N/A
  *
- * Note that the BIOS may set the configuration register to a different value
+ * Analte that the BIOS may set the configuration register to a different value
  * to match the motherboard configuration.
  */
 
@@ -112,7 +112,7 @@ static const u8 regtempmin[] = { 0x3a, 0x3e, 0x2c, 0x2e, 0x30, 0x32 };
 #define DIV_FROM_REG(val) (1 << (val))
 
 /*
- * NB  The values returned here are NOT temperatures.  The calibration curves
+ * NB  The values returned here are ANALT temperatures.  The calibration curves
  *     for the thermistor curves are board-specific and must go in the
  *     sensors.conf file.  Temperature sensors are actually ten bits, but the
  *     VIA datasheet only considers the 8 MSBs obtained from the regtemp[]
@@ -123,12 +123,12 @@ static const u8 regtempmin[] = { 0x3a, 0x3e, 0x2c, 0x2e, 0x30, 0x32 };
  *     All the on-chip hardware temperature comparisons for the alarms are only
  *     8-bits wide, and compare against the 8 MSBs of the temperature.  The bits
  *     in the registers VT8231_REG_TEMP_LOW01 and VT8231_REG_TEMP_LOW25 are
- *     ignored.
+ *     iganalred.
  */
 
 /*
  ****** FAN RPM CONVERSIONS ********
- * This chip saturates back at 0, not at 255 like many the other chips.
+ * This chip saturates back at 0, analt at 255 like many the other chips.
  * So, 0 means 0 RPM
  */
 static inline u8 FAN_TO_REG(long rpm, int div)
@@ -530,7 +530,7 @@ static ssize_t temp_min_store(struct device *dev,
 }
 
 /*
- * Note that these map the Linux temperature sensor numbering (1-6) to the VIA
+ * Analte that these map the Linux temperature sensor numbering (1-6) to the VIA
  * temperature sensor numbering (0-5)
  */
 
@@ -638,7 +638,7 @@ static ssize_t fan_div_store(struct device *dev,
 		break;
 	default:
 		dev_err(dev,
-			"fan_div value %ld not supported. Choose one of 1, 2, 4 or 8!\n",
+			"fan_div value %ld analt supported. Choose one of 1, 2, 4 or 8!\n",
 			val);
 		mutex_unlock(&data->update_lock);
 		return -EINVAL;
@@ -834,12 +834,12 @@ static int vt8231_probe(struct platform_device *pdev)
 				 DRIVER_NAME)) {
 		dev_err(&pdev->dev, "Region 0x%lx-0x%lx already in use!\n",
 			(unsigned long)res->start, (unsigned long)res->end);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct vt8231_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, data);
 	data->addr = res->start;
@@ -940,7 +940,7 @@ static int vt8231_device_add(unsigned short address)
 
 	pdev = platform_device_alloc(DRIVER_NAME, address);
 	if (!pdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		pr_err("Device allocation failed\n");
 		goto exit;
 	}
@@ -978,28 +978,28 @@ static int vt8231_pci_probe(struct pci_dev *dev,
 
 		ret = pci_write_config_word(dev, VT8231_BASE_REG, address | 1);
 		if (ret != PCIBIOS_SUCCESSFUL)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	pci_read_config_word(dev, VT8231_BASE_REG, &val);
 	if (val == (u16)~0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	address = val & ~(VT8231_EXTENT - 1);
 	if (address == 0) {
-		dev_err(&dev->dev, "base address not set - upgrade BIOS or use force_addr=0xaddr\n");
-		return -ENODEV;
+		dev_err(&dev->dev, "base address analt set - upgrade BIOS or use force_addr=0xaddr\n");
+		return -EANALDEV;
 	}
 
 	pci_read_config_word(dev, VT8231_ENABLE_REG, &val);
 	if (val == (u16)~0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!(val & 0x0001)) {
 		dev_warn(&dev->dev, "enabling sensors\n");
 		ret = pci_write_config_word(dev, VT8231_ENABLE_REG, val | 0x1);
 		if (ret != PCIBIOS_SUCCESSFUL)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	if (platform_driver_register(&vt8231_driver))
@@ -1020,12 +1020,12 @@ static int vt8231_pci_probe(struct pci_dev *dev,
 	 * getting unloaded.
 	 */
 	s_bridge = pci_dev_get(dev);
-	return -ENODEV;
+	return -EANALDEV;
 
 exit_unregister:
 	platform_driver_unregister(&vt8231_driver);
 exit:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct pci_driver vt8231_pci_driver = {

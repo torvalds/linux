@@ -83,7 +83,7 @@ enum eeprom_sku_bits {
 /*
  * EEPROM bands
  * These are the channel numbers from each band in the order
- * that they are stored in the EEPROM band information. Note
+ * that they are stored in the EEPROM band information. Analte
  * that EEPROM bands aren't the same as mac80211 bands, and
  * there are even special "ht40 bands" in the EEPROM.
  */
@@ -222,7 +222,7 @@ static int iwl_eeprom_read_calib(const u8 *eeprom, size_t eeprom_size,
 	hdr = (void *)iwl_eeprom_query_addr(eeprom, eeprom_size,
 					    EEPROM_CALIB_ALL);
 	if (!hdr)
-		return -ENODATA;
+		return -EANALDATA;
 	data->calib_version = hdr->version;
 	data->calib_voltage = hdr->voltage;
 
@@ -501,7 +501,7 @@ static void iwl_mod_ht40_chan_info(struct device *dev,
 			 eeprom_ch->max_power_avg,
 			 ((eeprom_ch->flags & EEPROM_CHANNEL_IBSS) &&
 			  !(eeprom_ch->flags & EEPROM_CHANNEL_RADAR)) ? ""
-								      : "not ");
+								      : "analt ");
 
 	if (eeprom_ch->flags & EEPROM_CHANNEL_VALID)
 		chan->flags &= ~clear_ht40_extension_channel;
@@ -538,7 +538,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 			if (!(eeprom_ch->flags & EEPROM_CHANNEL_VALID)) {
 				IWL_DEBUG_EEPROM(dev,
-						 "Ch. %d Flags %x [%sGHz] - No traffic\n",
+						 "Ch. %d Flags %x [%sGHz] - Anal traffic\n",
 						 eeprom_ch_array[ch_idx],
 						 eeprom_ch_info[ch_idx].flags,
 						 (band != 1) ? "5.2" : "2.4");
@@ -555,14 +555,14 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 				ieee80211_channel_to_frequency(
 					channel->hw_value, channel->band);
 
-			/* set no-HT40, will enable as appropriate later */
-			channel->flags = IEEE80211_CHAN_NO_HT40;
+			/* set anal-HT40, will enable as appropriate later */
+			channel->flags = IEEE80211_CHAN_ANAL_HT40;
 
 			if (!(eeprom_ch->flags & EEPROM_CHANNEL_IBSS))
-				channel->flags |= IEEE80211_CHAN_NO_IR;
+				channel->flags |= IEEE80211_CHAN_ANAL_IR;
 
 			if (!(eeprom_ch->flags & EEPROM_CHANNEL_ACTIVE))
-				channel->flags |= IEEE80211_CHAN_NO_IR;
+				channel->flags |= IEEE80211_CHAN_ANAL_IR;
 
 			if (eeprom_ch->flags & EEPROM_CHANNEL_RADAR)
 				channel->flags |= IEEE80211_CHAN_RADAR;
@@ -586,7 +586,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 							EEPROM_CHANNEL_IBSS) &&
 					  !(eeprom_ch_info[ch_idx].flags &
 							EEPROM_CHANNEL_RADAR))
-						? "" : "not ");
+						? "" : "analt ");
 		}
 	}
 
@@ -613,9 +613,9 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 	/* Check if we do have HT40 channels */
 	if (cfg->eeprom_params->regulatory_bands[5] ==
-				EEPROM_REGULATORY_BAND_NO_HT40 &&
+				EEPROM_REGULATORY_BAND_ANAL_HT40 &&
 	    cfg->eeprom_params->regulatory_bands[6] ==
-				EEPROM_REGULATORY_BAND_NO_HT40)
+				EEPROM_REGULATORY_BAND_ANAL_HT40)
 		return n_channels;
 
 	/* Two additional EEPROM bands for 2.4 and 5 GHz HT40 channels */
@@ -636,13 +636,13 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 			iwl_mod_ht40_chan_info(dev, data, n_channels, ieeeband,
 					       eeprom_ch_array[ch_idx],
 					       &eeprom_ch_info[ch_idx],
-					       IEEE80211_CHAN_NO_HT40PLUS);
+					       IEEE80211_CHAN_ANAL_HT40PLUS);
 
 			/* Set up driver's info for upper half */
 			iwl_mod_ht40_chan_info(dev, data, n_channels, ieeeband,
 					       eeprom_ch_array[ch_idx] + 4,
 					       &eeprom_ch_info[ch_idx],
-					       IEEE80211_CHAN_NO_HT40MINUS);
+					       IEEE80211_CHAN_ANAL_HT40MINUS);
 		}
 	}
 

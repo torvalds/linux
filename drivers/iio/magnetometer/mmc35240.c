@@ -280,7 +280,7 @@ static int mmc35240_take_measurement(struct mmc35240_data *data)
 	}
 
 	if (tries < 0) {
-		dev_err(&data->client->dev, "data not ready\n");
+		dev_err(&data->client->dev, "data analt ready\n");
 		return -EIO;
 	}
 
@@ -308,7 +308,7 @@ static int mmc35240_read_measurement(struct mmc35240_data *data, __le16 buf[3])
  * @buf: raw data to be converted, 2 bytes in little endian format
  * @val: compensated output reading (unit is milli gauss)
  *
- * Returns: 0 in case of success, -EINVAL when @index is not valid
+ * Returns: 0 in case of success, -EINVAL when @index is analt valid
  */
 static int mmc35240_raw_to_mgauss(struct mmc35240_data *data, int index,
 				  __le16 buf[], int *val)
@@ -490,7 +490,7 @@ static int mmc35240_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_i2c(client, &mmc35240_regmap_config);
 	if (IS_ERR(regmap)) {

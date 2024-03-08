@@ -33,7 +33,7 @@ struct scsi_device;
 struct ufs_hba;
 
 enum dev_cmd_type {
-	DEV_CMD_TYPE_NOP		= 0x0,
+	DEV_CMD_TYPE_ANALP		= 0x0,
 	DEV_CMD_TYPE_QUERY		= 0x1,
 	DEV_CMD_TYPE_RPMB		= 0x2,
 };
@@ -55,7 +55,7 @@ enum ufs_event_type {
 	UFS_EVT_WL_SUSP_ERR,
 	UFS_EVT_WL_RES_ERR,
 
-	/* abnormal events */
+	/* abanalrmal events */
 	UFS_EVT_DEV_RESET,
 	UFS_EVT_HOST_RESET,
 	UFS_EVT_ABORT,
@@ -131,7 +131,7 @@ enum uic_link_state {
 /*
  * UFS Power management levels.
  * Each level is in increasing order of power savings, except DeepSleep
- * which is lower than PowerDown with power on but not PowerDown with
+ * which is lower than PowerDown with power on but analt PowerDown with
  * power off.
  */
 enum ufs_pm_level {
@@ -166,11 +166,11 @@ struct ufs_pm_lvl_states {
  * @task_tag: Task tag of the command
  * @lun: LUN of the command
  * @intr_cmd: Interrupt command (doesn't participate in interrupt aggregation)
- * @issue_time_stamp: time stamp for debug purposes (CLOCK_MONOTONIC)
+ * @issue_time_stamp: time stamp for debug purposes (CLOCK_MOANALTONIC)
  * @issue_time_stamp_local_clock: time stamp for debug purposes (local_clock)
- * @compl_time_stamp: time stamp for statistics (CLOCK_MONOTONIC)
+ * @compl_time_stamp: time stamp for statistics (CLOCK_MOANALTONIC)
  * @compl_time_stamp_local_clock: time stamp for debug purposes (local_clock)
- * @crypto_key_slot: the key slot to use for inline crypto (-1 if none)
+ * @crypto_key_slot: the key slot to use for inline crypto (-1 if analne)
  * @data_unit_num: the data unit number for the first block for inline crypto
  * @req_abort_skip: skip request abort task flag
  */
@@ -237,7 +237,7 @@ struct ufs_query {
 
 /**
  * struct ufs_dev_cmd - all assosiated fields with device management commands
- * @type: device management command type - Query, NOP OUT
+ * @type: device management command type - Query, ANALP OUT
  * @lock: lock to allow one command at a time
  * @complete: internal commands completion
  * @query: Device management query information
@@ -252,12 +252,12 @@ struct ufs_dev_cmd {
 /**
  * struct ufs_clk_info - UFS clock related info
  * @list: list headed by hba->clk_list_head
- * @clk: clock node
+ * @clk: clock analde
  * @name: clock name
  * @max_freq: maximum frequency supported by the clock
  * @min_freq: min frequency that can be used for clock scaling
  * @curr_freq: indicates the current frequency that it is set to
- * @keep_link_active: indicates that the clk should not be disabled if
+ * @keep_link_active: indicates that the clk should analt be disabled if
  *		      link is active
  * @enabled: variable to check against multiple enable/disable
  */
@@ -272,7 +272,7 @@ struct ufs_clk_info {
 	bool enabled;
 };
 
-enum ufs_notify_change_status {
+enum ufs_analtify_change_status {
 	PRE_CHANGE,
 	POST_CHANGE,
 };
@@ -298,20 +298,20 @@ struct ufs_pwr_mode_info {
  * @init: called when the driver is initialized
  * @exit: called to cleanup everything done in init
  * @get_ufs_hci_version: called to get UFS HCI version
- * @clk_scale_notify: notifies that clks are scaled up/down
+ * @clk_scale_analtify: analtifies that clks are scaled up/down
  * @setup_clocks: called before touching any of the controller registers
- * @hce_enable_notify: called before and after HCE enable bit is set to allow
+ * @hce_enable_analtify: called before and after HCE enable bit is set to allow
  *                     variant specific Uni-Pro initialization.
- * @link_startup_notify: called before and after Link startup is carried out
+ * @link_startup_analtify: called before and after Link startup is carried out
  *                       to allow variant specific Uni-Pro initialization.
- * @pwr_change_notify: called before and after a power mode change
+ * @pwr_change_analtify: called before and after a power mode change
  *			is carried out to allow vendor spesific capabilities
  *			to be set.
  * @setup_xfer_req: called before any transfer request is issued
  *                  to set some things
  * @setup_task_mgmt: called before any task management request is issued
  *                  to set some things
- * @hibern8_notify: called around hibern8 enter/exit
+ * @hibern8_analtify: called around hibern8 enter/exit
  * @apply_dev_quirks: called to apply device specific quirks
  * @fixup_dev_quirks: called to modify device specific quirks
  * @suspend: called during host controller PM callback
@@ -321,8 +321,8 @@ struct ufs_pwr_mode_info {
  * @device_reset: called to issue a reset pulse on the UFS device
  * @config_scaling_param: called to configure clock scaling parameters
  * @program_key: program or evict an inline encryption key
- * @event_notify: called to notify important events
- * @reinit_notify: called to notify reinit of UFSHCD during max gear switch
+ * @event_analtify: called to analtify important events
+ * @reinit_analtify: called to analtify reinit of UFSHCD during max gear switch
  * @mcq_config_resource: called to configure MCQ platform resources
  * @get_hba_mac: called to get vendor specific mac value, mandatory for mcq mode
  * @op_runtime_config: called to config Operation and runtime regs Pointers
@@ -334,27 +334,27 @@ struct ufs_hba_variant_ops {
 	int	(*init)(struct ufs_hba *);
 	void    (*exit)(struct ufs_hba *);
 	u32	(*get_ufs_hci_version)(struct ufs_hba *);
-	int	(*clk_scale_notify)(struct ufs_hba *, bool,
-				    enum ufs_notify_change_status);
+	int	(*clk_scale_analtify)(struct ufs_hba *, bool,
+				    enum ufs_analtify_change_status);
 	int	(*setup_clocks)(struct ufs_hba *, bool,
-				enum ufs_notify_change_status);
-	int	(*hce_enable_notify)(struct ufs_hba *,
-				     enum ufs_notify_change_status);
-	int	(*link_startup_notify)(struct ufs_hba *,
-				       enum ufs_notify_change_status);
-	int	(*pwr_change_notify)(struct ufs_hba *,
-					enum ufs_notify_change_status status,
+				enum ufs_analtify_change_status);
+	int	(*hce_enable_analtify)(struct ufs_hba *,
+				     enum ufs_analtify_change_status);
+	int	(*link_startup_analtify)(struct ufs_hba *,
+				       enum ufs_analtify_change_status);
+	int	(*pwr_change_analtify)(struct ufs_hba *,
+					enum ufs_analtify_change_status status,
 					struct ufs_pa_layer_attr *,
 					struct ufs_pa_layer_attr *);
 	void	(*setup_xfer_req)(struct ufs_hba *hba, int tag,
 				  bool is_scsi_cmd);
 	void	(*setup_task_mgmt)(struct ufs_hba *, int, u8);
-	void    (*hibern8_notify)(struct ufs_hba *, enum uic_cmd_dme,
-					enum ufs_notify_change_status);
+	void    (*hibern8_analtify)(struct ufs_hba *, enum uic_cmd_dme,
+					enum ufs_analtify_change_status);
 	int	(*apply_dev_quirks)(struct ufs_hba *hba);
 	void	(*fixup_dev_quirks)(struct ufs_hba *hba);
 	int     (*suspend)(struct ufs_hba *, enum ufs_pm_op,
-					enum ufs_notify_change_status);
+					enum ufs_analtify_change_status);
 	int     (*resume)(struct ufs_hba *, enum ufs_pm_op);
 	void	(*dbg_register_dump)(struct ufs_hba *hba);
 	int	(*phy_initialization)(struct ufs_hba *);
@@ -364,9 +364,9 @@ struct ufs_hba_variant_ops {
 				struct devfreq_simple_ondemand_data *data);
 	int	(*program_key)(struct ufs_hba *hba,
 			       const union ufs_crypto_cfg_entry *cfg, int slot);
-	void	(*event_notify)(struct ufs_hba *hba,
+	void	(*event_analtify)(struct ufs_hba *hba,
 				enum ufs_event_type evt, void *data);
-	void	(*reinit_notify)(struct ufs_hba *);
+	void	(*reinit_analtify)(struct ufs_hba *);
 	int	(*mcq_config_resource)(struct ufs_hba *hba);
 	int	(*get_hba_mac)(struct ufs_hba *hba);
 	int	(*op_runtime_config)(struct ufs_hba *hba);
@@ -397,7 +397,7 @@ enum clk_gating_state {
  * @delay_attr: sysfs attribute to control delay_attr
  * @enable_attr: sysfs attribute to enable/disable clock gating
  * @is_enabled: Indicates the current status of clock gating
- * @is_initialized: Indicates whether clock gating is initialized or not
+ * @is_initialized: Indicates whether clock gating is initialized or analt
  * @active_reqs: number of requests that are pending and should be waited for
  * completion before gating clocks.
  * @clk_gating_workq: workqueue for clock gating work.
@@ -432,13 +432,13 @@ struct ufs_clk_gating {
  * @resume_work: worker to resume devfreq
  * @target_freq: frequency requested by devfreq framework
  * @min_gear: lowest HS gear to scale down to
- * @is_enabled: tracks if scaling is currently enabled or not, controlled by
- *		clkscale_enable sysfs node
- * @is_allowed: tracks if scaling is currently allowed or not, used to block
- *		clock scaling which is not invoked from devfreq governor
- * @is_initialized: Indicates whether clock scaling is initialized or not
- * @is_busy_started: tracks if busy period has started or not
- * @is_suspended: tracks if devfreq is suspended or not
+ * @is_enabled: tracks if scaling is currently enabled or analt, controlled by
+ *		clkscale_enable sysfs analde
+ * @is_allowed: tracks if scaling is currently allowed or analt, used to block
+ *		clock scaling which is analt invoked from devfreq goveranalr
+ * @is_initialized: Indicates whether clock scaling is initialized or analt
+ * @is_busy_started: tracks if busy period has started or analt
+ * @is_suspended: tracks if devfreq is suspended or analt
  */
 struct ufs_clk_scaling {
 	int active_reqs;
@@ -495,11 +495,11 @@ struct ufs_stats {
 
 /**
  * enum ufshcd_state - UFS host controller state
- * @UFSHCD_STATE_RESET: Link is not operational. Postpone SCSI command
+ * @UFSHCD_STATE_RESET: Link is analt operational. Postpone SCSI command
  *	processing.
  * @UFSHCD_STATE_OPERATIONAL: The host controller is operational and can process
  *	SCSI commands.
- * @UFSHCD_STATE_EH_SCHEDULED_NON_FATAL: The error handler has been scheduled.
+ * @UFSHCD_STATE_EH_SCHEDULED_ANALN_FATAL: The error handler has been scheduled.
  *	SCSI commands may be submitted to the controller.
  * @UFSHCD_STATE_EH_SCHEDULED_FATAL: The error handler has been scheduled. Fail
  *	newly submitted SCSI commands with error code DID_BAD_TARGET.
@@ -509,7 +509,7 @@ struct ufs_stats {
 enum ufshcd_state {
 	UFSHCD_STATE_RESET,
 	UFSHCD_STATE_OPERATIONAL,
-	UFSHCD_STATE_EH_SCHEDULED_NON_FATAL,
+	UFSHCD_STATE_EH_SCHEDULED_ANALN_FATAL,
 	UFSHCD_STATE_EH_SCHEDULED_FATAL,
 	UFSHCD_STATE_ERROR,
 };
@@ -534,7 +534,7 @@ enum ufshcd_quirks {
 	UFSHCD_QUIRK_BROKEN_LCC				= 1 << 2,
 
 	/*
-	 * The attribute PA_RXHSUNTERMCAP specifies whether or not the
+	 * The attribute PA_RXHSUNTERMCAP specifies whether or analt the
 	 * inbound Link supports unterminated line in HS mode. Setting this
 	 * attribute to 1 fixes moving to HS gear.
 	 */
@@ -567,7 +567,7 @@ enum ufshcd_quirks {
 	UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR		= 1 << 7,
 
 	/*
-	 * This quirks needs to be enabled if host controller cannot be
+	 * This quirks needs to be enabled if host controller cananalt be
 	 * enabled via HCE register.
 	 */
 	UFSHCI_QUIRK_BROKEN_HCE				= 1 << 8,
@@ -602,13 +602,13 @@ enum ufshcd_quirks {
 	UFSHCD_QUIRK_SKIP_DEF_UNIPRO_TIMEOUT_SETTING = 1 << 13,
 
 	/*
-	 * This quirk needs to be enabled if the host controller does not
+	 * This quirk needs to be enabled if the host controller does analt
 	 * support UIC command
 	 */
 	UFSHCD_QUIRK_BROKEN_UIC_CMD			= 1 << 15,
 
 	/*
-	 * This quirk needs to be enabled if the host controller cannot
+	 * This quirk needs to be enabled if the host controller cananalt
 	 * support physical host configuration.
 	 */
 	UFSHCD_QUIRK_SKIP_PH_CONFIGURATION		= 1 << 16,
@@ -639,7 +639,7 @@ enum ufshcd_quirks {
 	UFSHCD_QUIRK_MCQ_BROKEN_INTR			= 1 << 20,
 
 	/*
-	 * Some host does not implement SQ Run Time Command (SQRTC) register
+	 * Some host does analt implement SQ Run Time Command (SQRTC) register
 	 * thus need this quirk to skip related flow.
 	 */
 	UFSHCD_QUIRK_MCQ_BROKEN_RTC			= 1 << 21,
@@ -711,9 +711,9 @@ enum ufshcd_caps {
 
 	/*
 	 * This capability allows the host controller driver to use temperature
-	 * notification if it is supported by the UFS device.
+	 * analtification if it is supported by the UFS device.
 	 */
-	UFSHCD_CAP_TEMP_NOTIF				= 1 << 11,
+	UFSHCD_CAP_TEMP_ANALTIF				= 1 << 11,
 
 	/*
 	 * Enable WriteBooster when scaling up the clock and disable
@@ -810,7 +810,7 @@ enum ufshcd_mcq_opr {
  * @uic_link_state: active state of the link to the UFS device.
  * @rpm_lvl: desired UFS power management level during runtime PM.
  * @spm_lvl: desired UFS power management level during system PM.
- * @pm_op_in_progress: whether or not a PM operation is in progress.
+ * @pm_op_in_progress: whether or analt a PM operation is in progress.
  * @ahit: value of Auto-Hibernate Idle Timer register.
  * @lrb: local reference block
  * @outstanding_tasks: Bits representing outstanding task requests
@@ -827,7 +827,7 @@ enum ufshcd_mcq_opr {
  * @priv: pointer to variant specific private data
  * @sg_entry_size: size of struct ufshcd_sg_entry (may include variant fields)
  * @irq: Irq number of the controller
- * @is_irq_enabled: whether or not the UFS controller interrupt is enabled.
+ * @is_irq_enabled: whether or analt the UFS controller interrupt is enabled.
  * @dev_ref_clk_freq: reference clock frequency
  * @quirks: bitmask with information about deviations from the UFSHCI standard.
  * @dev_quirks: bitmask with information about deviations from the UFS standard.
@@ -860,12 +860,12 @@ enum ufshcd_mcq_opr {
  * @silence_err_logs: flag to silence error logs
  * @dev_cmd: ufs device management command information
  * @last_dme_cmd_tstamp: time stamp of the last completed DME command
- * @nop_out_timeout: NOP OUT timeout value
+ * @analp_out_timeout: ANALP OUT timeout value
  * @dev_info: information about the UFS device
  * @auto_bkops_enabled: to track whether bkops is enabled in device
  * @vreg_info: UFS device voltage regulator information
- * @clk_list_head: UFS host controller clocks list node head
- * @use_pm_opp: Indicates whether OPP based scaling is used or not
+ * @clk_list_head: UFS host controller clocks list analde head
+ * @use_pm_opp: Indicates whether OPP based scaling is used or analt
  * @req_abort_count: number of times ufshcd_abort() has been called
  * @lanes_per_direction: number of lanes per data direction between the UFS
  *	controller and the UFS device.
@@ -876,11 +876,11 @@ enum ufshcd_mcq_opr {
  * @devfreq: frequency scaling information owned by the devfreq core
  * @clk_scaling: frequency scaling information owned by the UFS driver
  * @system_suspending: system suspend has been started and system resume has
- *	not yet finished.
+ *	analt yet finished.
  * @is_sys_suspended: UFS device has been suspended because of system suspend
  * @urgent_bkops_lvl: keeps track of urgent bkops level for device
  * @is_urgent_bkops_lvl_checked: keeps track if the urgent bkops level for
- *  device is known or not.
+ *  device is kanalwn or analt.
  * @wb_mutex: used to serialize devfreq and sysfs write booster toggling
  * @clk_scaling_lock: used to serialize device commands and clock scaling
  * @desc_size: descriptor sizes reported by device
@@ -899,11 +899,11 @@ enum ufshcd_mcq_opr {
  * @debugfs_ee_work: used to restore ee_ctrl_mask after a delay
  * @debugfs_ee_rate_limit_ms: user configurable delay after which to restore
  *	ee_ctrl_mask
- * @luns_avail: number of regular and well known LUNs supported by the UFS
+ * @luns_avail: number of regular and well kanalwn LUNs supported by the UFS
  *	device
  * @nr_hw_queues: number of hardware queues configured
  * @nr_queues: number of Queues of different queue types
- * @complete_put: whether or not to call ufshcd_rpm_put() from inside
+ * @complete_put: whether or analt to call ufshcd_rpm_put() from inside
  *	ufshcd_resume_complete()
  * @ext_iid_sup: is EXT_IID is supported by UFSHC
  * @mcq_sup: is mcq supported by UFSHC
@@ -1011,7 +1011,7 @@ struct ufs_hba {
 	/* Device management request data */
 	struct ufs_dev_cmd dev_cmd;
 	ktime_t last_dme_cmd_tstamp;
-	int nop_out_timeout;
+	int analp_out_timeout;
 
 	/* Keeps information of the UFS device connected to this host */
 	struct ufs_dev_info dev_info;
@@ -1315,13 +1315,13 @@ extern int ufshcd_uic_change_pwr_mode(struct ufs_hba *hba, u8 mode);
 /* UIC command interfaces for DME primitives */
 #define DME_LOCAL	0
 #define DME_PEER	1
-#define ATTR_SET_NOR	0	/* NORMAL */
+#define ATTR_SET_ANALR	0	/* ANALRMAL */
 #define ATTR_SET_ST	1	/* STATIC */
 
 static inline int ufshcd_dme_set(struct ufs_hba *hba, u32 attr_sel,
 				 u32 mib_val)
 {
-	return ufshcd_dme_set_attr(hba, attr_sel, ATTR_SET_NOR,
+	return ufshcd_dme_set_attr(hba, attr_sel, ATTR_SET_ANALR,
 				   mib_val, DME_LOCAL);
 }
 
@@ -1335,7 +1335,7 @@ static inline int ufshcd_dme_st_set(struct ufs_hba *hba, u32 attr_sel,
 static inline int ufshcd_dme_peer_set(struct ufs_hba *hba, u32 attr_sel,
 				      u32 mib_val)
 {
-	return ufshcd_dme_set_attr(hba, attr_sel, ATTR_SET_NOR,
+	return ufshcd_dme_set_attr(hba, attr_sel, ATTR_SET_ANALR,
 				   mib_val, DME_PEER);
 }
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  HID driver for Kye/Genius devices not fully compliant with HID standard
+ *  HID driver for Kye/Genius devices analt fully compliant with HID standard
  *
  *  Copyright (c) 2009 Jiri Kosina
  *  Copyright (c) 2009 Tomas Hanak
@@ -389,7 +389,7 @@ static __u8 *kye_consumer_control_fixup(struct hid_device *hdev, __u8 *rdesc,
  *    values greater than that;
  *  - Physical Maximums are arbitrarily filled (always equal to Logical
  *    Maximum);
- *  - Detail for control buttons are not provided (a vendor-defined Usage Page
+ *  - Detail for control buttons are analt provided (a vendor-defined Usage Page
  *    with fixed content).
  *
  * Thus we use a pre-defined parameter table rather than digging it from
@@ -416,7 +416,7 @@ static __u8 *kye_tablet_fixup(struct hid_device *hdev, __u8 *rdesc, unsigned int
 	}
 
 	if (!info->product) {
-		hid_err(hdev, "tablet unknown, someone forget to add kye_tablet_info entry?\n");
+		hid_err(hdev, "tablet unkanalwn, someone forget to add kye_tablet_info entry?\n");
 		return rdesc;
 	}
 
@@ -527,24 +527,24 @@ static int kye_tablet_enable(struct hid_device *hdev)
 	}
 
 	if (head == list) {
-		hid_err(hdev, "tablet-enabling feature report not found\n");
-		return -ENODEV;
+		hid_err(hdev, "tablet-enabling feature report analt found\n");
+		return -EANALDEV;
 	}
 
 	if (report->maxfield < 1 || report->field[0]->report_count < 7) {
 		hid_err(hdev, "invalid tablet-enabling feature report\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	value = report->field[0]->value;
 
 	/*
-	 * The code is for DataFormat 2 of config xml. They have no obvious
-	 * meaning (at least not configurable in Windows driver) except enabling
+	 * The code is for DataFormat 2 of config xml. They have anal obvious
+	 * meaning (at least analt configurable in Windows driver) except enabling
 	 * fully-functional tablet mode (absolute positioning). Otherwise, the
 	 * tablet acts like a relative mouse.
 	 *
-	 * Though there're magic codes for DataFormat 3 and 4, no devices use
+	 * Though there're magic codes for DataFormat 3 and 4, anal devices use
 	 * these DataFormats.
 	 */
 	value[0] = 0x12;

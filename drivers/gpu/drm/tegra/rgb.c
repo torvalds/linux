@@ -106,7 +106,7 @@ static void tegra_rgb_encoder_enable(struct drm_encoder *encoder)
 
 	tegra_dc_write_regs(rgb->dc, rgb_enable, ARRAY_SIZE(rgb_enable));
 
-	value = DE_SELECT_ACTIVE | DE_CONTROL_NORMAL;
+	value = DE_SELECT_ACTIVE | DE_CONTROL_ANALRMAL;
 	tegra_dc_writel(rgb->dc, value, DC_DISP_DATA_ENABLE_OPTIONS);
 
 	/* configure H- and V-sync signal polarities */
@@ -157,7 +157,7 @@ tegra_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	int err;
 
 	/*
-	 * We may not want to change the frequency of the parent clock, since
+	 * We may analt want to change the frequency of the parent clock, since
 	 * it may be a parent for other peripherals. This is due to the fact
 	 * that on Tegra20 there's only a single clock dedicated to display
 	 * (pll_d_out0), whereas later generations have a second one that can
@@ -202,20 +202,20 @@ static const struct drm_encoder_helper_funcs tegra_rgb_encoder_helper_funcs = {
 
 int tegra_dc_rgb_probe(struct tegra_dc *dc)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct tegra_rgb *rgb;
 	int err;
 
-	np = of_get_child_by_name(dc->dev->of_node, "rgb");
+	np = of_get_child_by_name(dc->dev->of_analde, "rgb");
 	if (!np || !of_device_is_available(np))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rgb = devm_kzalloc(dc->dev, sizeof(*rgb), GFP_KERNEL);
 	if (!rgb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rgb->output.dev = dc->dev;
-	rgb->output.of_node = np;
+	rgb->output.of_analde = np;
 	rgb->dc = dc;
 
 	err = tegra_output_probe(&rgb->output);
@@ -283,7 +283,7 @@ int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc)
 	int err;
 
 	if (!dc->rgb)
-		return -ENODEV;
+		return -EANALDEV;
 
 	drm_simple_encoder_init(drm, &output->encoder, DRM_MODE_ENCODER_LVDS);
 	drm_encoder_helper_add(&output->encoder,
@@ -324,7 +324,7 @@ int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc)
 	 */
 	if (output->bridge) {
 		err = drm_bridge_attach(&output->encoder, output->bridge,
-					NULL, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+					NULL, DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 		if (err)
 			return err;
 

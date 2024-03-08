@@ -230,22 +230,22 @@ int ntfs_nls_to_utf16(struct ntfs_sb_info *sbi, const u8 *name, u32 name_len,
 /*
  * dir_search_u - Helper function.
  */
-struct inode *dir_search_u(struct inode *dir, const struct cpu_str *uni,
+struct ianalde *dir_search_u(struct ianalde *dir, const struct cpu_str *uni,
 			   struct ntfs_fnd *fnd)
 {
 	int err = 0;
 	struct super_block *sb = dir->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
-	struct ntfs_inode *ni = ntfs_i(dir);
+	struct ntfs_ianalde *ni = ntfs_i(dir);
 	struct NTFS_DE *e;
 	int diff;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	struct ntfs_fnd *fnd_a = NULL;
 
 	if (!fnd) {
 		fnd_a = fnd_get();
 		if (!fnd_a) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		fnd = fnd_a;
@@ -257,27 +257,27 @@ struct inode *dir_search_u(struct inode *dir, const struct cpu_str *uni,
 		goto out;
 
 	if (diff) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out;
 	}
 
-	inode = ntfs_iget5(sb, &e->ref, uni);
-	if (!IS_ERR(inode) && is_bad_inode(inode)) {
-		iput(inode);
+	ianalde = ntfs_iget5(sb, &e->ref, uni);
+	if (!IS_ERR(ianalde) && is_bad_ianalde(ianalde)) {
+		iput(ianalde);
 		err = -EINVAL;
 	}
 out:
 	fnd_put(fnd_a);
 
-	return err == -ENOENT ? NULL : err ? ERR_PTR(err) : inode;
+	return err == -EANALENT ? NULL : err ? ERR_PTR(err) : ianalde;
 }
 
-static inline int ntfs_filldir(struct ntfs_sb_info *sbi, struct ntfs_inode *ni,
+static inline int ntfs_filldir(struct ntfs_sb_info *sbi, struct ntfs_ianalde *ni,
 			       const struct NTFS_DE *e, u8 *name,
 			       struct dir_context *ctx)
 {
 	const struct ATTR_FILE_NAME *fname;
-	unsigned long ino;
+	unsigned long ianal;
 	int name_len;
 	u32 dt_type;
 
@@ -289,59 +289,59 @@ static inline int ntfs_filldir(struct ntfs_sb_info *sbi, struct ntfs_inode *ni,
 	if (!mi_is_ref(&ni->mi, &fname->home))
 		return 0;
 
-	ino = ino_get(&e->ref);
+	ianal = ianal_get(&e->ref);
 
-	if (ino == MFT_REC_ROOT)
+	if (ianal == MFT_REC_ROOT)
 		return 0;
 
 	/* Skip meta files. Unless option to show metafiles is set. */
-	if (!sbi->options->showmeta && ntfs_is_meta_file(sbi, ino))
+	if (!sbi->options->showmeta && ntfs_is_meta_file(sbi, ianal))
 		return 0;
 
-	if (sbi->options->nohidden && (fname->dup.fa & FILE_ATTRIBUTE_HIDDEN))
+	if (sbi->options->analhidden && (fname->dup.fa & FILE_ATTRIBUTE_HIDDEN))
 		return 0;
 
 	name_len = ntfs_utf16_to_nls(sbi, fname->name, fname->name_len, name,
 				     PATH_MAX);
 	if (name_len <= 0) {
-		ntfs_warn(sbi->sb, "failed to convert name for inode %lx.",
-			  ino);
+		ntfs_warn(sbi->sb, "failed to convert name for ianalde %lx.",
+			  ianal);
 		return 0;
 	}
 
 	/*
 	 * NTFS: symlinks are "dir + reparse" or "file + reparse"
 	 * Unfortunately reparse attribute is used for many purposes (several dozens).
-	 * It is not possible here to know is this name symlink or not.
-	 * To get exactly the type of name we should to open inode (read mft).
+	 * It is analt possible here to kanalw is this name symlink or analt.
+	 * To get exactly the type of name we should to open ianalde (read mft).
 	 * getattr for opened file (fstat) correctly returns symlink.
 	 */
 	dt_type = (fname->dup.fa & FILE_ATTRIBUTE_DIRECTORY) ? DT_DIR : DT_REG;
 
 	/*
-	 * It is not reliable to detect the type of name using duplicated information
+	 * It is analt reliable to detect the type of name using duplicated information
 	 * stored in parent directory.
 	 * The only correct way to get the type of name - read MFT record and find ATTR_STD.
-	 * The code below is not good idea.
+	 * The code below is analt good idea.
 	 * It does additional locks/reads just to get the type of name.
 	 * Should we use additional mount option to enable branch below?
 	 */
 	if ((fname->dup.fa & FILE_ATTRIBUTE_REPARSE_POINT) &&
-	    ino != ni->mi.rno) {
-		struct inode *inode = ntfs_iget5(sbi->sb, &e->ref, NULL);
-		if (!IS_ERR_OR_NULL(inode)) {
-			dt_type = fs_umode_to_dtype(inode->i_mode);
-			iput(inode);
+	    ianal != ni->mi.ranal) {
+		struct ianalde *ianalde = ntfs_iget5(sbi->sb, &e->ref, NULL);
+		if (!IS_ERR_OR_NULL(ianalde)) {
+			dt_type = fs_umode_to_dtype(ianalde->i_mode);
+			iput(ianalde);
 		}
 	}
 
-	return !dir_emit(ctx, (s8 *)name, name_len, ino, dt_type);
+	return !dir_emit(ctx, (s8 *)name, name_len, ianal, dt_type);
 }
 
 /*
  * ntfs_read_hdr - Helper function for ntfs_readdir().
  */
-static int ntfs_read_hdr(struct ntfs_sb_info *sbi, struct ntfs_inode *ni,
+static int ntfs_read_hdr(struct ntfs_sb_info *sbi, struct ntfs_ianalde *ni,
 			 const struct INDEX_HDR *hdr, u64 vbo, u64 pos,
 			 u8 *name, struct dir_context *ctx)
 {
@@ -382,7 +382,7 @@ static int ntfs_read_hdr(struct ntfs_sb_info *sbi, struct ntfs_inode *ni,
 /*
  * ntfs_readdir - file_operations::iterate_shared
  *
- * Use non sorted enumeration.
+ * Use analn sorted enumeration.
  * We have an example of broken volume where sorted enumeration
  * counts each name twice.
  */
@@ -393,14 +393,14 @@ static int ntfs_readdir(struct file *file, struct dir_context *ctx)
 	size_t bit;
 	loff_t eod;
 	int err = 0;
-	struct inode *dir = file_inode(file);
-	struct ntfs_inode *ni = ntfs_i(dir);
+	struct ianalde *dir = file_ianalde(file);
+	struct ntfs_ianalde *ni = ntfs_i(dir);
 	struct super_block *sb = dir->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	loff_t i_size = i_size_read(dir);
 	u32 pos = ctx->pos;
 	u8 *name = NULL;
-	struct indx_node *node = NULL;
+	struct indx_analde *analde = NULL;
 	u8 index_bits = ni->dir.index_bits;
 
 	/* Name is a buffer of PATH_MAX length. */
@@ -417,11 +417,11 @@ static int ntfs_readdir(struct file *file, struct dir_context *ctx)
 	/* Allocate PATH_MAX bytes. */
 	name = __getname();
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!ni->mi_loaded && ni->attr_list.size) {
 		/*
-		 * Directory inode is locked for read.
+		 * Directory ianalde is locked for read.
 		 * Load all subrecords to avoid 'write' access to 'ni' during
 		 * directory reading.
 		 */
@@ -474,17 +474,17 @@ static int ntfs_readdir(struct file *file, struct dir_context *ctx)
 
 		vbo = (u64)bit << index_bits;
 		if (vbo >= i_size) {
-			ntfs_inode_err(dir, "Looks like your dir is corrupt");
+			ntfs_ianalde_err(dir, "Looks like your dir is corrupt");
 			err = -EINVAL;
 			goto out;
 		}
 
 		err = indx_read(&ni->dir, ni, bit << ni->dir.idx2vbn_bits,
-				&node);
+				&analde);
 		if (err)
 			goto out;
 
-		err = ntfs_read_hdr(sbi, ni, &node->index->ihdr,
+		err = ntfs_read_hdr(sbi, ni, &analde->index->ihdr,
 				    vbo + sbi->record_size, pos, name, ctx);
 		if (err)
 			goto out;
@@ -495,9 +495,9 @@ static int ntfs_readdir(struct file *file, struct dir_context *ctx)
 out:
 
 	__putname(name);
-	put_indx_node(node);
+	put_indx_analde(analde);
 
-	if (err == -ENOENT) {
+	if (err == -EANALENT) {
 		err = 0;
 		ctx->pos = pos;
 	}
@@ -505,19 +505,19 @@ out:
 	return err;
 }
 
-static int ntfs_dir_count(struct inode *dir, bool *is_empty, size_t *dirs,
+static int ntfs_dir_count(struct ianalde *dir, bool *is_empty, size_t *dirs,
 			  size_t *files)
 {
 	int err = 0;
-	struct ntfs_inode *ni = ntfs_i(dir);
+	struct ntfs_ianalde *ni = ntfs_i(dir);
 	struct NTFS_DE *e = NULL;
 	struct INDEX_ROOT *root;
 	struct INDEX_HDR *hdr;
 	const struct ATTR_FILE_NAME *fname;
 	u32 e_size, off, end;
 	size_t drs = 0, fles = 0, bit = 0;
-	struct indx_node *node = NULL;
-	size_t max_indx = i_size_read(&ni->vfs_inode) >> ni->dir.index_bits;
+	struct indx_analde *analde = NULL;
+	size_t max_indx = i_size_read(&ni->vfs_ianalde) >> ni->dir.index_bits;
 
 	if (is_empty)
 		*is_empty = true;
@@ -577,16 +577,16 @@ static int ntfs_dir_count(struct inode *dir, bool *is_empty, size_t *dirs,
 			goto out;
 
 		err = indx_read(&ni->dir, ni, bit << ni->dir.idx2vbn_bits,
-				&node);
+				&analde);
 		if (err)
 			goto out;
 
-		hdr = &node->index->ihdr;
+		hdr = &analde->index->ihdr;
 		bit += 1;
 	}
 
 out:
-	put_indx_node(node);
+	put_indx_analde(analde);
 	if (dirs)
 		*dirs = drs;
 	if (files)
@@ -595,7 +595,7 @@ out:
 	return err;
 }
 
-bool dir_is_empty(struct inode *dir)
+bool dir_is_empty(struct ianalde *dir)
 {
 	bool is_empty = false;
 

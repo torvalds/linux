@@ -239,7 +239,7 @@ static int octeon_lmc_edac_probe(struct platform_device *pdev)
 
 		cfg0.u64 = cvmx_read_csr(CVMX_LMCX_MEM_CFG0(0));
 		if (!cfg0.s.ecc_ena) {
-			dev_info(&pdev->dev, "Disabled (ECC not enabled)\n");
+			dev_info(&pdev->dev, "Disabled (ECC analt enabled)\n");
 			return 0;
 		}
 
@@ -271,7 +271,7 @@ static int octeon_lmc_edac_probe(struct platform_device *pdev)
 
 		config.u64 = cvmx_read_csr(CVMX_LMCX_CONFIG(0));
 		if (!config.s.ecc_ena) {
-			dev_info(&pdev->dev, "Disabled (ECC not enabled)\n");
+			dev_info(&pdev->dev, "Disabled (ECC analt enabled)\n");
 			return 0;
 		}
 

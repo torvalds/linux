@@ -377,14 +377,14 @@ static struct clk_branch gpu_cc_cx_gmu_clk = {
 	},
 };
 
-static struct clk_branch gpu_cc_cx_snoc_dvm_clk = {
+static struct clk_branch gpu_cc_cx_sanalc_dvm_clk = {
 	.halt_reg = 0x9130,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x9130,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gpu_cc_cx_snoc_dvm_clk",
+			.name = "gpu_cc_cx_sanalc_dvm_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -586,14 +586,14 @@ static struct clk_branch gpu_cc_hub_cx_int_clk = {
 	},
 };
 
-static struct clk_branch gpu_cc_memnoc_gfx_clk = {
+static struct clk_branch gpu_cc_memanalc_gfx_clk = {
 	.halt_reg = 0x9150,
 	.halt_check = BRANCH_HALT,
 	.clkr = {
 		.enable_reg = 0x9150,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gpu_cc_memnoc_gfx_clk",
+			.name = "gpu_cc_memanalc_gfx_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -658,7 +658,7 @@ static struct gdsc gpu_gx_gdsc = {
 	.reset_count = 3,
 	.pd = {
 		.name = "gpu_gx_gdsc",
-		.power_on = gdsc_gx_do_nothing_enable,
+		.power_on = gdsc_gx_do_analthing_enable,
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = CLAMP_IO | AON_RESET | SW_RESET | POLL_CFG_GDSCR,
@@ -670,7 +670,7 @@ static struct clk_regmap *gpu_cc_sm8450_clocks[] = {
 	[GPU_CC_CX_APB_CLK] = &gpu_cc_cx_apb_clk.clkr,
 	[GPU_CC_CX_FF_CLK] = &gpu_cc_cx_ff_clk.clkr,
 	[GPU_CC_CX_GMU_CLK] = &gpu_cc_cx_gmu_clk.clkr,
-	[GPU_CC_CX_SNOC_DVM_CLK] = &gpu_cc_cx_snoc_dvm_clk.clkr,
+	[GPU_CC_CX_SANALC_DVM_CLK] = &gpu_cc_cx_sanalc_dvm_clk.clkr,
 	[GPU_CC_CXO_AON_CLK] = &gpu_cc_cxo_aon_clk.clkr,
 	[GPU_CC_CXO_CLK] = &gpu_cc_cxo_clk.clkr,
 	[GPU_CC_DEMET_CLK] = &gpu_cc_demet_clk.clkr,
@@ -689,7 +689,7 @@ static struct clk_regmap *gpu_cc_sm8450_clocks[] = {
 	[GPU_CC_HUB_CLK_SRC] = &gpu_cc_hub_clk_src.clkr,
 	[GPU_CC_HUB_CX_INT_CLK] = &gpu_cc_hub_cx_int_clk.clkr,
 	[GPU_CC_HUB_CX_INT_DIV_CLK_SRC] = &gpu_cc_hub_cx_int_div_clk_src.clkr,
-	[GPU_CC_MEMNOC_GFX_CLK] = &gpu_cc_memnoc_gfx_clk.clkr,
+	[GPU_CC_MEMANALC_GFX_CLK] = &gpu_cc_memanalc_gfx_clk.clkr,
 	[GPU_CC_MND1X_0_GFX3D_CLK] = &gpu_cc_mnd1x_0_gfx3d_clk.clkr,
 	[GPU_CC_MND1X_1_GFX3D_CLK] = &gpu_cc_mnd1x_1_gfx3d_clk.clkr,
 	[GPU_CC_PLL0] = &gpu_cc_pll0.clkr,

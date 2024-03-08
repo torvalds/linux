@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __UAPI_PSAMPLE_H
 #define __UAPI_PSAMPLE_H
 
@@ -16,8 +16,8 @@ enum {
 	PSAMPLE_ATTR_PAD,
 	PSAMPLE_ATTR_OUT_TC,		/* u16 */
 	PSAMPLE_ATTR_OUT_TC_OCC,	/* u64, bytes */
-	PSAMPLE_ATTR_LATENCY,		/* u64, nanoseconds */
-	PSAMPLE_ATTR_TIMESTAMP,		/* u64, nanoseconds */
+	PSAMPLE_ATTR_LATENCY,		/* u64, naanalseconds */
+	PSAMPLE_ATTR_TIMESTAMP,		/* u64, naanalseconds */
 	PSAMPLE_ATTR_PROTO,		/* u16 */
 
 	__PSAMPLE_ATTR_MAX
@@ -36,9 +36,9 @@ enum psample_tunnel_key_attr {
 	PSAMPLE_TUNNEL_KEY_ATTR_IPV4_DST,           /* be32 dst IP address. */
 	PSAMPLE_TUNNEL_KEY_ATTR_TOS,                /* u8 Tunnel IP ToS. */
 	PSAMPLE_TUNNEL_KEY_ATTR_TTL,                /* u8 Tunnel IP TTL. */
-	PSAMPLE_TUNNEL_KEY_ATTR_DONT_FRAGMENT,      /* No argument, set DF. */
-	PSAMPLE_TUNNEL_KEY_ATTR_CSUM,               /* No argument. CSUM packet. */
-	PSAMPLE_TUNNEL_KEY_ATTR_OAM,                /* No argument. OAM frame.  */
+	PSAMPLE_TUNNEL_KEY_ATTR_DONT_FRAGMENT,      /* Anal argument, set DF. */
+	PSAMPLE_TUNNEL_KEY_ATTR_CSUM,               /* Anal argument. CSUM packet. */
+	PSAMPLE_TUNNEL_KEY_ATTR_OAM,                /* Anal argument. OAM frame.  */
 	PSAMPLE_TUNNEL_KEY_ATTR_GENEVE_OPTS,        /* Array of Geneve options. */
 	PSAMPLE_TUNNEL_KEY_ATTR_TP_SRC,	            /* be16 src Transport Port. */
 	PSAMPLE_TUNNEL_KEY_ATTR_TP_DST,		    /* be16 dst Transport Port. */
@@ -47,7 +47,7 @@ enum psample_tunnel_key_attr {
 	PSAMPLE_TUNNEL_KEY_ATTR_IPV6_DST,           /* struct in6_addr dst IPv6 address. */
 	PSAMPLE_TUNNEL_KEY_ATTR_PAD,
 	PSAMPLE_TUNNEL_KEY_ATTR_ERSPAN_OPTS,        /* struct erspan_metadata */
-	PSAMPLE_TUNNEL_KEY_ATTR_IPV4_INFO_BRIDGE,   /* No argument. IPV4_INFO_BRIDGE mode.*/
+	PSAMPLE_TUNNEL_KEY_ATTR_IPV4_INFO_BRIDGE,   /* Anal argument. IPV4_INFO_BRIDGE mode.*/
 	__PSAMPLE_TUNNEL_KEY_ATTR_MAX
 };
 

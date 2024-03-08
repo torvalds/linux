@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-# Do not instrument the tracer itself:
+# Do analt instrument the tracer itself:
 
 ccflags-remove-$(CONFIG_FUNCTION_TRACER) += $(CC_FLAGS_FTRACE)
 
@@ -21,7 +21,7 @@ CFLAGS_trace_kprobe_selftest.o = $(CC_FLAGS_FTRACE)
 obj-$(CONFIG_KPROBE_EVENTS) += trace_kprobe_selftest.o
 endif
 
-# If unlikely tracing is enabled, do not trace these files
+# If unlikely tracing is enabled, do analt trace these files
 ifdef CONFIG_TRACING_BRANCHES
 KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
 endif
@@ -63,8 +63,8 @@ obj-$(CONFIG_IRQSOFF_TRACER) += trace_irqsoff.o
 obj-$(CONFIG_PREEMPT_TRACER) += trace_irqsoff.o
 obj-$(CONFIG_SCHED_TRACER) += trace_sched_wakeup.o
 obj-$(CONFIG_HWLAT_TRACER) += trace_hwlat.o
-obj-$(CONFIG_OSNOISE_TRACER) += trace_osnoise.o
-obj-$(CONFIG_NOP_TRACER) += trace_nop.o
+obj-$(CONFIG_OSANALISE_TRACER) += trace_osanalise.o
+obj-$(CONFIG_ANALP_TRACER) += trace_analp.o
 obj-$(CONFIG_STACK_TRACER) += trace_stack.o
 obj-$(CONFIG_MMIOTRACE) += trace_mmiotrace.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER) += trace_functions_graph.o

@@ -4,7 +4,7 @@
 #include "evsel.h"
 #include "evsel_config.h"
 #include "parse-events.h"
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <api/fs/fs.h>
@@ -100,7 +100,7 @@ void evlist__config(struct evlist *evlist, struct record_opts *opts, struct call
 	bool sample_id = opts->sample_id;
 
 	if (perf_cpu_map__cpu(evlist->core.user_requested_cpus, 0).cpu < 0)
-		opts->no_inherit = true;
+		opts->anal_inherit = true;
 
 	use_comm_exec = perf_can_comm_exec();
 
@@ -110,7 +110,7 @@ void evlist__config(struct evlist *evlist, struct record_opts *opts, struct call
 			evsel->core.attr.comm_exec = 1;
 	}
 
-	/* Configure leader sampling here now that the sample type is known */
+	/* Configure leader sampling here analw that the sample type is kanalwn */
 	evlist__for_each_entry(evlist, evsel)
 		evsel__config_leader_sampling(evsel, evlist);
 
@@ -154,7 +154,7 @@ static int record_opts__config_freq(struct record_opts *opts)
 	unsigned int max_rate;
 
 	if (user_interval && user_freq) {
-		pr_err("cannot set frequency and period at the same time\n");
+		pr_err("cananalt set frequency and period at the same time\n");
 		return -1;
 	}
 
@@ -252,7 +252,7 @@ bool evlist__can_select_event(struct evlist *evlist, const char *str)
 		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu.cpu, -1,
 					 perf_event_open_cloexec_flag());
 		if (fd < 0) {
-			if (pid == -1 && errno == EACCES) {
+			if (pid == -1 && erranal == EACCES) {
 				pid = 0;
 				continue;
 			}

@@ -43,7 +43,7 @@ TRACE_DEFINE_ENUM(TLS_ALERT_LEVEL_FATAL);
 		{ TLS_ALERT_LEVEL_FATAL,	"Fatal" })
 
 #define TLS_ALERT_DESCRIPTION_LIST \
-	alert_description(CLOSE_NOTIFY) \
+	alert_description(CLOSE_ANALTIFY) \
 	alert_description(UNEXPECTED_MESSAGE) \
 	alert_description(BAD_RECORD_MAC) \
 	alert_description(RECORD_OVERFLOW) \
@@ -52,9 +52,9 @@ TRACE_DEFINE_ENUM(TLS_ALERT_LEVEL_FATAL);
 	alert_description(UNSUPPORTED_CERTIFICATE) \
 	alert_description(CERTIFICATE_REVOKED) \
 	alert_description(CERTIFICATE_EXPIRED) \
-	alert_description(CERTIFICATE_UNKNOWN) \
+	alert_description(CERTIFICATE_UNKANALWN) \
 	alert_description(ILLEGAL_PARAMETER) \
-	alert_description(UNKNOWN_CA) \
+	alert_description(UNKANALWN_CA) \
 	alert_description(ACCESS_DENIED) \
 	alert_description(DECODE_ERROR) \
 	alert_description(DECRYPT_ERROR) \
@@ -68,9 +68,9 @@ TRACE_DEFINE_ENUM(TLS_ALERT_LEVEL_FATAL);
 	alert_description(UNSUPPORTED_EXTENSION) \
 	alert_description(UNRECOGNIZED_NAME) \
 	alert_description(BAD_CERTIFICATE_STATUS_RESPONSE) \
-	alert_description(UNKNOWN_PSK_IDENTITY) \
+	alert_description(UNKANALWN_PSK_IDENTITY) \
 	alert_description(CERTIFICATE_REQUIRED) \
-	alert_description_end(NO_APPLICATION_PROTOCOL)
+	alert_description_end(ANAL_APPLICATION_PROTOCOL)
 
 #undef alert_description
 #undef alert_description_end
@@ -97,12 +97,12 @@ DECLARE_EVENT_CLASS(handshake_event_class,
 	TP_STRUCT__entry(
 		__field(const void *, req)
 		__field(const void *, sk)
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 	),
 	TP_fast_assign(
 		__entry->req = req;
 		__entry->sk = sk;
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 	),
 	TP_printk("req=%p sk=%p",
 		__entry->req, __entry->sk
@@ -129,13 +129,13 @@ DECLARE_EVENT_CLASS(handshake_fd_class,
 		__field(const void *, req)
 		__field(const void *, sk)
 		__field(int, fd)
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 	),
 	TP_fast_assign(
 		__entry->req = req;
 		__entry->sk = req->hr_sk;
 		__entry->fd = fd;
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 	),
 	TP_printk("req=%p sk=%p fd=%d",
 		__entry->req, __entry->sk, __entry->fd
@@ -163,13 +163,13 @@ DECLARE_EVENT_CLASS(handshake_error_class,
 		__field(const void *, req)
 		__field(const void *, sk)
 		__field(int, err)
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 	),
 	TP_fast_assign(
 		__entry->req = req;
 		__entry->sk = sk;
 		__entry->err = err;
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 	),
 	TP_printk("req=%p sk=%p err=%d",
 		__entry->req, __entry->sk, __entry->err
@@ -196,7 +196,7 @@ DECLARE_EVENT_CLASS(handshake_alert_class,
 		/* sockaddr_in6 is always bigger than sockaddr_in */
 		__array(__u8, saddr, sizeof(struct sockaddr_in6))
 		__array(__u8, daddr, sizeof(struct sockaddr_in6))
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__field(unsigned long, level)
 		__field(unsigned long, description)
 	),
@@ -207,7 +207,7 @@ DECLARE_EVENT_CLASS(handshake_alert_class,
 		memset(__entry->daddr, 0, sizeof(struct sockaddr_in6));
 		TP_STORE_ADDR_PORTS(__entry, inet, sk);
 
-		__entry->netns_ino = sock_net(sk)->ns.inum;
+		__entry->netns_ianal = sock_net(sk)->ns.inum;
 		__entry->level = level;
 		__entry->description = description;
 	),
@@ -234,7 +234,7 @@ DECLARE_EVENT_CLASS(handshake_alert_class,
 DEFINE_HANDSHAKE_EVENT(handshake_submit);
 DEFINE_HANDSHAKE_ERROR(handshake_submit_err);
 DEFINE_HANDSHAKE_EVENT(handshake_cancel);
-DEFINE_HANDSHAKE_EVENT(handshake_cancel_none);
+DEFINE_HANDSHAKE_EVENT(handshake_cancel_analne);
 DEFINE_HANDSHAKE_EVENT(handshake_cancel_busy);
 DEFINE_HANDSHAKE_EVENT(handshake_destruct);
 
@@ -251,13 +251,13 @@ TRACE_EVENT(handshake_complete,
 		__field(const void *, req)
 		__field(const void *, sk)
 		__field(int, status)
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 	),
 	TP_fast_assign(
 		__entry->req = req;
 		__entry->sk = sk;
 		__entry->status = status;
-		__entry->netns_ino = net->ns.inum;
+		__entry->netns_ianal = net->ns.inum;
 	),
 	TP_printk("req=%p sk=%p status=%d",
 		__entry->req, __entry->sk, __entry->status
@@ -268,7 +268,7 @@ TRACE_EVENT(handshake_complete,
  * Netlink events
  */
 
-DEFINE_HANDSHAKE_ERROR(handshake_notify_err);
+DEFINE_HANDSHAKE_ERROR(handshake_analtify_err);
 DEFINE_HANDSHAKE_FD_EVENT(handshake_cmd_accept);
 DEFINE_HANDSHAKE_ERROR(handshake_cmd_accept_err);
 DEFINE_HANDSHAKE_FD_EVENT(handshake_cmd_done);
@@ -288,7 +288,7 @@ TRACE_EVENT(tls_contenttype,
 		/* sockaddr_in6 is always bigger than sockaddr_in */
 		__array(__u8, saddr, sizeof(struct sockaddr_in6))
 		__array(__u8, daddr, sizeof(struct sockaddr_in6))
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__field(unsigned long, type)
 	),
 	TP_fast_assign(
@@ -298,7 +298,7 @@ TRACE_EVENT(tls_contenttype,
 		memset(__entry->daddr, 0, sizeof(struct sockaddr_in6));
 		TP_STORE_ADDR_PORTS(__entry, inet, sk);
 
-		__entry->netns_ino = sock_net(sk)->ns.inum;
+		__entry->netns_ianal = sock_net(sk)->ns.inum;
 		__entry->type = type;
 	),
 	TP_printk("src=%pISpc dest=%pISpc %s",

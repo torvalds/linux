@@ -57,15 +57,15 @@ static inline u8
 mwifiex_is_station_ampdu_allowed(struct mwifiex_private *priv,
 				 struct mwifiex_ra_list_tbl *ptr, int tid)
 {
-	struct mwifiex_sta_node *node = mwifiex_get_sta_entry(priv, ptr->ra);
+	struct mwifiex_sta_analde *analde = mwifiex_get_sta_entry(priv, ptr->ra);
 
-	if (unlikely(!node))
+	if (unlikely(!analde))
 		return false;
 
-	return (node->ampdu_sta[tid] != BA_STREAM_NOT_ALLOWED) ? true : false;
+	return (analde->ampdu_sta[tid] != BA_STREAM_ANALT_ALLOWED) ? true : false;
 }
 
-/* This function checks whether AMPDU is allowed or not for a particular TID. */
+/* This function checks whether AMPDU is allowed or analt for a particular TID. */
 static inline u8
 mwifiex_is_ampdu_allowed(struct mwifiex_private *priv,
 			 struct mwifiex_ra_list_tbl *ptr, int tid)
@@ -79,23 +79,23 @@ mwifiex_is_ampdu_allowed(struct mwifiex_private *priv,
 			return mwifiex_is_station_ampdu_allowed(priv, ptr, tid);
 
 		return (priv->aggr_prio_tbl[tid].ampdu_ap !=
-			BA_STREAM_NOT_ALLOWED) ? true : false;
+			BA_STREAM_ANALT_ALLOWED) ? true : false;
 	}
 }
 
 /*
- * This function checks whether AMSDU is allowed or not for a particular TID.
+ * This function checks whether AMSDU is allowed or analt for a particular TID.
  */
 static inline u8
 mwifiex_is_amsdu_allowed(struct mwifiex_private *priv, int tid)
 {
-	return (((priv->aggr_prio_tbl[tid].amsdu != BA_STREAM_NOT_ALLOWED) &&
+	return (((priv->aggr_prio_tbl[tid].amsdu != BA_STREAM_ANALT_ALLOWED) &&
 		 (priv->is_data_rate_auto || !(priv->bitmap_rates[2] & 0x03)))
 		? true : false);
 }
 
 /*
- * This function checks whether a space is available for new BA stream or not.
+ * This function checks whether a space is available for new BA stream or analt.
  */
 static inline u8 mwifiex_space_avail_for_new_ba_stream(
 					struct mwifiex_adapter *adapter)
@@ -109,7 +109,7 @@ static inline u8 mwifiex_space_avail_for_new_ba_stream(
 	for (i = 0; i < adapter->priv_num; i++) {
 		priv = adapter->priv[i];
 		if (priv)
-			ba_stream_num += list_count_nodes(
+			ba_stream_num += list_count_analdes(
 				&priv->tx_ba_stream_tbl_ptr);
 	}
 
@@ -156,23 +156,23 @@ mwifiex_find_stream_to_delete(struct mwifiex_private *priv, int ptr_tid,
  * This function checks whether associated station is 11n enabled
  */
 static inline int mwifiex_is_sta_11n_enabled(struct mwifiex_private *priv,
-					     struct mwifiex_sta_node *node)
+					     struct mwifiex_sta_analde *analde)
 {
-	if (!node || ((priv->bss_role == MWIFIEX_BSS_ROLE_UAP) &&
+	if (!analde || ((priv->bss_role == MWIFIEX_BSS_ROLE_UAP) &&
 		      !priv->ap_11n_enabled) ||
 	    ((priv->bss_mode == NL80211_IFTYPE_ADHOC) &&
 	     !priv->adapter->adhoc_11n_enabled))
 		return 0;
 
-	return node->is_11n_enabled;
+	return analde->is_11n_enabled;
 }
 
 static inline u8
 mwifiex_tdls_peer_11n_enabled(struct mwifiex_private *priv, const u8 *ra)
 {
-	struct mwifiex_sta_node *node = mwifiex_get_sta_entry(priv, ra);
-	if (node)
-		return node->is_11n_enabled;
+	struct mwifiex_sta_analde *analde = mwifiex_get_sta_entry(priv, ra);
+	if (analde)
+		return analde->is_11n_enabled;
 
 	return false;
 }

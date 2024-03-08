@@ -131,7 +131,7 @@ static int imx_intmux_irq_map(struct irq_domain *h, unsigned int irq,
 	return 0;
 }
 
-static int imx_intmux_irq_xlate(struct irq_domain *d, struct device_node *node,
+static int imx_intmux_irq_xlate(struct irq_domain *d, struct device_analde *analde,
 				const u32 *intspec, unsigned int intsize,
 				unsigned long *out_hwirq, unsigned int *out_type)
 {
@@ -162,8 +162,8 @@ static int imx_intmux_irq_select(struct irq_domain *d, struct irq_fwspec *fwspec
 {
 	struct intmux_irqchip_data *irqchip_data = d->host_data;
 
-	/* Not for us */
-	if (fwspec->fwnode != d->fwnode)
+	/* Analt for us */
+	if (fwspec->fwanalde != d->fwanalde)
 		return false;
 
 	return irqchip_data->chanidx == fwspec->param[1];
@@ -197,7 +197,7 @@ static void imx_intmux_irq_handler(struct irq_desc *desc)
 
 static int imx_intmux_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct irq_domain *domain;
 	struct intmux_data *data;
 	int channum;
@@ -214,7 +214,7 @@ static int imx_intmux_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, struct_size(data, irqchip_data, channum), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->regs)) {
@@ -230,7 +230,7 @@ static int imx_intmux_probe(struct platform_device *pdev)
 	data->channum = channum;
 	raw_spin_lock_init(&data->lock);
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
@@ -253,7 +253,7 @@ static int imx_intmux_probe(struct platform_device *pdev)
 		domain = irq_domain_add_linear(np, 32, &imx_intmux_domain_ops,
 					       &data->irqchip_data[i]);
 		if (!domain) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			dev_err(&pdev->dev, "failed to create IRQ domain\n");
 			goto out;
 		}
@@ -272,7 +272,7 @@ static int imx_intmux_probe(struct platform_device *pdev)
 
 	/*
 	 * Let pm_runtime_put() disable clock.
-	 * If CONFIG_PM is not enabled, the clock will stay powered.
+	 * If CONFIG_PM is analt enabled, the clock will stay powered.
 	 */
 	pm_runtime_put(&pdev->dev);
 
@@ -341,7 +341,7 @@ static int imx_intmux_runtime_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops imx_intmux_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				      pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(imx_intmux_runtime_suspend,
 			   imx_intmux_runtime_resume, NULL)

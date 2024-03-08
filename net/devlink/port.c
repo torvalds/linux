@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellaanalx.com>
  */
 
 #include "devl_internal.h"
@@ -20,7 +20,7 @@ static const struct nla_policy devlink_function_nl_policy[DEVLINK_PORT_FUNCTION_
 
 #define ASSERT_DEVLINK_PORT_REGISTERED(devlink_port)				\
 	WARN_ON_ONCE(!(devlink_port)->registered)
-#define ASSERT_DEVLINK_PORT_NOT_REGISTERED(devlink_port)			\
+#define ASSERT_DEVLINK_PORT_ANALT_REGISTERED(devlink_port)			\
 	WARN_ON_ONCE((devlink_port)->registered)
 
 struct devlink_port *devlink_port_get_by_index(struct devlink *devlink,
@@ -38,7 +38,7 @@ struct devlink_port *devlink_port_get_from_attrs(struct devlink *devlink,
 
 		devlink_port = devlink_port_get_by_index(devlink, port_index);
 		if (!devlink_port)
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 		return devlink_port;
 	}
 	return ERR_PTR(-EINVAL);
@@ -71,7 +71,7 @@ static int devlink_port_fn_roce_fill(struct devlink_port *devlink_port,
 	err = devlink_port->ops->port_fn_roce_get(devlink_port, &is_enable,
 						  extack);
 	if (err) {
-		if (err == -EOPNOTSUPP)
+		if (err == -EOPANALTSUPP)
 			return 0;
 		return err;
 	}
@@ -94,7 +94,7 @@ static int devlink_port_fn_migratable_fill(struct devlink_port *devlink_port,
 	err = devlink_port->ops->port_fn_migratable_get(devlink_port,
 							&is_enable, extack);
 	if (err) {
-		if (err == -EOPNOTSUPP)
+		if (err == -EOPANALTSUPP)
 			return 0;
 		return err;
 	}
@@ -116,7 +116,7 @@ static int devlink_port_fn_ipsec_crypto_fill(struct devlink_port *devlink_port,
 
 	err = devlink_port->ops->port_fn_ipsec_crypto_get(devlink_port, &is_enable, extack);
 	if (err) {
-		if (err == -EOPNOTSUPP)
+		if (err == -EOPANALTSUPP)
 			return 0;
 		return err;
 	}
@@ -138,7 +138,7 @@ static int devlink_port_fn_ipsec_packet_fill(struct devlink_port *devlink_port,
 
 	err = devlink_port->ops->port_fn_ipsec_packet_get(devlink_port, &is_enable, extack);
 	if (err) {
-		if (err == -EOPNOTSUPP)
+		if (err == -EOPANALTSUPP)
 			return 0;
 		return err;
 	}
@@ -278,7 +278,7 @@ static int devlink_port_fn_hw_addr_fill(struct devlink_port *port,
 	err = port->ops->port_fn_hw_addr_get(port, hw_addr, &hw_addr_len,
 					     extack);
 	if (err) {
-		if (err == -EOPNOTSUPP)
+		if (err == -EOPANALTSUPP)
 			return 0;
 		return err;
 	}
@@ -317,7 +317,7 @@ static int devlink_port_fn_state_fill(struct devlink_port *port,
 
 	err = port->ops->port_fn_state_get(port, &state, &opstate, extack);
 	if (err) {
-		if (err == -EOPNOTSUPP)
+		if (err == -EOPANALTSUPP)
 			return 0;
 		return err;
 	}
@@ -417,7 +417,7 @@ devlink_nl_port_function_attrs_put(struct sk_buff *msg, struct devlink_port *por
 	bool msg_updated = false;
 	int err;
 
-	function_attr = nla_nest_start_noflag(msg, DEVLINK_ATTR_PORT_FUNCTION);
+	function_attr = nla_nest_start_analflag(msg, DEVLINK_ATTR_PORT_FUNCTION);
 	if (!function_attr)
 		return -EMSGSIZE;
 
@@ -463,7 +463,7 @@ static int devlink_nl_port_fill(struct sk_buff *msg,
 	spin_lock_bh(&devlink_port->type_lock);
 	if (nla_put_u16(msg, DEVLINK_ATTR_PORT_TYPE, devlink_port->type))
 		goto nla_put_failure_type_locked;
-	if (devlink_port->desired_type != DEVLINK_PORT_TYPE_NOTSET &&
+	if (devlink_port->desired_type != DEVLINK_PORT_TYPE_ANALTSET &&
 	    nla_put_u16(msg, DEVLINK_ATTR_PORT_DESIRED_TYPE,
 			devlink_port->desired_type))
 		goto nla_put_failure_type_locked;
@@ -503,7 +503,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static void devlink_port_notify(struct devlink_port *devlink_port,
+static void devlink_port_analtify(struct devlink_port *devlink_port,
 				enum devlink_command cmd)
 {
 	struct devlink *devlink = devlink_port->devlink;
@@ -513,7 +513,7 @@ static void devlink_port_notify(struct devlink_port *devlink_port,
 
 	WARN_ON(cmd != DEVLINK_CMD_PORT_NEW && cmd != DEVLINK_CMD_PORT_DEL);
 
-	if (!__devl_is_registered(devlink) || !devlink_nl_notify_need(devlink))
+	if (!__devl_is_registered(devlink) || !devlink_nl_analtify_need(devlink))
 		return;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
@@ -528,27 +528,27 @@ static void devlink_port_notify(struct devlink_port *devlink_port,
 
 	devlink_nl_obj_desc_init(&desc, devlink);
 	devlink_nl_obj_desc_port_set(&desc, devlink_port);
-	devlink_nl_notify_send_desc(devlink, msg, &desc);
+	devlink_nl_analtify_send_desc(devlink, msg, &desc);
 }
 
-static void devlink_ports_notify(struct devlink *devlink,
+static void devlink_ports_analtify(struct devlink *devlink,
 				 enum devlink_command cmd)
 {
 	struct devlink_port *devlink_port;
 	unsigned long port_index;
 
 	xa_for_each(&devlink->ports, port_index, devlink_port)
-		devlink_port_notify(devlink_port, cmd);
+		devlink_port_analtify(devlink_port, cmd);
 }
 
-void devlink_ports_notify_register(struct devlink *devlink)
+void devlink_ports_analtify_register(struct devlink *devlink)
 {
-	devlink_ports_notify(devlink, DEVLINK_CMD_PORT_NEW);
+	devlink_ports_analtify(devlink, DEVLINK_CMD_PORT_NEW);
 }
 
-void devlink_ports_notify_unregister(struct devlink *devlink)
+void devlink_ports_analtify_unregister(struct devlink *devlink)
 {
-	devlink_ports_notify(devlink, DEVLINK_CMD_PORT_DEL);
+	devlink_ports_analtify(devlink, DEVLINK_CMD_PORT_DEL);
 }
 
 int devlink_nl_port_get_doit(struct sk_buff *skb, struct genl_info *info)
@@ -559,7 +559,7 @@ int devlink_nl_port_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = devlink_nl_port_fill(msg, devlink_port, DEVLINK_CMD_PORT_NEW,
 				   info->snd_portid, info->snd_seq, 0,
@@ -608,7 +608,7 @@ static int devlink_port_type_set(struct devlink_port *devlink_port,
 	int err;
 
 	if (!devlink_port->ops->port_type_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (port_type == devlink_port->type)
 		return 0;
@@ -618,7 +618,7 @@ static int devlink_port_type_set(struct devlink_port *devlink_port,
 		return err;
 
 	devlink_port->desired_type = port_type;
-	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
+	devlink_port_analtify(devlink_port, DEVLINK_CMD_PORT_NEW);
 	return 0;
 }
 
@@ -641,7 +641,7 @@ static int devlink_port_function_hw_addr_set(struct devlink_port *port,
 			return -EINVAL;
 		}
 		if (!is_unicast_ether_addr(hw_addr)) {
-			NL_SET_ERR_MSG(extack, "Non-unicast hardware address unsupported");
+			NL_SET_ERR_MSG(extack, "Analn-unicast hardware address unsupported");
 			return -EINVAL;
 		}
 	}
@@ -671,12 +671,12 @@ static int devlink_port_function_validate(struct devlink_port *devlink_port,
 	    !ops->port_fn_hw_addr_set) {
 		NL_SET_ERR_MSG_ATTR(extack, tb[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR],
 				    "Port doesn't support function attributes");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (tb[DEVLINK_PORT_FN_ATTR_STATE] && !ops->port_fn_state_set) {
 		NL_SET_ERR_MSG_ATTR(extack, tb[DEVLINK_PORT_FN_ATTR_STATE],
-				    "Function does not support state setting");
-		return -EOPNOTSUPP;
+				    "Function does analt support state setting");
+		return -EOPANALTSUPP;
 	}
 	attr = tb[DEVLINK_PORT_FN_ATTR_CAPS];
 	if (attr) {
@@ -687,42 +687,42 @@ static int devlink_port_function_validate(struct devlink_port *devlink_port,
 		    !ops->port_fn_roce_set) {
 			NL_SET_ERR_MSG_ATTR(extack, attr,
 					    "Port doesn't support RoCE function attribute");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		if (caps.selector & DEVLINK_PORT_FN_CAP_MIGRATABLE) {
 			if (!ops->port_fn_migratable_set) {
 				NL_SET_ERR_MSG_ATTR(extack, attr,
 						    "Port doesn't support migratable function attribute");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_PCI_VF) {
 				NL_SET_ERR_MSG_ATTR(extack, attr,
 						    "migratable function attribute supported for VFs only");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 		}
 		if (caps.selector & DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO) {
 			if (!ops->port_fn_ipsec_crypto_set) {
 				NL_SET_ERR_MSG_ATTR(extack, attr,
 						    "Port doesn't support ipsec_crypto function attribute");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_PCI_VF) {
 				NL_SET_ERR_MSG_ATTR(extack, attr,
 						    "ipsec_crypto function attribute supported for VFs only");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 		}
 		if (caps.selector & DEVLINK_PORT_FN_CAP_IPSEC_PACKET) {
 			if (!ops->port_fn_ipsec_packet_set) {
 				NL_SET_ERR_MSG_ATTR(extack, attr,
 						    "Port doesn't support ipsec_packet function attribute");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			if (devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_PCI_VF) {
 				NL_SET_ERR_MSG_ATTR(extack, attr,
 						    "ipsec_packet function attribute supported for VFs only");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 		}
 	}
@@ -770,7 +770,7 @@ static int devlink_port_function_set(struct devlink_port *port,
 		err = devlink_port_fn_state_set(port, attr, extack);
 
 	if (!err)
-		devlink_port_notify(port, DEVLINK_CMD_PORT_NEW);
+		devlink_port_analtify(port, DEVLINK_CMD_PORT_NEW);
 	return err;
 }
 
@@ -809,16 +809,16 @@ int devlink_nl_port_split_doit(struct sk_buff *skb, struct genl_info *info)
 	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_PORT_SPLIT_COUNT))
 		return -EINVAL;
 	if (!devlink_port->ops->port_split)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	count = nla_get_u32(info->attrs[DEVLINK_ATTR_PORT_SPLIT_COUNT]);
 
 	if (!devlink_port->attrs.splittable) {
-		/* Split ports cannot be split. */
+		/* Split ports cananalt be split. */
 		if (devlink_port->attrs.split)
-			NL_SET_ERR_MSG(info->extack, "Port cannot be split further");
+			NL_SET_ERR_MSG(info->extack, "Port cananalt be split further");
 		else
-			NL_SET_ERR_MSG(info->extack, "Port cannot be split");
+			NL_SET_ERR_MSG(info->extack, "Port cananalt be split");
 		return -EINVAL;
 	}
 
@@ -837,7 +837,7 @@ int devlink_nl_port_unsplit_doit(struct sk_buff *skb, struct genl_info *info)
 	struct devlink *devlink = info->user_ptr[0];
 
 	if (!devlink_port->ops->port_unsplit)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return devlink_port->ops->port_unsplit(devlink, devlink_port, info->extack);
 }
 
@@ -851,11 +851,11 @@ int devlink_nl_port_new_doit(struct sk_buff *skb, struct genl_info *info)
 	int err;
 
 	if (!devlink->ops->port_new)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!info->attrs[DEVLINK_ATTR_PORT_FLAVOUR] ||
 	    !info->attrs[DEVLINK_ATTR_PORT_PCI_PF_NUMBER]) {
-		NL_SET_ERR_MSG(extack, "Port flavour or PCI PF are not specified");
+		NL_SET_ERR_MSG(extack, "Port flavour or PCI PF are analt specified");
 		return -EINVAL;
 	}
 	new_attrs.flavour = nla_get_u16(info->attrs[DEVLINK_ATTR_PORT_FLAVOUR]);
@@ -886,7 +886,7 @@ int devlink_nl_port_new_doit(struct sk_buff *skb, struct genl_info *info)
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_port_del;
 	}
 	err = devlink_nl_port_fill(msg, devlink_port, DEVLINK_CMD_NEW,
@@ -912,7 +912,7 @@ int devlink_nl_port_del_doit(struct sk_buff *skb, struct genl_info *info)
 	struct devlink *devlink = info->user_ptr[0];
 
 	if (!devlink_port->ops->port_del)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return devlink_port->ops->port_del(devlink, devlink_port, extack);
 }
@@ -922,12 +922,12 @@ static void devlink_port_type_warn(struct work_struct *work)
 	struct devlink_port *port = container_of(to_delayed_work(work),
 						 struct devlink_port,
 						 type_warn_dw);
-	dev_warn(port->devlink->dev, "Type was not set for devlink port.");
+	dev_warn(port->devlink->dev, "Type was analt set for devlink port.");
 }
 
 static bool devlink_port_type_should_warn(struct devlink_port *devlink_port)
 {
-	/* Ignore CPU and DSA flavours. */
+	/* Iganalre CPU and DSA flavours. */
 	return devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_CPU &&
 	       devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_DSA &&
 	       devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_UNUSED;
@@ -939,7 +939,7 @@ static void devlink_port_type_warn_schedule(struct devlink_port *devlink_port)
 {
 	if (!devlink_port_type_should_warn(devlink_port))
 		return;
-	/* Schedule a work to WARN in case driver does not set port
+	/* Schedule a work to WARN in case driver does analt set port
 	 * type within timeout.
 	 */
 	schedule_delayed_work(&devlink_port->type_warn_dw,
@@ -961,8 +961,8 @@ static void devlink_port_type_warn_cancel(struct devlink_port *devlink_port)
  *
  * Initialize essential stuff that is needed for functions
  * that may be called before devlink port registration.
- * Call to this function is optional and not needed
- * in case the driver does not use such functions.
+ * Call to this function is optional and analt needed
+ * in case the driver does analt use such functions.
  */
 void devlink_port_init(struct devlink *devlink,
 		       struct devlink_port *devlink_port)
@@ -982,8 +982,8 @@ EXPORT_SYMBOL_GPL(devlink_port_init);
  *
  * Deinitialize essential stuff that is in use for functions
  * that may be called after devlink port unregistration.
- * Call to this function is optional and not needed
- * in case the driver does not use such functions.
+ * Call to this function is optional and analt needed
+ * in case the driver does analt use such functions.
  */
 void devlink_port_fini(struct devlink_port *devlink_port)
 {
@@ -1004,7 +1004,7 @@ static const struct devlink_port_ops devlink_port_dummy_ops = {};
  * Register devlink port with provided port index. User can use
  * any indexing, even hw-related one. devlink_port structure
  * is convenient to be embedded inside user driver private structure.
- * Note that the caller should take care of zeroing the devlink_port
+ * Analte that the caller should take care of zeroing the devlink_port
  * structure.
  */
 int devl_port_register_with_ops(struct devlink *devlink,
@@ -1016,7 +1016,7 @@ int devl_port_register_with_ops(struct devlink *devlink,
 
 	devl_assert_locked(devlink);
 
-	ASSERT_DEVLINK_PORT_NOT_REGISTERED(devlink_port);
+	ASSERT_DEVLINK_PORT_ANALT_REGISTERED(devlink_port);
 
 	devlink_port_init(devlink, devlink_port);
 	devlink_port->registered = true;
@@ -1032,7 +1032,7 @@ int devl_port_register_with_ops(struct devlink *devlink,
 
 	INIT_DELAYED_WORK(&devlink_port->type_warn_dw, &devlink_port_type_warn);
 	devlink_port_type_warn_schedule(devlink_port);
-	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
+	devlink_port_analtify(devlink_port, DEVLINK_CMD_PORT_NEW);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devl_port_register_with_ops);
@@ -1048,7 +1048,7 @@ EXPORT_SYMBOL_GPL(devl_port_register_with_ops);
  *	Register devlink port with provided port index. User can use
  *	any indexing, even hw-related one. devlink_port structure
  *	is convenient to be embedded inside user driver private structure.
- *	Note that the caller should take care of zeroing the devlink_port
+ *	Analte that the caller should take care of zeroing the devlink_port
  *	structure.
  *
  *	Context: Takes and release devlink->lock <mutex>.
@@ -1076,10 +1076,10 @@ EXPORT_SYMBOL_GPL(devlink_port_register_with_ops);
 void devl_port_unregister(struct devlink_port *devlink_port)
 {
 	lockdep_assert_held(&devlink_port->devlink->lock);
-	WARN_ON(devlink_port->type != DEVLINK_PORT_TYPE_NOTSET);
+	WARN_ON(devlink_port->type != DEVLINK_PORT_TYPE_ANALTSET);
 
 	devlink_port_type_warn_cancel(devlink_port);
-	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_DEL);
+	devlink_port_analtify(devlink_port, DEVLINK_CMD_PORT_DEL);
 	xa_erase(&devlink_port->devlink->ports, devlink_port->index);
 	WARN_ON(!list_empty(&devlink_port->reporter_list));
 	devlink_port->registered = false;
@@ -1110,33 +1110,33 @@ static void devlink_port_type_netdev_checks(struct devlink_port *devlink_port,
 
 	/* If driver registers devlink port, it should set devlink port
 	 * attributes accordingly so the compat functions are called
-	 * and the original ops are not used.
+	 * and the original ops are analt used.
 	 */
 	if (ops->ndo_get_phys_port_name) {
 		/* Some drivers use the same set of ndos for netdevs
 		 * that have devlink_port registered and also for
 		 * those who don't. Make sure that ndo_get_phys_port_name
-		 * returns -EOPNOTSUPP here in case it is defined.
-		 * Warn if not.
+		 * returns -EOPANALTSUPP here in case it is defined.
+		 * Warn if analt.
 		 */
 		char name[IFNAMSIZ];
 		int err;
 
 		err = ops->ndo_get_phys_port_name(netdev, name, sizeof(name));
-		WARN_ON(err != -EOPNOTSUPP);
+		WARN_ON(err != -EOPANALTSUPP);
 	}
 	if (ops->ndo_get_port_parent_id) {
 		/* Some drivers use the same set of ndos for netdevs
 		 * that have devlink_port registered and also for
 		 * those who don't. Make sure that ndo_get_port_parent_id
-		 * returns -EOPNOTSUPP here in case it is defined.
-		 * Warn if not.
+		 * returns -EOPANALTSUPP here in case it is defined.
+		 * Warn if analt.
 		 */
 		struct netdev_phys_item_id ppid;
 		int err;
 
 		err = ops->ndo_get_port_parent_id(netdev, &ppid);
-		WARN_ON(err != -EOPNOTSUPP);
+		WARN_ON(err != -EOPANALTSUPP);
 	}
 }
 
@@ -1148,7 +1148,7 @@ static void __devlink_port_type_set(struct devlink_port *devlink_port,
 
 	ASSERT_DEVLINK_PORT_REGISTERED(devlink_port);
 
-	if (type == DEVLINK_PORT_TYPE_NOTSET) {
+	if (type == DEVLINK_PORT_TYPE_ANALTSET) {
 		devlink_port_type_warn_schedule(devlink_port);
 	} else {
 		devlink_port_type_warn_cancel(devlink_port);
@@ -1176,7 +1176,7 @@ static void __devlink_port_type_set(struct devlink_port *devlink_port,
 		break;
 	}
 	spin_unlock_bh(&devlink_port->type_lock);
-	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
+	devlink_port_analtify(devlink_port, DEVLINK_CMD_PORT_NEW);
 }
 
 /**
@@ -1189,7 +1189,7 @@ static void __devlink_port_type_set(struct devlink_port *devlink_port,
 void devlink_port_type_eth_set(struct devlink_port *devlink_port)
 {
 	dev_warn(devlink_port->devlink->dev,
-		 "devlink port type for port %d set to Ethernet without a software interface reference, device type not supported by the kernel?\n",
+		 "devlink port type for port %d set to Ethernet without a software interface reference, device type analt supported by the kernel?\n",
 		 devlink_port->index);
 	__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ETH, NULL);
 }
@@ -1220,26 +1220,26 @@ void devlink_port_type_clear(struct devlink_port *devlink_port)
 {
 	if (devlink_port->type == DEVLINK_PORT_TYPE_ETH)
 		dev_warn(devlink_port->devlink->dev,
-			 "devlink port type for port %d cleared without a software interface reference, device type not supported by the kernel?\n",
+			 "devlink port type for port %d cleared without a software interface reference, device type analt supported by the kernel?\n",
 			 devlink_port->index);
-	__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_NOTSET, NULL);
+	__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ANALTSET, NULL);
 }
 EXPORT_SYMBOL_GPL(devlink_port_type_clear);
 
-int devlink_port_netdevice_event(struct notifier_block *nb,
+int devlink_port_netdevice_event(struct analtifier_block *nb,
 				 unsigned long event, void *ptr)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = netdev_analtifier_info_to_dev(ptr);
 	struct devlink_port *devlink_port = netdev->devlink_port;
 	struct devlink *devlink;
 
 	if (!devlink_port)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	devlink = devlink_port->devlink;
 
 	switch (event) {
 	case NETDEV_POST_INIT:
-		/* Set the type but not netdev pointer. It is going to be set
+		/* Set the type but analt netdev pointer. It is going to be set
 		 * later on by NETDEV_REGISTER event. Happens once during
 		 * netdevice register
 		 */
@@ -1249,8 +1249,8 @@ int devlink_port_netdevice_event(struct notifier_block *nb,
 	case NETDEV_REGISTER:
 	case NETDEV_CHANGENAME:
 		if (devlink_net(devlink) != dev_net(netdev))
-			return NOTIFY_OK;
-		/* Set the netdev on top of previously set type. Note this
+			return ANALTIFY_OK;
+		/* Set the netdev on top of previously set type. Analte this
 		 * event happens also during net namespace change so here
 		 * we take into account netdev pointer appearing in this
 		 * namespace.
@@ -1260,10 +1260,10 @@ int devlink_port_netdevice_event(struct notifier_block *nb,
 		break;
 	case NETDEV_UNREGISTER:
 		if (devlink_net(devlink) != dev_net(netdev))
-			return NOTIFY_OK;
-		/* Clear netdev pointer, but not the type. This event happens
+			return ANALTIFY_OK;
+		/* Clear netdev pointer, but analt the type. This event happens
 		 * also during net namespace change so we need to clear
-		 * pointer to netdev that is going to another net namespace.
+		 * pointer to netdev that is going to aanalther net namespace.
 		 */
 		__devlink_port_type_set(devlink_port, devlink_port->type,
 					NULL);
@@ -1272,12 +1272,12 @@ int devlink_port_netdevice_event(struct notifier_block *nb,
 		/* Clear the type and the netdev pointer. Happens one during
 		 * netdevice unregister.
 		 */
-		__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_NOTSET,
+		__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ANALTSET,
 					NULL);
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int __devlink_port_attrs_set(struct devlink_port *devlink_port,
@@ -1308,7 +1308,7 @@ void devlink_port_attrs_set(struct devlink_port *devlink_port,
 {
 	int ret;
 
-	ASSERT_DEVLINK_PORT_NOT_REGISTERED(devlink_port);
+	ASSERT_DEVLINK_PORT_ANALT_REGISTERED(devlink_port);
 
 	devlink_port->attrs = *attrs;
 	ret = __devlink_port_attrs_set(devlink_port, attrs->flavour);
@@ -1332,7 +1332,7 @@ void devlink_port_attrs_pci_pf_set(struct devlink_port *devlink_port, u32 contro
 	struct devlink_port_attrs *attrs = &devlink_port->attrs;
 	int ret;
 
-	ASSERT_DEVLINK_PORT_NOT_REGISTERED(devlink_port);
+	ASSERT_DEVLINK_PORT_ANALT_REGISTERED(devlink_port);
 
 	ret = __devlink_port_attrs_set(devlink_port,
 				       DEVLINK_PORT_FLAVOUR_PCI_PF);
@@ -1359,7 +1359,7 @@ void devlink_port_attrs_pci_vf_set(struct devlink_port *devlink_port, u32 contro
 	struct devlink_port_attrs *attrs = &devlink_port->attrs;
 	int ret;
 
-	ASSERT_DEVLINK_PORT_NOT_REGISTERED(devlink_port);
+	ASSERT_DEVLINK_PORT_ANALT_REGISTERED(devlink_port);
 
 	ret = __devlink_port_attrs_set(devlink_port,
 				       DEVLINK_PORT_FLAVOUR_PCI_VF);
@@ -1387,7 +1387,7 @@ void devlink_port_attrs_pci_sf_set(struct devlink_port *devlink_port, u32 contro
 	struct devlink_port_attrs *attrs = &devlink_port->attrs;
 	int ret;
 
-	ASSERT_DEVLINK_PORT_NOT_REGISTERED(devlink_port);
+	ASSERT_DEVLINK_PORT_ANALT_REGISTERED(devlink_port);
 
 	ret = __devlink_port_attrs_set(devlink_port,
 				       DEVLINK_PORT_FLAVOUR_PCI_SF);
@@ -1400,14 +1400,14 @@ void devlink_port_attrs_pci_sf_set(struct devlink_port *devlink_port, u32 contro
 }
 EXPORT_SYMBOL_GPL(devlink_port_attrs_pci_sf_set);
 
-static void devlink_port_rel_notify_cb(struct devlink *devlink, u32 port_index)
+static void devlink_port_rel_analtify_cb(struct devlink *devlink, u32 port_index)
 {
 	struct devlink_port *devlink_port;
 
 	devlink_port = devlink_port_get_by_index(devlink, port_index);
 	if (!devlink_port)
 		return;
-	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
+	devlink_port_analtify(devlink_port, DEVLINK_CMD_PORT_NEW);
 }
 
 static void devlink_port_rel_cleanup_cb(struct devlink *devlink, u32 port_index,
@@ -1438,7 +1438,7 @@ int devl_port_fn_devlink_set(struct devlink_port *devlink_port,
 	return devlink_rel_nested_in_add(&devlink_port->rel_index,
 					 devlink_port->devlink->index,
 					 devlink_port->index,
-					 devlink_port_rel_notify_cb,
+					 devlink_port_rel_analtify_cb,
 					 devlink_port_rel_cleanup_cb,
 					 fn_devlink);
 }
@@ -1453,7 +1453,7 @@ EXPORT_SYMBOL_GPL(devl_port_fn_devlink_set);
 void devlink_port_linecard_set(struct devlink_port *devlink_port,
 			       struct devlink_linecard *linecard)
 {
-	ASSERT_DEVLINK_PORT_NOT_REGISTERED(devlink_port);
+	ASSERT_DEVLINK_PORT_ANALT_REGISTERED(devlink_port);
 
 	devlink_port->linecard = linecard;
 }
@@ -1466,7 +1466,7 @@ static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
 	int n = 0;
 
 	if (!devlink_port->attrs_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (attrs->flavour) {
 	case DEVLINK_PORT_FLAVOUR_PHYSICAL:
@@ -1483,8 +1483,8 @@ static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
 	case DEVLINK_PORT_FLAVOUR_CPU:
 	case DEVLINK_PORT_FLAVOUR_DSA:
 	case DEVLINK_PORT_FLAVOUR_UNUSED:
-		/* As CPU and DSA ports do not have a netdevice associated
-		 * case should not ever happen.
+		/* As CPU and DSA ports do analt have a netdevice associated
+		 * case should analt ever happen.
 		 */
 		WARN_ON(1);
 		return -EINVAL;
@@ -1521,7 +1521,7 @@ static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
 			     attrs->pci_sf.sf);
 		break;
 	case DEVLINK_PORT_FLAVOUR_VIRTUAL:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (n >= len)
@@ -1536,14 +1536,14 @@ int devlink_compat_phys_port_name_get(struct net_device *dev,
 	struct devlink_port *devlink_port;
 
 	/* RTNL mutex is held here which ensures that devlink_port
-	 * instance cannot disappear in the middle. No need to take
+	 * instance cananalt disappear in the middle. Anal need to take
 	 * any devlink lock as only permanent values are accessed.
 	 */
 	ASSERT_RTNL();
 
 	devlink_port = dev->devlink_port;
 	if (!devlink_port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return __devlink_port_phys_port_name_get(devlink_port, name, len);
 }
@@ -1554,12 +1554,12 @@ int devlink_compat_switch_id_get(struct net_device *dev,
 	struct devlink_port *devlink_port;
 
 	/* Caller must hold RTNL mutex or reference to dev, which ensures that
-	 * devlink_port instance cannot disappear in the middle. No need to take
+	 * devlink_port instance cananalt disappear in the middle. Anal need to take
 	 * any devlink lock as only permanent values are accessed.
 	 */
 	devlink_port = dev->devlink_port;
 	if (!devlink_port || !devlink_port->switch_port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memcpy(ppid, &devlink_port->attrs.switch_id, sizeof(*ppid));
 

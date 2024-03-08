@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_NOHASH_PGALLOC_H
-#define _ASM_POWERPC_NOHASH_PGALLOC_H
+#ifndef _ASM_POWERPC_ANALHASH_PGALLOC_H
+#define _ASM_POWERPC_ANALHASH_PGALLOC_H
 
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -9,7 +9,7 @@ extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
 #ifdef CONFIG_PPC64
 extern void tlb_flush_pgtable(struct mmu_gather *tlb, unsigned long address);
 #else
-/* 44x etc which is BOOKE not BOOK3E */
+/* 44x etc which is BOOKE analt BOOK3E */
 static inline void tlb_flush_pgtable(struct mmu_gather *tlb,
 				     unsigned long address)
 {
@@ -29,9 +29,9 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 }
 
 #ifdef CONFIG_PPC64
-#include <asm/nohash/64/pgalloc.h>
+#include <asm/analhash/64/pgalloc.h>
 #else
-#include <asm/nohash/32/pgalloc.h>
+#include <asm/analhash/32/pgalloc.h>
 #endif
 
 static inline void pgtable_free(void *table, int shift)
@@ -69,4 +69,4 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
 	tlb_flush_pgtable(tlb, address);
 	pgtable_free_tlb(tlb, table, 0);
 }
-#endif /* _ASM_POWERPC_NOHASH_PGALLOC_H */
+#endif /* _ASM_POWERPC_ANALHASH_PGALLOC_H */

@@ -117,7 +117,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *dst,
 	}
 
 #ifdef VERBOSE_DEBUG
-	print_hex_dump_bytes("%s: ", DUMP_PREFIX_NONE, skb->data,
+	print_hex_dump_bytes("%s: ", DUMP_PREFIX_ANALNE, skb->data,
 			     __func__, skb->len);
 #endif
 	return skb;
@@ -167,7 +167,7 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	tag += 2;
 
 #ifdef VERBOSE_DEBUG
-	print_hex_dump_bytes("%s: ", DUMP_PREFIX_NONE, skb->data,
+	print_hex_dump_bytes("%s: ", DUMP_PREFIX_ANALNE, skb->data,
 			     __func__, skb->len);
 #endif
 	return skb;
@@ -230,7 +230,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	}
 
 #ifdef VERBOSE_DEBUG
-	print_hex_dump_bytes("%s: ", DUMP_PREFIX_NONE, __func__,
+	print_hex_dump_bytes("%s: ", DUMP_PREFIX_ANALNE, __func__,
 			     skb->data, skb->len);
 #endif
 
@@ -248,7 +248,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	    (ieee->ht_info->iot_action & HT_IOT_ACT_REJECT_ADDBA_REQ)) {
 		rc = ADDBA_STATUS_REFUSED;
 		netdev_warn(ieee->dev,
-			    "Failed to reply on ADDBA_REQ as some capability is not ready(%d, %d)\n",
+			    "Failed to reply on ADDBA_REQ as some capability is analt ready(%d, %d)\n",
 			    ieee->current_network.qos_data.active,
 			    ieee->ht_info->current_ht_support);
 		goto OnADDBAReq_Fail;
@@ -263,7 +263,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 
 	if (ba_param_set->field.ba_policy == BA_POLICY_DELAYED) {
 		rc = ADDBA_STATUS_INVALID_PARAM;
-		netdev_warn(ieee->dev, "%s(): BA Policy is not correct\n",
+		netdev_warn(ieee->dev, "%s(): BA Policy is analt correct\n",
 			    __func__);
 		goto OnADDBAReq_Fail;
 	}
@@ -329,18 +329,18 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	    !ieee->ht_info->current_ht_support ||
 	    !ieee->ht_info->current_ampdu_enable) {
 		netdev_warn(ieee->dev,
-			    "reject to ADDBA_RSP as some capability is not ready(%d, %d, %d)\n",
+			    "reject to ADDBA_RSP as some capability is analt ready(%d, %d, %d)\n",
 			    ieee->current_network.qos_data.active,
 			    ieee->ht_info->current_ht_support,
 			    ieee->ht_info->current_ampdu_enable);
-		reason_code = DELBA_REASON_UNKNOWN_BA;
+		reason_code = DELBA_REASON_UNKANALWN_BA;
 		goto OnADDBARsp_Reject;
 	}
 
 	if (!rtllib_get_ts(ieee, (struct ts_common_info **)&ts, dst,
 		   (u8)(ba_param_set->field.tid), TX_DIR, false)) {
 		netdev_warn(ieee->dev, "%s(): can't get TS\n", __func__);
-		reason_code = DELBA_REASON_UNKNOWN_BA;
+		reason_code = DELBA_REASON_UNKANALWN_BA;
 		goto OnADDBARsp_Reject;
 	}
 
@@ -357,7 +357,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		netdev_warn(ieee->dev,
 			    "%s(): ADDBA Rsp. BA invalid, DELBA!\n",
 			    __func__);
-		reason_code = DELBA_REASON_UNKNOWN_BA;
+		reason_code = DELBA_REASON_UNKANALWN_BA;
 		goto OnADDBARsp_Reject;
 	} else {
 		netdev_dbg(ieee->dev,
@@ -415,14 +415,14 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 	if (!ieee->current_network.qos_data.active ||
 	    !ieee->ht_info->current_ht_support) {
 		netdev_warn(ieee->dev,
-			    "received DELBA while QOS or HT is not supported(%d, %d)\n",
+			    "received DELBA while QOS or HT is analt supported(%d, %d)\n",
 			    ieee->current_network. qos_data.active,
 			    ieee->ht_info->current_ht_support);
 		return -1;
 	}
 
 #ifdef VERBOSE_DEBUG
-	print_hex_dump_bytes("%s: ", DUMP_PREFIX_NONE, skb->data,
+	print_hex_dump_bytes("%s: ", DUMP_PREFIX_ANALNE, skb->data,
 			     __func__, skb->len);
 #endif
 	delba = (struct ieee80211_hdr_3addr *)skb->data;

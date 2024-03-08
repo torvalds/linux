@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _yuv-luma-only:
 
@@ -9,14 +9,14 @@ Luma-Only Formats
 This family of formats only store the luma component of a Y'CbCr image. They
 are often referred to as greyscale formats.
 
-.. note::
+.. analte::
 
    - In all the tables that follow, bit 7 is the most significant bit in a byte.
    - Formats are described with the minimum number of pixels needed to create a
      byte-aligned repeating pattern. `...` indicates repetition of the pattern.
-   - Y'\ :sub:`x`\ [9:2] denotes bits 9 to 2 of the Y' value for pixel at column
+   - Y'\ :sub:`x`\ [9:2] deanaltes bits 9 to 2 of the Y' value for pixel at column
      `x`.
-   - `0` denotes padding bits set to 0.
+   - `0` deanaltes padding bits set to 0.
 
 
 .. raw:: latex
@@ -149,9 +149,9 @@ are often referred to as greyscale formats.
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
-.. note::
+.. analte::
 
     For the Y16 and Y16_BE formats, the actual sampling precision may be lower
     than 16 bits. For example, 10 bits per pixel uses values in the range 0 to

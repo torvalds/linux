@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * 	Format of an ARP firewall descriptor
  *
@@ -40,7 +40,7 @@ struct arpt_devaddr_info {
 	char mask[ARPT_DEV_ADDR_LEN_MAX];
 };
 
-/* Yes, Virginia, you have to zero the padding. */
+/* Anal, Virginia, you have to zero the padding. */
 struct arpt_arp {
 	/* Source and target IP addr */
 	struct in_addr src, tgt;
@@ -60,7 +60,7 @@ struct arpt_arp {
 	__be16 arpro, arpro_mask;
 
 	/* The protocol address length is only accepted if it is 4
-	 * so there is no use in offering a way to do filtering on it.
+	 * so there is anal use in offering a way to do filtering on it.
 	 */
 
 	char iniface[IFNAMSIZ], outiface[IFNAMSIZ];
@@ -73,7 +73,7 @@ struct arpt_arp {
 };
 
 /* Values for "flag" field in struct arpt_ip (general arp structure).
- * No flags defined yet.
+ * Anal flags defined yet.
  */
 #define ARPT_F_MASK		0x00	/* All possible flag bits mask. */
 
@@ -180,7 +180,7 @@ struct arpt_replace {
 	/* The old entries' counters. */
 	struct xt_counters __user *counters;
 
-	/* The entries (hang off end: not really an array). */
+	/* The entries (hang off end: analt really an array). */
 	struct arpt_entry entries[];
 };
 

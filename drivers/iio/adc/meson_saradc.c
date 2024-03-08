@@ -149,7 +149,7 @@
 	#define MESON_SAR_ADC_DELTA_10_CHAN0_DELTA_VALUE_MASK	GENMASK(9, 0)
 
 /*
- * NOTE: registers from here are undocumented (the vendor Linux kernel driver
+ * ANALTE: registers from here are undocumented (the vendor Linux kernel driver
  * and u-boot source served as reference). These only seem to be relevant on
  * GXBB and newer.
  */
@@ -225,7 +225,7 @@ enum meson_sar_adc_vref_sel {
 };
 
 enum meson_sar_adc_avg_mode {
-	NO_AVERAGING = 0x0,
+	ANAL_AVERAGING = 0x0,
 	MEAN_AVERAGING = 0x1,
 	MEDIAN_AVERAGING = 0x2,
 };
@@ -410,8 +410,8 @@ static int meson_sar_adc_wait_busy_clear(struct iio_dev *indio_dev)
 	int val;
 
 	/*
-	 * NOTE: we need a small delay before reading the status, otherwise
-	 * the sample engine may not have started internally (which would
+	 * ANALTE: we need a small delay before reading the status, otherwise
+	 * the sample engine may analt have started internally (which would
 	 * seem to us that sampling is already finished).
 	 */
 	udelay(1);
@@ -644,13 +644,13 @@ static int meson_sar_adc_get_sample(struct iio_dev *indio_dev,
 	int ret;
 
 	if (chan->type == IIO_TEMP && !priv->temperature_sensor_calibrated)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = meson_sar_adc_lock(indio_dev);
 	if (ret)
 		return ret;
 
-	/* clear the FIFO to make sure we're not reading old values */
+	/* clear the FIFO to make sure we're analt reading old values */
 	meson_sar_adc_clear_fifo(indio_dev);
 
 	meson_sar_adc_set_averaging(indio_dev, chan, avg_mode, avg_samples);
@@ -682,7 +682,7 @@ static int meson_sar_adc_iio_info_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		return meson_sar_adc_get_sample(indio_dev, chan, NO_AVERAGING,
+		return meson_sar_adc_get_sample(indio_dev, chan, ANAL_AVERAGING,
 						ONE_SAMPLE, val);
 
 	case IIO_CHAN_INFO_AVERAGE_RAW:
@@ -745,7 +745,7 @@ static int meson_sar_adc_clk_init(struct iio_dev *indio_dev,
 
 	init.name = devm_kasprintf(dev, GFP_KERNEL, "%s#adc_div", dev_name(dev));
 	if (!init.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.flags = 0;
 	init.ops = &clk_divider_ops;
@@ -765,7 +765,7 @@ static int meson_sar_adc_clk_init(struct iio_dev *indio_dev,
 
 	init.name = devm_kasprintf(dev, GFP_KERNEL, "%s#adc_en", dev_name(dev));
 	if (!init.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.flags = CLK_SET_RATE_PARENT;
 	init.ops = &clk_gate_ops;
@@ -798,16 +798,16 @@ static int meson_sar_adc_temp_sensor_init(struct iio_dev *indio_dev)
 		ret = PTR_ERR(temperature_calib);
 
 		/*
-		 * leave the temperature sensor disabled if no calibration data
+		 * leave the temperature sensor disabled if anal calibration data
 		 * was passed via nvmem-cells.
 		 */
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			return 0;
 
 		return dev_err_probe(dev, ret, "failed to get temperature_calib cell\n");
 	}
 
-	priv->tsc_regmap = syscon_regmap_lookup_by_phandle(dev->of_node, "amlogic,hhi-sysctrl");
+	priv->tsc_regmap = syscon_regmap_lookup_by_phandle(dev->of_analde, "amlogic,hhi-sysctrl");
 	if (IS_ERR(priv->tsc_regmap))
 		return dev_err_probe(dev, PTR_ERR(priv->tsc_regmap),
 				     "failed to get amlogic,hhi-sysctrl regmap\n");
@@ -1127,7 +1127,7 @@ static irqreturn_t meson_sar_adc_irq(int irq, void *data)
 	threshold = FIELD_GET(MESON_SAR_ADC_REG0_FIFO_CNT_IRQ_MASK, regval);
 
 	if (cnt < threshold)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	complete(&priv->done);
 
@@ -1137,11 +1137,11 @@ static irqreturn_t meson_sar_adc_irq(int irq, void *data)
 static int meson_sar_adc_calib(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
-	int ret, nominal0, nominal1, value0, value1;
+	int ret, analminal0, analminal1, value0, value1;
 
 	/* use points 25% and 75% for calibration */
-	nominal0 = (1 << priv->param->resolution) / 4;
-	nominal1 = (1 << priv->param->resolution) * 3 / 4;
+	analminal0 = (1 << priv->param->resolution) / 4;
+	analminal1 = (1 << priv->param->resolution) * 3 / 4;
 
 	meson_sar_adc_set_chan7_mux(indio_dev, CHAN7_MUX_VDD_DIV4);
 	usleep_range(10, 20);
@@ -1166,9 +1166,9 @@ static int meson_sar_adc_calib(struct iio_dev *indio_dev)
 		goto out;
 	}
 
-	priv->calibscale = div_s64((nominal1 - nominal0) * (s64)MILLION,
+	priv->calibscale = div_s64((analminal1 - analminal0) * (s64)MILLION,
 				   value1 - value0);
-	priv->calibbias = nominal0 - div_s64((s64)value0 * priv->calibscale,
+	priv->calibbias = analminal0 - div_s64((s64)value0 * priv->calibscale,
 					     MILLION);
 	ret = 0;
 out:
@@ -1349,14 +1349,14 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM, "failed allocating iio device\n");
+		return dev_err_probe(dev, -EANALMEM, "failed allocating iio device\n");
 
 	priv = iio_priv(indio_dev);
 	init_completion(&priv->done);
 
 	match_data = of_device_get_match_data(dev);
 	if (!match_data)
-		return dev_err_probe(dev, -ENODEV, "failed to get match data\n");
+		return dev_err_probe(dev, -EANALDEV, "failed to get match data\n");
 
 	priv->param = match_data->param;
 
@@ -1372,7 +1372,7 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->regmap))
 		return dev_err_probe(dev, PTR_ERR(priv->regmap), "failed to init regmap\n");
 
-	irq = irq_of_parse_and_map(dev->of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_analde, 0);
 	if (!irq)
 		return dev_err_probe(dev, -EINVAL, "failed to get irq\n");
 

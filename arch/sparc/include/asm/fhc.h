@@ -14,7 +14,7 @@
 #define CLOCK_PWRSTAT	0x30UL	/* Power status */
 #define CLOCK_PWRPRES	0x40UL	/* Power presence */
 #define CLOCK_TEMP	0x50UL	/* Temperature */
-#define CLOCK_IRQDIAG	0x60UL	/* IRQ diagnostics */
+#define CLOCK_IRQDIAG	0x60UL	/* IRQ diaganalstics */
 #define CLOCK_PWRSTAT2	0x70UL	/* Power status two */
 
 #define CLOCK_CTRL_LLED		0x04	/* Left LED, 0 == on */
@@ -37,7 +37,7 @@
 #define  FHC_RCS_CFATAL		0x02000000 /* Centerplane Fatal Error signalled	*/
 #define  FHC_RCS_FENAB		0x01000000 /* Fatal errors elicit system reset	*/
 #define FHC_PREGS_CTRL	0x20UL	/* FHC Control Register */
-#define  FHC_CONTROL_ICS	0x00100000 /* Ignore Centerplane Signals	*/
+#define  FHC_CONTROL_ICS	0x00100000 /* Iganalre Centerplane Signals	*/
 #define  FHC_CONTROL_FRST	0x00080000 /* Fatal Error Reset Enable		*/
 #define  FHC_CONTROL_LFAT	0x00040000 /* AC/DC signalled a local error	*/
 #define  FHC_CONTROL_SLINE	0x00010000 /* Firmware Synchronization Line	*/
@@ -59,14 +59,14 @@
 #define  FHC_BSR_BID		0x0001e000 /* Board ID                           */
 #define  FHC_BSR_SA		0x00001c00 /* Port A UPA Speed (from the pins)   */
 #define  FHC_BSR_SB		0x00000380 /* Port B UPA Speed (from the pins)   */
-#define  FHC_BSR_NDIAG		0x00000040 /* Not in Diag Mode                   */
-#define  FHC_BSR_NTBED		0x00000020 /* Not in TestBED Mode                */
+#define  FHC_BSR_NDIAG		0x00000040 /* Analt in Diag Mode                   */
+#define  FHC_BSR_NTBED		0x00000020 /* Analt in TestBED Mode                */
 #define  FHC_BSR_NIA		0x0000001c /* Jumper, bit 18 in PROM space       */
 #define  FHC_BSR_SI		0x00000001 /* Spare input pin value              */
 #define FHC_PREGS_ECC	0x40UL	/* FHC ECC Control Register (16 bits) */
 #define FHC_PREGS_JCTRL	0xf0UL	/* FHC JTAG Control Register */
 #define  FHC_JTAG_CTRL_MENAB	0x80000000 /* Indicates this is JTAG Master	 */
-#define  FHC_JTAG_CTRL_MNONE	0x40000000 /* Indicates no JTAG Master present	 */
+#define  FHC_JTAG_CTRL_MANALNE	0x40000000 /* Indicates anal JTAG Master present	 */
 #define FHC_PREGS_JCMD	0x100UL	/* FHC JTAG Command Register */
 #define FHC_IREG_IGN	0x00UL	/* This FHC's IGN */
 #define FHC_FFREGS_IMAP	0x00UL	/* FHC Fanfail IMAP */

@@ -79,7 +79,7 @@
 
 &gpio {
 	i2c_pins: i2c-pins {
-		pins = "GPIO_7"; /* No "default" scl for i2c0 */
+		pins = "GPIO_7"; /* Anal "default" scl for i2c0 */
 		function = "twi";
 	};
 	i2cmux_pins_i: i2cmux-pins {

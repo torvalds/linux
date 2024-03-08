@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <regex.h>
 #include <stdlib.h>
@@ -43,7 +43,7 @@
 #include <linux/string.h>
 #include <linux/zalloc.h>
 
-static void __machine__remove_thread(struct machine *machine, struct thread_rb_node *nd,
+static void __machine__remove_thread(struct machine *machine, struct thread_rb_analde *nd,
 				     struct thread *th, bool lock);
 
 static struct dso *machine__kernel_dso(struct machine *machine)
@@ -71,20 +71,20 @@ static void machine__threads_init(struct machine *machine)
 	}
 }
 
-static int thread_rb_node__cmp_tid(const void *key, const struct rb_node *nd)
+static int thread_rb_analde__cmp_tid(const void *key, const struct rb_analde *nd)
 {
 	int to_find = (int) *((pid_t *)key);
 
-	return to_find - (int)thread__tid(rb_entry(nd, struct thread_rb_node, rb_node)->thread);
+	return to_find - (int)thread__tid(rb_entry(nd, struct thread_rb_analde, rb_analde)->thread);
 }
 
-static struct thread_rb_node *thread_rb_node__find(const struct thread *th,
+static struct thread_rb_analde *thread_rb_analde__find(const struct thread *th,
 						   struct rb_root *tree)
 {
 	pid_t to_find = thread__tid(th);
-	struct rb_node *nd = rb_find(&to_find, tree, thread_rb_node__cmp_tid);
+	struct rb_analde *nd = rb_find(&to_find, tree, thread_rb_analde__cmp_tid);
 
-	return rb_entry(nd, struct thread_rb_node, rb_node);
+	return rb_entry(nd, struct thread_rb_analde, rb_analde);
 }
 
 static int machine__set_mmap_name(struct machine *machine)
@@ -97,7 +97,7 @@ static int machine__set_mmap_name(struct machine *machine)
 			  machine->pid) < 0)
 		machine->mmap_name = NULL;
 
-	return machine->mmap_name ? 0 : -ENOMEM;
+	return machine->mmap_name ? 0 : -EANALMEM;
 }
 
 static void thread__set_guest_comm(struct thread *thread, pid_t pid)
@@ -110,14 +110,14 @@ static void thread__set_guest_comm(struct thread *thread, pid_t pid)
 
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	memset(machine, 0, sizeof(*machine));
 	machine->kmaps = maps__new(machine);
 	if (machine->kmaps == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	RB_CLEAR_NODE(&machine->rb_node);
+	RB_CLEAR_ANALDE(&machine->rb_analde);
 	dsos__init(&machine->dsos);
 
 	machine__threads_init(machine);
@@ -185,8 +185,8 @@ struct machine *machine__new_kallsyms(void)
 	struct machine *machine = machine__new_host();
 	/*
 	 * FIXME:
-	 * 1) We should switch to machine__load_kallsyms(), i.e. not explicitly
-	 *    ask for not using the kcore parsing code, once this one is fixed
+	 * 1) We should switch to machine__load_kallsyms(), i.e. analt explicitly
+	 *    ask for analt using the kcore parsing code, once this one is fixed
 	 *    to create a map per module.
 	 */
 	if (machine && machine__load_kallsyms(machine, "/proc/kallsyms") <= 0) {
@@ -203,10 +203,10 @@ static void dsos__purge(struct dsos *dsos)
 
 	down_write(&dsos->lock);
 
-	list_for_each_entry_safe(pos, n, &dsos->head, node) {
-		RB_CLEAR_NODE(&pos->rb_node);
+	list_for_each_entry_safe(pos, n, &dsos->head, analde) {
+		RB_CLEAR_ANALDE(&pos->rb_analde);
 		pos->root = NULL;
-		list_del_init(&pos->node);
+		list_del_init(&pos->analde);
 		dso__put(pos);
 	}
 
@@ -221,7 +221,7 @@ static void dsos__exit(struct dsos *dsos)
 
 void machine__delete_threads(struct machine *machine)
 {
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	int i;
 
 	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
@@ -229,7 +229,7 @@ void machine__delete_threads(struct machine *machine)
 		down_write(&threads->lock);
 		nd = rb_first_cached(&threads->entries);
 		while (nd) {
-			struct thread_rb_node *trb = rb_entry(nd, struct thread_rb_node, rb_node);
+			struct thread_rb_analde *trb = rb_entry(nd, struct thread_rb_analde, rb_analde);
 
 			nd = rb_next(nd);
 			__machine__remove_thread(machine, trb, trb->thread, false);
@@ -285,8 +285,8 @@ void machines__exit(struct machines *machines)
 struct machine *machines__add(struct machines *machines, pid_t pid,
 			      const char *root_dir)
 {
-	struct rb_node **p = &machines->guests.rb_root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &machines->guests.rb_root.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct machine *pos, *machine = malloc(sizeof(*machine));
 	bool leftmost = true;
 
@@ -300,7 +300,7 @@ struct machine *machines__add(struct machines *machines, pid_t pid,
 
 	while (*p != NULL) {
 		parent = *p;
-		pos = rb_entry(parent, struct machine, rb_node);
+		pos = rb_entry(parent, struct machine, rb_analde);
 		if (pid < pos->pid)
 			p = &(*p)->rb_left;
 		else {
@@ -309,8 +309,8 @@ struct machine *machines__add(struct machines *machines, pid_t pid,
 		}
 	}
 
-	rb_link_node(&machine->rb_node, parent, p);
-	rb_insert_color_cached(&machine->rb_node, &machines->guests, leftmost);
+	rb_link_analde(&machine->rb_analde, parent, p);
+	rb_insert_color_cached(&machine->rb_analde, &machines->guests, leftmost);
 
 	machine->machines = machines;
 
@@ -319,12 +319,12 @@ struct machine *machines__add(struct machines *machines, pid_t pid,
 
 void machines__set_comm_exec(struct machines *machines, bool comm_exec)
 {
-	struct rb_node *nd;
+	struct rb_analde *nd;
 
 	machines->host.comm_exec = comm_exec;
 
 	for (nd = rb_first_cached(&machines->guests); nd; nd = rb_next(nd)) {
-		struct machine *machine = rb_entry(nd, struct machine, rb_node);
+		struct machine *machine = rb_entry(nd, struct machine, rb_analde);
 
 		machine->comm_exec = comm_exec;
 	}
@@ -332,8 +332,8 @@ void machines__set_comm_exec(struct machines *machines, bool comm_exec)
 
 struct machine *machines__find(struct machines *machines, pid_t pid)
 {
-	struct rb_node **p = &machines->guests.rb_root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &machines->guests.rb_root.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct machine *machine;
 	struct machine *default_machine = NULL;
 
@@ -342,7 +342,7 @@ struct machine *machines__find(struct machines *machines, pid_t pid)
 
 	while (*p != NULL) {
 		parent = *p;
-		machine = rb_entry(parent, struct machine, rb_node);
+		machine = rb_entry(parent, struct machine, rb_analde);
 		if (pid < machine->pid)
 			p = &(*p)->rb_left;
 		else if (pid > machine->pid)
@@ -403,20 +403,20 @@ struct machine *machines__find_guest(struct machines *machines, pid_t pid)
  * A common case for KVM test programs is that the test program acts as the
  * hypervisor, creating, running and destroying the virtual machine, and
  * providing the guest object code from its own object code. In this case,
- * the VM is not running an OS, but only the functions loaded into it by the
+ * the VM is analt running an OS, but only the functions loaded into it by the
  * hypervisor test program, and conveniently, loaded at the same virtual
  * addresses.
  *
- * Normally to resolve addresses, MMAP events are needed to map addresses
+ * Analrmally to resolve addresses, MMAP events are needed to map addresses
  * back to the object code and debug symbols for that object code.
  *
- * Currently, there is no way to get such mapping information from guests
+ * Currently, there is anal way to get such mapping information from guests
  * but, in the scenario described above, the guest has the same mappings
  * as the hypervisor, so support for that scenario can be achieved.
  *
  * To support that, copy the host thread's maps to the guest thread's maps.
- * Note, we do not discover the guest until we encounter a guest event,
- * which works well because it is not until then that we know that the host
+ * Analte, we do analt discover the guest until we encounter a guest event,
+ * which works well because it is analt until then that we kanalw that the host
  * thread's maps have been set up.
  *
  * This function returns the guest thread. Apart from keeping the data
@@ -489,24 +489,24 @@ struct thread *machine__findnew_guest_code(struct machine *machine, pid_t pid)
 void machines__process_guests(struct machines *machines,
 			      machine__process_t process, void *data)
 {
-	struct rb_node *nd;
+	struct rb_analde *nd;
 
 	for (nd = rb_first_cached(&machines->guests); nd; nd = rb_next(nd)) {
-		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		struct machine *pos = rb_entry(nd, struct machine, rb_analde);
 		process(pos, data);
 	}
 }
 
 void machines__set_id_hdr_size(struct machines *machines, u16 id_hdr_size)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct machine *machine;
 
 	machines->host.id_hdr_size = id_hdr_size;
 
-	for (node = rb_first_cached(&machines->guests); node;
-	     node = rb_next(node)) {
-		machine = rb_entry(node, struct machine, rb_node);
+	for (analde = rb_first_cached(&machines->guests); analde;
+	     analde = rb_next(analde)) {
+		machine = rb_entry(analde, struct machine, rb_analde);
 		machine->id_hdr_size = id_hdr_size;
 	}
 
@@ -543,7 +543,7 @@ static void machine__update_thread_pid(struct machine *machine,
 		/*
 		 * Maps are created from MMAP events which provide the pid and
 		 * tid.  Consequently there never should be any maps on a thread
-		 * with an unknown pid.  Just print an error if there are.
+		 * with an unkanalwn pid.  Just print an error if there are.
 		 */
 		if (!maps__empty(thread__maps(th)))
 			pr_err("Discarding thread maps for %d:%d\n",
@@ -619,10 +619,10 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 						  pid_t pid, pid_t tid,
 						  bool create)
 {
-	struct rb_node **p = &threads->entries.rb_root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &threads->entries.rb_root.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct thread *th;
-	struct thread_rb_node *nd;
+	struct thread_rb_analde *nd;
 	bool leftmost = true;
 
 	th = threads__get_last_match(threads, machine, pid, tid);
@@ -631,7 +631,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 
 	while (*p != NULL) {
 		parent = *p;
-		th = rb_entry(parent, struct thread_rb_node, rb_node)->thread;
+		th = rb_entry(parent, struct thread_rb_analde, rb_analde)->thread;
 
 		if (thread__tid(th) == tid) {
 			threads__set_last_match(threads, th);
@@ -661,8 +661,8 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 	}
 	nd->thread = th;
 
-	rb_link_node(&nd->rb_node, parent, p);
-	rb_insert_color_cached(&nd->rb_node, &threads->entries, leftmost);
+	rb_link_analde(&nd->rb_analde, parent, p);
+	rb_insert_color_cached(&nd->rb_analde, &threads->entries, leftmost);
 	/*
 	 * We have to initialize maps separately after rb tree is updated.
 	 *
@@ -672,14 +672,14 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 	 */
 	if (thread__init_maps(th, machine)) {
 		pr_err("Thread init failed thread %d\n", pid);
-		rb_erase_cached(&nd->rb_node, &threads->entries);
-		RB_CLEAR_NODE(&nd->rb_node);
+		rb_erase_cached(&nd->rb_analde, &threads->entries);
+		RB_CLEAR_ANALDE(&nd->rb_analde);
 		free(nd);
 		thread__put(th);
 		return NULL;
 	}
 	/*
-	 * It is now in the rbtree, get a ref
+	 * It is analw in the rbtree, get a ref
 	 */
 	threads__set_last_match(threads, th);
 	++threads->nr;
@@ -811,7 +811,7 @@ int machine__process_cgroup_event(struct machine *machine,
 
 	cgrp = cgroup__findnew(machine->env, event->cgroup.id, event->cgroup.path);
 	if (cgrp == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -903,14 +903,14 @@ static int machine__process_ksymbol_register(struct machine *machine,
 		dso = dso__new(event->ksymbol.name);
 
 		if (!dso) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		dso->kernel = DSO_SPACE__KERNEL;
 		map = map__new2(0, dso);
 		dso__put(dso);
 		if (!map) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		/*
@@ -929,7 +929,7 @@ static int machine__process_ksymbol_register(struct machine *machine,
 		map__set_end(map, map__start(map) + event->ksymbol.len);
 		err = maps__insert(machine__kernel_maps(machine), map);
 		if (err) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 
@@ -947,7 +947,7 @@ static int machine__process_ksymbol_register(struct machine *machine,
 			  event->ksymbol.len,
 			  0, 0, event->ksymbol.name);
 	if (!sym) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	dso__insert_symbol(dso, sym);
@@ -1008,7 +1008,7 @@ int machine__process_text_poke(struct machine *machine, union perf_event *event,
 		return 0;
 
 	if (cpumode != PERF_RECORD_MISC_KERNEL) {
-		pr_debug("%s: unsupported cpumode - ignoring\n", __func__);
+		pr_debug("%s: unsupported cpumode - iganalring\n", __func__);
 		return 0;
 	}
 
@@ -1070,11 +1070,11 @@ out:
 
 size_t machines__fprintf_dsos(struct machines *machines, FILE *fp)
 {
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	size_t ret = __dsos__fprintf(&machines->host.dsos.head, fp);
 
 	for (nd = rb_first_cached(&machines->guests); nd; nd = rb_next(nd)) {
-		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		struct machine *pos = rb_entry(nd, struct machine, rb_analde);
 		ret += __dsos__fprintf(&pos->dsos.head, fp);
 	}
 
@@ -1090,11 +1090,11 @@ size_t machine__fprintf_dsos_buildid(struct machine *m, FILE *fp,
 size_t machines__fprintf_dsos_buildid(struct machines *machines, FILE *fp,
 				     bool (skip)(struct dso *dso, int parm), int parm)
 {
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	size_t ret = machine__fprintf_dsos_buildid(&machines->host, fp, skip, parm);
 
 	for (nd = rb_first_cached(&machines->guests); nd; nd = rb_next(nd)) {
-		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		struct machine *pos = rb_entry(nd, struct machine, rb_analde);
 		ret += machine__fprintf_dsos_buildid(pos, fp, skip, parm);
 	}
 	return ret;
@@ -1122,7 +1122,7 @@ size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp)
 
 size_t machine__fprintf(struct machine *machine, FILE *fp)
 {
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	size_t ret;
 	int i;
 
@@ -1135,7 +1135,7 @@ size_t machine__fprintf(struct machine *machine, FILE *fp)
 
 		for (nd = rb_first_cached(&threads->entries); nd;
 		     nd = rb_next(nd)) {
-			struct thread *pos = rb_entry(nd, struct thread_rb_node, rb_node)->thread;
+			struct thread *pos = rb_entry(nd, struct thread_rb_analde, rb_analde)->thread;
 
 			ret += thread__fprintf(pos, fp);
 		}
@@ -1184,7 +1184,7 @@ const char *ref_reloc_sym_names[] = {"_text", "_stext", NULL};
 
 /* Figure out the start address of kernel map from /proc/kallsyms.
  * Returns the name of the start symbol in *symbol_name. Pass in NULL as
- * symbol_name if it's not that important.
+ * symbol_name if it's analt that important.
  */
 static int machine__get_running_kernel_start(struct machine *machine,
 					     const char **symbol_name,
@@ -1233,7 +1233,7 @@ int machine__create_extra_kernel_map(struct machine *machine,
 
 	map = map__new2(xm->start, kernel);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map__set_end(map, xm->end);
 	map__set_pgoff(map, xm->pgoff);
@@ -1278,7 +1278,7 @@ static u64 find_entry_trampoline(struct dso *dso)
 }
 
 /*
- * These values can be used for kernels that do not have symbols for the entry
+ * These values can be used for kernels that do analt have symbols for the entry
  * trampolines in kallsyms.
  */
 #define X86_64_CPU_ENTRY_AREA_PER_CPU	0xfffffe0000000000ULL
@@ -1319,7 +1319,7 @@ int machine__map_x86_64_entry_trampolines(struct machine *machine,
 	u64 pgoff;
 
 	/*
-	 * In the vmlinux case, pgoff is a virtual address which must now be
+	 * In the vmlinux case, pgoff is a virtual address which must analw be
 	 * mapped to a vmlinux offset.
 	 */
 	maps__for_each_map(args.kmaps, machine__map_x86_64_entry_trampolines_cb, &args);
@@ -1370,7 +1370,7 @@ __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 	map__put(machine->vmlinux_map);
 	machine->vmlinux_map = map__new2(0, kernel);
 	if (machine->vmlinux_map == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map__set_mapping_type(machine->vmlinux_map, MAPPING_TYPE__IDENTITY);
 	return maps__insert(machine__kernel_maps(machine), machine->vmlinux_map);
@@ -1412,7 +1412,7 @@ int machines__create_guest_kernel_maps(struct machines *machines)
 	if (symbol_conf.guestmount) {
 		items = scandir(symbol_conf.guestmount, &namelist, NULL, NULL);
 		if (items <= 0)
-			return -ENOENT;
+			return -EANALENT;
 		for (i = 0; i < items; i++) {
 			if (!isdigit(namelist[i]->d_name[0])) {
 				/* Filter out . and .. */
@@ -1421,7 +1421,7 @@ int machines__create_guest_kernel_maps(struct machines *machines)
 			pid = (pid_t)strtol(namelist[i]->d_name, &endp, 10);
 			if ((*endp != '\0') ||
 			    (endp == namelist[i]->d_name) ||
-			    (errno == ERANGE)) {
+			    (erranal == ERANGE)) {
 				pr_debug("invalid directory (%s). Skipping.\n",
 					 namelist[i]->d_name);
 				continue;
@@ -1445,15 +1445,15 @@ failure:
 
 void machines__destroy_kernel_maps(struct machines *machines)
 {
-	struct rb_node *next = rb_first_cached(&machines->guests);
+	struct rb_analde *next = rb_first_cached(&machines->guests);
 
 	machine__destroy_kernel_maps(&machines->host);
 
 	while (next) {
-		struct machine *pos = rb_entry(next, struct machine, rb_node);
+		struct machine *pos = rb_entry(next, struct machine, rb_analde);
 
-		next = rb_next(&pos->rb_node);
-		rb_erase_cached(&pos->rb_node, &machines->guests);
+		next = rb_next(&pos->rb_analde);
+		rb_erase_cached(&pos->rb_analde, &machines->guests);
 		machine__delete(pos);
 	}
 }
@@ -1544,7 +1544,7 @@ static int maps__set_module_path(struct maps *maps, const char *path, struct kmo
 
 	long_name = strdup(path);
 	if (long_name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dso = map__dso(map);
 	dso__set_long_name(dso, long_name, true);
@@ -1569,7 +1569,7 @@ static int maps__set_modules_path_dir(struct maps *maps, const char *dir_name, i
 	int ret = 0;
 
 	if (!dir) {
-		pr_debug("%s: cannot open %s dir\n", __func__, dir_name);
+		pr_debug("%s: cananalt open %s dir\n", __func__, dir_name);
 		return -1;
 	}
 
@@ -1587,7 +1587,7 @@ static int maps__set_modules_path_dir(struct maps *maps, const char *dir_name, i
 			    !strcmp(dent->d_name, ".."))
 				continue;
 
-			/* Do not follow top-level source and build symlinks */
+			/* Do analt follow top-level source and build symlinks */
 			if (depth == 0) {
 				if (!strcmp(dent->d_name, "source") ||
 				    !strcmp(dent->d_name, "build"))
@@ -1692,7 +1692,7 @@ static void machine__set_kernel_mmap(struct machine *machine,
 	map__set_start(machine->vmlinux_map, start);
 	map__set_end(machine->vmlinux_map, end);
 	/*
-	 * Be a bit paranoid here, some perf.data file came with
+	 * Be a bit paraanalid here, some perf.data file came with
 	 * a zero sized synthesized MMAP event for the kernel.
 	 */
 	if (start == 0 && end == 0)
@@ -1749,7 +1749,7 @@ int machine__create_kernel_maps(struct machine *machine)
 		}
 
 		/*
-		 * we have a real start address now, so re-order the kmaps
+		 * we have a real start address analw, so re-order the kmaps
 		 * assume it's the last in the kmaps
 		 */
 		ret = machine__update_kernel_mmap(machine, start, end);
@@ -1778,7 +1778,7 @@ static bool machine__uses_kcore(struct machine *machine)
 {
 	struct dso *dso;
 
-	list_for_each_entry(dso, &machine->dsos.head, node) {
+	list_for_each_entry(dso, &machine->dsos.head, analde) {
 		if (dso__is_kcore(dso))
 			return true;
 	}
@@ -1812,7 +1812,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 	bool is_kernel_mmap;
 	const char *mmap_name = machine->mmap_name;
 
-	/* If we have maps from kcore then we do not need or want any others */
+	/* If we have maps from kcore then we do analt need or want any others */
 	if (machine__uses_kcore(machine))
 		return 0;
 
@@ -1855,27 +1855,27 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 
 		down_read(&machine->dsos.lock);
 
-		list_for_each_entry(dso, &machine->dsos.head, node) {
+		list_for_each_entry(dso, &machine->dsos.head, analde) {
 
 			/*
-			 * The cpumode passed to is_kernel_module is not the
+			 * The cpumode passed to is_kernel_module is analt the
 			 * cpumode of *this* event. If we insist on passing
 			 * correct cpumode to is_kernel_module, we should
 			 * record the cpumode when we adding this dso to the
 			 * linked list.
 			 *
 			 * However we don't really need passing correct
-			 * cpumode.  We know the correct cpumode must be kernel
-			 * mode (if not, we should not link it onto kernel_dsos
+			 * cpumode.  We kanalw the correct cpumode must be kernel
+			 * mode (if analt, we should analt link it onto kernel_dsos
 			 * list).
 			 *
-			 * Therefore, we pass PERF_RECORD_MISC_CPUMODE_UNKNOWN.
+			 * Therefore, we pass PERF_RECORD_MISC_CPUMODE_UNKANALWN.
 			 * is_kernel_module() treats it as a kernel cpumode.
 			 */
 
 			if (!dso->kernel ||
 			    is_kernel_module(dso->long_name,
-					     PERF_RECORD_MISC_CPUMODE_UNKNOWN))
+					     PERF_RECORD_MISC_CPUMODE_UNKANALWN))
 				continue;
 
 
@@ -1910,7 +1910,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		/*
 		 * Avoid using a zero address (kptr_restrict) for the ref reloc
 		 * symbol. Effectively having zero here means that at record
-		 * time /proc/sys/kernel/kptr_restrict was non zero.
+		 * time /proc/sys/kernel/kptr_restrict was analn zero.
 		 */
 		if (xm->pgoff != 0) {
 			map__set_kallsyms_ref_reloc_sym(machine->vmlinux_map,
@@ -1942,8 +1942,8 @@ int machine__process_mmap2_event(struct machine *machine,
 	struct dso_id dso_id = {
 		.maj = event->mmap2.maj,
 		.min = event->mmap2.min,
-		.ino = event->mmap2.ino,
-		.ino_generation = event->mmap2.ino_generation,
+		.ianal = event->mmap2.ianal,
+		.ianal_generation = event->mmap2.ianal_generation,
 	};
 	struct build_id __bid, *bid = NULL;
 	int ret = 0;
@@ -2060,13 +2060,13 @@ out_problem:
 	return 0;
 }
 
-static void __machine__remove_thread(struct machine *machine, struct thread_rb_node *nd,
+static void __machine__remove_thread(struct machine *machine, struct thread_rb_analde *nd,
 				     struct thread *th, bool lock)
 {
 	struct threads *threads = machine__threads(machine, thread__tid(th));
 
 	if (!nd)
-		nd = thread_rb_node__find(th, &threads->entries.rb_root);
+		nd = thread_rb_analde__find(th, &threads->entries.rb_root);
 
 	if (threads->last_match && RC_CHK_EQUAL(threads->last_match, th))
 		threads__set_last_match(threads, NULL);
@@ -2077,8 +2077,8 @@ static void __machine__remove_thread(struct machine *machine, struct thread_rb_n
 	BUG_ON(refcount_read(thread__refcnt(th)) == 0);
 
 	thread__put(nd->thread);
-	rb_erase_cached(&nd->rb_node, &threads->entries);
-	RB_CLEAR_NODE(&nd->rb_node);
+	rb_erase_cached(&nd->rb_analde, &threads->entries);
+	RB_CLEAR_ANALDE(&nd->rb_analde);
 	--threads->nr;
 
 	free(nd);
@@ -2108,7 +2108,7 @@ int machine__process_fork_event(struct machine *machine, union perf_event *event
 		perf_event__fprintf_task(event, stdout);
 
 	/*
-	 * There may be an existing thread that is not actually the parent,
+	 * There may be an existing thread that is analt actually the parent,
 	 * either because we are processing events out of order, or because the
 	 * (fork) event that would have removed the thread was lost. Assume the
 	 * latter case and continue on as best we can.
@@ -2134,10 +2134,10 @@ int machine__process_fork_event(struct machine *machine, union perf_event *event
 	 * When synthesizing FORK events, we are trying to create thread
 	 * objects for the already running tasks on the machine.
 	 *
-	 * Normally, for a kernel FORK event, we want to clone the parent's
+	 * Analrmally, for a kernel FORK event, we want to clone the parent's
 	 * maps because that is what the kernel just did.
 	 *
-	 * But when synthesizing, this should not be done.  If we do, we end up
+	 * But when synthesizing, this should analt be done.  If we do, we end up
 	 * with overlapping maps as we process the synthesized MMAP2 events that
 	 * get delivered shortly thereafter.
 	 *
@@ -2238,11 +2238,11 @@ static void ip__resolve_ams(struct thread *thread,
 
 	addr_location__init(&al);
 	/*
-	 * We cannot use the header.misc hint to determine whether a
+	 * We cananalt use the header.misc hint to determine whether a
 	 * branch stack address is user, kernel, guest, hypervisor.
 	 * Branches may straddle the kernel/user/hypervisor boundaries.
 	 * Thus, we have to try consecutively until we find a match
-	 * or else, the symbol is unknown
+	 * or else, the symbol is unkanalwn
 	 */
 	thread__find_cpumode_addr_location(thread, ip, &al);
 
@@ -2378,8 +2378,8 @@ static int add_callchain_ip(struct thread *thread,
 		if (perf_hpp_list.parent && !*parent &&
 		    symbol__match_regex(al.sym, &parent_regex))
 			*parent = al.sym;
-		else if (have_ignore_callees && root_al &&
-		  symbol__match_regex(al.sym, &ignore_callees_regex)) {
+		else if (have_iganalre_callees && root_al &&
+		  symbol__match_regex(al.sym, &iganalre_callees_regex)) {
 			/* Treat this symbol as the root,
 			   forgetting its callees. */
 			addr_location__copy(root_al, &al);
@@ -2441,7 +2441,7 @@ static void save_iterations(struct iterations *iter,
 
 #define CHASHSZ 127
 #define CHASHBITS 7
-#define NO_ENTRY 0xff
+#define ANAL_ENTRY 0xff
 
 #define PERF_MAX_BRANCH_DEPTH 127
 
@@ -2452,15 +2452,15 @@ static int remove_loops(struct branch_entry *l, int nr,
 	int i, j, off;
 	unsigned char chash[CHASHSZ];
 
-	memset(chash, NO_ENTRY, sizeof(chash));
+	memset(chash, ANAL_ENTRY, sizeof(chash));
 
 	BUG_ON(PERF_MAX_BRANCH_DEPTH > 255);
 
 	for (i = 0; i < nr; i++) {
 		int h = hash_64(l[i].from, CHASHBITS) % CHASHSZ;
 
-		/* no collision handling for now */
-		if (chash[h] == NO_ENTRY) {
+		/* anal collision handling for analw */
+		if (chash[h] == ANAL_ENTRY) {
 			chash[h] = i;
 		} else if (l[chash[h]].from == l[i].from) {
 			bool is_loop = true;
@@ -2525,7 +2525,7 @@ static int lbr_callchain_add_kernel_ip(struct thread *thread,
 	return 0;
 }
 
-static void save_lbr_cursor_node(struct thread *thread,
+static void save_lbr_cursor_analde(struct thread *thread,
 				 struct callchain_cursor *cursor,
 				 int idx)
 {
@@ -2544,7 +2544,7 @@ static void save_lbr_cursor_node(struct thread *thread,
 	else
 		cursor->curr = cursor->curr->next;
 	memcpy(&lbr_stitch->prev_lbr_cursor[idx], cursor->curr,
-	       sizeof(struct callchain_cursor_node));
+	       sizeof(struct callchain_cursor_analde));
 
 	lbr_stitch->prev_lbr_cursor[idx].valid = true;
 	cursor->pos++;
@@ -2567,9 +2567,9 @@ static int lbr_callchain_add_lbr_ip(struct thread *thread,
 	u64 ip;
 
 	/*
-	 * The curr and pos are not used in writing session. They are cleared
+	 * The curr and pos are analt used in writing session. They are cleared
 	 * in callchain_cursor_commit() when the writing session is closed.
-	 * Using curr and pos to track the current cursor node.
+	 * Using curr and pos to track the current cursor analde.
 	 */
 	if (thread__lbr_stitch(thread)) {
 		cursor->curr = NULL;
@@ -2594,9 +2594,9 @@ static int lbr_callchain_add_lbr_ip(struct thread *thread,
 			return err;
 
 		/*
-		 * The number of cursor node increases.
-		 * Move the current cursor node.
-		 * But does not need to save current cursor node for entry 0.
+		 * The number of cursor analde increases.
+		 * Move the current cursor analde.
+		 * But does analt need to save current cursor analde for entry 0.
 		 * It's impossible to stitch the whole LBRs of previous sample.
 		 */
 		if (thread__lbr_stitch(thread) && (cursor->pos != cursor->nr)) {
@@ -2617,7 +2617,7 @@ static int lbr_callchain_add_lbr_ip(struct thread *thread,
 					       *branch_from);
 			if (err)
 				return err;
-			save_lbr_cursor_node(thread, cursor, i);
+			save_lbr_cursor_analde(thread, cursor, i);
 		}
 		return 0;
 	}
@@ -2632,7 +2632,7 @@ static int lbr_callchain_add_lbr_ip(struct thread *thread,
 				       *branch_from);
 		if (err)
 			return err;
-		save_lbr_cursor_node(thread, cursor, i);
+		save_lbr_cursor_analde(thread, cursor, i);
 	}
 
 	if (lbr_nr > 0) {
@@ -2655,38 +2655,38 @@ static int lbr_callchain_add_stitched_lbr_ip(struct thread *thread,
 					     struct callchain_cursor *cursor)
 {
 	struct lbr_stitch *lbr_stitch = thread__lbr_stitch(thread);
-	struct callchain_cursor_node *cnode;
-	struct stitch_list *stitch_node;
+	struct callchain_cursor_analde *canalde;
+	struct stitch_list *stitch_analde;
 	int err;
 
-	list_for_each_entry(stitch_node, &lbr_stitch->lists, node) {
-		cnode = &stitch_node->cursor;
+	list_for_each_entry(stitch_analde, &lbr_stitch->lists, analde) {
+		canalde = &stitch_analde->cursor;
 
-		err = callchain_cursor_append(cursor, cnode->ip,
-					      &cnode->ms,
-					      cnode->branch,
-					      &cnode->branch_flags,
-					      cnode->nr_loop_iter,
-					      cnode->iter_cycles,
-					      cnode->branch_from,
-					      cnode->srcline);
+		err = callchain_cursor_append(cursor, canalde->ip,
+					      &canalde->ms,
+					      canalde->branch,
+					      &canalde->branch_flags,
+					      canalde->nr_loop_iter,
+					      canalde->iter_cycles,
+					      canalde->branch_from,
+					      canalde->srcline);
 		if (err)
 			return err;
 	}
 	return 0;
 }
 
-static struct stitch_list *get_stitch_node(struct thread *thread)
+static struct stitch_list *get_stitch_analde(struct thread *thread)
 {
 	struct lbr_stitch *lbr_stitch = thread__lbr_stitch(thread);
-	struct stitch_list *stitch_node;
+	struct stitch_list *stitch_analde;
 
 	if (!list_empty(&lbr_stitch->free_lists)) {
-		stitch_node = list_first_entry(&lbr_stitch->free_lists,
-					       struct stitch_list, node);
-		list_del(&stitch_node->node);
+		stitch_analde = list_first_entry(&lbr_stitch->free_lists,
+					       struct stitch_list, analde);
+		list_del(&stitch_analde->analde);
 
-		return stitch_node;
+		return stitch_analde;
 	}
 
 	return malloc(sizeof(struct stitch_list));
@@ -2704,7 +2704,7 @@ static bool has_stitched_lbr(struct thread *thread,
 	struct branch_entry *prev_entries = perf_sample__branch_entries(prev);
 	struct lbr_stitch *lbr_stitch = thread__lbr_stitch(thread);
 	int i, j, nr_identical_branches = 0;
-	struct stitch_list *stitch_node;
+	struct stitch_list *stitch_analde;
 	u64 cur_base, distance;
 
 	if (!cur_stack || !prev_stack)
@@ -2715,7 +2715,7 @@ static bool has_stitched_lbr(struct thread *thread,
 
 	distance = (prev_stack->hw_idx > cur_base) ? (prev_stack->hw_idx - cur_base) :
 						     (max_lbr + prev_stack->hw_idx - cur_base);
-	/* Previous sample has shorter stack. Nothing can be stitched. */
+	/* Previous sample has shorter stack. Analthing can be stitched. */
 	if (distance + 1 > prev_stack->nr)
 		return false;
 
@@ -2748,17 +2748,17 @@ static bool has_stitched_lbr(struct thread *thread,
 		if (!lbr_stitch->prev_lbr_cursor[i].valid)
 			continue;
 
-		stitch_node = get_stitch_node(thread);
-		if (!stitch_node)
+		stitch_analde = get_stitch_analde(thread);
+		if (!stitch_analde)
 			return false;
 
-		memcpy(&stitch_node->cursor, &lbr_stitch->prev_lbr_cursor[i],
-		       sizeof(struct callchain_cursor_node));
+		memcpy(&stitch_analde->cursor, &lbr_stitch->prev_lbr_cursor[i],
+		       sizeof(struct callchain_cursor_analde));
 
 		if (callee)
-			list_add(&stitch_node->node, &lbr_stitch->lists);
+			list_add(&stitch_analde->analde, &lbr_stitch->lists);
 		else
-			list_add_tail(&stitch_node->node, &lbr_stitch->lists);
+			list_add_tail(&stitch_analde->analde, &lbr_stitch->lists);
 	}
 
 	return true;
@@ -2774,7 +2774,7 @@ static bool alloc_lbr_stitch(struct thread *thread, unsigned int max_lbr)
 		goto err;
 
 	thread__lbr_stitch(thread)->prev_lbr_cursor =
-		calloc(max_lbr + 1, sizeof(struct callchain_cursor_node));
+		calloc(max_lbr + 1, sizeof(struct callchain_cursor_analde));
 	if (!thread__lbr_stitch(thread)->prev_lbr_cursor)
 		goto free_lbr_stitch;
 
@@ -2796,7 +2796,7 @@ err:
  * Resolve LBR callstack chain sample
  * Return:
  * 1 on success get LBR callchain information
- * 0 no available LBR callchain information, should try fp
+ * 0 anal available LBR callchain information, should try fp
  * negative error code on other errors.
  */
 static int resolve_lbr_callchain_sample(struct thread *thread,
@@ -2824,7 +2824,7 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 	if (i == chain_nr)
 		return 0;
 
-	if (thread__lbr_stitch_enable(thread) && !sample->no_hw_idx &&
+	if (thread__lbr_stitch_enable(thread) && !sample->anal_hw_idx &&
 	    (max_lbr > 0) && alloc_lbr_stitch(thread, max_lbr)) {
 		lbr_stitch = thread__lbr_stitch(thread);
 
@@ -2906,7 +2906,7 @@ static int find_prev_cpumode(struct ip_callchain *chain, struct thread *thread,
 static u64 get_leaf_frame_caller(struct perf_sample *sample,
 		struct thread *thread, int usr_idx)
 {
-	if (machine__normalized_is(maps__machine(thread__maps(thread)), "arm64"))
+	if (machine__analrmalized_is(maps__machine(thread__maps(thread)), "arm64"))
 		return get_leaf_frame_caller_aarch64(sample, thread, usr_idx);
 	else
 		return 0;
@@ -2954,11 +2954,11 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	 * more context for a sample than just the callers.
 	 *
 	 * This uses individual histograms of paths compared to the
-	 * aggregated histograms the normal LBR mode uses.
+	 * aggregated histograms the analrmal LBR mode uses.
 	 *
-	 * Limitations for now:
-	 * - No extra filters
-	 * - No annotations (should annotate somehow)
+	 * Limitations for analw:
+	 * - Anal extra filters
+	 * - Anal ananaltations (should ananaltate somehow)
 	 */
 
 	if (branch && callchain_param.branch_callstack) {
@@ -2982,7 +2982,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 				 * Check for overlap into the callchain.
 				 * The return address is one off compared to
 				 * the branch entry. To adjust for this
-				 * assume the calling instruction is not longer
+				 * assume the calling instruction is analt longer
 				 * than 8 bytes.
 				 */
 				if (i == skip_idx ||
@@ -3067,7 +3067,7 @@ check_calls:
 			leaf_frame_caller = get_leaf_frame_caller(sample, thread, usr_idx);
 
 			/*
-			 * check if leaf_frame_Caller != ip to not add the same
+			 * check if leaf_frame_Caller != ip to analt add the same
 			 * value twice.
 			 */
 
@@ -3096,7 +3096,7 @@ static int append_inlines(struct callchain_cursor *cursor, struct map_symbol *ms
 {
 	struct symbol *sym = ms->sym;
 	struct map *map = ms->map;
-	struct inline_node *inline_node;
+	struct inline_analde *inline_analde;
 	struct inline_list *ilist;
 	struct dso *dso;
 	u64 addr;
@@ -3110,19 +3110,19 @@ static int append_inlines(struct callchain_cursor *cursor, struct map_symbol *ms
 	addr = map__rip_2objdump(map, addr);
 	dso = map__dso(map);
 
-	inline_node = inlines__tree_find(&dso->inlined_nodes, addr);
-	if (!inline_node) {
-		inline_node = dso__parse_addr_inlines(dso, addr, sym);
-		if (!inline_node)
+	inline_analde = inlines__tree_find(&dso->inlined_analdes, addr);
+	if (!inline_analde) {
+		inline_analde = dso__parse_addr_inlines(dso, addr, sym);
+		if (!inline_analde)
 			return ret;
-		inlines__tree_insert(&dso->inlined_nodes, inline_node);
+		inlines__tree_insert(&dso->inlined_analdes, inline_analde);
 	}
 
 	ilist_ms = (struct map_symbol) {
 		.maps = maps__get(ms->maps),
 		.map = map__get(map),
 	};
-	list_for_each_entry(ilist, &inline_node->val, list) {
+	list_for_each_entry(ilist, &inline_analde->val, list) {
 		ilist_ms.sym = ilist->symbol;
 		ret = callchain_cursor_append(cursor, ip, &ilist_ms, false,
 					      NULL, 0, 0, 0, ilist->srcline);
@@ -3170,7 +3170,7 @@ static int thread__resolve_callchain_unwind(struct thread *thread,
 	      (evsel->core.attr.sample_type & PERF_SAMPLE_STACK_USER)))
 		return 0;
 
-	/* Bail out if nothing was captured. */
+	/* Bail out if analthing was captured. */
 	if ((!sample->user_regs.regs) ||
 	    (!sample->user_stack.size))
 		return 0;
@@ -3190,7 +3190,7 @@ int thread__resolve_callchain(struct thread *thread,
 	int ret = 0;
 
 	if (cursor == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	callchain_cursor_reset(cursor);
 
@@ -3224,7 +3224,7 @@ int machine__for_each_thread(struct machine *machine,
 			     void *priv)
 {
 	struct threads *threads;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	int rc = 0;
 	int i;
 
@@ -3232,7 +3232,7 @@ int machine__for_each_thread(struct machine *machine,
 		threads = &machine->threads[i];
 		for (nd = rb_first_cached(&threads->entries); nd;
 		     nd = rb_next(nd)) {
-			struct thread_rb_node *trb = rb_entry(nd, struct thread_rb_node, rb_node);
+			struct thread_rb_analde *trb = rb_entry(nd, struct thread_rb_analde, rb_analde);
 
 			rc = fn(trb->thread, priv);
 			if (rc != 0)
@@ -3246,7 +3246,7 @@ int machines__for_each_thread(struct machines *machines,
 			      int (*fn)(struct thread *thread, void *p),
 			      void *priv)
 {
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	int rc = 0;
 
 	rc = machine__for_each_thread(&machines->host, fn, priv);
@@ -3254,7 +3254,7 @@ int machines__for_each_thread(struct machines *machines,
 		return rc;
 
 	for (nd = rb_first_cached(&machines->guests); nd; nd = rb_next(nd)) {
-		struct machine *machine = rb_entry(nd, struct machine, rb_node);
+		struct machine *machine = rb_entry(nd, struct machine, rb_analde);
 
 		rc = machine__for_each_thread(machine, fn, priv);
 		if (rc != 0)
@@ -3284,13 +3284,13 @@ int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 				    machine->current_tid_sz,
 				    (unsigned int)cpu,
 				    &init_val))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	machine->current_tid[cpu] = tid;
 
 	thread = machine__findnew_thread(machine, pid, tid);
 	if (!thread)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	thread__set_cpu(thread, cpu);
 	thread__put(thread);
@@ -3300,14 +3300,14 @@ int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 
 /*
  * Compares the raw arch string. N.B. see instead perf_env__arch() or
- * machine__normalized_is() if a normalized arch is needed.
+ * machine__analrmalized_is() if a analrmalized arch is needed.
  */
 bool machine__is(struct machine *machine, const char *arch)
 {
 	return machine && !strcmp(perf_env__raw_arch(machine->env), arch);
 }
 
-bool machine__normalized_is(struct machine *machine, const char *arch)
+bool machine__analrmalized_is(struct machine *machine, const char *arch)
 {
 	return machine && !strcmp(perf_env__arch(machine->env), arch);
 }
@@ -3324,9 +3324,9 @@ int machine__get_kernel_start(struct machine *machine)
 
 	/*
 	 * The only addresses above 2^63 are kernel addresses of a 64-bit
-	 * kernel.  Note that addresses are unsigned so that on a 32-bit system
+	 * kernel.  Analte that addresses are unsigned so that on a 32-bit system
 	 * all addresses including kernel addresses are less than 2^32.  In
-	 * that case (32-bit system), if the kernel mapping is unknown, all
+	 * that case (32-bit system), if the kernel mapping is unkanalwn, all
 	 * addresses will be assumed to be in user space - see
 	 * machine__kernel_ip().
 	 */
@@ -3400,7 +3400,7 @@ int machine__for_each_dso(struct machine *machine, machine__dso_t fn, void *priv
 	struct dso *pos;
 	int err = 0;
 
-	list_for_each_entry(pos, &machine->dsos.head, node) {
+	list_for_each_entry(pos, &machine->dsos.head, analde) {
 		if (fn(pos, machine, priv))
 			err = -1;
 	}
@@ -3428,7 +3428,7 @@ bool machine__is_lock_function(struct machine *machine, u64 addr)
 
 		machine->sched.text_start = map__unmap_ip(kmap, sym->start);
 
-		/* should not fail from here */
+		/* should analt fail from here */
 		sym = machine__find_kernel_symbol_by_name(machine, "__sched_text_end", &kmap);
 		machine->sched.text_end = map__unmap_ip(kmap, sym->start);
 

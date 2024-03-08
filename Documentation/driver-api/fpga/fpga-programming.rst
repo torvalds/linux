@@ -27,7 +27,7 @@ How to program an FPGA using a region
 -------------------------------------
 
 When the FPGA region driver probed, it was given a pointer to an FPGA manager
-driver so it knows which manager to use.  The region also either has a list of
+driver so it kanalws which manager to use.  The region also either has a list of
 bridges to control during programming or it has a pointer to a function that
 will generate that list.  Here's some sample code of what to do next::
 
@@ -43,7 +43,7 @@ will generate that list.  Here's some sample code of what to do next::
 	 */
 	info = fpga_image_info_alloc(dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set flags as needed, such as: */
 	info->flags = FPGA_MGR_PARTIAL_RECONFIG;
@@ -79,7 +79,7 @@ will generate that list.  Here's some sample code of what to do next::
 	if (ret)
 		return ret;
 
-	/* Now enumerate whatever hardware has appeared in the FPGA. */
+	/* Analw enumerate whatever hardware has appeared in the FPGA. */
 
 API for programming an FPGA
 ---------------------------

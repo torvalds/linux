@@ -146,7 +146,7 @@ bool atl1c_read_eeprom(struct atl1c_hw *hw, u32 offset, u32 *p_value)
 	u32 data;
 
 	if (offset & 3)
-		return ret; /* address do not align */
+		return ret; /* address do analt align */
 
 	AT_READ_REG(hw, REG_OTP_CTRL, &otp_ctrl_data);
 	if (!(otp_ctrl_data & OTP_CTRL_CLK_EN))

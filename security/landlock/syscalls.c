@@ -7,13 +7,13 @@
  */
 
 #include <asm/current.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/build_bug.h>
 #include <linux/capability.h>
 #include <linux/compiler_types.h>
 #include <linux/dcache.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/limits.h>
 #include <linux/mount.h>
@@ -69,7 +69,7 @@ copy_min_struct_from_user(void *const dst, const size_t ksize,
 /*
  * This function only contains arithmetic operations with constants, leading to
  * BUILD_BUG_ON().  The related code is evaluated and checked at build time,
- * but it is then ignored thanks to compiler optimizations.
+ * but it is then iganalred thanks to compiler optimizations.
  */
 static void build_check_abi(void)
 {
@@ -79,7 +79,7 @@ static void build_check_abi(void)
 	size_t ruleset_size, path_beneath_size, net_port_size;
 
 	/*
-	 * For each user space ABI structures, first checks that there is no
+	 * For each user space ABI structures, first checks that there is anal
 	 * hole in them, then checks that all architectures have the same
 	 * struct size.
 	 */
@@ -101,7 +101,7 @@ static void build_check_abi(void)
 
 /* Ruleset handling */
 
-static int fop_ruleset_release(struct inode *const inode,
+static int fop_ruleset_release(struct ianalde *const ianalde,
 			       struct file *const filp)
 {
 	struct landlock_ruleset *ruleset = filp->private_data;
@@ -157,10 +157,10 @@ static const struct file_operations ruleset_fops = {
  *
  * Possible returned errors are:
  *
- * - %EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
- * - %EINVAL: unknown @flags, or unknown access, or too small @size;
+ * - %EOPANALTSUPP: Landlock is supported by the kernel but disabled at boot time;
+ * - %EINVAL: unkanalwn @flags, or unkanalwn access, or too small @size;
  * - %E2BIG or %EFAULT: @attr or @size inconsistencies;
- * - %ENOMSG: empty &landlock_ruleset_attr.handled_access_fs.
+ * - %EANALMSG: empty &landlock_ruleset_attr.handled_access_fs.
  */
 SYSCALL_DEFINE3(landlock_create_ruleset,
 		const struct landlock_ruleset_attr __user *const, attr,
@@ -174,7 +174,7 @@ SYSCALL_DEFINE3(landlock_create_ruleset,
 	build_check_abi();
 
 	if (!landlock_initialized)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (flags) {
 		if ((flags == LANDLOCK_CREATE_RULESET_VERSION) && !attr &&
@@ -207,8 +207,8 @@ SYSCALL_DEFINE3(landlock_create_ruleset,
 	if (IS_ERR(ruleset))
 		return PTR_ERR(ruleset);
 
-	/* Creates anonymous FD referring to the ruleset. */
-	ruleset_fd = anon_inode_getfd("[landlock-ruleset]", &ruleset_fops,
+	/* Creates aanalnymous FD referring to the ruleset. */
+	ruleset_fd = aanaln_ianalde_getfd("[landlock-ruleset]", &ruleset_fops,
 				      ruleset, O_RDWR | O_CLOEXEC);
 	if (ruleset_fd < 0)
 		landlock_put_ruleset(ruleset);
@@ -274,9 +274,9 @@ static int get_path_from_fd(const s32 fd, struct path *const path)
 	 */
 	if ((f.file->f_op == &ruleset_fops) ||
 	    (f.file->f_path.mnt->mnt_flags & MNT_INTERNAL) ||
-	    (f.file->f_path.dentry->d_sb->s_flags & SB_NOUSER) ||
+	    (f.file->f_path.dentry->d_sb->s_flags & SB_ANALUSER) ||
 	    d_is_negative(f.file->f_path.dentry) ||
-	    IS_PRIVATE(d_backing_inode(f.file->f_path.dentry))) {
+	    IS_PRIVATE(d_backing_ianalde(f.file->f_path.dentry))) {
 		err = -EBADFD;
 		goto out_fdput;
 	}
@@ -304,10 +304,10 @@ static int add_rule_path_beneath(struct landlock_ruleset *const ruleset,
 
 	/*
 	 * Informs about useless rule: empty allowed_access (i.e. deny rules)
-	 * are ignored in path walks.
+	 * are iganalred in path walks.
 	 */
 	if (!path_beneath_attr.allowed_access)
-		return -ENOMSG;
+		return -EANALMSG;
 
 	/* Checks that allowed_access matches the @ruleset constraints. */
 	mask = landlock_get_raw_fs_access_mask(ruleset, 0);
@@ -340,10 +340,10 @@ static int add_rule_net_port(struct landlock_ruleset *ruleset,
 
 	/*
 	 * Informs about useless rule: empty allowed_access (i.e. deny rules)
-	 * are ignored by network actions.
+	 * are iganalred by network actions.
 	 */
 	if (!net_port_attr.allowed_access)
-		return -ENOMSG;
+		return -EANALMSG;
 
 	/* Checks that allowed_access matches the @ruleset constraints. */
 	mask = landlock_get_net_access_mask(ruleset, 0);
@@ -367,7 +367,7 @@ static int add_rule_net_port(struct landlock_ruleset *ruleset,
  * @rule_type: Identify the structure type pointed to by @rule_attr:
  *             %LANDLOCK_RULE_PATH_BENEATH or %LANDLOCK_RULE_NET_PORT.
  * @rule_attr: Pointer to a rule (only of type &struct
- *             landlock_path_beneath_attr for now).
+ *             landlock_path_beneath_attr for analw).
  * @flags: Must be 0.
  *
  * This system call enables to define a new rule and add it to an existing
@@ -375,20 +375,20 @@ static int add_rule_net_port(struct landlock_ruleset *ruleset,
  *
  * Possible returned errors are:
  *
- * - %EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
- * - %EAFNOSUPPORT: @rule_type is %LANDLOCK_RULE_NET_PORT but TCP/IP is not
+ * - %EOPANALTSUPP: Landlock is supported by the kernel but disabled at boot time;
+ * - %EAFANALSUPPORT: @rule_type is %LANDLOCK_RULE_NET_PORT but TCP/IP is analt
  *   supported by the running kernel;
- * - %EINVAL: @flags is not 0, or inconsistent access in the rule (i.e.
+ * - %EINVAL: @flags is analt 0, or inconsistent access in the rule (i.e.
  *   &landlock_path_beneath_attr.allowed_access or
- *   &landlock_net_port_attr.allowed_access is not a subset of the
+ *   &landlock_net_port_attr.allowed_access is analt a subset of the
  *   ruleset handled accesses), or &landlock_net_port_attr.port is
  *   greater than 65535;
- * - %ENOMSG: Empty accesses (e.g. &landlock_path_beneath_attr.allowed_access);
- * - %EBADF: @ruleset_fd is not a file descriptor for the current thread, or a
- *   member of @rule_attr is not a file descriptor as expected;
- * - %EBADFD: @ruleset_fd is not a ruleset file descriptor, or a member of
- *   @rule_attr is not the expected file descriptor type;
- * - %EPERM: @ruleset_fd has no write access to the underlying ruleset;
+ * - %EANALMSG: Empty accesses (e.g. &landlock_path_beneath_attr.allowed_access);
+ * - %EBADF: @ruleset_fd is analt a file descriptor for the current thread, or a
+ *   member of @rule_attr is analt a file descriptor as expected;
+ * - %EBADFD: @ruleset_fd is analt a ruleset file descriptor, or a member of
+ *   @rule_attr is analt the expected file descriptor type;
+ * - %EPERM: @ruleset_fd has anal write access to the underlying ruleset;
  * - %EFAULT: @rule_attr inconsistency.
  */
 SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
@@ -399,9 +399,9 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
 	int err;
 
 	if (!landlock_initialized)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* No flag for now. */
+	/* Anal flag for analw. */
 	if (flags)
 		return -EINVAL;
 
@@ -435,17 +435,17 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
  *
  * This system call enables to enforce a Landlock ruleset on the current
  * thread.  Enforcing a ruleset requires that the task has %CAP_SYS_ADMIN in its
- * namespace or is running with no_new_privs.  This avoids scenarios where
+ * namespace or is running with anal_new_privs.  This avoids scenarios where
  * unprivileged tasks can affect the behavior of privileged children.
  *
  * Possible returned errors are:
  *
- * - %EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
- * - %EINVAL: @flags is not 0.
- * - %EBADF: @ruleset_fd is not a file descriptor for the current thread;
- * - %EBADFD: @ruleset_fd is not a ruleset file descriptor;
- * - %EPERM: @ruleset_fd has no read access to the underlying ruleset, or the
- *   current thread is not running with no_new_privs, or it doesn't have
+ * - %EOPANALTSUPP: Landlock is supported by the kernel but disabled at boot time;
+ * - %EINVAL: @flags is analt 0.
+ * - %EBADF: @ruleset_fd is analt a file descriptor for the current thread;
+ * - %EBADFD: @ruleset_fd is analt a ruleset file descriptor;
+ * - %EPERM: @ruleset_fd has anal read access to the underlying ruleset, or the
+ *   current thread is analt running with anal_new_privs, or it doesn't have
  *   %CAP_SYS_ADMIN in its namespace.
  * - %E2BIG: The maximum number of stacked rulesets is reached for the current
  *   thread.
@@ -459,17 +459,17 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 	int err;
 
 	if (!landlock_initialized)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 * Similar checks as for seccomp(2), except that an -EPERM may be
 	 * returned.
 	 */
-	if (!task_no_new_privs(current) &&
-	    !ns_capable_noaudit(current_user_ns(), CAP_SYS_ADMIN))
+	if (!task_anal_new_privs(current) &&
+	    !ns_capable_analaudit(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
 
-	/* No flag for now. */
+	/* Anal flag for analw. */
 	if (flags)
 		return -EINVAL;
 
@@ -481,13 +481,13 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 	/* Prepares new credentials. */
 	new_cred = prepare_creds();
 	if (!new_cred) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_put_ruleset;
 	}
 	new_llcred = landlock_cred(new_cred);
 
 	/*
-	 * There is no possible race condition while copying and manipulating
+	 * There is anal possible race condition while copying and manipulating
 	 * the current credentials because they are dedicated per thread.
 	 */
 	new_dom = landlock_merge_ruleset(new_llcred->domain, ruleset);

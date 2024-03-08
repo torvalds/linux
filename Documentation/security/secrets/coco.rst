@@ -29,7 +29,7 @@ The guest firmware may reserve a designated memory area for secret injection,
 and publish its location (base GPA and length) in the EFI configuration table
 under a ``LINUX_EFI_COCO_SECRET_AREA_GUID`` entry
 (``adf956ad-e98c-484c-ae11-b51c7d336447``).  This memory area should be marked
-by the firmware as ``EFI_RESERVED_TYPE``, and therefore the kernel should not
+by the firmware as ``EFI_RESERVED_TYPE``, and therefore the kernel should analt
 be use it for its own purposes.
 
 During the VM's launch, the virtual machine manager may inject a secret to that

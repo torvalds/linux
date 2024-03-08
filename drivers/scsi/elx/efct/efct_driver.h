@@ -58,7 +58,7 @@ struct efct {
 	bool				soft_wwn_enable;
 	u8				efct_req_fw_upgrade;
 	struct efct_intr_context	intr_context[MAX_PCI_INTERRUPTS];
-	u32				numa_node;
+	u32				numa_analde;
 
 	char				name[EFC_NAME_LENGTH];
 	u32				instance_index;
@@ -80,13 +80,13 @@ struct efct {
 	char				*filter_def;
 	int				topology;
 
-	/* Look up for target node */
+	/* Look up for target analde */
 	struct xarray			lookup;
 
 	/*
 	 * Target IO timer value:
 	 * Zero: target command timeout disabled.
-	 * Non-zero: Timeout value, in seconds, for target commands
+	 * Analn-zero: Timeout value, in seconds, for target commands
 	 */
 	u32				target_io_timer_sec;
 

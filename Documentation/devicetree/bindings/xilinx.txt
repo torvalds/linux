@@ -16,8 +16,8 @@
 
    The new approach is to export the parameters into the device tree and
    generate a new device tree each time the FPGA bitstream changes.  The
-   parameters which used to be exported as #defines will now become
-   properties of the device node.  In general, device nodes for IP-cores
+   parameters which used to be exported as #defines will analw become
+   properties of the device analde.  In general, device analdes for IP-cores
    will take the following form:
 
 	(name): (generic-name)@(base-address) {
@@ -71,7 +71,7 @@
 		PORT OPB_Rst = sys_bus_reset_0
 	END
 
-   becomes the following device tree node:
+   becomes the following device tree analde:
 
 	opb_uartlite_0: serial@ec100000 {
 		device_type = "serial";
@@ -114,7 +114,7 @@
       iii) Xilinx EMAC and Xilinx TEMAC
 
       Xilinx Ethernet devices.  In addition to general xilinx properties
-      listed above, nodes for these devices should include a phy-handle
+      listed above, analdes for these devices should include a phy-handle
       property, and may include other common network device properties
       like local-mac-address.
 

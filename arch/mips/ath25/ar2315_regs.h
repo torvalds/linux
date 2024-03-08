@@ -6,7 +6,7 @@
  * for more details.
  *
  * Copyright (C) 2003 Atheros Communications, Inc.,  All Rights Reserved.
- * Copyright (C) 2006 FON Technology, SL.
+ * Copyright (C) 2006 FON Techanallogy, SL.
  * Copyright (C) 2006 Imre Kaloz <kaloz@openwrt.org>
  * Copyright (C) 2006-2008 Felix Fietkau <nbd@openwrt.org>
  */
@@ -183,7 +183,7 @@
 #define AR2315_WDT_TIMER		0x0038
 #define AR2315_WDT_CTRL			0x003c
 
-#define AR2315_WDT_CTRL_IGNORE	0x00000000	/* ignore expiration */
+#define AR2315_WDT_CTRL_IGANALRE	0x00000000	/* iganalre expiration */
 #define AR2315_WDT_CTRL_NMI	0x00000001	/* NMI on watchdog */
 #define AR2315_WDT_CTRL_RESET	0x00000002	/* reset on watchdog */
 
@@ -300,7 +300,7 @@
 
 /*
  * SDRAM Controller
- *   - No read or write buffers are included.
+ *   - Anal read or write buffers are included.
  */
 #define AR2315_MEM_CFG			0x0000
 #define AR2315_MEM_CTRL			0x000c
@@ -336,7 +336,7 @@
 #define AR2315_LBCONF_DATA_OE	0x00002000	/* =1 Data cap on OE, WE, DS */
 #define AR2315_LBCONF_16DATA	0x00004000	/* =1 Data is 16 bits wide */
 #define AR2315_LBCONF_SWAPDT	0x00008000	/* =1 Byte swap data */
-#define AR2315_LBCONF_SYNC	0x00010000	/* =1 Bus synchronous to clk */
+#define AR2315_LBCONF_SYNC	0x00010000	/* =1 Bus synchroanalus to clk */
 #define AR2315_LBCONF_INT	0x00020000	/* =1 Intr is low true */
 #define AR2315_LBCONF_INT_CTR0	0x00000000	/* GND high-Z, Vdd is high-Z */
 #define AR2315_LBCONF_INT_CTR1	0x00040000	/* GND drive, Vdd is high-Z */

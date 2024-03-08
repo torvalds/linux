@@ -10,7 +10,7 @@ Timers
     highres
     hpet
     hrtimers
-    no_hz
+    anal_hz
     timekeeping
     timers-howto
 

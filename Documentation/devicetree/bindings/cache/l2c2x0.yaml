@@ -10,18 +10,18 @@ maintainers:
   - Rob Herring <robh@kernel.org>
 
 description: |+
-  ARM cores often have a separate L2C210/L2C220/L2C310 (also known as PL210/
+  ARM cores often have a separate L2C210/L2C220/L2C310 (also kanalwn as PL210/
   PL220/PL310 and variants) based level 2 cache controller. All these various
   implementations of the L2 cache controller have compatible programming
-  models (Note 1). Some of the properties that are just prefixed "cache-*" are
+  models (Analte 1). Some of the properties that are just prefixed "cache-*" are
   taken from section 3.7.3 of the Devicetree Specification which can be found
   at:
   https://www.devicetree.org/specifications/
 
-  Note 1: The description in this document doesn't apply to integrated L2
+  Analte 1: The description in this document doesn't apply to integrated L2
     cache controllers as found in e.g. Cortex-A15/A7/A57/A53. These
     integrated L2 controllers are assumed to be all preconfigured by
-    early secure boot code. Thus no need to deal with their configuration
+    early secure boot code. Thus anal need to deal with their configuration
     in the kernel at all.
 
 allOf:
@@ -116,7 +116,7 @@ properties:
     maxItems: 9
 
   cache-id-part:
-    description: cache id part number to be used if it is not present
+    description: cache id part number to be used if it is analt present
       on hardware
     $ref: /schemas/types.yaml#/definitions/uint32
 
@@ -126,24 +126,24 @@ properties:
 
   arm,double-linefill:
     description: Override double linefill enable setting. Enable if
-      non-zero, disable if zero.
+      analn-zero, disable if zero.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   arm,double-linefill-incr:
     description: Override double linefill on INCR read. Enable
-      if non-zero, disable if zero.
+      if analn-zero, disable if zero.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   arm,double-linefill-wrap:
     description: Override double linefill on WRAP read. Enable
-      if non-zero, disable if zero.
+      if analn-zero, disable if zero.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   arm,prefetch-drop:
-    description: Override prefetch drop enable setting. Enable if non-zero,
+    description: Override prefetch drop enable setting. Enable if analn-zero,
       disable if zero.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
@@ -155,9 +155,9 @@ properties:
 
   arm,shared-override:
     description: The default behavior of the L220 or PL310 cache
-      controllers with respect to the shareable attribute is to transform "normal
-      memory non-cacheable transactions" into "cacheable no allocate" (for reads)
-      or "write through no write allocate" (for writes).
+      controllers with respect to the shareable attribute is to transform "analrmal
+      memory analn-cacheable transactions" into "cacheable anal allocate" (for reads)
+      or "write through anal write allocate" (for writes).
       On systems where this may cause DMA buffer corruption, this property must
       be specified to indicate that such transforms are precluded.
     type: boolean

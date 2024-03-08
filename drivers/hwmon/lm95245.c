@@ -17,7 +17,7 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short analrmal_i2c[] = {
 	0x18, 0x19, 0x29, 0x4c, 0x4d, I2C_CLIENT_END };
 
 /* LM95245 registers */
@@ -269,7 +269,7 @@ static int lm95245_read_temp(struct device *dev, u32 attr, int channel,
 		*val = !!(regvalh & STATUS1_DIODE_FAULT);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -330,7 +330,7 @@ static int lm95245_write_temp(struct device *dev, u32 attr, int channel,
 					 val == 1 ? CFG2_REMOTE_TT : 0);
 		return ret;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -344,7 +344,7 @@ static int lm95245_read_chip(struct device *dev, u32 attr, int channel,
 		*val = data->interval;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -361,7 +361,7 @@ static int lm95245_write_chip(struct device *dev, u32 attr, int channel,
 		mutex_unlock(&data->update_lock);
 		return ret;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -374,7 +374,7 @@ static int lm95245_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return lm95245_read_temp(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -387,7 +387,7 @@ static int lm95245_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return lm95245_write_temp(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -431,7 +431,7 @@ static umode_t lm95245_is_visible(const void *data,
 	}
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int lm95245_detect(struct i2c_client *new_client,
 			  struct i2c_board_info *info)
 {
@@ -441,24 +441,24 @@ static int lm95245_detect(struct i2c_client *new_client,
 	int rev, id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = i2c_smbus_read_byte_data(new_client, LM95245_REG_R_MAN_ID);
 	if (id != MANUFACTURER_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rev = i2c_smbus_read_byte_data(new_client, LM95245_REG_R_CHIP_ID);
 	switch (rev) {
 	case LM95235_REVISION:
 		if (address != 0x18 && address != 0x29 && address != 0x4c)
-			return -ENODEV;
+			return -EANALDEV;
 		name = "lm95235";
 		break;
 	case LM95245_REVISION:
 		name = "lm95245";
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	strscpy(info->type, name, I2C_NAME_SIZE);
@@ -556,7 +556,7 @@ static int lm95245_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct lm95245_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regmap = devm_regmap_init_i2c(client, &lm95245_regmap_config);
 	if (IS_ERR(data->regmap))
@@ -600,7 +600,7 @@ static struct i2c_driver lm95245_driver = {
 	.probe		= lm95245_probe,
 	.id_table	= lm95245_id,
 	.detect		= lm95245_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(lm95245_driver);

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_IF_LINK_H
 #define _UAPI_LINUX_IF_LINK_H
 
@@ -36,7 +36,7 @@ struct rtnl_link_stats {
 	__u32	rx_compressed;
 	__u32	tx_compressed;
 
-	__u32	rx_nohandler;
+	__u32	rx_analhandler;
 };
 
 /**
@@ -49,9 +49,9 @@ struct rtnl_link_stats {
  *
  * @tx_packets: Number of packets successfully transmitted.
  *   For hardware interfaces counts packets which host was able to successfully
- *   hand over to the device, which does not necessarily mean that packets
+ *   hand over to the device, which does analt necessarily mean that packets
  *   had been successfully transmitted out of the device, only that device
- *   acknowledged it copied them out of host memory.
+ *   ackanalwledged it copied them out of host memory.
  *
  * @rx_bytes: Number of good received bytes, corresponding to @rx_packets.
  *
@@ -65,18 +65,18 @@ struct rtnl_link_stats {
  *
  * @rx_errors: Total number of bad packets received on this network device.
  *   This counter must include events counted by @rx_length_errors,
- *   @rx_crc_errors, @rx_frame_errors and other errors not otherwise
+ *   @rx_crc_errors, @rx_frame_errors and other errors analt otherwise
  *   counted.
  *
  * @tx_errors: Total number of transmit problems.
  *   This counter must include events counter by @tx_aborted_errors,
  *   @tx_carrier_errors, @tx_fifo_errors, @tx_heartbeat_errors,
- *   @tx_window_errors and other errors not otherwise counted.
+ *   @tx_window_errors and other errors analt otherwise counted.
  *
- * @rx_dropped: Number of packets received but not processed,
+ * @rx_dropped: Number of packets received but analt processed,
  *   e.g. due to lack of resources or unsupported protocol.
  *   For hardware interfaces this counter may include packets discarded
- *   due to L2 address filtering but should not include packets dropped
+ *   due to L2 address filtering but should analt include packets dropped
  *   by the device due to buffer exhaustion which are counted separately in
  *   @rx_missed_errors (since procfs folds those two counters together).
  *
@@ -86,7 +86,7 @@ struct rtnl_link_stats {
  * @multicast: Multicast packets received.
  *   For hardware interfaces this statistic is commonly calculated
  *   at the device level (unlike @rx_packets) and therefore may include
- *   packets which did not reach the host.
+ *   packets which did analt reach the host.
  *
  *   For IEEE 802.3 devices this counter may be equivalent to:
  *
@@ -108,19 +108,19 @@ struct rtnl_link_stats {
  *
  *   Historically the count of overflow events. Such events may be
  *   reported in the receive descriptors or via interrupts, and may
- *   not correspond one-to-one with dropped packets.
+ *   analt correspond one-to-one with dropped packets.
  *
  *   The recommended interpretation for high speed interfaces is -
- *   number of packets dropped because they did not fit into buffers
+ *   number of packets dropped because they did analt fit into buffers
  *   provided by the host, e.g. packets larger than MTU or next buffer
- *   in the ring was not available for a scatter transfer.
+ *   in the ring was analt available for a scatter transfer.
  *
  *   Part of aggregate "frame" errors in `/proc/net/dev`.
  *
  *   This statistics was historically used interchangeably with
  *   @rx_fifo_errors.
  *
- *   This statistic corresponds to hardware events and is not commonly used
+ *   This statistic corresponds to hardware events and is analt commonly used
  *   on software devices.
  *
  * @rx_crc_errors: Number of packets received with a CRC error.
@@ -141,10 +141,10 @@ struct rtnl_link_stats {
  *
  *   Historically the count of overflow events. Those events may be
  *   reported in the receive descriptors or via interrupts, and may
- *   not correspond one-to-one with dropped packets.
+ *   analt correspond one-to-one with dropped packets.
  *
  *   This statistics was used interchangeably with @rx_over_errors.
- *   Not recommended for use in drivers for high speed interfaces.
+ *   Analt recommended for use in drivers for high speed interfaces.
  *
  *   This statistic is used on software devices, e.g. to count software
  *   packet queue overflow (can) or sequencing errors (GRE).
@@ -154,10 +154,10 @@ struct rtnl_link_stats {
  *
  *   Counts number of packets dropped by the device due to lack
  *   of buffer space. This usually indicates that the host interface
- *   is slower than the network interface, or host is not keeping up
+ *   is slower than the network interface, or host is analt keeping up
  *   with the receive packet rate.
  *
- *   This statistic corresponds to hardware events and is not used
+ *   This statistic corresponds to hardware events and is analt used
  *   on software devices.
  *
  * @tx_aborted_errors:
@@ -208,9 +208,9 @@ struct rtnl_link_stats {
  *   This counters is only meaningful for interfaces which support
  *   packet compression (e.g. CSLIP, PPP).
  *
- * @rx_nohandler: Number of packets received on the interface
+ * @rx_analhandler: Number of packets received on the interface
  *   but dropped by the networking stack because the device is
- *   not designated to receive packets (e.g. backup link in a bond).
+ *   analt designated to receive packets (e.g. backup link in a bond).
  *
  * @rx_otherhost_dropped: Number of packets dropped due to mismatch
  *   in destination MAC address.
@@ -245,7 +245,7 @@ struct rtnl_link_stats64 {
 	/* for cslip etc */
 	__u64	rx_compressed;
 	__u64	tx_compressed;
-	__u64	rx_nohandler;
+	__u64	rx_analhandler;
 
 	__u64	rx_otherhost_dropped;
 };
@@ -363,7 +363,7 @@ enum {
 	IFLA_PROTO_DOWN_REASON,
 
 	/* device (sysfs) name as parent, used instead
-	 * of IFLA_LINK where there's no parent netdev
+	 * of IFLA_LINK where there's anal parent netdev
 	 */
 	IFLA_PARENT_DEV_NAME,
 	IFLA_PARENT_DEV_BUS_NAME,
@@ -412,7 +412,7 @@ enum {
 
    The only change is:
    IFF_LOOPBACK, IFF_BROADCAST and IFF_POINTOPOINT are
-   more not changeable by user. They describe link media
+   more analt changeable by user. They describe link media
    characteristics and set by device driver.
 
    Comments:
@@ -420,8 +420,8 @@ enum {
    - If neither of these three flags are set;
      the interface is NBMA.
 
-   - IFF_MULTICAST does not mean anything special:
-   multicasts can be used on all not-NBMA links.
+   - IFF_MULTICAST does analt mean anything special:
+   multicasts can be used on all analt-NBMA links.
    IFF_MULTICAST means that this media uses special encapsulation
    for multicast frames. Apparently, all IFF_POINTOPOINT and
    IFF_BROADCAST devices are able to use multicasts too.
@@ -431,7 +431,7 @@ enum {
    For usual devices it is equal ifi_index.
    If it is a "virtual interface" (f.e. tunnel), ifi_link
    can point to real physical interface (f.e. for bandwidth calculations),
-   or maybe 0, what means, that real media is unknown (usual
+   or maybe 0, what means, that real media is unkanalwn (usual
    for IPIP tunnels, when route to endpoint is allowed to change)
  */
 
@@ -454,7 +454,7 @@ enum {
 
 enum in6_addr_gen_mode {
 	IN6_ADDR_GEN_MODE_EUI64,
-	IN6_ADDR_GEN_MODE_NONE,
+	IN6_ADDR_GEN_MODE_ANALNE,
 	IN6_ADDR_GEN_MODE_STABLE_PRIVACY,
 	IN6_ADDR_GEN_MODE_RANDOM,
 };
@@ -464,7 +464,7 @@ enum in6_addr_gen_mode {
 /**
  * DOC: Bridge enum definition
  *
- * Please *note* that the timer values in the following section are expected
+ * Please *analte* that the timer values in the following section are expected
  * in clock_t format, which is seconds multiplied by USER_HZ (generally
  * defined as 100).
  *
@@ -484,7 +484,7 @@ enum in6_addr_gen_mode {
  *   The default value is (2 * USER_HZ).
  *
  * @IFLA_BR_MAX_AGE
- *   The hello packet timeout is the time until another bridge in the
+ *   The hello packet timeout is the time until aanalther bridge in the
  *   spanning tree is assumed to be dead, after reception of its last hello
  *   message. Only relevant if STP is enabled.
  *
@@ -498,7 +498,7 @@ enum in6_addr_gen_mode {
  *   Allow values outside the 802.1 standard specification for special cases:
  *
  *     * 0 - entry never ages (all permanent)
- *     * 1 - entry disappears (no persistence)
+ *     * 1 - entry disappears (anal persistence)
  *
  *   The default value is (300 * USER_HZ).
  *
@@ -516,7 +516,7 @@ enum in6_addr_gen_mode {
  *
  * @IFLA_BR_VLAN_FILTERING
  *   Turn VLAN filtering on (*IFLA_BR_VLAN_FILTERING* > 0) or off
- *   (*IFLA_BR_VLAN_FILTERING* == 0). When disabled, the bridge will not
+ *   (*IFLA_BR_VLAN_FILTERING* == 0). When disabled, the bridge will analt
  *   consider the VLAN tag when handling packets.
  *
  *   The default value is 0 (disabled).
@@ -532,7 +532,7 @@ enum in6_addr_gen_mode {
  *   decide whether to forward incoming frames destined to link-local
  *   addresses (of the form 01:80:C2:00:00:0X).
  *
- *   The default value is 0, which means the bridge does not forward any
+ *   The default value is 0, which means the bridge does analt forward any
  *   link-local frames coming on this port.
  *
  * @IFLA_BR_ROOT_ID
@@ -576,7 +576,7 @@ enum in6_addr_gen_mode {
  *   Flush bridge's fdb dynamic entries.
  *
  * @IFLA_BR_MCAST_ROUTER
- *   Set bridge's multicast router if IGMP snooping is enabled.
+ *   Set bridge's multicast router if IGMP sanaloping is enabled.
  *   The valid values are:
  *
  *     * 0 - disabled.
@@ -585,9 +585,9 @@ enum in6_addr_gen_mode {
  *
  *   The default value is 1.
  *
- * @IFLA_BR_MCAST_SNOOPING
- *   Turn multicast snooping on (*IFLA_BR_MCAST_SNOOPING* > 0) or off
- *   (*IFLA_BR_MCAST_SNOOPING* == 0).
+ * @IFLA_BR_MCAST_SANALOPING
+ *   Turn multicast sanaloping on (*IFLA_BR_MCAST_SANALOPING* > 0) or off
+ *   (*IFLA_BR_MCAST_SANALOPING* == 0).
  *
  *   The default value is 1.
  *
@@ -617,9 +617,9 @@ enum in6_addr_gen_mode {
  *
  * @IFLA_BR_MCAST_LAST_MEMBER_CNT
  *   The Last Member Query Count is the number of Group-Specific Queries
- *   sent before the router assumes there are no local members. The Last
+ *   sent before the router assumes there are anal local members. The Last
  *   Member Query Count is also the number of Group-and-Source-Specific
- *   Queries sent before the router assumes there are no listeners for a
+ *   Queries sent before the router assumes there are anal listeners for a
  *   particular source.
  *
  *   The default value is 2.
@@ -638,13 +638,13 @@ enum in6_addr_gen_mode {
  *   The default value is (1 * USER_HZ).
  *
  * @IFLA_BR_MCAST_MEMBERSHIP_INTVL
- *   The interval after which the bridge will leave a group, if no membership
+ *   The interval after which the bridge will leave a group, if anal membership
  *   reports for this group are received.
  *
  *   The default value is (260 * USER_HZ).
  *
  * @IFLA_BR_MCAST_QUERIER_INTVL
- *   The interval between queries sent by other routers. if no queries are
+ *   The interval between queries sent by other routers. if anal queries are
  *   seen after this delay has passed, the bridge will start to send its own
  *   queries (as if *IFLA_BR_MCAST_QUERIER_INTVL* was enabled).
  *
@@ -689,8 +689,8 @@ enum in6_addr_gen_mode {
  *   VLAN ID applied to untagged and priority-tagged incoming packets.
  *
  *   The default value is 1. Setting to the special value 0 makes all ports of
- *   this bridge not have a PVID by default, which means that they will
- *   not accept VLAN-untagged traffic.
+ *   this bridge analt have a PVID by default, which means that they will
+ *   analt accept VLAN-untagged traffic.
  *
  * @IFLA_BR_PAD
  *   Bridge attribute padding type for netlink message.
@@ -721,7 +721,7 @@ enum in6_addr_gen_mode {
  * @IFLA_BR_VLAN_STATS_PER_PORT
  *   Enable (*IFLA_BR_VLAN_STATS_PER_PORT* == 1) or disable
  *   (*IFLA_BR_VLAN_STATS_PER_PORT* == 0) per-VLAN per-port stats accounting.
- *   Can be changed only when there are no port VLANs configured.
+ *   Can be changed only when there are anal port VLANs configured.
  *
  *   The default value is 0 (disabled).
  *
@@ -765,7 +765,7 @@ enum {
 	IFLA_BR_GROUP_ADDR,
 	IFLA_BR_FDB_FLUSH,
 	IFLA_BR_MCAST_ROUTER,
-	IFLA_BR_MCAST_SNOOPING,
+	IFLA_BR_MCAST_SANALOPING,
 	IFLA_BR_MCAST_QUERY_USE_IFADDR,
 	IFLA_BR_MCAST_QUERIER,
 	IFLA_BR_MCAST_HASH_ELASTICITY,
@@ -810,7 +810,7 @@ struct ifla_bridge_id {
  *   was received. This option is also called reflective relay mode, and is
  *   used to support basic VEPA (Virtual Ethernet Port Aggregator)
  *   capabilities. By default, this flag is turned off and the bridge will
- *   not forward traffic back out of the receiving port.
+ *   analt forward traffic back out of the receiving port.
  */
 enum {
 	BRIDGE_MODE_UNSPEC,
@@ -858,27 +858,27 @@ enum {
  *   restarted if the link is brought down, or removed and reattached.
  *
  * @IFLA_BRPORT_PROTECT
- *   Controls whether a given port is allowed to become a root port or not.
+ *   Controls whether a given port is allowed to become a root port or analt.
  *   Only used when STP is enabled on the bridge. By default the flag is off.
  *
  *   This feature is also called root port guard. If BPDU is received from a
- *   leaf (edge) port, it should not be elected as root port. This could
- *   be used if using STP on a bridge and the downstream bridges are not fully
+ *   leaf (edge) port, it should analt be elected as root port. This could
+ *   be used if using STP on a bridge and the downstream bridges are analt fully
  *   trusted; this prevents a hostile guest from rerouting traffic.
  *
  * @IFLA_BRPORT_FAST_LEAVE
  *   This flag allows the bridge to immediately stop multicast traffic
  *   forwarding on a port that receives an IGMP Leave message. It is only used
- *   when IGMP snooping is enabled on the bridge. By default the flag is off.
+ *   when IGMP sanaloping is enabled on the bridge. By default the flag is off.
  *
  * @IFLA_BRPORT_LEARNING
  *   Controls whether a given port will learn *source* MAC addresses from
- *   received traffic or not. Also controls whether dynamic FDB entries
+ *   received traffic or analt. Also controls whether dynamic FDB entries
  *   (which can also be added by software) will be refreshed by incoming
  *   traffic. By default this flag is on.
  *
  * @IFLA_BRPORT_UNICAST_FLOOD
- *   Controls whether unicast traffic for which there is no FDB entry will
+ *   Controls whether unicast traffic for which there is anal FDB entry will
  *   be flooded towards this port. By default this flag is on.
  *
  * @IFLA_BRPORT_PROXYARP
@@ -902,7 +902,7 @@ enum {
  *
  * @IFLA_BRPORT_ID
  *
- * @IFLA_BRPORT_NO
+ * @IFLA_BRPORT_ANAL
  *
  * @IFLA_BRPORT_TOPOLOGY_CHANGE_ACK
  *
@@ -925,14 +925,14 @@ enum {
  *     * 0 disable multicast routers on this port
  *     * 1 let the system detect the presence of routers (default)
  *     * 2 permanently enable multicast traffic forwarding on this port
- *     * 3 enable multicast routers temporarily on this port, not depending
+ *     * 3 enable multicast routers temporarily on this port, analt depending
  *         on incoming queries.
  *
  * @IFLA_BRPORT_PAD
  *
  * @IFLA_BRPORT_MCAST_FLOOD
  *   Controls whether a given port will flood multicast traffic for which
- *   there is no MDB entry. By default this flag is on.
+ *   there is anal MDB entry. By default this flag is on.
  *
  * @IFLA_BRPORT_MCAST_TO_UCAST
  *   Controls whether a given port will replicate packets using unicast
@@ -941,7 +941,7 @@ enum {
  *   This is done by copying the packet per host and changing the multicast
  *   destination MAC to a unicast one accordingly.
  *
- *   *mcast_to_unicast* works on top of the multicast snooping feature of the
+ *   *mcast_to_unicast* works on top of the multicast sanaloping feature of the
  *   bridge. Which means unicast copies are only delivered to hosts which
  *   are interested in unicast and signaled this via IGMP/MLD reports previously.
  *
@@ -949,7 +949,7 @@ enum {
  *   and/or efficient way to deliver unicast packets than broadcast ones
  *   (e.g. WiFi).
  *
- *   However, it should only be enabled on interfaces where no IGMPv2/MLDv1
+ *   However, it should only be enabled on interfaces where anal IGMPv2/MLDv1
  *   report suppression takes place. IGMP/MLD report suppression issue is
  *   usually overcome by the network daemon (supplicant) enabling AP isolation
  *   and by that separating all STAs.
@@ -957,7 +957,7 @@ enum {
  *   Delivery of STA-to-STA IP multicast is made possible again by enabling
  *   and utilizing the bridge hairpin mode, which considers the incoming port
  *   as a potential outgoing port, too (see *BRIDGE_MODE_HAIRPIN* option).
- *   Hairpin mode is performed after multicast snooping, therefore leading
+ *   Hairpin mode is performed after multicast sanaloping, therefore leading
  *   to only deliver reports to STAs running a multicast router.
  *
  * @IFLA_BRPORT_VLAN_TUNNEL
@@ -972,7 +972,7 @@ enum {
  *   Set the group forward mask. This is a bitmask that is applied to
  *   decide whether to forward incoming frames destined to link-local
  *   addresses. The addresses of the form are 01:80:C2:00:00:0X (defaults
- *   to 0, which means the bridge does not forward any link-local frames
+ *   to 0, which means the bridge does analt forward any link-local frames
  *   coming on this port).
  *
  * @IFLA_BRPORT_NEIGH_SUPPRESS
@@ -981,7 +981,7 @@ enum {
  *
  * @IFLA_BRPORT_ISOLATED
  *   Controls whether a given port will be isolated, which means it will be
- *   able to communicate with non-isolated ports only. By default this
+ *   able to communicate with analn-isolated ports only. By default this
  *   flag is off.
  *
  * @IFLA_BRPORT_BACKUP_PORT
@@ -995,29 +995,29 @@ enum {
  *
  * @IFLA_BRPORT_MCAST_EHT_HOSTS_LIMIT
  *   The number of per-port EHT hosts limit. The default value is 512.
- *   Setting to 0 is not allowed.
+ *   Setting to 0 is analt allowed.
  *
  * @IFLA_BRPORT_MCAST_EHT_HOSTS_CNT
  *   The current number of tracked hosts, read only.
  *
  * @IFLA_BRPORT_LOCKED
  *   Controls whether a port will be locked, meaning that hosts behind the
- *   port will not be able to communicate through the port unless an FDB
+ *   port will analt be able to communicate through the port unless an FDB
  *   entry with the unit's MAC address is in the FDB. The common use case is
  *   that hosts are allowed access through authentication with the IEEE 802.1X
  *   protocol or based on whitelists. By default this flag is off.
  *
- *   Please note that secure 802.1X deployments should always use the
- *   *BR_BOOLOPT_NO_LL_LEARN* flag, to not permit the bridge to populate its
+ *   Please analte that secure 802.1X deployments should always use the
+ *   *BR_BOOLOPT_ANAL_LL_LEARN* flag, to analt permit the bridge to populate its
  *   FDB based on link-local (EAPOL) traffic received on the port.
  *
  * @IFLA_BRPORT_MAB
  *   Controls whether a port will use MAC Authentication Bypass (MAB), a
  *   technique through which select MAC addresses may be allowed on a locked
- *   port, without using 802.1X authentication. Packets with an unknown source
+ *   port, without using 802.1X authentication. Packets with an unkanalwn source
  *   MAC address generates a "locked" FDB entry on the incoming bridge port.
  *   The common use case is for user space to react to these bridge FDB
- *   notifications and optionally replace the locked FDB entry with a normal
+ *   analtifications and optionally replace the locked FDB entry with a analrmal
  *   one, allowing traffic to pass for whitelisted MAC addresses.
  *
  *   Setting this flag also requires *IFLA_BRPORT_LOCKED* and
@@ -1039,14 +1039,14 @@ enum {
  *   Controls whether neighbor discovery (arp and nd) proxy and suppression is
  *   enabled for a given port. By default this flag is off.
  *
- *   Note that this option only takes effect when *IFLA_BRPORT_NEIGH_SUPPRESS*
+ *   Analte that this option only takes effect when *IFLA_BRPORT_NEIGH_SUPPRESS*
  *   is enabled for a given port.
  *
  * @IFLA_BRPORT_BACKUP_NHID
  *   The FDB nexthop object ID to attach to packets being redirected to a
  *   backup port that has VLAN tunnel mapping enabled (via the
  *   *IFLA_BRPORT_VLAN_TUNNEL* option). Setting a value of 0 (default) has
- *   the effect of not attaching any ID.
+ *   the effect of analt attaching any ID.
  */
 enum {
 	IFLA_BRPORT_UNSPEC,
@@ -1067,7 +1067,7 @@ enum {
 	IFLA_BRPORT_DESIGNATED_PORT,
 	IFLA_BRPORT_DESIGNATED_COST,
 	IFLA_BRPORT_ID,
-	IFLA_BRPORT_NO,
+	IFLA_BRPORT_ANAL,
 	IFLA_BRPORT_TOPOLOGY_CHANGE_ACK,
 	IFLA_BRPORT_CONFIG_PENDING,
 	IFLA_BRPORT_MESSAGE_AGE_TIMER,
@@ -1181,8 +1181,8 @@ enum macvlan_macaddr_mode {
 	MACVLAN_MACADDR_SET,
 };
 
-#define MACVLAN_FLAG_NOPROMISC	1
-#define MACVLAN_FLAG_NODST	2 /* skip dst macvlan if matching src macvlan */
+#define MACVLAN_FLAG_ANALPROMISC	1
+#define MACVLAN_FLAG_ANALDST	2 /* skip dst macvlan if matching src macvlan */
 
 /* VRF section */
 enum {
@@ -1369,7 +1369,7 @@ enum {
 	IFLA_VXLAN_REMCSUM_TX,
 	IFLA_VXLAN_REMCSUM_RX,
 	IFLA_VXLAN_GBP,
-	IFLA_VXLAN_REMCSUM_NOPARTIAL,
+	IFLA_VXLAN_REMCSUM_ANALPARTIAL,
 	IFLA_VXLAN_COLLECT_METADATA,
 	IFLA_VXLAN_LABEL,
 	IFLA_VXLAN_GPE,
@@ -1489,7 +1489,7 @@ enum {
 	IFLA_BOND_FAIL_OVER_MAC,
 	IFLA_BOND_XMIT_HASH_POLICY,
 	IFLA_BOND_RESEND_IGMP,
-	IFLA_BOND_NUM_PEER_NOTIF,
+	IFLA_BOND_NUM_PEER_ANALTIF,
 	IFLA_BOND_ALL_SLAVES_ACTIVE,
 	IFLA_BOND_MIN_LINKS,
 	IFLA_BOND_LP_INTERVAL,
@@ -1501,7 +1501,7 @@ enum {
 	IFLA_BOND_AD_USER_PORT_KEY,
 	IFLA_BOND_AD_ACTOR_SYSTEM,
 	IFLA_BOND_TLB_DYNAMIC_LB,
-	IFLA_BOND_PEER_NOTIF_DELAY,
+	IFLA_BOND_PEER_ANALTIF_DELAY,
 	IFLA_BOND_AD_LACP_ACTIVE,
 	IFLA_BOND_MISSED_MAX,
 	IFLA_BOND_NS_IP6_TARGET,
@@ -1561,7 +1561,7 @@ enum {
 				 */
 	IFLA_VF_STATS,		/* network device statistics */
 	IFLA_VF_TRUST,		/* Trust VF */
-	IFLA_VF_IB_NODE_GUID,	/* VF Infiniband node GUID */
+	IFLA_VF_IB_ANALDE_GUID,	/* VF Infiniband analde GUID */
 	IFLA_VF_IB_PORT_GUID,	/* VF Infiniband port GUID */
 	IFLA_VF_VLAN_LIST,	/* nested list of vlans, option for QinQ */
 	IFLA_VF_BROADCAST,	/* VF broadcast */
@@ -1847,7 +1847,7 @@ enum {
 
 /* XDP section */
 
-#define XDP_FLAGS_UPDATE_IF_NOEXIST	(1U << 0)
+#define XDP_FLAGS_UPDATE_IF_ANALEXIST	(1U << 0)
 #define XDP_FLAGS_SKB_MODE		(1U << 1)
 #define XDP_FLAGS_DRV_MODE		(1U << 2)
 #define XDP_FLAGS_HW_MODE		(1U << 3)
@@ -1855,12 +1855,12 @@ enum {
 #define XDP_FLAGS_MODES			(XDP_FLAGS_SKB_MODE | \
 					 XDP_FLAGS_DRV_MODE | \
 					 XDP_FLAGS_HW_MODE)
-#define XDP_FLAGS_MASK			(XDP_FLAGS_UPDATE_IF_NOEXIST | \
+#define XDP_FLAGS_MASK			(XDP_FLAGS_UPDATE_IF_ANALEXIST | \
 					 XDP_FLAGS_MODES | XDP_FLAGS_REPLACE)
 
 /* These are stored into IFLA_XDP_ATTACHED on dump. */
 enum {
-	XDP_ATTACHED_NONE = 0,
+	XDP_ATTACHED_ANALNE = 0,
 	XDP_ATTACHED_DRV,
 	XDP_ATTACHED_SKB,
 	XDP_ATTACHED_HW,
@@ -1883,11 +1883,11 @@ enum {
 #define IFLA_XDP_MAX (__IFLA_XDP_MAX - 1)
 
 enum {
-	IFLA_EVENT_NONE,
+	IFLA_EVENT_ANALNE,
 	IFLA_EVENT_REBOOT,		/* internal reset / reboot */
 	IFLA_EVENT_FEATURES,		/* change in offload features */
 	IFLA_EVENT_BONDING_FAILOVER,	/* change in active slave */
-	IFLA_EVENT_NOTIFY_PEERS,	/* re-sent grat. arp/ndisc */
+	IFLA_EVENT_ANALTIFY_PEERS,	/* re-sent grat. arp/ndisc */
 	IFLA_EVENT_IGMP_RESEND,		/* re-sent IGMP JOIN */
 	IFLA_EVENT_BONDING_OPTIONS,	/* change in bonding options */
 };

@@ -28,7 +28,7 @@ enum smcwd_call {
 	SMCWD_GET_TIMELEFT	= 4,
 };
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 static unsigned int timeout;
 
 static int smcwd_call(struct watchdog_device *wdd, enum smcwd_call call,
@@ -42,8 +42,8 @@ static int smcwd_call(struct watchdog_device *wdd, enum smcwd_call call,
 	arm_smccc_smc((u32)(uintptr_t)watchdog_get_drvdata(wdd), call, arg, 0,
 		      0, 0, 0, 0, res);
 
-	if (res->a0 == PSCI_RET_NOT_SUPPORTED)
-		return -ENODEV;
+	if (res->a0 == PSCI_RET_ANALT_SUPPORTED)
+		return -EANALDEV;
 	if (res->a0 == PSCI_RET_INVALID_PARAMS)
 		return -EINVAL;
 	if (res->a0 != PSCI_RET_SUCCESS)
@@ -117,10 +117,10 @@ static int smcwd_probe(struct platform_device *pdev)
 
 	wdd = devm_kzalloc(&pdev->dev, sizeof(*wdd), GFP_KERNEL);
 	if (!wdd)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, wdd);
 
-	if (of_property_read_u32(pdev->dev.of_node, "arm,smc-id",
+	if (of_property_read_u32(pdev->dev.of_analde, "arm,smc-id",
 				 &smc_func_id))
 		smc_func_id = 0x82003D06;
 	watchdog_set_drvdata(wdd, (void *)(uintptr_t)smc_func_id);
@@ -142,7 +142,7 @@ static int smcwd_probe(struct platform_device *pdev)
 
 	watchdog_stop_on_reboot(wdd);
 	watchdog_stop_on_unregister(wdd);
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_analwayout(wdd, analwayout);
 	watchdog_init_timeout(wdd, timeout, &pdev->dev);
 	err = smcwd_set_timeout(wdd, wdd->timeout);
 	if (err)
@@ -153,8 +153,8 @@ static int smcwd_probe(struct platform_device *pdev)
 		return err;
 
 	dev_info(&pdev->dev,
-		 "Watchdog registered (timeout=%d sec, nowayout=%d)\n",
-		 wdd->timeout, nowayout);
+		 "Watchdog registered (timeout=%d sec, analwayout=%d)\n",
+		 wdd->timeout, analwayout);
 
 	return 0;
 }
@@ -178,9 +178,9 @@ module_platform_driver(smcwd_driver);
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout, "Watchdog heartbeat in seconds");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+			__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Julius Werner <jwerner@chromium.org>");

@@ -141,7 +141,7 @@ void rtl92de_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HAL_DEF_WOWLAN:
 		break;
 	default:
-		pr_err("switch case %#x not processed\n", variable);
+		pr_err("switch case %#x analt processed\n", variable);
 		break;
 	}
 }
@@ -331,7 +331,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				acm_ctrl &= (~ACMHW_VOQEN);
 				break;
 			default:
-				pr_err("switch case %#x not processed\n",
+				pr_err("switch case %#x analt processed\n",
 				       e_aci);
 				break;
 			}
@@ -472,7 +472,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 	}
 	default:
-		pr_err("switch case %#x not processed\n", variable);
+		pr_err("switch case %#x analt processed\n", variable);
 		break;
 	}
 }
@@ -488,7 +488,7 @@ static bool _rtl92de_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 	rtl_write_dword(rtlpriv, REG_LLT_INIT, value);
 	do {
 		value = rtl_read_dword(rtlpriv, REG_LLT_INIT);
-		if (_LLT_NO_ACTIVE == _LLT_OP_VALUE(value))
+		if (_LLT_ANAL_ACTIVE == _LLT_OP_VALUE(value))
 			break;
 		if (count > POLLING_LLT_THRESHOLD) {
 			pr_err("Failed to polling write LLT done at address %d!\n",
@@ -508,7 +508,7 @@ static bool _rtl92de_llt_table_init(struct ieee80211_hw *hw)
 	u8 maxpage;
 	bool status;
 	u32 value32; /* High+low page number */
-	u8 value8;	 /* normal page number */
+	u8 value8;	 /* analrmal page number */
 
 	if (rtlpriv->rtlhal.macphymode == SINGLEMAC_SINGLEPHY) {
 		maxpage = 255;
@@ -621,7 +621,7 @@ static bool _rtl92de_init_mac(struct ieee80211_hw *hw)
 
 	/* 1.   AFE_XTAL_CTRL [7:0] = 0x0F  enable XTAL */
 	/* 2.   SPS0_CTRL 0x11[7:0] = 0x2b  enable SPS into PWM mode  */
-	/* 3.   delay (1ms) this is not necessary when initially power on */
+	/* 3.   delay (1ms) this is analt necessary when initially power on */
 
 	/* C.   Resume Sequence */
 	/* a.   SPS0_CTRL 0x11[7:0] = 0x2b */
@@ -698,7 +698,7 @@ static bool _rtl92de_init_mac(struct ieee80211_hw *hw)
 
 	rtl92d_phy_config_maccoexist_rfpage(hw);
 
-	/* THe below section is not related to power document Vxx . */
+	/* THe below section is analt related to power document Vxx . */
 	/* This is only useful for driver and OS setting. */
 	/* -------------------Software Relative Setting---------------------- */
 	wordtmp = rtl_read_word(rtlpriv, REG_TRXDMA_CTRL);
@@ -708,7 +708,7 @@ static bool _rtl92de_init_mac(struct ieee80211_hw *hw)
 
 	/* Reported Tx status from HW for rate adaptive. */
 	/* This should be realtive to power on step 14. But in document V11  */
-	/* still not contain the description.!!! */
+	/* still analt contain the description.!!! */
 	rtl_write_byte(rtlpriv, REG_FWHW_TXQ_CTRL + 1, 0x1F);
 
 	/* Set Tx/Rx page size (Tx must be 128 Bytes,
@@ -739,7 +739,7 @@ static bool _rtl92de_init_mac(struct ieee80211_hw *hw)
 			rtlpci->rx_ring[RX_MPDU_QUEUE].dma);
 
 	/* if we want to support 64 bit DMA, we should set it here,
-	 * but now we do not support 64 bit DMA*/
+	 * but analw we do analt support 64 bit DMA*/
 
 	rtl_write_byte(rtlpriv, REG_PCIE_CTRL_REG + 3, 0x33);
 
@@ -853,7 +853,7 @@ void rtl92de_enable_hw_security_config(struct ieee80211_hw *hw)
 		rtlpriv->sec.group_enc_algorithm);
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		rtl_dbg(rtlpriv, COMP_SEC, DBG_DMESG,
-			"not open hw encryption\n");
+			"analt open hw encryption\n");
 		return;
 	}
 	sec_reg_value = SCR_TXENCENABLE | SCR_RXENCENABLE;
@@ -1009,7 +1009,7 @@ int rtl92de_hw_init(struct ieee80211_hw *hw)
 				if (((tmp_rega & BIT(11)) == BIT(11)))
 					break;
 			}
-			/* check that loop was successful. If not, exit now */
+			/* check that loop was successful. If analt, exit analw */
 			if (i == 10000) {
 				rtlpci->init_ready = false;
 				return 1;
@@ -1023,7 +1023,7 @@ int rtl92de_hw_init(struct ieee80211_hw *hw)
 static enum version_8192d _rtl92de_read_chip_version(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	enum version_8192d version = VERSION_NORMAL_CHIP_92D_SINGLEPHY;
+	enum version_8192d version = VERSION_ANALRMAL_CHIP_92D_SINGLEPHY;
 	u32 value32;
 
 	value32 = rtl_read_dword(rtlpriv, REG_SYS_CFG);
@@ -1031,8 +1031,8 @@ static enum version_8192d _rtl92de_read_chip_version(struct ieee80211_hw *hw)
 		version = VERSION_TEST_CHIP_92D_SINGLEPHY;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "TEST CHIP!!!\n");
 	} else {
-		version = VERSION_NORMAL_CHIP_92D_SINGLEPHY;
-		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Normal CHIP!!!\n");
+		version = VERSION_ANALRMAL_CHIP_92D_SINGLEPHY;
+		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "Analrmal CHIP!!!\n");
 	}
 	return version;
 }
@@ -1042,7 +1042,7 @@ static int _rtl92de_set_media_status(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 bt_msr = rtl_read_byte(rtlpriv, MSR);
-	enum led_ctl_mode ledaction = LED_CTL_NO_LINK;
+	enum led_ctl_mode ledaction = LED_CTL_ANAL_LINK;
 
 	bt_msr &= 0xfc;
 
@@ -1056,15 +1056,15 @@ static int _rtl92de_set_media_status(struct ieee80211_hw *hw,
 		_rtl92de_disable_bcn_sub_func(hw);
 	} else {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
-			"Set HW_VAR_MEDIA_STATUS: No such media status(%x)\n",
+			"Set HW_VAR_MEDIA_STATUS: Anal such media status(%x)\n",
 			type);
 	}
 	switch (type) {
 	case NL80211_IFTYPE_UNSPECIFIED:
-		bt_msr |= MSR_NOLINK;
+		bt_msr |= MSR_ANALLINK;
 		ledaction = LED_CTL_LINK;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE,
-			"Set Network type to NO LINK!\n");
+			"Set Network type to ANAL LINK!\n");
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		bt_msr |= MSR_ADHOC;
@@ -1083,7 +1083,7 @@ static int _rtl92de_set_media_status(struct ieee80211_hw *hw,
 			"Set Network type to AP!\n");
 		break;
 	default:
-		pr_err("Network type %d not supported!\n", type);
+		pr_err("Network type %d analt supported!\n", type);
 		return 1;
 	}
 	rtl_write_byte(rtlpriv, MSR, bt_msr);
@@ -1121,7 +1121,7 @@ int rtl92de_set_network_type(struct ieee80211_hw *hw, enum nl80211_iftype type)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (_rtl92de_set_media_status(hw, type))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* check bssid */
 	if (rtlpriv->mac80211.link_state == MAC80211_LINKED) {
@@ -1229,7 +1229,7 @@ static void _rtl92de_poweroff_adapter(struct ieee80211_hw *hw)
 	/* n.   SPS0_CTRL 0x11[7:0] = 0x22  enter PFM mode */
 	rtl_write_byte(rtlpriv, REG_SPS0_CTRL, 0x23);
 
-	/* o.   AFE_XTAL_CTRL 0x24[7:0] = 0x0E  disable XTAL, if No BT COEX */
+	/* o.   AFE_XTAL_CTRL 0x24[7:0] = 0x0E  disable XTAL, if Anal BT COEX */
 	rtl_write_byte(rtlpriv, REG_AFE_XTAL_CTRL, 0x0e);
 
 	/* p.   RSV_CTRL 0x1C[7:0] = 0x0E lock ISO/CLK/Power control register */
@@ -1239,16 +1239,16 @@ static void _rtl92de_poweroff_adapter(struct ieee80211_hw *hw)
 
 	/* q.   APS_FSMCO[15:8] = 0x58 PCIe suspend mode */
 	/* According to power document V11, we need to set this */
-	/* value as 0x18. Otherwise, we may not L0s sometimes. */
+	/* value as 0x18. Otherwise, we may analt L0s sometimes. */
 	/* This indluences power consumption. Bases on SD1's test, */
-	/* set as 0x00 do not affect power current. And if it */
+	/* set as 0x00 do analt affect power current. And if it */
 	/* is set as 0x18, they had ever met auto load fail problem. */
 	rtl_write_byte(rtlpriv, REG_APS_FSMCO + 1, 0x10);
 
 	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 		"In PowerOff,reg0x%x=%X\n",
 		REG_SPS0_CTRL, rtl_read_byte(rtlpriv, REG_SPS0_CTRL));
-	/* r.   Note: for PCIe interface, PON will not turn */
+	/* r.   Analte: for PCIe interface, PON will analt turn */
 	/* off m-bias and BandGap in PCIe suspend mode.  */
 
 	/* 0x17[7] 1b': power off in process  0b' : power off over */
@@ -1271,7 +1271,7 @@ void rtl92de_card_disable(struct ieee80211_hw *hw)
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	enum nl80211_iftype opmode;
 
-	mac->link_state = MAC80211_NOLINK;
+	mac->link_state = MAC80211_ANALLINK;
 	opmode = NL80211_IFTYPE_UNSPECIFIED;
 	_rtl92de_set_media_status(hw, opmode);
 
@@ -1307,7 +1307,7 @@ void rtl92de_card_disable(struct ieee80211_hw *hw)
 	/*  SYS_FUNC_EN 0x02[7:0] = 0xE2   reset BB state machine */
 	rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN, 0xE2);
 
-	/* Mac0 can not do Global reset. Mac1 can do. */
+	/* Mac0 can analt do Global reset. Mac1 can do. */
 	/* SYS_FUNC_EN 0x02[7:0] = 0xE0  reset BB state machine  */
 	if (rtlpriv->rtlhal.interfaceindex == 1)
 		rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN, 0xE0);
@@ -1421,7 +1421,7 @@ static void _rtl92de_readpowervalue_fromprom(struct txpower_info *pwrinfo,
 		return;
 	}
 
-	/* Maybe autoload OK,buf the tx power index value is not filled.
+	/* Maybe autoload OK,buf the tx power index value is analt filled.
 	 * If we find it, we set it to default value. */
 	for (rfpath = 0; rfpath < RF6052_MAX_PATH; rfpath++) {
 		for (group = 0; group < CHANNEL_GROUP_MAX_2G; group++) {
@@ -1565,7 +1565,7 @@ static void _rtl92de_read_txpower_info(struct ieee80211_hw *hw,
 	}
 
 	/* Use default value to fill parameters if
-	 * efuse is not filled on some place. */
+	 * efuse is analt filled on some place. */
 
 	/* ThermalMeter from EEPROM */
 	if (rtlefuse->eeprom_thermalmeter < 0x06 ||
@@ -1689,7 +1689,7 @@ static void _rtl92de_efuse_update_chip_version(struct ieee80211_hw *hw)
 		break;
 	default:
 		chipver |= CHIP_92D_D_CUT;
-		pr_err("Unknown CUT!\n");
+		pr_err("Unkanalwn CUT!\n");
 		break;
 	}
 	rtlpriv->rtlhal.version = chipver;
@@ -2126,7 +2126,7 @@ void rtl92de_set_key(struct ieee80211_hw *hw, u32 key_index,
 			enc_algo = CAM_AES;
 			break;
 		default:
-			pr_err("switch case %#x not processed\n",
+			pr_err("switch case %#x analt processed\n",
 			       enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
@@ -2143,7 +2143,7 @@ void rtl92de_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id = rtl_cam_get_free_entry(hw,
 								 p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						pr_err("Can not find free hw security cam entry\n");
+						pr_err("Can analt find free hw security cam entry\n");
 						return;
 					}
 				} else {
@@ -2180,7 +2180,7 @@ void rtl92de_set_key(struct ieee80211_hw *hw, u32 key_index,
 					"set Pairwise key\n");
 				rtl_cam_add_one_entry(hw, macaddr, key_index,
 						      entry_id, enc_algo,
-						      CAM_CONFIG_NO_USEDK,
+						      CAM_CONFIG_ANAL_USEDK,
 						      rtlpriv->
 						      sec.key_buf[key_index]);
 			} else {
@@ -2191,12 +2191,12 @@ void rtl92de_set_key(struct ieee80211_hw *hw, u32 key_index,
 						rtlefuse->dev_addr,
 						PAIRWISE_KEYIDX,
 						CAM_PAIRWISE_KEY_POSITION,
-						enc_algo, CAM_CONFIG_NO_USEDK,
+						enc_algo, CAM_CONFIG_ANAL_USEDK,
 						rtlpriv->sec.key_buf[entry_id]);
 				}
 				rtl_cam_add_one_entry(hw, macaddr, key_index,
 						entry_id, enc_algo,
-						CAM_CONFIG_NO_USEDK,
+						CAM_CONFIG_ANAL_USEDK,
 						rtlpriv->sec.key_buf
 						[entry_id]);
 			}
@@ -2209,13 +2209,13 @@ void rtl92de_suspend(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->rtlhal.macphyctl_reg = rtl_read_byte(rtlpriv,
-		REG_MAC_PHY_CTRL_NORMAL);
+		REG_MAC_PHY_CTRL_ANALRMAL);
 }
 
 void rtl92de_resume(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
-	rtl_write_byte(rtlpriv, REG_MAC_PHY_CTRL_NORMAL,
+	rtl_write_byte(rtlpriv, REG_MAC_PHY_CTRL_ANALRMAL,
 		       rtlpriv->rtlhal.macphyctl_reg);
 }

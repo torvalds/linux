@@ -56,5 +56,5 @@ int __init snd_seq_info_init(void)
 
  error:
 	snd_seq_info_done();
-	return -ENOMEM;
+	return -EANALMEM;
 }

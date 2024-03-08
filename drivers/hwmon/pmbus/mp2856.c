@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Hardware monitoring driver for MPS2856/2857
- * Monolithic Power Systems VR Controllers
+ * Moanallithic Power Systems VR Controllers
  *
  * Copyright (C) 2023 Quanta Computer lnc.
  */
@@ -184,7 +184,7 @@ mp2856_read_phases(struct i2c_client *client, struct mp2856_data *data,
 						MP2856_MFR_READ_CS7_8_R1);
 			break;
 		default:
-			return -ENODATA;
+			return -EANALDATA;
 		}
 	} else {
 		switch (phase) {
@@ -197,7 +197,7 @@ mp2856_read_phases(struct i2c_client *client, struct mp2856_data *data,
 						MP2856_MFR_READ_CS1_2_R2);
 			break;
 		default:
-			return -ENODATA;
+			return -EANALDATA;
 		}
 	}
 	return ret;
@@ -222,7 +222,7 @@ mp2856_read_word_data(struct i2c_client *client, int page,
 			ret = pmbus_read_word_data(client, page, phase, reg);
 		break;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	return ret;
@@ -236,7 +236,7 @@ mp2856_read_byte_data(struct i2c_client *client, int page, int reg)
 		/* Enforce VOUT direct format. */
 		return PB_VOUT_MODE_DIRECT;
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 }
 
@@ -402,7 +402,7 @@ static int mp2856_probe(struct i2c_client *client)
 	data = devm_kzalloc(&client->dev, sizeof(struct mp2856_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->chip_id = (enum chips)(uintptr_t)i2c_get_match_data(client);
 
@@ -422,7 +422,7 @@ static int mp2856_probe(struct i2c_client *client)
 		if (ret < 0)
 			return ret;
 	} else {
-		/* rail2 is not active */
+		/* rail2 is analt active */
 		info->pages = 1;
 	}
 

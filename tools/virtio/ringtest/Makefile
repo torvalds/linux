@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 all:
 
-all: ring virtio_ring_0_9 virtio_ring_poll virtio_ring_inorder ptr_ring noring
+all: ring virtio_ring_0_9 virtio_ring_poll virtio_ring_ianalrder ptr_ring analring
 
 CFLAGS += -Wall
 CFLAGS += -pthread -O2 -ggdb -flto -fwhole-program
@@ -12,20 +12,20 @@ ring.o: ring.c main.h
 ptr_ring.o: ptr_ring.c main.h ../../../include/linux/ptr_ring.h
 virtio_ring_0_9.o: virtio_ring_0_9.c main.h
 virtio_ring_poll.o: virtio_ring_poll.c virtio_ring_0_9.c main.h
-virtio_ring_inorder.o: virtio_ring_inorder.c virtio_ring_0_9.c main.h
+virtio_ring_ianalrder.o: virtio_ring_ianalrder.c virtio_ring_0_9.c main.h
 ring: ring.o main.o
 virtio_ring_0_9: virtio_ring_0_9.o main.o
 virtio_ring_poll: virtio_ring_poll.o main.o
-virtio_ring_inorder: virtio_ring_inorder.o main.o
+virtio_ring_ianalrder: virtio_ring_ianalrder.o main.o
 ptr_ring: ptr_ring.o main.o
-noring: noring.o main.o
+analring: analring.o main.o
 clean:
 	-rm main.o
 	-rm ring.o ring
 	-rm virtio_ring_0_9.o virtio_ring_0_9
 	-rm virtio_ring_poll.o virtio_ring_poll
-	-rm virtio_ring_inorder.o virtio_ring_inorder
+	-rm virtio_ring_ianalrder.o virtio_ring_ianalrder
 	-rm ptr_ring.o ptr_ring
-	-rm noring.o noring
+	-rm analring.o analring
 
 .PHONY: all clean

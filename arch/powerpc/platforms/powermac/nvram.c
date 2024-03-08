@@ -11,7 +11,7 @@
 #include <linux/nvram.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/adb.h>
 #include <linux/pmu.h>
 #include <linux/memblock.h>
@@ -33,7 +33,7 @@
 #define DBG(x...)
 #endif
 
-#define NVRAM_SIZE		0x2000	/* 8kB of non-volatile RAM */
+#define NVRAM_SIZE		0x2000	/* 8kB of analn-volatile RAM */
 
 #define CORE99_SIGNATURE	0x5a
 #define CORE99_ADLER_START	0x14
@@ -66,7 +66,7 @@ struct core99_header {
 };
 
 /*
- * Read and write the non-volatile RAM on PowerMacs and CHRP machines.
+ * Read and write the analn-volatile RAM on PowerMacs and CHRP machines.
  */
 static int nvram_naddrs;
 static volatile unsigned char __iomem *nvram_data;
@@ -101,7 +101,7 @@ static ssize_t core99_nvram_read(char *buf, size_t count, loff_t *index)
 	int i;
 
 	if (nvram_image == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	if (*index > NVRAM_SIZE)
 		return 0;
 
@@ -119,7 +119,7 @@ static ssize_t core99_nvram_write(char *buf, size_t count, loff_t *index)
 	int i;
 
 	if (nvram_image == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	if (*index > NVRAM_SIZE)
 		return 0;
 
@@ -135,7 +135,7 @@ static ssize_t core99_nvram_write(char *buf, size_t count, loff_t *index)
 static ssize_t core99_nvram_size(void)
 {
 	if (nvram_image == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	return NVRAM_SIZE;
 }
 
@@ -505,13 +505,13 @@ static void core99_nvram_sync(void)
 #endif
 }
 
-static int __init core99_nvram_setup(struct device_node *dp, unsigned long addr)
+static int __init core99_nvram_setup(struct device_analde *dp, unsigned long addr)
 {
 	int i;
 	u32 gen_bank0, gen_bank1;
 
 	if (nvram_naddrs < 1) {
-		printk(KERN_ERR "nvram: no address\n");
+		printk(KERN_ERR "nvram: anal address\n");
 		return -EINVAL;
 	}
 	nvram_image = memblock_alloc(NVRAM_SIZE, SMP_CACHE_BYTES);
@@ -542,10 +542,10 @@ static int __init core99_nvram_setup(struct device_node *dp, unsigned long addr)
 	ppc_md.machine_shutdown	= core99_nvram_sync;
 	/* 
 	 * Maybe we could be smarter here though making an exclusive list
-	 * of known flash chips is a bit nasty as older OF didn't provide us
+	 * of kanalwn flash chips is a bit nasty as older OF didn't provide us
 	 * with a useful "compatible" entry. A solution would be to really
 	 * identify the chip using flash id commands and base ourselves on
-	 * a list of known chips IDs
+	 * a list of kanalwn chips IDs
 	 */
 	if (of_device_is_compatible(dp, "amd-0137")) {
 		core99_erase_bank = amd_erase_bank;
@@ -559,17 +559,17 @@ static int __init core99_nvram_setup(struct device_node *dp, unsigned long addr)
 
 int __init pmac_nvram_init(void)
 {
-	struct device_node *dp;
+	struct device_analde *dp;
 	struct resource r1, r2;
 	unsigned int s1 = 0, s2 = 0;
 	int err = 0;
 
 	nvram_naddrs = 0;
 
-	dp = of_find_node_by_name(NULL, "nvram");
+	dp = of_find_analde_by_name(NULL, "nvram");
 	if (dp == NULL) {
 		printk(KERN_ERR "Can't find NVRAM device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Try to obtain an address */
@@ -620,7 +620,7 @@ int __init pmac_nvram_init(void)
 	}
 #endif /* CONFIG_PPC32 */
 bail:
-	of_node_put(dp);
+	of_analde_put(dp);
 	if (err == 0)
 		lookup_partitions();
 	return err;

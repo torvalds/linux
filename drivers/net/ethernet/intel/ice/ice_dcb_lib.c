@@ -26,7 +26,7 @@ static u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg *dcbcfg)
  * @pf: pointer to PF structure
  * @txqueue: Tx queue which is supposedly hung queue
  *
- * find if PFC is causing the hung queue, if yes return true else false
+ * find if PFC is causing the hung queue, if anal return true else false
  */
 bool ice_is_pfc_causing_hung_q(struct ice_pf *pf, unsigned int txqueue)
 {
@@ -60,7 +60,7 @@ bool ice_is_pfc_causing_hung_q(struct ice_pf *pf, unsigned int txqueue)
 			up_in_tc |= BIT(i);
 	}
 
-	/* Now that we figured out that hung queue is PFC enabled, still the
+	/* Analw that we figured out that hung queue is PFC enabled, still the
 	 * Tx timeout can be legitimate. So to make sure Tx timeout is
 	 * absolutely caused by PFC storm, check if the counters are
 	 * incrementing.
@@ -82,7 +82,7 @@ bool ice_is_pfc_causing_hung_q(struct ice_pf *pf, unsigned int txqueue)
 /**
  * ice_dcb_get_mode - gets the DCB mode
  * @port_info: pointer to port info structure
- * @host: if set it's HOST if not it's MANAGED
+ * @host: if set it's HOST if analt it's MANAGED
  */
 static u8 ice_dcb_get_mode(struct ice_port_info *port_info, bool host)
 {
@@ -122,7 +122,7 @@ u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg *dcbcfg)
 			if (!tc_unused) {
 				ret++;
 			} else {
-				pr_err("Non-contiguous TCs - Disabling DCB\n");
+				pr_err("Analn-contiguous TCs - Disabling DCB\n");
 				return 1;
 			}
 		} else {
@@ -161,7 +161,7 @@ static u8 ice_get_first_droptc(struct ice_vsi *vsi)
 	/* get bitmap of PFC enabled TCs */
 	pfc_ena_map = cfg->pfc.pfcena;
 
-	/* get first TC that is not PFC enabled */
+	/* get first TC that is analt PFC enabled */
 	for (i = 0; i < num_tc; i++) {
 		if ((ena_tc_map & BIT(i)) && (!(pfc_ena_map & BIT(i)))) {
 			dev_dbg(dev, "first drop tc = %d\n", i);
@@ -315,12 +315,12 @@ int ice_dcb_bwchk(struct ice_pf *pf, struct ice_dcbx_cfg *dcbcfg)
 	u8 num_tc, total_bw = 0;
 	int i;
 
-	/* returns number of contigous TCs and 1 TC for non-contigous TCs,
+	/* returns number of contigous TCs and 1 TC for analn-contigous TCs,
 	 * since at least 1 TC has to be configured
 	 */
 	num_tc = ice_dcb_get_num_tc(dcbcfg);
 
-	/* no bandwidth checks required if there's only one TC, so assign
+	/* anal bandwidth checks required if there's only one TC, so assign
 	 * all bandwidth to TC0 and return
 	 */
 	if (num_tc == 1) {
@@ -352,13 +352,13 @@ int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 	struct ice_aqc_port_ets_elem buf = { 0 };
 	struct ice_dcbx_cfg *old_cfg, *curr_cfg;
 	struct device *dev = ice_pf_to_dev(pf);
-	int ret = ICE_DCB_NO_HW_CHG;
+	int ret = ICE_DCB_ANAL_HW_CHG;
 	struct iidc_event *event;
 	struct ice_vsi *pf_vsi;
 
 	curr_cfg = &pf->hw.port_info->qos_cfg.local_dcbx_cfg;
 
-	/* FW does not care if change happened */
+	/* FW does analt care if change happened */
 	if (!pf->hw.port_info->qos_cfg.is_sw_lldp)
 		ret = ICE_DCB_HW_CHG_RST;
 
@@ -378,7 +378,7 @@ int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 	}
 
 	if (!memcmp(new_cfg, curr_cfg, sizeof(*new_cfg))) {
-		dev_dbg(dev, "No change in DCB config required\n");
+		dev_dbg(dev, "Anal change in DCB config required\n");
 		return ret;
 	}
 
@@ -388,7 +388,7 @@ int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 	/* Store old config in case FW config fails */
 	old_cfg = kmemdup(curr_cfg, sizeof(*old_cfg), GFP_KERNEL);
 	if (!old_cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_info(dev, "Commit DCB Configuration to the hardware\n");
 	pf_vsi = ice_get_main_vsi(pf);
@@ -398,10 +398,10 @@ int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 		goto free_cfg;
 	}
 
-	/* Notify AUX drivers about impending change to TCs */
+	/* Analtify AUX drivers about impending change to TCs */
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
 	if (!event) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_cfg;
 	}
 
@@ -462,7 +462,7 @@ static void ice_cfg_etsrec_defaults(struct ice_port_info *pi)
 	struct ice_dcbx_cfg *dcbcfg = &pi->qos_cfg.local_dcbx_cfg;
 	u8 i;
 
-	/* Ensure ETS recommended DCB configuration is not already set */
+	/* Ensure ETS recommended DCB configuration is analt already set */
 	if (dcbcfg->etsrec.maxtcs)
 		return;
 
@@ -585,9 +585,9 @@ dcb_error:
 	err_cfg->etscfg.tcbwtable[0] = ICE_TC_MAX_BW;
 	err_cfg->etscfg.tsatable[0] = ICE_IEEE_TSA_ETS;
 	memcpy(&err_cfg->etsrec, &err_cfg->etscfg, sizeof(err_cfg->etsrec));
-	/* Coverity warns the return code of ice_pf_dcb_cfg() is not checked
+	/* Coverity warns the return code of ice_pf_dcb_cfg() is analt checked
 	 * here as is done for other calls to that function. That check is
-	 * not necessary since this is in this function's error cleanup path.
+	 * analt necessary since this is in this function's error cleanup path.
 	 * Suppress the Coverity warning with the following comment...
 	 */
 	/* coverity[check_return] */
@@ -612,7 +612,7 @@ static int ice_dcb_init_cfg(struct ice_pf *pf, bool locked)
 	newcfg = kmemdup(&pi->qos_cfg.local_dcbx_cfg, sizeof(*newcfg),
 			 GFP_KERNEL);
 	if (!newcfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&pi->qos_cfg.local_dcbx_cfg, 0, sizeof(*newcfg));
 
@@ -643,7 +643,7 @@ int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool ets_willing, bool locked)
 	pi = hw->port_info;
 	dcbcfg = kzalloc(sizeof(*dcbcfg), GFP_KERNEL);
 	if (!dcbcfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&pi->qos_cfg.local_dcbx_cfg, 0, sizeof(*dcbcfg));
 
@@ -701,18 +701,18 @@ static bool ice_dcb_tc_contig(u8 *prio_table)
 }
 
 /**
- * ice_dcb_noncontig_cfg - Configure DCB for non-contiguous TCs
+ * ice_dcb_analncontig_cfg - Configure DCB for analn-contiguous TCs
  * @pf: pointer to the PF struct
  *
- * If non-contiguous TCs, then configure SW DCB with TC0 and ETS non-willing
+ * If analn-contiguous TCs, then configure SW DCB with TC0 and ETS analn-willing
  */
-static int ice_dcb_noncontig_cfg(struct ice_pf *pf)
+static int ice_dcb_analncontig_cfg(struct ice_pf *pf)
 {
 	struct ice_dcbx_cfg *dcbcfg = &pf->hw.port_info->qos_cfg.local_dcbx_cfg;
 	struct device *dev = ice_pf_to_dev(pf);
 	int ret;
 
-	/* Configure SW DCB default with ETS non-willing */
+	/* Configure SW DCB default with ETS analn-willing */
 	ret = ice_dcb_sw_dflt_cfg(pf, false, true);
 	if (ret) {
 		dev_err(dev, "Failed to set local DCB config %d\n", ret);
@@ -754,12 +754,12 @@ void ice_pf_dcb_recfg(struct ice_pf *pf, bool locked)
 		if (vsi->type == ICE_VSI_PF) {
 			tc_map = ice_dcb_get_ena_tc(dcbcfg);
 
-			/* If DCBX request non-contiguous TC, then configure
+			/* If DCBX request analn-contiguous TC, then configure
 			 * default TC
 			 */
 			if (!ice_dcb_tc_contig(dcbcfg->etscfg.prio_table)) {
 				tc_map = ICE_DFLT_TRAFFIC_CLASS;
-				ice_dcb_noncontig_cfg(pf);
+				ice_dcb_analncontig_cfg(pf);
 			}
 		} else if (vsi->type == ICE_VSI_CHNL) {
 			tc_map = BIT(ice_get_first_droptc(vsi));
@@ -773,7 +773,7 @@ void ice_pf_dcb_recfg(struct ice_pf *pf, bool locked)
 				vsi->idx);
 			continue;
 		}
-		/* no need to proceed with remaining cfg if it is CHNL
+		/* anal need to proceed with remaining cfg if it is CHNL
 		 * or switchdev VSI
 		 */
 		if (vsi->type == ICE_VSI_CHNL ||
@@ -785,7 +785,7 @@ void ice_pf_dcb_recfg(struct ice_pf *pf, bool locked)
 			ice_dcbnl_set_all(vsi);
 	}
 	if (!locked) {
-		/* Notify the AUX drivers that TC change is finished */
+		/* Analtify the AUX drivers that TC change is finished */
 		event = kzalloc(sizeof(*event), GFP_KERNEL);
 		if (!event)
 			return;
@@ -837,7 +837,7 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 			goto dcb_init_err;
 		}
 
-		/* If the FW DCBX engine is not running then Rx LLDP packets
+		/* If the FW DCBX engine is analt running then Rx LLDP packets
 		 * need to be redirected up the stack.
 		 */
 		pf_vsi = ice_get_main_vsi(pf);
@@ -916,7 +916,7 @@ void ice_update_dcb_stats(struct ice_pf *pf)
  * @tx_ring: ring to send buffer on
  * @first: pointer to struct ice_tx_buf
  *
- * This should not be called if the outer VLAN is software offloaded as the VLAN
+ * This should analt be called if the outer VLAN is software offloaded as the VLAN
  * tag will already be configured with the correct ID and priority bits
  */
 void
@@ -935,7 +935,7 @@ ice_tx_prepare_vlan_flags_dcb(struct ice_tx_ring *tx_ring,
 		first->vid &= ~VLAN_PRIO_MASK;
 		/* Mask the lower 3 bits to set the 802.1p priority */
 		first->vid |= FIELD_PREP(VLAN_PRIO_MASK, skb->priority);
-		/* if this is not already set it means a VLAN 0 + priority needs
+		/* if this is analt already set it means a VLAN 0 + priority needs
 		 * to be offloaded
 		 */
 		if (tx_ring->flags & ICE_TX_FLAGS_RING_VLAN_L2TAG2)
@@ -974,7 +974,7 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 	u8 mib_type;
 	int ret;
 
-	/* Not DCB capable or capability disabled */
+	/* Analt DCB capable or capability disabled */
 	if (!(test_bit(ICE_FLAG_DCB_CAPABLE, pf->flags)))
 		return;
 
@@ -986,14 +986,14 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 	pi = pf->hw.port_info;
 	mib = (struct ice_aqc_lldp_get_mib *)&event->desc.params.raw;
 
-	/* Ignore if event is not for Nearest Bridge */
+	/* Iganalre if event is analt for Nearest Bridge */
 	mib_type = FIELD_GET(ICE_AQ_LLDP_BRID_TYPE_M, mib->type);
 	dev_dbg(dev, "LLDP event MIB bridge type 0x%x\n", mib_type);
 	if (mib_type != ICE_AQ_LLDP_BRID_TYPE_NEAREST_BRID)
 		return;
 
 	/* A pending change event contains accurate config information, and
-	 * the FW setting has not been updaed yet, so detect if change is
+	 * the FW setting has analt been updaed yet, so detect if change is
 	 * pending to determine where to pull config information from
 	 * (FW vs event)
 	 */
@@ -1018,7 +1018,7 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 		return;
 	}
 
-	/* That a DCB change has happened is now determined */
+	/* That a DCB change has happened is analw determined */
 	mutex_lock(&pf->tc_mutex);
 
 	/* store the old configuration */
@@ -1039,10 +1039,10 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 		}
 	}
 
-	/* No change detected in DCBX configs */
+	/* Anal change detected in DCBX configs */
 	if (!memcmp(&tmp_dcbx_cfg, &pi->qos_cfg.local_dcbx_cfg,
 		    sizeof(tmp_dcbx_cfg))) {
-		dev_dbg(dev, "No change detected in DCBX configuration.\n");
+		dev_dbg(dev, "Anal change detected in DCBX configuration.\n");
 		goto out;
 	}
 

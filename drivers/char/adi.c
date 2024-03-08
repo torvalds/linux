@@ -14,7 +14,7 @@
 
 #define MAX_BUF_SZ	PAGE_SIZE
 
-static int adi_open(struct inode *inode, struct file *file)
+static int adi_open(struct ianalde *ianalde, struct file *file)
 {
 	file->f_mode |= FMODE_UNSIGNED_OFFSET;
 	return 0;
@@ -63,7 +63,7 @@ static ssize_t adi_read(struct file *file, char __user *buf,
 	ver_buf_sz = min_t(size_t, count, MAX_BUF_SZ);
 	ver_buf = kmalloc(ver_buf_sz, GFP_KERNEL);
 	if (!ver_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	offset = (*offp) * adi_blksize();
 
@@ -143,7 +143,7 @@ static ssize_t adi_write(struct file *file, const char __user *buf,
 	ver_buf_sz = min_t(size_t, count, MAX_BUF_SZ);
 	ver_buf = kmalloc(ver_buf_sz, GFP_KERNEL);
 	if (!ver_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	offset = (*offp) * adi_blksize();
 
@@ -212,7 +212,7 @@ static const struct file_operations adi_fops = {
 };
 
 static struct miscdevice adi_miscdev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = KBUILD_MODNAME,
 	.fops = &adi_fops,
 };

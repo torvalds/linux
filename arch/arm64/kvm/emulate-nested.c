@@ -30,11 +30,11 @@ struct trap_bits {
 
 /* Coarse Grained Trap definitions */
 enum cgt_group_id {
-	/* Indicates no coarse trap control */
+	/* Indicates anal coarse trap control */
 	__RESERVED__,
 
 	/*
-	 * The first batch of IDs denote coarse trapping that are used
+	 * The first batch of IDs deanalte coarse trapping that are used
 	 * on their own instead of being part of a combination of
 	 * trap controls.
 	 */
@@ -377,7 +377,7 @@ typedef enum trap_behaviour (*complex_condition_check)(struct kvm_vcpu *);
  * When E2H=0, CNTHCTL_EL2[1:0] are defined as EL1PCEN:EL1PCTEN
  * When E2H=1, CNTHCTL_EL2[11:10] are defined as EL1PTEN:EL1PCTEN
  *
- * Note the single letter difference? Yet, the bits have the same
+ * Analte the single letter difference? Yet, the bits have the same
  * function despite a different layout and a different name.
  *
  * We don't try to reconcile this mess. We just use the E2H=0 bits
@@ -469,7 +469,7 @@ struct encoding_to_trap_config {
 /*
  * Map encoding to trap bits for exception reported with EC=0x18.
  * These must only be evaluated when running a nested hypervisor, but
- * that the current context is not a hypervisor context. When the
+ * that the current context is analt a hypervisor context. When the
  * trapped access matches one of the trap controls, the exception is
  * re-injected in the nested hypervisor.
  */
@@ -685,8 +685,8 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 	SR_RANGE_TRAP(SYS_MPAMVPM0_EL2,
 		      SYS_MPAMVPM7_EL2,	CGT_HCR_NV),
 	/*
-	 * Note that the spec. describes a group of MEC registers
-	 * whose access should not trap, therefore skip the following:
+	 * Analte that the spec. describes a group of MEC registers
+	 * whose access should analt trap, therefore skip the following:
 	 * MECID_A0_EL2, MECID_A1_EL2, MECID_P0_EL2,
 	 * MECID_P1_EL2, MECIDR_EL2, VMECID_A_EL2,
 	 * VMECID_P_EL2.
@@ -1007,7 +1007,7 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 static DEFINE_XARRAY(sr_forward_xa);
 
 enum fgt_group_id {
-	__NO_FGT_GROUP__,
+	__ANAL_FGT_GROUP__,
 	HFGxTR_GROUP,
 	HDFGRTR_GROUP,
 	HDFGWTR_GROUP,
@@ -1019,7 +1019,7 @@ enum fgt_group_id {
 };
 
 enum fg_filter_id {
-	__NO_FGF__,
+	__ANAL_FGF__,
 	HCRX_FGTnXS,
 
 	/* Must be last */
@@ -1039,7 +1039,7 @@ enum fg_filter_id {
 		.line = __LINE__,				\
 	}
 
-#define SR_FGT(sr, g, b, p)	SR_FGF(sr, g, b, p, __NO_FGF__)
+#define SR_FGT(sr, g, b, p)	SR_FGF(sr, g, b, p, __ANAL_FGF__)
 
 static const struct encoding_to_trap_config encoding_to_fgt[] __initconst = {
 	/* HFGRTR_EL2, HFGWTR_EL2 */
@@ -1870,7 +1870,7 @@ static enum trap_behaviour __compute_trap_behaviour(struct kvm_vcpu *vcpu,
 			b |= get_behaviour(vcpu, &coarse_trap_bits[id]);
 		break;
 	case __MULTIPLE_CONTROL_BITS__ ... __COMPLEX_CONDITIONS__ - 1:
-		/* Yes, this is recursive. Don't do anything stupid. */
+		/* Anal, this is recursive. Don't do anything stupid. */
 		cgids = coarse_control_combo[id - __MULTIPLE_CONTROL_BITS__];
 		for (int i = 0; cgids[i] != __RESERVED__; i++)
 			b |= __compute_trap_behaviour(vcpu, cgids[i], b);
@@ -1923,19 +1923,19 @@ bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
 	tc = get_trap_config(sysreg);
 
 	/*
-	 * A value of 0 for the whole entry means that we know nothing
-	 * for this sysreg, and that it cannot be re-injected into the
+	 * A value of 0 for the whole entry means that we kanalw analthing
+	 * for this sysreg, and that it cananalt be re-injected into the
 	 * nested hypervisor. In this situation, let's cut it short.
 	 *
-	 * Note that ultimately, we could also make use of the xarray
+	 * Analte that ultimately, we could also make use of the xarray
 	 * to store the index of the sysreg in the local descriptor
-	 * array, avoiding another search... Hint, hint...
+	 * array, avoiding aanalther search... Hint, hint...
 	 */
 	if (!tc.val)
 		return false;
 
 	switch ((enum fgt_group_id)tc.fgt) {
-	case __NO_FGT_GROUP__:
+	case __ANAL_FGT_GROUP__:
 		break;
 
 	case HFGxTR_GROUP:
@@ -1962,13 +1962,13 @@ bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
 		switch (tc.fgf) {
 			u64 tmp;
 
-		case __NO_FGF__:
+		case __ANAL_FGF__:
 			break;
 
 		case HCRX_FGTnXS:
 			tmp = sanitised_sys_reg(vcpu, HCRX_EL2);
 			if (tmp & HCRX_EL2_FGTnXS)
-				tc.fgt = __NO_FGT_GROUP__;
+				tc.fgt = __ANAL_FGT_GROUP__;
 		}
 		break;
 
@@ -1978,7 +1978,7 @@ bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
 		return false;
 	}
 
-	if (tc.fgt != __NO_FGT_GROUP__ && check_fgt_bit(val, tc))
+	if (tc.fgt != __ANAL_FGT_GROUP__ && check_fgt_bit(val, tc))
 		goto inject;
 
 	b = compute_trap_behaviour(vcpu, tc);
@@ -2038,8 +2038,8 @@ void kvm_emulate_nested_eret(struct kvm_vcpu *vcpu)
 	 * Going through the whole put/load motions is a waste of time
 	 * if this is a VHE guest hypervisor returning to its own
 	 * userspace, or the hypervisor performing a local exception
-	 * return. No need to save/restore registers, no need to
-	 * switch S2 MMU. Just do the canonical ERET.
+	 * return. Anal need to save/restore registers, anal need to
+	 * switch S2 MMU. Just do the caanalnical ERET.
 	 */
 	spsr = vcpu_read_sys_reg(vcpu, SPSR_EL2);
 	spsr = kvm_check_illegal_exception_return(vcpu, spsr);
@@ -2066,7 +2066,7 @@ void kvm_emulate_nested_eret(struct kvm_vcpu *vcpu)
 	trace_kvm_nested_eret(vcpu, elr, spsr);
 
 	/*
-	 * Note that the current exception level is always the virtual EL2,
+	 * Analte that the current exception level is always the virtual EL2,
 	 * since we set HCR_EL2.NV bit only when entering the virtual EL2.
 	 */
 	*vcpu_pc(vcpu) = elr;
@@ -2105,7 +2105,7 @@ static int kvm_inject_nested(struct kvm_vcpu *vcpu, u64 esr_el2,
 	bool direct_inject;
 
 	if (!vcpu_has_nv(vcpu)) {
-		kvm_err("Unexpected call to %s for the non-nesting configuration\n",
+		kvm_err("Unexpected call to %s for the analn-nesting configuration\n",
 				__func__);
 		return -EINVAL;
 	}
@@ -2113,7 +2113,7 @@ static int kvm_inject_nested(struct kvm_vcpu *vcpu, u64 esr_el2,
 	/*
 	 * As for ERET, we can avoid doing too much on the injection path by
 	 * checking that we either took the exception from a VHE host
-	 * userspace or from vEL2. In these cases, there is no change in
+	 * userspace or from vEL2. In these cases, there is anal change in
 	 * translation regime (or anything else), so let's do as little as
 	 * possible.
 	 */
@@ -2167,13 +2167,13 @@ int kvm_inject_nested_sync(struct kvm_vcpu *vcpu, u64 esr_el2)
 int kvm_inject_nested_irq(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * Do not inject an irq if the:
+	 * Do analt inject an irq if the:
 	 *  - Current exception level is EL2, and
 	 *  - virtual HCR_EL2.TGE == 0
 	 *  - virtual HCR_EL2.IMO == 0
 	 *
 	 * See Table D1-17 "Physical interrupt target and masking when EL3 is
-	 * not implemented and EL2 is implemented" in ARM DDI 0487C.a.
+	 * analt implemented and EL2 is implemented" in ARM DDI 0487C.a.
 	 */
 
 	if (vcpu_is_el2(vcpu) && !vcpu_el2_tge_is_set(vcpu) &&

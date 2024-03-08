@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,14 +36,14 @@ nv04_mem_map(struct nvkm_mmu *mmu, struct nvkm_memory *memory, void *argv,
 	} *args = argv;
 	struct nvkm_device *device = mmu->subdev.device;
 	const u64 addr = nvkm_memory_addr(memory);
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	if ((ret = nvif_unvers(ret, &argv, &argc, args->vn)))
 		return ret;
 
 	*paddr = device->func->resource_addr(device, 1) + addr;
 	*psize = nvkm_memory_size(memory);
-	*pvma = ERR_PTR(-ENODEV);
+	*pvma = ERR_PTR(-EANALDEV);
 	return 0;
 }
 
@@ -54,15 +54,15 @@ nv04_mem_new(struct nvkm_mmu *mmu, int type, u8 page, u64 size,
 	union {
 		struct nv04_mem_vn vn;
 	} *args = argv;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	if ((ret = nvif_unvers(ret, &argv, &argc, args->vn)))
 		return ret;
 
 	if (mmu->type[type].type & NVKM_MEM_MAPPABLE)
-		type = NVKM_RAM_MM_NORMAL;
+		type = NVKM_RAM_MM_ANALRMAL;
 	else
-		type = NVKM_RAM_MM_NOMAP;
+		type = NVKM_RAM_MM_ANALMAP;
 
 	return nvkm_ram_get(mmu->subdev.device, type, 0x01, page,
 			    size, true, false, pmemory);

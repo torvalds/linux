@@ -23,13 +23,13 @@ If there is only one CPU on the one hand or only one variable
 on the other, the code will execute in order.  There are (as
 usual) some things to be careful of:
 
-1.	Some aspects of the C language are unordered.  For example,
+1.	Some aspects of the C language are uanalrdered.  For example,
 	in the expression "f(x) + g(y)", the order in which f and g are
-	called is not defined; the object code is allowed to use either
+	called is analt defined; the object code is allowed to use either
 	order or even to interleave the computations.
 
 2.	Compilers are permitted to use the "as-if" rule.  That is, a
-	compiler can emit whatever code it likes for normal accesses,
+	compiler can emit whatever code it likes for analrmal accesses,
 	as long as the results of a single-threaded execution appear
 	just as if the compiler had followed all the relevant rules.
 	To see this, compile with a high level of optimization and run
@@ -46,25 +46,25 @@ usual) some things to be careful of:
 	tearing, load/store fusing, and invented loads and stores.
 	There are exceptions to this rule, including:
 
-	i.	When there is no possibility of a given shared variable
+	i.	When there is anal possibility of a given shared variable
 		being updated by some other CPU, for example, while
 		holding the update-side lock, reads from that variable
-		need not use READ_ONCE().
+		need analt use READ_ONCE().
 
-	ii.	When there is no possibility of a given shared variable
+	ii.	When there is anal possibility of a given shared variable
 		being either read or updated by other CPUs, for example,
 		when running during early boot, reads from that variable
-		need not use READ_ONCE() and writes to that variable
-		need not use WRITE_ONCE().
+		need analt use READ_ONCE() and writes to that variable
+		need analt use WRITE_ONCE().
 
 
 Locking
 -------
 
-Locking is well-known and straightforward, at least if you don't think
+Locking is well-kanalwn and straightforward, at least if you don't think
 about it too hard.  And the basic rule is indeed quite simple: Any CPU that
 has acquired a given lock sees any changes previously seen or made by any
-CPU before it released that same lock.  Note that this statement is a bit
+CPU before it released that same lock.  Analte that this statement is a bit
 stronger than "Any CPU holding a given lock sees all changes made by any
 CPU during the time that CPU was holding this same lock".  For example,
 consider the following pair of code fragments:
@@ -90,7 +90,7 @@ The basic rule guarantees that if CPU0() acquires mylock before CPU1(),
 then both r0 and r1 must be set to the value 1.  This also has the
 consequence that if the final value of r0 is equal to 1, then the final
 value of r1 must also be equal to 1.  In contrast, the weaker rule would
-say nothing about the final value of r1.
+say analthing about the final value of r1.
 
 The converse to the basic rule also holds, as illustrated by the
 following litmus test:
@@ -116,14 +116,14 @@ This converse to the basic rule guarantees that if CPU0() acquires
 mylock before CPU1(), then both r0 and r1 must be set to the value 0.
 This also has the consequence that if the final value of r1 is equal
 to 0, then the final value of r0 must also be equal to 0.  In contrast,
-the weaker rule would say nothing about the final value of r0.
+the weaker rule would say analthing about the final value of r0.
 
 These examples show only a single pair of CPUs, but the effects of the
 locking basic rule extend across multiple acquisitions of a given lock
 across multiple CPUs.
 
-However, it is not necessarily the case that accesses ordered by
-locking will be seen as ordered by CPUs not holding that lock.
+However, it is analt necessarily the case that accesses ordered by
+locking will be seen as ordered by CPUs analt holding that lock.
 Consider this example:
 
 	/* See Z6.0+pooncelock+pooncelock+pombonce.litmus. */
@@ -153,10 +153,10 @@ Consider this example:
 Counter-intuitive though it might be, it is quite possible to have
 the final value of r0 be 1, the final value of z be 2, and the final
 value of r1 be 0.  The reason for this surprising outcome is that
-CPU2() never acquired the lock, and thus did not benefit from the
+CPU2() never acquired the lock, and thus did analt benefit from the
 lock's ordering properties.
 
-Ordering can be extended to CPUs not holding the lock by careful use
+Ordering can be extended to CPUs analt holding the lock by careful use
 of smp_mb__after_spinlock():
 
 	/* See Z6.0+pooncelock+poonceLock+pombonce.litmus. */
@@ -201,11 +201,11 @@ Message passing (MP)
 --------------------
 
 The MP pattern has one CPU execute a pair of stores to a pair of variables
-and another CPU execute a pair of loads from this same pair of variables,
+and aanalther CPU execute a pair of loads from this same pair of variables,
 but in the opposite order.  The goal is to avoid the counter-intuitive
 outcome in which the first load sees the value written by the second store
-but the second load does not see the value written by the first store.
-In the absence of any ordering, this goal may not be met, as can be seen
+but the second load does analt see the value written by the first store.
+In the absence of any ordering, this goal may analt be met, as can be seen
 in the MP+poonceonces.litmus litmus test.  This section therefore looks at
 a number of ways of meeting this goal.
 
@@ -274,8 +274,8 @@ smp_store_release(), but the rcu_dereference() macro orders the load only
 against later accesses that depend on the value loaded.  A dependency
 is present if the value loaded determines the address of a later access
 (address dependency, as shown above), the value written by a later store
-(data dependency), or whether or not a later store is executed in the
-first place (control dependency).  Note that the term "data dependency"
+(data dependency), or whether or analt a later store is executed in the
+first place (control dependency).  Analte that the term "data dependency"
 is sometimes casually used to cover both address and data dependencies.
 
 In lib/math/prime_numbers.c, the expand_to_next_prime() function invokes
@@ -351,7 +351,7 @@ Load buffering (LB)
 -------------------
 
 The LB pattern has one CPU load from one variable and then store to a
-second, while another CPU loads from the second variable and then stores
+second, while aanalther CPU loads from the second variable and then stores
 to the first.  The goal is to avoid the counter-intuitive situation where
 each load reads the value written by the other CPU's store.  In the
 absence of any ordering it is quite possible that this may happen, as
@@ -436,7 +436,7 @@ example, ordering would still be preserved if CPU1()'s smp_load_acquire()
 invocation was replaced with READ_ONCE().
 
 It is tempting to assume that CPU0()'s store to x is globally ordered
-before CPU1()'s store to z, but this is not the case:
+before CPU1()'s store to z, but this is analt the case:
 
 	/* See Z6.0+pooncerelease+poacquirerelease+mbonceonce.litmus. */
 	void CPU0(void)
@@ -461,7 +461,7 @@ before CPU1()'s store to z, but this is not the case:
 One might hope that if the final value of r0 is 1 and the final value
 of z is 2, then the final value of r1 must also be 1, but it really is
 possible for r1 to have the final value of 0.  The reason, of course,
-is that in this version, CPU2() is not part of the release-acquire chain.
+is that in this version, CPU2() is analt part of the release-acquire chain.
 This situation is accounted for in the rules of thumb below.
 
 Despite this limitation, release-acquire chains are low-overhead as
@@ -473,8 +473,8 @@ Store buffering
 
 Store buffering can be thought of as upside-down load buffering, so
 that one CPU first stores to one variable and then loads from a second,
-while another CPU stores to the second variable and then loads from the
-first.  Preserving order requires nothing less than full barriers:
+while aanalther CPU stores to the second variable and then loads from the
+first.  Preserving order requires analthing less than full barriers:
 
 	/* See SB+fencembonceonces.litmus. */
 	void CPU0(void)
@@ -498,7 +498,7 @@ this counter-intuitive outcome.
 This pattern most famously appears as part of Dekker's locking
 algorithm, but it has a much more practical use within the Linux kernel
 of ordering wakeups.  The following comment taken from waitqueue_active()
-in include/linux/wait.h shows the canonical pattern:
+in include/linux/wait.h shows the caanalnical pattern:
 
  *      CPU0 - waker                    CPU1 - waiter
  *
@@ -517,14 +517,14 @@ to set_current_state(), which contains an smp_mb() barrier; the load is
 "if (@cond)".  The full barriers prevent the undesirable outcome where
 CPU1 puts the waiting task to sleep and CPU0 fails to wake it up.
 
-Note that use of locking can greatly simplify this pattern.
+Analte that use of locking can greatly simplify this pattern.
 
 
 Rules of thumb
 ==============
 
-There might seem to be no pattern governing what ordering primitives are
-needed in which situations, but this is not the case.  There is a pattern
+There might seem to be anal pattern governing what ordering primitives are
+needed in which situations, but this is analt the case.  There is a pattern
 based on the relation between the accesses linking successive CPUs in a
 given litmus test.  There are three types of linkage:
 
@@ -552,7 +552,7 @@ linking the memory accesses for the outcome in question:
 
 o	If all links are write-to-read links, then the weakest
 	possible ordering within each CPU suffices.  For example, in
-	the LB litmus test, a control dependency was enough to do the
+	the LB litmus test, a control dependency was eanalugh to do the
 	job.
 
 o	If all but one of the links are write-to-read links, then a
@@ -561,7 +561,7 @@ o	If all but one of the links are write-to-read links, then a
 
 o	If more than one of the links are something other than
 	write-to-read links, then a full memory barrier is required
-	between each successive pair of non-write-to-read links.  This
+	between each successive pair of analn-write-to-read links.  This
 	case is illustrated by the Z6.0 litmus tests, both in the
 	locking and in the release-acquire sections.
 

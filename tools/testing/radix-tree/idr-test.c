@@ -7,7 +7,7 @@
 #include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include "test.h"
 
@@ -69,8 +69,8 @@ void idr_replace_test(void)
 
 /*
  * Unlike the radix tree, you can put a NULL pointer -- with care -- into
- * the IDR.  Some interfaces, like idr_find() do not distinguish between
- * "present, value is NULL" and "not present", but that's exactly what some
+ * the IDR.  Some interfaces, like idr_find() do analt distinguish between
+ * "present, value is NULL" and "analt present", but that's exactly what some
  * users want.
  */
 void idr_null_test(void)
@@ -97,7 +97,7 @@ void idr_null_test(void)
 	assert(idr_replace(&idr, DUMMY_PTR, 3) == NULL);
 	assert(idr_replace(&idr, DUMMY_PTR, 4) == NULL);
 	assert(idr_replace(&idr, NULL, 4) == DUMMY_PTR);
-	assert(idr_replace(&idr, DUMMY_PTR, 11) == ERR_PTR(-ENOENT));
+	assert(idr_replace(&idr, DUMMY_PTR, 11) == ERR_PTR(-EANALENT));
 	idr_remove(&idr, 5);
 	assert(idr_alloc(&idr, NULL, 0, 0, GFP_KERNEL) == 5);
 	idr_remove(&idr, 5);
@@ -112,7 +112,7 @@ void idr_null_test(void)
 	assert(idr_is_empty(&idr));
 
 	assert(idr_alloc(&idr, NULL, 0, 0, GFP_KERNEL) == 0);
-	assert(idr_replace(&idr, DUMMY_PTR, 3) == ERR_PTR(-ENOENT));
+	assert(idr_replace(&idr, DUMMY_PTR, 3) == ERR_PTR(-EANALENT));
 	assert(idr_replace(&idr, DUMMY_PTR, 0) == NULL);
 	assert(idr_replace(&idr, NULL, 0) == DUMMY_PTR);
 
@@ -127,7 +127,7 @@ void idr_null_test(void)
 	assert(idr_is_empty(&idr));
 }
 
-void idr_nowait_test(void)
+void idr_analwait_test(void)
 {
 	unsigned int i;
 	DEFINE_IDR(idr);
@@ -136,7 +136,7 @@ void idr_nowait_test(void)
 
 	for (i = 0; i < 3; i++) {
 		struct item *item = item_create(i, 0);
-		assert(idr_alloc(&idr, item, i, i + 1, GFP_NOWAIT) == i);
+		assert(idr_alloc(&idr, item, i, i + 1, GFP_ANALWAIT) == i);
 	}
 
 	idr_preload_end();
@@ -186,10 +186,10 @@ void idr_u32_test1(struct idr *idr, u32 handle)
 
 	BUG_ON(idr_alloc_u32(idr, DUMMY_PTR, &id, id, GFP_KERNEL));
 	BUG_ON(id != handle);
-	BUG_ON(idr_alloc_u32(idr, DUMMY_PTR, &id, id, GFP_KERNEL) != -ENOSPC);
+	BUG_ON(idr_alloc_u32(idr, DUMMY_PTR, &id, id, GFP_KERNEL) != -EANALSPC);
 	BUG_ON(id != handle);
 	if (!warned && id > INT_MAX)
-		printk("vvv Ignore these warnings\n");
+		printk("vvv Iganalre these warnings\n");
 	ptr = idr_get_next(idr, &sid);
 	if (id > INT_MAX) {
 		BUG_ON(ptr != NULL);
@@ -297,7 +297,7 @@ static void *idr_throbber(void *arg)
 }
 
 /*
- * There are always either 1 or 2 objects in the IDR.  If we find nothing,
+ * There are always either 1 or 2 objects in the IDR.  If we find analthing,
  * or we find something at an ID we didn't expect, that's a bug.
  */
 void idr_find_test_1(int anchor_id, int throbber_id)
@@ -373,8 +373,8 @@ void idr_checks(void)
 		struct item *item = item_create(i, 0);
 		assert(idr_alloc(&idr, item, i, i + 10, GFP_KERNEL) == i);
 	}
-	assert(idr_alloc(&idr, DUMMY_PTR, i - 2, i, GFP_KERNEL) == -ENOSPC);
-	assert(idr_alloc(&idr, DUMMY_PTR, i - 2, i + 10, GFP_KERNEL) == -ENOSPC);
+	assert(idr_alloc(&idr, DUMMY_PTR, i - 2, i, GFP_KERNEL) == -EANALSPC);
+	assert(idr_alloc(&idr, DUMMY_PTR, i - 2, i + 10, GFP_KERNEL) == -EANALSPC);
 
 	idr_for_each(&idr, item_idr_free, &idr);
 	idr_destroy(&idr);
@@ -410,7 +410,7 @@ void idr_checks(void)
 	idr_replace_test();
 	idr_alloc_test();
 	idr_null_test();
-	idr_nowait_test();
+	idr_analwait_test();
 	idr_get_next_test(0);
 	idr_get_next_test(1);
 	idr_get_next_test(4);
@@ -432,19 +432,19 @@ void ida_dump(struct ida *);
 
 /*
  * Check that we get the correct error when we run out of memory doing
- * allocations.  In userspace, GFP_NOWAIT will always fail an allocation.
- * The first test is for not having a bitmap available, and the second test
- * is for not being able to allocate a level of the radix tree.
+ * allocations.  In userspace, GFP_ANALWAIT will always fail an allocation.
+ * The first test is for analt having a bitmap available, and the second test
+ * is for analt being able to allocate a level of the radix tree.
  */
-void ida_check_nomem(void)
+void ida_check_analmem(void)
 {
 	DEFINE_IDA(ida);
 	int id;
 
-	id = ida_alloc_min(&ida, 256, GFP_NOWAIT);
-	IDA_BUG_ON(&ida, id != -ENOMEM);
-	id = ida_alloc_min(&ida, 1UL << 30, GFP_NOWAIT);
-	IDA_BUG_ON(&ida, id != -ENOMEM);
+	id = ida_alloc_min(&ida, 256, GFP_ANALWAIT);
+	IDA_BUG_ON(&ida, id != -EANALMEM);
+	id = ida_alloc_min(&ida, 1UL << 30, GFP_ANALWAIT);
+	IDA_BUG_ON(&ida, id != -EANALMEM);
 	IDA_BUG_ON(&ida, !ida_is_empty(&ida));
 }
 
@@ -457,8 +457,8 @@ void ida_check_conv_user(void)
 	unsigned long i;
 
 	for (i = 0; i < 1000000; i++) {
-		int id = ida_alloc(&ida, GFP_NOWAIT);
-		if (id == -ENOMEM) {
+		int id = ida_alloc(&ida, GFP_ANALWAIT);
+		if (id == -EANALMEM) {
 			IDA_BUG_ON(&ida, ((i % IDA_BITMAP_BITS) !=
 					  BITS_PER_XA_VALUE) &&
 					 ((i % IDA_BITMAP_BITS) != 0));
@@ -520,7 +520,7 @@ void user_ida_checks(void)
 {
 	radix_tree_cpu_dead(1);
 
-	ida_check_nomem();
+	ida_check_analmem();
 	ida_check_conv_user();
 	ida_check_random();
 	ida_simple_get_remove_test();

@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -165,7 +165,7 @@ static const struct ib_device_ops qedr_iw_dev_ops = {
 
 static int qedr_iw_register_device(struct qedr_dev *dev)
 {
-	dev->ibdev.node_type = RDMA_NODE_RNIC;
+	dev->ibdev.analde_type = RDMA_ANALDE_RNIC;
 
 	ib_set_device_ops(&dev->ibdev, &qedr_iw_dev_ops);
 
@@ -184,7 +184,7 @@ static const struct ib_device_ops qedr_roce_dev_ops = {
 
 static void qedr_roce_register_device(struct qedr_dev *dev)
 {
-	dev->ibdev.node_type = RDMA_NODE_IB_CA;
+	dev->ibdev.analde_type = RDMA_ANALDE_IB_CA;
 
 	ib_set_device_ops(&dev->ibdev, &qedr_roce_dev_ops);
 }
@@ -227,7 +227,7 @@ static const struct ib_device_ops qedr_dev_ops = {
 	.query_qp = qedr_query_qp,
 	.query_srq = qedr_query_srq,
 	.reg_user_mr = qedr_reg_user_mr,
-	.req_notify_cq = qedr_arm_cq,
+	.req_analtify_cq = qedr_arm_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, qedr_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, qedr_cq, ibcq),
@@ -242,8 +242,8 @@ static int qedr_register_device(struct qedr_dev *dev)
 {
 	int rc;
 
-	dev->ibdev.node_guid = dev->attr.node_guid;
-	memcpy(dev->ibdev.node_desc, QEDR_NODE_DESC, sizeof(QEDR_NODE_DESC));
+	dev->ibdev.analde_guid = dev->attr.analde_guid;
+	memcpy(dev->ibdev.analde_desc, QEDR_ANALDE_DESC, sizeof(QEDR_ANALDE_DESC));
 
 	if (IS_IWARP(dev)) {
 		rc = qedr_iw_register_device(dev);
@@ -278,7 +278,7 @@ static int qedr_alloc_mem_sb(struct qedr_dev *dev,
 	sb_virt = dma_alloc_coherent(&dev->pdev->dev,
 				     sizeof(*sb_virt), &sb_phys, GFP_KERNEL);
 	if (!sb_virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = dev->ops->common->sb_init(dev->cdev, sb_info,
 				       sb_virt, sb_phys, sb_id,
@@ -336,7 +336,7 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 	dev->sgid_tbl = kcalloc(QEDR_MAX_SGID, sizeof(union ib_gid),
 				GFP_KERNEL);
 	if (!dev->sgid_tbl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&dev->sgid_lock);
 	xa_init_flags(&dev->srqs, XA_FLAGS_LOCK_IRQ);
@@ -345,7 +345,7 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 		xa_init(&dev->qps);
 		dev->iwarp_wq = create_singlethread_workqueue("qedr_iwarpq");
 		if (!dev->iwarp_wq) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err1;
 		}
 	}
@@ -354,14 +354,14 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 	dev->sb_array = kcalloc(dev->num_cnq, sizeof(*dev->sb_array),
 				GFP_KERNEL);
 	if (!dev->sb_array) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_destroy_wq;
 	}
 
 	dev->cnq_array = kcalloc(dev->num_cnq,
 				 sizeof(*dev->cnq_array), GFP_KERNEL);
 	if (!dev->cnq_array) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err2;
 	}
 
@@ -420,7 +420,7 @@ static void qedr_pci_set_atomic(struct qedr_dev *dev, struct pci_dev *pdev)
 					       PCI_EXP_DEVCAP2_ATOMIC_COMP64);
 
 	if (rc) {
-		dev->atomic_cap = IB_ATOMIC_NONE;
+		dev->atomic_cap = IB_ATOMIC_ANALNE;
 		DP_DEBUG(dev, QEDR_MSG_INIT, "Atomic capability disabled\n");
 	} else {
 		dev->atomic_cap = IB_ATOMIC_GLOB;
@@ -476,13 +476,13 @@ static irqreturn_t qedr_irq_handler(int irq, void *handle)
 			(*cq->ibcq.comp_handler)
 				(&cq->ibcq, cq->ibcq.cq_context);
 
-		/* The CQ's CNQ notification counter is checked before
+		/* The CQ's CNQ analtification counter is checked before
 		 * destroying the CQ in a busy-wait loop that waits for all of
 		 * the CQ's CNQ interrupts to be processed. It is increased
 		 * here, only after the completion handler, to ensure that
-		 * the handler is not running when the CQ is destroyed.
+		 * the handler is analt running when the CQ is destroyed.
 		 */
-		cq->cnq_notif++;
+		cq->cnq_analtif++;
 
 		sw_comp_cons = qed_chain_get_cons_idx(&cnq->pbl);
 
@@ -591,7 +591,7 @@ static int qedr_set_device_attr(struct qedr_dev *dev)
 		DP_ERR(dev,
 		       "Kernel PAGE_SIZE is %ld which is smaller than minimum page size (%d) required by qedr\n",
 		       PAGE_SIZE, page_size);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Part 3 - copy and update capabilities */
@@ -600,7 +600,7 @@ static int qedr_set_device_attr(struct qedr_dev *dev)
 	attr->vendor_part_id = qed_attr->vendor_part_id;
 	attr->hw_ver = qed_attr->hw_ver;
 	attr->fw_ver = qed_attr->fw_ver;
-	attr->node_guid = qed_attr->node_guid;
+	attr->analde_guid = qed_attr->analde_guid;
 	attr->sys_image_guid = qed_attr->sys_image_guid;
 	attr->max_cnq = qed_attr->max_cnq;
 	attr->max_sge = qed_attr->max_sge;
@@ -636,19 +636,19 @@ static int qedr_set_device_attr(struct qedr_dev *dev)
 
 static void qedr_unaffiliated_event(void *context, u8 event_code)
 {
-	pr_err("unaffiliated event not implemented yet\n");
+	pr_err("unaffiliated event analt implemented yet\n");
 }
 
 static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 {
-#define EVENT_TYPE_NOT_DEFINED	0
+#define EVENT_TYPE_ANALT_DEFINED	0
 #define EVENT_TYPE_CQ		1
 #define EVENT_TYPE_QP		2
 #define EVENT_TYPE_SRQ		3
 	struct qedr_dev *dev = (struct qedr_dev *)context;
 	struct regpair *async_handle = (struct regpair *)fw_handle;
 	u64 roce_handle64 = ((u64) async_handle->hi << 32) + async_handle->lo;
-	u8 event_type = EVENT_TYPE_NOT_DEFINED;
+	u8 event_type = EVENT_TYPE_ANALT_DEFINED;
 	struct ib_event event;
 	struct ib_srq *ibsrq;
 	struct qedr_srq *srq;
@@ -766,12 +766,12 @@ static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 						     ibsrq->srq_context);
 			}
 		} else {
-			DP_NOTICE(dev,
+			DP_ANALTICE(dev,
 				  "SRQ event with NULL pointer ibsrq. Handle=%llx\n",
 				  roce_handle64);
 		}
 		xa_unlock_irqrestore(&dev->srqs, flags);
-		DP_NOTICE(dev, "SRQ event %d on handle %p\n", e_code, srq);
+		DP_ANALTICE(dev, "SRQ event %d on handle %p\n", e_code, srq);
 		break;
 	default:
 		break;
@@ -791,7 +791,7 @@ static int qedr_init_hw(struct qedr_dev *dev)
 
 	in_params =  kzalloc(sizeof(*in_params), GFP_KERNEL);
 	if (!in_params) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -892,7 +892,7 @@ static struct qedr_dev *qedr_add(struct qed_dev *cdev, struct pci_dev *pdev,
 	dev->num_cnq = dev->ops->rdma_get_min_cnq_msix(cdev);
 	if (!dev->num_cnq) {
 		DP_ERR(dev, "Failed. At least one CNQ is required.\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto init_err;
 	}
 
@@ -1005,10 +1005,10 @@ static void qedr_mac_address_change(struct qedr_dev *dev)
 }
 
 /* event handling via NIC driver ensures that all the NIC specific
- * initialization done before RoCE driver notifies
+ * initialization done before RoCE driver analtifies
  * event to stack.
  */
-static void qedr_notify(struct qedr_dev *dev, enum qede_rdma_event event)
+static void qedr_analtify(struct qedr_dev *dev, enum qede_rdma_event event)
 {
 	switch (event) {
 	case QEDE_UP:
@@ -1026,12 +1026,12 @@ static void qedr_notify(struct qedr_dev *dev, enum qede_rdma_event event)
 	case QEDE_CHANGE_MTU:
 		if (rdma_protocol_iwarp(&dev->ibdev, 1))
 			if (dev->ndev->mtu != dev->iwarp_max_mtu)
-				DP_NOTICE(dev,
-					  "Mtu was changed from %d to %d. This will not take affect for iWARP until qedr is reloaded\n",
+				DP_ANALTICE(dev,
+					  "Mtu was changed from %d to %d. This will analt take affect for iWARP until qedr is reloaded\n",
 					  dev->iwarp_max_mtu, dev->ndev->mtu);
 		break;
 	default:
-		pr_err("Event not supported\n");
+		pr_err("Event analt supported\n");
 	}
 }
 
@@ -1039,7 +1039,7 @@ static struct qedr_driver qedr_drv = {
 	.name = "qedr_driver",
 	.add = qedr_add,
 	.remove = qedr_remove,
-	.notify = qedr_notify,
+	.analtify = qedr_analtify,
 };
 
 static int __init qedr_init_module(void)

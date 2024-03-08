@@ -41,8 +41,8 @@ struct mpc_table {
 	char checksum;
 	char oem[8];
 	char productid[12];
-	unsigned int oemptr;		/* 0 if not present */
-	unsigned short oemsize;		/* 0 if not present */
+	unsigned int oemptr;		/* 0 if analt present */
+	unsigned short oemsize;		/* 0 if analt present */
 	unsigned short oemcount;
 	unsigned int lapic;		/* APIC address */
 	unsigned int reserved;
@@ -55,7 +55,7 @@ struct mpc_table {
 #define	MP_IOAPIC		2
 #define	MP_INTSRC		3
 #define	MP_LINTSRC		4
-/* Used by IBM NUMA-Q to describe node locality */
+/* Used by IBM NUMA-Q to describe analde locality */
 #define	MP_TRANSLATION		192
 
 #define CPU_ENABLED		1	/* Processor is available */
@@ -166,7 +166,7 @@ struct mpc_oemtable {
  *	Default configurations
  *
  *	1	2 CPU ISA 82489DX
- *	2	2 CPU EISA 82489DX neither IRQ 0 timer nor IRQ 13 DMA chaining
+ *	2	2 CPU EISA 82489DX neither IRQ 0 timer analr IRQ 13 DMA chaining
  *	3	2 CPU EISA 82489DX
  *	4	2 CPU MCA 82489DX
  *	5	2 CPU ISA+PCI

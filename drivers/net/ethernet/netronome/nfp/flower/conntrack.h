@@ -7,7 +7,7 @@
 #include <net/netfilter/nf_flow_table.h>
 #include "main.h"
 
-#define NFP_FL_CT_NO_TUN	0xff
+#define NFP_FL_CT_ANAL_TUN	0xff
 
 #define COMPARE_UNMASKED_FIELDS(__match1, __match2, __out)	\
 	do {							\
@@ -37,7 +37,7 @@ extern const struct rhashtable_params nfp_nft_ct_merge_params;
 /**
  * struct nfp_fl_ct_zone_entry - Zone entry containing conntrack flow information
  * @zone:	The zone number, used as lookup key in hashtable
- * @hash_node:	Used by the hashtable
+ * @hash_analde:	Used by the hashtable
  * @priv:	Pointer to nfp_flower_priv data
  * @nft:	Pointer to nf_flowtable for this zone
  *
@@ -58,7 +58,7 @@ extern const struct rhashtable_params nfp_nft_ct_merge_params;
  */
 struct nfp_fl_ct_zone_entry {
 	u16 zone;
-	struct rhash_head hash_node;
+	struct rhash_head hash_analde;
 
 	struct nfp_flower_priv *priv;
 	struct nf_flowtable *nft;
@@ -113,7 +113,7 @@ enum nfp_nfp_layer_name {
 /**
  * struct nfp_fl_ct_flow_entry - Flow entry containing conntrack flow information
  * @cookie:	Flow cookie, same as original TC flow, used as key
- * @list_node:	Used by the list
+ * @list_analde:	Used by the list
  * @chain_index:	Chain index of the original flow
  * @goto_chain_index:	goto chain index of the flow
  * @netdev:	netdev structure.
@@ -129,7 +129,7 @@ enum nfp_nfp_layer_name {
  */
 struct nfp_fl_ct_flow_entry {
 	unsigned long cookie;
-	struct list_head list_node;
+	struct list_head list_analde;
 	u32 chain_index;
 	u32 goto_chain_index;
 	struct net_device *netdev;
@@ -139,7 +139,7 @@ struct nfp_fl_ct_flow_entry {
 	struct flow_stats stats;
 	struct nfp_fl_nft_tc_merge *prev_m_entries[NFP_MAX_RECIRC_CT_ZONES - 1];
 	u8 num_prev_m_entries;
-	u8 tun_offset;		// Set to NFP_FL_CT_NO_TUN if no tun
+	u8 tun_offset;		// Set to NFP_FL_CT_ANAL_TUN if anal tun
 	u8 flags;
 	u8 type;
 };
@@ -147,7 +147,7 @@ struct nfp_fl_ct_flow_entry {
 /**
  * struct nfp_fl_ct_tc_merge - Merge of two flows from tc
  * @cookie:		Flow cookie, combination of pre and post ct cookies
- * @hash_node:		Used by the hashtable
+ * @hash_analde:		Used by the hashtable
  * @pre_ct_list:	This entry is part of a pre_ct_list
  * @post_ct_list:	This entry is part of a post_ct_list
  * @zt:			Reference to the zone table this belongs to
@@ -157,7 +157,7 @@ struct nfp_fl_ct_flow_entry {
  */
 struct nfp_fl_ct_tc_merge {
 	unsigned long cookie[2];
-	struct rhash_head hash_node;
+	struct rhash_head hash_analde;
 	struct list_head pre_ct_list;
 	struct list_head post_ct_list;
 	struct nfp_fl_ct_zone_entry *zt;
@@ -170,7 +170,7 @@ struct nfp_fl_ct_tc_merge {
  * struct nfp_fl_nft_tc_merge - Merge of tc_merge flows with nft flow
  * @netdev:		Ingress netdev name
  * @cookie:		Flow cookie, combination of tc_merge and nft cookies
- * @hash_node:		Used by the hashtable
+ * @hash_analde:		Used by the hashtable
  * @zt:	Reference to the zone table this belongs to
  * @nft_flow_list:	This entry is part of a nft_flows_list
  * @tc_merge_list:	This entry is part of a ct_merge_list
@@ -183,7 +183,7 @@ struct nfp_fl_ct_tc_merge {
 struct nfp_fl_nft_tc_merge {
 	struct net_device *netdev;
 	unsigned long cookie[3];
-	struct rhash_head hash_node;
+	struct rhash_head hash_analde;
 	struct nfp_fl_ct_zone_entry *zt;
 	struct list_head nft_flow_list;
 	struct list_head tc_merge_list;
@@ -197,12 +197,12 @@ struct nfp_fl_nft_tc_merge {
 /**
  * struct nfp_fl_ct_map_entry - Map between flow cookie and specific ct_flow
  * @cookie:	Flow cookie, same as original TC flow, used as key
- * @hash_node:	Used by the hashtable
+ * @hash_analde:	Used by the hashtable
  * @ct_entry:	Pointer to corresponding ct_entry
  */
 struct nfp_fl_ct_map_entry {
 	unsigned long cookie;
-	struct rhash_head hash_node;
+	struct rhash_head hash_analde;
 	struct nfp_fl_ct_flow_entry *ct_entry;
 };
 

@@ -15,7 +15,7 @@
 #define RNG_v1_CTL_VCO_SHIFT  6
 #define RNG_v1_CTL_ASEL       0x0000000000000030ULL /* Analog MUX select    */
 #define RNG_v1_CTL_ASEL_SHIFT 4
-#define RNG_v1_CTL_ASEL_NOOUT 2
+#define RNG_v1_CTL_ASEL_ANALOUT 2
 
 /* these are the same in v2 as in v1 */
 #define RNG_CTL_LFSR       0x0000000000000008ULL /* Use LFSR or plain shift */
@@ -32,7 +32,7 @@
 #define RNG_v2_CTL_PERF       0x0000000000000180ULL /* Perf */
 #define RNG_v2_CTL_ASEL       0x0000000000000070ULL /* Analog MUX select    */
 #define RNG_v2_CTL_ASEL_SHIFT 4
-#define RNG_v2_CTL_ASEL_NOOUT 7
+#define RNG_v2_CTL_ASEL_ANALOUT 7
 
 
 #define HV_FAST_RNG_GET_DIAG_CTL	0x130
@@ -112,9 +112,9 @@ struct n2rng {
 	struct hwrng		hwrng;
 	u32			buffer;
 
-	/* Registered hypervisor group API major and minor version.  */
+	/* Registered hypervisor group API major and mianalr version.  */
 	unsigned long		hvapi_major;
-	unsigned long		hvapi_minor;
+	unsigned long		hvapi_mianalr;
 
 	struct delayed_work	work;
 

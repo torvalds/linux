@@ -26,7 +26,7 @@ cmd_relocs_strip = $(OBJCOPY)   --remove-section='.rel.*'       \
                                 --remove-section='.rela__*' $@
 endif
 
-# `@true` prevents complaint when there is nothing to be done
+# `@true` prevents complaint when there is analthing to be done
 
 vmlinux: FORCE
 	@true

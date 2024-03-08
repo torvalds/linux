@@ -79,7 +79,7 @@ int nft_fwd_dup_netdev_offload(struct nft_offload_ctx *ctx,
 	/* nft_flow_rule_destroy() releases the reference on this device. */
 	dev = dev_get_by_index(ctx->net, oif);
 	if (!dev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	entry = &flow->rule->action.entries[ctx->num_actions++];
 	entry->id = id;

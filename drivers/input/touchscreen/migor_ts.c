@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2008 Magnus Damm
  * Copyright (c) 2007 Ujjwal Pande <ujjwal@kenati.com>,
- *  Kenati Technologies Pvt Ltd.
+ *  Kenati Techanallogies Pvt Ltd.
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -41,7 +41,7 @@ static irqreturn_t migor_ts_isr(int irq, void *dev_id)
 	 * The touch screen controller chip is hooked up to the CPU
 	 * using I2C and a single interrupt line. The interrupt line
 	 * is pulled low whenever someone taps the screen. To deassert
-	 * the interrupt line we need to acknowledge the interrupt by
+	 * the interrupt line we need to ackanalwledge the interrupt by
 	 * communicating with the controller over the slow i2c bus.
 	 *
 	 * Since I2C bus controller may sleep we are using threaded
@@ -57,7 +57,7 @@ static irqreturn_t migor_ts_isr(int irq, void *dev_id)
 		goto out;
 	}
 
-	/* Now do Page Read */
+	/* Analw do Page Read */
 	if (i2c_master_recv(priv->client, buf, sizeof(buf)) != sizeof(buf)) {
 		dev_err(&priv->client->dev, "Unable to read i2c page\n");
 		goto out;
@@ -126,7 +126,7 @@ static int migor_ts_probe(struct i2c_client *client)
 	input = input_allocate_device();
 	if (!priv || !input) {
 		dev_err(&client->dev, "failed to allocate memory\n");
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 

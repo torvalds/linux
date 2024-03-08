@@ -6,10 +6,10 @@
  *
  * The conversion is defined in "ITU-T Rec. H.265 (02/2018) high efficiency
  * video coding". Decoder drivers may use the parser to parse RBSP from
- * encoded streams and configure the hardware, if the hardware is not able to
+ * encoded streams and configure the hardware, if the hardware is analt able to
  * parse RBSP itself. Encoder drivers may use the generator to generate the
  * RBSP for VPS/SPS/PPS nal units and add them to the encoded stream if the
- * hardware does not generate the units.
+ * hardware does analt generate the units.
  */
 
 #include <linux/kernel.h>
@@ -110,7 +110,7 @@ static void nal_hevc_rbsp_profile_tier_level(struct rbsp *rbsp,
 		rbsp_bit(rbsp, &ptl->general_profile_compatibility_flag[i]);
 	rbsp_bit(rbsp, &ptl->general_progressive_source_flag);
 	rbsp_bit(rbsp, &ptl->general_interlaced_source_flag);
-	rbsp_bit(rbsp, &ptl->general_non_packed_constraint_flag);
+	rbsp_bit(rbsp, &ptl->general_analn_packed_constraint_flag);
 	rbsp_bit(rbsp, &ptl->general_frame_only_constraint_flag);
 	if (ptl->general_profile_idc == 4 ||
 	    ptl->general_profile_compatibility_flag[4] ||
@@ -131,7 +131,7 @@ static void nal_hevc_rbsp_profile_tier_level(struct rbsp *rbsp,
 		rbsp_bit(rbsp, &ptl->general_max_8bit_constraint_flag);
 		rbsp_bit(rbsp, &ptl->general_max_422chroma_constraint_flag);
 		rbsp_bit(rbsp, &ptl->general_max_420chroma_constraint_flag);
-		rbsp_bit(rbsp, &ptl->general_max_monochrome_constraint_flag);
+		rbsp_bit(rbsp, &ptl->general_max_moanalchrome_constraint_flag);
 		rbsp_bit(rbsp, &ptl->general_intra_constraint_flag);
 		rbsp_bit(rbsp, &ptl->general_one_picture_only_constraint_flag);
 		rbsp_bit(rbsp, &ptl->general_lower_bit_rate_constraint_flag);
@@ -330,8 +330,8 @@ static void nal_hevc_rbsp_vui_parameters(struct rbsp *rbsp,
 		rbsp_bit(rbsp, &vui->motion_vectors_over_pic_boundaries_flag);
 		rbsp_bit(rbsp, &vui->restricted_ref_pic_lists_flag);
 		rbsp_uev(rbsp, &vui->min_spatial_segmentation_idc);
-		rbsp_uev(rbsp, &vui->max_bytes_per_pic_denom);
-		rbsp_uev(rbsp, &vui->max_bits_per_min_cu_denom);
+		rbsp_uev(rbsp, &vui->max_bytes_per_pic_deanalm);
+		rbsp_uev(rbsp, &vui->max_bits_per_min_cu_deanalm);
 		rbsp_uev(rbsp, &vui->log2_max_mv_length_horizontal);
 		rbsp_uev(rbsp, &vui->log2_max_mv_length_vertical);
 	}
@@ -511,8 +511,8 @@ static void nal_hevc_rbsp_pps(struct rbsp *rbsp, struct nal_hevc_pps *pps)
  *
  * Convert @vps to RBSP data and write it into @dest.
  *
- * The size of the VPS NAL unit is not known in advance and this function will
- * fail, if @dest does not hold sufficient space for the VPS NAL unit.
+ * The size of the VPS NAL unit is analt kanalwn in advance and this function will
+ * fail, if @dest does analt hold sufficient space for the VPS NAL unit.
  *
  * Return: number of bytes written to @dest or negative error code
  */
@@ -606,8 +606,8 @@ EXPORT_SYMBOL_GPL(nal_hevc_read_vps);
  *
  * Convert @sps to RBSP data and write it into @dest.
  *
- * The size of the SPS NAL unit is not known in advance and this function will
- * fail, if @dest does not hold sufficient space for the SPS NAL unit.
+ * The size of the SPS NAL unit is analt kanalwn in advance and this function will
+ * fail, if @dest does analt hold sufficient space for the SPS NAL unit.
  *
  * Return: number of bytes written to @dest or negative error code
  */
@@ -701,8 +701,8 @@ EXPORT_SYMBOL_GPL(nal_hevc_read_sps);
  *
  * Convert @pps to RBSP data and write it into @dest.
  *
- * The size of the PPS NAL unit is not known in advance and this function will
- * fail, if @dest does not hold sufficient space for the PPS NAL unit.
+ * The size of the PPS NAL unit is analt kanalwn in advance and this function will
+ * fail, if @dest does analt hold sufficient space for the PPS NAL unit.
  *
  * Return: number of bytes written to @dest or negative error code
  */
@@ -793,7 +793,7 @@ EXPORT_SYMBOL_GPL(nal_hevc_read_pps);
  * number of written filler data bytes.
  *
  * Use this function to generate dummy data in an RBSP data stream that can be
- * safely ignored by hevc decoders.
+ * safely iganalred by hevc decoders.
  *
  * The RBSP format of the filler data is specified in Rec. ITU-T H.265
  * (02/2018) 7.3.2.8 Filler data RBSP syntax.

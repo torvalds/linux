@@ -52,7 +52,7 @@
  *
  * usave reg1 reg2
  *
- *	Unwind annotation macro is corresponding for 'enter' macro.
+ *	Unwind ananaltation macro is corresponding for 'enter' macro.
  *	It tell unwinder that preserved some provided registers on the stack
  *	and additional data by a prior 'enter' macro.
  *
@@ -118,7 +118,7 @@
 		b	7f
 6:
 		.rept	(1 << LDR1W_SHIFT)
-		W(nop)
+		W(analp)
 		.endr
 		ldr1w	r1, r3, abort=20f
 		ldr1w	r1, r4, abort=20f
@@ -134,9 +134,9 @@
 		lsr	ip, ip, #LDR1W_SHIFT - STR1W_SHIFT
 #endif
 		add	pc, pc, ip
-		nop
+		analp
 		.rept	(1 << STR1W_SHIFT)
-		W(nop)
+		W(analp)
 		.endr
 		str1w	r0, r3, abort=20f
 		str1w	r0, r4, abort=20f

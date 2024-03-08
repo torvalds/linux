@@ -59,7 +59,7 @@ int get_task_user_stacks(struct bpf_iter__task *ctx)
 	buf_sz += res;
 
 	/* If the verifier doesn't refine bpf_get_task_stack res, and instead
-	 * assumes res is entirely unknown, this program will fail to load as
+	 * assumes res is entirely unkanalwn, this program will fail to load as
 	 * the verifier will believe that max buf_sz value allows reading
 	 * past the end of entries in bpf_seq_write call
 	 */

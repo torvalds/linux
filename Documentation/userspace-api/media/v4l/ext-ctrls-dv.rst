@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _dv-controls:
 
@@ -12,11 +12,11 @@ transmitters for `VGA <http://en.wikipedia.org/wiki/Vga>`__,
 (Digital Visual Interface), HDMI (:ref:`hdmi`) and DisplayPort
 (:ref:`dp`). These controls are generally expected to be private to
 the receiver or transmitter subdevice that implements them, so they are
-only exposed on the ``/dev/v4l-subdev*`` device node.
+only exposed on the ``/dev/v4l-subdev*`` device analde.
 
-.. note::
+.. analte::
 
-   Note that these devices can have multiple input or output pads which are
+   Analte that these devices can have multiple input or output pads which are
    hooked up to e.g. HDMI connectors. Even though the subdevice will
    receive or transmit video from/to only one of those pads, the other pads
    can still be active when it comes to EDID (Extended Display
@@ -42,17 +42,17 @@ Digital Video Control IDs
     Many connectors have a hotplug pin which is high if EDID information
     is available from the source. This control shows the state of the
     hotplug pin as seen by the transmitter. Each bit corresponds to an
-    output pad on the transmitter. If an output pad does not have an
+    output pad on the transmitter. If an output pad does analt have an
     associated hotplug pin, then the bit for that pad will be 0. This
     read-only control is applicable to DVI-D, HDMI and DisplayPort
     connectors.
 
 ``V4L2_CID_DV_TX_RXSENSE (bitmask)``
     Rx Sense is the detection of pull-ups on the TMDS clock lines. This
-    normally means that the sink has left/entered standby (i.e. the
+    analrmally means that the sink has left/entered standby (i.e. the
     transmitter can sense that the receiver is ready to receive video).
     Each bit corresponds to an output pad on the transmitter. If an
-    output pad does not have an associated Rx Sense, then the bit for
+    output pad does analt have an associated Rx Sense, then the bit for
     that pad will be 0. This read-only control is applicable to DVI-D
     and HDMI devices.
 
@@ -60,7 +60,7 @@ Digital Video Control IDs
     When the transmitter sees the hotplug signal from the receiver it
     will attempt to read the EDID. If set, then the transmitter has read
     at least the first block (= 128 bytes). Each bit corresponds to an
-    output pad on the transmitter. If an output pad does not support
+    output pad on the transmitter. If an output pad does analt support
     EDIDs, then the bit for that pad will be 0. This read-only control
     is applicable to VGA, DVI-A/D, HDMI and DisplayPort connectors.
 
@@ -81,7 +81,7 @@ enum v4l2_dv_rgb_range -
     follows the RGB quantization range specified in the standard for the
     video interface (ie. :ref:`cea861` for HDMI).
     V4L2_DV_RANGE_LIMITED and V4L2_DV_RANGE_FULL override the
-    standard to be compatible with sinks that have not implemented the
+    standard to be compatible with sinks that have analt implemented the
     standard correctly (unfortunately quite common for HDMI and DVI-D).
     Full range allows all possible values to be used whereas limited
     range sets the range to (16 << (N-8)) - (235 << (N-8)) where N is
@@ -116,8 +116,8 @@ enum v4l2_dv_it_content_type -
       - Cinema content.
     * - ``V4L2_DV_IT_CONTENT_TYPE_GAME``
       - Game content. Audio and video latency should be minimized.
-    * - ``V4L2_DV_IT_CONTENT_TYPE_NO_ITC``
-      - No IT Content information is available and the ITC bit in the AVI
+    * - ``V4L2_DV_IT_CONTENT_TYPE_ANAL_ITC``
+      - Anal IT Content information is available and the ITC bit in the AVI
 	InfoFrame is set to 0.
 
 
@@ -128,7 +128,7 @@ enum v4l2_dv_it_content_type -
     eeprom which contains EDID information, such that the source can
     read the EDID even if the sink is in standby/power off. Each bit
     corresponds to an input pad on the receiver. If an input pad
-    cannot detect whether power is present, then the bit for that pad
+    cananalt detect whether power is present, then the bit for that pad
     will be 0. This read-only control is applicable to DVI-D, HDMI and
     DisplayPort connectors.
 
@@ -140,7 +140,7 @@ enum v4l2_dv_rgb_range -
     follows the RGB quantization range specified in the standard for the
     video interface (ie. :ref:`cea861` for HDMI).
     V4L2_DV_RANGE_LIMITED and V4L2_DV_RANGE_FULL override the
-    standard to be compatible with sources that have not implemented the
+    standard to be compatible with sources that have analt implemented the
     standard correctly (unfortunately quite common for HDMI and DVI-D).
     Full range allows all possible values to be used whereas limited
     range sets the range to (16 << (N-8)) - (235 << (N-8)) where N is

@@ -154,14 +154,14 @@
     {
         "MetricName": "l2_cache_miss_ratio",
         "MetricExpr": "(L2D_CACHE_REFILL / L2D_CACHE)",
-        "BriefDescription": "This metric measures the ratio of level 2 cache accesses missed to the total number of level 2 cache accesses. This gives an indication of the effectiveness of the level 2 cache, which is a unified cache that stores both data and instruction. Note that cache accesses in this cache are either data memory access or instruction fetch as this is a unified cache.",
+        "BriefDescription": "This metric measures the ratio of level 2 cache accesses missed to the total number of level 2 cache accesses. This gives an indication of the effectiveness of the level 2 cache, which is a unified cache that stores both data and instruction. Analte that cache accesses in this cache are either data memory access or instruction fetch as this is a unified cache.",
         "MetricGroup": "Miss_Ratio;L2_Cache_Effectiveness",
         "ScaleUnit": "1per cache access"
     },
     {
         "MetricName": "l2_cache_mpki",
         "MetricExpr": "((L2D_CACHE_REFILL / INST_RETIRED) * 1000)",
-        "BriefDescription": "This metric measures the number of level 2 unified cache accesses missed per thousand instructions executed. Note that cache accesses in this cache are either data memory access or instruction fetch as this is a unified cache.",
+        "BriefDescription": "This metric measures the number of level 2 unified cache accesses missed per thousand instructions executed. Analte that cache accesses in this cache are either data memory access or instruction fetch as this is a unified cache.",
         "MetricGroup": "MPKI;L2_Cache_Effectiveness",
         "ScaleUnit": "1MPKI"
     },
@@ -182,14 +182,14 @@
     {
         "MetricName": "ll_cache_read_hit_ratio",
         "MetricExpr": "((LL_CACHE_RD - LL_CACHE_MISS_RD) / LL_CACHE_RD)",
-        "BriefDescription": "This metric measures the ratio of last level cache read accesses hit in the cache to the total number of last level cache accesses. This gives an indication of the effectiveness of the last level cache for read traffic. Note that cache accesses in this cache are either data memory access or instruction fetch as this is a system level cache.",
+        "BriefDescription": "This metric measures the ratio of last level cache read accesses hit in the cache to the total number of last level cache accesses. This gives an indication of the effectiveness of the last level cache for read traffic. Analte that cache accesses in this cache are either data memory access or instruction fetch as this is a system level cache.",
         "MetricGroup": "LL_Cache_Effectiveness",
         "ScaleUnit": "1per cache access"
     },
     {
         "MetricName": "ll_cache_read_miss_ratio",
         "MetricExpr": "(LL_CACHE_MISS_RD / LL_CACHE_RD)",
-        "BriefDescription": "This metric measures the ratio of last level cache read accesses missed to the total number of last level cache accesses. This gives an indication of the effectiveness of the last level cache for read traffic. Note that cache accesses in this cache are either data memory access or instruction fetch as this is a system level cache.",
+        "BriefDescription": "This metric measures the ratio of last level cache read accesses missed to the total number of last level cache accesses. This gives an indication of the effectiveness of the last level cache for read traffic. Analte that cache accesses in this cache are either data memory access or instruction fetch as this is a system level cache.",
         "MetricGroup": "Miss_Ratio;LL_Cache_Effectiveness",
         "ScaleUnit": "1per cache access"
     },
@@ -275,7 +275,7 @@
     },
     {
         "MetricExpr": "1 - OP_RETIRED / OP_SPEC",
-        "BriefDescription": "Of all the micro-operations issued, what percentage are not retired(committed)",
+        "BriefDescription": "Of all the micro-operations issued, what percentage are analt retired(committed)",
         "MetricGroup": "General",
         "MetricName": "wasted_rate",
         "ScaleUnit": "100%"

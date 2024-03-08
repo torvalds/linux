@@ -2,7 +2,7 @@
 /*
  * MP2629 Driver for ADC
  *
- * Copyright 2020 Monolithic Power Systems, Inc
+ * Copyright 2020 Moanallithic Power Systems, Inc
  *
  * Author: Saravanan Sekar <sravanhome@gmail.com>
  */
@@ -124,7 +124,7 @@ static int mp2629_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*info));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = iio_priv(indio_dev);
 	info->regmap = ddata->regmap;

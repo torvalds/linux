@@ -90,7 +90,7 @@
 &mmc1 {
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	/*

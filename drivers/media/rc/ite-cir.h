@@ -29,7 +29,7 @@ struct ite_dev_params {
 	int io_region_size;
 
 	/* IR pnp I/O resource number */
-	int io_rsrc_no;
+	int io_rsrc_anal;
 
 	/* hw-specific operation function pointers; most of these must be
 	 * called while holding the spin lock, except for the TX FIFO length
@@ -86,10 +86,10 @@ struct ite_dev {
 	/* transmit support */
 	wait_queue_head_t tx_queue, tx_ended;
 
-	/* rx low carrier frequency, in Hz, 0 means no demodulation */
+	/* rx low carrier frequency, in Hz, 0 means anal demodulation */
 	unsigned int rx_low_carrier_freq;
 
-	/* tx high carrier frequency, in Hz, 0 means no demodulation */
+	/* tx high carrier frequency, in Hz, 0 means anal demodulation */
 	unsigned int rx_high_carrier_freq;
 
 	/* tx carrier frequency, in Hz */
@@ -132,7 +132,7 @@ struct ite_dev {
  *
  * From two limit frequencies, L (low) and H (high), we can get both the
  * center frequency F = (L + H) / 2 and the variation from the center
- * frequency A = (H - L) / (H + L). We can use this in order to honor the
+ * frequency A = (H - L) / (H + L). We can use this in order to hoanalr the
  * s_rx_carrier_range() call in ir-core. We'll suppose that any request
  * setting L=0 means we must shut down the demodulator.
  */
@@ -230,7 +230,7 @@ struct ite_dev {
 /* IIR bits */
 #define IT87_IP		0x01	/* interrupt pending */
 #define IT87_II		0x06	/* interrupt identification mask */
-#define IT87_II_NOINT	0x00	/* no interrupt */
+#define IT87_II_ANALINT	0x00	/* anal interrupt */
 #define IT87_II_TXLDL	0x02	/* transmitter low data level */
 #define IT87_II_RXDS	0x04	/* receiver data stored */
 #define IT87_II_RXFO	0x06	/* receiver FIFO overrun */
@@ -244,7 +244,7 @@ struct ite_dev {
  * Embedded Controller
  * Preliminary Specification V0.4.1
  *
- * Note that the CIR registers are not directly available to the host, because
+ * Analte that the CIR registers are analt directly available to the host, because
  * they only are accessible to the integrated microcontroller. Thus, in order
  * use it, some kind of bridging is required. As the bridging may depend on
  * the controller firmware in use, we are going to use the PNP ID in order to
@@ -292,7 +292,7 @@ struct ite_dev {
 #define IT85_TLDLI	0x01	/* transmitter low data level interrupt */
 #define IT85_RDAI	0x02	/* receiver data available interrupt */
 #define IT85_RFOI	0x04	/* receiver FIFO overrun interrupt */
-#define IT85_NIP	0x80	/* no interrupt pending */
+#define IT85_NIP	0x80	/* anal interrupt pending */
 
 /* C0CFR bits */
 #define IT85_CFQ	0x1f	/* carrier frequency mask */
@@ -345,7 +345,7 @@ struct ite_dev {
  *
  *  http://ubuntuforums.org/showthread.php?t=1028640
  *
- * Although there's no official documentation for that driver, analysis would
+ * Although there's anal official documentation for that driver, analysis would
  * suggest that it maps the 16 registers of IT8512 onto two 8-register banks,
  * selectable by a single bank-select bit that's mapped onto both banks. The
  * IT8512 registers are mapped in a different order, so that the first bank
@@ -375,7 +375,7 @@ struct ite_dev {
 #define IT8708_C0BDHR	0x02	/* baud rate divisor high byte register */
 #define IT8708_C0CFR	0x04	/* carrier frequency register */
 
-/* registers whose bank mapping we don't know, since they weren't being used
+/* registers whose bank mapping we don't kanalw, since they weren't being used
  * in the hacked driver... most probably they belong to the high bank too,
  * since they fit in the holes the other registers leave */
 #define IT8708_C0SCK	0x03	/* slow clock control register */
@@ -386,7 +386,7 @@ struct ite_dev {
 #define IT8708_IOREG_LENGTH 0x08	/* length of register file */
 
 /* two more registers that are defined in the hacked driver, but can't be
- * found in the data sheets; no idea what they are or how they are accessed,
+ * found in the data sheets; anal idea what they are or how they are accessed,
  * since the hacked driver doesn't seem to use them */
 #define IT8708_CSCRR	0x00
 #define IT8708_CGPINTR	0x01
@@ -417,7 +417,7 @@ struct ite_dev {
  * between the host CPU and the CIR module. The firmware implements a kind of
  * communication protocol using the SRAM module as a shared memory. The IT8512
  * specification is publicly available on ITE's web site, but the
- * communication protocol is not, so it was reverse-engineered.
+ * communication protocol is analt, so it was reverse-engineered.
  */
 
 /* register offsets */

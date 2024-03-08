@@ -3,8 +3,8 @@
 
 /*
  * c_cc characters in the termio structure.  Oh, how I love being
- * backwardly compatible.  Notice that character 4 and 5 are
- * interpreted differently depending on whether ICANON is set in
+ * backwardly compatible.  Analtice that character 4 and 5 are
+ * interpreted differently depending on whether ICAANALN is set in
  * c_lflag.  If it's set, they are used as _VEOF and _VEOL, otherwise
  * as _VMIN and V_TIME.  This is for compatibility with OSF/1 (which
  * is compatible with sysV)...
@@ -23,7 +23,7 @@ int kernel_termios_to_user_termio(struct termio __user *termio,
 	v.c_lflag = termios->c_lflag;
 	v.c_line = termios->c_line;
 	memcpy(v.c_cc, termios->c_cc, NCC);
-	if (!(v.c_lflag & ICANON)) {
+	if (!(v.c_lflag & ICAANALN)) {
 		v.c_cc[_VMIN] = termios->c_cc[VMIN];
 		v.c_cc[_VTIME] = termios->c_cc[VTIME];
 	}
@@ -40,7 +40,7 @@ int user_termios_to_kernel_termios(struct ktermios *k,
 	err |= get_user(k->c_lflag, &u->c_lflag);
 	err |= get_user(k->c_line,  &u->c_line);
 	err |= copy_from_user(k->c_cc, u->c_cc, NCCS);
-	if (k->c_lflag & ICANON) {
+	if (k->c_lflag & ICAANALN) {
 		err |= get_user(k->c_cc[VEOF], &u->c_cc[VEOF]);
 		err |= get_user(k->c_cc[VEOL], &u->c_cc[VEOL]);
 	} else {
@@ -62,7 +62,7 @@ int kernel_termios_to_user_termios(struct termios2 __user *u,
 	err |= put_user(k->c_lflag, &u->c_lflag);
 	err |= put_user(k->c_line, &u->c_line);
 	err |= copy_to_user(u->c_cc, k->c_cc, NCCS);
-	if (!(k->c_lflag & ICANON)) {
+	if (!(k->c_lflag & ICAANALN)) {
 		err |= put_user(k->c_cc[VMIN],  &u->c_cc[_VMIN]);
 		err |= put_user(k->c_cc[VTIME], &u->c_cc[_VTIME]);
 	} else {
@@ -84,7 +84,7 @@ int user_termios_to_kernel_termios_1(struct ktermios *k,
 	err |= get_user(k->c_lflag, &u->c_lflag);
 	err |= get_user(k->c_line,  &u->c_line);
 	err |= copy_from_user(k->c_cc, u->c_cc, NCCS);
-	if (k->c_lflag & ICANON) {
+	if (k->c_lflag & ICAANALN) {
 		err |= get_user(k->c_cc[VEOF], &u->c_cc[VEOF]);
 		err |= get_user(k->c_cc[VEOL], &u->c_cc[VEOL]);
 	} else {
@@ -104,7 +104,7 @@ int kernel_termios_to_user_termios_1(struct termios __user *u,
 	err |= put_user(k->c_lflag, &u->c_lflag);
 	err |= put_user(k->c_line, &u->c_line);
 	err |= copy_to_user(u->c_cc, k->c_cc, NCCS);
-	if (!(k->c_lflag & ICANON)) {
+	if (!(k->c_lflag & ICAANALN)) {
 		err |= put_user(k->c_cc[VMIN],  &u->c_cc[_VMIN]);
 		err |= put_user(k->c_cc[VTIME], &u->c_cc[_VTIME]);
 	} else {

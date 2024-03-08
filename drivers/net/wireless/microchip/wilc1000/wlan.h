@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techanallogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -386,7 +386,7 @@ struct tx_complete_data {
 
 struct wilc_cfg_cmd_hdr {
 	u8 cmd_type;
-	u8 seq_no;
+	u8 seq_anal;
 	__le16 total_len;
 	__le32 driver_handler;
 };
@@ -398,7 +398,7 @@ struct wilc_cfg_frame {
 
 struct wilc_cfg_rsp {
 	u8 type;
-	u8 seq_no;
+	u8 seq_anal;
 };
 
 struct wilc_vif;
@@ -426,8 +426,8 @@ netdev_tx_t wilc_mac_xmit(struct sk_buff *skb, struct net_device *dev);
 
 void wilc_wfi_p2p_rx(struct wilc_vif *vif, u8 *buff, u32 size);
 bool wilc_wfi_mgmt_frame_rx(struct wilc_vif *vif, u8 *buff, u32 size);
-void host_wakeup_notify(struct wilc *wilc);
-void host_sleep_notify(struct wilc *wilc);
+void host_wakeup_analtify(struct wilc *wilc);
+void host_sleep_analtify(struct wilc *wilc);
 void chip_allow_sleep(struct wilc *wilc);
 void chip_wakeup(struct wilc *wilc);
 int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,

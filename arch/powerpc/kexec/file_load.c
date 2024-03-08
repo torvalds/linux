@@ -66,7 +66,7 @@ char *setup_kdump_cmdline(struct kimage *image, char *cmdline,
  * @kernel_load_addr:	Address where the kernel is loaded.
  * @fdt_load_addr:	Address where the flattened device tree is loaded.
  *
- * Return: 0 on success, or negative errno on error.
+ * Return: 0 on success, or negative erranal on error.
  */
 int setup_purgatory(struct kimage *image, const void *slave_code,
 		    const void *fdt, unsigned long kernel_load_addr,
@@ -77,7 +77,7 @@ int setup_purgatory(struct kimage *image, const void *slave_code,
 
 	slave_code_buf = kmalloc(SLAVE_CODE_SIZE, GFP_KERNEL);
 	if (!slave_code_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get the slave code from the new kernel and put it in purgatory. */
 	ret = kexec_purgatory_get_set_symbol(image, "purgatory_start",

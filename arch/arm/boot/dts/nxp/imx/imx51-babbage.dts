@@ -167,8 +167,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_leds>;
 
-		led-diagnostic {
-			label = "diagnostic";
+		led-diaganalstic {
+			label = "diaganalstic";
 			gpios = <&gpio2 6 GPIO_ACTIVE_HIGH>;
 		};
 	};
@@ -199,7 +199,7 @@
 	};
 
 	usbphy1: usbphy1 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usbh1reg>;
 		clocks = <&clk_usb>;

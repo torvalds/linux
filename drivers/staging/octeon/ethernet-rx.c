@@ -48,7 +48,7 @@ static struct oct_rx_group {
 static irqreturn_t cvm_oct_do_interrupt(int irq, void *napi_id)
 {
 	/* Disable the IRQ and start napi_poll. */
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	napi_schedule(napi_id);
 
 	return IRQ_HANDLED;
@@ -58,7 +58,7 @@ static irqreturn_t cvm_oct_do_interrupt(int irq, void *napi_id)
  * cvm_oct_check_rcv_error - process receive errors
  * @work: Work queue entry pointing to the packet.
  *
- * Returns Non-zero if the packet can be dropped, zero otherwise.
+ * Returns Analn-zero if the packet can be dropped, zero otherwise.
  */
 static inline int cvm_oct_check_rcv_error(struct cvmx_wqe *work)
 {
@@ -69,23 +69,23 @@ static inline int cvm_oct_check_rcv_error(struct cvmx_wqe *work)
 	else
 		port = work->word1.cn38xx.ipprt;
 
-	if ((work->word2.snoip.err_code == 10) && (work->word1.len <= 64))
+	if ((work->word2.sanalip.err_code == 10) && (work->word1.len <= 64))
 		/*
-		 * Ignore length errors on min size packets. Some
+		 * Iganalre length errors on min size packets. Some
 		 * equipment incorrectly pads packets to 64+4FCS
-		 * instead of 60+4FCS.  Note these packets still get
+		 * instead of 60+4FCS.  Analte these packets still get
 		 * counted as frame errors.
 		 */
 		return 0;
 
-	if (work->word2.snoip.err_code == 5 ||
-	    work->word2.snoip.err_code == 7) {
+	if (work->word2.sanalip.err_code == 5 ||
+	    work->word2.sanalip.err_code == 7) {
 		/*
 		 * We received a packet with either an alignment error
 		 * or a FCS error. This may be signalling that we are
 		 * running 10Mbps with GMXX_RXX_FRM_CTL[PRE_CHK]
 		 * off. If this is the case we need to parse the
-		 * packet to determine if we can remove a non spec
+		 * packet to determine if we can remove a analn spec
 		 * preamble and generate a correct packet.
 		 */
 		int interface = cvmx_helper_get_interface_num(port);
@@ -126,7 +126,7 @@ static inline int cvm_oct_check_rcv_error(struct cvmx_wqe *work)
 				return 0;
 			}
 
-			printk_ratelimited("Port %d unknown preamble, packet dropped\n",
+			printk_ratelimited("Port %d unkanalwn preamble, packet dropped\n",
 					   port);
 			cvm_oct_free_work(work);
 			return 1;
@@ -134,7 +134,7 @@ static inline int cvm_oct_check_rcv_error(struct cvmx_wqe *work)
 	}
 
 	printk_ratelimited("Port %d receive error code %d, packet dropped\n",
-			   port, work->word2.snoip.err_code);
+			   port, work->word2.sanalip.err_code);
 	cvm_oct_free_work(work);
 	return 1;
 }
@@ -186,9 +186,9 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 	u64	old_scratch;
 	int		rx_count = 0;
 	int		did_work_request = 0;
-	int		packet_not_copied;
+	int		packet_analt_copied;
 
-	/* Prefetch cvm_oct_device since we know we need it soon */
+	/* Prefetch cvm_oct_device since we kanalw we need it soon */
 	prefetch(cvm_oct_device);
 
 	if (USE_ASYNC_IOBDMA) {
@@ -211,7 +211,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 	}
 
 	if (USE_ASYNC_IOBDMA) {
-		cvmx_pow_work_request_async(CVMX_SCR_SCRATCH, CVMX_POW_NO_WAIT);
+		cvmx_pow_work_request_async(CVMX_SCR_SCRATCH, CVMX_POW_ANAL_WAIT);
 		did_work_request = 1;
 	}
 
@@ -225,7 +225,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 		if (USE_ASYNC_IOBDMA && did_work_request)
 			work = cvmx_pow_work_response_async(CVMX_SCR_SCRATCH);
 		else
-			work = cvmx_pow_work_request_sync(CVMX_POW_NO_WAIT);
+			work = cvmx_pow_work_request_sync(CVMX_POW_ANAL_WAIT);
 
 		prefetch(work);
 		did_work_request = 0;
@@ -251,8 +251,8 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 		prefetch(pskb);
 
 		if (USE_ASYNC_IOBDMA && rx_count < (budget - 1)) {
-			cvmx_pow_work_request_async_nocheck(CVMX_SCR_SCRATCH,
-							    CVMX_POW_NO_WAIT);
+			cvmx_pow_work_request_async_analcheck(CVMX_SCR_SCRATCH,
+							    CVMX_POW_ANAL_WAIT);
 			did_work_request = 1;
 		}
 		rx_count++;
@@ -272,7 +272,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 		prefetch(cvm_oct_device[port]);
 
 		/* Immediately throw away all packets with receive errors */
-		if (unlikely(work->word2.snoip.rcv_error)) {
+		if (unlikely(work->word2.sanalip.rcv_error)) {
 			if (cvm_oct_check_rcv_error(work))
 				continue;
 		}
@@ -288,7 +288,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 			prefetch(skb->data);
 			skb->len = work->word1.len;
 			skb_set_tail_pointer(skb, skb->len);
-			packet_not_copied = 1;
+			packet_analt_copied = 1;
 		} else {
 			/*
 			 * We have to copy the packet. First allocate
@@ -307,7 +307,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 			if (unlikely(work->word2.s.bufs == 0)) {
 				u8 *ptr = work->packet_data;
 
-				if (likely(!work->word2.s.not_IP)) {
+				if (likely(!work->word2.s.analt_IP)) {
 					/*
 					 * The beginning of the packet
 					 * moves for IP packets.
@@ -318,11 +318,11 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 						ptr += 6;
 				}
 				skb_put_data(skb, ptr, work->word1.len);
-				/* No packet buffers to free */
+				/* Anal packet buffers to free */
 			} else {
 				copy_segments_to_skb(work, skb);
 			}
-			packet_not_copied = 0;
+			packet_analt_copied = 0;
 		}
 		if (likely((port < TOTAL_NUMBER_OF_PORTS) &&
 			   cvm_oct_device[port])) {
@@ -336,11 +336,11 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 				skb->protocol = eth_type_trans(skb, dev);
 				skb->dev = dev;
 
-				if (unlikely(work->word2.s.not_IP ||
+				if (unlikely(work->word2.s.analt_IP ||
 					     work->word2.s.IP_exc ||
 					     work->word2.s.L4_error ||
 					     !work->word2.s.tcp_or_udp))
-					skb->ip_summed = CHECKSUM_NONE;
+					skb->ip_summed = CHECKSUM_ANALNE;
 				else
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
 
@@ -363,7 +363,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 			 * Drop any packet received for a device that
 			 * doesn't exist.
 			 */
-			printk_ratelimited("Port %d not controlled by Linux, packet dropped\n",
+			printk_ratelimited("Port %d analt controlled by Linux, packet dropped\n",
 					   port);
 			dev_kfree_skb_irq(skb);
 		}
@@ -371,7 +371,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 		 * Check to see if the skbuff and work share the same
 		 * packet buffer.
 		 */
-		if (likely(packet_not_copied)) {
+		if (likely(packet_analt_copied)) {
 			/*
 			 * This buffer needs to be replaced, increment
 			 * the number of buffers we need to free by
@@ -418,7 +418,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 	rx_count = cvm_oct_poll(rx_group, budget);
 
 	if (rx_count < budget) {
-		/* No more work */
+		/* Anal more work */
 		napi_complete_done(napi, rx_count);
 		enable_irq(rx_group->irq);
 	}
@@ -461,7 +461,7 @@ void cvm_oct_rx_initialize(void)
 	}
 
 	if (!dev_for_napi)
-		panic("No net_devices were allocated.");
+		panic("Anal net_devices were allocated.");
 
 	for (i = 0; i < ARRAY_SIZE(oct_rx_group); i++) {
 		int ret;
@@ -480,10 +480,10 @@ void cvm_oct_rx_initialize(void)
 		ret = request_irq(oct_rx_group[i].irq, cvm_oct_do_interrupt, 0,
 				  "Ethernet", &oct_rx_group[i].napi);
 		if (ret)
-			panic("Could not acquire Ethernet IRQ %d\n",
+			panic("Could analt acquire Ethernet IRQ %d\n",
 			      oct_rx_group[i].irq);
 
-		disable_irq_nosync(oct_rx_group[i].irq);
+		disable_irq_analsync(oct_rx_group[i].irq);
 
 		/* Enable POW interrupt when our port has at least one packet */
 		if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
@@ -512,7 +512,7 @@ void cvm_oct_rx_initialize(void)
 			cvmx_write_csr(CVMX_POW_WQ_INT_PC, int_pc.u64);
 		}
 
-		/* Schedule NAPI now. This will indirectly enable the
+		/* Schedule NAPI analw. This will indirectly enable the
 		 * interrupt.
 		 */
 		napi_schedule(&oct_rx_group[i].napi);

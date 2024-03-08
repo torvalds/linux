@@ -6,7 +6,7 @@
  *
  *  Serial driver for BCM63xx integrated UART.
  *
- * Hardware flow control was _not_ tested since I only have RX/TX on
+ * Hardware flow control was _analt_ tested since I only have RX/TX on
  * my board.
  */
 
@@ -36,7 +36,7 @@ static struct uart_port ports[BCM63XX_NR_UARTS];
  * mask:
  *  - rx fifo full
  *  - rx fifo above threshold
- *  - rx fifo not empty for too long
+ *  - rx fifo analt empty for too long
  */
 #define UART_RX_INT_MASK	(UART_IR_MASK(UART_IR_RXOVER) |		\
 				UART_IR_MASK(UART_IR_RXTHRESH) |	\
@@ -229,7 +229,7 @@ static void bcm_uart_do_rx(struct uart_port *port)
 	struct tty_port *tty_port = &port->state->port;
 	unsigned int max_count;
 
-	/* limit number of char read in interrupt, should not be
+	/* limit number of char read in interrupt, should analt be
 	 * higher than fifo size anyway since we're much faster than
 	 * serial port */
 	max_count = 32;
@@ -254,12 +254,12 @@ static void bcm_uart_do_rx(struct uart_port *port)
 			tty_insert_flip_char(tty_port, 0, TTY_OVERRUN);
 		}
 
-		if (!(iestat & UART_IR_STAT(UART_IR_RXNOTEMPTY)))
+		if (!(iestat & UART_IR_STAT(UART_IR_RXANALTEMPTY)))
 			break;
 
 		cstat = c = bcm_uart_readl(port, UART_FIFO_REG);
 		port->icount.rx++;
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		c &= 0xff;
 
 		if (unlikely((cstat & UART_FIFO_ANYERR_MASK))) {
@@ -289,7 +289,7 @@ static void bcm_uart_do_rx(struct uart_port *port)
 			continue;
 
 
-		if ((cstat & port->ignore_status_mask) == 0)
+		if ((cstat & port->iganalre_status_mask) == 0)
 			tty_insert_flip_char(tty_port, c, flag);
 
 	} while (--max_count);
@@ -317,7 +317,7 @@ static void bcm_uart_do_tx(struct uart_port *port)
 	if (pending)
 		return;
 
-	/* nothing to send, disable transmit interrupt */
+	/* analthing to send, disable transmit interrupt */
 	val = bcm_uart_readl(port, UART_IR_REG);
 	val &= ~UART_TX_INT_MASK;
 	bcm_uart_writel(port, val, UART_IR_REG);
@@ -430,8 +430,8 @@ static int bcm_uart_startup(struct uart_port *port)
 
 	/* report any edge on dcd and cts */
 	val = UART_EXTINP_INT_MASK;
-	val |= UART_EXTINP_DCD_NOSENSE_MASK;
-	val |= UART_EXTINP_CTS_NOSENSE_MASK;
+	val |= UART_EXTINP_DCD_ANALSENSE_MASK;
+	val |= UART_EXTINP_CTS_ANALSENSE_MASK;
 	bcm_uart_writel(port, val, UART_EXTINP_REG);
 
 	/* register irq and enable rx interrupts */
@@ -527,7 +527,7 @@ static void bcm_uart_set_termios(struct uart_port *port, struct ktermios *new,
 
 	bcm_uart_writel(port, ier, UART_IR_REG);
 
-	/* update read/ignore mask */
+	/* update read/iganalre mask */
 	port->read_status_mask = UART_FIFO_VALID_MASK;
 	if (new->c_iflag & INPCK) {
 		port->read_status_mask |= UART_FIFO_FRAMEERR_MASK;
@@ -536,13 +536,13 @@ static void bcm_uart_set_termios(struct uart_port *port, struct ktermios *new,
 	if (new->c_iflag & (IGNBRK | BRKINT))
 		port->read_status_mask |= UART_FIFO_BRKDET_MASK;
 
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 	if (new->c_iflag & IGNPAR)
-		port->ignore_status_mask |= UART_FIFO_PARERR_MASK;
+		port->iganalre_status_mask |= UART_FIFO_PARERR_MASK;
 	if (new->c_iflag & IGNBRK)
-		port->ignore_status_mask |= UART_FIFO_BRKDET_MASK;
+		port->iganalre_status_mask |= UART_FIFO_BRKDET_MASK;
 	if (!(new->c_cflag & CREAD))
-		port->ignore_status_mask |= UART_FIFO_VALID_MASK;
+		port->iganalre_status_mask |= UART_FIFO_VALID_MASK;
 
 	uart_update_timeout(port, new->c_cflag, baud);
 	bcm_uart_enable(port);
@@ -563,7 +563,7 @@ static int bcm_uart_request_port(struct uart_port *port)
  */
 static void bcm_uart_release_port(struct uart_port *port)
 {
-	/* Nothing to release ... */
+	/* Analthing to release ... */
 }
 
 /*
@@ -614,8 +614,8 @@ static int bcm_uart_poll_get_char(struct uart_port *port)
 	unsigned int iestat;
 
 	iestat = bcm_uart_readl(port, UART_IR_REG);
-	if (!(iestat & UART_IR_STAT(UART_IR_RXNOTEMPTY)))
-		return NO_POLL_CHAR;
+	if (!(iestat & UART_IR_STAT(UART_IR_RXANALTEMPTY)))
+		return ANAL_POLL_CHAR;
 
 	return bcm_uart_readl(port, UART_FIFO_REG);
 }
@@ -745,7 +745,7 @@ static int bcm_console_setup(struct console *co, char *options)
 		return -EINVAL;
 	port = &ports[co->index];
 	if (!port->membase)
-		return -ENODEV;
+		return -EANALDEV;
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 
@@ -784,7 +784,7 @@ static int __init bcm_early_console_setup(struct earlycon_device *device,
 					  const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = bcm_early_write;
 	return 0;
@@ -802,7 +802,7 @@ static struct uart_driver bcm_uart_driver = {
 	.driver_name	= "bcm63xx_uart",
 	.dev_name	= "ttyS",
 	.major		= TTY_MAJOR,
-	.minor		= 64,
+	.mianalr		= 64,
 	.nr		= BCM63XX_NR_UARTS,
 	.cons		= BCM63XX_CONSOLE,
 };
@@ -817,11 +817,11 @@ static int bcm_uart_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int ret;
 
-	if (pdev->dev.of_node) {
-		pdev->id = of_alias_get_id(pdev->dev.of_node, "serial");
+	if (pdev->dev.of_analde) {
+		pdev->id = of_alias_get_id(pdev->dev.of_analde, "serial");
 
 		if (pdev->id < 0)
-			pdev->id = of_alias_get_id(pdev->dev.of_node, "uart");
+			pdev->id = of_alias_get_id(pdev->dev.of_analde, "uart");
 	}
 
 	if (pdev->id < 0 || pdev->id >= BCM63XX_NR_UARTS)
@@ -843,11 +843,11 @@ static int bcm_uart_probe(struct platform_device *pdev)
 	port->irq = ret;
 
 	clk = clk_get(&pdev->dev, "refclk");
-	if (IS_ERR(clk) && pdev->dev.of_node)
-		clk = of_clk_get(pdev->dev.of_node, 0);
+	if (IS_ERR(clk) && pdev->dev.of_analde)
+		clk = of_clk_get(pdev->dev.of_analde, 0);
 
 	if (IS_ERR(clk))
-		return -ENODEV;
+		return -EANALDEV;
 
 	port->iotype = UPIO_MEM;
 	port->ops = &bcm_uart_ops;

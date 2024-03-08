@@ -29,7 +29,7 @@
 extern const struct qed_common_ops qed_common_ops_pass;
 
 #define STORM_FW_VERSION				       \
-	((FW_MAJOR_VERSION << 24) | (FW_MINOR_VERSION << 16) | \
+	((FW_MAJOR_VERSION << 24) | (FW_MIANALR_VERSION << 16) | \
 	 (FW_REVISION_VERSION << 8) | FW_ENGINEERING_VERSION)
 
 #define MAX_HWFNS_PER_DEVICE    (4)
@@ -187,7 +187,7 @@ struct qed_tunn_update_params {
 	u8		tunn_clss_ipgre;
 };
 
-/* The PCI personality is not quite synonymous to protocol ID:
+/* The PCI personality is analt quite syanalnymous to protocol ID:
  * 1. All personalities need CORE connections
  * 2. The Ethernet personality may support also the RoCE/iWARP protocol
  */
@@ -251,7 +251,7 @@ enum qed_dev_cap {
 };
 
 enum qed_wol_support {
-	QED_WOL_SUPPORT_NONE,
+	QED_WOL_SUPPORT_ANALNE,
 	QED_WOL_SUPPORT_PME,
 };
 
@@ -315,7 +315,7 @@ struct qed_hw_info {
 	u32				part_num[4];
 
 	unsigned char			hw_mac_addr[ETH_ALEN];
-	u64				node_wwn;
+	u64				analde_wwn;
 	u64				port_wwn;
 
 	u16				num_fcoe_conns;
@@ -440,7 +440,7 @@ enum qed_mf_mode_bit {
 	QED_MF_NEED_DEF_PF,
 
 	/* Allow LL2 to multicast/broadcast */
-	QED_MF_LL2_NON_UNICAST,
+	QED_MF_LL2_ANALN_UNICAST,
 
 	/* Allow Cross-PF [& child VFs] Tx-switching */
 	QED_MF_INTER_PF_SWITCH,
@@ -460,20 +460,20 @@ enum qed_mf_mode_bit {
 	/* Allow DSCP to TC mapping */
 	QED_MF_DSCP_TO_TC_MAP,
 
-	/* Do not insert a vlan tag with id 0 */
+	/* Do analt insert a vlan tag with id 0 */
 	QED_MF_DONT_ADD_VLAN0_TAG,
 };
 
 enum qed_ufp_mode {
 	QED_UFP_MODE_ETS,
 	QED_UFP_MODE_VNIC_BW,
-	QED_UFP_MODE_UNKNOWN
+	QED_UFP_MODE_UNKANALWN
 };
 
 enum qed_ufp_pri_type {
 	QED_UFP_PRI_OS,
 	QED_UFP_PRI_VNIC,
-	QED_UFP_PRI_UNKNOWN
+	QED_UFP_PRI_UNKANALWN
 };
 
 struct qed_ufp_info {
@@ -594,7 +594,7 @@ struct qed_hwfn {
 
 	struct qed_cxt_mngr		*p_cxt_mngr;
 
-	/* Flag indicating whether interrupts are enabled or not*/
+	/* Flag indicating whether interrupts are enabled or analt*/
 	bool				b_int_enabled;
 	bool				b_int_requested;
 
@@ -631,8 +631,8 @@ struct qed_hwfn {
 	u32 dpi_start_offset;
 
 	/* If one of the following is set then EDPM shouldn't be used */
-	u8 dcbx_no_edpm;
-	u8 db_bar_no_edpm;
+	u8 dcbx_anal_edpm;
+	u8 db_bar_anal_edpm;
 
 	/* L2-related */
 	struct qed_l2_info *p_l2_info;

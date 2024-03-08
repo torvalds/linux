@@ -44,7 +44,7 @@ static uint8_t as102_fe_get_code_rate(enum fe_code_rate arg)
 		c = CODE_RATE_7_8;
 		break;
 	default:
-		c = CODE_RATE_UNKNOWN;
+		c = CODE_RATE_UNKANALWN;
 		break;
 	}
 
@@ -92,7 +92,7 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe)
 		break;
 	case GUARD_INTERVAL_AUTO:
 	default:
-		tune_args.guard_interval = GUARD_UNKNOWN;
+		tune_args.guard_interval = GUARD_UNKANALWN;
 		break;
 	}
 
@@ -107,7 +107,7 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe)
 		tune_args.modulation = CONST_QAM64;
 		break;
 	default:
-		tune_args.modulation = CONST_UNKNOWN;
+		tune_args.modulation = CONST_UNKANALWN;
 		break;
 	}
 
@@ -119,12 +119,12 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe)
 		tune_args.transmission_mode = TRANS_MODE_8K;
 		break;
 	default:
-		tune_args.transmission_mode = TRANS_MODE_UNKNOWN;
+		tune_args.transmission_mode = TRANS_MODE_UNKANALWN;
 	}
 
 	switch (c->hierarchy) {
-	case HIERARCHY_NONE:
-		tune_args.hierarchy = HIER_NONE;
+	case HIERARCHY_ANALNE:
+		tune_args.hierarchy = HIER_ANALNE;
 		break;
 	case HIERARCHY_1:
 		tune_args.hierarchy = HIER_ALPHA_1;
@@ -136,7 +136,7 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe)
 		tune_args.hierarchy = HIER_ALPHA_4;
 		break;
 	case HIERARCHY_AUTO:
-		tune_args.hierarchy = HIER_UNKNOWN;
+		tune_args.hierarchy = HIER_UNKANALWN;
 		break;
 	}
 
@@ -147,19 +147,19 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe)
 
 	/*
 	 * Detect a hierarchy selection
-	 * if HP/LP are both set to FEC_NONE, HP will be selected.
+	 * if HP/LP are both set to FEC_ANALNE, HP will be selected.
 	 */
-	if ((tune_args.hierarchy != HIER_NONE) &&
-		       ((c->code_rate_LP == FEC_NONE) ||
-			(c->code_rate_HP == FEC_NONE))) {
+	if ((tune_args.hierarchy != HIER_ANALNE) &&
+		       ((c->code_rate_LP == FEC_ANALNE) ||
+			(c->code_rate_HP == FEC_ANALNE))) {
 
-		if (c->code_rate_LP == FEC_NONE) {
+		if (c->code_rate_LP == FEC_ANALNE) {
 			tune_args.hier_select = HIER_HIGH_PRIORITY;
 			tune_args.code_rate =
 			   as102_fe_get_code_rate(c->code_rate_HP);
 		}
 
-		if (c->code_rate_HP == FEC_NONE) {
+		if (c->code_rate_HP == FEC_ANALNE) {
 			tune_args.hier_select = HIER_LOW_PRIORITY;
 			tune_args.code_rate =
 			   as102_fe_get_code_rate(c->code_rate_LP);
@@ -208,8 +208,8 @@ static int as102_fe_get_frontend(struct dvb_frontend *fe,
 
 	/* extract hierarchy */
 	switch (tps.hierarchy) {
-	case HIER_NONE:
-		c->hierarchy = HIERARCHY_NONE;
+	case HIER_ANALNE:
+		c->hierarchy = HIERARCHY_ANALNE;
 		break;
 	case HIER_ALPHA_1:
 		c->hierarchy = HIERARCHY_1;
@@ -325,7 +325,7 @@ static int as102_fe_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			  FE_HAS_LOCK | FE_HAS_VITERBI;
 		break;
 	default:
-		*status = TUNE_STATUS_NOT_TUNED;
+		*status = TUNE_STATUS_ANALT_TUNED;
 	}
 
 	pr_debug("as102: tuner status: 0x%02x, strength %d, per: %d, ber: %d\n",
@@ -345,9 +345,9 @@ static int as102_fe_read_status(struct dvb_frontend *fe, enum fe_status *status)
 }
 
 /*
- * Note:
+ * Analte:
  * - in AS102 SNR=MER
- *   - the SNR will be returned in linear terms, i.e. not in dB
+ *   - the SNR will be returned in linear terms, i.e. analt in dB
  *   - the accuracy equals ±2dB for a SNR range from 4dB to 30dB
  *   - the accuracy is >2dB for SNR values outside this range
  */

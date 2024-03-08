@@ -23,7 +23,7 @@ module_param(verbose, int, 0644);
 #define MAX_XFER_SIZE  64
 
 #define FE_ERROR		0
-#define FE_NOTICE		1
+#define FE_ANALTICE		1
 #define FE_INFO			2
 #define FE_DEBUG		3
 
@@ -31,8 +31,8 @@ module_param(verbose, int, 0644);
 	if (z) {									\
 		if	((x > FE_ERROR) && (x > y))					\
 			printk(KERN_ERR "%s: " format "\n", __func__ , ##arg);		\
-		else if	((x > FE_NOTICE) && (x > y))					\
-			printk(KERN_NOTICE "%s: " format "\n", __func__ , ##arg);	\
+		else if	((x > FE_ANALTICE) && (x > y))					\
+			printk(KERN_ANALTICE "%s: " format "\n", __func__ , ##arg);	\
 		else if ((x > FE_INFO) && (x > y))					\
 			printk(KERN_INFO "%s: " format "\n", __func__ , ##arg);		\
 		else if ((x > FE_DEBUG) && (x > y))					\
@@ -84,7 +84,7 @@ static const char *stb6100_regnames[] = {
 	[STB6100_TEST3]		= "TEST3",
 };
 
-/* Template for normalisation, i.e. setting unused or undocumented
+/* Template for analrmalisation, i.e. setting unused or undocumented
  * bits as required according to the documentation.
  */
 struct stb6100_regmask {
@@ -110,7 +110,7 @@ static const struct stb6100_regmask stb6100_template[] = {
 /*
  * Currently unused. Some boards might need it in the future
  */
-static __always_unused inline void stb6100_normalise_regs(u8 regs[])
+static __always_unused inline void stb6100_analrmalise_regs(u8 regs[])
 {
 	int i;
 
@@ -284,13 +284,13 @@ static int stb6100_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
 	if (rc < 0)
 		return rc;
 
-	msleep(5);  /*  This is dangerous as another (related) thread may start */
+	msleep(5);  /*  This is dangerous as aanalther (related) thread may start */
 
 	rc = stb6100_write_reg(state, STB6100_FCCK, 0x0d);
 	if (rc < 0)
 		return rc;
 
-	msleep(10);  /*  This is dangerous as another (related) thread may start */
+	msleep(10);  /*  This is dangerous as aanalther (related) thread may start */
 
 	return 0;
 }
@@ -460,7 +460,7 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	if (rc < 0)
 		return rc;
 
-	msleep(10);  /*  This is dangerous as another (related) thread may start */ /* wait for LO to lock */
+	msleep(10);  /*  This is dangerous as aanalther (related) thread may start */ /* wait for LO to lock */
 
 	regs[STB6100_VCO] &= ~STB6100_VCO_OSCH;		/* vco search disabled		*/
 	regs[STB6100_VCO] |= STB6100_VCO_OCK;		/* search clock off		*/
@@ -472,8 +472,8 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	if (rc < 0)
 		return rc;  /* Stop LPF calibration */
 
-	msleep(10);  /*  This is dangerous as another (related) thread may start */
-		     /* wait for stabilisation, (should not be necessary)		*/
+	msleep(10);  /*  This is dangerous as aanalther (related) thread may start */
+		     /* wait for stabilisation, (should analt be necessary)		*/
 	return 0;
 }
 

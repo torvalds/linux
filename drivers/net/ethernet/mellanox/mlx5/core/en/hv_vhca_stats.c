@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2018 Mellanox Technologies
+// Copyright (c) 2018 Mellaanalx Techanallogies
 
 #include "en.h"
 #include "en/hv_vhca_stats.h"

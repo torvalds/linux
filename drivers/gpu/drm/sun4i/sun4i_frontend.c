@@ -439,7 +439,7 @@ int sun4i_frontend_update_formats(struct sun4i_frontend *frontend,
 	}
 
 	/*
-	 * I have no idea what this does exactly, but it seems to be
+	 * I have anal idea what this does exactly, but it seems to be
 	 * related to the scaler FIR filter phase parameters.
 	 */
 	ch1_phase_idx = (format->num_planes > 1) ? 1 : 0;
@@ -564,15 +564,15 @@ static int sun4i_frontend_bind(struct device *dev, struct device *master,
 
 	frontend = devm_kzalloc(dev, sizeof(*frontend), GFP_KERNEL);
 	if (!frontend)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, frontend);
 	frontend->dev = dev;
-	frontend->node = dev->of_node;
+	frontend->analde = dev->of_analde;
 
 	frontend->data = of_device_get_match_data(dev);
 	if (!frontend->data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))

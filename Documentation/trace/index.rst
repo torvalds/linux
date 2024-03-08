@@ -1,5 +1,5 @@
 ==========================
-Linux Tracing Technologies
+Linux Tracing Techanallogies
 ==========================
 
 .. toctree::
@@ -25,7 +25,7 @@ Linux Tracing Technologies
    histogram-design
    boottime-trace
    hwlat_detector
-   osnoise-tracer
+   osanalise-tracer
    timerlat-tracer
    intel_th
    ring-buffer-design

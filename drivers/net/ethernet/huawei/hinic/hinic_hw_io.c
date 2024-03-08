@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/semaphore.h>
 #include <linux/dma-mapping.h>
@@ -69,7 +69,7 @@ static void __iomem *get_db_area(struct hinic_func_to_io *func_to_io)
 	if (free_db_area->num_free < 0) {
 		free_db_area->num_free++;
 		up(&free_db_area->idx_lock);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	pos = free_db_area->alloc_pos++;
@@ -381,26 +381,26 @@ int hinic_io_create_qps(struct hinic_func_to_io *func_to_io,
 	func_to_io->qps = devm_kcalloc(&pdev->dev, num_qps,
 				       sizeof(*func_to_io->qps), GFP_KERNEL);
 	if (!func_to_io->qps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	func_to_io->sq_wq = devm_kcalloc(&pdev->dev, num_qps,
 					 sizeof(*func_to_io->sq_wq), GFP_KERNEL);
 	if (!func_to_io->sq_wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_sq_wq;
 	}
 
 	func_to_io->rq_wq = devm_kcalloc(&pdev->dev, num_qps,
 					 sizeof(*func_to_io->rq_wq), GFP_KERNEL);
 	if (!func_to_io->rq_wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_rq_wq;
 	}
 
 	func_to_io->sq_db = devm_kcalloc(&pdev->dev, num_qps,
 					 sizeof(*func_to_io->sq_db), GFP_KERNEL);
 	if (!func_to_io->sq_db) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_sq_db;
 	}
 
@@ -409,7 +409,7 @@ int hinic_io_create_qps(struct hinic_func_to_io *func_to_io,
 					  GFP_KERNEL);
 	if (!ci_addr_base) {
 		dev_err(&pdev->dev, "Failed to allocate CI area\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_ci_base;
 	}
 
@@ -556,7 +556,7 @@ int hinic_io_init(struct hinic_func_to_io *func_to_io,
 	func_to_io->db_base = pci_ioremap_bar(pdev, HINIC_PCI_DB_BAR);
 	if (!func_to_io->db_base) {
 		dev_err(&pdev->dev, "Failed to remap IO DB area\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_db_ioremap;
 	}
 

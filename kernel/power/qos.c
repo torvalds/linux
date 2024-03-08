@@ -12,7 +12,7 @@
  * entities depending on QoS constraints to register their requests which are
  * aggregated as appropriate to produce effective constraints (target values)
  * that can be monitored by entities needing to respect them, either by polling
- * or through a built-in notification mechanism.
+ * or through a built-in analtification mechanism.
  *
  * In addition to the basic functionality, more specific interfaces for managing
  * global CPU latency QoS requests and frequency QoS requests are provided.
@@ -40,7 +40,7 @@
 #include <trace/events/power.h>
 
 /*
- * locking rule: all changes to constraints or notifiers lists
+ * locking rule: all changes to constraints or analtifiers lists
  * or pm_qos_object list and pm_qos_objects need to happen with pm_qos_lock
  * held, taken with _irqsave.  One lock to rule them all
  */
@@ -58,7 +58,7 @@ s32 pm_qos_read_value(struct pm_qos_constraints *c)
 static int pm_qos_get_value(struct pm_qos_constraints *c)
 {
 	if (plist_head_empty(&c->list))
-		return c->no_constraint_value;
+		return c->anal_constraint_value;
 
 	switch (c->type) {
 	case PM_QOS_MIN:
@@ -68,7 +68,7 @@ static int pm_qos_get_value(struct pm_qos_constraints *c)
 		return plist_last(&c->list)->prio;
 
 	default:
-		WARN(1, "Unknown PM QoS type in %s\n", __func__);
+		WARN(1, "Unkanalwn PM QoS type in %s\n", __func__);
 		return PM_QOS_DEFAULT_VALUE;
 	}
 }
@@ -81,21 +81,21 @@ static void pm_qos_set_value(struct pm_qos_constraints *c, s32 value)
 /**
  * pm_qos_update_target - Update a list of PM QoS constraint requests.
  * @c: List of PM QoS requests.
- * @node: Target list entry.
+ * @analde: Target list entry.
  * @action: Action to carry out (add, update or remove).
  * @value: New request value for the target list entry.
  *
  * Update the given list of PM QoS constraint requests, @c, by carrying an
- * @action involving the @node list entry and @value on it.
+ * @action involving the @analde list entry and @value on it.
  *
- * The recognized values of @action are PM_QOS_ADD_REQ (store @value in @node
- * and add it to the list), PM_QOS_UPDATE_REQ (remove @node from the list, store
+ * The recognized values of @action are PM_QOS_ADD_REQ (store @value in @analde
+ * and add it to the list), PM_QOS_UPDATE_REQ (remove @analde from the list, store
  * @value in it and add it to the list again), and PM_QOS_REMOVE_REQ (remove
- * @node from the list, ignore @value).
+ * @analde from the list, iganalre @value).
  *
  * Return: 1 if the aggregate constraint value has changed, 0  otherwise.
  */
-int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
+int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_analde *analde,
 			 enum pm_qos_req_action action, int value)
 {
 	int prev_value, curr_value, new_value;
@@ -111,21 +111,21 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 
 	switch (action) {
 	case PM_QOS_REMOVE_REQ:
-		plist_del(node, &c->list);
+		plist_del(analde, &c->list);
 		break;
 	case PM_QOS_UPDATE_REQ:
 		/*
 		 * To change the list, atomically remove, reinit with new value
 		 * and add, then see if the aggregate has changed.
 		 */
-		plist_del(node, &c->list);
+		plist_del(analde, &c->list);
 		fallthrough;
 	case PM_QOS_ADD_REQ:
-		plist_node_init(node, new_value);
-		plist_add(node, &c->list);
+		plist_analde_init(analde, new_value);
+		plist_add(analde, &c->list);
 		break;
 	default:
-		/* no action */
+		/* anal action */
 		;
 	}
 
@@ -139,8 +139,8 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 	if (prev_value == curr_value)
 		return 0;
 
-	if (c->notifiers)
-		blocking_notifier_call_chain(c->notifiers, curr_value, NULL);
+	if (c->analtifiers)
+		blocking_analtifier_call_chain(c->analtifiers, curr_value, NULL);
 
 	return 1;
 }
@@ -155,8 +155,8 @@ static void pm_qos_flags_remove_req(struct pm_qos_flags *pqf,
 {
 	s32 val = 0;
 
-	list_del(&req->node);
-	list_for_each_entry(req, &pqf->list, node)
+	list_del(&req->analde);
+	list_for_each_entry(req, &pqf->list, analde)
 		val |= req->flags;
 
 	pqf->effective_flags = val;
@@ -191,12 +191,12 @@ bool pm_qos_update_flags(struct pm_qos_flags *pqf,
 		fallthrough;
 	case PM_QOS_ADD_REQ:
 		req->flags = val;
-		INIT_LIST_HEAD(&req->node);
-		list_add_tail(&req->node, &pqf->list);
+		INIT_LIST_HEAD(&req->analde);
+		list_add_tail(&req->analde, &pqf->list);
 		pqf->effective_flags |= val;
 		break;
 	default:
-		/* no action */
+		/* anal action */
 		;
 	}
 
@@ -216,7 +216,7 @@ static struct pm_qos_constraints cpu_latency_constraints = {
 	.list = PLIST_HEAD_INIT(cpu_latency_constraints.list),
 	.target_value = PM_QOS_CPU_LATENCY_DEFAULT_VALUE,
 	.default_value = PM_QOS_CPU_LATENCY_DEFAULT_VALUE,
-	.no_constraint_value = PM_QOS_CPU_LATENCY_DEFAULT_VALUE,
+	.anal_constraint_value = PM_QOS_CPU_LATENCY_DEFAULT_VALUE,
 	.type = PM_QOS_MIN,
 };
 
@@ -249,7 +249,7 @@ EXPORT_SYMBOL_GPL(cpu_latency_qos_request_active);
 static void cpu_latency_qos_apply(struct pm_qos_request *req,
 				  enum pm_qos_req_action action, s32 value)
 {
-	int ret = pm_qos_update_target(req->qos, &req->node, action, value);
+	int ret = pm_qos_update_target(req->qos, &req->analde, action, value);
 	if (ret > 0)
 		wake_up_all_idle_cpus();
 }
@@ -298,13 +298,13 @@ void cpu_latency_qos_update_request(struct pm_qos_request *req, s32 new_value)
 		return;
 
 	if (!cpu_latency_qos_request_active(req)) {
-		WARN(1, KERN_ERR "%s called for unknown object\n", __func__);
+		WARN(1, KERN_ERR "%s called for unkanalwn object\n", __func__);
 		return;
 	}
 
 	trace_pm_qos_update_request(new_value);
 
-	if (new_value == req->node.prio)
+	if (new_value == req->analde.prio)
 		return;
 
 	cpu_latency_qos_apply(req, PM_QOS_UPDATE_REQ, new_value);
@@ -324,7 +324,7 @@ void cpu_latency_qos_remove_request(struct pm_qos_request *req)
 		return;
 
 	if (!cpu_latency_qos_request_active(req)) {
-		WARN(1, KERN_ERR "%s called for unknown object\n", __func__);
+		WARN(1, KERN_ERR "%s called for unkanalwn object\n", __func__);
 		return;
 	}
 
@@ -337,13 +337,13 @@ EXPORT_SYMBOL_GPL(cpu_latency_qos_remove_request);
 
 /* User space interface to the CPU latency QoS via misc device. */
 
-static int cpu_latency_qos_open(struct inode *inode, struct file *filp)
+static int cpu_latency_qos_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct pm_qos_request *req;
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpu_latency_qos_add_request(req, PM_QOS_DEFAULT_VALUE);
 	filp->private_data = req;
@@ -351,7 +351,7 @@ static int cpu_latency_qos_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int cpu_latency_qos_release(struct inode *inode, struct file *filp)
+static int cpu_latency_qos_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct pm_qos_request *req = filp->private_data;
 
@@ -406,11 +406,11 @@ static const struct file_operations cpu_latency_qos_fops = {
 	.read = cpu_latency_qos_read,
 	.open = cpu_latency_qos_open,
 	.release = cpu_latency_qos_release,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static struct miscdevice cpu_latency_qos_miscdev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "cpu_dma_latency",
 	.fops = &cpu_latency_qos_fops,
 };
@@ -448,19 +448,19 @@ void freq_constraints_init(struct freq_constraints *qos)
 	plist_head_init(&c->list);
 	c->target_value = FREQ_QOS_MIN_DEFAULT_VALUE;
 	c->default_value = FREQ_QOS_MIN_DEFAULT_VALUE;
-	c->no_constraint_value = FREQ_QOS_MIN_DEFAULT_VALUE;
+	c->anal_constraint_value = FREQ_QOS_MIN_DEFAULT_VALUE;
 	c->type = PM_QOS_MAX;
-	c->notifiers = &qos->min_freq_notifiers;
-	BLOCKING_INIT_NOTIFIER_HEAD(c->notifiers);
+	c->analtifiers = &qos->min_freq_analtifiers;
+	BLOCKING_INIT_ANALTIFIER_HEAD(c->analtifiers);
 
 	c = &qos->max_freq;
 	plist_head_init(&c->list);
 	c->target_value = FREQ_QOS_MAX_DEFAULT_VALUE;
 	c->default_value = FREQ_QOS_MAX_DEFAULT_VALUE;
-	c->no_constraint_value = FREQ_QOS_MAX_DEFAULT_VALUE;
+	c->anal_constraint_value = FREQ_QOS_MAX_DEFAULT_VALUE;
 	c->type = PM_QOS_MIN;
-	c->notifiers = &qos->max_freq_notifiers;
-	BLOCKING_INIT_NOTIFIER_HEAD(c->notifiers);
+	c->analtifiers = &qos->max_freq_analtifiers;
+	BLOCKING_INIT_ANALTIFIER_HEAD(c->analtifiers);
 }
 
 /**
@@ -498,7 +498,7 @@ s32 freq_qos_read_value(struct freq_constraints *qos,
  * @action: Action to perform (add/update/remove).
  * @value: Value to assign to the QoS request.
  *
- * This is only meant to be called from inside pm_qos, not drivers.
+ * This is only meant to be called from inside pm_qos, analt drivers.
  */
 int freq_qos_apply(struct freq_qos_request *req,
 			  enum pm_qos_req_action action, s32 value)
@@ -507,11 +507,11 @@ int freq_qos_apply(struct freq_qos_request *req,
 
 	switch(req->type) {
 	case FREQ_QOS_MIN:
-		ret = pm_qos_update_target(&req->qos->min_freq, &req->pnode,
+		ret = pm_qos_update_target(&req->qos->min_freq, &req->panalde,
 					   action, value);
 		break;
 	case FREQ_QOS_MAX:
-		ret = pm_qos_update_target(&req->qos->max_freq, &req->pnode,
+		ret = pm_qos_update_target(&req->qos->max_freq, &req->panalde,
 					   action, value);
 		break;
 	default:
@@ -533,7 +533,7 @@ int freq_qos_apply(struct freq_qos_request *req,
  * caller needs to save that object for later use in updates and removal.
  *
  * Return 1 if the effective constraint value has changed, 0 if the effective
- * constraint value has not changed, or a negative error code on failures.
+ * constraint value has analt changed, or a negative error code on failures.
  */
 int freq_qos_add_request(struct freq_constraints *qos,
 			 struct freq_qos_request *req,
@@ -569,7 +569,7 @@ EXPORT_SYMBOL_GPL(freq_qos_add_request);
  * value for the list of requests it belongs to.
  *
  * Return 1 if the effective constraint value has changed, 0 if the effective
- * constraint value has not changed, or a negative error code on failures.
+ * constraint value has analt changed, or a negative error code on failures.
  */
 int freq_qos_update_request(struct freq_qos_request *req, s32 new_value)
 {
@@ -577,10 +577,10 @@ int freq_qos_update_request(struct freq_qos_request *req, s32 new_value)
 		return -EINVAL;
 
 	if (WARN(!freq_qos_request_active(req),
-		 "%s() called for unknown object\n", __func__))
+		 "%s() called for unkanalwn object\n", __func__))
 		return -EINVAL;
 
-	if (req->pnode.prio == new_value)
+	if (req->panalde.prio == new_value)
 		return 0;
 
 	return freq_qos_apply(req, PM_QOS_UPDATE_REQ, new_value);
@@ -595,7 +595,7 @@ EXPORT_SYMBOL_GPL(freq_qos_update_request);
  * belongs to and recompute the effective constraint value for that list.
  *
  * Return 1 if the effective constraint value has changed, 0 if the effective
- * constraint value has not changed, or a negative error code on failures.
+ * constraint value has analt changed, or a negative error code on failures.
  */
 int freq_qos_remove_request(struct freq_qos_request *req)
 {
@@ -605,7 +605,7 @@ int freq_qos_remove_request(struct freq_qos_request *req)
 		return -EINVAL;
 
 	if (WARN(!freq_qos_request_active(req),
-		 "%s() called for unknown object\n", __func__))
+		 "%s() called for unkanalwn object\n", __func__))
 		return -EINVAL;
 
 	ret = freq_qos_apply(req, PM_QOS_REMOVE_REQ, PM_QOS_DEFAULT_VALUE);
@@ -617,28 +617,28 @@ int freq_qos_remove_request(struct freq_qos_request *req)
 EXPORT_SYMBOL_GPL(freq_qos_remove_request);
 
 /**
- * freq_qos_add_notifier - Add frequency QoS change notifier.
- * @qos: List of requests to add the notifier to.
+ * freq_qos_add_analtifier - Add frequency QoS change analtifier.
+ * @qos: List of requests to add the analtifier to.
  * @type: Request type.
- * @notifier: Notifier block to add.
+ * @analtifier: Analtifier block to add.
  */
-int freq_qos_add_notifier(struct freq_constraints *qos,
+int freq_qos_add_analtifier(struct freq_constraints *qos,
 			  enum freq_qos_req_type type,
-			  struct notifier_block *notifier)
+			  struct analtifier_block *analtifier)
 {
 	int ret;
 
-	if (IS_ERR_OR_NULL(qos) || !notifier)
+	if (IS_ERR_OR_NULL(qos) || !analtifier)
 		return -EINVAL;
 
 	switch (type) {
 	case FREQ_QOS_MIN:
-		ret = blocking_notifier_chain_register(qos->min_freq.notifiers,
-						       notifier);
+		ret = blocking_analtifier_chain_register(qos->min_freq.analtifiers,
+						       analtifier);
 		break;
 	case FREQ_QOS_MAX:
-		ret = blocking_notifier_chain_register(qos->max_freq.notifiers,
-						       notifier);
+		ret = blocking_analtifier_chain_register(qos->max_freq.analtifiers,
+						       analtifier);
 		break;
 	default:
 		WARN_ON(1);
@@ -647,31 +647,31 @@ int freq_qos_add_notifier(struct freq_constraints *qos,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(freq_qos_add_notifier);
+EXPORT_SYMBOL_GPL(freq_qos_add_analtifier);
 
 /**
- * freq_qos_remove_notifier - Remove frequency QoS change notifier.
- * @qos: List of requests to remove the notifier from.
+ * freq_qos_remove_analtifier - Remove frequency QoS change analtifier.
+ * @qos: List of requests to remove the analtifier from.
  * @type: Request type.
- * @notifier: Notifier block to remove.
+ * @analtifier: Analtifier block to remove.
  */
-int freq_qos_remove_notifier(struct freq_constraints *qos,
+int freq_qos_remove_analtifier(struct freq_constraints *qos,
 			     enum freq_qos_req_type type,
-			     struct notifier_block *notifier)
+			     struct analtifier_block *analtifier)
 {
 	int ret;
 
-	if (IS_ERR_OR_NULL(qos) || !notifier)
+	if (IS_ERR_OR_NULL(qos) || !analtifier)
 		return -EINVAL;
 
 	switch (type) {
 	case FREQ_QOS_MIN:
-		ret = blocking_notifier_chain_unregister(qos->min_freq.notifiers,
-							 notifier);
+		ret = blocking_analtifier_chain_unregister(qos->min_freq.analtifiers,
+							 analtifier);
 		break;
 	case FREQ_QOS_MAX:
-		ret = blocking_notifier_chain_unregister(qos->max_freq.notifiers,
-							 notifier);
+		ret = blocking_analtifier_chain_unregister(qos->max_freq.analtifiers,
+							 analtifier);
 		break;
 	default:
 		WARN_ON(1);
@@ -680,4 +680,4 @@ int freq_qos_remove_notifier(struct freq_constraints *qos,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(freq_qos_remove_notifier);
+EXPORT_SYMBOL_GPL(freq_qos_remove_analtifier);

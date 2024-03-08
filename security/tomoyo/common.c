@@ -107,29 +107,29 @@ const char * const tomoyo_condition_keyword[TOMOYO_MAX_CONDITION_KEYWORD] = {
 	[TOMOYO_SYMLINK_TARGET]       = "symlink.target",
 	[TOMOYO_PATH1_UID]            = "path1.uid",
 	[TOMOYO_PATH1_GID]            = "path1.gid",
-	[TOMOYO_PATH1_INO]            = "path1.ino",
+	[TOMOYO_PATH1_IANAL]            = "path1.ianal",
 	[TOMOYO_PATH1_MAJOR]          = "path1.major",
-	[TOMOYO_PATH1_MINOR]          = "path1.minor",
+	[TOMOYO_PATH1_MIANALR]          = "path1.mianalr",
 	[TOMOYO_PATH1_PERM]           = "path1.perm",
 	[TOMOYO_PATH1_TYPE]           = "path1.type",
 	[TOMOYO_PATH1_DEV_MAJOR]      = "path1.dev_major",
-	[TOMOYO_PATH1_DEV_MINOR]      = "path1.dev_minor",
+	[TOMOYO_PATH1_DEV_MIANALR]      = "path1.dev_mianalr",
 	[TOMOYO_PATH2_UID]            = "path2.uid",
 	[TOMOYO_PATH2_GID]            = "path2.gid",
-	[TOMOYO_PATH2_INO]            = "path2.ino",
+	[TOMOYO_PATH2_IANAL]            = "path2.ianal",
 	[TOMOYO_PATH2_MAJOR]          = "path2.major",
-	[TOMOYO_PATH2_MINOR]          = "path2.minor",
+	[TOMOYO_PATH2_MIANALR]          = "path2.mianalr",
 	[TOMOYO_PATH2_PERM]           = "path2.perm",
 	[TOMOYO_PATH2_TYPE]           = "path2.type",
 	[TOMOYO_PATH2_DEV_MAJOR]      = "path2.dev_major",
-	[TOMOYO_PATH2_DEV_MINOR]      = "path2.dev_minor",
+	[TOMOYO_PATH2_DEV_MIANALR]      = "path2.dev_mianalr",
 	[TOMOYO_PATH1_PARENT_UID]     = "path1.parent.uid",
 	[TOMOYO_PATH1_PARENT_GID]     = "path1.parent.gid",
-	[TOMOYO_PATH1_PARENT_INO]     = "path1.parent.ino",
+	[TOMOYO_PATH1_PARENT_IANAL]     = "path1.parent.ianal",
 	[TOMOYO_PATH1_PARENT_PERM]    = "path1.parent.perm",
 	[TOMOYO_PATH2_PARENT_UID]     = "path2.parent.uid",
 	[TOMOYO_PATH2_PARENT_GID]     = "path2.parent.gid",
-	[TOMOYO_PATH2_PARENT_INO]     = "path2.parent.ino",
+	[TOMOYO_PATH2_PARENT_IANAL]     = "path2.parent.ianal",
 	[TOMOYO_PATH2_PARENT_PERM]    = "path2.parent.perm",
 };
 
@@ -170,8 +170,8 @@ static const char * const tomoyo_category_keywords
 	[TOMOYO_MAC_CATEGORY_MISC]    = "misc",
 };
 
-/* Permit policy management by non-root user? */
-static bool tomoyo_manage_by_non_root;
+/* Permit policy management by analn-root user? */
+static bool tomoyo_manage_by_analn_root;
 
 /* Utility functions. */
 
@@ -182,7 +182,7 @@ static bool tomoyo_manage_by_non_root;
  * @len:    Size of @buffer.
  * @fmt:    The printf()'s format string, followed by parameters.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 __printf(3, 4)
 static void tomoyo_addprintf(char *buffer, int len, const char *fmt, ...)
@@ -244,8 +244,8 @@ static bool tomoyo_flush(struct tomoyo_io_buffer *head)
  * @head:   Pointer to "struct tomoyo_io_buffer".
  * @string: String to print.
  *
- * Note that @string has to be kept valid until @head is kfree()d.
- * This means that char[] allocated on stack memory cannot be passed to
+ * Analte that @string has to be kept valid until @head is kfree()d.
+ * This means that char[] allocated on stack memory cananalt be passed to
  * this function. Use tomoyo_io_printf() for char[] allocated on stack memory.
  */
 static void tomoyo_set_string(struct tomoyo_io_buffer *head, const char *string)
@@ -292,7 +292,7 @@ static void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt,
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void tomoyo_set_space(struct tomoyo_io_buffer *head)
 {
@@ -304,7 +304,7 @@ static void tomoyo_set_space(struct tomoyo_io_buffer *head)
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static bool tomoyo_set_lf(struct tomoyo_io_buffer *head)
 {
@@ -317,7 +317,7 @@ static bool tomoyo_set_lf(struct tomoyo_io_buffer *head)
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void tomoyo_set_slash(struct tomoyo_io_buffer *head)
 {
@@ -334,7 +334,7 @@ static bool tomoyo_namespace_enabled;
  *
  * @ns: Pointer to "struct tomoyo_policy_namespace".
  *
- * Returns nothing.
+ * Returns analthing.
  */
 void tomoyo_init_policy_namespace(struct tomoyo_policy_namespace *ns)
 {
@@ -356,7 +356,7 @@ void tomoyo_init_policy_namespace(struct tomoyo_policy_namespace *ns)
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void tomoyo_print_namespace(struct tomoyo_io_buffer *head)
 {
@@ -393,7 +393,7 @@ static void tomoyo_print_name_union(struct tomoyo_io_buffer *head,
  * @head: Pointer to "struct tomoyo_io_buffer".
  * @ptr:  Pointer to "struct tomoyo_name_union".
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void tomoyo_print_name_union_quoted(struct tomoyo_io_buffer *head,
 					   const struct tomoyo_name_union *ptr)
@@ -409,14 +409,14 @@ static void tomoyo_print_name_union_quoted(struct tomoyo_io_buffer *head,
 }
 
 /**
- * tomoyo_print_number_union_nospace - Print a tomoyo_number_union without a space.
+ * tomoyo_print_number_union_analspace - Print a tomoyo_number_union without a space.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  * @ptr:  Pointer to "struct tomoyo_number_union".
  *
- * Returns nothing.
+ * Returns analthing.
  */
-static void tomoyo_print_number_union_nospace
+static void tomoyo_print_number_union_analspace
 (struct tomoyo_io_buffer *head, const struct tomoyo_number_union *ptr)
 {
 	if (ptr->group) {
@@ -462,13 +462,13 @@ static void tomoyo_print_number_union_nospace
  * @head: Pointer to "struct tomoyo_io_buffer".
  * @ptr:  Pointer to "struct tomoyo_number_union".
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void tomoyo_print_number_union(struct tomoyo_io_buffer *head,
 				      const struct tomoyo_number_union *ptr)
 {
 	tomoyo_set_space(head);
-	tomoyo_print_number_union_nospace(head, ptr);
+	tomoyo_print_number_union_analspace(head, ptr);
 }
 
 /**
@@ -490,7 +490,7 @@ static struct tomoyo_profile *tomoyo_assign_profile
 	ptr = ns->profile_ptr[profile];
 	if (ptr)
 		return ptr;
-	entry = kzalloc(sizeof(*entry), GFP_NOFS | __GFP_NOWARN);
+	entry = kzalloc(sizeof(*entry), GFP_ANALFS | __GFP_ANALWARN);
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
 	ptr = ns->profile_ptr[profile];
@@ -535,22 +535,22 @@ struct tomoyo_profile *tomoyo_profile(const struct tomoyo_policy_namespace *ns,
 }
 
 /**
- * tomoyo_find_yesno - Find values for specified keyword.
+ * tomoyo_find_analanal - Find values for specified keyword.
  *
  * @string: String to check.
  * @find:   Name of keyword.
  *
- * Returns 1 if "@find=yes" was found, 0 if "@find=no" was found, -1 otherwise.
+ * Returns 1 if "@find=anal" was found, 0 if "@find=anal" was found, -1 otherwise.
  */
-static s8 tomoyo_find_yesno(const char *string, const char *find)
+static s8 tomoyo_find_analanal(const char *string, const char *find)
 {
 	const char *cp = strstr(string, find);
 
 	if (cp) {
 		cp += strlen(find);
-		if (!strncmp(cp, "=yes", 4))
+		if (!strncmp(cp, "=anal", 4))
 			return 1;
-		else if (!strncmp(cp, "=no", 3))
+		else if (!strncmp(cp, "=anal", 3))
 			return 0;
 	}
 	return -1;
@@ -563,7 +563,7 @@ static s8 tomoyo_find_yesno(const char *string, const char *find)
  * @string: String to check.
  * @find:   Name of keyword.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void tomoyo_set_uint(unsigned int *i, const char *string,
 			    const char *find)
@@ -631,7 +631,7 @@ static int tomoyo_set_mode(char *name, const char *value,
 				 */
 				config = (config & ~7) | mode;
 		if (config != TOMOYO_CONFIG_USE_DEFAULT) {
-			switch (tomoyo_find_yesno(value, "grant_log")) {
+			switch (tomoyo_find_analanal(value, "grant_log")) {
 			case 1:
 				config |= TOMOYO_CONFIG_WANT_GRANT_LOG;
 				break;
@@ -639,7 +639,7 @@ static int tomoyo_set_mode(char *name, const char *value,
 				config &= ~TOMOYO_CONFIG_WANT_GRANT_LOG;
 				break;
 			}
-			switch (tomoyo_find_yesno(value, "reject_log")) {
+			switch (tomoyo_find_analanal(value, "reject_log")) {
 			case 1:
 				config |= TOMOYO_CONFIG_WANT_REJECT_LOG;
 				break;
@@ -691,7 +691,7 @@ static int tomoyo_write_profile(struct tomoyo_io_buffer *head)
 		const struct tomoyo_path_info *old_comment;
 
 		if (!new_comment)
-			return -ENOMEM;
+			return -EANALMEM;
 		spin_lock(&lock);
 		old_comment = profile->comment;
 		profile->comment = new_comment;
@@ -714,7 +714,7 @@ static int tomoyo_write_profile(struct tomoyo_io_buffer *head)
  * @head:   Pointer to "struct tomoyo_io_buffer".
  * @config: Mode for that functionality.
  *
- * Returns nothing.
+ * Returns analthing.
  *
  * Caller prints functionality's name.
  */
@@ -722,8 +722,8 @@ static void tomoyo_print_config(struct tomoyo_io_buffer *head, const u8 config)
 {
 	tomoyo_io_printf(head, "={ mode=%s grant_log=%s reject_log=%s }\n",
 			 tomoyo_mode[config & 3],
-			 str_yes_no(config & TOMOYO_CONFIG_WANT_GRANT_LOG),
-			 str_yes_no(config & TOMOYO_CONFIG_WANT_REJECT_LOG));
+			 str_anal_anal(config & TOMOYO_CONFIG_WANT_GRANT_LOG),
+			 str_anal_anal(config & TOMOYO_CONFIG_WANT_REJECT_LOG));
 }
 
 /**
@@ -731,7 +731,7 @@ static void tomoyo_print_config(struct tomoyo_io_buffer *head, const u8 config)
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void tomoyo_read_profile(struct tomoyo_io_buffer *head)
 {
@@ -859,7 +859,7 @@ static int tomoyo_update_manager_entry(const char *manager,
 		.is_delete = is_delete,
 		.list = &tomoyo_kernel_namespace.policy_list[TOMOYO_ID_MANAGER],
 	};
-	int error = is_delete ? -ENOENT : -ENOMEM;
+	int error = is_delete ? -EANALENT : -EANALMEM;
 
 	if (!tomoyo_correct_domain(manager) &&
 	    !tomoyo_correct_word(manager))
@@ -886,8 +886,8 @@ static int tomoyo_write_manager(struct tomoyo_io_buffer *head)
 {
 	char *data = head->write_buf;
 
-	if (!strcmp(data, "manage_by_non_root")) {
-		tomoyo_manage_by_non_root = !head->w.is_delete;
+	if (!strcmp(data, "manage_by_analn_root")) {
+		tomoyo_manage_by_analn_root = !head->w.is_delete;
 		return 0;
 	}
 	return tomoyo_update_manager_entry(data, head->w.is_delete);
@@ -936,7 +936,7 @@ static bool tomoyo_manager(void)
 
 	if (!tomoyo_policy_loaded)
 		return true;
-	if (!tomoyo_manage_by_non_root &&
+	if (!tomoyo_manage_by_analn_root &&
 	    (!uid_eq(task->cred->uid,  GLOBAL_ROOT_UID) ||
 	     !uid_eq(task->cred->euid, GLOBAL_ROOT_UID)))
 		return false;
@@ -957,7 +957,7 @@ static bool tomoyo_manager(void)
 		const pid_t pid = current->pid;
 
 		if (last_pid != pid) {
-			pr_warn("%s ( %s ) is not permitted to update policies.\n",
+			pr_warn("%s ( %s ) is analt permitted to update policies.\n",
 				domainname->name, exe);
 			last_pid = pid;
 		}
@@ -1011,7 +1011,7 @@ static bool tomoyo_select_domain(struct tomoyo_io_buffer *head,
 	head->w.domain = domain;
 	/* Accessing read_buf is safe because head->io_sem is held. */
 	if (!head->read_buf)
-		return true; /* Do nothing if open(O_WRONLY). */
+		return true; /* Do analthing if open(O_WRONLY). */
 	memset(&head->r, 0, sizeof(head->r));
 	head->r.print_this_domain_only = true;
 	if (domain)
@@ -1288,7 +1288,7 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 				case TOMOYO_ARGV_ENTRY:
 					tomoyo_io_printf(head,
 							 "exec.argv[%lu]%s=\"",
-							 argv->index, argv->is_not ? "!" : "");
+							 argv->index, argv->is_analt ? "!" : "");
 					tomoyo_set_string(head,
 							  argv->value->name);
 					tomoyo_set_string(head, "\"");
@@ -1299,7 +1299,7 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 							  "exec.envp[\"");
 					tomoyo_set_string(head,
 							  envp->name->name);
-					tomoyo_io_printf(head, "\"]%s=", envp->is_not ? "!" : "");
+					tomoyo_io_printf(head, "\"]%s=", envp->is_analt ? "!" : "");
 					if (envp->value) {
 						tomoyo_set_string(head, "\"");
 						tomoyo_set_string(head, envp->value->name);
@@ -1311,7 +1311,7 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 					envp++;
 					continue;
 				case TOMOYO_NUMBER_UNION:
-					tomoyo_print_number_union_nospace
+					tomoyo_print_number_union_analspace
 						(head, numbers_p++);
 					break;
 				default:
@@ -1326,7 +1326,7 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 						(head, names_p++);
 					break;
 				case TOMOYO_NUMBER_UNION:
-					tomoyo_print_number_union_nospace
+					tomoyo_print_number_union_analspace
 						(head, numbers_p++);
 					break;
 				default:
@@ -1346,8 +1346,8 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 	case 3:
 		if (cond->grant_log != TOMOYO_GRANTLOG_AUTO)
 			tomoyo_io_printf(head, " grant_log=%s",
-					 str_yes_no(cond->grant_log ==
-						    TOMOYO_GRANTLOG_YES));
+					 str_anal_anal(cond->grant_log ==
+						    TOMOYO_GRANTLOG_ANAL));
 		tomoyo_set_lf(head);
 		return true;
 	}
@@ -1360,7 +1360,7 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
  * @head:     Pointer to "struct tomoyo_io_buffer".
  * @category: Category name.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void tomoyo_set_group(struct tomoyo_io_buffer *head,
 			     const char *category)
@@ -1489,7 +1489,7 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 		tomoyo_print_name_union(head, &ptr->name);
 		tomoyo_print_number_union(head, &ptr->mode);
 		tomoyo_print_number_union(head, &ptr->major);
-		tomoyo_print_number_union(head, &ptr->minor);
+		tomoyo_print_number_union(head, &ptr->mianalr);
 	} else if (acl_type == TOMOYO_TYPE_INET_ACL) {
 		struct tomoyo_inet_acl *ptr =
 			container_of(acl, typeof(*ptr), head);
@@ -1696,7 +1696,7 @@ static void tomoyo_read_pid(struct tomoyo_io_buffer *head)
 	/* Accessing write_buf is safe because head->io_sem is held. */
 	if (!buf) {
 		head->r.eof = true;
-		return; /* Do nothing if open(O_RDONLY). */
+		return; /* Do analthing if open(O_RDONLY). */
 	}
 	if (head->r.w_pos || head->r.eof)
 		return;
@@ -1721,11 +1721,11 @@ static void tomoyo_read_pid(struct tomoyo_io_buffer *head)
 
 /* String table for domain transition control keywords. */
 static const char *tomoyo_transition_type[TOMOYO_MAX_TRANSITION_TYPE] = {
-	[TOMOYO_TRANSITION_CONTROL_NO_RESET]      = "no_reset_domain ",
+	[TOMOYO_TRANSITION_CONTROL_ANAL_RESET]      = "anal_reset_domain ",
 	[TOMOYO_TRANSITION_CONTROL_RESET]         = "reset_domain ",
-	[TOMOYO_TRANSITION_CONTROL_NO_INITIALIZE] = "no_initialize_domain ",
+	[TOMOYO_TRANSITION_CONTROL_ANAL_INITIALIZE] = "anal_initialize_domain ",
 	[TOMOYO_TRANSITION_CONTROL_INITIALIZE]    = "initialize_domain ",
-	[TOMOYO_TRANSITION_CONTROL_NO_KEEP]       = "no_keep_domain ",
+	[TOMOYO_TRANSITION_CONTROL_ANAL_KEEP]       = "anal_keep_domain ",
 	[TOMOYO_TRANSITION_CONTROL_KEEP]          = "keep_domain ",
 };
 
@@ -1934,9 +1934,9 @@ static void tomoyo_read_exception(struct tomoyo_io_buffer *head)
 	head->r.eof = true;
 }
 
-/* Wait queue for kernel -> userspace notification. */
+/* Wait queue for kernel -> userspace analtification. */
 static DECLARE_WAIT_QUEUE_HEAD(tomoyo_query_wait);
-/* Wait queue for userspace -> kernel notification. */
+/* Wait queue for userspace -> kernel analtification. */
 static DECLARE_WAIT_QUEUE_HEAD(tomoyo_answer_wait);
 
 /* Structure for query. */
@@ -1986,7 +1986,7 @@ static int tomoyo_truncate(char *str)
  * @domain: Pointer to "struct tomoyo_domain_info".
  * @header: Lines containing ACL.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void tomoyo_add_entry(struct tomoyo_domain_info *domain, char *header)
 {
@@ -2020,7 +2020,7 @@ static void tomoyo_add_entry(struct tomoyo_domain_info *domain, char *header)
 		if (symlink)
 			len += tomoyo_truncate(symlink + 1) + 1;
 	}
-	buffer = kmalloc(len, GFP_NOFS);
+	buffer = kmalloc(len, GFP_ANALFS);
 	if (!buffer)
 		return;
 	snprintf(buffer, len - 1, "%s", cp);
@@ -2030,7 +2030,7 @@ static void tomoyo_add_entry(struct tomoyo_domain_info *domain, char *header)
 		tomoyo_addprintf(buffer, len, " exec.argv[0]=%s", argv0);
 	if (symlink)
 		tomoyo_addprintf(buffer, len, "%s", symlink);
-	tomoyo_normalize_line(buffer);
+	tomoyo_analrmalize_line(buffer);
 	if (!tomoyo_write_domain2(domain->ns, &domain->acl_info_list, buffer,
 				  false))
 		tomoyo_update_stat(TOMOYO_STAT_POLICY_UPDATES);
@@ -2046,7 +2046,7 @@ static void tomoyo_add_entry(struct tomoyo_domain_info *domain, char *header)
  * Returns 0 if the supervisor decided to permit the access request which
  * violated the policy in enforcing mode, TOMOYO_RETRY_REQUEST if the
  * supervisor decided to retry the access request which violated the policy in
- * enforcing mode, 0 if it is not in enforcing mode, -EPERM otherwise.
+ * enforcing mode, 0 if it is analt in enforcing mode, -EPERM otherwise.
  */
 int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
 {
@@ -2064,7 +2064,7 @@ int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
 	va_start(args, fmt);
 	tomoyo_write_log2(r, len, fmt, args);
 	va_end(args);
-	/* Nothing more to do if granted. */
+	/* Analthing more to do if granted. */
 	if (r->granted)
 		return 0;
 	if (r->mode)
@@ -2172,17 +2172,17 @@ static struct tomoyo_domain_info *tomoyo_find_domain_by_qid
  * @file: Pointer to "struct file".
  * @wait: Pointer to "poll_table".
  *
- * Returns EPOLLIN | EPOLLRDNORM when ready to read, 0 otherwise.
+ * Returns EPOLLIN | EPOLLRDANALRM when ready to read, 0 otherwise.
  *
  * Waits for access requests which violated policy in enforcing mode.
  */
 static __poll_t tomoyo_poll_query(struct file *file, poll_table *wait)
 {
 	if (!list_empty(&tomoyo_query_list))
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	poll_wait(file, &tomoyo_query_wait, wait);
 	if (!list_empty(&tomoyo_query_list))
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	return 0;
 }
 
@@ -2216,7 +2216,7 @@ static void tomoyo_read_query(struct tomoyo_io_buffer *head)
 		head->r.query_index = 0;
 		return;
 	}
-	buf = kzalloc(len + 32, GFP_NOFS);
+	buf = kzalloc(len + 32, GFP_ANALFS);
 	if (!buf)
 		return;
 	pos = 0;
@@ -2324,7 +2324,7 @@ static time64_t tomoyo_stat_modified[TOMOYO_MAX_POLICY_STAT];
  *
  * @index: Index for policy type.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 void tomoyo_update_stat(const u8 index)
 {
@@ -2337,7 +2337,7 @@ void tomoyo_update_stat(const u8 index)
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void tomoyo_read_stat(struct tomoyo_io_buffer *head)
 {
@@ -2405,10 +2405,10 @@ static int tomoyo_write_stat(struct tomoyo_io_buffer *head)
  */
 int tomoyo_open_control(const u8 type, struct file *file)
 {
-	struct tomoyo_io_buffer *head = kzalloc(sizeof(*head), GFP_NOFS);
+	struct tomoyo_io_buffer *head = kzalloc(sizeof(*head), GFP_ANALFS);
 
 	if (!head)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&head->io_sem);
 	head->type = type;
 	switch (type) {
@@ -2461,7 +2461,7 @@ int tomoyo_open_control(const u8 type, struct file *file)
 	}
 	if (!(file->f_mode & FMODE_READ)) {
 		/*
-		 * No need to allocate read_buf since it is not opened
+		 * Anal need to allocate read_buf since it is analt opened
 		 * for reading.
 		 */
 		head->read = NULL;
@@ -2470,25 +2470,25 @@ int tomoyo_open_control(const u8 type, struct file *file)
 		/* Don't allocate read_buf for poll() access. */
 		if (!head->readbuf_size)
 			head->readbuf_size = 4096 * 2;
-		head->read_buf = kzalloc(head->readbuf_size, GFP_NOFS);
+		head->read_buf = kzalloc(head->readbuf_size, GFP_ANALFS);
 		if (!head->read_buf) {
 			kfree(head);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	if (!(file->f_mode & FMODE_WRITE)) {
 		/*
-		 * No need to allocate write_buf since it is not opened
+		 * Anal need to allocate write_buf since it is analt opened
 		 * for writing.
 		 */
 		head->write = NULL;
 	} else if (head->write) {
 		head->writebuf_size = 4096 * 2;
-		head->write_buf = kzalloc(head->writebuf_size, GFP_NOFS);
+		head->write_buf = kzalloc(head->writebuf_size, GFP_ANALFS);
 		if (!head->write_buf) {
 			kfree(head->read_buf);
 			kfree(head);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	/*
@@ -2500,7 +2500,7 @@ int tomoyo_open_control(const u8 type, struct file *file)
 	if (type == TOMOYO_QUERY)
 		atomic_inc(&tomoyo_query_observers);
 	file->private_data = head;
-	tomoyo_notify_gc(head, true);
+	tomoyo_analtify_gc(head, true);
 	return 0;
 }
 
@@ -2510,16 +2510,16 @@ int tomoyo_open_control(const u8 type, struct file *file)
  * @file: Pointer to "struct file".
  * @wait: Pointer to "poll_table". Maybe NULL.
  *
- * Returns EPOLLIN | EPOLLRDNORM | EPOLLOUT | EPOLLWRNORM if ready to read/write,
- * EPOLLOUT | EPOLLWRNORM otherwise.
+ * Returns EPOLLIN | EPOLLRDANALRM | EPOLLOUT | EPOLLWRANALRM if ready to read/write,
+ * EPOLLOUT | EPOLLWRANALRM otherwise.
  */
 __poll_t tomoyo_poll_control(struct file *file, poll_table *wait)
 {
 	struct tomoyo_io_buffer *head = file->private_data;
 
 	if (head->poll)
-		return head->poll(file, wait) | EPOLLOUT | EPOLLWRNORM;
-	return EPOLLIN | EPOLLRDNORM | EPOLLOUT | EPOLLWRNORM;
+		return head->poll(file, wait) | EPOLLOUT | EPOLLWRANALRM;
+	return EPOLLIN | EPOLLRDANALRM | EPOLLOUT | EPOLLWRANALRM;
 }
 
 /**
@@ -2527,7 +2527,7 @@ __poll_t tomoyo_poll_control(struct file *file, poll_table *wait)
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static inline void tomoyo_set_namespace_cursor(struct tomoyo_io_buffer *head)
 {
@@ -2629,7 +2629,7 @@ static int tomoyo_parse_policy(struct tomoyo_io_buffer *head, char *line)
 			head->w.ns = &tomoyo_kernel_namespace;
 		/* Don't allow updating if namespace is invalid. */
 		if (!head->w.ns)
-			return -ENOENT;
+			return -EANALENT;
 	}
 	/* Do the update. */
 	return head->write(head);
@@ -2665,10 +2665,10 @@ ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
 
 		if (head->w.avail >= head->writebuf_size - 1) {
 			const int len = head->writebuf_size * 2;
-			char *cp = kzalloc(len, GFP_NOFS);
+			char *cp = kzalloc(len, GFP_ANALFS);
 
 			if (!cp) {
-				error = -ENOMEM;
+				error = -EANALMEM;
 				break;
 			}
 			memmove(cp, cp0, head->w.avail);
@@ -2688,17 +2688,17 @@ ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
 			continue;
 		cp0[head->w.avail - 1] = '\0';
 		head->w.avail = 0;
-		tomoyo_normalize_line(cp0);
+		tomoyo_analrmalize_line(cp0);
 		if (!strcmp(cp0, "reset")) {
 			head->w.ns = &tomoyo_kernel_namespace;
 			head->w.domain = NULL;
 			memset(&head->r, 0, sizeof(head->r));
 			continue;
 		}
-		/* Don't allow updating policies by non manager programs. */
+		/* Don't allow updating policies by analn manager programs. */
 		switch (head->type) {
 		case TOMOYO_PROCESS_STATUS:
-			/* This does not write anything. */
+			/* This does analt write anything. */
 			break;
 		case TOMOYO_DOMAINPOLICY:
 			if (tomoyo_select_domain(head, cp0))
@@ -2755,7 +2755,7 @@ void tomoyo_close_control(struct tomoyo_io_buffer *head)
 	if (head->type == TOMOYO_QUERY &&
 	    atomic_dec_and_test(&tomoyo_query_observers))
 		wake_up_all(&tomoyo_answer_wait);
-	tomoyo_notify_gc(head, false);
+	tomoyo_analtify_gc(head, false);
 }
 
 /**
@@ -2779,10 +2779,10 @@ void tomoyo_check_profile(void)
 			ns->profile_version = 20150505;
 		}
 		if (ns->profile_version != 20150505)
-			pr_err("Profile version %u is not supported.\n",
+			pr_err("Profile version %u is analt supported.\n",
 			       ns->profile_version);
 		else if (!ns->profile_ptr[profile])
-			pr_err("Profile %u (used by '%s') is not defined.\n",
+			pr_err("Profile %u (used by '%s') is analt defined.\n",
 			       profile, domain->domainname->name);
 		else
 			continue;
@@ -2797,14 +2797,14 @@ void tomoyo_check_profile(void)
 /**
  * tomoyo_load_builtin_policy - Load built-in policy.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 void __init tomoyo_load_builtin_policy(void)
 {
 #ifdef CONFIG_SECURITY_TOMOYO_INSECURE_BUILTIN_SETTING
 	static char tomoyo_builtin_profile[] __initdata =
 		"PROFILE_VERSION=20150505\n"
-		"0-CONFIG={ mode=learning grant_log=no reject_log=yes }\n";
+		"0-CONFIG={ mode=learning grant_log=anal reject_log=anal }\n";
 	static char tomoyo_builtin_exception_policy[] __initdata =
 		"aggregator proc:/self/exe /proc/self/exe\n";
 	static char tomoyo_builtin_domain_policy[] __initdata = "";
@@ -2859,7 +2859,7 @@ void __init tomoyo_load_builtin_policy(void)
 			if (!end)
 				break;
 			*end = '\0';
-			tomoyo_normalize_line(start);
+			tomoyo_analrmalize_line(start);
 			head.write_buf = start;
 			tomoyo_parse_policy(&head, start);
 			start = end + 1;

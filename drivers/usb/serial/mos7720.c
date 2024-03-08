@@ -18,7 +18,7 @@
  *	Copyright (C) 2001-2002 Greg Kroah-Hartman <greg@kroah.com>
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -177,8 +177,8 @@ static inline __u16 get_reg_value(enum mos_regs reg,
 
 /*
  * Write data byte to the specified device register.  The data is embedded in
- * the value field of the setup packet. serial_portnum is ignored for registers
- * not specific to a particular serial port.
+ * the value field of the setup packet. serial_portnum is iganalred for registers
+ * analt specific to a particular serial port.
  */
 static int write_mos_reg(struct usb_serial *serial, unsigned int serial_portnum,
 			 enum mos_regs reg, __u8 data)
@@ -200,7 +200,7 @@ static int write_mos_reg(struct usb_serial *serial, unsigned int serial_portnum,
 /*
  * Read data byte from the specified device register.  The data returned by the
  * device is embedded in the value field of the setup packet.  serial_portnum is
- * ignored for registers that are not specific to a particular serial port.
+ * iganalred for registers that are analt specific to a particular serial port.
  */
 static int read_mos_reg(struct usb_serial *serial, unsigned int serial_portnum,
 			enum mos_regs reg, __u8 *data)
@@ -217,7 +217,7 @@ static int read_mos_reg(struct usb_serial *serial, unsigned int serial_portnum,
 	buf = kmalloc(1, GFP_KERNEL);
 	if (!buf) {
 		*data = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	status = usb_control_msg(usbdev, pipe, request, requesttype, value,
@@ -258,14 +258,14 @@ static void destroy_mos_parport(struct kref *kref)
 
 /*
  * This is the common top part of all parallel port callback operations that
- * send synchronous messages to the device.  This implements convoluted locking
+ * send synchroanalus messages to the device.  This implements convoluted locking
  * that avoids two scenarios: (1) a port operation is called after usbserial
  * has called our release function, at which point struct mos7715_parport has
  * been destroyed, and (2) the device has been disconnected, but usbserial has
- * not called the release function yet because someone has a serial port open.
+ * analt called the release function yet because someone has a serial port open.
  * The shared release_lock prevents the first, and the mutex and disconnected
  * flag maintained by usbserial covers the second.  We also use the msg_pending
- * flag to ensure that all synchronous usb message calls have completed before
+ * flag to ensure that all synchroanalus usb message calls have completed before
  * our release function can return.
  */
 static int parport_prologue(struct parport *pp)
@@ -301,7 +301,7 @@ static int parport_prologue(struct parport *pp)
 
 /*
  * This is the common bottom part of all parallel port functions that send
- * synchronous messages to the device.
+ * synchroanalus messages to the device.
  */
 static inline void parport_epilogue(struct parport *pp)
 {
@@ -459,7 +459,7 @@ static void parport_mos7715_init_state(struct pardevice *dev,
 	s->u.pc.ecr = ECR_INIT_VAL;
 }
 
-/* N.B. Parport core code requires that this function not block */
+/* N.B. Parport core code requires that this function analt block */
 static void parport_mos7715_save_state(struct parport *pp,
 				       struct parport_state *s)
 {
@@ -476,7 +476,7 @@ static void parport_mos7715_save_state(struct parport *pp,
 	spin_unlock(&release_lock);
 }
 
-/* N.B. Parport core code requires that this function not block */
+/* N.B. Parport core code requires that this function analt block */
 static void parport_mos7715_restore_state(struct parport *pp,
 					  struct parport_state *s)
 {
@@ -557,7 +557,7 @@ static int mos7715_parport_init(struct usb_serial *serial)
 	/* allocate and initialize parallel port control struct */
 	mos_parport = kzalloc(sizeof(struct mos7715_parport), GFP_KERNEL);
 	if (!mos_parport)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mos_parport->msg_pending = false;
 	kref_init(&mos_parport->ref_count);
@@ -579,19 +579,19 @@ static int mos7715_parport_init(struct usb_serial *serial)
 		      mos_parport->shadowECR);
 
 	/* register with parport core */
-	mos_parport->pp = parport_register_port(0, PARPORT_IRQ_NONE,
-						PARPORT_DMA_NONE,
+	mos_parport->pp = parport_register_port(0, PARPORT_IRQ_ANALNE,
+						PARPORT_DMA_ANALNE,
 						&parport_mos7715_ops);
 	if (mos_parport->pp == NULL) {
 		dev_err(&serial->interface->dev,
-			"Could not register parport\n");
+			"Could analt register parport\n");
 		kref_put(&mos_parport->ref_count, destroy_mos_parport);
 		return -EIO;
 	}
 	mos_parport->pp->private_data = mos_parport;
 	mos_parport->pp->modes = PARPORT_MODE_COMPAT | PARPORT_MODE_PCSPP;
 	mos_parport->pp->dev = &serial->interface->dev;
-	parport_announce_port(mos_parport->pp);
+	parport_ananalunce_port(mos_parport->pp);
 
 	return 0;
 }
@@ -617,13 +617,13 @@ static void mos7720_interrupt_callback(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(dev, "%s - urb shutting down with status: %d\n", __func__, status);
 		return;
 	default:
-		dev_dbg(dev, "%s - nonzero urb status received: %d\n", __func__, status);
+		dev_dbg(dev, "%s - analnzero urb status received: %d\n", __func__, status);
 		goto exit;
 	}
 
@@ -648,8 +648,8 @@ static void mos7720_interrupt_callback(struct urb *urb)
 	sp2 = data[2];
 
 	if ((sp1 | sp2) & 0x01) {
-		/* No Interrupt Pending in both the ports */
-		dev_dbg(dev, "No Interrupt !!!\n");
+		/* Anal Interrupt Pending in both the ports */
+		dev_dbg(dev, "Anal Interrupt !!!\n");
 	} else {
 		switch (sp1 & 0x0f) {
 		case SERIAL_IIR_RLS:
@@ -701,14 +701,14 @@ static void mos7715_interrupt_callback(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
-	case -ENODEV:
+	case -EANALDEV:
 		/* this urb is terminated, clean up */
 		dev_dbg(dev, "%s - urb shutting down with status: %d\n", __func__, status);
 		return;
 	default:
-		dev_dbg(dev, "%s - nonzero urb status received: %d\n", __func__, status);
+		dev_dbg(dev, "%s - analnzero urb status received: %d\n", __func__, status);
 		goto exit;
 	}
 
@@ -770,7 +770,7 @@ static void mos7720_bulk_in_callback(struct urb *urb)
 	int status = urb->status;
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "nonzero read bulk status received: %d\n", status);
+		dev_dbg(&urb->dev->dev, "analnzero read bulk status received: %d\n", status);
 		return;
 	}
 
@@ -803,7 +803,7 @@ static void mos7720_bulk_out_data_callback(struct urb *urb)
 	int status = urb->status;
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "nonzero write bulk status received:%d\n", status);
+		dev_dbg(&urb->dev->dev, "analnzero write bulk status received:%d\n", status);
 		return;
 	}
 
@@ -854,7 +854,7 @@ static int mos7720_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	mos7720_port = usb_get_serial_port_data(port);
 	if (mos7720_port == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	usb_clear_halt(serial->dev, port->write_urb->pipe);
 	usb_clear_halt(serial->dev, port->read_urb->pipe);
@@ -877,7 +877,7 @@ static int mos7720_open(struct tty_struct *tty, struct usb_serial_port *port)
 	}
 
 	if (!allocated_urbs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	 /* Initialize MCS7720 -- Write Init values to corresponding Registers
 	  *
@@ -942,7 +942,7 @@ static int mos7720_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 /*
  * mos7720_chars_in_buffer
- *	this function is called by the tty driver when it wants to know how many
+ *	this function is called by the tty driver when it wants to kanalw how many
  *	bytes of data we currently have outstanding in the port (data that has
  *	been written, but hasn't made it out the port yet)
  */
@@ -986,7 +986,7 @@ static void mos7720_close(struct usb_serial_port *port)
 	}
 
 	/* While closing port, shutdown all bulk read, write  *
-	 * and interrupt read if they exists, otherwise nop   */
+	 * and interrupt read if they exists, otherwise analp   */
 	usb_kill_urb(port->write_urb);
 	usb_kill_urb(port->read_urb);
 
@@ -1007,7 +1007,7 @@ static int mos7720_break(struct tty_struct *tty, int break_state)
 
 	mos7720_port = usb_get_serial_port_data(port);
 	if (mos7720_port == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (break_state == -1)
 		data = mos7720_port->shadowLCR | UART_LCR_SBC;
@@ -1022,7 +1022,7 @@ static int mos7720_break(struct tty_struct *tty, int break_state)
 
 /*
  * mos7720_write_room
- *	this function is called by the tty driver when it wants to know how many
+ *	this function is called by the tty driver when it wants to kanalw how many
  *	bytes of data we can accept for a specific port.
  */
 static unsigned int mos7720_write_room(struct tty_struct *tty)
@@ -1060,7 +1060,7 @@ static int mos7720_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	mos7720_port = usb_get_serial_port_data(port);
 	if (mos7720_port == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* try to find a free urb in the list */
 	urb = NULL;
@@ -1075,7 +1075,7 @@ static int mos7720_write(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 
 	if (urb == NULL) {
-		dev_dbg(&port->dev, "%s - no more free urbs\n", __func__);
+		dev_dbg(&port->dev, "%s - anal more free urbs\n", __func__);
 		goto exit;
 	}
 
@@ -1083,7 +1083,7 @@ static int mos7720_write(struct tty_struct *tty, struct usb_serial_port *port,
 		urb->transfer_buffer = kmalloc(URB_TRANSFER_BUFFER_SIZE,
 					       GFP_ATOMIC);
 		if (!urb->transfer_buffer) {
-			bytes_sent = -ENOMEM;
+			bytes_sent = -EANALMEM;
 			goto exit;
 		}
 	}
@@ -1126,7 +1126,7 @@ static void mos7720_throttle(struct tty_struct *tty)
 		return;
 
 	if (!mos7720_port->open) {
-		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
+		dev_dbg(&port->dev, "%s - port analt opened\n", __func__);
 		return;
 	}
 
@@ -1156,7 +1156,7 @@ static void mos7720_unthrottle(struct tty_struct *tty)
 		return;
 
 	if (!mos7720_port->open) {
-		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
+		dev_dbg(&port->dev, "%s - port analt opened\n", __func__);
 		return;
 	}
 
@@ -1176,7 +1176,7 @@ static void mos7720_unthrottle(struct tty_struct *tty)
 	}
 }
 
-/* FIXME: this function does not work */
+/* FIXME: this function does analt work */
 static int set_higher_rates(struct moschip_port *mos7720_port,
 			    unsigned int baud)
 {
@@ -1207,7 +1207,7 @@ static int set_higher_rates(struct moschip_port *mos7720_port,
 	/***********************************************
 	 *              Set for higher rates           *
 	 ***********************************************/
-	/* writing baud rate verbatum into uart clock field clearly not right */
+	/* writing baud rate verbatum into uart clock field clearly analt right */
 	if (port_number == 0)
 		sp_reg = MOS7720_SP1_REG;
 	else
@@ -1377,12 +1377,12 @@ static void change_port_settings(struct tty_struct *tty,
 	port_number = port->port_number;
 
 	if (!mos7720_port->open) {
-		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
+		dev_dbg(&port->dev, "%s - port analt opened\n", __func__);
 		return;
 	}
 
 	lStop = 0x00;	/* 1 stop bit */
-	lParity = 0x00;	/* No parity */
+	lParity = 0x00;	/* Anal parity */
 
 	cflag = tty->termios.c_cflag;
 
@@ -1399,7 +1399,7 @@ static void change_port_settings(struct tty_struct *tty,
 		}
 
 	} else {
-		dev_dbg(&port->dev, "%s - parity = none\n", __func__);
+		dev_dbg(&port->dev, "%s - parity = analne\n", __func__);
 	}
 
 	if (cflag & CMSPAR)
@@ -1475,7 +1475,7 @@ static void change_port_settings(struct tty_struct *tty,
 
 	dev_dbg(&port->dev, "%s - baud rate = %d\n", __func__, baud);
 	status = send_cmd_write_baud_rate(mos7720_port, baud);
-	/* FIXME: needs to write actual resulting baud back not just
+	/* FIXME: needs to write actual resulting baud back analt just
 	   blindly do so */
 	if (cflag & CBAUD)
 		tty_encode_baud_rate(tty, baud, baud);
@@ -1507,7 +1507,7 @@ static void mos7720_set_termios(struct tty_struct *tty,
 		return;
 
 	if (!mos7720_port->open) {
-		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
+		dev_dbg(&port->dev, "%s - port analt opened\n", __func__);
 		return;
 	}
 
@@ -1527,7 +1527,7 @@ static void mos7720_set_termios(struct tty_struct *tty,
  * Purpose: Let user call ioctl() to get info when the UART physically
  * 	    is emptied.  On bus types like RS485, the transmitter must
  * 	    release the bus after transmitting. This must be done when
- * 	    the transmit shift register is empty, not be done when the
+ * 	    the transmit shift register is empty, analt be done when the
  * 	    transmit holding register is empty.  This functionality
  * 	    allows an RS485 driver to be written in user space.
  */
@@ -1613,7 +1613,7 @@ static int mos7720_ioctl(struct tty_struct *tty,
 
 	mos7720_port = usb_get_serial_port_data(port);
 	if (mos7720_port == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (cmd) {
 	case TIOCSERGETLSR:
@@ -1622,7 +1622,7 @@ static int mos7720_ioctl(struct tty_struct *tty,
 					(unsigned int __user *)arg);
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 static int mos7720_startup(struct usb_serial *serial)
@@ -1677,14 +1677,14 @@ static void mos7720_release(struct usb_serial *serial)
 		mos_parport->pp->private_data = NULL;
 		spin_unlock(&release_lock);
 
-		/* wait for synchronous usb calls to return */
+		/* wait for synchroanalus usb calls to return */
 		if (mos_parport->msg_pending)
 			wait_for_completion_timeout(&mos_parport->syncmsg_compl,
 					    msecs_to_jiffies(MOS_WDR_TIMEOUT));
 		/*
 		 * If delayed work is currently scheduled, wait for it to
 		 * complete. This also implies barriers that ensure the
-		 * below serial clearing is not hoisted above the ->work.
+		 * below serial clearing is analt hoisted above the ->work.
 		 */
 		cancel_work_sync(&mos_parport->work);
 
@@ -1705,7 +1705,7 @@ static int mos7720_port_probe(struct usb_serial_port *port)
 
 	mos7720_port = kzalloc(sizeof(*mos7720_port), GFP_KERNEL);
 	if (!mos7720_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mos7720_port->port = port;
 

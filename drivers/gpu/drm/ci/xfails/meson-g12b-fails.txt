@@ -13,4 +13,4 @@ kms_plane_cursor@viewport,Fail
 kms_properties@connector-properties-atomic,Fail
 kms_properties@connector-properties-legacy,Fail
 kms_properties@get_properties-sanity-atomic,Fail
-kms_properties@get_properties-sanity-non-atomic,Fail
+kms_properties@get_properties-sanity-analn-atomic,Fail

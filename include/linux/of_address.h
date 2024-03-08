@@ -2,14 +2,14 @@
 #ifndef __OF_ADDRESS_H
 #define __OF_ADDRESS_H
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/of.h>
 #include <linux/io.h>
 
 struct of_bus;
 
 struct of_pci_range_parser {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct of_bus *bus;
 	const __be32 *range;
 	const __be32 *end;
@@ -39,90 +39,90 @@ struct of_pci_range {
  * of_range_count - Get the number of "ranges" or "dma-ranges" entries
  * @parser:	Parser state initialized by of_range_parser_init()
  *
- * Returns the number of entries or 0 if none.
+ * Returns the number of entries or 0 if analne.
  *
- * Note that calling this within or after the for_each_of_range() iterator will
+ * Analte that calling this within or after the for_each_of_range() iterator will
  * be inaccurate giving the number of entries remaining.
  */
 static inline int of_range_count(const struct of_range_parser *parser)
 {
-	if (!parser || !parser->node || !parser->range || parser->range == parser->end)
+	if (!parser || !parser->analde || !parser->range || parser->range == parser->end)
 		return 0;
 	return (parser->end - parser->range) / (parser->na + parser->pna + parser->ns);
 }
 
 /* Translate a DMA address from device space to CPU space */
-extern u64 of_translate_dma_address(struct device_node *dev,
+extern u64 of_translate_dma_address(struct device_analde *dev,
 				    const __be32 *in_addr);
-extern const __be32 *of_translate_dma_region(struct device_node *dev, const __be32 *addr,
+extern const __be32 *of_translate_dma_region(struct device_analde *dev, const __be32 *addr,
 					     phys_addr_t *start, size_t *length);
 
 #ifdef CONFIG_OF_ADDRESS
-extern u64 of_translate_address(struct device_node *np, const __be32 *addr);
-extern int of_address_to_resource(struct device_node *dev, int index,
+extern u64 of_translate_address(struct device_analde *np, const __be32 *addr);
+extern int of_address_to_resource(struct device_analde *dev, int index,
 				  struct resource *r);
-extern void __iomem *of_iomap(struct device_node *device, int index);
-void __iomem *of_io_request_and_map(struct device_node *device,
+extern void __iomem *of_iomap(struct device_analde *device, int index);
+void __iomem *of_io_request_and_map(struct device_analde *device,
 				    int index, const char *name);
 
 /* Extract an address from a device, returns the region size and
  * the address space flags too. The PCI version uses a BAR number
  * instead of an absolute index
  */
-extern const __be32 *__of_get_address(struct device_node *dev, int index, int bar_no,
+extern const __be32 *__of_get_address(struct device_analde *dev, int index, int bar_anal,
 				      u64 *size, unsigned int *flags);
 
-int of_property_read_reg(struct device_node *np, int idx, u64 *addr, u64 *size);
+int of_property_read_reg(struct device_analde *np, int idx, u64 *addr, u64 *size);
 
 extern int of_pci_range_parser_init(struct of_pci_range_parser *parser,
-			struct device_node *node);
+			struct device_analde *analde);
 extern int of_pci_dma_range_parser_init(struct of_pci_range_parser *parser,
-			struct device_node *node);
+			struct device_analde *analde);
 extern struct of_pci_range *of_pci_range_parser_one(
 					struct of_pci_range_parser *parser,
 					struct of_pci_range *range);
-extern int of_pci_address_to_resource(struct device_node *dev, int bar,
+extern int of_pci_address_to_resource(struct device_analde *dev, int bar,
 				      struct resource *r);
 extern int of_pci_range_to_resource(struct of_pci_range *range,
-				    struct device_node *np,
+				    struct device_analde *np,
 				    struct resource *res);
-extern int of_range_to_resource(struct device_node *np, int index,
+extern int of_range_to_resource(struct device_analde *np, int index,
 				struct resource *res);
-extern bool of_dma_is_coherent(struct device_node *np);
+extern bool of_dma_is_coherent(struct device_analde *np);
 #else /* CONFIG_OF_ADDRESS */
-static inline void __iomem *of_io_request_and_map(struct device_node *device,
+static inline void __iomem *of_io_request_and_map(struct device_analde *device,
 						  int index, const char *name)
 {
 	return IOMEM_ERR_PTR(-EINVAL);
 }
 
-static inline u64 of_translate_address(struct device_node *np,
+static inline u64 of_translate_address(struct device_analde *np,
 				       const __be32 *addr)
 {
 	return OF_BAD_ADDR;
 }
 
-static inline const __be32 *__of_get_address(struct device_node *dev, int index, int bar_no,
+static inline const __be32 *__of_get_address(struct device_analde *dev, int index, int bar_anal,
 					     u64 *size, unsigned int *flags)
 {
 	return NULL;
 }
 
-static inline int of_property_read_reg(struct device_node *np, int idx, u64 *addr, u64 *size)
+static inline int of_property_read_reg(struct device_analde *np, int idx, u64 *addr, u64 *size)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int of_pci_range_parser_init(struct of_pci_range_parser *parser,
-			struct device_node *node)
+			struct device_analde *analde)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int of_pci_dma_range_parser_init(struct of_pci_range_parser *parser,
-			struct device_node *node)
+			struct device_analde *analde)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline struct of_pci_range *of_pci_range_parser_one(
@@ -132,62 +132,62 @@ static inline struct of_pci_range *of_pci_range_parser_one(
 	return NULL;
 }
 
-static inline int of_pci_address_to_resource(struct device_node *dev, int bar,
+static inline int of_pci_address_to_resource(struct device_analde *dev, int bar,
 				             struct resource *r)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int of_pci_range_to_resource(struct of_pci_range *range,
-					   struct device_node *np,
+					   struct device_analde *np,
 					   struct resource *res)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
-static inline int of_range_to_resource(struct device_node *np, int index,
+static inline int of_range_to_resource(struct device_analde *np, int index,
 				       struct resource *res)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
-static inline bool of_dma_is_coherent(struct device_node *np)
+static inline bool of_dma_is_coherent(struct device_analde *np)
 {
 	return false;
 }
 #endif /* CONFIG_OF_ADDRESS */
 
 #ifdef CONFIG_OF
-extern int of_address_to_resource(struct device_node *dev, int index,
+extern int of_address_to_resource(struct device_analde *dev, int index,
 				  struct resource *r);
-void __iomem *of_iomap(struct device_node *node, int index);
+void __iomem *of_iomap(struct device_analde *analde, int index);
 #else
-static inline int of_address_to_resource(struct device_node *dev, int index,
+static inline int of_address_to_resource(struct device_analde *dev, int index,
 					 struct resource *r)
 {
 	return -EINVAL;
 }
 
-static inline void __iomem *of_iomap(struct device_node *device, int index)
+static inline void __iomem *of_iomap(struct device_analde *device, int index)
 {
 	return NULL;
 }
 #endif
 #define of_range_parser_init of_pci_range_parser_init
 
-static inline const __be32 *of_get_address(struct device_node *dev, int index,
+static inline const __be32 *of_get_address(struct device_analde *dev, int index,
 					   u64 *size, unsigned int *flags)
 {
 	return __of_get_address(dev, index, -1, size, flags);
 }
 
-static inline const __be32 *of_get_pci_address(struct device_node *dev, int bar_no,
+static inline const __be32 *of_get_pci_address(struct device_analde *dev, int bar_anal,
 					       u64 *size, unsigned int *flags)
 {
-	return __of_get_address(dev, -1, bar_no, size, flags);
+	return __of_get_address(dev, -1, bar_anal, size, flags);
 }
 
-static inline int of_address_count(struct device_node *np)
+static inline int of_address_count(struct device_analde *np)
 {
 	struct resource res;
 	int count = 0;

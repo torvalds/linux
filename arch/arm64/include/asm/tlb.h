@@ -22,7 +22,7 @@ static void tlb_flush(struct mmu_gather *tlb);
 #include <asm-generic/tlb.h>
 
 /*
- * get the tlbi levels in arm64.  Default value is TLBI_TTL_UNKNOWN if more than
+ * get the tlbi levels in arm64.  Default value is TLBI_TTL_UNKANALWN if more than
  * one of cleared_* is set or neither is set - this elides the level hinting to
  * the hardware.
  */
@@ -30,7 +30,7 @@ static inline int tlb_get_level(struct mmu_gather *tlb)
 {
 	/* The TTL field is only valid for the leaf entry. */
 	if (tlb->freed_tables)
-		return TLBI_TTL_UNKNOWN;
+		return TLBI_TTL_UNKANALWN;
 
 	if (tlb->cleared_ptes && !(tlb->cleared_pmds ||
 				   tlb->cleared_puds ||
@@ -52,7 +52,7 @@ static inline int tlb_get_level(struct mmu_gather *tlb)
 				   tlb->cleared_puds))
 		return 0;
 
-	return TLBI_TTL_UNKNOWN;
+	return TLBI_TTL_UNKANALWN;
 }
 
 static inline void tlb_flush(struct mmu_gather *tlb)

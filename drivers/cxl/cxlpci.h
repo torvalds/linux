@@ -33,7 +33,7 @@
 
 #define CXL_DVSEC_RANGE_MAX		2
 
-/* CXL 2.0 8.1.4: Non-CXL Function Map DVSEC */
+/* CXL 2.0 8.1.4: Analn-CXL Function Map DVSEC */
 #define CXL_DVSEC_FUNCTION_MAP					2
 
 /* CXL 2.0 8.1.5: CXL 2.0 Extensions DVSEC for Ports */
@@ -56,7 +56,7 @@
 #define     CXL_DVSEC_REG_LOCATOR_BLOCK_OFF_LOW_MASK		GENMASK(31, 16)
 
 /*
- * NOTE: Currently all the functions which are enabled for CXL require their
+ * ANALTE: Currently all the functions which are enabled for CXL require their
  * vectors to be in the first 16.  Use this as the default max.
  */
 #define CXL_PCI_DEFAULT_MAX_VECTORS 16

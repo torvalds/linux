@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/net_tstamp.h>
@@ -185,7 +185,7 @@ static int __ethtool_get_sset_count(struct net_device *dev, int sset)
 	if (ops->get_sset_count && ops->get_strings)
 		return ops->get_sset_count(dev, sset);
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 static void __ethtool_get_strings(struct net_device *dev,
@@ -271,7 +271,7 @@ static int ethtool_set_one_feature(struct net_device *dev,
 	mask = ethtool_get_feature_mask(ethcmd);
 	mask &= dev->hw_features;
 	if (!mask)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (edata.data)
 		dev->wanted_features |= mask;
@@ -328,7 +328,7 @@ static int __ethtool_set_flags(struct net_device *dev, u32 data)
 	/* allow changing only bits set in hw_features */
 	changed = (features ^ dev->features) & ETH_ALL_FEATURES;
 	if (changed & ~dev->hw_features)
-		return (changed & dev->hw_features) ? -EINVAL : -EOPNOTSUPP;
+		return (changed & dev->hw_features) ? -EINVAL : -EOPANALTSUPP;
 
 	dev->wanted_features =
 		(dev->wanted_features & ~changed) | (features & changed);
@@ -439,7 +439,7 @@ int __ethtool_get_link_ksettings(struct net_device *dev,
 	ASSERT_RTNL();
 
 	if (!dev->ethtool_ops->get_link_ksettings)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(link_ksettings, 0, sizeof(*link_ksettings));
 	return dev->ethtool_ops->get_link_ksettings(dev, link_ksettings);
@@ -447,7 +447,7 @@ int __ethtool_get_link_ksettings(struct net_device *dev,
 EXPORT_SYMBOL(__ethtool_get_link_ksettings);
 
 /* convert ethtool_link_usettings in user space to a kernel internal
- * ethtool_link_ksettings. return 0 on success, errno on error.
+ * ethtool_link_ksettings. return 0 on success, erranal on error.
  */
 static int load_link_ksettings_from_user(struct ethtool_link_ksettings *to,
 					 const void __user *from)
@@ -490,7 +490,7 @@ bool ethtool_virtdev_validate_cmd(const struct ethtool_link_ksettings *cmd)
 }
 
 /* convert a kernel internal ethtool_link_ksettings to
- * ethtool_link_usettings in user space. return 0 on success, errno on
+ * ethtool_link_usettings in user space. return 0 on success, erranal on
  * error.
  */
 static int
@@ -525,7 +525,7 @@ static int ethtool_get_link_ksettings(struct net_device *dev,
 
 	ASSERT_RTNL();
 	if (!dev->ethtool_ops->get_link_ksettings)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* handle bitmap nbits handshake */
 	if (copy_from_user(&link_ksettings.base, useraddr,
@@ -543,7 +543,7 @@ static int ethtool_get_link_ksettings(struct net_device *dev,
 		link_ksettings.base.link_mode_masks_nwords
 			= -((s8)__ETHTOOL_LINK_MODE_MASK_NU32);
 
-		/* copy the base fields back to user, not the link
+		/* copy the base fields back to user, analt the link
 		 * mode bitmaps
 		 */
 		if (copy_to_user(useraddr, &link_ksettings.base,
@@ -568,7 +568,7 @@ static int ethtool_get_link_ksettings(struct net_device *dev,
 		= __ETHTOOL_LINK_MODE_MASK_NU32;
 	link_ksettings.base.master_slave_cfg = MASTER_SLAVE_CFG_UNSUPPORTED;
 	link_ksettings.base.master_slave_state = MASTER_SLAVE_STATE_UNSUPPORTED;
-	link_ksettings.base.rate_matching = RATE_MATCH_NONE;
+	link_ksettings.base.rate_matching = RATE_MATCH_ANALNE;
 
 	return store_link_ksettings_for_user(useraddr, &link_ksettings);
 }
@@ -583,7 +583,7 @@ static int ethtool_set_link_ksettings(struct net_device *dev,
 	ASSERT_RTNL();
 
 	if (!dev->ethtool_ops->set_link_ksettings)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* make sure nbits field has expected value */
 	if (copy_from_user(&link_ksettings.base, useraddr,
@@ -594,7 +594,7 @@ static int ethtool_set_link_ksettings(struct net_device *dev,
 	    != link_ksettings.base.link_mode_masks_nwords)
 		return -EINVAL;
 
-	/* copy the whole structure, now that we know it has expected
+	/* copy the whole structure, analw that we kanalw it has expected
 	 * format
 	 */
 	err = load_link_ksettings_from_user(&link_ksettings, useraddr);
@@ -612,8 +612,8 @@ static int ethtool_set_link_ksettings(struct net_device *dev,
 
 	err = dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
 	if (err >= 0) {
-		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF, NULL);
-		ethtool_notify(dev, ETHTOOL_MSG_LINKMODES_NTF, NULL);
+		ethtool_analtify(dev, ETHTOOL_MSG_LINKINFO_NTF, NULL);
+		ethtool_analtify(dev, ETHTOOL_MSG_LINKMODES_NTF, NULL);
 	}
 	return err;
 }
@@ -641,8 +641,8 @@ EXPORT_SYMBOL(ethtool_virtdev_set_link_ksettings);
 
 /* Query device for its ethtool_cmd settings.
  *
- * Backward compatibility note: for compatibility with legacy ethtool, this is
- * now implemented via get_link_ksettings. When driver reports higher link mode
+ * Backward compatibility analte: for compatibility with legacy ethtool, this is
+ * analw implemented via get_link_ksettings. When driver reports higher link mode
  * bits, a kernel warning is logged once (with name of 1st driver/device) to
  * recommend user to upgrade ethtool, but the command is successful (only the
  * lower link mode bits reported back to user). Deprecated fields from
@@ -656,7 +656,7 @@ static int ethtool_get_settings(struct net_device *dev, void __user *useraddr)
 
 	ASSERT_RTNL();
 	if (!dev->ethtool_ops->get_link_ksettings)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(&link_ksettings, 0, sizeof(link_ksettings));
 	err = dev->ethtool_ops->get_link_ksettings(dev, &link_ksettings);
@@ -675,8 +675,8 @@ static int ethtool_get_settings(struct net_device *dev, void __user *useraddr)
 
 /* Update device link settings with given ethtool_cmd.
  *
- * Backward compatibility note: for compatibility with legacy ethtool, this is
- * now always implemented via set_link_settings. When user's request updates
+ * Backward compatibility analte: for compatibility with legacy ethtool, this is
+ * analw always implemented via set_link_settings. When user's request updates
  * deprecated ethtool_cmd fields (transceiver/maxrxpkt/maxtxpkt), a kernel
  * warning is logged once (with name of 1st driver/device) to recommend user to
  * upgrade ethtool, and the request is rejected.
@@ -692,7 +692,7 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 	if (copy_from_user(&cmd, useraddr, sizeof(cmd)))
 		return -EFAULT;
 	if (!dev->ethtool_ops->set_link_ksettings)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!convert_legacy_settings_to_link_ksettings(&link_ksettings, &cmd))
 		return -EINVAL;
@@ -700,8 +700,8 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 		__ETHTOOL_LINK_MODE_MASK_NU32;
 	ret = dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
 	if (ret >= 0) {
-		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF, NULL);
-		ethtool_notify(dev, ETHTOOL_MSG_LINKMODES_NTF, NULL);
+		ethtool_analtify(dev, ETHTOOL_MSG_LINKINFO_NTF, NULL);
+		ethtool_analtify(dev, ETHTOOL_MSG_LINKMODES_NTF, NULL);
 	}
 	return ret;
 }
@@ -731,7 +731,7 @@ ethtool_get_drvinfo(struct net_device *dev, struct ethtool_devlink_compat *rsp)
 		strscpy(rsp->info.driver, dev->rtnl_link_ops->kind,
 			sizeof(rsp->info.driver));
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/*
@@ -767,7 +767,7 @@ ethtool_get_drvinfo(struct net_device *dev, struct ethtool_devlink_compat *rsp)
 	return 0;
 }
 
-static noinline_for_stack int ethtool_get_sset_info(struct net_device *dev,
+static analinline_for_stack int ethtool_get_sset_info(struct net_device *dev,
 						    void __user *useraddr)
 {
 	struct ethtool_sset_info info;
@@ -791,7 +791,7 @@ static noinline_for_stack int ethtool_get_sset_info(struct net_device *dev,
 
 	info_buf = kcalloc(n_bits, sizeof(u32), GFP_USER);
 	if (!info_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * fill return buffer based on input bitmask and successful
@@ -823,7 +823,7 @@ out:
 	return ret;
 }
 
-static noinline_for_stack int
+static analinline_for_stack int
 ethtool_rxnfc_copy_from_compat(struct ethtool_rxnfc *rxnfc,
 			       const struct compat_ethtool_rxnfc __user *useraddr,
 			       size_t size)
@@ -831,8 +831,8 @@ ethtool_rxnfc_copy_from_compat(struct ethtool_rxnfc *rxnfc,
 	struct compat_ethtool_rxnfc crxnfc = {};
 
 	/* We expect there to be holes between fs.m_ext and
-	 * fs.ring_cookie and at the end of fs, but nowhere else.
-	 * On non-x86, no conversion should be needed.
+	 * fs.ring_cookie and at the end of fs, but analwhere else.
+	 * On analn-x86, anal conversion should be needed.
 	 */
 	BUILD_BUG_ON(!IS_ENABLED(CONFIG_X86_64) &&
 		     sizeof(struct compat_ethtool_rxnfc) !=
@@ -969,7 +969,7 @@ static int ethtool_rxnfc_copy_to_user(void __user *useraddr,
 	return 0;
 }
 
-static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
+static analinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 						u32 cmd, void __user *useraddr)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -978,7 +978,7 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 	int rc;
 
 	if (!ops->set_rxnfc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = ethtool_rxnfc_copy_struct(cmd, &info, &info_size, useraddr);
 	if (rc)
@@ -992,7 +992,7 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 			return rc;
 
 		/* Sanity check: if symmetric-xor is set, then:
-		 * 1 - no other fields besides IP src/dst and/or L4 src/dst
+		 * 1 - anal other fields besides IP src/dst and/or L4 src/dst
 		 * 2 - If src is set, dst must also be set
 		 */
 		if ((rxfh.input_xfrm & RXH_XFRM_SYM_XOR) &&
@@ -1014,7 +1014,7 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 	return 0;
 }
 
-static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
+static analinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
 						u32 cmd, void __user *useraddr)
 {
 	struct ethtool_rxnfc info;
@@ -1024,7 +1024,7 @@ static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
 	void *rule_buf = NULL;
 
 	if (!ops->get_rxnfc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = ethtool_rxnfc_copy_struct(cmd, &info, &info_size, useraddr);
 	if (ret)
@@ -1036,7 +1036,7 @@ static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
 				rule_buf = kcalloc(info.rule_cnt, sizeof(u32),
 						   GFP_USER);
 			if (!rule_buf)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 
@@ -1078,7 +1078,7 @@ void netdev_rss_key_fill(void *buffer, size_t len)
 }
 EXPORT_SYMBOL(netdev_rss_key_fill);
 
-static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
+static analinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 						     void __user *useraddr)
 {
 	struct ethtool_rxfh_param rxfh = {};
@@ -1087,10 +1087,10 @@ static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 
 	if (!dev->ethtool_ops->get_rxfh_indir_size ||
 	    !dev->ethtool_ops->get_rxfh)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	rxfh.indir_size = dev->ethtool_ops->get_rxfh_indir_size(dev);
 	if (rxfh.indir_size == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&user_size,
 			   useraddr + offsetof(struct ethtool_rxfh_indir, size),
@@ -1110,7 +1110,7 @@ static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 
 	rxfh.indir = kcalloc(rxfh.indir_size, sizeof(rxfh.indir[0]), GFP_USER);
 	if (!rxfh.indir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = dev->ethtool_ops->get_rxfh(dev, &rxfh);
 	if (ret)
@@ -1125,7 +1125,7 @@ out:
 	return ret;
 }
 
-static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
+static analinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 						     void __user *useraddr)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -1138,11 +1138,11 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 
 	if (!ops->get_rxfh_indir_size || !ops->set_rxfh ||
 	    !ops->get_rxnfc)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rxfh_dev.indir_size = ops->get_rxfh_indir_size(dev);
 	if (rxfh_dev.indir_size == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&user_size,
 			   useraddr + offsetof(struct ethtool_rxfh_indir, size),
@@ -1155,7 +1155,7 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 	rxfh_dev.indir = kcalloc(rxfh_dev.indir_size,
 				 sizeof(rxfh_dev.indir[0]), GFP_USER);
 	if (!rxfh_dev.indir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx_rings.cmd = ETHTOOL_GRXRINGS;
 	ret = ops->get_rxnfc(dev, &rx_rings, NULL);
@@ -1176,7 +1176,7 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 			goto out;
 	}
 
-	rxfh_dev.hfunc = ETH_RSS_HASH_NO_CHANGE;
+	rxfh_dev.hfunc = ETH_RSS_HASH_ANAL_CHANGE;
 	ret = ops->set_rxfh(dev, &rxfh_dev, extack);
 	if (ret)
 		goto out;
@@ -1192,7 +1192,7 @@ out:
 	return ret;
 }
 
-static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
+static analinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 					       void __user *useraddr)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -1205,7 +1205,7 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	int ret;
 
 	if (!ops->get_rxfh)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ops->get_rxfh_indir_size)
 		rxfh_dev.indir_size = ops->get_rxfh_indir_size(dev);
@@ -1217,12 +1217,12 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	user_indir_size = rxfh.indir_size;
 	user_key_size = rxfh.key_size;
 
-	/* Check that reserved fields are 0 for now */
+	/* Check that reserved fields are 0 for analw */
 	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd32)
 		return -EINVAL;
 	/* Most drivers don't handle rss_context, check it's 0 as well */
 	if (rxfh.rss_context && !ops->cap_rss_ctx_supported)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rxfh.indir_size = rxfh_dev.indir_size;
 	rxfh.key_size = rxfh_dev.key_size;
@@ -1237,7 +1237,7 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	total_size = indir_bytes + user_key_size;
 	rss_config = kzalloc(total_size, GFP_USER);
 	if (!rss_config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (user_indir_size)
 		rxfh_dev.indir = (u32 *)rss_config;
@@ -1270,7 +1270,7 @@ out:
 	return ret;
 }
 
-static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
+static analinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 					       void __user *useraddr)
 {
 	u32 rss_cfg_offset = offsetof(struct ethtool_rxfh, rss_config[0]);
@@ -1285,7 +1285,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	int ret;
 
 	if (!ops->get_rxnfc || !ops->set_rxfh)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ops->get_rxfh_indir_size)
 		dev_indir_size = ops->get_rxfh_indir_size(dev);
@@ -1295,39 +1295,39 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	if (copy_from_user(&rxfh, useraddr, sizeof(rxfh)))
 		return -EFAULT;
 
-	/* Check that reserved fields are 0 for now */
+	/* Check that reserved fields are 0 for analw */
 	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd32)
 		return -EINVAL;
 	/* Most drivers don't handle rss_context, check it's 0 as well */
 	if (rxfh.rss_context && !ops->cap_rss_ctx_supported)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	/* Check input data transformation capabilities */
 	if (rxfh.input_xfrm && rxfh.input_xfrm != RXH_XFRM_SYM_XOR &&
-	    rxfh.input_xfrm != RXH_XFRM_NO_CHANGE)
+	    rxfh.input_xfrm != RXH_XFRM_ANAL_CHANGE)
 		return -EINVAL;
 	if ((rxfh.input_xfrm & RXH_XFRM_SYM_XOR) &&
 	    !ops->cap_rss_sym_xor_supported)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* If either indir, hash key or function is valid, proceed further.
 	 * Must request at least one change: indir size, hash key, function
 	 * or input transformation.
 	 */
 	if ((rxfh.indir_size &&
-	     rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE &&
+	     rxfh.indir_size != ETH_RXFH_INDIR_ANAL_CHANGE &&
 	     rxfh.indir_size != dev_indir_size) ||
 	    (rxfh.key_size && (rxfh.key_size != dev_key_size)) ||
-	    (rxfh.indir_size == ETH_RXFH_INDIR_NO_CHANGE &&
-	     rxfh.key_size == 0 && rxfh.hfunc == ETH_RSS_HASH_NO_CHANGE &&
-	     rxfh.input_xfrm == RXH_XFRM_NO_CHANGE))
+	    (rxfh.indir_size == ETH_RXFH_INDIR_ANAL_CHANGE &&
+	     rxfh.key_size == 0 && rxfh.hfunc == ETH_RSS_HASH_ANAL_CHANGE &&
+	     rxfh.input_xfrm == RXH_XFRM_ANAL_CHANGE))
 		return -EINVAL;
 
-	if (rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE)
+	if (rxfh.indir_size != ETH_RXFH_INDIR_ANAL_CHANGE)
 		indir_bytes = dev_indir_size * sizeof(rxfh_dev.indir[0]);
 
 	rss_config = kzalloc(indir_bytes + rxfh.key_size, GFP_USER);
 	if (!rss_config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rx_rings.cmd = ETHTOOL_GRXRINGS;
 	ret = ops->get_rxnfc(dev, &rx_rings, NULL);
@@ -1336,10 +1336,10 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 
 	/* rxfh.indir_size == 0 means reset the indir table to default (master
 	 * context) or delete the context (other RSS contexts).
-	 * rxfh.indir_size == ETH_RXFH_INDIR_NO_CHANGE means leave it unchanged.
+	 * rxfh.indir_size == ETH_RXFH_INDIR_ANAL_CHANGE means leave it unchanged.
 	 */
 	if (rxfh.indir_size &&
-	    rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE) {
+	    rxfh.indir_size != ETH_RXFH_INDIR_ANAL_CHANGE) {
 		rxfh_dev.indir = (u32 *)rss_config;
 		rxfh_dev.indir_size = dev_indir_size;
 		ret = ethtool_copy_validate_indir(rxfh_dev.indir,
@@ -1389,7 +1389,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		/* indicate whether rxfh was set to default */
 		if (rxfh.indir_size == 0)
 			dev->priv_flags &= ~IFF_RXFH_CONFIGURED;
-		else if (rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE)
+		else if (rxfh.indir_size != ETH_RXFH_INDIR_ANAL_CHANGE)
 			dev->priv_flags |= IFF_RXFH_CONFIGURED;
 	}
 
@@ -1406,7 +1406,7 @@ static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 	int reglen, ret;
 
 	if (!ops->get_regs || !ops->get_regs_len)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&regs, useraddr, sizeof(regs)))
 		return -EFAULT;
@@ -1420,7 +1420,7 @@ static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 
 	regbuf = vzalloc(reglen);
 	if (!regbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (regs.len < reglen)
 		reglen = regs.len;
@@ -1446,7 +1446,7 @@ static int ethtool_reset(struct net_device *dev, char __user *useraddr)
 	int ret;
 
 	if (!dev->ethtool_ops->reset)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&reset, useraddr, sizeof(reset)))
 		return -EFAULT;
@@ -1465,7 +1465,7 @@ static int ethtool_get_wol(struct net_device *dev, char __user *useraddr)
 	struct ethtool_wolinfo wol;
 
 	if (!dev->ethtool_ops->get_wol)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(&wol, 0, sizeof(struct ethtool_wolinfo));
 	wol.cmd = ETHTOOL_GWOL;
@@ -1482,7 +1482,7 @@ static int ethtool_set_wol(struct net_device *dev, char __user *useraddr)
 	int ret;
 
 	if (!dev->ethtool_ops->get_wol || !dev->ethtool_ops->set_wol)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(&cur_wol, 0, sizeof(struct ethtool_wolinfo));
 	cur_wol.cmd = ETHTOOL_GWOL;
@@ -1503,7 +1503,7 @@ static int ethtool_set_wol(struct net_device *dev, char __user *useraddr)
 		return ret;
 
 	dev->wol_enabled = !!wol.wolopts;
-	ethtool_notify(dev, ETHTOOL_MSG_WOL_NTF, NULL);
+	ethtool_analtify(dev, ETHTOOL_MSG_WOL_NTF, NULL);
 
 	return 0;
 }
@@ -1514,7 +1514,7 @@ static int ethtool_get_eee(struct net_device *dev, char __user *useraddr)
 	int rc;
 
 	if (!dev->ethtool_ops->get_eee)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(&edata, 0, sizeof(struct ethtool_eee));
 	edata.cmd = ETHTOOL_GEEE;
@@ -1535,21 +1535,21 @@ static int ethtool_set_eee(struct net_device *dev, char __user *useraddr)
 	int ret;
 
 	if (!dev->ethtool_ops->set_eee)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&edata, useraddr, sizeof(edata)))
 		return -EFAULT;
 
 	ret = dev->ethtool_ops->set_eee(dev, &edata);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_EEE_NTF, NULL);
+		ethtool_analtify(dev, ETHTOOL_MSG_EEE_NTF, NULL);
 	return ret;
 }
 
 static int ethtool_nway_reset(struct net_device *dev)
 {
 	if (!dev->ethtool_ops->nway_reset)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return dev->ethtool_ops->nway_reset(dev);
 }
@@ -1592,7 +1592,7 @@ static int ethtool_get_any_eeprom(struct net_device *dev, void __user *useraddr,
 
 	data = kzalloc(PAGE_SIZE, GFP_USER);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bytes_remaining = eeprom.len;
 	while (bytes_remaining > 0) {
@@ -1629,7 +1629,7 @@ static int ethtool_get_eeprom(struct net_device *dev, void __user *useraddr)
 
 	if (!ops->get_eeprom || !ops->get_eeprom_len ||
 	    !ops->get_eeprom_len(dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ethtool_get_any_eeprom(dev, useraddr, ops->get_eeprom,
 				      ops->get_eeprom_len(dev));
@@ -1646,7 +1646,7 @@ static int ethtool_set_eeprom(struct net_device *dev, void __user *useraddr)
 
 	if (!ops->set_eeprom || !ops->get_eeprom_len ||
 	    !ops->get_eeprom_len(dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&eeprom, useraddr, sizeof(eeprom)))
 		return -EFAULT;
@@ -1661,7 +1661,7 @@ static int ethtool_set_eeprom(struct net_device *dev, void __user *useraddr)
 
 	data = kzalloc(PAGE_SIZE, GFP_USER);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bytes_remaining = eeprom.len;
 	while (bytes_remaining > 0) {
@@ -1683,7 +1683,7 @@ static int ethtool_set_eeprom(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
-static noinline_for_stack int ethtool_get_coalesce(struct net_device *dev,
+static analinline_for_stack int ethtool_get_coalesce(struct net_device *dev,
 						   void __user *useraddr)
 {
 	struct ethtool_coalesce coalesce = { .cmd = ETHTOOL_GCOALESCE };
@@ -1691,7 +1691,7 @@ static noinline_for_stack int ethtool_get_coalesce(struct net_device *dev,
 	int ret;
 
 	if (!dev->ethtool_ops->get_coalesce)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = dev->ethtool_ops->get_coalesce(dev, &coalesce, &kernel_coalesce,
 					     NULL);
@@ -1708,57 +1708,57 @@ ethtool_set_coalesce_supported(struct net_device *dev,
 			       struct ethtool_coalesce *coalesce)
 {
 	u32 supported_params = dev->ethtool_ops->supported_coalesce_params;
-	u32 nonzero_params = 0;
+	u32 analnzero_params = 0;
 
 	if (coalesce->rx_coalesce_usecs)
-		nonzero_params |= ETHTOOL_COALESCE_RX_USECS;
+		analnzero_params |= ETHTOOL_COALESCE_RX_USECS;
 	if (coalesce->rx_max_coalesced_frames)
-		nonzero_params |= ETHTOOL_COALESCE_RX_MAX_FRAMES;
+		analnzero_params |= ETHTOOL_COALESCE_RX_MAX_FRAMES;
 	if (coalesce->rx_coalesce_usecs_irq)
-		nonzero_params |= ETHTOOL_COALESCE_RX_USECS_IRQ;
+		analnzero_params |= ETHTOOL_COALESCE_RX_USECS_IRQ;
 	if (coalesce->rx_max_coalesced_frames_irq)
-		nonzero_params |= ETHTOOL_COALESCE_RX_MAX_FRAMES_IRQ;
+		analnzero_params |= ETHTOOL_COALESCE_RX_MAX_FRAMES_IRQ;
 	if (coalesce->tx_coalesce_usecs)
-		nonzero_params |= ETHTOOL_COALESCE_TX_USECS;
+		analnzero_params |= ETHTOOL_COALESCE_TX_USECS;
 	if (coalesce->tx_max_coalesced_frames)
-		nonzero_params |= ETHTOOL_COALESCE_TX_MAX_FRAMES;
+		analnzero_params |= ETHTOOL_COALESCE_TX_MAX_FRAMES;
 	if (coalesce->tx_coalesce_usecs_irq)
-		nonzero_params |= ETHTOOL_COALESCE_TX_USECS_IRQ;
+		analnzero_params |= ETHTOOL_COALESCE_TX_USECS_IRQ;
 	if (coalesce->tx_max_coalesced_frames_irq)
-		nonzero_params |= ETHTOOL_COALESCE_TX_MAX_FRAMES_IRQ;
+		analnzero_params |= ETHTOOL_COALESCE_TX_MAX_FRAMES_IRQ;
 	if (coalesce->stats_block_coalesce_usecs)
-		nonzero_params |= ETHTOOL_COALESCE_STATS_BLOCK_USECS;
+		analnzero_params |= ETHTOOL_COALESCE_STATS_BLOCK_USECS;
 	if (coalesce->use_adaptive_rx_coalesce)
-		nonzero_params |= ETHTOOL_COALESCE_USE_ADAPTIVE_RX;
+		analnzero_params |= ETHTOOL_COALESCE_USE_ADAPTIVE_RX;
 	if (coalesce->use_adaptive_tx_coalesce)
-		nonzero_params |= ETHTOOL_COALESCE_USE_ADAPTIVE_TX;
+		analnzero_params |= ETHTOOL_COALESCE_USE_ADAPTIVE_TX;
 	if (coalesce->pkt_rate_low)
-		nonzero_params |= ETHTOOL_COALESCE_PKT_RATE_LOW;
+		analnzero_params |= ETHTOOL_COALESCE_PKT_RATE_LOW;
 	if (coalesce->rx_coalesce_usecs_low)
-		nonzero_params |= ETHTOOL_COALESCE_RX_USECS_LOW;
+		analnzero_params |= ETHTOOL_COALESCE_RX_USECS_LOW;
 	if (coalesce->rx_max_coalesced_frames_low)
-		nonzero_params |= ETHTOOL_COALESCE_RX_MAX_FRAMES_LOW;
+		analnzero_params |= ETHTOOL_COALESCE_RX_MAX_FRAMES_LOW;
 	if (coalesce->tx_coalesce_usecs_low)
-		nonzero_params |= ETHTOOL_COALESCE_TX_USECS_LOW;
+		analnzero_params |= ETHTOOL_COALESCE_TX_USECS_LOW;
 	if (coalesce->tx_max_coalesced_frames_low)
-		nonzero_params |= ETHTOOL_COALESCE_TX_MAX_FRAMES_LOW;
+		analnzero_params |= ETHTOOL_COALESCE_TX_MAX_FRAMES_LOW;
 	if (coalesce->pkt_rate_high)
-		nonzero_params |= ETHTOOL_COALESCE_PKT_RATE_HIGH;
+		analnzero_params |= ETHTOOL_COALESCE_PKT_RATE_HIGH;
 	if (coalesce->rx_coalesce_usecs_high)
-		nonzero_params |= ETHTOOL_COALESCE_RX_USECS_HIGH;
+		analnzero_params |= ETHTOOL_COALESCE_RX_USECS_HIGH;
 	if (coalesce->rx_max_coalesced_frames_high)
-		nonzero_params |= ETHTOOL_COALESCE_RX_MAX_FRAMES_HIGH;
+		analnzero_params |= ETHTOOL_COALESCE_RX_MAX_FRAMES_HIGH;
 	if (coalesce->tx_coalesce_usecs_high)
-		nonzero_params |= ETHTOOL_COALESCE_TX_USECS_HIGH;
+		analnzero_params |= ETHTOOL_COALESCE_TX_USECS_HIGH;
 	if (coalesce->tx_max_coalesced_frames_high)
-		nonzero_params |= ETHTOOL_COALESCE_TX_MAX_FRAMES_HIGH;
+		analnzero_params |= ETHTOOL_COALESCE_TX_MAX_FRAMES_HIGH;
 	if (coalesce->rate_sample_interval)
-		nonzero_params |= ETHTOOL_COALESCE_RATE_SAMPLE_INTERVAL;
+		analnzero_params |= ETHTOOL_COALESCE_RATE_SAMPLE_INTERVAL;
 
-	return (supported_params & nonzero_params) == nonzero_params;
+	return (supported_params & analnzero_params) == analnzero_params;
 }
 
-static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
+static analinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 						   void __user *useraddr)
 {
 	struct kernel_ethtool_coalesce kernel_coalesce = {};
@@ -1766,7 +1766,7 @@ static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 	int ret;
 
 	if (!dev->ethtool_ops->set_coalesce || !dev->ethtool_ops->get_coalesce)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = dev->ethtool_ops->get_coalesce(dev, &coalesce, &kernel_coalesce,
 					     NULL);
@@ -1777,12 +1777,12 @@ static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 		return -EFAULT;
 
 	if (!ethtool_set_coalesce_supported(dev, &coalesce))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = dev->ethtool_ops->set_coalesce(dev, &coalesce, &kernel_coalesce,
 					     NULL);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_COALESCE_NTF, NULL);
+		ethtool_analtify(dev, ETHTOOL_MSG_COALESCE_NTF, NULL);
 	return ret;
 }
 
@@ -1792,7 +1792,7 @@ static int ethtool_get_ringparam(struct net_device *dev, void __user *useraddr)
 	struct kernel_ethtool_ringparam kernel_ringparam = {};
 
 	if (!dev->ethtool_ops->get_ringparam)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dev->ethtool_ops->get_ringparam(dev, &ringparam,
 					&kernel_ringparam, NULL);
@@ -1809,7 +1809,7 @@ static int ethtool_set_ringparam(struct net_device *dev, void __user *useraddr)
 	int ret;
 
 	if (!dev->ethtool_ops->set_ringparam || !dev->ethtool_ops->get_ringparam)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&ringparam, useraddr, sizeof(ringparam)))
 		return -EFAULT;
@@ -1826,17 +1826,17 @@ static int ethtool_set_ringparam(struct net_device *dev, void __user *useraddr)
 	ret = dev->ethtool_ops->set_ringparam(dev, &ringparam,
 					      &kernel_ringparam, NULL);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_RINGS_NTF, NULL);
+		ethtool_analtify(dev, ETHTOOL_MSG_RINGS_NTF, NULL);
 	return ret;
 }
 
-static noinline_for_stack int ethtool_get_channels(struct net_device *dev,
+static analinline_for_stack int ethtool_get_channels(struct net_device *dev,
 						   void __user *useraddr)
 {
 	struct ethtool_channels channels = { .cmd = ETHTOOL_GCHANNELS };
 
 	if (!dev->ethtool_ops->get_channels)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dev->ethtool_ops->get_channels(dev, &channels);
 
@@ -1845,7 +1845,7 @@ static noinline_for_stack int ethtool_get_channels(struct net_device *dev,
 	return 0;
 }
 
-static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
+static analinline_for_stack int ethtool_set_channels(struct net_device *dev,
 						   void __user *useraddr)
 {
 	struct ethtool_channels channels, curr = { .cmd = ETHTOOL_GCHANNELS };
@@ -1856,7 +1856,7 @@ static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
 	int ret;
 
 	if (!dev->ethtool_ops->set_channels || !dev->ethtool_ops->get_channels)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&channels, useraddr, sizeof(channels)))
 		return -EFAULT;
@@ -1902,7 +1902,7 @@ static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
 
 	ret = dev->ethtool_ops->set_channels(dev, &channels);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_CHANNELS_NTF, NULL);
+		ethtool_analtify(dev, ETHTOOL_MSG_CHANNELS_NTF, NULL);
 	return ret;
 }
 
@@ -1911,7 +1911,7 @@ static int ethtool_get_pauseparam(struct net_device *dev, void __user *useraddr)
 	struct ethtool_pauseparam pauseparam = { .cmd = ETHTOOL_GPAUSEPARAM };
 
 	if (!dev->ethtool_ops->get_pauseparam)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dev->ethtool_ops->get_pauseparam(dev, &pauseparam);
 
@@ -1926,14 +1926,14 @@ static int ethtool_set_pauseparam(struct net_device *dev, void __user *useraddr)
 	int ret;
 
 	if (!dev->ethtool_ops->set_pauseparam)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&pauseparam, useraddr, sizeof(pauseparam)))
 		return -EFAULT;
 
 	ret = dev->ethtool_ops->set_pauseparam(dev, &pauseparam);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_PAUSE_NTF, NULL);
+		ethtool_analtify(dev, ETHTOOL_MSG_PAUSE_NTF, NULL);
 	return ret;
 }
 
@@ -1945,7 +1945,7 @@ static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
 	int ret, test_len;
 
 	if (!ops->self_test || !ops->get_sset_count)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	test_len = ops->get_sset_count(dev, ETH_SS_TEST);
 	if (test_len < 0)
@@ -1958,7 +1958,7 @@ static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
 	test.len = test_len;
 	data = kcalloc(test_len, sizeof(u64), GFP_USER);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	netif_testing_on(dev);
 	ops->self_test(dev, &test, data);
@@ -1990,7 +1990,7 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 	if (ret < 0)
 		return ret;
 	if (ret > S32_MAX / ETH_GSTRING_LEN)
-		return -ENOMEM;
+		return -EANALMEM;
 	WARN_ON_ONCE(!ret);
 
 	gstrings.len = ret;
@@ -1998,7 +1998,7 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 	if (gstrings.len) {
 		data = vzalloc(array_size(gstrings.len, ETH_GSTRING_LEN));
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		__ethtool_get_strings(dev, gstrings.string_set, data);
 	} else {
@@ -2048,7 +2048,7 @@ static int ethtool_phys_id(struct net_device *dev, void __user *useraddr)
 	int rc;
 
 	if (!ops->set_phys_id)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (busy)
 		return -EBUSY;
@@ -2104,13 +2104,13 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 	int ret, n_stats;
 
 	if (!ops->get_ethtool_stats || !ops->get_sset_count)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	n_stats = ops->get_sset_count(dev, ETH_SS_STATS);
 	if (n_stats < 0)
 		return n_stats;
 	if (n_stats > S32_MAX / sizeof(u64))
-		return -ENOMEM;
+		return -EANALMEM;
 	WARN_ON_ONCE(!n_stats);
 	if (copy_from_user(&stats, useraddr, sizeof(stats)))
 		return -EFAULT;
@@ -2120,7 +2120,7 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 	if (n_stats) {
 		data = vzalloc(array_size(n_stats, sizeof(u64)));
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 		ops->get_ethtool_stats(dev, &stats, data);
 	} else {
 		data = NULL;
@@ -2144,13 +2144,13 @@ static int ethtool_vzalloc_stats_array(int n_stats, u64 **data)
 	if (n_stats < 0)
 		return n_stats;
 	if (n_stats > S32_MAX / sizeof(u64))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (WARN_ON_ONCE(!n_stats))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	*data = vzalloc(array_size(n_stats, sizeof(u64)));
 	if (!*data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -2163,7 +2163,7 @@ static int ethtool_get_phy_stats_phydev(struct phy_device *phydev,
 	int n_stats, ret;
 
 	if (!phy_ops || !phy_ops->get_sset_count || !phy_ops->get_stats)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	n_stats = phy_ops->get_sset_count(phydev);
 
@@ -2183,7 +2183,7 @@ static int ethtool_get_phy_stats_ethtool(struct net_device *dev,
 	int n_stats, ret;
 
 	if (!ops || !ops->get_sset_count || ops->get_ethtool_phy_stats)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	n_stats = ops->get_sset_count(dev, ETH_SS_PHY_STATS);
 
@@ -2202,7 +2202,7 @@ static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
 	struct phy_device *phydev = dev->phydev;
 	struct ethtool_stats stats;
 	u64 *data = NULL;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	if (copy_from_user(&stats, useraddr, sizeof(stats)))
 		return -EFAULT;
@@ -2210,7 +2210,7 @@ static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
 	if (phydev)
 		ret = ethtool_get_phy_stats_phydev(phydev, &stats, &data);
 
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		ret = ethtool_get_phy_stats_ethtool(dev, &stats, &data);
 
 	if (ret)
@@ -2255,7 +2255,7 @@ static int ethtool_get_value(struct net_device *dev, char __user *useraddr,
 	struct ethtool_value edata = { .cmd = cmd };
 
 	if (!actor)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	edata.data = actor(dev);
 
@@ -2270,7 +2270,7 @@ static int ethtool_set_value_void(struct net_device *dev, char __user *useraddr,
 	struct ethtool_value edata;
 
 	if (!actor)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&edata, useraddr, sizeof(edata)))
 		return -EFAULT;
@@ -2285,7 +2285,7 @@ static int ethtool_set_value(struct net_device *dev, char __user *useraddr,
 	struct ethtool_value edata;
 
 	if (!actor)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&edata, useraddr, sizeof(edata)))
 		return -EFAULT;
@@ -2310,7 +2310,7 @@ static int ethtool_set_dump(struct net_device *dev,
 	struct ethtool_dump dump;
 
 	if (!dev->ethtool_ops->set_dump)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&dump, useraddr, sizeof(dump)))
 		return -EFAULT;
@@ -2326,7 +2326,7 @@ static int ethtool_get_dump_flag(struct net_device *dev,
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 
 	if (!ops->get_dump_flag)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&dump, useraddr, sizeof(dump)))
 		return -EFAULT;
@@ -2350,7 +2350,7 @@ static int ethtool_get_dump_data(struct net_device *dev,
 	void *data = NULL;
 
 	if (!ops->get_dump_data || !ops->get_dump_flag)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&dump, useraddr, sizeof(dump)))
 		return -EFAULT;
@@ -2370,19 +2370,19 @@ static int ethtool_get_dump_data(struct net_device *dev,
 	 */
 	dump.len = len;
 
-	/* Always allocate enough space to hold the whole thing so that the
-	 * driver does not need to check the length and bother with partial
+	/* Always allocate eanalugh space to hold the whole thing so that the
+	 * driver does analt need to check the length and bother with partial
 	 * dumping.
 	 */
 	data = vzalloc(tmp.len);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = ops->get_dump_data(dev, &dump, data);
 	if (ret)
 		goto out;
 
 	/* There are two sane possibilities:
-	 * 1. The driver's .get_dump_data() does not touch dump.len.
+	 * 1. The driver's .get_dump_data() does analt touch dump.len.
 	 * 2. Or it may set dump.len to how much it really writes, which
 	 *    should be tmp.len (or len if it can do a partial dump).
 	 * In any case respond to userspace with the actual length of data
@@ -2433,7 +2433,7 @@ int ethtool_get_module_info_call(struct net_device *dev,
 	if (ops->get_module_info)
 		return ops->get_module_info(dev, modinfo);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ethtool_get_module_info(struct net_device *dev,
@@ -2470,7 +2470,7 @@ int ethtool_get_module_eeprom_call(struct net_device *dev,
 	if (ops->get_module_eeprom)
 		return ops->get_module_eeprom(dev, ee, data);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ethtool_get_module_eeprom(struct net_device *dev,
@@ -2518,7 +2518,7 @@ static int ethtool_get_tunable(struct net_device *dev, void __user *useraddr)
 	void *data;
 
 	if (!ops->get_tunable)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (copy_from_user(&tuna, useraddr, sizeof(tuna)))
 		return -EFAULT;
 	ret = ethtool_tunable_valid(&tuna);
@@ -2526,7 +2526,7 @@ static int ethtool_get_tunable(struct net_device *dev, void __user *useraddr)
 		return ret;
 	data = kzalloc(tuna.len, GFP_USER);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = ops->get_tunable(dev, &tuna, data);
 	if (ret)
 		goto out;
@@ -2549,7 +2549,7 @@ static int ethtool_set_tunable(struct net_device *dev, void __user *useraddr)
 	void *data;
 
 	if (!ops->set_tunable)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (copy_from_user(&tuna, useraddr, sizeof(tuna)))
 		return -EFAULT;
 	ret = ethtool_tunable_valid(&tuna);
@@ -2565,7 +2565,7 @@ static int ethtool_set_tunable(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
-static noinline_for_stack int
+static analinline_for_stack int
 ethtool_get_per_queue_coalesce(struct net_device *dev,
 			       void __user *useraddr,
 			       struct ethtool_per_queue_op *per_queue_opt)
@@ -2575,7 +2575,7 @@ ethtool_get_per_queue_coalesce(struct net_device *dev,
 	DECLARE_BITMAP(queue_mask, MAX_NUM_QUEUE);
 
 	if (!dev->ethtool_ops->get_per_queue_coalesce)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	useraddr += sizeof(*per_queue_opt);
 
@@ -2596,7 +2596,7 @@ ethtool_get_per_queue_coalesce(struct net_device *dev,
 	return 0;
 }
 
-static noinline_for_stack int
+static analinline_for_stack int
 ethtool_set_per_queue_coalesce(struct net_device *dev,
 			       void __user *useraddr,
 			       struct ethtool_per_queue_op *per_queue_opt)
@@ -2609,7 +2609,7 @@ ethtool_set_per_queue_coalesce(struct net_device *dev,
 
 	if ((!dev->ethtool_ops->set_per_queue_coalesce) ||
 	    (!dev->ethtool_ops->get_per_queue_coalesce))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	useraddr += sizeof(*per_queue_opt);
 
@@ -2617,7 +2617,7 @@ ethtool_set_per_queue_coalesce(struct net_device *dev,
 	n_queue = bitmap_weight(queue_mask, MAX_NUM_QUEUE);
 	tmp = backup = kmalloc_array(n_queue, sizeof(*backup), GFP_KERNEL);
 	if (!backup)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_set_bit(bit, queue_mask, MAX_NUM_QUEUE) {
 		struct ethtool_coalesce coalesce;
@@ -2634,7 +2634,7 @@ ethtool_set_per_queue_coalesce(struct net_device *dev,
 		}
 
 		if (!ethtool_set_coalesce_supported(dev, &coalesce)) {
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto roll_back;
 		}
 
@@ -2658,7 +2658,7 @@ roll_back:
 	return ret;
 }
 
-static int noinline_for_stack ethtool_set_per_queue(struct net_device *dev,
+static int analinline_for_stack ethtool_set_per_queue(struct net_device *dev,
 				 void __user *useraddr, u32 sub_cmd)
 {
 	struct ethtool_per_queue_op per_queue_opt;
@@ -2675,7 +2675,7 @@ static int noinline_for_stack ethtool_set_per_queue(struct net_device *dev,
 	case ETHTOOL_SCOALESCE:
 		return ethtool_set_per_queue_coalesce(dev, useraddr, &per_queue_opt);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -2710,7 +2710,7 @@ static int get_phy_tunable(struct net_device *dev, void __user *useraddr)
 
 	phy_drv_tunable = phydev && phydev->drv && phydev->drv->get_tunable;
 	if (!phy_drv_tunable && !dev->ethtool_ops->get_phy_tunable)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (copy_from_user(&tuna, useraddr, sizeof(tuna)))
 		return -EFAULT;
 	ret = ethtool_phy_tunable_valid(&tuna);
@@ -2718,7 +2718,7 @@ static int get_phy_tunable(struct net_device *dev, void __user *useraddr)
 		return ret;
 	data = kzalloc(tuna.len, GFP_USER);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (phy_drv_tunable) {
 		mutex_lock(&phydev->lock);
 		ret = phydev->drv->get_tunable(phydev, &tuna, data);
@@ -2749,7 +2749,7 @@ static int set_phy_tunable(struct net_device *dev, void __user *useraddr)
 
 	phy_drv_tunable = phydev && phydev->drv && phydev->drv->get_tunable;
 	if (!phy_drv_tunable && !dev->ethtool_ops->set_phy_tunable)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (copy_from_user(&tuna, useraddr, sizeof(tuna)))
 		return -EFAULT;
 	ret = ethtool_phy_tunable_valid(&tuna);
@@ -2777,7 +2777,7 @@ static int ethtool_get_fecparam(struct net_device *dev, void __user *useraddr)
 	int rc;
 
 	if (!dev->ethtool_ops->get_fecparam)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = dev->ethtool_ops->get_fecparam(dev, &fecparam);
 	if (rc)
@@ -2796,12 +2796,12 @@ static int ethtool_set_fecparam(struct net_device *dev, void __user *useraddr)
 	struct ethtool_fecparam fecparam;
 
 	if (!dev->ethtool_ops->set_fecparam)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&fecparam, useraddr, sizeof(fecparam)))
 		return -EFAULT;
 
-	if (!fecparam.fec || fecparam.fec & ETHTOOL_FEC_NONE)
+	if (!fecparam.fec || fecparam.fec & ETHTOOL_FEC_ANALNE)
 		return -EINVAL;
 
 	fecparam.active_fec = 0;
@@ -2823,7 +2823,7 @@ __dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr,
 
 	dev = __dev_get_by_name(net, ifr->ifr_name);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (ethcmd == ETHTOOL_PERQUEUE) {
 		if (copy_from_user(&sub_cmd, useraddr + sizeof(ethcmd), sizeof(sub_cmd)))
@@ -2879,7 +2879,7 @@ __dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr,
 		pm_runtime_get_sync(dev->dev.parent);
 
 	if (!netif_device_present(dev)) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out;
 	}
 
@@ -2917,7 +2917,7 @@ __dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr,
 		rc = ethtool_set_value_void(dev, useraddr,
 				       dev->ethtool_ops->set_msglevel);
 		if (!rc)
-			ethtool_notify(dev, ETHTOOL_MSG_DEBUG_NTF, NULL);
+			ethtool_analtify(dev, ETHTOOL_MSG_DEBUG_NTF, NULL);
 		break;
 	case ETHTOOL_GEEE:
 		rc = ethtool_get_eee(dev, useraddr);
@@ -2981,7 +2981,7 @@ __dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr,
 		rc = ethtool_get_value(dev, useraddr, ethcmd,
 				       dev->ethtool_ops->get_priv_flags);
 		if (!rc)
-			ethtool_notify(dev, ETHTOOL_MSG_PRIVFLAGS_NTF, NULL);
+			ethtool_analtify(dev, ETHTOOL_MSG_PRIVFLAGS_NTF, NULL);
 		break;
 	case ETHTOOL_SPFLAGS:
 		rc = ethtool_set_value(dev, useraddr,
@@ -3097,7 +3097,7 @@ __dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr,
 		rc = ethtool_set_fecparam(dev, useraddr);
 		break;
 	default:
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 	}
 
 	if (dev->ethtool_ops->complete)
@@ -3123,7 +3123,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (ethcmd) {
 	case ETHTOOL_FLASHDEV:
@@ -3195,13 +3195,13 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 	flow = kzalloc(sizeof(struct ethtool_rx_flow_rule) +
 		       sizeof(struct ethtool_rx_flow_match), GFP_KERNEL);
 	if (!flow)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* ethtool_rx supports only one single action per rule. */
 	flow->rule = flow_rule_alloc(1);
 	if (!flow->rule) {
 		kfree(flow);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	match = (struct ethtool_rx_flow_match *)flow->priv;

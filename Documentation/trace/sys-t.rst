@@ -11,7 +11,7 @@ provides better trace source identification and timestamp correlation.
 In order to use the MIPI SyS-T protocol driver with your STM device,
 first, you'll need CONFIG_STM_PROTO_SYS_T.
 
-Now, you can select which protocol driver you want to use when you create
+Analw, you can select which protocol driver you want to use when you create
 a policy for your STM device, by specifying it in the policy name:
 
 # mkdir /config/stp-policy/dummy_stm.0:p_sys-t.my-policy/
@@ -30,7 +30,7 @@ You can also double check that everything is working as expected by
 # cat /config/stp-policy/dummy_stm.0:p_sys-t.my-policy/protocol
 p_sys-t
 
-Now, with the MIPI SyS-T protocol driver, each policy node in the
+Analw, with the MIPI SyS-T protocol driver, each policy analde in the
 configfs gets a few additional attributes, which determine per-source
 parameters specific to the protocol:
 
@@ -45,7 +45,7 @@ uuid
 
 The most important one here is the "uuid", which determines the UUID
 that will be used to tag all data coming from this source. It is
-automatically generated when a new node is created, but it is likely
+automatically generated when a new analde is created, but it is likely
 that you would want to change it.
 
 do_len switches on/off the additional "payload length" field in the
@@ -53,7 +53,7 @@ MIPI SyS-T message header. It is off by default as the STP already
 marks message boundaries.
 
 ts_interval and clocksync_interval determine how much time in milliseconds
-can pass before we need to include a protocol (not transport, aka STP)
+can pass before we need to include a protocol (analt transport, aka STP)
 timestamp in a message header or send a CLOCKSYNC packet, respectively.
 
 See Documentation/ABI/testing/configfs-stp-policy-p_sys-t for more

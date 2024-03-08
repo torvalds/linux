@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -130,7 +130,7 @@ static const struct file_operations ta_invoke_debugfs_fops = {
  *    - TA ID (4bytes)
  *    - TA CMD ID (4bytes)
  *    - TA shard buf length
- *      (4bytes, value not beyond TA shared memory size)
+ *      (4bytes, value analt beyond TA shared memory size)
  *    - TA shared buf
  *   Receive buffer:
  *    - TA shared buf
@@ -149,7 +149,7 @@ static ssize_t ta_if_load_debugfs_write(struct file *fp, const char *buf, size_t
 	uint32_t copy_pos   = 0;
 	int      ret        = 0;
 
-	struct amdgpu_device *adev    = (struct amdgpu_device *)file_inode(fp)->i_private;
+	struct amdgpu_device *adev    = (struct amdgpu_device *)file_ianalde(fp)->i_private;
 	struct psp_context   *psp     = &adev->psp;
 	struct ta_context    *context = NULL;
 
@@ -170,7 +170,7 @@ static ssize_t ta_if_load_debugfs_write(struct file *fp, const char *buf, size_t
 
 	ta_bin = kzalloc(ta_bin_len, GFP_KERNEL);
 	if (!ta_bin)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (copy_from_user((void *)ta_bin, &buf[copy_pos], ta_bin_len)) {
 		ret = -EFAULT;
 		goto err_free_bin;
@@ -181,7 +181,7 @@ static ssize_t ta_if_load_debugfs_write(struct file *fp, const char *buf, size_t
 
 	if (!psp->ta_funcs || !psp->ta_funcs->fn_ta_terminate) {
 		dev_err(adev->dev, "Unsupported function to terminate TA\n");
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err_free_bin;
 	}
 
@@ -192,7 +192,7 @@ static ssize_t ta_if_load_debugfs_write(struct file *fp, const char *buf, size_t
 	if (!context->mem_context.shared_buf) {
 		ret = psp_ta_init_shared_buf(psp, &context->mem_context);
 		if (ret) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_bin;
 		}
 	}
@@ -215,7 +215,7 @@ static ssize_t ta_if_load_debugfs_write(struct file *fp, const char *buf, size_t
 
 	if (!psp->ta_funcs->fn_ta_initialize) {
 		dev_err(adev->dev, "Unsupported function to initialize TA\n");
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err_free_ta_shared_buf;
 	}
 
@@ -248,7 +248,7 @@ static ssize_t ta_if_unload_debugfs_write(struct file *fp, const char *buf, size
 	uint32_t copy_pos   = 0;
 	int      ret        = 0;
 
-	struct amdgpu_device *adev    = (struct amdgpu_device *)file_inode(fp)->i_private;
+	struct amdgpu_device *adev    = (struct amdgpu_device *)file_ianalde(fp)->i_private;
 	struct psp_context   *psp     = &adev->psp;
 	struct ta_context    *context = NULL;
 
@@ -270,7 +270,7 @@ static ssize_t ta_if_unload_debugfs_write(struct file *fp, const char *buf, size
 
 	if (!psp->ta_funcs || !psp->ta_funcs->fn_ta_terminate) {
 		dev_err(adev->dev, "Unsupported function to terminate TA\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = psp_fn_ta_terminate(psp);
@@ -297,7 +297,7 @@ static ssize_t ta_if_invoke_debugfs_write(struct file *fp, const char *buf, size
 	uint32_t copy_pos       = 0;
 	int      ret            = 0;
 
-	struct amdgpu_device *adev    = (struct amdgpu_device *)file_inode(fp)->i_private;
+	struct amdgpu_device *adev    = (struct amdgpu_device *)file_ianalde(fp)->i_private;
 	struct psp_context   *psp     = &adev->psp;
 	struct ta_context    *context = NULL;
 
@@ -326,7 +326,7 @@ static ssize_t ta_if_invoke_debugfs_write(struct file *fp, const char *buf, size
 
 	shared_buf = kzalloc(shared_buf_len, GFP_KERNEL);
 	if (!shared_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (copy_from_user((void *)shared_buf, &buf[copy_pos], shared_buf_len)) {
 		ret = -EFAULT;
 		goto err_free_shared_buf;
@@ -335,14 +335,14 @@ static ssize_t ta_if_invoke_debugfs_write(struct file *fp, const char *buf, size
 	set_ta_context_funcs(psp, ta_type, &context);
 
 	if (!context->initialized) {
-		dev_err(adev->dev, "TA is not initialized\n");
+		dev_err(adev->dev, "TA is analt initialized\n");
 		ret = -EINVAL;
 		goto err_free_shared_buf;
 	}
 
 	if (!psp->ta_funcs || !psp->ta_funcs->fn_ta_invoke) {
 		dev_err(adev->dev, "Unsupported function to invoke TA\n");
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err_free_shared_buf;
 	}
 
@@ -373,9 +373,9 @@ err_free_shared_buf:
 
 void amdgpu_ta_if_debugfs_init(struct amdgpu_device *adev)
 {
-	struct drm_minor *minor = adev_to_drm(adev)->primary;
+	struct drm_mianalr *mianalr = adev_to_drm(adev)->primary;
 
-	struct dentry *dir = debugfs_create_dir("ta_if", minor->debugfs_root);
+	struct dentry *dir = debugfs_create_dir("ta_if", mianalr->debugfs_root);
 
 	debugfs_create_file("ta_load", 0200, dir, adev,
 				     &ta_load_debugfs_fops);

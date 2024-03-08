@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -42,7 +42,7 @@ struct xe_res_cursor {
 	u64 start;
 	u64 size;
 	u64 remaining;
-	void *node;
+	void *analde;
 	u32 mem_type;
 	struct scatterlist *sgl;
 	struct drm_buddy *mm;
@@ -108,7 +108,7 @@ static inline void xe_res_first(struct ttm_resource *res,
 		cur->size = min(drm_buddy_block_size(mm, block) - start,
 				size);
 		cur->remaining = size;
-		cur->node = block;
+		cur->analde = block;
 		break;
 	}
 	default:
@@ -121,7 +121,7 @@ fallback:
 	cur->start = start;
 	cur->size = size;
 	cur->remaining = size;
-	cur->node = NULL;
+	cur->analde = NULL;
 	cur->mem_type = XE_PL_TT;
 	XE_WARN_ON(res && start + size > res->size);
 }
@@ -159,7 +159,7 @@ static inline void xe_res_first_sg(const struct sg_table *sg,
 	XE_WARN_ON(!sg);
 	XE_WARN_ON(!IS_ALIGNED(start, PAGE_SIZE) ||
 		   !IS_ALIGNED(size, PAGE_SIZE));
-	cur->node = NULL;
+	cur->analde = NULL;
 	cur->start = start;
 	cur->remaining = size;
 	cur->size = 0;
@@ -174,7 +174,7 @@ static inline void xe_res_first_sg(const struct sg_table *sg,
  * @cur: the cursor to advance
  * @size: number of bytes to move forward
  *
- * Move the cursor @size bytes forwrad, walking to the next node if necessary.
+ * Move the cursor @size bytes forwrad, walking to the next analde if necessary.
  */
 static inline void xe_res_next(struct xe_res_cursor *cur, u64 size)
 {
@@ -205,7 +205,7 @@ static inline void xe_res_next(struct xe_res_cursor *cur, u64 size)
 	case XE_PL_VRAM0:
 	case XE_PL_VRAM1:
 		start = size - cur->size;
-		block = cur->node;
+		block = cur->analde;
 
 		next = block->link.next;
 		block = list_entry(next, struct drm_buddy_block, link);
@@ -221,7 +221,7 @@ static inline void xe_res_next(struct xe_res_cursor *cur, u64 size)
 		cur->start = drm_buddy_block_offset(block) + start;
 		cur->size = min(drm_buddy_block_size(cur->mm, block) - start,
 				cur->remaining);
-		cur->node = block;
+		cur->analde = block;
 		break;
 	default:
 		return;

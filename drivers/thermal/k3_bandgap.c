@@ -171,7 +171,7 @@ static int k3_bandgap_probe(struct platform_device *pdev)
 
 	bgp = devm_kzalloc(&pdev->dev, sizeof(*bgp), GFP_KERNEL);
 	if (!bgp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	bgp->base = devm_ioremap_resource(dev, res);
@@ -181,7 +181,7 @@ static int k3_bandgap_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 		pm_runtime_disable(dev);
 		return ret;
 	}
@@ -193,7 +193,7 @@ static int k3_bandgap_probe(struct platform_device *pdev)
 
 	data = devm_kcalloc(dev, cnt, sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc;
 	}
 

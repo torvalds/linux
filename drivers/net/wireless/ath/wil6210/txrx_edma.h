@@ -250,7 +250,7 @@ struct wil_ring_tx_status {
  *	bit     24 : L4T:1 - Layer 4 Type: 0-UDP, 1-TCP
  *	bit     25 : BC:1 - The received MPDU is broadcast
  *	bit     26 : MC:1 - The received MPDU is multicast
- *	bit     27 : Raw:1 - The MPDU received with no translation
+ *	bit     27 : Raw:1 - The MPDU received with anal translation
  *	bit     28 : Sec:1 - The FC control (b14) - Frame Protected
  *	bit     29 : Error:1 - An error is set when (L2 status != 0) ||
  *		(L3 status == 3) || (L4 status == 3)
@@ -509,14 +509,14 @@ static inline int wil_rx_status_get_l4_rx_status(void *msg)
 }
 
 /* L4	L3	Expected result
- * 0	0	Ok. No L3 and no L4 known protocols found.
- *		Treated as L2 packet. (no offloads on this packet)
+ * 0	0	Ok. Anal L3 and anal L4 kanalwn protocols found.
+ *		Treated as L2 packet. (anal offloads on this packet)
  * 0	1	Ok. It means that L3 was found, and checksum check passed.
- *		No known L4 protocol was found.
+ *		Anal kanalwn L4 protocol was found.
  * 0	2	It means that L3 protocol was found, and checksum check failed.
- *		No L4 known protocol was found.
+ *		Anal L4 kanalwn protocol was found.
  * 1	any	Ok. It means that L4 was found, and checksum check passed.
- * 3	0	Not a possible scenario.
+ * 3	0	Analt a possible scenario.
  * 3	1	Recalculate. It means that L3 protocol was found, and checksum
  *		passed. But L4 checksum failed. Need to see if really failed,
  *		or due to fragmentation.
@@ -536,7 +536,7 @@ static inline int wil_rx_status_get_checksum(void *msg,
 
 	if (l3_rx_status == 0 && l4_rx_status == 0)
 		/* L2 packet */
-		return CHECKSUM_NONE;
+		return CHECKSUM_ANALNE;
 
 	/* If HW reports bad checksum, let IP stack re-check it
 	 * For example, HW doesn't understand Microsoft IP stack that
@@ -544,7 +544,7 @@ static inline int wil_rx_status_get_checksum(void *msg,
 	 * it writes 0xffff in violation of RFC 1624
 	 */
 	stats->rx_csum_err++;
-	return CHECKSUM_NONE;
+	return CHECKSUM_ANALNE;
 }
 
 static inline int wil_rx_status_get_security(void *msg)

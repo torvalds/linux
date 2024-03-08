@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -58,7 +58,7 @@ static irqreturn_t goldfish_fb_interrupt(int irq, void *dev_id)
 		wake_up(&fb->wait);
 	}
 	spin_unlock_irqrestore(&fb->lock, irq_flags);
-	return status ? IRQ_HANDLED : IRQ_NONE;
+	return status ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static inline u32 convert_bitfield(int val, struct fb_bitfield *bf)
@@ -69,13 +69,13 @@ static inline u32 convert_bitfield(int val, struct fb_bitfield *bf)
 }
 
 static int
-goldfish_fb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
+goldfish_fb_setcolreg(unsigned int reganal, unsigned int red, unsigned int green,
 		 unsigned int blue, unsigned int transp, struct fb_info *info)
 {
 	struct goldfish_fb *fb = container_of(info, struct goldfish_fb, fb);
 
-	if (regno < 16) {
-		fb->cmap[regno] = convert_bitfield(transp, &fb->fb.var.transp) |
+	if (reganal < 16) {
+		fb->cmap[reganal] = convert_bitfield(transp, &fb->fb.var.transp) |
 				  convert_bitfield(blue, &fb->fb.var.blue) |
 				  convert_bitfield(green, &fb->fb.var.green) |
 				  convert_bitfield(red, &fb->fb.var.red);
@@ -150,7 +150,7 @@ static int goldfish_fb_blank(int blank, struct fb_info *info)
 	struct goldfish_fb *fb = container_of(info, struct goldfish_fb, fb);
 
 	switch (blank) {
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		writel(1, fb->reg_base + FB_SET_BLANK);
 		break;
 	case FB_BLANK_UNBLANK:
@@ -182,7 +182,7 @@ static int goldfish_fb_probe(struct platform_device *pdev)
 
 	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
 	if (fb == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_fb_alloc_failed;
 	}
 	spin_lock_init(&fb->lock);
@@ -191,19 +191,19 @@ static int goldfish_fb_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
-		ret = -ENODEV;
-		goto err_no_io_base;
+		ret = -EANALDEV;
+		goto err_anal_io_base;
 	}
 	fb->reg_base = ioremap(r->start, PAGE_SIZE);
 	if (fb->reg_base == NULL) {
-		ret = -ENOMEM;
-		goto err_no_io_base;
+		ret = -EANALMEM;
+		goto err_anal_io_base;
 	}
 
 	fb->irq = platform_get_irq(pdev, 0);
 	if (fb->irq < 0) {
 		ret = fb->irq;
-		goto err_no_irq;
+		goto err_anal_irq;
 	}
 
 	width = readl(fb->reg_base + FB_GET_WIDTH);
@@ -214,7 +214,7 @@ static int goldfish_fb_probe(struct platform_device *pdev)
 	fb->fb.fix.type		= FB_TYPE_PACKED_PIXELS;
 	fb->fb.fix.visual = FB_VISUAL_TRUECOLOR;
 	fb->fb.fix.line_length = width * 2;
-	fb->fb.fix.accel	= FB_ACCEL_NONE;
+	fb->fb.fix.accel	= FB_ACCEL_ANALNE;
 	fb->fb.fix.ypanstep = 1;
 
 	fb->fb.var.xres		= width;
@@ -222,7 +222,7 @@ static int goldfish_fb_probe(struct platform_device *pdev)
 	fb->fb.var.xres_virtual	= width;
 	fb->fb.var.yres_virtual	= height * 2;
 	fb->fb.var.bits_per_pixel = 16;
-	fb->fb.var.activate	= FB_ACTIVATE_NOW;
+	fb->fb.var.activate	= FB_ACTIVATE_ANALW;
 	fb->fb.var.height	= readl(fb->reg_base + FB_GET_PHYS_HEIGHT);
 	fb->fb.var.width	= readl(fb->reg_base + FB_GET_PHYS_WIDTH);
 	fb->fb.var.pixclock	= 0;
@@ -241,7 +241,7 @@ static int goldfish_fb_probe(struct platform_device *pdev)
 	pr_debug("allocating frame buffer %d * %d, got %p\n",
 					width, height, fb->fb.screen_base);
 	if (fb->fb.screen_base == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc_screen_base_failed;
 	}
 	fb->fb.fix.smem_start = fbpaddr;
@@ -272,9 +272,9 @@ err_fb_set_var_failed:
 				(void *)fb->fb.screen_base,
 				fb->fb.fix.smem_start);
 err_alloc_screen_base_failed:
-err_no_irq:
+err_anal_irq:
 	iounmap(fb->reg_base);
-err_no_io_base:
+err_anal_io_base:
 	kfree(fb);
 err_fb_alloc_failed:
 	return ret;

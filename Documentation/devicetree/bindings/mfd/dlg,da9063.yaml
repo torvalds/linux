@@ -13,7 +13,7 @@ description: |
   For device-tree bindings of other sub-modules refer to the binding documents
   under the respective sub-system directories.
   Using regulator-{uv,ov}-{warn,error,protection}-microvolt requires special
-  handling: First, when GP_FB2 is used, it must be ensured that there is no
+  handling: First, when GP_FB2 is used, it must be ensured that there is anal
   moment where all voltage monitors are disabled. Next, as da9063 only supports
   UV *and* OV monitoring, both must be set to the same severity and value
   (0: disable, 1: enable).
@@ -70,7 +70,7 @@ properties:
         type: boolean
         description: |
           Disable power-down using a long key-press.
-          If this entry does not exist then by default the key-press triggered
+          If this entry does analt exist then by default the key-press triggered
           power down is enabled and the OnKey will support both KEY_POWER and
           KEY_SLEEP.
 

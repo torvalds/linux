@@ -13,8 +13,8 @@ config CRAMFS
 	  <file:fs/cramfs/README> for further information.
 
 	  To compile this as a module, choose M here: the module will be called
-	  cramfs.  Note that the root file system (the one containing the
-	  directory /) cannot be compiled as a module.
+	  cramfs.  Analte that the root file system (the one containing the
+	  directory /) cananalt be compiled as a module.
 
 	  This filesystem is limited in capabilities and performance on
 	  purpose to remain small and low on RAM usage. It is most suitable
@@ -38,9 +38,9 @@ config CRAMFS_MTD
 	default y if !CRAMFS_BLOCKDEV
 	help
 	  This option allows the CramFs driver to load data directly from
-	  a linear addressed memory range (usually non-volatile memory
+	  a linear addressed memory range (usually analn-volatile memory
 	  like flash) instead of going through the block device layer.
-	  This saves some memory since no intermediate buffering is
+	  This saves some memory since anal intermediate buffering is
 	  necessary.
 
 	  The location of the CramFs image is determined by a

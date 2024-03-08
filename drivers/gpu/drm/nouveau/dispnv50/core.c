@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,12 +35,12 @@ nv50_core_del(struct nv50_core **pcore)
 }
 
 int
-nv50_core_new(struct nouveau_drm *drm, struct nv50_core **pcore)
+nv50_core_new(struct analuveau_drm *drm, struct nv50_core **pcore)
 {
 	struct {
 		s32 oclass;
 		int version;
-		int (*new)(struct nouveau_drm *, s32, struct nv50_core **);
+		int (*new)(struct analuveau_drm *, s32, struct nv50_core **);
 	} cores[] = {
 		{ AD102_DISP_CORE_CHANNEL_DMA, 0, corec57d_new },
 		{ GA102_DISP_CORE_CHANNEL_DMA, 0, corec57d_new },
@@ -65,7 +65,7 @@ nv50_core_new(struct nouveau_drm *drm, struct nv50_core **pcore)
 
 	cid = nvif_mclass(&disp->disp->object, cores);
 	if (cid < 0) {
-		NV_ERROR(drm, "No supported core channel class\n");
+		NV_ERROR(drm, "Anal supported core channel class\n");
 		return cid;
 	}
 

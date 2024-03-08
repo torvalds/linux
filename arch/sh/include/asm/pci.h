@@ -71,7 +71,7 @@ extern unsigned long PCIBIOS_MIN_IO, PCIBIOS_MIN_MEM;
 
 #ifdef CONFIG_PCI
 /*
- * None of the SH PCI controllers support MWI, it is always treated as a
+ * Analne of the SH PCI controllers support MWI, it is always treated as a
  * direct memory write.
  */
 #define PCI_DISABLE_MWI

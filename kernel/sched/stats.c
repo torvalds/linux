@@ -93,7 +93,7 @@ void __update_stats_enqueue_sleeper(struct rq *rq, struct task_struct *p,
 			trace_sched_stat_blocked(p, delta);
 
 			/*
-			 * Blocking time is in units of nanosecs, so shift by
+			 * Blocking time is in units of naanalsecs, so shift by
 			 * 20 to get a milliseconds-range estimation of the
 			 * amount of time that the task spent sleeping:
 			 */
@@ -159,8 +159,8 @@ static int show_schedstat(struct seq_file *seq, void *v)
 				    sd->lb_imbalance[itype],
 				    sd->lb_gained[itype],
 				    sd->lb_hot_gained[itype],
-				    sd->lb_nobusyq[itype],
-				    sd->lb_nobusyg[itype]);
+				    sd->lb_analbusyq[itype],
+				    sd->lb_analbusyg[itype]);
 			}
 			seq_printf(seq,
 				   " %u %u %u %u %u %u %u %u %u %u %u %u\n",

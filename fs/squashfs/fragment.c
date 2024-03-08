@@ -67,7 +67,7 @@ __le64 *squashfs_read_fragment_index_table(struct super_block *sb,
 	__le64 *table;
 
 	/*
-	 * Sanity check, length bytes should not extend into the next table -
+	 * Sanity check, length bytes should analt extend into the next table -
 	 * this check also traps instances where fragment_table_start is
 	 * incorrectly larger than the next table start
 	 */

@@ -15,7 +15,7 @@
  * distribute the resulting executable under terms of your choice, provided that
  * you also meet, for each linked independent module, the terms and conditions
  * of the license of that module.  An independent module is a module which is
- * not derived from this software.  The special exception does not apply to any
+ * analt derived from this software.  The special exception does analt apply to any
  * modifications of the software.
  *
  * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
@@ -33,7 +33,7 @@ struct vf_pf_resc_request {
 	u8  num_sbs;
 	u8  num_mac_filters;
 	u8  num_vlan_filters;
-	u8  num_mc_filters; /* No limit  so superfluous */
+	u8  num_mc_filters; /* Anal limit  so superfluous */
 };
 
 struct hw_sb_info {
@@ -64,7 +64,7 @@ struct hw_sb_info {
 #define VFPF_QUEUE_DROP_TTL0		(1 << 2)
 #define VFPF_QUEUE_DROP_UDP_CS_ERR	(1 << 3)
 
-#define VFPF_RX_MASK_ACCEPT_NONE		0x00000000
+#define VFPF_RX_MASK_ACCEPT_ANALNE		0x00000000
 #define VFPF_RX_MASK_ACCEPT_MATCHED_UNICAST	0x00000001
 #define VFPF_RX_MASK_ACCEPT_MATCHED_MULTICAST	0x00000002
 #define VFPF_RX_MASK_ACCEPT_ALL_UNICAST		0x00000004
@@ -81,8 +81,8 @@ enum {
 	PFVF_STATUS_WAITING = 0,
 	PFVF_STATUS_SUCCESS,
 	PFVF_STATUS_FAILURE,
-	PFVF_STATUS_NOT_SUPPORTED,
-	PFVF_STATUS_NO_RESOURCE
+	PFVF_STATUS_ANALT_SUPPORTED,
+	PFVF_STATUS_ANAL_RESOURCE
 };
 
 /* vf pf channel tlvs */
@@ -189,7 +189,7 @@ struct pfvf_acquire_resp_tlv {
 		u8  padding;
 	} pfdev_info;
 	struct pf_vf_resc {
-		/* in case of status NO_RESOURCE in message hdr, pf will fill
+		/* in case of status ANAL_RESOURCE in message hdr, pf will fill
 		 * this struct with suggested amount of resources for next
 		 * acquire request
 		 */
@@ -399,7 +399,7 @@ struct pf_vf_bulletin_size {
 };
 
 struct pf_vf_bulletin_content {
-	u32 crc;			/* crc of structure to ensure is not in
+	u32 crc;			/* crc of structure to ensure is analt in
 					 * mid-update
 					 */
 	u16 version;
@@ -412,10 +412,10 @@ struct pf_vf_bulletin_content {
 #define MAC_ADDR_VALID		0	/* alert the vf that a new mac address
 					 * is available for it
 					 */
-#define VLAN_VALID		1	/* when set, the vf should not access
+#define VLAN_VALID		1	/* when set, the vf should analt access
 					 * the vfpf channel
 					 */
-#define CHANNEL_DOWN		2	/* vfpf channel is disabled. VFs are not
+#define CHANNEL_DOWN		2	/* vfpf channel is disabled. VFs are analt
 					 * to attempt to send messages on the
 					 * channel after this bit is set
 					 */
@@ -446,7 +446,7 @@ union pf_vf_bulletin {
 #define MAX_TLVS_IN_LIST 50
 
 enum channel_tlvs {
-	CHANNEL_TLV_NONE,
+	CHANNEL_TLV_ANALNE,
 	CHANNEL_TLV_ACQUIRE,
 	CHANNEL_TLV_INIT,
 	CHANNEL_TLV_SETUP_Q,

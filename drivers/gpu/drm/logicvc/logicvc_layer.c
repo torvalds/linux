@@ -38,7 +38,7 @@ static uint32_t logicvc_layer_formats_rgb24[] = {
 };
 
 /*
- * What we call depth in this driver only counts color components, not alpha.
+ * What we call depth in this driver only counts color components, analt alpha.
  * This allows us to stay compatible with the LogiCVC bistream definitions.
  */
 static uint32_t logicvc_layer_formats_rgb24_alpha[] = {
@@ -103,7 +103,7 @@ static int logicvc_plane_atomic_check(struct drm_plane *drm_plane,
 
 	if (new_state->crtc_x < 0 || new_state->crtc_y < 0) {
 		drm_err(drm_dev,
-			"Negative on-CRTC positions are not supported.\n");
+			"Negative on-CRTC positions are analt supported.\n");
 		return -EINVAL;
 	}
 
@@ -111,13 +111,13 @@ static int logicvc_plane_atomic_check(struct drm_plane *drm_plane,
 		ret = logicvc_layer_buffer_find_setup(logicvc, layer, new_state,
 						      NULL);
 		if (ret) {
-			drm_err(drm_dev, "No viable setup for buffer found.\n");
+			drm_err(drm_dev, "Anal viable setup for buffer found.\n");
 			return ret;
 		}
 	}
 
-	min_scale = DRM_PLANE_NO_SCALING;
-	max_scale = DRM_PLANE_NO_SCALING;
+	min_scale = DRM_PLANE_ANAL_SCALING;
+	max_scale = DRM_PLANE_ANAL_SCALING;
 
 	can_position = (drm_plane->type == DRM_PLANE_TYPE_OVERLAY &&
 			layer->index != (logicvc->config.layers_count - 1) &&
@@ -276,8 +276,8 @@ int logicvc_layer_buffer_find_setup(struct logicvc_drm *logicvc,
 	u32 gap;
 
 	if (!logicvc->reserved_mem_base) {
-		drm_err(drm_dev, "No reserved memory base was registered!\n");
-		return -ENOMEM;
+		drm_err(drm_dev, "Anal reserved memory base was registered!\n");
+		return -EANALMEM;
 	}
 
 	fb_addr = drm_fb_dma_get_gem_addr(fb, state, 0);
@@ -382,27 +382,27 @@ static unsigned int logicvc_layer_formats_count(struct logicvc_layer_formats *fo
 static int logicvc_layer_config_parse(struct logicvc_drm *logicvc,
 				      struct logicvc_layer *layer)
 {
-	struct device_node *of_node = layer->of_node;
+	struct device_analde *of_analde = layer->of_analde;
 	struct logicvc_layer_config *config = &layer->config;
 	int ret;
 
-	logicvc_of_property_parse_bool(of_node,
+	logicvc_of_property_parse_bool(of_analde,
 				       LOGICVC_OF_PROPERTY_LAYER_PRIMARY,
 				       &config->primary);
 
-	ret = logicvc_of_property_parse_u32(of_node,
+	ret = logicvc_of_property_parse_u32(of_analde,
 					    LOGICVC_OF_PROPERTY_LAYER_COLORSPACE,
 					    &config->colorspace);
 	if (ret)
 		return ret;
 
-	ret = logicvc_of_property_parse_u32(of_node,
+	ret = logicvc_of_property_parse_u32(of_analde,
 					    LOGICVC_OF_PROPERTY_LAYER_DEPTH,
 					    &config->depth);
 	if (ret)
 		return ret;
 
-	ret = logicvc_of_property_parse_u32(of_node,
+	ret = logicvc_of_property_parse_u32(of_analde,
 					    LOGICVC_OF_PROPERTY_LAYER_ALPHA_MODE,
 					    &config->alpha_mode);
 	if (ret)
@@ -414,13 +414,13 @@ static int logicvc_layer_config_parse(struct logicvc_drm *logicvc,
 	if (logicvc->caps->layer_address)
 		return 0;
 
-	ret = logicvc_of_property_parse_u32(of_node,
+	ret = logicvc_of_property_parse_u32(of_analde,
 					    LOGICVC_OF_PROPERTY_LAYER_BASE_OFFSET,
 					    &config->base_offset);
 	if (ret)
 		return ret;
 
-	ret = logicvc_of_property_parse_u32(of_node,
+	ret = logicvc_of_property_parse_u32(of_analde,
 					    LOGICVC_OF_PROPERTY_LAYER_BUFFER_OFFSET,
 					    &config->buffer_offset);
 	if (ret)
@@ -459,7 +459,7 @@ struct logicvc_layer *logicvc_layer_get_primary(struct logicvc_drm *logicvc)
 }
 
 static int logicvc_layer_init(struct logicvc_drm *logicvc,
-			      struct device_node *of_node, u32 index)
+			      struct device_analde *of_analde, u32 index)
 {
 	struct drm_device *drm_dev = &logicvc->drm_dev;
 	struct device *dev = drm_dev->dev;
@@ -472,11 +472,11 @@ static int logicvc_layer_init(struct logicvc_drm *logicvc,
 
 	layer = devm_kzalloc(dev, sizeof(*layer), GFP_KERNEL);
 	if (!layer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
-	layer->of_node = of_node;
+	layer->of_analde = of_analde;
 	layer->index = index;
 
 	ret = logicvc_layer_config_parse(logicvc, layer);
@@ -500,7 +500,7 @@ static int logicvc_layer_init(struct logicvc_drm *logicvc,
 	if (logicvc->config.background_layer &&
 	    index == (logicvc->config.layers_count - 1)) {
 		/*
-		 * A zero value for black is only valid for RGB, not for YUV,
+		 * A zero value for black is only valid for RGB, analt for YUV,
 		 * so this will need to take the format in account for YUV.
 		 */
 		u32 background = 0;
@@ -580,27 +580,27 @@ int logicvc_layers_init(struct logicvc_drm *logicvc)
 {
 	struct drm_device *drm_dev = &logicvc->drm_dev;
 	struct device *dev = drm_dev->dev;
-	struct device_node *of_node = dev->of_node;
-	struct device_node *layer_node = NULL;
-	struct device_node *layers_node;
+	struct device_analde *of_analde = dev->of_analde;
+	struct device_analde *layer_analde = NULL;
+	struct device_analde *layers_analde;
 	struct logicvc_layer *layer;
 	struct logicvc_layer *next;
 	int ret = 0;
 
-	layers_node = of_get_child_by_name(of_node, "layers");
-	if (!layers_node) {
-		drm_err(drm_dev, "No layers node found in the description\n");
-		ret = -ENODEV;
+	layers_analde = of_get_child_by_name(of_analde, "layers");
+	if (!layers_analde) {
+		drm_err(drm_dev, "Anal layers analde found in the description\n");
+		ret = -EANALDEV;
 		goto error;
 	}
 
-	for_each_child_of_node(layers_node, layer_node) {
+	for_each_child_of_analde(layers_analde, layer_analde) {
 		u32 index = 0;
 
-		if (!logicvc_of_node_is_layer(layer_node))
+		if (!logicvc_of_analde_is_layer(layer_analde))
 			continue;
 
-		ret = of_property_read_u32(layer_node, "reg", &index);
+		ret = of_property_read_u32(layer_analde, "reg", &index);
 		if (ret)
 			continue;
 
@@ -611,14 +611,14 @@ int logicvc_layers_init(struct logicvc_drm *logicvc)
 			continue;
 		}
 
-		ret = logicvc_layer_init(logicvc, layer_node, index);
+		ret = logicvc_layer_init(logicvc, layer_analde, index);
 		if (ret) {
-			of_node_put(layers_node);
+			of_analde_put(layers_analde);
 			goto error;
 		}
 	}
 
-	of_node_put(layers_node);
+	of_analde_put(layers_analde);
 
 	return 0;
 

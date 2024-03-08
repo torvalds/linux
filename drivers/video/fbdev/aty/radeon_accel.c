@@ -113,7 +113,7 @@ static void radeonfb_prim_copyarea(struct radeonfb_info *rinfo,
 	radeon_fifo_wait(3);
 	OUTREG(DP_GUI_MASTER_CNTL,
 		rinfo->dp_gui_master_cntl /* i.e. GMC_DST_32BPP */
-		| GMC_BRUSH_NONE
+		| GMC_BRUSH_ANALNE
 		| GMC_SRC_DSTCOLOR
 		| ROP3_S 
 		| DP_SRC_SOURCE_MEMORY );
@@ -268,7 +268,7 @@ void radeonfb_engine_init (struct radeonfb_info *rinfo)
 	if (IS_R300_VARIANT(rinfo)) {
 		OUTREG(RB2D_DSTCACHE_MODE, INREG(RB2D_DSTCACHE_MODE) |
 		       RB2D_DC_AUTOFLUSH_ENABLE |
-		       RB2D_DC_DC_DISABLE_IGNORE_PE);
+		       RB2D_DC_DC_DISABLE_IGANALRE_PE);
 	} else {
 		/* This needs to be double checked with ATI. Latest X driver
 		 * completely "forgets" to set this register on < r3xx, and

@@ -98,7 +98,7 @@ static int bch2_opt_fix_errors_parse(struct bch_fs *c, const char *val, u64 *res
 				     struct printbuf *err)
 {
 	if (!val) {
-		*res = FSCK_FIX_yes;
+		*res = FSCK_FIX_anal;
 	} else {
 		int ret = match_string(bch2_fsck_fix_opts, -1, val);
 
@@ -126,7 +126,7 @@ static void bch2_opt_fix_errors_to_text(struct printbuf *out,
 }
 
 const char * const bch2_d_types[BCH_DT_MAX] = {
-	[DT_UNKNOWN]	= "unknown",
+	[DT_UNKANALWN]	= "unkanalwn",
 	[DT_FIFO]	= "fifo",
 	[DT_CHR]	= "chr",
 	[DT_DIR]	= "dir",
@@ -138,12 +138,12 @@ const char * const bch2_d_types[BCH_DT_MAX] = {
 	[DT_SUBVOL]	= "subvol",
 };
 
-u64 BCH2_NO_SB_OPT(const struct bch_sb *sb)
+u64 BCH2_ANAL_SB_OPT(const struct bch_sb *sb)
 {
 	BUG();
 }
 
-void SET_BCH2_NO_SB_OPT(struct bch_sb *sb, u64 v)
+void SET_BCH2_ANAL_SB_OPT(struct bch_sb *sb, u64 v)
 {
 	BUG();
 }
@@ -238,20 +238,20 @@ int bch2_opt_lookup(const char *name)
 	return -1;
 }
 
-struct synonym {
+struct syanalnym {
 	const char	*s1, *s2;
 };
 
-static const struct synonym bch_opt_synonyms[] = {
+static const struct syanalnym bch_opt_syanalnyms[] = {
 	{ "quota",	"usrquota" },
 };
 
 static int bch2_mount_opt_lookup(const char *name)
 {
-	const struct synonym *i;
+	const struct syanalnym *i;
 
-	for (i = bch_opt_synonyms;
-	     i < bch_opt_synonyms + ARRAY_SIZE(bch_opt_synonyms);
+	for (i = bch_opt_syanalnyms;
+	     i < bch_opt_syanalnyms + ARRAY_SIZE(bch_opt_syanalnyms);
 	     i++)
 		if (!strcmp(name, i->s1))
 			name = i->s2;
@@ -277,7 +277,7 @@ int bch2_opt_validate(const struct bch_option *opt, u64 v, struct printbuf *err)
 
 	if ((opt->flags & OPT_SB_FIELD_SECTORS) && (v & 511)) {
 		if (err)
-			prt_printf(err, "%s: not a multiple of 512",
+			prt_printf(err, "%s: analt a multiple of 512",
 			       opt->attr.name);
 		return -BCH_ERR_opt_parse_error;
 	}
@@ -372,7 +372,7 @@ void bch2_opt_to_text(struct printbuf *out,
 	if (flags & OPT_SHOW_MOUNT_STYLE) {
 		if (opt->type == BCH_OPT_BOOL) {
 			prt_printf(out, "%s%s",
-			       v ? "" : "no",
+			       v ? "" : "anal",
 			       opt->attr.name);
 			return;
 		}
@@ -448,7 +448,7 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 		return 0;
 
 	/*
-	 * sys_fsconfig() is now occasionally providing us with option lists
+	 * sys_fsconfig() is analw occasionally providing us with option lists
 	 * starting with a comma - weird.
 	 */
 	if (*options == ',')
@@ -465,15 +465,15 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 
 		id = bch2_mount_opt_lookup(name);
 
-		/* Check for the form "noopt", negation of a boolean opt: */
+		/* Check for the form "analopt", negation of a boolean opt: */
 		if (id < 0 &&
 		    !val &&
-		    !strncmp("no", name, 2)) {
+		    !strncmp("anal", name, 2)) {
 			id = bch2_mount_opt_lookup(name + 2);
 			val = "0";
 		}
 
-		/* Unknown options are ignored: */
+		/* Unkanalwn options are iganalred: */
 		if (id < 0)
 			continue;
 
@@ -540,7 +540,7 @@ int bch2_opts_from_sb(struct bch_opts *opts, struct bch_sb *sb)
 	for (id = 0; id < bch2_opts_nr; id++) {
 		const struct bch_option *opt = bch2_opt_table + id;
 
-		if (opt->get_sb == BCH2_NO_SB_OPT)
+		if (opt->get_sb == BCH2_ANAL_SB_OPT)
 			continue;
 
 		bch2_opt_set_by_id(opts, id, bch2_opt_from_sb(sb, id));
@@ -551,7 +551,7 @@ int bch2_opts_from_sb(struct bch_opts *opts, struct bch_sb *sb)
 
 void __bch2_opt_set_sb(struct bch_sb *sb, const struct bch_option *opt, u64 v)
 {
-	if (opt->set_sb == SET_BCH2_NO_SB_OPT)
+	if (opt->set_sb == SET_BCH2_ANAL_SB_OPT)
 		return;
 
 	if (opt->flags & OPT_SB_FIELD_SECTORS)
@@ -565,7 +565,7 @@ void __bch2_opt_set_sb(struct bch_sb *sb, const struct bch_option *opt, u64 v)
 
 void bch2_opt_set_sb(struct bch_fs *c, const struct bch_option *opt, u64 v)
 {
-	if (opt->set_sb == SET_BCH2_NO_SB_OPT)
+	if (opt->set_sb == SET_BCH2_ANAL_SB_OPT)
 		return;
 
 	mutex_lock(&c->sb_lock);
@@ -576,26 +576,26 @@ void bch2_opt_set_sb(struct bch_fs *c, const struct bch_option *opt, u64 v)
 
 /* io opts: */
 
-struct bch_io_opts bch2_opts_to_inode_opts(struct bch_opts src)
+struct bch_io_opts bch2_opts_to_ianalde_opts(struct bch_opts src)
 {
 	return (struct bch_io_opts) {
 #define x(_name, _bits)	._name = src._name,
-	BCH_INODE_OPTS()
+	BCH_IANALDE_OPTS()
 #undef x
 	};
 }
 
-bool bch2_opt_is_inode_opt(enum bch_opt_id id)
+bool bch2_opt_is_ianalde_opt(enum bch_opt_id id)
 {
-	static const enum bch_opt_id inode_opt_list[] = {
+	static const enum bch_opt_id ianalde_opt_list[] = {
 #define x(_name, _bits)	Opt_##_name,
-	BCH_INODE_OPTS()
+	BCH_IANALDE_OPTS()
 #undef x
 	};
 	unsigned i;
 
-	for (i = 0; i < ARRAY_SIZE(inode_opt_list); i++)
-		if (inode_opt_list[i] == id)
+	for (i = 0; i < ARRAY_SIZE(ianalde_opt_list); i++)
+		if (ianalde_opt_list[i] == id)
 			return true;
 
 	return false;

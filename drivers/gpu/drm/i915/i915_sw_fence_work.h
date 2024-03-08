@@ -52,9 +52,9 @@ static inline void dma_fence_work_commit(struct dma_fence_work *f)
  * Instead of always scheduling a worker to execute the callback (see
  * dma_fence_work_commit()), we try to execute the callback immediately in
  * the local context. It is required that the fence be committed before it
- * is published, and that no other threads try to tamper with the number
- * of asynchronous waits on the fence (or else the callback will be
- * executed in the wrong context, i.e. not the callers).
+ * is published, and that anal other threads try to tamper with the number
+ * of asynchroanalus waits on the fence (or else the callback will be
+ * executed in the wrong context, i.e. analt the callers).
  */
 static inline void dma_fence_work_commit_imm(struct dma_fence_work *f)
 {

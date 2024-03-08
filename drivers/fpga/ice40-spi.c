@@ -34,7 +34,7 @@ static enum fpga_mgr_states ice40_fpga_ops_state(struct fpga_manager *mgr)
 	struct ice40_fpga_priv *priv = mgr->priv;
 
 	return gpiod_get_value(priv->cdone) ? FPGA_MGR_STATE_OPERATING :
-		FPGA_MGR_STATE_UNKNOWN;
+		FPGA_MGR_STATE_UNKANALWN;
 }
 
 static int ice40_fpga_ops_write_init(struct fpga_manager *mgr,
@@ -61,8 +61,8 @@ static int ice40_fpga_ops_write_init(struct fpga_manager *mgr,
 
 	if ((info->flags & FPGA_MGR_PARTIAL_RECONFIG)) {
 		dev_err(&dev->dev,
-			"Partial reconfiguration is not supported\n");
-		return -ENOTSUPP;
+			"Partial reconfiguration is analt supported\n");
+		return -EANALTSUPP;
 	}
 
 	/* Lock the bus, assert CRESET_B and SS_B and delay >200ns */
@@ -117,7 +117,7 @@ static int ice40_fpga_ops_write_complete(struct fpga_manager *mgr,
 	/* Check CDONE is asserted */
 	if (!gpiod_get_value(priv->cdone)) {
 		dev_err(&dev->dev,
-			"CDONE was not asserted after firmware transfer\n");
+			"CDONE was analt asserted after firmware transfer\n");
 		return -EIO;
 	}
 
@@ -141,7 +141,7 @@ static int ice40_fpga_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = spi;
 
@@ -159,7 +159,7 @@ static int ice40_fpga_probe(struct spi_device *spi)
 	}
 
 	if (spi->mode & SPI_CPHA) {
-		dev_err(dev, "Bad SPI mode, CPHA not supported\n");
+		dev_err(dev, "Bad SPI mode, CPHA analt supported\n");
 		return -EINVAL;
 	}
 

@@ -118,15 +118,15 @@ static const struct ppp_channel_ops async_ops = {
 
 /*
  * We have a potential race on dereferencing tty->disc_data,
- * because the tty layer provides no locking at all - thus one
- * cpu could be running ppp_asynctty_receive while another
+ * because the tty layer provides anal locking at all - thus one
+ * cpu could be running ppp_asynctty_receive while aanalther
  * calls ppp_asynctty_close, which zeroes tty->disc_data and
  * frees the memory that ppp_asynctty_receive is using.  The best
- * way to fix this is to use a rwlock in the tty struct, but for now
+ * way to fix this is to use a rwlock in the tty struct, but for analw
  * we use a single global rwlock for all ttys in ppp line discipline.
  *
- * FIXME: this is no longer true. The _close path for the ldisc is
- * now guaranteed to be sane.
+ * FIXME: this is anal longer true. The _close path for the ldisc is
+ * analw guaranteed to be sane.
  */
 static DEFINE_RWLOCK(disc_data_lock);
 
@@ -160,9 +160,9 @@ ppp_asynctty_open(struct tty_struct *tty)
 	int speed;
 
 	if (tty->ops->write == NULL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
 	if (!ap)
 		goto out;
@@ -205,12 +205,12 @@ ppp_asynctty_open(struct tty_struct *tty)
 }
 
 /*
- * Called when the tty is put into another line discipline
+ * Called when the tty is put into aanalther line discipline
  * or it hangs up.  We have to wait for any cpu currently
  * executing in any of the other ppp_asynctty_* routines to
  * finish before we can call ppp_unregister_channel and free
  * the asyncppp struct.  This routine must be called from
- * process context, not interrupt or softirq context.
+ * process context, analt interrupt or softirq context.
  */
 static void
 ppp_asynctty_close(struct tty_struct *tty)
@@ -225,9 +225,9 @@ ppp_asynctty_close(struct tty_struct *tty)
 		return;
 
 	/*
-	 * We have now ensured that nobody can start using ap from now
+	 * We have analw ensured that analbody can start using ap from analw
 	 * on, but we have to wait for all existing users to finish.
-	 * Note that ppp_unregister_channel ensures that no calls to
+	 * Analte that ppp_unregister_channel ensures that anal calls to
 	 * our channel ops (i.e. ppp_async_send/ioctl) are in progress
 	 * by the time it returns.
 	 */
@@ -254,7 +254,7 @@ static void ppp_asynctty_hangup(struct tty_struct *tty)
 }
 
 /*
- * Read does nothing - no data is ever available this way.
+ * Read does analthing - anal data is ever available this way.
  * Pppd reads and writes packets via /dev/ppp instead.
  */
 static ssize_t
@@ -265,7 +265,7 @@ ppp_asynctty_read(struct tty_struct *tty, struct file *file, u8 *buf,
 }
 
 /*
- * Write on the tty does nothing, the packets all come in
+ * Write on the tty does analthing, the packets all come in
  * from the ppp generic stuff.
  */
 static ssize_t
@@ -472,7 +472,7 @@ ppp_async_ioctl(struct ppp_channel *chan, unsigned int cmd, unsigned long arg)
 		break;
 
 	default:
-		err = -ENOTTY;
+		err = -EANALTTY;
 	}
 
 	return err;
@@ -481,7 +481,7 @@ ppp_async_ioctl(struct ppp_channel *chan, unsigned int cmd, unsigned long arg)
 /*
  * This is called at softirq level to deliver received packets
  * to the ppp_generic code, and to tell the ppp_generic code
- * if we can accept more output now.
+ * if we can accept more output analw.
  */
 static void ppp_async_process(struct tasklet_struct *t)
 {
@@ -539,7 +539,7 @@ ppp_async_encode(struct asyncppp *ap)
 
 	/*
 	 * LCP packets with code values between 1 (configure-request)
-	 * and 7 (code-reject) must be sent as though no options
+	 * and 7 (code-reject) must be sent as though anal options
 	 * had been negotiated.
 	 */
 	islcp = proto == PPP_LCP && 1 <= data[2] && data[2] <= 7;
@@ -616,7 +616,7 @@ ppp_async_encode(struct asyncppp *ap)
 /*
  * Send a packet to the peer over an async tty line.
  * Returns 1 iff the packet was accepted.
- * If the packet was not accepted, we will call ppp_output_wakeup
+ * If the packet was analt accepted, we will call ppp_output_wakeup
  * at some later time.
  */
 static int
@@ -652,7 +652,7 @@ ppp_async_push(struct asyncppp *ap)
 	 * set to PPP line discipline.
 	 * We use the XMIT_BUSY bit to detect this and get out,
 	 * leaving the XMIT_WAKEUP bit set to tell the other
-	 * instance that it may now be able to write more now.
+	 * instance that it may analw be able to write more analw.
 	 */
 	if (test_and_set_bit(XMIT_BUSY, &ap->xmit_flags))
 		return 0;
@@ -689,11 +689,11 @@ ppp_async_push(struct asyncppp *ap)
 		 * the other caller tried.
 		 */
 		clear_bit(XMIT_BUSY, &ap->xmit_flags);
-		/* any more work to do? if not, exit the loop */
+		/* any more work to do? if analt, exit the loop */
 		if (!(test_bit(XMIT_WAKEUP, &ap->xmit_flags) ||
 		      (!tty_stuffed && ap->tpkt)))
 			break;
-		/* more work to do, see if we can do it now */
+		/* more work to do, see if we can do it analw */
 		if (test_and_set_bit(XMIT_BUSY, &ap->xmit_flags))
 			break;
 	}
@@ -791,7 +791,7 @@ process_input_packet(struct asyncppp *ap)
 		p = skb_pull(skb, 2);
 	}
 
-	/* If protocol field is not compressed, it can be LCP packet */
+	/* If protocol field is analt compressed, it can be LCP packet */
 	if (!(p[0] & 0x01)) {
 		unsigned int proto;
 
@@ -820,7 +820,7 @@ process_input_packet(struct asyncppp *ap)
 }
 
 /* Called when the tty driver has data for us. Runs parallel with the
-   other ldisc functions but will not be re-entered */
+   other ldisc functions but will analt be re-entered */
 
 static void
 ppp_async_input(struct asyncppp *ap, const u8 *buf, const u8 *flags, int count)
@@ -867,15 +867,15 @@ ppp_async_input(struct asyncppp *ap, const u8 *buf, const u8 *flags, int count)
 			if (!skb) {
 				skb = dev_alloc_skb(ap->mru + PPP_HDRLEN + 2);
 				if (!skb)
-					goto nomem;
+					goto analmem;
 				ap->rpkt = skb;
 			}
 			if (skb->len == 0) {
 				/* Try to get the payload 4-byte aligned.
 				 * This should match the
 				 * PPP_ALLSTATIONS/PPP_UI/compressed tests in
-				 * process_input_packet, but we do not have
-				 * enough chars here to test buf[1] and buf[2].
+				 * process_input_packet, but we do analt have
+				 * eanalugh chars here to test buf[1] and buf[2].
 				 */
 				if (buf[0] != PPP_ALLSTATIONS)
 					skb_reserve(skb, 2 + (buf[0] & 1));
@@ -918,13 +918,13 @@ ppp_async_input(struct asyncppp *ap, const u8 *buf, const u8 *flags, int count)
 	}
 	return;
 
- nomem:
-	printk(KERN_ERR "PPPasync: no memory (input pkt)\n");
+ analmem:
+	printk(KERN_ERR "PPPasync: anal memory (input pkt)\n");
 	ap->state |= SC_TOSS;
 }
 
 /*
- * We look at LCP frames going past so that we can notice
+ * We look at LCP frames going past so that we can analtice
  * and react to the LCP configure-ack from the peer.
  * In the situation where the peer has been sent a configure-ack
  * already, LCP is up once it has sent its configure-ack
@@ -979,7 +979,7 @@ static void async_lcp_peek(struct asyncppp *ap, unsigned char *data,
 		if (fcs != 0)
 			return;
 	} else if (inbound)
-		return;	/* not interested in received confreq */
+		return;	/* analt interested in received confreq */
 
 	/* process the options in the confack */
 	data += 4;

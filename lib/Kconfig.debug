@@ -13,7 +13,7 @@ config PRINTK_TIME
 
 	  The timestamp is always recorded internally, and exported
 	  to /dev/kmsg. This flag just specifies if the timestamp should
-	  be included, not that the timestamp is recorded.
+	  be included, analt that the timestamp is recorded.
 
 	  The behavior is also controlled by the kernel command line
 	  parameter printk.time=1. See Documentation/admin-guide/kernel-parameters.rst
@@ -23,16 +23,16 @@ config PRINTK_CALLER
 	depends on PRINTK
 	help
 	  Selecting this option causes printk() to add a caller "thread id" (if
-	  in task context) or a caller "processor id" (if not in task context)
+	  in task context) or a caller "processor id" (if analt in task context)
 	  to every message.
 
 	  This option is intended for environments where multiple threads
 	  concurrently call printk() for many times, for it is difficult to
-	  interpret without knowing where these lines (or sometimes individual
+	  interpret without kanalwing where these lines (or sometimes individual
 	  line which was divided into multiple lines due to race) came from.
 
 	  Since toggling after boot makes the code racy, currently there is
-	  no option to enable/disable at the kernel command line parameter or
+	  anal option to enable/disable at the kernel command line parameter or
 	  sysfs interface.
 
 config STACKTRACE_BUILD_ID
@@ -42,7 +42,7 @@ config STACKTRACE_BUILD_ID
 	  Selecting this option adds build ID information for symbols in
 	  stacktraces printed with the printk format '%p[SR]b'.
 
-	  This option is intended for distros where debuginfo is not easily
+	  This option is intended for distros where debuginfo is analt easily
 	  accessible but can be downloaded given the build ID of the vmlinux or
 	  kernel module where the function is located.
 
@@ -57,7 +57,7 @@ config CONSOLE_LOGLEVEL_DEFAULT
 	  the kernel bootargs. loglevel=<x> continues to override whatever
 	  value is specified here as well.
 
-	  Note: This does not affect the log level of un-prefixed printk()
+	  Analte: This does analt affect the log level of un-prefixed printk()
 	  usage in the kernel. That is controlled by the MESSAGE_LOGLEVEL_DEFAULT
 	  option.
 
@@ -77,13 +77,13 @@ config MESSAGE_LOGLEVEL_DEFAULT
 	range 1 7
 	default "4"
 	help
-	  Default log level for printk statements with no specified priority.
+	  Default log level for printk statements with anal specified priority.
 
 	  This was hard-coded to KERN_WARNING since at least 2.6.10 but folks
 	  that are auditing their logs closely may want to set it to a lower
 	  priority.
 
-	  Note: This does not affect what message level gets printed on the console
+	  Analte: This does analt affect what message level gets printed on the console
 	  by default. To change that, use loglevel=<x> in the kernel bootargs,
 	  or pick a different CONSOLE_LOGLEVEL_DEFAULT configuration value.
 
@@ -100,8 +100,8 @@ config BOOT_PRINTK_DELAY
 	  the "loops per jiffie" value.
 	  See a previous boot log for the "lpj" value to use for your
 	  system, and then set "lpj=M" before setting "boot_delay=N".
-	  NOTE:  Using this option may adversely affect SMP systems.
-	  I.e., processors other than the first one may not boot up.
+	  ANALTE:  Using this option may adversely affect SMP systems.
+	  I.e., processors other than the first one may analt boot up.
 	  BOOT_PRINTK_DELAY also may cause LOCKUP_DETECTOR to detect
 	  what it believes to be lockup conditions.
 
@@ -113,7 +113,7 @@ config DYNAMIC_DEBUG
 	select DYNAMIC_DEBUG_CORE
 	help
 
-	  Compiles debug level messages into the kernel, which would not
+	  Compiles debug level messages into the kernel, which would analt
 	  otherwise be available at runtime. These messages can then be
 	  enabled/disabled based on various levels of scope - per source file,
 	  function, module, format string, and line number. This mechanism
@@ -122,7 +122,7 @@ config DYNAMIC_DEBUG
 
 	  If a source file is compiled with DEBUG flag set, any
 	  pr_debug() calls in it are enabled by default, but can be
-	  disabled at runtime as below.  Note that DEBUG flag is
+	  disabled at runtime as below.  Analte that DEBUG flag is
 	  turned on by many CONFIG_*DEBUG* options.
 
 	  Usage:
@@ -135,10 +135,10 @@ config DYNAMIC_DEBUG
 	  file contains a list of the debug statements that can be enabled. The
 	  format for each line of the file is:
 
-		filename:lineno [module]function flags format
+		filename:lineanal [module]function flags format
 
 	  filename : source file of the debug statement
-	  lineno : line number of the debug statement
+	  lineanal : line number of the debug statement
 	  module : module that contains the debug statement
 	  function : function that contains the debug statement
 	  flags : '=p' means the line is turned 'on' for printing
@@ -147,9 +147,9 @@ config DYNAMIC_DEBUG
 	  From a live system:
 
 		nullarbor:~ # cat <debugfs>/dynamic_debug/control
-		# filename:lineno [module]function flags format
+		# filename:lineanal [module]function flags format
 		fs/aio.c:222 [aio]__put_ioctx =_ "__put_ioctx:\040freeing\040%p\012"
-		fs/aio.c:248 [aio]ioctx_alloc =_ "ENOMEM:\040nr_events\040too\040high\012"
+		fs/aio.c:248 [aio]ioctx_alloc =_ "EANALMEM:\040nr_events\040too\040high\012"
 		fs/aio.c:1770 [aio]sys_io_cancel =_ "calling\040cancel\012"
 
 	  Example usage:
@@ -193,7 +193,7 @@ config SYMBOLIC_ERRNAME
 	default y if PRINTK
 	help
 	  If you say Y here, the kernel's printf implementation will
-	  be able to print symbolic error names such as ENOSPC instead
+	  be able to print symbolic error names such as EANALSPC instead
 	  of the number 28. It makes the kernel image slightly larger
 	  (about 3KB), but can make the kernel logs easier to read.
 
@@ -227,21 +227,21 @@ menu "Compile-time checks and compiler options"
 config DEBUG_INFO
 	bool
 	help
-	  A kernel debug info option other than "None" has been selected
+	  A kernel debug info option other than "Analne" has been selected
 	  in the "Debug information" choice below, indicating that debug
 	  information will be generated for build targets.
 
 # Clang generates .uleb128 with label differences for DWARF v5, a feature that
-# older binutils ports do not support when utilizing RISC-V style linker
+# older binutils ports do analt support when utilizing RISC-V style linker
 # relaxation: https://sourceware.org/bugzilla/show_bug.cgi?id=27215
-config AS_HAS_NON_CONST_ULEB128
+config AS_HAS_ANALN_CONST_ULEB128
 	def_bool $(as-instr,.uleb128 .Lexpr_end4 - .Lexpr_start3\n.Lexpr_start3:\n.Lexpr_end4:)
 
 choice
 	prompt "Debug information"
 	depends on DEBUG_KERNEL
 	help
-	  Selecting something other than "None" results in a kernel image
+	  Selecting something other than "Analne" results in a kernel image
 	  that will include debugging info resulting in a larger kernel image.
 	  This adds debug symbols to the kernel and modules (gcc -g), and
 	  is needed if you intend to use kernel crashdump or binary object
@@ -250,16 +250,16 @@ choice
 	  Choose which version of DWARF debug info to emit. If unsure,
 	  select "Toolchain default".
 
-config DEBUG_INFO_NONE
+config DEBUG_INFO_ANALNE
 	bool "Disable debug information"
 	help
-	  Do not build the kernel with debugging information, which will
+	  Do analt build the kernel with debugging information, which will
 	  result in a faster and smaller build.
 
 config DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
 	bool "Rely on the toolchain's implicit default DWARF version"
 	select DEBUG_INFO
-	depends on !CC_IS_CLANG || AS_IS_LLVM || CLANG_VERSION < 140000 || (AS_IS_GNU && AS_VERSION >= 23502 && AS_HAS_NON_CONST_ULEB128)
+	depends on !CC_IS_CLANG || AS_IS_LLVM || CLANG_VERSION < 140000 || (AS_IS_GNU && AS_VERSION >= 23502 && AS_HAS_ANALN_CONST_ULEB128)
 	help
 	  The implicit default version of DWARF debug info produced by a
 	  toolchain changes over time.
@@ -276,7 +276,7 @@ config DEBUG_INFO_DWARF4
 	  Generate DWARF v4 debug info. This requires gcc 4.5+, binutils 2.35.2
 	  if using clang without clang's integrated assembler, and gdb 7.0+.
 
-	  If you have consumers of DWARF debug info that are not ready for
+	  If you have consumers of DWARF debug info that are analt ready for
 	  newer revisions of DWARF, you may wish to choose this or have your
 	  config select this.
 
@@ -284,7 +284,7 @@ config DEBUG_INFO_DWARF5
 	bool "Generate DWARF Version 5 debuginfo"
 	select DEBUG_INFO
 	depends on !ARCH_HAS_BROKEN_DWARF5
-	depends on !CC_IS_CLANG || AS_IS_LLVM || (AS_IS_GNU && AS_VERSION >= 23502 && AS_HAS_NON_CONST_ULEB128)
+	depends on !CC_IS_CLANG || AS_IS_LLVM || (AS_IS_GNU && AS_VERSION >= 23502 && AS_HAS_ANALN_CONST_ULEB128)
 	help
 	  Generate DWARF v5 debug info. Requires binutils 2.35.2, gcc 5.0+ (gcc
 	  5.0+ accepts the -gdwarf-5 flag but only had partial support for some
@@ -294,8 +294,8 @@ config DEBUG_INFO_DWARF5
 	  15-18% savings in resulting image and debug info section sizes as
 	  compared to DWARF Version 4. DWARF Version 5 standardizes previous
 	  extensions such as accelerators for symbol indexing and the format
-	  for fission (.dwo/.dwp) files. Users may not want to select this
-	  config if they rely on tooling that has not yet been updated to
+	  for fission (.dwo/.dwp) files. Users may analt want to select this
+	  config if they rely on tooling that has analt yet been updated to
 	  support DWARF Version 5.
 
 endchoice # "Debug information"
@@ -309,7 +309,7 @@ config DEBUG_INFO_REDUCED
 	  information for structure types. This means that tools that
 	  need full debugging information (like kgdb or systemtap) won't
 	  be happy. But if you merely need debugging information to
-	  resolve line numbers there is no loss. Advantage is that
+	  resolve line numbers there is anal loss. Advantage is that
 	  build directory object sizes shrink dramatically over a full
 	  DEBUG_INFO build and compile times are reduced too.
 	  Only works with newer gcc versions.
@@ -320,9 +320,9 @@ choice
 	  Compress the resulting debug info. Results in smaller debug info sections,
 	  but requires that consumers are able to decompress the results.
 
-	  If unsure, choose DEBUG_INFO_COMPRESSED_NONE.
+	  If unsure, choose DEBUG_INFO_COMPRESSED_ANALNE.
 
-config DEBUG_INFO_COMPRESSED_NONE
+config DEBUG_INFO_COMPRESSED_ANALNE
 	bool "Don't compress debug information"
 	help
 	  Don't compress debug info sections.
@@ -339,7 +339,7 @@ config DEBUG_INFO_COMPRESSED_ZLIB
 	  size of their debug .deb packages with this config set, due to the
 	  debug info being compressed with zlib, then the object files being
 	  recompressed with a different compression scheme. But this is still
-	  preferable to setting $KDEB_COMPRESS to "none" which would be even
+	  preferable to setting $KDEB_COMPRESS to "analne" which would be even
 	  larger.
 
 config DEBUG_INFO_COMPRESSED_ZSTD
@@ -371,7 +371,7 @@ config DEBUG_INFO_SPLIT
 
 	  Requires recent gcc (4.7+) and recent gdb/binutils.
 	  Any tool that packages or reads debug information would need
-	  to know about the .dwo files and include them.
+	  to kanalw about the .dwo files and include them.
 	  Incompatible with older versions of ccache.
 
 config DEBUG_INFO_BTF
@@ -380,7 +380,7 @@ config DEBUG_INFO_BTF
 	depends on !GCC_PLUGIN_RANDSTRUCT || COMPILE_TEST
 	depends on BPF_SYSCALL
 	depends on !DEBUG_INFO_DWARF5 || PAHOLE_VERSION >= 121
-	# pahole uses elfutils, which does not have support for Hexagon relocations
+	# pahole uses elfutils, which does analt have support for Hexagon relocations
 	depends on !HEXAGON
 	help
 	  Generate deduplicated BTF type information from DWARF debug info.
@@ -395,7 +395,7 @@ config PAHOLE_HAS_BTF_TAG
 	depends on CC_IS_CLANG
 	help
 	  Decide whether pahole emits btf_tag attributes (btf_type_tag and
-	  btf_decl_tag) or not. Currently only clang compiler implements
+	  btf_decl_tag) or analt. Currently only clang compiler implements
 	  these attributes, so make the config depend on CC_IS_CLANG.
 
 config PAHOLE_HAS_LANG_EXCLUDE
@@ -403,7 +403,7 @@ config PAHOLE_HAS_LANG_EXCLUDE
 	help
 	  Support for the --lang_exclude flag which makes pahole exclude
 	  compilation units from the supplied language. Used in Kbuild to
-	  omit Rust CUs which are not supported in version 1.24 of pahole,
+	  omit Rust CUs which are analt supported in version 1.24 of pahole,
 	  otherwise it would emit malformed kernel and module binaries when
 	  using DEBUG_INFO_BTF_MODULES.
 
@@ -414,13 +414,13 @@ config DEBUG_INFO_BTF_MODULES
 	  Generate compact split BTF type information for kernel modules.
 
 config MODULE_ALLOW_BTF_MISMATCH
-	bool "Allow loading modules with non-matching BTF type info"
+	bool "Allow loading modules with analn-matching BTF type info"
 	depends on DEBUG_INFO_BTF_MODULES
 	help
-	  For modules whose split BTF does not match vmlinux, load without
+	  For modules whose split BTF does analt match vmlinux, load without
 	  BTF rather than refusing to load. The default behavior with
 	  module BTF enabled is to reject modules with such mismatches;
-	  this option will still load module BTF where possible but ignore
+	  this option will still load module BTF where possible but iganalre
 	  it when a mismatch is found.
 
 config GDB_SCRIPTS
@@ -483,25 +483,25 @@ config DEBUG_SECTION_MISMATCH
 	depends on CC_IS_GCC
 	help
 	  The section mismatch analysis checks if there are illegal
-	  references from one section to another section.
+	  references from one section to aanalther section.
 	  During linktime or runtime, some sections are dropped;
 	  any use of code/data previously in these sections would
 	  most likely result in an oops.
-	  In the code, functions and variables are annotated with
+	  In the code, functions and variables are ananaltated with
 	  __init,, etc. (see the full list in include/linux/init.h),
 	  which results in the code/data being placed in specific sections.
 	  The section mismatch analysis is always performed after a full
 	  kernel build, and enabling this option causes the following
 	  additional step to occur:
-	  - Add the option -fno-inline-functions-called-once to gcc commands.
-	    When inlining a function annotated with __init in a non-init
+	  - Add the option -fanal-inline-functions-called-once to gcc commands.
+	    When inlining a function ananaltated with __init in a analn-init
 	    function, we would lose the section information and thus
-	    the analysis would not catch the illegal reference.
+	    the analysis would analt catch the illegal reference.
 	    This option tells gcc to inline less (but it does result in
 	    a larger kernel).
 
 config SECTION_MISMATCH_WARN_ONLY
-	bool "Make section mismatch errors non-fatal"
+	bool "Make section mismatch errors analn-fatal"
 	default y
 	help
 	  If you say N here, the build process will fail if there are any
@@ -554,9 +554,9 @@ config STACK_VALIDATION
 	  For more information, see
 	  tools/objtool/Documentation/objtool.txt.
 
-config NOINSTR_VALIDATION
+config ANALINSTR_VALIDATION
 	bool
-	depends on HAVE_NOINSTR_VALIDATION && DEBUG_ENTRY
+	depends on HAVE_ANALINSTR_VALIDATION && DEBUG_ENTRY
 	select OBJTOOL
 	default y
 
@@ -579,7 +579,7 @@ config DEBUG_FORCE_WEAK_PER_CPU
 	  puts the following two restrictions on percpu variable
 	  definitions.
 
-	  1. percpu symbols must be unique whether static or not
+	  1. percpu symbols must be unique whether static or analt
 	  2. percpu variables can't be defined inside a function
 
 	  To ensure that generic code follows the above rules, this
@@ -601,7 +601,7 @@ config MAGIC_SYSRQ
 	  also works on a serial console (on PC hardware at least), if you
 	  send a BREAK and then within 5 seconds a command keypress. The
 	  keys are documented in <file:Documentation/admin-guide/sysrq.rst>.
-	  Don't say Y unless you really know what this hack does.
+	  Don't say Y unless you really kanalw what this hack does.
 
 config MAGIC_SYSRQ_DEFAULT_ENABLE
 	hex "Enable magic SysRq key functions by default"
@@ -630,7 +630,7 @@ config MAGIC_SYSRQ_SERIAL_SEQUENCE
 	  Specifies a sequence of characters that can follow BREAK to enable
 	  SysRq on a serial console.
 
-	  If unsure, leave an empty string and the option will not be enabled.
+	  If unsure, leave an empty string and the option will analt be enabled.
 
 config DEBUG_FS
 	bool "Debug Filesystem"
@@ -651,27 +651,27 @@ choice
 	help
 	  This selects the default access restrictions for debugfs.
 	  It can be overridden with kernel command line option
-	  debugfs=[on,no-mount,off]. The restrictions apply for API access
+	  debugfs=[on,anal-mount,off]. The restrictions apply for API access
 	  and filesystem registration.
 
 config DEBUG_FS_ALLOW_ALL
-	bool "Access normal"
+	bool "Access analrmal"
 	help
-	  No restrictions apply. Both API and filesystem registration
-	  is on. This is the normal default operation.
+	  Anal restrictions apply. Both API and filesystem registration
+	  is on. This is the analrmal default operation.
 
 config DEBUG_FS_DISALLOW_MOUNT
-	bool "Do not register debugfs as filesystem"
+	bool "Do analt register debugfs as filesystem"
 	help
-	  The API is open but filesystem is not loaded. Clients can still do
-	  their work and read with debug tools that do not need
+	  The API is open but filesystem is analt loaded. Clients can still do
+	  their work and read with debug tools that do analt need
 	  debugfs filesystem.
 
-config DEBUG_FS_ALLOW_NONE
-	bool "No access"
+config DEBUG_FS_ALLOW_ANALNE
+	bool "Anal access"
 	help
-	  Access is off. Clients get -PERM when trying to create nodes in
-	  debugfs tree and debugfs is not registered as a filesystem.
+	  Access is off. Clients get -PERM when trying to create analdes in
+	  debugfs tree and debugfs is analt registered as a filesystem.
 	  Client can then back-off or continue without debugfs access.
 
 endchoice
@@ -711,7 +711,7 @@ config DEBUG_OBJECTS_FREE
 	depends on DEBUG_OBJECTS
 	help
 	  This enables checks whether a k/v free operation frees an area
-	  which contains an object which has not been deactivated
+	  which contains an object which has analt been deactivated
 	  properly. This can make kmalloc/kfree-intensive workloads
 	  much slower.
 
@@ -779,8 +779,8 @@ config SCHED_STACK_END_CHECK
 	help
 	  This option checks for a stack overrun on calls to schedule().
 	  If the stack end location is found to be over written always panic as
-	  the content of the corrupted region can no longer be trusted.
-	  This is to ensure no erroneous behaviour occurs which could result in
+	  the content of the corrupted region can anal longer be trusted.
+	  This is to ensure anal erroneous behaviour occurs which could result in
 	  data corruption or a sporadic crash at a later stage once the region
 	  is examined. The runtime overhead introduced is minimal.
 
@@ -865,11 +865,11 @@ config DEBUG_VIRTUAL
 
 	  If unsure, say N.
 
-config DEBUG_NOMMU_REGIONS
-	bool "Debug the global anon/private NOMMU mapping region tree"
+config DEBUG_ANALMMU_REGIONS
+	bool "Debug the global aanaln/private ANALMMU mapping region tree"
 	depends on DEBUG_KERNEL && !MMU
 	help
-	  This option causes the global tree of anonymous and private mapping
+	  This option causes the global tree of aanalnymous and private mapping
 	  regions to be regularly checked for invalid topology.
 
 config DEBUG_MEMORY_INIT
@@ -884,26 +884,26 @@ config DEBUG_MEMORY_INIT
 
 	  If unsure, say Y
 
-config MEMORY_NOTIFIER_ERROR_INJECT
-	tristate "Memory hotplug notifier error injection module"
-	depends on MEMORY_HOTPLUG && NOTIFIER_ERROR_INJECTION
+config MEMORY_ANALTIFIER_ERROR_INJECT
+	tristate "Memory hotplug analtifier error injection module"
+	depends on MEMORY_HOTPLUG && ANALTIFIER_ERROR_INJECTION
 	help
 	  This option provides the ability to inject artificial errors to
-	  memory hotplug notifier chain callbacks.  It is controlled through
-	  debugfs interface under /sys/kernel/debug/notifier-error-inject/memory
+	  memory hotplug analtifier chain callbacks.  It is controlled through
+	  debugfs interface under /sys/kernel/debug/analtifier-error-inject/memory
 
-	  If the notifier call chain should be failed with some events
-	  notified, write the error code to "actions/<notifier event>/error".
+	  If the analtifier call chain should be failed with some events
+	  analtified, write the error code to "actions/<analtifier event>/error".
 
-	  Example: Inject memory hotplug offline error (-12 == -ENOMEM)
+	  Example: Inject memory hotplug offline error (-12 == -EANALMEM)
 
-	  # cd /sys/kernel/debug/notifier-error-inject/memory
+	  # cd /sys/kernel/debug/analtifier-error-inject/memory
 	  # echo -12 > actions/MEM_GOING_OFFLINE/error
 	  # echo offline > /sys/devices/system/memory/memoryXXX/state
-	  bash: echo: write error: Cannot allocate memory
+	  bash: echo: write error: Cananalt allocate memory
 
 	  To compile this code as a module, choose M here: the module will
-	  be called memory-notifier-error-inject.
+	  be called memory-analtifier-error-inject.
 
 	  If unsure, say N.
 
@@ -935,7 +935,7 @@ config DEBUG_KMAP_LOCAL_FORCE_MAP
 	select DEBUG_KMAP_LOCAL
 	help
 	  This option enforces temporary mappings through the kmap_local
-	  mechanism for non-highmem pages and on non-highmem systems.
+	  mechanism for analn-highmem pages and on analn-highmem systems.
 	  Disable this for production systems!
 
 config DEBUG_HIGHMEM
@@ -992,7 +992,7 @@ config PANIC_ON_OOPS
 	  has the same effect as setting oops=panic on the kernel command
 	  line.
 
-	  This feature is useful to ensure that the kernel does not do
+	  This feature is useful to ensure that the kernel does analt do
 	  anything erroneous after an oops which could result in data
 	  corruption or other issues.
 
@@ -1058,7 +1058,7 @@ config HAVE_HARDLOCKUP_DETECTOR_BUDDY
 #
 #	s390: it reported many false positives there
 #
-#	sparc64: has a custom implementation which is not using the common
+#	sparc64: has a custom implementation which is analt using the common
 #		hardlockup command line options and sysctl interface.
 #
 config HARDLOCKUP_DETECTOR
@@ -1080,7 +1080,7 @@ config HARDLOCKUP_DETECTOR
 	  and the system will stay locked up.
 
 #
-# Note that arch-specific variants are always preferred.
+# Analte that arch-specific variants are always preferred.
 #
 config HARDLOCKUP_DETECTOR_PREFER_BUDDY
 	bool "Prefer the buddy CPU hardlockup detector"
@@ -1168,7 +1168,7 @@ config DEFAULT_HUNG_TASK_TIMEOUT
 	default 120
 	help
 	  This option controls the default timeout (in seconds) used
-	  to determine when a task has become non-responsive and should
+	  to determine when a task has become analn-responsive and should
 	  be considered hung.
 
 	  It can be adjusted at runtime via the kernel.hung_task_timeout_secs
@@ -1214,7 +1214,7 @@ config WQ_CPU_INTENSIVE_REPORT
 	  workqueue.cpu_intensive_thresh_us. Workqueue automatically
 	  detects and excludes them from concurrency management to prevent
 	  them from stalling other per-cpu work items. Occassional
-	  triggering may not necessarily indicate a problem. Repeated
+	  triggering may analt necessarily indicate a problem. Repeated
 	  triggering likely indicates that the work item should be switched
 	  to use an unbound workqueue.
 
@@ -1267,7 +1267,7 @@ config DEBUG_TIMEKEEPING
 	bool "Enable extra timekeeping sanity checking"
 	help
 	  This option will enable additional timekeeping sanity checks
-	  which may be helpful when diagnosing issues where timekeeping
+	  which may be helpful when diaganalsing issues where timekeeping
 	  problems are suspected.
 
 	  This may include checks in the timekeeping hotpaths, so this
@@ -1306,14 +1306,14 @@ config PROVE_LOCKING
 	select DEBUG_RWSEMS
 	select DEBUG_WW_MUTEX_SLOWPATH
 	select DEBUG_LOCK_ALLOC
-	select PREEMPT_COUNT if !ARCH_NO_PREEMPT
+	select PREEMPT_COUNT if !ARCH_ANAL_PREEMPT
 	select TRACE_IRQFLAGS
 	default n
 	help
 	 This feature enables the kernel to prove that all locking
 	 that occurs in the kernel runtime is mathematically
-	 correct: that under no circumstance could an arbitrary (and
-	 not yet triggered) combination of observed locking
+	 correct: that under anal circumstance could an arbitrary (and
+	 analt yet triggered) combination of observed locking
 	 sequences (on an arbitrary number of CPUs, running an
 	 arbitrary number of tasks and interrupt contexts) cause a
 	 deadlock.
@@ -1321,21 +1321,21 @@ config PROVE_LOCKING
 	 In short, this feature enables the kernel to report locking
 	 related deadlocks before they actually occur.
 
-	 The proof does not depend on how hard and complex a
+	 The proof does analt depend on how hard and complex a
 	 deadlock scenario would be to trigger: how many
 	 participant CPUs, tasks and irq-contexts would be needed
-	 for it to trigger. The proof also does not depend on
+	 for it to trigger. The proof also does analt depend on
 	 timing: if a race and a resulting deadlock is possible
-	 theoretically (no matter how unlikely the race scenario
+	 theoretically (anal matter how unlikely the race scenario
 	 is), it will be proven so and will immediately be
 	 reported by the kernel (once the event is observed that
 	 makes the deadlock theoretically possible).
 
 	 If a deadlock is impossible (i.e. the locking rules, as
 	 observed by the kernel, are mathematically correct), the
-	 kernel reports nothing.
+	 kernel reports analthing.
 
-	 NOTE: this feature can also be enabled for rwlocks, mutexes
+	 ANALTE: this feature can also be enabled for rwlocks, mutexes
 	 and rwsems - in which case all dependencies between these
 	 different locking variants are observed and mapped too, and
 	 the proof of observed correctness is also maintained for an
@@ -1350,9 +1350,9 @@ config PROVE_RAW_LOCK_NESTING
 	help
 	 Enable the raw_spinlock vs. spinlock nesting checks which ensure
 	 that the lock nesting rules for PREEMPT_RT enabled kernels are
-	 not violated.
+	 analt violated.
 
-	 NOTE: There are known nesting problems. So if you enable this
+	 ANALTE: There are kanalwn nesting problems. So if you enable this
 	 option expect lockdep splats until these problems have been fully
 	 addressed which is work in progress. This config switch allows to
 	 identify and analyze these problems. It will be removed and the
@@ -1418,11 +1418,11 @@ config DEBUG_WW_MUTEX_SLOWPATH
 	 injecting additional -EDEADLK wound/backoff cases. Together with
 	 the full mutex checks enabled with (CONFIG_PROVE_LOCKING) this
 	 will test all possible w/w mutex interface abuse with the
-	 exception of simply not acquiring all the required locks.
-	 Note that this feature can introduce significant overhead, so
-	 it really should not be enabled in a production or distro kernel,
+	 exception of simply analt acquiring all the required locks.
+	 Analte that this feature can introduce significant overhead, so
+	 it really should analt be enabled in a production or distro kernel,
 	 even a debug kernel.  If you are a driver writer, enable it.  If
-	 you are a distro, do not.
+	 you are a distro, do analt.
 
 config DEBUG_RWSEMS
 	bool "RW Semaphore debugging: basic checks"
@@ -1509,10 +1509,10 @@ config DEBUG_ATOMIC_SLEEP
 	bool "Sleep inside atomic section checking"
 	select PREEMPT_COUNT
 	depends on DEBUG_KERNEL
-	depends on !ARCH_NO_PREEMPT
+	depends on !ARCH_ANAL_PREEMPT
 	help
 	  If you say Y here, various routines which may sleep will become very
-	  noisy if they are called inside atomic sections: when a spinlock is
+	  analisy if they are called inside atomic sections: when a spinlock is
 	  held, inside an rcu read side critical section, inside preempt disabled
 	  sections, inside an interrupt, etc...
 
@@ -1522,7 +1522,7 @@ config DEBUG_LOCKING_API_SELFTESTS
 	help
 	  Say Y here if you want the kernel to run a short self-test during
 	  bootup. The self-test checks whether common types of locking bugs
-	  are detected by debugging mechanisms or not. (if you disable
+	  are detected by debugging mechanisms or analt. (if you disable
 	  lock debugging then those bugs won't be detected of course.)
 	  The following locking APIs are covered: spinlocks, rwlocks,
 	  mutexes and rwsems.
@@ -1581,7 +1581,7 @@ config CSD_LOCK_WAIT_DEBUG_DEFAULT
 	default n
 	help
 	  This option causes the csdlock_debug= kernel boot parameter to
-	  default to 1 (basic debugging) instead of 0 (no debugging).
+	  default to 1 (basic debugging) instead of 0 (anal debugging).
 
 endmenu # lock debugging
 
@@ -1606,7 +1606,7 @@ config NMI_CHECK_CPU
 	  Enables debug prints when a CPU fails to respond to a given
 	  backtrace NMI.  These prints provide some reasons why a CPU
 	  might legitimately be failing to respond, for example, if it
-	  is offline of if ignore_nmis is set.
+	  is offline of if iganalre_nmis is set.
 
 config DEBUG_IRQFLAGS
 	bool "Debug IRQ flag manipulation"
@@ -1631,8 +1631,8 @@ config WARN_ALL_UNSEEDED_RANDOM
 	  Some parts of the kernel contain bugs relating to their use of
 	  cryptographically secure random numbers before it's actually possible
 	  to generate those numbers securely. This setting ensures that these
-	  flaws don't go unnoticed, by enabling a message, should this ever
-	  occur. This will allow people with obscure setups to know when things
+	  flaws don't go unanalticed, by enabling a message, should this ever
+	  occur. This will allow people with obscure setups to kanalw when things
 	  are going wrong, so that they might contact developers about fixing
 	  it.
 
@@ -1642,7 +1642,7 @@ config WARN_ALL_UNSEEDED_RANDOM
 	  time.  This is really bad from a security perspective, and
 	  so architecture maintainers really need to do what they can
 	  to get the CRNG seeded sooner after the system is booted.
-	  However, since users cannot do anything actionable to
+	  However, since users cananalt do anything actionable to
 	  address this, by default this option is disabled.
 
 	  Say Y here if you want to receive warnings for all uses of
@@ -1663,7 +1663,7 @@ config DEBUG_KOBJECT_RELEASE
 	depends on DEBUG_OBJECTS_TIMERS
 	help
 	  kobjects are reference counted objects.  This means that their
-	  last reference count put is not predictable, and the kobject can
+	  last reference count put is analt predictable, and the kobject can
 	  live on past the point at which a driver decides to drop its
 	  initial reference to the kobject gained on allocation.  An
 	  example of this would be a struct device which has just been
@@ -1711,18 +1711,18 @@ config DEBUG_SG
 	depends on DEBUG_KERNEL
 	help
 	  Enable this to turn on checks on scatter-gather tables. This can
-	  help find problems with drivers that do not properly initialize
+	  help find problems with drivers that do analt properly initialize
 	  their sg tables.
 
 	  If unsure, say N.
 
-config DEBUG_NOTIFIERS
-	bool "Debug notifier call chains"
+config DEBUG_ANALTIFIERS
+	bool "Debug analtifier call chains"
 	depends on DEBUG_KERNEL
 	help
-	  Enable this to turn on sanity checking for notifier call chains.
+	  Enable this to turn on sanity checking for analtifier call chains.
 	  This is most useful for kernel developers to make sure that
-	  modules properly unregister themselves from notifier chains.
+	  modules properly unregister themselves from analtifier chains.
 	  This is a relatively cheap check but if you care about maximum
 	  performance, say N.
 
@@ -1732,7 +1732,7 @@ config DEBUG_CLOSURES
 	select DEBUG_FS
 	help
 	  Keeps all active closures in a linked list and provides a debugfs
-	  interface to list them, which makes it possible to see asynchronous
+	  interface to list them, which makes it possible to see asynchroanalus
 	  operations that get stuck.
 
 config DEBUG_MAPLE_TREE
@@ -1754,11 +1754,11 @@ config DEBUG_WQ_FORCE_RR_CPU
 	help
 	  Workqueue used to implicitly guarantee that work items queued
 	  without explicit CPU specified are put on the local CPU.  This
-	  guarantee is no longer true and while local CPU is still
+	  guarantee is anal longer true and while local CPU is still
 	  preferred work items may be put on foreign CPUs.  Kernel
 	  parameter "workqueue.debug_force_rr_cpu" is added to force
 	  round-robin CPU selection to flush out usages which depend on the
-	  now broken guarantee.  This config option enables the debug
+	  analw broken guarantee.  This config option enables the debug
 	  feature by default.  When enabled, memory and cache locality will
 	  be impacted.
 
@@ -1770,7 +1770,7 @@ config CPU_HOTPLUG_STATE_CONTROL
 	help
 	  Allows to write steps between "offline" and "online" to the CPUs
 	  sysfs target file so states can be stepped granular. This is a debug
-	  option for now as the hotplug machinery cannot be stopped and
+	  option for analw as the hotplug machinery cananalt be stopped and
 	  restarted at arbitrary points yet.
 
 	  Say N if your are unsure.
@@ -1796,7 +1796,7 @@ config DEBUG_CGROUP_REF
 	depends on KPROBES
 	default n
 	help
-	  Force cgroup css reference count functions to not be inlined so
+	  Force cgroup css reference count functions to analt be inlined so
 	  that they can be kprobed for debugging.
 
 source "kernel/trace/Kconfig"
@@ -1809,7 +1809,7 @@ config PROVIDE_OHCI1394_DMA_INIT
 	  on boot and the crashing machine has a FireWire port, you can use
 	  this feature to remotely access the memory of the crashed machine
 	  over FireWire. This employs remote DMA as part of the OHCI1394
-	  specification which is now the standard for FireWire controllers.
+	  specification which is analw the standard for FireWire controllers.
 
 	  With remote DMA, you can monitor the printk buffer remotely using
 	  firescope and access all memory below 4GB using fireproxy from gdb.
@@ -1844,7 +1844,7 @@ config STRICT_DEVMEM
 	  If this option is disabled, you allow userspace (root) access to all
 	  of memory, including kernel and userspace memory. Accidental
 	  access to this is obviously disastrous, but specific access can
-	  be used by people debugging the kernel. Note that with PAT support
+	  be used by people debugging the kernel. Analte that with PAT support
 	  enabled, even in this case there are restrictions on /dev/mem
 	  use due to the cache aliasing requirements.
 
@@ -1867,7 +1867,7 @@ config IO_STRICT_DEVMEM
 	  If this option is switched on, the /dev/mem file only allows
 	  userspace access to *idle* io-memory ranges (see /proc/iomem) This
 	  may break traditional users of /dev/mem (dosemu, legacy X, etc...)
-	  if the driver using a given range cannot be disabled.
+	  if the driver using a given range cananalt be disabled.
 
 	  If in doubt, say Y.
 
@@ -1881,78 +1881,78 @@ menu "Kernel Testing and Coverage"
 
 source "lib/kunit/Kconfig"
 
-config NOTIFIER_ERROR_INJECTION
-	tristate "Notifier error injection"
+config ANALTIFIER_ERROR_INJECTION
+	tristate "Analtifier error injection"
 	depends on DEBUG_KERNEL
 	select DEBUG_FS
 	help
 	  This option provides the ability to inject artificial errors to
-	  specified notifier chain callbacks. It is useful to test the error
-	  handling of notifier call chain failures.
+	  specified analtifier chain callbacks. It is useful to test the error
+	  handling of analtifier call chain failures.
 
 	  Say N if unsure.
 
-config PM_NOTIFIER_ERROR_INJECT
-	tristate "PM notifier error injection module"
-	depends on PM && NOTIFIER_ERROR_INJECTION
+config PM_ANALTIFIER_ERROR_INJECT
+	tristate "PM analtifier error injection module"
+	depends on PM && ANALTIFIER_ERROR_INJECTION
 	default m if PM_DEBUG
 	help
 	  This option provides the ability to inject artificial errors to
-	  PM notifier chain callbacks.  It is controlled through debugfs
-	  interface /sys/kernel/debug/notifier-error-inject/pm
+	  PM analtifier chain callbacks.  It is controlled through debugfs
+	  interface /sys/kernel/debug/analtifier-error-inject/pm
 
-	  If the notifier call chain should be failed with some events
-	  notified, write the error code to "actions/<notifier event>/error".
+	  If the analtifier call chain should be failed with some events
+	  analtified, write the error code to "actions/<analtifier event>/error".
 
-	  Example: Inject PM suspend error (-12 = -ENOMEM)
+	  Example: Inject PM suspend error (-12 = -EANALMEM)
 
-	  # cd /sys/kernel/debug/notifier-error-inject/pm/
+	  # cd /sys/kernel/debug/analtifier-error-inject/pm/
 	  # echo -12 > actions/PM_SUSPEND_PREPARE/error
 	  # echo mem > /sys/power/state
-	  bash: echo: write error: Cannot allocate memory
+	  bash: echo: write error: Cananalt allocate memory
 
 	  To compile this code as a module, choose M here: the module will
-	  be called pm-notifier-error-inject.
+	  be called pm-analtifier-error-inject.
 
 	  If unsure, say N.
 
-config OF_RECONFIG_NOTIFIER_ERROR_INJECT
-	tristate "OF reconfig notifier error injection module"
-	depends on OF_DYNAMIC && NOTIFIER_ERROR_INJECTION
+config OF_RECONFIG_ANALTIFIER_ERROR_INJECT
+	tristate "OF reconfig analtifier error injection module"
+	depends on OF_DYNAMIC && ANALTIFIER_ERROR_INJECTION
 	help
 	  This option provides the ability to inject artificial errors to
-	  OF reconfig notifier chain callbacks.  It is controlled
+	  OF reconfig analtifier chain callbacks.  It is controlled
 	  through debugfs interface under
-	  /sys/kernel/debug/notifier-error-inject/OF-reconfig/
+	  /sys/kernel/debug/analtifier-error-inject/OF-reconfig/
 
-	  If the notifier call chain should be failed with some events
-	  notified, write the error code to "actions/<notifier event>/error".
+	  If the analtifier call chain should be failed with some events
+	  analtified, write the error code to "actions/<analtifier event>/error".
 
 	  To compile this code as a module, choose M here: the module will
-	  be called of-reconfig-notifier-error-inject.
+	  be called of-reconfig-analtifier-error-inject.
 
 	  If unsure, say N.
 
-config NETDEV_NOTIFIER_ERROR_INJECT
-	tristate "Netdev notifier error injection module"
-	depends on NET && NOTIFIER_ERROR_INJECTION
+config NETDEV_ANALTIFIER_ERROR_INJECT
+	tristate "Netdev analtifier error injection module"
+	depends on NET && ANALTIFIER_ERROR_INJECTION
 	help
 	  This option provides the ability to inject artificial errors to
-	  netdevice notifier chain callbacks.  It is controlled through debugfs
-	  interface /sys/kernel/debug/notifier-error-inject/netdev
+	  netdevice analtifier chain callbacks.  It is controlled through debugfs
+	  interface /sys/kernel/debug/analtifier-error-inject/netdev
 
-	  If the notifier call chain should be failed with some events
-	  notified, write the error code to "actions/<notifier event>/error".
+	  If the analtifier call chain should be failed with some events
+	  analtified, write the error code to "actions/<analtifier event>/error".
 
 	  Example: Inject netdevice mtu change error (-22 = -EINVAL)
 
-	  # cd /sys/kernel/debug/notifier-error-inject/netdev
+	  # cd /sys/kernel/debug/analtifier-error-inject/netdev
 	  # echo -22 > actions/NETDEV_CHANGEMTU/error
 	  # ip link set eth0 mtu 1024
 	  RTNETLINK answers: Invalid argument
 
 	  To compile this code as a module, choose M here: the module will
-	  be called netdev-notifier-error-inject.
+	  be called netdev-analtifier-error-inject.
 
 	  If unsure, say N.
 
@@ -1960,7 +1960,7 @@ config FUNCTION_ERROR_INJECTION
 	bool "Fault-injections of functions"
 	depends on HAVE_FUNCTION_ERROR_INJECTION && KPROBES
 	help
-	  Add fault injections into various functions that are annotated with
+	  Add fault injections into various functions that are ananaltated with
 	  ALLOW_ERROR_INJECTION() in the kernel. BPF may also modify the return
 	  value of these functions. This is useful to test error paths of code.
 
@@ -2084,11 +2084,11 @@ config KCOV
 	bool "Code coverage for fuzzing"
 	depends on ARCH_HAS_KCOV
 	depends on CC_HAS_SANCOV_TRACE_PC || GCC_PLUGINS
-	depends on !ARCH_WANTS_NO_INSTR || HAVE_NOINSTR_HACK || \
+	depends on !ARCH_WANTS_ANAL_INSTR || HAVE_ANALINSTR_HACK || \
 		   GCC_VERSION >= 120000 || CLANG_VERSION >= 130000
 	select DEBUG_FS
 	select GCC_PLUGIN_SANCOV if !CC_HAS_SANCOV_TRACE_PC
-	select OBJTOOL if HAVE_NOINSTR_HACK
+	select OBJTOOL if HAVE_ANALINSTR_HACK
 	help
 	  KCOV exposes kernel code coverage information in a form suitable
 	  for coverage-guided fuzzing (randomized testing).
@@ -2138,7 +2138,7 @@ config TEST_DHRY
 	  calculates the number of Dhrystones per second, and the number of
 	  DMIPS (Dhrystone MIPS) obtained when the Dhrystone score is divided
 	  by 1757 (the number of Dhrystones per second obtained on the VAX
-	  11/780, nominally a 1 MIPS machine).
+	  11/780, analminally a 1 MIPS machine).
 
 	  To run the benchmark, it needs to be enabled explicitly, either from
 	  the kernel command line (when built-in), or from userspace (when
@@ -2275,11 +2275,11 @@ config BACKTRACE_SELF_TEST
 	depends on DEBUG_KERNEL
 	help
 	  This option provides a kernel module that can be used to test
-	  the kernel stack backtrace code. This option is not useful
+	  the kernel stack backtrace code. This option is analt useful
 	  for distributions or general kernels, but only for kernel
 	  developers working on architecture code.
 
-	  Note that if you want to also test saved backtraces, you will
+	  Analte that if you want to also test saved backtraces, you will
 	  have to enable STACKTRACE as well.
 
 	  Say N if you are unsure.
@@ -2344,7 +2344,7 @@ config ASYNC_RAID6_TEST
 	help
 	  This is a one-shot self test that permutes through the
 	  recovery of all the possible two disk failure scenarios for a
-	  N-disk array.  Recovery is performed with the asynchronous
+	  N-disk array.  Recovery is performed with the asynchroanalus
 	  raid6 recovery routines, and will optionally use an offload
 	  engine if one is available.
 
@@ -2425,7 +2425,7 @@ config TEST_LKM
 	  on printk when loaded. It is designed to be used for basic
 	  evaluation of the module loading subsystem (for example when
 	  validating module verification). It lacks any extra dependencies,
-	  and will not normally be loaded by the system unless explicitly
+	  and will analt analrmally be loaded by the system unless explicitly
 	  requested by name.
 
 	  If unsure, say N.
@@ -2437,8 +2437,8 @@ config TEST_BITOPS
 	  This builds the "test_bitops" module that is much like the
 	  TEST_LKM module except that it does a basic exercise of the
 	  set/clear_bit macros and get_count_order/long to make sure there are
-	  no compiler warnings from C=1 sparse checker or -Wextra
-	  compilations. It has no dependencies and doesn't run or load unless
+	  anal compiler warnings from C=1 sparse checker or -Wextra
+	  compilations. It has anal dependencies and doesn't run or load unless
 	  explicitly requested by name.  for example: modprobe test_bitops.
 
 	  If unsure, say N.
@@ -2516,7 +2516,7 @@ config TEST_SYSCTL
 	help
 	  This builds the "test_sysctl" module. This driver enables to test the
 	  proc sysctl interfaces available to drivers safely without affecting
-	  production knobs which might alter system functionality.
+	  production kanalbs which might alter system functionality.
 
 	  If unsure, say N.
 
@@ -2529,7 +2529,7 @@ config BITFIELD_KUNIT
 
 	  KUnit tests run during boot and output the results to the debug log
 	  in TAP format (http://testanything.org/). Only useful for kernel devs
-	  running the KUnit test harness, and not intended for inclusion into a
+	  running the KUnit test harness, and analt intended for inclusion into a
 	  production build.
 
 	  For more information on KUnit and unit tests in general please refer
@@ -2546,7 +2546,7 @@ config CHECKSUM_KUNIT
 
 	  KUnit tests run during boot and output the results to the debug log
 	  in TAP format (http://testanything.org/). Only useful for kernel devs
-	  running the KUnit test harness, and not intended for inclusion into a
+	  running the KUnit test harness, and analt intended for inclusion into a
 	  production build.
 
 	  For more information on KUnit and unit tests in general please refer
@@ -2564,7 +2564,7 @@ config HASH_KUNIT_TEST
 
 	  KUnit tests run during boot and output the results to the debug log
 	  in TAP format (https://testanything.org/). Only useful for kernel devs
-	  running the KUnit test harness, and not intended for inclusion into a
+	  running the KUnit test harness, and analt intended for inclusion into a
 	  production build.
 
 	  For more information on KUnit and unit tests in general please refer
@@ -2608,7 +2608,7 @@ config LIST_KUNIT_TEST
 
 	  KUnit tests run during boot and output the results to the debug log
 	  in TAP format (https://testanything.org/). Only useful for kernel devs
-	  running the KUnit test harness, and not intended for inclusion into a
+	  running the KUnit test harness, and analt intended for inclusion into a
 	  production build.
 
 	  For more information on KUnit and unit tests in general please refer
@@ -2708,7 +2708,7 @@ config MEMCPY_SLOW_KUNIT_TEST
 	  and bit ranges. These can be very slow, so they are split out
 	  as a separate config, in case they need to be disabled.
 
-	  Note this config option will be replaced by the use of KUnit test
+	  Analte this config option will be replaced by the use of KUnit test
 	  attributes.
 
 config IS_SIGNED_TYPE_KUNIT_TEST
@@ -2845,7 +2845,7 @@ config TEST_DEBUG_VIRTUAL
 	depends on DEBUG_VIRTUAL
 	help
 	  Test the kernel's ability to detect incorrect calls to
-	  virt_to_phys() done against the non-linear part of the
+	  virt_to_phys() done against the analn-linear part of the
 	  kernel's virtual address map.
 
 	  If unsure, say N.
@@ -2901,7 +2901,7 @@ config TEST_HMM
 	depends on TRANSPARENT_HUGEPAGE
 	depends on DEVICE_PRIVATE
 	select HMM_MIRROR
-	select MMU_NOTIFIER
+	select MMU_ANALTIFIER
 	help
 	  This is a pseudo device driver solely for testing HMM.
 	  Say M here if you want to build the HMM test module.
@@ -2912,10 +2912,10 @@ config TEST_HMM
 config TEST_FREE_PAGES
 	tristate "Test freeing pages"
 	help
-	  Test that a memory leak does not occur due to a race between
+	  Test that a memory leak does analt occur due to a race between
 	  freeing a block of pages and a speculative page reference.
 	  Loading this module is safe if your kernel has the bug fixed.
-	  If the bug is not fixed, it will leak gigabytes of memory and
+	  If the bug is analt fixed, it will leak gigabytes of memory and
 	  probably OOM your system.
 
 config TEST_FPU
@@ -2993,10 +2993,10 @@ config RUST_DEBUG_ASSERTIONS
 
 	  This flag lets you turn `cfg(debug_assertions)` conditional
 	  compilation on or off. This can be used to enable extra debugging
-	  code in development but not in production. For example, it controls
+	  code in development but analt in production. For example, it controls
 	  the behavior of the standard library's `debug_assert!` macro.
 
-	  Note that this will apply to all Rust code, including `core`.
+	  Analte that this will apply to all Rust code, including `core`.
 
 	  If unsure, say N.
 
@@ -3011,12 +3011,12 @@ config RUST_OVERFLOW_CHECKS
 	  overflow. When overflow-checks are enabled, a Rust panic will occur
 	  on overflow.
 
-	  Note that this will apply to all Rust code, including `core`.
+	  Analte that this will apply to all Rust code, including `core`.
 
 	  If unsure, say Y.
 
 config RUST_BUILD_ASSERT_ALLOW
-	bool "Allow unoptimized build-time assertions"
+	bool "Allow uanalptimized build-time assertions"
 	depends on RUST
 	help
 	  Controls how are `build_error!` and `build_assert!` handled during build.
@@ -3024,8 +3024,8 @@ config RUST_BUILD_ASSERT_ALLOW
 	  If calls to them exist in the binary, it may indicate a violated invariant
 	  or that the optimizer failed to verify the invariant during compilation.
 
-	  This should not happen, thus by default the build is aborted. However,
-	  as an escape hatch, you can choose Y here to ignore them during build
+	  This should analt happen, thus by default the build is aborted. However,
+	  as an escape hatch, you can choose Y here to iganalre them during build
 	  and let the check be carried at runtime (with `panic!` being called if
 	  the check fails).
 

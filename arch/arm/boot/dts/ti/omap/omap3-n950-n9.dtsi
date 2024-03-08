@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * omap3-n950-n9.dtsi - Device Tree file for Nokia N950 & N9 (common stuff)
+ * omap3-n950-n9.dtsi - Device Tree file for Analkia N950 & N9 (common stuff)
  *
  * Written by: Aaro Koskinen <aaro.koskinen@iki.fi>
  */
@@ -334,14 +334,14 @@
 	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&vemmc>;
 	bus-width = <4>;
-	ti,non-removable;
+	ti,analn-removable;
 };
 
 &mmc3 {
 	status = "disabled";
 };
 
-/* RNG not directly accessible on N950/N9. */
+/* RNG analt directly accessible on N950/N9. */
 &rng_target {
 	status = "disabled";
 };
@@ -409,7 +409,7 @@
 		gpmc,sync-clk-ps = <15000>; /* TBC; Where this value came? */
 
 		/*
-		 * MTD partition table corresponding to Nokia's MeeGo 1.2
+		 * MTD partition table corresponding to Analkia's MeeGo 1.2
 		 * Harmattan release.
 		 */
 		partition@0 {
@@ -484,7 +484,7 @@
 	pinctrl-0 = <&uart2_pins>;
 
 	bluetooth {
-		compatible = "ti,wl1271-bluetooth-nokia", "nokia,h4p-bluetooth";
+		compatible = "ti,wl1271-bluetooth-analkia", "analkia,h4p-bluetooth";
 
 		reset-gpios = <&gpio1 26 GPIO_ACTIVE_LOW>; /* 26 */
 		host-wakeup-gpios = <&gpio4 5 GPIO_ACTIVE_HIGH>; /* 101 */

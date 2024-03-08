@@ -338,7 +338,7 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 	}
 
 	if (!fw) {
-		pr_err("Firmware %s not available\n", fwfilepath);
+		pr_err("Firmware %s analt available\n", fwfilepath);
 		rtStatus = _FAIL;
 		goto exit;
 	}
@@ -653,7 +653,7 @@ static void Hal_EfusePowerSwitch(
 
 
 	if (PwrState) {
-		/*  To avoid cannot access efuse registers after disable/enable several times during DTM test. */
+		/*  To avoid cananalt access efuse registers after disable/enable several times during DTM test. */
 		/*  Suggested by SD1 IsaacHsu. 2013.07.08, added by tynli. */
 		tempval = rtw_read8(padapter, SDIO_LOCAL_BASE|SDIO_REG_HSUS_CTRL);
 		if (tempval & BIT(0)) { /*  SDIO local register is suspend */
@@ -735,7 +735,7 @@ static void hal_ReadEFuse_WiFi(
 	u8 efuse_usage = 0;
 
 	/*  */
-	/*  Do NOT excess total size of EFuse table. Added by Roger, 2008.11.10. */
+	/*  Do ANALT excess total size of EFuse table. Added by Roger, 2008.11.10. */
 	/*  */
 	if ((_offset + _size_byte) > EFUSE_MAX_MAP_LEN)
 		return;
@@ -835,7 +835,7 @@ static void hal_ReadEFuse_BT(
 
 
 	/*  */
-	/*  Do NOT excess total size of EFuse table. Added by Roger, 2008.11.10. */
+	/*  Do ANALT excess total size of EFuse table. Added by Roger, 2008.11.10. */
 	/*  */
 	if ((_offset + _size_byte) > EFUSE_BT_MAP_LEN)
 		return;
@@ -1259,7 +1259,7 @@ static s32 Hal_EfusePgPacketRead(
 	/*  */
 	/*  <Roger_TODO> Efuse has been pre-programmed dummy 5Bytes at the end of Efuse by CP. */
 	/*  Skip dummy parts to prevent unexpected data read from Efuse. */
-	/*  By pass right now. 2009.02.19. */
+	/*  By pass right analw. 2009.02.19. */
 	/*  */
 	while (AVAILABLE_EFUSE_ADDR(efuse_addr)) {
 		if (efuse_OneByteRead(padapter, efuse_addr++, &efuse_data, bPseudoTest) == false) {
@@ -1401,7 +1401,7 @@ static u8 hal_EfusePartialWriteCheck(
 			}
 
 			curPkt.word_cnts = Efuse_CalculateWordCnts(curPkt.word_en);
-			/*  if same header is found but no data followed */
+			/*  if same header is found but anal data followed */
 			/*  write some part of data followed by the header. */
 			if (
 				(curPkt.offset == pTargetPkt->offset) &&
@@ -1435,7 +1435,7 @@ static u8 hal_EfusePartialWriteCheck(
 			startAddr = startAddr + (curPkt.word_cnts*2) + 1;
 #endif
 		} else {
-			/*  not used header, 0xff */
+			/*  analt used header, 0xff */
 			*pAddr = startAddr;
 			bRet = true;
 			break;
@@ -1639,7 +1639,7 @@ static struct hal_version ReadChipVersion8723B(struct adapter *padapter)
 
 	value32 = rtw_read32(padapter, REG_SYS_CFG);
 	ChipVersion.ICType = CHIP_8723B;
-	ChipVersion.ChipType = ((value32 & RTL_ID) ? TEST_CHIP : NORMAL_CHIP);
+	ChipVersion.ChipType = ((value32 & RTL_ID) ? TEST_CHIP : ANALRMAL_CHIP);
 	ChipVersion.VendorType = ((value32 & VENDOR_ID) ? CHIP_VENDOR_UMC : CHIP_VENDOR_TSMC);
 	ChipVersion.CUTVersion = (value32 & CHIP_VER_RTL_MASK)>>CHIP_VER_RTL_SHIFT; /*  IC version (CUT) */
 
@@ -1650,7 +1650,7 @@ static struct hal_version ReadChipVersion8723B(struct adapter *padapter)
 	ChipVersion.ROMVer = ((value32 & RF_RL_ID) >> 20);	/*  ROM code version. */
 
 	/*  For multi-function consideration. Added by Roger, 2010.10.06. */
-	pHalData->MultiFunc = RT_MULTI_FUNC_NONE;
+	pHalData->MultiFunc = RT_MULTI_FUNC_ANALNE;
 	value32 = rtw_read32(padapter, REG_MULTI_FUNC_CTRL);
 	pHalData->MultiFunc |= ((value32 & WL_FUNC_EN) ? RT_MULTI_FUNC_WIFI : 0);
 	pHalData->MultiFunc |= ((value32 & BT_FUNC_EN) ? RT_MULTI_FUNC_BT : 0);
@@ -1693,7 +1693,7 @@ void rtl8723b_InitBeaconParameters(struct adapter *padapter)
 	rtw_write8(padapter, REG_BCNDMATIM, BCN_DMA_ATIME_INT_TIME_8723B); /*  2ms */
 
 	/*  Suggested by designer timchen. Change beacon AIFS to the largest number */
-	/*  because test chip does not contension before sending beacon. by tynli. 2009.11.03 */
+	/*  because test chip does analt contension before sending beacon. by tynli. 2009.11.03 */
 	rtw_write16(padapter, REG_BCNTCFG, 0x660F);
 
 	pHalData->RegBcnCtrlVal = rtw_read8(padapter, REG_BCN_CTRL);
@@ -1718,7 +1718,7 @@ void _InitBurstPktLen_8723BS(struct adapter *Adapter)
 
 	/*  ARFB table 9 for 11ac 5G 2SS */
 	rtw_write32(Adapter, REG_ARFR0_8723B, 0x00000010);
-	if (IS_NORMAL_CHIP(pHalData->VersionID))
+	if (IS_ANALRMAL_CHIP(pHalData->VersionID))
 		rtw_write32(Adapter, REG_ARFR0_8723B+4, 0xfffff000);
 	else
 		rtw_write32(Adapter, REG_ARFR0_8723B+4, 0x3e0ff000);
@@ -1805,7 +1805,7 @@ static void rtl8723b_SetBeaconRelatedRegisters(struct adapter *padapter)
 	value32 |= TSFRST;
 	rtw_write32(padapter, REG_TCR, value32);
 
-	/*  NOTE: Fix test chip's bug (about contention windows's randomness) */
+	/*  ANALTE: Fix test chip's bug (about contention windows's randomness) */
 	if (check_fwstate(&padapter->mlmepriv, WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE|WIFI_AP_STATE) == true) {
 		rtw_write8(padapter, REG_RXTSF_OFFSET_CCK, 0x50);
 		rtw_write8(padapter, REG_RXTSF_OFFSET_OFDM, 0x50);
@@ -1839,7 +1839,7 @@ static void rtl8723b_SetHalODMVar(
 	SetHalODMVar(Adapter, eVariable, pValue1, bSet);
 }
 
-static void hal_notch_filter_8723b(struct adapter *adapter, bool enable)
+static void hal_analtch_filter_8723b(struct adapter *adapter, bool enable)
 {
 	if (enable)
 		rtw_write8(adapter, rOFDM0_RxDSP+1, rtw_read8(adapter, rOFDM0_RxDSP+1) | BIT1);
@@ -1933,7 +1933,7 @@ void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->SetHalODMVarHandler = &rtl8723b_SetHalODMVar;
 
 	pHalFunc->xmit_thread_handler = &hal_xmit_handler;
-	pHalFunc->hal_notch_filter = &hal_notch_filter_8723b;
+	pHalFunc->hal_analtch_filter = &hal_analtch_filter_8723b;
 
 	pHalFunc->c2h_handler = c2h_handler_8723b;
 	pHalFunc->c2h_id_filter_ccx = c2h_id_filter_ccx_8723b;
@@ -2435,7 +2435,7 @@ void Hal_EfuseParseThermalMeter_8723B(
 		pHalData->EEPROMThermalMeter = EEPROM_Default_ThermalMeter_8723B;
 
 	if ((pHalData->EEPROMThermalMeter == 0xff) || AutoLoadFail) {
-		pHalData->bAPKThermalMeterIgnore = true;
+		pHalData->bAPKThermalMeterIganalre = true;
 		pHalData->EEPROMThermalMeter = EEPROM_Default_ThermalMeter_8723B;
 	}
 }
@@ -2484,18 +2484,18 @@ u8 SCMapping_8723B(struct adapter *Adapter, struct pkt_attrib *pattrib)
 
 	if (pHalData->CurrentChannelBW == CHANNEL_WIDTH_40) {
 		if (pattrib->bwmode == CHANNEL_WIDTH_40) {
-			SCSettingOfDesc = HT_DATA_SC_DONOT_CARE;
+			SCSettingOfDesc = HT_DATA_SC_DOANALT_CARE;
 		} else if (pattrib->bwmode == CHANNEL_WIDTH_20) {
 			if (pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_UPPER) {
 				SCSettingOfDesc = HT_DATA_SC_20_UPPER_OF_40MHZ;
 			} else if (pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER) {
 				SCSettingOfDesc = HT_DATA_SC_20_LOWER_OF_40MHZ;
 			} else {
-				SCSettingOfDesc = HT_DATA_SC_DONOT_CARE;
+				SCSettingOfDesc = HT_DATA_SC_DOANALT_CARE;
 			}
 		}
 	} else {
-		SCSettingOfDesc = HT_DATA_SC_DONOT_CARE;
+		SCSettingOfDesc = HT_DATA_SC_DOANALT_CARE;
 	}
 
 	return SCSettingOfDesc;
@@ -2541,7 +2541,7 @@ static u8 fill_txdesc_sectype(struct pkt_attrib *pattrib)
 			sectype = 3;
 			break;
 
-		case _NO_PRIVACY_:
+		case _ANAL_PRIVACY_:
 		default:
 			break;
 		}
@@ -2563,7 +2563,7 @@ static void fill_txdesc_vcs_8723b(struct adapter *padapter, struct pkt_attrib *p
 			ptxdesc->cts2self = 1;
 			break;
 
-		case NONE_VCS:
+		case ANALNE_VCS:
 		default:
 			break;
 		}
@@ -2634,7 +2634,7 @@ static void rtl8723b_fill_default_txdesc(
 			(pattrib->dhcp_pkt != 1) &&
 			(drv_userate != 1)
 		) {
-			/*  Non EAP & ARP & DHCP type data packet */
+			/*  Analn EAP & ARP & DHCP type data packet */
 
 			if (pattrib->ampdu_en) {
 				ptxdesc->agg_en = 1; /*  AGG EN */
@@ -2703,7 +2703,7 @@ static void rtl8723b_fill_default_txdesc(
 		/*  CCX-TXRPT ack for xmit mgmt frames. */
 		if (pxmitframe->ack_report) {
 			ptxdesc->spe_rpt = 1;
-			ptxdesc->sw_define = (u8)(GET_PRIMARY_ADAPTER(padapter)->xmitpriv.seq_no);
+			ptxdesc->sw_define = (u8)(GET_PRIMARY_ADAPTER(padapter)->xmitpriv.seq_anal);
 		}
 	} else {
 		ptxdesc->macid = pattrib->mac_id; /*  CAM_ID(MAC_ID) */
@@ -2721,15 +2721,15 @@ static void rtl8723b_fill_default_txdesc(
 		ptxdesc->bmc = 1;
 
 	/* 2009.11.05. tynli_test. Suggested by SD4 Filen for FW LPS.
-	 * (1) The sequence number of each non-Qos frame / broadcast /
+	 * (1) The sequence number of each analn-Qos frame / broadcast /
 	 * multicast / mgnt frame should be controlled by Hw because Fw
-	 * will also send null data which we cannot control when Fw LPS
+	 * will also send null data which we cananalt control when Fw LPS
 	 * enable.
-	 * --> default enable non-Qos data sequence number. 2010.06.23.
+	 * --> default enable analn-Qos data sequence number. 2010.06.23.
 	 * by tynli.
 	 * (2) Enable HW SEQ control for beacon packet, because we use
 	 * Hw beacon.
-	 * (3) Use HW Qos SEQ to control the seq num of Ext port non-Qos
+	 * (3) Use HW Qos SEQ to control the seq num of Ext port analn-Qos
 	 * packets.
 	 * 2010.06.23. Added by tynli.
 	 */
@@ -2753,7 +2753,7 @@ void rtl8723b_update_txdesc(struct xmit_frame *pxmitframe, u8 *pbuf)
 }
 
 /*  */
-/*  Description: In normal chip, we should send some packet to Hw which will be used by Fw */
+/*  Description: In analrmal chip, we should send some packet to Hw which will be used by Fw */
 /* 			in FW LPS mode. The function is to fill the Tx descriptor of this packets, then */
 /* 			Fw can tell Hw to send these packet derectly. */
 /*  Added by tynli. 2009.10.15. */
@@ -2804,7 +2804,7 @@ void rtl8723b_fill_fake_txdesc(
 
 		EncAlg = padapter->securitypriv.dot11PrivacyAlgrthm;
 		switch (EncAlg) {
-		case _NO_PRIVACY_:
+		case _ANAL_PRIVACY_:
 			SET_TX_DESC_SEC_TYPE_8723B(pDesc, 0x0);
 			break;
 		case _WEP40_:
@@ -2843,7 +2843,7 @@ static void hw_var_set_opmode(struct adapter *padapter, u8 variable, u8 *val)
 		/*  set net_type */
 		Set_MSR(padapter, mode);
 
-		if ((mode == _HW_STATE_STATION_) || (mode == _HW_STATE_NOLINK_)) {
+		if ((mode == _HW_STATE_STATION_) || (mode == _HW_STATE_ANALLINK_)) {
 			{
 				StopTxBeacon(padapter);
 			}
@@ -2990,7 +2990,7 @@ static void hw_var_set_mlme_disconnect(struct adapter *padapter, u8 variable, u8
 {
 	u8 val8;
 
-	/*  Set RCR to not to receive data frame when NO LINK state */
+	/*  Set RCR to analt to receive data frame when ANAL LINK state */
 	/* rtw_write32(padapter, REG_RCR, rtw_read32(padapter, REG_RCR) & ~RCR_ADF); */
 	/*  reject all data frames */
 	rtw_write16(padapter, REG_RXFLTMAP2, 0);
@@ -3020,7 +3020,7 @@ static void hw_var_set_mlme_sitesurvey(struct adapter *padapter, u8 variable, u8
 
 	rcr_clear_bit = RCR_CBSSID_BCN;
 
-	/*  config RCR to receive different BSSID & not to receive data frame */
+	/*  config RCR to receive different BSSID & analt to receive data frame */
 	value_rxfltmap2 = 0;
 
 	if ((check_fwstate(pmlmepriv, WIFI_AP_STATE) == true))
@@ -3123,7 +3123,7 @@ void CCX_FwC2HTxRpt_8723b(struct adapter *padapter, u8 *pdata, u8 len)
 		rtw_ack_tx_done(&padapter->xmitpriv, RTW_SCTX_DONE_CCX_PKT_FAIL);
 	}
 /*
-	else if (seq_no != padapter->xmitpriv.seq_no) {
+	else if (seq_anal != padapter->xmitpriv.seq_anal) {
 		rtw_ack_tx_done(&padapter->xmitpriv, RTW_SCTX_DONE_CCX_PKT_FAIL);
 	}
 */
@@ -3172,15 +3172,15 @@ s32 c2h_handler_8723b(struct adapter *padapter, u8 *buf)
 		break;
 
 	case C2H_8723B_BT_INFO:
-		hal_btcoex_BtInfoNotify(padapter, pC2hEvent->plen, pC2hEvent->payload);
+		hal_btcoex_BtInfoAnaltify(padapter, pC2hEvent->plen, pC2hEvent->payload);
 		break;
 
 	default:
 		break;
 	}
 
-	/*  Clear event to notify FW we have read the command. */
-	/*  Note: */
+	/*  Clear event to analtify FW we have read the command. */
+	/*  Analte: */
 	/* 	If this field isn't clear, the FW won't update the next command message. */
 /* 	rtw_write8(padapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE); */
 exit:
@@ -3212,7 +3212,7 @@ static void process_c2h_event(struct adapter *padapter, struct c2h_evt_hdr_t *pC
 		break;
 
 	case C2H_8723B_BT_INFO:
-		hal_btcoex_BtInfoNotify(padapter, pC2hEvent->CmdLen, c2hBuf);
+		hal_btcoex_BtInfoAnaltify(padapter, pC2hEvent->CmdLen, c2hBuf);
 		break;
 
 	default:
@@ -3323,7 +3323,7 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 	case HW_VAR_MLME_SITESURVEY:
 		hw_var_set_mlme_sitesurvey(padapter, variable,  val);
 
-		hal_btcoex_ScanNotify(padapter, *val?true:false);
+		hal_btcoex_ScanAnaltify(padapter, *val?true:false);
 		break;
 
 	case HW_VAR_MLME_JOIN:
@@ -3332,15 +3332,15 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 		switch (*val) {
 		case 0:
 			/*  prepare to join */
-			hal_btcoex_ConnectNotify(padapter, true);
+			hal_btcoex_ConnectAnaltify(padapter, true);
 			break;
 		case 1:
 			/*  joinbss_event callback when join res < 0 */
-			hal_btcoex_ConnectNotify(padapter, false);
+			hal_btcoex_ConnectAnaltify(padapter, false);
 			break;
 		case 2:
 			/*  sta add event callback */
-/* 				rtw_btcoex_MediaStatusNotify(padapter, RT_MEDIA_CONNECT); */
+/* 				rtw_btcoex_MediaStatusAnaltify(padapter, RT_MEDIA_CONNECT); */
 			break;
 		}
 		break;
@@ -3405,7 +3405,7 @@ void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 				} else
 					ulContent = 0;
 
-				/*  polling bit, and No Write enable, and address */
+				/*  polling bit, and Anal Write enable, and address */
 				ulCommand = CAM_CONTENT_COUNT*ucIndex+i;
 				ulCommand = ulCommand | CAM_POLLINIG | CAM_WRITE;
 				/*  write content 0 is equal to mark as invalid */
@@ -3699,7 +3699,7 @@ void GetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 				padapter->bSurpriseRemoved  ||
 				(adapter_to_pwrctl(padapter)->rf_pwrstate == rf_off)
 			) {
-				/*  If it is in HW/SW Radio OFF or IPS state, we do not check Fw LPS Leave, */
+				/*  If it is in HW/SW Radio OFF or IPS state, we do analt check Fw LPS Leave, */
 				/*  because Fw is unload. */
 				*val = true;
 			} else {
@@ -3829,7 +3829,7 @@ u8 GetHalDefVar8723B(struct adapter *padapter, enum hal_def_variable variable, v
 		if (!padapter->registrypriv.wifi_spec) {
 			*(u8 *)pval = TX_PAGE_BOUNDARY_8723B;
 		} else {
-			*(u8 *)pval = WMM_NORMAL_TX_PAGE_BOUNDARY_8723B;
+			*(u8 *)pval = WMM_ANALRMAL_TX_PAGE_BOUNDARY_8723B;
 		}
 		break;
 

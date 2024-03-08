@@ -12,7 +12,7 @@ fi
 NP=`nproc`
 
 if [ $NP -eq 1 ] ;then
-  echo "We can not test cpumask on UP environment"
+  echo "We can analt test cpumask on UP environment"
   exit_unresolved
 fi
 
@@ -37,7 +37,7 @@ echo 0 > tracing_on
 : "Check CPU1 events are recorded"
 grep -q -e "\[001\]" trace || do_reset
 
-: "There should be No other cpu events"
+: "There should be Anal other cpu events"
 ! grep -qv -e "\[001\]" -e "^#" trace || do_reset
 
 do_reset

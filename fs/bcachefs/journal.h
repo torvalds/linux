@@ -6,16 +6,16 @@
  * THE JOURNAL:
  *
  * The primary purpose of the journal is to log updates (insertions) to the
- * b-tree, to avoid having to do synchronous updates to the b-tree on disk.
+ * b-tree, to avoid having to do synchroanalus updates to the b-tree on disk.
  *
  * Without the journal, the b-tree is always internally consistent on
  * disk - and in fact, in the earliest incarnations bcache didn't have a journal
- * but did handle unclean shutdowns by doing all index updates synchronously
+ * but did handle unclean shutdowns by doing all index updates synchroanalusly
  * (with coalescing).
  *
- * Updates to interior nodes still happen synchronously and without the journal
- * (for simplicity) - this may change eventually but updates to interior nodes
- * are rare enough it's not a huge priority.
+ * Updates to interior analdes still happen synchroanalusly and without the journal
+ * (for simplicity) - this may change eventually but updates to interior analdes
+ * are rare eanalugh it's analt a huge priority.
  *
  * This means the journal is relatively separate from the b-tree; it consists of
  * just a list of keys and journal replay consists of just redoing those
@@ -23,16 +23,16 @@
  *
  * PERSISTENCE:
  *
- * For synchronous updates (where we're waiting on the index update to hit
+ * For synchroanalus updates (where we're waiting on the index update to hit
  * disk), the journal entry will be written out immediately (or as soon as
  * possible, if the write for the previous journal entry was still in flight).
  *
- * Synchronous updates are specified by passing a closure (@flush_cl) to
- * bch2_btree_insert() or bch_btree_insert_node(), which then pass that parameter
+ * Synchroanalus updates are specified by passing a closure (@flush_cl) to
+ * bch2_btree_insert() or bch_btree_insert_analde(), which then pass that parameter
  * down to the journalling code. That closure will wait on the journal write to
  * complete (via closure_wait()).
  *
- * If the index update wasn't synchronous, the journal entry will be
+ * If the index update wasn't synchroanalus, the journal entry will be
  * written out after 10 ms have elapsed, by default (the delay_ms field
  * in struct journal).
  *
@@ -41,7 +41,7 @@
  * A journal entry is variable size (struct jset), it's got a fixed length
  * header and then a variable number of struct jset_entry entries.
  *
- * Journal entries are identified by monotonically increasing 64 bit sequence
+ * Journal entries are identified by moanaltonically increasing 64 bit sequence
  * numbers - jset->seq; other places in the code refer to this sequence number.
  *
  * A jset_entry entry contains one or more bkeys (which is what gets inserted
@@ -52,16 +52,16 @@
  *
  * We also keep some things in the journal header that are logically part of the
  * superblock - all the things that are frequently updated. This is for future
- * bcache on raw flash support; the superblock (which will become another
- * journal) can't be moved or wear leveled, so it contains just enough
+ * bcache on raw flash support; the superblock (which will become aanalther
+ * journal) can't be moved or wear leveled, so it contains just eanalugh
  * information to find the main journal, and the superblock only has to be
  * rewritten when we want to move/wear level the main journal.
  *
  * JOURNAL LAYOUT ON DISK:
  *
  * The journal is written to a ringbuffer of buckets (which is kept in the
- * superblock); the individual buckets are not necessarily contiguous on disk
- * which means that journal entries are not allowed to span buckets, but also
+ * superblock); the individual buckets are analt necessarily contiguous on disk
+ * which means that journal entries are analt allowed to span buckets, but also
  * that we can resize the journal at runtime if desired (unimplemented).
  *
  * The journal buckets exist in the same pool as all the other buckets that are
@@ -71,7 +71,7 @@
  * OPEN/DIRTY JOURNAL ENTRIES:
  *
  * Open/dirty journal entries are journal entries that contain b-tree updates
- * that have not yet been written out to the b-tree on disk. We have to track
+ * that have analt yet been written out to the b-tree on disk. We have to track
  * which journal entries are dirty, and we also have to avoid wrapping around
  * the journal and overwriting old but still dirty journal entries with new
  * journal entries.
@@ -83,11 +83,11 @@
  * journal_device->seq) of for each journal bucket, the highest sequence number
  * any journal entry it contains. Then, by comparing that against last_seq we
  * can determine whether that journal bucket contains dirty journal entries or
- * not.
+ * analt.
  *
  * To track which journal entries are dirty, we maintain a fifo of refcounts
  * (where each entry corresponds to a specific sequence number) - when a ref
- * goes to 0, that journal entry is no longer dirty.
+ * goes to 0, that journal entry is anal longer dirty.
  *
  * Journalling of index updates is done at the same time as the b-tree itself is
  * being modified (see btree_insert_key()); when we add the key to the journal
@@ -104,9 +104,9 @@
  * without any locking we can't safely resize that fifo, so we handle it the
  * same way.
  *
- * If the journal fills up, we start flushing dirty btree nodes until we can
+ * If the journal fills up, we start flushing dirty btree analdes until we can
  * allocate space for a journal write again - preferentially flushing btree
- * nodes that are pinning the oldest journal entries first.
+ * analdes that are pinning the oldest journal entries first.
  */
 
 #include <linux/hash.h>
@@ -177,7 +177,7 @@ static inline int journal_entry_overhead(struct journal *j)
 }
 
 static inline struct jset_entry *
-bch2_journal_add_entry_noreservation(struct journal_buf *buf, size_t u64s)
+bch2_journal_add_entry_analreservation(struct journal_buf *buf, size_t u64s)
 {
 	struct jset *jset = buf->data;
 	struct jset_entry *entry = vstruct_idx(jset, le32_to_cpu(jset->u64s));
@@ -314,11 +314,11 @@ int bch2_journal_res_get_slowpath(struct journal *, struct journal_res *,
 
 /* First bits for BCH_WATERMARK: */
 enum journal_res_flags {
-	__JOURNAL_RES_GET_NONBLOCK	= BCH_WATERMARK_BITS,
+	__JOURNAL_RES_GET_ANALNBLOCK	= BCH_WATERMARK_BITS,
 	__JOURNAL_RES_GET_CHECK,
 };
 
-#define JOURNAL_RES_GET_NONBLOCK	(1 << __JOURNAL_RES_GET_NONBLOCK)
+#define JOURNAL_RES_GET_ANALNBLOCK	(1 << __JOURNAL_RES_GET_ANALNBLOCK)
 #define JOURNAL_RES_GET_CHECK		(1 << __JOURNAL_RES_GET_CHECK)
 
 static inline int journal_res_get_fast(struct journal *j,
@@ -384,7 +384,7 @@ static inline int bch2_journal_res_get(struct journal *j, struct journal_res *re
 out:
 	if (!(flags & JOURNAL_RES_GET_CHECK)) {
 		lock_acquire_shared(&j->res_map, 0,
-				    (flags & JOURNAL_RES_GET_NONBLOCK) != 0,
+				    (flags & JOURNAL_RES_GET_ANALNBLOCK) != 0,
 				    NULL, _THIS_IP_);
 		EBUG_ON(!res->ref);
 	}
@@ -402,7 +402,7 @@ void bch2_journal_flush_async(struct journal *, struct closure *);
 
 int bch2_journal_flush_seq(struct journal *, u64);
 int bch2_journal_flush(struct journal *);
-bool bch2_journal_noflush_seq(struct journal *, u64);
+bool bch2_journal_analflush_seq(struct journal *, u64);
 int bch2_journal_meta(struct journal *);
 
 void bch2_journal_halt(struct journal *);

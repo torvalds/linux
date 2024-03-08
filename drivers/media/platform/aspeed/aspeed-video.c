@@ -151,10 +151,10 @@
 
 #define VE_SRC_LR_EDGE_DET		0x090
 #define  VE_SRC_LR_EDGE_DET_LEFT	GENMASK(11, 0)
-#define  VE_SRC_LR_EDGE_DET_NO_V	BIT(12)
-#define  VE_SRC_LR_EDGE_DET_NO_H	BIT(13)
-#define  VE_SRC_LR_EDGE_DET_NO_DISP	BIT(14)
-#define  VE_SRC_LR_EDGE_DET_NO_CLK	BIT(15)
+#define  VE_SRC_LR_EDGE_DET_ANAL_V	BIT(12)
+#define  VE_SRC_LR_EDGE_DET_ANAL_H	BIT(13)
+#define  VE_SRC_LR_EDGE_DET_ANAL_DISP	BIT(14)
+#define  VE_SRC_LR_EDGE_DET_ANAL_CLK	BIT(15)
 #define  VE_SRC_LR_EDGE_DET_RT		GENMASK(27, 16)
 #define  VE_SRC_LR_EDGE_DET_INTERLACE	BIT(31)
 
@@ -585,7 +585,7 @@ static int aspeed_video_start_frame(struct aspeed_video *video)
 	bool bcd_buf_need = (video->format != VIDEO_FMT_STANDARD);
 
 	if (video->v4l2_input_status) {
-		v4l2_dbg(1, debug, &video->v4l2_dev, "No signal; don't start frame\n");
+		v4l2_dbg(1, debug, &video->v4l2_dev, "Anal signal; don't start frame\n");
 		return 0;
 	}
 
@@ -600,7 +600,7 @@ static int aspeed_video_start_frame(struct aspeed_video *video)
 					    VE_BCD_BUFF_SIZE)) {
 			dev_err(video->dev, "Failed to allocate BCD buffer\n");
 			dev_err(video->dev, "don't start frame\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		aspeed_video_write(video, VE_BCD_ADDR, video->bcd.dma);
 		v4l2_dbg(1, debug, &video->v4l2_dev, "bcd addr(%pad) size(%d)\n",
@@ -614,7 +614,7 @@ static int aspeed_video_start_frame(struct aspeed_video *video)
 				       struct aspeed_video_buffer, link);
 	if (!buf) {
 		spin_unlock_irqrestore(&video->lock, flags);
-		v4l2_dbg(1, debug, &video->v4l2_dev, "No buffers; don't start frame\n");
+		v4l2_dbg(1, debug, &video->v4l2_dev, "Anal buffers; don't start frame\n");
 		return -EPROTO;
 	}
 
@@ -699,7 +699,7 @@ static void aspeed_video_irq_res_change(struct aspeed_video *video, ulong delay)
 	set_bit(VIDEO_RES_CHANGE, &video->flags);
 	clear_bit(VIDEO_FRAME_INPRG, &video->flags);
 
-	video->v4l2_input_status = V4L2_IN_ST_NO_SIGNAL;
+	video->v4l2_input_status = V4L2_IN_ST_ANAL_SIGNAL;
 
 	aspeed_video_off(video);
 	aspeed_video_bufs_done(video, VB2_BUF_STATE_ERROR);
@@ -732,7 +732,7 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 
 	/*
 	 * Hardware sometimes asserts interrupts that we haven't actually
-	 * enabled; ignore them if so.
+	 * enabled; iganalre them if so.
 	 */
 	sts &= aspeed_video_read(video, VE_INTERRUPT_CTRL);
 
@@ -762,7 +762,7 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 			wake_up_interruptible_all(&video->wait);
 		} else {
 			/*
-			 * Signal acquired while NOT doing resolution
+			 * Signal acquired while ANALT doing resolution
 			 * detection; reset the engine and re-initialize
 			 */
 			aspeed_video_irq_res_change(video,
@@ -799,7 +799,7 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 			} else {
 				buf->vb.vb2_buf.timestamp = ktime_get_ns();
 				buf->vb.sequence = video->sequence++;
-				buf->vb.field = V4L2_FIELD_NONE;
+				buf->vb.field = V4L2_FIELD_ANALNE;
 				vb2_buffer_done(&buf->vb.vb2_buf,
 						VB2_BUF_STATE_DONE);
 				list_del(&buf->link);
@@ -824,7 +824,7 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 			aspeed_video_start_frame(video);
 	}
 
-	return sts ? IRQ_NONE : IRQ_HANDLED;
+	return sts ? IRQ_ANALNE : IRQ_HANDLED;
 }
 
 static void aspeed_video_check_and_set_polarity(struct aspeed_video *video)
@@ -1040,7 +1040,7 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
 
 	det->width = MIN_WIDTH;
 	det->height = MIN_HEIGHT;
-	video->v4l2_input_status = V4L2_IN_ST_NO_SIGNAL;
+	video->v4l2_input_status = V4L2_IN_ST_ANAL_SIGNAL;
 	memset(&video->perf, 0, sizeof(video->perf));
 
 	do {
@@ -1307,7 +1307,7 @@ static void aspeed_video_start(struct aspeed_video *video)
 
 	aspeed_video_init_regs(video);
 
-	/* Resolution set to 640x480 if no signal found */
+	/* Resolution set to 640x480 if anal signal found */
 	aspeed_video_get_resolution(video);
 
 	/* Set timings since the device is being opened for the first time */
@@ -1335,7 +1335,7 @@ static void aspeed_video_stop(struct aspeed_video *video)
 	if (video->bcd.size)
 		aspeed_video_free_buf(video, &video->bcd);
 
-	video->v4l2_input_status = V4L2_IN_ST_NO_SIGNAL;
+	video->v4l2_input_status = V4L2_IN_ST_ANAL_SIGNAL;
 	video->flags = 0;
 }
 
@@ -1436,9 +1436,9 @@ static int aspeed_video_get_parm(struct file *file, void *fh,
 	a->parm.capture.readbuffers = ASPEED_VIDEO_V4L2_MIN_BUF_REQ;
 	a->parm.capture.timeperframe.numerator = 1;
 	if (!video->frame_rate)
-		a->parm.capture.timeperframe.denominator = MAX_FRAME_RATE;
+		a->parm.capture.timeperframe.deanalminator = MAX_FRAME_RATE;
 	else
-		a->parm.capture.timeperframe.denominator = video->frame_rate;
+		a->parm.capture.timeperframe.deanalminator = video->frame_rate;
 
 	return 0;
 }
@@ -1453,12 +1453,12 @@ static int aspeed_video_set_parm(struct file *file, void *fh,
 	a->parm.capture.readbuffers = ASPEED_VIDEO_V4L2_MIN_BUF_REQ;
 
 	if (a->parm.capture.timeperframe.numerator)
-		frame_rate = a->parm.capture.timeperframe.denominator /
+		frame_rate = a->parm.capture.timeperframe.deanalminator /
 			a->parm.capture.timeperframe.numerator;
 
 	if (!frame_rate || frame_rate > MAX_FRAME_RATE) {
 		frame_rate = 0;
-		a->parm.capture.timeperframe.denominator = MAX_FRAME_RATE;
+		a->parm.capture.timeperframe.deanalminator = MAX_FRAME_RATE;
 		a->parm.capture.timeperframe.numerator = 1;
 	}
 
@@ -1506,9 +1506,9 @@ static int aspeed_video_enum_frameintervals(struct file *file, void *fh,
 
 	fival->type = V4L2_FRMIVAL_TYPE_CONTINUOUS;
 
-	fival->stepwise.min.denominator = MAX_FRAME_RATE;
+	fival->stepwise.min.deanalminator = MAX_FRAME_RATE;
 	fival->stepwise.min.numerator = 1;
-	fival->stepwise.max.denominator = 1;
+	fival->stepwise.max.deanalminator = 1;
 	fival->stepwise.max.numerator = 1;
 	fival->stepwise.step = fival->stepwise.max;
 
@@ -1562,10 +1562,10 @@ static int aspeed_video_query_dv_timings(struct file *file, void *fh,
 
 	/*
 	 * This blocks only if the driver is currently in the process of
-	 * detecting a new resolution; in the event of no signal or timeout
+	 * detecting a new resolution; in the event of anal signal or timeout
 	 * this function is woken up.
 	 */
-	if (file->f_flags & O_NONBLOCK) {
+	if (file->f_flags & O_ANALNBLOCK) {
 		if (test_bit(VIDEO_RES_CHANGE, &video->flags))
 			return -EAGAIN;
 	} else {
@@ -1579,7 +1579,7 @@ static int aspeed_video_query_dv_timings(struct file *file, void *fh,
 	timings->type = V4L2_DV_BT_656_1120;
 	timings->bt = video->detected_timings;
 
-	return video->v4l2_input_status ? -ENOLINK : 0;
+	return video->v4l2_input_status ? -EANALLINK : 0;
 }
 
 static int aspeed_video_enum_dv_timings(struct file *file, void *fh,
@@ -1713,7 +1713,7 @@ static void aspeed_video_resolution_work(struct work_struct *work)
 
 	aspeed_video_on(video);
 
-	/* Exit early in case no clients remain */
+	/* Exit early in case anal clients remain */
 	if (test_bit(VIDEO_STOPPED, &video->flags))
 		goto done;
 
@@ -1733,7 +1733,7 @@ static void aspeed_video_resolution_work(struct work_struct *work)
 		v4l2_dbg(1, debug, &video->v4l2_dev, "fire source change event\n");
 		v4l2_event_queue(&video->vdev, &ev);
 	} else if (test_bit(VIDEO_STREAMING, &video->flags)) {
-		/* No resolution change so just restart streaming */
+		/* Anal resolution change so just restart streaming */
 		aspeed_video_start_frame(video);
 	}
 
@@ -1951,7 +1951,7 @@ static int aspeed_video_debugfs_show(struct seq_file *s, void *data)
 	seq_puts(s, "Performance:\n");
 	seq_printf(s, "  %-20s:\t%d\n", "Frame#", v->sequence);
 	seq_printf(s, "  %-20s:\n", "Frame Duration(ms)");
-	seq_printf(s, "    %-18s:\t%d\n", "Now", v->perf.duration);
+	seq_printf(s, "    %-18s:\t%d\n", "Analw", v->perf.duration);
 	seq_printf(s, "    %-18s:\t%d\n", "Min", v->perf.duration_min);
 	seq_printf(s, "    %-18s:\t%d\n", "Max", v->perf.duration_max);
 	seq_printf(s, "  %-20s:\t%d\n", "FPS",
@@ -1992,10 +1992,10 @@ static int aspeed_video_setup_video(struct aspeed_video *video)
 	int rc;
 
 	video->pix_fmt.pixelformat = V4L2_PIX_FMT_JPEG;
-	video->pix_fmt.field = V4L2_FIELD_NONE;
+	video->pix_fmt.field = V4L2_FIELD_ANALNE;
 	video->pix_fmt.colorspace = V4L2_COLORSPACE_SRGB;
 	video->pix_fmt.quantization = V4L2_QUANTIZATION_FULL_RANGE;
-	video->v4l2_input_status = V4L2_IN_ST_NO_SIGNAL;
+	video->v4l2_input_status = V4L2_IN_ST_ANAL_SIGNAL;
 
 	rc = v4l2_device_register(video->dev, v4l2_dev);
 	if (rc) {
@@ -2033,7 +2033,7 @@ static int aspeed_video_setup_video(struct aspeed_video *video)
 	vbq->mem_ops = &vb2_dma_contig_memops;
 	vbq->drv_priv = video;
 	vbq->buf_struct_size = sizeof(struct aspeed_video_buffer);
-	vbq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vbq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	vbq->min_queued_buffers = ASPEED_VIDEO_V4L2_MIN_BUF_REQ;
 
 	rc = vb2_queue_init(vbq);
@@ -2076,10 +2076,10 @@ static int aspeed_video_init(struct aspeed_video *video)
 	int rc;
 	struct device *dev = video->dev;
 
-	irq = irq_of_parse_and_map(dev->of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_analde, 0);
 	if (!irq) {
 		dev_err(dev, "Unable to find IRQ\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = devm_request_threaded_irq(dev, irq, NULL, aspeed_video_irq,
@@ -2122,7 +2122,7 @@ static int aspeed_video_init(struct aspeed_video *video)
 	if (!aspeed_video_alloc_buf(video, &video->jpeg,
 				    VE_JPEG_HEADER_SIZE)) {
 		dev_err(dev, "Failed to allocate DMA for JPEG header\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_release_reserved_mem;
 	}
 	dev_info(video->dev, "alloc mem size(%d) at %pad for jpeg header\n",
@@ -2157,7 +2157,7 @@ static int aspeed_video_probe(struct platform_device *pdev)
 
 	video = devm_kzalloc(&pdev->dev, sizeof(*video), GFP_KERNEL);
 	if (!video)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	video->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(video->base))
@@ -2165,7 +2165,7 @@ static int aspeed_video_probe(struct platform_device *pdev)
 
 	config = of_device_get_match_data(&pdev->dev);
 	if (!config)
-		return -ENODEV;
+		return -EANALDEV;
 
 	video->jpeg_mode = config->jpeg_mode;
 	video->comp_size_read = config->comp_size_read;

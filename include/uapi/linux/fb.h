@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_FB_H
 #define _UAPI_LINUX_FB_H
 
@@ -7,7 +7,7 @@
 
 /* Definitions of frame buffers						*/
 
-#define FB_MAX			32	/* sufficient for now */
+#define FB_MAX			32	/* sufficient for analw */
 
 /* ioctls
    0x46 is 'F'								*/
@@ -37,13 +37,13 @@
 #define FBIO_WAITFORVSYNC	_IOW('F', 0x20, __u32)
 
 #define FB_TYPE_PACKED_PIXELS		0	/* Packed Pixels	*/
-#define FB_TYPE_PLANES			1	/* Non interleaved planes */
+#define FB_TYPE_PLANES			1	/* Analn interleaved planes */
 #define FB_TYPE_INTERLEAVED_PLANES	2	/* Interleaved planes	*/
 #define FB_TYPE_TEXT			3	/* Text/attributes	*/
 #define FB_TYPE_VGA_PLANES		4	/* EGA/VGA planes	*/
 #define FB_TYPE_FOURCC			5	/* Type identified by a V4L2 FOURCC */
 
-#define FB_AUX_TEXT_MDA		0	/* Monochrome text */
+#define FB_AUX_TEXT_MDA		0	/* Moanalchrome text */
 #define FB_AUX_TEXT_CGA		1	/* CGA/EGA/VGA Color text */
 #define FB_AUX_TEXT_S3_MMIO	2	/* S3 MMIO fasttext */
 #define FB_AUX_TEXT_MGA_STEP16	3	/* MGA Millenium I: text, attr, 14 reserved bytes */
@@ -60,15 +60,15 @@
 #define FB_AUX_VGA_PLANES_CFB4		1	/* CFB4 in planes (VGA) */
 #define FB_AUX_VGA_PLANES_CFB8		2	/* CFB8 in planes (VGA) */
 
-#define FB_VISUAL_MONO01		0	/* Monochr. 1=Black 0=White */
-#define FB_VISUAL_MONO10		1	/* Monochr. 1=White 0=Black */
+#define FB_VISUAL_MOANAL01		0	/* Moanalchr. 1=Black 0=White */
+#define FB_VISUAL_MOANAL10		1	/* Moanalchr. 1=White 0=Black */
 #define FB_VISUAL_TRUECOLOR		2	/* True color	*/
 #define FB_VISUAL_PSEUDOCOLOR		3	/* Pseudo color (like atari) */
 #define FB_VISUAL_DIRECTCOLOR		4	/* Direct color */
 #define FB_VISUAL_STATIC_PSEUDOCOLOR	5	/* Pseudo color readonly */
 #define FB_VISUAL_FOURCC		6	/* Visual identified by a V4L2 FOURCC */
 
-#define FB_ACCEL_NONE		0	/* no hardware accelerator	*/
+#define FB_ACCEL_ANALNE		0	/* anal hardware accelerator	*/
 #define FB_ACCEL_ATARIBLITT	1	/* Atari Blitter		*/
 #define FB_ACCEL_AMIGABLITT	2	/* Amiga Blitter                */
 #define FB_ACCEL_S3_TRIO64	3	/* Cybervision64 (S3 Trio64)    */
@@ -162,9 +162,9 @@ struct fb_fix_screeninfo {
 	__u32 type;			/* see FB_TYPE_*		*/
 	__u32 type_aux;			/* Interleave for interleaved Planes */
 	__u32 visual;			/* see FB_VISUAL_*		*/ 
-	__u16 xpanstep;			/* zero if no hardware panning  */
-	__u16 ypanstep;			/* zero if no hardware panning  */
-	__u16 ywrapstep;		/* zero if no hardware ywrap    */
+	__u16 xpanstep;			/* zero if anal hardware panning  */
+	__u16 ypanstep;			/* zero if anal hardware panning  */
+	__u16 ywrapstep;		/* zero if anal hardware ywrap    */
 	__u32 line_length;		/* length of a line in bytes    */
 	unsigned long mmio_start;	/* Start of Memory Mapped I/O   */
 					/* (physical address) */
@@ -192,10 +192,10 @@ struct fb_bitfield {
 					/* right */ 
 };
 
-#define FB_NONSTD_HAM		1	/* Hold-And-Modify (HAM)        */
-#define FB_NONSTD_REV_PIX_IN_B	2	/* order of pixels in each byte is reversed */
+#define FB_ANALNSTD_HAM		1	/* Hold-And-Modify (HAM)        */
+#define FB_ANALNSTD_REV_PIX_IN_B	2	/* order of pixels in each byte is reversed */
 
-#define FB_ACTIVATE_NOW		0	/* set values immediately (or vbl)*/
+#define FB_ACTIVATE_ANALW		0	/* set values immediately (or vbl)*/
 #define FB_ACTIVATE_NXTOPEN	1	/* activate on next open	*/
 #define FB_ACTIVATE_TEST	2	/* don't set, round up impossible */
 #define FB_ACTIVATE_MASK       15
@@ -203,7 +203,7 @@ struct fb_bitfield {
 #define FB_ACTIVATE_VBL	       16	/* activate values on next vbl  */
 #define FB_CHANGE_CMAP_VBL     32	/* change colormap on vbl	*/
 #define FB_ACTIVATE_ALL	       64	/* change all VCs on this fb	*/
-#define FB_ACTIVATE_FORCE     128	/* force apply even when no change*/
+#define FB_ACTIVATE_FORCE     128	/* force apply even when anal change*/
 #define FB_ACTIVATE_INV_MODE  256       /* invalidate videomode */
 #define FB_ACTIVATE_KD_TEXT   512       /* for KDSET vt ioctl */
 
@@ -218,7 +218,7 @@ struct fb_bitfield {
 					/* vtotal = 121d/242n/484i => NTSC */
 #define FB_SYNC_ON_GREEN	32	/* sync on green */
 
-#define FB_VMODE_NONINTERLACED  0	/* non interlaced */
+#define FB_VMODE_ANALNINTERLACED  0	/* analn interlaced */
 #define FB_VMODE_INTERLACED	1	/* interlaced	*/
 #define FB_VMODE_DOUBLE		2	/* double scan */
 #define FB_VMODE_ODD_FLD_FIRST	4	/* interlaced: top line first */
@@ -255,7 +255,7 @@ struct fb_var_screeninfo {
 	struct fb_bitfield blue;
 	struct fb_bitfield transp;	/* transparency			*/	
 
-	__u32 nonstd;			/* != 0 Non standard pixel format */
+	__u32 analnstd;			/* != 0 Analn standard pixel format */
 
 	__u32 activate;			/* see FB_ACTIVATE_*		*/
 
@@ -294,7 +294,7 @@ struct fb_con2fbmap {
 };
 
 /* VESA Blanking Levels */
-#define VESA_NO_BLANKING        0
+#define VESA_ANAL_BLANKING        0
 #define VESA_VSYNC_SUSPEND      1
 #define VESA_HSYNC_SUSPEND      2
 #define VESA_POWERDOWN          3
@@ -302,10 +302,10 @@ struct fb_con2fbmap {
 
 enum {
 	/* screen: unblanked, hsync: on,  vsync: on */
-	FB_BLANK_UNBLANK       = VESA_NO_BLANKING,
+	FB_BLANK_UNBLANK       = VESA_ANAL_BLANKING,
 
 	/* screen: blanked,   hsync: on,  vsync: on */
-	FB_BLANK_NORMAL        = VESA_NO_BLANKING + 1,
+	FB_BLANK_ANALRMAL        = VESA_ANAL_BLANKING + 1,
 
 	/* screen: blanked,   hsync: on,  vsync: off */
 	FB_BLANK_VSYNC_SUSPEND = VESA_VSYNC_SUSPEND + 1,
@@ -362,7 +362,7 @@ struct fb_image {
 	__u32 dy;
 	__u32 width;		/* Size of image */
 	__u32 height;
-	__u32 fg_color;		/* Only used when a mono bitmap */
+	__u32 fg_color;		/* Only used when a moanal bitmap */
 	__u32 bg_color;
 	__u8  depth;		/* Depth of the image */
 	const char *data;	/* Pointer to image data */

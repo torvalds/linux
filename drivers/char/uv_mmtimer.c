@@ -14,7 +14,7 @@
 #include <linux/ioctl.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/mmtimer.h>
@@ -51,7 +51,7 @@ static const struct file_operations uv_mmtimer_fops = {
 	.owner = THIS_MODULE,
 	.mmap =	uv_mmtimer_mmap,
 	.unlocked_ioctl = uv_mmtimer_ioctl,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 /**
@@ -130,7 +130,7 @@ static long uv_mmtimer_ioctl(struct file *file, unsigned int cmd,
 			ret = -EFAULT;
 		break;
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	}
 	return ret;
@@ -155,9 +155,9 @@ static int uv_mmtimer_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EPERM;
 
 	if (PAGE_SIZE > (1 << 16))
-		return -ENOSYS;
+		return -EANALSYS;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 
 	uv_mmtimer_addr = UV_LOCAL_MMR_BASE | UVH_RTC;
 	uv_mmtimer_addr &= ~(PAGE_SIZE - 1);
@@ -173,7 +173,7 @@ static int uv_mmtimer_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 static struct miscdevice uv_mmtimer_miscdev = {
-	MISC_DYNAMIC_MINOR,
+	MISC_DYNAMIC_MIANALR,
 	UV_MMTIMER_NAME,
 	&uv_mmtimer_fops
 };

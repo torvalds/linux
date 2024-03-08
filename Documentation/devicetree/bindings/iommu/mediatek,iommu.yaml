@@ -56,14 +56,14 @@ description: |+
   directly with EMI. And also SMI help control the power domain and clocks for
   each local arbiter.
 
-  Normally we specify a local arbiter(larb) for each multimedia HW
+  Analrmally we specify a local arbiter(larb) for each multimedia HW
   like display, video decode, and camera. And there are different ports
   in each larb. Take a example, There are many ports like MC, PP, VLD in the
   video decode local arbiter, all these ports are according to the video HW.
 
   In some SoCs, there may be a GALS(Global Async Local Sync) module between
   smi-common and m4u, and additional GALS module between smi-larb and
-  smi-common. GALS can been seen as a "asynchronous fifo" which could help
+  smi-common. GALS can been seen as a "asynchroanalus fifo" which could help
   synchronize for the modules in different clock frequency.
 
 properties:
@@ -198,7 +198,7 @@ allOf:
         - mediatek,infracfg
 
   - if: # The IOMMUs don't have larbs.
-      not:
+      analt:
         properties:
           compatible:
             contains:

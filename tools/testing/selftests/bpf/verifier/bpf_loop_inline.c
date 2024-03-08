@@ -64,7 +64,7 @@
 	BTF_TYPES
 },
 {
-	"don't inline bpf_loop call, flags non-zero",
+	"don't inline bpf_loop call, flags analn-zero",
 	.insns = {
 	/* main */
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_jiffies64),
@@ -97,7 +97,7 @@
 	BTF_TYPES
 },
 {
-	"don't inline bpf_loop call, callback non-constant",
+	"don't inline bpf_loop call, callback analn-constant",
 	.insns = {
 	/* main */
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_jiffies64),

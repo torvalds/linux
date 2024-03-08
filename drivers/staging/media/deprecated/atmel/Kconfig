@@ -12,7 +12,7 @@ config VIDEO_ATMEL_ISC
 	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_DMA_CONTIG
 	select REGMAP_MMIO
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select VIDEO_ATMEL_ISC_BASE
 	help
 	   This module makes the ATMEL Image Sensor Controller available
@@ -29,7 +29,7 @@ config VIDEO_ATMEL_XISC
 	depends on !VIDEO_MICROCHIP_ISC_BASE || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select REGMAP_MMIO
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select VIDEO_ATMEL_ISC_BASE
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API

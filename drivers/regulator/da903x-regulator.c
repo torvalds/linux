@@ -263,7 +263,7 @@ static const struct regulator_ops da903x_regulator_ldo_ops = {
 	.is_enabled	= da903x_is_enabled,
 };
 
-/* NOTE: this is dedicated for the insane DA9030 LDO14 */
+/* ANALTE: this is dedicated for the insane DA9030 LDO14 */
 static const struct regulator_ops da9030_regulator_ldo14_ops = {
 	.set_voltage_sel = da903x_set_voltage_sel,
 	.get_voltage_sel = da903x_get_voltage_sel,
@@ -274,7 +274,7 @@ static const struct regulator_ops da9030_regulator_ldo14_ops = {
 	.is_enabled	= da903x_is_enabled,
 };
 
-/* NOTE: this is dedicated for the DA9030 LDO1 and LDO15 that have locks  */
+/* ANALTE: this is dedicated for the DA9030 LDO1 and LDO15 that have locks  */
 static const struct regulator_ops da9030_regulator_ldo1_15_ops = {
 	.set_voltage_sel = da9030_set_ldo1_15_voltage_sel,
 	.get_voltage_sel = da903x_get_voltage_sel,
@@ -295,7 +295,7 @@ static const struct regulator_ops da9034_regulator_dvc_ops = {
 	.is_enabled	= da903x_is_enabled,
 };
 
-/* NOTE: this is dedicated for the insane LDO12 */
+/* ANALTE: this is dedicated for the insane LDO12 */
 static const struct regulator_ops da9034_regulator_ldo12_ops = {
 	.set_voltage_sel = da903x_set_voltage_sel,
 	.get_voltage_sel = da903x_get_voltage_sel,
@@ -471,7 +471,7 @@ static int da903x_regulator_probe(struct platform_device *pdev)
 static struct platform_driver da903x_regulator_driver = {
 	.driver	= {
 		.name	= "da903x-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe		= da903x_regulator_probe,
 };

@@ -23,7 +23,7 @@ description: |
   The CoreSight Embedded Trace Buffer stores traces in a dedicated SRAM that is
   used as a circular buffer.
 
-# Need a custom select here or 'arm,primecell' will match on lots of nodes
+# Need a custom select here or 'arm,primecell' will match on lots of analdes
 select:
   properties:
     compatible:

@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Genesys Logic USB hub controller
 
 maintainers:
-  - Icenowy Zheng <uwu@icenowy.me>
+  - Iceanalwy Zheng <uwu@iceanalwy.me>
 
 allOf:
   - $ref: usb-device.yaml#

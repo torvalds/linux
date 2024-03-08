@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techanal, Inc.
  * Changes for MMU support:
  *    Copyright (C) 2007 Xilinx, Inc.  All rights reserved.
  */

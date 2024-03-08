@@ -21,7 +21,7 @@ static u32 to_codec_type(u32 pixfmt)
 {
 	switch (pixfmt) {
 	case V4L2_PIX_FMT_H264:
-	case V4L2_PIX_FMT_H264_NO_SC:
+	case V4L2_PIX_FMT_H264_ANAL_SC:
 		return HFI_VIDEO_CODEC_H264;
 	case V4L2_PIX_FMT_H263:
 		return HFI_VIDEO_CODEC_H263;
@@ -70,7 +70,7 @@ int hfi_core_init(struct venus_core *core)
 
 	ret = 0;
 
-	if (core->error != HFI_ERR_NONE) {
+	if (core->error != HFI_ERR_ANALNE) {
 		ret = -EIO;
 		goto unlock;
 	}
@@ -154,8 +154,8 @@ int hfi_core_ping(struct venus_core *core)
 		goto unlock;
 	}
 	ret = 0;
-	if (core->error != HFI_ERR_NONE)
-		ret = -ENODEV;
+	if (core->error != HFI_ERR_ANALNE)
+		ret = -EANALDEV;
 unlock:
 	mutex_unlock(&core->lock);
 	return ret;
@@ -169,7 +169,7 @@ static int wait_session_msg(struct venus_inst *inst)
 	if (!ret)
 		return -ETIMEDOUT;
 
-	if (inst->error != HFI_ERR_NONE)
+	if (inst->error != HFI_ERR_ANALNE)
 		return -EIO;
 
 	return 0;

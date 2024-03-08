@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Audio and Music Data Transmission Protocol (IEC 61883-6) streams
- * with Common Isochronous Packet (IEC 61883-1) headers
+ * with Common Isochroanalus Packet (IEC 61883-1) headers
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
  */
@@ -28,12 +28,12 @@
 
 #define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 microseconds */
 
-/* isochronous header parameters */
+/* isochroanalus header parameters */
 #define ISO_DATA_LENGTH_SHIFT	16
-#define TAG_NO_CIP_HEADER	0
+#define TAG_ANAL_CIP_HEADER	0
 #define TAG_CIP			1
 
-// Common Isochronous Packet (CIP) header parameters. Use two quadlets CIP header when supported.
+// Common Isochroanalus Packet (CIP) header parameters. Use two quadlets CIP header when supported.
 #define CIP_HEADER_QUADLETS	2
 #define CIP_EOH_SHIFT		31
 #define CIP_EOH			(1u << CIP_EOH_SHIFT)
@@ -49,31 +49,31 @@
 #define CIP_FMT_MASK		0x3f000000
 #define CIP_FDF_MASK		0x00ff0000
 #define CIP_FDF_SHIFT		16
-#define CIP_FDF_NO_DATA		0xff
+#define CIP_FDF_ANAL_DATA		0xff
 #define CIP_SYT_MASK		0x0000ffff
-#define CIP_SYT_NO_INFO		0xffff
+#define CIP_SYT_ANAL_INFO		0xffff
 #define CIP_SYT_CYCLE_MODULUS	16
-#define CIP_NO_DATA		((CIP_FDF_NO_DATA << CIP_FDF_SHIFT) | CIP_SYT_NO_INFO)
+#define CIP_ANAL_DATA		((CIP_FDF_ANAL_DATA << CIP_FDF_SHIFT) | CIP_SYT_ANAL_INFO)
 
 #define CIP_HEADER_SIZE		(sizeof(__be32) * CIP_HEADER_QUADLETS)
 
 /* Audio and Music transfer protocol specific parameters */
 #define CIP_FMT_AM		0x10
-#define AMDTP_FDF_NO_DATA	0xff
+#define AMDTP_FDF_ANAL_DATA	0xff
 
 // For iso header and tstamp.
 #define IR_CTX_HEADER_DEFAULT_QUADLETS	2
-// Add nothing.
-#define IR_CTX_HEADER_SIZE_NO_CIP	(sizeof(__be32) * IR_CTX_HEADER_DEFAULT_QUADLETS)
+// Add analthing.
+#define IR_CTX_HEADER_SIZE_ANAL_CIP	(sizeof(__be32) * IR_CTX_HEADER_DEFAULT_QUADLETS)
 // Add two quadlets CIP header.
-#define IR_CTX_HEADER_SIZE_CIP		(IR_CTX_HEADER_SIZE_NO_CIP + CIP_HEADER_SIZE)
+#define IR_CTX_HEADER_SIZE_CIP		(IR_CTX_HEADER_SIZE_ANAL_CIP + CIP_HEADER_SIZE)
 #define HEADER_TSTAMP_MASK	0x0000ffff
 
 #define IT_PKT_HEADER_SIZE_CIP		CIP_HEADER_SIZE
-#define IT_PKT_HEADER_SIZE_NO_CIP	0 // Nothing.
+#define IT_PKT_HEADER_SIZE_ANAL_CIP	0 // Analthing.
 
 // The initial firmware of OXFW970 can postpone transmission of packet during finishing
-// asynchronous transaction. This module accepts 5 cycles to skip as maximum to avoid buffer
+// asynchroanalus transaction. This module accepts 5 cycles to skip as maximum to avoid buffer
 // overrun. Actual device can skip more, then this module stops the packet streaming.
 #define IR_JUMBO_PAYLOAD_MAX_SKIP_CYCLES	5
 
@@ -98,7 +98,7 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 
 	s->protocol = kzalloc(protocol_size, GFP_KERNEL);
 	if (!s->protocol)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s->unit = unit;
 	s->direction = dir;
@@ -122,7 +122,7 @@ EXPORT_SYMBOL(amdtp_stream_init);
  */
 void amdtp_stream_destroy(struct amdtp_stream *s)
 {
-	/* Not initialized. */
+	/* Analt initialized. */
 	if (s->protocol == NULL)
 		return;
 
@@ -194,7 +194,7 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 		   SNDRV_PCM_INFO_JOINT_DUPLEX |
 		   SNDRV_PCM_INFO_MMAP |
 		   SNDRV_PCM_INFO_MMAP_VALID |
-		   SNDRV_PCM_INFO_NO_PERIOD_WAKEUP;
+		   SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP;
 
 	hw->periods_min = 2;
 	hw->periods_max = UINT_MAX;
@@ -214,10 +214,10 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 	// IRQ, use the largest size of context header between IT/IR contexts.
 	// Here, use the value of context header in IR context is for both
 	// contexts.
-	if (!(s->flags & CIP_NO_HEADER))
+	if (!(s->flags & CIP_ANAL_HEADER))
 		ctx_header_size = IR_CTX_HEADER_SIZE_CIP;
 	else
-		ctx_header_size = IR_CTX_HEADER_SIZE_NO_CIP;
+		ctx_header_size = IR_CTX_HEADER_SIZE_ANAL_CIP;
 	maximum_usec_per_period = USEC_PER_SEC * PAGE_SIZE /
 				  CYCLES_PER_SECOND / ctx_header_size;
 
@@ -226,9 +226,9 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 	// OHCI controller can generate hardware IRQ per isoc packet, the
 	// interval is 125 usec.
 	// However, there are two ways of transmission in IEC 61883-6; blocking
-	// and non-blocking modes. In blocking mode, the sequence of isoc packet
-	// includes 'empty' or 'NODATA' packets which include no event. In
-	// non-blocking mode, the number of events per packet is variable up to
+	// and analn-blocking modes. In blocking mode, the sequence of isoc packet
+	// includes 'empty' or 'ANALDATA' packets which include anal event. In
+	// analn-blocking mode, the number of events per packet is variable up to
 	// the syt interval.
 	// Due to the above protocol design, the minimum PCM frames per
 	// interrupt should be double of the value of syt interval, thus it is
@@ -239,7 +239,7 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 	if (err < 0)
 		goto end;
 
-	/* Non-Blocking stream has no more constraints */
+	/* Analn-Blocking stream has anal more constraints */
 	if (!(s->flags & CIP_BLOCKING))
 		goto end;
 
@@ -274,7 +274,7 @@ EXPORT_SYMBOL(amdtp_stream_add_pcm_hw_constraints);
  * @pcm_frame_multiplier: the multiplier to compute the number of PCM frames by the number of AMDTP
  *			  events.
  *
- * The parameters must be set before the stream is started, and must not be
+ * The parameters must be set before the stream is started, and must analt be
  * changed while the stream is running.
  */
 int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
@@ -296,7 +296,7 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	// default buffering in the device.
 	s->transfer_delay = TRANSFER_DELAY_TICKS - TICKS_PER_CYCLE;
 
-	// additional buffering needed to adjust for no-data packets.
+	// additional buffering needed to adjust for anal-data packets.
 	if (s->flags & CIP_BLOCKING)
 		s->transfer_delay += TICKS_PER_SECOND * s->syt_interval / rate;
 
@@ -323,14 +323,14 @@ static int amdtp_stream_get_max_ctx_payload_size(struct amdtp_stream *s)
  * amdtp_stream_get_max_payload - get the stream's packet size
  * @s: the AMDTP stream
  *
- * This function must not be called before the stream has been configured
+ * This function must analt be called before the stream has been configured
  * with amdtp_stream_set_parameters().
  */
 unsigned int amdtp_stream_get_max_payload(struct amdtp_stream *s)
 {
 	unsigned int cip_header_size;
 
-	if (!(s->flags & CIP_NO_HEADER))
+	if (!(s->flags & CIP_ANAL_HEADER))
 		cip_header_size = CIP_HEADER_SIZE;
 	else
 		cip_header_size = 0;
@@ -364,7 +364,7 @@ static void pool_blocking_data_blocks(struct amdtp_stream *s, struct seq_desc *d
 	for (i = 0; i < count; ++i) {
 		struct seq_desc *desc = descs + pos;
 
-		if (desc->syt_offset != CIP_SYT_NO_INFO)
+		if (desc->syt_offset != CIP_SYT_ANAL_INFO)
 			desc->data_blocks = syt_interval;
 		else
 			desc->data_blocks = 0;
@@ -373,7 +373,7 @@ static void pool_blocking_data_blocks(struct amdtp_stream *s, struct seq_desc *d
 	}
 }
 
-static void pool_ideal_nonblocking_data_blocks(struct amdtp_stream *s, struct seq_desc *descs,
+static void pool_ideal_analnblocking_data_blocks(struct amdtp_stream *s, struct seq_desc *descs,
 					       unsigned int size, unsigned int pos,
 					       unsigned int count)
 {
@@ -449,7 +449,7 @@ static unsigned int calculate_syt_offset(unsigned int *last_syt_offset,
 	*last_syt_offset = syt_offset;
 
 	if (syt_offset >= TICKS_PER_CYCLE)
-		syt_offset = CIP_SYT_NO_INFO;
+		syt_offset = CIP_SYT_ANAL_INFO;
 
 	return syt_offset;
 }
@@ -486,7 +486,7 @@ static unsigned int compute_syt_offset(unsigned int syt, unsigned int cycle,
 		syt_cycle_lo += CIP_SYT_CYCLE_MODULUS;
 	syt_cycle_lo -= cycle_lo;
 
-	// Subtract transfer delay so that the synchronization offset is not so large
+	// Subtract transfer delay so that the synchronization offset is analt so large
 	// at transmission.
 	syt_offset = syt_cycle_lo * TICKS_PER_CYCLE + (syt & 0x0fff);
 	if (syt_offset < transfer_delay)
@@ -523,10 +523,10 @@ static void cache_seq(struct amdtp_stream *s, const struct pkt_desc *src, unsign
 	for (i = 0; i < desc_count; ++i) {
 		struct seq_desc *dst = cache + cache_pos;
 
-		if (aware_syt && src->syt != CIP_SYT_NO_INFO)
+		if (aware_syt && src->syt != CIP_SYT_ANAL_INFO)
 			dst->syt_offset = compute_syt_offset(src->syt, src->cycle, transfer_delay);
 		else
-			dst->syt_offset = CIP_SYT_NO_INFO;
+			dst->syt_offset = CIP_SYT_ANAL_INFO;
 		dst->data_blocks = src->data_blocks;
 
 		cache_pos = (cache_pos + 1) % cache_size;
@@ -544,7 +544,7 @@ static void pool_ideal_seq_descs(struct amdtp_stream *s, struct seq_desc *descs,
 	if (s->flags & CIP_BLOCKING)
 		pool_blocking_data_blocks(s, descs, size, pos, count);
 	else
-		pool_ideal_nonblocking_data_blocks(s, descs, size, pos, count);
+		pool_ideal_analnblocking_data_blocks(s, descs, size, pos, count);
 }
 
 static void pool_replayed_seq(struct amdtp_stream *s, struct seq_desc *descs, unsigned int size,
@@ -610,8 +610,8 @@ static void update_pcm_pointers(struct amdtp_stream *s,
 
 		// The program in user process should periodically check the status of intermediate
 		// buffer associated to PCM substream to process PCM frames in the buffer, instead
-		// of receiving notification of period elapsed by poll wait.
-		if (!pcm->runtime->no_period_wakeup) {
+		// of receiving analtification of period elapsed by poll wait.
+		if (!pcm->runtime->anal_period_wakeup) {
 			if (in_softirq()) {
 				// In software IRQ context for 1394 OHCI.
 				snd_pcm_period_elapsed(pcm);
@@ -667,7 +667,7 @@ static inline int queue_in_packet(struct amdtp_stream *s,
 static void generate_cip_header(struct amdtp_stream *s, __be32 cip_header[2],
 			unsigned int data_block_counter, unsigned int syt)
 {
-	cip_header[0] = cpu_to_be32(READ_ONCE(s->source_node_id_field) |
+	cip_header[0] = cpu_to_be32(READ_ONCE(s->source_analde_id_field) |
 				(s->data_block_quadlets << CIP_DBS_SHIFT) |
 				((s->sph << CIP_SPH_SHIFT) & CIP_SPH_MASK) |
 				data_block_counter);
@@ -718,7 +718,7 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 
 	/*
 	 * This module supports 'Two-quadlet CIP header with SYT field'.
-	 * For convenience, also check FMT field is AM824 or not.
+	 * For convenience, also check FMT field is AM824 or analt.
 	 */
 	if ((((cip_header[0] & CIP_EOH_MASK) == CIP_EOH) ||
 	     ((cip_header[1] & CIP_EOH_MASK) != CIP_EOH)) &&
@@ -729,7 +729,7 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 		return -EAGAIN;
 	}
 
-	/* Check valid protocol or not. */
+	/* Check valid protocol or analt. */
 	sph = (cip_header[0] & CIP_SPH_MASK) >> CIP_SPH_SHIFT;
 	fmt = (cip_header[1] & CIP_FMT_MASK) >> CIP_FMT_SHIFT;
 	if (sph != s->sph || fmt != s->fmt) {
@@ -741,7 +741,7 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 
 	/* Calculate data blocks */
 	fdf = (cip_header[1] & CIP_FDF_MASK) >> CIP_FDF_SHIFT;
-	if (payload_length == 0 || (fmt == CIP_FMT_AM && fdf == AMDTP_FDF_NO_DATA)) {
+	if (payload_length == 0 || (fmt == CIP_FMT_AM && fdf == AMDTP_FDF_ANAL_DATA)) {
 		*data_blocks = 0;
 	} else {
 		unsigned int data_block_quadlets =
@@ -809,7 +809,7 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 
 	payload_length = be32_to_cpu(ctx_header[0]) >> ISO_DATA_LENGTH_SHIFT;
 
-	if (!(s->flags & CIP_NO_HEADER))
+	if (!(s->flags & CIP_ANAL_HEADER))
 		cip_header_size = CIP_HEADER_SIZE;
 	else
 		cip_header_size = 0;
@@ -892,8 +892,8 @@ static int compare_ohci_cycle_count(u32 lval, u32 rval)
 }
 
 // Align to actual cycle count for the packet which is going to be scheduled.
-// This module queued the same number of isochronous cycle as the size of queue
-// to kip isochronous cycle, therefore it's OK to just increment the cycle by
+// This module queued the same number of isochroanalus cycle as the size of queue
+// to kip isochroanalus cycle, therefore it's OK to just increment the cycle by
 // the size of queue for scheduled cycle.
 static inline u32 compute_ohci_it_cycle(const __be32 ctx_header_tstamp,
 					unsigned int queue_size)
@@ -927,7 +927,7 @@ static int generate_tx_packet_descs(struct amdtp_stream *s, struct pkt_desc *des
 		cycle = compute_ohci_cycle_count(ctx_header[1]);
 		lost = (next_cycle != cycle);
 		if (lost) {
-			if (s->flags & CIP_NO_HEADER) {
+			if (s->flags & CIP_ANAL_HEADER) {
 				// Fireface skips transmission just for an isoc cycle corresponding
 				// to empty packet.
 				unsigned int prev_cycle = next_cycle;
@@ -947,7 +947,7 @@ static int generate_tx_packet_descs(struct amdtp_stream *s, struct pkt_desc *des
 				}
 			} else if (s->flags & CIP_JUMBO_PAYLOAD) {
 				// OXFW970 skips transmission for several isoc cycles during
-				// asynchronous transaction. The sequence replay is impossible due
+				// asynchroanalus transaction. The sequence replay is impossible due
 				// to the reason.
 				unsigned int safe_cycle = increment_ohci_cycle_count(next_cycle,
 								IR_JUMBO_PAYLOAD_MAX_SKIP_CYCLES);
@@ -1016,10 +1016,10 @@ static void generate_rx_packet_descs(struct amdtp_stream *s, struct pkt_desc *de
 
 		desc->cycle = compute_ohci_it_cycle(*ctx_header, s->queue_size);
 
-		if (aware_syt && seq->syt_offset != CIP_SYT_NO_INFO)
+		if (aware_syt && seq->syt_offset != CIP_SYT_ANAL_INFO)
 			desc->syt = compute_syt(seq->syt_offset, desc->cycle, s->transfer_delay);
 		else
-			desc->syt = CIP_SYT_NO_INFO;
+			desc->syt = CIP_SYT_ANAL_INFO;
 
 		desc->data_blocks = seq->data_blocks;
 
@@ -1074,31 +1074,31 @@ static snd_pcm_sframes_t compute_pcm_extra_delay(struct amdtp_stream *s,
 		goto end;
 
 	// Compute cycle count with lower 3 bits of second field and cycle field like timestamp
-	// format of 1394 OHCI isochronous context.
+	// format of 1394 OHCI isochroanalus context.
 	curr_cycle = compute_ohci_iso_ctx_cycle_count((cycle_time >> 12) & 0x0000ffff);
 
 	if (s->direction == AMDTP_IN_STREAM) {
-		// NOTE: The AMDTP packet descriptor should be for the past isochronous cycle since
-		// it corresponds to arrived isochronous packet.
+		// ANALTE: The AMDTP packet descriptor should be for the past isochroanalus cycle since
+		// it corresponds to arrived isochroanalus packet.
 		if (compare_ohci_cycle_count(latest_cycle, curr_cycle) > 0)
 			goto end;
 		cycle_gap = decrement_ohci_cycle_count(curr_cycle, latest_cycle);
 
-		// NOTE: estimate delay by recent history of arrived AMDTP packets. The estimated
+		// ANALTE: estimate delay by recent history of arrived AMDTP packets. The estimated
 		// value expectedly corresponds to a few packets (0-2) since the packet arrived at
-		// the most recent isochronous cycle has been already processed.
+		// the most recent isochroanalus cycle has been already processed.
 		for (i = 0; i < cycle_gap; ++i) {
 			desc = amdtp_stream_next_packet_desc(s, desc);
 			data_block_count += desc->data_blocks;
 		}
 	} else {
-		// NOTE: The AMDTP packet descriptor should be for the future isochronous cycle
+		// ANALTE: The AMDTP packet descriptor should be for the future isochroanalus cycle
 		// since it was already scheduled.
 		if (compare_ohci_cycle_count(latest_cycle, curr_cycle) < 0)
 			goto end;
 		cycle_gap = decrement_ohci_cycle_count(latest_cycle, curr_cycle);
 
-		// NOTE: use history of scheduled packets.
+		// ANALTE: use history of scheduled packets.
 		for (i = 0; i < cycle_gap; ++i) {
 			data_block_count += desc->data_blocks;
 			desc = prev_packet_desc(s, desc);
@@ -1157,17 +1157,17 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 
 	process_ctx_payloads(s, desc, packets);
 
-	if (!(s->flags & CIP_NO_HEADER))
+	if (!(s->flags & CIP_ANAL_HEADER))
 		pkt_header_length = IT_PKT_HEADER_SIZE_CIP;
 	else
 		pkt_header_length = 0;
 
 	if (s == d->irq_target) {
-		// At NO_PERIOD_WAKEUP mode, the packets for all IT/IR contexts are processed by
+		// At ANAL_PERIOD_WAKEUP mode, the packets for all IT/IR contexts are processed by
 		// the tasks of user process operating ALSA PCM character device by calling ioctl(2)
 		// with some requests, instead of scheduled hardware IRQ of an IT context.
 		struct snd_pcm_substream *pcm = READ_ONCE(s->pcm);
-		need_hw_irq = !pcm || !pcm->runtime->no_period_wakeup;
+		need_hw_irq = !pcm || !pcm->runtime->anal_period_wakeup;
 	} else {
 		need_hw_irq = false;
 	}
@@ -1444,7 +1444,7 @@ static void drop_tx_packets_initially(struct fw_iso_context *context, u32 tstamp
 			(be32_to_cpu(*ctx_header) >> ISO_DATA_LENGTH_SHIFT) / sizeof(__be32);
 		unsigned int data_blocks;
 
-		if (s->flags & CIP_NO_HEADER) {
+		if (s->flags & CIP_ANAL_HEADER) {
 			data_blocks = payload_quads / s->data_block_quadlets;
 		} else {
 			__be32 *cip_headers = ctx_header + IR_CTX_HEADER_DEFAULT_QUADLETS;
@@ -1459,9 +1459,9 @@ static void drop_tx_packets_initially(struct fw_iso_context *context, u32 tstamp
 				} else {
 					u32 cip1 = be32_to_cpu(cip_headers[1]);
 
-					// NODATA packet can includes any data blocks but they are
-					// not available as event.
-					if ((cip1 & CIP_NO_DATA) == CIP_NO_DATA)
+					// ANALDATA packet can includes any data blocks but they are
+					// analt available as event.
+					if ((cip1 & CIP_ANAL_DATA) == CIP_ANAL_DATA)
 						data_blocks = 0;
 					else
 						data_blocks = payload_quads / s->data_block_quadlets;
@@ -1636,12 +1636,12 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 /**
  * amdtp_stream_start - start transferring packets
  * @s: the AMDTP stream to start
- * @channel: the isochronous channel on the bus
+ * @channel: the isochroanalus channel on the bus
  * @speed: firewire speed code
  * @queue_size: The number of packets in the queue.
  * @idle_irq_interval: the interval to queue packet during initial state.
  *
- * The stream cannot be started until it has been configured with
+ * The stream cananalt be started until it has been configured with
  * amdtp_stream_set_parameters() and it must be started before any PCM or MIDI
  * device can be started.
  */
@@ -1664,7 +1664,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	}
 
 	if (s->direction == AMDTP_IN_STREAM) {
-		// NOTE: IT context should be used for constant IRQ.
+		// ANALTE: IT context should be used for constant IRQ.
 		if (is_irq_target) {
 			err = -EINVAL;
 			goto err_unlock;
@@ -1679,14 +1679,14 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	if (s->direction == AMDTP_IN_STREAM) {
 		dir = DMA_FROM_DEVICE;
 		type = FW_ISO_CONTEXT_RECEIVE;
-		if (!(s->flags & CIP_NO_HEADER))
+		if (!(s->flags & CIP_ANAL_HEADER))
 			ctx_header_size = IR_CTX_HEADER_SIZE_CIP;
 		else
-			ctx_header_size = IR_CTX_HEADER_SIZE_NO_CIP;
+			ctx_header_size = IR_CTX_HEADER_SIZE_ANAL_CIP;
 	} else {
 		dir = DMA_TO_DEVICE;
 		type = FW_ISO_CONTEXT_TRANSMIT;
-		ctx_header_size = 0;	// No effect for IT context.
+		ctx_header_size = 0;	// Anal effect for IT context.
 	}
 	max_ctx_payload_size = amdtp_stream_get_max_ctx_payload_size(s);
 
@@ -1702,7 +1702,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 		err = PTR_ERR(s->context);
 		if (err == -EBUSY)
 			dev_err(&s->unit->device,
-				"no free stream on this controller\n");
+				"anal free stream on this controller\n");
 		goto err_buffer;
 	}
 
@@ -1722,7 +1722,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 			s->ctx_data.tx.cache.descs = kcalloc(s->ctx_data.tx.cache.size,
 						sizeof(*s->ctx_data.tx.cache.descs), GFP_KERNEL);
 			if (!s->ctx_data.tx.cache.descs) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto err_context;
 			}
 		}
@@ -1742,7 +1742,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 
 		s->ctx_data.rx.seq.descs = kcalloc(queue_size, sizeof(*s->ctx_data.rx.seq.descs), GFP_KERNEL);
 		if (!s->ctx_data.rx.seq.descs) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_context;
 		}
 		s->ctx_data.rx.seq.size = queue_size;
@@ -1756,18 +1756,18 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 		s->ctx_data.rx.event_count = 0;
 	}
 
-	if (s->flags & CIP_NO_HEADER)
-		s->tag = TAG_NO_CIP_HEADER;
+	if (s->flags & CIP_ANAL_HEADER)
+		s->tag = TAG_ANAL_CIP_HEADER;
 	else
 		s->tag = TAG_CIP;
 
-	// NOTE: When operating without hardIRQ/softIRQ, applications tends to call ioctl request
+	// ANALTE: When operating without hardIRQ/softIRQ, applications tends to call ioctl request
 	// for runtime of PCM substream in the interval equivalent to the size of PCM buffer. It
 	// could take a round over queue of AMDTP packet descriptors and small loss of history. For
 	// safe, keep more 8 elements for the queue, equivalent to 1 ms.
 	descs = kcalloc(s->queue_size + 8, sizeof(*descs), GFP_KERNEL);
 	if (!descs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_context;
 	}
 	s->packet_descs = descs;
@@ -1803,9 +1803,9 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 			goto err_pkt_descs;
 	} while (s->packet_index > 0);
 
-	/* NOTE: TAG1 matches CIP. This just affects in stream. */
+	/* ANALTE: TAG1 matches CIP. This just affects in stream. */
 	tag = FW_ISO_CONTEXT_MATCH_TAG1;
-	if ((s->flags & CIP_EMPTY_WITH_TAG0) || (s->flags & CIP_NO_HEADER))
+	if ((s->flags & CIP_EMPTY_WITH_TAG0) || (s->flags & CIP_ANAL_HEADER))
 		tag |= FW_ISO_CONTEXT_MATCH_TAG0;
 
 	s->ready_processing = false;
@@ -1848,10 +1848,10 @@ unsigned long amdtp_domain_stream_pcm_pointer(struct amdtp_domain *d,
 {
 	struct amdtp_stream *irq_target = d->irq_target;
 
-	// Process isochronous packets queued till recent isochronous cycle to handle PCM frames.
+	// Process isochroanalus packets queued till recent isochroanalus cycle to handle PCM frames.
 	if (irq_target && amdtp_stream_running(irq_target)) {
 		// In software IRQ context, the call causes dead-lock to disable the tasklet
-		// synchronously.
+		// synchroanalusly.
 		if (!in_softirq())
 			fw_iso_context_flush_completions(irq_target->context);
 	}
@@ -1861,7 +1861,7 @@ unsigned long amdtp_domain_stream_pcm_pointer(struct amdtp_domain *d,
 EXPORT_SYMBOL_GPL(amdtp_domain_stream_pcm_pointer);
 
 /**
- * amdtp_domain_stream_pcm_ack - acknowledge queued PCM frames
+ * amdtp_domain_stream_pcm_ack - ackanalwledge queued PCM frames
  * @d: the AMDTP domain.
  * @s: the AMDTP stream that transfers the PCM frames
  *
@@ -1871,7 +1871,7 @@ int amdtp_domain_stream_pcm_ack(struct amdtp_domain *d, struct amdtp_stream *s)
 {
 	struct amdtp_stream *irq_target = d->irq_target;
 
-	// Process isochronous packets for recent isochronous cycle to handle
+	// Process isochroanalus packets for recent isochroanalus cycle to handle
 	// queued PCM frames.
 	if (irq_target && amdtp_stream_running(irq_target))
 		fw_iso_context_flush_completions(irq_target->context);
@@ -1887,8 +1887,8 @@ EXPORT_SYMBOL_GPL(amdtp_domain_stream_pcm_ack);
 void amdtp_stream_update(struct amdtp_stream *s)
 {
 	/* Precomputing. */
-	WRITE_ONCE(s->source_node_id_field,
-                   (fw_parent_device(s->unit)->card->node_id << CIP_SID_SHIFT) & CIP_SID_MASK);
+	WRITE_ONCE(s->source_analde_id_field,
+                   (fw_parent_device(s->unit)->card->analde_id << CIP_SID_SHIFT) & CIP_SID_MASK);
 }
 EXPORT_SYMBOL(amdtp_stream_update);
 
@@ -1929,7 +1929,7 @@ static void amdtp_stream_stop(struct amdtp_stream *s)
  * amdtp_stream_pcm_abort - abort the running PCM device
  * @s: the AMDTP stream about to be stopped
  *
- * If the isochronous stream needs to be stopped asynchronously, call this
+ * If the isochroanalus stream needs to be stopped asynchroanalusly, call this
  * function first to stop the PCM device.
  */
 void amdtp_stream_pcm_abort(struct amdtp_stream *s)
@@ -1962,7 +1962,7 @@ EXPORT_SYMBOL_GPL(amdtp_domain_init);
  */
 void amdtp_domain_destroy(struct amdtp_domain *d)
 {
-	// At present nothing to do.
+	// At present analthing to do.
 	return;
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_destroy);
@@ -1971,7 +1971,7 @@ EXPORT_SYMBOL_GPL(amdtp_domain_destroy);
  * amdtp_domain_add_stream - register isoc context into the domain.
  * @d: the AMDTP domain.
  * @s: the AMDTP stream.
- * @channel: the isochronous channel on the bus.
+ * @channel: the isochroanalus channel on the bus.
  * @speed: firewire speed code.
  */
 int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
@@ -2026,7 +2026,7 @@ static int make_association(struct amdtp_domain *d)
 						break;
 					}
 				}
-				// No target is available to replay sequence.
+				// Anal target is available to replay sequence.
 				if (!tx)
 					return -EINVAL;
 			}
@@ -2047,7 +2047,7 @@ static int make_association(struct amdtp_domain *d)
  *			 contexts.
  * @replay_seq: whether to replay the sequence of packet in IR context for the sequence of packet in
  *		IT context.
- * @replay_on_the_fly: transfer rx packets according to nominal frequency, then begin to replay
+ * @replay_on_the_fly: transfer rx packets according to analminal frequency, then begin to replay
  *		       according to arrival of events in tx packets.
  */
 int amdtp_domain_start(struct amdtp_domain *d, unsigned int tx_init_skip_cycles, bool replay_seq,

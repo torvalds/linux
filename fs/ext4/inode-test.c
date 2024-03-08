@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * KUnit test of ext4 inode that verify the seconds part of [a/c/m]
- * timestamps in ext4 inode structs are decoded correctly.
+ * KUnit test of ext4 ianalde that verify the seconds part of [a/c/m]
+ * timestamps in ext4 ianalde structs are decoded correctly.
  */
 
 #include <kunit/test.h>
@@ -11,12 +11,12 @@
 #include "ext4.h"
 
 /*
- * For constructing the nonnegative timestamp lower bound value.
+ * For constructing the analnnegative timestamp lower bound value.
  * binary: 00000000 00000000 00000000 00000000
  */
 #define LOWER_MSB_0 0L
 /*
- * For constructing the nonnegative timestamp upper bound value.
+ * For constructing the analnnegative timestamp upper bound value.
  * binary: 01111111 11111111 11111111 11111111
  *
  */
@@ -32,44 +32,44 @@
  */
 #define UPPER_MSB_1 (-1L)
 /*
- * Upper bound for nanoseconds value supported by the encoding.
+ * Upper bound for naanalseconds value supported by the encoding.
  * binary: 00111111 11111111 11111111 11111111
  */
-#define MAX_NANOSECONDS ((1L << 30) - 1)
+#define MAX_NAANALSECONDS ((1L << 30) - 1)
 
 #define CASE_NAME_FORMAT "%s: msb:%x lower_bound:%x extra_bits: %x"
 
-#define LOWER_BOUND_NEG_NO_EXTRA_BITS_CASE\
-	"1901-12-13 Lower bound of 32bit < 0 timestamp, no extra bits"
-#define UPPER_BOUND_NEG_NO_EXTRA_BITS_CASE\
-	"1969-12-31 Upper bound of 32bit < 0 timestamp, no extra bits"
-#define LOWER_BOUND_NONNEG_NO_EXTRA_BITS_CASE\
-	"1970-01-01 Lower bound of 32bit >=0 timestamp, no extra bits"
-#define UPPER_BOUND_NONNEG_NO_EXTRA_BITS_CASE\
-	"2038-01-19 Upper bound of 32bit >=0 timestamp, no extra bits"
+#define LOWER_BOUND_NEG_ANAL_EXTRA_BITS_CASE\
+	"1901-12-13 Lower bound of 32bit < 0 timestamp, anal extra bits"
+#define UPPER_BOUND_NEG_ANAL_EXTRA_BITS_CASE\
+	"1969-12-31 Upper bound of 32bit < 0 timestamp, anal extra bits"
+#define LOWER_BOUND_ANALNNEG_ANAL_EXTRA_BITS_CASE\
+	"1970-01-01 Lower bound of 32bit >=0 timestamp, anal extra bits"
+#define UPPER_BOUND_ANALNNEG_ANAL_EXTRA_BITS_CASE\
+	"2038-01-19 Upper bound of 32bit >=0 timestamp, anal extra bits"
 #define LOWER_BOUND_NEG_LO_1_CASE\
 	"2038-01-19 Lower bound of 32bit <0 timestamp, lo extra sec bit on"
 #define UPPER_BOUND_NEG_LO_1_CASE\
 	"2106-02-07 Upper bound of 32bit <0 timestamp, lo extra sec bit on"
-#define LOWER_BOUND_NONNEG_LO_1_CASE\
+#define LOWER_BOUND_ANALNNEG_LO_1_CASE\
 	"2106-02-07 Lower bound of 32bit >=0 timestamp, lo extra sec bit on"
-#define UPPER_BOUND_NONNEG_LO_1_CASE\
+#define UPPER_BOUND_ANALNNEG_LO_1_CASE\
 	"2174-02-25 Upper bound of 32bit >=0 timestamp, lo extra sec bit on"
 #define LOWER_BOUND_NEG_HI_1_CASE\
 	"2174-02-25 Lower bound of 32bit <0 timestamp, hi extra sec bit on"
 #define UPPER_BOUND_NEG_HI_1_CASE\
 	"2242-03-16 Upper bound of 32bit <0 timestamp, hi extra sec bit on"
-#define LOWER_BOUND_NONNEG_HI_1_CASE\
+#define LOWER_BOUND_ANALNNEG_HI_1_CASE\
 	"2242-03-16 Lower bound of 32bit >=0 timestamp, hi extra sec bit on"
-#define UPPER_BOUND_NONNEG_HI_1_CASE\
+#define UPPER_BOUND_ANALNNEG_HI_1_CASE\
 	"2310-04-04 Upper bound of 32bit >=0 timestamp, hi extra sec bit on"
-#define UPPER_BOUND_NONNEG_HI_1_NS_1_CASE\
+#define UPPER_BOUND_ANALNNEG_HI_1_NS_1_CASE\
 	"2310-04-04 Upper bound of 32bit>=0 timestamp, hi extra sec bit 1. 1 ns"
-#define LOWER_BOUND_NONNEG_HI_1_NS_MAX_CASE\
+#define LOWER_BOUND_ANALNNEG_HI_1_NS_MAX_CASE\
 	"2378-04-22 Lower bound of 32bit>= timestamp. Extra sec bits 1. Max ns"
-#define LOWER_BOUND_NONNEG_EXTRA_BITS_1_CASE\
+#define LOWER_BOUND_ANALNNEG_EXTRA_BITS_1_CASE\
 	"2378-04-22 Lower bound of 32bit >=0 timestamp. All extra sec bits on"
-#define UPPER_BOUND_NONNEG_EXTRA_BITS_1_CASE\
+#define UPPER_BOUND_ANALNNEG_EXTRA_BITS_1_CASE\
 	"2446-05-10 Upper bound of 32bit >=0 timestamp. All extra sec bits on"
 
 struct timestamp_expectation {
@@ -82,7 +82,7 @@ struct timestamp_expectation {
 
 static const struct timestamp_expectation test_data[] = {
 	{
-		.test_case_name = LOWER_BOUND_NEG_NO_EXTRA_BITS_CASE,
+		.test_case_name = LOWER_BOUND_NEG_ANAL_EXTRA_BITS_CASE,
 		.msb_set = true,
 		.lower_bound = true,
 		.extra_bits = 0,
@@ -90,7 +90,7 @@ static const struct timestamp_expectation test_data[] = {
 	},
 
 	{
-		.test_case_name = UPPER_BOUND_NEG_NO_EXTRA_BITS_CASE,
+		.test_case_name = UPPER_BOUND_NEG_ANAL_EXTRA_BITS_CASE,
 		.msb_set = true,
 		.lower_bound = false,
 		.extra_bits = 0,
@@ -98,7 +98,7 @@ static const struct timestamp_expectation test_data[] = {
 	},
 
 	{
-		.test_case_name = LOWER_BOUND_NONNEG_NO_EXTRA_BITS_CASE,
+		.test_case_name = LOWER_BOUND_ANALNNEG_ANAL_EXTRA_BITS_CASE,
 		.msb_set = false,
 		.lower_bound = true,
 		.extra_bits = 0,
@@ -106,7 +106,7 @@ static const struct timestamp_expectation test_data[] = {
 	},
 
 	{
-		.test_case_name = UPPER_BOUND_NONNEG_NO_EXTRA_BITS_CASE,
+		.test_case_name = UPPER_BOUND_ANALNNEG_ANAL_EXTRA_BITS_CASE,
 		.msb_set = false,
 		.lower_bound = false,
 		.extra_bits = 0,
@@ -130,7 +130,7 @@ static const struct timestamp_expectation test_data[] = {
 	},
 
 	{
-		.test_case_name = LOWER_BOUND_NONNEG_LO_1_CASE,
+		.test_case_name = LOWER_BOUND_ANALNNEG_LO_1_CASE,
 		.msb_set = false,
 		.lower_bound = true,
 		.extra_bits = 1,
@@ -138,7 +138,7 @@ static const struct timestamp_expectation test_data[] = {
 	},
 
 	{
-		.test_case_name = UPPER_BOUND_NONNEG_LO_1_CASE,
+		.test_case_name = UPPER_BOUND_ANALNNEG_LO_1_CASE,
 		.msb_set = false,
 		.lower_bound = false,
 		.extra_bits = 1,
@@ -162,7 +162,7 @@ static const struct timestamp_expectation test_data[] = {
 	},
 
 	{
-		.test_case_name = LOWER_BOUND_NONNEG_HI_1_CASE,
+		.test_case_name = LOWER_BOUND_ANALNNEG_HI_1_CASE,
 		.msb_set = false,
 		.lower_bound = true,
 		.extra_bits = 2,
@@ -170,7 +170,7 @@ static const struct timestamp_expectation test_data[] = {
 	},
 
 	{
-		.test_case_name = UPPER_BOUND_NONNEG_HI_1_CASE,
+		.test_case_name = UPPER_BOUND_ANALNNEG_HI_1_CASE,
 		.msb_set = false,
 		.lower_bound = false,
 		.extra_bits = 2,
@@ -178,7 +178,7 @@ static const struct timestamp_expectation test_data[] = {
 	},
 
 	{
-		.test_case_name = UPPER_BOUND_NONNEG_HI_1_NS_1_CASE,
+		.test_case_name = UPPER_BOUND_ANALNNEG_HI_1_NS_1_CASE,
 		.msb_set = false,
 		.lower_bound = false,
 		.extra_bits = 6,
@@ -186,16 +186,16 @@ static const struct timestamp_expectation test_data[] = {
 	},
 
 	{
-		.test_case_name = LOWER_BOUND_NONNEG_HI_1_NS_MAX_CASE,
+		.test_case_name = LOWER_BOUND_ANALNNEG_HI_1_NS_MAX_CASE,
 		.msb_set = false,
 		.lower_bound = true,
 		.extra_bits = 0xFFFFFFFF,
 		.expected = {.tv_sec = 0x300000000LL,
-			     .tv_nsec = MAX_NANOSECONDS},
+			     .tv_nsec = MAX_NAANALSECONDS},
 	},
 
 	{
-		.test_case_name = LOWER_BOUND_NONNEG_EXTRA_BITS_1_CASE,
+		.test_case_name = LOWER_BOUND_ANALNNEG_EXTRA_BITS_1_CASE,
 		.msb_set = false,
 		.lower_bound = true,
 		.extra_bits = 3,
@@ -203,7 +203,7 @@ static const struct timestamp_expectation test_data[] = {
 	},
 
 	{
-		.test_case_name = UPPER_BOUND_NONNEG_EXTRA_BITS_1_CASE,
+		.test_case_name = UPPER_BOUND_ANALNNEG_EXTRA_BITS_1_CASE,
 		.msb_set = false,
 		.lower_bound = false,
 		.extra_bits = 3,
@@ -217,7 +217,7 @@ static void timestamp_expectation_to_desc(const struct timestamp_expectation *t,
 	strscpy(desc, t->test_case_name, KUNIT_PARAM_DESC_SIZE);
 }
 
-KUNIT_ARRAY_PARAM(ext4_inode, test_data, timestamp_expectation_to_desc);
+KUNIT_ARRAY_PARAM(ext4_ianalde, test_data, timestamp_expectation_to_desc);
 
 static time64_t get_32bit_time(const struct timestamp_expectation * const test)
 {
@@ -235,10 +235,10 @@ static time64_t get_32bit_time(const struct timestamp_expectation * const test)
 
 
 /*
- *  Test data is derived from the table in the Inode Timestamps section of
- *  Documentation/filesystems/ext4/inodes.rst.
+ *  Test data is derived from the table in the Ianalde Timestamps section of
+ *  Documentation/filesystems/ext4/ianaldes.rst.
  */
-static void inode_test_xtimestamp_decoding(struct kunit *test)
+static void ianalde_test_xtimestamp_decoding(struct kunit *test)
 {
 	struct timespec64 timestamp;
 
@@ -267,16 +267,16 @@ static void inode_test_xtimestamp_decoding(struct kunit *test)
 			    test_param->extra_bits);
 }
 
-static struct kunit_case ext4_inode_test_cases[] = {
-	KUNIT_CASE_PARAM(inode_test_xtimestamp_decoding, ext4_inode_gen_params),
+static struct kunit_case ext4_ianalde_test_cases[] = {
+	KUNIT_CASE_PARAM(ianalde_test_xtimestamp_decoding, ext4_ianalde_gen_params),
 	{}
 };
 
-static struct kunit_suite ext4_inode_test_suite = {
-	.name = "ext4_inode_test",
-	.test_cases = ext4_inode_test_cases,
+static struct kunit_suite ext4_ianalde_test_suite = {
+	.name = "ext4_ianalde_test",
+	.test_cases = ext4_ianalde_test_cases,
 };
 
-kunit_test_suites(&ext4_inode_test_suite);
+kunit_test_suites(&ext4_ianalde_test_suite);
 
 MODULE_LICENSE("GPL v2");

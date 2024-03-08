@@ -31,7 +31,7 @@
  * @backlog_count: backlog request count
  * @write_idx: next write index for the command
  * @instr_size: command size
- * @qno: command queue number
+ * @qanal: command queue number
  * @qsize: command queue size
  * @unalign_base: unaligned base address
  * @unalign_dma: unaligned dma address
@@ -57,7 +57,7 @@ struct nitrox_cmdq {
 
 	int write_idx;
 	u8 instr_size;
-	u8 qno;
+	u8 qanal;
 	u32 qsize;
 
 	u8 *unalign_base;
@@ -148,7 +148,7 @@ union mbox_msg {
 /**
  * nitrox_vfdev - NITROX VF device instance in PF
  * @state: VF device state
- * @vfno: VF number
+ * @vfanal: VF number
  * @nr_queues: number of queues enabled in VF
  * @ring: ring to communicate with VF
  * @msg: Mailbox message data from VF
@@ -156,7 +156,7 @@ union mbox_msg {
  */
 struct nitrox_vfdev {
 	atomic_t state;
-	int vfno;
+	int vfanal;
 	int nr_queues;
 	int ring;
 	union mbox_msg msg;
@@ -183,7 +183,7 @@ struct nitrox_iov {
  * NITROX Device states
  */
 enum ndev_state {
-	__NDEV_NOT_READY,
+	__NDEV_ANALT_READY,
 	__NDEV_READY,
 	__NDEV_IN_RESET,
 };
@@ -219,7 +219,7 @@ enum vf_mode {
  * @timeout: Request timeout in jiffies
  * @refcnt: Device usage count
  * @idx: device index (0..N)
- * @node: NUMA node id attached
+ * @analde: NUMA analde id attached
  * @qlen: Command queue length
  * @nr_queues: Number of command queues
  * @mode: Device mode PF/VF
@@ -245,7 +245,7 @@ struct nitrox_device {
 	refcount_t refcnt;
 
 	u8 idx;
-	int node;
+	int analde;
 	u16 qlen;
 	u16 nr_queues;
 	enum vf_mode mode;

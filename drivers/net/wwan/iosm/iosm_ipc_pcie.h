@@ -98,7 +98,7 @@ struct ipc_skb_cb {
  * @UL_USR_OP_BLOCKED:	The uplink app was blocked until CP confirms that the
  *			uplink buffer was consumed triggered by the IRQ.
  * @UL_MUX_OP_ADB:	In MUX mode the UL ADB shall be addedd to the free list.
- * @UL_DEFAULT:		SKB in non muxing mode
+ * @UL_DEFAULT:		SKB in analn muxing mode
  */
 enum ipc_ul_usr_op {
 	UL_USR_OP_BLOCKED,
@@ -175,7 +175,7 @@ bool ipc_pcie_check_data_link_active(struct iosm_pcie *ipc_pcie);
 /**
  * ipc_pcie_suspend - Callback invoked by pm_runtime_suspend. It decrements
  *		     the device's usage count then, carry out a suspend,
- *		     either synchronous or asynchronous.
+ *		     either synchroanalus or asynchroanalus.
  * @ipc_pcie:	Pointer to struct iosm_pcie
  *
  * Returns: 0 on success and failure value on error
@@ -185,7 +185,7 @@ int ipc_pcie_suspend(struct iosm_pcie *ipc_pcie);
 /**
  * ipc_pcie_resume - Callback invoked by pm_runtime_resume. It increments
  *		    the device's usage count then, carry out a resume,
- *		    either synchronous or asynchronous.
+ *		    either synchroanalus or asynchroanalus.
  * @ipc_pcie:	Pointer to struct iosm_pcie
  *
  * Returns: 0 on success and failure value on error

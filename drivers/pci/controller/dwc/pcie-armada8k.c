@@ -4,7 +4,7 @@
  *
  * Armada-8K PCIe Glue Layer Source Code
  *
- * Copyright (C) 2016 Marvell Technology Group Ltd.
+ * Copyright (C) 2016 Marvell Techanallogy Group Ltd.
  *
  * Author: Yehuda Yitshak <yehuday@marvell.com>
  * Author: Shadi Ammouri <shadi@marvell.com>
@@ -58,7 +58,7 @@ struct armada8k_pcie {
 #define PCIE_ARUSER_REG			(PCIE_VENDOR_REGS_OFFSET + 0x5C)
 #define PCIE_AWUSER_REG			(PCIE_VENDOR_REGS_OFFSET + 0x60)
 /*
- * AR/AW Cache defaults: Normal memory, Write-Back, Read / Write
+ * AR/AW Cache defaults: Analrmal memory, Write-Back, Read / Write
  * allocate
  */
 #define ARCACHE_DEFAULT_VALUE		0x3511
@@ -111,14 +111,14 @@ static int armada8k_pcie_setup_phys(struct armada8k_pcie *pcie)
 {
 	struct dw_pcie *pci = pcie->pci;
 	struct device *dev = pci->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	int ret = 0;
 	int i;
 
 	for (i = 0; i < ARMADA8K_PCIE_MAX_LANES; i++) {
-		pcie->phy[i] = devm_of_phy_get_by_index(dev, node, i);
+		pcie->phy[i] = devm_of_phy_get_by_index(dev, analde, i);
 		if (IS_ERR(pcie->phy[i])) {
-			if (PTR_ERR(pcie->phy[i]) != -ENODEV)
+			if (PTR_ERR(pcie->phy[i]) != -EANALDEV)
 				return PTR_ERR(pcie->phy[i]);
 
 			pcie->phy[i] = NULL;
@@ -128,9 +128,9 @@ static int armada8k_pcie_setup_phys(struct armada8k_pcie *pcie)
 		pcie->phy_count++;
 	}
 
-	/* Old bindings miss the PHY handle, so just warn if there is no PHY */
+	/* Old bindings miss the PHY handle, so just warn if there is anal PHY */
 	if (!pcie->phy_count)
-		dev_warn(dev, "No available PHY\n");
+		dev_warn(dev, "Anal available PHY\n");
 
 	ret = armada8k_pcie_enable_phys(pcie);
 	if (ret)
@@ -149,7 +149,7 @@ static int armada8k_pcie_link_up(struct dw_pcie *pci)
 	if ((reg & mask) == mask)
 		return 1;
 
-	dev_dbg(pci->dev, "No link detected (Global-Status: 0x%08x).\n", reg);
+	dev_dbg(pci->dev, "Anal link detected (Global-Status: 0x%08x).\n", reg);
 	return 0;
 }
 
@@ -273,11 +273,11 @@ static int armada8k_pcie_probe(struct platform_device *pdev)
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;

@@ -33,9 +33,9 @@ DECLARE_EVENT_CLASS(udc_log_gadget,
 		__field(unsigned, hnp_polling_support)
 		__field(unsigned, host_request_flag)
 		__field(unsigned, quirk_ep_out_aligned_size)
-		__field(unsigned, quirk_altset_not_supp)
-		__field(unsigned, quirk_stall_not_supp)
-		__field(unsigned, quirk_zlp_not_supp)
+		__field(unsigned, quirk_altset_analt_supp)
+		__field(unsigned, quirk_stall_analt_supp)
+		__field(unsigned, quirk_zlp_analt_supp)
 		__field(unsigned, is_selfpowered)
 		__field(unsigned, deactivated)
 		__field(unsigned, connected)
@@ -54,9 +54,9 @@ DECLARE_EVENT_CLASS(udc_log_gadget,
 		__entry->hnp_polling_support = g->hnp_polling_support;
 		__entry->host_request_flag = g->host_request_flag;
 		__entry->quirk_ep_out_aligned_size = g->quirk_ep_out_aligned_size;
-		__entry->quirk_altset_not_supp = g->quirk_altset_not_supp;
-		__entry->quirk_stall_not_supp = g->quirk_stall_not_supp;
-		__entry->quirk_zlp_not_supp = g->quirk_zlp_not_supp;
+		__entry->quirk_altset_analt_supp = g->quirk_altset_analt_supp;
+		__entry->quirk_stall_analt_supp = g->quirk_stall_analt_supp;
+		__entry->quirk_zlp_analt_supp = g->quirk_zlp_analt_supp;
 		__entry->is_selfpowered = g->is_selfpowered;
 		__entry->deactivated = g->deactivated;
 		__entry->connected = g->connected;
@@ -72,9 +72,9 @@ DECLARE_EVENT_CLASS(udc_log_gadget,
 		__entry->hnp_polling_support ? "hnp_poll:" : "",
 		__entry->host_request_flag ? "hostreq:" : "",
 		__entry->quirk_ep_out_aligned_size ? "out_aligned:" : "",
-		__entry->quirk_altset_not_supp ? "no_altset:" : "",
-		__entry->quirk_stall_not_supp ? "no_stall:" : "",
-		__entry->quirk_zlp_not_supp ? "no_zlp" : "",
+		__entry->quirk_altset_analt_supp ? "anal_altset:" : "",
+		__entry->quirk_stall_analt_supp ? "anal_stall:" : "",
+		__entry->quirk_zlp_analt_supp ? "anal_zlp" : "",
 		__entry->is_selfpowered ? "self-powered:" : "bus-powered:",
 		__entry->deactivated ? "deactivated:" : "activated:",
 		__entry->connected ? "connected" : "disconnected",
@@ -225,9 +225,9 @@ DECLARE_EVENT_CLASS(udc_log_req,
 		__field(unsigned, num_sgs)
 		__field(unsigned, num_mapped_sgs)
 		__field(unsigned, stream_id)
-		__field(unsigned, no_interrupt)
+		__field(unsigned, anal_interrupt)
 		__field(unsigned, zero)
-		__field(unsigned, short_not_ok)
+		__field(unsigned, short_analt_ok)
 		__field(int, status)
 		__field(int, ret)
 		__field(struct usb_request *, req)
@@ -239,9 +239,9 @@ DECLARE_EVENT_CLASS(udc_log_req,
 		__entry->num_sgs = req->num_sgs;
 		__entry->num_mapped_sgs = req->num_mapped_sgs;
 		__entry->stream_id = req->stream_id;
-		__entry->no_interrupt = req->no_interrupt;
+		__entry->anal_interrupt = req->anal_interrupt;
 		__entry->zero = req->zero;
-		__entry->short_not_ok = req->short_not_ok;
+		__entry->short_analt_ok = req->short_analt_ok;
 		__entry->status = req->status;
 		__entry->ret = ret;
 		__entry->req = req;
@@ -250,8 +250,8 @@ DECLARE_EVENT_CLASS(udc_log_req,
 		__get_str(name),__entry->req,  __entry->actual, __entry->length,
 		__entry->num_mapped_sgs, __entry->num_sgs, __entry->stream_id,
 		__entry->zero ? "Z" : "z",
-		__entry->short_not_ok ? "S" : "s",
-		__entry->no_interrupt ? "i" : "I",
+		__entry->short_analt_ok ? "S" : "s",
+		__entry->anal_interrupt ? "i" : "I",
 		__entry->status, __entry->ret
 	)
 );

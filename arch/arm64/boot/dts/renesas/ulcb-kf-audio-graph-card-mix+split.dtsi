@@ -6,8 +6,8 @@
  */
 
 /*
- * Note:
- * The HDMI output is ignored due to the limited number of subdevices
+ * Analte:
+ * The HDMI output is iganalred due to the limited number of subdevices
  *
  *	(A) CPU0 (2ch) <----> (2ch) (X) ak4613	   (MIX-0)
  *	(B) CPU1 (2ch)  --/			   (MIX-1)

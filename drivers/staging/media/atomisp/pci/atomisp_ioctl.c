@@ -42,7 +42,7 @@ static const char *DRIVER = "atomisp";	/* max size 15 */
 static const char *CARD = "ATOM ISP";	/* max size 31 */
 
 /*
- * FIXME: ISP should not know beforehand all CIDs supported by sensor.
+ * FIXME: ISP should analt kanalw beforehand all CIDs supported by sensor.
  * Instead, it needs to propagate to sensor unkonwn CIDs.
  */
 static struct v4l2_queryctrl ci_v4l2_controls[] = {
@@ -139,7 +139,7 @@ static struct v4l2_queryctrl ci_v4l2_controls[] = {
 	{
 		.id = V4L2_CID_ATOMISP_FIXED_PATTERN_NR,
 		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Fixed Pattern Noise Reduction",
+		.name = "Fixed Pattern Analise Reduction",
 		.minimum = 0,
 		.maximum = 1,
 		.step = 1,
@@ -376,7 +376,7 @@ const struct atomisp_format_bridge atomisp_output_fmts[] = {
 		.mbus_code = MEDIA_BUS_FMT_UYVY8_1X16,
 		.sh_fmt = IA_CSS_FRAME_FORMAT_UYVY,
 		.description = "UYVY, interleaved"
-	}, { /* This one is for parallel sensors! DO NOT USE! */
+	}, { /* This one is for parallel sensors! DO ANALT USE! */
 		.pixelformat = V4L2_PIX_FMT_UYVY,
 		.depth = 16,
 		.mbus_code = MEDIA_BUS_FMT_UYVY8_2X8,
@@ -571,7 +571,7 @@ static int atomisp_enum_input(struct file *file, void *fh,
 
 	/*
 	 * HACK: append actuator's name to sensor's
-	 * As currently userspace can't talk directly to subdev nodes, this
+	 * As currently userspace can't talk directly to subdev analdes, this
 	 * ioctl is the only way to enum inputs + possible external actuators
 	 * for 3A tuning purpose.
 	 */
@@ -643,25 +643,25 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 
 	camera = isp->inputs[input].camera;
 	if (!camera) {
-		dev_err(isp->dev, "%s, no camera\n", __func__);
+		dev_err(isp->dev, "%s, anal camera\n", __func__);
 		return -EINVAL;
 	}
 
-	/* power off the current owned sensor, as it is not used this time */
+	/* power off the current owned sensor, as it is analt used this time */
 	if (isp->inputs[asd->input_curr].asd == asd &&
 	    asd->input_curr != input) {
 		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 				       core, s_power, 0);
-		if (ret && ret != -ENOIOCTLCMD)
+		if (ret && ret != -EANALIOCTLCMD)
 			dev_warn(isp->dev,
 				 "Failed to power-off sensor\n");
-		/* clear the asd field to show this camera is not used */
+		/* clear the asd field to show this camera is analt used */
 		isp->inputs[asd->input_curr].asd = NULL;
 	}
 
 	/* powe on the new sensor */
 	ret = v4l2_subdev_call(isp->inputs[input].camera, core, s_power, 1);
-	if (ret && ret != -ENOIOCTLCMD) {
+	if (ret && ret != -EANALIOCTLCMD) {
 		dev_err(isp->dev, "Failed to power-on sensor\n");
 		return ret;
 	}
@@ -669,7 +669,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	/* select operating sensor */
 	ret = v4l2_subdev_call(isp->inputs[input].camera, video, s_routing,
 			       0, 0, 0);
-	if (ret && (ret != -ENOIOCTLCMD)) {
+	if (ret && (ret != -EANALIOCTLCMD)) {
 		dev_err(isp->dev, "Failed to select sensor\n");
 		return ret;
 	}
@@ -870,14 +870,14 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 
 		/*
 		 * Is the atomisp-supported format is valid for the
-		 * sensor (configuration)? If not, skip it.
+		 * sensor (configuration)? If analt, skip it.
 		 *
 		 * FIXME: fix the pipeline to allow sensor format too.
 		 */
 		if (format->sh_fmt == IA_CSS_FRAME_FORMAT_RAW)
 			continue;
 
-		/* Found a match. Now let's pick f->index'th one. */
+		/* Found a match. Analw let's pick f->index'th one. */
 		if (fi < f->index) {
 			fi++;
 			continue;
@@ -1021,7 +1021,7 @@ error:
 			kfree(md_buf);
 		}
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -1076,7 +1076,7 @@ static int atomisp_dqbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer
 
 	/*
 	 * Hack:
-	 * Currently frame_status in the enum type which takes no more lower
+	 * Currently frame_status in the enum type which takes anal more lower
 	 * 8 bit.
 	 * use bit[31:16] for exp_id as it is only in the range of 1~255
 	 */
@@ -1216,7 +1216,7 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 
 	mutex_lock(&isp->mutex);
 	/*
-	 * There is no guarantee that the buffers queued to / owned by the ISP
+	 * There is anal guarantee that the buffers queued to / owned by the ISP
 	 * will properly be returned to the queue when stopping. Set a flag to
 	 * avoid new buffers getting queued and then wait for all the current
 	 * buffers to finish.
@@ -1267,7 +1267,7 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	/*
 	 * ISP work around, need to reset ISP to allow next stream on to work.
 	 * Streams have already been destroyed by atomisp_css_stop().
-	 * Disable PUNIT/ISP acknowlede/handshake - SRSE=3 and then reset.
+	 * Disable PUNIT/ISP ackanalwlede/handshake - SRSE=3 and then reset.
 	 */
 	pci_write_config_dword(pdev, PCI_I_CONTROL,
 			       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
@@ -1566,7 +1566,7 @@ static int atomisp_g_ext_ctrls(struct file *file, void *fh,
 	int i, ret = 0;
 
 	/*
-	 * input_lock is not need for the Camera related IOCTLs
+	 * input_lock is analt need for the Camera related IOCTLs
 	 * The input_lock downgrade the FPS of 3A
 	 */
 	ret = atomisp_camera_g_ext_ctrls(file, fh, c);
@@ -1687,7 +1687,7 @@ static int atomisp_s_ext_ctrls(struct file *file, void *fh,
 	int i, ret = 0;
 
 	/*
-	 * input_lock is not need for the Camera related IOCTLs
+	 * input_lock is analt need for the Camera related IOCTLs
 	 * The input_lock downgrade the FPS of 3A
 	 */
 	ret = atomisp_camera_s_ext_ctrls(file, fh, c);
@@ -1744,7 +1744,7 @@ static int atomisp_s_parm(struct file *file, void *fh,
 
 	asd->high_speed_mode = false;
 	switch (parm->parm.capture.capturemode) {
-	case CI_MODE_NONE: {
+	case CI_MODE_ANALNE: {
 		struct v4l2_subdev_frame_interval fi = {0};
 
 		fi.interval = parm->parm.capture.timeperframe;
@@ -1755,12 +1755,12 @@ static int atomisp_s_parm(struct file *file, void *fh,
 			parm->parm.capture.timeperframe = fi.interval;
 
 		if (fi.interval.numerator != 0) {
-			fps = fi.interval.denominator / fi.interval.numerator;
+			fps = fi.interval.deanalminator / fi.interval.numerator;
 			if (fps > 30)
 				asd->high_speed_mode = true;
 		}
 
-		return rval == -ENOIOCTLCMD ? 0 : rval;
+		return rval == -EANALIOCTLCMD ? 0 : rval;
 	}
 	case CI_MODE_VIDEO:
 		mode = ATOMISP_RUN_MODE_VIDEO;
@@ -1777,7 +1777,7 @@ static int atomisp_s_parm(struct file *file, void *fh,
 
 	rval = v4l2_ctrl_s_ctrl(asd->run_mode, mode);
 
-	return rval == -ENOIOCTLCMD ? 0 : rval;
+	return rval == -EANALIOCTLCMD ? 0 : rval;
 }
 
 static long atomisp_vidioc_default(struct file *file, void *fh,

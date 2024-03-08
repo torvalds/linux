@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -110,7 +110,7 @@ static u8 ib_rate_to_memfree(u8 req_rate, u8 cur_rate)
 
 	/*
 	 * Inter-packet delay (IPD) to get from rate X down to a rate
-	 * no more than Y is (X - 1) / Y.
+	 * anal more than Y is (X - 1) / Y.
 	 */
 	switch ((cur_rate - 1) / req_rate) {
 	case 0:	 return MTHCA_RATE_MEMFREE_FULL;
@@ -163,7 +163,7 @@ int mthca_create_ah(struct mthca_dev *dev,
 	if (mthca_is_memfree(dev)) {
 		ah->av   = kmalloc(sizeof *ah->av, GFP_ATOMIC);
 		if (!ah->av)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ah->type = MTHCA_AH_KMALLOC;
 		av       = ah->av;
@@ -189,7 +189,7 @@ on_hca_fail:
 		ah->av = dma_pool_zalloc(dev->av_table.pool,
 					 GFP_ATOMIC, &ah->avdma);
 		if (!ah->av)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		av = ah->av;
 	}
@@ -295,9 +295,9 @@ int mthca_ah_query(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 	struct mthca_dev *dev = to_mdev(ibah->device);
 	u32 port_num = be32_to_cpu(ah->av->port_pd) >> 24;
 
-	/* Only implement for MAD and memfree ah for now. */
+	/* Only implement for MAD and memfree ah for analw. */
 	if (ah->type == MTHCA_AH_ON_HCA)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	memset(attr, 0, sizeof *attr);
 	attr->type = ibah->type;
@@ -361,7 +361,7 @@ int mthca_init_av_table(struct mthca_dev *dev)
 
  out_free_alloc:
 	mthca_alloc_cleanup(&dev->av_table.alloc);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void mthca_cleanup_av_table(struct mthca_dev *dev)

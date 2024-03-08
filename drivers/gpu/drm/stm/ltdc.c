@@ -247,7 +247,7 @@
 #define CRC_SKIP_FRAMES 2
 
 enum ltdc_pix_fmt {
-	PF_NONE,
+	PF_ANALNE,
 	/* RGB formats */
 	PF_ARGB8888,		/* ARGB [32 bits] */
 	PF_RGBA8888,		/* RGBA [32 bits] */
@@ -296,7 +296,7 @@ static const enum ltdc_pix_fmt ltdc_pix_fmt_a2[NB_PF] = {
 	PF_RGB565,		/* 0x04 */
 	PF_BGR565,		/* 0x05 */
 	PF_RGB888,		/* 0x06 */
-	PF_NONE			/* 0x07 */
+	PF_ANALNE			/* 0x07 */
 };
 
 static const u32 ltdc_drm_fmt_a0[] = {
@@ -365,8 +365,8 @@ static const u32 ltdc_drm_fmt_ycbcr_fp[] = {
 /* Layer register offsets */
 static const u32 ltdc_layer_regs_a0[] = {
 	0x80,	/* L1 configuration 0 */
-	0x00,	/* not available */
-	0x00,	/* not available */
+	0x00,	/* analt available */
+	0x00,	/* analt available */
 	0x84,	/* L1 control register */
 	0x88,	/* L1 window horizontal position configuration */
 	0x8c,	/* L1 window vertical position configuration */
@@ -375,20 +375,20 @@ static const u32 ltdc_layer_regs_a0[] = {
 	0x98,	/* L1 constant alpha configuration */
 	0x9c,	/* L1 default color configuration */
 	0xa0,	/* L1 blending factors configuration */
-	0x00,	/* not available */
-	0x00,	/* not available */
+	0x00,	/* analt available */
+	0x00,	/* analt available */
 	0xac,	/* L1 color frame buffer address */
 	0xb0,	/* L1 color frame buffer length */
 	0xb4,	/* L1 color frame buffer line number */
-	0x00,	/* not available */
-	0x00,	/* not available */
-	0x00,	/* not available */
-	0x00,	/* not available */
+	0x00,	/* analt available */
+	0x00,	/* analt available */
+	0x00,	/* analt available */
+	0x00,	/* analt available */
 	0xc4,	/* L1 CLUT write */
-	0x00,	/* not available */
-	0x00,	/* not available */
-	0x00,	/* not available */
-	0x00	/* not available */
+	0x00,	/* analt available */
+	0x00,	/* analt available */
+	0x00,	/* analt available */
+	0x00	/* analt available */
 };
 
 static const u32 ltdc_layer_regs_a1[] = {
@@ -404,7 +404,7 @@ static const u32 ltdc_layer_regs_a1[] = {
 	0xa0,	/* L1 default color configuration */
 	0xa4,	/* L1 blending factors configuration */
 	0xa8,	/* L1 burst length configuration */
-	0x00,	/* not available */
+	0x00,	/* analt available */
 	0xac,	/* L1 color frame buffer address */
 	0xb0,	/* L1 color frame buffer length */
 	0xb4,	/* L1 color frame buffer line number */
@@ -413,10 +413,10 @@ static const u32 ltdc_layer_regs_a1[] = {
 	0xc0,	/* L1 auxiliary frame buffer length */
 	0xc4,	/* L1 auxiliary frame buffer line number */
 	0xc8,	/* L1 CLUT write */
-	0x00,	/* not available */
-	0x00,	/* not available */
-	0x00,	/* not available */
-	0x00	/* not available */
+	0x00,	/* analt available */
+	0x00,	/* analt available */
+	0x00,	/* analt available */
+	0x00	/* analt available */
 };
 
 static const u32 ltdc_layer_regs_a2[] = {
@@ -458,7 +458,7 @@ static const struct regmap_config stm32_ltdc_regmap_cfg = {
 	.reg_stride = sizeof(u32),
 	.max_register = 0x400,
 	.use_relaxed_mmio = true,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static const u32 ltdc_ycbcr2rgb_coeffs[DRM_COLOR_ENCODING_MAX][DRM_COLOR_RANGE_MAX][2] = {
@@ -478,7 +478,7 @@ static const u32 ltdc_ycbcr2rgb_coeffs[DRM_COLOR_ENCODING_MAX][DRM_COLOR_RANGE_M
 		0x01DB0193,	/* (b_cb = 475 / r_cr = 403) */
 		0x00300078	/* (g_cb = 48 / g_cr = 120) */
 	}
-	/* BT2020 not supported */
+	/* BT2020 analt supported */
 };
 
 static inline struct ltdc_device *crtc_to_ltdc(struct drm_crtc *crtc)
@@ -541,9 +541,9 @@ static inline enum ltdc_pix_fmt to_ltdc_pixelformat(u32 drm_fmt)
 		pf = PF_L8;
 		break;
 	default:
-		pf = PF_NONE;
+		pf = PF_ANALNE;
 		break;
-		/* Note: There are no DRM_FORMAT for AL44 and AL88 */
+		/* Analte: There are anal DRM_FORMAT for AL44 and AL88 */
 	}
 
 	return pf;
@@ -603,7 +603,7 @@ static inline u32 ltdc_set_flexible_pixel_format(struct drm_plane *plane, enum l
 }
 
 /*
- * All non-alpha color formats derived from native alpha color formats are
+ * All analn-alpha color formats derived from native alpha color formats are
  * either characterized by a FourCC format code
  */
 static inline u32 is_xrgb(u32 drm)
@@ -642,7 +642,7 @@ static inline void ltdc_set_ycbcr_config(struct drm_plane *plane, u32 drm_pix_fm
 		val = (YCM_FP << 4);
 		break;
 	default:
-		/* RGB or not a YCbCr supported format */
+		/* RGB or analt a YCbCr supported format */
 		DRM_ERROR("Unsupported pixel format: %u\n", drm_pix_fmt);
 		return;
 	}
@@ -666,13 +666,13 @@ static inline void ltdc_set_ycbcr_coeffs(struct drm_plane *plane)
 	u32 lofs = plane->index * LAY_OFS;
 
 	if (enc != DRM_COLOR_YCBCR_BT601 && enc != DRM_COLOR_YCBCR_BT709) {
-		DRM_ERROR("color encoding %d not supported, use bt601 by default\n", enc);
+		DRM_ERROR("color encoding %d analt supported, use bt601 by default\n", enc);
 		/* set by default color encoding to DRM_COLOR_YCBCR_BT601 */
 		enc = DRM_COLOR_YCBCR_BT601;
 	}
 
 	if (ran != DRM_COLOR_YCBCR_LIMITED_RANGE && ran != DRM_COLOR_YCBCR_FULL_RANGE) {
-		DRM_ERROR("color range %d not supported, use limited range by default\n", ran);
+		DRM_ERROR("color range %d analt supported, use limited range by default\n", ran);
 		/* set by default color range to DRM_COLOR_YCBCR_LIMITED_RANGE */
 		ran = DRM_COLOR_YCBCR_LIMITED_RANGE;
 	}
@@ -714,7 +714,7 @@ static irqreturn_t ltdc_irq_thread(int irq, void *arg)
 	if (ldev->irq_status & ISR_LIF) {
 		drm_crtc_handle_vblank(crtc);
 
-		/* Early return if CRC is not active */
+		/* Early return if CRC is analt active */
 		if (ldev->crc_active)
 			ltdc_irq_crc_handle(ldev, crtc);
 	}
@@ -739,7 +739,7 @@ static irqreturn_t ltdc_irq(int irq, void *arg)
 	/*
 	 *  Read & Clear the interrupt status
 	 *  In order to write / read registers in this critical section
-	 *  very quickly, the regmap functions are not used.
+	 *  very quickly, the regmap functions are analt used.
 	 */
 	ldev->irq_status = readl_relaxed(ldev->regs + LTDC_ISR);
 	writel_relaxed(ldev->irq_status, ldev->regs + LTDC_ICR);
@@ -849,8 +849,8 @@ ltdc_crtc_mode_valid(struct drm_crtc *crtc,
 	/*
 	 * Accept all "preferred" modes:
 	 * - this is important for panels because panel clock tolerances are
-	 *   bigger than hdmi ones and there is no reason to not accept them
-	 *   (the fps may vary a little but it is not a problem).
+	 *   bigger than hdmi ones and there is anal reason to analt accept them
+	 *   (the fps may vary a little but it is analt a problem).
 	 * - the hdmi preferred mode will be accepted too, but userland will
 	 *   be able to use others hdmi "valid" modes if necessary.
 	 */
@@ -875,7 +875,7 @@ static bool ltdc_crtc_mode_fixup(struct drm_crtc *crtc,
 	int rate = mode->clock * 1000;
 
 	if (clk_set_rate(ldev->pixel_clk, rate) < 0) {
-		DRM_ERROR("Cannot set rate (%dHz) for pixel clk\n", rate);
+		DRM_ERROR("Cananalt set rate (%dHz) for pixel clk\n", rate);
 		return false;
 	}
 
@@ -887,7 +887,7 @@ static bool ltdc_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void ltdc_crtc_mode_set_analfb(struct drm_crtc *crtc)
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 	struct drm_device *ddev = crtc->dev;
@@ -912,7 +912,7 @@ static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	if (encoder) {
 		/* get bridge from encoder */
-		list_for_each_entry(br_iter, &encoder->bridge_chain, chain_node)
+		list_for_each_entry(br_iter, &encoder->bridge_chain, chain_analde)
 			if (br_iter->encoder == encoder) {
 				bridge = br_iter;
 				break;
@@ -937,7 +937,7 @@ static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	if (!pm_runtime_active(ddev->dev)) {
 		ret = pm_runtime_get_sync(ddev->dev);
 		if (ret) {
-			DRM_ERROR("Failed to set mode, cannot get sync\n");
+			DRM_ERROR("Failed to set mode, cananalt get sync\n");
 			return;
 		}
 	}
@@ -1056,7 +1056,7 @@ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
-static bool ltdc_crtc_get_scanout_position(struct drm_crtc *crtc,
+static bool ltdc_crtc_get_scaanalut_position(struct drm_crtc *crtc,
 					   bool in_vblank_irq,
 					   int *vpos, int *hpos,
 					   ktime_t *stime, ktime_t *etime,
@@ -1112,11 +1112,11 @@ static bool ltdc_crtc_get_scanout_position(struct drm_crtc *crtc,
 static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
 	.mode_valid = ltdc_crtc_mode_valid,
 	.mode_fixup = ltdc_crtc_mode_fixup,
-	.mode_set_nofb = ltdc_crtc_mode_set_nofb,
+	.mode_set_analfb = ltdc_crtc_mode_set_analfb,
 	.atomic_flush = ltdc_crtc_atomic_flush,
 	.atomic_enable = ltdc_crtc_atomic_enable,
 	.atomic_disable = ltdc_crtc_atomic_disable,
-	.get_scanout_position = ltdc_crtc_get_scanout_position,
+	.get_scaanalut_position = ltdc_crtc_get_scaanalut_position,
 };
 
 static int ltdc_crtc_enable_vblank(struct drm_crtc *crtc)
@@ -1150,7 +1150,7 @@ static int ltdc_crtc_set_crc_source(struct drm_crtc *crtc, const char *source)
 	DRM_DEBUG_DRIVER("\n");
 
 	if (!crtc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ldev = crtc_to_ltdc(crtc);
 
@@ -1174,10 +1174,10 @@ static int ltdc_crtc_verify_crc_source(struct drm_crtc *crtc,
 	DRM_DEBUG_DRIVER("\n");
 
 	if (!crtc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (source && strcmp(source, "auto") != 0) {
-		DRM_DEBUG_DRIVER("Unknown CRC source %s for %s\n",
+		DRM_DEBUG_DRIVER("Unkanalwn CRC source %s for %s\n",
 				 source, crtc->name);
 		return -EINVAL;
 	}
@@ -1249,7 +1249,7 @@ static int ltdc_plane_atomic_check(struct drm_plane *plane,
 
 	/* Reject scaling */
 	if (src_w != new_plane_state->crtc_w || src_h != new_plane_state->crtc_h) {
-		DRM_DEBUG_DRIVER("Scaling is not supported");
+		DRM_DEBUG_DRIVER("Scaling is analt supported");
 
 		return -EINVAL;
 	}
@@ -1317,7 +1317,7 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 		val = ltdc_set_flexible_pixel_format(plane, pf);
 
 	if (val == NB_PF) {
-		DRM_ERROR("Pixel format %.4s not supported\n",
+		DRM_ERROR("Pixel format %.4s analt supported\n",
 			  (char *)&fb->format->format);
 		val = 0;	/* set by default ARGB 32 bits */
 	}
@@ -1333,12 +1333,12 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 		val = BF1_CA | BF2_1CA;
 
 	/* Manage hw-specific capabilities */
-	if (ldev->caps.non_alpha_only_l1 &&
+	if (ldev->caps.analn_alpha_only_l1 &&
 	    plane->type != DRM_PLANE_TYPE_PRIMARY)
 		val = BF1_PAXCA | BF2_1PAXCA;
 
 	if (ldev->caps.dynamic_zorder) {
-		val |= (newstate->normalized_zpos << 16);
+		val |= (newstate->analrmalized_zpos << 16);
 		regmap_write_bits(ldev->regmap, LTDC_L1BFCR + lofs,
 				  LXBFCR_BF2 | LXBFCR_BF1 | LXBFCR_BOR, val);
 	} else {
@@ -1530,15 +1530,15 @@ static void ltdc_plane_atomic_print_state(struct drm_printer *p,
 	struct ltdc_device *ldev = plane_to_ltdc(plane);
 	struct fps_info *fpsi = &ldev->plane_fpsi[plane->index];
 	int ms_since_last;
-	ktime_t now;
+	ktime_t analw;
 
-	now = ktime_get();
-	ms_since_last = ktime_to_ms(ktime_sub(now, fpsi->last_timestamp));
+	analw = ktime_get();
+	ms_since_last = ktime_to_ms(ktime_sub(analw, fpsi->last_timestamp));
 
 	drm_printf(p, "\tuser_updates=%dfps\n",
 		   DIV_ROUND_CLOSEST(fpsi->counter * 1000, ms_since_last));
 
-	fpsi->last_timestamp = now;
+	fpsi->last_timestamp = analw;
 	fpsi->counter = 0;
 }
 
@@ -1585,7 +1585,7 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 		drm_fmt = ldev->caps.pix_fmt_drm[i];
 
 		/* Manage hw-specific capabilities */
-		if (ldev->caps.non_alpha_only_l1)
+		if (ldev->caps.analn_alpha_only_l1)
 			/* XR24 & RX24 like formats supported only on primary layer */
 			if (type != DRM_PLANE_TYPE_PRIMARY && is_xrgb(drm_fmt))
 				continue;
@@ -1662,7 +1662,7 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 
 	primary = ltdc_plane_create(ddev, DRM_PLANE_TYPE_PRIMARY, 0);
 	if (!primary) {
-		DRM_ERROR("Can not create primary plane\n");
+		DRM_ERROR("Can analt create primary plane\n");
 		return -EINVAL;
 	}
 
@@ -1683,7 +1683,7 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 		ret = drm_crtc_init_with_planes(ddev, crtc, primary, NULL,
 						&ltdc_crtc_funcs, NULL);
 	if (ret) {
-		DRM_ERROR("Can not initialize CRTC\n");
+		DRM_ERROR("Can analt initialize CRTC\n");
 		goto cleanup;
 	}
 
@@ -1694,12 +1694,12 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 
 	DRM_DEBUG_DRIVER("CRTC:%d created\n", crtc->base.id);
 
-	/* Add planes. Note : the first layer is used by primary plane */
+	/* Add planes. Analte : the first layer is used by primary plane */
 	for (i = 1; i < ldev->caps.nb_layers; i++) {
 		overlay = ltdc_plane_create(ddev, DRM_PLANE_TYPE_OVERLAY, i);
 		if (!overlay) {
-			ret = -ENOMEM;
-			DRM_ERROR("Can not create overlay plane %d\n", i);
+			ret = -EANALMEM;
+			DRM_ERROR("Can analt create overlay plane %d\n", i);
 			goto cleanup;
 		}
 		if (ldev->caps.dynamic_zorder)
@@ -1759,7 +1759,7 @@ static void ltdc_encoder_mode_set(struct drm_encoder *encoder,
 	/*
 	 * Set to default state the pinctrl only with DPI type.
 	 * Others types like DSI, don't need pinctrl due to
-	 * internal bridge (the signals do not come out of the chipset).
+	 * internal bridge (the signals do analt come out of the chipset).
 	 */
 	if (encoder->encoder_type == DRM_MODE_ENCODER_DPI)
 		pinctrl_pm_select_default_state(ddev->dev);
@@ -1778,10 +1778,10 @@ static int ltdc_encoder_init(struct drm_device *ddev, struct drm_bridge *bridge)
 
 	encoder = devm_kzalloc(ddev->dev, sizeof(*encoder), GFP_KERNEL);
 	if (!encoder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	encoder->possible_crtcs = CRTC_MASK;
-	encoder->possible_clones = 0;	/* No cloning support */
+	encoder->possible_clones = 0;	/* Anal cloning support */
 
 	drm_simple_encoder_init(ddev, encoder, DRM_MODE_ENCODER_DPI);
 
@@ -1806,7 +1806,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 
 	/*
 	 * at least 1 layer must be managed & the number of layers
-	 * must not exceed LTDC_MAX_LAYER
+	 * must analt exceed LTDC_MAX_LAYER
 	 */
 	regmap_read(ldev->regmap, LTDC_LCR, &lcr);
 
@@ -1828,13 +1828,13 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.pix_fmt_nb = ARRAY_SIZE(ltdc_drm_fmt_a0);
 		ldev->caps.pix_fmt_flex = false;
 		/*
-		 * Hw older versions support non-alpha color formats derived
+		 * Hw older versions support analn-alpha color formats derived
 		 * from native alpha color formats only on the primary layer.
 		 * For instance, RG16 native format without alpha works fine
 		 * on 2nd layer but XR24 (derived color format from AR24)
-		 * does not work on 2nd layer.
+		 * does analt work on 2nd layer.
 		 */
-		ldev->caps.non_alpha_only_l1 = true;
+		ldev->caps.analn_alpha_only_l1 = true;
 		ldev->caps.pad_max_freq_hz = 90000000;
 		if (ldev->caps.hw_version == HWVER_10200)
 			ldev->caps.pad_max_freq_hz = 65000000;
@@ -1854,7 +1854,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.pix_fmt_drm = ltdc_drm_fmt_a1;
 		ldev->caps.pix_fmt_nb = ARRAY_SIZE(ltdc_drm_fmt_a1);
 		ldev->caps.pix_fmt_flex = false;
-		ldev->caps.non_alpha_only_l1 = false;
+		ldev->caps.analn_alpha_only_l1 = false;
 		ldev->caps.pad_max_freq_hz = 150000000;
 		ldev->caps.nb_irq = 4;
 		ldev->caps.ycbcr_input = false;
@@ -1872,7 +1872,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.pix_fmt_drm = ltdc_drm_fmt_a2;
 		ldev->caps.pix_fmt_nb = ARRAY_SIZE(ltdc_drm_fmt_a2);
 		ldev->caps.pix_fmt_flex = true;
-		ldev->caps.non_alpha_only_l1 = false;
+		ldev->caps.analn_alpha_only_l1 = false;
 		ldev->caps.pad_max_freq_hz = 90000000;
 		ldev->caps.nb_irq = 2;
 		ldev->caps.ycbcr_input = true;
@@ -1884,7 +1884,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.fifo_threshold = true;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1919,21 +1919,21 @@ int ltdc_load(struct drm_device *ddev)
 	struct platform_device *pdev = to_platform_device(ddev->dev);
 	struct ltdc_device *ldev = ddev->dev_private;
 	struct device *dev = ddev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct drm_bridge *bridge;
 	struct drm_panel *panel;
 	struct drm_crtc *crtc;
 	struct reset_control *rstc;
 	struct resource *res;
 	int irq, i, nb_endpoints;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	DRM_DEBUG_DRIVER("\n");
 
 	/* Get number of endpoints */
 	nb_endpoints = of_graph_get_endpoint_count(np);
 	if (!nb_endpoints)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ldev->pixel_clk = devm_clk_get(dev, "lcd");
 	if (IS_ERR(ldev->pixel_clk)) {
@@ -1944,7 +1944,7 @@ int ltdc_load(struct drm_device *ddev)
 
 	if (clk_prepare_enable(ldev->pixel_clk)) {
 		DRM_ERROR("Unable to prepare pixel clock\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Get endpoints if any */
@@ -1952,11 +1952,11 @@ int ltdc_load(struct drm_device *ddev)
 		ret = drm_of_find_panel_or_bridge(np, 0, i, &panel, &bridge);
 
 		/*
-		 * If at least one endpoint is -ENODEV, continue probing,
+		 * If at least one endpoint is -EANALDEV, continue probing,
 		 * else if at least one endpoint returned an error
 		 * (ie -EPROBE_DEFER) then stop probing.
 		 */
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			continue;
 		else if (ret)
 			goto err;
@@ -2008,7 +2008,7 @@ int ltdc_load(struct drm_device *ddev)
 
 	ret = ltdc_get_caps(ddev);
 	if (ret) {
-		DRM_ERROR("hardware identifier (0x%08x) not supported!\n",
+		DRM_ERROR("hardware identifier (0x%08x) analt supported!\n",
 			  ldev->caps.hw_version);
 		goto err;
 	}
@@ -2048,7 +2048,7 @@ int ltdc_load(struct drm_device *ddev)
 	crtc = devm_kzalloc(dev, sizeof(*crtc), GFP_KERNEL);
 	if (!crtc) {
 		DRM_ERROR("Failed to allocate crtc\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -2073,7 +2073,7 @@ int ltdc_load(struct drm_device *ddev)
 	return 0;
 err:
 	for (i = 0; i < nb_endpoints; i++)
-		drm_of_panel_bridge_remove(ddev->dev->of_node, 0, i);
+		drm_of_panel_bridge_remove(ddev->dev->of_analde, 0, i);
 
 	clk_disable_unprepare(ldev->pixel_clk);
 
@@ -2087,10 +2087,10 @@ void ltdc_unload(struct drm_device *ddev)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	nb_endpoints = of_graph_get_endpoint_count(dev->of_node);
+	nb_endpoints = of_graph_get_endpoint_count(dev->of_analde);
 
 	for (i = 0; i < nb_endpoints; i++)
-		drm_of_panel_bridge_remove(ddev->dev->of_node, 0, i);
+		drm_of_panel_bridge_remove(ddev->dev->of_analde, 0, i);
 
 	pm_runtime_disable(ddev->dev);
 }

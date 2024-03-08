@@ -23,7 +23,7 @@
  *  Compresses literals section for a sub-block.
  *  When we have to write the Huffman table we will sometimes choose a header
  *  size larger than necessary. This is because we have to pick the header size
- *  before we know the table size + compressed size, so we have a bound on the
+ *  before we kanalw the table size + compressed size, so we have a bound on the
  *  table size. If we guessed incorrectly, we fall back to uncompressed literals.
  *
  *  We write the header when writeEntropy=1 and set entropyWritten=1 when we succeeded
@@ -60,7 +60,7 @@ static size_t ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
     *entropyWritten = 0;
     if (litSize == 0 || hufMetadata->hType == set_basic) {
       DEBUGLOG(5, "ZSTD_compressSubBlock_literal using raw literal");
-      return ZSTD_noCompressLiterals(dst, dstSize, literals, litSize);
+      return ZSTD_analCompressLiterals(dst, dstSize, literals, litSize);
     } else if (hufMetadata->hType == set_rle) {
       DEBUGLOG(5, "ZSTD_compressSubBlock_literal using rle literal");
       return ZSTD_compressRleLiteralsBlock(dst, dstSize, literals, litSize);
@@ -88,13 +88,13 @@ static size_t ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
         /* If we expand and we aren't writing a header then emit uncompressed */
         if (!writeEntropy && cLitSize >= litSize) {
             DEBUGLOG(5, "ZSTD_compressSubBlock_literal using raw literal because uncompressible");
-            return ZSTD_noCompressLiterals(dst, dstSize, literals, litSize);
+            return ZSTD_analCompressLiterals(dst, dstSize, literals, litSize);
         }
         /* If we are writing headers then allow expansion that doesn't change our header size. */
         if (lhSize < (size_t)(3 + (cLitSize >= 1 KB) + (cLitSize >= 16 KB))) {
             assert(cLitSize > litSize);
             DEBUGLOG(5, "Literals expanded beyond allowed header size");
-            return ZSTD_noCompressLiterals(dst, dstSize, literals, litSize);
+            return ZSTD_analCompressLiterals(dst, dstSize, literals, litSize);
         }
         DEBUGLOG(5, "ZSTD_compressSubBlock_literal (cSize=%zu)", cSize);
     }
@@ -118,7 +118,7 @@ static size_t ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
             ostart[4] = (BYTE)(cLitSize >> 10);
             break;
         }
-    default:  /* not possible : lhSize is {3,4,5} */
+    default:  /* analt possible : lhSize is {3,4,5} */
         assert(0);
     }
     *entropyWritten = 1;
@@ -326,7 +326,7 @@ static size_t ZSTD_estimateSubBlockSize_symbolType(symbolEncodingType_e type,
                         const BYTE* codeTable, unsigned maxCode,
                         size_t nbSeq, const FSE_CTable* fseCTable,
                         const U8* additionalBits,
-                        short const* defaultNorm, U32 defaultNormLog, U32 defaultMax,
+                        short const* defaultAnalrm, U32 defaultAnalrmLog, U32 defaultMax,
                         void* workspace, size_t wkspSize)
 {
     unsigned* const countWksp = (unsigned*)workspace;
@@ -341,7 +341,7 @@ static size_t ZSTD_estimateSubBlockSize_symbolType(symbolEncodingType_e type,
         /* We selected this encoding type, so it must be valid. */
         assert(max <= defaultMax);
         cSymbolTypeSizeEstimateInBits = max <= defaultMax
-                ? ZSTD_crossEntropyCost(defaultNorm, defaultNormLog, countWksp, max)
+                ? ZSTD_crossEntropyCost(defaultAnalrm, defaultAnalrmLog, countWksp, max)
                 : ERROR(GENERIC);
     } else if (type == set_rle) {
         cSymbolTypeSizeEstimateInBits = 0;
@@ -371,15 +371,15 @@ static size_t ZSTD_estimateSubBlockSize_sequences(const BYTE* ofCodeTable,
     if (nbSeq == 0) return sequencesSectionHeaderSize;
     cSeqSizeEstimate += ZSTD_estimateSubBlockSize_symbolType(fseMetadata->ofType, ofCodeTable, MaxOff,
                                          nbSeq, fseTables->offcodeCTable, NULL,
-                                         OF_defaultNorm, OF_defaultNormLog, DefaultMaxOff,
+                                         OF_defaultAnalrm, OF_defaultAnalrmLog, DefaultMaxOff,
                                          workspace, wkspSize);
     cSeqSizeEstimate += ZSTD_estimateSubBlockSize_symbolType(fseMetadata->llType, llCodeTable, MaxLL,
                                          nbSeq, fseTables->litlengthCTable, LL_bits,
-                                         LL_defaultNorm, LL_defaultNormLog, MaxLL,
+                                         LL_defaultAnalrm, LL_defaultAnalrmLog, MaxLL,
                                          workspace, wkspSize);
     cSeqSizeEstimate += ZSTD_estimateSubBlockSize_symbolType(fseMetadata->mlType, mlCodeTable, MaxML,
                                          nbSeq, fseTables->matchlengthCTable, ML_bits,
-                                         ML_defaultNorm, ML_defaultNormLog, MaxML,
+                                         ML_defaultAnalrm, ML_defaultAnalrmLog, MaxML,
                                          workspace, wkspSize);
     if (writeEntropy) cSeqSizeEstimate += fseMetadata->fseTablesSize;
     return cSeqSizeEstimate + sequencesSectionHeaderSize;
@@ -419,7 +419,7 @@ static int ZSTD_needSequenceEntropyTables(ZSTD_fseCTablesMetadata_t const* fseMe
  *  Breaks super-block into multiple sub-blocks and compresses them.
  *  Entropy will be written to the first block.
  *  The following blocks will use repeat mode to compress.
- *  All sub-blocks are compressed blocks (no raw or rle blocks).
+ *  All sub-blocks are compressed blocks (anal raw or rle blocks).
  *  @return : compressed size of the super block (which is multiple ZSTD blocks)
  *            Or 0 if it failed to compress. */
 static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
@@ -528,9 +528,9 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
         return 0;
     }
     if (ip < iend) {
-        size_t const cSize = ZSTD_noCompressBlock(op, oend - op, ip, iend - ip, lastBlock);
+        size_t const cSize = ZSTD_analCompressBlock(op, oend - op, ip, iend - ip, lastBlock);
         DEBUGLOG(5, "ZSTD_compressSubBlock_multi last sub-block uncompressed, %zu bytes", (size_t)(iend - ip));
-        FORWARD_IF_ERROR(cSize, "ZSTD_noCompressBlock failed");
+        FORWARD_IF_ERROR(cSize, "ZSTD_analCompressBlock failed");
         assert(cSize != 0);
         op += cSize;
         /* We have to regenerate the repcodes because we've skipped some sequences */

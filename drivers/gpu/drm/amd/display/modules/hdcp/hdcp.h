@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -33,7 +33,7 @@
 #include <drm/display/drm_hdcp_helper.h>
 
 enum mod_hdcp_trans_input_result {
-	UNKNOWN = 0,
+	UNKANALWN = 0,
 	PASS,
 	FAIL
 };
@@ -78,7 +78,7 @@ struct mod_hdcp_transition_input_hdcp2 {
 	uint8_t ake_cert_read;
 	uint8_t ake_cert_validation;
 	uint8_t stored_km_write;
-	uint8_t no_stored_km_write;
+	uint8_t anal_stored_km_write;
 	uint8_t h_prime_available;
 	uint8_t h_prime_read;
 	uint8_t pairing_available;
@@ -136,7 +136,7 @@ struct mod_hdcp_message_hdcp2 {
 
 	uint8_t		ake_init[12];
 	uint8_t		ake_cert[534];
-	uint8_t		ake_no_stored_km[129];
+	uint8_t		ake_anal_stored_km[129];
 	uint8_t		ake_stored_km[33];
 	uint8_t		ake_h_prime[33];
 	uint8_t		ake_pairing_info[17];
@@ -214,8 +214,8 @@ enum mod_hdcp_initial_state_id {
 	HDCP_UNINITIALIZED = 0x0,
 	HDCP_INITIAL_STATE_START = HDCP_UNINITIALIZED,
 	HDCP_INITIALIZED,
-	HDCP_CP_NOT_DESIRED,
-	HDCP_INITIAL_STATE_END = HDCP_CP_NOT_DESIRED
+	HDCP_CP_ANALT_DESIRED,
+	HDCP_INITIAL_STATE_END = HDCP_CP_ANALT_DESIRED
 };
 
 enum mod_hdcp_hdcp1_state_id {
@@ -243,10 +243,10 @@ enum mod_hdcp_hdcp1_dp_state_id {
 
 enum mod_hdcp_hdcp2_state_id {
 	HDCP2_STATE_START = HDCP1_DP_STATE_END,
-	H2_A0_KNOWN_HDCP2_CAPABLE_RX,
+	H2_A0_KANALWN_HDCP2_CAPABLE_RX,
 	H2_A1_SEND_AKE_INIT,
 	H2_A1_VALIDATE_AKE_CERT,
-	H2_A1_SEND_NO_STORED_KM,
+	H2_A1_SEND_ANAL_STORED_KM,
 	H2_A1_READ_H_PRIME,
 	H2_A1_READ_PAIRING_INFO_AND_VALIDATE_H_PRIME,
 	H2_A1_SEND_STORED_KM,
@@ -267,7 +267,7 @@ enum mod_hdcp_hdcp2_dp_state_id {
 	D2_A0_DETERMINE_RX_HDCP_CAPABLE,
 	D2_A1_SEND_AKE_INIT,
 	D2_A1_VALIDATE_AKE_CERT,
-	D2_A1_SEND_NO_STORED_KM,
+	D2_A1_SEND_ANAL_STORED_KM,
 	D2_A1_READ_H_PRIME,
 	D2_A1_READ_PAIRING_INFO_AND_VALIDATE_H_PRIME,
 	D2_A1_SEND_STORED_KM,
@@ -378,7 +378,7 @@ enum mod_hdcp_status mod_hdcp_read_l_prime(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_read_rx_id_list(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_read_stream_ready(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_write_ake_init(struct mod_hdcp *hdcp);
-enum mod_hdcp_status mod_hdcp_write_no_stored_km(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_write_anal_stored_km(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_write_stored_km(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_write_lc_init(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_write_eks(struct mod_hdcp *hdcp);
@@ -463,9 +463,9 @@ static inline uint8_t is_hdcp2(struct mod_hdcp *hdcp)
 	return (is_in_hdcp2_states(hdcp) || is_in_hdcp2_dp_states(hdcp));
 }
 
-static inline uint8_t is_in_cp_not_desired_state(struct mod_hdcp *hdcp)
+static inline uint8_t is_in_cp_analt_desired_state(struct mod_hdcp *hdcp)
 {
-	return current_state(hdcp) == HDCP_CP_NOT_DESIRED;
+	return current_state(hdcp) == HDCP_CP_ANALT_DESIRED;
 }
 
 static inline uint8_t is_in_initialized_state(struct mod_hdcp *hdcp)

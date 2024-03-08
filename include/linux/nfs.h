@@ -3,7 +3,7 @@
  * NFS protocol definitions
  *
  * This file contains constants mostly for Version 2 of the protocol,
- * but also has a couple of NFSv3 bits in (notably the error codes).
+ * but also has a couple of NFSv3 bits in (analtably the error codes).
  */
 #ifndef _LINUX_NFS_H
 #define _LINUX_NFS_H

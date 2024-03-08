@@ -34,7 +34,7 @@ properties:
 
   gpr:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: The phandle to the General Purpose Register (GPR) node
+    description: The phandle to the General Purpose Register (GPR) analde
 
   reg:
     maxItems: 1

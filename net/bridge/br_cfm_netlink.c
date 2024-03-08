@@ -58,7 +58,7 @@ br_cfm_cc_ccm_tx_policy[IFLA_BRIDGE_CFM_CC_CCM_TX_MAX + 1] = {
 	[IFLA_BRIDGE_CFM_CC_CCM_TX_UNSPEC]	   = { .type = NLA_REJECT },
 	[IFLA_BRIDGE_CFM_CC_CCM_TX_INSTANCE]	   = { .type = NLA_U32 },
 	[IFLA_BRIDGE_CFM_CC_CCM_TX_DMAC]	   = NLA_POLICY_ETH_ADDR,
-	[IFLA_BRIDGE_CFM_CC_CCM_TX_SEQ_NO_UPDATE]  = { .type = NLA_U32 },
+	[IFLA_BRIDGE_CFM_CC_CCM_TX_SEQ_ANAL_UPDATE]  = { .type = NLA_U32 },
 	[IFLA_BRIDGE_CFM_CC_CCM_TX_PERIOD]	   = { .type = NLA_U32 },
 	[IFLA_BRIDGE_CFM_CC_CCM_TX_IF_TLV]	   = { .type = NLA_U32 },
 	[IFLA_BRIDGE_CFM_CC_CCM_TX_IF_TLV_VALUE]   = { .type = NLA_U8 },
@@ -335,8 +335,8 @@ static int br_cc_ccm_tx_parse(struct net_bridge *br, struct nlattr *attr,
 		NL_SET_ERR_MSG_MOD(extack, "Missing DMAC attribute");
 		return -EINVAL;
 	}
-	if (!tb[IFLA_BRIDGE_CFM_CC_CCM_TX_SEQ_NO_UPDATE]) {
-		NL_SET_ERR_MSG_MOD(extack, "Missing SEQ_NO_UPDATE attribute");
+	if (!tb[IFLA_BRIDGE_CFM_CC_CCM_TX_SEQ_ANAL_UPDATE]) {
+		NL_SET_ERR_MSG_MOD(extack, "Missing SEQ_ANAL_UPDATE attribute");
 		return -EINVAL;
 	}
 	if (!tb[IFLA_BRIDGE_CFM_CC_CCM_TX_PERIOD]) {
@@ -366,7 +366,7 @@ static int br_cc_ccm_tx_parse(struct net_bridge *br, struct nlattr *attr,
 	nla_memcpy(&tx_info.dmac.addr,
 		   tb[IFLA_BRIDGE_CFM_CC_CCM_TX_DMAC],
 		   sizeof(tx_info.dmac.addr));
-	tx_info.seq_no_update = nla_get_u32(tb[IFLA_BRIDGE_CFM_CC_CCM_TX_SEQ_NO_UPDATE]);
+	tx_info.seq_anal_update = nla_get_u32(tb[IFLA_BRIDGE_CFM_CC_CCM_TX_SEQ_ANAL_UPDATE]);
 	tx_info.period = nla_get_u32(tb[IFLA_BRIDGE_CFM_CC_CCM_TX_PERIOD]);
 	tx_info.if_tlv = nla_get_u32(tb[IFLA_BRIDGE_CFM_CC_CCM_TX_IF_TLV]);
 	tx_info.if_tlv_value = nla_get_u8(tb[IFLA_BRIDGE_CFM_CC_CCM_TX_IF_TLV_VALUE]);
@@ -558,8 +558,8 @@ int br_cfm_config_fill_info(struct sk_buff *skb, struct net_bridge *br)
 			    mep->cc_ccm_tx_info.dmac.addr))
 			goto nla_put_failure;
 
-		if (nla_put_u32(skb, IFLA_BRIDGE_CFM_CC_CCM_TX_SEQ_NO_UPDATE,
-				mep->cc_ccm_tx_info.seq_no_update))
+		if (nla_put_u32(skb, IFLA_BRIDGE_CFM_CC_CCM_TX_SEQ_ANAL_UPDATE,
+				mep->cc_ccm_tx_info.seq_anal_update))
 			goto nla_put_failure;
 
 		if (nla_put_u32(skb, IFLA_BRIDGE_CFM_CC_CCM_TX_PERIOD,

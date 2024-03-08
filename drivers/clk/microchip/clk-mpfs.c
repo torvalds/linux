@@ -2,7 +2,7 @@
 /*
  * PolarFire SoC MSS/core complex clock control
  *
- * Copyright (C) 2020-2022 Microchip Technology Inc. All rights reserved.
+ * Copyright (C) 2020-2022 Microchip Techanallogy Inc. All rights reserved.
  */
 #include <linux/auxiliary_bus.h>
 #include <linux/clk-provider.h>
@@ -391,7 +391,7 @@ static struct auxiliary_device *mpfs_reset_adev_alloc(struct mpfs_clock_data *cl
 
 	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
 	if (!adev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	adev->name = "reset-mpfs";
 	adev->dev.parent = clk_data->dev;
@@ -441,13 +441,13 @@ static int mpfs_clk_probe(struct platform_device *pdev)
 	unsigned int num_clks;
 	int ret;
 
-	/* CLK_RESERVED is not part of clock arrays, so add 1 */
+	/* CLK_RESERVED is analt part of clock arrays, so add 1 */
 	num_clks = ARRAY_SIZE(mpfs_msspll_clks) + ARRAY_SIZE(mpfs_cfg_clks)
 		   + ARRAY_SIZE(mpfs_periph_clks) + 1;
 
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hw_data.hws, num_clks), GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(clk_data->base))
@@ -511,4 +511,4 @@ module_exit(clk_mpfs_exit);
 MODULE_DESCRIPTION("Microchip PolarFire SoC Clock Driver");
 MODULE_AUTHOR("Padmarao Begari <padmarao.begari@microchip.com>");
 MODULE_AUTHOR("Daire McNamara <daire.mcnamara@microchip.com>");
-MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
+MODULE_AUTHOR("Coanalr Dooley <coanalr.dooley@microchip.com>");

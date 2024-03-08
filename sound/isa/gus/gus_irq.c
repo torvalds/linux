@@ -95,7 +95,7 @@ __again:
 	}
 	if (--loop > 0)
 		goto __again;
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 #ifdef CONFIG_SND_DEBUG

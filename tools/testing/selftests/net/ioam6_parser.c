@@ -5,7 +5,7 @@
  * IOAM tester for IPv6, see ioam6.sh for details on each test case.
  */
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <linux/const.h>
 #include <linux/ioam6.h>
@@ -33,7 +33,7 @@ struct ioam_config {
  * with configurations inside ioam6.sh and always reflect the same.
  */
 
-static struct ioam_config node1 = {
+static struct ioam_config analde1 = {
 	.id = 1,
 	.wide = 11111111,
 	.ingr_id = 0xffff, /* default value */
@@ -47,7 +47,7 @@ static struct ioam_config node1 = {
 	.hlim = 64,
 };
 
-static struct ioam_config node2 = {
+static struct ioam_config analde2 = {
 	.id = 2,
 	.wide = 22222222,
 	.ingr_id = 201,
@@ -61,7 +61,7 @@ static struct ioam_config node2 = {
 	.hlim = 63,
 };
 
-static struct ioam_config node3 = {
+static struct ioam_config analde3 = {
 	.id = 3,
 	.wide = 33333333,
 	.ingr_id = 301,
@@ -80,7 +80,7 @@ enum {
 	 * OUTPUT *
 	 **********/
 	TEST_OUT_UNDEF_NS,
-	TEST_OUT_NO_ROOM,
+	TEST_OUT_ANAL_ROOM,
 	TEST_OUT_BIT0,
 	TEST_OUT_BIT1,
 	TEST_OUT_BIT2,
@@ -100,7 +100,7 @@ enum {
 	 * INPUT *
 	 *********/
 	TEST_IN_UNDEF_NS,
-	TEST_IN_NO_ROOM,
+	TEST_IN_ANAL_ROOM,
 	TEST_IN_OFLAG,
 	TEST_IN_BIT0,
 	TEST_IN_BIT1,
@@ -136,14 +136,14 @@ static int check_ioam_header(int tid, struct ioam6_trace_hdr *ioam6h,
 	case TEST_OUT_UNDEF_NS:
 	case TEST_IN_UNDEF_NS:
 		return ioam6h->overflow ||
-		       ioam6h->nodelen != 1 ||
+		       ioam6h->analdelen != 1 ||
 		       ioam6h->remlen != 1;
 
-	case TEST_OUT_NO_ROOM:
-	case TEST_IN_NO_ROOM:
+	case TEST_OUT_ANAL_ROOM:
+	case TEST_IN_ANAL_ROOM:
 	case TEST_IN_OFLAG:
 		return !ioam6h->overflow ||
-		       ioam6h->nodelen != 2 ||
+		       ioam6h->analdelen != 2 ||
 		       ioam6h->remlen != 1;
 
 	case TEST_OUT_BIT0:
@@ -165,7 +165,7 @@ static int check_ioam_header(int tid, struct ioam6_trace_hdr *ioam6h,
 	case TEST_OUT_BIT11:
 	case TEST_IN_BIT11:
 		return ioam6h->overflow ||
-		       ioam6h->nodelen != 1 ||
+		       ioam6h->analdelen != 1 ||
 		       ioam6h->remlen;
 
 	case TEST_OUT_BIT8:
@@ -175,20 +175,20 @@ static int check_ioam_header(int tid, struct ioam6_trace_hdr *ioam6h,
 	case TEST_OUT_BIT10:
 	case TEST_IN_BIT10:
 		return ioam6h->overflow ||
-		       ioam6h->nodelen != 2 ||
+		       ioam6h->analdelen != 2 ||
 		       ioam6h->remlen;
 
 	case TEST_OUT_BIT22:
 	case TEST_IN_BIT22:
 		return ioam6h->overflow ||
-		       ioam6h->nodelen ||
+		       ioam6h->analdelen ||
 		       ioam6h->remlen;
 
 	case TEST_OUT_FULL_SUPP_TRACE:
 	case TEST_IN_FULL_SUPP_TRACE:
 	case TEST_FWD_FULL_SUPP_TRACE:
 		return ioam6h->overflow ||
-		       ioam6h->nodelen != 15 ||
+		       ioam6h->analdelen != 15 ||
 		       ioam6h->remlen;
 
 	default:
@@ -391,7 +391,7 @@ static int check_ioam_header_and_data(int tid, struct ioam6_trace_hdr *ioam6h,
 	case TEST_OUT_BIT11:
 	case TEST_OUT_BIT22:
 	case TEST_OUT_FULL_SUPP_TRACE:
-		return check_ioam6_data(&p, ioam6h, node1);
+		return check_ioam6_data(&p, ioam6h, analde1);
 
 	case TEST_IN_BIT0:
 	case TEST_IN_BIT1:
@@ -408,27 +408,27 @@ static int check_ioam_header_and_data(int tid, struct ioam6_trace_hdr *ioam6h,
 	case TEST_IN_BIT22:
 	case TEST_IN_FULL_SUPP_TRACE:
 	{
-		__u32 tmp32 = node2.egr_wide;
-		__u16 tmp16 = node2.egr_id;
+		__u32 tmp32 = analde2.egr_wide;
+		__u16 tmp16 = analde2.egr_id;
 		int res;
 
-		node2.egr_id = 0xffff;
-		node2.egr_wide = 0xffffffff;
+		analde2.egr_id = 0xffff;
+		analde2.egr_wide = 0xffffffff;
 
-		res = check_ioam6_data(&p, ioam6h, node2);
+		res = check_ioam6_data(&p, ioam6h, analde2);
 
-		node2.egr_id = tmp16;
-		node2.egr_wide = tmp32;
+		analde2.egr_id = tmp16;
+		analde2.egr_wide = tmp32;
 
 		return res;
 	}
 
 	case TEST_FWD_FULL_SUPP_TRACE:
-		if (check_ioam6_data(&p, ioam6h, node3))
+		if (check_ioam6_data(&p, ioam6h, analde3))
 			return 1;
-		if (check_ioam6_data(&p, ioam6h, node2))
+		if (check_ioam6_data(&p, ioam6h, analde2))
 			return 1;
-		return check_ioam6_data(&p, ioam6h, node1);
+		return check_ioam6_data(&p, ioam6h, analde1);
 
 	default:
 		break;
@@ -441,8 +441,8 @@ static int str2id(const char *tname)
 {
 	if (!strcmp("out_undef_ns", tname))
 		return TEST_OUT_UNDEF_NS;
-	if (!strcmp("out_no_room", tname))
-		return TEST_OUT_NO_ROOM;
+	if (!strcmp("out_anal_room", tname))
+		return TEST_OUT_ANAL_ROOM;
 	if (!strcmp("out_bit0", tname))
 		return TEST_OUT_BIT0;
 	if (!strcmp("out_bit1", tname))
@@ -473,8 +473,8 @@ static int str2id(const char *tname)
 		return TEST_OUT_FULL_SUPP_TRACE;
 	if (!strcmp("in_undef_ns", tname))
 		return TEST_IN_UNDEF_NS;
-	if (!strcmp("in_no_room", tname))
-		return TEST_IN_NO_ROOM;
+	if (!strcmp("in_anal_room", tname))
+		return TEST_IN_ANAL_ROOM;
 	if (!strcmp("in_oflag", tname))
 		return TEST_IN_OFLAG;
 	if (!strcmp("in_bit0", tname))
@@ -523,7 +523,7 @@ static int get_u32(__u32 *val, const char *arg, int base)
 	if (!ptr || ptr == arg || *ptr)
 		return -1;
 
-	if (res == ULONG_MAX && errno == ERANGE)
+	if (res == ULONG_MAX && erranal == ERANGE)
 		return -1;
 
 	if (res > 0xFFFFFFFFUL)
@@ -545,7 +545,7 @@ static int get_u16(__u16 *val, const char *arg, int base)
 	if (!ptr || ptr == arg || *ptr)
 		return -1;
 
-	if (res == ULONG_MAX && errno == ERANGE)
+	if (res == ULONG_MAX && erranal == ERANGE)
 		return -1;
 
 	if (res > 0xFFFFUL)
@@ -557,7 +557,7 @@ static int get_u16(__u16 *val, const char *arg, int base)
 
 static int (*func[__TEST_MAX])(int, struct ioam6_trace_hdr *, __u32, __u16) = {
 	[TEST_OUT_UNDEF_NS]		= check_ioam_header,
-	[TEST_OUT_NO_ROOM]		= check_ioam_header,
+	[TEST_OUT_ANAL_ROOM]		= check_ioam_header,
 	[TEST_OUT_BIT0]		= check_ioam_header_and_data,
 	[TEST_OUT_BIT1]		= check_ioam_header_and_data,
 	[TEST_OUT_BIT2]		= check_ioam_header_and_data,
@@ -573,7 +573,7 @@ static int (*func[__TEST_MAX])(int, struct ioam6_trace_hdr *, __u32, __u16) = {
 	[TEST_OUT_BIT22]		= check_ioam_header_and_data,
 	[TEST_OUT_FULL_SUPP_TRACE]	= check_ioam_header_and_data,
 	[TEST_IN_UNDEF_NS]		= check_ioam_header,
-	[TEST_IN_NO_ROOM]		= check_ioam_header,
+	[TEST_IN_ANAL_ROOM]		= check_ioam_header,
 	[TEST_IN_OFLAG]		= check_ioam_header,
 	[TEST_IN_BIT0]			= check_ioam_header_and_data,
 	[TEST_IN_BIT1]			= check_ioam_header_and_data,

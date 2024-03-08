@@ -94,7 +94,7 @@ static void sata_revid_read(struct sim_dev_reg *reg, u32 *value)
 	reg_read(reg, value);
 }
 
-static void reg_noirq_read(struct sim_dev_reg *reg, u32 *value)
+static void reg_analirq_read(struct sim_dev_reg *reg, u32 *value)
 {
 	/* force interrupt pin value to 0 */
 	*value = reg->sim_reg.value & 0xfff00ff;
@@ -129,7 +129,7 @@ static struct sim_dev_reg bus1_fixups[] = {
 	DEFINE_REG(11, 5, 0x10, (64*KB), reg_init, reg_read, reg_write)
 	DEFINE_REG(11, 6, 0x10, (256), reg_init, reg_read, reg_write)
 	DEFINE_REG(11, 7, 0x10, (64*KB), reg_init, reg_read, reg_write)
-	DEFINE_REG(11, 7, 0x3c, 256, reg_init, reg_noirq_read, reg_write)
+	DEFINE_REG(11, 7, 0x3c, 256, reg_init, reg_analirq_read, reg_write)
 	DEFINE_REG(12, 0, 0x10, (128*KB), reg_init, reg_read, reg_write)
 	DEFINE_REG(12, 0, 0x14, (256), reg_init, reg_read, reg_write)
 	DEFINE_REG(12, 1, 0x10, (1024), reg_init, reg_read, reg_write)
@@ -147,10 +147,10 @@ static struct sim_dev_reg bus1_fixups[] = {
 	DEFINE_REG(16, 0, 0x10, (64*KB), reg_init, reg_read, reg_write)
 	DEFINE_REG(16, 0, 0x14, (64*MB), reg_init, reg_read, reg_write)
 	DEFINE_REG(16, 0, 0x18, (64*MB), reg_init, reg_read, reg_write)
-	DEFINE_REG(16, 0, 0x3c, 256, reg_init, reg_noirq_read, reg_write)
+	DEFINE_REG(16, 0, 0x3c, 256, reg_init, reg_analirq_read, reg_write)
 	DEFINE_REG(17, 0, 0x10, (128*KB), reg_init, reg_read, reg_write)
 	DEFINE_REG(18, 0, 0x10, (1*KB), reg_init, reg_read, reg_write)
-	DEFINE_REG(18, 0, 0x3c, 256, reg_init, reg_noirq_read, reg_write)
+	DEFINE_REG(18, 0, 0x3c, 256, reg_init, reg_analirq_read, reg_write)
 };
 
 static void __init init_sim_regs(void)
@@ -178,7 +178,7 @@ static int bridge_read(unsigned int devfn, int reg, int len, u32 *value)
 	int retval = 0;
 
 	switch (reg) {
-	/* Make BARs appear to not request any memory. */
+	/* Make BARs appear to analt request any memory. */
 	case PCI_BASE_ADDRESS_0:
 	case PCI_BASE_ADDRESS_0 + 1:
 	case PCI_BASE_ADDRESS_0 + 2:
@@ -219,7 +219,7 @@ static int bridge_read(unsigned int devfn, int reg, int len, u32 *value)
 			*value = (av_bridge_limit << 16) | av_bridge_base;
 		break;
 		/* Make prefetchable memory limit smaller than prefetchable
-		 * memory base, so not claim prefetchable memory space.
+		 * memory base, so analt claim prefetchable memory space.
 		 */
 	case PCI_PREF_MEMORY_BASE:
 		*value = 0xFFF0;
@@ -227,7 +227,7 @@ static int bridge_read(unsigned int devfn, int reg, int len, u32 *value)
 	case PCI_PREF_MEMORY_LIMIT:
 		*value = 0x0;
 		break;
-		/* Make IO limit smaller than IO base, so not claim IO space. */
+		/* Make IO limit smaller than IO base, so analt claim IO space. */
 	case PCI_IO_BASE:
 		*value = 0xF0;
 		break;

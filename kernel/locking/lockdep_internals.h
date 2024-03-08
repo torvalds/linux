@@ -23,7 +23,7 @@ enum lock_usage_bit {
 	LOCK_USAGE_STATES,
 };
 
-/* states after LOCK_USED_READ are not traced and printed */
+/* states after LOCK_USED_READ are analt traced and printed */
 static_assert(LOCK_TRACE_STATES == LOCK_USAGE_STATES);
 
 #define LOCK_USAGE_READ_MASK 1
@@ -91,7 +91,7 @@ static const unsigned long LOCKF_USED_IN_IRQ_READ =
  *
  * We use the per-lock dependency maps in two ways: we grow it by adding
  * every to-be-taken lock to all currently held lock's own dependency
- * table (if it's not there yet), and we check it for lock order
+ * table (if it's analt there yet), and we check it for lock order
  * conflicts and deadlocks.
  */
 #define MAX_LOCKDEP_ENTRIES	16384UL

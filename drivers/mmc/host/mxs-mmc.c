@@ -65,7 +65,7 @@ static int mxs_mmc_get_cd(struct mmc_host *mmc)
 	int present, ret;
 
 	if (host->broken_cd)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	ret = mmc_gpio_get_cd(mmc);
 	if (ret >= 0)
@@ -91,7 +91,7 @@ static int mxs_mmc_reset(struct mxs_mmc_host *host)
 	if (ret)
 		return ret;
 
-	ctrl0 = BM_SSP_CTRL0_IGNORE_CRC;
+	ctrl0 = BM_SSP_CTRL0_IGANALRE_CRC;
 	ctrl1 = BF_SSP(0x3, CTRL1_SSP_MODE) |
 		BF_SSP(0x7, CTRL1_WORD_LENGTH) |
 		BM_SSP_CTRL1_DMA_ENABLE |
@@ -139,7 +139,7 @@ static void mxs_mmc_request_done(struct mxs_mmc_host *host)
 	}
 
 	if (cmd == mrq->sbc) {
-		/* Finished CMD23, now send actual command. */
+		/* Finished CMD23, analw send actual command. */
 		mxs_mmc_start_cmd(host, mrq->cmd);
 		return;
 	} else if (data) {
@@ -252,7 +252,7 @@ static void mxs_mmc_bc(struct mxs_mmc_host *host)
 	struct dma_async_tx_descriptor *desc;
 	u32 ctrl0, cmd0, cmd1;
 
-	ctrl0 = BM_SSP_CTRL0_ENABLE | BM_SSP_CTRL0_IGNORE_CRC;
+	ctrl0 = BM_SSP_CTRL0_ENABLE | BM_SSP_CTRL0_IGANALRE_CRC;
 	cmd0 = BF_SSP(cmd->opcode, CMD0_CMD) | BM_SSP_CMD0_APPEND_8CYC;
 	cmd1 = cmd->arg;
 
@@ -264,8 +264,8 @@ static void mxs_mmc_bc(struct mxs_mmc_host *host)
 	ssp->ssp_pio_words[0] = ctrl0;
 	ssp->ssp_pio_words[1] = cmd0;
 	ssp->ssp_pio_words[2] = cmd1;
-	ssp->dma_dir = DMA_NONE;
-	ssp->slave_dirn = DMA_TRANS_NONE;
+	ssp->dma_dir = DMA_ANALNE;
+	ssp->slave_dirn = DMA_TRANS_ANALNE;
 	desc = mxs_mmc_prep_dma(host, MXS_DMA_CTRL_WAIT4END);
 	if (!desc)
 		goto out;
@@ -284,17 +284,17 @@ static void mxs_mmc_ac(struct mxs_mmc_host *host)
 	struct mxs_ssp *ssp = &host->ssp;
 	struct mmc_command *cmd = host->cmd;
 	struct dma_async_tx_descriptor *desc;
-	u32 ignore_crc, get_resp, long_resp;
+	u32 iganalre_crc, get_resp, long_resp;
 	u32 ctrl0, cmd0, cmd1;
 
-	ignore_crc = (mmc_resp_type(cmd) & MMC_RSP_CRC) ?
-			0 : BM_SSP_CTRL0_IGNORE_CRC;
+	iganalre_crc = (mmc_resp_type(cmd) & MMC_RSP_CRC) ?
+			0 : BM_SSP_CTRL0_IGANALRE_CRC;
 	get_resp = (mmc_resp_type(cmd) & MMC_RSP_PRESENT) ?
 			BM_SSP_CTRL0_GET_RESP : 0;
 	long_resp = (mmc_resp_type(cmd) & MMC_RSP_136) ?
 			BM_SSP_CTRL0_LONG_RESP : 0;
 
-	ctrl0 = BM_SSP_CTRL0_ENABLE | ignore_crc | get_resp | long_resp;
+	ctrl0 = BM_SSP_CTRL0_ENABLE | iganalre_crc | get_resp | long_resp;
 	cmd0 = BF_SSP(cmd->opcode, CMD0_CMD);
 	cmd1 = cmd->arg;
 
@@ -309,8 +309,8 @@ static void mxs_mmc_ac(struct mxs_mmc_host *host)
 	ssp->ssp_pio_words[0] = ctrl0;
 	ssp->ssp_pio_words[1] = cmd0;
 	ssp->ssp_pio_words[2] = cmd1;
-	ssp->dma_dir = DMA_NONE;
-	ssp->slave_dirn = DMA_TRANS_NONE;
+	ssp->dma_dir = DMA_ANALNE;
+	ssp->slave_dirn = DMA_TRANS_ANALNE;
 	desc = mxs_mmc_prep_dma(host, MXS_DMA_CTRL_WAIT4END);
 	if (!desc)
 		goto out;
@@ -356,11 +356,11 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 
 	struct mxs_ssp *ssp = &host->ssp;
 
-	u32 ignore_crc, get_resp, long_resp, read;
+	u32 iganalre_crc, get_resp, long_resp, read;
 	u32 ctrl0, cmd0, cmd1, val;
 
-	ignore_crc = (mmc_resp_type(cmd) & MMC_RSP_CRC) ?
-			0 : BM_SSP_CTRL0_IGNORE_CRC;
+	iganalre_crc = (mmc_resp_type(cmd) & MMC_RSP_CRC) ?
+			0 : BM_SSP_CTRL0_IGANALRE_CRC;
 	get_resp = (mmc_resp_type(cmd) & MMC_RSP_PRESENT) ?
 			BM_SSP_CTRL0_GET_RESP : 0;
 	long_resp = (mmc_resp_type(cmd) & MMC_RSP_136) ?
@@ -377,7 +377,7 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 	}
 
 	ctrl0 = BF_SSP(host->bus_width, CTRL0_BUS_WIDTH) |
-		ignore_crc | get_resp | long_resp |
+		iganalre_crc | get_resp | long_resp |
 		BM_SSP_CTRL0_DATA_XFER | read |
 		BM_SSP_CTRL0_WAIT_FOR_IRQ |
 		BM_SSP_CTRL0_ENABLE;
@@ -389,7 +389,7 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 
 	/*
 	 * take special care of the case that data size from data->sg
-	 * is not equal to blocks x blksz
+	 * is analt equal to blocks x blksz
 	 */
 	for_each_sg(sgl, sg, sg_len, i)
 		data_size += sg->length;
@@ -430,8 +430,8 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 	ssp->ssp_pio_words[0] = ctrl0;
 	ssp->ssp_pio_words[1] = cmd0;
 	ssp->ssp_pio_words[2] = cmd1;
-	ssp->dma_dir = DMA_NONE;
-	ssp->slave_dirn = DMA_TRANS_NONE;
+	ssp->dma_dir = DMA_ANALNE;
+	ssp->slave_dirn = DMA_TRANS_ANALNE;
 	desc = mxs_mmc_prep_dma(host, 0);
 	if (!desc)
 		goto out;
@@ -473,7 +473,7 @@ static void mxs_mmc_start_cmd(struct mxs_mmc_host *host,
 		break;
 	default:
 		dev_warn(mmc_dev(host->mmc),
-			 "%s: unknown MMC command\n", __func__);
+			 "%s: unkanalwn MMC command\n", __func__);
 		break;
 	}
 }
@@ -558,7 +558,7 @@ static void mxs_mmc_regulator_disable(void *regulator)
 
 static int mxs_mmc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct mxs_mmc_host *host;
 	struct mmc_host *mmc;
 	int ret = 0, irq_err;
@@ -571,7 +571,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 
 	mmc = mmc_alloc_host(sizeof(struct mxs_mmc_host), &pdev->dev);
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host = mmc_priv(mmc);
 	ssp = &host->ssp;
@@ -717,7 +717,7 @@ static struct platform_driver mxs_mmc_driver = {
 	.remove_new	= mxs_mmc_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm	= &mxs_mmc_pm_ops,
 		.of_match_table = mxs_mmc_dt_ids,
 	},

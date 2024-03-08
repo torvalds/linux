@@ -15,8 +15,8 @@
  *
  * Return:
  * * 0       - on success or zero allocation request
- * * -EINVAL - if size is not power of 2
- * * -ENOMEM - of allocation has failed
+ * * -EINVAL - if size is analt power of 2
+ * * -EANALMEM - of allocation has failed
  */
 static int mei_dmam_dscr_alloc(struct mei_device *dev,
 			       struct mei_dma_dscr *dscr)
@@ -33,7 +33,7 @@ static int mei_dmam_dscr_alloc(struct mei_device *dev,
 	dscr->vaddr = dmam_alloc_coherent(dev->dev, dscr->size, &dscr->daddr,
 					  GFP_KERNEL);
 	if (!dscr->vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -70,7 +70,7 @@ void mei_dmam_ring_free(struct mei_device *dev)
  * mei_dmam_ring_alloc() - allocate dma ring buffers
  * @dev: mei device
  *
- * Return: -ENOMEM on allocation failure 0 otherwise
+ * Return: -EANALMEM on allocation failure 0 otherwise
  */
 int mei_dmam_ring_alloc(struct mei_device *dev)
 {
@@ -84,7 +84,7 @@ int mei_dmam_ring_alloc(struct mei_device *dev)
 
 err:
 	mei_dmam_ring_free(dev);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**

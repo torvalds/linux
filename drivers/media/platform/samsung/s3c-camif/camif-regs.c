@@ -58,7 +58,7 @@ void camif_hw_set_effect(struct camif_dev *camif, unsigned int effect,
 			unsigned int cr, unsigned int cb)
 {
 	static const struct v4l2_control colorfx[] = {
-		{ V4L2_COLORFX_NONE,		CIIMGEFF_FIN_BYPASS },
+		{ V4L2_COLORFX_ANALNE,		CIIMGEFF_FIN_BYPASS },
 		{ V4L2_COLORFX_BW,		CIIMGEFF_FIN_ARBITRARY },
 		{ V4L2_COLORFX_SEPIA,		CIIMGEFF_FIN_ARBITRARY },
 		{ V4L2_COLORFX_NEGATIVE,	CIIMGEFF_FIN_NEGATIVE },
@@ -82,7 +82,7 @@ void camif_hw_set_effect(struct camif_dev *camif, unsigned int effect,
 	cfg |= colorfx[i].value;
 	/* Set both paths */
 	if (camif->variant->ip_revision >= S3C6400_CAMIF_IP_REV) {
-		if (effect == V4L2_COLORFX_NONE)
+		if (effect == V4L2_COLORFX_ANALNE)
 			cfg &= ~CIIMGEFF_IE_ENABLE_MASK;
 		else
 			cfg |= CIIMGEFF_IE_ENABLE_MASK;
@@ -132,12 +132,12 @@ void camif_hw_set_camera_crop(struct camif_dev *camif)
 	u32 hoff2, voff2;
 	u32 cfg;
 
-	/* Note: s3c244x requirement: left = f_width - rect.width / 2 */
+	/* Analte: s3c244x requirement: left = f_width - rect.width / 2 */
 	cfg = camif_read(camif, S3C_CAMIF_REG_CIWDOFST);
-	cfg &= ~(CIWDOFST_OFST_MASK | CIWDOFST_WINOFSEN);
+	cfg &= ~(CIWDOFST_OFST_MASK | CIWDOFST_WIANALFSEN);
 	cfg |= (crop->left << 16) | crop->top;
 	if (crop->left != 0 || crop->top != 0)
-		cfg |= CIWDOFST_WINOFSEN;
+		cfg |= CIWDOFST_WIANALFSEN;
 	camif_write(camif, S3C_CAMIF_REG_CIWDOFST, cfg);
 
 	if (camif->variant->ip_revision == S3C6410_CAMIF_IP_REV) {
@@ -179,7 +179,7 @@ void camif_hw_set_camera_bus(struct camif_dev *camif)
 	if (flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
 		cfg |= CIGCTRL_INVPOLVSYNC;
 	/*
-	 * HREF is normally high during frame active data
+	 * HREF is analrmally high during frame active data
 	 * transmission and low during horizontal synchronization
 	 * period. Thus HREF active high means HSYNC active low.
 	 */

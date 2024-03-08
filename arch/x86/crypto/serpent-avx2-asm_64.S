@@ -24,7 +24,7 @@
 
 #define CTX %rdi
 
-#define RNOT %ymm0
+#define RANALT %ymm0
 #define tp  %ymm1
 
 #define RA1 %ymm2
@@ -52,7 +52,7 @@
 	vpor		x0,   x3, tp; \
 	vpxor		x3,   x0, x0; \
 	vpxor		x2,   x3, x4; \
-	vpxor		RNOT, x4, x4; \
+	vpxor		RANALT, x4, x4; \
 	vpxor		x1,   tp, x3; \
 	vpand		x0,   x1, x1; \
 	vpxor		x4,   x1, x1; \
@@ -63,14 +63,14 @@
 	vpxor		x2,   x0, x0; \
 	vpand		x1,   x2, x2; \
 	vpxor		x2,   x3, x3; \
-	vpxor		RNOT, x1, x1; \
+	vpxor		RANALT, x1, x1; \
 	vpxor		x4,   x2, x2; \
 	vpxor		x2,   x1, x1;
 
 #define S1_1(x0, x1, x2, x3, x4)      \
 	vpxor		x0,   x1, tp; \
 	vpxor		x3,   x0, x0; \
-	vpxor		RNOT, x3, x3; \
+	vpxor		RANALT, x3, x3; \
 	vpand		tp,   x1, x4; \
 	vpor		tp,   x0, x0; \
 	vpxor		x2,   x3, x3; \
@@ -83,12 +83,12 @@
 	vpand		x0,   x2, x2; \
 	vpxor		x1,   x2, x2; \
 	vpor		x0,   x1, x1; \
-	vpxor		RNOT, x0, x0; \
+	vpxor		RANALT, x0, x0; \
 	vpxor		x2,   x0, x0; \
 	vpxor		x1,   x4, x4;
 
 #define S2_1(x0, x1, x2, x3, x4)      \
-	vpxor		RNOT, x3, x3; \
+	vpxor		RANALT, x3, x3; \
 	vpxor		x0,   x1, x1; \
 	vpand		x2,   x0, tp; \
 	vpxor		x3,   tp, tp; \
@@ -100,7 +100,7 @@
 	vpxor		x2,   tp, tp; \
 	vpand		x3,   x2, x2; \
 	vpor		x1,   x3, x3; \
-	vpxor		RNOT, tp, tp; \
+	vpxor		RANALT, tp, tp; \
 	vpxor		tp,   x3, x3; \
 	vpxor		tp,   x0, x4; \
 	vpxor		x2,   tp, x0; \
@@ -143,13 +143,13 @@
 	vpxor		tp,   x2, x2; \
 	vpxor		x0,   x4, x4; \
 	vpor		x1,   tp, x3; \
-	vpxor		RNOT, x1, x1; \
+	vpxor		RANALT, x1, x1; \
 	vpxor		x0,   x3, x3;
 
 #define S5_1(x0, x1, x2, x3, x4)      \
 	vpor		x0,   x1, tp; \
 	vpxor		tp,   x2, x2; \
-	vpxor		RNOT, x3, x3; \
+	vpxor		RANALT, x3, x3; \
 	vpxor		x0,   x1, x4; \
 	vpxor		x2,   x0, x0; \
 	vpand		x4,   tp, x1; \
@@ -171,7 +171,7 @@
 	vpxor		x0,   x2, x2; \
 	vpand		x3,   x0, x0; \
 	vpor		x3,   tp, tp; \
-	vpxor		RNOT, x1, x4; \
+	vpxor		RANALT, x1, x4; \
 	vpxor		tp,   x0, x0; \
 	vpxor		x2,   tp, x1;
 #define S6_2(x0, x1, x2, x3, x4)      \
@@ -185,8 +185,8 @@
 	vpxor		x2,   x1, x1;
 
 #define S7_1(x0, x1, x2, x3, x4)      \
-	vpxor		RNOT, x1, tp; \
-	vpxor		RNOT, x0, x0; \
+	vpxor		RANALT, x1, tp; \
+	vpxor		RANALT, x0, x0; \
 	vpand		x2,   tp, x1; \
 	vpxor		x3,   x1, x1; \
 	vpor		tp,   x3, x3; \
@@ -209,7 +209,7 @@
 	vpxor		x0,   x1, x1; \
 	vpor		x1,   x3, tp; \
 	vpxor		x1,   x3, x4; \
-	vpxor		RNOT, x0, x0; \
+	vpxor		RANALT, x0, x0; \
 	vpxor		tp,   x2, x2; \
 	vpxor		x0,   tp, x3; \
 	vpand		x1,   x0, x0; \
@@ -227,7 +227,7 @@
 #define SI1_1(x0, x1, x2, x3, x4)     \
 	vpxor		x3,   x1, x1; \
 	vpxor		x2,   x0, tp; \
-	vpxor		RNOT, x2, x2; \
+	vpxor		RANALT, x2, x2; \
 	vpor		x1,   x0, x4; \
 	vpxor		x3,   x4, x4; \
 	vpand		x1,   x3, x3; \
@@ -245,7 +245,7 @@
 
 #define SI2_1(x0, x1, x2, x3, x4)     \
 	vpxor		x1,   x2, x2; \
-	vpxor		RNOT, x3, tp; \
+	vpxor		RANALT, x3, tp; \
 	vpor		x2,   tp, tp; \
 	vpxor		x3,   x2, x2; \
 	vpxor		x0,   x3, x4; \
@@ -287,7 +287,7 @@
 	vpand		x1,   x0, tp; \
 	vpxor		x2,   tp, tp; \
 	vpor		x3,   x2, x2; \
-	vpxor		RNOT, x0, x4; \
+	vpxor		RANALT, x0, x4; \
 	vpxor		tp,   x1, x1; \
 	vpxor		x2,   tp, x0; \
 	vpand		x4,   x2, x2;
@@ -309,7 +309,7 @@
 	vpand		x1,   x3, x3; \
 	vpxor		x3,   x2, x2; \
 	vpor		x0,   x3, x3; \
-	vpxor		RNOT, x0, x0; \
+	vpxor		RANALT, x0, x0; \
 	vpxor		x2,   x3, x3; \
 	vpor		x0,   x2, x2;
 #define SI5_2(x0, x1, x2, x3, x4)     \
@@ -334,7 +334,7 @@
 	vpxor		x3,   x2, x2; \
 	vpand		tp,   x3, x3;
 #define SI6_2(x0, x1, x2, x3, x4)     \
-	vpxor		RNOT, tp, tp; \
+	vpxor		RANALT, tp, tp; \
 	vpxor		x1,   x3, x3; \
 	vpand		x2,   x1, x1; \
 	vpxor		tp,   x0, x4; \
@@ -348,7 +348,7 @@
 	vpxor		x2,   x0, x0; \
 	vpor		x3,   x2, x2; \
 	vpxor		x1,   x3, x4; \
-	vpxor		RNOT, x0, x0; \
+	vpxor		RANALT, x0, x0; \
 	vpor		tp,   x1, x1; \
 	vpxor		x0,   x4, x4; \
 	vpand		x2,   x0, x0; \
@@ -558,7 +558,7 @@ SYM_FUNC_START_LOCAL(__serpent_enc_blk16)
 	 *	RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2: ciphertext
 	 */
 
-	vpcmpeqd RNOT, RNOT, RNOT;
+	vpcmpeqd RANALT, RANALT, RANALT;
 
 	read_blocks(RA1, RB1, RC1, RD1, RK0, RK1, RK2);
 	read_blocks(RA2, RB2, RC2, RD2, RK0, RK1, RK2);
@@ -611,7 +611,7 @@ SYM_FUNC_START_LOCAL(__serpent_dec_blk16)
 	 *	RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2: plaintext
 	 */
 
-	vpcmpeqd RNOT, RNOT, RNOT;
+	vpcmpeqd RANALT, RANALT, RANALT;
 
 	read_blocks(RA1, RB1, RC1, RD1, RK0, RK1, RK2);
 	read_blocks(RA2, RB2, RC2, RD2, RK0, RK1, RK2);

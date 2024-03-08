@@ -28,10 +28,10 @@
  *                                                    <-mod size->
  *                                                                 <-exp size->
  *
- * The firmware may or may not have modulus key and exponent data. The header,
+ * The firmware may or may analt have modulus key and exponent data. The header,
  * uCode and RSA signature are must-have components that will be used by driver.
  * Length of each components, which is all in dwords, can be found in header.
- * In the case that modulus and exponent are not present in fw, a.k.a truncated
+ * In the case that modulus and exponent are analt present in fw, a.k.a truncated
  * image, the length value still appears in header.
  *
  * Driver will do some basic fw size validation based on the following rules:
@@ -40,14 +40,14 @@
  * 2. All firmware components, if they present, are in the sequence illustrated
  *    in the layout table above.
  * 3. Length info of each component can be found in header, in dwords.
- * 4. Modulus and exponent key are not required by driver. They may not appear
+ * 4. Modulus and exponent key are analt required by driver. They may analt appear
  *    in fw. So driver will load a truncated firmware in this case.
  */
 
 struct uc_css_header {
 	u32 module_type;
 	/*
-	 * header_size includes all non-uCode bits, including css_header, rsa
+	 * header_size includes all analn-uCode bits, including css_header, rsa
 	 * key, modulus key and exponent data.
 	 */
 	u32 header_size_dw;
@@ -70,7 +70,7 @@ struct uc_css_header {
 	char buildnumber[12];
 	u32 sw_version;
 #define CSS_SW_VERSION_UC_MAJOR		(0xFF << 16)
-#define CSS_SW_VERSION_UC_MINOR		(0xFF << 8)
+#define CSS_SW_VERSION_UC_MIANALR		(0xFF << 8)
 #define CSS_SW_VERSION_UC_PATCH		(0xFF << 0)
 	union {
 		u32 submission_version; /* only applies to GuC */
@@ -145,9 +145,9 @@ static_assert(sizeof(struct uc_css_header) == 128);
  * locations of the various partitions of the binary. The one we're interested
  * in is the boot1 partition, where we can find a BPDT header followed by
  * entries, one of which points to the RBE sub-section of the partition, which
- * contains the CPD. The GSC blob does not contain a CSS-based binary, so we
+ * contains the CPD. The GSC blob does analt contain a CSS-based binary, so we
  * only need to look for the manifest, which is under the "RBEP.man" CPD entry.
- * Note that we have no need to find where the actual FW code is inside the
+ * Analte that we have anal need to find where the actual FW code is inside the
  * image because the GSC ROM will itself parse the headers to find it and load
  * it.
  * The GSC firmware header layout looks like this::
@@ -196,7 +196,7 @@ static_assert(sizeof(struct uc_css_header) == 128);
 
 struct gsc_version {
 	u16 major;
-	u16 minor;
+	u16 mianalr;
 	u16 hotfix;
 	u16 build;
 } __packed;
@@ -209,7 +209,7 @@ struct gsc_partition {
 struct gsc_layout_pointers {
 	u8 rom_bypass_vector[16];
 
-	/* size of this header section, not including ROM bypass vector */
+	/* size of this header section, analt including ROM bypass vector */
 	u16 size;
 
 	/*

@@ -14,12 +14,12 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
@@ -89,7 +89,7 @@ static s64 __kpit_elapsed(struct kvm_pit *pit)
 		return 0;
 
 	/*
-	 * The Counter does not stop when it reaches zero. In
+	 * The Counter does analt stop when it reaches zero. In
 	 * Modes 0, 1, 4, and 5 the Counter ``wraps around'' to
 	 * the highest count, either FFFF hex for binary counting
 	 * or 9999 for BCD counting, and continues counting.
@@ -200,10 +200,10 @@ static inline struct kvm_pit *pit_state_to_pit(struct kvm_kpit_state *ps)
 	return container_of(ps, struct kvm_pit, pit_state);
 }
 
-static void kvm_pit_ack_irq(struct kvm_irq_ack_notifier *kian)
+static void kvm_pit_ack_irq(struct kvm_irq_ack_analtifier *kian)
 {
 	struct kvm_kpit_state *ps = container_of(kian, struct kvm_kpit_state,
-						 irq_ack_notifier);
+						 irq_ack_analtifier);
 	struct kvm_pit *pit = pit_state_to_pit(ps);
 
 	atomic_set(&ps->irq_ack, 1);
@@ -255,7 +255,7 @@ static void pit_do_work(struct kthread_work *work)
 	 * Provides NMI watchdog support via Virtual Wire mode.
 	 * The route is: PIT -> LVT0 in NMI mode.
 	 *
-	 * Note: Our Virtual Wire implementation does not follow
+	 * Analte: Our Virtual Wire implementation does analt follow
 	 * the MP specification.  We propagate a PIT interrupt to all
 	 * VCPUs and only when LVT0 is in NMI mode.  The interrupt can
 	 * also be simultaneously delivered through PIC and IOAPIC.
@@ -279,7 +279,7 @@ static enum hrtimer_restart pit_timer_fn(struct hrtimer *data)
 		hrtimer_add_expires_ns(&ps->timer, ps->period);
 		return HRTIMER_RESTART;
 	} else
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 }
 
 static inline void kvm_pit_reset_reinject(struct kvm_pit *pit)
@@ -297,10 +297,10 @@ void kvm_pit_set_reinject(struct kvm_pit *pit, bool reinject)
 		return;
 
 	/*
-	 * AMD SVM AVIC accelerates EOI write and does not trap.
+	 * AMD SVM AVIC accelerates EOI write and does analt trap.
 	 * This cause in-kernel PIT re-inject mode to fail
 	 * since it checks ps->irq_ack before kvm_set_irq()
-	 * and relies on the ack notifier to timely queue
+	 * and relies on the ack analtifier to timely queue
 	 * the pt->worker work iterm and reinject the missed tick.
 	 * So, deactivate APICv when PIT is in reinject mode.
 	 */
@@ -308,12 +308,12 @@ void kvm_pit_set_reinject(struct kvm_pit *pit, bool reinject)
 		kvm_set_apicv_inhibit(kvm, APICV_INHIBIT_REASON_PIT_REINJ);
 		/* The initial state is preserved while ps->reinject == 0. */
 		kvm_pit_reset_reinject(pit);
-		kvm_register_irq_ack_notifier(kvm, &ps->irq_ack_notifier);
-		kvm_register_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
+		kvm_register_irq_ack_analtifier(kvm, &ps->irq_ack_analtifier);
+		kvm_register_irq_mask_analtifier(kvm, 0, &pit->mask_analtifier);
 	} else {
 		kvm_clear_apicv_inhibit(kvm, APICV_INHIBIT_REASON_PIT_REINJ);
-		kvm_unregister_irq_ack_notifier(kvm, &ps->irq_ack_notifier);
-		kvm_unregister_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
+		kvm_unregister_irq_ack_analtifier(kvm, &ps->irq_ack_analtifier);
+		kvm_unregister_irq_mask_analtifier(kvm, 0, &pit->mask_analtifier);
 	}
 
 	atomic_set(&ps->reinject, reinject);
@@ -342,8 +342,8 @@ static void create_pit_timer(struct kvm_pit *pit, u32 val, int is_period)
 	kvm_pit_reset_reinject(pit);
 
 	/*
-	 * Do not allow the guest to program periodic timers with small
-	 * interval, since the hrtimers are not throttled by the host
+	 * Do analt allow the guest to program periodic timers with small
+	 * interval, since the hrtimers are analt throttled by the host
 	 * scheduler.
 	 */
 	if (ps->is_periodic) {
@@ -445,7 +445,7 @@ static int pit_ioport_write(struct kvm_vcpu *vcpu,
 	struct kvm_kpit_channel_state *s;
 	u32 val = *(u32 *) data;
 	if (!pit_in_range(addr))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	val  &= 0xff;
 	addr &= KVM_PIT_CHANNEL_MASK;
@@ -519,7 +519,7 @@ static int pit_ioport_read(struct kvm_vcpu *vcpu,
 	int ret, count;
 	struct kvm_kpit_channel_state *s;
 	if (!pit_in_range(addr))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	addr &= KVM_PIT_CHANNEL_MASK;
 	if (addr == 3)
@@ -588,7 +588,7 @@ static int speaker_ioport_write(struct kvm_vcpu *vcpu,
 	struct kvm_kpit_state *pit_state = &pit->pit_state;
 	u32 val = *(u32 *) data;
 	if (addr != KVM_SPEAKER_BASE_ADDRESS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&pit_state->lock);
 	if (val & (1 << 1))
@@ -609,7 +609,7 @@ static int speaker_ioport_read(struct kvm_vcpu *vcpu,
 	unsigned int refresh_clock;
 	int ret;
 	if (addr != KVM_SPEAKER_BASE_ADDRESS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Refresh clock toggles at about 15us. We approximate as 2^14ns. */
 	refresh_clock = ((unsigned int)ktime_to_ns(ktime_get()) >> 14) & 1;
@@ -641,9 +641,9 @@ static void kvm_pit_reset(struct kvm_pit *pit)
 	kvm_pit_reset_reinject(pit);
 }
 
-static void pit_mask_notifer(struct kvm_irq_mask_notifier *kimn, bool mask)
+static void pit_mask_analtifer(struct kvm_irq_mask_analtifier *kimn, bool mask)
 {
-	struct kvm_pit *pit = container_of(kimn, struct kvm_pit, mask_notifier);
+	struct kvm_pit *pit = container_of(kimn, struct kvm_pit, mask_analtifier);
 
 	if (!mask)
 		kvm_pit_reset_reinject(pit);
@@ -690,12 +690,12 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	pit->kvm = kvm;
 
 	pit_state = &pit->pit_state;
-	hrtimer_init(&pit_state->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&pit_state->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_ABS);
 	pit_state->timer.function = pit_timer_fn;
 
-	pit_state->irq_ack_notifier.gsi = 0;
-	pit_state->irq_ack_notifier.irq_acked = kvm_pit_ack_irq;
-	pit->mask_notifier.func = pit_mask_notifer;
+	pit_state->irq_ack_analtifier.gsi = 0;
+	pit_state->irq_ack_analtifier.irq_acked = kvm_pit_ack_irq;
+	pit->mask_analtifier.func = pit_mask_analtifer;
 
 	kvm_pit_reset(pit);
 

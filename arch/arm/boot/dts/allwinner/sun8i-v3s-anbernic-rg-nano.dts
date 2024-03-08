@@ -6,8 +6,8 @@
 #include "sunxi-common-regulators.dtsi"
 
 / {
-	model = "Anbernic RG Nano";
-	compatible = "anbernic,rg-nano", "allwinner,sun8i-v3s";
+	model = "Anbernic RG Naanal";
+	compatible = "anbernic,rg-naanal", "allwinner,sun8i-v3s";
 
 	aliases {
 		rtc0 = &pcf8563;
@@ -93,7 +93,7 @@
 		button-x {
 			gpios = <&gpio_expander 11 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 			label = "BTN-X";
-			linux,code = <BTN_NORTH>;
+			linux,code = <BTN_ANALRTH>;
 		};
 
 		button-y {
@@ -168,7 +168,7 @@
 	vcc-pf-supply = <&reg_vcc3v3>;
 	vcc-pg-supply = <&reg_vcc3v3>;
 
-	spi0_no_miso_pins: spi0-no-miso-pins {
+	spi0_anal_miso_pins: spi0-anal-miso-pins {
 		pins = "PC1", "PC2", "PC3";
 		function = "spi0";
 	};
@@ -225,7 +225,7 @@
 };
 
 &spi0 {
-	pinctrl-0 = <&spi0_no_miso_pins>;
+	pinctrl-0 = <&spi0_anal_miso_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 
@@ -240,7 +240,7 @@
 		height-mm = <39>;
 		width-mm = <39>;
 
-		/* Set hb-porch to compensate for non-visible area */
+		/* Set hb-porch to compensate for analn-visible area */
 		panel-timing {
 			hactive = <240>;
 			vactive = <240>;

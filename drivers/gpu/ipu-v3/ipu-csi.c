@@ -6,7 +6,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/err.h>
@@ -165,7 +165,7 @@ enum ipu_csi_data_width {
  */
 enum ipu_csi_clk_mode {
 	IPU_CSI_CLK_MODE_GATED_CLK,
-	IPU_CSI_CLK_MODE_NONGATED_CLK,
+	IPU_CSI_CLK_MODE_ANALNGATED_CLK,
 	IPU_CSI_CLK_MODE_CCIR656_PROGRESSIVE,
 	IPU_CSI_CLK_MODE_CCIR656_INTERLACED,
 	IPU_CSI_CLK_MODE_CCIR1120_PROGRESSIVE_DDR,
@@ -199,7 +199,7 @@ static int ipu_csi_set_testgen_mclk(struct ipu_csi *csi, u32 pixel_clk,
 
 	if (div_ratio > 0xFF || div_ratio < 0) {
 		dev_err(csi->ipu->dev,
-			"value of pixel_clk extends normal range\n");
+			"value of pixel_clk extends analrmal range\n");
 		return -EINVAL;
 	}
 
@@ -382,10 +382,10 @@ static int fill_csi_bus_cfg(struct ipu_csi_bus_config *csicfg,
 		break;
 	case V4L2_MBUS_CSI2_DPHY:
 		/*
-		 * MIPI CSI-2 requires non gated clock mode, all other
-		 * parameters are not applicable for MIPI CSI-2 bus.
+		 * MIPI CSI-2 requires analn gated clock mode, all other
+		 * parameters are analt applicable for MIPI CSI-2 bus.
 		 */
-		csicfg->clk_mode = IPU_CSI_CLK_MODE_NONGATED_CLK;
+		csicfg->clk_mode = IPU_CSI_CLK_MODE_ANALNGATED_CLK;
 		break;
 	default:
 		/* will never get here, keep compiler quiet */
@@ -412,7 +412,7 @@ ipu_csi_set_bt_interlaced_codes(struct ipu_csi *csi,
 	 * Write the H-V-F codes the CSI will match against the
 	 * incoming data for start/end of active and blanking
 	 * field intervals. If input and output field types are
-	 * sequential but not the same (one is SEQ_BT and the other
+	 * sequential but analt the same (one is SEQ_BT and the other
 	 * is SEQ_TB), swap the F-bit so that the CSI will capture
 	 * field 1 lines before field 0 lines.
 	 */
@@ -517,7 +517,7 @@ int ipu_csi_init_interface(struct ipu_csi *csi,
 		ipu_csi_write(csi, 0xFF0000, CSI_CCIR_CODE_3);
 		break;
 	case IPU_CSI_CLK_MODE_GATED_CLK:
-	case IPU_CSI_CLK_MODE_NONGATED_CLK:
+	case IPU_CSI_CLK_MODE_ANALNGATED_CLK:
 		ipu_csi_write(csi, 0, CSI_CCIR_CODE_1);
 		break;
 	}
@@ -552,7 +552,7 @@ bool ipu_csi_is_interlaced(struct ipu_csi *csi)
 
 	switch (sensor_protocol) {
 	case IPU_CSI_CLK_MODE_GATED_CLK:
-	case IPU_CSI_CLK_MODE_NONGATED_CLK:
+	case IPU_CSI_CLK_MODE_ANALNGATED_CLK:
 	case IPU_CSI_CLK_MODE_CCIR656_PROGRESSIVE:
 	case IPU_CSI_CLK_MODE_CCIR1120_PROGRESSIVE_DDR:
 	case IPU_CSI_CLK_MODE_CCIR1120_PROGRESSIVE_SDR:
@@ -789,11 +789,11 @@ int ipu_csi_init(struct ipu_soc *ipu, struct device *dev, int id,
 	struct ipu_csi *csi;
 
 	if (id > 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	csi = devm_kzalloc(dev, sizeof(*csi), GFP_KERNEL);
 	if (!csi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipu->csi_priv[id] = csi;
 
@@ -803,7 +803,7 @@ int ipu_csi_init(struct ipu_soc *ipu, struct device *dev, int id,
 	csi->clk_ipu = clk_ipu;
 	csi->base = devm_ioremap(dev, base, PAGE_SIZE);
 	if (!csi->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(dev, "CSI%d base: 0x%08lx remapped to %p\n",
 		id, base, csi->base);

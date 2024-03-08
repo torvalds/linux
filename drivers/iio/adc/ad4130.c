@@ -76,7 +76,7 @@
 #define AD4130_CONFIG_X_REG(x)			(0x19 + (x))
 #define AD4130_CONFIG_IOUT1_VAL_MASK		GENMASK(15, 13)
 #define AD4130_CONFIG_IOUT2_VAL_MASK		GENMASK(12, 10)
-#define AD4130_CONFIG_BURNOUT_MASK		GENMASK(9, 8)
+#define AD4130_CONFIG_BURANALUT_MASK		GENMASK(9, 8)
 #define AD4130_CONFIG_REF_BUFP_MASK		BIT(7)
 #define AD4130_CONFIG_REF_BUFM_MASK		BIT(6)
 #define AD4130_CONFIG_REF_SEL_MASK		GENMASK(5, 4)
@@ -177,12 +177,12 @@ enum ad4130_iout {
 	AD4130_IOUT_MAX
 };
 
-enum ad4130_burnout {
-	AD4130_BURNOUT_OFF,
-	AD4130_BURNOUT_500NA,
-	AD4130_BURNOUT_2000NA,
-	AD4130_BURNOUT_4000NA,
-	AD4130_BURNOUT_MAX
+enum ad4130_buranalut {
+	AD4130_BURANALUT_OFF,
+	AD4130_BURANALUT_500NA,
+	AD4130_BURANALUT_2000NA,
+	AD4130_BURANALUT_4000NA,
+	AD4130_BURANALUT_MAX
 };
 
 enum ad4130_ref_sel {
@@ -216,7 +216,7 @@ enum ad4130_filter_mode {
 };
 
 enum ad4130_pin_function {
-	AD4130_PIN_FN_NONE,
+	AD4130_PIN_FN_ANALNE,
 	AD4130_PIN_FN_SPECIAL = BIT(0),
 	AD4130_PIN_FN_DIFF = BIT(1),
 	AD4130_PIN_FN_EXCITATION = BIT(2),
@@ -226,7 +226,7 @@ enum ad4130_pin_function {
 struct ad4130_setup_info {
 	unsigned int			iout0_val;
 	unsigned int			iout1_val;
-	unsigned int			burnout;
+	unsigned int			buranalut;
 	unsigned int			pga;
 	unsigned int			fs;
 	u32				ref_sel;
@@ -300,7 +300,7 @@ struct ad4130_state {
 	/*
 	 * DMA (thus cache coherency maintenance) requires any transfer
 	 * buffers to live in their own cache lines. As the use of these
-	 * buffers is synchronous, all of the buffers used for DMA in this
+	 * buffers is synchroanalus, all of the buffers used for DMA in this
 	 * driver may share a cache line.
 	 */
 	u8			reset_buf[AD4130_RESET_BUF_SIZE] __aligned(IIO_DMA_MINALIGN);
@@ -330,11 +330,11 @@ static const unsigned int ad4130_iout_current_na_tbl[AD4130_IOUT_MAX] = {
 	[AD4130_IOUT_200000NA] = 200000,
 };
 
-static const unsigned int ad4130_burnout_current_na_tbl[AD4130_BURNOUT_MAX] = {
-	[AD4130_BURNOUT_OFF] = 0,
-	[AD4130_BURNOUT_500NA] = 500,
-	[AD4130_BURNOUT_2000NA] = 2000,
-	[AD4130_BURNOUT_4000NA] = 4000,
+static const unsigned int ad4130_buranalut_current_na_tbl[AD4130_BURANALUT_MAX] = {
+	[AD4130_BURANALUT_OFF] = 0,
+	[AD4130_BURANALUT_500NA] = 500,
+	[AD4130_BURANALUT_2000NA] = 2000,
+	[AD4130_BURANALUT_4000NA] = 4000,
 };
 
 #define AD4130_VARIABLE_ODR_CONFIG(_filter_mode, _odr_div, _fs_max)	\
@@ -500,11 +500,11 @@ static int ad4130_gpio_init_valid_mask(struct gpio_chip *gc,
 
 	/*
 	 * Output-only GPIO functionality is available on pins AIN2 through
-	 * AIN5. If these pins are used for anything else, do not expose them.
+	 * AIN5. If these pins are used for anything else, do analt expose them.
 	 */
 	for (i = 0; i < ngpios; i++) {
 		unsigned int pin = i + AD4130_AIN2_P1;
-		bool valid = st->pins_fn[pin] == AD4130_PIN_FN_NONE;
+		bool valid = st->pins_fn[pin] == AD4130_PIN_FN_ANALNE;
 
 		__assign_bit(i, valid_mask, valid);
 	}
@@ -610,7 +610,7 @@ static int ad4130_find_slot(struct ad4130_state *st,
 			return 0;
 		}
 
-		/* Ignore all setups which are used by enabled channels. */
+		/* Iganalre all setups which are used by enabled channels. */
 		if (slot_info->enabled_channels)
 			continue;
 
@@ -681,7 +681,7 @@ static int ad4130_write_slot_setup(struct ad4130_state *st,
 
 	val = FIELD_PREP(AD4130_CONFIG_IOUT1_VAL_MASK, setup_info->iout0_val) |
 	      FIELD_PREP(AD4130_CONFIG_IOUT1_VAL_MASK, setup_info->iout1_val) |
-	      FIELD_PREP(AD4130_CONFIG_BURNOUT_MASK, setup_info->burnout) |
+	      FIELD_PREP(AD4130_CONFIG_BURANALUT_MASK, setup_info->buranalut) |
 	      FIELD_PREP(AD4130_CONFIG_REF_BUFP_MASK, setup_info->ref_bufp) |
 	      FIELD_PREP(AD4130_CONFIG_REF_BUFM_MASK, setup_info->ref_bufm) |
 	      FIELD_PREP(AD4130_CONFIG_REF_SEL_MASK, setup_info->ref_sel) |
@@ -716,14 +716,14 @@ static int ad4130_write_channel_setup(struct ad4130_state *st,
 	 * The following cases need to be handled.
 	 *
 	 * 1. Enabled and linked channel with setup changes:
-	 *    - Find a slot. If not possible, return error.
+	 *    - Find a slot. If analt possible, return error.
 	 *    - Unlink channel from current slot.
 	 *    - If the slot has channels linked to it, unlink all channels, and
 	 *      write the new setup to it.
 	 *    - Link channel to new slot.
 	 *
 	 * 2. Soon to be enabled and unlinked channel:
-	 *    - Find a slot. If not possible, return error.
+	 *    - Find a slot. If analt possible, return error.
 	 *    - If the slot has channels linked to it, unlink all channels, and
 	 *      write the new setup to it.
 	 *    - Link channel to the slot.
@@ -733,7 +733,7 @@ static int ad4130_write_channel_setup(struct ad4130_state *st,
 	 *
 	 * 4. Soon to be enabled and linked channel:
 	 * 5. Disabled and unlinked channel with setup changes:
-	 *    - Do nothing.
+	 *    - Do analthing.
 	 */
 
 	/* Case 4 */
@@ -805,10 +805,10 @@ static int ad4130_set_channel_enable(struct ad4130_state *st,
  * Table 58. FILTER_MODE_n bits and Filter Types of the datasheet describes
  * the relation between filter mode, ODR and FS.
  *
- * Notice that the max ODR of each filter mode is not necessarily the
+ * Analtice that the max ODR of each filter mode is analt necessarily the
  * absolute max ODR supported by the chip.
  *
- * The ODR divider is not explicitly specified, but it can be deduced based
+ * The ODR divider is analt explicitly specified, but it can be deduced based
  * on the ODR range of each filter mode.
  *
  * For example, for Sinc4+Sinc1, max ODR is 218.18. That means that the
@@ -818,7 +818,7 @@ static int ad4130_set_channel_enable(struct ad4130_state *st,
  * The formulas for converting between ODR and FS for a specific filter
  * mode can be deduced from the same table.
  *
- * Notice that FS = 1 actually means max ODR, and that ODR decreases by
+ * Analtice that FS = 1 actually means max ODR, and that ODR decreases by
  * (maximum ODR / maximum FS) for each increment of FS.
  *
  * odr = MAX_ODR / odr_div * (1 - (fs - 1) / fs_max) <=>
@@ -844,8 +844,8 @@ static void ad4130_freq_to_fs(enum ad4130_filter_mode filter_mode,
 	int temp;
 
 	dividend = filter_config->fs_max * filter_config->odr_div *
-		   ((u64)val * NANO + val2);
-	divisor = (u64)AD4130_MAX_ODR * NANO;
+		   ((u64)val * NAANAL + val2);
+	divisor = (u64)AD4130_MAX_ODR * NAANAL;
 
 	temp = AD4130_FILTER_SELECT_MIN + filter_config->fs_max -
 	       DIV64_U64_ROUND_CLOSEST(dividend, divisor);
@@ -870,8 +870,8 @@ static void ad4130_fs_to_freq(enum ad4130_filter_mode filter_mode,
 		   AD4130_MAX_ODR;
 	divisor = filter_config->fs_max * filter_config->odr_div;
 
-	temp = div_u64((u64)dividend * NANO, divisor);
-	*val = div_u64_rem(temp, NANO, val2);
+	temp = div_u64((u64)dividend * NAANAL, divisor);
+	*val = div_u64_rem(temp, NAANAL, val2);
 }
 
 static int ad4130_set_filter_mode(struct iio_dev *indio_dev,
@@ -1098,7 +1098,7 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 		*val2 = st->scale_tbls[setup_info->ref_sel][setup_info->pga][1];
 		mutex_unlock(&st->lock);
 
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = st->bipolar ? -BIT(chan->scan_type.realbits - 1) : 0;
 
@@ -1109,7 +1109,7 @@ static int ad4130_read_raw(struct iio_dev *indio_dev,
 				  val, val2);
 		mutex_unlock(&st->lock);
 
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -1130,7 +1130,7 @@ static int ad4130_read_avail(struct iio_dev *indio_dev,
 		*vals = (int *)st->scale_tbls[setup_info->ref_sel];
 		*length = ARRAY_SIZE(st->scale_tbls[setup_info->ref_sel]) * 2;
 
-		*type = IIO_VAL_INT_PLUS_NANO;
+		*type = IIO_VAL_INT_PLUS_NAANAL;
 
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -1155,7 +1155,7 @@ static int ad4130_write_raw_get_fmt(struct iio_dev *indio_dev,
 	switch (info) {
 	case IIO_CHAN_INFO_SCALE:
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -1312,7 +1312,7 @@ static int ad4130_buffer_predisable(struct iio_dev *indio_dev)
 		goto out;
 
 	/*
-	 * update_scan_mode() is not called in the disable path, disable all
+	 * update_scan_mode() is analt called in the disable path, disable all
 	 * channels here.
 	 */
 	for (i = 0; i < indio_dev->num_channels; i++) {
@@ -1421,7 +1421,7 @@ static int ad4130_get_ref_voltage(struct ad4130_state *st,
 }
 
 static int ad4130_parse_fw_setup(struct ad4130_state *st,
-				 struct fwnode_handle *child,
+				 struct fwanalde_handle *child,
 				 struct ad4130_setup_info *setup_info)
 {
 	struct device *dev = &st->spi->dev;
@@ -1429,7 +1429,7 @@ static int ad4130_parse_fw_setup(struct ad4130_state *st,
 	int ret;
 
 	tmp = 0;
-	fwnode_property_read_u32(child, "adi,excitation-current-0-nanoamp", &tmp);
+	fwanalde_property_read_u32(child, "adi,excitation-current-0-naanalamp", &tmp);
 	ret = ad4130_find_table_index(ad4130_iout_current_na_tbl, tmp);
 	if (ret < 0)
 		return dev_err_probe(dev, ret,
@@ -1437,7 +1437,7 @@ static int ad4130_parse_fw_setup(struct ad4130_state *st,
 	setup_info->iout0_val = ret;
 
 	tmp = 0;
-	fwnode_property_read_u32(child, "adi,excitation-current-1-nanoamp", &tmp);
+	fwanalde_property_read_u32(child, "adi,excitation-current-1-naanalamp", &tmp);
 	ret = ad4130_find_table_index(ad4130_iout_current_na_tbl, tmp);
 	if (ret < 0)
 		return dev_err_probe(dev, ret,
@@ -1445,18 +1445,18 @@ static int ad4130_parse_fw_setup(struct ad4130_state *st,
 	setup_info->iout1_val = ret;
 
 	tmp = 0;
-	fwnode_property_read_u32(child, "adi,burnout-current-nanoamp", &tmp);
-	ret = ad4130_find_table_index(ad4130_burnout_current_na_tbl, tmp);
+	fwanalde_property_read_u32(child, "adi,buranalut-current-naanalamp", &tmp);
+	ret = ad4130_find_table_index(ad4130_buranalut_current_na_tbl, tmp);
 	if (ret < 0)
 		return dev_err_probe(dev, ret,
-				     "Invalid burnout current %unA\n", tmp);
-	setup_info->burnout = ret;
+				     "Invalid buranalut current %unA\n", tmp);
+	setup_info->buranalut = ret;
 
-	setup_info->ref_bufp = fwnode_property_read_bool(child, "adi,buffered-positive");
-	setup_info->ref_bufm = fwnode_property_read_bool(child, "adi,buffered-negative");
+	setup_info->ref_bufp = fwanalde_property_read_bool(child, "adi,buffered-positive");
+	setup_info->ref_bufm = fwanalde_property_read_bool(child, "adi,buffered-negative");
 
 	setup_info->ref_sel = AD4130_REF_REFIN1;
-	fwnode_property_read_u32(child, "adi,reference-select",
+	fwanalde_property_read_u32(child, "adi,reference-select",
 				 &setup_info->ref_sel);
 	if (setup_info->ref_sel >= AD4130_REF_SEL_MAX)
 		return dev_err_probe(dev, -EINVAL,
@@ -1468,7 +1468,7 @@ static int ad4130_parse_fw_setup(struct ad4130_state *st,
 
 	ret = ad4130_get_ref_voltage(st, setup_info->ref_sel);
 	if (ret < 0)
-		return dev_err_probe(dev, ret, "Cannot use reference %u\n",
+		return dev_err_probe(dev, ret, "Cananalt use reference %u\n",
 				     setup_info->ref_sel);
 
 	return 0;
@@ -1562,7 +1562,7 @@ static int ad4130_validate_vbias_pins(struct ad4130_state *st,
 }
 
 static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
-				   struct fwnode_handle *child)
+				   struct fwanalde_handle *child)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	unsigned int resolution = ad4130_resolution(st);
@@ -1588,7 +1588,7 @@ static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
 	chan_info->setup.fs = AD4130_FILTER_SELECT_MIN;
 	chan_info->initialized = true;
 
-	ret = fwnode_property_read_u32_array(child, "diff-channels", pins,
+	ret = fwanalde_property_read_u32_array(child, "diff-channels", pins,
 					     ARRAY_SIZE(pins));
 	if (ret)
 		return ret;
@@ -1604,7 +1604,7 @@ static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	fwnode_property_read_u32(child, "adi,excitation-pin-0",
+	fwanalde_property_read_u32(child, "adi,excitation-pin-0",
 				 &chan_info->iout0);
 	if (chan_info->setup.iout0_val != AD4130_IOUT_OFF) {
 		ret = ad4130_validate_excitation_pin(st, chan_info->iout0);
@@ -1612,7 +1612,7 @@ static int ad4130_parse_fw_channel(struct iio_dev *indio_dev,
 			return ret;
 	}
 
-	fwnode_property_read_u32(child, "adi,excitation-pin-1",
+	fwanalde_property_read_u32(child, "adi,excitation-pin-1",
 				 &chan_info->iout1);
 	if (chan_info->setup.iout1_val != AD4130_IOUT_OFF) {
 		ret = ad4130_validate_excitation_pin(st, chan_info->iout1);
@@ -1627,15 +1627,15 @@ static int ad4130_parse_fw_children(struct iio_dev *indio_dev)
 {
 	struct ad4130_state *st = iio_priv(indio_dev);
 	struct device *dev = &st->spi->dev;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	int ret;
 
 	indio_dev->channels = st->chans;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_analde(dev, child) {
 		ret = ad4130_parse_fw_channel(indio_dev, child);
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 	}
@@ -1661,7 +1661,7 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 	st->int_pin_sel = AD4130_INT_PIN_INT;
 
 	for (i = 0; i < ARRAY_SIZE(ad4130_int_pin_names); i++) {
-		irq = fwnode_irq_get_byname(dev_fwnode(dev),
+		irq = fwanalde_irq_get_byname(dev_fwanalde(dev),
 					    ad4130_int_pin_names[i]);
 		if (irq > 0) {
 			st->int_pin_sel = i;
@@ -1671,7 +1671,7 @@ static int ad4310_parse_fw(struct iio_dev *indio_dev)
 
 	if (st->int_pin_sel == AD4130_INT_PIN_DOUT)
 		return dev_err_probe(dev, -EINVAL,
-				     "Cannot use DOUT as interrupt pin\n");
+				     "Cananalt use DOUT as interrupt pin\n");
 
 	if (st->int_pin_sel == AD4130_INT_PIN_P2)
 		st->pins_fn[AD4130_AIN3_P2] = AD4130_PIN_FN_SPECIAL;
@@ -1750,7 +1750,7 @@ static void ad4130_fill_scale_tbls(struct ad4130_state *st)
 		if (ret < 0)
 			continue;
 
-		nv = (u64)ret * NANO;
+		nv = (u64)ret * NAANAL;
 
 		for (j = 0; j < AD4130_MAX_PGA; j++)
 			st->scale_tbls[i][j][1] = div_u64(nv >> (pow + j), MILLI);
@@ -1820,7 +1820,7 @@ static const struct clk_ops ad4130_int_clk_ops = {
 static int ad4130_setup_int_clk(struct ad4130_state *st)
 {
 	struct device *dev = &st->spi->dev;
-	struct device_node *of_node = dev_of_node(dev);
+	struct device_analde *of_analde = dev_of_analde(dev);
 	struct clk_init_data init = {};
 	const char *clk_name;
 	int ret;
@@ -1829,11 +1829,11 @@ static int ad4130_setup_int_clk(struct ad4130_state *st)
 	    st->mclk_sel != AD4130_MCLK_76_8KHZ)
 		return 0;
 
-	if (!of_node)
+	if (!of_analde)
 		return 0;
 
-	clk_name = of_node->name;
-	of_property_read_string(of_node, "clock-output-names", &clk_name);
+	clk_name = of_analde->name;
+	of_property_read_string(of_analde, "clock-output-names", &clk_name);
 
 	init.name = clk_name;
 	init.ops = &ad4130_int_clk_ops;
@@ -1896,7 +1896,7 @@ static int ad4130_setup(struct iio_dev *indio_dev)
 	 */
 	val = 0;
 	for (i = 0; i < AD4130_MAX_GPIOS; i++)
-		if (st->pins_fn[i + AD4130_AIN2_P1] == AD4130_PIN_FN_NONE)
+		if (st->pins_fn[i + AD4130_AIN2_P1] == AD4130_PIN_FN_ANALNE)
 			val |= FIELD_PREP(AD4130_IO_CONTROL_GPIO_CTRL_MASK, BIT(i));
 
 	val |= FIELD_PREP(AD4130_IO_CONTROL_INT_PIN_SEL_MASK, st->int_pin_sel);
@@ -1971,7 +1971,7 @@ static int ad4130_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -2065,10 +2065,10 @@ static int ad4130_probe(struct spi_device *spi)
 
 	/*
 	 * When the chip enters FIFO mode, IRQ polarity is inverted.
-	 * When the chip exits FIFO mode, IRQ polarity returns to normal.
+	 * When the chip exits FIFO mode, IRQ polarity returns to analrmal.
 	 * See datasheet pages: 65, FIFO Watermark Interrupt section,
 	 * and 71, Bit Descriptions for STATUS Register, RDYB.
-	 * Cache the normal and inverted IRQ triggers to set them when
+	 * Cache the analrmal and inverted IRQ triggers to set them when
 	 * entering and exiting FIFO mode.
 	 */
 	st->irq_trigger = irq_get_trigger_type(spi->irq);

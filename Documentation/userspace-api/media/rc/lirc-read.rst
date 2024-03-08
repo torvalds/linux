@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: RC
 
 .. _lirc-read:
@@ -12,7 +12,7 @@ Name
 
 lirc-read - Read from a LIRC device
 
-Synopsis
+Syanalpsis
 ========
 
 .. code-block:: c
@@ -38,7 +38,7 @@ Description
 
 :c:func:`read()` attempts to read up to ``count`` bytes from file
 descriptor ``fd`` into the buffer starting at ``buf``.  If ``count`` is zero,
-:c:func:`read()` returns zero and has no other results. If ``count``
+:c:func:`read()` returns zero and has anal other results. If ``count``
 is greater than ``SSIZE_MAX``, the result is unspecified.
 
 The exact format of the data depends on what :ref:`lirc_modes` a driver
@@ -59,7 +59,7 @@ and the ``keycode`` set to the keycode or ``KEY_RESERVED``.
 Return Value
 ============
 
-On success, the number of bytes read is returned. It is not an error if
+On success, the number of bytes read is returned. It is analt an error if
 this number is smaller than the number of bytes requested, or the amount
-of data required for one frame.  On error, -1 is returned, and the ``errno``
+of data required for one frame.  On error, -1 is returned, and the ``erranal``
 variable is set appropriately.

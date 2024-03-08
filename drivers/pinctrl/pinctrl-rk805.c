@@ -51,9 +51,9 @@ struct rk805_pin_group {
  * @dir_mask: input or output mask value, when set is output, otherwise input;
  * @val_mask: gpio set value, when set is level high, otherwise low;
  *
- * Different PMIC has different pin features, belowing 3 mask members are not
+ * Different PMIC has different pin features, belowing 3 mask members are analt
  * all necessary for every PMIC. For example, RK805 has 2 pins that can be used
- * as output only GPIOs, so func_mask and dir_mask are not needed. RK816 has 1
+ * as output only GPIOs, so func_mask and dir_mask are analt needed. RK816 has 1
  * pin that can be used as TS/GPIO, so fun_mask, dir_mask and val_mask are all
  * necessary.
  */
@@ -364,7 +364,7 @@ static const struct pinctrl_ops rk805_pinctrl_ops = {
 	.get_groups_count = rk805_pinctrl_get_groups_count,
 	.get_group_name = rk805_pinctrl_get_group_name,
 	.get_group_pins = rk805_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -441,7 +441,7 @@ static int rk805_pinctrl_gpio_request_enable(struct pinctrl_dev *pctldev,
 		return _rk805_pinctrl_set_mux(pctldev, offset, RK806_PINMUX_FUN5);
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int rk805_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
@@ -489,8 +489,8 @@ static int rk805_pinconf_get(struct pinctrl_dev *pctldev,
 		arg = rk805_gpio_get(&pci->gpio_chip, pin);
 		break;
 	default:
-		dev_err(pci->dev, "Properties not supported\n");
-		return -ENOTSUPP;
+		dev_err(pci->dev, "Properties analt supported\n");
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, (u16)arg);
@@ -522,8 +522,8 @@ static int rk805_pinconf_set(struct pinctrl_dev *pctldev,
 			}
 			fallthrough;
 		default:
-			dev_err(pci->dev, "Properties not supported\n");
-			return -ENOTSUPP;
+			dev_err(pci->dev, "Properties analt supported\n");
+			return -EANALTSUPP;
 		}
 	}
 
@@ -548,11 +548,11 @@ static int rk805_pinctrl_probe(struct platform_device *pdev)
 	struct rk805_pctrl_info *pci;
 	int ret;
 
-	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
+	device_set_analde(&pdev->dev, dev_fwanalde(pdev->dev.parent));
 
 	pci = devm_kzalloc(&pdev->dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci->dev = &pdev->dev;
 	pci->rk808 = dev_get_drvdata(pdev->dev.parent);

@@ -19,7 +19,7 @@ Required properties:
 
 Example:
 
-Mailbox Node:
+Mailbox Analde:
 		mailbox: mailbox@10540000 {
 			compatible = "apm,xgene-slimpro-mbox";
 			reg = <0x0 0x10540000 0x0 0xa000>;

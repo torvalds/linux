@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -80,21 +80,21 @@ enum hdmi_colorspace {
 };
 
 enum hdmi_scan_mode {
-	HDMI_SCAN_MODE_NONE,
+	HDMI_SCAN_MODE_ANALNE,
 	HDMI_SCAN_MODE_OVERSCAN,
 	HDMI_SCAN_MODE_UNDERSCAN,
 	HDMI_SCAN_MODE_RESERVED,
 };
 
 enum hdmi_colorimetry {
-	HDMI_COLORIMETRY_NONE,
+	HDMI_COLORIMETRY_ANALNE,
 	HDMI_COLORIMETRY_ITU_601,
 	HDMI_COLORIMETRY_ITU_709,
 	HDMI_COLORIMETRY_EXTENDED,
 };
 
 enum hdmi_picture_aspect {
-	HDMI_PICTURE_ASPECT_NONE,
+	HDMI_PICTURE_ASPECT_ANALNE,
 	HDMI_PICTURE_ASPECT_4_3,
 	HDMI_PICTURE_ASPECT_16_9,
 	HDMI_PICTURE_ASPECT_64_27,
@@ -135,9 +135,9 @@ enum hdmi_quantization_range {
 	HDMI_QUANTIZATION_RANGE_RESERVED,
 };
 
-/* non-uniform picture scaling */
+/* analn-uniform picture scaling */
 enum hdmi_nups {
-	HDMI_NUPS_UNKNOWN,
+	HDMI_NUPS_UNKANALWN,
 	HDMI_NUPS_HORIZONTAL,
 	HDMI_NUPS_VERTICAL,
 	HDMI_NUPS_BOTH,
@@ -224,7 +224,7 @@ int hdmi_drm_infoframe_unpack_only(struct hdmi_drm_infoframe *frame,
 				   const void *buffer, size_t size);
 
 enum hdmi_spd_sdi {
-	HDMI_SPD_SDI_UNKNOWN,
+	HDMI_SPD_SDI_UNKANALWN,
 	HDMI_SPD_SDI_DSTB,
 	HDMI_SPD_SDI_DVDP,
 	HDMI_SPD_SDI_DVHS,
@@ -300,8 +300,8 @@ enum hdmi_audio_coding_type_ext {
 
 	/*
 	 * The next three CXT values are defined in CEA-861-E only.
-	 * They do not exist in older versions, and in CEA-861-F they are
-	 * defined as 'Not in use'.
+	 * They do analt exist in older versions, and in CEA-861-F they are
+	 * defined as 'Analt in use'.
 	 */
 	HDMI_AUDIO_CODING_TYPE_EXT_HE_AAC,
 	HDMI_AUDIO_CODING_TYPE_EXT_HE_AAC_V2,

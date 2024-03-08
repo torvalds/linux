@@ -260,7 +260,7 @@ struct dvb_frontend * mt2131_attach(struct dvb_frontend *fe,
 		return NULL;
 	}
 	if ( (id != 0x3E) && (id != 0x3F) ) {
-		printk(KERN_ERR "MT2131: Device not found at addr 0x%02x\n",
+		printk(KERN_ERR "MT2131: Device analt found at addr 0x%02x\n",
 		       cfg->i2c_address);
 		kfree(priv);
 		return NULL;

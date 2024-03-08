@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syanalpsys, Inc. (www.syanalpsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __ASM_ARC_ENTRY_H
@@ -149,7 +149,7 @@
 #else	/* !__ASSEMBLY__ */
 
 extern void do_signal(struct pt_regs *);
-extern void do_notify_resume(struct pt_regs *);
+extern void do_analtify_resume(struct pt_regs *);
 extern int do_privilege_fault(unsigned long, struct pt_regs *);
 extern int do_extension_fault(unsigned long, struct pt_regs *);
 extern int insterror_is_error(unsigned long, struct pt_regs *);
@@ -159,7 +159,7 @@ extern int do_misaligned_error(unsigned long, struct pt_regs *);
 extern int do_trap5_error(unsigned long, struct pt_regs *);
 extern int do_misaligned_access(unsigned long, struct pt_regs *, struct callee_regs *);
 extern void do_machine_check_fault(unsigned long, struct pt_regs *);
-extern void do_non_swi_trap(unsigned long, struct pt_regs *);
+extern void do_analn_swi_trap(unsigned long, struct pt_regs *);
 extern void do_insterror_or_kprobe(unsigned long, struct pt_regs *);
 extern void do_page_fault(unsigned long, struct pt_regs *);
 

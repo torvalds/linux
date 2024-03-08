@@ -102,7 +102,7 @@ static void do_setup(struct net_device *netdev)
 
 	netdev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_OPENVSWITCH |
-			      IFF_NO_QUEUE;
+			      IFF_ANAL_QUEUE;
 	netdev->needs_free_netdev = true;
 	netdev->priv_destructor = NULL;
 	netdev->ethtool_ops = &internal_dev_ethtool_ops;
@@ -137,12 +137,12 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 			   parms->name, NET_NAME_USER, do_setup);
 	vport->dev = dev;
 	if (!vport->dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error_free_vport;
 	}
 	vport->dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!vport->dev->tstats) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error_free_netdev;
 	}
 
@@ -152,7 +152,7 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 	internal_dev->vport = vport;
 
 	/* Restrict bridge port to current netns. */
-	if (vport->port_no == OVSP_LOCAL)
+	if (vport->port_anal == OVSP_LOCAL)
 		vport->dev->features |= NETIF_F_NETNS_LOCAL;
 
 	rtnl_lock();

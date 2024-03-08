@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2022, Collabora Ltd
- * Author: AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ * Author: AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
  */
 
 /dts-v1/;
@@ -52,18 +52,18 @@
 		/* 128 KiB reserved for ARM Trusted Firmware (BL31) */
 		bl31_secmon_reserved: secmon@43000000 {
 			reg = <0 0x43000000 0 0x30000>;
-			no-map;
+			anal-map;
 		};
 
-		/* preloader and bootloader regions cannot be touched */
+		/* preloader and bootloader regions cananalt be touched */
 		preloader-region@44800000 {
 			reg = <0 0x44800000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		bootloader-region@46000000 {
 			reg = <0 0x46000000 0 0x400000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -176,7 +176,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f12@12 {
@@ -216,7 +216,7 @@
 	mediatek,hs200-cmd-int-delay = <1>;
 	mediatek,hs400-cmd-int-delay = <1>;
 	mediatek,hs400-ds-dly3 = <0x1a>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default", "state_uhs";
 	pinctrl-0 = <&mmc0_pins_default>;
 	pinctrl-1 = <&mmc0_pins_uhs>;

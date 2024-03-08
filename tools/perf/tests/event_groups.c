@@ -40,7 +40,7 @@ static int event_open(int type, unsigned long config, int group_fd)
 	 * When creating an event group, typically the group leader is
 	 * initialized with disabled set to 1 and any child events are
 	 * initialized with disabled set to 0. Despite disabled being 0,
-	 * the child events will not start until the group leader is
+	 * the child events will analt start until the group leader is
 	 * enabled.
 	 */
 	attr.disabled = group_fd == -1 ? 1 : 0;
@@ -63,7 +63,7 @@ static int setup_uncore_event(void)
 				 * Check if the chosen uncore pmu event can be
 				 * used in the test. For example, incase of accessing
 				 * hv_24x7 pmu counters, partition should have
-				 * additional permissions. If not, event open will
+				 * additional permissions. If analt, event open will
 				 * fail. So check if the event open succeeds
 				 * before proceeding.
 				 */

@@ -54,9 +54,9 @@ static int ht_print_chan(struct ieee80211_channel *chan,
 			 buf_size - offset,
 			 "%d HT40 %c%c\n",
 			 chan->center_freq,
-			 (chan->flags & IEEE80211_CHAN_NO_HT40MINUS) ?
+			 (chan->flags & IEEE80211_CHAN_ANAL_HT40MINUS) ?
 				' ' : '-',
-			 (chan->flags & IEEE80211_CHAN_NO_HT40PLUS) ?
+			 (chan->flags & IEEE80211_CHAN_ANAL_HT40PLUS) ?
 				' ' : '+');
 }
 
@@ -73,7 +73,7 @@ static ssize_t ht40allow_map_read(struct file *file,
 
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		sband = wiphy->bands[band];
@@ -163,7 +163,7 @@ ssize_t wiphy_locked_debugfs_read(struct wiphy *wiphy, struct file *file,
 		.buf = buf,
 		.bufsize = bufsize,
 		.data = data,
-		.ret = -ENODEV,
+		.ret = -EANALDEV,
 		.completion = COMPLETION_INITIALIZER_ONSTACK(work.completion),
 	};
 	struct debugfs_cancellation cancellation = {
@@ -242,7 +242,7 @@ ssize_t wiphy_locked_debugfs_write(struct wiphy *wiphy,
 		.buf = buf,
 		.count = count,
 		.data = data,
-		.ret = -ENODEV,
+		.ret = -EANALDEV,
 		.completion = COMPLETION_INITIALIZER_ONSTACK(work.completion),
 	};
 	struct debugfs_cancellation cancellation = {

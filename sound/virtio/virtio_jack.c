@@ -13,16 +13,16 @@
  * DOC: Implementation Status
  *
  * At the moment jacks have a simple implementation and can only be used to
- * receive notifications about a plugged in/out device.
+ * receive analtifications about a plugged in/out device.
  *
  * VIRTIO_SND_R_JACK_REMAP
- *   is not supported
+ *   is analt supported
  */
 
 /**
  * struct virtio_jack - VirtIO jack.
  * @jack: Kernel jack control.
- * @nid: Functional group node identifier.
+ * @nid: Functional group analde identifier.
  * @features: Jack virtio feature bit map (1 << VIRTIO_SND_JACK_F_XXX).
  * @defconf: Pin default configuration value.
  * @caps: Pin capabilities value.
@@ -126,7 +126,7 @@ static int virtsnd_jack_get_type(struct virtio_jack *vjack)
  * This function is called during initial device initialization.
  *
  * Context: Any context that permits to sleep.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int virtsnd_jack_parse_cfg(struct virtio_snd *snd)
 {
@@ -142,11 +142,11 @@ int virtsnd_jack_parse_cfg(struct virtio_snd *snd)
 	snd->jacks = devm_kcalloc(&vdev->dev, snd->njacks, sizeof(*snd->jacks),
 				  GFP_KERNEL);
 	if (!snd->jacks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = kcalloc(snd->njacks, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = virtsnd_ctl_query_info(snd, VIRTIO_SND_R_JACK_INFO, 0, snd->njacks,
 				    sizeof(*info), info);
@@ -174,7 +174,7 @@ on_exit:
  * @snd: VirtIO sound device.
  *
  * Context: Any context that permits to sleep.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 int virtsnd_jack_build_devs(struct virtio_snd *snd)
 {
@@ -202,7 +202,7 @@ int virtsnd_jack_build_devs(struct virtio_snd *snd)
 }
 
 /**
- * virtsnd_jack_event() - Handle the jack event notification.
+ * virtsnd_jack_event() - Handle the jack event analtification.
  * @snd: VirtIO sound device.
  * @event: VirtIO sound event.
  *

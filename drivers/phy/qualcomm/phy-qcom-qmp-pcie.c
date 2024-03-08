@@ -2243,7 +2243,7 @@ struct qmp_phy_cfg {
 	 * register programming. They are used for providing separate sequences
 	 * for the Root Complex and End Point use cases.
 	 *
-	 * If EP mode is not supported, both tables can be left unset.
+	 * If EP mode is analt supported, both tables can be left unset.
 	 */
 	const struct qmp_phy_cfg_tbls *tbls_rc;
 	const struct qmp_phy_cfg_tbls *tbls_ep;
@@ -2267,7 +2267,7 @@ struct qmp_phy_cfg {
 
 	bool skip_start_delay;
 
-	bool has_nocsr_reset;
+	bool has_analcsr_reset;
 
 	/* QMP PHY pipe clock interface rate */
 	unsigned long pipe_clock_rate;
@@ -2295,7 +2295,7 @@ struct qmp_pcie {
 	int num_pipe_clks;
 
 	struct reset_control_bulk_data *resets;
-	struct reset_control *nocsr_reset;
+	struct reset_control *analcsr_reset;
 	struct regulator_bulk_data *vregs;
 
 	struct phy *phy;
@@ -2355,7 +2355,7 @@ static const struct qmp_pcie_offsets qmp_pcie_offsets_qhp = {
 	.serdes		= 0,
 	.pcs		= 0x1800,
 	.tx		= 0x0800,
-	/* no .rx for QHP */
+	/* anal .rx for QHP */
 };
 
 static const struct qmp_pcie_offsets qmp_pcie_offsets_v2 = {
@@ -3073,7 +3073,7 @@ static const struct qmp_phy_cfg sm8550_qmp_gen4x2_pciephy_cfg = {
 
 	.pwrdn_ctrl		= SW_PWRDN | REFCLK_DRV_DSBL,
 	.phy_status		= PHYSTATUS_4_20,
-	.has_nocsr_reset	= true,
+	.has_analcsr_reset	= true,
 };
 
 static const struct qmp_phy_cfg sm8650_qmp_gen4x2_pciephy_cfg = {
@@ -3103,7 +3103,7 @@ static const struct qmp_phy_cfg sm8650_qmp_gen4x2_pciephy_cfg = {
 
 	.pwrdn_ctrl		= SW_PWRDN | REFCLK_DRV_DSBL,
 	.phy_status		= PHYSTATUS_4_20,
-	.has_nocsr_reset	= true,
+	.has_analcsr_reset	= true,
 };
 
 static const struct qmp_phy_cfg sa8775p_qmp_gen4x2_pciephy_cfg = {
@@ -3281,9 +3281,9 @@ static int qmp_pcie_init(struct phy *phy)
 		goto err_disable_regulators;
 	}
 
-	ret = reset_control_assert(qmp->nocsr_reset);
+	ret = reset_control_assert(qmp->analcsr_reset);
 	if (ret) {
-		dev_err(qmp->dev, "no-csr reset assert failed\n");
+		dev_err(qmp->dev, "anal-csr reset assert failed\n");
 		goto err_assert_reset;
 	}
 
@@ -3348,9 +3348,9 @@ static int qmp_pcie_power_on(struct phy *phy)
 	if (ret)
 		return ret;
 
-	ret = reset_control_deassert(qmp->nocsr_reset);
+	ret = reset_control_deassert(qmp->analcsr_reset);
 	if (ret) {
-		dev_err(qmp->dev, "no-csr reset deassert failed\n");
+		dev_err(qmp->dev, "anal-csr reset deassert failed\n");
 		goto err_disable_pipe_clk;
 	}
 
@@ -3460,7 +3460,7 @@ static int qmp_pcie_vreg_init(struct qmp_pcie *qmp)
 
 	qmp->vregs = devm_kcalloc(dev, num, sizeof(*qmp->vregs), GFP_KERNEL);
 	if (!qmp->vregs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++)
 		qmp->vregs[i].supply = cfg->vreg_list[i];
@@ -3478,7 +3478,7 @@ static int qmp_pcie_reset_init(struct qmp_pcie *qmp)
 	qmp->resets = devm_kcalloc(dev, cfg->num_resets,
 				   sizeof(*qmp->resets), GFP_KERNEL);
 	if (!qmp->resets)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < cfg->num_resets; i++)
 		qmp->resets[i].id = cfg->reset_list[i];
@@ -3487,11 +3487,11 @@ static int qmp_pcie_reset_init(struct qmp_pcie *qmp)
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to get resets\n");
 
-	if (cfg->has_nocsr_reset) {
-		qmp->nocsr_reset = devm_reset_control_get_exclusive(dev, "phy_nocsr");
-		if (IS_ERR(qmp->nocsr_reset))
-			return dev_err_probe(dev, PTR_ERR(qmp->nocsr_reset),
-						"failed to get no-csr reset\n");
+	if (cfg->has_analcsr_reset) {
+		qmp->analcsr_reset = devm_reset_control_get_exclusive(dev, "phy_analcsr");
+		if (IS_ERR(qmp->analcsr_reset))
+			return dev_err_probe(dev, PTR_ERR(qmp->analcsr_reset),
+						"failed to get anal-csr reset\n");
 	}
 
 	return 0;
@@ -3505,7 +3505,7 @@ static int qmp_pcie_clk_init(struct qmp_pcie *qmp)
 
 	qmp->clks = devm_kcalloc(dev, num, sizeof(*qmp->clks), GFP_KERNEL);
 	if (!qmp->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++)
 		qmp->clks[i].id = qmp_pciephy_clk_l[i];
@@ -3536,7 +3536,7 @@ static void phy_clk_release_provider(void *res)
  *    clk  |   +-------+   |                   +-----+
  *         +---------------+
  */
-static int phy_pipe_clk_register(struct qmp_pcie *qmp, struct device_node *np)
+static int phy_pipe_clk_register(struct qmp_pcie *qmp, struct device_analde *np)
 {
 	struct clk_fixed_rate *fixed = &qmp->pipe_clk_fixed;
 	struct clk_init_data init = { };
@@ -3544,7 +3544,7 @@ static int phy_pipe_clk_register(struct qmp_pcie *qmp, struct device_node *np)
 
 	ret = of_property_read_string(np, "clock-output-names", &init.name);
 	if (ret) {
-		dev_err(qmp->dev, "%pOFn: No clock-output-names\n", np);
+		dev_err(qmp->dev, "%pOFn: Anal clock-output-names\n", np);
 		return ret;
 	}
 
@@ -3570,13 +3570,13 @@ static int phy_pipe_clk_register(struct qmp_pcie *qmp, struct device_node *np)
 		return ret;
 
 	/*
-	 * Roll a devm action because the clock provider is the child node, but
-	 * the child node is not actually a device.
+	 * Roll a devm action because the clock provider is the child analde, but
+	 * the child analde is analt actually a device.
 	 */
 	return devm_add_action_or_reset(qmp->dev, phy_clk_release_provider, np);
 }
 
-static int qmp_pcie_parse_dt_legacy(struct qmp_pcie *qmp, struct device_node *np)
+static int qmp_pcie_parse_dt_legacy(struct qmp_pcie *qmp, struct device_analde *np)
 {
 	struct platform_device *pdev = to_platform_device(qmp->dev);
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
@@ -3597,7 +3597,7 @@ static int qmp_pcie_parse_dt_legacy(struct qmp_pcie *qmp, struct device_node *np
 	if (IS_ERR(qmp->tx))
 		return PTR_ERR(qmp->tx);
 
-	if (of_device_is_compatible(dev->of_node, "qcom,sdm845-qhp-pcie-phy"))
+	if (of_device_is_compatible(dev->of_analde, "qcom,sdm845-qhp-pcie-phy"))
 		qmp->rx = qmp->tx;
 	else
 		qmp->rx = devm_of_iomap(dev, np, 1, NULL);
@@ -3623,7 +3623,7 @@ static int qmp_pcie_parse_dt_legacy(struct qmp_pcie *qmp, struct device_node *np
 	}
 
 	if (IS_ERR(qmp->pcs_misc) &&
-	    of_device_is_compatible(dev->of_node, "qcom,ipq6018-qmp-pcie-phy"))
+	    of_device_is_compatible(dev->of_analde, "qcom,ipq6018-qmp-pcie-phy"))
 		qmp->pcs_misc = qmp->pcs + 0x400;
 
 	if (IS_ERR(qmp->pcs_misc)) {
@@ -3653,12 +3653,12 @@ static int qmp_pcie_get_4ln_config(struct qmp_pcie *qmp)
 	unsigned int args[2];
 	int ret;
 
-	tcsr = syscon_regmap_lookup_by_phandle_args(qmp->dev->of_node,
+	tcsr = syscon_regmap_lookup_by_phandle_args(qmp->dev->of_analde,
 						    "qcom,4ln-config-sel",
 						    ARRAY_SIZE(args), args);
 	if (IS_ERR(tcsr)) {
 		ret = PTR_ERR(tcsr);
-		if (ret == -ENOENT)
+		if (ret == -EANALENT)
 			return 0;
 
 		dev_err(qmp->dev, "failed to lookup syscon: %d\n", ret);
@@ -3737,13 +3737,13 @@ static int qmp_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct phy_provider *phy_provider;
-	struct device_node *np;
+	struct device_analde *np;
 	struct qmp_pcie *qmp;
 	int ret;
 
 	qmp = devm_kzalloc(dev, sizeof(*qmp), GFP_KERNEL);
 	if (!qmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qmp->dev = dev;
 
@@ -3766,20 +3766,20 @@ static int qmp_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* Check for legacy binding with child node. */
-	np = of_get_next_available_child(dev->of_node, NULL);
+	/* Check for legacy binding with child analde. */
+	np = of_get_next_available_child(dev->of_analde, NULL);
 	if (np) {
 		ret = qmp_pcie_parse_dt_legacy(qmp, np);
 	} else {
-		np = of_node_get(dev->of_node);
+		np = of_analde_get(dev->of_analde);
 		ret = qmp_pcie_parse_dt(qmp);
 	}
 	if (ret)
-		goto err_node_put;
+		goto err_analde_put;
 
 	ret = phy_pipe_clk_register(qmp, np);
 	if (ret)
-		goto err_node_put;
+		goto err_analde_put;
 
 	qmp->mode = PHY_MODE_PCIE_RC;
 
@@ -3787,19 +3787,19 @@ static int qmp_pcie_probe(struct platform_device *pdev)
 	if (IS_ERR(qmp->phy)) {
 		ret = PTR_ERR(qmp->phy);
 		dev_err(dev, "failed to create PHY: %d\n", ret);
-		goto err_node_put;
+		goto err_analde_put;
 	}
 
 	phy_set_drvdata(qmp->phy, qmp);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 
 	return PTR_ERR_OR_ZERO(phy_provider);
 
-err_node_put:
-	of_node_put(np);
+err_analde_put:
+	of_analde_put(np);
 	return ret;
 }
 

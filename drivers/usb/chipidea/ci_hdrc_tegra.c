@@ -60,7 +60,7 @@ static const struct tegra_usb_soc_info tegra20_udc_soc_info = {
 	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA |
 		 CI_HDRC_OVERRIDE_PHY_CONTROL |
 		 CI_HDRC_SUPPORTS_RUNTIME_PM,
-	.dr_mode = USB_DR_MODE_UNKNOWN,
+	.dr_mode = USB_DR_MODE_UNKANALWN,
 	.txfifothresh = 10,
 };
 
@@ -68,7 +68,7 @@ static const struct tegra_usb_soc_info tegra30_udc_soc_info = {
 	.flags = CI_HDRC_REQUIRES_ALIGNED_DMA |
 		 CI_HDRC_OVERRIDE_PHY_CONTROL |
 		 CI_HDRC_SUPPORTS_RUNTIME_PM,
-	.dr_mode = USB_DR_MODE_UNKNOWN,
+	.dr_mode = USB_DR_MODE_UNKANALWN,
 	.txfifothresh = 16,
 };
 
@@ -100,7 +100,7 @@ MODULE_DEVICE_TABLE(of, tegra_usb_of_match);
 static int tegra_usb_reset_controller(struct device *dev)
 {
 	struct reset_control *rst, *rst_utmi;
-	struct device_node *phy_np;
+	struct device_analde *phy_np;
 	int err;
 
 	rst = devm_reset_control_get_shared(dev, "usb");
@@ -109,9 +109,9 @@ static int tegra_usb_reset_controller(struct device *dev)
 		return PTR_ERR(rst);
 	}
 
-	phy_np = of_parse_phandle(dev->of_node, "nvidia,phy", 0);
+	phy_np = of_parse_phandle(dev->of_analde, "nvidia,phy", 0);
 	if (!phy_np)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * The 1st USB controller contains some UTMI pad registers that are
@@ -125,12 +125,12 @@ static int tegra_usb_reset_controller(struct device *dev)
 	} else {
 		/*
 		 * PHY driver performs UTMI-pads reset in a case of a
-		 * non-legacy DT.
+		 * analn-legacy DT.
 		 */
 		reset_control_put(rst_utmi);
 	}
 
-	of_node_put(phy_np);
+	of_analde_put(phy_np);
 
 	/* reset control is shared, hence initialize it first */
 	err = reset_control_deassert(rst);
@@ -150,7 +150,7 @@ static int tegra_usb_reset_controller(struct device *dev)
 	return 0;
 }
 
-static int tegra_usb_notify_event(struct ci_hdrc *ci, unsigned int event)
+static int tegra_usb_analtify_event(struct ci_hdrc *ci, unsigned int event)
 {
 	struct tegra_usb *usb = dev_get_drvdata(ci->dev->parent);
 	struct ehci_hcd *ehci;
@@ -280,7 +280,7 @@ static int tegra_usb_probe(struct platform_device *pdev)
 
 	usb = devm_kzalloc(&pdev->dev, sizeof(*usb), GFP_KERNEL);
 	if (!usb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, usb);
 
@@ -336,10 +336,10 @@ static int tegra_usb_probe(struct platform_device *pdev)
 	usb->data.capoffset = DEF_CAPOFFSET;
 	usb->data.enter_lpm = tegra_usb_enter_lpm;
 	usb->data.hub_control = tegra_ehci_hub_control;
-	usb->data.notify_event = tegra_usb_notify_event;
+	usb->data.analtify_event = tegra_usb_analtify_event;
 
 	/* Tegra PHY driver currently doesn't support LPM for ULPI */
-	if (of_usb_get_phy_mode(pdev->dev.of_node) == USBPHY_INTERFACE_MODE_ULPI)
+	if (of_usb_get_phy_mode(pdev->dev.of_analde) == USBPHY_INTERFACE_MODE_ULPI)
 		usb->data.flags &= ~CI_HDRC_SUPPORTS_RUNTIME_PM;
 
 	usb->dev = ci_hdrc_add_device(&pdev->dev, pdev->resource,

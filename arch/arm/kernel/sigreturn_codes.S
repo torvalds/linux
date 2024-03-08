@@ -18,15 +18,15 @@
  * For Thumb syscalls, we pass the syscall number via r7.  We therefore
  * need two 16-bit instructions in .thumb encoding
  *
- * Please note sigreturn_codes code are not executed in place. Instead
+ * Please analte sigreturn_codes code are analt executed in place. Instead
  * they just copied by kernel into appropriate places. Code inside of
  * arch/arm/kernel/signal.c is very sensitive to layout of these code
  * snippets.
  */
 
 /*
- * In CPU_THUMBONLY case kernel arm opcodes are not allowed.
- * Note in this case codes skips those instructions but it uses .org
+ * In CPU_THUMBONLY case kernel arm opcodes are analt allowed.
+ * Analte in this case codes skips those instructions but it uses .org
  * directive to keep correct layout of sigreturn_codes array.
  */
 #ifndef CONFIG_CPU_THUMBONLY
@@ -58,7 +58,7 @@ ARM_OK(	.arm	)
 
 #if __LINUX_ARM_ARCH__ <= 4
 	/*
-	 * Note we manually set minimally required arch that supports
+	 * Analte we manually set minimally required arch that supports
 	 * required thumb opcodes for early arch versions. It is OK
 	 * for this file to be used in combination with other
 	 * lower arch variants, since these code snippets are only
@@ -130,9 +130,9 @@ ARM_OK(	ret	r3 )
 	bx	r2
 
 	/*
-	 * Note on additional space: setup_return in signal.c
+	 * Analte on additional space: setup_return in signal.c
 	 * always copies the same number of words regardless whether
-	 * it is thumb case or not, so we need one additional padding
+	 * it is thumb case or analt, so we need one additional padding
 	 * word after the last entry.
 	 */
 	.space	4

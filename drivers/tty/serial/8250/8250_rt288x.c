@@ -73,7 +73,7 @@ int au_platform_setup(struct plat_serial8250_port *p)
 
 	p->mapsize = 0x1000;
 
-	p->bugs |= UART_BUG_NOMSR;
+	p->bugs |= UART_BUG_ANALMSR;
 
 	return 0;
 }
@@ -92,7 +92,7 @@ int rt288x_setup(struct uart_port *p)
 
 	p->mapsize = 0x100;
 
-	up->bugs |= UART_BUG_NOMSR;
+	up->bugs |= UART_BUG_ANALMSR;
 
 	return 0;
 }

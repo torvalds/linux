@@ -38,11 +38,11 @@ struct stm32_composite_cfg {
 	int	div;
 };
 
-#define NO_ID 0xFFFFFFFF
+#define ANAL_ID 0xFFFFFFFF
 
-#define NO_STM32_MUX		0xFFFF
-#define NO_STM32_DIV		0xFFFF
-#define NO_STM32_GATE		0xFFFF
+#define ANAL_STM32_MUX		0xFFFF
+#define ANAL_STM32_DIV		0xFFFF
+#define ANAL_STM32_GATE		0xFFFF
 
 struct clock_config {
 	unsigned long	id;
@@ -80,11 +80,11 @@ int stm32_rcc_init(struct device *dev, const struct of_device_id *match_data,
 		   void __iomem *base);
 
 /* MUX define */
-#define MUX_NO_RDY		0xFF
+#define MUX_ANAL_RDY		0xFF
 #define MUX_SAFE		BIT(7)
 
 /* DIV define */
-#define DIV_NO_RDY		0xFF
+#define DIV_ANAL_RDY		0xFF
 
 /* Definition of clock structure */
 struct clk_stm32_mux {

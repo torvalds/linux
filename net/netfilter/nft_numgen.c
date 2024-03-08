@@ -68,7 +68,7 @@ static int nft_ng_inc_init(const struct nft_ctx *ctx,
 
 	priv->counter = kmalloc(sizeof(*priv->counter), GFP_KERNEL);
 	if (!priv->counter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atomic_set(priv->counter, priv->modulus - 1);
 

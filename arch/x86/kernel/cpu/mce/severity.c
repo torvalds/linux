@@ -25,15 +25,15 @@
  * table-driven way. The rules are simply processed in order, first
  * match wins.
  *
- * Note this is only used for machine check exceptions, the corrected
+ * Analte this is only used for machine check exceptions, the corrected
  * errors use much simpler rules. The exceptions still check for the corrected
  * errors, but only to leave them alone for the CMCI handler (except for
  * panic situations)
  */
 
 enum context { IN_KERNEL = 1, IN_USER = 2, IN_KERNEL_RECOV = 3 };
-enum ser { SER_REQUIRED = 1, NO_SER = 2 };
-enum exception { EXCP_CONTEXT = 1, NO_EXCP = 2 };
+enum ser { SER_REQUIRED = 1, ANAL_SER = 2 };
+enum exception { EXCP_CONTEXT = 1, ANAL_EXCP = 2 };
 
 static struct severity {
 	u64 mask;
@@ -57,9 +57,9 @@ static struct severity {
 #define  USER		.context = IN_USER
 #define  KERNEL_RECOV	.context = IN_KERNEL_RECOV
 #define  SER		.ser = SER_REQUIRED
-#define  NOSER		.ser = NO_SER
+#define  ANALSER		.ser = ANAL_SER
 #define  EXCP		.excp = EXCP_CONTEXT
-#define  NOEXCP		.excp = NO_EXCP
+#define  ANALEXCP		.excp = ANAL_EXCP
 #define  BITCLR(x)	.mask = x, .result = 0
 #define  BITSET(x)	.mask = x, .result = x
 #define  MCGMASK(x, y)	.mcgmask = x, .mcgres = y
@@ -70,41 +70,41 @@ static struct severity {
 #define	MCI_ADDR (MCI_STATUS_ADDRV|MCI_STATUS_MISCV)
 
 	MCESEV(
-		NO, "Invalid",
+		ANAL, "Invalid",
 		BITCLR(MCI_STATUS_VAL)
 		),
 	MCESEV(
-		NO, "Not enabled",
+		ANAL, "Analt enabled",
 		EXCP, BITCLR(MCI_STATUS_EN)
 		),
 	MCESEV(
 		PANIC, "Processor context corrupt",
 		BITSET(MCI_STATUS_PCC)
 		),
-	/* When MCIP is not set something is very confused */
+	/* When MCIP is analt set something is very confused */
 	MCESEV(
-		PANIC, "MCIP not set in MCA handler",
+		PANIC, "MCIP analt set in MCA handler",
 		EXCP, MCGMASK(MCG_STATUS_MCIP, 0)
 		),
-	/* Neither return not error IP -- no chance to recover -> PANIC */
+	/* Neither return analt error IP -- anal chance to recover -> PANIC */
 	MCESEV(
-		PANIC, "Neither restart nor error IP",
+		PANIC, "Neither restart analr error IP",
 		EXCP, MCGMASK(MCG_STATUS_RIPV|MCG_STATUS_EIPV, 0)
 		),
 	MCESEV(
-		PANIC, "In kernel and no restart IP",
+		PANIC, "In kernel and anal restart IP",
 		EXCP, KERNEL, MCGMASK(MCG_STATUS_RIPV, 0)
 		),
 	MCESEV(
-		PANIC, "In kernel and no restart IP",
+		PANIC, "In kernel and anal restart IP",
 		EXCP, KERNEL_RECOV, MCGMASK(MCG_STATUS_RIPV, 0)
 		),
 	MCESEV(
 		KEEP, "Corrected error",
-		NOSER, BITCLR(MCI_STATUS_UC)
+		ANALSER, BITCLR(MCI_STATUS_UC)
 		),
 	/*
-	 * known AO MCACODs reported via MCE or CMC:
+	 * kanalwn AO MCACODs reported via MCE or CMC:
 	 *
 	 * SRAO could be signaled either via a machine check exception or
 	 * CMCI with the corresponding bit S 1 or 0. So we don't need to
@@ -123,7 +123,7 @@ static struct severity {
 	 * to report uncorrected errors using CMCI with a special signature.
 	 * UC=0, MSCOD=0x0010, MCACOD=binary(000X 0000 1100 XXXX) reported
 	 * in one of the memory controller banks.
-	 * Set severity to "AO" for same action as normal patrol scrub error.
+	 * Set severity to "AO" for same action as analrmal patrol scrub error.
 	 */
 	MCESEV(
 		AO, "Uncorrected Patrol Scrub Error",
@@ -131,9 +131,9 @@ static struct severity {
 		MODEL_STEPPING(INTEL_FAM6_SKYLAKE_X, 4), BANK_RANGE(13, 18)
 	),
 
-	/* ignore OVER for UCNA */
+	/* iganalre OVER for UCNA */
 	MCESEV(
-		UCNA, "Uncorrected no action required",
+		UCNA, "Uncorrected anal action required",
 		SER, MASK(MCI_UC_SAR, MCI_STATUS_UC)
 		),
 	MCESEV(
@@ -142,7 +142,7 @@ static struct severity {
 		MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_STATUS_UC|MCI_STATUS_AR)
 		),
 	MCESEV(
-		KEEP, "Non signaled machine check",
+		KEEP, "Analn signaled machine check",
 		SER, BITCLR(MCI_STATUS_S)
 		),
 
@@ -151,7 +151,7 @@ static struct severity {
 		SER, BITSET(MCI_STATUS_OVER|MCI_UC_SAR)
 		),
 
-	/* known AR MCACODs: */
+	/* kanalwn AR MCACODs: */
 #ifdef	CONFIG_MEMORY_FAILURE
 	MCESEV(
 		KEEP, "Action required but unaffected thread is continuable",
@@ -185,12 +185,12 @@ static struct severity {
 		),
 #endif
 	MCESEV(
-		PANIC, "Action required: unknown MCACOD",
+		PANIC, "Action required: unkanalwn MCACOD",
 		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_SAR)
 		),
 
 	MCESEV(
-		SOME, "Action optional: unknown MCACOD",
+		SOME, "Action optional: unkanalwn MCACOD",
 		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_S)
 		),
 	MCESEV(
@@ -212,7 +212,7 @@ static struct severity {
 		BITSET(MCI_STATUS_UC)
 		),
 	MCESEV(
-		SOME, "No match",
+		SOME, "Anal match",
 		BITSET(0)
 		)	/* always matches. keep at end */
 };
@@ -230,7 +230,7 @@ static bool is_copy_from_user(struct pt_regs *regs)
 	if (!regs)
 		return false;
 
-	if (copy_from_kernel_nofault(insn_buf, (void *)regs->ip, MAX_INSN_SIZE))
+	if (copy_from_kernel_analfault(insn_buf, (void *)regs->ip, MAX_INSN_SIZE))
 		return false;
 
 	ret = insn_decode_kernel(&insn, insn_buf);
@@ -262,16 +262,16 @@ static bool is_copy_from_user(struct pt_regs *regs)
 
 /*
  * If mcgstatus indicated that ip/cs on the stack were
- * no good, then "m->cs" will be zero and we will have
+ * anal good, then "m->cs" will be zero and we will have
  * to assume the worst case (IN_KERNEL) as we actually
- * have no idea what we were executing when the machine
+ * have anal idea what we were executing when the machine
  * check hit.
  * If we do have a good "m->cs" (or a faked one in the
  * case we were executing in VM86 mode) we can use it to
  * distinguish an exception taken in user from from one
  * taken in the kernel.
  */
-static noinstr int error_context(struct mce *m, struct pt_regs *regs)
+static analinstr int error_context(struct mce *m, struct pt_regs *regs)
 {
 	int fixup_type;
 	bool copy_user;
@@ -307,7 +307,7 @@ static noinstr int error_context(struct mce *m, struct pt_regs *regs)
 }
 
 /* See AMD PPR(s) section Machine Check Error Handling. */
-static noinstr int mce_severity_amd(struct mce *m, struct pt_regs *regs, char **msg, bool is_excp)
+static analinstr int mce_severity_amd(struct mce *m, struct pt_regs *regs, char **msg, bool is_excp)
 {
 	char *panic_msg = NULL;
 	int ret;
@@ -318,7 +318,7 @@ static noinstr int mce_severity_amd(struct mce *m, struct pt_regs *regs, char **
 	 */
 	ret = MCE_AR_SEVERITY;
 
-	/* Processor Context Corrupt, no need to fumble too much, die! */
+	/* Processor Context Corrupt, anal need to fumble too much, die! */
 	if (m->status & MCI_STATUS_PCC) {
 		panic_msg = "Processor Context Corrupt";
 		ret = MCE_PANIC_SEVERITY;
@@ -331,8 +331,8 @@ static noinstr int mce_severity_amd(struct mce *m, struct pt_regs *regs, char **
 	}
 
 	/*
-	 * If the UC bit is not set, the system either corrected or deferred
-	 * the error. No action will be required after logging the error.
+	 * If the UC bit is analt set, the system either corrected or deferred
+	 * the error. Anal action will be required after logging the error.
 	 */
 	if (!(m->status & MCI_STATUS_UC)) {
 		ret = MCE_KEEP_SEVERITY;
@@ -341,7 +341,7 @@ static noinstr int mce_severity_amd(struct mce *m, struct pt_regs *regs, char **
 
 	/*
 	 * On MCA overflow, without the MCA overflow recovery feature the
-	 * system will not be able to recover, panic.
+	 * system will analt be able to recover, panic.
 	 */
 	if ((m->status & MCI_STATUS_OVER) && !mce_flags.overflow_recov) {
 		panic_msg = "Overflowed uncorrected error without MCA Overflow Recovery";
@@ -367,9 +367,9 @@ out:
 	return ret;
 }
 
-static noinstr int mce_severity_intel(struct mce *m, struct pt_regs *regs, char **msg, bool is_excp)
+static analinstr int mce_severity_intel(struct mce *m, struct pt_regs *regs, char **msg, bool is_excp)
 {
-	enum exception excp = (is_excp ? EXCP_CONTEXT : NO_EXCP);
+	enum exception excp = (is_excp ? EXCP_CONTEXT : ANAL_EXCP);
 	enum context ctx = error_context(m, regs);
 	struct severity *s;
 
@@ -380,7 +380,7 @@ static noinstr int mce_severity_intel(struct mce *m, struct pt_regs *regs, char 
 			continue;
 		if (s->ser == SER_REQUIRED && !mca_cfg.ser)
 			continue;
-		if (s->ser == NO_SER && mca_cfg.ser)
+		if (s->ser == ANAL_SER && mca_cfg.ser)
 			continue;
 		if (s->context && ctx != s->context)
 			continue;
@@ -400,7 +400,7 @@ static noinstr int mce_severity_intel(struct mce *m, struct pt_regs *regs, char 
 	}
 }
 
-int noinstr mce_severity(struct mce *m, struct pt_regs *regs, char **msg, bool is_excp)
+int analinstr mce_severity(struct mce *m, struct pt_regs *regs, char **msg, bool is_excp)
 {
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD ||
 	    boot_cpu_data.x86_vendor == X86_VENDOR_HYGON)
@@ -442,7 +442,7 @@ static const struct seq_operations severities_seq_ops = {
 	.show	= s_show,
 };
 
-static int severities_coverage_open(struct inode *inode, struct file *file)
+static int severities_coverage_open(struct ianalde *ianalde, struct file *file)
 {
 	return seq_open(file, &severities_seq_ops);
 }

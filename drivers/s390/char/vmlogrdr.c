@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
@@ -68,13 +68,13 @@ struct vmlogrdr_priv_t {
 	int iucv_path_severed;
 	struct iucv_message local_interrupt_buffer;
 	atomic_t receive_ready;
-	int minor_num;
+	int mianalr_num;
 	char * buffer;
 	char * current_position;
 	int remaining;
 	ulong residual_length;
 	int buffer_free;
-	int dev_in_use; /* 1: already opened, 0: not opened*/
+	int dev_in_use; /* 1: already opened, 0: analt opened*/
 	spinlock_t priv_lock;
 	struct device  *device;
 	struct device  *class_device;
@@ -86,8 +86,8 @@ struct vmlogrdr_priv_t {
 /*
  * File operation structure for vmlogrdr devices
  */
-static int vmlogrdr_open(struct inode *, struct file *);
-static int vmlogrdr_release(struct inode *, struct file *);
+static int vmlogrdr_open(struct ianalde *, struct file *);
+static int vmlogrdr_release(struct ianalde *, struct file *);
 static ssize_t vmlogrdr_read (struct file *filp, char __user *data,
 			      size_t count, loff_t * ppos);
 
@@ -96,7 +96,7 @@ static const struct file_operations vmlogrdr_fops = {
 	.open    = vmlogrdr_open,
 	.release = vmlogrdr_release,
 	.read    = vmlogrdr_read,
-	.llseek  = no_llseek,
+	.llseek  = anal_llseek,
 };
 
 
@@ -118,16 +118,16 @@ static DECLARE_WAIT_QUEUE_HEAD(read_wait_queue);
 
 /*
  * pointer to system service private structure
- * minor number 0 --> logrec
- * minor number 1 --> account
- * minor number 2 --> symptom
+ * mianalr number 0 --> logrec
+ * mianalr number 1 --> account
+ * mianalr number 2 --> symptom
  */
 
 static struct vmlogrdr_priv_t sys_ser[] = {
 	{ .system_service = "*LOGREC ",
 	  .internal_name  = "logrec",
 	  .recording_name = "EREP",
-	  .minor_num      = 0,
+	  .mianalr_num      = 0,
 	  .buffer_free    = 1,
 	  .priv_lock	  = __SPIN_LOCK_UNLOCKED(sys_ser[0].priv_lock),
 	  .autorecording  = 1,
@@ -136,7 +136,7 @@ static struct vmlogrdr_priv_t sys_ser[] = {
 	{ .system_service = "*ACCOUNT",
 	  .internal_name  = "account",
 	  .recording_name = "ACCOUNT",
-	  .minor_num      = 1,
+	  .mianalr_num      = 1,
 	  .buffer_free    = 1,
 	  .priv_lock	  = __SPIN_LOCK_UNLOCKED(sys_ser[1].priv_lock),
 	  .autorecording  = 1,
@@ -145,7 +145,7 @@ static struct vmlogrdr_priv_t sys_ser[] = {
 	{ .system_service = "*SYMPTOM",
 	  .internal_name  = "symptom",
 	  .recording_name = "SYMPTOM",
-	  .minor_num      = 2,
+	  .mianalr_num      = 2,
 	  .buffer_free    = 1,
 	  .priv_lock	  = __SPIN_LOCK_UNLOCKED(sys_ser[2].priv_lock),
 	  .autorecording  = 1,
@@ -153,7 +153,7 @@ static struct vmlogrdr_priv_t sys_ser[] = {
 	}
 };
 
-#define MAXMINOR  ARRAY_SIZE(sys_ser)
+#define MAXMIANALR  ARRAY_SIZE(sys_ser)
 
 static char FENCE[] = {"EOR"};
 static int vmlogrdr_major = 0;
@@ -221,14 +221,14 @@ static int vmlogrdr_get_recording_class_AB(void)
 
 	cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
 	len = strnlen(cp_response,sizeof(cp_response));
-	// now the parsing
+	// analw the parsing
 	tail=strnchr(cp_response,len,'=');
 	if (!tail)
 		return 0;
 	tail++;
 	if (!strncmp("ANY",tail,3))
 		return 1;
-	if (!strncmp("NONE",tail,4))
+	if (!strncmp("ANALNE",tail,4))
 		return 0;
 	/*
 	 * expect comma separated list of classes here, if one of them
@@ -247,10 +247,10 @@ static int vmlogrdr_recording(struct vmlogrdr_priv_t * logptr,
 
 	char cp_command[80];
 	char cp_response[160];
-	char *onoff, *qid_string;
+	char *oanalff, *qid_string;
 	int rc;
 
-	onoff = ((action == 1) ? "ON" : "OFF");
+	oanalff = ((action == 1) ? "ON" : "OFF");
 	qid_string = ((recording_class_AB == 1) ? " QID * " : "");
 
 	/*
@@ -274,13 +274,13 @@ static int vmlogrdr_recording(struct vmlogrdr_priv_t * logptr,
 	memset(cp_response, 0x00, sizeof(cp_response));
 	snprintf(cp_command, sizeof(cp_command), "RECORDING %s %s %s",
 		logptr->recording_name,
-		onoff,
+		oanalff,
 		qid_string);
 	cpcmd(cp_command, cp_response, sizeof(cp_response), NULL);
 	/* The recording command will usually answer with 'Command complete'
 	 * on success, but when the specific service was never connected
 	 * before then there might be an additional informational message
-	 * 'HCPCRC8072I Recording entry not found' before the
+	 * 'HCPCRC8072I Recording entry analt found' before the
 	 * 'Command complete'. So I use strstr rather then the strncmp.
 	 */
 	if (strstr(cp_response,"Command complete"))
@@ -306,23 +306,23 @@ static int vmlogrdr_recording(struct vmlogrdr_priv_t * logptr,
 }
 
 
-static int vmlogrdr_open (struct inode *inode, struct file *filp)
+static int vmlogrdr_open (struct ianalde *ianalde, struct file *filp)
 {
 	int dev_num = 0;
 	struct vmlogrdr_priv_t * logptr = NULL;
 	int connect_rc = 0;
 	int ret;
 
-	dev_num = iminor(inode);
-	if (dev_num >= MAXMINOR)
-		return -ENODEV;
+	dev_num = imianalr(ianalde);
+	if (dev_num >= MAXMIANALR)
+		return -EANALDEV;
 	logptr = &sys_ser[dev_num];
 
 	/*
 	 * only allow for blocking reads to be open
 	 */
-	if (filp->f_flags & O_NONBLOCK)
-		return -EOPNOTSUPP;
+	if (filp->f_flags & O_ANALNBLOCK)
+		return -EOPANALTSUPP;
 
 	/* Besure this device hasn't already been opened */
 	spin_lock_bh(&logptr->priv_lock);
@@ -361,7 +361,7 @@ static int vmlogrdr_open (struct inode *inode, struct file *filp)
 		goto out_path;
 	}
 
-	/* We've issued the connect and now we must wait for a
+	/* We've issued the connect and analw we must wait for a
 	 * ConnectionComplete or ConnectinSevered Interrupt
 	 * before we can continue to process.
 	 */
@@ -369,7 +369,7 @@ static int vmlogrdr_open (struct inode *inode, struct file *filp)
 		   || (logptr->iucv_path_severed));
 	if (logptr->iucv_path_severed)
 		goto out_record;
-	nonseekable_open(inode, filp);
+	analnseekable_open(ianalde, filp);
 	return 0;
 
 out_record:
@@ -384,7 +384,7 @@ out_dev:
 }
 
 
-static int vmlogrdr_release (struct inode *inode, struct file *filp)
+static int vmlogrdr_release (struct ianalde *ianalde, struct file *filp)
 {
 	int ret;
 
@@ -460,7 +460,7 @@ static int vmlogrdr_receive_data(struct vmlogrdr_priv_t *priv)
 		priv->current_position = priv->buffer;
 		if (priv->residual_length == 0){
 			/* the whole record has been captured,
-			 * now add the fence */
+			 * analw add the fence */
 			atomic_dec(&priv->receive_ready);
 			buffer = priv->buffer + user_data_count;
 			memcpy(buffer, FENCE, sizeof(FENCE));
@@ -558,7 +558,7 @@ static ssize_t vmlogrdr_purge_store(struct device * dev,
         /*
 	 * The recording command needs to be called with option QID
 	 * for guests that have previlege classes A or B.
-	 * Other guests will not recognize the command and we have to
+	 * Other guests will analt recognize the command and we have to
 	 * issue the same command without the QID parameter.
 	 */
 
@@ -747,7 +747,7 @@ static int vmlogrdr_register_device(struct vmlogrdr_priv_t *priv)
 		 */
 		dev->release = (void (*)(struct device *))kfree;
 	} else
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = device_register(dev);
 	if (ret) {
 		put_device(dev);
@@ -756,7 +756,7 @@ static int vmlogrdr_register_device(struct vmlogrdr_priv_t *priv)
 
 	priv->class_device = device_create(vmlogrdr_class, dev,
 					   MKDEV(vmlogrdr_major,
-						 priv->minor_num),
+						 priv->mianalr_num),
 					   priv, "%s", dev_name(dev));
 	if (IS_ERR(priv->class_device)) {
 		ret = PTR_ERR(priv->class_device);
@@ -771,7 +771,7 @@ static int vmlogrdr_register_device(struct vmlogrdr_priv_t *priv)
 
 static int vmlogrdr_unregister_device(struct vmlogrdr_priv_t *priv)
 {
-	device_destroy(vmlogrdr_class, MKDEV(vmlogrdr_major, priv->minor_num));
+	device_destroy(vmlogrdr_class, MKDEV(vmlogrdr_major, priv->mianalr_num));
 	if (priv->device != NULL) {
 		device_unregister(priv->device);
 		priv->device=NULL;
@@ -785,15 +785,15 @@ static int vmlogrdr_register_cdev(dev_t dev)
 	int rc = 0;
 	vmlogrdr_cdev = cdev_alloc();
 	if (!vmlogrdr_cdev) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	vmlogrdr_cdev->owner = THIS_MODULE;
 	vmlogrdr_cdev->ops = &vmlogrdr_fops;
-	rc = cdev_add(vmlogrdr_cdev, dev, MAXMINOR);
+	rc = cdev_add(vmlogrdr_cdev, dev, MAXMIANALR);
 	if (!rc)
 		return 0;
 
-	// cleanup: cdev is not fully registered, no cdev_del here!
+	// cleanup: cdev is analt fully registered, anal cdev_del here!
 	kobject_put(&vmlogrdr_cdev->kobj);
 	vmlogrdr_cdev=NULL;
 	return rc;
@@ -808,13 +808,13 @@ static void vmlogrdr_cleanup(void)
 		cdev_del(vmlogrdr_cdev);
 		vmlogrdr_cdev=NULL;
 	}
-	for (i=0; i < MAXMINOR; ++i ) {
+	for (i=0; i < MAXMIANALR; ++i ) {
 		vmlogrdr_unregister_device(&sys_ser[i]);
 		free_page((unsigned long)sys_ser[i].buffer);
 	}
 	vmlogrdr_unregister_driver();
 	if (vmlogrdr_major) {
-		unregister_chrdev_region(MKDEV(vmlogrdr_major, 0), MAXMINOR);
+		unregister_chrdev_region(MKDEV(vmlogrdr_major, 0), MAXMIANALR);
 		vmlogrdr_major=0;
 	}
 }
@@ -827,13 +827,13 @@ static int __init vmlogrdr_init(void)
 	dev_t dev;
 
 	if (! MACHINE_IS_VM) {
-		pr_err("not running under VM, driver not loaded.\n");
-		return -ENODEV;
+		pr_err("analt running under VM, driver analt loaded.\n");
+		return -EANALDEV;
 	}
 
         recording_class_AB = vmlogrdr_get_recording_class_AB();
 
-	rc = alloc_chrdev_region(&dev, 0, MAXMINOR, "vmlogrdr");
+	rc = alloc_chrdev_region(&dev, 0, MAXMIANALR, "vmlogrdr");
 	if (rc)
 		return rc;
 	vmlogrdr_major = MAJOR(dev);
@@ -842,10 +842,10 @@ static int __init vmlogrdr_init(void)
 	if (rc)
 		goto cleanup;
 
-	for (i=0; i < MAXMINOR; ++i ) {
+	for (i=0; i < MAXMIANALR; ++i ) {
 		sys_ser[i].buffer = (char *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 		if (!sys_ser[i].buffer) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			break;
 		}
 		sys_ser[i].current_position = sys_ser[i].buffer;

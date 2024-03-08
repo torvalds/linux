@@ -18,9 +18,9 @@ pgprot_t pgprot_dmacoherent(pgprot_t prot)
 {
 	if (CPU_IS_040_OR_060) {
 		pgprot_val(prot) &= ~_PAGE_CACHE040;
-		pgprot_val(prot) |= _PAGE_GLOBAL040 | _PAGE_NOCACHE_S;
+		pgprot_val(prot) |= _PAGE_GLOBAL040 | _PAGE_ANALCACHE_S;
 	} else {
-		pgprot_val(prot) |= _PAGE_NOCACHE030;
+		pgprot_val(prot) |= _PAGE_ANALCACHE030;
 	}
 	return prot;
 }

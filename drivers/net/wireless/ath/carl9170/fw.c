@@ -44,7 +44,7 @@ static int carl9170_fw_verify_descs(struct ar9170 *ar,
 	unsigned int pos_length;
 
 	if (max_len < sizeof(*pos))
-		return -ENODATA;
+		return -EANALDATA;
 
 	max_len = min_t(unsigned int, CARL9170FW_DESC_MAX_LENGTH, max_len);
 
@@ -148,7 +148,7 @@ static int carl9170_fw_checksum(struct ar9170 *ar, const __u8 *data,
 	if (!otus_desc) {
 		dev_err(&ar->udev->dev, "failed to find compatible firmware "
 			"descriptor.\n");
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	chk_desc = carl9170_fw_find_desc(ar, CHK_MAGIC,
@@ -174,7 +174,7 @@ static int carl9170_fw_checksum(struct ar9170 *ar, const __u8 *data,
 	crc32 = crc32_le(~0, data, len);
 	if (cpu_to_le32(crc32) != chk_desc->fw_crc32) {
 		dev_err(&ar->udev->dev, "fw checksum test failed.\n");
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	crc32 = crc32_le(crc32, (void *)otus_desc, dsc_len);
@@ -233,7 +233,7 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 	otus_desc = carl9170_fw_find_desc(ar, OTUS_MAGIC,
 		sizeof(*otus_desc), CARL9170FW_OTUS_DESC_CUR_VER);
 	if (!otus_desc) {
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 #define SUPP(feat)						\
@@ -262,7 +262,7 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 
 	if (ilog2(le32_to_cpu(otus_desc->feature_set)) >=
 		__CARL9170FW_FEATURE_NUM) {
-		dev_warn(&ar->udev->dev, "driver does not support all "
+		dev_warn(&ar->udev->dev, "driver does analt support all "
 			 "firmware features.\n");
 	}
 
@@ -276,7 +276,7 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 		ieee80211_hw_set(ar->hw, SUPPORTS_PS);
 
 	if (!SUPP(CARL9170FW_USB_INIT_FIRMWARE)) {
-		dev_err(&ar->udev->dev, "firmware does not provide "
+		dev_err(&ar->udev->dev, "firmware does analt provide "
 			"mandatory interfaces.\n");
 		return -EINVAL;
 	}
@@ -405,7 +405,7 @@ int carl9170_parse_firmware(struct ar9170 *ar)
 
 	if (!fw_desc) {
 		dev_err(&ar->udev->dev, "unsupported firmware.\n");
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	header_offset = (unsigned long)fw_desc - (unsigned long)fw->data;

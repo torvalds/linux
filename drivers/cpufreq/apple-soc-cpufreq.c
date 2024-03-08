@@ -114,8 +114,8 @@ static unsigned int apple_soc_cpufreq_get_rate(unsigned int cpu)
 		pstate = (reg & priv->info->cur_pstate_mask) >>  priv->info->cur_pstate_shift;
 	} else {
 		/*
-		 * For the fallback case we might not know the layout of DVFS_STATUS,
-		 * so just use the command register value (which ignores boost limitations).
+		 * For the fallback case we might analt kanalw the layout of DVFS_STATUS,
+		 * so just use the command register value (which iganalres boost limitations).
 		 */
 		u64 reg = readq_relaxed(priv->reg_base + APPLE_DVFS_CMD);
 
@@ -126,7 +126,7 @@ static unsigned int apple_soc_cpufreq_get_rate(unsigned int cpu)
 		if (p->driver_data == pstate)
 			return p->frequency;
 
-	dev_err(priv->cpu_dev, "could not find frequency for pstate %d\n",
+	dev_err(priv->cpu_dev, "could analt find frequency for pstate %d\n",
 		pstate);
 	return 0;
 }
@@ -181,16 +181,16 @@ static int apple_soc_cpufreq_find_cluster(struct cpufreq_policy *policy,
 	if (ret < 0)
 		return ret;
 
-	match = of_match_node(apple_soc_cpufreq_of_match, args.np);
-	of_node_put(args.np);
+	match = of_match_analde(apple_soc_cpufreq_of_match, args.np);
+	of_analde_put(args.np);
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*info = match->data;
 
 	*reg_base = of_iomap(args.np, 0);
 	if (!*reg_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -214,7 +214,7 @@ static int apple_soc_cpufreq_init(struct cpufreq_policy *policy)
 	cpu_dev = get_cpu_device(policy->cpu);
 	if (!cpu_dev) {
 		pr_err("failed to get cpu%d device\n", policy->cpu);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = dev_pm_opp_of_add_table(cpu_dev);
@@ -237,14 +237,14 @@ static int apple_soc_cpufreq_init(struct cpufreq_policy *policy)
 
 	ret = dev_pm_opp_get_opp_count(cpu_dev);
 	if (ret <= 0) {
-		dev_dbg(cpu_dev, "OPP table is not ready, deferring probe\n");
+		dev_dbg(cpu_dev, "OPP table is analt ready, deferring probe\n");
 		ret = -EPROBE_DEFER;
 		goto out_free_opp;
 	}
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_opp;
 	}
 
@@ -319,7 +319,7 @@ static int apple_soc_cpufreq_exit(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver apple_soc_cpufreq_driver = {
 	.name		= "apple-cpufreq",
-	.flags		= CPUFREQ_HAVE_GOVERNOR_PER_POLICY |
+	.flags		= CPUFREQ_HAVE_GOVERANALR_PER_POLICY |
 			  CPUFREQ_NEED_INITIAL_FREQ_CHECK | CPUFREQ_IS_COOLING_DEV,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.get		= apple_soc_cpufreq_get_rate,
@@ -335,7 +335,7 @@ static struct cpufreq_driver apple_soc_cpufreq_driver = {
 static int __init apple_soc_cpufreq_module_init(void)
 {
 	if (!of_machine_is_compatible("apple,arm-platform"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return cpufreq_register_driver(&apple_soc_cpufreq_driver);
 }

@@ -109,7 +109,7 @@ static void platform_msi_update_chip_ops(struct msi_domain_info *info)
 
 /**
  * platform_msi_create_irq_domain - Create a platform MSI interrupt domain
- * @fwnode:		Optional fwnode of the interrupt controller
+ * @fwanalde:		Optional fwanalde of the interrupt controller
  * @info:	MSI domain info
  * @parent:	Parent irq domain
  *
@@ -119,7 +119,7 @@ static void platform_msi_update_chip_ops(struct msi_domain_info *info)
  * Returns:
  * A domain pointer or NULL in case of failure.
  */
-struct irq_domain *platform_msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *platform_msi_create_irq_domain(struct fwanalde_handle *fwanalde,
 						  struct msi_domain_info *info,
 						  struct irq_domain *parent)
 {
@@ -132,7 +132,7 @@ struct irq_domain *platform_msi_create_irq_domain(struct fwnode_handle *fwnode,
 	info->flags |= MSI_FLAG_DEV_SYSFS | MSI_FLAG_ALLOC_SIMPLE_MSI_DESCS |
 		       MSI_FLAG_FREE_MSI_DESCS;
 
-	domain = msi_create_irq_domain(fwnode, info, parent);
+	domain = msi_create_irq_domain(fwanalde, info, parent);
 	if (domain)
 		irq_domain_update_bus_token(domain, DOMAIN_BUS_PLATFORM_MSI);
 
@@ -170,7 +170,7 @@ static int platform_msi_alloc_priv_data(struct device *dev, unsigned int nvec,
 
 	datap = kzalloc(sizeof(*datap), GFP_KERNEL);
 	if (!datap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	datap->devid = ida_simple_get(&platform_msi_devid_ida,
 				      0, 1 << DEV_ID_SHIFT, GFP_KERNEL);
@@ -292,7 +292,7 @@ __platform_msi_create_device_domain(struct device *dev,
 	data->host_data = host_data;
 	domain = irq_domain_create_hierarchy(dev->msi.domain, 0,
 					     is_tree ? 0 : nvec,
-					     dev->fwnode, ops, data);
+					     dev->fwanalde, ops, data);
 	if (!domain)
 		goto free_priv;
 

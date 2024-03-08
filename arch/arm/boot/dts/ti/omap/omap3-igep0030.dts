@@ -54,6 +54,6 @@
 	vmmc-supply = <&vmmcsdio_fixed>;
 	mmc-pwrseq = <&mmc2_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 };
 

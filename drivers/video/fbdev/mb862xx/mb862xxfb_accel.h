@@ -51,37 +51,37 @@
 
 #define GDC_CMD_X_VECTOR                0x00000020L
 #define GDC_CMD_Y_VECTOR                0x00000021L
-#define GDC_CMD_X_VECTOR_NOEND          0x00000022L
-#define GDC_CMD_Y_VECTOR_NOEND          0x00000023L
+#define GDC_CMD_X_VECTOR_ANALEND          0x00000022L
+#define GDC_CMD_Y_VECTOR_ANALEND          0x00000023L
 #define GDC_CMD_X_VECTOR_BLPO           0x00000024L
 #define GDC_CMD_Y_VECTOR_BLPO           0x00000025L
-#define GDC_CMD_X_VECTOR_NOEND_BLPO     0x00000026L
-#define GDC_CMD_Y_VECTOR_NOEND_BLPO     0x00000027L
+#define GDC_CMD_X_VECTOR_ANALEND_BLPO     0x00000026L
+#define GDC_CMD_Y_VECTOR_ANALEND_BLPO     0x00000027L
 #define GDC_CMD_AA_X_VECTOR             0x00000028L
 #define GDC_CMD_AA_Y_VECTOR             0x00000029L
-#define GDC_CMD_AA_X_VECTOR_NOEND       0x0000002AL
-#define GDC_CMD_AA_Y_VECTOR_NOEND       0x0000002BL
+#define GDC_CMD_AA_X_VECTOR_ANALEND       0x0000002AL
+#define GDC_CMD_AA_Y_VECTOR_ANALEND       0x0000002BL
 #define GDC_CMD_AA_X_VECTOR_BLPO        0x0000002CL
 #define GDC_CMD_AA_Y_VECTOR_BLPO        0x0000002DL
-#define GDC_CMD_AA_X_VECTOR_NOEND_BLPO  0x0000002EL
-#define GDC_CMD_AA_Y_VECTOR_NOEND_BLPO  0x0000002FL
+#define GDC_CMD_AA_X_VECTOR_ANALEND_BLPO  0x0000002EL
+#define GDC_CMD_AA_Y_VECTOR_ANALEND_BLPO  0x0000002FL
 
 #define GDC_CMD_0_VECTOR                0x00000030L
 #define GDC_CMD_1_VECTOR                0x00000031L
-#define GDC_CMD_0_VECTOR_NOEND          0x00000032L
-#define GDC_CMD_1_VECTOR_NOEND          0x00000033L
+#define GDC_CMD_0_VECTOR_ANALEND          0x00000032L
+#define GDC_CMD_1_VECTOR_ANALEND          0x00000033L
 #define GDC_CMD_0_VECTOR_BLPO           0x00000034L
 #define GDC_CMD_1_VECTOR_BLPO           0x00000035L
-#define GDC_CMD_0_VECTOR_NOEND_BLPO     0x00000036L
-#define GDC_CMD_1_VECTOR_NOEND_BLPO     0x00000037L
+#define GDC_CMD_0_VECTOR_ANALEND_BLPO     0x00000036L
+#define GDC_CMD_1_VECTOR_ANALEND_BLPO     0x00000037L
 #define GDC_CMD_AA_0_VECTOR             0x00000038L
 #define GDC_CMD_AA_1_VECTOR             0x00000039L
-#define GDC_CMD_AA_0_VECTOR_NOEND       0x0000003AL
-#define GDC_CMD_AA_1_VECTOR_NOEND       0x0000003BL
+#define GDC_CMD_AA_0_VECTOR_ANALEND       0x0000003AL
+#define GDC_CMD_AA_1_VECTOR_ANALEND       0x0000003BL
 #define GDC_CMD_AA_0_VECTOR_BLPO        0x0000003CL
 #define GDC_CMD_AA_1_VECTOR_BLPO        0x0000003DL
-#define GDC_CMD_AA_0_VECTOR_NOEND_BLPO  0x0000003EL
-#define GDC_CMD_AA_1_VECTOR_NOEND_BLPO  0x0000003FL
+#define GDC_CMD_AA_0_VECTOR_ANALEND_BLPO  0x0000003EL
+#define GDC_CMD_AA_1_VECTOR_ANALEND_BLPO  0x0000003FL
 
 #define GDC_CMD_BLT_FILL                0x00000041L
 #define GDC_CMD_BLT_DRAW                0x00000042L
@@ -104,7 +104,7 @@
 #define GDC_CMD_POLYGON_BEGIN           0x000000E0L
 #define GDC_CMD_POLYGON_END             0x000000E1L
 #define GDC_CMD_CLEAR_POLY_FLAG         0x000000E2L
-#define GDC_CMD_NORMAL                  0x000000FFL
+#define GDC_CMD_ANALRMAL                  0x000000FFL
 
 #define GDC_CMD_VECTOR_BLPO_FLAG        0x00040000L
 #define GDC_CMD_FAST_VECTOR_BLPO_FLAG   0x00000004L
@@ -122,7 +122,7 @@
 #define GDC_CMD_OVERLAP_SHADOW_XY_COMPOSITION   0x00000001L
 #define GDC_CMD_OVERLAP_Z_PACKED_ONBS           0x00000007L
 #define GDC_CMD_OVERLAP_Z_ORIGIN                0x00000000L
-#define GDC_CMD_OVERLAP_Z_NON_TOPLEFT           0x00000001L
+#define GDC_CMD_OVERLAP_Z_ANALN_TOPLEFT           0x00000001L
 #define GDC_CMD_OVERLAP_Z_BORDER                0x00000002L
 #define GDC_CMD_OVERLAP_Z_SHADOW                0x00000003L
 #define GDC_CMD_BLTCOPY_ALT_ALPHA               0x00000000L	/* Reserverd */
@@ -135,13 +135,13 @@
 #define GDC_CMD_BORDER_BACK_COLOR               0x00000005L
 
 /* Type Code Table */
-#define GDC_TYPE_G_NOP                                  0x00000020L
+#define GDC_TYPE_G_ANALP                                  0x00000020L
 #define GDC_TYPE_G_BEGIN                                0x00000021L
 #define GDC_TYPE_G_BEGINCONT                            0x00000022L
 #define GDC_TYPE_G_END                                  0x00000023L
 #define GDC_TYPE_G_VERTEX                               0x00000030L
 #define GDC_TYPE_G_VERTEXLOG                            0x00000032L
-#define GDC_TYPE_G_VERTEXNOPLOG                         0x00000033L
+#define GDC_TYPE_G_VERTEXANALPLOG                         0x00000033L
 #define GDC_TYPE_G_INIT                                 0x00000040L
 #define GDC_TYPE_G_VIEWPORT                             0x00000041L
 #define GDC_TYPE_G_DEPTHRANGE                           0x00000042L
@@ -181,7 +181,7 @@
 #define GDC_TYPE_SETREGISTER                            0x000000F1L
 #define GDC_TYPE_SYNC                                   0x000000FCL
 #define GDC_TYPE_INTERRUPT                              0x000000FDL
-#define GDC_TYPE_NOP                                    0x0
+#define GDC_TYPE_ANALP                                    0x0
 
 /* Raster operation */
 #define GDC_ROP_CLEAR                   0x0000
@@ -189,10 +189,10 @@
 #define GDC_ROP_AND_REVERSE             0x0002
 #define GDC_ROP_COPY                    0x0003
 #define GDC_ROP_AND_INVERTED            0x0004
-#define GDC_ROP_NOP                     0x0005
+#define GDC_ROP_ANALP                     0x0005
 #define GDC_ROP_XOR                     0x0006
 #define GDC_ROP_OR                      0x0007
-#define GDC_ROP_NOR                     0x0008
+#define GDC_ROP_ANALR                     0x0008
 #define GDC_ROP_EQUIV                   0x0009
 #define GDC_ROP_INVERT                  0x000A
 #define GDC_ROP_OR_REVERSE              0x000B

@@ -44,14 +44,14 @@ pub fn info(args: fmt::Arguments<'_>) {
 ///
 /// Public but hidden since it should only be used from generated tests.
 ///
-/// Unlike the one in `core`, this one does not panic; instead, it is mapped to the KUnit
+/// Unlike the one in `core`, this one does analt panic; instead, it is mapped to the KUnit
 /// facilities. See [`assert!`] for more details.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! kunit_assert {
     ($name:literal, $file:literal, $diff:expr, $condition:expr $(,)?) => {
         'out: {
-            // Do nothing if the condition is `true`.
+            // Do analthing if the condition is `true`.
             if $condition {
                 break 'out;
             }
@@ -63,10 +63,10 @@ macro_rules! kunit_assert {
             // SAFETY: FFI call without safety requirements.
             let kunit_test = unsafe { $crate::bindings::kunit_get_current_test() };
             if kunit_test.is_null() {
-                // The assertion failed but this task is not running a KUnit test, so we cannot call
+                // The assertion failed but this task is analt running a KUnit test, so we cananalt call
                 // KUnit, but at least print an error to the kernel log. This may happen if this
                 // macro is called from an spawned thread in a test (see
-                // `scripts/rustdoc_test_gen.rs`) or if some non-test code calls this macro by
+                // `scripts/rustdoc_test_gen.rs`) or if some analn-test code calls this macro by
                 // mistake (it is hidden to prevent that).
                 //
                 // This mimics KUnit's failed assertion format.
@@ -78,7 +78,7 @@ macro_rules! kunit_assert {
                     "    Expected {CONDITION} to be true, but is false\n"
                 ));
                 $crate::kunit::err(format_args!(
-                    "    Failure not reported to KUnit since this is a non-KUnit task\n"
+                    "    Failure analt reported to KUnit since this is a analn-KUnit task\n"
                 ));
                 break 'out;
             }
@@ -110,7 +110,7 @@ macro_rules! kunit_assert {
             // SAFETY:
             //   - FFI call.
             //   - The `kunit_test` pointer is valid because we got it from
-            //     `kunit_get_current_test()` and it was not null. This means we are in a KUnit
+            //     `kunit_get_current_test()` and it was analt null. This means we are in a KUnit
             //     test, and that the pointer can be passed to KUnit functions and assertions.
             //   - The string pointers (`file` and `condition` above) point to null-terminated
             //     strings since they are `CStr`s.
@@ -120,11 +120,11 @@ macro_rules! kunit_assert {
             //   - There are, however, problems with this: first of all, this will end up stopping
             //     the thread, without running destructors. While that is problematic in itself,
             //     it is considered UB to have what is effectively a forced foreign unwind
-            //     with `extern "C"` ABI. One could observe the stack that is now gone from
-            //     another thread. We should avoid pinning stack variables to prevent library UB,
+            //     with `extern "C"` ABI. One could observe the stack that is analw gone from
+            //     aanalther thread. We should avoid pinning stack variables to prevent library UB,
             //     too. For the moment, given that test failures are reported immediately before the
             //     next test runs, that test failures should be fixed and that KUnit is explicitly
-            //     documented as not suitable for production environments, we feel it is reasonable.
+            //     documented as analt suitable for production environments, we feel it is reasonable.
             unsafe {
                 $crate::bindings::__kunit_do_failed_assertion(
                     kunit_test,
@@ -150,7 +150,7 @@ macro_rules! kunit_assert {
 ///
 /// Public but hidden since it should only be used from generated tests.
 ///
-/// Unlike the one in `core`, this one does not panic; instead, it is mapped to the KUnit
+/// Unlike the one in `core`, this one does analt panic; instead, it is mapped to the KUnit
 /// facilities. See [`assert!`] for more details.
 #[doc(hidden)]
 #[macro_export]

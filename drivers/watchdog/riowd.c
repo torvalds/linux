@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/of.h>
@@ -26,7 +26,7 @@
  * When the watchdog triggers, it asserts a line to the BBC (Boot Bus
  * Controller) of the machine.  The BBC can only be configured to
  * trigger a power-on reset when the signal is asserted.  The BBC
- * can be configured to ignore the signal entirely as well.
+ * can be configured to iganalre the signal entirely as well.
  *
  * The only Super I/O device register we care about is at index
  * 0x05 (WDTO_INDEX) which is the watchdog time-out in minutes (1-255).
@@ -41,7 +41,7 @@
  * index 0x07 is merely a sampling of the line from the watchdog to the
  * BBC.
  *
- * The watchdog device generates no interrupts.
+ * The watchdog device generates anal interrupts.
  */
 
 MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
@@ -74,13 +74,13 @@ static void riowd_writereg(struct riowd *p, u8 val, int index)
 	spin_unlock_irqrestore(&p->lock, flags);
 }
 
-static int riowd_open(struct inode *inode, struct file *filp)
+static int riowd_open(struct ianalde *ianalde, struct file *filp)
 {
-	stream_open(inode, filp);
+	stream_open(ianalde, filp);
 	return 0;
 }
 
-static int riowd_release(struct inode *inode, struct file *filp)
+static int riowd_release(struct ianalde *ianalde, struct file *filp)
 {
 	return 0;
 }
@@ -160,7 +160,7 @@ static ssize_t riowd_write(struct file *file, const char __user *buf,
 
 static const struct file_operations riowd_fops = {
 	.owner =		THIS_MODULE,
-	.llseek =		no_llseek,
+	.llseek =		anal_llseek,
 	.unlocked_ioctl =	riowd_ioctl,
 	.compat_ioctl	=	compat_ptr_ioctl,
 	.open =			riowd_open,
@@ -169,7 +169,7 @@ static const struct file_operations riowd_fops = {
 };
 
 static struct miscdevice riowd_miscdev = {
-	.minor	= WATCHDOG_MINOR,
+	.mianalr	= WATCHDOG_MIANALR,
 	.name	= "watchdog",
 	.fops	= &riowd_fops
 };
@@ -182,7 +182,7 @@ static int riowd_probe(struct platform_device *op)
 	if (riowd_device)
 		goto out;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	p = devm_kzalloc(&op->dev, sizeof(*p), GFP_KERNEL);
 	if (!p)
 		goto out;
@@ -191,7 +191,7 @@ static int riowd_probe(struct platform_device *op)
 
 	p->regs = of_ioremap(&op->resource[0], 0, 2, DRIVER_NAME);
 	if (!p->regs) {
-		pr_err("Cannot map registers\n");
+		pr_err("Cananalt map registers\n");
 		goto out;
 	}
 	/* Make miscdev useable right away */
@@ -199,7 +199,7 @@ static int riowd_probe(struct platform_device *op)
 
 	err = misc_register(&riowd_miscdev);
 	if (err) {
-		pr_err("Cannot register watchdog misc device\n");
+		pr_err("Cananalt register watchdog misc device\n");
 		goto out_iounmap;
 	}
 

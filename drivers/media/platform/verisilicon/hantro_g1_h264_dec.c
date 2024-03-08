@@ -226,7 +226,7 @@ static void set_buffers(struct hantro_ctx *ctx, struct vb2_v4l2_buffer *src_buf)
 	if (ctrls->sps->profile_idc > 66 && ctrls->decode->nal_ref_idc) {
 		unsigned int bytes_per_mb = 384;
 
-		/* DMV buffer for monochrome start directly after Y-plane */
+		/* DMV buffer for moanalchrome start directly after Y-plane */
 		if (ctrls->sps->profile_idc >= 100 &&
 		    ctrls->sps->chroma_format_idc == 0)
 			bytes_per_mb = 256;

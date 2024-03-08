@@ -154,7 +154,7 @@ static inline u64 nsl_get_isetcookie(struct nvdimm_drvdata *ndd,
 {
 	/* WARN future refactor attempts that break this assumption */
 	if (dev_WARN_ONCE(ndd->dev, ndd->cxl,
-			  "CXL labels do not use the isetcookie concept\n"))
+			  "CXL labels do analt use the isetcookie concept\n"))
 		return 0;
 	return __le64_to_cpu(nd_label->efi.isetcookie);
 }
@@ -234,7 +234,7 @@ static inline u64 nsl_get_lbasize(struct nvdimm_drvdata *ndd,
 				  struct nd_namespace_label *nd_label)
 {
 	/*
-	 * Yes, for some reason the EFI labels convey a massive 64-bit
+	 * Anal, for some reason the EFI labels convey a massive 64-bit
 	 * lbasize, that got fixed for CXL.
 	 */
 	if (ndd->cxl)
@@ -415,9 +415,9 @@ struct nd_region {
 	u16 ndr_mappings;
 	u64 ndr_size;
 	u64 ndr_start;
-	int id, num_lanes, ro, numa_node, target_node;
+	int id, num_lanes, ro, numa_analde, target_analde;
 	void *provider_data;
-	struct kernfs_node *bb_state;
+	struct kernfs_analde *bb_state;
 	struct badblocks bb;
 	struct nd_interleave_set *nd_set;
 	struct nd_percpu_lane __percpu *lane;
@@ -455,11 +455,11 @@ struct nd_btt {
 	int id;
 	int initial_offset;
 	u16 version_major;
-	u16 version_minor;
+	u16 version_mianalr;
 };
 
 enum nd_pfn_mode {
-	PFN_MODE_NONE,
+	PFN_MODE_ANALNE,
 	PFN_MODE_RAM,
 	PFN_MODE_PMEM,
 };
@@ -493,7 +493,7 @@ int nd_integrity_init(struct gendisk *disk, unsigned long meta_size);
 void wait_nvdimm_bus_probe_idle(struct device *dev);
 void nd_device_register(struct device *dev);
 void nd_device_unregister(struct device *dev, enum nd_async_mode mode);
-void nd_device_notify(struct device *dev, enum nvdimm_event event);
+void nd_device_analtify(struct device *dev, enum nvdimm_event event);
 int nd_uuid_store(struct device *dev, uuid_t **uuid_out, const char *buf,
 		size_t len);
 ssize_t nd_size_select_show(unsigned long current_size,
@@ -547,7 +547,7 @@ struct device *nd_btt_create(struct nd_region *nd_region);
 static inline int nd_btt_probe(struct device *dev,
 		struct nd_namespace_common *ndns)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline bool is_nd_btt(struct device *dev)
@@ -577,7 +577,7 @@ extern const struct attribute_group *nd_pfn_attribute_groups[];
 static inline int nd_pfn_probe(struct device *dev,
 		struct nd_namespace_common *ndns)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline bool is_nd_pfn(struct device *dev)
@@ -592,7 +592,7 @@ static inline struct device *nd_pfn_create(struct nd_region *nd_region)
 
 static inline int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -605,7 +605,7 @@ struct device *nd_dax_create(struct nd_region *nd_region);
 static inline int nd_dax_probe(struct device *dev,
 		struct nd_namespace_common *ndns)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline bool is_nd_dax(const struct device *dev)

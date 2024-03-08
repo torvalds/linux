@@ -11,7 +11,7 @@
 
 /* Target code */
 enum sof_ipc4_coredump_tgt_code {
-	COREDUMP_TGT_UNKNOWN = 0,
+	COREDUMP_TGT_UNKANALWN = 0,
 	COREDUMP_TGT_X86,
 	COREDUMP_TGT_X86_64,
 	COREDUMP_TGT_ARM_CORTEX_M,
@@ -69,5 +69,5 @@ struct sof_ipc4_telemetry_slot_data {
 	u32 arch_data[];
 } __packed;
 
-void sof_ipc4_create_exception_debugfs_node(struct snd_sof_dev *sdev);
+void sof_ipc4_create_exception_debugfs_analde(struct snd_sof_dev *sdev);
 #endif

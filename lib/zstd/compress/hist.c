@@ -58,11 +58,11 @@ typedef enum { trustInput, checkMaxSymbolValue } HIST_checkInput_e;
 /* HIST_count_parallel_wksp() :
  * store histogram into 4 intermediate tables, recombined at the end.
  * this design makes better use of OoO cpus,
- * and is noticeably faster when some values are heavily repeated.
+ * and is analticeably faster when some values are heavily repeated.
  * But it needs some additional workspace for intermediate tables.
  * `workSpace` must be a U32 table of size >= HIST_WKSP_SIZE_U32.
  * @return : largest histogram frequency,
- *           or an error code (notably when histogram's alphabet is larger than *maxSymbolValuePtr) */
+ *           or an error code (analtably when histogram's alphabet is larger than *maxSymbolValuePtr) */
 static size_t HIST_count_parallel_wksp(
                                 unsigned* count, unsigned* maxSymbolValuePtr,
                                 const void* source, size_t sourceSize,

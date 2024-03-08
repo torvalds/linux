@@ -44,8 +44,8 @@ static const __u64 num5 = 0xabab;
 static const __u64 num6 = 0xab;
 
 /* Relocation tests for strings. */
-static const char str0[32] = "abcdefghijklmnopqrstuvwxyz";
-static       char str1[32] = "abcdefghijklmnopqrstuvwxyz";
+static const char str0[32] = "abcdefghijklmanalpqrstuvwxyz";
+static       char str1[32] = "abcdefghijklmanalpqrstuvwxyz";
 static       char str2[32];
 
 /* Relocation tests for structs. */

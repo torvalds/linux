@@ -33,12 +33,12 @@ static int fun_ktls_add(struct net_device *netdev, struct sock *sk,
 	int rc;
 
 	if (direction != TLS_OFFLOAD_CTX_DIR_TX)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (crypto_info->version == TLS_1_2_VERSION)
 		req.version = FUN_KTLS_TLSV2;
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (crypto_info->cipher_type) {
 	case TLS_CIPHER_AES_GCM_128: {
@@ -52,7 +52,7 @@ static int fun_ktls_add(struct net_device *netdev, struct sock *sk,
 		break;
 	}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	rc = fun_submit_admin_sync_cmd(fp->fdev, &req.common, &rsp,
@@ -101,7 +101,7 @@ static int fun_ktls_resync(struct net_device *netdev, struct sock *sk, u32 seq,
 	int rc;
 
 	if (direction != TLS_OFFLOAD_CTX_DIR_TX)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	tx_ctx = tls_driver_ctx(sk, direction);
 

@@ -109,8 +109,8 @@
        #define M98088_DAI_OSR64                (1<<6)
 
 /* M98088_REG_16_DAI1_IOCFG, M98088_REG_1E_DAI2_IOCFG */
-       #define M98088_S1NORMAL                 (1<<6)
-       #define M98088_S2NORMAL                 (2<<6)
+       #define M98088_S1ANALRMAL                 (1<<6)
+       #define M98088_S2ANALRMAL                 (2<<6)
        #define M98088_SDATA                    (3<<0)
 
 /* M98088_REG_18_DAI1_FILTERS, M98088_REG_20_DAI2_FILTERS */

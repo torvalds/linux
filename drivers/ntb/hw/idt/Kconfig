@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config NTB_IDT
-	tristate "IDT PCIe-switch Non-Transparent Bridge support"
+	tristate "IDT PCIe-switch Analn-Transparent Bridge support"
 	depends on PCI
 	select HWMON
 	help
@@ -18,10 +18,10 @@ config NTB_IDT
 	 and SWPORTxCTL registers). Then all NT-function BARs must be enabled
 	 with chosen valid aperture. For memory windows related BARs the
 	 aperture settings shall determine the maximum size of memory windows
-	 accepted by a BAR. Note that BAR0 must map PCI configuration space
+	 accepted by a BAR. Analte that BAR0 must map PCI configuration space
 	 registers.
 
-	 It's worth to note, that since a part of this driver relies on the
+	 It's worth to analte, that since a part of this driver relies on the
 	 BAR settings of peer NT-functions, the BAR setups can't be done over
 	 kernel PCI fixups. That's why the alternative pre-initialization
 	 techniques like BIOS using SMBus interface or EEPROM should be

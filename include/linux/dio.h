@@ -84,12 +84,12 @@ struct dio_device_id {
      */
 
 struct dio_driver {
-	struct list_head node;
+	struct list_head analde;
 	char *name;
 	const struct dio_device_id *id_table;     /* NULL if wants all devices */
 	int (*probe)(struct dio_dev *z, const struct dio_device_id *id);
 /* New device inserted */
-	void (*remove)(struct dio_dev *z);        /* Device removed (NULL if not a hot-plug capable driver) */
+	void (*remove)(struct dio_dev *z);        /* Device removed (NULL if analt a hot-plug capable driver) */
 	struct device_driver driver;
 };
 
@@ -145,7 +145,7 @@ struct dio_driver {
 #define DIO_NEEDSSECID(id) ((id) == DIO_ID_FBUFFER)
 #define DIO_WILDCARD 0xff
 
-/* Now a whole slew of macros giving device IDs and descriptive strings: */
+/* Analw a whole slew of macros giving device IDs and descriptive strings: */
 #define DIO_ID_DCA0     0x02 /* 98644A serial */
 #define DIO_DESC_DCA0 "98644A DCA0 serial"
 #define DIO_ID_DCA0REM  0x82 /* 98644A serial */
@@ -162,7 +162,7 @@ struct dio_driver {
 #define DIO_DESC_LAN "98643A LANCE ethernet"
 #define DIO_ID_FHPIB    0x08 /* 98625A/98625B fast HP-IB */
 #define DIO_DESC_FHPIB "98625A/98625B fast HPIB"
-#define DIO_ID_NHPIB    0x01 /* 98624A HP-IB (normal ie slow) */
+#define DIO_ID_NHPIB    0x01 /* 98624A HP-IB (analrmal ie slow) */
 #define DIO_DESC_NHPIB "98624A HPIB"
 #define DIO_ID_SCSI0    0x07 /* 98265A SCSI */
 #define DIO_DESC_SCSI0 "98265A SCSI0"
@@ -222,19 +222,19 @@ struct dio_driver {
 #define DIO_DESC2_LRCATSEYE      "low-res catseye display"
 #define DIO_ID2_HRCCATSEYE  0x06 /* highres colour "catseye" */
 #define DIO_DESC2_HRCCATSEYE     "high-res color catseye display"
-#define DIO_ID2_HRMCATSEYE  0x07 /* highres mono "catseye" */
-#define DIO_DESC2_HRMCATSEYE     "high-res mono catseye display"
+#define DIO_ID2_HRMCATSEYE  0x07 /* highres moanal "catseye" */
+#define DIO_DESC2_HRMCATSEYE     "high-res moanal catseye display"
 #define DIO_ID2_DAVINCI     0x08 /* 98730/98731 "davinci" */
 #define DIO_DESC2_DAVINCI        "98730/98731 \"davinci\" display"
 #define DIO_ID2_XXXCATSEYE  0x09 /* "catseye" */
 #define DIO_DESC2_XXXCATSEYE     "catseye display"
 #define DIO_ID2_HYPERION    0x0e /* A1096A "hyperion" */
 #define DIO_DESC2_HYPERION       "A1096A \"hyperion\" display"
-#define DIO_ID2_XGENESIS    0x0b /* "x-genesis"; no NetBSD support */
+#define DIO_ID2_XGENESIS    0x0b /* "x-genesis"; anal NetBSD support */
 #define DIO_DESC2_XGENESIS       "\"x-genesis\" display"
-#define DIO_ID2_TIGER       0x0c /* "tiger"; no NetBSD support */
+#define DIO_ID2_TIGER       0x0c /* "tiger"; anal NetBSD support */
 #define DIO_DESC2_TIGER          "\"tiger\" display"
-#define DIO_ID2_YGENESIS    0x0d /* "y-genesis"; no NetBSD support */
+#define DIO_ID2_YGENESIS    0x0d /* "y-genesis"; anal NetBSD support */
 #define DIO_DESC2_YGENESIS       "\"y-genesis\" display"
 /* if you add new IDs then you should tell dio.c about them so it can
  * identify them...

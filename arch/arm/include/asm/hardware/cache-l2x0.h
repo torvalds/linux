@@ -8,7 +8,7 @@
 #ifndef __ASM_ARM_HARDWARE_L2X0_H
 #define __ASM_ARM_HARDWARE_L2X0_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/types.h>
 
@@ -154,7 +154,7 @@ extern int l2x0_of_init(u32 aux_val, u32 aux_mask);
 #else
 static inline int l2x0_of_init(u32 aux_val, u32 aux_mask)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

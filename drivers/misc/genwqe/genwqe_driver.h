@@ -31,10 +31,10 @@
 #define DRV_VERSION		"2.0.25"
 
 /*
- * Static minor number assignement, until we decide/implement
+ * Static mianalr number assignement, until we decide/implement
  * something dynamic.
  */
-#define GENWQE_MAX_MINOR	128 /* up to 128 possible genwqe devices */
+#define GENWQE_MAX_MIANALR	128 /* up to 128 possible genwqe devices */
 
 /**
  * genwqe_requ_alloc() - Allocate a new DDCB execution request

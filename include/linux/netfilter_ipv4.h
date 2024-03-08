@@ -34,7 +34,7 @@ static inline __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 static inline int nf_ip_route(struct net *net, struct dst_entry **dst,
 			      struct flowi *fl, bool strict)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /* CONFIG_INET */
 

@@ -42,7 +42,7 @@ static void atom_get_registers(struct snd_sof_dev *sdev,
 	/* first read regsisters */
 	sof_mailbox_read(sdev, offset, xoops, sizeof(*xoops));
 
-	/* note: variable AR register array is not read */
+	/* analte: variable AR register array is analt read */
 
 	/* then get panic info */
 	if (xoops->arch_hdr.totalsize > EXCEPT_MAX_HDR_SIZE) {
@@ -65,7 +65,7 @@ void atom_dump(struct snd_sof_dev *sdev, u32 flags)
 	u32 stack[STACK_DUMP_SIZE];
 	u64 status, panic, imrd, imrx;
 
-	/* now try generic SOF status messages */
+	/* analw try generic SOF status messages */
 	status = snd_sof_dsp_read64(sdev, DSP_BAR, SHIM_IPCD);
 	panic = snd_sof_dsp_read64(sdev, DSP_BAR, SHIM_IPCX);
 	atom_get_registers(sdev, &xoops, &panic_info, stack,
@@ -78,20 +78,20 @@ void atom_dump(struct snd_sof_dev *sdev, u32 flags)
 	imrd = snd_sof_dsp_read64(sdev, DSP_BAR, SHIM_IMRD);
 	dev_err(sdev->dev,
 		"error: ipc host -> DSP: pending %s complete %s raw 0x%llx\n",
-		(panic & SHIM_IPCX_BUSY) ? "yes" : "no",
-		(panic & SHIM_IPCX_DONE) ? "yes" : "no", panic);
+		(panic & SHIM_IPCX_BUSY) ? "anal" : "anal",
+		(panic & SHIM_IPCX_DONE) ? "anal" : "anal", panic);
 	dev_err(sdev->dev,
 		"error: mask host: pending %s complete %s raw 0x%llx\n",
-		(imrx & SHIM_IMRX_BUSY) ? "yes" : "no",
-		(imrx & SHIM_IMRX_DONE) ? "yes" : "no", imrx);
+		(imrx & SHIM_IMRX_BUSY) ? "anal" : "anal",
+		(imrx & SHIM_IMRX_DONE) ? "anal" : "anal", imrx);
 	dev_err(sdev->dev,
 		"error: ipc DSP -> host: pending %s complete %s raw 0x%llx\n",
-		(status & SHIM_IPCD_BUSY) ? "yes" : "no",
-		(status & SHIM_IPCD_DONE) ? "yes" : "no", status);
+		(status & SHIM_IPCD_BUSY) ? "anal" : "anal",
+		(status & SHIM_IPCD_DONE) ? "anal" : "anal", status);
 	dev_err(sdev->dev,
 		"error: mask DSP: pending %s complete %s raw 0x%llx\n",
-		(imrd & SHIM_IMRD_BUSY) ? "yes" : "no",
-		(imrd & SHIM_IMRD_DONE) ? "yes" : "no", imrd);
+		(imrd & SHIM_IMRD_BUSY) ? "anal" : "anal",
+		(imrd & SHIM_IMRD_DONE) ? "anal" : "anal", imrd);
 
 }
 EXPORT_SYMBOL_NS(atom_dump, SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
@@ -104,7 +104,7 @@ irqreturn_t atom_irq_handler(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
 	u64 ipcx, ipcd;
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	ipcx = snd_sof_dsp_read64(sdev, DSP_BAR, SHIM_IPCX);
 	ipcd = snd_sof_dsp_read64(sdev, DSP_BAR, SHIM_IPCD);
@@ -243,7 +243,7 @@ int atom_run(struct snd_sof_dev *sdev)
 		msleep(100);
 	}
 	if (tries < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* return init core mask */
 	return 1;
@@ -303,7 +303,7 @@ struct snd_soc_acpi_mach *atom_machine_select(struct snd_sof_dev *sdev)
 
 	mach = snd_soc_acpi_find_machine(desc->machines);
 	if (!mach) {
-		dev_warn(sdev->dev, "warning: No matching ASoC machine driver found\n");
+		dev_warn(sdev->dev, "warning: Anal matching ASoC machine driver found\n");
 		return NULL;
 	}
 
@@ -321,7 +321,7 @@ struct snd_soc_acpi_mach *atom_machine_select(struct snd_sof_dev *sdev)
 
 	if (!tplg_filename) {
 		dev_dbg(sdev->dev,
-			"error: no topology filename\n");
+			"error: anal topology filename\n");
 		return NULL;
 	}
 

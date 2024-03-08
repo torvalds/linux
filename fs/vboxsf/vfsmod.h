@@ -16,7 +16,7 @@
 
 /* The cast is to prevent assignment of void * to pointers of arbitrary type */
 #define VBOXSF_SBI(sb)	((struct vboxsf_sbi *)(sb)->s_fs_info)
-#define VBOXSF_I(i)	container_of(i, struct vboxsf_inode, vfs_inode)
+#define VBOXSF_I(i)	container_of(i, struct vboxsf_ianalde, vfs_ianalde)
 
 struct vboxsf_handle;
 
@@ -41,24 +41,24 @@ struct vboxsf_fs_context {
 struct vboxsf_sbi {
 	struct vboxsf_options o;
 	struct shfl_fsobjinfo root_info;
-	struct idr ino_idr;
-	spinlock_t ino_idr_lock; /* This protects ino_idr */
+	struct idr ianal_idr;
+	spinlock_t ianal_idr_lock; /* This protects ianal_idr */
 	struct nls_table *nls;
 	u32 next_generation;
 	u32 root;
 	int bdi_id;
 };
 
-/* per-inode information */
-struct vboxsf_inode {
+/* per-ianalde information */
+struct vboxsf_ianalde {
 	/* some information was changed, update data on next revalidate */
 	int force_restat;
-	/* list of open handles for this inode + lock protecting it */
+	/* list of open handles for this ianalde + lock protecting it */
 	struct list_head handle_list;
 	/* This mutex protects handle_list accesses */
 	struct mutex handle_list_mutex;
-	/* The VFS inode struct */
-	struct inode vfs_inode;
+	/* The VFS ianalde struct */
+	struct ianalde vfs_ianalde;
 };
 
 struct vboxsf_dir_info {
@@ -74,29 +74,29 @@ struct vboxsf_dir_buf {
 };
 
 /* globals */
-extern const struct inode_operations vboxsf_dir_iops;
-extern const struct inode_operations vboxsf_lnk_iops;
-extern const struct inode_operations vboxsf_reg_iops;
+extern const struct ianalde_operations vboxsf_dir_iops;
+extern const struct ianalde_operations vboxsf_lnk_iops;
+extern const struct ianalde_operations vboxsf_reg_iops;
 extern const struct file_operations vboxsf_dir_fops;
 extern const struct file_operations vboxsf_reg_fops;
 extern const struct address_space_operations vboxsf_reg_aops;
 extern const struct dentry_operations vboxsf_dentry_ops;
 
 /* from file.c */
-struct vboxsf_handle *vboxsf_create_sf_handle(struct inode *inode,
+struct vboxsf_handle *vboxsf_create_sf_handle(struct ianalde *ianalde,
 					      u64 handle, u32 access_flags);
-void vboxsf_release_sf_handle(struct inode *inode, struct vboxsf_handle *sf_handle);
+void vboxsf_release_sf_handle(struct ianalde *ianalde, struct vboxsf_handle *sf_handle);
 
 /* from utils.c */
-struct inode *vboxsf_new_inode(struct super_block *sb);
-int vboxsf_init_inode(struct vboxsf_sbi *sbi, struct inode *inode,
+struct ianalde *vboxsf_new_ianalde(struct super_block *sb);
+int vboxsf_init_ianalde(struct vboxsf_sbi *sbi, struct ianalde *ianalde,
 		       const struct shfl_fsobjinfo *info, bool reinit);
 int vboxsf_create_at_dentry(struct dentry *dentry,
 			    struct shfl_createparms *params);
 int vboxsf_stat(struct vboxsf_sbi *sbi, struct shfl_string *path,
 		struct shfl_fsobjinfo *info);
 int vboxsf_stat_dentry(struct dentry *dentry, struct shfl_fsobjinfo *info);
-int vboxsf_inode_revalidate(struct dentry *dentry);
+int vboxsf_ianalde_revalidate(struct dentry *dentry);
 int vboxsf_getattr(struct mnt_idmap *idmap, const struct path *path,
 		   struct kstat *kstat, u32 request_mask,
 		   unsigned int query_flags);

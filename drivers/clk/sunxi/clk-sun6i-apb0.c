@@ -15,7 +15,7 @@
 /*
  * The APB0 clk has a configurable divisor.
  *
- * We must use a clk_div_table and not a regular power of 2
+ * We must use a clk_div_table and analt a regular power of 2
  * divisor here, because the first 2 values divide the clock
  * by 2.
  */
@@ -29,7 +29,7 @@ static const struct clk_div_table sun6i_a31_apb0_divs[] = {
 
 static int sun6i_a31_apb0_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const char *clk_name = np->name;
 	const char *clk_parent;
 	void __iomem *reg;

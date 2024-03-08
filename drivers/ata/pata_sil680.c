@@ -4,7 +4,7 @@
  *
  * based upon
  *
- * linux/drivers/ide/pci/siimage.c		Version 1.07	Nov 30, 2003
+ * linux/drivers/ide/pci/siimage.c		Version 1.07	Analv 30, 2003
  *
  * Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2003		Red Hat <alan@redhat.com>
@@ -18,7 +18,7 @@
  *	if necessary
  *
  * TODO
- *	If we know all our devices are LBA28 (or LBA28 sized)  we could use
+ *	If we kanalw all our devices are LBA28 (or LBA28 sized)  we could use
  *	the command fifo mode.
  */
 
@@ -49,7 +49,7 @@
 
 static int sil680_selreg(struct ata_port *ap, int r)
 {
-	return 0xA0 + (ap->port_no << 4) + r;
+	return 0xA0 + (ap->port_anal << 4) + r;
 }
 
 /**
@@ -65,7 +65,7 @@ static int sil680_selreg(struct ata_port *ap, int r)
 
 static int sil680_seldev(struct ata_port *ap, struct ata_device *adev, int r)
 {
-	return 0xA0 + (ap->port_no << 4) + r + (adev->devno << 1);
+	return 0xA0 + (ap->port_anal << 4) + r + (adev->devanal << 1);
 }
 
 
@@ -95,7 +95,7 @@ static int sil680_cable_detect(struct ata_port *ap)
  *	@ap: ATA interface
  *	@adev: ATA device
  *
- *	Program the SIL680 registers for PIO mode. Note that the task speed
+ *	Program the SIL680 registers for PIO mode. Analte that the task speed
  *	registers are shared between the devices so we must pick the lowest
  *	mode for command work.
  */
@@ -111,11 +111,11 @@ static void sil680_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	int tfaddr = sil680_selreg(ap, 0x02);
 	int addr = sil680_seldev(ap, adev, 0x04);
-	int addr_mask = 0x80 + 4 * ap->port_no;
+	int addr_mask = 0x80 + 4 * ap->port_anal;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int pio = adev->pio_mode - XFER_PIO_0;
 	int lowest_pio = pio;
-	int port_shift = 4 * adev->devno;
+	int port_shift = 4 * adev->devanal;
 	u16 reg;
 	u8 mode;
 
@@ -163,8 +163,8 @@ static void sil680_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int ma = sil680_seldev(ap, adev, 0x08);
 	int ua = sil680_seldev(ap, adev, 0x0C);
-	int addr_mask = 0x80 + 4 * ap->port_no;
-	int port_shift = adev->devno * 4;
+	int addr_mask = 0x80 + 4 * ap->port_anal;
+	int port_shift = adev->devanal * 4;
 	u8 scsc, mode;
 	u16 multi, ultra;
 
@@ -312,7 +312,7 @@ static u8 sil680_init_chip(struct pci_dev *pdev, int *try_mmio)
 	case 0x20:
 		dev_info(&pdev->dev, "sil680: Using PCI clock.\n");
 		break;
-	/* This last case is _NOT_ ok */
+	/* This last case is _ANALT_ ok */
 	case 0x30:
 		dev_err(&pdev->dev, "sil680: Clock disabled ?\n");
 	}
@@ -351,7 +351,7 @@ static int sil680_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			ppi[0] = &info_slow;
 			break;
 		case 0x30:
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	if (!try_mmio)
@@ -367,7 +367,7 @@ static int sil680_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Allocate host and set it up */
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 2);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 	host->iomap = pcim_iomap_table(pdev);
 
 	/* Setup DMA masks */

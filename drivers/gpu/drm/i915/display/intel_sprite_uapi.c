@@ -24,7 +24,7 @@ static void intel_plane_set_ckey(struct intel_plane_state *plane_state,
 
 	/*
 	 * We want src key enabled on the
-	 * sprite and not on the primary.
+	 * sprite and analt on the primary.
 	 */
 	if (plane->id == PLANE_PRIMARY &&
 	    set->flags & I915_SET_COLORKEY_SOURCE)
@@ -32,7 +32,7 @@ static void intel_plane_set_ckey(struct intel_plane_state *plane_state,
 
 	/*
 	 * On SKL+ we want dst key enabled on
-	 * the primary and not on the sprite.
+	 * the primary and analt on the sprite.
 	 */
 	if (DISPLAY_VER(dev_priv) >= 9 && plane->id != PLANE_PRIMARY &&
 	    set->flags & I915_SET_COLORKEY_DESTINATION)
@@ -50,8 +50,8 @@ int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
-	/* ignore the pointless "none" flag */
-	set->flags &= ~I915_SET_COLORKEY_NONE;
+	/* iganalre the pointless "analne" flag */
+	set->flags &= ~I915_SET_COLORKEY_ANALNE;
 
 	if (set->flags & ~(I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE))
 		return -EINVAL;
@@ -66,7 +66,7 @@ int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 
 	plane = drm_plane_find(dev, file_priv, set->plane_id);
 	if (!plane || plane->type != DRM_PLANE_TYPE_OVERLAY)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * SKL+ only plane 2 can do destination keying against plane 1.
@@ -82,7 +82,7 @@ int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 
 	state = drm_atomic_state_alloc(plane->dev);
 	if (!state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	state->acquire_ctx = &ctx;

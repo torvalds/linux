@@ -28,7 +28,7 @@
 
 #define EDAC_MOD_STR	"e752x_edac"
 
-static int report_non_memory_errors;
+static int report_analn_memory_errors;
 static int force_function_unhide;
 static int sysbus_parity = -1;
 
@@ -79,7 +79,7 @@ static struct edac_pci_ctl_info *e752x_pci;
 					/*
 					 * 6:5     Scrub Completion Count
 					 * 3:2     Scrub Rate (i3100 only)
-					 *      01=fast 10=normal
+					 *      01=fast 10=analrmal
 					 * 1:0     Scrub Mode enable
 					 *      00=off 10=on
 					 */
@@ -268,9 +268,9 @@ static const struct e752x_dev_info e752x_devs[] = {
 
 /* Valid scrub rates for the e752x/3100 hardware memory scrubber. We
  * map the scrubbing bandwidth to a hardware register value. The 'set'
- * operation finds the 'matching or higher value'.  Note that scrubbing
+ * operation finds the 'matching or higher value'.  Analte that scrubbing
  * on the e752x can only be enabled/disabled.  The 3100 supports
- * a normal and fast mode.
+ * a analrmal and fast mode.
  */
 
 #define SDRATE_EOT 0xFFFFFFFF
@@ -281,7 +281,7 @@ struct scrubrate {
 };
 
 /* Rate below assumes same performance as i3100 using PC3200 DDR2 in
- * normal mode.  e752x bridges don't support choosing normal or fast mode,
+ * analrmal mode.  e752x bridges don't support choosing analrmal or fast mode,
  * so the scrubbing bandwidth value isn't all that important - scrubbing is
  * either on or off.
  */
@@ -292,11 +292,11 @@ static const struct scrubrate scrubrates_e752x[] = {
 };
 
 /* Fast mode: 2 GByte PC3200 DDR2 scrubbed in 33s = 63161283 bytes/s
- * Normal mode: 125 (32000 / 256) times slower than fast mode.
+ * Analrmal mode: 125 (32000 / 256) times slower than fast mode.
  */
 static const struct scrubrate scrubrates_i3100[] = {
 	{0,		0x00},	/* Scrubbing Off */
-	{500000,	0x0a},	/* Normal mode - 32k clocks */
+	{500000,	0x0a},	/* Analrmal mode - 32k clocks */
 	{62500000,	0x06},	/* Fast mode - 256 clocks */
 	{SDRATE_EOT,	0x00}	/* End of Table */
 };
@@ -360,7 +360,7 @@ static void do_process_ce(struct mem_ctl_info *mci, u16 error_one,
 			row = i;
 		else
 			e752x_mc_printk(mci, KERN_WARNING,
-					"row %d not found in remap table\n",
+					"row %d analt found in remap table\n",
 					row);
 	} else
 		row = edac_mc_find_csrow_by_page(mci, page);
@@ -443,7 +443,7 @@ static inline void process_ue(struct mem_ctl_info *mci, u16 error_one,
 		do_process_ue(mci, error_one, ded_add, scrb_add);
 }
 
-static inline void process_ue_no_info_wr(struct mem_ctl_info *mci,
+static inline void process_ue_anal_info_wr(struct mem_ctl_info *mci,
 					 int *error_found, int handle_error)
 {
 	*error_found = 1;
@@ -511,7 +511,7 @@ static char *global_message[11] = {
 
 #define DRAM_ENTRY	9
 
-static char *fatal_message[2] = { "Non-Fatal ", "Fatal " };
+static char *fatal_message[2] = { "Analn-Fatal ", "Fatal " };
 
 static void do_global_error(int fatal, u32 errors)
 {
@@ -523,7 +523,7 @@ static void do_global_error(int fatal, u32 errors)
 			 * we are to report ALL errors, then
 			 * report the error
 			 */
-			if ((i == DRAM_ENTRY) || report_non_memory_errors)
+			if ((i == DRAM_ENTRY) || report_analn_memory_errors)
 				e752x_printk(KERN_WARNING, "%sError %s\n",
 					fatal_message[fatal],
 					global_message[i]);
@@ -568,40 +568,40 @@ static inline void hub_error(int fatal, u8 errors, int *error_found,
 }
 
 #define NSI_FATAL_MASK		0x0c080081
-#define NSI_NON_FATAL_MASK	0x23a0ba64
-#define NSI_ERR_MASK		(NSI_FATAL_MASK | NSI_NON_FATAL_MASK)
+#define NSI_ANALN_FATAL_MASK	0x23a0ba64
+#define NSI_ERR_MASK		(NSI_FATAL_MASK | NSI_ANALN_FATAL_MASK)
 
 static char *nsi_message[30] = {
 	"NSI Link Down",	/* NSI_FERR/NSI_NERR bit 0, fatal error */
 	"",						/* reserved */
-	"NSI Parity Error",				/* bit 2, non-fatal */
+	"NSI Parity Error",				/* bit 2, analn-fatal */
 	"",						/* reserved */
 	"",						/* reserved */
-	"Correctable Error Message",			/* bit 5, non-fatal */
-	"Non-Fatal Error Message",			/* bit 6, non-fatal */
+	"Correctable Error Message",			/* bit 5, analn-fatal */
+	"Analn-Fatal Error Message",			/* bit 6, analn-fatal */
 	"Fatal Error Message",				/* bit 7, fatal */
 	"",						/* reserved */
-	"Receiver Error",				/* bit 9, non-fatal */
+	"Receiver Error",				/* bit 9, analn-fatal */
 	"",						/* reserved */
-	"Bad TLP",					/* bit 11, non-fatal */
-	"Bad DLLP",					/* bit 12, non-fatal */
-	"REPLAY_NUM Rollover",				/* bit 13, non-fatal */
+	"Bad TLP",					/* bit 11, analn-fatal */
+	"Bad DLLP",					/* bit 12, analn-fatal */
+	"REPLAY_NUM Rollover",				/* bit 13, analn-fatal */
 	"",						/* reserved */
-	"Replay Timer Timeout",				/* bit 15, non-fatal */
+	"Replay Timer Timeout",				/* bit 15, analn-fatal */
 	"",						/* reserved */
 	"",						/* reserved */
 	"",						/* reserved */
 	"Data Link Protocol Error",			/* bit 19, fatal */
 	"",						/* reserved */
-	"Poisoned TLP",					/* bit 21, non-fatal */
+	"Poisoned TLP",					/* bit 21, analn-fatal */
 	"",						/* reserved */
-	"Completion Timeout",				/* bit 23, non-fatal */
-	"Completer Abort",				/* bit 24, non-fatal */
-	"Unexpected Completion",			/* bit 25, non-fatal */
+	"Completion Timeout",				/* bit 23, analn-fatal */
+	"Completer Abort",				/* bit 24, analn-fatal */
+	"Unexpected Completion",			/* bit 25, analn-fatal */
 	"Receiver Overflow",				/* bit 26, fatal */
 	"Malformed TLP",				/* bit 27, fatal */
 	"",						/* reserved */
-	"Unsupported Request"				/* bit 29, non-fatal */
+	"Unsupported Request"				/* bit 29, analn-fatal */
 };
 
 static void do_nsi_error(int fatal, u32 errors)
@@ -637,7 +637,7 @@ static void do_membuf_error(u8 errors)
 
 	for (i = 0; i < 4; i++) {
 		if (errors & (1 << i))
-			e752x_printk(KERN_WARNING, "Non-Fatal Error %s\n",
+			e752x_printk(KERN_WARNING, "Analn-Fatal Error %s\n",
 				membuf_message[i]);
 	}
 }
@@ -656,7 +656,7 @@ static char *sysbus_message[10] = {
 	"Addr Strobe Glitch",
 	"Data Parity",
 	"Addr Above TOM",
-	"Non DRAM Lock Error",
+	"Analn DRAM Lock Error",
 	"MCERR", "BINIT",
 	"Memory Parity",
 	"IO Subsystem Parity"
@@ -725,8 +725,8 @@ static void e752x_check_ns_interface(struct e752x_error_info *info,
 		if (stat32 & NSI_FATAL_MASK)	/* check for fatal errors */
 			nsi_error(1, stat32 & NSI_FATAL_MASK, error_found,
 				  handle_error);
-		if (stat32 & NSI_NON_FATAL_MASK) /* check for non-fatal ones */
-			nsi_error(0, stat32 & NSI_NON_FATAL_MASK, error_found,
+		if (stat32 & NSI_ANALN_FATAL_MASK) /* check for analn-fatal ones */
+			nsi_error(0, stat32 & NSI_ANALN_FATAL_MASK, error_found,
 				  handle_error);
 	}
 	stat32 = info->nsi_nerr;
@@ -734,8 +734,8 @@ static void e752x_check_ns_interface(struct e752x_error_info *info,
 		if (stat32 & NSI_FATAL_MASK)
 			nsi_error(1, stat32 & NSI_FATAL_MASK, error_found,
 				  handle_error);
-		if (stat32 & NSI_NON_FATAL_MASK)
-			nsi_error(0, stat32 & NSI_NON_FATAL_MASK, error_found,
+		if (stat32 & NSI_ANALN_FATAL_MASK)
+			nsi_error(0, stat32 & NSI_ANALN_FATAL_MASK, error_found,
 				  handle_error);
 	}
 }
@@ -749,7 +749,7 @@ static void e752x_check_sysbus(struct e752x_error_info *info,
 	stat32 = info->sysbus_ferr + (info->sysbus_nerr << 16);
 
 	if (stat32 == 0)
-		return;		/* no errors */
+		return;		/* anal errors */
 
 	error32 = (stat32 >> 16) & 0x3ff;
 	stat32 = stat32 & 0x3ff;
@@ -806,10 +806,10 @@ static void e752x_check_dram(struct mem_ctl_info *mci,
 			info->dram_sec2_syndrome, error_found, handle_error);
 
 	if (error_one & 0x4040)
-		process_ue_no_info_wr(mci, error_found, handle_error);
+		process_ue_anal_info_wr(mci, error_found, handle_error);
 
 	if (error_next & 0x4040)
-		process_ue_no_info_wr(mci, error_found, handle_error);
+		process_ue_anal_info_wr(mci, error_found, handle_error);
 
 	if (error_one & 0x2020)
 		process_ded_retry(mci, error_one, info->dram_retr_add,
@@ -871,7 +871,7 @@ static void e752x_get_error_info(struct mem_ctl_info *mci,
 		pci_read_config_dword(dev, E752X_DRAM_RETR_ADD,
 				&info->dram_retr_add);
 
-		/* ignore the reserved bits just in case */
+		/* iganalre the reserved bits just in case */
 		if (info->hi_ferr & 0x7f)
 			pci_write_config_byte(dev, E752X_HI_FERR,
 					info->hi_ferr);
@@ -1070,7 +1070,7 @@ static void e752x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 	unsigned long last_cumul_size;
 	int index, mem_dev, drc_chan;
 	int drc_drbg;		/* DRB granularity 0=64mb, 1=128mb */
-	int drc_ddim;		/* DRAM Data Integrity Mode 0=none, 2=edac */
+	int drc_ddim;		/* DRAM Data Integrity Mode 0=analne, 2=edac */
 	u8 value;
 	u32 dra, drc, cumul_size, i, nr_pages;
 
@@ -1101,7 +1101,7 @@ static void e752x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		cumul_size = value << (25 + drc_drbg - PAGE_SHIFT);
 		edac_dbg(3, "(%d) cumul_size 0x%x\n", index, cumul_size);
 		if (cumul_size == last_cumul_size)
-			continue;	/* not populated */
+			continue;	/* analt populated */
 
 		csrow->first_page = last_cumul_size;
 		csrow->last_page = cumul_size - 1;
@@ -1121,7 +1121,7 @@ static void e752x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 				mci->edac_cap |= EDAC_FLAG_SECDED;
 			}
 		} else
-			edac_mode = EDAC_NONE;
+			edac_mode = EDAC_ANALNE;
 		for (i = 0; i < csrow->nr_channels; i++) {
 			struct dimm_info *dimm = csrow->channels[i]->dimm;
 
@@ -1148,7 +1148,7 @@ static void e752x_init_mem_map_table(struct pci_dev *pdev,
 		pci_read_config_byte(pdev, E752X_DRB + index, &value);
 		/* test if there is a dimm in this slot */
 		if (value == last) {
-			/* no dimm in the slot, so flag it as empty */
+			/* anal dimm in the slot, so flag it as empty */
 			pvt->map[index] = 0xff;
 			pvt->map[index + 1] = 0xff;
 		} else {	/* there is a dimm in the slot */
@@ -1184,7 +1184,7 @@ static int e752x_get_devs(struct pci_dev *pdev, int dev_idx,
 	}
 
 	if (pvt->dev_d0f1 == NULL) {
-		e752x_printk(KERN_ERR, "error reporting device not found:"
+		e752x_printk(KERN_ERR, "error reporting device analt found:"
 			"vendor %x device 0x%x (broken BIOS?)\n",
 			PCI_VENDOR_ID_INTEL, e752x_devs[dev_idx].err_dev);
 		return 1;
@@ -1218,7 +1218,7 @@ static void e752x_init_sysbus_parity_mask(struct e752x_pvt *pvt)
 	if (sysbus_parity != -1) {
 		enable = sysbus_parity;
 	} else if (cpu_id[0] && !strstr(cpu_id, "Xeon")) {
-		e752x_printk(KERN_INFO, "System Bus Parity not "
+		e752x_printk(KERN_INFO, "System Bus Parity analt "
 			     "supported by CPU, disabling\n");
 		enable = 0;
 	}
@@ -1268,13 +1268,13 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 
 	/* check to see if device 0 function 1 is enabled; if it isn't, we
 	 * assume the BIOS has reserved it for a reason and is expecting
-	 * exclusive access, we take care not to violate that assumption and
+	 * exclusive access, we take care analt to violate that assumption and
 	 * fail the probe. */
 	pci_read_config_byte(pdev, E752X_DEVPRES1, &stat8);
 	if (!force_function_unhide && !(stat8 & (1 << 5))) {
 		printk(KERN_INFO "Contact your BIOS vendor to see if the "
 			"E752x error registers can be safely un-hidden\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	stat8 |= (1 << 5);
 	pci_write_config_byte(pdev, E752X_DEVPRES1, stat8);
@@ -1292,13 +1292,13 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	layers[1].is_virt_csrow = false;
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
 	if (mci == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edac_dbg(3, "init mci\n");
 	mci->mtype_cap = MEM_FLAG_RDDR;
 	/* 3100 IMCH supports SECDEC only */
 	mci->edac_ctl_cap = (dev_idx == I3100) ? EDAC_FLAG_SECDED :
-		(EDAC_FLAG_NONE | EDAC_FLAG_SECDED | EDAC_FLAG_S4ECD4ED);
+		(EDAC_FLAG_ANALNE | EDAC_FLAG_SECDED | EDAC_FLAG_S4ECD4ED);
 	/* FIXME - what if different memory types are in different csrows? */
 	mci->mod_name = EDAC_MOD_STR;
 	mci->pdev = &pdev->dev;
@@ -1310,7 +1310,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 
 	if (e752x_get_devs(pdev, dev_idx, pvt)) {
 		edac_mc_free(mci);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	edac_dbg(3, "more mci init\n");
@@ -1321,7 +1321,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->set_sdram_scrub_rate = set_sdram_scrub_rate;
 	mci->get_sdram_scrub_rate = get_sdram_scrub_rate;
 
-	/* set the map type.  1 = normal, 0 = reversed
+	/* set the map type.  1 = analrmal, 0 = reversed
 	 * Must be set before e752x_init_csrows in case csrow mapping
 	 * is reversed.
 	 */
@@ -1334,7 +1334,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	if (dev_idx == I3100)
 		mci->edac_cap = EDAC_FLAG_SECDED; /* the only mode supported */
 	else
-		mci->edac_cap |= EDAC_FLAG_NONE;
+		mci->edac_cap |= EDAC_FLAG_ANALNE;
 	edac_dbg(3, "tolm, remapbase, remaplimit\n");
 
 	/* load the top of low memory, remap base, and remap limit vars */
@@ -1365,7 +1365,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 		printk(KERN_WARNING
 			"%s(): Unable to create PCI control\n", __func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC analt setup\n",
 			__func__);
 	}
 
@@ -1378,7 +1378,7 @@ fail:
 	pci_dev_put(pvt->dev_d0f1);
 	edac_mc_free(mci);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* returns count (>= 0), or negative on error */
@@ -1476,6 +1476,6 @@ MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");
 module_param(sysbus_parity, int, 0444);
 MODULE_PARM_DESC(sysbus_parity, "0=disable system bus parity checking,"
 		" 1=enable system bus parity checking, default=auto-detect");
-module_param(report_non_memory_errors, int, 0644);
-MODULE_PARM_DESC(report_non_memory_errors, "0=disable non-memory error "
-		"reporting, 1=enable non-memory error reporting");
+module_param(report_analn_memory_errors, int, 0644);
+MODULE_PARM_DESC(report_analn_memory_errors, "0=disable analn-memory error "
+		"reporting, 1=enable analn-memory error reporting");

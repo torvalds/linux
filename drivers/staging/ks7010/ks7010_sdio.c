@@ -3,7 +3,7 @@
  *   Driver for KeyStream, KS7010 based SDIO cards.
  *
  *   Copyright (C) 2006-2008 KeyStream Corp.
- *   Copyright (C) 2009 Renesas Technology Corp.
+ *   Copyright (C) 2009 Renesas Techanallogy Corp.
  *   Copyright (C) 2016 Sang Engineering, Wolfram Sang
  */
 
@@ -205,7 +205,7 @@ void ks_wlan_hw_wakeup_request(struct ks_wlan_private *priv)
 {
 	int ret;
 
-	if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
+	if (atomic_read(&priv->psstatus.status) == PS_SANALOZE) {
 		ret = ks7010_sdio_writeb(priv, WAKEUP_REG, WAKEUP_REQ);
 		if (ret)
 			netdev_err(priv->net_dev, "write WAKEUP_REG\n");
@@ -232,22 +232,22 @@ static void _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 	if (priv->dev_state != DEVICE_STATE_SLEEP)
 		return;
 
-	if (atomic_read(&priv->psstatus.status) == PS_SNOOZE)
+	if (atomic_read(&priv->psstatus.status) == PS_SANALOZE)
 		return;
 
 	netdev_dbg(priv->net_dev,
 		   "STATUS:\n"
 		   "- psstatus.status = %d\n"
 		   "- psstatus.confirm_wait = %d\n"
-		   "- psstatus.snooze_guard = %d\n"
+		   "- psstatus.sanaloze_guard = %d\n"
 		   "- txq_count = %d\n",
 		   atomic_read(&priv->psstatus.status),
 		   atomic_read(&priv->psstatus.confirm_wait),
-		   atomic_read(&priv->psstatus.snooze_guard),
+		   atomic_read(&priv->psstatus.sanaloze_guard),
 		   txq_count(priv));
 
 	if (atomic_read(&priv->psstatus.confirm_wait) ||
-	    atomic_read(&priv->psstatus.snooze_guard) ||
+	    atomic_read(&priv->psstatus.sanaloze_guard) ||
 	    txq_has_space(priv)) {
 		queue_delayed_work(priv->wq, &priv->rw_dwork, 0);
 		return;
@@ -266,7 +266,7 @@ static void _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 		netdev_err(priv->net_dev, "write GCR_B_REG\n");
 		goto queue_delayed_work;
 	}
-	atomic_set(&priv->psstatus.status, PS_SNOOZE);
+	atomic_set(&priv->psstatus.status, PS_SANALOZE);
 
 	return;
 
@@ -328,7 +328,7 @@ static int write_to_device(struct ks_wlan_private *priv, u8 *buffer,
 
 	if (le16_to_cpu(hdr->event) < HIF_DATA_REQ ||
 	    le16_to_cpu(hdr->event) > HIF_REQ_MAX) {
-		netdev_err(priv->net_dev, "unknown event=%04X\n", hdr->event);
+		netdev_err(priv->net_dev, "unkanalwn event=%04X\n", hdr->event);
 		return 0;
 	}
 
@@ -353,7 +353,7 @@ static void tx_device_task(struct ks_wlan_private *priv)
 	int ret;
 
 	if (!txq_has_space(priv) ||
-	    atomic_read(&priv->psstatus.status) == PS_SNOOZE)
+	    atomic_read(&priv->psstatus.status) == PS_SANALOZE)
 		return;
 
 	sp = &priv->tx_dev.tx_dev_buff[priv->tx_dev.qhead];
@@ -387,7 +387,7 @@ int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
 
 	if (le16_to_cpu(hdr->event) < HIF_DATA_REQ ||
 	    le16_to_cpu(hdr->event) > HIF_REQ_MAX) {
-		netdev_err(priv->net_dev, "unknown event=%04X\n", hdr->event);
+		netdev_err(priv->net_dev, "unkanalwn event=%04X\n", hdr->event);
 		return 0;
 	}
 
@@ -499,7 +499,7 @@ static void ks7010_rw_function(struct work_struct *work)
 	sdio_claim_host(func);
 
 	/* power save wakeup */
-	if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
+	if (atomic_read(&priv->psstatus.status) == PS_SANALOZE) {
 		if (txq_has_space(priv)) {
 			ks_wlan_hw_wakeup_request(priv);
 			queue_delayed_work(priv->wq, &priv->rw_dwork, 1);
@@ -563,14 +563,14 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 	/* bit5 -> Write Status Idle */
 	/* bit2 -> Read Status Busy  */
 	if (status & INT_GCR_B ||
-	    atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
+	    atomic_read(&priv->psstatus.status) == PS_SANALOZE) {
 		ret = ks7010_sdio_readb(priv, GCR_B_REG, &byte);
 		if (ret) {
 			netdev_err(priv->net_dev, "read GCR_B_REG\n");
 			goto queue_delayed_work;
 		}
 		if (byte == GCR_B_ACTIVE) {
-			if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
+			if (atomic_read(&priv->psstatus.status) == PS_SANALOZE) {
 				atomic_set(&priv->psstatus.status, PS_WAKEUP);
 				priv->wakeup_count = 0;
 			}
@@ -590,7 +590,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 			ks_wlan_hw_rx(priv, (size_t)(rsize << 4));
 
 		if (byte & WSTATUS_MASK) {
-			if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
+			if (atomic_read(&priv->psstatus.status) == PS_SANALOZE) {
 				if (txq_has_space(priv)) {
 					ks_wlan_hw_wakeup_request(priv);
 					queue_delayed_work(priv->wq,
@@ -646,7 +646,7 @@ static int ks7010_sdio_update_index(struct ks_wlan_private *priv, u32 index)
 
 	data_buf = kmemdup(&index, sizeof(u32), GFP_KERNEL);
 	if (!data_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ks7010_sdio_write(priv, WRITE_INDEX_REG, data_buf, sizeof(index));
 	if (ret)
@@ -673,7 +673,7 @@ static int ks7010_sdio_data_compare(struct ks_wlan_private *priv, u32 address,
 
 	read_buf = kmalloc(ROM_BUFF_SIZE, GFP_KERNEL);
 	if (!read_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ks7010_sdio_read(priv, address, read_buf, size);
 	if (ret)
@@ -705,7 +705,7 @@ static int ks7010_copy_firmware(struct ks_wlan_private *priv,
 
 	rom_buf = kmalloc(ROM_BUFF_SIZE, GFP_KERNEL);
 	if (!rom_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	length = fw_entry->size;
 
@@ -959,7 +959,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 
 	card = kzalloc(sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->func = func;
 
@@ -1047,7 +1047,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	sdio_set_drvdata(func, NULL);
 	kfree(card);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* send stop request to MAC */
@@ -1061,7 +1061,7 @@ static int send_stop_request(struct sdio_func *func)
 
 	pp = kzalloc(hif_align_size(sizeof(*pp)), GFP_KERNEL);
 	if (!pp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = sizeof(*pp) - sizeof(pp->header.size);
 	pp->header.size = cpu_to_le16(size);

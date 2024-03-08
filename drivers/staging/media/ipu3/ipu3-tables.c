@@ -9310,7 +9310,7 @@ const struct imgu_css_xnr3_vmem_defaults imgu_css_xnr3_vmem_defaults = {
 	},
 };
 
-/* settings for Bayer Noise Reduction */
+/* settings for Bayer Analise Reduction */
 const struct ipu3_uapi_bnr_static_config imgu_css_bnr_defaults = {
 	{ 16, 16, 16, 16 },			/* wb_gains */
 	{ 16, 16, 16, 16 },			/* wb_gains_thr */
@@ -9527,7 +9527,7 @@ const struct imgu_abi_anr_config imgu_css_anr_defaults = {
 		.xreset = -1632,
 		.yreset = -1224,
 		.x_sqr_reset = 2663424,
-		.r_normfactor = 14,
+		.r_analrmfactor = 14,
 		.y_sqr_reset = 1498176,
 		.gain_scale = 115
 	},

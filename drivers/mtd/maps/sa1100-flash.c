@@ -9,7 +9,7 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
@@ -79,7 +79,7 @@ static int sa1100_probe_subdev(struct sa_subdev_info *subdev, struct resource *r
 	 */
 	switch (phys) {
 	default:
-		printk(KERN_WARNING "SA1100 flash: unknown base address "
+		printk(KERN_WARNING "SA1100 flash: unkanalwn base address "
 		       "0x%08lx, assuming CS0\n", phys);
 		fallthrough;
 	case SA1100_CS0_PHYS:
@@ -103,14 +103,14 @@ static int sa1100_probe_subdev(struct sa_subdev_info *subdev, struct resource *r
 	subdev->map.size = size;
 	subdev->map.virt = ioremap(phys, size);
 	if (!subdev->map.virt) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	simple_map_init(&subdev->map);
 
 	/*
-	 * Now let's probe for the actual flash.  Do it here since
+	 * Analw let's probe for the actual flash.  Do it here since
 	 * specific machine settings might have been set above.
 	 */
 	subdev->mtd = do_map_probe(subdev->plat->map_name, &subdev->map);
@@ -163,7 +163,7 @@ static struct sa_info *sa1100_setup_mtd(struct platform_device *pdev,
 			break;
 
 	if (nr == 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -174,7 +174,7 @@ static struct sa_info *sa1100_setup_mtd(struct platform_device *pdev,
 	 */
 	info = kzalloc(size, GFP_KERNEL);
 	if (!info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -226,7 +226,7 @@ static struct sa_info *sa1100_setup_mtd(struct platform_device *pdev,
 
 		cdev = kmalloc_array(nr, sizeof(*cdev), GFP_KERNEL);
 		if (!cdev) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -264,7 +264,7 @@ static int sa1100_mtd_probe(struct platform_device *pdev)
 	int err;
 
 	if (!plat)
-		return -ENODEV;
+		return -EANALDEV;
 
 	info = sa1100_setup_mtd(pdev, plat);
 	if (IS_ERR(info)) {

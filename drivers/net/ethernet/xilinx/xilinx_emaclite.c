@@ -66,7 +66,7 @@
 #define XEL_TSR_PROGRAM_MASK	 0x00000002	/* Program the MAC address */
 #define XEL_TSR_XMIT_IE_MASK	 0x00000008	/* Tx interrupt enable bit */
 #define XEL_TSR_XMIT_ACTIVE_MASK 0x80000000	/* Buffer is active, SW bit
-						 * only. This is not documented
+						 * only. This is analt documented
 						 * in the HW spec
 						 */
 
@@ -110,9 +110,9 @@
  * @base_addr:		base address of the Emaclite device
  * @reset_lock:		lock to serialize xmit and tx_timeout execution
  * @deferred_skb:	holds an skb (for transmission at a later time) when the
- *			Tx buffer is not free
+ *			Tx buffer is analt free
  * @phy_dev:		pointer to the PHY device
- * @phy_node:		pointer to the PHY device node
+ * @phy_analde:		pointer to the PHY device analde
  * @mii_bus:		pointer to the MII bus
  * @last_link:		last link status
  */
@@ -129,7 +129,7 @@ struct net_local {
 	struct sk_buff *deferred_skb;
 
 	struct phy_device *phy_dev;
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 
 	struct mii_bus *mii_bus;
 
@@ -215,7 +215,7 @@ static void xemaclite_aligned_write(const void *src_ptr, u32 *dest_ptr,
 		*to_u16_ptr++ = *from_u16_ptr++;
 
 		/* This barrier resolves occasional issues seen around
-		 * cases where the data is not properly flushed out
+		 * cases where the data is analt properly flushed out
 		 * from the processor store buffers to the destination
 		 * memory locations.
 		 */
@@ -237,7 +237,7 @@ static void xemaclite_aligned_write(const void *src_ptr, u32 *dest_ptr,
 			*to_u8_ptr++ = *from_u8_ptr++;
 
 		/* This barrier resolves occasional issues seen around
-		 * cases where the data is not properly flushed out
+		 * cases where the data is analt properly flushed out
 		 * from the processor store buffers to the destination
 		 * memory locations.
 		 */
@@ -301,7 +301,7 @@ static void xemaclite_aligned_read(u32 *src_ptr, u8 *dest_ptr,
  *
  * Return:	0 upon success or -1 if the buffer(s) are full.
  *
- * Note:	The maximum Tx packet size can not be more than Ethernet header
+ * Analte:	The maximum Tx packet size can analt be more than Ethernet header
  *		(14 Bytes) + Maximum MTU (1500 bytes). This is excluding FCS.
  */
 static int xemaclite_send_data(struct net_local *drvdata, u8 *data,
@@ -387,7 +387,7 @@ static u16 xemaclite_recv_data(struct net_local *drvdata, u8 *data, int maxlen)
 	} else {
 		/* The instance is out of sync, try other buffer if other
 		 * buffer is configured, return 0 otherwise. If the instance is
-		 * out of sync, do not update the 'next_rx_buf_to_use' since it
+		 * out of sync, do analt update the 'next_rx_buf_to_use' since it
 		 * will correct on subsequent calls
 		 */
 		if (drvdata->rx_ping_pong != 0)
@@ -395,13 +395,13 @@ static u16 xemaclite_recv_data(struct net_local *drvdata, u8 *data, int maxlen)
 				((uintptr_t __force)addr ^
 				 XEL_BUFFER_OFFSET);
 		else
-			return 0;	/* No data was available */
+			return 0;	/* Anal data was available */
 
 		/* Verify that buffer has valid data */
 		reg_data = xemaclite_readl(addr + XEL_RSR_OFFSET);
 		if ((reg_data & XEL_RSR_RECV_DONE_MASK) !=
 		     XEL_RSR_RECV_DONE_MASK)
-			return 0;	/* No data was available */
+			return 0;	/* Anal data was available */
 	}
 
 	/* Get the protocol type of the ethernet frame that arrived
@@ -443,7 +443,7 @@ static u16 xemaclite_recv_data(struct net_local *drvdata, u8 *data, int maxlen)
 	xemaclite_aligned_read((u32 __force *)(addr + XEL_RXBUFF_OFFSET),
 			       data, length);
 
-	/* Acknowledge the frame */
+	/* Ackanalwledge the frame */
 	reg_data = xemaclite_readl(addr + XEL_RSR_OFFSET);
 	reg_data &= ~XEL_RSR_RECV_DONE_MASK;
 	xemaclite_writel(reg_data, addr + XEL_RSR_OFFSET);
@@ -598,7 +598,7 @@ static void xemaclite_rx_handler(struct net_device *dev)
 	if (!skb) {
 		/* Couldn't get memory. */
 		dev->stats.rx_dropped++;
-		dev_err(&lp->ndev->dev, "Could not allocate receive buffer\n");
+		dev_err(&lp->ndev->dev, "Could analt allocate receive buffer\n");
 		return;
 	}
 
@@ -615,7 +615,7 @@ static void xemaclite_rx_handler(struct net_device *dev)
 	skb_put(skb, len);	/* Tell the skb how much data we got */
 
 	skb->protocol = eth_type_trans(skb, dev);
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += len;
@@ -696,7 +696,7 @@ static int xemaclite_mdio_wait(struct net_local *lp)
 {
 	u32 val;
 
-	/* wait for the MDIO interface to not be busy or timeout
+	/* wait for the MDIO interface to analt be busy or timeout
 	 * after some time.
 	 */
 	return readx_poll_timeout(xemaclite_readl,
@@ -804,36 +804,36 @@ static int xemaclite_mdio_setup(struct net_local *lp, struct device *dev)
 {
 	struct mii_bus *bus;
 	struct resource res;
-	struct device_node *np = of_get_parent(lp->phy_node);
-	struct device_node *npp;
+	struct device_analde *np = of_get_parent(lp->phy_analde);
+	struct device_analde *npp;
 	int rc, ret;
 
-	/* Don't register the MDIO bus if the phy_node or its parent node
+	/* Don't register the MDIO bus if the phy_analde or its parent analde
 	 * can't be found.
 	 */
 	if (!np) {
 		dev_err(dev, "Failed to register mdio bus.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	npp = of_get_parent(np);
 	ret = of_address_to_resource(npp, 0, &res);
-	of_node_put(npp);
+	of_analde_put(npp);
 	if (ret) {
 		dev_err(dev, "%s resource error!\n",
-			dev->of_node->full_name);
-		of_node_put(np);
+			dev->of_analde->full_name);
+		of_analde_put(np);
 		return ret;
 	}
 	if (lp->ndev->mem_start != res.start) {
 		struct phy_device *phydev;
 
-		phydev = of_phy_find_device(lp->phy_node);
+		phydev = of_phy_find_device(lp->phy_analde);
 		if (!phydev)
 			dev_info(dev,
-				 "MDIO of the phy is not registered yet\n");
+				 "MDIO of the phy is analt registered yet\n");
 		else
 			put_device(&phydev->mdio.dev);
-		of_node_put(np);
+		of_analde_put(np);
 		return 0;
 	}
 
@@ -846,8 +846,8 @@ static int xemaclite_mdio_setup(struct net_local *lp, struct device *dev)
 	bus = mdiobus_alloc();
 	if (!bus) {
 		dev_err(dev, "Failed to allocate mdiobus\n");
-		of_node_put(np);
-		return -ENOMEM;
+		of_analde_put(np);
+		return -EANALMEM;
 	}
 
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%.8llx",
@@ -859,7 +859,7 @@ static int xemaclite_mdio_setup(struct net_local *lp, struct device *dev)
 	bus->parent = dev;
 
 	rc = of_mdiobus_register(bus, np);
-	of_node_put(np);
+	of_analde_put(np);
 	if (rc) {
 		dev_err(dev, "Failed to register mdio bus.\n");
 		goto err_register;
@@ -878,7 +878,7 @@ err_register:
  * xemaclite_adjust_link - Link state callback for the Emaclite device
  * @ndev: pointer to net_device struct
  *
- * There's nothing in the Emaclite device to be configured when the link
+ * There's analthing in the Emaclite device to be configured when the link
  * state changes. We just print the status.
  */
 static void xemaclite_adjust_link(struct net_device *ndev)
@@ -904,8 +904,8 @@ static void xemaclite_adjust_link(struct net_device *ndev)
  * for the Emaclite device and starts the Tx queue.
  * It also connects to the phy device, if MDIO is included in Emaclite device.
  *
- * Return:	0 on success. -ENODEV, if PHY cannot be connected.
- *		Non-zero error value on failure.
+ * Return:	0 on success. -EANALDEV, if PHY cananalt be connected.
+ *		Analn-zero error value on failure.
  */
 static int xemaclite_open(struct net_device *dev)
 {
@@ -915,13 +915,13 @@ static int xemaclite_open(struct net_device *dev)
 	/* Just to be safe, stop the device first */
 	xemaclite_disable_interrupts(lp);
 
-	if (lp->phy_node) {
-		lp->phy_dev = of_phy_connect(lp->ndev, lp->phy_node,
+	if (lp->phy_analde) {
+		lp->phy_dev = of_phy_connect(lp->ndev, lp->phy_analde,
 					     xemaclite_adjust_link, 0,
 					     PHY_INTERFACE_MODE_MII);
 		if (!lp->phy_dev) {
 			dev_err(&lp->ndev->dev, "of_phy_connect() failed\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		/* EmacLite doesn't support giga-bit speeds */
@@ -935,7 +935,7 @@ static int xemaclite_open(struct net_device *dev)
 	/* Grab the IRQ */
 	retval = request_irq(dev->irq, xemaclite_interrupt, 0, dev->name, dev);
 	if (retval) {
-		dev_err(&lp->ndev->dev, "Could not allocate interrupt %d\n",
+		dev_err(&lp->ndev->dev, "Could analt allocate interrupt %d\n",
 			dev->irq);
 		if (lp->phy_dev)
 			phy_disconnect(lp->phy_dev);
@@ -1012,7 +1012,7 @@ xemaclite_send(struct sk_buff *orig_skb, struct net_device *dev)
 		 */
 		netif_stop_queue(dev);
 		lp->deferred_skb = new_skb;
-		/* Take the time stamp now, since we can't do this in an ISR. */
+		/* Take the time stamp analw, since we can't do this in an ISR. */
 		skb_tx_timestamp(new_skb);
 		spin_unlock_irqrestore(&lp->reset_lock, flags);
 		return NETDEV_TX_OK;
@@ -1032,17 +1032,17 @@ xemaclite_send(struct sk_buff *orig_skb, struct net_device *dev)
  * @ofdev:	Pointer to OF device structure
  * @s:		Property to be retrieved
  *
- * This function looks for a property in the device node and returns the value
- * of the property if its found or 0 if the property is not found.
+ * This function looks for a property in the device analde and returns the value
+ * of the property if its found or 0 if the property is analt found.
  *
  * Return:	Value of the parameter if the parameter is found, or 0 otherwise
  */
 static bool get_bool(struct platform_device *ofdev, const char *s)
 {
-	u32 *p = (u32 *)of_get_property(ofdev->dev.of_node, s, NULL);
+	u32 *p = (u32 *)of_get_property(ofdev->dev.of_analde, s, NULL);
 
 	if (!p) {
-		dev_warn(&ofdev->dev, "Parameter %s not found, defaulting to false\n", s);
+		dev_warn(&ofdev->dev, "Parameter %s analt found, defaulting to false\n", s);
 		return false;
 	}
 
@@ -1099,7 +1099,7 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	/* Create an ethernet device instance */
 	ndev = alloc_etherdev(sizeof(struct net_local));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, ndev);
 	SET_NETDEV_DEV(ndev, &ofdev->dev);
@@ -1130,9 +1130,9 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	lp->tx_ping_pong = get_bool(ofdev, "xlnx,tx-ping-pong");
 	lp->rx_ping_pong = get_bool(ofdev, "xlnx,rx-ping-pong");
 
-	rc = of_get_ethdev_address(ofdev->dev.of_node, ndev);
+	rc = of_get_ethdev_address(ofdev->dev.of_analde, ndev);
 	if (rc) {
-		dev_warn(dev, "No MAC address found, using random\n");
+		dev_warn(dev, "Anal MAC address found, using random\n");
 		eth_hw_addr_random(ndev);
 	}
 
@@ -1143,10 +1143,10 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	/* Set the MAC address in the EmacLite device */
 	xemaclite_update_address(lp, ndev->dev_addr);
 
-	lp->phy_node = of_parse_phandle(ofdev->dev.of_node, "phy-handle", 0);
+	lp->phy_analde = of_parse_phandle(ofdev->dev.of_analde, "phy-handle", 0);
 	xemaclite_mdio_setup(lp, &ofdev->dev);
 
-	dev_info(dev, "MAC address is now %pM\n", ndev->dev_addr);
+	dev_info(dev, "MAC address is analw %pM\n", ndev->dev_addr);
 
 	ndev->netdev_ops = &xemaclite_netdev_ops;
 	ndev->ethtool_ops = &xemaclite_ethtool_ops;
@@ -1157,8 +1157,8 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	rc = register_netdev(ndev);
 	if (rc) {
 		dev_err(dev,
-			"Cannot register network device, aborting\n");
-		goto put_node;
+			"Cananalt register network device, aborting\n");
+		goto put_analde;
 	}
 
 	dev_info(dev,
@@ -1166,8 +1166,8 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 		 (unsigned long __force)ndev->mem_start, lp->base_addr, ndev->irq);
 	return 0;
 
-put_node:
-	of_node_put(lp->phy_node);
+put_analde:
+	of_analde_put(lp->phy_analde);
 error:
 	free_netdev(ndev);
 	return rc;
@@ -1196,8 +1196,8 @@ static void xemaclite_of_remove(struct platform_device *of_dev)
 
 	unregister_netdev(ndev);
 
-	of_node_put(lp->phy_node);
-	lp->phy_node = NULL;
+	of_analde_put(lp->phy_analde);
+	lp->phy_analde = NULL;
 
 	free_netdev(ndev);
 }
@@ -1224,7 +1224,7 @@ static int xemaclite_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCSMIIREG:
 		return phy_mii_ioctl(dev->phydev, rq, cmd);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

@@ -79,7 +79,7 @@ patternProperties:
         enum: [0, 1]
         description:
           TDM Invert the sync
-            0 = Normal
+            0 = Analrmal
             1 = Invert
 
       qcom,tdm-data-delay:

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -176,7 +176,7 @@ void dcn32_init_clocks(struct clk_mgr *clk_mgr_base)
 	if (!clk_mgr_base->bw_params)
 		return;
 
-	if (!clk_mgr_base->force_smu_not_present && dcn30_smu_get_smu_version(clk_mgr, &clk_mgr->smu_ver))
+	if (!clk_mgr_base->force_smu_analt_present && dcn30_smu_get_smu_version(clk_mgr, &clk_mgr->smu_ver))
 		clk_mgr->smu_present = true;
 
 	if (!clk_mgr->smu_present)
@@ -278,7 +278,7 @@ static void dcn32_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr,
 /* Since DPPCLK request to PMFW needs to be exact (due to DPP DTO programming),
  * update DPPCLK to be the exact frequency that will be set after the DPPCLK
  * divider is updated. This will prevent rounding issues that could cause DPP
- * refclk and DPP DTO to not match up.
+ * refclk and DPP DTO to analt match up.
  */
 static void dcn32_update_dppclk_dispclk_freq(struct clk_mgr_internal *clk_mgr, struct dc_clocks *new_clocks)
 {
@@ -316,7 +316,7 @@ void dcn32_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 			 */
 			continue;
 		} else if (!context->res_ctx.pipe_ctx[i].plane_res.dpp && dppclk_khz > 0) {
-			/* The software state is not valid if dpp resource is NULL and
+			/* The software state is analt valid if dpp resource is NULL and
 			 * dppclk_khz > 0.
 			 */
 			ASSERT(false);
@@ -502,7 +502,7 @@ static void dcn32_auto_dpm_test_log(
     dtbclk_khz_reg     = REG_READ(CLK1_CLK4_CURRENT_CNT); // DTBCLK
     fclk_khz_reg       = REG_READ(CLK4_CLK0_CURRENT_CNT); // FCLK
 
-    // Overrides for these clocks in case there is no p_state change support
+    // Overrides for these clocks in case there is anal p_state change support
     dramclk_khz_override = new_clocks->dramclk_khz;
     fclk_khz_override = new_clocks->fclk_khz;
 
@@ -516,7 +516,7 @@ static void dcn32_auto_dpm_test_log(
     }
 
 	////////////////////////////////////////////////////////////////////////////
-	//	IMPORTANT: 	When adding more clocks to these logs, do NOT put a newline
+	//	IMPORTANT: 	When adding more clocks to these logs, do ANALT put a newline
 	//	 			anywhere other than at the very end of the string.
 	//
 	//	Formatting example (make sure to have " - " between each entry):
@@ -658,7 +658,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 		}
 
 		if (should_set_clock(safe_to_lower, new_clocks->socclk_khz, clk_mgr_base->clks.socclk_khz))
-			/* We don't actually care about socclk, don't notify SMU of hard min */
+			/* We don't actually care about socclk, don't analtify SMU of hard min */
 			clk_mgr_base->clks.socclk_khz = new_clocks->socclk_khz;
 
 		clk_mgr_base->clks.prev_p_state_change_support = clk_mgr_base->clks.p_state_change_support;
@@ -695,18 +695,18 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 		else
 			dcn32_smu_wait_for_dmub_ack_mclk(clk_mgr, false);
 
-		/* Always update saved value, even if new value not set due to P-State switching unsupported. Also check safe_to_lower for FCLK */
+		/* Always update saved value, even if new value analt set due to P-State switching unsupported. Also check safe_to_lower for FCLK */
 		if (safe_to_lower && (clk_mgr_base->clks.fclk_p_state_change_support != clk_mgr_base->clks.fclk_prev_p_state_change_support)) {
 			update_fclk = true;
 		}
 
 		if (clk_mgr_base->ctx->dce_version != DCN_VERSION_3_21 && !clk_mgr_base->clks.fclk_p_state_change_support && update_fclk &&
 				!dc->work_arounds.clock_update_disable_mask.fclk) {
-			/* Handle code for sending a message to PMFW that FCLK P-state change is not supported */
-			dcn32_smu_send_fclk_pstate_message(clk_mgr, FCLK_PSTATE_NOTSUPPORTED);
+			/* Handle code for sending a message to PMFW that FCLK P-state change is analt supported */
+			dcn32_smu_send_fclk_pstate_message(clk_mgr, FCLK_PSTATE_ANALTSUPPORTED);
 		}
 
-		/* Always update saved value, even if new value not set due to P-State switching unsupported */
+		/* Always update saved value, even if new value analt set due to P-State switching unsupported */
 		if (should_set_clock(safe_to_lower, new_clocks->dramclk_khz, clk_mgr_base->clks.dramclk_khz) &&
 				!dc->work_arounds.clock_update_disable_mask.uclk) {
 			clk_mgr_base->clks.dramclk_khz = new_clocks->dramclk_khz;
@@ -771,7 +771,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			if (update_dppclk || update_dispclk)
 				dcn32_update_clocks_update_dentist(clk_mgr, context);
 			/* There is a check inside dcn20_update_clocks_update_dpp_dto which ensures
-			 * that we do not lower dto when it is not safe to lower. We do not need to
+			 * that we do analt lower dto when it is analt safe to lower. We do analt need to
 			 * compare the current and new dppclk before calling this function.
 			 */
 			dcn32_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
@@ -908,7 +908,7 @@ static void dcn32_clock_read_ss_info(struct clk_mgr_internal *clk_mgr)
 		}
 	}
 }
-static void dcn32_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
+static void dcn32_analtify_wm_ranges(struct clk_mgr *clk_mgr_base)
 {
 	unsigned int i;
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
@@ -1075,7 +1075,7 @@ static struct clk_mgr_funcs dcn32_funcs = {
 		.update_clocks = dcn32_update_clocks,
 		.dump_clk_registers = dcn32_dump_clk_registers,
 		.init_clocks = dcn32_init_clocks,
-		.notify_wm_ranges = dcn32_notify_wm_ranges,
+		.analtify_wm_ranges = dcn32_analtify_wm_ranges,
 		.set_hard_min_memclk = dcn32_set_hard_min_memclk,
 		.set_hard_max_memclk = dcn32_set_hard_max_memclk,
 		.set_max_memclk = dcn32_set_max_memclk,
@@ -1129,7 +1129,7 @@ void dcn32_clk_mgr_construct(
 	}
 
 
-	/* integer part is now VCO frequency in kHz */
+	/* integer part is analw VCO frequency in kHz */
 	clk_mgr->base.dentist_vco_freq_khz = dcn32_get_vco_frequency_from_reg(clk_mgr);
 
 	/* in case we don't get a value from the register, use default */

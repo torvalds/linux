@@ -24,12 +24,12 @@ struct tegra_vip;
  *
  * @subdev: V4L2 subdevice associated with this channel
  * @pads: media pads for the subdevice entity
- * @of_node: vip device tree node
+ * @of_analde: vip device tree analde
  */
 struct tegra_vip_channel {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[TEGRA_VIP_PADS_NUM];
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 };
 
 /**

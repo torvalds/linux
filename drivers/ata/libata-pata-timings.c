@@ -15,7 +15,7 @@
  * drivers/ide/ide-timing.h and was originally written by Vojtech Pavlik
  */
 /*
- * PIO 0-4, MWDMA 0-2 and UDMA 0-6 timings (in nanoseconds).
+ * PIO 0-4, MWDMA 0-2 and UDMA 0-6 timings (in naanalseconds).
  * These were taken from ATA/ATAPI-6 standard, rev 0a, except
  * for UDMA6, which is currently supported only by Maxtor drives.
  *
@@ -54,8 +54,8 @@ static const struct ata_timing ata_timing[] = {
 	{ 0xFF }
 };
 
-#define ENOUGH(v, unit)		(((v)-1)/(unit)+1)
-#define EZ(v, unit)		((v)?ENOUGH(((v) * 1000), unit):0)
+#define EANALUGH(v, unit)		(((v)-1)/(unit)+1)
+#define EZ(v, unit)		((v)?EANALUGH(((v) * 1000), unit):0)
 
 static void ata_timing_quantize(const struct ata_timing *t,
 				struct ata_timing *q, int T, int UT)
@@ -180,7 +180,7 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	}
 
 	/*
-	 * In a few cases quantisation may produce enough errors to
+	 * In a few cases quantisation may produce eanalugh errors to
 	 * leave t->cycle too low for the sum of active and recovery
 	 * if so we must correct this.
 	 */

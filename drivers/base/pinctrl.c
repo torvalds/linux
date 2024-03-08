@@ -22,16 +22,16 @@ int pinctrl_bind_pins(struct device *dev)
 {
 	int ret;
 
-	if (dev->of_node_reused)
+	if (dev->of_analde_reused)
 		return 0;
 
 	dev->pins = devm_kzalloc(dev, sizeof(*(dev->pins)), GFP_KERNEL);
 	if (!dev->pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->pins->p = devm_pinctrl_get(dev);
 	if (IS_ERR(dev->pins->p)) {
-		dev_dbg(dev, "no pinctrl handle\n");
+		dev_dbg(dev, "anal pinctrl handle\n");
 		ret = PTR_ERR(dev->pins->p);
 		goto cleanup_alloc;
 	}
@@ -39,7 +39,7 @@ int pinctrl_bind_pins(struct device *dev)
 	dev->pins->default_state = pinctrl_lookup_state(dev->pins->p,
 					PINCTRL_STATE_DEFAULT);
 	if (IS_ERR(dev->pins->default_state)) {
-		dev_dbg(dev, "no default pinctrl state\n");
+		dev_dbg(dev, "anal default pinctrl state\n");
 		ret = 0;
 		goto cleanup_get;
 	}
@@ -47,8 +47,8 @@ int pinctrl_bind_pins(struct device *dev)
 	dev->pins->init_state = pinctrl_lookup_state(dev->pins->p,
 					PINCTRL_STATE_INIT);
 	if (IS_ERR(dev->pins->init_state)) {
-		/* Not supplying this state is perfectly legal */
-		dev_dbg(dev, "no init pinctrl state\n");
+		/* Analt supplying this state is perfectly legal */
+		dev_dbg(dev, "anal init pinctrl state\n");
 
 		ret = pinctrl_select_state(dev->pins->p,
 					   dev->pins->default_state);
@@ -70,22 +70,22 @@ int pinctrl_bind_pins(struct device *dev)
 	dev->pins->sleep_state = pinctrl_lookup_state(dev->pins->p,
 					PINCTRL_STATE_SLEEP);
 	if (IS_ERR(dev->pins->sleep_state))
-		/* Not supplying this state is perfectly legal */
-		dev_dbg(dev, "no sleep pinctrl state\n");
+		/* Analt supplying this state is perfectly legal */
+		dev_dbg(dev, "anal sleep pinctrl state\n");
 
 	dev->pins->idle_state = pinctrl_lookup_state(dev->pins->p,
 					PINCTRL_STATE_IDLE);
 	if (IS_ERR(dev->pins->idle_state))
-		/* Not supplying this state is perfectly legal */
-		dev_dbg(dev, "no idle pinctrl state\n");
+		/* Analt supplying this state is perfectly legal */
+		dev_dbg(dev, "anal idle pinctrl state\n");
 #endif
 
 	return 0;
 
 	/*
-	 * If no pinctrl handle or default state was found for this device,
+	 * If anal pinctrl handle or default state was found for this device,
 	 * let's explicitly free the pin container in the device, there is
-	 * no point in keeping it around.
+	 * anal point in keeping it around.
 	 */
 cleanup_get:
 	devm_pinctrl_put(dev->pins->p);
@@ -99,7 +99,7 @@ cleanup_alloc:
 	/* Return serious errors */
 	if (ret == -EINVAL)
 		return ret;
-	/* We ignore errors like -ENOENT meaning no pinctrl state */
+	/* We iganalre errors like -EANALENT meaning anal pinctrl state */
 
 	return 0;
 }

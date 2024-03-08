@@ -3,7 +3,7 @@ ifeq ($(CONFIG_LIBTRACEEVENT),y)
 endif
 perf-$(CONFIG_LIBPYTHON) += trace-event-python.o
 
-CFLAGS_trace-event-perl.o += $(PERL_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-shadow -Wno-nested-externs -Wno-undef -Wno-switch-default -Wno-bad-function-cast -Wno-declaration-after-statement -Wno-switch-enum
+CFLAGS_trace-event-perl.o += $(PERL_EMBED_CCOPTS) -Wanal-redundant-decls -Wanal-strict-prototypes -Wanal-unused-parameter -Wanal-shadow -Wanal-nested-externs -Wanal-undef -Wanal-switch-default -Wanal-bad-function-cast -Wanal-declaration-after-statement -Wanal-switch-enum
 
-# -Wno-declaration-after-statement: The python headers have mixed code with declarations (decls after asserts, for instance)
-CFLAGS_trace-event-python.o += $(PYTHON_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-shadow -Wno-deprecated-declarations -Wno-switch-enum -Wno-declaration-after-statement
+# -Wanal-declaration-after-statement: The python headers have mixed code with declarations (decls after asserts, for instance)
+CFLAGS_trace-event-python.o += $(PYTHON_EMBED_CCOPTS) -Wanal-redundant-decls -Wanal-strict-prototypes -Wanal-unused-parameter -Wanal-shadow -Wanal-deprecated-declarations -Wanal-switch-enum -Wanal-declaration-after-statement

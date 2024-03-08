@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -15,18 +15,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -67,7 +67,7 @@ void mlx4_qp_event(struct mlx4_dev *dev, u32 qpn, int event_type)
 	spin_unlock(&qp_table->lock);
 
 	if (!qp) {
-		mlx4_dbg(dev, "Async event for none existent QP %08x\n", qpn);
+		mlx4_dbg(dev, "Async event for analne existent QP %08x\n", qpn);
 		return;
 	}
 
@@ -78,7 +78,7 @@ void mlx4_qp_event(struct mlx4_dev *dev, u32 qpn, int event_type)
 /* used for INIT/CLOSE port logic */
 static int is_master_qp0(struct mlx4_dev *dev, struct mlx4_qp *qp, int *real_qp0, int *proxy_qp0)
 {
-	/* this procedure is called after we already know we are on the master */
+	/* this procedure is called after we already kanalw we are on the master */
 	/* qp0 is either the proxy qp0, or the real qp0 */
 	u32 pf_proxy_offset = dev->phys_caps.base_proxy_sqpn + 8 * mlx4_master_func_num(dev);
 	*proxy_qp0 = qp->qpn >= pf_proxy_offset && qp->qpn <= pf_proxy_offset + 1;
@@ -231,7 +231,7 @@ int __mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
 	struct mlx4_qp_table *qp_table = &priv->qp_table;
 
 	if (cnt > MLX4_MAX_BF_QP_RANGE && bf_qp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uid = MLX4_QP_TABLE_ZONE_GENERAL;
 	if (flags & (u8)MLX4_RESERVE_A0_QP) {
@@ -244,7 +244,7 @@ int __mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
 	*base = mlx4_zone_alloc_entries(qp_table->zones, uid, cnt, align,
 					bf_qp ? MLX4_BF_QP_SKIP_MASK : 0, NULL);
 	if (*base == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -469,7 +469,7 @@ int mlx4_update_qp(struct mlx4_dev *dev, u32 qpn,
 		      & MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB)) {
 			mlx4_warn(dev,
 				  "Trying to set src check LB, but it isn't supported\n");
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			goto out;
 		}
 		pri_addr_path_mask |=
@@ -494,8 +494,8 @@ int mlx4_update_qp(struct mlx4_dev *dev, u32 qpn,
 
 	if (attr & MLX4_UPDATE_QP_QOS_VPORT) {
 		if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_QOS_VPP)) {
-			mlx4_warn(dev, "Granular QoS per VF is not enabled\n");
-			err = -EOPNOTSUPP;
+			mlx4_warn(dev, "Granular QoS per VF is analt enabled\n");
+			err = -EOPANALTSUPP;
 			goto out;
 		}
 
@@ -559,15 +559,15 @@ static int mlx4_create_zones(struct mlx4_dev *dev,
 	int k;
 	int err;
 
-	qp_table->zones = mlx4_zone_allocator_create(MLX4_ZONE_ALLOC_FLAGS_NO_OVERLAP);
+	qp_table->zones = mlx4_zone_allocator_create(MLX4_ZONE_ALLOC_FLAGS_ANAL_OVERLAP);
 
 	if (NULL == qp_table->zones)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bitmap = kmalloc(sizeof(*bitmap), GFP_KERNEL);
 
 	if (NULL == bitmap) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_zone;
 	}
 
@@ -625,7 +625,7 @@ static int mlx4_create_zones(struct mlx4_dev *dev,
 		u32 requested_size;
 
 		/* Assuming MLX4_BF_QP_SKIP_MASK is consecutive ones, this calculates
-		 * a mask of all LSB bits set until (and not including) the first
+		 * a mask of all LSB bits set until (and analt including) the first
 		 * set bit of  MLX4_BF_QP_SKIP_MASK. For example, if MLX4_BF_QP_SKIP_MASK
 		 * is 0xc0, bf_mask will be 0x3f.
 		 */
@@ -663,7 +663,7 @@ static int mlx4_create_zones(struct mlx4_dev *dev,
 						bf_mask - (last_offset & bf_mask),
 						requested_size);
 
-					/*  We will not take this path if last_offset was
+					/*  We will analt take this path if last_offset was
 					 *  already set above to candidate_offset
 					 */
 					if (candidate_size > size) {
@@ -685,7 +685,7 @@ static int mlx4_create_zones(struct mlx4_dev *dev,
 					MLX4_BF_QP_SKIP_MASK);
 
 			if (offset == (u32)-1) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				break;
 			}
 
@@ -793,7 +793,7 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 	if (fixed_reserved_from_bot_rv < max_table_offset)
 		fixed_reserved_from_bot_rv = max_table_offset;
 
-	/* We reserve at least 1 extra for bitmaps that we don't have enough space for*/
+	/* We reserve at least 1 extra for bitmaps that we don't have eanalugh space for*/
 	bottom_reserved_for_rss_bitmap =
 		roundup_pow_of_two(fixed_reserved_from_bot_rv + 1);
 	dev->phys_caps.base_sqpn = ALIGN(bottom_reserved_for_rss_bitmap, 8);
@@ -852,12 +852,12 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 		dev->phys_caps.base_tunnel_sqpn = dev->phys_caps.base_sqpn + 8 + 8 * MLX4_MFUNC_MAX;
 
 		/* In mfunc, calculate proxy and tunnel qp offsets for the PF here,
-		 * since the PF does not call mlx4_slave_caps */
+		 * since the PF does analt call mlx4_slave_caps */
 		dev->caps.spec_qps = kcalloc(dev->caps.num_ports,
 					     sizeof(*dev->caps.spec_qps),
 					     GFP_KERNEL);
 		if (!dev->caps.spec_qps) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_mem;
 		}
 

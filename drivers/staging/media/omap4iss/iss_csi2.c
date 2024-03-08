@@ -76,8 +76,8 @@ static void csi2_recv_config(struct iss_csi2_device *csi2,
 	/* Generation of 16x64-bit bursts (Recommended) */
 	reg |= CSI2_CTRL_BURST_SIZE_EXPAND;
 
-	/* Do Non-Posted writes (Recommended) */
-	reg |= CSI2_CTRL_NON_POSTED_WRITE;
+	/* Do Analn-Posted writes (Recommended) */
+	reg |= CSI2_CTRL_ANALN_POSTED_WRITE;
 
 	/*
 	 * Enforce Little endian for all formats, including:
@@ -112,21 +112,21 @@ static const unsigned int csi2_input_fmts[] = {
  * - 2 decompression options (on, off)
  * Output should be CSI2 frame format code
  * Array indices as follows: [format][dest][decompr]
- * Not all combinations are valid. 0 means invalid.
+ * Analt all combinations are valid. 0 means invalid.
  */
 static const u16 __csi2_fmt_map[][2][2] = {
 	/* RAW10 formats */
 	{
 		/* Output to memory */
 		{
-			/* No DPCM decompression */
+			/* Anal DPCM decompression */
 			CSI2_PIX_FMT_RAW10_EXP16,
 			/* DPCM decompression */
 			0,
 		},
 		/* Output to both */
 		{
-			/* No DPCM decompression */
+			/* Anal DPCM decompression */
 			CSI2_PIX_FMT_RAW10_EXP16_VP,
 			/* DPCM decompression */
 			0,
@@ -136,14 +136,14 @@ static const u16 __csi2_fmt_map[][2][2] = {
 	{
 		/* Output to memory */
 		{
-			/* No DPCM decompression */
+			/* Anal DPCM decompression */
 			CSI2_USERDEF_8BIT_DATA1,
 			/* DPCM decompression */
 			CSI2_USERDEF_8BIT_DATA1_DPCM10,
 		},
 		/* Output to both */
 		{
-			/* No DPCM decompression */
+			/* Anal DPCM decompression */
 			CSI2_PIX_FMT_RAW8_VP,
 			/* DPCM decompression */
 			CSI2_USERDEF_8BIT_DATA1_DPCM10_VP,
@@ -153,14 +153,14 @@ static const u16 __csi2_fmt_map[][2][2] = {
 	{
 		/* Output to memory */
 		{
-			/* No DPCM decompression */
+			/* Anal DPCM decompression */
 			CSI2_PIX_FMT_RAW8,
 			/* DPCM decompression */
 			0,
 		},
 		/* Output to both */
 		{
-			/* No DPCM decompression */
+			/* Anal DPCM decompression */
 			CSI2_PIX_FMT_RAW8_VP,
 			/* DPCM decompression */
 			0,
@@ -170,14 +170,14 @@ static const u16 __csi2_fmt_map[][2][2] = {
 	{
 		/* Output to memory */
 		{
-			/* No DPCM decompression */
+			/* Anal DPCM decompression */
 			CSI2_PIX_FMT_YUV422_8BIT,
 			/* DPCM decompression */
 			0,
 		},
 		/* Output to both */
 		{
-			/* No DPCM decompression */
+			/* Anal DPCM decompression */
 			CSI2_PIX_FMT_YUV422_8BIT_VP16,
 			/* DPCM decompression */
 			0,
@@ -246,7 +246,7 @@ static u16 csi2_ctx_map_format(struct iss_csi2_device *csi2)
  *
  * Sets the memory address where the output will be saved.
  *
- * Returns 0 if successful, or -EINVAL if the address is not in the 32 byte
+ * Returns 0 if successful, or -EINVAL if the address is analt in the 32 byte
  * boundary.
  */
 static void csi2_set_outaddr(struct iss_csi2_device *csi2, u32 addr)
@@ -464,7 +464,7 @@ static void csi2_irq_status_set(struct iss_csi2_device *csi2, int enable)
 	reg = CSI2_IRQ_OCP_ERR |
 		CSI2_IRQ_SHORT_PACKET |
 		CSI2_IRQ_ECC_CORRECTION |
-		CSI2_IRQ_ECC_NO_CORRECTION |
+		CSI2_IRQ_ECC_ANAL_CORRECTION |
 		CSI2_IRQ_COMPLEXIO_ERR |
 		CSI2_IRQ_FIFO_OVF |
 		CSI2_IRQ_CONTEXT0;
@@ -487,7 +487,7 @@ int omap4iss_csi2_reset(struct iss_csi2_device *csi2)
 	unsigned int timeout;
 
 	if (!csi2->available)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (csi2->phy->phy_in_use)
 		return -EBUSY;
@@ -517,7 +517,7 @@ int omap4iss_csi2_reset(struct iss_csi2_device *csi2)
 	iss_reg_update(csi2->iss, csi2->regs1, CSI2_SYSCONFIG,
 		       CSI2_SYSCONFIG_MSTANDBY_MODE_MASK |
 		       CSI2_SYSCONFIG_AUTO_IDLE,
-		       CSI2_SYSCONFIG_MSTANDBY_MODE_NO);
+		       CSI2_SYSCONFIG_MSTANDBY_MODE_ANAL);
 
 	return 0;
 }
@@ -531,8 +531,8 @@ static int csi2_configure(struct iss_csi2_device *csi2)
 
 	/*
 	 * CSI2 fields that can be updated while the context has
-	 * been enabled or the interface has been enabled are not
-	 * updated dynamically currently. So we do not allow to
+	 * been enabled or the interface has been enabled are analt
+	 * updated dynamically currently. So we do analt allow to
 	 * reconfigure if either has been enabled
 	 */
 	if (csi2->contexts[0].enabled || csi2->ctrl.if_enable)
@@ -577,7 +577,7 @@ static int csi2_configure(struct iss_csi2_device *csi2)
 	 * context 0. These signals are generated from CSI2 receiver to
 	 * qualify the last pixel of a frame and the last pixel of a line.
 	 * Without enabling the signals CSI2 receiver writes data to memory
-	 * beyond buffer size and/or data line offset is not handled correctly.
+	 * beyond buffer size and/or data line offset is analt handled correctly.
 	 */
 	csi2->contexts[0].eof_enabled = 1;
 	csi2->contexts[0].eol_enabled = 1;
@@ -718,7 +718,7 @@ static void csi2_isr_ctx(struct iss_csi2_device *csi2,
 	 * but it turned out that the interrupt is only generated when the CSI2
 	 * writes to memory (the CSI2_CTx_CTRL1::COUNT field is decreased
 	 * correctly and reaches 0 when data is forwarded to the video port only
-	 * but no interrupt arrives). Maybe a CSI2 hardware bug.
+	 * but anal interrupt arrives). Maybe a CSI2 hardware bug.
 	 */
 	if (csi2->frame_skip) {
 		csi2->frame_skip--;
@@ -762,14 +762,14 @@ void omap4iss_csi2_isr(struct iss_csi2_device *csi2)
 
 	if (csi2_irqstatus & (CSI2_IRQ_OCP_ERR |
 			      CSI2_IRQ_SHORT_PACKET |
-			      CSI2_IRQ_ECC_NO_CORRECTION |
+			      CSI2_IRQ_ECC_ANAL_CORRECTION |
 			      CSI2_IRQ_COMPLEXIO_ERR |
 			      CSI2_IRQ_FIFO_OVF)) {
 		dev_dbg(iss->dev,
 			"CSI2 Err: OCP:%d SHORT:%d ECC:%d CPXIO:%d OVF:%d\n",
 			csi2_irqstatus & CSI2_IRQ_OCP_ERR ? 1 : 0,
 			csi2_irqstatus & CSI2_IRQ_SHORT_PACKET ? 1 : 0,
-			csi2_irqstatus & CSI2_IRQ_ECC_NO_CORRECTION ? 1 : 0,
+			csi2_irqstatus & CSI2_IRQ_ECC_ANAL_CORRECTION ? 1 : 0,
 			csi2_irqstatus & CSI2_IRQ_COMPLEXIO_ERR ? 1 : 0,
 			csi2_irqstatus & CSI2_IRQ_FIFO_OVF ? 1 : 0);
 		pipe->error = true;
@@ -789,7 +789,7 @@ void omap4iss_csi2_isr(struct iss_csi2_device *csi2)
 
 /*
  * csi2_queue - Queues the first buffer when using memory output
- * @video: The video node
+ * @video: The video analde
  * @buffer: buffer to queue
  */
 static int csi2_queue(struct iss_video *video, struct iss_buffer *buffer)
@@ -801,9 +801,9 @@ static int csi2_queue(struct iss_video *video, struct iss_buffer *buffer)
 
 	/*
 	 * If streaming was enabled before there was a buffer queued
-	 * or underrun happened in the ISR, the hardware was not enabled
+	 * or underrun happened in the ISR, the hardware was analt enabled
 	 * and DMA queue flag ISS_VIDEO_DMAQUEUE_UNDERRUN is still set.
-	 * Enable it now.
+	 * Enable it analw.
 	 */
 	if (csi2->video_out.dmaqueue_flags & ISS_VIDEO_DMAQUEUE_UNDERRUN) {
 		/* Enable / disable context 0 and IRQs */
@@ -855,7 +855,7 @@ csi2_try_format(struct iss_csi2_device *csi2,
 				break;
 		}
 
-		/* If not found, use SGRBG10 as default */
+		/* If analt found, use SGRBG10 as default */
 		if (i >= ARRAY_SIZE(csi2_input_fmts))
 			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
@@ -882,9 +882,9 @@ csi2_try_format(struct iss_csi2_device *csi2,
 		break;
 	}
 
-	/* RGB, non-interlaced */
+	/* RGB, analn-interlaced */
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 /*
@@ -1038,7 +1038,7 @@ static int csi2_link_validate(struct v4l2_subdev *sd, struct media_link *link,
  * @sd: ISS CSI2 V4L2 subdevice
  * @fh: V4L2 subdev file handle
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
+ * Initialize all pad formats with default values. If fh is analt NULL, try
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
@@ -1085,12 +1085,12 @@ static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
 			return ret;
 
 		if (omap4iss_csiphy_acquire(csi2->phy) < 0)
-			return -ENODEV;
+			return -EANALDEV;
 		csi2_configure(csi2);
 		csi2_print_status(csi2);
 
 		/*
-		 * When outputting to memory with no buffer available, let the
+		 * When outputting to memory with anal buffer available, let the
 		 * buffer queue handler start the hardware. A DMA queue flag
 		 * ISS_VIDEO_DMAQUEUE_QUEUED will be set as soon as there is
 		 * a buffer available.
@@ -1176,7 +1176,7 @@ static int csi2_link_setup(struct media_entity *entity,
 
 	/*
 	 * The ISS core doesn't support pipelines with multiple video outputs.
-	 * Revisit this when it will be implemented, and return -EBUSY for now.
+	 * Revisit this when it will be implemented, and return -EBUSY for analw.
 	 */
 
 	switch (index) {
@@ -1228,7 +1228,7 @@ int omap4iss_csi2_register_entities(struct iss_csi2_device *csi2,
 {
 	int ret;
 
-	/* Register the subdev and video nodes. */
+	/* Register the subdev and video analdes. */
 	ret = v4l2_device_register_subdev(vdev, &csi2->subdev);
 	if (ret < 0)
 		goto error;
@@ -1251,7 +1251,7 @@ error:
 /*
  * csi2_init_entities - Initialize subdev and media entity.
  * @csi2: Pointer to csi2 structure.
- * return -ENOMEM or zero on success
+ * return -EANALMEM or zero on success
  */
 static int csi2_init_entities(struct iss_csi2_device *csi2, const char *subname)
 {
@@ -1268,7 +1268,7 @@ static int csi2_init_entities(struct iss_csi2_device *csi2, const char *subname)
 
 	sd->grp_id = BIT(16);	/* group ID for iss subdevs */
 	v4l2_set_subdevdata(sd, csi2);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	pads[CSI2_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 	pads[CSI2_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
@@ -1280,7 +1280,7 @@ static int csi2_init_entities(struct iss_csi2_device *csi2, const char *subname)
 
 	csi2_init_formats(sd, NULL);
 
-	/* Video device node */
+	/* Video device analde */
 	csi2->video_out.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	csi2->video_out.ops = &csi2_issvideo_ops;
 	csi2->video_out.bpl_alignment = 32;
@@ -1348,13 +1348,13 @@ int omap4iss_csi2_create_links(struct iss_device *iss)
 	struct iss_csi2_device *csi2b = &iss->csi2b;
 	int ret;
 
-	/* Connect the CSI2a subdev to the video node. */
+	/* Connect the CSI2a subdev to the video analde. */
 	ret = media_create_pad_link(&csi2a->subdev.entity, CSI2_PAD_SOURCE,
 				    &csi2a->video_out.video.entity, 0, 0);
 	if (ret < 0)
 		return ret;
 
-	/* Connect the CSI2b subdev to the video node. */
+	/* Connect the CSI2b subdev to the video analde. */
 	ret = media_create_pad_link(&csi2b->subdev.entity, CSI2_PAD_SOURCE,
 				    &csi2b->video_out.video.entity, 0, 0);
 	if (ret < 0)

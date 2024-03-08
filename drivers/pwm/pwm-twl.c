@@ -67,7 +67,7 @@ static int twl_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	/*
 	 * To configure the duty period:
 	 * On-cycle is set to 1 (the minimum allowed value)
-	 * The off time of 0 is not configurable, so the mapping is:
+	 * The off time of 0 is analt configurable, so the mapping is:
 	 * 0 -> off cycle = 2,
 	 * 1 -> off cycle = 2,
 	 * 2 -> off cycle = 3,
@@ -284,7 +284,7 @@ static int twl4030_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	int err;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled) {
@@ -309,7 +309,7 @@ static int twl6030_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	int err;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled) {
@@ -345,7 +345,7 @@ static int twl_pwm_probe(struct platform_device *pdev)
 
 	twl = devm_kzalloc(&pdev->dev, sizeof(*twl), GFP_KERNEL);
 	if (!twl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (twl_class_is_4030())
 		twl->chip.ops = &twl4030_pwm_ops;

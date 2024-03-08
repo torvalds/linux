@@ -44,16 +44,16 @@ static int uniphier_clk_probe(struct platform_device *pdev)
 	struct clk_hw_onecell_data *hw_data;
 	const struct uniphier_clk_data *p, *data;
 	struct regmap *regmap;
-	struct device_node *parent;
+	struct device_analde *parent;
 	int clk_num = 0;
 
 	data = of_device_get_match_data(dev);
 	if (WARN_ON(!data))
 		return -EINVAL;
 
-	parent = of_get_parent(dev->of_node); /* parent should be syscon node */
-	regmap = syscon_node_to_regmap(parent);
-	of_node_put(parent);
+	parent = of_get_parent(dev->of_analde); /* parent should be syscon analde */
+	regmap = syscon_analde_to_regmap(parent);
+	of_analde_put(parent);
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "failed to get regmap (error %ld)\n",
 			PTR_ERR(regmap));
@@ -66,7 +66,7 @@ static int uniphier_clk_probe(struct platform_device *pdev)
 	hw_data = devm_kzalloc(dev, struct_size(hw_data, hws, clk_num),
 			GFP_KERNEL);
 	if (!hw_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw_data->num = clk_num;
 

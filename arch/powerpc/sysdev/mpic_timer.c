@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -62,7 +62,7 @@ struct cascade_priv {
 struct timer_group_priv {
 	struct timer_regs __iomem	*regs;
 	struct mpic_timer		timer[TIMERS_PER_GROUP];
-	struct list_head		node;
+	struct list_head		analde;
 	unsigned int			timerfreq;
 	unsigned int			idle;
 	unsigned int			flags;
@@ -198,7 +198,7 @@ static struct mpic_timer *get_timer(time64_t time)
 	unsigned long flags;
 	int ret;
 
-	list_for_each_entry(priv, &timer_group_list, node) {
+	list_for_each_entry(priv, &timer_group_list, analde) {
 		ret = convert_time_to_ticks(priv, time, &ticks);
 		if (ret < 0)
 			return NULL;
@@ -314,7 +314,7 @@ EXPORT_SYMBOL(mpic_get_remain_time);
  *
  * Free the timer.
  *
- * Note: can not be used in interrupt context.
+ * Analte: can analt be used in interrupt context.
  */
 void mpic_free_timer(struct mpic_timer *handle)
 {
@@ -383,19 +383,19 @@ struct mpic_timer *mpic_request_timer(irq_handler_t fn, void *dev,
 }
 EXPORT_SYMBOL(mpic_request_timer);
 
-static int __init timer_group_get_freq(struct device_node *np,
+static int __init timer_group_get_freq(struct device_analde *np,
 			struct timer_group_priv *priv)
 {
 	u32 div;
 
 	if (priv->flags & FSL_GLOBAL_TIMER) {
-		struct device_node *dn;
+		struct device_analde *dn;
 
-		dn = of_find_compatible_node(NULL, NULL, "fsl,mpic");
+		dn = of_find_compatible_analde(NULL, NULL, "fsl,mpic");
 		if (dn) {
 			of_property_read_u32(dn, "clock-frequency",
 					&priv->timerfreq);
-			of_node_put(dn);
+			of_analde_put(dn);
 		}
 	}
 
@@ -410,7 +410,7 @@ static int __init timer_group_get_freq(struct device_node *np,
 	return 0;
 }
 
-static int __init timer_group_get_irq(struct device_node *np,
+static int __init timer_group_get_irq(struct device_analde *np,
 		struct timer_group_priv *priv)
 {
 	const u32 all_timer[] = { 0, TIMERS_PER_GROUP };
@@ -458,7 +458,7 @@ static int __init timer_group_get_irq(struct device_node *np,
 	return 0;
 }
 
-static void __init timer_group_init(struct device_node *np)
+static void __init timer_group_init(struct device_analde *np)
 {
 	struct timer_group_priv *priv;
 	unsigned int i = 0;
@@ -466,7 +466,7 @@ static void __init timer_group_init(struct device_node *np)
 
 	priv = kzalloc(sizeof(struct timer_group_priv), GFP_KERNEL);
 	if (!priv) {
-		pr_err("%pOF: cannot allocate memory for group.\n", np);
+		pr_err("%pOF: cananalt allocate memory for group.\n", np);
 		return;
 	}
 
@@ -475,27 +475,27 @@ static void __init timer_group_init(struct device_node *np)
 
 	priv->regs = of_iomap(np, i++);
 	if (!priv->regs) {
-		pr_err("%pOF: cannot ioremap timer register address.\n", np);
+		pr_err("%pOF: cananalt ioremap timer register address.\n", np);
 		goto out;
 	}
 
 	if (priv->flags & FSL_GLOBAL_TIMER) {
 		priv->group_tcr = of_iomap(np, i++);
 		if (!priv->group_tcr) {
-			pr_err("%pOF: cannot ioremap tcr address.\n", np);
+			pr_err("%pOF: cananalt ioremap tcr address.\n", np);
 			goto out;
 		}
 	}
 
 	ret = timer_group_get_freq(np, priv);
 	if (ret < 0) {
-		pr_err("%pOF: cannot get timer frequency.\n", np);
+		pr_err("%pOF: cananalt get timer frequency.\n", np);
 		goto out;
 	}
 
 	ret = timer_group_get_irq(np, priv);
 	if (ret < 0) {
-		pr_err("%pOF: cannot get timer irqs.\n", np);
+		pr_err("%pOF: cananalt get timer irqs.\n", np);
 		goto out;
 	}
 
@@ -505,7 +505,7 @@ static void __init timer_group_init(struct device_node *np)
 	if (priv->flags & FSL_GLOBAL_TIMER)
 		setbits32(priv->group_tcr, MPIC_TIMER_TCR_CLKDIV);
 
-	list_add_tail(&priv->node, &timer_group_list);
+	list_add_tail(&priv->analde, &timer_group_list);
 
 	return;
 
@@ -523,7 +523,7 @@ static void mpic_timer_resume(void)
 {
 	struct timer_group_priv *priv;
 
-	list_for_each_entry(priv, &timer_group_list, node) {
+	list_for_each_entry(priv, &timer_group_list, analde) {
 		/* Init FSL timer hardware */
 		if (priv->flags & FSL_GLOBAL_TIMER)
 			setbits32(priv->group_tcr, MPIC_TIMER_TCR_CLKDIV);
@@ -541,15 +541,15 @@ static struct syscore_ops mpic_timer_syscore_ops = {
 
 static int __init mpic_timer_init(void)
 {
-	struct device_node *np = NULL;
+	struct device_analde *np = NULL;
 
-	for_each_matching_node(np, mpic_timer_ids)
+	for_each_matching_analde(np, mpic_timer_ids)
 		timer_group_init(np);
 
 	register_syscore_ops(&mpic_timer_syscore_ops);
 
 	if (list_empty(&timer_group_list))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }

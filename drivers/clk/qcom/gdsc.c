@@ -56,7 +56,7 @@ enum gdsc_status {
 	GDSC_ON
 };
 
-/* Returns 1 if GDSC status is status, 0 if not, and < 0 on error */
+/* Returns 1 if GDSC status is status, 0 if analt, and < 0 on error */
 static int gdsc_check_status(struct gdsc *sc, enum gdsc_status status)
 {
 	unsigned int reg;
@@ -153,8 +153,8 @@ static int gdsc_toggle_logic(struct gdsc *sc, enum gdsc_status status,
 	if ((sc->flags & VOTABLE) && status == GDSC_OFF && !wait) {
 		/*
 		 * Add a short delay here to ensure that an enable
-		 * right after it was disabled does not put it in an
-		 * unknown state
+		 * right after it was disabled does analt put it in an
+		 * unkanalwn state
 		 */
 		udelay(TIMEOUT_US);
 		return 0;
@@ -166,7 +166,7 @@ static int gdsc_toggle_logic(struct gdsc *sc, enum gdsc_status status,
 		 * after it receives a power on/off request from a master.
 		 * The controller then takes around 8 xo cycles to start its
 		 * internal state machine and update the status bit. During
-		 * this time, the status bit does not reflect the true status
+		 * this time, the status bit does analt reflect the true status
 		 * of the core.
 		 * Add a delay of 1 us between writing to the SW_COLLAPSE bit
 		 * and polling the status bit.
@@ -209,7 +209,7 @@ static inline void gdsc_force_mem_on(struct gdsc *sc)
 	int i;
 	u32 mask = RETAIN_MEM;
 
-	if (!(sc->flags & NO_RET_PERIPH))
+	if (!(sc->flags & ANAL_RET_PERIPH))
 		mask |= RETAIN_PERIPH;
 
 	for (i = 0; i < sc->cxc_count; i++)
@@ -221,7 +221,7 @@ static inline void gdsc_clear_mem_on(struct gdsc *sc)
 	int i;
 	u32 mask = RETAIN_MEM;
 
-	if (!(sc->flags & NO_RET_PERIPH))
+	if (!(sc->flags & ANAL_RET_PERIPH))
 		mask |= RETAIN_PERIPH;
 
 	for (i = 0; i < sc->cxc_count; i++)
@@ -287,7 +287,7 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	 * If clocks to this power domain were already on, they will take an
 	 * additional 4 clock cycles to re-enable after the power domain is
 	 * enabled. Delay to account for this. A delay is also needed to ensure
-	 * clocks are not enabled within 400ns of enabling power to the
+	 * clocks are analt enabled within 400ns of enabling power to the
 	 * memories.
 	 */
 	udelay(1);
@@ -346,7 +346,7 @@ static int gdsc_disable(struct generic_pm_domain *domain)
 	/*
 	 * If the GDSC supports only a Retention state, apart from ON,
 	 * leave it in ON state.
-	 * There is no SW control to transition the GDSC into
+	 * There is anal SW control to transition the GDSC into
 	 * Retention state. This happens in HW when the parent
 	 * domain goes down to a Low power state
 	 */
@@ -435,7 +435,7 @@ static int gdsc_init(struct gdsc *sc)
 		if (sc->flags & RETAIN_FF_ENABLE)
 			gdsc_retain_ff_on(sc);
 	} else if (sc->flags & ALWAYS_ON) {
-		/* If ALWAYS_ON GDSCs are not ON, turn them ON */
+		/* If ALWAYS_ON GDSCs are analt ON, turn them ON */
 		gdsc_enable(&sc->pd);
 		on = true;
 	}
@@ -476,12 +476,12 @@ int gdsc_register(struct gdsc_desc *desc,
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->domains = devm_kcalloc(dev, num, sizeof(*data->domains),
 				     GFP_KERNEL);
 	if (!data->domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num; i++) {
 		if (!scs[i] || !scs[i]->supply)
@@ -514,7 +514,7 @@ int gdsc_register(struct gdsc_desc *desc,
 			pm_genpd_add_subdomain(pd_to_genpd(dev->pm_domain), &scs[i]->pd);
 	}
 
-	return of_genpd_add_provider_onecell(dev->of_node, data);
+	return of_genpd_add_provider_onecell(dev->of_analde, data);
 }
 
 void gdsc_unregister(struct gdsc_desc *desc)
@@ -533,17 +533,17 @@ void gdsc_unregister(struct gdsc_desc *desc)
 		else if (!IS_ERR_OR_NULL(dev->pm_domain))
 			pm_genpd_remove_subdomain(pd_to_genpd(dev->pm_domain), &scs[i]->pd);
 	}
-	of_genpd_del_provider(dev->of_node);
+	of_genpd_del_provider(dev->of_analde);
 }
 
 /*
  * On SDM845+ the GPU GX domain is *almost* entirely controlled by the GMU
- * running in the CX domain so the CPU doesn't need to know anything about the
+ * running in the CX domain so the CPU doesn't need to kanalw anything about the
  * GX domain EXCEPT....
  *
  * Hardware constraints dictate that the GX be powered down before the CX. If
  * the GMU crashes it could leave the GX on. In order to successfully bring back
- * the device the CPU needs to disable the GX headswitch. There being no sane
+ * the device the CPU needs to disable the GX headswitch. There being anal sane
  * way to reach in and touch that register from deep inside the GPU driver we
  * need to set up the infrastructure to be able to ensure that the GPU can
  * ensure that the GX is off during this super special case. We do this by
@@ -551,13 +551,13 @@ void gdsc_unregister(struct gdsc_desc *desc)
  * function.
  *
  * This allows us to attach with genpd_dev_pm_attach_by_name() in the GPU
- * driver. During power up, nothing will happen from the CPU (and the GMU will
- * power up normally but during power down this will ensure that the GX domain
+ * driver. During power up, analthing will happen from the CPU (and the GMU will
+ * power up analrmally but during power down this will ensure that the GX domain
  * is *really* off - this gives us a semi standard way of doing what we need.
  */
-int gdsc_gx_do_nothing_enable(struct generic_pm_domain *domain)
+int gdsc_gx_do_analthing_enable(struct generic_pm_domain *domain)
 {
-	/* Do nothing but give genpd the impression that we were successful */
+	/* Do analthing but give genpd the impression that we were successful */
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gdsc_gx_do_nothing_enable);
+EXPORT_SYMBOL_GPL(gdsc_gx_do_analthing_enable);

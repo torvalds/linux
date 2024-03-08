@@ -15,7 +15,7 @@
 
 /*
  * External MV88E6361 switch is only available on v2 of the board.
- * U-Boot will enable the MDIO bus and switch nodes.
+ * U-Boot will enable the MDIO bus and switch analdes.
  */
 &mdio {
 	status = "disabled";

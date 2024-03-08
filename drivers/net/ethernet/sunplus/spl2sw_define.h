@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright Sunplus Technology Co., Ltd.
+/* Copyright Sunplus Techanallogy Co., Ltd.
  *       All rights reserved.
  */
 
@@ -260,7 +260,7 @@ struct spl2sw_mac {
 
 	u8 mac_addr[ETH_ALEN];
 	phy_interface_t phy_mode;
-	struct device_node *phy_node;
+	struct device_analde *phy_analde;
 
 	u8 lan_port;
 	u8 to_vlan;

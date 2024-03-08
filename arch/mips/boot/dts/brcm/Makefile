@@ -16,7 +16,7 @@ dtb-$(CONFIG_DT_NETGEAR_CVG834G)	+= bcm3368-netgear-cvg834g.dtb
 dtb-$(CONFIG_DT_SFR_NEUFBOX4_SERCOMM)	+= bcm6358-neufbox4-sercomm.dtb
 dtb-$(CONFIG_DT_SFR_NEUFBOX6_SERCOMM)	+= bcm6362-neufbox6-sercomm.dtb
 
-dtb-$(CONFIG_DT_NONE) += \
+dtb-$(CONFIG_DT_ANALNE) += \
 	bcm3368-netgear-cvg834g.dtb \
 	bcm6358-neufbox4-sercomm.dtb \
 	bcm6362-neufbox6-sercomm.dtb \

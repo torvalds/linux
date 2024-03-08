@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Selftest that verifies that incomping ICMPs are ignored,
- * the TCP connection stays alive, no hard or soft errors get reported
- * to the usespace and the counter for ignored ICMPs is updated.
+ * Selftest that verifies that incomping ICMPs are iganalred,
+ * the TCP connection stays alive, anal hard or soft errors get reported
+ * to the usespace and the counter for iganalred ICMPs is updated.
  *
  * RFC5925, 7.8:
- * >> A TCP-AO implementation MUST default to ignore incoming ICMPv4
+ * >> A TCP-AO implementation MUST default to iganalre incoming ICMPv4
  * messages of Type 3 (destination unreachable), Codes 2-4 (protocol
  * unreachable, port unreachable, and fragmentation needed -- ’hard
  * errors’), and ICMPv6 Type 1 (destination unreachable), Code 1
@@ -13,7 +13,7 @@
  * for connections in synchronized states (ESTABLISHED, FIN-WAIT-1, FIN-
  * WAIT-2, CLOSE-WAIT, CLOSING, LAST-ACK, TIME-WAIT) that match MKTs.
  *
- * Author: Dmitry Safonov <dima@arista.com>
+ * Author: Dmitry Safoanalv <dima@arista.com>
  */
 #include <inttypes.h>
 #include <linux/icmp.h>
@@ -52,23 +52,23 @@ static void serve_interfered(int sk)
 {
 	ssize_t test_quota = packet_size * packets_nr * 10;
 	uint64_t dest_unreach_a, dest_unreach_b;
-	uint64_t icmp_ignored_a, icmp_ignored_b;
+	uint64_t icmp_iganalred_a, icmp_iganalred_b;
 	struct tcp_ao_counters ao_cnt1, ao_cnt2;
-	bool counter_not_found;
+	bool counter_analt_found;
 	struct netstat *ns_after, *ns_before;
 	ssize_t bytes;
 
 	ns_before = netstat_read();
 	dest_unreach_a = netstat_get(ns_before, dst_unreach, NULL);
-	icmp_ignored_a = netstat_get(ns_before, tcpao_icmps, NULL);
+	icmp_iganalred_a = netstat_get(ns_before, tcpao_icmps, NULL);
 	if (test_get_tcp_ao_counters(sk, &ao_cnt1))
 		test_error("test_get_tcp_ao_counters()");
 	bytes = test_server_run(sk, test_quota, 0);
 	ns_after = netstat_read();
 	netstat_print_diff(ns_before, ns_after);
 	dest_unreach_b = netstat_get(ns_after, dst_unreach, NULL);
-	icmp_ignored_b = netstat_get(ns_after, tcpao_icmps,
-					&counter_not_found);
+	icmp_iganalred_b = netstat_get(ns_after, tcpao_icmps,
+					&counter_analt_found);
 	if (test_get_tcp_ao_counters(sk, &ao_cnt2))
 		test_error("test_get_tcp_ao_counters()");
 
@@ -86,8 +86,8 @@ static void serve_interfered(int sk)
 		test_icmps_fail("Server failed with %zd: %s", bytes, strerrordesc_np(-bytes));
 	else
 		test_icmps_ok("Server survived %zd bytes of traffic", test_quota);
-	if (counter_not_found) {
-		test_fail("Not found %s counter", tcpao_icmps);
+	if (counter_analt_found) {
+		test_fail("Analt found %s counter", tcpao_icmps);
 		return;
 	}
 #ifdef TEST_ICMPS_ACCEPT
@@ -95,12 +95,12 @@ static void serve_interfered(int sk)
 #else
 	test_tcp_ao_counters_cmp(NULL, &ao_cnt1, &ao_cnt2, TEST_CNT_GOOD | TEST_CNT_AO_DROPPED_ICMP);
 #endif
-	if (icmp_ignored_a >= icmp_ignored_b) {
+	if (icmp_iganalred_a >= icmp_iganalred_b) {
 		test_icmps_fail("%s counter didn't change: %" PRIu64 " >= %" PRIu64,
-				tcpao_icmps, icmp_ignored_a, icmp_ignored_b);
+				tcpao_icmps, icmp_iganalred_a, icmp_iganalred_b);
 		return;
 	}
-	test_icmps_ok("ICMPs ignored %" PRIu64, icmp_ignored_b - icmp_ignored_a);
+	test_icmps_ok("ICMPs iganalred %" PRIu64, icmp_iganalred_b - icmp_iganalred_a);
 }
 
 static void *server_fn(void *arg)
@@ -142,7 +142,7 @@ static void *server_fn(void *arg)
 static size_t packets_sent;
 static size_t icmps_sent;
 
-static uint32_t checksum4_nofold(void *data, size_t len, uint32_t sum)
+static uint32_t checksum4_analfold(void *data, size_t len, uint32_t sum)
 {
 	uint16_t *words = data;
 	size_t i;
@@ -156,7 +156,7 @@ static uint32_t checksum4_nofold(void *data, size_t len, uint32_t sum)
 
 static uint16_t checksum4_fold(void *data, size_t len, uint32_t sum)
 {
-	sum = checksum4_nofold(data, len, sum);
+	sum = checksum4_analfold(data, len, sum);
 	while (sum > 0xFFFF)
 		sum = (sum & 0xFFFF) + (sum >> 16);
 	return ~sum;
@@ -254,7 +254,7 @@ static inline uint32_t csum_add(uint32_t csum, uint32_t addend)
 	return res + (res < addend);
 }
 
-noinline uint32_t checksum6_nofold(void *data, size_t len, uint32_t sum)
+analinline uint32_t checksum6_analfold(void *data, size_t len, uint32_t sum)
 {
 	uint16_t *words = data;
 	size_t i;
@@ -266,7 +266,7 @@ noinline uint32_t checksum6_nofold(void *data, size_t len, uint32_t sum)
 	return sum;
 }
 
-noinline uint16_t icmp6_checksum(struct sockaddr_in6 *src,
+analinline uint16_t icmp6_checksum(struct sockaddr_in6 *src,
 				 struct sockaddr_in6 *dst,
 				 void *ptr, size_t len, uint8_t proto)
 {
@@ -284,8 +284,8 @@ noinline uint16_t icmp6_checksum(struct sockaddr_in6 *src,
 	pseudo_header.payload_len	= htonl(len);
 	pseudo_header.nexthdr		= proto;
 
-	sum = checksum6_nofold(&pseudo_header, sizeof(pseudo_header), 0);
-	sum = checksum6_nofold(ptr, len, sum);
+	sum = checksum6_analfold(&pseudo_header, sizeof(pseudo_header), 0);
+	sum = checksum6_analfold(ptr, len, sum);
 
 	return csum_fold(sum);
 }
@@ -353,7 +353,7 @@ static uint32_t get_rcv_nxt(int sk)
 		test_error("setsockopt(TCP_REPAIR_QUEUE)");
 	if (getsockopt(sk, SOL_TCP, TCP_QUEUE_SEQ, &ret, &sz))
 		test_error("getsockopt(TCP_QUEUE_SEQ)");
-	val = TCP_REPAIR_OFF_NO_WP;
+	val = TCP_REPAIR_OFF_ANAL_WP;
 	if (setsockopt(sk, SOL_TCP, TCP_REPAIR, &val, sizeof(val)))
 		test_error("setsockopt(TCP_REPAIR)");
 	return ret;
@@ -388,7 +388,7 @@ static void icmp_interfere(const size_t nr, uint32_t rcv_nxt, void *src, void *d
 					rcv_nxt, saddr6, daddr6);
 			icmps_sent += 2;
 		} else {
-			test_error("Not ip address family");
+			test_error("Analt ip address family");
 		}
 	}
 }
@@ -436,7 +436,7 @@ static void *client_fn(void *arg)
 
 	send_interfered(sk);
 
-	/* Not expecting client to quit */
+	/* Analt expecting client to quit */
 	test_fail("client disconnected");
 
 	return NULL;

@@ -25,7 +25,7 @@
 /* bits within the USBPCR register */
 #define USBPCR_USB_MODE				BIT(31)
 #define USBPCR_AVLD_REG				BIT(30)
-#define USBPCR_COMMONONN			BIT(25)
+#define USBPCR_COMMOANALNN			BIT(25)
 #define USBPCR_VBUSVLDEXT			BIT(24)
 #define USBPCR_VBUSVLDEXTSEL		BIT(23)
 #define USBPCR_POR					BIT(22)
@@ -207,7 +207,7 @@ static void jz4770_usb_phy_init(struct phy *phy)
 	struct ingenic_usb_phy *priv = phy_get_drvdata(phy);
 	u32 reg;
 
-	reg = USBPCR_AVLD_REG | USBPCR_COMMONONN | USBPCR_POR |
+	reg = USBPCR_AVLD_REG | USBPCR_COMMOANALNN | USBPCR_POR |
 		FIELD_PREP(USBPCR_IDPULLUP_MASK, USBPCR_IDPULLUP_ALWAYS) |
 		FIELD_PREP(USBPCR_COMPDISTUNE_MASK, USBPCR_COMPDISTUNE_DFT) |
 		FIELD_PREP(USBPCR_OTGTUNE_MASK, USBPCR_OTGTUNE_DFT) |
@@ -227,7 +227,7 @@ static void jz4775_usb_phy_init(struct phy *phy)
 		USBPCR1_WORD_IF_16BIT;
 	writel(reg, priv->base + REG_USBPCR1_OFFSET);
 
-	reg = USBPCR_COMMONONN | USBPCR_POR |
+	reg = USBPCR_COMMOANALNN | USBPCR_POR |
 		FIELD_PREP(USBPCR_TXVREFTUNE_MASK, USBPCR_TXVREFTUNE_INC_75PPT);
 	writel(reg, priv->base + REG_USBPCR_OFFSET);
 }
@@ -241,7 +241,7 @@ static void jz4780_usb_phy_init(struct phy *phy)
 		USBPCR1_WORD_IF_16BIT;
 	writel(reg, priv->base + REG_USBPCR1_OFFSET);
 
-	reg = USBPCR_TXPREEMPHTUNE | USBPCR_COMMONONN | USBPCR_POR;
+	reg = USBPCR_TXPREEMPHTUNE | USBPCR_COMMOANALNN | USBPCR_POR;
 	writel(reg, priv->base + REG_USBPCR_OFFSET);
 }
 
@@ -253,7 +253,7 @@ static void x1000_usb_phy_init(struct phy *phy)
 	reg = readl(priv->base + REG_USBPCR1_OFFSET) | USBPCR1_WORD_IF_16BIT;
 	writel(reg, priv->base + REG_USBPCR1_OFFSET);
 
-	reg = USBPCR_TXPREEMPHTUNE | USBPCR_COMMONONN | USBPCR_POR |
+	reg = USBPCR_TXPREEMPHTUNE | USBPCR_COMMOANALNN | USBPCR_POR |
 		FIELD_PREP(USBPCR_SQRXTUNE_MASK, USBPCR_SQRXTUNE_DCR_20PCT) |
 		FIELD_PREP(USBPCR_TXHSXVTUNE_MASK, USBPCR_TXHSXVTUNE_DCR_15MV) |
 		FIELD_PREP(USBPCR_TXVREFTUNE_MASK, USBPCR_TXVREFTUNE_INC_25PPT);
@@ -272,7 +272,7 @@ static void x1830_usb_phy_init(struct phy *phy)
 		USBPCR1_DMPD | USBPCR1_DPPD;
 	writel(reg, priv->base + REG_USBPCR1_OFFSET);
 
-	reg = USBPCR_VBUSVLDEXT | USBPCR_TXPREEMPHTUNE | USBPCR_COMMONONN | USBPCR_POR |
+	reg = USBPCR_VBUSVLDEXT | USBPCR_TXPREEMPHTUNE | USBPCR_COMMOANALNN | USBPCR_POR |
 		FIELD_PREP(USBPCR_IDPULLUP_MASK, USBPCR_IDPULLUP_OTG);
 	writel(reg, priv->base + REG_USBPCR_OFFSET);
 }
@@ -322,12 +322,12 @@ static int ingenic_usb_phy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->soc_info = device_get_match_data(dev);
 	if (!priv->soc_info) {
-		dev_err(dev, "Error: No device match found\n");
-		return -ENODEV;
+		dev_err(dev, "Error: Anal device match found\n");
+		return -EANALDEV;
 	}
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);

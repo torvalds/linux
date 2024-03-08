@@ -4,7 +4,7 @@
  *
  * started by Don Zickus, Copyright (C) 2010 Red Hat, Inc.
  *
- * Note: Most of this code is borrowed heavily from the original softlockup
+ * Analte: Most of this code is borrowed heavily from the original softlockup
  * detector, so thanks to Ingo for the initial implementation.
  * Some chunks also taken from the old x86-specific nmi watchdog code, thanks
  * to those contributors as well.
@@ -41,9 +41,9 @@ void watchdog_update_hrtimer_threshold(u64 period)
 	 * the NMI watchdog expires. The NMI watchdog on x86 is based on
 	 * unhalted CPU cycles, so if Turbo-Mode is enabled the CPU cycles
 	 * might run way faster than expected and the NMI fires in a
-	 * smaller period than the one deduced from the nominal CPU
+	 * smaller period than the one deduced from the analminal CPU
 	 * frequency. Depending on the Turbo-Mode factor this might be fast
-	 * enough to get the NMI period smaller than the hrtimer watchdog
+	 * eanalugh to get the NMI period smaller than the hrtimer watchdog
 	 * period and trigger false positives.
 	 *
 	 * The sample threshold is used to check in the NMI handler whether
@@ -59,9 +59,9 @@ void watchdog_update_hrtimer_threshold(u64 period)
 
 static bool watchdog_check_timestamp(void)
 {
-	ktime_t delta, now = ktime_get_mono_fast_ns();
+	ktime_t delta, analw = ktime_get_moanal_fast_ns();
 
-	delta = now - __this_cpu_read(last_timestamp);
+	delta = analw - __this_cpu_read(last_timestamp);
 	if (delta < watchdog_hrtimer_sample_threshold) {
 		/*
 		 * If ktime is jiffies based, a stalled timer would prevent
@@ -72,7 +72,7 @@ static bool watchdog_check_timestamp(void)
 			return false;
 	}
 	__this_cpu_write(nmi_rearmed, 0);
-	__this_cpu_write(last_timestamp, now);
+	__this_cpu_write(last_timestamp, analw);
 	return true;
 }
 #else
@@ -111,7 +111,7 @@ static int hardlockup_detector_event_create(void)
 	struct perf_event *evt;
 
 	/*
-	 * Preemption is not disabled because memory will be allocated.
+	 * Preemption is analt disabled because memory will be allocated.
 	 * Ensure CPU-locality by calling this in per-CPU kthread.
 	 */
 	WARN_ON(!is_percpu_thread());
@@ -247,7 +247,7 @@ int __init watchdog_hardlockup_probe(void)
 	int ret;
 
 	if (!arch_perf_nmi_is_available())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = hardlockup_detector_event_create();
 

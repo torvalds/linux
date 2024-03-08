@@ -26,10 +26,10 @@ static inline void nfs_inc_server_stats(const struct nfs_server *server,
 	this_cpu_inc(server->io_stats->events[stat]);
 }
 
-static inline void nfs_inc_stats(const struct inode *inode,
+static inline void nfs_inc_stats(const struct ianalde *ianalde,
 				 enum nfs_stat_eventcounters stat)
 {
-	nfs_inc_server_stats(NFS_SERVER(inode), stat);
+	nfs_inc_server_stats(NFS_SERVER(ianalde), stat);
 }
 
 static inline void nfs_add_server_stats(const struct nfs_server *server,
@@ -39,11 +39,11 @@ static inline void nfs_add_server_stats(const struct nfs_server *server,
 	this_cpu_add(server->io_stats->bytes[stat], addend);
 }
 
-static inline void nfs_add_stats(const struct inode *inode,
+static inline void nfs_add_stats(const struct ianalde *ianalde,
 				 enum nfs_stat_bytecounters stat,
 				 long addend)
 {
-	nfs_add_server_stats(NFS_SERVER(inode), stat, addend);
+	nfs_add_server_stats(NFS_SERVER(ianalde), stat, addend);
 }
 
 static inline struct nfs_iostats __percpu *nfs_alloc_iostats(void)

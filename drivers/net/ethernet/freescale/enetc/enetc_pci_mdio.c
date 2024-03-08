@@ -34,7 +34,7 @@ static int enetc_pci_mdio_probe(struct pci_dev *pdev,
 
 	bus = devm_mdiobus_alloc_size(dev, sizeof(*mdio_priv));
 	if (!bus) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_mdiobus_alloc;
 	}
 
@@ -62,7 +62,7 @@ static int enetc_pci_mdio_probe(struct pci_dev *pdev,
 		goto err_pci_mem_reg;
 	}
 
-	err = of_mdiobus_register(bus, dev->of_node);
+	err = of_mdiobus_register(bus, dev->of_analde);
 	if (err)
 		goto err_mdiobus_reg;
 

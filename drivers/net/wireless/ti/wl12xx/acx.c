@@ -2,7 +2,7 @@
 /*
  * This file is part of wl12xx
  *
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  * Copyright (C) 2011 Texas Instruments Inc.
  */
 
@@ -19,7 +19,7 @@ int wl1271_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap)
 
 	bitmap_conf = kzalloc(sizeof(*bitmap_conf), GFP_KERNEL);
 	if (!bitmap_conf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

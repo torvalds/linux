@@ -2,7 +2,7 @@
 /*
  * CXL Flash Device Driver
  *
- * Written by: Manoj N. Kumar <manoj@linux.vnet.ibm.com>, IBM Corporation
+ * Written by: Maanalj N. Kumar <maanalj@linux.vnet.ibm.com>, IBM Corporation
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
@@ -24,7 +24,7 @@
 /**
  * create_local() - allocate and initialize a local LUN information structure
  * @sdev:	SCSI device associated with LUN.
- * @wwid:	World Wide Node Name for LUN.
+ * @wwid:	World Wide Analde Name for LUN.
  *
  * Return: Allocated local llun_info structure on success, NULL on failure
  */
@@ -36,12 +36,12 @@ static struct llun_info *create_local(struct scsi_device *sdev, u8 *wwid)
 
 	lli = kzalloc(sizeof(*lli), GFP_KERNEL);
 	if (unlikely(!lli)) {
-		dev_err(dev, "%s: could not allocate lli\n", __func__);
+		dev_err(dev, "%s: could analt allocate lli\n", __func__);
 		goto out;
 	}
 
 	lli->sdev = sdev;
-	lli->host_no = sdev->host->host_no;
+	lli->host_anal = sdev->host->host_anal;
 	lli->in_table = false;
 
 	memcpy(lli->wwid, wwid, DK_CXLFLASH_MANAGE_LUN_WWID_LEN);
@@ -52,7 +52,7 @@ out:
 /**
  * create_global() - allocate and initialize a global LUN information structure
  * @sdev:	SCSI device associated with LUN.
- * @wwid:	World Wide Node Name for LUN.
+ * @wwid:	World Wide Analde Name for LUN.
  *
  * Return: Allocated global glun_info structure on success, NULL on failure
  */
@@ -64,7 +64,7 @@ static struct glun_info *create_global(struct scsi_device *sdev, u8 *wwid)
 
 	gli = kzalloc(sizeof(*gli), GFP_KERNEL);
 	if (unlikely(!gli)) {
-		dev_err(dev, "%s: could not allocate gli\n", __func__);
+		dev_err(dev, "%s: could analt allocate gli\n", __func__);
 		goto out;
 	}
 
@@ -218,11 +218,11 @@ void cxlflash_term_global_luns(void)
  * @sdev:	SCSI device associated with LUN.
  * @manage:	Manage ioctl data structure.
  *
- * This routine is used to notify the driver about a LUN's WWID and associate
+ * This routine is used to analtify the driver about a LUN's WWID and associate
  * SCSI devices (sdev) with a global LUN instance. Additionally it serves to
  * change a LUN's operating mode: legacy or superpipe.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
 int cxlflash_manage_lun(struct scsi_device *sdev,
 			struct dk_cxlflash_manage_lun *manage)
@@ -240,7 +240,7 @@ int cxlflash_manage_lun(struct scsi_device *sdev,
 		__func__, get_unaligned_be64(&manage->wwid[0]),
 		get_unaligned_be64(&manage->wwid[8]), manage->hdr.flags, lli);
 	if (unlikely(!lli)) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -254,12 +254,12 @@ int cxlflash_manage_lun(struct scsi_device *sdev,
 		lli->lun_id[chan] = lun_to_lunid(sdev->lun);
 		sdev->hostdata = lli;
 	} else if (flags & DK_CXLFLASH_MANAGE_LUN_DISABLE_SUPERPIPE) {
-		if (lli->parent->mode != MODE_NONE)
+		if (lli->parent->mode != MODE_ANALNE)
 			rc = -EBUSY;
 		else {
 			/*
 			 * Clean up local LUN for this port and reset table
-			 * tracking when no more references exist.
+			 * tracking when anal more references exist.
 			 */
 			sdev->hostdata = NULL;
 			lli->port_sel &= ~CHAN2PORTMASK(chan);

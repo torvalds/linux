@@ -16,7 +16,7 @@
 #include <linux/fs.h>
 
 static inline bool spacetab(char c) { return c == ' ' || c == '\t'; }
-static inline const char *next_non_spacetab(const char *first, const char *last)
+static inline const char *next_analn_spacetab(const char *first, const char *last)
 {
 	for (; first <= last; first++)
 		if (!spacetab(*first))
@@ -37,19 +37,19 @@ static int load_script(struct linux_binprm *bprm)
 	struct file *file;
 	int retval;
 
-	/* Not ours to exec if we don't start with "#!". */
+	/* Analt ours to exec if we don't start with "#!". */
 	if ((bprm->buf[0] != '#') || (bprm->buf[1] != '!'))
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	/*
 	 * This section handles parsing the #! line into separate
 	 * interpreter path and argument strings. We must be careful
-	 * because bprm->buf is not yet guaranteed to be NUL-terminated
+	 * because bprm->buf is analt yet guaranteed to be NUL-terminated
 	 * (though the buffer will have trailing NUL padding when the
 	 * file size was smaller than the buffer size).
 	 *
-	 * We do not want to exec a truncated interpreter path, so either
-	 * we find a newline (which indicates nothing is truncated), or
+	 * We do analt want to exec a truncated interpreter path, so either
+	 * we find a newline (which indicates analthing is truncated), or
 	 * we find a space/tab/NUL after the interpreter path (which
 	 * itself may be preceded by spaces/tabs). Truncating the
 	 * arguments is fine: the interpreter can re-read the script to
@@ -58,15 +58,15 @@ static int load_script(struct linux_binprm *bprm)
 	buf_end = bprm->buf + sizeof(bprm->buf) - 1;
 	i_end = strnchr(bprm->buf, sizeof(bprm->buf), '\n');
 	if (!i_end) {
-		i_end = next_non_spacetab(bprm->buf + 2, buf_end);
+		i_end = next_analn_spacetab(bprm->buf + 2, buf_end);
 		if (!i_end)
-			return -ENOEXEC; /* Entire buf is spaces/tabs */
+			return -EANALEXEC; /* Entire buf is spaces/tabs */
 		/*
-		 * If there is no later space/tab/NUL we must assume the
+		 * If there is anal later space/tab/NUL we must assume the
 		 * interpreter path is truncated.
 		 */
 		if (!next_terminator(i_end, buf_end))
-			return -ENOEXEC;
+			return -EANALEXEC;
 		i_end = buf_end;
 	}
 	/* Trim any trailing spaces/tabs from i_end */
@@ -74,24 +74,24 @@ static int load_script(struct linux_binprm *bprm)
 		i_end--;
 
 	/* Skip over leading spaces/tabs */
-	i_name = next_non_spacetab(bprm->buf+2, i_end);
+	i_name = next_analn_spacetab(bprm->buf+2, i_end);
 	if (!i_name || (i_name == i_end))
-		return -ENOEXEC; /* No interpreter name found */
+		return -EANALEXEC; /* Anal interpreter name found */
 
 	/* Is there an optional argument? */
 	i_arg = NULL;
 	i_sep = next_terminator(i_name, i_end);
 	if (i_sep && (*i_sep != '\0'))
-		i_arg = next_non_spacetab(i_sep, i_end);
+		i_arg = next_analn_spacetab(i_sep, i_end);
 
 	/*
 	 * If the script filename will be inaccessible after exec, typically
 	 * because it is a "/dev/fd/<fd>/.." path against an O_CLOEXEC fd, give
-	 * up now (on the assumption that the interpreter will want to load
+	 * up analw (on the assumption that the interpreter will want to load
 	 * this file).
 	 */
 	if (bprm->interp_flags & BINPRM_FLAGS_PATH_INACCESSIBLE)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * OK, we've parsed out the interpreter name and
@@ -127,7 +127,7 @@ static int load_script(struct linux_binprm *bprm)
 		return retval;
 
 	/*
-	 * OK, now restart the process with the interpreter's dentry.
+	 * OK, analw restart the process with the interpreter's dentry.
 	 */
 	file = open_exec(i_name);
 	if (IS_ERR(file))

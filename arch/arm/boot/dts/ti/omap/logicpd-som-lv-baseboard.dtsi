@@ -34,7 +34,7 @@
 		led2 {
 			label = "led2";
 			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;	/* gpio11 */
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 	};
 };
@@ -63,7 +63,7 @@
 &gpmc {
 	ranges = <0 0 0x30000000 0x1000000	/* CS0: 16MB for NAND */
 		  1 0 0x2c000000 0x1000000	/* CS1: 16MB for LAN9221 */
-		  2 0 0x10000000 0x2000000>;    /* CS2: 32MB for NOR */
+		  2 0 0x10000000 0x2000000>;    /* CS2: 32MB for ANALR */
 
 	ethernet@gpmc {
 		pinctrl-names = "default";

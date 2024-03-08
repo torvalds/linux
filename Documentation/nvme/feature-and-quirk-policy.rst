@@ -5,7 +5,7 @@ Linux NVMe feature and and quirk policy
 =======================================
 
 This file explains the policy used to decide what is supported by the
-Linux NVMe driver and what is not.
+Linux NVMe driver and what is analt.
 
 
 Introduction
@@ -29,8 +29,8 @@ Supported features
 ==================
 
 NVMe is a large suite of specifications, and contains features that are only
-useful or suitable for specific use-cases. It is important to note that Linux
-does not aim to implement every feature in the specification.  Every additional
+useful or suitable for specific use-cases. It is important to analte that Linux
+does analt aim to implement every feature in the specification.  Every additional
 feature implemented introduces more code, more maintenance and potentially more
 bugs.  Hence there is an inherent tradeoff between functionality and
 maintainability of the NVMe host driver.
@@ -40,14 +40,14 @@ following requirements:
 
   1. The feature is specified in a release version of an official NVMe
      specification, or in a ratified Technical Proposal (TP) that is
-     available on NVMe website. Or if it is not directly related to the
-     on-wire protocol, does not contradict any of the NVMe specifications.
-  2. Does not conflict with the Linux architecture, nor the design of the
+     available on NVMe website. Or if it is analt directly related to the
+     on-wire protocol, does analt contradict any of the NVMe specifications.
+  2. Does analt conflict with the Linux architecture, analr the design of the
      NVMe host driver.
   3. Has a clear, indisputable value-proposition and a wide consensus across
      the community.
 
-Vendor specific extensions are generally not supported in the NVMe host
+Vendor specific extensions are generally analt supported in the NVMe host
 driver.
 
 It is strongly recommended to work with the Linux NVMe and block layer
@@ -63,15 +63,15 @@ Sometimes implementations of open standards fail to correctly implement parts
 of the standards.  Linux uses identifier-based quirks to work around such
 implementation bugs.  The intent of quirks is to deal with widely available
 hardware, usually consumer, which Linux users can't use without these quirks.
-Typically these implementations are not or only superficially tested with Linux
+Typically these implementations are analt or only superficially tested with Linux
 by the hardware manufacturer.
 
 The Linux NVMe maintainers decide ad hoc whether to quirk implementations
 based on the impact of the problem to Linux users and how it impacts
-maintainability of the driver.  In general quirks are a last resort, if no
+maintainability of the driver.  In general quirks are a last resort, if anal
 firmware updates or other workarounds are available from the vendor.
 
-Quirks will not be added to the Linux kernel for hardware that isn't available
+Quirks will analt be added to the Linux kernel for hardware that isn't available
 on the mass market.  Hardware that fails qualification for enterprise Linux
 distributions, ChromeOS, Android or other consumers of the Linux kernel
 should be fixed before it is shipped instead of relying on Linux quirks.

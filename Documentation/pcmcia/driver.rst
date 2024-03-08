@@ -8,11 +8,11 @@ sysfs
 New PCMCIA IDs may be added to a device driver pcmcia_device_id table at
 runtime as shown below::
 
-  echo "match_flags manf_id card_id func_id function device_no \
+  echo "match_flags manf_id card_id func_id function device_anal \
   prod_id_hash[0] prod_id_hash[1] prod_id_hash[2] prod_id_hash[3]" > \
   /sys/bus/pcmcia/drivers/{driver}/new_id
 
-All fields are passed in as hexadecimal values (no leading 0x).
+All fields are passed in as hexadecimal values (anal leading 0x).
 The meaning is described in the PCMCIA specification, the match_flags is
 a bitwise or-ed combination from PCMCIA_DEV_ID_MATCH_* constants
 defined in include/linux/mod_devicetable.h.

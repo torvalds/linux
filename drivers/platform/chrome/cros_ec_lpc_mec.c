@@ -36,8 +36,8 @@ static void cros_ec_lpc_mec_emi_write_address(u16 addr,
  * @offset: Address offset
  * @length: Number of bytes to check
  *
- * Return: 1 if in range, 0 if not, and -EINVAL on failure
- *         such as the mec range not being initialized
+ * Return: 1 if in range, 0 if analt, and -EINVAL on failure
+ *         such as the mec range analt being initialized
  */
 int cros_ec_lpc_mec_in_range(unsigned int offset, unsigned int length)
 {
@@ -78,13 +78,13 @@ u8 cros_ec_lpc_io_bytes_mec(enum cros_ec_lpc_mec_io_type io_type,
 	u8 sum = 0;
 	enum cros_ec_lpc_mec_emi_access_mode access, new_access;
 
-	/* Return checksum of 0 if window is not initialized */
+	/* Return checksum of 0 if window is analt initialized */
 	WARN_ON(mec_emi_base == 0 || mec_emi_end == 0);
 	if (mec_emi_base == 0 || mec_emi_end == 0)
 		return 0;
 
 	/*
-	 * Long access cannot be used on misaligned data since reading B0 loads
+	 * Long access cananalt be used on misaligned data since reading B0 loads
 	 * the data register and writing B3 flushes.
 	 */
 	if (offset & 0x3 || length < 4)

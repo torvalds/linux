@@ -5,7 +5,7 @@
 
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/sizes.h>
 #include "ipu-prv.h"
@@ -379,7 +379,7 @@ static int calc_csc_coeffs(struct ipu_ic_csc *csc)
 			yuv2rgb_709 : rgb2yuv_709;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	csc->params = *params_tbl[tbl_idx];

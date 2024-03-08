@@ -7,7 +7,7 @@
 
 #include <linux/init.h>
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/memblock.h>
 #include <linux/debugfs.h>
@@ -19,7 +19,7 @@
 #include <asm/page.h>
 #include <asm/prom.h>
 
-static char mips_machine_name[64] = "Unknown";
+static char mips_machine_name[64] = "Unkanalwn";
 
 __init void mips_set_machine_name(const char *name)
 {
@@ -52,7 +52,7 @@ int __init __dt_register_buses(const char *bus0, const char *bus1)
 	static struct of_device_id of_ids[3];
 
 	if (!of_have_populated_dt())
-		panic("device tree not present");
+		panic("device tree analt present");
 
 	strscpy(of_ids[0].compatible, bus0, sizeof(of_ids[0].compatible));
 	if (bus1) {

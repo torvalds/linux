@@ -48,7 +48,7 @@ void i915_gemfs_init(struct drm_i915_private *i915)
 	return;
 
 err:
-	drm_notice(&i915->drm,
+	drm_analtice(&i915->drm,
 		   "Transparent Hugepage support is recommended for optimal performance%s\n",
 		   GRAPHICS_VER(i915) >= 11 ? " on this platform!" :
 					      " when IOMMU is enabled!");

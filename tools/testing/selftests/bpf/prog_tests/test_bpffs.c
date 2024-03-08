@@ -13,7 +13,7 @@
 
 static int read_iter(char *file)
 {
-	/* 1024 should be enough to get contiguous 4 "iter" letters at some point */
+	/* 1024 should be eanalugh to get contiguous 4 "iter" letters at some point */
 	char buf[1024];
 	int fd, len;
 
@@ -48,10 +48,10 @@ static int fn(void)
 	/* If the directory already exists we can carry on. It may be left over
 	 * from a previous run.
 	 */
-	if ((err && errno != EEXIST) && !ASSERT_OK(err, "mkdir " TDIR))
+	if ((err && erranal != EEXIST) && !ASSERT_OK(err, "mkdir " TDIR))
 		goto out;
 
-	err = mount("none", TDIR, "tmpfs", 0, NULL);
+	err = mount("analne", TDIR, "tmpfs", 0, NULL);
 	if (!ASSERT_OK(err, "mount tmpfs"))
 		goto out;
 
@@ -104,7 +104,7 @@ static int fn(void)
 	err = stat(TDIR "/fs1/b", &b);
 	if (!ASSERT_OK(err, "stat(" TDIR "/fs1/b)"))
 		goto out;
-	if (!ASSERT_EQ(a.st_ino, b.st_ino, "b should have a's inode"))
+	if (!ASSERT_EQ(a.st_ianal, b.st_ianal, "b should have a's ianalde"))
 		goto out;
 	err = access(TDIR "/fs1/b/1", F_OK);
 	if (!ASSERT_OK(err, "access(" TDIR "/fs1/b/1)"))
@@ -120,15 +120,15 @@ static int fn(void)
 	err = stat(TDIR "/fs1/b", &b);
 	if (!ASSERT_OK(err, "stat(" TDIR "/fs1/b)"))
 		goto out;
-	if (!ASSERT_EQ(c.st_ino, b.st_ino, "b should have c's inode"))
+	if (!ASSERT_EQ(c.st_ianal, b.st_ianal, "b should have c's ianalde"))
 		goto out;
 	err = access(TDIR "/fs1/c/1", F_OK);
 	if (!ASSERT_OK(err, "access(" TDIR "/fs1/c/1)"))
 		goto out;
 
-	/* Check that RENAME_NOREPLACE works. */
-	err = renameat2(0, TDIR "/fs1/b", 0, TDIR "/fs1/a", RENAME_NOREPLACE);
-	if (!ASSERT_ERR(err, "renameat2(RENAME_NOREPLACE)")) {
+	/* Check that RENAME_ANALREPLACE works. */
+	err = renameat2(0, TDIR "/fs1/b", 0, TDIR "/fs1/a", RENAME_ANALREPLACE);
+	if (!ASSERT_ERR(err, "renameat2(RENAME_ANALREPLACE)")) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -152,12 +152,12 @@ void test_test_bpffs(void)
 	pid_t pid;
 
 	pid = fork();
-	if (CHECK(pid == -1, "clone", "clone failed %d", errno))
+	if (CHECK(pid == -1, "clone", "clone failed %d", erranal))
 		return;
 	if (pid == 0)
 		fn();
 	err = waitpid(pid, &status, 0);
-	if (CHECK(err == -1 && errno != ECHILD, "waitpid", "failed %d", errno))
+	if (CHECK(err == -1 && erranal != ECHILD, "waitpid", "failed %d", erranal))
 		return;
 	if (CHECK(WEXITSTATUS(status), "bpffs test ", "failed %d", WEXITSTATUS(status)))
 		return;

@@ -7,8 +7,8 @@
 
 #include "rblist.h"
 
-struct int_node {
-	struct rb_node rb_node;
+struct int_analde {
+	struct rb_analde rb_analde;
 	unsigned long i;
 	void *priv;
 };
@@ -20,12 +20,12 @@ struct intlist {
 struct intlist *intlist__new(const char *slist);
 void intlist__delete(struct intlist *ilist);
 
-void intlist__remove(struct intlist *ilist, struct int_node *in);
+void intlist__remove(struct intlist *ilist, struct int_analde *in);
 int intlist__add(struct intlist *ilist, unsigned long i);
 
-struct int_node *intlist__entry(const struct intlist *ilist, unsigned int idx);
-struct int_node *intlist__find(struct intlist *ilist, unsigned long i);
-struct int_node *intlist__findnew(struct intlist *ilist, unsigned long i);
+struct int_analde *intlist__entry(const struct intlist *ilist, unsigned int idx);
+struct int_analde *intlist__find(struct intlist *ilist, unsigned long i);
+struct int_analde *intlist__findnew(struct intlist *ilist, unsigned long i);
 
 static inline bool intlist__has_entry(struct intlist *ilist, unsigned long i)
 {
@@ -43,23 +43,23 @@ static inline unsigned int intlist__nr_entries(const struct intlist *ilist)
 }
 
 /* For intlist iteration */
-static inline struct int_node *intlist__first(struct intlist *ilist)
+static inline struct int_analde *intlist__first(struct intlist *ilist)
 {
-	struct rb_node *rn = rb_first_cached(&ilist->rblist.entries);
-	return rn ? rb_entry(rn, struct int_node, rb_node) : NULL;
+	struct rb_analde *rn = rb_first_cached(&ilist->rblist.entries);
+	return rn ? rb_entry(rn, struct int_analde, rb_analde) : NULL;
 }
-static inline struct int_node *intlist__next(struct int_node *in)
+static inline struct int_analde *intlist__next(struct int_analde *in)
 {
-	struct rb_node *rn;
+	struct rb_analde *rn;
 	if (!in)
 		return NULL;
-	rn = rb_next(&in->rb_node);
-	return rn ? rb_entry(rn, struct int_node, rb_node) : NULL;
+	rn = rb_next(&in->rb_analde);
+	return rn ? rb_entry(rn, struct int_analde, rb_analde) : NULL;
 }
 
 /**
  * intlist__for_each_entry      - iterate over a intlist
- * @pos:	the &struct int_node to use as a loop cursor.
+ * @pos:	the &struct int_analde to use as a loop cursor.
  * @ilist:	the &struct intlist for loop.
  */
 #define intlist__for_each_entry(pos, ilist)	\
@@ -67,9 +67,9 @@ static inline struct int_node *intlist__next(struct int_node *in)
 
 /**
  * intlist__for_each_entry_safe - iterate over a intlist safe against removal of
- *                         int_node
- * @pos:	the &struct int_node to use as a loop cursor.
- * @n:		another &struct int_node to use as temporary storage.
+ *                         int_analde
+ * @pos:	the &struct int_analde to use as a loop cursor.
+ * @n:		aanalther &struct int_analde to use as temporary storage.
  * @ilist:	the &struct intlist for loop.
  */
 #define intlist__for_each_entry_safe(pos, n, ilist)	\

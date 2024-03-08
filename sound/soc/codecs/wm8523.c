@@ -86,7 +86,7 @@ SOC_ENUM("Zero Detect Count", wm8523_zc_count),
 };
 
 static const struct snd_soc_dapm_widget wm8523_dapm_widgets[] = {
-SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_ANALPM, 0, 0),
 SND_SOC_DAPM_OUTPUT("LINEVOUTL"),
 SND_SOC_DAPM_OUTPUT("LINEVOUTR"),
 };
@@ -129,7 +129,7 @@ static int wm8523_startup(struct snd_pcm_substream *substream,
 	 */
 	if (!wm8523->sysclk) {
 		dev_err(component->dev,
-			"No MCLK configured, call set_sysclk() on init\n");
+			"Anal MCLK configured, call set_sysclk() on init\n");
 		return -EINVAL;
 	}
 
@@ -175,7 +175,7 @@ static int wm8523_hw_params(struct snd_pcm_substream *substream,
 
 		if (i == ARRAY_SIZE(bclk_ratios)) {
 			dev_err(component->dev,
-				"No matching BCLK/fs ratio for word length %d\n",
+				"Anal matching BCLK/fs ratio for word length %d\n",
 				params_width(params));
 			return -EINVAL;
 		}
@@ -385,7 +385,7 @@ static struct snd_soc_dai_driver wm8523_dai = {
 	.name = "wm8523-hifi",
 	.playback = {
 		.stream_name = "Playback",
-		.channels_min = 2,  /* Mono modes not yet supported */
+		.channels_min = 2,  /* Moanal modes analt yet supported */
 		.channels_max = 2,
 		.rates = WM8523_RATES,
 		.formats = WM8523_FORMATS,
@@ -451,7 +451,7 @@ static int wm8523_i2c_probe(struct i2c_client *i2c)
 	wm8523 = devm_kzalloc(&i2c->dev, sizeof(struct wm8523_priv),
 			      GFP_KERNEL);
 	if (wm8523 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8523->regmap = devm_regmap_init_i2c(i2c, &wm8523_regmap);
 	if (IS_ERR(wm8523->regmap)) {
@@ -483,7 +483,7 @@ static int wm8523_i2c_probe(struct i2c_client *i2c)
 		goto err_enable;
 	}
 	if (val != 0x8523) {
-		dev_err(&i2c->dev, "Device is not a WM8523, ID is %x\n", ret);
+		dev_err(&i2c->dev, "Device is analt a WM8523, ID is %x\n", ret);
 		ret = -EINVAL;
 		goto err_enable;
 	}

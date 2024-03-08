@@ -329,7 +329,7 @@
 		solomon,height = <64>;
 		solomon,width = <128>;
 		solomon,page-offset = <0>;
-		solomon,segment-no-remap;
+		solomon,segment-anal-remap;
 		solomon,prechargep2 = <15>;
 		reset-gpios = <&gpio_oled 1 GPIO_ACTIVE_LOW>;
 		vbat-supply = <&sw2_reg>;
@@ -618,7 +618,7 @@
 	bus-width = <4>;
 	cd-gpios = <&gpio7 8 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
-	no-1-8-v;
+	anal-1-8-v;
 	keep-power-in-suspend;
 	wakeup-source;
 	vmmc-supply = <&sw2_reg>;
@@ -629,8 +629,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	bus-width = <8>;
-	non-removable;
-	no-1-8-v;
+	analn-removable;
+	anal-1-8-v;
 	keep-power-in-suspend;
 	vmmc-supply = <&sw2_reg>;
 	status = "okay";

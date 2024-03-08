@@ -40,11 +40,11 @@
  * interconnect, which allows access to system memory, or it can be connected to
  * a dedicated bus which is directly connected to a data port on a peripheral.
  * Given that those are configuration options of the core that are selected when
- * it is instantiated this means that they can not be changed by software at
+ * it is instantiated this means that they can analt be changed by software at
  * runtime. By extension this means that each channel is uni-directional. It can
- * either be device to memory or memory to device, but not both. Also since the
+ * either be device to memory or memory to device, but analt both. Also since the
  * device side is a dedicated data bus only connected to a single peripheral
- * there is no address than can or needs to be configured for the device side.
+ * there is anal address than can or needs to be configured for the device side.
  */
 
 #define AXI_DMAC_REG_INTERFACE_DESC	0x10
@@ -212,14 +212,14 @@ static bool axi_dmac_check_len(struct axi_dmac_chan *chan, unsigned int len)
 {
 	if (len == 0)
 		return false;
-	if ((len & chan->length_align_mask) != 0) /* Not aligned */
+	if ((len & chan->length_align_mask) != 0) /* Analt aligned */
 		return false;
 	return true;
 }
 
 static bool axi_dmac_check_addr(struct axi_dmac_chan *chan, dma_addr_t addr)
 {
-	if ((addr & chan->address_align_mask) != 0) /* Not aligned */
+	if ((addr & chan->address_align_mask) != 0) /* Analt aligned */
 		return false;
 	return true;
 }
@@ -245,7 +245,7 @@ static void axi_dmac_start_transfer(struct axi_dmac_chan *chan)
 		vdesc = vchan_next_desc(&chan->vchan);
 		if (!vdesc)
 			return;
-		list_move_tail(&vdesc->node, &chan->active_descs);
+		list_move_tail(&vdesc->analde, &chan->active_descs);
 		desc = to_axi_dmac_desc(vdesc);
 	}
 	sg = &desc->sg[desc->num_submitted];
@@ -284,7 +284,7 @@ static void axi_dmac_start_transfer(struct axi_dmac_chan *chan)
 	}
 
 	/*
-	 * If the hardware supports cyclic transfers and there is no callback to
+	 * If the hardware supports cyclic transfers and there is anal callback to
 	 * call, enable hw cyclic mode to avoid unnecessary interrupts.
 	 */
 	if (chan->hw_cyclic && desc->cyclic && !desc->vdesc.tx.callback) {
@@ -312,7 +312,7 @@ static void axi_dmac_start_transfer(struct axi_dmac_chan *chan)
 static struct axi_dmac_desc *axi_dmac_active_desc(struct axi_dmac_chan *chan)
 {
 	return list_first_entry_or_null(&chan->active_descs,
-		struct axi_dmac_desc, vdesc.node);
+		struct axi_dmac_desc, vdesc.analde);
 }
 
 static inline unsigned int axi_dmac_total_sg_bytes(struct axi_dmac_chan *chan,
@@ -337,7 +337,7 @@ static void axi_dmac_dequeue_partial_xfers(struct axi_dmac_chan *chan)
 		id  = axi_dmac_read(dmac, AXI_DMAC_REG_PARTIAL_XFER_ID);
 
 		found_sg = false;
-		list_for_each_entry(desc, &chan->active_descs, vdesc.node) {
+		list_for_each_entry(desc, &chan->active_descs, vdesc.analde) {
 			for (i = 0; i < desc->num_sgs; i++) {
 				sg = &desc->sg[i];
 				if (sg->hw->id == AXI_DMAC_SG_UNUSED)
@@ -359,7 +359,7 @@ static void axi_dmac_dequeue_partial_xfers(struct axi_dmac_chan *chan)
 				id, len);
 		} else {
 			dev_warn(dmac->dma_dev.dev,
-				 "Not found partial segment id=%u, len=%u\n",
+				 "Analt found partial segment id=%u, len=%u\n",
 				 id, len);
 		}
 
@@ -378,7 +378,7 @@ static void axi_dmac_compute_residue(struct axi_dmac_chan *chan,
 	struct axi_dmac_sg *sg;
 	unsigned int i, total;
 
-	rslt->result = DMA_TRANS_NOERROR;
+	rslt->result = DMA_TRANS_ANALERROR;
 	rslt->residue = 0;
 
 	if (chan->hw_sg)
@@ -414,7 +414,7 @@ static bool axi_dmac_transfer_done(struct axi_dmac_chan *chan,
 		if (active->cyclic) {
 			vchan_cyclic_callback(&active->vdesc);
 		} else {
-			list_del(&active->vdesc.node);
+			list_del(&active->vdesc.analde);
 			vchan_cookie_complete(&active->vdesc);
 			active = axi_dmac_active_desc(chan);
 			start_next = !!active;
@@ -422,7 +422,7 @@ static bool axi_dmac_transfer_done(struct axi_dmac_chan *chan,
 	} else {
 		do {
 			sg = &active->sg[active->num_completed];
-			if (sg->hw->id == AXI_DMAC_SG_UNUSED) /* Not yet submitted */
+			if (sg->hw->id == AXI_DMAC_SG_UNUSED) /* Analt yet submitted */
 				break;
 			if (!(BIT(sg->hw->id) & completed_transfers))
 				break;
@@ -444,7 +444,7 @@ static bool axi_dmac_transfer_done(struct axi_dmac_chan *chan,
 				if (active->cyclic) {
 					active->num_completed = 0; /* wrap around */
 				} else {
-					list_del(&active->vdesc.node);
+					list_del(&active->vdesc.analde);
 					vchan_cookie_complete(&active->vdesc);
 					active = axi_dmac_active_desc(chan);
 				}
@@ -463,7 +463,7 @@ static irqreturn_t axi_dmac_interrupt_handler(int irq, void *devid)
 
 	pending = axi_dmac_read(dmac, AXI_DMAC_REG_IRQ_PENDING);
 	if (!pending)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	axi_dmac_write(dmac, AXI_DMAC_REG_IRQ_PENDING, pending);
 
@@ -537,7 +537,7 @@ axi_dmac_alloc_desc(struct axi_dmac_chan *chan, unsigned int num_sgs)
 	dma_addr_t hw_phys;
 	unsigned int i;
 
-	desc = kzalloc(struct_size(desc, sg, num_sgs), GFP_NOWAIT);
+	desc = kzalloc(struct_size(desc, sg, num_sgs), GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 	desc->num_sgs = num_sgs;
@@ -838,10 +838,10 @@ static void axi_dmac_adjust_chan_params(struct axi_dmac_chan *chan)
 
 /*
  * The configuration stored in the devicetree matches the configuration
- * parameters of the peripheral instance and allows the driver to know which
+ * parameters of the peripheral instance and allows the driver to kanalw which
  * features are implemented and how it should behave.
  */
-static int axi_dmac_parse_chan_dt(struct device_node *of_chan,
+static int axi_dmac_parse_chan_dt(struct device_analde *of_chan,
 	struct axi_dmac_chan *chan)
 {
 	u32 val;
@@ -851,7 +851,7 @@ static int axi_dmac_parse_chan_dt(struct device_node *of_chan,
 	if (ret)
 		return ret;
 
-	/* We only support 1 channel for now */
+	/* We only support 1 channel for analw */
 	if (val != 0)
 		return -EINVAL;
 
@@ -886,22 +886,22 @@ static int axi_dmac_parse_chan_dt(struct device_node *of_chan,
 
 static int axi_dmac_parse_dt(struct device *dev, struct axi_dmac *dmac)
 {
-	struct device_node *of_channels, *of_chan;
+	struct device_analde *of_channels, *of_chan;
 	int ret;
 
-	of_channels = of_get_child_by_name(dev->of_node, "adi,channels");
+	of_channels = of_get_child_by_name(dev->of_analde, "adi,channels");
 	if (of_channels == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
-	for_each_child_of_node(of_channels, of_chan) {
+	for_each_child_of_analde(of_channels, of_chan) {
 		ret = axi_dmac_parse_chan_dt(of_chan, &dmac->chan);
 		if (ret) {
-			of_node_put(of_chan);
-			of_node_put(of_channels);
+			of_analde_put(of_chan);
+			of_analde_put(of_channels);
 			return -EINVAL;
 		}
 	}
-	of_node_put(of_channels);
+	of_analde_put(of_channels);
 
 	return 0;
 }
@@ -976,16 +976,16 @@ static int axi_dmac_detect_caps(struct axi_dmac *dmac, unsigned int version)
 	if (axi_dmac_read(dmac, AXI_DMAC_REG_DEST_ADDRESS) == 0 &&
 	    chan->dest_type == AXI_DMAC_BUS_TYPE_AXI_MM) {
 		dev_err(dmac->dma_dev.dev,
-			"Destination memory-mapped interface not supported.");
-		return -ENODEV;
+			"Destination memory-mapped interface analt supported.");
+		return -EANALDEV;
 	}
 
 	axi_dmac_write(dmac, AXI_DMAC_REG_SRC_ADDRESS, 0xffffffff);
 	if (axi_dmac_read(dmac, AXI_DMAC_REG_SRC_ADDRESS) == 0 &&
 	    chan->src_type == AXI_DMAC_BUS_TYPE_AXI_MM) {
 		dev_err(dmac->dma_dev.dev,
-			"Source memory-mapped interface not supported.");
-		return -ENODEV;
+			"Source memory-mapped interface analt supported.");
+		return -EANALDEV;
 	}
 
 	if (version >= ADI_AXI_PCORE_VER(4, 2, 'a'))
@@ -1013,7 +1013,7 @@ static int axi_dmac_probe(struct platform_device *pdev)
 
 	dmac = devm_kzalloc(&pdev->dev, sizeof(*dmac), GFP_KERNEL);
 	if (!dmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmac->irq = platform_get_irq(pdev, 0);
 	if (dmac->irq < 0)
@@ -1081,13 +1081,13 @@ static int axi_dmac_probe(struct platform_device *pdev)
 
 	axi_dmac_write(dmac, AXI_DMAC_REG_IRQ_MASK, irq_mask);
 
-	if (of_dma_is_coherent(pdev->dev.of_node)) {
+	if (of_dma_is_coherent(pdev->dev.of_analde)) {
 		ret = axi_dmac_read(dmac, AXI_DMAC_REG_COHERENCY_DESC);
 
 		if (version < ADI_AXI_PCORE_VER(4, 4, 'a') ||
 		    !AXI_DMAC_DST_COHERENT_GET(ret)) {
 			dev_err(dmac->dma_dev.dev,
-				"Coherent DMA not supported in hardware");
+				"Coherent DMA analt supported in hardware");
 			ret = -EINVAL;
 			goto err_clk_disable;
 		}
@@ -1097,7 +1097,7 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk_disable;
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_analde,
 		of_dma_xlate_by_chan_id, dma_dev);
 	if (ret)
 		goto err_unregister_device;
@@ -1121,7 +1121,7 @@ static int axi_dmac_probe(struct platform_device *pdev)
 err_free_irq:
 	free_irq(dmac->irq, dmac);
 err_unregister_of:
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 err_unregister_device:
 	dma_async_device_unregister(&dmac->dma_dev);
 err_clk_disable:
@@ -1134,7 +1134,7 @@ static void axi_dmac_remove(struct platform_device *pdev)
 {
 	struct axi_dmac *dmac = platform_get_drvdata(pdev);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	free_irq(dmac->irq, dmac);
 	tasklet_kill(&dmac->chan.vchan.task);
 	dma_async_device_unregister(&dmac->dma_dev);

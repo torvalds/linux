@@ -13,13 +13,13 @@
 #include "efc_cmds.h"
 #include "efc_domain.h"
 #include "efc_nport.h"
-#include "efc_node.h"
+#include "efc_analde.h"
 #include "efc_fabric.h"
 #include "efc_device.h"
 #include "efc_els.h"
 
-#define EFC_MAX_REMOTE_NODES			2048
-#define NODE_SPARAMS_SIZE			256
+#define EFC_MAX_REMOTE_ANALDES			2048
+#define ANALDE_SPARAMS_SIZE			256
 
 enum efc_scsi_del_initiator_reason {
 	EFC_SCSI_INITIATOR_DELETED,
@@ -41,9 +41,9 @@ enum efc_scsi_del_target_reason {
 	efc_log_debug(domain->efc, \
 		      "[%s]" fmt, domain->display_name, ##__VA_ARGS__) \
 
-#define node_sm_trace() \
-	efc_log_debug(node->efc, "[%s] %-20s %-20s\n", \
-		      node->display_name, __func__, efc_sm_event_name(evt)) \
+#define analde_sm_trace() \
+	efc_log_debug(analde->efc, "[%s] %-20s %-20s\n", \
+		      analde->display_name, __func__, efc_sm_event_name(evt)) \
 
 #define nport_sm_trace(nport) \
 	efc_log_debug(nport->efc, \

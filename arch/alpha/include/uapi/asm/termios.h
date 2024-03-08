@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ALPHA_TERMIOS_H
 #define _UAPI_ALPHA_TERMIOS_H
 
@@ -50,8 +50,8 @@ struct termio {
 
 /*
  * c_cc characters in the termio structure.  Oh, how I love being
- * backwardly compatible.  Notice that character 4 and 5 are
- * interpreted differently depending on whether ICANON is set in
+ * backwardly compatible.  Analtice that character 4 and 5 are
+ * interpreted differently depending on whether ICAANALN is set in
  * c_lflag.  If it's set, they are used as _VEOF and _VEOL, otherwise
  * as _VMIN and V_TIME.  This is for compatibility with OSF/1 (which
  * is compatible with sysV)...

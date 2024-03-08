@@ -19,7 +19,7 @@
 /*
  * bits 31:2
  * This register presents the vector address for the interrupt currently
- * active on the CPU IRQ input. Writing to this register notifies the
+ * active on the CPU IRQ input. Writing to this register analtifies the
  * interrupt collector that the interrupt service routine for the current
  * interrupt has been entered.
  * The exception trap should have a LDPC instruction from this address:
@@ -27,7 +27,7 @@
  */
 
 /*
- * The Interrupt Collector Level Acknowledge Register is used by software to
+ * The Interrupt Collector Level Ackanalwledge Register is used by software to
  * indicate the completion of an interrupt on a specific level.
  * This register is written at the very end of an interrupt service routine. If
  * nesting is used then the CPU irq must be turned on before writing to this
@@ -38,18 +38,18 @@
 
 #define ASM9260_HW_ICOLL_CTRL				0x0020
 /*
- * ASM9260_BM_CTRL_SFTRST and ASM9260_BM_CTRL_CLKGATE are not available on
+ * ASM9260_BM_CTRL_SFTRST and ASM9260_BM_CTRL_CLKGATE are analt available on
  * asm9260.
  */
 #define ASM9260_BM_CTRL_SFTRST				BIT(31)
 #define ASM9260_BM_CTRL_CLKGATE				BIT(30)
 /* disable interrupt level nesting */
-#define ASM9260_BM_CTRL_NO_NESTING			BIT(19)
+#define ASM9260_BM_CTRL_ANAL_NESTING			BIT(19)
 /*
  * Set this bit to one enable the RISC32-style read side effect associated with
  * the vector address register. In this mode, interrupt in-service is signaled
  * by the read of the ASM9260_HW_ICOLL_VECTOR register to acquire the interrupt
- * vector address. Set this bit to zero for normal operation, in which the ISR
+ * vector address. Set this bit to zero for analrmal operation, in which the ISR
  * signals in-service explicitly by means of a write to the
  * ASM9260_HW_ICOLL_VECTOR register.
  * 0 - Must Write to Vector register to go in-service.
@@ -67,7 +67,7 @@
 
 /*
  * RAW0 and RAW1 provides a read-only view of the raw interrupt request lines
- * coming from various parts of the chip. Its purpose is to improve diagnostic
+ * coming from various parts of the chip. Its purpose is to improve diaganalstic
  * observability.
  */
 #define ASM9260_HW_ICOLL_RAW0				0x0040

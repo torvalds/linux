@@ -9,7 +9,7 @@
 
 struct page_counter {
 	/*
-	 * Make sure 'usage' does not share cacheline with any other field. The
+	 * Make sure 'usage' does analt share cacheline with any other field. The
 	 * memcg->memory.usage is a hot member of struct mem_cgroup.
 	 */
 	atomic_long_t usage;
@@ -36,7 +36,7 @@ struct page_counter {
 	unsigned long high;
 	unsigned long max;
 	struct page_counter *parent;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 #if BITS_PER_LONG == 32
 #define PAGE_COUNTER_MAX LONG_MAX

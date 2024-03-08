@@ -28,22 +28,22 @@ tuning, are defined via the Digital TV Frontend kABI.
 
 The functions that implement the abstract interface demux should be defined
 static or module private and registered to the Demux core for external
-access. It is not necessary to implement every function in the struct
+access. It is analt necessary to implement every function in the struct
 :c:type:`dmx_demux`. For example, a demux interface might support Section filtering,
-but not PES filtering. The kABI client is expected to check the value of any
+but analt PES filtering. The kABI client is expected to check the value of any
 function pointer before calling the function: the value of ``NULL`` means
-that the function is not available.
+that the function is analt available.
 
 Whenever the functions of the demux API modify shared data, the
 possibilities of lost update and race condition problems should be
 addressed, e.g. by protecting parts of code with mutexes.
 
-Note that functions called from a bottom half context must not sleep.
+Analte that functions called from a bottom half context must analt sleep.
 Even a simple memory allocation without using ``GFP_ATOMIC`` can result in a
 kernel thread being put to sleep if swapping is needed. For example, the
 Linux Kernel calls the functions of a network device interface from a
 bottom half context. Thus, if a demux kABI function is called from network
-device code, the function must not sleep.
+device code, the function must analt sleep.
 
 Demux Callback API
 ~~~~~~~~~~~~~~~~~~
@@ -52,14 +52,14 @@ This kernel-space API comprises the callback functions that deliver filtered
 data to the demux client. Unlike the other DVB kABIs, these functions are
 provided by the client and called from the demux code.
 
-The function pointers of this abstract interface are not packed into a
+The function pointers of this abstract interface are analt packed into a
 structure as in the other demux APIs, because the callback functions are
 registered and used independent of each other. As an example, it is possible
 for the API client to provide several callback functions for receiving TS
-packets and no callbacks for PES packets or sections.
+packets and anal callbacks for PES packets or sections.
 
-The functions that implement the callback API need not be re-entrant: when
-a demux driver calls one of these functions, the driver is not allowed to
+The functions that implement the callback API need analt be re-entrant: when
+a demux driver calls one of these functions, the driver is analt allowed to
 call the function again before the original call returns. If a callback is
 triggered by a hardware interrupt, it is recommended to use the Linux
 bottom half mechanism or start a tasklet instead of making the callback

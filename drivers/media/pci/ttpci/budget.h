@@ -122,8 +122,8 @@ extern int ttpci_budget_deinit(struct budget *budget);
 extern void ttpci_budget_irq10_handler(struct saa7146_dev *dev, u32 * isr);
 extern void ttpci_budget_set_video_port(struct saa7146_dev *dev, int video_port);
 extern int ttpci_budget_debiread(struct budget *budget, u32 config, int addr, int count,
-				 int uselocks, int nobusyloop);
+				 int uselocks, int analbusyloop);
 extern int ttpci_budget_debiwrite(struct budget *budget, u32 config, int addr, int count, u32 value,
-				  int uselocks, int nobusyloop);
+				  int uselocks, int analbusyloop);
 
 #endif

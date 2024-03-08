@@ -113,8 +113,8 @@ static struct reg_default max98373_reg[] = {
 	{MAX98373_R2026_PCM_CLOCK_RATIO, 0x04},
 	{MAX98373_R2027_PCM_SR_SETUP_1, 0x08},
 	{MAX98373_R2028_PCM_SR_SETUP_2, 0x88},
-	{MAX98373_R2029_PCM_TO_SPK_MONO_MIX_1, 0x00},
-	{MAX98373_R202A_PCM_TO_SPK_MONO_MIX_2, 0x00},
+	{MAX98373_R2029_PCM_TO_SPK_MOANAL_MIX_1, 0x00},
+	{MAX98373_R202A_PCM_TO_SPK_MOANAL_MIX_2, 0x00},
 	{MAX98373_R202B_PCM_RX_EN, 0x00},
 	{MAX98373_R202C_PCM_TX_EN, 0x00},
 	{MAX98373_R202E_ICC_RX_CH_EN_1, 0x00},
@@ -277,7 +277,7 @@ static __maybe_unused int max98373_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 					   msecs_to_jiffies(MAX98373_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(dev, "Initialization not complete, timed out\n");
+		dev_err(dev, "Initialization analt complete, timed out\n");
 		sdw_show_ping_status(slave->bus, true);
 
 		return -ETIMEDOUT;
@@ -318,7 +318,7 @@ static int max98373_read_prop(struct sdw_slave *slave)
 					  sizeof(*prop->src_dpn_prop),
 					  GFP_KERNEL);
 	if (!prop->src_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	dpn = prop->src_dpn_prop;
@@ -331,13 +331,13 @@ static int max98373_read_prop(struct sdw_slave *slave)
 		i++;
 	}
 
-	/* do this again for sink now */
+	/* do this again for sink analw */
 	nval = hweight32(prop->sink_ports);
 	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
 					   sizeof(*prop->sink_dpn_prop),
 					   GFP_KERNEL);
 	if (!prop->sink_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	dpn = prop->sink_dpn_prop;
@@ -372,7 +372,7 @@ static int max98373_io_init(struct sdw_slave *slave)
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(dev);
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 
 	/* Software Reset */
 	max98373_reset(max98373, dev);
@@ -394,10 +394,10 @@ static int max98373_io_init(struct sdw_slave *slave)
 		     0xFF);
 	/* L/R mix configuration */
 	regmap_write(max98373->regmap,
-		     MAX98373_R2029_PCM_TO_SPK_MONO_MIX_1,
+		     MAX98373_R2029_PCM_TO_SPK_MOANAL_MIX_1,
 		     0x80);
 	regmap_write(max98373->regmap,
-		     MAX98373_R202A_PCM_TO_SPK_MONO_MIX_2,
+		     MAX98373_R202A_PCM_TO_SPK_MOANAL_MIX_2,
 		     0x1);
 	/* Enable DC blocker */
 	regmap_write(max98373->regmap,
@@ -478,8 +478,8 @@ static int max98373_clock_calculate(struct sdw_slave *slave,
 			if (clk_freq == (max98373_clk_family[y] >> x))
 				return (x << 3) + y;
 
-	/* Set default clock (12.288 Mhz) if the value is not in the list */
-	dev_err(&slave->dev, "Requested clock not found. (clk_freq = %d)\n",
+	/* Set default clock (12.288 Mhz) if the value is analt in the list */
+	dev_err(&slave->dev, "Requested clock analt found. (clk_freq = %d)\n",
 		clk_freq);
 	return 0x5;
 }
@@ -495,7 +495,7 @@ static int max98373_clock_config(struct sdw_slave *slave,
 
 	/*
 	 *	Select the proper value for the register based on the
-	 *	requested clock. If the value is not in the list,
+	 *	requested clock. If the value is analt in the list,
 	 *	use reasonable default - 12.288 Mhz
 	 */
 	value = max98373_clock_calculate(slave, clk_freq);
@@ -623,7 +623,7 @@ static int max98373_sdw_dai_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = MAX98373_PCM_SR_SET1_SR_96000;
 		break;
 	default:
-		dev_err(component->dev, "Rate %d is not supported\n",
+		dev_err(component->dev, "Rate %d is analt supported\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -736,7 +736,7 @@ static int max98373_init(struct sdw_slave *slave, struct regmap *regmap)
 	/*  Allocate and assign private driver data structure  */
 	max98373 = devm_kzalloc(dev, sizeof(*max98373), GFP_KERNEL);
 	if (!max98373)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, max98373);
 	max98373->regmap = regmap;
@@ -749,7 +749,7 @@ static int max98373_init(struct sdw_slave *slave, struct regmap *regmap)
 				       sizeof(*max98373->cache),
 				       GFP_KERNEL);
 	if (!max98373->cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < max98373->cache_num; i++)
 		max98373->cache[i].reg = max98373_sdw_cache_reg[i];
@@ -773,14 +773,14 @@ static int max98373_init(struct sdw_slave *slave, struct regmap *regmap)
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);
 
-	/* make sure the device does not suspend immediately */
+	/* make sure the device does analt suspend immediately */
 	pm_runtime_mark_last_busy(dev);
 
 	pm_runtime_enable(dev);
 
-	/* important note: the device is NOT tagged as 'active' and will remain
+	/* important analte: the device is ANALT tagged as 'active' and will remain
 	 * 'suspended' until the hardware is enumerated/initialized. This is required
-	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does analt silently
 	 * fail with -EACCESS because of race conditions between card creation and enumeration
 	 */
 
@@ -819,7 +819,7 @@ static int max98373_bus_config(struct sdw_slave *slave,
 
 /*
  * slave_ops: callbacks for get_clock_stop_mode, clock_stop and
- * port_prep are not defined for now
+ * port_prep are analt defined for analw
  */
 static struct sdw_slave_ops max98373_slave_ops = {
 	.read_prop = max98373_read_prop,

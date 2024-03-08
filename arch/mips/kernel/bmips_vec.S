@@ -22,9 +22,9 @@
 
 	.macro	BARRIER
 	.set	mips32
-	_ssnop
-	_ssnop
-	_ssnop
+	_ssanalp
+	_ssanalp
+	_ssanalp
 	.set	mips0
 	.endm
 
@@ -80,7 +80,7 @@ END(bmips_smp_movevec)
 
 NESTED(bmips_reset_nmi_vec, PT_SIZE, sp)
 	.set	push
-	.set	noat
+	.set	analat
 	.align	4
 
 #ifdef CONFIG_SMP
@@ -97,7 +97,7 @@ NESTED(bmips_reset_nmi_vec, PT_SIZE, sp)
 	andi	k0, PRID_IMP_BMIPS5000
 	bne	k0, k1, 1f
 
-	/* if we're not on core 0, this must be the SMP boot signal */
+	/* if we're analt on core 0, this must be the SMP boot signal */
 	li	k1, (3 << 25)
 	mfc0	k0, $22
 	and	k0, k1
@@ -106,7 +106,7 @@ NESTED(bmips_reset_nmi_vec, PT_SIZE, sp)
 #endif /* CONFIG_CPU_BMIPS5000 */
 #endif /* CONFIG_SMP */
 
-	/* nope, it's just a regular NMI */
+	/* analpe, it's just a regular NMI */
 	SAVE_ALL
 	move	a0, sp
 
@@ -140,10 +140,10 @@ soft_reset:
         li      k1, (1 << 24)
         and     k1, k0
         bnez    k1, bmips_smp_entry
-        nop
+        analp
 
         /*
-         * running on TP0, can not be core 0 (the boot core).
+         * running on TP0, can analt be core 0 (the boot core).
          * Check for soft reset.  Indicates a warm boot
          */
         mfc0    k0, $12
@@ -157,10 +157,10 @@ soft_reset:
          */
         la      k0, bmips_5xxx_init
         jalr    k0
-        nop
+        analp
 
         b       bmips_smp_entry
-        nop
+        analp
 #endif
 
 /***********************************************************************

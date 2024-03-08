@@ -93,18 +93,18 @@ static ssize_t guest_collect_vpd(struct cxl *adapter, struct cxl_afu *afu,
 
 	vpd_buf = kcalloc(entries, sizeof(unsigned long *), GFP_KERNEL);
 	if (!vpd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	le = (struct sg_list *)get_zeroed_page(GFP_KERNEL);
 	if (!le) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err1;
 	}
 
 	for (i = 0; i < entries; i++) {
 		vpd_buf[i] = (unsigned long *)get_zeroed_page(GFP_KERNEL);
 		if (!vpd_buf[i]) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err2;
 		}
 		le[i].phys_addr = cpu_to_be64(virt_to_phys(vpd_buf[i]));
@@ -185,7 +185,7 @@ static int afu_read_error_state(struct cxl_afu *afu, int *state_out)
 
 	rc = cxl_h_read_error_state(afu->guest->handle, &state);
 	if (!rc) {
-		WARN_ON(state != H_STATE_NORMAL &&
+		WARN_ON(state != H_STATE_ANALRMAL &&
 			state != H_STATE_DISABLE &&
 			state != H_STATE_TEMP_UNAVAILABLE &&
 			state != H_STATE_PERM_UNAVAILABLE);
@@ -238,7 +238,7 @@ static int irq_alloc_range(struct cxl *adapter, int len, int *irq)
 			return 0;
 		}
 	}
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static int irq_free_range(struct cxl *adapter, int irq, int len)
@@ -247,7 +247,7 @@ static int irq_free_range(struct cxl *adapter, int irq, int len)
 	struct irq_avail *cur;
 
 	if (len == 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (i = 0; i < adapter->guest->irq_nranges; i++) {
 		cur = &adapter->guest->irq_avail[i];
@@ -260,7 +260,7 @@ static int irq_free_range(struct cxl *adapter, int irq, int len)
 			return 0;
 		}
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int guest_reset(struct cxl *adapter)
@@ -282,7 +282,7 @@ static int guest_reset(struct cxl *adapter)
 	for (i = 0; i < adapter->slices; i++) {
 		if (!rc && (afu = adapter->afu[i])) {
 			pci_error_handlers(afu, CXL_SLOT_RESET_EVENT,
-					pci_channel_io_normal);
+					pci_channel_io_analrmal);
 			pci_error_handlers(afu, CXL_RESUME_EVENT, 0);
 		}
 	}
@@ -296,7 +296,7 @@ static int guest_alloc_one_irq(struct cxl *adapter)
 
 	spin_lock(&adapter->guest->irq_alloc_lock);
 	if (irq_alloc_range(adapter, 1, &irq))
-		irq = -ENOSPC;
+		irq = -EANALSPC;
 	spin_unlock(&adapter->guest->irq_alloc_lock);
 	return irq;
 }
@@ -338,7 +338,7 @@ error:
 	for (i = 0; i < CXL_IRQ_RANGES; i++)
 		irq_free_range(adapter, irqs->offset[i], irqs->range[i]);
 	spin_unlock(&adapter->guest->irq_alloc_lock);
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static void guest_release_irq_ranges(struct cxl_irq_ranges *irqs,
@@ -357,13 +357,13 @@ static int guest_register_serr_irq(struct cxl_afu *afu)
 	afu->err_irq_name = kasprintf(GFP_KERNEL, "cxl-%s-err",
 				      dev_name(&afu->dev));
 	if (!afu->err_irq_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!(afu->serr_virq = cxl_map_irq(afu->adapter, afu->serr_hwirq,
 				 guest_slice_irq_err, afu, afu->err_irq_name))) {
 		kfree(afu->err_irq_name);
 		afu->err_irq_name = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -422,14 +422,14 @@ static int _guest_afu_cr_readXX(int sz, struct cxl_afu *afu, int cr_idx,
 	int rc = 0;
 
 	if (afu->crs_len < sz)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (unlikely(offset >= afu->crs_len))
 		return -ERANGE;
 
 	cr = get_zeroed_page(GFP_KERNEL);
 	if (!cr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = cxl_h_get_config(afu->guest->handle, cr_idx, offset,
 			virt_to_phys((void *)cr), sz);
@@ -502,19 +502,19 @@ static int guest_afu_cr_read64(struct cxl_afu *afu, int cr_idx, u64 offset,
 
 static int guest_afu_cr_write32(struct cxl_afu *afu, int cr, u64 off, u32 in)
 {
-	/* config record is not writable from guest */
+	/* config record is analt writable from guest */
 	return -EPERM;
 }
 
 static int guest_afu_cr_write16(struct cxl_afu *afu, int cr, u64 off, u16 in)
 {
-	/* config record is not writable from guest */
+	/* config record is analt writable from guest */
 	return -EPERM;
 }
 
 static int guest_afu_cr_write8(struct cxl_afu *afu, int cr, u64 off, u8 in)
 {
-	/* config record is not writable from guest */
+	/* config record is analt writable from guest */
 	return -EPERM;
 }
 
@@ -528,10 +528,10 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 	u64 mmio_addr, mmio_size;
 	__be64 flags = 0;
 
-	/* Must be 8 byte aligned and cannot cross a 4096 byte boundary */
+	/* Must be 8 byte aligned and cananalt cross a 4096 byte boundary */
 	if (!(elem = (struct cxl_process_element_hcall *)
 			get_zeroed_page(GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	elem->version = cpu_to_be64(CXL_PROCESS_ELEMENT_VERSION);
 	if (ctx->kernel) {
@@ -565,7 +565,7 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 
 	/*
 	 * Ensure we have at least one interrupt allocated to take faults for
-	 * kernel contexts that may not have allocated any AFU IRQs at all:
+	 * kernel contexts that may analt have allocated any AFU IRQs at all:
 	 */
 	if (ctx->irqs.range[0] == 0) {
 		rc = afu_register_irqs(ctx, 0);
@@ -601,7 +601,7 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 		if (ctx->afu->pp_psa && mmio_size &&
 			ctx->afu->pp_size == 0) {
 			/*
-			 * There's no property in the device tree to read the
+			 * There's anal property in the device tree to read the
 			 * pp_size. We only find out at the 1st attach.
 			 * Compared to bare-metal, it is too late and we
 			 * should really lock here. However, on powerVM,
@@ -612,7 +612,7 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 		}
 		/* from PAPR: process element is bytes 4-7 of process token */
 		ctx->external_pe = ctx->process_token & 0xFFFFFFFF;
-		pr_devel("CXL pe=%i is known as %i for pHyp, mmio_size=%#llx",
+		pr_devel("CXL pe=%i is kanalwn as %i for pHyp, mmio_size=%#llx",
 			ctx->pe, ctx->external_pe, ctx->psn_size);
 		ctx->pe_inserted = true;
 		enable_afu_irqs(ctx);
@@ -631,7 +631,7 @@ static int guest_attach_process(struct cxl_context *ctx, bool kernel, u64 wed, u
 	if (ctx->afu->current_mode == CXL_MODE_DIRECTED)
 		return attach_afu_directed(ctx, wed, amr);
 
-	/* dedicated mode not supported on FW840 */
+	/* dedicated mode analt supported on FW840 */
 
 	return -EINVAL;
 }
@@ -685,7 +685,7 @@ static ssize_t guest_afu_read_err_buffer(struct cxl_afu *afu, char *buf,
 
 	tbuf = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!tbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = cxl_h_get_afu_err(afu->guest->handle,
 			       off & 0x7,
@@ -770,7 +770,7 @@ static int guest_afu_activate_mode(struct cxl_afu *afu, int mode)
 		return activate_afu_directed(afu);
 
 	if (mode == CXL_MODE_DEDICATED)
-		dev_err(&afu->dev, "Dedicated mode not supported\n");
+		dev_err(&afu->dev, "Dedicated mode analt supported\n");
 
 	return -EINVAL;
 }
@@ -813,7 +813,7 @@ static int guest_map_slice_regs(struct cxl_afu *afu)
 	if (!(afu->p2n_mmio = ioremap(afu->guest->p2n_phys, afu->guest->p2n_size))) {
 		dev_err(&afu->dev, "Error mapping AFU(%d) MMIO regions\n",
 			afu->slice);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -838,7 +838,7 @@ static int afu_update_state(struct cxl_afu *afu)
 	pr_devel("AFU(%d) update state to %#x\n", afu->slice, cur_state);
 
 	switch (cur_state) {
-	case H_STATE_NORMAL:
+	case H_STATE_ANALRMAL:
 		afu->guest->previous_state = cur_state;
 		break;
 
@@ -851,9 +851,9 @@ static int afu_update_state(struct cxl_afu *afu)
 			pr_devel("reset hcall failed %d\n", rc);
 
 		rc = afu_read_error_state(afu, &cur_state);
-		if (!rc && cur_state == H_STATE_NORMAL) {
+		if (!rc && cur_state == H_STATE_ANALRMAL) {
 			pci_error_handlers(afu, CXL_SLOT_RESET_EVENT,
-					pci_channel_io_normal);
+					pci_channel_io_analrmal);
 			pci_error_handlers(afu, CXL_RESUME_EVENT, 0);
 		}
 		afu->guest->previous_state = 0;
@@ -898,7 +898,7 @@ static bool guest_link_ok(struct cxl *cxl, struct cxl_afu *afu)
 	int state;
 
 	if (afu && (!afu_read_error_state(afu, &state))) {
-		if (state == H_STATE_NORMAL)
+		if (state == H_STATE_ANALRMAL)
 			return true;
 	}
 
@@ -920,7 +920,7 @@ static int afu_properties_look_ok(struct cxl_afu *afu)
 	return 0;
 }
 
-int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_np)
+int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_analde *afu_np)
 {
 	struct cxl_afu *afu;
 	bool free = true;
@@ -928,11 +928,11 @@ int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_n
 
 	pr_devel("in %s - AFU(%d)\n", __func__, slice);
 	if (!(afu = cxl_alloc_afu(adapter, slice)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!(afu->guest = kzalloc(sizeof(struct cxl_afu_guest), GFP_KERNEL))) {
 		kfree(afu);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if ((rc = dev_set_name(&afu->dev, "afu%i.%i",
@@ -961,7 +961,7 @@ int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_n
 		goto err2;
 
 	/*
-	 * After we call this function we must not free the afu directly, even
+	 * After we call this function we must analt free the afu directly, even
 	 * if it returns an error!
 	 */
 	if ((rc = cxl_register_afu(afu)))
@@ -973,7 +973,7 @@ int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_n
 	/*
 	 * pHyp doesn't expose the programming models supported by the
 	 * AFU. pHyp currently only supports directed mode. If it adds
-	 * dedicated mode later, this version of cxl has no way to
+	 * dedicated mode later, this version of cxl has anal way to
 	 * detect it. So we'll initialize the driver, but the first
 	 * attach will fail.
 	 * Being discussed with pHyp to do better (likely new property)
@@ -1069,7 +1069,7 @@ static void free_adapter(struct cxl *adapter)
 static int properties_look_ok(struct cxl *adapter)
 {
 	/* The absence of this property means that the operational
-	 * status is unknown or okay
+	 * status is unkanalwn or okay
 	 */
 	if (strlen(adapter->guest->status) &&
 	    strcmp(adapter->guest->status, "okay")) {
@@ -1100,18 +1100,18 @@ static void release_adapter(struct device *dev)
 	free_adapter(to_cxl_adapter(dev));
 }
 
-struct cxl *cxl_guest_init_adapter(struct device_node *np, struct platform_device *pdev)
+struct cxl *cxl_guest_init_adapter(struct device_analde *np, struct platform_device *pdev)
 {
 	struct cxl *adapter;
 	bool free = true;
 	int rc;
 
 	if (!(adapter = cxl_alloc_adapter()))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (!(adapter->guest = kzalloc(sizeof(struct cxl_guest), GFP_KERNEL))) {
 		free_adapter(adapter);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	adapter->slices = 0;
@@ -1139,7 +1139,7 @@ struct cxl *cxl_guest_init_adapter(struct device_node *np, struct platform_devic
 		goto err1;
 
 	/*
-	 * After we call this function we must not free the adapter directly,
+	 * After we call this function we must analt free the adapter directly,
 	 * even if it returns an error!
 	 */
 	if ((rc = cxl_register_adapter(adapter)))

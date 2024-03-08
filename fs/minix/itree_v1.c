@@ -17,21 +17,21 @@ static inline block_t cpu_to_block(unsigned long n)
 	return n;
 }
 
-static inline block_t *i_data(struct inode *inode)
+static inline block_t *i_data(struct ianalde *ianalde)
 {
-	return (block_t *)minix_i(inode)->u.i1_data;
+	return (block_t *)minix_i(ianalde)->u.i1_data;
 }
 
-static int block_to_path(struct inode * inode, long block, int offsets[DEPTH])
+static int block_to_path(struct ianalde * ianalde, long block, int offsets[DEPTH])
 {
 	int n = 0;
 
 	if (block < 0) {
 		printk("MINIX-fs: block_to_path: block %ld < 0 on dev %pg\n",
-			block, inode->i_sb->s_bdev);
+			block, ianalde->i_sb->s_bdev);
 		return 0;
 	}
-	if ((u64)block * BLOCK_SIZE >= inode->i_sb->s_maxbytes)
+	if ((u64)block * BLOCK_SIZE >= ianalde->i_sb->s_maxbytes)
 		return 0;
 
 	if (block < 7) {
@@ -50,15 +50,15 @@ static int block_to_path(struct inode * inode, long block, int offsets[DEPTH])
 
 #include "itree_common.c"
 
-int V1_minix_get_block(struct inode * inode, long block,
+int V1_minix_get_block(struct ianalde * ianalde, long block,
 			struct buffer_head *bh_result, int create)
 {
-	return get_block(inode, block, bh_result, create);
+	return get_block(ianalde, block, bh_result, create);
 }
 
-void V1_minix_truncate(struct inode * inode)
+void V1_minix_truncate(struct ianalde * ianalde)
 {
-	truncate(inode);
+	truncate(ianalde);
 }
 
 unsigned V1_minix_blocks(loff_t size, struct super_block *sb)

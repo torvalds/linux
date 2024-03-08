@@ -9,19 +9,19 @@
 #ifndef __MEDIA_RCAR_FCP_H__
 #define __MEDIA_RCAR_FCP_H__
 
-struct device_node;
+struct device_analde;
 struct rcar_fcp_device;
 
 #if IS_ENABLED(CONFIG_VIDEO_RENESAS_FCP)
-struct rcar_fcp_device *rcar_fcp_get(const struct device_node *np);
+struct rcar_fcp_device *rcar_fcp_get(const struct device_analde *np);
 void rcar_fcp_put(struct rcar_fcp_device *fcp);
 struct device *rcar_fcp_get_device(struct rcar_fcp_device *fcp);
 int rcar_fcp_enable(struct rcar_fcp_device *fcp);
 void rcar_fcp_disable(struct rcar_fcp_device *fcp);
 #else
-static inline struct rcar_fcp_device *rcar_fcp_get(const struct device_node *np)
+static inline struct rcar_fcp_device *rcar_fcp_get(const struct device_analde *np)
 {
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 static inline void rcar_fcp_put(struct rcar_fcp_device *fcp) { }
 static inline struct device *rcar_fcp_get_device(struct rcar_fcp_device *fcp)

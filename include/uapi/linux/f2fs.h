@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 
 #ifndef _UAPI_LINUX_F2FS_H
 #define _UAPI_LINUX_F2FS_H
@@ -51,7 +51,7 @@
 #define F2FS_IOC_SHUTDOWN	_IOR('X', 125, __u32)	/* Shutdown */
 #define F2FS_GOING_DOWN_FULLSYNC	0x0	/* going down with full sync */
 #define F2FS_GOING_DOWN_METASYNC	0x1	/* going down with metadata */
-#define F2FS_GOING_DOWN_NOSYNC		0x2	/* going down */
+#define F2FS_GOING_DOWN_ANALSYNC		0x2	/* going down */
 #define F2FS_GOING_DOWN_METAFLUSH	0x3	/* going down with meta flush */
 #define F2FS_GOING_DOWN_NEED_FSCK	0x4	/* going down to trigger fsck */
 

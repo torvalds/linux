@@ -6,7 +6,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -103,7 +103,7 @@ static int ip175c_config_init(struct phy_device *phydev)
 		if (err < 0)
 			return err;
 
-		/* ensure no bus delays overlap reset period */
+		/* ensure anal bus delays overlap reset period */
 		err = mdiobus_read(phydev->mdio.bus, 30, 0);
 
 		/* data sheet specifies reset period is 2 msec */
@@ -208,7 +208,7 @@ static int ip101a_g_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Both functions (RX error and interrupt status) are sharing the same
 	 * pin on the 32-pin IP101GR, so this is an exclusive choice.
@@ -216,7 +216,7 @@ static int ip101a_g_probe(struct phy_device *phydev)
 	if (device_property_read_bool(dev, "icplus,select-rx-error") &&
 	    device_property_read_bool(dev, "icplus,select-interrupt")) {
 		dev_err(dev,
-			"RXER and INTR mode cannot be selected together\n");
+			"RXER and INTR mode cananalt be selected together\n");
 		return -EINVAL;
 	}
 
@@ -259,11 +259,11 @@ static int ip101a_g_config_intr_pin(struct phy_device *phydev)
 		break;
 
 	default:
-		/* Don't touch IP101G_DIGITAL_IO_SPEC_CTRL because it's not
-		 * documented on IP101A and it's not clear whether this would
+		/* Don't touch IP101G_DIGITAL_IO_SPEC_CTRL because it's analt
+		 * documented on IP101A and it's analt clear whether this would
 		 * cause problems.
 		 * For the 32-pin IP101GR we simply keep the SEL_INTR32
-		 * configuration as set by the bootloader when not configured
+		 * configuration as set by the bootloader when analt configured
 		 * to one of the special functions.
 		 */
 		break;
@@ -440,13 +440,13 @@ static irqreturn_t ip101a_g_handle_interrupt(struct phy_device *phydev)
 				    IP101A_G_IRQ_CONF_STATUS);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & (IP101A_G_IRQ_SPEED_CHANGE |
 			    IP101A_G_IRQ_DUPLEX_CHANGE |
 			    IP101A_G_IRQ_LINK_CHANGE)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -510,7 +510,7 @@ static int ip101a_g_match_phy_device(struct phy_device *phydev, bool ip101a)
 
 	/* The IP101A and the IP101G share the same PHY identifier.The IP101G
 	 * seems to be a successor of the IP101A and implements more functions.
-	 * Amongst other things there is a page select register, which is not
+	 * Amongst other things there is a page select register, which is analt
 	 * available on the IP101A. Use this to distinguish these two.
 	 */
 	ret = ip101a_g_has_page_register(phydev);

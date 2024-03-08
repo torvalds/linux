@@ -23,7 +23,7 @@
 #define BITMASK(bits)		(BIT(bits) - 1)
 
 #define ALE_VERSION_MAJOR(rev, mask) (((rev) >> 8) & (mask))
-#define ALE_VERSION_MINOR(rev)	(rev & 0xff)
+#define ALE_VERSION_MIANALR(rev)	(rev & 0xff)
 #define ALE_VERSION_1R3		0x0103
 #define ALE_VERSION_1R4		0x0104
 
@@ -33,16 +33,16 @@
 #define ALE_CONTROL		0x08
 #define ALE_PRESCALE		0x10
 #define ALE_AGING_TIMER		0x14
-#define ALE_UNKNOWNVLAN		0x18
+#define ALE_UNKANALWNVLAN		0x18
 #define ALE_TABLE_CONTROL	0x20
 #define ALE_TABLE		0x34
 #define ALE_PORTCTL		0x40
 
 /* ALE NetCP NU switch specific Registers */
-#define ALE_UNKNOWNVLAN_MEMBER			0x90
-#define ALE_UNKNOWNVLAN_UNREG_MCAST_FLOOD	0x94
-#define ALE_UNKNOWNVLAN_REG_MCAST_FLOOD		0x98
-#define ALE_UNKNOWNVLAN_FORCE_UNTAG_EGRESS	0x9C
+#define ALE_UNKANALWNVLAN_MEMBER			0x90
+#define ALE_UNKANALWNVLAN_UNREG_MCAST_FLOOD	0x94
+#define ALE_UNKANALWNVLAN_REG_MCAST_FLOOD		0x98
+#define ALE_UNKANALWNVLAN_FORCE_UNTAG_EGRESS	0x9C
 #define ALE_VLAN_MASK_MUX(reg)			(0xc0 + (0x4 * (reg)))
 
 #define AM65_CPSW_ALE_THREAD_DEF_REG 0x134
@@ -242,7 +242,7 @@ static int cpsw_ale_entry_get_fld(struct cpsw_ale *ale,
 	entry_fld = &entry_tbl[fld_id];
 	if (!(entry_fld->flags & ALE_FLD_ALLOWED)) {
 		dev_err(ale->params.dev, "get: wrong ale fld id %d\n", fld_id);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	bits = entry_fld->num_bits;
@@ -294,7 +294,7 @@ static void cpsw_ale_vlan_set_fld(struct cpsw_ale *ale,
 			       ale->vlan_entry_tbl, fld_id, value);
 }
 
-/* The MAC address field in the ALE entry cannot be macroized as above */
+/* The MAC address field in the ALE entry cananalt be macroized as above */
 static inline void cpsw_ale_get_addr(u32 *ale_entry, u8 *addr)
 {
 	int i;
@@ -360,7 +360,7 @@ static int cpsw_ale_match_addr(struct cpsw_ale *ale, const u8 *addr, u16 vid)
 		if (ether_addr_equal(entry_addr, addr))
 			return idx;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int cpsw_ale_match_vlan(struct cpsw_ale *ale, u16 vid)
@@ -376,7 +376,7 @@ static int cpsw_ale_match_vlan(struct cpsw_ale *ale, u16 vid)
 		if (cpsw_ale_get_vlan_id(ale_entry) == vid)
 			return idx;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int cpsw_ale_match_free(struct cpsw_ale *ale)
@@ -390,7 +390,7 @@ static int cpsw_ale_match_free(struct cpsw_ale *ale)
 		if (type == ALE_TYPE_FREE)
 			return idx;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int cpsw_ale_find_ageable(struct cpsw_ale *ale)
@@ -410,7 +410,7 @@ static int cpsw_ale_find_ageable(struct cpsw_ale *ale)
 		    type != ALE_UCAST_OUI)
 			return idx;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static void cpsw_ale_flush_mcast(struct cpsw_ale *ale, u32 *ale_entry,
@@ -421,7 +421,7 @@ static void cpsw_ale_flush_mcast(struct cpsw_ale *ale, u32 *ale_entry,
 	mask = cpsw_ale_get_port_mask(ale_entry,
 				      ale->port_mask_bits);
 	if ((mask & port_mask) == 0)
-		return; /* ports dont intersect, not interested */
+		return; /* ports dont intersect, analt interested */
 	mask &= ~port_mask;
 
 	/* free if only remaining port is host port */
@@ -498,7 +498,7 @@ int cpsw_ale_add_ucast(struct cpsw_ale *ale, const u8 *addr, int port,
 	if (idx < 0)
 		idx = cpsw_ale_find_ageable(ale);
 	if (idx < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpsw_ale_write(ale, idx, ale_entry);
 	return 0;
@@ -512,7 +512,7 @@ int cpsw_ale_del_ucast(struct cpsw_ale *ale, const u8 *addr, int port,
 
 	idx = cpsw_ale_match_addr(ale, addr, (flags & ALE_VLAN) ? vid : 0);
 	if (idx < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
 	cpsw_ale_write(ale, idx, ale_entry);
@@ -546,7 +546,7 @@ int cpsw_ale_add_mcast(struct cpsw_ale *ale, const u8 *addr, int port_mask,
 	if (idx < 0)
 		idx = cpsw_ale_find_ageable(ale);
 	if (idx < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpsw_ale_write(ale, idx, ale_entry);
 	return 0;
@@ -561,7 +561,7 @@ int cpsw_ale_del_mcast(struct cpsw_ale *ale, const u8 *addr, int port_mask,
 
 	idx = cpsw_ale_match_addr(ale, addr, (flags & ALE_VLAN) ? vid : 0);
 	if (idx < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	cpsw_ale_read(ale, idx, ale_entry);
 
@@ -644,7 +644,7 @@ int cpsw_ale_add_vlan(struct cpsw_ale *ale, u16 vid, int port_mask, int untag,
 	if (idx < 0)
 		idx = cpsw_ale_find_ageable(ale);
 	if (idx < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpsw_ale_write(ale, idx, ale_entry);
 	return 0;
@@ -697,7 +697,7 @@ int cpsw_ale_vlan_del_modify(struct cpsw_ale *ale, u16 vid, int port_mask)
 
 	idx = cpsw_ale_match_vlan(ale, vid);
 	if (idx < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	cpsw_ale_read(ale, idx, ale_entry);
 
@@ -714,14 +714,14 @@ int cpsw_ale_del_vlan(struct cpsw_ale *ale, u16 vid, int port_mask)
 
 	idx = cpsw_ale_match_vlan(ale, vid);
 	if (idx < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	cpsw_ale_read(ale, idx, ale_entry);
 
 	/* if !port_mask - force remove VLAN (legacy).
 	 * Check if there are other VLAN members ports
-	 * if no - remove VLAN.
-	 * if yes it means same VLAN was added to >1 port in multi port mode, so
+	 * if anal - remove VLAN.
+	 * if anal it means same VLAN was added to >1 port in multi port mode, so
 	 * remove port_mask ports from VLAN ALE entry excluding Host port.
 	 */
 	members = cpsw_ale_vlan_get_fld(ale, ale_entry, ALE_ENT_VID_MEMBER_LIST);
@@ -912,16 +912,16 @@ static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.port_shift	= 0,
 		.bits		= 1,
 	},
-	[ALE_VLAN_NOLEARN]	= {
-		.name		= "vlan_nolearn",
+	[ALE_VLAN_ANALLEARN]	= {
+		.name		= "vlan_anallearn",
 		.offset		= ALE_CONTROL,
 		.port_offset	= 0,
 		.shift		= 7,
 		.port_shift	= 0,
 		.bits		= 1,
 	},
-	[ALE_NO_PORT_VLAN]	= {
-		.name		= "no_port_vlan",
+	[ALE_ANAL_PORT_VLAN]	= {
+		.name		= "anal_port_vlan",
 		.offset		= ALE_CONTROL,
 		.port_offset	= 0,
 		.shift		= 6,
@@ -992,24 +992,24 @@ static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.port_shift	= 0,
 		.bits		= 1,
 	},
-	[ALE_PORT_DROP_UNKNOWN_VLAN] = {
-		.name		= "drop_unknown",
+	[ALE_PORT_DROP_UNKANALWN_VLAN] = {
+		.name		= "drop_unkanalwn",
 		.offset		= ALE_PORTCTL,
 		.port_offset	= 4,
 		.shift		= 3,
 		.port_shift	= 0,
 		.bits		= 1,
 	},
-	[ALE_PORT_NOLEARN]	= {
-		.name		= "nolearn",
+	[ALE_PORT_ANALLEARN]	= {
+		.name		= "anallearn",
 		.offset		= ALE_PORTCTL,
 		.port_offset	= 4,
 		.shift		= 4,
 		.port_shift	= 0,
 		.bits		= 1,
 	},
-	[ALE_PORT_NO_SA_UPDATE]	= {
-		.name		= "no_source_update",
+	[ALE_PORT_ANAL_SA_UPDATE]	= {
+		.name		= "anal_source_update",
 		.offset		= ALE_PORTCTL,
 		.port_offset	= 4,
 		.shift		= 5,
@@ -1048,25 +1048,25 @@ static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 		.port_shift	= 0,
 		.bits		= 8,
 	},
-	[ALE_PORT_UNKNOWN_VLAN_MEMBER] = {
-		.name		= "unknown_vlan_member",
-		.offset		= ALE_UNKNOWNVLAN,
+	[ALE_PORT_UNKANALWN_VLAN_MEMBER] = {
+		.name		= "unkanalwn_vlan_member",
+		.offset		= ALE_UNKANALWNVLAN,
 		.port_offset	= 0,
 		.shift		= 0,
 		.port_shift	= 0,
 		.bits		= 6,
 	},
-	[ALE_PORT_UNKNOWN_MCAST_FLOOD] = {
-		.name		= "unknown_mcast_flood",
-		.offset		= ALE_UNKNOWNVLAN,
+	[ALE_PORT_UNKANALWN_MCAST_FLOOD] = {
+		.name		= "unkanalwn_mcast_flood",
+		.offset		= ALE_UNKANALWNVLAN,
 		.port_offset	= 0,
 		.shift		= 8,
 		.port_shift	= 0,
 		.bits		= 6,
 	},
-	[ALE_PORT_UNKNOWN_REG_MCAST_FLOOD] = {
-		.name		= "unknown_reg_flood",
-		.offset		= ALE_UNKNOWNVLAN,
+	[ALE_PORT_UNKANALWN_REG_MCAST_FLOOD] = {
+		.name		= "unkanalwn_reg_flood",
+		.offset		= ALE_UNKANALWNVLAN,
 		.port_offset	= 0,
 		.shift		= 16,
 		.port_shift	= 0,
@@ -1074,7 +1074,7 @@ static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 	},
 	[ALE_PORT_UNTAGGED_EGRESS] = {
 		.name		= "untagged_egress",
-		.offset		= ALE_UNKNOWNVLAN,
+		.offset		= ALE_UNKANALWNVLAN,
 		.port_offset	= 0,
 		.shift		= 24,
 		.port_shift	= 0,
@@ -1377,12 +1377,12 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 
 	ale = devm_kzalloc(params->dev, sizeof(*ale), GFP_KERNEL);
 	if (!ale)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ale->p0_untag_vid_mask = devm_bitmap_zalloc(params->dev, VLAN_N_VID,
 						    GFP_KERNEL);
 	if (!ale->p0_untag_vid_mask)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ale->params = *params;
 	ale->ageout = ale->params.ale_ageout * HZ;
@@ -1392,10 +1392,10 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 	rev = readl_relaxed(ale->params.ale_regs + ALE_IDVER);
 	ale->version =
 		(ALE_VERSION_MAJOR(rev, ale->params.major_ver_mask) << 8) |
-		 ALE_VERSION_MINOR(rev);
+		 ALE_VERSION_MIANALR(rev);
 	dev_info(ale->params.dev, "initialized cpsw ale version %d.%d\n",
 		 ALE_VERSION_MAJOR(rev, ale->params.major_ver_mask),
-		 ALE_VERSION_MINOR(rev));
+		 ALE_VERSION_MIANALR(rev));
 
 	if (ale->features & CPSW_ALE_F_STATUS_REG &&
 	    !ale->params.ale_entries) {
@@ -1427,29 +1427,29 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 	 * 1R3
 	 */
 	if (ale->params.nu_switch_ale) {
-		/* Separate registers for unknown vlan configuration.
+		/* Separate registers for unkanalwn vlan configuration.
 		 * Also there are N bits, where N is number of ale
 		 * ports and shift value should be 0
 		 */
-		ale_controls[ALE_PORT_UNKNOWN_VLAN_MEMBER].bits =
+		ale_controls[ALE_PORT_UNKANALWN_VLAN_MEMBER].bits =
 					ale->params.ale_ports;
-		ale_controls[ALE_PORT_UNKNOWN_VLAN_MEMBER].offset =
-					ALE_UNKNOWNVLAN_MEMBER;
-		ale_controls[ALE_PORT_UNKNOWN_MCAST_FLOOD].bits =
+		ale_controls[ALE_PORT_UNKANALWN_VLAN_MEMBER].offset =
+					ALE_UNKANALWNVLAN_MEMBER;
+		ale_controls[ALE_PORT_UNKANALWN_MCAST_FLOOD].bits =
 					ale->params.ale_ports;
-		ale_controls[ALE_PORT_UNKNOWN_MCAST_FLOOD].shift = 0;
-		ale_controls[ALE_PORT_UNKNOWN_MCAST_FLOOD].offset =
-					ALE_UNKNOWNVLAN_UNREG_MCAST_FLOOD;
-		ale_controls[ALE_PORT_UNKNOWN_REG_MCAST_FLOOD].bits =
+		ale_controls[ALE_PORT_UNKANALWN_MCAST_FLOOD].shift = 0;
+		ale_controls[ALE_PORT_UNKANALWN_MCAST_FLOOD].offset =
+					ALE_UNKANALWNVLAN_UNREG_MCAST_FLOOD;
+		ale_controls[ALE_PORT_UNKANALWN_REG_MCAST_FLOOD].bits =
 					ale->params.ale_ports;
-		ale_controls[ALE_PORT_UNKNOWN_REG_MCAST_FLOOD].shift = 0;
-		ale_controls[ALE_PORT_UNKNOWN_REG_MCAST_FLOOD].offset =
-					ALE_UNKNOWNVLAN_REG_MCAST_FLOOD;
+		ale_controls[ALE_PORT_UNKANALWN_REG_MCAST_FLOOD].shift = 0;
+		ale_controls[ALE_PORT_UNKANALWN_REG_MCAST_FLOOD].offset =
+					ALE_UNKANALWNVLAN_REG_MCAST_FLOOD;
 		ale_controls[ALE_PORT_UNTAGGED_EGRESS].bits =
 					ale->params.ale_ports;
 		ale_controls[ALE_PORT_UNTAGGED_EGRESS].shift = 0;
 		ale_controls[ALE_PORT_UNTAGGED_EGRESS].offset =
-					ALE_UNKNOWNVLAN_FORCE_UNTAG_EGRESS;
+					ALE_UNKANALWNVLAN_FORCE_UNTAG_EGRESS;
 	}
 
 	cpsw_ale_control_set(ale, 0, ALE_CLEAR, 1);

@@ -106,7 +106,7 @@ static void esp4_gso_encap(struct xfrm_state *x, struct sk_buff *skb)
 	*skb_mac_header(skb) = IPPROTO_ESP;
 
 	esph->spi = x->id.spi;
-	esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.low);
+	esph->seq_anal = htonl(XFRM_SKB_CB(skb)->seq.output.low);
 
 	xo->proto = proto;
 }
@@ -191,7 +191,7 @@ static struct sk_buff *xfrm4_outer_mode_gso_segment(struct xfrm_state *x,
 		return xfrm4_beet_gso_segment(x, skb, features);
 	}
 
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static struct sk_buff *esp4_gso_segment(struct sk_buff *skb,
@@ -248,7 +248,7 @@ static int esp_input_tail(struct xfrm_state *x, struct sk_buff *skb)
 		return -EINVAL;
 
 	if (!(xo->flags & CRYPTO_DONE))
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 
 	return esp_input_done2(skb, 0);
 }
@@ -311,7 +311,7 @@ static int esp_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features_
 	skb_push(skb, -skb_network_offset(skb));
 
 	if (xo->flags & XFRM_GSO_SEGMENT) {
-		esph->seq_no = htonl(seq);
+		esph->seq_anal = htonl(seq);
 
 		if (!skb_is_gso(skb))
 			xo->seq.low++;
@@ -322,14 +322,14 @@ static int esp_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features_
 	if (xo->seq.low < seq)
 		xo->seq.hi++;
 
-	esp.seqno = cpu_to_be64(seq + ((u64)xo->seq.hi << 32));
+	esp.seqanal = cpu_to_be64(seq + ((u64)xo->seq.hi << 32));
 
 	ip_hdr(skb)->tot_len = htons(skb->len);
 	ip_send_check(ip_hdr(skb));
 
 	if (hw_offload) {
 		if (!skb_ext_add(skb, SKB_EXT_SEC_PATH))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		xo = xfrm_offload(skb);
 		if (!xo)
@@ -347,7 +347,7 @@ static int esp_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features_
 
 	if (skb_needs_linearize(skb, skb->dev->features) &&
 	    __skb_linearize(skb))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

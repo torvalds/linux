@@ -178,18 +178,18 @@ static const u32 mitchell_netravali_1_3_1_3_kernel[] =
 				50, 82, 119, 155, 187, 213, 227);
 
 static int vc4_hvs_upload_linear_kernel(struct vc4_hvs *hvs,
-					struct drm_mm_node *space,
+					struct drm_mm_analde *space,
 					const u32 *kernel)
 {
 	int ret, i;
 	u32 __iomem *dst_kernel;
 
 	/*
-	 * NOTE: We don't need a call to drm_dev_enter()/drm_dev_exit()
+	 * ANALTE: We don't need a call to drm_dev_enter()/drm_dev_exit()
 	 * here since that function is only called from vc4_hvs_bind().
 	 */
 
-	ret = drm_mm_insert_node(&hvs->dlist_mm, space, VC4_KERNEL_DWORDS);
+	ret = drm_mm_insert_analde(&hvs->dlist_mm, space, VC4_KERNEL_DWORDS);
 	if (ret) {
 		DRM_ERROR("Failed to allocate space for filter kernel: %d\n",
 			  ret);
@@ -295,7 +295,7 @@ int vc4_hvs_get_fifo_from_output(struct vc4_hvs *hvs, unsigned int output)
 		return output;
 
 	/*
-	 * NOTE: We should probably use drm_dev_enter()/drm_dev_exit()
+	 * ANALTE: We should probably use drm_dev_enter()/drm_dev_exit()
 	 * here, but this function is only used during the DRM device
 	 * initialization, so we should be fine.
 	 */
@@ -358,7 +358,7 @@ static int vc4_hvs_init_channel(struct vc4_hvs *hvs, struct drm_crtc *crtc,
 	int idx;
 
 	if (!drm_dev_enter(drm, &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	HVS_WRITE(SCALER_DISPCTRLX(chan), 0);
 	HVS_WRITE(SCALER_DISPCTRLX(chan), SCALER_DISPCTRLX_RESET);
@@ -462,7 +462,7 @@ int vc4_hvs_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 	dlist_count++; /* Account for SCALER_CTL0_END. */
 
 	spin_lock_irqsave(&vc4->hvs->mm_lock, flags);
-	ret = drm_mm_insert_node(&vc4->hvs->dlist_mm, &vc4_state->mm,
+	ret = drm_mm_insert_analde(&vc4->hvs->dlist_mm, &vc4_state->mm,
 				 dlist_count);
 	spin_unlock_irqrestore(&vc4->hvs->mm_lock, flags);
 	if (ret)
@@ -592,14 +592,14 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
 		found = false;
 
 		drm_atomic_crtc_for_each_plane(plane, crtc) {
-			if (plane->state->normalized_zpos != zpos)
+			if (plane->state->analrmalized_zpos != zpos)
 				continue;
 
 			/* Is this the first active plane? */
 			if (dlist_next == dlist_start) {
 				/* We need to enable background fill when a plane
 				 * could be alpha blending from the background, i.e.
-				 * where no other plane is underneath. It suffices to
+				 * where anal other plane is underneath. It suffices to
 				 * consider the first active plane here since we set
 				 * needs_bg_fill such that either the first plane
 				 * already needs it or all planes on top blend from
@@ -630,11 +630,11 @@ void vc4_hvs_atomic_flush(struct drm_crtc *crtc,
 			  HVS_READ(SCALER_DISPBKGNDX(channel)) |
 			  SCALER_DISPBKGND_FILL);
 
-	/* Only update DISPLIST if the CRTC was already running and is not
+	/* Only update DISPLIST if the CRTC was already running and is analt
 	 * being disabled.
 	 * vc4_crtc_enable() takes care of updating the dlist just after
 	 * re-enabling VBLANK interrupts and before enabling the engine.
-	 * If the CRTC is being disabled, there's no point in updating this
+	 * If the CRTC is being disabled, there's anal point in updating this
 	 * information.
 	 */
 	if (crtc->state->active && old_state->active) {
@@ -717,16 +717,16 @@ static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
 	struct drm_device *dev = data;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_hvs *hvs = vc4->hvs;
-	irqreturn_t irqret = IRQ_NONE;
+	irqreturn_t irqret = IRQ_ANALNE;
 	int channel;
 	u32 control;
 	u32 status;
 	u32 dspeislur;
 
 	/*
-	 * NOTE: We don't need to protect the register access using
+	 * ANALTE: We don't need to protect the register access using
 	 * drm_dev_enter() there because the interrupt handler lifetime
-	 * is tied to the device itself, and not to the DRM device.
+	 * is tied to the device itself, and analt to the DRM device.
 	 *
 	 * So when the device will be gone, one of the first thing we
 	 * will be doing will be to unregister the interrupt handler,
@@ -740,7 +740,7 @@ static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
 	for (channel = 0; channel < SCALER_CHANNELS_COUNT; channel++) {
 		dspeislur = vc4->is_vc5 ? SCALER5_DISPCTRL_DSPEISLUR(channel) :
 					  SCALER_DISPCTRL_DSPEISLUR(channel);
-		/* Interrupt masking is not always honored, so check it here. */
+		/* Interrupt masking is analt always hoanalred, so check it here. */
 		if (status & SCALER_DISPSTAT_EUFLOW(channel) &&
 		    control & dspeislur) {
 			vc4_hvs_mask_underrun(hvs, channel);
@@ -758,18 +758,18 @@ static irqreturn_t vc4_hvs_irq_handler(int irq, void *data)
 	return irqret;
 }
 
-int vc4_hvs_debugfs_init(struct drm_minor *minor)
+int vc4_hvs_debugfs_init(struct drm_mianalr *mianalr)
 {
-	struct drm_device *drm = minor->dev;
+	struct drm_device *drm = mianalr->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_hvs *hvs = vc4->hvs;
 
 	if (!vc4->hvs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!vc4->is_vc5)
 		debugfs_create_bool("hvs_load_tracker", S_IRUGO | S_IWUSR,
-				    minor->debugfs_root,
+				    mianalr->debugfs_root,
 				    &vc4->load_tracker_enabled);
 
 	drm_debugfs_add_file(drm, "hvs_dlists", vc4_hvs_debugfs_dlist, NULL);
@@ -788,7 +788,7 @@ struct vc4_hvs *__vc4_hvs_alloc(struct vc4_dev *vc4, struct platform_device *pde
 
 	hvs = drmm_kzalloc(drm, sizeof(*hvs), GFP_KERNEL);
 	if (!hvs)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hvs->vc4 = vc4;
 	hvs->pdev = pdev;
@@ -807,7 +807,7 @@ struct vc4_hvs *__vc4_hvs_alloc(struct vc4_dev *vc4, struct platform_device *pde
 	/* Set up the HVS LBM memory manager.  We could have some more
 	 * complicated data structure that allowed reuse of LBM areas
 	 * between planes when they don't overlap on the screen, but
-	 * for now we just allocate globally.
+	 * for analw we just allocate globally.
 	 */
 	if (!vc4->is_vc5)
 		/* 48k words of 2x12-bit pixels */
@@ -845,15 +845,15 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 
 	if (vc4->is_vc5) {
 		struct rpi_firmware *firmware;
-		struct device_node *node;
+		struct device_analde *analde;
 		unsigned int max_rate;
 
-		node = rpi_firmware_find_node();
-		if (!node)
+		analde = rpi_firmware_find_analde();
+		if (!analde)
 			return -EINVAL;
 
-		firmware = rpi_firmware_get(node);
-		of_node_put(node);
+		firmware = rpi_firmware_get(analde);
+		of_analde_put(analde);
 		if (!firmware)
 			return -EPROBE_DEFER;
 
@@ -886,7 +886,7 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	else
 		hvs->dlist = hvs->regs + SCALER5_DLIST_START;
 
-	/* Upload filter kernels.  We only have the one for now, so we
+	/* Upload filter kernels.  We only have the one for analw, so we
 	 * keep it around for the lifetime of the driver.
 	 */
 	ret = vc4_hvs_upload_linear_kernel(hvs,
@@ -1032,18 +1032,18 @@ static void vc4_hvs_unbind(struct device *dev, struct device *master,
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_hvs *hvs = vc4->hvs;
-	struct drm_mm_node *node, *next;
+	struct drm_mm_analde *analde, *next;
 
-	if (drm_mm_node_allocated(&vc4->hvs->mitchell_netravali_filter))
-		drm_mm_remove_node(&vc4->hvs->mitchell_netravali_filter);
+	if (drm_mm_analde_allocated(&vc4->hvs->mitchell_netravali_filter))
+		drm_mm_remove_analde(&vc4->hvs->mitchell_netravali_filter);
 
-	drm_mm_for_each_node_safe(node, next, &vc4->hvs->dlist_mm)
-		drm_mm_remove_node(node);
+	drm_mm_for_each_analde_safe(analde, next, &vc4->hvs->dlist_mm)
+		drm_mm_remove_analde(analde);
 
 	drm_mm_takedown(&vc4->hvs->dlist_mm);
 
-	drm_mm_for_each_node_safe(node, next, &vc4->hvs->lbm_mm)
-		drm_mm_remove_node(node);
+	drm_mm_for_each_analde_safe(analde, next, &vc4->hvs->lbm_mm)
+		drm_mm_remove_analde(analde);
 	drm_mm_takedown(&vc4->hvs->lbm_mm);
 
 	clk_disable_unprepare(hvs->core_clk);

@@ -88,7 +88,7 @@ static char *libipw_translate_scan(struct libipw_device *ieee,
 	}
 
 	/* Add channel and frequency */
-	/* Note : userspace automatically computes channel using iwrange */
+	/* Analte : userspace automatically computes channel using iwrange */
 	iwe.cmd = SIOCGIWFREQ;
 	iwe.u.freq.m = libipw_channel_to_freq(ieee, network->channel);
 	iwe.u.freq.e = 6;
@@ -98,7 +98,7 @@ static char *libipw_translate_scan(struct libipw_device *ieee,
 	/* Add encryption capability */
 	iwe.cmd = SIOCGIWENCODE;
 	if (network->capability & WLAN_CAPABILITY_PRIVACY)
-		iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
+		iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_ANALKEY;
 	else
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	iwe.u.data.length = 0;
@@ -110,7 +110,7 @@ static char *libipw_translate_scan(struct libipw_device *ieee,
 	 * more of magic - Jean II */
 	current_val = start + iwe_stream_lcp_len(info);
 	iwe.cmd = SIOCGIWRATE;
-	/* Those two flags are ignored... */
+	/* Those two flags are iganalred... */
 	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
 
 	for (i = 0, j = 0; i < network->rates_len;) {
@@ -141,7 +141,7 @@ static char *libipw_translate_scan(struct libipw_device *ieee,
 	/* Add quality statistics */
 	iwe.cmd = IWEVQUAL;
 	iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED |
-	    IW_QUAL_NOISE_UPDATED;
+	    IW_QUAL_ANALISE_UPDATED;
 
 	if (!(network->stats.mask & LIBIPW_STATMASK_RSSI)) {
 		iwe.u.qual.updated |= IW_QUAL_QUAL_INVALID |
@@ -168,11 +168,11 @@ static char *libipw_translate_scan(struct libipw_device *ieee,
 			iwe.u.qual.qual = 0;
 	}
 
-	if (!(network->stats.mask & LIBIPW_STATMASK_NOISE)) {
-		iwe.u.qual.updated |= IW_QUAL_NOISE_INVALID;
-		iwe.u.qual.noise = 0;
+	if (!(network->stats.mask & LIBIPW_STATMASK_ANALISE)) {
+		iwe.u.qual.updated |= IW_QUAL_ANALISE_INVALID;
+		iwe.u.qual.analise = 0;
 	} else {
-		iwe.u.qual.noise = network->stats.noise;
+		iwe.u.qual.analise = network->stats.analise;
 	}
 
 	if (!(network->stats.mask & LIBIPW_STATMASK_SIGNAL)) {
@@ -275,7 +275,7 @@ int libipw_wx_get_scan(struct libipw_device *ieee,
 			ev = libipw_translate_scan(ieee, ev, stop, network,
 						      info);
 		else {
-			LIBIPW_DEBUG_SCAN("Not showing network '%*pE (%pM)' due to age (%ums).\n",
+			LIBIPW_DEBUG_SCAN("Analt showing network '%*pE (%pM)' due to age (%ums).\n",
 					  network->ssid_len, network->ssid,
 					  network->bssid,
 					  elapsed_jiffies_msecs(
@@ -333,7 +333,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 			LIBIPW_DEBUG_WX("Disabling encryption.\n");
 
 		/* Check all the keys to see if any are still configured,
-		 * and if no key index was provided, de-init them all */
+		 * and if anal key index was provided, de-init them all */
 		for (i = 0; i < WEP_KEYS; i++) {
 			if (ieee->crypt_info.crypt[i] != NULL) {
 				if (key_provided)
@@ -371,7 +371,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 		new_crypt = kzalloc(sizeof(struct lib80211_crypt_data),
 				    GFP_KERNEL);
 		if (new_crypt == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 		new_crypt->ops = lib80211_get_crypto_ops("WEP");
 		if (!new_crypt->ops) {
 			request_module("lib80211_crypt_wep");
@@ -385,9 +385,9 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 			kfree(new_crypt);
 			new_crypt = NULL;
 
-			printk(KERN_WARNING "%s: could not initialize WEP: "
+			printk(KERN_WARNING "%s: could analt initialize WEP: "
 			       "load module lib80211_crypt_wep\n", dev->name);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		*crypt = new_crypt;
 	}
@@ -407,7 +407,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 			(*crypt)->ops->set_key(sec.keys[key], len, NULL,
 					       (*crypt)->priv);
 		sec.flags |= (1 << key);
-		/* This ensures a key will be activated if no key is
+		/* This ensures a key will be activated if anal key is
 		 * explicitly set */
 		if (key == sec.active_key)
 			sec.flags |= SEC_ACTIVE_KEY;
@@ -427,7 +427,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 				sec.flags |= (1 << key);
 			}
 		}
-		/* No key data - just set the default TX key index */
+		/* Anal key data - just set the default TX key index */
 		if (key_provided) {
 			LIBIPW_DEBUG_WX("Setting key %d to default Tx "
 					   "key.\n", key);
@@ -446,7 +446,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 				   "OPEN" : "SHARED KEY");
 	}
 
-	/* For now we just support WEP, so only set that security level...
+	/* For analw we just support WEP, so only set that security level...
 	 * TODO: When WPA is added this is one place that needs to change */
 	sec.flags |= SEC_LEVEL;
 	sec.level = SEC_LEVEL_1;	/* 40 and 104 bit WEP */
@@ -539,7 +539,7 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 
 	sec.flags |= SEC_ENABLED | SEC_ENCRYPT;
 	if ((encoding->flags & IW_ENCODE_DISABLED) ||
-	    ext->alg == IW_ENCODE_ALG_NONE) {
+	    ext->alg == IW_ENCODE_ALG_ANALNE) {
 		if (*crypt)
 			lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 
@@ -578,7 +578,7 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 		module = "lib80211_crypt_ccmp";
 		break;
 	default:
-		LIBIPW_DEBUG_WX("%s: unknown crypto alg %d\n",
+		LIBIPW_DEBUG_WX("%s: unkanalwn crypto alg %d\n",
 				   dev->name, ext->alg);
 		ret = -EINVAL;
 		goto done;
@@ -590,7 +590,7 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 		ops = lib80211_get_crypto_ops(alg);
 	}
 	if (ops == NULL) {
-		LIBIPW_DEBUG_WX("%s: unknown crypto alg %d\n",
+		LIBIPW_DEBUG_WX("%s: unkanalwn crypto alg %d\n",
 				   dev->name, ext->alg);
 		ret = -EINVAL;
 		goto done;
@@ -603,7 +603,7 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 
 		new_crypt = kzalloc(sizeof(*new_crypt), GFP_KERNEL);
 		if (new_crypt == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto done;
 		}
 		new_crypt->ops = ops;
@@ -632,7 +632,7 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 		sec.flags |= SEC_ACTIVE_KEY;
 	}
 
-	if (ext->alg != IW_ENCODE_ALG_NONE) {
+	if (ext->alg != IW_ENCODE_ALG_ANALNE) {
 		int key_len = clamp_val(ext->key_len, 0, SCM_KEY_LEN);
 
 		memcpy(sec.keys[idx], ext->key, key_len);
@@ -692,7 +692,7 @@ int libipw_wx_get_encodeext(struct libipw_device *ieee,
 	memset(ext, 0, sizeof(*ext));
 
 	if (!sec->enabled) {
-		ext->alg = IW_ENCODE_ALG_NONE;
+		ext->alg = IW_ENCODE_ALG_ANALNE;
 		ext->key_len = 0;
 		encoding->flags |= IW_ENCODE_DISABLED;
 	} else {

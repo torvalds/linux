@@ -23,7 +23,7 @@
  *      .../monmap      - current monmap
  *      .../osdc        - active osd requests
  *      .../monc        - mon client state
- *      .../client_options - libceph-only (i.e. not rbd or cephfs) options
+ *      .../client_options - libceph-only (i.e. analt rbd or cephfs) options
  *      .../dentry_lru  - dump contents of dentry lru
  *      .../caps        - expose cap (reservation) stats
  *      .../bdi         - symlink to ../../bdi/something
@@ -57,7 +57,7 @@ static int osdmap_show(struct seq_file *s, void *p)
 	struct ceph_client *client = s->private;
 	struct ceph_osd_client *osdc = &client->osdc;
 	struct ceph_osdmap *map = osdc->osdmap;
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	if (map == NULL)
 		return 0;
@@ -68,7 +68,7 @@ static int osdmap_show(struct seq_file *s, void *p)
 
 	for (n = rb_first(&map->pg_pools); n; n = rb_next(n)) {
 		struct ceph_pg_pool_info *pi =
-			rb_entry(n, struct ceph_pg_pool_info, node);
+			rb_entry(n, struct ceph_pg_pool_info, analde);
 
 		seq_printf(s, "pool %lld '%s' type %d size %d min_size %d pg_num %u pg_num_mask %d flags 0x%llx lfor %u read_tier %lld write_tier %lld\n",
 			   pi->id, pi->name, pi->type, pi->size, pi->min_size,
@@ -91,7 +91,7 @@ static int osdmap_show(struct seq_file *s, void *p)
 	}
 	for (n = rb_first(&map->pg_temp); n; n = rb_next(n)) {
 		struct ceph_pg_mapping *pg =
-			rb_entry(n, struct ceph_pg_mapping, node);
+			rb_entry(n, struct ceph_pg_mapping, analde);
 
 		seq_printf(s, "pg_temp %llu.%x [", pg->pgid.pool,
 			   pg->pgid.seed);
@@ -102,14 +102,14 @@ static int osdmap_show(struct seq_file *s, void *p)
 	}
 	for (n = rb_first(&map->primary_temp); n; n = rb_next(n)) {
 		struct ceph_pg_mapping *pg =
-			rb_entry(n, struct ceph_pg_mapping, node);
+			rb_entry(n, struct ceph_pg_mapping, analde);
 
 		seq_printf(s, "primary_temp %llu.%x %d\n", pg->pgid.pool,
 			   pg->pgid.seed, pg->primary_temp.osd);
 	}
 	for (n = rb_first(&map->pg_upmap); n; n = rb_next(n)) {
 		struct ceph_pg_mapping *pg =
-			rb_entry(n, struct ceph_pg_mapping, node);
+			rb_entry(n, struct ceph_pg_mapping, analde);
 
 		seq_printf(s, "pg_upmap %llu.%x [", pg->pgid.pool,
 			   pg->pgid.seed);
@@ -120,7 +120,7 @@ static int osdmap_show(struct seq_file *s, void *p)
 	}
 	for (n = rb_first(&map->pg_upmap_items); n; n = rb_next(n)) {
 		struct ceph_pg_mapping *pg =
-			rb_entry(n, struct ceph_pg_mapping, node);
+			rb_entry(n, struct ceph_pg_mapping, analde);
 
 		seq_printf(s, "pg_upmap_items %llu.%x [", pg->pgid.pool,
 			   pg->pgid.seed);
@@ -140,7 +140,7 @@ static int monc_show(struct seq_file *s, void *p)
 	struct ceph_client *client = s->private;
 	struct ceph_mon_generic_request *req;
 	struct ceph_mon_client *monc = &client->monc;
-	struct rb_node *rp;
+	struct rb_analde *rp;
 	int i;
 
 	mutex_lock(&monc->mutex);
@@ -159,14 +159,14 @@ static int monc_show(struct seq_file *s, void *p)
 
 	for (rp = rb_first(&monc->generic_request_tree); rp; rp = rb_next(rp)) {
 		__u16 op;
-		req = rb_entry(rp, struct ceph_mon_generic_request, node);
+		req = rb_entry(rp, struct ceph_mon_generic_request, analde);
 		op = le16_to_cpu(req->request->hdr.type);
 		if (op == CEPH_MSG_STATFS)
 			seq_printf(s, "%llu statfs\n", req->tid);
 		else if (op == CEPH_MSG_MON_GET_VERSION)
 			seq_printf(s, "%llu mon_get_version", req->tid);
 		else
-			seq_printf(s, "%llu unknown\n", req->tid);
+			seq_printf(s, "%llu unkanalwn\n", req->tid);
 	}
 
 	mutex_unlock(&monc->mutex);
@@ -176,7 +176,7 @@ static int monc_show(struct seq_file *s, void *p)
 static void dump_spgid(struct seq_file *s, const struct ceph_spg *spgid)
 {
 	seq_printf(s, "%llu.%x", spgid->pgid.pool, spgid->pgid.seed);
-	if (spgid->shard != CEPH_SPG_NOSHARD)
+	if (spgid->shard != CEPH_SPG_ANALSHARD)
 		seq_printf(s, "s%d", spgid->shard);
 }
 
@@ -233,12 +233,12 @@ static void dump_request(struct seq_file *s, struct ceph_osd_request *req)
 
 static void dump_requests(struct seq_file *s, struct ceph_osd *osd)
 {
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	mutex_lock(&osd->lock);
 	for (n = rb_first(&osd->o_requests); n; n = rb_next(n)) {
 		struct ceph_osd_request *req =
-		    rb_entry(n, struct ceph_osd_request, r_node);
+		    rb_entry(n, struct ceph_osd_request, r_analde);
 
 		dump_request(s, req);
 	}
@@ -259,12 +259,12 @@ static void dump_linger_request(struct seq_file *s,
 
 static void dump_linger_requests(struct seq_file *s, struct ceph_osd *osd)
 {
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	mutex_lock(&osd->lock);
 	for (n = rb_first(&osd->o_linger_requests); n; n = rb_next(n)) {
 		struct ceph_osd_linger_request *lreq =
-		    rb_entry(n, struct ceph_osd_linger_request, node);
+		    rb_entry(n, struct ceph_osd_linger_request, analde);
 
 		dump_linger_request(s, lreq);
 	}
@@ -274,7 +274,7 @@ static void dump_linger_requests(struct seq_file *s, struct ceph_osd *osd)
 
 static void dump_snapid(struct seq_file *s, u64 snapid)
 {
-	if (snapid == CEPH_NOSNAP)
+	if (snapid == CEPH_ANALSNAP)
 		seq_puts(s, "head");
 	else if (snapid == CEPH_SNAPDIR)
 		seq_puts(s, "snapdir");
@@ -320,12 +320,12 @@ static void dump_hoid(struct seq_file *s, const struct ceph_hobject_id *hoid)
 
 static void dump_backoffs(struct seq_file *s, struct ceph_osd *osd)
 {
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	mutex_lock(&osd->lock);
 	for (n = rb_first(&osd->o_backoffs_by_id); n; n = rb_next(n)) {
 		struct ceph_osd_backoff *backoff =
-		    rb_entry(n, struct ceph_osd_backoff, id_node);
+		    rb_entry(n, struct ceph_osd_backoff, id_analde);
 
 		seq_printf(s, "osd%d\t", osd->o_osd);
 		dump_spgid(s, &backoff->spgid);
@@ -343,14 +343,14 @@ static int osdc_show(struct seq_file *s, void *pp)
 {
 	struct ceph_client *client = s->private;
 	struct ceph_osd_client *osdc = &client->osdc;
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	down_read(&osdc->lock);
 	seq_printf(s, "REQUESTS %d homeless %d\n",
 		   atomic_read(&osdc->num_requests),
 		   atomic_read(&osdc->num_homeless));
 	for (n = rb_first(&osdc->osds); n; n = rb_next(n)) {
-		struct ceph_osd *osd = rb_entry(n, struct ceph_osd, o_node);
+		struct ceph_osd *osd = rb_entry(n, struct ceph_osd, o_analde);
 
 		dump_requests(s, osd);
 	}
@@ -358,7 +358,7 @@ static int osdc_show(struct seq_file *s, void *pp)
 
 	seq_puts(s, "LINGER REQUESTS\n");
 	for (n = rb_first(&osdc->osds); n; n = rb_next(n)) {
-		struct ceph_osd *osd = rb_entry(n, struct ceph_osd, o_node);
+		struct ceph_osd *osd = rb_entry(n, struct ceph_osd, o_analde);
 
 		dump_linger_requests(s, osd);
 	}
@@ -366,7 +366,7 @@ static int osdc_show(struct seq_file *s, void *pp)
 
 	seq_puts(s, "BACKOFFS\n");
 	for (n = rb_first(&osdc->osds); n; n = rb_next(n)) {
-		struct ceph_osd *osd = rb_entry(n, struct ceph_osd, o_node);
+		struct ceph_osd *osd = rb_entry(n, struct ceph_osd, o_analde);
 
 		dump_backoffs(s, osd);
 	}

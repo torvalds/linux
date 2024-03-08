@@ -16,7 +16,7 @@
 
 #include <linux/types.h>
 #include <linux/ptrace.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #define PARISC_KPROBES_BREAK_INSN	0x3ff801f
 #define PARISC_KPROBES_BREAK_INSN2	0x3ff801e

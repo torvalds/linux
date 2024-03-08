@@ -2,7 +2,7 @@
 /*
  * linux/arch/sh/boards/lboxre2/irq.c
  *
- * Copyright (C) 2007 Nobuhiro Iwamatsu
+ * Copyright (C) 2007 Analbuhiro Iwamatsu
  *
  * NTT COMWARE L-BOX RE2 Support.
  */

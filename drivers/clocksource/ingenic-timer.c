@@ -38,7 +38,7 @@ struct ingenic_tcu_timer {
 
 struct ingenic_tcu {
 	struct regmap *map;
-	struct device_node *np;
+	struct device_analde *np;
 	struct clk *cs_clk;
 	unsigned int cs_channel;
 	struct clocksource cs;
@@ -48,7 +48,7 @@ struct ingenic_tcu {
 
 static struct ingenic_tcu *ingenic_tcu;
 
-static u64 notrace ingenic_tcu_timer_read(void)
+static u64 analtrace ingenic_tcu_timer_read(void)
 {
 	struct ingenic_tcu *tcu = ingenic_tcu;
 	unsigned int count;
@@ -58,7 +58,7 @@ static u64 notrace ingenic_tcu_timer_read(void)
 	return count;
 }
 
-static u64 notrace ingenic_tcu_timer_cs_read(struct clocksource *cs)
+static u64 analtrace ingenic_tcu_timer_cs_read(struct clocksource *cs)
 {
 	return ingenic_tcu_timer_read();
 }
@@ -126,7 +126,7 @@ static irqreturn_t ingenic_tcu_cevt_cb(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct clk *ingenic_tcu_get_clock(struct device_node *np, int id)
+static struct clk *ingenic_tcu_get_clock(struct device_analde *np, int id)
 {
 	struct of_phandle_args args;
 
@@ -162,7 +162,7 @@ static int ingenic_tcu_setup_cevt(unsigned int cpu)
 
 	domain = irq_find_host(tcu->np);
 	if (!domain) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_clk_disable;
 	}
 
@@ -200,7 +200,7 @@ err_clk_put:
 	return err;
 }
 
-static int __init ingenic_tcu_clocksource_init(struct device_node *np,
+static int __init ingenic_tcu_clocksource_init(struct device_analde *np,
 					       struct ingenic_tcu *tcu)
 {
 	unsigned int channel = tcu->cs_channel;
@@ -269,9 +269,9 @@ static const struct of_device_id ingenic_tcu_of_match[] = {
 	{ /* sentinel */ }
 };
 
-static int __init ingenic_tcu_init(struct device_node *np)
+static int __init ingenic_tcu_init(struct device_analde *np)
 {
-	const struct of_device_id *id = of_match_node(ingenic_tcu_of_match, np);
+	const struct of_device_id *id = of_match_analde(ingenic_tcu_of_match, np);
 	const struct ingenic_soc_info *soc_info = id->data;
 	struct ingenic_tcu_timer *timer;
 	struct ingenic_tcu *tcu;
@@ -280,16 +280,16 @@ static int __init ingenic_tcu_init(struct device_node *np)
 	int ret, last_bit = -1;
 	long rate;
 
-	of_node_clear_flag(np, OF_POPULATED);
+	of_analde_clear_flag(np, OF_POPULATED);
 
-	map = device_node_to_regmap(np);
+	map = device_analde_to_regmap(np);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
 	tcu = kzalloc(struct_size(tcu, timers, num_possible_cpus()),
 		      GFP_KERNEL);
 	if (!tcu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Enable all TCU channels for PWM use by default except channels 0/1,
@@ -341,7 +341,7 @@ static int __init ingenic_tcu_init(struct device_node *np)
 		goto err_tcu_clocksource_cleanup;
 	}
 
-	/* Register the sched_clock at the end as there's no way to undo it */
+	/* Register the sched_clock at the end as there's anal way to undo it */
 	rate = clk_get_rate(tcu->cs_clk);
 	sched_clock_register(ingenic_tcu_timer_read, 16, rate);
 
@@ -407,9 +407,9 @@ err_timer_clk_disable:
 }
 
 static const struct dev_pm_ops ingenic_tcu_pm_ops = {
-	/* _noirq: We want the TCU clocks to be gated last / ungated first */
-	.suspend_noirq = ingenic_tcu_suspend,
-	.resume_noirq  = ingenic_tcu_resume,
+	/* _analirq: We want the TCU clocks to be gated last / ungated first */
+	.suspend_analirq = ingenic_tcu_suspend,
+	.resume_analirq  = ingenic_tcu_resume,
 };
 
 static struct platform_driver ingenic_tcu_driver = {

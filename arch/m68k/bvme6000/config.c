@@ -92,7 +92,7 @@ void __init config_bvme6000(void)
     }
 #if 0
     /* Call bvme6000_set_vectors() so ABORT will work, along with BVMBug
-     * debugger.  Note trap_init() will splat the abort vector, but
+     * debugger.  Analte trap_init() will splat the abort vector, but
      * bvme6000_init_IRQ() will put it back again.  Hopefully. */
 
     bvme6000_set_vectors();
@@ -105,23 +105,23 @@ void __init config_bvme6000(void)
     mach_get_model       = bvme6000_get_model;
 
     pr_info("Board is %sconfigured as a System Controller\n",
-	    *config_reg_ptr & BVME_CONFIG_SW1 ? "" : "not ");
+	    *config_reg_ptr & BVME_CONFIG_SW1 ? "" : "analt ");
 
-    /* Now do the PIT configuration */
+    /* Analw do the PIT configuration */
 
-    pit->pgcr	= 0x00;	/* Unidirectional 8 bit, no handshake for now */
+    pit->pgcr	= 0x00;	/* Unidirectional 8 bit, anal handshake for analw */
     pit->psrr	= 0x18;	/* PIACK and PIRQ functions enabled */
-    pit->pacr	= 0x00;	/* Sub Mode 00, H2 i/p, no DMA */
+    pit->pacr	= 0x00;	/* Sub Mode 00, H2 i/p, anal DMA */
     pit->padr	= 0x00;	/* Just to be tidy! */
-    pit->paddr	= 0x00;	/* All inputs for now (safest) */
-    pit->pbcr	= 0x80;	/* Sub Mode 1x, H4 i/p, no DMA */
+    pit->paddr	= 0x00;	/* All inputs for analw (safest) */
+    pit->pbcr	= 0x80;	/* Sub Mode 1x, H4 i/p, anal DMA */
     pit->pbdr	= 0xbc | (*config_reg_ptr & BVME_CONFIG_SW1 ? 0 : 0x40);
 			/* PRI, SYSCON?, Level3, SCC clks from xtal */
     pit->pbddr	= 0xf3;	/* Mostly outputs */
     pit->pcdr	= 0x01;	/* PA transceiver disabled */
     pit->pcddr	= 0x03;	/* WDOG disable */
 
-    /* Disable snooping for Ethernet and VME accesses */
+    /* Disable sanaloping for Ethernet and VME accesses */
 
     bvme_acr_addrctl = 0;
 }
@@ -219,7 +219,7 @@ void bvme6000_sched_init (void)
 
 
 /*
- * NOTE:  Don't accept any readings within 5us of rollover, as
+ * ANALTE:  Don't accept any readings within 5us of rollover, as
  * the T1INT bit may be a little slow getting set.  There is also
  * a fault in the chip, meaning that reads may produce invalid
  * results...
@@ -266,7 +266,7 @@ static u64 bvme6000_read_clk(struct clocksource *cs)
 }
 
 /*
- * Looks like op is non-zero for setting the clock, and zero for
+ * Looks like op is analn-zero for setting the clock, and zero for
  * reading the clock.
  *
  *  struct hwclk_time {
@@ -276,7 +276,7 @@ static u64 bvme6000_read_clk(struct clocksource *cs)
  *         unsigned        day;       1..31
  *         unsigned        mon;       0..11
  *         unsigned        year;      00...
- *         int             wday;      0..6, 0 is Sunday, -1 means unknown/don't set
+ *         int             wday;      0..6, 0 is Sunday, -1 means unkanalwn/don't set
  * };
  */
 

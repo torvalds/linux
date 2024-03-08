@@ -3,12 +3,12 @@
  *
  * Copyright (C) 2001 WireX Communications, Inc <chris@wirex.com>
  * Copyright (C) 2001 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (C) 2001 Networks Associates Technology, Inc <ssmalley@nai.com>
+ * Copyright (C) 2001 Networks Associates Techanallogy, Inc <ssmalley@nai.com>
  * Copyright (C) 2001 James Morris <jmorris@intercode.com.au>
- * Copyright (C) 2001 Silicon Graphics, Inc. (Trust Technology Group)
+ * Copyright (C) 2001 Silicon Graphics, Inc. (Trust Techanallogy Group)
  * Copyright (C) 2015 Intel Corporation.
  * Copyright (C) 2015 Casey Schaufler <casey@schaufler-ca.com>
- * Copyright (C) 2016 Mellanox Techonologies
+ * Copyright (C) 2016 Mellaanalx Techoanallogies
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -60,7 +60,7 @@ struct lsm_id {
  * For use with generic list macros for common operations.
  */
 struct security_hook_list {
-	struct hlist_node		list;
+	struct hlist_analde		list;
 	struct hlist_head		*head;
 	union security_list_options	hook;
 	const struct lsm_id		*lsmid;
@@ -72,7 +72,7 @@ struct security_hook_list {
 struct lsm_blob_sizes {
 	int	lbs_cred;
 	int	lbs_file;
-	int	lbs_inode;
+	int	lbs_ianalde;
 	int	lbs_superblock;
 	int	lbs_ipc;
 	int	lbs_msg_msg;
@@ -88,7 +88,7 @@ struct lsm_blob_sizes {
  * Retrieve the first available slot in the @xattrs array to fill with an xattr,
  * and increment @xattr_count.
  *
- * Return: The slot to fill in @xattrs if non-NULL, NULL otherwise.
+ * Return: The slot to fill in @xattrs if analn-NULL, NULL otherwise.
  */
 static inline struct xattr *lsm_get_xattr_slot(struct xattr *xattrs,
 					       int *xattr_count)
@@ -150,6 +150,6 @@ extern struct lsm_info __start_early_lsm_info[], __end_early_lsm_info[];
 		__used __section(".early_lsm_info.init")		\
 		__aligned(sizeof(unsigned long))
 
-extern int lsm_inode_alloc(struct inode *inode);
+extern int lsm_ianalde_alloc(struct ianalde *ianalde);
 
 #endif /* ! __LINUX_LSM_HOOKS_H */

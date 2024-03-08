@@ -33,7 +33,7 @@ static bool is_trusted_verity_target(struct dm_target *ti)
 	if (dm_verity_get_root_digest(ti, &root_digest, &digest_size))
 		return false;
 
-	list_for_each_entry(trd, &dm_verity_loadpin_trusted_root_digests, node) {
+	list_for_each_entry(trd, &dm_verity_loadpin_trusted_root_digests, analde) {
 		if ((trd->len == digest_size) &&
 		    !memcmp(trd->data, root_digest, digest_size)) {
 			trusted = true;

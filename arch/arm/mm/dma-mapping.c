@@ -10,7 +10,7 @@
 #include <linux/mm.h>
 #include <linux/genalloc.h>
 #include <linux/gfp.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/device.h>
@@ -56,7 +56,7 @@ struct arm_dma_free_args {
 	bool want_vaddr;
 };
 
-#define NORMAL	    0
+#define ANALRMAL	    0
 #define COHERENT    1
 
 struct arm_dma_allocator {
@@ -92,12 +92,12 @@ static struct arm_dma_buffer *arm_dma_buffer_find(void *virt)
 }
 
 /*
- * The DMA API is built upon the notion of "buffer ownership".  A buffer
+ * The DMA API is built upon the analtion of "buffer ownership".  A buffer
  * is either exclusively owned by the CPU (and therefore may be accessed
  * by it) or exclusively owned by the DMA device.  These helper functions
  * represent the transitions between these two ownership states.
  *
- * Note, however, that on later ARMs, this notion does not work due to
+ * Analte, however, that on later ARMs, this analtion does analt work due to
  * speculative prefetches.  We model our approach on the assumption that
  * the CPU does do speculative prefetches, which means we clean caches
  * before transfers and delay cache invalidation until transfer completion.
@@ -136,7 +136,7 @@ static void __dma_clear_buffer(struct page *page, size_t size, int coherent_flag
 
 /*
  * Allocate a DMA buffer for 'dev' of size 'size' using the
- * specified gfp mask.  Note that 'size' must be page aligned.
+ * specified gfp mask.  Analte that 'size' must be page aligned.
  */
 static struct page *__dma_alloc_buffer(struct device *dev, size_t size,
 				       gfp_t gfp, int coherent_flag)
@@ -149,7 +149,7 @@ static struct page *__dma_alloc_buffer(struct device *dev, size_t size,
 		return NULL;
 
 	/*
-	 * Now split the huge page and free the excess pages
+	 * Analw split the huge page and free the excess pages
 	 */
 	split_page(page, order);
 	for (p = page + (size >> PAGE_SHIFT), e = page + (1 << order); p < e; p++)
@@ -208,12 +208,12 @@ static int __init atomic_pool_init(void)
 	if (!atomic_pool)
 		goto out;
 	/*
-	 * The atomic pool is only used for non-coherent allocations
-	 * so we must pass NORMAL for coherent_flag.
+	 * The atomic pool is only used for analn-coherent allocations
+	 * so we must pass ANALRMAL for coherent_flag.
 	 */
 	if (dev_get_cma_area(NULL))
 		ptr = __alloc_from_contiguous(NULL, atomic_pool_size, prot,
-				      &page, atomic_pool_init, true, NORMAL,
+				      &page, atomic_pool_init, true, ANALRMAL,
 				      GFP_KERNEL);
 	else
 		ptr = __alloc_remap_buffer(NULL, atomic_pool_size, gfp, prot,
@@ -241,7 +241,7 @@ destroy_genpool:
 out:
 	pr_err("DMA: failed to allocate %zu KiB pool for atomic coherent allocation\n",
 	       atomic_pool_size / 1024);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 /*
  * CMA is activated by core_initcall, so we must be called after it.
@@ -288,11 +288,11 @@ void __init dma_contiguous_remap(void)
 
 		/*
 		 * Clear previous low-memory mapping to ensure that the
-		 * TLB does not see any conflicting entries, then flush
+		 * TLB does analt see any conflicting entries, then flush
 		 * the TLB of the old entries before creating new mappings.
 		 *
 		 * This ensures that any speculatively loaded TLB entries
-		 * (even though they may be rare) can not cause any problems,
+		 * (even though they may be rare) can analt cause any problems,
 		 * and ensures that this code is architecturally compliant.
 		 */
 		for (addr = __phys_to_virt(start); addr < __phys_to_virt(end);
@@ -333,9 +333,9 @@ static void *__alloc_remap_buffer(struct device *dev, size_t size, gfp_t gfp,
 	void *ptr = NULL;
 	/*
 	 * __alloc_remap_buffer is only called when the device is
-	 * non-coherent
+	 * analn-coherent
 	 */
-	page = __dma_alloc_buffer(dev, size, gfp, NORMAL);
+	page = __dma_alloc_buffer(dev, size, gfp, ANALRMAL);
 	if (!page)
 		return NULL;
 	if (!want_vaddr)
@@ -358,7 +358,7 @@ static void *__alloc_from_pool(size_t size, struct page **ret_page)
 	void *ptr = NULL;
 
 	if (!atomic_pool) {
-		WARN(1, "coherent pool not initialised!\n");
+		WARN(1, "coherent pool analt initialised!\n");
 		return NULL;
 	}
 
@@ -398,7 +398,7 @@ static void *__alloc_from_contiguous(struct device *dev, size_t size,
 	struct page *page;
 	void *ptr = NULL;
 
-	page = dma_alloc_from_contiguous(dev, count, order, gfp & __GFP_NOWARN);
+	page = dma_alloc_from_contiguous(dev, count, order, gfp & __GFP_ANALWARN);
 	if (!page)
 		return NULL;
 
@@ -534,7 +534,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 			 gfp_t gfp, pgprot_t prot, bool is_coherent,
 			 unsigned long attrs, const void *caller)
 {
-	u64 mask = min_not_zero(dev->coherent_dma_mask, dev->bus_dma_limit);
+	u64 mask = min_analt_zero(dev->coherent_dma_mask, dev->bus_dma_limit);
 	struct page *page = NULL;
 	void *addr;
 	bool allowblock, cma;
@@ -545,8 +545,8 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 		.gfp = gfp,
 		.prot = prot,
 		.caller = caller,
-		.want_vaddr = ((attrs & DMA_ATTR_NO_KERNEL_MAPPING) == 0),
-		.coherent_flag = is_coherent ? COHERENT : NORMAL,
+		.want_vaddr = ((attrs & DMA_ATTR_ANAL_KERNEL_MAPPING) == 0),
+		.coherent_flag = is_coherent ? COHERENT : ANALRMAL,
 	};
 
 #ifdef CONFIG_DMA_API_DEBUG
@@ -613,7 +613,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
 		.size = PAGE_ALIGN(size),
 		.cpu_addr = cpu_addr,
 		.page = page,
-		.want_vaddr = ((attrs & DMA_ATTR_NO_KERNEL_MAPPING) == 0),
+		.want_vaddr = ((attrs & DMA_ATTR_ANAL_KERNEL_MAPPING) == 0),
 	};
 
 	buf = arm_dma_buffer_find(cpu_addr);
@@ -637,7 +637,7 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 	/*
 	 * A single sg entry may refer to multiple physically contiguous
 	 * pages.  But we still need to process highmem pages individually.
-	 * If highmem is not configured then the bulk of this loop gets
+	 * If highmem is analt configured then the bulk of this loop gets
 	 * optimized out.
 	 */
 	do {
@@ -650,7 +650,7 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 			if (len + offset > PAGE_SIZE)
 				len = PAGE_SIZE - offset;
 
-			if (cache_is_vipt_nonaliasing()) {
+			if (cache_is_vipt_analnaliasing()) {
 				vaddr = kmap_atomic(page);
 				op(vaddr + offset, len, dir);
 				kunmap_atomic(vaddr);
@@ -673,7 +673,7 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 
 /*
  * Make an area consistent for devices.
- * Note: Drivers should NOT use this function directly.
+ * Analte: Drivers should ANALT use this function directly.
  * Use the driver DMA support - see dma-mapping.h (dma_sync_*)
  */
 static void __dma_page_cpu_to_dev(struct page *page, unsigned long off,
@@ -689,7 +689,7 @@ static void __dma_page_cpu_to_dev(struct page *page, unsigned long off,
 	} else {
 		outer_clean_range(paddr, paddr + size);
 	}
-	/* FIXME: non-speculating: flush on bidirectional mappings? */
+	/* FIXME: analn-speculating: flush on bidirectional mappings? */
 }
 
 static void __dma_page_dev_to_cpu(struct page *page, unsigned long off,
@@ -697,7 +697,7 @@ static void __dma_page_dev_to_cpu(struct page *page, unsigned long off,
 {
 	phys_addr_t paddr = page_to_phys(page) + off;
 
-	/* FIXME: non-speculating: not required */
+	/* FIXME: analn-speculating: analt required */
 	/* in any case, don't bother invalidating if DMA to device */
 	if (dir != DMA_TO_DEVICE) {
 		outer_inv_range(paddr, paddr + size);
@@ -783,7 +783,7 @@ static inline dma_addr_t __alloc_iova(struct dma_iommu_mapping *mapping,
 	}
 
 	/*
-	 * No unused range found. Try to extend the existing mapping
+	 * Anal unused range found. Try to extend the existing mapping
 	 * and perform a second attempt to reserve an IO virtual
 	 * address range of size bytes.
 	 */
@@ -833,7 +833,7 @@ static inline void __free_iova(struct dma_iommu_mapping *mapping,
 	if (addr + size > bitmap_base + mapping_size) {
 		/*
 		 * The address range to be freed reaches into the iova
-		 * range of the next bitmap. This should not happen as
+		 * range of the next bitmap. This should analt happen as
 		 * we don't allow this in __alloc_iova (at the
 		 * moment).
 		 */
@@ -869,7 +869,7 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
 		struct page *page;
 
 		page = dma_alloc_from_contiguous(dev, count, order,
-						 gfp & __GFP_NOWARN);
+						 gfp & __GFP_ANALWARN);
 		if (!page)
 			goto error;
 
@@ -888,7 +888,7 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
 	/*
 	 * IOMMU can map any pages, so himem can also be used here
 	 */
-	gfp |= __GFP_NOWARN | __GFP_HIGHMEM;
+	gfp |= __GFP_ANALWARN | __GFP_HIGHMEM;
 
 	while (count) {
 		int j, order;
@@ -903,9 +903,9 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
 
 		if (order) {
 			/* See if it's easy to allocate a high-order chunk */
-			pages[i] = alloc_pages(gfp | __GFP_NORETRY, order);
+			pages[i] = alloc_pages(gfp | __GFP_ANALRETRY, order);
 
-			/* Go down a notch at first sign of pressure */
+			/* Go down a analtch at first sign of pressure */
 			if (!pages[i]) {
 				order_idx++;
 				continue;
@@ -1031,7 +1031,7 @@ static struct page **__iommu_get_pages(void *cpu_addr, unsigned long attrs)
 	if (__in_atomic_pool(cpu_addr, PAGE_SIZE))
 		return __atomic_get_pages(cpu_addr);
 
-	if (attrs & DMA_ATTR_NO_KERNEL_MAPPING)
+	if (attrs & DMA_ATTR_ANAL_KERNEL_MAPPING)
 		return cpu_addr;
 
 	return dma_common_find_pages(cpu_addr);
@@ -1078,7 +1078,7 @@ static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
 	pgprot_t prot = __get_dma_pgprot(attrs, PAGE_KERNEL);
 	struct page **pages;
 	void *addr = NULL;
-	int coherent_flag = dev->dma_coherent ? COHERENT : NORMAL;
+	int coherent_flag = dev->dma_coherent ? COHERENT : ANALRMAL;
 
 	*handle = DMA_MAPPING_ERROR;
 	size = PAGE_ALIGN(size);
@@ -1095,7 +1095,7 @@ static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
 	if (*handle == DMA_MAPPING_ERROR)
 		goto err_buffer;
 
-	if (attrs & DMA_ATTR_NO_KERNEL_MAPPING)
+	if (attrs & DMA_ATTR_ANAL_KERNEL_MAPPING)
 		return pages;
 
 	addr = dma_common_pages_remap(pages, size, prot,
@@ -1138,12 +1138,12 @@ static int arm_iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
 
 /*
  * free a page as defined by the above mapping.
- * Must not be called with IRQs disabled.
+ * Must analt be called with IRQs disabled.
  */
 static void arm_iommu_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 	dma_addr_t handle, unsigned long attrs)
 {
-	int coherent_flag = dev->dma_coherent ? COHERENT : NORMAL;
+	int coherent_flag = dev->dma_coherent ? COHERENT : ANALRMAL;
 	struct page **pages;
 	size = PAGE_ALIGN(size);
 
@@ -1158,7 +1158,7 @@ static void arm_iommu_free_attrs(struct device *dev, size_t size, void *cpu_addr
 		return;
 	}
 
-	if ((attrs & DMA_ATTR_NO_KERNEL_MAPPING) == 0)
+	if ((attrs & DMA_ATTR_ANAL_KERNEL_MAPPING) == 0)
 		dma_common_free_remap(cpu_addr, size);
 
 	__iommu_remove_mapping(dev, handle, size);
@@ -1198,7 +1198,7 @@ static int __map_sg_chunk(struct device *dev, struct scatterlist *sg,
 
 	iova_base = iova = __alloc_iova(mapping, size);
 	if (iova == DMA_MAPPING_ERROR)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (count = 0, s = sg; count < (size >> PAGE_SHIFT); s = sg_next(s)) {
 		phys_addr_t phys = page_to_phys(sg_page(s));
@@ -1279,7 +1279,7 @@ static int arm_iommu_map_sg(struct device *dev, struct scatterlist *sg,
 bad_mapping:
 	for_each_sg(sg, s, count, i)
 		__iommu_remove_mapping(dev, sg_dma_address(s), sg_dma_len(s));
-	if (ret == -ENOMEM)
+	if (ret == -EANALMEM)
 		return ret;
 	return -EINVAL;
 }
@@ -1550,7 +1550,7 @@ arm_iommu_create_mapping(const struct bus_type *bus, dma_addr_t base, u64 size)
 	unsigned int bitmap_size = BITS_TO_LONGS(bits) * sizeof(long);
 	struct dma_iommu_mapping *mapping;
 	int extensions = 1;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/* currently only 32-bit DMA address space is supported */
 	if (size > DMA_BIT_MASK(32) + 1)
@@ -1626,7 +1626,7 @@ static int extend_iommu_mapping(struct dma_iommu_mapping *mapping)
 	mapping->bitmaps[next_bitmap] = kzalloc(mapping->bitmap_size,
 						GFP_ATOMIC);
 	if (!mapping->bitmaps[next_bitmap])
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mapping->nr_bitmaps++;
 
@@ -1688,7 +1688,7 @@ EXPORT_SYMBOL_GPL(arm_iommu_attach_device);
  * @dev: valid struct device pointer
  *
  * Detaches the provided device from a previously attached map.
- * This overwrites the dma_ops pointer with appropriate non-IOMMU ops.
+ * This overwrites the dma_ops pointer with appropriate analn-IOMMU ops.
  */
 void arm_iommu_detach_device(struct device *dev)
 {
@@ -1696,7 +1696,7 @@ void arm_iommu_detach_device(struct device *dev)
 
 	mapping = to_dma_iommu_mapping(dev);
 	if (!mapping) {
-		dev_warn(dev, "Not attached\n");
+		dev_warn(dev, "Analt attached\n");
 		return;
 	}
 
@@ -1758,9 +1758,9 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 {
 	/*
 	 * Due to legacy code that sets the ->dma_coherent flag from a bus
-	 * notifier we can't just assign coherent to the ->dma_coherent flag
+	 * analtifier we can't just assign coherent to the ->dma_coherent flag
 	 * here, but instead have to make sure we only set but never clear it
-	 * for now.
+	 * for analw.
 	 */
 	if (coherent)
 		dev->dma_coherent = true;

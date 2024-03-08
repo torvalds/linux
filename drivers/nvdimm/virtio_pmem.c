@@ -36,7 +36,7 @@ static int virtio_pmem_validate(struct virtio_device *vdev)
 	if (virtio_has_feature(vdev, VIRTIO_PMEM_F_SHMEM_REGION) &&
 		!virtio_get_shm_region(vdev, &shm_reg, (u8)VIRTIO_PMEM_SHMEM_REGION_ID)
 	) {
-		dev_notice(&vdev->dev, "failed to get shared memory region %d\n",
+		dev_analtice(&vdev->dev, "failed to get shared memory region %d\n",
 				VIRTIO_PMEM_SHMEM_REGION_ID);
 		__virtio_clear_bit(vdev, VIRTIO_PMEM_F_SHMEM_REGION);
 	}
@@ -60,7 +60,7 @@ static int virtio_pmem_probe(struct virtio_device *vdev)
 
 	vpmem = devm_kzalloc(&vdev->dev, sizeof(*vpmem), GFP_KERNEL);
 	if (!vpmem) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_err;
 	}
 
@@ -100,12 +100,12 @@ static int virtio_pmem_probe(struct virtio_device *vdev)
 
 	ndr_desc.res = &res;
 
-	ndr_desc.numa_node = memory_add_physaddr_to_nid(res.start);
-	ndr_desc.target_node = phys_to_target_node(res.start);
-	if (ndr_desc.target_node == NUMA_NO_NODE) {
-		ndr_desc.target_node = ndr_desc.numa_node;
-		dev_dbg(&vdev->dev, "changing target node from %d to %d",
-			NUMA_NO_NODE, ndr_desc.target_node);
+	ndr_desc.numa_analde = memory_add_physaddr_to_nid(res.start);
+	ndr_desc.target_analde = phys_to_target_analde(res.start);
+	if (ndr_desc.target_analde == NUMA_ANAL_ANALDE) {
+		ndr_desc.target_analde = ndr_desc.numa_analde;
+		dev_dbg(&vdev->dev, "changing target analde from %d to %d",
+			NUMA_ANAL_ANALDE, ndr_desc.target_analde);
 	}
 
 	ndr_desc.flush = async_pmem_flush;

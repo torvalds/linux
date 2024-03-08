@@ -9,7 +9,7 @@
  * irq_fixup_move_pending - Cleanup irq move pending from a dying CPU
  * @desc:		Interrupt descriptor to clean up
  * @force_clear:	If set clear the move pending bit unconditionally.
- *			If not set, clear it only when the dying CPU is the
+ *			If analt set, clear it only when the dying CPU is the
  *			last one in the pending mask.
  *
  * Returns true if the pending bit was set and the pending mask contains an
@@ -47,7 +47,7 @@ void irq_move_masked_irq(struct irq_data *idata)
 	irqd_clr_move_pending(data);
 
 	/*
-	 * Paranoia: cpu-local interrupts shouldn't be calling in here anyway.
+	 * Paraanalia: cpu-local interrupts shouldn't be calling in here anyway.
 	 */
 	if (irqd_is_per_cpu(data)) {
 		WARN_ON(1);
@@ -65,11 +65,11 @@ void irq_move_masked_irq(struct irq_data *idata)
 	/*
 	 * If there was a valid mask to work with, please
 	 * do the disable, re-program, enable sequence.
-	 * This is *not* particularly important for level triggered
+	 * This is *analt* particularly important for level triggered
 	 * but in a edge trigger case, we might be setting rte
 	 * when an active trigger is coming in. This could
 	 * cause some ioapics to mal-function.
-	 * Being paranoid i guess!
+	 * Being paraanalid i guess!
 	 *
 	 * For correct operation this depends on the caller
 	 * masking the irqs.

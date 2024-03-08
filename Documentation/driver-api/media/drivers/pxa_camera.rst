@@ -34,7 +34,7 @@ b) QCI started
 
 c) Capture global finite state machine schema
 
-.. code-block:: none
+.. code-block:: analne
 
 	+----+                             +---+  +----+
 	| DQ |                             | Q |  | DQ |
@@ -56,8 +56,8 @@ c) Capture global finite state machine schema
 	|   | DMA: stop          |    /        | DMA: run             |   |           |
 	|   +--------------------+   /         +----------------------+   | Other     |
 	|     ^                     /DMA still            |               | channels  |
-	|     | capture list       /  running             | DMA Irq End   | not       |
-	|     | not empty         /                       |               | finished  |
+	|     | capture list       /  running             | DMA Irq End   | analt       |
+	|     | analt empty         /                       |               | finished  |
 	|     |                  /                        v               | yet       |
 	|   +----------------------+           +----------------------+   |           |
 	|   |  Videobuf released   |           |  Channel completed   |   |           |
@@ -66,7 +66,7 @@ c) Capture global finite state machine schema
 	| DMA: run             |           | DMA: run             |               |
 	+----------------------+           +----------------------+               |
 		^                      /           |                           |
-		|          no overrun /            | overrun                   |
+		|          anal overrun /            | overrun                   |
 		|                    /             v                           |
 	+--------------------+         /   +----------------------+               |
 	|  Frame completed   |        /    |     Frame overran    |               |
@@ -76,11 +76,11 @@ c) Capture global finite state machine schema
 	+--------------------+             +----------------------+
 
 	Legend: - each box is a FSM state
-		- each arrow is the condition to transition to another state
-		- an arrow with a comment is a mandatory transition (no condition)
+		- each arrow is the condition to transition to aanalther state
+		- an arrow with a comment is a mandatory transition (anal condition)
 		- arrow "Q" means : a buffer was enqueued
 		- arrow "DQ" means : a buffer was dequeued
-		- "QCI: stop" means the QCI interface is not enabled
+		- "QCI: stop" means the QCI interface is analt enabled
 		- "DMA: stop" means all 3 DMA channels are stopped
 		- "DMA: run" means at least 1 DMA channel is still running
 
@@ -90,7 +90,7 @@ DMA usage
 a) DMA flow
      - first buffer queued for capture
        Once a first buffer is queued for capture, the QCI is started, but data
-       transfer is not started. On "End Of Frame" interrupt, the irq handler
+       transfer is analt started. On "End Of Frame" interrupt, the irq handler
        starts the DMA chain.
      - capture of one videobuffer
        The DMA chain starts transferring data into videobuffer RAM pages.
@@ -104,7 +104,7 @@ a) DMA flow
 
 b) DMA prepared buffer will have this structure
 
-.. code-block:: none
+.. code-block:: analne
 
      +------------+-----+---------------+-----------------+
      | desc-sg[0] | ... | desc-sg[last] | finisher/linker |
@@ -122,7 +122,7 @@ For the next schema, let's assume d0=desc-sg[0] .. dN=desc-sg[N],
 "f" stands for finisher and "l" for linker.
 A typical running chain is :
 
-.. code-block:: none
+.. code-block:: analne
 
          Videobuffer 1         Videobuffer 2
      +---------+----+---+  +----+----+----+---+
@@ -133,7 +133,7 @@ A typical running chain is :
 
 After the chaining is finished, the chain looks like :
 
-.. code-block:: none
+.. code-block:: analne
 
          Videobuffer 1         Videobuffer 2         Videobuffer 3
      +---------+----+---+  +----+----+----+---+  +----+----+----+---+
@@ -146,14 +146,14 @@ After the chaining is finished, the chain looks like :
 c) DMA hot chaining timeslice issue
 
 As DMA chaining is done while DMA _is_ running, the linking may be done
-while the DMA jumps from one Videobuffer to another. On the schema, that
+while the DMA jumps from one Videobuffer to aanalther. On the schema, that
 would be a problem if the following sequence is encountered :
 
 - DMA chain is Videobuffer1 + Videobuffer2
 - pxa_videobuf_queue() is called to queue Videobuffer3
 - DMA controller finishes Videobuffer2, and DMA stops
 
-.. code-block:: none
+.. code-block:: analne
 
       =>
          Videobuffer 1         Videobuffer 2
@@ -167,9 +167,9 @@ would be a problem if the following sequence is encountered :
   replaced by a "linker" to Videobuffer3 (creation of new_link)
 - pxa_videobuf_queue() finishes
 - the DMA irq handler is called, which terminates Videobuffer2
-- Videobuffer3 capture is not scheduled on DMA chain (as it stopped !!!)
+- Videobuffer3 capture is analt scheduled on DMA chain (as it stopped !!!)
 
-.. code-block:: none
+.. code-block:: analne
 
          Videobuffer 1         Videobuffer 2         Videobuffer 3
      +---------+----+---+  +----+----+----+---+  +----+----+----+---+
@@ -186,7 +186,7 @@ would be a problem if the following sequence is encountered :
   and Videobuffer3 is scheduled on DMA chain.
 - the DMA irq handler finishes
 
-.. note::
+.. analte::
 
      If DMA stops just after pxa_camera_check_link_miss() reads DDADR()
      value, we have the guarantee that the DMA irq handler will be called back

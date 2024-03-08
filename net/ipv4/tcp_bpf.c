@@ -38,9 +38,9 @@ static int bpf_tcp_ingress(struct sock *sk, struct sk_psock *psock,
 	struct sk_msg *tmp;
 	int i, ret = 0;
 
-	tmp = kzalloc(sizeof(*tmp), __GFP_NOWARN | GFP_KERNEL);
+	tmp = kzalloc(sizeof(*tmp), __GFP_ANALWARN | GFP_KERNEL);
 	if (unlikely(!tmp))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lock_sock(sk);
 	tmp->sg.start = msg->sg.start;
@@ -51,7 +51,7 @@ static int bpf_tcp_ingress(struct sock *sk, struct sk_psock *psock,
 			apply_bytes : sge->length;
 		if (!sk_wmem_schedule(sk, size)) {
 			if (!copied)
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 			break;
 		}
 
@@ -110,7 +110,7 @@ retry:
 		msghdr.msg_flags = flags | MSG_SPLICE_PAGES;
 		has_tx_ulp = tls_sw_has_ctx_tx(sk);
 		if (has_tx_ulp)
-			msghdr.msg_flags |= MSG_SENDPAGE_NOPOLICY;
+			msghdr.msg_flags |= MSG_SENDPAGE_ANALPOLICY;
 
 		if (size < sge->length && msg->sg.start != msg->sg.end)
 			msghdr.msg_flags |= MSG_MORE;
@@ -240,17 +240,17 @@ static int tcp_bpf_recvmsg_parser(struct sock *sk,
 	lock_sock(sk);
 
 	/* We may have received data on the sk_receive_queue pre-accept and
-	 * then we can not use read_skb in this context because we haven't
-	 * assigned a sk_socket yet so have no link to the ops. The work-around
+	 * then we can analt use read_skb in this context because we haven't
+	 * assigned a sk_socket yet so have anal link to the ops. The work-around
 	 * is to check the sk_receive_queue and in these cases read skbs off
-	 * queue again. The read_skb hook is not running at this point because
+	 * queue again. The read_skb hook is analt running at this point because
 	 * of lock_sock so we avoid having multiple runners in read_skb.
 	 */
 	if (unlikely(!skb_queue_empty(&sk->sk_receive_queue))) {
 		tcp_data_ready(sk);
-		/* This handles the ENOMEM errors if we both receive data
+		/* This handles the EANALMEM errors if we both receive data
 		 * pre accept and are already under memory pressure. At least
-		 * let user know to retry.
+		 * let user kanalw to retry.
 		 */
 		if (unlikely(!skb_queue_empty(&sk->sk_receive_queue))) {
 			copied = -EAGAIN;
@@ -291,7 +291,7 @@ msg_bytes_ready:
 			goto out;
 
 		if (sk->sk_state == TCP_CLOSE) {
-			copied = -ENOTCONN;
+			copied = -EANALTCONN;
 			goto out;
 		}
 
@@ -302,7 +302,7 @@ msg_bytes_ready:
 		}
 
 		if (signal_pending(current)) {
-			copied = sock_intr_errno(timeo);
+			copied = sock_intr_erranal(timeo);
 			goto out;
 		}
 
@@ -381,14 +381,14 @@ unlock:
 static int tcp_bpf_send_verdict(struct sock *sk, struct sk_psock *psock,
 				struct sk_msg *msg, int *copied, int flags)
 {
-	bool cork = false, enospc = sk_msg_full(msg), redir_ingress;
+	bool cork = false, eanalspc = sk_msg_full(msg), redir_ingress;
 	struct sock *sk_redir;
 	u32 tosend, origsize, sent, delta = 0;
 	u32 eval;
 	int ret;
 
 more_data:
-	if (psock->eval == __SK_NONE) {
+	if (psock->eval == __SK_ANALNE) {
 		/* Track delta in msg size to add/subtract it on SK_DROP from
 		 * returned to user copied size. This ensures user doesn't
 		 * get a positive return code with msg_cut_data and SK_DROP
@@ -400,13 +400,13 @@ more_data:
 	}
 
 	if (msg->cork_bytes &&
-	    msg->cork_bytes > msg->sg.size && !enospc) {
+	    msg->cork_bytes > msg->sg.size && !eanalspc) {
 		psock->cork_bytes = msg->cork_bytes - msg->sg.size;
 		if (!psock->cork) {
 			psock->cork = kzalloc(sizeof(*psock->cork),
-					      GFP_ATOMIC | __GFP_NOWARN);
+					      GFP_ATOMIC | __GFP_ANALWARN);
 			if (!psock->cork)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		memcpy(psock->cork, msg, sizeof(*msg));
 		return 0;
@@ -415,7 +415,7 @@ more_data:
 	tosend = msg->sg.size;
 	if (psock->apply_bytes && psock->apply_bytes < tosend)
 		tosend = psock->apply_bytes;
-	eval = __SK_NONE;
+	eval = __SK_ANALNE;
 
 	switch (psock->eval) {
 	case __SK_PASS:
@@ -433,7 +433,7 @@ more_data:
 		if (!psock->apply_bytes) {
 			/* Clean up before releasing the sock lock. */
 			eval = psock->eval;
-			psock->eval = __SK_NONE;
+			psock->eval = __SK_ANALNE;
 			psock->sk_redir = NULL;
 		}
 		if (psock->cork) {
@@ -453,7 +453,7 @@ more_data:
 
 		lock_sock(sk);
 		if (unlikely(ret < 0)) {
-			int free = sk_msg_free_nocharge(sk, msg);
+			int free = sk_msg_free_analcharge(sk, msg);
 
 			if (!cork)
 				*copied -= free;
@@ -475,7 +475,7 @@ more_data:
 
 	if (likely(!ret)) {
 		if (!psock->apply_bytes) {
-			psock->eval =  __SK_NONE;
+			psock->eval =  __SK_ANALNE;
 			if (psock->sk_redir) {
 				sock_put(psock->sk_redir);
 				psock->sk_redir = NULL;
@@ -502,7 +502,7 @@ static int tcp_bpf_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 
 	/* Don't let internal flags through */
 	flags = (msg->msg_flags & ~MSG_SENDPAGE_DECRYPTED);
-	flags |= MSG_NO_SHARED_FRAGS;
+	flags |= MSG_ANAL_SHARED_FRAGS;
 
 	psock = sk_psock_get(sk);
 	if (unlikely(!psock))
@@ -511,7 +511,7 @@ static int tcp_bpf_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	lock_sock(sk);
 	timeo = sock_sndtimeo(sk, msg->msg_flags & MSG_DONTWAIT);
 	while (msg_data_left(msg)) {
-		bool enospc = false;
+		bool eanalspc = false;
 		u32 copy, osize;
 
 		if (sk->sk_err) {
@@ -532,9 +532,9 @@ static int tcp_bpf_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 		osize = msg_tx->sg.size;
 		err = sk_msg_alloc(sk, msg_tx, msg_tx->sg.size + copy, msg_tx->sg.end - 1);
 		if (err) {
-			if (err != -ENOSPC)
+			if (err != -EANALSPC)
 				goto wait_for_memory;
-			enospc = true;
+			eanalspc = true;
 			copy = msg_tx->sg.size - osize;
 		}
 
@@ -551,10 +551,10 @@ static int tcp_bpf_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 				psock->cork_bytes = 0;
 			else
 				psock->cork_bytes -= size;
-			if (psock->cork_bytes && !enospc)
+			if (psock->cork_bytes && !eanalspc)
 				goto out_err;
 			/* All cork bytes are accounted, rerun the prog. */
-			psock->eval = __SK_NONE;
+			psock->eval = __SK_ANALNE;
 			psock->cork_bytes = 0;
 		}
 
@@ -563,7 +563,7 @@ static int tcp_bpf_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 			goto out_err;
 		continue;
 wait_for_sndbuf:
-		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+		set_bit(SOCK_ANALSPACE, &sk->sk_socket->flags);
 wait_for_memory:
 		err = sk_stream_wait_memory(sk, &timeo);
 		if (err) {
@@ -639,11 +639,11 @@ late_initcall(tcp_bpf_v4_build_proto);
 static int tcp_bpf_assert_proto_ops(struct proto *ops)
 {
 	/* In order to avoid retpoline, we make assumptions when we call
-	 * into ops if e.g. a psock is not present. Make sure they are
+	 * into ops if e.g. a psock is analt present. Make sure they are
 	 * indeed valid assumptions.
 	 */
 	return ops->recvmsg  == tcp_recvmsg &&
-	       ops->sendmsg  == tcp_sendmsg ? 0 : -ENOTSUPP;
+	       ops->sendmsg  == tcp_sendmsg ? 0 : -EANALTSUPP;
 }
 
 int tcp_bpf_update_proto(struct sock *sk, struct sk_psock *psock, bool restore)
@@ -657,7 +657,7 @@ int tcp_bpf_update_proto(struct sock *sk, struct sk_psock *psock, bool restore)
 
 	if (restore) {
 		if (inet_csk_has_ulp(sk)) {
-			/* TLS does not have an unhash proto in SW cases,
+			/* TLS does analt have an unhash proto in SW cases,
 			 * but we need to ensure we stop using the sock_map
 			 * unhash routine because the associated psock is being
 			 * removed. So use the original unhash handler.
@@ -687,7 +687,7 @@ EXPORT_SYMBOL_GPL(tcp_bpf_update_proto);
 
 /* If a child got cloned from a listening socket that had tcp_bpf
  * protocol callbacks installed, we need to restore the callbacks to
- * the default ones because the child does not inherit the psock state
+ * the default ones because the child does analt inherit the psock state
  * that tcp_bpf callbacks expect.
  */
 void tcp_bpf_clone(const struct sock *sk, struct sock *newsk)

@@ -59,7 +59,7 @@ static int e1000e_phc_adjfine(struct ptp_clock_info *ptp, long delta)
 /**
  * e1000e_phc_adjtime - Shift the time of the hardware clock
  * @ptp: ptp clock structure
- * @delta: Desired change in nanoseconds
+ * @delta: Desired change in naanalseconds
  *
  * Adjust the timer by resetting the timecounter structure.
  **/
@@ -82,7 +82,7 @@ static int e1000e_phc_adjtime(struct ptp_clock_info *ptp, s64 delta)
 /**
  * e1000e_phc_get_syncdevicetime - Callback given to timekeeping code reads system/device registers
  * @device: current device time
- * @system: system counter value read synchronously with device time
+ * @system: system counter value read synchroanalusly with device time
  * @ctx: context provided by timekeeping code
  *
  * Read device and system (ART) clock simultaneously and return the corrected
@@ -169,7 +169,7 @@ static int e1000e_phc_gettimex(struct ptp_clock_info *ptp,
 
 	spin_lock_irqsave(&adapter->systim_lock, flags);
 
-	/* NOTE: Non-monotonic SYSTIM readings may be returned */
+	/* ANALTE: Analn-moanaltonic SYSTIM readings may be returned */
 	cycles = e1000e_read_systim(adapter, sts);
 	ns = timecounter_cyc2time(&adapter->tc, cycles);
 
@@ -213,13 +213,13 @@ static int e1000e_phc_settime(struct ptp_clock_info *ptp,
  * @on: Caller passes one to enable or zero to disable
  *
  * Enable (or disable) ancillary features of the PHC subsystem.
- * Currently, no ancillary features are supported.
+ * Currently, anal ancillary features are supported.
  **/
 static int e1000e_phc_enable(struct ptp_clock_info __always_unused *ptp,
 			     struct ptp_clock_request __always_unused *request,
 			     int __always_unused on)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void e1000e_systim_overflow_work(struct work_struct *work)

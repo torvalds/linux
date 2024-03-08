@@ -70,7 +70,7 @@ enum drm_mode_status intel_dsi_mode_valid(struct drm_connector *connector,
 	drm_dbg_kms(&dev_priv->drm, "\n");
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
+		return MODE_ANAL_DBLESCAN;
 
 	status = intel_panel_mode_valid(intel_connector, mode);
 	if (status != MODE_OK)
@@ -123,12 +123,12 @@ intel_dsi_get_panel_orientation(struct intel_connector *connector)
 	enum drm_panel_orientation orientation;
 
 	orientation = connector->panel.vbt.dsi.orientation;
-	if (orientation != DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
+	if (orientation != DRM_MODE_PANEL_ORIENTATION_UNKANALWN)
 		return orientation;
 
 	orientation = dev_priv->display.vbt.orientation;
-	if (orientation != DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
+	if (orientation != DRM_MODE_PANEL_ORIENTATION_UNKANALWN)
 		return orientation;
 
-	return DRM_MODE_PANEL_ORIENTATION_NORMAL;
+	return DRM_MODE_PANEL_ORIENTATION_ANALRMAL;
 }

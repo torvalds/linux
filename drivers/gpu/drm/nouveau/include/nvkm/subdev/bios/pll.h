@@ -23,7 +23,7 @@ struct nvkm_pll_vals {
 /* these match types in pll limits table version 0x40,
  * nvkm uses them on all chipsets internally where a
  * specific pll needs to be referenced, but the exact
- * register isn't known.
+ * register isn't kanalwn.
  */
 enum nvbios_pll_type {
 	PLL_CORE   = 0x01,
@@ -52,9 +52,9 @@ struct nvbios_pll {
 
 	/*
 	 * for most pre nv50 cards setting a log2P of 7 (the common max_log2p
-	 * value) is no different to 6 (at least for vplls) so allowing the MNP
+	 * value) is anal different to 6 (at least for vplls) so allowing the MNP
 	 * calc to use 7 causes the generated clock to be out by a factor of 2.
-	 * however, max_log2p cannot be fixed-up during parsing as the
+	 * however, max_log2p cananalt be fixed-up during parsing as the
 	 * unmodified max_log2p value is still needed for setting mplls, hence
 	 * an additional max_usable_log2p member
 	 */

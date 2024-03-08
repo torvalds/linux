@@ -16,14 +16,14 @@
  *	    This method relies on the physics of NAND FLASH to eventually
  *	    generate '0' bits if '1' has been written sufficient times.
  *	    Depending on the NAND, the first bit errors will appear after
- *	    1000 or more writes and then will usually snowball, reaching the
+ *	    1000 or more writes and then will usually sanalwball, reaching the
  *	    limits of the ECC quickly.
  *
  *	    The test stops after 10000 cycles, should your FLASH be
- *	    exceptionally good and not generate bit errors before that. Try
+ *	    exceptionally good and analt generate bit errors before that. Try
  *	    a different page in that case.
  *
- * Please note that neither of these tests will significantly 'use up' any
+ * Please analte that neither of these tests will significantly 'use up' any
  * FLASH endurance. Only a maximum of two erase operations will be performed.
  */
 
@@ -69,7 +69,7 @@ static struct mtd_info *mtd;   /* MTD device */
 static uint8_t *wbuffer; /* One page write / compare buffer */
 static uint8_t *rbuffer; /* One page read buffer */
 
-/* 'random' bytes from known offsets */
+/* 'random' bytes from kanalwn offsets */
 static uint8_t hash(unsigned offset)
 {
 	unsigned v = offset;
@@ -104,7 +104,7 @@ static int rewrite_page(int log)
 	if (log)
 		pr_info("rewrite page\n");
 
-	ops.mode      = MTD_OPS_RAW; /* No ECC */
+	ops.mode      = MTD_OPS_RAW; /* Anal ECC */
 	ops.len       = mtd->writesize;
 	ops.retlen    = 0;
 	ops.ooblen    = 0;
@@ -258,7 +258,7 @@ static int overwrite_test(void)
 	int err = 0;
 	unsigned i;
 	unsigned max_corrected = 0;
-	unsigned opno = 0;
+	unsigned opanal = 0;
 	/* We don't expect more than this many correctable bit errors per
 	 * page. */
 	#define MAXBITS 512
@@ -275,7 +275,7 @@ static int overwrite_test(void)
 	if (err)
 		goto exit;
 
-	while (opno < max_overwrite) {
+	while (opanal < max_overwrite) {
 
 		err = write_page(0);
 		if (err)
@@ -302,7 +302,7 @@ static int overwrite_test(void)
 
 		err = verify_page(0);
 		if (err) {
-			bitstats[max_corrected] = opno;
+			bitstats[max_corrected] = opanal;
 			pr_info("ECC failure, read data is incorrect despite read success\n");
 			break;
 		}
@@ -311,12 +311,12 @@ static int overwrite_test(void)
 		if (err)
 			break;
 
-		opno++;
+		opanal++;
 	}
 
-	/* At this point bitstats[0] contains the number of ops with no bit
+	/* At this point bitstats[0] contains the number of ops with anal bit
 	 * errors, bitstats[1] the number of ops with 1 bit error, etc. */
-	pr_info("Bit error histogram (%d operations total):\n", opno);
+	pr_info("Bit error histogram (%d operations total):\n", opanal);
 	for (i = 0; i < max_corrected; i++)
 		pr_info("Page reads with %3d corrected bit errors: %d\n",
 			i, bitstats[i]);
@@ -336,13 +336,13 @@ static int __init mtd_nandbiterrs_init(void)
 	mtd = get_mtd_device(NULL, dev);
 	if (IS_ERR(mtd)) {
 		err = PTR_ERR(mtd);
-		pr_err("error: cannot get MTD device\n");
+		pr_err("error: cananalt get MTD device\n");
 		goto exit_mtddev;
 	}
 
 	if (!mtd_type_is_nand(mtd)) {
 		pr_info("this test requires NAND flash\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit_nand;
 	}
 
@@ -363,13 +363,13 @@ static int __init mtd_nandbiterrs_init(void)
 
 	wbuffer = kmalloc(mtd->writesize, GFP_KERNEL);
 	if (!wbuffer) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_wbuffer;
 	}
 
 	rbuffer = kmalloc(mtd->writesize, GFP_KERNEL);
 	if (!rbuffer) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_rbuffer;
 	}
 
@@ -399,7 +399,7 @@ exit_error:
 exit_rbuffer:
 	kfree(wbuffer);
 exit_wbuffer:
-	/* Nothing */
+	/* Analthing */
 exit_nand:
 	put_mtd_device(mtd);
 exit_mtddev:

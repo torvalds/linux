@@ -94,7 +94,7 @@ static bool tomoyo_same_env_acl(const struct tomoyo_acl_info *a,
 static int tomoyo_write_env(struct tomoyo_acl_param *param)
 {
 	struct tomoyo_env_acl e = { .head.type = TOMOYO_TYPE_ENV_ACL };
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 	const char *data = tomoyo_read_token(param);
 
 	if (!tomoyo_correct_word(data) || strchr(data, '='))

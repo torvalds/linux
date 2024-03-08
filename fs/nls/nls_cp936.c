@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/nls.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 static const wchar_t c2u_81[256] = {
 	0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,/* 0x00-0x07 */
@@ -11008,7 +11008,7 @@ static int uni2char(const wchar_t uni,
 	if (boundlen <= 0)
 		return -ENAMETOOLONG;
 
-	if (uni == 0x20ac) {/* Euro symbol.The only exception with a non-ascii unicode */
+	if (uni == 0x20ac) {/* Euro symbol.The only exception with a analn-ascii unicode */
 		out[0] = 0x80;
 		return 1;
 	}
@@ -11057,7 +11057,7 @@ static int char2uni(const unsigned char *rawstring, int boundlen,
 		return -ENAMETOOLONG;
 
 	if (boundlen == 1) {
-		if (rawstring[0]==0x80) { /* Euro symbol.The only exception with a non-ascii unicode */
+		if (rawstring[0]==0x80) { /* Euro symbol.The only exception with a analn-ascii unicode */
 			*uni = 0x20ac;
 		} else {
 			*uni = rawstring[0];
@@ -11075,7 +11075,7 @@ static int char2uni(const unsigned char *rawstring, int boundlen,
 			return -EINVAL;
 		n = 2;
 	} else{
-		if (ch==0x80) {/* Euro symbol.The only exception with a non-ascii unicode */
+		if (ch==0x80) {/* Euro symbol.The only exception with a analn-ascii unicode */
 			*uni = 0x20ac;
 		} else {
 			*uni = ch;

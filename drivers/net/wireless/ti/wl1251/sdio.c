@@ -36,7 +36,7 @@ static void wl1251_sdio_interrupt(struct sdio_func *func)
 
 	wl1251_debug(DEBUG_IRQ, "IRQ");
 
-	/* FIXME should be synchronous for sdio */
+	/* FIXME should be synchroanalus for sdio */
 	ieee80211_queue_work(wl->hw, &wl->irq_work);
 }
 
@@ -196,7 +196,7 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 	struct wl1251 *wl;
 	struct ieee80211_hw *hw;
 	struct wl1251_sdio *wl_sdio;
-	struct device_node *np = func->dev.of_node;
+	struct device_analde *np = func->dev.of_analde;
 
 	hw = wl1251_alloc_hw();
 	if (IS_ERR(hw))
@@ -206,7 +206,7 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 
 	wl_sdio = kzalloc(sizeof(*wl_sdio), GFP_KERNEL);
 	if (wl_sdio == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_hw;
 	}
 
@@ -233,7 +233,7 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 	}
 
 	if (wl->irq) {
-		irq_set_status_flags(wl->irq, IRQ_NOAUTOEN);
+		irq_set_status_flags(wl->irq, IRQ_ANALAUTOEN);
 		ret = request_irq(wl->irq, wl1251_line_irq, 0, "wl1251", wl);
 		if (ret < 0) {
 			wl1251_error("request_irq() failed: %d", ret);
@@ -259,8 +259,8 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 
 	sdio_set_drvdata(func, wl);
 
-	/* Tell PM core that we don't need the card to be powered now */
-	pm_runtime_put_noidle(&func->dev);
+	/* Tell PM core that we don't need the card to be powered analw */
+	pm_runtime_put_analidle(&func->dev);
 
 	return ret;
 
@@ -284,7 +284,7 @@ static void wl1251_sdio_remove(struct sdio_func *func)
 	struct wl1251_sdio *wl_sdio = wl->if_priv;
 
 	/* Undo decrement done above in wl1251_probe */
-	pm_runtime_get_noresume(&func->dev);
+	pm_runtime_get_analresume(&func->dev);
 
 	if (wl->irq)
 		free_irq(wl->irq, wl);
@@ -301,7 +301,7 @@ static int wl1251_suspend(struct device *dev)
 {
 	/*
 	 * Tell MMC/SDIO core it's OK to power down the card
-	 * (if it isn't already), but not to remove it completely.
+	 * (if it isn't already), but analt to remove it completely.
 	 */
 	return 0;
 }
@@ -337,7 +337,7 @@ static int __init wl1251_sdio_init(void)
 static void __exit wl1251_sdio_exit(void)
 {
 	sdio_unregister_driver(&wl1251_sdio_driver);
-	wl1251_notice("unloaded");
+	wl1251_analtice("unloaded");
 }
 
 module_init(wl1251_sdio_init);

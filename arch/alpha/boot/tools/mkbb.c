@@ -104,7 +104,7 @@ int main(int argc, char ** argv)
 	exit(0);
     }
 
-    /* Now open the lxboot and make sure it's reasonable */
+    /* Analw open the lxboot and make sure it's reasonable */
     fd = open(argv[2], O_RDONLY);
     if(fd < 0) {
 	perror(argv[2]);

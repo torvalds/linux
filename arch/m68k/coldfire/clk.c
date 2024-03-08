@@ -112,7 +112,7 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_rate);
 
-/* dummy functions, should not be called */
+/* dummy functions, should analt be called */
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	WARN_ON(clk);

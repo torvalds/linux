@@ -95,10 +95,10 @@
 #define ACLK_RGA		200
 #define ACLK_HDCP		201
 #define ACLK_IEP		202
-#define ACLK_VIO0_NOC		203
+#define ACLK_VIO0_ANALC		203
 #define ACLK_VIP		204
 #define ACLK_ISP		205
-#define ACLK_VIO1_NOC		206
+#define ACLK_VIO1_ANALC		206
 #define ACLK_VIDEO		208
 #define ACLK_BUS		209
 #define ACLK_PERI		210
@@ -174,7 +174,7 @@
 #define HCLK_ISP		469
 #define HCLK_RGA		470
 #define HCLK_VIO_AHB_ARBI	471
-#define HCLK_VIO_NOC		472
+#define HCLK_VIO_ANALC		472
 #define HCLK_VIP		473
 #define HCLK_VIO_H2P		474
 #define HCLK_VIO_HDCPMMU	475
@@ -210,7 +210,7 @@
 #define SRST_EFUSE_256		26
 #define SRST_MCU_SYS		28
 #define SRST_MCU_PO		29
-#define SRST_MCU_NOC		30
+#define SRST_MCU_ANALC		30
 #define SRST_EFUSE		31
 
 #define SRST_GPIO0		32
@@ -305,8 +305,8 @@
 #define SRST_USB_ADP		141
 
 #define SRST_CORESIGHT		144
-#define SRST_PD_CORE_AHB_NOC	145
-#define SRST_PD_CORE_APB_NOC	146
+#define SRST_PD_CORE_AHB_ANALC	145
+#define SRST_PD_CORE_APB_ANALC	146
 #define SRST_GIC		148
 #define SRST_LCDC_PWM0		149
 #define SRST_RGA_H2P_BRG	153

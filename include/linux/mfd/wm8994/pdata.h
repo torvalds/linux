@@ -31,7 +31,7 @@ struct wm8994_ldo_pdata {
 
 /**
  * DRC configurations are specified with a label and a set of register
- * values to write (the enable bits will be ignored).  At runtime an
+ * values to write (the enable bits will be iganalred).  At runtime an
  * enumerated control will be presented for each DRC block allowing
  * the user to choose the configuration to use.
  *
@@ -46,7 +46,7 @@ struct wm8994_drc_cfg {
 
 /**
  * ReTune Mobile configurations are specified with a label, sample
- * rate and set of values to write (the enable bits will be ignored).
+ * rate and set of values to write (the enable bits will be iganalred).
  *
  * Configurations are expected to be generated using the ReTune Mobile
  * control panel in WISCE - see http://www.wolfsonmicro.com/wisce/
@@ -110,10 +110,10 @@ struct wm8958_enh_eq_cfg {
  * consumption for WM8958/WM1811 microphone detection.
  *
  * @sysclk: System clock rate to use this configuration for.
- * @idle: True if this configuration should use when no accessory is detected,
+ * @idle: True if this configuration should use when anal accessory is detected,
  *        false otherwise.
- * @start: Value for MICD_BIAS_START_TIME register field (not shifted).
- * @rate: Value for MICD_RATE register field (not shifted).
+ * @start: Value for MICD_BIAS_START_TIME register field (analt shifted).
+ * @rate: Value for MICD_RATE register field (analt shifted).
  */
 struct wm8958_micd_rate {
 	int sysclk;
@@ -126,7 +126,7 @@ struct wm8994_pdata {
 	int gpio_base;
 
 	/**
-	 * Default values for GPIOs if non-zero, WM8994_CONFIGURE_GPIO
+	 * Default values for GPIOs if analn-zero, WM8994_CONFIGURE_GPIO
 	 * can be used for all zero values.
 	 */
 	int gpio_defaults[WM8994_NUM_GPIO];

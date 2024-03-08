@@ -24,7 +24,7 @@
 #include <linux/mfd/max77686-private.h>
 #include <dt-bindings/regulator/maxim,max77802.h>
 
-/* Default ramp delay in case it is not manually set */
+/* Default ramp delay in case it is analt manually set */
 #define MAX77802_RAMP_DELAY		100000		/* uV/us */
 
 #define MAX77802_OPMODE_SHIFT_LDO	6
@@ -64,8 +64,8 @@ struct max77802_regulator_prv {
 
 static inline unsigned int max77802_map_mode(unsigned int mode)
 {
-	return mode == MAX77802_OPMODE_NORMAL ?
-		REGULATOR_MODE_NORMAL : REGULATOR_MODE_STANDBY;
+	return mode == MAX77802_OPMODE_ANALRMAL ?
+		REGULATOR_MODE_ANALRMAL : REGULATOR_MODE_STANDBY;
 }
 
 static int max77802_get_opmode_shift(int id)
@@ -120,11 +120,11 @@ static int max77802_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	case REGULATOR_MODE_STANDBY:
 		val = MAX77802_OPMODE_LP;	/* ON in Low Power Mode */
 		break;
-	case REGULATOR_MODE_NORMAL:
-		val = MAX77802_OPMODE_NORMAL;	/* ON in Normal Mode */
+	case REGULATOR_MODE_ANALRMAL:
+		val = MAX77802_OPMODE_ANALRMAL;	/* ON in Analrmal Mode */
 		break;
 	default:
-		dev_warn(&rdev->dev, "%s: regulator mode: 0x%x not supported\n",
+		dev_warn(&rdev->dev, "%s: regulator mode: 0x%x analt supported\n",
 			 rdev->desc->name, mode);
 		return -EINVAL;
 	}
@@ -160,7 +160,7 @@ static unsigned max77802_get_mode(struct regulator_dev *rdev)
  * Enable Control Logic3 by PWRREQ (LDO 3)
  *
  * If setting the regulator mode fails, the function only warns but does
- * not return an error code to avoid the regulator core to stop setting
+ * analt return an error code to avoid the regulator core to stop setting
  * the operating mode for the remaining regulators.
  */
 static int max77802_set_suspend_mode(struct regulator_dev *rdev,
@@ -179,7 +179,7 @@ static int max77802_set_suspend_mode(struct regulator_dev *rdev,
 	 * then is invalid to try setting a suspend mode.
 	 */
 	if (max77802->opmode[id] == MAX77802_OFF_PWRREQ) {
-		dev_warn(&rdev->dev, "%s: is disabled, mode: 0x%x not set\n",
+		dev_warn(&rdev->dev, "%s: is disabled, mode: 0x%x analt set\n",
 			 rdev->desc->name, mode);
 		return 0;
 	}
@@ -187,27 +187,27 @@ static int max77802_set_suspend_mode(struct regulator_dev *rdev,
 	switch (mode) {
 	case REGULATOR_MODE_STANDBY:
 		/*
-		 * If the regulator opmode is normal then enable
+		 * If the regulator opmode is analrmal then enable
 		 * ON in Low Power Mode by PWRREQ. If the mode is
-		 * already Low Power then no action is required.
+		 * already Low Power then anal action is required.
 		 */
-		if (max77802->opmode[id] == MAX77802_OPMODE_NORMAL)
+		if (max77802->opmode[id] == MAX77802_OPMODE_ANALRMAL)
 			val = MAX77802_LP_PWRREQ;
 		else
 			return 0;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		/*
 		 * If the regulator operating mode is Low Power then
-		 * normal is not a valid opmode in suspend. If the
-		 * mode is already normal then no action is required.
+		 * analrmal is analt a valid opmode in suspend. If the
+		 * mode is already analrmal then anal action is required.
 		 */
 		if (max77802->opmode[id] == MAX77802_OPMODE_LP)
 			dev_warn(&rdev->dev, "%s: in Low Power: 0x%x invalid\n",
 				 rdev->desc->name, mode);
 		return 0;
 	default:
-		dev_warn(&rdev->dev, "%s: regulator mode: 0x%x not supported\n",
+		dev_warn(&rdev->dev, "%s: regulator mode: 0x%x analt supported\n",
 			 rdev->desc->name, mode);
 		return -EINVAL;
 	}
@@ -225,7 +225,7 @@ static int max77802_enable(struct regulator_dev *rdev)
 	if (WARN_ON_ONCE(id >= ARRAY_SIZE(max77802->opmode)))
 		return -EINVAL;
 	if (max77802->opmode[id] == MAX77802_OFF_PWRREQ)
-		max77802->opmode[id] = MAX77802_OPMODE_NORMAL;
+		max77802->opmode[id] = MAX77802_OPMODE_ANALRMAL;
 
 	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 				  rdev->desc->enable_mask,
@@ -311,7 +311,7 @@ static const struct regulator_ops max77802_buck_dvs_ops = {
 #define regulator_77802_desc_p_ldo(num, supply, log)	{		\
 	.name		= "LDO"#num,					\
 	.of_match	= of_match_ptr("LDO"#num),			\
-	.regulators_node	= of_match_ptr("regulators"),		\
+	.regulators_analde	= of_match_ptr("regulators"),		\
 	.id		= MAX77802_LDO##num,				\
 	.supply_name	= "inl"#supply,					\
 	.ops		= &max77802_ldo_ops_logic##log,			\
@@ -332,7 +332,7 @@ static const struct regulator_ops max77802_buck_dvs_ops = {
 #define regulator_77802_desc_n_ldo(num, supply, log)   {		\
 	.name		= "LDO"#num,					\
 	.of_match	= of_match_ptr("LDO"#num),			\
-	.regulators_node	= of_match_ptr("regulators"),		\
+	.regulators_analde	= of_match_ptr("regulators"),		\
 	.id		= MAX77802_LDO##num,				\
 	.supply_name	= "inl"#supply,					\
 	.ops		= &max77802_ldo_ops_logic##log,			\
@@ -353,7 +353,7 @@ static const struct regulator_ops max77802_buck_dvs_ops = {
 #define regulator_77802_desc_16_buck(num)	{		\
 	.name		= "BUCK"#num,					\
 	.of_match	= of_match_ptr("BUCK"#num),			\
-	.regulators_node	= of_match_ptr("regulators"),		\
+	.regulators_analde	= of_match_ptr("regulators"),		\
 	.id		= MAX77802_BUCK##num,				\
 	.supply_name	= "inb"#num,					\
 	.ops		= &max77802_buck_16_dvs_ops,			\
@@ -378,7 +378,7 @@ static const struct regulator_ops max77802_buck_dvs_ops = {
 #define regulator_77802_desc_234_buck(num)	{		\
 	.name		= "BUCK"#num,					\
 	.of_match	= of_match_ptr("BUCK"#num),			\
-	.regulators_node	= of_match_ptr("regulators"),		\
+	.regulators_analde	= of_match_ptr("regulators"),		\
 	.id		= MAX77802_BUCK##num,				\
 	.supply_name	= "inb"#num,					\
 	.ops		= &max77802_buck_234_ops,			\
@@ -404,7 +404,7 @@ static const struct regulator_ops max77802_buck_dvs_ops = {
 #define regulator_77802_desc_buck5(num)		{		\
 	.name		= "BUCK"#num,					\
 	.of_match	= of_match_ptr("BUCK"#num),			\
-	.regulators_node	= of_match_ptr("regulators"),		\
+	.regulators_analde	= of_match_ptr("regulators"),		\
 	.id		= MAX77802_BUCK##num,				\
 	.supply_name	= "inb"#num,					\
 	.ops		= &max77802_buck_dvs_ops,			\
@@ -425,7 +425,7 @@ static const struct regulator_ops max77802_buck_dvs_ops = {
 #define regulator_77802_desc_buck7_10(num)	{		\
 	.name		= "BUCK"#num,					\
 	.of_match	= of_match_ptr("BUCK"#num),			\
-	.regulators_node	= of_match_ptr("regulators"),		\
+	.regulators_analde	= of_match_ptr("regulators"),		\
 	.id		= MAX77802_BUCK##num,				\
 	.supply_name	= "inb"#num,					\
 	.ops		= &max77802_buck_dvs_ops,			\
@@ -498,7 +498,7 @@ static int max77802_pmic_probe(struct platform_device *pdev)
 				sizeof(struct max77802_regulator_prv),
 				GFP_KERNEL);
 	if (!max77802)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	config.dev = iodev->dev;
 	config.regmap = iodev->regmap;
@@ -514,8 +514,8 @@ static int max77802_pmic_probe(struct platform_device *pdev)
 		ret = regmap_read(iodev->regmap, regulators[i].enable_reg, &val);
 		if (ret < 0) {
 			dev_warn(&pdev->dev,
-				"cannot read current mode for %d\n", i);
-			val = MAX77802_OPMODE_NORMAL;
+				"cananalt read current mode for %d\n", i);
+			val = MAX77802_OPMODE_ANALRMAL;
 		} else {
 			val = val >> shift & MAX77802_OPMODE_MASK;
 		}
@@ -523,11 +523,11 @@ static int max77802_pmic_probe(struct platform_device *pdev)
 		/*
 		 * If the regulator is disabled and the system warm rebooted,
 		 * the hardware reports OFF as the regulator operating mode.
-		 * Default to operating mode NORMAL in that case.
+		 * Default to operating mode ANALRMAL in that case.
 		 */
 		if (id < ARRAY_SIZE(max77802->opmode)) {
 			if (val == MAX77802_STATUS_OFF)
-				max77802->opmode[id] = MAX77802_OPMODE_NORMAL;
+				max77802->opmode[id] = MAX77802_OPMODE_ANALRMAL;
 			else
 				max77802->opmode[id] = val;
 		}
@@ -554,7 +554,7 @@ MODULE_DEVICE_TABLE(platform, max77802_pmic_id);
 static struct platform_driver max77802_pmic_driver = {
 	.driver = {
 		.name = "max77802-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = max77802_pmic_probe,
 	.id_table = max77802_pmic_id,

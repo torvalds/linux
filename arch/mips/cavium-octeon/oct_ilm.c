@@ -141,10 +141,10 @@ static __init int oct_ilm_module_init(void)
 
 	init_debugfs();
 
-	rc = request_irq(irq, cvm_oct_ciu_timer_interrupt, IRQF_NO_THREAD,
+	rc = request_irq(irq, cvm_oct_ciu_timer_interrupt, IRQF_ANAL_THREAD,
 			 "oct_ilm", 0);
 	if (rc) {
-		WARN(1, "Could not acquire IRQ %d", irq);
+		WARN(1, "Could analt acquire IRQ %d", irq);
 		goto err_irq;
 	}
 

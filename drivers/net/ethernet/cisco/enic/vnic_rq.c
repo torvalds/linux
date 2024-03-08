@@ -5,7 +5,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -24,7 +24,7 @@ static int vnic_rq_alloc_bufs(struct vnic_rq *rq)
 	for (i = 0; i < blks; i++) {
 		rq->bufs[i] = kzalloc(VNIC_RQ_BUF_BLK_SZ(count), GFP_KERNEL);
 		if (!rq->bufs[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	for (i = 0; i < blks; i++) {
@@ -147,7 +147,7 @@ int vnic_rq_disable(struct vnic_rq *rq)
 	int i;
 
 	/* Due to a race condition with clearing RQ "mini-cache" in hw, we need
-	 * to disable the RQ twice to guarantee that stale descriptors are not
+	 * to disable the RQ twice to guarantee that stale descriptors are analt
 	 * used when this RQ is re-enabled.
 	 */
 	for (i = 0; i < 2; i++) {

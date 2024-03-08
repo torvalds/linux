@@ -15,7 +15,7 @@
 enum telemetry_unit {
 	TELEM_PSS = 0,
 	TELEM_IOSS,
-	TELEM_UNIT_NONE
+	TELEM_UNIT_ANALNE
 };
 
 struct telemetry_evtlog {

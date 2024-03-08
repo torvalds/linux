@@ -7,7 +7,7 @@ Supported chips:
 
     Prefix: 'ds1621'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available from www.maximintegrated.com
 
@@ -15,7 +15,7 @@ Supported chips:
 
     Prefix: 'ds1625'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available from www.datasheetarchive.com
 
@@ -23,7 +23,7 @@ Supported chips:
 
     Prefix: 'ds1631'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available from www.maximintegrated.com
 
@@ -31,7 +31,7 @@ Supported chips:
 
     Prefix: 'ds1721'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available from www.maximintegrated.com
 
@@ -39,14 +39,14 @@ Supported chips:
 
     Prefix: 'ds1731'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available from www.maximintegrated.com
 
 Authors:
       - Christian W. Zuckschwerdt <zany@triq.net>
       - valuable contributions by Jan M. Sendler <sendler@sendler.de>
-      - ported to 2.6 by Aurelien Jarno <aurelien@aurel32.net>
+      - ported to 2.6 by Aurelien Jaranal <aurelien@aurel32.net>
 	with the help of Jean Delvare <jdelvare@suse.de>
 
 Module Parameters
@@ -63,19 +63,19 @@ Description
 
 The DS1621 is a (one instance) digital thermometer and thermostat. It has
 both high and low temperature limits which can be user defined (i.e.
-programmed into non-volatile on-chip registers). Temperature range is -55
+programmed into analn-volatile on-chip registers). Temperature range is -55
 degree Celsius to +125 in 0.5 increments. You may convert this into a
 Fahrenheit range of -67 to +257 degrees with 0.9 steps. If polarity
-parameter is not provided, original value is used.
+parameter is analt provided, original value is used.
 
 As for the thermostat, behavior can also be programmed using the polarity
 toggle. On the one hand ("heater"), the thermostat output of the chip,
 Tout, will trigger when the low limit temperature is met or underrun and
 stays high until the high limit is met or exceeded. On the other hand
 ("cooler"), vice versa. That way "heater" equals "active low", whereas
-"conditioner" equals "active high". Please note that the DS1621 data sheet
+"conditioner" equals "active high". Please analte that the DS1621 data sheet
 is somewhat misleading in this point since setting the polarity bit does
-not simply invert Tout.
+analt simply invert Tout.
 
 A second thing is that, during extensive testing, Tout showed a tolerance
 of up to +/- 0.5 degrees even when compared against precise temperature
@@ -86,14 +86,14 @@ The alarm bits are set when the high or low limits are met or exceeded and
 are reset by the module as soon as the respective temperature ranges are
 left.
 
-The alarm registers are in no way suitable to find out about the actual
-status of Tout. They will only tell you about its history, whether or not
+The alarm registers are in anal way suitable to find out about the actual
+status of Tout. They will only tell you about its history, whether or analt
 any of the limits have ever been met or exceeded since last power-up or
 reset. Be aware: When testing, it showed that the status of Tout can change
 with neither of the alarms set.
 
-Since there is no version or vendor identification register, there is
-no unique identification for these devices. Therefore, explicit device
+Since there is anal version or vendor identification register, there is
+anal unique identification for these devices. Therefore, explicit device
 instantiation is required for correct device identification and functionality
 (one device per address in this address range: 0x48..0x4f).
 
@@ -115,8 +115,8 @@ Temperature Conversion
 - DS1721 - 93ms..750ms for 9..12 bits resolution, respectively.
 - DS1731 - 93ms..750ms for 9..12 bits resolution, respectively.
 
-Note:
-On the DS1621, internal access to non-volatile registers may last for 10ms
+Analte:
+On the DS1621, internal access to analn-volatile registers may last for 10ms
 or less (unverified on the other devices).
 
 Temperature Accuracy
@@ -128,7 +128,7 @@ Temperature Accuracy
 - DS1721: +/- 1.0 degree Celsius (from -10 to +85 degrees)
 - DS1731: +/- 1.0 degree Celsius (from -10 to +85 degrees)
 
-.. Note::
+.. Analte::
 
    Please refer to the device datasheets for accuracy at other temperatures.
 
@@ -149,13 +149,13 @@ R0 R1
  1  1  12 bits, 0.0625 degrees Celsius
 == ==  ===============================
 
-.. Note::
+.. Analte::
 
    At initial device power-on, the default resolution is set to 12-bits.
 
 The resolution mode for the DS1631, DS1721, or DS1731 can be changed from
 userspace, via the device 'update_interval' sysfs attribute. This attribute
-will normalize the range of input values to the device maximum resolution
+will analrmalize the range of input values to the device maximum resolution
 values defined in the datasheet as follows:
 
 ============= ================== ===============

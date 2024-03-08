@@ -35,7 +35,7 @@ static inline void fd_cacheflush(char * addr, long size)
 #define N_DRIVE 8
 
 /*
- * The DMA channel used by the floppy controller cannot access data at
+ * The DMA channel used by the floppy controller cananalt access data at
  * addresses >= 16MB
  *
  * Went back to the 1MB limit, as some people had problems with the floppy

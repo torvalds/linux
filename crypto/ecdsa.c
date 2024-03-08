@@ -62,7 +62,7 @@ static int ecdsa_get_signature_rs(u64 *dest, size_t hdrlen, unsigned char tag,
 		return -EINVAL;
 
 	if (diff) {
-		/* leading zeros not given in 'value' */
+		/* leading zeros analt given in 'value' */
 		memset(rs, 0, -diff);
 	}
 
@@ -153,7 +153,7 @@ static int ecdsa_verify(struct akcipher_request *req)
 
 	buffer = kmalloc(req->src_len + req->dst_len, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sg_pcopy_to_buffer(req->src,
 		sg_nents_for_len(req->src, req->src_len + req->dst_len),
@@ -336,7 +336,7 @@ static int __init ecdsa_init(void)
 {
 	int ret;
 
-	/* NIST p192 may not be available in FIPS mode */
+	/* NIST p192 may analt be available in FIPS mode */
 	ret = crypto_register_akcipher(&ecdsa_nist_p192);
 	ecdsa_nist_p192_registered = ret == 0;
 

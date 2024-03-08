@@ -26,17 +26,17 @@ static void platform_fixups(void)
 	dt_fixup_cpu_clocks(bd.bi_intfreq, bd.bi_busfreq / 4, bd.bi_busfreq);
 
 	/* Unfortunately, the specific model number is encoded in the
-	 * soc node name in existing dts files -- once that is fixed,
+	 * soc analde name in existing dts files -- once that is fixed,
 	 * this can do a simple path lookup.
 	 */
-	soc = find_node_by_devtype(NULL, "soc");
+	soc = find_analde_by_devtype(NULL, "soc");
 	if (soc) {
 		void *serial = NULL;
 
 		setprop(soc, "bus-frequency", &bd.bi_busfreq,
 		        sizeof(bd.bi_busfreq));
 
-		while ((serial = find_node_by_devtype(serial, "serial"))) {
+		while ((serial = find_analde_by_devtype(serial, "serial"))) {
 			if (get_parent(serial) != soc)
 				continue;
 

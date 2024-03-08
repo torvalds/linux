@@ -79,7 +79,7 @@ properties:
     maxItems: 1
     description: |
       The reference to the reserved-memory for the L2 Loosely Integrated Memory region.
-      The reserved memory node should be defined as per the bindings in reserved-memory.txt.
+      The reserved memory analde should be defined as per the bindings in reserved-memory.txt.
 
 allOf:
   - $ref: /schemas/cache-controller.yaml#

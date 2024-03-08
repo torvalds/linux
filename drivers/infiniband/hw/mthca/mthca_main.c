@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -34,7 +34,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/gfp.h>
@@ -47,7 +47,7 @@
 #include "mthca_wqe.h"
 
 MODULE_AUTHOR("Roland Dreier");
-MODULE_DESCRIPTION("Mellanox InfiniBand HCA low-level driver");
+MODULE_DESCRIPTION("Mellaanalx InfiniBand HCA low-level driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
 #ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
@@ -62,7 +62,7 @@ MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 
 static int msi_x = 1;
 module_param(msi_x, int, 0444);
-MODULE_PARM_DESC(msi_x, "attempt to use MSI-X if nonzero");
+MODULE_PARM_DESC(msi_x, "attempt to use MSI-X if analnzero");
 
 #else /* CONFIG_PCI_MSI */
 
@@ -72,7 +72,7 @@ MODULE_PARM_DESC(msi_x, "attempt to use MSI-X if nonzero");
 
 static int tune_pci = 0;
 module_param(tune_pci, int, 0444);
-MODULE_PARM_DESC(tune_pci, "increase PCI burst from the default set by BIOS if nonzero");
+MODULE_PARM_DESC(tune_pci, "increase PCI burst from the default set by BIOS if analnzero");
 
 DEFINE_MUTEX(mthca_device_mutex);
 
@@ -130,7 +130,7 @@ module_param_named(log_mtts_per_seg, log_mtts_per_seg, int, 0444);
 MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment (1-5)");
 
 static char mthca_version[] =
-	DRV_NAME ": Mellanox InfiniBand HCA driver v"
+	DRV_NAME ": Mellaanalx InfiniBand HCA driver v"
 	DRV_VERSION " (" DRV_RELDATE ")\n";
 
 static int mthca_tune_pci(struct mthca_dev *mdev)
@@ -143,20 +143,20 @@ static int mthca_tune_pci(struct mthca_dev *mdev)
 		if (pcix_set_mmrbc(mdev->pdev, pcix_get_max_mmrbc(mdev->pdev))) {
 			mthca_err(mdev, "Couldn't set PCI-X max read count, "
 				"aborting.\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	} else if (!(mdev->mthca_flags & MTHCA_FLAG_PCIE))
-		mthca_info(mdev, "No PCI-X capability, not setting RBC.\n");
+		mthca_info(mdev, "Anal PCI-X capability, analt setting RBC.\n");
 
 	if (pci_is_pcie(mdev->pdev)) {
 		if (pcie_set_readrq(mdev->pdev, 4096)) {
 			mthca_err(mdev, "Couldn't write PCI Express read request, "
 				"aborting.\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	} else if (mdev->mthca_flags & MTHCA_FLAG_PCIE)
-		mthca_info(mdev, "No PCI Express capability, "
-			   "not setting Max Read Request Size.\n");
+		mthca_info(mdev, "Anal PCI Express capability, "
+			   "analt setting Max Read Request Size.\n");
 
 	return 0;
 }
@@ -176,13 +176,13 @@ static int mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim *dev_lim)
 		mthca_err(mdev, "HCA minimum page size of %d bigger than "
 			  "kernel PAGE_SIZE of %ld, aborting.\n",
 			  dev_lim->min_page_sz, PAGE_SIZE);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (dev_lim->num_ports > MTHCA_MAX_PORTS) {
 		mthca_err(mdev, "HCA has %d ports, but we only support %d, "
 			  "aborting.\n",
 			  dev_lim->num_ports, MTHCA_MAX_PORTS);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (dev_lim->uar_size > pci_resource_len(mdev->pdev, 2)) {
@@ -190,7 +190,7 @@ static int mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim *dev_lim)
 			  "PCI resource 2 size of 0x%llx, aborting.\n",
 			  dev_lim->uar_size,
 			  (unsigned long long)pci_resource_len(mdev->pdev, 2));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mdev->limits.num_ports      	= dev_lim->num_ports;
@@ -247,12 +247,12 @@ static int mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim *dev_lim)
 	else
 		mdev->limits.stat_rate_support = 0x3;
 
-	/* IB_DEVICE_RESIZE_MAX_WR not supported by driver.
+	/* IB_DEVICE_RESIZE_MAX_WR analt supported by driver.
 	   May be doable since hardware supports it for SRQ.
 
-	   IB_DEVICE_N_NOTIFY_CQ is supported by hardware but not by driver.
+	   IB_DEVICE_N_ANALTIFY_CQ is supported by hardware but analt by driver.
 
-	   IB_DEVICE_SRQ_RESIZE is supported by hardware but SRQ is not
+	   IB_DEVICE_SRQ_RESIZE is supported by hardware but SRQ is analt
 	   supported by driver. */
 	mdev->device_cap_flags = IB_DEVICE_CHANGE_PHY_PORT |
 		IB_DEVICE_PORT_ACTIVE_EVENT |
@@ -350,10 +350,10 @@ static int mthca_load_fw(struct mthca_dev *mdev)
 
 	mdev->fw.arbel.fw_icm =
 		mthca_alloc_icm(mdev, mdev->fw.arbel.fw_pages,
-				GFP_HIGHUSER | __GFP_NOWARN, 0);
+				GFP_HIGHUSER | __GFP_ANALWARN, 0);
 	if (!mdev->fw.arbel.fw_icm) {
 		mthca_err(mdev, "Couldn't allocate FW area, aborting.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = mthca_MAP_FA(mdev, mdev->fw.arbel.fw_icm);
@@ -396,10 +396,10 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 		  (unsigned long long) aux_pages << 2);
 
 	mdev->fw.arbel.aux_icm = mthca_alloc_icm(mdev, aux_pages,
-						 GFP_HIGHUSER | __GFP_NOWARN, 0);
+						 GFP_HIGHUSER | __GFP_ANALWARN, 0);
 	if (!mdev->fw.arbel.aux_icm) {
 		mthca_err(mdev, "Couldn't allocate aux memory, aborting.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = mthca_MAP_ICM_AUX(mdev, mdev->fw.arbel.aux_icm);
@@ -414,7 +414,7 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 		goto err_unmap_aux;
 	}
 
-	/* CPU writes to non-reserved MTTs, while HCA might DMA to reserved mtts */
+	/* CPU writes to analn-reserved MTTs, while HCA might DMA to reserved mtts */
 	mdev->limits.reserved_mtts = ALIGN(mdev->limits.reserved_mtts * mdev->limits.mtt_seg_size,
 					   dma_get_cache_alignment()) / mdev->limits.mtt_seg_size;
 
@@ -425,7 +425,7 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 							 1, 0);
 	if (!mdev->mr_table.mtt_table) {
 		mthca_err(mdev, "Failed to map MTT context memory, aborting.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unmap_eq;
 	}
 
@@ -436,7 +436,7 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 							 1, 1);
 	if (!mdev->mr_table.mpt_table) {
 		mthca_err(mdev, "Failed to map MPT context memory, aborting.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unmap_mtt;
 	}
 
@@ -447,7 +447,7 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 							0, 0);
 	if (!mdev->qp_table.qp_table) {
 		mthca_err(mdev, "Failed to map QP context memory, aborting.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unmap_mpt;
 	}
 
@@ -458,7 +458,7 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 							 0, 0);
 	if (!mdev->qp_table.eqp_table) {
 		mthca_err(mdev, "Failed to map EQP context memory, aborting.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unmap_qp;
 	}
 
@@ -469,7 +469,7 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 							 0, 0);
 	if (!mdev->qp_table.rdb_table) {
 		mthca_err(mdev, "Failed to map RDB context memory, aborting\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unmap_eqp;
 	}
 
@@ -480,7 +480,7 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 						     0, 0);
 	if (!mdev->cq_table.table) {
 		mthca_err(mdev, "Failed to map CQ context memory, aborting.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unmap_rdb;
 	}
 
@@ -494,14 +494,14 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 		if (!mdev->srq_table.table) {
 			mthca_err(mdev, "Failed to map SRQ context memory, "
 				  "aborting.\n");
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_unmap_cq;
 		}
 	}
 
 	/*
-	 * It's not strictly required, but for simplicity just map the
-	 * whole multicast group table now.  The table isn't very big
+	 * It's analt strictly required, but for simplicity just map the
+	 * whole multicast group table analw.  The table isn't very big
 	 * and it's a lot easier than trying to track ref counts.
 	 */
 	mdev->mcg_table.table = mthca_alloc_icm_table(mdev, init_hca->mc_base,
@@ -513,7 +513,7 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 						      0, 0);
 	if (!mdev->mcg_table.table) {
 		mthca_err(mdev, "Failed to map MCG context memory, aborting.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unmap_srq;
 	}
 
@@ -587,8 +587,8 @@ static int mthca_init_arbel(struct mthca_dev *mdev)
 
 	err = mthca_ENABLE_LAM(mdev);
 	if (err == -EAGAIN) {
-		mthca_dbg(mdev, "No HCA-attached memory (running in MemFree mode)\n");
-		mdev->mthca_flags |= MTHCA_FLAG_NO_LAM;
+		mthca_dbg(mdev, "Anal HCA-attached memory (running in MemFree mode)\n");
+		mdev->mthca_flags |= MTHCA_FLAG_ANAL_LAM;
 	} else if (err) {
 		mthca_err(mdev, "ENABLE_LAM returned %d, aborting.\n", err);
 		return err;
@@ -638,7 +638,7 @@ err_stop_fw:
 	mthca_free_icm(mdev, mdev->fw.arbel.fw_icm, 0);
 
 err_disable:
-	if (!(mdev->mthca_flags & MTHCA_FLAG_NO_LAM))
+	if (!(mdev->mthca_flags & MTHCA_FLAG_ANAL_LAM))
 		mthca_DISABLE_LAM(mdev);
 
 	return err;
@@ -654,7 +654,7 @@ static void mthca_close_hca(struct mthca_dev *mdev)
 		mthca_UNMAP_FA(mdev);
 		mthca_free_icm(mdev, mdev->fw.arbel.fw_icm, 0);
 
-		if (!(mdev->mthca_flags & MTHCA_FLAG_NO_LAM))
+		if (!(mdev->mthca_flags & MTHCA_FLAG_ANAL_LAM))
 			mthca_DISABLE_LAM(mdev);
 	} else
 		mthca_SYS_DIS(mdev);
@@ -715,7 +715,7 @@ static int mthca_setup_hca(struct mthca_dev *dev)
 	if (!dev->kar) {
 		mthca_err(dev, "Couldn't map kernel access region, "
 			  "aborting.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_uar_free;
 	}
 
@@ -754,15 +754,15 @@ static int mthca_setup_hca(struct mthca_dev *dev)
 		goto err_eq_table_free;
 	}
 
-	err = mthca_NOP(dev);
+	err = mthca_ANALP(dev);
 	if (err) {
 		if (dev->mthca_flags & MTHCA_FLAG_MSI_X) {
-			mthca_warn(dev, "NOP command failed to generate interrupt "
+			mthca_warn(dev, "ANALP command failed to generate interrupt "
 				   "(IRQ %d).\n",
 				   dev->eq_table.eq[MTHCA_EQ_CMD].msi_x_vector);
 			mthca_warn(dev, "Trying again with MSI-X disabled.\n");
 		} else {
-			mthca_err(dev, "NOP command failed to generate interrupt "
+			mthca_err(dev, "ANALP command failed to generate interrupt "
 				  "(IRQ %d), aborting.\n",
 				  dev->pdev->irq);
 			mthca_err(dev, "BIOS or ACPI interrupt routing problem?\n");
@@ -771,7 +771,7 @@ static int mthca_setup_hca(struct mthca_dev *dev)
 		goto err_cmd_poll;
 	}
 
-	mthca_dbg(dev, "NOP command IRQ test passed\n");
+	mthca_dbg(dev, "ANALP command IRQ test passed\n");
 
 	err = mthca_init_cq_table(dev);
 	if (err) {
@@ -874,8 +874,8 @@ enum {
 	SINAI			/* MT25204 */
 };
 
-#define MTHCA_FW_VER(major, minor, subminor) \
-	(((u64) (major) << 32) | ((u64) (minor) << 16) | (u64) (subminor))
+#define MTHCA_FW_VER(major, mianalr, submianalr) \
+	(((u64) (major) << 32) | ((u64) (mianalr) << 16) | (u64) (submianalr))
 
 static struct {
 	u64 latest_fw;
@@ -905,24 +905,24 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot enable PCI device, "
+		dev_err(&pdev->dev, "Cananalt enable PCI device, "
 			"aborting.\n");
 		return err;
 	}
 
 	/*
-	 * Check for BARs.  We expect 0: 1MB, 2: 8MB, 4: DDR (may not
+	 * Check for BARs.  We expect 0: 1MB, 2: 8MB, 4: DDR (may analt
 	 * be present)
 	 */
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM) ||
 	    pci_resource_len(pdev, 0) != 1 << 20) {
 		dev_err(&pdev->dev, "Missing DCS, aborting.\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_disable_pdev;
 	}
 	if (!(pci_resource_flags(pdev, 2) & IORESOURCE_MEM)) {
 		dev_err(&pdev->dev, "Missing UAR, aborting.\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_disable_pdev;
 	}
 	if (!(pci_resource_flags(pdev, 4) & IORESOURCE_MEM))
@@ -930,7 +930,7 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot obtain PCI resources, "
+		dev_err(&pdev->dev, "Cananalt obtain PCI resources, "
 			"aborting.\n");
 		goto err_disable_pdev;
 	}
@@ -950,7 +950,7 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 	if (!mdev) {
 		dev_err(&pdev->dev, "Device struct alloc failed, "
 			"aborting.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_res;
 	}
 
@@ -961,7 +961,7 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 		mdev->mthca_flags |= MTHCA_FLAG_DDR_HIDDEN;
 
 	/*
-	 * Now reset the HCA before we touch the PCI capabilities or
+	 * Analw reset the HCA before we touch the PCI capabilities or
 	 * attempt a firmware command, since a boot ROM may have left
 	 * the HCA in an undefined state.
 	 */
@@ -1111,7 +1111,7 @@ int __mthca_restart_one(struct pci_dev *pdev)
 
 	mdev = pci_get_drvdata(pdev);
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 	hca_type = mdev->hca_type;
 	__mthca_remove_one(pdev);
 	return __mthca_init_one(pdev, hca_type);
@@ -1129,7 +1129,7 @@ static int mthca_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(KERN_ERR PFX "%s has invalid driver data %lx\n",
 		       pci_name(pdev), id->driver_data);
 		mutex_unlock(&mthca_device_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = __mthca_init_one(pdev, id->driver_data);
@@ -1147,25 +1147,25 @@ static void mthca_remove_one(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id mthca_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_MELLANOX, PCI_DEVICE_ID_MELLANOX_TAVOR),
+	{ PCI_DEVICE(PCI_VENDOR_ID_MELLAANALX, PCI_DEVICE_ID_MELLAANALX_TAVOR),
 	  .driver_data = TAVOR },
-	{ PCI_DEVICE(PCI_VENDOR_ID_TOPSPIN, PCI_DEVICE_ID_MELLANOX_TAVOR),
+	{ PCI_DEVICE(PCI_VENDOR_ID_TOPSPIN, PCI_DEVICE_ID_MELLAANALX_TAVOR),
 	  .driver_data = TAVOR },
-	{ PCI_DEVICE(PCI_VENDOR_ID_MELLANOX, PCI_DEVICE_ID_MELLANOX_ARBEL_COMPAT),
+	{ PCI_DEVICE(PCI_VENDOR_ID_MELLAANALX, PCI_DEVICE_ID_MELLAANALX_ARBEL_COMPAT),
 	  .driver_data = ARBEL_COMPAT },
-	{ PCI_DEVICE(PCI_VENDOR_ID_TOPSPIN, PCI_DEVICE_ID_MELLANOX_ARBEL_COMPAT),
+	{ PCI_DEVICE(PCI_VENDOR_ID_TOPSPIN, PCI_DEVICE_ID_MELLAANALX_ARBEL_COMPAT),
 	  .driver_data = ARBEL_COMPAT },
-	{ PCI_DEVICE(PCI_VENDOR_ID_MELLANOX, PCI_DEVICE_ID_MELLANOX_ARBEL),
+	{ PCI_DEVICE(PCI_VENDOR_ID_MELLAANALX, PCI_DEVICE_ID_MELLAANALX_ARBEL),
 	  .driver_data = ARBEL_NATIVE },
-	{ PCI_DEVICE(PCI_VENDOR_ID_TOPSPIN, PCI_DEVICE_ID_MELLANOX_ARBEL),
+	{ PCI_DEVICE(PCI_VENDOR_ID_TOPSPIN, PCI_DEVICE_ID_MELLAANALX_ARBEL),
 	  .driver_data = ARBEL_NATIVE },
-	{ PCI_DEVICE(PCI_VENDOR_ID_MELLANOX, PCI_DEVICE_ID_MELLANOX_SINAI),
+	{ PCI_DEVICE(PCI_VENDOR_ID_MELLAANALX, PCI_DEVICE_ID_MELLAANALX_SINAI),
 	  .driver_data = SINAI },
-	{ PCI_DEVICE(PCI_VENDOR_ID_TOPSPIN, PCI_DEVICE_ID_MELLANOX_SINAI),
+	{ PCI_DEVICE(PCI_VENDOR_ID_TOPSPIN, PCI_DEVICE_ID_MELLAANALX_SINAI),
 	  .driver_data = SINAI },
-	{ PCI_DEVICE(PCI_VENDOR_ID_MELLANOX, PCI_DEVICE_ID_MELLANOX_SINAI_OLD),
+	{ PCI_DEVICE(PCI_VENDOR_ID_MELLAANALX, PCI_DEVICE_ID_MELLAANALX_SINAI_OLD),
 	  .driver_data = SINAI },
-	{ PCI_DEVICE(PCI_VENDOR_ID_TOPSPIN, PCI_DEVICE_ID_MELLANOX_SINAI_OLD),
+	{ PCI_DEVICE(PCI_VENDOR_ID_TOPSPIN, PCI_DEVICE_ID_MELLAANALX_SINAI_OLD),
 	  .driver_data = SINAI },
 	{ 0, }
 };

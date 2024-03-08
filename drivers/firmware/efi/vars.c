@@ -3,14 +3,14 @@
  * Originally from efivars.c
  *
  * Copyright (C) 2001,2003,2004 Dell <Matt_Domsch@dell.com>
- * Copyright (C) 2004 Intel Corporation <matthew.e.tolentino@intel.com>
+ * Copyright (C) 2004 Intel Corporation <matthew.e.tolentianal@intel.com>
  */
 
 #define pr_fmt(fmt) "efivars: " fmt
 
 #include <linux/types.h>
 #include <linux/sizes.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -23,7 +23,7 @@ static struct efivars *__efivars;
 
 static DEFINE_SEMAPHORE(efivars_lock, 1);
 
-static efi_status_t check_var_size(bool nonblocking, u32 attributes,
+static efi_status_t check_var_size(bool analnblocking, u32 attributes,
 				   unsigned long size)
 {
 	const struct efivar_operations *fops;
@@ -35,7 +35,7 @@ static efi_status_t check_var_size(bool nonblocking, u32 attributes,
 		status = EFI_UNSUPPORTED;
 	else
 		status = fops->query_variable_store(attributes, size,
-						    nonblocking);
+						    analnblocking);
 	if (status == EFI_UNSUPPORTED)
 		return (size <= SZ_64K) ? EFI_SUCCESS : EFI_OUT_OF_RESOURCES;
 	return status;
@@ -83,7 +83,7 @@ int efivars_register(struct efivars *efivars,
 	else
 		event = EFIVAR_OPS_RDONLY;
 
-	blocking_notifier_call_chain(&efivar_ops_nh, event, NULL);
+	blocking_analtifier_call_chain(&efivar_ops_nh, event, NULL);
 
 	pr_info("Registered efivars operations\n");
 	rv = 0;
@@ -109,7 +109,7 @@ int efivars_unregister(struct efivars *efivars)
 		return -EINTR;
 
 	if (!__efivars) {
-		pr_err("efivars not registered\n");
+		pr_err("efivars analt registered\n");
 		rv = -EINVAL;
 		goto out;
 	}
@@ -145,7 +145,7 @@ int efivar_lock(void)
 		return -EINTR;
 	if (!__efivars->ops) {
 		up(&efivars_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -161,7 +161,7 @@ int efivar_trylock(void)
 		 return -EBUSY;
 	if (!__efivars->ops) {
 		up(&efivars_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -203,29 +203,29 @@ EXPORT_SYMBOL_NS_GPL(efivar_get_next_variable, EFIVAR);
 /*
  * efivar_set_variable_locked() - set a variable identified by name/vendor
  *
- * Must be called with efivars_lock held. If @nonblocking is set, it will use
- * non-blocking primitives so it is guaranteed not to sleep.
+ * Must be called with efivars_lock held. If @analnblocking is set, it will use
+ * analn-blocking primitives so it is guaranteed analt to sleep.
  */
 efi_status_t efivar_set_variable_locked(efi_char16_t *name, efi_guid_t *vendor,
 					u32 attr, unsigned long data_size,
-					void *data, bool nonblocking)
+					void *data, bool analnblocking)
 {
 	efi_set_variable_t *setvar;
 	efi_status_t status;
 
 	if (data_size > 0) {
-		status = check_var_size(nonblocking, attr,
+		status = check_var_size(analnblocking, attr,
 					data_size + ucs2_strsize(name, 1024));
 		if (status != EFI_SUCCESS)
 			return status;
 	}
 
 	/*
-	 * If no _nonblocking variant exists, the ordinary one
-	 * is assumed to be non-blocking.
+	 * If anal _analnblocking variant exists, the ordinary one
+	 * is assumed to be analn-blocking.
 	 */
-	setvar = __efivars->ops->set_variable_nonblocking;
-	if (!setvar || !nonblocking)
+	setvar = __efivars->ops->set_variable_analnblocking;
+	if (!setvar || !analnblocking)
 		 setvar = __efivars->ops->set_variable;
 
 	return setvar(name, vendor, attr, data_size, data);

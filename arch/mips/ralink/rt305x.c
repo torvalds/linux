@@ -130,7 +130,7 @@ static const char __init *rt305x_get_soc_name(struct ralink_soc_info *soc_info)
 		soc_info->compatible = "ralink,rt5350-soc";
 		return "RT5350";
 	} else {
-		panic("rt305x: unknown SoC, n0:%08x n1:%08x",
+		panic("rt305x: unkanalwn SoC, n0:%08x n1:%08x",
 		      rt305x_get_soc_name0(), rt305x_get_soc_name1());
 	}
 }
@@ -173,7 +173,7 @@ static int __init rt305x_soc_dev_init(void)
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_dev_attr->family = "Ralink";
 	soc_dev_attr->soc_id = rt305x_get_soc_id_name();

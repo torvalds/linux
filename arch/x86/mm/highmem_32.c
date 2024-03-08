@@ -25,7 +25,7 @@ void __init set_highmem_pages_init(void)
 		zone_end_pfn = zone_start_pfn + zone->spanned_pages;
 
 		nid = zone_to_nid(zone);
-		printk(KERN_INFO "Initializing %s for node %d (%08lx:%08lx)\n",
+		printk(KERN_INFO "Initializing %s for analde %d (%08lx:%08lx)\n",
 				zone->name, nid, zone_start_pfn, zone_end_pfn);
 
 		add_highpages_with_active_regions(nid, zone_start_pfn,

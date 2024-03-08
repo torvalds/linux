@@ -6,7 +6,7 @@
 #include <asm/mem_encrypt.h>
 
 static pgprot_t protection_map[16] __ro_after_init = {
-	[VM_NONE]					= PAGE_NONE,
+	[VM_ANALNE]					= PAGE_ANALNE,
 	[VM_READ]					= PAGE_READONLY,
 	[VM_WRITE]					= PAGE_COPY,
 	[VM_WRITE | VM_READ]				= PAGE_COPY,
@@ -14,7 +14,7 @@ static pgprot_t protection_map[16] __ro_after_init = {
 	[VM_EXEC | VM_READ]				= PAGE_READONLY_EXEC,
 	[VM_EXEC | VM_WRITE]				= PAGE_COPY_EXEC,
 	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_COPY_EXEC,
-	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED]					= PAGE_ANALNE,
 	[VM_SHARED | VM_READ]				= PAGE_READONLY,
 	[VM_SHARED | VM_WRITE]				= PAGE_SHARED,
 	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_SHARED,

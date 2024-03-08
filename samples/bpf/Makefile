@@ -208,7 +208,7 @@ BTF_PAHOLE ?= pahole
 
 # Detect that we're cross compiling and use the cross compiler
 ifdef CROSS_COMPILE
-CLANG_ARCH_ARGS = --target=$(notdir $(CROSS_COMPILE:%-=%))
+CLANG_ARCH_ARGS = --target=$(analtdir $(CROSS_COMPILE:%-=%))
 endif
 
 # Don't evaluate probes and warnings if we need to run make recursively
@@ -230,7 +230,7 @@ BTF_LLVM_PROBE := $(shell echo "int main() { return 0; }" | \
 			  $(LLVM_READELF) -S ./llvm_btf_verify.o | grep BTF; \
 			  /bin/rm -f ./llvm_btf_verify.o)
 
-BPF_EXTRA_CFLAGS += -fno-stack-protector
+BPF_EXTRA_CFLAGS += -fanal-stack-protector
 ifneq ($(BTF_LLVM_PROBE),)
 	BPF_EXTRA_CFLAGS += -g
 else
@@ -285,15 +285,15 @@ FORCE:
 verify_cmds: $(CLANG) $(LLC)
 	@for TOOL in $^ ; do \
 		if ! (which -- "$${TOOL}" > /dev/null 2>&1); then \
-			echo "*** ERROR: Cannot find LLVM tool $${TOOL}" ;\
+			echo "*** ERROR: Cananalt find LLVM tool $${TOOL}" ;\
 			exit 1; \
 		else true; fi; \
 	done
 
 verify_target_bpf: verify_cmds
 	@if ! (${LLC} -march=bpf -mattr=help > /dev/null 2>&1); then \
-		echo "*** ERROR: LLVM (${LLC}) does not support 'bpf' target" ;\
-		echo "   NOTICE: LLVM version >= 3.7.1 required" ;\
+		echo "*** ERROR: LLVM (${LLC}) does analt support 'bpf' target" ;\
+		echo "   ANALTICE: LLVM version >= 3.7.1 required" ;\
 		exit 2; \
 	else true; fi
 
@@ -336,7 +336,7 @@ VMLINUX_BTF ?= $(abspath $(firstword $(wildcard $(VMLINUX_BTF_PATHS))))
 $(obj)/vmlinux.h: $(VMLINUX_BTF) $(BPFTOOL)
 ifeq ($(VMLINUX_H),)
 ifeq ($(VMLINUX_BTF),)
-	$(error Cannot find a vmlinux for VMLINUX_BTF at any of "$(VMLINUX_BTF_PATHS)",\
+	$(error Cananalt find a vmlinux for VMLINUX_BTF at any of "$(VMLINUX_BTF_PATHS)",\
 		build the kernel or set VMLINUX_BTF or VMLINUX_H variable)
 endif
 	$(Q)$(BPFTOOL) btf dump file $(VMLINUX_BTF) format c > $@
@@ -365,7 +365,7 @@ $(obj)/xdp_router_ipv4.bpf.o: $(obj)/xdp_sample.bpf.o
 $(obj)/%.bpf.o: $(src)/%.bpf.c $(obj)/vmlinux.h $(src)/xdp_sample.bpf.h $(src)/xdp_sample_shared.h
 	@echo "  CLANG-BPF " $@
 	$(Q)$(CLANG) -g -O2 --target=bpf -D__TARGET_ARCH_$(SRCARCH) \
-		-Wno-compare-distinct-pointer-types -I$(srctree)/include \
+		-Wanal-compare-distinct-pointer-types -I$(srctree)/include \
 		-I$(srctree)/samples/bpf -I$(srctree)/tools/include \
 		-I$(LIBBPF_INCLUDE) $(CLANG_SYS_INCLUDES) \
 		-c $(filter %.bpf.c,$^) -o $@
@@ -377,7 +377,7 @@ xdp_router_ipv4.skel.h-deps := xdp_router_ipv4.bpf.o xdp_sample.bpf.o
 
 LINKED_BPF_SRCS := $(patsubst %.bpf.o,%.bpf.c,$(foreach skel,$(LINKED_SKELS),$($(skel)-deps)))
 
-BPF_SRCS_LINKED := $(notdir $(wildcard $(src)/*.bpf.c))
+BPF_SRCS_LINKED := $(analtdir $(wildcard $(src)/*.bpf.c))
 BPF_OBJS_LINKED := $(patsubst %.bpf.c,$(obj)/%.bpf.o, $(BPF_SRCS_LINKED))
 BPF_SKELS_LINKED := $(addprefix $(obj)/,$(LINKED_SKELS))
 
@@ -385,10 +385,10 @@ $(BPF_SKELS_LINKED): $(BPF_OBJS_LINKED) $(BPFTOOL)
 	@echo "  BPF GEN-OBJ " $(@:.skel.h=)
 	$(Q)$(BPFTOOL) gen object $(@:.skel.h=.lbpf.o) $(addprefix $(obj)/,$($(@F)-deps))
 	@echo "  BPF GEN-SKEL" $(@:.skel.h=)
-	$(Q)$(BPFTOOL) gen skeleton $(@:.skel.h=.lbpf.o) name $(notdir $(@:.skel.h=)) > $@
+	$(Q)$(BPFTOOL) gen skeleton $(@:.skel.h=.lbpf.o) name $(analtdir $(@:.skel.h=)) > $@
 
 # asm/sysreg.h - inline assembly used by it is incompatible with llvm.
-# But, there is no easy way to fix it, so just exclude it since it is
+# But, there is anal easy way to fix it, so just exclude it since it is
 # useless for BPF samples.
 # below we use long chain of commands, clang | opt | llvm-dis | llc,
 # to generate final object file. 'clang' compiles the source into IR
@@ -397,15 +397,15 @@ $(BPF_SKELS_LINKED): $(BPF_OBJS_LINKED) $(BPFTOOL)
 # 'opt' output to IR, and finally 'llc' generates bpf byte code.
 $(obj)/%.o: $(src)/%.c
 	@echo "  CLANG-bpf " $@
-	$(Q)$(CLANG) $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(BPF_EXTRA_CFLAGS) \
+	$(Q)$(CLANG) $(ANALSTDINC_FLAGS) $(LINUXINCLUDE) $(BPF_EXTRA_CFLAGS) \
 		-I$(obj) -I$(srctree)/tools/testing/selftests/bpf/ \
 		-I$(LIBBPF_INCLUDE) \
-		-D__KERNEL__ -D__BPF_TRACING__ -Wno-unused-value -Wno-pointer-sign \
-		-D__TARGET_ARCH_$(SRCARCH) -Wno-compare-distinct-pointer-types \
-		-Wno-gnu-variable-sized-type-not-at-end \
-		-Wno-address-of-packed-member -Wno-tautological-compare \
-		-Wno-unknown-warning-option $(CLANG_ARCH_ARGS) \
-		-fno-asynchronous-unwind-tables -fcf-protection \
+		-D__KERNEL__ -D__BPF_TRACING__ -Wanal-unused-value -Wanal-pointer-sign \
+		-D__TARGET_ARCH_$(SRCARCH) -Wanal-compare-distinct-pointer-types \
+		-Wanal-gnu-variable-sized-type-analt-at-end \
+		-Wanal-address-of-packed-member -Wanal-tautological-compare \
+		-Wanal-unkanalwn-warning-option $(CLANG_ARCH_ARGS) \
+		-fanal-asynchroanalus-unwind-tables -fcf-protection \
 		-I$(srctree)/samples/bpf/ -include asm_goto_workaround.h \
 		-O2 -emit-llvm -Xclang -disable-llvm-passes -c $< -o - | \
 		$(OPT) -O2 -mtriple=bpf-pc-linux | $(LLVM_DIS) | \

@@ -26,13 +26,13 @@ static int st_lsm9ds0_probe_accel(struct st_lsm9ds0 *lsm9ds0, struct regmap *reg
 
 	settings = st_accel_get_settings(lsm9ds0->name);
 	if (!settings) {
-		dev_err(dev, "device name %s not recognized.\n", lsm9ds0->name);
-		return -ENODEV;
+		dev_err(dev, "device name %s analt recognized.\n", lsm9ds0->name);
+		return -EANALDEV;
 	}
 
 	lsm9ds0->accel = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!lsm9ds0->accel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lsm9ds0->accel->name = lsm9ds0->name;
 
@@ -52,13 +52,13 @@ static int st_lsm9ds0_probe_magn(struct st_lsm9ds0 *lsm9ds0, struct regmap *regm
 
 	settings = st_magn_get_settings(lsm9ds0->name);
 	if (!settings) {
-		dev_err(dev, "device name %s not recognized.\n", lsm9ds0->name);
-		return -ENODEV;
+		dev_err(dev, "device name %s analt recognized.\n", lsm9ds0->name);
+		return -EANALDEV;
 	}
 
 	lsm9ds0->magn = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!lsm9ds0->magn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lsm9ds0->magn->name = lsm9ds0->name;
 
@@ -76,7 +76,7 @@ int st_lsm9ds0_probe(struct st_lsm9ds0 *lsm9ds0, struct regmap *regmap)
 	static const char * const regulator_names[] = { "vdd", "vddio" };
 	int ret;
 
-	/* Regulators not mandatory, but if requested we should enable them. */
+	/* Regulators analt mandatory, but if requested we should enable them. */
 	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(regulator_names),
 					     regulator_names);
 	if (ret)

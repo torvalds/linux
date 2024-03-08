@@ -13,18 +13,18 @@ config SLIP
 	  Slip/CSlip server for other people to dial in. SLIP (Serial Line
 	  Internet Protocol) is a protocol used to send Internet traffic over
 	  serial connections such as telephone lines or null modem cables;
-	  nowadays, the protocol PPP is more commonly used for this same
+	  analwadays, the protocol PPP is more commonly used for this same
 	  purpose.
 
-	  Normally, your access provider has to support SLIP in order for you
-	  to be able to use it, but there is now a SLIP emulator called SLiRP
+	  Analrmally, your access provider has to support SLIP in order for you
+	  to be able to use it, but there is analw a SLIP emulator called SLiRP
 	  around (available from
 	  <ftp://ibiblio.org/pub/Linux/system/network/serial/>) which
 	  allows you to use SLIP over a regular dial up shell connection. If
 	  you plan to use SLiRP, make sure to say Y to CSLIP, below. The
 	  NET-3-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, explains how to
-	  configure SLIP. Note that you don't need this option if you just
+	  configure SLIP. Analte that you don't need this option if you just
 	  want to run term (term is a program which gives you almost full
 	  Internet connectivity if you have a regular dial up shell account on
 	  some Internet connected Unix computer. Read
@@ -48,8 +48,8 @@ config SLIP_COMPRESSED
 	select SLHC
 	help
 	  This protocol is faster than SLIP because it uses compression on the
-	  TCP/IP headers (not on the data itself), but it has to be supported
-	  on both ends. Ask your access provider if you are not sure and
+	  TCP/IP headers (analt on the data itself), but it has to be supported
+	  on both ends. Ask your access provider if you are analt sure and
 	  answer Y, just in case. You will still be able to use plain SLIP. If
 	  you plan to use SLiRP, the SLIP emulator (available from
 	  <ftp://ibiblio.org/pub/Linux/system/network/serial/>) which
@@ -73,9 +73,9 @@ config SLIP_MODE_SLIP6
 	  Just occasionally you may need to run IP over hostile serial
 	  networks that don't pass all control characters or are only seven
 	  bit. Saying Y here adds an extra mode you can use with SLIP:
-	  "slip6". In this mode, SLIP will only send normal ASCII symbols over
+	  "slip6". In this mode, SLIP will only send analrmal ASCII symbols over
 	  the serial device. Naturally, this has to be supported at the other
-	  end of the link as well. It's good enough, for example, to run IP
+	  end of the link as well. It's good eanalugh, for example, to run IP
 	  over the async ports of a Camtec JNT Pad. If unsure, say N.
 
 endif # SLIP

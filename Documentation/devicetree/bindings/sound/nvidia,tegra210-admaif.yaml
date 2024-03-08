@@ -18,7 +18,7 @@ maintainers:
   - Sameer Pujar <spujar@nvidia.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^admaif@[0-9a-f]*$"
 
   compatible:
@@ -42,8 +42,8 @@ properties:
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
     description: |
-      Contains list of ACIF (Audio CIF) port nodes for ADMAIF channels.
-      The number of port nodes depends on the number of ADMAIF channels
+      Contains list of ACIF (Audio CIF) port analdes for ADMAIF channels.
+      The number of port analdes depends on the number of ADMAIF channels
       that SoC may have. These are interfaced with respective ACIF ports
       in AHUB (Audio Hub). Each port is capable of data transfers in
       both directions.

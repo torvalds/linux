@@ -13,13 +13,13 @@
 #include "intel_pmic.h"
 
 /*
- * We have no docs for the CHT Crystal Cove PMIC. The Asus Zenfone-2 kernel
+ * We have anal docs for the CHT Crystal Cove PMIC. The Asus Zenfone-2 kernel
  * code has 2 Crystal Cove regulator drivers, one calls the PMIC a "Crystal
  * Cove Plus" PMIC and talks about Cherry Trail, so presumably that one
  * could be used to get register info for the regulators if we need to
  * implement regulator support in the future.
  *
- * For now the sole purpose of this driver is to make
+ * For analw the sole purpose of this driver is to make
  * intel_soc_pmic_exec_mipi_pmic_seq_element work on devices with a
  * CHT Crystal Cove PMIC.
  */

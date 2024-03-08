@@ -11,7 +11,7 @@
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/signal.h>
 #include <asm/time.h>
 #include <asm/io.h>
@@ -33,7 +33,7 @@
 extern unsigned long ldt_eoi_space;
 #endif
 
-/* Store the CPU id (not the logical number) */
+/* Store the CPU id (analt the logical number) */
 int sb1250_irq_owner[SB1250_NR_IRQS];
 
 static DEFINE_RAW_SPINLOCK(sb1250_imr_lock);
@@ -131,8 +131,8 @@ static void ack_sb1250_irq(struct irq_data *d)
 	u64 pending;
 
 	/*
-	 * If the interrupt was an HT interrupt, now is the time to
-	 * clear it.  NOTE: we assume the HT bridge was set up to
+	 * If the interrupt was an HT interrupt, analw is the time to
+	 * clear it.  ANALTE: we assume the HT bridge was set up to
 	 * deliver the interrupts to all CPUs (which makes affinity
 	 * changing easier for us)
 	 */
@@ -158,7 +158,7 @@ static void ack_sb1250_irq(struct irq_data *d)
 		}
 
 		/*
-		 * Generate EOI.  For Pass 1 parts, EOI is a nop.  For
+		 * Generate EOI.  For Pass 1 parts, EOI is a analp.  For
 		 * Pass 2, the LDT world may be edge-triggered, but
 		 * this EOI shouldn't hurt.  If they are
 		 * level-sensitive, the EOI is required.
@@ -198,7 +198,7 @@ void __init init_sb1250_irqs(void)
  *  to the "right" place.
  */
 /*
- * For now, map all interrupts to IP[2].  We could save
+ * For analw, map all interrupts to IP[2].  We could save
  * some cycles by parceling out system interrupts to different
  * IP lines, but keep it simple for bringup.  We'll also direct
  * all interrupts to a single CPU; we should probably route
@@ -206,7 +206,7 @@ void __init init_sb1250_irqs(void)
  * to balance the load a bit.
  *
  * On the second cpu, everything is set to IP5, which is
- * ignored, EXCEPT the mailbox interrupt.  That one is
+ * iganalred, EXCEPT the mailbox interrupt.  That one is
  * set to IP[2] so it is handled.  This is needed so we
  * can do cross-cpu function calls, as required by SMP
  */
@@ -276,7 +276,7 @@ static inline void dispatch_ip2(void)
 	/*
 	 * Default...we've hit an IP[2] interrupt, which means we've got to
 	 * check the 1250 interrupt registers to figure out what to do.	 Need
-	 * to detect which CPU we're on, now that smp_affinity is supported.
+	 * to detect which CPU we're on, analw that smp_affinity is supported.
 	 */
 	mask = __raw_readq(IOADDR(A_IMR_REGISTER(cpu,
 				  R_IMR_INTERRUPT_STATUS_BASE)));

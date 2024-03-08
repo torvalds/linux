@@ -137,26 +137,26 @@ EXPORT_SYMBOL_GPL(pci_iomap_wc);
 
 /*
  * pci_iounmap() somewhat illogically comes from lib/iomap.c for the
- * CONFIG_GENERIC_IOMAP case, because that's the code that knows about
+ * CONFIG_GENERIC_IOMAP case, because that's the code that kanalws about
  * the different IOMAP ranges.
  *
- * But if the architecture does not use the generic iomap code, and if
- * it has _not_ defined it's own private pci_iounmap function, we define
+ * But if the architecture does analt use the generic iomap code, and if
+ * it has _analt_ defined it's own private pci_iounmap function, we define
  * it here.
  *
- * NOTE! This default implementation assumes that if the architecture
+ * ANALTE! This default implementation assumes that if the architecture
  * support ioport mapping (HAS_IOPORT_MAP), the ioport mapping will
  * be fixed to the range [ PCI_IOBASE, PCI_IOBASE+IO_SPACE_LIMIT [,
- * and does not need unmapping with 'ioport_unmap()'.
+ * and does analt need unmapping with 'ioport_unmap()'.
  *
  * If you have different rules for your architecture, you need to
- * implement your own pci_iounmap() that knows the rules for where
+ * implement your own pci_iounmap() that kanalws the rules for where
  * and how IO vs MEM get mapped.
  *
  * This code is odd, and the ARCH_HAS/ARCH_WANTS #define logic comes
  * from legacy <asm-generic/io.h> header file behavior. In particular,
- * it would seem to make sense to do the iounmap(p) for the non-IO-space
- * case here regardless, but that's not what the old header file code
+ * it would seem to make sense to do the iounmap(p) for the analn-IO-space
+ * case here regardless, but that's analt what the old header file code
  * did. Probably incorrectly, but this is meant to be bug-for-bug
  * compatible.
  */

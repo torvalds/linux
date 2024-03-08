@@ -23,7 +23,7 @@
 /*
  * kmap atomic:
  * The usage of the slots must be completely encapsulated within a spinlock, and
- * no other functions that may be using the locks for other purposed may be
+ * anal other functions that may be using the locks for other purposed may be
  * called from within the locked region.
  * Since the slots are per processor, this will guarantee that we are the only
  * user.
@@ -453,7 +453,7 @@ struct psb_mmu_driver *psb_mmu_driver_init(struct drm_device *dev,
 		uint32_t tfms, misc, cap0, cap4, clflush_size;
 
 		/*
-		 * clflush size is determined at kernel setup for x86_64 but not
+		 * clflush size is determined at kernel setup for x86_64 but analt
 		 * for i386. We have to do it here.
 		 */
 
@@ -627,7 +627,7 @@ int psb_mmu_insert_pfn_sequence(struct psb_mmu_pd *pd, uint32_t start_pfn,
 	unsigned long end;
 	unsigned long next;
 	unsigned long f_address = address;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	down_read(&pd->driver->sem);
 
@@ -638,7 +638,7 @@ int psb_mmu_insert_pfn_sequence(struct psb_mmu_pd *pd, uint32_t start_pfn,
 		next = psb_pd_addr_end(addr, end);
 		pt = psb_mmu_pt_alloc_map_lock(pd, addr);
 		if (!pt) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		do {
@@ -678,7 +678,7 @@ int psb_mmu_insert_pages(struct psb_mmu_pd *pd, struct page **pages,
 	unsigned long add;
 	unsigned long row_add;
 	unsigned long f_address = address;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (hw_tile_stride) {
 		if (num_pages % desired_tile_stride != 0)

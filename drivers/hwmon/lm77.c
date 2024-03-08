@@ -23,7 +23,7 @@
 #include <linux/mutex.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
+static const unsigned short analrmal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 						I2C_CLIENT_END };
 
 /* The LM77 registers */
@@ -66,7 +66,7 @@ struct lm77_data {
 #define LM77_TEMP_MAX 125000
 
 /*
- * In the temperature registers, the low 3 bits are not part of the
+ * In the temperature registers, the low 3 bits are analt part of the
  * temperature values; they are the status bits.
  */
 static inline s16 LM77_TEMP_TO_REG(int temp)
@@ -236,7 +236,7 @@ static struct attribute *lm77_attrs[] = {
 };
 ATTRIBUTE_GROUPS(lm77);
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int lm77_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -244,10 +244,10 @@ static int lm77_detect(struct i2c_client *client, struct i2c_board_info *info)
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * Here comes the remaining detection.  Since the LM77 has no
+	 * Here comes the remaining detection.  Since the LM77 has anal
 	 * register dedicated to identification, we have to rely on the
 	 * following tricks:
 	 *
@@ -273,7 +273,7 @@ static int lm77_detect(struct i2c_client *client, struct i2c_board_info *info)
 		 || i2c_smbus_read_word_data(client, i + 3) != crit
 		 || i2c_smbus_read_word_data(client, i + 4) != min
 		 || i2c_smbus_read_word_data(client, i + 5) != max)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	/* sign bits */
@@ -282,25 +282,25 @@ static int lm77_detect(struct i2c_client *client, struct i2c_board_info *info)
 	 || ((crit & 0x00f0) != 0xf0 && (crit & 0x00f0) != 0x0)
 	 || ((min & 0x00f0) != 0xf0 && (min & 0x00f0) != 0x0)
 	 || ((max & 0x00f0) != 0xf0 && (max & 0x00f0) != 0x0))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* unused bits */
 	if (conf & 0xe0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* 0x06 and 0x07 return the last read value */
 	cur = i2c_smbus_read_word_data(client, 0);
 	if (i2c_smbus_read_word_data(client, 6) != cur
 	 || i2c_smbus_read_word_data(client, 7) != cur)
-		return -ENODEV;
+		return -EANALDEV;
 	hyst = i2c_smbus_read_word_data(client, 2);
 	if (i2c_smbus_read_word_data(client, 6) != hyst
 	 || i2c_smbus_read_word_data(client, 7) != hyst)
-		return -ENODEV;
+		return -EANALDEV;
 	min = i2c_smbus_read_word_data(client, 4);
 	if (i2c_smbus_read_word_data(client, 6) != min
 	 || i2c_smbus_read_word_data(client, 7) != min)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, "lm77", I2C_NAME_SIZE);
 
@@ -323,7 +323,7 @@ static int lm77_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct lm77_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);
@@ -351,7 +351,7 @@ static struct i2c_driver lm77_driver = {
 	.probe		= lm77_probe,
 	.id_table	= lm77_id,
 	.detect		= lm77_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(lm77_driver);

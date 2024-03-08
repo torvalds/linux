@@ -14,7 +14,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
@@ -114,7 +114,7 @@ static void __init print_bus_info(void)
 		debug("%s - slot_min = %x\n", __func__, ptr->slot_min);
 		debug("%s - slot_max = %x\n", __func__, ptr->slot_max);
 		debug("%s - slot_count = %x\n", __func__, ptr->slot_count);
-		debug("%s - bus# = %x\n", __func__, ptr->busno);
+		debug("%s - bus# = %x\n", __func__, ptr->busanal);
 		debug("%s - current_speed = %x\n", __func__, ptr->current_speed);
 		debug("%s - controller_id = %x\n", __func__, ptr->controller_id);
 
@@ -132,7 +132,7 @@ static void print_lo_info(void)
 	struct rio_detail *ptr;
 	debug("print_lo_info ----\n");
 	list_for_each_entry(ptr, &rio_lo_head, rio_detail_list) {
-		debug("%s - rio_node_id = %x\n", __func__, ptr->rio_node_id);
+		debug("%s - rio_analde_id = %x\n", __func__, ptr->rio_analde_id);
 		debug("%s - rio_type = %x\n", __func__, ptr->rio_type);
 		debug("%s - owner_id = %x\n", __func__, ptr->owner_id);
 		debug("%s - first_slot_num = %x\n", __func__, ptr->first_slot_num);
@@ -147,7 +147,7 @@ static void print_vg_info(void)
 	struct rio_detail *ptr;
 	debug("%s ---\n", __func__);
 	list_for_each_entry(ptr, &rio_vg_head, rio_detail_list) {
-		debug("%s - rio_node_id = %x\n", __func__, ptr->rio_node_id);
+		debug("%s - rio_analde_id = %x\n", __func__, ptr->rio_analde_id);
 		debug("%s - rio_type = %x\n", __func__, ptr->rio_type);
 		debug("%s - owner_id = %x\n", __func__, ptr->owner_id);
 		debug("%s - first_slot_num = %x\n", __func__, ptr->first_slot_num);
@@ -240,23 +240,23 @@ int __init ibmphp_access_ebda(void)
 
 	io_mem = ioremap((0x40 << 4) + 0x0e, 2);
 	if (!io_mem)
-		return -ENOMEM;
+		return -EANALMEM;
 	ebda_seg = readw(io_mem);
 	iounmap(io_mem);
 	debug("returned ebda segment: %x\n", ebda_seg);
 
 	io_mem = ioremap(ebda_seg<<4, 1);
 	if (!io_mem)
-		return -ENOMEM;
+		return -EANALMEM;
 	ebda_sz = readb(io_mem);
 	iounmap(io_mem);
 	debug("ebda size: %d(KiB)\n", ebda_sz);
 	if (ebda_sz == 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	io_mem = ioremap(ebda_seg<<4, (ebda_sz * 1024));
 	if (!io_mem)
-		return -ENOMEM;
+		return -EANALMEM;
 	next_offset = 0x180;
 
 	for (;;) {
@@ -280,13 +280,13 @@ int __init ibmphp_access_ebda(void)
 			continue;
 		/* found hs table */
 		if (blk_id == 0x4853) {
-			debug("now enter hot swap block---\n");
+			debug("analw enter hot swap block---\n");
 			debug("hot blk id: %x\n", blk_id);
 			format = readb(io_mem + offset);
 
 			offset += 1;
 			if (format != 4)
-				goto error_nodev;
+				goto error_analdev;
 			debug("hot blk format: %x\n", format);
 			/* hot swap sub blk */
 			base = offset;
@@ -299,14 +299,14 @@ int __init ibmphp_access_ebda(void)
 
 			sub_addr += 2;
 			if (rc_id != 0x5243)
-				goto error_nodev;
+				goto error_analdev;
 			/* rc sub blk signature  */
 			num_ctlrs = readb(io_mem + sub_addr);
 
 			sub_addr += 1;
 			hpc_list_ptr = alloc_ebda_hpc_list();
 			if (!hpc_list_ptr) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto out;
 			}
 			hpc_list_ptr->format = format;
@@ -326,7 +326,7 @@ int __init ibmphp_access_ebda(void)
 
 			sub_addr += 2;
 			if (re_id != 0x5245)
-				goto error_nodev;
+				goto error_analdev;
 
 			/* signature of re */
 			num_entries = readw(io_mem + sub_addr);
@@ -334,7 +334,7 @@ int __init ibmphp_access_ebda(void)
 			sub_addr += 2;	/* offset of RSRC_ENTRIES blk */
 			rsrc_list_ptr = alloc_ebda_rsrc_list();
 			if (!rsrc_list_ptr) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto out;
 			}
 			rsrc_list_ptr->format = format;
@@ -349,12 +349,12 @@ int __init ibmphp_access_ebda(void)
 			hs_complete = 1;
 		} else {
 		/* found rio table, blk_id == 0x4752 */
-			debug("now enter io table ---\n");
+			debug("analw enter io table ---\n");
 			debug("rio blk id: %x\n", blk_id);
 
 			rio_table_ptr = kzalloc(sizeof(struct rio_table_hdr), GFP_KERNEL);
 			if (!rio_table_ptr) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto out;
 			}
 			rio_table_ptr->ver_num = readb(io_mem + offset);
@@ -363,7 +363,7 @@ int __init ibmphp_access_ebda(void)
 			rio_table_ptr->offset = offset + 3 ;
 
 			debug("info about rio table hdr ---\n");
-			debug("ver_num: %x\nscal_count: %x\nriodev_count: %x\noffset of rio table: %x\n ",
+			debug("ver_num: %x\nscal_count: %x\nriodev_count: %x\analffset of rio table: %x\n ",
 				rio_table_ptr->ver_num, rio_table_ptr->scal_count,
 				rio_table_ptr->riodev_count, rio_table_ptr->offset);
 
@@ -372,7 +372,7 @@ int __init ibmphp_access_ebda(void)
 	}
 
 	if (!hs_complete && !rio_complete)
-		goto error_nodev;
+		goto error_analdev;
 
 	if (rio_table_ptr) {
 		if (rio_complete && rio_table_ptr->ver_num == 3) {
@@ -387,8 +387,8 @@ int __init ibmphp_access_ebda(void)
 
 	rc = ebda_rsrc_rsrc();
 	goto out;
-error_nodev:
-	rc = -ENODEV;
+error_analdev:
+	rc = -EANALDEV;
 out:
 	iounmap(io_mem);
 	return rc;
@@ -410,20 +410,20 @@ static int __init ebda_rio_table(void)
 	for (i = 0; i < rio_table_ptr->riodev_count; i++) {
 		rio_detail_ptr = kzalloc(sizeof(struct rio_detail), GFP_KERNEL);
 		if (!rio_detail_ptr)
-			return -ENOMEM;
-		rio_detail_ptr->rio_node_id = readb(io_mem + offset);
+			return -EANALMEM;
+		rio_detail_ptr->rio_analde_id = readb(io_mem + offset);
 		rio_detail_ptr->bbar = readl(io_mem + offset + 1);
 		rio_detail_ptr->rio_type = readb(io_mem + offset + 5);
 		rio_detail_ptr->owner_id = readb(io_mem + offset + 6);
-		rio_detail_ptr->port0_node_connect = readb(io_mem + offset + 7);
+		rio_detail_ptr->port0_analde_connect = readb(io_mem + offset + 7);
 		rio_detail_ptr->port0_port_connect = readb(io_mem + offset + 8);
-		rio_detail_ptr->port1_node_connect = readb(io_mem + offset + 9);
+		rio_detail_ptr->port1_analde_connect = readb(io_mem + offset + 9);
 		rio_detail_ptr->port1_port_connect = readb(io_mem + offset + 10);
 		rio_detail_ptr->first_slot_num = readb(io_mem + offset + 11);
 		rio_detail_ptr->status = readb(io_mem + offset + 12);
 		rio_detail_ptr->wpindex = readb(io_mem + offset + 13);
 		rio_detail_ptr->chassis_num = readb(io_mem + offset + 14);
-//		debug("rio_node_id: %x\nbbar: %x\nrio_type: %x\nowner_id: %x\nport0_node: %x\nport0_port: %x\nport1_node: %x\nport1_port: %x\nfirst_slot_num: %x\nstatus: %x\n", rio_detail_ptr->rio_node_id, rio_detail_ptr->bbar, rio_detail_ptr->rio_type, rio_detail_ptr->owner_id, rio_detail_ptr->port0_node_connect, rio_detail_ptr->port0_port_connect, rio_detail_ptr->port1_node_connect, rio_detail_ptr->port1_port_connect, rio_detail_ptr->first_slot_num, rio_detail_ptr->status);
+//		debug("rio_analde_id: %x\nbbar: %x\nrio_type: %x\analwner_id: %x\nport0_analde: %x\nport0_port: %x\nport1_analde: %x\nport1_port: %x\nfirst_slot_num: %x\nstatus: %x\n", rio_detail_ptr->rio_analde_id, rio_detail_ptr->bbar, rio_detail_ptr->rio_type, rio_detail_ptr->owner_id, rio_detail_ptr->port0_analde_connect, rio_detail_ptr->port0_port_connect, rio_detail_ptr->port1_analde_connect, rio_detail_ptr->port1_port_connect, rio_detail_ptr->first_slot_num, rio_detail_ptr->status);
 		//create linked list of chassis
 		if (rio_detail_ptr->rio_type == 4 || rio_detail_ptr->rio_type == 5)
 			list_add(&rio_detail_ptr->rio_detail_list, &rio_vg_head);
@@ -431,7 +431,7 @@ static int __init ebda_rio_table(void)
 		else if (rio_detail_ptr->rio_type == 6 || rio_detail_ptr->rio_type == 7)
 			list_add(&rio_detail_ptr->rio_detail_list, &rio_lo_head);
 		else
-			// not in my concern
+			// analt in my concern
 			kfree(rio_detail_ptr);
 		offset += 15;
 	}
@@ -463,7 +463,7 @@ static int __init combine_wpg_for_chassis(void)
 		if (!opt_rio_ptr) {
 			opt_rio_ptr = kzalloc(sizeof(struct opt_rio), GFP_KERNEL);
 			if (!opt_rio_ptr)
-				return -ENOMEM;
+				return -EANALMEM;
 			opt_rio_ptr->rio_type = rio_detail_ptr->rio_type;
 			opt_rio_ptr->chassis_num = rio_detail_ptr->chassis_num;
 			opt_rio_ptr->first_slot_num = rio_detail_ptr->first_slot_num;
@@ -501,7 +501,7 @@ static int combine_wpg_for_expansion(void)
 		if (!opt_rio_lo_ptr) {
 			opt_rio_lo_ptr = kzalloc(sizeof(struct opt_rio_lo), GFP_KERNEL);
 			if (!opt_rio_lo_ptr)
-				return -ENOMEM;
+				return -EANALMEM;
 			opt_rio_lo_ptr->rio_type = rio_detail_ptr->rio_type;
 			opt_rio_lo_ptr->chassis_num = rio_detail_ptr->chassis_num;
 			opt_rio_lo_ptr->first_slot_num = rio_detail_ptr->first_slot_num;
@@ -519,7 +519,7 @@ static int combine_wpg_for_expansion(void)
 }
 
 
-/* Since we don't know the max slot number per each chassis, hence go
+/* Since we don't kanalw the max slot number per each chassis, hence go
  * through the list of all chassis to find out the range
  * Arguments: slot_num, 1st slot number of the chassis we think we are on,
  * var (0 = chassis, 1 = expansion box)
@@ -533,14 +533,14 @@ static int first_slot_num(u8 slot_num, u8 first_slot, u8 var)
 	if (!var) {
 		list_for_each_entry(opt_vg_ptr, &opt_vg_head, opt_rio_list) {
 			if ((first_slot < opt_vg_ptr->first_slot_num) && (slot_num >= opt_vg_ptr->first_slot_num)) {
-				rc = -ENODEV;
+				rc = -EANALDEV;
 				break;
 			}
 		}
 	} else {
 		list_for_each_entry(opt_lo_ptr, &opt_lo_head, opt_rio_lo_list) {
 			if ((first_slot < opt_lo_ptr->first_slot_num) && (slot_num >= opt_lo_ptr->first_slot_num)) {
-				rc = -ENODEV;
+				rc = -EANALDEV;
 				break;
 			}
 		}
@@ -573,7 +573,7 @@ static struct opt_rio *find_chassis_num(u8 slot_num)
 }
 
 /* This routine will find out how many slots are in the chassis, so that
- * the slot numbers for rxe100 would start from 1, and not from 7, or 6 etc
+ * the slot numbers for rxe100 would start from 1, and analt from 7, or 6 etc
  */
 static u8 calculate_first_slot(u8 slot_num)
 {
@@ -714,13 +714,13 @@ static int __init ebda_rsrc_controller(void)
 		/* init hpc structure */
 		hpc_ptr = alloc_ebda_hpc(slot_num, bus_num);
 		if (!hpc_ptr) {
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		hpc_ptr->ctlr_id = ctlr_id;
 		hpc_ptr->ctlr_relative_id = ctlr;
 		hpc_ptr->slot_count = slot_num;
 		hpc_ptr->bus_count = bus_num;
-		debug("now enter ctlr data structure ---\n");
+		debug("analw enter ctlr data structure ---\n");
 		debug("ctlr id: %x\n", ctlr_id);
 		debug("ctlr_relative_id: %x\n", hpc_ptr->ctlr_relative_id);
 		debug("count of slots controlled by this ctlr: %x\n", slot_num);
@@ -740,13 +740,13 @@ static int __init ebda_rsrc_controller(void)
 			if (!bus_info_ptr2) {
 				bus_info_ptr1 = kzalloc(sizeof(struct bus_info), GFP_KERNEL);
 				if (!bus_info_ptr1) {
-					rc = -ENOMEM;
-					goto error_no_slot;
+					rc = -EANALMEM;
+					goto error_anal_slot;
 				}
 				bus_info_ptr1->slot_min = slot_ptr->slot_num;
 				bus_info_ptr1->slot_max = slot_ptr->slot_num;
 				bus_info_ptr1->slot_count += 1;
-				bus_info_ptr1->busno = slot_ptr->slot_bus_num;
+				bus_info_ptr1->busanal = slot_ptr->slot_bus_num;
 				bus_info_ptr1->index = bus_index++;
 				bus_info_ptr1->current_speed = 0xff;
 				bus_info_ptr1->current_bus_mode = 0xff;
@@ -811,8 +811,8 @@ static int __init ebda_rsrc_controller(void)
 				if (!request_region(hpc_ptr->u.isa_ctlr.io_start,
 						     (hpc_ptr->u.isa_ctlr.io_end - hpc_ptr->u.isa_ctlr.io_start + 1),
 						     "ibmphp")) {
-					rc = -ENODEV;
-					goto error_no_slot;
+					rc = -EANALDEV;
+					goto error_anal_slot;
 				}
 				hpc_ptr->irq = readb(io_mem + addr + 4);
 				addr += 5;
@@ -826,8 +826,8 @@ static int __init ebda_rsrc_controller(void)
 				addr += 6;
 				break;
 			default:
-				rc = -ENODEV;
-				goto error_no_slot;
+				rc = -EANALDEV;
+				goto error_anal_slot;
 		}
 
 		//reorganize chassis' linked list
@@ -842,8 +842,8 @@ static int __init ebda_rsrc_controller(void)
 		for (index = 0; index < hpc_ptr->slot_count; index++) {
 			tmp_slot = kzalloc(sizeof(*tmp_slot), GFP_KERNEL);
 			if (!tmp_slot) {
-				rc = -ENOMEM;
-				goto error_no_slot;
+				rc = -EANALMEM;
+				goto error_anal_slot;
 			}
 
 			tmp_slot->flag = 1;
@@ -866,7 +866,7 @@ static int __init ebda_rsrc_controller(void)
 
 			bus_info_ptr1 = ibmphp_find_same_bus_num(hpc_ptr->slots[index].slot_bus_num);
 			if (!bus_info_ptr1) {
-				rc = -ENODEV;
+				rc = -EANALDEV;
 				goto error;
 			}
 			tmp_slot->bus_on = bus_info_ptr1;
@@ -880,7 +880,7 @@ static int __init ebda_rsrc_controller(void)
 			if (rc)
 				goto error;
 
-			rc = ibmphp_init_devno(&tmp_slot);
+			rc = ibmphp_init_devanal(&tmp_slot);
 			if (rc)
 				goto error;
 			tmp_slot->hotplug_slot.ops = &ibmphp_hotplug_slot_ops;
@@ -907,7 +907,7 @@ static int __init ebda_rsrc_controller(void)
 
 error:
 	kfree(tmp_slot);
-error_no_slot:
+error_anal_slot:
 	free_ebda_hpc(hpc_ptr);
 	return rc;
 }
@@ -924,7 +924,7 @@ static int __init ebda_rsrc_rsrc(void)
 	struct ebda_pci_rsrc *rsrc_ptr;
 
 	addr = rsrc_list_ptr->phys_addr;
-	debug("now entering rsrc land\n");
+	debug("analw entering rsrc land\n");
 	debug("offset of rsrc: %x\n", rsrc_list_ptr->phys_addr);
 
 	for (rsrc = 0; rsrc < rsrc_list_ptr->num_entries; rsrc++) {
@@ -937,7 +937,7 @@ static int __init ebda_rsrc_rsrc(void)
 			rsrc_ptr = alloc_ebda_pci_rsrc();
 			if (!rsrc_ptr) {
 				iounmap(io_mem);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			rsrc_ptr->rsrc_type = type;
 
@@ -958,7 +958,7 @@ static int __init ebda_rsrc_rsrc(void)
 			rsrc_ptr = alloc_ebda_pci_rsrc();
 			if (!rsrc_ptr) {
 				iounmap(io_mem);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			rsrc_ptr->rsrc_type = type;
 
@@ -1008,7 +1008,7 @@ struct bus_info *ibmphp_find_same_bus_num(u32 num)
 	struct bus_info *ptr;
 
 	list_for_each_entry(ptr, &bus_info_head, bus_info_list) {
-		if (ptr->busno == num)
+		if (ptr->busanal == num)
 			 return ptr;
 	}
 	return NULL;
@@ -1022,10 +1022,10 @@ int ibmphp_get_bus_index(u8 num)
 	struct bus_info *ptr;
 
 	list_for_each_entry(ptr, &bus_info_head, bus_info_list) {
-		if (ptr->busno == num)
+		if (ptr->busanal == num)
 			return ptr->index;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 void ibmphp_free_bus_info_queue(void)
@@ -1114,5 +1114,5 @@ static int ibmphp_probe(struct pci_dev *dev, const struct pci_device_id *ids)
 			}
 		}
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }

@@ -159,7 +159,7 @@ static int sfctemp_convert(struct sfctemp *sfctemp, long *val)
 
 	mutex_lock(&sfctemp->lock);
 	if (!sfctemp->enabled) {
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		goto out;
 	}
 
@@ -260,7 +260,7 @@ static int sfctemp_probe(struct platform_device *pdev)
 
 	sfctemp = devm_kzalloc(dev, sizeof(*sfctemp), GFP_KERNEL);
 	if (!sfctemp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, sfctemp);
 	mutex_init(&sfctemp->lock);

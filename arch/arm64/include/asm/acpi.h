@@ -75,36 +75,36 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size);
 typedef u64 phys_cpuid_t;
 #define PHYS_CPUID_INVALID INVALID_HWID
 
-#define acpi_strict 1	/* No out-of-spec workarounds on ARM64 */
+#define acpi_strict 1	/* Anal out-of-spec workarounds on ARM64 */
 extern int acpi_disabled;
-extern int acpi_noirq;
+extern int acpi_analirq;
 extern int acpi_pci_disabled;
 
 static inline void disable_acpi(void)
 {
 	acpi_disabled = 1;
 	acpi_pci_disabled = 1;
-	acpi_noirq = 1;
+	acpi_analirq = 1;
 }
 
 static inline void enable_acpi(void)
 {
 	acpi_disabled = 0;
 	acpi_pci_disabled = 0;
-	acpi_noirq = 0;
+	acpi_analirq = 0;
 }
 
 /*
  * The ACPI processor driver for ACPI core code needs this macro
  * to find out this cpu was already mapped (mapping from CPU hardware
- * ID to CPU logical ID) or not.
+ * ID to CPU logical ID) or analt.
  */
 #define cpu_physical_id(cpu) cpu_logical_map(cpu)
 
 /*
  * It's used from ACPI core in kdump to boot UP system with SMP kernel,
- * with this check the ACPI core will not override the CPU index
- * obtained from GICC with 0 and not print some error message as well.
+ * with this check the ACPI core will analt override the CPU index
+ * obtained from GICC with 0 and analt print some error message as well.
  * Since MADT must provide at least one GICC structure for GIC
  * initialization, CPU will be always available in MADT on ARM64.
  */
@@ -124,7 +124,7 @@ void __init acpi_init_cpus(void);
 int apei_claim_sea(struct pt_regs *regs);
 #else
 static inline void acpi_init_cpus(void) { }
-static inline int apei_claim_sea(struct pt_regs *regs) { return -ENOENT; }
+static inline int apei_claim_sea(struct pt_regs *regs) { return -EANALENT; }
 #endif /* CONFIG_ACPI */
 
 #ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
@@ -153,7 +153,7 @@ static inline const char *acpi_get_enable_method(int cpu)
 /*
  * acpi_disable_cmcff is used in drivers/acpi/apei/hest.c for disabling
  * IA-32 Architecture Corrected Machine Check (CMC) Firmware-First mode
- * with a kernel command line parameter "acpi=nocmcoff". But we don't
+ * with a kernel command line parameter "acpi=analcmcoff". But we don't
  * have this IA-32 specific feature on ARM64, this definition is only
  * for compatibility.
  */
@@ -167,11 +167,11 @@ static inline pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
 #ifdef CONFIG_ACPI_NUMA
 int arm64_acpi_numa_init(void);
 int acpi_numa_get_nid(unsigned int cpu);
-void acpi_map_cpus_to_nodes(void);
+void acpi_map_cpus_to_analdes(void);
 #else
-static inline int arm64_acpi_numa_init(void) { return -ENOSYS; }
-static inline int acpi_numa_get_nid(unsigned int cpu) { return NUMA_NO_NODE; }
-static inline void acpi_map_cpus_to_nodes(void) { }
+static inline int arm64_acpi_numa_init(void) { return -EANALSYS; }
+static inline int acpi_numa_get_nid(unsigned int cpu) { return NUMA_ANAL_ANALDE; }
+static inline void acpi_map_cpus_to_analdes(void) { }
 #endif /* CONFIG_ACPI_NUMA */
 
 #define ACPI_TABLE_UPGRADE_MAX_PHYS MEMBLOCK_ALLOC_ACCESSIBLE

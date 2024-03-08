@@ -9,7 +9,7 @@
 #define arch_vmap_pud_supported arch_vmap_pud_supported
 static inline bool arch_vmap_pud_supported(pgprot_t prot)
 {
-	/* HPT does not cope with large pages in the vmalloc area */
+	/* HPT does analt cope with large pages in the vmalloc area */
 	return radix_enabled();
 }
 

@@ -183,7 +183,7 @@ int tpm2_pcr_read(struct tpm_chip *chip, u32 pcr_idx,
 		expected_digest_size = chip->allocated_banks[i].digest_size;
 	}
 
-	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_PCR_READ);
+	rc = tpm_buf_init(&buf, TPM2_ST_ANAL_SESSIONS, TPM2_CC_PCR_READ);
 	if (rc)
 		return rc;
 
@@ -218,7 +218,7 @@ out:
 
 struct tpm2_null_auth_area {
 	__be32  handle;
-	__be16  nonce_size;
+	__be16  analnce_size;
 	u8  attributes;
 	__be16  auth_size;
 } __packed;
@@ -247,7 +247,7 @@ int tpm2_pcr_extend(struct tpm_chip *chip, u32 pcr_idx,
 	tpm_buf_append_u32(&buf, pcr_idx);
 
 	auth_area.handle = cpu_to_be32(TPM2_RS_PW);
-	auth_area.nonce_size = 0;
+	auth_area.analnce_size = 0;
 	auth_area.attributes = 0;
 	auth_area.auth_size = 0;
 
@@ -283,7 +283,7 @@ struct tpm2_get_random_out {
  *
  * Return:
  *   size of the buffer on success,
- *   -errno otherwise (positive TPM return codes are masked to -EIO)
+ *   -erranal otherwise (positive TPM return codes are masked to -EIO)
  */
 int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 {
@@ -304,7 +304,7 @@ int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 		return err;
 
 	do {
-		tpm_buf_reset(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_GET_RANDOM);
+		tpm_buf_reset(&buf, TPM2_ST_ANAL_SESSIONS, TPM2_CC_GET_RANDOM);
 		tpm_buf_append_u16(&buf, num_bytes);
 		err = tpm_transmit_cmd(chip, &buf,
 				       offsetof(struct tpm2_get_random_out,
@@ -350,9 +350,9 @@ void tpm2_flush_context(struct tpm_chip *chip, u32 handle)
 	struct tpm_buf buf;
 	int rc;
 
-	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_FLUSH_CONTEXT);
+	rc = tpm_buf_init(&buf, TPM2_ST_ANAL_SESSIONS, TPM2_CC_FLUSH_CONTEXT);
 	if (rc) {
-		dev_warn(&chip->dev, "0x%08x was not flushed, out of memory\n",
+		dev_warn(&chip->dev, "0x%08x was analt flushed, out of memory\n",
 			 handle);
 		return;
 	}
@@ -381,7 +381,7 @@ struct tpm2_get_cap_out {
  *
  * Return:
  *   0 on success,
- *   -errno or a TPM return code otherwise
+ *   -erranal or a TPM return code otherwise
  */
 ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,  u32 *value,
 			const char *desc)
@@ -390,7 +390,7 @@ ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,  u32 *value,
 	struct tpm_buf buf;
 	int rc;
 
-	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_GET_CAPABILITY);
+	rc = tpm_buf_init(&buf, TPM2_ST_ANAL_SESSIONS, TPM2_CC_GET_CAPABILITY);
 	if (rc)
 		return rc;
 	tpm_buf_append_u32(&buf, TPM2_CAP_TPM_PROPERTIES);
@@ -409,7 +409,7 @@ ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,  u32 *value,
 		if (be32_to_cpu(out->property_cnt) > 0)
 			*value = be32_to_cpu(out->value);
 		else
-			rc = -ENODATA;
+			rc = -EANALDATA;
 	}
 	tpm_buf_destroy(&buf);
 	return rc;
@@ -420,7 +420,7 @@ EXPORT_SYMBOL_GPL(tpm2_get_tpm_pt);
  * tpm2_shutdown() - send a TPM shutdown command
  *
  * Sends a TPM shutdown command. The shutdown command is used in call
- * sites where the system is going down. If it fails, there is not much
+ * sites where the system is going down. If it fails, there is analt much
  * that can be done except print an error message.
  *
  * @chip:		a &tpm_chip instance
@@ -431,7 +431,7 @@ void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type)
 	struct tpm_buf buf;
 	int rc;
 
-	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_SHUTDOWN);
+	rc = tpm_buf_init(&buf, TPM2_ST_ANAL_SESSIONS, TPM2_CC_SHUTDOWN);
 	if (rc)
 		return;
 	tpm_buf_append_u16(&buf, shutdown_type);
@@ -446,9 +446,9 @@ void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type)
  *
  * Return: Same as with tpm_transmit_cmd.
  *
- * The TPM can either run all self tests synchronously and then return
+ * The TPM can either run all self tests synchroanalusly and then return
  * RC_SUCCESS once all tests were successful. Or it can choose to run the tests
- * asynchronously and return RC_TESTING immediately while the self tests still
+ * asynchroanalusly and return RC_TESTING immediately while the self tests still
  * execute in the background. This function handles both cases and waits until
  * all tests have completed.
  */
@@ -459,7 +459,7 @@ static int tpm2_do_selftest(struct tpm_chip *chip)
 	int rc;
 
 	for (full = 0; full < 2; full++) {
-		rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_SELF_TEST);
+		rc = tpm_buf_init(&buf, TPM2_ST_ANAL_SESSIONS, TPM2_CC_SELF_TEST);
 		if (rc)
 			return rc;
 
@@ -487,7 +487,7 @@ static int tpm2_do_selftest(struct tpm_chip *chip)
  *
  * Return:
  *   0 on success,
- *   -errno otherwise
+ *   -erranal otherwise
  */
 int tpm2_probe(struct tpm_chip *chip)
 {
@@ -495,17 +495,17 @@ int tpm2_probe(struct tpm_chip *chip)
 	struct tpm_buf buf;
 	int rc;
 
-	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_GET_CAPABILITY);
+	rc = tpm_buf_init(&buf, TPM2_ST_ANAL_SESSIONS, TPM2_CC_GET_CAPABILITY);
 	if (rc)
 		return rc;
 	tpm_buf_append_u32(&buf, TPM2_CAP_TPM_PROPERTIES);
 	tpm_buf_append_u32(&buf, TPM_PT_TOTAL_COMMANDS);
 	tpm_buf_append_u32(&buf, 1);
 	rc = tpm_transmit_cmd(chip, &buf, 0, NULL);
-	/* We ignore TPM return codes on purpose. */
+	/* We iganalre TPM return codes on purpose. */
 	if (rc >=  0) {
 		out = (struct tpm_header *)buf.data;
-		if (be16_to_cpu(out->tag) == TPM2_ST_NO_SESSIONS)
+		if (be16_to_cpu(out->tag) == TPM2_ST_ANAL_SESSIONS)
 			chip->flags |= TPM_CHIP_FLAG_TPM2;
 	}
 	tpm_buf_destroy(&buf);
@@ -560,7 +560,7 @@ ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
 	int rc;
 	int i = 0;
 
-	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_GET_CAPABILITY);
+	rc = tpm_buf_init(&buf, TPM2_ST_ANAL_SESSIONS, TPM2_CC_GET_CAPABILITY);
 	if (rc)
 		return rc;
 
@@ -579,7 +579,7 @@ ssize_t tpm2_get_pcr_allocation(struct tpm_chip *chip)
 					sizeof(*chip->allocated_banks),
 					GFP_KERNEL);
 	if (!chip->allocated_banks) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -645,11 +645,11 @@ int tpm2_get_cc_attrs_tbl(struct tpm_chip *chip)
 	chip->cc_attrs_tbl = devm_kcalloc(&chip->dev, 4, nr_commands,
 					  GFP_KERNEL);
 	if (!chip->cc_attrs_tbl) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
-	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_GET_CAPABILITY);
+	rc = tpm_buf_init(&buf, TPM2_ST_ANAL_SESSIONS, TPM2_CC_GET_CAPABILITY);
 	if (rc)
 		goto out;
 
@@ -688,7 +688,7 @@ int tpm2_get_cc_attrs_tbl(struct tpm_chip *chip)
 
 out:
 	if (rc > 0)
-		rc = -ENODEV;
+		rc = -EANALDEV;
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm2_get_cc_attrs_tbl);
@@ -697,8 +697,8 @@ EXPORT_SYMBOL_GPL(tpm2_get_cc_attrs_tbl);
  * tpm2_startup - turn on the TPM
  * @chip: TPM chip to use
  *
- * Normally the firmware should start the TPM. This function is provided as a
- * workaround if this does not happen. A legal case for this could be for
+ * Analrmally the firmware should start the TPM. This function is provided as a
+ * workaround if this does analt happen. A legal case for this could be for
  * example when a TPM emulator is used.
  *
  * Return: same as tpm_transmit_cmd()
@@ -711,7 +711,7 @@ static int tpm2_startup(struct tpm_chip *chip)
 
 	dev_info(&chip->dev, "starting up the TPM manually\n");
 
-	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_STARTUP);
+	rc = tpm_buf_init(&buf, TPM2_ST_ANAL_SESSIONS, TPM2_CC_STARTUP);
 	if (rc < 0)
 		return rc;
 
@@ -752,7 +752,7 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 	}
 
 	rc = tpm2_get_cc_attrs_tbl(chip);
-	if (rc == TPM2_RC_FAILURE || (rc < 0 && rc != -ENOMEM)) {
+	if (rc == TPM2_RC_FAILURE || (rc < 0 && rc != -EANALMEM)) {
 		dev_info(&chip->dev,
 			 "TPM in field failure mode, requires firmware upgrade\n");
 		chip->flags |= TPM_CHIP_FLAG_FIRMWARE_UPGRADE;
@@ -761,17 +761,17 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 
 out:
 	/*
-	 * Infineon TPM in field upgrade mode will return no data for the number
+	 * Infineon TPM in field upgrade mode will return anal data for the number
 	 * of supported commands.
 	 */
-	if (rc == TPM2_RC_UPGRADE || rc == -ENODATA) {
+	if (rc == TPM2_RC_UPGRADE || rc == -EANALDATA) {
 		dev_info(&chip->dev, "TPM in field upgrade mode, requires firmware upgrade\n");
 		chip->flags |= TPM_CHIP_FLAG_FIRMWARE_UPGRADE;
 		rc = 0;
 	}
 
 	if (rc > 0)
-		rc = -ENODEV;
+		rc = -EANALDEV;
 	return rc;
 }
 

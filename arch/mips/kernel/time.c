@@ -33,7 +33,7 @@ static DEFINE_PER_CPU(unsigned long, pcp_lpj_ref_freq);
 static unsigned long glb_lpj_ref;
 static unsigned long glb_lpj_ref_freq;
 
-static int cpufreq_callback(struct notifier_block *nb,
+static int cpufreq_callback(struct analtifier_block *nb,
 			    unsigned long val, void *data)
 {
 	struct cpufreq_freqs *freq = data;
@@ -46,7 +46,7 @@ static int cpufreq_callback(struct notifier_block *nb,
 	 * the loops delay. (Is this possible?)
 	 */
 	if (freq->flags & CPUFREQ_CONST_LOOPS)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	/* Save the initial values of the lpjes for future scaling. */
 	if (!glb_lpj_ref) {
@@ -78,19 +78,19 @@ static int cpufreq_callback(struct notifier_block *nb,
 		}
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block cpufreq_notifier = {
-	.notifier_call  = cpufreq_callback,
+static struct analtifier_block cpufreq_analtifier = {
+	.analtifier_call  = cpufreq_callback,
 };
 
-static int __init register_cpufreq_notifier(void)
+static int __init register_cpufreq_analtifier(void)
 {
-	return cpufreq_register_notifier(&cpufreq_notifier,
-					 CPUFREQ_TRANSITION_NOTIFIER);
+	return cpufreq_register_analtifier(&cpufreq_analtifier,
+					 CPUFREQ_TRANSITION_ANALTIFIER);
 }
-core_initcall(register_cpufreq_notifier);
+core_initcall(register_cpufreq_analtifier);
 
 #endif /* CONFIG_CPU_FREQ */
 

@@ -74,7 +74,7 @@ static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
 	 */
 	skb = genlmsg_new(size, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!info) {
 		int seq = this_cpu_inc_return(taskstats_seqnum) - 1;
@@ -156,18 +156,18 @@ static void send_cpu_listeners(struct sk_buff *skb,
 
 static void exe_add_tsk(struct taskstats *stats, struct task_struct *tsk)
 {
-	/* No idea if I'm allowed to access that here, now. */
+	/* Anal idea if I'm allowed to access that here, analw. */
 	struct file *exe_file = get_task_exe_file(tsk);
 
 	if (exe_file) {
 		/* Following cp_new_stat64() in stat.c . */
 		stats->ac_exe_dev =
-			huge_encode_dev(exe_file->f_inode->i_sb->s_dev);
-		stats->ac_exe_inode = exe_file->f_inode->i_ino;
+			huge_encode_dev(exe_file->f_ianalde->i_sb->s_dev);
+		stats->ac_exe_ianalde = exe_file->f_ianalde->i_ianal;
 		fput(exe_file);
 	} else {
 		stats->ac_exe_dev = 0;
-		stats->ac_exe_inode = 0;
+		stats->ac_exe_ianalde = 0;
 	}
 }
 
@@ -310,10 +310,10 @@ static int add_del_listener(pid_t pid, const struct cpumask *mask, int isadd)
 
 	if (isadd == REGISTER) {
 		for_each_cpu(cpu, mask) {
-			s = kmalloc_node(sizeof(struct listener),
-					GFP_KERNEL, cpu_to_node(cpu));
+			s = kmalloc_analde(sizeof(struct listener),
+					GFP_KERNEL, cpu_to_analde(cpu));
 			if (!s) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto cleanup;
 			}
 			s->pid = pid;
@@ -329,7 +329,7 @@ static int add_del_listener(pid_t pid, const struct cpumask *mask, int isadd)
 			s = NULL;
 exists:
 			up_write(&listeners->sem);
-			kfree(s); /* nop if NULL */
+			kfree(s); /* analp if NULL */
 		}
 		return 0;
 	}
@@ -366,7 +366,7 @@ static int parse(struct nlattr *na, struct cpumask *mask)
 		return -EINVAL;
 	data = kmalloc(len, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	nla_strscpy(data, na, len);
 	ret = cpulist_parse(data, mask);
 	kfree(data);
@@ -382,7 +382,7 @@ static struct taskstats *mk_reply(struct sk_buff *skb, int type, u32 pid)
 			? TASKSTATS_TYPE_AGGR_PID
 			: TASKSTATS_TYPE_AGGR_TGID;
 
-	na = nla_nest_start_noflag(skb, aggr);
+	na = nla_nest_start_analflag(skb, aggr);
 	if (!na)
 		goto err;
 
@@ -459,7 +459,7 @@ static int cmd_attr_register_cpumask(struct genl_info *info)
 	int rc;
 
 	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = parse(info->attrs[TASKSTATS_CMD_ATTR_REGISTER_CPUMASK], mask);
 	if (rc < 0)
 		goto out;
@@ -475,7 +475,7 @@ static int cmd_attr_deregister_cpumask(struct genl_info *info)
 	int rc;
 
 	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = parse(info->attrs[TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK], mask);
 	if (rc < 0)
 		goto out;
@@ -578,7 +578,7 @@ static struct taskstats *taskstats_tgid_alloc(struct task_struct *tsk)
 	if (stats || thread_group_empty(tsk))
 		return stats;
 
-	/* No problem if kmem_cache_zalloc() fails */
+	/* Anal problem if kmem_cache_zalloc() fails */
 	stats_new = kmem_cache_zalloc(taskstats_cache, GFP_KERNEL);
 
 	spin_lock_irq(&tsk->sighand->siglock);

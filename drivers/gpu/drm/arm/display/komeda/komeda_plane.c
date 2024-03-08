@@ -24,12 +24,12 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 
 	memset(dflow, 0, sizeof(*dflow));
 
-	dflow->blending_zorder = st->normalized_zpos;
+	dflow->blending_zorder = st->analrmalized_zpos;
 	if (pipe == to_kcrtc(st->crtc)->master)
 		dflow->blending_zorder -= kcrtc_st->max_slave_zorder;
 	if (dflow->blending_zorder < 0) {
 		DRM_DEBUG_ATOMIC("%s zorder:%d < max_slave_zorder: %d.\n",
-				 st->plane->name, st->normalized_zpos,
+				 st->plane->name, st->analrmalized_zpos,
 				 kcrtc_st->max_slave_zorder);
 		return -EINVAL;
 	}
@@ -65,7 +65,7 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
  * @state: the plane state object
  *
  * RETURNS:
- * Zero for success or -errno
+ * Zero for success or -erranal
  */
 static int
 komeda_plane_atomic_check(struct drm_plane *plane,
@@ -87,7 +87,7 @@ komeda_plane_atomic_check(struct drm_plane *plane,
 	crtc_st = drm_atomic_get_crtc_state(state,
 					    new_plane_state->crtc);
 	if (IS_ERR(crtc_st) || !crtc_st->enable) {
-		DRM_DEBUG_ATOMIC("Cannot update plane on a disabled CRTC.\n");
+		DRM_DEBUG_ATOMIC("Cananalt update plane on a disabled CRTC.\n");
 		return -EINVAL;
 	}
 
@@ -111,7 +111,7 @@ komeda_plane_atomic_check(struct drm_plane *plane,
 	return err;
 }
 
-/* plane doesn't represent a real HW, so there is no HW update for plane.
+/* plane doesn't represent a real HW, so there is anal HW update for plane.
  * komeda handles all the HW update in crtc->atomic_flush
  */
 static void
@@ -249,7 +249,7 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 
 	kplane = kzalloc(sizeof(*kplane), GFP_KERNEL);
 	if (!kplane)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plane = &kplane->base;
 	kplane->layer = layer;
@@ -258,7 +258,7 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 					       layer->layer_type, &n_formats);
 	if (!formats) {
 		kfree(kplane);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = drm_universal_plane_init(&kms->base, plane,
@@ -287,7 +287,7 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 		goto cleanup;
 
 	err = drm_plane_create_blend_mode_property(plane,
-			BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+			BIT(DRM_MODE_BLEND_PIXEL_ANALNE) |
 			BIT(DRM_MODE_BLEND_PREMULTI)   |
 			BIT(DRM_MODE_BLEND_COVERAGE));
 	if (err)

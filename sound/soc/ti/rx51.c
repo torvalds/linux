@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * rx51.c  --  SoC audio for Nokia RX-51
+ * rx51.c  --  SoC audio for Analkia RX-51
  *
- * Copyright (C) 2008 - 2009 Nokia Corporation
+ * Copyright (C) 2008 - 2009 Analkia Corporation
  *
  * Contact: Peter Ujfalusi <peter.ujfalusi@ti.com>
- *          Eduardo Valentin <eduardo.valentin@nokia.com>
+ *          Eduardo Valentin <eduardo.valentin@analkia.com>
  *          Jarkko Nikula <jarkko.nikula@bitmer.com>
  */
 
@@ -26,7 +26,7 @@
 enum {
 	RX51_JACK_DISABLED,
 	RX51_JACK_TVOUT,		/* tv-out with stereo output */
-	RX51_JACK_HP,			/* headphone: stereo output, no mic */
+	RX51_JACK_HP,			/* headphone: stereo output, anal mic */
 	RX51_JACK_HS,			/* headset: stereo output with mic */
 };
 
@@ -228,7 +228,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"DMic Rate 64", NULL, "DMic"},
 	{"DMic", NULL, "Mic Bias"},
 
-	{"b LINE2R", NULL, "MONO_LOUT"},
+	{"b LINE2R", NULL, "MOANAL_LOUT"},
 	{"Earphone", NULL, "b HPLOUT"},
 
 	{"LINE1L", NULL, "HS Mic"},
@@ -357,60 +357,60 @@ static struct snd_soc_card rx51_sound_card = {
 static int rx51_soc_probe(struct platform_device *pdev)
 {
 	struct rx51_audio_pdata *pdata;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct snd_soc_card *card = &rx51_sound_card;
 	int err;
 
-	if (!machine_is_nokia_rx51() && !of_machine_is_compatible("nokia,omap3-n900"))
-		return -ENODEV;
+	if (!machine_is_analkia_rx51() && !of_machine_is_compatible("analkia,omap3-n900"))
+		return -EANALDEV;
 
 	card->dev = &pdev->dev;
 
 	if (np) {
-		struct device_node *dai_node;
+		struct device_analde *dai_analde;
 
-		dai_node = of_parse_phandle(np, "nokia,cpu-dai", 0);
-		if (!dai_node) {
-			dev_err(&pdev->dev, "McBSP node is not provided\n");
+		dai_analde = of_parse_phandle(np, "analkia,cpu-dai", 0);
+		if (!dai_analde) {
+			dev_err(&pdev->dev, "McBSP analde is analt provided\n");
 			return -EINVAL;
 		}
 		rx51_dai[0].cpus->dai_name = NULL;
 		rx51_dai[0].platforms->name = NULL;
-		rx51_dai[0].cpus->of_node = dai_node;
-		rx51_dai[0].platforms->of_node = dai_node;
+		rx51_dai[0].cpus->of_analde = dai_analde;
+		rx51_dai[0].platforms->of_analde = dai_analde;
 
-		dai_node = of_parse_phandle(np, "nokia,audio-codec", 0);
-		if (!dai_node) {
-			dev_err(&pdev->dev, "Codec node is not provided\n");
+		dai_analde = of_parse_phandle(np, "analkia,audio-codec", 0);
+		if (!dai_analde) {
+			dev_err(&pdev->dev, "Codec analde is analt provided\n");
 			return -EINVAL;
 		}
 		rx51_dai[0].codecs->name = NULL;
-		rx51_dai[0].codecs->of_node = dai_node;
+		rx51_dai[0].codecs->of_analde = dai_analde;
 
-		dai_node = of_parse_phandle(np, "nokia,audio-codec", 1);
-		if (!dai_node) {
-			dev_err(&pdev->dev, "Auxiliary Codec node is not provided\n");
+		dai_analde = of_parse_phandle(np, "analkia,audio-codec", 1);
+		if (!dai_analde) {
+			dev_err(&pdev->dev, "Auxiliary Codec analde is analt provided\n");
 			return -EINVAL;
 		}
 		rx51_aux_dev[0].dlc.name = NULL;
-		rx51_aux_dev[0].dlc.of_node = dai_node;
+		rx51_aux_dev[0].dlc.of_analde = dai_analde;
 		rx51_codec_conf[0].dlc.name = NULL;
-		rx51_codec_conf[0].dlc.of_node = dai_node;
+		rx51_codec_conf[0].dlc.of_analde = dai_analde;
 
-		dai_node = of_parse_phandle(np, "nokia,headphone-amplifier", 0);
-		if (!dai_node) {
-			dev_err(&pdev->dev, "Headphone amplifier node is not provided\n");
+		dai_analde = of_parse_phandle(np, "analkia,headphone-amplifier", 0);
+		if (!dai_analde) {
+			dev_err(&pdev->dev, "Headphone amplifier analde is analt provided\n");
 			return -EINVAL;
 		}
 		rx51_aux_dev[1].dlc.name = NULL;
-		rx51_aux_dev[1].dlc.of_node = dai_node;
+		rx51_aux_dev[1].dlc.of_analde = dai_analde;
 		rx51_codec_conf[1].dlc.name = NULL;
-		rx51_codec_conf[1].dlc.of_node = dai_node;
+		rx51_codec_conf[1].dlc.of_analde = dai_analde;
 	}
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (pdata == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snd_soc_card_set_drvdata(card, pdata);
 
@@ -418,14 +418,14 @@ static int rx51_soc_probe(struct platform_device *pdev)
 						     "tvout-selection",
 						     GPIOD_OUT_LOW);
 	if (IS_ERR(pdata->tvout_selection_gpio)) {
-		dev_err(card->dev, "could not get tvout selection gpio\n");
+		dev_err(card->dev, "could analt get tvout selection gpio\n");
 		return PTR_ERR(pdata->tvout_selection_gpio);
 	}
 
 	pdata->eci_sw_gpio = devm_gpiod_get(card->dev, "eci-switch",
 					    GPIOD_OUT_HIGH);
 	if (IS_ERR(pdata->eci_sw_gpio)) {
-		dev_err(card->dev, "could not get eci switch gpio\n");
+		dev_err(card->dev, "could analt get eci switch gpio\n");
 		return PTR_ERR(pdata->eci_sw_gpio);
 	}
 
@@ -433,7 +433,7 @@ static int rx51_soc_probe(struct platform_device *pdev)
 						 "speaker-amplifier",
 						 GPIOD_OUT_LOW);
 	if (IS_ERR(pdata->speaker_amp_gpio)) {
-		dev_err(card->dev, "could not get speaker enable gpio\n");
+		dev_err(card->dev, "could analt get speaker enable gpio\n");
 		return PTR_ERR(pdata->speaker_amp_gpio);
 	}
 
@@ -448,7 +448,7 @@ static int rx51_soc_probe(struct platform_device *pdev)
 
 #if defined(CONFIG_OF)
 static const struct of_device_id rx51_audio_of_match[] = {
-	{ .compatible = "nokia,n900-audio", },
+	{ .compatible = "analkia,n900-audio", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rx51_audio_of_match);
@@ -464,7 +464,7 @@ static struct platform_driver rx51_soc_driver = {
 
 module_platform_driver(rx51_soc_driver);
 
-MODULE_AUTHOR("Nokia Corporation");
-MODULE_DESCRIPTION("ALSA SoC Nokia RX-51");
+MODULE_AUTHOR("Analkia Corporation");
+MODULE_DESCRIPTION("ALSA SoC Analkia RX-51");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:rx51-audio");

@@ -8,30 +8,30 @@
  */
 
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <sys/ioctl.h>
 
-/* if uapi header isn't installed, this might not yet exist */
+/* if uapi header isn't installed, this might analt yet exist */
 #ifndef __packed
 #define __packed __attribute__((packed))
 #endif
 #include <linux/psp-dbc.h>
 
-int get_nonce(int fd, void *nonce_out, void *signature)
+int get_analnce(int fd, void *analnce_out, void *signature)
 {
-	struct dbc_user_nonce tmp = {
+	struct dbc_user_analnce tmp = {
 		.auth_needed = !!signature,
 	};
 
-	assert(nonce_out);
+	assert(analnce_out);
 
 	if (signature)
 		memcpy(tmp.signature, signature, sizeof(tmp.signature));
 
-	if (ioctl(fd, DBCIOCNONCE, &tmp))
-		return errno;
-	memcpy(nonce_out, tmp.nonce, sizeof(tmp.nonce));
+	if (ioctl(fd, DBCIOCANALNCE, &tmp))
+		return erranal;
+	memcpy(analnce_out, tmp.analnce, sizeof(tmp.analnce));
 
 	return 0;
 }
@@ -47,7 +47,7 @@ int set_uid(int fd, __u8 *uid, __u8 *signature)
 	memcpy(tmp.signature, signature, sizeof(tmp.signature));
 
 	if (ioctl(fd, DBCIOCUID, &tmp))
-		return errno;
+		return erranal;
 	return 0;
 }
 
@@ -65,7 +65,7 @@ int process_param(int fd, int msg_index, __u8 *signature, int *data)
 	memcpy(tmp.signature, signature, sizeof(tmp.signature));
 
 	if (ioctl(fd, DBCIOCPARAM, &tmp))
-		return errno;
+		return erranal;
 
 	*data = tmp.param;
 	memcpy(signature, tmp.signature, sizeof(tmp.signature));

@@ -13,7 +13,7 @@
  *           Rearranged stuff here: SCSI-3 is included allways, support
  *           for NEC/TOSHIBA/HP commands is optional.
  *
- *   Gerd Knorr <kraxel@cs.tu-berlin.de> 
+ *   Gerd Kanalrr <kraxel@cs.tu-berlin.de> 
  *
  * --------------------------------------------------------------------------
  *
@@ -25,18 +25,18 @@
  *              Some XA-Sector tweaking, required for older drives.
  *
  *   - SONY:    Detection and support of multisession CD's.
- *              added by Thomas Quinot <thomas@cuivre.freenix.fr>
+ *              added by Thomas Quianalt <thomas@cuivre.freenix.fr>
  *
- *   - PIONEER, HITACHI, PLEXTOR, MATSHITA, TEAC, PHILIPS: known to
- *              work with SONY (SCSI3 now)  code.
+ *   - PIONEER, HITACHI, PLEXTOR, MATSHITA, TEAC, PHILIPS: kanalwn to
+ *              work with SONY (SCSI3 analw)  code.
  *
  *   - HP:      Much like SONY, but a little different... (Thomas)
  *              HP-Writers only ??? Maybe other CD-Writers work with this too ?
- *              HP 6020 writers now supported.
+ *              HP 6020 writers analw supported.
  */
 
 #include <linux/cdrom.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/bcd.h>
 #include <linux/blkdev.h>
@@ -72,8 +72,8 @@ void sr_vendor_init(Scsi_CD *cd)
 	
 	/* default */
 	cd->vendor = VENDOR_SCSI3;
-	if (cd->readcd_known)
-		/* this is true for scsi3/mmc drives - no more checks */
+	if (cd->readcd_kanalwn)
+		/* this is true for scsi3/mmc drives - anal more checks */
 		return;
 
 	if (cd->device->type == TYPE_WORM) {
@@ -101,7 +101,7 @@ void sr_vendor_init(Scsi_CD *cd)
 		   !strncmp(model, "Gluco Memory", 12)) {
 		/* The Beurer GL50 evo uses a Cygnal-manufactured CD-on-a-chip
 		   that only accepts a subset of SCSI commands.  Most of the
-		   not-implemented commands are fine to fail, but a few,
+		   analt-implemented commands are fine to fail, but a few,
 		   particularly around the MMC or Audio commands, will put the
 		   device into an unrecoverable state, so they need to be
 		   avoided at all costs.
@@ -133,7 +133,7 @@ int sr_set_blocklength(Scsi_CD *cd, int blocklength)
 
 	buffer = kmalloc(512, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #ifdef DEBUG
 	sr_printk(KERN_INFO, cd, "MODE SELECT 0x%x/%d\n", density, blocklength);
@@ -174,17 +174,17 @@ int sr_cd_check(struct cdrom_device_info *cdi)
 	unsigned long sector;
 	unsigned char *buffer;	/* the buffer for the ioctl */
 	struct packet_command cgc;
-	int rc, no_multi;
+	int rc, anal_multi;
 
 	if (cd->cdi.mask & CDC_MULTI_SESSION)
 		return 0;
 
 	buffer = kmalloc(512, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sector = 0;		/* the multisession sector offset goes here  */
-	no_multi = 0;		/* flag: the drive can't handle multisession */
+	anal_multi = 0;		/* flag: the drive can't handle multisession */
 	rc = 0;
 
 	memset(&cgc, 0, sizeof(struct packet_command));
@@ -206,13 +206,13 @@ int sr_cd_check(struct cdrom_device_info *cdi)
 		if ((buffer[0] << 8) + buffer[1] < 0x0a) {
 			sr_printk(KERN_INFO, cd, "Hmm, seems the drive "
 			   "doesn't support multisession CD's\n");
-			no_multi = 1;
+			anal_multi = 1;
 			break;
 		}
 		sector = buffer[11] + (buffer[10] << 8) +
 		    (buffer[9] << 16) + (buffer[8] << 24);
 		if (buffer[6] <= 1) {
-			/* ignore sector offsets from first track */
+			/* iganalre sector offsets from first track */
 			sector = 0;
 		}
 		break;
@@ -234,7 +234,7 @@ int sr_cd_check(struct cdrom_device_info *cdi)
 				sr_printk(KERN_INFO, cd, "Hmm, seems the cdrom "
 					  "doesn't support multisession CD's\n");
 
-				no_multi = 1;
+				anal_multi = 1;
 				break;
 			}
 			min = bcd2bin(buffer[15]);
@@ -260,7 +260,7 @@ int sr_cd_check(struct cdrom_device_info *cdi)
 			if (rc == -EINVAL) {
 				sr_printk(KERN_INFO, cd, "Hmm, seems the drive "
 					  "doesn't support multisession CD's\n");
-				no_multi = 1;
+				anal_multi = 1;
 				break;
 			}
 			if (rc != 0)
@@ -290,7 +290,7 @@ int sr_cd_check(struct cdrom_device_info *cdi)
 		}
 		if ((rc = buffer[2]) == 0) {
 			sr_printk(KERN_WARNING, cd,
-				  "No finished session\n");
+				  "Anal finished session\n");
 			break;
 		}
 		cgc.cmd[0] = READ_TOC;	/* Read TOC */
@@ -311,12 +311,12 @@ int sr_cd_check(struct cdrom_device_info *cdi)
 		break;
 
 	default:
-		/* should not happen */
+		/* should analt happen */
 		sr_printk(KERN_WARNING, cd,
-			  "unknown vendor code (%i), not initialized ?\n",
+			  "unkanalwn vendor code (%i), analt initialized ?\n",
 			  cd->vendor);
 		sector = 0;
-		no_multi = 1;
+		anal_multi = 1;
 		break;
 	}
 	cd->ms_offset = sector;
@@ -327,7 +327,7 @@ int sr_cd_check(struct cdrom_device_info *cdi)
 	if (2048 != cd->device->sector_size) {
 		sr_set_blocklength(cd, 2048);
 	}
-	if (no_multi)
+	if (anal_multi)
 		cdi->mask |= CDC_MULTI_SESSION;
 
 #ifdef DEBUG

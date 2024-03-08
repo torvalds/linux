@@ -114,7 +114,7 @@ enum ab8505_regulator_reg {
 	AB8505_REGUCTRL1VAMIC,
 	AB8505_VSMPSAREGU,
 	AB8505_VSMPSBREGU,
-	AB8505_VSAFEREGU, /* NOTE! PRCMU register */
+	AB8505_VSAFEREGU, /* ANALTE! PRCMU register */
 	AB8505_VPLLVANAREGU,
 	AB8505_EXTSUPPLYREGU,
 	AB8505_VAUX12REGU,
@@ -125,9 +125,9 @@ enum ab8505_regulator_reg {
 	AB8505_VSMPSBSEL1,
 	AB8505_VSMPSBSEL2,
 	AB8505_VSMPSBSEL3,
-	AB8505_VSAFESEL1, /* NOTE! PRCMU register */
-	AB8505_VSAFESEL2, /* NOTE! PRCMU register */
-	AB8505_VSAFESEL3, /* NOTE! PRCMU register */
+	AB8505_VSAFESEL1, /* ANALTE! PRCMU register */
+	AB8505_VSAFESEL2, /* ANALTE! PRCMU register */
+	AB8505_VSAFESEL3, /* ANALTE! PRCMU register */
 	AB8505_VAUX1SEL,
 	AB8505_VAUX2SEL,
 	AB8505_VRF1VAUX3SEL,
@@ -164,12 +164,12 @@ struct ab8500_shared_mode {
  * @update_mask: mask to enable/disable and set mode of regulator
  * @update_val: bits holding the regulator current mode
  * @update_val_idle: bits to enable the regulator in idle (low power) mode
- * @update_val_normal: bits to enable the regulator in normal (high power) mode
+ * @update_val_analrmal: bits to enable the regulator in analrmal (high power) mode
  * @mode_bank: bank with location of mode register
  * @mode_reg: mode register
  * @mode_mask: mask for setting mode
  * @mode_val_idle: mode setting for low power
- * @mode_val_normal: mode setting for normal power
+ * @mode_val_analrmal: mode setting for analrmal power
  * @voltage_bank: bank to control regulator voltage
  * @voltage_reg: register to control regulator voltage
  * @voltage_mask: mask to control regulator voltage
@@ -185,12 +185,12 @@ struct ab8500_regulator_info {
 	u8 update_mask;
 	u8 update_val;
 	u8 update_val_idle;
-	u8 update_val_normal;
+	u8 update_val_analrmal;
 	u8 mode_bank;
 	u8 mode_reg;
 	u8 mode_mask;
 	u8 mode_val_idle;
-	u8 mode_val_normal;
+	u8 mode_val_analrmal;
 	u8 voltage_bank;
 	u8 voltage_reg;
 	u8 voltage_mask;
@@ -391,7 +391,7 @@ static unsigned int ab8500_regulator_get_optimum_mode(
 	if (load_uA <= info->load_lp_uA)
 		mode = REGULATOR_MODE_IDLE;
 	else
-		mode = REGULATOR_MODE_NORMAL;
+		mode = REGULATOR_MODE_ANALRMAL;
 
 	return mode;
 }
@@ -423,14 +423,14 @@ static int ab8500_regulator_set_mode(struct regulator_dev *rdev,
 		mutex_lock(&shared_mode_mutex);
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		if (info->shared_mode)
 			lp_mode_req = false;
 
 		if (info->mode_mask)
-			val = info->mode_val_normal;
+			val = info->mode_val_analrmal;
 		else
-			val = info->update_val_normal;
+			val = info->update_val_analrmal;
 		break;
 	case REGULATOR_MODE_IDLE:
 		if (info->shared_mode) {
@@ -490,7 +490,7 @@ static unsigned int ab8500_regulator_get_mode(struct regulator_dev *rdev)
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
 	int ret;
 	u8 val;
-	u8 val_normal;
+	u8 val_analrmal;
 	u8 val_idle;
 
 	if (info == NULL) {
@@ -503,7 +503,7 @@ static unsigned int ab8500_regulator_get_mode(struct regulator_dev *rdev)
 		if (info->shared_mode->lp_mode_req)
 			return REGULATOR_MODE_IDLE;
 		else
-			return REGULATOR_MODE_NORMAL;
+			return REGULATOR_MODE_ANALRMAL;
 	}
 
 	if (info->mode_mask) {
@@ -512,17 +512,17 @@ static unsigned int ab8500_regulator_get_mode(struct regulator_dev *rdev)
 		info->mode_bank, info->mode_reg, &val);
 		val = val & info->mode_mask;
 
-		val_normal = info->mode_val_normal;
+		val_analrmal = info->mode_val_analrmal;
 		val_idle = info->mode_val_idle;
 	} else {
 		/* Mode register same as enable register */
 		val = info->update_val;
-		val_normal = info->update_val_normal;
+		val_analrmal = info->update_val_analrmal;
 		val_idle = info->update_val_idle;
 	}
 
-	if (val == val_normal)
-		ret = REGULATOR_MODE_NORMAL;
+	if (val == val_analrmal)
+		ret = REGULATOR_MODE_ANALRMAL;
 	else if (val == val_idle)
 		ret = REGULATOR_MODE_IDLE;
 	else
@@ -668,7 +668,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x03,
 		.update_val		= 0x01,
 		.update_val_idle	= 0x03,
-		.update_val_normal	= 0x01,
+		.update_val_analrmal	= 0x01,
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x1f,
 		.voltage_mask		= 0x0f,
@@ -691,7 +691,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x0c,
 		.update_val		= 0x04,
 		.update_val_idle	= 0x0c,
-		.update_val_normal	= 0x04,
+		.update_val_analrmal	= 0x04,
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x20,
 		.voltage_mask		= 0x0f,
@@ -714,7 +714,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x03,
 		.update_val		= 0x01,
 		.update_val_idle	= 0x03,
-		.update_val_normal	= 0x01,
+		.update_val_analrmal	= 0x01,
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x21,
 		.voltage_mask		= 0x07,
@@ -736,7 +736,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x44,
 		.update_val		= 0x44,
 		.update_val_idle	= 0x44,
-		.update_val_normal	= 0x04,
+		.update_val_analrmal	= 0x04,
 		.voltage_bank		= 0x03,
 		.voltage_reg		= 0x80,
 		.voltage_mask		= 0x38,
@@ -764,7 +764,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x82,
 		.update_val		= 0x02,
 		.update_val_idle	= 0x82,
-		.update_val_normal	= 0x02,
+		.update_val_analrmal	= 0x02,
 	},
 	[AB8500_LDO_AUDIO] = {
 		.desc = {
@@ -832,7 +832,7 @@ static struct ab8500_regulator_info
 	},
 
 	/*
-	 * Regulators with fixed voltage and normal/idle modes
+	 * Regulators with fixed voltage and analrmal/idle modes
 	 */
 	[AB8500_LDO_ANA] = {
 		.desc = {
@@ -851,7 +851,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x0c,
 		.update_val		= 0x04,
 		.update_val_idle	= 0x0c,
-		.update_val_normal	= 0x04,
+		.update_val_analrmal	= 0x04,
 	},
 };
 
@@ -880,7 +880,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x03,
 		.update_val		= 0x01,
 		.update_val_idle	= 0x03,
-		.update_val_normal	= 0x01,
+		.update_val_analrmal	= 0x01,
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x1f,
 		.voltage_mask		= 0x0f,
@@ -901,7 +901,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x0c,
 		.update_val		= 0x04,
 		.update_val_idle	= 0x0c,
-		.update_val_normal	= 0x04,
+		.update_val_analrmal	= 0x04,
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x20,
 		.voltage_mask		= 0x0f,
@@ -922,7 +922,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x03,
 		.update_val		= 0x01,
 		.update_val_idle	= 0x03,
-		.update_val_normal	= 0x01,
+		.update_val_analrmal	= 0x01,
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x21,
 		.voltage_mask		= 0x07,
@@ -944,7 +944,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x03,
 		.update_val		= 0x01,
 		.update_val_idle	= 0x03,
-		.update_val_normal	= 0x01,
+		.update_val_analrmal	= 0x01,
 		/* values for Vaux4SEL register */
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x2f,
@@ -967,7 +967,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x18,
 		.update_val		= 0x10,
 		.update_val_idle	= 0x18,
-		.update_val_normal	= 0x10,
+		.update_val_analrmal	= 0x10,
 		.voltage_bank		= 0x01,
 		.voltage_reg		= 0x55,
 		.voltage_mask		= 0x07,
@@ -989,7 +989,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x18,
 		.update_val		= 0x10,
 		.update_val_idle	= 0x18,
-		.update_val_normal	= 0x10,
+		.update_val_analrmal	= 0x10,
 		.voltage_bank		= 0x01,
 		.voltage_reg		= 0x56,
 		.voltage_mask		= 0x07,
@@ -1010,7 +1010,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x44,
 		.update_val		= 0x04,
 		.update_val_idle	= 0x44,
-		.update_val_normal	= 0x04,
+		.update_val_analrmal	= 0x04,
 		.voltage_bank		= 0x03,
 		.voltage_reg		= 0x80,
 		.voltage_mask		= 0x38,
@@ -1038,7 +1038,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x82,
 		.update_val		= 0x02,
 		.update_val_idle	= 0x82,
-		.update_val_normal	= 0x02,
+		.update_val_analrmal	= 0x02,
 	},
 	[AB8505_LDO_AUDIO] = {
 		.desc = {
@@ -1077,7 +1077,7 @@ static struct ab8500_regulator_info
 		.mode_reg		= 0x54,
 		.mode_mask		= 0x04,
 		.mode_val_idle		= 0x04,
-		.mode_val_normal	= 0x00,
+		.mode_val_analrmal	= 0x00,
 	},
 	[AB8505_LDO_ANAMIC2] = {
 		.desc = {
@@ -1098,7 +1098,7 @@ static struct ab8500_regulator_info
 		.mode_reg		= 0x54,
 		.mode_mask		= 0x04,
 		.mode_val_idle		= 0x04,
-		.mode_val_normal	= 0x00,
+		.mode_val_analrmal	= 0x00,
 	},
 	[AB8505_LDO_AUX8] = {
 		.desc = {
@@ -1116,7 +1116,7 @@ static struct ab8500_regulator_info
 		.update_val		= 0x04,
 	},
 	/*
-	 * Regulators with fixed voltage and normal/idle modes
+	 * Regulators with fixed voltage and analrmal/idle modes
 	 */
 	[AB8505_LDO_ANA] = {
 		.desc = {
@@ -1134,7 +1134,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x0c,
 		.update_val		= 0x04,
 		.update_val_idle	= 0x0c,
-		.update_val_normal	= 0x04,
+		.update_val_analrmal	= 0x04,
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x29,
 		.voltage_mask		= 0x7,
@@ -1274,7 +1274,7 @@ static struct ab8500_reg_init ab8500_reg_init[] = {
 	 */
 	REG_INIT(AB8500_REGUCTRL1VAMIC,		0x03, 0x84, 0x03),
 	/*
-	 * 0x03, VpllRegu (NOTE! PRCMU register bits)
+	 * 0x03, VpllRegu (ANALTE! PRCMU register bits)
 	 * 0x0c, VanaRegu
 	 */
 	REG_INIT(AB8500_VPLLVANAREGU,		0x04, 0x06, 0x0f),
@@ -1484,7 +1484,7 @@ static struct ab8500_reg_init ab8505_reg_init[] = {
 	 */
 	REG_INIT(AB8505_VSAFEREGU,		0x04, 0x05, 0x3f),
 	/*
-	 * 0x03, VpllRegu (NOTE! PRCMU register bits)
+	 * 0x03, VpllRegu (ANALTE! PRCMU register bits)
 	 * 0x0c, VanaRegu
 	 */
 	REG_INIT(AB8505_VPLLVANAREGU,		0x04, 0x06, 0x0f),
@@ -1662,7 +1662,7 @@ static void abx500_get_regulator_info(struct ab8500 *ab8500)
 
 static int ab8500_regulator_register(struct platform_device *pdev,
 				     struct regulator_init_data *init_data,
-				     int id, struct device_node *np)
+				     int id, struct device_analde *np)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct ab8500_regulator_info *info = NULL;
@@ -1676,7 +1676,7 @@ static int ab8500_regulator_register(struct platform_device *pdev,
 	config.dev = &pdev->dev;
 	config.init_data = init_data;
 	config.driver_data = info;
-	config.of_node = np;
+	config.of_analde = np;
 
 	/* fix for hardware before ab8500v2.0 */
 	if (is_ab8500_1p1_or_earlier(ab8500)) {
@@ -1702,7 +1702,7 @@ static int ab8500_regulator_register(struct platform_device *pdev,
 static int ab8500_regulator_probe(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct of_regulator_match *match;
 	int err, i;
 
@@ -1725,7 +1725,7 @@ static int ab8500_regulator_probe(struct platform_device *pdev)
 	match = abx500_regulator.match;
 	for (i = 0; i < abx500_regulator.info_size; i++) {
 		err = ab8500_regulator_register(pdev, match[i].init_data, i,
-						match[i].of_node);
+						match[i].of_analde);
 		if (err)
 			return err;
 	}
@@ -1737,7 +1737,7 @@ static struct platform_driver ab8500_regulator_driver = {
 	.probe = ab8500_regulator_probe,
 	.driver         = {
 		.name   = "ab8500-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

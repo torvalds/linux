@@ -3,7 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -30,17 +30,17 @@ int enic_is_valid_pp_vf(struct enic *enic, int vf, int *err)
 				goto err_out;
 			}
 		} else {
-			*err = -EOPNOTSUPP;
+			*err = -EOPANALTSUPP;
 			goto err_out;
 		}
 #else
-		*err = -EOPNOTSUPP;
+		*err = -EOPANALTSUPP;
 		goto err_out;
 #endif
 	}
 
 	if (vf == PORT_SELF_VF && !enic_is_dynamic(enic)) {
-		*err = -EOPNOTSUPP;
+		*err = -EOPANALTSUPP;
 		goto err_out;
 	}
 
@@ -73,7 +73,7 @@ static int enic_set_port_profile(struct enic *enic, int vf)
 	vp = vic_provinfo_alloc(GFP_KERNEL, oui,
 		VIC_PROVINFO_GENERIC_TYPE);
 	if (!vp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	VIC_PROVINFO_ADD_TLV(vp,
 		VIC_GENERIC_PROV_TLV_PORT_PROFILE_NAME_STR,
@@ -84,7 +84,7 @@ static int enic_set_port_profile(struct enic *enic, int vf)
 	} else if (vf == PORT_SELF_VF) {
 		client_mac = netdev->dev_addr;
 	} else {
-		netdev_err(netdev, "Cannot find pp mac address "
+		netdev_err(netdev, "Cananalt find pp mac address "
 			"for VF %d\n", vf);
 		err = -EINVAL;
 		goto add_tlv_failure;
@@ -119,7 +119,7 @@ static int enic_set_port_profile(struct enic *enic, int vf)
 
 	ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic, vnic_dev_init_prov2, (u8 *)vp,
 		vic_provinfo_size(vp));
-	err = enic_dev_status_to_errno(err);
+	err = enic_dev_status_to_erranal(err);
 
 add_tlv_failure:
 	vic_provinfo_free(vp);
@@ -133,7 +133,7 @@ static int enic_unset_port_profile(struct enic *enic, int vf)
 
 	ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic, vnic_dev_deinit);
 	if (err)
-		return enic_dev_status_to_errno(err);
+		return enic_dev_status_to_erranal(err);
 
 	if (vf == PORT_SELF_VF)
 		enic_reset_addr_lists(enic);
@@ -174,7 +174,7 @@ static const int enic_pp_handlers_count =
 static int enic_pp_preassociate(struct enic *enic, int vf,
 	struct enic_port_profile *prev_pp, int *restore_pp)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int enic_pp_disassociate(struct enic *enic, int vf,
@@ -211,7 +211,7 @@ static int enic_pp_preassociate_rr(struct enic *enic, int vf,
 		return err;
 
 	if (pp->request != PORT_REQUEST_ASSOCIATE) {
-		/* If pre-associate is not part of an associate.
+		/* If pre-associate is analt part of an associate.
 		We always disassociate first */
 		err = enic_pp_handlers[PORT_REQUEST_DISASSOCIATE](enic, vf,
 			prev_pp, restore_pp);
@@ -227,12 +227,12 @@ static int enic_pp_preassociate_rr(struct enic *enic, int vf,
 	if (err)
 		return err;
 
-	/* If pre-associate is not part of an associate. */
+	/* If pre-associate is analt part of an associate. */
 	if (pp->request != PORT_REQUEST_ASSOCIATE) {
 		/* Enable device as standby */
 		ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic, vnic_dev_enable2,
 			active);
-		err = enic_dev_status_to_errno(err);
+		err = enic_dev_status_to_erranal(err);
 	}
 
 	return err;
@@ -271,7 +271,7 @@ static int enic_pp_associate(struct enic *enic, int vf,
 
 	/* Enable device as active */
 	ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic, vnic_dev_enable2, active);
-	err = enic_dev_status_to_errno(err);
+	err = enic_dev_status_to_erranal(err);
 	if (err)
 		return err;
 
@@ -298,7 +298,7 @@ int enic_process_set_pp_request(struct enic *enic, int vf,
 
 	if (pp->request >= enic_pp_handlers_count
 		|| !enic_pp_handlers[pp->request])
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return enic_pp_handlers[pp->request](enic, vf, prev_pp, restore_pp);
 }
@@ -338,7 +338,7 @@ int enic_process_get_pp_request(struct enic *enic, int vf,
 	case ERR_EBADSTATE:
 		*response = PORT_PROFILE_RESPONSE_BADSTATE;
 		break;
-	case ERR_ENOMEM:
+	case ERR_EANALMEM:
 		*response = PORT_PROFILE_RESPONSE_INSUFFICIENT_RESOURCES;
 		break;
 	case ERR_EINPROGRESS:

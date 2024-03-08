@@ -25,7 +25,7 @@ _b43_declare_plcp_hdr(6);
 struct b43_txhdr {
 	__le32 mac_ctl;			/* MAC TX control */
 	__le16 mac_frame_ctl;		/* Copy of the FrameControl field */
-	__le16 tx_fes_time_norm;	/* TX FES Time Normal */
+	__le16 tx_fes_time_analrm;	/* TX FES Time Analrmal */
 	__le16 phy_ctl;			/* PHY TX control */
 	__le16 phy_ctl1;		/* PHY TX control word 1 */
 	__le16 phy_ctl1_fb;		/* PHY TX control word 1 for fallback rates */
@@ -113,14 +113,14 @@ struct b43_tx_legacy_rate_phy_ctl_entry {
 #define B43_TXH_MAC_FRAMEBURST		0x00001000 /* Frameburst */
 #define B43_TXH_MAC_SENDCTS		0x00000800 /* Send CTS-to-self */
 #define B43_TXH_MAC_AMPDU		0x00000600 /* AMPDU status */
-#define  B43_TXH_MAC_AMPDU_MPDU		0x00000000 /* Regular MPDU, not an AMPDU */
+#define  B43_TXH_MAC_AMPDU_MPDU		0x00000000 /* Regular MPDU, analt an AMPDU */
 #define  B43_TXH_MAC_AMPDU_FIRST	0x00000200 /* First MPDU or AMPDU */
 #define  B43_TXH_MAC_AMPDU_INTER	0x00000400 /* Intermediate MPDU or AMPDU */
 #define  B43_TXH_MAC_AMPDU_LAST		0x00000600 /* Last (or only) MPDU of AMPDU */
 #define B43_TXH_MAC_40MHZ		0x00000100 /* Use 40 MHz bandwidth */
 #define B43_TXH_MAC_5GHZ		0x00000080 /* 5GHz band */
 #define B43_TXH_MAC_DFCS		0x00000040 /* DFCS */
-#define B43_TXH_MAC_IGNPMQ		0x00000020 /* Ignore PMQ */
+#define B43_TXH_MAC_IGNPMQ		0x00000020 /* Iganalre PMQ */
 #define B43_TXH_MAC_HWSEQ		0x00000010 /* Use Hardware Sequence Number */
 #define B43_TXH_MAC_STMSDU		0x00000008 /* Start MSDU */
 #define B43_TXH_MAC_SENDRTS		0x00000004 /* Send RTS */
@@ -218,14 +218,14 @@ struct b43_txstatus {
 	u8 supp_reason;		/* Suppression reason */
 	/* flags */
 	u8 pm_indicated;	/* PM mode indicated to AP */
-	u8 intermediate;	/* Intermediate status notification (not final) */
+	u8 intermediate;	/* Intermediate status analtification (analt final) */
 	u8 for_ampdu;		/* Status is for an AMPDU (afterburner) */
 	u8 acked;		/* Wireless ACK received */
 };
 
 /* txstatus supp_reason values */
 enum {
-	B43_TXST_SUPP_NONE,	/* Not suppressed */
+	B43_TXST_SUPP_ANALNE,	/* Analt suppressed */
 	B43_TXST_SUPP_PMQ,	/* Suppressed due to PMQ entry */
 	B43_TXST_SUPP_FLUSH,	/* Suppressed due to flush request */
 	B43_TXST_SUPP_PREV,	/* Previous fragment failed */
@@ -371,7 +371,7 @@ void b43_tx_resume(struct b43_wldev *dev);
  * We need to account for that here. */
 static inline int b43_new_kidx_api(struct b43_wldev *dev)
 {
-	/* FIXME: Not sure the change was at rev 351 */
+	/* FIXME: Analt sure the change was at rev 351 */
 	return (dev->fw.rev >= 351);
 }
 static inline u8 b43_kidx_to_fw(struct b43_wldev *dev, u8 raw_kidx)

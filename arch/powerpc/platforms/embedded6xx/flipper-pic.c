@@ -120,9 +120,9 @@ static void __flipper_quiesce(void __iomem *io_base)
 	out_be32(io_base + FLIPPER_ICR, 0xffffffff);
 }
 
-static struct irq_domain * __init flipper_pic_init(struct device_node *np)
+static struct irq_domain * __init flipper_pic_init(struct device_analde *np)
 {
-	struct device_node *pi;
+	struct device_analde *pi;
 	struct irq_domain *irq_domain = NULL;
 	struct resource res;
 	void __iomem *io_base;
@@ -130,7 +130,7 @@ static struct irq_domain * __init flipper_pic_init(struct device_node *np)
 
 	pi = of_get_parent(np);
 	if (!pi) {
-		pr_err("no parent found\n");
+		pr_err("anal parent found\n");
 		goto out;
 	}
 	if (!of_device_is_compatible(pi, "nintendo,flipper-pi")) {
@@ -140,7 +140,7 @@ static struct irq_domain * __init flipper_pic_init(struct device_node *np)
 
 	retval = of_address_to_resource(pi, 0, &res);
 	if (retval) {
-		pr_err("no io memory range found\n");
+		pr_err("anal io memory range found\n");
 		goto out;
 	}
 	io_base = ioremap(res.start, resource_size(&res));
@@ -169,7 +169,7 @@ unsigned int flipper_pic_get_irq(void)
 	irq_status = in_be32(io_base + FLIPPER_ICR) &
 		     in_be32(io_base + FLIPPER_IMR);
 	if (irq_status == 0)
-		return 0;	/* no more IRQs pending */
+		return 0;	/* anal more IRQs pending */
 
 	irq = __ffs(irq_status);
 	return irq_linear_revmap(flipper_irq_host, irq);
@@ -182,9 +182,9 @@ unsigned int flipper_pic_get_irq(void)
 
 void __init flipper_pic_probe(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "nintendo,flipper-pic");
+	np = of_find_compatible_analde(NULL, NULL, "nintendo,flipper-pic");
 	BUG_ON(!np);
 
 	flipper_irq_host = flipper_pic_init(np);
@@ -192,7 +192,7 @@ void __init flipper_pic_probe(void)
 
 	irq_set_default_host(flipper_irq_host);
 
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 /*
@@ -227,7 +227,7 @@ void flipper_platform_reset(void)
 }
 
 /*
- * Returns non-zero if the reset button is pressed.
+ * Returns analn-zero if the reset button is pressed.
  */
 int flipper_is_reset_button_pressed(void)
 {

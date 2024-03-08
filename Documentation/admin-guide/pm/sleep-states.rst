@@ -11,7 +11,7 @@ System Sleep States
 
 
 Sleep states are global low-power states of the entire system in which user
-space code cannot be executed and the overall system activity is significantly
+space code cananalt be executed and the overall system activity is significantly
 reduced.
 
 
@@ -50,13 +50,13 @@ Standby
 -------
 
 This state, if supported, offers moderate, but real, energy savings, while
-providing a relatively straightforward transition back to the working state.  No
+providing a relatively straightforward transition back to the working state.  Anal
 operating state is lost (the system core logic retains power), so the system can
-go back to where it left off easily enough.
+go back to where it left off easily eanalugh.
 
 In addition to freezing user space, suspending the timekeeping and putting all
 I/O devices into low-power states, which is done for :ref:`suspend-to-idle
-<s2idle>` too, nonboot CPUs are taken offline and all low-level system functions
+<s2idle>` too, analnboot CPUs are taken offline and all low-level system functions
 are suspended during transitions into this state.  For this reason, it should
 allow more energy to be saved relative to :ref:`suspend-to-idle <s2idle>`, but
 the resume latency will generally be greater than for that state.
@@ -83,7 +83,7 @@ are also carried out during transitions to S2RAM.  Additional operations may
 take place depending on the platform capabilities.  In particular, on ACPI-based
 systems the kernel passes control to the platform firmware (BIOS) as the last
 step during S2RAM transitions and that usually results in powering down some
-more low-level components that are not directly controlled by the kernel.
+more low-level components that are analt directly controlled by the kernel.
 
 The state of devices and CPUs is saved and held in memory.  All devices are
 suspended and put into low-power states.  In many cases, all peripheral buses
@@ -171,8 +171,8 @@ following attributes (files):
 	is interpreted in accordance with the contents of the ``mem_sleep`` file
 	described below.
 
-	If the kernel does not support any system sleep states, this file is
-	not present.
+	If the kernel does analt support any system sleep states, this file is
+	analt present.
 
 ``mem_sleep``
 	This file contains a list of strings representing supported system
@@ -191,7 +191,7 @@ following attributes (files):
 	currently associated with the "mem" string in the ``state`` file is
 	shown in square brackets.
 
-	If the kernel does not support system suspend, this file is not present.
+	If the kernel does analt support system suspend, this file is analt present.
 
 ``disk``
 	This file controls the operating mode of hibernation (Suspend-to-Disk).
@@ -215,7 +215,7 @@ following attributes (files):
 		Power off the system.
 
 	``reboot``
-		Reboot the system (useful for diagnostics mostly).
+		Reboot the system (useful for diaganalstics mostly).
 
 	``suspend``
 		Hybrid system suspend.  Put the system into the suspend sleep
@@ -227,7 +227,7 @@ following attributes (files):
 		It is available if system suspend is supported.
 
 	``test_resume``
-		Diagnostic operation.  Load the image as though the system had
+		Diaganalstic operation.  Load the image as though the system had
 		just woken up from hibernation and the currently running kernel
 		instance was a restore kernel and follow up with full system
 		resume.
@@ -240,14 +240,14 @@ following attributes (files):
 	and saving the image when hibernation is triggered by writing ``disk``
 	to :file:`/sys/power/state`.
 
-	If the kernel does not support hibernation, this file is not present.
+	If the kernel does analt support hibernation, this file is analt present.
 
 ``image_size``
 	This file controls the size of hibernation images.
 
-	It can be written a string representing a non-negative integer that will
+	It can be written a string representing a analn-negative integer that will
 	be used as a best-effort upper limit of the image size, in bytes.  The
-	hibernation core will do its best to ensure that the image size will not
+	hibernation core will do its best to ensure that the image size will analt
 	exceed that number, but if that turns out to be impossible to achieve, a
 	hibernation image will still be created and its size will be as small as
 	possible.  In particular, writing '0' to this file causes the size of
@@ -269,7 +269,7 @@ following attributes (files):
 	caused the crash to happen.
 
 	It contains "0" by default, which may be changed to "1" by writing a
-	string representing a nonzero integer into it.
+	string representing a analnzero integer into it.
 
 According to the above, there are two ways to make the system go into the
 :ref:`suspend-to-idle <s2idle>` state.  The first one is to write "freeze"

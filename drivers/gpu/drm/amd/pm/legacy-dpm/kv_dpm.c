@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -120,7 +120,7 @@ static void sumo_take_smu_control(struct amdgpu_device *adev, bool enable)
 /* This bit selects who handles display phy powergating.
  * Clear the bit to let atom handle it.
  * Set it to let the driver handle it.
- * For now we just let atom handle it.
+ * For analw we just let atom handle it.
  */
 #if 0
 	u32 v = RREG32(mmDOUT_SCRATCH3);
@@ -553,13 +553,13 @@ static int kv_enable_smc_cac(struct amdgpu_device *adev, bool enable)
 
 	if (pi->caps_cac) {
 		if (enable) {
-			ret = amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_EnableCac);
+			ret = amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_EnableCac);
 			if (ret)
 				pi->cac_enabled = false;
 			else
 				pi->cac_enabled = true;
 		} else if (pi->cac_enabled) {
-			amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_DisableCac);
+			amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_DisableCac);
 			pi->cac_enabled = false;
 		}
 	}
@@ -748,7 +748,7 @@ static void kv_reset_am(struct amdgpu_device *adev)
 
 static int kv_freeze_sclk_dpm(struct amdgpu_device *adev, bool freeze)
 {
-	return amdgpu_kv_notify_message_to_smu(adev, freeze ?
+	return amdgpu_kv_analtify_message_to_smu(adev, freeze ?
 					PPSMC_MSG_SCLKDPM_FreezeLevel : PPSMC_MSG_SCLKDPM_UnfreezeLevel);
 }
 
@@ -760,7 +760,7 @@ static int kv_force_lowest_valid(struct amdgpu_device *adev)
 static int kv_unforce_levels(struct amdgpu_device *adev)
 {
 	if (adev->asic_type == CHIP_KABINI || adev->asic_type == CHIP_MULLINS)
-		return amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_NoForcedLevel);
+		return amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_AnalForcedLevel);
 	else
 		return kv_set_enabled_levels(adev);
 }
@@ -771,7 +771,7 @@ static int kv_update_sclk_t(struct amdgpu_device *adev)
 	u32 low_sclk_interrupt_t = 0;
 	int ret = 0;
 
-	if (pi->caps_sclk_throttle_low_notification) {
+	if (pi->caps_sclk_throttle_low_analtification) {
 		low_sclk_interrupt_t = cpu_to_be32(pi->low_sclk_interrupt_t);
 
 		ret = amdgpu_kv_copy_bytes_to_smc(adev,
@@ -1196,7 +1196,7 @@ static void kv_calculate_dfs_bypass_settings(struct amdgpu_device *adev)
 
 static int kv_enable_ulv(struct amdgpu_device *adev, bool enable)
 {
-	return amdgpu_kv_notify_message_to_smu(adev, enable ?
+	return amdgpu_kv_analtify_message_to_smu(adev, enable ?
 					PPSMC_MSG_EnableULV : PPSMC_MSG_DisableULV);
 }
 
@@ -1249,7 +1249,7 @@ static bool kv_is_internal_thermal_sensor(enum amdgpu_int_thermal_type sensor)
 	switch (sensor) {
 	case THERMAL_TYPE_KV:
 		return true;
-	case THERMAL_TYPE_NONE:
+	case THERMAL_TYPE_ANALNE:
 	case THERMAL_TYPE_EXTERNAL:
 	case THERMAL_TYPE_EXTERNAL_GPIO:
 	default:
@@ -1389,9 +1389,9 @@ static void kv_dpm_disable(struct amdgpu_device *adev)
 	kv_dpm_powergate_acp(adev, false);
 	kv_dpm_powergate_samu(adev, false);
 	if (pi->caps_vce_pg) /* power on the VCE block */
-		amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_VCEPowerON);
+		amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_VCEPowerON);
 	if (pi->caps_uvd_pg) /* power on the UVD block */
-		amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_UVDPowerON);
+		amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_UVDPowerON);
 
 	kv_enable_smc_cac(adev, false);
 	kv_enable_didt(adev, false);
@@ -1472,25 +1472,25 @@ static void kv_init_powergate_state(struct amdgpu_device *adev)
 
 static int kv_enable_uvd_dpm(struct amdgpu_device *adev, bool enable)
 {
-	return amdgpu_kv_notify_message_to_smu(adev, enable ?
+	return amdgpu_kv_analtify_message_to_smu(adev, enable ?
 					PPSMC_MSG_UVDDPM_Enable : PPSMC_MSG_UVDDPM_Disable);
 }
 
 static int kv_enable_vce_dpm(struct amdgpu_device *adev, bool enable)
 {
-	return amdgpu_kv_notify_message_to_smu(adev, enable ?
+	return amdgpu_kv_analtify_message_to_smu(adev, enable ?
 					PPSMC_MSG_VCEDPM_Enable : PPSMC_MSG_VCEDPM_Disable);
 }
 
 static int kv_enable_samu_dpm(struct amdgpu_device *adev, bool enable)
 {
-	return amdgpu_kv_notify_message_to_smu(adev, enable ?
+	return amdgpu_kv_analtify_message_to_smu(adev, enable ?
 					PPSMC_MSG_SAMUDPM_Enable : PPSMC_MSG_SAMUDPM_Disable);
 }
 
 static int kv_enable_acp_dpm(struct amdgpu_device *adev, bool enable)
 {
-	return amdgpu_kv_notify_message_to_smu(adev, enable ?
+	return amdgpu_kv_analtify_message_to_smu(adev, enable ?
 					PPSMC_MSG_ACPDPM_Enable : PPSMC_MSG_ACPDPM_Disable);
 }
 
@@ -1677,11 +1677,11 @@ static void kv_dpm_powergate_uvd(void *handle, bool gate)
 		kv_update_uvd_dpm(adev, gate);
 		if (pi->caps_uvd_pg)
 			/* power off the UVD block */
-			amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_UVDPowerOFF);
+			amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_UVDPowerOFF);
 	} else {
 		if (pi->caps_uvd_pg)
 			/* power on the UVD block */
-			amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_UVDPowerON);
+			amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_UVDPowerON);
 			/* re-init the UVD block */
 		kv_update_uvd_dpm(adev, gate);
 
@@ -1703,10 +1703,10 @@ static void kv_dpm_powergate_vce(void *handle, bool gate)
 						       AMD_PG_STATE_GATE);
 		kv_enable_vce_dpm(adev, false);
 		if (pi->caps_vce_pg) /* power off the VCE block */
-			amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_VCEPowerOFF);
+			amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_VCEPowerOFF);
 	} else {
 		if (pi->caps_vce_pg) /* power on the VCE block */
-			amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_VCEPowerON);
+			amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_VCEPowerON);
 		kv_enable_vce_dpm(adev, true);
 		/* re-init the VCE block */
 		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
@@ -1727,10 +1727,10 @@ static void kv_dpm_powergate_samu(struct amdgpu_device *adev, bool gate)
 	if (gate) {
 		kv_update_samu_dpm(adev, true);
 		if (pi->caps_samu_pg)
-			amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_SAMPowerOFF);
+			amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_SAMPowerOFF);
 	} else {
 		if (pi->caps_samu_pg)
-			amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_SAMPowerON);
+			amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_SAMPowerON);
 		kv_update_samu_dpm(adev, false);
 	}
 }
@@ -1750,10 +1750,10 @@ static void kv_dpm_powergate_acp(struct amdgpu_device *adev, bool gate)
 	if (gate) {
 		kv_update_acp_dpm(adev, true);
 		if (pi->caps_acp_pg)
-			amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_ACPPowerOFF);
+			amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_ACPPowerOFF);
 	} else {
 		if (pi->caps_acp_pg)
-			amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_ACPPowerON);
+			amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_ACPPowerON);
 		kv_update_acp_dpm(adev, false);
 	}
 }
@@ -1851,13 +1851,13 @@ static int kv_enable_nb_dpm(struct amdgpu_device *adev,
 
 	if (enable) {
 		if (pi->enable_nb_dpm && !pi->nb_dpm_enabled) {
-			ret = amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_NBDPM_Enable);
+			ret = amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_NBDPM_Enable);
 			if (ret == 0)
 				pi->nb_dpm_enabled = true;
 		}
 	} else {
 		if (pi->enable_nb_dpm && pi->nb_dpm_enabled) {
-			ret = amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_NBDPM_Disable);
+			ret = amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_NBDPM_Disable);
 			if (ret == 0)
 				pi->nb_dpm_enabled = false;
 		}
@@ -2639,20 +2639,20 @@ static void kv_patch_boot_state(struct amdgpu_device *adev,
 	ps->levels[0] = pi->boot_pl;
 }
 
-static void kv_parse_pplib_non_clock_info(struct amdgpu_device *adev,
+static void kv_parse_pplib_analn_clock_info(struct amdgpu_device *adev,
 					  struct amdgpu_ps *rps,
-					  struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info,
+					  struct _ATOM_PPLIB_ANALNCLOCK_INFO *analn_clock_info,
 					  u8 table_rev)
 {
 	struct kv_ps *ps = kv_get_ps(rps);
 
-	rps->caps = le32_to_cpu(non_clock_info->ulCapsAndSettings);
-	rps->class = le16_to_cpu(non_clock_info->usClassification);
-	rps->class2 = le16_to_cpu(non_clock_info->usClassification2);
+	rps->caps = le32_to_cpu(analn_clock_info->ulCapsAndSettings);
+	rps->class = le16_to_cpu(analn_clock_info->usClassification);
+	rps->class2 = le16_to_cpu(analn_clock_info->usClassification2);
 
-	if (ATOM_PPLIB_NONCLOCKINFO_VER1 < table_rev) {
-		rps->vclk = le32_to_cpu(non_clock_info->ulVCLK);
-		rps->dclk = le32_to_cpu(non_clock_info->ulDCLK);
+	if (ATOM_PPLIB_ANALNCLOCKINFO_VER1 < table_rev) {
+		rps->vclk = le32_to_cpu(analn_clock_info->ulVCLK);
+		rps->dclk = le32_to_cpu(analn_clock_info->ulDCLK);
 	} else {
 		rps->vclk = 0;
 		rps->dclk = 0;
@@ -2691,13 +2691,13 @@ static void kv_parse_pplib_clock_info(struct amdgpu_device *adev,
 static int kv_parse_power_table(struct amdgpu_device *adev)
 {
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
-	struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info;
+	struct _ATOM_PPLIB_ANALNCLOCK_INFO *analn_clock_info;
 	union pplib_power_state *power_state;
-	int i, j, k, non_clock_array_index, clock_array_index;
+	int i, j, k, analn_clock_array_index, clock_array_index;
 	union pplib_clock_info *clock_info;
 	struct _StateArray *state_array;
 	struct _ClockInfoArray *clock_info_array;
-	struct _NonClockInfoArray *non_clock_info_array;
+	struct _AnalnClockInfoArray *analn_clock_info_array;
 	union power_info *power_info;
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
 	u16 data_offset;
@@ -2718,25 +2718,25 @@ static int kv_parse_power_table(struct amdgpu_device *adev)
 	clock_info_array = (struct _ClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usClockInfoArrayOffset));
-	non_clock_info_array = (struct _NonClockInfoArray *)
+	analn_clock_info_array = (struct _AnalnClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
-		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
+		 le16_to_cpu(power_info->pplib.usAnalnClockInfoArrayOffset));
 
 	adev->pm.dpm.ps = kcalloc(state_array->ucNumEntries,
 				  sizeof(struct amdgpu_ps),
 				  GFP_KERNEL);
 	if (!adev->pm.dpm.ps)
-		return -ENOMEM;
+		return -EANALMEM;
 	power_state_offset = (u8 *)state_array->states;
 	for (i = 0; i < state_array->ucNumEntries; i++) {
 		u8 *idx;
 		power_state = (union pplib_power_state *)power_state_offset;
-		non_clock_array_index = power_state->v2.nonClockInfoIndex;
-		non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
-			&non_clock_info_array->nonClockInfo[non_clock_array_index];
+		analn_clock_array_index = power_state->v2.analnClockInfoIndex;
+		analn_clock_info = (struct _ATOM_PPLIB_ANALNCLOCK_INFO *)
+			&analn_clock_info_array->analnClockInfo[analn_clock_array_index];
 		ps = kzalloc(sizeof(struct kv_ps), GFP_KERNEL);
 		if (ps == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 		adev->pm.dpm.ps[i].ps_priv = ps;
 		k = 0;
 		idx = (u8 *)&power_state->v2.clockInfoIndex[0];
@@ -2754,9 +2754,9 @@ static int kv_parse_power_table(struct amdgpu_device *adev)
 						  clock_info);
 			k++;
 		}
-		kv_parse_pplib_non_clock_info(adev, &adev->pm.dpm.ps[i],
-					      non_clock_info,
-					      non_clock_info_array->ucEntrySize);
+		kv_parse_pplib_analn_clock_info(adev, &adev->pm.dpm.ps[i],
+					      analn_clock_info,
+					      analn_clock_info_array->ucEntrySize);
 		power_state_offset += 2 + power_state->v2.ucNumDPMLevels;
 	}
 	adev->pm.dpm.num_ps = state_array->ucNumEntries;
@@ -2783,7 +2783,7 @@ static int kv_dpm_init(struct amdgpu_device *adev)
 
 	pi = kzalloc(sizeof(struct kv_power_info), GFP_KERNEL);
 	if (pi == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	adev->pm.dpm.priv = pi;
 
 	ret = amdgpu_get_platform_caps(adev);
@@ -2823,7 +2823,7 @@ static int kv_dpm_init(struct amdgpu_device *adev)
 	else
 		pi->bapm_enable = true;
 	pi->voltage_drop_t = 0;
-	pi->caps_sclk_throttle_low_notification = false;
+	pi->caps_sclk_throttle_low_analtification = false;
 	pi->caps_fps = false; /* true? */
 	pi->caps_uvd_pg = (adev->pg_flags & AMD_PG_SUPPORT_UVD) ? true : false;
 	pi->caps_uvd_dpm = true;
@@ -2965,7 +2965,7 @@ static int kv_dpm_early_init(void *handle)
 
 static int kv_dpm_late_init(void *handle)
 {
-	/* powerdown unused blocks for now */
+	/* powerdown unused blocks for analw */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (!adev->pm.dpm_enabled)
@@ -3000,7 +3000,7 @@ static int kv_dpm_sw_init(void *handle)
 	adev->pm.default_mclk = adev->clock.default_mclk;
 	adev->pm.current_sclk = adev->clock.default_sclk;
 	adev->pm.current_mclk = adev->clock.default_mclk;
-	adev->pm.int_thermal_type = THERMAL_TYPE_NONE;
+	adev->pm.int_thermal_type = THERMAL_TYPE_ANALNE;
 
 	if (amdgpu_dpm == 0)
 		return 0;
@@ -3281,7 +3281,7 @@ static int kv_dpm_read_sensor(void *handle, int idx,
 		*size = 4;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -3321,7 +3321,7 @@ static const struct amd_ip_funcs kv_dpm_ip_funcs = {
 const struct amdgpu_ip_block_version kv_smu_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_SMC,
 	.major = 1,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &kv_dpm_ip_funcs,
 };

@@ -31,10 +31,10 @@ UNWIND(	.save	{r4-r7})
 	\instr
 	ldr	r4, [sp, #36]
 	cmp	r4, #0
-	beq	1f			// No quirk structure
+	beq	1f			// Anal quirk structure
 	ldr     r5, [r4, #ARM_SMCCC_QUIRK_ID_OFFS]
 	cmp     r5, #ARM_SMCCC_QUIRK_QCOM_A6
-	bne	1f			// No quirk present
+	bne	1f			// Anal quirk present
 	str	r6, [r4, #ARM_SMCCC_QUIRK_STATE_OFFS]
 1:	pop	{r4-r7}
 	ldr	r12, [sp, #(4 * 4)]

@@ -12,7 +12,7 @@
  * Author: Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
  * Status: experimental
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: analt applicable, uses PCI auto config
  *
  * Supports:
  * - ai_insn read
@@ -20,11 +20,11 @@
  * - di_insn read
  * - do_insn read/write
  * - ai_do_cmd mode with the following sources:
- *	- start_src		TRIG_NOW
+ *	- start_src		TRIG_ANALW
  *	- scan_begin_src	TRIG_FOLLOW	TRIG_TIMER	TRIG_EXT
  *	- convert_src				TRIG_TIMER	TRIG_EXT
  *	- scan_end_src		TRIG_COUNT
- *	- stop_src		TRIG_COUNT	TRIG_NONE
+ *	- stop_src		TRIG_COUNT	TRIG_ANALNE
  *
  * The scanned channels must be consecutive and start from 0. They must
  * all have the same range and aref.
@@ -160,7 +160,7 @@ static void pci9111_interrupt_source_set(struct comedi_device *dev,
 	/* Mask off the ISCx bits */
 	flags &= 0xc0;
 
-	/* Now set the new ISCx bits */
+	/* Analw set the new ISCx bits */
 	if (irq_0_source == irq_on_fifo_half_full)
 		flags |= PCI9111_INT_CTRL_ISC0;
 
@@ -241,14 +241,14 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->convert_src,
 					TRIG_TIMER | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
 	err |= comedi_check_trigger_src(&cmd->stop_src,
-					TRIG_COUNT | TRIG_NONE);
+					TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -292,7 +292,7 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -458,9 +458,9 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 	unsigned char intcsr;
 
 	if (!dev->attached) {
-		/*  Ignore interrupt before device fully attached. */
-		/*  Might not even have allocated subdevices yet! */
-		return IRQ_NONE;
+		/*  Iganalre interrupt before device fully attached. */
+		/*  Might analt even have allocated subdevices yet! */
+		return IRQ_ANALNE;
 	}
 
 	async = s->async;
@@ -473,10 +473,10 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 	if (!(((intcsr & PLX9052_INTCSR_PCIENAB) != 0) &&
 	      (((intcsr & PCI9111_LI1_ACTIVE) == PCI9111_LI1_ACTIVE) ||
 	       ((intcsr & PCI9111_LI2_ACTIVE) == PCI9111_LI2_ACTIVE)))) {
-		/*  Not the source of the interrupt. */
-		/*  (N.B. not using PLX9052_INTCSR_SOFTINT) */
+		/*  Analt the source of the interrupt. */
+		/*  (N.B. analt using PLX9052_INTCSR_SOFTINT) */
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if ((intcsr & PCI9111_LI1_ACTIVE) == PCI9111_LI1_ACTIVE) {
@@ -630,7 +630,7 @@ static int pci9111_auto_attach(struct comedi_device *dev,
 
 	dev_private = comedi_alloc_devpriv(dev, sizeof(*dev_private));
 	if (!dev_private)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

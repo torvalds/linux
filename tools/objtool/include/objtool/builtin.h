@@ -11,11 +11,11 @@ struct opts {
 	/* actions: */
 	bool dump_orc;
 	bool hack_jump_label;
-	bool hack_noinstr;
+	bool hack_analinstr;
 	bool hack_skylake;
 	bool ibt;
 	bool mcount;
-	bool noinstr;
+	bool analinstr;
 	bool orc;
 	bool retpoline;
 	bool rethunk;
@@ -32,9 +32,9 @@ struct opts {
 	bool backup;
 	bool dryrun;
 	bool link;
-	bool mnop;
+	bool manalp;
 	bool module;
-	bool no_unreachable;
+	bool anal_unreachable;
 	bool sec_address;
 	bool stats;
 	bool verbose;

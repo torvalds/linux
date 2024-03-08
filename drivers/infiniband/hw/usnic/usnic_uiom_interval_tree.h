@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -36,8 +36,8 @@
 
 #include <linux/rbtree.h>
 
-struct usnic_uiom_interval_node {
-	struct rb_node			rb;
+struct usnic_uiom_interval_analde {
+	struct rb_analde			rb;
 	struct list_head		link;
 	unsigned long			start;
 	unsigned long			last;
@@ -47,28 +47,28 @@ struct usnic_uiom_interval_node {
 };
 
 extern void
-usnic_uiom_interval_tree_insert(struct usnic_uiom_interval_node *node,
+usnic_uiom_interval_tree_insert(struct usnic_uiom_interval_analde *analde,
 					struct rb_root_cached *root);
 extern void
-usnic_uiom_interval_tree_remove(struct usnic_uiom_interval_node *node,
+usnic_uiom_interval_tree_remove(struct usnic_uiom_interval_analde *analde,
 					struct rb_root_cached *root);
-extern struct usnic_uiom_interval_node *
+extern struct usnic_uiom_interval_analde *
 usnic_uiom_interval_tree_iter_first(struct rb_root_cached *root,
 					unsigned long start,
 					unsigned long last);
-extern struct usnic_uiom_interval_node *
-usnic_uiom_interval_tree_iter_next(struct usnic_uiom_interval_node *node,
+extern struct usnic_uiom_interval_analde *
+usnic_uiom_interval_tree_iter_next(struct usnic_uiom_interval_analde *analde,
 			unsigned long start, unsigned long last);
 /*
  * Inserts {start...last} into {root}.  If there are overlaps,
- * nodes will be broken up and merged
+ * analdes will be broken up and merged
  */
 int usnic_uiom_insert_interval(struct rb_root_cached *root,
 				unsigned long start, unsigned long last,
 				int flags);
 /*
- * Removed {start...last} from {root}.  The nodes removed are returned in
- * 'removed.' The caller is responsibile for freeing memory of nodes in
+ * Removed {start...last} from {root}.  The analdes removed are returned in
+ * 'removed.' The caller is responsibile for freeing memory of analdes in
  * 'removed.'
  */
 void usnic_uiom_remove_interval(struct rb_root_cached *root,

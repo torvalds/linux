@@ -92,8 +92,8 @@ int cci_write(struct regmap *map, u32 reg, u64 val, int *err);
  * @err: Optional pointer to store errors, if a previous error is set
  *       then the update will be skipped
  *
- * Note this uses read-modify-write to update the bits, atomicity with regards
- * to other cci_*() register access functions is NOT guaranteed.
+ * Analte this uses read-modify-write to update the bits, atomicity with regards
+ * to other cci_*() register access functions is ANALT guaranteed.
  *
  * Return: %0 on success or a negative error code on failure.
  */
@@ -110,7 +110,7 @@ int cci_update_bits(struct regmap *map, u32 reg, u64 mask, u64 val, int *err);
  *       then the write will be skipped
  *
  * Write multiple registers to the device where the set of register, value
- * pairs are supplied in any order, possibly not all in a single range.
+ * pairs are supplied in any order, possibly analt all in a single range.
  *
  * Use of the CCI_REG#() macros to encode reg width is mandatory.
  *
@@ -130,7 +130,7 @@ int cci_multi_reg_write(struct regmap *map, const struct cci_reg_sequence *regs,
  * @client: i2c_client to create the regmap for
  * @reg_addr_bits: register address width to use (8 or 16)
  *
- * Note the memory for the created regmap is devm() managed, tied to the client.
+ * Analte the memory for the created regmap is devm() managed, tied to the client.
  *
  * Return: %0 on success or a negative error code on failure.
  */

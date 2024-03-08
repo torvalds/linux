@@ -145,7 +145,7 @@ static irqreturn_t handle_eud_irq(int irq, void *data)
 		pet_eud(chip);
 		return IRQ_HANDLED;
 	default:
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 }
 
@@ -182,7 +182,7 @@ static int eud_probe(struct platform_device *pdev)
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = &pdev->dev;
 

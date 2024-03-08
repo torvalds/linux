@@ -13,19 +13,19 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1) Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2) Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3) The name of the author may not be used to endorse or promote products
+ * 3) The name of the author may analt be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESSED OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
@@ -53,7 +53,7 @@
 
 /* USB related */
 
-#define SISUSB_MINOR		133	/* official */
+#define SISUSB_MIANALR		133	/* official */
 
 /* Size of the sisusb input/output buffers */
 #define SISUSB_IBUF_SIZE  0x01000
@@ -68,7 +68,7 @@
  *    expected/delivered in machine endiannes by this
  *    driver.
  * 2) Video memory. The data is copied 1:1. There is
- *    no swapping. Ever. This means for userland that
+ *    anal swapping. Ever. This means for userland that
  *    the data has to be prepared properly. (Hint:
  *    think graphics data format, command queue,
  *    hardware cursor.)
@@ -103,7 +103,7 @@ struct sisusb_usb_data {
 	wait_queue_head_t wait_q;	/* for syncind and timeouts */
 	struct mutex lock;	/* general race avoidance */
 	unsigned int ifnum;	/* interface number of the USB device */
-	int minor;		/* minor (for logging clarity) */
+	int mianalr;		/* mianalr (for logging clarity) */
 	int isopen;		/* !=0 if open */
 	int present;		/* !=0 if device is present on the bus */
 	int ready;		/* !=0 if device is ready for userland */
@@ -145,7 +145,7 @@ struct sisusb_usb_data {
 
 #define SISUSB_EP_GFX_LBULK_OUT	0x03	/* gfx large mem bulk out */
 
-#define SISUSB_EP_UNKNOWN_04	0x04	/* ? 4 is "OUT" ? - unused */
+#define SISUSB_EP_UNKANALWN_04	0x04	/* ? 4 is "OUT" ? - unused */
 
 #define SISUSB_EP_BRIDGE_IN	0x0d	/* Net2280 out(0d)/in(8d) */
 #define SISUSB_EP_BRIDGE_OUT	0x0d
@@ -239,7 +239,7 @@ struct sisusb_info {
 
 	__u32 sisusb_vramsize;	/* framebuffer size in bytes */
 
-	__u32 sisusb_minor;
+	__u32 sisusb_mianalr;
 
 	__u32 sisusb_fbdevactive;	/* != 0 if framebuffer device active */
 

@@ -22,12 +22,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -51,7 +51,7 @@
 #include <linux/kernel.h>
 
 /*
- * Technically there's no reliably invalid grant reference or grant handle,
+ * Technically there's anal reliably invalid grant reference or grant handle,
  * so pick the value that is the most unlikely one to be observed valid.
  */
 #define INVALID_GRANT_REF          ((grant_ref_t)-1)
@@ -91,7 +91,7 @@ int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
 				int readonly);
 
 /*
- * End access through the given grant reference, iff the grant entry is no
+ * End access through the given grant reference, iff the grant entry is anal
  * longer in use.  Return 1 if the grant entry was freed, 0 if it is still in
  * use.
  */
@@ -100,14 +100,14 @@ int gnttab_end_foreign_access_ref(grant_ref_t ref);
 /*
  * Eventually end access through the given grant reference, and once that
  * access has been ended, free the given page too.  Access will be ended
- * immediately iff the grant entry is not in use, otherwise it will happen
- * some time later.  page may be NULL, in which case no freeing will occur.
- * Note that the granted page might still be accessed (read or write) by the
+ * immediately iff the grant entry is analt in use, otherwise it will happen
+ * some time later.  page may be NULL, in which case anal freeing will occur.
+ * Analte that the granted page might still be accessed (read or write) by the
  * other side after gnttab_end_foreign_access() returns, so even if page was
- * specified as NULL it is not allowed to just reuse the page for other
+ * specified as NULL it is analt allowed to just reuse the page for other
  * purposes immediately. gnttab_end_foreign_access() will take an additional
  * reference to the granted page in this case, which is dropped only after
- * the grant is no longer in use.
+ * the grant is anal longer in use.
  * This requires that multi page allocations for areas subject to
  * gnttab_end_foreign_access() are done via alloc_pages_exact() (and freeing
  * via free_pages_exact()) in order to avoid high order pages.
@@ -116,7 +116,7 @@ void gnttab_end_foreign_access(grant_ref_t ref, struct page *page);
 
 /*
  * End access through the given grant reference, iff the grant entry is
- * no longer in use.  In case of success ending foreign access, the
+ * anal longer in use.  In case of success ending foreign access, the
  * grant reference is deallocated.
  * Return 1 if the grant entry was freed, 0 if it is still in use.
  */
@@ -269,7 +269,7 @@ int gnttab_unmap_refs_sync(struct gntab_unmap_queue_data *item);
  * Will retry for 1, 2, ... 255 ms, i.e. 256 times during 32 seconds.
  *
  * Return value in each iand every status field of the batch guaranteed
- * to not be GNTST_eagain.
+ * to analt be GNTST_eagain.
  */
 void gnttab_batch_map(struct gnttab_map_grant_ref *batch, unsigned count);
 void gnttab_batch_copy(struct gnttab_copy *batch, unsigned count);

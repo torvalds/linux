@@ -31,7 +31,7 @@
 static const char fsp_drv_ver[] = "1.1.0-K";
 
 /*
- * Make sure that the value being sent to FSP will not conflict with
+ * Make sure that the value being sent to FSP will analt conflict with
  * possible sample rate values.
  */
 static unsigned char fsp_test_swap_cmd(unsigned char reg_val)
@@ -50,7 +50,7 @@ static unsigned char fsp_test_swap_cmd(unsigned char reg_val)
 }
 
 /*
- * Make sure that the value being sent to FSP will not conflict with certain
+ * Make sure that the value being sent to FSP will analt conflict with certain
  * commands.
  */
 static unsigned char fsp_test_invert_cmd(unsigned char reg_val)
@@ -638,7 +638,7 @@ static void fsp_packet_debug(struct psmouse *psmouse, unsigned char packet[])
 	static unsigned int ps2_packet_cnt;
 	static unsigned int ps2_last_second;
 	unsigned int jiffies_msec;
-	const char *packet_type = "UNKNOWN";
+	const char *packet_type = "UNKANALWN";
 	unsigned short abs_x = 0, abs_y = 0;
 
 	/* Interpret & dump the packet data. */
@@ -648,14 +648,14 @@ static void fsp_packet_debug(struct psmouse *psmouse, unsigned char packet[])
 		abs_x = GET_ABS_X(packet);
 		abs_y = GET_ABS_Y(packet);
 		break;
-	case FSP_PKT_TYPE_NORMAL:
-		packet_type = "Normal";
+	case FSP_PKT_TYPE_ANALRMAL:
+		packet_type = "Analrmal";
 		break;
-	case FSP_PKT_TYPE_NOTIFY:
-		packet_type = "Notify";
+	case FSP_PKT_TYPE_ANALTIFY:
+		packet_type = "Analtify";
 		break;
-	case FSP_PKT_TYPE_NORMAL_OPC:
-		packet_type = "Normal-OPC";
+	case FSP_PKT_TYPE_ANALRMAL_OPC:
+		packet_type = "Analrmal-OPC";
 		break;
 	}
 
@@ -713,7 +713,7 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 		if ((packet[0] == 0x48 || packet[0] == 0x49) &&
 		    packet[1] == 0 && packet[2] == 0) {
 			/*
-			 * Ignore coordinate noise when finger leaving the
+			 * Iganalre coordinate analise when finger leaving the
 			 * surface, otherwise cursor may jump to upper-left
 			 * corner.
 			 */
@@ -765,12 +765,12 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 				FSP_PB0_LBTN) {
 				/* On-pad click in SFAC mode should be handled
 				 * by userspace.  On-pad clicks in MFMC mode
-				 * are real clickpad clicks, and not ignored.
+				 * are real clickpad clicks, and analt iganalred.
 				 */
 				packet[0] &= ~FSP_PB0_LBTN;
 			}
 
-			/* no multi-finger information */
+			/* anal multi-finger information */
 			ad->last_mt_fgr = 0;
 
 			if (abs_x != 0 && abs_y != 0)
@@ -790,14 +790,14 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 		input_report_key(dev, BTN_TOOL_DOUBLETAP, fgrs == 2);
 		break;
 
-	case FSP_PKT_TYPE_NORMAL_OPC:
+	case FSP_PKT_TYPE_ANALRMAL_OPC:
 		/* on-pad click, filter it if necessary */
 		if ((ad->flags & FSPDRV_FLAG_EN_OPC) != FSPDRV_FLAG_EN_OPC)
 			packet[0] &= ~FSP_PB0_LBTN;
 		fallthrough;
 
-	case FSP_PKT_TYPE_NORMAL:
-		/* normal packet */
+	case FSP_PKT_TYPE_ANALRMAL:
+		/* analrmal packet */
 		/* special packet data translation from on-pad packets */
 		if (packet[3] != 0) {
 			if (packet[3] & BIT(0))
@@ -875,7 +875,7 @@ static int fsp_activate_protocol(struct psmouse *psmouse)
 		}
 
 		val &= ~(FSP_BIT_EN_MSID7 | FSP_BIT_EN_MSID8 | FSP_BIT_EN_AUTO_MSID8);
-		/* Ensure we are not in absolute mode */
+		/* Ensure we are analt in absolute mode */
 		val &= ~FSP_BIT_EN_PKT_G0;
 		if (pad->buttons == 0x06) {
 			/* Left/Middle/Right & Scroll Up/Down/Right/Left */
@@ -967,7 +967,7 @@ int fsp_detect(struct psmouse *psmouse, bool set_properties)
 		return -EIO;
 
 	if (id != 0x01)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (set_properties) {
 		psmouse->vendor = "Sentelic";
@@ -998,10 +998,10 @@ static int fsp_reconnect(struct psmouse *psmouse)
 	int version;
 
 	if (fsp_detect(psmouse, 0))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fsp_get_version(psmouse, &version))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fsp_activate_protocol(psmouse))
 		return -EIO;
@@ -1017,7 +1017,7 @@ int fsp_init(struct psmouse *psmouse)
 
 	if (fsp_get_version(psmouse, &ver) ||
 	    fsp_get_revision(psmouse, &rev)) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (ver >= FSP_VER_STL3888_C0) {
 		/* firmware information is only available since C0 */
@@ -1030,7 +1030,7 @@ int fsp_init(struct psmouse *psmouse)
 
 	psmouse->private = priv = kzalloc(sizeof(struct fsp_data), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->ver = ver;
 	priv->rev = rev;

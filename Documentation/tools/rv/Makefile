@@ -2,7 +2,7 @@
 
 INSTALL		?= install
 RM		?= rm -f
-RMDIR		?= rmdir --ignore-fail-on-non-empty
+RMDIR		?= rmdir --iganalre-fail-on-analn-empty
 
 PREFIX		?= /usr/share
 MANDIR		?= $(PREFIX)/man
@@ -21,7 +21,7 @@ TEST_RST2MAN = $(shell sh -c "rst2man --version > /dev/null 2>&1 || echo n")
 $(OUTPUT)%.1: %.rst
 ifndef RST2MAN_DEP
 	$(info ********************************************)
-	$(info ** NOTICE: rst2man not found)
+	$(info ** ANALTICE: rst2man analt found)
 	$(info **)
 	$(info ** Consider installing the latest rst2man from your)
 	$(info ** distribution, e.g., 'dnf install python3-docutils' on Fedora,)
@@ -30,7 +30,7 @@ ifndef RST2MAN_DEP
 	$(info **  https://docutils.sourceforge.io/docs/dev/repository.html )
 	$(info **)
 	$(info ********************************************)
-	$(error NOTICE: rst2man required to generate man pages)
+	$(error ANALTICE: rst2man required to generate man pages)
 endif
 	rst2man $(RST2MAN_OPTS) $< > $@
 

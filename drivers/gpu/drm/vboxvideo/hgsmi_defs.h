@@ -6,7 +6,7 @@
 
 /* Buffer sequence type mask. */
 #define HGSMI_BUFFER_HEADER_F_SEQ_MASK     0x03
-/* Single buffer, not a part of a sequence. */
+/* Single buffer, analt a part of a sequence. */
 #define HGSMI_BUFFER_HEADER_F_SEQ_SINGLE   0x00
 /* The first buffer in a sequence. */
 #define HGSMI_BUFFER_HEADER_F_SEQ_START    0x01
@@ -66,7 +66,7 @@ struct hgsmi_buffer_tail {
 
 /*
  * The size of the array of channels. Array indexes are u8.
- * Note: the value must not be changed.
+ * Analte: the value must analt be changed.
  */
 #define HGSMI_NUMBER_OF_CHANNELS 0x100
 

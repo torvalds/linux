@@ -21,7 +21,7 @@
 #include "ia_css_dp.host.h"
 
 /* We use a different set of DPC configuration parameters when
- * DPC is used before OBC and NORM. Currently these parameters
+ * DPC is used before OBC and ANALRM. Currently these parameters
  * are used in usecases which selects both BDS and DPC.
  **/
 const struct ia_css_dp_config default_dp_10bpp_config = {

@@ -143,7 +143,7 @@
 #define WSA883X_TOP_CLK_CFG             (WSA883X_DIG_CTRL_BASE + 0x0007)
 #define WSA883X_CDC_PATH_MODE           (WSA883X_DIG_CTRL_BASE + 0x0008)
 #define WSA883X_RXD_MODE_MASK		BIT(1)
-#define WSA883X_RXD_MODE_NORMAL		0
+#define WSA883X_RXD_MODE_ANALRMAL		0
 #define WSA883X_RXD_MODE_HIFI		1
 #define WSA883X_CDC_CLK_CTL             (WSA883X_DIG_CTRL_BASE + 0x0009)
 #define WSA883X_SWR_RESET_EN            (WSA883X_DIG_CTRL_BASE + 0x000A)
@@ -1196,7 +1196,7 @@ static int wsa883x_spkr_event(struct snd_soc_dapm_widget *w,
 		case SPEAKER:
 			snd_soc_component_write_field(component, WSA883X_CDC_PATH_MODE,
 						      WSA883X_RXD_MODE_MASK,
-						      WSA883X_RXD_MODE_NORMAL);
+						      WSA883X_RXD_MODE_ANALRMAL);
 			snd_soc_component_write_field(component, WSA883X_SPKR_PWM_CLK_CTL,
 						      WSA883X_SPKR_PWM_FREQ_SEL_MASK,
 						      WSA883X_SPKR_PWM_FREQ_F300KHZ);
@@ -1246,7 +1246,7 @@ static const struct snd_kcontrol_new wsa883x_snd_controls[] = {
 			     0x0, 0x1f, 1, pa_gain),
 	SOC_ENUM_EXT("WSA MODE", wsa_dev_mode_enum,
 		     wsa_dev_mode_get, wsa_dev_mode_put),
-	SOC_SINGLE_EXT("COMP Offset", SND_SOC_NOPM, 0, 4, 0,
+	SOC_SINGLE_EXT("COMP Offset", SND_SOC_ANALPM, 0, 4, 0,
 		       wsa883x_get_comp_offset, wsa883x_set_comp_offset),
 	SOC_SINGLE_EXT("DAC Switch", WSA883X_PORT_DAC, 0, 1, 0,
 		       wsa883x_get_swr_port, wsa883x_set_swr_port),
@@ -1372,22 +1372,22 @@ static int wsa883x_probe(struct sdw_slave *pdev,
 
 	wsa883x = devm_kzalloc(dev, sizeof(*wsa883x), GFP_KERNEL);
 	if (!wsa883x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wsa883x->vdd = devm_regulator_get(dev, "vdd");
 	if (IS_ERR(wsa883x->vdd))
 		return dev_err_probe(dev, PTR_ERR(wsa883x->vdd),
-				     "No vdd regulator found\n");
+				     "Anal vdd regulator found\n");
 
 	ret = regulator_enable(wsa883x->vdd);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to enable vdd regulator\n");
 
 	wsa883x->sd_n = devm_gpiod_get_optional(dev, "powerdown",
-						GPIOD_FLAGS_BIT_NONEXCLUSIVE | GPIOD_OUT_HIGH);
+						GPIOD_FLAGS_BIT_ANALNEXCLUSIVE | GPIOD_OUT_HIGH);
 	if (IS_ERR(wsa883x->sd_n)) {
 		ret = dev_err_probe(dev, PTR_ERR(wsa883x->sd_n),
-				    "Shutdown Control GPIO not found\n");
+				    "Shutdown Control GPIO analt found\n");
 		goto err;
 	}
 

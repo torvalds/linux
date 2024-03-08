@@ -81,7 +81,7 @@ static int dm_report_zones_cb(struct blk_zone *zone, unsigned int idx,
 	sector_t sector_diff = args->tgt->begin - args->start;
 
 	/*
-	 * Ignore zones beyond the target range.
+	 * Iganalre zones beyond the target range.
 	 */
 	if (zone->start >= args->start + args->tgt->len)
 		return 0;
@@ -162,12 +162,12 @@ static unsigned int dm_get_zone_wp_offset(struct blk_zone *zone)
 	case BLK_ZONE_COND_FULL:
 		return zone->len;
 	case BLK_ZONE_COND_EMPTY:
-	case BLK_ZONE_COND_NOT_WP:
+	case BLK_ZONE_COND_ANALT_WP:
 	case BLK_ZONE_COND_OFFLINE:
 	case BLK_ZONE_COND_READONLY:
 	default:
 		/*
-		 * Conventional, offline and read-only zones do not have a valid
+		 * Conventional, offline and read-only zones do analt have a valid
 		 * write pointer. Use 0 as for an empty zone.
 		 */
 		return 0;
@@ -184,9 +184,9 @@ static int dm_zone_revalidate_cb(struct blk_zone *zone, unsigned int idx,
 	case BLK_ZONE_TYPE_CONVENTIONAL:
 		if (!disk->conv_zones_bitmap) {
 			disk->conv_zones_bitmap = bitmap_zalloc(disk->nr_zones,
-								GFP_NOIO);
+								GFP_ANALIO);
 			if (!disk->conv_zones_bitmap)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		set_bit(idx, disk->conv_zones_bitmap);
 		break;
@@ -194,16 +194,16 @@ static int dm_zone_revalidate_cb(struct blk_zone *zone, unsigned int idx,
 	case BLK_ZONE_TYPE_SEQWRITE_PREF:
 		if (!disk->seq_zones_wlock) {
 			disk->seq_zones_wlock = bitmap_zalloc(disk->nr_zones,
-							      GFP_NOIO);
+							      GFP_ANALIO);
 			if (!disk->seq_zones_wlock)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		if (!md->zwp_offset) {
 			md->zwp_offset =
 				kvcalloc(disk->nr_zones, sizeof(unsigned int),
 					 GFP_KERNEL);
 			if (!md->zwp_offset)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		md->zwp_offset[idx] = dm_get_zone_wp_offset(zone);
 
@@ -211,7 +211,7 @@ static int dm_zone_revalidate_cb(struct blk_zone *zone, unsigned int idx,
 	default:
 		DMERR("Invalid zone type 0x%x at sectors %llu",
 		      (int)zone->type, zone->start);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -219,18 +219,18 @@ static int dm_zone_revalidate_cb(struct blk_zone *zone, unsigned int idx,
 
 /*
  * Revalidate the zones of a mapped device to initialize resource necessary
- * for zone append emulation. Note that we cannot simply use the block layer
+ * for zone append emulation. Analte that we cananalt simply use the block layer
  * blk_revalidate_disk_zones() function here as the mapped device is suspended
  * (this is called from __bind() context).
  */
 static int dm_revalidate_zones(struct mapped_device *md, struct dm_table *t)
 {
 	struct gendisk *disk = md->disk;
-	unsigned int noio_flag;
+	unsigned int analio_flag;
 	int ret;
 
 	/*
-	 * Check if something changed. If yes, cleanup the current resources
+	 * Check if something changed. If anal, cleanup the current resources
 	 * and reallocate everything.
 	 */
 	if (!disk->nr_zones || disk->nr_zones != md->nr_zones)
@@ -240,12 +240,12 @@ static int dm_revalidate_zones(struct mapped_device *md, struct dm_table *t)
 
 	/*
 	 * Scan all zones to initialize everything. Ensure that all vmalloc
-	 * operations in this context are done as if GFP_NOIO was specified.
+	 * operations in this context are done as if GFP_ANALIO was specified.
 	 */
-	noio_flag = memalloc_noio_save();
+	analio_flag = memalloc_analio_save();
 	ret = dm_blk_do_report_zones(md, t, 0, disk->nr_zones,
 				     dm_zone_revalidate_cb, md);
-	memalloc_noio_restore(noio_flag);
+	memalloc_analio_restore(analio_flag);
 	if (ret < 0)
 		goto err;
 	if (ret != disk->nr_zones) {
@@ -263,7 +263,7 @@ err:
 	return ret;
 }
 
-static int device_not_zone_append_capable(struct dm_target *ti,
+static int device_analt_zone_append_capable(struct dm_target *ti,
 					  struct dm_dev *dev, sector_t start,
 					  sector_t len, void *data)
 {
@@ -279,7 +279,7 @@ static bool dm_table_supports_zone_append(struct dm_table *t)
 			return false;
 
 		if (!ti->type->iterate_devices ||
-		    ti->type->iterate_devices(ti, device_not_zone_append_capable, NULL))
+		    ti->type->iterate_devices(ti, device_analt_zone_append_capable, NULL))
 			return false;
 	}
 
@@ -325,11 +325,11 @@ static int dm_update_zone_wp_offset_cb(struct blk_zone *zone, unsigned int idx,
 	return 0;
 }
 
-static int dm_update_zone_wp_offset(struct mapped_device *md, unsigned int zno,
+static int dm_update_zone_wp_offset(struct mapped_device *md, unsigned int zanal,
 				    unsigned int *wp_ofst)
 {
-	sector_t sector = zno * bdev_zone_sectors(md->disk->part0);
-	unsigned int noio_flag;
+	sector_t sector = zanal * bdev_zone_sectors(md->disk->part0);
+	unsigned int analio_flag;
 	struct dm_table *t;
 	int srcu_idx, ret;
 
@@ -339,12 +339,12 @@ static int dm_update_zone_wp_offset(struct mapped_device *md, unsigned int zno,
 
 	/*
 	 * Ensure that all memory allocations in this context are done as if
-	 * GFP_NOIO was specified.
+	 * GFP_ANALIO was specified.
 	 */
-	noio_flag = memalloc_noio_save();
+	analio_flag = memalloc_analio_save();
 	ret = dm_blk_do_report_zones(md, t, sector, 1,
 				     dm_update_zone_wp_offset_cb, wp_ofst);
-	memalloc_noio_restore(noio_flag);
+	memalloc_analio_restore(analio_flag);
 
 	dm_put_live_table(md, srcu_idx);
 
@@ -365,21 +365,21 @@ struct orig_bio_details {
  * append operations into regular write operations.
  */
 static bool dm_zone_map_bio_begin(struct mapped_device *md,
-				  unsigned int zno, struct bio *clone)
+				  unsigned int zanal, struct bio *clone)
 {
 	sector_t zsectors = bdev_zone_sectors(md->disk->part0);
-	unsigned int zwp_offset = READ_ONCE(md->zwp_offset[zno]);
+	unsigned int zwp_offset = READ_ONCE(md->zwp_offset[zanal]);
 
 	/*
 	 * If the target zone is in an error state, recover by inspecting the
-	 * zone to get its current write pointer position. Note that since the
+	 * zone to get its current write pointer position. Analte that since the
 	 * target zone is already locked, a BIO issuing context should never
 	 * see the zone write in the DM_ZONE_UPDATING_WP_OFST state.
 	 */
 	if (zwp_offset == DM_ZONE_INVALID_WP_OFST) {
-		if (dm_update_zone_wp_offset(md, zno, &zwp_offset))
+		if (dm_update_zone_wp_offset(md, zanal, &zwp_offset))
 			return false;
-		WRITE_ONCE(md->zwp_offset[zno], zwp_offset);
+		WRITE_ONCE(md->zwp_offset[zanal], zwp_offset);
 	}
 
 	switch (bio_op(clone)) {
@@ -394,11 +394,11 @@ static bool dm_zone_map_bio_begin(struct mapped_device *md,
 		break;
 	case REQ_OP_ZONE_APPEND:
 		/*
-		 * Change zone append operations into a non-mergeable regular
+		 * Change zone append operations into a analn-mergeable regular
 		 * writes directed at the current write pointer position of the
 		 * target zone.
 		 */
-		clone->bi_opf = REQ_OP_WRITE | REQ_NOMERGE |
+		clone->bi_opf = REQ_OP_WRITE | REQ_ANALMERGE |
 			(clone->bi_opf & (~REQ_OP_MASK));
 		clone->bi_iter.bi_sector += zwp_offset;
 		break;
@@ -407,7 +407,7 @@ static bool dm_zone_map_bio_begin(struct mapped_device *md,
 		return false;
 	}
 
-	/* Cannot write to a full zone */
+	/* Cananalt write to a full zone */
 	if (zwp_offset >= zsectors)
 		return false;
 
@@ -417,14 +417,14 @@ static bool dm_zone_map_bio_begin(struct mapped_device *md,
 /*
  * Second phase of BIO mapping for targets with zone append emulation:
  * update the zone write pointer offset array to account for the additional
- * data written to a zone. Note that at this point, the remapped clone BIO
- * may already have completed, so we do not touch it.
+ * data written to a zone. Analte that at this point, the remapped clone BIO
+ * may already have completed, so we do analt touch it.
  */
-static blk_status_t dm_zone_map_bio_end(struct mapped_device *md, unsigned int zno,
+static blk_status_t dm_zone_map_bio_end(struct mapped_device *md, unsigned int zanal,
 					struct orig_bio_details *orig_bio_details,
 					unsigned int nr_sectors)
 {
-	unsigned int zwp_offset = READ_ONCE(md->zwp_offset[zno]);
+	unsigned int zwp_offset = READ_ONCE(md->zwp_offset[zanal]);
 
 	/* The clone BIO may already have been completed and failed */
 	if (zwp_offset == DM_ZONE_INVALID_WP_OFST)
@@ -433,26 +433,26 @@ static blk_status_t dm_zone_map_bio_end(struct mapped_device *md, unsigned int z
 	/* Update the zone wp offset */
 	switch (orig_bio_details->op) {
 	case REQ_OP_ZONE_RESET:
-		WRITE_ONCE(md->zwp_offset[zno], 0);
+		WRITE_ONCE(md->zwp_offset[zanal], 0);
 		return BLK_STS_OK;
 	case REQ_OP_ZONE_FINISH:
-		WRITE_ONCE(md->zwp_offset[zno],
+		WRITE_ONCE(md->zwp_offset[zanal],
 			   bdev_zone_sectors(md->disk->part0));
 		return BLK_STS_OK;
 	case REQ_OP_WRITE_ZEROES:
 	case REQ_OP_WRITE:
-		WRITE_ONCE(md->zwp_offset[zno], zwp_offset + nr_sectors);
+		WRITE_ONCE(md->zwp_offset[zanal], zwp_offset + nr_sectors);
 		return BLK_STS_OK;
 	case REQ_OP_ZONE_APPEND:
 		/*
-		 * Check that the target did not truncate the write operation
+		 * Check that the target did analt truncate the write operation
 		 * emulating a zone append.
 		 */
 		if (nr_sectors != orig_bio_details->nr_sectors) {
 			DMWARN_LIMIT("Truncated write for zone append");
 			return BLK_STS_IOERR;
 		}
-		WRITE_ONCE(md->zwp_offset[zno], zwp_offset + nr_sectors);
+		WRITE_ONCE(md->zwp_offset[zanal], zwp_offset + nr_sectors);
 		return BLK_STS_OK;
 	default:
 		DMWARN_LIMIT("Invalid BIO operation");
@@ -460,26 +460,26 @@ static blk_status_t dm_zone_map_bio_end(struct mapped_device *md, unsigned int z
 	}
 }
 
-static inline void dm_zone_lock(struct gendisk *disk, unsigned int zno,
+static inline void dm_zone_lock(struct gendisk *disk, unsigned int zanal,
 				struct bio *clone)
 {
 	if (WARN_ON_ONCE(bio_flagged(clone, BIO_ZONE_WRITE_LOCKED)))
 		return;
 
-	wait_on_bit_lock_io(disk->seq_zones_wlock, zno, TASK_UNINTERRUPTIBLE);
+	wait_on_bit_lock_io(disk->seq_zones_wlock, zanal, TASK_UNINTERRUPTIBLE);
 	bio_set_flag(clone, BIO_ZONE_WRITE_LOCKED);
 }
 
-static inline void dm_zone_unlock(struct gendisk *disk, unsigned int zno,
+static inline void dm_zone_unlock(struct gendisk *disk, unsigned int zanal,
 				  struct bio *clone)
 {
 	if (!bio_flagged(clone, BIO_ZONE_WRITE_LOCKED))
 		return;
 
-	WARN_ON_ONCE(!test_bit(zno, disk->seq_zones_wlock));
-	clear_bit_unlock(zno, disk->seq_zones_wlock);
+	WARN_ON_ONCE(!test_bit(zanal, disk->seq_zones_wlock));
+	clear_bit_unlock(zanal, disk->seq_zones_wlock);
 	smp_mb__after_atomic();
-	wake_up_bit(disk->seq_zones_wlock, zno);
+	wake_up_bit(disk->seq_zones_wlock, zanal);
 
 	bio_clear_flag(clone, BIO_ZONE_WRITE_LOCKED);
 }
@@ -487,9 +487,9 @@ static inline void dm_zone_unlock(struct gendisk *disk, unsigned int zno,
 static bool dm_need_zone_wp_tracking(struct bio *bio)
 {
 	/*
-	 * Special processing is not needed for operations that do not need the
+	 * Special processing is analt needed for operations that do analt need the
 	 * zone write lock, that is, all operations that target conventional
-	 * zones and all operations that do not modify directly a sequential
+	 * zones and all operations that do analt modify directly a sequential
 	 * zone write pointer.
 	 */
 	if (op_is_flush(bio->bi_opf) && !bio_sectors(bio))
@@ -516,20 +516,20 @@ int dm_zone_map_bio(struct dm_target_io *tio)
 	struct mapped_device *md = io->md;
 	struct bio *clone = &tio->clone;
 	struct orig_bio_details orig_bio_details;
-	unsigned int zno;
+	unsigned int zanal;
 	blk_status_t sts;
 	int r;
 
 	/*
-	 * IOs that do not change a zone write pointer do not need
+	 * IOs that do analt change a zone write pointer do analt need
 	 * any additional special processing.
 	 */
 	if (!dm_need_zone_wp_tracking(clone))
 		return ti->type->map(ti, clone);
 
 	/* Lock the target zone */
-	zno = bio_zone_no(clone);
-	dm_zone_lock(md->disk, zno, clone);
+	zanal = bio_zone_anal(clone);
+	dm_zone_lock(md->disk, zanal, clone);
 
 	orig_bio_details.nr_sectors = bio_sectors(clone);
 	orig_bio_details.op = bio_op(clone);
@@ -538,8 +538,8 @@ int dm_zone_map_bio(struct dm_target_io *tio)
 	 * Check that the bio and the target zone write pointer offset are
 	 * both valid, and if the bio is a zone append, remap it to a write.
 	 */
-	if (!dm_zone_map_bio_begin(md, zno, clone)) {
-		dm_zone_unlock(md->disk, zno, clone);
+	if (!dm_zone_map_bio_begin(md, zanal, clone)) {
+		dm_zone_unlock(md->disk, zanal, clone);
 		return DM_MAPIO_KILL;
 	}
 
@@ -551,24 +551,24 @@ int dm_zone_map_bio(struct dm_target_io *tio)
 		 * The target submitted the clone BIO. The target zone will
 		 * be unlocked on completion of the clone.
 		 */
-		sts = dm_zone_map_bio_end(md, zno, &orig_bio_details,
+		sts = dm_zone_map_bio_end(md, zanal, &orig_bio_details,
 					  *tio->len_ptr);
 		break;
 	case DM_MAPIO_REMAPPED:
 		/*
 		 * The target only remapped the clone BIO. In case of error,
-		 * unlock the target zone here as the clone will not be
+		 * unlock the target zone here as the clone will analt be
 		 * submitted.
 		 */
-		sts = dm_zone_map_bio_end(md, zno, &orig_bio_details,
+		sts = dm_zone_map_bio_end(md, zanal, &orig_bio_details,
 					  *tio->len_ptr);
 		if (sts != BLK_STS_OK)
-			dm_zone_unlock(md->disk, zno, clone);
+			dm_zone_unlock(md->disk, zanal, clone);
 		break;
 	case DM_MAPIO_REQUEUE:
 	case DM_MAPIO_KILL:
 	default:
-		dm_zone_unlock(md->disk, zno, clone);
+		dm_zone_unlock(md->disk, zanal, clone);
 		sts = BLK_STS_IOERR;
 		break;
 	}
@@ -588,10 +588,10 @@ void dm_zone_endio(struct dm_io *io, struct bio *clone)
 	struct gendisk *disk = md->disk;
 	struct bio *orig_bio = io->orig_bio;
 	unsigned int zwp_offset;
-	unsigned int zno;
+	unsigned int zanal;
 
 	/*
-	 * For targets that do not emulate zone append, we only need to
+	 * For targets that do analt emulate zone append, we only need to
 	 * handle native zone-append bios.
 	 */
 	if (!dm_emulate_zone_append(md)) {
@@ -612,36 +612,36 @@ void dm_zone_endio(struct dm_io *io, struct bio *clone)
 	}
 
 	/*
-	 * For targets that do emulate zone append, if the clone BIO does not
-	 * own the target zone write lock, we have nothing to do.
+	 * For targets that do emulate zone append, if the clone BIO does analt
+	 * own the target zone write lock, we have analthing to do.
 	 */
 	if (!bio_flagged(clone, BIO_ZONE_WRITE_LOCKED))
 		return;
 
-	zno = bio_zone_no(orig_bio);
+	zanal = bio_zone_anal(orig_bio);
 
 	if (clone->bi_status != BLK_STS_OK) {
 		/*
 		 * BIOs that modify a zone write pointer may leave the zone
-		 * in an unknown state in case of failure (e.g. the write
+		 * in an unkanalwn state in case of failure (e.g. the write
 		 * pointer was only partially advanced). In this case, set
 		 * the target zone write pointer as invalid unless it is
 		 * already being updated.
 		 */
-		WRITE_ONCE(md->zwp_offset[zno], DM_ZONE_INVALID_WP_OFST);
+		WRITE_ONCE(md->zwp_offset[zanal], DM_ZONE_INVALID_WP_OFST);
 	} else if (bio_op(orig_bio) == REQ_OP_ZONE_APPEND) {
 		/*
 		 * Get the written sector for zone append operation that were
 		 * emulated using regular write operations.
 		 */
-		zwp_offset = READ_ONCE(md->zwp_offset[zno]);
+		zwp_offset = READ_ONCE(md->zwp_offset[zanal]);
 		if (WARN_ON_ONCE(zwp_offset < bio_sectors(orig_bio)))
-			WRITE_ONCE(md->zwp_offset[zno],
+			WRITE_ONCE(md->zwp_offset[zanal],
 				   DM_ZONE_INVALID_WP_OFST);
 		else
 			orig_bio->bi_iter.bi_sector +=
 				zwp_offset - bio_sectors(orig_bio);
 	}
 
-	dm_zone_unlock(disk, zno, clone);
+	dm_zone_unlock(disk, zanal, clone);
 }

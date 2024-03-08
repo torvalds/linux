@@ -109,7 +109,7 @@ int acrn_msi_inject(struct acrn_vm *vm, u64 msi_addr, u64 msi_data)
 	/* might be used in interrupt context, so use GFP_ATOMIC */
 	msi = kzalloc(sizeof(*msi), GFP_ATOMIC);
 	if (!msi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * msi_addr: addr[19:12] with dest vcpu id

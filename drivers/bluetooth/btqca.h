@@ -76,7 +76,7 @@ enum qca_baudrate {
 };
 
 enum qca_tlv_dnld_mode {
-	QCA_SKIP_EVT_NONE,
+	QCA_SKIP_EVT_ANALNE,
 	QCA_SKIP_EVT_VSE,
 	QCA_SKIP_EVT_CC,
 	QCA_SKIP_EVT_VSE_CC
@@ -169,7 +169,7 @@ int qca_send_pre_shutdown_cmd(struct hci_dev *hdev);
 
 static inline int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
@@ -177,23 +177,23 @@ static inline int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 				 struct qca_btsoc_version ver,
 				 const char *firmware_name)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int qca_read_soc_version(struct hci_dev *hdev,
 				       struct qca_btsoc_version *ver,
 				       enum qca_btsoc_type)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int qca_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int qca_send_pre_shutdown_cmd(struct hci_dev *hdev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif

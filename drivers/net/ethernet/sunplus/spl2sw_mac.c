@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright Sunplus Technology Co., Ltd.
+/* Copyright Sunplus Techanallogy Co., Ltd.
  *       All rights reserved.
  */
 
@@ -227,7 +227,7 @@ void spl2sw_mac_rx_mode_set(struct spl2sw_mac *mac)
 	reg = readl(comm->l2sw_reg_base + L2SW_CPU_CNTL);
 
 	if (ndev->flags & IFF_PROMISC) {
-		/* Allow MC and unknown UC packets */
+		/* Allow MC and unkanalwn UC packets */
 		rx_mode = FIELD_PREP(MAC_DIS_MC2CPU, mac->lan_port) |
 			  FIELD_PREP(MAC_DIS_UN2CPU, mac->lan_port);
 	} else if ((!netdev_mc_empty(ndev) && (ndev->flags & IFF_MULTICAST)) ||
@@ -235,7 +235,7 @@ void spl2sw_mac_rx_mode_set(struct spl2sw_mac *mac)
 		/* Allow MC packets */
 		rx_mode = FIELD_PREP(MAC_DIS_MC2CPU, mac->lan_port);
 	} else {
-		/* Disable MC and unknown UC packets */
+		/* Disable MC and unkanalwn UC packets */
 		rx_mode = 0;
 	}
 

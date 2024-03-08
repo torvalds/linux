@@ -41,12 +41,12 @@ sector from a disk) uses one driver at each of the 3 levels: one upper
 layer driver, one lower layer driver, and the SCSI midlayer.
 
 The SCSI upper layer provides the interface between userspace and the
-kernel, in the form of block and char device nodes for I/O and ioctl().
+kernel, in the form of block and char device analdes for I/O and ioctl().
 The SCSI lower layer contains drivers for specific hardware devices.
 
 In between is the SCSI mid-layer, analogous to a network routing layer
 such as the IPv4 stack. The SCSI mid-layer routes a packet based data
-protocol between the upper layer's /dev nodes and the corresponding
+protocol between the upper layer's /dev analdes and the corresponding
 devices in the lower layer. It manages command queues, provides error
 handling and power management functions, and responds to ioctl()
 requests.
@@ -55,7 +55,7 @@ SCSI upper layer
 ================
 
 The upper layer supports the user-kernel interface by providing device
-nodes.
+analdes.
 
 sd (SCSI Disk)
 --------------
@@ -191,7 +191,7 @@ all to a scan of LUN 0. Otherwise, if LUN 0 has a device attached,
 allocate and setup a scsi_device for it. If target is SCSI-3 or up,
 issue a REPORT LUN, and scan all of the LUNs returned by the REPORT LUN;
 else, sequentially scan LUNs up until some maximum is reached, or a LUN
-is seen that cannot have a device attached to it.
+is seen that cananalt have a device attached to it.
 
 .. kernel-doc:: drivers/scsi/scsi_scan.c
    :internal:
@@ -267,11 +267,11 @@ In addition to the basic SCSI core objects this transport class
 introduces two additional intermediate objects: The SAS PHY as
 represented by struct sas_phy defines an "outgoing" PHY on a SAS HBA or
 Expander, and the SAS remote PHY represented by struct sas_rphy defines
-an "incoming" PHY on a SAS Expander or end device. Note that this is
+an "incoming" PHY on a SAS Expander or end device. Analte that this is
 purely a software concept, the underlying hardware for a PHY and a
 remote PHY is the exactly the same.
 
-There is no concept of a SAS port in this code, users can see what PHYs
+There is anal concept of a SAS port in this code, users can see what PHYs
 form a wide port based on the port_identifier attribute, which is the
 same for all PHYs in a port.
 
@@ -322,7 +322,7 @@ Debug transport
 The file drivers/scsi/scsi_debug.c simulates a host adapter with a
 variable number of disks (or disk like devices) attached, sharing a
 common amount of RAM. Does a lot of checking to make sure that we are
-not getting blocks mixed up, and panics the kernel if anything out of
+analt getting blocks mixed up, and panics the kernel if anything out of
 the ordinary is seen.
 
 To be more realistic, the simulated devices have the transport

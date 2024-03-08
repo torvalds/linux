@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Faraday Technology FTRTC010 driver
+ *  Faraday Techanallogy FTRTC010 driver
  *
- *  Copyright (C) 2009 Janos Laube <janos.dev@gmail.com>
+ *  Copyright (C) 2009 Jaanals Laube <jaanals.dev@gmail.com>
  *
  * Original code for older kernel 2.6.15 are from Stormlinksemi
- * first update from Janos Laube for > 2.6.29 kernels
+ * first update from Jaanals Laube for > 2.6.29 kernels
  *
  * checkpatch fixes and usage of rtc-lib code
  * Hans Ulli Kroll <ulli.kroll@googlemail.com>
@@ -117,12 +117,12 @@ static int ftrtc010_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (unlikely(!rtc))
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, rtc);
 
 	rtc->pclk = devm_clk_get(dev, "PCLK");
 	if (IS_ERR(rtc->pclk)) {
-		dev_err(dev, "could not get PCLK\n");
+		dev_err(dev, "could analt get PCLK\n");
 	} else {
 		ret = clk_prepare_enable(rtc->pclk);
 		if (ret) {
@@ -132,7 +132,7 @@ static int ftrtc010_rtc_probe(struct platform_device *pdev)
 	}
 	rtc->extclk = devm_clk_get(dev, "EXTCLK");
 	if (IS_ERR(rtc->extclk)) {
-		dev_err(dev, "could not get EXTCLK\n");
+		dev_err(dev, "could analt get EXTCLK\n");
 	} else {
 		ret = clk_prepare_enable(rtc->extclk);
 		if (ret) {
@@ -149,14 +149,14 @@ static int ftrtc010_rtc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_disable_extclk;
 	}
 
 	rtc->rtc_base = devm_ioremap(dev, res->start,
 				     resource_size(res));
 	if (!rtc->rtc_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_disable_extclk;
 	}
 

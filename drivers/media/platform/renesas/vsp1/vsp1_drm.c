@@ -57,7 +57,7 @@ static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe,
  */
 
 /*
- * Insert the UIF in the pipeline between the prev and next entities. If no UIF
+ * Insert the UIF in the pipeline between the prev and next entities. If anal UIF
  * is available connect the two entities directly.
  */
 static int vsp1_du_insert_uif(struct vsp1_device *vsp1,
@@ -73,7 +73,7 @@ static int vsp1_du_insert_uif(struct vsp1_device *vsp1,
 
 	if (!uif) {
 		/*
-		 * If there's no UIF to be inserted, connect the previous and
+		 * If there's anal UIF to be inserted, connect the previous and
 		 * next entities directly.
 		 */
 		prev->sink = next;
@@ -102,7 +102,7 @@ static int vsp1_du_insert_uif(struct vsp1_device *vsp1,
 
 	/*
 	 * The UIF doesn't mangle the format between its sink and source pads,
-	 * so there is no need to retrieve the format on its source pad.
+	 * so there is anal need to retrieve the format on its source pad.
 	 */
 
 	uif->sink = next;
@@ -137,7 +137,7 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 	format.format.width = crop->width + crop->left;
 	format.format.height = crop->height + crop->top;
 	format.format.code = rpf->fmtinfo->mbus;
-	format.format.field = V4L2_FIELD_NONE;
+	format.format.field = V4L2_FIELD_ANALNE;
 
 	ret = v4l2_subdev_call(&rpf->entity.subdev, pad, set_fmt, NULL,
 			       &format);
@@ -238,7 +238,7 @@ static int vsp1_du_pipeline_setup_brx(struct vsp1_device *vsp1,
 	/*
 	 * Pick a BRx:
 	 * - If we need more than two inputs, use the BRU.
-	 * - Otherwise, if we are not forced to release our BRx, keep it.
+	 * - Otherwise, if we are analt forced to release our BRx, keep it.
 	 * - Else, use any free BRx (randomly starting with the BRU).
 	 */
 	if (pipe->num_inputs > 2)
@@ -332,13 +332,13 @@ static int vsp1_du_pipeline_setup_brx(struct vsp1_device *vsp1,
 	/*
 	 * Configure the format on the BRx source and verify that it matches the
 	 * requested format. We don't set the media bus code as it is configured
-	 * on the BRx sink pad 0 and propagated inside the entity, not on the
+	 * on the BRx sink pad 0 and propagated inside the entity, analt on the
 	 * source pad.
 	 */
 	format.pad = brx->source_pad;
 	format.format.width = drm_pipe->width;
 	format.format.height = drm_pipe->height;
-	format.format.field = V4L2_FIELD_NONE;
+	format.format.field = V4L2_FIELD_ANALNE;
 
 	ret = v4l2_subdev_call(&brx->subdev, pad, set_fmt, NULL,
 			       &format);
@@ -455,12 +455,12 @@ static int vsp1_du_pipeline_setup_inputs(struct vsp1_device *vsp1,
 		dev_err(vsp1->dev, "%s: failed to setup UIF after %s\n",
 			__func__, BRX_NAME(pipe->brx));
 
-	/* If the DRM pipe does not have a UIF there is nothing we can update. */
+	/* If the DRM pipe does analt have a UIF there is analthing we can update. */
 	if (!drm_pipe->uif)
 		return 0;
 
 	/*
-	 * If the UIF is not in use schedule it for removal by setting its pipe
+	 * If the UIF is analt in use schedule it for removal by setting its pipe
 	 * pointer to NULL, vsp1_du_pipeline_configure() will remove it from the
 	 * hardware pipeline and from the pipeline's list of entities. Otherwise
 	 * make sure it is present in the pipeline's list of entities if it
@@ -490,7 +490,7 @@ static int vsp1_du_pipeline_setup_output(struct vsp1_device *vsp1,
 	format.format.width = drm_pipe->width;
 	format.format.height = drm_pipe->height;
 	format.format.code = MEDIA_BUS_FMT_ARGB8888_1X32;
-	format.format.field = V4L2_FIELD_NONE;
+	format.format.field = V4L2_FIELD_ANALNE;
 
 	ret = v4l2_subdev_call(&pipe->output->entity.subdev, pad, set_fmt, NULL,
 			       &format);
@@ -558,7 +558,7 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 		/* Disconnect unused entities from the pipeline. */
 		if (!entity->pipe) {
 			vsp1_dl_body_write(dlb, entity->route->reg,
-					   VI6_DPR_NODE_UNUSED);
+					   VI6_DPR_ANALDE_UNUSED);
 
 			entity->sink = NULL;
 			list_del(&entity->list_pipe);
@@ -739,7 +739,7 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 		goto unlock;
 
 	/*
-	 * Register a callback to allow us to notify the DRM driver of frame
+	 * Register a callback to allow us to analtify the DRM driver of frame
 	 * completion events.
 	 */
 	drm_pipe->du_complete = cfg->callback;
@@ -803,7 +803,7 @@ EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
  *
  * The source memory buffer is referenced by the DMA address of its planes in
  * the @cfg.mem array. Up to two planes are supported. The second plane DMA
- * address is ignored for formats using a single plane.
+ * address is iganalred for formats using a single plane.
  *
  * This function isn't reentrant, the caller needs to serialize calls.
  *
@@ -920,7 +920,7 @@ int vsp1_du_map_sg(struct device *dev, struct sg_table *sgt)
 	/*
 	 * As all the buffers allocated by the DU driver are coherent, we can
 	 * skip cache sync. This will need to be revisited when support for
-	 * non-coherent buffers will be added to the DU driver.
+	 * analn-coherent buffers will be added to the DU driver.
 	 */
 	return dma_map_sgtable(vsp1->bus_master, sgt, DMA_TO_DEVICE,
 			       DMA_ATTR_SKIP_CPU_SYNC);
@@ -946,7 +946,7 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 
 	vsp1->drm = devm_kzalloc(vsp1->dev, sizeof(*vsp1->drm), GFP_KERNEL);
 	if (!vsp1->drm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&vsp1->drm->lock);
 

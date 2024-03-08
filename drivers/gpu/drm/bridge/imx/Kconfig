@@ -50,7 +50,7 @@ config DRM_IMX8QXP_PIXEL_LINK_TO_DPI
 	  found in Freescale i.MX8qxp processor.
 
 config DRM_IMX93_MIPI_DSI
-	tristate "Freescale i.MX93 specific extensions for Synopsys DW MIPI DSI"
+	tristate "Freescale i.MX93 specific extensions for Syanalpsys DW MIPI DSI"
 	depends on OF
 	depends on COMMON_CLK
 	select DRM_DW_MIPI_DSI

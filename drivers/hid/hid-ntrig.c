@@ -30,12 +30,12 @@ MODULE_PARM_DESC(min_height, "Minimum touch contact height to accept.");
 
 static unsigned int activate_slack = 1;
 module_param(activate_slack, uint, 0644);
-MODULE_PARM_DESC(activate_slack, "Number of touch frames to ignore at "
+MODULE_PARM_DESC(activate_slack, "Number of touch frames to iganalre at "
 		 "the start of touch input.");
 
 static unsigned int deactivate_slack = 4;
 module_param(deactivate_slack, uint, 0644);
-MODULE_PARM_DESC(deactivate_slack, "Number of empty frames to ignore before "
+MODULE_PARM_DESC(deactivate_slack, "Number of empty frames to iganalre before "
 		 "deactivating touch.");
 
 static unsigned int activation_width = 64;
@@ -65,10 +65,10 @@ struct ntrig_data {
 	/* The current activation state. */
 	__s8 act_state;
 
-	/* Empty frames to ignore before recognizing the end of activity */
+	/* Empty frames to iganalre before recognizing the end of activity */
 	__s8 deactivate_slack;
 
-	/* Frames to ignore before acknowledging the start of activity */
+	/* Frames to iganalre before ackanalwledging the start of activity */
 	__s8 activate_slack;
 
 	/* Minimum size contact to accept */
@@ -412,7 +412,7 @@ static ssize_t set_deactivate_slack(struct device *dev,
 		return -EINVAL;
 
 	/*
-	 * No more than 8 terminal frames have been observed so far
+	 * Anal more than 8 terminal frames have been observed so far
 	 * and higher slack is highly likely to leave the single
 	 * touch emulation stuck down.
 	 */
@@ -448,7 +448,7 @@ static const struct attribute_group ntrig_attribute_group = {
 /*
  * this driver is aimed at two firmware versions in circulation:
  *  - dual pen/finger single touch
- *  - finger multitouch, pen not working
+ *  - finger multitouch, pen analt working
  */
 
 static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
@@ -457,7 +457,7 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 {
 	struct ntrig_data *nd = hid_get_drvdata(hdev);
 
-	/* No special mappings needed for the pen and single touch */
+	/* Anal special mappings needed for the pen and single touch */
 	if (field->physical)
 		return 0;
 
@@ -513,21 +513,21 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 
 	case HID_UP_DIGITIZER:
 		switch (usage->hid) {
-		/* we do not want to map these for now */
-		case HID_DG_CONTACTID: /* Not trustworthy, squelch for now */
+		/* we do analt want to map these for analw */
+		case HID_DG_CONTACTID: /* Analt trustworthy, squelch for analw */
 		case HID_DG_INPUTMODE:
 		case HID_DG_DEVICEINDEX:
 		case HID_DG_CONTACTMAX:
 			return -1;
 
-		/* width/height mapped on TouchMajor/TouchMinor/Orientation */
+		/* width/height mapped on TouchMajor/TouchMianalr/Orientation */
 		case HID_DG_WIDTH:
 			hid_map_usage(hi, usage, bit, max,
 				      EV_ABS, ABS_MT_TOUCH_MAJOR);
 			return 1;
 		case HID_DG_HEIGHT:
 			hid_map_usage(hi, usage, bit, max,
-				      EV_ABS, ABS_MT_TOUCH_MINOR);
+				      EV_ABS, ABS_MT_TOUCH_MIANALR);
 			input_set_abs_params(hi->input, ABS_MT_ORIENTATION,
 					     0, 1, 0, 0);
 			return 1;
@@ -535,7 +535,7 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		return 0;
 
 	case 0xff000000:
-		/* we do not want to map these: no input-oriented meaning */
+		/* we do analt want to map these: anal input-oriented meaning */
 		return -1;
 	}
 
@@ -546,7 +546,7 @@ static int ntrig_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 			      struct hid_field *field, struct hid_usage *usage,
 			      unsigned long **bit, int *max)
 {
-	/* No special mappings needed for the pen and single touch */
+	/* Anal special mappings needed for the pen and single touch */
 	if (field->physical)
 		return 0;
 
@@ -569,9 +569,9 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 	struct ntrig_data *nd = hid_get_drvdata(hid);
 	struct input_dev *input;
 
-	/* Skip processing if not a claimed input */
+	/* Skip processing if analt a claimed input */
 	if (!(hid->claimed & HID_CLAIMED_INPUT))
-		goto not_claimed_input;
+		goto analt_claimed_input;
 
 	/* This function is being called before the structures are fully
 	 * initialized */
@@ -580,7 +580,7 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 
 	input = field->hidinput->input;
 
-	/* No special handling needed for the pen */
+	/* Anal special handling needed for the pen */
 	if (field->application == HID_DG_PEN)
 		return 0;
 
@@ -616,7 +616,7 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 		/*
 		 * when in single touch mode, this is the last
 		 * report received in a finger event. We want
-		 * to emit a normal (X, Y) position
+		 * to emit a analrmal (X, Y) position
 		 */
 		if (!nd->reading_mt) {
 			/*
@@ -669,9 +669,9 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 		 */
 		if (nd->mt_footer[0]) {
 			/*
-			 * We do not want to process contacts under
-			 * the size threshold, but do not want to
-			 * ignore them for activation state
+			 * We do analt want to process contacts under
+			 * the size threshold, but do analt want to
+			 * iganalre them for activation state
 			 */
 			if (nd->w < nd->min_width ||
 			    nd->h < nd->min_height)
@@ -687,7 +687,7 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			    nd->h >= nd->activation_height) {
 				if (nd->id)
 					/*
-					 * first contact, activate now
+					 * first contact, activate analw
 					 */
 					nd->act_state = 0;
 				else {
@@ -711,13 +711,13 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 		if (!nd->confidence)
 			break;
 
-		/* emit a normal (X, Y) for the first point only */
+		/* emit a analrmal (X, Y) for the first point only */
 		if (nd->id == 0) {
 			/*
 			 * TipSwitch is superfluous in multitouch
 			 * mode.  The footer events tell us
 			 * if there is a finger on the screen or
-			 * not.
+			 * analt.
 			 */
 			nd->first_contact_touch = nd->confidence;
 			input_event(input, EV_ABS, ABS_X, nd->x);
@@ -738,14 +738,14 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			input_event(input, EV_ABS,
 					ABS_MT_TOUCH_MAJOR, nd->w);
 			input_event(input, EV_ABS,
-					ABS_MT_TOUCH_MINOR, nd->h);
+					ABS_MT_TOUCH_MIANALR, nd->h);
 		} else {
 			input_event(input, EV_ABS,
 					ABS_MT_ORIENTATION, 0);
 			input_event(input, EV_ABS,
 					ABS_MT_TOUCH_MAJOR, nd->h);
 			input_event(input, EV_ABS,
-					ABS_MT_TOUCH_MINOR, nd->w);
+					ABS_MT_TOUCH_MIANALR, nd->w);
 		}
 		input_mt_sync(field->hidinput->input);
 		break;
@@ -768,7 +768,7 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 		 *
 		 * Specific values of interest
 		 *	state == activate_slack
-		 *		 no valid input since the last reset
+		 *		 anal valid input since the last reset
 		 *
 		 *	state == 0
 		 *		 general operational state
@@ -795,7 +795,7 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 				nd->act_state = nd->activate_slack;
 
 			/*
-			 * Entered this block inactive and no
+			 * Entered this block inactive and anal
 			 * coordinates sent this frame, so hold off
 			 * on button state.
 			 */
@@ -826,12 +826,12 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			 * Check to see if we're ready to start
 			 * emitting touch events.
 			 *
-			 * Note: activation slack will decrease over
+			 * Analte: activation slack will decrease over
 			 * the course of the frame, and it will be
 			 * inconsistent from the start to the end of
 			 * the frame.  However if the frame starts
 			 * with slack, first_contact_touch will still
-			 * be 0 and we will not get to this point.
+			 * be 0 and we will analt get to this point.
 			 */
 			input_report_key(input, BTN_TOOL_DOUBLETAP, 1);
 			input_report_key(input, BTN_TOUCH, 1);
@@ -846,9 +846,9 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 		return 0;
 	}
 
-not_claimed_input:
+analt_claimed_input:
 
-	/* we have handled the hidinput part, now remains hiddev */
+	/* we have handled the hidinput part, analw remains hiddev */
 	if ((hid->claimed & HID_CLAIMED_HIDDEV) && hid->hiddev_hid_event)
 		hid->hiddev_hid_event(hid, field, usage, value);
 
@@ -898,12 +898,12 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (id->driver_data)
 		hdev->quirks |= HID_QUIRK_MULTI_INPUT
-				| HID_QUIRK_NO_INIT_REPORTS;
+				| HID_QUIRK_ANAL_INIT_REPORTS;
 
 	nd = kmalloc(sizeof(struct ntrig_data), GFP_KERNEL);
 	if (!nd) {
-		hid_err(hdev, "cannot allocate N-Trig data\n");
-		return -ENOMEM;
+		hid_err(hdev, "cananalt allocate N-Trig data\n");
+		return -EANALMEM;
 	}
 
 	nd->reading_mt = false;
@@ -952,7 +952,7 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	ret = sysfs_create_group(&hdev->dev.kobj,
 			&ntrig_attribute_group);
 	if (ret)
-		hid_err(hdev, "cannot create sysfs group\n");
+		hid_err(hdev, "cananalt create sysfs group\n");
 
 	return 0;
 err_free:

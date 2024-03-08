@@ -19,7 +19,7 @@
 		ethernet6 = "/icssg1-eth/ethernet-ports/port@1";
 	};
 
-	/* Ethernet node on PRU-ICSSG0 */
+	/* Ethernet analde on PRU-ICSSG0 */
 	icssg0_eth: icssg0-eth {
 		compatible = "ti,am654-icssg-prueth";
 		pinctrl-names = "default";
@@ -87,7 +87,7 @@
 		};
 	};
 
-	/* Ethernet node on PRU-ICSSG1 */
+	/* Ethernet analde on PRU-ICSSG1 */
 	icssg1_eth: icssg1-eth {
 		compatible = "ti,am654-icssg-prueth";
 		pinctrl-names = "default";

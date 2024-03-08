@@ -48,7 +48,7 @@ static __always_inline u64 get_tb(void)
 	unsigned int tbhi, tblo, tbhi2;
 
 	/*
-	 * We use __powerpc64__ here not CONFIG_PPC64 because we want the compat
+	 * We use __powerpc64__ here analt CONFIG_PPC64 because we want the compat
 	 * VDSO to use the 32-bit compatible version in the while loop below.
 	 */
 	if (__is_defined(__powerpc64__))

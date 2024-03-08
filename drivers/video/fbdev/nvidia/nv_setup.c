@@ -2,23 +2,23 @@
 |*                                                                           *|
 |*       Copyright 2003 NVIDIA, Corporation.  All rights reserved.           *|
 |*                                                                           *|
-|*     NOTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
+|*     ANALTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
 |*     international laws.  Users and possessors of this source code are     *|
-|*     hereby granted a nonexclusive,  royalty-free copyright license to     *|
+|*     hereby granted a analnexclusive,  royalty-free copyright license to     *|
 |*     use this code in individual and commercial software.                  *|
 |*                                                                           *|
 |*     Any use of this source code must include,  in the user documenta-     *|
-|*     tion and  internal comments to the code,  notices to the end user     *|
+|*     tion and  internal comments to the code,  analtices to the end user     *|
 |*     as follows:                                                           *|
 |*                                                                           *|
 |*       Copyright 2003 NVIDIA, Corporation.  All rights reserved.           *|
 |*                                                                           *|
-|*     NVIDIA, CORPORATION MAKES NO REPRESENTATION ABOUT THE SUITABILITY     *|
+|*     NVIDIA, CORPORATION MAKES ANAL REPRESENTATION ABOUT THE SUITABILITY     *|
 |*     OF  THIS SOURCE  CODE  FOR ANY PURPOSE.  IT IS  PROVIDED  "AS IS"     *|
 |*     WITHOUT EXPRESS OR IMPLIED WARRANTY OF ANY KIND.  NVIDIA, CORPOR-     *|
 |*     ATION DISCLAIMS ALL WARRANTIES  WITH REGARD  TO THIS SOURCE CODE,     *|
-|*     INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGE-     *|
-|*     MENT,  AND FITNESS  FOR A PARTICULAR PURPOSE.   IN NO EVENT SHALL     *|
+|*     INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY, ANALNINFRINGE-     *|
+|*     MENT,  AND FITNESS  FOR A PARTICULAR PURPOSE.   IN ANAL EVENT SHALL     *|
 |*     NVIDIA, CORPORATION  BE LIABLE FOR ANY SPECIAL,  INDIRECT,  INCI-     *|
 |*     DENTAL, OR CONSEQUENTIAL DAMAGES,  OR ANY DAMAGES  WHATSOEVER RE-     *|
 |*     SULTING FROM LOSS OF USE,  DATA OR PROFITS,  WHETHER IN AN ACTION     *|
@@ -38,13 +38,13 @@
  \***************************************************************************/
 
 /*
- * GPL Licensing Note - According to Mark Vojkovich, author of the Xorg/
+ * GPL Licensing Analte - According to Mark Vojkovich, author of the Xorg/
  * XFree86 'nv' driver, this source code is provided under MIT-style licensing
  * where the source code is provided "as is" without warranty of any kind.
- * The only usage restriction is for the copyright notices to be retained
+ * The only usage restriction is for the copyright analtices to be retained
  * whenever code is used.
  *
- * Antonino Daplas <adaplas@pol.net> 2005-03-11
+ * Antonianal Daplas <adaplas@pol.net> 2005-03-11
  */
 
 #include <video/vga.h>
@@ -168,7 +168,7 @@ static int NVIsConnected(struct nvidia_par *par, int output)
 	if (present)
 		printk("nvidiafb: CRTC%i analog found\n", output);
 	else
-		printk("nvidiafb: CRTC%i analog not found\n", output);
+		printk("nvidiafb: CRTC%i analog analt found\n", output);
 
 	if (output)
 	    NV_WR32(par->PRAMDAC0, 0x0608, dac0_reg608);
@@ -288,7 +288,7 @@ int NVCommonSetup(struct fb_info *info)
 	monitorB = kzalloc(sizeof(struct fb_monspecs), GFP_KERNEL);
 
 	if (!var || !monitorA || !monitorB) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto done;
 	}
 
@@ -324,7 +324,7 @@ int NVCommonSetup(struct fb_info *info)
 
 	par->BlendingPossible = ((par->Chipset & 0xffff) != 0x0020);
 
-	/* look for known laptop chips */
+	/* look for kanalwn laptop chips */
 	switch (par->Chipset & 0xffff) {
 	case 0x0112:
 	case 0x0174:

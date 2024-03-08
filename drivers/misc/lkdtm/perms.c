@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * This is for all the tests related to validating kernel memory
- * permissions: non-executable regions, non-writable regions, and
- * even non-readable regions.
+ * permissions: analn-executable regions, analn-writable regions, and
+ * even analn-readable regions.
  */
 #include "lkdtm.h"
 #include <linux/slab.h>
@@ -12,14 +12,14 @@
 #include <asm/cacheflush.h>
 #include <asm/sections.h>
 
-/* Whether or not to fill the target memory area with do_nothing(). */
+/* Whether or analt to fill the target memory area with do_analthing(). */
 #define CODE_WRITE	true
 #define CODE_AS_IS	false
 
-/* How many bytes to copy to be sure we've copied enough of do_nothing(). */
+/* How many bytes to copy to be sure we've copied eanalugh of do_analthing(). */
 #define EXEC_SIZE 64
 
-/* This is non-const, so it will end up in the .data section. */
+/* This is analn-const, so it will end up in the .data section. */
 static u8 data_area[EXEC_SIZE];
 
 /* This is const, so it will end up in the .rodata section. */
@@ -30,23 +30,23 @@ static unsigned long ro_after_init __ro_after_init = 0x55AA5500;
 
 /*
  * This just returns to the caller. It is designed to be copied into
- * non-executable memory regions.
+ * analn-executable memory regions.
  */
-static noinline void do_nothing(void)
+static analinline void do_analthing(void)
 {
 	return;
 }
 
-/* Must immediately follow do_nothing for size calculuations to work out. */
-static noinline void do_overwritten(void)
+/* Must immediately follow do_analthing for size calculuations to work out. */
+static analinline void do_overwritten(void)
 {
 	pr_info("do_overwritten wasn't overwritten!\n");
 	return;
 }
 
-static noinline void do_almost_nothing(void)
+static analinline void do_almost_analthing(void)
 {
-	pr_info("do_nothing was hijacked!\n");
+	pr_info("do_analthing was hijacked!\n");
 }
 
 static void *setup_function_descriptor(func_desc_t *fdesc, void *dst)
@@ -54,24 +54,24 @@ static void *setup_function_descriptor(func_desc_t *fdesc, void *dst)
 	if (!have_function_descriptors())
 		return dst;
 
-	memcpy(fdesc, do_nothing, sizeof(*fdesc));
+	memcpy(fdesc, do_analthing, sizeof(*fdesc));
 	fdesc->addr = (unsigned long)dst;
 	barrier();
 
 	return fdesc;
 }
 
-static noinline void execute_location(void *dst, bool write)
+static analinline void execute_location(void *dst, bool write)
 {
 	void (*func)(void);
 	func_desc_t fdesc;
-	void *do_nothing_text = dereference_function_descriptor(do_nothing);
+	void *do_analthing_text = dereference_function_descriptor(do_analthing);
 
-	pr_info("attempting ok execution at %px\n", do_nothing_text);
-	do_nothing();
+	pr_info("attempting ok execution at %px\n", do_analthing_text);
+	do_analthing();
 
 	if (write == CODE_WRITE) {
-		memcpy(dst, do_nothing_text, EXEC_SIZE);
+		memcpy(dst, do_analthing_text, EXEC_SIZE);
 		flush_icache_range((unsigned long)dst,
 				   (unsigned long)dst + EXEC_SIZE);
 	}
@@ -88,12 +88,12 @@ static void execute_user_location(void *dst)
 	/* Intentionally crossing kernel/user memory boundary. */
 	void (*func)(void);
 	func_desc_t fdesc;
-	void *do_nothing_text = dereference_function_descriptor(do_nothing);
+	void *do_analthing_text = dereference_function_descriptor(do_analthing);
 
-	pr_info("attempting ok execution at %px\n", do_nothing_text);
-	do_nothing();
+	pr_info("attempting ok execution at %px\n", do_analthing_text);
+	do_analthing();
 
-	copied = access_process_vm(current, (unsigned long)dst, do_nothing_text,
+	copied = access_process_vm(current, (unsigned long)dst, do_analthing_text,
 				   EXEC_SIZE, FOLL_WRITE);
 	if (copied < EXEC_SIZE)
 		return;
@@ -123,7 +123,7 @@ static void lkdtm_WRITE_RO_AFTER_INIT(void)
 	 * real test.
 	 */
 	if ((*ptr & 0xAA) != 0xAA) {
-		pr_info("%p was NOT written during init!?\n", ptr);
+		pr_info("%p was ANALT written during init!?\n", ptr);
 		return;
 	}
 
@@ -138,11 +138,11 @@ static void lkdtm_WRITE_KERN(void)
 	volatile unsigned char *ptr;
 
 	size = (unsigned long)dereference_function_descriptor(do_overwritten) -
-	       (unsigned long)dereference_function_descriptor(do_nothing);
+	       (unsigned long)dereference_function_descriptor(do_analthing);
 	ptr = dereference_function_descriptor(do_overwritten);
 
 	pr_info("attempting bad %zu byte write at %px\n", size, ptr);
-	memcpy((void *)ptr, (unsigned char *)do_nothing, size);
+	memcpy((void *)ptr, (unsigned char *)do_analthing, size);
 	flush_icache_range((unsigned long)ptr, (unsigned long)(ptr + size));
 	pr_err("FAIL: survived bad write\n");
 
@@ -152,14 +152,14 @@ static void lkdtm_WRITE_KERN(void)
 static void lkdtm_WRITE_OPD(void)
 {
 	size_t size = sizeof(func_desc_t);
-	void (*func)(void) = do_nothing;
+	void (*func)(void) = do_analthing;
 
 	if (!have_function_descriptors()) {
 		pr_info("XFAIL: Platform doesn't use function descriptors.\n");
 		return;
 	}
-	pr_info("attempting bad %zu bytes write at %px\n", size, do_nothing);
-	memcpy(do_nothing, do_almost_nothing, size);
+	pr_info("attempting bad %zu bytes write at %px\n", size, do_analthing);
+	memcpy(do_analthing, do_almost_analthing, size);
 	pr_err("FAIL: survived bad write\n");
 
 	asm("" : "=m"(func));
@@ -193,7 +193,7 @@ static void lkdtm_EXEC_VMALLOC(void)
 
 static void lkdtm_EXEC_RODATA(void)
 {
-	execute_location(dereference_function_descriptor(lkdtm_rodata_do_nothing),
+	execute_location(dereference_function_descriptor(lkdtm_rodata_do_analthing),
 			 CODE_AS_IS);
 }
 
@@ -203,7 +203,7 @@ static void lkdtm_EXEC_USERSPACE(void)
 
 	user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
 			    PROT_READ | PROT_WRITE | PROT_EXEC,
-			    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+			    MAP_AANALNYMOUS | MAP_PRIVATE, 0);
 	if (user_addr >= TASK_SIZE) {
 		pr_warn("Failed to allocate user memory\n");
 		return;
@@ -224,7 +224,7 @@ static void lkdtm_ACCESS_USERSPACE(void)
 
 	user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
 			    PROT_READ | PROT_WRITE | PROT_EXEC,
-			    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+			    MAP_AANALNYMOUS | MAP_PRIVATE, 0);
 	if (user_addr >= TASK_SIZE) {
 		pr_warn("Failed to allocate user memory\n");
 		return;

@@ -27,10 +27,10 @@ enum ceph_feature_type {
 	CEPHFS_FEATURE_RECLAIM_CLIENT,
 	CEPHFS_FEATURE_LAZY_CAP_WANTED,
 	CEPHFS_FEATURE_MULTI_RECONNECT,
-	CEPHFS_FEATURE_DELEG_INO,
+	CEPHFS_FEATURE_DELEG_IANAL,
 	CEPHFS_FEATURE_METRIC_COLLECT,
 	CEPHFS_FEATURE_ALTERNATE_NAME,
-	CEPHFS_FEATURE_NOTIFY_SESSION_STATE,
+	CEPHFS_FEATURE_ANALTIFY_SESSION_STATE,
 	CEPHFS_FEATURE_OP_GETVXATTR,
 	CEPHFS_FEATURE_32BITS_RETRY_FWD,
 	CEPHFS_FEATURE_NEW_SNAPREALM_INFO,
@@ -45,10 +45,10 @@ enum ceph_feature_type {
 	CEPHFS_FEATURE_REPLY_ENCODING,		\
 	CEPHFS_FEATURE_LAZY_CAP_WANTED,		\
 	CEPHFS_FEATURE_MULTI_RECONNECT,		\
-	CEPHFS_FEATURE_DELEG_INO,		\
+	CEPHFS_FEATURE_DELEG_IANAL,		\
 	CEPHFS_FEATURE_METRIC_COLLECT,		\
 	CEPHFS_FEATURE_ALTERNATE_NAME,		\
-	CEPHFS_FEATURE_NOTIFY_SESSION_STATE,	\
+	CEPHFS_FEATURE_ANALTIFY_SESSION_STATE,	\
 	CEPHFS_FEATURE_OP_GETVXATTR,		\
 	CEPHFS_FEATURE_32BITS_RETRY_FWD,	\
 	CEPHFS_FEATURE_HAS_OWNER_UIDGID,	\
@@ -72,11 +72,11 @@ struct ceph_fs_client;
 struct ceph_cap;
 
 /*
- * parsed info about a single inode.  pointers are into the encoded
+ * parsed info about a single ianalde.  pointers are into the encoded
  * on-wire structures within the mds reply message payload.
  */
 struct ceph_mds_reply_info_in {
-	struct ceph_mds_reply_inode *in;
+	struct ceph_mds_reply_ianalde *in;
 	struct ceph_dir_layout dir_layout;
 	u32 symlink_len;
 	char *symlink;
@@ -101,12 +101,12 @@ struct ceph_mds_reply_info_in {
 };
 
 struct ceph_mds_reply_dir_entry {
-	bool			      is_nokey;
+	bool			      is_analkey;
 	char                          *name;
 	u32                           name_len;
 	u32			      raw_hash;
 	struct ceph_mds_reply_lease   *lease;
-	struct ceph_mds_reply_info_in inode;
+	struct ceph_mds_reply_info_in ianalde;
 	loff_t			      offset;
 };
 
@@ -117,7 +117,7 @@ struct ceph_mds_reply_xattr {
 
 /*
  * parsed info about an mds reply, including information about
- * either: 1) the target inode and/or its parent directory and dentry,
+ * either: 1) the target ianalde and/or its parent directory and dentry,
  * and directory contents (for readdir results), or
  * 2) the file range lock info (for fcntl F_GETLK results).
  */
@@ -153,8 +153,8 @@ struct ceph_mds_reply_info_parsed {
 
 		/* for create results */
 		struct {
-			bool has_create_ino;
-			u64 ino;
+			bool has_create_ianal;
+			u64 ianal;
 		};
 	};
 
@@ -219,18 +219,18 @@ struct ceph_mds_session {
 	struct list_head  s_cap_releases; /* waiting cap_release messages */
 	struct work_struct s_cap_release_work;
 
-	/* See ceph_inode_info->i_dirty_item. */
-	struct list_head  s_cap_dirty;	      /* inodes w/ dirty caps */
+	/* See ceph_ianalde_info->i_dirty_item. */
+	struct list_head  s_cap_dirty;	      /* ianaldes w/ dirty caps */
 
-	/* See ceph_inode_info->i_flushing_item. */
-	struct list_head  s_cap_flushing;     /* inodes w/ flushing caps */
+	/* See ceph_ianalde_info->i_flushing_item. */
+	struct list_head  s_cap_flushing;     /* ianaldes w/ flushing caps */
 
 	unsigned long     s_renew_requested; /* last time we sent a renew req */
 	u64               s_renew_seq;
 
 	struct list_head  s_waiting;  /* waiting requests */
 	struct list_head  s_unsafe;   /* unsafe requests */
-	struct xarray	  s_delegated_inos;
+	struct xarray	  s_delegated_ianals;
 };
 
 /*
@@ -261,23 +261,23 @@ typedef int (*ceph_mds_request_wait_callback_t) (struct ceph_mds_client *mdsc,
  */
 struct ceph_mds_request {
 	u64 r_tid;                   /* transaction id */
-	struct rb_node r_node;
+	struct rb_analde r_analde;
 	struct ceph_mds_client *r_mdsc;
 
 	struct kref       r_kref;
 	int r_op;                    /* mds op code */
 
 	/* operation on what? */
-	struct inode *r_inode;              /* arg1 */
+	struct ianalde *r_ianalde;              /* arg1 */
 	struct dentry *r_dentry;            /* arg1 */
 	struct dentry *r_old_dentry;        /* arg2: rename from or link from */
-	struct inode *r_old_dentry_dir;     /* arg2: old dentry's parent dir */
+	struct ianalde *r_old_dentry_dir;     /* arg2: old dentry's parent dir */
 	char *r_path1, *r_path2;
-	struct ceph_vino r_ino1, r_ino2;
+	struct ceph_vianal r_ianal1, r_ianal2;
 
-	struct inode *r_parent;		    /* parent dir inode */
-	struct inode *r_target_inode;       /* resulting inode */
-	struct inode *r_new_inode;	    /* new inode (for creates) */
+	struct ianalde *r_parent;		    /* parent dir ianalde */
+	struct ianalde *r_target_ianalde;       /* resulting ianalde */
+	struct ianalde *r_new_ianalde;	    /* new ianalde (for creates) */
 
 #define CEPH_MDS_R_DIRECT_IS_HASH	(1) /* r_direct_hash is valid */
 #define CEPH_MDS_R_ABORTED		(2) /* call was aborted */
@@ -314,11 +314,11 @@ struct ceph_mds_request {
 	struct ceph_pagelist *r_pagelist;
 
 	/* what caps shall we drop? */
-	int r_inode_drop, r_inode_unless;
+	int r_ianalde_drop, r_ianalde_unless;
 	int r_dentry_drop, r_dentry_unless;
 	int r_old_dentry_drop, r_old_dentry_unless;
-	struct inode *r_old_inode;
-	int r_old_inode_drop, r_old_inode_unless;
+	struct ianalde *r_old_ianalde;
+	int r_old_ianalde_drop, r_old_ianalde_unless;
 
 	struct ceph_msg  *r_request;  /* original request */
 	struct ceph_msg  *r_reply;
@@ -338,10 +338,10 @@ struct ceph_mds_request {
 					    used to measure lease durations */
 
 	/* link unsafe requests to parent directory, for fsync */
-	struct inode	*r_unsafe_dir;
+	struct ianalde	*r_unsafe_dir;
 	struct list_head r_unsafe_dir_item;
 
-	/* unsafe requests that modify the target inode */
+	/* unsafe requests that modify the target ianalde */
 	struct list_head r_unsafe_target_item;
 
 	struct ceph_mds_session *r_session;
@@ -350,7 +350,7 @@ struct ceph_mds_request {
 	int               r_num_fwd;    /* number of forward attempts */
 	int               r_resend_mds; /* mds to resend to next, if any*/
 	u32               r_sent_on_mseq; /* cap mseq request was sent at*/
-	u64		  r_deleg_ino;
+	u64		  r_deleg_ianal;
 
 	struct list_head  r_wait;
 	struct completion r_completion;
@@ -368,7 +368,7 @@ struct ceph_mds_request {
 };
 
 struct ceph_pool_perm {
-	struct rb_node node;
+	struct rb_analde analde;
 	int perm;
 	s64 pool;
 	size_t pool_ns_len;
@@ -376,7 +376,7 @@ struct ceph_pool_perm {
 };
 
 struct ceph_snapid_map {
-	struct rb_node node;
+	struct rb_analde analde;
 	struct list_head lru;
 	atomic_t ref;
 	dev_t dev;
@@ -385,20 +385,20 @@ struct ceph_snapid_map {
 };
 
 /*
- * node for list of quotarealm inodes that are not visible from the filesystem
+ * analde for list of quotarealm ianaldes that are analt visible from the filesystem
  * mountpoint, but required to handle, e.g. quotas.
  */
-struct ceph_quotarealm_inode {
-	struct rb_node node;
-	u64 ino;
-	unsigned long timeout; /* last time a lookup failed for this inode */
+struct ceph_quotarealm_ianalde {
+	struct rb_analde analde;
+	u64 ianal;
+	unsigned long timeout; /* last time a lookup failed for this ianalde */
 	struct mutex mutex;
-	struct inode *inode;
+	struct ianalde *ianalde;
 };
 
 struct cap_wait {
 	struct list_head	list;
-	u64			ino;
+	u64			ianal;
 	pid_t			tgid;
 	int			need;
 	int			want;
@@ -423,7 +423,7 @@ struct ceph_mds_client {
 	struct list_head        waiting_for_map;
 	int 			mdsmap_err;
 
-	struct ceph_mds_session **sessions;    /* NULL for mds if no session */
+	struct ceph_mds_session **sessions;    /* NULL for mds if anal session */
 	atomic_t		num_sessions;
 	int                     max_sessions;  /* len of sessions array */
 
@@ -434,17 +434,17 @@ struct ceph_mds_client {
 
 	atomic64_t		quotarealms_count; /* # realms with quota */
 	/*
-	 * We keep a list of inodes we don't see in the mountpoint but that we
+	 * We keep a list of ianaldes we don't see in the mountpoint but that we
 	 * need to track quota realms.
 	 */
-	struct rb_root		quotarealms_inodes;
-	struct mutex		quotarealms_inodes_mutex;
+	struct rb_root		quotarealms_ianaldes;
+	struct mutex		quotarealms_ianaldes_mutex;
 
 	/*
 	 * snap_rwsem will cover cap linkage into snaprealms, and
 	 * realm snap contexts.  (later, we can do per-realm snap
-	 * contexts locks..)  the empty list contains realms with no
-	 * references (implying they contain no inodes with caps) that
+	 * contexts locks..)  the empty list contains realms with anal
+	 * references (implying they contain anal ianaldes with caps) that
 	 * should be destroyed.
 	 */
 	u64			last_snap_seq;
@@ -514,7 +514,7 @@ struct ceph_mds_client {
 	struct rw_semaphore     pool_perm_rwsem;
 	struct rb_root		pool_perm_tree;
 
-	char nodename[__NEW_UTS_LEN + 1];
+	char analdename[__NEW_UTS_LEN + 1];
 };
 
 extern const char *ceph_mds_op_name(int op);
@@ -543,17 +543,17 @@ extern void ceph_mdsc_sync(struct ceph_mds_client *mdsc);
 
 extern void ceph_invalidate_dir_request(struct ceph_mds_request *req);
 extern int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
-					   struct inode *dir);
+					   struct ianalde *dir);
 extern struct ceph_mds_request *
 ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode);
 extern int ceph_mdsc_submit_request(struct ceph_mds_client *mdsc,
-				    struct inode *dir,
+				    struct ianalde *dir,
 				    struct ceph_mds_request *req);
 int ceph_mdsc_wait_request(struct ceph_mds_client *mdsc,
 			struct ceph_mds_request *req,
 			ceph_mds_request_wait_callback_t wait_func);
 extern int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
-				struct inode *dir,
+				struct ianalde *dir,
 				struct ceph_mds_request *req);
 extern void ceph_mdsc_release_dir_caps(struct ceph_mds_request *req);
 extern void ceph_mdsc_release_dir_caps_async(struct ceph_mds_request *req);
@@ -580,7 +580,7 @@ extern void ceph_queue_cap_reclaim_work(struct ceph_mds_client *mdsc);
 extern void ceph_reclaim_caps_nr(struct ceph_mds_client *mdsc, int nr);
 extern void ceph_queue_cap_unlink_work(struct ceph_mds_client *mdsc);
 extern int ceph_iterate_session_caps(struct ceph_mds_session *session,
-				     int (*cb)(struct inode *, int mds, void *),
+				     int (*cb)(struct ianalde *, int mds, void *),
 				     void *arg);
 extern void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc);
 
@@ -613,17 +613,17 @@ extern int ceph_trim_caps(struct ceph_mds_client *mdsc,
 			  struct ceph_mds_session *session,
 			  int max_caps);
 
-static inline int ceph_wait_on_async_create(struct inode *inode)
+static inline int ceph_wait_on_async_create(struct ianalde *ianalde)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
 
 	return wait_on_bit(&ci->i_ceph_flags, CEPH_ASYNC_CREATE_BIT,
 			   TASK_KILLABLE);
 }
 
 extern int ceph_wait_on_conflict_unlink(struct dentry *dentry);
-extern u64 ceph_get_deleg_ino(struct ceph_mds_session *session);
-extern int ceph_restore_deleg_ino(struct ceph_mds_session *session, u64 ino);
+extern u64 ceph_get_deleg_ianal(struct ceph_mds_session *session);
+extern int ceph_restore_deleg_ianal(struct ceph_mds_session *session, u64 ianal);
 
 extern bool enable_unsafe_idmap;
 #endif

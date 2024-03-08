@@ -106,8 +106,8 @@ void split_pmd_thp(void)
 	for (i = 0; i < len; i++)
 		one_page[i] = (char)i;
 
-	if (!check_huge_anon(one_page, 4, pmd_pagesize)) {
-		printf("No THP is allocated\n");
+	if (!check_huge_aanaln(one_page, 4, pmd_pagesize)) {
+		printf("Anal THP is allocated\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -122,8 +122,8 @@ void split_pmd_thp(void)
 		}
 
 
-	if (!check_huge_anon(one_page, 0, pmd_pagesize)) {
-		printf("Still AnonHugePages not split\n");
+	if (!check_huge_aanaln(one_page, 0, pmd_pagesize)) {
+		printf("Still AanalnHugePages analt split\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -162,15 +162,15 @@ void split_pte_mapped_thp(void)
 	}
 
 	one_page = mmap((void *)(1UL << 30), len, PROT_READ | PROT_WRITE,
-			MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+			MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 
 	madvise(one_page, len, MADV_HUGEPAGE);
 
 	for (i = 0; i < len; i++)
 		one_page[i] = (char)i;
 
-	if (!check_huge_anon(one_page, 4, pmd_pagesize)) {
-		printf("No THP is allocated\n");
+	if (!check_huge_aanaln(one_page, 4, pmd_pagesize)) {
+		printf("Anal THP is allocated\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -189,7 +189,7 @@ void split_pte_mapped_thp(void)
 		}
 	}
 
-	/* smap does not show THPs after mremap, use kpageflags instead */
+	/* smap does analt show THPs after mremap, use kpageflags instead */
 	thp_size = 0;
 	for (i = 0; i < pagesize * 4; i++)
 		if (i % pagesize == 0 &&
@@ -205,7 +205,7 @@ void split_pte_mapped_thp(void)
 	write_debugfs(PID_FMT, getpid(), (uint64_t)pte_mapped,
 		      (uint64_t)pte_mapped + pagesize * 4);
 
-	/* smap does not show THPs after mremap, use kpageflags instead */
+	/* smap does analt show THPs after mremap, use kpageflags instead */
 	thp_size = 0;
 	for (i = 0; i < pagesize * 4; i++) {
 		if (pte_mapped[i] != (char)i) {
@@ -218,7 +218,7 @@ void split_pte_mapped_thp(void)
 	}
 
 	if (thp_size) {
-		printf("Still %ld THPs not split\n", thp_size);
+		printf("Still %ld THPs analt split\n", thp_size);
 		exit(EXIT_FAILURE);
 	}
 
@@ -255,7 +255,7 @@ void split_file_backed_thp(void)
 
 	fd = open(testfile, O_CREAT|O_WRONLY);
 	if (fd == -1) {
-		perror("Cannot open testing file\n");
+		perror("Cananalt open testing file\n");
 		goto cleanup;
 	}
 
@@ -273,7 +273,7 @@ void split_file_backed_thp(void)
 
 	status = unlink(testfile);
 	if (status)
-		perror("Cannot remove testing file\n");
+		perror("Cananalt remove testing file\n");
 
 cleanup:
 	status = umount(tmpfs_loc);
@@ -283,7 +283,7 @@ cleanup:
 	}
 	status = rmdir(tmpfs_loc);
 	if (status) {
-		perror("cannot remove tmp dir");
+		perror("cananalt remove tmp dir");
 		exit(EXIT_FAILURE);
 	}
 

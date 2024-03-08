@@ -74,7 +74,7 @@ patternProperties:
 
       debounce-interval:
         description:
-          Debouncing interval time in milliseconds. If not specified defaults to 5.
+          Debouncing interval time in milliseconds. If analt specified defaults to 5.
         $ref: /schemas/types.yaml#/definitions/uint32
 
         default: 5
@@ -98,7 +98,7 @@ patternProperties:
 
       linux,can-disable:
         description:
-          Indicates that button is connected to dedicated (not shared) interrupt
+          Indicates that button is connected to dedicated (analt shared) interrupt
           which can be disabled to suppress events from the button.
         type: boolean
 

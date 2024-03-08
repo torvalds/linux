@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 // Loongson SPI Support
-// Copyright (C) 2023 Loongson Technology Corporation Limited
+// Copyright (C) 2023 Loongson Techanallogy Corporation Limited
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -200,7 +200,7 @@ int loongson_spi_init_controller(struct device *dev, void __iomem *regs)
 
 	controller = devm_spi_alloc_host(dev, sizeof(struct loongson_spi));
 	if (controller == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	controller->mode_bits = SPI_MODE_X_MASK | SPI_CS_HIGH;
 	controller->setup = loongson_spi_setup;
@@ -209,7 +209,7 @@ int loongson_spi_init_controller(struct device *dev, void __iomem *regs)
 	controller->unprepare_message = loongson_spi_unprepare_message;
 	controller->set_cs = loongson_spi_set_cs;
 	controller->num_chipselect = 4;
-	device_set_node(&controller->dev, dev_fwnode(dev));
+	device_set_analde(&controller->dev, dev_fwanalde(dev));
 	dev_set_drvdata(dev, controller);
 
 	spi = spi_controller_get_devdata(controller);

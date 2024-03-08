@@ -14,7 +14,7 @@ config CPU_FREQ_CBE_PMI
 	default n
 	help
 	  Select this, if you want to use the PMI interface to switch
-	  frequencies. Using PMI, the processor will not only be able to run at
+	  frequencies. Using PMI, the processor will analt only be able to run at
 	  lower speed, but also at lower core voltage.
 
 config CPU_FREQ_MAPLE

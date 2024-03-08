@@ -5,7 +5,7 @@
  * Jonas Jensen <jonas.jensen@gmail.com>
  *
  * Based on code from
- * Moxa Technology Co., Ltd. <www.moxa.com>
+ * Moxa Techanallogy Co., Ltd. <www.moxa.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
@@ -345,7 +345,7 @@ static netdev_tx_t moxart_mac_start_xmit(struct sk_buff *skb,
 		netif_stop_queue(ndev);
 
 	if (moxart_desc_read(desc + TX_REG_OFFSET_DESC0) & TX_DESC0_DMA_OWN) {
-		net_dbg_ratelimited("no TX space for packet\n");
+		net_dbg_ratelimited("anal TX space for packet\n");
 		ndev->stats.tx_dropped++;
 		goto out_unlock;
 	}
@@ -454,7 +454,7 @@ static const struct net_device_ops moxart_netdev_ops = {
 static int moxart_mac_probe(struct platform_device *pdev)
 {
 	struct device *p_dev = &pdev->dev;
-	struct device_node *node = p_dev->of_node;
+	struct device_analde *analde = p_dev->of_analde;
 	struct net_device *ndev;
 	struct moxart_mac_priv_t *priv;
 	struct resource *res;
@@ -463,9 +463,9 @@ static int moxart_mac_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(struct moxart_mac_priv_t));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(analde, 0);
 	if (irq <= 0) {
 		netdev_err(ndev, "irq_of_parse_and_map failed\n");
 		ret = -EINVAL;
@@ -499,7 +499,7 @@ static int moxart_mac_probe(struct platform_device *pdev)
 						TX_DESC_NUM, &priv->tx_base,
 						GFP_DMA | GFP_KERNEL);
 	if (!priv->tx_desc_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto init_fail;
 	}
 
@@ -507,21 +507,21 @@ static int moxart_mac_probe(struct platform_device *pdev)
 						RX_DESC_NUM, &priv->rx_base,
 						GFP_DMA | GFP_KERNEL);
 	if (!priv->rx_desc_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto init_fail;
 	}
 
 	priv->tx_buf_base = kmalloc_array(priv->tx_buf_size, TX_DESC_NUM,
 					  GFP_KERNEL);
 	if (!priv->tx_buf_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto init_fail;
 	}
 
 	priv->rx_buf_base = kmalloc_array(priv->rx_buf_size, RX_DESC_NUM,
 					  GFP_KERNEL);
 	if (!priv->rx_buf_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto init_fail;
 	}
 

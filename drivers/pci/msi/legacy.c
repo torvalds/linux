@@ -28,10 +28,10 @@ int __weak arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (type == PCI_CAP_ID_MSI && nvec > 1)
 		return 1;
 
-	msi_for_each_desc(desc, &dev->dev, MSI_DESC_NOTASSOCIATED) {
+	msi_for_each_desc(desc, &dev->dev, MSI_DESC_ANALTASSOCIATED) {
 		ret = arch_setup_msi_irq(dev, desc);
 		if (ret)
-			return ret < 0 ? ret : -ENOSPC;
+			return ret < 0 ? ret : -EANALSPC;
 	}
 
 	return 0;

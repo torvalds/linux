@@ -73,7 +73,7 @@ void cfg80211_rx_assoc_resp(struct net_device *dev,
 	trace_cfg80211_send_rx_assoc(dev, data);
 
 	/*
-	 * This is a bit of a hack, we don't notify userspace of
+	 * This is a bit of a hack, we don't analtify userspace of
 	 * a (re-)association reply if we tried to send a reassoc
 	 * and got a reject -- we only try again with an assoc
 	 * frame instead of reassoc.
@@ -267,7 +267,7 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (!req->bss)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (req->link_id >= 0 &&
 	    !(wdev->wiphy->flags & WIPHY_FLAG_SUPPORTS_MLO))
@@ -325,7 +325,7 @@ void cfg80211_oper_and_vht_capa(struct ieee80211_vht_cap *vht_capa,
 		p1[i] &= p2[i];
 }
 
-/* Note: caller must cfg80211_put_bss() regardless of result */
+/* Analte: caller must cfg80211_put_bss() regardless of result */
 int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct net_device *dev,
 			struct cfg80211_assoc_request *req)
@@ -428,10 +428,10 @@ int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (!wdev->connected)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (memcmp(wdev->u.client.connected_addr, ap_addr, ETH_ALEN))
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	err = rdev_disassoc(rdev, dev, &req);
 	if (err)
@@ -543,10 +543,10 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 	bool update_multicast = false;
 
 	if (!wdev->wiphy->mgmt_stypes)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((frame_type & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT) {
-		NL_SET_ERR_MSG(extack, "frame type not management");
+		NL_SET_ERR_MSG(extack, "frame type analt management");
 		return -EINVAL;
 	}
 
@@ -558,7 +558,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 	mgmt_type = (frame_type & IEEE80211_FCTL_STYPE) >> 4;
 	if (!(wdev->wiphy->mgmt_stypes[wdev->iftype].rx & BIT(mgmt_type))) {
 		NL_SET_ERR_MSG(extack,
-			       "Registration to specific type not supported");
+			       "Registration to specific type analt supported");
 		return -EINVAL;
 	}
 
@@ -580,7 +580,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 
 	nreg = kzalloc(sizeof(*reg) + match_len, GFP_KERNEL);
 	if (!nreg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_bh(&rdev->mgmt_registrations_lock);
 
@@ -731,10 +731,10 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 	lockdep_assert_wiphy(&rdev->wiphy);
 
 	if (!wdev->wiphy->mgmt_stypes)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!rdev->ops->mgmt_tx)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (params->len < 24 + 1)
 		return -EINVAL;
@@ -761,14 +761,14 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			if (!wdev->u.ibss.current_bss ||
 			    !ether_addr_equal(wdev->u.ibss.current_bss->pub.bssid,
 					      mgmt->bssid)) {
-				err = -ENOTCONN;
+				err = -EANALTCONN;
 				break;
 			}
 			break;
 		case NL80211_IFTYPE_STATION:
 		case NL80211_IFTYPE_P2P_CLIENT:
 			if (!wdev->connected) {
-				err = -ENOTCONN;
+				err = -EANALTCONN;
 				break;
 			}
 
@@ -776,14 +776,14 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 
 			if (!ether_addr_equal(wdev->u.client.connected_addr,
 					      mgmt->bssid)) {
-				err = -ENOTCONN;
+				err = -EANALTCONN;
 				break;
 			}
 
 			/* for station, check that DA is the AP */
 			if (!ether_addr_equal(wdev->u.client.connected_addr,
 					      mgmt->da)) {
-				err = -ENOTCONN;
+				err = -EANALTCONN;
 				break;
 			}
 			break;
@@ -813,7 +813,7 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			 */
 		case NL80211_IFTYPE_NAN:
 		default:
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		}
 
@@ -927,8 +927,8 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 				continue;
 
 			if (c->dfs_state == NL80211_DFS_UNAVAILABLE) {
-				time_dfs_update = IEEE80211_DFS_MIN_NOP_TIME_MS;
-				radar_event = NL80211_RADAR_NOP_FINISHED;
+				time_dfs_update = IEEE80211_DFS_MIN_ANALP_TIME_MS;
+				radar_event = NL80211_RADAR_ANALP_FINISHED;
 			} else {
 				if (regulatory_pre_cac_allowed(wiphy) ||
 				    cfg80211_any_wiphy_oper_chan(wiphy, c))
@@ -946,9 +946,9 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 				c->dfs_state_entered = jiffies;
 
 				cfg80211_chandef_create(&chandef, c,
-							NL80211_CHAN_NO_HT);
+							NL80211_CHAN_ANAL_HT);
 
-				nl80211_radar_notify(rdev, &chandef,
+				nl80211_radar_analtify(rdev, &chandef,
 						     radar_event, NULL,
 						     GFP_ATOMIC);
 
@@ -993,7 +993,7 @@ void __cfg80211_radar_event(struct wiphy *wiphy,
 
 	cfg80211_sched_dfs_chan_update(rdev);
 
-	nl80211_radar_notify(rdev, chandef, NL80211_RADAR_DETECTED, NULL, gfp);
+	nl80211_radar_analtify(rdev, chandef, NL80211_RADAR_DETECTED, NULL, gfp);
 
 	memcpy(&rdev->radar_chandef, chandef, sizeof(struct cfg80211_chan_def));
 	queue_work(cfg80211_wq, &rdev->propagate_radar_detect_wk);
@@ -1009,7 +1009,7 @@ void cfg80211_cac_event(struct net_device *netdev,
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	unsigned long timeout;
 
-	/* not yet supported */
+	/* analt yet supported */
 	if (wdev->valid_links)
 		return;
 
@@ -1040,7 +1040,7 @@ void cfg80211_cac_event(struct net_device *netdev,
 		return;
 	}
 
-	nl80211_radar_notify(rdev, chandef, event, netdev, gfp);
+	nl80211_radar_analtify(rdev, chandef, event, netdev, gfp);
 }
 EXPORT_SYMBOL(cfg80211_cac_event);
 
@@ -1081,7 +1081,7 @@ __cfg80211_background_cac_event(struct cfg80211_registered_device *rdev,
 	}
 
 	netdev = wdev ? wdev->netdev : NULL;
-	nl80211_radar_notify(rdev, chandef, event, netdev, GFP_KERNEL);
+	nl80211_radar_analtify(rdev, chandef, event, netdev, GFP_KERNEL);
 }
 
 static void
@@ -1136,9 +1136,9 @@ cfg80211_start_background_radar_detection(struct cfg80211_registered_device *rde
 
 	if (!wiphy_ext_feature_isset(&rdev->wiphy,
 				     NL80211_EXT_FEATURE_RADAR_BACKGROUND))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* Offchannel chain already locked by another wdev */
+	/* Offchannel chain already locked by aanalther wdev */
 	if (rdev->background_radar_wdev && rdev->background_radar_wdev != wdev)
 		return -EBUSY;
 

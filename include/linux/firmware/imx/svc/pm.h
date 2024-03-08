@@ -21,7 +21,7 @@
  * This type is used to indicate RPC PM function calls.
  */
 enum imx_sc_pm_func {
-	IMX_SC_PM_FUNC_UNKNOWN = 0,
+	IMX_SC_PM_FUNC_UNKANALWN = 0,
 	IMX_SC_PM_FUNC_SET_SYS_POWER_MODE = 19,
 	IMX_SC_PM_FUNC_SET_PARTITION_POWER_MODE = 1,
 	IMX_SC_PM_FUNC_GET_SYS_POWER_MODE = 2,

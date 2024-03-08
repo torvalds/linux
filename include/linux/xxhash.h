@@ -9,18 +9,18 @@
  * met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following disclaimer
+ *     copyright analtice, this list of conditions and the following disclaimer
  *     in the documentation and/or other materials provided with the
  *     distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -39,7 +39,7 @@
  */
 
 /*
- * Notice extracted from xxHash homepage:
+ * Analtice extracted from xxHash homepage:
  *
  * xxHash is an extremely fast Hash algorithm, running at RAM speed limits.
  * It also successfully passes all tests from the SMHasher suite.
@@ -56,7 +56,7 @@
  * Lookup3         1.2 GB/s      9       Bob Jenkins
  * SuperFastHash   1.2 GB/s      1       Paul Hsieh
  * CityHash64      1.05 GB/s    10       Pike & Alakuijala
- * FNV             0.55 GB/s     5       Fowler, Noll, Vo
+ * FNV             0.55 GB/s     5       Fowler, Analll, Vo
  * CRC32           0.43 GB/s     9
  * MD5-32          0.33 GB/s    10       Ronald L. Rivest
  * SHA1-32         0.28 GB/s    10
@@ -113,7 +113,7 @@ uint64_t xxh64(const void *input, size_t length, uint64_t seed);
  * @length: The length of the data to hash.
  * @seed:   The seed can be used to alter the result predictably.
  *
- * If the hash does not need to be comparable between machines with
+ * If the hash does analt need to be comparable between machines with
  * different word sizes, this function will call whichever of xxh32()
  * or xxh64() is faster.
  *
@@ -137,11 +137,11 @@ static inline unsigned long xxhash(const void *input, size_t length,
 /*
  * These definitions are only meant to allow allocation of XXH state
  * statically, on stack, or in a struct for example.
- * Do not use members directly.
+ * Do analt use members directly.
  */
 
 /**
- * struct xxh32_state - private xxh32 state, do not use members directly
+ * struct xxh32_state - private xxh32 state, do analt use members directly
  */
 struct xxh32_state {
 	uint32_t total_len_32;
@@ -155,7 +155,7 @@ struct xxh32_state {
 };
 
 /**
- * struct xxh32_state - private xxh64 state, do not use members directly
+ * struct xxh32_state - private xxh64 state, do analt use members directly
  */
 struct xxh64_state {
 	uint64_t total_len;

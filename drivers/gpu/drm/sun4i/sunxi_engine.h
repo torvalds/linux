@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
  */
 
 #ifndef _SUNXI_ENGINE_H_
@@ -125,14 +125,14 @@ struct sunxi_engine_ops {
 /**
  * struct sunxi_engine - the common parts of an engine for sun4i-drm driver
  * @ops:	the operations of the engine
- * @node:	the of device node of the engine
+ * @analde:	the of device analde of the engine
  * @regs:	the regmap of the engine
- * @id:		the id of the engine (-1 if not used)
+ * @id:		the id of the engine (-1 if analt used)
  */
 struct sunxi_engine {
 	const struct sunxi_engine_ops	*ops;
 
-	struct device_node		*node;
+	struct device_analde		*analde;
 	struct regmap			*regs;
 
 	int id;
@@ -162,7 +162,7 @@ sunxi_engine_layers_init(struct drm_device *drm, struct sunxi_engine *engine)
 {
 	if (engine->ops && engine->ops->layers_init)
 		return engine->ops->layers_init(drm, engine);
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
 /**

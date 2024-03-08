@@ -61,7 +61,7 @@ int attach_prog(struct attach_prog_args *ctx)
 	ctx->retval = hid_bpf_attach_prog(ctx->hid,
 					  ctx->prog_fd,
 					  ctx->insert_head ? HID_BPF_FLAG_INSERT_HEAD :
-							     HID_BPF_FLAG_NONE);
+							     HID_BPF_FLAG_ANALNE);
 	return 0;
 }
 

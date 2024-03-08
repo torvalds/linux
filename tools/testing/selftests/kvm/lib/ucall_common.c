@@ -18,7 +18,7 @@ int ucall_nr_pages_required(uint64_t page_size)
 
 /*
  * ucall_pool holds per-VM values (global data is duplicated by each VM), it
- * must not be accessed from host code.
+ * must analt be accessed from host code.
  */
 static struct ucall_header *ucall_pool;
 
@@ -61,9 +61,9 @@ static struct ucall *ucall_alloc(void)
 
 ucall_failed:
 	/*
-	 * If the vCPU cannot grab a ucall structure, make a bare ucall with a
+	 * If the vCPU cananalt grab a ucall structure, make a bare ucall with a
 	 * magic value to signal to get_ucall() that things went sideways.
-	 * GUEST_ASSERT() depends on ucall_alloc() and so cannot be used here.
+	 * GUEST_ASSERT() depends on ucall_alloc() and so cananalt be used here.
 	 */
 	ucall_arch_do_ucall(GUEST_UCALL_FAILED);
 	return NULL;

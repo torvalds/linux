@@ -37,7 +37,7 @@ struct mdp5_kms {
 	uint32_t caps;	/* MDP capabilities (MDP_CAP_XXX bits) */
 
 	/*
-	 * Global private object state, Do not access directly, use
+	 * Global private object state, Do analt access directly, use
 	 * mdp5_global_get_state()
 	 */
 	struct drm_modeset_lock glob_state_lock;
@@ -128,7 +128,7 @@ struct mdp5_crtc_state {
 
 	bool cmd_mode;
 
-	/* should we not write CTL[n].START register on flush?  If the
+	/* should we analt write CTL[n].START register on flush?  If the
 	 * encoder has changed this is set to true, since encoder->enable()
 	 * is called after crtc state is committed, but we only want to
 	 * write the CTL[n].START register once.  This lets us defer
@@ -140,7 +140,7 @@ struct mdp5_crtc_state {
 		container_of(x, struct mdp5_crtc_state, base)
 
 enum mdp5_intf_mode {
-	MDP5_INTF_MODE_NONE = 0,
+	MDP5_INTF_MODE_ANALNE = 0,
 
 	/* Modes used for DSI interface (INTF_DSI type): */
 	MDP5_INTF_DSI_MODE_VIDEO,

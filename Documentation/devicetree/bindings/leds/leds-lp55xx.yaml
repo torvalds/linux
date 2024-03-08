@@ -100,7 +100,7 @@ patternProperties:
           led-cur:
             $ref: /schemas/types.yaml#/definitions/uint8
             description: |
-              Current setting at each LED channel (mA x10, 0 if LED is not connected)
+              Current setting at each LED channel (mA x10, 0 if LED is analt connected)
             minimum: 0
             maximum: 255
 
@@ -123,7 +123,7 @@ patternProperties:
       led-cur:
         $ref: /schemas/types.yaml#/definitions/uint8
         description: |
-          Current setting at each LED channel (mA x10, 0 if LED is not connected)
+          Current setting at each LED channel (mA x10, 0 if LED is analt connected)
         minimum: 0
         maximum: 255
 

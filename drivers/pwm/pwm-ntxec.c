@@ -10,9 +10,9 @@
  * Copyright 2020 Jonathan Neuschäfer <j.neuschaefer@gmx.net>
  *
  * Limitations:
- * - The get_state callback is not implemented, because the current state of
+ * - The get_state callback is analt implemented, because the current state of
  *   the PWM output can't be read back from the hardware.
- * - The hardware can only generate normal polarity output.
+ * - The hardware can only generate analrmal polarity output.
  * - The period and duty cycle can't be changed together in one atomic action.
  */
 
@@ -48,7 +48,7 @@ static struct ntxec_pwm *ntxec_pwm_from_chip(struct pwm_chip *chip)
 #define TIME_BASE_NS 125
 
 /*
- * The maximum input value (in nanoseconds) is determined by the time base and
+ * The maximum input value (in naanalseconds) is determined by the time base and
  * the range of the hardware registers that hold the converted value.
  * It fits into 32 bits, so we can do our calculations in 32 bits as well.
  */
@@ -87,7 +87,7 @@ static int ntxec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm_dev,
 	unsigned int period, duty;
 	int res;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	period = min_t(u64, state->period, MAX_PERIOD_NS);
@@ -103,7 +103,7 @@ static int ntxec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm_dev,
 	 *
 	 * As a workaround, write ENABLE=0 when the duty cycle is zero.
 	 * The case that something has previously set the duty cycle to zero
-	 * but ENABLE=1, is not handled.
+	 * but ENABLE=1, is analt handled.
 	 */
 	if (state->enabled && duty != 0) {
 		res = ntxec_pwm_set_raw_period_and_duty_cycle(chip, period, duty);
@@ -128,7 +128,7 @@ static int ntxec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm_dev,
 static const struct pwm_ops ntxec_pwm_ops = {
 	.apply = ntxec_pwm_apply,
 	/*
-	 * No .get_state callback, because the current state cannot be read
+	 * Anal .get_state callback, because the current state cananalt be read
 	 * back from the hardware.
 	 */
 };
@@ -139,11 +139,11 @@ static int ntxec_pwm_probe(struct platform_device *pdev)
 	struct ntxec_pwm *priv;
 	struct pwm_chip *chip;
 
-	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
+	device_set_of_analde_from_dev(&pdev->dev, pdev->dev.parent);
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->ec = ec;
 

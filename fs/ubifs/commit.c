@@ -2,7 +2,7 @@
 /*
  * This file is part of UBIFS.
  *
- * Copyright (C) 2006-2008 Nokia Corporation.
+ * Copyright (C) 2006-2008 Analkia Corporation.
  *
  * Authors: Adrian Hunter
  *          Artem Bityutskiy (Битюцкий Артём)
@@ -21,12 +21,12 @@
  * The commit is split into two parts named "commit start" and "commit end".
  * During commit start, the commit process has exclusive access to the journal
  * by holding the commit semaphore down for writing. As few I/O operations as
- * possible are performed during commit start, instead the nodes that are to be
- * written are merely identified. During commit end, the commit semaphore is no
+ * possible are performed during commit start, instead the analdes that are to be
+ * written are merely identified. During commit end, the commit semaphore is anal
  * longer held and the journal is again in operation, allowing users to continue
  * to use the file system while the bulk of the commit I/O is performed. The
  * purpose of this two-step approach is to prevent the commit from causing any
- * latency blips. Note that in any case, the commit does not prevent lookups
+ * latency blips. Analte that in any case, the commit does analt prevent lookups
  * (as permitted by the TNC mutex), or access to VFS data structures e.g. page
  * cache.
  */
@@ -37,23 +37,23 @@
 #include "ubifs.h"
 
 /*
- * nothing_to_commit - check if there is nothing to commit.
+ * analthing_to_commit - check if there is analthing to commit.
  * @c: UBIFS file-system description object
  *
  * This is a helper function which checks if there is anything to commit. It is
- * used as an optimization to avoid starting the commit if it is not really
+ * used as an optimization to avoid starting the commit if it is analt really
  * necessary. Indeed, the commit operation always assumes flash I/O (e.g.,
- * writing the commit start node to the log), and it is better to avoid doing
+ * writing the commit start analde to the log), and it is better to avoid doing
  * this unnecessarily. E.g., 'ubifs_sync_fs()' runs the commit, but if there is
- * nothing to commit, it is more optimal to avoid any flash I/O.
+ * analthing to commit, it is more optimal to avoid any flash I/O.
  *
  * This function has to be called with @c->commit_sem locked for writing -
- * this function does not take LPT/TNC locks because the @c->commit_sem
+ * this function does analt take LPT/TNC locks because the @c->commit_sem
  * guarantees that we have exclusive access to the TNC and LPT data structures.
  *
- * This function returns %1 if there is nothing to commit and %0 otherwise.
+ * This function returns %1 if there is analthing to commit and %0 otherwise.
  */
-static int nothing_to_commit(struct ubifs_info *c)
+static int analthing_to_commit(struct ubifs_info *c)
 {
 	/*
 	 * During mounting or remounting from R/O mode to R/W mode we may
@@ -63,28 +63,28 @@ static int nothing_to_commit(struct ubifs_info *c)
 		return 0;
 
 	/*
-	 * If the root TNC node is dirty, we definitely have something to
+	 * If the root TNC analde is dirty, we definitely have something to
 	 * commit.
 	 */
-	if (c->zroot.znode && ubifs_zn_dirty(c->zroot.znode))
+	if (c->zroot.zanalde && ubifs_zn_dirty(c->zroot.zanalde))
 		return 0;
 
 	/*
 	 * Increasing @c->dirty_pn_cnt/@c->dirty_nn_cnt and marking
-	 * nnodes/pnodes as dirty in run_gc() could race with following
+	 * nanaldes/panaldes as dirty in run_gc() could race with following
 	 * checking, which leads inconsistent states between @c->nroot
 	 * and @c->dirty_pn_cnt/@c->dirty_nn_cnt, holding @c->lp_mutex
 	 * to avoid that.
 	 */
 	mutex_lock(&c->lp_mutex);
 	/*
-	 * Even though the TNC is clean, the LPT tree may have dirty nodes. For
+	 * Even though the TNC is clean, the LPT tree may have dirty analdes. For
 	 * example, this may happen if the budgeting subsystem invoked GC to
 	 * make some free space, and the GC found an LEB with only dirty and
 	 * free space. In this case GC would just change the lprops of this
 	 * LEB (by turning all space into free space) and unmap it.
 	 */
-	if (c->nroot && test_bit(DIRTY_CNODE, &c->nroot->flags)) {
+	if (c->nroot && test_bit(DIRTY_CANALDE, &c->nroot->flags)) {
 		mutex_unlock(&c->lp_mutex);
 		return 0;
 	}
@@ -119,7 +119,7 @@ static int do_commit(struct ubifs_info *c)
 		goto out_up;
 	}
 
-	if (nothing_to_commit(c)) {
+	if (analthing_to_commit(c)) {
 		up_write(&c->commit_sem);
 		err = 0;
 		goto out_cancel;
@@ -132,7 +132,7 @@ static int do_commit(struct ubifs_info *c)
 			goto out_up;
 	}
 
-	c->cmt_no += 1;
+	c->cmt_anal += 1;
 	err = ubifs_gc_start_commit(c);
 	if (err)
 		goto out_up;
@@ -169,34 +169,34 @@ static int do_commit(struct ubifs_info *c)
 	if (err)
 		goto out;
 
-	c->mst_node->cmt_no      = cpu_to_le64(c->cmt_no);
-	c->mst_node->log_lnum    = cpu_to_le32(new_ltail_lnum);
-	c->mst_node->root_lnum   = cpu_to_le32(zroot.lnum);
-	c->mst_node->root_offs   = cpu_to_le32(zroot.offs);
-	c->mst_node->root_len    = cpu_to_le32(zroot.len);
-	c->mst_node->ihead_lnum  = cpu_to_le32(c->ihead_lnum);
-	c->mst_node->ihead_offs  = cpu_to_le32(c->ihead_offs);
-	c->mst_node->index_size  = cpu_to_le64(c->bi.old_idx_sz);
-	c->mst_node->lpt_lnum    = cpu_to_le32(c->lpt_lnum);
-	c->mst_node->lpt_offs    = cpu_to_le32(c->lpt_offs);
-	c->mst_node->nhead_lnum  = cpu_to_le32(c->nhead_lnum);
-	c->mst_node->nhead_offs  = cpu_to_le32(c->nhead_offs);
-	c->mst_node->ltab_lnum   = cpu_to_le32(c->ltab_lnum);
-	c->mst_node->ltab_offs   = cpu_to_le32(c->ltab_offs);
-	c->mst_node->lsave_lnum  = cpu_to_le32(c->lsave_lnum);
-	c->mst_node->lsave_offs  = cpu_to_le32(c->lsave_offs);
-	c->mst_node->lscan_lnum  = cpu_to_le32(c->lscan_lnum);
-	c->mst_node->empty_lebs  = cpu_to_le32(lst.empty_lebs);
-	c->mst_node->idx_lebs    = cpu_to_le32(lst.idx_lebs);
-	c->mst_node->total_free  = cpu_to_le64(lst.total_free);
-	c->mst_node->total_dirty = cpu_to_le64(lst.total_dirty);
-	c->mst_node->total_used  = cpu_to_le64(lst.total_used);
-	c->mst_node->total_dead  = cpu_to_le64(lst.total_dead);
-	c->mst_node->total_dark  = cpu_to_le64(lst.total_dark);
-	if (c->no_orphs)
-		c->mst_node->flags |= cpu_to_le32(UBIFS_MST_NO_ORPHS);
+	c->mst_analde->cmt_anal      = cpu_to_le64(c->cmt_anal);
+	c->mst_analde->log_lnum    = cpu_to_le32(new_ltail_lnum);
+	c->mst_analde->root_lnum   = cpu_to_le32(zroot.lnum);
+	c->mst_analde->root_offs   = cpu_to_le32(zroot.offs);
+	c->mst_analde->root_len    = cpu_to_le32(zroot.len);
+	c->mst_analde->ihead_lnum  = cpu_to_le32(c->ihead_lnum);
+	c->mst_analde->ihead_offs  = cpu_to_le32(c->ihead_offs);
+	c->mst_analde->index_size  = cpu_to_le64(c->bi.old_idx_sz);
+	c->mst_analde->lpt_lnum    = cpu_to_le32(c->lpt_lnum);
+	c->mst_analde->lpt_offs    = cpu_to_le32(c->lpt_offs);
+	c->mst_analde->nhead_lnum  = cpu_to_le32(c->nhead_lnum);
+	c->mst_analde->nhead_offs  = cpu_to_le32(c->nhead_offs);
+	c->mst_analde->ltab_lnum   = cpu_to_le32(c->ltab_lnum);
+	c->mst_analde->ltab_offs   = cpu_to_le32(c->ltab_offs);
+	c->mst_analde->lsave_lnum  = cpu_to_le32(c->lsave_lnum);
+	c->mst_analde->lsave_offs  = cpu_to_le32(c->lsave_offs);
+	c->mst_analde->lscan_lnum  = cpu_to_le32(c->lscan_lnum);
+	c->mst_analde->empty_lebs  = cpu_to_le32(lst.empty_lebs);
+	c->mst_analde->idx_lebs    = cpu_to_le32(lst.idx_lebs);
+	c->mst_analde->total_free  = cpu_to_le64(lst.total_free);
+	c->mst_analde->total_dirty = cpu_to_le64(lst.total_dirty);
+	c->mst_analde->total_used  = cpu_to_le64(lst.total_used);
+	c->mst_analde->total_dead  = cpu_to_le64(lst.total_dead);
+	c->mst_analde->total_dark  = cpu_to_le64(lst.total_dark);
+	if (c->anal_orphs)
+		c->mst_analde->flags |= cpu_to_le32(UBIFS_MST_ANAL_ORPHS);
 	else
-		c->mst_node->flags &= ~cpu_to_le32(UBIFS_MST_NO_ORPHS);
+		c->mst_analde->flags &= ~cpu_to_le32(UBIFS_MST_ANAL_ORPHS);
 
 	old_ltail_lnum = c->ltail_lnum;
 	err = ubifs_log_end_commit(c, new_ltail_lnum);
@@ -280,7 +280,7 @@ out:
  *   write-buffer;
  * o when the journal is about to be full, it starts in-advance commit.
  *
- * Note, other stuff like background garbage collection may be added here in
+ * Analte, other stuff like background garbage collection may be added here in
  * future.
  */
 int ubifs_bg_thread(void *info)
@@ -303,7 +303,7 @@ int ubifs_bg_thread(void *info)
 		/* Check if there is something to do */
 		if (!c->need_bgt) {
 			/*
-			 * Nothing prevents us from going sleep now and
+			 * Analthing prevents us from going sleep analw and
 			 * be never woken up and block the task which
 			 * could wait in 'kthread_stop()' forever.
 			 */
@@ -331,7 +331,7 @@ int ubifs_bg_thread(void *info)
  * ubifs_commit_required - set commit state to "required".
  * @c: UBIFS file-system description object
  *
- * This function is called if a commit is required but cannot be done from the
+ * This function is called if a commit is required but cananalt be done from the
  * calling function, so it is just flagged instead.
  */
 void ubifs_commit_required(struct ubifs_info *c)
@@ -358,10 +358,10 @@ void ubifs_commit_required(struct ubifs_info *c)
 }
 
 /**
- * ubifs_request_bg_commit - notify the background thread to do a commit.
+ * ubifs_request_bg_commit - analtify the background thread to do a commit.
  * @c: UBIFS file-system description object
  *
- * This function is called if the journal is full enough to make a commit
+ * This function is called if the journal is full eanalugh to make a commit
  * worthwhile, so background thread is kicked to start it.
  */
 void ubifs_request_bg_commit(struct ubifs_info *c)
@@ -381,7 +381,7 @@ void ubifs_request_bg_commit(struct ubifs_info *c)
  * wait_for_commit - wait for commit.
  * @c: UBIFS file-system description object
  *
- * This function sleeps until the commit operation is no longer running.
+ * This function sleeps until the commit operation is anal longer running.
  */
 static int wait_for_commit(struct ubifs_info *c)
 {
@@ -392,7 +392,7 @@ static int wait_for_commit(struct ubifs_info *c)
 	 * when the commit ends. It is possible, although very unlikely, that we
 	 * will wake up and see the subsequent commit running, rather than the
 	 * one we were waiting for, and go back to sleep.  However, we will be
-	 * woken again, so there is no danger of sleeping forever.
+	 * woken again, so there is anal danger of sleeping forever.
 	 */
 	wait_event(c->cmt_wq, c->cmt_state != COMMIT_RUNNING_BACKGROUND &&
 			      c->cmt_state != COMMIT_RUNNING_REQUIRED);
@@ -470,10 +470,10 @@ out:
  *
  * This function is called by garbage collection to determine if commit should
  * be run. If commit state is @COMMIT_BACKGROUND, which means that the journal
- * is full enough to start commit, this function returns true. It is not
+ * is full eanalugh to start commit, this function returns true. It is analt
  * absolutely necessary to commit yet, but it feels like this should be better
  * then to keep doing GC. This function returns %1 if GC has to initiate commit
- * and %0 if not.
+ * and %0 if analt.
  */
 int ubifs_gc_should_commit(struct ubifs_info *c)
 {
@@ -481,10 +481,10 @@ int ubifs_gc_should_commit(struct ubifs_info *c)
 
 	spin_lock(&c->cs_lock);
 	if (c->cmt_state == COMMIT_BACKGROUND) {
-		dbg_cmt("commit required now");
+		dbg_cmt("commit required analw");
 		c->cmt_state = COMMIT_REQUIRED;
 	} else
-		dbg_cmt("commit not requested");
+		dbg_cmt("commit analt requested");
 	if (c->cmt_state == COMMIT_REQUIRED)
 		ret = 1;
 	spin_unlock(&c->cs_lock);
@@ -496,20 +496,20 @@ int ubifs_gc_should_commit(struct ubifs_info *c)
  */
 
 /**
- * struct idx_node - hold index nodes during index tree traversal.
+ * struct idx_analde - hold index analdes during index tree traversal.
  * @list: list
- * @iip: index in parent (slot number of this indexing node in the parent
- *       indexing node)
- * @upper_key: all keys in this indexing node have to be less or equivalent to
+ * @iip: index in parent (slot number of this indexing analde in the parent
+ *       indexing analde)
+ * @upper_key: all keys in this indexing analde have to be less or equivalent to
  *             this key
- * @idx: index node (8-byte aligned because all node structures must be 8-byte
+ * @idx: index analde (8-byte aligned because all analde structures must be 8-byte
  *       aligned)
  */
-struct idx_node {
+struct idx_analde {
 	struct list_head list;
 	int iip;
 	union ubifs_key upper_key;
-	struct ubifs_idx_node idx __aligned(8);
+	struct ubifs_idx_analde idx __aligned(8);
 };
 
 /**
@@ -524,7 +524,7 @@ struct idx_node {
  */
 int dbg_old_index_check_init(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 {
-	struct ubifs_idx_node *idx;
+	struct ubifs_idx_analde *idx;
 	int lnum, offs, len, err = 0;
 	struct ubifs_debug_info *d = c->dbg;
 
@@ -533,11 +533,11 @@ int dbg_old_index_check_init(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 	offs = d->old_zroot.offs;
 	len = d->old_zroot.len;
 
-	idx = kmalloc(c->max_idx_node_sz, GFP_NOFS);
+	idx = kmalloc(c->max_idx_analde_sz, GFP_ANALFS);
 	if (!idx)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	err = ubifs_read_node(c, idx, UBIFS_IDX_NODE, len, lnum, offs);
+	err = ubifs_read_analde(c, idx, UBIFS_IDX_ANALDE, len, lnum, offs);
 	if (err)
 		goto out;
 
@@ -568,9 +568,9 @@ int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 	struct ubifs_debug_info *d = c->dbg;
 	union ubifs_key lower_key, upper_key, l_key, u_key;
 	unsigned long long last_sqnum;
-	struct ubifs_idx_node *idx;
+	struct ubifs_idx_analde *idx;
 	struct list_head list;
-	struct idx_node *i;
+	struct idx_analde *i;
 	size_t sz;
 
 	if (!dbg_is_chk_index(c))
@@ -578,8 +578,8 @@ int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 
 	INIT_LIST_HEAD(&list);
 
-	sz = sizeof(struct idx_node) + ubifs_idx_node_sz(c, c->fanout) -
-	     UBIFS_IDX_NODE_SZ;
+	sz = sizeof(struct idx_analde) + ubifs_idx_analde_sz(c, c->faanalut) -
+	     UBIFS_IDX_ANALDE_SZ;
 
 	/* Start at the old zroot */
 	lnum = d->old_zroot.lnum;
@@ -588,29 +588,29 @@ int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 	iip = 0;
 
 	/*
-	 * Traverse the index tree preorder depth-first i.e. do a node and then
+	 * Traverse the index tree preorder depth-first i.e. do a analde and then
 	 * its subtrees from left to right.
 	 */
 	while (1) {
 		struct ubifs_branch *br;
 
-		/* Get the next index node */
-		i = kmalloc(sz, GFP_NOFS);
+		/* Get the next index analde */
+		i = kmalloc(sz, GFP_ANALFS);
 		if (!i) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_free;
 		}
 		i->iip = iip;
-		/* Keep the index nodes on our path in a linked list */
+		/* Keep the index analdes on our path in a linked list */
 		list_add_tail(&i->list, &list);
-		/* Read the index node */
+		/* Read the index analde */
 		idx = &i->idx;
-		err = ubifs_read_node(c, idx, UBIFS_IDX_NODE, len, lnum, offs);
+		err = ubifs_read_analde(c, idx, UBIFS_IDX_ANALDE, len, lnum, offs);
 		if (err)
 			goto out_free;
-		/* Validate index node */
+		/* Validate index analde */
 		child_cnt = le16_to_cpu(idx->child_cnt);
-		if (child_cnt < 1 || child_cnt > c->fanout) {
+		if (child_cnt < 1 || child_cnt > c->faanalut) {
 			err = 1;
 			goto out_dump;
 		}
@@ -629,7 +629,7 @@ int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 			last_level = le16_to_cpu(idx->level) + 1;
 			last_sqnum = le64_to_cpu(idx->ch.sqnum) + 1;
 			key_read(c, ubifs_idx_key(c, idx), &lower_key);
-			highest_ino_key(c, &upper_key, INUM_WATERMARK);
+			highest_ianal_key(c, &upper_key, INUM_WATERMARK);
 		}
 		key_copy(c, &upper_key, &i->upper_key);
 		if (le16_to_cpu(idx->level) != last_level - 1) {
@@ -661,18 +661,18 @@ int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 				err = 7;
 				goto out_dump;
 			}
-		/* Go to next index node */
+		/* Go to next index analde */
 		if (le16_to_cpu(idx->level) == 0) {
 			/* At the bottom, so go up until can go right */
 			while (1) {
 				/* Drop the bottom of the list */
 				list_del(&i->list);
 				kfree(i);
-				/* No more list means we are done */
+				/* Anal more list means we are done */
 				if (list_empty(&list))
 					goto out;
 				/* Look at the new bottom */
-				i = list_entry(list.prev, struct idx_node,
+				i = list_entry(list.prev, struct idx_analde,
 					       list);
 				idx = &i->idx;
 				/* Can we go right */
@@ -680,14 +680,14 @@ int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 					iip = iip + 1;
 					break;
 				} else
-					/* Nope, so go up again */
+					/* Analpe, so go up again */
 					iip = i->iip;
 			}
 		} else
 			/* Go down left */
 			iip = 0;
 		/*
-		 * We have the parent in 'idx' and now we set up for reading the
+		 * We have the parent in 'idx' and analw we set up for reading the
 		 * child pointed to by slot 'iip'.
 		 */
 		last_level = le16_to_cpu(idx->level);
@@ -711,18 +711,18 @@ out:
 	return 0;
 
 out_dump:
-	ubifs_err(c, "dumping index node (iip=%d)", i->iip);
-	ubifs_dump_node(c, idx, ubifs_idx_node_sz(c, c->fanout));
+	ubifs_err(c, "dumping index analde (iip=%d)", i->iip);
+	ubifs_dump_analde(c, idx, ubifs_idx_analde_sz(c, c->faanalut));
 	list_del(&i->list);
 	kfree(i);
 	if (!list_empty(&list)) {
-		i = list_entry(list.prev, struct idx_node, list);
-		ubifs_err(c, "dumping parent index node");
-		ubifs_dump_node(c, &i->idx, ubifs_idx_node_sz(c, c->fanout));
+		i = list_entry(list.prev, struct idx_analde, list);
+		ubifs_err(c, "dumping parent index analde");
+		ubifs_dump_analde(c, &i->idx, ubifs_idx_analde_sz(c, c->faanalut));
 	}
 out_free:
 	while (!list_empty(&list)) {
-		i = list_entry(list.next, struct idx_node, list);
+		i = list_entry(list.next, struct idx_analde, list);
 		list_del(&i->list);
 		kfree(i);
 	}

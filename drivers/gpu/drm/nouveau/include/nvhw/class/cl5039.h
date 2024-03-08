@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -26,11 +26,11 @@
 #define NV5039_SET_OBJECT                                                                                  0x0000
 #define NV5039_SET_OBJECT_POINTER                                                                            15:0
 
-#define NV5039_NO_OPERATION                                                                                0x0100
-#define NV5039_NO_OPERATION_V                                                                                31:0
+#define NV5039_ANAL_OPERATION                                                                                0x0100
+#define NV5039_ANAL_OPERATION_V                                                                                31:0
 
-#define NV5039_SET_CONTEXT_DMA_NOTIFY                                                                      0x0180
-#define NV5039_SET_CONTEXT_DMA_NOTIFY_HANDLE                                                                 31:0
+#define NV5039_SET_CONTEXT_DMA_ANALTIFY                                                                      0x0180
+#define NV5039_SET_CONTEXT_DMA_ANALTIFY_HANDLE                                                                 31:0
 
 #define NV5039_SET_CONTEXT_DMA_BUFFER_IN                                                                   0x0184
 #define NV5039_SET_CONTEXT_DMA_BUFFER_IN_HANDLE                                                              31:0
@@ -146,8 +146,8 @@
 #define NV5039_FORMAT_OUT                                                                                    15:8
 #define NV5039_FORMAT_OUT_ONE                                                                          0x00000001
 
-#define NV5039_BUFFER_NOTIFY                                                                               0x0328
-#define NV5039_BUFFER_NOTIFY_TYPE                                                                            31:0
-#define NV5039_BUFFER_NOTIFY_TYPE_WRITE_ONLY                                                           0x00000000
-#define NV5039_BUFFER_NOTIFY_TYPE_WRITE_THEN_AWAKEN                                                    0x00000001
+#define NV5039_BUFFER_ANALTIFY                                                                               0x0328
+#define NV5039_BUFFER_ANALTIFY_TYPE                                                                            31:0
+#define NV5039_BUFFER_ANALTIFY_TYPE_WRITE_ONLY                                                           0x00000000
+#define NV5039_BUFFER_ANALTIFY_TYPE_WRITE_THEN_AWAKEN                                                    0x00000001
 #endif /* _cl_nv50_memory_to_memory_format_h_ */

@@ -4,14 +4,14 @@
 
 #ifdef CONFIG_NUMA
 
-#define cpu_to_node(cpu)	((void)(cpu),0)
+#define cpu_to_analde(cpu)	((void)(cpu),0)
 
-#define cpumask_of_node(node)	((void)node, cpu_online_mask)
+#define cpumask_of_analde(analde)	((void)analde, cpu_online_mask)
 
-#define pcibus_to_node(bus)	((void)(bus), -1)
-#define cpumask_of_pcibus(bus)	(pcibus_to_node(bus) == -1 ? \
+#define pcibus_to_analde(bus)	((void)(bus), -1)
+#define cpumask_of_pcibus(bus)	(pcibus_to_analde(bus) == -1 ? \
 					cpu_all_mask : \
-					cpumask_of_node(pcibus_to_node(bus)))
+					cpumask_of_analde(pcibus_to_analde(bus)))
 
 #endif
 

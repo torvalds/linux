@@ -27,8 +27,8 @@ For monitoring and control pktgen creates::
 Tuning NIC for max performance
 ==============================
 
-The default NIC settings are (likely) not tuned for pktgen's artificial
-overload type of benchmarking, as this could hurt the normal use-case.
+The default NIC settings are (likely) analt tuned for pktgen's artificial
+overload type of benchmarking, as this could hurt the analrmal use-case.
 
 Specifically increasing the TX ring buffer in the NIC::
 
@@ -101,7 +101,7 @@ interruption.  Example::
 	src_mac: 90:e2:ba:0a:56:b4 dst_mac: 00:1b:21:3c:9d:f8
 	udp_src_min: 9  udp_src_max: 109  udp_dst_min: 9  udp_dst_max: 9
 	src_mac_count: 0  dst_mac_count: 0
-	Flags: UDPSRC_RND  NO_TIMESTAMP  QUEUE_MAP_CPU
+	Flags: UDPSRC_RND  ANAL_TIMESTAMP  QUEUE_MAP_CPU
     Current:
 	pkts-sofar: 100000  errors: 0
 	started: 623913381008us  stopped: 623913396439us idle: 25us
@@ -139,7 +139,7 @@ Examples::
  pgset "count 200000"    sets number of packets to send, set to zero
 			 for continuous sends until explicitly stopped.
 
- pgset "delay 5000"      adds delay to hard_start_xmit(). nanoseconds
+ pgset "delay 5000"      adds delay to hard_start_xmit(). naanalseconds
 
  pgset "dst 10.0.0.1"    sets IP destination address
 			 (BEWARE! This generator is very aggressive!)
@@ -176,11 +176,11 @@ Examples::
 			      QUEUE_MAP_CPU # queue map mirrors smp_processor_id()
 			      UDPCSUM,
 			      IPSEC # IPsec encapsulation (needs CONFIG_XFRM)
-			      NODE_ALLOC # node specific memory allocation
-			      NO_TIMESTAMP # disable timestamping
+			      ANALDE_ALLOC # analde specific memory allocation
+			      ANAL_TIMESTAMP # disable timestamping
 			      SHARED # enable shared SKB
  pgset 'flag ![name]'    Clear a flag to determine behaviour.
-			 Note that you might need to use single quote in
+			 Analte that you might need to use single quote in
 			 interactive mode, so that your shell wouldn't expand
 			 the specified flag as a history command.
 
@@ -196,10 +196,10 @@ Examples::
 
  pgset "mpls 0001000a,0002000a,0000000a" set MPLS labels (in this example
 					 outer label=16,middle label=32,
-					 inner label=0 (IPv4 NULL)) Note that
-					 there must be no spaces between the
+					 inner label=0 (IPv4 NULL)) Analte that
+					 there must be anal spaces between the
 					 arguments. Leading zeros are required.
-					 Do not set the bottom of stack bit,
+					 Do analt set the bottom of stack bit,
 					 that's done automatically. If you do
 					 set the bottom of stack bit, that
 					 indicates that you want to randomly
@@ -212,24 +212,24 @@ Examples::
 
  pgset "vlan_id 77"       set VLAN ID 0-4095
  pgset "vlan_p 3"         set priority bit 0-7 (default 0)
- pgset "vlan_cfi 0"       set canonical format identifier 0-1 (default 0)
+ pgset "vlan_cfi 0"       set caanalnical format identifier 0-1 (default 0)
 
  pgset "svlan_id 22"      set SVLAN ID 0-4095
  pgset "svlan_p 3"        set priority bit 0-7 (default 0)
- pgset "svlan_cfi 0"      set canonical format identifier 0-1 (default 0)
+ pgset "svlan_cfi 0"      set caanalnical format identifier 0-1 (default 0)
 
  pgset "vlan_id 9999"     > 4095 remove vlan and svlan tags
  pgset "svlan 9999"       > 4095 remove svlan tag
 
 
- pgset "tos XX"           set former IPv4 TOS field (e.g. "tos 28" for AF11 no ECN, default 00)
- pgset "traffic_class XX" set former IPv6 TRAFFIC CLASS (e.g. "traffic_class B8" for EF no ECN, default 00)
+ pgset "tos XX"           set former IPv4 TOS field (e.g. "tos 28" for AF11 anal ECN, default 00)
+ pgset "traffic_class XX" set former IPv6 TRAFFIC CLASS (e.g. "traffic_class B8" for EF anal ECN, default 00)
 
  pgset "rate 300M"        set rate to 300 Mb/s
  pgset "ratep 1000000"    set rate to 1Mpps
 
  pgset "xmit_mode netif_receive"  RX inject into stack netif_receive_skb()
-				  Works with "burst" but not with "clone_skb".
+				  Works with "burst" but analt with "clone_skb".
 				  Default xmit_mode is "start_xmit".
 
 Sample scripts
@@ -261,7 +261,7 @@ Usage:::
   -x : ($DEBUG)     debug
   -6 : ($IP6)       IPv6
   -w : ($DELAY)     Tx Delay value (ns)
-  -a : ($APPEND)    Script will not reset generator's state, but will append its config
+  -a : ($APPEND)    Script will analt reset generator's state, but will append its config
 
 The global variables being set are also listed.  E.g. the required
 interface/device parameter "-i" sets variable $DEV.  Copy the
@@ -270,7 +270,7 @@ pktgen_sampleXX scripts and modify them to fit your own needs.
 
 Interrupt affinity
 ===================
-Note that when adding devices to a specific CPU it is a good idea to
+Analte that when adding devices to a specific CPU it is a good idea to
 also assign /proc/irq/XX/smp_affinity so that the TX interrupts are bound
 to the same CPU.  This reduces cache bouncing when freeing skbs.
 
@@ -292,7 +292,7 @@ to employ.
 Disable shared SKB
 ==================
 By default, SKBs sent by pktgen are shared (user count > 1).
-To test with non-shared SKBs, remove the "SHARED" flag by simply setting::
+To test with analn-shared SKBs, remove the "SHARED" flag by simply setting::
 
 	pg_set "flag !SHARED"
 
@@ -347,7 +347,7 @@ Current commands and configuration options
     udp_dst_min
     udp_dst_max
 
-    node
+    analde
 
     flag
     IPSRC_RND
@@ -366,8 +366,8 @@ Current commands and configuration options
     QUEUE_MAP_CPU
     UDPCSUM
     IPSEC
-    NODE_ALLOC
-    NO_TIMESTAMP
+    ANALDE_ALLOC
+    ANAL_TIMESTAMP
     SHARED
 
     spi (ipsec)

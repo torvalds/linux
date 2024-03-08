@@ -36,19 +36,19 @@ static int mcb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pci_enable_device(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to enable PCI device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	pci_set_master(pdev);
 
 	priv->mapbase = pci_resource_start(pdev, 0);
 	if (!priv->mapbase) {
-		dev_err(&pdev->dev, "No PCI resource\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "Anal PCI resource\n");
+		ret = -EANALDEV;
 		goto out_disable;
 	}
 
@@ -63,16 +63,16 @@ static int mcb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	priv->base = devm_ioremap(&pdev->dev, priv->mapbase, CHAM_HEADER_SIZE);
 	if (!priv->base) {
-		dev_err(&pdev->dev, "Cannot ioremap\n");
-		ret = -ENOMEM;
+		dev_err(&pdev->dev, "Cananalt ioremap\n");
+		ret = -EANALMEM;
 		goto out_disable;
 	}
 
 	flags = pci_resource_flags(pdev, 0);
 	if (flags & IORESOURCE_IO) {
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		dev_err(&pdev->dev,
-			"IO mapped PCI devices are not supported\n");
+			"IO mapped PCI devices are analt supported\n");
 		goto out_disable;
 	}
 
@@ -109,8 +109,8 @@ static int mcb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		priv->base = devm_ioremap(&pdev->dev, priv->mapbase, table_size);
 		if (!priv->base) {
-			dev_err(&pdev->dev, "Cannot ioremap\n");
-			ret = -ENOMEM;
+			dev_err(&pdev->dev, "Cananalt ioremap\n");
+			ret = -EANALMEM;
 			goto out_mcb_bus;
 		}
 	}

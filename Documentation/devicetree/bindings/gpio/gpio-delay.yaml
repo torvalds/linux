@@ -30,7 +30,7 @@ description: |
                            GND
 
   If the input on the consumer is controlled by an open-drain signal
-  attached to an RC circuit the ramp-up delay is not under control
+  attached to an RC circuit the ramp-up delay is analt under control
   of the GPIO controller.
 
 properties:

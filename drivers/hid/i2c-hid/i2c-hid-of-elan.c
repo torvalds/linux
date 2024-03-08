@@ -82,7 +82,7 @@ static int i2c_hid_of_elan_probe(struct i2c_client *client)
 
 	ihid_elan = devm_kzalloc(&client->dev, sizeof(*ihid_elan), GFP_KERNEL);
 	if (!ihid_elan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ihid_elan->ops.power_up = elan_i2c_hid_power_up;
 	ihid_elan->ops.power_down = elan_i2c_hid_power_down;
@@ -149,7 +149,7 @@ static struct i2c_driver elan_i2c_hid_ts_driver = {
 	.driver = {
 		.name	= "i2c_hid_of_elan",
 		.pm	= &i2c_hid_core_pm,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(elan_i2c_hid_of_match),
 	},
 	.probe		= i2c_hid_of_elan_probe,

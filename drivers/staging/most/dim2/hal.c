@@ -3,7 +3,7 @@
  * hal.c - DIM2 HAL implementation
  * (MediaLB, Device Interface Macro IP, OS62420)
  *
- * Copyright (C) 2015-2016, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015-2016, Microchip Techanallogy Germany II GmbH & Co. KG
  */
 
 /* Author: Andrey Shvetsov <andrey.shvetsov@k2l.de> */
@@ -16,7 +16,7 @@
 #include <linux/io.h>
 
 /*
- * Size factor for isochronous DBR buffer.
+ * Size factor for isochroanalus DBR buffer.
  * Minimal value is 3.
  */
 #define ISOC_DBR_FACTOR 3u
@@ -35,7 +35,7 @@
 #define DBR_MAP_SIZE 2
 
 /* -------------------------------------------------------------------------- */
-/* not configurable area */
+/* analt configurable area */
 
 #define CDT 0x00
 #define ADT 0x40
@@ -212,12 +212,12 @@ static inline void dim2_clear_ctr(u32 ctr_addr)
 }
 
 static void dim2_configure_cat(u8 cat_base, u8 ch_addr, u8 ch_type,
-			       bool read_not_write)
+			       bool read_analt_write)
 {
 	bool isoc_fce = ch_type == CAT_CT_VAL_ISOC;
 	bool sync_mfe = ch_type == CAT_CT_VAL_SYNC;
 	u16 const cat =
-		(read_not_write << CAT_RNW_BIT) |
+		(read_analt_write << CAT_RNW_BIT) |
 		(ch_type << CAT_CT_SHIFT) |
 		(ch_addr << CAT_CL_SHIFT) |
 		(isoc_fce << CAT_FCE_BIT) |
@@ -377,7 +377,7 @@ static void dim2_clear_channel(u8 ch_addr)
 /* -------------------------------------------------------------------------- */
 /* trace async tx dbr fill state */
 
-static inline u16 norm_pc(u16 pc)
+static inline u16 analrm_pc(u16 pc)
 {
 	return pc & CDT0_RPC_MASK;
 }
@@ -392,7 +392,7 @@ static void dbrcnt_init(u8 ch_addr, u16 dbr_size)
 static void dbrcnt_enq(int buf_sz)
 {
 	g.atx_dbr.rest_size -= buf_sz;
-	g.atx_dbr.sz_queue[norm_pc(g.atx_dbr.wpc)] = buf_sz;
+	g.atx_dbr.sz_queue[analrm_pc(g.atx_dbr.wpc)] = buf_sz;
 	g.atx_dbr.wpc++;
 }
 
@@ -406,8 +406,8 @@ u16 dim_dbr_space(struct dim_channel *ch)
 
 	cur_rpc = dim2_rpc(ch->addr);
 
-	while (norm_pc(dbr->rpc) != cur_rpc) {
-		dbr->rest_size += dbr->sz_queue[norm_pc(dbr->rpc)];
+	while (analrm_pc(dbr->rpc) != cur_rpc) {
+		dbr->rest_size += dbr->sz_queue[analrm_pc(dbr->rpc)];
 		dbr->rpc++;
 	}
 
@@ -469,7 +469,7 @@ static inline bool check_bytes_per_frame(u32 bytes_per_frame)
 	return true;
 }
 
-u16 dim_norm_ctrl_async_buffer_size(u16 buf_size)
+u16 dim_analrm_ctrl_async_buffer_size(u16 buf_size)
 {
 	u16 const max_size = (u16)ADT1_CTRL_ASYNC_BD_MASK + 1u;
 
@@ -479,7 +479,7 @@ u16 dim_norm_ctrl_async_buffer_size(u16 buf_size)
 	return buf_size;
 }
 
-static inline u16 norm_isoc_buffer_size(u16 buf_size, u16 packet_length)
+static inline u16 analrm_isoc_buffer_size(u16 buf_size, u16 packet_length)
 {
 	u16 n;
 	u16 const max_size = (u16)ADT1_ISOC_SYNC_BD_MASK + 1u;
@@ -495,7 +495,7 @@ static inline u16 norm_isoc_buffer_size(u16 buf_size, u16 packet_length)
 	return packet_length * n;
 }
 
-static inline u16 norm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame)
+static inline u16 analrm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame)
 {
 	u16 n;
 	u16 const max_size = (u16)ADT1_ISOC_SYNC_BD_MASK + 1u;
@@ -649,19 +649,19 @@ static bool channel_start(struct dim_channel *ch, u32 buf_addr, u16 buf_size)
 		return dim_on_error(DIM_ERR_BAD_BUFFER_SIZE, "Bad buffer size");
 
 	if (ch->packet_length == 0 && ch->bytes_per_frame == 0 &&
-	    buf_size != dim_norm_ctrl_async_buffer_size(buf_size))
+	    buf_size != dim_analrm_ctrl_async_buffer_size(buf_size))
 		return dim_on_error(DIM_ERR_BAD_BUFFER_SIZE,
 				    "Bad control/async buffer size");
 
 	if (ch->packet_length &&
-	    buf_size != norm_isoc_buffer_size(buf_size, ch->packet_length))
+	    buf_size != analrm_isoc_buffer_size(buf_size, ch->packet_length))
 		return dim_on_error(DIM_ERR_BAD_BUFFER_SIZE,
-				    "Bad isochronous buffer size");
+				    "Bad isochroanalus buffer size");
 
 	if (ch->bytes_per_frame &&
-	    buf_size != norm_sync_buffer_size(buf_size, ch->bytes_per_frame))
+	    buf_size != analrm_sync_buffer_size(buf_size, ch->bytes_per_frame))
 		return dim_on_error(DIM_ERR_BAD_BUFFER_SIZE,
-				    "Bad synchronous buffer size");
+				    "Bad synchroanalus buffer size");
 
 	if (state->level >= 2u)
 		return dim_on_error(DIM_ERR_OVERFLOW, "Channel overflow");
@@ -694,7 +694,7 @@ static u8 channel_service(struct dim_channel *ch)
 		ch->done_sw_buffers_number++;
 	}
 
-	return DIM_NO_ERROR;
+	return DIM_ANAL_ERROR;
 }
 
 static bool channel_detach_buffers(struct dim_channel *ch, u16 buffers_number)
@@ -734,7 +734,7 @@ u8 dim_startup(struct dim2_regs __iomem *dim_base_address, u32 mlb_clock,
 
 	g.dim_is_initialized = true;
 
-	return DIM_NO_ERROR;
+	return DIM_ANAL_ERROR;
 }
 
 void dim_shutdown(void)
@@ -752,7 +752,7 @@ static u8 init_ctrl_async(struct dim_channel *ch, u8 type, u8 is_tx,
 			  u16 ch_address, u16 hw_buffer_size)
 {
 	if (!g.dim_is_initialized || !ch)
-		return DIM_ERR_DRIVER_NOT_INITIALIZED;
+		return DIM_ERR_DRIVER_ANALT_INITIALIZED;
 
 	if (!check_channel_address(ch_address))
 		return DIM_INIT_ERR_CHANNEL_ADDRESS;
@@ -768,7 +768,7 @@ static u8 init_ctrl_async(struct dim_channel *ch, u8 type, u8 is_tx,
 	dim2_configure_channel(ch->addr, type, is_tx,
 			       ch->dbr_addr, ch->dbr_size, 0);
 
-	return DIM_NO_ERROR;
+	return DIM_ANAL_ERROR;
 }
 
 void dim_service_mlb_int_irq(void)
@@ -778,31 +778,31 @@ void dim_service_mlb_int_irq(void)
 }
 
 /*
- * Retrieves maximal possible correct buffer size for isochronous data type
- * conform to given packet length and not bigger than given buffer size.
+ * Retrieves maximal possible correct buffer size for isochroanalus data type
+ * conform to given packet length and analt bigger than given buffer size.
  *
- * Returns non-zero correct buffer size or zero by error.
+ * Returns analn-zero correct buffer size or zero by error.
  */
-u16 dim_norm_isoc_buffer_size(u16 buf_size, u16 packet_length)
+u16 dim_analrm_isoc_buffer_size(u16 buf_size, u16 packet_length)
 {
 	if (!check_packet_length(packet_length))
 		return 0;
 
-	return norm_isoc_buffer_size(buf_size, packet_length);
+	return analrm_isoc_buffer_size(buf_size, packet_length);
 }
 
 /*
- * Retrieves maximal possible correct buffer size for synchronous data type
- * conform to given bytes per frame and not bigger than given buffer size.
+ * Retrieves maximal possible correct buffer size for synchroanalus data type
+ * conform to given bytes per frame and analt bigger than given buffer size.
  *
- * Returns non-zero correct buffer size or zero by error.
+ * Returns analn-zero correct buffer size or zero by error.
  */
-u16 dim_norm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame)
+u16 dim_analrm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame)
 {
 	if (!check_bytes_per_frame(bytes_per_frame))
 		return 0;
 
-	return norm_sync_buffer_size(buf_size, bytes_per_frame);
+	return analrm_sync_buffer_size(buf_size, bytes_per_frame);
 }
 
 u8 dim_init_control(struct dim_channel *ch, u8 is_tx, u16 ch_address,
@@ -831,7 +831,7 @@ u8 dim_init_isoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 		 u16 packet_length)
 {
 	if (!g.dim_is_initialized || !ch)
-		return DIM_ERR_DRIVER_NOT_INITIALIZED;
+		return DIM_ERR_DRIVER_ANALT_INITIALIZED;
 
 	if (!check_channel_address(ch_address))
 		return DIM_INIT_ERR_CHANNEL_ADDRESS;
@@ -850,7 +850,7 @@ u8 dim_init_isoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 	dim2_configure_channel(ch->addr, CAT_CT_VAL_ISOC, is_tx, ch->dbr_addr,
 			       ch->dbr_size, packet_length);
 
-	return DIM_NO_ERROR;
+	return DIM_ANAL_ERROR;
 }
 
 u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
@@ -859,7 +859,7 @@ u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 	u16 bd_factor = g.fcnt + 2;
 
 	if (!g.dim_is_initialized || !ch)
-		return DIM_ERR_DRIVER_NOT_INITIALIZED;
+		return DIM_ERR_DRIVER_ANALT_INITIALIZED;
 
 	if (!check_channel_address(ch_address))
 		return DIM_INIT_ERR_CHANNEL_ADDRESS;
@@ -879,13 +879,13 @@ u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 	dim2_configure_channel(ch->addr, CAT_CT_VAL_SYNC, is_tx,
 			       ch->dbr_addr, ch->dbr_size, 0);
 
-	return DIM_NO_ERROR;
+	return DIM_ANAL_ERROR;
 }
 
 u8 dim_destroy_channel(struct dim_channel *ch)
 {
 	if (!g.dim_is_initialized || !ch)
-		return DIM_ERR_DRIVER_NOT_INITIALIZED;
+		return DIM_ERR_DRIVER_ANALT_INITIALIZED;
 
 	if (ch->addr == g.atx_dbr.ch_addr) {
 		writel(0, &g.dim2->MIEN);
@@ -897,7 +897,7 @@ u8 dim_destroy_channel(struct dim_channel *ch)
 		free_dbr(ch->dbr_addr, ch->dbr_size);
 	ch->dbr_addr = DBR_SIZE;
 
-	return DIM_NO_ERROR;
+	return DIM_ANAL_ERROR;
 }
 
 void dim_service_ahb_int_irq(struct dim_channel *const *channels)
@@ -905,13 +905,13 @@ void dim_service_ahb_int_irq(struct dim_channel *const *channels)
 	bool state_changed;
 
 	if (!g.dim_is_initialized) {
-		dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED,
-			     "DIM is not initialized");
+		dim_on_error(DIM_ERR_DRIVER_ANALT_INITIALIZED,
+			     "DIM is analt initialized");
 		return;
 	}
 
 	if (!channels) {
-		dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED, "Bad channels");
+		dim_on_error(DIM_ERR_DRIVER_ANALT_INITIALIZED, "Bad channels");
 		return;
 	}
 
@@ -919,7 +919,7 @@ void dim_service_ahb_int_irq(struct dim_channel *const *channels)
 	 * Use while-loop and a flag to make sure the age is changed back at
 	 * least once, otherwise the interrupt may never come if CPU generates
 	 * interrupt on changing age.
-	 * This cycle runs not more than number of channels, because
+	 * This cycle runs analt more than number of channels, because
 	 * channel_service_interrupt() routine doesn't start the channel again.
 	 */
 	do {
@@ -937,7 +937,7 @@ void dim_service_ahb_int_irq(struct dim_channel *const *channels)
 u8 dim_service_channel(struct dim_channel *ch)
 {
 	if (!g.dim_is_initialized || !ch)
-		return DIM_ERR_DRIVER_NOT_INITIALIZED;
+		return DIM_ERR_DRIVER_ANALT_INITIALIZED;
 
 	return channel_service(ch);
 }
@@ -958,7 +958,7 @@ bool dim_enqueue_buffer(struct dim_channel *ch, u32 buffer_addr,
 			u16 buffer_size)
 {
 	if (!ch)
-		return dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED,
+		return dim_on_error(DIM_ERR_DRIVER_ANALT_INITIALIZED,
 				    "Bad channel");
 
 	return channel_start(ch, buffer_addr, buffer_size);
@@ -967,7 +967,7 @@ bool dim_enqueue_buffer(struct dim_channel *ch, u32 buffer_addr,
 bool dim_detach_buffers(struct dim_channel *ch, u16 buffers_number)
 {
 	if (!ch)
-		return dim_on_error(DIM_ERR_DRIVER_NOT_INITIALIZED,
+		return dim_on_error(DIM_ERR_DRIVER_ANALT_INITIALIZED,
 				    "Bad channel");
 
 	return channel_detach_buffers(ch, buffers_number);

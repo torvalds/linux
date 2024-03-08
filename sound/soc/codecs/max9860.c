@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// Driver for the MAX9860 Mono Audio Voice Codec
+// Driver for the MAX9860 Moanal Audio Voice Codec
 //
 // https://datasheets.maximintegrated.com/en/ds/MAX9860.pdf
 //
-// The driver does not support sidetone since the DVST register field is
+// The driver does analt support sidetone since the DVST register field is
 // backwards with the mute near the maximum level instead of the minimum.
 //
 // Author: Peter Rosin <peda@axentia.s>
-//         Copyright 2016 Axentia Technologies
+//         Copyright 2016 Axentia Techanallogies
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -28,13 +28,13 @@
 struct max9860_priv {
 	struct regmap *regmap;
 	struct regulator *dvddio;
-	struct notifier_block dvddio_nb;
+	struct analtifier_block dvddio_nb;
 	u8 psclk;
 	unsigned long pclk_rate;
 	int fmt;
 };
 
-static int max9860_dvddio_event(struct notifier_block *nb,
+static int max9860_dvddio_event(struct analtifier_block *nb,
 				unsigned long event, void *data)
 {
 	struct max9860_priv *max9860 = container_of(nb, struct max9860_priv,
@@ -61,7 +61,7 @@ static const struct reg_default max9860_reg_defaults[] = {
 	{ MAX9860_DACGAIN,      0x00 },
 	{ MAX9860_MICGAIN,      0x00 },
 	{ MAX9860_MICADC,       0x00 },
-	{ MAX9860_NOISEGATE,    0x00 },
+	{ MAX9860_ANALISEGATE,    0x00 },
 };
 
 static bool max9860_readable(struct device *dev, unsigned int reg)
@@ -164,9 +164,9 @@ static SOC_ENUM_SINGLE_DECL(agcrls_enum, MAX9860_MICADC,
 
 static const char * const filter_text[] = {
 	"Disabled",
-	"Elliptical HP 217Hz notch (16kHz)",
+	"Elliptical HP 217Hz analtch (16kHz)",
 	"Butterworth HP 500Hz (16kHz)",
-	"Elliptical HP 217Hz notch (8kHz)",
+	"Elliptical HP 217Hz analtch (8kHz)",
 	"Butterworth HP 500Hz (8kHz)",
 	"Butterworth HP 200Hz (48kHz)"
 };
@@ -187,13 +187,13 @@ SOC_DOUBLE_TLV("Line Capture Volume", MAX9860_ADCLEVEL,
 	       adc_tlv),
 
 SOC_ENUM("AGC Hold Time", agchld_enum),
-SOC_ENUM("AGC/Noise Gate Source", agcsrc_enum),
+SOC_ENUM("AGC/Analise Gate Source", agcsrc_enum),
 SOC_ENUM("AGC Attack Time", agcatk_enum),
 SOC_ENUM("AGC Release Time", agcrls_enum),
 
-SOC_SINGLE_TLV("Noise Gate Threshold Volume", MAX9860_NOISEGATE,
+SOC_SINGLE_TLV("Analise Gate Threshold Volume", MAX9860_ANALISEGATE,
 	       MAX9860_ANTH_SHIFT, MAX9860_ANTH_MAX, 0, anth_tlv),
-SOC_SINGLE_TLV("AGC Signal Threshold Volume", MAX9860_NOISEGATE,
+SOC_SINGLE_TLV("AGC Signal Threshold Volume", MAX9860_ANALISEGATE,
 	       MAX9860_AGCTH_SHIFT, MAX9860_AGCTH_MIN, 1, agcth_tlv),
 
 SOC_SINGLE_TLV("Mic PGA Volume", MAX9860_MICGAIN,
@@ -212,17 +212,17 @@ SND_SOC_DAPM_INPUT("MICR"),
 SND_SOC_DAPM_ADC("ADCL", NULL, MAX9860_PWRMAN, MAX9860_ADCLEN_SHIFT, 0),
 SND_SOC_DAPM_ADC("ADCR", NULL, MAX9860_PWRMAN, MAX9860_ADCREN_SHIFT, 0),
 
-SND_SOC_DAPM_AIF_OUT("AIFOUTL", "Capture", 0, SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_AIF_OUT("AIFOUTR", "Capture", 1, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIFOUTL", "Capture", 0, SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIFOUTR", "Capture", 1, SND_SOC_ANALPM, 0, 0),
 
-SND_SOC_DAPM_AIF_IN("AIFINL", "Playback", 0, SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_AIF_IN("AIFINR", "Playback", 1, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIFINL", "Playback", 0, SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIFINR", "Playback", 1, SND_SOC_ANALPM, 0, 0),
 
 SND_SOC_DAPM_DAC("DAC", NULL, MAX9860_PWRMAN, MAX9860_DACEN_SHIFT, 0),
 
 SND_SOC_DAPM_OUTPUT("OUT"),
 
-SND_SOC_DAPM_SUPPLY("Supply", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_SUPPLY("Supply", SND_SOC_ANALPM, 0, 0,
 		    NULL, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_REGULATOR_SUPPLY("AVDD", 0, 0),
 SND_SOC_DAPM_REGULATOR_SUPPLY("DVDD", 0, 0),
@@ -358,7 +358,7 @@ static int max9860_hw_params(struct snd_pcm_substream *substream,
 
 	/*
 	 * Check if Integer Clock Mode is possible, but avoid it in slave mode
-	 * since we then do not know if lrclk is derived from pclk and the
+	 * since we then do analt kanalw if lrclk is derived from pclk and the
 	 * datasheet mentions that the frequencies have to match exactly in
 	 * order for this to work.
 	 */
@@ -376,7 +376,7 @@ static int max9860_hw_params(struct snd_pcm_substream *substream,
 				break;
 			default:
 				/*
-				 * Integer Clock Mode not possible. Leave
+				 * Integer Clock Mode analt possible. Leave
 				 * sysclk at zero and fall through to the
 				 * code below for PLL mode.
 				 */
@@ -393,7 +393,7 @@ static int max9860_hw_params(struct snd_pcm_substream *substream,
 	 *    65536 * 96 * 48kHz / 10MHz -> 30199
 	 * Smallest possible n:
 	 *    65536 * 96 *  8kHz / 20MHz -> 2517
-	 * Both fit nicely in the available 15 bits, no need to apply any mask.
+	 * Both fit nicely in the available 15 bits, anal need to apply any mask.
 	 */
 	n = DIV_ROUND_CLOSEST_ULL(65536ULL * 96 * params_rate(params),
 				  max9860->pclk_rate);
@@ -602,19 +602,19 @@ static int max9860_probe(struct i2c_client *i2c)
 
 	max9860 = devm_kzalloc(dev, sizeof(struct max9860_priv), GFP_KERNEL);
 	if (!max9860)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max9860->dvddio = devm_regulator_get(dev, "DVDDIO");
 	if (IS_ERR(max9860->dvddio))
 		return dev_err_probe(dev, PTR_ERR(max9860->dvddio),
 				     "Failed to get DVDDIO supply\n");
 
-	max9860->dvddio_nb.notifier_call = max9860_dvddio_event;
+	max9860->dvddio_nb.analtifier_call = max9860_dvddio_event;
 
-	ret = devm_regulator_register_notifier(max9860->dvddio,
+	ret = devm_regulator_register_analtifier(max9860->dvddio,
 					       &max9860->dvddio_nb);
 	if (ret)
-		dev_err(dev, "Failed to register DVDDIO notifier: %d\n", ret);
+		dev_err(dev, "Failed to register DVDDIO analtifier: %d\n", ret);
 
 	ret = regulator_enable(max9860->dvddio);
 	if (ret != 0) {
@@ -735,6 +735,6 @@ static struct i2c_driver max9860_i2c_driver = {
 
 module_i2c_driver(max9860_i2c_driver);
 
-MODULE_DESCRIPTION("ASoC MAX9860 Mono Audio Voice Codec driver");
+MODULE_DESCRIPTION("ASoC MAX9860 Moanal Audio Voice Codec driver");
 MODULE_AUTHOR("Peter Rosin <peda@axentia.se>");
 MODULE_LICENSE("GPL v2");

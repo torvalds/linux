@@ -24,18 +24,18 @@
  *					if acting as a router _without_ a
  *					routing protocol (RFC 1812).
  *		Martin Mares	:	Echo requests may be configured to
- *					be ignored (RFC 1812).
+ *					be iganalred (RFC 1812).
  *		Martin Mares	:	Limitation of ICMP error message
  *					transmit rate (RFC 1812).
  *		Martin Mares	:	TOS and Precedence set correctly
  *					(RFC 1812).
- *		Martin Mares	:	Now copying as much data from the
+ *		Martin Mares	:	Analw copying as much data from the
  *					original packet as we can without
  *					exceeding 576 bytes (RFC 1812).
  *	Willy Konynenberg	:	Transparent proxying support.
  *		Keith Owens	:	RFC1191 correction for 4.2BSD based
  *					path MTU bug.
- *		Thomas Quinot	:	ICMP Dest Unreach codes up to 15 are
+ *		Thomas Quianalt	:	ICMP Dest Unreach codes up to 15 are
  *					valid (RFC 1812).
  *		Andi Kleen	:	Check all packet lengths properly
  *					and moved all kfree_skb() up to
@@ -46,9 +46,9 @@
  *					the rates sysctl configurable.
  *		Yu Tianli	:	Fixed two ugly bugs in icmp_send
  *					- IP option length was accounted wrongly
- *					- ICMP header length was not accounted
+ *					- ICMP header length was analt accounted
  *					  at all.
- *              Tristan Greaves :       Added sysctl option to ignore bogus
+ *              Tristan Greaves :       Added sysctl option to iganalre bogus
  *              			broadcast responses from broken routers.
  *
  * To Fix:
@@ -83,7 +83,7 @@
 #include <net/ping.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/uaccess.h>
@@ -110,72 +110,72 @@ struct icmp_bxm {
 	struct ip_options_data replyopts;
 };
 
-/* An array of errno for error messages from dest unreach. */
+/* An array of erranal for error messages from dest unreach. */
 /* RFC 1122: 3.2.2.1 States that NET_UNREACH, HOST_UNREACH and SR_FAILED MUST be considered 'transient errs'. */
 
 const struct icmp_err icmp_err_convert[] = {
 	{
-		.errno = ENETUNREACH,	/* ICMP_NET_UNREACH */
+		.erranal = ENETUNREACH,	/* ICMP_NET_UNREACH */
 		.fatal = 0,
 	},
 	{
-		.errno = EHOSTUNREACH,	/* ICMP_HOST_UNREACH */
+		.erranal = EHOSTUNREACH,	/* ICMP_HOST_UNREACH */
 		.fatal = 0,
 	},
 	{
-		.errno = ENOPROTOOPT	/* ICMP_PROT_UNREACH */,
+		.erranal = EANALPROTOOPT	/* ICMP_PROT_UNREACH */,
 		.fatal = 1,
 	},
 	{
-		.errno = ECONNREFUSED,	/* ICMP_PORT_UNREACH */
+		.erranal = ECONNREFUSED,	/* ICMP_PORT_UNREACH */
 		.fatal = 1,
 	},
 	{
-		.errno = EMSGSIZE,	/* ICMP_FRAG_NEEDED */
+		.erranal = EMSGSIZE,	/* ICMP_FRAG_NEEDED */
 		.fatal = 0,
 	},
 	{
-		.errno = EOPNOTSUPP,	/* ICMP_SR_FAILED */
+		.erranal = EOPANALTSUPP,	/* ICMP_SR_FAILED */
 		.fatal = 0,
 	},
 	{
-		.errno = ENETUNREACH,	/* ICMP_NET_UNKNOWN */
+		.erranal = ENETUNREACH,	/* ICMP_NET_UNKANALWN */
 		.fatal = 1,
 	},
 	{
-		.errno = EHOSTDOWN,	/* ICMP_HOST_UNKNOWN */
+		.erranal = EHOSTDOWN,	/* ICMP_HOST_UNKANALWN */
 		.fatal = 1,
 	},
 	{
-		.errno = ENONET,	/* ICMP_HOST_ISOLATED */
+		.erranal = EANALNET,	/* ICMP_HOST_ISOLATED */
 		.fatal = 1,
 	},
 	{
-		.errno = ENETUNREACH,	/* ICMP_NET_ANO	*/
+		.erranal = ENETUNREACH,	/* ICMP_NET_AANAL	*/
 		.fatal = 1,
 	},
 	{
-		.errno = EHOSTUNREACH,	/* ICMP_HOST_ANO */
+		.erranal = EHOSTUNREACH,	/* ICMP_HOST_AANAL */
 		.fatal = 1,
 	},
 	{
-		.errno = ENETUNREACH,	/* ICMP_NET_UNR_TOS */
+		.erranal = ENETUNREACH,	/* ICMP_NET_UNR_TOS */
 		.fatal = 0,
 	},
 	{
-		.errno = EHOSTUNREACH,	/* ICMP_HOST_UNR_TOS */
+		.erranal = EHOSTUNREACH,	/* ICMP_HOST_UNR_TOS */
 		.fatal = 0,
 	},
 	{
-		.errno = EHOSTUNREACH,	/* ICMP_PKT_FILTERED */
+		.erranal = EHOSTUNREACH,	/* ICMP_PKT_FILTERED */
 		.fatal = 1,
 	},
 	{
-		.errno = EHOSTUNREACH,	/* ICMP_PREC_VIOLATION */
+		.erranal = EHOSTUNREACH,	/* ICMP_PREC_VIOLATION */
 		.fatal = 1,
 	},
 	{
-		.errno = EHOSTUNREACH,	/* ICMP_PREC_CUTOFF */
+		.erranal = EHOSTUNREACH,	/* ICMP_PREC_CUTOFF */
 		.fatal = 1,
 	},
 };
@@ -232,30 +232,30 @@ static struct {
  * icmp_global_allow - Are we allowed to send one more ICMP message ?
  *
  * Uses a token bucket to limit our ICMP messages to ~sysctl_icmp_msgs_per_sec.
- * Returns false if we reached the limit and can not send another packet.
- * Note: called with BH disabled
+ * Returns false if we reached the limit and can analt send aanalther packet.
+ * Analte: called with BH disabled
  */
 bool icmp_global_allow(void)
 {
-	u32 credit, delta, incr = 0, now = (u32)jiffies;
+	u32 credit, delta, incr = 0, analw = (u32)jiffies;
 	bool rc = false;
 
-	/* Check if token bucket is empty and cannot be refilled
+	/* Check if token bucket is empty and cananalt be refilled
 	 * without taking the spinlock. The READ_ONCE() are paired
 	 * with the following WRITE_ONCE() in this same function.
 	 */
 	if (!READ_ONCE(icmp_global.credit)) {
-		delta = min_t(u32, now - READ_ONCE(icmp_global.stamp), HZ);
+		delta = min_t(u32, analw - READ_ONCE(icmp_global.stamp), HZ);
 		if (delta < HZ / 50)
 			return false;
 	}
 
 	spin_lock(&icmp_global.lock);
-	delta = min_t(u32, now - icmp_global.stamp, HZ);
+	delta = min_t(u32, analw - icmp_global.stamp, HZ);
 	if (delta >= HZ / 50) {
 		incr = READ_ONCE(sysctl_icmp_msgs_per_sec) * delta / HZ;
 		if (incr)
-			WRITE_ONCE(icmp_global.stamp, now);
+			WRITE_ONCE(icmp_global.stamp, analw);
 	}
 	credit = min_t(u32, icmp_global.credit + incr,
 		       READ_ONCE(sysctl_icmp_msgs_burst));
@@ -315,7 +315,7 @@ static bool icmpv4_xrlim_allow(struct net *net, struct rtable *rt,
 	if (icmpv4_mask_allow(net, type, code))
 		goto out;
 
-	/* No rate limit on loopback */
+	/* Anal rate limit on loopback */
 	if (dst->dev && (dst->dev->flags&IFF_LOOPBACK))
 		goto out;
 
@@ -378,14 +378,14 @@ static void icmp_push_reply(struct sock *sk,
 		__wsum csum;
 		struct sk_buff *skb1;
 
-		csum = csum_partial_copy_nocheck((void *)&icmp_param->data,
+		csum = csum_partial_copy_analcheck((void *)&icmp_param->data,
 						 (char *)icmph,
 						 icmp_param->head_len);
 		skb_queue_walk(&sk->sk_write_queue, skb1) {
 			csum = csum_add(csum, skb1->csum);
 		}
 		icmph->checksum = csum_fold(csum);
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 		ip_push_pending_frames(sk, fl4);
 	}
 }
@@ -504,7 +504,7 @@ static struct rtable *icmp_route_lookup(struct net *net,
 	if (IS_ERR(rt))
 		return rt;
 
-	/* No need to clone since we're just using its address. */
+	/* Anal need to clone since we're just using its address. */
 	rt2 = rt;
 
 	rt = (struct rtable *) xfrm_lookup(net, &rt->dst,
@@ -578,9 +578,9 @@ relookup_failed:
  *
  *	RFC 1122: 3.2.2	MUST send at least the IP header and 8 bytes of header.
  *		  MAY send more (we do).
- *			MUST NOT change this header information.
- *			MUST NOT reply to a multicast/broadcast IP address.
- *			MUST NOT reply to a multicast/broadcast MAC address.
+ *			MUST ANALT change this header information.
+ *			MUST ANALT reply to a multicast/broadcast IP address.
+ *			MUST ANALT reply to a multicast/broadcast MAC address.
  *			MUST reply to only the first fragment.
  */
 
@@ -622,13 +622,13 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 		goto out;
 
 	/*
-	 *	No replies to physical multicast/broadcast
+	 *	Anal replies to physical multicast/broadcast
 	 */
 	if (skb_in->pkt_type != PACKET_HOST)
 		goto out;
 
 	/*
-	 *	Now check at the protocol level
+	 *	Analw check at the protocol level
 	 */
 	if (rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST))
 		goto out;
@@ -663,7 +663,7 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 				goto out;
 
 			/*
-			 *	Assume any unknown ICMP type is an error. This
+			 *	Assume any unkanalwn ICMP type is an error. This
 			 *	isn't specified by the RFC, but think about it..
 			 */
 			if (*itp > NR_ICMP_TYPES ||
@@ -676,7 +676,7 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 	local_bh_disable();
 
 	/* Check global sysctl_icmp_msgs_per_sec ratelimit, unless
-	 * incoming dev is loopback.  If outgoing dev change to not be
+	 * incoming dev is loopback.  If outgoing dev change to analt be
 	 * loopback, then peer ratelimit still work (in icmpv4_xrlim_allow)
 	 */
 	if (!(skb_in->dev && (skb_in->dev->flags&IFF_LOOPBACK)) &&
@@ -851,7 +851,7 @@ static bool icmp_tag_validation(int proto)
 
 static enum skb_drop_reason icmp_unreach(struct sk_buff *skb)
 {
-	enum skb_drop_reason reason = SKB_NOT_DROPPED_YET;
+	enum skb_drop_reason reason = SKB_ANALT_DROPPED_YET;
 	const struct iphdr *iph;
 	struct icmphdr *icmph;
 	struct net *net;
@@ -885,11 +885,11 @@ static enum skb_drop_reason icmp_unreach(struct sk_buff *skb)
 		case ICMP_PORT_UNREACH:
 			break;
 		case ICMP_FRAG_NEEDED:
-			/* for documentation of the ip_no_pmtu_disc
+			/* for documentation of the ip_anal_pmtu_disc
 			 * values please see
 			 * Documentation/networking/ip-sysctl.rst
 			 */
-			switch (READ_ONCE(net->ipv4.sysctl_ip_no_pmtu_disc)) {
+			switch (READ_ONCE(net->ipv4.sysctl_ip_anal_pmtu_disc)) {
 			default:
 				net_dbg_ratelimited("%pI4: fragmentation needed and DF set\n",
 						    &iph->daddr);
@@ -942,7 +942,7 @@ static enum skb_drop_reason icmp_unreach(struct sk_buff *skb)
 	 *	get the other vendor to fix their kit.
 	 */
 
-	if (!READ_ONCE(net->ipv4.sysctl_icmp_ignore_bogus_error_responses) &&
+	if (!READ_ONCE(net->ipv4.sysctl_icmp_iganalre_bogus_error_responses) &&
 	    inet_addr_type_dev_table(net, skb->dev, iph->daddr) == RTN_BROADCAST) {
 		net_warn_ratelimited("%pI4 sent an invalid ICMP type %u, code %u error to a broadcast: %pI4 on %s\n",
 				     &ip_hdr(skb)->saddr,
@@ -957,7 +957,7 @@ out:
 	return reason;
 out_err:
 	__ICMP_INC_STATS(net, ICMP_MIB_INERRORS);
-	return reason ?: SKB_DROP_REASON_NOT_SPECIFIED;
+	return reason ?: SKB_DROP_REASON_ANALT_SPECIFIED;
 }
 
 
@@ -974,11 +974,11 @@ static enum skb_drop_reason icmp_redirect(struct sk_buff *skb)
 
 	if (!pskb_may_pull(skb, sizeof(struct iphdr))) {
 		/* there aught to be a stat */
-		return SKB_DROP_REASON_NOMEM;
+		return SKB_DROP_REASON_ANALMEM;
 	}
 
 	icmp_socket_deliver(skb, ntohl(icmp_hdr(skb)->un.gateway));
-	return SKB_NOT_DROPPED_YET;
+	return SKB_ANALT_DROPPED_YET;
 }
 
 /*
@@ -988,8 +988,8 @@ static enum skb_drop_reason icmp_redirect(struct sk_buff *skb)
  *		  requests.
  *	RFC 1122: 3.2.2.6 Data received in the ICMP_ECHO request MUST be
  *		  included in the reply.
- *	RFC 1812: 4.3.3.6 SHOULD have a config option for silently ignoring
- *		  echo requests, MUST have default=NOT.
+ *	RFC 1812: 4.3.3.6 SHOULD have a config option for silently iganalring
+ *		  echo requests, MUST have default=ANALT.
  *	RFC 8335: 8 MUST have a config option to enable/disable ICMP
  *		  Extended Echo Functionality, MUST be disabled by default
  *	See also WRT handling of options once they are done and working.
@@ -1001,9 +1001,9 @@ static enum skb_drop_reason icmp_echo(struct sk_buff *skb)
 	struct net *net;
 
 	net = dev_net(skb_dst(skb)->dev);
-	/* should there be an ICMP stat for ignored echos? */
-	if (READ_ONCE(net->ipv4.sysctl_icmp_echo_ignore_all))
-		return SKB_NOT_DROPPED_YET;
+	/* should there be an ICMP stat for iganalred echos? */
+	if (READ_ONCE(net->ipv4.sysctl_icmp_echo_iganalre_all))
+		return SKB_ANALT_DROPPED_YET;
 
 	icmp_param.data.icmph	   = *icmp_hdr(skb);
 	icmp_param.skb		   = skb;
@@ -1014,10 +1014,10 @@ static enum skb_drop_reason icmp_echo(struct sk_buff *skb)
 	if (icmp_param.data.icmph.type == ICMP_ECHO)
 		icmp_param.data.icmph.type = ICMP_ECHOREPLY;
 	else if (!icmp_build_probe(skb, &icmp_param.data.icmph))
-		return SKB_NOT_DROPPED_YET;
+		return SKB_ANALT_DROPPED_YET;
 
 	icmp_reply(&icmp_param, skb);
-	return SKB_NOT_DROPPED_YET;
+	return SKB_ANALT_DROPPED_YET;
 }
 
 /*	Helper for icmp_echo and icmpv6_echo_reply.
@@ -1040,7 +1040,7 @@ bool icmp_build_probe(struct sk_buff *skb, struct icmphdr *icmphdr)
 	if (!READ_ONCE(net->ipv4.sysctl_icmp_echo_enable_probe))
 		return false;
 
-	/* We currently only support probing interfaces on the proxy node
+	/* We currently only support probing interfaces on the proxy analde
 	 * Check to ensure L-bit is set
 	 */
 	if (!(ntohs(icmphdr->un.echo.sequence) & 1))
@@ -1109,7 +1109,7 @@ bool icmp_build_probe(struct sk_buff *skb, struct icmphdr *icmphdr)
 		goto send_mal_query;
 	}
 	if (!dev) {
-		icmphdr->code = ICMP_EXT_CODE_NO_IF;
+		icmphdr->code = ICMP_EXT_CODE_ANAL_IF;
 		return true;
 	}
 	/* Fill bits in reply message */
@@ -1160,7 +1160,7 @@ static enum skb_drop_reason icmp_timestamp(struct sk_buff *skb)
 	icmp_param.data_len	   = 0;
 	icmp_param.head_len	   = sizeof(struct icmphdr) + 12;
 	icmp_reply(&icmp_param, skb);
-	return SKB_NOT_DROPPED_YET;
+	return SKB_ANALT_DROPPED_YET;
 
 out_err:
 	__ICMP_INC_STATS(dev_net(skb_dst(skb)->dev), ICMP_MIB_INERRORS);
@@ -1170,7 +1170,7 @@ out_err:
 static enum skb_drop_reason icmp_discard(struct sk_buff *skb)
 {
 	/* pretend it was a success */
-	return SKB_NOT_DROPPED_YET;
+	return SKB_ANALT_DROPPED_YET;
 }
 
 /*
@@ -1178,7 +1178,7 @@ static enum skb_drop_reason icmp_discard(struct sk_buff *skb)
  */
 int icmp_rcv(struct sk_buff *skb)
 {
-	enum skb_drop_reason reason = SKB_DROP_REASON_NOT_SPECIFIED;
+	enum skb_drop_reason reason = SKB_DROP_REASON_ANALT_SPECIFIED;
 	struct rtable *rt = skb_rtable(skb);
 	struct net *net = dev_net(rt->dst.dev);
 	struct icmphdr *icmph;
@@ -1235,9 +1235,9 @@ int icmp_rcv(struct sk_buff *skb)
 	}
 
 	/*
-	 *	18 is the highest 'known' ICMP type. Anything else is a mystery
+	 *	18 is the highest 'kanalwn' ICMP type. Anything else is a mystery
 	 *
-	 *	RFC 1122: 3.2.2  Unknown ICMP messages types MUST be silently
+	 *	RFC 1122: 3.2.2  Unkanalwn ICMP messages types MUST be silently
 	 *		  discarded.
 	 */
 	if (icmph->type > NR_ICMP_TYPES) {
@@ -1252,13 +1252,13 @@ int icmp_rcv(struct sk_buff *skb)
 	if (rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST)) {
 		/*
 		 *	RFC 1122: 3.2.2.6 An ICMP_ECHO to broadcast MAY be
-		 *	  silently ignored (we let user decide with a sysctl).
+		 *	  silently iganalred (we let user decide with a sysctl).
 		 *	RFC 1122: 3.2.2.8 An ICMP_TIMESTAMP MAY be silently
 		 *	  discarded if to broadcast/multicast.
 		 */
 		if ((icmph->type == ICMP_ECHO ||
 		     icmph->type == ICMP_TIMESTAMP) &&
-		    READ_ONCE(net->ipv4.sysctl_icmp_echo_ignore_broadcasts)) {
+		    READ_ONCE(net->ipv4.sysctl_icmp_echo_iganalre_broadcasts)) {
 			reason = SKB_DROP_REASON_INVALID_PROTO;
 			goto error;
 		}
@@ -1451,12 +1451,12 @@ static const struct icmp_control icmp_pointers[NR_ICMP_TYPES + 1] = {
 static int __net_init icmp_sk_init(struct net *net)
 {
 	/* Control parameters for ECHO replies. */
-	net->ipv4.sysctl_icmp_echo_ignore_all = 0;
+	net->ipv4.sysctl_icmp_echo_iganalre_all = 0;
 	net->ipv4.sysctl_icmp_echo_enable_probe = 0;
-	net->ipv4.sysctl_icmp_echo_ignore_broadcasts = 1;
+	net->ipv4.sysctl_icmp_echo_iganalre_broadcasts = 1;
 
-	/* Control parameter - ignore bogus broadcast responses? */
-	net->ipv4.sysctl_icmp_ignore_bogus_error_responses = 1;
+	/* Control parameter - iganalre bogus broadcast responses? */
+	net->ipv4.sysctl_icmp_iganalre_bogus_error_responses = 1;
 
 	/*
 	 * 	Configurable global rate limit.
@@ -1495,7 +1495,7 @@ int __init icmp_init(void)
 
 		per_cpu(ipv4_icmp_sk, i) = sk;
 
-		/* Enough space for 2 64K ICMP packets, including
+		/* Eanalugh space for 2 64K ICMP packets, including
 		 * sk_buff/skb_shared_info struct overhead.
 		 */
 		sk->sk_sndbuf =	2 * SKB_TRUESIZE(64 * 1024);

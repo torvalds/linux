@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-analte */
 /*
  * Bond several ethernet interfaces into a Cisco, running 'Etherchannel'.
  *
@@ -12,7 +12,7 @@
  *	This software may be used and distributed according to the terms
  *	of the GNU Public License, incorporated herein by reference.
  *
- * 2003/03/18 - Amir Noam <amir.noam at intel dot com>
+ * 2003/03/18 - Amir Analam <amir.analam at intel dot com>
  *	- Added support for getting slave's speed and duplex via ethtool.
  *	  Needed for 802.3ad and other future modes.
  *
@@ -22,15 +22,15 @@
  *	  each slave.
  *
  * 2003/03/18 - Tsippy Mendelson <tsippy.mendelson at intel dot com> and
- *		Amir Noam <amir.noam at intel dot com>
+ *		Amir Analam <amir.analam at intel dot com>
  *	- Moved driver's private data types to bonding.h
  *
- * 2003/03/18 - Amir Noam <amir.noam at intel dot com>,
+ * 2003/03/18 - Amir Analam <amir.analam at intel dot com>,
  *		Tsippy Mendelson <tsippy.mendelson at intel dot com> and
  *		Shmulik Hen <shmulik.hen at intel dot com>
  *	- Added support for IEEE 802.3ad Dynamic link aggregation mode.
  *
- * 2003/05/01 - Amir Noam <amir.noam at intel dot com>
+ * 2003/05/01 - Amir Analam <amir.analam at intel dot com>
  *	- Added ABI version control to restore compatibility between
  *	  new/old ifenslave and new/old bonding.
  *
@@ -140,13 +140,13 @@ enum {
 enum {
 	BOND_3AD_STAT_LACPDU_RX,
 	BOND_3AD_STAT_LACPDU_TX,
-	BOND_3AD_STAT_LACPDU_UNKNOWN_RX,
+	BOND_3AD_STAT_LACPDU_UNKANALWN_RX,
 	BOND_3AD_STAT_LACPDU_ILLEGAL_RX,
 	BOND_3AD_STAT_MARKER_RX,
 	BOND_3AD_STAT_MARKER_TX,
 	BOND_3AD_STAT_MARKER_RESP_RX,
 	BOND_3AD_STAT_MARKER_RESP_TX,
-	BOND_3AD_STAT_MARKER_UNKNOWN_RX,
+	BOND_3AD_STAT_MARKER_UNKANALWN_RX,
 	BOND_3AD_STAT_PAD,
 	__BOND_3AD_STAT_MAX
 };

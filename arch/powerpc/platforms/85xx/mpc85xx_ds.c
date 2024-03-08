@@ -40,7 +40,7 @@ static void __init mpc85xx_ds_pic_init(void)
 	int flags = MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU;
 
 	if (of_machine_is_compatible("fsl,MPC8572DS-CAMP"))
-		flags |= MPIC_NO_RESET;
+		flags |= MPIC_ANAL_RESET;
 
 	mpic = mpic_alloc(NULL, 0, flags, 0, 256, " OpenPIC  ");
 

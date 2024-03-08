@@ -25,7 +25,7 @@ struct pinctrl_map;
 /**
  * struct madera_pdata - Configuration data for Madera devices
  *
- * @reset:	    GPIO controlling /RESET (NULL = none)
+ * @reset:	    GPIO controlling /RESET (NULL = analne)
  * @ldo1:	    Substruct of pdata for the LDO1 regulator
  * @micvdd:	    Substruct of pdata for the MICVDD regulator
  * @irq_flags:	    Mode for primary IRQ (defaults to active low)

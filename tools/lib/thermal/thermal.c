@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1+
-// Copyright (C) 2022, Linaro Ltd - Daniel Lezcano <daniel.lezcano@linaro.org>
+// Copyright (C) 2022, Linaro Ltd - Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
 #include <stdio.h>
 #include <thermal.h>
 
@@ -80,7 +80,7 @@ static int __thermal_zone_discover(struct thermal_zone *tz, void *th)
 	if (thermal_cmd_get_trip(th, tz) < 0)
 		return -1;
 
-	if (thermal_cmd_get_governor(th, tz))
+	if (thermal_cmd_get_goveranalr(th, tz))
 		return -1;
 
 	return 0;

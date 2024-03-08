@@ -21,7 +21,7 @@ static void wl18xx_adjust_channels(struct wl18xx_cmd_scan_params *cmd,
 	       sizeof(cmd->channels_2));
 	memcpy(cmd->channels_5, cmd_channels->channels_5,
 	       sizeof(cmd->channels_5));
-	/* channels_4 are not supported, so no need to copy them */
+	/* channels_4 are analt supported, so anal need to copy them */
 }
 
 static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
@@ -33,11 +33,11 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
-	/* scan on the dev role if the regular one is not started */
+	/* scan on the dev role if the regular one is analt started */
 	if (wlcore_is_p2p_mgmt(wlvif))
 		cmd->role_id = wlvif->dev_role_id;
 	else
@@ -69,7 +69,7 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	cmd_channels = kzalloc(sizeof(*cmd_channels), GFP_KERNEL);
 	if (!cmd_channels) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -80,11 +80,11 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	/*
 	 * all the cycles params (except total cycles) should
-	 * remain 0 for normal scan
+	 * remain 0 for analrmal scan
 	 */
 	cmd->total_cycles = 1;
 
-	if (req->no_cck)
+	if (req->anal_cck)
 		cmd->rate = WL18XX_SCAN_RATE_6;
 
 	cmd->tag = WL1271_SCAN_DEFAULT_TAG;
@@ -171,7 +171,7 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -203,7 +203,7 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 
 	cmd_channels = kzalloc(sizeof(*cmd_channels), GFP_KERNEL);
 	if (!cmd_channels) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -304,7 +304,7 @@ static int __wl18xx_scan_stop(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	stop = kzalloc(sizeof(*stop), GFP_KERNEL);
 	if (!stop) {
 		wl1271_error("failed to alloc memory to send sched scan stop");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	stop->role_id = wlvif->role_id;

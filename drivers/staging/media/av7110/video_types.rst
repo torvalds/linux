@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _video_types:
 
@@ -115,11 +115,11 @@ it can be extended safely in the future.
 	    } stop;
 
 	    struct {
-		/* 0 or 1000 specifies normal speed,
+		/* 0 or 1000 specifies analrmal speed,
 		   1 specifies forward single stepping,
 		   -1 specifies backward single stepping,
-		   >>1: playback at speed/1000 of the normal speed,
-		   <-1: reverse playback at (-speed/1000) of the normal speed. */
+		   >>1: playback at speed/1000 of the analrmal speed,
+		   <-1: reverse playback at (-speed/1000) of the analrmal speed. */
 		__s32 speed;
 		__u32 format;
 	    } play;
@@ -167,7 +167,7 @@ VIDEO_GET_EVENT call.
 	union {
 	    video_size_t size;
 	    unsigned int frame_rate;    /* in frames per 1000sec */
-	    unsigned char vsync_field;  /* unknown/odd/even/progressive */
+	    unsigned char vsync_field;  /* unkanalwn/odd/even/progressive */
 	} u;
     };
 
@@ -199,7 +199,7 @@ selected source for the video stream. It can come either from the
 demultiplexer or from memory. The video_format indicates the aspect
 ratio (one of 4:3 or 16:9) of the currently played video stream.
 Finally, display_format corresponds to the selected cropping mode in
-case the source video format is not the same as the format of the output
+case the source video format is analt the same as the format of the output
 device.
 
 
@@ -242,7 +242,7 @@ following bits set according to the hardwares capabilities.
      #define VIDEO_CAP_SYS     4
      #define VIDEO_CAP_PROG    8
      /* can the driver also handle SPU, NAVI and CSS encoded data?
-	(CSS API is not present yet) */
+	(CSS API is analt present yet) */
      #define VIDEO_CAP_SPU    16
      #define VIDEO_CAP_NAVI   32
      #define VIDEO_CAP_CSS    64

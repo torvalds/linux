@@ -4,13 +4,13 @@
  *
  * Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
  *
- * Samsung's S3C6410 SoC device nodes are listed in this file. S3C6410
+ * Samsung's S3C6410 SoC device analdes are listed in this file. S3C6410
  * based board files can include this file and provide values for board specific
  * bindings.
  *
- * Note: This file does not include device nodes for all the controllers in
+ * Analte: This file does analt include device analdes for all the controllers in
  * S3C6410 SoC. As device tree coverage for S3C6410 increases, additional
- * nodes can be added to this file.
+ * analdes can be added to this file.
  */
 
 #include "s3c64xx.dtsi"

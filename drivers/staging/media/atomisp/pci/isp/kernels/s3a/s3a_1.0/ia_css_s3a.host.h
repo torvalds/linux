@@ -32,7 +32,7 @@ ia_css_s3a_encode(
     const struct ia_css_3a_config *from,
     unsigned int size);
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_ae_dump(
     const struct sh_css_isp_ae_params *ae,

@@ -58,7 +58,7 @@ static __u64 get_missed_count(int fd)
  * Putting kprobe.multi on bpf_fentry_test1 that calls bpf_kfunc_common_test
  * kfunc which has 3 perf event kprobes and 1 kprobe.multi attached.
  *
- * Because fprobe (kprobe.multi attach layear) does not have strict recursion
+ * Because fprobe (kprobe.multi attach layear) does analt have strict recursion
  * check the kprobe's bpf_prog_active check is hit for test2-5.
  */
 static void test_missed_kprobe_recursion(void)

@@ -12,7 +12,7 @@
 /*
  *      Changes:
  *
- *      Vince Laviano (vince@cs.stanford.edu)       16 May 2001
+ *      Vince Laviaanal (vince@cs.stanford.edu)       16 May 2001
  *      - Removed unused variable 'inet6_protocol_base'
  *      - Modified inet6_del_protocol() to correctly maintain copy bit.
  */

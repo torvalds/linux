@@ -47,7 +47,7 @@
 #define AD5064_CONFIG_DAISY_CHAIN_ENABLE	BIT(1)
 #define AD5064_CONFIG_INT_VREF_ENABLE		BIT(0)
 
-#define AD5064_LDAC_PWRDN_NONE			0x0
+#define AD5064_LDAC_PWRDN_ANALNE			0x0
 #define AD5064_LDAC_PWRDN_1K			0x1
 #define AD5064_LDAC_PWRDN_100K			0x2
 #define AD5064_LDAC_PWRDN_3STATE		0x3
@@ -67,7 +67,7 @@ enum ad5064_regmap_type {
 /**
  * struct ad5064_chip_info - chip specific information
  * @shared_vref:	whether the vref supply is shared between channels
- * @internal_vref:	internal reference voltage. 0 if the chip has no
+ * @internal_vref:	internal reference voltage. 0 if the chip has anal
  *			internal vref.
  * @channels:		channel specification
  * @num_channels:	number of channels
@@ -94,7 +94,7 @@ typedef int (*ad5064_write_func)(struct ad5064_state *st, unsigned int cmd,
  * @vref_reg:		vref supply regulators
  * @pwr_down:		whether channel is powered down
  * @pwr_down_mode:	channel's current power down mode
- * @dac_cache:		current DAC raw value (chip does not support readback)
+ * @dac_cache:		current DAC raw value (chip does analt support readback)
  * @use_internal_vref:	set to true if the internal reference voltage should be
  *			used.
  * @write:		register write callback
@@ -831,10 +831,10 @@ static int ad5064_request_vref(struct ad5064_state *st, struct device *dev)
 		return 0;
 
 	ret = PTR_ERR(st->vref_reg[0].consumer);
-	if (ret != -ENODEV)
+	if (ret != -EANALDEV)
 		return ret;
 
-	/* If no external regulator was supplied use the internal VREF */
+	/* If anal external regulator was supplied use the internal VREF */
 	st->use_internal_vref = true;
 	ret = ad5064_set_config(st, AD5064_CONFIG_INT_VREF_ENABLE);
 	if (ret)
@@ -861,7 +861,7 @@ static int ad5064_probe(struct device *dev, enum ad5064_type type,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return  -ENOMEM;
+		return  -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	mutex_init(&st->lock);
@@ -935,7 +935,7 @@ static const struct spi_device_id ad5064_spi_ids[] = {
 	{"ad5666-2", ID_AD5666_2},
 	{"ad5668-1", ID_AD5668_1},
 	{"ad5668-2", ID_AD5668_2},
-	{"ad5668-3", ID_AD5668_2}, /* similar enough to ad5668-2 */
+	{"ad5668-3", ID_AD5668_2}, /* similar eanalugh to ad5668-2 */
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad5064_spi_ids);
@@ -1009,7 +1009,7 @@ static const struct i2c_device_id ad5064_i2c_ids[] = {
 	{"ad5627r-2v5", ID_AD5627R_2V5 },
 	{"ad5629-1", ID_AD5629_1},
 	{"ad5629-2", ID_AD5629_2},
-	{"ad5629-3", ID_AD5629_2}, /* similar enough to ad5629-2 */
+	{"ad5629-3", ID_AD5629_2}, /* similar eanalugh to ad5629-2 */
 	{"ad5645r-1v25", ID_AD5645R_1V25 },
 	{"ad5645r-2v5", ID_AD5645R_2V5 },
 	{"ad5665", ID_AD5665 },
@@ -1020,7 +1020,7 @@ static const struct i2c_device_id ad5064_i2c_ids[] = {
 	{"ad5667r-2v5", ID_AD5667R_2V5 },
 	{"ad5669-1", ID_AD5669_1},
 	{"ad5669-2", ID_AD5669_2},
-	{"ad5669-3", ID_AD5669_2}, /* similar enough to ad5669-2 */
+	{"ad5669-3", ID_AD5669_2}, /* similar eanalugh to ad5669-2 */
 	{"ltc2606", ID_LTC2606},
 	{"ltc2607", ID_LTC2607},
 	{"ltc2609", ID_LTC2609},

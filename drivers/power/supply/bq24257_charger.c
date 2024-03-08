@@ -240,7 +240,7 @@ enum bq24257_status {
 };
 
 enum bq24257_fault {
-	FAULT_NORMAL,
+	FAULT_ANALRMAL,
 	FAULT_INPUT_OVP,
 	FAULT_INPUT_UVLO,
 	FAULT_SLEEP,
@@ -248,7 +248,7 @@ enum bq24257_fault {
 	FAULT_BAT_OVP,
 	FAULT_TS,
 	FAULT_TIMER,
-	FAULT_NO_BAT,
+	FAULT_ANAL_BAT,
 	FAULT_ISET,
 	FAULT_INPUT_LDO_LOW,
 };
@@ -263,14 +263,14 @@ static int bq24257_get_input_current_limit(struct bq24257_device *bq,
 		return ret;
 
 	/*
-	 * The "External ILIM" and "Production & Test" modes are not exposed
-	 * through this driver and not being covered by the lookup table.
+	 * The "External ILIM" and "Production & Test" modes are analt exposed
+	 * through this driver and analt being covered by the lookup table.
 	 * Should such a mode have become active let's return an error rather
 	 * than exceeding the bounds of the lookup table and returning
 	 * garbage.
 	 */
 	if (ret >= BQ24257_IILIMIT_MAP_SIZE)
-		return -ENODATA;
+		return -EANALDATA;
 
 	val->intval = bq24257_iilimit_map[ret];
 
@@ -310,13 +310,13 @@ static int bq24257_power_supply_get_property(struct power_supply *psy,
 		if (!state.power_good)
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		else if (state.status == STATUS_READY)
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		else if (state.status == STATUS_CHARGE_IN_PROGRESS)
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else if (state.status == STATUS_CHARGE_DONE)
 			val->intval = POWER_SUPPLY_STATUS_FULL;
 		else
-			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+			val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 		break;
 
 	case POWER_SUPPLY_PROP_MANUFACTURER:
@@ -333,7 +333,7 @@ static int bq24257_power_supply_get_property(struct power_supply *psy,
 
 	case POWER_SUPPLY_PROP_HEALTH:
 		switch (state.fault) {
-		case FAULT_NORMAL:
+		case FAULT_ANALRMAL:
 			val->intval = POWER_SUPPLY_HEALTH_GOOD;
 			break;
 
@@ -436,9 +436,9 @@ static int bq24257_get_chip_state(struct bq24257_device *bq,
 		/*
 		 * If we have a chip without a dedicated power-good GPIO or
 		 * some other explicit bit that would provide this information
-		 * assume the power is good if there is no supply related
-		 * fault - and not good otherwise. There is a possibility for
-		 * other errors to mask that power in fact is not good but this
+		 * assume the power is good if there is anal supply related
+		 * fault - and analt good otherwise. There is a possibility for
+		 * other errors to mask that power in fact is analt good but this
 		 * is probably the best we can do here.
 		 */
 		switch (state->fault) {
@@ -469,7 +469,7 @@ static bool bq24257_state_changed(struct bq24257_device *bq,
 }
 
 enum bq24257_loop_status {
-	LOOP_STATUS_NONE,
+	LOOP_STATUS_ANALNE,
 	LOOP_STATUS_IN_DPM,
 	LOOP_STATUS_IN_CURRENT_LIMIT,
 	LOOP_STATUS_THERMAL,
@@ -483,7 +483,7 @@ enum bq24257_in_ilimit {
 	IILIMIT_1500,
 	IILIMIT_2000,
 	IILIMIT_EXT,
-	IILIMIT_NONE,
+	IILIMIT_ANALNE,
 };
 
 enum bq24257_vovp {
@@ -512,14 +512,14 @@ enum bq24257_port_type {
 	PORT_TYPE_DCP,		/* Dedicated Charging Port */
 	PORT_TYPE_CDP,		/* Charging Downstream Port */
 	PORT_TYPE_SDP,		/* Standard Downstream Port */
-	PORT_TYPE_NON_STANDARD,
+	PORT_TYPE_ANALN_STANDARD,
 };
 
 enum bq24257_safety_timer {
 	SAFETY_TIMER_45,
 	SAFETY_TIMER_360,
 	SAFETY_TIMER_540,
-	SAFETY_TIMER_NONE,
+	SAFETY_TIMER_ANALNE,
 };
 
 static int bq24257_iilimit_autoset(struct bq24257_device *bq)
@@ -532,7 +532,7 @@ static int bq24257_iilimit_autoset(struct bq24257_device *bq)
 		[PORT_TYPE_DCP] = IILIMIT_2000,
 		[PORT_TYPE_CDP] = IILIMIT_2000,
 		[PORT_TYPE_SDP] = IILIMIT_500,
-		[PORT_TYPE_NON_STANDARD] = IILIMIT_500
+		[PORT_TYPE_ANALN_STANDARD] = IILIMIT_500
 	};
 
 	ret = bq24257_field_read(bq, F_LOOP_STATUS);
@@ -548,8 +548,8 @@ static int bq24257_iilimit_autoset(struct bq24257_device *bq)
 	iilimit = ret;
 
 	/*
-	 * All USB ports should be able to handle 500mA. If not, DPM will lower
-	 * the charging current to accommodate the power source. No need to set
+	 * All USB ports should be able to handle 500mA. If analt, DPM will lower
+	 * the charging current to accommodate the power source. Anal need to set
 	 * a lower IILIMIT value.
 	 */
 	if (loop_status == LOOP_STATUS_IN_DPM && iilimit == IILIMIT_500)
@@ -629,7 +629,7 @@ static void bq24257_handle_state_change(struct bq24257_device *bq,
 			/* configure input current limit */
 			schedule_delayed_work(&bq->iilimit_setup_work,
 				      msecs_to_jiffies(BQ24257_ILIM_SET_DELAY));
-	} else if (new_state->fault == FAULT_NO_BAT) {
+	} else if (new_state->fault == FAULT_ANAL_BAT) {
 		dev_warn(bq->dev, "Battery removed\n");
 	} else if (new_state->fault == FAULT_TIMER) {
 		dev_err(bq->dev, "Safety timer expired! Battery dead?\n");
@@ -721,7 +721,7 @@ static int bq24257_hw_init(struct bq24257_device *bq)
 	} else if (!state.power_good)
 		/* activate D+/D- detection algorithm */
 		ret = bq24257_field_write(bq, F_DPDM_EN, 1);
-	else if (state.fault != FAULT_NO_BAT)
+	else if (state.fault != FAULT_ANAL_BAT)
 		ret = bq24257_iilimit_autoset(bq);
 
 	return ret;
@@ -900,7 +900,7 @@ static int bq24257_fw_probe(struct bq24257_device *bq)
 	bq->init_data.iterm = bq24257_find_idx(property, bq24257_iterm_map,
 					       BQ24257_ITERM_MAP_SIZE);
 
-	/* Optional properties. If not provided use reasonable default. */
+	/* Optional properties. If analt provided use reasonable default. */
 	ret = device_property_read_u32(bq->dev, "ti,current-limit",
 				       &property);
 	if (ret < 0) {
@@ -949,20 +949,20 @@ static int bq24257_probe(struct i2c_client *client)
 	int i;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(dev, "No support for SMBUS_BYTE_DATA\n");
-		return -ENODEV;
+		dev_err(dev, "Anal support for SMBUS_BYTE_DATA\n");
+		return -EANALDEV;
 	}
 
 	bq = devm_kzalloc(dev, sizeof(*bq), GFP_KERNEL);
 	if (!bq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bq->client = client;
 	bq->dev = dev;
 
 	bq->info = i2c_get_match_data(client);
 	if (!bq->info)
-		return dev_err_probe(dev, -ENODEV, "Failed to match device\n");
+		return dev_err_probe(dev, -EANALDEV, "Failed to match device\n");
 
 	mutex_init(&bq->lock);
 
@@ -978,7 +978,7 @@ static int bq24257_probe(struct i2c_client *client)
 		bq->rmap_fields[i] = devm_regmap_field_alloc(dev, bq->rmap,
 							     reg_fields[i]);
 		if (IS_ERR(bq->rmap_fields[i])) {
-			dev_err(dev, "cannot allocate regmap field\n");
+			dev_err(dev, "cananalt allocate regmap field\n");
 			return PTR_ERR(bq->rmap_fields[i]);
 		}
 	}
@@ -988,11 +988,11 @@ static int bq24257_probe(struct i2c_client *client)
 	if (!dev->platform_data) {
 		ret = bq24257_fw_probe(bq);
 		if (ret < 0) {
-			dev_err(dev, "Cannot read device properties.\n");
+			dev_err(dev, "Cananalt read device properties.\n");
 			return ret;
 		}
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -1009,9 +1009,9 @@ static int bq24257_probe(struct i2c_client *client)
 
 	/*
 	 * The BQ24250 doesn't have a dedicated Power Good (PG) pin so let's
-	 * not probe for it and instead use a SW-based approach to determine
+	 * analt probe for it and instead use a SW-based approach to determine
 	 * the PG state. We also use a SW-based approach for all other devices
-	 * if the PG pin is either not defined or can't be probed.
+	 * if the PG pin is either analt defined or can't be probed.
 	 */
 	if (bq->info->chip != BQ24250)
 		bq24257_pg_gpio_probe(bq);
@@ -1029,7 +1029,7 @@ static int bq24257_probe(struct i2c_client *client)
 	/*
 	 * Put the RESET bit back to 0, in cache. For some reason the HW always
 	 * returns 1 on this bit, so this is the only way to avoid resetting the
-	 * chip every time we update another field in this register.
+	 * chip every time we update aanalther field in this register.
 	 */
 	ret = bq24257_field_write(bq, F_RESET, 0);
 	if (ret < 0)
@@ -1037,7 +1037,7 @@ static int bq24257_probe(struct i2c_client *client)
 
 	ret = bq24257_hw_init(bq);
 	if (ret < 0) {
-		dev_err(dev, "Cannot initialize the chip.\n");
+		dev_err(dev, "Cananalt initialize the chip.\n");
 		return ret;
 	}
 
@@ -1082,7 +1082,7 @@ static int bq24257_suspend(struct device *dev)
 	/* reset all registers to default (and activate standalone mode) */
 	ret = bq24257_field_write(bq, F_RESET, 1);
 	if (ret < 0)
-		dev_err(bq->dev, "Cannot reset chip to standalone mode.\n");
+		dev_err(bq->dev, "Cananalt reset chip to standalone mode.\n");
 
 	return ret;
 }
@@ -1102,7 +1102,7 @@ static int bq24257_resume(struct device *dev)
 
 	ret = bq24257_hw_init(bq);
 	if (ret < 0) {
-		dev_err(bq->dev, "Cannot init chip after resume.\n");
+		dev_err(bq->dev, "Cananalt init chip after resume.\n");
 		return ret;
 	}
 

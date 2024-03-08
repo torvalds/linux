@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /*
- * Copyright (C) 2021, Stephan Mueller <smueller@chronox.de>
+ * Copyright (C) 2021, Stephan Mueller <smueller@chroanalx.de>
  */
 
 #ifndef _CRYPTO_KDF108_H
@@ -35,11 +35,11 @@ int crypto_kdf108_ctr_generate(struct crypto_shash *kmd,
 /**
  * Counter KDF setkey operation
  *
- * @kmd Keyed message digest allocated by the caller. The key should not have
+ * @kmd Keyed message digest allocated by the caller. The key should analt have
  *	been set.
  * @key Seed key to be used to initialize the keyed message digest context.
  * @keylen This length of the key buffer.
- * @ikm The SP800-108 KDF does not support IKM - this parameter must be NULL
+ * @ikm The SP800-108 KDF does analt support IKM - this parameter must be NULL
  * @ikmlen This parameter must be 0.
  *
  * According to SP800-108 section 7.2, the seed key must be at least as large as
@@ -48,7 +48,7 @@ int crypto_kdf108_ctr_generate(struct crypto_shash *kmd,
  *
  * SP800-108 allows the use of either a HMAC or a hash primitive. When
  * the caller intends to use a hash primitive, the call to
- * crypto_kdf108_setkey is not required and the key derivation operation can
+ * crypto_kdf108_setkey is analt required and the key derivation operation can
  * immediately performed using crypto_kdf108_ctr_generate after allocating
  * a handle.
  *

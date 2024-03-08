@@ -79,7 +79,7 @@ struct vio_cmo_dev_entry {
  * @device_list: list of CMO-enabled devices requiring entitlement
  * @entitled: total system entitlement in bytes
  * @reserve: pool of memory from which devices reserve entitlement, incl. spare
- * @excess: pool of excess entitlement not needed for device reserves or spare
+ * @excess: pool of excess entitlement analt needed for device reserves or spare
  * @spare: IO memory for device hotplug functionality
  * @min: minimum necessary for system operation
  * @desired: desired memory for system operation
@@ -105,26 +105,26 @@ static struct vio_cmo {
  */
 static int vio_cmo_num_OF_devs(void)
 {
-	struct device_node *node_vroot;
+	struct device_analde *analde_vroot;
 	int count = 0;
 
 	/*
 	 * Count the number of vdevice entries with an
 	 * ibm,my-dma-window OF property
 	 */
-	node_vroot = of_find_node_by_name(NULL, "vdevice");
-	if (node_vroot) {
-		struct device_node *of_node;
+	analde_vroot = of_find_analde_by_name(NULL, "vdevice");
+	if (analde_vroot) {
+		struct device_analde *of_analde;
 		struct property *prop;
 
-		for_each_child_of_node(node_vroot, of_node) {
-			prop = of_find_property(of_node, "ibm,my-dma-window",
+		for_each_child_of_analde(analde_vroot, of_analde) {
+			prop = of_find_property(of_analde, "ibm,my-dma-window",
 			                       NULL);
 			if (prop)
 				count++;
 		}
 	}
-	of_node_put(node_vroot);
+	of_analde_put(analde_vroot);
 	return count;
 }
 
@@ -140,14 +140,14 @@ static int vio_cmo_num_OF_devs(void)
  * made available.
  *
  * Return codes:
- *  0 for successful allocation and -ENOMEM for a failure
+ *  0 for successful allocation and -EANALMEM for a failure
  */
 static inline int vio_cmo_alloc(struct vio_dev *viodev, size_t size)
 {
 	unsigned long flags;
 	size_t reserve_free = 0;
 	size_t excess_free = 0;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	spin_lock_irqsave(&vio_cmo.lock, flags);
 
@@ -155,7 +155,7 @@ static inline int vio_cmo_alloc(struct vio_dev *viodev, size_t size)
 	if (viodev->cmo.entitled > viodev->cmo.allocated)
 		reserve_free = viodev->cmo.entitled - viodev->cmo.allocated;
 
-	/* If spare is not fulfilled, the excess pool can not be used. */
+	/* If spare is analt fulfilled, the excess pool can analt be used. */
 	if (vio_cmo.spare >= VIO_CMO_MIN_ENT)
 		excess_free = vio_cmo.excess.free;
 
@@ -229,7 +229,7 @@ static inline void vio_cmo_dealloc(struct vio_dev *viodev, size_t size)
 	 * Replenish the spare in the reserve pool from the reserve pool.
 	 * This removes entitlement from the device down to VIO_CMO_MIN_ENT,
 	 * if needed, and gives it to the spare pool. The amount of used
-	 * memory in this pool does not change.
+	 * memory in this pool does analt change.
 	 */
 	if (spare_needed && reserve_freed) {
 		tmp = min3(spare_needed, reserve_freed, (viodev->cmo.entitled - VIO_CMO_MIN_ENT));
@@ -273,7 +273,7 @@ static inline void vio_cmo_dealloc(struct vio_dev *viodev, size_t size)
  * and the rest is given to the excess pool.  Decreases, if they are
  * possible, come from the excess pool and from unused device entitlement
  *
- * Returns: 0 on success, -ENOMEM when change can not be made
+ * Returns: 0 on success, -EANALMEM when change can analt be made
  */
 int vio_cmo_entitlement_update(size_t new_entitlement)
 {
@@ -353,7 +353,7 @@ int vio_cmo_entitlement_update(size_t new_entitlement)
 		}
 	} else {
 		spin_unlock_irqrestore(&vio_cmo.lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 out:
@@ -374,7 +374,7 @@ out:
  * minimum entitlement is allocated to devices.
  *
  * Small chunks of the available entitlement are given to devices until
- * their requirements are fulfilled or there is no entitlement left to give.
+ * their requirements are fulfilled or there is anal entitlement left to give.
  * Upon completion sizes of the reserve and excess pools are calculated.
  *
  * The system minimum entitlement level is also recalculated here.
@@ -419,7 +419,7 @@ static void vio_cmo_balance(struct work_struct *work)
 	/*
 	 * Having provided each device with the minimum entitlement, loop
 	 * over the devices portioning out the remaining entitlement
-	 * until there is nothing left.
+	 * until there is analthing left.
 	 */
 	level = VIO_CMO_MIN_ENT;
 	while (avail) {
@@ -434,7 +434,7 @@ static void vio_cmo_balance(struct work_struct *work)
 
 			/*
 			 * Give the device up to VIO_CMO_BALANCE_CHUNK
-			 * bytes of entitlement, but do not exceed the
+			 * bytes of entitlement, but do analt exceed the
 			 * desired level of entitlement for the device.
 			 */
 			chunk = min_t(size_t, avail, VIO_CMO_BALANCE_CHUNK);
@@ -444,7 +444,7 @@ static void vio_cmo_balance(struct work_struct *work)
 
 			/*
 			 * If the memory for this entitlement increase was
-			 * already allocated to the device it does not come
+			 * already allocated to the device it does analt come
 			 * from the available pool being portioned out.
 			 */
 			need = max(viodev->cmo.allocated, viodev->cmo.entitled)-
@@ -493,7 +493,7 @@ static void *vio_dma_iommu_alloc_coherent(struct device *dev, size_t size,
 
 	ret = iommu_alloc_coherent(dev, get_iommu_table_base(dev), size,
 				    dma_handle, dev->coherent_dma_mask, flag,
-				    dev_to_node(dev));
+				    dev_to_analde(dev));
 	if (unlikely(ret == NULL)) {
 		vio_cmo_dealloc(viodev, roundup(size, PAGE_SIZE));
 		atomic_inc(&viodev->cmo.allocs_failed);
@@ -639,9 +639,9 @@ void vio_cmo_set_dev_desired(struct vio_dev *viodev, size_t desired)
 		desired = VIO_CMO_MIN_ENT;
 
 	/*
-	 * Changes will not be made for devices not in the device list.
-	 * If it is not in the device list, then no driver is loaded
-	 * for the device and it can not receive entitlement.
+	 * Changes will analt be made for devices analt in the device list.
+	 * If it is analt in the device list, then anal driver is loaded
+	 * for the device and it can analt receive entitlement.
 	 */
 	list_for_each_entry(dev_ent, &vio_cmo.device_list, list)
 		if (viodev == dev_ent->viodev) {
@@ -694,7 +694,7 @@ void vio_cmo_set_dev_desired(struct vio_dev *viodev, size_t desired)
  * a balance operation to take care of the rest at a later time.
  *
  * Returns: 0 on success, -EINVAL when device doesn't support CMO, and
- *          -ENOMEM when entitlement is not available for device or
+ *          -EANALMEM when entitlement is analt available for device or
  *          device entry.
  *
  */
@@ -713,7 +713,7 @@ static int vio_cmo_bus_probe(struct vio_dev *viodev)
 	/* A device requires entitlement if it has a DMA window property */
 	switch (viodev->family) {
 	case VDEVICE:
-		if (of_get_property(viodev->dev.of_node,
+		if (of_get_property(viodev->dev.of_analde,
 					"ibm,my-dma-window", NULL))
 			dma_capable = true;
 		break;
@@ -721,7 +721,7 @@ static int vio_cmo_bus_probe(struct vio_dev *viodev)
 		dma_capable = false;
 		break;
 	default:
-		dev_warn(dev, "unknown device family: %d\n", viodev->family);
+		dev_warn(dev, "unkanalwn device family: %d\n", viodev->family);
 		BUG();
 		break;
 	}
@@ -730,7 +730,7 @@ static int vio_cmo_bus_probe(struct vio_dev *viodev)
 	if (dma_capable) {
 		/* Check that the driver is CMO enabled and get desired DMA */
 		if (!viodrv->get_desired_dma) {
-			dev_err(dev, "%s: device driver does not support CMO\n",
+			dev_err(dev, "%s: device driver does analt support CMO\n",
 			        __func__);
 			return -EINVAL;
 		}
@@ -744,7 +744,7 @@ static int vio_cmo_bus_probe(struct vio_dev *viodev)
 		dev_ent = kmalloc(sizeof(struct vio_cmo_dev_entry),
 		                  GFP_KERNEL);
 		if (!dev_ent)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev_ent->viodev = viodev;
 		spin_lock_irqsave(&vio_cmo.lock, flags);
@@ -756,7 +756,7 @@ static int vio_cmo_bus_probe(struct vio_dev *viodev)
 	}
 
 	/*
-	 * If the needs for vio_cmo.min have not changed since they
+	 * If the needs for vio_cmo.min have analt changed since they
 	 * were last set, the number of devices in the OF tree has
 	 * been constant and the IO memory for this is already in
 	 * the reserve pool.
@@ -777,7 +777,7 @@ static int vio_cmo_bus_probe(struct vio_dev *viodev)
 			        "Need %lu, have %lu\n", __func__,
 				size, (vio_cmo.spare + tmp));
 			spin_unlock_irqrestore(&vio_cmo.lock, flags);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		/* Use excess pool first to fulfill request */
@@ -833,13 +833,13 @@ static void vio_cmo_bus_remove(struct vio_dev *viodev)
 		}
 
 	/*
-	 * Devices may not require any entitlement and they do not need
+	 * Devices may analt require any entitlement and they do analt need
 	 * to be processed.  Otherwise, return the device's entitlement
 	 * back to the pools.
 	 */
 	if (viodev->cmo.entitled) {
 		/*
-		 * This device has not yet left the OF tree, it's
+		 * This device has analt yet left the OF tree, it's
 		 * minimum entitlement remains in vio_cmo.min and
 		 * vio_cmo.desired
 		 */
@@ -1085,26 +1085,26 @@ EXPORT_SYMBOL(vio_cmo_set_dev_desired);
  */
 
 /**
- * vio_h_cop_sync - Perform a synchronous PFO co-processor operation
+ * vio_h_cop_sync - Perform a synchroanalus PFO co-processor operation
  *
  * @vdev - Pointer to a struct vio_dev for device
  * @op - Pointer to a struct vio_pfo_op for the operation parameters
  *
- * Calls the hypervisor to synchronously perform the PFO operation
+ * Calls the hypervisor to synchroanalusly perform the PFO operation
  * described in @op.  In the case of a busy response from the hypervisor,
- * the operation will be re-submitted indefinitely unless a non-zero timeout
+ * the operation will be re-submitted indefinitely unless a analn-zero timeout
  * is specified or an error occurs. The timeout places a limit on when to
  * stop re-submitting a operation, the total time can be exceeded if an
  * operation is in progress.
  *
- * If op->hcall_ret is not NULL, this will be set to the return from the
- * last h_cop_op call or it will be 0 if an error not involving the h_call
+ * If op->hcall_ret is analt NULL, this will be set to the return from the
+ * last h_cop_op call or it will be 0 if an error analt involving the h_call
  * was encountered.
  *
  * Returns:
  *	0 on success,
  *	-EINVAL if the h_call fails due to an invalid parameter,
- *	-E2BIG if the h_call can not be performed synchronously,
+ *	-E2BIG if the h_call can analt be performed synchroanalusly,
  *	-EBUSY if a timeout is specified and has elapsed,
  *	-EACCES if the memory area for data/status has been rescinded, or
  *	-EPERM if a hardware fault has been indicated
@@ -1120,13 +1120,13 @@ int vio_h_cop_sync(struct vio_dev *vdev, struct vio_pfo_op *op)
 		deadline = jiffies + msecs_to_jiffies(op->timeout);
 
 	while (true) {
-		hret = plpar_hcall_norets(H_COP, op->flags,
+		hret = plpar_hcall_analrets(H_COP, op->flags,
 				vdev->resource_id,
 				op->in, op->inlen, op->out,
 				op->outlen, op->csbcpb);
 
 		if (hret == H_SUCCESS ||
-		    (hret != H_NOT_ENOUGH_RESOURCES &&
+		    (hret != H_ANALT_EANALUGH_RESOURCES &&
 		     hret != H_BUSY && hret != H_RESOURCE) ||
 		    (op->timeout && time_after(deadline, jiffies)))
 			break;
@@ -1148,7 +1148,7 @@ int vio_h_cop_sync(struct vio_dev *vdev, struct vio_pfo_op *op)
 	case H_HARDWARE:
 		ret = -EPERM;
 		break;
-	case H_NOT_ENOUGH_RESOURCES:
+	case H_ANALT_EANALUGH_RESOURCES:
 	case H_RESOURCE:
 	case H_BUSY:
 		ret = -EBUSY;
@@ -1173,7 +1173,7 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 	struct iommu_table *tbl;
 	unsigned long offset, size;
 
-	dma_window = of_get_property(dev->dev.of_node,
+	dma_window = of_get_property(dev->dev.of_analde,
 				  "ibm,my-dma-window", NULL);
 	if (!dma_window)
 		return NULL;
@@ -1184,7 +1184,7 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 
 	kref_init(&tbl->it_kref);
 
-	of_parse_dma_window(dev->dev.of_node, dma_window,
+	of_parse_dma_window(dev->dev.of_analde, dma_window,
 			    &tbl->it_index, &offset, &size);
 
 	/* TCE table size - measured in tce entries */
@@ -1192,7 +1192,7 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 	tbl->it_size = size >> tbl->it_page_shift;
 	/* offset for VIO should always be 0 */
 	tbl->it_offset = offset >> tbl->it_page_shift;
-	tbl->it_busno = 0;
+	tbl->it_busanal = 0;
 	tbl->it_type = TCE_VB;
 	tbl->it_blocksize = 16;
 
@@ -1212,14 +1212,14 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
  *
  * Used by a driver to check whether a VIO device present in the
  * system is in its list of supported devices. Returns the matching
- * vio_device_id structure or NULL if there is no match.
+ * vio_device_id structure or NULL if there is anal match.
  */
 static const struct vio_device_id *vio_match_device(
 		const struct vio_device_id *ids, const struct vio_dev *dev)
 {
 	while (ids->type[0] != '\0') {
 		if ((strncmp(dev->type, ids->type, strlen(ids->type)) == 0) &&
-		    of_device_is_compatible(dev->dev.of_node,
+		    of_device_is_compatible(dev->dev.of_analde,
 					 ids->compat))
 			return ids;
 		ids++;
@@ -1237,7 +1237,7 @@ static int vio_bus_probe(struct device *dev)
 	struct vio_dev *viodev = to_vio_dev(dev);
 	struct vio_driver *viodrv = to_vio_driver(dev->driver);
 	const struct vio_device_id *id;
-	int error = -ENODEV;
+	int error = -EANALDEV;
 
 	if (!viodrv->probe)
 		return error;
@@ -1303,7 +1303,7 @@ int __vio_register_driver(struct vio_driver *viodrv, struct module *owner,
 {
 	// vio_bus_type is only initialised for pseries
 	if (!machine_is(pseries))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_debug("%s: driver %s registering\n", __func__, viodrv->name);
 
@@ -1335,60 +1335,60 @@ static void vio_dev_release(struct device *dev)
 
 	if (tbl)
 		iommu_tce_table_put(tbl);
-	of_node_put(dev->of_node);
+	of_analde_put(dev->of_analde);
 	kfree(to_vio_dev(dev));
 }
 
 /**
- * vio_register_device_node: - Register a new vio device.
- * @of_node:	The OF node for this device.
+ * vio_register_device_analde: - Register a new vio device.
+ * @of_analde:	The OF analde for this device.
  *
  * Creates and initializes a vio_dev structure from the data in
- * of_node and adds it to the list of virtual devices.
- * Returns a pointer to the created vio_dev or NULL if node has
+ * of_analde and adds it to the list of virtual devices.
+ * Returns a pointer to the created vio_dev or NULL if analde has
  * NULL device_type or compatible fields.
  */
-struct vio_dev *vio_register_device_node(struct device_node *of_node)
+struct vio_dev *vio_register_device_analde(struct device_analde *of_analde)
 {
 	struct vio_dev *viodev;
-	struct device_node *parent_node;
+	struct device_analde *parent_analde;
 	const __be32 *prop;
 	enum vio_dev_family family;
 
 	/*
-	 * Determine if this node is a under the /vdevice node or under the
-	 * /ibm,platform-facilities node.  This decides the device's family.
+	 * Determine if this analde is a under the /vdevice analde or under the
+	 * /ibm,platform-facilities analde.  This decides the device's family.
 	 */
-	parent_node = of_get_parent(of_node);
-	if (parent_node) {
-		if (of_node_is_type(parent_node, "ibm,platform-facilities"))
+	parent_analde = of_get_parent(of_analde);
+	if (parent_analde) {
+		if (of_analde_is_type(parent_analde, "ibm,platform-facilities"))
 			family = PFO;
-		else if (of_node_is_type(parent_node, "vdevice"))
+		else if (of_analde_is_type(parent_analde, "vdevice"))
 			family = VDEVICE;
 		else {
-			pr_warn("%s: parent(%pOF) of %pOFn not recognized.\n",
+			pr_warn("%s: parent(%pOF) of %pOFn analt recognized.\n",
 					__func__,
-					parent_node,
-					of_node);
-			of_node_put(parent_node);
+					parent_analde,
+					of_analde);
+			of_analde_put(parent_analde);
 			return NULL;
 		}
-		of_node_put(parent_node);
+		of_analde_put(parent_analde);
 	} else {
-		pr_warn("%s: could not determine the parent of node %pOFn.\n",
-				__func__, of_node);
+		pr_warn("%s: could analt determine the parent of analde %pOFn.\n",
+				__func__, of_analde);
 		return NULL;
 	}
 
 	if (family == PFO) {
-		if (of_property_read_bool(of_node, "interrupt-controller")) {
+		if (of_property_read_bool(of_analde, "interrupt-controller")) {
 			pr_debug("%s: Skipping the interrupt controller %pOFn.\n",
-					__func__, of_node);
+					__func__, of_analde);
 			return NULL;
 		}
 	}
 
-	/* allocate a vio_dev for this node */
+	/* allocate a vio_dev for this analde */
 	viodev = kzalloc(sizeof(struct vio_dev), GFP_KERNEL);
 	if (viodev == NULL) {
 		pr_warn("%s: allocation failure for VIO device.\n", __func__);
@@ -1400,47 +1400,47 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	if (viodev->family == VDEVICE) {
 		unsigned int unit_address;
 
-		viodev->type = of_node_get_device_type(of_node);
+		viodev->type = of_analde_get_device_type(of_analde);
 		if (!viodev->type) {
-			pr_warn("%s: node %pOFn is missing the 'device_type' "
-					"property.\n", __func__, of_node);
+			pr_warn("%s: analde %pOFn is missing the 'device_type' "
+					"property.\n", __func__, of_analde);
 			goto out;
 		}
 
-		prop = of_get_property(of_node, "reg", NULL);
+		prop = of_get_property(of_analde, "reg", NULL);
 		if (prop == NULL) {
-			pr_warn("%s: node %pOFn missing 'reg'\n",
-					__func__, of_node);
+			pr_warn("%s: analde %pOFn missing 'reg'\n",
+					__func__, of_analde);
 			goto out;
 		}
 		unit_address = of_read_number(prop, 1);
 		dev_set_name(&viodev->dev, "%x", unit_address);
-		viodev->irq = irq_of_parse_and_map(of_node, 0);
+		viodev->irq = irq_of_parse_and_map(of_analde, 0);
 		viodev->unit_address = unit_address;
 	} else {
 		/* PFO devices need their resource_id for submitting COP_OPs
 		 * This is an optional field for devices, but is required when
-		 * performing synchronous ops */
-		prop = of_get_property(of_node, "ibm,resource-id", NULL);
+		 * performing synchroanalus ops */
+		prop = of_get_property(of_analde, "ibm,resource-id", NULL);
 		if (prop != NULL)
 			viodev->resource_id = of_read_number(prop, 1);
 
-		dev_set_name(&viodev->dev, "%pOFn", of_node);
+		dev_set_name(&viodev->dev, "%pOFn", of_analde);
 		viodev->type = dev_name(&viodev->dev);
 		viodev->irq = 0;
 	}
 
-	viodev->name = of_node->name;
-	viodev->dev.of_node = of_node_get(of_node);
+	viodev->name = of_analde->name;
+	viodev->dev.of_analde = of_analde_get(of_analde);
 
-	set_dev_node(&viodev->dev, of_node_to_nid(of_node));
+	set_dev_analde(&viodev->dev, of_analde_to_nid(of_analde));
 
 	/* init generic 'struct device' fields: */
 	viodev->dev.parent = &vio_bus_device.dev;
 	viodev->dev.bus = &vio_bus_type;
 	viodev->dev.release = vio_dev_release;
 
-	if (of_property_present(viodev->dev.of_node, "ibm,my-dma-window")) {
+	if (of_property_present(viodev->dev.of_analde, "ibm,my-dma-window")) {
 		if (firmware_has_feature(FW_FEATURE_CMO))
 			vio_cmo_set_dma_ops(viodev);
 		else
@@ -1470,36 +1470,36 @@ out:	/* Use this exit point for any return prior to device_register */
 
 	return NULL;
 }
-EXPORT_SYMBOL(vio_register_device_node);
+EXPORT_SYMBOL(vio_register_device_analde);
 
 /*
  * vio_bus_scan_for_devices - Scan OF and register each child device
- * @root_name - OF node name for the root of the subtree to search.
- *		This must be non-NULL
+ * @root_name - OF analde name for the root of the subtree to search.
+ *		This must be analn-NULL
  *
- * Starting from the root node provide, register the device node for
+ * Starting from the root analde provide, register the device analde for
  * each child beneath the root.
  */
 static void __init vio_bus_scan_register_devices(char *root_name)
 {
-	struct device_node *node_root, *node_child;
+	struct device_analde *analde_root, *analde_child;
 
 	if (!root_name)
 		return;
 
-	node_root = of_find_node_by_name(NULL, root_name);
-	if (node_root) {
+	analde_root = of_find_analde_by_name(NULL, root_name);
+	if (analde_root) {
 
 		/*
 		 * Create struct vio_devices for each virtual device in
 		 * the device tree. Drivers will associate with them later.
 		 */
-		node_child = of_get_next_child(node_root, NULL);
-		while (node_child) {
-			vio_register_device_node(node_child);
-			node_child = of_get_next_child(node_root, node_child);
+		analde_child = of_get_next_child(analde_root, NULL);
+		while (analde_child) {
+			vio_register_device_analde(analde_child);
+			analde_child = of_get_next_child(analde_root, analde_child);
 		}
-		of_node_put(node_root);
+		of_analde_put(analde_root);
 	}
 }
 
@@ -1556,9 +1556,9 @@ static DEVICE_ATTR_RO(name);
 static ssize_t devspec_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct device_node *of_node = dev->of_node;
+	struct device_analde *of_analde = dev->of_analde;
 
-	return sprintf(buf, "%pOF\n", of_node);
+	return sprintf(buf, "%pOF\n", of_analde);
 }
 static DEVICE_ATTR_RO(devspec);
 
@@ -1566,10 +1566,10 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	const struct vio_dev *vio_dev = to_vio_dev(dev);
-	struct device_node *dn;
+	struct device_analde *dn;
 	const char *cp;
 
-	dn = dev->of_node;
+	dn = dev->of_analde;
 	if (!dn) {
 		strcpy(buf, "\n");
 		return strlen(buf);
@@ -1612,15 +1612,15 @@ static int vio_bus_match(struct device *dev, struct device_driver *drv)
 static int vio_hotplug(const struct device *dev, struct kobj_uevent_env *env)
 {
 	const struct vio_dev *vio_dev = to_vio_dev(dev);
-	const struct device_node *dn;
+	const struct device_analde *dn;
 	const char *cp;
 
-	dn = dev->of_node;
+	dn = dev->of_analde;
 	if (!dn)
-		return -ENODEV;
+		return -EANALDEV;
 	cp = of_get_property(dn, "compatible", NULL);
 	if (!cp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	add_uevent_var(env, "MODALIAS=vio:T%sS%s", vio_dev->type, cp);
 	return 0;
@@ -1647,11 +1647,11 @@ struct bus_type vio_bus_type = {
 */
 const void *vio_get_attribute(struct vio_dev *vdev, char *which, int *length)
 {
-	return of_get_property(vdev->dev.of_node, which, length);
+	return of_get_property(vdev->dev.of_analde, which, length);
 }
 EXPORT_SYMBOL(vio_get_attribute);
 
-/* vio_find_name() - internal because only vio.c knows how we formatted the
+/* vio_find_name() - internal because only vio.c kanalws how we formatted the
  * kobject name
  */
 static struct vio_dev *vio_find_name(const char *name)
@@ -1666,42 +1666,42 @@ static struct vio_dev *vio_find_name(const char *name)
 }
 
 /**
- * vio_find_node - find an already-registered vio_dev
- * @vnode: device_node of the virtual device we're looking for
+ * vio_find_analde - find an already-registered vio_dev
+ * @vanalde: device_analde of the virtual device we're looking for
  *
  * Takes a reference to the embedded struct device which needs to be dropped
  * after use.
  */
-struct vio_dev *vio_find_node(struct device_node *vnode)
+struct vio_dev *vio_find_analde(struct device_analde *vanalde)
 {
 	char kobj_name[20];
-	struct device_node *vnode_parent;
+	struct device_analde *vanalde_parent;
 
-	vnode_parent = of_get_parent(vnode);
-	if (!vnode_parent)
+	vanalde_parent = of_get_parent(vanalde);
+	if (!vanalde_parent)
 		return NULL;
 
-	/* construct the kobject name from the device node */
-	if (of_node_is_type(vnode_parent, "vdevice")) {
+	/* construct the kobject name from the device analde */
+	if (of_analde_is_type(vanalde_parent, "vdevice")) {
 		const __be32 *prop;
 		
-		prop = of_get_property(vnode, "reg", NULL);
+		prop = of_get_property(vanalde, "reg", NULL);
 		if (!prop)
 			goto out;
 		snprintf(kobj_name, sizeof(kobj_name), "%x",
 			 (uint32_t)of_read_number(prop, 1));
-	} else if (of_node_is_type(vnode_parent, "ibm,platform-facilities"))
-		snprintf(kobj_name, sizeof(kobj_name), "%pOFn", vnode);
+	} else if (of_analde_is_type(vanalde_parent, "ibm,platform-facilities"))
+		snprintf(kobj_name, sizeof(kobj_name), "%pOFn", vanalde);
 	else
 		goto out;
 
-	of_node_put(vnode_parent);
+	of_analde_put(vanalde_parent);
 	return vio_find_name(kobj_name);
 out:
-	of_node_put(vnode_parent);
+	of_analde_put(vanalde_parent);
 	return NULL;
 }
-EXPORT_SYMBOL(vio_find_node);
+EXPORT_SYMBOL(vio_find_analde);
 
 int vio_enable_interrupts(struct vio_dev *dev)
 {

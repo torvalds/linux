@@ -7,7 +7,7 @@
 #ifndef __A3XX_GPU_H__
 #define __A3XX_GPU_H__
 
-#include "adreno_gpu.h"
+#include "adreanal_gpu.h"
 
 /* arrg, somehow fb.h is getting pulled in: */
 #undef ROP_COPY
@@ -16,10 +16,10 @@
 #include "a3xx.xml.h"
 
 struct a3xx_gpu {
-	struct adreno_gpu base;
+	struct adreanal_gpu base;
 
 	/* if OCMEM is used for GMEM: */
-	struct adreno_ocmem ocmem;
+	struct adreanal_ocmem ocmem;
 };
 #define to_a3xx_gpu(x) container_of(x, struct a3xx_gpu, base)
 

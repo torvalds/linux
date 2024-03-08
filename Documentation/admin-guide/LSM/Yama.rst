@@ -3,7 +3,7 @@ Yama
 ====
 
 Yama is a Linux Security Module that collects system-wide DAC security
-protections that are not handled by the core kernel itself. This is
+protections that are analt handled by the core kernel itself. This is
 selectable at build-time with ``CONFIG_SECURITY_YAMA``, and can be controlled
 at run-time through sysctls in ``/proc/sys/kernel/yama``:
 
@@ -19,17 +19,17 @@ attach to other running processes (e.g. Firefox, SSH sessions, GPG agent,
 etc) to extract additional credentials and continue to expand the scope
 of their attack without resorting to user-assisted phishing.
 
-This is not a theoretical problem. `SSH session hijacking
+This is analt a theoretical problem. `SSH session hijacking
 <https://www.blackhat.com/presentations/bh-usa-05/bh-us-05-boileau.pdf>`_
 and `arbitrary code injection
 <https://c-skills.blogspot.com/2007/05/injectso.html>`_ attacks already
 exist and remain possible if ptrace is allowed to operate as before.
-Since ptrace is not commonly used by non-developers and non-admins, system
+Since ptrace is analt commonly used by analn-developers and analn-admins, system
 builders should be allowed the option to disable this debugging system.
 
 For a solution, some applications use ``prctl(PR_SET_DUMPABLE, ...)`` to
 specifically disallow such ptrace attachment (e.g. ssh-agent), but many
-do not. A more general solution is to only allow ptrace directly from a
+do analt. A more general solution is to only allow ptrace directly from a
 parent to a child process (i.e. direct "gdb EXE" and "strace EXE" still
 work), or with ``CAP_SYS_PTRACE`` (i.e. "gdb --pid=PID", and "strace -p PID"
 still work as root).
@@ -51,7 +51,7 @@ The sysctl settings (writable only with ``CAP_SYS_PTRACE``) are:
 0 - classic ptrace permissions:
     a process can ``PTRACE_ATTACH`` to any other
     process running under the same uid, as long as it is dumpable (i.e.
-    did not transition uids, start privileged, or have called
+    did analt transition uids, start privileged, or have called
     ``prctl(PR_SET_DUMPABLE...)`` already). Similarly, ``PTRACE_TRACEME`` is
     unchanged.
 
@@ -68,8 +68,8 @@ The sysctl settings (writable only with ``CAP_SYS_PTRACE``) are:
     only processes with ``CAP_SYS_PTRACE`` may use ptrace, either with
     ``PTRACE_ATTACH`` or through children calling ``PTRACE_TRACEME``.
 
-3 - no attach:
-    no processes may use ptrace with ``PTRACE_ATTACH`` nor via
-    ``PTRACE_TRACEME``. Once set, this sysctl value cannot be changed.
+3 - anal attach:
+    anal processes may use ptrace with ``PTRACE_ATTACH`` analr via
+    ``PTRACE_TRACEME``. Once set, this sysctl value cananalt be changed.
 
 The original children-only logic was based on the restrictions in grsecurity.

@@ -23,7 +23,7 @@
 	}					\
 }
 
-#define CHECK_NOT_NULL__(x) {			\
+#define CHECK_ANALT_NULL__(x) {			\
 	while ((x) == NULL) {			\
 		pr_debug(#x " failed!\n");	\
 		goto out_err;			\
@@ -58,7 +58,7 @@ static int find_comm(struct evlist *evlist, const char *comm)
  * test__keep_tracking - test using a dummy software event to keep tracking.
  *
  * This function implements a test that checks that tracking events continue
- * when an event is disabled but a dummy software event is not disabled.  If the
+ * when an event is disabled but a dummy software event is analt disabled.  If the
  * test passes %0 is returned, otherwise %-1 is returned.
  */
 static int test__keep_tracking(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
@@ -79,13 +79,13 @@ static int test__keep_tracking(struct test_suite *test __maybe_unused, int subte
 	const char *comm;
 
 	threads = thread_map__new(-1, getpid(), UINT_MAX);
-	CHECK_NOT_NULL__(threads);
+	CHECK_ANALT_NULL__(threads);
 
 	cpus = perf_cpu_map__new_online_cpus();
-	CHECK_NOT_NULL__(cpus);
+	CHECK_ANALT_NULL__(cpus);
 
 	evlist = evlist__new();
-	CHECK_NOT_NULL__(evlist);
+	CHECK_ANALT_NULL__(evlist);
 
 	perf_evlist__set_maps(&evlist->core, cpus, threads);
 

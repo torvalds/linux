@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* PF_KEY user interface, this is defined by rfc2367 so
- * do not make arbitrary modifications or else this header
- * file will not be compliant.
+ * do analt make arbitrary modifications or else this header
+ * file will analt be compliant.
  */
 
 #ifndef _LINUX_PFKEY2_H
@@ -15,7 +15,7 @@
 struct sadb_msg {
 	__u8		sadb_msg_version;
 	__u8		sadb_msg_type;
-	__u8		sadb_msg_errno;
+	__u8		sadb_msg_erranal;
 	__u8		sadb_msg_satype;
 	__u16	sadb_msg_len;
 	__u16	sadb_msg_reserved;
@@ -278,9 +278,9 @@ struct sadb_x_filter {
 
 /* Security Association flags */
 #define SADB_SAFLAGS_PFS	1
-#define SADB_SAFLAGS_NOPMTUDISC	0x20000000
+#define SADB_SAFLAGS_ANALPMTUDISC	0x20000000
 #define SADB_SAFLAGS_DECAP_DSCP	0x40000000
-#define SADB_SAFLAGS_NOECN	0x80000000
+#define SADB_SAFLAGS_ANALECN	0x80000000
 
 /* Security Association states */
 #define SADB_SASTATE_LARVAL	0
@@ -301,7 +301,7 @@ struct sadb_x_filter {
 #define SADB_SATYPE_MAX		9
 
 /* Authentication algorithms */
-#define SADB_AALG_NONE			0
+#define SADB_AALG_ANALNE			0
 #define SADB_AALG_MD5HMAC		2
 #define SADB_AALG_SHA1HMAC		3
 #define SADB_X_AALG_SHA2_256HMAC	5
@@ -314,7 +314,7 @@ struct sadb_x_filter {
 #define SADB_AALG_MAX			251
 
 /* Encryption algorithms */
-#define SADB_EALG_NONE			0
+#define SADB_EALG_ANALNE			0
 #define SADB_EALG_DESCBC		2
 #define SADB_EALG_3DESCBC		3
 #define SADB_X_EALG_CASTCBC		6
@@ -337,7 +337,7 @@ struct sadb_x_filter {
 #define SADB_X_EALG_TWOFISHCBC  253     /* draft-ietf-ipsec-ciph-aes-cbc-00 */
 
 /* Compression algorithms */
-#define SADB_X_CALG_NONE		0
+#define SADB_X_CALG_ANALNE		0
 #define SADB_X_CALG_OUI			1
 #define SADB_X_CALG_DEFLATE		2
 #define SADB_X_CALG_LZS			3

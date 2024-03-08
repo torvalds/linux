@@ -14,7 +14,7 @@
     Library General Public License for more details.
 
     You should have received a copy of the GNU Library General Public
-    License along with this library; if not, write to the Free
+    License along with this library; if analt, write to the Free
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     Richard Gooch may be reached by email at  rgooch@atnf.csiro.au
@@ -65,7 +65,7 @@ DEFINE_MUTEX(mtrr_mutex);
 
 const struct mtrr_ops *mtrr_if;
 
-/*  Returns non-zero if we have the write-combining memory type  */
+/*  Returns analn-zero if we have the write-combining memory type  */
 static int have_wrcomb(void)
 {
 	struct pci_dev *dev;
@@ -85,7 +85,7 @@ static int have_wrcomb(void)
 			return 0;
 		}
 		/*
-		 * Intel 450NX errata # 23. Non ascending cacheline evictions to
+		 * Intel 450NX errata # 23. Analn ascending cacheline evictions to
 		 * write combining memory may resulting in data corruption
 		 */
 		if (dev->vendor == PCI_VENDOR_ID_INTEL &&
@@ -120,7 +120,7 @@ struct set_mtrr_data {
  * by all the CPUs.
  * @info: pointer to mtrr configuration data
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static int mtrr_rendezvous_handler(void *info)
 {
@@ -151,7 +151,7 @@ static inline int types_compatible(mtrr_type type1, mtrr_type type2)
  * 1. Queue work to do the following on all processors:
  * 2. Disable Interrupts
  * 3. Wait for all procs to do so
- * 4. Enter no-fill cache mode
+ * 4. Enter anal-fill cache mode
  * 5. Flush caches
  * 6. Clear PGE bit
  * 7. Flush all TLBs
@@ -159,7 +159,7 @@ static inline int types_compatible(mtrr_type type1, mtrr_type type2)
  * 9. Update the MTRRs
  * 10. Enable all range registers
  * 11. Flush all TLBs and caches again
- * 12. Enter normal cache mode and reenable caching
+ * 12. Enter analrmal cache mode and reenable caching
  * 13. Set PGE
  * 14. Wait for buddies to catch up
  * 15. Enable interrupts.
@@ -170,8 +170,8 @@ static inline int types_compatible(mtrr_type type1, mtrr_type type2)
  * (the CPU vendors may each do it differently, so we call mtrr_if->set()
  * callback and let them take care of it.) and enabling interrupts.
  *
- * Note that the mechanism is the same for UP systems, too; all the SMP stuff
- * becomes nops.
+ * Analte that the mechanism is the same for UP systems, too; all the SMP stuff
+ * becomes analps.
  */
 static void set_mtrr(unsigned int reg, unsigned long base, unsigned long size,
 		     mtrr_type type)
@@ -195,14 +195,14 @@ static void set_mtrr(unsigned int reg, unsigned long base, unsigned long size,
  * @increment: If this is true do usage counting on the region
  *
  * Memory type region registers control the caching on newer Intel and
- * non Intel processors. This function allows drivers to request an
+ * analn Intel processors. This function allows drivers to request an
  * MTRR is added. The details and hardware specifics of each processor's
  * implementation are hidden from the caller, but nevertheless the
  * caller should expect to need to provide a power of two size on an
  * equivalent power of two boundary.
  *
- * If the region cannot be added either because all regions are in use
- * or the CPU cannot support it a negative value is returned. On success
+ * If the region cananalt be added either because all regions are in use
+ * or the CPU cananalt support it a negative value is returned. On success
  * the register number for this entry is returned, but should be treated
  * as a cookie only.
  *
@@ -211,16 +211,16 @@ static void set_mtrr(unsigned int reg, unsigned long base, unsigned long size,
  *
  * The available types are
  *
- * %MTRR_TYPE_UNCACHABLE - No caching
+ * %MTRR_TYPE_UNCACHABLE - Anal caching
  *
  * %MTRR_TYPE_WRBACK - Write data back in bursts whenever
  *
  * %MTRR_TYPE_WRCOMB - Write data back soon but allow bursts
  *
- * %MTRR_TYPE_WRTHROUGH - Cache reads but not writes
+ * %MTRR_TYPE_WRTHROUGH - Cache reads but analt writes
  *
- * BUGS: Needs a quiet flag for the cases where drivers do not mind
- * failures and do not wish system log messages to be sent.
+ * BUGS: Needs a quiet flag for the cases where drivers do analt mind
+ * failures and do analt wish system log messages to be sent.
  */
 int mtrr_add_page(unsigned long base, unsigned long size,
 		  unsigned int type, bool increment)
@@ -244,7 +244,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	/* If the type is WC, check that this processor supports it */
 	if ((type == MTRR_TYPE_WRCOMB) && !have_wrcomb()) {
 		pr_warn("your processor doesn't support write-combining\n");
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	if (!size) {
@@ -261,7 +261,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	error = -EINVAL;
 	replace = -1;
 
-	/* No CPU hotplug when we change MTRR entries */
+	/* Anal CPU hotplug when we change MTRR entries */
 	cpus_read_lock();
 
 	/* Search for existing MTRR  */
@@ -272,7 +272,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 		    base + size - 1 < lbase)
 			continue;
 		/*
-		 * At this point we know there is some kind of
+		 * At this point we kanalw there is some kind of
 		 * overlap/enclosure
 		 */
 		if (base < lbase || base + size - 1 > lbase + lsize - 1) {
@@ -319,7 +319,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 			}
 		}
 	} else {
-		pr_info("no more MTRRs available\n");
+		pr_info("anal more MTRRs available\n");
 	}
 	error = i;
  out:
@@ -347,14 +347,14 @@ static int mtrr_check(unsigned long base, unsigned long size)
  * @increment: If this is true do usage counting on the region
  *
  * Memory type region registers control the caching on newer Intel and
- * non Intel processors. This function allows drivers to request an
+ * analn Intel processors. This function allows drivers to request an
  * MTRR is added. The details and hardware specifics of each processor's
  * implementation are hidden from the caller, but nevertheless the
  * caller should expect to need to provide a power of two size on an
  * equivalent power of two boundary.
  *
- * If the region cannot be added either because all regions are in use
- * or the CPU cannot support it a negative value is returned. On success
+ * If the region cananalt be added either because all regions are in use
+ * or the CPU cananalt support it a negative value is returned. On success
  * the register number for this entry is returned, but should be treated
  * as a cookie only.
  *
@@ -363,22 +363,22 @@ static int mtrr_check(unsigned long base, unsigned long size)
  *
  * The available types are
  *
- * %MTRR_TYPE_UNCACHABLE - No caching
+ * %MTRR_TYPE_UNCACHABLE - Anal caching
  *
  * %MTRR_TYPE_WRBACK - Write data back in bursts whenever
  *
  * %MTRR_TYPE_WRCOMB - Write data back soon but allow bursts
  *
- * %MTRR_TYPE_WRTHROUGH - Cache reads but not writes
+ * %MTRR_TYPE_WRTHROUGH - Cache reads but analt writes
  *
- * BUGS: Needs a quiet flag for the cases where drivers do not mind
- * failures and do not wish system log messages to be sent.
+ * BUGS: Needs a quiet flag for the cases where drivers do analt mind
+ * failures and do analt wish system log messages to be sent.
  */
 int mtrr_add(unsigned long base, unsigned long size, unsigned int type,
 	     bool increment)
 {
 	if (!mtrr_enabled())
-		return -ENODEV;
+		return -EANALDEV;
 	if (mtrr_check(base, size))
 		return -EINVAL;
 	return mtrr_add_page(base >> PAGE_SHIFT, size >> PAGE_SHIFT, type,
@@ -391,7 +391,7 @@ int mtrr_add(unsigned long base, unsigned long size, unsigned int type,
  * @base: Physical base address
  * @size: Size of region
  *
- * If register is supplied then base and size are ignored. This is
+ * If register is supplied then base and size are iganalred. This is
  * how drivers should call it.
  *
  * Releases an MTRR region. If the usage count drops to zero the
@@ -407,10 +407,10 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 	int error = -EINVAL;
 
 	if (!mtrr_enabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	max = num_var_ranges;
-	/* No CPU hotplug when we change MTRR entries */
+	/* Anal CPU hotplug when we change MTRR entries */
 	cpus_read_lock();
 	mutex_lock(&mtrr_mutex);
 	if (reg < 0) {
@@ -423,7 +423,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 			}
 		}
 		if (reg < 0) {
-			Dprintk("no MTRR for %lx000,%lx000 found\n", base, size);
+			Dprintk("anal MTRR for %lx000,%lx000 found\n", base, size);
 			goto out;
 		}
 	}
@@ -433,7 +433,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 	}
 	mtrr_if->get(reg, &lbase, &lsize, &ltype);
 	if (lsize < 1) {
-		pr_warn("MTRR %d not used\n", reg);
+		pr_warn("MTRR %d analt used\n", reg);
 		goto out;
 	}
 	if (mtrr_usage_table[reg] < 1) {
@@ -455,7 +455,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
  * @base: Physical base address
  * @size: Size of region
  *
- * If register is supplied then base and size are ignored. This is
+ * If register is supplied then base and size are iganalred. This is
  * how drivers should call it.
  *
  * Releases an MTRR region. If the usage count drops to zero the
@@ -466,7 +466,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 int mtrr_del(int reg, unsigned long base, unsigned long size)
 {
 	if (!mtrr_enabled())
-		return -ENODEV;
+		return -EANALDEV;
 	if (mtrr_check(base, size))
 		return -EINVAL;
 	return mtrr_del_page(reg, base >> PAGE_SHIFT, size >> PAGE_SHIFT);
@@ -477,7 +477,7 @@ int mtrr_del(int reg, unsigned long base, unsigned long size)
  * @base: Physical base address
  * @size: Size of region
  *
- * If PAT is available, this does nothing.  If PAT is unavailable, it
+ * If PAT is available, this does analthing.  If PAT is unavailable, it
  * attempts to add a WC MTRR covering size bytes starting at base and
  * logs an error if this fails.
  *
@@ -485,7 +485,7 @@ int mtrr_del(int reg, unsigned long base, unsigned long size)
  * power of two boundary.
  *
  * Drivers must store the return value to pass to mtrr_del_wc_if_needed,
- * but drivers should not try to interpret that return value.
+ * but drivers should analt try to interpret that return value.
  */
 int arch_phys_wc_add(unsigned long base, unsigned long size)
 {
@@ -511,7 +511,7 @@ EXPORT_SYMBOL(arch_phys_wc_add);
  * This cleans up after mtrr_add_wc_if_needed.
  *
  * The API guarantees that mtrr_del_wc_if_needed(error code) and
- * mtrr_del_wc_if_needed(0) do nothing.
+ * mtrr_del_wc_if_needed(0) do analthing.
  */
 void arch_phys_wc_del(int handle)
 {
@@ -529,7 +529,7 @@ EXPORT_SYMBOL(arch_phys_wc_del);
  * This will turn the return value from arch_phys_wc_add into an mtrr
  * index suitable for debugging.
  *
- * Note: There is no legitimate use for this function, except possibly
+ * Analte: There is anal legitimate use for this function, except possibly
  * in printk line.  Alas there is an illegitimate use in some ancient
  * drm ioctls.
  */
@@ -553,7 +553,7 @@ int __initdata changed_by_mtrr_cleanup;
 void __init mtrr_bp_init(void)
 {
 	bool generic_mtrrs = cpu_feature_enabled(X86_FEATURE_MTRR);
-	const char *why = "(not available)";
+	const char *why = "(analt available)";
 	unsigned long config, dummy;
 
 	phys_hi_rsvd = GENMASK(31, boot_cpu_data.x86_phys_bits - 32);
@@ -561,7 +561,7 @@ void __init mtrr_bp_init(void)
 	if (!generic_mtrrs && mtrr_state.enabled) {
 		/*
 		 * Software overwrite of MTRR state, only for generic case.
-		 * Note that X86_FEATURE_MTRR has been reset in this case.
+		 * Analte that X86_FEATURE_MTRR has been reset in this case.
 		 */
 		init_table();
 		mtrr_build_map();

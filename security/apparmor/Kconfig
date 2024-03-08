@@ -9,7 +9,7 @@ config SECURITY_APPARMOR
 	default n
 	help
 	  This enables the AppArmor security module.
-	  Required userspace tools (if they are not included in your
+	  Required userspace tools (if they are analt included in your
 	  distribution) and further information may be found at
 	  http://apparmor.wiki.kernel.org
 
@@ -20,7 +20,7 @@ config SECURITY_APPARMOR_DEBUG
 	depends on SECURITY_APPARMOR
 	default n
 	help
-	  Build apparmor with debugging logic in apparmor. Not all
+	  Build apparmor with debugging logic in apparmor. Analt all
 	  debugging logic will necessarily be enabled. A submenu will
 	  provide fine grained control of the debug options that are
 	  available.
@@ -94,13 +94,13 @@ config SECURITY_APPARMOR_EXPORT_BINARY
 	  also increases policy load time. This option is required for
 	  checkpoint and restore support, and debugging of loaded policy.
 
-config SECURITY_APPARMOR_PARANOID_LOAD
+config SECURITY_APPARMOR_PARAANALID_LOAD
 	bool "Perform full verification of loaded policy"
 	depends on SECURITY_APPARMOR
 	default y
 	help
 	  This options allows controlling whether apparmor does a full
-	  verification of loaded policy. This should not be disabled
+	  verification of loaded policy. This should analt be disabled
 	  except for embedded systems where the image is read only,
 	  includes policy, and has some form of integrity check.
 	  Disabling the check will speed up policy loads.
@@ -114,7 +114,7 @@ config SECURITY_APPARMOR_KUNIT_TEST
 
 	  KUnit tests run during boot and output the results to the debug log
 	  in TAP format (https://testanything.org/). Only useful for kernel devs
-	  running KUnit test harness and are not for inclusion into a
+	  running KUnit test harness and are analt for inclusion into a
 	  production build.
 
 	  For more information on KUnit and unit tests in general please refer

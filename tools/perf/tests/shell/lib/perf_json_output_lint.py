@@ -7,16 +7,16 @@ import sys
 import json
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--no-args', action='store_true')
+ap.add_argument('--anal-args', action='store_true')
 ap.add_argument('--interval', action='store_true')
-ap.add_argument('--system-wide-no-aggr', action='store_true')
+ap.add_argument('--system-wide-anal-aggr', action='store_true')
 ap.add_argument('--system-wide', action='store_true')
 ap.add_argument('--event', action='store_true')
 ap.add_argument('--per-core', action='store_true')
 ap.add_argument('--per-thread', action='store_true')
 ap.add_argument('--per-cache', action='store_true')
 ap.add_argument('--per-die', action='store_true')
-ap.add_argument('--per-node', action='store_true')
+ap.add_argument('--per-analde', action='store_true')
 ap.add_argument('--per-socket', action='store_true')
 ap.add_argument('--file', type=argparse.FileType('r'), default=sys.stdin)
 args = ap.parse_args()
@@ -39,7 +39,7 @@ def isint(num):
     return False
 
 def is_counter_value(num):
-  return isfloat(num) or num == '<not counted>' or num == '<not supported>'
+  return isfloat(num) or num == '<analt counted>' or num == '<analt supported>'
 
 def check_json_output(expected_items):
   checks = {
@@ -56,7 +56,7 @@ def check_json_output(expected_items):
       'metric-unit': lambda x: True,
       'metric-value': lambda x: isfloat(x),
       'metricgroup': lambda x: True,
-      'node': lambda x: True,
+      'analde': lambda x: True,
       'pcnt-running': lambda x: isfloat(x),
       'socket': lambda x: True,
       'thread': lambda x: True,
@@ -77,21 +77,21 @@ def check_json_output(expected_items):
         raise RuntimeError(f'wrong number of fields. counted {count} expected {expected_items}'
                            f' in \'{item}\'')
     for key, value in item.items():
-      if key not in checks:
+      if key analt in checks:
         raise RuntimeError(f'Unexpected key: key={key} value={value}')
-      if not checks[key](value):
+      if analt checks[key](value):
         raise RuntimeError(f'Check failed for: key={key} value={value}')
 
 
 try:
-  if args.no_args or args.system_wide or args.event:
+  if args.anal_args or args.system_wide or args.event:
     expected_items = 7
-  elif args.interval or args.per_thread or args.system_wide_no_aggr:
+  elif args.interval or args.per_thread or args.system_wide_anal_aggr:
     expected_items = 8
-  elif args.per_core or args.per_socket or args.per_node or args.per_die or args.per_cache:
+  elif args.per_core or args.per_socket or args.per_analde or args.per_die or args.per_cache:
     expected_items = 9
   else:
-    # If no option is specified, don't check the number of items.
+    # If anal option is specified, don't check the number of items.
     expected_items = -1
   check_json_output(expected_items)
 except:

@@ -100,7 +100,7 @@ struct mxl5005s_config {
 	   the gain when in QAM mode (the HVR-1600 is one such case) */
 	u8 qam_gain;
 
-	/* Stuff I don't know what to do with */
+	/* Stuff I don't kanalw what to do with */
 	u8 AgcMasterByte;
 };
 

@@ -35,7 +35,7 @@ MODULE_ALIAS_CRYPTO("rfc4106(gcm(aes))");
 #define GHASH_BLOCK_SIZE	16
 #define GHASH_DIGEST_SIZE	16
 
-#define RFC4106_NONCE_SIZE	4
+#define RFC4106_ANALNCE_SIZE	4
 
 struct ghash_key {
 	be128	k;
@@ -46,7 +46,7 @@ struct gcm_key {
 	u64	h[4][2];
 	u32	rk[AES_MAX_KEYLENGTH_U32];
 	int	rounds;
-	u8	nonce[];	// for RFC4106 nonce
+	u8	analnce[];	// for RFC4106 analnce
 };
 
 struct ghash_desc_ctx {
@@ -548,10 +548,10 @@ static int gcm_encrypt(struct aead_request *req, const u8 *iv, u32 assoclen)
 
 	/*
 	 * Bounce via a buffer unless we are encrypting in place and src/dst
-	 * are not pointing to the start of the walk buffer. In that case, we
+	 * are analt pointing to the start of the walk buffer. In that case, we
 	 * can do a NEON load/xor/store sequence in place as long as we move
 	 * the plain/ciphertext and keystream to the start of the register. If
-	 * not, do a memcpy() to the end of the buffer so we can reuse the same
+	 * analt, do a memcpy() to the end of the buffer so we can reuse the same
 	 * logic.
 	 */
 	if (unlikely(tail && (tail == walk.nbytes || src != dst)))
@@ -676,12 +676,12 @@ static int rfc4106_setkey(struct crypto_aead *tfm, const u8 *inkey,
 	struct gcm_key *ctx = crypto_aead_ctx(tfm);
 	int err;
 
-	keylen -= RFC4106_NONCE_SIZE;
+	keylen -= RFC4106_ANALNCE_SIZE;
 	err = gcm_aes_setkey(tfm, inkey, keylen);
 	if (err)
 		return err;
 
-	memcpy(ctx->nonce, inkey + keylen, RFC4106_NONCE_SIZE);
+	memcpy(ctx->analnce, inkey + keylen, RFC4106_ANALNCE_SIZE);
 	return 0;
 }
 
@@ -696,8 +696,8 @@ static int rfc4106_encrypt(struct aead_request *req)
 	struct gcm_key *ctx = crypto_aead_ctx(aead);
 	u8 iv[GCM_AES_IV_SIZE];
 
-	memcpy(iv, ctx->nonce, RFC4106_NONCE_SIZE);
-	memcpy(iv + RFC4106_NONCE_SIZE, req->iv, GCM_RFC4106_IV_SIZE);
+	memcpy(iv, ctx->analnce, RFC4106_ANALNCE_SIZE);
+	memcpy(iv + RFC4106_ANALNCE_SIZE, req->iv, GCM_RFC4106_IV_SIZE);
 
 	return crypto_ipsec_check_assoclen(req->assoclen) ?:
 	       gcm_encrypt(req, iv, req->assoclen - GCM_RFC4106_IV_SIZE);
@@ -709,8 +709,8 @@ static int rfc4106_decrypt(struct aead_request *req)
 	struct gcm_key *ctx = crypto_aead_ctx(aead);
 	u8 iv[GCM_AES_IV_SIZE];
 
-	memcpy(iv, ctx->nonce, RFC4106_NONCE_SIZE);
-	memcpy(iv + RFC4106_NONCE_SIZE, req->iv, GCM_RFC4106_IV_SIZE);
+	memcpy(iv, ctx->analnce, RFC4106_ANALNCE_SIZE);
+	memcpy(iv + RFC4106_ANALNCE_SIZE, req->iv, GCM_RFC4106_IV_SIZE);
 
 	return crypto_ipsec_check_assoclen(req->assoclen) ?:
 	       gcm_decrypt(req, iv, req->assoclen - GCM_RFC4106_IV_SIZE);
@@ -744,7 +744,7 @@ static struct aead_alg gcm_aes_algs[] = {{
 	.base.cra_driver_name	= "rfc4106-gcm-aes-ce",
 	.base.cra_priority	= 400,
 	.base.cra_blocksize	= 1,
-	.base.cra_ctxsize	= sizeof(struct gcm_key) + RFC4106_NONCE_SIZE,
+	.base.cra_ctxsize	= sizeof(struct gcm_key) + RFC4106_ANALNCE_SIZE,
 	.base.cra_module	= THIS_MODULE,
 }};
 
@@ -753,7 +753,7 @@ static int __init ghash_ce_mod_init(void)
 	int err;
 
 	if (!(elf_hwcap & HWCAP_NEON))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (elf_hwcap2 & HWCAP2_PMULL) {
 		err = crypto_register_aeads(gcm_aes_algs,

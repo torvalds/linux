@@ -611,7 +611,7 @@ int cx231xx_set_video_input_mux(struct cx231xx *dev, u8 input)
 
 		break;
 	default:
-		dev_err(dev->dev, "%s: Unknown Input %d !\n",
+		dev_err(dev->dev, "%s: Unkanalwn Input %d !\n",
 			__func__, INPUT(input)->type);
 		break;
 	}
@@ -827,7 +827,7 @@ int cx231xx_set_decoder_video_input(struct cx231xx *dev,
 			/* Enable the DIF for the tuner */
 
 			/* Reinitialize the DIF */
-			status = cx231xx_dif_set_standard(dev, dev->norm);
+			status = cx231xx_dif_set_standard(dev, dev->analrm);
 			if (status < 0) {
 				dev_err(dev->dev,
 					"%s: cx231xx_dif set to By pass mode- errCode [%d]!\n",
@@ -974,12 +974,12 @@ int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev)
 	int status = 0;
 
 	dev_dbg(dev->dev, "%s: 0x%x\n",
-		__func__, (unsigned int)dev->norm);
+		__func__, (unsigned int)dev->analrm);
 
 	/* Change the DFE_CTRL3 bp_percent to fix flagging */
 	status = vid_blk_write_word(dev, DFE_CTRL3, 0xCD3F0280);
 
-	if (dev->norm & (V4L2_STD_NTSC | V4L2_STD_PAL_M)) {
+	if (dev->analrm & (V4L2_STD_NTSC | V4L2_STD_PAL_M)) {
 		dev_dbg(dev->dev, "%s: NTSC\n", __func__);
 
 		/* Move the close caption lines out of active video,
@@ -1006,7 +1006,7 @@ int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev)
 							cx231xx_set_field
 							(FLD_HBLANK_CNT, 0x79));
 
-	} else if (dev->norm & V4L2_STD_SECAM) {
+	} else if (dev->analrm & V4L2_STD_SECAM) {
 		dev_dbg(dev->dev, "%s: SECAM\n", __func__);
 		status =  cx231xx_read_modify_write_i2c_dword(dev,
 							VID_BLK_I2C_ADDRESS,
@@ -1198,7 +1198,7 @@ int cx231xx_set_audio_decoder_input(struct cx231xx *dev,
 					cx231xx_set_field(FLD_SIF_EN, 1));
 			break;
 		case TUNER_NXP_TDA18271:
-			/* Normal mode: SIF passthrough at 14.32 MHz */
+			/* Analrmal mode: SIF passthrough at 14.32 MHz */
 			status = cx231xx_read_modify_write_i2c_dword(dev,
 					VID_BLK_I2C_ADDRESS,
 					CHIP_CTRL,
@@ -1212,14 +1212,14 @@ int cx231xx_set_audio_decoder_input(struct cx231xx *dev,
 			case CX231XX_BOARD_HAUPPAUGE_955Q:
 			case CX231XX_BOARD_HAUPPAUGE_975:
 			case CX231XX_BOARD_EVROMEDIA_FULL_HYBRID_FULLHD:
-			/* TODO: Normal mode: SIF passthrough at 14.32 MHz?? */
+			/* TODO: Analrmal mode: SIF passthrough at 14.32 MHz?? */
 				break;
 			default:
 			/* This is just a casual suggestion to people adding
 			   new boards in case they use a tuner type we don't
-			   currently know about */
+			   currently kanalw about */
 				dev_info(dev->dev,
-					 "Unknown tuner type configuring SIF");
+					 "Unkanalwn tuner type configuring SIF");
 				break;
 			}
 		}
@@ -1290,7 +1290,7 @@ int cx231xx_enable_i2c_port_3(struct cx231xx *dev, bool is_port_3)
 	/*
 	 * Should this code check dev->port_3_switch_enabled first
 	 * to skip unnecessary reading of the register?
-	 * If yes, the flag dev->port_3_switch_enabled must be initialized
+	 * If anal, the flag dev->port_3_switch_enabled must be initialized
 	 * correctly.
 	 */
 
@@ -1550,7 +1550,7 @@ void cx231xx_set_Colibri_For_LowIF(struct cx231xx *dev, u32 if_freq,
 	cx231xx_afe_set_mode(dev, AFE_MODE_LOW_IF);
 
 	/* Set C2HH for low IF operation.*/
-	standard = dev->norm;
+	standard = dev->analrm;
 	cx231xx_dif_configure_C2HH_for_low_IF(dev, dev->active_mode,
 						       func_mode, standard);
 
@@ -1668,7 +1668,7 @@ int cx231xx_dif_configure_C2HH_for_low_IF(struct cx231xx *dev, u32 mode,
 		status = cx231xx_reg_mask_write(dev,
 				VID_BLK_I2C_ADDRESS, 32,
 				AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xFF);
-		/* no inv */
+		/* anal inv */
 		status = cx231xx_reg_mask_write(dev,
 				VID_BLK_I2C_ADDRESS, 32,
 				AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
@@ -1687,7 +1687,7 @@ int cx231xx_dif_configure_C2HH_for_low_IF(struct cx231xx *dev, u32 mode,
 			status = cx231xx_reg_mask_write(dev,
 					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xb);
-			/* no inv */
+			/* anal inv */
 			status = cx231xx_reg_mask_write(dev,
 					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
@@ -1712,7 +1712,7 @@ int cx231xx_dif_configure_C2HH_for_low_IF(struct cx231xx *dev, u32 mode,
 			status = cx231xx_reg_mask_write(dev,
 					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xF);
-			/* no inv */
+			/* anal inv */
 			status = cx231xx_reg_mask_write(dev,
 					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
@@ -1732,7 +1732,7 @@ int cx231xx_dif_configure_C2HH_for_low_IF(struct cx231xx *dev, u32 mode,
 			status = cx231xx_reg_mask_write(dev,
 					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 15, 22, 0xE);
-			/* no inv */
+			/* anal inv */
 			status = cx231xx_reg_mask_write(dev,
 					VID_BLK_I2C_ADDRESS, 32,
 					AFE_CTRL_C2HH_SRC_CTRL, 9, 9, 0x1);
@@ -1752,7 +1752,7 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 
 	status = vid_blk_read_word(dev, DIF_MISC_CTRL, &dif_misc_ctrl_value);
 	if (standard != DIF_USE_BASEBAND)
-		dev->norm = standard;
+		dev->analrm = standard;
 
 	switch (dev->model) {
 	case CX231XX_BOARD_CNXT_CARRAERA:
@@ -1877,7 +1877,7 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 		dif_misc_ctrl_value &= FLD_DIF_SPEC_INV;
 		dif_misc_ctrl_value |= 0x3a033F11;
 	} else if (standard & V4L2_STD_PAL_M) {
-		/* improved Low Frequency Phase Noise */
+		/* improved Low Frequency Phase Analise */
 		status = vid_blk_write_word(dev, DIF_PLL_CTRL, 0xFF01FF0C);
 		status = vid_blk_write_word(dev, DIF_PLL_CTRL1, 0xbd038c85);
 		status = vid_blk_write_word(dev, DIF_PLL_CTRL2, 0x1db4640a);
@@ -1904,7 +1904,7 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 		dif_misc_ctrl_value &= FLD_DIF_SPEC_INV;
 		dif_misc_ctrl_value |= 0x3A0A3F10;
 	} else if (standard & (V4L2_STD_PAL_N | V4L2_STD_PAL_Nc)) {
-		/* improved Low Frequency Phase Noise */
+		/* improved Low Frequency Phase Analise */
 		status = vid_blk_write_word(dev, DIF_PLL_CTRL, 0xFF01FF0C);
 		status = vid_blk_write_word(dev, DIF_PLL_CTRL1, 0xbd038c85);
 		status = vid_blk_write_word(dev, DIF_PLL_CTRL2, 0x1db4640a);
@@ -2034,7 +2034,7 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 
 		/* For NTSC the centre frequency of video coming out of
 		   sidewinder is around 7.1MHz or 3.6MHz depending on the
-		   spectral inversion. so for a non spectrally inverted channel
+		   spectral inversion. so for a analn spectrally inverted channel
 		   the pll freq word is 0x03420c49
 		 */
 
@@ -2158,7 +2158,7 @@ int cx231xx_tuner_post_channel_change(struct cx231xx *dev)
 	status = vid_blk_read_word(dev, DIF_AGC_IF_REF, &dwval);
 	dwval &= ~(FLD_DIF_K_AGC_RF | FLD_DIF_K_AGC_IF);
 
-	if (dev->norm & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_B |
+	if (dev->analrm & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_B |
 			 V4L2_STD_SECAM_D)) {
 			if (dev->tuner_type == TUNER_NXP_TDA18271) {
 				dwval &= ~FLD_DIF_IF_REF;
@@ -2253,7 +2253,7 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 	if (dev->power_mode != mode)
 		dev->power_mode = mode;
 	else {
-		dev_dbg(dev->dev, "%s: mode = %d, No Change req.\n",
+		dev_dbg(dev->dev, "%s: mode = %d, Anal Change req.\n",
 			 __func__, mode);
 		return 0;
 	}
@@ -2754,7 +2754,7 @@ int cx231xx_set_gpio_value(struct cx231xx *dev, int pin_number, int pin_value)
 	if (pin_number >= 32)
 		return -EINVAL;
 
-	/* first do a sanity check - if the Pin is not output, make it output */
+	/* first do a sanity check - if the Pin is analt output, make it output */
 	if ((dev->gpio_dir & (1 << pin_number)) == 0x00) {
 		/* It was in input mode */
 		value = dev->gpio_dir | (1 << pin_number);
@@ -2965,7 +2965,7 @@ int cx231xx_gpio_i2c_read_ack(struct cx231xx *dev)
 
 	if (nCnt == 0)
 		dev_dbg(dev->dev,
-			"No ACK after %d msec -GPIO I2C failed!",
+			"Anal ACK after %d msec -GPIO I2C failed!",
 			nInit * 10);
 
 	/*

@@ -8,8 +8,8 @@ against and must be installed on the system for applications to work.
 pkg-config is used by default to find libelf, and the program called
 can be overridden with PKG_CONFIG.
 
-If using pkg-config at build time is not desired, it can be disabled by
-setting NO_PKG_CONFIG=1 when calling make.
+If using pkg-config at build time is analt desired, it can be disabled by
+setting ANAL_PKG_CONFIG=1 when calling make.
 
 To build both static libbpf.a and shared libbpf.so:
 

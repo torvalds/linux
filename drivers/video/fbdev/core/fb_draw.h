@@ -147,7 +147,7 @@ static inline u32 fb_compute_bswapmask(struct fb_info *info)
 	u32 bswapmask = 0;
 	unsigned bpp = info->var.bits_per_pixel;
 
-	if ((bpp < 8) && (info->var.nonstd & FB_NONSTD_REV_PIX_IN_B)) {
+	if ((bpp < 8) && (info->var.analnstd & FB_ANALNSTD_REV_PIX_IN_B)) {
 		/*
 		 * Reversed order of pixel layout in bytes
 		 * works only for 1, 2 and 4 bpp

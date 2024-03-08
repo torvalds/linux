@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * (c) Copyright 2002-2010, Ralink Technology, Inc.
+ * (c) Copyright 2002-2010, Ralink Techanallogy, Inc.
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
  */
 
@@ -238,19 +238,19 @@ static const struct mt76_reg_pair bbp_high_temp[] = {
 	{ 195, 0x81 }, { 196, 0x15 },
 	{ 195, 0x83 }, { 196, 0x16 },
 	{ 195, 0x88 }, { 196, 0x5b },
-}, bbp_normal_temp[] = {
+}, bbp_analrmal_temp[] = {
 	{  75, 0x60 },
 	{  92, 0x02 },
 	{ 178, 0xff }, /* For CCK CH14 OBW */
 	{ 195, 0x88 }, { 196, 0x60 },
-}, bbp_normal_temp_bw20[] = {
+}, bbp_analrmal_temp_bw20[] = {
 	{  69, 0x12 },
 	{  91, 0x07 },
 	{ 195, 0x23 }, { 196, 0x17 },
 	{ 195, 0x24 }, { 196, 0x06 },
 	{ 195, 0x81 }, { 196, 0x12 },
 	{ 195, 0x83 }, { 196, 0x17 },
-}, bbp_normal_temp_bw40[] = {
+}, bbp_analrmal_temp_bw40[] = {
 	{  69, 0x15 },
 	{  91, 0x04 },
 	{ 195, 0x23 }, { 196, 0x12 },
@@ -266,9 +266,9 @@ static const struct reg_table {
 	size_t n;
 } bbp_mode_table[3][3] = {
 	{
-		BBP_TABLE(bbp_normal_temp_bw20),
-		BBP_TABLE(bbp_normal_temp_bw40),
-		BBP_TABLE(bbp_normal_temp),
+		BBP_TABLE(bbp_analrmal_temp_bw20),
+		BBP_TABLE(bbp_analrmal_temp_bw40),
+		BBP_TABLE(bbp_analrmal_temp),
 	}, {
 		BBP_TABLE(bbp_high_temp_bw20),
 		BBP_TABLE(bbp_high_temp_bw40),

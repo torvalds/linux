@@ -340,7 +340,7 @@ static struct flash_info *sst25l_match_device(struct spi_device *spi)
 			flash_info = &sst25l_flash_info[i];
 
 	if (!flash_info)
-		dev_err(&spi->dev, "unknown id %.4x\n", id);
+		dev_err(&spi->dev, "unkanalwn id %.4x\n", id);
 
 	return flash_info;
 }
@@ -354,11 +354,11 @@ static int sst25l_probe(struct spi_device *spi)
 
 	flash_info = sst25l_match_device(spi);
 	if (!flash_info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	flash = devm_kzalloc(&spi->dev, sizeof(*flash), GFP_KERNEL);
 	if (!flash)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flash->spi = spi;
 	mutex_init(&flash->lock);
@@ -369,8 +369,8 @@ static int sst25l_probe(struct spi_device *spi)
 		flash->mtd.name = data->name;
 
 	flash->mtd.dev.parent   = &spi->dev;
-	flash->mtd.type		= MTD_NORFLASH;
-	flash->mtd.flags	= MTD_CAP_NORFLASH;
+	flash->mtd.type		= MTD_ANALRFLASH;
+	flash->mtd.flags	= MTD_CAP_ANALRFLASH;
 	flash->mtd.erasesize	= flash_info->erase_size;
 	flash->mtd.writesize	= flash_info->page_size;
 	flash->mtd.writebufsize	= flash_info->page_size;
@@ -393,7 +393,7 @@ static int sst25l_probe(struct spi_device *spi)
 	ret = mtd_device_register(&flash->mtd, data ? data->parts : NULL,
 				  data ? data->nr_parts : 0);
 	if (ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }

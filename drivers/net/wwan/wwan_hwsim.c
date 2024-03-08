@@ -2,7 +2,7 @@
 /*
  * WWAN device simulator for WWAN framework testing.
  *
- * Copyright (c) 2021, Sergey Ryazanov <ryazanov.s.a@gmail.com>
+ * Copyright (c) 2021, Sergey Ryazaanalv <ryazaanalv.s.a@gmail.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -90,12 +90,12 @@ static void wwan_hwsim_netdev_setup(struct net_device *ndev)
 	ndev->min_mtu = ETH_MIN_MTU;
 	ndev->max_mtu = ETH_MAX_MTU;
 
-	ndev->type = ARPHRD_NONE;
-	ndev->flags = IFF_POINTOPOINT | IFF_NOARP;
+	ndev->type = ARPHRD_ANALNE;
+	ndev->flags = IFF_POINTOPOINT | IFF_ANALARP;
 }
 
 static const struct wwan_ops wwan_hwsim_wwan_rtnl_ops = {
-	.priv_size = 0,			/* No private data */
+	.priv_size = 0,			/* Anal private data */
 	.setup = wwan_hwsim_netdev_setup,
 };
 
@@ -116,7 +116,7 @@ static void wwan_hwsim_port_stop(struct wwan_port *wport)
  * reply with 'OK' to each input command. See AT command protocol details in the
  * ITU-T V.250 recomendations document.
  *
- * Be aware that this processor is not fully V.250 compliant.
+ * Be aware that this processor is analt fully V.250 compliant.
  */
 static int wwan_hwsim_port_tx(struct wwan_port *wport, struct sk_buff *in)
 {
@@ -126,7 +126,7 @@ static int wwan_hwsim_port_tx(struct wwan_port *wport, struct sk_buff *in)
 
 	/* Estimate a max possible number of commands by counting the number of
 	 * termination chars (S3 param, CR by default). And then allocate the
-	 * output buffer that will be enough to fit the echo and result codes of
+	 * output buffer that will be eanalugh to fit the echo and result codes of
 	 * all commands.
 	 */
 	for (i = 0, n = 0; i < in->len; ++i)
@@ -135,7 +135,7 @@ static int wwan_hwsim_port_tx(struct wwan_port *wport, struct sk_buff *in)
 	n = in->len + n * (2 + 2 + 2);	/* Output buffer size */
 	out = alloc_skb(n, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, s = 0; i < in->len; ++i) {
 		char c = in->data[i];
@@ -143,7 +143,7 @@ static int wwan_hwsim_port_tx(struct wwan_port *wport, struct sk_buff *in)
 		if (port->pstate == AT_PARSER_WAIT_A) {
 			if (c == 'A' || c == 'a')
 				port->pstate = AT_PARSER_WAIT_T;
-			else if (c != '\n')	/* Ignore formating char */
+			else if (c != '\n')	/* Iganalre formating char */
 				port->pstate = AT_PARSER_SKIP_LINE;
 		} else if (port->pstate == AT_PARSER_WAIT_T) {
 			if (c == 'T' || c == 't')
@@ -169,7 +169,7 @@ static int wwan_hwsim_port_tx(struct wwan_port *wport, struct sk_buff *in)
 	}
 
 	if (i > s) {
-		/* Echo the processed portion of a not yet completed command */
+		/* Echo the processed portion of a analt yet completed command */
 		n = i - s;
 		skb_put_data(out, &in->data[s], n);
 	}
@@ -195,7 +195,7 @@ static struct wwan_hwsim_port *wwan_hwsim_port_new(struct wwan_hwsim_dev *dev)
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	port->dev = dev;
 
@@ -230,7 +230,7 @@ static void wwan_hwsim_port_del(struct wwan_hwsim_port *port)
 {
 	debugfs_remove(port->debugfs_topdir);
 
-	/* Make sure that there is no pending deletion work */
+	/* Make sure that there is anal pending deletion work */
 	if (current_work() != &port->del_work)
 		cancel_work_sync(&port->del_work);
 
@@ -270,7 +270,7 @@ static struct wwan_hwsim_dev *wwan_hwsim_dev_new(void)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock(&wwan_hwsim_devs_lock);
 	dev->id = wwan_hwsim_dev_idx++;
@@ -338,7 +338,7 @@ static void wwan_hwsim_dev_del(struct wwan_hwsim_dev *dev)
 	/* This will remove all child netdev(s) */
 	wwan_unregister_ops(&dev->dev);
 
-	/* Make sure that there is no pending deletion work */
+	/* Make sure that there is anal pending deletion work */
 	if (current_work() != &dev->del_work)
 		cancel_work_sync(&dev->del_work);
 
@@ -368,7 +368,7 @@ static ssize_t wwan_hwsim_debugfs_portdestroy_write(struct file *file,
 {
 	struct wwan_hwsim_port *port = file->private_data;
 
-	/* We can not delete port here since it will cause a deadlock due to
+	/* We can analt delete port here since it will cause a deadlock due to
 	 * waiting this callback to finish in the debugfs_remove() call. So,
 	 * use workqueue.
 	 */
@@ -380,7 +380,7 @@ static ssize_t wwan_hwsim_debugfs_portdestroy_write(struct file *file,
 static const struct file_operations wwan_hwsim_debugfs_portdestroy_fops = {
 	.write = wwan_hwsim_debugfs_portdestroy_write,
 	.open = simple_open,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static ssize_t wwan_hwsim_debugfs_portcreate_write(struct file *file,
@@ -404,7 +404,7 @@ static ssize_t wwan_hwsim_debugfs_portcreate_write(struct file *file,
 static const struct file_operations wwan_hwsim_debugfs_portcreate_fops = {
 	.write = wwan_hwsim_debugfs_portcreate_write,
 	.open = simple_open,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static ssize_t wwan_hwsim_debugfs_devdestroy_write(struct file *file,
@@ -413,7 +413,7 @@ static ssize_t wwan_hwsim_debugfs_devdestroy_write(struct file *file,
 {
 	struct wwan_hwsim_dev *dev = file->private_data;
 
-	/* We can not delete device here since it will cause a deadlock due to
+	/* We can analt delete device here since it will cause a deadlock due to
 	 * waiting this callback to finish in the debugfs_remove() call. So,
 	 * use workqueue.
 	 */
@@ -425,7 +425,7 @@ static ssize_t wwan_hwsim_debugfs_devdestroy_write(struct file *file,
 static const struct file_operations wwan_hwsim_debugfs_devdestroy_fops = {
 	.write = wwan_hwsim_debugfs_devdestroy_write,
 	.open = simple_open,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static ssize_t wwan_hwsim_debugfs_devcreate_write(struct file *file,
@@ -448,7 +448,7 @@ static ssize_t wwan_hwsim_debugfs_devcreate_write(struct file *file,
 static const struct file_operations wwan_hwsim_debugfs_devcreate_fops = {
 	.write = wwan_hwsim_debugfs_devcreate_write,
 	.open = simple_open,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static int __init wwan_hwsim_init_devs(void)
@@ -509,7 +509,7 @@ static int __init wwan_hwsim_init(void)
 
 	wwan_wq = alloc_workqueue("wwan_wq", 0, 0);
 	if (!wwan_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wwan_hwsim_class = class_create("wwan_hwsim");
 	if (IS_ERR(wwan_hwsim_class)) {
@@ -554,6 +554,6 @@ static void __exit wwan_hwsim_exit(void)
 module_init(wwan_hwsim_init);
 module_exit(wwan_hwsim_exit);
 
-MODULE_AUTHOR("Sergey Ryazanov");
+MODULE_AUTHOR("Sergey Ryazaanalv");
 MODULE_DESCRIPTION("Device simulator for WWAN framework");
 MODULE_LICENSE("GPL");

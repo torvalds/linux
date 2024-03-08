@@ -12,7 +12,7 @@ maintainers:
 allOf:
   - $ref: rtc.yaml#
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

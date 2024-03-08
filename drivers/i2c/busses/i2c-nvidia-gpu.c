@@ -30,7 +30,7 @@
 #define I2C_MST_CNTL_GEN_NACK			BIT(28)
 #define I2C_MST_CNTL_STATUS			GENMASK(30, 29)
 #define I2C_MST_CNTL_STATUS_OKAY		(0 << 29)
-#define I2C_MST_CNTL_STATUS_NO_ACK		(1 << 29)
+#define I2C_MST_CNTL_STATUS_ANAL_ACK		(1 << 29)
 #define I2C_MST_CNTL_STATUS_TIMEOUT		(2 << 29)
 #define I2C_MST_CNTL_STATUS_BUS_BUSY		(3 << 29)
 #define I2C_MST_CNTL_CYCLE_TRIGGER		BIT(31)
@@ -96,7 +96,7 @@ static int gpu_i2c_check_status(struct gpu_i2c_dev *i2cd)
 	switch (val & I2C_MST_CNTL_STATUS) {
 	case I2C_MST_CNTL_STATUS_OKAY:
 		return 0;
-	case I2C_MST_CNTL_STATUS_NO_ACK:
+	case I2C_MST_CNTL_STATUS_ANAL_ACK:
 		return -ENXIO;
 	case I2C_MST_CNTL_STATUS_TIMEOUT:
 		return -ETIMEDOUT;
@@ -172,7 +172,7 @@ static int gpu_i2c_master_xfer(struct i2c_adapter *adap,
 	int i, j;
 
 	/*
-	 * The controller supports maximum 4 byte read due to known
+	 * The controller supports maximum 4 byte read due to kanalwn
 	 * limitation of sending STOP after every read.
 	 */
 	pm_runtime_get_sync(i2cd->dev);
@@ -243,18 +243,18 @@ static const struct i2c_algorithm gpu_i2c_algorithm = {
  * We want to identify the cards using vendor ID and class code only
  * to avoid dependency of adding product id for any new card which
  * requires this driver.
- * Currently there is no class code defined for UCSI device over PCI
- * so using UNKNOWN class for now and it will be updated when UCSI
+ * Currently there is anal class code defined for UCSI device over PCI
+ * so using UNKANALWN class for analw and it will be updated when UCSI
  * over PCI gets a class code.
- * There is no other NVIDIA cards with UNKNOWN class code. Even if the
+ * There is anal other NVIDIA cards with UNKANALWN class code. Even if the
  * driver gets loaded for an undesired card then eventually i2c_read()
  * (initiated from UCSI i2c_client) will timeout or UCSI commands will
  * timeout.
  */
-#define PCI_CLASS_SERIAL_UNKNOWN	0x0c80
+#define PCI_CLASS_SERIAL_UNKANALWN	0x0c80
 static const struct pci_device_id gpu_i2c_ids[] = {
 	{ PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID,
-		PCI_CLASS_SERIAL_UNKNOWN << 8, 0xffffff00},
+		PCI_CLASS_SERIAL_UNKANALWN << 8, 0xffffff00},
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, gpu_i2c_ids);
@@ -267,7 +267,7 @@ static const struct property_entry ccgx_props[] = {
 	{ }
 };
 
-static const struct software_node ccgx_node = {
+static const struct software_analde ccgx_analde = {
 	.properties = ccgx_props,
 };
 
@@ -279,7 +279,7 @@ static int gpu_i2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	i2cd = devm_kzalloc(dev, sizeof(*i2cd), GFP_KERNEL);
 	if (!i2cd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2cd->dev = dev;
 	dev_set_drvdata(dev, i2cd);
@@ -292,7 +292,7 @@ static int gpu_i2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	i2cd->regs = pcim_iomap(pdev, 0, 0);
 	if (!i2cd->regs)
-		return dev_err_probe(dev, -ENOMEM, "pcim_iomap failed\n");
+		return dev_err_probe(dev, -EANALMEM, "pcim_iomap failed\n");
 
 	status = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
 	if (status < 0)
@@ -311,7 +311,7 @@ static int gpu_i2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (status < 0)
 		goto free_irq_vectors;
 
-	i2cd->ccgx_client = i2c_new_ccgx_ucsi(&i2cd->adapter, pdev->irq, &ccgx_node);
+	i2cd->ccgx_client = i2c_new_ccgx_ucsi(&i2cd->adapter, pdev->irq, &ccgx_analde);
 	if (IS_ERR(i2cd->ccgx_client)) {
 		status = dev_err_probe(dev, PTR_ERR(i2cd->ccgx_client), "register UCSI failed\n");
 		goto del_adapter;
@@ -335,7 +335,7 @@ static void gpu_i2c_remove(struct pci_dev *pdev)
 {
 	struct gpu_i2c_dev *i2cd = pci_get_drvdata(pdev);
 
-	pm_runtime_get_noresume(i2cd->dev);
+	pm_runtime_get_analresume(i2cd->dev);
 	i2c_del_adapter(&i2cd->adapter);
 	pci_free_irq_vectors(pdev);
 }
@@ -349,8 +349,8 @@ static __maybe_unused int gpu_i2c_resume(struct device *dev)
 	gpu_enable_i2c_bus(i2cd);
 	/*
 	 * Runtime resume ccgx client so that it can see for any
-	 * connector change event. Old ccg firmware has known
-	 * issue of not triggering interrupt when a device is
+	 * connector change event. Old ccg firmware has kanalwn
+	 * issue of analt triggering interrupt when a device is
 	 * connected to runtime resume the controller.
 	 */
 	pm_request_resume(&i2cd->ccgx_client->dev);

@@ -34,12 +34,12 @@ properties:
 
   vref-supply:
     description: Specify the voltage of the external reference used.
-      Available reference options are 1.25 V or 2.5 V. If no
+      Available reference options are 1.25 V or 2.5 V. If anal
       external reference declared then the device will use the
       internal reference of 1.25 V.
 
   adi,external-resistor:
-    description: Specify if an external 2.5k ohm resistor is used. If not
+    description: Specify if an external 2.5k ohm resistor is used. If analt
       specified the device will use an internal 2.5k ohm resistor.
       The precision resistor is used for reference current generation.
     type: boolean

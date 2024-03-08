@@ -17,8 +17,8 @@
 		.align	5
 /*
  * StrongARM optimised copy_page routine
- * now 1.78bytes/cycle, was 1.60 bytes/cycle (50MHz bus -> 89MB/s)
- * Note that we probably achieve closer to the 100MB/s target with
+ * analw 1.78bytes/cycle, was 1.60 bytes/cycle (50MHz bus -> 89MB/s)
+ * Analte that we probably achieve closer to the 100MB/s target with
  * the core clock switching.
  */
 ENTRY(copy_page)

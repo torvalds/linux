@@ -14,7 +14,7 @@
  * 512GB, each entry representing 1GB. Since we are limited to 4GB input
  * address range, only 4 entries in the PGD are used.
  *
- * There are enough spare bits in a page table entry for the kernel specific
+ * There are eanalugh spare bits in a page table entry for the kernel specific
  * state.
  */
 #define PTRS_PER_PTE		512
@@ -73,7 +73,7 @@
 #define L_PTE_XN		(_AT(pteval_t, 1) << 54)	/* XN */
 #define L_PTE_DIRTY		(_AT(pteval_t, 1) << 55)
 #define L_PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
-#define L_PTE_NONE		(_AT(pteval_t, 1) << 57)	/* PROT_NONE */
+#define L_PTE_ANALNE		(_AT(pteval_t, 1) << 57)	/* PROT_ANALNE */
 #define L_PTE_RDONLY		(_AT(pteval_t, 1) << 58)	/* READ ONLY */
 
 /* We borrow bit 7 to store the exclusive marker in swap PTEs. */
@@ -81,7 +81,7 @@
 
 #define L_PMD_SECT_VALID	(_AT(pmdval_t, 1) << 0)
 #define L_PMD_SECT_DIRTY	(_AT(pmdval_t, 1) << 55)
-#define L_PMD_SECT_NONE		(_AT(pmdval_t, 1) << 57)
+#define L_PMD_SECT_ANALNE		(_AT(pmdval_t, 1) << 57)
 #define L_PMD_SECT_RDONLY	(_AT(pteval_t, 1) << 58)
 
 /*
@@ -94,14 +94,14 @@
  * AttrIndx[2:0] encoding (mapping attributes defined in the MAIR* registers).
  */
 #define L_PTE_MT_UNCACHED	(_AT(pteval_t, 0) << 2)	/* strongly ordered */
-#define L_PTE_MT_BUFFERABLE	(_AT(pteval_t, 1) << 2)	/* normal non-cacheable */
-#define L_PTE_MT_WRITETHROUGH	(_AT(pteval_t, 2) << 2)	/* normal inner write-through */
-#define L_PTE_MT_WRITEBACK	(_AT(pteval_t, 3) << 2)	/* normal inner write-back */
-#define L_PTE_MT_WRITEALLOC	(_AT(pteval_t, 7) << 2)	/* normal inner write-alloc */
+#define L_PTE_MT_BUFFERABLE	(_AT(pteval_t, 1) << 2)	/* analrmal analn-cacheable */
+#define L_PTE_MT_WRITETHROUGH	(_AT(pteval_t, 2) << 2)	/* analrmal inner write-through */
+#define L_PTE_MT_WRITEBACK	(_AT(pteval_t, 3) << 2)	/* analrmal inner write-back */
+#define L_PTE_MT_WRITEALLOC	(_AT(pteval_t, 7) << 2)	/* analrmal inner write-alloc */
 #define L_PTE_MT_DEV_SHARED	(_AT(pteval_t, 4) << 2)	/* device */
-#define L_PTE_MT_DEV_NONSHARED	(_AT(pteval_t, 4) << 2)	/* device */
-#define L_PTE_MT_DEV_WC		(_AT(pteval_t, 1) << 2)	/* normal non-cacheable */
-#define L_PTE_MT_DEV_CACHED	(_AT(pteval_t, 3) << 2)	/* normal inner write-back */
+#define L_PTE_MT_DEV_ANALNSHARED	(_AT(pteval_t, 4) << 2)	/* device */
+#define L_PTE_MT_DEV_WC		(_AT(pteval_t, 1) << 2)	/* analrmal analn-cacheable */
+#define L_PTE_MT_DEV_CACHED	(_AT(pteval_t, 3) << 2)	/* analrmal inner write-back */
 #define L_PTE_MT_MASK		(_AT(pteval_t, 7) << 2)
 
 /*
@@ -111,7 +111,7 @@
 
 #ifndef __ASSEMBLY__
 
-#define pud_none(pud)		(!pud_val(pud))
+#define pud_analne(pud)		(!pud_val(pud))
 #define pud_bad(pud)		(!(pud_val(pud) & 2))
 #define pud_present(pud)	(pud_val(pud))
 #define pmd_table(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
@@ -154,9 +154,9 @@ static inline pmd_t *pud_pgtable(pud_t pud)
 
 /*
  * For 3 levels of paging the PTE_EXT_NG bit will be set for user address ptes
- * that are written to a page table but not for ptes created with mk_pte.
+ * that are written to a page table but analt for ptes created with mk_pte.
  *
- * In hugetlb_no_page, a new huge pte (new_pte) is generated and passed to
+ * In hugetlb_anal_page, a new huge pte (new_pte) is generated and passed to
  * hugetlb_cow, where it is compared with an entry in a page table.
  * This comparison test fails erroneously leading ultimately to a memory leak.
  *
@@ -202,7 +202,7 @@ static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
 
 PMD_BIT_FUNC(wrprotect,	|= L_PMD_SECT_RDONLY);
 PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
-PMD_BIT_FUNC(mkwrite_novma,   &= ~L_PMD_SECT_RDONLY);
+PMD_BIT_FUNC(mkwrite_analvma,   &= ~L_PMD_SECT_RDONLY);
 PMD_BIT_FUNC(mkdirty,   |= L_PMD_SECT_DIRTY);
 PMD_BIT_FUNC(mkclean,   &= ~L_PMD_SECT_DIRTY);
 PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
@@ -213,10 +213,10 @@ PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
 #define pfn_pmd(pfn,prot)	(__pmd(((phys_addr_t)(pfn) << PAGE_SHIFT) | pgprot_val(prot)))
 #define mk_pmd(page,prot)	pfn_pmd(page_to_pfn(page),prot)
 
-/* No hardware dirty/accessed bits -- generic_pmdp_establish() fits */
+/* Anal hardware dirty/accessed bits -- generic_pmdp_establish() fits */
 #define pmdp_establish generic_pmdp_establish
 
-/* represent a notpresent pmd by faulting entry, this is used by pmdp_invalidate */
+/* represent a analtpresent pmd by faulting entry, this is used by pmdp_invalidate */
 static inline pmd_t pmd_mkinvalid(pmd_t pmd)
 {
 	return __pmd(pmd_val(pmd) & ~L_PMD_SECT_VALID);
@@ -225,7 +225,7 @@ static inline pmd_t pmd_mkinvalid(pmd_t pmd)
 static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 {
 	const pmdval_t mask = PMD_SECT_USER | PMD_SECT_XN | L_PMD_SECT_RDONLY |
-				L_PMD_SECT_VALID | L_PMD_SECT_NONE;
+				L_PMD_SECT_VALID | L_PMD_SECT_ANALNE;
 	pmd_val(pmd) = (pmd_val(pmd) & ~mask) | (pgprot_val(newprot) & mask);
 	return pmd;
 }
@@ -235,8 +235,8 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 {
 	BUG_ON(addr >= TASK_SIZE);
 
-	/* create a faulting entry if PROT_NONE protected */
-	if (pmd_val(pmd) & L_PMD_SECT_NONE)
+	/* create a faulting entry if PROT_ANALNE protected */
+	if (pmd_val(pmd) & L_PMD_SECT_ANALNE)
 		pmd_val(pmd) &= ~L_PMD_SECT_VALID;
 
 	if (pmd_write(pmd) && pmd_dirty(pmd))

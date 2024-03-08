@@ -1,5 +1,5 @@
 /*
- * ARM Ltd. Juno Platform
+ * ARM Ltd. Juanal Platform
  *
  * Copyright (c) 2015 ARM Ltd.
  *
@@ -10,12 +10,12 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/arm/coresight-cti-dt.h>
-#include "juno-base.dtsi"
-#include "juno-cs-r1r2.dtsi"
+#include "juanal-base.dtsi"
+#include "juanal-cs-r1r2.dtsi"
 
 / {
-	model = "ARM Juno development board (r1)";
-	compatible = "arm,juno-r1", "arm,juno", "arm,vexpress";
+	model = "ARM Juanal development board (r1)";
+	compatible = "arm,juanal-r1", "arm,juanal", "arm,vexpress";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

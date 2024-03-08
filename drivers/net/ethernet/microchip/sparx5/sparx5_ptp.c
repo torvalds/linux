@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2021 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2021 Microchip Techanallogy Inc. and its subsidiaries.
  *
  * The Sparx5 Chip Register Model can be browsed at this location:
  * https://github.com/microchip-ung/sparx-5_reginfo
@@ -52,7 +52,7 @@ static u64 sparx5_ptp_get_1ppm(struct sparx5 *sparx5)
 	return res;
 }
 
-static u64 sparx5_ptp_get_nominal_value(struct sparx5 *sparx5)
+static u64 sparx5_ptp_get_analminal_value(struct sparx5 *sparx5)
 {
 	u64 res = 0;
 
@@ -81,12 +81,12 @@ int sparx5_ptp_hwtstamp_set(struct sparx5_port *port,
 	struct sparx5 *sparx5 = port->sparx5;
 	struct sparx5_phc *phc;
 
-	/* For now don't allow to run ptp on ports that are part of a bridge,
+	/* For analw don't allow to run ptp on ports that are part of a bridge,
 	 * because in case of transparent clock the HW will still forward the
 	 * frames, so there would be duplicate frames
 	 */
 
-	if (test_bit(port->portno, sparx5->bridge_mask))
+	if (test_bit(port->portanal, sparx5->bridge_mask))
 		return -EINVAL;
 
 	switch (cfg->tx_type) {
@@ -97,14 +97,14 @@ int sparx5_ptp_hwtstamp_set(struct sparx5_port *port,
 		port->ptp_cmd = IFH_REW_OP_ONE_STEP_PTP;
 		break;
 	case HWTSTAMP_TX_OFF:
-		port->ptp_cmd = IFH_REW_OP_NOOP;
+		port->ptp_cmd = IFH_REW_OP_ANALOP;
 		break;
 	default:
 		return -ERANGE;
 	}
 
 	switch (cfg->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
@@ -152,25 +152,25 @@ static void sparx5_ptp_classify(struct sparx5_port *port, struct sk_buff *skb,
 	u8 msgtype;
 	int type;
 
-	if (port->ptp_cmd == IFH_REW_OP_NOOP) {
-		*rew_op = IFH_REW_OP_NOOP;
-		*pdu_type = IFH_PDU_TYPE_NONE;
+	if (port->ptp_cmd == IFH_REW_OP_ANALOP) {
+		*rew_op = IFH_REW_OP_ANALOP;
+		*pdu_type = IFH_PDU_TYPE_ANALNE;
 		*pdu_w16_offset = 0;
 		return;
 	}
 
 	type = ptp_classify_raw(skb);
-	if (type == PTP_CLASS_NONE) {
-		*rew_op = IFH_REW_OP_NOOP;
-		*pdu_type = IFH_PDU_TYPE_NONE;
+	if (type == PTP_CLASS_ANALNE) {
+		*rew_op = IFH_REW_OP_ANALOP;
+		*pdu_type = IFH_PDU_TYPE_ANALNE;
 		*pdu_w16_offset = 0;
 		return;
 	}
 
 	header = ptp_parse_header(skb, type);
 	if (!header) {
-		*rew_op = IFH_REW_OP_NOOP;
-		*pdu_type = IFH_PDU_TYPE_NONE;
+		*rew_op = IFH_REW_OP_ANALOP;
+		*pdu_type = IFH_PDU_TYPE_ANALNE;
 		*pdu_w16_offset = 0;
 		return;
 	}
@@ -405,7 +405,7 @@ static int sparx5_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 		scaled_ppm = -scaled_ppm;
 	}
 
-	tod_inc = sparx5_ptp_get_nominal_value(sparx5);
+	tod_inc = sparx5_ptp_get_analminal_value(sparx5);
 
 	/* The multiplication is split in 2 separate additions because of
 	 * overflow issues. If scaled_ppm with 16bit fractional part was bigger
@@ -507,7 +507,7 @@ int sparx5_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts)
 		ns += 999999984;
 	}
 
-	set_normalized_timespec64(ts, s, ns);
+	set_analrmalized_timespec64(ts, s, ns);
 	return 0;
 }
 
@@ -544,14 +544,14 @@ static int sparx5_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 
 		spin_unlock_irqrestore(&sparx5->ptp_clock_lock, flags);
 	} else {
-		/* Fall back using sparx5_ptp_settime64 which is not exact */
+		/* Fall back using sparx5_ptp_settime64 which is analt exact */
 		struct timespec64 ts;
-		u64 now;
+		u64 analw;
 
 		sparx5_ptp_gettime64(ptp, &ts);
 
-		now = ktime_to_ns(timespec64_to_ktime(ts));
-		ts = ns_to_timespec64(now + delta);
+		analw = ktime_to_ns(timespec64_to_ktime(ts));
+		ts = ns_to_timespec64(analw + delta);
 
 		sparx5_ptp_settime64(ptp, &ts);
 	}
@@ -591,7 +591,7 @@ static int sparx5_ptp_phc_init(struct sparx5 *sparx5,
 
 int sparx5_ptp_init(struct sparx5 *sparx5)
 {
-	u64 tod_adj = sparx5_ptp_get_nominal_value(sparx5);
+	u64 tod_adj = sparx5_ptp_get_analminal_value(sparx5);
 	struct sparx5_port *port;
 	int err, i;
 
@@ -611,7 +611,7 @@ int sparx5_ptp_init(struct sparx5 *sparx5)
 	/* Disable master counters */
 	spx5_wr(PTP_PTP_DOM_CFG_PTP_ENA_SET(0), sparx5, PTP_PTP_DOM_CFG);
 
-	/* Configure the nominal TOD increment per clock cycle */
+	/* Configure the analminal TOD increment per clock cycle */
 	spx5_rmw(PTP_PTP_DOM_CFG_PTP_CLKCFG_DIS_SET(0x7),
 		 PTP_PTP_DOM_CFG_PTP_CLKCFG_DIS,
 		 sparx5, PTP_PTP_DOM_CFG);

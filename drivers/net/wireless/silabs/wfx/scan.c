@@ -29,7 +29,7 @@ static int update_probe_tmpl(struct wfx_vif *wvif, struct cfg80211_scan_request 
 	skb = ieee80211_probereq_get(wvif->wdev->hw, vif->addr, NULL, 0,
 				     req->ie_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, req->ie, req->ie_len);
 	wfx_hif_set_template_frame(wvif, skb, HIF_TMPLT_PRBREQ, 0);
@@ -46,10 +46,10 @@ static int send_scan_req(struct wfx_vif *wvif, struct cfg80211_scan_request *req
 	for (i = start_idx; i < req->n_channels; i++) {
 		ch_start = req->channels[start_idx];
 		ch_cur = req->channels[i];
-		WARN(ch_cur->band != NL80211_BAND_2GHZ, "band not supported");
+		WARN(ch_cur->band != NL80211_BAND_2GHZ, "band analt supported");
 		if (ch_cur->max_power != ch_start->max_power)
 			break;
-		if ((ch_cur->flags ^ ch_start->flags) & IEEE80211_CHAN_NO_IR)
+		if ((ch_cur->flags ^ ch_start->flags) & IEEE80211_CHAN_ANAL_IR)
 			break;
 	}
 	wfx_tx_lock_flush(wvif->wdev);
@@ -71,7 +71,7 @@ static int send_scan_req(struct wfx_vif *wvif, struct cfg80211_scan_request *req
 		dev_err(wvif->wdev->dev, "scan didn't stop\n");
 		ret = -ETIMEDOUT;
 	} else if (wvif->scan_abort) {
-		dev_notice(wvif->wdev->dev, "scan abort\n");
+		dev_analtice(wvif->wdev->dev, "scan abort\n");
 		ret = -ECONNABORTED;
 	} else if (wvif->scan_nb_chan_done > i - start_idx) {
 		ret = -EIO;
@@ -84,7 +84,7 @@ static int send_scan_req(struct wfx_vif *wvif, struct cfg80211_scan_request *req
 	return ret;
 }
 
-/* It is not really necessary to run scan request asynchronously. However,
+/* It is analt really necessary to run scan request asynchroanalusly. However,
  * there is a bug in "iw scan" when ieee80211_scan_completed() is called before
  * wfx_hw_scan() return
  */
@@ -112,7 +112,7 @@ void wfx_hw_scan_work(struct work_struct *work)
 		if (!ret)
 			err++;
 		if (err > 2) {
-			dev_err(wvif->wdev->dev, "scan has not been able to start\n");
+			dev_err(wvif->wdev->dev, "scan has analt been able to start\n");
 			ret = -ETIMEDOUT;
 		}
 	} while (ret >= 0 && chan_cur < hw_req->req.n_channels);
@@ -191,7 +191,7 @@ int wfx_remain_on_channel(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
 	if (wfx_api_older_than(wdev, 3, 10))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	wvif->remain_on_channel_duration = duration;
 	wvif->remain_on_channel_chan = chan;

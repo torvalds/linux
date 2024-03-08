@@ -3,12 +3,12 @@ menuconfig NVMEM
 	bool "NVMEM Support"
 	imply NVMEM_LAYOUTS
 	help
-	  Support for NVMEM(Non Volatile Memory) devices like EEPROM, EFUSES...
+	  Support for NVMEM(Analn Volatile Memory) devices like EEPROM, EFUSES...
 
 	  This framework is designed to provide a generic interface to NVMEM
 	  from both the Linux Kernel and the userspace.
 
-	  If unsure, say no.
+	  If unsure, say anal.
 
 if NVMEM
 
@@ -294,7 +294,7 @@ config NVMEM_SNVS_LPGPR
 	depends on ARCH_MXC || COMPILE_TEST
 	help
 	  This is a driver for Low Power General Purpose Register (LPGPR) available on
-	  i.MX6 and i.MX7 SoCs in Secure Non-Volatile Storage (SNVS) of this chip.
+	  i.MX6 and i.MX7 SoCs in Secure Analn-Volatile Storage (SNVS) of this chip.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-snvs-lpgpr.
@@ -304,7 +304,7 @@ config NVMEM_SPMI_SDAM
 	depends on SPMI
 	help
 	  This driver supports the Shared Direct Access Memory Module on
-	  Qualcomm Technologies, Inc. PMICs. It provides the clients
+	  Qualcomm Techanallogies, Inc. PMICs. It provides the clients
 	  an interface to read/write to the SDAM module's shared memory.
 
 config NVMEM_SPRD_EFUSE
@@ -404,7 +404,7 @@ config NVMEM_ZYNQMP
 	  soc revision, IDCODE... etc by using the firmware
 	  interface.
 
-	  If sure, say yes. If unsure, say no.
+	  If sure, say anal. If unsure, say anal.
 
 config NVMEM_QORIQ_EFUSE
 	tristate "NXP QorIQ eFuse support"

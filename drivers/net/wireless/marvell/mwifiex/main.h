@@ -117,13 +117,13 @@ enum {
 #define WPA_GTK_OUI_OFFSET				2
 #define RSN_GTK_OUI_OFFSET				2
 
-#define MWIFIEX_OUI_NOT_PRESENT			0
+#define MWIFIEX_OUI_ANALT_PRESENT			0
 #define MWIFIEX_OUI_PRESENT				1
 
 #define PKT_TYPE_MGMT	0xE5
 
 /*
- * Do not check for data_received for USB, as data_received
+ * Do analt check for data_received for USB, as data_received
  * is handled in mwifiex_usb_recv for USB
  */
 #define IS_CARD_RX_RCVD(adapter) (adapter->cmd_resp_received || \
@@ -244,7 +244,7 @@ enum MWIFIEX_HARDWARE_STATUS {
 	MWIFIEX_HW_STATUS_INITIALIZING,
 	MWIFIEX_HW_STATUS_INIT_DONE,
 	MWIFIEX_HW_STATUS_RESET,
-	MWIFIEX_HW_STATUS_NOT_READY
+	MWIFIEX_HW_STATUS_ANALT_READY
 };
 
 enum MWIFIEX_802_11_POWER_MODE {
@@ -284,7 +284,7 @@ struct mwifiex_tx_aggr {
 };
 
 enum mwifiex_ba_status {
-	BA_SETUP_NONE = 0,
+	BA_SETUP_ANALNE = 0,
 	BA_SETUP_INPROGRESS,
 	BA_SETUP_COMPLETE
 };
@@ -311,7 +311,7 @@ struct mwifiex_tid_tbl {
 #define WMM_HIGHEST_PRIORITY		7
 #define HIGH_PRIO_TID				7
 #define LOW_PRIO_TID				0
-#define NO_PKT_PRIO_TID				-1
+#define ANAL_PKT_PRIO_TID				-1
 #define MWIFIEX_WMM_DRV_DELAY_MAX 510
 
 struct mwifiex_wmm_desc {
@@ -474,7 +474,7 @@ enum state_11d_t {
 
 struct mwifiex_802_11d_domain_reg {
 	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
-	u8 no_of_triplet;
+	u8 anal_of_triplet;
 	struct ieee80211_country_ie_triplet
 		triplet[MWIFIEX_MAX_TRIPLET_802_11D];
 };
@@ -714,7 +714,7 @@ struct mwifiex_rx_reorder_tbl {
 	u8 flags;
 };
 
-struct mwifiex_bss_prio_node {
+struct mwifiex_bss_prio_analde {
 	struct list_head list;
 	struct mwifiex_private *priv;
 };
@@ -723,13 +723,13 @@ struct mwifiex_bss_prio_tbl {
 	struct list_head bss_prio_head;
 	/* spin lock for bss priority  */
 	spinlock_t bss_prio_lock;
-	struct mwifiex_bss_prio_node *bss_prio_cur;
+	struct mwifiex_bss_prio_analde *bss_prio_cur;
 };
 
-struct cmd_ctrl_node {
+struct cmd_ctrl_analde {
 	struct list_head list;
 	struct mwifiex_private *priv;
-	u32 cmd_no;
+	u32 cmd_anal;
 	u32 cmd_flag;
 	struct sk_buff *cmd_skb;
 	struct sk_buff *resp_skb;
@@ -775,7 +775,7 @@ struct mwifiex_station_stats {
 /* This is AP/TDLS specific structure which stores information
  * about associated/peer STA
  */
-struct mwifiex_sta_node {
+struct mwifiex_sta_analde {
 	struct list_head list;
 	u8 mac_addr[ETH_ALEN];
 	u8 is_wmm_enabled;
@@ -910,8 +910,8 @@ struct mwifiex_adapter {
 	u8 event_received;
 	u8 data_received;
 	u16 seq_num;
-	struct cmd_ctrl_node *cmd_pool;
-	struct cmd_ctrl_node *curr_cmd;
+	struct cmd_ctrl_analde *cmd_pool;
+	struct cmd_ctrl_analde *curr_cmd;
 	/* spin lock for command */
 	spinlock_t mwifiex_cmd_lock;
 	u16 last_init_cmd;
@@ -981,7 +981,7 @@ struct mwifiex_adapter {
 	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	u16 max_mgmt_ie_index;
 	const struct firmware *cal_data;
-	struct device_node *dt_node;
+	struct device_analde *dt_analde;
 
 	/* 11AC */
 	u32 is_hw_11ac_capable;
@@ -999,7 +999,7 @@ struct mwifiex_adapter {
 
 	bool ext_scan;
 	u8 fw_api_ver;
-	u8 key_api_major_ver, key_api_minor_ver;
+	u8 key_api_major_ver, key_api_mianalr_ver;
 	u8 max_p2p_conn, max_sta_conn;
 	struct memory_type_mapping *mem_type_mapping_tbl;
 	u8 num_mem_types;
@@ -1033,7 +1033,7 @@ struct mwifiex_adapter {
 	int devdump_len;
 	struct delayed_work devdump_work;
 
-	bool ignore_btcoex_events;
+	bool iganalre_btcoex_events;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);
@@ -1069,9 +1069,9 @@ int mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 int mwifiex_process_event(struct mwifiex_adapter *adapter);
 
 int mwifiex_complete_cmd(struct mwifiex_adapter *adapter,
-			 struct cmd_ctrl_node *cmd_node);
+			 struct cmd_ctrl_analde *cmd_analde);
 
-int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
+int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_anal,
 		     u16 cmd_action, u32 cmd_oid, void *data_buf, bool sync);
 
 void mwifiex_cmd_timeout_func(struct timer_list *t);
@@ -1086,11 +1086,11 @@ void mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_pending_scan_cmd(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_scan(struct mwifiex_adapter *adapter);
 
-void mwifiex_recycle_cmd_node(struct mwifiex_adapter *adapter,
-			      struct cmd_ctrl_node *cmd_node);
+void mwifiex_recycle_cmd_analde(struct mwifiex_adapter *adapter,
+			      struct cmd_ctrl_analde *cmd_analde);
 
 void mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
-				     struct cmd_ctrl_node *cmd_node);
+				     struct cmd_ctrl_analde *cmd_analde);
 
 int mwifiex_exec_next_cmd(struct mwifiex_adapter *adapter);
 int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter);
@@ -1122,13 +1122,13 @@ int mwifiex_ret_802_11_hs_cfg(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp);
 int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 			      struct sk_buff *skb);
-int mwifiex_sta_prepare_cmd(struct mwifiex_private *, uint16_t cmd_no,
+int mwifiex_sta_prepare_cmd(struct mwifiex_private *, uint16_t cmd_anal,
 			    u16 cmd_action, u32 cmd_oid,
 			    void *data_buf, void *cmd_buf);
-int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
+int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_anal,
 			    u16 cmd_action, u32 cmd_oid,
 			    void *data_buf, void *cmd_buf);
-int mwifiex_process_sta_cmdresp(struct mwifiex_private *, u16 cmdresp_no,
+int mwifiex_process_sta_cmdresp(struct mwifiex_private *, u16 cmdresp_anal,
 				struct host_cmd_ds_command *resp);
 int mwifiex_process_sta_rx_packet(struct mwifiex_private *,
 				  struct sk_buff *skb);
@@ -1149,7 +1149,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *, u8 first_sta, bool init);
 int mwifiex_cmd_802_11_scan(struct host_cmd_ds_command *cmd,
 			    struct mwifiex_scan_cmd_config *scan_cfg);
 void mwifiex_queue_scan_cmd(struct mwifiex_private *priv,
-			    struct cmd_ctrl_node *cmd_node);
+			    struct cmd_ctrl_analde *cmd_analde);
 int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 			    struct host_cmd_ds_command *resp);
 int mwifiex_associate(struct mwifiex_private *priv,
@@ -1243,13 +1243,13 @@ int mwifiex_cmd_802_11_bg_scan_config(struct mwifiex_private *priv,
 int mwifiex_stop_bg_scan(struct mwifiex_private *priv);
 
 /*
- * This function checks if the queuing is RA based or not.
+ * This function checks if the queuing is RA based or analt.
  */
 static inline u8
 mwifiex_queuing_ra_based(struct mwifiex_private *priv)
 {
 	/*
-	 * Currently we assume if we are in Infra, then DA=RA. This might not be
+	 * Currently we assume if we are in Infra, then DA=RA. This might analt be
 	 * true in the future
 	 */
 	if ((priv->bss_mode == NL80211_IFTYPE_STATION ||
@@ -1381,7 +1381,7 @@ static inline bool mwifiex_is_skb_mgmt_frame(struct sk_buff *skb)
 }
 
 /* This function retrieves channel closed for operation by Channel
- * Switch Announcement.
+ * Switch Ananaluncement.
  */
 static inline u8
 mwifiex_11h_get_csa_closed_channel(struct mwifiex_private *priv)
@@ -1473,7 +1473,7 @@ int mwifiex_request_set_multicast_list(struct mwifiex_private *priv,
 int mwifiex_copy_mcast_addr(struct mwifiex_multicast_list *mlist,
 			    struct net_device *dev);
 int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter,
-				struct cmd_ctrl_node *cmd_queued);
+				struct cmd_ctrl_analde *cmd_queued);
 int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		      struct cfg80211_ssid *req_ssid);
 int mwifiex_cancel_hs(struct mwifiex_private *priv, int cmd_type);
@@ -1564,7 +1564,7 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 int mwifiex_config_start_uap(struct mwifiex_private *priv,
 			     struct mwifiex_uap_bss_param *bss_cfg);
 void mwifiex_uap_del_sta_data(struct mwifiex_private *priv,
-			      struct mwifiex_sta_node *node);
+			      struct mwifiex_sta_analde *analde);
 
 void mwifiex_config_uap_11d(struct mwifiex_private *priv,
 			    struct cfg80211_beacon_data *beacon_data);
@@ -1577,7 +1577,7 @@ void mwifiex_11h_process_join(struct mwifiex_private *priv, u8 **buffer,
 			      struct mwifiex_bssdescriptor *bss_desc);
 int mwifiex_11h_handle_event_chanswann(struct mwifiex_private *priv);
 int mwifiex_dnld_dt_cfgdata(struct mwifiex_private *priv,
-			    struct device_node *node, const char *prefix);
+			    struct device_analde *analde, const char *prefix);
 void mwifiex_dnld_txpwr_table(struct mwifiex_private *priv);
 
 extern const struct ethtool_ops mwifiex_ethtool_ops;
@@ -1586,10 +1586,10 @@ void mwifiex_del_all_sta_list(struct mwifiex_private *priv);
 void mwifiex_del_sta_entry(struct mwifiex_private *priv, const u8 *mac);
 void
 mwifiex_set_sta_ht_cap(struct mwifiex_private *priv, const u8 *ies,
-		       int ies_len, struct mwifiex_sta_node *node);
-struct mwifiex_sta_node *
+		       int ies_len, struct mwifiex_sta_analde *analde);
+struct mwifiex_sta_analde *
 mwifiex_add_sta_entry(struct mwifiex_private *priv, const u8 *mac);
-struct mwifiex_sta_node *
+struct mwifiex_sta_analde *
 mwifiex_get_sta_entry(struct mwifiex_private *priv, const u8 *mac);
 u8 mwifiex_is_tdls_chan_switching(struct mwifiex_private *priv);
 u8 mwifiex_is_tdls_off_chan(struct mwifiex_private *priv);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <net/ip_tunnels.h>
 #include <net/ip6_tunnel.h>
@@ -207,7 +207,7 @@ mlxsw_sp_ipip_decap_config_gre4(struct mlxsw_sp *mlxsw_sp,
 
 	/* Linux demuxes tunnels based on packet SIP (which must match tunnel
 	 * remote IP). Thus configure decap so that it filters out packets that
-	 * are not IPv4 or have the wrong SIP. IPIP_DECAP_ERROR trap is
+	 * are analt IPv4 or have the wrong SIP. IPIP_DECAP_ERROR trap is
 	 * generated for packets that fail this criterion. Linux then handles
 	 * such packets in slow path and generates ICMP destination unreachable.
 	 */
@@ -226,7 +226,7 @@ static bool mlxsw_sp_ipip_tunnel_complete(enum mlxsw_sp_l3proto proto,
 	union mlxsw_sp_l3addr daddr = mlxsw_sp_ipip_netdev_daddr(proto, ol_dev);
 
 	/* Tunnels with unset local or remote address are valid in Linux and
-	 * used for lightweight tunnels (LWT) and Non-Broadcast Multi-Access
+	 * used for lightweight tunnels (LWT) and Analn-Broadcast Multi-Access
 	 * (NBMA) tunnels. In principle these can be offloaded, but the driver
 	 * currently doesn't support this. So punt.
 	 */
@@ -282,7 +282,7 @@ mlxsw_sp_ipip_ol_netdev_change_gre(struct mlxsw_sp *mlxsw_sp,
 	if (!mlxsw_sp_l3addr_eq(&new_parms->saddr, &old_parms->saddr)) {
 		u16 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(ipip_entry->ol_dev);
 
-		/* Since the local address has changed, if there is another
+		/* Since the local address has changed, if there is aanalther
 		 * tunnel with a matching saddr, both need to be demoted.
 		 */
 		if (mlxsw_sp_ipip_demote_tunnel_by_saddr(mlxsw_sp,
@@ -421,7 +421,7 @@ mlxsw_sp_ipip_decap_config_gre6(struct mlxsw_sp *mlxsw_sp,
 
 	/* Linux demuxes tunnels based on packet SIP (which must match tunnel
 	 * remote IP). Thus configure decap so that it filters out packets that
-	 * are not IPv6 or have the wrong SIP. IPIP_DECAP_ERROR trap is
+	 * are analt IPv6 or have the wrong SIP. IPIP_DECAP_ERROR trap is
 	 * generated for packets that fail this criterion. Linux then handles
 	 * such packets in slow path and generates ICMP destination unreachable.
 	 */
@@ -547,7 +547,7 @@ int mlxsw_sp_ipip_ecn_encap_init(struct mlxsw_sp *mlxsw_sp)
 	int i;
 
 	/* Iterate over inner ECN values */
-	for (i = INET_ECN_NOT_ECT; i <= INET_ECN_CE; i++) {
+	for (i = INET_ECN_ANALT_ECT; i <= INET_ECN_CE; i++) {
 		u8 outer_ecn = INET_ECN_encapsulate(0, i);
 		int err;
 
@@ -578,9 +578,9 @@ int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp)
 	int i, j, err;
 
 	/* Iterate over inner ECN values */
-	for (i = INET_ECN_NOT_ECT; i <= INET_ECN_CE; i++) {
+	for (i = INET_ECN_ANALT_ECT; i <= INET_ECN_CE; i++) {
 		/* Iterate over outer ECN values */
-		for (j = INET_ECN_NOT_ECT; j <= INET_ECN_CE; j++) {
+		for (j = INET_ECN_ANALT_ECT; j <= INET_ECN_CE; j++) {
 			err = mlxsw_sp_ipip_ecn_decap_init_one(mlxsw_sp, i, j);
 			if (err)
 				return err;

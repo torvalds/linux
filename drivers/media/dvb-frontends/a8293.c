@@ -12,7 +12,7 @@
 struct a8293_dev {
 	struct i2c_client *client;
 	u8 reg[2];
-	int volt_slew_nanos_per_mv;
+	int volt_slew_naanals_per_mv;
 };
 
 /*
@@ -23,7 +23,7 @@ struct a8293_dev {
 static int a8293_set_voltage_slew(struct a8293_dev *dev,
 				  struct i2c_client *client,
 				  enum fe_sec_voltage fe_sec_voltage,
-				  int min_nanos_per_mv)
+				  int min_naanals_per_mv)
 {
 	int ret;
 	u8 reg0, reg1;
@@ -100,7 +100,7 @@ static int a8293_set_voltage_slew(struct a8293_dev *dev,
 	if (this_volt_idx < new_volt_idx) {
 		while (this_volt_idx < new_volt_idx) {
 			int delta_mv = idx_to_mv[this_volt_idx+1] - idx_to_mv[this_volt_idx];
-			int min_wait_time = delta_mv * min_nanos_per_mv;
+			int min_wait_time = delta_mv * min_naanals_per_mv;
 
 			reg0 = idx_to_reg[this_volt_idx+1];
 			reg0 |= A8293_FLAG_ODT;
@@ -139,7 +139,7 @@ err:
 }
 
 
-static int a8293_set_voltage_noslew(struct dvb_frontend *fe,
+static int a8293_set_voltage_analslew(struct dvb_frontend *fe,
 				    enum fe_sec_voltage fe_sec_voltage)
 {
 	struct a8293_dev *dev = fe->sec_priv;
@@ -147,7 +147,7 @@ static int a8293_set_voltage_noslew(struct dvb_frontend *fe,
 	int ret;
 	u8 reg0, reg1;
 
-	dev_dbg(&client->dev, "set_voltage_noslew fe_sec_voltage=%d\n",
+	dev_dbg(&client->dev, "set_voltage_analslew fe_sec_voltage=%d\n",
 		fe_sec_voltage);
 
 	switch (fe_sec_voltage) {
@@ -195,17 +195,17 @@ static int a8293_set_voltage(struct dvb_frontend *fe,
 {
 	struct a8293_dev *dev = fe->sec_priv;
 	struct i2c_client *client = dev->client;
-	int volt_slew_nanos_per_mv = dev->volt_slew_nanos_per_mv;
+	int volt_slew_naanals_per_mv = dev->volt_slew_naanals_per_mv;
 
-	dev_dbg(&client->dev, "set_voltage volt_slew_nanos_per_mv=%d\n",
-		volt_slew_nanos_per_mv);
+	dev_dbg(&client->dev, "set_voltage volt_slew_naanals_per_mv=%d\n",
+		volt_slew_naanals_per_mv);
 
 	/* Use slew version if slew rate is set to a sane value */
-	if (volt_slew_nanos_per_mv > 0 && volt_slew_nanos_per_mv < 1600)
+	if (volt_slew_naanals_per_mv > 0 && volt_slew_naanals_per_mv < 1600)
 		a8293_set_voltage_slew(dev, client, fe_sec_voltage,
-				       volt_slew_nanos_per_mv);
+				       volt_slew_naanals_per_mv);
 	else
-		a8293_set_voltage_noslew(fe, fe_sec_voltage);
+		a8293_set_voltage_analslew(fe, fe_sec_voltage);
 
 	return 0;
 }
@@ -220,12 +220,12 @@ static int a8293_probe(struct i2c_client *client)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	dev->client = client;
-	dev->volt_slew_nanos_per_mv = pdata->volt_slew_nanos_per_mv;
+	dev->volt_slew_naanals_per_mv = pdata->volt_slew_naanals_per_mv;
 
 	/* check if the SEC is there */
 	ret = i2c_master_recv(client, buf, 2);

@@ -80,7 +80,7 @@ struct tps6586x_subdev_info {
 	int		id;
 	const char	*name;
 	void		*platform_data;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 };
 
 struct tps6586x_platform_data {
@@ -95,7 +95,7 @@ struct tps6586x_platform_data {
 };
 
 /*
- * NOTE: the functions below are not intended for use outside
+ * ANALTE: the functions below are analt intended for use outside
  * of the TPS6586X sub-device drivers
  */
 extern int tps6586x_write(struct device *dev, int reg, uint8_t val);

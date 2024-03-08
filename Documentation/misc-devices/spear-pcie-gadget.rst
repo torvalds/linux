@@ -25,21 +25,21 @@ Device Drivers
 
 purpose
 =======
-This driver has several nodes which can be read/written by configfs interface.
+This driver has several analdes which can be read/written by configfs interface.
 Its main purpose is to configure selected dual mode PCIe controller as device
 and then program its various registers to configure it as a particular device
 type. This driver can be used to show spear's PCIe device capability.
 
-Description of different nodes:
+Description of different analdes:
 ===============================
 
-read behavior of nodes:
+read behavior of analdes:
 -----------------------
 
 =============== ==============================================================
 link 		gives ltssm status.
 int_type 	type of supported interrupt
-no_of_msi 	zero if MSI is not enabled by host. A positive value is the
+anal_of_msi 	zero if MSI is analt enabled by host. A positive value is the
 		number of MSI vector granted.
 vendor_id	returns programmed vendor id (hex)
 device_id	returns programmed device id(hex)
@@ -49,15 +49,15 @@ bar0_rw_offset	returns offset of bar0 for which bar0_data will return value.
 bar0_data	returns data at bar0_rw_offset.
 =============== ==============================================================
 
-write behavior of nodes:
+write behavior of analdes:
 ------------------------
 
 =============== ================================================================
 link 		write UP to enable ltsmm DOWN to disable
 int_type	write interrupt type to be configured and (int_type could be
-		INTA, MSI or NO_INT). Select MSI only when you have programmed
-		no_of_msi node.
-no_of_msi	number of MSI vector needed.
+		INTA, MSI or ANAL_INT). Select MSI only when you have programmed
+		anal_of_msi analde.
+anal_of_msi	number of MSI vector needed.
 inta		write 1 to assert INTA and 0 to de-assert.
 send_msi	write MSI vector to be sent.
 vendor_id	write vendor id(hex) to be programmed.
@@ -72,7 +72,7 @@ bar0_rw_offset	write offset of bar0 for which	bar0_data will write value.
 bar0_data	write data to be written at bar0_rw_offset.
 =============== ================================================================
 
-Node programming example
+Analde programming example
 ========================
 
 Program all PCIe registers in such a way that when this device is connected
@@ -80,13 +80,13 @@ to the PCIe host, then host sees this device as 1MB RAM.
 
 ::
 
-    #mount -t configfs none /Config
+    #mount -t configfs analne /Config
 
 For nth PCIe Device Controller::
 
     # cd /config/pcie_gadget.n/
 
-Now you have all the nodes in this directory.
+Analw you have all the analdes in this directory.
 program vendor id as 0x104a::
 
     # echo 104A >> vendor_id
@@ -117,7 +117,7 @@ program interrupt type : INTA::
 
     # echo INTA >> int_type
 
-go for link up now::
+go for link up analw::
 
     # echo UP >> link
 
@@ -139,15 +139,15 @@ To de-assert INTA::
 
     # echo 0 >> inta
 
-if MSI is to be used as interrupt, program no of msi vector needed (say4)::
+if MSI is to be used as interrupt, program anal of msi vector needed (say4)::
 
-    # echo 4 >> no_of_msi
+    # echo 4 >> anal_of_msi
 
 select MSI as interrupt type::
 
     # echo MSI >> int_type
 
-go for link up now::
+go for link up analw::
 
     # echo UP >> link
 
@@ -155,12 +155,12 @@ wait till link is up::
 
     # cat link
 
-An application can repetitively read this node till link is found UP. It can
+An application can repetitively read this analde till link is found UP. It can
 sleep between two read.
 
 wait till msi is enabled::
 
-    # cat no_of_msi
+    # cat anal_of_msi
 
 Should return 4 (number of requested MSI vector)
 

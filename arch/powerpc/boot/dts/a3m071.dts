@@ -16,8 +16,8 @@
 &gpt0 { fsl,has-wdt; };
 
 / {
-	model = "anonymous,a3m071";
-	compatible = "anonymous,a3m071";
+	model = "aanalnymous,a3m071";
+	compatible = "aanalnymous,a3m071";
 
 	soc5200@f0000000 {
 		#address-cells = <1>;
@@ -125,7 +125,7 @@
 		};
 
 		fpga@3,0 {
-			compatible = "anonymous,a3m071-fpga";
+			compatible = "aanalnymous,a3m071-fpga";
 			reg = <3 0x0 0x00080000
 			       5 0x0 0x00010000>;
 			interrupts = <0 0 3>;  /* level low */

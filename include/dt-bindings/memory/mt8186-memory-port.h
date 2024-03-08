@@ -15,7 +15,7 @@
  * 0 ~ 4G; 4G ~ 8G; 8G ~ 12G; 12G ~ 16G, we could adjust these masters
  * locate in anyone region. BUT:
  * a) Make sure all the ports inside a larb are in one range.
- * b) The iova of any master can NOT cross the 4G/8G/12G boundary.
+ * b) The iova of any master can ANALT cross the 4G/8G/12G boundary.
  *
  * This is the suggested mapping in this SoC:
  *

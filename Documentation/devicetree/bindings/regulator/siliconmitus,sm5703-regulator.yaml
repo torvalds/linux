@@ -10,10 +10,10 @@ maintainers:
   - Markuss Broks <markuss.broks@gmail.com>
 
 description: |
-  SM5703 regulators node should be a sub node of the SM5703 MFD node. See SM5703 MFD
+  SM5703 regulators analde should be a sub analde of the SM5703 MFD analde. See SM5703 MFD
   bindings at Documentation/devicetree/bindings/mfd/siliconmitus,sm5703.yaml
-  Regulator nodes should be named as USBLDO_<number>, BUCK, VBUS, LDO_<number>.
-  The definition for each of these nodes is defined using the standard
+  Regulator analdes should be named as USBLDO_<number>, BUCK, VBUS, LDO_<number>.
+  The definition for each of these analdes is defined using the standard
   binding for regulators at Documentation/devicetree/bindings/regulator/regulator.txt.
 
 properties:

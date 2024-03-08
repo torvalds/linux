@@ -47,7 +47,7 @@ static int octep_oq_fill_ring_buffers(struct octep_oq *oq)
 		if (dma_mapping_error(oq->dev, desc_ring[i].buffer_ptr)) {
 			dev_err(oq->dev,
 				"OQ-%d buffer alloc: DMA mapping error!\n",
-				oq->q_no);
+				oq->q_anal);
 			put_page(page);
 			goto dma_map_err;
 		}
@@ -96,7 +96,7 @@ static int octep_oq_refill(struct octep_device *oct, struct octep_oq *oq)
 		if (dma_mapping_error(oq->dev, desc_ring[refill_idx].buffer_ptr)) {
 			dev_err(oq->dev,
 				"OQ-%d buffer refill: DMA mapping error!\n",
-				oq->q_no);
+				oq->q_anal);
 			put_page(page);
 			oq->stats.alloc_failures++;
 			break;
@@ -116,11 +116,11 @@ static int octep_oq_refill(struct octep_device *oct, struct octep_oq *oq)
  * octep_setup_oq() - Setup a Rx queue.
  *
  * @oct: Octeon device private data structure.
- * @q_no: Rx queue number to be setup.
+ * @q_anal: Rx queue number to be setup.
  *
  * Allocate resources for a Rx queue.
  */
-static int octep_setup_oq(struct octep_device *oct, int q_no)
+static int octep_setup_oq(struct octep_device *oct, int q_anal)
 {
 	struct octep_oq *oq;
 	u32 desc_ring_size;
@@ -128,12 +128,12 @@ static int octep_setup_oq(struct octep_device *oct, int q_no)
 	oq = vzalloc(sizeof(*oq));
 	if (!oq)
 		goto create_oq_fail;
-	oct->oq[q_no] = oq;
+	oct->oq[q_anal] = oq;
 
 	oq->octep_dev = oct;
 	oq->netdev = oct->netdev;
 	oq->dev = &oct->pdev->dev;
-	oq->q_no = q_no;
+	oq->q_anal = q_anal;
 	oq->max_count = CFG_GET_OQ_NUM_DESC(oct->conf);
 	oq->ring_size_mask = oq->max_count - 1;
 	oq->buffer_size = CFG_GET_OQ_BUF_SIZE(oct->conf);
@@ -154,14 +154,14 @@ static int octep_setup_oq(struct octep_device *oct, int q_no)
 
 	if (unlikely(!oq->desc_ring)) {
 		dev_err(oq->dev,
-			"Failed to allocate DMA memory for OQ-%d !!\n", q_no);
+			"Failed to allocate DMA memory for OQ-%d !!\n", q_anal);
 		goto desc_dma_alloc_err;
 	}
 
 	oq->buff_info = vcalloc(oq->max_count, OCTEP_OQ_RECVBUF_SIZE);
 	if (unlikely(!oq->buff_info)) {
 		dev_err(&oct->pdev->dev,
-			"Failed to allocate buffer info for OQ-%d\n", q_no);
+			"Failed to allocate buffer info for OQ-%d\n", q_anal);
 		goto buf_list_err;
 	}
 
@@ -169,7 +169,7 @@ static int octep_setup_oq(struct octep_device *oct, int q_no)
 		goto oq_fill_buff_err;
 
 	octep_oq_reset_indices(oq);
-	oct->hw_ops.setup_oq_regs(oct, q_no);
+	oct->hw_ops.setup_oq_regs(oct, q_anal);
 	oct->num_oqs++;
 
 	return 0;
@@ -183,7 +183,7 @@ buf_list_err:
 	oq->desc_ring = NULL;
 desc_dma_alloc_err:
 	vfree(oq);
-	oct->oq[q_no] = NULL;
+	oct->oq[q_anal] = NULL;
 create_oq_fail:
 	return -1;
 }
@@ -225,7 +225,7 @@ static void octep_oq_free_ring_buffers(struct octep_oq *oq)
 static int octep_free_oq(struct octep_oq *oq)
 {
 	struct octep_device *oct = oq->octep_dev;
-	int q_no = oq->q_no;
+	int q_anal = oq->q_anal;
 
 	octep_oq_free_ring_buffers(oq);
 
@@ -237,7 +237,7 @@ static int octep_free_oq(struct octep_oq *oq)
 				  oq->desc_ring, oq->desc_ring_dma);
 
 	vfree(oq);
-	oct->oq[q_no] = NULL;
+	oct->oq[q_anal] = NULL;
 	oct->num_oqs--;
 	return 0;
 }
@@ -324,7 +324,7 @@ static int octep_oq_check_hw_for_pkts(struct octep_device *oct,
 	/* Clear the hardware packets counter register if the rx queue is
 	 * being processed continuously with-in a single interrupt and
 	 * reached half its max value.
-	 * this counter is not cleared every time read, to save write cycles.
+	 * this counter is analt cleared every time read, to save write cycles.
 	 */
 	if (unlikely(pkt_count > 0xF0000000U)) {
 		writel(pkt_count, oq->pkts_sent_reg);
@@ -345,7 +345,7 @@ static int octep_oq_check_hw_for_pkts(struct octep_device *oct,
  *
  * Process the new packets in Rx queue.
  * Packets larger than single Rx buffer arrive in consecutive descriptors.
- * But, count returned by the API only accounts full packets, not fragments.
+ * But, count returned by the API only accounts full packets, analt fragments.
  *
  * Return: number of packets processed and pushed to stack.
  */
@@ -452,7 +452,7 @@ static int __octep_oq_process_rx(struct octep_device *oct,
 		    OCTEP_RX_CSUM_VERIFIED(rx_ol_flags))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = CHECKSUM_ANALNE;
 		napi_gro_receive(oq->napi, skb);
 	}
 
@@ -471,7 +471,7 @@ static int __octep_oq_process_rx(struct octep_device *oct,
  * @budget: max number of packets can be processed in one invocation.
  *
  * Check for newly received packets and process them.
- * Keeps checking for new packets until budget is used or no new packets seen.
+ * Keeps checking for new packets until budget is used or anal new packets seen.
  *
  * Return: number of packets processed.
  */

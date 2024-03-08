@@ -45,7 +45,7 @@ Contact:	Tri Vo <trong@android.com>
 Description:
 		This file contains the amount of time the wakeup source has
 		been continuously active, in milliseconds.  If the wakeup
-		source is not active, this file contains '0'.
+		source is analt active, this file contains '0'.
 
 What:		/sys/class/wakeup/.../total_time_ms
 Date:		June 2019
@@ -65,7 +65,7 @@ What:		/sys/class/wakeup/.../last_change_ms
 Date:		June 2019
 Contact:	Tri Vo <trong@android.com>
 Description:
-		This file contains the monotonic clock time when the wakeup
+		This file contains the moanaltonic clock time when the wakeup
 		source was touched last time, in milliseconds.
 
 What:		/sys/class/wakeup/.../prevent_suspend_time_ms

@@ -65,7 +65,7 @@
 /*
  * ISP2400:
  * Bilinear interpolation (HRT_GDC_BLI_MODE) is the supported method currently.
- * Bicubic interpolation (HRT_GDC_BCI_MODE) is not supported yet */
+ * Bicubic interpolation (HRT_GDC_BCI_MODE) is analt supported yet */
 #define DVS_GDC_INTERP_METHOD HRT_GDC_BLI_MODE
 
 struct ia_css_dvs_6axis_config *

@@ -6,7 +6,7 @@
 #include <linux/export.h>
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/irq.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -44,18 +44,18 @@ EXPORT_SYMBOL(of_iounmap);
  * PCI bus specific translator
  */
 
-static int of_bus_pci_match(struct device_node *np)
+static int of_bus_pci_match(struct device_analde *np)
 {
-	if (of_node_name_eq(np, "pci")) {
+	if (of_analde_name_eq(np, "pci")) {
 		const char *model = of_get_property(np, "model", NULL);
 
 		if (model && !strcmp(model, "SUNW,simba"))
 			return 0;
 
-		/* Do not do PCI specific frobbing if the
+		/* Do analt do PCI specific frobbing if the
 		 * PCI bridge lacks a ranges property.  We
 		 * want to pass it through up to the next
-		 * parent as-is, not with the PCI translate
+		 * parent as-is, analt with the PCI translate
 		 * method which chops off the top address cell.
 		 */
 		if (!of_property_present(np, "ranges"))
@@ -67,7 +67,7 @@ static int of_bus_pci_match(struct device_node *np)
 	return 0;
 }
 
-static int of_bus_simba_match(struct device_node *np)
+static int of_bus_simba_match(struct device_analde *np)
 {
 	const char *model = of_get_property(np, "model", NULL);
 
@@ -77,7 +77,7 @@ static int of_bus_simba_match(struct device_node *np)
 	/* Treat PCI busses lacking ranges property just like
 	 * simba.
 	 */
-	if (of_node_name_eq(np, "pci")) {
+	if (of_analde_name_eq(np, "pci")) {
 		if (!of_property_present(np, "ranges"))
 			return 1;
 	}
@@ -91,7 +91,7 @@ static int of_bus_simba_map(u32 *addr, const u32 *range,
 	return 0;
 }
 
-static void of_bus_pci_count_cells(struct device_node *np,
+static void of_bus_pci_count_cells(struct device_analde *np,
 				   int *addrc, int *sizec)
 {
 	if (addrc)
@@ -163,15 +163,15 @@ static unsigned long of_bus_pci_get_flags(const u32 *addr, unsigned long flags)
  * FHC/Central bus specific translator.
  *
  * This is just needed to hard-code the address and size cell
- * counts.  'fhc' and 'central' nodes lack the #address-cells and
+ * counts.  'fhc' and 'central' analdes lack the #address-cells and
  * #size-cells properties, and if you walk to the root on such
  * Enterprise boxes all you'll get is a #size-cells of 2 which is
- * not what we want to use.
+ * analt what we want to use.
  */
-static int of_bus_fhc_match(struct device_node *np)
+static int of_bus_fhc_match(struct device_analde *np)
 {
-	return of_node_name_eq(np, "fhc") ||
-		of_node_name_eq(np, "central");
+	return of_analde_name_eq(np, "fhc") ||
+		of_analde_name_eq(np, "central");
 }
 
 #define of_bus_fhc_count_cells of_bus_sbus_count_cells
@@ -228,7 +228,7 @@ static struct of_bus of_busses[] = {
 	},
 };
 
-static struct of_bus *of_match_bus(struct device_node *np)
+static struct of_bus *of_match_bus(struct device_analde *np)
 {
 	int i;
 
@@ -239,7 +239,7 @@ static struct of_bus *of_match_bus(struct device_node *np)
 	return NULL;
 }
 
-static int __init build_one_resource(struct device_node *parent,
+static int __init build_one_resource(struct device_analde *parent,
 				     struct of_bus *bus,
 				     struct of_bus *pbus,
 				     u32 *addr,
@@ -262,7 +262,7 @@ static int __init build_one_resource(struct device_node *parent,
 		return 0;
 	}
 
-	/* Now walk through the ranges */
+	/* Analw walk through the ranges */
 	rlen /= 4;
 	rone = na + pna + ns;
 	for (; rlen >= rone; rlen -= rone, ranges += rone) {
@@ -280,32 +280,32 @@ static int __init build_one_resource(struct device_node *parent,
 	return 1;
 }
 
-static int __init use_1to1_mapping(struct device_node *pp)
+static int __init use_1to1_mapping(struct device_analde *pp)
 {
 	/* If we have a ranges property in the parent, use it.  */
 	if (of_property_present(pp, "ranges"))
 		return 0;
 
-	/* If the parent is the dma node of an ISA bus, pass
+	/* If the parent is the dma analde of an ISA bus, pass
 	 * the translation up to the root.
 	 *
-	 * Some SBUS devices use intermediate nodes to express
+	 * Some SBUS devices use intermediate analdes to express
 	 * hierarchy within the device itself.  These aren't
-	 * real bus nodes, and don't have a 'ranges' property.
+	 * real bus analdes, and don't have a 'ranges' property.
 	 * But, we should still pass the translation work up
 	 * to the SBUS itself.
 	 */
-	if (of_node_name_eq(pp, "dma") ||
-	    of_node_name_eq(pp, "espdma") ||
-	    of_node_name_eq(pp, "ledma") ||
-	    of_node_name_eq(pp, "lebuffer"))
+	if (of_analde_name_eq(pp, "dma") ||
+	    of_analde_name_eq(pp, "espdma") ||
+	    of_analde_name_eq(pp, "ledma") ||
+	    of_analde_name_eq(pp, "lebuffer"))
 		return 0;
 
 	/* Similarly for all PCI bridges, if we get this far
 	 * it lacks a ranges property, and this will include
 	 * cases like Simba.
 	 */
-	if (of_node_name_eq(pp, "pci"))
+	if (of_analde_name_eq(pp, "pci"))
 		return 0;
 
 	return 1;
@@ -326,10 +326,10 @@ static void __init build_device_resources(struct platform_device *op,
 		return;
 
 	p_op = to_platform_device(parent);
-	bus = of_match_bus(p_op->dev.of_node);
-	bus->count_cells(op->dev.of_node, &na, &ns);
+	bus = of_match_bus(p_op->dev.of_analde);
+	bus->count_cells(op->dev.of_analde, &na, &ns);
 
-	preg = of_get_property(op->dev.of_node, bus->addr_prop_name, &num_reg);
+	preg = of_get_property(op->dev.of_analde, bus->addr_prop_name, &num_reg);
 	if (!preg || num_reg == 0)
 		return;
 
@@ -343,7 +343,7 @@ static void __init build_device_resources(struct platform_device *op,
 	if (num_reg > PROMREG_MAX) {
 		printk(KERN_WARNING "%pOF: Too many regs (%d), "
 		       "limiting to %d.\n",
-		       op->dev.of_node, num_reg, PROMREG_MAX);
+		       op->dev.of_analde, num_reg, PROMREG_MAX);
 		num_reg = PROMREG_MAX;
 	}
 
@@ -353,8 +353,8 @@ static void __init build_device_resources(struct platform_device *op,
 		struct resource *r = &op->resource[index];
 		u32 addr[OF_MAX_ADDR_CELLS];
 		const u32 *reg = (preg + (index * ((na + ns) * 4)));
-		struct device_node *dp = op->dev.of_node;
-		struct device_node *pp = p_op->dev.of_node;
+		struct device_analde *dp = op->dev.of_analde;
+		struct device_analde *pp = p_op->dev.of_analde;
 		struct of_bus *pbus, *dbus;
 		u64 size, result = OF_BAD_ADDR;
 		unsigned long flags;
@@ -402,7 +402,7 @@ static void __init build_device_resources(struct platform_device *op,
 
 		if (of_resource_verbose)
 			printk("%pOF reg[%d] -> %llx\n",
-			       op->dev.of_node, index,
+			       op->dev.of_analde, index,
 			       result);
 
 		if (result != OF_BAD_ADDR) {
@@ -413,16 +413,16 @@ static void __init build_device_resources(struct platform_device *op,
 			r->end = result + size - 1;
 			r->flags = flags;
 		}
-		r->name = op->dev.of_node->full_name;
+		r->name = op->dev.of_analde->full_name;
 	}
 }
 
-static struct device_node * __init
-apply_interrupt_map(struct device_node *dp, struct device_node *pp,
+static struct device_analde * __init
+apply_interrupt_map(struct device_analde *dp, struct device_analde *pp,
 		    const u32 *imap, int imlen, const u32 *imask,
 		    unsigned int *irq_p)
 {
-	struct device_node *cp;
+	struct device_analde *cp;
 	unsigned int irq = *irq_p;
 	struct of_bus *bus;
 	phandle handle;
@@ -456,9 +456,9 @@ apply_interrupt_map(struct device_node *dp, struct device_node *pp,
 	}
 	if (i == imlen) {
 		/* Psycho and Sabre PCI controllers can have 'interrupt-map'
-		 * properties that do not include the on-board device
+		 * properties that do analt include the on-board device
 		 * interrupts.  Instead, the device's 'interrupts' property
-		 * is already a fully specified INO value.
+		 * is already a fully specified IANAL value.
 		 *
 		 * Handle this by deciding that, if we didn't get a
 		 * match in the parent's 'interrupt-map', and the
@@ -472,13 +472,13 @@ apply_interrupt_map(struct device_node *dp, struct device_node *pp,
 	}
 
 	*irq_p = irq;
-	cp = of_find_node_by_phandle(handle);
+	cp = of_find_analde_by_phandle(handle);
 
 	return cp;
 }
 
-static unsigned int __init pci_irq_swizzle(struct device_node *dp,
-					   struct device_node *pp,
+static unsigned int __init pci_irq_swizzle(struct device_analde *dp,
+					   struct device_analde *pp,
 					   unsigned int irq)
 {
 	const struct linux_prom_pci_registers *regs;
@@ -535,8 +535,8 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 						struct device *parent,
 						unsigned int irq)
 {
-	struct device_node *dp = op->dev.of_node;
-	struct device_node *pp, *ip;
+	struct device_analde *dp = op->dev.of_analde;
+	struct device_analde *pp, *ip;
 	unsigned int orig_irq = irq;
 	int nid;
 
@@ -558,7 +558,7 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 	 * interrupt-map or bus specific translations, until we hit
 	 * an IRQ translator.
 	 *
-	 * If we hit a bus type or situation we cannot handle, we
+	 * If we hit a bus type or situation we cananalt handle, we
 	 * stop and assume that the original IRQ number was in a
 	 * format which has special meaning to it's immediate parent.
 	 */
@@ -571,7 +571,7 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 		imap = of_get_property(pp, "interrupt-map", &imlen);
 		imsk = of_get_property(pp, "interrupt-map-mask", NULL);
 		if (imap && imsk) {
-			struct device_node *iret;
+			struct device_analde *iret;
 			int this_orig_irq = irq;
 
 			iret = apply_interrupt_map(dp, pp,
@@ -580,7 +580,7 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 
 			if (of_irq_verbose)
 				printk("%pOF: Apply [%pOF:%x] imap --> [%pOF:%x]\n",
-				       op->dev.of_node,
+				       op->dev.of_analde,
 				       pp, this_orig_irq, iret, irq);
 
 			if (!iret)
@@ -591,14 +591,14 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 				break;
 			}
 		} else {
-			if (of_node_name_eq(pp, "pci")) {
+			if (of_analde_name_eq(pp, "pci")) {
 				unsigned int this_orig_irq = irq;
 
 				irq = pci_irq_swizzle(dp, pp, irq);
 				if (of_irq_verbose)
 					printk("%pOF: PCI swizzle [%pOF] "
 					       "%x --> %x\n",
-					       op->dev.of_node,
+					       op->dev.of_analde,
 					       pp, this_orig_irq,
 					       irq);
 
@@ -615,25 +615,25 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 	if (!ip)
 		return orig_irq;
 
-	irq = ip->irq_trans->irq_build(op->dev.of_node, irq,
+	irq = ip->irq_trans->irq_build(op->dev.of_analde, irq,
 				       ip->irq_trans->data);
 	if (of_irq_verbose)
 		printk("%pOF: Apply IRQ trans [%pOF] %x --> %x\n",
-		      op->dev.of_node, ip, orig_irq, irq);
+		      op->dev.of_analde, ip, orig_irq, irq);
 
 out:
-	nid = of_node_to_nid(dp);
+	nid = of_analde_to_nid(dp);
 	if (nid != -1) {
 		cpumask_t numa_mask;
 
-		cpumask_copy(&numa_mask, cpumask_of_node(nid));
+		cpumask_copy(&numa_mask, cpumask_of_analde(nid));
 		irq_set_affinity(irq, &numa_mask);
 	}
 
 	return irq;
 }
 
-static struct platform_device * __init scan_one_device(struct device_node *dp,
+static struct platform_device * __init scan_one_device(struct device_analde *dp,
 						 struct device *parent)
 {
 	struct platform_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
@@ -647,7 +647,7 @@ static struct platform_device * __init scan_one_device(struct device_node *dp,
 	sd = &op->dev.archdata;
 	sd->op = op;
 
-	op->dev.of_node = dp;
+	op->dev.of_analde = dp;
 
 	irq = of_get_property(dp, "interrupts", &len);
 	if (irq) {
@@ -679,7 +679,7 @@ static struct platform_device * __init scan_one_device(struct device_node *dp,
 	op->dev.dma_mask = &op->dev.coherent_dma_mask;
 
 	if (of_device_register(op)) {
-		printk("%pOF: Could not register of device.\n", dp);
+		printk("%pOF: Could analt register of device.\n", dp);
 		kfree(op);
 		op = NULL;
 	}
@@ -687,7 +687,7 @@ static struct platform_device * __init scan_one_device(struct device_node *dp,
 	return op;
 }
 
-static void __init scan_tree(struct device_node *dp, struct device *parent)
+static void __init scan_tree(struct device_analde *dp, struct device *parent)
 {
 	while (dp) {
 		struct platform_device *op = scan_one_device(dp, parent);
@@ -701,7 +701,7 @@ static void __init scan_tree(struct device_node *dp, struct device *parent)
 
 static int __init scan_of_devices(void)
 {
-	struct device_node *root = of_find_node_by_path("/");
+	struct device_analde *root = of_find_analde_by_path("/");
 	struct platform_device *parent;
 
 	parent = scan_one_device(root, NULL);

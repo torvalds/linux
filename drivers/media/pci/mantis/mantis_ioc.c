@@ -103,7 +103,7 @@ int mantis_stream_control(struct mantis_pci *mantis, enum mantis_stream_control 
 		mmwrite(reg, MANTIS_CONTROL);
 		break;
 	default:
-		dprintk(MANTIS_ERROR, 1, "Unknown MODE <%02x>", stream_ctl);
+		dprintk(MANTIS_ERROR, 1, "Unkanalwn MODE <%02x>", stream_ctl);
 		return -1;
 	}
 

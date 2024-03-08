@@ -10,7 +10,7 @@ config DEBUG_TLB_SANITY
 
 	  If unsure, say N.
 
-config LD_NO_RELAX
+config LD_ANAL_RELAX
 	bool "Disable linker relaxation"
 	default y
 	help

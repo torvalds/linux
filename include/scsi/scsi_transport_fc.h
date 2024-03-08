@@ -22,7 +22,7 @@ struct scsi_transport_template;
 /*
  * FC Port definitions - Following FC HBAAPI guidelines
  *
- * Note: Not all binary values for the different fields match HBAAPI.
+ * Analte: Analt all binary values for the different fields match HBAAPI.
  *  Instead, we use densely packed ordinal values or enums.
  *  We get away with this as we never present the actual binary values
  *  externally. For sysfs, we always present the string that describes
@@ -30,8 +30,8 @@ struct scsi_transport_template;
  *  to understand the values. The HBAAPI user-space library is free to
  *  convert the strings into the HBAAPI-specified binary values.
  *
- * Note: Not all HBAAPI-defined values are contained in the definitions
- *  below. Those not appropriate to an fc_host (e.g. FCP initiator) have
+ * Analte: Analt all HBAAPI-defined values are contained in the definitions
+ *  below. Those analt appropriate to an fc_host (e.g. FCP initiator) have
  *  been removed.
  */
 
@@ -40,13 +40,13 @@ struct scsi_transport_template;
  * (for the ascii descriptions).
  */
 enum fc_port_type {
-	FC_PORTTYPE_UNKNOWN,
+	FC_PORTTYPE_UNKANALWN,
 	FC_PORTTYPE_OTHER,
-	FC_PORTTYPE_NOTPRESENT,
+	FC_PORTTYPE_ANALTPRESENT,
 	FC_PORTTYPE_NPORT,		/* Attached to FPort */
 	FC_PORTTYPE_NLPORT,		/* (Public) Loop w/ FLPort */
 	FC_PORTTYPE_LPORT,		/* (Private) Loop w/o FLPort */
-	FC_PORTTYPE_PTP,		/* Point to Point w/ another NPort */
+	FC_PORTTYPE_PTP,		/* Point to Point w/ aanalther NPort */
 	FC_PORTTYPE_NPIV,		/* VPORT based on NPIV */
 };
 
@@ -56,13 +56,13 @@ enum fc_port_type {
  * (for the ascii descriptions).
  */
 enum fc_port_state {
-	FC_PORTSTATE_UNKNOWN,
-	FC_PORTSTATE_NOTPRESENT,
+	FC_PORTSTATE_UNKANALWN,
+	FC_PORTSTATE_ANALTPRESENT,
 	FC_PORTSTATE_ONLINE,
 	FC_PORTSTATE_OFFLINE,		/* User has taken Port Offline */
 	FC_PORTSTATE_BLOCKED,
 	FC_PORTSTATE_BYPASSED,
-	FC_PORTSTATE_DIAGNOSTICS,
+	FC_PORTSTATE_DIAGANALSTICS,
 	FC_PORTSTATE_LINKDOWN,
 	FC_PORTSTATE_ERROR,
 	FC_PORTSTATE_LOOPBACK,
@@ -76,13 +76,13 @@ enum fc_port_state {
  * scsi_transport_fc.c (for the ascii descriptions).
  */
 enum fc_vport_state {
-	FC_VPORT_UNKNOWN,
+	FC_VPORT_UNKANALWN,
 	FC_VPORT_ACTIVE,
 	FC_VPORT_DISABLED,
 	FC_VPORT_LINKDOWN,
 	FC_VPORT_INITIALIZING,
-	FC_VPORT_NO_FABRIC_SUPP,
-	FC_VPORT_NO_FABRIC_RSCS,
+	FC_VPORT_ANAL_FABRIC_SUPP,
+	FC_VPORT_ANAL_FABRIC_RSCS,
 	FC_VPORT_FABRIC_LOGOUT,
 	FC_VPORT_FABRIC_REJ_WWN,
 	FC_VPORT_FAILED,
@@ -92,7 +92,7 @@ enum fc_vport_state {
 
 /*
  * FC Classes of Service
- * Note: values are not enumerated, as they can be "or'd" together
+ * Analte: values are analt enumerated, as they can be "or'd" together
  * for reporting (e.g. report supported_classes). If you alter this list,
  * you also need to alter scsi_transport_fc.c (for the ascii descriptions).
  */
@@ -105,11 +105,11 @@ enum fc_vport_state {
 
 /*
  * FC Port Speeds
- * Note: values are not enumerated, as they can be "or'd" together
+ * Analte: values are analt enumerated, as they can be "or'd" together
  * for reporting (e.g. report supported_speeds). If you alter this list,
  * you also need to alter scsi_transport_fc.c (for the ascii descriptions).
  */
-#define FC_PORTSPEED_UNKNOWN		0 /* Unknown - transceiver
+#define FC_PORTSPEED_UNKANALWN		0 /* Unkanalwn - transceiver
 					     incapable of reporting */
 #define FC_PORTSPEED_1GBIT		1
 #define FC_PORTSPEED_2GBIT		2
@@ -126,14 +126,14 @@ enum fc_vport_state {
 #define FC_PORTSPEED_64GBIT		0x1000
 #define FC_PORTSPEED_128GBIT		0x2000
 #define FC_PORTSPEED_256GBIT		0x4000
-#define FC_PORTSPEED_NOT_NEGOTIATED	(1 << 15) /* Speed not established */
+#define FC_PORTSPEED_ANALT_NEGOTIATED	(1 << 15) /* Speed analt established */
 
 /*
  * fc_tgtid_binding_type: If you alter this, you also need to alter
  * scsi_transport_fc.c (for the ascii descriptions).
  */
 enum fc_tgtid_binding_type  {
-	FC_TGTID_BIND_NONE,
+	FC_TGTID_BIND_ANALNE,
 	FC_TGTID_BIND_BY_WWPN,
 	FC_TGTID_BIND_BY_WWNN,
 	FC_TGTID_BIND_BY_ID,
@@ -141,11 +141,11 @@ enum fc_tgtid_binding_type  {
 
 /*
  * FC Port Roles
- * Note: values are not enumerated, as they can be "or'd" together
+ * Analte: values are analt enumerated, as they can be "or'd" together
  * for reporting (e.g. report roles). If you alter this list,
  * you also need to alter scsi_transport_fc.c (for the ascii descriptions).
  */
-#define FC_PORT_ROLE_UNKNOWN			0x00
+#define FC_PORT_ROLE_UNKANALWN			0x00
 #define FC_PORT_ROLE_FCP_TARGET			0x01
 #define FC_PORT_ROLE_FCP_INITIATOR		0x02
 #define FC_PORT_ROLE_IP_PORT			0x04
@@ -155,7 +155,7 @@ enum fc_tgtid_binding_type  {
 #define FC_PORT_ROLE_NVME_DISCOVERY		0x40
 
 /* The following are for compatibility */
-#define FC_RPORT_ROLE_UNKNOWN			FC_PORT_ROLE_UNKNOWN
+#define FC_RPORT_ROLE_UNKANALWN			FC_PORT_ROLE_UNKANALWN
 #define FC_RPORT_ROLE_FCP_TARGET		FC_PORT_ROLE_FCP_TARGET
 #define FC_RPORT_ROLE_FCP_INITIATOR		FC_PORT_ROLE_FCP_INITIATOR
 #define FC_RPORT_ROLE_IP_PORT			FC_PORT_ROLE_IP_PORT
@@ -170,16 +170,16 @@ struct device_attribute dev_attr_vport_##_name = 	\
  * fc_vport_identifiers: This set of data contains all elements
  * to uniquely identify and instantiate a FC virtual port.
  *
- * Notes:
+ * Analtes:
  *   symbolic_name: The driver is to append the symbolic_name string data
- *      to the symbolic_node_name data that it generates by default.
+ *      to the symbolic_analde_name data that it generates by default.
  *      the resulting combination should then be registered with the switch.
  *      It is expected that things like Xen may stuff a VM title into
  *      this field.
  */
 #define FC_VPORT_SYMBOLIC_NAMELEN		64
 struct fc_vport_identifiers {
-	u64 node_name;
+	u64 analde_name;
 	u64 port_name;
 	u32 roles;
 	bool disable;
@@ -204,7 +204,7 @@ struct fc_vport_identifiers {
  *
  * --
  *
- * Fixed attributes are not expected to change. The driver is
+ * Fixed attributes are analt expected to change. The driver is
  * expected to set these values after receiving the fc_vport structure
  * via the vport_create() call from the transport.
  * The transport fully manages all get functions w/o driver interaction.
@@ -224,7 +224,7 @@ struct fc_vport {
 	/* Private (Transport-managed) Attributes */
 	enum fc_vport_state vport_state;
 	enum fc_vport_state vport_last_state;
-	u64 node_name;
+	u64 analde_name;
 	u64 port_name;
 	u32 roles;
 	u32 vport_id;		/* Admin Identifier for the vport */
@@ -263,14 +263,14 @@ struct fc_vport {
 
 
 /* Error return codes for vport_create() callback */
-#define VPCERR_UNSUPPORTED		-ENOSYS		/* no driver/adapter
+#define VPCERR_UNSUPPORTED		-EANALSYS		/* anal driver/adapter
 							   support */
-#define VPCERR_BAD_WWN			-ENOTUNIQ	/* driver validation
+#define VPCERR_BAD_WWN			-EANALTUNIQ	/* driver validation
 							   of WWNs failed */
-#define VPCERR_NO_FABRIC_SUPP		-EOPNOTSUPP	/* Fabric connection
+#define VPCERR_ANAL_FABRIC_SUPP		-EOPANALTSUPP	/* Fabric connection
 							   is loop or the
 							   Fabric Port does
-							   not support NPIV */
+							   analt support NPIV */
 
 /*
  * fc_rport_identifiers: This set of data contains all elements
@@ -280,26 +280,26 @@ struct fc_vport {
  * target id bindings.
  */
 struct fc_rport_identifiers {
-	u64 node_name;
+	u64 analde_name;
 	u64 port_name;
 	u32 port_id;
 	u32 roles;
 };
 
 /*
- * Fabric Performance Impact Notification Statistics
+ * Fabric Performance Impact Analtification Statistics
  */
 struct fc_fpin_stats {
 	/* Delivery */
 	u64 dn;
-	u64 dn_unknown;
+	u64 dn_unkanalwn;
 	u64 dn_timeout;
 	u64 dn_unable_to_route;
 	u64 dn_device_specific;
 
 	/* Link Integrity */
 	u64 li;
-	u64 li_failure_unknown;
+	u64 li_failure_unkanalwn;
 	u64 li_link_failure_count;
 	u64 li_loss_of_sync_count;
 	u64 li_loss_of_signals_count;
@@ -326,8 +326,8 @@ struct device_attribute dev_attr_rport_##_name = 	\
 /*
  * FC Remote Port Attributes
  *
- * This structure exists for each remote FC port that a LLDD notifies
- * the subsystem of.  A remote FC port may or may not be a SCSI Target,
+ * This structure exists for each remote FC port that a LLDD analtifies
+ * the subsystem of.  A remote FC port may or may analt be a SCSI Target,
  * also be a SCSI initiator, IP endpoint, etc. As such, the remote
  * port is considered a separate entity, independent of "role" (such
  * as scsi target).
@@ -338,7 +338,7 @@ struct device_attribute dev_attr_rport_##_name = 	\
  * attributes that are determinable by the local port (aka Host)
  * are contained.
  *
- * Fixed attributes are not expected to change. The driver is
+ * Fixed attributes are analt expected to change. The driver is
  * expected to set these values after successfully calling
  * fc_remote_port_add(). The transport fully manages all get functions
  * w/o driver interaction.
@@ -360,11 +360,11 @@ struct fc_rport {	/* aka fc_starget_attrs */
 	struct fc_fpin_stats fpin_stats;
 
 	/* Private (Transport-managed) Attributes */
-	u64 node_name;
+	u64 analde_name;
 	u64 port_name;
 	u32 port_id;
 	u32 roles;
-	enum fc_port_state port_state;	/* Will only be ONLINE or UNKNOWN */
+	enum fc_port_state port_state;	/* Will only be ONLINE or UNKANALWN */
 	u32 scsi_target_id;
 	u32 fast_io_fail_tmo;
 
@@ -412,13 +412,13 @@ struct fc_rport {	/* aka fc_starget_attrs */
 
 struct fc_starget_attrs {	/* aka fc_target_attrs */
 	/* Dynamic Attributes */
-	u64 node_name;
+	u64 analde_name;
 	u64 port_name;
 	u32 port_id;
 };
 
-#define fc_starget_node_name(x) \
-	(((struct fc_starget_attrs *)&(x)->starget_data)->node_name)
+#define fc_starget_analde_name(x) \
+	(((struct fc_starget_attrs *)&(x)->starget_data)->analde_name)
 #define fc_starget_port_name(x)	\
 	(((struct fc_starget_attrs *)&(x)->starget_data)->port_name)
 #define fc_starget_port_id(x) \
@@ -441,7 +441,7 @@ struct fc_host_statistics {
 	u64 rx_frames;
 	u64 rx_words;
 	u64 lip_count;
-	u64 nos_count;
+	u64 anals_count;
 	u64 error_frames;
 	u64 dumped_frames;
 	u64 link_failure_count;
@@ -462,12 +462,12 @@ struct fc_host_statistics {
 	u64 fcp_frame_alloc_failures;	/* fcp frame allocation failures */
 
 	/* fc exches statistics */
-	u64 fc_no_free_exch;		/* no free exch memory */
-	u64 fc_no_free_exch_xid;	/* no free exch id */
-	u64 fc_xid_not_found;		/* exch not found for a response */
+	u64 fc_anal_free_exch;		/* anal free exch memory */
+	u64 fc_anal_free_exch_xid;	/* anal free exch id */
+	u64 fc_xid_analt_found;		/* exch analt found for a response */
 	u64 fc_xid_busy;		/* exch exist for new a request */
-	u64 fc_seq_not_found;		/* seq is not found for exchange */
-	u64 fc_non_bls_resp;		/* a non BLS response frame with
+	u64 fc_seq_analt_found;		/* seq is analt found for exchange */
+	u64 fc_analn_bls_resp;		/* a analn BLS response frame with
 					   a sequence responder in new exch */
 	/* Host Congestion Signals */
 	u64 cn_sig_warn;
@@ -490,11 +490,11 @@ enum fc_host_event_code  {
 	FCH_EVT_LIPRESET		= 0x4,
 	FCH_EVT_RSCN			= 0x5,
 	FCH_EVT_ADAPTER_CHANGE		= 0x103,
-	FCH_EVT_PORT_UNKNOWN		= 0x200,
+	FCH_EVT_PORT_UNKANALWN		= 0x200,
 	FCH_EVT_PORT_OFFLINE		= 0x201,
 	FCH_EVT_PORT_ONLINE		= 0x202,
 	FCH_EVT_PORT_FABRIC		= 0x204,
-	FCH_EVT_LINK_UNKNOWN		= 0x500,
+	FCH_EVT_LINK_UNKANALWN		= 0x500,
 	FCH_EVT_LINK_FPIN		= 0x501,
 	FCH_EVT_LINK_FPIN_ACK		= 0x502,
 	FCH_EVT_VENDOR_UNIQUE		= 0xffff,
@@ -505,9 +505,9 @@ enum fc_host_event_code  {
  * FC Local Port (Host) Attributes
  *
  * Attributes are based on HBAAPI V2.0 definitions.
- * Note: OSDeviceName is determined by user-space library
+ * Analte: OSDeviceName is determined by user-space library
  *
- * Fixed attributes are not expected to change. The driver is
+ * Fixed attributes are analt expected to change. The driver is
  * expected to set these values after successfully calling scsi_add_host().
  * The transport fully manages all get functions w/o driver interaction.
  *
@@ -526,7 +526,7 @@ enum fc_host_event_code  {
 
 struct fc_host_attrs {
 	/* Fixed Attributes */
-	u64 node_name;
+	u64 analde_name;
 	u64 port_name;
 	u64 permanent_port_name;
 	u32 supported_classes;
@@ -590,8 +590,8 @@ struct fc_host_attrs {
 #define shost_to_fc_host(x) \
 	((struct fc_host_attrs *)(x)->shost_data)
 
-#define fc_host_node_name(x) \
-	(((struct fc_host_attrs *)(x)->shost_data)->node_name)
+#define fc_host_analde_name(x) \
+	(((struct fc_host_attrs *)(x)->shost_data)->analde_name)
 #define fc_host_port_name(x)	\
 	(((struct fc_host_attrs *)(x)->shost_data)->port_name)
 #define fc_host_permanent_port_name(x)	\
@@ -682,7 +682,7 @@ struct fc_function_template {
 	void    (*get_rport_dev_loss_tmo)(struct fc_rport *);
 	void	(*set_rport_dev_loss_tmo)(struct fc_rport *, u32);
 
-	void	(*get_starget_node_name)(struct scsi_target *);
+	void	(*get_starget_analde_name)(struct scsi_target *);
 	void	(*get_starget_port_name)(struct scsi_target *);
 	void 	(*get_starget_port_id)(struct scsi_target *);
 
@@ -720,7 +720,7 @@ struct fc_function_template {
 	/*
 	 * The driver sets these to tell the transport class it
 	 * wants the attributes displayed in sysfs.  If the show_ flag
-	 * is not set, the attribute will be private to the transport
+	 * is analt set, the attribute will be private to the transport
 	 * class
 	 */
 
@@ -734,12 +734,12 @@ struct fc_function_template {
 	 * These should all be "1" if the driver uses the remote port
 	 * add/delete functions (so attributes reflect rport values).
 	 */
-	unsigned long	show_starget_node_name:1;
+	unsigned long	show_starget_analde_name:1;
 	unsigned long	show_starget_port_name:1;
 	unsigned long	show_starget_port_id:1;
 
 	/* host fixed attributes */
-	unsigned long	show_host_node_name:1;
+	unsigned long	show_host_analde_name:1;
 	unsigned long	show_host_port_name:1;
 	unsigned long	show_host_permanent_port_name:1;
 	unsigned long	show_host_supported_classes:1;
@@ -788,7 +788,7 @@ fc_remote_port_chkready(struct fc_rport *rport)
 		else if (rport->flags & FC_RPORT_DEVLOSS_PENDING)
 			result = DID_IMM_RETRY << 16;
 		else
-			result = DID_NO_CONNECT << 16;
+			result = DID_ANAL_CONNECT << 16;
 		break;
 	case FC_PORTSTATE_BLOCKED:
 		if (rport->flags & FC_RPORT_FAST_FAIL_TIMEDOUT)
@@ -797,7 +797,7 @@ fc_remote_port_chkready(struct fc_rport *rport)
 			result = DID_IMM_RETRY << 16;
 		break;
 	default:
-		result = DID_NO_CONNECT << 16;
+		result = DID_ANAL_CONNECT << 16;
 		break;
 	}
 	return result;
@@ -827,7 +827,7 @@ static inline void u64_to_wwn(u64 inm, u8 *wwn)
 static inline void
 fc_vport_set_state(struct fc_vport *vport, enum fc_vport_state new_state)
 {
-	if ((new_state != FC_VPORT_UNKNOWN) &&
+	if ((new_state != FC_VPORT_UNKANALWN) &&
 	    (new_state != FC_VPORT_INITIALIZING))
 		vport->vport_last_state = vport->vport_state;
 	vport->vport_state = new_state;
@@ -851,14 +851,14 @@ struct fc_rport *fc_find_rport_by_wwpn(struct Scsi_Host *shost, u64 wwpn);
 void fc_host_post_fc_event(struct Scsi_Host *shost, u32 event_number,
 		enum fc_host_event_code event_code,
 		u32 data_len, char *data_buf, u64 vendor_id);
-	/* Note: when specifying vendor_id to fc_host_post_vendor_event()
+	/* Analte: when specifying vendor_id to fc_host_post_vendor_event()
 	 *   or fc_host_post_fc_event(), be sure to read the Vendor Type
 	 *   and ID formatting requirements specified in scsi_netlink.h
-	 * Note: when calling fc_host_post_fc_event(), vendor_id may be
+	 * Analte: when calling fc_host_post_fc_event(), vendor_id may be
 	 *   specified as 0.
 	 */
 void fc_host_fpin_rcv(struct Scsi_Host *shost, u32 fpin_len, char *fpin_buf,
-		u8 event_acknowledge);
+		u8 event_ackanalwledge);
 struct fc_vport *fc_vport_create(struct Scsi_Host *shost, int channel,
 		struct fc_vport_identifiers *);
 int fc_vport_terminate(struct fc_vport *vport);

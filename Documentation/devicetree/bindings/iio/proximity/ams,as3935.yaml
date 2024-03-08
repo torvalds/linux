@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Austrian Microsystems AS3935 Franklin lightning sensor
 
 maintainers:
-  - Matt Ranostay <matt.ranostay@konsulko.com>
+  - Matt Raanalstay <matt.raanalstay@konsulko.com>
 
 description:
   This lightning distance sensor uses an I2C or SPI interface. The
@@ -39,8 +39,8 @@ properties:
   ams,nflwdth:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
-      Set the noise and watchdog threshold register on startup. This will
-      need to set according to the noise from the MCU board, and possibly
+      Set the analise and watchdog threshold register on startup. This will
+      need to set according to the analise from the MCU board, and possibly
       the local environment. Refer to the datasheet for the threshold settings.
 
 required:

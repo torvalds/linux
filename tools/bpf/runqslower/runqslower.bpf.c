@@ -12,7 +12,7 @@ const volatile pid_t targ_pid = 0;
 
 struct {
 	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, u64);
 } start SEC(".maps");

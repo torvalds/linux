@@ -2653,7 +2653,7 @@ static int aspeed_g6_sig_expr_set(struct aspeed_pinmux_data *ctx,
 		bool is_strap;
 
 		if (!ctx->maps[desc->ip])
-			return -ENODEV;
+			return -EANALDEV;
 
 		WARN_ON(desc->ip != ASPEED_IP_SCU);
 		is_strap = desc->reg == SCU500 || desc->reg == SCU510;
@@ -2741,7 +2741,7 @@ static const struct pinctrl_ops aspeed_g6_pinctrl_ops = {
 	.get_group_name = aspeed_pinctrl_get_group_name,
 	.get_group_pins = aspeed_pinctrl_get_group_pins,
 	.pin_dbg_show = aspeed_pinctrl_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 

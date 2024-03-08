@@ -3,7 +3,7 @@
  * NetChip 2280 high/full speed USB device controller.
  * Unlike many such controllers, this one talks PCI.
  *
- * Copyright (C) 2002 NetChip Technology, Inc. (http://www.netchip.com)
+ * Copyright (C) 2002 NetChip Techanallogy, Inc. (http://www.netchip.com)
  * Copyright (C) 2003 David Brownell
  */
 
@@ -189,7 +189,7 @@ struct net2280_regs {
 	u32		idxdata;
 	u32		fifoctl;
 #define     PCI_BASE2_RANGE                                     16
-#define     IGNORE_FIFO_AVAILABILITY                            3
+#define     IGANALRE_FIFO_AVAILABILITY                            3
 #define     PCI_BASE2_SELECT                                    2
 #define     FIFO_CONFIGURATION_SELECT                           0
 	u32		_unused2;
@@ -197,7 +197,7 @@ struct net2280_regs {
 	u32		memaddr;
 #define     START                                               28
 #define     DIRECTION                                           27
-#define     FIFO_DIAGNOSTIC_SELECT                              24
+#define     FIFO_DIAGANALSTIC_SELECT                              24
 #define     MEMORY_ADDRESS                                      0
 	u32		memdata0;
 	u32		memdata1;

@@ -125,7 +125,7 @@ void hdmi_wp_video_stop(struct hdmi_wp_data *wp)
 			return;
 	}
 
-	DSSERR("no HDMI FRAMEDONE when disabling output\n");
+	DSSERR("anal HDMI FRAMEDONE when disabling output\n");
 }
 
 void hdmi_wp_video_config_format(struct hdmi_wp_data *wp,

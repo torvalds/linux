@@ -24,8 +24,8 @@
  * Traits of this clock:
  * prepare - clk_(un)prepare only ensures parent is (un)prepared
  * enable - clk_enable and clk_disable are functional & control gpio
- * rate - inherits rate from parent.  No clk_set_rate support
- * parent - fixed parent.  No clk_set_parent support
+ * rate - inherits rate from parent.  Anal clk_set_rate support
+ * parent - fixed parent.  Anal clk_set_parent support
  */
 
 /**
@@ -110,7 +110,7 @@ static const struct clk_ops clk_sleeping_gpio_gate_ops = {
  * DOC: basic clock multiplexer which can be controlled with a gpio output
  * Traits of this clock:
  * prepare - clk_prepare only ensures that parents are prepared
- * rate - rate is only affected by parent switching.  No clk_set_rate support
+ * rate - rate is only affected by parent switching.  Anal clk_set_rate support
  * parent - parent is adjustable through clk_set_parent
  */
 
@@ -151,9 +151,9 @@ static struct clk_hw *clk_register_gpio(struct device *dev, u8 num_parents,
 
 	clk_gpio = devm_kzalloc(dev, sizeof(*clk_gpio),	GFP_KERNEL);
 	if (!clk_gpio)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	init.name = dev->of_node->name;
+	init.name = dev->of_analde->name;
 	init.ops = clk_gpio_ops;
 	init.parent_data = gpio_parent_data;
 	init.num_parents = num_parents;
@@ -193,7 +193,7 @@ static struct clk_hw *clk_hw_register_gpio_mux(struct device *dev,
 static int gpio_clk_driver_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	const char *gpio_name;
 	unsigned int num_parents;
 	struct gpio_desc *gpiod;
@@ -201,9 +201,9 @@ static int gpio_clk_driver_probe(struct platform_device *pdev)
 	bool is_mux;
 	int ret;
 
-	is_mux = of_device_is_compatible(node, "gpio-mux-clock");
+	is_mux = of_device_is_compatible(analde, "gpio-mux-clock");
 
-	num_parents = of_clk_get_parent_count(node);
+	num_parents = of_clk_get_parent_count(analde);
 	if (is_mux && num_parents != 2) {
 		dev_err(dev, "mux-clock must have 2 parents\n");
 		return -EINVAL;
@@ -214,11 +214,11 @@ static int gpio_clk_driver_probe(struct platform_device *pdev)
 	if (IS_ERR(gpiod)) {
 		ret = PTR_ERR(gpiod);
 		if (ret == -EPROBE_DEFER)
-			pr_debug("%pOFn: %s: GPIOs not yet available, retry later\n",
-					node, __func__);
+			pr_debug("%pOFn: %s: GPIOs analt yet available, retry later\n",
+					analde, __func__);
 		else
 			pr_err("%pOFn: %s: Can't get '%s' named GPIO property\n",
-					node, __func__,
+					analde, __func__,
 					gpio_name);
 		return ret;
 	}

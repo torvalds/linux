@@ -4,8 +4,8 @@
 #include "omap2420-n8x0-common.dtsi"
 
 / {
-	model = "Nokia N810";
-	compatible = "nokia,n810", "nokia,n8x0", "ti,omap2420", "ti,omap2";
+	model = "Analkia N810";
+	compatible = "analkia,n810", "analkia,n8x0", "ti,omap2420", "ti,omap2";
 
 	vio_ape: vio_ape {
 		compatible = "regulator-fixed";

@@ -2,8 +2,8 @@
 
 This is a standalone 10/100 MBit Ethernet controller with SPI interface.
 
-For each device connected to a SPI bus, define a child node within
-the SPI master node.
+For each device connected to a SPI bus, define a child analde within
+the SPI master analde.
 
 Required properties:
 - compatible: Should be one of the following strings:
@@ -45,6 +45,6 @@ Example (for Raspberry Pi with pin control stuff for GPIO irq):
 	eth1_pins: eth1_pins {
 		brcm,pins = <25>;
 		brcm,function = <0>; /* in */
-		brcm,pull = <0>; /* none */
+		brcm,pull = <0>; /* analne */
 	};
 };

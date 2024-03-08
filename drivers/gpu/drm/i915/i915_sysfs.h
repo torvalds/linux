@@ -9,7 +9,7 @@
 struct device;
 struct drm_i915_private;
 
-struct drm_i915_private *kdev_minor_to_i915(struct device *kdev);
+struct drm_i915_private *kdev_mianalr_to_i915(struct device *kdev);
 
 void i915_setup_sysfs(struct drm_i915_private *i915);
 void i915_teardown_sysfs(struct drm_i915_private *i915);

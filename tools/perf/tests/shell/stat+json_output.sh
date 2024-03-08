@@ -27,26 +27,26 @@ trap_cleanup() {
 }
 trap trap_cleanup EXIT TERM INT
 
-# Return true if perf_event_paranoid is > $1 and not running as root.
-function ParanoidAndNotRoot()
+# Return true if perf_event_paraanalid is > $1 and analt running as root.
+function ParaanalidAndAnaltRoot()
 {
-	 [ "$(id -u)" != 0 ] && [ "$(cat /proc/sys/kernel/perf_event_paranoid)" -gt $1 ]
+	 [ "$(id -u)" != 0 ] && [ "$(cat /proc/sys/kernel/perf_event_paraanalid)" -gt $1 ]
 }
 
-check_no_args()
+check_anal_args()
 {
-	echo -n "Checking json output: no args "
+	echo -n "Checking json output: anal args "
 	perf stat -j -o "${stat_output}" true
-	$PYTHON $pythonchecker --no-args --file "${stat_output}"
+	$PYTHON $pythonchecker --anal-args --file "${stat_output}"
 	echo "[Success]"
 }
 
 check_system_wide()
 {
 	echo -n "Checking json output: system wide "
-	if ParanoidAndNotRoot 0
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoia and not root"
+		echo "[Skip] paraanalia and analt root"
 		return
 	fi
 	perf stat -j -a -o "${stat_output}" true
@@ -54,16 +54,16 @@ check_system_wide()
 	echo "[Success]"
 }
 
-check_system_wide_no_aggr()
+check_system_wide_anal_aggr()
 {
-	echo -n "Checking json output: system wide no aggregation "
-	if ParanoidAndNotRoot 0
+	echo -n "Checking json output: system wide anal aggregation "
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoia and not root"
+		echo "[Skip] paraanalia and analt root"
 		return
 	fi
-	perf stat -j -A -a --no-merge -o "${stat_output}" true
-	$PYTHON $pythonchecker --system-wide-no-aggr --file "${stat_output}"
+	perf stat -j -A -a --anal-merge -o "${stat_output}" true
+	$PYTHON $pythonchecker --system-wide-anal-aggr --file "${stat_output}"
 	echo "[Success]"
 }
 
@@ -87,9 +87,9 @@ check_event()
 check_per_core()
 {
 	echo -n "Checking json output: per core "
-	if ParanoidAndNotRoot 0
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoia and not root"
+		echo "[Skip] paraanalia and analt root"
 		return
 	fi
 	perf stat -j --per-core -a -o "${stat_output}" true
@@ -100,9 +100,9 @@ check_per_core()
 check_per_thread()
 {
 	echo -n "Checking json output: per thread "
-	if ParanoidAndNotRoot 0
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoia and not root"
+		echo "[Skip] paraanalia and analt root"
 		return
 	fi
 	perf stat -j --per-thread -a -o "${stat_output}" true
@@ -113,9 +113,9 @@ check_per_thread()
 check_per_cache_instance()
 {
 	echo -n "Checking json output: per cache_instance "
-	if ParanoidAndNotRoot 0
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoia and not root"
+		echo "[Skip] paraanalia and analt root"
 		return
 	fi
 	perf stat -j --per-cache -a true 2>&1 | $PYTHON $pythonchecker --per-cache
@@ -125,9 +125,9 @@ check_per_cache_instance()
 check_per_die()
 {
 	echo -n "Checking json output: per die "
-	if ParanoidAndNotRoot 0
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoia and not root"
+		echo "[Skip] paraanalia and analt root"
 		return
 	fi
 	perf stat -j --per-die -a -o "${stat_output}" true
@@ -135,25 +135,25 @@ check_per_die()
 	echo "[Success]"
 }
 
-check_per_node()
+check_per_analde()
 {
-	echo -n "Checking json output: per node "
-	if ParanoidAndNotRoot 0
+	echo -n "Checking json output: per analde "
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoia and not root"
+		echo "[Skip] paraanalia and analt root"
 		return
 	fi
-	perf stat -j --per-node -a -o "${stat_output}" true
-	$PYTHON $pythonchecker --per-node --file "${stat_output}"
+	perf stat -j --per-analde -a -o "${stat_output}" true
+	$PYTHON $pythonchecker --per-analde --file "${stat_output}"
 	echo "[Success]"
 }
 
 check_per_socket()
 {
 	echo -n "Checking json output: per socket "
-	if ParanoidAndNotRoot 0
+	if ParaanalidAndAnaltRoot 0
 	then
-		echo "[Skip] paranoia and not root"
+		echo "[Skip] paraanalia and analt root"
 		return
 	fi
 	perf stat -j --per-socket -a -o "${stat_output}" true
@@ -162,7 +162,7 @@ check_per_socket()
 }
 
 # The perf stat options for per-socket, per-core, per-die
-# and -A ( no_aggr mode ) uses the info fetched from this
+# and -A ( anal_aggr mode ) uses the info fetched from this
 # directory: "/sys/devices/system/cpu/cpu*/topology". For
 # example, socket value is fetched from "physical_package_id"
 # file in topology directory.
@@ -178,7 +178,7 @@ FILE_NAME="physical_package_id"
 
 check_for_topology()
 {
-	if ! ParanoidAndNotRoot 0
+	if ! ParaanalidAndAnaltRoot 0
 	then
 		socket_file=`ls $FILE_LOC/$FILE_NAME | head -n 1`
 		[ -z $socket_file ] && return 0
@@ -189,21 +189,21 @@ check_for_topology()
 }
 
 check_for_topology
-check_no_args
+check_anal_args
 check_system_wide
 check_interval
 check_event
 check_per_thread
-check_per_node
+check_per_analde
 if [ $skip_test -ne 1 ]
 then
-	check_system_wide_no_aggr
+	check_system_wide_anal_aggr
 	check_per_core
 	check_per_cache_instance
 	check_per_die
 	check_per_socket
 else
-	echo "[Skip] Skipping tests for system_wide_no_aggr, per_core, per_die and per_socket since socket id exposed via topology is invalid"
+	echo "[Skip] Skipping tests for system_wide_anal_aggr, per_core, per_die and per_socket since socket id exposed via topology is invalid"
 fi
 cleanup
 exit 0

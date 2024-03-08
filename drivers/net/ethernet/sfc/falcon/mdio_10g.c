@@ -34,7 +34,7 @@ int ef4_mdio_reset_mmd(struct ef4_nic *port, int mmd,
 	u32 ctrl;
 
 	/* Catch callers passing values in the wrong units (or just silly) */
-	EF4_BUG_ON_PARANOID(spins * spintime >= 5000);
+	EF4_BUG_ON_PARAANALID(spins * spintime >= 5000);
 
 	ef4_mdio_write(port, mmd, MDIO_CTRL1, MDIO_CTRL1_RESET);
 	/* Wait for the reset bit to clear. */
@@ -57,7 +57,7 @@ static int ef4_mdio_check_mmd(struct ef4_nic *efx, int mmd)
 		status = ef4_mdio_read(efx, mmd, MDIO_STAT2);
 		if ((status & MDIO_STAT2_DEVPRST) != MDIO_STAT2_DEVPRST_VAL) {
 			netif_err(efx, hw, efx->net_dev,
-				  "PHY MMD %d not responding.\n", mmd);
+				  "PHY MMD %d analt responding.\n", mmd);
 			return -EIO;
 		}
 	}
@@ -103,7 +103,7 @@ int ef4_mdio_wait_reset_mmds(struct ef4_nic *efx, unsigned int mmd_mask)
 	}
 	if (in_reset != 0) {
 		netif_err(efx, hw, efx->net_dev,
-			  "not all MMDs came out of reset in time."
+			  "analt all MMDs came out of reset in time."
 			  " MMDs still in reset: %x\n", in_reset);
 		rc = -ETIMEDOUT;
 	}
@@ -132,9 +132,9 @@ int ef4_mdio_check_mmds(struct ef4_nic *efx, unsigned int mmd_mask)
 	devices = devs1 | (devs2 << 16);
 	if ((devices & mmd_mask) != mmd_mask) {
 		netif_err(efx, hw, efx->net_dev,
-			  "required MMDs not present: got %x, wanted %x\n",
+			  "required MMDs analt present: got %x, wanted %x\n",
 			  devices, mmd_mask);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	netif_vdbg(efx, hw, efx->net_dev, "Devices present: %x\n", devices);
 
@@ -321,7 +321,7 @@ int ef4_mdio_test_alive(struct ef4_nic *efx)
 	if ((physid1 == 0x0000) || (physid1 == 0xffff) ||
 	    (physid2 == 0x0000) || (physid2 == 0xffff)) {
 		netif_err(efx, hw, efx->net_dev,
-			  "no MDIO PHY present with ID %d\n", efx->mdio.prtad);
+			  "anal MDIO PHY present with ID %d\n", efx->mdio.prtad);
 		rc = -EINVAL;
 	} else {
 		rc = ef4_mdio_check_mmds(efx, efx->mdio.mmds);

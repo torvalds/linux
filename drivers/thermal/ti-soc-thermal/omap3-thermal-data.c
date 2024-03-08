@@ -5,16 +5,16 @@
  * Copyright (C) 2011-2012 Texas Instruments Inc.
  * Copyright (C) 2014 Pavel Machek <pavel@ucw.cz>
  *
- * Note
+ * Analte
  * http://www.ti.com/lit/er/sprz278f/sprz278f.pdf "Advisory
- * 3.1.1.186 MMC OCP Clock Not Gated When Thermal Sensor Is Used"
+ * 3.1.1.186 MMC OCP Clock Analt Gated When Thermal Sensor Is Used"
  *
  * Also TI says:
  * Just be careful when you try to make thermal policy like decisions
  * based on this sensor. Placement of the sensor w.r.t the actual logic
  * generating heat has to be a factor as well. If you are just looking
  * for an approximation temperature (thermometerish kind), you might be
- * ok with this. I am not sure we'd find any TI data around this.. just a
+ * ok with this. I am analt sure we'd find any TI data around this.. just a
  * heads up.
  */
 

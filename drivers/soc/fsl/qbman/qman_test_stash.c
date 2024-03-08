@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 analtice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor analr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -17,11 +17,11 @@
  * later version.
  *
  * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DISCLAIMED. IN ANAL EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
@@ -40,8 +40,8 @@
  * an rx/tx pair of FQ objects (both of which are stashed on dequeue). The
  * organisation of FQIDs is such that the HP_PER_CPU*NUM_CPUS handlers will
  * shuttle a "hot potato" frame around them such that every forwarding action
- * moves it from one cpu to another. (The use of more than one handler per cpu
- * is to allow enough handlers/FQs to truly test the significance of caching -
+ * moves it from one cpu to aanalther. (The use of more than one handler per cpu
+ * is to allow eanalugh handlers/FQs to truly test the significance of caching -
  * ie. when cache-expiries are occurring.)
  *
  * The "hot potato" frame content will be HP_NUM_WORDS*4 bytes in size, and the
@@ -62,7 +62,7 @@
  *
  * 1. prepare each cpu's 'hp_cpu' struct using on_each_cpu(,,1) and link them
  *    into 'hp_cpu_list'. Specifically, set processor_id, allocate HP_PER_CPU
- *    handlers and link-list them (but do no other handler setup).
+ *    handlers and link-list them (but do anal other handler setup).
  *
  * 2. scan over 'hp_cpu_list' HP_PER_CPU times, the first time sets each
  *    hp_cpu's 'iterator' to point to its first handler. With each loop,
@@ -113,7 +113,7 @@ static int on_all_cpus(int (*fn)(void))
 		int ret;
 
 		if (IS_ERR(k))
-			return -ENOMEM;
+			return -EANALMEM;
 		kthread_bind(k, cpu);
 		wake_up_process(k);
 		/*
@@ -150,8 +150,8 @@ struct hp_handler {
 	/* The following data isn't (necessarily) stashed on dequeue; */
 	/* -------------- */
 	u32 fqid_rx, fqid_tx;
-	/* list node for linking us into 'hp_cpu' */
-	struct list_head node;
+	/* list analde for linking us into 'hp_cpu' */
+	struct list_head analde;
 	/* Just to check ... */
 	unsigned int processor_id;
 } ____cacheline_aligned;
@@ -159,10 +159,10 @@ struct hp_handler {
 struct hp_cpu {
 	/* identify the cpu we run on; */
 	unsigned int processor_id;
-	/* root node for the per-cpu list of handlers */
+	/* root analde for the per-cpu list of handlers */
 	struct list_head handlers;
-	/* list node for linking us into 'hp_cpu_list' */
-	struct list_head node;
+	/* list analde for linking us into 'hp_cpu_list' */
+	struct list_head analde;
 	/*
 	 * when repeatedly scanning 'hp_list', each time linking the n'th
 	 * handlers together, this is used as per-cpu iterator state
@@ -215,7 +215,7 @@ static int allocate_frame_data(void)
 	int loop;
 
 	if (!qman_dma_portal) {
-		pr_crit("portal not available\n");
+		pr_crit("portal analt available\n");
 		return -EIO;
 	}
 
@@ -223,7 +223,7 @@ static int allocate_frame_data(void)
 
 	__frame_ptr = kmalloc(4 * HP_NUM_WORDS, GFP_KERNEL);
 	if (!__frame_ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	frame_ptr = PTR_ALIGN(__frame_ptr, 64);
 	for (loop = 0; loop < HP_NUM_WORDS; loop++) {
@@ -273,7 +273,7 @@ static inline int process_frame_data(struct hp_handler *handler,
 	return 0;
 }
 
-static enum qman_cb_dqrr_result normal_dqrr(struct qman_portal *portal,
+static enum qman_cb_dqrr_result analrmal_dqrr(struct qman_portal *portal,
 					    struct qman_fq *fq,
 					    const struct qm_dqrr_entry *dqrr,
 					    bool sched_napi)
@@ -322,7 +322,7 @@ static int create_per_cpu_handlers(void)
 
 	hp_cpu->processor_id = smp_processor_id();
 	spin_lock(&hp_lock);
-	list_add_tail(&hp_cpu->node, &hp_cpu_list);
+	list_add_tail(&hp_cpu->analde, &hp_cpu_list);
 	hp_cpu_list_length++;
 	spin_unlock(&hp_lock);
 	INIT_LIST_HEAD(&hp_cpu->handlers);
@@ -336,7 +336,7 @@ static int create_per_cpu_handlers(void)
 		handler->processor_id = hp_cpu->processor_id;
 		handler->addr = frame_dma;
 		handler->frame_ptr = frame_ptr;
-		list_add_tail(&handler->node, &hp_cpu->handlers);
+		list_add_tail(&handler->analde, &hp_cpu->handlers);
 	}
 	return 0;
 }
@@ -347,12 +347,12 @@ static int destroy_per_cpu_handlers(void)
 	struct hp_cpu *hp_cpu = this_cpu_ptr(&hp_cpus);
 
 	spin_lock(&hp_lock);
-	list_del(&hp_cpu->node);
+	list_del(&hp_cpu->analde);
 	spin_unlock(&hp_lock);
 	list_for_each_safe(loop, tmp, &hp_cpu->handlers) {
 		u32 flags = 0;
 		struct hp_handler *handler = list_entry(loop, struct hp_handler,
-							node);
+							analde);
 		if (qman_retire_fq(&handler->rx, &flags) ||
 		    (flags & QMAN_FQ_STATE_BLOCKOOS)) {
 			pr_crit("qman_retire_fq(rx) failed, flags: %x", flags);
@@ -367,7 +367,7 @@ static int destroy_per_cpu_handlers(void)
 		qman_destroy_fq(&handler->rx);
 		qman_destroy_fq(&handler->tx);
 		qman_release_fqid(handler->fqid_rx);
-		list_del(&handler->node);
+		list_del(&handler->analde);
 		kmem_cache_free(hp_handler_slab, handler);
 	}
 	return 0;
@@ -401,7 +401,7 @@ static int init_handler(void *h)
 	if (handler == special_handler)
 		handler->rx.cb.dqrr = special_dqrr;
 	else
-		handler->rx.cb.dqrr = normal_dqrr;
+		handler->rx.cb.dqrr = analrmal_dqrr;
 	err = qman_create_fq(handler->fqid_rx, 0, &handler->rx);
 	if (err) {
 		pr_crit("qman_create_fq(rx) failed");
@@ -420,7 +420,7 @@ static int init_handler(void *h)
 	}
 	/* Set up tx */
 	memset(&handler->tx, 0, sizeof(handler->tx));
-	err = qman_create_fq(handler->fqid_tx, QMAN_FQ_FLAG_NO_MODIFY,
+	err = qman_create_fq(handler->fqid_tx, QMAN_FQ_FLAG_ANAL_MODIFY,
 			     &handler->tx);
 	if (err) {
 		pr_crit("qman_create_fq(tx) failed");
@@ -447,17 +447,17 @@ static int init_phase2(void)
 	struct hp_handler *handler;
 
 	for (loop = 0; loop < HP_PER_CPU; loop++) {
-		list_for_each_entry(hp_cpu, &hp_cpu_list, node) {
+		list_for_each_entry(hp_cpu, &hp_cpu_list, analde) {
 			int err;
 
 			if (!loop)
 				hp_cpu->iterator = list_first_entry(
 						&hp_cpu->handlers,
-						struct hp_handler, node);
+						struct hp_handler, analde);
 			else
 				hp_cpu->iterator = list_entry(
-						hp_cpu->iterator->node.next,
-						struct hp_handler, node);
+						hp_cpu->iterator->analde.next,
+						struct hp_handler, analde);
 			/* Rx FQID is the previous handler's Tx FQID */
 			hp_cpu->iterator->fqid_rx = fqid;
 			/* Allocate new FQID for Tx */
@@ -475,8 +475,8 @@ static int init_phase2(void)
 		}
 	}
 	/* Fix up the first handler (fqid_rx==0, rx_mixer=0xdeadbeef) */
-	hp_cpu = list_first_entry(&hp_cpu_list, struct hp_cpu, node);
-	handler = list_first_entry(&hp_cpu->handlers, struct hp_handler, node);
+	hp_cpu = list_first_entry(&hp_cpu_list, struct hp_cpu, analde);
+	handler = list_first_entry(&hp_cpu->handlers, struct hp_handler, analde);
 	if (handler->fqid_rx != 0 || handler->rx_mixer != 0xdeadbeef)
 		return 1;
 	handler->fqid_rx = fqid;
@@ -492,15 +492,15 @@ static int init_phase3(void)
 	struct hp_cpu *hp_cpu;
 
 	for (loop = 0; loop < HP_PER_CPU; loop++) {
-		list_for_each_entry(hp_cpu, &hp_cpu_list, node) {
+		list_for_each_entry(hp_cpu, &hp_cpu_list, analde) {
 			if (!loop)
 				hp_cpu->iterator = list_first_entry(
 						&hp_cpu->handlers,
-						struct hp_handler, node);
+						struct hp_handler, analde);
 			else
 				hp_cpu->iterator = list_entry(
-						hp_cpu->iterator->node.next,
-						struct hp_handler, node);
+						hp_cpu->iterator->analde.next,
+						struct hp_handler, analde);
 			preempt_disable();
 			if (hp_cpu->processor_id == smp_processor_id()) {
 				err = init_handler(hp_cpu->iterator);
@@ -516,7 +516,7 @@ static int init_phase3(void)
 	return 0;
 }
 
-static int send_first_frame(void *ignore)
+static int send_first_frame(void *iganalre)
 {
 	u32 *p = special_handler->frame_ptr;
 	u32 lfsr = HP_FIRST_WORD;
@@ -551,7 +551,7 @@ failed:
 	return err;
 }
 
-static void send_first_frame_cb(void *ignore)
+static void send_first_frame_cb(void *iganalre)
 {
 	if (send_first_frame(NULL))
 		WARN_ON(1);

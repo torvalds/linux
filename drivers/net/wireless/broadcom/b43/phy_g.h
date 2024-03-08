@@ -11,7 +11,7 @@
 #define B43_PHY_PGACTL			B43_PHY_CCK(0x15)	/* PGA control */
 #define  B43_PHY_PGACTL_LPF		0x1000	/* Low pass filter (?) */
 #define  B43_PHY_PGACTL_LOWBANDW	0x0040	/* Low bandwidth flag */
-#define  B43_PHY_PGACTL_UNKNOWN		0xEFA0
+#define  B43_PHY_PGACTL_UNKANALWN		0xEFA0
 #define B43_PHY_FBCTL1			B43_PHY_CCK(0x18)	/* Frequency bandwidth control 1 */
 #define B43_PHY_ITSSI			B43_PHY_CCK(0x29)	/* Idle TSSI */
 #define B43_PHY_LO_LEAKAGE		B43_PHY_CCK(0x2D)	/* Measured LO leakage */
@@ -37,7 +37,7 @@
 #define  B43_PHY_RFOVERVAL_LNA_SHIFT	12
 #define  B43_PHY_RFOVERVAL_PGA		0x0F00
 #define  B43_PHY_RFOVERVAL_PGA_SHIFT	8
-#define  B43_PHY_RFOVERVAL_UNK		0x0010	/* Unknown, always set. */
+#define  B43_PHY_RFOVERVAL_UNK		0x0010	/* Unkanalwn, always set. */
 #define  B43_PHY_RFOVERVAL_TRSWRX	0x00E0
 #define  B43_PHY_RFOVERVAL_BW		0x0003	/* Bandwidth flags */
 #define   B43_PHY_RFOVERVAL_BW_LPF	0x0001	/* Low Pass Filter */
@@ -189,7 +189,7 @@ struct b43_phy_g {
 	 * write on the next table access, if possible. */
 	u16 ofdmtab_addr; /* The address currently set in hardware. */
 	enum { /* The last data flow direction. */
-		B43_OFDMTAB_DIRECTION_UNKNOWN = 0,
+		B43_OFDMTAB_DIRECTION_UNKANALWN = 0,
 		B43_OFDMTAB_DIRECTION_READ,
 		B43_OFDMTAB_DIRECTION_WRITE,
 	} ofdmtab_addr_direction;

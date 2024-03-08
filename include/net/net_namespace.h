@@ -41,7 +41,7 @@
 #include <linux/ns_common.h>
 #include <linux/idr.h>
 #include <linux/skbuff.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/xarray.h>
 
 struct user_namespace;
@@ -60,7 +60,7 @@ struct bpf_prog;
 
 struct net {
 	/* First cache line can be often dirtied.
-	 * Do not place here read-mostly fields.
+	 * Do analt place here read-mostly fields.
 	 */
 	refcount_t		passive;	/* To decide when the network
 						 * namespace should be freed.
@@ -82,7 +82,7 @@ struct net {
 						 * or to unregister pernet ops
 						 * (pernet_ops_rwsem write locked).
 						 */
-	struct llist_node	cleanup_list;	/* namespaces on death row */
+	struct llist_analde	cleanup_list;	/* namespaces on death row */
 
 #ifdef CONFIG_KEYS
 	struct key_tag		*key_domain;	/* Key domain of operation tag */
@@ -93,7 +93,7 @@ struct net {
 
 	struct ns_common	ns;
 	struct ref_tracker_dir  refcnt_tracker;
-	struct ref_tracker_dir  notrefcnt_tracker; /* tracker for objects not
+	struct ref_tracker_dir  analtrefcnt_tracker; /* tracker for objects analt
 						    * refcounted against netns
 						    */
 	struct list_head 	dev_base_head;
@@ -112,9 +112,9 @@ struct net {
 	struct hlist_head 	*dev_name_head;
 	struct hlist_head	*dev_index_head;
 	struct xarray		dev_by_index;
-	struct raw_notifier_head	netdev_chain;
+	struct raw_analtifier_head	netdev_chain;
 
-	/* Note that @hash_mix can be read millions times per second,
+	/* Analte that @hash_mix can be read millions times per second,
 	 * it is critical that it is on a read_mostly cache line.
 	 */
 	u32			hash_mix;
@@ -161,7 +161,7 @@ struct net {
 	/* Used to store attached BPF programs */
 	struct netns_bpf	bpf;
 
-	/* Note : following structs are cache line aligned */
+	/* Analte : following structs are cache line aligned */
 #ifdef CONFIG_XFRM
 	struct netns_xfrm	xfrm;
 #endif
@@ -263,12 +263,12 @@ static inline struct net *get_net(struct net *net)
 
 static inline struct net *maybe_get_net(struct net *net)
 {
-	/* Used when we know struct net exists but we
+	/* Used when we kanalw struct net exists but we
 	 * aren't guaranteed a previous reference count
 	 * exists.  If the reference count is zero this
 	 * function fails and returns NULL.
 	 */
-	if (!refcount_inc_not_zero(&net->ns.count))
+	if (!refcount_inc_analt_zero(&net->ns.count))
 		net = NULL;
 	return net;
 }
@@ -331,7 +331,7 @@ static inline void __netns_tracker_alloc(struct net *net,
 {
 #ifdef CONFIG_NET_NS_REFCNT_TRACKER
 	ref_tracker_alloc(refcounted ? &net->refcnt_tracker :
-				       &net->notrefcnt_tracker,
+				       &net->analtrefcnt_tracker,
 			  tracker, gfp);
 #endif
 }
@@ -348,7 +348,7 @@ static inline void __netns_tracker_free(struct net *net,
 {
 #ifdef CONFIG_NET_NS_REFCNT_TRACKER
        ref_tracker_free(refcounted ? &net->refcnt_tracker :
-				     &net->notrefcnt_tracker, tracker);
+				     &net->analtrefcnt_tracker, tracker);
 #endif
 }
 
@@ -442,7 +442,7 @@ struct pernet_operations {
 	 * instead of separate synchronize_rcu() for every net.
 	 * Please, avoid synchronize_rcu() at all, where it's possible.
 	 *
-	 * Note that a combination of pre_exit() and exit() can
+	 * Analte that a combination of pre_exit() and exit() can
 	 * be used, since a synchronize_rcu() is guaranteed between
 	 * the calls.
 	 */
@@ -460,11 +460,11 @@ struct pernet_operations {
  * otherwise use pernet subsys operations.
  *
  * Network interfaces need to be removed from a dying netns _before_
- * subsys notifiers can be called, as most of the network code cleanup
- * (which is done from subsys notifiers) runs with the assumption that
- * dev_remove_pack has been called so no new packets will arrive during
+ * subsys analtifiers can be called, as most of the network code cleanup
+ * (which is done from subsys analtifiers) runs with the assumption that
+ * dev_remove_pack has been called so anal new packets will arrive during
  * and after the cleanup functions have been called.  dev_remove_pack
- * is not per namespace so instead the guarantee of no more packets
+ * is analt per namespace so instead the guarantee of anal more packets
  * arriving in a network namespace is provided by ensuring that all
  * network devices and all sockets have left the network namespace
  * before the cleanup methods are called.

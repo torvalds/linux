@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include "dr_types.h"
 #include "dr_ste.h"
@@ -14,13 +14,13 @@ enum dr_action_domain {
 
 enum dr_action_valid_state {
 	DR_ACTION_STATE_ERR,
-	DR_ACTION_STATE_NO_ACTION,
+	DR_ACTION_STATE_ANAL_ACTION,
 	DR_ACTION_STATE_ENCAP,
 	DR_ACTION_STATE_DECAP,
 	DR_ACTION_STATE_MODIFY_HDR,
 	DR_ACTION_STATE_POP_VLAN,
 	DR_ACTION_STATE_PUSH_VLAN,
-	DR_ACTION_STATE_NON_TERM,
+	DR_ACTION_STATE_ANALN_TERM,
 	DR_ACTION_STATE_TERM,
 	DR_ACTION_STATE_ASO,
 	DR_ACTION_STATE_MAX,
@@ -45,7 +45,7 @@ static const char * const action_type_to_str[] = {
 	[DR_ACTION_TYP_REMOVE_HDR] = "DR_ACTION_TYP_REMOVE_HDR",
 	[DR_ACTION_TYP_ASO_FLOW_METER] = "DR_ACTION_TYP_ASO_FLOW_METER",
 	[DR_ACTION_TYP_RANGE] = "DR_ACTION_TYP_RANGE",
-	[DR_ACTION_TYP_MAX] = "DR_ACTION_UNKNOWN",
+	[DR_ACTION_TYP_MAX] = "DR_ACTION_UNKANALWN",
 };
 
 static const char *dr_action_id_to_str(enum mlx5dr_action_type action_id)
@@ -65,14 +65,14 @@ static bool mlx5dr_action_supp_fwd_fdb_multi_ft(struct mlx5_core_dev *dev)
 static const enum dr_action_valid_state
 next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] = {
 	[DR_ACTION_DOMAIN_NIC_INGRESS] = {
-		[DR_ACTION_STATE_NO_ACTION] = {
+		[DR_ACTION_STATE_ANAL_ACTION] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_QP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
-			[DR_ACTION_TYP_TAG]		= DR_ACTION_STATE_NON_TERM,
-			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
+			[DR_ACTION_TYP_TAG]		= DR_ACTION_STATE_ANALN_TERM,
+			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_ANALN_TERM,
 			[DR_ACTION_TYP_TNL_L2_TO_L2]	= DR_ACTION_STATE_DECAP,
 			[DR_ACTION_TYP_TNL_L3_TO_L2]	= DR_ACTION_STATE_DECAP,
 			[DR_ACTION_TYP_L2_TO_TNL_L2]	= DR_ACTION_STATE_ENCAP,
@@ -151,14 +151,14 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 			[DR_ACTION_TYP_L2_TO_TNL_L3]	= DR_ACTION_STATE_ENCAP,
 			[DR_ACTION_TYP_ASO_FLOW_METER]	= DR_ACTION_STATE_ASO,
 		},
-		[DR_ACTION_STATE_NON_TERM] = {
+		[DR_ACTION_STATE_ANALN_TERM] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_QP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
-			[DR_ACTION_TYP_TAG]		= DR_ACTION_STATE_NON_TERM,
-			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
+			[DR_ACTION_TYP_TAG]		= DR_ACTION_STATE_ANALN_TERM,
+			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_ANALN_TERM,
 			[DR_ACTION_TYP_TNL_L2_TO_L2]	= DR_ACTION_STATE_DECAP,
 			[DR_ACTION_TYP_TNL_L3_TO_L2]	= DR_ACTION_STATE_DECAP,
 			[DR_ACTION_TYP_L2_TO_TNL_L2]	= DR_ACTION_STATE_ENCAP,
@@ -182,12 +182,12 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		},
 	},
 	[DR_ACTION_DOMAIN_NIC_EGRESS] = {
-		[DR_ACTION_STATE_NO_ACTION] = {
+		[DR_ACTION_STATE_ANAL_ACTION] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
-			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
+			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_ANALN_TERM,
 			[DR_ACTION_TYP_L2_TO_TNL_L2]	= DR_ACTION_STATE_ENCAP,
 			[DR_ACTION_TYP_L2_TO_TNL_L3]	= DR_ACTION_STATE_ENCAP,
 			[DR_ACTION_TYP_INSERT_HDR]	= DR_ACTION_STATE_ENCAP,
@@ -250,12 +250,12 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 			[DR_ACTION_TYP_INSERT_HDR]	= DR_ACTION_STATE_ENCAP,
 			[DR_ACTION_TYP_ASO_FLOW_METER]	= DR_ACTION_STATE_ASO,
 		},
-		[DR_ACTION_STATE_NON_TERM] = {
+		[DR_ACTION_STATE_ANALN_TERM] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
-			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
+			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_ANALN_TERM,
 			[DR_ACTION_TYP_L2_TO_TNL_L2]	= DR_ACTION_STATE_ENCAP,
 			[DR_ACTION_TYP_L2_TO_TNL_L3]	= DR_ACTION_STATE_ENCAP,
 			[DR_ACTION_TYP_INSERT_HDR]	= DR_ACTION_STATE_ENCAP,
@@ -280,12 +280,12 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		},
 	},
 	[DR_ACTION_DOMAIN_FDB_INGRESS] = {
-		[DR_ACTION_STATE_NO_ACTION] = {
+		[DR_ACTION_STATE_ANAL_ACTION] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
-			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
+			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_ANALN_TERM,
 			[DR_ACTION_TYP_TNL_L2_TO_L2]	= DR_ACTION_STATE_DECAP,
 			[DR_ACTION_TYP_TNL_L3_TO_L2]	= DR_ACTION_STATE_DECAP,
 			[DR_ACTION_TYP_L2_TO_TNL_L2]	= DR_ACTION_STATE_ENCAP,
@@ -364,12 +364,12 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 			[DR_ACTION_TYP_INSERT_HDR]	= DR_ACTION_STATE_ENCAP,
 			[DR_ACTION_TYP_ASO_FLOW_METER]	= DR_ACTION_STATE_ASO,
 		},
-		[DR_ACTION_STATE_NON_TERM] = {
+		[DR_ACTION_STATE_ANALN_TERM] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
-			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
+			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_ANALN_TERM,
 			[DR_ACTION_TYP_TNL_L2_TO_L2]	= DR_ACTION_STATE_DECAP,
 			[DR_ACTION_TYP_TNL_L3_TO_L2]	= DR_ACTION_STATE_DECAP,
 			[DR_ACTION_TYP_L2_TO_TNL_L2]	= DR_ACTION_STATE_ENCAP,
@@ -394,12 +394,12 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 		},
 	},
 	[DR_ACTION_DOMAIN_FDB_EGRESS] = {
-		[DR_ACTION_STATE_NO_ACTION] = {
+		[DR_ACTION_STATE_ANAL_ACTION] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
-			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
+			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_ANALN_TERM,
 			[DR_ACTION_TYP_MODIFY_HDR]	= DR_ACTION_STATE_MODIFY_HDR,
 			[DR_ACTION_TYP_L2_TO_TNL_L2]	= DR_ACTION_STATE_ENCAP,
 			[DR_ACTION_TYP_L2_TO_TNL_L3]	= DR_ACTION_STATE_ENCAP,
@@ -468,12 +468,12 @@ next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] 
 			[DR_ACTION_TYP_VPORT]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_ASO_FLOW_METER]  = DR_ACTION_STATE_ASO,
 		},
-		[DR_ACTION_STATE_NON_TERM] = {
+		[DR_ACTION_STATE_ANALN_TERM] = {
 			[DR_ACTION_TYP_DROP]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_FT]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_RANGE]		= DR_ACTION_STATE_TERM,
 			[DR_ACTION_TYP_SAMPLER]		= DR_ACTION_STATE_TERM,
-			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_NON_TERM,
+			[DR_ACTION_TYP_CTR]		= DR_ACTION_STATE_ANALN_TERM,
 			[DR_ACTION_TYP_MODIFY_HDR]	= DR_ACTION_STATE_MODIFY_HDR,
 			[DR_ACTION_TYP_L2_TO_TNL_L2]	= DR_ACTION_STATE_ENCAP,
 			[DR_ACTION_TYP_L2_TO_TNL_L3]	= DR_ACTION_STATE_ENCAP,
@@ -585,7 +585,7 @@ int dr_action_validate_and_get_next_state(enum dr_action_domain action_domain,
 	*state = next_action_state[action_domain][cur_state][action_type];
 
 	if (*state == DR_ACTION_STATE_ERR)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -638,16 +638,16 @@ static void dr_action_modify_ttl_adjust(struct mlx5dr_domain *dmn,
 {
 	*recalc_cs_required = false;
 
-	/* if device supports csum recalculation - no adjustment needed */
+	/* if device supports csum recalculation - anal adjustment needed */
 	if (mlx5dr_ste_supp_ttl_cs_recalc(&dmn->info.caps))
 		return;
 
-	/* no adjustment needed on TX rules */
+	/* anal adjustment needed on TX rules */
 	if (!rx_rule)
 		return;
 
 	if (!MLX5_CAP_ESW_FLOWTABLE(dmn->mdev, fdb_ipv4_ttl_modify)) {
-		/* Ignore the modify TTL action.
+		/* Iganalre the modify TTL action.
 		 * It is always kept as last HW action.
 		 */
 		attr->modify_actions--;
@@ -766,7 +766,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 	u8 action_type_set[DR_ACTION_TYP_MAX] = {};
 	struct mlx5dr_ste_actions_attr attr = {};
 	struct mlx5dr_action *dest_action = NULL;
-	u32 state = DR_ACTION_STATE_NO_ACTION;
+	u32 state = DR_ACTION_STATE_ANAL_ACTION;
 	enum dr_action_domain action_domain;
 	bool recalc_cs_required = false;
 	u8 *last_ste;
@@ -816,7 +816,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 			break;
 		case DR_ACTION_TYP_QP:
 			mlx5dr_info(dmn, "Domain doesn't support QP\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		case DR_ACTION_TYP_CTR:
 			attr.ctr_id = action->ctr->ctr_id +
 				action->ctr->offset;
@@ -864,7 +864,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 			if (rx_rule &&
 			    !(dmn->ste_ctx->actions_caps & DR_STE_CTX_ACTION_CAP_RX_ENCAP)) {
 				mlx5dr_info(dmn, "Device doesn't support Encap on RX\n");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			attr.reformat.size = action->reformat->size;
 			attr.reformat.id = action->reformat->id;
@@ -890,7 +890,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 			if (!rx_rule && !(dmn->ste_ctx->actions_caps &
 					  DR_STE_CTX_ACTION_CAP_TX_POP)) {
 				mlx5dr_dbg(dmn, "Device doesn't support POP VLAN action on TX\n");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 
 			max_actions_type = MLX5DR_MAX_VLANS;
@@ -900,7 +900,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 			if (rx_rule && !(dmn->ste_ctx->actions_caps &
 					 DR_STE_CTX_ACTION_CAP_RX_PUSH)) {
 				mlx5dr_dbg(dmn, "Device doesn't support PUSH VLAN action on RX\n");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 
 			max_actions_type = MLX5DR_MAX_VLANS;
@@ -943,7 +943,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 			mlx5dr_err(dmn, "Invalid action (gvmi: %d, is_rx: %d) sequence provided:",
 				   attr.gvmi, rx_rule);
 			dr_action_print_sequence(dmn, actions, i);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -1154,7 +1154,7 @@ mlx5dr_action_create_dest_match_range(struct mlx5dr_domain *dmn,
 	if (ret)
 		goto free_miss_tbl_action;
 
-	/* No need to increase refcount on domain for this action,
+	/* Anal need to increase refcount on domain for this action,
 	 * the hit/miss table actions will do it internally.
 	 */
 
@@ -1174,7 +1174,7 @@ struct mlx5dr_action *
 mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 				   struct mlx5dr_action_dest *dests,
 				   u32 num_of_dests,
-				   bool ignore_flow_level,
+				   bool iganalre_flow_level,
 				   u32 flow_source)
 {
 	struct mlx5dr_cmd_flow_destination_hw_info *hw_dests;
@@ -1229,7 +1229,7 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 		case DR_ACTION_TYP_FT:
 			if (num_dst_ft &&
 			    !mlx5dr_action_supp_fwd_fdb_multi_ft(dmn->mdev)) {
-				mlx5dr_dbg(dmn, "multiple FT destinations not supported\n");
+				mlx5dr_dbg(dmn, "multiple FT destinations analt supported\n");
 				goto free_ref_actions;
 			}
 			num_dst_ft++;
@@ -1268,7 +1268,7 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 				      reformat_req,
 				      &action->dest_tbl->fw_tbl.id,
 				      &action->dest_tbl->fw_tbl.group_id,
-				      ignore_flow_level,
+				      iganalre_flow_level,
 				      flow_source);
 	if (ret)
 		goto free_action;
@@ -1403,13 +1403,13 @@ dr_action_verify_reformat_params(enum mlx5dr_action_type reformat_type,
 	if (dmn->type == MLX5DR_DOMAIN_TYPE_NIC_RX) {
 		if (reformat_type != DR_ACTION_TYP_TNL_L2_TO_L2 &&
 		    reformat_type != DR_ACTION_TYP_TNL_L3_TO_L2) {
-			mlx5dr_dbg(dmn, "Action reformat type not support on RX domain\n");
+			mlx5dr_dbg(dmn, "Action reformat type analt support on RX domain\n");
 			goto out_err;
 		}
 	} else if (dmn->type == MLX5DR_DOMAIN_TYPE_NIC_TX) {
 		if (reformat_type != DR_ACTION_TYP_L2_TO_TNL_L2 &&
 		    reformat_type != DR_ACTION_TYP_L2_TO_TNL_L3) {
-			mlx5dr_dbg(dmn, "Action reformat type not support on TX domain\n");
+			mlx5dr_dbg(dmn, "Action reformat type analt support on TX domain\n");
 			goto out_err;
 		}
 	}
@@ -1460,7 +1460,7 @@ dr_action_create_reformat_action(struct mlx5dr_domain *dmn,
 
 		hw_actions = kzalloc(DR_ACTION_CACHE_LINE_SIZE, GFP_KERNEL);
 		if (!hw_actions)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = mlx5dr_ste_set_action_decap_l3_list(dmn->ste_ctx,
 							  data, data_sz,
@@ -1506,7 +1506,7 @@ dr_action_create_reformat_action(struct mlx5dr_domain *dmn,
 		action->reformat->param_1 = reformat_param_1;
 		return 0;
 	default:
-		mlx5dr_info(dmn, "Reformat type is not supported %d\n", action->action_type);
+		mlx5dr_info(dmn, "Reformat type is analt supported %d\n", action->action_type);
 		return -EINVAL;
 	}
 }
@@ -1767,7 +1767,7 @@ dr_action_modify_sw_to_hw(struct mlx5dr_domain *dmn,
 
 	default:
 		mlx5dr_info(dmn, "Unsupported action_type for modify action\n");
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -1797,7 +1797,7 @@ dr_action_modify_check_set_field_limitation(struct mlx5dr_action *action,
 	}
 
 	if (!action->rewrite->allow_rx && !action->rewrite->allow_tx) {
-		mlx5dr_dbg(dmn, "Modify SET actions not supported on both RX and TX\n");
+		mlx5dr_dbg(dmn, "Modify SET actions analt supported on both RX and TX\n");
 		return -EINVAL;
 	}
 
@@ -1853,7 +1853,7 @@ dr_action_modify_check_copy_field_limitation(struct mlx5dr_action *action,
 	}
 
 	if (!action->rewrite->allow_rx && !action->rewrite->allow_tx) {
-		mlx5dr_dbg(dmn, "Modify copy actions not supported on both RX and TX\n");
+		mlx5dr_dbg(dmn, "Modify copy actions analt supported on both RX and TX\n");
 		return -EINVAL;
 	}
 
@@ -1889,7 +1889,7 @@ dr_action_modify_check_field_limitation(struct mlx5dr_action *action,
 	default:
 		mlx5dr_info(dmn, "Unsupported action %d modify action\n",
 			    action_type);
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -1957,7 +1957,7 @@ static int dr_actions_convert_modify_header(struct mlx5dr_action *action,
 		if (ret)
 			return ret;
 
-		/* Due to a HW limitation we cannot modify 2 different L3 types */
+		/* Due to a HW limitation we cananalt modify 2 different L3 types */
 		if (l3_type && hw_dst_action_info->l3_type &&
 		    hw_dst_action_info->l3_type != l3_type) {
 			mlx5dr_dbg(dmn, "Action list can't support two different L3 types\n");
@@ -1966,7 +1966,7 @@ static int dr_actions_convert_modify_header(struct mlx5dr_action *action,
 		if (hw_dst_action_info->l3_type)
 			l3_type = hw_dst_action_info->l3_type;
 
-		/* Due to a HW limitation we cannot modify two different L4 types */
+		/* Due to a HW limitation we cananalt modify two different L4 types */
 		if (l4_type && hw_dst_action_info->l4_type &&
 		    hw_dst_action_info->l4_type != l4_type) {
 			mlx5dr_dbg(dmn, "Action list can't support two different L4 types\n");
@@ -1996,7 +1996,7 @@ static int dr_actions_convert_modify_header(struct mlx5dr_action *action,
 		hw_idx++;
 	}
 
-	/* if the resulting HW actions list is empty, add NOP action */
+	/* if the resulting HW actions list is empty, add ANALP action */
 	if (!hw_idx)
 		hw_idx++;
 
@@ -2028,7 +2028,7 @@ static int dr_action_create_modify_action(struct mlx5dr_domain *dmn,
 
 	hw_actions = kcalloc(1, max_hw_actions * DR_MODIFY_ACTION_SIZE, GFP_KERNEL);
 	if (!hw_actions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = dr_actions_convert_modify_header(action,
 					       max_hw_actions,
@@ -2115,7 +2115,7 @@ mlx5dr_action_create_dest_vport(struct mlx5dr_domain *dmn,
 		(vhca_id != dmn->info.caps.gvmi);
 	vport_dmn = peer_vport ? xa_load(&dmn->peer_dmn_xa, vhca_id) : dmn;
 	if (!vport_dmn) {
-		mlx5dr_dbg(dmn, "No peer vport domain for given vhca_id\n");
+		mlx5dr_dbg(dmn, "Anal peer vport domain for given vhca_id\n");
 		return NULL;
 	}
 

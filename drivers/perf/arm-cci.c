@@ -160,7 +160,7 @@ static ssize_t __maybe_unused cci_pmu_event_show(struct device *dev,
 
 /*
  * Instead of an event id to monitor CCI cycles, a dedicated counter is
- * provided. Use 0xff to represent CCI cycles and hope that no future revisions
+ * provided. Use 0xff to represent CCI cycles and hope that anal future revisions
  * make use of this event in hardware.
  */
 enum cci400_perf_events {
@@ -220,7 +220,7 @@ static struct attribute *cci400_r0_pmu_event_attrs[] = {
 	/* Slave events */
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_any, 0x0),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_device, 0x01),
-	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_normal_or_nonshareable, 0x2),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_analrmal_or_analnshareable, 0x2),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_inner_or_outershareable, 0x3),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_cache_maintenance, 0x4),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_mem_barrier, 0x5),
@@ -228,11 +228,11 @@ static struct attribute *cci400_r0_pmu_event_attrs[] = {
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_dvm_msg, 0x7),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_dvm_msg_sync, 0x8),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_stall_tt_full, 0x9),
-	CCI_EVENT_EXT_ATTR_ENTRY(si_r_data_last_hs_snoop, 0xA),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_r_data_last_hs_sanalop, 0xA),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_r_data_stall_rvalids_h_rready_l, 0xB),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_any, 0xC),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_device, 0xD),
-	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_normal_or_nonshareable, 0xE),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_analrmal_or_analnshareable, 0xE),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_inner_or_outershare_wback_wclean, 0xF),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_write_unique, 0x10),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_write_line_unique, 0x11),
@@ -255,7 +255,7 @@ static struct attribute *cci400_r1_pmu_event_attrs[] = {
 	/* Slave events */
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_any, 0x0),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_device, 0x01),
-	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_normal_or_nonshareable, 0x2),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_analrmal_or_analnshareable, 0x2),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_inner_or_outershareable, 0x3),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_cache_maintenance, 0x4),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_mem_barrier, 0x5),
@@ -263,11 +263,11 @@ static struct attribute *cci400_r1_pmu_event_attrs[] = {
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_dvm_msg, 0x7),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_dvm_msg_sync, 0x8),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_stall_tt_full, 0x9),
-	CCI_EVENT_EXT_ATTR_ENTRY(si_r_data_last_hs_snoop, 0xA),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_r_data_last_hs_sanalop, 0xA),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_r_data_stall_rvalids_h_rready_l, 0xB),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_any, 0xC),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_device, 0xD),
-	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_normal_or_nonshareable, 0xE),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_analrmal_or_analnshareable, 0xE),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_inner_or_outershare_wback_wclean, 0xF),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_write_unique, 0x10),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_write_line_unique, 0x11),
@@ -324,7 +324,7 @@ static int cci400_get_event_idx(struct cci_pmu *cci_pmu,
 		if (!test_and_set_bit(idx, hw->used_mask))
 			return idx;
 
-	/* No counters available */
+	/* Anal counters available */
 	return -EAGAIN;
 }
 
@@ -335,7 +335,7 @@ static int cci400_validate_hw_event(struct cci_pmu *cci_pmu, unsigned long hw_ev
 	int if_type;
 
 	if (hw_event & ~CCI400_PMU_EVENT_MASK)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (hw_event == CCI400_PMU_CYCLES)
 		return hw_event;
@@ -356,14 +356,14 @@ static int cci400_validate_hw_event(struct cci_pmu *cci_pmu, unsigned long hw_ev
 		if_type = CCI_IF_MASTER;
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (ev_code >= cci_pmu->model->event_ranges[if_type].min &&
 		ev_code <= cci_pmu->model->event_ranges[if_type].max)
 		return hw_event;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int probe_cci400_revision(struct cci_pmu *cci_pmu)
@@ -456,17 +456,17 @@ static struct attribute *cci5xx_pmu_event_attrs[] = {
 	/* Slave events */
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_arvalid, 0x0),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_dev, 0x1),
-	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_nonshareable, 0x2),
-	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_shareable_non_alloc, 0x3),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_analnshareable, 0x2),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_shareable_analn_alloc, 0x3),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_shareable_alloc, 0x4),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_invalidate, 0x5),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_cache_maint, 0x6),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_dvm_msg, 0x7),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_rval, 0x8),
-	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_rlast_snoop, 0x9),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_rlast_sanalop, 0x9),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_awalid, 0xA),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_dev, 0xB),
-	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_non_shareable, 0xC),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_analn_shareable, 0xC),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_share_wb, 0xD),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_share_wlu, 0xE),
 	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_share_wunique, 0xF),
@@ -497,22 +497,22 @@ static struct attribute *cci5xx_pmu_event_attrs[] = {
 	CCI_EVENT_EXT_ATTR_ENTRY(mi_w_resp_stall, 0x6),
 
 	/* Global events */
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_filter_bank_0_1, 0x0),
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_filter_bank_2_3, 0x1),
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_filter_bank_4_5, 0x2),
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_filter_bank_6_7, 0x3),
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_miss_filter_bank_0_1, 0x4),
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_miss_filter_bank_2_3, 0x5),
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_miss_filter_bank_4_5, 0x6),
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_miss_filter_bank_6_7, 0x7),
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_back_invalidation, 0x8),
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_stall_alloc_busy, 0x9),
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_stall_tt_full, 0xA),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_sanalop_access_filter_bank_0_1, 0x0),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_sanalop_access_filter_bank_2_3, 0x1),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_sanalop_access_filter_bank_4_5, 0x2),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_sanalop_access_filter_bank_6_7, 0x3),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_sanalop_access_miss_filter_bank_0_1, 0x4),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_sanalop_access_miss_filter_bank_2_3, 0x5),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_sanalop_access_miss_filter_bank_4_5, 0x6),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_sanalop_access_miss_filter_bank_6_7, 0x7),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_sanalop_back_invalidation, 0x8),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_sanalop_stall_alloc_busy, 0x9),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_sanalop_stall_tt_full, 0xA),
 	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_wrq, 0xB),
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_cd_hs, 0xC),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_sanalop_cd_hs, 0xC),
 	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_rq_stall_addr_hazard, 0xD),
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_rq_stall_tt_full, 0xE),
-	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_rq_tzmp1_prot, 0xF),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_sanalop_rq_stall_tt_full, 0xE),
+	CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_sanalop_rq_tzmp1_prot, 0xF),
 	NULL
 };
 
@@ -543,7 +543,7 @@ static int cci500_validate_hw_event(struct cci_pmu *cci_pmu,
 	int if_type;
 
 	if (hw_event & ~CCI5xx_PMU_EVENT_MASK)
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (ev_source) {
 	case CCI5xx_PORT_S0:
@@ -567,14 +567,14 @@ static int cci500_validate_hw_event(struct cci_pmu *cci_pmu,
 		if_type = CCI_IF_GLOBAL;
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (ev_code >= cci_pmu->model->event_ranges[if_type].min &&
 		ev_code <= cci_pmu->model->event_ranges[if_type].max)
 		return hw_event;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /*
@@ -594,7 +594,7 @@ static int cci550_validate_hw_event(struct cci_pmu *cci_pmu,
 	int if_type;
 
 	if (hw_event & ~CCI5xx_PMU_EVENT_MASK)
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (ev_source) {
 	case CCI5xx_PORT_S0:
@@ -619,14 +619,14 @@ static int cci550_validate_hw_event(struct cci_pmu *cci_pmu,
 		if_type = CCI_IF_GLOBAL;
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (ev_code >= cci_pmu->model->event_ranges[if_type].min &&
 		ev_code <= cci_pmu->model->event_ranges[if_type].max)
 		return hw_event;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 #endif	/* CONFIG_ARM_CCI5xx_PMU */
@@ -649,7 +649,7 @@ static void cci_pmu_sync_counters(struct cci_pmu *cci_pmu)
 		if (WARN_ON(!event))
 			continue;
 
-		/* Leave the events which are not counting */
+		/* Leave the events which are analt counting */
 		if (event->hw.state & PERF_HES_STOPPED)
 			continue;
 		if (event->hw.state & PERF_HES_ARCH) {
@@ -662,7 +662,7 @@ static void cci_pmu_sync_counters(struct cci_pmu *cci_pmu)
 }
 
 /* Should be called with cci_pmu->hw_events->pmu_lock held */
-static void __cci_pmu_enable_nosync(struct cci_pmu *cci_pmu)
+static void __cci_pmu_enable_analsync(struct cci_pmu *cci_pmu)
 {
 	u32 val;
 
@@ -675,7 +675,7 @@ static void __cci_pmu_enable_nosync(struct cci_pmu *cci_pmu)
 static void __cci_pmu_enable_sync(struct cci_pmu *cci_pmu)
 {
 	cci_pmu_sync_counters(cci_pmu);
-	__cci_pmu_enable_nosync(cci_pmu);
+	__cci_pmu_enable_analsync(cci_pmu);
 }
 
 /* Should be called with cci_pmu->hw_events->pmu_lock held */
@@ -701,7 +701,7 @@ static ssize_t cci_pmu_event_show(struct device *dev,
 {
 	struct dev_ext_attribute *eattr = container_of(attr,
 				struct dev_ext_attribute, attr);
-	/* source parameter is mandatory for normal PMU events */
+	/* source parameter is mandatory for analrmal PMU events */
 	return sysfs_emit(buf, "source=?,event=0x%lx\n",
 			  (unsigned long)eattr->var);
 }
@@ -749,9 +749,9 @@ static void pmu_set_event(struct cci_pmu *cci_pmu, int idx, unsigned long event)
  * For all counters on the CCI-PMU, disable any 'enabled' counters,
  * saving the changed counters in the mask, so that we can restore
  * it later using pmu_restore_counters. The mask is private to the
- * caller. We cannot rely on the used_mask maintained by the CCI_PMU
- * as it only tells us if the counter is assigned to perf_event or not.
- * The state of the perf_event cannot be locked by the PMU layer, hence
+ * caller. We cananalt rely on the used_mask maintained by the CCI_PMU
+ * as it only tells us if the counter is assigned to perf_event or analt.
+ * The state of the perf_event cananalt be locked by the PMU layer, hence
  * we check the individual counter status (which can be locked by
  * cci_pm->hw_events->pmu_lock).
  *
@@ -807,7 +807,7 @@ static int pmu_get_event_idx(struct cci_pmu_hw_events *hw, struct perf_event *ev
 		if (!test_and_set_bit(idx, hw->used_mask))
 			return idx;
 
-	/* No counters available */
+	/* Anal counters available */
 	return -EAGAIN;
 }
 
@@ -817,7 +817,7 @@ static int pmu_map_event(struct perf_event *event)
 
 	if (event->attr.type < PERF_TYPE_MAX ||
 			!cci_pmu->model->validate_hw_event)
-		return -ENOENT;
+		return -EANALENT;
 
 	return	cci_pmu->model->validate_hw_event(cci_pmu, event->attr.config);
 }
@@ -828,11 +828,11 @@ static int pmu_request_irq(struct cci_pmu *cci_pmu, irq_handler_t handler)
 	struct platform_device *pmu_device = cci_pmu->plat_device;
 
 	if (unlikely(!pmu_device))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (cci_pmu->nr_irqs < 1) {
-		dev_err(&pmu_device->dev, "no irqs for CCI PMUs defined\n");
-		return -ENODEV;
+		dev_err(&pmu_device->dev, "anal irqs for CCI PMUs defined\n");
+		return -EANALDEV;
 	}
 
 	/*
@@ -840,7 +840,7 @@ static int pmu_request_irq(struct cci_pmu *cci_pmu, irq_handler_t handler)
 	 * we iterate over the counters checking for interrupt source (the
 	 * overflowing counter) and clear it.
 	 *
-	 * This should allow handling of non-unique interrupt for the counters.
+	 * This should allow handling of analn-unique interrupt for the counters.
 	 */
 	for (i = 0; i < cci_pmu->nr_irqs; i++) {
 		int err = request_irq(cci_pmu->irqs[i], handler, IRQF_SHARED,
@@ -923,13 +923,13 @@ static void pmu_write_counters(struct cci_pmu *cci_pmu, unsigned long *mask)
  * So we do the following :
  *
  * 1) Disable all the PMU counters, saving their current state
- * 2) Enable the global PMU profiling, now that all counters are
+ * 2) Enable the global PMU profiling, analw that all counters are
  *    disabled.
  *
  * For each counter to be programmed, repeat steps 3-7:
  *
  * 3) Write an invalid event code to the event control register for the
-      counter, so that the counters are not modified.
+      counter, so that the counters are analt modified.
  * 4) Enable the counter control for the counter.
  * 5) Set the counter value
  * 6) Disable the counter
@@ -938,7 +938,7 @@ static void pmu_write_counters(struct cci_pmu *cci_pmu, unsigned long *mask)
  * 8) Disable the global PMU.
  * 9) Restore the status of the rest of the counters.
  *
- * We choose an event which for CCI-5xx is guaranteed not to count.
+ * We choose an event which for CCI-5xx is guaranteed analt to count.
  * We use the highest possible event code (0x1f) for the master interface 0.
  */
 #define CCI5xx_INVALID_EVENT	((CCI5xx_PORT_M0 << CCI5xx_PMU_EVENT_SOURCE_SHIFT) | \
@@ -952,10 +952,10 @@ static void cci5xx_pmu_write_counters(struct cci_pmu *cci_pmu, unsigned long *ma
 	pmu_save_counters(cci_pmu, saved_mask);
 
 	/*
-	 * Now that all the counters are disabled, we can safely turn the PMU on,
+	 * Analw that all the counters are disabled, we can safely turn the PMU on,
 	 * without syncing the status of the counters
 	 */
-	__cci_pmu_enable_nosync(cci_pmu);
+	__cci_pmu_enable_analsync(cci_pmu);
 
 	for_each_set_bit(i, mask, cci_pmu->num_cntrs) {
 		struct perf_event *event = cci_pmu->hw_events.events[i];
@@ -1006,7 +1006,7 @@ static void pmu_event_set_period(struct perf_event *event)
 	/*
 	 * The CCI PMU counters have a period of 2^32. To account for the
 	 * possiblity of extreme interrupt latency we program for a period of
-	 * half that. Hopefully we can handle the interrupt before another 2^31
+	 * half that. Hopefully we can handle the interrupt before aanalther 2^31
 	 * events occur and the counter overtakes its previous value.
 	 */
 	u64 val = 1ULL << 31;
@@ -1025,7 +1025,7 @@ static irqreturn_t pmu_handle_irq(int irq_num, void *dev)
 {
 	struct cci_pmu *cci_pmu = dev;
 	struct cci_pmu_hw_events *events = &cci_pmu->hw_events;
-	int idx, handled = IRQ_NONE;
+	int idx, handled = IRQ_ANALNE;
 
 	raw_spin_lock(&events->pmu_lock);
 
@@ -1117,7 +1117,7 @@ static void cci_pmu_disable(struct pmu *pmu)
 }
 
 /*
- * Check if the idx represents a non-programmable counter.
+ * Check if the idx represents a analn-programmable counter.
  * All the fixed event counters are mapped before the programmable
  * counters.
  */
@@ -1175,7 +1175,7 @@ static void cci_pmu_stop(struct perf_event *event, int pmu_flags)
 	}
 
 	/*
-	 * We always reprogram the counter, so ignore PERF_EF_UPDATE. See
+	 * We always reprogram the counter, so iganalre PERF_EF_UPDATE. See
 	 * cci_pmu_start()
 	 */
 	pmu_disable_counter(cci_pmu, idx);
@@ -1282,7 +1282,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	mapping = pmu_map_event(event);
 
 	if (mapping < 0) {
-		pr_debug("event %x:%llx not supported\n", event->attr.type,
+		pr_debug("event %x:%llx analt supported\n", event->attr.type,
 			 event->attr.config);
 		return mapping;
 	}
@@ -1317,11 +1317,11 @@ static int cci_pmu_event_init(struct perf_event *event)
 	int err = 0;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
-	/* Shared by all CPUs, no meaningful state to sample */
+	/* Shared by all CPUs, anal meaningful state to sample */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 * Following the example set by other "uncore" PMUs, we accept any CPU
@@ -1337,7 +1337,7 @@ static int cci_pmu_event_init(struct perf_event *event)
 	event->cpu = cci_pmu->cpu;
 
 	event->destroy = hw_perf_event_destroy;
-	if (!atomic_inc_not_zero(active_events)) {
+	if (!atomic_inc_analt_zero(active_events)) {
 		mutex_lock(&cci_pmu->reserve_mutex);
 		if (atomic_read(active_events) == 0)
 			err = cci_pmu_get_hw(cci_pmu);
@@ -1420,7 +1420,7 @@ static int cci_pmu_init(struct cci_pmu *cci_pmu, struct platform_device *pdev)
 		.stop		= cci_pmu_stop,
 		.read		= pmu_read,
 		.attr_groups	= pmu_attr_groups,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 	};
 
 	cci_pmu->plat_device = pdev;
@@ -1600,7 +1600,7 @@ static struct cci_pmu *cci_pmu_alloc(struct device *dev)
 	 */
 	cci_pmu = devm_kzalloc(dev, sizeof(*cci_pmu), GFP_KERNEL);
 	if (!cci_pmu)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cci_pmu->ctrl_base = *(void __iomem **)dev->platform_data;
 
@@ -1611,26 +1611,26 @@ static struct cci_pmu *cci_pmu_alloc(struct device *dev)
 		model = probe_cci_model(cci_pmu);
 	}
 	if (!model) {
-		dev_warn(dev, "CCI PMU version not supported\n");
-		return ERR_PTR(-ENODEV);
+		dev_warn(dev, "CCI PMU version analt supported\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	cci_pmu->model = model;
 	cci_pmu->irqs = devm_kcalloc(dev, CCI_PMU_MAX_HW_CNTRS(model),
 					sizeof(*cci_pmu->irqs), GFP_KERNEL);
 	if (!cci_pmu->irqs)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	cci_pmu->hw_events.events = devm_kcalloc(dev,
 					     CCI_PMU_MAX_HW_CNTRS(model),
 					     sizeof(*cci_pmu->hw_events.events),
 					     GFP_KERNEL);
 	if (!cci_pmu->hw_events.events)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	cci_pmu->hw_events.used_mask = devm_bitmap_zalloc(dev,
 							  CCI_PMU_MAX_HW_CNTRS(model),
 							  GFP_KERNEL);
 	if (!cci_pmu->hw_events.used_mask)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return cci_pmu;
 }
@@ -1646,7 +1646,7 @@ static int cci_pmu_probe(struct platform_device *pdev)
 
 	cci_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cci_pmu->base))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * CCI PMU has one overflow interrupt per counter; but some may be tied
@@ -1680,7 +1680,7 @@ static int cci_pmu_probe(struct platform_device *pdev)
 
 	cci_pmu->cpu = raw_smp_processor_id();
 	g_cci_pmu = cci_pmu;
-	cpuhp_setup_state_nocalls(CPUHP_AP_PERF_ARM_CCI_ONLINE,
+	cpuhp_setup_state_analcalls(CPUHP_AP_PERF_ARM_CCI_ONLINE,
 				  "perf/arm/cci:online", NULL,
 				  cci_pmu_offline_cpu);
 

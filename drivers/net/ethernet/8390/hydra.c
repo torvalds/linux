@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
@@ -125,7 +125,7 @@ static int hydra_init(struct zorro_dev *z)
 
     dev = ____alloc_ei_netdev(0);
     if (!dev)
-	return -ENOMEM;
+	return -EANALMEM;
 
     for (j = 0; j < ETH_ALEN; j++)
 	macaddr[j] = *((u8 *)(board + HYDRA_ADDRPROM + 2*j));
@@ -195,7 +195,7 @@ static int hydra_close(struct net_device *dev)
 
 static void hydra_reset_8390(struct net_device *dev)
 {
-    netdev_info(dev, "Hydra hw reset not there\n");
+    netdev_info(dev, "Hydra hw reset analt there\n");
 }
 
 static void hydra_get_8390_hdr(struct net_device *dev,

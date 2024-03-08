@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2022 Collabora Ltd.
- * Author: AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ * Author: AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
  */
 
 #include <dt-bindings/clock/mediatek,mt6795-clk.h>
@@ -94,7 +94,7 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt6795_pericfg);
 static int clk_mt6795_pericfg_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	void __iomem *base;
 	int ret;
 
@@ -104,13 +104,13 @@ static int clk_mt6795_pericfg_probe(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_PERI_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mtk_register_reset_controller_with_dev(&pdev->dev, &clk_rst_desc);
 	if (ret)
 		goto free_clk_data;
 
-	ret = mtk_clk_register_gates(&pdev->dev, node, peri_gates,
+	ret = mtk_clk_register_gates(&pdev->dev, analde, peri_gates,
 				     ARRAY_SIZE(peri_gates), clk_data);
 	if (ret)
 		goto free_clk_data;
@@ -121,7 +121,7 @@ static int clk_mt6795_pericfg_probe(struct platform_device *pdev)
 	if (ret)
 		goto unregister_gates;
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (ret)
 		goto unregister_composites;
 
@@ -138,10 +138,10 @@ free_clk_data:
 
 static void clk_mt6795_pericfg_remove(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(node);
+	of_clk_del_provider(analde);
 	mtk_clk_unregister_composites(peri_clks, ARRAY_SIZE(peri_clks), clk_data);
 	mtk_clk_unregister_gates(peri_gates, ARRAY_SIZE(peri_gates), clk_data);
 	mtk_free_clk_data(clk_data);

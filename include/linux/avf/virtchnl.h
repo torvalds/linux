@@ -16,7 +16,7 @@
  *
  * Admin queue buffer usage:
  * desc->opcode is always aqc_opc_send_msg_to_pf
- * flags, retval, datalen, and data addr are all used normally.
+ * flags, retval, datalen, and data addr are all used analrmally.
  * The Firmware copies the cookie fields when sending messages between the
  * PF and VF, but uses all other fields internally. Due to this limitation,
  * we must send all messages as "indirect", i.e. using an external buffer.
@@ -26,7 +26,7 @@
  * have a maximum of sixteen queues for all of its VSIs.
  *
  * The PF is required to return a status code in v_retval for all messages
- * except RESET_VF, which does not require any response. The returned value
+ * except RESET_VF, which does analt require any response. The returned value
  * is of virtchnl_status_code type, defined here.
  *
  * In general, VF driver initialization should roughly follow the order of
@@ -46,17 +46,17 @@
 enum virtchnl_status_code {
 	VIRTCHNL_STATUS_SUCCESS				= 0,
 	VIRTCHNL_STATUS_ERR_PARAM			= -5,
-	VIRTCHNL_STATUS_ERR_NO_MEMORY			= -18,
+	VIRTCHNL_STATUS_ERR_ANAL_MEMORY			= -18,
 	VIRTCHNL_STATUS_ERR_OPCODE_MISMATCH		= -38,
 	VIRTCHNL_STATUS_ERR_CQP_COMPL_ERROR		= -39,
 	VIRTCHNL_STATUS_ERR_INVALID_VF_ID		= -40,
 	VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR		= -53,
-	VIRTCHNL_STATUS_ERR_NOT_SUPPORTED		= -64,
+	VIRTCHNL_STATUS_ERR_ANALT_SUPPORTED		= -64,
 };
 
 /* Backward compatibility */
 #define VIRTCHNL_ERR_PARAM VIRTCHNL_STATUS_ERR_PARAM
-#define VIRTCHNL_STATUS_NOT_SUPPORTED VIRTCHNL_STATUS_ERR_NOT_SUPPORTED
+#define VIRTCHNL_STATUS_ANALT_SUPPORTED VIRTCHNL_STATUS_ERR_ANALT_SUPPORTED
 
 #define VIRTCHNL_LINK_SPEED_2_5GB_SHIFT		0x0
 #define VIRTCHNL_LINK_SPEED_100MB_SHIFT		0x1
@@ -68,7 +68,7 @@ enum virtchnl_status_code {
 #define VIRTCHNL_LINK_SPEED_5GB_SHIFT		0x7
 
 enum virtchnl_link_speed {
-	VIRTCHNL_LINK_SPEED_UNKNOWN	= 0,
+	VIRTCHNL_LINK_SPEED_UNKANALWN	= 0,
 	VIRTCHNL_LINK_SPEED_100MB	= BIT(VIRTCHNL_LINK_SPEED_100MB_SHIFT),
 	VIRTCHNL_LINK_SPEED_1GB		= BIT(VIRTCHNL_LINK_SPEED_1000MB_SHIFT),
 	VIRTCHNL_LINK_SPEED_10GB	= BIT(VIRTCHNL_LINK_SPEED_10GB_SHIFT),
@@ -82,7 +82,7 @@ enum virtchnl_link_speed {
 /* for hsplit_0 field of Rx HMC context */
 /* deprecated with AVF 1.0 */
 enum virtchnl_rx_hsplit {
-	VIRTCHNL_RX_HSPLIT_NO_SPLIT      = 0,
+	VIRTCHNL_RX_HSPLIT_ANAL_SPLIT      = 0,
 	VIRTCHNL_RX_HSPLIT_SPLIT_L2      = 1,
 	VIRTCHNL_RX_HSPLIT_SPLIT_IP      = 2,
 	VIRTCHNL_RX_HSPLIT_SPLIT_TCP_UDP = 4,
@@ -99,9 +99,9 @@ enum virtchnl_ops {
  * the VIRTCHNL_OP_EVENT opcode.
  * VFs send requests to the PF using the other ops.
  * Use of "advanced opcode" features must be negotiated as part of capabilities
- * exchange and are not considered part of base mode feature set.
+ * exchange and are analt considered part of base mode feature set.
  */
-	VIRTCHNL_OP_UNKNOWN = 0,
+	VIRTCHNL_OP_UNKANALWN = 0,
 	VIRTCHNL_OP_VERSION = 1, /* must ALWAYS be 1 */
 	VIRTCHNL_OP_RESET_VF = 2,
 	VIRTCHNL_OP_GET_VF_RESOURCES = 3,
@@ -155,8 +155,8 @@ enum virtchnl_ops {
 };
 
 /* These macros are used to generate compilation errors if a structure/union
- * is not exactly the correct length. It gives a divide by zero error if the
- * structure/union is not of the correct size, otherwise it creates an enum
+ * is analt exactly the correct length. It gives a divide by zero error if the
+ * structure/union is analt of the correct size, otherwise it creates an enum
  * that is never used.
  */
 #define VIRTCHNL_CHECK_STRUCT_LEN(n, X) enum virtchnl_static_assert_enum_##X \
@@ -169,9 +169,9 @@ enum virtchnl_ops {
 /* VIRTCHNL_OP_VERSION
  * VF posts its version number to the PF. PF responds with its version number
  * in the same format, along with a return code.
- * Reply from PF has its major/minor versions also in param0 and param1.
- * If there is a major version mismatch, then the VF cannot operate.
- * If there is a minor version mismatch, then the VF can operate but should
+ * Reply from PF has its major/mianalr versions also in param0 and param1.
+ * If there is a major version mismatch, then the VF cananalt operate.
+ * If there is a mianalr version mismatch, then the VF can operate but should
  * add a warning to the system log.
  *
  * This enum element MUST always be specified as == 1, regardless of other
@@ -179,22 +179,22 @@ enum virtchnl_ops {
  * error regardless of version mismatch.
  */
 #define VIRTCHNL_VERSION_MAJOR		1
-#define VIRTCHNL_VERSION_MINOR		1
-#define VIRTCHNL_VERSION_MINOR_NO_VF_CAPS	0
+#define VIRTCHNL_VERSION_MIANALR		1
+#define VIRTCHNL_VERSION_MIANALR_ANAL_VF_CAPS	0
 
 struct virtchnl_version_info {
 	u32 major;
-	u32 minor;
+	u32 mianalr;
 };
 
 VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_version_info);
 
-#define VF_IS_V10(_v) (((_v)->major == 1) && ((_v)->minor == 0))
-#define VF_IS_V11(_ver) (((_ver)->major == 1) && ((_ver)->minor == 1))
+#define VF_IS_V10(_v) (((_v)->major == 1) && ((_v)->mianalr == 0))
+#define VF_IS_V11(_ver) (((_ver)->major == 1) && ((_ver)->mianalr == 1))
 
 /* VIRTCHNL_OP_RESET_VF
- * VF sends this request to PF with no parameters
- * PF does NOT respond! VF driver must delay then poll VFGEN_RSTAT register
+ * VF sends this request to PF with anal parameters
+ * PF does ANALT respond! VF driver must delay then poll VFGEN_RSTAT register
  * until reset completion is indicated. The admin queue must be reinitialized
  * after this operation.
  *
@@ -214,7 +214,7 @@ enum virtchnl_vsi_type {
 };
 
 /* VIRTCHNL_OP_GET_VF_RESOURCES
- * Version 1.0 VF sends this request to PF with no parameters
+ * Version 1.0 VF sends this request to PF with anal parameters
  * Version 1.1 VF sends this request to PF with u32 bitmap of its capabilities
  * PF responds with an indirect message containing
  * virtchnl_vf_resource and one or more
@@ -235,7 +235,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_vsi_resource);
 
 /* VF capability flags
  * VIRTCHNL_VF_OFFLOAD_L2 flag is inclusive of base mode L2 offloads including
- * TX/RX Checksum offloading and TSO for non-tunnelled packets.
+ * TX/RX Checksum offloading and TSO for analn-tunnelled packets.
  */
 #define VIRTCHNL_VF_OFFLOAD_L2			BIT(0)
 #define VIRTCHNL_VF_OFFLOAD_RDMA		BIT(1)
@@ -307,7 +307,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(24, virtchnl_txq_info);
  * the crc_disable flag to 1 will disable CRC stripping for each
  * queue in the VF where the flag is set. The VIRTCHNL_VF_OFFLOAD_CRC
  * offload must have been set prior to sending this info or the PF
- * will ignore the request. This flag should be set the same for
+ * will iganalre the request. This flag should be set the same for
  * all of the queues for a VF.
  */
 
@@ -337,13 +337,13 @@ VIRTCHNL_CHECK_STRUCT_LEN(40, virtchnl_rxq_info);
  * associated with the specified VSI.
  * PF configures queues and returns status.
  * If the number of queues specified is greater than the number of queues
- * associated with the VSI, an error is returned and no queues are configured.
- * NOTE: The VF is not required to configure all queues in a single request.
+ * associated with the VSI, an error is returned and anal queues are configured.
+ * ANALTE: The VF is analt required to configure all queues in a single request.
  * It may send multiple messages. PF drivers must correctly handle all VF
  * requests.
  */
 struct virtchnl_queue_pair_info {
-	/* NOTE: vsi_id and queue_id should be identical for both queues. */
+	/* ANALTE: vsi_id and queue_id should be identical for both queues. */
 	struct virtchnl_txq_info txq;
 	struct virtchnl_rxq_info rxq;
 };
@@ -364,8 +364,8 @@ VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_vsi_queue_config_info);
  * VF sends this message to request the PF to allocate additional queues to
  * this VF.  Each VF gets a guaranteed number of queues on init but asking for
  * additional queues must be negotiated.  This is a best effort request as it
- * is possible the PF does not have enough queues left to support the request.
- * If the PF cannot support the number requested it will respond with the
+ * is possible the PF does analt have eanalugh queues left to support the request.
+ * If the PF cananalt support the number requested it will respond with the
  * maximum number it is able to support.  If the request is successful, PF will
  * then reset the VF to institute required changes.
  */
@@ -379,10 +379,10 @@ struct virtchnl_vf_res_request {
  * VF uses this message to map vectors to queues.
  * The rxq_map and txq_map fields are bitmaps used to indicate which queues
  * are to be associated with the specified vector.
- * The "other" causes are always mapped to vector 0. The VF may not request
+ * The "other" causes are always mapped to vector 0. The VF may analt request
  * that vector 0 be used for traffic.
  * PF configures interrupt mapping and returns status.
- * NOTE: due to hardware requirements, all active queues (both TX and RX)
+ * ANALTE: due to hardware requirements, all active queues (both TX and RX)
  * should be mapped to interrupts, even if the driver intends to operate
  * only in polling mode. In this case the interrupt may be disabled, but
  * the ITR timer will still run to trigger writebacks.
@@ -413,7 +413,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(2, virtchnl_irq_map_info);
  * (Currently, we only support 16 queues per VF, but we make the field
  * u32 to allow for expansion.)
  * PF performs requested action and returns status.
- * NOTE: The VF is not required to enable/disable all queues in a single
+ * ANALTE: The VF is analt required to enable/disable all queues in a single
  * request. It may send multiple messages.
  * PF drivers must correctly handle all VF requests.
  */
@@ -440,10 +440,10 @@ VIRTCHNL_CHECK_STRUCT_LEN(12, virtchnl_queue_select);
 
 /* VIRTCHNL_ETHER_ADDR_LEGACY
  * Prior to adding the @type member to virtchnl_ether_addr, there were 2 pad
- * bytes. Moving forward all VF drivers should not set type to
- * VIRTCHNL_ETHER_ADDR_LEGACY. This is only here to not break previous/legacy
+ * bytes. Moving forward all VF drivers should analt set type to
+ * VIRTCHNL_ETHER_ADDR_LEGACY. This is only here to analt break previous/legacy
  * behavior. The control plane function (i.e. PF) can use a best effort method
- * of tracking the primary/device unicast in this case, but there is no
+ * of tracking the primary/device unicast in this case, but there is anal
  * guarantee and functionality depends on the implementation of the PF.
  */
 
@@ -507,8 +507,8 @@ VIRTCHNL_CHECK_STRUCT_LEN(4, virtchnl_vlan_filter_list);
 /* This enum is used for all of the VIRTCHNL_VF_OFFLOAD_VLAN_V2_CAPS related
  * structures and opcodes.
  *
- * VIRTCHNL_VLAN_UNSUPPORTED - This field is not supported and if a VF driver
- * populates it the PF should return VIRTCHNL_STATUS_ERR_NOT_SUPPORTED.
+ * VIRTCHNL_VLAN_UNSUPPORTED - This field is analt supported and if a VF driver
+ * populates it the PF should return VIRTCHNL_STATUS_ERR_ANALT_SUPPORTED.
  *
  * VIRTCHNL_VLAN_ETHERTYPE_8100 - This field supports 0x8100 ethertype.
  * VIRTCHNL_VLAN_ETHERTYPE_88A8 - This field supports 0x88A8 ethertype.
@@ -589,7 +589,7 @@ enum virtchnl_vlan_support {
  * and/or stripping) then outer refers to the outer most or single VLAN and
  * inner refers to the second VLAN, if it exists, in the packet.
  *
- * There is no support for tunneled VLAN offloads, so outer or inner are never
+ * There is anal support for tunneled VLAN offloads, so outer or inner are never
  * referring to a tunneled packet from the VF's perspective.
  */
 struct virtchnl_vlan_supported_caps {
@@ -598,7 +598,7 @@ struct virtchnl_vlan_supported_caps {
 };
 
 /* The PF populates these fields based on the supported VLAN filtering. If a
- * field is VIRTCHNL_VLAN_UNSUPPORTED then it's not supported and the PF will
+ * field is VIRTCHNL_VLAN_UNSUPPORTED then it's analt supported and the PF will
  * reject any VIRTCHNL_OP_ADD_VLAN_V2 or VIRTCHNL_OP_DEL_VLAN_V2 messages using
  * the unsupported fields.
  *
@@ -614,9 +614,9 @@ struct virtchnl_vlan_supported_caps {
  * when both inner and outer filtering are allowed.
  *
  * The max_filters field tells the VF how many VLAN filters it's allowed to have
- * at any one time. If it exceeds this amount and tries to add another filter,
+ * at any one time. If it exceeds this amount and tries to add aanalther filter,
  * then the request will be rejected by the PF. To prevent failures, the VF
- * should keep track of how many VLAN filters it has added and not attempt to
+ * should keep track of how many VLAN filters it has added and analt attempt to
  * add more than max_filters.
  */
 struct virtchnl_vlan_filtering_caps {
@@ -637,17 +637,17 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_vlan_filtering_caps);
  * VIRTCHNL_OP_ENABLE_VLAN_STRIPPING_V2 with VIRTCHNL_VLAN_ETHERTYPE_8100 then
  * that will be the ethertype for both stripping and insertion.
  *
- * VIRTCHNL_ETHERTYPE_MATCH_NOT_REQUIRED - The ethertype(s) specified for
- * stripping do not affect the ethertype(s) specified for insertion and visa
+ * VIRTCHNL_ETHERTYPE_MATCH_ANALT_REQUIRED - The ethertype(s) specified for
+ * stripping do analt affect the ethertype(s) specified for insertion and visa
  * versa.
  */
 enum virtchnl_vlan_ethertype_match {
 	VIRTCHNL_ETHERTYPE_STRIPPING_MATCHES_INSERTION = 0,
-	VIRTCHNL_ETHERTYPE_MATCH_NOT_REQUIRED = 1,
+	VIRTCHNL_ETHERTYPE_MATCH_ANALT_REQUIRED = 1,
 };
 
 /* The PF populates these fields based on the supported VLAN offloads. If a
- * field is VIRTCHNL_VLAN_UNSUPPORTED then it's not supported and the PF will
+ * field is VIRTCHNL_VLAN_UNSUPPORTED then it's analt supported and the PF will
  * reject any VIRTCHNL_OP_ENABLE_VLAN_STRIPPING_V2 or
  * VIRTCHNL_OP_DISABLE_VLAN_STRIPPING_V2 messages using the unsupported fields.
  *
@@ -677,7 +677,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(24, virtchnl_vlan_offload_caps);
  *
  * PF will mark which capabilities it supports based on hardware support and
  * current configuration. For example, if a port VLAN is configured the PF will
- * not allow outer VLAN filtering, stripping, or insertion to be configured so
+ * analt allow outer VLAN filtering, stripping, or insertion to be configured so
  * it will block these features from the VF.
  *
  * The VF will need to cross reference its capabilities with the PFs
@@ -697,7 +697,7 @@ struct virtchnl_vlan {
 			 * filtering caps
 			 */
 	u16 tpid;	/* 0x8100, 0x88a8, etc. and only type(s) set in
-			 * filtering caps. Note that tpid here does not refer to
+			 * filtering caps. Analte that tpid here does analt refer to
 			 * VIRTCHNL_VLAN_ETHERTYPE_*, but it refers to the
 			 * actual 2-byte VLAN TPID
 			 */
@@ -741,8 +741,8 @@ VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_vlan_filter_list_v2);
  * VIRTCHNL_OP_DISABLE_VLAN_INSERTION_V2
  *
  * VF sends this message to enable or disable VLAN stripping or insertion. It
- * also needs to specify an ethertype. The VF knows which VLAN ethertypes are
- * allowed and whether or not it's allowed to enable/disable the specific
+ * also needs to specify an ethertype. The VF kanalws which VLAN ethertypes are
+ * allowed and whether or analt it's allowed to enable/disable the specific
  * offload via the VIRTCHNL_OP_GET_OFFLOAD_VLAN_V2_CAPS message. The VF needs to
  * parse the virtchnl_vlan_caps.offloads fields to determine which offload
  * messages are allowed.
@@ -751,7 +751,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_vlan_filter_list_v2);
  * following manner the VF will be allowed to enable and/or disable 0x8100 inner
  * VLAN insertion and/or stripping via the opcodes listed above. Inner in this
  * case means the outer most or single VLAN from the VF's perspective. This is
- * because no outer offloads are supported. See the comments above the
+ * because anal outer offloads are supported. See the comments above the
  * virtchnl_vlan_supported_caps structure for more details.
  *
  * virtchnl_vlan_caps.offloads.stripping_support.inner =
@@ -762,7 +762,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_vlan_filter_list_v2);
  *			VIRTCHNL_VLAN_TOGGLE |
  *			VIRTCHNL_VLAN_ETHERTYPE_8100;
  *
- * In order to enable inner (again note that in this case inner is the outer
+ * In order to enable inner (again analte that in this case inner is the outer
  * most or single VLAN from the VF's perspective) VLAN stripping for 0x8100
  * VLANs, the VF would populate the virtchnl_vlan_setting structure in the
  * following manner and send the VIRTCHNL_OP_ENABLE_VLAN_STRIPPING_V2 message.
@@ -773,7 +773,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_vlan_filter_list_v2);
  * virtchnl_vlan_setting.vport_id = vport_id or vsi_id assigned to the VF on
  * initialization.
  *
- * The reason that VLAN TPID(s) are not being used for the
+ * The reason that VLAN TPID(s) are analt being used for the
  * outer_ethertype_setting and inner_ethertype_setting fields is because it's
  * possible a device could support VLAN insertion and/or stripping offload on
  * multiple ethertypes concurrently, so this method allows a VF to request
@@ -810,7 +810,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_vlan_filter_list_v2);
  * initialization.
  *
  * There is also the case where a PF and the underlying hardware can support
- * VLAN offloads on multiple ethertypes, but not concurrently. For example, if
+ * VLAN offloads on multiple ethertypes, but analt concurrently. For example, if
  * the PF populates the virtchnl_vlan_caps.offloads in the following manner the
  * VF will be allowed to enable and/or disable 0x8100 XOR 0x88a8 outer VLAN
  * offloads. The ethertypes must match for stripping and insertion.
@@ -853,7 +853,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_vlan_setting);
 /* VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE
  * VF sends VSI id and flags.
  * PF returns status code in retval.
- * Note: we assume that broadcast accept mode is always enabled.
+ * Analte: we assume that broadcast accept mode is always enabled.
  */
 struct virtchnl_promisc_info {
 	u16 vsi_id;
@@ -868,7 +868,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(4, virtchnl_promisc_info);
 /* VIRTCHNL_OP_GET_STATS
  * VF sends this message to request stats for the selected VSI. VF uses
  * the virtchnl_queue_select struct to specify the VSI. The queue_id
- * field is ignored by the PF.
+ * field is iganalred by the PF.
  *
  * PF replies with struct eth_stats in an external buffer.
  */
@@ -1028,11 +1028,11 @@ struct virtchnl_supported_rxdids {
 
 /* VIRTCHNL_OP_EVENT
  * PF sends this message to inform the VF driver of events that may affect it.
- * No direct response is expected from the VF, though it may generate other
+ * Anal direct response is expected from the VF, though it may generate other
  * messages in response to this one.
  */
 enum virtchnl_event_codes {
-	VIRTCHNL_EVENT_UNKNOWN = 0,
+	VIRTCHNL_EVENT_UNKANALWN = 0,
 	VIRTCHNL_EVENT_LINK_CHANGE,
 	VIRTCHNL_EVENT_RESET_IMPENDING,
 	VIRTCHNL_EVENT_PF_DRIVER_CLOSE,
@@ -1045,7 +1045,7 @@ struct virtchnl_pf_event {
 	/* see enum virtchnl_event_codes */
 	s32 event;
 	union {
-		/* If the PF driver does not support the new speed reporting
+		/* If the PF driver does analt support the new speed reporting
 		 * capabilities then use link_event else use link_event_adv to
 		 * get the speed and link information. The ability to understand
 		 * new speeds is indicated by setting the capability flag
@@ -1109,7 +1109,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(4, virtchnl_rdma_qvlist_info);
  * When the reset is complete, it writes 1
  * When the PF detects that the VF has recovered, it writes 2
  * VF checks this register periodically to determine if a reset has occurred,
- * then polls it to know when the reset is complete.
+ * then polls it to kanalw when the reset is complete.
  * If either the PF or VF reads the register while the hardware
  * is in a reset state, it will return DEADBEEF, which, when masked
  * will result in 3.
@@ -1163,7 +1163,7 @@ enum virtchnl_vfr_states {
  * tunneling or encapsulation protocols for network virtualization.
  */
 enum virtchnl_proto_hdr_type {
-	VIRTCHNL_PROTO_HDR_NONE,
+	VIRTCHNL_PROTO_HDR_ANALNE,
 	VIRTCHNL_PROTO_HDR_ETH,
 	VIRTCHNL_PROTO_HDR_S_VLAN,
 	VIRTCHNL_PROTO_HDR_C_VLAN,
@@ -1334,8 +1334,8 @@ VIRTCHNL_CHECK_STRUCT_LEN(2604, virtchnl_fdir_rule);
  * VF FDIR related request is successfully done by PF
  * The request can be OP_ADD/DEL/QUERY_FDIR_FILTER.
  *
- * VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE
- * OP_ADD_FDIR_FILTER request is failed due to no Hardware resource.
+ * VIRTCHNL_FDIR_FAILURE_RULE_ANALRESOURCE
+ * OP_ADD_FDIR_FILTER request is failed due to anal Hardware resource.
  *
  * VIRTCHNL_FDIR_FAILURE_RULE_EXIST
  * OP_ADD_FDIR_FILTER request is failed due to the rule is already existed.
@@ -1343,7 +1343,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(2604, virtchnl_fdir_rule);
  * VIRTCHNL_FDIR_FAILURE_RULE_CONFLICT
  * OP_ADD_FDIR_FILTER request is failed due to conflict with existing rule.
  *
- * VIRTCHNL_FDIR_FAILURE_RULE_NONEXIST
+ * VIRTCHNL_FDIR_FAILURE_RULE_ANALNEXIST
  * OP_DEL_FDIR_FILTER request is failed due to this rule doesn't exist.
  *
  * VIRTCHNL_FDIR_FAILURE_RULE_INVALID
@@ -1356,14 +1356,14 @@ VIRTCHNL_CHECK_STRUCT_LEN(2604, virtchnl_fdir_rule);
  *
  * VIRTCHNL_FDIR_FAILURE_QUERY_INVALID
  * OP_QUERY_FDIR_FILTER request is failed due to parameters validation,
- * for example, VF query counter of a rule who has no counter action.
+ * for example, VF query counter of a rule who has anal counter action.
  */
 enum virtchnl_fdir_prgm_status {
 	VIRTCHNL_FDIR_SUCCESS = 0,
-	VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE,
+	VIRTCHNL_FDIR_FAILURE_RULE_ANALRESOURCE,
 	VIRTCHNL_FDIR_FAILURE_RULE_EXIST,
 	VIRTCHNL_FDIR_FAILURE_RULE_CONFLICT,
-	VIRTCHNL_FDIR_FAILURE_RULE_NONEXIST,
+	VIRTCHNL_FDIR_FAILURE_RULE_ANALNEXIST,
 	VIRTCHNL_FDIR_FAILURE_RULE_INVALID,
 	VIRTCHNL_FDIR_FAILURE_RULE_TIMEOUT,
 	VIRTCHNL_FDIR_FAILURE_QUERY_INVALID,
@@ -1521,7 +1521,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		break;
 	case VIRTCHNL_OP_RDMA:
 		/* These messages are opaque to us and will be validated in
-		 * the RDMA client code. We just need to check for nonzero
+		 * the RDMA client code. We just need to check for analnzero
 		 * length. The firmware will enforce max length restrictions.
 		 */
 		if (msglen)
@@ -1628,7 +1628,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		break;
 	/* These are always errors coming from the VF. */
 	case VIRTCHNL_OP_EVENT:
-	case VIRTCHNL_OP_UNKNOWN:
+	case VIRTCHNL_OP_UNKANALWN:
 	default:
 		return VIRTCHNL_STATUS_ERR_PARAM;
 	}

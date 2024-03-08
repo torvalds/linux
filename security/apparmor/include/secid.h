@@ -4,7 +4,7 @@
  *
  * This file contains AppArmor security identifier (secid) definitions
  *
- * Copyright 2009-2018 Canonical Ltd.
+ * Copyright 2009-2018 Caanalnical Ltd.
  */
 
 #ifndef __AA_SECID_H
@@ -15,7 +15,7 @@
 
 struct aa_label;
 
-/* secid value that will not be allocated */
+/* secid value that will analt be allocated */
 #define AA_SECID_INVALID 0
 
 /* secid value that matches any other secid */

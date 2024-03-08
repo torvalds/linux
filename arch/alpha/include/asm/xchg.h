@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ALPHA_CMPXCHG_H
-#error Do not include xchg.h directly!
+#error Do analt include xchg.h directly!
 #else
 /*
  * xchg/xchg_local and cmpxchg/cmpxchg_local share the same code
- * except that local version do not have the expensive memory barrier.
+ * except that local version do analt have the expensive memory barrier.
  * So this file is included twice from asm/cmpxchg.h.
  */
 
@@ -20,7 +20,7 @@ ____xchg(_u8, volatile char *m, unsigned long val)
 	unsigned long ret, tmp, addr64;
 
 	__asm__ __volatile__(
-	"	andnot	%4,7,%3\n"
+	"	andanalt	%4,7,%3\n"
 	"	insbl	%1,%4,%1\n"
 	"1:	ldq_l	%2,0(%3)\n"
 	"	extbl	%2,%4,%0\n"
@@ -43,7 +43,7 @@ ____xchg(_u16, volatile short *m, unsigned long val)
 	unsigned long ret, tmp, addr64;
 
 	__asm__ __volatile__(
-	"	andnot	%4,7,%3\n"
+	"	andanalt	%4,7,%3\n"
 	"	inswl	%1,%4,%1\n"
 	"1:	ldq_l	%2,0(%3)\n"
 	"	extwl	%2,%4,%0\n"
@@ -131,7 +131,7 @@ ____cmpxchg(_u8, volatile char *m, unsigned char old, unsigned char new)
 	unsigned long prev, tmp, cmp, addr64;
 
 	__asm__ __volatile__(
-	"	andnot	%5,7,%4\n"
+	"	andanalt	%5,7,%4\n"
 	"	insbl	%1,%5,%1\n"
 	"1:	ldq_l	%2,0(%4)\n"
 	"	extbl	%2,%5,%0\n"
@@ -157,7 +157,7 @@ ____cmpxchg(_u16, volatile short *m, unsigned short old, unsigned short new)
 	unsigned long prev, tmp, cmp, addr64;
 
 	__asm__ __volatile__(
-	"	andnot	%5,7,%4\n"
+	"	andanalt	%5,7,%4\n"
 	"	inswl	%1,%5,%1\n"
 	"1:	ldq_l	%2,0(%4)\n"
 	"	extwl	%2,%5,%0\n"

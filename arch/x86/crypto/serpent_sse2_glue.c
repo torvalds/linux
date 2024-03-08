@@ -108,8 +108,8 @@ static struct simd_skcipher_alg *serpent_simd_algs[ARRAY_SIZE(serpent_algs)];
 static int __init serpent_sse2_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_XMM2)) {
-		printk(KERN_INFO "SSE2 instructions are not detected.\n");
-		return -ENODEV;
+		printk(KERN_INFO "SSE2 instructions are analt detected.\n");
+		return -EANALDEV;
 	}
 
 	return simd_register_skciphers_compat(serpent_algs,

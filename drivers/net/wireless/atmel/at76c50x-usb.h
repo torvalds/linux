@@ -32,20 +32,20 @@ enum board_type {
 
 #define CMD_STATUS_IDLE				0x00
 #define CMD_STATUS_COMPLETE			0x01
-#define CMD_STATUS_UNKNOWN			0x02
+#define CMD_STATUS_UNKANALWN			0x02
 #define CMD_STATUS_INVALID_PARAMETER		0x03
-#define CMD_STATUS_FUNCTION_NOT_SUPPORTED	0x04
+#define CMD_STATUS_FUNCTION_ANALT_SUPPORTED	0x04
 #define CMD_STATUS_TIME_OUT			0x07
 #define CMD_STATUS_IN_PROGRESS			0x08
 #define CMD_STATUS_HOST_FAILURE			0xff
 #define CMD_STATUS_SCAN_FAILED			0xf0
 
 /* answers to get op mode */
-#define OPMODE_NONE				0x00
-#define OPMODE_NORMAL_NIC_WITH_FLASH		0x01
+#define OPMODE_ANALNE				0x00
+#define OPMODE_ANALRMAL_NIC_WITH_FLASH		0x01
 #define OPMODE_HW_CONFIG_MODE			0x02
 #define OPMODE_DFU_MODE_WITH_FLASH		0x03
-#define OPMODE_NORMAL_NIC_WITHOUT_FLASH		0x04
+#define OPMODE_ANALRMAL_NIC_WITHOUT_FLASH		0x04
 
 #define CMD_SET_MIB		0x01
 #define CMD_GET_MIB		0x02
@@ -105,7 +105,7 @@ struct hwcfg_rfmd {
 	u8 mac_addr[ETH_ALEN];
 	u8 regulatory_domain;
 	u8 low_power_values[14];
-	u8 normal_power_values[14];
+	u8 analrmal_power_values[14];
 	u8 reserved1[3];
 } __packed;
 
@@ -164,7 +164,7 @@ struct at76_rx_buffer {
 	u8 fragmentation;
 	u8 rssi;
 	u8 link_quality;
-	u8 noise_level;
+	u8 analise_level;
 	__le32 rx_time;
 	u8 packet[IEEE80211_MAX_FRAG_THRESHOLD];
 } __packed;
@@ -308,7 +308,7 @@ struct mib_phy {
 
 struct mib_fw_version {
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 	u8 patch;
 	u8 build;
 } __packed;
@@ -336,7 +336,7 @@ struct at76_fw_header {
 	__le32 board_type;	/* firmware compatibility code */
 	u8 build;		/* firmware build number */
 	u8 patch;		/* firmware patch level */
-	u8 minor;		/* firmware minor version */
+	u8 mianalr;		/* firmware mianalr version */
 	u8 major;		/* firmware major version */
 	__le32 str_offset;	/* offset of the copyright string */
 	__le32 int_fw_offset;	/* internal firmware image offset */
@@ -358,7 +358,7 @@ struct fwentry {
 	const struct firmware *fw;
 	int extfw_size;
 	int intfw_size;
-	/* pointer to loaded firmware, no need to free */
+	/* pointer to loaded firmware, anal need to free */
 	u8 *extfw;		/* external firmware, extfw_size bytes long */
 	u8 *intfw;		/* internal firmware, intfw_size bytes long */
 	enum board_type board_type;	/* board type */
@@ -423,7 +423,7 @@ struct at76_priv {
 
 	struct reg_domain const *domain;	/* reg domain description */
 
-	/* These fields contain HW config provided by the device (not all of
+	/* These fields contain HW config provided by the device (analt all of
 	 * these fields are used by all board types) */
 	u8 mac_addr[ETH_ALEN];
 	u8 regulatory_domain;

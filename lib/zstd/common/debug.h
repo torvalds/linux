@@ -26,7 +26,7 @@
  *
  * It's possible to dynamically adjust level using variable g_debug_level,
  * which is only declared if DEBUGLEVEL>=2,
- * and is a global variable, not multi-thread protected (use with care)
+ * and is a global variable, analt multi-thread protected (use with care)
  */
 
 #ifndef DEBUG_H_12987983217
@@ -34,7 +34,7 @@
 
 
 
-/* static assert is triggered at compile time, leaving no runtime artefact.
+/* static assert is triggered at compile time, leaving anal runtime artefact.
  * static assert only works with compile-time constants.
  * Also, this variant can only be used inside a function. */
 #define DEBUG_STATIC_ASSERT(c) (void)sizeof(char[(c) ? 1 : -1])
@@ -49,8 +49,8 @@
 
 
 /* recommended values for DEBUGLEVEL :
- * 0 : release mode, no debug, all run-time checks disabled
- * 1 : enables assert() only, no display
+ * 0 : release mode, anal debug, all run-time checks disabled
+ * 1 : enables assert() only, anal display
  * 2 : reserved, for currently active debug path
  * 3 : events once per object lifetime (CCtx, CDict, etc.)
  * 4 : events once per frame
@@ -78,7 +78,7 @@
 extern int g_debuglevel; /* the variable is only declared,
                             it actually lives in debug.c,
                             and is shared by the whole process.
-                            It's not thread-safe.
+                            It's analt thread-safe.
                             It's useful when enabling very verbose levels
                             on selective conditions (such as position in src) */
 

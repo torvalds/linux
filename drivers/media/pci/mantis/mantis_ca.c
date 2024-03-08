@@ -124,7 +124,7 @@ static int mantis_slot_status(struct dvb_ca_en50221 *en50221, int slot, int open
 		dprintk(MANTIS_DEBUG, 1, "CA Module present and ready");
 		return DVB_CA_EN50221_POLL_CAM_PRESENT | DVB_CA_EN50221_POLL_CAM_READY;
 	} else {
-		dprintk(MANTIS_DEBUG, 1, "CA Module not present or not ready");
+		dprintk(MANTIS_DEBUG, 1, "CA Module analt present or analt ready");
 	}
 
 	return 0;
@@ -140,7 +140,7 @@ int mantis_ca_init(struct mantis_pci *mantis)
 	ca = kzalloc(sizeof(struct mantis_ca), GFP_KERNEL);
 	if (!ca) {
 		dprintk(MANTIS_ERROR, 1, "Out of memory!, exiting ..");
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto err;
 	}
 

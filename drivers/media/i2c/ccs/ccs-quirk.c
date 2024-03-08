@@ -5,7 +5,7 @@
  * Generic driver for MIPI CCS/SMIA/SMIA++ compliant camera sensors
  *
  * Copyright (C) 2020 Intel Corporation
- * Copyright (C) 2011--2012 Nokia Corporation
+ * Copyright (C) 2011--2012 Analkia Corporation
  * Contact: Sakari Ailus <sakari.ailus@linux.intel.com>
  */
 
@@ -53,8 +53,8 @@ static int jt8ew9_post_poweron(struct ccs_sensor *sensor)
 		{ 0x30ae, 0x00 }, /* 0x0307 pll_multiplier maximum value on PLL input 9.6MHz ( 19.2MHz is divided on pre_pll_div) */
 		{ 0x30af, 0xd0 }, /* 0x0307 pll_multiplier maximum value on PLL input 9.6MHz ( 19.2MHz is divided on pre_pll_div) */
 		{ 0x322d, 0x04 }, /* Adjusting Processing Image Size to Scaler Toshiba Recommendation Setting */
-		{ 0x3255, 0x0f }, /* Horizontal Noise Reduction Control Toshiba Recommendation Setting */
-		{ 0x3256, 0x15 }, /* Horizontal Noise Reduction Control Toshiba Recommendation Setting */
+		{ 0x3255, 0x0f }, /* Horizontal Analise Reduction Control Toshiba Recommendation Setting */
+		{ 0x3256, 0x15 }, /* Horizontal Analise Reduction Control Toshiba Recommendation Setting */
 		{ 0x3258, 0x70 }, /* Analog Gain Control Toshiba Recommendation Setting */
 		{ 0x3259, 0x70 }, /* Analog Gain Control Toshiba Recommendation Setting */
 		{ 0x325f, 0x7c }, /* Analog Gain Control Toshiba Recommendation Setting */
@@ -71,8 +71,8 @@ static int jt8ew9_post_poweron(struct ccs_sensor *sensor)
 		{ 0x3330, 0x18 }, /* Read Out Timing Control Toshiba Recommendation Setting */
 		{ 0x333c, 0x01 }, /* Read Out Timing Control Toshiba Recommendation Setting */
 		{ 0x3345, 0x2f }, /* Black Hole Sun Correction Control Toshiba Recommendation Setting */
-		{ 0x33de, 0x38 }, /* Horizontal Noise Reduction Control Toshiba Recommendation Setting */
-		/* Taken from v03. No idea what the rest are. */
+		{ 0x33de, 0x38 }, /* Horizontal Analise Reduction Control Toshiba Recommendation Setting */
+		/* Taken from v03. Anal idea what the rest are. */
 		{ 0x32e0, 0x05 },
 		{ 0x32e1, 0x05 },
 		{ 0x32e2, 0x04 },
@@ -91,7 +91,7 @@ const struct ccs_quirk smiapp_jt8ew9_quirk = {
 
 static int imx125es_post_poweron(struct ccs_sensor *sensor)
 {
-	/* Taken from v02. No idea what the other two are. */
+	/* Taken from v02. Anal idea what the other two are. */
 	static const struct ccs_reg_8 regs[] = {
 		/*
 		 * 0x3302: clk during frame blanking:
@@ -140,7 +140,7 @@ static int jt8ev1_post_poweron(struct ccs_sensor *sensor)
 		{ 0x33c9, 0x20 },
 		{ 0x33ce, 0x30 }, /* Adjust the parameter for logic function */
 		{ 0x33cf, 0xec }, /* For Black sun */
-		{ 0x3328, 0x80 }, /* Ugh. No idea what's this. */
+		{ 0x3328, 0x80 }, /* Ugh. Anal idea what's this. */
 	};
 	static const struct ccs_reg_8 regs_96[] = {
 		{ 0x30ae, 0x00 }, /* For control of ADC clock */
@@ -157,7 +157,7 @@ static int jt8ev1_post_poweron(struct ccs_sensor *sensor)
 		return ccs_write_addr_8s(sensor, regs_96,
 				       ARRAY_SIZE(regs_96));
 	default:
-		dev_warn(&client->dev, "no MSRs for %d Hz ext_clk\n",
+		dev_warn(&client->dev, "anal MSRs for %d Hz ext_clk\n",
 			 sensor->hwcfg.ext_clk);
 		return 0;
 	}
@@ -177,7 +177,7 @@ static int jt8ev1_post_streamoff(struct ccs_sensor *sensor)
 	if (rval < 0)
 		return rval;
 
-	/* Wait for 1 ms + one line => 2 ms is likely enough */
+	/* Wait for 1 ms + one line => 2 ms is likely eanalugh */
 	usleep_range(2000, 2050);
 
 	/* Restore it */

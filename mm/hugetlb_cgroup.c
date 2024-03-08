@@ -5,7 +5,7 @@
  *
  * Cgroup v2
  * Copyright (C) 2019 Red Hat, Inc.
- * Author: Giuseppe Scrivano <gscrivan@redhat.com>
+ * Author: Giuseppe Scrivaanal <gscrivan@redhat.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2.1 of the GNU Lesser General Public License
@@ -125,10 +125,10 @@ static void hugetlb_cgroup_init(struct hugetlb_cgroup *h_cgroup,
 
 static void hugetlb_cgroup_free(struct hugetlb_cgroup *h_cgroup)
 {
-	int node;
+	int analde;
 
-	for_each_node(node)
-		kfree(h_cgroup->nodeinfo[node]);
+	for_each_analde(analde)
+		kfree(h_cgroup->analdeinfo[analde]);
 	kfree(h_cgroup);
 }
 
@@ -137,39 +137,39 @@ hugetlb_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct hugetlb_cgroup *parent_h_cgroup = hugetlb_cgroup_from_css(parent_css);
 	struct hugetlb_cgroup *h_cgroup;
-	int node;
+	int analde;
 
-	h_cgroup = kzalloc(struct_size(h_cgroup, nodeinfo, nr_node_ids),
+	h_cgroup = kzalloc(struct_size(h_cgroup, analdeinfo, nr_analde_ids),
 			   GFP_KERNEL);
 
 	if (!h_cgroup)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (!parent_h_cgroup)
 		root_h_cgroup = h_cgroup;
 
 	/*
-	 * TODO: this routine can waste much memory for nodes which will
+	 * TODO: this routine can waste much memory for analdes which will
 	 * never be onlined. It's better to use memory hotplug callback
 	 * function.
 	 */
-	for_each_node(node) {
-		/* Set node_to_alloc to NUMA_NO_NODE for offline nodes. */
-		int node_to_alloc =
-			node_state(node, N_NORMAL_MEMORY) ? node : NUMA_NO_NODE;
-		h_cgroup->nodeinfo[node] =
-			kzalloc_node(sizeof(struct hugetlb_cgroup_per_node),
-				     GFP_KERNEL, node_to_alloc);
-		if (!h_cgroup->nodeinfo[node])
-			goto fail_alloc_nodeinfo;
+	for_each_analde(analde) {
+		/* Set analde_to_alloc to NUMA_ANAL_ANALDE for offline analdes. */
+		int analde_to_alloc =
+			analde_state(analde, N_ANALRMAL_MEMORY) ? analde : NUMA_ANAL_ANALDE;
+		h_cgroup->analdeinfo[analde] =
+			kzalloc_analde(sizeof(struct hugetlb_cgroup_per_analde),
+				     GFP_KERNEL, analde_to_alloc);
+		if (!h_cgroup->analdeinfo[analde])
+			goto fail_alloc_analdeinfo;
 	}
 
 	hugetlb_cgroup_init(h_cgroup, parent_h_cgroup);
 	return &h_cgroup->css;
 
-fail_alloc_nodeinfo:
+fail_alloc_analdeinfo:
 	hugetlb_cgroup_free(h_cgroup);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static void hugetlb_cgroup_css_free(struct cgroup_subsys_state *css)
@@ -179,10 +179,10 @@ static void hugetlb_cgroup_css_free(struct cgroup_subsys_state *css)
 
 /*
  * Should be called with hugetlb_lock held.
- * Since we are holding hugetlb_lock, pages cannot get moved from
- * active list or uncharged from the cgroup, So no need to get
+ * Since we are holding hugetlb_lock, pages cananalt get moved from
+ * active list or uncharged from the cgroup, So anal need to get
  * page reference and test for page active here. This function
- * cannot fail.
+ * cananalt fail.
  */
 static void hugetlb_cgroup_move_parent(int idx, struct hugetlb_cgroup *h_cg,
 				       struct page *page)
@@ -197,7 +197,7 @@ static void hugetlb_cgroup_move_parent(int idx, struct hugetlb_cgroup *h_cg,
 	/*
 	 * We can have pages in active list without any cgroup
 	 * ie, hugepage with less than 3 pages. We can safely
-	 * ignore those pages.
+	 * iganalre those pages.
 	 */
 	if (!page_hcg || page_hcg != h_cg)
 		goto out;
@@ -205,7 +205,7 @@ static void hugetlb_cgroup_move_parent(int idx, struct hugetlb_cgroup *h_cg,
 	nr_pages = compound_nr(page);
 	if (!parent) {
 		parent = root_h_cgroup;
-		/* root has no limit */
+		/* root has anal limit */
 		page_counter_charge(&parent->hugepage[idx], nr_pages);
 	}
 	counter = &h_cg->hugepage[idx];
@@ -243,11 +243,11 @@ static inline void hugetlb_event(struct hugetlb_cgroup *hugetlb, int idx,
 				 enum hugetlb_memory_event event)
 {
 	atomic_long_inc(&hugetlb->events_local[idx][event]);
-	cgroup_file_notify(&hugetlb->events_local_file[idx]);
+	cgroup_file_analtify(&hugetlb->events_local_file[idx]);
 
 	do {
 		atomic_long_inc(&hugetlb->events[idx][event]);
-		cgroup_file_notify(&hugetlb->events_file[idx]);
+		cgroup_file_analtify(&hugetlb->events_file[idx]);
 	} while ((hugetlb = parent_hugetlb_cgroup(hugetlb)) &&
 		 !hugetlb_cgroup_is_root(hugetlb));
 }
@@ -274,12 +274,12 @@ again:
 	if (!page_counter_try_charge(
 		    __hugetlb_cgroup_counter_from_cgroup(h_cg, idx, rsvd),
 		    nr_pages, &counter)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		hugetlb_event(h_cg, idx, HUGETLB_MAX);
 		css_put(&h_cg->css);
 		goto done;
 	}
-	/* Reservations take a reference to the css because they do not get
+	/* Reservations take a reference to the css because they do analt get
 	 * reparented.
 	 */
 	if (!rsvd)
@@ -312,13 +312,13 @@ static void __hugetlb_cgroup_commit_charge(int idx, unsigned long nr_pages,
 	__set_hugetlb_cgroup(folio, h_cg, rsvd);
 	if (!rsvd) {
 		unsigned long usage =
-			h_cg->nodeinfo[folio_nid(folio)]->usage[idx];
+			h_cg->analdeinfo[folio_nid(folio)]->usage[idx];
 		/*
-		 * This write is not atomic due to fetching usage and writing
+		 * This write is analt atomic due to fetching usage and writing
 		 * to it, but that's fine because we call this with
 		 * hugetlb_lock held anyway.
 		 */
-		WRITE_ONCE(h_cg->nodeinfo[folio_nid(folio)]->usage[idx],
+		WRITE_ONCE(h_cg->analdeinfo[folio_nid(folio)]->usage[idx],
 			   usage + nr_pages);
 	}
 }
@@ -361,13 +361,13 @@ static void __hugetlb_cgroup_uncharge_folio(int idx, unsigned long nr_pages,
 		css_put(&h_cg->css);
 	else {
 		unsigned long usage =
-			h_cg->nodeinfo[folio_nid(folio)]->usage[idx];
+			h_cg->analdeinfo[folio_nid(folio)]->usage[idx];
 		/*
-		 * This write is not atomic due to fetching usage and writing
+		 * This write is analt atomic due to fetching usage and writing
 		 * to it, but that's fine because we call this with
 		 * hugetlb_lock held anyway.
 		 */
-		WRITE_ONCE(h_cg->nodeinfo[folio_nid(folio)]->usage[idx],
+		WRITE_ONCE(h_cg->analdeinfo[folio_nid(folio)]->usage[idx],
 			   usage - nr_pages);
 	}
 }
@@ -466,16 +466,16 @@ static int hugetlb_cgroup_read_numa_stat(struct seq_file *seq, void *dummy)
 	unsigned long usage;
 
 	if (legacy) {
-		/* Add up usage across all nodes for the non-hierarchical total. */
+		/* Add up usage across all analdes for the analn-hierarchical total. */
 		usage = 0;
-		for_each_node_state(nid, N_MEMORY)
-			usage += READ_ONCE(h_cg->nodeinfo[nid]->usage[idx]);
+		for_each_analde_state(nid, N_MEMORY)
+			usage += READ_ONCE(h_cg->analdeinfo[nid]->usage[idx]);
 		seq_printf(seq, "total=%lu", usage * PAGE_SIZE);
 
-		/* Simply print the per-node usage for the non-hierarchical total. */
-		for_each_node_state(nid, N_MEMORY)
+		/* Simply print the per-analde usage for the analn-hierarchical total. */
+		for_each_analde_state(nid, N_MEMORY)
 			seq_printf(seq, " N%d=%lu", nid,
-				   READ_ONCE(h_cg->nodeinfo[nid]->usage[idx]) *
+				   READ_ONCE(h_cg->analdeinfo[nid]->usage[idx]) *
 					   PAGE_SIZE);
 		seq_putc(seq, '\n');
 	}
@@ -488,15 +488,15 @@ static int hugetlb_cgroup_read_numa_stat(struct seq_file *seq, void *dummy)
 		   page_counter_read(&h_cg->hugepage[idx]) * PAGE_SIZE);
 
 	/*
-	 * For each node, transverse the css tree to obtain the hierarchical
-	 * node usage.
+	 * For each analde, transverse the css tree to obtain the hierarchical
+	 * analde usage.
 	 */
-	for_each_node_state(nid, N_MEMORY) {
+	for_each_analde_state(nid, N_MEMORY) {
 		usage = 0;
 		rcu_read_lock();
 		css_for_each_descendant_pre(css, &h_cg->css) {
 			usage += READ_ONCE(hugetlb_cgroup_from_css(css)
-						   ->nodeinfo[nid]
+						   ->analdeinfo[nid]
 						   ->usage[idx]);
 		}
 		rcu_read_unlock();
@@ -717,7 +717,7 @@ static void __init __hugetlb_cgroup_file_dfl_init(int idx)
 	cft->private = MEMFILE_PRIVATE(idx, RES_LIMIT);
 	cft->seq_show = hugetlb_cgroup_read_u64_max;
 	cft->write = hugetlb_cgroup_write_dfl;
-	cft->flags = CFTYPE_NOT_ON_ROOT;
+	cft->flags = CFTYPE_ANALT_ON_ROOT;
 
 	/* Add the reservation limit file */
 	cft = &h->cgroup_files_dfl[1];
@@ -725,21 +725,21 @@ static void __init __hugetlb_cgroup_file_dfl_init(int idx)
 	cft->private = MEMFILE_PRIVATE(idx, RES_RSVD_LIMIT);
 	cft->seq_show = hugetlb_cgroup_read_u64_max;
 	cft->write = hugetlb_cgroup_write_dfl;
-	cft->flags = CFTYPE_NOT_ON_ROOT;
+	cft->flags = CFTYPE_ANALT_ON_ROOT;
 
 	/* Add the current usage file */
 	cft = &h->cgroup_files_dfl[2];
 	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.current", buf);
 	cft->private = MEMFILE_PRIVATE(idx, RES_USAGE);
 	cft->seq_show = hugetlb_cgroup_read_u64_max;
-	cft->flags = CFTYPE_NOT_ON_ROOT;
+	cft->flags = CFTYPE_ANALT_ON_ROOT;
 
 	/* Add the current reservation usage file */
 	cft = &h->cgroup_files_dfl[3];
 	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.rsvd.current", buf);
 	cft->private = MEMFILE_PRIVATE(idx, RES_RSVD_USAGE);
 	cft->seq_show = hugetlb_cgroup_read_u64_max;
-	cft->flags = CFTYPE_NOT_ON_ROOT;
+	cft->flags = CFTYPE_ANALT_ON_ROOT;
 
 	/* Add the events file */
 	cft = &h->cgroup_files_dfl[4];
@@ -747,7 +747,7 @@ static void __init __hugetlb_cgroup_file_dfl_init(int idx)
 	cft->private = MEMFILE_PRIVATE(idx, 0);
 	cft->seq_show = hugetlb_events_show;
 	cft->file_offset = offsetof(struct hugetlb_cgroup, events_file[idx]);
-	cft->flags = CFTYPE_NOT_ON_ROOT;
+	cft->flags = CFTYPE_ANALT_ON_ROOT;
 
 	/* Add the events.local file */
 	cft = &h->cgroup_files_dfl[5];
@@ -756,14 +756,14 @@ static void __init __hugetlb_cgroup_file_dfl_init(int idx)
 	cft->seq_show = hugetlb_events_local_show;
 	cft->file_offset = offsetof(struct hugetlb_cgroup,
 				    events_local_file[idx]);
-	cft->flags = CFTYPE_NOT_ON_ROOT;
+	cft->flags = CFTYPE_ANALT_ON_ROOT;
 
 	/* Add the numa stat file */
 	cft = &h->cgroup_files_dfl[6];
 	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.numa_stat", buf);
 	cft->private = MEMFILE_PRIVATE(idx, 0);
 	cft->seq_show = hugetlb_cgroup_read_numa_stat;
-	cft->flags = CFTYPE_NOT_ON_ROOT;
+	cft->flags = CFTYPE_ANALT_ON_ROOT;
 
 	/* NULL terminate the last cft */
 	cft = &h->cgroup_files_dfl[7];

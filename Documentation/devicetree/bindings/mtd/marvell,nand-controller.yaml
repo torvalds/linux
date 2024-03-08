@@ -54,7 +54,7 @@ properties:
 
   marvell,system-controller:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: Syscon node that handles NAND controller related registers
+    description: Syscon analde that handles NAND controller related registers
 
 patternProperties:
   "^nand@[a-f0-9]$":
@@ -83,7 +83,7 @@ patternProperties:
       marvell,nand-keep-config:
         $ref: /schemas/types.yaml#/definitions/flag
         description:
-          Orders the driver not to take the timings from the core and
+          Orders the driver analt to take the timings from the core and
           leaving them completely untouched. Bootloader timings will then
           be used.
 

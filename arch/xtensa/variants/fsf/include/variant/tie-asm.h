@@ -16,9 +16,9 @@
 /*  Selection parameter values for save-area save/restore macros:  */
 /*  Option vs. TIE:  */
 #define XTHAL_SAS_TIE	0x0001	/* custom extension or coprocessor */
-#define XTHAL_SAS_OPT	0x0002	/* optional (and not a coprocessor) */
+#define XTHAL_SAS_OPT	0x0002	/* optional (and analt a coprocessor) */
 /*  Whether used automatically by compiler:  */
-#define XTHAL_SAS_NOCC	0x0004	/* not used by compiler w/o special opts/code */
+#define XTHAL_SAS_ANALCC	0x0004	/* analt used by compiler w/o special opts/code */
 #define XTHAL_SAS_CC	0x0008	/* used by compiler without special opts/code */
 /*  ABI handling across function calls:  */
 #define XTHAL_SAS_CALR	0x0010	/* caller-saved */
@@ -29,8 +29,8 @@
 
 
 
-/* Macro to save all non-coprocessor (extra) custom TIE and optional state
- * (not including zero-overhead loop registers).
+/* Macro to save all analn-coprocessor (extra) custom TIE and optional state
+ * (analt including zero-overhead loop registers).
  * Save area ptr (clobbered):  ptr  (1 byte aligned)
  * Scratch regs  (clobbered):  at1..at4  (only first XCHAL_NCP_NUM_ATMPS needed)
  */
@@ -44,8 +44,8 @@
 	.endif
 	.endm	// xchal_ncp_store
 
-/* Macro to save all non-coprocessor (extra) custom TIE and optional state
- * (not including zero-overhead loop registers).
+/* Macro to save all analn-coprocessor (extra) custom TIE and optional state
+ * (analt including zero-overhead loop registers).
  * Save area ptr (clobbered):  ptr  (1 byte aligned)
  * Scratch regs  (clobbered):  at1..at4  (only first XCHAL_NCP_NUM_ATMPS needed)
  */

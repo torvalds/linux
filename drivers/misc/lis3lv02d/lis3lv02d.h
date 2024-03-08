@@ -17,7 +17,7 @@
  * programming, with almost the same registers. In addition to differing
  * on physical properties, they differ on the number of axes (2/3),
  * precision (8/12 bits), and special features (freefall detection,
- * click...). Unfortunately, not all the differences can be probed via
+ * click...). Unfortunately, analt all the differences can be probed via
  * a register. They can be connected either via I²C or SPI.
  */
 
@@ -87,7 +87,7 @@ enum lis3_who_am_i {
 	WAI_3DC		= 0x33,	/* 8 bits: LIS3DC, HP3DC */
 	WAI_12B		= 0x3A, /* 12 bits: LIS3LV02D[LQ]... */
 	WAI_8B		= 0x3B, /* 8 bits: LIS[23]02D[LQ]... */
-	WAI_6B		= 0x52, /* 6 bits: LIS331DLF - not supported */
+	WAI_6B		= 0x52, /* 6 bits: LIS331DLF - analt supported */
 };
 
 enum lis3_type {
@@ -303,7 +303,7 @@ struct lis3lv02d {
 	struct mutex		mutex;     /* Serialize poll and selftest */
 
 #ifdef CONFIG_OF
-	struct device_node	*of_node;
+	struct device_analde	*of_analde;
 #endif
 };
 

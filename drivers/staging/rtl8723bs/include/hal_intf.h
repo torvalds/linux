@@ -151,7 +151,7 @@ enum hal_odm_variable {
 	HAL_ODM_STA_INFO,
 	HAL_ODM_P2P_STATE,
 	HAL_ODM_WIFI_DISPLAY_STATE,
-	HAL_ODM_NOISE_MONITOR,
+	HAL_ODM_ANALISE_MONITOR,
 };
 
 enum hal_intf_ps_func {
@@ -249,7 +249,7 @@ struct hal_ops {
 	bool	(*Efuse_PgPacketWrite_BT)(struct adapter *padapter, u8 offset, u8 word_en, u8 *data, bool bPseudoTest);
 
 	s32 (*xmit_thread_handler)(struct adapter *padapter);
-	void (*hal_notch_filter)(struct adapter *adapter, bool enable);
+	void (*hal_analtch_filter)(struct adapter *adapter, bool enable);
 	void (*hal_reset_security_engine)(struct adapter *adapter);
 	s32 (*c2h_handler)(struct adapter *padapter, u8 *c2h_evt);
 	c2h_id_filter c2h_id_filter_ccx;
@@ -275,7 +275,7 @@ struct hal_ops {
 #define Rx_MagicPkt				0x21
 #define Rx_UnicastPkt			0x22
 #define Rx_PatternPkt			0x23
-#define	RX_PNOWakeUp			0x55
+#define	RX_PANALWakeUp			0x55
 #define	AP_WakeUp			0x66
 
 void rtw_hal_def_value_init(struct adapter *padapter);
@@ -346,7 +346,7 @@ void rtw_hal_dm_watchdog_in_lps(struct adapter *padapter);
 
 s32 rtw_hal_xmit_thread_handler(struct adapter *padapter);
 
-void rtw_hal_notch_filter(struct adapter *adapter, bool enable);
+void rtw_hal_analtch_filter(struct adapter *adapter, bool enable);
 void rtw_hal_reset_security_engine(struct adapter *adapter);
 
 bool rtw_hal_c2h_valid(struct adapter *adapter, u8 *buf);

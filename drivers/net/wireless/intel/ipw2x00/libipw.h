@@ -10,8 +10,8 @@
  * <j@w1.fi>
  * Copyright (c) 2002-2003, Jouni Malinen <j@w1.fi>
  *
- * Adaption to a generic IEEE 802.11 stack by James Ketrenos
- * <jketreno@linux.intel.com>
+ * Adaption to a generic IEEE 802.11 stack by James Ketreanals
+ * <jketreanal@linux.intel.com>
  * Copyright (c) 2004-2005, Intel Corporation
  *
  * API Version History
@@ -86,7 +86,7 @@ do { if (libipw_debug_level & (level)) \
  *
  * you simply need to add your entry to the libipw_debug_level array.
  *
- * If you do not see debug_level in /proc/net/ieee80211 then you do not have
+ * If you do analt see debug_level in /proc/net/ieee80211 then you do analt have
  * CONFIG_LIBIPW_DEBUG defined in your kernel configuration
  *
  */
@@ -154,7 +154,7 @@ struct libipw_snap_hdr {
 
 #define LIBIPW_STATMASK_SIGNAL (1<<0)
 #define LIBIPW_STATMASK_RSSI (1<<1)
-#define LIBIPW_STATMASK_NOISE (1<<2)
+#define LIBIPW_STATMASK_ANALISE (1<<2)
 #define LIBIPW_STATMASK_RATE (1<<3)
 #define LIBIPW_STATMASK_WEMASK 0x7
 
@@ -215,7 +215,7 @@ struct libipw_snap_hdr {
 #define LIBIPW_NUM_CCK_RATES	            4
 #define LIBIPW_OFDM_SHIFT_MASK_A         4
 
-/* NOTE: This data is for statistical purposes; not all hardware provides this
+/* ANALTE: This data is for statistical purposes; analt all hardware provides this
  *       information for frames received.
  *       For libipw_rx_mgt, you need to set at least the 'len' parameter.
  */
@@ -223,7 +223,7 @@ struct libipw_rx_stats {
 	u32 mac_time;
 	s8 rssi;
 	u8 signal;
-	u8 noise;
+	u8 analise;
 	u16 rate;		/* in 100 kbps */
 	u8 received_channel;
 	u8 control;
@@ -236,7 +236,7 @@ struct libipw_rx_stats {
 
 /* IEEE 802.11 requires that STA supports concurrent reception of at least
  * three fragmented frames. This define can be increased to support more
- * concurrent frames, but it should be noted that each entry can consume about
+ * concurrent frames, but it should be analted that each entry can consume about
  * 2 kB of RAM and increasing cache size will slow down frame reassembly. */
 #define LIBIPW_FRAG_CACHE_LEN 4
 
@@ -266,7 +266,7 @@ struct libipw_stats {
 	unsigned int rx_unicast_octets;
 	unsigned int rx_multicast_octets;
 	unsigned int rx_fcs_errors;
-	unsigned int rx_discards_no_buffer;
+	unsigned int rx_discards_anal_buffer;
 	unsigned int tx_discards_wrong_sa;
 	unsigned int rx_discards_undecryptable;
 	unsigned int rx_message_in_msg_fragments;
@@ -286,13 +286,13 @@ struct libipw_device;
 #define SEC_ENABLED		(1<<8)
 #define SEC_ENCRYPT		(1<<9)
 
-#define SEC_LEVEL_0		0	/* None */
+#define SEC_LEVEL_0		0	/* Analne */
 #define SEC_LEVEL_1		1	/* WEP 40 and 104 bit */
 #define SEC_LEVEL_2		2	/* Level 1 + TKIP */
 #define SEC_LEVEL_2_CKIP	3	/* Level 1 + CKIP */
 #define SEC_LEVEL_3		4	/* Level 2 + CCMP */
 
-#define SEC_ALG_NONE		0
+#define SEC_ALG_ANALNE		0
 #define SEC_ALG_WEP		1
 #define SEC_ALG_TKIP		2
 #define SEC_ALG_CCMP		3
@@ -648,7 +648,7 @@ struct libipw_network {
 	/* TPC Report - mandatory if spctrm mgmt required */
 	struct libipw_tpc_report tpc_report;
 
-	/* Channel Switch Announcement - optional if spctrm mgmt required */
+	/* Channel Switch Ananaluncement - optional if spctrm mgmt required */
 	struct libipw_csa csa;
 
 	/* Quiet - optional if spctrm mgmt required */
@@ -688,7 +688,7 @@ enum {
 	LIBIPW_CH_PASSIVE_ONLY = (1 << 0),
 	LIBIPW_CH_80211H_RULES = (1 << 1),
 	LIBIPW_CH_B_ONLY = (1 << 2),
-	LIBIPW_CH_NO_IBSS = (1 << 3),
+	LIBIPW_CH_ANAL_IBSS = (1 << 3),
 	LIBIPW_CH_UNIFORM_SPREADING = (1 << 4),
 	LIBIPW_CH_RADAR_DETECT = (1 << 5),
 	LIBIPW_CH_INVALID = (1 << 6),

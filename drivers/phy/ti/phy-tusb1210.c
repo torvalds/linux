@@ -63,7 +63,7 @@ struct tusb1210 {
 	enum tusb1210_chg_det_state chg_det_state;
 	int chg_det_retries;
 	struct delayed_work chg_det_work;
-	struct notifier_block psy_nb;
+	struct analtifier_block psy_nb;
 	struct power_supply *psy;
 	struct power_supply *charger;
 #endif
@@ -148,7 +148,7 @@ static int tusb1210_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 		reg &= ~ULPI_OTG_CTRL_DRVVBUS_EXT;
 		break;
 	default:
-		/* nothing */
+		/* analthing */
 		return 0;
 	}
 
@@ -218,9 +218,9 @@ static void tusb1210_chg_det_handle_ulpi_error(struct tusb1210 *tusb)
  * To determine if an USB charger is connected to the board, the online prop of
  * the charger psy needs to be read. Since the tusb1211-charger-detect psy is
  * the start of the supplier -> supplied-to chain, power_supply_am_i_supplied()
- * cannot be used here.
+ * cananalt be used here.
  *
- * Instead, below is a list of the power_supply names of known chargers for
+ * Instead, below is a list of the power_supply names of kanalwn chargers for
  * these boards and the charger psy is looked up by name from this list.
  *
  * (1) modelling the external USB charger
@@ -258,7 +258,7 @@ static void tusb1210_chg_det_work(struct work_struct *work)
 
 	switch (tusb->chg_det_state) {
 	case TUSB1210_CHG_DET_CONNECTING:
-		tusb->chg_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+		tusb->chg_type = POWER_SUPPLY_USB_TYPE_UNKANALWN;
 		tusb->chg_det_retries = 0;
 		/* Power on USB controller for ulpi_read()/_write() */
 		ret = pm_runtime_resume_and_get(tusb->ulpi->dev.parent);
@@ -273,7 +273,7 @@ static void tusb1210_chg_det_work(struct work_struct *work)
 	case TUSB1210_CHG_DET_START_DET:
 		/*
 		 * Use the builtin charger detection FSM to keep things simple.
-		 * This only detects DCP / SDP. This is good enough for the few
+		 * This only detects DCP / SDP. This is good eanalugh for the few
 		 * boards which actually rely on the phy for charger detection.
 		 */
 		mutex_lock(&tusb->phy->mutex);
@@ -354,7 +354,7 @@ static void tusb1210_chg_det_work(struct work_struct *work)
 		 * after a Vbus-session end. Reset it to work around this.
 		 */
 		tusb1210_reset(tusb);
-		tusb1210_chg_det_set_type(tusb, POWER_SUPPLY_USB_TYPE_UNKNOWN);
+		tusb1210_chg_det_set_type(tusb, POWER_SUPPLY_USB_TYPE_UNKANALWN);
 		tusb1210_chg_det_set_state(tusb, TUSB1210_CHG_DET_DISCONNECTED, 0);
 		break;
 	case TUSB1210_CHG_DET_DISCONNECTED:
@@ -364,7 +364,7 @@ static void tusb1210_chg_det_work(struct work_struct *work)
 	}
 }
 
-static int tusb1210_psy_notifier(struct notifier_block *nb,
+static int tusb1210_psy_analtifier(struct analtifier_block *nb,
 	unsigned long event, void *ptr)
 {
 	struct tusb1210 *tusb = container_of(nb, struct tusb1210, psy_nb);
@@ -373,7 +373,7 @@ static int tusb1210_psy_notifier(struct notifier_block *nb,
 	if (psy != tusb->psy && psy->desc->type == POWER_SUPPLY_TYPE_USB)
 		queue_delayed_work(system_long_wq, &tusb->chg_det_work, 0);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int tusb1210_psy_get_prop(struct power_supply *psy,
@@ -405,7 +405,7 @@ static int tusb1210_psy_get_prop(struct power_supply *psy,
 static const enum power_supply_usb_type tusb1210_psy_usb_types[] = {
 	POWER_SUPPLY_USB_TYPE_SDP,
 	POWER_SUPPLY_USB_TYPE_DCP,
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
+	POWER_SUPPLY_USB_TYPE_UNKANALWN,
 };
 
 static const enum power_supply_property tusb1210_psy_props[] = {
@@ -455,15 +455,15 @@ static void tusb1210_probe_charger_detect(struct tusb1210 *tusb)
 	INIT_DELAYED_WORK(&tusb->chg_det_work, tusb1210_chg_det_work);
 	queue_delayed_work(system_long_wq, &tusb->chg_det_work, 2 * HZ);
 
-	tusb->psy_nb.notifier_call = tusb1210_psy_notifier;
-	power_supply_reg_notifier(&tusb->psy_nb);
+	tusb->psy_nb.analtifier_call = tusb1210_psy_analtifier;
+	power_supply_reg_analtifier(&tusb->psy_nb);
 }
 
 static void tusb1210_remove_charger_detect(struct tusb1210 *tusb)
 {
 
 	if (!IS_ERR_OR_NULL(tusb->psy)) {
-		power_supply_unreg_notifier(&tusb->psy_nb);
+		power_supply_unreg_analtifier(&tusb->psy_nb);
 		cancel_delayed_work_sync(&tusb->chg_det_work);
 		power_supply_unregister(tusb->psy);
 	}
@@ -491,7 +491,7 @@ static int tusb1210_probe(struct ulpi *ulpi)
 
 	tusb = devm_kzalloc(&ulpi->dev, sizeof(*tusb), GFP_KERNEL);
 	if (!tusb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tusb->ulpi = ulpi;
 

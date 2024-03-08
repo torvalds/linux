@@ -53,7 +53,7 @@ static int tps6287x_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	unsigned int val;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = 0;
 		break;
 	case REGULATOR_MODE_FAST:
@@ -77,13 +77,13 @@ static unsigned int tps6287x_get_mode(struct regulator_dev *rdev)
 		return 0;
 
 	return (val & TPS6287X_CTRL1_FPWMEN) ? REGULATOR_MODE_FAST :
-	    REGULATOR_MODE_NORMAL;
+	    REGULATOR_MODE_ANALRMAL;
 }
 
 static unsigned int tps6287x_of_map_mode(unsigned int mode)
 {
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 	case REGULATOR_MODE_FAST:
 		return mode;
 	default:
@@ -138,8 +138,8 @@ static int tps6287x_i2c_probe(struct i2c_client *i2c)
 	}
 
 	config.dev = dev;
-	config.of_node = dev->of_node;
-	config.init_data = of_get_regulator_init_data(dev, dev->of_node,
+	config.of_analde = dev->of_analde;
+	config.init_data = of_get_regulator_init_data(dev, dev->of_analde,
 						      &tps6287x_reg);
 
 	rdev = devm_regulator_register(dev, &tps6287x_reg, &config);

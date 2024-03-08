@@ -22,7 +22,7 @@ gp102_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 
 	nvkm_mm_fini(&(*pram)->vram);
 
-	return nvkm_mm_init(&(*pram)->vram, NVKM_RAM_MM_NORMAL,
+	return nvkm_mm_init(&(*pram)->vram, NVKM_RAM_MM_ANALRMAL,
 			    rsvd_head >> NVKM_RAM_MM_SHIFT,
 			    (size - rsvd_head - rsvd_tail) >> NVKM_RAM_MM_SHIFT,
 			    1);

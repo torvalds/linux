@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,7 +57,7 @@
  * achieve your new requirements. This approach reduces or even eliminates the
  * effort needed outside link component to support a new link feature. This also
  * reduces code discrepancy among DMs to support the same link feature. If we
- * test full code path on one version of DM, and there is no feature specific
+ * test full code path on one version of DM, and there is anal feature specific
  * modification required on other DMs, then we can have higher confidence that
  * the feature will run on other DMs and produce the same result. The following
  * are some good examples to start with:
@@ -183,7 +183,7 @@ struct link_service {
 			struct ddc_service *ddc,
 			const uint8_t *data,
 			uint32_t len);
-	bool (*aux_transfer_with_retries_no_mutex)(struct ddc_service *ddc,
+	bool (*aux_transfer_with_retries_anal_mutex)(struct ddc_service *ddc,
 			struct aux_payload *payload);
 	bool (*is_in_aux_transaction_mode)(struct ddc_service *ddc);
 	uint32_t (*get_aux_defer_delay)(struct ddc_service *ddc);

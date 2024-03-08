@@ -12,7 +12,7 @@
 
 	aliases {
 		/*
-		 * iMX RTC is not battery powered on this board.
+		 * iMX RTC is analt battery powered on this board.
 		 * Use the i2c RTC as rtc0.
 		 */
 		rtc0 = &rtc;
@@ -61,7 +61,7 @@
 };
 
 &cpu0 {
-	/* CPU rated to 800 MHz, not the default 1.2GHz. */
+	/* CPU rated to 800 MHz, analt the default 1.2GHz. */
 	operating-points = <
 		/* kHz   uV */
 		166666  850000

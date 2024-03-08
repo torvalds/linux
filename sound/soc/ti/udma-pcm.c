@@ -17,7 +17,7 @@ static const struct snd_pcm_hardware udma_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
 				  SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME |
-				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP |
+				  SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP |
 				  SNDRV_PCM_INFO_INTERLEAVED,
 	.buffer_bytes_max	= SIZE_MAX,
 	.period_bytes_min	= 32,

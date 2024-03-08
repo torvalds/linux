@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2013 BayHub Technology Ltd.
+ * Copyright (C) 2013 BayHub Techanallogy Ltd.
  *
  * Authors: Peter Guo <peter.guo@bayhubtech.com>
- *          Adam Lee <adam.lee@canonical.com>
+ *          Adam Lee <adam.lee@caanalnical.com>
  *          Ernest Zhang <ernest.zhang@bayhubtech.com>
  */
 
@@ -464,7 +464,7 @@ static void sdhci_pci_o2_fujin2_pci_init(struct sdhci_pci_chip *chip)
 	scratch_32 &= ~((1 << 12) | (1 << 13) | (1 << 14));
 	pci_write_config_dword(chip->pdev, O2_SD_DEV_CTRL, scratch_32);
 
-	/* Enable Link abnormal reset generating Reset */
+	/* Enable Link abanalrmal reset generating Reset */
 	ret = pci_read_config_dword(chip->pdev, O2_SD_MISC_REG5, &scratch_32);
 	if (ret)
 		return;
@@ -768,8 +768,8 @@ static int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
 					mmc_hostname(host->mmc));
 				host->flags &= ~SDHCI_SIGNALING_330;
 				host->flags |= SDHCI_SIGNALING_180;
-				host->mmc->caps2 |= MMC_CAP2_NO_SD;
-				host->mmc->caps2 |= MMC_CAP2_NO_SDIO;
+				host->mmc->caps2 |= MMC_CAP2_ANAL_SD;
+				host->mmc->caps2 |= MMC_CAP2_ANAL_SDIO;
 				pci_write_config_dword(chip->pdev,
 						       O2_SD_DETECT_SETTING, 3);
 			}
@@ -779,7 +779,7 @@ static int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
 
 		if (chip->pdev->device == PCI_DEVICE_ID_O2_SEABIRD1) {
 			slot->host->mmc_host_ops.get_cd = sdhci_o2_get_cd;
-			host->mmc->caps2 |= MMC_CAP2_NO_SDIO;
+			host->mmc->caps2 |= MMC_CAP2_ANAL_SDIO;
 			host->quirks2 |= SDHCI_QUIRK2_PRESET_VALUE_BROKEN;
 		}
 
@@ -794,7 +794,7 @@ static int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
 	case PCI_DEVICE_ID_O2_GG8_9861:
 	case PCI_DEVICE_ID_O2_GG8_9862:
 	case PCI_DEVICE_ID_O2_GG8_9863:
-		host->mmc->caps2 |= MMC_CAP2_NO_SDIO | MMC_CAP2_SD_EXP | MMC_CAP2_SD_EXP_1_2V;
+		host->mmc->caps2 |= MMC_CAP2_ANAL_SDIO | MMC_CAP2_SD_EXP | MMC_CAP2_SD_EXP_1_2V;
 		host->mmc->caps |= MMC_CAP_HW_RESET;
 		host->quirks2 |= SDHCI_QUIRK2_PRESET_VALUE_BROKEN;
 		slot->host->mmc_host_ops.get_cd = sdhci_o2_get_cd;
@@ -1085,7 +1085,7 @@ static const struct sdhci_ops sdhci_pci_o2_ops = {
 
 const struct sdhci_pci_fixes sdhci_o2 = {
 	.probe = sdhci_pci_o2_probe,
-	.quirks = SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks = SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC,
 	.quirks2 = SDHCI_QUIRK2_CLEAR_TRANSFERMODE_REG_BEFORE_CMD,
 	.probe_slot = sdhci_pci_o2_probe_slot,
 #ifdef CONFIG_PM_SLEEP

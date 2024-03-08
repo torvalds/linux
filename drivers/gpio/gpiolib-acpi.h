@@ -14,7 +14,7 @@
 #include <linux/gpio/consumer.h>
 
 struct device;
-struct fwnode_handle;
+struct fwanalde_handle;
 
 struct gpio_chip;
 struct gpio_desc;
@@ -27,7 +27,7 @@ void acpi_gpiochip_remove(struct gpio_chip *chip);
 void acpi_gpiochip_request_interrupts(struct gpio_chip *chip);
 void acpi_gpiochip_free_interrupts(struct gpio_chip *chip);
 
-struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
+struct gpio_desc *acpi_find_gpio(struct fwanalde_handle *fwanalde,
 				 const char *con_id,
 				 unsigned int idx,
 				 enum gpiod_flags *dflags,
@@ -45,15 +45,15 @@ static inline void
 acpi_gpiochip_free_interrupts(struct gpio_chip *chip) { }
 
 static inline struct gpio_desc *
-acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id,
+acpi_find_gpio(struct fwanalde_handle *fwanalde, const char *con_id,
 	       unsigned int idx, enum gpiod_flags *dflags,
 	       unsigned long *lookupflags)
 {
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 static inline int acpi_gpio_count(struct device *dev, const char *con_id)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

@@ -7,7 +7,7 @@ Required Properties:
        region.
 - interrupts: The interrupt number. The interrupt specifier format depends on
 	      the interrupt controller and of its driver.
-- clocks: Must contain the clock source, usually from the North Bridge clocks.
+- clocks: Must contain the clock source, usually from the Analrth Bridge clocks.
 - num-cs: The number of chip selects that is supported by this SPI Controller
 - #address-cells: should be 1.
 - #size-cells: should be 0.

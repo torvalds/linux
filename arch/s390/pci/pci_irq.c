@@ -37,8 +37,8 @@ static int zpci_set_airq(struct zpci_dev *zdev)
 	u8 status;
 
 	fib.fmt0.isc = PCI_ISC;
-	fib.fmt0.sum = 1;	/* enable summary notifications */
-	fib.fmt0.noi = airq_iv_end(zdev->aibv);
+	fib.fmt0.sum = 1;	/* enable summary analtifications */
+	fib.fmt0.anali = airq_iv_end(zdev->aibv);
 	fib.fmt0.aibv = virt_to_phys(zdev->aibv->vector);
 	fib.fmt0.aibvo = 0;	/* each zdev has its own interrupt vector */
 	fib.fmt0.aisb = virt_to_phys(zpci_sbv->vector) + (zdev->aisb / 64) * 8;
@@ -73,7 +73,7 @@ static int zpci_set_directed_irq(struct zpci_dev *zdev)
 	u8 status;
 
 	fib.fmt = 1;
-	fib.fmt1.noi = zdev->msi_nr_irqs;
+	fib.fmt1.anali = zdev->msi_nr_irqs;
 	fib.fmt1.dibvo = zdev->msi_first_bit;
 	fib.gd = zdev->gisa;
 
@@ -299,7 +299,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		/* Create adapter interrupt vector */
 		zdev->aibv = airq_iv_create(msi_vecs, AIRQ_IV_DATA | AIRQ_IV_BITLOCK, NULL);
 		if (!zdev->aibv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Wire up shortcut pointer */
 		zpci_ibv[bit] = zdev->aibv;
@@ -309,7 +309,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 
 	/* Request MSI interrupts */
 	hwirq = bit;
-	msi_for_each_desc(msi, &pdev->dev, MSI_DESC_NOTASSOCIATED) {
+	msi_for_each_desc(msi, &pdev->dev, MSI_DESC_ANALTASSOCIATED) {
 		rc = -EIO;
 		if (hwirq - bit >= msi_vecs)
 			break;
@@ -317,7 +317,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 				(irq_delivery == DIRECTED) ?
 				msi->affinity : NULL);
 		if (irq < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 		rc = irq_set_msi_desc(irq, msi);
 		if (rc)
 			return rc;
@@ -423,7 +423,7 @@ static int __init zpci_directed_irq_init(void)
 
 	zpci_sbv = airq_iv_create(num_possible_cpus(), 0, NULL);
 	if (!zpci_sbv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iib.diib.isc = PCI_ISC;
 	iib.diib.nr_cpus = num_possible_cpus();
@@ -433,7 +433,7 @@ static int __init zpci_directed_irq_init(void)
 	zpci_ibv = kcalloc(num_possible_cpus(), sizeof(*zpci_ibv),
 			   GFP_KERNEL);
 	if (!zpci_ibv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_possible_cpu(cpu) {
 		/*
@@ -445,7 +445,7 @@ static int __init zpci_directed_irq_init(void)
 					       AIRQ_IV_CACHELINE |
 					       (!cpu ? AIRQ_IV_ALLOC : 0), NULL);
 		if (!zpci_ibv[cpu])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	on_each_cpu(cpu_enable_directed_irq, NULL, 1);
 
@@ -458,7 +458,7 @@ static int __init zpci_floating_irq_init(void)
 {
 	zpci_ibv = kcalloc(ZPCI_NR_DEVICES, sizeof(*zpci_ibv), GFP_KERNEL);
 	if (!zpci_ibv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	zpci_sbv = airq_iv_create(ZPCI_NR_DEVICES, AIRQ_IV_ALLOC, NULL);
 	if (!zpci_sbv)
@@ -468,7 +468,7 @@ static int __init zpci_floating_irq_init(void)
 
 out_free:
 	kfree(zpci_ibv);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int __init zpci_irq_init(void)

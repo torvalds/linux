@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (C) 2020 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2020 Iceanalwy Zheng <iceanalwy@aosc.io>
  *
  */
 
@@ -14,7 +14,7 @@
 };
 
 &dsi {
-	/delete-node/ panel@0;
+	/delete-analde/ panel@0;
 
 	panel@0 {
 		compatible = "feixin,k101-im2byl02", "ilitek,ili9881c";

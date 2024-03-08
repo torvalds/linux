@@ -126,7 +126,7 @@ static bool expand_to_next_prime(unsigned long x)
 
 	sz = round_up(sz, BITS_PER_LONG);
 	new = kmalloc(sizeof(*new) + bitmap_size(sz),
-		      GFP_KERNEL | __GFP_NOWARN);
+		      GFP_KERNEL | __GFP_ANALWARN);
 	if (!new)
 		return false;
 
@@ -138,7 +138,7 @@ static bool expand_to_next_prime(unsigned long x)
 	}
 
 	/* Where memory permits, track the primes using the
-	 * Sieve of Eratosthenes. The sieve is to remove all multiples of known
+	 * Sieve of Eratosthenes. The sieve is to remove all multiples of kanalwn
 	 * primes from the set, what remains in the set is therefore prime.
 	 */
 	bitmap_fill(new->primes, sz);
@@ -274,7 +274,7 @@ static int selftest(unsigned long max)
 
 		if (slow != fast) {
 			pr_err("inconsistent result for is-prime(%lu): slow=%s, fast=%s!\n",
-			       x, slow ? "yes" : "no", fast ? "yes" : "no");
+			       x, slow ? "anal" : "anal", fast ? "anal" : "anal");
 			goto err;
 		}
 

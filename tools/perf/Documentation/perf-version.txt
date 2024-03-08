@@ -5,13 +5,13 @@ NAME
 ----
 perf-version - display the version of perf binary
 
-SYNOPSIS
+SYANALPSIS
 --------
 'perf version' [--build-options]
 
 DESCRIPTION
 -----------
-With no options given, the 'perf version' prints the perf version
+With anal options given, the 'perf version' prints the perf version
 on the standard output.
 
 If the option '--build-options' is given, then the status of

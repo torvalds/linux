@@ -37,7 +37,7 @@ static struct rc_map_table flydvb[] = {
 	{ 0x18, KEY_VIDEO },		/* Source */
 
 	{ 0x1e, KEY_RECORD },		/* Record/Pause */
-	{ 0x15, KEY_ANGLE },		/* Swap (no label on key) */
+	{ 0x15, KEY_ANGLE },		/* Swap (anal label on key) */
 	{ 0x1c, KEY_PAUSE },		/* Timeshift/Pause */
 	{ 0x19, KEY_BACK },		/* Rewind << */
 	{ 0x0a, KEY_PLAYPAUSE },	/* Play/Pause */
@@ -51,7 +51,7 @@ static struct rc_map_list flydvb_map = {
 	.map = {
 		.scan     = flydvb,
 		.size     = ARRAY_SIZE(flydvb),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_FLYDVB,
 	}
 };

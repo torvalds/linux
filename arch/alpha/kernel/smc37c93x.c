@@ -251,7 +251,7 @@ int __init SMC93x_Init(void)
 		DBG_DEVS(("SMC FDC37C93X: SER2 done\n"));
 		SMCEnableDevice(SMCUltraBase, PARP, PARP_BASE, PARP_INTERRUPT);
 		DBG_DEVS(("SMC FDC37C93X: PARP done\n"));
-		/* On PC164, IDE on the SMC is not enabled;
+		/* On PC164, IDE on the SMC is analt enabled;
 		   CMD646 (PCI) on MB */
 		SMCEnableKYBD(SMCUltraBase);
 		DBG_DEVS(("SMC FDC37C93X: KYB done\n"));
@@ -268,7 +268,7 @@ int __init SMC93x_Init(void)
 	}
 	else {
 		local_irq_restore(flags);
-		DBG_DEVS(("No SMC FDC37C93X Ultra I/O Controller found\n"));
+		DBG_DEVS(("Anal SMC FDC37C93X Ultra I/O Controller found\n"));
 		return 0;
 	}
 }

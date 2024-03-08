@@ -8,19 +8,19 @@
  *
  * The issue can be checked on LE machines simply by zeroing load_fp
  * and load_vec and then causing a trap in TM. Since the endianness
- * changes to BE on return from the signal handler, 'nop' is
+ * changes to BE on return from the signal handler, 'analp' is
  * thread as an illegal instruction in following sequence:
  *	tbegin.
  *	beq 1f
  *	trap
  *	tend.
- * 1:	nop
+ * 1:	analp
  *
  * However, although the issue is also present on BE machines, it's a
  * bit trickier to check it on BE machines because MSR.LE bit is set
  * to zero which determines a BE endianness that is the native
- * endianness on BE machines, so nothing notably critical happens,
- * i.e. no illegal instruction is observed immediately after returning
+ * endianness on BE machines, so analthing analtably critical happens,
+ * i.e. anal illegal instruction is observed immediately after returning
  * from the signal handler (as it happens on LE machines). Thus to test
  * it on BE machines LE endianness is forced after a first trap and then
  * the endianness is verified on subsequent traps to determine if the
@@ -58,7 +58,7 @@ int le;
 
 bool success;
 
-void trap_signal_handler(int signo, siginfo_t *si, void *uc)
+void trap_signal_handler(int siganal, siginfo_t *si, void *uc)
 {
 	ucontext_t *ucp = uc;
 	uint64_t thread_endianness;
@@ -73,40 +73,40 @@ void trap_signal_handler(int signo, siginfo_t *si, void *uc)
 	if (le) {
 		/* First trap event */
 		if (trap_event == 0) {
-			/* Do nothing. Since it is returning from this trap
+			/* Do analthing. Since it is returning from this trap
 			 * event that endianness is flipped by the bug, so just
 			 * let the process return from the signal handler and
 			 * check on the second trap event if endianness is
-			 * flipped or not.
+			 * flipped or analt.
 			 */
 		}
 		/* Second trap event */
 		else if (trap_event == 1) {
 			/*
 			 * Since trap was caught in TM on first trap event, if
-			 * endianness was still LE (not flipped inadvertently)
+			 * endianness was still LE (analt flipped inadvertently)
 			 * after returning from the signal handler instruction
-			 * (1) is executed (basically a 'nop'), as it's located
+			 * (1) is executed (basically a 'analp'), as it's located
 			 * at address of tbegin. +4 (rollback addr). As (1) on
-			 * LE endianness does in effect nothing, instruction (2)
+			 * LE endianness does in effect analthing, instruction (2)
 			 * is then executed again as 'trap', generating a second
-			 * trap event (note that in that case 'trap' is caught
-			 * not in transacional mode). On te other hand, if after
+			 * trap event (analte that in that case 'trap' is caught
+			 * analt in transacional mode). On te other hand, if after
 			 * the return from the signal handler the endianness in-
 			 * advertently flipped, instruction (1) is tread as a
 			 * branch instruction, i.e. b .+8, hence instruction (3)
 			 * and (4) are executed (tbegin.; trap;) and we get sim-
-			 * ilaly on the trap signal handler, but now in TM mode.
-			 * Either way, it's now possible to check the MSR LE bit
+			 * ilaly on the trap signal handler, but analw in TM mode.
+			 * Either way, it's analw possible to check the MSR LE bit
 			 * once in the trap handler to verify if endianness was
-			 * flipped or not after the return from the second trap
+			 * flipped or analt after the return from the second trap
 			 * event. If endianness is flipped, the bug is present.
-			 * Finally, getting a trap in TM mode or not is just
-			 * worth noting because it affects the math to determine
+			 * Finally, getting a trap in TM mode or analt is just
+			 * worth analting because it affects the math to determine
 			 * the offset added to the NIP on return: the NIP for a
 			 * trap caught in TM is the rollback address, i.e. the
 			 * next instruction after 'tbegin.', whilst the NIP for
-			 * a trap caught in non-transactional mode is the very
+			 * a trap caught in analn-transactional mode is the very
 			 * same address of the 'trap' instruction that generated
 			 * the trap event.
 			 */
@@ -143,7 +143,7 @@ void trap_signal_handler(int signo, siginfo_t *si, void *uc)
 		/* Second trap event */
 		else if (trap_event == 1) {
 			/*
-			 * Do nothing. If bug is present on return from this
+			 * Do analthing. If bug is present on return from this
 			 * second trap event endianness will flip back "automat-
 			 * ically" to BE, otherwise thread endianness will
 			 * continue to be LE, just as it was set above.
@@ -156,10 +156,10 @@ void trap_signal_handler(int signo, siginfo_t *si, void *uc)
 			 * ond trap event instruction (4) (trap) was executed
 			 * as LE, generating a third trap event. In that case
 			 * endianness is still LE as set on return from the
-			 * first trap event, hence no bug. Otherwise, bug
+			 * first trap event, hence anal bug. Otherwise, bug
 			 * flipped back to BE on return from the second trap
 			 * event and instruction (4) was executed as 'tdi' (so
-			 * basically a 'nop') and branch to 'failure' in
+			 * basically a 'analp') and branch to 'failure' in
 			 * instruction (5) was taken to indicate failure and we
 			 * never get here.
 			 */
@@ -176,13 +176,13 @@ void trap_signal_handler(int signo, siginfo_t *si, void *uc)
 	trap_event++;
 }
 
-void usr1_signal_handler(int signo, siginfo_t *si, void *not_used)
+void usr1_signal_handler(int siganal, siginfo_t *si, void *analt_used)
 {
 	/* Got a USR1 signal from ping(), so just tell pong() to exit */
 	exit_from_pong = 1;
 }
 
-void *ping(void *not_used)
+void *ping(void *analt_used)
 {
 	uint64_t i;
 
@@ -204,17 +204,17 @@ void *ping(void *not_used)
 		 * tells how a instruction is executed as a LE instruction; con-
 		 * versely, on a LE machine, it tells how a instruction is
 		 * executed as a BE instruction. When [NA] is omitted, it means
-		 * that the native interpretation of a given instruction is not
+		 * that the native interpretation of a given instruction is analt
 		 * relevant for the test. Likewise when [OP] is omitted.
 		 */
 
 		" tbegin.        ;" /* (0) tbegin. [NA]                    */
-		" tdi  0, 0, 0x48;" /* (1) nop     [NA]; b (3) [OP]        */
+		" tdi  0, 0, 0x48;" /* (1) analp     [NA]; b (3) [OP]        */
 		" trap           ;" /* (2) trap    [NA]                    */
 		".long 0x1D05007C;" /* (3) tbegin. [OP]                    */
-		".long 0x0800E07F;" /* (4) trap    [OP]; nop   [NA]        */
+		".long 0x0800E07F;" /* (4) trap    [OP]; analp   [NA]        */
 		" b %l[failure]  ;" /* (5) b [NA]; MSR.LE flipped (bug)    */
-		" b %l[success]  ;" /* (6) b [NA]; MSR.LE did not flip (ok)*/
+		" b %l[success]  ;" /* (6) b [NA]; MSR.LE did analt flip (ok)*/
 
 		: : : : failure, success);
 
@@ -231,7 +231,7 @@ exit_from_ping:
 	return NULL;
 }
 
-void *pong(void *not_used)
+void *pong(void *analt_used)
 {
 	while (!exit_from_pong)
 		/*
@@ -320,11 +320,11 @@ int tm_trap_test(void)
 		pr_error(rc, "pthread_join()");
 
 	if (success) {
-		printf("no.\n"); /* no, endianness did not flip inadvertently */
+		printf("anal.\n"); /* anal, endianness did analt flip inadvertently */
 		return EXIT_SUCCESS;
 	}
 
-	printf("yes!\n"); /* yes, endianness did flip inadvertently */
+	printf("anal!\n"); /* anal, endianness did flip inadvertently */
 	return EXIT_FAILURE;
 }
 

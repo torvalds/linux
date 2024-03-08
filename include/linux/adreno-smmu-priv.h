@@ -3,13 +3,13 @@
  * Copyright (C) 2020 Google, Inc
  */
 
-#ifndef __ADRENO_SMMU_PRIV_H
-#define __ADRENO_SMMU_PRIV_H
+#ifndef __ADREANAL_SMMU_PRIV_H
+#define __ADREANAL_SMMU_PRIV_H
 
 #include <linux/io-pgtable.h>
 
 /**
- * struct adreno_smmu_fault_info - container for key fault information
+ * struct adreanal_smmu_fault_info - container for key fault information
  *
  * @far: The faulting IOVA from ARM_SMMU_CB_FAR
  * @ttbr0: The current TTBR0 pagetable from ARM_SMMU_CB_TTBR0
@@ -24,7 +24,7 @@
  * The GPU driver can use this information to print informative
  * log messages and provide deeper GPU specific insight into the fault.
  */
-struct adreno_smmu_fault_info {
+struct adreanal_smmu_fault_info {
 	u64 far;
 	u64 ttbr0;
 	u32 contextidr;
@@ -35,9 +35,9 @@ struct adreno_smmu_fault_info {
 };
 
 /**
- * struct adreno_smmu_priv - private interface between adreno-smmu and GPU
+ * struct adreanal_smmu_priv - private interface between adreanal-smmu and GPU
  *
- * @cookie:        An opque token provided by adreno-smmu and passed
+ * @cookie:        An opque token provided by adreanal-smmu and passed
  *                 back into the callbacks
  * @get_ttbr1_cfg: Get the TTBR1 config for the GPUs context-bank
  * @set_ttbr0_cfg: Set the TTBR0 config for the GPUs context bank.  A
@@ -51,22 +51,22 @@ struct adreno_smmu_fault_info {
  * @resume_translation: Resume translation after a fault
  *
  *
- * The GPU driver (drm/msm) and adreno-smmu work together for controlling
+ * The GPU driver (drm/msm) and adreanal-smmu work together for controlling
  * the GPU's SMMU instance.  This is by necessity, as the GPU is directly
  * updating the SMMU for context switches, while on the other hand we do
- * not want to duplicate all of the initial setup logic from arm-smmu.
+ * analt want to duplicate all of the initial setup logic from arm-smmu.
  *
  * This private interface is used for the two drivers to coordinate.  The
  * cookie and callback functions are populated when the GPU driver attaches
  * it's domain.
  */
-struct adreno_smmu_priv {
+struct adreanal_smmu_priv {
     const void *cookie;
     const struct io_pgtable_cfg *(*get_ttbr1_cfg)(const void *cookie);
     int (*set_ttbr0_cfg)(const void *cookie, const struct io_pgtable_cfg *cfg);
-    void (*get_fault_info)(const void *cookie, struct adreno_smmu_fault_info *info);
+    void (*get_fault_info)(const void *cookie, struct adreanal_smmu_fault_info *info);
     void (*set_stall)(const void *cookie, bool enabled);
     void (*resume_translation)(const void *cookie, bool terminate);
 };
 
-#endif /* __ADRENO_SMMU_PRIV_H */
+#endif /* __ADREANAL_SMMU_PRIV_H */

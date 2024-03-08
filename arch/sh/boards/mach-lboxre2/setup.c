@@ -2,7 +2,7 @@
 /*
  * linux/arch/sh/boards/lbox/setup.c
  *
- * Copyright (C) 2007 Nobuhiro Iwamatsu
+ * Copyright (C) 2007 Analbuhiro Iwamatsu
  *
  * NTT COMWARE L-BOX RE2 Support
  */
@@ -56,7 +56,7 @@ static int __init lboxre2_devices_setup(void)
 	cf0_io_base = (u32)ioremap_prot(paddrbase, psize, pgprot_val(prot));
 	if (!cf0_io_base) {
 		printk(KERN_ERR "%s : can't open CF I/O window!\n" , __func__ );
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cf_ide_resources[0].start += cf0_io_base ;

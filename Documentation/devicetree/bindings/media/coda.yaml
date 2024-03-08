@@ -64,7 +64,7 @@ properties:
 
   iram:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: phandle pointing to the SRAM device node
+    description: phandle pointing to the SRAM device analde
 
 required:
   - compatible

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -237,7 +237,7 @@ static void gmc_v11_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 
 	spin_lock(&adev->gmc.invalidate_lock);
 	/*
-	 * It may lose gpuvm invalidate acknowldege state across power-gating
+	 * It may lose gpuvm invalidate ackanalwldege state across power-gating
 	 * off cycle, add semaphore acquire before invalidation and semaphore
 	 * release after invalidation to avoid entering power gated state
 	 * to WA the Issue
@@ -247,7 +247,7 @@ static void gmc_v11_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	if (use_semaphore) {
 		for (i = 0; i < adev->usec_timeout; i++) {
 			/* a read return value of 1 means semaphore acuqire */
-			tmp = RREG32_RLC_NO_KIQ(sem, hub_ip);
+			tmp = RREG32_RLC_ANAL_KIQ(sem, hub_ip);
 			if (tmp & 0x1)
 				break;
 			udelay(1);
@@ -257,11 +257,11 @@ static void gmc_v11_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 			DRM_ERROR("Timeout waiting for sem acquire in VM flush!\n");
 	}
 
-	WREG32_RLC_NO_KIQ(req, inv_req, hub_ip);
+	WREG32_RLC_ANAL_KIQ(req, inv_req, hub_ip);
 
 	/* Wait for ACK with a delay.*/
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32_RLC_NO_KIQ(ack, hub_ip);
+		tmp = RREG32_RLC_ANAL_KIQ(ack, hub_ip);
 		tmp &= 1 << vmid;
 		if (tmp)
 			break;
@@ -271,19 +271,19 @@ static void gmc_v11_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 
 	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
 	if (use_semaphore)
-		WREG32_RLC_NO_KIQ(sem, 0, hub_ip);
+		WREG32_RLC_ANAL_KIQ(sem, 0, hub_ip);
 
 	/* Issue additional private vm invalidation to MMHUB */
 	if ((vmhub != AMDGPU_GFXHUB(0)) &&
 	    (hub->vm_l2_bank_select_reserved_cid2) &&
 		!amdgpu_sriov_vf(adev)) {
-		inv_req = RREG32_NO_KIQ(hub->vm_l2_bank_select_reserved_cid2);
+		inv_req = RREG32_ANAL_KIQ(hub->vm_l2_bank_select_reserved_cid2);
 		/* bit 25: RSERVED_CACHE_PRIVATE_INVALIDATION */
 		inv_req |= (1 << 25);
 		/* Issue private invalidation */
-		WREG32_NO_KIQ(hub->vm_l2_bank_select_reserved_cid2, inv_req);
+		WREG32_ANAL_KIQ(hub->vm_l2_bank_select_reserved_cid2, inv_req);
 		/* Read back to ensure invalidation is done*/
-		RREG32_NO_KIQ(hub->vm_l2_bank_select_reserved_cid2);
+		RREG32_ANAL_KIQ(hub->vm_l2_bank_select_reserved_cid2);
 	}
 
 	spin_unlock(&adev->gmc.invalidate_lock);
@@ -339,7 +339,7 @@ static uint64_t gmc_v11_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 	unsigned int eng = ring->vm_inv_eng;
 
 	/*
-	 * It may lose gpuvm invalidate acknowldege state across power-gating
+	 * It may lose gpuvm invalidate ackanalwldege state across power-gating
 	 * off cycle, add semaphore acquire before invalidation and semaphore
 	 * release after invalidation to avoid entering power gated state
 	 * to WA the Issue
@@ -412,7 +412,7 @@ static void gmc_v11_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned int 
  * 5 read
  * 4 exe
  * 3 Z
- * 2 snooped
+ * 2 sanaloped
  * 1 system
  * 0 valid
  *
@@ -481,12 +481,12 @@ static void gmc_v11_0_get_vm_pte(struct amdgpu_device *adev,
 	*flags &= ~AMDGPU_PTE_MTYPE_NV10_MASK;
 	*flags |= (mapping->flags & AMDGPU_PTE_MTYPE_NV10_MASK);
 
-	*flags &= ~AMDGPU_PTE_NOALLOC;
-	*flags |= (mapping->flags & AMDGPU_PTE_NOALLOC);
+	*flags &= ~AMDGPU_PTE_ANALALLOC;
+	*flags |= (mapping->flags & AMDGPU_PTE_ANALALLOC);
 
 	if (mapping->flags & AMDGPU_PTE_PRT) {
 		*flags |= AMDGPU_PTE_PRT;
-		*flags |= AMDGPU_PTE_SNOOPED;
+		*flags |= AMDGPU_PTE_SANALOPED;
 		*flags |= AMDGPU_PTE_LOG;
 		*flags |= AMDGPU_PTE_SYSTEM;
 		*flags &= ~AMDGPU_PTE_VALID;
@@ -546,7 +546,7 @@ static void gmc_v11_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.max_ras_err_cnt_per_query = UMC_V8_10_TOTAL_CHANNEL_NUM(adev);
 		adev->umc.channel_offs = UMC_V8_10_PER_CHANNEL_OFFSET;
 		adev->umc.retire_unit = UMC_V8_10_NA_COL_2BITS_POWER_OF_2_NUM;
-		if (adev->umc.node_inst_num == 4)
+		if (adev->umc.analde_inst_num == 4)
 			adev->umc.channel_idx_tbl = &umc_v8_10_channel_idx_tbl_ext0[0][0][0];
 		else
 			adev->umc.channel_idx_tbl = &umc_v8_10_channel_idx_tbl[0][0][0];
@@ -609,7 +609,7 @@ static int gmc_v11_0_early_init(void *handle)
 	adev->gmc.private_aperture_start = 0x1000000000000000ULL;
 	adev->gmc.private_aperture_end =
 		adev->gmc.private_aperture_start + (4ULL << 30) - 1;
-	adev->gmc.noretry_flags = AMDGPU_VM_NORETRY_FLAGS_TF;
+	adev->gmc.analretry_flags = AMDGPU_VM_ANALRETRY_FLAGS_TF;
 
 	return 0;
 }
@@ -789,7 +789,7 @@ static int gmc_v11_0_sw_init(void *handle)
 
 	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(44));
 	if (r) {
-		dev_warn(adev->dev, "amdgpu: No suitable DMA available.\n");
+		dev_warn(adev->dev, "amdgpu: Anal suitable DMA available.\n");
 		return r;
 	}
 
@@ -872,7 +872,7 @@ static int gmc_v11_0_gart_enable(struct amdgpu_device *adev)
 	bool value;
 
 	if (adev->gart.bo == NULL) {
-		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
+		dev_err(adev->dev, "Anal VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
 
@@ -982,7 +982,7 @@ static bool gmc_v11_0_is_idle(void *handle)
 
 static int gmc_v11_0_wait_for_idle(void *handle)
 {
-	/* There is no need to wait for MC idle in GMC v11.*/
+	/* There is anal need to wait for MC idle in GMC v11.*/
 	return 0;
 }
 
@@ -1040,7 +1040,7 @@ const struct amd_ip_funcs gmc_v11_0_ip_funcs = {
 const struct amdgpu_ip_block_version gmc_v11_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_GMC,
 	.major = 11,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &gmc_v11_0_ip_funcs,
 };

@@ -12,7 +12,7 @@
 //
 
 /*
- * Hardware interface for audio DSP on Cannonlake.
+ * Hardware interface for audio DSP on Cananalnlake.
  */
 
 #include <sound/sof/ext_manifest4.h>
@@ -35,7 +35,7 @@ static void cnl_ipc_dsp_done(struct snd_sof_dev *sdev);
 
 irqreturn_t cnl_ipc4_irq_thread(int irq, void *context)
 {
-	struct sof_ipc4_msg notification_data = {{ 0 }};
+	struct sof_ipc4_msg analtification_data = {{ 0 }};
 	struct snd_sof_dev *sdev = context;
 	bool ack_received = false;
 	bool ipc_irq = false;
@@ -55,7 +55,7 @@ irqreturn_t cnl_ipc4_irq_thread(int irq, void *context)
 	}
 
 	if (hipctdr & CNL_DSP_REG_HIPCTDR_BUSY) {
-		/* Message from DSP (reply or notification) */
+		/* Message from DSP (reply or analtification) */
 		u32 hipctdd = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 					       CNL_DSP_REG_HIPCTDD);
 		u32 primary = hipctdr & CNL_DSP_REG_HIPCTDR_MSG_MASK;
@@ -82,15 +82,15 @@ irqreturn_t cnl_ipc4_irq_thread(int irq, void *context)
 						    primary, extension);
 			}
 		} else {
-			/* Notification received */
-			notification_data.primary = primary;
-			notification_data.extension = extension;
+			/* Analtification received */
+			analtification_data.primary = primary;
+			analtification_data.extension = extension;
 
-			sdev->ipc->msg.rx_data = &notification_data;
+			sdev->ipc->msg.rx_data = &analtification_data;
 			snd_sof_ipc_msgs_rx(sdev);
 			sdev->ipc->msg.rx_data = NULL;
 
-			/* Let DSP know that we have finished processing the message */
+			/* Let DSP kanalw that we have finished processing the message */
 			cnl_ipc_host_done(sdev);
 		}
 
@@ -98,8 +98,8 @@ irqreturn_t cnl_ipc4_irq_thread(int irq, void *context)
 	}
 
 	if (!ipc_irq)
-		/* This interrupt is not shared so no need to return IRQ_NONE. */
-		dev_dbg_ratelimited(sdev->dev, "nothing to do in IPC IRQ thread\n");
+		/* This interrupt is analt shared so anal need to return IRQ_ANALNE. */
+		dev_dbg_ratelimited(sdev->dev, "analthing to do in IPC IRQ thread\n");
 
 	if (ack_received) {
 		struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
@@ -167,22 +167,22 @@ irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 		/* handle messages from DSP */
 		if ((hipctdr & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
 			struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
-			bool non_recoverable = true;
+			bool analn_recoverable = true;
 
 			/*
 			 * This is a PANIC message!
 			 *
-			 * If it is arriving during firmware boot and it is not
-			 * the last boot attempt then change the non_recoverable
+			 * If it is arriving during firmware boot and it is analt
+			 * the last boot attempt then change the analn_recoverable
 			 * to false as the DSP might be able to boot in the next
 			 * iteration(s)
 			 */
 			if (sdev->fw_state == SOF_FW_BOOT_IN_PROGRESS &&
 			    hda->boot_iteration < HDA_FW_BOOT_ATTEMPTS)
-				non_recoverable = false;
+				analn_recoverable = false;
 
 			snd_sof_dsp_panic(sdev, HDA_DSP_PANIC_OFFSET(msg_ext),
-					  non_recoverable);
+					  analn_recoverable);
 		} else {
 			snd_sof_ipc_msgs_rx(sdev);
 		}
@@ -194,10 +194,10 @@ irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 
 	if (!ipc_irq) {
 		/*
-		 * This interrupt is not shared so no need to return IRQ_NONE.
+		 * This interrupt is analt shared so anal need to return IRQ_ANALNE.
 		 */
 		dev_dbg_ratelimited(sdev->dev,
-				    "nothing to do in IPC IRQ thread\n");
+				    "analthing to do in IPC IRQ thread\n");
 	}
 
 	return IRQ_HANDLED;
@@ -207,7 +207,7 @@ static void cnl_ipc_host_done(struct snd_sof_dev *sdev)
 {
 	/*
 	 * clear busy interrupt to tell dsp controller this
-	 * interrupt has been accepted, not trigger it again
+	 * interrupt has been accepted, analt trigger it again
 	 */
 	snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
 				       CNL_DSP_REG_HIPCTDR,
@@ -322,7 +322,7 @@ int cnl_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 	 * to avoid scheduling multiple workqueue items when
 	 * IPCs are sent at a high-rate. mod_delayed_work()
 	 * modifies the timer if the work is pending.
-	 * Also, a new delayed work should not be queued after the
+	 * Also, a new delayed work should analt be queued after the
 	 * CTX_SAVE IPC, which is sent before the DSP enters D3.
 	 */
 	if (hdr->cmd != (SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_CTX_SAVE))
@@ -373,7 +373,7 @@ void cnl_ipc4_dump(struct snd_sof_dev *sdev)
 		hipcidr, hipcidd, hipcida, hipctdr, hipctdd, hipctda, hipcctl);
 }
 
-/* cannonlake ops */
+/* cananalnlake ops */
 struct snd_sof_dsp_ops sof_cnl_ops;
 EXPORT_SYMBOL_NS(sof_cnl_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
 
@@ -404,7 +404,7 @@ int sof_cnl_ops_init(struct snd_sof_dev *sdev)
 
 		sdev->private = kzalloc(sizeof(*ipc4_data), GFP_KERNEL);
 		if (!sdev->private)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ipc4_data = sdev->private;
 		ipc4_data->manifest_fw_hdr_offset = SOF_MAN4_FW_HDR_OFFSET;
@@ -447,7 +447,7 @@ int sof_cnl_ops_init(struct snd_sof_dev *sdev)
 EXPORT_SYMBOL_NS(sof_cnl_ops_init, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 const struct sof_intel_dsp_desc cnl_chip_info = {
-	/* Cannonlake */
+	/* Cananalnlake */
 	.cores_num = 4,
 	.init_core_mask = 1,
 	.host_managed_cores_mask = GENMASK(3, 0),
@@ -478,8 +478,8 @@ EXPORT_SYMBOL_NS(cnl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
 /*
  * JasperLake is technically derived from IceLake, and should be in
  * described in icl.c. However since JasperLake was designed with
- * two cores, it cannot support the IceLake-specific power-up sequences
- * which rely on core3. To simplify, JasperLake uses the CannonLake ops and
+ * two cores, it cananalt support the IceLake-specific power-up sequences
+ * which rely on core3. To simplify, JasperLake uses the CananalnLake ops and
  * is described in cnl.c
  */
 const struct sof_intel_dsp_desc jsl_chip_info = {

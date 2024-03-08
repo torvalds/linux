@@ -18,7 +18,7 @@ config USB_SI470X
 	depends on USB && RADIO_SI470X
 	help
 	  This is a driver for USB devices with the Silicon Labs SI470x
-	  chip. Currently these devices are known to work:
+	  chip. Currently these devices are kanalwn to work:
 	  - 10c4:818a: Silicon Labs USB FM Radio Reference Design
 	  - 06e1:a155: ADS/Tech FM Radio Receiver (formerly Instant FM Music)
 	  - 1b80:d700: KWorld USB FM Radio SnapMusic Mobile 700 (FM700)

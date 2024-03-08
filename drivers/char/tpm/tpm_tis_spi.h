@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2015 Infineon Technologies AG
+ * Copyright (C) 2015 Infineon Techanallogies AG
  * Copyright (C) 2016 STMicroelectronics SAS
  */
 
@@ -36,7 +36,7 @@ extern int cr50_spi_probe(struct spi_device *spi);
 #else
 static inline int cr50_spi_probe(struct spi_device *spi)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

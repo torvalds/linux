@@ -212,7 +212,7 @@
 	reserved-memory {
 		gpu_mem: gpu-mem@8bf00000 {
 			reg = <0 0x8bf00000 0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		linux,cma {
@@ -745,29 +745,29 @@
 	clock-frequency = <38400000>;
 };
 
-/* PINCTRL - additions to nodes defined in sc8280xp.dtsi */
+/* PINCTRL - additions to analdes defined in sc8280xp.dtsi */
 
 &pmc8280_1_gpios {
 	edp_bl_en: edp-bl-en-state {
 		pins = "gpio8";
-		function = "normal";
+		function = "analrmal";
 	};
 
 	edp_bl_reg_en: edp-bl-reg-en-state {
 		pins = "gpio9";
-		function = "normal";
+		function = "analrmal";
 	};
 
 	misc_3p3_reg_en: misc-3p3-reg-en-state {
 		pins = "gpio2";
-		function = "normal";
+		function = "analrmal";
 	};
 };
 
 &pmc8280_2_gpios {
 	wwan_sw_en: wwan-sw-en-state {
 		pins = "gpio1";
-		function = "normal";
+		function = "analrmal";
 	};
 };
 
@@ -781,7 +781,7 @@
 &pmr735a_gpios {
 	hastings_reg_en: hastings-reg-en-state {
 		pins = "gpio1";
-		function = "normal";
+		function = "analrmal";
 	};
 };
 

@@ -220,7 +220,7 @@ static void dpu_hw_pp_disable_autorefresh(struct dpu_hw_pingpong *pp,
 	struct dpu_hw_pp_vsync_info info;
 	int trial = 0;
 
-	/* If autorefresh is already disabled, we have nothing to do */
+	/* If autorefresh is already disabled, we have analthing to do */
 	if (!dpu_hw_pp_get_autorefresh_config(pp, NULL))
 		return;
 
@@ -292,7 +292,7 @@ struct dpu_hw_pingpong *dpu_hw_pingpong_init(struct drm_device *dev,
 
 	c = drmm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	c->hw.blk_addr = addr + cfg->base;
 	c->hw.log_mask = DPU_DBG_MASK_PINGPONG;

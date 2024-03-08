@@ -52,7 +52,7 @@ static int bcm47xxnflash_ops_bcm4706_ctl_cmd(struct bcma_drv_cc *cc, u32 code)
 		}
 	}
 	if (i) {
-		pr_err("NFLASH control command not ready!\n");
+		pr_err("NFLASH control command analt ready!\n");
 		return -EBUSY;
 	}
 	return 0;
@@ -172,20 +172,20 @@ static void bcm47xxnflash_ops_bcm4706_cmd_ctrl(struct nand_chip *nand_chip,
 	struct bcm47xxnflash *b47n = nand_get_controller_data(nand_chip);
 	u32 code = 0;
 
-	if (cmd == NAND_CMD_NONE)
+	if (cmd == NAND_CMD_ANALNE)
 		return;
 
 	if (cmd & NAND_CTRL_CLE)
 		code = cmd | NCTL_CMD0;
 
-	/* nCS is not needed for reset command */
+	/* nCS is analt needed for reset command */
 	if (cmd != NAND_CMD_RESET)
 		code |= NCTL_CSA;
 
 	bcm47xxnflash_ops_bcm4706_ctl_cmd(b47n->cc, code);
 }
 
-/* Default nand_select_chip calls cmd_ctrl, which is not used in BCM4706 */
+/* Default nand_select_chip calls cmd_ctrl, which is analt used in BCM4706 */
 static void bcm47xxnflash_ops_bcm4706_select_chip(struct nand_chip *chip,
 						  int cs)
 {
@@ -201,7 +201,7 @@ static int bcm47xxnflash_ops_bcm4706_dev_ready(struct nand_chip *nand_chip)
 
 /*
  * Default nand_command and nand_command_lp don't match BCM4706 hardware layout.
- * For example, reading chip id is performed in a non-standard way.
+ * For example, reading chip id is performed in a analn-standard way.
  * Setting column and page is also handled differently, we use a special
  * registers of ChipCommon core. Hacking cmd_ctrl to understand and convert
  * standard commands would be much more complicated.
@@ -238,7 +238,7 @@ static void bcm47xxnflash_ops_bcm4706_cmdfunc(struct nand_chip *nand_chip,
 
 		/*
 		 * Reading is specific, last one has to go without NCTL_CSA
-		 * bit. We don't know how many reads NAND subsystem is going
+		 * bit. We don't kanalw how many reads NAND subsystem is going
 		 * to perform, so cache everything.
 		 */
 		for (i = 0; i < ARRAY_SIZE(b47n->id_data); i++) {
@@ -295,7 +295,7 @@ static void bcm47xxnflash_ops_bcm4706_cmdfunc(struct nand_chip *nand_chip,
 							  NAND_CMD_PAGEPROG))
 			pr_err("PAGEPROG failed\n");
 		if (bcm47xxnflash_ops_bcm4706_poll(cc))
-			pr_err("PAGEPROG not ready\n");
+			pr_err("PAGEPROG analt ready\n");
 		break;
 	default:
 		pr_err("Command 0x%X unsupported\n", command);
@@ -386,13 +386,13 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 	b47n->nand_chip.legacy.read_byte = bcm47xxnflash_ops_bcm4706_read_byte;
 	b47n->nand_chip.legacy.read_buf = bcm47xxnflash_ops_bcm4706_read_buf;
 	b47n->nand_chip.legacy.write_buf = bcm47xxnflash_ops_bcm4706_write_buf;
-	b47n->nand_chip.legacy.set_features = nand_get_set_features_notsupp;
-	b47n->nand_chip.legacy.get_features = nand_get_set_features_notsupp;
+	b47n->nand_chip.legacy.set_features = nand_get_set_features_analtsupp;
+	b47n->nand_chip.legacy.get_features = nand_get_set_features_analtsupp;
 
 	nand_chip->legacy.chip_delay = 50;
 	b47n->nand_chip.bbt_options = NAND_BBT_USE_FLASH;
 	/* TODO: implement ECC */
-	b47n->nand_chip.ecc.engine_type = NAND_ECC_ENGINE_TYPE_NONE;
+	b47n->nand_chip.ecc.engine_type = NAND_ECC_ENGINE_TYPE_ANALNE;
 
 	/* Enable NAND flash access */
 	bcma_cc_set32(b47n->cc, BCMA_CC_4706_FLASHSCFG,
@@ -420,7 +420,7 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 	/* Scan NAND */
 	err = nand_scan(&b47n->nand_chip, 1);
 	if (err) {
-		pr_err("Could not scan NAND flash: %d\n", err);
+		pr_err("Could analt scan NAND flash: %d\n", err);
 		goto exit;
 	}
 
@@ -429,7 +429,7 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 	tbits = ffs(chipsize); /* find first bit set */
 	if (!tbits || tbits != fls(chipsize)) {
 		pr_err("Invalid flash size: 0x%lX\n", chipsize);
-		err = -ENOTSUPP;
+		err = -EANALTSUPP;
 		goto exit;
 	}
 	tbits += 19; /* Broadcom increases *index* by 20, we increase *pos* */

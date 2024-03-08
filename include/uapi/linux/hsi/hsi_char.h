@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Part of the HSI character device driver.
  *
- * Copyright (C) 2010 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2010 Analkia Corporation. All rights reserved.
  *
- * Contact: Andras Domokos <andras.domokos at nokia.com>
+ * Contact: Andras Domokos <andras.domokos at analkia.com>
  */
 
 #ifndef __HSI_CHAR_H

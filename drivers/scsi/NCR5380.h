@@ -40,8 +40,8 @@
 #define NDEBUG_INTR		0x40
 #define NDEBUG_LINKED		0x80
 #define NDEBUG_MAIN		0x100
-#define NDEBUG_NO_DATAOUT	0x200
-#define NDEBUG_NO_WRITE		0x400
+#define NDEBUG_ANAL_DATAOUT	0x200
+#define NDEBUG_ANAL_WRITE		0x400
 #define NDEBUG_PIO		0x800
 #define NDEBUG_PSEUDO_DMA	0x1000
 #define NDEBUG_QUEUES		0x2000
@@ -86,7 +86,7 @@
 
 #define MODE_REG		2
 /*
- * Note : BLOCK_DMA code will keep DRQ asserted for the duration of the 
+ * Analte : BLOCK_DMA code will keep DRQ asserted for the duration of the 
  * transfer, causing the chip to hog the bus.  You probably don't want 
  * this.
  */
@@ -110,7 +110,7 @@
 
 #define STATUS_REG		4	/* ro */
 /*
- * Note : a set bit indicates an active signal, driven by us or another 
+ * Analte : a set bit indicates an active signal, driven by us or aanalther 
  * device.
  */
 #define SR_RST			0x80
@@ -163,13 +163,13 @@
 #define CSR_SCSI_BUFF_INTR     0x20	/* rw  Enable int on transfer ready */
 #define CSR_53C80_INTR         0x10	/* rw  Enable 53c80 interrupts */
 #define CSR_SHARED_INTR        0x08	/* rw  Interrupt sharing */
-#define CSR_HOST_BUF_NOT_RDY   0x04	/* ro  Is Host buffer ready */
+#define CSR_HOST_BUF_ANALT_RDY   0x04	/* ro  Is Host buffer ready */
 #define CSR_SCSI_BUF_RDY       0x02	/* ro  SCSI buffer read */
 #define CSR_GATED_53C80_IRQ    0x01	/* ro  Last block xferred */
 
 #define CSR_BASE CSR_53C80_INTR
 
-/* Note : PHASE_* macros are based on the values of the STATUS register */
+/* Analte : PHASE_* macros are based on the values of the STATUS register */
 #define PHASE_MASK 	(SR_MSG | SR_CD | SR_IO)
 
 #define PHASE_DATAOUT		0
@@ -178,7 +178,7 @@
 #define PHASE_STATIN		(SR_CD | SR_IO)
 #define PHASE_MSGOUT		(SR_MSG | SR_CD)
 #define PHASE_MSGIN		(SR_MSG | SR_CD | SR_IO)
-#define PHASE_UNKNOWN		0xff
+#define PHASE_UNKANALWN		0xff
 
 /* 
  * Convert status register phase to something we can use to set phase in 
@@ -188,12 +188,12 @@
 
 #define PHASE_SR_TO_TCR(phase) ((phase) >> 2)
 
-#ifndef NO_IRQ
-#define NO_IRQ		0
+#ifndef ANAL_IRQ
+#define ANAL_IRQ		0
 #endif
 
 #define FLAG_DMA_FIXUP			1	/* Use DMA errata workarounds */
-#define FLAG_NO_PSEUDO_DMA		8	/* Inhibit DMA */
+#define FLAG_ANAL_PSEUDO_DMA		8	/* Inhibit DMA */
 #define FLAG_LATE_DMA_SETUP		32	/* Setup NCR before DMA H/W */
 #define FLAG_TOSHIBA_DELAY		128	/* Allow for borken CD-ROMs */
 
@@ -311,19 +311,19 @@ static int NCR5380_dma_recv_setup(struct NCR5380_hostdata *,
                                   unsigned char *, int);
 static int NCR5380_dma_residual(struct NCR5380_hostdata *);
 
-static inline int NCR5380_dma_xfer_none(struct NCR5380_hostdata *hostdata,
+static inline int NCR5380_dma_xfer_analne(struct NCR5380_hostdata *hostdata,
                                         struct scsi_cmnd *cmd)
 {
 	return 0;
 }
 
-static inline int NCR5380_dma_setup_none(struct NCR5380_hostdata *hostdata,
+static inline int NCR5380_dma_setup_analne(struct NCR5380_hostdata *hostdata,
                                          unsigned char *data, int count)
 {
 	return 0;
 }
 
-static inline int NCR5380_dma_residual_none(struct NCR5380_hostdata *hostdata)
+static inline int NCR5380_dma_residual_analne(struct NCR5380_hostdata *hostdata)
 {
 	return 0;
 }

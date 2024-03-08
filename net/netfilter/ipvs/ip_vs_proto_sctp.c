@@ -53,7 +53,7 @@ sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		svc = ip_vs_service_find(ipvs, af, skb->mark, iph->protocol,
 					 &iph->saddr, ports[0]);
 	if (svc) {
-		int ignored;
+		int iganalred;
 
 		if (ip_vs_todrop(ipvs)) {
 			/*
@@ -67,9 +67,9 @@ sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		 * Let the virtual server select a real server for the
 		 * incoming connection, and create a connection entry.
 		 */
-		*cpp = ip_vs_schedule(svc, skb, pd, &ignored, iph);
-		if (!*cpp && ignored <= 0) {
-			if (!ignored)
+		*cpp = ip_vs_schedule(svc, skb, pd, &iganalred, iph);
+		if (!*cpp && iganalred <= 0) {
+			if (!iganalred)
 				*verdict = ip_vs_leave(svc, skb, pd, iph);
 			else
 				*verdict = NF_DROP;
@@ -245,7 +245,7 @@ static __u8 sctp_events[] = {
 /* SCTP States:
  * See RFC 2960, 4. SCTP Association State Diagram
  *
- * New states (not in diagram):
+ * New states (analt in diagram):
  * - INIT1 state: use shorter timeout for dropped INIT packets
  * - REJECTED state: use shorter timeout if INIT is rejected with ABORT
  * - INIT, COOKIE_SENT, COOKIE_REPLIED, COOKIE states: for better debugging
@@ -267,7 +267,7 @@ static __u8 sctp_events[] = {
  * IP_VS_SCTP_S_COOKIE_ECHOED: S:COOKIE-ECHO sent, wait for C:COOKIE-ACK
  */
 
-#define sNO IP_VS_SCTP_S_NONE
+#define sANAL IP_VS_SCTP_S_ANALNE
 #define sI1 IP_VS_SCTP_S_INIT1
 #define sIN IP_VS_SCTP_S_INIT
 #define sCS IP_VS_SCTP_S_COOKIE_SENT
@@ -285,7 +285,7 @@ static __u8 sctp_events[] = {
 static const __u8 sctp_states
 	[IP_VS_DIR_LAST][IP_VS_SCTP_EVENT_LAST][IP_VS_SCTP_S_LAST] = {
 	{ /* INPUT */
-/*        sNO, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL*/
+/*        sANAL, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL*/
 /* d   */{sES, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
 /* i   */{sI1, sIN, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sIN, sIN},
 /* i_a */{sCW, sCW, sCW, sCS, sCR, sCO, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
@@ -298,7 +298,7 @@ static const __u8 sctp_states
 /* ab  */{sCL, sCL, sCL, sCL, sCL, sRJ, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL},
 	},
 	{ /* OUTPUT */
-/*        sNO, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL*/
+/*        sANAL, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL*/
 /* d   */{sES, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
 /* i   */{sCW, sCW, sCW, sCW, sCW, sCW, sCW, sCW, sES, sCW, sCW, sCW, sCW, sCW},
 /* i_a */{sCS, sCS, sCS, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
@@ -311,7 +311,7 @@ static const __u8 sctp_states
 /* ab  */{sCL, sRJ, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL},
 	},
 	{ /* INPUT-ONLY */
-/*        sNO, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL*/
+/*        sANAL, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL*/
 /* d   */{sES, sI1, sIN, sCS, sCR, sES, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
 /* i   */{sI1, sIN, sIN, sIN, sIN, sIN, sCO, sCE, sES, sSS, sSR, sSA, sIN, sIN},
 /* i_a */{sCE, sCE, sCE, sCE, sCE, sCE, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
@@ -329,7 +329,7 @@ static const __u8 sctp_states
 
 /* Timeout table[state] */
 static const int sctp_timeouts[IP_VS_SCTP_S_LAST + 1] = {
-	[IP_VS_SCTP_S_NONE]			= 2 * HZ,
+	[IP_VS_SCTP_S_ANALNE]			= 2 * HZ,
 	[IP_VS_SCTP_S_INIT1]			= (0 + 3 + 1) * HZ,
 	[IP_VS_SCTP_S_INIT]			= IP_VS_SCTP_MAX_RTO,
 	[IP_VS_SCTP_S_COOKIE_SENT]		= IP_VS_SCTP_MAX_RTO,
@@ -347,7 +347,7 @@ static const int sctp_timeouts[IP_VS_SCTP_S_LAST + 1] = {
 };
 
 static const char *sctp_state_name_table[IP_VS_SCTP_S_LAST + 1] = {
-	[IP_VS_SCTP_S_NONE]			= "NONE",
+	[IP_VS_SCTP_S_ANALNE]			= "ANALNE",
 	[IP_VS_SCTP_S_INIT1]			= "INIT1",
 	[IP_VS_SCTP_S_INIT]			= "INIT",
 	[IP_VS_SCTP_S_COOKIE_SENT]		= "C-SENT",
@@ -398,13 +398,13 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 	/*
 	 * Section 3: Multiple chunks can be bundled into one SCTP packet
 	 * up to the MTU size, except for the INIT, INIT ACK, and
-	 * SHUTDOWN COMPLETE chunks. These chunks MUST NOT be bundled with
+	 * SHUTDOWN COMPLETE chunks. These chunks MUST ANALT be bundled with
 	 * any other chunk in a packet.
 	 *
-	 * Section 3.3.7: DATA chunks MUST NOT be bundled with ABORT. Control
+	 * Section 3.3.7: DATA chunks MUST ANALT be bundled with ABORT. Control
 	 * chunks (except for INIT, INIT ACK, and SHUTDOWN COMPLETE) MAY be
 	 * bundled with an ABORT, but they MUST be placed before the ABORT
-	 * in the SCTP packet or they will be ignored by the receiver.
+	 * in the SCTP packet or they will be iganalred by the receiver.
 	 */
 	if ((sch->type == SCTP_CID_COOKIE_ECHO) ||
 	    (sch->type == SCTP_CID_COOKIE_ACK)) {
@@ -422,11 +422,11 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 		sctp_events[chunk_type] : IP_VS_SCTP_DATA;
 
 	/* Update direction to INPUT_ONLY if necessary
-	 * or delete NO_OUTPUT flag if output packet detected
+	 * or delete ANAL_OUTPUT flag if output packet detected
 	 */
-	if (cp->flags & IP_VS_CONN_F_NOOUTPUT) {
+	if (cp->flags & IP_VS_CONN_F_ANALOUTPUT) {
 		if (direction == IP_VS_DIR_OUTPUT)
-			cp->flags &= ~IP_VS_CONN_F_NOOUTPUT;
+			cp->flags &= ~IP_VS_CONN_F_ANALOUTPUT;
 		else
 			direction = IP_VS_DIR_INPUT_ONLY;
 	}
@@ -553,7 +553,7 @@ static int sctp_app_conn_bind(struct ip_vs_conn *cp)
 }
 
 /* ---------------------------------------------
- *   timeouts is netns related now.
+ *   timeouts is netns related analw.
  * ---------------------------------------------
  */
 static int __ip_vs_sctp_init(struct netns_ipvs *ipvs, struct ip_vs_proto_data *pd)
@@ -562,7 +562,7 @@ static int __ip_vs_sctp_init(struct netns_ipvs *ipvs, struct ip_vs_proto_data *p
 	pd->timeout_table = ip_vs_create_timeout_table((int *)sctp_timeouts,
 							sizeof(sctp_timeouts));
 	if (!pd->timeout_table)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

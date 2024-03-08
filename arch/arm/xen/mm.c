@@ -41,7 +41,7 @@ static gfp_t xen_swiotlb_gfp(void)
 
 static bool hypercall_cflush = false;
 
-/* buffers in highmem or foreign pages cannot cross page boundaries */
+/* buffers in highmem or foreign pages cananalt cross page boundaries */
 static void dma_cache_maint(struct device *dev, dma_addr_t handle,
 			    size_t size, u32 op)
 {
@@ -69,7 +69,7 @@ static void dma_cache_maint(struct device *dev, dma_addr_t handle,
 
 /*
  * Dom0 is mapped 1:1, and while the Linux page can span across multiple Xen
- * pages, it is not possible for it to contain a mix of local and foreign Xen
+ * pages, it is analt possible for it to contain a mix of local and foreign Xen
  * pages.  Calling pfn_valid on a foreign mfn will always return false, so if
  * pfn_valid returns true the pages is local and we can use the native
  * dma-direct functions, otherwise we call the Xen specific version.
@@ -104,13 +104,13 @@ bool xen_arch_need_swiotlb(struct device *dev,
 	 *	- The device doesn't support coherent DMA request
 	 *
 	 * The Linux page may be spanned acrros multiple Xen page, although
-	 * it's not possible to have a mix of local and foreign Xen page.
+	 * it's analt possible to have a mix of local and foreign Xen page.
 	 * Furthermore, range_straddles_page_boundary is already checking
 	 * if buffer is physically contiguous in the host RAM.
 	 *
-	 * Therefore we only need to check the first Xen page to know if we
+	 * Therefore we only need to check the first Xen page to kanalw if we
 	 * require a bounce buffer because the device doesn't support coherent
-	 * memory and we are not able to flush the cache.
+	 * memory and we are analt able to flush the cache.
 	 */
 	return (!hypercall_cflush && (xen_pfn != bfn) &&
 		!dev_is_dma_coherent(dev));
@@ -134,7 +134,7 @@ static int __init xen_mm_init(void)
 	cflush.a.dev_bus_addr = 0;
 	cflush.offset = 0;
 	cflush.length = 0;
-	if (HYPERVISOR_grant_table_op(GNTTABOP_cache_flush, &cflush, 1) != -ENOSYS)
+	if (HYPERVISOR_grant_table_op(GNTTABOP_cache_flush, &cflush, 1) != -EANALSYS)
 		hypercall_cflush = true;
 	return 0;
 }

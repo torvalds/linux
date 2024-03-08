@@ -1,5 +1,5 @@
 =========================================
-Sony Notebook Control Driver (SNC) Readme
+Sony Analtebook Control Driver (SNC) Readme
 =========================================
 
 	- Copyright (C) 2004- 2005 Stelian Pop <stelian@popies.net>
@@ -8,7 +8,7 @@ Sony Notebook Control Driver (SNC) Readme
 This mini-driver drives the SNC and SPIC device present in the ACPI BIOS of the
 Sony Vaio laptops. This driver mixes both devices functions under the same
 (hopefully consistent) interface. This also means that the sonypi driver is
-obsoleted by sony-laptop now.
+obsoleted by sony-laptop analw.
 
 Fn keys (hotkeys):
 ------------------
@@ -63,7 +63,7 @@ The files are:
 	fanspeed		get/set the fan speed
 	======================	==========================================
 
-Note that some files may be missing if they are not supported
+Analte that some files may be missing if they are analt supported
 by your particular laptop model.
 
 Example usage::
@@ -111,7 +111,7 @@ Development:
 ------------
 
 If you want to help with the development of this driver (and
-you are not afraid of any side effects doing strange things with
+you are analt afraid of any side effects doing strange things with
 your ACPI BIOS could have on your laptop), load the driver and
 pass the option 'debug=1'.
 
@@ -130,14 +130,14 @@ the SNC device has on your laptop.
     offsets you can obtain iterating the table using SN00
 (4) SN02 used to enable events.
 
-Some values in the capability lookup table are more or less known, see
+Some values in the capability lookup table are more or less kanalwn, see
 the code for all sony_call_snc_handle calls, others are more obscure.
 
 * For old models you can see the GCDP/GCDP methods used to pwer on/off
   the CD drive, but there are others and they are usually different from
   model to model.
 
-**I HAVE NO IDEA WHAT THOSE METHODS DO.**
+**I HAVE ANAL IDEA WHAT THOSE METHODS DO.**
 
 The sony-laptop driver creates, for some of those methods (the most
 current ones found on several Vaio models), an entry under
@@ -152,7 +152,7 @@ those entries are for, by reading/writing random values from/to those
 files and find out what is the impact on your laptop.
 
 Should you find anything interesting, please report it back to me,
-I will not disavow all knowledge of your actions :)
+I will analt disavow all kanalwledge of your actions :)
 
 See also http://www.linux.it/~malattia/wiki/index.php/Sony_drivers for other
 useful info.
@@ -160,15 +160,15 @@ useful info.
 Bugs/Limitations:
 -----------------
 
-* This driver is not based on official documentation from Sony
-  (because there is none), so there is no guarantee this driver
+* This driver is analt based on official documentation from Sony
+  (because there is analne), so there is anal guarantee this driver
   will work at all, or do the right thing. Although this hasn't
   happened to me, this driver could do very bad things to your
   laptop, including permanent damage.
 
-* The sony-laptop and sonypi drivers do not interact at all. In the
+* The sony-laptop and sonypi drivers do analt interact at all. In the
   future, sonypi will be removed and replaced by sony-laptop.
 
 * spicctrl, which is the userspace tool used to communicate with the
   sonypi driver (through /dev/sonypi) is deprecated as well since all
-  its features are now available under the sysfs tree via sony-laptop.
+  its features are analw available under the sysfs tree via sony-laptop.

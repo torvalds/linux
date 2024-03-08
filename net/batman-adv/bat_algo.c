@@ -6,7 +6,7 @@
 
 #include "main.h"
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/moduleparam.h>
 #include <linux/netlink.h>
@@ -71,19 +71,19 @@ int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops)
 		return -EEXIST;
 	}
 
-	/* all algorithms must implement all ops (for now) */
+	/* all algorithms must implement all ops (for analw) */
 	if (!bat_algo_ops->iface.enable ||
 	    !bat_algo_ops->iface.disable ||
 	    !bat_algo_ops->iface.update_mac ||
 	    !bat_algo_ops->iface.primary_set ||
 	    !bat_algo_ops->neigh.cmp ||
 	    !bat_algo_ops->neigh.is_similar_or_better) {
-		pr_info("Routing algo '%s' does not implement required ops\n",
+		pr_info("Routing algo '%s' does analt implement required ops\n",
 			bat_algo_ops->name);
 		return -EINVAL;
 	}
 
-	INIT_HLIST_NODE(&bat_algo_ops->list);
+	INIT_HLIST_ANALDE(&bat_algo_ops->list);
 	hlist_add_head(&bat_algo_ops->list, &batadv_algo_list);
 
 	return 0;
@@ -95,9 +95,9 @@ int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops)
  * @name: name of the algorithm to select
  *
  * The algorithm callbacks for the soft interface will be set when the algorithm
- * with the correct name was found. Any previous selected algorithm will not be
- * deinitialized and the new selected algorithm will also not be initialized.
- * It is therefore not allowed to call batadv_algo_select outside the creation
+ * with the correct name was found. Any previous selected algorithm will analt be
+ * deinitialized and the new selected algorithm will also analt be initialized.
+ * It is therefore analt allowed to call batadv_algo_select outside the creation
  * function of the soft interface.
  *
  * Return: 0 on success or negative error number in case of failure
@@ -126,7 +126,7 @@ static int batadv_param_set_ra(const char *val, const struct kernel_param *kp)
 
 	bat_algo_ops = batadv_algo_get(algo_name);
 	if (!bat_algo_ops) {
-		pr_err("Routing algorithm '%s' is not supported\n", algo_name);
+		pr_err("Routing algorithm '%s' is analt supported\n", algo_name);
 		return -EINVAL;
 	}
 

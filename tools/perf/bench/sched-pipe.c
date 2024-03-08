@@ -20,7 +20,7 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <assert.h>
 #include <sys/time.h>
@@ -98,7 +98,7 @@ static int enter_cgroup(int nr)
 {
 	char buf[32];
 	int fd, len, ret;
-	int saved_errno;
+	int saved_erranal;
 	struct cgroup *cgrp;
 	pid_t pid;
 
@@ -127,7 +127,7 @@ static int enter_cgroup(int nr)
 		fd = openat(cgrp->fd, "cgroup.procs", O_WRONLY);
 
 	/* try cgroup v1 if failed */
-	if (fd < 0 && errno == ENOENT)
+	if (fd < 0 && erranal == EANALENT)
 		fd = openat(cgrp->fd, "tasks", O_WRONLY);
 
 	if (fd < 0)
@@ -137,22 +137,22 @@ static int enter_cgroup(int nr)
 	close(fd);
 
 	if (ret != len) {
-		printf("Cannot enter to cgroup: %s\n", cgrp->name);
+		printf("Cananalt enter to cgroup: %s\n", cgrp->name);
 		return -1;
 	}
 	return 0;
 
 err:
-	saved_errno = errno;
+	saved_erranal = erranal;
 	printf("Failed to open cgroup file in %s\n", cgrp_names[nr]);
 
-	if (saved_errno == ENOENT) {
+	if (saved_erranal == EANALENT) {
 		char mnt[PATH_MAX];
 
 		if (cgroupfs_find_mountpoint(mnt, sizeof(mnt), "perf_event") == 0)
 			printf(" Hint: create the cgroup first, like 'mkdir %s/%s'\n",
 			       mnt, cgrp_names[nr]);
-	} else if (saved_errno == EACCES && geteuid() > 0) {
+	} else if (saved_erranal == EACCES && geteuid() > 0) {
 		printf(" Hint: try to run as root\n");
 	}
 
@@ -298,7 +298,7 @@ int bench_sched_pipe(int argc, const char **argv)
 
 	default:
 		/* reaching here is something disaster */
-		fprintf(stderr, "Unknown format:%d\n", bench_format);
+		fprintf(stderr, "Unkanalwn format:%d\n", bench_format);
 		exit(1);
 		break;
 	}

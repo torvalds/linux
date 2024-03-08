@@ -20,7 +20,7 @@ config INGENIC_GENERIC_BOARD
 	select MACH_INGENIC_GENERIC
 
 config JZ4740_QI_LB60
-	bool "Qi Hardware Ben NanoNote"
+	bool "Qi Hardware Ben NaanalAnalte"
 	select MACH_JZ4740
 
 config JZ4740_RS90

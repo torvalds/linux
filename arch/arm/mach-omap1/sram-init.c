@@ -2,7 +2,7 @@
 /*
  * OMAP SRAM detection and management
  *
- * Copyright (C) 2005 Nokia Corporation
+ * Copyright (C) 2005 Analkia Corporation
  * Written by Tony Lindgren <tony@atomide.com>
  */
 
@@ -35,7 +35,7 @@ static void __iomem *omap_sram_ceil;
  * Memory allocator for SRAM: calculates the new ceiling address
  * for pushing a function using the fncpy API.
  *
- * Note that fncpy requires the returned address to be aligned
+ * Analte that fncpy requires the returned address to be aligned
  * to an 8-byte boundary.
  */
 static void *omap_sram_push_address(unsigned long size)
@@ -45,7 +45,7 @@ static void *omap_sram_push_address(unsigned long size)
 	available = omap_sram_ceil - (omap_sram_base + omap_sram_skip);
 
 	if (size > available) {
-		pr_err("Not enough space in SRAM\n");
+		pr_err("Analt eanalugh space in SRAM\n");
 		return NULL;
 	}
 
@@ -81,10 +81,10 @@ void *omap_sram_push(void *funcp, unsigned long size)
 
 /*
  * The amount of SRAM depends on the core type.
- * Note that we cannot try to test for SRAM here because writes
- * to secure SRAM will hang the system. Also the SRAM is not
+ * Analte that we cananalt try to test for SRAM here because writes
+ * to secure SRAM will hang the system. Also the SRAM is analt
  * yet mapped at this point.
- * Note that we cannot use ioremap for SRAM, as clock init needs SRAM early.
+ * Analte that we cananalt use ioremap for SRAM, as clock init needs SRAM early.
  */
 static void __init omap_detect_and_map_sram(void)
 {
@@ -100,14 +100,14 @@ static void __init omap_detect_and_map_sram(void)
 			cpu_is_omap1621() || cpu_is_omap1710())
 		omap_sram_size = 0x4000;	/* 16K */
 	else {
-		pr_err("Could not detect SRAM size\n");
+		pr_err("Could analt detect SRAM size\n");
 		omap_sram_size = 0x4000;
 	}
 
 	omap_sram_start = ROUND_DOWN(omap_sram_start, PAGE_SIZE);
 	omap_sram_base = __arm_ioremap_exec(omap_sram_start, omap_sram_size, 1);
 	if (!omap_sram_base) {
-		pr_err("SRAM: Could not map\n");
+		pr_err("SRAM: Could analt map\n");
 		return;
 	}
 

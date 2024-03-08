@@ -149,7 +149,7 @@ static int sun50i_dmic_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (clk_set_rate(host->dmic_clk, mclk)) {
-		dev_err(cpu_dai->dev, "mclk : %u not support\n", mclk);
+		dev_err(cpu_dai->dev, "mclk : %u analt support\n", mclk);
 		return -EINVAL;
 	}
 
@@ -247,7 +247,7 @@ static const struct regmap_config sun50i_dmic_regmap_config = {
 	.reg_stride = 4,
 	.val_bits = 32,
 	.max_register = SUN50I_DMIC_VERSION,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 #define SUN50I_DMIC_RATES (SNDRV_PCM_RATE_8000_48000)
@@ -314,7 +314,7 @@ static int sun50i_dmic_probe(struct platform_device *pdev)
 
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get the addresses */
 	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);

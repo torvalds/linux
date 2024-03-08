@@ -3,9 +3,9 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2005 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2005 MIPS Techanallogies, Inc.  All rights reserved.
  * Copyright (C) 2005, 06 Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2013 Imagination Techanallogies Ltd.
  */
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -24,7 +24,7 @@
 static int sp_stopping;
 struct rtlx_info *rtlx;
 struct chan_waitqueues channel_wqs[RTLX_CHANNELS];
-struct vpe_notifications rtlx_notify;
+struct vpe_analtifications rtlx_analtify;
 void (*aprp_hook)(void) = NULL;
 EXPORT_SYMBOL(aprp_hook);
 
@@ -55,8 +55,8 @@ static void __used dump_rtlx(void)
 static int rtlx_init(struct rtlx_info *rtlxi)
 {
 	if (rtlxi->id != RTLX_ID) {
-		pr_err("no valid RTLX id at 0x%p 0x%lx\n", rtlxi, rtlxi->id);
-		return -ENOEXEC;
+		pr_err("anal valid RTLX id at 0x%p 0x%lx\n", rtlxi, rtlxi->id);
+		return -EANALEXEC;
 	}
 
 	rtlx = rtlxi;
@@ -64,7 +64,7 @@ static int rtlx_init(struct rtlx_info *rtlxi)
 	return 0;
 }
 
-/* notifications */
+/* analtifications */
 void rtlx_starting(int vpe)
 {
 	int i;
@@ -97,7 +97,7 @@ int rtlx_open(int index, int can_sleep)
 
 	if (index >= RTLX_CHANNELS) {
 		pr_debug("rtlx_open index out of range\n");
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	if (atomic_inc_return(&channel_wqs[index].in_open) > 1) {
@@ -116,8 +116,8 @@ int rtlx_open(int index, int can_sleep)
 				if (ret)
 					goto out_fail;
 			} else {
-				pr_debug("No SP program loaded, and device opened with O_NONBLOCK\n");
-				ret = -ENOSYS;
+				pr_debug("Anal SP program loaded, and device opened with O_ANALNBLOCK\n");
+				ret = -EANALSYS;
 				goto out_fail;
 			}
 		}
@@ -145,7 +145,7 @@ int rtlx_open(int index, int can_sleep)
 					    &wait);
 			} else {
 				pr_err(" *vpe_get_shared is NULL. Has an SP program been loaded?\n");
-				ret = -ENOSYS;
+				ret = -EANALSYS;
 				goto out_fail;
 			}
 		}
@@ -153,7 +153,7 @@ int rtlx_open(int index, int can_sleep)
 		if ((unsigned int)*p < KSEG0) {
 			pr_warn("vpe_get_shared returned an invalid pointer maybe an error code %d\n",
 				(int)*p);
-			ret = -ENOSYS;
+			ret = -EANALSYS;
 			goto out_fail;
 		}
 
@@ -246,7 +246,7 @@ ssize_t rtlx_read(int index, void __user *buff, size_t count)
 	unsigned long failed;
 
 	if (rtlx == NULL)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	lx = &rtlx->channel[index];
 
@@ -289,7 +289,7 @@ ssize_t rtlx_write(int index, const void __user *buffer, size_t count)
 	size_t fl;
 
 	if (rtlx == NULL)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	rt = &rtlx->channel[index];
 
@@ -326,34 +326,34 @@ out:
 }
 
 
-static int file_open(struct inode *inode, struct file *filp)
+static int file_open(struct ianalde *ianalde, struct file *filp)
 {
-	return rtlx_open(iminor(inode), (filp->f_flags & O_NONBLOCK) ? 0 : 1);
+	return rtlx_open(imianalr(ianalde), (filp->f_flags & O_ANALNBLOCK) ? 0 : 1);
 }
 
-static int file_release(struct inode *inode, struct file *filp)
+static int file_release(struct ianalde *ianalde, struct file *filp)
 {
-	return rtlx_release(iminor(inode));
+	return rtlx_release(imianalr(ianalde));
 }
 
 static __poll_t file_poll(struct file *file, poll_table *wait)
 {
-	int minor = iminor(file_inode(file));
+	int mianalr = imianalr(file_ianalde(file));
 	__poll_t mask = 0;
 
-	poll_wait(file, &channel_wqs[minor].rt_queue, wait);
-	poll_wait(file, &channel_wqs[minor].lx_queue, wait);
+	poll_wait(file, &channel_wqs[mianalr].rt_queue, wait);
+	poll_wait(file, &channel_wqs[mianalr].lx_queue, wait);
 
 	if (rtlx == NULL)
 		return 0;
 
 	/* data available to read? */
-	if (rtlx_read_poll(minor, 0))
-		mask |= EPOLLIN | EPOLLRDNORM;
+	if (rtlx_read_poll(mianalr, 0))
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	/* space to write */
-	if (rtlx_write_poll(minor))
-		mask |= EPOLLOUT | EPOLLWRNORM;
+	if (rtlx_write_poll(mianalr))
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 
 	return mask;
 }
@@ -361,34 +361,34 @@ static __poll_t file_poll(struct file *file, poll_table *wait)
 static ssize_t file_read(struct file *file, char __user *buffer, size_t count,
 			 loff_t *ppos)
 {
-	int minor = iminor(file_inode(file));
+	int mianalr = imianalr(file_ianalde(file));
 
 	/* data available? */
-	if (!rtlx_read_poll(minor, (file->f_flags & O_NONBLOCK) ? 0 : 1))
+	if (!rtlx_read_poll(mianalr, (file->f_flags & O_ANALNBLOCK) ? 0 : 1))
 		return 0;	/* -EAGAIN makes 'cat' whine */
 
-	return rtlx_read(minor, buffer, count);
+	return rtlx_read(mianalr, buffer, count);
 }
 
 static ssize_t file_write(struct file *file, const char __user *buffer,
 			  size_t count, loff_t *ppos)
 {
-	int minor = iminor(file_inode(file));
+	int mianalr = imianalr(file_ianalde(file));
 
 	/* any space left... */
-	if (!rtlx_write_poll(minor)) {
+	if (!rtlx_write_poll(mianalr)) {
 		int ret;
 
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
-		ret = __wait_event_interruptible(channel_wqs[minor].rt_queue,
-					   rtlx_write_poll(minor));
+		ret = __wait_event_interruptible(channel_wqs[mianalr].rt_queue,
+					   rtlx_write_poll(mianalr));
 		if (ret)
 			return ret;
 	}
 
-	return rtlx_write(minor, buffer, count);
+	return rtlx_write(mianalr, buffer, count);
 }
 
 const struct file_operations rtlx_fops = {
@@ -398,12 +398,12 @@ const struct file_operations rtlx_fops = {
 	.write =   file_write,
 	.read =    file_read,
 	.poll =    file_poll,
-	.llseek =  noop_llseek,
+	.llseek =  analop_llseek,
 };
 
 module_init(rtlx_module_init);
 module_exit(rtlx_module_exit);
 
 MODULE_DESCRIPTION("MIPS RTLX");
-MODULE_AUTHOR("Elizabeth Oldham, MIPS Technologies, Inc.");
+MODULE_AUTHOR("Elizabeth Oldham, MIPS Techanallogies, Inc.");
 MODULE_LICENSE("GPL");

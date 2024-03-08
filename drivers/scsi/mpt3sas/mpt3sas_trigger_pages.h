@@ -3,7 +3,7 @@
 /*
  * This is the Fusion MPT base driver providing common API layer interface
  * to store diag trigger values into persistent driver triggers pages
- * for MPT (Message Passing Technology) based controllers.
+ * for MPT (Message Passing Techanallogy) based controllers.
  *
  * Copyright (C) 2020  Broadcom Inc.
  *

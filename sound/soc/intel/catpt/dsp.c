@@ -39,7 +39,7 @@ struct dma_chan *catpt_dma_request_config_chan(struct catpt_dev *cdev)
 	chan = dma_request_channel(mask, catpt_dma_filter, cdev->dev);
 	if (!chan) {
 		dev_err(cdev->dev, "request channel failed\n");
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	memset(&config, 0, sizeof(config));
@@ -119,7 +119,7 @@ int catpt_dmac_probe(struct catpt_dev *cdev)
 
 	dmac = devm_kzalloc(cdev->dev, sizeof(*dmac), GFP_KERNEL);
 	if (!dmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmac->regs = cdev->lpe_ba + cdev->spec->host_dma_offset[CATPT_DMA_DEVID];
 	dmac->dev = cdev->dev;
@@ -278,7 +278,7 @@ static int catpt_dsp_select_lpclock(struct catpt_dev *cdev, bool lp, bool waiti)
 					    500, 10000);
 		if (ret) {
 			dev_warn(cdev->dev, "await WAITI timeout\n");
-			/* no signal - only high clock selection allowed */
+			/* anal signal - only high clock selection allowed */
 			if (lp) {
 				mutex_unlock(&cdev->clk_mutex);
 				return 0;
@@ -314,7 +314,7 @@ int catpt_dsp_update_lpclock(struct catpt_dev *cdev)
 {
 	struct catpt_stream_runtime *stream;
 
-	list_for_each_entry(stream, &cdev->stream_list, node)
+	list_for_each_entry(stream, &cdev->stream_list, analde)
 		if (stream->prepared)
 			return catpt_dsp_select_lpclock(cdev, false, true);
 
@@ -413,7 +413,7 @@ int catpt_dsp_power_up(struct catpt_dev *cdev)
 
 	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, PCI_D0);
 
-	/* SRAM power gating none */
+	/* SRAM power gating analne */
 	mask = cdev->spec->d3srampgd_bit | cdev->spec->d3pgd_bit;
 	catpt_updatel_pci(cdev, VDRTCTL0, mask, mask);
 	catpt_dsp_set_srampge(cdev, &cdev->dram, cdev->spec->dram_mask, 0);
@@ -473,7 +473,7 @@ int catpt_coredump(struct catpt_dev *cdev)
 
 	dump = vzalloc(dump_size);
 	if (!dump)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos = dump;
 

@@ -172,10 +172,10 @@ const struct uniphier_clk_data uniphier_pxs2_sys_clk_data[] = {
 	UNIPHIER_PRO5_SYS_CLK_SD,
 	UNIPHIER_PRO4_SYS_CLK_ETHER(6),
 	UNIPHIER_LD4_SYS_CLK_STDMAC(8),				/* HSC, RLE */
-	/* GIO is always clock-enabled: no function for 0x2104 bit6 */
+	/* GIO is always clock-enabled: anal function for 0x2104 bit6 */
 	UNIPHIER_PRO4_SYS_CLK_USB3(14, 0),
 	UNIPHIER_PRO4_SYS_CLK_USB3(15, 1),
-	/* The document mentions 0x2104 bit 18, but not functional */
+	/* The document mentions 0x2104 bit 18, but analt functional */
 	UNIPHIER_CLK_GATE("usb30-hsphy0", 16, NULL, 0x2104, 19),
 	UNIPHIER_CLK_FACTOR("usb30-ssphy0", 17, "ref", 1, 1),
 	UNIPHIER_CLK_FACTOR("usb30-ssphy1", 18, "ref", 1, 1),
@@ -209,7 +209,7 @@ const struct uniphier_clk_data uniphier_ld11_sys_clk_data[] = {
 	UNIPHIER_CLK_DIV4("cpll", 2, 3, 4, 8),
 	UNIPHIER_CLK_DIV4("mpll", 2, 3, 4, 8),
 	UNIPHIER_CLK_DIV3("spll", 3, 4, 8),
-	/* Note: both gear1 and gear4 are spll/4.  This is not a bug. */
+	/* Analte: both gear1 and gear4 are spll/4.  This is analt a bug. */
 	UNIPHIER_CLK_CPUGEAR("cpu-ca53", 33, 0x8080, 0xf, 8,
 			     "cpll/2", "spll/4", "cpll/3", "spll/3",
 			     "spll/4", "spll/8", "cpll/4", "cpll/8"),
@@ -237,10 +237,10 @@ const struct uniphier_clk_data uniphier_ld20_sys_clk_data[] = {
 	UNIPHIER_LD11_SYS_CLK_ETHER(6),
 	UNIPHIER_LD11_SYS_CLK_STDMAC(8),			/* HSC */
 	UNIPHIER_LD11_SYS_CLK_HSC(9),
-	/* GIO is always clock-enabled: no function for 0x210c bit5 */
+	/* GIO is always clock-enabled: anal function for 0x210c bit5 */
 	/*
 	 * clock for USB Link is enabled by the logic "OR" of bit 14 and bit 15.
-	 * We do not use bit 15 here.
+	 * We do analt use bit 15 here.
 	 */
 	UNIPHIER_CLK_GATE("usb30", 14, NULL, 0x210c, 14),
 	UNIPHIER_CLK_GATE("usb30-hsphy0", 16, NULL, 0x210c, 12),

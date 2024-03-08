@@ -2,7 +2,7 @@
 /*  SuperH Ethernet device driver
  *
  *  Copyright (C) 2014 Renesas Electronics Corporation
- *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
+ *  Copyright (C) 2006-2012 Analbuhiro Iwamatsu
  *  Copyright (C) 2008-2014 Renesas Solutions Corp.
  *  Copyright (C) 2013-2017 Cogent Embedded, Inc.
  *  Copyright (C) 2014 Codethink Limited
@@ -45,12 +45,12 @@
 
 /* use some intentionally tricky logic here to initialize the whole struct to
  * 0xffff, but then override certain fields, requiring us to indicate that we
- * "know" that there are overrides in this structure, and we'll need to disable
+ * "kanalw" that there are overrides in this structure, and we'll need to disable
  * that warning from W=1 builds. GCC has supported this option since 4.2.X, but
  * the macros available to do this only define GCC 8.
  */
 __diag_push();
-__diag_ignore(GCC, 8, "-Woverride-init",
+__diag_iganalre(GCC, 8, "-Woverride-init",
 	      "logic to initialize all and then override some is OK");
 static const u16 sh_eth_offset_gigabit[SH_ETH_MAX_REGISTER_OFFSET] = {
 	SH_ETH_OFFSET_DEFAULTS,
@@ -430,7 +430,7 @@ static void sh_eth_select_mii(struct net_device *ndev)
 		break;
 	default:
 		netdev_warn(ndev,
-			    "PHY interface mode was not setup. Set to MII.\n");
+			    "PHY interface mode was analt setup. Set to MII.\n");
 		value = 0x1;
 		break;
 	}
@@ -560,19 +560,19 @@ static struct sh_eth_cpu_data r7s72100_data = {
 
 	.trscer_err_mask = TRSCER_RMAFCE | TRSCER_RRFCE,
 
-	.no_psr		= 1,
+	.anal_psr		= 1,
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
 	.rpadir		= 1,
-	.no_trimd	= 1,
-	.no_ade		= 1,
+	.anal_trimd	= 1,
+	.anal_ade		= 1,
 	.xdfar_rw	= 1,
 	.csmr		= 1,
 	.rx_csum	= 1,
 	.tsu		= 1,
-	.no_tx_cntrs	= 1,
+	.anal_tx_cntrs	= 1,
 };
 
 static void sh_eth_chip_reset_r8a7740(struct net_device *ndev)
@@ -617,8 +617,8 @@ static struct sh_eth_cpu_data r8a7740_data = {
 	.bculr		= 1,
 	.hw_swap	= 1,
 	.rpadir		= 1,
-	.no_trimd	= 1,
-	.no_ade		= 1,
+	.anal_trimd	= 1,
+	.anal_ade		= 1,
 	.xdfar_rw	= 1,
 	.csmr		= 1,
 	.rx_csum	= 1,
@@ -671,7 +671,7 @@ static struct sh_eth_cpu_data rcar_gen1_data = {
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
-	.no_xdfar	= 1,
+	.anal_xdfar	= 1,
 };
 
 /* R-Car Gen2 and RZ/G1 */
@@ -705,7 +705,7 @@ static struct sh_eth_cpu_data rcar_gen2_data = {
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
-	.no_xdfar	= 1,
+	.anal_xdfar	= 1,
 	.rmiimode	= 1,
 	.magic		= 1,
 };
@@ -744,8 +744,8 @@ static struct sh_eth_cpu_data r8a77980_data = {
 	.hw_swap	= 1,
 	.nbst		= 1,
 	.rpadir		= 1,
-	.no_trimd	= 1,
-	.no_ade		= 1,
+	.anal_trimd	= 1,
+	.anal_ade		= 1,
 	.xdfar_rw	= 1,
 	.csmr		= 1,
 	.rx_csum	= 1,
@@ -787,7 +787,7 @@ static struct sh_eth_cpu_data r7s9210_data = {
 	.tpauser	= 1,
 	.hw_swap	= 1,
 	.rpadir		= 1,
-	.no_ade		= 1,
+	.anal_ade		= 1,
 	.xdfar_rw	= 1,
 };
 #endif /* CONFIG_OF */
@@ -878,7 +878,7 @@ static struct sh_eth_cpu_data sh7757_data = {
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
-	.no_ade		= 1,
+	.anal_ade		= 1,
 	.rpadir		= 1,
 	.rtrate		= 1,
 	.dual_port	= 1,
@@ -963,8 +963,8 @@ static struct sh_eth_cpu_data sh7757_data_giga = {
 	.bculr		= 1,
 	.hw_swap	= 1,
 	.rpadir		= 1,
-	.no_trimd	= 1,
-	.no_ade		= 1,
+	.anal_trimd	= 1,
+	.anal_ade		= 1,
 	.xdfar_rw	= 1,
 	.tsu		= 1,
 	.cexcr		= 1,
@@ -1003,8 +1003,8 @@ static struct sh_eth_cpu_data sh7734_data = {
 	.gecmr		= 1,
 	.bculr		= 1,
 	.hw_swap	= 1,
-	.no_trimd	= 1,
-	.no_ade		= 1,
+	.anal_trimd	= 1,
+	.anal_ade		= 1,
 	.xdfar_rw	= 1,
 	.tsu		= 1,
 	.csmr		= 1,
@@ -1045,8 +1045,8 @@ static struct sh_eth_cpu_data sh7763_data = {
 	.gecmr		= 1,
 	.bculr		= 1,
 	.hw_swap	= 1,
-	.no_trimd	= 1,
-	.no_ade		= 1,
+	.anal_trimd	= 1,
+	.anal_ade		= 1,
 	.xdfar_rw	= 1,
 	.tsu		= 1,
 	.irq_flags	= IRQF_SHARED,
@@ -1413,7 +1413,7 @@ static int sh_eth_ring_init(struct net_device *ndev)
 	mdp->rx_skbuff = kcalloc(mdp->num_rx_ring, sizeof(*mdp->rx_skbuff),
 				 GFP_KERNEL);
 	if (!mdp->rx_skbuff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdp->tx_skbuff = kcalloc(mdp->num_tx_ring, sizeof(*mdp->tx_skbuff),
 				 GFP_KERNEL);
@@ -1441,7 +1441,7 @@ ring_free:
 	/* Free Rx and Tx skb ring buffer and DMA buffer */
 	sh_eth_ring_free(ndev);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int sh_eth_dev_init(struct net_device *ndev)
@@ -1491,7 +1491,7 @@ static int sh_eth_dev_init(struct net_device *ndev)
 
 	sh_eth_write(ndev, mdp->cd->fcftr_value, FCFTR);
 
-	if (!mdp->cd->no_trimd)
+	if (!mdp->cd->anal_trimd)
 		sh_eth_write(ndev, 0, TRIMD);
 
 	/* Recv frame limit set register */
@@ -1552,7 +1552,7 @@ static void sh_eth_dev_exit(struct net_device *ndev)
 
 	/* Aside from TX DMA, we can't tell when the hardware is
 	 * really stopped, so we need to reset to make sure.
-	 * Before doing that, wait for long enough to *probably*
+	 * Before doing that, wait for long eanalugh to *probably*
 	 * finish transmitting the last packet and poll stats.
 	 */
 	msleep(2); /* max frame time at 10 Mbps < 1250 us */
@@ -1687,7 +1687,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 			}
 			mdp->rx_skbuff[entry] = skb;
 
-			skb_checksum_none_assert(skb);
+			skb_checksum_analne_assert(skb);
 			rxdesc->addr = cpu_to_le32(dma_addr);
 		}
 		dma_wmb(); /* RACT bit must be set after all the above writes */
@@ -1702,7 +1702,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 	/* If we don't need to check status, don't. -KDU */
 	if (!(sh_eth_read(ndev, EDRRR) & EDRRR_R)) {
 		/* fix the values for the next receiving if RDE is set */
-		if (intr_status & EESR_RDE && !mdp->cd->no_xdfar) {
+		if (intr_status & EESR_RDE && !mdp->cd->anal_xdfar) {
 			u32 count = (sh_eth_read(ndev, RDFAR) -
 				     sh_eth_read(ndev, RDLAR)) >> 4;
 
@@ -1744,7 +1744,7 @@ static void sh_eth_emac_interrupt(struct net_device *ndev)
 		pm_wakeup_event(&mdp->pdev->dev, 0);
 	if (felic_stat & ECSR_LCHNG) {
 		/* Link Changed */
-		if (mdp->cd->no_psr || mdp->no_ether_link)
+		if (mdp->cd->anal_psr || mdp->anal_ether_link)
 			return;
 		link_stat = sh_eth_read(ndev, PSR);
 		if (mdp->ether_link_active_low)
@@ -1807,14 +1807,14 @@ static void sh_eth_error(struct net_device *ndev, u32 intr_status)
 		ndev->stats.rx_fifo_errors++;
 	}
 
-	if (!mdp->cd->no_ade && (intr_status & EESR_ADE)) {
+	if (!mdp->cd->anal_ade && (intr_status & EESR_ADE)) {
 		/* Address Error */
 		ndev->stats.tx_fifo_errors++;
 		netif_err(mdp, tx_err, ndev, "Address Error\n");
 	}
 
 	mask = EESR_TWB | EESR_TABT | EESR_ADE | EESR_TDE | EESR_TFE;
-	if (mdp->cd->no_ade)
+	if (mdp->cd->anal_ade)
 		mask &= ~EESR_ADE;
 	if (intr_status & mask) {
 		/* Tx error */
@@ -1842,7 +1842,7 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 	struct net_device *ndev = netdev;
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct sh_eth_cpu_data *cd = mdp->cd;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 intr_status, intr_enable;
 
 	spin_lock(&mdp->lock);
@@ -1876,7 +1876,7 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 			__napi_schedule(&mdp->napi);
 		} else {
 			netdev_warn(ndev,
-				    "ignoring interrupt, status 0x%08x, mask 0x%08x.\n",
+				    "iganalring interrupt, status 0x%08x, mask 0x%08x.\n",
 				    intr_status, intr_enable);
 		}
 	}
@@ -1945,8 +1945,8 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 
 	spin_lock_irqsave(&mdp->lock, flags);
 
-	/* Disable TX and RX right over here, if E-MAC change is ignored */
-	if (mdp->cd->no_psr || mdp->no_ether_link)
+	/* Disable TX and RX right over here, if E-MAC change is iganalred */
+	if (mdp->cd->anal_psr || mdp->anal_ether_link)
 		sh_eth_rcv_snd_disable(ndev);
 
 	if (phydev->link) {
@@ -1975,8 +1975,8 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 		mdp->duplex = -1;
 	}
 
-	/* Enable TX and RX right over here, if E-MAC change is ignored */
-	if ((mdp->cd->no_psr || mdp->no_ether_link) && phydev->link)
+	/* Enable TX and RX right over here, if E-MAC change is iganalred */
+	if ((mdp->cd->anal_psr || mdp->anal_ether_link) && phydev->link)
 		sh_eth_rcv_snd_enable(ndev);
 
 	spin_unlock_irqrestore(&mdp->lock, flags);
@@ -1988,7 +1988,7 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 /* PHY init function */
 static int sh_eth_phy_init(struct net_device *ndev)
 {
-	struct device_node *np = ndev->dev.parent->of_node;
+	struct device_analde *np = ndev->dev.parent->of_analde;
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct phy_device *phydev;
 
@@ -1998,16 +1998,16 @@ static int sh_eth_phy_init(struct net_device *ndev)
 
 	/* Try connect to PHY */
 	if (np) {
-		struct device_node *pn;
+		struct device_analde *pn;
 
 		pn = of_parse_phandle(np, "phy-handle", 0);
 		phydev = of_phy_connect(ndev, pn,
 					sh_eth_adjust_link, 0,
 					mdp->phy_interface);
 
-		of_node_put(pn);
+		of_analde_put(pn);
 		if (!phydev)
-			phydev = ERR_PTR(-ENOENT);
+			phydev = ERR_PTR(-EANALENT);
 	} else {
 		char phy_id[MII_BUS_ID_SIZE + 3];
 
@@ -2099,12 +2099,12 @@ static size_t __sh_eth_get_regs(struct net_device *ndev, u32 *buf)
 	add_reg(EESR);
 	add_reg(EESIPR);
 	add_reg(TDLAR);
-	if (!cd->no_xdfar)
+	if (!cd->anal_xdfar)
 		add_reg(TDFAR);
 	add_reg(TDFXR);
 	add_reg(TDFFR);
 	add_reg(RDLAR);
-	if (!cd->no_xdfar)
+	if (!cd->anal_xdfar)
 		add_reg(RDFAR);
 	add_reg(RDFXR);
 	add_reg(RDFFR);
@@ -2120,13 +2120,13 @@ static size_t __sh_eth_get_regs(struct net_device *ndev, u32 *buf)
 	add_reg(FCFTR);
 	if (cd->rpadir)
 		add_reg(RPADIR);
-	if (!cd->no_trimd)
+	if (!cd->anal_trimd)
 		add_reg(TRIMD);
 	add_reg(ECMR);
 	add_reg(ECSR);
 	add_reg(ECSIPR);
 	add_reg(PIR);
-	if (!cd->no_psr)
+	if (!cd->anal_psr)
 		add_reg(PSR);
 	add_reg(RDMLR);
 	add_reg(RFLR);
@@ -2146,7 +2146,7 @@ static size_t __sh_eth_get_regs(struct net_device *ndev, u32 *buf)
 		add_reg(BCULR);
 	add_reg(MAHR);
 	add_reg(MALR);
-	if (!cd->no_tx_cntrs) {
+	if (!cd->anal_tx_cntrs) {
 		add_reg(TROCR);
 		add_reg(CDCR);
 		add_reg(LCCR);
@@ -2198,7 +2198,7 @@ static size_t __sh_eth_get_regs(struct net_device *ndev, u32 *buf)
 		add_tsu_reg(TSU_POST2);
 		add_tsu_reg(TSU_POST3);
 		add_tsu_reg(TSU_POST4);
-		/* This is the start of a table, not just a single register. */
+		/* This is the start of a table, analt just a single register. */
 		if (buf) {
 			unsigned int i;
 
@@ -2260,7 +2260,7 @@ static int sh_eth_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		return SH_ETH_STATS_LEN;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -2378,7 +2378,7 @@ static int sh_eth_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
 	if (!mdp->cd->magic || wol->wolopts & ~WAKE_MAGIC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mdp->wol_enabled = !!(wol->wolopts & WAKE_MAGIC);
 
@@ -2418,7 +2418,7 @@ static int sh_eth_open(struct net_device *ndev)
 	ret = request_irq(ndev->irq, sh_eth_interrupt,
 			  mdp->cd->irq_flags, ndev->name, ndev);
 	if (ret) {
-		netdev_err(ndev, "Can not assign IRQ number\n");
+		netdev_err(ndev, "Can analt assign IRQ number\n");
 		goto out_napi_off;
 	}
 
@@ -2542,7 +2542,7 @@ static netdev_tx_t sh_eth_start_xmit(struct sk_buff *skb,
 
 /* The statistics registers have write-clear behaviour, which means we
  * will lose any increment between the read and write.  We mitigate
- * this by only clearing when we read a non-zero value, so we will
+ * this by only clearing when we read a analn-zero value, so we will
  * never falsely report a total of zero.
  */
 static void
@@ -2560,7 +2560,7 @@ static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
-	if (mdp->cd->no_tx_cntrs)
+	if (mdp->cd->anal_tx_cntrs)
 		return &ndev->stats;
 
 	if (!mdp->is_opened)
@@ -2734,7 +2734,7 @@ static int sh_eth_tsu_find_entry(struct net_device *ndev, const u8 *addr)
 			return i;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int sh_eth_tsu_find_empty(struct net_device *ndev)
@@ -2744,7 +2744,7 @@ static int sh_eth_tsu_find_empty(struct net_device *ndev)
 
 	memset(blank, 0, sizeof(blank));
 	entry = sh_eth_tsu_find_entry(ndev, blank);
-	return (entry < 0) ? -ENOMEM : entry;
+	return (entry < 0) ? -EANALMEM : entry;
 }
 
 static int sh_eth_tsu_disable_cam_entry_table(struct net_device *ndev,
@@ -2776,10 +2776,10 @@ static int sh_eth_tsu_add_entry(struct net_device *ndev, const u8 *addr)
 
 	i = sh_eth_tsu_find_entry(ndev, addr);
 	if (i < 0) {
-		/* No entry found, create one */
+		/* Anal entry found, create one */
 		i = sh_eth_tsu_find_empty(ndev);
 		if (i < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 		ret = sh_eth_tsu_write_entry(ndev, reg_offset + i * 8, addr);
 		if (ret < 0)
 			return ret;
@@ -2957,7 +2957,7 @@ static int sh_eth_vlan_rx_add_vid(struct net_device *ndev,
 	if (unlikely(!mdp->cd->tsu))
 		return -EPERM;
 
-	/* No filtering if vid = 0 */
+	/* Anal filtering if vid = 0 */
 	if (!vid)
 		return 0;
 
@@ -2987,7 +2987,7 @@ static int sh_eth_vlan_rx_kill_vid(struct net_device *ndev,
 	if (unlikely(!mdp->cd->tsu))
 		return -EPERM;
 
-	/* No filtering if vid = 0 */
+	/* Anal filtering if vid = 0 */
 	if (!vid)
 		return 0;
 
@@ -3094,12 +3094,12 @@ static int sh_mdio_init(struct sh_eth_private *mdp,
 	struct platform_device *pdev = mdp->pdev;
 	struct device *dev = &mdp->pdev->dev;
 	struct phy_device *phydev;
-	struct device_node *pn;
+	struct device_analde *pn;
 
 	/* create bit control struct for PHY */
 	bitbang = devm_kzalloc(dev, sizeof(struct bb_info), GFP_KERNEL);
 	if (!bitbang)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* bitbang init */
 	bitbang->addr = mdp->addr + mdp->reg_offset[PIR];
@@ -3109,7 +3109,7 @@ static int sh_mdio_init(struct sh_eth_private *mdp,
 	/* MII controller setting */
 	mdp->mii_bus = alloc_mdio_bitbang(&bitbang->ctrl);
 	if (!mdp->mii_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Wrap accessors with Runtime PM-aware ops */
 	mdp->mii_bus->read = sh_mdiobb_read_c22;
@@ -3127,17 +3127,17 @@ static int sh_mdio_init(struct sh_eth_private *mdp,
 	if (pd->phy_irq > 0)
 		mdp->mii_bus->irq[pd->phy] = pd->phy_irq;
 
-	ret = of_mdiobus_register(mdp->mii_bus, dev->of_node);
+	ret = of_mdiobus_register(mdp->mii_bus, dev->of_analde);
 	if (ret)
 		goto out_free_bus;
 
-	pn = of_parse_phandle(dev->of_node, "phy-handle", 0);
+	pn = of_parse_phandle(dev->of_analde, "phy-handle", 0);
 	phydev = of_phy_find_device(pn);
 	if (phydev) {
 		phydev->mac_managed_pm = true;
 		put_device(&phydev->mdio.dev);
 	}
-	of_node_put(pn);
+	of_analde_put(pn);
 
 	return 0;
 
@@ -3201,7 +3201,7 @@ static const struct net_device_ops sh_eth_netdev_ops_tsu = {
 #ifdef CONFIG_OF
 static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct sh_eth_plat_data *pdata;
 	phy_interface_t interface;
 	int ret;
@@ -3217,8 +3217,8 @@ static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 
 	of_get_mac_address(np, pdata->mac_addr);
 
-	pdata->no_ether_link =
-		of_property_read_bool(np, "renesas,no-ether-link");
+	pdata->anal_ether_link =
+		of_property_read_bool(np, "renesas,anal-ether-link");
 	pdata->ether_link_active_low =
 		of_property_read_bool(np, "renesas,ether-link-active-low");
 
@@ -3261,7 +3261,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(struct sh_eth_private));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
@@ -3287,10 +3287,10 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	spin_lock_init(&mdp->lock);
 	mdp->pdev = pdev;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		pd = sh_eth_parse_dt(&pdev->dev);
 	if (!pd) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "anal platform data\n");
 		ret = -EINVAL;
 		goto out_release;
 	}
@@ -3298,7 +3298,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	/* get PHY ID */
 	mdp->phy_id = pd->phy;
 	mdp->phy_interface = pd->phy_interface;
-	mdp->no_ether_link = pd->no_ether_link;
+	mdp->anal_ether_link = pd->anal_ether_link;
 	mdp->ether_link_active_low = pd->ether_link_active_low;
 
 	/* set cpu data */
@@ -3309,7 +3309,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	mdp->reg_offset = sh_eth_get_register_offset(mdp->cd->register_type);
 	if (!mdp->reg_offset) {
-		dev_err(&pdev->dev, "Unknown register type (%d)\n",
+		dev_err(&pdev->dev, "Unkanalwn register type (%d)\n",
 			mdp->cd->register_type);
 		ret = -EINVAL;
 		goto out_release;
@@ -3343,7 +3343,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	read_mac_address(ndev, pd->mac_addr);
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		dev_warn(&pdev->dev,
-			 "no valid MAC address supplied, using a random one.\n");
+			 "anal valid MAC address supplied, using a random one.\n");
 		eth_hw_addr_random(ndev);
 	}
 
@@ -3353,8 +3353,8 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 		rtsu = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 		if (!rtsu) {
-			dev_err(&pdev->dev, "no TSU resource\n");
-			ret = -ENODEV;
+			dev_err(&pdev->dev, "anal TSU resource\n");
+			ret = -EANALDEV;
 			goto out_release;
 		}
 		/* We can only request the  TSU region  for the first port
@@ -3373,7 +3373,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 					     resource_size(rtsu));
 		if (!mdp->tsu_addr) {
 			dev_err(&pdev->dev, "TSU region ioremap() failed.\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_release;
 		}
 		mdp->port = port;
@@ -3525,13 +3525,13 @@ static int sh_eth_resume(struct device *dev)
 }
 #endif
 
-static int sh_eth_runtime_nop(struct device *dev)
+static int sh_eth_runtime_analp(struct device *dev)
 {
 	/* Runtime PM callback shared between ->runtime_suspend()
 	 * and ->runtime_resume(). Simply returns success.
 	 *
 	 * This driver re-initializes all registers after
-	 * pm_runtime_get_sync() anyway so there is no need
+	 * pm_runtime_get_sync() anyway so there is anal need
 	 * to save and restore registers here.
 	 */
 	return 0;
@@ -3539,7 +3539,7 @@ static int sh_eth_runtime_nop(struct device *dev)
 
 static const struct dev_pm_ops sh_eth_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sh_eth_suspend, sh_eth_resume)
-	SET_RUNTIME_PM_OPS(sh_eth_runtime_nop, sh_eth_runtime_nop, NULL)
+	SET_RUNTIME_PM_OPS(sh_eth_runtime_analp, sh_eth_runtime_analp, NULL)
 };
 #define SH_ETH_PM_OPS (&sh_eth_dev_pm_ops)
 #else
@@ -3571,6 +3571,6 @@ static struct platform_driver sh_eth_driver = {
 
 module_platform_driver(sh_eth_driver);
 
-MODULE_AUTHOR("Nobuhiro Iwamatsu, Yoshihiro Shimoda");
+MODULE_AUTHOR("Analbuhiro Iwamatsu, Yoshihiro Shimoda");
 MODULE_DESCRIPTION("Renesas SuperH Ethernet driver");
 MODULE_LICENSE("GPL v2");

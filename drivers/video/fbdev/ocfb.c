@@ -10,7 +10,7 @@
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -52,7 +52,7 @@ static char *mode_option;
 static const struct fb_videomode default_mode = {
 	/* 640x480 @ 60 Hz, 31.5 kHz hsync */
 	NULL, 60, 640, 480, 39721, 40, 24, 32, 11, 96, 2,
-	0, FB_VMODE_NONINTERLACED
+	0, FB_VMODE_ANALNINTERLACED
 };
 
 struct ocfb_dev {
@@ -158,7 +158,7 @@ static int ocfb_setupfb(struct ocfb_dev *fbdev)
 		break;
 
 	default:
-		dev_err(dev, "no bpp specified\n");
+		dev_err(dev, "anal bpp specified\n");
 		break;
 	}
 
@@ -171,15 +171,15 @@ static int ocfb_setupfb(struct ocfb_dev *fbdev)
 	return 0;
 }
 
-static int ocfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int ocfb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			  unsigned blue, unsigned transp,
 			  struct fb_info *info)
 {
 	struct ocfb_dev *fbdev = (struct ocfb_dev *)info->par;
 	u32 color;
 
-	if (regno >= info->cmap.len) {
-		dev_err(info->device, "regno >= cmap.len\n");
+	if (reganal >= info->cmap.len) {
+		dev_err(info->device, "reganal >= cmap.len\n");
 		return 1;
 	}
 
@@ -194,11 +194,11 @@ static int ocfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	transp >>= (16 - info->var.transp.length);
 
 	if (info->var.bits_per_pixel == 8 && !info->var.grayscale) {
-		regno <<= 2;
+		reganal <<= 2;
 		color = (red << 16) | (green << 8) | blue;
-		ocfb_writereg(fbdev, OCFB_PALETTE + regno, color);
+		ocfb_writereg(fbdev, OCFB_PALETTE + reganal, color);
 	} else {
-		((u32 *)(info->pseudo_palette))[regno] =
+		((u32 *)(info->pseudo_palette))[reganal] =
 			(red << info->var.red.offset) |
 			(green << info->var.green.offset) |
 			(blue << info->var.blue.offset) |
@@ -231,8 +231,8 @@ static int ocfb_init_var(struct ocfb_dev *fbdev)
 {
 	struct fb_var_screeninfo *var = &fbdev->info.var;
 
-	var->accel_flags = FB_ACCEL_NONE;
-	var->activate = FB_ACTIVATE_NOW;
+	var->accel_flags = FB_ACCEL_ANALNE;
+	var->activate = FB_ACTIVATE_ANALW;
 	var->xres_virtual = var->xres;
 	var->yres_virtual = var->yres;
 
@@ -299,7 +299,7 @@ static int ocfb_probe(struct platform_device *pdev)
 
 	fbdev = devm_kzalloc(&pdev->dev, sizeof(*fbdev), GFP_KERNEL);
 	if (!fbdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, fbdev);
 
@@ -310,7 +310,7 @@ static int ocfb_probe(struct platform_device *pdev)
 	/* Video mode setup */
 	if (!fb_find_mode(&fbdev->info.var, &fbdev->info, mode_option,
 			  NULL, 0, &default_mode, 16)) {
-		dev_err(&pdev->dev, "No valid video modes found\n");
+		dev_err(&pdev->dev, "Anal valid video modes found\n");
 		return -EINVAL;
 	}
 	ocfb_init_var(fbdev);
@@ -327,7 +327,7 @@ static int ocfb_probe(struct platform_device *pdev)
 	if (!fbdev->fb_virt) {
 		dev_err(&pdev->dev,
 			"Frame buffer memory allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	fbdev->info.fix.smem_start = fbdev->fb_phys;
 	fbdev->info.screen_base = fbdev->fb_virt;
@@ -407,7 +407,7 @@ static int __init ocfb_init(void)
 	char *option = NULL;
 
 	if (fb_get_options("ocfb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	ocfb_setup(option);
 #endif
 	return platform_driver_register(&ocfb_driver);

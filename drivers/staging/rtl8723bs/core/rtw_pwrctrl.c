@@ -39,7 +39,7 @@ void ips_enter(struct adapter *padapter)
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 
 
-	hal_btcoex_IpsNotify(padapter, pwrpriv->ips_mode_req);
+	hal_btcoex_IpsAnaltify(padapter, pwrpriv->ips_mode_req);
 
 	mutex_lock(&pwrpriv->lock);
 	_ips_enter(padapter);
@@ -82,7 +82,7 @@ int ips_leave(struct adapter *padapter)
 	mutex_unlock(&pwrpriv->lock);
 
 	if (ret == _SUCCESS)
-		hal_btcoex_IpsNotify(padapter, IPS_NONE);
+		hal_btcoex_IpsAnaltify(padapter, IPS_ANALNE);
 
 	return ret;
 }
@@ -162,7 +162,7 @@ void rtw_ps_processor(struct adapter *padapter)
 
 	pwrpriv->ps_processing = true;
 
-	if (pwrpriv->ips_mode_req == IPS_NONE)
+	if (pwrpriv->ips_mode_req == IPS_ANALNE)
 		goto exit;
 
 	if (!rtw_pwr_unassociated_idle(padapter))
@@ -281,10 +281,10 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 
 	pwrpriv->tog += 0x80;
 
-	/*  No LPS 32K, No Ack */
+	/*  Anal LPS 32K, Anal Ack */
 	if (rpwm & PS_ACK) {
 		unsigned long start_time;
-		u8 cpwm_now;
+		u8 cpwm_analw;
 		u8 poll_cnt = 0;
 
 		start_time = jiffies;
@@ -293,10 +293,10 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 		do {
 			mdelay(1);
 			poll_cnt++;
-			rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_now);
-			if ((cpwm_orig ^ cpwm_now) & 0x80) {
+			rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_analw);
+			if ((cpwm_orig ^ cpwm_analw) & 0x80) {
 				pwrpriv->cpwm = PS_STATE_S4;
-				pwrpriv->cpwm_tog = cpwm_now & PS_TOGGLE;
+				pwrpriv->cpwm_tog = cpwm_analw & PS_TOGGLE;
 				break;
 			}
 
@@ -368,7 +368,7 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 			rtw_hal_set_hwreg(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
 			pwrpriv->fw_current_in_ps_mode = false;
 
-			hal_btcoex_LpsNotify(padapter, ps_mode);
+			hal_btcoex_LpsAnaltify(padapter, ps_mode);
 		}
 	} else {
 		if ((PS_RDY_CHECK(padapter) && check_fwstate(&padapter->mlmepriv, WIFI_ASOC_STATE)) ||
@@ -376,7 +376,7 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 			) {
 			u8 pslv;
 
-			hal_btcoex_LpsNotify(padapter, ps_mode);
+			hal_btcoex_LpsAnaltify(padapter, ps_mode);
 
 			pwrpriv->fw_current_in_ps_mode = true;
 			pwrpriv->pwr_mode = ps_mode;
@@ -452,13 +452,13 @@ void LPS_Enter(struct adapter *padapter, const char *msg)
 	if (hal_btcoex_IsBtControlLps(padapter))
 		return;
 
-	/* Skip lps enter request if number of assocated adapters is not 1 */
+	/* Skip lps enter request if number of assocated adapters is analt 1 */
 	if (check_fwstate(&(dvobj->padapters->mlmepriv), WIFI_ASOC_STATE))
 		n_assoc_iface++;
 	if (n_assoc_iface != 1)
 		return;
 
-	/* Skip lps enter request for adapter not port0 */
+	/* Skip lps enter request for adapter analt port0 */
 	if (get_iface_type(padapter) != IFACE_PORT0)
 		return;
 
@@ -709,7 +709,7 @@ static inline void unregister_task_alive(struct pwrctrl_priv *pwrctrl, u32 tag)
 /*
  * Description:
  *Check if the fw_pwrstate is okay for I/O.
- *If not (cpwm is less than S2), then the sub-routine
+ *If analt (cpwm is less than S2), then the sub-routine
  *will raise the cpwm to be greater than or equal to S2.
  *
  *Calling Context: Passive
@@ -719,7 +719,7 @@ static inline void unregister_task_alive(struct pwrctrl_priv *pwrctrl, u32 tag)
  *
  * Return Value:
  *_SUCCESS	hardware is ready for I/O
- *_FAIL		can't I/O right now
+ *_FAIL		can't I/O right analw
  */
 s32 rtw_register_task_alive(struct adapter *padapter, u32 task)
 {
@@ -761,7 +761,7 @@ s32 rtw_register_task_alive(struct adapter *padapter, u32 task)
  *	1. this function will request pwrctrl->lock
  *
  * Return Value:
- *none
+ *analne
  */
 void rtw_unregister_task_alive(struct adapter *padapter, u32 task)
 {
@@ -797,14 +797,14 @@ void rtw_unregister_task_alive(struct adapter *padapter, u32 task)
  * Caller: rtw_xmit_thread
  *
  * Check if the fw_pwrstate is okay for xmit.
- * If not (cpwm is less than S3), then the sub-routine
+ * If analt (cpwm is less than S3), then the sub-routine
  * will raise the cpwm to be greater than or equal to S3.
  *
  * Calling Context: Passive
  *
  * Return Value:
  * _SUCCESS	rtw_xmit_thread can write fifo/txcmd afterwards.
- * _FAIL		rtw_xmit_thread can not do anything.
+ * _FAIL		rtw_xmit_thread can analt do anything.
  */
 s32 rtw_register_tx_alive(struct adapter *padapter)
 {
@@ -842,14 +842,14 @@ s32 rtw_register_tx_alive(struct adapter *padapter)
  * Caller: rtw_cmd_thread
  *
  * Check if the fw_pwrstate is okay for issuing cmd.
- * If not (cpwm should be is less than S2), then the sub-routine
+ * If analt (cpwm should be is less than S2), then the sub-routine
  * will raise the cpwm to be greater than or equal to S2.
  *
  * Calling Context: Passive
  *
  * Return Value:
  *_SUCCESS	rtw_cmd_thread can issue cmds to firmware afterwards.
- *_FAIL		rtw_cmd_thread can not do anything.
+ *_FAIL		rtw_cmd_thread can analt do anything.
  */
 s32 rtw_register_cmd_alive(struct adapter *padapter)
 {
@@ -887,7 +887,7 @@ s32 rtw_register_cmd_alive(struct adapter *padapter)
  * Caller: ISR
  *
  * If ISR's txdone,
- * No more pkts for TX,
+ * Anal more pkts for TX,
  * Then driver shall call this fun. to power down firmware again.
  */
 void rtw_unregister_tx_alive(struct adapter *padapter)
@@ -923,7 +923,7 @@ void rtw_unregister_tx_alive(struct adapter *padapter)
  * Caller: ISR
  *
  * If all commands have been done,
- * and no more command to do,
+ * and anal more command to do,
  * then driver shall call this fun. to power down firmware again.
  */
 void rtw_unregister_cmd_alive(struct adapter *padapter)
@@ -1053,7 +1053,7 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 		)
 			mdelay(10);
 
-	/* System suspend is not allowed to wakeup */
+	/* System suspend is analt allowed to wakeup */
 	if (!(pwrpriv->bInternalAutoSuspend) && pwrpriv->bInSuspend) {
 		ret = _FAIL;
 		goto exit;
@@ -1120,10 +1120,10 @@ int rtw_pm_set_ips(struct adapter *padapter, u8 mode)
 {
 	struct pwrctrl_priv *pwrctrlpriv = adapter_to_pwrctl(padapter);
 
-	if (mode == IPS_NORMAL || mode == IPS_LEVEL_2) {
+	if (mode == IPS_ANALRMAL || mode == IPS_LEVEL_2) {
 		rtw_ips_mode_req(pwrctrlpriv, mode);
 		return 0;
-	} else if (mode == IPS_NONE) {
+	} else if (mode == IPS_ANALNE) {
 		rtw_ips_mode_req(pwrctrlpriv, mode);
 		if ((padapter->bSurpriseRemoved == 0) && (rtw_pwr_wakeup(padapter) == _FAIL))
 			return -EFAULT;

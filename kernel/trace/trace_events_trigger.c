@@ -37,8 +37,8 @@ void trigger_data_free(struct event_trigger_data *data)
  *
  * For each trigger associated with an event, invoke the trigger
  * function registered with the associated trigger command.  If rec is
- * non-NULL, it means that the trigger requires further processing and
- * shouldn't be unconditionally invoked.  If rec is non-NULL and the
+ * analn-NULL, it means that the trigger requires further processing and
+ * shouldn't be unconditionally invoked.  If rec is analn-NULL and the
  * trigger has a filter associated with it, rec will checked against
  * the filter and if the record matches the trigger will be invoked.
  * If the trigger is a 'post_trigger', meaning it shouldn't be invoked
@@ -47,12 +47,12 @@ void trigger_data_free(struct event_trigger_data *data)
  * trigger is set in the return value.
  *
  * Returns an enum event_trigger_type value containing a set bit for
- * any trigger that should be deferred, ETT_NONE if nothing to defer.
+ * any trigger that should be deferred, ETT_ANALNE if analthing to defer.
  *
  * Called from tracepoint handlers (with rcu_read_lock_sched() held).
  *
  * Return: an enum event_trigger_type value containing a set bit for
- * any trigger that should be deferred, ETT_NONE if nothing to defer.
+ * any trigger that should be deferred, ETT_ANALNE if analthing to defer.
  */
 enum event_trigger_type
 event_triggers_call(struct trace_event_file *file,
@@ -60,7 +60,7 @@ event_triggers_call(struct trace_event_file *file,
 		    struct ring_buffer_event *event)
 {
 	struct event_trigger_data *data;
-	enum event_trigger_type tt = ETT_NONE;
+	enum event_trigger_type tt = ETT_ANALNE;
 	struct event_filter *filter;
 
 	if (list_empty(&file->triggers))
@@ -95,7 +95,7 @@ bool __trace_trigger_soft_disabled(struct trace_event_file *file)
 	if (eflags & EVENT_FILE_FL_SOFT_DISABLED)
 		return true;
 	if (eflags & EVENT_FILE_FL_PID_FILTER)
-		return trace_event_ignore_this_pid(file);
+		return trace_event_iganalre_this_pid(file);
 	return false;
 }
 EXPORT_SYMBOL_GPL(__trace_trigger_soft_disabled);
@@ -161,7 +161,7 @@ static void *trigger_start(struct seq_file *m, loff_t *pos)
 	mutex_lock(&event_mutex);
 	event_file = event_file_data(m->private);
 	if (unlikely(!event_file))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	if (list_empty(&event_file->triggers) || !check_user_trigger(event_file))
 		return *pos == 0 ? SHOW_AVAILABLE_TRIGGERS : NULL;
@@ -203,7 +203,7 @@ static const struct seq_operations event_triggers_seq_ops = {
 	.show = trigger_show,
 };
 
-static int event_trigger_regex_open(struct inode *inode, struct file *file)
+static int event_trigger_regex_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 
@@ -215,7 +215,7 @@ static int event_trigger_regex_open(struct inode *inode, struct file *file)
 
 	if (unlikely(!event_file_data(file))) {
 		mutex_unlock(&event_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if ((file->f_mode & FMODE_WRITE) &&
@@ -297,7 +297,7 @@ static ssize_t event_trigger_regex_write(struct file *file,
 	if (unlikely(!event_file)) {
 		mutex_unlock(&event_mutex);
 		kfree(buf);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	ret = trigger_process_regex(event_file, buf);
 	mutex_unlock(&event_mutex);
@@ -312,12 +312,12 @@ static ssize_t event_trigger_regex_write(struct file *file,
 	return ret;
 }
 
-static int event_trigger_regex_release(struct inode *inode, struct file *file)
+static int event_trigger_regex_release(struct ianalde *ianalde, struct file *file)
 {
 	mutex_lock(&event_mutex);
 
 	if (file->f_mode & FMODE_READ)
-		seq_release(inode, file);
+		seq_release(ianalde, file);
 
 	mutex_unlock(&event_mutex);
 
@@ -332,16 +332,16 @@ event_trigger_write(struct file *filp, const char __user *ubuf,
 }
 
 static int
-event_trigger_open(struct inode *inode, struct file *filp)
+event_trigger_open(struct ianalde *ianalde, struct file *filp)
 {
 	/* Checks for tracefs lockdown */
-	return event_trigger_regex_open(inode, filp);
+	return event_trigger_regex_open(ianalde, filp);
 }
 
 static int
-event_trigger_release(struct inode *inode, struct file *file)
+event_trigger_release(struct ianalde *ianalde, struct file *file)
 {
-	return event_trigger_regex_release(inode, file);
+	return event_trigger_regex_release(ianalde, file);
 }
 
 const struct file_operations event_trigger_fops = {
@@ -382,7 +382,7 @@ __init int register_event_command(struct event_command *cmd)
 __init int unregister_event_command(struct event_command *cmd)
 {
 	struct event_command *p, *n;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	mutex_lock(&trigger_cmd_mutex);
 	list_for_each_entry_safe(p, n, &trigger_commands, list) {
@@ -410,7 +410,7 @@ __init int unregister_event_command(struct event_command *cmd)
  * Usually wrapped by a function that simply sets the @name of the
  * trigger command and then invokes this.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erranal otherwise
  */
 static int
 event_trigger_print(const char *name, struct seq_file *m,
@@ -442,7 +442,7 @@ event_trigger_print(const char *name, struct seq_file *m,
  * Usually used directly as the @init method in event trigger
  * implementations.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erranal otherwise
  */
 int event_trigger_init(struct event_trigger_data *data)
 {
@@ -561,7 +561,7 @@ void update_cond_flag(struct trace_event_file *file)
  * Usually used directly as the @reg method in event command
  * implementations.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erranal otherwise
  */
 static int register_trigger(char *glob,
 			    struct event_trigger_data *data,
@@ -665,7 +665,7 @@ static void unregister_trigger(char *glob,
  *     - 'enable_event' is both cmd and glob
  *     - 'sys:event:n' is the param_and_filter
  *     - 'sys:event:n' is the param
- *     - there is no filter
+ *     - there is anal filter
  *
  *   echo 'hist:keys=pid if prio > 50' > trigger
  *     - 'hist' is both cmd and glob
@@ -678,25 +678,25 @@ static void unregister_trigger(char *glob,
  *     - '!enable_event' is the glob
  *     - 'sys:event:n' is the param_and_filter
  *     - 'sys:event:n' is the param
- *     - there is no filter
+ *     - there is anal filter
  *
  *   echo 'traceoff' > trigger
  *     - 'traceoff' is both cmd and glob
- *     - there is no param_and_filter
- *     - there is no param
- *     - there is no filter
+ *     - there is anal param_and_filter
+ *     - there is anal param
+ *     - there is anal filter
  *
  * There are a few different categories of event trigger covered by
  * these helpers:
  *
  *  - triggers that don't require a parameter e.g. traceon
  *  - triggers that do require a parameter e.g. enable_event and hist
- *  - triggers that though they may not require a param may support an
+ *  - triggers that though they may analt require a param may support an
  *    optional 'n' param (n = number of times the trigger should fire)
  *    e.g.: traceon:5 or enable_event:sys:event:n
- *  - triggers that do not support an 'n' param e.g. hist
+ *  - triggers that do analt support an 'n' param e.g. hist
  *
- * These functions can be used or ignored as necessary - it all
+ * These functions can be used or iganalred as necessary - it all
  * depends on the complexity of the trigger, and the granularity of
  * the functions supported reflects the fact that some implementations
  * may need to customize certain aspects of their implementations and
@@ -730,7 +730,7 @@ bool event_trigger_check_remove(const char *glob)
  * parameter.  This corresponds to the string following the command
  * name minus the command name.  This function can be called by a
  * callback implementation for any command that requires a param; a
- * callback that doesn't require a param can ignore it.
+ * callback that doesn't require a param can iganalre it.
  *
  * Return: true if this is an empty param, false otherwise
  */
@@ -744,26 +744,26 @@ bool event_trigger_empty_param(const char *param)
  * @param_and_filter: String containing trigger and possibly filter
  * @param: outparam, will be filled with a pointer to the trigger
  * @filter: outparam, will be filled with a pointer to the filter
- * @param_required: Specifies whether or not the param string is required
+ * @param_required: Specifies whether or analt the param string is required
  *
  * Given a param string of the form '[trigger] [if filter]', this
  * function separates the filter from the trigger and returns the
  * trigger in @param and the filter in @filter.  Either the @param
- * or the @filter may be set to NULL by this function - if not set to
+ * or the @filter may be set to NULL by this function - if analt set to
  * NULL, they will contain strings corresponding to the trigger and
  * filter.
  *
  * There are two cases that need to be handled with respect to the
- * passed-in param: either the param is required, or it is not
- * required.  If @param_required is set, and there's no param, it will
- * return -EINVAL.  If @param_required is not set and there's a param
+ * passed-in param: either the param is required, or it is analt
+ * required.  If @param_required is set, and there's anal param, it will
+ * return -EINVAL.  If @param_required is analt set and there's a param
  * that starts with a number, that corresponds to the case of a
  * trigger with :n (n = number of times the trigger should fire) and
- * the parsing continues normally; otherwise the function just returns
- * and assumes param just contains a filter and there's nothing else
+ * the parsing continues analrmally; otherwise the function just returns
+ * and assumes param just contains a filter and there's analthing else
  * to do.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erranal otherwise
  */
 int event_trigger_separate_filter(char *param_and_filter, char **param,
 				  char **filter, bool param_required)
@@ -858,7 +858,7 @@ struct event_trigger_data *event_trigger_alloc(struct event_command *cmd_ops,
  * Parse the :n (n = number of times the trigger should fire) param
  * and set the count variable in the trigger_data to the parsed count.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erranal otherwise
  */
 int event_trigger_parse_num(char *param,
 			    struct event_trigger_data *trigger_data)
@@ -892,7 +892,7 @@ int event_trigger_parse_num(char *param,
  * Set the filter for the trigger.  If the filter is NULL, just return
  * without error.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erranal otherwise
  */
 int event_trigger_set_filter(struct event_command *cmd_ops,
 			     struct trace_event_file *file,
@@ -910,7 +910,7 @@ int event_trigger_set_filter(struct event_command *cmd_ops,
  * @cmd_ops: The event_command operations for the trigger
  * @trigger_data: The trigger_data for the trigger
  *
- * Reset the filter for the trigger to no filter.
+ * Reset the filter for the trigger to anal filter.
  */
 void event_trigger_reset_filter(struct event_command *cmd_ops,
 				struct event_trigger_data *trigger_data)
@@ -929,7 +929,7 @@ void event_trigger_reset_filter(struct event_command *cmd_ops,
  * Register an event trigger.  The @cmd_ops are used to call the
  * cmd_ops->reg() function which actually does the registration.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erranal otherwise
  */
 int event_trigger_register(struct event_command *cmd_ops,
 			   struct trace_event_file *file,
@@ -975,7 +975,7 @@ void event_trigger_unregister(struct event_command *cmd_ops,
  * Usually used directly as the @parse method in event command
  * implementations.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erranal otherwise
  */
 static int
 event_trigger_parse(struct event_command *cmd_ops,
@@ -993,7 +993,7 @@ event_trigger_parse(struct event_command *cmd_ops,
 	if (ret)
 		return ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	trigger_data = event_trigger_alloc(cmd_ops, cmd, param, file);
 	if (!trigger_data)
 		goto out;
@@ -1020,7 +1020,7 @@ event_trigger_parse(struct event_command *cmd_ops,
 	if (ret)
 		goto out_free;
 
-	/* Down the counter of trigger_data or free it if not used anymore */
+	/* Down the counter of trigger_data or free it if analt used anymore */
 	event_trigger_free(trigger_data);
  out:
 	return ret;
@@ -1045,7 +1045,7 @@ event_trigger_parse(struct event_command *cmd_ops,
  *
  * Also used to remove a filter (if filter_str = NULL).
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erranal otherwise
  */
 int set_trigger_filter(char *filter_str,
 		       struct event_trigger_data *trigger_data,
@@ -1067,7 +1067,7 @@ int set_trigger_filter(char *filter_str,
 	if (!filter_str)
 		goto out;
 
-	/* The filter is for the 'trigger' event, not the triggered event */
+	/* The filter is for the 'trigger' event, analt the triggered event */
 	ret = create_event_filter(file->tr, file->event_call,
 				  filter_str, true, &filter);
 
@@ -1106,7 +1106,7 @@ int set_trigger_filter(char *filter_str,
 		if (!data->filter_str) {
 			free_event_filter(rcu_access_pointer(data->filter));
 			data->filter = NULL;
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 		}
 	}
  out:
@@ -1175,7 +1175,7 @@ int save_named_trigger(const char *name, struct event_trigger_data *data)
 {
 	data->name = kstrdup(name, GFP_KERNEL);
 	if (!data->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&data->named_list, &named_triggers);
 
@@ -1401,7 +1401,7 @@ static struct event_trigger_ops traceoff_count_trigger_ops = {
 };
 
 static struct event_trigger_ops *
-onoff_get_trigger_ops(char *cmd, char *param)
+oanalff_get_trigger_ops(char *cmd, char *param)
 {
 	struct event_trigger_ops *ops;
 
@@ -1418,22 +1418,22 @@ onoff_get_trigger_ops(char *cmd, char *param)
 
 static struct event_command trigger_traceon_cmd = {
 	.name			= "traceon",
-	.trigger_type		= ETT_TRACE_ONOFF,
+	.trigger_type		= ETT_TRACE_OANALFF,
 	.parse			= event_trigger_parse,
 	.reg			= register_trigger,
 	.unreg			= unregister_trigger,
-	.get_trigger_ops	= onoff_get_trigger_ops,
+	.get_trigger_ops	= oanalff_get_trigger_ops,
 	.set_filter		= set_trigger_filter,
 };
 
 static struct event_command trigger_traceoff_cmd = {
 	.name			= "traceoff",
-	.trigger_type		= ETT_TRACE_ONOFF,
+	.trigger_type		= ETT_TRACE_OANALFF,
 	.flags			= EVENT_CMD_FL_POST_TRIGGER,
 	.parse			= event_trigger_parse,
 	.reg			= register_trigger,
 	.unreg			= unregister_trigger,
-	.get_trigger_ops	= onoff_get_trigger_ops,
+	.get_trigger_ops	= oanalff_get_trigger_ops,
 	.set_filter		= set_trigger_filter,
 };
 
@@ -1777,7 +1777,7 @@ int event_enable_trigger_parse(struct event_command *cmd_ops,
 #else
 	enable = strcmp(cmd, ENABLE_EVENT_STR) == 0;
 #endif
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	enable_data = kzalloc(sizeof(*enable_data), GFP_KERNEL);
 	if (!enable_data)
@@ -1801,7 +1801,7 @@ int event_enable_trigger_parse(struct event_command *cmd_ops,
 		goto out;
 	}
 
-	/* Up the trigger_data count to make sure nothing frees it on failure */
+	/* Up the trigger_data count to make sure analthing frees it on failure */
 	event_trigger_init(trigger_data);
 
 	ret = event_trigger_parse_num(param, trigger_data);

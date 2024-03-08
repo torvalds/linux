@@ -21,7 +21,7 @@ allOf:
   - $ref: dai-common.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^dspk@[0-9a-f]*$"
 
   compatible:

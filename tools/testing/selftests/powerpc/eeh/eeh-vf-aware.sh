@@ -7,7 +7,7 @@ eeh_test_prep # NB: may exit
 
 vf_list="$(eeh_enable_vfs)";
 if $? != 0 ; then
-	log "No usable VFs found. Skipping EEH unaware VF test"
+	log "Anal usable VFs found. Skipping EEH unaware VF test"
 	exit $KSELFTESTS_SKIP;
 fi
 
@@ -37,7 +37,7 @@ done
 eeh_disable_vfs
 
 if [ "$tested" == 0 ] ; then
-	echo "No VFs with EEH aware drivers found, skipping"
+	echo "Anal VFs with EEH aware drivers found, skipping"
 	exit $KSELFTESTS_SKIP
 fi
 

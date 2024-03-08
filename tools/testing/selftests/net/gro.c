@@ -9,15 +9,15 @@
  *  packet coalesced: it can be smaller than the rest and coalesced
  *  as long as it is in the same flow.
  * 2.ack
- *  Pure ACK does not coalesce.
+ *  Pure ACK does analt coalesce.
  * 3.flags
- *  Specific test cases: no packets with PSH, SYN, URG, RST set will
+ *  Specific test cases: anal packets with PSH, SYN, URG, RST set will
  *  be coalesced.
  * 4.tcp
- *  Packets with incorrect checksum, non-consecutive seqno and
+ *  Packets with incorrect checksum, analn-consecutive seqanal and
  *  different TCP header options shouldn't coalesce. Nit: given that
  *  some extension headers have paddings, such as timestamp, headers
- *  that are padding differently would not be coalesced.
+ *  that are padding differently would analt be coalesced.
  * 5.ip:
  *  Packets with different (ECN, TTL, TOS) header, ip options or
  *  ip fragments (ipv6) shouldn't coalesce.
@@ -28,9 +28,9 @@
  * (i.e. 1500 MTU - header), it will result in many packets,
  * increasing the "large" test case's flakiness. This is because
  * due to time sensitivity in the coalescing window, the receiver
- * may not coalesce all of the packets.
+ * may analt coalesce all of the packets.
  *
- * Note the timing issue applies to all of the test cases, so some
+ * Analte the timing issue applies to all of the test cases, so some
  * flakiness is to be expected.
  *
  */
@@ -38,7 +38,7 @@
 #define _GNU_SOURCE
 
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <getopt.h>
 #include <linux/filter.h>
@@ -65,7 +65,7 @@
 #define NUM_PACKETS 4
 #define START_SEQ 100
 #define START_ACK 100
-#define ETH_P_NONE 0
+#define ETH_P_ANALNE 0
 #define TOTAL_HDR_LEN (ETH_HLEN + sizeof(struct ipv6hdr) + sizeof(struct tcphdr))
 #define MSS (4096 - sizeof(struct tcphdr) - sizeof(struct ipv6hdr))
 #define MAX_PAYLOAD (IP_MAXPACKET - sizeof(struct tcphdr) - sizeof(struct ipv6hdr))
@@ -161,10 +161,10 @@ static void setup_sock_filter(int fd)
 	};
 
 	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf, sizeof(bpf)) < 0)
-		error(1, errno, "error setting filter");
+		error(1, erranal, "error setting filter");
 }
 
-static uint32_t checksum_nofold(void *data, size_t len, uint32_t sum)
+static uint32_t checksum_analfold(void *data, size_t len, uint32_t sum)
 {
 	uint16_t *words = data;
 	int i;
@@ -178,7 +178,7 @@ static uint32_t checksum_nofold(void *data, size_t len, uint32_t sum)
 
 static uint16_t checksum_fold(void *data, size_t len, uint32_t sum)
 {
-	sum = checksum_nofold(data, len, sum);
+	sum = checksum_analfold(data, len, sum);
 	while (sum > 0xFFFF)
 		sum = (sum & 0xFFFF) + (sum >> 16);
 	return ~sum;
@@ -202,22 +202,22 @@ static uint16_t tcp_checksum(void *buf, int payload_len)
 
 	if (proto == PF_INET6) {
 		if (inet_pton(AF_INET6, addr6_src, &ph6.saddr) != 1)
-			error(1, errno, "inet_pton6 source ip pseudo");
+			error(1, erranal, "inet_pton6 source ip pseudo");
 		if (inet_pton(AF_INET6, addr6_dst, &ph6.daddr) != 1)
-			error(1, errno, "inet_pton6 dest ip pseudo");
+			error(1, erranal, "inet_pton6 dest ip pseudo");
 		ph6.protocol = htons(IPPROTO_TCP);
 		ph6.payload_len = htons(sizeof(struct tcphdr) + payload_len);
 
-		sum = checksum_nofold(&ph6, sizeof(ph6), 0);
+		sum = checksum_analfold(&ph6, sizeof(ph6), 0);
 	} else if (proto == PF_INET) {
 		if (inet_pton(AF_INET, addr4_src, &ph4.saddr) != 1)
-			error(1, errno, "inet_pton source ip pseudo");
+			error(1, erranal, "inet_pton source ip pseudo");
 		if (inet_pton(AF_INET, addr4_dst, &ph4.daddr) != 1)
-			error(1, errno, "inet_pton dest ip pseudo");
+			error(1, erranal, "inet_pton dest ip pseudo");
 		ph4.protocol = htons(IPPROTO_TCP);
 		ph4.payload_len = htons(sizeof(struct tcphdr) + payload_len);
 
-		sum = checksum_nofold(&ph4, sizeof(ph4), 0);
+		sum = checksum_analfold(&ph4, sizeof(ph4), 0);
 	}
 
 	return checksum_fold(buf, sizeof(struct tcphdr) + payload_len, sum);
@@ -253,9 +253,9 @@ static void fill_networklayer(void *buf, int payload_len)
 		ip6h->nexthdr = IPPROTO_TCP;
 		ip6h->hop_limit = 8;
 		if (inet_pton(AF_INET6, addr6_src, &ip6h->saddr) != 1)
-			error(1, errno, "inet_pton source ip6");
+			error(1, erranal, "inet_pton source ip6");
 		if (inet_pton(AF_INET6, addr6_dst, &ip6h->daddr) != 1)
-			error(1, errno, "inet_pton dest ip6");
+			error(1, erranal, "inet_pton dest ip6");
 	} else if (proto == PF_INET) {
 		memset(iph, 0, sizeof(*iph));
 
@@ -267,9 +267,9 @@ static void fill_networklayer(void *buf, int payload_len)
 				payload_len + sizeof(struct iphdr));
 		iph->frag_off = htons(0x4000); /* DF = 1, MF = 0 */
 		if (inet_pton(AF_INET, addr4_src, &iph->saddr) != 1)
-			error(1, errno, "inet_pton source ip");
+			error(1, erranal, "inet_pton source ip");
 		if (inet_pton(AF_INET, addr4_dst, &iph->daddr) != 1)
-			error(1, errno, "inet_pton dest ip");
+			error(1, erranal, "inet_pton dest ip");
 		iph->check = checksum_fold(buf, sizeof(struct iphdr), 0);
 	}
 }
@@ -299,9 +299,9 @@ static void write_packet(int fd, char *buf, int len, struct sockaddr_ll *daddr)
 
 	ret = sendto(fd, buf, len, 0, (struct sockaddr *)daddr, sizeof(*daddr));
 	if (ret == -1)
-		error(1, errno, "sendto failure");
+		error(1, erranal, "sendto failure");
 	if (ret != len)
-		error(1, errno, "sendto wrong length");
+		error(1, erranal, "sendto wrong length");
 }
 
 static void create_packet(void *buf, int seq_offset, int ack_offset,
@@ -315,7 +315,7 @@ static void create_packet(void *buf, int seq_offset, int ack_offset,
 	fill_datalinklayer(buf);
 }
 
-/* send one extra flag, not first and not last pkt */
+/* send one extra flag, analt first and analt last pkt */
 static void send_flags(int fd, struct sockaddr_ll *daddr, int psh, int syn,
 		       int rst, int urg)
 {
@@ -363,7 +363,7 @@ static void send_data_pkts(int fd, struct sockaddr_ll *daddr,
 }
 
 /* If incoming segments make tracked segment length exceed
- * legal IP datagram length, do not coalesce
+ * legal IP datagram length, do analt coalesce
  */
 static void send_large(int fd, struct sockaddr_ll *daddr, int remainder)
 {
@@ -395,15 +395,15 @@ static void send_ack(int fd, struct sockaddr_ll *daddr)
 	write_packet(fd, buf, total_hdr_len, daddr);
 }
 
-static void recompute_packet(char *buf, char *no_ext, int extlen)
+static void recompute_packet(char *buf, char *anal_ext, int extlen)
 {
 	struct tcphdr *tcphdr = (struct tcphdr *)(buf + tcp_offset);
 	struct ipv6hdr *ip6h = (struct ipv6hdr *)(buf + ETH_HLEN);
 	struct iphdr *iph = (struct iphdr *)(buf + ETH_HLEN);
 
-	memmove(buf, no_ext, total_hdr_len);
+	memmove(buf, anal_ext, total_hdr_len);
 	memmove(buf + total_hdr_len + extlen,
-		no_ext + total_hdr_len, PAYLOAD_LEN);
+		anal_ext + total_hdr_len, PAYLOAD_LEN);
 
 	tcphdr->doff = tcphdr->doff + (extlen / 4);
 	tcphdr->check = 0;
@@ -432,8 +432,8 @@ static void tcp_write_options(char *buf, int kind, int ts)
 	} *opt_window = (void *)buf;
 
 	switch (kind) {
-	case TCPOPT_NOP:
-		buf[0] = TCPOPT_NOP;
+	case TCPOPT_ANALP:
+		buf[0] = TCPOPT_ANALP;
 		break;
 	case TCPOPT_WINDOW:
 		memset(opt_window, 0, sizeof(struct tcp_option_window));
@@ -454,37 +454,37 @@ static void tcp_write_options(char *buf, int kind, int ts)
 	}
 }
 
-/* TCP with options is always a permutation of {TS, NOP, NOP}.
+/* TCP with options is always a permutation of {TS, ANALP, ANALP}.
  * Implement different orders to verify coalescing stops.
  */
-static void add_standard_tcp_options(char *buf, char *no_ext, int ts, int order)
+static void add_standard_tcp_options(char *buf, char *anal_ext, int ts, int order)
 {
 	switch (order) {
 	case 0:
-		tcp_write_options(buf + total_hdr_len, TCPOPT_NOP, 0);
-		tcp_write_options(buf + total_hdr_len + 1, TCPOPT_NOP, 0);
-		tcp_write_options(buf + total_hdr_len + 2 /* two NOP opts */,
+		tcp_write_options(buf + total_hdr_len, TCPOPT_ANALP, 0);
+		tcp_write_options(buf + total_hdr_len + 1, TCPOPT_ANALP, 0);
+		tcp_write_options(buf + total_hdr_len + 2 /* two ANALP opts */,
 				  TCPOPT_TIMESTAMP, ts);
 		break;
 	case 1:
-		tcp_write_options(buf + total_hdr_len, TCPOPT_NOP, 0);
+		tcp_write_options(buf + total_hdr_len, TCPOPT_ANALP, 0);
 		tcp_write_options(buf + total_hdr_len + 1,
 				  TCPOPT_TIMESTAMP, ts);
 		tcp_write_options(buf + total_hdr_len + 1 + TCPOLEN_TIMESTAMP,
-				  TCPOPT_NOP, 0);
+				  TCPOPT_ANALP, 0);
 		break;
 	case 2:
 		tcp_write_options(buf + total_hdr_len, TCPOPT_TIMESTAMP, ts);
 		tcp_write_options(buf + total_hdr_len + TCPOLEN_TIMESTAMP + 1,
-				  TCPOPT_NOP, 0);
+				  TCPOPT_ANALP, 0);
 		tcp_write_options(buf + total_hdr_len + TCPOLEN_TIMESTAMP + 2,
-				  TCPOPT_NOP, 0);
+				  TCPOPT_ANALP, 0);
 		break;
 	default:
-		error(1, 0, "unknown order");
+		error(1, 0, "unkanalwn order");
 		break;
 	}
-	recompute_packet(buf, no_ext, TCPOLEN_TSTAMP_APPA);
+	recompute_packet(buf, anal_ext, TCPOLEN_TSTAMP_APPA);
 }
 
 /* Packets with invalid checksum don't coalesce. */
@@ -502,7 +502,7 @@ static void send_changed_checksum(int fd, struct sockaddr_ll *daddr)
 	write_packet(fd, buf, pkt_size, daddr);
 }
 
- /* Packets with non-consecutive sequence number don't coalesce.*/
+ /* Packets with analn-consecutive sequence number don't coalesce.*/
 static void send_changed_seq(int fd, struct sockaddr_ll *daddr)
 {
 	static char buf[MAX_HDR_LEN + PAYLOAD_LEN];
@@ -567,7 +567,7 @@ static void send_diff_opt(int fd, struct sockaddr_ll *daddr)
 	write_packet(fd, extpkt1, extpkt1_size, daddr);
 
 	create_packet(buf, PAYLOAD_LEN * 2, 0, PAYLOAD_LEN, 0);
-	tcp_write_options(extpkt2 + MAX_HDR_LEN, TCPOPT_NOP, 0);
+	tcp_write_options(extpkt2 + MAX_HDR_LEN, TCPOPT_ANALP, 0);
 	tcp_write_options(extpkt2 + MAX_HDR_LEN + 1, TCPOPT_WINDOW, 0);
 	recompute_packet(extpkt2, buf, TCPOLEN_WINDOW + 1);
 	write_packet(fd, extpkt2, extpkt2_size, daddr);
@@ -580,7 +580,7 @@ static void add_ipv4_ts_option(void *buf, void *optpkt)
 	struct iphdr *iph;
 
 	if (optlen % 4)
-		error(1, 0, "ipv4 timestamp length is not a multiple of 4B");
+		error(1, 0, "ipv4 timestamp length is analt a multiple of 4B");
 
 	ts->ipt_code = IPOPT_TS;
 	ts->ipt_len = optlen;
@@ -777,10 +777,10 @@ static void bind_packetsocket(int fd)
 	daddr.sll_protocol = ethhdr_proto;
 	daddr.sll_ifindex = if_nametoindex(ifname);
 	if (daddr.sll_ifindex == 0)
-		error(1, errno, "if_nametoindex");
+		error(1, erranal, "if_nametoindex");
 
 	if (bind(fd, (void *)&daddr, sizeof(daddr)) < 0)
-		error(1, errno, "could not bind socket");
+		error(1, erranal, "could analt bind socket");
 }
 
 static void set_timeout(int fd)
@@ -791,7 +791,7 @@ static void set_timeout(int fd)
 	timeout.tv_usec = 0;
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
 		       sizeof(timeout)) < 0)
-		error(1, errno, "cannot set timeout, setsockopt failed");
+		error(1, erranal, "cananalt set timeout, setsockopt failed");
 }
 
 static void check_recv_pkts(int fd, int *correct_payload,
@@ -818,7 +818,7 @@ static void check_recv_pkts(int fd, int *correct_payload,
 		ip_ext_len = 0;
 		pkt_size = recv(fd, buffer, IP_MAXPACKET + ETH_HLEN + 1, 0);
 		if (pkt_size < 0)
-			error(1, errno, "could not receive");
+			error(1, erranal, "could analt receive");
 
 		if (iph->version == 4)
 			ip_ext_len = (iph->ihl - 5) * 4;
@@ -834,7 +834,7 @@ static void check_recv_pkts(int fd, int *correct_payload,
 		data_len = pkt_size - total_hdr_len - tcp_ext_len - ip_ext_len;
 		/* Min ethernet frame payload is 46(ETH_ZLEN - ETH_HLEN) by RFC 802.3.
 		 * Ipv4/tcp packets without at least 6 bytes of data will be padded.
-		 * Packet sockets are protocol agnostic, and will not trim the padding.
+		 * Packet sockets are protocol aganalstic, and will analt trim the padding.
 		 */
 		if (pkt_size == ETH_ZLEN && iph->version == 4) {
 			data_len = ntohs(iph->tot_len)
@@ -864,12 +864,12 @@ static void gro_sender(void)
 
 	txfd = socket(PF_PACKET, SOCK_RAW, IPPROTO_RAW);
 	if (txfd < 0)
-		error(1, errno, "socket creation");
+		error(1, erranal, "socket creation");
 
 	memset(&daddr, 0, sizeof(daddr));
 	daddr.sll_ifindex = if_nametoindex(ifname);
 	if (daddr.sll_ifindex == 0)
-		error(1, errno, "if_nametoindex");
+		error(1, erranal, "if_nametoindex");
 	daddr.sll_family = AF_PACKET;
 	memcpy(daddr.sll_addr, dst_mac, ETH_ALEN);
 	daddr.sll_halen = ETH_ALEN;
@@ -920,7 +920,7 @@ static void gro_sender(void)
 		if (proto == PF_INET) {
 			/* Modified packets may be received out of order.
 			 * Sleep function added to enforce test boundaries
-			 * so that fin pkts are not received prior to other pkts.
+			 * so that fin pkts are analt received prior to other pkts.
 			 */
 			sleep(1);
 			send_changed_ttl(txfd, &daddr);
@@ -967,11 +967,11 @@ static void gro_sender(void)
 		send_large(txfd, &daddr, remainder + 1);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
 	} else {
-		error(1, 0, "Unknown testcase");
+		error(1, 0, "Unkanalwn testcase");
 	}
 
 	if (close(txfd))
-		error(1, errno, "socket close");
+		error(1, erranal, "socket close");
 }
 
 static void gro_receiver(void)
@@ -979,7 +979,7 @@ static void gro_receiver(void)
 	static int correct_payload[NUM_PACKETS];
 	int rxfd = -1;
 
-	rxfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_NONE));
+	rxfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ANALNE));
 	if (rxfd < 0)
 		error(1, 0, "socket creation");
 	setup_sock_filter(rxfd);
@@ -1028,7 +1028,7 @@ static void gro_receiver(void)
 		correct_payload[2] = PAYLOAD_LEN;
 		correct_payload[3] = PAYLOAD_LEN;
 
-		printf("changed checksum does not coalesce: ");
+		printf("changed checksum does analt coalesce: ");
 		check_recv_pkts(rxfd, correct_payload, 2);
 
 		printf("Wrong Seq number doesn't coalesce: ");
@@ -1063,7 +1063,7 @@ static void gro_receiver(void)
 			check_recv_pkts(rxfd, correct_payload, 2);
 		} else if (proto == PF_INET6) {
 			/* GRO doesn't check for ipv6 hop limit when flushing.
-			 * Hence no corresponding test to the ipv4 case.
+			 * Hence anal corresponding test to the ipv4 case.
 			 */
 			printf("fragmented ip6 doesn't coalesce: ");
 			correct_payload[0] = PAYLOAD_LEN * 2;
@@ -1108,13 +1108,13 @@ static void parse_args(int argc, char **argv)
 		{ "daddr", required_argument, NULL, 'd' },
 		{ "dmac", required_argument, NULL, 'D' },
 		{ "iface", required_argument, NULL, 'i' },
-		{ "ipv4", no_argument, NULL, '4' },
-		{ "ipv6", no_argument, NULL, '6' },
-		{ "rx", no_argument, NULL, 'r' },
+		{ "ipv4", anal_argument, NULL, '4' },
+		{ "ipv6", anal_argument, NULL, '6' },
+		{ "rx", anal_argument, NULL, 'r' },
 		{ "saddr", required_argument, NULL, 's' },
 		{ "smac", required_argument, NULL, 'S' },
 		{ "test", required_argument, NULL, 't' },
-		{ "verbose", no_argument, NULL, 'v' },
+		{ "verbose", anal_argument, NULL, 'v' },
 		{ 0, 0, 0, 0 }
 	};
 	int c;
@@ -1171,7 +1171,7 @@ int main(int argc, char **argv)
 		tcp_offset = ETH_HLEN + sizeof(struct ipv6hdr);
 		total_hdr_len = MAX_HDR_LEN;
 	} else {
-		error(1, 0, "Protocol family is not ipv4 or ipv6");
+		error(1, 0, "Protocol family is analt ipv4 or ipv6");
 	}
 
 	read_MAC(src_mac, smac);

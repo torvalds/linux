@@ -327,7 +327,7 @@ hwm_in_read(struct hwm_drvdata *ddat, u32 attr, long *val)
 		*val = DIV_ROUND_CLOSEST(REG_FIELD_GET(GEN12_VOLTAGE_MASK, reg_value) * 25, 10);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -355,7 +355,7 @@ hwm_power_is_visible(const struct hwm_drvdata *ddat, u32 attr, int chan)
 
 /*
  * HW allows arbitrary PL1 limits to be set but silently clamps these values to
- * "typical but not guaranteed" min/max values in rg.pkg_power_sku. Follow the
+ * "typical but analt guaranteed" min/max values in rg.pkg_power_sku. Follow the
  * same pattern for sysfs, allow arbitrary PL1 limits to be set but display
  * clamped values when read. Write/read I1 also follows the same pattern.
  */
@@ -426,14 +426,14 @@ hwm_power_max_write(struct hwm_drvdata *ddat, long val)
 
 	wakeref = intel_runtime_pm_get(ddat->uncore->rpm);
 
-	/* Disable PL1 limit and verify, because the limit cannot be disabled on all platforms */
+	/* Disable PL1 limit and verify, because the limit cananalt be disabled on all platforms */
 	if (val == PL1_DISABLE) {
 		intel_uncore_rmw(ddat->uncore, hwmon->rg.pkg_rapl_limit,
 				 PKG_PWR_LIM_1_EN, 0);
 		nval = intel_uncore_read(ddat->uncore, hwmon->rg.pkg_rapl_limit);
 
 		if (nval & PKG_PWR_LIM_1_EN)
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		goto exit;
 	}
 
@@ -472,12 +472,12 @@ hwm_power_read(struct hwm_drvdata *ddat, u32 attr, int chan, long *val)
 		if (ret)
 			return ret;
 		if (!(uval & POWER_SETUP_I1_WATTS))
-			return -ENODEV;
+			return -EANALDEV;
 		*val = mul_u64_u32_shr(REG_FIELD_GET(POWER_SETUP_I1_DATA_MASK, uval),
 				       SF_POWER, POWER_SETUP_I1_SHIFT);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -493,7 +493,7 @@ hwm_power_write(struct hwm_drvdata *ddat, u32 attr, int chan, long val)
 		uval = DIV_ROUND_CLOSEST_ULL(val << POWER_SETUP_I1_SHIFT, SF_POWER);
 		return hwm_pcode_write_i1(ddat->uncore->i915, uval);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -558,7 +558,7 @@ hwm_energy_read(struct hwm_drvdata *ddat, u32 attr, long *val)
 		hwm_energy(ddat, val);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -589,12 +589,12 @@ hwm_curr_read(struct hwm_drvdata *ddat, u32 attr, long *val)
 		if (ret)
 			return ret;
 		if (uval & POWER_SETUP_I1_WATTS)
-			return -ENODEV;
+			return -EANALDEV;
 		*val = mul_u64_u32_shr(REG_FIELD_GET(POWER_SETUP_I1_DATA_MASK, uval),
 				       SF_CURR, POWER_SETUP_I1_SHIFT);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -608,7 +608,7 @@ hwm_curr_write(struct hwm_drvdata *ddat, u32 attr, long val)
 		uval = DIV_ROUND_CLOSEST_ULL(val << POWER_SETUP_I1_SHIFT, SF_CURR);
 		return hwm_pcode_write_i1(ddat->uncore->i915, uval);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -648,7 +648,7 @@ hwm_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	case hwmon_curr:
 		return hwm_curr_read(ddat, attr, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -664,7 +664,7 @@ hwm_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	case hwmon_curr:
 		return hwm_curr_write(ddat, attr, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -703,7 +703,7 @@ hwm_gt_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	case hwmon_energy:
 		return hwm_energy_read(ddat, attr, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -754,7 +754,7 @@ hwm_get_preregistration_info(struct drm_i915_private *i915)
 
 	with_intel_runtime_pm(uncore->rpm, wakeref) {
 		/*
-		 * The contents of register hwmon->rg.pkg_power_sku_unit do not change,
+		 * The contents of register hwmon->rg.pkg_power_sku_unit do analt change,
 		 * so read it once and store the shift values.
 		 */
 		if (i915_mmio_reg_valid(hwmon->rg.pkg_power_sku_unit))

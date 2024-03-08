@@ -33,7 +33,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
  *
  * FUNCTION:    acpi_ds_initialize_region
  *
- * PARAMETERS:  obj_handle      - Region namespace node
+ * PARAMETERS:  obj_handle      - Region namespace analde
  *
  * RETURN:      Status
  *
@@ -48,7 +48,7 @@ acpi_status acpi_ds_initialize_region(acpi_handle obj_handle)
 
 	obj_desc = acpi_ns_get_attached_object(obj_handle);
 
-	/* Namespace is NOT locked */
+	/* Namespace is ANALT locked */
 
 	status = acpi_ev_initialize_region(obj_desc);
 	return (status);
@@ -91,7 +91,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 
 	if (buffer_desc->common.type != ACPI_TYPE_BUFFER) {
 		ACPI_ERROR((AE_INFO,
-			    "Target of Create Field is not a Buffer object - %s",
+			    "Target of Create Field is analt a Buffer object - %s",
 			    acpi_ut_get_object_type_name(buffer_desc)));
 
 		status = AE_AML_OPERAND_TYPE;
@@ -100,12 +100,12 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 
 	/*
 	 * The last parameter to all of these opcodes (result_desc) started
-	 * out as a name_string, and should therefore now be a NS node
+	 * out as a name_string, and should therefore analw be a NS analde
 	 * after resolution in acpi_ex_resolve_operands().
 	 */
 	if (ACPI_GET_DESCRIPTOR_TYPE(result_desc) != ACPI_DESC_TYPE_NAMED) {
 		ACPI_ERROR((AE_INFO,
-			    "(%s) destination not a NS Node [%s]",
+			    "(%s) destination analt a NS Analde [%s]",
 			    acpi_ps_get_opcode_name(aml_opcode),
 			    acpi_ut_get_descriptor_name(result_desc)));
 
@@ -185,7 +185,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 	default:
 
 		ACPI_ERROR((AE_INFO,
-			    "Unknown field creation opcode 0x%02X",
+			    "Unkanalwn field creation opcode 0x%02X",
 			    aml_opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
@@ -198,7 +198,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 		ACPI_BIOS_EXCEPTION((AE_INFO, status,
 				     "Field [%4.4s] at bit offset/length %u/%u "
 				     "exceeds size of target Buffer (%u bits)",
-				     acpi_ut_get_node_name(result_desc),
+				     acpi_ut_get_analde_name(result_desc),
 				     bit_offset, bit_count,
 				     8 * (u32)buffer_desc->buffer.length));
 		goto cleanup;
@@ -206,7 +206,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 
 	/*
 	 * Initialize areas of the field object that are common to all fields
-	 * For field_flags, use LOCK_RULE = 0 (NO_LOCK),
+	 * For field_flags, use LOCK_RULE = 0 (ANAL_LOCK),
 	 * UPDATE_RULE = 0 (UPDATE_PRESERVE)
 	 */
 	status =
@@ -242,7 +242,7 @@ cleanup:
 	if (ACPI_FAILURE(status)) {
 		acpi_ut_remove_reference(result_desc);	/* Result descriptor */
 	} else {
-		/* Now the address and length are valid for this buffer_field */
+		/* Analw the address and length are valid for this buffer_field */
 
 		obj_desc->buffer_field.flags |= AOPOBJ_DATA_VALID;
 	}
@@ -270,7 +270,7 @@ acpi_ds_eval_buffer_field_operands(struct acpi_walk_state *walk_state,
 {
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	union acpi_parse_object *next_op;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_eval_buffer_field_operands, op);
@@ -279,7 +279,7 @@ acpi_ds_eval_buffer_field_operands(struct acpi_walk_state *walk_state,
 	 * This is where we evaluate the address and length fields of the
 	 * create_xxx_field declaration
 	 */
-	node = op->common.node;
+	analde = op->common.analde;
 
 	/* next_op points to the op that holds the Buffer */
 
@@ -292,9 +292,9 @@ acpi_ds_eval_buffer_field_operands(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(status);
 	}
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(analde);
 	if (!obj_desc) {
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_ANALT_EXIST);
 	}
 
 	/* Resolve the operands */
@@ -314,7 +314,7 @@ acpi_ds_eval_buffer_field_operands(struct acpi_walk_state *walk_state,
 
 	if (op->common.aml_opcode == AML_CREATE_FIELD_OP) {
 
-		/* NOTE: Slightly different operands for this opcode */
+		/* ANALTE: Slightly different operands for this opcode */
 
 		status =
 		    acpi_ds_init_buffer_field(op->common.aml_opcode, obj_desc,
@@ -356,7 +356,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
 	union acpi_operand_object *operand_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	union acpi_parse_object *next_op;
 	acpi_adr_space_type space_id;
 
@@ -366,7 +366,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	 * This is where we evaluate the address and length fields of the
 	 * op_region declaration
 	 */
-	node = op->common.node;
+	analde = op->common.analde;
 
 	/* next_op points to the op that holds the space_ID */
 
@@ -393,9 +393,9 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(status);
 	}
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(analde);
 	if (!obj_desc) {
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_ANALT_EXIST);
 	}
 
 	/*
@@ -413,7 +413,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	    && (space_id < ACPI_NUM_PREDEFINED_REGIONS)) {
 		ACPI_WARNING((AE_INFO,
 			      "Operation Region [%4.4s] has zero length (SpaceId %X)",
-			      node->name.ascii, space_id));
+			      analde->name.ascii, space_id));
 	}
 
 	/*
@@ -433,9 +433,9 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 
 	status = acpi_ut_add_address_range(obj_desc->region.space_id,
 					   obj_desc->region.address,
-					   obj_desc->region.length, node);
+					   obj_desc->region.length, analde);
 
-	/* Now the address and length are valid for this opregion */
+	/* Analw the address and length are valid for this opregion */
 
 	obj_desc->region.flags |= AOPOBJ_DATA_VALID;
 	return_ACPI_STATUS(status);
@@ -463,7 +463,7 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
 	union acpi_operand_object **operand;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	union acpi_parse_object *next_op;
 	struct acpi_table_header *table;
 	u32 table_index;
@@ -474,7 +474,7 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 	 * This is where we evaluate the Signature string, oem_id string,
 	 * and oem_table_id string of the Data Table Region declaration
 	 */
-	node = op->common.node;
+	analde = op->common.analde;
 
 	/* next_op points to Signature string op */
 
@@ -508,9 +508,9 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 				    operand[1]->string.pointer,
 				    operand[2]->string.pointer, &table_index);
 	if (ACPI_FAILURE(status)) {
-		if (status == AE_NOT_FOUND) {
+		if (status == AE_ANALT_FOUND) {
 			ACPI_ERROR((AE_INFO,
-				    "ACPI Table [%4.4s] OEM:(%s, %s) not found in RSDT/XSDT",
+				    "ACPI Table [%4.4s] OEM:(%s, %s) analt found in RSDT/XSDT",
 				    operand[0]->string.pointer,
 				    operand[1]->string.pointer,
 				    operand[2]->string.pointer));
@@ -523,9 +523,9 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 		goto cleanup;
 	}
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(analde);
 	if (!obj_desc) {
-		status = AE_NOT_EXIST;
+		status = AE_ANALT_EXIST;
 		goto cleanup;
 	}
 
@@ -538,7 +538,7 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 			  ACPI_FORMAT_UINT64(obj_desc->region.address),
 			  obj_desc->region.length));
 
-	/* Now the address and length are valid for this opregion */
+	/* Analw the address and length are valid for this opregion */
 
 	obj_desc->region.flags |= AOPOBJ_DATA_VALID;
 
@@ -584,7 +584,7 @@ acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 	 */
 	walk_state->operand_index = walk_state->num_operands;
 
-	/* Ignore if child is not valid */
+	/* Iganalre if child is analt valid */
 
 	if (!op->common.value.arg) {
 		ACPI_ERROR((AE_INFO,
@@ -684,7 +684,7 @@ acpi_ds_eval_bank_field_operands(struct acpi_walk_state *walk_state,
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
 	union acpi_operand_object *operand_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	union acpi_parse_object *next_op;
 	union acpi_parse_object *arg;
 
@@ -738,14 +738,14 @@ acpi_ds_eval_bank_field_operands(struct acpi_walk_state *walk_state,
 	arg = acpi_ps_get_arg(op, 4);
 	while (arg) {
 
-		/* Ignore OFFSET and ACCESSAS terms here */
+		/* Iganalre OFFSET and ACCESSAS terms here */
 
 		if (arg->common.aml_opcode == AML_INT_NAMEDFIELD_OP) {
-			node = arg->common.node;
+			analde = arg->common.analde;
 
-			obj_desc = acpi_ns_get_attached_object(node);
+			obj_desc = acpi_ns_get_attached_object(analde);
 			if (!obj_desc) {
-				return_ACPI_STATUS(AE_NOT_EXIST);
+				return_ACPI_STATUS(AE_ANALT_EXIST);
 			}
 
 			obj_desc->bank_field.value =

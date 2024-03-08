@@ -113,7 +113,7 @@ void rtw_os_recv_indicate_pkt(struct adapter *padapter, struct sk_buff *pkt, str
 
 				if (psta) {
 					struct net_device *pnetdev = (struct net_device *)padapter->pnetdev;
-					/* skb->ip_summed = CHECKSUM_NONE; */
+					/* skb->ip_summed = CHECKSUM_ANALNE; */
 					pkt->dev = pnetdev;
 					skb_set_queue_mapping(pkt, rtw_recv_select_queue(pkt));
 
@@ -132,7 +132,7 @@ void rtw_os_recv_indicate_pkt(struct adapter *padapter, struct sk_buff *pkt, str
 		pkt->protocol = eth_type_trans(pkt, padapter->pnetdev);
 		pkt->dev = padapter->pnetdev;
 
-		pkt->ip_summed = CHECKSUM_NONE;
+		pkt->ip_summed = CHECKSUM_ANALNE;
 
 		rtw_netif_rx(padapter->pnetdev, pkt);
 	}

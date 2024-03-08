@@ -2,11 +2,11 @@
  *
  * Handle TWL4030 Power initialization
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  * Copyright (C) 2006 Texas Instruments, Inc
  *
  * Written by 	Kalle Jokiniemi
- *		Peter De Schrijver <peter.de-schrijver@nokia.com>
+ *		Peter De Schrijver <peter.de-schrijver@analkia.com>
  * Several fixes by Amit Kucheria <amit.kucheria@verdurent.com>
  *
  * This file is subject to the terms and conditions of the GNU General
@@ -19,7 +19,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
@@ -149,7 +149,7 @@ enum {
 
 /*
  * Macros to configure the PM register states for various resources.
- * Note that we can make MSG_SINGULAR etc private to this driver once
+ * Analte that we can make MSG_SINGULAR etc private to this driver once
  * omap3 has been made DT only.
  */
 #define TWL_DFLT_DELAY		2	/* typically 2 32 KiHz cycles */
@@ -378,7 +378,7 @@ static int twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 	u8 remap;
 
 	if (rconfig->resource > TOTAL_RESOURCES) {
-		pr_err("TWL4030 Resource %d does not exist\n",
+		pr_err("TWL4030 Resource %d does analt exist\n",
 			rconfig->resource);
 		return -EINVAL;
 	}
@@ -389,7 +389,7 @@ static int twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 	err = twl_i2c_read_u8(TWL_MODULE_PM_RECEIVER, &grp,
 			      rconfig_addr + DEV_GRP_OFFSET);
 	if (err) {
-		pr_err("TWL4030 Resource %d group could not be read\n",
+		pr_err("TWL4030 Resource %d group could analt be read\n",
 			rconfig->resource);
 		return err;
 	}
@@ -409,7 +409,7 @@ static int twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 	err = twl_i2c_read_u8(TWL_MODULE_PM_RECEIVER, &type,
 				rconfig_addr + TYPE_OFFSET);
 	if (err < 0) {
-		pr_err("TWL4030 Resource %d type could not be read\n",
+		pr_err("TWL4030 Resource %d type could analt be read\n",
 			rconfig->resource);
 		return err;
 	}
@@ -435,7 +435,7 @@ static int twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 	err = twl_i2c_read_u8(TWL_MODULE_PM_RECEIVER, &remap,
 			      rconfig_addr + REMAP_OFFSET);
 	if (err < 0) {
-		pr_err("TWL4030 Resource %d remap could not be read\n",
+		pr_err("TWL4030 Resource %d remap could analt be read\n",
 			rconfig->resource);
 		return err;
 	}
@@ -675,15 +675,15 @@ void twl4030_power_off(void)
 }
 
 static bool twl4030_power_use_poweroff(const struct twl4030_power_data *pdata,
-					struct device_node *node)
+					struct device_analde *analde)
 {
 	if (pdata && pdata->use_poweroff)
 		return true;
 
-	if (of_property_read_bool(node, "ti,system-power-controller"))
+	if (of_property_read_bool(analde, "ti,system-power-controller"))
 		return true;
 
-	if (of_property_read_bool(node, "ti,use_poweroff"))
+	if (of_property_read_bool(analde, "ti,use_poweroff"))
 		return true;
 
 	return false;
@@ -776,7 +776,7 @@ static struct twl4030_script *omap3_idle_scripts[] = {
  * Recommended configuration based on "Recommended Sleep
  * Sequences for the Zoom Platform":
  * http://omappedia.com/wiki/File:Recommended_Sleep_Sequences_Zoom.pdf
- * Note that the type1 and type2 seem to be just the init order number
+ * Analte that the type1 and type2 seem to be just the init order number
  * for type1 and type2 groups as specified in the document mentioned
  * above.
  */
@@ -882,12 +882,12 @@ MODULE_DEVICE_TABLE(of, twl4030_power_of_match);
 static int twl4030_power_probe(struct platform_device *pdev)
 {
 	const struct twl4030_power_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	int err = 0;
 	int err2 = 0;
 	u8 val;
 
-	if (!pdata && !node) {
+	if (!pdata && !analde) {
 		dev_err(&pdev->dev, "Platform data is missing\n");
 		return -EINVAL;
 	}
@@ -903,7 +903,7 @@ static int twl4030_power_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	if (node)
+	if (analde)
 		pdata = device_get_match_data(&pdev->dev);
 
 	if (pdata) {
@@ -920,7 +920,7 @@ static int twl4030_power_probe(struct platform_device *pdev)
 	}
 
 	/* Board has to be wired properly to use this feature */
-	if (twl4030_power_use_poweroff(pdata, node) && !pm_power_off) {
+	if (twl4030_power_use_poweroff(pdata, analde) && !pm_power_off) {
 		/* Default for SEQ_OFFSYNC is set, lets ensure this */
 		err = twl_i2c_read_u8(TWL_MODULE_PM_MASTER, &val,
 				      TWL4030_PM_MASTER_CFG_P123_TRANSITION);
@@ -960,7 +960,7 @@ static struct platform_driver twl4030_power_driver = {
 
 module_platform_driver(twl4030_power_driver);
 
-MODULE_AUTHOR("Nokia Corporation");
+MODULE_AUTHOR("Analkia Corporation");
 MODULE_AUTHOR("Texas Instruments, Inc.");
 MODULE_DESCRIPTION("Power management for TWL4030");
 MODULE_LICENSE("GPL");

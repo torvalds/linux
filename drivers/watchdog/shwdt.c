@@ -7,7 +7,7 @@
  * Copyright (C) 2001 - 2012  Paul Mundt <lethal@linux-sh.org>
  *
  * 14-Dec-2001 Matt Domsch <Matt_Domsch@dell.com>
- *     Added nowayout module option to override CONFIG_WATCHDOG_NOWAYOUT
+ *     Added analwayout module option to override CONFIG_WATCHDOG_ANALWAYOUT
  *
  * 19-Apr-2002 Rob Radez <rob@osinvestor.com>
  *     Added expect close support, made emulated timeout runtime changeable
@@ -42,7 +42,7 @@
  * In order for this to work reliably we need to have HZ set to 1000 or
  * something quite higher than 100 (or we need a proper high-res timer
  * implementation that will deal with this properly), otherwise the 10ms
- * resolution of a jiffy is enough to trigger the overflow. For things like
+ * resolution of a jiffy is eanalugh to trigger the overflow. For things like
  * the SH-4 and SH-5, this isn't necessarily that big of a problem, though
  * for the SH-2 and SH-3, this isn't recommended unless the WDT is absolutely
  * necssary.
@@ -51,10 +51,10 @@
  * feasible are the 4096 and the 2048 divisors, which yield 5.25 and 2.62ms
  * overflow periods respectively.
  *
- * Also, since we can't really expect userspace to be responsive enough
+ * Also, since we can't really expect userspace to be responsive eanalugh
  * before the overflow happens, we maintain two separate timers .. One in
  * the kernel for clearing out WOVF every 2ms or so (again, this depends on
- * HZ == 1000), and another for monitoring userspace writes to the WDT device.
+ * HZ == 1000), and aanalther for monitoring userspace writes to the WDT device.
  *
  * As such, we currently use a configurable heartbeat interval which defaults
  * to 30s. In this case, the userspace daemon is only responsible for periodic
@@ -66,7 +66,7 @@ static int clock_division_ratio = WTCSR_CKS_4096;
 
 #define WATCHDOG_HEARTBEAT 30			/* 30 sec default heartbeat */
 static int heartbeat = WATCHDOG_HEARTBEAT;	/* in seconds */
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 static unsigned long next_heartbeat;
 
 struct sh_wdt {
@@ -188,7 +188,7 @@ static void sh_wdt_ping(struct timer_list *t)
 
 		mod_timer(&wdt->timer, next_ping_period(clock_division_ratio));
 	} else
-		dev_warn(wdt->dev, "Heartbeat lost! Will not ping "
+		dev_warn(wdt->dev, "Heartbeat lost! Will analt ping "
 		         "the watchdog\n");
 	spin_unlock_irqrestore(&wdt->lock, flags);
 }
@@ -227,7 +227,7 @@ static int sh_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(struct sh_wdt), GFP_KERNEL);
 	if (unlikely(!wdt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->dev = &pdev->dev;
 
@@ -244,7 +244,7 @@ static int sh_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
-	watchdog_set_nowayout(&sh_wdt_dev, nowayout);
+	watchdog_set_analwayout(&sh_wdt_dev, analwayout);
 	watchdog_set_drvdata(&sh_wdt_dev, wdt);
 	sh_wdt_dev.parent = &pdev->dev;
 
@@ -260,8 +260,8 @@ static int sh_wdt_probe(struct platform_device *pdev)
 			 sh_wdt_dev.timeout);
 	}
 
-	dev_info(&pdev->dev, "configured with heartbeat=%d sec (nowayout=%d)\n",
-		 sh_wdt_dev.timeout, nowayout);
+	dev_info(&pdev->dev, "configured with heartbeat=%d sec (analwayout=%d)\n",
+		 sh_wdt_dev.timeout, analwayout);
 
 	rc = watchdog_register_device(&sh_wdt_dev);
 	if (unlikely(rc)) {
@@ -336,7 +336,7 @@ MODULE_PARM_DESC(heartbeat,
 	"Watchdog heartbeat in seconds. (1 <= heartbeat <= 3600, default="
 				__MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+	"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");

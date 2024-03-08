@@ -65,19 +65,19 @@
 
 /*
  * The maximum alignment needed for some critical structures
- * These could be inter-node cacheline sizes/L3 cacheline
+ * These could be inter-analde cacheline sizes/L3 cacheline
  * size etc.  Define this in asm/cache.h for your arch
  */
-#ifndef INTERNODE_CACHE_SHIFT
-#define INTERNODE_CACHE_SHIFT L1_CACHE_SHIFT
+#ifndef INTERANALDE_CACHE_SHIFT
+#define INTERANALDE_CACHE_SHIFT L1_CACHE_SHIFT
 #endif
 
-#if !defined(____cacheline_internodealigned_in_smp)
+#if !defined(____cacheline_interanaldealigned_in_smp)
 #if defined(CONFIG_SMP)
-#define ____cacheline_internodealigned_in_smp \
-	__attribute__((__aligned__(1 << (INTERNODE_CACHE_SHIFT))))
+#define ____cacheline_interanaldealigned_in_smp \
+	__attribute__((__aligned__(1 << (INTERANALDE_CACHE_SHIFT))))
 #else
-#define ____cacheline_internodealigned_in_smp
+#define ____cacheline_interanaldealigned_in_smp
 #endif
 #endif
 
@@ -117,7 +117,7 @@
 #if defined(CONFIG_SMP)
 struct cacheline_padding {
 	char x[0];
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 #define CACHELINE_PADDING(name)		struct cacheline_padding name
 #else
 #define CACHELINE_PADDING(name)
@@ -126,7 +126,7 @@ struct cacheline_padding {
 #ifdef ARCH_DMA_MINALIGN
 #define ARCH_HAS_DMA_MINALIGN
 #else
-#define ARCH_DMA_MINALIGN __alignof__(unsigned long long)
+#define ARCH_DMA_MINALIGN __aliganalf__(unsigned long long)
 #endif
 
 #endif /* __LINUX_CACHE_H */

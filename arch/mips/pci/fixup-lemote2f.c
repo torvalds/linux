@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2008 Lemote Technology
+ * Copyright (C) 2008 Lemote Techanallogy
  * Copyright (C) 2004 ICT CAS
  * Author: Li xiaoyu, lixy@ict.ac.cn
  *
@@ -16,7 +16,7 @@
 
 /* PCI interrupt pins
  *
- * These should not be changed, or you should consider loongson2f interrupt
+ * These should analt be changed, or you should consider loongson2f interrupt
  * register and your pci card dispatch
  */
 

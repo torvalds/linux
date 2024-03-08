@@ -276,7 +276,7 @@ static int lm3533_bl_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "anal platform data\n");
 		return -EINVAL;
 	}
 
@@ -287,7 +287,7 @@ static int lm3533_bl_probe(struct platform_device *pdev)
 
 	bl = devm_kzalloc(&pdev->dev, sizeof(*bl), GFP_KERNEL);
 	if (!bl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bl->lm3533 = lm3533;
 	bl->id = pdev->id;

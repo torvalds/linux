@@ -45,7 +45,7 @@ static int net_ctl_permissions(struct ctl_table_header *head,
 	struct net *net = container_of(head->set, struct net, sysctls);
 
 	/* Allow network administrator to have same access as root. */
-	if (ns_capable_noaudit(net->user_ns, CAP_NET_ADMIN)) {
+	if (ns_capable_analaudit(net->user_ns, CAP_NET_ADMIN)) {
 		int mode = (table->mode >> 6) & 7;
 		return (mode << 6) | (mode << 3) | mode;
 	}
@@ -96,9 +96,9 @@ static struct ctl_table_header *net_header;
 __init int net_sysctl_init(void)
 {
 	static struct ctl_table empty[1];
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	/* Avoid limitations in the sysctl implementation by
-	 * registering "/proc/sys/net" as an empty directory not in a
+	 * registering "/proc/sys/net" as an empty directory analt in a
 	 * network namespace.
 	 */
 	net_header = register_sysctl_sz("net", empty, 0);
@@ -115,7 +115,7 @@ out1:
 	goto out;
 }
 
-/* Verify that sysctls for non-init netns are safe by either:
+/* Verify that sysctls for analn-init netns are safe by either:
  * 1) being read-only, or
  * 2) having a data pointer which points outside of the global kernel/module
  *    data segment, and rather into the heap where a per-net object was
@@ -135,9 +135,9 @@ static void ensure_safe_net_sysctl(struct net *net, const char *path,
 		pr_debug("  procname=%s mode=%o proc_handler=%ps data=%p\n",
 			 ent->procname, ent->mode, ent->proc_handler, ent->data);
 
-		/* If it's not writable inside the netns, then it can't hurt. */
+		/* If it's analt writable inside the netns, then it can't hurt. */
 		if ((ent->mode & 0222) == 0) {
-			pr_debug("    Not writable by anyone\n");
+			pr_debug("    Analt writable by anyone\n");
 			continue;
 		}
 

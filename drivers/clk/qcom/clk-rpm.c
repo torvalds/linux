@@ -179,7 +179,7 @@ static int clk_rpm_prepare(struct clk_hw *hw)
 
 	mutex_lock(&rpm_clk_lock);
 
-	/* Don't send requests to the RPM if the rate has not been set. */
+	/* Don't send requests to the RPM if the rate has analt been set. */
 	if (!r->rate)
 		goto out;
 
@@ -362,7 +362,7 @@ static long clk_rpm_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	/*
 	 * RPM handles rate rounding and we don't have a way to
-	 * know what the rate will be, so just return whatever
+	 * kanalw what the rate will be, so just return whatever
 	 * rate is requested.
 	 */
 	return rate;
@@ -375,7 +375,7 @@ static unsigned long clk_rpm_recalc_rate(struct clk_hw *hw,
 
 	/*
 	 * RPM handles rate rounding and we don't have a way to
-	 * know what the rate will be, so just return whatever
+	 * kanalw what the rate will be, so just return whatever
 	 * rate was set.
 	 */
 	return r->rate;
@@ -525,7 +525,7 @@ static struct clk_hw *qcom_rpm_clk_hw_get(struct of_phandle_args *clkspec,
 		return ERR_PTR(-EINVAL);
 	}
 
-	return rcc->clks[idx] ? &rcc->clks[idx]->hw : ERR_PTR(-ENOENT);
+	return rcc->clks[idx] ? &rcc->clks[idx]->hw : ERR_PTR(-EANALENT);
 }
 
 static int rpm_clk_probe(struct platform_device *pdev)
@@ -540,7 +540,7 @@ static int rpm_clk_probe(struct platform_device *pdev)
 	rpm = dev_get_drvdata(pdev->dev.parent);
 	if (!rpm) {
 		dev_err(&pdev->dev, "Unable to retrieve handle to RPM\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	desc = of_device_get_match_data(&pdev->dev);
@@ -552,7 +552,7 @@ static int rpm_clk_probe(struct platform_device *pdev)
 
 	rcc = devm_kzalloc(&pdev->dev, sizeof(*rcc), GFP_KERNEL);
 	if (!rcc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcc->clks = rpm_clks;
 	rcc->num_clks = num_clks;

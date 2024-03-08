@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__ASMARM_HWCAP_H
 #define _UAPI__ASMARM_HWCAP_H
 
@@ -24,7 +24,7 @@
 #define HWCAP_VFPv4	(1 << 16)
 #define HWCAP_IDIVA	(1 << 17)
 #define HWCAP_IDIVT	(1 << 18)
-#define HWCAP_VFPD32	(1 << 19)	/* set if VFP has 32 regs (not 16) */
+#define HWCAP_VFPD32	(1 << 19)	/* set if VFP has 32 regs (analt 16) */
 #define HWCAP_IDIV	(HWCAP_IDIVA | HWCAP_IDIVT)
 #define HWCAP_LPAE	(1 << 20)
 #define HWCAP_EVTSTRM	(1 << 21)

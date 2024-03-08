@@ -13,12 +13,12 @@ UNUSUAL_DEV(  0x07c4, 0xa000, 0x0000, 0x0015,
 		0),
 
 /*
- * The following Datafab-based devices may or may not work
+ * The following Datafab-based devices may or may analt work
  * using the current driver...the 0xffff is arbitrary since I
- * don't know what device versions exist for these guys.
+ * don't kanalw what device versions exist for these guys.
  *
  * The 0xa003 and 0xa004 devices in particular I'm curious about.
- * I'm told they exist but so far nobody has come forward to say that
+ * I'm told they exist but so far analbody has come forward to say that
  * they work with this driver.  Given the success we've had getting
  * other Datafab-based cards operational with this driver, I've decided
  * to leave these two devices in the list.
@@ -31,19 +31,19 @@ UNUSUAL_DEV( 0x07c4, 0xa001, 0x0000, 0xffff,
 
 /* Reported by Josef Reisinger <josef.reisinger@netcologne.de> */
 UNUSUAL_DEV( 0x07c4, 0xa002, 0x0000, 0xffff,
-		"Datafab/Unknown",
+		"Datafab/Unkanalwn",
 		"MD2/MD3 Disk enclosure",
 		USB_SC_SCSI, USB_PR_DATAFAB, NULL,
 		US_FL_SINGLE_LUN),
 
 UNUSUAL_DEV( 0x07c4, 0xa003, 0x0000, 0xffff,
-		"Datafab/Unknown",
+		"Datafab/Unkanalwn",
 		"Datafab-based Reader",
 		USB_SC_SCSI, USB_PR_DATAFAB, NULL,
 		0),
 
 UNUSUAL_DEV( 0x07c4, 0xa004, 0x0000, 0xffff,
-		"Datafab/Unknown",
+		"Datafab/Unkanalwn",
 		"Datafab-based Reader",
 		USB_SC_SCSI, USB_PR_DATAFAB, NULL,
 		0),

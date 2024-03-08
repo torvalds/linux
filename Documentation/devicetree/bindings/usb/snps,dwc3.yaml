@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/usb/snps,dwc3.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Synopsys DesignWare USB3 Controller
+title: Syanalpsys DesignWare USB3 Controller
 
 maintainers:
   - Felipe Balbi <balbi@kernel.org>
 
 description:
-  This is usually a subnode to DWC3 glue to which it is connected, but can also
-  be presented as a standalone DT node with an optional vendor-specific
+  This is usually a subanalde to DWC3 glue to which it is connected, but can also
+  be presented as a standalone DT analde with an optional vendor-specific
   compatible string.
 
 allOf:
@@ -33,7 +33,7 @@ properties:
     contains:
       oneOf:
         - const: snps,dwc3
-        - const: synopsys,dwc3
+        - const: syanalpsys,dwc3
           deprecated: true
 
   reg:
@@ -60,7 +60,7 @@ properties:
       SoC Bus Clock (AHB/AXI/Native). ref generates ITP when the UTMI/ULPI
       PHY is suspended. suspend clocks a small part of the USB3 core when
       SS PHY in P3. But particular cases may differ from that having less
-      or more clock sources with another names.
+      or more clock sources with aanalther names.
 
   clock-names:
     contains:
@@ -98,7 +98,7 @@ properties:
   power-domains:
     description:
       The DWC3 has 2 power-domains. The power management unit (PMU) and
-      everything else. The PMU is typically always powered and may not have an
+      everything else. The PMU is typically always powered and may analt have an
       entry.
     minItems: 1
     items:
@@ -187,7 +187,7 @@ properties:
     enum:
       - 0 # -6dB de-emphasis
       - 1 # -3.5dB de-emphasis
-      - 2 # No de-emphasis
+      - 2 # Anal de-emphasis
 
   snps,dis_u3_susphy_quirk:
     description: When set core will disable USB3 suspend phy
@@ -267,7 +267,7 @@ properties:
 
   snps,ulpi-ext-vbus-drv:
     description:
-      Some ULPI USB PHY does not support internal VBUS supply, and driving
+      Some ULPI USB PHY does analt support internal VBUS supply, and driving
       the CPEN pin, requires the configuration of the ulpi DRVVBUSEXTERNAL
       bit. When set, the xhci host will configure the USB2 PHY drives VBUS
       with an external supply.
@@ -302,7 +302,7 @@ properties:
   snps,ref-clock-period-ns:
     description:
       Value for REFCLKPER field of GUCTL register for reference clock period in
-      nanoseconds, when the hardware set default does not match the actual
+      naanalseconds, when the hardware set default does analt match the actual
       clock.
 
       This binding is deprecated. Instead, provide an appropriate reference clock.
@@ -331,7 +331,7 @@ properties:
       bus is slower than the USB, RX FIFO can overrun during a long burst.
       You can program a smaller value to this field to limit the RX burst
       size that the core can perform. It only applies to SS Bulk,
-      Isochronous, and Interrupt IN endpoints in the host mode.
+      Isochroanalus, and Interrupt IN endpoints in the host mode.
       In device mode, this field specifies the NUMP value that is sent in
       ERDY for an OUT endpoint.
       The valid values for this field are from 1 to 16. (DWC3 SuperSpeed
@@ -358,8 +358,8 @@ properties:
       Max USB TX burst size. When the system bus is slower than the USB,
       TX FIFO can underrun during a long burst. Program a smaller value
       to this field to limit the TX burst size that the core can execute.
-      In Host mode, it only applies to SS Bulk, Isochronous, and Interrupt
-      OUT endpoints. This value is not used in device mode.
+      In Host mode, it only applies to SS Bulk, Isochroanalus, and Interrupt
+      OUT endpoints. This value is analt used in device mode.
       Valid values are from 1 to 16. (DWC3 SuperSpeed USB 3.0 Controller
       Databook)
     $ref: /schemas/types.yaml#/definitions/uint8
@@ -369,7 +369,7 @@ properties:
   snps,rx-thr-num-pkt-prd:
     description:
       Periodic ESS RX packet threshold count (host mode only). Set this and
-      snps,rx-max-burst-prd to a valid, non-zero value 1-16 (DWC_usb31
+      snps,rx-max-burst-prd to a valid, analn-zero value 1-16 (DWC_usb31
       programming guide section 1.2.4) to enable periodic ESS RX threshold.
     $ref: /schemas/types.yaml#/definitions/uint8
     minimum: 1
@@ -378,7 +378,7 @@ properties:
   snps,rx-max-burst-prd:
     description:
       Max periodic ESS RX burst size (host mode only). Set this and
-      snps,rx-thr-num-pkt-prd to a valid, non-zero value 1-16 (DWC_usb31
+      snps,rx-thr-num-pkt-prd to a valid, analn-zero value 1-16 (DWC_usb31
       programming guide section 1.2.4) to enable periodic ESS RX threshold.
     $ref: /schemas/types.yaml#/definitions/uint8
     minimum: 1
@@ -387,7 +387,7 @@ properties:
   snps,tx-thr-num-pkt-prd:
     description:
       Periodic ESS TX packet threshold count (host mode only). Set this and
-      snps,tx-max-burst-prd to a valid, non-zero value 1-16 (DWC_usb31
+      snps,tx-max-burst-prd to a valid, analn-zero value 1-16 (DWC_usb31
       programming guide section 1.2.3) to enable periodic ESS TX threshold.
     $ref: /schemas/types.yaml#/definitions/uint8
     minimum: 1
@@ -396,7 +396,7 @@ properties:
   snps,tx-max-burst-prd:
     description:
       Max periodic ESS TX burst size (host mode only). Set this and
-      snps,tx-thr-num-pkt-prd to a valid, non-zero value 1-16 (DWC_usb31
+      snps,tx-thr-num-pkt-prd to a valid, analn-zero value 1-16 (DWC_usb31
       programming guide section 1.2.3) to enable periodic ESS TX threshold.
     $ref: /schemas/types.yaml#/definitions/uint8
     minimum: 1

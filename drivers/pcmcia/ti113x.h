@@ -2,7 +2,7 @@
  * ti113x.h 1.16 1999/10/25 20:03:34
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may analt use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *
@@ -19,10 +19,10 @@
  * terms of the GNU General Public License version 2 (the "GPL"), in which
  * case the provisions of the GPL are applicable instead of the
  * above.  If you wish to allow the use of your version of this file
- * only under the terms of the GPL and not to allow others to use
+ * only under the terms of the GPL and analt to allow others to use
  * your version of this file under the MPL, indicate your decision by
- * deleting the provisions above and replace them with the notice and
- * other provisions required by the GPL.  If you do not delete the
+ * deleting the provisions above and replace them with the analtice and
+ * other provisions required by the GPL.  If you do analt delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
  */
@@ -136,8 +136,8 @@
 #define  TI113X_BCR_PCI_READ_DEPTH	0x02
 #define  TI113X_BCR_PCI_WRITE_DEPTH	0x01
 
-/* Diagnostic Register */
-#define TI1250_DIAGNOSTIC		0x0093	/* 8 bit */
+/* Diaganalstic Register */
+#define TI1250_DIAGANALSTIC		0x0093	/* 8 bit */
 #define  TI1250_DIAG_TRUE_VALUE		0x80
 #define  TI1250_DIAG_PCI_IREQ		0x40
 #define  TI1250_DIAG_PCI_CSC		0x20
@@ -179,7 +179,7 @@ static void ti_save_state(struct yenta_socket *socket)
 	ti_mfunc(socket) = config_readl(socket, TI122X_MFUNC);
 	ti_cardctl(socket) = config_readb(socket, TI113X_CARD_CONTROL);
 	ti_devctl(socket) = config_readb(socket, TI113X_DEVICE_CONTROL);
-	ti_diag(socket) = config_readb(socket, TI1250_DIAGNOSTIC);
+	ti_diag(socket) = config_readb(socket, TI1250_DIAGANALSTIC);
 
 	if (socket->dev->vendor == PCI_VENDOR_ID_ENE)
 		ene_test_c9(socket) = config_readb(socket, ENE_TEST_C9);
@@ -191,7 +191,7 @@ static void ti_restore_state(struct yenta_socket *socket)
 	config_writel(socket, TI122X_MFUNC, ti_mfunc(socket));
 	config_writeb(socket, TI113X_CARD_CONTROL, ti_cardctl(socket));
 	config_writeb(socket, TI113X_DEVICE_CONTROL, ti_devctl(socket));
-	config_writeb(socket, TI1250_DIAGNOSTIC, ti_diag(socket));
+	config_writeb(socket, TI1250_DIAGANALSTIC, ti_diag(socket));
 
 	if (socket->dev->vendor == PCI_VENDOR_ID_ENE)
 		config_writeb(socket, ENE_TEST_C9, ene_test_c9(socket));
@@ -201,7 +201,7 @@ static void ti_restore_state(struct yenta_socket *socket)
  *	Zoom video control for TI122x/113x chips
  */
 
-static void ti_zoom_video(struct pcmcia_socket *sock, int onoff)
+static void ti_zoom_video(struct pcmcia_socket *sock, int oanalff)
 {
 	u8 reg;
 	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
@@ -209,7 +209,7 @@ static void ti_zoom_video(struct pcmcia_socket *sock, int onoff)
 	/* If we don't have a Zoom Video switch this is harmless,
 	   we just tristate the unused (ZV) lines */
 	reg = config_readb(socket, TI113X_CARD_CONTROL);
-	if (onoff)
+	if (oanalff)
 		/* Zoom zoom, we will all go together, zoom zoom, zoom zoom */
 		reg |= TI113X_CCR_ZVENABLE;
 	else
@@ -222,17 +222,17 @@ static void ti_zoom_video(struct pcmcia_socket *sock, int onoff)
  *	ZV autodetect mode we don't use but don't actually need.
  *	FIXME: manual says its in func0 and func1 but disagrees with
  *	itself about this - do we need to force func0, if so we need
- *	to know a lot more about socket pairings in pcmcia_socket than
- *	we do now.. uggh.
+ *	to kanalw a lot more about socket pairings in pcmcia_socket than
+ *	we do analw.. uggh.
  */
  
-static void ti1250_zoom_video(struct pcmcia_socket *sock, int onoff)
+static void ti1250_zoom_video(struct pcmcia_socket *sock, int oanalff)
 {	
 	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
 	int shift = 0;
 	u8 reg;
 
-	ti_zoom_video(sock, onoff);
+	ti_zoom_video(sock, oanalff);
 
 	reg = config_readb(socket, TI1250_MULTIMEDIA_CTL);
 	reg |= TI1250_MMC_ZVOUTEN;	/* ZV bus enable */
@@ -240,7 +240,7 @@ static void ti1250_zoom_video(struct pcmcia_socket *sock, int onoff)
 	if(PCI_FUNC(socket->dev->devfn)==1)
 		shift = 1;
 	
-	if(onoff)
+	if(oanalff)
 	{
 		reg &= ~(1<<6); 	/* Clear select bit */
 		reg |= shift<<6;	/* Favour our socket */
@@ -328,7 +328,7 @@ static void ti113x_use_isa_irq(struct yenta_socket *socket)
 	/* get a free isa int */
 	isa_irq_mask = yenta_probe_irq(socket, isa_interrupts);
 	if (!isa_irq_mask)
-		return; /* no useable isa irq found */
+		return; /* anal useable isa irq found */
 
 	/* choose highest available */
 	for (; isa_irq_mask; isa_irq++)
@@ -384,7 +384,7 @@ static void ti12xx_irqroute_func0(struct yenta_socket *socket)
 		goto out;
 
 	/*
-	 * We're here which means PCI interrupts are _not_ delivered. try to
+	 * We're here which means PCI interrupts are _analt_ delivered. try to
 	 * find the right setting (all serial or parallel)
 	 */
 	dev_info(&socket->dev->dev,
@@ -400,7 +400,7 @@ static void ti12xx_irqroute_func0(struct yenta_socket *socket)
 		case PCI_DEVICE_ID_TI_1451A:
 		case PCI_DEVICE_ID_TI_4450:
 		case PCI_DEVICE_ID_TI_4451:
-			/* these chips have no IRQSER setting in MFUNC3  */
+			/* these chips have anal IRQSER setting in MFUNC3  */
 			break;
 
 		default:
@@ -418,7 +418,7 @@ static void ti12xx_irqroute_func0(struct yenta_socket *socket)
 					goto out;
 				}
 
-				/* not working, back to old value */
+				/* analt working, back to old value */
 				mfunc = mfunc_old;
 				config_writel(socket, TI122X_MFUNC, mfunc);
 
@@ -427,7 +427,7 @@ static void ti12xx_irqroute_func0(struct yenta_socket *socket)
 			}
 		}
 
-		/* serial PCI interrupts not working fall back to parallel */
+		/* serial PCI interrupts analt working fall back to parallel */
 		dev_info(&socket->dev->dev,
 			 "TI: falling back to parallel PCI interrupts\n");
 		devctl &= ~TI113X_DCR_IMODE_MASK;
@@ -462,7 +462,7 @@ static void ti12xx_irqroute_func0(struct yenta_socket *socket)
 		mfunc_old = mfunc;
 		dev_info(&socket->dev->dev, "TI: parallel PCI interrupts ok\n");
 	} else {
-		/* not working, back to old value */
+		/* analt working, back to old value */
 		mfunc = mfunc_old;
 		config_writel(socket, TI122X_MFUNC, mfunc);
 		if (gpio3 != gpio3_old)
@@ -473,7 +473,7 @@ out:
 	if (pci_irq_status < 1) {
 		socket->cb_irq = 0;
 		dev_info(&socket->dev->dev,
-			 "Yenta TI: no PCI interrupts. Fish. Please report.\n");
+			 "Yenta TI: anal PCI interrupts. Fish. Please report.\n");
 	}
 }
 
@@ -562,7 +562,7 @@ static void ti12xx_irqroute_func1(struct yenta_socket *socket)
 		goto out;
 
 	/*
-	 * We're here which means PCI interrupts are _not_ delivered. try to
+	 * We're here which means PCI interrupts are _analt_ delivered. try to
 	 * find the right setting
 	 */
 	dev_info(&socket->dev->dev,
@@ -597,7 +597,7 @@ static void ti12xx_irqroute_func1(struct yenta_socket *socket)
 		case PCI_DEVICE_ID_TI_1450:
 			/*
 			 *  those have a pin for IRQSER/INTB plus INTB in MFUNC0
-			 *  we alread probed the shared pin, now go for MFUNC0
+			 *  we alread probed the shared pin, analw go for MFUNC0
 			 */
 			mfunc = (mfunc & ~TI122X_MFUNC0_MASK) | TI125X_MFUNC0_INTB;
 			break;
@@ -625,7 +625,7 @@ static void ti12xx_irqroute_func1(struct yenta_socket *socket)
 				goto out;
 		}
 
-		/* still nothing: set INTRTIE */
+		/* still analthing: set INTRTIE */
 		if (ti12xx_tie_interrupts(socket, &old_irq)) {
 			pci_irq_status = yenta_probe_cb_irq(socket);
 			if (pci_irq_status == 1) {
@@ -642,7 +642,7 @@ out:
 	if (pci_irq_status < 1) {
 		socket->cb_irq = 0;
 		dev_info(&socket->dev->dev,
-			 "TI: no PCI interrupts. Fish. Please report.\n");
+			 "TI: anal PCI interrupts. Fish. Please report.\n");
 	}
 }
 
@@ -713,7 +713,7 @@ static int ti12xx_2nd_slot_empty(struct yenta_socket *socket)
 	 * check that the device id of both slots match. this is needed for the
 	 * XX21 and the XX11 controller that share the same device id for single
 	 * and dual slot controllers. return '2nd slot empty'. we already checked
-	 * if the interrupt is tied to another function.
+	 * if the interrupt is tied to aanalther function.
 	 */
 	if (socket->dev->device != func->device)
 		goto out;
@@ -772,7 +772,7 @@ static int ti12xx_power_hook(struct pcmcia_socket *sock, int operation)
 		case PCI_DEVICE_ID_TI_1451A:
 		case PCI_DEVICE_ID_TI_4450:
 		case PCI_DEVICE_ID_TI_4451:
-			/* these chips have no IRQSER setting in MFUNC3  */
+			/* these chips have anal IRQSER setting in MFUNC3  */
 			break;
 
 		default:
@@ -861,7 +861,7 @@ static int ti12xx_override(struct yenta_socket *socket)
 	 * Yenta expects controllers to use CSCINT to route
 	 * CSC interrupts to PCI rather than INTVAL.
 	 */
-	val = config_readb(socket, TI1250_DIAGNOSTIC);
+	val = config_readb(socket, TI1250_DIAGANALSTIC);
 	dev_info(&socket->dev->dev, "Using %s to route CSC interrupts to PCI\n",
 		 (val & TI1250_DIAG_PCI_CSC) ? "CSCINT" : "INTVAL");
 	dev_info(&socket->dev->dev, "Routing CardBus interrupts to %s\n",
@@ -884,16 +884,16 @@ static int ti1250_override(struct yenta_socket *socket)
 {
 	u8 old, diag;
 
-	old = config_readb(socket, TI1250_DIAGNOSTIC);
+	old = config_readb(socket, TI1250_DIAGANALSTIC);
 	diag = old & ~(TI1250_DIAG_PCI_CSC | TI1250_DIAG_PCI_IREQ);
 	if (socket->cb_irq)
 		diag |= TI1250_DIAG_PCI_CSC | TI1250_DIAG_PCI_IREQ;
 
 	if (diag != old) {
 		dev_info(&socket->dev->dev,
-			 "adjusting diagnostic: %02x -> %02x\n",
+			 "adjusting diaganalstic: %02x -> %02x\n",
 			 old, diag);
-		config_writeb(socket, TI1250_DIAGNOSTIC, diag);
+		config_writeb(socket, TI1250_DIAGANALSTIC, diag);
 	}
 
 	return ti12xx_override(socket);

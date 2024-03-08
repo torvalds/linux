@@ -7,7 +7,7 @@
 
 #define _GNU_SOURCE
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <fenv.h>
 #include <unistd.h>
@@ -22,7 +22,7 @@ int main(void)
 
 	if (fd < 0) {
 		printf("[SKIP]\tcan't access %s: %s\n",
-		       test_fpu_path, strerror(errno));
+		       test_fpu_path, strerror(erranal));
 		return 0;
 	}
 
@@ -41,7 +41,7 @@ int main(void)
 		return 3;
 	}
 
-	/* Note: the tests up to this point are quite safe and will only return
+	/* Analte: the tests up to this point are quite safe and will only return
 	 * an error. But the exception mask setting can cause misbehaving kernel
 	 * to crash.
 	 */

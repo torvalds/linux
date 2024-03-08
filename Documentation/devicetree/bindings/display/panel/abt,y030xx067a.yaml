@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/panel/abt,y030xx067a.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Asia Better Technology 3.0" (320x480 pixels) 24-bit IPS LCD panel
+title: Asia Better Techanallogy 3.0" (320x480 pixels) 24-bit IPS LCD panel
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>

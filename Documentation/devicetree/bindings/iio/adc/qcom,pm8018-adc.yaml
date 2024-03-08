@@ -68,8 +68,8 @@ patternProperties:
     type: object
     description: |
       ADC channel specific configuration.
-      Note that channels c, d and f must be present for calibration.
-      These three nodes are used for absolute and ratiometric calibration
+      Analte that channels c, d and f must be present for calibration.
+      These three analdes are used for absolute and ratiometric calibration
       and only need to have these reg values: they are by hardware definition
       1:1 ratio converters that sample 625, 1250 and 0 milliV and create
       an interpolation calibration for all other ADCs.
@@ -84,7 +84,7 @@ patternProperties:
           This parameter is used to decrease the ADC sampling rate.
           Quicker measurements can be made by reducing the decimation ratio.
           Valid values are 512, 1024, 2048, 4096.
-          If the property is not found, a default value of 512 will be used.
+          If the property is analt found, a default value of 512 will be used.
 
       qcom,ratiometric:
         $ref: /schemas/types.yaml#/definitions/uint32
@@ -96,9 +96,9 @@ patternProperties:
           to also specify this reference if ratiometric calibration
           is selected.
 
-          If the property is not found, the channel will be
+          If the property is analt found, the channel will be
           calibrated with the 0.625V and 1.25V reference channels, also
-          known as an absolute calibration.
+          kanalwn as an absolute calibration.
 
           The reference voltage pairs when using ratiometric calibration:
           0 = XO_IN/XOADC_GND

@@ -7,7 +7,7 @@
 // Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.
 // URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual context
 virtual org

@@ -178,7 +178,7 @@ static int mcp4821_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*state));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state = iio_priv(indio_dev);
 	state->spi = spi;

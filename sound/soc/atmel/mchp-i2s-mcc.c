@@ -2,7 +2,7 @@
 //
 // Driver for Microchip I2S Multi-channel controller
 //
-// Copyright (C) 2018 Microchip Technology Inc. and its subsidiaries
+// Copyright (C) 2018 Microchip Techanallogy Inc. and its subsidiaries
 //
 // Author: Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
 
@@ -115,14 +115,14 @@
 
 /* Transmitter uses one DMA channel ... */
 /* Left audio samples duplicated to right audio channel */
-#define MCHP_I2SMCC_MRA_RXMONO			BIT(8)
+#define MCHP_I2SMCC_MRA_RXMOANAL			BIT(8)
 
 /* I2SDO output of I2SC is internally connected to I2SDI input */
 #define MCHP_I2SMCC_MRA_RXLOOP			BIT(9)
 
 /* Receiver uses one DMA channel ... */
 /* Left audio samples duplicated to right audio channel */
-#define MCHP_I2SMCC_MRA_TXMONO			BIT(10)
+#define MCHP_I2SMCC_MRA_TXMOANAL			BIT(10)
 
 /* x sample transmitted when underrun */
 #define MCHP_I2SMCC_MRA_TXSAME_ZERO		(0 << 11) /* Zero sample */
@@ -155,8 +155,8 @@
 
 /* Master Clock mode */
 #define MCHP_I2SMCC_MRA_IMCKMODE_MASK		GENMASK(30, 30)
-/* 0: No master clock generated*/
-#define MCHP_I2SMCC_MRA_IMCKMODE_NONE		(0 << 30)
+/* 0: Anal master clock generated*/
+#define MCHP_I2SMCC_MRA_IMCKMODE_ANALNE		(0 << 30)
 /* 1: master clock generated (internally generated clock drives I2SMCK pin) */
 #define MCHP_I2SMCC_MRA_IMCKMODE_GEN		(1 << 30)
 
@@ -179,8 +179,8 @@
 #define MCHP_I2SMCC_MRB_FIFOEN			BIT(4)
 
 #define MCHP_I2SMCC_MRB_DMACHUNK_MASK		GENMASK(9, 8)
-#define MCHP_I2SMCC_MRB_DMACHUNK(no_words) \
-	(((fls(no_words) - 1) << 8) & MCHP_I2SMCC_MRB_DMACHUNK_MASK)
+#define MCHP_I2SMCC_MRB_DMACHUNK(anal_words) \
+	(((fls(anal_words) - 1) << 8) & MCHP_I2SMCC_MRB_DMACHUNK_MASK)
 
 #define MCHP_I2SMCC_MRB_CLKSEL_MASK		GENMASK(16, 16)
 #define MCHP_I2SMCC_MRB_CLKSEL_EXT		(0 << 16)
@@ -259,7 +259,7 @@ static irqreturn_t mchp_i2s_mcc_interrupt(int irq, void *dev_id)
 {
 	struct mchp_i2s_mcc_dev *dev = dev_id;
 	u32 sra, imra, srb, imrb, pendinga, pendingb, idra = 0, idrb = 0;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	regmap_read(dev->regmap, MCHP_I2SMCC_IMRA, &imra);
 	regmap_read(dev->regmap, MCHP_I2SMCC_ISRA, &sra);
@@ -270,7 +270,7 @@ static irqreturn_t mchp_i2s_mcc_interrupt(int irq, void *dev_id)
 	pendingb = imrb & srb;
 
 	if (!pendinga && !pendingb)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * Tx/Rx ready interrupts are enabled when stopping only, to assure
@@ -318,7 +318,7 @@ static int mchp_i2s_mcc_set_sysclk(struct snd_soc_dai *dai,
 	dev_dbg(dev->dev, "%s() clk_id=%d freq=%u dir=%d\n",
 		__func__, clk_id, freq, dir);
 
-	/* We do not need SYSCLK */
+	/* We do analt need SYSCLK */
 	if (dir == SND_SOC_CLOCK_IN)
 		return 0;
 
@@ -378,7 +378,7 @@ static int mchp_i2s_mcc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 		return -EINVAL;
 
 	if (slots) {
-		/* We do not support daisy chain */
+		/* We do analt support daisy chain */
 		if (rx_mask != GENMASK(slots - 1, 0) ||
 		    rx_mask != tx_mask)
 			return -EINVAL;
@@ -526,14 +526,14 @@ static int mchp_i2s_mcc_hw_params(struct snd_pcm_substream *substream,
 	switch (dev->fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		if (dev->tdm_slots) {
-			dev_err(dev->dev, "I2S with TDM is not supported\n");
+			dev_err(dev->dev, "I2S with TDM is analt supported\n");
 			return -EINVAL;
 		}
 		mra |= MCHP_I2SMCC_MRA_FORMAT_I2S;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
 		if (dev->tdm_slots) {
-			dev_err(dev->dev, "Left-Justified with TDM is not supported\n");
+			dev_err(dev->dev, "Left-Justified with TDM is analt supported\n");
 			return -EINVAL;
 		}
 		mra |= MCHP_I2SMCC_MRA_FORMAT_LJ;
@@ -585,9 +585,9 @@ static int mchp_i2s_mcc_hw_params(struct snd_pcm_substream *substream,
 		switch (channels) {
 		case 1:
 			if (is_playback)
-				mra |= MCHP_I2SMCC_MRA_TXMONO;
+				mra |= MCHP_I2SMCC_MRA_TXMOANAL;
 			else
-				mra |= MCHP_I2SMCC_MRA_RXMONO;
+				mra |= MCHP_I2SMCC_MRA_RXMOANAL;
 			break;
 		case 2:
 			break;
@@ -614,9 +614,9 @@ static int mchp_i2s_mcc_hw_params(struct snd_pcm_substream *substream,
 				 * to odd-numbered channels
 				 */
 				if (is_playback)
-					mra |= MCHP_I2SMCC_MRA_TXMONO;
+					mra |= MCHP_I2SMCC_MRA_TXMOANAL;
 				else
-					mra |= MCHP_I2SMCC_MRA_RXMONO;
+					mra |= MCHP_I2SMCC_MRA_RXMOANAL;
 			}
 			channels = dev->tdm_slots;
 		}
@@ -715,7 +715,7 @@ static int mchp_i2s_mcc_hw_params(struct snd_pcm_substream *substream,
 		dev->gclk_use = 1;
 	}
 
-	/* Save the number of channels to know what interrupts to enable */
+	/* Save the number of channels to kanalw what interrupts to enable */
 	dev->channels = channels;
 
 	ret = regmap_write(dev->regmap, MCHP_I2SMCC_MRA, mra);
@@ -861,7 +861,7 @@ static int mchp_i2s_mcc_startup(struct snd_pcm_substream *substream,
 {
 	struct mchp_i2s_mcc_dev *dev = snd_soc_dai_get_drvdata(dai);
 
-	/* Software reset the IP if it's not running */
+	/* Software reset the IP if it's analt running */
 	if (!mchp_i2s_mcc_is_running(dev)) {
 		return regmap_write(dev->regmap, MCHP_I2SMCC_CR,
 				    MCHP_I2SMCC_CR_SWRST);
@@ -963,13 +963,13 @@ static int mchp_i2s_mcc_soc_data_parse(struct platform_device *pdev,
 
 	if (!dev->soc) {
 		dev_err(&pdev->dev, "failed to get soc data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (dev->soc->data_pin_pair_num == 1)
 		return 0;
 
-	err = of_property_read_u8(pdev->dev.of_node, "microchip,tdm-data-pair",
+	err = of_property_read_u8(pdev->dev.of_analde, "microchip,tdm-data-pair",
 				  &dev->tdm_data_pair);
 	if (err < 0 && err != -EINVAL) {
 		dev_err(&pdev->dev,
@@ -979,7 +979,7 @@ static int mchp_i2s_mcc_soc_data_parse(struct platform_device *pdev,
 	}
 	if (err == -EINVAL) {
 		dev_info(&pdev->dev,
-			 "'microchip,tdm-data-pair' not found; assuming DIN/DOUT 0 for TDM\n");
+			 "'microchip,tdm-data-pair' analt found; assuming DIN/DOUT 0 for TDM\n");
 		dev->tdm_data_pair = 0;
 	} else {
 		if (dev->tdm_data_pair > dev->soc->data_pin_pair_num - 1) {
@@ -1007,7 +1007,7 @@ static int mchp_i2s_mcc_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
 	if (IS_ERR(base))
@@ -1041,7 +1041,7 @@ static int mchp_i2s_mcc_probe(struct platform_device *pdev)
 		if (PTR_ERR(dev->gclk) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 		dev_warn(&pdev->dev,
-			 "generated clock not found: %d\n", err);
+			 "generated clock analt found: %d\n", err);
 		dev->gclk = NULL;
 	}
 

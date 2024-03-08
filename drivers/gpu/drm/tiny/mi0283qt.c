@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * DRM driver for Multi-Inno MI0283QT panels
+ * DRM driver for Multi-Inanal MI0283QT panels
  *
- * Copyright 2016 Noralf Trønnes
+ * Copyright 2016 Analralf Trønnes
  */
 
 #include <linux/backlight.h>
@@ -113,7 +113,7 @@ static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
 
 out_enable:
 	/* The PiTFT (ili9340) has a hardware reset circuit that
-	 * resets only on power-on and not on each reboot through
+	 * resets only on power-on and analt on each reboot through
 	 * a gpio like the rpi-display does.
 	 * As a result, we need to always apply the rotation value
 	 * regardless of the display "on/off" state.
@@ -156,14 +156,14 @@ static const struct drm_driver mi0283qt_driver = {
 	DRM_GEM_DMA_DRIVER_OPS_VMAP,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "mi0283qt",
-	.desc			= "Multi-Inno MI0283QT",
+	.desc			= "Multi-Inanal MI0283QT",
 	.date			= "20160614",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 };
 
 static const struct of_device_id mi0283qt_of_match[] = {
-	{ .compatible = "multi-inno,mi0283qt" },
+	{ .compatible = "multi-inanal,mi0283qt" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, mi0283qt_of_match);
@@ -274,6 +274,6 @@ static struct spi_driver mi0283qt_spi_driver = {
 };
 module_spi_driver(mi0283qt_spi_driver);
 
-MODULE_DESCRIPTION("Multi-Inno MI0283QT DRM driver");
-MODULE_AUTHOR("Noralf Trønnes");
+MODULE_DESCRIPTION("Multi-Inanal MI0283QT DRM driver");
+MODULE_AUTHOR("Analralf Trønnes");
 MODULE_LICENSE("GPL");

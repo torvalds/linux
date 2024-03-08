@@ -5,7 +5,7 @@ LIBTHERMAL_VERSION = 0
 LIBTHERMAL_PATCHLEVEL = 0
 LIBTHERMAL_EXTRAVERSION = 1
 
-MAKEFLAGS += --no-print-directory
+MAKEFLAGS += --anal-print-directory
 
 ifeq ($(srctree),)
 srctree := $(patsubst %/,%,$(dir $(CURDIR)))

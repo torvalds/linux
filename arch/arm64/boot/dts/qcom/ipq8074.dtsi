@@ -10,7 +10,7 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	model = "Qualcomm Technologies, Inc. IPQ8074";
+	model = "Qualcomm Techanallogies, Inc. IPQ8074";
 	compatible = "qcom,ipq8074";
 	interrupt-parent = <&intc>;
 
@@ -88,25 +88,25 @@
 
 		bootloader@4a600000 {
 			reg = <0x0 0x4a600000 0x0 0x400000>;
-			no-map;
+			anal-map;
 		};
 
 		sbl@4aa00000 {
 			reg = <0x0 0x4aa00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		smem@4ab00000 {
 			compatible = "qcom,smem";
 			reg = <0x0 0x4ab00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 
 			hwlocks = <&tcsr_mutex 3>;
 		};
 
 		memory@4ac00000 {
 			reg = <0x0 0x4ac00000 0x0 0x400000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -611,16 +611,16 @@
 			#size-cells = <1>;
 			ranges;
 
-			clocks = <&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
+			clocks = <&gcc GCC_SYS_ANALC_USB0_AXI_CLK>,
 				<&gcc GCC_USB0_MASTER_CLK>,
 				<&gcc GCC_USB0_SLEEP_CLK>,
 				<&gcc GCC_USB0_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				"core",
 				"sleep",
 				"mock_utmi";
 
-			assigned-clocks = <&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
+			assigned-clocks = <&gcc GCC_SYS_ANALC_USB0_AXI_CLK>,
 					  <&gcc GCC_USB0_MASTER_CLK>,
 					  <&gcc GCC_USB0_MOCK_UTMI_CLK>;
 			assigned-clock-rates = <133330000>,
@@ -653,16 +653,16 @@
 			#size-cells = <1>;
 			ranges;
 
-			clocks = <&gcc GCC_SYS_NOC_USB1_AXI_CLK>,
+			clocks = <&gcc GCC_SYS_ANALC_USB1_AXI_CLK>,
 				<&gcc GCC_USB1_MASTER_CLK>,
 				<&gcc GCC_USB1_SLEEP_CLK>,
 				<&gcc GCC_USB1_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				"core",
 				"sleep",
 				"mock_utmi";
 
-			assigned-clocks = <&gcc GCC_SYS_NOC_USB1_AXI_CLK>,
+			assigned-clocks = <&gcc GCC_SYS_ANALC_USB1_AXI_CLK>,
 					  <&gcc GCC_USB1_MASTER_CLK>,
 					  <&gcc GCC_USB1_MOCK_UTMI_CLK>;
 			assigned-clock-rates = <133330000>,
@@ -823,7 +823,7 @@
 					<0 0 0 4 &intc 0 0 145
 					 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
 
-			clocks = <&gcc GCC_SYS_NOC_PCIE1_AXI_CLK>,
+			clocks = <&gcc GCC_SYS_ANALC_PCIE1_AXI_CLK>,
 				 <&gcc GCC_PCIE1_AXI_M_CLK>,
 				 <&gcc GCC_PCIE1_AXI_S_CLK>,
 				 <&gcc GCC_PCIE1_AHB_CLK>,
@@ -885,7 +885,7 @@
 					<0 0 0 4 &intc 0 0 83
 					 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
 
-			clocks = <&gcc GCC_SYS_NOC_PCIE0_AXI_CLK>,
+			clocks = <&gcc GCC_SYS_ANALC_PCIE0_AXI_CLK>,
 				 <&gcc GCC_PCIE0_AXI_M_CLK>,
 				 <&gcc GCC_PCIE0_AXI_S_CLK>,
 				 <&gcc GCC_PCIE0_AXI_S_BRIDGE_CLK>,

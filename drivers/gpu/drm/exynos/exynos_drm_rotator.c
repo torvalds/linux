@@ -18,10 +18,10 @@
 #include <linux/sizes.h>
 
 #include <drm/drm_fourcc.h>
-#include <drm/exynos_drm.h>
+#include <drm/exyanals_drm.h>
 
-#include "exynos_drm_drv.h"
-#include "exynos_drm_ipp.h"
+#include "exyanals_drm_drv.h"
+#include "exyanals_drm_ipp.h"
 #include "regs-rotator.h"
 
 /*
@@ -41,7 +41,7 @@ enum rot_irq_status {
 };
 
 struct rot_variant {
-	const struct exynos_drm_ipp_formats *formats;
+	const struct exyanals_drm_ipp_formats *formats;
 	unsigned int	num_formats;
 };
 
@@ -54,15 +54,15 @@ struct rot_variant {
  * @irq: irq number.
  */
 struct rot_context {
-	struct exynos_drm_ipp ipp;
+	struct exyanals_drm_ipp ipp;
 	struct drm_device *drm_dev;
 	void		*dma_priv;
 	struct device	*dev;
 	void __iomem	*regs;
 	struct clk	*clock;
-	const struct exynos_drm_ipp_formats *formats;
+	const struct exyanals_drm_ipp_formats *formats;
 	unsigned int	num_formats;
-	struct exynos_drm_ipp_task	*task;
+	struct exyanals_drm_ipp_task	*task;
 };
 
 static void rotator_reg_set_irq(struct rot_context *rot, bool enable)
@@ -104,12 +104,12 @@ static irqreturn_t rotator_irq_handler(int irq, void *arg)
 	rot_write(val, ROT_STATUS);
 
 	if (rot->task) {
-		struct exynos_drm_ipp_task *task = rot->task;
+		struct exyanals_drm_ipp_task *task = rot->task;
 
 		rot->task = NULL;
 		pm_runtime_mark_last_busy(rot->dev);
 		pm_runtime_put_autosuspend(rot->dev);
-		exynos_drm_ipp_task_done(task,
+		exyanals_drm_ipp_task_done(task,
 			irq_status == ROT_IRQ_STATUS_COMPLETE ? 0 : -EINVAL);
 	}
 
@@ -136,7 +136,7 @@ static void rotator_src_set_fmt(struct rot_context *rot, u32 fmt)
 }
 
 static void rotator_src_set_buf(struct rot_context *rot,
-				struct exynos_drm_ipp_buffer *buf)
+				struct exyanals_drm_ipp_buffer *buf)
 {
 	u32 val;
 
@@ -184,7 +184,7 @@ static void rotator_dst_set_transf(struct rot_context *rot,
 }
 
 static void rotator_dst_set_buf(struct rot_context *rot,
-				struct exynos_drm_ipp_buffer *buf)
+				struct exyanals_drm_ipp_buffer *buf)
 {
 	u32 val;
 
@@ -214,8 +214,8 @@ static void rotator_start(struct rot_context *rot)
 	rot_write(val, ROT_CONTROL);
 }
 
-static int rotator_commit(struct exynos_drm_ipp *ipp,
-			  struct exynos_drm_ipp_task *task)
+static int rotator_commit(struct exyanals_drm_ipp *ipp,
+			  struct exyanals_drm_ipp_task *task)
 {
 	struct rot_context *rot =
 			container_of(ipp, struct rot_context, ipp);
@@ -237,7 +237,7 @@ static int rotator_commit(struct exynos_drm_ipp *ipp,
 	return 0;
 }
 
-static const struct exynos_drm_ipp_funcs ipp_funcs = {
+static const struct exyanals_drm_ipp_funcs ipp_funcs = {
 	.commit = rotator_commit,
 };
 
@@ -245,17 +245,17 @@ static int rotator_bind(struct device *dev, struct device *master, void *data)
 {
 	struct rot_context *rot = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_ipp *ipp = &rot->ipp;
+	struct exyanals_drm_ipp *ipp = &rot->ipp;
 
 	rot->drm_dev = drm_dev;
 	ipp->drm_dev = drm_dev;
-	exynos_drm_register_dma(drm_dev, dev, &rot->dma_priv);
+	exyanals_drm_register_dma(drm_dev, dev, &rot->dma_priv);
 
-	exynos_drm_ipp_register(dev, ipp, &ipp_funcs,
-			   DRM_EXYNOS_IPP_CAP_CROP | DRM_EXYNOS_IPP_CAP_ROTATE,
+	exyanals_drm_ipp_register(dev, ipp, &ipp_funcs,
+			   DRM_EXYANALS_IPP_CAP_CROP | DRM_EXYANALS_IPP_CAP_ROTATE,
 			   rot->formats, rot->num_formats, "rotator");
 
-	dev_info(dev, "The exynos rotator has been probed successfully\n");
+	dev_info(dev, "The exyanals rotator has been probed successfully\n");
 
 	return 0;
 }
@@ -264,10 +264,10 @@ static void rotator_unbind(struct device *dev, struct device *master,
 			void *data)
 {
 	struct rot_context *rot = dev_get_drvdata(dev);
-	struct exynos_drm_ipp *ipp = &rot->ipp;
+	struct exyanals_drm_ipp *ipp = &rot->ipp;
 
-	exynos_drm_ipp_unregister(dev, ipp);
-	exynos_drm_unregister_dma(rot->drm_dev, rot->dev, &rot->dma_priv);
+	exyanals_drm_ipp_unregister(dev, ipp);
+	exyanals_drm_unregister_dma(rot->drm_dev, rot->dev, &rot->dma_priv);
 }
 
 static const struct component_ops rotator_component_ops = {
@@ -285,7 +285,7 @@ static int rotator_probe(struct platform_device *pdev)
 
 	rot = devm_kzalloc(dev, sizeof(*rot), GFP_KERNEL);
 	if (!rot)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	variant = of_device_get_match_data(dev);
 	rot->formats = variant->formats;
@@ -353,57 +353,57 @@ static int rotator_runtime_resume(struct device *dev)
 	return clk_prepare_enable(rot->clock);
 }
 
-static const struct drm_exynos_ipp_limit rotator_s5pv210_rbg888_limits[] = {
+static const struct drm_exyanals_ipp_limit rotator_s5pv210_rbg888_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 8, SZ_16K }, .v = { 8, SZ_16K }) },
 	{ IPP_SIZE_LIMIT(AREA, .h.align = 2, .v.align = 2) },
 };
 
-static const struct drm_exynos_ipp_limit rotator_4210_rbg888_limits[] = {
+static const struct drm_exyanals_ipp_limit rotator_4210_rbg888_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 8, SZ_16K }, .v = { 8, SZ_16K }) },
 	{ IPP_SIZE_LIMIT(AREA, .h.align = 4, .v.align = 4) },
 };
 
-static const struct drm_exynos_ipp_limit rotator_4412_rbg888_limits[] = {
+static const struct drm_exyanals_ipp_limit rotator_4412_rbg888_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 8, SZ_8K }, .v = { 8, SZ_8K }) },
 	{ IPP_SIZE_LIMIT(AREA, .h.align = 4, .v.align = 4) },
 };
 
-static const struct drm_exynos_ipp_limit rotator_5250_rbg888_limits[] = {
+static const struct drm_exyanals_ipp_limit rotator_5250_rbg888_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 8, SZ_8K }, .v = { 8, SZ_8K }) },
 	{ IPP_SIZE_LIMIT(AREA, .h.align = 2, .v.align = 2) },
 };
 
-static const struct drm_exynos_ipp_limit rotator_s5pv210_yuv_limits[] = {
+static const struct drm_exyanals_ipp_limit rotator_s5pv210_yuv_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 32, SZ_64K }, .v = { 32, SZ_64K }) },
 	{ IPP_SIZE_LIMIT(AREA, .h.align = 8, .v.align = 8) },
 };
 
-static const struct drm_exynos_ipp_limit rotator_4210_yuv_limits[] = {
+static const struct drm_exyanals_ipp_limit rotator_4210_yuv_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 32, SZ_64K }, .v = { 32, SZ_64K }) },
 	{ IPP_SIZE_LIMIT(AREA, .h.align = 8, .v.align = 8) },
 };
 
-static const struct drm_exynos_ipp_limit rotator_4412_yuv_limits[] = {
+static const struct drm_exyanals_ipp_limit rotator_4412_yuv_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 32, SZ_32K }, .v = { 32, SZ_32K }) },
 	{ IPP_SIZE_LIMIT(AREA, .h.align = 8, .v.align = 8) },
 };
 
-static const struct exynos_drm_ipp_formats rotator_s5pv210_formats[] = {
+static const struct exyanals_drm_ipp_formats rotator_s5pv210_formats[] = {
 	{ IPP_SRCDST_FORMAT(XRGB8888, rotator_s5pv210_rbg888_limits) },
 	{ IPP_SRCDST_FORMAT(NV12, rotator_s5pv210_yuv_limits) },
 };
 
-static const struct exynos_drm_ipp_formats rotator_4210_formats[] = {
+static const struct exyanals_drm_ipp_formats rotator_4210_formats[] = {
 	{ IPP_SRCDST_FORMAT(XRGB8888, rotator_4210_rbg888_limits) },
 	{ IPP_SRCDST_FORMAT(NV12, rotator_4210_yuv_limits) },
 };
 
-static const struct exynos_drm_ipp_formats rotator_4412_formats[] = {
+static const struct exyanals_drm_ipp_formats rotator_4412_formats[] = {
 	{ IPP_SRCDST_FORMAT(XRGB8888, rotator_4412_rbg888_limits) },
 	{ IPP_SRCDST_FORMAT(NV12, rotator_4412_yuv_limits) },
 };
 
-static const struct exynos_drm_ipp_formats rotator_5250_formats[] = {
+static const struct exyanals_drm_ipp_formats rotator_5250_formats[] = {
 	{ IPP_SRCDST_FORMAT(XRGB8888, rotator_5250_rbg888_limits) },
 	{ IPP_SRCDST_FORMAT(NV12, rotator_4412_yuv_limits) },
 };
@@ -428,23 +428,23 @@ static const struct rot_variant rotator_5250_data = {
 	.num_formats = ARRAY_SIZE(rotator_5250_formats),
 };
 
-static const struct of_device_id exynos_rotator_match[] = {
+static const struct of_device_id exyanals_rotator_match[] = {
 	{
 		.compatible = "samsung,s5pv210-rotator",
 		.data = &rotator_s5pv210_data,
 	}, {
-		.compatible = "samsung,exynos4210-rotator",
+		.compatible = "samsung,exyanals4210-rotator",
 		.data = &rotator_4210_data,
 	}, {
-		.compatible = "samsung,exynos4212-rotator",
+		.compatible = "samsung,exyanals4212-rotator",
 		.data = &rotator_4412_data,
 	}, {
-		.compatible = "samsung,exynos5250-rotator",
+		.compatible = "samsung,exyanals5250-rotator",
 		.data = &rotator_5250_data,
 	}, {
 	},
 };
-MODULE_DEVICE_TABLE(of, exynos_rotator_match);
+MODULE_DEVICE_TABLE(of, exyanals_rotator_match);
 
 static DEFINE_RUNTIME_DEV_PM_OPS(rotator_pm_ops, rotator_runtime_suspend,
 				 rotator_runtime_resume, NULL);
@@ -453,9 +453,9 @@ struct platform_driver rotator_driver = {
 	.probe		= rotator_probe,
 	.remove_new	= rotator_remove,
 	.driver		= {
-		.name	= "exynos-rotator",
+		.name	= "exyanals-rotator",
 		.owner	= THIS_MODULE,
 		.pm	= pm_ptr(&rotator_pm_ops),
-		.of_match_table = exynos_rotator_match,
+		.of_match_table = exyanals_rotator_match,
 	},
 };

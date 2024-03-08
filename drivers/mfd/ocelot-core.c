@@ -4,10 +4,10 @@
  *
  * The VSC7511, 7512, 7513, and 7514 can be controlled internally via an
  * on-chip MIPS processor, or externally via SPI, I2C, PCIe. This core driver is
- * intended to be the bus-agnostic glue between, for example, the SPI bus and
+ * intended to be the bus-aganalstic glue between, for example, the SPI bus and
  * the child devices.
  *
- * Copyright 2021-2022 Innovative Advantage Inc.
+ * Copyright 2021-2022 Inanalvative Advantage Inc.
  *
  * Author: Colin Foster <colin.foster@in-advantage.com>
  */
@@ -101,7 +101,7 @@ int ocelot_chip_reset(struct device *dev)
 	int ret, val;
 
 	/*
-	 * Reset the entire chip here to put it into a completely known state.
+	 * Reset the entire chip here to put it into a completely kanalwn state.
 	 * Other drivers may want to reset their own subsystems. The register
 	 * self-clears, so one write is all that is needed and wait for it to
 	 * clear.

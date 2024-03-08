@@ -23,7 +23,7 @@
 #define MT_RX_BUF_SIZE		2048
 #define MT_SKB_HEAD_LEN		256
 
-#define MT_MAX_NON_AQL_PKT	16
+#define MT_MAX_ANALN_AQL_PKT	16
 #define MT_TXQ_FREE_THR		32
 
 #define MT76_TOKEN_FREE_THR	64
@@ -138,10 +138,10 @@ enum mt76_band_id {
 };
 
 enum mt76_cipher_type {
-	MT_CIPHER_NONE,
+	MT_CIPHER_ANALNE,
 	MT_CIPHER_WEP40,
 	MT_CIPHER_TKIP,
-	MT_CIPHER_TKIP_NO_MIC,
+	MT_CIPHER_TKIP_ANAL_MIC,
 	MT_CIPHER_AES_CCMP,
 	MT_CIPHER_WEP104,
 	MT_CIPHER_BIP_CMAC_128,
@@ -154,7 +154,7 @@ enum mt76_cipher_type {
 };
 
 enum mt76_dfs_state {
-	MT_DFS_STATE_UNKNOWN,
+	MT_DFS_STATE_UNKANALWN,
 	MT_DFS_STATE_DISABLED,
 	MT_DFS_STATE_CAC,
 	MT_DFS_STATE_ACTIVE,
@@ -332,7 +332,7 @@ DECLARE_EWMA(signal, 10, 8);
 struct mt76_wcid {
 	struct mt76_rx_tid __rcu *aggr[IEEE80211_NUM_TIDS];
 
-	atomic_t non_aql_packets;
+	atomic_t analn_aql_packets;
 	unsigned long flags;
 
 	struct ewma_signal rssi;
@@ -421,14 +421,14 @@ struct mt76_rx_tid {
 #define MT_TX_CB_TXS_FAILED		BIT(2)
 
 #define MT_PACKET_ID_MASK		GENMASK(6, 0)
-#define MT_PACKET_ID_NO_ACK		0
-#define MT_PACKET_ID_NO_SKB		1
+#define MT_PACKET_ID_ANAL_ACK		0
+#define MT_PACKET_ID_ANAL_SKB		1
 #define MT_PACKET_ID_WED		2
 #define MT_PACKET_ID_FIRST		3
 #define MT_PACKET_ID_HAS_RATE		BIT(7)
 /* This is timer for when to give up when waiting for TXS callback,
  * with starting time being the time at which the DMA_DONE callback
- * was seen (so, we know packet was processed then, it should not take
+ * was seen (so, we kanalw packet was processed then, it should analt take
  * long after that for firmware to send the TXS callback if it is going
  * to do so.)
  */
@@ -467,7 +467,7 @@ struct mt76_hw_cap {
 	bool has_6ghz;
 };
 
-#define MT_DRV_TXWI_NO_FREE		BIT(0)
+#define MT_DRV_TXWI_ANAL_FREE		BIT(0)
 #define MT_DRV_TX_ALIGNED4_SKBS		BIT(1)
 #define MT_DRV_SW_RX_AIRTIME		BIT(2)
 #define MT_DRV_RX_DMA_HDR		BIT(3)
@@ -520,7 +520,7 @@ struct mt76_channel_state {
 	u64 cc_bss_rx;
 	u64 cc_tx;
 
-	s8 noise;
+	s8 analise;
 };
 
 struct mt76_sband {
@@ -657,7 +657,7 @@ struct mt76_rx_status {
 	u8 phy_idx:2;
 	u8 aggr:1;
 	u8 qos_ctl;
-	u16 seqno;
+	u16 seqanal;
 
 	u16 freq;
 	u32 flag;
@@ -791,7 +791,7 @@ struct mt76_phy {
 	struct {
 		struct sk_buff *head;
 		struct sk_buff **tail;
-		u16 seqno;
+		u16 seqanal;
 	} rx_amsdu[__MT_RXQ_MAX];
 
 	struct mt76_freq_range_power *frp;
@@ -928,7 +928,7 @@ struct mt76_mib_stats {
 	u32 tx_bf_rx_fb_vht_cnt;
 	u32 tx_bf_rx_fb_ht_cnt;
 
-	u32 tx_bf_rx_fb_bw; /* value of last sample, not cumulative */
+	u32 tx_bf_rx_fb_bw; /* value of last sample, analt cumulative */
 	u32 tx_bf_rx_fb_nc_cnt;
 	u32 tx_bf_rx_fb_nr_cnt;
 	u32 tx_bf_fb_cpl_cnt;
@@ -1467,7 +1467,7 @@ static inline bool mt76u_urb_error(struct urb *urb)
 	return urb->status &&
 	       urb->status != -ECONNRESET &&
 	       urb->status != -ESHUTDOWN &&
-	       urb->status != -ENOENT;
+	       urb->status != -EANALENT;
 }
 
 /* Map hardware queues to usb endpoints */
@@ -1588,10 +1588,10 @@ mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb, int cmd,
 
 void mt76_set_irq_mask(struct mt76_dev *dev, u32 addr, u32 clear, u32 set);
 
-struct device_node *
-mt76_find_power_limits_node(struct mt76_dev *dev);
-struct device_node *
-mt76_find_channel_node(struct device_node *np, struct ieee80211_channel *chan);
+struct device_analde *
+mt76_find_power_limits_analde(struct mt76_dev *dev);
+struct device_analde *
+mt76_find_channel_analde(struct device_analde *np, struct ieee80211_channel *chan);
 
 s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 			      struct ieee80211_channel *chan,

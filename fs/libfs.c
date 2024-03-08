@@ -20,7 +20,7 @@
 #include <linux/buffer_head.h> /* sync_mapping_buffers */
 #include <linux/fs_context.h>
 #include <linux/pseudo_fs.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/unicode.h>
 #include <linux/fscrypt.h>
 
@@ -32,9 +32,9 @@ int simple_getattr(struct mnt_idmap *idmap, const struct path *path,
 		   struct kstat *stat, u32 request_mask,
 		   unsigned int query_flags)
 {
-	struct inode *inode = d_inode(path->dentry);
-	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
-	stat->blocks = inode->i_mapping->nrpages << (PAGE_SHIFT - 9);
+	struct ianalde *ianalde = d_ianalde(path->dentry);
+	generic_fillattr(&analp_mnt_idmap, request_mask, ianalde, stat);
+	stat->blocks = ianalde->i_mapping->nrpages << (PAGE_SHIFT - 9);
 	return 0;
 }
 EXPORT_SYMBOL(simple_getattr);
@@ -68,9 +68,9 @@ EXPORT_SYMBOL(simple_dentry_operations);
 
 /*
  * Lookup the data. This is trivial - if the dentry didn't already
- * exist, we know it is negative.  Set d_op to delete negative dentries.
+ * exist, we kanalw it is negative.  Set d_op to delete negative dentries.
  */
-struct dentry *simple_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+struct dentry *simple_lookup(struct ianalde *dir, struct dentry *dentry, unsigned int flags)
 {
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -81,15 +81,15 @@ struct dentry *simple_lookup(struct inode *dir, struct dentry *dentry, unsigned 
 }
 EXPORT_SYMBOL(simple_lookup);
 
-int dcache_dir_open(struct inode *inode, struct file *file)
+int dcache_dir_open(struct ianalde *ianalde, struct file *file)
 {
 	file->private_data = d_alloc_cursor(file->f_path.dentry);
 
-	return file->private_data ? 0 : -ENOMEM;
+	return file->private_data ? 0 : -EANALMEM;
 }
 EXPORT_SYMBOL(dcache_dir_open);
 
-int dcache_dir_close(struct inode *inode, struct file *file)
+int dcache_dir_close(struct ianalde *ianalde, struct file *file)
 {
 	dput(file->private_data);
 	return 0;
@@ -101,10 +101,10 @@ EXPORT_SYMBOL(dcache_dir_close);
  * Returns an element of siblings' list.
  * We are looking for <count>th positive after <p>; if
  * found, dentry is grabbed and returned to caller.
- * If no such element exists, NULL is returned.
+ * If anal such element exists, NULL is returned.
  */
 static struct dentry *scan_positives(struct dentry *cursor,
-					struct hlist_node **p,
+					struct hlist_analde **p,
 					loff_t count,
 					struct dentry *last)
 {
@@ -159,7 +159,7 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 		struct dentry *cursor = file->private_data;
 		struct dentry *to = NULL;
 
-		inode_lock_shared(dentry->d_inode);
+		ianalde_lock_shared(dentry->d_ianalde);
 
 		if (offset > 2)
 			to = scan_positives(cursor, &dentry->d_children.first,
@@ -173,7 +173,7 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 
 		file->f_pos = offset;
 
-		inode_unlock_shared(dentry->d_inode);
+		ianalde_unlock_shared(dentry->d_ianalde);
 	}
 	return offset;
 }
@@ -190,7 +190,7 @@ int dcache_readdir(struct file *file, struct dir_context *ctx)
 	struct dentry *dentry = file->f_path.dentry;
 	struct dentry *cursor = file->private_data;
 	struct dentry *next = NULL;
-	struct hlist_node **p;
+	struct hlist_analde **p;
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
@@ -202,8 +202,8 @@ int dcache_readdir(struct file *file, struct dir_context *ctx)
 
 	while ((next = scan_positives(cursor, p, 1, next)) != NULL) {
 		if (!dir_emit(ctx, next->d_name.name, next->d_name.len,
-			      d_inode(next)->i_ino,
-			      fs_umode_to_dtype(d_inode(next)->i_mode)))
+			      d_ianalde(next)->i_ianal,
+			      fs_umode_to_dtype(d_ianalde(next)->i_mode)))
 			break;
 		ctx->pos++;
 		p = &next->d_sib.next;
@@ -231,14 +231,14 @@ const struct file_operations simple_dir_operations = {
 	.llseek		= dcache_dir_lseek,
 	.read		= generic_read_dir,
 	.iterate_shared	= dcache_readdir,
-	.fsync		= noop_fsync,
+	.fsync		= analop_fsync,
 };
 EXPORT_SYMBOL(simple_dir_operations);
 
-const struct inode_operations simple_dir_inode_operations = {
+const struct ianalde_operations simple_dir_ianalde_operations = {
 	.lookup		= simple_lookup,
 };
-EXPORT_SYMBOL(simple_dir_inode_operations);
+EXPORT_SYMBOL(simple_dir_ianalde_operations);
 
 static void offset_set(struct dentry *dentry, u32 offset)
 {
@@ -272,7 +272,7 @@ void simple_offset_init(struct offset_ctx *octx)
  * @dentry: new dentry being added
  *
  * Returns zero on success. @so_ctx and the dentry offset are updated.
- * Otherwise, a negative errno value is returned.
+ * Otherwise, a negative erranal value is returned.
  */
 int simple_offset_add(struct offset_ctx *octx, struct dentry *dentry)
 {
@@ -317,12 +317,12 @@ void simple_offset_remove(struct offset_ctx *octx, struct dentry *dentry)
  * @new_dir: destination parent
  * @new_dentry: destination dentry
  *
- * Returns zero on success. Otherwise a negative errno is returned and the
+ * Returns zero on success. Otherwise a negative erranal is returned and the
  * rename is rolled back.
  */
-int simple_offset_rename_exchange(struct inode *old_dir,
+int simple_offset_rename_exchange(struct ianalde *old_dir,
 				  struct dentry *old_dentry,
-				  struct inode *new_dir,
+				  struct ianalde *new_dir,
 				  struct dentry *new_dentry)
 {
 	struct offset_ctx *old_ctx = old_dir->i_op->get_offset_ctx(old_dir);
@@ -378,10 +378,10 @@ void simple_offset_destroy(struct offset_ctx *octx)
  * @offset: a byte offset
  * @whence: enumerator describing the starting position for this update
  *
- * SEEK_END, SEEK_DATA, and SEEK_HOLE are not supported for directories.
+ * SEEK_END, SEEK_DATA, and SEEK_HOLE are analt supported for directories.
  *
  * Returns the updated read position if successful; otherwise a
- * negative errno is returned and the read position remains unchanged.
+ * negative erranal is returned and the read position remains unchanged.
  */
 static loff_t offset_dir_llseek(struct file *file, loff_t offset, int whence)
 {
@@ -422,22 +422,22 @@ out:
 static bool offset_dir_emit(struct dir_context *ctx, struct dentry *dentry)
 {
 	u32 offset = dentry2offset(dentry);
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 
 	return ctx->actor(ctx, dentry->d_name.name, dentry->d_name.len, offset,
-			  inode->i_ino, fs_umode_to_dtype(inode->i_mode));
+			  ianalde->i_ianal, fs_umode_to_dtype(ianalde->i_mode));
 }
 
-static void *offset_iterate_dir(struct inode *inode, struct dir_context *ctx)
+static void *offset_iterate_dir(struct ianalde *ianalde, struct dir_context *ctx)
 {
-	struct offset_ctx *so_ctx = inode->i_op->get_offset_ctx(inode);
+	struct offset_ctx *so_ctx = ianalde->i_op->get_offset_ctx(ianalde);
 	XA_STATE(xas, &so_ctx->xa, ctx->pos);
 	struct dentry *dentry;
 
 	while (true) {
 		dentry = offset_find_next(&xas);
 		if (!dentry)
-			return ERR_PTR(-ENOENT);
+			return ERR_PTR(-EANALENT);
 
 		if (!offset_dir_emit(ctx, dentry)) {
 			dput(dentry);
@@ -461,8 +461,8 @@ static void *offset_iterate_dir(struct inode *inode, struct dir_context *ctx)
  * On entry, @ctx->pos contains an offset that represents the first entry
  * to be read from the directory.
  *
- * The operation continues until there are no more entries to read, or
- * until the ctx->actor indicates there is no more space in the caller's
+ * The operation continues until there are anal more entries to read, or
+ * until the ctx->actor indicates there is anal more space in the caller's
  * output buffer.
  *
  * On return, @ctx->pos contains an offset that will read the next entry
@@ -475,7 +475,7 @@ static int offset_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct dentry *dir = file->f_path.dentry;
 
-	lockdep_assert_held(&d_inode(dir)->i_rwsem);
+	lockdep_assert_held(&d_ianalde(dir)->i_rwsem);
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
@@ -483,9 +483,9 @@ static int offset_readdir(struct file *file, struct dir_context *ctx)
 	/* In this case, ->private_data is protected by f_pos_lock */
 	if (ctx->pos == 2)
 		file->private_data = NULL;
-	else if (file->private_data == ERR_PTR(-ENOENT))
+	else if (file->private_data == ERR_PTR(-EANALENT))
 		return 0;
-	file->private_data = offset_iterate_dir(d_inode(dir), ctx);
+	file->private_data = offset_iterate_dir(d_ianalde(dir), ctx);
 	return 0;
 }
 
@@ -493,7 +493,7 @@ const struct file_operations simple_offset_dir_operations = {
 	.llseek		= offset_dir_llseek,
 	.iterate_shared	= offset_readdir,
 	.read		= generic_read_dir,
-	.fsync		= noop_fsync,
+	.fsync		= analop_fsync,
 };
 
 static struct dentry *find_next_child(struct dentry *parent, struct dentry *prev)
@@ -523,42 +523,42 @@ void simple_recursive_removal(struct dentry *dentry,
 	struct dentry *this = dget(dentry);
 	while (true) {
 		struct dentry *victim = NULL, *child;
-		struct inode *inode = this->d_inode;
+		struct ianalde *ianalde = this->d_ianalde;
 
-		inode_lock(inode);
+		ianalde_lock(ianalde);
 		if (d_is_dir(this))
-			inode->i_flags |= S_DEAD;
+			ianalde->i_flags |= S_DEAD;
 		while ((child = find_next_child(this, victim)) == NULL) {
 			// kill and ascend
 			// update metadata while it's still locked
-			inode_set_ctime_current(inode);
-			clear_nlink(inode);
-			inode_unlock(inode);
+			ianalde_set_ctime_current(ianalde);
+			clear_nlink(ianalde);
+			ianalde_unlock(ianalde);
 			victim = this;
 			this = this->d_parent;
-			inode = this->d_inode;
-			inode_lock(inode);
+			ianalde = this->d_ianalde;
+			ianalde_lock(ianalde);
 			if (simple_positive(victim)) {
 				d_invalidate(victim);	// avoid lost mounts
 				if (d_is_dir(victim))
-					fsnotify_rmdir(inode, victim);
+					fsanaltify_rmdir(ianalde, victim);
 				else
-					fsnotify_unlink(inode, victim);
+					fsanaltify_unlink(ianalde, victim);
 				if (callback)
 					callback(victim);
 				dput(victim);		// unpin it
 			}
 			if (victim == dentry) {
-				inode_set_mtime_to_ts(inode,
-						      inode_set_ctime_current(inode));
+				ianalde_set_mtime_to_ts(ianalde,
+						      ianalde_set_ctime_current(ianalde));
 				if (d_is_dir(dentry))
-					drop_nlink(inode);
-				inode_unlock(inode);
+					drop_nlink(ianalde);
+				ianalde_unlock(ianalde);
 				dput(dentry);
 				return;
 			}
 		}
-		inode_unlock(inode);
+		ianalde_unlock(ianalde);
 		this = child;
 	}
 }
@@ -571,7 +571,7 @@ static const struct super_operations simple_super_operations = {
 static int pseudo_fs_fill_super(struct super_block *s, struct fs_context *fc)
 {
 	struct pseudo_fs_context *ctx = fc->fs_private;
-	struct inode *root;
+	struct ianalde *root;
 
 	s->s_maxbytes = MAX_LFS_FILESIZE;
 	s->s_blocksize = PAGE_SIZE;
@@ -580,28 +580,28 @@ static int pseudo_fs_fill_super(struct super_block *s, struct fs_context *fc)
 	s->s_op = ctx->ops ?: &simple_super_operations;
 	s->s_xattr = ctx->xattr;
 	s->s_time_gran = 1;
-	root = new_inode(s);
+	root = new_ianalde(s);
 	if (!root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * since this is the first inode, make it number 1. New inodes created
-	 * after this must take care not to collide with it (by passing
+	 * since this is the first ianalde, make it number 1. New ianaldes created
+	 * after this must take care analt to collide with it (by passing
 	 * max_reserved of 1 to iunique).
 	 */
-	root->i_ino = 1;
+	root->i_ianal = 1;
 	root->i_mode = S_IFDIR | S_IRUSR | S_IWUSR;
-	simple_inode_init_ts(root);
+	simple_ianalde_init_ts(root);
 	s->s_root = d_make_root(root);
 	if (!s->s_root)
-		return -ENOMEM;
+		return -EANALMEM;
 	s->s_d_op = ctx->dops;
 	return 0;
 }
 
 static int pseudo_fs_get_tree(struct fs_context *fc)
 {
-	return get_tree_nodev(fc, pseudo_fs_fill_super);
+	return get_tree_analdev(fc, pseudo_fs_fill_super);
 }
 
 static void pseudo_fs_free(struct fs_context *fc)
@@ -628,31 +628,31 @@ struct pseudo_fs_context *init_pseudo(struct fs_context *fc,
 		ctx->magic = magic;
 		fc->fs_private = ctx;
 		fc->ops = &pseudo_fs_context_ops;
-		fc->sb_flags |= SB_NOUSER;
+		fc->sb_flags |= SB_ANALUSER;
 		fc->global = true;
 	}
 	return ctx;
 }
 EXPORT_SYMBOL(init_pseudo);
 
-int simple_open(struct inode *inode, struct file *file)
+int simple_open(struct ianalde *ianalde, struct file *file)
 {
-	if (inode->i_private)
-		file->private_data = inode->i_private;
+	if (ianalde->i_private)
+		file->private_data = ianalde->i_private;
 	return 0;
 }
 EXPORT_SYMBOL(simple_open);
 
-int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
+int simple_link(struct dentry *old_dentry, struct ianalde *dir, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(old_dentry);
+	struct ianalde *ianalde = d_ianalde(old_dentry);
 
-	inode_set_mtime_to_ts(dir,
-			      inode_set_ctime_to_ts(dir, inode_set_ctime_current(inode)));
-	inc_nlink(inode);
-	ihold(inode);
+	ianalde_set_mtime_to_ts(dir,
+			      ianalde_set_ctime_to_ts(dir, ianalde_set_ctime_current(ianalde)));
+	inc_nlink(ianalde);
+	ihold(ianalde);
 	dget(dentry);
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, ianalde);
 	return 0;
 }
 EXPORT_SYMBOL(simple_link);
@@ -678,24 +678,24 @@ out:
 }
 EXPORT_SYMBOL(simple_empty);
 
-int simple_unlink(struct inode *dir, struct dentry *dentry)
+int simple_unlink(struct ianalde *dir, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 
-	inode_set_mtime_to_ts(dir,
-			      inode_set_ctime_to_ts(dir, inode_set_ctime_current(inode)));
-	drop_nlink(inode);
+	ianalde_set_mtime_to_ts(dir,
+			      ianalde_set_ctime_to_ts(dir, ianalde_set_ctime_current(ianalde)));
+	drop_nlink(ianalde);
 	dput(dentry);
 	return 0;
 }
 EXPORT_SYMBOL(simple_unlink);
 
-int simple_rmdir(struct inode *dir, struct dentry *dentry)
+int simple_rmdir(struct ianalde *dir, struct dentry *dentry)
 {
 	if (!simple_empty(dentry))
-		return -ENOTEMPTY;
+		return -EANALTEMPTY;
 
-	drop_nlink(d_inode(dentry));
+	drop_nlink(d_ianalde(dentry));
 	simple_unlink(dir, dentry);
 	drop_nlink(dir);
 	return 0;
@@ -703,33 +703,33 @@ int simple_rmdir(struct inode *dir, struct dentry *dentry)
 EXPORT_SYMBOL(simple_rmdir);
 
 /**
- * simple_rename_timestamp - update the various inode timestamps for rename
+ * simple_rename_timestamp - update the various ianalde timestamps for rename
  * @old_dir: old parent directory
  * @old_dentry: dentry that is being renamed
  * @new_dir: new parent directory
  * @new_dentry: target for rename
  *
  * POSIX mandates that the old and new parent directories have their ctime and
- * mtime updated, and that inodes of @old_dentry and @new_dentry (if any), have
+ * mtime updated, and that ianaldes of @old_dentry and @new_dentry (if any), have
  * their ctime updated.
  */
-void simple_rename_timestamp(struct inode *old_dir, struct dentry *old_dentry,
-			     struct inode *new_dir, struct dentry *new_dentry)
+void simple_rename_timestamp(struct ianalde *old_dir, struct dentry *old_dentry,
+			     struct ianalde *new_dir, struct dentry *new_dentry)
 {
-	struct inode *newino = d_inode(new_dentry);
+	struct ianalde *newianal = d_ianalde(new_dentry);
 
-	inode_set_mtime_to_ts(old_dir, inode_set_ctime_current(old_dir));
+	ianalde_set_mtime_to_ts(old_dir, ianalde_set_ctime_current(old_dir));
 	if (new_dir != old_dir)
-		inode_set_mtime_to_ts(new_dir,
-				      inode_set_ctime_current(new_dir));
-	inode_set_ctime_current(d_inode(old_dentry));
-	if (newino)
-		inode_set_ctime_current(newino);
+		ianalde_set_mtime_to_ts(new_dir,
+				      ianalde_set_ctime_current(new_dir));
+	ianalde_set_ctime_current(d_ianalde(old_dentry));
+	if (newianal)
+		ianalde_set_ctime_current(newianal);
 }
 EXPORT_SYMBOL_GPL(simple_rename_timestamp);
 
-int simple_rename_exchange(struct inode *old_dir, struct dentry *old_dentry,
-			   struct inode *new_dir, struct dentry *new_dentry)
+int simple_rename_exchange(struct ianalde *old_dir, struct dentry *old_dentry,
+			   struct ianalde *new_dir, struct dentry *new_dentry)
 {
 	bool old_is_dir = d_is_dir(old_dentry);
 	bool new_is_dir = d_is_dir(new_dentry);
@@ -748,25 +748,25 @@ int simple_rename_exchange(struct inode *old_dir, struct dentry *old_dentry,
 }
 EXPORT_SYMBOL_GPL(simple_rename_exchange);
 
-int simple_rename(struct mnt_idmap *idmap, struct inode *old_dir,
-		  struct dentry *old_dentry, struct inode *new_dir,
+int simple_rename(struct mnt_idmap *idmap, struct ianalde *old_dir,
+		  struct dentry *old_dentry, struct ianalde *new_dir,
 		  struct dentry *new_dentry, unsigned int flags)
 {
 	int they_are_dirs = d_is_dir(old_dentry);
 
-	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE))
+	if (flags & ~(RENAME_ANALREPLACE | RENAME_EXCHANGE))
 		return -EINVAL;
 
 	if (flags & RENAME_EXCHANGE)
 		return simple_rename_exchange(old_dir, old_dentry, new_dir, new_dentry);
 
 	if (!simple_empty(new_dentry))
-		return -ENOTEMPTY;
+		return -EANALTEMPTY;
 
 	if (d_really_is_positive(new_dentry)) {
 		simple_unlink(new_dir, new_dentry);
 		if (they_are_dirs) {
-			drop_nlink(d_inode(new_dentry));
+			drop_nlink(d_ianalde(new_dentry));
 			drop_nlink(old_dir);
 		}
 	} else if (they_are_dirs) {
@@ -797,7 +797,7 @@ EXPORT_SYMBOL(simple_rename);
 int simple_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		   struct iattr *iattr)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	int error;
 
 	error = setattr_prepare(idmap, dentry, iattr);
@@ -805,9 +805,9 @@ int simple_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		return error;
 
 	if (iattr->ia_valid & ATTR_SIZE)
-		truncate_setsize(inode, iattr->ia_size);
-	setattr_copy(idmap, inode, iattr);
-	mark_inode_dirty(inode);
+		truncate_setsize(ianalde, iattr->ia_size);
+	setattr_copy(idmap, ianalde, iattr);
+	mark_ianalde_dirty(ianalde);
 	return 0;
 }
 EXPORT_SYMBOL(simple_setattr);
@@ -845,7 +845,7 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 EXPORT_SYMBOL(simple_write_begin);
 
 /**
- * simple_write_end - .write_end helper for non-block-device FSes
+ * simple_write_end - .write_end helper for analn-block-device FSes
  * @file: See .write_end of address_space_operations
  * @mapping: 		"
  * @pos: 		"
@@ -859,9 +859,9 @@ EXPORT_SYMBOL(simple_write_begin);
  * address_space_operations vector. So it can just be set onto .write_end for
  * FSes that don't need any other processing. i_mutex is assumed to be held.
  * Block based filesystems should use generic_write_end().
- * NOTE: Even though i_size might get updated by this function, mark_inode_dirty
- * is not called, so a filesystem that actually does store data in .write_inode
- * should extend on what's done here with a call to mark_inode_dirty() in the
+ * ANALTE: Even though i_size might get updated by this function, mark_ianalde_dirty
+ * is analt called, so a filesystem that actually does store data in .write_ianalde
+ * should extend on what's done here with a call to mark_ianalde_dirty() in the
  * case that i_size has changed.
  *
  * Use *ONLY* with simple_read_folio()
@@ -871,7 +871,7 @@ static int simple_write_end(struct file *file, struct address_space *mapping,
 			struct page *page, void *fsdata)
 {
 	struct folio *folio = page_folio(page);
-	struct inode *inode = folio->mapping->host;
+	struct ianalde *ianalde = folio->mapping->host;
 	loff_t last_pos = pos + copied;
 
 	/* zero the stale part of the folio if we did a short copy */
@@ -884,11 +884,11 @@ static int simple_write_end(struct file *file, struct address_space *mapping,
 		folio_mark_uptodate(folio);
 	}
 	/*
-	 * No need to use i_size_read() here, the i_size
-	 * cannot change under us because we hold the i_mutex.
+	 * Anal need to use i_size_read() here, the i_size
+	 * cananalt change under us because we hold the i_mutex.
 	 */
-	if (last_pos > inode->i_size)
-		i_size_write(inode, last_pos);
+	if (last_pos > ianalde->i_size)
+		i_size_write(ianalde, last_pos);
 
 	folio_mark_dirty(folio);
 	folio_unlock(folio);
@@ -898,25 +898,25 @@ static int simple_write_end(struct file *file, struct address_space *mapping,
 }
 
 /*
- * Provides ramfs-style behavior: data in the pagecache, but no writeback.
+ * Provides ramfs-style behavior: data in the pagecache, but anal writeback.
  */
 const struct address_space_operations ram_aops = {
 	.read_folio	= simple_read_folio,
 	.write_begin	= simple_write_begin,
 	.write_end	= simple_write_end,
-	.dirty_folio	= noop_dirty_folio,
+	.dirty_folio	= analop_dirty_folio,
 };
 EXPORT_SYMBOL(ram_aops);
 
 /*
- * the inodes created here are not hashed. If you use iunique to generate
- * unique inode values later for this filesystem, then you must take care
+ * the ianaldes created here are analt hashed. If you use iunique to generate
+ * unique ianalde values later for this filesystem, then you must take care
  * to pass it an appropriate max_reserved value to avoid collisions.
  */
 int simple_fill_super(struct super_block *s, unsigned long magic,
 		      const struct tree_descr *files)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct dentry *dentry;
 	int i;
 
@@ -926,27 +926,27 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 	s->s_op = &simple_super_operations;
 	s->s_time_gran = 1;
 
-	inode = new_inode(s);
-	if (!inode)
-		return -ENOMEM;
+	ianalde = new_ianalde(s);
+	if (!ianalde)
+		return -EANALMEM;
 	/*
-	 * because the root inode is 1, the files array must not contain an
+	 * because the root ianalde is 1, the files array must analt contain an
 	 * entry at index 1
 	 */
-	inode->i_ino = 1;
-	inode->i_mode = S_IFDIR | 0755;
-	simple_inode_init_ts(inode);
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
-	set_nlink(inode, 2);
-	s->s_root = d_make_root(inode);
+	ianalde->i_ianal = 1;
+	ianalde->i_mode = S_IFDIR | 0755;
+	simple_ianalde_init_ts(ianalde);
+	ianalde->i_op = &simple_dir_ianalde_operations;
+	ianalde->i_fop = &simple_dir_operations;
+	set_nlink(ianalde, 2);
+	s->s_root = d_make_root(ianalde);
 	if (!s->s_root)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; !files->name || files->name[0]; i++, files++) {
 		if (!files->name)
 			continue;
 
-		/* warn if it tries to conflict with the root inode */
+		/* warn if it tries to conflict with the root ianalde */
 		if (unlikely(i == 1))
 			printk(KERN_WARNING "%s: %s passed in a files array"
 				"with an index of 1!\n", __func__,
@@ -954,17 +954,17 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 
 		dentry = d_alloc_name(s->s_root, files->name);
 		if (!dentry)
-			return -ENOMEM;
-		inode = new_inode(s);
-		if (!inode) {
+			return -EANALMEM;
+		ianalde = new_ianalde(s);
+		if (!ianalde) {
 			dput(dentry);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
-		inode->i_mode = S_IFREG | files->mode;
-		simple_inode_init_ts(inode);
-		inode->i_fop = files->ops;
-		inode->i_ino = i;
-		d_add(dentry, inode);
+		ianalde->i_mode = S_IFREG | files->mode;
+		simple_ianalde_init_ts(ianalde);
+		ianalde->i_fop = files->ops;
+		ianalde->i_ianal = i;
+		d_add(dentry, ianalde);
 	}
 	return 0;
 }
@@ -1139,7 +1139,7 @@ char *simple_transaction_get(struct file *file, const char __user *buf, size_t s
 
 	ar = (struct simple_transaction_argresp *)get_zeroed_page(GFP_KERNEL);
 	if (!ar)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock(&simple_transaction_lock);
 
@@ -1171,7 +1171,7 @@ ssize_t simple_transaction_read(struct file *file, char __user *buf, size_t size
 }
 EXPORT_SYMBOL(simple_transaction_read);
 
-int simple_transaction_release(struct inode *inode, struct file *file)
+int simple_transaction_release(struct ianalde *ianalde, struct file *file)
 {
 	free_page((unsigned long)file->private_data);
 	return 0;
@@ -1183,7 +1183,7 @@ EXPORT_SYMBOL(simple_transaction_release);
 struct simple_attr {
 	int (*get)(void *, u64 *);
 	int (*set)(void *, u64);
-	char get_buf[24];	/* enough to store a u64 and "\n\0" */
+	char get_buf[24];	/* eanalugh to store a u64 and "\n\0" */
 	char set_buf[24];
 	void *data;
 	const char *fmt;	/* format for read operation */
@@ -1192,7 +1192,7 @@ struct simple_attr {
 
 /* simple_attr_open is called by an actual attribute open file operation
  * to set the attribute specific access operations. */
-int simple_attr_open(struct inode *inode, struct file *file,
+int simple_attr_open(struct ianalde *ianalde, struct file *file,
 		     int (*get)(void *, u64 *), int (*set)(void *, u64),
 		     const char *fmt)
 {
@@ -1200,21 +1200,21 @@ int simple_attr_open(struct inode *inode, struct file *file,
 
 	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
 	if (!attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	attr->get = get;
 	attr->set = set;
-	attr->data = inode->i_private;
+	attr->data = ianalde->i_private;
 	attr->fmt = fmt;
 	mutex_init(&attr->mutex);
 
 	file->private_data = attr;
 
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 EXPORT_SYMBOL_GPL(simple_attr_open);
 
-int simple_attr_release(struct inode *inode, struct file *file)
+int simple_attr_release(struct ianalde *ianalde, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
@@ -1311,23 +1311,23 @@ ssize_t simple_attr_write_signed(struct file *file, const char __user *buf,
 EXPORT_SYMBOL_GPL(simple_attr_write_signed);
 
 /**
- * generic_encode_ino32_fh - generic export_operations->encode_fh function
- * @inode:   the object to encode
+ * generic_encode_ianal32_fh - generic export_operations->encode_fh function
+ * @ianalde:   the object to encode
  * @fh:      where to store the file handle fragment
  * @max_len: maximum length to store there (in 4 byte units)
- * @parent:  parent directory inode, if wanted
+ * @parent:  parent directory ianalde, if wanted
  *
- * This generic encode_fh function assumes that the 32 inode number
- * is suitable for locating an inode, and that the generation number
+ * This generic encode_fh function assumes that the 32 ianalde number
+ * is suitable for locating an ianalde, and that the generation number
  * can be used to check that it is still valid.  It places them in the
  * filehandle fragment where export_decode_fh expects to find them.
  */
-int generic_encode_ino32_fh(struct inode *inode, __u32 *fh, int *max_len,
-			    struct inode *parent)
+int generic_encode_ianal32_fh(struct ianalde *ianalde, __u32 *fh, int *max_len,
+			    struct ianalde *parent)
 {
 	struct fid *fid = (void *)fh;
 	int len = *max_len;
-	int type = FILEID_INO32_GEN;
+	int type = FILEID_IANAL32_GEN;
 
 	if (parent && (len < 4)) {
 		*max_len = 4;
@@ -1338,18 +1338,18 @@ int generic_encode_ino32_fh(struct inode *inode, __u32 *fh, int *max_len,
 	}
 
 	len = 2;
-	fid->i32.ino = inode->i_ino;
-	fid->i32.gen = inode->i_generation;
+	fid->i32.ianal = ianalde->i_ianal;
+	fid->i32.gen = ianalde->i_generation;
 	if (parent) {
-		fid->i32.parent_ino = parent->i_ino;
+		fid->i32.parent_ianal = parent->i_ianal;
 		fid->i32.parent_gen = parent->i_generation;
 		len = 4;
-		type = FILEID_INO32_GEN_PARENT;
+		type = FILEID_IANAL32_GEN_PARENT;
 	}
 	*max_len = len;
 	return type;
 }
-EXPORT_SYMBOL_GPL(generic_encode_ino32_fh);
+EXPORT_SYMBOL_GPL(generic_encode_ianal32_fh);
 
 /**
  * generic_fh_to_dentry - generic helper for the fh_to_dentry export operation
@@ -1357,29 +1357,29 @@ EXPORT_SYMBOL_GPL(generic_encode_ino32_fh);
  * @fid:	file handle to convert
  * @fh_len:	length of the file handle in bytes
  * @fh_type:	type of file handle
- * @get_inode:	filesystem callback to retrieve inode
+ * @get_ianalde:	filesystem callback to retrieve ianalde
  *
- * This function decodes @fid as long as it has one of the well-known
- * Linux filehandle types and calls @get_inode on it to retrieve the
- * inode for the object specified in the file handle.
+ * This function decodes @fid as long as it has one of the well-kanalwn
+ * Linux filehandle types and calls @get_ianalde on it to retrieve the
+ * ianalde for the object specified in the file handle.
  */
 struct dentry *generic_fh_to_dentry(struct super_block *sb, struct fid *fid,
-		int fh_len, int fh_type, struct inode *(*get_inode)
-			(struct super_block *sb, u64 ino, u32 gen))
+		int fh_len, int fh_type, struct ianalde *(*get_ianalde)
+			(struct super_block *sb, u64 ianal, u32 gen))
 {
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 
 	if (fh_len < 2)
 		return NULL;
 
 	switch (fh_type) {
-	case FILEID_INO32_GEN:
-	case FILEID_INO32_GEN_PARENT:
-		inode = get_inode(sb, fid->i32.ino, fid->i32.gen);
+	case FILEID_IANAL32_GEN:
+	case FILEID_IANAL32_GEN_PARENT:
+		ianalde = get_ianalde(sb, fid->i32.ianal, fid->i32.gen);
 		break;
 	}
 
-	return d_obtain_alias(inode);
+	return d_obtain_alias(ianalde);
 }
 EXPORT_SYMBOL_GPL(generic_fh_to_dentry);
 
@@ -1389,30 +1389,30 @@ EXPORT_SYMBOL_GPL(generic_fh_to_dentry);
  * @fid:	file handle to convert
  * @fh_len:	length of the file handle in bytes
  * @fh_type:	type of file handle
- * @get_inode:	filesystem callback to retrieve inode
+ * @get_ianalde:	filesystem callback to retrieve ianalde
  *
- * This function decodes @fid as long as it has one of the well-known
- * Linux filehandle types and calls @get_inode on it to retrieve the
- * inode for the _parent_ object specified in the file handle if it
+ * This function decodes @fid as long as it has one of the well-kanalwn
+ * Linux filehandle types and calls @get_ianalde on it to retrieve the
+ * ianalde for the _parent_ object specified in the file handle if it
  * is specified in the file handle, or NULL otherwise.
  */
 struct dentry *generic_fh_to_parent(struct super_block *sb, struct fid *fid,
-		int fh_len, int fh_type, struct inode *(*get_inode)
-			(struct super_block *sb, u64 ino, u32 gen))
+		int fh_len, int fh_type, struct ianalde *(*get_ianalde)
+			(struct super_block *sb, u64 ianal, u32 gen))
 {
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 
 	if (fh_len <= 2)
 		return NULL;
 
 	switch (fh_type) {
-	case FILEID_INO32_GEN_PARENT:
-		inode = get_inode(sb, fid->i32.parent_ino,
+	case FILEID_IANAL32_GEN_PARENT:
+		ianalde = get_ianalde(sb, fid->i32.parent_ianal,
 				  (fh_len > 3 ? fid->i32.parent_gen : 0));
 		break;
 	}
 
-	return d_obtain_alias(inode);
+	return d_obtain_alias(ianalde);
 }
 EXPORT_SYMBOL_GPL(generic_fh_to_parent);
 
@@ -1425,13 +1425,13 @@ EXPORT_SYMBOL_GPL(generic_fh_to_parent);
  * @datasync:	only synchronize essential metadata if true
  *
  * This is a generic implementation of the fsync method for simple
- * filesystems which track all non-inode metadata in the buffers list
+ * filesystems which track all analn-ianalde metadata in the buffers list
  * hanging off the address_space structure.
  */
 int __generic_file_fsync(struct file *file, loff_t start, loff_t end,
 				 int datasync)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 	int err;
 	int ret;
 
@@ -1439,19 +1439,19 @@ int __generic_file_fsync(struct file *file, loff_t start, loff_t end,
 	if (err)
 		return err;
 
-	inode_lock(inode);
-	ret = sync_mapping_buffers(inode->i_mapping);
-	if (!(inode->i_state & I_DIRTY_ALL))
+	ianalde_lock(ianalde);
+	ret = sync_mapping_buffers(ianalde->i_mapping);
+	if (!(ianalde->i_state & I_DIRTY_ALL))
 		goto out;
-	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
+	if (datasync && !(ianalde->i_state & I_DIRTY_DATASYNC))
 		goto out;
 
-	err = sync_inode_metadata(inode, 1);
+	err = sync_ianalde_metadata(ianalde, 1);
 	if (ret == 0)
 		ret = err;
 
 out:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	/* check and advance again to catch errors after syncing out buffers */
 	err = file_check_and_advance_wb_err(file);
 	if (ret == 0)
@@ -1473,13 +1473,13 @@ EXPORT_SYMBOL(__generic_file_fsync);
 int generic_file_fsync(struct file *file, loff_t start, loff_t end,
 		       int datasync)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 	int err;
 
 	err = __generic_file_fsync(file, start, end, datasync);
 	if (err)
 		return err;
-	return blkdev_issue_flush(inode->i_sb->s_bdev);
+	return blkdev_issue_flush(ianalde->i_sb->s_bdev);
 }
 EXPORT_SYMBOL(generic_file_fsync);
 
@@ -1513,25 +1513,25 @@ int generic_check_addressable(unsigned blocksize_bits, u64 num_blocks)
 EXPORT_SYMBOL(generic_check_addressable);
 
 /*
- * No-op implementation of ->fsync for in-memory filesystems.
+ * Anal-op implementation of ->fsync for in-memory filesystems.
  */
-int noop_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+int analop_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	return 0;
 }
-EXPORT_SYMBOL(noop_fsync);
+EXPORT_SYMBOL(analop_fsync);
 
-ssize_t noop_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
+ssize_t analop_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	/*
 	 * iomap based filesystems support direct I/O without need for
 	 * this callback. However, it still needs to be set in
-	 * inode->a_ops so that open/fcntl know that direct I/O is
+	 * ianalde->a_ops so that open/fcntl kanalw that direct I/O is
 	 * generally supported.
 	 */
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(noop_direct_IO);
+EXPORT_SYMBOL_GPL(analop_direct_IO);
 
 /* Because kfree isn't assignment-compatible with void(void*) ;-/ */
 void kfree_link(void *p)
@@ -1540,93 +1540,93 @@ void kfree_link(void *p)
 }
 EXPORT_SYMBOL(kfree_link);
 
-struct inode *alloc_anon_inode(struct super_block *s)
+struct ianalde *alloc_aanaln_ianalde(struct super_block *s)
 {
-	static const struct address_space_operations anon_aops = {
-		.dirty_folio	= noop_dirty_folio,
+	static const struct address_space_operations aanaln_aops = {
+		.dirty_folio	= analop_dirty_folio,
 	};
-	struct inode *inode = new_inode_pseudo(s);
+	struct ianalde *ianalde = new_ianalde_pseudo(s);
 
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
 
-	inode->i_ino = get_next_ino();
-	inode->i_mapping->a_ops = &anon_aops;
+	ianalde->i_ianal = get_next_ianal();
+	ianalde->i_mapping->a_ops = &aanaln_aops;
 
 	/*
-	 * Mark the inode dirty from the very beginning,
+	 * Mark the ianalde dirty from the very beginning,
 	 * that way it will never be moved to the dirty
-	 * list because mark_inode_dirty() will think
+	 * list because mark_ianalde_dirty() will think
 	 * that it already _is_ on the dirty list.
 	 */
-	inode->i_state = I_DIRTY;
-	inode->i_mode = S_IRUSR | S_IWUSR;
-	inode->i_uid = current_fsuid();
-	inode->i_gid = current_fsgid();
-	inode->i_flags |= S_PRIVATE;
-	simple_inode_init_ts(inode);
-	return inode;
+	ianalde->i_state = I_DIRTY;
+	ianalde->i_mode = S_IRUSR | S_IWUSR;
+	ianalde->i_uid = current_fsuid();
+	ianalde->i_gid = current_fsgid();
+	ianalde->i_flags |= S_PRIVATE;
+	simple_ianalde_init_ts(ianalde);
+	return ianalde;
 }
-EXPORT_SYMBOL(alloc_anon_inode);
+EXPORT_SYMBOL(alloc_aanaln_ianalde);
 
 /**
- * simple_nosetlease - generic helper for prohibiting leases
+ * simple_analsetlease - generic helper for prohibiting leases
  * @filp: file pointer
  * @arg: type of lease to obtain
  * @flp: new lease supplied for insertion
  * @priv: private data for lm_setup operation
  *
- * Generic helper for filesystems that do not wish to allow leases to be set.
- * All arguments are ignored and it just returns -EINVAL.
+ * Generic helper for filesystems that do analt wish to allow leases to be set.
+ * All arguments are iganalred and it just returns -EINVAL.
  */
 int
-simple_nosetlease(struct file *filp, int arg, struct file_lock **flp,
+simple_analsetlease(struct file *filp, int arg, struct file_lock **flp,
 		  void **priv)
 {
 	return -EINVAL;
 }
-EXPORT_SYMBOL(simple_nosetlease);
+EXPORT_SYMBOL(simple_analsetlease);
 
 /**
  * simple_get_link - generic helper to get the target of "fast" symlinks
- * @dentry: not used here
- * @inode: the symlink inode
- * @done: not used here
+ * @dentry: analt used here
+ * @ianalde: the symlink ianalde
+ * @done: analt used here
  *
- * Generic helper for filesystems to use for symlink inodes where a pointer to
- * the symlink target is stored in ->i_link.  NOTE: this isn't normally called,
- * since as an optimization the path lookup code uses any non-NULL ->i_link
+ * Generic helper for filesystems to use for symlink ianaldes where a pointer to
+ * the symlink target is stored in ->i_link.  ANALTE: this isn't analrmally called,
+ * since as an optimization the path lookup code uses any analn-NULL ->i_link
  * directly, without calling ->get_link().  But ->get_link() still must be set,
- * to mark the inode_operations as being for a symlink.
+ * to mark the ianalde_operations as being for a symlink.
  *
  * Return: the symlink target
  */
-const char *simple_get_link(struct dentry *dentry, struct inode *inode,
+const char *simple_get_link(struct dentry *dentry, struct ianalde *ianalde,
 			    struct delayed_call *done)
 {
-	return inode->i_link;
+	return ianalde->i_link;
 }
 EXPORT_SYMBOL(simple_get_link);
 
-const struct inode_operations simple_symlink_inode_operations = {
+const struct ianalde_operations simple_symlink_ianalde_operations = {
 	.get_link = simple_get_link,
 };
-EXPORT_SYMBOL(simple_symlink_inode_operations);
+EXPORT_SYMBOL(simple_symlink_ianalde_operations);
 
 /*
  * Operations for a permanently empty directory.
  */
-static struct dentry *empty_dir_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+static struct dentry *empty_dir_lookup(struct ianalde *dir, struct dentry *dentry, unsigned int flags)
 {
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 static int empty_dir_getattr(struct mnt_idmap *idmap,
 			     const struct path *path, struct kstat *stat,
 			     u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(path->dentry);
-	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
+	struct ianalde *ianalde = d_ianalde(path->dentry);
+	generic_fillattr(&analp_mnt_idmap, request_mask, ianalde, stat);
 	return 0;
 }
 
@@ -1638,10 +1638,10 @@ static int empty_dir_setattr(struct mnt_idmap *idmap,
 
 static ssize_t empty_dir_listxattr(struct dentry *dentry, char *list, size_t size)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-static const struct inode_operations empty_dir_inode_operations = {
+static const struct ianalde_operations empty_dir_ianalde_operations = {
 	.lookup		= empty_dir_lookup,
 	.permission	= generic_permission,
 	.setattr	= empty_dir_setattr,
@@ -1665,30 +1665,30 @@ static const struct file_operations empty_dir_operations = {
 	.llseek		= empty_dir_llseek,
 	.read		= generic_read_dir,
 	.iterate_shared	= empty_dir_readdir,
-	.fsync		= noop_fsync,
+	.fsync		= analop_fsync,
 };
 
 
-void make_empty_dir_inode(struct inode *inode)
+void make_empty_dir_ianalde(struct ianalde *ianalde)
 {
-	set_nlink(inode, 2);
-	inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO;
-	inode->i_uid = GLOBAL_ROOT_UID;
-	inode->i_gid = GLOBAL_ROOT_GID;
-	inode->i_rdev = 0;
-	inode->i_size = 0;
-	inode->i_blkbits = PAGE_SHIFT;
-	inode->i_blocks = 0;
+	set_nlink(ianalde, 2);
+	ianalde->i_mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	ianalde->i_uid = GLOBAL_ROOT_UID;
+	ianalde->i_gid = GLOBAL_ROOT_GID;
+	ianalde->i_rdev = 0;
+	ianalde->i_size = 0;
+	ianalde->i_blkbits = PAGE_SHIFT;
+	ianalde->i_blocks = 0;
 
-	inode->i_op = &empty_dir_inode_operations;
-	inode->i_opflags &= ~IOP_XATTR;
-	inode->i_fop = &empty_dir_operations;
+	ianalde->i_op = &empty_dir_ianalde_operations;
+	ianalde->i_opflags &= ~IOP_XATTR;
+	ianalde->i_fop = &empty_dir_operations;
 }
 
-bool is_empty_dir_inode(struct inode *inode)
+bool is_empty_dir_ianalde(struct ianalde *ianalde)
 {
-	return (inode->i_fop == &empty_dir_operations) &&
-		(inode->i_op == &empty_dir_inode_operations);
+	return (ianalde->i_fop == &empty_dir_operations) &&
+		(ianalde->i_op == &empty_dir_ianalde_operations);
 }
 
 #if IS_ENABLED(CONFIG_UNICODE)
@@ -1699,13 +1699,13 @@ bool is_empty_dir_inode(struct inode *inode)
  * @str:	str pointer to name of dentry
  * @name:	Name to compare against
  *
- * Return: 0 if names match, 1 if mismatch, or -ERRNO
+ * Return: 0 if names match, 1 if mismatch, or -ERRANAL
  */
 static int generic_ci_d_compare(const struct dentry *dentry, unsigned int len,
 				const char *str, const struct qstr *name)
 {
 	const struct dentry *parent = READ_ONCE(dentry->d_parent);
-	const struct inode *dir = READ_ONCE(parent->d_inode);
+	const struct ianalde *dir = READ_ONCE(parent->d_ianalde);
 	const struct super_block *sb = dentry->d_sb;
 	const struct unicode_map *um = sb->s_encoding;
 	struct qstr qstr = QSTR_INIT(str, len);
@@ -1749,7 +1749,7 @@ fallback:
  */
 static int generic_ci_d_hash(const struct dentry *dentry, struct qstr *str)
 {
-	const struct inode *dir = READ_ONCE(dentry->d_inode);
+	const struct ianalde *dir = READ_ONCE(dentry->d_ianalde);
 	struct super_block *sb = dentry->d_sb;
 	const struct unicode_map *um = sb->s_encoding;
 	int ret = 0;
@@ -1788,17 +1788,17 @@ static const struct dentry_operations generic_encrypted_ci_dentry_ops = {
  * @dentry:	dentry to set ops on
  *
  * Casefolded directories need d_hash and d_compare set, so that the dentries
- * contained in them are handled case-insensitively.  Note that these operations
+ * contained in them are handled case-insensitively.  Analte that these operations
  * are needed on the parent directory rather than on the dentries in it, and
  * while the casefolding flag can be toggled on and off on an empty directory,
  * dentry_operations can't be changed later.  As a result, if the filesystem has
  * casefolding support enabled at all, we have to give all dentries the
- * casefolding operations even if their inode doesn't have the casefolding flag
- * currently (and thus the casefolding ops would be no-ops for now).
+ * casefolding operations even if their ianalde doesn't have the casefolding flag
+ * currently (and thus the casefolding ops would be anal-ops for analw).
  *
  * Encryption works differently in that the only dentry operation it needs is
- * d_revalidate, which it only needs on dentries that have the no-key name flag.
- * The no-key flag can't be set "later", so we don't have to worry about that.
+ * d_revalidate, which it only needs on dentries that have the anal-key name flag.
+ * The anal-key flag can't be set "later", so we don't have to worry about that.
  *
  * Finally, to maximize compatibility with overlayfs (which isn't compatible
  * with certain dentry operations) and to avoid taking an unnecessary
@@ -1808,7 +1808,7 @@ static const struct dentry_operations generic_encrypted_ci_dentry_ops = {
 void generic_set_encrypted_ci_d_ops(struct dentry *dentry)
 {
 #ifdef CONFIG_FS_ENCRYPTION
-	bool needs_encrypt_ops = dentry->d_flags & DCACHE_NOKEY_NAME;
+	bool needs_encrypt_ops = dentry->d_flags & DCACHE_ANALKEY_NAME;
 #endif
 #if IS_ENABLED(CONFIG_UNICODE)
 	bool needs_ci_ops = dentry->d_sb->s_encoding;
@@ -1835,11 +1835,11 @@ void generic_set_encrypted_ci_d_ops(struct dentry *dentry)
 EXPORT_SYMBOL(generic_set_encrypted_ci_d_ops);
 
 /**
- * inode_maybe_inc_iversion - increments i_version
- * @inode: inode with the i_version that should be updated
- * @force: increment the counter even if it's not necessary?
+ * ianalde_maybe_inc_iversion - increments i_version
+ * @ianalde: ianalde with the i_version that should be updated
+ * @force: increment the counter even if it's analt necessary?
  *
- * Every time the inode is modified, the i_version field must be seen to have
+ * Every time the ianalde is modified, the i_version field must be seen to have
  * changed by any observer.
  *
  * If "force" is set or the QUERIED flag is set, then ensure that we increment
@@ -1848,25 +1848,25 @@ EXPORT_SYMBOL(generic_set_encrypted_ci_d_ops);
  * In the common case where neither is set, then we can return "false" without
  * updating i_version.
  *
- * If this function returns false, and no other metadata has changed, then we
+ * If this function returns false, and anal other metadata has changed, then we
  * can avoid logging the metadata.
  */
-bool inode_maybe_inc_iversion(struct inode *inode, bool force)
+bool ianalde_maybe_inc_iversion(struct ianalde *ianalde, bool force)
 {
 	u64 cur, new;
 
 	/*
-	 * The i_version field is not strictly ordered with any other inode
-	 * information, but the legacy inode_inc_iversion code used a spinlock
+	 * The i_version field is analt strictly ordered with any other ianalde
+	 * information, but the legacy ianalde_inc_iversion code used a spinlock
 	 * to serialize increments.
 	 *
 	 * Here, we add full memory barriers to ensure that any de-facto
 	 * ordering with other info is preserved.
 	 *
-	 * This barrier pairs with the barrier in inode_query_iversion()
+	 * This barrier pairs with the barrier in ianalde_query_iversion()
 	 */
 	smp_mb();
-	cur = inode_peek_iversion_raw(inode);
+	cur = ianalde_peek_iversion_raw(ianalde);
 	do {
 		/* If flag is clear then we needn't do anything */
 		if (!force && !(cur & I_VERSION_QUERIED))
@@ -1874,16 +1874,16 @@ bool inode_maybe_inc_iversion(struct inode *inode, bool force)
 
 		/* Since lowest bit is flag, add 2 to avoid it */
 		new = (cur & ~I_VERSION_QUERIED) + I_VERSION_INCREMENT;
-	} while (!atomic64_try_cmpxchg(&inode->i_version, &cur, new));
+	} while (!atomic64_try_cmpxchg(&ianalde->i_version, &cur, new));
 	return true;
 }
-EXPORT_SYMBOL(inode_maybe_inc_iversion);
+EXPORT_SYMBOL(ianalde_maybe_inc_iversion);
 
 /**
- * inode_query_iversion - read i_version for later use
- * @inode: inode from which i_version should be read
+ * ianalde_query_iversion - read i_version for later use
+ * @ianalde: ianalde from which i_version should be read
  *
- * Read the inode i_version counter. This should be used by callers that wish
+ * Read the ianalde i_version counter. This should be used by callers that wish
  * to store the returned i_version for later comparison. This will guarantee
  * that a later query of the i_version will result in a different value if
  * anything has changed.
@@ -1892,28 +1892,28 @@ EXPORT_SYMBOL(inode_maybe_inc_iversion);
  * then try to swap it into place with a cmpxchg, if it wasn't already set. If
  * that fails, we try again with the newly fetched value from the cmpxchg.
  */
-u64 inode_query_iversion(struct inode *inode)
+u64 ianalde_query_iversion(struct ianalde *ianalde)
 {
 	u64 cur, new;
 
-	cur = inode_peek_iversion_raw(inode);
+	cur = ianalde_peek_iversion_raw(ianalde);
 	do {
-		/* If flag is already set, then no need to swap */
+		/* If flag is already set, then anal need to swap */
 		if (cur & I_VERSION_QUERIED) {
 			/*
 			 * This barrier (and the implicit barrier in the
 			 * cmpxchg below) pairs with the barrier in
-			 * inode_maybe_inc_iversion().
+			 * ianalde_maybe_inc_iversion().
 			 */
 			smp_mb();
 			break;
 		}
 
 		new = cur | I_VERSION_QUERIED;
-	} while (!atomic64_try_cmpxchg(&inode->i_version, &cur, new));
+	} while (!atomic64_try_cmpxchg(&ianalde->i_version, &cur, new));
 	return cur >> I_VERSION_QUERIED_SHIFT;
 }
-EXPORT_SYMBOL(inode_query_iversion);
+EXPORT_SYMBOL(ianalde_query_iversion);
 
 ssize_t direct_write_fallback(struct kiocb *iocb, struct iov_iter *iter,
 		ssize_t direct_written, ssize_t buffered_written)
@@ -1928,7 +1928,7 @@ ssize_t direct_write_fallback(struct kiocb *iocb, struct iov_iter *iter,
 	 * the number of bytes which were written by direct I/O, or the error
 	 * code if that was zero.
 	 *
-	 * Note that this differs from normal direct-io semantics, which will
+	 * Analte that this differs from analrmal direct-io semantics, which will
 	 * return -EFOO even if some bytes were written.
 	 */
 	if (unlikely(buffered_written < 0)) {
@@ -1944,7 +1944,7 @@ ssize_t direct_write_fallback(struct kiocb *iocb, struct iov_iter *iter,
 	err = filemap_write_and_wait_range(mapping, pos, end);
 	if (err < 0) {
 		/*
-		 * We don't know how much we wrote, so just return the number of
+		 * We don't kanalw how much we wrote, so just return the number of
 		 * bytes which were direct-written
 		 */
 		iocb->ki_pos -= buffered_written;
@@ -1958,18 +1958,18 @@ ssize_t direct_write_fallback(struct kiocb *iocb, struct iov_iter *iter,
 EXPORT_SYMBOL_GPL(direct_write_fallback);
 
 /**
- * simple_inode_init_ts - initialize the timestamps for a new inode
- * @inode: inode to be initialized
+ * simple_ianalde_init_ts - initialize the timestamps for a new ianalde
+ * @ianalde: ianalde to be initialized
  *
- * When a new inode is created, most filesystems set the timestamps to the
+ * When a new ianalde is created, most filesystems set the timestamps to the
  * current time. Add a helper to do this.
  */
-struct timespec64 simple_inode_init_ts(struct inode *inode)
+struct timespec64 simple_ianalde_init_ts(struct ianalde *ianalde)
 {
-	struct timespec64 ts = inode_set_ctime_current(inode);
+	struct timespec64 ts = ianalde_set_ctime_current(ianalde);
 
-	inode_set_atime_to_ts(inode, ts);
-	inode_set_mtime_to_ts(inode, ts);
+	ianalde_set_atime_to_ts(ianalde, ts);
+	ianalde_set_mtime_to_ts(ianalde, ts);
 	return ts;
 }
-EXPORT_SYMBOL(simple_inode_init_ts);
+EXPORT_SYMBOL(simple_ianalde_init_ts);

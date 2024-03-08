@@ -15,7 +15,7 @@
 
 #include <asm/mmu_context.h>
 #include <asm/smp_plat.h>
-#include <asm/thread_notify.h>
+#include <asm/thread_analtify.h>
 #include <asm/tlbflush.h>
 #include <asm/proc-fns.h>
 
@@ -34,7 +34,7 @@
  * should be unique within all running processes.
  *
  * In big endian operation, the two 32 bit words are swapped if accessed
- * by non-64-bit operations.
+ * by analn-64-bit operations.
  */
 #define ASID_FIRST_VERSION	(1ULL << ASID_BITS)
 #define NUM_USER_ASIDS		ASID_FIRST_VERSION
@@ -77,7 +77,7 @@ void a15_erratum_get_cpumask(int this_cpu, struct mm_struct *mm,
 #ifdef CONFIG_ARM_LPAE
 /*
  * With LPAE, the ASID and page tables are updated atomicly, so there is
- * no need for a reserved set of tables (the active ASID tracking prevents
+ * anal need for a reserved set of tables (the active ASID tracking prevents
  * any issues across a rollover).
  */
 #define cpu_set_reserved_ttbr0()
@@ -99,15 +99,15 @@ static void cpu_set_reserved_ttbr0(void)
 #endif
 
 #ifdef CONFIG_PID_IN_CONTEXTIDR
-static int contextidr_notifier(struct notifier_block *unused, unsigned long cmd,
+static int contextidr_analtifier(struct analtifier_block *unused, unsigned long cmd,
 			       void *t)
 {
 	u32 contextidr;
 	pid_t pid;
 	struct thread_info *thread = t;
 
-	if (cmd != THREAD_NOTIFY_SWITCH)
-		return NOTIFY_DONE;
+	if (cmd != THREAD_ANALTIFY_SWITCH)
+		return ANALTIFY_DONE;
 
 	pid = task_pid_nr(thread_task(thread)) << ASID_BITS;
 	asm volatile(
@@ -119,18 +119,18 @@ static int contextidr_notifier(struct notifier_block *unused, unsigned long cmd,
 	: "I" (~ASID_MASK));
 	isb();
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block contextidr_notifier_block = {
-	.notifier_call = contextidr_notifier,
+static struct analtifier_block contextidr_analtifier_block = {
+	.analtifier_call = contextidr_analtifier,
 };
 
-static int __init contextidr_notifier_init(void)
+static int __init contextidr_analtifier_init(void)
 {
-	return thread_register_notifier(&contextidr_notifier_block);
+	return thread_register_analtifier(&contextidr_analtifier_block);
 }
-arch_initcall(contextidr_notifier_init);
+arch_initcall(contextidr_analtifier_init);
 #endif
 
 static void flush_context(unsigned int cpu)
@@ -144,7 +144,7 @@ static void flush_context(unsigned int cpu)
 		asid = atomic64_xchg(&per_cpu(active_asids, i), 0);
 		/*
 		 * If this CPU has already been through a
-		 * rollover, but hasn't run another task in
+		 * rollover, but hasn't run aanalther task in
 		 * the meantime, we must preserve its reserved
 		 * ASID, as this is the only trace we have of
 		 * the process it is still running.
@@ -212,7 +212,7 @@ static u64 new_context(struct mm_struct *mm, unsigned int cpu)
 	}
 
 	/*
-	 * Allocate a free ASID. If we can't find one, take a note of the
+	 * Allocate a free ASID. If we can't find one, take a analte of the
 	 * currently active ASIDs and mark the TLBs as requiring flushes.
 	 * We always count from ASID #1, as we reserve ASID #0 to switch
 	 * via TTBR0 and to avoid speculative page table walks from hitting
@@ -243,7 +243,7 @@ void check_and_switch_context(struct mm_struct *mm, struct task_struct *tsk)
 	check_vmalloc_seq(mm);
 
 	/*
-	 * We cannot update the pgd and the ASID atomicly with classic
+	 * We cananalt update the pgd and the ASID atomicly with classic
 	 * MMU, so switch exclusively to global mappings to avoid
 	 * speculative page table walking with the wrong TTBR.
 	 */

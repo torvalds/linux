@@ -15,7 +15,7 @@ static int idpf_ctlq_alloc_desc_ring(struct idpf_hw *hw,
 
 	cq->desc_ring.va = idpf_alloc_dma_mem(hw, &cq->desc_ring, size);
 	if (!cq->desc_ring.va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -33,7 +33,7 @@ static int idpf_ctlq_alloc_bufs(struct idpf_hw *hw,
 {
 	int i;
 
-	/* Do not allocate DMA buffers for transmit queues */
+	/* Do analt allocate DMA buffers for transmit queues */
 	if (cq->cq_type == IDPF_CTLQ_TYPE_MAILBOX_TX)
 		return 0;
 
@@ -43,7 +43,7 @@ static int idpf_ctlq_alloc_bufs(struct idpf_hw *hw,
 	cq->bi.rx_buff = kcalloc(cq->ring_size, sizeof(struct idpf_dma_mem *),
 				 GFP_KERNEL);
 	if (!cq->bi.rx_buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* allocate the mapped buffers (except for the last one) */
 	for (i = 0; i < cq->ring_size - 1; i++) {
@@ -59,7 +59,7 @@ static int idpf_ctlq_alloc_bufs(struct idpf_hw *hw,
 
 		bi->va = idpf_alloc_dma_mem(hw, bi, cq->buf_size);
 		if (!bi->va) {
-			/* unwind will not free the failed entry */
+			/* unwind will analt free the failed entry */
 			kfree(cq->bi.rx_buff[i]);
 			goto unwind_alloc_cq_bufs;
 		}
@@ -76,7 +76,7 @@ unwind_alloc_cq_bufs:
 	}
 	kfree(cq->bi.rx_buff);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -144,8 +144,8 @@ void idpf_ctlq_dealloc_ring_res(struct idpf_hw *hw, struct idpf_ctlq_info *cq)
  * @hw: pointer to hw struct
  * @cq: pointer to control queue struct
  *
- * Do *NOT* hold cq_lock when calling this as the memory allocation routines
- * called are not going to be atomic context safe
+ * Do *ANALT* hold cq_lock when calling this as the memory allocation routines
+ * called are analt going to be atomic context safe
  */
 int idpf_ctlq_alloc_ring_res(struct idpf_hw *hw, struct idpf_ctlq_info *cq)
 {

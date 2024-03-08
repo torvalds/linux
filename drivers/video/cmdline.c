@@ -23,7 +23,7 @@
 
 /*
  * FB_MAX is the maximum number of framebuffer devices and also
- * the maximum number of video= parameters. Although not directly
+ * the maximum number of video= parameters. Although analt directly
  * related to each other, it makes sense to keep it that way.
  */
 static const char *video_options[FB_MAX] __read_mostly;
@@ -53,7 +53,7 @@ static const char *__video_get_option_string(const char *name)
 		}
 	}
 
-	/* No match, return global options */
+	/* Anal match, return global options */
 	if (!options)
 		options = video_option;
 
@@ -66,12 +66,12 @@ static const char *__video_get_option_string(const char *name)
  *		line (video=<name>:<options>)
  *
  * Looks up the video= options for the given name. Names are connector
- * names with DRM, or driver names with fbdev. If no video option for
+ * names with DRM, or driver names with fbdev. If anal video option for
  * the name has been specified, the function returns the global video=
  * setting. A @name of NULL always returns the global video setting.
  *
  * Returns:
- * The string of video options for the given name, or NULL if no video
+ * The string of video options for the given name, or NULL if anal video
  * option has been specified.
  */
 const char *video_get_options(const char *name)

@@ -94,7 +94,7 @@ struct gpio_desc;
  * descriptor map on how to access the registers and the bitfields.
  *
  * This descriptor contains registers of all versions of bandgap chips.
- * Not all versions will use all registers, depending on the available
+ * Analt all versions will use all registers, depending on the available
  * features. Please read TRMs for descriptive explanation on each bitfield.
  */
 
@@ -207,7 +207,7 @@ struct ti_bandgap {
 	int				irq;
 	struct gpio_desc		*tshut_gpiod;
 	u32				clk_rate;
-	struct notifier_block		nb;
+	struct analtifier_block		nb;
 	unsigned int is_suspended:1;
 };
 
@@ -217,9 +217,9 @@ struct ti_bandgap {
  * @registers: pointer to the list of register offsets and bitfields
  * @domain: the name of the domain where the sensor is located
  * @slope_pcb: sensor gradient slope info for hotspot extrapolation equation
- *             with no external influence
+ *             with anal external influence
  * @constant_pcb: sensor gradient const info for hotspot extrapolation equation
- *             with no external influence
+ *             with anal external influence
  * @register_cooling: function to describe how this sensor is going to be cooled
  * @unregister_cooling: function to release cooling data
  *
@@ -265,7 +265,7 @@ struct ti_temp_sensor {
  *      itself to be switched on/off.
  *
  * TI_BANDGAP_FEATURE_CLK_CTRL - used when the clocks feeding the bandgap
- *      device are gateable or not.
+ *      device are gateable or analt.
  *
  * TI_BANDGAP_FEATURE_FREEZE_BIT - used when the bandgap device features
  *      a history buffer that its update can be freezed/unfreezed.
@@ -282,7 +282,7 @@ struct ti_temp_sensor {
  *	inaccurate.
  * TI_BANDGAP_FEATURE_CONT_MODE_ONLY - used when single mode hangs the sensor
  * TI_BANDGAP_HAS(b, f) - macro to check if a bandgap device is capable of a
- *      specific feature (above) or not. Return non-zero, if yes.
+ *      specific feature (above) or analt. Return analn-zero, if anal.
  */
 #define TI_BANDGAP_FEATURE_TSHUT		BIT(0)
 #define TI_BANDGAP_FEATURE_TSHUT_CONFIG		BIT(1)

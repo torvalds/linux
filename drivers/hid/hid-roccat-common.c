@@ -26,7 +26,7 @@ int roccat_common2_receive(struct usb_device *usb_dev, uint report_id,
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len = usb_control_msg(usb_dev, usb_rcvctrlpipe(usb_dev, 0),
 			HID_REQ_GET_REPORT,
@@ -48,7 +48,7 @@ int roccat_common2_send(struct usb_device *usb_dev, uint report_id,
 
 	buf = kmemdup(data, size, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
 			HID_REQ_SET_REPORT,
@@ -96,7 +96,7 @@ static int roccat_common2_receive_control_status(struct usb_device *usb_dev)
 		default:
 			dev_err(&usb_dev->dev,
 					"roccat_common2_receive_control_status: "
-					"unknown response value 0x%x\n",
+					"unkanalwn response value 0x%x\n",
 					control.value);
 			return -EINVAL;
 		}

@@ -32,8 +32,8 @@ void test_autoload(void)
 
 	usleep(1);
 
-	CHECK(!skel->bss->prog1_called, "prog1", "not called\n");
-	CHECK(!skel->bss->prog2_called, "prog2", "not called\n");
+	CHECK(!skel->bss->prog1_called, "prog1", "analt called\n");
+	CHECK(!skel->bss->prog2_called, "prog2", "analt called\n");
 	CHECK(skel->bss->prog3_called, "prog3", "called?!\n");
 
 cleanup:

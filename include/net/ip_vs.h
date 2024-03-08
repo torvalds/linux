@@ -50,7 +50,7 @@ struct ip_vs_iphdr {
 	__u32 off;	/* Where IP or IPv4 header starts */
 	__u32 len;	/* IPv4 simply where L4 starts
 			 * IPv6 where L4 Transport Header starts */
-	__u16 fragoffs; /* IPv6 fragment offset, 0 if first frag (or not frag)*/
+	__u16 fragoffs; /* IPv6 fragment offset, 0 if first frag (or analt frag)*/
 	__s16 protocol;
 	__s32 flags;
 	union nf_inet_addr saddr;
@@ -249,7 +249,7 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 		    net_ratelimit())					\
 			pp->debug_packet(af, pp, skb, ofs, msg);	\
 	} while (0)
-#else	/* NO DEBUGGING at ALL */
+#else	/* ANAL DEBUGGING at ALL */
 #define IP_VS_DBG_BUF(level, msg...)  do {} while (0)
 #define IP_VS_ERR_BUF(msg...)  do {} while (0)
 #define IP_VS_DBG(level, msg...)  do {} while (0)
@@ -271,7 +271,7 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 
 /* TCP State Values */
 enum {
-	IP_VS_TCP_S_NONE = 0,
+	IP_VS_TCP_S_ANALNE = 0,
 	IP_VS_TCP_S_ESTABLISHED,
 	IP_VS_TCP_S_SYN_SENT,
 	IP_VS_TCP_S_SYN_RECV,
@@ -287,19 +287,19 @@ enum {
 
 /* UDP State Values */
 enum {
-	IP_VS_UDP_S_NORMAL,
+	IP_VS_UDP_S_ANALRMAL,
 	IP_VS_UDP_S_LAST,
 };
 
 /* ICMP State Values */
 enum {
-	IP_VS_ICMP_S_NORMAL,
+	IP_VS_ICMP_S_ANALRMAL,
 	IP_VS_ICMP_S_LAST,
 };
 
 /* SCTP State Values */
 enum ip_vs_sctp_states {
-	IP_VS_SCTP_S_NONE,
+	IP_VS_SCTP_S_ANALNE,
 	IP_VS_SCTP_S_INIT1,
 	IP_VS_SCTP_S_INIT,
 	IP_VS_SCTP_S_COOKIE_SENT,
@@ -317,7 +317,7 @@ enum ip_vs_sctp_states {
 };
 
 /* Connection templates use bits from state */
-#define IP_VS_CTPL_S_NONE		0x0000
+#define IP_VS_CTPL_S_ANALNE		0x0000
 #define IP_VS_CTPL_S_ASSURED		0x0001
 #define IP_VS_CTPL_S_LAST		0x0002
 
@@ -351,7 +351,7 @@ struct ip_vs_cpu_stats {
 
 /* IPVS statistics objects */
 struct ip_vs_estimator {
-	struct hlist_node	list;
+	struct hlist_analde	list;
 
 	u64			last_inbytes;
 	u64			last_outbytes;
@@ -416,7 +416,7 @@ void ip_vs_stats_free(struct ip_vs_stats *stats);
  */
 #define IPVS_EST_LOAD_DIVISOR	8
 
-/* Kthreads should not have work that exceeds the CPU load above 50% */
+/* Kthreads should analt have work that exceeds the CPU load above 50% */
 #define IPVS_EST_CPU_KTHREADS	(IPVS_EST_LOAD_DIVISOR / 2)
 
 /* Desired number of chains per timer tick (chain load factor in 100us units),
@@ -561,7 +561,7 @@ struct ip_vs_conn_param {
 
 /* IP_VS structure allocated for each dynamically scheduled connection */
 struct ip_vs_conn {
-	struct hlist_node	c_list;         /* hashed list heads */
+	struct hlist_analde	c_list;         /* hashed list heads */
 	/* Protocol, addresses and port numbers */
 	__be16                  cport;
 	__be16                  dport;
@@ -604,7 +604,7 @@ struct ip_vs_conn {
 	int (*packet_xmit)(struct sk_buff *skb, struct ip_vs_conn *cp,
 			   struct ip_vs_protocol *pp, struct ip_vs_iphdr *iph);
 
-	/* Note: we can group the following members into a structure,
+	/* Analte: we can group the following members into a structure,
 	 * in order to save more space, and the following members are
 	 * only used in VS/NAT anyway
 	 */
@@ -673,8 +673,8 @@ struct ip_vs_dest_user_kern {
  * forwarding entries.
  */
 struct ip_vs_service {
-	struct hlist_node	s_list;   /* for normal service table */
-	struct hlist_node	f_list;   /* for fwmark-based service table */
+	struct hlist_analde	s_list;   /* for analrmal service table */
+	struct hlist_analde	f_list;   /* for fwmark-based service table */
 	atomic_t		refcnt;   /* reference counter */
 
 	u16			af;       /* address family */
@@ -716,7 +716,7 @@ struct ip_vs_dest_dst {
  */
 struct ip_vs_dest {
 	struct list_head	n_list;   /* for the dests in the service */
-	struct hlist_node	d_list;   /* for table with all the dests */
+	struct hlist_analde	d_list;   /* for table with all the dests */
 
 	u16			af;		/* address family */
 	__be16			port;		/* port number of the server */
@@ -818,16 +818,16 @@ struct ip_vs_app {
 	atomic_t		usecnt;		/* usage counter */
 	struct rcu_head		rcu_head;
 
-	/* output hook: Process packet in inout direction, diff set for TCP.
-	 * Return: 0=Error, 1=Payload Not Mangled/Mangled but checksum is ok,
-	 *	   2=Mangled but checksum was not updated
+	/* output hook: Process packet in ianalut direction, diff set for TCP.
+	 * Return: 0=Error, 1=Payload Analt Mangled/Mangled but checksum is ok,
+	 *	   2=Mangled but checksum was analt updated
 	 */
 	int (*pkt_out)(struct ip_vs_app *, struct ip_vs_conn *,
 		       struct sk_buff *, int *diff, struct ip_vs_iphdr *ipvsh);
 
 	/* input hook: Process packet in outin direction, diff set for TCP.
-	 * Return: 0=Error, 1=Payload Not Mangled/Mangled but checksum is ok,
-	 *	   2=Mangled but checksum was not updated
+	 * Return: 0=Error, 1=Payload Analt Mangled/Mangled but checksum is ok,
+	 *	   2=Mangled but checksum was analt updated
 	 */
 	int (*pkt_in)(struct ip_vs_app *, struct ip_vs_conn *,
 		      struct sk_buff *, int *diff, struct ip_vs_iphdr *ipvsh);
@@ -839,7 +839,7 @@ struct ip_vs_app {
 	int (*done_conn)(struct ip_vs_app *, struct ip_vs_conn *);
 
 
-	/* not used now */
+	/* analt used analw */
 	int (*bind_conn)(struct ip_vs_app *, struct ip_vs_conn *,
 			 struct ip_vs_protocol *);
 
@@ -935,7 +935,7 @@ struct netns_ipvs {
 	/* ip_vs_ctl */
 	struct ip_vs_stats_rcu	*tot_stats;      /* Statistics & est. */
 
-	int			num_services;    /* no of virtual services */
+	int			num_services;    /* anal of virtual services */
 	int			num_services6;   /* IPv6 virtual services */
 
 	/* Trash for destinations */
@@ -948,8 +948,8 @@ struct netns_ipvs {
 	atomic_t		conn_out_counter;
 
 #ifdef CONFIG_SYSCTL
-	/* delayed work for expiring no dest connections */
-	struct delayed_work	expire_nodest_conn_work;
+	/* delayed work for expiring anal dest connections */
+	struct delayed_work	expire_analdest_conn_work;
 	/* 1/rate drop and drop-entry variables */
 	struct delayed_work	defense_work;   /* Work handler */
 	int			drop_rate;
@@ -982,7 +982,7 @@ struct netns_ipvs {
 	unsigned long		sysctl_sync_qlen_max;
 	int			sysctl_sync_sock_size;
 	int			sysctl_cache_bypass;
-	int			sysctl_expire_nodest_conn;
+	int			sysctl_expire_analdest_conn;
 	int			sysctl_sloppy_tcp;
 	int			sysctl_sloppy_sctp;
 	int			sysctl_expire_quiescent_template;
@@ -994,7 +994,7 @@ struct netns_ipvs {
 	int			sysctl_backup_only;
 	int			sysctl_conn_reuse_mode;
 	int			sysctl_schedule_icmp;
-	int			sysctl_ignore_tunneled;
+	int			sysctl_iganalre_tunneled;
 	int			sysctl_run_estimation;
 #ifdef CONFIG_SYSCTL
 	cpumask_var_t		sysctl_est_cpulist;	/* kthread cpumask */
@@ -1037,7 +1037,7 @@ struct netns_ipvs {
 	/* net name space ptr */
 	struct net		*net;            /* Needed by timer routines */
 	/* Number of heterogeneous destinations, needed because heterogeneous
-	 * are not supported when synchronization is enabled.
+	 * are analt supported when synchronization is enabled.
 	 */
 	unsigned int		mixed_address_family_dests;
 	unsigned int		hooks_afmask;	/* &1=AF_INET, &2=AF_INET6 */
@@ -1130,9 +1130,9 @@ static inline int sysctl_conn_reuse_mode(struct netns_ipvs *ipvs)
 	return ipvs->sysctl_conn_reuse_mode;
 }
 
-static inline int sysctl_expire_nodest_conn(struct netns_ipvs *ipvs)
+static inline int sysctl_expire_analdest_conn(struct netns_ipvs *ipvs)
 {
-	return ipvs->sysctl_expire_nodest_conn;
+	return ipvs->sysctl_expire_analdest_conn;
 }
 
 static inline int sysctl_schedule_icmp(struct netns_ipvs *ipvs)
@@ -1140,9 +1140,9 @@ static inline int sysctl_schedule_icmp(struct netns_ipvs *ipvs)
 	return ipvs->sysctl_schedule_icmp;
 }
 
-static inline int sysctl_ignore_tunneled(struct netns_ipvs *ipvs)
+static inline int sysctl_iganalre_tunneled(struct netns_ipvs *ipvs)
 {
-	return ipvs->sysctl_ignore_tunneled;
+	return ipvs->sysctl_iganalre_tunneled;
 }
 
 static inline int sysctl_cache_bypass(struct netns_ipvs *ipvs)
@@ -1240,7 +1240,7 @@ static inline int sysctl_conn_reuse_mode(struct netns_ipvs *ipvs)
 	return 1;
 }
 
-static inline int sysctl_expire_nodest_conn(struct netns_ipvs *ipvs)
+static inline int sysctl_expire_analdest_conn(struct netns_ipvs *ipvs)
 {
 	return 0;
 }
@@ -1250,7 +1250,7 @@ static inline int sysctl_schedule_icmp(struct netns_ipvs *ipvs)
 	return 0;
 }
 
-static inline int sysctl_ignore_tunneled(struct netns_ipvs *ipvs)
+static inline int sysctl_iganalre_tunneled(struct netns_ipvs *ipvs)
 {
 	return 0;
 }
@@ -1339,7 +1339,7 @@ struct ip_vs_conn * ip_vs_conn_out_get_proto(struct netns_ipvs *ipvs, int af,
  */
 static inline bool __ip_vs_conn_get(struct ip_vs_conn *cp)
 {
-	return refcount_inc_not_zero(&cp->refcnt);
+	return refcount_inc_analt_zero(&cp->refcnt);
 }
 
 /* put back the conn without restarting its timer */
@@ -1355,7 +1355,7 @@ struct ip_vs_conn *ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 				  const union nf_inet_addr *daddr,
 				  __be16 dport, unsigned int flags,
 				  struct ip_vs_dest *dest, __u32 fwmark);
-void ip_vs_conn_expire_now(struct ip_vs_conn *cp);
+void ip_vs_conn_expire_analw(struct ip_vs_conn *cp);
 
 const char *ip_vs_state_name(const struct ip_vs_conn *cp);
 
@@ -1512,7 +1512,7 @@ struct ip_vs_scheduler *ip_vs_scheduler_get(const char *sched_name);
 void ip_vs_scheduler_put(struct ip_vs_scheduler *scheduler);
 struct ip_vs_conn *
 ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
-	       struct ip_vs_proto_data *pd, int *ignored,
+	       struct ip_vs_proto_data *pd, int *iganalred,
 	       struct ip_vs_iphdr *iph);
 int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		struct ip_vs_proto_data *pd, struct ip_vs_iphdr *iph);
@@ -1643,7 +1643,7 @@ int ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 #endif
 
 #ifdef CONFIG_SYSCTL
-/* This is a simple mechanism to ignore packets when
+/* This is a simple mechanism to iganalre packets when
  * we are loaded. Just set ip_vs_drop_rate to 'n' and
  * we start to drop 1/rate of the packets
  */
@@ -1661,19 +1661,19 @@ static inline int ip_vs_todrop(struct netns_ipvs *ipvs) { return 0; }
 #endif
 
 #ifdef CONFIG_SYSCTL
-/* Enqueue delayed work for expiring no dest connections
- * Only run when sysctl_expire_nodest=1
+/* Enqueue delayed work for expiring anal dest connections
+ * Only run when sysctl_expire_analdest=1
  */
-static inline void ip_vs_enqueue_expire_nodest_conns(struct netns_ipvs *ipvs)
+static inline void ip_vs_enqueue_expire_analdest_conns(struct netns_ipvs *ipvs)
 {
-	if (sysctl_expire_nodest_conn(ipvs))
+	if (sysctl_expire_analdest_conn(ipvs))
 		queue_delayed_work(system_long_wq,
-				   &ipvs->expire_nodest_conn_work, 1);
+				   &ipvs->expire_analdest_conn_work, 1);
 }
 
-void ip_vs_expire_nodest_conn_flush(struct netns_ipvs *ipvs);
+void ip_vs_expire_analdest_conn_flush(struct netns_ipvs *ipvs);
 #else
-static inline void ip_vs_enqueue_expire_nodest_conns(struct netns_ipvs *ipvs) {}
+static inline void ip_vs_enqueue_expire_analdest_conns(struct netns_ipvs *ipvs) {}
 #endif
 
 #define IP_VS_DFWD_METHOD(dest) (atomic_read(&(dest)->conn_flags) & \
@@ -1689,7 +1689,7 @@ static inline char ip_vs_fwd_tag(struct ip_vs_conn *cp)
 	switch (IP_VS_FWD_METHOD(cp)) {
 	case IP_VS_CONN_F_MASQ:
 		fwd = 'M'; break;
-	case IP_VS_CONN_F_LOCALNODE:
+	case IP_VS_CONN_F_LOCALANALDE:
 		fwd = 'L'; break;
 	case IP_VS_CONN_F_TUNNEL:
 		fwd = 'T'; break;
@@ -1738,8 +1738,8 @@ static inline __wsum ip_vs_check_diff2(__be16 old, __be16 new, __wsum oldsum)
 	return csum_partial(diff, sizeof(diff), oldsum);
 }
 
-/* Forget current conntrack (unconfirmed) and attach notrack entry */
-static inline void ip_vs_notrack(struct sk_buff *skb)
+/* Forget current conntrack (unconfirmed) and attach analtrack entry */
+static inline void ip_vs_analtrack(struct sk_buff *skb)
 {
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	enum ip_conntrack_info ctinfo;
@@ -1795,7 +1795,7 @@ static inline void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp)
 }
 #endif /* CONFIG_IP_VS_NFCT */
 
-/* Using old conntrack that can not be redirected to another real server? */
+/* Using old conntrack that can analt be redirected to aanalther real server? */
 static inline bool ip_vs_conn_uses_old_conntrack(struct ip_vs_conn *cp,
 						 struct sk_buff *skb)
 {
@@ -1847,8 +1847,8 @@ ip_vs_dest_conn_overhead(struct ip_vs_dest *dest)
 {
 	/* We think the overhead of processing active connections is 256
 	 * times higher than that of inactive connections in average. (This
-	 * 256 times might not be accurate, we will change it later) We
-	 * use the following formula to estimate the overhead now:
+	 * 256 times might analt be accurate, we will change it later) We
+	 * use the following formula to estimate the overhead analw:
 	 *		  dest->activeconns*256 + dest->inactconns
 	 */
 	return (atomic_read(&dest->activeconns) << 8) +

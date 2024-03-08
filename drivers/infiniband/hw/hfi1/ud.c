@@ -12,7 +12,7 @@
 #include "trace_ibhdrs.h"
 #include "qp.h"
 
-/* We support only two types - 9B and 16B for now */
+/* We support only two types - 9B and 16B for analw */
 static const hfi1_make_req hfi1_make_ud_req_tbl[2] = {
 	[HFI1_PKT_TYPE_9B] = &hfi1_make_ud_req_9B,
 	[HFI1_PKT_TYPE_16B] = &hfi1_make_ud_req_16B
@@ -25,7 +25,7 @@ static const hfi1_make_req hfi1_make_ud_req_tbl[2] = {
  *
  * This is called from hfi1_make_ud_req() to forward a WQE addressed
  * to the same HFI.
- * Note that the receive interrupt handler may be calling hfi1_ud_rcv()
+ * Analte that the receive interrupt handler may be calling hfi1_ud_rcv()
  * while this is being called.
  */
 static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
@@ -100,7 +100,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	}
 
 	/*
-	 * A GRH is expected to precede the data even if not
+	 * A GRH is expected to precede the data even if analt
 	 * present on the wire.
 	 */
 	length = swqe->length;
@@ -153,7 +153,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		 * OPA_GID_INDEX. The new dgid is from the sgid
 		 * index and that will be in the IB GID format.
 		 *
-		 * We now have a case where the sent packet had a
+		 * We analw have a case where the sent packet had a
 		 * different sgid_index and dgid compared to the
 		 * one that was received in response.
 		 *
@@ -206,7 +206,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	}
 	wc.slid = (ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
 				   ((1 << ppd->lmc) - 1))) & U16_MAX;
-	/* Check for loopback when the port lid is not set */
+	/* Check for loopback when the port lid is analt set */
 	if (wc.slid == 0 && sqp->ibqp.qp_type == IB_QPT_GSI)
 		wc.slid = be16_to_cpu(IB_LID_PERMISSIVE);
 	wc.sl = rdma_ah_get_sl(ah_attr);
@@ -444,7 +444,7 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 
 	ps->s_txreq = get_txreq(ps->dev, qp);
 	if (!ps->s_txreq)
-		goto bail_no_tx;
+		goto bail_anal_tx;
 
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_NEXT_SEND_OK)) {
 		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
@@ -537,7 +537,7 @@ done_free_tx:
 bail:
 	hfi1_put_txreq(ps->s_txreq);
 
-bail_no_tx:
+bail_anal_tx:
 	ps->s_txreq = NULL;
 	qp->s_flags &= ~RVT_S_BUSY;
 	return 0;
@@ -550,7 +550,7 @@ bail_no_tx:
  * special cases the management keys and allows for 0x7fff and 0xffff to be in
  * the table at the same time.
  *
- * @returns the index found or -1 if not found
+ * @returns the index found or -1 if analt found
  */
 int hfi1_lookup_pkey_idx(struct hfi1_ibport *ibp, u16 pkey)
 {
@@ -568,11 +568,11 @@ int hfi1_lookup_pkey_idx(struct hfi1_ibport *ibp, u16 pkey)
 				lim_idx = i;
 		}
 
-		/* did not find 0xffff return 0x7fff idx if found */
+		/* did analt find 0xffff return 0x7fff idx if found */
 		if (pkey == FULL_MGMT_P_KEY)
 			return lim_idx;
 
-		/* no match...  */
+		/* anal match...  */
 		return -1;
 	}
 
@@ -583,7 +583,7 @@ int hfi1_lookup_pkey_idx(struct hfi1_ibport *ibp, u16 pkey)
 			return i;
 
 	/*
-	 * Should not get here, this means hardware failed to validate pkeys.
+	 * Should analt get here, this means hardware failed to validate pkeys.
 	 */
 	return -1;
 }
@@ -710,15 +710,15 @@ void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
  * checks for SMPs specified in OPAv1 rev 1.0, 9/19/2016 update, section
  * 9.10.25 ("SMA Packet Checks").
  *
- * Note that:
+ * Analte that:
  *   - Checks are done using the pkey directly from the packet's BTH,
- *     and specifically _not_ the pkey that we attach to the completion,
+ *     and specifically _analt_ the pkey that we attach to the completion,
  *     which may be different.
- *   - These checks are specifically for "non-local" SMPs (i.e., SMPs
- *     which originated on another node). SMPs which are sent from, and
- *     destined to this node are checked in opa_local_smp_check().
+ *   - These checks are specifically for "analn-local" SMPs (i.e., SMPs
+ *     which originated on aanalther analde). SMPs which are sent from, and
+ *     destined to this analde are checked in opa_local_smp_check().
  *
- * At the point where opa_smp_check() is called, we know:
+ * At the point where opa_smp_check() is called, we kanalw:
  *   - destination QP is QP0
  *
  * opa_smp_check() returns 0 if all checks succeed, 1 otherwise.
@@ -739,7 +739,7 @@ static int opa_smp_check(struct hfi1_ibport *ibp, u16 pkey, u8 sc5,
 		return 1;
 
 	/*
-	 * At this point we know (and so don't need to check again) that
+	 * At this point we kanalw (and so don't need to check again) that
 	 * the pkey is either LIM_MGMT_P_KEY, or FULL_MGMT_P_KEY
 	 * (see ingress_pkey_check).
 	 */
@@ -873,7 +873,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		if (qp->ibqp.qp_num > 1) {
 			if (unlikely(rcv_pkey_check(ppd, pkey, sc5, slid))) {
 				/*
-				 * Traps will not be sent for packets dropped
+				 * Traps will analt be sent for packets dropped
 				 * by the HW. This is fine, as sending trap
 				 * for invalid pkeys is optional according to
 				 * IB spec (release 1.3, section 10.9.4)
@@ -929,7 +929,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	}
 
 	/*
-	 * A GRH is expected to precede the data even if not
+	 * A GRH is expected to precede the data even if analt
 	 * present on the wire.
 	 */
 	wc.byte_len = tlen + sizeof(struct ib_grh);
@@ -994,7 +994,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 			if (net_ratelimit()) {
 				struct hfi1_devdata *dd = ppd->dd;
 
-				dd_dev_err(dd, "QP type %d mgmt_pkey_idx < 0 and packet not dropped???\n",
+				dd_dev_err(dd, "QP type %d mgmt_pkey_idx < 0 and packet analt dropped???\n",
 					   qp->ibqp.qp_type);
 				mgmt_pkey_idx = 0;
 			}

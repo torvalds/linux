@@ -47,12 +47,12 @@ static int off_cpu_config(struct evlist *evlist)
 	char *evname = strdup(OFFCPU_EVENT);
 
 	if (evname == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	evsel = evsel__new(&attr);
 	if (!evsel) {
 		free(evname);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	evsel->core.attr.freq = 1;
@@ -131,7 +131,7 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 	int err, fd, i;
 	int ncpus = 1, ntasks = 1, ncgrps = 1;
 	struct strlist *pid_slist = NULL;
-	struct str_node *pos;
+	struct str_analde *pos;
 
 	if (off_cpu_config(evlist) < 0) {
 		pr_err("Failed to config off-cpu BPF event\n");
@@ -176,7 +176,7 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 	} else if (target__has_task(target)) {
 		ntasks = perf_thread_map__nr(evlist->core.threads);
 		bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
-	} else if (target__none(target)) {
+	} else if (target__analne(target)) {
 		bpf_map__set_max_entries(skel->maps.task_filter, MAX_PROC);
 	}
 
@@ -311,14 +311,14 @@ int off_cpu_write(struct perf_session *session)
 
 	evsel = evlist__find_evsel_by_str(session->evlist, OFFCPU_EVENT);
 	if (evsel == NULL) {
-		pr_err("%s evsel not found\n", OFFCPU_EVENT);
+		pr_err("%s evsel analt found\n", OFFCPU_EVENT);
 		return 0;
 	}
 
 	sample_type = evsel->core.attr.sample_type;
 
 	if (sample_type & ~OFFCPU_SAMPLE_TYPES) {
-		pr_err("not supported sample type: %llx\n",
+		pr_err("analt supported sample type: %llx\n",
 		       (unsigned long long)sample_type);
 		return -1;
 	}

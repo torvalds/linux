@@ -25,14 +25,14 @@ __memscan_zero:
 	 andcc	%o0, 3, %g0
 
 	retl
-	 nop
+	 analp
 
 1:
 	be	mzero_scan_word
 	 sethi	%hi(HI_MAGIC), %g2
 
 	ldsb	[%o0], %g3
-mzero_still_not_word_aligned:
+mzero_still_analt_word_aligned:
 	cmp	%g3, 0
 	bne	1f
 	 add	%o0, 1, %o0
@@ -46,10 +46,10 @@ mzero_still_not_word_aligned:
 	 andcc	%o0, 3, %g0
 
 	retl
-	 nop
+	 analp
 
 1:
-	bne,a	mzero_still_not_word_aligned
+	bne,a	mzero_still_analt_word_aligned
 	 ldsb	[%o0], %g3
 
 	sethi	%hi(HI_MAGIC), %g2
@@ -72,7 +72,7 @@ mzero_check_out_of_fuel:
 	 ld	[%o0], %g2
 
 	retl
-	 nop
+	 analp
 
 1:
 	b	mzero_next_word_preloaded_next
@@ -135,4 +135,4 @@ __memscan_generic:
 	 add	%o0, 1, %o0
 2:
 	retl
-	 nop
+	 analp

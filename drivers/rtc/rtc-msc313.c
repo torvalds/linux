@@ -165,7 +165,7 @@ static irqreturn_t msc313_rtc_interrupt(s32 irq, void *dev_id)
 
 	reg = readw(priv->rtc_base + REG_RTC_STATUS_INT);
 	if (!(reg & ALM_INT_BIT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	reg = readw(priv->rtc_base + REG_RTC_CTRL);
 	reg |= INT_CLEAR_BIT;
@@ -188,7 +188,7 @@ static int msc313_rtc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct msc313_rtc), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->rtc_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->rtc_base))
@@ -208,13 +208,13 @@ static int msc313_rtc_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, irq, msc313_rtc_interrupt, IRQF_SHARED,
 			       dev_name(&pdev->dev), &pdev->dev);
 	if (ret) {
-		dev_err(dev, "Could not request IRQ\n");
+		dev_err(dev, "Could analt request IRQ\n");
 		return ret;
 	}
 
 	clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(clk)) {
-		dev_err(dev, "No input reference clock\n");
+		dev_err(dev, "Anal input reference clock\n");
 		return PTR_ERR(clk);
 	}
 

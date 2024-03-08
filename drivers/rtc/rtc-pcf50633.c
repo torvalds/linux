@@ -201,7 +201,7 @@ static int pcf50633_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	rtc2pcf_time(&pcf_tm, &alrm->time);
 
-	/* do like mktime does and ignore tm_wday */
+	/* do like mktime does and iganalre tm_wday */
 	pcf_tm.time[PCF50633_TI_WKDAY] = 7;
 
 	alarm_masked = pcf50633_irq_mask_get(rtc->pcf, PCF50633_IRQ_ALARM);
@@ -245,7 +245,7 @@ static int pcf50633_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->pcf = dev_to_pcf50633(pdev->dev.parent);
 	platform_set_drvdata(pdev, rtc);

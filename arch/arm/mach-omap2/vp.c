@@ -43,12 +43,12 @@ void __init omap_vp_init(struct voltagedomain *voltdm)
 	u32 vddmin, vddmax, vstepmin, vstepmax;
 
 	if (!voltdm->pmic || !voltdm->pmic->uv_to_vsel) {
-		pr_err("%s: No PMIC info for vdd_%s\n", __func__, voltdm->name);
+		pr_err("%s: Anal PMIC info for vdd_%s\n", __func__, voltdm->name);
 		return;
 	}
 
 	if (!voltdm->read || !voltdm->write) {
-		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
+		pr_err("%s: Anal read/write API for accessing vdd_%s regs\n",
 			__func__, voltdm->name);
 		return;
 	}
@@ -70,7 +70,7 @@ void __init omap_vp_init(struct voltagedomain *voltdm)
 	vstepmax = voltdm->pmic->vp_vstepmax;
 
 	/*
-	 * VP_CONFIG: error gain is not set here, it will be updated
+	 * VP_CONFIG: error gain is analt set here, it will be updated
 	 * on each scale, based on OPP.
 	 */
 	val = (voltdm->pmic->vp_erroroffset <<
@@ -200,18 +200,18 @@ void omap_vp_enable(struct voltagedomain *voltdm)
 	u32 vpconfig, volt;
 
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warn("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does analt exist!\n", __func__);
 		return;
 	}
 
 	vp = voltdm->vp;
 	if (!voltdm->read || !voltdm->write) {
-		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
+		pr_err("%s: Anal read/write API for accessing vdd_%s regs\n",
 			__func__, voltdm->name);
 		return;
 	}
 
-	/* If VP is already enabled, do nothing. Return */
+	/* If VP is already enabled, do analthing. Return */
 	if (vp->enabled)
 		return;
 
@@ -245,18 +245,18 @@ void omap_vp_disable(struct voltagedomain *voltdm)
 	int timeout;
 
 	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warn("%s: VDD specified does not exist!\n", __func__);
+		pr_warn("%s: VDD specified does analt exist!\n", __func__);
 		return;
 	}
 
 	vp = voltdm->vp;
 	if (!voltdm->read || !voltdm->write) {
-		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
+		pr_err("%s: Anal read/write API for accessing vdd_%s regs\n",
 			__func__, voltdm->name);
 		return;
 	}
 
-	/* If VP is already disabled, do nothing. Return */
+	/* If VP is already disabled, do analthing. Return */
 	if (!vp->enabled) {
 		pr_warn("%s: Trying to disable VP for vdd_%s when it is already disabled\n",
 			__func__, voltdm->name);

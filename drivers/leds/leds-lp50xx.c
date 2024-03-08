@@ -321,7 +321,7 @@ static int lp50xx_brightness_set(struct led_classdev *cdev,
 	ret = regmap_write(led->priv->regmap, reg_val, brightness);
 	if (ret) {
 		dev_err(led->priv->dev,
-			"Cannot write brightness value %d\n", ret);
+			"Cananalt write brightness value %d\n", ret);
 		goto out;
 	}
 
@@ -337,7 +337,7 @@ static int lp50xx_brightness_set(struct led_classdev *cdev,
 				   mc_dev->subled_info[i].intensity);
 		if (ret) {
 			dev_err(led->priv->dev,
-				"Cannot write intensity value %d\n", ret);
+				"Cananalt write intensity value %d\n", ret);
 			goto out;
 		}
 	}
@@ -391,7 +391,7 @@ static int lp50xx_enable_disable(struct lp50xx *priv, int enable_disable)
 
 }
 
-static int lp50xx_probe_leds(struct fwnode_handle *child, struct lp50xx *priv,
+static int lp50xx_probe_leds(struct fwanalde_handle *child, struct lp50xx *priv,
 			     struct lp50xx_led *led, int num_leds)
 {
 	u32 led_banks[LP5036_MAX_LED_MODULES] = {0};
@@ -406,7 +406,7 @@ static int lp50xx_probe_leds(struct fwnode_handle *child, struct lp50xx *priv,
 
 		priv->num_of_banked_leds = num_leds;
 
-		ret = fwnode_property_read_u32_array(child, "reg", led_banks, num_leds);
+		ret = fwanalde_property_read_u32_array(child, "reg", led_banks, num_leds);
 		if (ret) {
 			dev_err(priv->dev, "reg property is missing\n");
 			return ret;
@@ -414,13 +414,13 @@ static int lp50xx_probe_leds(struct fwnode_handle *child, struct lp50xx *priv,
 
 		ret = lp50xx_set_banks(priv, led_banks);
 		if (ret) {
-			dev_err(priv->dev, "Cannot setup banked LEDs\n");
+			dev_err(priv->dev, "Cananalt setup banked LEDs\n");
 			return ret;
 		}
 
 		led->ctrl_bank_enabled = 1;
 	} else {
-		ret = fwnode_property_read_u32(child, "reg", &led_number);
+		ret = fwanalde_property_read_u32(child, "reg", &led_number);
 		if (ret) {
 			dev_err(priv->dev, "led reg property missing\n");
 			return ret;
@@ -439,8 +439,8 @@ static int lp50xx_probe_leds(struct fwnode_handle *child, struct lp50xx *priv,
 
 static int lp50xx_probe_dt(struct lp50xx *priv)
 {
-	struct fwnode_handle *child = NULL;
-	struct fwnode_handle *led_node = NULL;
+	struct fwanalde_handle *child = NULL;
+	struct fwanalde_handle *led_analde = NULL;
 	struct led_init_data init_data = {};
 	struct led_classdev *led_cdev;
 	struct mc_subled *mc_led_info;
@@ -459,9 +459,9 @@ static int lp50xx_probe_dt(struct lp50xx *priv)
 	if (IS_ERR(priv->regulator))
 		priv->regulator = NULL;
 
-	device_for_each_child_node(priv->dev, child) {
+	device_for_each_child_analde(priv->dev, child) {
 		led = &priv->leds[i];
-		ret = fwnode_property_count_u32(child, "reg");
+		ret = fwanalde_property_count_u32(child, "reg");
 		if (ret < 0) {
 			dev_err(priv->dev, "reg property is invalid\n");
 			goto child_out;
@@ -471,7 +471,7 @@ static int lp50xx_probe_dt(struct lp50xx *priv)
 		if (ret)
 			goto child_out;
 
-		init_data.fwnode = child;
+		init_data.fwanalde = child;
 		num_colors = 0;
 
 		/*
@@ -481,16 +481,16 @@ static int lp50xx_probe_dt(struct lp50xx *priv)
 		mc_led_info = devm_kcalloc(priv->dev, LP50XX_LEDS_PER_MODULE,
 					   sizeof(*mc_led_info), GFP_KERNEL);
 		if (!mc_led_info) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto child_out;
 		}
 
-		fwnode_for_each_child_node(child, led_node) {
-			ret = fwnode_property_read_u32(led_node, "color",
+		fwanalde_for_each_child_analde(child, led_analde) {
+			ret = fwanalde_property_read_u32(led_analde, "color",
 						       &color_id);
 			if (ret) {
-				fwnode_handle_put(led_node);
-				dev_err(priv->dev, "Cannot read color\n");
+				fwanalde_handle_put(led_analde);
+				dev_err(priv->dev, "Cananalt read color\n");
 				goto child_out;
 			}
 
@@ -517,7 +517,7 @@ static int lp50xx_probe_dt(struct lp50xx *priv)
 	return 0;
 
 child_out:
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 	return ret;
 }
 
@@ -527,16 +527,16 @@ static int lp50xx_probe(struct i2c_client *client)
 	int count;
 	int ret;
 
-	count = device_get_child_node_count(&client->dev);
+	count = device_get_child_analde_count(&client->dev);
 	if (!count) {
-		dev_err(&client->dev, "LEDs are not defined in device tree!");
-		return -ENODEV;
+		dev_err(&client->dev, "LEDs are analt defined in device tree!");
+		return -EANALDEV;
 	}
 
 	led = devm_kzalloc(&client->dev, struct_size(led, leds, count),
 			   GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&led->lock);
 	led->client = client;

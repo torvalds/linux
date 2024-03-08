@@ -18,7 +18,7 @@
  * barrier case is generated as release+dmb for the former and
  * acquire+release for the latter.
  */
-#define __XCHG_CASE(w, sfx, name, sz, mb, nop_lse, acq, acq_lse, rel, cl)	\
+#define __XCHG_CASE(w, sfx, name, sz, mb, analp_lse, acq, acq_lse, rel, cl)	\
 static inline u##sz __xchg_case_##name##sz(u##sz x, volatile void *ptr)		\
 {										\
 	u##sz ret;								\
@@ -33,8 +33,8 @@ static inline u##sz __xchg_case_##name##sz(u##sz x, volatile void *ptr)		\
 	"	" #mb,								\
 	/* LSE atomics */							\
 	"	swp" #acq_lse #rel #sfx "\t%" #w "3, %" #w "0, %2\n"		\
-		__nops(3)							\
-	"	" #nop_lse)							\
+		__analps(3)							\
+	"	" #analp_lse)							\
 	: "=&r" (ret), "=&r" (tmp), "+Q" (*(u##sz *)ptr)			\
 	: "r" (x)								\
 	: cl);									\
@@ -54,10 +54,10 @@ __XCHG_CASE(w, b, rel_,  8,        ,    ,  ,  , l, "memory")
 __XCHG_CASE(w, h, rel_, 16,        ,    ,  ,  , l, "memory")
 __XCHG_CASE(w,  , rel_, 32,        ,    ,  ,  , l, "memory")
 __XCHG_CASE( ,  , rel_, 64,        ,    ,  ,  , l, "memory")
-__XCHG_CASE(w, b,  mb_,  8, dmb ish, nop,  , a, l, "memory")
-__XCHG_CASE(w, h,  mb_, 16, dmb ish, nop,  , a, l, "memory")
-__XCHG_CASE(w,  ,  mb_, 32, dmb ish, nop,  , a, l, "memory")
-__XCHG_CASE( ,  ,  mb_, 64, dmb ish, nop,  , a, l, "memory")
+__XCHG_CASE(w, b,  mb_,  8, dmb ish, analp,  , a, l, "memory")
+__XCHG_CASE(w, h,  mb_, 16, dmb ish, analp,  , a, l, "memory")
+__XCHG_CASE(w,  ,  mb_, 32, dmb ish, analp,  , a, l, "memory")
+__XCHG_CASE( ,  ,  mb_, 64, dmb ish, analp,  , a, l, "memory")
 
 #undef __XCHG_CASE
 

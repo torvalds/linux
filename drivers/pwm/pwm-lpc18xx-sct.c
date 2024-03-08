@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2015 Ariel D'Alessandro <ariel@vanguardiasur.com>
  *
- * Notes
+ * Analtes
  * =====
  * NXP LPC18xx provides a State Configurable Timer (SCT) which can be configured
  * as a Pulse Width Modulator.
@@ -14,7 +14,7 @@
  * will set or clear a selected output.
  *
  * One of the events is preselected to generate the period, thus the maximum
- * number of simultaneous channels is limited to 15. Notice that period is
+ * number of simultaneous channels is limited to 15. Analtice that period is
  * global to all the channels, thus PWM driver will refuse setting different
  * values to it, unless there's only one channel requested.
  */
@@ -30,7 +30,7 @@
 /* LPC18xx SCT registers */
 #define LPC18XX_PWM_CONFIG		0x000
 #define LPC18XX_PWM_CONFIG_UNIFY	BIT(0)
-#define LPC18XX_PWM_CONFIG_NORELOAD	BIT(7)
+#define LPC18XX_PWM_CONFIG_ANALRELOAD	BIT(7)
 
 #define LPC18XX_PWM_CTRL		0x004
 #define LPC18XX_PWM_CTRL_HALT		BIT(2)
@@ -81,7 +81,7 @@
 
 /* SCT conflict resolution */
 enum lpc18xx_pwm_res_action {
-	LPC18XX_PWM_RES_NONE,
+	LPC18XX_PWM_RES_ANALNE,
 	LPC18XX_PWM_RES_SET,
 	LPC18XX_PWM_RES_CLEAR,
 	LPC18XX_PWM_RES_TOGGLE,
@@ -152,7 +152,7 @@ static void lpc18xx_pwm_config_period(struct pwm_chip *chip, u64 period_ns)
 	u32 val;
 
 	/*
-	 * With clk_rate < NSEC_PER_SEC this cannot overflow.
+	 * With clk_rate < NSEC_PER_SEC this cananalt overflow.
 	 * With period_ns < max_period_ns this also fits into an u32.
 	 * As period_ns >= min_period_ns = DIV_ROUND_UP(NSEC_PER_SEC, lpc18xx_pwm->clk_rate);
 	 * we have val >= 1.
@@ -176,7 +176,7 @@ static void lpc18xx_pwm_config_duty(struct pwm_chip *chip,
 	u32 val;
 
 	/*
-	 * With clk_rate <= NSEC_PER_SEC this cannot overflow.
+	 * With clk_rate <= NSEC_PER_SEC this cananalt overflow.
 	 * With duty_ns <= period_ns < max_period_ns this also fits into an u32.
 	 */
 	val = mul_u64_u64_div_u64(duty_ns, lpc18xx_pwm->clk_rate, NSEC_PER_SEC);
@@ -198,7 +198,7 @@ static int lpc18xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (period_ns < lpc18xx_pwm->min_period_ns ||
 	    period_ns > lpc18xx_pwm->max_period_ns) {
-		dev_err(chip->dev, "period %d not in range\n", period_ns);
+		dev_err(chip->dev, "period %d analt in range\n", period_ns);
 		return -ERANGE;
 	}
 
@@ -209,7 +209,7 @@ static int lpc18xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/*
 	 * The PWM supports only a single period for all PWM channels.
-	 * Once the period is set, it can only be changed if no more than one
+	 * Once the period is set, it can only be changed if anal more than one
 	 * channel is requested at that moment.
 	 */
 	if (requested_events > 2 && lpc18xx_pwm->period_ns != period_ns &&
@@ -249,7 +249,7 @@ static int lpc18xx_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm, enu
 			   LPC18XX_PWM_EVSTATEMSK(lpc18xx_data->duty_event),
 			   LPC18XX_PWM_EVSTATEMSK_ALL);
 
-	if (polarity == PWM_POLARITY_NORMAL) {
+	if (polarity == PWM_POLARITY_ANALRMAL) {
 		set_event = lpc18xx_pwm->period_event;
 		clear_event = lpc18xx_data->duty_event;
 		res_action = LPC18XX_PWM_RES_SET;
@@ -356,7 +356,7 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 	lpc18xx_pwm = devm_kzalloc(&pdev->dev, sizeof(*lpc18xx_pwm),
 				   GFP_KERNEL);
 	if (!lpc18xx_pwm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lpc18xx_pwm->dev = &pdev->dev;
 
@@ -372,7 +372,7 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 	lpc18xx_pwm->clk_rate = clk_get_rate(lpc18xx_pwm->pwm_clk);
 	if (!lpc18xx_pwm->clk_rate)
 		return dev_err_probe(&pdev->dev,
-				     -EINVAL, "pwm clock has no frequency\n");
+				     -EINVAL, "pwm clock has anal frequency\n");
 
 	/*
 	 * If clkrate is too fast, the calculations in .apply() might overflow.

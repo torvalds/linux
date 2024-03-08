@@ -113,7 +113,7 @@ static inline void cpm_setbrg(uint brg, uint rate)
 	__cpm2_setbrg(brg, rate, CPM2_BRG_UART_CLK, 0, CPM_BRG_EXTC_INT);
 }
 
-/* This function is used to set high speed synchronous baud rate
+/* This function is used to set high speed synchroanalus baud rate
  * clocks.
  */
 static inline void cpm2_fastbrg(uint brg, uint rate, int div16)
@@ -158,7 +158,7 @@ static inline void cpm2_fastbrg(uint brg, uint rate, int div16)
 #define PROFF_SMC2	(64)
 
 
-/* Define enough so I can at least use the serial port as a UART.
+/* Define eanalugh so I can at least use the serial port as a UART.
  */
 typedef struct smc_uart {
 	ushort	smc_rbase;	/* Rx Buffer descriptor base address */
@@ -235,7 +235,7 @@ typedef struct smc_uart {
 #define SCC_GSMRH_RSYN		((uint)0x00000001)
 
 #define SCC_GSMRL_SIR		((uint)0x80000000)	/* SCC2 only */
-#define SCC_GSMRL_EDGE_NONE	((uint)0x60000000)
+#define SCC_GSMRL_EDGE_ANALNE	((uint)0x60000000)
 #define SCC_GSMRL_EDGE_NEG	((uint)0x40000000)
 #define SCC_GSMRL_EDGE_POS	((uint)0x20000000)
 #define SCC_GSMRL_EDGE_BOTH	((uint)0x00000000)
@@ -252,7 +252,7 @@ typedef struct smc_uart {
 #define SCC_GSMRL_TPL_32	((uint)0x00600000)
 #define SCC_GSMRL_TPL_16	((uint)0x00400000)
 #define SCC_GSMRL_TPL_8		((uint)0x00200000)
-#define SCC_GSMRL_TPL_NONE	((uint)0x00000000)
+#define SCC_GSMRL_TPL_ANALNE	((uint)0x00000000)
 #define SCC_GSMRL_TPP_ALL1	((uint)0x00180000)
 #define SCC_GSMRL_TPP_01	((uint)0x00100000)
 #define SCC_GSMRL_TPP_10	((uint)0x00080000)
@@ -279,7 +279,7 @@ typedef struct smc_uart {
 #define SCC_GSMRL_DIAG_LE	((uint)0x000000c0)	/* Loop and echo */
 #define SCC_GSMRL_DIAG_ECHO	((uint)0x00000080)
 #define SCC_GSMRL_DIAG_LOOP	((uint)0x00000040)
-#define SCC_GSMRL_DIAG_NORM	((uint)0x00000000)
+#define SCC_GSMRL_DIAG_ANALRM	((uint)0x00000000)
 #define SCC_GSMRL_ENR		((uint)0x00000020)
 #define SCC_GSMRL_ENT		((uint)0x00000010)
 #define SCC_GSMRL_MODE_ENET	((uint)0x0000000c)
@@ -325,7 +325,7 @@ typedef struct scc_param {
 /* Function code bits.
 */
 #define SCC_EB	((u_char) 0x10)	/* Set big endian byte order */
-#define SCC_GBL	((u_char) 0x20) /* Snooping enabled */
+#define SCC_GBL	((u_char) 0x20) /* Sanaloping enabled */
 
 /* CPM Ethernet through SCC1.
  */
@@ -374,7 +374,7 @@ typedef struct scc_enet {
 	ushort	sen_iaddr4;
 	ushort	sen_boffcnt;	/* Backoff counter */
 
-	/* NOTE: Some versions of the manual have the following items
+	/* ANALTE: Some versions of the manual have the following items
 	 * incorrectly documented.  Below is the proper order.
 	 */
 	ushort	sen_taddrh;	/* temp address (MSB) */
@@ -419,7 +419,7 @@ typedef struct scc_uart {
 	ushort	scc_brkcr;	/* Break count register */
 	ushort	scc_parec;	/* receive parity error counter */
 	ushort	scc_frmec;	/* receive framing error counter */
-	ushort	scc_nosec;	/* receive noise counter */
+	ushort	scc_analsec;	/* receive analise counter */
 	ushort	scc_brkec;	/* receive break condition counter */
 	ushort	scc_brkln;	/* last received break length */
 	ushort	scc_uaddr1;	/* UART address character 1 */
@@ -479,7 +479,7 @@ typedef struct scc_trans {
 
 /* How about some FCCs.....
 */
-#define FCC_GFMR_DIAG_NORM	((uint)0x00000000)
+#define FCC_GFMR_DIAG_ANALRM	((uint)0x00000000)
 #define FCC_GFMR_DIAG_LE	((uint)0x40000000)
 #define FCC_GFMR_DIAG_AE	((uint)0x80000000)
 #define FCC_GFMR_DIAG_ALE	((uint)0xc0000000)
@@ -490,7 +490,7 @@ typedef struct scc_trans {
 #define FCC_GFMR_CTSP		((uint)0x02000000)
 #define FCC_GFMR_CDS		((uint)0x01000000)
 #define FCC_GFMR_CTSS		((uint)0x00800000)
-#define FCC_GFMR_SYNL_NONE	((uint)0x00000000)
+#define FCC_GFMR_SYNL_ANALNE	((uint)0x00000000)
 #define FCC_GFMR_SYNL_AUTO	((uint)0x00004000)
 #define FCC_GFMR_SYNL_8		((uint)0x00008000)
 #define FCC_GFMR_SYNL_16	((uint)0x0000c000)
@@ -934,7 +934,7 @@ typedef struct im_idma {
  * SIUMCR - SIU Module Configuration Register				 4-31
  */
 #define SIUMCR_BBD	0x80000000	/* Bus Busy Disable		*/
-#define SIUMCR_ESE	0x40000000	/* External Snoop Enable	*/
+#define SIUMCR_ESE	0x40000000	/* External Sanalop Enable	*/
 #define SIUMCR_PBSE	0x20000000	/* Parity Byte Select Enable	*/
 #define SIUMCR_CDIS	0x10000000	/* Core Disable			*/
 #define SIUMCR_DPPC00	0x00000000	/* Data Parity Pins Configuration*/
@@ -1015,7 +1015,7 @@ typedef struct im_idma {
 
 #define CLK_TRX (PC_F3TXCLK | PC_F3RXCLK | PC_F2TXCLK | PC_F2RXCLK)
 
-/* I/O Pin assignment for FCC1.  I don't yet know the best way to do this,
+/* I/O Pin assignment for FCC1.  I don't yet kanalw the best way to do this,
  * but there is little variation among the choices.
  */
 #define PA1_COL		0x00000001U
@@ -1033,7 +1033,7 @@ typedef struct im_idma {
 #define PA1_DIRA1	(PA1_TXDAT | PA1_TXEN | PA1_TXER)
 
 
-/* I/O Pin assignment for FCC2.  I don't yet know the best way to do this,
+/* I/O Pin assignment for FCC2.  I don't yet kanalw the best way to do this,
  * but there is little variation among the choices.
  */
 #define PB2_TXER	0x00000001U
@@ -1051,7 +1051,7 @@ typedef struct im_idma {
 #define PB2_DIRB1	(PB2_TXDAT | PB2_TXEN | PB2_TXER)
 
 
-/* I/O Pin assignment for FCC3.  I don't yet know the best way to do this,
+/* I/O Pin assignment for FCC3.  I don't yet kanalw the best way to do this,
  * but there is little variation among the choices.
  */
 #define PB3_RXDV	0x00004000U
@@ -1100,7 +1100,7 @@ enum cpm_clk_target {
 };
 
 enum cpm_clk {
-	CPM_CLK_NONE = 0,
+	CPM_CLK_ANALNE = 0,
 	CPM_BRG1,	/* Baud Rate Generator  1 */
 	CPM_BRG2,	/* Baud Rate Generator  2 */
 	CPM_BRG3,	/* Baud Rate Generator  3 */

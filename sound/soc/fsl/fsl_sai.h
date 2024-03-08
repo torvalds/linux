@@ -176,8 +176,8 @@
 /* SAI VERID Register */
 #define FSL_SAI_VERID_MAJOR_SHIFT   24
 #define FSL_SAI_VERID_MAJOR_MASK    GENMASK(31, 24)
-#define FSL_SAI_VERID_MINOR_SHIFT   16
-#define FSL_SAI_VERID_MINOR_MASK    GENMASK(23, 16)
+#define FSL_SAI_VERID_MIANALR_SHIFT   16
+#define FSL_SAI_VERID_MIANALR_MASK    GENMASK(23, 16)
 #define FSL_SAI_VERID_FEATURE_SHIFT 0
 #define FSL_SAI_VERID_FEATURE_MASK  GENMASK(15, 0)
 #define FSL_SAI_VERID_EFIFO_EN	    BIT(0)
@@ -287,7 +287,7 @@ struct fsl_sai {
 	bool is_dsp_mode;
 	bool is_pdm_mode;
 	bool is_multi_fifo_dma;
-	bool synchronous[2];
+	bool synchroanalus[2];
 	struct fsl_sai_dl_cfg *dl_cfg;
 	unsigned int dl_cfg_cnt;
 	bool mclk_direction_output;

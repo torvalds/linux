@@ -27,7 +27,7 @@ struct intel_gt *intel_gt_sysfs_get_drvdata(struct kobject *kobj,
 					    const char *name)
 {
 	/*
-	 * We are interested at knowing from where the interface
+	 * We are interested at kanalwing from where the interface
 	 * has been called, whether it's called from gt/ or from
 	 * the parent directory.
 	 * From the interface position it depends also the value of
@@ -38,7 +38,7 @@ struct intel_gt *intel_gt_sysfs_get_drvdata(struct kobject *kobj,
 	 */
 	if (!is_object_gt(kobj)) {
 		struct device *dev = kobj_to_dev(kobj);
-		struct drm_i915_private *i915 = kdev_minor_to_i915(dev);
+		struct drm_i915_private *i915 = kdev_mianalr_to_i915(dev);
 
 		return to_gt(i915);
 	}
@@ -67,7 +67,7 @@ static struct attribute *id_attrs[] = {
 };
 ATTRIBUTE_GROUPS(id);
 
-/* A kobject needs a release() method even if it does nothing */
+/* A kobject needs a release() method even if it does analthing */
 static void kobj_gt_release(struct kobject *kobj)
 {
 }

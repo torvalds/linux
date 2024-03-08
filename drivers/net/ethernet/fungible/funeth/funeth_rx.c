@@ -19,7 +19,7 @@
  */
 #define RX_MAX_FRAGS 4
 
-/* Per packet headroom in non-XDP mode. Present only for 1-frag packets. */
+/* Per packet headroom in analn-XDP mode. Present only for 1-frag packets. */
 #define FUN_RX_HEADROOM (NET_SKB_PAD + NET_IP_ALIGN)
 
 /* We try to reuse pages for our buffers. To avoid frequent page ref writes we
@@ -51,7 +51,7 @@ static void cache_offer(struct funeth_rxq *q, const struct funeth_rxbuf *buf)
 {
 	struct funeth_rx_cache *c = &q->cache;
 
-	if (c->prod_cnt - c->cons_cnt <= c->mask && buf->node == numa_mem_id()) {
+	if (c->prod_cnt - c->cons_cnt <= c->mask && buf->analde == numa_mem_id()) {
 		c->bufs[c->prod_cnt & c->mask] = *buf;
 		c->prod_cnt++;
 	} else {
@@ -96,23 +96,23 @@ static bool cache_get(struct funeth_rxq *q, struct funeth_rxbuf *rb)
 
 /* Allocate and DMA-map a page for receive. */
 static int funeth_alloc_page(struct funeth_rxq *q, struct funeth_rxbuf *rb,
-			     int node, gfp_t gfp)
+			     int analde, gfp_t gfp)
 {
 	struct page *p;
 
 	if (cache_get(q, rb))
 		return 0;
 
-	p = __alloc_pages_node(node, gfp | __GFP_NOWARN, 0);
+	p = __alloc_pages_analde(analde, gfp | __GFP_ANALWARN, 0);
 	if (unlikely(!p))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rb->dma_addr = dma_map_page(q->dma_dev, p, 0, PAGE_SIZE,
 				    DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(q->dma_dev, rb->dma_addr))) {
 		FUN_QSTAT_INC(q, rx_map_err);
 		__free_page(p);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	FUN_QSTAT_INC(q, rx_page_alloc);
@@ -120,7 +120,7 @@ static int funeth_alloc_page(struct funeth_rxq *q, struct funeth_rxbuf *rb,
 	rb->page = p;
 	rb->pg_refs = 1;
 	refresh_refs(rb);
-	rb->node = page_is_pfmemalloc(p) ? -1 : page_to_nid(p);
+	rb->analde = page_is_pfmemalloc(p) ? -1 : page_to_nid(p);
 	return 0;
 }
 
@@ -157,7 +157,7 @@ static void *fun_run_xdp(struct funeth_rxq *q, skb_frag_t *frags, void *buf_va,
 
 	switch (act) {
 	case XDP_PASS:
-		/* remove headroom, which may not be FUN_XDP_HEADROOM now */
+		/* remove headroom, which may analt be FUN_XDP_HEADROOM analw */
 		skb_frag_size_set(frags, xdp.data_end - xdp.data);
 		skb_frag_off_add(frags, xdp.data - xdp.data_hard_start);
 		goto pass;
@@ -220,10 +220,10 @@ static const void *info_to_cqe(const void *cqe_info)
 static enum pkt_hash_types cqe_to_pkt_hash_type(u16 pkt_parse)
 {
 	static const enum pkt_hash_types htype_map[] = {
-		PKT_HASH_TYPE_NONE, PKT_HASH_TYPE_L3,
-		PKT_HASH_TYPE_NONE, PKT_HASH_TYPE_L4,
-		PKT_HASH_TYPE_NONE, PKT_HASH_TYPE_L3,
-		PKT_HASH_TYPE_NONE, PKT_HASH_TYPE_L3
+		PKT_HASH_TYPE_ANALNE, PKT_HASH_TYPE_L3,
+		PKT_HASH_TYPE_ANALNE, PKT_HASH_TYPE_L4,
+		PKT_HASH_TYPE_ANALNE, PKT_HASH_TYPE_L3,
+		PKT_HASH_TYPE_ANALNE, PKT_HASH_TYPE_L3
 	};
 	u16 key;
 
@@ -239,7 +239,7 @@ static enum pkt_hash_types cqe_to_pkt_hash_type(u16 pkt_parse)
  * and packet sizes and the room available in the most recently used buffer.
  *
  * The rules are:
- * - If the buffer at the head of an RQ has not been used it gets (part of) the
+ * - If the buffer at the head of an RQ has analt been used it gets (part of) the
  *   next incoming packet.
  * - Otherwise, if the packet fully fits in the buffer's remaining space the
  *   packet is written there.
@@ -260,12 +260,12 @@ get_buf(struct funeth_rxq *q, struct funeth_rxbuf *buf, unsigned int len)
 
 	/* The packet occupies part of the next buffer. Move there after
 	 * replenishing the current buffer slot either with the spare page or
-	 * by reusing the slot's existing page. Note that if a spare page isn't
+	 * by reusing the slot's existing page. Analte that if a spare page isn't
 	 * available and the current packet occupies @buf it is a multi-frag
 	 * packet that will be dropped leaving @buf available for reuse.
 	 */
 	if ((page_ref_count(buf->page) == buf->pg_refs &&
-	     buf->node == numa_mem_id()) || !q->spare_buf.page) {
+	     buf->analde == numa_mem_id()) || !q->spare_buf.page) {
 		dma_sync_single_for_device(q->dma_dev, buf->dma_addr,
 					   PAGE_SIZE, DMA_FROM_DEVICE);
 		refresh_refs(buf);
@@ -287,7 +287,7 @@ get_buf(struct funeth_rxq *q, struct funeth_rxbuf *buf, unsigned int len)
  * Return 0 if the device retains ownership of at least some of the pages.
  * In this case the caller may only copy the packet.
  *
- * A non-zero return value gives the caller permission to use references to the
+ * A analn-zero return value gives the caller permission to use references to the
  * pages, e.g., attach them to skbs. Additionally, if the value is <0 at least
  * one of the pages is PF_MEMALLOC.
  *
@@ -321,7 +321,7 @@ static int fun_gather_pkt(struct funeth_rxq *q, unsigned int tot_len,
 					frag_len, DMA_FROM_DEVICE);
 		buf->pg_refs--;
 		if (ref_ok)
-			ref_ok |= buf->node;
+			ref_ok |= buf->analde;
 
 		skb_frag_fill_page_desc(frags++, buf->page, q->buf_offset,
 					frag_len);
@@ -398,14 +398,14 @@ static void fun_handle_cqe_pkt(struct funeth_rxq *q, struct funeth_txq *xdp_q)
 		headroom = 0;   /* XDP_PASS trims it */
 	}
 	if (unlikely(!ref_ok))
-		goto no_mem;
+		goto anal_mem;
 
 	if (likely(headroom)) {
 		/* headroom is either FUN_RX_HEADROOM or FUN_XDP_HEADROOM */
 		prefetch(va + headroom);
 		skb = napi_build_skb(va, ALIGN(tot_len, FUN_EPRQ_PKT_ALIGN));
 		if (unlikely(!skb))
-			goto no_mem;
+			goto anal_mem;
 
 		skb_reserve(skb, headroom);
 		__skb_put(skb, pkt_len);
@@ -414,7 +414,7 @@ static void fun_handle_cqe_pkt(struct funeth_rxq *q, struct funeth_txq *xdp_q)
 		prefetch(va);
 		skb = napi_get_frags(q->napi);
 		if (unlikely(!skb))
-			goto no_mem;
+			goto anal_mem;
 
 		if (ref_ok < 0)
 			skb->pfmemalloc = 1;
@@ -452,7 +452,7 @@ static void fun_handle_cqe_pkt(struct funeth_rxq *q, struct funeth_txq *xdp_q)
 		FUN_QSTAT_INC(q, gro_pkts);
 	return;
 
-no_mem:
+anal_mem:
 	FUN_QSTAT_INC(q, rx_mem_drops);
 
 	/* Release the references we've been granted for the frag pages.
@@ -546,15 +546,15 @@ static void fun_rxq_free_bufs(struct funeth_rxq *q)
 }
 
 /* Initially provision an Rx queue with Rx buffers. */
-static int fun_rxq_alloc_bufs(struct funeth_rxq *q, int node)
+static int fun_rxq_alloc_bufs(struct funeth_rxq *q, int analde)
 {
 	struct funeth_rxbuf *b = q->bufs;
 	unsigned int i;
 
 	for (i = 0; i <= q->rq_mask; i++, b++) {
-		if (funeth_alloc_page(q, b, node, GFP_KERNEL)) {
+		if (funeth_alloc_page(q, b, analde, GFP_KERNEL)) {
 			fun_rxq_free_bufs(q);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		q->rqes[i] = FUN_EPRQ_RQBUF_INIT(b->dma_addr);
 	}
@@ -564,11 +564,11 @@ static int fun_rxq_alloc_bufs(struct funeth_rxq *q, int node)
 
 /* Initialize a used-buffer cache of the given depth. */
 static int fun_rxq_init_cache(struct funeth_rx_cache *c, unsigned int depth,
-			      int node)
+			      int analde)
 {
 	c->mask = depth - 1;
-	c->bufs = kvzalloc_node(depth * sizeof(*c->bufs), GFP_KERNEL, node);
-	return c->bufs ? 0 : -ENOMEM;
+	c->bufs = kvzalloc_analde(depth * sizeof(*c->bufs), GFP_KERNEL, analde);
+	return c->bufs ? 0 : -EANALMEM;
 }
 
 /* Deallocate an Rx queue's used-buffer cache and its contents. */
@@ -618,11 +618,11 @@ static struct funeth_rxq *fun_rxq_create_sw(struct net_device *dev,
 {
 	struct funeth_priv *fp = netdev_priv(dev);
 	struct funeth_rxq *q;
-	int err = -ENOMEM;
-	int numa_node;
+	int err = -EANALMEM;
+	int numa_analde;
 
-	numa_node = fun_irq_node(irq);
-	q = kzalloc_node(sizeof(*q), GFP_KERNEL, numa_node);
+	numa_analde = fun_irq_analde(irq);
+	q = kzalloc_analde(sizeof(*q), GFP_KERNEL, numa_analde);
 	if (!q)
 		goto err;
 
@@ -630,28 +630,28 @@ static struct funeth_rxq *fun_rxq_create_sw(struct net_device *dev,
 	q->netdev = dev;
 	q->cq_mask = ncqe - 1;
 	q->rq_mask = nrqe - 1;
-	q->numa_node = numa_node;
+	q->numa_analde = numa_analde;
 	q->rq_db_thres = nrqe / 4;
 	u64_stats_init(&q->syncp);
 	q->dma_dev = &fp->pdev->dev;
 
 	q->rqes = fun_alloc_ring_mem(q->dma_dev, nrqe, sizeof(*q->rqes),
-				     sizeof(*q->bufs), false, numa_node,
+				     sizeof(*q->bufs), false, numa_analde,
 				     &q->rq_dma_addr, (void **)&q->bufs, NULL);
 	if (!q->rqes)
 		goto free_q;
 
 	q->cqes = fun_alloc_ring_mem(q->dma_dev, ncqe, FUNETH_CQE_SIZE, 0,
-				     false, numa_node, &q->cq_dma_addr, NULL,
+				     false, numa_analde, &q->cq_dma_addr, NULL,
 				     NULL);
 	if (!q->cqes)
 		goto free_rqes;
 
-	err = fun_rxq_init_cache(&q->cache, nrqe, numa_node);
+	err = fun_rxq_init_cache(&q->cache, nrqe, numa_analde);
 	if (err)
 		goto free_cqes;
 
-	err = fun_rxq_alloc_bufs(q, numa_node);
+	err = fun_rxq_alloc_bufs(q, numa_analde);
 	if (err)
 		goto free_cache;
 
@@ -746,9 +746,9 @@ int fun_rxq_create_dev(struct funeth_rxq *q, struct fun_irq *irq)
 	q->init_state = FUN_QSTATE_INIT_FULL;
 
 	netif_info(fp, ifup, q->netdev,
-		   "Rx queue %u, depth %u/%u, HW qid %u/%u, IRQ idx %u, node %d, headroom %u\n",
+		   "Rx queue %u, depth %u/%u, HW qid %u/%u, IRQ idx %u, analde %d, headroom %u\n",
 		   q->qidx, ncqe, nrqe, q->hw_cqid, q->hw_sqid, irq->irq_idx,
-		   q->numa_node, q->headroom);
+		   q->numa_analde, q->headroom);
 	return 0;
 
 free_rq:

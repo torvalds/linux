@@ -39,7 +39,7 @@ struct mt6357_regulator_info {
 	.desc = {		\
 		.name = #vreg,	\
 		.of_match = of_match_ptr(match),		\
-		.regulators_node = "regulators",		\
+		.regulators_analde = "regulators",		\
 		.ops = &mt6357_volt_range_ops,	\
 		.type = REGULATOR_VOLTAGE,	\
 		.id = MT6357_ID_##vreg,		\
@@ -62,7 +62,7 @@ struct mt6357_regulator_info {
 	.desc = {		\
 		.name = #vreg,	\
 		.of_match = of_match_ptr(match),		\
-		.regulators_node = "regulators",		\
+		.regulators_analde = "regulators",		\
 		.ops = &mt6357_volt_table_ops,	\
 		.type = REGULATOR_VOLTAGE,	\
 		.id = MT6357_ID_##vreg,		\
@@ -82,7 +82,7 @@ struct mt6357_regulator_info {
 	.desc = {		\
 		.name = #vreg,	\
 		.of_match = of_match_ptr(match),		\
-		.regulators_node = "regulators",		\
+		.regulators_analde = "regulators",		\
 		.ops = &mt6357_volt_range_ops,	\
 		.type = REGULATOR_VOLTAGE,	\
 		.id = MT6357_ID_##vreg,		\
@@ -104,7 +104,7 @@ struct mt6357_regulator_info {
 	.desc = {					\
 		.name = #vreg,				\
 		.of_match = of_match_ptr(match),	\
-		.regulators_node = "regulators",	\
+		.regulators_analde = "regulators",	\
 		.ops = &mt6357_volt_fixed_ops,		\
 		.type = REGULATOR_VOLTAGE,		\
 		.id = MT6357_ID_##vreg,			\
@@ -410,7 +410,7 @@ static int mt6357_regulator_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	int i;
 
-	pdev->dev.of_node = pdev->dev.parent->of_node;
+	pdev->dev.of_analde = pdev->dev.parent->of_analde;
 
 	for (i = 0; i < MT6357_MAX_REGULATOR; i++) {
 		config.dev = &pdev->dev;
@@ -439,7 +439,7 @@ MODULE_DEVICE_TABLE(platform, mt6357_platform_ids);
 static struct platform_driver mt6357_regulator_driver = {
 	.driver = {
 		.name = "mt6357-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = mt6357_regulator_probe,
 	.id_table = mt6357_platform_ids,

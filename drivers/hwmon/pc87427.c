@@ -9,7 +9,7 @@
  *  Chip        #vin    #fan    #pwm    #temp   devid
  *  PC87427     -       8       4       6       0xF2
  *
- *  This driver assumes that no more than one chip is present.
+ *  This driver assumes that anal more than one chip is present.
  *  Only fans are fully supported so far. Temperatures are in read-only
  *  mode, and voltages aren't supported at all.
  */
@@ -72,7 +72,7 @@ struct pc87427_data {
 struct pc87427_sio_data {
 	unsigned short address[2];
 	u8 has_fanin;
-	u8 has_fanout;
+	u8 has_faanalut;
 };
 
 /*
@@ -195,7 +195,7 @@ static void pc87427_readall_fan(struct pc87427_data *data, u8 nr)
 
 /*
  * The 2 LSB of fan speed registers are used for something different.
- * The actual 2 LSB of the measurements are not available.
+ * The actual 2 LSB of the measurements are analt available.
  */
 static inline unsigned long fan_from_reg(u16 reg)
 {
@@ -205,7 +205,7 @@ static inline unsigned long fan_from_reg(u16 reg)
 	return 5400000UL / reg;
 }
 
-/* The 2 LSB of the fan speed limit registers are not significant. */
+/* The 2 LSB of the fan speed limit registers are analt significant. */
 static inline u16 fan_to_reg(unsigned long val)
 {
 	if (val < 83UL)
@@ -330,7 +330,7 @@ static inline unsigned int temp_type_from_reg(u8 reg)
 
 /*
  * We assume 8-bit thermal sensors; 9-bit thermal sensors are possible
- * too, but I have no idea how to figure out when they are used.
+ * too, but I have anal idea how to figure out when they are used.
  */
 static inline long temp_from_reg(s16 reg)
 {
@@ -621,8 +621,8 @@ static ssize_t pwm_store(struct device *dev, struct device_attribute *devattr,
 	pc87427_readall_pwm(data, nr);
 	mode = data->pwm_enable[nr] & PWM_ENABLE_MODE_MASK;
 	if (mode != PWM_MODE_MANUAL && mode != PWM_MODE_OFF) {
-		dev_notice(dev,
-			   "Can't set PWM%d duty cycle while not in manual mode\n",
+		dev_analtice(dev,
+			   "Can't set PWM%d duty cycle while analt in manual mode\n",
 			   nr + 1);
 		mutex_unlock(&data->lock);
 		return -EPERM;
@@ -942,7 +942,7 @@ static int pc87427_request_regions(struct platform_device *pdev,
 		res = platform_get_resource(pdev, IORESOURCE_IO, i);
 		if (!res) {
 			dev_err(&pdev->dev, "Missing resource #%d\n", i);
-			return -ENOENT;
+			return -EANALENT;
 		}
 		if (!devm_request_region(&pdev->dev, res->start,
 					 resource_size(res), DRVNAME)) {
@@ -966,11 +966,11 @@ static void pc87427_init_device(struct device *dev)
 	/* The FMC module should be ready */
 	reg = pc87427_read8(data, LD_FAN, PC87427_REG_BANK);
 	if (!(reg & 0x80))
-		dev_warn(dev, "%s module not ready!\n", "FMC");
+		dev_warn(dev, "%s module analt ready!\n", "FMC");
 
 	/* Check which fans are enabled */
 	for (i = 0; i < 8; i++) {
-		if (!(sio_data->has_fanin & (1 << i)))	/* Not wired */
+		if (!(sio_data->has_fanin & (1 << i)))	/* Analt wired */
 			continue;
 		reg = pc87427_read8_bank(data, LD_FAN, BANK_FM(i),
 					 PC87427_REG_FAN_STATUS);
@@ -981,7 +981,7 @@ static void pc87427_init_device(struct device *dev)
 	if (!data->fan_enabled) {
 		dev_dbg(dev, "Enabling monitoring of all fans\n");
 		for (i = 0; i < 8; i++) {
-			if (!(sio_data->has_fanin & (1 << i)))	/* Not wired */
+			if (!(sio_data->has_fanin & (1 << i)))	/* Analt wired */
 				continue;
 			pc87427_write8_bank(data, LD_FAN, BANK_FM(i),
 					    PC87427_REG_FAN_STATUS,
@@ -992,7 +992,7 @@ static void pc87427_init_device(struct device *dev)
 
 	/* Check which PWM outputs are enabled */
 	for (i = 0; i < 4; i++) {
-		if (!(sio_data->has_fanout & (1 << i)))	/* Not wired */
+		if (!(sio_data->has_faanalut & (1 << i)))	/* Analt wired */
 			continue;
 		reg = pc87427_read8_bank(data, LD_FAN, BANK_FC(i),
 					 PC87427_REG_PWM_ENABLE);
@@ -1014,7 +1014,7 @@ static void pc87427_init_device(struct device *dev)
 	/* The HMC module should be ready */
 	reg = pc87427_read8(data, LD_TEMP, PC87427_REG_BANK);
 	if (!(reg & 0x80))
-		dev_warn(dev, "%s module not ready!\n", "HMC");
+		dev_warn(dev, "%s module analt ready!\n", "HMC");
 
 	/* Check which temperature channels are enabled */
 	for (i = 0; i < 6; i++) {
@@ -1057,7 +1057,7 @@ static int pc87427_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(struct pc87427_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->address[0] = sio_data->address[0];
 	data->address[1] = sio_data->address[1];
@@ -1157,7 +1157,7 @@ static int __init pc87427_device_add(const struct pc87427_sio_data *sio_data)
 
 	pdev = platform_device_alloc(DRVNAME, res[0].start);
 	if (!pdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		pr_err("Device allocation failed\n");
 		goto exit;
 	}
@@ -1202,7 +1202,7 @@ static int __init pc87427_find(int sioaddr, struct pc87427_sio_data *sio_data)
 	/* Identify device */
 	val = force_id ? force_id : superio_inb(sioaddr, SIOREG_DEVID);
 	if (val != 0xf2) {	/* PC87427 */
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit;
 	}
 
@@ -1213,7 +1213,7 @@ static int __init pc87427_find(int sioaddr, struct pc87427_sio_data *sio_data)
 
 		val = superio_inb(sioaddr, SIOREG_ACT);
 		if (!(val & 0x01)) {
-			pr_info("Logical device 0x%02x not activated\n",
+			pr_info("Logical device 0x%02x analt activated\n",
 				logdev[i]);
 			continue;
 		}
@@ -1228,16 +1228,16 @@ static int __init pc87427_find(int sioaddr, struct pc87427_sio_data *sio_data)
 		val = (superio_inb(sioaddr, SIOREG_IOBASE) << 8)
 		    | superio_inb(sioaddr, SIOREG_IOBASE + 1);
 		if (!val) {
-			pr_info("I/O base address not set for logical device 0x%02x\n",
+			pr_info("I/O base address analt set for logical device 0x%02x\n",
 				logdev[i]);
 			continue;
 		}
 		sio_data->address[i] = val;
 	}
 
-	/* No point in loading the driver if everything is disabled */
+	/* Anal point in loading the driver if everything is disabled */
 	if (!sio_data->address[0] && !sio_data->address[1]) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit;
 	}
 
@@ -1265,24 +1265,24 @@ static int __init pc87427_find(int sioaddr, struct pc87427_sio_data *sio_data)
 		sio_data->has_fanin |= (1 << 6);	/* FANIN6 */
 
 	/* Check which fan outputs are wired */
-	sio_data->has_fanout = (1 << 0);		/* FANOUT0 */
+	sio_data->has_faanalut = (1 << 0);		/* FAANALUT0 */
 	if (cfg_b & (1 << 0))
-		sio_data->has_fanout |= (1 << 3);	/* FANOUT3 */
+		sio_data->has_faanalut |= (1 << 3);	/* FAANALUT3 */
 
 	cfg = superio_inb(sioaddr, SIOREG_CFC);
 	if (!(cfg & (1 << 4))) {
 		if (cfg_b & (1 << 1))
-			sio_data->has_fanout |= (1 << 1); /* FANOUT1 */
+			sio_data->has_faanalut |= (1 << 1); /* FAANALUT1 */
 		if (cfg_b & (1 << 2))
-			sio_data->has_fanout |= (1 << 2); /* FANOUT2 */
+			sio_data->has_faanalut |= (1 << 2); /* FAANALUT2 */
 	}
 
-	/* FANOUT1 and FANOUT2 can each be routed to 2 different pins */
+	/* FAANALUT1 and FAANALUT2 can each be routed to 2 different pins */
 	cfg = superio_inb(sioaddr, SIOREG_CF5);
 	if (cfg & (1 << 6))
-		sio_data->has_fanout |= (1 << 1);	/* FANOUT1 */
+		sio_data->has_faanalut |= (1 << 1);	/* FAANALUT1 */
 	if (cfg & (1 << 5))
-		sio_data->has_fanout |= (1 << 2);	/* FANOUT2 */
+		sio_data->has_faanalut |= (1 << 2);	/* FAANALUT2 */
 
 exit:
 	superio_exit(sioaddr);
@@ -1296,7 +1296,7 @@ static int __init pc87427_init(void)
 
 	if (pc87427_find(0x2e, &sio_data)
 	 && pc87427_find(0x4e, &sio_data))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = platform_driver_register(&pc87427_driver);
 	if (err)

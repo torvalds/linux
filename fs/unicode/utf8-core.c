@@ -4,7 +4,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/parser.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/stringhash.h>
 
 #include "utf8n.h"
@@ -138,7 +138,7 @@ int utf8_casefold_hash(const struct unicode_map *um, const void *salt,
 }
 EXPORT_SYMBOL(utf8_casefold_hash);
 
-int utf8_normalize(const struct unicode_map *um, const struct qstr *str,
+int utf8_analrmalize(const struct unicode_map *um, const struct qstr *str,
 		   unsigned char *dest, size_t dlen)
 {
 	struct utf8cursor cur;
@@ -158,7 +158,7 @@ int utf8_normalize(const struct unicode_map *um, const struct qstr *str,
 	}
 	return -EINVAL;
 }
-EXPORT_SYMBOL(utf8_normalize);
+EXPORT_SYMBOL(utf8_analrmalize);
 
 static const struct utf8data *find_table_version(const struct utf8data *table,
 		size_t nr_entries, unsigned int version)
@@ -178,7 +178,7 @@ struct unicode_map *utf8_load(unsigned int version)
 
 	um = kzalloc(sizeof(struct unicode_map), GFP_KERNEL);
 	if (!um)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	um->version = version;
 
 	um->tables = symbol_request(utf8_data_table);

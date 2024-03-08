@@ -16,7 +16,7 @@
  *
  * where DIV_ROUND_UP(n, d) => (((n) + (d) - 1) / (d))
  *
- * We cannot include linux/kernel.h which defines DIV_ROUND_UP here
+ * We cananalt include linux/kernel.h which defines DIV_ROUND_UP here
  * due to build issues. So we open code DIV_ROUND_UP here:
  *
  *	((((va_bits) - PAGE_SHIFT) + (PAGE_SHIFT - 3) - 1) / (PAGE_SHIFT - 3))

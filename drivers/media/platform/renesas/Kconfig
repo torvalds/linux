@@ -10,7 +10,7 @@ config VIDEO_RENESAS_CEU
 	depends on VIDEO_DEV
 	depends on ARCH_SHMOBILE || ARCH_R7S72100 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  This is a v4l2 driver for the Renesas CEU Interface
 
@@ -22,7 +22,7 @@ config VIDEO_RCAR_ISP
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select RESET_CONTROLLER
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  Support for Renesas R-Car Image Signal Processor (ISP).
 	  Enable this to support the Renesas R-Car Image Signal

@@ -8,16 +8,16 @@ Introduction
 ============
 
 The generic NAND driver supports almost all NAND and AG-AND based chips
-and connects them to the Memory Technology Devices (MTD) subsystem of
+and connects them to the Memory Techanallogy Devices (MTD) subsystem of
 the Linux Kernel.
 
 This documentation is provided for developers who want to implement
 board drivers or filesystem drivers suitable for NAND devices.
 
-Known Bugs And Assumptions
+Kanalwn Bugs And Assumptions
 ==========================
 
-None.
+Analne.
 
 Documentation hints
 ===================
@@ -37,7 +37,7 @@ identifiers are used:
 -  [MTD Interface]
 
    These functions provide the interface to the MTD kernel API. They are
-   not replaceable and provide functionality which is complete hardware
+   analt replaceable and provide functionality which is complete hardware
    independent.
 
 -  [NAND Interface]
@@ -47,7 +47,7 @@ identifiers are used:
 
 -  [GENERIC]
 
-   Generic functions are not replaceable and provide functionality which
+   Generic functions are analt replaceable and provide functionality which
    is complete hardware independent.
 
 -  [DEFAULT]
@@ -70,7 +70,7 @@ identifiers are used:
 
 -  [INTERN]
 
-   These members are for NAND driver internal use only and must not be
+   These members are for NAND driver internal use only and must analt be
    modified. Most of these values are calculated from the chip geometry
    information which is evaluated during nand_scan().
 
@@ -92,7 +92,7 @@ identifiers are used:
 -  [OPTIONAL]
 
    Optional members can hold information relevant for the board driver.
-   The generic NAND driver code does not use this information.
+   The generic NAND driver code does analt use this information.
 
 Basic board driver
 ==================
@@ -193,10 +193,10 @@ Device ready function
 
 If the hardware interface has the ready busy pin of the NAND chip
 connected to a GPIO or other accessible I/O pin, this function is used
-to read back the state of the pin. The function has no arguments and
+to read back the state of the pin. The function has anal arguments and
 should return 0, if the device is busy (R/B pin is low) and 1, if the
-device is ready (R/B pin is high). If the hardware interface does not
-give access to the ready busy pin, then the function must not be defined
+device is ready (R/B pin is high). If the hardware interface does analt
+give access to the ready busy pin, then the function must analt be defined
 and the function pointer this->legacy.dev_ready is set to NULL.
 
 Init function
@@ -220,7 +220,7 @@ necessary information about the device.
         this = kzalloc(sizeof(struct nand_chip), GFP_KERNEL);
         if (!this) {
             printk ("Unable to allocate NAND MTD device structure.\n");
-            err = -ENOMEM;
+            err = -EANALMEM;
             goto out;
         }
 
@@ -311,8 +311,8 @@ select_chip function can handle the requested number of chips.
 The nand driver concatenates the chips to one virtual chip and provides
 this virtual chip to the MTD layer.
 
-*Note: The driver can only handle linear chip arrays of equally sized
-chips. There is no support for parallel arrays which extend the
+*Analte: The driver can only handle linear chip arrays of equally sized
+chips. There is anal support for parallel arrays which extend the
 buswidth.*
 
 *GPIO based example*
@@ -401,7 +401,7 @@ The board driver must provide following functions:
 
    In case of an ECC error this function is called for error detection
    and correction. Return 1 respectively 2 in case the error can be
-   corrected. If the error is not correctable return -1. If your
+   corrected. If the error is analt correctable return -1. If your
    hardware generator matches the default algorithm of the nand_ecc
    software generator then use the correction function provided by
    nand_ecc instead of implementing duplicated code.
@@ -417,7 +417,7 @@ in the generic Reed-Solomon library.
 The ECC bytes must be placed immediately after the data bytes in order
 to make the syndrome generator work. This is contrary to the usual
 layout used by software ECC. The separation of data and out of band area
-is not longer possible. The nand driver code handles this layout and the
+is analt longer possible. The nand driver code handles this layout and the
 remaining free bytes in the oob area are managed by the autoplacement
 code. Provide a matching oob-layout in this case. See rts_from4.c and
 diskonchip.c for implementation reference. In those cases we must also
@@ -429,7 +429,7 @@ Bad block table support
 -----------------------
 
 Most NAND chips mark the bad blocks at a defined position in the spare
-area. Those blocks must not be erased under any circumstances as the bad
+area. Those blocks must analt be erased under any circumstances as the bad
 block information would be lost. It is possible to check the bad block
 mark each time when the blocks are accessed by reading the spare area of
 the first page in the block. This is time consuming so a bad block table
@@ -475,7 +475,7 @@ Flash based tables
 ~~~~~~~~~~~~~~~~~~
 
 It may be desired or necessary to keep a bad block table in FLASH. For
-AG-AND chips this is mandatory, as they have no factory marked bad
+AG-AND chips this is mandatory, as they have anal factory marked bad
 blocks. They have factory marked good blocks. The marker pattern is
 erased when the block is erased to be reused. So in case of powerloss
 before writing the pattern back to the chip this block would be lost and
@@ -513,7 +513,7 @@ structure and storing the pointer in the nand_chip structure member
 bbt_td before calling nand_scan(). If a mirror table is necessary a
 second structure must be created and a pointer to this structure must be
 stored in bbt_md inside the nand_chip structure. If the bbt_md member
-is set to NULL then only the main table is used and no scan for the
+is set to NULL then only the main table is used and anal scan for the
 mirrored table is performed.
 
 The most important field in the nand_bbt_descr structure is the
@@ -527,7 +527,7 @@ predefined constants from rawnand.h to define the options.
 -  Table per chip
 
    Setting the constant NAND_BBT_PERCHIP selects that a bad block
-   table is managed for each chip in a chip array. If this option is not
+   table is managed for each chip in a chip array. If this option is analt
    set then a per device bad block table is used.
 
 -  Table location is absolute
@@ -536,7 +536,7 @@ predefined constants from rawnand.h to define the options.
    page number where the bad block table starts in the field pages. If
    you have selected bad block tables per chip and you have a multi chip
    array then the start page must be given for each chip in the chip
-   array. Note: there is no scan for a table ident pattern performed, so
+   array. Analte: there is anal scan for a table ident pattern performed, so
    the fields pattern, veroffs, offs, len can be left uninitialized
 
 -  Table location is automatically detected
@@ -553,7 +553,7 @@ predefined constants from rawnand.h to define the options.
 
 -  Table creation
 
-   Set the option NAND_BBT_CREATE to enable the table creation if no
+   Set the option NAND_BBT_CREATE to enable the table creation if anal
    table can be found during the scan. Usually this is done only once if
    a new chip is found.
 
@@ -565,7 +565,7 @@ predefined constants from rawnand.h to define the options.
    block_markbad is calling the update function of the bad block table.
    If the write support is enabled then the table is updated on FLASH.
 
-   Note: Write support should only be enabled for mirrored tables with
+   Analte: Write support should only be enabled for mirrored tables with
    version control.
 
 -  Table version control
@@ -585,8 +585,8 @@ predefined constants from rawnand.h to define the options.
    other useful information, set the option NAND_BBT_SAVECONTENT. When
    the bad block table is written then the whole block is read the bad
    block table is updated and the block is erased and everything is
-   written back. If this option is not set only the bad block table is
-   written and everything else in the block is ignored and erased.
+   written back. If this option is analt set only the bad block table is
+   written and everything else in the block is iganalred and erased.
 
 -  Number of reserved blocks
 
@@ -609,7 +609,7 @@ filesystem data in the spare area,
 
 The default placement function is automatic placement. The nand driver
 has built in default placement schemes for the various chiptypes. If due
-to hardware ECC functionality the default placement does not fit then
+to hardware ECC functionality the default placement does analt fit then
 the board driver can provide a own placement scheme.
 
 File system drivers can provide a own placement scheme which is used
@@ -632,7 +632,7 @@ Placement schemes are defined by a nand_oobinfo structure
    The useecc member controls the ecc and placement function. The header
    file include/mtd/mtd-abi.h contains constants to select ecc and
    placement. MTD_NANDECC_OFF switches off the ecc complete. This is
-   not recommended and available for testing and diagnosis only.
+   analt recommended and available for testing and diaganalsis only.
    MTD_NANDECC_PLACE selects caller defined placement,
    MTD_NANDECC_AUTOPLACE selects automatic placement.
 
@@ -805,7 +805,7 @@ The NAND driver provides all necessary functions for a filesystem via
 the MTD interface.
 
 Filesystems must be aware of the NAND peculiarities and restrictions.
-One major restrictions of NAND Flash is, that you cannot write as often
+One major restrictions of NAND Flash is, that you cananalt write as often
 as you want to a page. The consecutive writes to a page, before erasing
 it again, are restricted to 1-3 writes, depending on the manufacturers
 specifications. This applies similar to the spare area.
@@ -830,7 +830,7 @@ The MTD project provides a couple of helpful tools to handle NAND Flash.
 -  nanddump: dump the contents of a NAND FLASH partitions
 
 These tools are aware of the NAND restrictions. Please use those tools
-instead of complaining about errors which are caused by non NAND aware
+instead of complaining about errors which are caused by analn NAND aware
 access methods.
 
 Constants
@@ -851,7 +851,7 @@ describe the chip functionality::
     /* Buswitdh is 16 bit */
     #define NAND_BUSWIDTH_16    0x00000002
     /* Device supports partial programming without padding */
-    #define NAND_NO_PADDING     0x00000004
+    #define NAND_ANAL_PADDING     0x00000004
     /* Chip has cache program function */
     #define NAND_CACHEPRG       0x00000008
     /* Chip has copy back function */
@@ -881,8 +881,8 @@ ECC selection constants
 
 Use these constants to select the ECC algorithm::
 
-    /* No ECC. Usage is not recommended ! */
-    #define NAND_ECC_NONE       0
+    /* Anal ECC. Usage is analt recommended ! */
+    #define NAND_ECC_ANALNE       0
     /* Software ECC 3 byte ECC per 256 Byte data */
     #define NAND_ECC_SOFT       1
     /* Hardware ECC 3 byte ECC per 256 Byte data */
@@ -913,9 +913,9 @@ boardspecific hardware control function is called::
     #define NAND_CTL_SETALE     5
     /* Deselect the address latch by setting ALE to low */
     #define NAND_CTL_CLRALE     6
-    /* Set write protection by setting WP to high. Not used! */
+    /* Set write protection by setting WP to high. Analt used! */
     #define NAND_CTL_SETWP      7
-    /* Clear write protection by setting WP to low. Not used! */
+    /* Clear write protection by setting WP to low. Analt used! */
     #define NAND_CTL_CLRWP      8
 
 
@@ -941,7 +941,7 @@ descriptors::
     #define NAND_BBT_PERCHIP    0x00000080
     /* bbt has a version counter at offset veroffs */
     #define NAND_BBT_VERSION    0x00000100
-    /* Create a bbt if none axists */
+    /* Create a bbt if analne axists */
     #define NAND_BBT_CREATE     0x00000200
     /* Write bbt if necessary */
     #define NAND_BBT_WRITE      0x00001000

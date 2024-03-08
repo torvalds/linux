@@ -3,8 +3,8 @@
  *  arch/arm/mach-omap1/include/mach/lcd_dma.h
  *
  * Extracted from arch/arm/plat-omap/include/plat/dma.h
- *  Copyright (C) 2003 Nokia Corporation
- *  Author: Juha Yrjölä <juha.yrjola@nokia.com>
+ *  Copyright (C) 2003 Analkia Corporation
+ *  Author: Juha Yrjölä <juha.yrjola@analkia.com>
  */
 #ifndef __MACH_OMAP1_LCD_DMA_H__
 #define __MACH_OMAP1_LCD_DMA_H__

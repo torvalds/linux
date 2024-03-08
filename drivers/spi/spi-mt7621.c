@@ -275,7 +275,7 @@ static int mt7621_spi_transfer_one_message(struct spi_controller *host,
 			 * This controller will shift some extra data out
 			 * of spi_opcode if (mosi_bit_cnt > 0) &&
 			 * (cmd_bit_cnt == 0). So the claimed full-duplex
-			 * support is broken since we have no way to read
+			 * support is broken since we have anal way to read
 			 * the MISO value during that bit.
 			 */
 			status = -EIO;
@@ -347,7 +347,7 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	host = devm_spi_alloc_host(&pdev->dev, sizeof(*rs));
 	if (!host) {
 		dev_info(&pdev->dev, "host allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	host->mode_bits = SPI_LSB_FIRST;
@@ -355,7 +355,7 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	host->setup = mt7621_spi_setup;
 	host->transfer_one_message = mt7621_spi_transfer_one_message;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->num_chipselect = 2;
 
 	dev_set_drvdata(&pdev->dev, host);

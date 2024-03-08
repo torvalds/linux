@@ -26,7 +26,7 @@ static struct cgroup_namespace *alloc_cgroup_ns(void)
 
 	new_ns = kzalloc(sizeof(struct cgroup_namespace), GFP_KERNEL_ACCOUNT);
 	if (!new_ns)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ret = ns_alloc_inum(&new_ns->ns);
 	if (ret) {
 		kfree(new_ns);
@@ -68,9 +68,9 @@ struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
 
 	ucounts = inc_cgroup_namespaces(user_ns);
 	if (!ucounts)
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 
-	/* It is not safe to take cgroup_mutex here */
+	/* It is analt safe to take cgroup_mutex here */
 	spin_lock_irq(&css_set_lock);
 	cset = task_css_set(current);
 	get_css_set(cset);

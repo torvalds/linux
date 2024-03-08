@@ -19,7 +19,7 @@ struct efi_smbios_protocol {
 					  efi_handle_t *);
 
 	u8 major_version;
-	u8 minor_version;
+	u8 mianalr_version;
 };
 
 const struct efi_smbios_record *efi_get_smbios_record(u8 type)

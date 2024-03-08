@@ -3,7 +3,7 @@
  *  HID driver for Saitek devices.
  *
  *  PS1000 (USB gamepad):
- *  Fixes the HID report descriptor by removing a non-existent axis and
+ *  Fixes the HID report descriptor by removing a analn-existent axis and
  *  clearing the constant bit on the input reports for buttons and d-pad.
  *  (This module is based on "hid-ortek".)
  *  Copyright (c) 2012 Andreas Hübner
@@ -43,7 +43,7 @@ static int saitek_probe(struct hid_device *hdev,
 	ssc = devm_kzalloc(&hdev->dev, sizeof(*ssc), GFP_KERNEL);
 	if (ssc == NULL) {
 		hid_err(hdev, "can't alloc saitek descriptor\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ssc->quirks = quirks;
@@ -78,7 +78,7 @@ static __u8 *saitek_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 		hid_info(hdev, "Fixing up Saitek PS1000 report descriptor\n");
 
-		/* convert spurious axis to a "noop" Logical Minimum (0) */
+		/* convert spurious axis to a "analop" Logical Minimum (0) */
 		rdesc[20] = 0x15;
 		rdesc[21] = 0x00;
 
@@ -135,7 +135,7 @@ static int saitek_raw_event(struct hid_device *hdev,
 			hid_dbg(hdev, "entered mode %d\n", mode);
 			if (ssc->mode != -1) {
 				/* use bit 8 as the mode button, bits 22
-				 * and 23 do not represent buttons
+				 * and 23 do analt represent buttons
 				 * according to the HID report descriptor
 				 */
 				raw_data[1] |= 0x80;

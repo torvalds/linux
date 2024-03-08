@@ -257,7 +257,7 @@ static int greth_init_rings(struct greth_private *greth)
 
 			if (dma_mapping_error(greth->dev, dma_addr)) {
 				if (netif_msg_ifup(greth))
-					dev_err(greth->dev, "Could not create initial DMA mapping\n");
+					dev_err(greth->dev, "Could analt create initial DMA mapping\n");
 				dev_kfree_skb(skb);
 				goto cleanup;
 			}
@@ -286,7 +286,7 @@ static int greth_init_rings(struct greth_private *greth)
 
 			if (dma_mapping_error(greth->dev, dma_addr)) {
 				if (netif_msg_ifup(greth))
-					dev_err(greth->dev, "Could not create initial DMA mapping\n");
+					dev_err(greth->dev, "Could analt create initial DMA mapping\n");
 				goto cleanup;
 			}
 			greth_write_bd(&rx_bd[i].addr, dma_addr);
@@ -309,7 +309,7 @@ static int greth_init_rings(struct greth_private *greth)
 
 			if (dma_mapping_error(greth->dev, dma_addr)) {
 				if (netif_msg_ifup(greth))
-					dev_err(greth->dev, "Could not create initial DMA mapping\n");
+					dev_err(greth->dev, "Could analt create initial DMA mapping\n");
 				goto cleanup;
 			}
 			greth_write_bd(&tx_bd[i].addr, dma_addr);
@@ -333,7 +333,7 @@ static int greth_init_rings(struct greth_private *greth)
 
 cleanup:
 	greth_clean_rings(greth);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int greth_open(struct net_device *dev)
@@ -344,14 +344,14 @@ static int greth_open(struct net_device *dev)
 	err = greth_init_rings(greth);
 	if (err) {
 		if (netif_msg_ifup(greth))
-			dev_err(&dev->dev, "Could not allocate memory for DMA rings\n");
+			dev_err(&dev->dev, "Could analt allocate memory for DMA rings\n");
 		return err;
 	}
 
 	err = request_irq(greth->irq, greth_interrupt, 0, "eth", (void *) dev);
 	if (err) {
 		if (netif_msg_ifup(greth))
-			dev_err(&dev->dev, "Could not allocate interrupt %d\n", dev->irq);
+			dev_err(&dev->dev, "Could analt allocate interrupt %d\n", dev->irq);
 		greth_clean_rings(greth);
 		return err;
 	}
@@ -405,7 +405,7 @@ greth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(greth->tx_free <= 0)) {
 		spin_lock_irqsave(&greth->devlock, flags);/*save from poll/irq*/
 		ctrl = GRETH_REGLOAD(greth->regs->control);
-		/* Enable TX IRQ only if not already in poll() routine */
+		/* Enable TX IRQ only if analt already in poll() routine */
 		if (ctrl & GRETH_RXI)
 			GRETH_REGSAVE(greth->regs->control, ctrl | GRETH_TXI);
 		netif_stop_queue(dev);
@@ -574,7 +574,7 @@ frag_map_error:
 	}
 map_error:
 	if (net_ratelimit())
-		dev_warn(greth->dev, "Could not create TX DMA mapping\n");
+		dev_warn(greth->dev, "Could analt create TX DMA mapping\n");
 	dev_kfree_skb(skb);
 out:
 	return err;
@@ -585,7 +585,7 @@ static irqreturn_t greth_interrupt(int irq, void *dev_id)
 	struct net_device *dev = dev_id;
 	struct greth_private *greth;
 	u32 status, ctrl;
-	irqreturn_t retval = IRQ_NONE;
+	irqreturn_t retval = IRQ_ANALNE;
 
 	greth = netdev_priv(dev);
 
@@ -595,7 +595,7 @@ static irqreturn_t greth_interrupt(int irq, void *dev_id)
 	status = GRETH_REGLOAD(greth->regs->status);
 
 	/* Must see if interrupts are enabled also, INT_TX|INT_RX flags may be
-	 * set regardless of whether IRQ is enabled or not. Especially
+	 * set regardless of whether IRQ is enabled or analt. Especially
 	 * important when shared IRQ.
 	 */
 	ctrl = GRETH_REGLOAD(greth->regs->control);
@@ -891,7 +891,7 @@ static int greth_rx_gbit(struct net_device *dev, int limit)
 			}
 		}
 
-		/* Allocate new skb to replace current, not needed if the
+		/* Allocate new skb to replace current, analt needed if the
 		 * current skb can be reused */
 		if (!bad && (newskb=netdev_alloc_skb(dev, MAX_FRAME_SIZE + NET_IP_ALIGN))) {
 			skb_reserve(newskb, NET_IP_ALIGN);
@@ -918,7 +918,7 @@ static int greth_rx_gbit(struct net_device *dev, int limit)
 				if (dev->features & NETIF_F_RXCSUM && hw_checksummed(status))
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
 				else
-					skb_checksum_none_assert(skb);
+					skb_checksum_analne_assert(skb);
 
 				skb->protocol = eth_type_trans(skb, dev);
 				dev->stats.rx_packets++;
@@ -929,7 +929,7 @@ static int greth_rx_gbit(struct net_device *dev, int limit)
 				greth_write_bd(&bdp->addr, dma_addr);
 			} else {
 				if (net_ratelimit())
-					dev_warn(greth->dev, "Could not create DMA mapping, dropping packet\n");
+					dev_warn(greth->dev, "Could analt create DMA mapping, dropping packet\n");
 				dev_kfree_skb(newskb);
 				/* reusing current skb, so it is a drop */
 				dev->stats.rx_dropped++;
@@ -945,7 +945,7 @@ static int greth_rx_gbit(struct net_device *dev, int limit)
 			 * filling as the TX part of the driver
 			 */
 			if (net_ratelimit())
-				dev_warn(greth->dev, "Could not allocate SKB, dropping packet\n");
+				dev_warn(greth->dev, "Could analt allocate SKB, dropping packet\n");
 			/* reusing current skb, so it is a drop */
 			dev->stats.rx_dropped++;
 		}
@@ -1024,7 +1024,7 @@ static int greth_set_mac_add(struct net_device *dev, void *p)
 	regs = greth->regs;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(dev, addr->sa_data);
 	GRETH_REGSAVE(regs->esa_msb, dev->dev_addr[0] << 8 | dev->dev_addr[1]);
@@ -1260,7 +1260,7 @@ static int greth_mdio_probe(struct net_device *dev)
 
 	if (!phy) {
 		if (netif_msg_probe(greth))
-			dev_err(&dev->dev, "no PHY found\n");
+			dev_err(&dev->dev, "anal PHY found\n");
 		return -ENXIO;
 	}
 
@@ -1268,7 +1268,7 @@ static int greth_mdio_probe(struct net_device *dev)
 				 greth->gbit_mac ? PHY_INTERFACE_MODE_GMII : PHY_INTERFACE_MODE_MII);
 	if (ret) {
 		if (netif_msg_ifup(greth))
-			dev_err(&dev->dev, "could not attach to PHY\n");
+			dev_err(&dev->dev, "could analt attach to PHY\n");
 		return ret;
 	}
 
@@ -1294,7 +1294,7 @@ static int greth_mdio_init(struct greth_private *greth)
 
 	greth->mdio = mdiobus_alloc();
 	if (!greth->mdio) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	greth->mdio->name = "greth-mdio";
@@ -1353,7 +1353,7 @@ static int greth_of_probe(struct platform_device *ofdev)
 	dev = alloc_etherdev(sizeof(struct greth_private));
 
 	if (dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	greth = netdev_priv(dev);
 	greth->netdev = dev;
@@ -1432,7 +1432,7 @@ static int greth_of_probe(struct platform_device *ofdev)
 					       &greth->tx_bd_base_phys,
 					       GFP_KERNEL);
 	if (!greth->tx_bd_base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error3;
 	}
 
@@ -1441,7 +1441,7 @@ static int greth_of_probe(struct platform_device *ofdev)
 					       &greth->rx_bd_base_phys,
 					       GFP_KERNEL);
 	if (!greth->rx_bd_base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error4;
 	}
 
@@ -1451,7 +1451,7 @@ static int greth_of_probe(struct platform_device *ofdev)
 			break;
 	}
 	if (i == 6) {
-		err = of_get_mac_address(ofdev->dev.of_node, addr);
+		err = of_get_mac_address(ofdev->dev.of_analde, addr);
 		if (!err) {
 			for (i = 0; i < 6; i++)
 				macaddr[i] = (unsigned int) addr[i];
@@ -1471,7 +1471,7 @@ static int greth_of_probe(struct platform_device *ofdev)
 
 	if (!is_valid_ether_addr(&dev->dev_addr[0])) {
 		if (netif_msg_probe(greth))
-			dev_err(greth->dev, "no valid ethernet address, aborting.\n");
+			dev_err(greth->dev, "anal valid ethernet address, aborting.\n");
 		err = -EINVAL;
 		goto error5;
 	}

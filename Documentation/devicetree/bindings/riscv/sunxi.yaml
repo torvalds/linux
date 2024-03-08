@@ -15,7 +15,7 @@ description:
   Allwinner RISC-V SoC-based boards
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

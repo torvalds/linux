@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2024. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2024. Huawei Techanallogies Co., Ltd */
 #include <linux/types.h>
 #include <bpf/bpf_helpers.h>
 
@@ -11,7 +11,7 @@ int read_ret[8];
 
 char _license[] SEC("license") = "GPL";
 
-SEC("fentry/" SYS_PREFIX "sys_nanosleep")
+SEC("fentry/" SYS_PREFIX "sys_naanalsleep")
 int do_probe_read(void *ctx)
 {
 	char buf[8];
@@ -29,7 +29,7 @@ int do_probe_read(void *ctx)
 	return 0;
 }
 
-SEC("fentry.s/" SYS_PREFIX "sys_nanosleep")
+SEC("fentry.s/" SYS_PREFIX "sys_naanalsleep")
 int do_copy_from_user(void *ctx)
 {
 	char buf[8];

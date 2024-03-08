@@ -2,7 +2,7 @@
 /*
  * Hardware monitoring driver for LTC3815
  *
- * Copyright (c) 2015 Linear Technology
+ * Copyright (c) 2015 Linear Techanallogy
  * Copyright (c) 2015 Guenter Roeck
  */
 
@@ -39,7 +39,7 @@ static int ltc3815_read_byte_data(struct i2c_client *client, int page, int reg)
 		ret = 0x40;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -52,7 +52,7 @@ static int ltc3815_write_byte(struct i2c_client *client, int page, u8 reg)
 	switch (reg) {
 	case PMBUS_CLEAR_FAULTS:
 		/*
-		 * LTC3815 does not support the CLEAR_FAULTS command.
+		 * LTC3815 does analt support the CLEAR_FAULTS command.
 		 * Emulate it by clearing the status register.
 		 */
 		ret = pmbus_read_word_data(client, 0, 0xff, PMBUS_STATUS_WORD);
@@ -63,7 +63,7 @@ static int ltc3815_write_byte(struct i2c_client *client, int page, u8 reg)
 		}
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -103,7 +103,7 @@ static int ltc3815_read_word_data(struct i2c_client *client, int page,
 		ret = 0;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -136,7 +136,7 @@ static int ltc3815_write_word_data(struct i2c_client *client, int page,
 					    LTC3815_MFR_TEMP_PEAK, 0);
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -184,13 +184,13 @@ static int ltc3815_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	chip_id = i2c_smbus_read_word_data(client, LTC3815_MFR_SPECIAL_ID);
 	if (chip_id < 0)
 		return chip_id;
 	if ((chip_id & LTC3815_ID_MASK) != LTC3815_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return pmbus_do_probe(client, &ltc3815_info);
 }

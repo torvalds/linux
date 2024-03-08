@@ -112,9 +112,9 @@ int kvmppc_booke_emulate_op(struct kvm_vcpu *vcpu,
 }
 
 /*
- * NOTE: some of these registers are not emulated on BOOKE_HV (GS-mode).
+ * ANALTE: some of these registers are analt emulated on BOOKE_HV (GS-mode).
  * Their backing store is in real registers, and these functions
- * will return the wrong result if called for them in another context
+ * will return the wrong result if called for them in aanalther context
  * (such as debugging).
  */
 int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
@@ -144,7 +144,7 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_IAC1:
 		/*
 		 * If userspace is debugging guest then guest
-		 * can not access debug registers.
+		 * can analt access debug registers.
 		 */
 		if (vcpu->guest_debug)
 			break;
@@ -155,7 +155,7 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_IAC2:
 		/*
 		 * If userspace is debugging guest then guest
-		 * can not access debug registers.
+		 * can analt access debug registers.
 		 */
 		if (vcpu->guest_debug)
 			break;
@@ -167,7 +167,7 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_IAC3:
 		/*
 		 * If userspace is debugging guest then guest
-		 * can not access debug registers.
+		 * can analt access debug registers.
 		 */
 		if (vcpu->guest_debug)
 			break;
@@ -178,7 +178,7 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_IAC4:
 		/*
 		 * If userspace is debugging guest then guest
-		 * can not access debug registers.
+		 * can analt access debug registers.
 		 */
 		if (vcpu->guest_debug)
 			break;
@@ -190,7 +190,7 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_DAC1:
 		/*
 		 * If userspace is debugging guest then guest
-		 * can not access debug registers.
+		 * can analt access debug registers.
 		 */
 		if (vcpu->guest_debug)
 			break;
@@ -201,7 +201,7 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_DAC2:
 		/*
 		 * If userspace is debugging guest then guest
-		 * can not access debug registers.
+		 * can analt access debug registers.
 		 */
 		if (vcpu->guest_debug)
 			break;
@@ -212,7 +212,7 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_DBCR0:
 		/*
 		 * If userspace is debugging guest then guest
-		 * can not access debug registers.
+		 * can analt access debug registers.
 		 */
 		if (vcpu->guest_debug)
 			break;
@@ -227,7 +227,7 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_DBCR1:
 		/*
 		 * If userspace is debugging guest then guest
-		 * can not access debug registers.
+		 * can analt access debug registers.
 		 */
 		if (vcpu->guest_debug)
 			break;
@@ -238,7 +238,7 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_DBCR2:
 		/*
 		 * If userspace is debugging guest then guest
-		 * can not access debug registers.
+		 * can analt access debug registers.
 		 */
 		if (vcpu->guest_debug)
 			break;
@@ -249,7 +249,7 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_DBSR:
 		/*
 		 * If userspace is debugging guest then guest
-		 * can not access debug registers.
+		 * can analt access debug registers.
 		 */
 		if (vcpu->guest_debug)
 			break;
@@ -264,7 +264,7 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_TCR:
 		/*
 		 * WRC is a 2-bit field that is supposed to preserve its
-		 * value once written to non-zero.
+		 * value once written to analn-zero.
 		 */
 		if (vcpu->arch.tcr & TCR_WRC_MASK) {
 			spr_val &= ~TCR_WRC_MASK;
@@ -277,7 +277,7 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 		vcpu->arch.decar = spr_val;
 		break;
 	/*
-	 * Note: SPRG4-7 are user-readable.
+	 * Analte: SPRG4-7 are user-readable.
 	 * These values are loaded into the real SPRGs when resuming the
 	 * guest (PR-mode only).
 	 */

@@ -9,7 +9,7 @@
 #include <linux/fs.h>
 #include <linux/idr.h>
 #include <linux/interrupt.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/kref.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -76,11 +76,11 @@ static const struct load_image_entry image_tab[][NUM_BOOT_STAGES] = {
 
 /* MSIX usages */
 #define VK_MSIX_MSGQ_MAX		3
-#define VK_MSIX_NOTF_MAX		1
+#define VK_MSIX_ANALTF_MAX		1
 #define VK_MSIX_TTY_MAX			BCM_VK_NUM_TTY
-#define VK_MSIX_IRQ_MAX			(VK_MSIX_MSGQ_MAX + VK_MSIX_NOTF_MAX + \
+#define VK_MSIX_IRQ_MAX			(VK_MSIX_MSGQ_MAX + VK_MSIX_ANALTF_MAX + \
 					 VK_MSIX_TTY_MAX)
-#define VK_MSIX_IRQ_MIN_REQ             (VK_MSIX_MSGQ_MAX + VK_MSIX_NOTF_MAX)
+#define VK_MSIX_IRQ_MIN_REQ             (VK_MSIX_MSGQ_MAX + VK_MSIX_ANALTF_MAX)
 
 /* Number of bits set in DMA mask*/
 #define BCM_VK_DMA_BITS			64
@@ -135,18 +135,18 @@ const struct bcm_vk_entry bcm_vk_host_err[BCM_VK_HOST_ERR_NUM] = {
 	{ERR_LOG_HOST_INTF_V_FAIL, ERR_LOG_HOST_INTF_V_FAIL, "intf_ver_fail"},
 };
 
-irqreturn_t bcm_vk_notf_irqhandler(int irq, void *dev_id)
+irqreturn_t bcm_vk_analtf_irqhandler(int irq, void *dev_id)
 {
 	struct bcm_vk *vk = dev_id;
 
 	if (!bcm_vk_drv_access_ok(vk)) {
 		dev_err(&vk->pdev->dev,
-			"Interrupt %d received when msgq not inited\n", irq);
+			"Interrupt %d received when msgq analt inited\n", irq);
 		goto skip_schedule_work;
 	}
 
-	/* if notification is not pending, set bit and schedule work */
-	if (test_and_set_bit(BCM_VK_WQ_NOTF_PEND, vk->wq_offload) == 0)
+	/* if analtification is analt pending, set bit and schedule work */
+	if (test_and_set_bit(BCM_VK_WQ_ANALTF_PEND, vk->wq_offload) == 0)
 		queue_work(vk->wq_thread, &vk->wq_work);
 
 skip_schedule_work:
@@ -157,36 +157,36 @@ static int bcm_vk_intf_ver_chk(struct bcm_vk *vk)
 {
 	struct device *dev = &vk->pdev->dev;
 	u32 reg;
-	u16 major, minor;
+	u16 major, mianalr;
 	int ret = 0;
 
 	/* read interface register */
 	reg = vkread32(vk, BAR_0, BAR_INTF_VER);
 	major = (reg >> BAR_INTF_VER_MAJOR_SHIFT) & BAR_INTF_VER_MASK;
-	minor = reg & BAR_INTF_VER_MASK;
+	mianalr = reg & BAR_INTF_VER_MASK;
 
 	/*
 	 * if major number is 0, it is pre-release and it would be allowed
 	 * to continue, else, check versions accordingly
 	 */
 	if (!major) {
-		dev_warn(dev, "Pre-release major.minor=%d.%d - drv %d.%d\n",
-			 major, minor, SEMANTIC_MAJOR, SEMANTIC_MINOR);
+		dev_warn(dev, "Pre-release major.mianalr=%d.%d - drv %d.%d\n",
+			 major, mianalr, SEMANTIC_MAJOR, SEMANTIC_MIANALR);
 	} else if (major != SEMANTIC_MAJOR) {
 		dev_err(dev,
-			"Intf major.minor=%d.%d rejected - drv %d.%d\n",
-			major, minor, SEMANTIC_MAJOR, SEMANTIC_MINOR);
+			"Intf major.mianalr=%d.%d rejected - drv %d.%d\n",
+			major, mianalr, SEMANTIC_MAJOR, SEMANTIC_MIANALR);
 		bcm_vk_set_host_alert(vk, ERR_LOG_HOST_INTF_V_FAIL);
-		ret = -EPFNOSUPPORT;
+		ret = -EPFANALSUPPORT;
 	} else {
 		dev_dbg(dev,
-			"Intf major.minor=%d.%d passed - drv %d.%d\n",
-			major, minor, SEMANTIC_MAJOR, SEMANTIC_MINOR);
+			"Intf major.mianalr=%d.%d passed - drv %d.%d\n",
+			major, mianalr, SEMANTIC_MAJOR, SEMANTIC_MIANALR);
 	}
 	return ret;
 }
 
-static void bcm_vk_log_notf(struct bcm_vk *vk,
+static void bcm_vk_log_analtf(struct bcm_vk *vk,
 			    struct bcm_vk_alert *alert,
 			    struct bcm_vk_entry const *entry_tab,
 			    const u32 table_size)
@@ -200,7 +200,7 @@ static void bcm_vk_log_notf(struct bcm_vk *vk,
 
 	for (i = 0; i < table_size; i++) {
 		entry = &entry_tab[i];
-		masked_val = entry->mask & alert->notfs;
+		masked_val = entry->mask & alert->analtfs;
 		latched_val = entry->mask & alert->flags;
 
 		if (masked_val == ERR_LOG_UECC) {
@@ -291,7 +291,7 @@ static void bcm_vk_dump_peer_log(struct bcm_vk *vk)
 		  vk->peerlog_off + offsetof(struct bcm_vk_peer_log, rd_idx));
 }
 
-void bcm_vk_handle_notf(struct bcm_vk *vk)
+void bcm_vk_handle_analtf(struct bcm_vk *vk)
 {
 	u32 reg;
 	struct bcm_vk_alert alert;
@@ -302,10 +302,10 @@ void bcm_vk_handle_notf(struct bcm_vk *vk)
 	reg = vkread32(vk, BAR_0, BAR_CARD_ERR_LOG);
 	intf_down = BCM_VK_INTF_IS_DOWN(reg);
 	if (!intf_down) {
-		vk->peer_alert.notfs = reg;
-		bcm_vk_log_notf(vk, &vk->peer_alert, bcm_vk_peer_err,
+		vk->peer_alert.analtfs = reg;
+		bcm_vk_log_analtf(vk, &vk->peer_alert, bcm_vk_peer_err,
 				ARRAY_SIZE(bcm_vk_peer_err));
-		vk->peer_alert.flags = vk->peer_alert.notfs;
+		vk->peer_alert.flags = vk->peer_alert.analtfs;
 	} else {
 		/* turn off access */
 		bcm_vk_blk_drv_access(vk);
@@ -314,19 +314,19 @@ void bcm_vk_handle_notf(struct bcm_vk *vk)
 	/* check and make copy of alert with lock and then free lock */
 	spin_lock_irqsave(&vk->host_alert_lock, flags);
 	if (intf_down)
-		vk->host_alert.notfs |= ERR_LOG_HOST_PCIE_DWN;
+		vk->host_alert.analtfs |= ERR_LOG_HOST_PCIE_DWN;
 
 	alert = vk->host_alert;
-	vk->host_alert.flags = vk->host_alert.notfs;
+	vk->host_alert.flags = vk->host_alert.analtfs;
 	spin_unlock_irqrestore(&vk->host_alert_lock, flags);
 
 	/* call display with copy */
-	bcm_vk_log_notf(vk, &alert, bcm_vk_host_err,
+	bcm_vk_log_analtf(vk, &alert, bcm_vk_host_err,
 			ARRAY_SIZE(bcm_vk_host_err));
 
 	/*
 	 * If it is a sys fault or heartbeat timeout, we would like extract
-	 * log msg from the card so that we would know what is the last fault
+	 * log msg from the card so that we would kanalw what is the last fault
 	 */
 	if (!intf_down &&
 	    ((vk->host_alert.flags & ERR_LOG_HOST_HB_FAIL) ||
@@ -334,7 +334,7 @@ void bcm_vk_handle_notf(struct bcm_vk *vk)
 		bcm_vk_dump_peer_log(vk);
 }
 
-static inline int bcm_vk_wait(struct bcm_vk *vk, enum pci_barno bar,
+static inline int bcm_vk_wait(struct bcm_vk *vk, enum pci_baranal bar,
 			      u64 offset, u32 mask, u32 value,
 			      unsigned long timeout_ms)
 {
@@ -412,7 +412,7 @@ static void bcm_vk_get_card_info(struct bcm_vk *vk)
 
 	/*
 	 * Do a range checking and if out of bound, the record will be zeroed
-	 * which guarantees that nothing would be dumped.  In other words,
+	 * which guarantees that analthing would be dumped.  In other words,
 	 * peer dump is disabled.
 	 */
 	if ((vk->peerlog_info.buf_size > BCM_VK_PEER_LOG_BUF_MAX) ||
@@ -506,7 +506,7 @@ void bcm_vk_blk_drv_access(struct bcm_vk *vk)
 
 	/*
 	 * kill all the apps except for the process that is resetting.
-	 * If not called during reset, reset_pid will be 0, and all will be
+	 * If analt called during reset, reset_pid will be 0, and all will be
 	 * killed.
 	 */
 	spin_lock(&vk->ctx_lock);
@@ -517,7 +517,7 @@ void bcm_vk_blk_drv_access(struct bcm_vk *vk)
 	for (i = 0; i < VK_PID_HT_SZ; i++) {
 		struct bcm_vk_ctx *ctx;
 
-		list_for_each_entry(ctx, &vk->pid_ht[i].head, node) {
+		list_for_each_entry(ctx, &vk->pid_ht[i].head, analde) {
 			if (ctx->pid != vk->reset_pid) {
 				dev_dbg(&vk->pdev->dev,
 					"Send kill signal to pid %d\n",
@@ -530,7 +530,7 @@ void bcm_vk_blk_drv_access(struct bcm_vk *vk)
 	spin_unlock(&vk->ctx_lock);
 }
 
-static void bcm_vk_buf_notify(struct bcm_vk *vk, void *bufp,
+static void bcm_vk_buf_analtify(struct bcm_vk *vk, void *bufp,
 			      dma_addr_t host_buf_addr, u32 buf_size)
 {
 	/* update the dma address to the card */
@@ -557,7 +557,7 @@ static int bcm_vk_load_image_by_type(struct bcm_vk *vk, u32 load_type,
 
 	if (load_type == VK_IMAGE_TYPE_BOOT1) {
 		/*
-		 * After POR, enable VK soft BOOTSRC so bootrom do not clear
+		 * After POR, enable VK soft BOOTSRC so bootrom do analt clear
 		 * the pushed image (the TCM memories).
 		 */
 		value = vkread32(vk, BAR_0, BAR_BOOTSRC_SELECT);
@@ -584,7 +584,7 @@ static int bcm_vk_load_image_by_type(struct bcm_vk *vk, u32 load_type,
 					  &boot_dma_addr, GFP_KERNEL);
 		if (!bufp) {
 			dev_err(dev, "Error allocating 0x%zx\n", max_buf);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_buf_out;
 		}
 	} else if (load_type == VK_IMAGE_TYPE_BOOT2) {
@@ -606,11 +606,11 @@ static int bcm_vk_load_image_by_type(struct bcm_vk *vk, u32 load_type,
 					  &boot_dma_addr, GFP_KERNEL);
 		if (!bufp) {
 			dev_err(dev, "Error allocating 0x%zx\n", max_buf);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_buf_out;
 		}
 
-		bcm_vk_buf_notify(vk, bufp, boot_dma_addr, max_buf);
+		bcm_vk_buf_analtify(vk, bufp, boot_dma_addr, max_buf);
 	} else {
 		dev_err(dev, "Error invalid image type 0x%x\n", load_type);
 		ret = -EINVAL;
@@ -690,9 +690,9 @@ static int bcm_vk_load_image_by_type(struct bcm_vk *vk, u32 load_type,
 				goto err_firmware_out;
 			}
 
-			/* exit the loop, if there is no response from card */
+			/* exit the loop, if there is anal response from card */
 			if (time_after(jiffies, timeout)) {
-				dev_err(dev, "Error. No reply from card\n");
+				dev_err(dev, "Error. Anal reply from card\n");
 				ret = -ETIMEDOUT;
 				goto err_firmware_out;
 			}
@@ -734,7 +734,7 @@ static int bcm_vk_load_image_by_type(struct bcm_vk *vk, u32 load_type,
 				  VK_FWSTS_READY,
 				  BOOT2_STARTUP_TIMEOUT_MS);
 		if (ret < 0) {
-			dev_err(dev, "Boot2 not ready - ret(%d)\n", ret);
+			dev_err(dev, "Boot2 analt ready - ret(%d)\n", ret);
 			goto err_firmware_out;
 		}
 
@@ -781,7 +781,7 @@ static u32 bcm_vk_next_boot_image(struct bcm_vk *vk)
 {
 	u32 boot_status;
 	u32 fw_status;
-	u32 load_type = 0;  /* default for unknown */
+	u32 load_type = 0;  /* default for unkanalwn */
 
 	boot_status = vkread32(vk, BAR_0, BAR_BOOT_STATUS);
 	fw_status = vkread32(vk, BAR_0, VK_BAR_FWSTS);
@@ -791,7 +791,7 @@ static u32 bcm_vk_next_boot_image(struct bcm_vk *vk)
 	else if (boot_status == BOOT1_RUNNING)
 		load_type = VK_IMAGE_TYPE_BOOT2;
 
-	/* Log status so that we know different stages */
+	/* Log status so that we kanalw different stages */
 	dev_info(&vk->pdev->dev,
 		 "boot-status value for next image: 0x%x : fw-status 0x%x\n",
 		 boot_status, fw_status);
@@ -816,7 +816,7 @@ static enum soc_idx get_soc_idx(struct bcm_vk *vk)
 			/* Default to A0 firmware for all other chip revs */
 			idx = VALKYRIE_A0;
 			dev_warn(&pdev->dev,
-				 "Rev %d not in image lookup table, default to idx=%d\n",
+				 "Rev %d analt in image lookup table, default to idx=%d\n",
 				 rev, idx);
 		}
 		break;
@@ -826,7 +826,7 @@ static enum soc_idx get_soc_idx(struct bcm_vk *vk)
 		break;
 
 	default:
-		dev_err(&pdev->dev, "no images for 0x%x\n", pdev->device);
+		dev_err(&pdev->dev, "anal images for 0x%x\n", pdev->device);
 	}
 	return idx;
 }
@@ -866,7 +866,7 @@ int bcm_vk_auto_load_all_images(struct bcm_vk *vk)
 	if (idx == VK_IDX_INVALID)
 		goto auto_load_all_exit;
 
-	/* log a message to know the relative loading order */
+	/* log a message to kanalw the relative loading order */
 	dev_dbg(dev, "Load All for device %d\n", vk->devid);
 
 	for (i = 0; i < NUM_BOOT_STAGES; i++) {
@@ -874,9 +874,9 @@ int bcm_vk_auto_load_all_images(struct bcm_vk *vk)
 		if (bcm_vk_next_boot_image(vk) == curr_type) {
 			curr_name = get_load_fw_name(vk, &image_tab[idx][i]);
 			if (!curr_name) {
-				dev_err(dev, "No suitable firmware exists for type %d",
+				dev_err(dev, "Anal suitable firmware exists for type %d",
 					curr_type);
-				ret = -ENOENT;
+				ret = -EANALENT;
 				goto auto_load_all_exit;
 			}
 			ret = bcm_vk_load_image_by_type(vk, curr_type,
@@ -917,10 +917,10 @@ static void bcm_vk_wq_handler(struct work_struct *work)
 	s32 ret;
 
 	/* check wq offload bit map to perform various operations */
-	if (test_bit(BCM_VK_WQ_NOTF_PEND, vk->wq_offload)) {
-		/* clear bit right the way for notification */
-		clear_bit(BCM_VK_WQ_NOTF_PEND, vk->wq_offload);
-		bcm_vk_handle_notf(vk);
+	if (test_bit(BCM_VK_WQ_ANALTF_PEND, vk->wq_offload)) {
+		/* clear bit right the way for analtification */
+		clear_bit(BCM_VK_WQ_ANALTF_PEND, vk->wq_offload);
+		bcm_vk_handle_analtf(vk);
 	}
 	if (test_bit(BCM_VK_WQ_DWNLD_AUTO, vk->wq_offload)) {
 		bcm_vk_auto_load_all_images(vk);
@@ -971,8 +971,8 @@ static long bcm_vk_load_image(struct bcm_vk *vk,
 
 	/*
 	 * if something is pending download already.  This could only happen
-	 * for now when the driver is being loaded, or if someone has issued
-	 * another download command in another shell.
+	 * for analw when the driver is being loaded, or if someone has issued
+	 * aanalther download command in aanalther shell.
 	 */
 	if (test_and_set_bit(BCM_VK_WQ_DWNLD_PEND, vk->wq_offload) != 0) {
 		dev_err(dev, "Download operation already pending.\n");
@@ -990,9 +990,9 @@ static long bcm_vk_load_image(struct bcm_vk *vk,
 		image_idx = image.type - VK_IMAGE_TYPE_BOOT1;
 		image_name = get_load_fw_name(vk, &image_tab[idx][image_idx]);
 		if (!image_name) {
-			dev_err(dev, "No suitable image found for type %d",
+			dev_err(dev, "Anal suitable image found for type %d",
 				image.type);
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto err_idx;
 		}
 	} else {
@@ -1019,9 +1019,9 @@ static int bcm_vk_reset_successful(struct bcm_vk *vk)
 	 *   ii)  after boot1
 	 *   iii) boot2 running
 	 *
-	 * i) & ii) - no status bits will be updated.  If vkboot1
+	 * i) & ii) - anal status bits will be updated.  If vkboot1
 	 * runs automatically after reset, it  will update the reason
-	 * to be unknown reason
+	 * to be unkanalwn reason
 	 * iii) - reboot reason match + deinit done.
 	 */
 	fw_status = vkread32(vk, BAR_0, VK_BAR_FWSTS);
@@ -1033,12 +1033,12 @@ static int bcm_vk_reset_successful(struct bcm_vk *vk)
 
 	reset_reason = (fw_status & VK_FWSTS_RESET_REASON_MASK);
 	if ((reset_reason == VK_FWSTS_RESET_MBOX_DB) ||
-	    (reset_reason == VK_FWSTS_RESET_UNKNOWN))
+	    (reset_reason == VK_FWSTS_RESET_UNKANALWN))
 		ret = 0;
 
 	/*
 	 * if some of the deinit bits are set, but done
-	 * bit is not, this is a failure if triggered while boot2 is running
+	 * bit is analt, this is a failure if triggered while boot2 is running
 	 */
 	if ((fw_status & VK_FWSTS_DEINIT_TRIGGERED) &&
 	    !(fw_status & VK_FWSTS_RESET_DONE))
@@ -1087,7 +1087,7 @@ static int bcm_vk_trigger_reset(struct bcm_vk *vk)
 	/*
 	 * When boot request fails, the CODE_PUSH_OFFSET stays persistent.
 	 * Allowing us to debug the failure. When we call reset,
-	 * we should clear CODE_PUSH_OFFSET so ROM does not execute
+	 * we should clear CODE_PUSH_OFFSET so ROM does analt execute
 	 * boot again (and fails again) and instead waits for a new
 	 * codepush.  And, if previous boot has encountered error, need
 	 * to clear the entry values
@@ -1160,7 +1160,7 @@ static long bcm_vk_reset(struct bcm_vk *vk, struct vk_reset __user *arg)
 	/*
 	 * The following is the sequence of reset:
 	 * - send card level graceful shut down
-	 * - wait enough time for VK to handle its business, stopping DMA etc
+	 * - wait eanalugh time for VK to handle its business, stopping DMA etc
 	 * - kill host apps
 	 * - Trigger interrupt with DB
 	 */
@@ -1182,7 +1182,7 @@ static long bcm_vk_reset(struct bcm_vk *vk, struct vk_reset __user *arg)
 	special_reset = bcm_vk_trigger_reset(vk);
 
 	/*
-	 * Wait enough time for card os to deinit
+	 * Wait eanalugh time for card os to deinit
 	 * and populate the reset reason.
 	 */
 	msleep(BCM_VK_DEINIT_TIME_MS);
@@ -1217,7 +1217,7 @@ static int bcm_vk_mmap(struct file *file, struct vm_area_struct *vma)
 
 	vma->vm_pgoff += (pci_resource_start(vk->pdev, VK_MMAPABLE_BAR)
 			  >> PAGE_SHIFT);
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 
 	return io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 				  vma->vm_end - vma->vm_start,
@@ -1266,7 +1266,7 @@ static const struct file_operations bcm_vk_fops = {
 	.unlocked_ioctl = bcm_vk_ioctl,
 };
 
-static int bcm_vk_on_panic(struct notifier_block *nb,
+static int bcm_vk_on_panic(struct analtifier_block *nb,
 			   unsigned long e, void *p)
 {
 	struct bcm_vk *vk = container_of(nb, struct bcm_vk, panic_nb);
@@ -1291,7 +1291,7 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* allocate vk structure which is tied to kref for freeing */
 	vk = kzalloc(sizeof(*vk), GFP_KERNEL);
 	if (!vk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&vk->kref);
 	if (nr_ib_sgl_blk > BCM_VK_IB_SGL_BLK_MAX) {
@@ -1304,14 +1304,14 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(dev, "Cannot enable PCI device\n");
+		dev_err(dev, "Cananalt enable PCI device\n");
 		goto err_free_exit;
 	}
 	vk->pdev = pci_dev_get(pdev);
 
 	err = pci_request_regions(pdev, DRV_MODULE_NAME);
 	if (err) {
-		dev_err(dev, "Cannot obtain PCI resources\n");
+		dev_err(dev, "Cananalt obtain PCI resources\n");
 		goto err_disable_pdev;
 	}
 
@@ -1330,7 +1330,7 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 					 nr_scratch_pages * PAGE_SIZE,
 					 &vk->tdma_addr, GFP_KERNEL);
 		if (!vk->tdma_vaddr) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_disable_pdev;
 		}
 	}
@@ -1359,7 +1359,7 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		vk->bar[i] = pci_ioremap_bar(pdev, i * 2);
 		if (!vk->bar[i]) {
 			dev_err(dev, "failed to remap BAR%d\n", i);
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_iounmap;
 		}
 	}
@@ -1376,12 +1376,12 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto err_irq;
 		}
 	}
-	/* one irq for notification from VK */
+	/* one irq for analtification from VK */
 	err = devm_request_irq(dev, pci_irq_vector(pdev, vk->num_irqs),
-			       bcm_vk_notf_irqhandler,
+			       bcm_vk_analtf_irqhandler,
 			       IRQF_SHARED, DRV_MODULE_NAME, vk);
 	if (err) {
-		dev_err(dev, "failed to request notf IRQ %d for MSIX %d\n",
+		dev_err(dev, "failed to request analtf IRQ %d for MSIX %d\n",
 			pdev->irq + vk->num_irqs, vk->num_irqs + 1);
 		goto err_irq;
 	}
@@ -1411,10 +1411,10 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	vk->devid = id;
 	snprintf(name, sizeof(name), DRV_MODULE_NAME ".%d", id);
 	misc_device = &vk->miscdev;
-	misc_device->minor = MISC_DYNAMIC_MINOR;
+	misc_device->mianalr = MISC_DYNAMIC_MIANALR;
 	misc_device->name = kstrdup(name, GFP_KERNEL);
 	if (!misc_device->name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_ida_remove;
 	}
 	misc_device->fops = &bcm_vk_fops,
@@ -1431,7 +1431,7 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	vk->wq_thread = create_singlethread_workqueue(name);
 	if (!vk->wq_thread) {
 		dev_err(dev, "Fail to create workqueue thread\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_misc_deregister;
 	}
 
@@ -1444,23 +1444,23 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* sync other info */
 	bcm_vk_sync_card_info(vk);
 
-	/* register for panic notifier */
-	vk->panic_nb.notifier_call = bcm_vk_on_panic;
-	err = atomic_notifier_chain_register(&panic_notifier_list,
+	/* register for panic analtifier */
+	vk->panic_nb.analtifier_call = bcm_vk_on_panic;
+	err = atomic_analtifier_chain_register(&panic_analtifier_list,
 					     &vk->panic_nb);
 	if (err) {
-		dev_err(dev, "Fail to register panic notifier\n");
+		dev_err(dev, "Fail to register panic analtifier\n");
 		goto err_destroy_workqueue;
 	}
 
 	snprintf(name, sizeof(name), KBUILD_MODNAME ".%d_ttyVK", id);
 	err = bcm_vk_tty_init(vk, name);
 	if (err)
-		goto err_unregister_panic_notifier;
+		goto err_unregister_panic_analtifier;
 
 	/*
 	 * lets trigger an auto download.  We don't want to do it serially here
-	 * because at probing time, it is not supposed to block for a long time.
+	 * because at probing time, it is analt supposed to block for a long time.
 	 */
 	boot_status = vkread32(vk, BAR_0, BAR_BOOT_STATUS);
 	if (auto_load) {
@@ -1470,7 +1470,7 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				goto err_bcm_vk_tty_exit;
 		} else {
 			dev_err(dev,
-				"Auto-load skipped - BROM not in proper state (0x%x)\n",
+				"Auto-load skipped - BROM analt in proper state (0x%x)\n",
 				boot_status);
 		}
 	}
@@ -1485,8 +1485,8 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 err_bcm_vk_tty_exit:
 	bcm_vk_tty_exit(vk);
 
-err_unregister_panic_notifier:
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+err_unregister_panic_analtifier:
+	atomic_analtifier_chain_unregister(&panic_analtifier_list,
 					 &vk->panic_nb);
 
 err_destroy_workqueue:
@@ -1550,7 +1550,7 @@ static void bcm_vk_remove(struct pci_dev *pdev)
 	bcm_vk_hb_deinit(vk);
 
 	/*
-	 * Trigger a reset to card and wait enough time for UCODE to rerun,
+	 * Trigger a reset to card and wait eanalugh time for UCODE to rerun,
 	 * which re-initialize the card into its default state.
 	 * This ensures when driver is re-enumerated it will start from
 	 * a completely clean state.
@@ -1558,8 +1558,8 @@ static void bcm_vk_remove(struct pci_dev *pdev)
 	bcm_vk_trigger_reset(vk);
 	usleep_range(BCM_VK_UCODE_BOOT_US, BCM_VK_UCODE_BOOT_MAX_US);
 
-	/* unregister panic notifier */
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	/* unregister panic analtifier */
+	atomic_analtifier_chain_unregister(&panic_analtifier_list,
 					 &vk->panic_nb);
 
 	bcm_vk_msg_remove(vk);
@@ -1610,14 +1610,14 @@ static void bcm_vk_shutdown(struct pci_dev *pdev)
 	if (boot_stat == BOOT1_RUNNING) {
 		/* simply trigger a reset interrupt to park it */
 		bcm_vk_trigger_reset(vk);
-	} else if (boot_stat == BROM_NOT_RUN) {
+	} else if (boot_stat == BROM_ANALT_RUN) {
 		int err;
 		u16 lnksta;
 
 		/*
 		 * The boot status only reflects boot condition since last reset
 		 * As ucode will run only once to configure pcie, if multiple
-		 * resets happen, we lost track if ucode has run or not.
+		 * resets happen, we lost track if ucode has run or analt.
 		 * Here, read the current link speed and use that to
 		 * sync up the bootstatus properly so that on reboot-back-up,
 		 * it has the proper state to start with autoload

@@ -29,7 +29,7 @@ static void da9055_onkey_query(struct da9055_onkey *onkey)
 		dev_err(onkey->da9055->dev,
 			"Failed to read onkey event %d\n", key_stat);
 	} else {
-		key_stat &= DA9055_NOKEY_STS;
+		key_stat &= DA9055_ANALKEY_STS;
 		/*
 		 * Onkey status bit is cleared when onkey button is released.
 		 */
@@ -82,13 +82,13 @@ static int da9055_onkey_probe(struct platform_device *pdev)
 	onkey = devm_kzalloc(&pdev->dev, sizeof(*onkey), GFP_KERNEL);
 	if (!onkey) {
 		dev_err(&pdev->dev, "Failed to allocate memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_dev = input_allocate_device();
 	if (!input_dev) {
 		dev_err(&pdev->dev, "Failed to allocate memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	onkey->input = input_dev;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File	ctdaio.c
  *
@@ -53,7 +53,7 @@ static const struct daio_rsc_idx idx_20k2[NUM_DAIOTYP] = {
 
 static void daio_master(struct rsc *rsc)
 {
-	/* Actually, this is not the resource index of DAIO.
+	/* Actually, this is analt the resource index of DAIO.
 	 * For DAO, it is the input mapper index. And, for DAI,
 	 * it is the output time-slot index. */
 	rsc->conj = rsc->idx;
@@ -161,7 +161,7 @@ static int dao_set_left_input(struct dao *dao, struct rsc *input)
 
 	entry = kzalloc((sizeof(*entry) * daio->rscl.msr), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dao->ops->clear_left_input(dao);
 	/* Program master and conjugate resources */
@@ -190,7 +190,7 @@ static int dao_set_right_input(struct dao *dao, struct rsc *input)
 
 	entry = kzalloc((sizeof(*entry) * daio->rscr.msr), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dao->ops->clear_right_input(dao);
 	/* Program master and conjugate resources */
@@ -397,7 +397,7 @@ static int dao_rsc_init(struct dao *dao,
 	dao->imappers = kzalloc(array3_size(sizeof(void *), desc->msr, 2),
 				GFP_KERNEL);
 	if (!dao->imappers) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error1;
 	}
 	dao->ops = &dao_ops;
@@ -506,7 +506,7 @@ static int dai_rsc_uninit(struct dai *dai)
 static int daio_mgr_get_rsc(struct rsc_mgr *mgr, enum DAIOTYP type)
 {
 	if (((struct daio_usage *)mgr->rscs)->data & (0x1 << type))
-		return -ENOENT;
+		return -EANALENT;
 
 	((struct daio_usage *)mgr->rscs)->data |= (0x1 << type);
 
@@ -539,7 +539,7 @@ static int get_daio_rsc(struct daio_mgr *mgr,
 		return err;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	/* Allocate mem for daio resource */
 	if (desc->type <= DAIO_OUT_MAX) {
 		struct dao *dao = kzalloc(sizeof(*dao), GFP_KERNEL);
@@ -693,7 +693,7 @@ int daio_mgr_create(struct hw *hw, struct daio_mgr **rdaio_mgr)
 	*rdaio_mgr = NULL;
 	daio_mgr = kzalloc(sizeof(*daio_mgr), GFP_KERNEL);
 	if (!daio_mgr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = rsc_mgr_init(&daio_mgr->mgr, DAIO, NUM_DAIOTYP, hw);
 	if (err)
@@ -704,7 +704,7 @@ int daio_mgr_create(struct hw *hw, struct daio_mgr **rdaio_mgr)
 	INIT_LIST_HEAD(&daio_mgr->imappers);
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error2;
 	}
 	entry->slot = entry->addr = entry->next = entry->user = 0;

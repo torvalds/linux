@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techanallogy Ltd. All Rights Reserved.
  *
  * @File	ctatc.h
  *
@@ -57,13 +57,13 @@ struct ct_atc_pcm {
 	struct ct_timer_instance *timer;
 	unsigned int started:1;
 
-	/* Only mono and interleaved modes are supported now. */
+	/* Only moanal and interleaved modes are supported analw. */
 	struct ct_vm_block *vm_block;
 	void *src;		/* SRC for interacting with host memory */
 	void **srccs;		/* SRCs for sample rate conversion */
 	void **srcimps;		/* SRC Input Mappers */
 	void **amixers;		/* AMIXERs for routing converted data */
-	void *mono;		/* A SUM resource for mixing chs to one */
+	void *moanal;		/* A SUM resource for mixing chs to one */
 	unsigned char n_srcc;	/* Number of converting SRCs */
 	unsigned char n_srcimp;	/* Number of SRC Input Mappers */
 	unsigned char n_amixer;	/* Number of AMIXERs */

@@ -30,7 +30,7 @@
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/shmem_fs.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 
 #include <asm/tlb.h>
 
@@ -67,89 +67,89 @@ static int madvise_need_mmap_write(int behavior)
 	}
 }
 
-#ifdef CONFIG_ANON_VMA_NAME
-struct anon_vma_name *anon_vma_name_alloc(const char *name)
+#ifdef CONFIG_AANALN_VMA_NAME
+struct aanaln_vma_name *aanaln_vma_name_alloc(const char *name)
 {
-	struct anon_vma_name *anon_name;
+	struct aanaln_vma_name *aanaln_name;
 	size_t count;
 
-	/* Add 1 for NUL terminator at the end of the anon_name->name */
+	/* Add 1 for NUL terminator at the end of the aanaln_name->name */
 	count = strlen(name) + 1;
-	anon_name = kmalloc(struct_size(anon_name, name, count), GFP_KERNEL);
-	if (anon_name) {
-		kref_init(&anon_name->kref);
-		memcpy(anon_name->name, name, count);
+	aanaln_name = kmalloc(struct_size(aanaln_name, name, count), GFP_KERNEL);
+	if (aanaln_name) {
+		kref_init(&aanaln_name->kref);
+		memcpy(aanaln_name->name, name, count);
 	}
 
-	return anon_name;
+	return aanaln_name;
 }
 
-void anon_vma_name_free(struct kref *kref)
+void aanaln_vma_name_free(struct kref *kref)
 {
-	struct anon_vma_name *anon_name =
-			container_of(kref, struct anon_vma_name, kref);
-	kfree(anon_name);
+	struct aanaln_vma_name *aanaln_name =
+			container_of(kref, struct aanaln_vma_name, kref);
+	kfree(aanaln_name);
 }
 
-struct anon_vma_name *anon_vma_name(struct vm_area_struct *vma)
+struct aanaln_vma_name *aanaln_vma_name(struct vm_area_struct *vma)
 {
 	mmap_assert_locked(vma->vm_mm);
 
-	return vma->anon_name;
+	return vma->aanaln_name;
 }
 
 /* mmap_lock should be write-locked */
-static int replace_anon_vma_name(struct vm_area_struct *vma,
-				 struct anon_vma_name *anon_name)
+static int replace_aanaln_vma_name(struct vm_area_struct *vma,
+				 struct aanaln_vma_name *aanaln_name)
 {
-	struct anon_vma_name *orig_name = anon_vma_name(vma);
+	struct aanaln_vma_name *orig_name = aanaln_vma_name(vma);
 
-	if (!anon_name) {
-		vma->anon_name = NULL;
-		anon_vma_name_put(orig_name);
+	if (!aanaln_name) {
+		vma->aanaln_name = NULL;
+		aanaln_vma_name_put(orig_name);
 		return 0;
 	}
 
-	if (anon_vma_name_eq(orig_name, anon_name))
+	if (aanaln_vma_name_eq(orig_name, aanaln_name))
 		return 0;
 
-	vma->anon_name = anon_vma_name_reuse(anon_name);
-	anon_vma_name_put(orig_name);
+	vma->aanaln_name = aanaln_vma_name_reuse(aanaln_name);
+	aanaln_vma_name_put(orig_name);
 
 	return 0;
 }
-#else /* CONFIG_ANON_VMA_NAME */
-static int replace_anon_vma_name(struct vm_area_struct *vma,
-				 struct anon_vma_name *anon_name)
+#else /* CONFIG_AANALN_VMA_NAME */
+static int replace_aanaln_vma_name(struct vm_area_struct *vma,
+				 struct aanaln_vma_name *aanaln_name)
 {
-	if (anon_name)
+	if (aanaln_name)
 		return -EINVAL;
 
 	return 0;
 }
-#endif /* CONFIG_ANON_VMA_NAME */
+#endif /* CONFIG_AANALN_VMA_NAME */
 /*
  * Update the vm_flags on region of a vma, splitting it or merging it as
  * necessary.  Must be called with mmap_lock held for writing;
- * Caller should ensure anon_name stability by raising its refcount even when
- * anon_name belongs to a valid vma because this function might free that vma.
+ * Caller should ensure aanaln_name stability by raising its refcount even when
+ * aanaln_name belongs to a valid vma because this function might free that vma.
  */
 static int madvise_update_vma(struct vm_area_struct *vma,
 			      struct vm_area_struct **prev, unsigned long start,
 			      unsigned long end, unsigned long new_flags,
-			      struct anon_vma_name *anon_name)
+			      struct aanaln_vma_name *aanaln_name)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	int error;
 	VMA_ITERATOR(vmi, mm, start);
 
-	if (new_flags == vma->vm_flags && anon_vma_name_eq(anon_vma_name(vma), anon_name)) {
+	if (new_flags == vma->vm_flags && aanaln_vma_name_eq(aanaln_vma_name(vma), aanaln_name)) {
 		*prev = vma;
 		return 0;
 	}
 
 	vma = vma_modify_flags_name(&vmi, *prev, vma, start, end, new_flags,
-				    anon_name);
+				    aanaln_name);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
@@ -158,8 +158,8 @@ static int madvise_update_vma(struct vm_area_struct *vma,
 	/* vm_flags is protected by the mmap_lock held in write mode. */
 	vma_start_write(vma);
 	vm_flags_reset(vma, new_flags);
-	if (!vma->vm_file || vma_is_anon_shmem(vma)) {
-		error = replace_anon_vma_name(vma, anon_name);
+	if (!vma->vm_file || vma_is_aanaln_shmem(vma)) {
+		error = replace_aanaln_vma_name(vma, aanaln_name);
 		if (error)
 			return error;
 	}
@@ -192,7 +192,7 @@ static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
 		if (!is_swap_pte(pte))
 			continue;
 		entry = pte_to_swp_entry(pte);
-		if (unlikely(non_swap_entry(entry)))
+		if (unlikely(analn_swap_entry(entry)))
 			continue;
 
 		pte_unmap_unlock(ptep, ptl);
@@ -235,7 +235,7 @@ static void shmem_swapin_range(struct vm_area_struct *vma,
 			continue;
 		entry = radix_to_swp_entry(folio);
 		/* There might be swapin error entries in shmem mapping. */
-		if (non_swap_entry(entry))
+		if (analn_swap_entry(entry))
 			continue;
 
 		addr = vma->vm_start +
@@ -256,7 +256,7 @@ static void shmem_swapin_range(struct vm_area_struct *vma,
 #endif		/* CONFIG_SWAP */
 
 /*
- * Schedule all required I/O operations.  Do not wait for completion.
+ * Schedule all required I/O operations.  Do analt wait for completion.
  */
 static long madvise_willneed(struct vm_area_struct *vma,
 			     struct vm_area_struct **prev,
@@ -270,13 +270,13 @@ static long madvise_willneed(struct vm_area_struct *vma,
 #ifdef CONFIG_SWAP
 	if (!file) {
 		walk_page_range(vma->vm_mm, start, end, &swapin_walk_ops, vma);
-		lru_add_drain(); /* Push any new pages onto the LRU now */
+		lru_add_drain(); /* Push any new pages onto the LRU analw */
 		return 0;
 	}
 
 	if (shmem_mapping(file->f_mapping)) {
 		shmem_swapin_range(vma, start, end, file->f_mapping);
-		lru_add_drain(); /* Push any new pages onto the LRU now */
+		lru_add_drain(); /* Push any new pages onto the LRU analw */
 		return 0;
 	}
 #else
@@ -284,8 +284,8 @@ static long madvise_willneed(struct vm_area_struct *vma,
 		return -EBADF;
 #endif
 
-	if (IS_DAX(file_inode(file))) {
-		/* no bad return value, but ignore advice */
+	if (IS_DAX(file_ianalde(file))) {
+		/* anal bad return value, but iganalre advice */
 		return 0;
 	}
 
@@ -311,13 +311,13 @@ static inline bool can_do_file_pageout(struct vm_area_struct *vma)
 	if (!vma->vm_file)
 		return false;
 	/*
-	 * paging out pagecache only for non-anonymous mappings that correspond
+	 * paging out pagecache only for analn-aanalnymous mappings that correspond
 	 * to the files the calling process could (if tried) open for writing;
-	 * otherwise we'd be including shared non-exclusive mappings, which
+	 * otherwise we'd be including shared analn-exclusive mappings, which
 	 * opens a side channel.
 	 */
-	return inode_owner_or_capable(&nop_mnt_idmap,
-				      file_inode(vma->vm_file)) ||
+	return ianalde_owner_or_capable(&analp_mnt_idmap,
+				      file_ianalde(vma->vm_file)) ||
 	       file_permission(vma->vm_file, MAY_WRITE) == 0;
 }
 
@@ -334,13 +334,13 @@ static int madvise_cold_or_pageout_pte_range(pmd_t *pmd,
 	spinlock_t *ptl;
 	struct folio *folio = NULL;
 	LIST_HEAD(folio_list);
-	bool pageout_anon_only_filter;
+	bool pageout_aanaln_only_filter;
 	unsigned int batch_count = 0;
 
 	if (fatal_signal_pending(current))
 		return -EINTR;
 
-	pageout_anon_only_filter = pageout && !vma_is_anonymous(vma) &&
+	pageout_aanaln_only_filter = pageout && !vma_is_aanalnymous(vma) &&
 					!can_do_file_pageout(vma);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -365,11 +365,11 @@ static int madvise_cold_or_pageout_pte_range(pmd_t *pmd,
 
 		folio = pfn_folio(pmd_pfn(orig_pmd));
 
-		/* Do not interfere with other mappings of this folio */
+		/* Do analt interfere with other mappings of this folio */
 		if (folio_estimated_sharers(folio) != 1)
 			goto huge_unlock;
 
-		if (pageout_anon_only_filter && !folio_test_anon(folio))
+		if (pageout_aanaln_only_filter && !folio_test_aanaln(folio))
 			goto huge_unlock;
 
 		if (next - addr != HPAGE_PMD_SIZE) {
@@ -436,13 +436,13 @@ restart:
 			}
 		}
 
-		if (pte_none(ptent))
+		if (pte_analne(ptent))
 			continue;
 
 		if (!pte_present(ptent))
 			continue;
 
-		folio = vm_normal_folio(vma, addr, ptent);
+		folio = vm_analrmal_folio(vma, addr, ptent);
 		if (!folio || folio_is_zone_device(folio))
 			continue;
 
@@ -455,7 +455,7 @@ restart:
 
 			if (folio_estimated_sharers(folio) != 1)
 				break;
-			if (pageout_anon_only_filter && !folio_test_anon(folio))
+			if (pageout_aanaln_only_filter && !folio_test_aanaln(folio))
 				break;
 			if (!folio_trylock(folio))
 				break;
@@ -479,13 +479,13 @@ restart:
 		}
 
 		/*
-		 * Do not interfere with other mappings of this folio and
-		 * non-LRU folio.
+		 * Do analt interfere with other mappings of this folio and
+		 * analn-LRU folio.
 		 */
 		if (!folio_test_lru(folio) || folio_mapcount(folio) != 1)
 			continue;
 
-		if (pageout_anon_only_filter && !folio_test_anon(folio))
+		if (pageout_aanaln_only_filter && !folio_test_aanaln(folio))
 			continue;
 
 		VM_BUG_ON_FOLIO(folio_test_large(folio), folio);
@@ -601,10 +601,10 @@ static long madvise_pageout(struct vm_area_struct *vma,
 	/*
 	 * If the VMA belongs to a private file mapping, there can be private
 	 * dirty pages which can be paged out if even this process is neither
-	 * owner nor write capable of the file. We allow private file mappings
-	 * further to pageout dirty anon pages.
+	 * owner analr write capable of the file. We allow private file mappings
+	 * further to pageout dirty aanaln pages.
 	 */
-	if (!vma_is_anonymous(vma) && (!can_do_file_pageout(vma) &&
+	if (!vma_is_aanalnymous(vma) && (!can_do_file_pageout(vma) &&
 				(vma->vm_flags & VM_MAYSHARE)))
 		return 0;
 
@@ -643,7 +643,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 	for (; addr != end; pte++, addr += PAGE_SIZE) {
 		ptent = ptep_get(pte);
 
-		if (pte_none(ptent))
+		if (pte_analne(ptent))
 			continue;
 		/*
 		 * If the pte has swp_entry, just clear page table to
@@ -654,18 +654,18 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 			swp_entry_t entry;
 
 			entry = pte_to_swp_entry(ptent);
-			if (!non_swap_entry(entry)) {
+			if (!analn_swap_entry(entry)) {
 				nr_swap--;
 				free_swap_and_cache(entry);
-				pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
+				pte_clear_analt_present_full(mm, addr, pte, tlb->fullmm);
 			} else if (is_hwpoison_entry(entry) ||
 				   is_poisoned_swp_entry(entry)) {
-				pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
+				pte_clear_analt_present_full(mm, addr, pte, tlb->fullmm);
 			}
 			continue;
 		}
 
-		folio = vm_normal_folio(vma, addr, ptent);
+		folio = vm_analrmal_folio(vma, addr, ptent);
 		if (!folio || folio_is_zone_device(folio))
 			continue;
 
@@ -760,11 +760,11 @@ static int madvise_free_single_vma(struct vm_area_struct *vma,
 			unsigned long start_addr, unsigned long end_addr)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	struct mmu_notifier_range range;
+	struct mmu_analtifier_range range;
 	struct mmu_gather tlb;
 
-	/* MADV_FREE works for only anon vma at the moment */
-	if (!vma_is_anonymous(vma))
+	/* MADV_FREE works for only aanaln vma at the moment */
+	if (!vma_is_aanalnymous(vma))
 		return -EINVAL;
 
 	range.start = max(vma->vm_start, start_addr);
@@ -773,38 +773,38 @@ static int madvise_free_single_vma(struct vm_area_struct *vma,
 	range.end = min(vma->vm_end, end_addr);
 	if (range.end <= vma->vm_start)
 		return -EINVAL;
-	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, mm,
+	mmu_analtifier_range_init(&range, MMU_ANALTIFY_CLEAR, 0, mm,
 				range.start, range.end);
 
 	lru_add_drain();
 	tlb_gather_mmu(&tlb, mm);
 	update_hiwater_rss(mm);
 
-	mmu_notifier_invalidate_range_start(&range);
+	mmu_analtifier_invalidate_range_start(&range);
 	tlb_start_vma(&tlb, vma);
 	walk_page_range(vma->vm_mm, range.start, range.end,
 			&madvise_free_walk_ops, &tlb);
 	tlb_end_vma(&tlb, vma);
-	mmu_notifier_invalidate_range_end(&range);
+	mmu_analtifier_invalidate_range_end(&range);
 	tlb_finish_mmu(&tlb);
 
 	return 0;
 }
 
 /*
- * Application no longer needs these pages.  If the pages are dirty,
+ * Application anal longer needs these pages.  If the pages are dirty,
  * it's OK to just throw them away.  The app will be more careful about
  * data it wants to keep.  Be sure to free swap resources too.  The
  * zap_page_range_single call sets things up for shrink_active_list to actually
- * free these pages later if no one else has touched them in the meantime,
+ * free these pages later if anal one else has touched them in the meantime,
  * although we could add these pages to a global reuse list for
  * shrink_active_list to pick up before reclaiming other pages.
  *
  * NB: This interface discards data rather than pushes it out to swap,
  * as some implementations do.  This has performance implications for
  * applications like large transactional databases which want to discard
- * pages in anonymous maps after committing to backing store the data
- * that was kept in them.  There is no reason to write this data out to
+ * pages in aanalnymous maps after committing to backing store the data
+ * that was kept in them.  There is anal reason to write this data out to
  * the swap area if the application is discarding it.
  *
  * An interface that causes the system to free clean pages and flush
@@ -867,7 +867,7 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
 		mmap_read_lock(mm);
 		vma = vma_lookup(mm, start);
 		if (!vma)
-			return -ENOMEM;
+			return -EANALMEM;
 		/*
 		 * Potential end adjustment for hugetlb vma is OK as
 		 * the check below keeps end within vma.
@@ -880,7 +880,7 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
 			 * Don't fail if end > vma->vm_end. If the old
 			 * vma was split while the mmap_lock was
 			 * released the effect of the concurrent
-			 * operation may not cause madvise() to
+			 * operation may analt cause madvise() to
 			 * have an undefined result. There may be an
 			 * adjacent next vma that we'll walk
 			 * next. userfaultfd_remove() will generate an
@@ -922,7 +922,7 @@ static long madvise_populate(struct vm_area_struct *vma,
 		if (!vma || start >= vma->vm_end) {
 			vma = vma_lookup(mm, start);
 			if (!vma)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		tmp_end = min_t(unsigned long, end, vma->vm_end);
@@ -949,8 +949,8 @@ static long madvise_populate(struct vm_area_struct *vma,
 				pr_warn_once("%s: unhandled return value: %ld\n",
 					     __func__, pages);
 				fallthrough;
-			case -ENOMEM:
-				return -ENOMEM;
+			case -EANALMEM:
+				return -EANALMEM;
 			}
 		}
 		start += pages * PAGE_SIZE;
@@ -996,7 +996,7 @@ static long madvise_remove(struct vm_area_struct *vma,
 	 */
 	get_file(f);
 	if (userfaultfd_remove(vma, start, end)) {
-		/* mmap_lock was not released by userfaultfd_remove() */
+		/* mmap_lock was analt released by userfaultfd_remove() */
 		mmap_read_unlock(mm);
 	}
 	error = vfs_fallocate(f,
@@ -1018,7 +1018,7 @@ static int madvise_vma_behavior(struct vm_area_struct *vma,
 				unsigned long behavior)
 {
 	int error;
-	struct anon_vma_name *anon_name;
+	struct aanaln_vma_name *aanaln_name;
 	unsigned long new_flags = vma->vm_flags;
 
 	switch (behavior) {
@@ -1037,7 +1037,7 @@ static int madvise_vma_behavior(struct vm_area_struct *vma,
 	case MADV_POPULATE_READ:
 	case MADV_POPULATE_WRITE:
 		return madvise_populate(vma, prev, start, end, behavior);
-	case MADV_NORMAL:
+	case MADV_ANALRMAL:
 		new_flags = new_flags & ~VM_RAND_READ & ~VM_SEQ_READ;
 		break;
 	case MADV_SEQUENTIAL:
@@ -1055,7 +1055,7 @@ static int madvise_vma_behavior(struct vm_area_struct *vma,
 		new_flags &= ~VM_DONTCOPY;
 		break;
 	case MADV_WIPEONFORK:
-		/* MADV_WIPEONFORK is only supported on anonymous memory. */
+		/* MADV_WIPEONFORK is only supported on aanalnymous memory. */
 		if (vma->vm_file || vma->vm_flags & VM_SHARED)
 			return -EINVAL;
 		new_flags |= VM_WIPEONFORK;
@@ -1078,7 +1078,7 @@ static int madvise_vma_behavior(struct vm_area_struct *vma,
 			goto out;
 		break;
 	case MADV_HUGEPAGE:
-	case MADV_NOHUGEPAGE:
+	case MADV_ANALHUGEPAGE:
 		error = hugepage_madvise(vma, &new_flags, behavior);
 		if (error)
 			goto out;
@@ -1087,18 +1087,18 @@ static int madvise_vma_behavior(struct vm_area_struct *vma,
 		return madvise_collapse(vma, prev, start, end);
 	}
 
-	anon_name = anon_vma_name(vma);
-	anon_vma_name_get(anon_name);
+	aanaln_name = aanaln_vma_name(vma);
+	aanaln_vma_name_get(aanaln_name);
 	error = madvise_update_vma(vma, prev, start, end, new_flags,
-				   anon_name);
-	anon_vma_name_put(anon_name);
+				   aanaln_name);
+	aanaln_vma_name_put(aanaln_name);
 
 out:
 	/*
 	 * madvise() returns EAGAIN if kernel resources, such as
 	 * slab, are temporarily unavailable.
 	 */
-	if (error == -ENOMEM)
+	if (error == -EANALMEM)
 		error = -EAGAIN;
 	return error;
 }
@@ -1129,7 +1129,7 @@ static int madvise_inject_error(int behavior,
 		/*
 		 * When soft offlining hugepages, after migrating the page
 		 * we dissolve it, therefore in the second loop "page" will
-		 * no longer be a compound page.
+		 * anal longer be a compound page.
 		 */
 		size = page_size(compound_head(page));
 
@@ -1141,7 +1141,7 @@ static int madvise_inject_error(int behavior,
 			pr_info("Injecting memory failure for pfn %#lx at process virtual address %#lx\n",
 				 pfn, start);
 			ret = memory_failure(pfn, MF_COUNT_INCREASED | MF_SW_SIMULATED);
-			if (ret == -EOPNOTSUPP)
+			if (ret == -EOPANALTSUPP)
 				ret = 0;
 		}
 
@@ -1159,7 +1159,7 @@ madvise_behavior_valid(int behavior)
 	switch (behavior) {
 	case MADV_DOFORK:
 	case MADV_DONTFORK:
-	case MADV_NORMAL:
+	case MADV_ANALRMAL:
 	case MADV_SEQUENTIAL:
 	case MADV_RANDOM:
 	case MADV_REMOVE:
@@ -1177,7 +1177,7 @@ madvise_behavior_valid(int behavior)
 #endif
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	case MADV_HUGEPAGE:
-	case MADV_NOHUGEPAGE:
+	case MADV_ANALHUGEPAGE:
 	case MADV_COLLAPSE:
 #endif
 	case MADV_DONTDUMP:
@@ -1212,7 +1212,7 @@ static bool process_madvise_behavior_valid(int behavior)
  * Walk the vmas in range [start,end), and call the visit function on each one.
  * The visit function will get start and end parameters that cover the overlap
  * between the current vma and the original range.  Any unmapped regions in the
- * original range will result in this function returning -ENOMEM while still
+ * original range will result in this function returning -EANALMEM while still
  * calling the visit function on all of the existing vmas in the range.
  * Must be called with the mmap_lock held for reading or writing.
  */
@@ -1230,7 +1230,7 @@ int madvise_walk_vmas(struct mm_struct *mm, unsigned long start,
 
 	/*
 	 * If the interval [start,end) covers some unmapped address
-	 * ranges, just ignore them, but return -ENOMEM at the end.
+	 * ranges, just iganalre them, but return -EANALMEM at the end.
 	 * - different from the way of handling in mlock etc.
 	 */
 	vma = find_vma_prev(mm, start, &prev);
@@ -1242,11 +1242,11 @@ int madvise_walk_vmas(struct mm_struct *mm, unsigned long start,
 
 		/* Still start < end. */
 		if (!vma)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Here start < (end|vma->vm_end). */
 		if (start < vma->vm_start) {
-			unmapped_error = -ENOMEM;
+			unmapped_error = -EANALMEM;
 			start = vma->vm_start;
 			if (start >= end)
 				break;
@@ -1275,32 +1275,32 @@ int madvise_walk_vmas(struct mm_struct *mm, unsigned long start,
 	return unmapped_error;
 }
 
-#ifdef CONFIG_ANON_VMA_NAME
-static int madvise_vma_anon_name(struct vm_area_struct *vma,
+#ifdef CONFIG_AANALN_VMA_NAME
+static int madvise_vma_aanaln_name(struct vm_area_struct *vma,
 				 struct vm_area_struct **prev,
 				 unsigned long start, unsigned long end,
-				 unsigned long anon_name)
+				 unsigned long aanaln_name)
 {
 	int error;
 
-	/* Only anonymous mappings can be named */
-	if (vma->vm_file && !vma_is_anon_shmem(vma))
+	/* Only aanalnymous mappings can be named */
+	if (vma->vm_file && !vma_is_aanaln_shmem(vma))
 		return -EBADF;
 
 	error = madvise_update_vma(vma, prev, start, end, vma->vm_flags,
-				   (struct anon_vma_name *)anon_name);
+				   (struct aanaln_vma_name *)aanaln_name);
 
 	/*
 	 * madvise() returns EAGAIN if kernel resources, such as
 	 * slab, are temporarily unavailable.
 	 */
-	if (error == -ENOMEM)
+	if (error == -EANALMEM)
 		error = -EAGAIN;
 	return error;
 }
 
-int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
-			  unsigned long len_in, struct anon_vma_name *anon_name)
+int madvise_set_aanaln_name(struct mm_struct *mm, unsigned long start,
+			  unsigned long len_in, struct aanaln_vma_name *aanaln_name)
 {
 	unsigned long end;
 	unsigned long len;
@@ -1320,10 +1320,10 @@ int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
 	if (end == start)
 		return 0;
 
-	return madvise_walk_vmas(mm, start, end, (unsigned long)anon_name,
-				 madvise_vma_anon_name);
+	return madvise_walk_vmas(mm, start, end, (unsigned long)aanaln_name,
+				 madvise_vma_aanaln_name);
 }
-#endif /* CONFIG_ANON_VMA_NAME */
+#endif /* CONFIG_AANALN_VMA_NAME */
 /*
  * The madvise(2) system call.
  *
@@ -1334,7 +1334,7 @@ int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
  * kernel without affecting the correct operation of the application.
  *
  * behavior values:
- *  MADV_NORMAL - the default behavior is to read clusters.  This
+ *  MADV_ANALRMAL - the default behavior is to read clusters.  This
  *		results in some read-ahead and read-behind.
  *  MADV_RANDOM - the system should read the minimum amount of data
  *		on any access, since it is unlikely that the appli-
@@ -1342,7 +1342,7 @@ int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
  *  MADV_SEQUENTIAL - pages in the given range will probably be accessed
  *		once, so they can be aggressively read ahead, and
  *		can be freed soon after they are accessed.
- *  MADV_WILLNEED - the application is notifying the system to read
+ *  MADV_WILLNEED - the application is analtifying the system to read
  *		some pages ahead.
  *  MADV_DONTNEED - the application is finished with the given range,
  *		so the kernel can free resources associated with it.
@@ -1352,7 +1352,7 @@ int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
  *		pages and associated backing store.
  *  MADV_DONTFORK - omit this area from child's address space when forking:
  *		typically, to avoid COWing pages pinned by get_user_pages().
- *  MADV_DOFORK - cancel MADV_DONTFORK: no longer omit this area when forking.
+ *  MADV_DOFORK - cancel MADV_DONTFORK: anal longer omit this area when forking.
  *  MADV_WIPEONFORK - present the child process with zero-filled memory in this
  *              range after a fork.
  *  MADV_KEEPONFORK - undo the effect of MADV_WIPEONFORK
@@ -1361,21 +1361,21 @@ int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
  *  MADV_SOFT_OFFLINE - try to soft-offline the given range of memory.
  *  MADV_MERGEABLE - the application recommends that KSM try to merge pages in
  *		this area with pages of identical content from other such areas.
- *  MADV_UNMERGEABLE- cancel MADV_MERGEABLE: no longer merge pages with others.
+ *  MADV_UNMERGEABLE- cancel MADV_MERGEABLE: anal longer merge pages with others.
  *  MADV_HUGEPAGE - the application wants to back the given range by transparent
  *		huge pages in the future. Existing pages might be coalesced and
  *		new pages might be allocated as THP.
- *  MADV_NOHUGEPAGE - mark the given range as not worth being backed by
- *		transparent huge pages so the existing pages will not be
- *		coalesced into THP and new pages will not be allocated as THP.
- *  MADV_COLLAPSE - synchronously coalesce pages into new THP.
+ *  MADV_ANALHUGEPAGE - mark the given range as analt worth being backed by
+ *		transparent huge pages so the existing pages will analt be
+ *		coalesced into THP and new pages will analt be allocated as THP.
+ *  MADV_COLLAPSE - synchroanalusly coalesce pages into new THP.
  *  MADV_DONTDUMP - the application wants to prevent pages in the given range
  *		from being included in its core dump.
- *  MADV_DODUMP - cancel MADV_DONTDUMP: no longer exclude from core dump.
- *  MADV_COLD - the application is not expected to use this memory soon,
+ *  MADV_DODUMP - cancel MADV_DONTDUMP: anal longer exclude from core dump.
+ *  MADV_COLD - the application is analt expected to use this memory soon,
  *		deactivate pages in this range so that they can be reclaimed
  *		easily if memory pressure happens.
- *  MADV_PAGEOUT - the application is not expected to use this memory soon,
+ *  MADV_PAGEOUT - the application is analt expected to use this memory soon,
  *		page out the pages in this range immediately.
  *  MADV_POPULATE_READ - populate (prefault) page tables readable by
  *		triggering read faults if required
@@ -1384,12 +1384,12 @@ int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
  *
  * return values:
  *  zero    - success
- *  -EINVAL - start + len < 0, start is not page-aligned,
- *		"behavior" is not a valid value, or application
+ *  -EINVAL - start + len < 0, start is analt page-aligned,
+ *		"behavior" is analt a valid value, or application
  *		is attempting to release locked or shared pages,
  *		or the specified address range includes file, Huge TLB,
  *		MAP_SHARED or VMPFNMAP range.
- *  -ENOMEM - addresses in the specified range are not currently
+ *  -EANALMEM - addresses in the specified range are analt currently
  *		mapped, or are outside the AS of the process.
  *  -EIO    - an I/O error occurred while paging in data.
  *  -EBADF  - map exists, but area maps something that isn't a file.
@@ -1494,8 +1494,8 @@ SYSCALL_DEFINE5(process_madvise, int, pidfd, const struct iovec __user *, vec,
 	}
 
 	/*
-	 * Require CAP_SYS_NICE for influencing process performance. Note that
-	 * only non-destructive hints are currently supported.
+	 * Require CAP_SYS_NICE for influencing process performance. Analte that
+	 * only analn-destructive hints are currently supported.
 	 */
 	if (!capable(CAP_SYS_NICE)) {
 		ret = -EPERM;

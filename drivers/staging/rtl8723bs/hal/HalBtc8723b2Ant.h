@@ -24,7 +24,7 @@ enum {
 };
 
 enum {
-	BT_8723B_2ANT_BT_STATUS_NON_CONNECTED_IDLE = 0x0,
+	BT_8723B_2ANT_BT_STATUS_ANALN_CONNECTED_IDLE = 0x0,
 	BT_8723B_2ANT_BT_STATUS_CONNECTED_IDLE     = 0x1,
 	BT_8723B_2ANT_BT_STATUS_INQ_PAGE           = 0x2,
 	BT_8723B_2ANT_BT_STATUS_ACL_BUSY           = 0x3,
@@ -54,8 +54,8 @@ struct coex_dm_8723b_2ant {
 	u8 curBtDecPwrLvl;
 	u8 preFwDacSwingLvl;
 	u8 curFwDacSwingLvl;
-	bool bCurIgnoreWlanAct;
-	bool bPreIgnoreWlanAct;
+	bool bCurIganalreWlanAct;
+	bool bPreIganalreWlanAct;
 	u8 prePsTdma;
 	u8 curPsTdma;
 	u8 psTdmaPara[5];
@@ -127,20 +127,20 @@ struct coex_sta_8723b_2ant {
 };
 
 /*  */
-/*  The following is interface which will notify coex module. */
+/*  The following is interface which will analtify coex module. */
 /*  */
 void EXhalbtc8723b2ant_PowerOnSetting(struct btc_coexist *pBtCoexist);
 void EXhalbtc8723b2ant_InitHwConfig(struct btc_coexist *pBtCoexist, bool bWifiOnly);
 void EXhalbtc8723b2ant_InitCoexDm(struct btc_coexist *pBtCoexist);
-void EXhalbtc8723b2ant_IpsNotify(struct btc_coexist *pBtCoexist, u8 type);
-void EXhalbtc8723b2ant_LpsNotify(struct btc_coexist *pBtCoexist, u8 type);
-void EXhalbtc8723b2ant_ScanNotify(struct btc_coexist *pBtCoexist, u8 type);
-void EXhalbtc8723b2ant_ConnectNotify(struct btc_coexist *pBtCoexist, u8 type);
-void EXhalbtc8723b2ant_MediaStatusNotify(struct btc_coexist *pBtCoexist, u8 type);
-void EXhalbtc8723b2ant_SpecialPacketNotify(struct btc_coexist *pBtCoexist, u8 type);
-void EXhalbtc8723b2ant_BtInfoNotify(
+void EXhalbtc8723b2ant_IpsAnaltify(struct btc_coexist *pBtCoexist, u8 type);
+void EXhalbtc8723b2ant_LpsAnaltify(struct btc_coexist *pBtCoexist, u8 type);
+void EXhalbtc8723b2ant_ScanAnaltify(struct btc_coexist *pBtCoexist, u8 type);
+void EXhalbtc8723b2ant_ConnectAnaltify(struct btc_coexist *pBtCoexist, u8 type);
+void EXhalbtc8723b2ant_MediaStatusAnaltify(struct btc_coexist *pBtCoexist, u8 type);
+void EXhalbtc8723b2ant_SpecialPacketAnaltify(struct btc_coexist *pBtCoexist, u8 type);
+void EXhalbtc8723b2ant_BtInfoAnaltify(
 	struct btc_coexist *pBtCoexist, u8 *tmpBuf, u8 length
 );
-void EXhalbtc8723b2ant_HaltNotify(struct btc_coexist *pBtCoexist);
-void EXhalbtc8723b2ant_PnpNotify(struct btc_coexist *pBtCoexist, u8 pnpState);
+void EXhalbtc8723b2ant_HaltAnaltify(struct btc_coexist *pBtCoexist);
+void EXhalbtc8723b2ant_PnpAnaltify(struct btc_coexist *pBtCoexist, u8 pnpState);
 void EXhalbtc8723b2ant_Periodical(struct btc_coexist *pBtCoexist);

@@ -86,7 +86,7 @@ static int do_one_sme_vl(struct tdescr *td, siginfo_t *si, ucontext_t *uc,
 	head = get_header(head, SVE_MAGIC, GET_BUF_RESV_SIZE(context),
 			  &offset);
 	if (!head) {
-		fprintf(stderr, "No SVE context\n");
+		fprintf(stderr, "Anal SVE context\n");
 		return 1;
 	}
 
@@ -97,7 +97,7 @@ static int do_one_sme_vl(struct tdescr *td, siginfo_t *si, ucontext_t *uc,
 	}
 
 	if (!(ssve->flags & SVE_SIG_FLAG_SM)) {
-		fprintf(stderr, "SVE_SIG_FLAG_SM not set in SVE record\n");
+		fprintf(stderr, "SVE_SIG_FLAG_SM analt set in SVE record\n");
 		return 1;
 	}
 

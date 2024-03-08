@@ -73,7 +73,7 @@ extern int dvb_usb_vp702x_debug;
 /* IN  i: 0; v: 0; b[0] == request, b[1] == 0, b[2] = pid number */
 
 #define WRITE_EEPROM_REQ	0xB6
-/* OUT i: offset; v: value to write; no extra buffer */
+/* OUT i: offset; v: value to write; anal extra buffer */
 
 #define READ_EEPROM_REQ		0xB7
 /* IN  i: bufferlen; v: offset; buffer with bufferlen bytes */
@@ -94,10 +94,10 @@ extern int dvb_usb_vp702x_debug;
 /* IN  i: 0 = power off, 1 = power on */
 
 #define WRITE_TUNER_REG_REQ	0xBD
-/* IN  i: register, v: value to write, no extra buffer */
+/* IN  i: register, v: value to write, anal extra buffer */
 
 #define RESET_TUNER		0xBE
-/* IN  i: 0, v: 0, no extra buffer */
+/* IN  i: 0, v: 0, anal extra buffer */
 
 struct vp702x_device_state {
 	struct mutex buf_mutex;
@@ -108,7 +108,7 @@ struct vp702x_device_state {
 
 extern struct dvb_frontend * vp702x_fe_attach(struct dvb_usb_device *d);
 
-extern int vp702x_usb_inout_op(struct dvb_usb_device *d, u8 *o, int olen, u8 *i, int ilen, int msec);
+extern int vp702x_usb_ianalut_op(struct dvb_usb_device *d, u8 *o, int olen, u8 *i, int ilen, int msec);
 extern int vp702x_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 *b, int blen);
 
 #endif

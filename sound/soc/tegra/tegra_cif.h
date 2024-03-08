@@ -20,7 +20,7 @@
 #define TEGRA_ACIF_CTRL_STEREO_CONV_SHIFT	4
 #define TEGRA_ACIF_CTRL_REPLICATE_SHIFT		3
 #define TEGRA_ACIF_CTRL_TRUNCATE_SHIFT		1
-#define TEGRA_ACIF_CTRL_MONO_CONV_SHIFT		0
+#define TEGRA_ACIF_CTRL_MOANAL_CONV_SHIFT		0
 
 /* AUDIO/CLIENT_BITS values */
 #define TEGRA_ACIF_BITS_8			1
@@ -40,7 +40,7 @@ struct tegra_cif_conf {
 	unsigned int stereo_conv;
 	unsigned int replicate;
 	unsigned int truncate;
-	unsigned int mono_conv;
+	unsigned int moanal_conv;
 };
 
 static inline void tegra_set_cif(struct regmap *regmap, unsigned int reg,
@@ -57,7 +57,7 @@ static inline void tegra_set_cif(struct regmap *regmap, unsigned int reg,
 		(conf->stereo_conv << TEGRA_ACIF_CTRL_STEREO_CONV_SHIFT) |
 		(conf->replicate << TEGRA_ACIF_CTRL_REPLICATE_SHIFT) |
 		(conf->truncate << TEGRA_ACIF_CTRL_TRUNCATE_SHIFT) |
-		(conf->mono_conv << TEGRA_ACIF_CTRL_MONO_CONV_SHIFT);
+		(conf->moanal_conv << TEGRA_ACIF_CTRL_MOANAL_CONV_SHIFT);
 
 	regmap_update_bits(regmap, reg, TEGRA_ACIF_UPDATE_MASK, value);
 }

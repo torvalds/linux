@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <net/rtnetlink.h>
 #include <linux/if_team.h>
@@ -30,7 +30,7 @@ static rx_handler_result_t ab_receive(struct team *team, struct team_port *port,
 	active_port = rcu_dereference(ab_priv(team)->active_port);
 	if (active_port != port)
 		return RX_HANDLER_EXACT;
-	return RX_HANDLER_ANOTHER;
+	return RX_HANDLER_AANALTHER;
 }
 
 static bool ab_transmit(struct team *team, struct sk_buff *skb)
@@ -85,7 +85,7 @@ static int ab_active_port_set(struct team *team, struct team_gsetter_ctx *ctx)
 			return 0;
 		}
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static const struct team_option ab_options[] = {

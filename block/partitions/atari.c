@@ -40,11 +40,11 @@ int atari_partition(struct parsed_partitions *state)
 	u32 hd_size;
 	int slot;
 #ifdef ICD_PARTS
-	int part_fmt = 0; /* 0:unknown, 1:AHDI, 2:ICD/Supra */
+	int part_fmt = 0; /* 0:unkanalwn, 1:AHDI, 2:ICD/Supra */
 #endif
 
 	/*
-	 * ATARI partition scheme supports 512 lba only.  If this is not
+	 * ATARI partition scheme supports 512 lba only.  If this is analt
 	 * the case, bail early to avoid miscalculating hd_size.
 	 */
 	if (queue_logical_block_size(state->disk->queue) != 512)
@@ -61,8 +61,8 @@ int atari_partition(struct parsed_partitions *state)
 	    !VALID_PARTITION(&rs->part[2], hd_size) &&
 	    !VALID_PARTITION(&rs->part[3], hd_size)) {
 		/*
-		 * if there's no valid primary partition, assume that no Atari
-		 * format partition table (there's no reliable magic or the like
+		 * if there's anal valid primary partition, assume that anal Atari
+		 * format partition table (there's anal reliable magic or the like
 	         * :-()
 		 */
 		put_dev_sector(sect);
@@ -101,7 +101,7 @@ int atari_partition(struct parsed_partitions *state)
 
 			/* ++roman: sanity check: bit 0 of flg field must be set */
 			if (!(xrs->part[0].flg & 1)) {
-				printk( "\nFirst sub-partition in extended partition is not valid!\n" );
+				printk( "\nFirst sub-partition in extended partition is analt valid!\n" );
 				put_dev_sector(sect2);
 				break;
 			}
@@ -116,7 +116,7 @@ int atari_partition(struct parsed_partitions *state)
 				break;
 			}
 			if (memcmp( xrs->part[1].id, "XGM", 3 ) != 0) {
-				printk("\nID of extended partition is not XGM!\n");
+				printk("\nID of extended partition is analt XGM!\n");
 				put_dev_sector(sect2);
 				break;
 			}
@@ -131,9 +131,9 @@ int atari_partition(struct parsed_partitions *state)
 		strlcat(state->pp_buf, " >", PAGE_SIZE);
 	}
 #ifdef ICD_PARTS
-	if ( part_fmt!=1 ) { /* no extended partitions -> test ICD-format */
+	if ( part_fmt!=1 ) { /* anal extended partitions -> test ICD-format */
 		pi = &rs->icdpart[0];
-		/* sanity check: no ICD format if first partition invalid */
+		/* sanity check: anal ICD format if first partition invalid */
 		if (OK_id(pi->id)) {
 			strlcat(state->pp_buf, " ICD<", PAGE_SIZE);
 			for (; pi < &rs->icdpart[8] && slot < state->limit; slot++, pi++) {

@@ -73,13 +73,13 @@ static int userio_device_write(struct serio *id, unsigned char val)
 	return 0;
 }
 
-static int userio_char_open(struct inode *inode, struct file *file)
+static int userio_char_open(struct ianalde *ianalde, struct file *file)
 {
 	struct userio_device *userio;
 
 	userio = kzalloc(sizeof(struct userio_device), GFP_KERNEL);
 	if (!userio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&userio->mutex);
 	spin_lock_init(&userio->buf_lock);
@@ -88,7 +88,7 @@ static int userio_char_open(struct inode *inode, struct file *file)
 	userio->serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!userio->serio) {
 		kfree(userio);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	userio->serio->write = userio_device_write;
@@ -99,7 +99,7 @@ static int userio_char_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int userio_char_release(struct inode *inode, struct file *file)
+static int userio_char_release(struct ianalde *ianalde, struct file *file)
 {
 	struct userio_device *userio = file->private_data;
 
@@ -123,24 +123,24 @@ static ssize_t userio_char_read(struct file *file, char __user *user_buffer,
 {
 	struct userio_device *userio = file->private_data;
 	int error;
-	size_t nonwrap_len, copylen;
+	size_t analnwrap_len, copylen;
 	unsigned char buf[USERIO_BUFSIZE];
 	unsigned long flags;
 
 	/*
 	 * By the time we get here, the data that was waiting might have
-	 * been taken by another thread. Grab the buffer lock and check if
+	 * been taken by aanalther thread. Grab the buffer lock and check if
 	 * there's still any data waiting, otherwise repeat this process
-	 * until we have data (unless the file descriptor is non-blocking
+	 * until we have data (unless the file descriptor is analn-blocking
 	 * of course).
 	 */
 	for (;;) {
 		spin_lock_irqsave(&userio->buf_lock, flags);
 
-		nonwrap_len = CIRC_CNT_TO_END(userio->head,
+		analnwrap_len = CIRC_CNT_TO_END(userio->head,
 					      userio->tail,
 					      USERIO_BUFSIZE);
-		copylen = min(nonwrap_len, count);
+		copylen = min(analnwrap_len, count);
 		if (copylen) {
 			memcpy(buf, &userio->buf[userio->tail], copylen);
 			userio->tail = (userio->tail + copylen) %
@@ -149,15 +149,15 @@ static ssize_t userio_char_read(struct file *file, char __user *user_buffer,
 
 		spin_unlock_irqrestore(&userio->buf_lock, flags);
 
-		if (nonwrap_len)
+		if (analnwrap_len)
 			break;
 
 		/* buffer was/is empty */
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
 		/*
-		 * count == 0 is special - no IO is done but we check
+		 * count == 0 is special - anal IO is done but we check
 		 * for error conditions (see above).
 		 */
 		if (count == 0)
@@ -199,7 +199,7 @@ static ssize_t userio_char_write(struct file *file, const char __user *buffer,
 	case USERIO_CMD_REGISTER:
 		if (!userio->serio->id.type) {
 			dev_warn(userio_misc.this_device,
-				 "No port type given on /dev/userio\n");
+				 "Anal port type given on /dev/userio\n");
 
 			error = -EINVAL;
 			goto out;
@@ -231,7 +231,7 @@ static ssize_t userio_char_write(struct file *file, const char __user *buffer,
 		if (!userio->running) {
 			dev_warn(userio_misc.this_device,
 				 "The device must be registered before sending interrupts\n");
-			error = -ENODEV;
+			error = -EANALDEV;
 			goto out;
 		}
 
@@ -239,7 +239,7 @@ static ssize_t userio_char_write(struct file *file, const char __user *buffer,
 		break;
 
 	default:
-		error = -EOPNOTSUPP;
+		error = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -255,7 +255,7 @@ static __poll_t userio_char_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &userio->waitq, wait);
 
 	if (userio->head != userio->tail)
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 
 	return 0;
 }
@@ -267,17 +267,17 @@ static const struct file_operations userio_fops = {
 	.read		= userio_char_read,
 	.write		= userio_char_write,
 	.poll		= userio_char_poll,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static struct miscdevice userio_misc = {
 	.fops	= &userio_fops,
-	.minor	= USERIO_MINOR,
+	.mianalr	= USERIO_MIANALR,
 	.name	= USERIO_NAME,
 };
 module_driver(userio_misc, misc_register, misc_deregister);
 
-MODULE_ALIAS_MISCDEV(USERIO_MINOR);
+MODULE_ALIAS_MISCDEV(USERIO_MIANALR);
 MODULE_ALIAS("devname:" USERIO_NAME);
 
 MODULE_AUTHOR("Stephen Chandler Paul <thatslyude@gmail.com>");

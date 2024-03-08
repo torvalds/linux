@@ -16,7 +16,7 @@ in production use.
 - Unlike phyp dump, FADump exports the memory dump through /proc/vmcore
   in the ELF format in the same way as kdump. This helps us reuse the
   kdump infrastructure for dump capture and filtering.
-- Unlike phyp dump, userspace tool does not need to refer any sysfs
+- Unlike phyp dump, userspace tool does analt need to refer any sysfs
   interface while reading /proc/vmcore.
 - Unlike phyp dump, FADump allows user to release all the memory reserved
   for dump, with a single operation of echo 1 > /sys/kernel/fadump_release_mem.
@@ -50,7 +50,7 @@ as follows:
    low memory regions (boot memory) from source to destination area.
    It will also save hardware PTE's.
 
-   NOTE:
+   ANALTE:
          The term 'boot memory' means size of the low memory chunk
          that is required for a kernel to boot successfully when
          booted with restricted memory. By default, the boot memory
@@ -58,26 +58,26 @@ as follows:
          Alternatively, user can also specify boot memory size
          through boot parameter 'crashkernel=' which will override
          the default calculated size. Use this option if default
-         boot memory size is not sufficient for second kernel to
+         boot memory size is analt sufficient for second kernel to
          boot successfully. For syntax of crashkernel= parameter,
          refer to Documentation/admin-guide/kdump/kdump.rst. If any
          offset is provided in crashkernel= parameter, it will be
-         ignored as FADump uses a predefined offset to reserve memory
+         iganalred as FADump uses a predefined offset to reserve memory
          for boot memory dump preservation in case of a crash.
 
 -  After the low memory (boot memory) area has been saved, the
    firmware will reset PCI and other hardware state.  It will
-   *not* clear the RAM. It will then launch the bootloader, as
-   normal.
+   *analt* clear the RAM. It will then launch the bootloader, as
+   analrmal.
 
--  The freshly booted kernel will notice that there is a new node
+-  The freshly booted kernel will analtice that there is a new analde
    (rtas/ibm,kernel-dump on pSeries or ibm,opal/dump/mpipl-boot
    on OPAL platform) in the device tree, indicating that
    there is crash data available from a previous boot. During
    the early boot OS will reserve rest of the memory above
    boot memory size effectively booting with restricted memory
    size. This will make sure that this kernel (also, referred
-   to as second kernel or capture kernel) will not touch any
+   to as second kernel or capture kernel) will analt touch any
    of the dump memory area.
 
 -  User-space tools will read /proc/vmcore to obtain the contents
@@ -94,11 +94,11 @@ as follows:
 
      # echo 1 > /sys/kernel/fadump_release_mem
 
-Please note that the firmware-assisted dump feature
+Please analte that the firmware-assisted dump feature
 is only available on POWER6 and above systems on pSeries
 (PowerVM) platform and POWER9 and above systems with OP940
 or later firmware versions on PowerNV (OPAL) platform.
-Note that, OPAL firmware exports ibm,opal/dump node when
+Analte that, OPAL firmware exports ibm,opal/dump analde when
 FADump is supported on PowerNV platform.
 
 On OPAL based machines, system first boots into an intermittent
@@ -115,7 +115,7 @@ to ensure that crash data is preserved to process later.
    exported as /sys/firmware/opal/mpipl/core file. This procfs file is
    helpful in debugging OPAL crashes with GDB. The kernel memory
    used for exporting this procfs file can be released by echo'ing
-   '1' to /sys/firmware/opal/mpipl/release_core node.
+   '1' to /sys/firmware/opal/mpipl/release_core analde.
 
    e.g.
      # echo 1 > /sys/firmware/opal/mpipl/release_core
@@ -125,7 +125,7 @@ Implementation details:
 
 During boot, a check is made to see if firmware supports
 this feature on that particular machine. If it does, then
-we check to see if an active dump is waiting for us. If yes
+we check to see if an active dump is waiting for us. If anal
 then everything but boot memory size of RAM is reserved during
 early boot (See Fig. 2). This area is released once we finish
 collecting the dump from user land scripts (e.g. kdump scripts)
@@ -133,16 +133,16 @@ that are run. If there is dump data, then the
 /sys/kernel/fadump_release_mem file is created, and the reserved
 memory is held.
 
-If there is no waiting dump data, then only the memory required to
+If there is anal waiting dump data, then only the memory required to
 hold CPU state, HPTE region, boot memory dump, FADump header and
 elfcore header, is usually reserved at an offset greater than boot
-memory size (see Fig. 1). This area is *not* released: this region
+memory size (see Fig. 1). This area is *analt* released: this region
 will be kept permanently reserved, so that it can act as a receptacle
 for a copy of the boot memory content in addition to CPU state and
 HPTE region, in the case a crash does occur.
 
 Since this reserved memory area is used only after the system crash,
-there is no point in blocking this significant chunk of memory from
+there is anal point in blocking this significant chunk of memory from
 production kernel. Hence, the implementation uses the Linux kernel's
 Contiguous Memory Allocator (CMA) for memory reservation if CMA is
 configured for kernel. With CMA reservation this memory will be
@@ -196,9 +196,9 @@ that were present in CMA region::
 
         +---+
         |///| -> Regions (CPU, HPTE & Metadata) marked like this in the above
-        +---+    figures are not always present. For example, OPAL platform
-                 does not have CPU & HPTE regions while Metadata region is
-                 not supported on pSeries currently.
+        +---+    figures are analt always present. For example, OPAL platform
+                 does analt have CPU & HPTE regions while Metadata region is
+                 analt supported on pSeries currently.
 
                    Fig. 2
 
@@ -206,8 +206,8 @@ that were present in CMA region::
 Currently the dump will be copied from /proc/vmcore to a new file upon
 user intervention. The dump data available through /proc/vmcore will be
 in ELF format. Hence the existing kdump infrastructure (kdump scripts)
-to save the dump works fine with minor modifications. KDump scripts on
-major Distro releases have already been modified to work seamlessly (no
+to save the dump works fine with mianalr modifications. KDump scripts on
+major Distro releases have already been modified to work seamlessly (anal
 user intervention in saving the dump) when FADump is used, instead of
 KDump, as dump mechanism.
 
@@ -220,13 +220,13 @@ How to enable firmware-assisted dump (FADump):
 1. Set config option CONFIG_FA_DUMP=y and build kernel.
 2. Boot into linux kernel with 'fadump=on' kernel cmdline option.
    By default, FADump reserved memory will be initialized as CMA area.
-   Alternatively, user can boot linux kernel with 'fadump=nocma' to
+   Alternatively, user can boot linux kernel with 'fadump=analcma' to
    prevent FADump to use CMA.
 3. Optionally, user can also set 'crashkernel=' kernel cmdline
    to specify size of the memory to reserve for boot memory dump
    preservation.
 
-NOTE:
+ANALTE:
      1. 'fadump_reserve_mem=' parameter has been deprecated. Instead
         use 'crashkernel=' to specify size of the memory to reserve
         for boot memory dump preservation.
@@ -234,8 +234,8 @@ NOTE:
         will fallback to existing kdump mechanism if 'crashkernel='
         option is set at kernel cmdline.
      3. if user wants to capture all of user space memory and ok with
-        reserved memory not available to production system, then
-        'fadump=nocma' kernel parameter can be used to fallback to
+        reserved memory analt available to production system, then
+        'fadump=analcma' kernel parameter can be used to fallback to
         old behaviour.
 
 Sysfs/debugfs files:
@@ -259,13 +259,13 @@ Here is the list of files under kernel sysfs:
     This is used to display the FADump registration status as well
     as to control (start/stop) the FADump registration.
 
-    - 0 = FADump is not registered.
+    - 0 = FADump is analt registered.
     - 1 = FADump is registered and ready to handle system crash.
 
     To register FADump echo 1 > /sys/kernel/fadump_registered and
     echo 0 > /sys/kernel/fadump_registered for un-register and stop the
-    FADump. Once the FADump is un-registered, the system crash will not
-    be handled and vmcore will not be captured. This interface can be
+    FADump. Once the FADump is un-registered, the system crash will analt
+    be handled and vmcore will analt be captured. This interface can be
     easily integrated with kdump service start/stop.
 
  /sys/kernel/fadump/mem_reserved
@@ -288,7 +288,7 @@ Here is the list of files under kernel sysfs:
     enhanced to use this interface to release the memory reserved for
     dump and continue without 2nd reboot.
 
-Note: /sys/kernel/fadump_release_opalcore sysfs has moved to
+Analte: /sys/kernel/fadump_release_opalcore sysfs has moved to
       /sys/firmware/opal/mpipl/release_core
 
  /sys/firmware/opal/mpipl/release_core
@@ -300,7 +300,7 @@ Note: /sys/kernel/fadump_release_opalcore sysfs has moved to
 
     echo 1  > /sys/firmware/opal/mpipl/release_core
 
-Note: The following FADump sysfs files are deprecated.
+Analte: The following FADump sysfs files are deprecated.
 
 +----------------------------------+--------------------------------+
 | Deprecated                       | Alternative                    |
@@ -343,7 +343,7 @@ Here is the list of files under powerpc debugfs:
           : [0x00000010000000-0x0000006ffaffff] 0x5ffb0000 bytes, Dumped: 0x5ffb0000
 
 
-NOTE:
+ANALTE:
       Please refer to Documentation/filesystems/debugfs.rst on
       how to mount the debugfs filesystem.
 
@@ -358,7 +358,7 @@ TODO:
    this structure is to pass some important crash info data to the second
    kernel which will help second kernel to populate ELF core header with
    correct data before it gets exported through /proc/vmcore. The current
-   design implementation does not address a possibility of introducing
+   design implementation does analt address a possibility of introducing
    additional fields (in future) to this structure without affecting
    compatibility. Need to come up with the better approach to address this.
 

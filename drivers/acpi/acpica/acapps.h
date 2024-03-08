@@ -14,7 +14,7 @@
 #include <sys/stat.h>
 #endif				/* ACPI_USE_STANDARD_HEADERS */
 
-/* Common info for tool signons */
+/* Common info for tool siganalns */
 
 #define ACPICA_NAME                 "Intel ACPI Component Architecture"
 #define ACPICA_COPYRIGHT            "Copyright (c) 2000 - 2022 Intel Corporation"
@@ -26,14 +26,14 @@
 #define ACPI_WIDTH          " (32-bit version)"
 
 #else
-#error unknown ACPI_MACHINE_WIDTH
-#define ACPI_WIDTH          " (unknown bit width, not 32 or 64)"
+#error unkanalwn ACPI_MACHINE_WIDTH
+#define ACPI_WIDTH          " (unkanalwn bit width, analt 32 or 64)"
 
 #endif
 
-/* Macros for signons and file headers */
+/* Macros for siganalns and file headers */
 
-#define ACPI_COMMON_SIGNON(utility_name) \
+#define ACPI_COMMON_SIGANALN(utility_name) \
 	"\n%s\n%s version %8.8X\n%s\n\n", \
 	ACPICA_NAME, \
 	utility_name, ((u32) ACPI_CA_VERSION), \
@@ -69,7 +69,7 @@
 			acpi_format_exception (status), #name, _acpi_module_name, __LINE__); \
 	}
 
-/* Check for unexpected non-AE_OK errors */
+/* Check for unexpected analn-AE_OK errors */
 
 #define ACPI_CHECK_OK(name, status)   ACPI_CHECK_STATUS (name, status, AE_OK);
 
@@ -116,7 +116,7 @@ u32 cm_get_file_size(ACPI_FILE file);
  */
 void
 acpi_dm_cross_reference_namespace(union acpi_parse_object *parse_tree_root,
-				  struct acpi_namespace_node *namespace_root,
+				  struct acpi_namespace_analde *namespace_root,
 				  acpi_owner_id owner_id);
 
 void acpi_dm_dump_tree(union acpi_parse_object *origin);
@@ -125,12 +125,12 @@ void acpi_dm_find_orphan_methods(union acpi_parse_object *origin);
 
 void
 acpi_dm_finish_namespace_load(union acpi_parse_object *parse_tree_root,
-			      struct acpi_namespace_node *namespace_root,
+			      struct acpi_namespace_analde *namespace_root,
 			      acpi_owner_id owner_id);
 
 void
 acpi_dm_convert_parse_objects(union acpi_parse_object *parse_tree_root,
-			      struct acpi_namespace_node *namespace_root);
+			      struct acpi_namespace_analde *namespace_root);
 
 /*
  * adfile

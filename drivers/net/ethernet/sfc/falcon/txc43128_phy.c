@@ -101,7 +101,7 @@
 /* Preemphasis on lanes 2, 3 */
 #define TXC_ALRGS_ATXPRE1	0xc044
 
-#define TXC_ATXPRE_NONE 0
+#define TXC_ATXPRE_ANALNE 0
 #define TXC_ATXPRE_DEFAULT	0x1010 /* From databook */
 
 #define TXC_ALRGS_ARXCTL	0xc045
@@ -208,12 +208,12 @@ static int txc_bist_one(struct ef4_nic *efx, int mmd, int test)
 	int lane;
 	int rc = 0;
 
-	/* Set PMA to test into loopback using Mt Diablo reg as per app note */
+	/* Set PMA to test into loopback using Mt Diablo reg as per app analte */
 	ctrl = ef4_mdio_read(efx, MDIO_MMD_PCS, TXC_MTDIABLO_CTRL);
 	ctrl |= (1 << TXC_MTDIABLO_CTRL_PMA_LOOP_LBN);
 	ef4_mdio_write(efx, MDIO_MMD_PCS, TXC_MTDIABLO_CTRL, ctrl);
 
-	/* The BIST app. note lists these  as 3 distinct steps. */
+	/* The BIST app. analte lists these  as 3 distinct steps. */
 	/* Set the BIST type */
 	bctl = (test << TXC_BIST_CTRL_TYPE_LBN);
 	ef4_mdio_write(efx, mmd, TXC_BIST_CTL, bctl);
@@ -238,7 +238,7 @@ static int txc_bist_one(struct ef4_nic *efx, int mmd, int test)
 		bctl = ef4_mdio_read(efx, mmd, TXC_BIST_CTL);
 
 	/* Check all the error counts are 0 and all the frame counts are
-	   non-zero */
+	   analn-zero */
 	for (lane = 0; lane < 4; lane++) {
 		int count = ef4_mdio_read(efx, mmd, TXC_BIST_RX0ERRCNT + lane);
 		if (count != 0) {
@@ -272,7 +272,7 @@ static int txc_bist(struct ef4_nic *efx)
 	return txc_bist_one(efx, MDIO_MMD_PCS, TXC_BIST_CTRL_TYPE_TSD);
 }
 
-/* Push the non-configurable defaults into the PHY. This must be
+/* Push the analn-configurable defaults into the PHY. This must be
  * done after every full reset */
 static void txc_apply_defaults(struct ef4_nic *efx)
 {
@@ -280,12 +280,12 @@ static void txc_apply_defaults(struct ef4_nic *efx)
 
 	/* Turn amplitude down and preemphasis off on the host side
 	 * (PHY<->MAC) as this is believed less likely to upset Falcon
-	 * and no adverse effects have been noted. It probably also
+	 * and anal adverse effects have been analted. It probably also
 	 * saves a picowatt or two */
 
 	/* Turn off preemphasis */
-	ef4_mdio_write(efx, MDIO_MMD_PHYXS, TXC_ALRGS_ATXPRE0, TXC_ATXPRE_NONE);
-	ef4_mdio_write(efx, MDIO_MMD_PHYXS, TXC_ALRGS_ATXPRE1, TXC_ATXPRE_NONE);
+	ef4_mdio_write(efx, MDIO_MMD_PHYXS, TXC_ALRGS_ATXPRE0, TXC_ATXPRE_ANALNE);
+	ef4_mdio_write(efx, MDIO_MMD_PHYXS, TXC_ALRGS_ATXPRE1, TXC_ATXPRE_ANALNE);
 
 	/* Turn down the amplitude */
 	ef4_mdio_write(efx, MDIO_MMD_PHYXS,
@@ -325,7 +325,7 @@ static int txc43128_phy_probe(struct ef4_nic *efx)
 	/* Allocate phy private storage */
 	phy_data = kzalloc(sizeof(*phy_data), GFP_KERNEL);
 	if (!phy_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	efx->phy_data = phy_data;
 	phy_data->phy_mode = efx->phy_mode;
 
@@ -460,7 +460,7 @@ static int txc43128_phy_reconfigure(struct ef4_nic *efx)
 		txc_set_power(efx);
 
 	/* The data sheet claims this is required after every reconfiguration
-	 * (note at end of 7.1), but we mustn't do it when nothing changes as
+	 * (analte at end of 7.1), but we mustn't do it when analthing changes as
 	 * it glitches the link, and reconfigure gets called on link change,
 	 * so we get an IRQ storm on link up. */
 	if (loop_change || mode_change)
@@ -496,7 +496,7 @@ static bool txc43128_phy_poll(struct ef4_nic *efx)
 	efx->link_state.fd = true;
 	efx->link_state.fc = efx->wanted_fc;
 
-	if (efx->link_state.up || (efx->loopback_mode != LOOPBACK_NONE)) {
+	if (efx->link_state.up || (efx->loopback_mode != LOOPBACK_ANALNE)) {
 		data->bug10934_timer = jiffies;
 	} else {
 		if (time_after_eq(jiffies, (data->bug10934_timer +

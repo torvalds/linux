@@ -30,8 +30,8 @@ int do_sample(struct bpf_perf_event_data *ctx)
 	if (value)
 		*value += 1;
 	else
-		/* E2BIG not tested for this example only */
-		bpf_map_update_elem(&ip_map, &ip, &init_val, BPF_NOEXIST);
+		/* E2BIG analt tested for this example only */
+		bpf_map_update_elem(&ip_map, &ip, &init_val, BPF_ANALEXIST);
 
 	return 0;
 }

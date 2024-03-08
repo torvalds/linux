@@ -271,7 +271,7 @@ static bool match_validate(const struct sw_flow_match *match,
 					key_expected |= 1 << OVS_KEY_ATTR_ND;
 					/* Original direction conntrack tuple
 					 * uses the same space as the ND fields
-					 * in the key, so both are not allowed
+					 * in the key, so both are analt allowed
 					 * at the same time.
 					 */
 					mask_allowed &= ~(1ULL << OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV6);
@@ -488,7 +488,7 @@ static int __parse_flow_nlattrs(const struct nlattr *attr,
 		if (type == OVS_KEY_ATTR_PACKET_TYPE ||
 		    type == OVS_KEY_ATTR_ND_EXTENSIONS ||
 		    type == OVS_KEY_ATTR_TUNNEL_INFO) {
-			OVS_NLERR(log, "Key type %d is not supported", type);
+			OVS_NLERR(log, "Key type %d is analt supported", type);
 			return -EINVAL;
 		}
 
@@ -510,7 +510,7 @@ static int __parse_flow_nlattrs(const struct nlattr *attr,
 		}
 	}
 	if (rem) {
-		OVS_NLERR(log, "Message has %d unknown bytes.", rem);
+		OVS_NLERR(log, "Message has %d unkanalwn bytes.", rem);
 		return -EINVAL;
 	}
 
@@ -544,7 +544,7 @@ static int genev_tun_opt_from_nlattr(const struct nlattr *a,
 	}
 
 	if (nla_len(a) % 4 != 0) {
-		OVS_NLERR(log, "Geneve opt len %d is not a multiple of 4.",
+		OVS_NLERR(log, "Geneve opt len %d is analt a multiple of 4.",
 			  nla_len(a));
 		return -EINVAL;
 	}
@@ -560,7 +560,7 @@ static int genev_tun_opt_from_nlattr(const struct nlattr *a,
 		/* This is somewhat unusual because it looks at
 		 * both the key and mask while parsing the
 		 * attributes (and by extension assumes the key
-		 * is parsed first). Normally, we would verify
+		 * is parsed first). Analrmally, we would verify
 		 * that each is the correct length and that the
 		 * attributes line up in the validate function.
 		 * However, that is difficult because this is
@@ -616,13 +616,13 @@ static int vxlan_tun_opt_from_nlattr(const struct nlattr *attr,
 			opts.gbp = nla_get_u32(a);
 			break;
 		default:
-			OVS_NLERR(log, "Unknown VXLAN extension attribute %d",
+			OVS_NLERR(log, "Unkanalwn VXLAN extension attribute %d",
 				  type);
 			return -EINVAL;
 		}
 	}
 	if (rem) {
-		OVS_NLERR(log, "VXLAN extension message has %d unknown bytes.",
+		OVS_NLERR(log, "VXLAN extension message has %d unkanalwn bytes.",
 			  rem);
 		return -EINVAL;
 	}
@@ -792,7 +792,7 @@ static int ip_tun_from_nlattr(const struct nlattr *attr,
 			ipv4 = true;
 			break;
 		default:
-			OVS_NLERR(log, "Unknown IP tunnel attribute %d",
+			OVS_NLERR(log, "Unkanalwn IP tunnel attribute %d",
 				  type);
 			return -EINVAL;
 		}
@@ -806,7 +806,7 @@ static int ip_tun_from_nlattr(const struct nlattr *attr,
 				false);
 
 	if (rem > 0) {
-		OVS_NLERR(log, "IP tunnel attribute has %d unknown bytes.",
+		OVS_NLERR(log, "IP tunnel attribute has %d unkanalwn bytes.",
 			  rem);
 		return -EINVAL;
 	}
@@ -818,7 +818,7 @@ static int ip_tun_from_nlattr(const struct nlattr *attr,
 
 	if (!is_mask) {
 		if (!ipv4 && !ipv6) {
-			OVS_NLERR(log, "IP tunnel dst address not specified");
+			OVS_NLERR(log, "IP tunnel dst address analt specified");
 			return -EINVAL;
 		}
 		if (ipv4) {
@@ -830,7 +830,7 @@ static int ip_tun_from_nlattr(const struct nlattr *attr,
 				    match->key->tun_key.ttl ||
 				    match->key->tun_key.tos ||
 				    tun_flags & ~TUNNEL_KEY) {
-					OVS_NLERR(log, "IPv4 tun info is not correct");
+					OVS_NLERR(log, "IPv4 tun info is analt correct");
 					return -EINVAL;
 				}
 			} else if (!match->key->tun_key.u.ipv4.dst) {
@@ -844,7 +844,7 @@ static int ip_tun_from_nlattr(const struct nlattr *attr,
 		}
 
 		if (!ttl && !info_bridge_mode) {
-			OVS_NLERR(log, "IP tunnel TTL not specified.");
+			OVS_NLERR(log, "IP tunnel TTL analt specified.");
 			return -EINVAL;
 		}
 	}
@@ -858,7 +858,7 @@ static int vxlan_opt_to_nlattr(struct sk_buff *skb,
 	const struct vxlan_metadata *opts = tun_opts;
 	struct nlattr *nla;
 
-	nla = nla_nest_start_noflag(skb, OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS);
+	nla = nla_nest_start_analflag(skb, OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS);
 	if (!nla)
 		return -EMSGSIZE;
 
@@ -950,7 +950,7 @@ static int ip_tun_to_nlattr(struct sk_buff *skb,
 	struct nlattr *nla;
 	int err;
 
-	nla = nla_nest_start_noflag(skb, OVS_KEY_ATTR_TUNNEL);
+	nla = nla_nest_start_analflag(skb, OVS_KEY_ATTR_TUNNEL);
 	if (!nla)
 		return -EMSGSIZE;
 
@@ -1004,7 +1004,7 @@ static int validate_vlan_from_nlattrs(const struct sw_flow_match *match,
 	if (!((key_attrs & (1 << OVS_KEY_ATTR_ETHERNET)) &&
 	      (key_attrs & (1 << OVS_KEY_ATTR_ETHERTYPE)) &&
 	       eth_type_vlan(nla_get_be16(a[OVS_KEY_ATTR_ETHERTYPE])))) {
-		/* Not a VLAN. */
+		/* Analt a VLAN. */
 		return 0;
 	}
 
@@ -1019,12 +1019,12 @@ static int validate_vlan_from_nlattrs(const struct sw_flow_match *match,
 
 	if (!(tci & htons(VLAN_CFI_MASK))) {
 		if (tci) {
-			OVS_NLERR(log, "%s TCI does not have VLAN_CFI_MASK bit set.",
+			OVS_NLERR(log, "%s TCI does analt have VLAN_CFI_MASK bit set.",
 				  (inner) ? "C-VLAN" : "VLAN");
 			return -EINVAL;
 		} else if (nla_len(a[OVS_KEY_ATTR_ENCAP])) {
 			/* Corner case for truncated VLAN header. */
-			OVS_NLERR(log, "Truncated %s header has non-zero encap attribute.",
+			OVS_NLERR(log, "Truncated %s header has analn-zero encap attribute.",
 				  (inner) ? "C-VLAN" : "VLAN");
 			return -EINVAL;
 		}
@@ -1045,12 +1045,12 @@ static int validate_vlan_mask_from_nlattrs(const struct sw_flow_match *match,
 				htons(VLAN_CFI_MASK));
 
 	if (!(key_attrs & (1 << OVS_KEY_ATTR_ENCAP))) {
-		/* Not a VLAN. */
+		/* Analt a VLAN. */
 		return 0;
 	}
 
 	if ((!inner && !encap_valid) || (inner && !i_encap_valid)) {
-		OVS_NLERR(log, "Encap mask attribute is set for non-%s frame.",
+		OVS_NLERR(log, "Encap mask attribute is set for analn-%s frame.",
 			  (inner) ? "C-VLAN" : "VLAN");
 		return -EINVAL;
 	}
@@ -1067,7 +1067,7 @@ static int validate_vlan_mask_from_nlattrs(const struct sw_flow_match *match,
 		return -EINVAL;
 	}
 	if (!(tci & htons(VLAN_CFI_MASK))) {
-		OVS_NLERR(log, "%s TCI mask does not have exact match for VLAN_CFI_MASK bit.",
+		OVS_NLERR(log, "%s TCI mask does analt have exact match for VLAN_CFI_MASK bit.",
 			  (inner) ? "C-VLAN" : "VLAN");
 		return -EINVAL;
 	}
@@ -1276,16 +1276,16 @@ static int metadata_from_nlattrs(struct net *net, struct sw_flow_match *match,
 	}
 
 	/* For layer 3 packets the Ethernet type is provided
-	 * and treated as metadata but no MAC addresses are provided.
+	 * and treated as metadata but anal MAC addresses are provided.
 	 */
 	if (!(*attrs & (1ULL << OVS_KEY_ATTR_ETHERNET)) &&
 	    (*attrs & (1ULL << OVS_KEY_ATTR_ETHERTYPE)))
-		mac_proto = MAC_PROTO_NONE;
+		mac_proto = MAC_PROTO_ANALNE;
 
 	/* Always exact match mac_proto */
 	SW_FLOW_KEY_PUT(match, mac_proto, is_mask ? 0xff : mac_proto, is_mask);
 
-	if (mac_proto == MAC_PROTO_NONE)
+	if (mac_proto == MAC_PROTO_ANALNE)
 		return parse_eth_type_from_nlattrs(match, attrs, a, is_mask,
 						   log);
 
@@ -1304,7 +1304,7 @@ int nsh_hdr_from_nlattr(const struct nlattr *attr,
 	/* validate_nsh has check this, so we needn't do duplicate check here
 	 */
 	if (size < NSH_BASE_HDR_LEN)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	nla_for_each_nested(a, attr, rem) {
 		int type = nla_type(a);
@@ -1323,14 +1323,14 @@ int nsh_hdr_from_nlattr(const struct nlattr *attr,
 		case OVS_NSH_KEY_ATTR_MD1:
 			mdlen = nla_len(a);
 			if (mdlen > size - NSH_BASE_HDR_LEN)
-				return -ENOBUFS;
+				return -EANALBUFS;
 			memcpy(&nh->md1, nla_data(a), mdlen);
 			break;
 
 		case OVS_NSH_KEY_ATTR_MD2:
 			mdlen = nla_len(a);
 			if (mdlen > size - NSH_BASE_HDR_LEN)
-				return -ENOBUFS;
+				return -EANALBUFS;
 			memcpy(&nh->md2, nla_data(a), mdlen);
 			break;
 
@@ -1376,8 +1376,8 @@ int nsh_key_from_nlattr(const struct nlattr *attr,
 			break;
 		}
 		case OVS_NSH_KEY_ATTR_MD2:
-			/* Not supported yet */
-			return -ENOTSUPP;
+			/* Analt supported yet */
+			return -EANALTSUPP;
 		default:
 			return -EINVAL;
 		}
@@ -1451,8 +1451,8 @@ static int nsh_key_put_from_nlattr(const struct nlattr *attr,
 			break;
 		}
 		case OVS_NSH_KEY_ATTR_MD2:
-			if (!is_push_nsh) /* Not supported MD type 2 yet */
-				return -ENOTSUPP;
+			if (!is_push_nsh) /* Analt supported MD type 2 yet */
+				return -EANALTSUPP;
 
 			has_md2 = true;
 			mdlen = nla_len(a);
@@ -1467,14 +1467,14 @@ static int nsh_key_put_from_nlattr(const struct nlattr *attr,
 			}
 			break;
 		default:
-			OVS_NLERR(log, "Unknown nsh attribute %d",
+			OVS_NLERR(log, "Unkanalwn nsh attribute %d",
 				  type);
 			return -EINVAL;
 		}
 	}
 
 	if (rem > 0) {
-		OVS_NLERR(log, "nsh attribute has %d unknown bytes.", rem);
+		OVS_NLERR(log, "nsh attribute has %d unkanalwn bytes.", rem);
 		return -EINVAL;
 	}
 
@@ -1626,7 +1626,7 @@ static int ovs_key_from_nlattrs(struct net *net, struct sw_flow_match *match,
 
 		arp_key = nla_data(a[OVS_KEY_ATTR_ARP]);
 		if (!is_mask && (arp_key->arp_op & htons(0xff00))) {
-			OVS_NLERR(log, "Unknown ARP opcode (opcode=%d).",
+			OVS_NLERR(log, "Unkanalwn ARP opcode (opcode=%d).",
 				  arp_key->arp_op);
 			return -EINVAL;
 		}
@@ -1749,7 +1749,7 @@ static int ovs_key_from_nlattrs(struct net *net, struct sw_flow_match *match,
 	}
 
 	if (attrs != 0) {
-		OVS_NLERR(log, "Unknown key attributes %llx",
+		OVS_NLERR(log, "Unkanalwn key attributes %llx",
 			  (unsigned long long)attrs);
 		return -EINVAL;
 	}
@@ -1784,7 +1784,7 @@ static void mask_set_nlattr(struct nlattr *attr, u8 val)
  * ovs_nla_get_match - parses Netlink attributes into a flow key and
  * mask. In case the 'mask' is NULL, the flow is treated as exact match
  * flow. Otherwise, it is treated as a wildcarded flow, except the mask
- * does not include any don't care bit.
+ * does analt include any don't care bit.
  * @net: Used to determine per-namespace field support.
  * @match: receives the extracted flow match information.
  * @nla_key: Netlink attribute holding nested %OVS_KEY_ATTR_* Netlink attribute
@@ -1792,7 +1792,7 @@ static void mask_set_nlattr(struct nlattr *attr, u8 val)
  * of this flow.
  * @nla_mask: Optional. Netlink attribute holding nested %OVS_KEY_ATTR_*
  * Netlink attribute specifies the mask field of the wildcarded flow.
- * @log: Boolean to allow kernel error logging.  Normally true, but when
+ * @log: Boolean to allow kernel error logging.  Analrmally true, but when
  * probing for feature compatibility this should be passed in as false to
  * suppress unnecessary error logging.
  */
@@ -1823,8 +1823,8 @@ int ovs_nla_get_match(struct net *net, struct sw_flow_match *match,
 		if (!nla_mask) {
 			/* Create an exact match mask. We need to set to 0xff
 			 * all the 'match->mask' fields that have been touched
-			 * in 'match->key'. We cannot simply memset
-			 * 'match->mask', because padding bytes and fields not
+			 * in 'match->key'. We cananalt simply memset
+			 * 'match->mask', because padding bytes and fields analt
 			 * specified in 'match->key' should be left to 0.
 			 * Instead, we use a stream of netlink attributes,
 			 * copied from 'key' and set to 0xff.
@@ -1835,12 +1835,12 @@ int ovs_nla_get_match(struct net *net, struct sw_flow_match *match,
 					  nla_total_size(nla_len(nla_key)),
 					  GFP_KERNEL);
 			if (!newmask)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			mask_set_nlattr(newmask, 0xff);
 
-			/* The userspace does not send tunnel attributes that
-			 * are 0, but we should not wildcard them nonetheless.
+			/* The userspace does analt send tunnel attributes that
+			 * are 0, but we should analt wildcard them analnetheless.
 			 */
 			if (match->key->tun_proto)
 				SW_FLOW_KEY_MEMSET_FIELD(match, tun_key,
@@ -1913,10 +1913,10 @@ int ovs_nla_get_identifier(struct sw_flow_id *sfid, const struct nlattr *ufid,
 	if (ovs_nla_get_ufid(sfid, ufid, log))
 		return 0;
 
-	/* If UFID was not provided, use unmasked key. */
+	/* If UFID was analt provided, use unmasked key. */
 	new_key = kmalloc(sizeof(*new_key), GFP_KERNEL);
 	if (!new_key)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(new_key, key, sizeof(*key));
 	sfid->unmasked_key = new_key;
 
@@ -1936,13 +1936,13 @@ u32 ovs_nla_get_ufid_flags(const struct nlattr *attr)
  * @a: Array of netlink attributes holding parsed %OVS_KEY_ATTR_* Netlink
  * attributes.
  * @attrs: Bit mask for the netlink attributes included in @a.
- * @log: Boolean to allow kernel error logging.  Normally true, but when
+ * @log: Boolean to allow kernel error logging.  Analrmally true, but when
  * probing for feature compatibility this should be passed in as false to
  * suppress unnecessary error logging.
  *
  * This parses a series of Netlink attributes that form a flow key, which must
- * take the same form accepted by flow_from_nlattrs(), but only enough of it to
- * get the metadata, that is, the parts of the flow key that cannot be
+ * take the same form accepted by flow_from_nlattrs(), but only eanalugh of it to
+ * get the metadata, that is, the parts of the flow key that cananalt be
  * extracted from the packet itself.
  *
  * This must be called before the packet key fields are filled in 'key'.
@@ -1985,7 +1985,7 @@ static int nsh_key_to_nlattr(const struct ovs_key_nsh *nsh, bool is_mask,
 {
 	struct nlattr *start;
 
-	start = nla_nest_start_noflag(skb, OVS_KEY_ATTR_NSH);
+	start = nla_nest_start_analflag(skb, OVS_KEY_ATTR_NSH);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -2068,14 +2068,14 @@ static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 		if (swkey->eth.vlan.tci || eth_type_vlan(swkey->eth.type)) {
 			if (ovs_nla_put_vlan(skb, &output->eth.vlan, is_mask))
 				goto nla_put_failure;
-			encap = nla_nest_start_noflag(skb, OVS_KEY_ATTR_ENCAP);
+			encap = nla_nest_start_analflag(skb, OVS_KEY_ATTR_ENCAP);
 			if (!swkey->eth.vlan.tci)
 				goto unencap;
 
 			if (swkey->eth.cvlan.tci || eth_type_vlan(swkey->eth.type)) {
 				if (ovs_nla_put_vlan(skb, &output->eth.cvlan, is_mask))
 					goto nla_put_failure;
-				in_encap = nla_nest_start_noflag(skb,
+				in_encap = nla_nest_start_analflag(skb,
 								 OVS_KEY_ATTR_ENCAP);
 				if (!swkey->eth.cvlan.tci)
 					goto unencap;
@@ -2101,7 +2101,7 @@ static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 		goto nla_put_failure;
 
 	if (eth_type_vlan(swkey->eth.type)) {
-		/* There are 3 VLAN tags, we don't know anything about the rest
+		/* There are 3 VLAN tags, we don't kanalw anything about the rest
 		 * of the packet, so truncate here.
 		 */
 		WARN_ON_ONCE(!(encap && in_encap));
@@ -2268,7 +2268,7 @@ int ovs_nla_put_key(const struct sw_flow_key *swkey,
 	int err;
 	struct nlattr *nla;
 
-	nla = nla_nest_start_noflag(skb, attr);
+	nla = nla_nest_start_analflag(skb, attr);
 	if (!nla)
 		return -EMSGSIZE;
 	err = __ovs_nla_put_key(swkey, output, is_mask, skb);
@@ -2314,7 +2314,7 @@ static struct sw_flow_actions *nla_alloc_flow_actions(int size)
 
 	sfa = kmalloc(kmalloc_size_roundup(sizeof(*sfa) + size), GFP_KERNEL);
 	if (!sfa)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sfa->actions_len = 0;
 	return sfa;
@@ -2632,7 +2632,7 @@ static int validate_and_copy_dec_ttl(struct net *net,
 	nla_for_each_nested(a, attr, rem) {
 		int type = nla_type(a);
 
-		/* Ignore unknown attributes to be future proof. */
+		/* Iganalre unkanalwn attributes to be future proof. */
 		if (type > OVS_DEC_TTL_ATTR_MAX)
 			continue;
 
@@ -2646,7 +2646,7 @@ static int validate_and_copy_dec_ttl(struct net *net,
 	}
 
 	if (rem) {
-		OVS_NLERR(log, "Message has %d unknown bytes.", rem);
+		OVS_NLERR(log, "Message has %d unkanalwn bytes.", rem);
 		return -EINVAL;
 	}
 
@@ -2800,7 +2800,7 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 				     GFP_KERNEL);
 
 	if (!tun_dst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = dst_cache_init(&tun_dst->u.tun_info.dst_cache, GFP_KERNEL);
 	if (err) {
@@ -2851,7 +2851,7 @@ static bool validate_nsh(const struct nlattr *attr, bool is_mask,
 	return !ret;
 }
 
-/* Return false if there are any non-masked bits set.
+/* Return false if there are any analn-masked bits set.
  * Mask follows data immediately, before any netlink padding.
  */
 static bool validate_masked(u8 *data, int len)
@@ -2905,7 +2905,7 @@ static int validate_set(const struct nlattr *a,
 		int err;
 
 		if (masked)
-			return -EINVAL; /* Masked tunnel set not supported. */
+			return -EINVAL; /* Masked tunnel set analt supported. */
 
 		*skip_copy = true;
 		err = validate_and_copy_set_tun(a, sfa, log);
@@ -2924,7 +2924,7 @@ static int validate_set(const struct nlattr *a,
 		if (masked) {
 			const struct ovs_key_ipv4 *mask = ipv4_key + 1;
 
-			/* Non-writeable fields. */
+			/* Analn-writeable fields. */
 			if (mask->ipv4_proto || mask->ipv4_frag)
 				return -EINVAL;
 		} else {
@@ -2947,7 +2947,7 @@ static int validate_set(const struct nlattr *a,
 		if (masked) {
 			const struct ovs_key_ipv6 *mask = ipv6_key + 1;
 
-			/* Non-writeable fields. */
+			/* Analn-writeable fields. */
 			if (mask->ipv6_proto || mask->ipv6_frag)
 				return -EINVAL;
 
@@ -3006,7 +3006,7 @@ static int validate_set(const struct nlattr *a,
 		return -EINVAL;
 	}
 
-	/* Convert non-masked non-tunnel set actions to masked set actions. */
+	/* Convert analn-masked analn-tunnel set actions to masked set actions. */
 	if (!masked && key_type != OVS_KEY_ATTR_TUNNEL) {
 		int start, len = key_len * 2;
 		struct nlattr *at;
@@ -3025,7 +3025,7 @@ static int validate_set(const struct nlattr *a,
 
 		memcpy(nla_data(at), nla_data(ovs_key), key_len); /* Key. */
 		memset(nla_data(at) + key_len, 0xff, key_len);    /* Mask. */
-		/* Clear non-writeable bits from otherwise writeable fields. */
+		/* Clear analn-writeable bits from otherwise writeable fields. */
 		if (key_type == OVS_KEY_ATTR_IPV6) {
 			struct ovs_key_ipv6 *mask = nla_data(at) + key_len;
 
@@ -3286,7 +3286,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			} else {
 				if (mac_proto == MAC_PROTO_ETHERNET) {
 					mpls_label_count = 1;
-					mac_proto = MAC_PROTO_NONE;
+					mac_proto = MAC_PROTO_ANALNE;
 				} else {
 					mpls_label_count++;
 				}
@@ -3301,7 +3301,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			if (!eth_p_mpls(mpls->mpls_ethertype))
 				return -EINVAL;
 			/* Prohibit push MPLS other than to a white list
-			 * for packets that have a known tag order.
+			 * for packets that have a kanalwn tag order.
 			 */
 			if (vlan_tci & htons(VLAN_CFI_MASK) ||
 			    (eth_type != htons(ETH_P_IP) &&
@@ -3323,7 +3323,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 
 			/* Disallow subsequent L2.5+ set actions and mpls_pop
 			 * actions once the last MPLS label in the packet is
-			 * popped as there is no check here to ensure that
+			 * popped as there is anal check here to ensure that
 			 * the new eth type is valid and thus set actions could
 			 * write off the end of the packet or otherwise corrupt
 			 * it.
@@ -3334,7 +3334,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			proto = nla_get_be16(a);
 
 			if (proto == htons(ETH_P_TEB) &&
-			    mac_proto != MAC_PROTO_NONE)
+			    mac_proto != MAC_PROTO_ANALNE)
 				return -EINVAL;
 
 			mpls_label_count--;
@@ -3389,7 +3389,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 		case OVS_ACTION_ATTR_PUSH_ETH:
 			/* Disallow pushing an Ethernet header if one
 			 * is already present */
-			if (mac_proto != MAC_PROTO_NONE)
+			if (mac_proto != MAC_PROTO_ANALNE)
 				return -EINVAL;
 			mac_proto = MAC_PROTO_ETHERNET;
 			break;
@@ -3399,7 +3399,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 				return -EINVAL;
 			if (vlan_tci & htons(VLAN_CFI_MASK))
 				return -EINVAL;
-			mac_proto = MAC_PROTO_NONE;
+			mac_proto = MAC_PROTO_ANALNE;
 			break;
 
 		case OVS_ACTION_ATTR_PUSH_NSH:
@@ -3410,7 +3410,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 				if (!next_proto)
 					return -EINVAL;
 			}
-			mac_proto = MAC_PROTO_NONE;
+			mac_proto = MAC_PROTO_ANALNE;
 			if (!validate_nsh(nla_data(a), false, true, true))
 				return -EINVAL;
 			break;
@@ -3426,12 +3426,12 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			if (key->nsh.base.np == TUN_P_ETHERNET)
 				mac_proto = MAC_PROTO_ETHERNET;
 			else
-				mac_proto = MAC_PROTO_NONE;
+				mac_proto = MAC_PROTO_ANALNE;
 			break;
 		}
 
 		case OVS_ACTION_ATTR_METER:
-			/* Non-existent meters are simply ignored.  */
+			/* Analn-existent meters are simply iganalred.  */
 			break;
 
 		case OVS_ACTION_ATTR_CLONE: {
@@ -3478,7 +3478,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			break;
 
 		default:
-			OVS_NLERR(log, "Unknown Action type %d", type);
+			OVS_NLERR(log, "Unkanalwn Action type %d", type);
 			return -EINVAL;
 		}
 		if (!skip_copy) {
@@ -3527,7 +3527,7 @@ static int sample_action_to_attr(const struct nlattr *attr,
 	const struct sample_arg *arg;
 	struct nlattr *actions;
 
-	start = nla_nest_start_noflag(skb, OVS_ACTION_ATTR_SAMPLE);
+	start = nla_nest_start_analflag(skb, OVS_ACTION_ATTR_SAMPLE);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -3540,7 +3540,7 @@ static int sample_action_to_attr(const struct nlattr *attr,
 		goto out;
 	}
 
-	ac_start = nla_nest_start_noflag(skb, OVS_SAMPLE_ATTR_ACTIONS);
+	ac_start = nla_nest_start_analflag(skb, OVS_SAMPLE_ATTR_ACTIONS);
 	if (!ac_start) {
 		err = -EMSGSIZE;
 		goto out;
@@ -3566,7 +3566,7 @@ static int clone_action_to_attr(const struct nlattr *attr,
 	struct nlattr *start;
 	int err = 0, rem = nla_len(attr);
 
-	start = nla_nest_start_noflag(skb, OVS_ACTION_ATTR_CLONE);
+	start = nla_nest_start_analflag(skb, OVS_ACTION_ATTR_CLONE);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -3590,7 +3590,7 @@ static int check_pkt_len_action_to_attr(const struct nlattr *attr,
 	const struct nlattr *a, *cpl_arg;
 	int err = 0, rem = nla_len(attr);
 
-	start = nla_nest_start_noflag(skb, OVS_ACTION_ATTR_CHECK_PKT_LEN);
+	start = nla_nest_start_analflag(skb, OVS_ACTION_ATTR_CHECK_PKT_LEN);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -3609,7 +3609,7 @@ static int check_pkt_len_action_to_attr(const struct nlattr *attr,
 	 * 'OVS_CHECK_PKT_LEN_ATTR_ACTIONS_IF_LESS_EQUAL'.
 	 */
 	a = nla_next(cpl_arg, &rem);
-	ac_start =  nla_nest_start_noflag(skb,
+	ac_start =  nla_nest_start_analflag(skb,
 					  OVS_CHECK_PKT_LEN_ATTR_ACTIONS_IF_LESS_EQUAL);
 	if (!ac_start) {
 		err = -EMSGSIZE;
@@ -3628,7 +3628,7 @@ static int check_pkt_len_action_to_attr(const struct nlattr *attr,
 	 * OVS_CHECK_PKT_LEN_ATTR_ACTIONS_IF_GREATER.
 	 */
 	a = nla_next(a, &rem);
-	ac_start =  nla_nest_start_noflag(skb,
+	ac_start =  nla_nest_start_analflag(skb,
 					  OVS_CHECK_PKT_LEN_ATTR_ACTIONS_IF_GREATER);
 	if (!ac_start) {
 		err = -EMSGSIZE;
@@ -3658,7 +3658,7 @@ static int dec_ttl_action_to_attr(const struct nlattr *attr,
 	const struct nlattr *a;
 	int err = 0, rem;
 
-	start = nla_nest_start_noflag(skb, OVS_ACTION_ATTR_DEC_TTL);
+	start = nla_nest_start_analflag(skb, OVS_ACTION_ATTR_DEC_TTL);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -3666,7 +3666,7 @@ static int dec_ttl_action_to_attr(const struct nlattr *attr,
 		switch (nla_type(a)) {
 		case OVS_DEC_TTL_ATTR_ACTION:
 
-			action_start = nla_nest_start_noflag(skb, OVS_DEC_TTL_ATTR_ACTION);
+			action_start = nla_nest_start_analflag(skb, OVS_DEC_TTL_ATTR_ACTION);
 			if (!action_start) {
 				err = -EMSGSIZE;
 				goto out;
@@ -3680,7 +3680,7 @@ static int dec_ttl_action_to_attr(const struct nlattr *attr,
 			break;
 
 		default:
-			/* Ignore all other option to be future compatible */
+			/* Iganalre all other option to be future compatible */
 			break;
 		}
 	}
@@ -3705,7 +3705,7 @@ static int set_action_to_attr(const struct nlattr *a, struct sk_buff *skb)
 		struct ovs_tunnel_info *ovs_tun = nla_data(ovs_key);
 		struct ip_tunnel_info *tun_info = &ovs_tun->tun_dst->u.tun_info;
 
-		start = nla_nest_start_noflag(skb, OVS_ACTION_ATTR_SET);
+		start = nla_nest_start_analflag(skb, OVS_ACTION_ATTR_SET);
 		if (!start)
 			return -EMSGSIZE;
 
@@ -3734,10 +3734,10 @@ static int masked_set_action_to_set_action_attr(const struct nlattr *a,
 	struct nlattr *nla;
 	size_t key_len = nla_len(ovs_key) / 2;
 
-	/* Revert the conversion we did from a non-masked set action to
+	/* Revert the conversion we did from a analn-masked set action to
 	 * masked set action.
 	 */
-	nla = nla_nest_start_noflag(skb, OVS_ACTION_ATTR_SET);
+	nla = nla_nest_start_analflag(skb, OVS_ACTION_ATTR_SET);
 	if (!nla)
 		return -EMSGSIZE;
 

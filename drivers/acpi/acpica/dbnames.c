@@ -77,7 +77,7 @@ static struct acpi_db_argument_info acpi_db_object_types[] = {
 	{"REFERENCES"},
 	{"ALIASES"},
 	{"METHODALIASES"},
-	{"NOTIFY"},
+	{"ANALTIFY"},
 	{"ADDRESSHANDLER"},
 	{"RESOURCE"},
 	{"RESOURCEFIELD"},
@@ -101,7 +101,7 @@ static struct acpi_db_argument_info acpi_db_object_types[] = {
 void acpi_db_set_scope(char *name)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
 	if (!name || name[0] == 0) {
 		acpi_os_printf("Current scope: %s\n", acpi_gbl_db_scope_buf);
@@ -114,8 +114,8 @@ void acpi_db_set_scope(char *name)
 
 		/* Validate new scope from the root */
 
-		status = acpi_ns_get_node(acpi_gbl_root_node, name,
-					  ACPI_NS_NO_UPSEARCH, &node);
+		status = acpi_ns_get_analde(acpi_gbl_root_analde, name,
+					  ACPI_NS_ANAL_UPSEARCH, &analde);
 		if (ACPI_FAILURE(status)) {
 			goto error_exit;
 		}
@@ -124,8 +124,8 @@ void acpi_db_set_scope(char *name)
 	} else {
 		/* Validate new scope relative to old scope */
 
-		status = acpi_ns_get_node(acpi_gbl_db_scope_node, name,
-					  ACPI_NS_NO_UPSEARCH, &node);
+		status = acpi_ns_get_analde(acpi_gbl_db_scope_analde, name,
+					  ACPI_NS_ANAL_UPSEARCH, &analde);
 		if (ACPI_FAILURE(status)) {
 			goto error_exit;
 		}
@@ -145,13 +145,13 @@ void acpi_db_set_scope(char *name)
 		goto error_exit;
 	}
 
-	acpi_gbl_db_scope_node = node;
+	acpi_gbl_db_scope_analde = analde;
 	acpi_os_printf("New scope: %s\n", acpi_gbl_db_scope_buf);
 	return;
 
 error_exit:
 
-	acpi_os_printf("Could not attach scope: %s, %s\n",
+	acpi_os_printf("Could analt attach scope: %s, %s\n",
 		       name, acpi_format_exception(status));
 }
 
@@ -159,30 +159,30 @@ error_exit:
  *
  * FUNCTION:    acpi_db_dump_namespace
  *
- * PARAMETERS:  start_arg       - Node to begin namespace dump
+ * PARAMETERS:  start_arg       - Analde to begin namespace dump
  *              depth_arg       - Maximum tree depth to be dumped
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Dump entire namespace or a subtree. Each node is displayed
+ * DESCRIPTION: Dump entire namespace or a subtree. Each analde is displayed
  *              with type and other information.
  *
  ******************************************************************************/
 
 void acpi_db_dump_namespace(char *start_arg, char *depth_arg)
 {
-	acpi_handle subtree_entry = acpi_gbl_root_node;
+	acpi_handle subtree_entry = acpi_gbl_root_analde;
 	u32 max_depth = ACPI_UINT32_MAX;
 
-	/* No argument given, just start at the root and dump entire namespace */
+	/* Anal argument given, just start at the root and dump entire namespace */
 
 	if (start_arg) {
-		subtree_entry = acpi_db_convert_to_node(start_arg);
+		subtree_entry = acpi_db_convert_to_analde(start_arg);
 		if (!subtree_entry) {
 			return;
 		}
 
-		/* Now we can check for the depth argument */
+		/* Analw we can check for the depth argument */
 
 		if (depth_arg) {
 			max_depth = strtoul(depth_arg, NULL, 0);
@@ -191,9 +191,9 @@ void acpi_db_dump_namespace(char *start_arg, char *depth_arg)
 
 	acpi_db_set_output_destination(ACPI_DB_DUPLICATE_OUTPUT);
 
-	if (((struct acpi_namespace_node *)subtree_entry)->parent) {
+	if (((struct acpi_namespace_analde *)subtree_entry)->parent) {
 		acpi_os_printf("ACPI Namespace (from %4.4s (%p) subtree):\n",
-			       ((struct acpi_namespace_node *)subtree_entry)->
+			       ((struct acpi_namespace_analde *)subtree_entry)->
 			       name.ascii, subtree_entry);
 	} else {
 		acpi_os_printf("ACPI Namespace (from %s):\n",
@@ -212,9 +212,9 @@ void acpi_db_dump_namespace(char *start_arg, char *depth_arg)
  *
  * FUNCTION:    acpi_db_dump_namespace_paths
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Dump entire namespace with full object pathnames and object
  *              type information. Alternative to "namespace" command.
@@ -232,7 +232,7 @@ void acpi_db_dump_namespace_paths(void)
 	acpi_db_set_output_destination(ACPI_DB_REDIRECTABLE_OUTPUT);
 	acpi_ns_dump_object_paths(ACPI_TYPE_ANY, ACPI_DISPLAY_SUMMARY,
 				  ACPI_UINT32_MAX, ACPI_OWNER_ID_MAX,
-				  acpi_gbl_root_node);
+				  acpi_gbl_root_analde);
 
 	acpi_db_set_output_destination(ACPI_DB_CONSOLE_OUTPUT);
 }
@@ -241,10 +241,10 @@ void acpi_db_dump_namespace_paths(void)
  *
  * FUNCTION:    acpi_db_dump_namespace_by_owner
  *
- * PARAMETERS:  owner_arg       - Owner ID whose nodes will be displayed
+ * PARAMETERS:  owner_arg       - Owner ID whose analdes will be displayed
  *              depth_arg       - Maximum tree depth to be dumped
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Dump elements of the namespace that are owned by the owner_id.
  *
@@ -252,13 +252,13 @@ void acpi_db_dump_namespace_paths(void)
 
 void acpi_db_dump_namespace_by_owner(char *owner_arg, char *depth_arg)
 {
-	acpi_handle subtree_entry = acpi_gbl_root_node;
+	acpi_handle subtree_entry = acpi_gbl_root_analde;
 	u32 max_depth = ACPI_UINT32_MAX;
 	acpi_owner_id owner_id;
 
 	owner_id = (acpi_owner_id)strtoul(owner_arg, NULL, 0);
 
-	/* Now we can check for the depth argument */
+	/* Analw we can check for the depth argument */
 
 	if (depth_arg) {
 		max_depth = strtoul(depth_arg, NULL, 0);
@@ -306,10 +306,10 @@ acpi_db_walk_and_match_name(acpi_handle obj_handle,
 		/* Wildcard support */
 
 		if ((requested_name[i] != '?') &&
-		    (requested_name[i] != ((struct acpi_namespace_node *)
+		    (requested_name[i] != ((struct acpi_namespace_analde *)
 					   obj_handle)->name.ascii[i])) {
 
-			/* No match, just exit */
+			/* Anal match, just exit */
 
 			return (AE_OK);
 		}
@@ -320,7 +320,7 @@ acpi_db_walk_and_match_name(acpi_handle obj_handle,
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 	status = acpi_ns_handle_to_pathname(obj_handle, &buffer, TRUE);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could Not get pathname for object %p\n",
+		acpi_os_printf("Could Analt get pathname for object %p\n",
 			       obj_handle);
 	} else {
 		info.count = 0;
@@ -344,7 +344,7 @@ acpi_db_walk_and_match_name(acpi_handle obj_handle,
  * PARAMETERS:  name_arg        - The 4-character ACPI name to find.
  *                                wildcards are supported.
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Search the namespace for a given name (with wildcards)
  *
@@ -356,7 +356,7 @@ acpi_status acpi_db_find_name_in_namespace(char *name_arg)
 	char *acpi_name_ptr = acpi_name;
 
 	if (strlen(name_arg) > ACPI_NAMESEG_SIZE) {
-		acpi_os_printf("Name must be no longer than 4 characters\n");
+		acpi_os_printf("Name must be anal longer than 4 characters\n");
 		return (AE_OK);
 	}
 
@@ -397,20 +397,20 @@ acpi_db_walk_for_predefined_names(acpi_handle obj_handle,
 				  u32 nesting_level,
 				  void *context, void **return_value)
 {
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_analde *analde =
+	    (struct acpi_namespace_analde *)obj_handle;
 	u32 *count = (u32 *)context;
 	const union acpi_predefined_info *predefined;
 	const union acpi_predefined_info *package = NULL;
 	char *pathname;
 	char string_buffer[48];
 
-	predefined = acpi_ut_match_predefined_method(node->name.ascii);
+	predefined = acpi_ut_match_predefined_method(analde->name.ascii);
 	if (!predefined) {
 		return (AE_OK);
 	}
 
-	pathname = acpi_ns_get_normalized_pathname(node, TRUE);
+	pathname = acpi_ns_get_analrmalized_pathname(analde, TRUE);
 	if (!pathname) {
 		return (AE_OK);
 	}
@@ -439,7 +439,7 @@ acpi_db_walk_for_predefined_names(acpi_handle obj_handle,
 
 	/* Check that the declared argument count matches the ACPI spec */
 
-	acpi_ns_check_acpi_compliance(pathname, node, predefined);
+	acpi_ns_check_acpi_compliance(pathname, analde, predefined);
 
 	ACPI_FREE(pathname);
 	(*count)++;
@@ -450,9 +450,9 @@ acpi_db_walk_for_predefined_names(acpi_handle obj_handle,
  *
  * FUNCTION:    acpi_db_check_predefined_names
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Validate all predefined names in the namespace
  *
@@ -462,7 +462,7 @@ void acpi_db_check_predefined_names(void)
 {
 	u32 count = 0;
 
-	/* Search all nodes in namespace */
+	/* Search all analdes in namespace */
 
 	(void)acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 				  ACPI_UINT32_MAX,
@@ -490,14 +490,14 @@ acpi_db_walk_for_object_counts(acpi_handle obj_handle,
 			       void *context, void **return_value)
 {
 	struct acpi_object_info *info = (struct acpi_object_info *)context;
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_analde *analde =
+	    (struct acpi_namespace_analde *)obj_handle;
 
-	if (node->type > ACPI_TYPE_NS_NODE_MAX) {
-		acpi_os_printf("[%4.4s]: Unknown object type %X\n",
-			       node->name.ascii, node->type);
+	if (analde->type > ACPI_TYPE_NS_ANALDE_MAX) {
+		acpi_os_printf("[%4.4s]: Unkanalwn object type %X\n",
+			       analde->name.ascii, analde->type);
 	} else {
-		info->types[node->type]++;
+		info->types[analde->type]++;
 	}
 
 	return (AE_OK);
@@ -524,12 +524,12 @@ acpi_db_walk_for_fields(acpi_handle obj_handle,
 	    (struct acpi_region_walk_info *)context;
 	struct acpi_buffer buffer;
 	acpi_status status;
-	struct acpi_namespace_node *node = acpi_ns_validate_handle(obj_handle);
+	struct acpi_namespace_analde *analde = acpi_ns_validate_handle(obj_handle);
 
-	if (!node) {
+	if (!analde) {
 		return (AE_OK);
 	}
-	if (node->object->field.region_obj->region.space_id !=
+	if (analde->object->field.region_obj->region.space_id !=
 	    info->address_space_id) {
 		return (AE_OK);
 	}
@@ -541,7 +541,7 @@ acpi_db_walk_for_fields(acpi_handle obj_handle,
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 	status = acpi_ns_handle_to_pathname(obj_handle, &buffer, TRUE);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could Not get pathname for object %p\n",
+		acpi_os_printf("Could Analt get pathname for object %p\n",
 			       obj_handle);
 		return (AE_OK);
 	}
@@ -611,7 +611,7 @@ acpi_db_walk_for_specific_objects(acpi_handle obj_handle,
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 	status = acpi_ns_handle_to_pathname(obj_handle, &buffer, TRUE);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could Not get pathname for object %p\n",
+		acpi_os_printf("Could Analt get pathname for object %p\n",
 			       obj_handle);
 		return (AE_OK);
 	}
@@ -632,7 +632,7 @@ acpi_db_walk_for_specific_objects(acpi_handle obj_handle,
  * PARAMETERS:  obj_type_arg        - Type of object to display
  *              display_count_arg   - Max depth to display
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display objects in the namespace of the requested type
  *
@@ -646,14 +646,14 @@ acpi_status acpi_db_display_objects(char *obj_type_arg, char *display_count_arg)
 	u32 i;
 	u32 total_objects = 0;
 
-	/* No argument means display summary/count of all object types */
+	/* Anal argument means display summary/count of all object types */
 
 	if (!obj_type_arg) {
 		object_info =
 		    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_object_info));
 
 		if (!object_info)
-			return (AE_NO_MEMORY);
+			return (AE_ANAL_MEMORY);
 
 		/* Walk the namespace from the root */
 
@@ -681,7 +681,7 @@ acpi_status acpi_db_display_objects(char *obj_type_arg, char *display_count_arg)
 	/* Get the object type */
 
 	type = acpi_db_match_argument(obj_type_arg, acpi_db_object_types);
-	if (type == ACPI_TYPE_NOT_FOUND) {
+	if (type == ACPI_TYPE_ANALT_FOUND) {
 		acpi_os_printf("Invalid or unsupported argument\n");
 		return (AE_OK);
 	}
@@ -719,7 +719,7 @@ acpi_status acpi_db_display_objects(char *obj_type_arg, char *display_count_arg)
  * PARAMETERS:  obj_type_arg        - Type of object to display
  *              display_count_arg   - Max depth to display
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display objects in the namespace of the requested type
  *
@@ -753,7 +753,7 @@ acpi_status acpi_db_display_fields(u32 address_space_id)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Examine one NS node for valid values.
+ * DESCRIPTION: Examine one NS analde for valid values.
  *
  ******************************************************************************/
 
@@ -763,46 +763,46 @@ acpi_db_integrity_walk(acpi_handle obj_handle,
 {
 	struct acpi_integrity_info *info =
 	    (struct acpi_integrity_info *)context;
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_analde *analde =
+	    (struct acpi_namespace_analde *)obj_handle;
 	union acpi_operand_object *object;
 	u8 alias = TRUE;
 
-	info->nodes++;
+	info->analdes++;
 
-	/* Verify the NS node, and dereference aliases */
+	/* Verify the NS analde, and dereference aliases */
 
 	while (alias) {
-		if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
+		if (ACPI_GET_DESCRIPTOR_TYPE(analde) != ACPI_DESC_TYPE_NAMED) {
 			acpi_os_printf
-			    ("Invalid Descriptor Type for Node %p [%s] - "
-			     "is %2.2X should be %2.2X\n", node,
-			     acpi_ut_get_descriptor_name(node),
-			     ACPI_GET_DESCRIPTOR_TYPE(node),
+			    ("Invalid Descriptor Type for Analde %p [%s] - "
+			     "is %2.2X should be %2.2X\n", analde,
+			     acpi_ut_get_descriptor_name(analde),
+			     ACPI_GET_DESCRIPTOR_TYPE(analde),
 			     ACPI_DESC_TYPE_NAMED);
 			return (AE_OK);
 		}
 
-		if ((node->type == ACPI_TYPE_LOCAL_ALIAS) ||
-		    (node->type == ACPI_TYPE_LOCAL_METHOD_ALIAS)) {
-			node = (struct acpi_namespace_node *)node->object;
+		if ((analde->type == ACPI_TYPE_LOCAL_ALIAS) ||
+		    (analde->type == ACPI_TYPE_LOCAL_METHOD_ALIAS)) {
+			analde = (struct acpi_namespace_analde *)analde->object;
 		} else {
 			alias = FALSE;
 		}
 	}
 
-	if (node->type > ACPI_TYPE_LOCAL_MAX) {
-		acpi_os_printf("Invalid Object Type for Node %p, Type = %X\n",
-			       node, node->type);
+	if (analde->type > ACPI_TYPE_LOCAL_MAX) {
+		acpi_os_printf("Invalid Object Type for Analde %p, Type = %X\n",
+			       analde, analde->type);
 		return (AE_OK);
 	}
 
-	if (!acpi_ut_valid_nameseg(node->name.ascii)) {
-		acpi_os_printf("Invalid AcpiName for Node %p\n", node);
+	if (!acpi_ut_valid_nameseg(analde->name.ascii)) {
+		acpi_os_printf("Invalid AcpiName for Analde %p\n", analde);
 		return (AE_OK);
 	}
 
-	object = acpi_ns_get_attached_object(node);
+	object = acpi_ns_get_attached_object(analde);
 	if (object) {
 		info->objects++;
 		if (ACPI_GET_DESCRIPTOR_TYPE(object) != ACPI_DESC_TYPE_OPERAND) {
@@ -819,9 +819,9 @@ acpi_db_integrity_walk(acpi_handle obj_handle,
  *
  * FUNCTION:    acpi_db_check_integrity
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Check entire namespace for data structure integrity
  *
@@ -831,14 +831,14 @@ void acpi_db_check_integrity(void)
 {
 	struct acpi_integrity_info info = { 0, 0 };
 
-	/* Search all nodes in namespace */
+	/* Search all analdes in namespace */
 
 	(void)acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 				  ACPI_UINT32_MAX, acpi_db_integrity_walk, NULL,
 				  (void *)&info, NULL);
 
-	acpi_os_printf("Verified %u namespace nodes with %u Objects\n",
-		       info.nodes, info.objects);
+	acpi_os_printf("Verified %u namespace analdes with %u Objects\n",
+		       info.analdes, info.objects);
 }
 
 /*******************************************************************************
@@ -852,7 +852,7 @@ void acpi_db_check_integrity(void)
  * DESCRIPTION: Check if this namespace object refers to the target object
  *              that is passed in as the context value.
  *
- * Note: Currently doesn't check subobjects within the Node's object
+ * Analte: Currently doesn't check subobjects within the Analde's object
  *
  ******************************************************************************/
 
@@ -863,21 +863,21 @@ acpi_db_walk_for_references(acpi_handle obj_handle,
 {
 	union acpi_operand_object *obj_desc =
 	    (union acpi_operand_object *)context;
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_analde *analde =
+	    (struct acpi_namespace_analde *)obj_handle;
 
-	/* Check for match against the namespace node itself */
+	/* Check for match against the namespace analde itself */
 
-	if (node == (void *)obj_desc) {
-		acpi_os_printf("Object is a Node [%4.4s]\n",
-			       acpi_ut_get_node_name(node));
+	if (analde == (void *)obj_desc) {
+		acpi_os_printf("Object is a Analde [%4.4s]\n",
+			       acpi_ut_get_analde_name(analde));
 	}
 
-	/* Check for match against the object attached to the node */
+	/* Check for match against the object attached to the analde */
 
-	if (acpi_ns_get_attached_object(node) == obj_desc) {
-		acpi_os_printf("Reference at Node->Object %p [%4.4s]\n",
-			       node, acpi_ut_get_node_name(node));
+	if (acpi_ns_get_attached_object(analde) == obj_desc) {
+		acpi_os_printf("Reference at Analde->Object %p [%4.4s]\n",
+			       analde, acpi_ut_get_analde_name(analde));
 	}
 
 	return (AE_OK);
@@ -889,7 +889,7 @@ acpi_db_walk_for_references(acpi_handle obj_handle,
  *
  * PARAMETERS:  object_arg      - String with hex value of the object
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Search namespace for all references to the input object
  *
@@ -905,7 +905,7 @@ void acpi_db_find_references(char *object_arg)
 	address = strtoul(object_arg, NULL, 16);
 	obj_desc = ACPI_TO_POINTER(address);
 
-	/* Search all nodes in namespace */
+	/* Search all analdes in namespace */
 
 	(void)acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 				  ACPI_UINT32_MAX, acpi_db_walk_for_references,
@@ -929,23 +929,23 @@ static acpi_status
 acpi_db_bus_walk(acpi_handle obj_handle,
 		 u32 nesting_level, void *context, void **return_value)
 {
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_analde *analde =
+	    (struct acpi_namespace_analde *)obj_handle;
 	acpi_status status;
 	struct acpi_buffer buffer;
-	struct acpi_namespace_node *temp_node;
+	struct acpi_namespace_analde *temp_analde;
 	struct acpi_device_info *info;
 	u32 i;
 
-	if ((node->type != ACPI_TYPE_DEVICE) &&
-	    (node->type != ACPI_TYPE_PROCESSOR)) {
+	if ((analde->type != ACPI_TYPE_DEVICE) &&
+	    (analde->type != ACPI_TYPE_PROCESSOR)) {
 		return (AE_OK);
 	}
 
-	/* Exit if there is no _PRT under this device */
+	/* Exit if there is anal _PRT under this device */
 
-	status = acpi_get_handle(node, METHOD_NAME__PRT,
-				 ACPI_CAST_PTR(acpi_handle, &temp_node));
+	status = acpi_get_handle(analde, METHOD_NAME__PRT,
+				 ACPI_CAST_PTR(acpi_handle, &temp_analde));
 	if (ACPI_FAILURE(status)) {
 		return (AE_OK);
 	}
@@ -955,7 +955,7 @@ acpi_db_bus_walk(acpi_handle obj_handle,
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 	status = acpi_ns_handle_to_pathname(obj_handle, &buffer, TRUE);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could Not get pathname for object %p\n",
+		acpi_os_printf("Could Analt get pathname for object %p\n",
 			       obj_handle);
 		return (AE_OK);
 	}
@@ -967,7 +967,7 @@ acpi_db_bus_walk(acpi_handle obj_handle,
 
 	/* Display the full path */
 
-	acpi_os_printf("%-32s Type %X", (char *)buffer.pointer, node->type);
+	acpi_os_printf("%-32s Type %X", (char *)buffer.pointer, analde->type);
 	ACPI_FREE(buffer.pointer);
 
 	if (info->flags & ACPI_PCI_ROOT_BRIDGE) {
@@ -977,7 +977,7 @@ acpi_db_bus_walk(acpi_handle obj_handle,
 
 	/* _PRT info */
 
-	acpi_os_printf("_PRT: %p\n", temp_node);
+	acpi_os_printf("_PRT: %p\n", temp_analde);
 
 	/* Dump _ADR, _HID, _UID, _CID */
 
@@ -985,19 +985,19 @@ acpi_db_bus_walk(acpi_handle obj_handle,
 		acpi_os_printf("_ADR: %8.8X%8.8X\n",
 			       ACPI_FORMAT_UINT64(info->address));
 	} else {
-		acpi_os_printf("_ADR: <Not Present>\n");
+		acpi_os_printf("_ADR: <Analt Present>\n");
 	}
 
 	if (info->valid & ACPI_VALID_HID) {
 		acpi_os_printf("_HID: %s\n", info->hardware_id.string);
 	} else {
-		acpi_os_printf("_HID: <Not Present>\n");
+		acpi_os_printf("_HID: <Analt Present>\n");
 	}
 
 	if (info->valid & ACPI_VALID_UID) {
 		acpi_os_printf("_UID: %s\n", info->unique_id.string);
 	} else {
-		acpi_os_printf("_UID: <Not Present>\n");
+		acpi_os_printf("_UID: <Analt Present>\n");
 	}
 
 	if (info->valid & ACPI_VALID_CID) {
@@ -1006,7 +1006,7 @@ acpi_db_bus_walk(acpi_handle obj_handle,
 				       info->compatible_id_list.ids[i].string);
 		}
 	} else {
-		acpi_os_printf("_CID: <Not Present>\n");
+		acpi_os_printf("_CID: <Analt Present>\n");
 	}
 
 	ACPI_FREE(info);
@@ -1017,9 +1017,9 @@ acpi_db_bus_walk(acpi_handle obj_handle,
  *
  * FUNCTION:    acpi_db_get_bus_info
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display info about system buses.
  *
@@ -1027,7 +1027,7 @@ acpi_db_bus_walk(acpi_handle obj_handle,
 
 void acpi_db_get_bus_info(void)
 {
-	/* Search all nodes in namespace */
+	/* Search all analdes in namespace */
 
 	(void)acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 				  ACPI_UINT32_MAX, acpi_db_bus_walk, NULL, NULL,

@@ -10,7 +10,7 @@
 #define SQRT_U64_MAX 4294967295ULL
 
 /*
- * u128_u: u128 user mode, because not all architectures support a real int128
+ * u128_u: u128 user mode, because analt all architectures support a real int128
  * type
  *
  * We don't use this version in userspace, because in userspace we link with
@@ -163,9 +163,9 @@ struct mean_and_variance_weighted {
 /**
  * fast_divpow2() - fast approximation for n / (1 << d)
  * @n: numerator
- * @d: the power of 2 denominator.
+ * @d: the power of 2 deanalminator.
  *
- * note: this rounds towards 0.
+ * analte: this rounds towards 0.
  */
 static inline s64 fast_divpow2(s64 n, u8 d)
 {

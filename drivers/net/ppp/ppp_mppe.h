@@ -9,25 +9,25 @@
 /* unsupported opts */
 #define MPPE_OPT_56            0x08    /* 56 bit */
 #define MPPE_OPT_MPPC          0x10    /* MPPC compression */
-#define MPPE_OPT_D             0x20    /* Unknown */
+#define MPPE_OPT_D             0x20    /* Unkanalwn */
 #define MPPE_OPT_UNSUPPORTED (MPPE_OPT_56|MPPE_OPT_MPPC|MPPE_OPT_D)
-#define MPPE_OPT_UNKNOWN       0x40    /* Bits !defined in RFC 3078 were set */
+#define MPPE_OPT_UNKANALWN       0x40    /* Bits !defined in RFC 3078 were set */
 
 /*
- * This is not nice ... the alternative is a bitfield struct though.
- * And unfortunately, we cannot share the same bits for the option
+ * This is analt nice ... the alternative is a bitfield struct though.
+ * And unfortunately, we cananalt share the same bits for the option
  * names above since C and H are the same bit.  We could do a u_int32
  * but then we have to do a htonl() all the time and/or we still need
- * to know which octet is which.
+ * to kanalw which octet is which.
  */
 #define MPPE_C_BIT             0x01    /* MPPC */
-#define MPPE_D_BIT             0x10    /* Obsolete, usage unknown */
+#define MPPE_D_BIT             0x10    /* Obsolete, usage unkanalwn */
 #define MPPE_L_BIT             0x20    /* 40-bit */
 #define MPPE_S_BIT             0x40    /* 128-bit */
-#define MPPE_M_BIT             0x80    /* 56-bit, not supported */
+#define MPPE_M_BIT             0x80    /* 56-bit, analt supported */
 #define MPPE_H_BIT             0x01    /* Stateless (in a different byte) */
 
-/* Does not include H bit; used for least significant octet only. */
+/* Does analt include H bit; used for least significant octet only. */
 #define MPPE_ALL_BITS (MPPE_D_BIT|MPPE_L_BIT|MPPE_S_BIT|MPPE_M_BIT|MPPE_H_BIT)
 
 /* Build a CI from mppe opts (see RFC 3078) */
@@ -49,7 +49,7 @@
            *ptr |= MPPE_S_BIT;                 \
        if (opts & MPPE_OPT_40)                 \
            *ptr |= MPPE_L_BIT;                 \
-       /* M,D,C bits not supported */          \
+       /* M,D,C bits analt supported */          \
     } while (/* CONSTCOND */ 0)
 
 /* The reverse of the above */
@@ -79,9 +79,9 @@
                                                \
        /* Other bits */                        \
        if (ptr[0] & ~MPPE_H_BIT)               \
-           opts |= MPPE_OPT_UNKNOWN;           \
+           opts |= MPPE_OPT_UNKANALWN;           \
        if (ptr[1] || ptr[2])                   \
-           opts |= MPPE_OPT_UNKNOWN;           \
+           opts |= MPPE_OPT_UNKANALWN;           \
        if (ptr[3] & ~MPPE_ALL_BITS)            \
-           opts |= MPPE_OPT_UNKNOWN;           \
+           opts |= MPPE_OPT_UNKANALWN;           \
     } while (/* CONSTCOND */ 0)

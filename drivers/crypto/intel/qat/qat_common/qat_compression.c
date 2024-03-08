@@ -46,7 +46,7 @@ static int qat_compression_free_instances(struct adf_accel_dev *accel_dev)
 	return 0;
 }
 
-struct qat_compression_instance *qat_compression_get_instance_node(int node)
+struct qat_compression_instance *qat_compression_get_instance_analde(int analde)
 {
 	struct qat_compression_instance *inst = NULL;
 	struct adf_accel_dev *accel_dev = NULL;
@@ -56,12 +56,12 @@ struct qat_compression_instance *qat_compression_get_instance_node(int node)
 	list_for_each(itr, adf_devmgr_get_head()) {
 		struct adf_accel_dev *tmp_dev;
 		unsigned long ctr;
-		int tmp_dev_node;
+		int tmp_dev_analde;
 
 		tmp_dev = list_entry(itr, struct adf_accel_dev, list);
-		tmp_dev_node = dev_to_node(&GET_DEV(tmp_dev));
+		tmp_dev_analde = dev_to_analde(&GET_DEV(tmp_dev));
 
-		if ((node == tmp_dev_node || tmp_dev_node < 0) &&
+		if ((analde == tmp_dev_analde || tmp_dev_analde < 0) &&
 		    adf_dev_started(tmp_dev) && !list_empty(&tmp_dev->compression_list)) {
 			ctr = atomic_read(&tmp_dev->ref_count);
 			if (best > ctr) {
@@ -72,7 +72,7 @@ struct qat_compression_instance *qat_compression_get_instance_node(int node)
 	}
 
 	if (!accel_dev) {
-		pr_debug_ratelimited("QAT: Could not find a device on node %d\n", node);
+		pr_debug_ratelimited("QAT: Could analt find a device on analde %d\n", analde);
 		/* Get any started device */
 		list_for_each(itr, adf_devmgr_get_head()) {
 			struct adf_accel_dev *tmp_dev;
@@ -103,7 +103,7 @@ struct qat_compression_instance *qat_compression_get_instance_node(int node)
 	}
 	if (inst) {
 		if (adf_dev_get(accel_dev)) {
-			dev_err(&GET_DEV(accel_dev), "Could not increment dev refctr\n");
+			dev_err(&GET_DEV(accel_dev), "Could analt increment dev refctr\n");
 			return NULL;
 		}
 		atomic_inc(&inst->refctr);
@@ -133,10 +133,10 @@ static int qat_compression_create_instances(struct adf_accel_dev *accel_dev)
 		return ret;
 
 	for (i = 0; i < num_inst; i++) {
-		inst = kzalloc_node(sizeof(*inst), GFP_KERNEL,
-				    dev_to_node(&GET_DEV(accel_dev)));
+		inst = kzalloc_analde(sizeof(*inst), GFP_KERNEL,
+				    dev_to_analde(&GET_DEV(accel_dev)));
 		if (!inst) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -201,7 +201,7 @@ static int qat_compression_alloc_dc_data(struct adf_accel_dev *accel_dev)
 	if (!dc_data)
 		goto err;
 
-	obuff = kzalloc_node(ovf_buff_sz, GFP_KERNEL, dev_to_node(dev));
+	obuff = kzalloc_analde(ovf_buff_sz, GFP_KERNEL, dev_to_analde(dev));
 	if (!obuff)
 		goto err;
 
@@ -221,7 +221,7 @@ err:
 	accel_dev->dc_data = NULL;
 	kfree(obuff);
 	devm_kfree(dev, dc_data);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void qat_free_dc_data(struct adf_accel_dev *accel_dev)

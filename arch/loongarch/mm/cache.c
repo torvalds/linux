@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
  * Copyright (C) 1994 - 2003, 06, 07 by Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2007 MIPS Technologies, Inc.
+ * Copyright (C) 2007 MIPS Techanallogies, Inc.
  */
 #include <linux/cacheinfo.h>
 #include <linux/export.h>
@@ -43,11 +43,11 @@ EXPORT_SYMBOL(local_flush_icache_range);
 
 static void flush_cache_leaf(unsigned int leaf)
 {
-	int i, j, nr_nodes;
+	int i, j, nr_analdes;
 	uint64_t addr = CSR_DMW0_BASE;
 	struct cache_desc *cdesc = current_cpu_data.cache_leaves + leaf;
 
-	nr_nodes = cache_private(cdesc) ? 1 : loongson_sysconf.nr_nodes;
+	nr_analdes = cache_private(cdesc) ? 1 : loongson_sysconf.nr_analdes;
 
 	do {
 		for (i = 0; i < cdesc->sets; i++) {
@@ -59,8 +59,8 @@ static void flush_cache_leaf(unsigned int leaf)
 			addr -= cdesc->ways;
 			addr += cdesc->linesz;
 		}
-		addr += (1ULL << NODE_ADDRSPACE_SHIFT);
-	} while (--nr_nodes > 0);
+		addr += (1ULL << ANALDE_ADDRSPACE_SHIFT);
+	} while (--nr_analdes > 0);
 }
 
 asmlinkage __visible void __flush_cache_all(void)
@@ -159,18 +159,18 @@ void cpu_cache_init(void)
 }
 
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= __pgprot(_CACHE_CC | _PAGE_USER |
-								   _PAGE_PROTNONE | _PAGE_NO_EXEC |
-								   _PAGE_NO_READ),
+	[VM_ANALNE]					= __pgprot(_CACHE_CC | _PAGE_USER |
+								   _PAGE_PROTANALNE | _PAGE_ANAL_EXEC |
+								   _PAGE_ANAL_READ),
 	[VM_READ]					= __pgprot(_CACHE_CC | _PAGE_VALID |
 								   _PAGE_USER | _PAGE_PRESENT |
-								   _PAGE_NO_EXEC),
+								   _PAGE_ANAL_EXEC),
 	[VM_WRITE]					= __pgprot(_CACHE_CC | _PAGE_VALID |
 								   _PAGE_USER | _PAGE_PRESENT |
-								   _PAGE_NO_EXEC),
+								   _PAGE_ANAL_EXEC),
 	[VM_WRITE | VM_READ]				= __pgprot(_CACHE_CC | _PAGE_VALID |
 								   _PAGE_USER | _PAGE_PRESENT |
-								   _PAGE_NO_EXEC),
+								   _PAGE_ANAL_EXEC),
 	[VM_EXEC]					= __pgprot(_CACHE_CC | _PAGE_VALID |
 								   _PAGE_USER | _PAGE_PRESENT),
 	[VM_EXEC | VM_READ]				= __pgprot(_CACHE_CC | _PAGE_VALID |
@@ -180,17 +180,17 @@ static const pgprot_t protection_map[16] = {
 	[VM_EXEC | VM_WRITE | VM_READ]			= __pgprot(_CACHE_CC | _PAGE_VALID |
 								   _PAGE_USER | _PAGE_PRESENT),
 	[VM_SHARED]					= __pgprot(_CACHE_CC | _PAGE_USER |
-								   _PAGE_PROTNONE | _PAGE_NO_EXEC |
-								   _PAGE_NO_READ),
+								   _PAGE_PROTANALNE | _PAGE_ANAL_EXEC |
+								   _PAGE_ANAL_READ),
 	[VM_SHARED | VM_READ]				= __pgprot(_CACHE_CC | _PAGE_VALID |
 								   _PAGE_USER | _PAGE_PRESENT |
-								   _PAGE_NO_EXEC),
+								   _PAGE_ANAL_EXEC),
 	[VM_SHARED | VM_WRITE]				= __pgprot(_CACHE_CC | _PAGE_VALID |
 								   _PAGE_USER | _PAGE_PRESENT |
-								   _PAGE_NO_EXEC | _PAGE_WRITE),
+								   _PAGE_ANAL_EXEC | _PAGE_WRITE),
 	[VM_SHARED | VM_WRITE | VM_READ]		= __pgprot(_CACHE_CC | _PAGE_VALID |
 								   _PAGE_USER | _PAGE_PRESENT |
-								   _PAGE_NO_EXEC | _PAGE_WRITE),
+								   _PAGE_ANAL_EXEC | _PAGE_WRITE),
 	[VM_SHARED | VM_EXEC]				= __pgprot(_CACHE_CC | _PAGE_VALID |
 								   _PAGE_USER | _PAGE_PRESENT),
 	[VM_SHARED | VM_EXEC | VM_READ]			= __pgprot(_CACHE_CC | _PAGE_VALID |

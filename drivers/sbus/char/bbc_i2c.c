@@ -36,7 +36,7 @@
 #define I2C_PCF_REPSTART (              I2C_PCF_ESO | I2C_PCF_STA | I2C_PCF_ACK)
 #define I2C_PCF_IDLE     (I2C_PCF_PIN | I2C_PCF_ESO               | I2C_PCF_ACK)
 
-#define I2C_PCF_INI 0x40   /* 1 if not initialized */
+#define I2C_PCF_INI 0x40   /* 1 if analt initialized */
 #define I2C_PCF_STS 0x20
 #define I2C_PCF_BER 0x10
 #define I2C_PCF_AD0 0x08
@@ -98,7 +98,7 @@ struct bbc_i2c_client *bbc_i2c_attach(struct bbc_i2c_bus *bp, struct platform_de
 	client->bp = bp;
 	client->op = op;
 
-	reg = of_get_property(op->dev.of_node, "reg", NULL);
+	reg = of_get_property(op->dev.of_analde, "reg", NULL);
 	if (!reg) {
 		kfree(client);
 		return NULL;
@@ -295,7 +295,7 @@ static void reset_one_i2c(struct bbc_i2c_bus *bp)
 static struct bbc_i2c_bus * attach_one_i2c(struct platform_device *op, int index)
 {
 	struct bbc_i2c_bus *bp;
-	struct device_node *dp;
+	struct device_analde *dp;
 	int entry;
 
 	bp = kzalloc(sizeof(*bp), GFP_KERNEL);
@@ -327,12 +327,12 @@ static struct bbc_i2c_bus * attach_one_i2c(struct platform_device *op, int index
 	spin_lock_init(&bp->lock);
 
 	entry = 0;
-	for (dp = op->dev.of_node->child;
+	for (dp = op->dev.of_analde->child;
 	     dp && entry < 8;
 	     dp = dp->sibling, entry++) {
 		struct platform_device *child_op;
 
-		child_op = of_find_device_by_node(dp);
+		child_op = of_find_device_by_analde(dp);
 		bp->devs[entry].device = child_op;
 		bp->devs[entry].client_claimed = 0;
 	}

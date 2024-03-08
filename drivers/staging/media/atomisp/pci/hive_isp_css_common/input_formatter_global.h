@@ -67,7 +67,7 @@ typedef struct input_formatter_cfg_s	input_formatter_cfg_t;
 #define HIVE_IF_VSYNCK_ACTIVE_LOW_ADDRESS       0x038
 #define HIVE_IF_HSYNCK_ACTIVE_LOW_ADDRESS       0x03C
 #define HIVE_IF_ALLOW_FIFO_OVERFLOW_ADDRESS     0x040
-#define HIVE_IF_BLOCK_FIFO_NO_REQ_ADDRESS       0x044
+#define HIVE_IF_BLOCK_FIFO_ANAL_REQ_ADDRESS       0x044
 #define HIVE_IF_V_DEINTERLEAVING_ADDRESS        0x048
 #define HIVE_IF_FSM_CROP_PIXEL_COUNTER          0x110
 #define HIVE_IF_FSM_CROP_LINE_COUNTER           0x10C
@@ -105,7 +105,7 @@ struct input_formatter_cfg_s {
 	u32	buf_increment;
 	u32	buf_eol_offset;
 	u32	is_yuv420_format;
-	u32	block_no_reqs;
+	u32	block_anal_reqs;
 };
 
 extern const hrt_address HIVE_IF_SRST_ADDRESS[N_INPUT_FORMATTER_ID];

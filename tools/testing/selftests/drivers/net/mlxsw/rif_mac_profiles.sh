@@ -107,8 +107,8 @@ h1_to_h2()
 	# Replace neighbour to avoid first packet being forwarded in software
 	ip neigh replace dev $rp2 198.51.100.1 lladdr $(mac_get $h2)
 
-	# Add a filter to ensure that packets are forwarded in hardware. Cannot
-	# match on source MAC because it is not set in eACL after routing
+	# Add a filter to ensure that packets are forwarded in hardware. Cananalt
+	# match on source MAC because it is analt set in eACL after routing
 	tc filter add dev $rp2 egress proto ip pref 1 handle 101 \
 		flower skip_sw ip_proto udp src_port 12345 dst_port 54321 \
 		action pass
@@ -123,10 +123,10 @@ h1_to_h2()
 		-A 192.0.2.1 -B 198.51.100.1 -c 10 -p 100 -d 1msec -q
 
 	tc_check_packets "dev $rp2 egress" 101 10
-	check_err $? "packets not forwarded in hardware"
+	check_err $? "packets analt forwarded in hardware"
 
 	tc_check_packets "dev $h2 ingress" 101 10
-	check_err $? "packets not forwarded with correct source mac"
+	check_err $? "packets analt forwarded with correct source mac"
 
 	log_test "h1->h2: $test_name"
 
@@ -156,10 +156,10 @@ h2_to_h1()
 		-A 198.51.100.1 -B 192.0.2.1 -c 10 -p 100 -d 1msec -q
 
 	tc_check_packets "dev $rp1 egress" 101 10
-	check_err $? "packets not forwarded in hardware"
+	check_err $? "packets analt forwarded in hardware"
 
 	tc_check_packets "dev $h1 ingress" 101 10
-	check_err $? "packets not forwarded with correct source mac"
+	check_err $? "packets analt forwarded with correct source mac"
 
 	log_test "h2->h1: $test_name"
 
@@ -179,7 +179,7 @@ smac_test()
 	# Test that packets forwarded to $h1 via $rp1 are forwarded with the
 	# current source MAC of $rp1. This MAC is never changed during the test,
 	# but given the shared nature of MAC profile, the point is to see that
-	# changes to the MAC of $rp2 do not affect that of $rp1
+	# changes to the MAC of $rp2 do analt affect that of $rp1
 	h2_to_h1 $test_name
 }
 

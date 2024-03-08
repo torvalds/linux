@@ -27,7 +27,7 @@ short hpi_dsp_code_open(u32 adapter, void *os_data, struct dsp_code *dsp_code,
 	struct pci_dev *dev = os_data;
 	struct code_header header;
 	char fw_name[20];
-	short err_ret = HPI_ERROR_DSP_FILE_NOT_FOUND;
+	short err_ret = HPI_ERROR_DSP_FILE_ANALT_FOUND;
 	int err;
 
 	sprintf(fw_name, "asihpi/dsp%04x.bin", adapter);

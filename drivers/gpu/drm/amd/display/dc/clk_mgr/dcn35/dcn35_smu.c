@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -65,13 +65,13 @@
 #define VBIOSSMC_MSG_GetSmuVersion                0x2
 #define VBIOSSMC_MSG_PowerUpGfx                   0x3
 #define VBIOSSMC_MSG_SetDispclkFreq               0x4
-#define VBIOSSMC_MSG_SetDprefclkFreq              0x5   //Not used. DPRef is constant
+#define VBIOSSMC_MSG_SetDprefclkFreq              0x5   //Analt used. DPRef is constant
 #define VBIOSSMC_MSG_SetDppclkFreq                0x6
 #define VBIOSSMC_MSG_SetHardMinDcfclkByFreq       0x7
 #define VBIOSSMC_MSG_SetMinDeepSleepDcfclk        0x8
-#define VBIOSSMC_MSG_SetPhyclkVoltageByFreq       0x9	//Keep it in case VMIN dees not support phy clk
+#define VBIOSSMC_MSG_SetPhyclkVoltageByFreq       0x9	//Keep it in case VMIN dees analt support phy clk
 #define VBIOSSMC_MSG_GetFclkFrequency             0xA
-#define VBIOSSMC_MSG_SetDisplayCount              0xB   //Not used anymore
+#define VBIOSSMC_MSG_SetDisplayCount              0xB   //Analt used anymore
 #define VBIOSSMC_MSG_EnableTmdp48MHzRefclkPwrDown 0xC   //To ask PMFW turn off TMDP 48MHz refclk during display off to save power
 #define VBIOSSMC_MSG_UpdatePmeRestore             0xD
 #define VBIOSSMC_MSG_SetVbiosDramAddrHigh         0xE   //Used for WM table txfr
@@ -88,19 +88,19 @@
 #define VBIOSSMC_MSG_DispPsrExit                  0x19 ///< Display PSR exit, DMU
 #define VBIOSSMC_MSG_DisableLSdma                 0x1A ///< Disable LSDMA; only sent by VBIOS
 #define VBIOSSMC_MSG_DpControllerPhyStatus        0x1B ///< Inform PMFW about the pre conditions for turning SLDO2 on/off . bit[0]==1 precondition is met, bit[1-2] are for DPPHY number
-#define VBIOSSMC_MSG_QueryIPS2Support             0x1C ///< Return 1: support; else not supported
+#define VBIOSSMC_MSG_QueryIPS2Support             0x1C ///< Return 1: support; else analt supported
 #define VBIOSSMC_Message_Count                    0x1D
 
 #define VBIOSSMC_Status_BUSY                      0x0
 #define VBIOSSMC_Result_OK                        0x1
 #define VBIOSSMC_Result_Failed                    0xFF
-#define VBIOSSMC_Result_UnknownCmd                0xFE
+#define VBIOSSMC_Result_UnkanalwnCmd                0xFE
 #define VBIOSSMC_Result_CmdRejectedPrereq         0xFD
 #define VBIOSSMC_Result_CmdRejectedBusy           0xFC
 
 /*
  * Function to be used instead of REG_WAIT macro because the wait ends when
- * the register is NOT EQUAL to zero, and because `the translation in msg_if.h
+ * the register is ANALT EQUAL to zero, and because `the translation in msg_if.h
  * won't work with REG_WAIT.
  */
 static uint32_t dcn35_smu_wait_for_response(struct clk_mgr_internal *clk_mgr, unsigned int delay_us, unsigned int max_retries)
@@ -154,7 +154,7 @@ static int dcn35_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
 	if (result == VBIOSSMC_Result_Failed) {
 		if (msg_id == VBIOSSMC_MSG_TransferTableDram2Smu &&
 		    param == TABLE_WATERMARKS)
-			DC_LOG_WARNING("Watermarks table not configured properly by SMU");
+			DC_LOG_WARNING("Watermarks table analt configured properly by SMU");
 		else
 			ASSERT(0);
 		REG_WRITE(MP1_SMN_C2PMSG_91, VBIOSSMC_Result_OK);
@@ -389,7 +389,7 @@ void dcn35_smu_set_zstate_support(struct clk_mgr_internal *clk_mgr, enum dcn_zst
 		smu_print("%s: SMC_MSG_AllowZstatesEntry msg = ALLOW_Z8_ONLY, param = %d\n", __func__, param);
 		break;
 
-	default: //DCN_ZSTATE_SUPPORT_UNKNOWN
+	default: //DCN_ZSTATE_SUPPORT_UNKANALWN
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
 		param = 0;
 		break;

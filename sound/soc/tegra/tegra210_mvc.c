@@ -608,7 +608,7 @@ static struct snd_soc_dai_driver tegra210_mvc_dais[] = {
 };
 
 static const struct snd_soc_dapm_widget tegra210_mvc_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("RX", NULL, 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX", NULL, 0, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("TX", NULL, 0, TEGRA210_MVC_ENABLE,
 			     TEGRA210_MVC_EN_SHIFT, 0),
 };
@@ -712,7 +712,7 @@ static int tegra210_mvc_platform_probe(struct platform_device *pdev)
 
 	mvc = devm_kzalloc(dev, sizeof(*mvc), GFP_KERNEL);
 	if (!mvc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, mvc);
 

@@ -73,7 +73,7 @@ int __initdata iommu_is_off;
 int __initdata iommu_force_on;
 unsigned long tce_alloc_start, tce_alloc_end;
 u64 ppc64_rma_size;
-unsigned int boot_cpu_node_count __ro_after_init;
+unsigned int boot_cpu_analde_count __ro_after_init;
 #endif
 static phys_addr_t first_memblock_size;
 static int __initdata boot_cpu_count;
@@ -149,7 +149,7 @@ static void __init move_device_tree(void)
  * Implementation:  Pass in the byte and bit offset for the feature
  * that we are interested in.  The function will return -1 if the
  * pa-features property is missing, or a 1/0 to indicate if the feature
- * is supported/not supported.  Note that the bit numbers are
+ * is supported/analt supported.  Analte that the bit numbers are
  * big-endian to match the definition in PAPR.
  */
 struct ibm_feature {
@@ -166,7 +166,7 @@ static struct ibm_feature ibm_pa_features[] __initdata = {
 	{ .pabyte = 0,  .pabit = 0, .cpu_user_ftrs = PPC_FEATURE_HAS_MMU },
 	{ .pabyte = 0,  .pabit = 1, .cpu_user_ftrs = PPC_FEATURE_HAS_FPU },
 	{ .pabyte = 0,  .pabit = 3, .cpu_features  = CPU_FTR_CTRL },
-	{ .pabyte = 0,  .pabit = 6, .cpu_features  = CPU_FTR_NOEXECUTE },
+	{ .pabyte = 0,  .pabit = 6, .cpu_features  = CPU_FTR_ANALEXECUTE },
 	{ .pabyte = 1,  .pabit = 2, .mmu_features  = MMU_FTR_CI_LARGE_PAGE },
 #ifdef CONFIG_PPC_RADIX_MMU
 	{ .pabyte = 40, .pabit = 0, .mmu_features  = MMU_FTR_TYPE_RADIX | MMU_FTR_GTSE },
@@ -179,7 +179,7 @@ static struct ibm_feature ibm_pa_features[] __initdata = {
 	 * which are 0 if the kernel doesn't support TM.
 	 */
 	{ .pabyte = 22, .pabit = 0, .cpu_features = CPU_FTR_TM_COMP,
-	  .cpu_user_ftrs2 = PPC_FEATURE2_HTM_COMP | PPC_FEATURE2_HTM_NOSC_COMP },
+	  .cpu_user_ftrs2 = PPC_FEATURE2_HTM_COMP | PPC_FEATURE2_HTM_ANALSC_COMP },
 
 	{ .pabyte = 64, .pabit = 0, .cpu_features = CPU_FTR_DAWR1 },
 	{ .pabyte = 68, .pabit = 5, .cpu_features = CPU_FTR_DEXCR_NPHIE },
@@ -187,7 +187,7 @@ static struct ibm_feature ibm_pa_features[] __initdata = {
 
 /*
  * ibm,pi-features property provides the support of processor specific
- * options not described in ibm,pa-features. Right now use byte 0, bit 3
+ * options analt described in ibm,pa-features. Right analw use byte 0, bit 3
  * which indicates the occurrence of DSI interrupt when the paste operation
  * on the suspended NX window.
  */
@@ -195,7 +195,7 @@ static struct ibm_feature ibm_pi_features[] __initdata = {
 	{ .pabyte = 0, .pabit = 3, .mmu_features  = MMU_FTR_NX_DSI },
 };
 
-static void __init scan_features(unsigned long node, const unsigned char *ftrs,
+static void __init scan_features(unsigned long analde, const unsigned char *ftrs,
 				 unsigned long tablelen,
 				 struct ibm_feature *fp,
 				 unsigned long ft_size)
@@ -208,14 +208,14 @@ static void __init scan_features(unsigned long node, const unsigned char *ftrs,
 			return;
 		len = 2 + ftrs[0];
 		if (tablelen < len)
-			return;		/* descriptor 0 not found */
+			return;		/* descriptor 0 analt found */
 		if (ftrs[1] == 0)
 			break;
 		tablelen -= len;
 		ftrs += len;
 	}
 
-	/* loop over bits we know about */
+	/* loop over bits we kanalw about */
 	for (i = 0; i < ft_size; ++i, ++fp) {
 		if (fp->pabyte >= ftrs[0])
 			continue;
@@ -234,33 +234,33 @@ static void __init scan_features(unsigned long node, const unsigned char *ftrs,
 	}
 }
 
-static void __init check_cpu_features(unsigned long node, char *name,
+static void __init check_cpu_features(unsigned long analde, char *name,
 				      struct ibm_feature *fp,
 				      unsigned long size)
 {
 	const unsigned char *pa_ftrs;
 	int tablelen;
 
-	pa_ftrs = of_get_flat_dt_prop(node, name, &tablelen);
+	pa_ftrs = of_get_flat_dt_prop(analde, name, &tablelen);
 	if (pa_ftrs == NULL)
 		return;
 
-	scan_features(node, pa_ftrs, tablelen, fp, size);
+	scan_features(analde, pa_ftrs, tablelen, fp, size);
 }
 
 #ifdef CONFIG_PPC_64S_HASH_MMU
-static void __init init_mmu_slb_size(unsigned long node)
+static void __init init_mmu_slb_size(unsigned long analde)
 {
 	const __be32 *slb_size_ptr;
 
-	slb_size_ptr = of_get_flat_dt_prop(node, "slb-size", NULL) ? :
-			of_get_flat_dt_prop(node, "ibm,slb-size", NULL);
+	slb_size_ptr = of_get_flat_dt_prop(analde, "slb-size", NULL) ? :
+			of_get_flat_dt_prop(analde, "ibm,slb-size", NULL);
 
 	if (slb_size_ptr)
 		mmu_slb_size = be32_to_cpup(slb_size_ptr);
 }
 #else
-#define init_mmu_slb_size(node) do { } while(0)
+#define init_mmu_slb_size(analde) do { } while(0)
 #endif
 
 static struct feature_property {
@@ -274,7 +274,7 @@ static struct feature_property {
 	{"ibm,vmx", 1, CPU_FTR_ALTIVEC, PPC_FEATURE_HAS_ALTIVEC},
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_VSX
-	/* Yes, this _really_ is ibm,vmx == 2 to enable VSX */
+	/* Anal, this _really_ is ibm,vmx == 2 to enable VSX */
 	{"ibm,vmx", 2, CPU_FTR_VSX, PPC_FEATURE_HAS_VSX},
 #endif /* CONFIG_VSX */
 #ifdef CONFIG_PPC64
@@ -285,14 +285,14 @@ static struct feature_property {
 };
 
 #if defined(CONFIG_44x) && defined(CONFIG_PPC_FPU)
-static __init void identical_pvr_fixup(unsigned long node)
+static __init void identical_pvr_fixup(unsigned long analde)
 {
 	unsigned int pvr;
-	const char *model = of_get_flat_dt_prop(node, "model", NULL);
+	const char *model = of_get_flat_dt_prop(analde, "model", NULL);
 
 	/*
 	 * Since 440GR(x)/440EP(x) processors have the same pvr,
-	 * we check the node path and set bit 28 in the cur_cpu_spec
+	 * we check the analde path and set bit 28 in the cur_cpu_spec
 	 * pvr for EP(x) processor version. This bit is always 0 in
 	 * the "real" pvr. Then we call identify_cpu again with
 	 * the new logical pvr to enable FPU support.
@@ -304,17 +304,17 @@ static __init void identical_pvr_fixup(unsigned long node)
 	}
 }
 #else
-#define identical_pvr_fixup(node) do { } while(0)
+#define identical_pvr_fixup(analde) do { } while(0)
 #endif
 
-static void __init check_cpu_feature_properties(unsigned long node)
+static void __init check_cpu_feature_properties(unsigned long analde)
 {
 	int i;
 	struct feature_property *fp = feature_properties;
 	const __be32 *prop;
 
 	for (i = 0; i < (int)ARRAY_SIZE(feature_properties); ++i, ++fp) {
-		prop = of_get_flat_dt_prop(node, fp->name, NULL);
+		prop = of_get_flat_dt_prop(analde, fp->name, NULL);
 		if (prop && be32_to_cpup(prop) >= fp->min_value) {
 			cur_cpu_spec->cpu_features |= fp->cpu_feature;
 			cur_cpu_spec->cpu_user_features |= fp->cpu_user_ftr;
@@ -322,11 +322,11 @@ static void __init check_cpu_feature_properties(unsigned long node)
 	}
 }
 
-static int __init early_init_dt_scan_cpus(unsigned long node,
+static int __init early_init_dt_scan_cpus(unsigned long analde,
 					  const char *uname, int depth,
 					  void *data)
 {
-	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const char *type = of_get_flat_dt_prop(analde, "device_type", NULL);
 	const __be32 *prop;
 	const __be32 *intserv;
 	int i, nthreads;
@@ -334,23 +334,23 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	int found = -1;
 	int found_thread = 0;
 
-	/* We are scanning "cpu" nodes only */
+	/* We are scanning "cpu" analdes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
 	if (IS_ENABLED(CONFIG_PPC64))
-		boot_cpu_node_count++;
+		boot_cpu_analde_count++;
 
 	/* Get physical cpuid */
-	intserv = of_get_flat_dt_prop(node, "ibm,ppc-interrupt-server#s", &len);
+	intserv = of_get_flat_dt_prop(analde, "ibm,ppc-interrupt-server#s", &len);
 	if (!intserv)
-		intserv = of_get_flat_dt_prop(node, "reg", &len);
+		intserv = of_get_flat_dt_prop(analde, "reg", &len);
 
 	nthreads = len / sizeof(int);
 
 	/*
-	 * Now see if any of these threads match our boot cpu.
-	 * NOTE: This must match the parsing done in smp_setup_cpu_maps.
+	 * Analw see if any of these threads match our boot cpu.
+	 * ANALTE: This must match the parsing done in smp_setup_cpu_maps.
 	 */
 	for (i = 0; i < nthreads; i++) {
 		if (be32_to_cpu(intserv[i]) ==
@@ -364,7 +364,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 #endif
 	}
 
-	/* Not the boot CPU */
+	/* Analt the boot CPU */
 	if (found < 0)
 		return 0;
 
@@ -380,7 +380,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	 * meet various levels of the architecture:
 	 * 0x0f000001	Architecture version 2.04
 	 * 0x0f000002	Architecture version 2.05
-	 * If the cpu-version property in the cpu node contains
+	 * If the cpu-version property in the cpu analde contains
 	 * such a value, we call identify_cpu again with the
 	 * logical PVR value in order to use the cpu feature
 	 * bits appropriate for the architecture level.
@@ -395,21 +395,21 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	 * architecture level via the ibm,powerpc-cpu-features binding.
 	 */
 	if (!dt_cpu_ftrs_in_use()) {
-		prop = of_get_flat_dt_prop(node, "cpu-version", NULL);
+		prop = of_get_flat_dt_prop(analde, "cpu-version", NULL);
 		if (prop && (be32_to_cpup(prop) & 0xff000000) == 0x0f000000) {
 			identify_cpu(0, be32_to_cpup(prop));
 			seq_buf_printf(&ppc_hw_desc, "0x%04x ", be32_to_cpup(prop));
 		}
 
-		check_cpu_feature_properties(node);
-		check_cpu_features(node, "ibm,pa-features", ibm_pa_features,
+		check_cpu_feature_properties(analde);
+		check_cpu_features(analde, "ibm,pa-features", ibm_pa_features,
 				   ARRAY_SIZE(ibm_pa_features));
-		check_cpu_features(node, "ibm,pi-features", ibm_pi_features,
+		check_cpu_features(analde, "ibm,pi-features", ibm_pi_features,
 				   ARRAY_SIZE(ibm_pi_features));
 	}
 
-	identical_pvr_fixup(node);
-	init_mmu_slb_size(node);
+	identical_pvr_fixup(analde);
+	init_mmu_slb_size(analde);
 
 #ifdef CONFIG_PPC64
 	if (nthreads == 1)
@@ -421,49 +421,49 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	return 0;
 }
 
-static int __init early_init_dt_scan_chosen_ppc(unsigned long node,
+static int __init early_init_dt_scan_chosen_ppc(unsigned long analde,
 						const char *uname,
 						int depth, void *data)
 {
-	const unsigned long *lprop; /* All these set by kernel, so no need to convert endian */
+	const unsigned long *lprop; /* All these set by kernel, so anal need to convert endian */
 
-	/* Use common scan routine to determine if this is the chosen node */
+	/* Use common scan routine to determine if this is the chosen analde */
 	if (early_init_dt_scan_chosen(data) < 0)
 		return 0;
 
 #ifdef CONFIG_PPC64
 	/* check if iommu is forced on or off */
-	if (of_get_flat_dt_prop(node, "linux,iommu-off", NULL) != NULL)
+	if (of_get_flat_dt_prop(analde, "linux,iommu-off", NULL) != NULL)
 		iommu_is_off = 1;
-	if (of_get_flat_dt_prop(node, "linux,iommu-force-on", NULL) != NULL)
+	if (of_get_flat_dt_prop(analde, "linux,iommu-force-on", NULL) != NULL)
 		iommu_force_on = 1;
 #endif
 
 	/* mem=x on the command line is the preferred mechanism */
-	lprop = of_get_flat_dt_prop(node, "linux,memory-limit", NULL);
+	lprop = of_get_flat_dt_prop(analde, "linux,memory-limit", NULL);
 	if (lprop)
 		memory_limit = *lprop;
 
 #ifdef CONFIG_PPC64
-	lprop = of_get_flat_dt_prop(node, "linux,tce-alloc-start", NULL);
+	lprop = of_get_flat_dt_prop(analde, "linux,tce-alloc-start", NULL);
 	if (lprop)
 		tce_alloc_start = *lprop;
-	lprop = of_get_flat_dt_prop(node, "linux,tce-alloc-end", NULL);
+	lprop = of_get_flat_dt_prop(analde, "linux,tce-alloc-end", NULL);
 	if (lprop)
 		tce_alloc_end = *lprop;
 #endif
 
 #ifdef CONFIG_KEXEC_CORE
-	lprop = of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
+	lprop = of_get_flat_dt_prop(analde, "linux,crashkernel-base", NULL);
 	if (lprop)
 		crashk_res.start = *lprop;
 
-	lprop = of_get_flat_dt_prop(node, "linux,crashkernel-size", NULL);
+	lprop = of_get_flat_dt_prop(analde, "linux,crashkernel-size", NULL);
 	if (lprop)
 		crashk_res.end = crashk_res.start + *lprop - 1;
 #endif
 
-	/* break now */
+	/* break analw */
 	return 1;
 }
 
@@ -509,7 +509,7 @@ static int  __init early_init_drmem_lmb(struct drmem_lmb *lmb,
 
 	/*
 	 * Skip this block if the reserved bit is set in flags
-	 * or if the block is not assigned to this partition.
+	 * or if the block is analt assigned to this partition.
 	 */
 	if ((lmb->flags & DRCONF_MEM_RESERVED) ||
 	    !(lmb->flags & DRCONF_MEM_ASSIGNED))
@@ -523,11 +523,11 @@ static int  __init early_init_drmem_lmb(struct drmem_lmb *lmb,
 		 * For each memblock in ibm,dynamic-memory, a
 		 * corresponding entry in linux,drconf-usable-memory
 		 * property contains a counter 'p' followed by 'p'
-		 * (base, size) duple. Now read the counter from
+		 * (base, size) duple. Analw read the counter from
 		 * linux,drconf-usable-memory property
 		 */
 		rngs = dt_mem_next_cell(dt_root_size_cells, usm);
-		if (!rngs) /* there are no (base, size) duple */
+		if (!rngs) /* there are anal (base, size) duple */
 			return 0;
 	}
 
@@ -562,10 +562,10 @@ static int __init early_init_dt_scan_memory_ppc(void)
 {
 #ifdef CONFIG_PPC_PSERIES
 	const void *fdt = initial_boot_params;
-	int node = fdt_path_offset(fdt, "/ibm,dynamic-reconfiguration-memory");
+	int analde = fdt_path_offset(fdt, "/ibm,dynamic-reconfiguration-memory");
 
-	if (node > 0)
-		walk_drmem_lmbs_early(node, NULL, early_init_drmem_lmb);
+	if (analde > 0)
+		walk_drmem_lmbs_early(analde, NULL, early_init_drmem_lmb);
 
 #endif
 
@@ -576,7 +576,7 @@ static int __init early_init_dt_scan_memory_ppc(void)
  * For a relocatable kernel, we need to get the memstart_addr first,
  * then use it to calculate the virtual kernel start address. This has
  * to happen at a very early stage (before machine_init). In this case,
- * we just want to get the memstart_address and would not like to mess the
+ * we just want to get the memstart_address and would analt like to mess the
  * memblock at this stage. So introduce a variable to skip the memblock_add()
  * for this reason.
  */
@@ -710,7 +710,7 @@ static void __init tm_init(void)
 	if (tm_disabled) {
 		pr_info("Disabling hardware transactional memory (HTM)\n");
 		cur_cpu_spec->cpu_user_features2 &=
-			~(PPC_FEATURE2_HTM_NOSC | PPC_FEATURE2_HTM);
+			~(PPC_FEATURE2_HTM_ANALSC | PPC_FEATURE2_HTM);
 		cur_cpu_spec->cpu_features &= ~CPU_FTR_TM;
 		return;
 	}
@@ -722,7 +722,7 @@ static void tm_init(void) { }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 static int __init
-early_init_dt_scan_model(unsigned long node, const char *uname,
+early_init_dt_scan_model(unsigned long analde, const char *uname,
 			 int depth, void *data)
 {
 	const char *prop;
@@ -730,11 +730,11 @@ early_init_dt_scan_model(unsigned long node, const char *uname,
 	if (depth != 0)
 		return 0;
 
-	prop = of_get_flat_dt_prop(node, "model", NULL);
+	prop = of_get_flat_dt_prop(analde, "model", NULL);
 	if (prop)
 		seq_buf_printf(&ppc_hw_desc, "%s ", prop);
 
-	/* break now */
+	/* break analw */
 	return 1;
 }
 
@@ -768,12 +768,12 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_model, NULL);
 
 #ifdef CONFIG_PPC_RTAS
-	/* Some machines might need RTAS info for debugging, grab it now. */
+	/* Some machines might need RTAS info for debugging, grab it analw. */
 	of_scan_flat_dt(early_init_dt_scan_rtas, NULL);
 #endif
 
 #ifdef CONFIG_PPC_POWERNV
-	/* Some machines might need OPAL info for debugging, grab it now. */
+	/* Some machines might need OPAL info for debugging, grab it analw. */
 	of_scan_flat_dt(early_init_dt_scan_opal, NULL);
 
 	/* Scan tree for ultravisor feature */
@@ -785,13 +785,13 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_fw_dump, NULL);
 #endif
 
-	/* Retrieve various informations from the /chosen node of the
+	/* Retrieve various informations from the /chosen analde of the
 	 * device-tree, including the platform type, initrd location and
 	 * size, TCE reserve, and more ...
 	 */
 	of_scan_flat_dt(early_init_dt_scan_chosen_ppc, boot_command_line);
 
-	/* Scan memory nodes and rebuild MEMBLOCKs */
+	/* Scan memory analdes and rebuild MEMBLOCKs */
 	early_init_dt_scan_root();
 	early_init_dt_scan_memory_ppc();
 
@@ -838,7 +838,7 @@ void __init early_init_devtree(void *params)
 
 	DBG("Phys. mem: %llx\n", (unsigned long long)memblock_phys_mem_size());
 
-	/* We may need to relocate the flat tree, do it now.
+	/* We may need to relocate the flat tree, do it analw.
 	 * FIXME .. and the initrd too? */
 	move_device_tree();
 
@@ -846,7 +846,7 @@ void __init early_init_devtree(void *params)
 
 	dt_cpu_ftrs_scan();
 
-	// We can now add the CPU name & PVR to the hardware description
+	// We can analw add the CPU name & PVR to the hardware description
 	seq_buf_printf(&ppc_hw_desc, "%s 0x%04lx ", cur_cpu_spec->cpu_name, mfspr(SPRN_PVR));
 
 	/* Retrieve CPU related informations from the flat tree
@@ -862,7 +862,7 @@ void __init early_init_devtree(void *params)
 
 #if defined(CONFIG_SMP) && defined(CONFIG_PPC64)
 	/* We'll later wait for secondaries to check in; there are
-	 * NCPUS-1 non-boot CPUs  :-)
+	 * NCPUS-1 analn-boot CPUs  :-)
 	 */
 	spinning_secondaries = boot_cpu_count - 1;
 #endif
@@ -875,7 +875,7 @@ void __init early_init_devtree(void *params)
 #endif
 	epapr_paravirt_early_init();
 
-	/* Now try to figure out if we are running on LPAR and so on */
+	/* Analw try to figure out if we are running on LPAR and so on */
 	pseries_probe_fw_features();
 
 	/*
@@ -908,7 +908,7 @@ void __init early_get_first_memblock_info(void *params, phys_addr_t *size)
 	initial_boot_params = params;
 
 	/*
-	 * Scan the memory nodes and set add_mem_to_memblock to 0 to avoid
+	 * Scan the memory analdes and set add_mem_to_memblock to 0 to avoid
 	 * mess the memblock.
 	 */
 	add_mem_to_memblock = 0;
@@ -924,34 +924,34 @@ void __init early_get_first_memblock_info(void *params, phys_addr_t *size)
 /*******
  *
  * New implementation of the OF "find" APIs, return a refcounted
- * object, call of_node_put() when done.  The device tree and list
+ * object, call of_analde_put() when done.  The device tree and list
  * are protected by a rw_lock.
  *
- * Note that property management will need some locking as well,
+ * Analte that property management will need some locking as well,
  * this isn't dealt with yet.
  *
  *******/
 
 /**
  * of_get_ibm_chip_id - Returns the IBM "chip-id" of a device
- * @np: device node of the device
+ * @np: device analde of the device
  *
- * This looks for a property "ibm,chip-id" in the node or any
- * of its parents and returns its content, or -1 if it cannot
+ * This looks for a property "ibm,chip-id" in the analde or any
+ * of its parents and returns its content, or -1 if it cananalt
  * be found.
  */
-int of_get_ibm_chip_id(struct device_node *np)
+int of_get_ibm_chip_id(struct device_analde *np)
 {
-	of_node_get(np);
+	of_analde_get(np);
 	while (np) {
 		u32 chip_id;
 
 		/*
-		 * Skiboot may produce memory nodes that contain more than one
+		 * Skiboot may produce memory analdes that contain more than one
 		 * cell in chip-id, we only read the first one here.
 		 */
 		if (!of_property_read_u32(np, "ibm,chip-id", &chip_id)) {
-			of_node_put(np);
+			of_analde_put(np);
 			return chip_id;
 		}
 
@@ -966,21 +966,21 @@ EXPORT_SYMBOL(of_get_ibm_chip_id);
  * @cpu: The logical cpu number.
  *
  * Return the value of the ibm,chip-id property corresponding to the given
- * logical cpu number. If the chip-id can not be found, returns -1.
+ * logical cpu number. If the chip-id can analt be found, returns -1.
  */
 int cpu_to_chip_id(int cpu)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int ret = -1, idx;
 
 	idx = cpu / threads_per_core;
 	if (chip_id_lookup_table && chip_id_lookup_table[idx] != -1)
 		return chip_id_lookup_table[idx];
 
-	np = of_get_cpu_node(cpu, NULL);
+	np = of_get_cpu_analde(cpu, NULL);
 	if (np) {
 		ret = of_get_ibm_chip_id(np);
-		of_node_put(np);
+		of_analde_put(np);
 
 		if (chip_id_lookup_table)
 			chip_id_lookup_table[idx] = ret;

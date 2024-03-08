@@ -29,7 +29,7 @@
 #define LP8788_CHG_INPUT_STATE_M	0x03	/* Addr 07h */
 #define LP8788_CHG_STATE_M		0x3C
 #define LP8788_CHG_STATE_S		2
-#define LP8788_NO_BATT_M		BIT(6)
+#define LP8788_ANAL_BATT_M		BIT(6)
 #define LP8788_BAD_BATT_M		BIT(7)
 #define LP8788_CHG_IBATT_M		0x1F	/* Addr 14h */
 #define LP8788_CHG_VTERM_M		0x0F	/* Addr 15h */
@@ -123,7 +123,7 @@ static enum power_supply_property lp8788_battery_prop[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
@@ -189,7 +189,7 @@ static int lp8788_get_battery_status(struct lp8788_charger *pchg,
 		val->intval = POWER_SUPPLY_STATUS_FULL;
 		break;
 	default:
-		val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 	}
 
@@ -206,7 +206,7 @@ static int lp8788_get_battery_health(struct lp8788_charger *pchg,
 	if (ret)
 		return ret;
 
-	if (data & LP8788_NO_BATT_M)
+	if (data & LP8788_ANAL_BATT_M)
 		val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
 	else if (data & LP8788_BAD_BATT_M)
 		val->intval = POWER_SUPPLY_HEALTH_DEAD;
@@ -226,7 +226,7 @@ static int lp8788_get_battery_present(struct lp8788_charger *pchg,
 	if (ret)
 		return ret;
 
-	val->intval = !(data & LP8788_NO_BATT_M);
+	val->intval = !(data & LP8788_ANAL_BATT_M);
 	return 0;
 }
 
@@ -342,7 +342,7 @@ static int lp8788_battery_get_property(struct power_supply *psy,
 		return lp8788_get_battery_health(pchg, val);
 	case POWER_SUPPLY_PROP_PRESENT:
 		return lp8788_get_battery_present(pchg, val);
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		return lp8788_get_battery_voltage(pchg, val);
 	case POWER_SUPPLY_PROP_CAPACITY:
 		return lp8788_get_battery_capacity(pchg, val);
@@ -445,14 +445,14 @@ static irqreturn_t lp8788_charger_irq_thread(int virq, void *ptr)
 	int id = -1;
 
 	if (!lp8788_find_irq_id(pchg, virq, &id))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	switch (id) {
 	case LP8788_INT_CHG_INPUT_STATE:
 	case LP8788_INT_CHG_STATE:
 	case LP8788_INT_EOC:
 	case LP8788_INT_BATT_LOW:
-	case LP8788_INT_NO_BATT:
+	case LP8788_INT_ANAL_BATT:
 		power_supply_changed(pchg->charger);
 		power_supply_changed(pchg->battery);
 		break;
@@ -483,7 +483,7 @@ static int lp8788_set_irqs(struct platform_device *pdev,
 	int i;
 	int ret;
 
-	/* no error even if no irq resource */
+	/* anal error even if anal irq resource */
 	r = platform_get_resource_byname(pdev, IORESOURCE_IRQ, name);
 	if (!r)
 		return 0;
@@ -592,7 +592,7 @@ static ssize_t lp8788_show_charger_status(struct device *dev,
 		[LP8788_PRECHARGE] = "CHARGING - PRECHARGE",
 		[LP8788_CC] = "CHARGING - CC",
 		[LP8788_CV] = "CHARGING - CV",
-		[LP8788_MAINTENANCE] = "NO CHARGING - MAINTENANCE",
+		[LP8788_MAINTENANCE] = "ANAL CHARGING - MAINTENANCE",
 		[LP8788_BATTERY_FAULT] = "BATTERY FAULT",
 		[LP8788_SYSTEM_SUPPORT] = "SYSTEM SUPPORT",
 		[LP8788_HIGH_CURRENT] = "HIGH CURRENT",
@@ -611,7 +611,7 @@ static ssize_t lp8788_show_eoc_time(struct device *dev,
 	struct lp8788_charger *pchg = dev_get_drvdata(dev);
 	static const char * const stime[] = {
 		"400ms", "5min", "10min", "15min",
-		"20min", "25min", "30min", "No timeout"
+		"20min", "25min", "30min", "Anal timeout"
 	};
 	u8 val;
 
@@ -691,7 +691,7 @@ static int lp8788_charger_probe(struct platform_device *pdev)
 
 	pchg = devm_kzalloc(dev, sizeof(struct lp8788_charger), GFP_KERNEL);
 	if (!pchg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pchg->lp = lp;
 	pchg->pdata = lp->pdata ? lp->pdata->chg_pdata : NULL;

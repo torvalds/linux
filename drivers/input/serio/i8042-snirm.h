@@ -58,7 +58,7 @@ static inline int i8042_platform_init(void)
 		i8042_aux_irq = 12;
 	}
 	if (!kbd_iobase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

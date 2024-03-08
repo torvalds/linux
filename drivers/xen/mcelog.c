@@ -20,12 +20,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -71,7 +71,7 @@ static int xen_mce_chrdev_open_exclu;	/* already open exclusive? */
 
 static DECLARE_WAIT_QUEUE_HEAD(xen_mce_chrdev_wait);
 
-static int xen_mce_chrdev_open(struct inode *inode, struct file *file)
+static int xen_mce_chrdev_open(struct ianalde *ianalde, struct file *file)
 {
 	spin_lock(&xen_mce_chrdev_state_lock);
 
@@ -88,10 +88,10 @@ static int xen_mce_chrdev_open(struct inode *inode, struct file *file)
 
 	spin_unlock(&xen_mce_chrdev_state_lock);
 
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
-static int xen_mce_chrdev_release(struct inode *inode, struct file *file)
+static int xen_mce_chrdev_release(struct ianalde *ianalde, struct file *file)
 {
 	spin_lock(&xen_mce_chrdev_state_lock);
 
@@ -114,7 +114,7 @@ static ssize_t xen_mce_chrdev_read(struct file *filp, char __user *ubuf,
 
 	num = xen_mcelog.next;
 
-	/* Only supports full reads right now */
+	/* Only supports full reads right analw */
 	err = -EINVAL;
 	if (*off != 0 || usize < XEN_MCE_LOG_LEN*sizeof(struct xen_mce))
 		goto out;
@@ -144,7 +144,7 @@ static __poll_t xen_mce_chrdev_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &xen_mce_chrdev_wait, wait);
 
 	if (xen_mcelog.next)
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 
 	return 0;
 }
@@ -172,7 +172,7 @@ static long xen_mce_chrdev_ioctl(struct file *f, unsigned int cmd,
 		return put_user(flags, p);
 	}
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -182,11 +182,11 @@ static const struct file_operations xen_mce_chrdev_ops = {
 	.read			= xen_mce_chrdev_read,
 	.poll			= xen_mce_chrdev_poll,
 	.unlocked_ioctl		= xen_mce_chrdev_ioctl,
-	.llseek			= no_llseek,
+	.llseek			= anal_llseek,
 };
 
 static struct miscdevice xen_mce_chrdev_device = {
-	MISC_MCELOG_MINOR,
+	MISC_MCELOG_MIANALR,
 	"mcelog",
 	&xen_mce_chrdev_ops,
 };
@@ -228,7 +228,7 @@ static int convert_log(struct mc_info *mi)
 	x86_mcinfo_lookup(&mic, mi, MC_TYPE_GLOBAL);
 	if (unlikely(!mic)) {
 		pr_warn("Failed to find global error info\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	memset(&m, 0, sizeof(struct xen_mce));
@@ -242,7 +242,7 @@ static int convert_log(struct mc_info *mi)
 			break;
 	if (unlikely(i == ncpus)) {
 		pr_warn("Failed to match cpu with apicid %d\n", m.apicid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	m.socketid = g_physinfo[i].mc_chipid;
@@ -264,7 +264,7 @@ static int convert_log(struct mc_info *mi)
 	x86_mcinfo_lookup(&mic, mi, MC_TYPE_BANK);
 	if (unlikely(!mic)) {
 		pr_warn("Fail to find bank error info\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	do {
@@ -304,11 +304,11 @@ static int mc_queue_handle(uint32_t flags)
 		ret = HYPERVISOR_mca(&mc_op);
 		if (ret) {
 			pr_err("Failed to fetch %surgent error log\n",
-			       flags == XEN_MC_URGENT ? "" : "non");
+			       flags == XEN_MC_URGENT ? "" : "analn");
 			break;
 		}
 
-		if (mc_op.u.mc_fetch.flags & XEN_MC_NODATA ||
+		if (mc_op.u.mc_fetch.flags & XEN_MC_ANALDATA ||
 		    mc_op.u.mc_fetch.flags & XEN_MC_FETCHFAILED)
 			break;
 		else {
@@ -338,12 +338,12 @@ static void xen_mce_work_fn(struct work_struct *work)
 	/* urgent mc_info */
 	err = mc_queue_handle(XEN_MC_URGENT);
 	if (err)
-		pr_err("Failed to handle urgent mc_info queue, continue handling nonurgent mc_info queue anyway\n");
+		pr_err("Failed to handle urgent mc_info queue, continue handling analnurgent mc_info queue anyway\n");
 
-	/* nonurgent mc_info */
-	err = mc_queue_handle(XEN_MC_NONURGENT);
+	/* analnurgent mc_info */
+	err = mc_queue_handle(XEN_MC_ANALNURGENT);
 	if (err)
-		pr_err("Failed to handle nonurgent mc_info queue\n");
+		pr_err("Failed to handle analnurgent mc_info queue\n");
 
 	/* wake processes polling /dev/mcelog */
 	wake_up_interruptible(&xen_mce_chrdev_wait);
@@ -379,7 +379,7 @@ static int bind_virq_for_mce(void)
 	g_physinfo = kcalloc(ncpus, sizeof(struct mcinfo_logical_cpu),
 			     GFP_KERNEL);
 	if (!g_physinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 	set_xen_guest_handle(mc_op.u.mc_physcpuinfo.info, g_physinfo);
 	ret = HYPERVISOR_mca(&mc_op);
 	if (ret) {
@@ -405,7 +405,7 @@ static int __init xen_late_init_mcelog(void)
 
 	/* Only DOM0 is responsible for MCE logging */
 	if (!xen_initial_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* register character device /dev/mcelog for xen mcelog */
 	ret = misc_register(&xen_mce_chrdev_device);

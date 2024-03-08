@@ -7,7 +7,7 @@
 #ifndef __UM_PGTABLE_3LEVEL_H
 #define __UM_PGTABLE_3LEVEL_H
 
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-analpud.h>
 
 /* PGDIR_SHIFT determines what a third-level page table entry can map */
 
@@ -52,7 +52,7 @@
         printk("%s:%d: bad pgd %p(%016lx).\n", __FILE__, __LINE__, &(e), \
 	       pgd_val(e))
 
-#define pud_none(x)	(!(pud_val(x) & ~_PAGE_NEWPAGE))
+#define pud_analne(x)	(!(pud_val(x) & ~_PAGE_NEWPAGE))
 #define	pud_bad(x)	((pud_val(x) & (~PAGE_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
 #define pud_present(x)	(pud_val(x) & _PAGE_PRESENT)
 #define pud_populate(mm, pud, pmd) \

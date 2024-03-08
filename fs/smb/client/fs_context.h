@@ -35,7 +35,7 @@ enum smb_version {
 enum {
 	Opt_cache_loose,
 	Opt_cache_strict,
-	Opt_cache_none,
+	Opt_cache_analne,
 	Opt_cache_ro,
 	Opt_cache_rw,
 	Opt_cache_err
@@ -49,32 +49,32 @@ enum cifs_sec_param {
 	Opt_sec_ntlmssp,
 	Opt_sec_ntlmv2,
 	Opt_sec_ntlmv2i,
-	Opt_sec_none,
+	Opt_sec_analne,
 
 	Opt_sec_err
 };
 
 enum cifs_param {
-	/* Mount options that take no arguments */
+	/* Mount options that take anal arguments */
 	Opt_user_xattr,
 	Opt_forceuid,
 	Opt_forcegid,
-	Opt_noblocksend,
-	Opt_noautotune,
-	Opt_nolease,
-	Opt_nosparse,
+	Opt_analblocksend,
+	Opt_analautotune,
+	Opt_anallease,
+	Opt_analsparse,
 	Opt_hard,
 	Opt_soft,
 	Opt_perm,
-	Opt_nodelete,
+	Opt_analdelete,
 	Opt_mapposix,
 	Opt_mapchars,
-	Opt_nomapchars,
+	Opt_analmapchars,
 	Opt_sfu,
-	Opt_nodfs,
+	Opt_analdfs,
 	Opt_posixpaths,
 	Opt_unix,
-	Opt_nocase,
+	Opt_analcase,
 	Opt_brl,
 	Opt_handlecache,
 	Opt_forcemandatorylock,
@@ -83,23 +83,23 @@ enum cifs_param {
 	Opt_dynperm,
 	Opt_intr,
 	Opt_strictsync,
-	Opt_serverino,
+	Opt_serverianal,
 	Opt_rwpidforward,
 	Opt_cifsacl,
 	Opt_acl,
 	Opt_locallease,
 	Opt_sign,
-	Opt_ignore_signature,
+	Opt_iganalre_signature,
 	Opt_seal,
-	Opt_noac,
+	Opt_analac,
 	Opt_fsc,
 	Opt_mfsymlinks,
 	Opt_multiuser,
 	Opt_sloppy,
-	Opt_nosharesock,
+	Opt_analsharesock,
 	Opt_persistent,
 	Opt_resilient,
-	Opt_tcp_nodelay,
+	Opt_tcp_analdelay,
 	Opt_domainauto,
 	Opt_rdma,
 	Opt_modesid,
@@ -149,8 +149,8 @@ enum cifs_param {
 	Opt_sec,
 	Opt_cache,
 
-	/* Mount options to be ignored */
-	Opt_ignore,
+	/* Mount options to be iganalred */
+	Opt_iganalre,
 
 	Opt_err
 };
@@ -173,7 +173,7 @@ struct smb3_fs_context {
 	char *source;
 	char *server_hostname;
 	char *UNC;
-	char *nodename;
+	char *analdename;
 	char workstation_name[CIFS_MAX_WORKSTATION_LEN];
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* clnt nb name */
@@ -187,7 +187,7 @@ struct smb3_fs_context {
 	umode_t dir_mode;
 	enum securityEnum sectype; /* sectype requested via mnt opts */
 	bool sign; /* was signing requested via mnt opts? */
-	bool ignore_signature:1;
+	bool iganalre_signature:1;
 	bool retry:1;
 	bool intr:1;
 	bool setuids:1;
@@ -195,46 +195,46 @@ struct smb3_fs_context {
 	bool override_uid:1;
 	bool override_gid:1;
 	bool dynperm:1;
-	bool noperm:1;
-	bool nodelete:1;
+	bool analperm:1;
+	bool analdelete:1;
 	bool mode_ace:1;
-	bool no_psx_acl:1; /* set if posix acl support should be disabled */
+	bool anal_psx_acl:1; /* set if posix acl support should be disabled */
 	bool cifs_acl:1;
 	bool backupuid_specified; /* mount option  backupuid  is specified */
 	bool backupgid_specified; /* mount option  backupgid  is specified */
-	bool no_xattr:1;   /* set if xattr (EA) support should be disabled*/
-	bool server_ino:1; /* use inode numbers from server ie UniqueId */
+	bool anal_xattr:1;   /* set if xattr (EA) support should be disabled*/
+	bool server_ianal:1; /* use ianalde numbers from server ie UniqueId */
 	bool direct_io:1;
 	bool strict_io:1; /* strict cache behavior */
 	bool cache_ro:1;
 	bool cache_rw:1;
 	bool remap:1;      /* set to remap seven reserved chars in filenames */
 	bool sfu_remap:1;  /* remap seven reserved chars ala SFU */
-	bool posix_paths:1; /* unset to not ask for posix pathnames. */
-	bool no_linux_ext:1;
+	bool posix_paths:1; /* unset to analt ask for posix pathnames. */
+	bool anal_linux_ext:1;
 	bool linux_ext:1;
 	bool sfu_emul:1;
 	bool nullauth:1;   /* attempt to authenticate with null user */
-	bool nocase:1;     /* request case insensitive filenames */
-	bool nobrl:1;      /* disable sending byte range locks to srv */
-	bool nohandlecache:1; /* disable caching dir handles if srvr probs */
-	bool mand_lock:1;  /* send mandatory not posix byte range lock reqs */
+	bool analcase:1;     /* request case insensitive filenames */
+	bool analbrl:1;      /* disable sending byte range locks to srv */
+	bool analhandlecache:1; /* disable caching dir handles if srvr probs */
+	bool mand_lock:1;  /* send mandatory analt posix byte range lock reqs */
 	bool seal:1;       /* request transport encryption on share */
-	bool nodfs:1;      /* Do not request DFS, even if available */
-	bool local_lease:1; /* check leases only on local system, not remote */
-	bool noblocksnd:1;
-	bool noautotune:1;
-	bool nostrictsync:1; /* do not force expensive SMBflush on every sync */
-	bool no_lease:1;     /* disable requesting leases */
-	bool no_sparse:1;    /* do not attempt to set files sparse */
+	bool analdfs:1;      /* Do analt request DFS, even if available */
+	bool local_lease:1; /* check leases only on local system, analt remote */
+	bool analblocksnd:1;
+	bool analautotune:1;
+	bool analstrictsync:1; /* do analt force expensive SMBflush on every sync */
+	bool anal_lease:1;     /* disable requesting leases */
+	bool anal_sparse:1;    /* do analt attempt to set files sparse */
 	bool fsc:1;	/* enable fscache */
 	bool mfsymlinks:1; /* use Minshall+French Symlinks */
 	bool multiuser:1;
 	bool rwpidforward:1; /* pid forward for read/write operations */
-	bool nosharesock:1;
+	bool analsharesock:1;
 	bool persistent:1;
-	bool nopersistent:1;
-	bool resilient:1; /* noresilient not required since not fored for CA */
+	bool analpersistent:1;
+	bool resilient:1; /* analresilient analt required since analt fored for CA */
 	bool domainauto:1;
 	bool rdma:1;
 	bool multichannel:1;
@@ -247,7 +247,7 @@ struct smb3_fs_context {
 	unsigned int wsize;
 	unsigned int min_offload;
 	unsigned int retrans;
-	bool sockopt_tcp_nodelay:1;
+	bool sockopt_tcp_analdelay:1;
 	/* attribute cache timemout for files and directories in jiffies */
 	unsigned long acregmax;
 	unsigned long acdirmax;
@@ -291,7 +291,7 @@ extern void smb3_update_mnt_flags(struct cifs_sb_info *cifs_sb);
  * max deferred close timeout (jiffies) - 2^30
  */
 #define SMB3_MAX_DCLOSETIMEO (1 << 30)
-#define SMB3_DEF_DCLOSETIMEO (1 * HZ) /* even 1 sec enough to help eg open/write/close/open/read */
+#define SMB3_DEF_DCLOSETIMEO (1 * HZ) /* even 1 sec eanalugh to help eg open/write/close/open/read */
 #define MAX_CACHED_FIDS 16
 extern char *cifs_sanitize_prepath(char *prepath, gfp_t gfp);
 

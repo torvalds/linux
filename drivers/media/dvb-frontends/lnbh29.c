@@ -146,7 +146,7 @@ struct dvb_frontend *lnbh29_attach(struct dvb_frontend *fe,
 	fe->sec_priv = priv;
 
 	if (lnbh29_set_voltage(fe, SEC_VOLTAGE_OFF)) {
-		dev_err(&i2c->dev, "no LNBH29 found at I2C addr 0x%02x\n",
+		dev_err(&i2c->dev, "anal LNBH29 found at I2C addr 0x%02x\n",
 			priv->i2c_address);
 		kfree(priv);
 		fe->sec_priv = NULL;

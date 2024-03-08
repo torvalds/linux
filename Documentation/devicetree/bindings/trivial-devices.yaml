@@ -35,7 +35,7 @@ properties:
           - ad,ad7414
             # ADM9240: Complete System Hardware Monitor for uProcessor-Based Systems
           - ad,adm9240
-            # AD5110 - Nonvolatile Digital Potentiometer
+            # AD5110 - Analnvolatile Digital Potentiometer
           - adi,ad5110
             # Analog Devices ADP5585 Keypad Decoder and I/O Expansion
           - adi,adp5585
@@ -75,7 +75,7 @@ properties:
           - dallas,ds1775
             # CPU Peripheral Monitor
           - dallas,ds1780
-            # CPU Supervisor with Nonvolatile Memory and Programmable I/O
+            # CPU Supervisor with Analnvolatile Memory and Programmable I/O
           - dallas,ds4510
             # Digital Thermometer and Thermostat
           - dallas,ds75
@@ -115,19 +115,19 @@ properties:
           - fsl,mpl3115
             # MPR121: Proximity Capacitive Touch Sensor Controller
           - fsl,mpr121
-            # Monolithic Power Systems Inc. multi-phase controller mp2856
+            # Moanallithic Power Systems Inc. multi-phase controller mp2856
           - mps,mp2856
-            # Monolithic Power Systems Inc. multi-phase controller mp2857
+            # Moanallithic Power Systems Inc. multi-phase controller mp2857
           - mps,mp2857
-            # Monolithic Power Systems Inc. multi-phase controller mp2888
+            # Moanallithic Power Systems Inc. multi-phase controller mp2888
           - mps,mp2888
-            # Monolithic Power Systems Inc. multi-phase controller mp2971
+            # Moanallithic Power Systems Inc. multi-phase controller mp2971
           - mps,mp2971
-            # Monolithic Power Systems Inc. multi-phase controller mp2973
+            # Moanallithic Power Systems Inc. multi-phase controller mp2973
           - mps,mp2973
-            # Monolithic Power Systems Inc. multi-phase controller mp2975
+            # Moanallithic Power Systems Inc. multi-phase controller mp2975
           - mps,mp2975
-            # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5990
+            # Moanallithic Power Systems Inc. multi-phase hot-swap controller mp5990
           - mps,mp5990
             # Honeywell Humidicon HIH-6130 humidity/temperature sensor
           - honeywell,hi6130
@@ -179,8 +179,8 @@ properties:
           - isil,isl68137
             # Intersil ISL76682 Ambient Light Sensor
           - isil,isl76682
-            # Linear Technology LTC2488
-          - lineartechnology,ltc2488
+            # Linear Techanallogy LTC2488
+          - lineartechanallogy,ltc2488
             # 5 Bit Programmable, Pulse-Width Modulator
           - maxim,ds1050
             # 10 kOhm digital potentiometer with I2C interface
@@ -239,7 +239,7 @@ properties:
           - memsic,mxc6655
             # Menlo on-board CPLD trivial SPI device
           - menlo,m53cpld
-            # Micron SPI NOR Authenta
+            # Micron SPI ANALR Authenta
           - micron,spi-authenta
             # Microchip differential I2C ADC, 1 Channel, 18 bit
           - microchip,mcp3421
@@ -317,8 +317,8 @@ properties:
           - rohm,dh2228fv
             # S524AD0XF1 (128K/256K-bit Serial EEPROM for Low Power)
           - samsung,24ad0xd1
-            # Samsung Exynos SoC SATA PHY I2C device
-          - samsung,exynos-sataphy-i2c
+            # Samsung Exyanals SoC SATA PHY I2C device
+          - samsung,exyanals-sataphy-i2c
             # Semtech sx1301 baseband processor
           - semtech,sx1301
             # Sensirion low power multi-pixel gas sensor with I2C interface

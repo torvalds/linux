@@ -41,7 +41,7 @@ static int aw8738_drv_event(struct snd_soc_dapm_widget *w,
 
 static const struct snd_soc_dapm_widget aw8738_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("IN"),
-	SND_SOC_DAPM_OUT_DRV_E("DRV", SND_SOC_NOPM, 0, 0, NULL, 0, aw8738_drv_event,
+	SND_SOC_DAPM_OUT_DRV_E("DRV", SND_SOC_ANALPM, 0, 0, NULL, 0, aw8738_drv_event,
 			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUTPUT("OUT"),
 };
@@ -66,7 +66,7 @@ static int aw8738_probe(struct platform_device *pdev)
 
 	aw = devm_kzalloc(dev, sizeof(*aw), GFP_KERNEL);
 	if (!aw)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, aw);
 
 	aw->gpiod_mode = devm_gpiod_get(dev, "mode", GPIOD_OUT_LOW);

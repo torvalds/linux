@@ -15,10 +15,10 @@ description: |
   powered up/down by software based on different application scenes to save power.
 
   IP cores belonging to a power domain should contain a 'power-domains'
-  property that is a phandle for SCPSYS node representing the domain.
+  property that is a phandle for SCPSYS analde representing the domain.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^power-controller(@[0-9a-f]+)?$'
 
   compatible:
@@ -44,33 +44,33 @@ properties:
 
 patternProperties:
   "^power-domain@[0-9a-f]+$":
-    $ref: "#/$defs/power-domain-node"
+    $ref: "#/$defs/power-domain-analde"
     patternProperties:
       "^power-domain@[0-9a-f]+$":
-        $ref: "#/$defs/power-domain-node"
+        $ref: "#/$defs/power-domain-analde"
         patternProperties:
           "^power-domain@[0-9a-f]+$":
-            $ref: "#/$defs/power-domain-node"
+            $ref: "#/$defs/power-domain-analde"
             patternProperties:
               "^power-domain@[0-9a-f]+$":
-                $ref: "#/$defs/power-domain-node"
+                $ref: "#/$defs/power-domain-analde"
                 unevaluatedProperties: false
             unevaluatedProperties: false
         unevaluatedProperties: false
     unevaluatedProperties: false
 
 $defs:
-  power-domain-node:
+  power-domain-analde:
     type: object
     description: |
-      Represents the power domains within the power controller node as documented
+      Represents the power domains within the power controller analde as documented
       in Documentation/devicetree/bindings/power/power-domain.yaml.
 
     properties:
 
       '#power-domain-cells':
         description:
-          Must be 0 for nodes representing a single PM domain and 1 for nodes
+          Must be 0 for analdes representing a single PM domain and 1 for analdes
           providing multiple PM domains.
 
       '#address-cells':
@@ -102,7 +102,7 @@ $defs:
           List of names of clocks, in order to match the power-up sequencing
           for each power domain we need to group the clocks by name. BASIC
           clocks need to be enabled before enabling the corresponding power
-          domain, and should not have a '-' in their name (i.e mm, mfg, venc).
+          domain, and should analt have a '-' in their name (i.e mm, mfg, venc).
           SUSBYS clocks need to be enabled before releasing the bus protection,
           and should contain a '-' in their name (i.e mm-0, isp-0, cam-0).
 

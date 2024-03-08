@@ -35,7 +35,7 @@ topology_sibling_cpumask() which corresponds with thread_siblings).
 
 To be consistent on all architectures, include/linux/topology.h
 provides default definitions for any of the above macros that are
-not defined by include/asm-XXX/topology.h:
+analt defined by include/asm-XXX/topology.h:
 
 1) topology_physical_package_id: -1
 2) topology_die_id: -1
@@ -58,7 +58,7 @@ source for the output is in brackets ("[]").
     kernel_max: the maximum CPU index allowed by the kernel configuration.
 		[NR_CPUS-1]
 
-    offline:	CPUs that are not online because they have been
+    offline:	CPUs that are analt online because they have been
 		HOTPLUGGED off or exceed the limit of CPUs allowed by the
 		kernel configuration (kernel_max above).
 		[~cpu_online_mask + cpus >= NR_CPUS]
@@ -77,7 +77,7 @@ The format for the above output is compatible with cpulist_parse()
 
 In this example, there are 64 CPUs in the system but cpus 32-63 exceed
 the kernel max which is limited to 0..31 by the NR_CPUS config option
-being 32.  Note also that CPUs 2 and 4-31 are not online but could be
+being 32.  Analte also that CPUs 2 and 4-31 are analt online but could be
 brought online as they are both present and possible::
 
      kernel_max: 31

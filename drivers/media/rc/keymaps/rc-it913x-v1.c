@@ -56,7 +56,7 @@ static struct rc_map_table it913x_v1_rc[] = {
 	{ 0x807f12, KEY_POWER },
 	{ 0x807f01, KEY_MEDIA_REPEAT}, /* Recall */
 	{ 0x807f19, KEY_PAUSE }, /* Timeshift */
-	{ 0x807f1e, KEY_VOLUMEUP }, /* 2 x -/+ Keys not marked */
+	{ 0x807f1e, KEY_VOLUMEUP }, /* 2 x -/+ Keys analt marked */
 	{ 0x807f03, KEY_VOLUMEDOWN }, /* Volume defined as right hand*/
 	{ 0x807f1a, KEY_CHANNELUP },
 	{ 0x807f02, KEY_CHANNELDOWN },

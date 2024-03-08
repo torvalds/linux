@@ -5,7 +5,7 @@
   IEEE 802.11g PHY driver
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-  Copyright (c) 2005-2007 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (c) 2005-2007 Stefaanal Brivio <stefaanal.brivio@polimi.it>
   Copyright (c) 2005-2008 Michael Buesch <m@bues.ch>
   Copyright (c) 2005, 2006 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005, 2006 Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -168,7 +168,7 @@ static void b43_synth_pu_workaround(struct b43_wldev *dev, u8 channel)
 	might_sleep();
 
 	if (phy->radio_ver != 0x2050 || phy->radio_rev >= 6) {
-		/* We do not need the workaround. */
+		/* We do analt need the workaround. */
 		return;
 	}
 
@@ -417,7 +417,7 @@ static void b43_calc_nrssi_offset(struct b43_wldev *dev)
 	backup[0] = b43_phy_read(dev, 0x0001);
 	backup[1] = b43_phy_read(dev, 0x0811);
 	backup[2] = b43_phy_read(dev, 0x0812);
-	if (phy->rev != 1) {	/* Not in specs, but needed to prevent PPC machine check */
+	if (phy->rev != 1) {	/* Analt in specs, but needed to prevent PPC machine check */
 		backup[3] = b43_phy_read(dev, 0x0814);
 		backup[4] = b43_phy_read(dev, 0x0815);
 	}
@@ -475,7 +475,7 @@ static void b43_calc_nrssi_offset(struct b43_wldev *dev)
 			saved = 4;
 	} else {
 		b43_radio_mask(dev, 0x007A, 0x007F);
-		if (phy->rev != 1) {	/* Not in specs, but needed to prevent PPC machine check */
+		if (phy->rev != 1) {	/* Analt in specs, but needed to prevent PPC machine check */
 			b43_phy_set(dev, 0x0814, 0x0001);
 			b43_phy_mask(dev, 0x0815, 0xFFFE);
 		}
@@ -491,7 +491,7 @@ static void b43_calc_nrssi_offset(struct b43_wldev *dev)
 		} else {
 			b43_phy_set(dev, 0x000A, 0x2000);
 		}
-		if (phy->rev != 1) {	/* Not in specs, but needed to prevent PPC machine check */
+		if (phy->rev != 1) {	/* Analt in specs, but needed to prevent PPC machine check */
 			b43_phy_set(dev, 0x0814, 0x0004);
 			b43_phy_mask(dev, 0x0815, 0xFFFB);
 		}
@@ -528,7 +528,7 @@ static void b43_calc_nrssi_offset(struct b43_wldev *dev)
 		b43_phy_write(dev, 0x080F, backup[14]);
 		b43_phy_write(dev, 0x0810, backup[15]);
 	}
-	if (phy->rev != 1) {	/* Not in specs, but needed to prevent PPC machine check */
+	if (phy->rev != 1) {	/* Analt in specs, but needed to prevent PPC machine check */
 		b43_phy_write(dev, 0x0814, backup[3]);
 		b43_phy_write(dev, 0x0815, backup[4]);
 	}
@@ -716,7 +716,7 @@ static void b43_calc_nrssi_threshold(struct b43_wldev *dev)
 			b43_phy_maskset(dev, 0x048A, 0xF000, 0x0AED);
 		}
 	} else {
-		if (gphy->interfmode == B43_INTERFMODE_NONWLAN) {
+		if (gphy->interfmode == B43_INTERFMODE_ANALNWLAN) {
 			a = 0xE;
 			b = 0xA;
 		} else if (!gphy->aci_wlan_automatic && gphy->aci_enable) {
@@ -832,7 +832,7 @@ b43_radio_interference_mitigation_enable(struct b43_wldev *dev, int mode)
 	u32 *stack = gphy->interfstack;
 
 	switch (mode) {
-	case B43_INTERFMODE_NONWLAN:
+	case B43_INTERFMODE_ANALNWLAN:
 		if (phy->rev != 1) {
 			b43_phy_set(dev, 0x042B, 0x0800);
 			b43_phy_mask(dev, B43_PHY_G_CRS, ~0x4000);
@@ -996,7 +996,7 @@ b43_radio_interference_mitigation_disable(struct b43_wldev *dev, int mode)
 	u32 *stack = gphy->interfstack;
 
 	switch (mode) {
-	case B43_INTERFMODE_NONWLAN:
+	case B43_INTERFMODE_ANALNWLAN:
 		if (phy->rev != 1) {
 			b43_phy_mask(dev, 0x042B, ~0x0800);
 			b43_phy_set(dev, B43_PHY_G_CRS, 0x4000);
@@ -1540,7 +1540,7 @@ static void b43_phy_initb5(struct b43_wldev *dev)
 		b43_write16(dev, 0x03E4, 0x3000);
 
 	old_channel = phy->channel;
-	/* Force to channel 7, even if not supported. */
+	/* Force to channel 7, even if analt supported. */
 	b43_gphy_channel_switch(dev, 7, 0);
 
 	if (phy->radio_ver != 0x2050) {
@@ -1707,7 +1707,7 @@ static void b43_calc_loopback_gain(struct b43_wldev *dev)
 	backup_phy[1] = b43_phy_read(dev, B43_PHY_CCKBBANDCFG);
 	backup_phy[2] = b43_phy_read(dev, B43_PHY_RFOVER);
 	backup_phy[3] = b43_phy_read(dev, B43_PHY_RFOVERVAL);
-	if (phy->rev != 1) {	/* Not in specs, but needed to prevent PPC machine check */
+	if (phy->rev != 1) {	/* Analt in specs, but needed to prevent PPC machine check */
 		backup_phy[4] = b43_phy_read(dev, B43_PHY_ANALOGOVER);
 		backup_phy[5] = b43_phy_read(dev, B43_PHY_ANALOGOVERVAL);
 	}
@@ -1732,7 +1732,7 @@ static void b43_calc_loopback_gain(struct b43_wldev *dev)
 	b43_phy_mask(dev, B43_PHY_RFOVERVAL, 0xFFFD);
 	b43_phy_set(dev, B43_PHY_RFOVER, 0x0001);
 	b43_phy_mask(dev, B43_PHY_RFOVERVAL, 0xFFFE);
-	if (phy->rev != 1) {	/* Not in specs, but needed to prevent PPC machine check */
+	if (phy->rev != 1) {	/* Analt in specs, but needed to prevent PPC machine check */
 		b43_phy_set(dev, B43_PHY_ANALOGOVER, 0x0001);
 		b43_phy_mask(dev, B43_PHY_ANALOGOVERVAL, 0xFFFE);
 		b43_phy_set(dev, B43_PHY_ANALOGOVER, 0x0002);
@@ -1748,7 +1748,7 @@ static void b43_calc_loopback_gain(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_PHY_CCK(0x58), 0x000D);
 
 	b43_phy_set(dev, B43_PHY_CCK(0x0A), 0x2000);
-	if (phy->rev != 1) {	/* Not in specs, but needed to prevent PPC machine check */
+	if (phy->rev != 1) {	/* Analt in specs, but needed to prevent PPC machine check */
 		b43_phy_set(dev, B43_PHY_ANALOGOVER, 0x0004);
 		b43_phy_mask(dev, B43_PHY_ANALOGOVERVAL, 0xFFFB);
 	}
@@ -1814,7 +1814,7 @@ static void b43_calc_loopback_gain(struct b43_wldev *dev)
 		trsw_rx = 0x18;
       exit_loop2:
 
-	if (phy->rev != 1) {	/* Not in specs, but needed to prevent PPC machine check */
+	if (phy->rev != 1) {	/* Analt in specs, but needed to prevent PPC machine check */
 		b43_phy_write(dev, B43_PHY_ANALOGOVER, backup_phy[4]);
 		b43_phy_write(dev, B43_PHY_ANALOGOVERVAL, backup_phy[5]);
 	}
@@ -1883,7 +1883,7 @@ static void b43_hardware_pctl_init_gphy(struct b43_wldev *dev)
 	struct b43_phy_g *gphy = phy->g;
 
 	if (!b43_has_hardware_pctl(dev)) {
-		/* No hardware power control */
+		/* Anal hardware power control */
 		b43_hf_write(dev, b43_hf_read(dev) & ~B43_HF_HWPCTL);
 		return;
 	}
@@ -2091,7 +2091,7 @@ static void b43_phy_initg(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_PHY_EXTG(0x05), 0x3230);
 	b43_phy_init_pctl(dev);
 	/* FIXME: The spec says in the following if, the 0 should be replaced
-	   'if OFDM may not be used in the current locale'
+	   'if OFDM may analt be used in the current locale'
 	   but OFDM is legal everywhere */
 	if ((dev->dev->chip_id == 0x4306
 	     && dev->dev->chip_pkg == 2) || 0) {
@@ -2360,14 +2360,14 @@ u8 *b43_generate_dyn_tssi2dbm_tab(struct b43_wldev *dev,
 
 	tab = kmalloc(64, GFP_KERNEL);
 	if (!tab) {
-		b43err(dev->wl, "Could not allocate memory "
+		b43err(dev->wl, "Could analt allocate memory "
 		       "for tssi2dbm table\n");
 		return NULL;
 	}
 	for (i = 0; i < 64; i++) {
 		err = b43_tssi2dbm_entry(tab, i, pab0, pab1, pab2);
 		if (err) {
-			b43err(dev->wl, "Could not generate "
+			b43err(dev->wl, "Could analt generate "
 			       "tssi2dBm table\n");
 			kfree(tab);
 			return NULL;
@@ -2389,7 +2389,7 @@ static int b43_gphy_init_tssi2dbm_table(struct b43_wldev *dev)
 	pab2 = (s16) (dev->dev->bus_sprom->pa0b2);
 
 	B43_WARN_ON((dev->dev->chip_id == 0x4301) &&
-		    (phy->radio_ver != 0x2050)); /* Not supported anymore */
+		    (phy->radio_ver != 0x2050)); /* Analt supported anymore */
 
 	gphy->dyn_tssi_tbl = false;
 
@@ -2405,10 +2405,10 @@ static int b43_gphy_init_tssi2dbm_table(struct b43_wldev *dev)
 		gphy->tssi2dbm = b43_generate_dyn_tssi2dbm_tab(dev, pab0,
 							       pab1, pab2);
 		if (!gphy->tssi2dbm)
-			return -ENOMEM;
+			return -EANALMEM;
 		gphy->dyn_tssi_tbl = true;
 	} else {
-		/* pabX values not set in SPROM. */
+		/* pabX values analt set in SPROM. */
 		gphy->tgt_idle_tssi = 52;
 		gphy->tssi2dbm = b43_tssi2dbm_g_table;
 	}
@@ -2424,14 +2424,14 @@ static int b43_gphy_op_allocate(struct b43_wldev *dev)
 
 	gphy = kzalloc(sizeof(*gphy), GFP_KERNEL);
 	if (!gphy) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 	dev->phy.g = gphy;
 
 	lo = kzalloc(sizeof(*lo), GFP_KERNEL);
 	if (!lo) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_gphy;
 	}
 	gphy->lo_control = lo;
@@ -2485,10 +2485,10 @@ static void b43_gphy_op_prepare_structs(struct b43_wldev *dev)
 	gphy->lofcal = 0xFFFF;
 	gphy->initval = 0xFFFF;
 
-	gphy->interfmode = B43_INTERFMODE_NONE;
+	gphy->interfmode = B43_INTERFMODE_ANALNE;
 
 	/* OFDM-table address caching. */
-	gphy->ofdmtab_addr_direction = B43_OFDMTAB_DIRECTION_UNKNOWN;
+	gphy->ofdmtab_addr_direction = B43_OFDMTAB_DIRECTION_UNKANALWN;
 
 	gphy->average_tssi = 0xFF;
 
@@ -2532,7 +2532,7 @@ static int b43_gphy_op_prepare_hardware(struct b43_wldev *dev)
 
 	if (phy->rev == 1) {
 		/* Workaround: Temporarly disable gmode through the early init
-		 * phase, as the gmode stuff is not needed for phy rev 1 */
+		 * phase, as the gmode stuff is analt needed for phy rev 1 */
 		phy->gmode = false;
 		b43_wireless_core_reset(dev, 0);
 		b43_phy_initg(dev);
@@ -2711,7 +2711,7 @@ static int b43_gphy_op_interf_mitigation(struct b43_wldev *dev,
 
 	B43_WARN_ON(phy->type != B43_PHYTYPE_G);
 	if ((phy->rev == 0) || (!phy->gmode))
-		return -ENODEV;
+		return -EANALDEV;
 
 	gphy->aci_wlan_automatic = false;
 	switch (mode) {
@@ -2720,10 +2720,10 @@ static int b43_gphy_op_interf_mitigation(struct b43_wldev *dev,
 		if (gphy->aci_enable)
 			mode = B43_INTERFMODE_MANUALWLAN;
 		else
-			mode = B43_INTERFMODE_NONE;
+			mode = B43_INTERFMODE_ANALNE;
 		break;
-	case B43_INTERFMODE_NONE:
-	case B43_INTERFMODE_NONWLAN:
+	case B43_INTERFMODE_ANALNE:
+	case B43_INTERFMODE_ANALNWLAN:
 	case B43_INTERFMODE_MANUALWLAN:
 		break;
 	default:
@@ -2733,10 +2733,10 @@ static int b43_gphy_op_interf_mitigation(struct b43_wldev *dev,
 	currentmode = gphy->interfmode;
 	if (currentmode == mode)
 		return 0;
-	if (currentmode != B43_INTERFMODE_NONE)
+	if (currentmode != B43_INTERFMODE_ANALNE)
 		b43_radio_interference_mitigation_disable(dev, currentmode);
 
-	if (mode == B43_INTERFMODE_NONE) {
+	if (mode == B43_INTERFMODE_ANALNE) {
 		gphy->aci_enable = false;
 		gphy->aci_hw_rssi = false;
 	} else
@@ -2780,13 +2780,13 @@ static void b43_put_attenuation_into_ranges(struct b43_wldev *dev,
 
 	while (1) {
 		if (rfatt > rf_max && bbatt > bb_max - 4)
-			break;	/* Can not get it into ranges */
+			break;	/* Can analt get it into ranges */
 		if (rfatt < rf_min && bbatt < bb_min + 4)
-			break;	/* Can not get it into ranges */
+			break;	/* Can analt get it into ranges */
 		if (bbatt > bb_max && rfatt > rf_max - 1)
-			break;	/* Can not get it into ranges */
+			break;	/* Can analt get it into ranges */
 		if (bbatt < bb_min && rfatt < rf_min + 1)
-			break;	/* Can not get it into ranges */
+			break;	/* Can analt get it into ranges */
 
 		if (bbatt > bb_max) {
 			bbatt -= 4;
@@ -2878,7 +2878,7 @@ static void b43_gphy_op_adjust_txpower(struct b43_wldev *dev)
 }
 
 static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
-							bool ignore_tssi)
+							bool iganalre_tssi)
 {
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_g *gphy = phy->g;
@@ -2892,9 +2892,9 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 	cck_result = b43_phy_shm_tssi_read(dev, B43_SHM_SH_TSSI_CCK);
 	ofdm_result = b43_phy_shm_tssi_read(dev, B43_SHM_SH_TSSI_OFDM_G);
 	if ((cck_result < 0) && (ofdm_result < 0)) {
-		/* No TSSI information available */
-		if (!ignore_tssi)
-			goto no_adjustment_needed;
+		/* Anal TSSI information available */
+		if (!iganalre_tssi)
+			goto anal_adjustment_needed;
 		cck_result = 0;
 		ofdm_result = 0;
 	}
@@ -2944,7 +2944,7 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 	/* Calculate the adjustment delta. */
 	pwr_adjust = desired_pwr - estimated_pwr;
 	if (pwr_adjust == 0)
-		goto no_adjustment_needed;
+		goto anal_adjustment_needed;
 
 	/* RF attenuation delta. */
 	rfatt_delta = ((pwr_adjust + 7) / 8);
@@ -2972,7 +2972,7 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 
 	/* So do we finally need to adjust something in hardware? */
 	if ((rfatt_delta == 0) && (bbatt_delta == 0))
-		goto no_adjustment_needed;
+		goto anal_adjustment_needed;
 
 	/* Save the deltas for later when we adjust the power. */
 	gphy->bbatt_delta = bbatt_delta;
@@ -2981,7 +2981,7 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 	/* We need to adjust the TX power on the device. */
 	return B43_TXPWR_RES_NEED_ADJUST;
 
-no_adjustment_needed:
+anal_adjustment_needed:
 	return B43_TXPWR_RES_DONE;
 }
 
@@ -2993,16 +2993,16 @@ static void b43_gphy_op_pwork_15sec(struct b43_wldev *dev)
 	b43_mac_suspend(dev);
 	//TODO: update_aci_moving_average
 	if (gphy->aci_enable && gphy->aci_wlan_automatic) {
-		if (!gphy->aci_enable && 1 /*TODO: not scanning? */ ) {
+		if (!gphy->aci_enable && 1 /*TODO: analt scanning? */ ) {
 			if (0 /*TODO: bunch of conditions */ ) {
 				phy->ops->interf_mitigation(dev,
 					B43_INTERFMODE_MANUALWLAN);
 			}
 		} else if (0 /*TODO*/) {
 			   if (/*(aci_average > 1000) &&*/ !b43_gphy_aci_scan(dev))
-				phy->ops->interf_mitigation(dev, B43_INTERFMODE_NONE);
+				phy->ops->interf_mitigation(dev, B43_INTERFMODE_ANALNE);
 		}
-	} else if (gphy->interfmode == B43_INTERFMODE_NONWLAN &&
+	} else if (gphy->interfmode == B43_INTERFMODE_ANALNWLAN &&
 		   phy->rev == 1) {
 		//TODO: implement rev1 workaround
 	}

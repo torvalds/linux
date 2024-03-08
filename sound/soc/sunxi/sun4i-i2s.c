@@ -34,10 +34,10 @@
 #define SUN4I_I2S_FMT0_REG		0x04
 #define SUN4I_I2S_FMT0_LRCLK_POLARITY_MASK	BIT(7)
 #define SUN4I_I2S_FMT0_LRCLK_POLARITY_INVERTED		(1 << 7)
-#define SUN4I_I2S_FMT0_LRCLK_POLARITY_NORMAL		(0 << 7)
+#define SUN4I_I2S_FMT0_LRCLK_POLARITY_ANALRMAL		(0 << 7)
 #define SUN4I_I2S_FMT0_BCLK_POLARITY_MASK	BIT(6)
 #define SUN4I_I2S_FMT0_BCLK_POLARITY_INVERTED		(1 << 6)
-#define SUN4I_I2S_FMT0_BCLK_POLARITY_NORMAL		(0 << 6)
+#define SUN4I_I2S_FMT0_BCLK_POLARITY_ANALRMAL		(0 << 6)
 #define SUN4I_I2S_FMT0_SR_MASK			GENMASK(5, 4)
 #define SUN4I_I2S_FMT0_SR(sr)				((sr) << 4)
 #define SUN4I_I2S_FMT0_WSS_MASK			GENMASK(3, 2)
@@ -101,12 +101,12 @@
 
 #define SUN8I_I2S_FMT0_LRCLK_POLARITY_MASK	BIT(19)
 #define SUN8I_I2S_FMT0_LRCLK_POLARITY_INVERTED		(1 << 19)
-#define SUN8I_I2S_FMT0_LRCLK_POLARITY_NORMAL		(0 << 19)
+#define SUN8I_I2S_FMT0_LRCLK_POLARITY_ANALRMAL		(0 << 19)
 #define SUN8I_I2S_FMT0_LRCK_PERIOD_MASK		GENMASK(17, 8)
 #define SUN8I_I2S_FMT0_LRCK_PERIOD(period)	((period - 1) << 8)
 #define SUN8I_I2S_FMT0_BCLK_POLARITY_MASK	BIT(7)
 #define SUN8I_I2S_FMT0_BCLK_POLARITY_INVERTED		(1 << 7)
-#define SUN8I_I2S_FMT0_BCLK_POLARITY_NORMAL		(0 << 7)
+#define SUN8I_I2S_FMT0_BCLK_POLARITY_ANALRMAL		(0 << 7)
 
 #define SUN8I_I2S_FMT1_REG_SEXT_MASK		GENMASK(5, 4)
 #define SUN8I_I2S_FMT1_REG_SEXT(sext)			((sext) << 4)
@@ -1506,7 +1506,7 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, i2s);
 
 	regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
@@ -1520,7 +1520,7 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 	i2s->variant = of_device_get_match_data(&pdev->dev);
 	if (!i2s->variant) {
 		dev_err(&pdev->dev, "Failed to determine the quirks to use\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	i2s->bus_clk = devm_clk_get(&pdev->dev, "apb");
@@ -1575,13 +1575,13 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 
 	ret = sun4i_i2s_init_regmap_fields(&pdev->dev, i2s);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not initialise regmap fields\n");
+		dev_err(&pdev->dev, "Could analt initialise regmap fields\n");
 		goto err_suspend;
 	}
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM\n");
+		dev_err(&pdev->dev, "Could analt register PCM\n");
 		goto err_suspend;
 	}
 
@@ -1589,7 +1589,7 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 					      &sun4i_i2s_component,
 					      &sun4i_i2s_dai, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI\n");
+		dev_err(&pdev->dev, "Could analt register DAI\n");
 		goto err_suspend;
 	}
 

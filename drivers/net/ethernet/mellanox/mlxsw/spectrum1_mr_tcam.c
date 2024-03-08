@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/parman.h>
@@ -36,7 +36,7 @@ static int mlxsw_sp1_mr_tcam_route_replace(struct mlxsw_sp *mlxsw_sp,
 	case MLXSW_SP_L3_PROTO_IPV4:
 		mlxsw_reg_rmft2_ipv4_pack(rmft2_pl, true, parman_item->index,
 					  key->vrid,
-					  MLXSW_REG_RMFT2_IRIF_MASK_IGNORE, 0,
+					  MLXSW_REG_RMFT2_IRIF_MASK_IGANALRE, 0,
 					  ntohl(key->group.addr4),
 					  ntohl(key->group_mask.addr4),
 					  ntohl(key->source.addr4),
@@ -46,7 +46,7 @@ static int mlxsw_sp1_mr_tcam_route_replace(struct mlxsw_sp *mlxsw_sp,
 	case MLXSW_SP_L3_PROTO_IPV6:
 		mlxsw_reg_rmft2_ipv6_pack(rmft2_pl, true, parman_item->index,
 					  key->vrid,
-					  MLXSW_REG_RMFT2_IRIF_MASK_IGNORE, 0,
+					  MLXSW_REG_RMFT2_IRIF_MASK_IGANALRE, 0,
 					  key->group.addr6,
 					  key->group_mask.addr6,
 					  key->source.addr6,
@@ -254,7 +254,7 @@ mlxsw_sp1_mr_tcam_region_init(struct mlxsw_sp *mlxsw_sp,
 	parman = parman_create(&mlxsw_sp1_mr_tcam_region_parman_ops,
 			       mr_tcam_region);
 	if (!parman) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_parman_create;
 	}
 	mr_tcam_region->parman = parman;
@@ -262,7 +262,7 @@ mlxsw_sp1_mr_tcam_region_init(struct mlxsw_sp *mlxsw_sp,
 	parman_prios = kmalloc_array(MLXSW_SP_MR_ROUTE_PRIO_MAX + 1,
 				     sizeof(*parman_prios), GFP_KERNEL);
 	if (!parman_prios) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_parman_prios_alloc;
 	}
 	mr_tcam_region->parman_prios = parman_prios;

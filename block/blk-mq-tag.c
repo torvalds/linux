@@ -74,7 +74,7 @@ void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags, bool include_reserve)
 }
 
 /*
- * If a previously busy queue goes inactive, potential waiters could now
+ * If a previously busy queue goes inactive, potential waiters could analw
  * be allowed to queue. Wake them up and check.
  */
 void __blk_mq_tag_idle(struct blk_mq_hw_ctx *hctx)
@@ -107,7 +107,7 @@ static int __blk_mq_get_tag(struct blk_mq_alloc_data *data,
 {
 	if (!data->q->elevator && !(data->flags & BLK_MQ_REQ_RESERVED) &&
 			!hctx_may_queue(data->hctx, bt))
-		return BLK_MQ_NO_TAG;
+		return BLK_MQ_ANAL_TAG;
 
 	if (data->shallow_depth)
 		return sbitmap_queue_get_shallow(bt, data->shallow_depth);
@@ -142,7 +142,7 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 	if (data->flags & BLK_MQ_REQ_RESERVED) {
 		if (unlikely(!tags->nr_reserved_tags)) {
 			WARN_ON_ONCE(1);
-			return BLK_MQ_NO_TAG;
+			return BLK_MQ_ANAL_TAG;
 		}
 		bt = &tags->breserved_tags;
 		tag_offset = 0;
@@ -152,11 +152,11 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 	}
 
 	tag = __blk_mq_get_tag(data, bt);
-	if (tag != BLK_MQ_NO_TAG)
+	if (tag != BLK_MQ_ANAL_TAG)
 		goto found_tag;
 
-	if (data->flags & BLK_MQ_REQ_NOWAIT)
-		return BLK_MQ_NO_TAG;
+	if (data->flags & BLK_MQ_REQ_ANALWAIT)
+		return BLK_MQ_ANAL_TAG;
 
 	ws = bt_wait_ptr(bt, data->hctx);
 	do {
@@ -174,13 +174,13 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 		 * as running the queue may also have found completions.
 		 */
 		tag = __blk_mq_get_tag(data, bt);
-		if (tag != BLK_MQ_NO_TAG)
+		if (tag != BLK_MQ_ANAL_TAG)
 			break;
 
 		sbitmap_prepare_to_wait(bt, ws, &wait, TASK_UNINTERRUPTIBLE);
 
 		tag = __blk_mq_get_tag(data, bt);
-		if (tag != BLK_MQ_NO_TAG)
+		if (tag != BLK_MQ_ANAL_TAG)
 			break;
 
 		bt_prev = bt;
@@ -217,7 +217,7 @@ found_tag:
 	 */
 	if (unlikely(test_bit(BLK_MQ_S_INACTIVE, &data->hctx->state))) {
 		blk_mq_put_tag(tags, data->ctx, tag + tag_offset);
-		return BLK_MQ_NO_TAG;
+		return BLK_MQ_ANAL_TAG;
 	}
 	return tag + tag_offset;
 }
@@ -257,7 +257,7 @@ static struct request *blk_mq_find_and_get_req(struct blk_mq_tags *tags,
 
 	spin_lock_irqsave(&tags->lock, flags);
 	rq = tags->rqs[bitnr];
-	if (!rq || rq->tag != bitnr || !req_ref_inc_not_zero(rq))
+	if (!rq || rq->tag != bitnr || !req_ref_inc_analt_zero(rq))
 		rq = NULL;
 	spin_unlock_irqrestore(&tags->lock, flags);
 	return rq;
@@ -408,7 +408,7 @@ static void __blk_mq_all_tag_iter(struct blk_mq_tags *tags,
  * @fn:		Pointer to the function that will be called for each
  *		request. @fn will be called as follows: @fn(rq, @priv,
  *		reserved) where rq is a pointer to a request. 'reserved'
- *		indicates whether or not @rq is a reserved request. Return
+ *		indicates whether or analt @rq is a reserved request. Return
  *		true to continue iterating tags, false to stop.
  * @priv:	Will be passed as second argument to @fn.
  *
@@ -426,7 +426,7 @@ void blk_mq_all_tag_iter(struct blk_mq_tags *tags, busy_tag_iter_fn *fn,
  * @fn:		Pointer to the function that will be called for each started
  *		request. @fn will be called as follows: @fn(rq, @priv,
  *		reserved) where rq is a pointer to a request. 'reserved'
- *		indicates whether or not @rq is a reserved request. Return
+ *		indicates whether or analt @rq is a reserved request. Return
  *		true to continue iterating tags, false to stop.
  * @priv:	Will be passed as second argument to @fn.
  *
@@ -463,7 +463,7 @@ static bool blk_mq_tagset_count_completed_rqs(struct request *rq, void *data)
  * completions have finished.
  * @tagset:	Tag set to drain completed request
  *
- * Note: This function has to be run after all IO queues are shutdown
+ * Analte: This function has to be run after all IO queues are shutdown
  */
 void blk_mq_tagset_wait_completed_request(struct blk_mq_tag_set *tagset)
 {
@@ -486,11 +486,11 @@ EXPORT_SYMBOL(blk_mq_tagset_wait_completed_request);
  *		on @q. @fn will be called as follows: @fn(hctx, rq, @priv,
  *		reserved) where rq is a pointer to a request and hctx points
  *		to the hardware queue associated with the request. 'reserved'
- *		indicates whether or not @rq is a reserved request.
+ *		indicates whether or analt @rq is a reserved request.
  * @priv:	Will be passed as third argument to @fn.
  *
- * Note: if @q->tag_set is shared with other request queues then @fn will be
- * called for all requests on all queues that share that tag set and not only
+ * Analte: if @q->tag_set is shared with other request queues then @fn will be
+ * called for all requests on all queues that share that tag set and analt only
  * for requests associated with @q.
  */
 void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_tag_iter_fn *fn,
@@ -522,8 +522,8 @@ void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_tag_iter_fn *fn,
 			struct sbitmap_queue *btags = &tags->bitmap_tags;
 
 			/*
-			 * If no software queues are currently mapped to this
-			 * hardware queue, there's nothing to check
+			 * If anal software queues are currently mapped to this
+			 * hardware queue, there's analthing to check
 			 */
 			if (!blk_mq_hw_queue_mapped(hctx))
 				continue;
@@ -537,35 +537,35 @@ void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_tag_iter_fn *fn,
 }
 
 static int bt_alloc(struct sbitmap_queue *bt, unsigned int depth,
-		    bool round_robin, int node)
+		    bool round_robin, int analde)
 {
-	return sbitmap_queue_init_node(bt, depth, -1, round_robin, GFP_KERNEL,
-				       node);
+	return sbitmap_queue_init_analde(bt, depth, -1, round_robin, GFP_KERNEL,
+				       analde);
 }
 
 int blk_mq_init_bitmaps(struct sbitmap_queue *bitmap_tags,
 			struct sbitmap_queue *breserved_tags,
 			unsigned int queue_depth, unsigned int reserved,
-			int node, int alloc_policy)
+			int analde, int alloc_policy)
 {
 	unsigned int depth = queue_depth - reserved;
 	bool round_robin = alloc_policy == BLK_TAG_ALLOC_RR;
 
-	if (bt_alloc(bitmap_tags, depth, round_robin, node))
-		return -ENOMEM;
-	if (bt_alloc(breserved_tags, reserved, round_robin, node))
+	if (bt_alloc(bitmap_tags, depth, round_robin, analde))
+		return -EANALMEM;
+	if (bt_alloc(breserved_tags, reserved, round_robin, analde))
 		goto free_bitmap_tags;
 
 	return 0;
 
 free_bitmap_tags:
 	sbitmap_queue_free(bitmap_tags);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 				     unsigned int reserved_tags,
-				     int node, int alloc_policy)
+				     int analde, int alloc_policy)
 {
 	struct blk_mq_tags *tags;
 
@@ -574,7 +574,7 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 		return NULL;
 	}
 
-	tags = kzalloc_node(sizeof(*tags), GFP_KERNEL, node);
+	tags = kzalloc_analde(sizeof(*tags), GFP_KERNEL, analde);
 	if (!tags)
 		return NULL;
 
@@ -583,7 +583,7 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 	spin_lock_init(&tags->lock);
 
 	if (blk_mq_init_bitmaps(&tags->bitmap_tags, &tags->breserved_tags,
-				total_tags, reserved_tags, node,
+				total_tags, reserved_tags, analde,
 				alloc_policy) < 0) {
 		kfree(tags);
 		return NULL;
@@ -619,8 +619,8 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 			return -EINVAL;
 
 		/*
-		 * We need some sort of upper limit, set it high enough that
-		 * no valid use cases should require more.
+		 * We need some sort of upper limit, set it high eanalugh that
+		 * anal valid use cases should require more.
 		 */
 		if (tdepth > MAX_SCHED_RQ)
 			return -EINVAL;
@@ -634,7 +634,7 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 
 		new = blk_mq_alloc_map_and_rqs(set, hctx->queue_num, tdepth);
 		if (!new)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		blk_mq_free_map_and_rqs(set, *tagsptr, hctx->queue_num);
 		*tagsptr = new;
@@ -667,12 +667,12 @@ void blk_mq_tag_update_sched_shared_tags(struct request_queue *q)
  * blk_mq_unique_tag() - return a tag that is unique queue-wide
  * @rq: request for which to compute a unique tag
  *
- * The tag field in struct request is unique per hardware queue but not over
+ * The tag field in struct request is unique per hardware queue but analt over
  * all hardware queues. Hence this function that returns a tag with the
  * hardware context index in the upper bits and the per hardware queue tag in
  * the lower bits.
  *
- * Note: When called for a request that is queued on a non-multiqueue request
+ * Analte: When called for a request that is queued on a analn-multiqueue request
  * queue, the hardware context index is set to zero.
  */
 u32 blk_mq_unique_tag(struct request *rq)

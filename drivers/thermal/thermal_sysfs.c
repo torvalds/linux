@@ -98,7 +98,7 @@ trip_point_type_show(struct device *dev, struct device_attribute *attr,
 	case THERMAL_TRIP_ACTIVE:
 		return sprintf(buf, "active\n");
 	default:
-		return sprintf(buf, "unknown\n");
+		return sprintf(buf, "unkanalwn\n");
 	}
 }
 
@@ -226,7 +226,7 @@ policy_show(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 
-	return sprintf(buf, "%s\n", tz->governor->name);
+	return sprintf(buf, "%s\n", tz->goveranalr->name);
 }
 
 static ssize_t
@@ -386,7 +386,7 @@ static const struct attribute_group thermal_zone_mode_attribute_group = {
 static const struct attribute_group *thermal_zone_attribute_groups[] = {
 	&thermal_zone_attribute_group,
 	&thermal_zone_mode_attribute_group,
-	/* This is not NULL terminated as we create the group dynamically */
+	/* This is analt NULL terminated as we create the group dynamically */
 };
 
 /**
@@ -411,13 +411,13 @@ static int create_trip_attrs(struct thermal_zone_device *tz, int mask)
 	tz->trip_type_attrs = kcalloc(tz->num_trips, sizeof(*tz->trip_type_attrs),
 				      GFP_KERNEL);
 	if (!tz->trip_type_attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tz->trip_temp_attrs = kcalloc(tz->num_trips, sizeof(*tz->trip_temp_attrs),
 				      GFP_KERNEL);
 	if (!tz->trip_temp_attrs) {
 		kfree(tz->trip_type_attrs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tz->trip_hyst_attrs = kcalloc(tz->num_trips,
@@ -426,7 +426,7 @@ static int create_trip_attrs(struct thermal_zone_device *tz, int mask)
 	if (!tz->trip_hyst_attrs) {
 		kfree(tz->trip_type_attrs);
 		kfree(tz->trip_temp_attrs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	attrs = kcalloc(tz->num_trips * 3 + 1, sizeof(*attrs), GFP_KERNEL);
@@ -434,7 +434,7 @@ static int create_trip_attrs(struct thermal_zone_device *tz, int mask)
 		kfree(tz->trip_type_attrs);
 		kfree(tz->trip_temp_attrs);
 		kfree(tz->trip_hyst_attrs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (indx = 0; indx < tz->num_trips; indx++) {
@@ -517,7 +517,7 @@ int thermal_zone_create_device_groups(struct thermal_zone_device *tz,
 	/* This also takes care of API requirement to be NULL terminated */
 	groups = kcalloc(size, sizeof(*groups), GFP_KERNEL);
 	if (!groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < size - 2; i++)
 		groups[i] = thermal_zone_attribute_groups[i];
@@ -641,12 +641,12 @@ struct cooling_dev_stats {
 
 static void update_time_in_state(struct cooling_dev_stats *stats)
 {
-	ktime_t now = ktime_get(), delta;
+	ktime_t analw = ktime_get(), delta;
 
-	delta = ktime_sub(now, stats->last_time);
+	delta = ktime_sub(analw, stats->last_time);
 	stats->time_in_state[stats->state] =
 		ktime_add(stats->time_in_state[stats->state], delta);
-	stats->last_time = now;
+	stats->last_time = analw;
 }
 
 void thermal_cooling_device_stats_update(struct thermal_cooling_device *cdev,
@@ -773,7 +773,7 @@ static ssize_t trans_table_show(struct device *dev,
 
 	stats = cdev->stats;
 	if (!stats) {
-		len = -ENODATA;
+		len = -EANALDATA;
 		goto unlock;
 	}
 
@@ -937,12 +937,12 @@ ssize_t weight_store(struct device *dev, struct device_attribute *attr,
 
 	instance = container_of(attr, struct thermal_instance, weight_attr);
 
-	/* Don't race with governors using the 'weight' value */
+	/* Don't race with goveranalrs using the 'weight' value */
 	mutex_lock(&instance->tz->lock);
 
 	instance->weight = weight;
 
-	thermal_governor_update_tz(instance->tz,
+	thermal_goveranalr_update_tz(instance->tz,
 				   THERMAL_INSTANCE_WEIGHT_CHANGED);
 
 	mutex_unlock(&instance->tz->lock);

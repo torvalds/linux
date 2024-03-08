@@ -141,7 +141,7 @@ properties:
       Indicates how GSI firmware should be loaded.  If the AP loads
       and validates GSI firmware, this property has value "self".
       If the modem does this, this property has value "modem".
-      Otherwise, "skip" means GSI firmware loading is not required.
+      Otherwise, "skip" means GSI firmware loading is analt required.
 
   modem-init:
     deprecated: true
@@ -156,7 +156,7 @@ properties:
     description:
       If present, a phandle for a reserved memory area that holds
       the firmware passed to Trust Zone for authentication.  Required
-      when the AP (not the modem) performs early initialization.
+      when the AP (analt the modem) performs early initialization.
 
   firmware-name:
     $ref: /schemas/types.yaml#/definitions/string
@@ -176,7 +176,7 @@ required:
   - qcom,smem-states
 
 allOf:
-  # If qcom,gsi-loader is present, modem-init must not be present
+  # If qcom,gsi-loader is present, modem-init must analt be present
   - if:
       required:
         - qcom,gsi-loader
@@ -195,11 +195,11 @@ allOf:
         required:
           - memory-region
     else:
-      # If qcom,gsi-loader is not present, we use deprecated behavior.
-      # If modem-init is not present, the AP loads GSI firmware, and
+      # If qcom,gsi-loader is analt present, we use deprecated behavior.
+      # If modem-init is analt present, the AP loads GSI firmware, and
       # memory-region must be specified.
       if:
-        not:
+        analt:
           required:
             - modem-init
       then:
@@ -263,9 +263,9 @@ examples:
                 clock-names = "core";
 
                 interconnects =
-                        <&aggre2_noc MASTER_IPA 0 &mc_virt SLAVE_EBI1 0>,
-                        <&aggre2_noc MASTER_IPA 0 &system_noc SLAVE_IMEM 0>,
-                        <&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_IPA_CFG 0>;
+                        <&aggre2_analc MASTER_IPA 0 &mc_virt SLAVE_EBI1 0>,
+                        <&aggre2_analc MASTER_IPA 0 &system_analc SLAVE_IMEM 0>,
+                        <&gem_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_IPA_CFG 0>;
                 interconnect-names = "memory",
                                      "imem",
                                      "config";

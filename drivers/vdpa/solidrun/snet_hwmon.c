@@ -56,7 +56,7 @@ static int snet_howmon_read(struct device *dev, enum hwmon_sensor_types type,
 			snet_hwmon_read_reg(psnet, SNET_MON_VOLT_IN_OFF, val);
 			break;
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			break;
 		}
 		break;
@@ -68,7 +68,7 @@ static int snet_howmon_read(struct device *dev, enum hwmon_sensor_types type,
 			break;
 
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			break;
 		}
 		break;
@@ -85,7 +85,7 @@ static int snet_howmon_read(struct device *dev, enum hwmon_sensor_types type,
 			snet_hwmon_read_reg(psnet, SNET_MON_CURR_CRIT_OFF, val);
 			break;
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			break;
 		}
 		break;
@@ -102,7 +102,7 @@ static int snet_howmon_read(struct device *dev, enum hwmon_sensor_types type,
 			if (channel == 0)
 				snet_hwmon_read_reg(psnet, SNET_MON_TMP0_MAX_OFF, val);
 			else
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 			break;
 		case hwmon_temp_crit:
 			if (channel == 0)
@@ -112,13 +112,13 @@ static int snet_howmon_read(struct device *dev, enum hwmon_sensor_types type,
 			break;
 
 		default:
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			break;
 		}
 		break;
 
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 	return ret;
@@ -147,7 +147,7 @@ static int snet_hwmon_read_string(struct device *dev,
 			*str = "ic_junction_temp";
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 	return ret;
@@ -168,7 +168,7 @@ static const struct hwmon_channel_info * const snet_hwmon_info[] = {
 			   NULL
 };
 
-static const struct hwmon_chip_info snet_hwmono_info = {
+static const struct hwmon_chip_info snet_hwmoanal_info = {
 	.ops = &snet_hwmon_ops,
 	.info = snet_hwmon_info,
 };
@@ -181,8 +181,8 @@ void psnet_create_hwmon(struct pci_dev *pdev)
 
 	snprintf(psnet->hwmon_name, SNET_NAME_SIZE, "snet_%s", pci_name(pdev));
 	hwmon = devm_hwmon_device_register_with_info(&pdev->dev, psnet->hwmon_name, psnet,
-						     &snet_hwmono_info, NULL);
-	/* The monitor is not mandatory, Just alert user in case of an error */
+						     &snet_hwmoanal_info, NULL);
+	/* The monitor is analt mandatory, Just alert user in case of an error */
 	if (IS_ERR(hwmon))
 		SNET_WARN(pdev, "Failed to create SNET hwmon, error %ld\n", PTR_ERR(hwmon));
 }

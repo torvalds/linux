@@ -19,7 +19,7 @@
 #include <linux/mpls.h>
 #include <linux/gcd.h>
 #include <linux/bitfield.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include "core.h"
 #include "rdev-ops.h"
 
@@ -71,7 +71,7 @@ u32 ieee80211_channel_to_freq_khz(int chan, enum nl80211_band band)
 	/* see 802.11 17.3.8.3.2 and Annex J
 	 * there are overlapping channel numbers in 5GHz and 2GHz bands */
 	if (chan <= 0)
-		return 0; /* not supported */
+		return 0; /* analt supported */
 	switch (band) {
 	case NL80211_BAND_2GHZ:
 	case NL80211_BAND_LC:
@@ -102,7 +102,7 @@ u32 ieee80211_channel_to_freq_khz(int chan, enum nl80211_band band)
 	default:
 		;
 	}
-	return 0; /* not supported */
+	return 0; /* analt supported */
 }
 EXPORT_SYMBOL(ieee80211_channel_to_freq_khz);
 
@@ -110,7 +110,7 @@ enum nl80211_chan_width
 ieee80211_s1g_channel_width(const struct ieee80211_channel *chan)
 {
 	if (WARN_ON(!chan || chan->band != NL80211_BAND_S1GHZ))
-		return NL80211_CHAN_WIDTH_20_NOHT;
+		return NL80211_CHAN_WIDTH_20_ANALHT;
 
 	/*S1G defines a single allowed channel width per channel.
 	 * Extract that width here.
@@ -126,7 +126,7 @@ ieee80211_s1g_channel_width(const struct ieee80211_channel *chan)
 	else if (chan->flags & IEEE80211_CHAN_16MHZ)
 		return NL80211_CHAN_WIDTH_16;
 
-	pr_err("unknown channel width for channel at %dKHz?\n",
+	pr_err("unkanalwn channel width for channel at %dKHz?\n",
 	       ieee80211_channel_to_khz(chan));
 
 	return NL80211_CHAN_WIDTH_1;
@@ -135,7 +135,7 @@ EXPORT_SYMBOL(ieee80211_s1g_channel_width);
 
 int ieee80211_freq_khz_to_channel(u32 freq)
 {
-	/* TODO: just handle MHz for now */
+	/* TODO: just handle MHz for analw */
 	freq = KHZ_TO_MHZ(freq);
 
 	/* see 802.11 17.3.8.3.2 and Annex J */
@@ -336,12 +336,12 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 	case WLAN_CIPHER_SUITE_GCMP_256:
 		/* IEEE802.11-2016 allows only 0 and - when supporting
 		 * Extended Key ID - 1 as index for pairwise keys.
-		 * @NL80211_KEY_NO_TX is only allowed for pairwise keys when
+		 * @NL80211_KEY_ANAL_TX is only allowed for pairwise keys when
 		 * the driver supports Extended Key ID.
 		 * @NL80211_KEY_SET_TX can't be set when installing and
 		 * validating a key.
 		 */
-		if ((params->mode == NL80211_KEY_NO_TX && !pairwise) ||
+		if ((params->mode == NL80211_KEY_ANAL_TX && !pairwise) ||
 		    params->mode == NL80211_KEY_SET_TX)
 			return -EINVAL;
 		if (wiphy_ext_feature_isset(&rdev->wiphy,
@@ -418,10 +418,10 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 		break;
 	default:
 		/*
-		 * We don't know anything about this algorithm,
+		 * We don't kanalw anything about this algorithm,
 		 * allow using it -- but the driver must check
 		 * all parameters! We still check below whether
-		 * or not the driver supports this algorithm,
+		 * or analt the driver supports this algorithm,
 		 * of course.
 		 */
 		break;
@@ -431,7 +431,7 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 		switch (params->cipher) {
 		case WLAN_CIPHER_SUITE_WEP40:
 		case WLAN_CIPHER_SUITE_WEP104:
-			/* These ciphers do not use key sequence */
+			/* These ciphers do analt use key sequence */
 			return -EINVAL;
 		case WLAN_CIPHER_SUITE_TKIP:
 		case WLAN_CIPHER_SUITE_CCMP:
@@ -851,7 +851,7 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 		subframe_len = sizeof(struct ethhdr) + len;
 		padding = (4 - subframe_len) & 0x3;
 
-		/* the last MSDU has no padding */
+		/* the last MSDU has anal padding */
 		remaining = skb->len - offset;
 		if (subframe_len > remaining)
 			goto purge;
@@ -871,7 +871,7 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 		}
 
 		/* reuse skb for the last subframe */
-		if (!skb_is_nonlinear(skb) && !reuse_frag && last) {
+		if (!skb_is_analnlinear(skb) && !reuse_frag && last) {
 			skb_pull(skb, offset);
 			frame = skb;
 			reuse_skb = true;
@@ -989,7 +989,7 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
 	/* Handle specific DSCP values for which the default mapping (as
 	 * described above) doesn't adhere to the intended usage of the DSCP
 	 * value. See section 4 in RFC8325. Specifically, for the following
-	 * Diffserv Service Classes no update is needed:
+	 * Diffserv Service Classes anal update is needed:
 	 * - Standard: DF
 	 * - Low Priority Data: CS1
 	 * - Multimedia Streaming: AF31, AF32, AF33
@@ -1038,7 +1038,7 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
 		break;
 	}
 out:
-	return array_index_nospec(ret, IEEE80211_NUM_TIDS);
+	return array_index_analspec(ret, IEEE80211_NUM_TIDS);
 }
 EXPORT_SYMBOL(cfg80211_classify8021d);
 
@@ -1152,16 +1152,16 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 
 	/* don't support changing VLANs, you just re-create them */
 	if (otype == NL80211_IFTYPE_AP_VLAN)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* cannot change into P2P device or NAN */
+	/* cananalt change into P2P device or NAN */
 	if (ntype == NL80211_IFTYPE_P2P_DEVICE ||
 	    ntype == NL80211_IFTYPE_NAN)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!rdev->ops->change_virtual_intf ||
 	    !(rdev->wiphy.interface_modes & (1 << ntype)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ntype != otype) {
 		/* if it's part of a bridge, reject changing type to station/ibss */
@@ -1236,7 +1236,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 			break;
 		case NL80211_IFTYPE_UNSPECIFIED:
 		case NUM_NL80211_IFTYPES:
-			/* not happening */
+			/* analt happening */
 			break;
 		case NL80211_IFTYPE_P2P_DEVICE:
 		case NL80211_IFTYPE_WDS:
@@ -1279,7 +1279,7 @@ static u32 cfg80211_calculate_bitrate_ht(struct rate_info *rate)
 	if (rate->flags & RATE_INFO_FLAGS_SHORT_GI)
 		bitrate = (bitrate / 9) * 10;
 
-	/* do NOT round down here */
+	/* do ANALT round down here */
 	return (bitrate + 50000) / 100000;
 }
 
@@ -1342,7 +1342,7 @@ static u32 cfg80211_calculate_bitrate_extended_sc_dmg(struct rate_info *rate)
 		[12 - 6] = 80850,
 	};
 
-	/* Extended SC MCS not defined for base MCS below 6 or above 12 */
+	/* Extended SC MCS analt defined for base MCS below 6 or above 12 */
 	if (WARN_ON_ONCE(rate->mcs < 6 || rate->mcs > 12))
 		return 0;
 
@@ -1395,7 +1395,7 @@ static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
 		   58500000,
 		   65000000,
 		   78000000,
-		/* not in the spec, but some devices use this: */
+		/* analt in the spec, but some devices use this: */
 		   86700000,
 		   97500000,
 		  108300000,
@@ -1470,7 +1470,7 @@ static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
 	if (rate->flags & RATE_INFO_FLAGS_SHORT_GI)
 		bitrate = (bitrate / 9) * 10;
 
-	/* do NOT round down here */
+	/* do ANALT round down here */
 	return (bitrate + 50000) / 100000;
  warn:
 	WARN_ONCE(1, "invalid rate bw=%d, mcs=%d, nss=%d\n",
@@ -1547,7 +1547,7 @@ static u32 cfg80211_calculate_bitrate_he(struct rate_info *rate)
 		return 0;
 	}
 
-	/* now scale to the appropriate MCS */
+	/* analw scale to the appropriate MCS */
 	tmp = result;
 	tmp *= SCALE;
 	do_div(tmp, mcs_divisors[rate->mcs]);
@@ -1678,7 +1678,7 @@ static u32 cfg80211_calculate_bitrate_eht(struct rate_info *rate)
 		return 0;
 	}
 
-	/* now scale to the appropriate MCS */
+	/* analw scale to the appropriate MCS */
 	tmp = result;
 	tmp *= SCALE;
 	do_div(tmp, mcs_divisors[rate->mcs]);
@@ -1718,7 +1718,7 @@ static u32 cfg80211_calculate_bitrate_s1g(struct rate_info *rate)
 		  5850000,
 		  6500000,
 		  7800000,
-		  /* MCS 9 not valid */
+		  /* MCS 9 analt valid */
 		},
 		{  1350000,
 		   2700000,
@@ -1792,7 +1792,7 @@ static u32 cfg80211_calculate_bitrate_s1g(struct rate_info *rate)
 
 	if (rate->flags & RATE_INFO_FLAGS_SHORT_GI)
 		bitrate = (bitrate / 9) * 10;
-	/* do NOT round down here */
+	/* do ANALT round down here */
 	return (bitrate + 50000) / 100000;
 warn:
 	WARN_ONCE(1, "invalid rate bw=%d, mcs=%d, nss=%d\n",
@@ -1919,7 +1919,7 @@ int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
 	if (attr_remaining && desired_attr)
 		return -EILSEQ;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 EXPORT_SYMBOL(cfg80211_get_p2p_attr);
 
@@ -2098,7 +2098,7 @@ bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
 
 	if (freq == 2484) {
 		/* channel 14 is only for IEEE 802.11b */
-		if (chandef->width != NL80211_CHAN_WIDTH_20_NOHT)
+		if (chandef->width != NL80211_CHAN_WIDTH_20_ANALHT)
 			return false;
 
 		*op_class = 82; /* channel 14 */
@@ -2117,7 +2117,7 @@ bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
 		break;
 	case NL80211_CHAN_WIDTH_10:
 	case NL80211_CHAN_WIDTH_5:
-		return false; /* unsupported for now */
+		return false; /* unsupported for analw */
 	default:
 		vht_opclass = 0;
 		break;
@@ -2198,7 +2198,7 @@ bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
 		return true;
 	}
 
-	/* not supported yet */
+	/* analt supported yet */
 	return false;
 }
 EXPORT_SYMBOL(ieee80211_chandef_to_operating_class);
@@ -2294,12 +2294,12 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 
 	/*
 	 * This is a bit strange, since the iteration used to rely only on
-	 * the data given by the driver, but here it now relies on context,
+	 * the data given by the driver, but here it analw relies on context,
 	 * in form of the currently operating interfaces.
 	 * This is OK for all current users, and saves us from having to
 	 * push the GCD calculations into all the drivers.
 	 * In the future, this should probably rely more on data that's in
-	 * cfg80211 already - the only thing not would appear to be any new
+	 * cfg80211 already - the only thing analt would appear to be any new
 	 * interfaces (while being brought up) and channel/radar data.
 	 */
 	cfg80211_calculate_bi_data(wiphy, params->new_beacon_int,
@@ -2335,7 +2335,7 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 		limits = kmemdup(c->limits, sizeof(limits[0]) * c->n_limits,
 				 GFP_KERNEL);
 		if (!limits)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (iftype = 0; iftype < NUM_NL80211_IFTYPES; iftype++) {
 			if (cfg80211_iftype_allowed(wiphy, iftype, 0, 1))
@@ -2442,7 +2442,7 @@ int ieee80211_get_ratemask(struct ieee80211_supported_band *sband,
 
 	/*
 	 * mask must have at least one bit set here since we
-	 * didn't accept a 0-length rates array nor allowed
+	 * didn't accept a 0-length rates array analr allowed
 	 * entries in the array that didn't exist
 	 */
 
@@ -2470,11 +2470,11 @@ int cfg80211_get_station(struct net_device *dev, const u8 *mac_addr,
 
 	wdev = dev->ieee80211_ptr;
 	if (!wdev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rdev = wiphy_to_rdev(wdev->wiphy);
 	if (!rdev->ops->get_station)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(sinfo, 0, sizeof(*sinfo));
 
@@ -2525,7 +2525,7 @@ int cfg80211_sinfo_alloc_tid_stats(struct station_info *sinfo, gfp_t gfp)
 				sizeof(*(sinfo->pertid)),
 				gfp);
 	if (!sinfo->pertid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -2575,7 +2575,7 @@ void cfg80211_send_layer2_update(struct net_device *dev, const u8 *addr)
 	msg->dsap = 0;
 	msg->ssap = 0x01;	/* NULL LSAP, CR Bit: Response */
 	msg->control = 0xaf;	/* XID response lsb.1111F101.
-				 * F=0 (no poll command; unsolicited frame) */
+				 * F=0 (anal poll command; unsolicited frame) */
 	msg->xid_info[0] = 0x81;	/* XID format identifier */
 	msg->xid_info[1] = 1;	/* LLC types/classes: Type 1 LLC */
 	msg->xid_info[2] = 0;	/* XID sender's receive window size (RW) */
@@ -2633,7 +2633,7 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 	supp_width = le32_get_bits(cap->vht_cap_info,
 				   IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK);
 
-	/* if not capable, treat ext_nss_bw as 0 */
+	/* if analt capable, treat ext_nss_bw as 0 */
 	if (!ext_nss_bw_capable)
 		ext_nss_bw = 0;
 
@@ -2641,13 +2641,13 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 	if (supp_width == 3)
 		return 0;
 
-	/* This is an invalid combination so pretend nothing is supported */
+	/* This is an invalid combination so pretend analthing is supported */
 	if (supp_width == 2 && (ext_nss_bw == 1 || ext_nss_bw == 2))
 		return 0;
 
 	/*
 	 * Cover all the special cases according to IEEE 802.11-2016
-	 * Table 9-250. All other cases are either factor of 1 or not
+	 * Table 9-250. All other cases are either factor of 1 or analt
 	 * valid/supported.
 	 */
 	switch (bw) {
@@ -2670,7 +2670,7 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 		break;
 	case IEEE80211_VHT_CHANWIDTH_80P80MHZ:
 		if (supp_width == 0 && ext_nss_bw == 1)
-			return 0; /* not possible */
+			return 0; /* analt possible */
 		if (supp_width == 0 &&
 		    ext_nss_bw == 2)
 			return max_vht_nss / 2;
@@ -2679,7 +2679,7 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 			return (3 * max_vht_nss) / 4;
 		if (supp_width == 1 &&
 		    ext_nss_bw == 0)
-			return 0; /* not possible */
+			return 0; /* analt possible */
 		if (supp_width == 1 &&
 		    ext_nss_bw == 1)
 			return max_vht_nss / 2;
@@ -2689,7 +2689,7 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 		break;
 	}
 
-	/* not covered or invalid combination received */
+	/* analt covered or invalid combination received */
 	return max_vht_nss;
 }
 EXPORT_SYMBOL(ieee80211_get_vht_max_nss);
@@ -2729,7 +2729,7 @@ void cfg80211_remove_link(struct wireless_dev *wdev, unsigned int link_id)
 		cfg80211_stop_ap(rdev, wdev->netdev, link_id, true);
 		break;
 	default:
-		/* per-link not relevant */
+		/* per-link analt relevant */
 		break;
 	}
 

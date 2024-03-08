@@ -651,7 +651,7 @@ static const struct snd_kcontrol_new asp_tx6_src =
 		SOC_DAPM_ENUM("ASPTX6SRC", asp_tx6_src_enum);
 
 static const struct snd_soc_dapm_widget cs35l36_dapm_widgets[] = {
-	SND_SOC_DAPM_MUX("Channel Mux", SND_SOC_NOPM, 0, 0, &cs35l36_chan_mux),
+	SND_SOC_DAPM_MUX("Channel Mux", SND_SOC_ANALPM, 0, 0, &cs35l36_chan_mux),
 	SND_SOC_DAPM_AIF_IN("SDIN", NULL, 0, CS35L36_ASP_RX_TX_EN, 16, 0),
 
 	SND_SOC_DAPM_OUT_DRV_E("Main AMP", CS35L36_PWR_CTRL2, 0, 0, NULL, 0,
@@ -659,9 +659,9 @@ static const struct snd_soc_dapm_widget cs35l36_dapm_widgets[] = {
 			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	SND_SOC_DAPM_OUTPUT("SPK"),
-	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 1, &amp_enable_ctrl),
+	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_ANALPM, 0, 1, &amp_enable_ctrl),
 	SND_SOC_DAPM_MIXER("CLASS H", CS35L36_PWR_CTRL3, 4, 0, NULL, 0),
-	SND_SOC_DAPM_SWITCH_E("BOOST Enable", SND_SOC_NOPM, 0, 0, &boost_ctrl,
+	SND_SOC_DAPM_SWITCH_E("BOOST Enable", SND_SOC_ANALPM, 0, 0, &boost_ctrl,
 			      cs35l36_boost_event, SND_SOC_DAPM_POST_PMD |
 			      SND_SOC_DAPM_POST_PMU),
 
@@ -672,12 +672,12 @@ static const struct snd_soc_dapm_widget cs35l36_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("ASPTX5", NULL, 4, CS35L36_ASP_RX_TX_EN, 4, 0),
 	SND_SOC_DAPM_AIF_OUT("ASPTX6", NULL, 5, CS35L36_ASP_RX_TX_EN, 5, 0),
 
-	SND_SOC_DAPM_MUX("ASPTX1SRC", SND_SOC_NOPM, 0, 0, &asp_tx1_src),
-	SND_SOC_DAPM_MUX("ASPTX2SRC", SND_SOC_NOPM, 0, 0, &asp_tx2_src),
-	SND_SOC_DAPM_MUX("ASPTX3SRC", SND_SOC_NOPM, 0, 0, &asp_tx3_src),
-	SND_SOC_DAPM_MUX("ASPTX4SRC", SND_SOC_NOPM, 0, 0, &asp_tx4_src),
-	SND_SOC_DAPM_MUX("ASPTX5SRC", SND_SOC_NOPM, 0, 0, &asp_tx5_src),
-	SND_SOC_DAPM_MUX("ASPTX6SRC", SND_SOC_NOPM, 0, 0, &asp_tx6_src),
+	SND_SOC_DAPM_MUX("ASPTX1SRC", SND_SOC_ANALPM, 0, 0, &asp_tx1_src),
+	SND_SOC_DAPM_MUX("ASPTX2SRC", SND_SOC_ANALPM, 0, 0, &asp_tx2_src),
+	SND_SOC_DAPM_MUX("ASPTX3SRC", SND_SOC_ANALPM, 0, 0, &asp_tx3_src),
+	SND_SOC_DAPM_MUX("ASPTX4SRC", SND_SOC_ANALPM, 0, 0, &asp_tx4_src),
+	SND_SOC_DAPM_MUX("ASPTX5SRC", SND_SOC_ANALPM, 0, 0, &asp_tx5_src),
+	SND_SOC_DAPM_MUX("ASPTX6SRC", SND_SOC_ANALPM, 0, 0, &asp_tx6_src),
 
 	SND_SOC_DAPM_ADC("VMON ADC", NULL, CS35L36_PWR_CTRL2, 12, 0),
 	SND_SOC_DAPM_ADC("IMON ADC", NULL, CS35L36_PWR_CTRL2, 13, 0),
@@ -912,12 +912,12 @@ static int cs35l36_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 			snd_soc_component_get_drvdata(component);
 	int fs1, fs2;
 
-	if (freq > CS35L36_FS_NOM_6MHZ) {
+	if (freq > CS35L36_FS_ANALM_6MHZ) {
 		fs1 = CS35L36_FS1_DEFAULT_VAL;
 		fs2 = CS35L36_FS2_DEFAULT_VAL;
 	} else {
-		fs1 = 3 * DIV_ROUND_UP(CS35L36_FS_NOM_6MHZ * 4, freq) + 4;
-		fs2 = 5 * DIV_ROUND_UP(CS35L36_FS_NOM_6MHZ * 4, freq) + 4;
+		fs1 = 3 * DIV_ROUND_UP(CS35L36_FS_ANALM_6MHZ * 4, freq) + 4;
+		fs2 = 5 * DIV_ROUND_UP(CS35L36_FS_ANALM_6MHZ * 4, freq) + 4;
 	}
 
 	regmap_write(cs35l36->regmap, CS35L36_TESTKEY_CTRL,
@@ -983,14 +983,14 @@ static struct snd_soc_dai_driver cs35l36_dai[] = {
 			.stream_name = "AMP Playback",
 			.channels_min = 1,
 			.channels_max = 8,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = CS35L36_RX_FORMATS,
 		},
 		.capture = {
 			.stream_name = "AMP Capture",
 			.channels_min = 1,
 			.channels_max = 8,
-			.rates = SNDRV_PCM_RATE_KNOT,
+			.rates = SNDRV_PCM_RATE_KANALT,
 			.formats = CS35L36_TX_FORMATS,
 		},
 		.ops = &cs35l36_ops,
@@ -1318,7 +1318,7 @@ static irqreturn_t cs35l36_irq(int irq, void *data)
 	struct cs35l36_private *cs35l36 = data;
 	unsigned int status[4];
 	unsigned int masks[4];
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 
 	/* ack the irq by reading all status registers */
 	regmap_bulk_read(cs35l36->regmap, CS35L36_INT1_STATUS, status,
@@ -1330,7 +1330,7 @@ static irqreturn_t cs35l36_irq(int irq, void *data)
 	/* Check to see if unmasked bits are active */
 	if (!(status[0] & ~masks[0]) && !(status[1] & ~masks[1]) &&
 		!(status[2] & ~masks[2]) && !(status[3] & ~masks[3])) {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/*
@@ -1429,9 +1429,9 @@ static irqreturn_t cs35l36_irq(int irq, void *data)
 static int cs35l36_handle_of_data(struct i2c_client *i2c_client,
 				struct cs35l36_platform_data *pdata)
 {
-	struct device_node *np = i2c_client->dev.of_node;
+	struct device_analde *np = i2c_client->dev.of_analde;
 	struct cs35l36_vpbr_cfg *vpbr_config = &pdata->vpbr_config;
-	struct device_node *vpbr_node;
+	struct device_analde *vpbr_analde;
 	unsigned int val;
 	int ret;
 
@@ -1489,10 +1489,10 @@ static int cs35l36_handle_of_data(struct i2c_client *i2c_client,
 	if (of_property_read_u32(np, "cirrus,temp-warn-threshold", &val) >= 0)
 		pdata->temp_warn_thld = val | CS35L36_VALID_PDATA;
 
-	if (of_property_read_u32(np, "cirrus,boost-ind-nanohenry", &val) >= 0) {
+	if (of_property_read_u32(np, "cirrus,boost-ind-naanalhenry", &val) >= 0) {
 		pdata->boost_ind = val;
 	} else {
-		dev_err(&i2c_client->dev, "Inductor not specified.\n");
+		dev_err(&i2c_client->dev, "Inductor analt specified.\n");
 		return -EINVAL;
 	}
 
@@ -1503,35 +1503,35 @@ static int cs35l36_handle_of_data(struct i2c_client *i2c_client,
 		pdata->irq_gpio_sel = val | CS35L36_VALID_PDATA;
 
 	/* VPBR Config */
-	vpbr_node = of_get_child_by_name(np, "cirrus,vpbr-config");
-	vpbr_config->is_present = vpbr_node ? true : false;
+	vpbr_analde = of_get_child_by_name(np, "cirrus,vpbr-config");
+	vpbr_config->is_present = vpbr_analde ? true : false;
 	if (vpbr_config->is_present) {
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-en",
+		if (of_property_read_u32(vpbr_analde, "cirrus,vpbr-en",
 					 &val) >= 0)
 			vpbr_config->vpbr_en = val;
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-thld",
+		if (of_property_read_u32(vpbr_analde, "cirrus,vpbr-thld",
 					 &val) >= 0)
 			vpbr_config->vpbr_thld = val;
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-atk-rate",
+		if (of_property_read_u32(vpbr_analde, "cirrus,vpbr-atk-rate",
 					 &val) >= 0)
 			vpbr_config->vpbr_atk_rate = val;
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-atk-vol",
+		if (of_property_read_u32(vpbr_analde, "cirrus,vpbr-atk-vol",
 					 &val) >= 0)
 			vpbr_config->vpbr_atk_vol = val;
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-max-attn",
+		if (of_property_read_u32(vpbr_analde, "cirrus,vpbr-max-attn",
 					 &val) >= 0)
 			vpbr_config->vpbr_max_attn = val;
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-wait",
+		if (of_property_read_u32(vpbr_analde, "cirrus,vpbr-wait",
 					 &val) >= 0)
 			vpbr_config->vpbr_wait = val;
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-rel-rate",
+		if (of_property_read_u32(vpbr_analde, "cirrus,vpbr-rel-rate",
 					 &val) >= 0)
 			vpbr_config->vpbr_rel_rate = val;
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-mute-en",
+		if (of_property_read_u32(vpbr_analde, "cirrus,vpbr-mute-en",
 					 &val) >= 0)
 			vpbr_config->vpbr_mute_en = val;
 	}
-	of_node_put(vpbr_node);
+	of_analde_put(vpbr_analde);
 
 	return 0;
 }
@@ -1709,7 +1709,7 @@ static int cs35l36_i2c_probe(struct i2c_client *i2c_client)
 
 	cs35l36 = devm_kzalloc(dev, sizeof(struct cs35l36_private), GFP_KERNEL);
 	if (!cs35l36)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cs35l36->dev = dev;
 
@@ -1738,9 +1738,9 @@ static int cs35l36_i2c_probe(struct i2c_client *i2c_client)
 		pdata = devm_kzalloc(dev, sizeof(struct cs35l36_platform_data),
 				     GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		if (i2c_client->dev.of_node) {
+		if (i2c_client->dev.of_analde) {
 			ret = cs35l36_handle_of_data(i2c_client, pdata);
 			if (ret != 0)
 				return ret;
@@ -1785,7 +1785,7 @@ static int cs35l36_i2c_probe(struct i2c_client *i2c_client)
 	if (reg_id != CS35L36_CHIP_ID) {
 		dev_err(dev, "Device ID (%X). Expected ID %X\n", reg_id,
 			CS35L36_CHIP_ID);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -1844,7 +1844,7 @@ static int cs35l36_i2c_probe(struct i2c_client *i2c_client)
 	irq_d = irq_get_irq_data(i2c_client->irq);
 	if (!irq_d) {
 		dev_err(&i2c_client->dev, "Invalid IRQ: %d\n", i2c_client->irq);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 

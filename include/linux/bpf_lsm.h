@@ -30,18 +30,18 @@ int bpf_lsm_verify_prog(struct bpf_verifier_log *vlog,
 bool bpf_lsm_is_sleepable_hook(u32 btf_id);
 bool bpf_lsm_is_trusted(const struct bpf_prog *prog);
 
-static inline struct bpf_storage_blob *bpf_inode(
-	const struct inode *inode)
+static inline struct bpf_storage_blob *bpf_ianalde(
+	const struct ianalde *ianalde)
 {
-	if (unlikely(!inode->i_security))
+	if (unlikely(!ianalde->i_security))
 		return NULL;
 
-	return inode->i_security + bpf_lsm_blob_sizes.lbs_inode;
+	return ianalde->i_security + bpf_lsm_blob_sizes.lbs_ianalde;
 }
 
-extern const struct bpf_func_proto bpf_inode_storage_get_proto;
-extern const struct bpf_func_proto bpf_inode_storage_delete_proto;
-void bpf_inode_storage_free(struct inode *inode);
+extern const struct bpf_func_proto bpf_ianalde_storage_get_proto;
+extern const struct bpf_func_proto bpf_ianalde_storage_delete_proto;
+void bpf_ianalde_storage_free(struct ianalde *ianalde);
 
 void bpf_lsm_find_cgroup_shim(const struct bpf_prog *prog, bpf_func_t *bpf_func);
 
@@ -60,16 +60,16 @@ static inline bool bpf_lsm_is_trusted(const struct bpf_prog *prog)
 static inline int bpf_lsm_verify_prog(struct bpf_verifier_log *vlog,
 				      const struct bpf_prog *prog)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-static inline struct bpf_storage_blob *bpf_inode(
-	const struct inode *inode)
+static inline struct bpf_storage_blob *bpf_ianalde(
+	const struct ianalde *ianalde)
 {
 	return NULL;
 }
 
-static inline void bpf_inode_storage_free(struct inode *inode)
+static inline void bpf_ianalde_storage_free(struct ianalde *ianalde)
 {
 }
 

@@ -36,7 +36,7 @@ static const unsigned short etnaviv_dump_registers[] = {
 	VIVS_HI_CHIP_REV,
 	VIVS_HI_CHIP_DATE,
 	VIVS_HI_CHIP_TIME,
-	VIVS_HI_CHIP_MINOR_FEATURE_0,
+	VIVS_HI_CHIP_MIANALR_FEATURE_0,
 	VIVS_HI_CACHE_CONTROL,
 	VIVS_HI_AXI_CONTROL,
 	VIVS_PM_POWER_CONTROLS,
@@ -159,8 +159,8 @@ void etnaviv_core_dump(struct etnaviv_gem_submit *submit)
 	file_size += sizeof(*iter.hdr) * n_obj;
 
 	/* Allocate the file in vmalloc memory, it's likely to be big */
-	iter.start = __vmalloc(file_size, GFP_KERNEL | __GFP_NOWARN |
-			__GFP_NORETRY);
+	iter.start = __vmalloc(file_size, GFP_KERNEL | __GFP_ANALWARN |
+			__GFP_ANALRETRY);
 	if (!iter.start) {
 		mutex_unlock(&submit->mmu_context->lock);
 		dev_warn(gpu->dev, "failed to allocate devcoredump file\n");

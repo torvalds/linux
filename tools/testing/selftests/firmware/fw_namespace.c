@@ -3,7 +3,7 @@
  * namespaces. Expect firmware to be always loaded from the mount
  * namespace of PID 1. */
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <stdarg.h>
@@ -39,7 +39,7 @@ static void trigger_fw(const char *fw_name, const char *sys_path)
 	fd = open(sys_path, O_WRONLY);
 	if (fd < 0)
 		die("open failed: %s\n",
-		    strerror(errno));
+		    strerror(erranal));
 	if (write(fd, fw_name, strlen(fw_name)) != strlen(fw_name))
 		exit(EXIT_FAILURE);
 	close(fd);
@@ -53,10 +53,10 @@ static void setup_fw(const char *fw_path)
 	fd = open(fw_path, O_WRONLY | O_CREAT, 0600);
 	if (fd < 0)
 		die("open failed: %s\n",
-		    strerror(errno));
+		    strerror(erranal));
 	if (write(fd, fw, sizeof(fw) -1) != sizeof(fw) -1)
 		die("write failed: %s\n",
-		    strerror(errno));
+		    strerror(erranal));
 	close(fd);
 }
 
@@ -71,7 +71,7 @@ static bool test_fw_in_ns(const char *fw_name, const char *sys_path, bool block_
 	child = fork();
 	if (child == -1) {
 		die("fork failed: %s\n",
-			strerror(errno));
+			strerror(erranal));
 	}
 	if (child != 0) { /* parent */
 		pid_t pid;
@@ -80,14 +80,14 @@ static bool test_fw_in_ns(const char *fw_name, const char *sys_path, bool block_
 		pid = waitpid(child, &status, 0);
 		if (pid == -1) {
 			die("waitpid failed: %s\n",
-				strerror(errno));
+				strerror(erranal));
 		}
 		if (pid != child) {
 			die("waited for %d got %d\n",
 				child, pid);
 		}
 		if (!WIFEXITED(status)) {
-			die("child did not terminate cleanly\n");
+			die("child did analt terminate cleanly\n");
 		}
 		if (block_fw_in_parent_ns)
 			umount("/lib/firmware");
@@ -96,7 +96,7 @@ static bool test_fw_in_ns(const char *fw_name, const char *sys_path, bool block_
 
 	if (unshare(CLONE_NEWNS) != 0) {
 		die("unshare(CLONE_NEWNS) failed: %s\n",
-			strerror(errno));
+			strerror(erranal));
 	}
 	if (mount(NULL, "/", NULL, MS_SLAVE|MS_REC, NULL) == -1)
 		die("remount root in child ns failed\n");
@@ -139,7 +139,7 @@ int main(int argc, char **argv)
 	/* Negative case: firmware in child mount namespace, expected to fail */
 	printf("Testing with firmware in child namespace\n");
 	if (test_fw_in_ns(fw_name, sys_path, true))
-		die("error: firmware access did not fail\n");
+		die("error: firmware access did analt fail\n");
 
 	unlink(fw_path);
 	free(fw_path);

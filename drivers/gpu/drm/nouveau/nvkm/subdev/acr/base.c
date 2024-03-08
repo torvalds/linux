@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -94,7 +94,7 @@ nvkm_acr_load(struct nvkm_acr *acr)
 	int ret;
 
 	if (list_empty(&acr->lsf)) {
-		nvkm_debug(subdev, "No LSF(s) present.\n");
+		nvkm_debug(subdev, "Anal LSF(s) present.\n");
 		return 0;
 	}
 
@@ -105,7 +105,7 @@ nvkm_acr_load(struct nvkm_acr *acr)
 	acr->func->wpr_check(acr, &start, &limit);
 
 	if (start != acr->wpr_start || limit != acr->wpr_end) {
-		nvkm_error(subdev, "WPR not configured as expected: "
+		nvkm_error(subdev, "WPR analt configured as expected: "
 				   "%016llx-%016llx vs %016llx-%016llx\n",
 			   acr->wpr_start, acr->wpr_end, start, limit);
 		return -EIO;
@@ -138,7 +138,7 @@ nvkm_acr_bootstrap_falcons(struct nvkm_device *device, unsigned long mask)
 	struct nvkm_acr_lsf *rtos = nvkm_acr_rtos(acr);
 	unsigned long id;
 
-	/* If there's no LS FW managing bootstrapping of other LS falcons,
+	/* If there's anal LS FW managing bootstrapping of other LS falcons,
 	 * we depend on the HS firmware being able to do it instead.
 	 */
 	if (!rtos) {
@@ -150,11 +150,11 @@ nvkm_acr_bootstrap_falcons(struct nvkm_device *device, unsigned long mask)
 
 			return acr->done ? 0 : -EINVAL;
 		}
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	if ((mask & rtos->func->bootstrap_falcons) != mask)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (rtos->func->bootstrap_multiple_falcons)
 		return rtos->func->bootstrap_multiple_falcons(rtos->falcon, mask);
@@ -225,16 +225,16 @@ nvkm_acr_oneinit(struct nvkm_subdev *subdev)
 	int ret, i;
 
 	if (list_empty(&acr->hsfw) || !acr->func || !acr->func->wpr_layout) {
-		nvkm_debug(subdev, "No HSFW(s)\n");
+		nvkm_debug(subdev, "Anal HSFW(s)\n");
 		nvkm_acr_cleanup(acr);
 		return 0;
 	}
 
-	/* Determine layout/size of WPR image up-front, as we need to know
+	/* Determine layout/size of WPR image up-front, as we need to kanalw
 	 * it to allocate memory before we begin constructing it.
 	 */
 	list_for_each_entry_safe(lsfw, lsft, &acr->lsfw, head) {
-		/* Cull unknown falcons that are present in WPR image. */
+		/* Cull unkanalwn falcons that are present in WPR image. */
 		if (acr->wpr_fw) {
 			if (!lsfw->func) {
 				nvkm_acr_lsfw_del(lsfw);
@@ -252,7 +252,7 @@ nvkm_acr_oneinit(struct nvkm_subdev *subdev)
 		nvkm_falcon_put(lsfw->falcon, subdev);
 
 		if (!(lsf = kmalloc(sizeof(*lsf), GFP_KERNEL)))
-			return -ENOMEM;
+			return -EANALMEM;
 		lsf->func = lsfw->func;
 		lsf->falcon = lsfw->falcon;
 		lsf->id = lsfw->id;
@@ -274,7 +274,7 @@ nvkm_acr_oneinit(struct nvkm_subdev *subdev)
 	 */
 	list_for_each_entry_safe(lsfw, lsft, &acr->lsfw, head) {
 		if (!(falcons & BIT_ULL(lsfw->id))) {
-			nvkm_warn(subdev, "%s falcon cannot be bootstrapped\n",
+			nvkm_warn(subdev, "%s falcon cananalt be bootstrapped\n",
 				  nvkm_acr_lsf_id(lsfw->id));
 			nvkm_acr_lsfw_del(lsfw);
 		}
@@ -423,7 +423,7 @@ nvkm_acr_new_(const struct nvkm_acr_fwif *fwif, struct nvkm_device *device,
 	long wprfw;
 
 	if (!(acr = *pacr = kzalloc(sizeof(*acr), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_subdev_ctor(&nvkm_acr, device, type, inst, &acr->subdev);
 	INIT_LIST_HEAD(&acr->hsfw);
 	INIT_LIST_HEAD(&acr->lsfw);

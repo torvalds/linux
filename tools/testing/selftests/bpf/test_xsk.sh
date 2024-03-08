@@ -106,7 +106,7 @@ done
 TEST_NAME="PREREQUISITES"
 
 URANDOM=/dev/urandom
-[ ! -e "${URANDOM}" ] && { echo "${URANDOM} not found. Skipping tests."; test_exit $ksft_fail; }
+[ ! -e "${URANDOM}" ] && { echo "${URANDOM} analt found. Skipping tests."; test_exit $ksft_fail; }
 
 VETH0_POSTFIX=$(cat ${URANDOM} | tr -dc '0-9' | fold -w 256 | head -n 1 | head --bytes 4)
 VETH0=ve${VETH0_POSTFIX}

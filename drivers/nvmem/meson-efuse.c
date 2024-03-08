@@ -42,21 +42,21 @@ static int meson_efuse_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct meson_sm_firmware *fw;
-	struct device_node *sm_np;
+	struct device_analde *sm_np;
 	struct nvmem_device *nvmem;
 	struct nvmem_config *econfig;
 	struct clk *clk;
 	unsigned int size;
 	int ret;
 
-	sm_np = of_parse_phandle(pdev->dev.of_node, "secure-monitor", 0);
+	sm_np = of_parse_phandle(pdev->dev.of_analde, "secure-monitor", 0);
 	if (!sm_np) {
-		dev_err(&pdev->dev, "no secure-monitor node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal secure-monitor analde\n");
+		return -EANALDEV;
 	}
 
 	fw = meson_sm_get(sm_np);
-	of_node_put(sm_np);
+	of_analde_put(sm_np);
 	if (!fw)
 		return -EPROBE_DEFER;
 
@@ -89,7 +89,7 @@ static int meson_efuse_probe(struct platform_device *pdev)
 
 	econfig = devm_kzalloc(dev, sizeof(*econfig), GFP_KERNEL);
 	if (!econfig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	econfig->dev = dev;
 	econfig->name = dev_name(dev);

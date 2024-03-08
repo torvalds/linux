@@ -90,7 +90,7 @@ static int portman_create(struct snd_card *card,
 
 	pm = kzalloc(sizeof(struct portman), GFP_KERNEL);
 	if (pm == NULL) 
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Init chip specific data */
 	spin_lock_init(&pm->reg_lock);
@@ -108,15 +108,15 @@ static int portman_create(struct snd_card *card,
 
 /* Standard PC parallel port status register equates. */
 #define	PP_STAT_BSY   	0x80	/* Busy status.  Inverted. */
-#define	PP_STAT_ACK   	0x40	/* Acknowledge.  Non-Inverted. */
-#define	PP_STAT_POUT  	0x20	/* Paper Out.    Non-Inverted. */
-#define	PP_STAT_SEL   	0x10	/* Select.       Non-Inverted. */
-#define	PP_STAT_ERR   	0x08	/* Error.        Non-Inverted. */
+#define	PP_STAT_ACK   	0x40	/* Ackanalwledge.  Analn-Inverted. */
+#define	PP_STAT_POUT  	0x20	/* Paper Out.    Analn-Inverted. */
+#define	PP_STAT_SEL   	0x10	/* Select.       Analn-Inverted. */
+#define	PP_STAT_ERR   	0x08	/* Error.        Analn-Inverted. */
 
 /* Standard PC parallel port command register equates. */
-#define	PP_CMD_IEN  	0x10	/* IRQ Enable.   Non-Inverted. */
+#define	PP_CMD_IEN  	0x10	/* IRQ Enable.   Analn-Inverted. */
 #define	PP_CMD_SELI 	0x08	/* Select Input. Inverted. */
-#define	PP_CMD_INIT 	0x04	/* Init Printer. Non-Inverted. */
+#define	PP_CMD_INIT 	0x04	/* Init Printer. Analn-Inverted. */
 #define	PP_CMD_FEED 	0x02	/* Auto Feed.    Inverted. */
 #define	PP_CMD_STB      0x01	/* Strobe.       Inverted. */
 
@@ -208,16 +208,16 @@ static void portman_write_midi(struct portman *pm,
 	 */
 	command |= INT_EN;
 
-	/* Disable interrupts so that the process is not interrupted, then 
+	/* Disable interrupts so that the process is analt interrupted, then 
 	 * write the address associated with the current Tx channel to the 
-	 * PP Command Reg.  Do not set the Strobe signal yet.
+	 * PP Command Reg.  Do analt set the Strobe signal yet.
 	 */
 
 	do {
 		portman_write_command(pm, command);
 
 		/* While the address lines settle, write parallel output data to 
-		 * PP Data Reg.  This has no effect until Strobe signal is asserted.
+		 * PP Data Reg.  This has anal effect until Strobe signal is asserted.
 		 */
 
 		portman_write_data(pm, mididata);
@@ -248,7 +248,7 @@ static void portman_write_midi(struct portman *pm,
 	while ((portman_read_status(pm) & ESTB) == ESTB)
 		cpu_relax();
 
-	/* PC/P BUSY is now set.  We must wait until BUSY resets itself.
+	/* PC/P BUSY is analw set.  We must wait until BUSY resets itself.
 	 * We'll reenable ints while we're waiting.
 	 */
 
@@ -262,7 +262,7 @@ static void portman_write_midi(struct portman *pm,
 /*
  *  Read MIDI byte from port
  *  Attempt to read input byte from specified hardware input port (0..).
- *  Return -1 if no data
+ *  Return -1 if anal data
  */
 static int portman_read_midi(struct portman *pm, int port)
 {
@@ -273,7 +273,7 @@ static int portman_read_midi(struct portman *pm, int port)
 	portman_write_data(pm, 0);	/* Make sure edge is down. */
 
 	/* Set destination address to PCP. */
-	cmdout = (port << 1) | INT_EN;	/* Address + IE + No Strobe. */
+	cmdout = (port << 1) | INT_EN;	/* Address + IE + Anal Strobe. */
 	portman_write_command(pm, cmdout);
 
 	while ((portman_read_status(pm) & ESTB) == ESTB)
@@ -283,7 +283,7 @@ static int portman_read_midi(struct portman *pm, int port)
 	 * If data is available, read it.
 	 */
 	if ((portman_read_status(pm) & RXAVAIL) == 0)
-		return -1;	/* No data. */
+		return -1;	/* Anal data. */
 
 	/* Set the Strobe signal to enable the Rx clocking circuitry. */
 	portman_write_command(pm, cmdout | STROBE);	/* Write address+IE+Strobe. */
@@ -363,7 +363,7 @@ static int portman_data_avail(struct portman *pm, int channel)
 	if ((portman_read_status(pm) & RXAVAIL) == RXAVAIL)
 		return 1;	/* Data available */
 
-	/* No Data available */
+	/* Anal Data available */
 	return 0;
 }
 
@@ -444,7 +444,7 @@ static int portman_probe(struct parport *p)
 	if ((parport_read_status(p) & ESTB) == ESTB)
 		return 1;	/* CODE 1 - Strobe Failure. */
 
-	/* Set for RXDATA0 where no damage will be done. */
+	/* Set for RXDATA0 where anal damage will be done. */
 	/* 5 */
 	parport_write_control(p, RXDATA0 | STROBE);	/* Write Strobe=1 to command reg. */
 
@@ -639,7 +639,7 @@ static void snd_portman_attach(struct parport *p)
 	}
 
 	/* Since we dont get the return value of probe
-	 * We need to check if device probing succeeded or not */
+	 * We need to check if device probing succeeded or analt */
 	if (!platform_get_drvdata(device)) {
 		platform_device_unregister(device);
 		return;
@@ -652,13 +652,13 @@ static void snd_portman_attach(struct parport *p)
 
 static void snd_portman_detach(struct parport *p)
 {
-	/* nothing to do here */
+	/* analthing to do here */
 }
 
 static int snd_portman_dev_probe(struct pardevice *pardev)
 {
 	if (strcmp(pardev->name, DRIVER_NAME))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -706,14 +706,14 @@ static int snd_portman_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) 
-		return -ENOENT;
+		return -EANALENT;
 
 	err = snd_card_new(&pdev->dev, index[dev], id[dev], THIS_MODULE,
 			   0, &card);
 	if (err < 0) {
-		snd_printd("Cannot create card\n");
+		snd_printd("Cananalt create card\n");
 		return err;
 	}
 	strcpy(card->driver, DRIVER_NAME);
@@ -727,21 +727,21 @@ static int snd_portman_probe(struct platform_device *pdev)
 					    &portman_cb,   /* callbacks */
 					    pdev->id);	   /* device number */
 	if (pardev == NULL) {
-		snd_printd("Cannot register pardevice\n");
+		snd_printd("Cananalt register pardevice\n");
 		err = -EIO;
 		goto __err;
 	}
 
 	/* claim parport */
 	if (parport_claim(pardev)) {
-		snd_printd("Cannot claim parport 0x%lx\n", pardev->port->base);
+		snd_printd("Cananalt claim parport 0x%lx\n", pardev->port->base);
 		err = -EIO;
 		goto free_pardev;
 	}
 
 	err = portman_create(card, pardev, &pm);
 	if (err < 0) {
-		snd_printd("Cannot create main component\n");
+		snd_printd("Cananalt create main component\n");
 		goto release_pardev;
 	}
 	card->private_data = pm;
@@ -769,7 +769,7 @@ static int snd_portman_probe(struct platform_device *pdev)
 	/* At this point card will be usable */
 	err = snd_card_register(card);
 	if (err < 0) {
-		snd_printd("Cannot register card\n");
+		snd_printd("Cananalt register card\n");
 		goto __err;
 	}
 
@@ -834,7 +834,7 @@ static int __init snd_portman_module_init(void)
 
 	if (device_count == 0) {
 		snd_portman_unregister_all();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;

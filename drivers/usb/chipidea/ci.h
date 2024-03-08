@@ -2,7 +2,7 @@
 /*
  * ci.h - common structures, functions, and macros of the ChipIdea driver
  *
- * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
+ * Copyright (C) 2008 Chipidea - MIPS Techanallogies, Inc. All rights reserved.
  *
  * Author: David Lopo
  */
@@ -102,7 +102,7 @@ struct ci_hw_ep {
 	struct ci_hdrc				*ci;
 	spinlock_t				*lock;
 	struct dma_pool				*td_pool;
-	struct td_node				*pending_td;
+	struct td_analde				*pending_td;
 };
 
 enum ci_role {
@@ -120,7 +120,7 @@ enum ci_revision {
 	CI_REVISION_24, /* Revision 2.4 */
 	CI_REVISION_25, /* Revision 2.5 */
 	CI_REVISION_25_PLUS, /* Revision above than 2.5 */
-	CI_REVISION_UNKNOWN = 99, /* Unknown Revision */
+	CI_REVISION_UNKANALWN = 99, /* Unkanalwn Revision */
 };
 
 /**
@@ -294,7 +294,7 @@ static inline int ci_role_start(struct ci_hdrc *ci, enum ci_role role)
 			usb_phy_set_event(ci->usb_phy, USB_EVENT_ID);
 		else
 			/* in device mode but vbus is invalid*/
-			usb_phy_set_event(ci->usb_phy, USB_EVENT_NONE);
+			usb_phy_set_event(ci->usb_phy, USB_EVENT_ANALNE);
 	}
 
 	return ret;
@@ -312,7 +312,7 @@ static inline void ci_role_stop(struct ci_hdrc *ci)
 	ci->roles[role]->stop(ci);
 
 	if (ci->usb_phy)
-		usb_phy_set_event(ci->usb_phy, USB_EVENT_NONE);
+		usb_phy_set_event(ci->usb_phy, USB_EVENT_ANALNE);
 }
 
 static inline enum usb_role ci_role_to_usb_role(struct ci_hdrc *ci)
@@ -322,7 +322,7 @@ static inline enum usb_role ci_role_to_usb_role(struct ci_hdrc *ci)
 	else if (ci->role == CI_ROLE_GADGET && ci->vbus_active)
 		return USB_ROLE_DEVICE;
 	else
-		return USB_ROLE_NONE;
+		return USB_ROLE_ANALNE;
 }
 
 static inline enum ci_role usb_role_to_ci_role(enum usb_role role)

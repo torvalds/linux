@@ -45,7 +45,7 @@
    :maxdepth: 1
 
    submit-checklist
-   stable-api-nonsense
+   stable-api-analnsense
    stable-kernel-rules
    management-style
    embargoed-hardware-issues

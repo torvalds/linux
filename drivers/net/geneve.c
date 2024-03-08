@@ -45,8 +45,8 @@ struct geneve_net {
 
 static unsigned int geneve_net_id;
 
-struct geneve_dev_node {
-	struct hlist_node hlist;
+struct geneve_dev_analde {
+	struct hlist_analde hlist;
 	struct geneve_dev *geneve;
 };
 
@@ -61,9 +61,9 @@ struct geneve_config {
 
 /* Pseudo network device */
 struct geneve_dev {
-	struct geneve_dev_node hlist4;	/* vni hash table for IPv4 socket */
+	struct geneve_dev_analde hlist4;	/* vni hash table for IPv4 socket */
 #if IS_ENABLED(CONFIG_IPV6)
-	struct geneve_dev_node hlist6;	/* vni hash table for IPv6 socket */
+	struct geneve_dev_analde hlist6;	/* vni hash table for IPv6 socket */
 #endif
 	struct net	   *net;	/* netns for packet i/o */
 	struct net_device  *dev;	/* netdev for geneve tunnel */
@@ -132,16 +132,16 @@ static struct geneve_dev *geneve_lookup(struct geneve_sock *gs,
 					__be32 addr, u8 vni[])
 {
 	struct hlist_head *vni_list_head;
-	struct geneve_dev_node *node;
+	struct geneve_dev_analde *analde;
 	__u32 hash;
 
 	/* Find the device for this VNI */
 	hash = geneve_net_vni_hash(vni);
 	vni_list_head = &gs->vni_list[hash];
-	hlist_for_each_entry_rcu(node, vni_list_head, hlist) {
-		if (eq_tun_id_and_vni((u8 *)&node->geneve->cfg.info.key.tun_id, vni) &&
-		    addr == node->geneve->cfg.info.key.u.ipv4.dst)
-			return node->geneve;
+	hlist_for_each_entry_rcu(analde, vni_list_head, hlist) {
+		if (eq_tun_id_and_vni((u8 *)&analde->geneve->cfg.info.key.tun_id, vni) &&
+		    addr == analde->geneve->cfg.info.key.u.ipv4.dst)
+			return analde->geneve;
 	}
 	return NULL;
 }
@@ -151,16 +151,16 @@ static struct geneve_dev *geneve6_lookup(struct geneve_sock *gs,
 					 struct in6_addr addr6, u8 vni[])
 {
 	struct hlist_head *vni_list_head;
-	struct geneve_dev_node *node;
+	struct geneve_dev_analde *analde;
 	__u32 hash;
 
 	/* Find the device for this VNI */
 	hash = geneve_net_vni_hash(vni);
 	vni_list_head = &gs->vni_list[hash];
-	hlist_for_each_entry_rcu(node, vni_list_head, hlist) {
-		if (eq_tun_id_and_vni((u8 *)&node->geneve->cfg.info.key.tun_id, vni) &&
-		    ipv6_addr_equal(&addr6, &node->geneve->cfg.info.key.u.ipv6.dst))
-			return node->geneve;
+	hlist_for_each_entry_rcu(analde, vni_list_head, hlist) {
+		if (eq_tun_id_and_vni((u8 *)&analde->geneve->cfg.info.key.tun_id, vni) &&
+		    ipv6_addr_equal(&addr6, &analde->geneve->cfg.info.key.u.ipv6.dst))
+			return analde->geneve;
 	}
 	return NULL;
 }
@@ -260,7 +260,7 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 		skb->protocol = eth_type_trans(skb, geneve->dev);
 		skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 
-		/* Ignore packet loops (and multicast echo) */
+		/* Iganalre packet loops (and multicast echo) */
 		if (ether_addr_equal(eth_hdr(skb)->h_source,
 				     geneve->dev->dev_addr)) {
 			DEV_STATS_INC(geneve->dev, rx_errors);
@@ -299,13 +299,13 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 	if (unlikely(err)) {
 		if (log_ecn_error) {
 			if (geneve_get_sk_family(gs) == AF_INET)
-				net_info_ratelimited("non-ECT from %pI4 "
+				net_info_ratelimited("analn-ECT from %pI4 "
 						     "with TOS=%#x\n",
 						     &((struct iphdr *)oiph)->saddr,
 						     ((struct iphdr *)oiph)->tos);
 #if IS_ENABLED(CONFIG_IPV6)
 			else
-				net_info_ratelimited("non-ECT from %pI6\n",
+				net_info_ratelimited("analn-ECT from %pI6\n",
 						     &((struct ipv6hdr *)oiph)->saddr);
 #endif
 		}
@@ -335,7 +335,7 @@ static int geneve_init(struct net_device *dev)
 
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = gro_cells_init(&geneve->gro_cells, dev);
 	if (err) {
@@ -431,7 +431,7 @@ static int geneve_udp_encap_err_lookup(struct sock *sk, struct sk_buff *skb)
 
 	gs = rcu_dereference_sk_user_data(sk);
 	if (!gs)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (geneve_get_sk_family(gs) == AF_INET) {
 		struct iphdr *iph = ip_hdr(skb);
@@ -442,7 +442,7 @@ static int geneve_udp_encap_err_lookup(struct sock *sk, struct sk_buff *skb)
 			addr4 = iph->daddr;
 		}
 
-		return geneve_lookup(gs, addr4, vni) ? 0 : -ENOENT;
+		return geneve_lookup(gs, addr4, vni) ? 0 : -EANALENT;
 	}
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -457,11 +457,11 @@ static int geneve_udp_encap_err_lookup(struct sock *sk, struct sk_buff *skb)
 			addr6 = ip6h->daddr;
 		}
 
-		return geneve6_lookup(gs, addr6, vni) ? 0 : -ENOENT;
+		return geneve6_lookup(gs, addr6, vni) ? 0 : -EANALENT;
 	}
 #endif
 
-	return -EPFNOSUPPORT;
+	return -EPFANALSUPPORT;
 }
 
 static struct socket *geneve_create_sock(struct net *net, bool ipv6,
@@ -565,7 +565,7 @@ static int geneve_gro_complete(struct sock *sk, struct sk_buff *skb,
 	struct packet_offload *ptype;
 	__be16 type;
 	int gh_len;
-	int err = -ENOSYS;
+	int err = -EANALSYS;
 
 	gh = (struct genevehdr *)(skb->data + nhoff);
 	gh_len = geneve_hlen(gh);
@@ -596,7 +596,7 @@ static struct geneve_sock *geneve_socket_create(struct net *net, __be16 port,
 
 	gs = kzalloc(sizeof(*gs), GFP_KERNEL);
 	if (!gs)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sock = geneve_create_sock(net, ipv6, port, ipv6_rx_csum);
 	if (IS_ERR(sock)) {
@@ -610,7 +610,7 @@ static struct geneve_sock *geneve_socket_create(struct net *net, __be16 port,
 		INIT_HLIST_HEAD(&gs->vni_list[h]);
 
 	/* Initialize the geneve udp offloads structure */
-	udp_tunnel_notify_add_rx_port(gs->sock, UDP_TUNNEL_TYPE_GENEVE);
+	udp_tunnel_analtify_add_rx_port(gs->sock, UDP_TUNNEL_TYPE_GENEVE);
 
 	/* Mark socket as an encapsulation socket */
 	memset(&tunnel_cfg, 0, sizeof(tunnel_cfg));
@@ -632,7 +632,7 @@ static void __geneve_sock_release(struct geneve_sock *gs)
 		return;
 
 	list_del(&gs->list);
-	udp_tunnel_notify_del_rx_port(gs->sock, UDP_TUNNEL_TYPE_GENEVE);
+	udp_tunnel_analtify_del_rx_port(gs->sock, UDP_TUNNEL_TYPE_GENEVE);
 	udp_tunnel_sock_release(gs->sock);
 	kfree_rcu(gs, rcu);
 }
@@ -674,7 +674,7 @@ static int geneve_sock_add(struct geneve_dev *geneve, bool ipv6)
 {
 	struct net *net = geneve->net;
 	struct geneve_net *gn = net_generic(net, geneve_net_id);
-	struct geneve_dev_node *node;
+	struct geneve_dev_analde *analde;
 	struct geneve_sock *gs;
 	__u8 vni[3];
 	__u32 hash;
@@ -695,18 +695,18 @@ out:
 #if IS_ENABLED(CONFIG_IPV6)
 	if (ipv6) {
 		rcu_assign_pointer(geneve->sock6, gs);
-		node = &geneve->hlist6;
+		analde = &geneve->hlist6;
 	} else
 #endif
 	{
 		rcu_assign_pointer(geneve->sock4, gs);
-		node = &geneve->hlist4;
+		analde = &geneve->hlist4;
 	}
-	node->geneve = geneve;
+	analde->geneve = geneve;
 
 	tunnel_id_to_vni(geneve->cfg.info.key.tun_id, vni);
 	hash = geneve_net_vni_hash(vni);
-	hlist_add_head_rcu(&node->hlist, &gs->vni_list[hash]);
+	hlist_add_head_rcu(&analde->hlist, &gs->vni_list[hash]);
 	return 0;
 }
 
@@ -722,7 +722,7 @@ static int geneve_open(struct net_device *dev)
 #if IS_ENABLED(CONFIG_IPV6)
 	if (ipv6) {
 		ret = geneve_sock_add(geneve, true);
-		if (ret < 0 && ret != -EAFNOSUPPORT)
+		if (ret < 0 && ret != -EAFANALSUPPORT)
 			ipv4 = false;
 	}
 #endif
@@ -863,7 +863,7 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 			unclone = skb_tunnel_info_unclone(skb);
 			if (unlikely(!unclone)) {
 				dst_release(&rt->dst);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			unclone->key.u.ipv4.dst = saddr;
@@ -969,7 +969,7 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 			unclone = skb_tunnel_info_unclone(skb);
 			if (unlikely(!unclone)) {
 				dst_release(dst);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			unclone->key.u.ipv6.dst = saddr;
@@ -1019,7 +1019,7 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (geneve->cfg.collect_md) {
 		info = skb_tunnel_info(skb);
 		if (unlikely(!info || !(info->mode & IP_TUNNEL_INFO_TX))) {
-			netdev_dbg(dev, "no tunnel metadata\n");
+			netdev_dbg(dev, "anal tunnel metadata\n");
 			dev_kfree_skb(skb);
 			DEV_STATS_INC(dev, tx_dropped);
 			return NETDEV_TX_OK;
@@ -1204,7 +1204,7 @@ static void geneve_setup(struct net_device *dev)
 
 	/* MTU range: 68 - (something less than 65535) */
 	dev->min_mtu = ETH_MIN_MTU;
-	/* The max_mtu calculation does not take account of GENEVE
+	/* The max_mtu calculation does analt take account of GENEVE
 	 * options, to avoid excluding potentially valid
 	 * configurations. This will be further reduced by IPvX hdr size.
 	 */
@@ -1212,7 +1212,7 @@ static void geneve_setup(struct net_device *dev)
 
 	netif_keep_dst(dev);
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
-	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_NO_QUEUE;
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_ANAL_QUEUE;
 	eth_hw_addr_random(dev);
 }
 
@@ -1240,20 +1240,20 @@ static int geneve_validate(struct nlattr *tb[], struct nlattr *data[],
 	if (tb[IFLA_ADDRESS]) {
 		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN) {
 			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_ADDRESS],
-					    "Provided link layer address is not Ethernet");
+					    "Provided link layer address is analt Ethernet");
 			return -EINVAL;
 		}
 
 		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS]))) {
 			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_ADDRESS],
-					    "Provided Ethernet address is not unicast");
-			return -EADDRNOTAVAIL;
+					    "Provided Ethernet address is analt unicast");
+			return -EADDRANALTAVAIL;
 		}
 	}
 
 	if (!data) {
 		NL_SET_ERR_MSG(extack,
-			       "Not enough attributes provided to perform the operation");
+			       "Analt eanalugh attributes provided to perform the operation");
 		return -EINVAL;
 	}
 
@@ -1330,7 +1330,7 @@ static int geneve_configure(struct net *net, struct net_device *dev,
 
 	if (cfg->collect_md && !is_tnl_info_zero(info)) {
 		NL_SET_ERR_MSG(extack,
-			       "Device is externally controlled, so attributes (VNI, Port, and so on) must not be specified");
+			       "Device is externally controlled, so attributes (VNI, Port, and so on) must analt be specified");
 		return -EINVAL;
 	}
 
@@ -1341,7 +1341,7 @@ static int geneve_configure(struct net *net, struct net_device *dev,
 	if (t)
 		return -EBUSY;
 
-	/* make enough headroom for basic scenario */
+	/* make eanalugh headroom for basic scenario */
 	encap_len = GENEVE_BASE_HLEN + ETH_HLEN;
 	if (!cfg->collect_md && ip_tunnel_info_af(info) == AF_INET) {
 		encap_len += sizeof(struct iphdr);
@@ -1371,10 +1371,10 @@ static int geneve_configure(struct net *net, struct net_device *dev,
 
 	if (geneve->cfg.inner_proto_inherit) {
 		dev->header_ops = NULL;
-		dev->type = ARPHRD_NONE;
+		dev->type = ARPHRD_ANALNE;
 		dev->hard_header_len = 0;
 		dev->addr_len = 0;
-		dev->flags = IFF_POINTOPOINT | IFF_NOARP;
+		dev->flags = IFF_POINTOPOINT | IFF_ANALARP;
 	}
 
 	err = register_netdevice(dev);
@@ -1400,14 +1400,14 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 
 	if (data[IFLA_GENEVE_REMOTE] && data[IFLA_GENEVE_REMOTE6]) {
 		NL_SET_ERR_MSG(extack,
-			       "Cannot specify both IPv4 and IPv6 Remote addresses");
+			       "Cananalt specify both IPv4 and IPv6 Remote addresses");
 		return -EINVAL;
 	}
 
 	if (data[IFLA_GENEVE_REMOTE]) {
 		if (changelink && (ip_tunnel_info_af(info) == AF_INET6)) {
 			attrtype = IFLA_GENEVE_REMOTE;
-			goto change_notsup;
+			goto change_analtsup;
 		}
 
 		info->key.u.ipv4.dst =
@@ -1415,7 +1415,7 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 
 		if (ipv4_is_multicast(info->key.u.ipv4.dst)) {
 			NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_REMOTE],
-					    "Remote IPv4 address cannot be Multicast");
+					    "Remote IPv4 address cananalt be Multicast");
 			return -EINVAL;
 		}
 	}
@@ -1424,7 +1424,7 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 #if IS_ENABLED(CONFIG_IPV6)
 		if (changelink && (ip_tunnel_info_af(info) == AF_INET)) {
 			attrtype = IFLA_GENEVE_REMOTE6;
-			goto change_notsup;
+			goto change_analtsup;
 		}
 
 		info->mode = IP_TUNNEL_INFO_IPV6;
@@ -1434,20 +1434,20 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 		if (ipv6_addr_type(&info->key.u.ipv6.dst) &
 		    IPV6_ADDR_LINKLOCAL) {
 			NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_REMOTE6],
-					    "Remote IPv6 address cannot be link-local");
+					    "Remote IPv6 address cananalt be link-local");
 			return -EINVAL;
 		}
 		if (ipv6_addr_is_multicast(&info->key.u.ipv6.dst)) {
 			NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_REMOTE6],
-					    "Remote IPv6 address cannot be Multicast");
+					    "Remote IPv6 address cananalt be Multicast");
 			return -EINVAL;
 		}
 		info->key.tun_flags |= TUNNEL_CSUM;
 		cfg->use_udp6_rx_checksums = true;
 #else
 		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_REMOTE6],
-				    "IPv6 support not enabled in the kernel");
-		return -EPFNOSUPPORT;
+				    "IPv6 support analt enabled in the kernel");
+		return -EPFANALSUPPORT;
 #endif
 	}
 
@@ -1464,7 +1464,7 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 		tunid = vni_to_tunnel_id(tvni);
 		if (changelink && (tunid != info->key.tun_id)) {
 			attrtype = IFLA_GENEVE_ID;
-			goto change_notsup;
+			goto change_analtsup;
 		}
 		info->key.tun_id = tunid;
 	}
@@ -1498,7 +1498,7 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 	if (data[IFLA_GENEVE_PORT]) {
 		if (changelink) {
 			attrtype = IFLA_GENEVE_PORT;
-			goto change_notsup;
+			goto change_analtsup;
 		}
 		info->key.tp_dst = nla_get_be16(data[IFLA_GENEVE_PORT]);
 	}
@@ -1506,7 +1506,7 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 	if (data[IFLA_GENEVE_COLLECT_METADATA]) {
 		if (changelink) {
 			attrtype = IFLA_GENEVE_COLLECT_METADATA;
-			goto change_notsup;
+			goto change_analtsup;
 		}
 		cfg->collect_md = true;
 	}
@@ -1514,7 +1514,7 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 	if (data[IFLA_GENEVE_UDP_CSUM]) {
 		if (changelink) {
 			attrtype = IFLA_GENEVE_UDP_CSUM;
-			goto change_notsup;
+			goto change_analtsup;
 		}
 		if (nla_get_u8(data[IFLA_GENEVE_UDP_CSUM]))
 			info->key.tun_flags |= TUNNEL_CSUM;
@@ -1524,14 +1524,14 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 #if IS_ENABLED(CONFIG_IPV6)
 		if (changelink) {
 			attrtype = IFLA_GENEVE_UDP_ZERO_CSUM6_TX;
-			goto change_notsup;
+			goto change_analtsup;
 		}
 		if (nla_get_u8(data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX]))
 			info->key.tun_flags &= ~TUNNEL_CSUM;
 #else
 		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX],
-				    "IPv6 support not enabled in the kernel");
-		return -EPFNOSUPPORT;
+				    "IPv6 support analt enabled in the kernel");
+		return -EPFANALSUPPORT;
 #endif
 	}
 
@@ -1539,30 +1539,30 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 #if IS_ENABLED(CONFIG_IPV6)
 		if (changelink) {
 			attrtype = IFLA_GENEVE_UDP_ZERO_CSUM6_RX;
-			goto change_notsup;
+			goto change_analtsup;
 		}
 		if (nla_get_u8(data[IFLA_GENEVE_UDP_ZERO_CSUM6_RX]))
 			cfg->use_udp6_rx_checksums = false;
 #else
 		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_UDP_ZERO_CSUM6_RX],
-				    "IPv6 support not enabled in the kernel");
-		return -EPFNOSUPPORT;
+				    "IPv6 support analt enabled in the kernel");
+		return -EPFANALSUPPORT;
 #endif
 	}
 
 	if (data[IFLA_GENEVE_INNER_PROTO_INHERIT]) {
 		if (changelink) {
 			attrtype = IFLA_GENEVE_INNER_PROTO_INHERIT;
-			goto change_notsup;
+			goto change_analtsup;
 		}
 		cfg->inner_proto_inherit = true;
 	}
 
 	return 0;
-change_notsup:
+change_analtsup:
 	NL_SET_ERR_MSG_ATTR(extack, data[attrtype],
-			    "Changing VNI, Port, endpoint IP address family, external, inner_proto_inherit, and UDP checksum attributes are not supported");
-	return -EOPNOTSUPP;
+			    "Changing VNI, Port, endpoint IP address family, external, inner_proto_inherit, and UDP checksum attributes are analt supported");
+	return -EOPANALTSUPP;
 }
 
 static void geneve_link_config(struct net_device *dev,
@@ -1639,7 +1639,7 @@ static int geneve_newlink(struct net *net, struct net_device *dev,
 
 /* Quiesces the geneve device data path for both TX and RX.
  *
- * On transmit geneve checks for non-NULL geneve_sock before it proceeds.
+ * On transmit geneve checks for analn-NULL geneve_sock before it proceeds.
  * So, if we set that socket to NULL under RCU and wait for synchronize_net()
  * to complete for the existing set of in-flight packets to be transmitted,
  * then we would have quiesced the transmit data path. All the future packets
@@ -1692,10 +1692,10 @@ static int geneve_changelink(struct net_device *dev, struct nlattr *tb[],
 	int err;
 
 	/* If the geneve device is configured for metadata (or externally
-	 * controlled, for example, OVS), then nothing can be changed.
+	 * controlled, for example, OVS), then analthing can be changed.
 	 */
 	if (geneve->cfg.collect_md)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Start with the existing info. */
 	memcpy(&cfg, &geneve->cfg, sizeof(cfg));
@@ -1867,21 +1867,21 @@ err:
 }
 EXPORT_SYMBOL_GPL(geneve_dev_create_fb);
 
-static int geneve_netdevice_event(struct notifier_block *unused,
+static int geneve_netdevice_event(struct analtifier_block *unused,
 				  unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 
 	if (event == NETDEV_UDP_TUNNEL_PUSH_INFO)
 		geneve_offload_rx_ports(dev, true);
 	else if (event == NETDEV_UDP_TUNNEL_DROP_INFO)
 		geneve_offload_rx_ports(dev, false);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block geneve_notifier_block __read_mostly = {
-	.notifier_call = geneve_netdevice_event,
+static struct analtifier_block geneve_analtifier_block __read_mostly = {
+	.analtifier_call = geneve_netdevice_event,
 };
 
 static __net_init int geneve_init_net(struct net *net)
@@ -1904,7 +1904,7 @@ static void geneve_destroy_tunnels(struct net *net, struct list_head *head)
 		if (dev->rtnl_link_ops == &geneve_link_ops)
 			unregister_netdevice_queue(dev, head);
 
-	/* now gather any other geneve devices that were created in this ns */
+	/* analw gather any other geneve devices that were created in this ns */
 	list_for_each_entry_safe(geneve, next, &gn->geneve_list, next) {
 		/* If geneve->dev is in the same netns, it was already added
 		 * to the list by the previous loop.
@@ -1949,7 +1949,7 @@ static int __init geneve_init_module(void)
 	if (rc)
 		goto out1;
 
-	rc = register_netdevice_notifier(&geneve_notifier_block);
+	rc = register_netdevice_analtifier(&geneve_analtifier_block);
 	if (rc)
 		goto out2;
 
@@ -1959,7 +1959,7 @@ static int __init geneve_init_module(void)
 
 	return 0;
 out3:
-	unregister_netdevice_notifier(&geneve_notifier_block);
+	unregister_netdevice_analtifier(&geneve_analtifier_block);
 out2:
 	unregister_pernet_subsys(&geneve_net_ops);
 out1:
@@ -1970,7 +1970,7 @@ late_initcall(geneve_init_module);
 static void __exit geneve_cleanup_module(void)
 {
 	rtnl_link_unregister(&geneve_link_ops);
-	unregister_netdevice_notifier(&geneve_notifier_block);
+	unregister_netdevice_analtifier(&geneve_analtifier_block);
 	unregister_pernet_subsys(&geneve_net_ops);
 }
 module_exit(geneve_cleanup_module);

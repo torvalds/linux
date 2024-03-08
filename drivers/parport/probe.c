@@ -28,7 +28,7 @@ static const struct {
 	{ "PORTS",       "Ports" },
 	{ "SCANNER",     "Scanner" },
 	{ "DIGICAM",     "Digital camera" },
-	{ "",            "Unknown device" },
+	{ "",            "Unkanalwn device" },
 	{ "",            "Unspecified" },
 	{ "SCSIADAPTER", "SCSI adapter" },
 	{ NULL,          NULL }
@@ -93,7 +93,7 @@ static void parse_data(struct parport *port, int device, char *str)
 						goto rock_on;
 					}
 				}
-				pr_warn("%s probe: warning, class '%s' not understood\n",
+				pr_warn("%s probe: warning, class '%s' analt understood\n",
 					port->name, sep);
 				info->class = PARPORT_CLASS_OTHER;
 			} else if (!strcmp(p, "CMD") ||
@@ -207,14 +207,14 @@ static ssize_t parport_read_device_id (struct parport *port, char *buffer,
 		 * the first 256 bytes or so that we must have read so
 		 * far. */
 		if (buffer[len-1] == ';') {
-			printk(KERN_DEBUG "%s: Device ID reading stopped before device told data not available. Current idlen %u of %u, len bytes %02X %02X\n",
+			printk(KERN_DEBUG "%s: Device ID reading stopped before device told data analt available. Current idlen %u of %u, len bytes %02X %02X\n",
 			       port->name, current_idlen, numidlens,
 			       length[0], length[1]);
 			goto done;
 		}
 	}
 	if (current_idlen < numidlens) {
-		/* Buffer not large enough, read to end of buffer. */
+		/* Buffer analt large eanalugh, read to end of buffer. */
 		size_t idlen, len2;
 		if (len+1 < count) {
 			retval = parport_read (port, buffer+len, count-len-1);
@@ -222,7 +222,7 @@ static ssize_t parport_read_device_id (struct parport *port, char *buffer,
 				return retval;
 			len += retval;
 		}
-		/* Read the whole ID since some devices would not
+		/* Read the whole ID since some devices would analt
 		 * otherwise give back the Device ID from beginning
 		 * next time when asked. */
 		idlen = idlens[current_idlen];
@@ -237,7 +237,7 @@ static ssize_t parport_read_device_id (struct parport *port, char *buffer,
 		}
 	}
 	/* In addition, there are broken devices out there that don't
-	   even finish off with a semi-colon. We do not need to care
+	   even finish off with a semi-colon. We do analt need to care
 	   about those at this time. */
  done:
 	buffer[len] = '\0';

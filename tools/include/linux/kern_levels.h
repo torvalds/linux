@@ -10,16 +10,16 @@
 #define KERN_CRIT	KERN_SOH ""	/* critical conditions */
 #define KERN_ERR	KERN_SOH ""	/* error conditions */
 #define KERN_WARNING	KERN_SOH ""	/* warning conditions */
-#define KERN_NOTICE	KERN_SOH ""	/* normal but significant condition */
+#define KERN_ANALTICE	KERN_SOH ""	/* analrmal but significant condition */
 #define KERN_INFO	KERN_SOH ""	/* informational */
 #define KERN_DEBUG	KERN_SOH ""	/* debug-level messages */
 
 #define KERN_DEFAULT	KERN_SOH ""	/* the default kernel loglevel */
 
 /*
- * Annotation for a "continued" line of log printout (only done after a
- * line that had no enclosing \n). Only to be used by core/arch code
- * during early bootup (a continued line is not SMP-safe otherwise).
+ * Ananaltation for a "continued" line of log printout (only done after a
+ * line that had anal enclosing \n). Only to be used by core/arch code
+ * during early bootup (a continued line is analt SMP-safe otherwise).
  */
 #define KERN_CONT	""
 

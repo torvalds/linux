@@ -2,7 +2,7 @@
 /*
  *  HID driver for Retrode 2 controller adapter and plug-in extensions
  *
- *  Copyright (c) 2017 Bastien Nocera <hadess@hadess.net>
+ *  Copyright (c) 2017 Bastien Analcera <hadess@hadess.net>
  */
 
 /*
@@ -40,7 +40,7 @@ static int retrode_input_configured(struct hid_device *hdev,
 		break;
 	default:
 		hid_err(hdev, "Got unhandled report id %d\n", field->report->id);
-		suffix = "Unknown";
+		suffix = "Unkanalwn";
 	}
 
 	if (number)
@@ -52,7 +52,7 @@ static int retrode_input_configured(struct hid_device *hdev,
 				"%s %s", CONTROLLER_NAME_BASE, suffix);
 
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hi->input->name = name;
 
@@ -65,7 +65,7 @@ static int retrode_probe(struct hid_device *hdev,
 
 	int ret;
 
-	/* Has no effect on the mouse device */
+	/* Has anal effect on the mouse device */
 	hdev->quirks |= HID_QUIRK_MULTI_INPUT;
 
 	ret = hid_parse(hdev);
@@ -80,7 +80,7 @@ static int retrode_probe(struct hid_device *hdev,
 }
 
 static const struct hid_device_id retrode_devices[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_FUTURE_TECHNOLOGY, USB_DEVICE_ID_RETRODE2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_FUTURE_TECHANALLOGY, USB_DEVICE_ID_RETRODE2) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, retrode_devices);

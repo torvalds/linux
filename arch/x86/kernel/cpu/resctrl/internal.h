@@ -36,11 +36,11 @@
 /* Reads to Remote DRAM Memory */
 #define READS_TO_REMOTE_MEM		BIT(1)
 
-/* Non-Temporal Writes to Local Memory */
-#define NON_TEMP_WRITE_TO_LOCAL_MEM	BIT(2)
+/* Analn-Temporal Writes to Local Memory */
+#define ANALN_TEMP_WRITE_TO_LOCAL_MEM	BIT(2)
 
-/* Non-Temporal Writes to Remote Memory */
-#define NON_TEMP_WRITE_TO_REMOTE_MEM	BIT(3)
+/* Analn-Temporal Writes to Remote Memory */
+#define ANALN_TEMP_WRITE_TO_REMOTE_MEM	BIT(3)
 
 /* Reads to Local Memory the system identifies as "Slow Memory" */
 #define READS_TO_LOCAL_S_MEM		BIT(4)
@@ -128,9 +128,9 @@ enum rdt_group_type {
 /**
  * enum rdtgrp_mode - Mode of a RDT resource group
  * @RDT_MODE_SHAREABLE: This resource group allows sharing of its allocations
- * @RDT_MODE_EXCLUSIVE: No sharing of this resource group's allocations allowed
+ * @RDT_MODE_EXCLUSIVE: Anal sharing of this resource group's allocations allowed
  * @RDT_MODE_PSEUDO_LOCKSETUP: Resource group will be used for Pseudo-Locking
- * @RDT_MODE_PSEUDO_LOCKED: No sharing of this resource group's allocations
+ * @RDT_MODE_PSEUDO_LOCKED: Anal sharing of this resource group's allocations
  *                          allowed AND the allocations are Cache Pseudo-Locked
  * @RDT_NUM_MODES: Total number of modes
  *
@@ -156,13 +156,13 @@ enum rdtgrp_mode {
 
 /**
  * struct mongroup - store mon group's data in resctrl fs.
- * @mon_data_kn:		kernfs node for the mon_data directory
+ * @mon_data_kn:		kernfs analde for the mon_data directory
  * @parent:			parent rdtgrp
- * @crdtgrp_list:		child rdtgroup node list
+ * @crdtgrp_list:		child rdtgroup analde list
  * @rmid:			rmid for this rdtgroup
  */
 struct mongroup {
-	struct kernfs_node	*mon_data_kn;
+	struct kernfs_analde	*mon_data_kn;
 	struct rdtgroup		*parent;
 	struct list_head	crdtgrp_list;
 	u32			rmid;
@@ -184,7 +184,7 @@ struct mongroup {
  * @line_size:		size of the cache lines
  * @size:		size of pseudo-locked region in bytes
  * @kmem:		the kernel memory associated with pseudo-locked region
- * @minor:		minor number of character device associated with this
+ * @mianalr:		mianalr number of character device associated with this
  *			region
  * @debugfs_dir:	pointer to this region's directory in the debugfs
  *			filesystem
@@ -200,14 +200,14 @@ struct pseudo_lock_region {
 	unsigned int		line_size;
 	unsigned int		size;
 	void			*kmem;
-	unsigned int		minor;
+	unsigned int		mianalr;
 	struct dentry		*debugfs_dir;
 	struct list_head	pm_reqs;
 };
 
 /**
  * struct rdtgroup - store rdtgroup's data in resctrl file system.
- * @kn:				kernfs node
+ * @kn:				kernfs analde
  * @rdtgroup_list:		linked list for all rdtgroups
  * @closid:			closid for this rdtgroup
  * @cpu_mask:			CPUs assigned to this rdtgroup
@@ -221,7 +221,7 @@ struct pseudo_lock_region {
  * @plr:			pseudo-locked region
  */
 struct rdtgroup {
-	struct kernfs_node		*kn;
+	struct kernfs_analde		*kn;
 	struct list_head		rdtgroup_list;
 	u32				closid;
 	struct cpumask			cpu_mask;
@@ -496,7 +496,7 @@ union cpuid_0x10_3_eax {
 union cpuid_0x10_x_ecx {
 	struct {
 		unsigned int reserved:3;
-		unsigned int noncont:1;
+		unsigned int analncont:1;
 	} split;
 	unsigned int full;
 };
@@ -515,8 +515,8 @@ __printf(1, 2)
 void rdt_last_cmd_printf(const char *fmt, ...);
 
 void rdt_ctrl_update(void *arg);
-struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn);
-void rdtgroup_kn_unlock(struct kernfs_node *kn);
+struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_analde *kn);
+void rdtgroup_kn_unlock(struct kernfs_analde *kn);
 int rdtgroup_kn_mode_restrict(struct rdtgroup *r, const char *name);
 int rdtgroup_kn_mode_restore(struct rdtgroup *r, const char *name,
 			     umode_t mask);

@@ -103,12 +103,12 @@ struct sync_area {
 
 /*
  * Technically, we need also for the atomic bool to be address-free, which
- * is recommended, but not strictly required, by C11 for lockless
+ * is recommended, but analt strictly required, by C11 for lockless
  * implementations.
  * However, in practice both GCC and Clang fulfill this requirement on
  * all KVM-supported platforms.
  */
-static_assert(ATOMIC_BOOL_LOCK_FREE == 2, "atomic bool is not lockless");
+static_assert(ATOMIC_BOOL_LOCK_FREE == 2, "atomic bool is analt lockless");
 
 static sem_t vcpu_ready;
 
@@ -150,7 +150,7 @@ static void *vcpu_worker(void *__data)
 				(ulong)uc.args[1]);
 			sem_post(&vcpu_ready);
 			continue;
-		case UCALL_NONE:
+		case UCALL_ANALNE:
 			if (run->exit_reason == KVM_EXIT_MMIO)
 				check_mmio_access(data, run);
 			else
@@ -162,7 +162,7 @@ static void *vcpu_worker(void *__data)
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 	}
 
@@ -175,11 +175,11 @@ static void wait_for_vcpu(void)
 	struct timespec ts;
 
 	TEST_ASSERT(!clock_gettime(CLOCK_REALTIME, &ts),
-		    "clock_gettime() failed: %d", errno);
+		    "clock_gettime() failed: %d", erranal);
 
 	ts.tv_sec += 2;
 	TEST_ASSERT(!sem_timedwait(&vcpu_ready, &ts),
-		    "sem_timedwait() failed: %d", errno);
+		    "sem_timedwait() failed: %d", erranal);
 }
 
 static void *vm_gpa2hva(struct vm_data *data, uint64_t gpa, uint64_t *rempages)
@@ -208,7 +208,7 @@ static void *vm_gpa2hva(struct vm_data *data, uint64_t gpa, uint64_t *rempages)
 			slotpages = data->pages_per_slot;
 
 		TEST_ASSERT(!pgoffs,
-			    "Asking for remaining pages in slot but gpa not page aligned");
+			    "Asking for remaining pages in slot but gpa analt page aligned");
 		*rempages = slotpages - slotoffs;
 	}
 
@@ -311,7 +311,7 @@ static bool prepare_vm(struct vm_data *data, int nslots, uint64_t *maxslots,
 	pr_info_v("Adding slots 1..%i, each slot with %"PRIu64" pages + %"PRIu64" extra pages last\n",
 		data->nslots, data->pages_per_slot, rempages);
 
-	clock_gettime(CLOCK_MONOTONIC, &tstart);
+	clock_gettime(CLOCK_MOANALTONIC, &tstart);
 	for (slot = 1, guest_addr = MEM_GPA; slot <= data->nslots; slot++) {
 		uint64_t npages;
 
@@ -319,7 +319,7 @@ static bool prepare_vm(struct vm_data *data, int nslots, uint64_t *maxslots,
 		if (slot == data->nslots)
 			npages += rempages;
 
-		vm_userspace_mem_region_add(data->vm, VM_MEM_SRC_ANONYMOUS,
+		vm_userspace_mem_region_add(data->vm, VM_MEM_SRC_AANALNYMOUS,
 					    guest_addr, slot, npages,
 					    0);
 		guest_addr += npages * guest_page_size;
@@ -407,12 +407,12 @@ static bool _guest_should_exit(void)
 #define guest_should_exit() unlikely(_guest_should_exit())
 
 /*
- * noinline so we can easily see how much time the host spends waiting
+ * analinline so we can easily see how much time the host spends waiting
  * for the guest.
  * For the same reason use alarm() instead of polling clock_gettime()
  * to implement a wait timeout.
  */
-static noinline void host_perform_sync(struct sync_area *sync)
+static analinline void host_perform_sync(struct sync_area *sync)
 {
 	alarm(2);
 
@@ -459,7 +459,7 @@ static void guest_code_test_memslot_move(void)
 			*(uint64_t *)ptr = MEM_TEST_VAL_1;
 
 		/*
-		 * No host sync here since the MMIO exits are so expensive
+		 * Anal host sync here since the MMIO exits are so expensive
 		 * that the host would spend most of its time waiting for
 		 * the guest and so instead of measuring memslot move
 		 * performance we would measure the performance and
@@ -642,7 +642,7 @@ static void test_memslot_do_unmap(struct vm_data *data,
 		npages = min(npages, count - ctr);
 		ret = madvise(hva, npages * guest_page_size, MADV_DONTNEED);
 		TEST_ASSERT(!ret,
-			    "madvise(%p, MADV_DONTNEED) on VM memory should not fail for gptr 0x%"PRIx64,
+			    "madvise(%p, MADV_DONTNEED) on VM memory should analt fail for gptr 0x%"PRIx64,
 			    hva, gpa);
 		ctr += npages;
 		gpa += npages * guest_page_size;
@@ -817,7 +817,7 @@ static bool test_execute(int nslots, uint64_t *maxslots,
 
 	launch_vm(data);
 
-	clock_gettime(CLOCK_MONOTONIC, &tstart);
+	clock_gettime(CLOCK_MOANALTONIC, &tstart);
 	let_guest_run(sync);
 
 	while (1) {
@@ -894,9 +894,9 @@ static void help(char *name, struct test_args *targs)
 	pr_info("usage: %s [-h] [-v] [-d] [-s slots] [-f first_test] [-e last_test] [-l test_length] [-r run_count]\n",
 		name);
 	pr_info(" -h: print this help screen.\n");
-	pr_info(" -v: enable verbose mode (not for benchmarking).\n");
+	pr_info(" -v: enable verbose mode (analt for benchmarking).\n");
 	pr_info(" -d: enable extra debug checks.\n");
-	pr_info(" -s: specify memslot count cap (-1 means no cap; currently: %i)\n",
+	pr_info(" -s: specify memslot count cap (-1 means anal cap; currently: %i)\n",
 		targs->nslots);
 	pr_info(" -f: specify the first test to run (currently: %i; max %zu)\n",
 		targs->tfirst, NTESTS - 1);
@@ -967,25 +967,25 @@ static bool parse_args(int argc, char *argv[],
 			map_unmap_verify = true;
 			break;
 		case 's':
-			targs->nslots = atoi_paranoid(optarg);
+			targs->nslots = atoi_paraanalid(optarg);
 			if (targs->nslots <= 1 && targs->nslots != -1) {
-				pr_info("Slot count cap must be larger than 1 or -1 for no cap\n");
+				pr_info("Slot count cap must be larger than 1 or -1 for anal cap\n");
 				return false;
 			}
 			break;
 		case 'f':
-			targs->tfirst = atoi_non_negative("First test", optarg);
+			targs->tfirst = atoi_analn_negative("First test", optarg);
 			break;
 		case 'e':
-			targs->tlast = atoi_non_negative("Last test", optarg);
+			targs->tlast = atoi_analn_negative("Last test", optarg);
 			if (targs->tlast >= NTESTS) {
-				pr_info("Last test to run has to be non-negative and less than %zu\n",
+				pr_info("Last test to run has to be analn-negative and less than %zu\n",
 					NTESTS);
 				return false;
 			}
 			break;
 		case 'l':
-			targs->seconds = atoi_non_negative("Test length", optarg);
+			targs->seconds = atoi_analn_negative("Test length", optarg);
 			break;
 		case 'r':
 			targs->runs = atoi_positive("Runs per test", optarg);
@@ -999,7 +999,7 @@ static bool parse_args(int argc, char *argv[],
 	}
 
 	if (targs->tfirst > targs->tlast) {
-		pr_info("First test to run cannot be greater than the last test to run\n");
+		pr_info("First test to run cananalt be greater than the last test to run\n");
 		return false;
 	}
 
@@ -1051,7 +1051,7 @@ static bool test_loop(const struct test_data *data,
 		result.slot_runtime.tv_sec, result.slot_runtime.tv_nsec,
 		result.guest_runtime.tv_sec, result.guest_runtime.tv_nsec);
 	if (!result.nloops) {
-		pr_info("No full loops done - too short test time or system too loaded?\n");
+		pr_info("Anal full loops done - too short test time or system too loaded?\n");
 		return true;
 	}
 

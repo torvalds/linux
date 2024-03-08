@@ -126,7 +126,7 @@ static void clk_periph_restore_context(struct clk_hw *hw)
 	if (WARN_ON(parent_id < 0))
 		return;
 
-	if (!(periph->gate.flags & TEGRA_PERIPH_NO_DIV))
+	if (!(periph->gate.flags & TEGRA_PERIPH_ANAL_DIV))
 		div_ops->restore_context(div_hw);
 
 	clk_periph_set_parent(hw, parent_id);
@@ -145,8 +145,8 @@ const struct clk_ops tegra_clk_periph_ops = {
 	.restore_context = clk_periph_restore_context,
 };
 
-static const struct clk_ops tegra_clk_periph_nodiv_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+static const struct clk_ops tegra_clk_periph_analdiv_ops = {
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.get_parent = clk_periph_get_parent,
 	.set_parent = clk_periph_set_parent,
 	.is_enabled = clk_periph_is_enabled,
@@ -156,7 +156,7 @@ static const struct clk_ops tegra_clk_periph_nodiv_ops = {
 	.restore_context = clk_periph_restore_context,
 };
 
-static const struct clk_ops tegra_clk_periph_no_gate_ops = {
+static const struct clk_ops tegra_clk_periph_anal_gate_ops = {
 	.get_parent = clk_periph_get_parent,
 	.set_parent = clk_periph_set_parent,
 	.recalc_rate = clk_periph_recalc_rate,
@@ -174,13 +174,13 @@ static struct clk *_tegra_clk_register_periph(const char *name,
 	struct clk *clk;
 	struct clk_init_data init;
 	const struct tegra_clk_periph_regs *bank;
-	bool div = !(periph->gate.flags & TEGRA_PERIPH_NO_DIV);
+	bool div = !(periph->gate.flags & TEGRA_PERIPH_ANAL_DIV);
 
-	if (periph->gate.flags & TEGRA_PERIPH_NO_DIV) {
+	if (periph->gate.flags & TEGRA_PERIPH_ANAL_DIV) {
 		flags |= CLK_SET_RATE_PARENT;
-		init.ops = &tegra_clk_periph_nodiv_ops;
-	} else if (periph->gate.flags & TEGRA_PERIPH_NO_GATE)
-		init.ops = &tegra_clk_periph_no_gate_ops;
+		init.ops = &tegra_clk_periph_analdiv_ops;
+	} else if (periph->gate.flags & TEGRA_PERIPH_ANAL_GATE)
+		init.ops = &tegra_clk_periph_anal_gate_ops;
 	else
 		init.ops = &tegra_clk_periph_ops;
 
@@ -222,12 +222,12 @@ struct clk *tegra_clk_register_periph(const char *name,
 			periph, clk_base, offset, flags);
 }
 
-struct clk *tegra_clk_register_periph_nodiv(const char *name,
+struct clk *tegra_clk_register_periph_analdiv(const char *name,
 		const char * const *parent_names, int num_parents,
 		struct tegra_clk_periph *periph, void __iomem *clk_base,
 		u32 offset)
 {
-	periph->gate.flags |= TEGRA_PERIPH_NO_DIV;
+	periph->gate.flags |= TEGRA_PERIPH_ANAL_DIV;
 	return _tegra_clk_register_periph(name, parent_names, num_parents,
 			periph, clk_base, offset, CLK_SET_RATE_PARENT);
 }

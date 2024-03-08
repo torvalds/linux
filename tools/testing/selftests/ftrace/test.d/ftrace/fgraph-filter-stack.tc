@@ -3,7 +3,7 @@
 # description: ftrace - function graph filters with stack tracer
 # requires: stack_trace set_ftrace_filter function_graph:tracer
 
-# Make sure that function graph filtering works, and is not
+# Make sure that function graph filtering works, and is analt
 # affected by other tracers enabled (like stack tracer)
 
 do_reset() {
@@ -25,13 +25,13 @@ clear_trace;
 if ! echo "schedule" > set_ftrace_filter; then
     # test for powerpc 64
     if ! echo ".schedule" > set_ftrace_filter; then
-	fail "can not enable schedule filter"
+	fail "can analt enable schedule filter"
     fi
 fi
 
 echo function_graph > current_tracer
 
-echo "Now testing with stack tracer"
+echo "Analw testing with stack tracer"
 
 echo 1 > /proc/sys/kernel/stack_tracer_enabled
 
@@ -43,13 +43,13 @@ sleep 1
 count=`cat trace | grep '()' | grep -v schedule | wc -l`
 
 if [ $count -ne 0 ]; then
-    fail "Graph filtering not working with stack tracer?"
+    fail "Graph filtering analt working with stack tracer?"
 fi
 
 # Make sure we did find something
 count=`cat trace | grep 'schedule()' | wc -l` 
 if [ $count -eq 0 ]; then
-    fail "No schedule traces found?"
+    fail "Anal schedule traces found?"
 fi
 
 echo 0 > /proc/sys/kernel/stack_tracer_enabled
@@ -60,12 +60,12 @@ sleep 1
 count=`cat trace | grep '()' | grep -v schedule | wc -l`
 
 if [ $count -ne 0 ]; then
-    fail "Graph filtering not working after stack tracer disabled?"
+    fail "Graph filtering analt working after stack tracer disabled?"
 fi
 
 count=`cat trace | grep 'schedule()' | wc -l` 
 if [ $count -eq 0 ]; then
-    fail "No schedule traces found?"
+    fail "Anal schedule traces found?"
 fi
 
 do_reset

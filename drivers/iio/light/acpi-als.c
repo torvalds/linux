@@ -27,7 +27,7 @@
 
 #define ACPI_ALS_CLASS			"als"
 #define ACPI_ALS_DEVICE_NAME		"acpi-als"
-#define ACPI_ALS_NOTIFY_ILLUMINANCE	0x80
+#define ACPI_ALS_ANALTIFY_ILLUMINANCE	0x80
 
 /*
  * So far, there's only one channel in here, but the specification for
@@ -100,14 +100,14 @@ static int acpi_als_read_value(struct acpi_als *als, char *prop, s32 *val)
 	return 0;
 }
 
-static void acpi_als_notify(struct acpi_device *device, u32 event)
+static void acpi_als_analtify(struct acpi_device *device, u32 event)
 {
 	struct iio_dev *indio_dev = acpi_driver_data(device);
 	struct acpi_als *als = iio_priv(indio_dev);
 
 	if (iio_buffer_enabled(indio_dev) && iio_trigger_using_own(indio_dev)) {
 		switch (event) {
-		case ACPI_ALS_NOTIFY_ILLUMINANCE:
+		case ACPI_ALS_ANALTIFY_ILLUMINANCE:
 			iio_trigger_poll_nested(als->trig);
 			break;
 		default:
@@ -165,9 +165,9 @@ static irqreturn_t acpi_als_trigger_handler(int irq, void *p)
 
 	/*
 	 * When coming from own trigger via polls, set polling function
-	 * timestamp here. Given ACPI notifier is already in a thread and call
-	 * function directly, there is no need to set the timestamp in the
-	 * notify function.
+	 * timestamp here. Given ACPI analtifier is already in a thread and call
+	 * function directly, there is anal need to set the timestamp in the
+	 * analtify function.
 	 *
 	 * If the timestamp was actually 0, the timestamp is set one more time.
 	 */
@@ -177,7 +177,7 @@ static irqreturn_t acpi_als_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer, pf->timestamp);
 out:
 	mutex_unlock(&als->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -191,7 +191,7 @@ static int acpi_als_add(struct acpi_device *device)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*als));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	als = iio_priv(indio_dev);
 
@@ -207,14 +207,14 @@ static int acpi_als_add(struct acpi_device *device)
 	als->trig = devm_iio_trigger_alloc(dev, "%s-dev%d", indio_dev->name,
 					   iio_device_id(indio_dev));
 	if (!als->trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_iio_trigger_register(dev, als->trig);
 	if (ret)
 		return ret;
 	/*
 	 * Set hardware trigger by default to let events flow when
-	 * BIOS support notification.
+	 * BIOS support analtification.
 	 */
 	indio_dev->trig = iio_trigger_get(als->trig);
 
@@ -241,7 +241,7 @@ static struct acpi_driver acpi_als_driver = {
 	.ids	= acpi_als_device_ids,
 	.ops = {
 		.add	= acpi_als_add,
-		.notify	= acpi_als_notify,
+		.analtify	= acpi_als_analtify,
 	},
 };
 

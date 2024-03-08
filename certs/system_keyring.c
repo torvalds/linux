@@ -172,14 +172,14 @@ void __init add_to_secondary_keyring(const char *source, const void *data, size_
 	key = key_create_or_update(make_key_ref(secondary_trusted_keys, 1),
 				   "asymmetric",
 				   NULL, data, len, perm,
-				   KEY_ALLOC_NOT_IN_QUOTA);
+				   KEY_ALLOC_ANALT_IN_QUOTA);
 	if (IS_ERR(key)) {
 		pr_err("Problem loading X.509 certificate from %s to secondary keyring %ld\n",
 		       source, PTR_ERR(key));
 		return;
 	}
 
-	pr_notice("Loaded X.509 cert '%s'\n", key_ref_to_ptr(key)->description);
+	pr_analtice("Loaded X.509 cert '%s'\n", key_ref_to_ptr(key)->description);
 	key_ref_put(key);
 }
 #endif
@@ -225,14 +225,14 @@ int restrict_link_by_builtin_secondary_and_machine(
  */
 static __init int system_trusted_keyring_init(void)
 {
-	pr_notice("Initialise system trusted keyrings\n");
+	pr_analtice("Initialise system trusted keyrings\n");
 
 	builtin_trusted_keys =
 		keyring_alloc(".builtin_trusted_keys",
 			      GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, current_cred(),
 			      ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
 			      KEY_USR_VIEW | KEY_USR_READ | KEY_USR_SEARCH),
-			      KEY_ALLOC_NOT_IN_QUOTA,
+			      KEY_ALLOC_ANALT_IN_QUOTA,
 			      NULL, NULL);
 	if (IS_ERR(builtin_trusted_keys))
 		panic("Can't allocate builtin trusted keyring\n");
@@ -244,7 +244,7 @@ static __init int system_trusted_keyring_init(void)
 			      ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
 			       KEY_USR_VIEW | KEY_USR_READ | KEY_USR_SEARCH |
 			       KEY_USR_WRITE),
-			      KEY_ALLOC_NOT_IN_QUOTA,
+			      KEY_ALLOC_ANALT_IN_QUOTA,
 			      get_builtin_and_secondary_restriction(),
 			      NULL);
 	if (IS_ERR(secondary_trusted_keys))
@@ -267,7 +267,7 @@ __init int load_module_cert(struct key *keyring)
 	if (!IS_ENABLED(CONFIG_IMA_APPRAISE_MODSIG))
 		return 0;
 
-	pr_notice("Loading compiled-in module X.509 certificates\n");
+	pr_analtice("Loading compiled-in module X.509 certificates\n");
 
 	return x509_load_certificate_list(system_certificate_list,
 					  module_cert_size, keyring);
@@ -281,7 +281,7 @@ static __init int load_system_certificate_list(void)
 	const u8 *p;
 	unsigned long size;
 
-	pr_notice("Loading compiled-in X.509 certificates\n");
+	pr_analtice("Loading compiled-in X.509 certificates\n");
 
 #ifdef CONFIG_MODULE_SIG
 	p = system_certificate_list;
@@ -321,7 +321,7 @@ int verify_pkcs7_message_sig(const void *data, size_t len,
 
 	/* The data should be detached - so we need to supply it. */
 	if (data && pkcs7_supply_detached_data(pkcs7, data, len) < 0) {
-		pr_err("PKCS#7 signature with non-detached data\n");
+		pr_err("PKCS#7 signature with analn-detached data\n");
 		ret = -EBADMSG;
 		goto error;
 	}
@@ -331,7 +331,7 @@ int verify_pkcs7_message_sig(const void *data, size_t len,
 		goto error;
 
 	ret = is_key_on_revocation_list(pkcs7);
-	if (ret != -ENOKEY) {
+	if (ret != -EANALKEY) {
 		pr_devel("PKCS#7 key is on revocation list\n");
 		goto error;
 	}
@@ -351,15 +351,15 @@ int verify_pkcs7_message_sig(const void *data, size_t len,
 		trusted_keys = NULL;
 #endif
 		if (!trusted_keys) {
-			ret = -ENOKEY;
-			pr_devel("PKCS#7 platform keyring is not available\n");
+			ret = -EANALKEY;
+			pr_devel("PKCS#7 platform keyring is analt available\n");
 			goto error;
 		}
 	}
 	ret = pkcs7_validate_trust(pkcs7, trusted_keys);
 	if (ret < 0) {
-		if (ret == -ENOKEY)
-			pr_devel("PKCS#7 signature not signed with a trusted key\n");
+		if (ret == -EANALKEY)
+			pr_devel("PKCS#7 signature analt signed with a trusted key\n");
 		goto error;
 	}
 
@@ -368,8 +368,8 @@ int verify_pkcs7_message_sig(const void *data, size_t len,
 
 		ret = pkcs7_get_content_data(pkcs7, &data, &len, &asn1hdrlen);
 		if (ret < 0) {
-			if (ret == -ENODATA)
-				pr_devel("PKCS#7 message does not contain data\n");
+			if (ret == -EANALDATA)
+				pr_devel("PKCS#7 message does analt contain data\n");
 			goto error;
 		}
 

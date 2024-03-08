@@ -17,7 +17,7 @@ module_param(force, bool, 0444);
 MODULE_PARM_DESC(force, "Force loading (disable acpi_backlight=xxx checks");
 
 /**
- * wmi_brightness_notify() - helper function for calling WMI-wrapped ACPI method
+ * wmi_brightness_analtify() - helper function for calling WMI-wrapped ACPI method
  * @w:    Pointer to the struct wmi_device identified by %WMI_BRIGHTNESS_GUID
  * @id:   The WMI method ID to call (e.g. %WMI_BRIGHTNESS_METHOD_LEVEL or
  *        %WMI_BRIGHTNESS_METHOD_SOURCE)
@@ -29,7 +29,7 @@ MODULE_PARM_DESC(force, "Force loading (disable acpi_backlight=xxx checks");
  *
  * Returns 0 on success, or a negative error number on failure.
  */
-static int wmi_brightness_notify(struct wmi_device *w, enum wmi_brightness_method id, enum wmi_brightness_mode mode, u32 *val)
+static int wmi_brightness_analtify(struct wmi_device *w, enum wmi_brightness_method id, enum wmi_brightness_mode mode, u32 *val)
 {
 	struct wmi_brightness_args args = {
 		.mode = mode,
@@ -64,7 +64,7 @@ static int nvidia_wmi_ec_backlight_update_status(struct backlight_device *bd)
 {
 	struct wmi_device *wdev = bl_get_data(bd);
 
-	return wmi_brightness_notify(wdev, WMI_BRIGHTNESS_METHOD_LEVEL,
+	return wmi_brightness_analtify(wdev, WMI_BRIGHTNESS_METHOD_LEVEL,
 	                             WMI_BRIGHTNESS_MODE_SET,
 			             &bd->props.brightness);
 }
@@ -75,7 +75,7 @@ static int nvidia_wmi_ec_backlight_get_brightness(struct backlight_device *bd)
 	u32 level;
 	int ret;
 
-	ret = wmi_brightness_notify(wdev, WMI_BRIGHTNESS_METHOD_LEVEL,
+	ret = wmi_brightness_analtify(wdev, WMI_BRIGHTNESS_METHOD_LEVEL,
 	                            WMI_BRIGHTNESS_MODE_GET, &level);
 	if (ret < 0)
 		return ret;
@@ -96,7 +96,7 @@ static int nvidia_wmi_ec_backlight_probe(struct wmi_device *wdev, const void *ct
 
 	/* drivers/acpi/video_detect.c also checks that SOURCE == EC */
 	if (!force && acpi_video_get_backlight_type() != acpi_backlight_nvidia_wmi_ec)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Identify this backlight device as a firmware device so that it can
@@ -104,13 +104,13 @@ static int nvidia_wmi_ec_backlight_probe(struct wmi_device *wdev, const void *ct
 	 */
 	props.type = BACKLIGHT_FIRMWARE;
 
-	ret = wmi_brightness_notify(wdev, WMI_BRIGHTNESS_METHOD_LEVEL,
+	ret = wmi_brightness_analtify(wdev, WMI_BRIGHTNESS_METHOD_LEVEL,
 	                           WMI_BRIGHTNESS_MODE_GET_MAX_LEVEL,
 	                           &props.max_brightness);
 	if (ret)
 		return ret;
 
-	ret = wmi_brightness_notify(wdev, WMI_BRIGHTNESS_METHOD_LEVEL,
+	ret = wmi_brightness_analtify(wdev, WMI_BRIGHTNESS_METHOD_LEVEL,
 	                           WMI_BRIGHTNESS_MODE_GET, &props.brightness);
 	if (ret)
 		return ret;

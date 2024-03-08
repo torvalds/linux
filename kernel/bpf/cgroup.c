@@ -185,7 +185,7 @@ bpf_cgroup_atype_find(enum bpf_attach_type attach_type, u32 attach_btf_id)
 {
 	if (attach_type != BPF_LSM_CGROUP)
 		return to_cgroup_bpf_attach_type(attach_type);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /* CONFIG_BPF_LSM */
 
@@ -213,7 +213,7 @@ static int bpf_cgroup_storages_alloc(struct bpf_cgroup_storage *storages[],
 	struct bpf_cgroup_storage_key key;
 	struct bpf_map *map;
 
-	key.cgroup_inode_id = cgroup_id(cgrp);
+	key.cgroup_ianalde_id = cgroup_id(cgrp);
 	key.attach_type = type;
 
 	for_each_cgroup_storage_type(stype) {
@@ -228,7 +228,7 @@ static int bpf_cgroup_storages_alloc(struct bpf_cgroup_storage *storages[],
 		storages[stype] = bpf_cgroup_storage_alloc(prog, stype);
 		if (IS_ERR(storages[stype])) {
 			bpf_cgroup_storages_free(new_storages);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		new_storages[stype] = storages[stype];
@@ -287,10 +287,10 @@ static void cgroup_bpf_release(struct work_struct *work)
 	for (atype = 0; atype < ARRAY_SIZE(cgrp->bpf.progs); atype++) {
 		struct hlist_head *progs = &cgrp->bpf.progs[atype];
 		struct bpf_prog_list *pl;
-		struct hlist_node *pltmp;
+		struct hlist_analde *pltmp;
 
-		hlist_for_each_entry_safe(pl, pltmp, progs, node) {
-			hlist_del(&pl->node);
+		hlist_for_each_entry_safe(pl, pltmp, progs, analde) {
+			hlist_del(&pl->analde);
 			if (pl->prog) {
 				if (pl->prog->expected_attach_type == BPF_LSM_CGROUP)
 					bpf_trampoline_unlink_cgroup_shim(pl->prog);
@@ -350,14 +350,14 @@ static struct bpf_prog *prog_list_prog(struct bpf_prog_list *pl)
 }
 
 /* count number of elements in the list.
- * it's slow but the list cannot be long
+ * it's slow but the list cananalt be long
  */
 static u32 prog_list_length(struct hlist_head *head)
 {
 	struct bpf_prog_list *pl;
 	u32 cnt = 0;
 
-	hlist_for_each_entry(pl, head, node) {
+	hlist_for_each_entry(pl, head, analde) {
 		if (!prog_list_prog(pl))
 			continue;
 		cnt++;
@@ -365,7 +365,7 @@ static u32 prog_list_length(struct hlist_head *head)
 	return cnt;
 }
 
-/* if parent has non-overridable prog attached,
+/* if parent has analn-overridable prog attached,
  * disallow attaching new programs to the descendent cgroup.
  * if parent has overridable or multi-prog, allow attaching
  */
@@ -395,7 +395,7 @@ static bool hierarchy_allows_attach(struct cgroup *cgrp,
 /* compute a chain of effective programs for a given cgroup:
  * start from the list of programs in this cgroup and add
  * all parent programs.
- * Note that parent's F_ALLOW_OVERRIDE-type program is yielding
+ * Analte that parent's F_ALLOW_OVERRIDE-type program is yielding
  * to programs in this cgroup
  */
 static int compute_effective_progs(struct cgroup *cgrp,
@@ -417,7 +417,7 @@ static int compute_effective_progs(struct cgroup *cgrp,
 
 	progs = bpf_prog_array_alloc(cnt, GFP_KERNEL);
 	if (!progs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* populate the array with effective progs */
 	cnt = 0;
@@ -426,7 +426,7 @@ static int compute_effective_progs(struct cgroup *cgrp,
 		if (cnt > 0 && !(p->bpf.flags[atype] & BPF_F_ALLOW_MULTI))
 			continue;
 
-		hlist_for_each_entry(pl, &p->bpf.progs[atype], node) {
+		hlist_for_each_entry(pl, &p->bpf.progs[atype], analde) {
 			if (!prog_list_prog(pl))
 				continue;
 
@@ -498,7 +498,7 @@ cleanup:
 
 	percpu_ref_exit(&cgrp->bpf.refcnt);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int update_effective_progs(struct cgroup *cgrp,
@@ -539,7 +539,7 @@ static int update_effective_progs(struct cgroup *cgrp,
 
 cleanup:
 	/* oom while computing effective. Free all computed effective arrays
-	 * since they were not activated
+	 * since they were analt activated
 	 */
 	css_for_each_descendant_pre(css, &cgrp->self) {
 		struct cgroup *desc = container_of(css, struct cgroup, self);
@@ -565,10 +565,10 @@ static struct bpf_prog_list *find_attach_entry(struct hlist_head *progs,
 	if (!allow_multi) {
 		if (hlist_empty(progs))
 			return NULL;
-		return hlist_entry(progs->first, typeof(*pl), node);
+		return hlist_entry(progs->first, typeof(*pl), analde);
 	}
 
-	hlist_for_each_entry(pl, progs, node) {
+	hlist_for_each_entry(pl, progs, analde) {
 		if (prog && pl->prog == prog && prog != replace_prog)
 			/* disallow attaching the same prog twice */
 			return ERR_PTR(-EINVAL);
@@ -579,13 +579,13 @@ static struct bpf_prog_list *find_attach_entry(struct hlist_head *progs,
 
 	/* direct prog multi-attach w/ replacement case */
 	if (replace_prog) {
-		hlist_for_each_entry(pl, progs, node) {
+		hlist_for_each_entry(pl, progs, analde) {
 			if (pl->prog == replace_prog)
 				/* a match found */
 				return pl;
 		}
-		/* prog to replace not found for cgroup */
-		return ERR_PTR(-ENOENT);
+		/* prog to replace analt found for cgroup */
+		return ERR_PTR(-EANALENT);
 	}
 
 	return NULL;
@@ -601,7 +601,7 @@ static struct bpf_prog_list *find_attach_entry(struct hlist_head *progs,
  * @type: Type of attach operation
  * @flags: Option flags
  *
- * Exactly one of @prog or @link can be non-null.
+ * Exactly one of @prog or @link can be analn-null.
  * Must be called with cgroup_mutex held.
  */
 static int __cgroup_bpf_attach(struct cgroup *cgrp,
@@ -640,9 +640,9 @@ static int __cgroup_bpf_attach(struct cgroup *cgrp,
 		return -EPERM;
 
 	if (!hlist_empty(progs) && cgrp->bpf.flags[atype] != saved_flags)
-		/* Disallow attaching non-overridable on top
+		/* Disallow attaching analn-overridable on top
 		 * of existing overridable in this cgroup.
-		 * Disallow attaching multi-prog if overridable or none
+		 * Disallow attaching multi-prog if overridable or analne
 		 */
 		return -EPERM;
 
@@ -656,25 +656,25 @@ static int __cgroup_bpf_attach(struct cgroup *cgrp,
 
 	if (bpf_cgroup_storages_alloc(storage, new_storage, type,
 				      prog ? : link->link.prog, cgrp))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pl) {
 		old_prog = pl->prog;
 	} else {
-		struct hlist_node *last = NULL;
+		struct hlist_analde *last = NULL;
 
 		pl = kmalloc(sizeof(*pl), GFP_KERNEL);
 		if (!pl) {
 			bpf_cgroup_storages_free(new_storage);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		if (hlist_empty(progs))
-			hlist_add_head(&pl->node, progs);
+			hlist_add_head(&pl->analde, progs);
 		else
 			hlist_for_each(last, progs) {
 				if (last->next)
 					continue;
-				hlist_add_behind(&pl->node, last);
+				hlist_add_behind(&pl->analde, last);
 				break;
 			}
 	}
@@ -715,7 +715,7 @@ cleanup:
 	}
 	bpf_cgroup_storages_free(new_storage);
 	if (!old_prog) {
-		hlist_del(&pl->node);
+		hlist_del(&pl->analde);
 		kfree(pl);
 	}
 	return err;
@@ -762,7 +762,7 @@ static void replace_effective_prog(struct cgroup *cgrp,
 				continue;
 
 			head = &cg->bpf.progs[atype];
-			hlist_for_each_entry(pl, head, node) {
+			hlist_for_each_entry(pl, head, analde) {
 				if (!prog_list_prog(pl))
 					continue;
 				if (pl->link == link)
@@ -809,14 +809,14 @@ static int __cgroup_bpf_replace(struct cgroup *cgrp,
 	if (link->link.prog->type != new_prog->type)
 		return -EINVAL;
 
-	hlist_for_each_entry(pl, progs, node) {
+	hlist_for_each_entry(pl, progs, analde) {
 		if (pl->link == link) {
 			found = true;
 			break;
 		}
 	}
 	if (!found)
-		return -ENOENT;
+		return -EANALENT;
 
 	old_prog = xchg(&link->link.prog, new_prog);
 	replace_effective_prog(cgrp, atype, link);
@@ -835,7 +835,7 @@ static int cgroup_bpf_replace(struct bpf_link *link, struct bpf_prog *new_prog,
 	cgroup_lock();
 	/* link might have been auto-released by dying cgroup, so fail */
 	if (!cg_link->cgroup) {
-		ret = -ENOLINK;
+		ret = -EANALLINK;
 		goto out_unlock;
 	}
 	if (old_prog && link->prog != old_prog) {
@@ -857,13 +857,13 @@ static struct bpf_prog_list *find_detach_entry(struct hlist_head *progs,
 
 	if (!allow_multi) {
 		if (hlist_empty(progs))
-			/* report error when trying to detach and nothing is attached */
-			return ERR_PTR(-ENOENT);
+			/* report error when trying to detach and analthing is attached */
+			return ERR_PTR(-EANALENT);
 
-		/* to maintain backward compatibility NONE and OVERRIDE cgroups
+		/* to maintain backward compatibility ANALNE and OVERRIDE cgroups
 		 * allow detaching with invalid FD (prog==NULL) in legacy mode
 		 */
-		return hlist_entry(progs->first, typeof(*pl), node);
+		return hlist_entry(progs->first, typeof(*pl), analde);
 	}
 
 	if (!prog && !link)
@@ -873,11 +873,11 @@ static struct bpf_prog_list *find_detach_entry(struct hlist_head *progs,
 		return ERR_PTR(-EINVAL);
 
 	/* find the prog or link and detach it */
-	hlist_for_each_entry(pl, progs, node) {
+	hlist_for_each_entry(pl, progs, analde) {
 		if (pl->prog == prog && pl->link == link)
 			return pl;
 	}
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 /**
@@ -914,7 +914,7 @@ static void purge_effective_progs(struct cgroup *cgrp, struct bpf_prog *prog,
 				continue;
 
 			head = &cg->bpf.progs[atype];
-			hlist_for_each_entry(pl, head, node) {
+			hlist_for_each_entry(pl, head, analde) {
 				if (!prog_list_prog(pl))
 					continue;
 				if (pl->prog == prog && pl->link == link)
@@ -923,7 +923,7 @@ static void purge_effective_progs(struct cgroup *cgrp, struct bpf_prog *prog,
 			}
 		}
 
-		/* no link or prog match, skip the cgroup of this layer */
+		/* anal link or prog match, skip the cgroup of this layer */
 		continue;
 found:
 		progs = rcu_dereference_protected(
@@ -944,7 +944,7 @@ found:
  * @link: A link to detach or NULL
  * @type: Type of detach operation
  *
- * At most one of @prog or @link can be non-NULL.
+ * At most one of @prog or @link can be analn-NULL.
  * Must be called with cgroup_mutex held.
  */
 static int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
@@ -977,7 +977,7 @@ static int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 	if (IS_ERR(pl))
 		return PTR_ERR(pl);
 
-	/* mark it deleted, so it's ignored while recomputing effective */
+	/* mark it deleted, so it's iganalred while recomputing effective */
 	old_prog = pl->prog;
 	pl->prog = NULL;
 	pl->link = NULL;
@@ -989,8 +989,8 @@ static int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 		purge_effective_progs(cgrp, old_prog, link, atype);
 	}
 
-	/* now can actually delete it from this cgroup list */
-	hlist_del(&pl->node);
+	/* analw can actually delete it from this cgroup list */
+	hlist_del(&pl->analde);
 
 	kfree(pl);
 	if (hlist_empty(progs))
@@ -1072,7 +1072,7 @@ static int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 
 	if (attr->query.prog_cnt < total_cnt) {
 		total_cnt = attr->query.prog_cnt;
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 	}
 
 	for (atype = from_atype; atype <= to_atype && total_cnt; atype++) {
@@ -1090,7 +1090,7 @@ static int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 			progs = &cgrp->bpf.progs[atype];
 			cnt = min_t(int, prog_list_length(progs), total_cnt);
 			i = 0;
-			hlist_for_each_entry(pl, progs, node) {
+			hlist_for_each_entry(pl, progs, analde) {
 				prog = prog_list_prog(pl);
 				id = prog->aux->id;
 				if (copy_to_user(prog_ids + i, &id, sizeof(id)))
@@ -1287,7 +1287,7 @@ int cgroup_bpf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 
 	link = kzalloc(sizeof(*link), GFP_USER);
 	if (!link) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_put_cgroup;
 	}
 	bpf_link_init(&link->link, BPF_LINK_TYPE_CGROUP, &bpf_cgroup_link_lops,
@@ -1337,16 +1337,16 @@ int cgroup_bpf_prog_query(const union bpf_attr *attr,
  * @skb: The skb that is being sent or received
  * @atype: The type of program to be executed
  *
- * If no socket is passed, or the socket is not of type INET or INET6,
- * this function does nothing and returns 0.
+ * If anal socket is passed, or the socket is analt of type INET or INET6,
+ * this function does analthing and returns 0.
  *
  * The program type passed in via @type must be suitable for network
- * filtering. No further check is performed to assert that.
+ * filtering. Anal further check is performed to assert that.
  *
  * For egress packets, this function can return:
  *   NET_XMIT_SUCCESS    (0)	- continue with packet output
- *   NET_XMIT_DROP       (1)	- drop packet and notify TCP to call cwr
- *   NET_XMIT_CN         (2)	- continue with packet output and notify TCP
+ *   NET_XMIT_DROP       (1)	- drop packet and analtify TCP to call cwr
+ *   NET_XMIT_CN         (2)	- continue with packet output and analtify TCP
  *				  to call cwr
  *   -err			- drop packet
  *
@@ -1393,7 +1393,7 @@ int __cgroup_bpf_run_filter_skb(struct sock *sk,
 		 *
 		 * The returned value is then converted to one of the NET_XMIT
 		 * or an error code that is then interpreted as drop packet
-		 * (and no cn):
+		 * (and anal cn):
 		 *   0: NET_XMIT_SUCCESS  skb should be transmitted
 		 *   1: NET_XMIT_DROP     skb should be dropped and cn
 		 *   2: NET_XMIT_CN       skb should be transmitted and cn
@@ -1430,7 +1430,7 @@ EXPORT_SYMBOL(__cgroup_bpf_run_filter_skb);
  * socket is passed is expected to be of type INET or INET6.
  *
  * The program type passed in via @type must be suitable for sock
- * filtering. No further check is performed to assert that.
+ * filtering. Anal further check is performed to assert that.
  *
  * This function will return %-EPERM if any if an attached program was found
  * and if it returned != 1 during execution. In all other cases, 0 is returned.
@@ -1479,7 +1479,7 @@ int __cgroup_bpf_run_filter_sock_addr(struct sock *sk,
 	struct cgroup *cgrp;
 	int ret;
 
-	/* Check socket family since not all sockets represent network
+	/* Check socket family since analt all sockets represent network
 	 * endpoint (e.g. AF_UNIX).
 	 */
 	if (sk->sk_family != AF_INET && sk->sk_family != AF_INET6 &&
@@ -1509,14 +1509,14 @@ EXPORT_SYMBOL(__cgroup_bpf_run_filter_sock_addr);
  * __cgroup_bpf_run_filter_sock_ops() - Run a program on a sock
  * @sk: socket to get cgroup from
  * @sock_ops: bpf_sock_ops_kern struct to pass to program. Contains
- * sk with connection information (IP addresses, etc.) May not contain
+ * sk with connection information (IP addresses, etc.) May analt contain
  * cgroup info if it is a req sock.
  * @atype: The type of program to be executed
  *
  * socket passed is expected to be of type INET or INET6.
  *
  * The program type passed in via @type must be suitable for sock_ops
- * filtering. No further check is performed to assert that.
+ * filtering. Anal further check is performed to assert that.
  *
  * This function will return %-EPERM if any if an attached program was found
  * and if it returned != 1 during execution. In all other cases, 0 is returned.
@@ -1532,14 +1532,14 @@ int __cgroup_bpf_run_filter_sock_ops(struct sock *sk,
 }
 EXPORT_SYMBOL(__cgroup_bpf_run_filter_sock_ops);
 
-int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
+int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 mianalr,
 				      short access, enum cgroup_bpf_attach_type atype)
 {
 	struct cgroup *cgrp;
 	struct bpf_cgroup_dev_ctx ctx = {
 		.access_type = (access << 16) | dev_type,
 		.major = major,
-		.minor = minor,
+		.mianalr = mianalr,
 	};
 	int ret;
 
@@ -1554,7 +1554,7 @@ int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
 
 BPF_CALL_2(bpf_get_local_storage, struct bpf_map *, map, u64, flags)
 {
-	/* flags argument is not used now,
+	/* flags argument is analt used analw,
 	 * but provides an ability to extend the API.
 	 * verifier checks that its value is correct.
 	 */
@@ -1778,7 +1778,7 @@ static int sockopt_alloc_buf(struct bpf_sockopt_kern *ctx, int max_optlen,
 
 	ctx->optval = kzalloc(max_optlen, GFP_USER);
 	if (!ctx->optval)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->optval_end = ctx->optval + max_optlen;
 
@@ -1813,7 +1813,7 @@ int __cgroup_bpf_run_filter_setsockopt(struct sock *sk, int *level,
 	int ret, max_optlen;
 
 	/* Allocate a bit more than the initial user buffer for
-	 * BPF program. The canonical use case is overriding
+	 * BPF program. The caanalnical use case is overriding
 	 * TCP_CONGESTION(nv) to TCP_CONGESTION(cubic).
 	 */
 	max_optlen = max_t(int, 16, *optlen);
@@ -1843,7 +1843,7 @@ int __cgroup_bpf_run_filter_setsockopt(struct sock *sk, int *level,
 	} else if (ctx.optlen > max_optlen || ctx.optlen < -1) {
 		/* optlen is out of bounds */
 		if (*optlen > PAGE_SIZE && ctx.optlen >= 0) {
-			pr_info_once("bpf setsockopt: ignoring program buffer with optlen=%d (max_optlen=%d)\n",
+			pr_info_once("bpf setsockopt: iganalring program buffer with optlen=%d (max_optlen=%d)\n",
 				     ctx.optlen, max_optlen);
 			ret = 0;
 			goto out;
@@ -1865,14 +1865,14 @@ int __cgroup_bpf_run_filter_setsockopt(struct sock *sk, int *level,
 			/* We've used bpf_sockopt_kern->buf as an intermediary
 			 * storage, but the BPF program indicates that we need
 			 * to pass this data to the kernel setsockopt handler.
-			 * No way to export on-stack buf, have to allocate a
+			 * Anal way to export on-stack buf, have to allocate a
 			 * new buffer.
 			 */
 			if (!sockopt_buf_allocated(&ctx, &buf)) {
 				void *p = kmalloc(ctx.optlen, GFP_USER);
 
 				if (!p) {
-					ret = -ENOMEM;
+					ret = -EANALMEM;
 					goto out;
 				}
 				memcpy(p, ctx.optval, ctx.optlen);
@@ -1949,7 +1949,7 @@ int __cgroup_bpf_run_filter_getsockopt(struct sock *sk, int level,
 	if (!sockptr_is_null(optval) &&
 	    (ctx.optlen > max_optlen || ctx.optlen < 0)) {
 		if (orig_optlen > PAGE_SIZE && ctx.optlen >= 0) {
-			pr_info_once("bpf getsockopt: ignoring program buffer with optlen=%d (max_optlen=%d)\n",
+			pr_info_once("bpf getsockopt: iganalring program buffer with optlen=%d (max_optlen=%d)\n",
 				     ctx.optlen, max_optlen);
 			ret = retval;
 			goto out;
@@ -1991,7 +1991,7 @@ int __cgroup_bpf_run_filter_getsockopt_kern(struct sock *sk, int level,
 	};
 	int ret;
 
-	/* Note that __cgroup_bpf_run_filter_getsockopt doesn't copy
+	/* Analte that __cgroup_bpf_run_filter_getsockopt doesn't copy
 	 * user data back into BPF buffer when reval != 0. This is
 	 * done as an optimization to avoid extra copy, assuming
 	 * kernel won't populate the data in case of an error.
@@ -2242,7 +2242,7 @@ static u32 sysctl_convert_ctx_access(enum bpf_access_type type,
 	case offsetof(struct bpf_sysctl, file_pos):
 		/* ppos is a pointer so it should be accessed via indirect
 		 * loads and stores. Also for stores additional temporary
-		 * register is used since neither src_reg nor dst_reg can be
+		 * register is used since neither src_reg analr dst_reg can be
 		 * overridden.
 		 */
 		if (type == BPF_WRITE) {
@@ -2508,7 +2508,7 @@ static int cg_sockopt_get_prologue(struct bpf_insn *insn_buf,
 				   bool direct_write,
 				   const struct bpf_prog *prog)
 {
-	/* Nothing to do for sockopt argument. The data is kzalloc'ated.
+	/* Analthing to do for sockopt argument. The data is kzalloc'ated.
 	 */
 	return 0;
 }

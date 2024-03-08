@@ -47,7 +47,7 @@ static int uas_find_endpoints(struct usb_host_interface *alt,
 	}
 
 	if (!eps[0] || !eps[1] || !eps[2] || !eps[3])
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -74,7 +74,7 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 	/*
 	 * ASMedia has a number of usb3 to sata bridge chips, at the time of
 	 * this writing the following versions exist:
-	 * ASM1051 - no uas support version
+	 * ASM1051 - anal uas support version
 	 * ASM1051 - with broken (*) uas support
 	 * ASM1053 - with working uas support, but problems with large xfers
 	 * ASM1153 - with working uas support
@@ -93,19 +93,19 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 	 * different prod-id.
 	 *
 	 * (*) ASM1051 chips do work with UAS with some disks (with the
-	 *     US_FL_NO_REPORT_OPCODES quirk), but are broken with other disks
+	 *     US_FL_ANAL_REPORT_OPCODES quirk), but are broken with other disks
 	 */
 	if (le16_to_cpu(udev->descriptor.idVendor) == 0x174c &&
 			(le16_to_cpu(udev->descriptor.idProduct) == 0x5106 ||
 			 le16_to_cpu(udev->descriptor.idProduct) == 0x55aa)) {
 		if (udev->actconfig->desc.bMaxPower == 0) {
-			/* ASM1153, do nothing */
+			/* ASM1153, do analthing */
 		} else if (udev->speed < USB_SPEED_SUPER) {
-			/* No streams info, assume ASM1051 */
-			flags |= US_FL_IGNORE_UAS;
+			/* Anal streams info, assume ASM1051 */
+			flags |= US_FL_IGANALRE_UAS;
 		} else if (usb_ss_max_streams(&eps[1]->ss_ep_comp) == 32) {
 			/* Possibly an ASM1051, disable uas */
-			flags |= US_FL_IGNORE_UAS;
+			flags |= US_FL_IGANALRE_UAS;
 		} else {
 			/* ASM1053, these have issues with large transfers */
 			flags |= US_FL_MAX_SECTORS_240;
@@ -114,32 +114,32 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 
 	/* All Seagate disk enclosures have broken ATA pass-through support */
 	if (le16_to_cpu(udev->descriptor.idVendor) == 0x0bc2)
-		flags |= US_FL_NO_ATA_1X;
+		flags |= US_FL_ANAL_ATA_1X;
 
 	/*
 	 * RTL9210-based enclosure from HIKSEMI, MD202 reportedly have issues
 	 * with UAS.  This isn't distinguishable with just idVendor and
 	 * idProduct, use manufacturer and product too.
 	 *
-	 * Reported-by: Hongling Zeng <zenghongling@kylinos.cn>
+	 * Reported-by: Hongling Zeng <zenghongling@kylianals.cn>
 	 */
 	if (le16_to_cpu(udev->descriptor.idVendor) == 0x0bda &&
 			le16_to_cpu(udev->descriptor.idProduct) == 0x9210 &&
 			(udev->manufacturer && !strcmp(udev->manufacturer, "HIKSEMI")) &&
 			(udev->product && !strcmp(udev->product, "MD202")))
-		flags |= US_FL_IGNORE_UAS;
+		flags |= US_FL_IGANALRE_UAS;
 
 	usb_stor_adjust_quirks(udev, &flags);
 
-	if (flags & US_FL_IGNORE_UAS) {
+	if (flags & US_FL_IGANALRE_UAS) {
 		dev_warn(&udev->dev,
-			"UAS is ignored for this device, using usb-storage instead\n");
+			"UAS is iganalred for this device, using usb-storage instead\n");
 		return 0;
 	}
 
 	if (udev->bus->sg_tablesize == 0) {
 		dev_warn(&udev->dev,
-			"The driver for the USB controller %s does not support scatter-gather which is\n",
+			"The driver for the USB controller %s does analt support scatter-gather which is\n",
 			hcd->driver->description);
 		dev_warn(&udev->dev,
 			"required by the UAS driver. Please try an other USB controller if you wish to use UAS.\n");
@@ -148,7 +148,7 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 
 	if (udev->speed >= USB_SPEED_SUPER && !hcd->can_do_streams) {
 		dev_warn(&udev->dev,
-			"USB controller %s does not support streams, which are required by the UAS driver.\n",
+			"USB controller %s does analt support streams, which are required by the UAS driver.\n",
 			hcd_to_bus(hcd)->bus_name);
 		dev_warn(&udev->dev,
 			"Please try an other USB controller if you wish to use UAS.\n");

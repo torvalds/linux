@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *	Serial Device Initialisation for Lasi/Asp/Wax/Dino
+ *	Serial Device Initialisation for Lasi/Asp/Wax/Dianal
  *
  *	(c) Copyright Matthew Wilcox <willy@debian.org> 2001-2002
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -33,16 +33,16 @@ static int __init serial_init_chip(struct parisc_device *dev)
 
 	if (!dev->irq) {
 		/* We find some unattached serial ports by walking native
-		 * busses.  These should be silently ignored.  Otherwise,
+		 * busses.  These should be silently iganalred.  Otherwise,
 		 * what we have here is a missing parent device, so tell
 		 * the user what they're missing.
 		 */
 		if (parisc_parent(dev)->id.hw_type != HPHW_IOA)
 			dev_info(&dev->dev,
-				"Serial: device 0x%llx not configured.\n"
-				"Enable support for Wax, Lasi, Asp or Dino.\n",
+				"Serial: device 0x%llx analt configured.\n"
+				"Enable support for Wax, Lasi, Asp or Dianal.\n",
 				(unsigned long long)dev->hpa.start);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	address = dev->hpa.start;
@@ -51,14 +51,14 @@ static int __init serial_init_chip(struct parisc_device *dev)
 
 	memset(&uart, 0, sizeof(uart));
 	uart.port.iotype	= UPIO_MEM;
-	/* 7.272727MHz on Lasi.  Assumed the same for Dino, Wax and Timi. */
+	/* 7.272727MHz on Lasi.  Assumed the same for Dianal, Wax and Timi. */
 	uart.port.uartclk	= (dev->id.sversion != 0xad) ?
 					7272727 : 1843200;
 	uart.port.mapbase	= address;
 	uart.port.membase	= ioremap(address, 16);
 	if (!uart.port.membase) {
 		dev_warn(&dev->dev, "Failed to map memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	uart.port.irq	= dev->irq;
 	uart.port.flags	= UPF_BOOT_AUTOCONF;
@@ -85,10 +85,10 @@ static const struct parisc_device_id serial_tbl[] __initconst = {
 };
 
 /* Hack.  Some machines have SERIAL_0 attached to Lasi and SERIAL_1
- * attached to Dino.  Unfortunately, Dino appears before Lasi in the device
+ * attached to Dianal.  Unfortunately, Dianal appears before Lasi in the device
  * tree.  To ensure that ttyS0 == SERIAL_0, we register two drivers; one
- * which only knows about Lasi and then a second which will find all the
- * other serial ports.  HPUX ignores this problem.
+ * which only kanalws about Lasi and then a second which will find all the
+ * other serial ports.  HPUX iganalres this problem.
  */
 static const struct parisc_device_id lasi_tbl[] __initconst = {
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, 0x03B, 0x0008C }, /* C1xx/C1xxL */

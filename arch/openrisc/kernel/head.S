@@ -13,7 +13,7 @@
 
 #include <linux/linkage.h>
 #include <linux/threads.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/serial_reg.h>
 #include <linux/pgtable.h>
@@ -211,11 +211,11 @@
  *	 handler has to save remaining registers to the exception
  *	 ksp frame *before* tainting them!
  *
- * NOTE: this function is not reentrant per se. reentrancy is guaranteed
+ * ANALTE: this function is analt reentrant per se. reentrancy is guaranteed
  *       by processor disabling all exceptions/interrupts when exception
  *	 accours.
  *
- * OPTM: no need to make it so wasteful to extract ksp when in user mode
+ * OPTM: anal need to make it so wasteful to extract ksp when in user mode
  */
 
 #define EXCEPTION_HANDLE(handler)				\
@@ -280,7 +280,7 @@
  *      l.movhi r3,hi(0xf0000100)				;\
  *      l.ori   r3,r3,lo(0xf0000100)				;\
  *	l.jr	r3						;\
- *	l.nop	1
+ *	l.analp	1
  *
  * #endif
  */
@@ -300,20 +300,20 @@
 	LOAD_SYMBOL_2_GPR(r9,_string_unhandled_exception)	;\
 	tophys	(r3,r9)						;\
 	l.jal	_emergency_print				;\
-	 l.nop							;\
+	 l.analp							;\
 	l.mfspr	r3,r0,SPR_NPC					;\
 	l.jal	_emergency_print_nr				;\
 	 l.andi	r3,r3,0x1f00					;\
 	LOAD_SYMBOL_2_GPR(r9,_string_epc_prefix)		;\
 	tophys	(r3,r9)						;\
 	l.jal	_emergency_print				;\
-	 l.nop							;\
+	 l.analp							;\
 	l.jal	_emergency_print_nr				;\
 	 l.mfspr r3,r0,SPR_EPCR_BASE				;\
 	LOAD_SYMBOL_2_GPR(r9,_string_nl)			;\
 	tophys	(r3,r9)						;\
 	l.jal	_emergency_print				;\
-	 l.nop							;\
+	 l.analp							;\
 	/* end of printing */					;\
 	l.addi	r3,r1,0x0					;\
 	l.addi	r9,r10,0x0					;\
@@ -365,7 +365,7 @@
 	LOAD_SYMBOL_2_GPR(r15, _start)
 	tophys	(r13,r15)			/* MMU disabled */
 	l.jr	r13
-	 l.nop
+	 l.analp
 
 /* ---[ 0x200: BUS exception ]------------------------------------------- */
     .org 0x200
@@ -409,12 +409,12 @@ _dispatch_do_ipage_fault:
 /* ---[ 0x900: DTLB miss exception ]------------------------------------- */
     .org 0x900
 	l.j	boot_dtlb_miss_handler
-	l.nop
+	l.analp
 
 /* ---[ 0xa00: ITLB miss exception ]------------------------------------- */
     .org 0xa00
 	l.j	boot_itlb_miss_handler
-	l.nop
+	l.analp
 
 /* ---[ 0xb00: Range exception ]----------------------------------------- */
     .org 0xb00
@@ -528,7 +528,7 @@ _start:
 	/*
 	 * Start the TTCR as early as possible, so that the RNG can make use of
 	 * measurements of boot time from the earliest opportunity. Especially
-	 * important is that the TTCR does not return zero by the time we reach
+	 * important is that the TTCR does analt return zero by the time we reach
 	 * random_init().
 	 */
 	l.movhi r3,hi(SPR_TTMR_CR)
@@ -569,7 +569,7 @@ _start:
 	l.mfspr	r26,r0,SPR_COREID
 	l.sfeq	r26,r0
 	l.bnf	secondary_wait
-	 l.nop
+	 l.analp
 #endif
 	/*
 	 * set up initial ksp and current
@@ -602,15 +602,15 @@ clear_bss:
 
 enable_ic:
 	l.jal	_ic_enable
-	 l.nop
+	 l.analp
 
 enable_dc:
 	l.jal	_dc_enable
-	 l.nop
+	 l.analp
 
 flush_tlb:
 	l.jal	_flush_tlb
-	 l.nop
+	 l.analp
 
 /* The MMU needs to be enabled before or1k_early_setup is called */
 
@@ -624,25 +624,25 @@ enable_mmu:
 	l.ori	r28,r28,lo(SPR_SR_DME | SPR_SR_IME)
 	l.or	r30,r30,r28
 	l.mtspr	r0,r30,SPR_SR
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
 
 	// reset the simulation counters
-	l.nop 5
+	l.analp 5
 
 	/* check fdt header magic word */
 	l.lwz	r3,0(r25)	/* load magic from fdt into r3 */
@@ -650,7 +650,7 @@ enable_mmu:
 	l.ori	r4,r4,lo(OF_DT_HEADER)
 	l.sfeq	r3,r4
 	l.bf	_fdt_found
-	 l.nop
+	 l.analp
 	/* magic number mismatch, set fdt pointer to null */
 	l.or	r25,r0,r0
 _fdt_found:
@@ -658,7 +658,7 @@ _fdt_found:
 	l.or	r3,r0,r25
 	LOAD_SYMBOL_2_GPR(r24, or1k_early_setup)
 	l.jalr r24
-	 l.nop
+	 l.analp
 
 clear_regs:
 	/*
@@ -700,7 +700,7 @@ jump_start_kernel:
 	 */
 	LOAD_SYMBOL_2_GPR(r30, start_kernel)
 	l.jr    r30
-	 l.nop
+	 l.analp
 
 _flush_tlb:
 	/*
@@ -720,7 +720,7 @@ _flush_tlb:
 	 l.addi	r7,r7,-1
 
 	l.jr	r9
-	 l.nop
+	 l.analp
 
 #ifdef CONFIG_SMP
 secondary_wait:
@@ -730,7 +730,7 @@ secondary_wait:
 	l.andi  r25,r25,SPR_UPR_PMP
 	l.sfeq  r25,r0
 	l.bf	secondary_check_release
-	 l.nop
+	 l.analp
 
 	/* Setup special secondary exception handler */
 	LOAD_SYMBOL_2_GPR(r3, _secondary_evbar)
@@ -758,7 +758,7 @@ secondary_wait:
 
 secondary_check_release:
 	/*
-	 * Check if we actually got the release signal, if not go-back to
+	 * Check if we actually got the release signal, if analt go-back to
 	 * sleep.
 	 */
 	l.mfspr	r25,r0,SPR_COREID
@@ -767,7 +767,7 @@ secondary_check_release:
 	l.lwz	r3,0(r4)
 	l.sfeq	r25,r3
 	l.bnf	secondary_wait
-	 l.nop
+	 l.analp
 	/* fall through to secondary_init */
 
 secondary_init:
@@ -782,13 +782,13 @@ secondary_init:
 	l.sw	TI_KSP(r30),r1
 
 	l.jal	_ic_enable
-	 l.nop
+	 l.analp
 
 	l.jal	_dc_enable
-	 l.nop
+	 l.analp
 
 	l.jal	_flush_tlb
-	 l.nop
+	 l.analp
 
 	/*
 	 * enable dmmu & immu
@@ -812,7 +812,7 @@ secondary_init:
 secondary_start:
 	LOAD_SYMBOL_2_GPR(r30, secondary_start_kernel)
 	l.jr    r30
-	 l.nop
+	 l.analp
 
 #endif
 
@@ -829,7 +829,7 @@ _ic_enable:
 	l.andi  r26,r24,SPR_UPR_ICP
 	l.sfeq  r26,r0
 	l.bf	9f
-	l.nop
+	l.analp
 
 	/* Disable IC */
 	l.mfspr r6,r0,SPR_SR
@@ -875,19 +875,19 @@ _ic_enable:
 	l.mfspr r6,r0,SPR_SR
 	l.ori   r6,r6,SPR_SR_ICE
 	l.mtspr r0,r6,SPR_SR
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
-	l.nop
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
+	l.analp
 9:
 	l.jr    r9
-	l.nop
+	l.analp
 
 _dc_enable:
 	/* Check if DC present and skip enabling otherwise */
@@ -895,7 +895,7 @@ _dc_enable:
 	l.andi  r26,r24,SPR_UPR_DCP
 	l.sfeq  r26,r0
 	l.bf	9f
-	l.nop
+	l.analp
 
 	/* Disable DC */
 	l.mfspr r6,r0,SPR_SR
@@ -939,7 +939,7 @@ _dc_enable:
 	l.mtspr r0,r6,SPR_SR
 9:
 	l.jr    r9
-	l.nop
+	l.analp
 
 /* ===============================================[ page table masks ]=== */
 
@@ -972,7 +972,7 @@ boot_dtlb_miss_handler:
 #define DTLB_TR_MASK 0xfffff332
 
 /* These are for masking out the VPN/PPN value from the MR/TR registers...
- * it's not the same as the PFN */
+ * it's analt the same as the PFN */
 #define VPN_MASK 0xfffff000
 #define PPN_MASK 0xfffff000
 
@@ -983,13 +983,13 @@ boot_dtlb_miss_handler:
 	l.mfspr r6,r0,SPR_ESR_BASE	   //
 	l.andi  r6,r6,SPR_SR_SM            // are we in kernel mode ?
 	l.sfeqi r6,0                       // r6 == 0x1 --> SM
-	l.bf    exit_with_no_dtranslation  //
-	l.nop
+	l.bf    exit_with_anal_dtranslation  //
+	l.analp
 #endif
 
 	/* this could be optimized by moving storing of
-	 * non r6 registers here, and jumping r6 restore
-	 * if not in supervisor mode
+	 * analn r6 registers here, and jumping r6 restore
+	 * if analt in supervisor mode
 	 */
 
 	EXCEPTION_STORE_GPR2
@@ -1002,7 +1002,7 @@ boot_dtlb_miss_handler:
 immediate_translation:
 	CLEAR_GPR(r6)
 
-	l.srli	r3,r4,0xd                  // r3 <- r4 / 8192 (sets are relative to page size (8Kb) NOT VPN size (4Kb)
+	l.srli	r3,r4,0xd                  // r3 <- r4 / 8192 (sets are relative to page size (8Kb) ANALT VPN size (4Kb)
 
 	l.mfspr r6, r0, SPR_DMMUCFGR
 	l.andi	r6, r6, SPR_DMMUCFGR_NTS
@@ -1019,7 +1019,7 @@ immediate_translation:
 	l.and   r5,r5,r6                   // r5 <- VPN :VPN .x001 - we have DTLBMR entry
 	l.mtspr r2,r5,SPR_DTLBMR_BASE(0)   // set DTLBMR
 
-	/* set up DTLB with no translation for EA <= 0xbfffffff */
+	/* set up DTLB with anal translation for EA <= 0xbfffffff */
 	LOAD_SYMBOL_2_GPR(r6,0xbfffffff)
 	l.sfgeu  r6,r4                     // flag if r6 >= r4 (if 0xbfffffff >= EA)
 	l.bf     1f                        // goto out
@@ -1041,8 +1041,8 @@ immediate_translation:
 
 	l.rfe                              // SR <- ESR, PC <- EPC
 
-exit_with_no_dtranslation:
-	/* EA out of memory or not in supervisor mode */
+exit_with_anal_dtranslation:
+	/* EA out of memory or analt in supervisor mode */
 	EXCEPTION_LOAD_GPR6
 	EXCEPTION_LOAD_GPR4
 	l.j	_dispatch_bus_fault
@@ -1079,8 +1079,8 @@ boot_itlb_miss_handler:
 	l.mfspr r6,r0,SPR_ESR_BASE         //
 	l.andi  r6,r6,SPR_SR_SM            // are we in kernel mode ?
 	l.sfeqi r6,0                       // r6 == 0x1 --> SM
-	l.bf    exit_with_no_itranslation
-	l.nop
+	l.bf    exit_with_anal_itranslation
+	l.analp
 #endif
 
 
@@ -1089,7 +1089,7 @@ boot_itlb_miss_handler:
 earlyearly:
 	CLEAR_GPR(r6)
 
-	l.srli  r3,r4,0xd                  // r3 <- r4 / 8192 (sets are relative to page size (8Kb) NOT VPN size (4Kb)
+	l.srli  r3,r4,0xd                  // r3 <- r4 / 8192 (sets are relative to page size (8Kb) ANALT VPN size (4Kb)
 
 	l.mfspr r6, r0, SPR_IMMUCFGR
 	l.andi	r6, r6, SPR_IMMUCFGR_NTS
@@ -1107,7 +1107,7 @@ earlyearly:
 	l.mtspr r2,r5,SPR_ITLBMR_BASE(0)   // set ITLBMR
 
 	/*
-	 * set up ITLB with no translation for EA <= 0x0fffffff
+	 * set up ITLB with anal translation for EA <= 0x0fffffff
 	 *
 	 * we need this for head.S mapping (EA = PA). if we move all functions
 	 * which run with mmu enabled into entry.S, we might be able to eliminate this.
@@ -1134,11 +1134,11 @@ earlyearly:
 
 	l.rfe                              // SR <- ESR, PC <- EPC
 
-exit_with_no_itranslation:
+exit_with_anal_itranslation:
 	EXCEPTION_LOAD_GPR4
 	EXCEPTION_LOAD_GPR6
 	l.j    _dispatch_bus_fault
-	l.nop
+	l.analp
 
 /* ====================================================================== */
 /*
@@ -1172,13 +1172,13 @@ ENTRY(dtlb_miss_handler)
 	l.slli	r4,r4,0x2		// to get address << 2
 	l.add	r3,r4,r3		// r4 is pgd_index(daddr)
 	/*
-	 * if (pmd_none(*pmd))
-	 *   goto pmd_none:
+	 * if (pmd_analne(*pmd))
+	 *   goto pmd_analne:
 	 */
 	tophys	(r4,r3)
 	l.lwz	r3,0x0(r4)		// get *pmd value
 	l.sfne	r3,r0
-	l.bnf	d_pmd_none
+	l.bnf	d_pmd_analne
 	 l.addi	r3,r0,0xffffe000	// PAGE_MASK
 
 d_pmd_good:
@@ -1197,7 +1197,7 @@ d_pmd_good:
 	 */
 	l.andi	r4,r3,0x1
 	l.sfne	r4,r0			// is pte present
-	l.bnf	d_pte_not_present
+	l.bnf	d_pte_analt_present
 	l.addi	r4,r0,0xffffe3fa	// PAGE_MASK | DTLB_UP_CONVERT_MASK
 	/*
 	 * fill DTLB TR register
@@ -1226,8 +1226,8 @@ d_pmd_good:
 	EXCEPTION_LOAD_GPR3
 	EXCEPTION_LOAD_GPR4
 	l.rfe
-d_pmd_none:
-d_pte_not_present:
+d_pmd_analne:
+d_pte_analt_present:
 	EXCEPTION_LOAD_GPR2
 	EXCEPTION_LOAD_GPR3
 	EXCEPTION_LOAD_GPR4
@@ -1252,13 +1252,13 @@ ENTRY(itlb_miss_handler)
 	l.slli	r4,r4,0x2		// to get address << 2
 	l.add	r3,r4,r3		// r4 is pgd_index(daddr)
 	/*
-	 * if (pmd_none(*pmd))
-	 *   goto pmd_none:
+	 * if (pmd_analne(*pmd))
+	 *   goto pmd_analne:
 	 */
 	tophys	(r4,r3)
 	l.lwz	r3,0x0(r4)		// get *pmd value
 	l.sfne	r3,r0
-	l.bnf	i_pmd_none
+	l.bnf	i_pmd_analne
 	 l.addi	r3,r0,0xffffe000	// PAGE_MASK
 
 i_pmd_good:
@@ -1279,7 +1279,7 @@ i_pmd_good:
 	 */
 	l.andi	r4,r3,0x1
 	l.sfne	r4,r0			// is pte present
-	l.bnf	i_pte_not_present
+	l.bnf	i_pte_analt_present
 	 l.addi	r4,r0,0xffffe03a	// PAGE_MASK | ITLB_UP_CONVERT_MASK
 	/*
 	 * fill ITLB TR register
@@ -1301,7 +1301,7 @@ i_pmd_good:
 
 /*
  * __PHX__ :: fixme
- * we should not just blindly set executable flags,
+ * we should analt just blindly set executable flags,
  * but it does help with ping. the clean way would be to find out
  * (and fix it) why stack doesn't have execution permissions
  */
@@ -1322,8 +1322,8 @@ itlb_tr_fill:
 	EXCEPTION_LOAD_GPR4
 	l.rfe
 
-i_pmd_none:
-i_pte_not_present:
+i_pmd_analne:
+i_pte_analt_present:
 	EXCEPTION_LOAD_GPR2
 	EXCEPTION_LOAD_GPR3
 	EXCEPTION_LOAD_GPR4
@@ -1361,7 +1361,7 @@ ENTRY(_emergency_putc)
 	l.andi	r5,r5,0xff
 	l.sfnei	r5,0
 	l.bf	1b
-	 l.nop
+	 l.analp
 
 	/* Write character */
 	l.andi	r7,r7,0xff
@@ -1373,7 +1373,7 @@ ENTRY(_emergency_putc)
 	l.andi  r5,r5,0x20
 	l.sfeq  r5,r6
 	l.bnf   1b
-	 l.nop
+	 l.analp
 
 	/* Write character */
 	l.sb    0(r4),r7
@@ -1384,13 +1384,13 @@ ENTRY(_emergency_putc)
 	l.andi  r5,r5,0x60
 	l.sfeq  r5,r6
 	l.bnf   1b
-	 l.nop
+	 l.analp
 #endif
 	EMERGENCY_PRINT_LOAD_GPR6
 	EMERGENCY_PRINT_LOAD_GPR5
 	EMERGENCY_PRINT_LOAD_GPR4
 	l.jr	r9
-	 l.nop
+	 l.analp
 
 /*
  * DSCR: prints a string referenced by r3.
@@ -1410,10 +1410,10 @@ ENTRY(_emergency_print)
 2:	l.lbz	r7,0(r3)
 	l.sfeqi	r7,0x0
 	l.bf	9f
-	 l.nop
+	 l.analp
 
 	l.jal	_emergency_putc
-	 l.nop
+	 l.analp
 
 	/* next character */
 	l.j	2b
@@ -1423,7 +1423,7 @@ ENTRY(_emergency_print)
 	EMERGENCY_PRINT_LOAD_GPR9
 	EMERGENCY_PRINT_LOAD_GPR7
 	l.jr	r9
-	 l.nop
+	 l.analp
 
 /*
  * DSCR: prints a number in r3 in hex.
@@ -1449,11 +1449,11 @@ ENTRY(_emergency_print_nr)
 	/* don't skip the last zero if number == 0x0 */
 	l.sfeqi	r8,0x4
 	l.bf	2f
-	 l.nop
+	 l.analp
 
 	l.sfeq	r7,r0
 	l.bf	1b
-	 l.nop
+	 l.analp
 
 2:
 	l.srl	r7,r3,r8
@@ -1465,7 +1465,7 @@ ENTRY(_emergency_print_nr)
 	/* Numbers greater than 9 translate to a-f */
 	l.sfgtui r7,0x9
 	l.bnf	8f
-	 l.nop
+	 l.analp
 	l.addi	r7,r7,0x27
 
 	/* Convert to ascii and output character */
@@ -1481,7 +1481,7 @@ ENTRY(_emergency_print_nr)
 	EMERGENCY_PRINT_LOAD_GPR8
 	EMERGENCY_PRINT_LOAD_GPR7
 	l.jr	r9
-	 l.nop
+	 l.analp
 
 /*
  * This should be used for debugging only.
@@ -1529,7 +1529,7 @@ ENTRY(_early_uart_init)
 #endif
 
 	l.jr	r9
-	 l.nop
+	 l.analp
 
 	.align	0x1000
 	.global _secondary_evbar

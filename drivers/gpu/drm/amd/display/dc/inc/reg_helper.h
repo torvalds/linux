@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -500,7 +500,7 @@ uint32_t generic_indirect_reg_update_ex(const struct dc_context *ctx,
 
 /* indirect register access
  * underlying implementation determines which index/data pair to be used
- * in a synchronous way
+ * in a synchroanalus way
  */
 #define IX_REG_SET_N_SYNC(index, n, initial_val, ...)	\
 		generic_indirect_reg_update_ex_sync(CTX, \
@@ -536,7 +536,7 @@ uint32_t generic_indirect_reg_update_ex_sync(const struct dc_context *ctx,
  *
  * instead of MMIO to register directly, in some cases we want
  * to gather register sequence and execute the register sequence
- * from another thread so we optimize time required for lengthy ops
+ * from aanalther thread so we optimize time required for lengthy ops
  */
 
 /* start gathering register sequence */

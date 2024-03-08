@@ -22,7 +22,7 @@ set -e
 image_name=`basename $2`
 
 
-echo "Warning: '${INSTALLKERNEL}' command not available... Copying" \
+echo "Warning: '${INSTALLKERNEL}' command analt available... Copying" \
      "directly to $4/$image_name-$1" >&2
 
 if [ -f $4/$image_name-$1 ]; then

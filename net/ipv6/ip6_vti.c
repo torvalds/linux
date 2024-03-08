@@ -13,7 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/sockios.h>
 #include <linux/icmp.h>
@@ -216,7 +216,7 @@ static struct ip6_tnl *vti6_tnl_create(struct net *net, struct __ip6_tnl_parm *p
 		sprintf(name, "ip6_vti%%d");
 	}
 
-	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKNOWN, vti6_dev_setup);
+	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKANALWN, vti6_dev_setup);
 	if (!dev)
 		goto failed;
 
@@ -242,7 +242,7 @@ failed:
  * vti6_locate - find or create tunnel matching given parameters
  *   @net: network namespace
  *   @p: tunnel parameters
- *   @create: != 0 if allowed to create new tunnel if no match found
+ *   @create: != 0 if allowed to create new tunnel if anal match found
  *
  * Description:
  *   vti6_locate() first tries to locate an existing tunnel
@@ -420,8 +420,8 @@ static bool vti6_state_check(const struct xfrm_state *x,
 	xfrm_address_t *daddr = (xfrm_address_t *)dst;
 	xfrm_address_t *saddr = (xfrm_address_t *)src;
 
-	/* if there is no transform then this tunnel is not functional.
-	 * Or if the xfrm is not mode tunnel.
+	/* if there is anal transform then this tunnel is analt functional.
+	 * Or if the xfrm is analt mode tunnel.
 	 */
 	if (!x || x->props.mode != XFRM_MODE_TUNNEL ||
 	    x->props.family != AF_INET6)
@@ -513,7 +513,7 @@ vti6_xmit(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 
 	mtu = dst_mtu(dst);
 	if (skb->len > mtu) {
-		skb_dst_update_pmtu_no_confirm(skb, mtu);
+		skb_dst_update_pmtu_anal_confirm(skb, mtu);
 
 		if (skb->protocol == htons(ETH_P_IPV6)) {
 			if (mtu < IPV6_MIN_MTU)
@@ -794,7 +794,7 @@ vti6_parm_to_user(struct ip6_tnl_parm2 *u, const struct __ip6_tnl_parm *p)
  *   %-EPERM if current process hasn't %CAP_NET_ADMIN set
  *   %-EINVAL if passed tunnel parameters are invalid,
  *   %-EEXIST if changing a tunnel's parameters would cause a conflict
- *   %-ENODEV if attempting to change or delete a nonexisting device
+ *   %-EANALDEV if attempting to change or delete a analnexisting device
  **/
 static int
 vti6_siocdevprivate(struct net_device *dev, struct ifreq *ifr, void __user *data, int cmd)
@@ -857,7 +857,7 @@ vti6_siocdevprivate(struct net_device *dev, struct ifreq *ifr, void __user *data
 				err = -EFAULT;
 
 		} else
-			err = (cmd == SIOCADDTUNNEL ? -ENOBUFS : -ENOENT);
+			err = (cmd == SIOCADDTUNNEL ? -EANALBUFS : -EANALENT);
 		break;
 	case SIOCDELTUNNEL:
 		err = -EPERM;
@@ -868,7 +868,7 @@ vti6_siocdevprivate(struct net_device *dev, struct ifreq *ifr, void __user *data
 			err = -EFAULT;
 			if (copy_from_user(&p, data, sizeof(p)))
 				break;
-			err = -ENOENT;
+			err = -EANALENT;
 			vti6_parm_from_user(&p1, &p);
 			t = vti6_locate(net, &p1, 0);
 			if (!t)
@@ -913,7 +913,7 @@ static void vti6_dev_setup(struct net_device *dev)
 	dev->type = ARPHRD_TUNNEL6;
 	dev->min_mtu = IPV4_MIN_MTU;
 	dev->max_mtu = IP_MAX_MTU - sizeof(struct ipv6hdr);
-	dev->flags |= IFF_NOARP;
+	dev->flags |= IFF_ANALARP;
 	dev->addr_len = sizeof(struct in6_addr);
 	netif_keep_dst(dev);
 	/* This perm addr will be used as interface identifier by IPv6 */
@@ -933,13 +933,13 @@ static inline int vti6_dev_init_gen(struct net_device *dev)
 	t->net = dev_net(dev);
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		return -ENOMEM;
+		return -EANALMEM;
 	netdev_hold(dev, &t->dev_tracker, GFP_KERNEL);
 	return 0;
 }
 
 /**
- * vti6_dev_init - initializer for all non fallback tunnel devices
+ * vti6_dev_init - initializer for all analn fallback tunnel devices
  *   @dev: virtual device associated with tunnel
  **/
 static int vti6_dev_init(struct net_device *dev)
@@ -1146,9 +1146,9 @@ static int __net_init vti6_init_net(struct net *net)
 
 	if (!net_has_fallback_tunnels(net))
 		return 0;
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ip6n->fb_tnl_dev = alloc_netdev(sizeof(struct ip6_tnl), "ip6_vti0",
-					NET_NAME_UNKNOWN, vti6_dev_setup);
+					NET_NAME_UNKANALWN, vti6_dev_setup);
 
 	if (!ip6n->fb_tnl_dev)
 		goto err_alloc_dev;

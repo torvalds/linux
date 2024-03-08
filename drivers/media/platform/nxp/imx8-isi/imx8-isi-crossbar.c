@@ -6,7 +6,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/minmax.h>
 #include <linux/regmap.h>
@@ -86,7 +86,7 @@ static const struct v4l2_mbus_framefmt mxc_isi_crossbar_default_format = {
 	.code = MXC_ISI_DEF_MBUS_CODE_SINK,
 	.width = MXC_ISI_DEF_WIDTH,
 	.height = MXC_ISI_DEF_HEIGHT,
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 	.colorspace = MXC_ISI_DEF_COLOR_SPACE,
 	.ycbcr_enc = MXC_ISI_DEF_YCBCR_ENC,
 	.quantization = MXC_ISI_DEF_QUANTIZATION,
@@ -102,7 +102,7 @@ static int __mxc_isi_crossbar_set_routing(struct v4l2_subdev *sd,
 	int ret;
 
 	ret = v4l2_subdev_routing_validate(sd, routing,
-					   V4L2_SUBDEV_ROUTING_NO_N_TO_1);
+					   V4L2_SUBDEV_ROUTING_ANAL_N_TO_1);
 	if (ret)
 		return ret;
 
@@ -154,7 +154,7 @@ mxc_isi_crossbar_xlate_streams(struct mxc_isi_crossbar *xbar,
 
 	if (sink_pad < 0) {
 		dev_dbg(xbar->isi->dev,
-			"no stream connected to pipeline %u\n",
+			"anal stream connected to pipeline %u\n",
 			source_pad - xbar->num_sinks);
 		return ERR_PTR(-EPIPE);
 	}
@@ -164,7 +164,7 @@ mxc_isi_crossbar_xlate_streams(struct mxc_isi_crossbar *xbar,
 
 	if (!sd) {
 		dev_dbg(xbar->isi->dev,
-			"no entity connected to crossbar input %u\n",
+			"anal entity connected to crossbar input %u\n",
 			sink_pad);
 		return ERR_PTR(-EPIPE);
 	}
@@ -191,7 +191,7 @@ static int mxc_isi_crossbar_init_state(struct v4l2_subdev *sd,
 	 */
 	routes = kcalloc(xbar->num_sources, sizeof(*routes), GFP_KERNEL);
 	if (!routes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < xbar->num_sources; ++i) {
 		struct v4l2_subdev_route *route = &routes[i];
@@ -275,7 +275,7 @@ static int mxc_isi_crossbar_set_fmt(struct v4l2_subdev *sd,
 				    MXC_ISI_MIN_WIDTH, MXC_ISI_MAX_WIDTH_CHAINED);
 	fmt->format.height = clamp_t(unsigned int, fmt->format.height,
 				     MXC_ISI_MIN_HEIGHT, MXC_ISI_MAX_HEIGHT);
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 
 	/*
 	 * Set the format on the sink stream and propagate it to the source
@@ -421,7 +421,7 @@ static const struct v4l2_subdev_internal_ops mxc_isi_crossbar_internal_ops = {
 };
 
 static const struct media_entity_operations mxc_isi_cross_entity_ops = {
-	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
+	.get_fwanalde_pad = v4l2_subdev_get_fwanalde_pad_1_to_1,
 	.link_validate	= v4l2_subdev_link_validate,
 	.has_pad_interdep = v4l2_subdev_has_pad_interdep,
 };
@@ -442,7 +442,7 @@ int mxc_isi_crossbar_init(struct mxc_isi_dev *isi)
 
 	v4l2_subdev_init(sd, &mxc_isi_crossbar_subdev_ops);
 	sd->internal_ops = &mxc_isi_crossbar_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_STREAMS;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_STREAMS;
 	strscpy(sd->name, "crossbar", sizeof(sd->name));
 	sd->dev = isi->dev;
 
@@ -459,12 +459,12 @@ int mxc_isi_crossbar_init(struct mxc_isi_dev *isi)
 
 	xbar->pads = kcalloc(num_pads, sizeof(*xbar->pads), GFP_KERNEL);
 	if (!xbar->pads)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xbar->inputs = kcalloc(xbar->num_sinks, sizeof(*xbar->inputs),
 			       GFP_KERNEL);
 	if (!xbar->inputs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free;
 	}
 

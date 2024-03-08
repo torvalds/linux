@@ -15,7 +15,7 @@
 #include "lpass-lpaif-reg.h"
 #include "lpass.h"
 
-#define CODEC_MEM_HZ_NORMAL 153600000
+#define CODEC_MEM_HZ_ANALRMAL 153600000
 
 enum codec_dma_interfaces {
 	LPASS_CDC_DMA_INTERFACE1 = 1,
@@ -177,11 +177,11 @@ static int lpass_cdc_dma_daiops_startup(struct snd_pcm_substream *substream,
 	switch (dai->id) {
 	case LPASS_CDC_DMA_RX0 ... LPASS_CDC_DMA_RX9:
 	case LPASS_CDC_DMA_TX0 ... LPASS_CDC_DMA_TX8:
-		clk_set_rate(drvdata->codec_mem0, CODEC_MEM_HZ_NORMAL);
+		clk_set_rate(drvdata->codec_mem0, CODEC_MEM_HZ_ANALRMAL);
 		clk_prepare_enable(drvdata->codec_mem0);
 		break;
 	case LPASS_CDC_DMA_VA_TX0 ... LPASS_CDC_DMA_VA_TX0:
-		clk_set_rate(drvdata->va_mem0, CODEC_MEM_HZ_NORMAL);
+		clk_set_rate(drvdata->va_mem0, CODEC_MEM_HZ_ANALRMAL);
 		clk_prepare_enable(drvdata->va_mem0);
 		break;
 	default:

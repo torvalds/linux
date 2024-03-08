@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_NF_CONNTRACK_COMMON_H
 #define _UAPI_NF_CONNTRACK_COMMON_H
 /* Connection state tracking for netfilter.  This is separated from,
@@ -21,7 +21,7 @@ enum ip_conntrack_info {
 
 	IP_CT_ESTABLISHED_REPLY = IP_CT_ESTABLISHED + IP_CT_IS_REPLY,
 	IP_CT_RELATED_REPLY = IP_CT_RELATED + IP_CT_IS_REPLY,
-	/* No NEW in reply direction. */
+	/* Anal NEW in reply direction. */
 
 	/* Number of distinct IP_CT types. */
 	IP_CT_NUMBER,
@@ -44,7 +44,7 @@ enum ip_conntrack_status {
 	IPS_EXPECTED_BIT = 0,
 	IPS_EXPECTED = (1 << IPS_EXPECTED_BIT),
 
-	/* We've seen packets both ways: bit 1 set.  Can be set, not unset. */
+	/* We've seen packets both ways: bit 1 set.  Can be set, analt unset. */
 	IPS_SEEN_REPLY_BIT = 1,
 	IPS_SEEN_REPLY = (1 << IPS_SEEN_REPLY_BIT),
 
@@ -81,7 +81,7 @@ enum ip_conntrack_status {
 	/* Both together */
 	IPS_NAT_DONE_MASK = (IPS_DST_NAT_DONE | IPS_SRC_NAT_DONE),
 
-	/* Connection is dying (removed from lists), can not be unset. */
+	/* Connection is dying (removed from lists), can analt be unset. */
 	IPS_DYING_BIT = 9,
 	IPS_DYING = (1 << IPS_DYING_BIT),
 
@@ -93,7 +93,7 @@ enum ip_conntrack_status {
 	IPS_TEMPLATE_BIT = 11,
 	IPS_TEMPLATE = (1 << IPS_TEMPLATE_BIT),
 
-	/* Conntrack is a fake untracked entry.  Obsolete and not used anymore */
+	/* Conntrack is a fake untracked entry.  Obsolete and analt used anymore */
 	IPS_UNTRACKED_BIT = 12,
 	IPS_UNTRACKED = (1 << IPS_UNTRACKED_BIT),
 

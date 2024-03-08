@@ -2,7 +2,7 @@
 /*
  *  thinkpad_acpi.c - ThinkPad ACPI Extras
  *
- *  Copyright (C) 2004-2005 Borislav Deianov <borislav@users.sf.net>
+ *  Copyright (C) 2004-2005 Borislav Deiaanalv <borislav@users.sf.net>
  *  Copyright (C) 2006-2009 Henrique de Moraes Holschuh <hmh@hmh.eng.br>
  */
 
@@ -19,8 +19,8 @@
  *  			drivers/misc.
  *
  *  2006-11-22	0.13	new maintainer
- *  			changelog now lives in git commit history, and will
- *  			not be updated further in-file.
+ *  			changelog analw lives in git commit history, and will
+ *  			analt be updated further in-file.
  *
  *  2005-03-17	0.11	support for 600e, 770x
  *			    thanks to Jamie Lentin <lentinj@dial.pipex.com>
@@ -124,8 +124,8 @@ enum {
 
 /* ACPI HIDs */
 #define TPACPI_ACPI_IBM_HKEY_HID	"IBM0068"
-#define TPACPI_ACPI_LENOVO_HKEY_HID	"LEN0068"
-#define TPACPI_ACPI_LENOVO_HKEY_V2_HID	"LEN0268"
+#define TPACPI_ACPI_LEANALVO_HKEY_HID	"LEN0068"
+#define TPACPI_ACPI_LEANALVO_HKEY_V2_HID	"LEN0268"
 #define TPACPI_ACPI_EC_HID		"PNP0C09"
 
 /* Input IDs */
@@ -196,7 +196,7 @@ enum tpacpi_hkey_event_t {
 	TP_HKEY_EV_LID_CLOSE		= 0x5001, /* laptop lid closed */
 	TP_HKEY_EV_LID_OPEN		= 0x5002, /* laptop lid opened */
 	TP_HKEY_EV_TABLET_TABLET	= 0x5009, /* tablet swivel up */
-	TP_HKEY_EV_TABLET_NOTEBOOK	= 0x500a, /* tablet swivel down */
+	TP_HKEY_EV_TABLET_ANALTEBOOK	= 0x500a, /* tablet swivel down */
 	TP_HKEY_EV_TABLET_CHANGED	= 0x60c0, /* X1 Yoga (2016):
 						   * enter/leave tablet mode
 						   */
@@ -264,7 +264,7 @@ enum tpacpi_hkey_event_t {
 #define TPACPI_DBG_BRGHT	0x0020
 #define TPACPI_DBG_MIXER	0x0040
 
-#define FAN_NOT_PRESENT		65535
+#define FAN_ANALT_PRESENT		65535
 
 /****************************************************************************
  * Driver-wide structs and misc. variables
@@ -276,7 +276,7 @@ struct tp_acpi_drv_struct {
 	const struct acpi_device_id *hid;
 	struct acpi_driver *driver;
 
-	void (*notify) (struct ibm_struct *, u32);
+	void (*analtify) (struct ibm_struct *, u32);
 	acpi_handle *handle;
 	u32 type;
 	struct acpi_device *device;
@@ -298,7 +298,7 @@ struct ibm_struct {
 
 	struct {
 		u8 acpi_driver_registered:1;
-		u8 acpi_notify_installed:1;
+		u8 acpi_analtify_installed:1;
 		u8 proc_created:1;
 		u8 init_called:1;
 		u8 experimental:1;
@@ -328,7 +328,7 @@ static struct {
 	u32 hotkey_mask:1;
 	u32 hotkey_wlsw:1;
 	enum {
-		TP_HOTKEY_TABLET_NONE = 0,
+		TP_HOTKEY_TABLET_ANALNE = 0,
 		TP_HOTKEY_TABLET_USES_MHKG,
 		TP_HOTKEY_TABLET_USES_GMMS,
 	} hotkey_tablet;
@@ -343,7 +343,7 @@ static struct {
 	u32 second_fan:1;
 	u32 second_fan_ctl:1;
 	u32 beep_needs_two_args:1;
-	u32 mixer_no_level_control:1;
+	u32 mixer_anal_level_control:1;
 	u32 battery_force_primary:1;
 	u32 input_device_registered:1;
 	u32 platform_drv_registered:1;
@@ -361,14 +361,14 @@ static struct {
 
 struct thinkpad_id_data {
 	unsigned int vendor;	/* ThinkPad vendor:
-				 * PCI_VENDOR_ID_IBM/PCI_VENDOR_ID_LENOVO */
+				 * PCI_VENDOR_ID_IBM/PCI_VENDOR_ID_LEANALVO */
 
 	char *bios_version_str;	/* Something like 1ZET51WW (1.03z) */
 	char *ec_version_str;	/* Something like 1ZHT51WW-1.04a */
 
-	u32 bios_model;		/* 1Y = 0x3159, 0 = unknown */
+	u32 bios_model;		/* 1Y = 0x3159, 0 = unkanalwn */
 	u32 ec_model;
-	u16 bios_release;	/* 1ZETK1WW = 0x4b31, 0 = unknown */
+	u16 bios_release;	/* 1ZETK1WW = 0x4b31, 0 = unkanalwn */
 	u16 ec_release;
 
 	char *model_str;	/* ThinkPad T43 */
@@ -400,7 +400,7 @@ struct tpacpi_led_classdev {
 };
 
 /* brightness level capabilities */
-static unsigned int bright_maxlvl;	/* 0 = unknown */
+static unsigned int bright_maxlvl;	/* 0 = unkanalwn */
 
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
 static int dbg_wlswemul;
@@ -431,7 +431,7 @@ static const char *str_supported(int is_supported);
 #else
 static inline const char *str_supported(int is_supported) { return ""; }
 #define vdbg_printk(a_dbg_level, format, arg...)	\
-	do { if (0) no_printk(format, ##arg); } while (0)
+	do { if (0) anal_printk(format, ##arg); } while (0)
 #endif
 
 static void tpacpi_log_usertask(const char * const what)
@@ -460,7 +460,7 @@ do {									\
 
 #define TPACPI_MATCH_ANY		0xffffffffU
 #define TPACPI_MATCH_ANY_VERSION	0xffffU
-#define TPACPI_MATCH_UNKNOWN		0U
+#define TPACPI_MATCH_UNKANALWN		0U
 
 /* TPID('1', 'Y') == 0x3159 */
 #define TPID(__c1, __c2)	(((__c1) << 8) | (__c2))
@@ -474,13 +474,13 @@ do {									\
 	  .quirks = (__quirk) }
 
 #define TPACPI_Q_LNV(__id1, __id2, __quirk)	\
-	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
+	{ .vendor = PCI_VENDOR_ID_LEANALVO,	\
 	  .bios = TPID(__id1, __id2),		\
 	  .ec = TPACPI_MATCH_ANY,		\
 	  .quirks = (__quirk) }
 
 #define TPACPI_Q_LNV3(__id1, __id2, __id3, __quirk) \
-	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
+	{ .vendor = PCI_VENDOR_ID_LEANALVO,	\
 	  .bios = TPID3(__id1, __id2, __id3),	\
 	  .ec = TPACPI_MATCH_ANY,		\
 	  .quirks = (__quirk) }
@@ -492,7 +492,7 @@ do {									\
 	  .quirks = (__quirk) }
 
 #define TPACPI_QEC_LNV(__id1, __id2, __quirk)	\
-	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
+	{ .vendor = PCI_VENDOR_ID_LEANALVO,	\
 	  .bios = TPACPI_MATCH_ANY,		\
 	  .ec = TPID(__id1, __id2),		\
 	  .quirks = (__quirk) }
@@ -512,7 +512,7 @@ struct tpacpi_quirk {
  * Iterates over a quirks list until one is found that matches the
  * ThinkPad's vendor, BIOS and EC model.
  *
- * Returns: %0 if nothing matches, otherwise returns the quirks field of
+ * Returns: %0 if analthing matches, otherwise returns the quirks field of
  * the matching &struct tpacpi_quirk entry.
  *
  * The match criteria is: vendor, ec and bios must match.
@@ -536,9 +536,9 @@ static unsigned long __init tpacpi_check_quirks(
 	return 0;
 }
 
-static inline bool __pure __init tpacpi_is_lenovo(void)
+static inline bool __pure __init tpacpi_is_leanalvo(void)
 {
-	return thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO;
+	return thinkpad_id.vendor == PCI_VENDOR_ID_LEANALVO;
 }
 
 static inline bool __pure __init tpacpi_is_ibm(void)
@@ -734,7 +734,7 @@ static void __init drv_acpi_handle_init(const char *name,
 		}
 	}
 
-	vdbg_printk(TPACPI_DBG_INIT, "ACPI handle for %s not found\n",
+	vdbg_printk(TPACPI_DBG_INIT, "ACPI handle for %s analt found\n",
 		    name);
 	*handle = NULL;
 }
@@ -778,25 +778,25 @@ static void __init tpacpi_acpi_handle_locate(const char *name,
 			   "Found ACPI handle for %s\n", name);
 	} else {
 		vdbg_printk(TPACPI_DBG_INIT,
-			    "Could not locate an ACPI handle for %s: %s\n",
+			    "Could analt locate an ACPI handle for %s: %s\n",
 			    name, acpi_format_exception(status));
 	}
 }
 
-static void dispatch_acpi_notify(acpi_handle handle, u32 event, void *data)
+static void dispatch_acpi_analtify(acpi_handle handle, u32 event, void *data)
 {
 	struct ibm_struct *ibm = data;
 
 	if (tpacpi_lifecycle != TPACPI_LIFE_RUNNING)
 		return;
 
-	if (!ibm || !ibm->acpi || !ibm->acpi->notify)
+	if (!ibm || !ibm->acpi || !ibm->acpi->analtify)
 		return;
 
-	ibm->acpi->notify(ibm, event);
+	ibm->acpi->analtify(ibm, event);
 }
 
-static int __init setup_acpi_notify(struct ibm_struct *ibm)
+static int __init setup_acpi_analtify(struct ibm_struct *ibm)
 {
 	acpi_status status;
 
@@ -806,12 +806,12 @@ static int __init setup_acpi_notify(struct ibm_struct *ibm)
 		return 0;
 
 	vdbg_printk(TPACPI_DBG_INIT,
-		"setting up ACPI notify for %s\n", ibm->name);
+		"setting up ACPI analtify for %s\n", ibm->name);
 
 	ibm->acpi->device = acpi_fetch_acpi_dev(*ibm->acpi->handle);
 	if (!ibm->acpi->device) {
 		pr_err("acpi_fetch_acpi_dev(%s) failed\n", ibm->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ibm->acpi->device->driver_data = ibm;
@@ -819,19 +819,19 @@ static int __init setup_acpi_notify(struct ibm_struct *ibm)
 		TPACPI_ACPI_EVENT_PREFIX,
 		ibm->name);
 
-	status = acpi_install_notify_handler(*ibm->acpi->handle,
-			ibm->acpi->type, dispatch_acpi_notify, ibm);
+	status = acpi_install_analtify_handler(*ibm->acpi->handle,
+			ibm->acpi->type, dispatch_acpi_analtify, ibm);
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_ALREADY_EXISTS) {
-			pr_notice("another device driver is already handling %s events\n",
+			pr_analtice("aanalther device driver is already handling %s events\n",
 				  ibm->name);
 		} else {
-			pr_err("acpi_install_notify_handler(%s) failed: %s\n",
+			pr_err("acpi_install_analtify_handler(%s) failed: %s\n",
 			       ibm->name, acpi_format_exception(status));
 		}
-		return -ENODEV;
+		return -EANALDEV;
 	}
-	ibm->flags.acpi_notify_installed = 1;
+	ibm->flags.acpi_analtify_installed = 1;
 	return 0;
 }
 
@@ -852,7 +852,7 @@ static int __init register_tpacpi_subdriver(struct ibm_struct *ibm)
 	ibm->acpi->driver = kzalloc(sizeof(struct acpi_driver), GFP_KERNEL);
 	if (!ibm->acpi->driver) {
 		pr_err("failed to allocate memory for ibm->acpi->driver\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sprintf(ibm->acpi->driver->name, "%s_%s", TPACPI_NAME, ibm->name);
@@ -890,16 +890,16 @@ static int dispatch_proc_show(struct seq_file *m, void *v)
 	return ibm->read(m);
 }
 
-static int dispatch_proc_open(struct inode *inode, struct file *file)
+static int dispatch_proc_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, dispatch_proc_show, pde_data(inode));
+	return single_open(file, dispatch_proc_show, pde_data(ianalde));
 }
 
 static ssize_t dispatch_proc_write(struct file *file,
 			const char __user *userbuf,
 			size_t count, loff_t *pos)
 {
-	struct ibm_struct *ibm = pde_data(file_inode(file));
+	struct ibm_struct *ibm = pde_data(file_ianalde(file));
 	char *kernbuf;
 	int ret;
 
@@ -1008,7 +1008,7 @@ static int parse_strtoul(const char *buf,
 static void tpacpi_disable_brightness_delay(void)
 {
 	if (acpi_evalf(hkey_handle, NULL, "PWMS", "qvd", 0))
-		pr_notice("ACPI backlight control delay disabled\n");
+		pr_analtice("ACPI backlight control delay disabled\n");
 }
 
 static void printk_deprecated_attribute(const char * const what,
@@ -1027,7 +1027,7 @@ static void printk_deprecated_attribute(const char * const what,
  * ThinkPad-ACPI firmware handling model:
  *
  * WLSW (master wireless switch) is event-driven, and is common to all
- * firmware-controlled radios.  It cannot be controlled, just monitored,
+ * firmware-controlled radios.  It cananalt be controlled, just monitored,
  * as expected.  It overrides all radio state in firmware
  *
  * The kernel, a masked-off hotkey, and WLSW can change the radio state
@@ -1084,7 +1084,7 @@ static int tpacpi_rfk_update_swstate(const struct tpacpi_rfk *tp_rfk)
 	int status;
 
 	if (!tp_rfk)
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = (tp_rfk->ops->get_status)();
 	if (status < 0)
@@ -1098,7 +1098,7 @@ static int tpacpi_rfk_update_swstate(const struct tpacpi_rfk *tp_rfk)
 
 /*
  * Sync the HW-blocking state of all rfkill switches,
- * do notice it causes the rfkill core to schedule uevents
+ * do analtice it causes the rfkill core to schedule uevents
  */
 static void tpacpi_rfk_update_hwblock_state(bool blocked)
 {
@@ -1110,7 +1110,7 @@ static void tpacpi_rfk_update_hwblock_state(bool blocked)
 		if (tp_rfk) {
 			if (rfkill_set_hw_state(tp_rfk->rfkill,
 						blocked)) {
-				/* ignore -- we track sw block */
+				/* iganalre -- we track sw block */
 			}
 		}
 	}
@@ -1125,7 +1125,7 @@ static bool tpacpi_rfk_check_hwblock_state(void)
 	int res = hotkey_get_wlsw();
 	int hw_blocked;
 
-	/* When unknown or unsupported, we have to assume it is unblocked */
+	/* When unkanalwn or unsupported, we have to assume it is unblocked */
 	if (res < 0)
 		return false;
 
@@ -1182,7 +1182,7 @@ static int __init tpacpi_new_rfkill(const enum tpacpi_rfk_id id,
 	if (!atp_rfk || !atp_rfk->rfkill) {
 		pr_err("failed to allocate memory for rfkill class\n");
 		kfree(atp_rfk);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	atp_rfk->id = id;
@@ -1290,7 +1290,7 @@ static ssize_t tpacpi_rfk_sysfs_enable_store(const enum tpacpi_rfk_id id,
 static int tpacpi_rfk_procfs_read(const enum tpacpi_rfk_id id, struct seq_file *m)
 {
 	if (id >= TPACPI_RFK_SW_MAX)
-		seq_printf(m, "status:\t\tnot supported\n");
+		seq_printf(m, "status:\t\tanalt supported\n");
 	else {
 		int status;
 
@@ -1318,7 +1318,7 @@ static int tpacpi_rfk_procfs_write(const enum tpacpi_rfk_id id, char *buf)
 	int res = 0;
 
 	if (id >= TPACPI_RFK_SW_MAX)
-		return -ENODEV;
+		return -EANALDEV;
 
 	while ((cmd = strsep(&buf, ","))) {
 		if (strstarts(cmd, "enable"))
@@ -1475,12 +1475,12 @@ static DRIVER_ATTR_RW(uwb_emulstate);
  * Table of recommended minimum BIOS versions
  *
  * Reasons for listing:
- *    1. Stable BIOS, listed because the unknown amount of
+ *    1. Stable BIOS, listed because the unkanalwn amount of
  *       bugs and bad ACPI behaviour on older versions
  *
- *    2. BIOS or EC fw with known bugs that trigger on Linux
+ *    2. BIOS or EC fw with kanalwn bugs that trigger on Linux
  *
- *    3. BIOS with known reduced functionality in older versions
+ *    3. BIOS with kanalwn reduced functionality in older versions
  *
  *  We recommend the latest BIOS and EC version.
  *  We only support the latest BIOS and EC fw version as a rule.
@@ -1516,7 +1516,7 @@ static DRIVER_ATTR_RW(uwb_emulstate);
 		__bv1, __bv2, TPID(__id1, __id2),	\
 		__ev1, __ev2),				\
 	TPV_Q_X(PCI_VENDOR_ID_IBM, __id1, __id2, 	\
-		__bv1, __bv2, TPACPI_MATCH_UNKNOWN,	\
+		__bv1, __bv2, TPACPI_MATCH_UNKANALWN,	\
 		__ev1, __ev2)
 
 /* Outdated IBM BIOSes often lack the EC id string */
@@ -1526,20 +1526,20 @@ static DRIVER_ATTR_RW(uwb_emulstate);
 		__bv1, __bv2, TPID(__eid1, __eid2),	\
 		__ev1, __ev2),				\
 	TPV_Q_X(PCI_VENDOR_ID_IBM, __bid1, __bid2, 	\
-		__bv1, __bv2, TPACPI_MATCH_UNKNOWN,	\
+		__bv1, __bv2, TPACPI_MATCH_UNKANALWN,	\
 		__ev1, __ev2)
 
 #define TPV_QL0(__id1, __id2, __bv1, __bv2) \
-	TPV_Q(PCI_VENDOR_ID_LENOVO, __id1, __id2, __bv1, __bv2)
+	TPV_Q(PCI_VENDOR_ID_LEANALVO, __id1, __id2, __bv1, __bv2)
 
 #define TPV_QL1(__id1, __id2, __bv1, __bv2, __ev1, __ev2) \
-	TPV_Q_X(PCI_VENDOR_ID_LENOVO, __id1, __id2, 	\
+	TPV_Q_X(PCI_VENDOR_ID_LEANALVO, __id1, __id2, 	\
 		__bv1, __bv2, TPID(__id1, __id2),	\
 		__ev1, __ev2)
 
 #define TPV_QL2(__bid1, __bid2, __bv1, __bv2,		\
 		__eid1, __eid2, __ev1, __ev2) 		\
-	TPV_Q_X(PCI_VENDOR_ID_LENOVO, __bid1, __bid2, 	\
+	TPV_Q_X(PCI_VENDOR_ID_LEANALVO, __bid1, __bid2, 	\
 		__bv1, __bv2, TPID(__eid1, __eid2),	\
 		__ev1, __ev2)
 
@@ -1619,7 +1619,7 @@ static const struct tpacpi_quirk tpacpi_bios_version_qtable[] __initconst = {
 	TPV_QL1('7', 'J',  '3', '0',  '1', '3'), /* X60t */
 
 	/* (0) - older versions lack DMI EC fw string and functionality */
-	/* (1) - older versions known to lack functionality */
+	/* (1) - older versions kanalwn to lack functionality */
 };
 
 #undef TPV_QL1
@@ -1644,7 +1644,7 @@ static void __init tpacpi_check_outdated_fw(void)
 	bios_version = fwvers & 0xffffU;
 	ec_version = (fwvers >> 16) & 0xffffU;
 
-	/* note that unknown versions are set to 0x0000 and we use that */
+	/* analte that unkanalwn versions are set to 0x0000 and we use that */
 	if ((bios_version > thinkpad_id.bios_release) ||
 	    (ec_version > thinkpad_id.ec_release &&
 				ec_version != TPACPI_MATCH_ANY_VERSION)) {
@@ -1660,7 +1660,7 @@ static void __init tpacpi_check_outdated_fw(void)
 	}
 }
 
-static bool __init tpacpi_is_fw_known(void)
+static bool __init tpacpi_is_fw_kanalwn(void)
 {
 	return tpacpi_check_quirks(tpacpi_bios_version_qtable,
 			ARRAY_SIZE(tpacpi_bios_version_qtable)) != 0;
@@ -1697,8 +1697,8 @@ static struct ibm_struct thinkpad_acpi_driver_data = {
 /*
  * ThinkPad firmware event model
  *
- * The ThinkPad firmware has two main event interfaces: normal ACPI
- * notifications (which follow the ACPI standard), and a private event
+ * The ThinkPad firmware has two main event interfaces: analrmal ACPI
+ * analtifications (which follow the ACPI standard), and a private event
  * interface.
  *
  * The private event interface also issues events for the hotkeys.  As
@@ -1711,7 +1711,7 @@ static struct ibm_struct thinkpad_acpi_driver_data = {
  * the ThinkPad model and how the firmware is operating.
  *
  * Unlike other classes, hotkey-class events have mask/unmask control on
- * non-ancient firmware.  However, how it behaves changes a lot with the
+ * analn-ancient firmware.  However, how it behaves changes a lot with the
  * firmware model and version.
  */
 
@@ -1772,7 +1772,7 @@ enum {	/* hot key scan codes (derived from ACPI DSDT) */
 	TP_ACPI_HOTKEYSCAN_CAMERA_MODE,
 	TP_ACPI_HOTKEYSCAN_ROTATE_DISPLAY,
 
-	/* Lenovo extended keymap, starting at 0x1300 */
+	/* Leanalvo extended keymap, starting at 0x1300 */
 	TP_ACPI_HOTKEYSCAN_EXTENDED_START,
 	/* first new observed key (star, favorites) is 0x1311 */
 	TP_ACPI_HOTKEYSCAN_STAR = 69,
@@ -1780,8 +1780,8 @@ enum {	/* hot key scan codes (derived from ACPI DSDT) */
 	TP_ACPI_HOTKEYSCAN_CALCULATOR,
 	TP_ACPI_HOTKEYSCAN_BLUETOOTH,
 	TP_ACPI_HOTKEYSCAN_KEYBOARD,
-	TP_ACPI_HOTKEYSCAN_FN_RIGHT_SHIFT, /* Used by "Lenovo Quick Clean" */
-	TP_ACPI_HOTKEYSCAN_NOTIFICATION_CENTER,
+	TP_ACPI_HOTKEYSCAN_FN_RIGHT_SHIFT, /* Used by "Leanalvo Quick Clean" */
+	TP_ACPI_HOTKEYSCAN_ANALTIFICATION_CENTER,
 	TP_ACPI_HOTKEYSCAN_PICKUP_PHONE,
 	TP_ACPI_HOTKEYSCAN_HANGUP_PHONE,
 
@@ -1790,7 +1790,7 @@ enum {	/* hot key scan codes (derived from ACPI DSDT) */
 };
 
 enum {	/* Keys/events available through NVRAM polling */
-	TPACPI_HKEY_NVRAM_KNOWN_MASK = 0x00fb88c0U,
+	TPACPI_HKEY_NVRAM_KANALWN_MASK = 0x00fb88c0U,
 	TPACPI_HKEY_NVRAM_GOOD_MASK  = 0x00fb8000U,
 };
 
@@ -1884,7 +1884,7 @@ static unsigned int hotkey_poll_freq = 10; /* Hz */
 static struct mutex hotkey_mutex;
 
 static enum {	/* Reasons for waking up */
-	TP_ACPI_WAKEUP_NONE = 0,	/* None or unknown */
+	TP_ACPI_WAKEUP_ANALNE = 0,	/* Analne or unkanalwn */
 	TP_ACPI_WAKEUP_BAYEJ,		/* Bay ejection request */
 	TP_ACPI_WAKEUP_UNDOCK,		/* Undock request */
 } hotkey_wakeup_reason;
@@ -1909,7 +1909,7 @@ static void hotkey_poll_setup(const bool may_warn);
 #define TP_HOTKEY_TABLET_MASK (1 << 3)
 enum {
 	TP_ACPI_MULTI_MODE_INVALID	= 0,
-	TP_ACPI_MULTI_MODE_UNKNOWN	= 1 << 0,
+	TP_ACPI_MULTI_MODE_UNKANALWN	= 1 << 0,
 	TP_ACPI_MULTI_MODE_LAPTOP	= 1 << 1,
 	TP_ACPI_MULTI_MODE_TABLET	= 1 << 2,
 	TP_ACPI_MULTI_MODE_FLAT		= 1 << 3,
@@ -1935,7 +1935,7 @@ static int hotkey_get_wlsw(void)
 	int status;
 
 	if (!tp_features.hotkey_wlsw)
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
 	if (dbg_wlswemul)
@@ -1978,7 +1978,7 @@ static int hotkey_gmms_get_tablet_mode(int s, int *has_tablet_mode)
 		break;
 	case 4:
 	case 5:
-		/* In mode 4, FLAT is not specified as a valid mode. However,
+		/* In mode 4, FLAT is analt specified as a valid mode. However,
 		 * it can be seen at least on the X1 Yoga 2nd Generation.
 		 */
 		valid_modes = TP_ACPI_MULTI_MODE_LAPTOP |
@@ -1988,7 +1988,7 @@ static int hotkey_gmms_get_tablet_mode(int s, int *has_tablet_mode)
 			      TP_ACPI_MULTI_MODE_TENT;
 		break;
 	default:
-		pr_err("Unknown multi mode status type %d with value 0x%04X, please report this to %s\n",
+		pr_err("Unkanalwn multi mode status type %d with value 0x%04X, please report this to %s\n",
 		       type, value, TPACPI_MAIL);
 		return 0;
 	}
@@ -2023,7 +2023,7 @@ static int hotkey_gmms_get_tablet_mode(int s, int *has_tablet_mode)
 	}
 
 	if (!(mode & valid_modes)) {
-		pr_err("Unknown/reserved multi mode value 0x%04X for type %d, please report this to %s\n",
+		pr_err("Unkanalwn/reserved multi mode value 0x%04X for type %d, please report this to %s\n",
 		       value, type, TPACPI_MAIL);
 		return 0;
 	}
@@ -2073,7 +2073,7 @@ static int hotkey_mask_get(void)
 
 		hotkey_acpi_mask = m;
 	} else {
-		/* no mask support doesn't mean no event support... */
+		/* anal mask support doesn't mean anal event support... */
 		hotkey_acpi_mask = hotkey_all_mask;
 	}
 
@@ -2088,10 +2088,10 @@ static void hotkey_mask_warn_incomplete_mask(void)
 	/* log only what the user can fix... */
 	const u32 wantedmask = hotkey_driver_mask &
 		~(hotkey_acpi_mask | hotkey_source_mask) &
-		(hotkey_all_mask | TPACPI_HKEY_NVRAM_KNOWN_MASK);
+		(hotkey_all_mask | TPACPI_HKEY_NVRAM_KANALWN_MASK);
 
 	if (wantedmask)
-		pr_notice("required events 0x%08x not enabled!\n", wantedmask);
+		pr_analtice("required events 0x%08x analt enabled!\n", wantedmask);
 }
 
 /*
@@ -2099,7 +2099,7 @@ static void hotkey_mask_warn_incomplete_mask(void)
  *
  * Also calls hotkey_mask_get to update hotkey_acpi_mask.
  *
- * NOTE: does not set bits in hotkey_user_mask, but may reset them.
+ * ANALTE: does analt set bits in hotkey_user_mask, but may reset them.
  */
 static int hotkey_mask_set(u32 mask)
 {
@@ -2125,11 +2125,11 @@ static int hotkey_mask_set(u32 mask)
 	 * We *must* make an inconditional call to hotkey_mask_get to
 	 * refresh hotkey_acpi_mask and update hotkey_user_mask
 	 *
-	 * Take the opportunity to also log when we cannot _enable_
+	 * Take the opportunity to also log when we cananalt _enable_
 	 * a given event.
 	 */
 	if (!hotkey_mask_get() && !rc && (fwmask & ~hotkey_acpi_mask)) {
-		pr_notice("asked for hotkey mask 0x%08x, but firmware forced it to 0x%08x\n",
+		pr_analtice("asked for hotkey mask 0x%08x, but firmware forced it to 0x%08x\n",
 			  fwmask, hotkey_acpi_mask);
 	}
 
@@ -2148,15 +2148,15 @@ static int hotkey_user_mask_set(const u32 mask)
 
 	lockdep_assert_held(&hotkey_mutex);
 
-	/* Give people a chance to notice they are doing something that
+	/* Give people a chance to analtice they are doing something that
 	 * is bound to go boom on their users sooner or later */
 	if (!tp_warned.hotkey_mask_ff &&
 	    (mask == 0xffff || mask == 0xffffff ||
 	     mask == 0xffffffff)) {
 		tp_warned.hotkey_mask_ff = 1;
-		pr_notice("setting the hotkey mask to 0x%08x is likely not the best way to go about it\n",
+		pr_analtice("setting the hotkey mask to 0x%08x is likely analt the best way to go about it\n",
 			  mask);
-		pr_notice("please consider using the driver defaults, and refer to up-to-date thinkpad-acpi documentation\n");
+		pr_analtice("please consider using the driver defaults, and refer to up-to-date thinkpad-acpi documentation\n");
 	}
 
 	/* Try to enable what the user asked for, plus whatever we need.
@@ -2178,7 +2178,7 @@ static int tpacpi_hotkey_driver_mask_set(const u32 mask)
 {
 	int rc;
 
-	/* Do the right thing if hotkey_init has not been called yet */
+	/* Do the right thing if hotkey_init has analt been called yet */
 	if (!tp_features.hotkey) {
 		hotkey_driver_mask = mask;
 		return 0;
@@ -2234,7 +2234,7 @@ static void tpacpi_input_send_tabletsw(void)
 	}
 }
 
-/* Do NOT call without validating scancode first */
+/* Do ANALT call without validating scancode first */
 static void tpacpi_input_send_key(const unsigned int scancode)
 {
 	const unsigned int keycode = hotkey_keycode_map[scancode];
@@ -2254,7 +2254,7 @@ static void tpacpi_input_send_key(const unsigned int scancode)
 	}
 }
 
-/* Do NOT call without validating scancode first */
+/* Do ANALT call without validating scancode first */
 static void tpacpi_input_send_key_masked(const unsigned int scancode)
 {
 	hotkey_driver_event(scancode);
@@ -2265,7 +2265,7 @@ static void tpacpi_input_send_key_masked(const unsigned int scancode)
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
 static struct tp_acpi_drv_struct ibm_hotkey_acpidriver;
 
-/* Do NOT call without validating scancode first */
+/* Do ANALT call without validating scancode first */
 static void tpacpi_hotkey_send_key(unsigned int scancode)
 {
 	tpacpi_input_send_key_masked(scancode);
@@ -2373,14 +2373,14 @@ static void hotkey_compare_and_issue_event(struct tp_nvram_state *oldn,
 	 * - Pressing MUTE issues mute hotkey message, even when already mute
 	 * - Pressing Volume up/down issues volume up/down hotkey messages,
 	 *   even when already at maximum or minimum volume
-	 * - The act of unmuting issues volume up/down notification,
+	 * - The act of unmuting issues volume up/down analtification,
 	 *   depending which key was used to unmute
 	 *
-	 * We are constrained to what the NVRAM can tell us, which is not much
-	 * and certainly not enough if more than one volume hotkey was pressed
+	 * We are constrained to what the NVRAM can tell us, which is analt much
+	 * and certainly analt eanalugh if more than one volume hotkey was pressed
 	 * since the last poll cycle.
 	 *
-	 * Just to make our life interesting, some newer Lenovo ThinkPads have
+	 * Just to make our life interesting, some newer Leanalvo ThinkPads have
 	 * bugs in the BIOS and may fail to update volume_toggle properly.
 	 */
 	if (newn->mute) {
@@ -2533,14 +2533,14 @@ static void hotkey_poll_setup(const bool may_warn)
 					NULL, TPACPI_NVRAM_KTHREAD_NAME);
 			if (IS_ERR(tpacpi_hotkey_task)) {
 				tpacpi_hotkey_task = NULL;
-				pr_err("could not create kernel thread for hotkey polling\n");
+				pr_err("could analt create kernel thread for hotkey polling\n");
 			}
 		}
 	} else {
 		hotkey_poll_stop_sync();
 		if (may_warn && (poll_driver_mask || poll_user_mask) &&
 		    hotkey_poll_freq == 0) {
-			pr_notice("hot keys 0x%08x and/or events 0x%08x require polling, which is currently disabled\n",
+			pr_analtice("hot keys 0x%08x and/or events 0x%08x require polling, which is currently disabled\n",
 				  poll_user_mask, poll_driver_mask);
 		}
 	}
@@ -2747,7 +2747,7 @@ static ssize_t hotkey_source_mask_store(struct device *dev,
 	int rc;
 
 	if (parse_strtoul(buf, 0xffffffffUL, &t) ||
-		((t & ~TPACPI_HKEY_NVRAM_KNOWN_MASK) != 0))
+		((t & ~TPACPI_HKEY_NVRAM_KANALWN_MASK) != 0))
 		return -EINVAL;
 
 	if (mutex_lock_killable(&hotkey_mutex))
@@ -2763,7 +2763,7 @@ static ssize_t hotkey_source_mask_store(struct device *dev,
 
 	/* check if events needed by the driver got disabled */
 	r_ev = hotkey_driver_mask & ~(hotkey_acpi_mask & hotkey_all_mask)
-		& ~hotkey_source_mask & TPACPI_HKEY_NVRAM_KNOWN_MASK;
+		& ~hotkey_source_mask & TPACPI_HKEY_NVRAM_KANALWN_MASK;
 
 	mutex_unlock(&hotkey_mutex);
 
@@ -2771,7 +2771,7 @@ static ssize_t hotkey_source_mask_store(struct device *dev,
 		pr_err("hotkey_source_mask: failed to update the firmware event mask!\n");
 
 	if (r_ev)
-		pr_notice("hotkey_source_mask: some important events were disabled: 0x%04x\n",
+		pr_analtice("hotkey_source_mask: some important events were disabled: 0x%04x\n",
 			  r_ev);
 
 	tpacpi_disclose_usertask("hotkey_source_mask", "set to 0x%08lx\n", t);
@@ -2834,10 +2834,10 @@ static ssize_t hotkey_radio_sw_show(struct device *dev,
 
 static DEVICE_ATTR_RO(hotkey_radio_sw);
 
-static void hotkey_radio_sw_notify_change(void)
+static void hotkey_radio_sw_analtify_change(void)
 {
 	if (tp_features.hotkey_wlsw)
-		sysfs_notify(&tpacpi_pdev->dev.kobj, NULL,
+		sysfs_analtify(&tpacpi_pdev->dev.kobj, NULL,
 			     "hotkey_radio_sw");
 }
 
@@ -2856,10 +2856,10 @@ static ssize_t hotkey_tablet_mode_show(struct device *dev,
 
 static DEVICE_ATTR_RO(hotkey_tablet_mode);
 
-static void hotkey_tablet_mode_notify_change(void)
+static void hotkey_tablet_mode_analtify_change(void)
 {
 	if (tp_features.hotkey_tablet)
-		sysfs_notify(&tpacpi_pdev->dev.kobj, NULL,
+		sysfs_analtify(&tpacpi_pdev->dev.kobj, NULL,
 			     "hotkey_tablet_mode");
 }
 
@@ -2873,9 +2873,9 @@ static ssize_t hotkey_wakeup_reason_show(struct device *dev,
 
 static DEVICE_ATTR(wakeup_reason, S_IRUGO, hotkey_wakeup_reason_show, NULL);
 
-static void hotkey_wakeup_reason_notify_change(void)
+static void hotkey_wakeup_reason_analtify_change(void)
 {
-	sysfs_notify(&tpacpi_pdev->dev.kobj, NULL,
+	sysfs_analtify(&tpacpi_pdev->dev.kobj, NULL,
 		     "wakeup_reason");
 }
 
@@ -2890,9 +2890,9 @@ static ssize_t hotkey_wakeup_hotunplug_complete_show(struct device *dev,
 static DEVICE_ATTR(wakeup_hotunplug_complete, S_IRUGO,
 		   hotkey_wakeup_hotunplug_complete_show, NULL);
 
-static void hotkey_wakeup_hotunplug_complete_notify_change(void)
+static void hotkey_wakeup_hotunplug_complete_analtify_change(void)
 {
-	sysfs_notify(&tpacpi_pdev->dev.kobj, NULL,
+	sysfs_analtify(&tpacpi_pdev->dev.kobj, NULL,
 		     "wakeup_hotunplug_complete");
 }
 
@@ -3035,9 +3035,9 @@ static void tpacpi_send_radiosw_update(void)
 
 	/*
 	 * this can be unconditional, as we will poll state again
-	 * if userspace uses the notify to read data
+	 * if userspace uses the analtify to read data
 	 */
-	hotkey_radio_sw_notify_change();
+	hotkey_radio_sw_analtify_change();
 }
 
 static void hotkey_exit(void)
@@ -3049,7 +3049,7 @@ static void hotkey_exit(void)
 #endif
 	dbg_printk(TPACPI_DBG_EXIT | TPACPI_DBG_HKEY,
 		   "restoring original HKEY status and mask\n");
-	/* yes, there is a bitwise or below, we want the
+	/* anal, there is a bitwise or below, we want the
 	 * functions to be called even if one of them fail */
 	if (((tp_features.hotkey_mask &&
 	      hotkey_mask_set(hotkey_orig_mask)) |
@@ -3110,10 +3110,10 @@ static int hotkey_init_tablet_mode(void)
 							     &has_tablet_mode);
 		/*
 		 * The Yoga 11e series has 2 accelerometers described by a
-		 * BOSC0200 ACPI node. This setup relies on a Windows service
-		 * which calls special ACPI methods on this node to report
+		 * BOSC0200 ACPI analde. This setup relies on a Windows service
+		 * which calls special ACPI methods on this analde to report
 		 * the laptop/tent/tablet mode to the EC. The bmc150 iio driver
-		 * does not support this, so skip the hotkey on these models.
+		 * does analt support this, so skip the hotkey on these models.
 		 */
 		if (has_tablet_mode && !dual_accel_detect())
 			tp_features.hotkey_tablet = TP_HOTKEY_TABLET_USES_GMMS;
@@ -3139,8 +3139,8 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	/* Requirements for changing the default keymaps:
 	 *
 	 * 1. Many of the keys are mapped to KEY_RESERVED for very
-	 *    good reasons.  Do not change them unless you have deep
-	 *    knowledge on the IBM and Lenovo ThinkPad firmware for
+	 *    good reasons.  Do analt change them unless you have deep
+	 *    kanalwledge on the IBM and Leanalvo ThinkPad firmware for
 	 *    the various ThinkPad models.  The driver behaves
 	 *    differently for KEY_RESERVED: such keys have their
 	 *    hot key mask *unset* in mask_recommended, and also
@@ -3153,11 +3153,11 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	 *    ibm-acpi-devel mailing lists, and you should read the
 	 *    list archives since 2007 if you want to change the
 	 *    keymaps.  This requirement exists so that you will
-	 *    know the past history of problems with the thinkpad-
+	 *    kanalw the past history of problems with the thinkpad-
 	 *    acpi driver keymaps, and also that you will be
 	 *    listening to any bug reports;
 	 *
-	 * 3. Do not send thinkpad-acpi specific patches directly to
+	 * 3. Do analt send thinkpad-acpi specific patches directly to
 	 *    for merging, *ever*.  Send them to the linux-acpi
 	 *    mailinglist for comments.  Merging is to be done only
 	 *    through acpi-test and the ACPI maintainer.
@@ -3168,7 +3168,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 	enum keymap_index {
 		TPACPI_KEYMAP_IBM_GENERIC = 0,
-		TPACPI_KEYMAP_LENOVO_GENERIC,
+		TPACPI_KEYMAP_LEANALVO_GENERIC,
 	};
 
 	static const tpacpi_keymap_t tpacpi_keymaps[] __initconst = {
@@ -3180,9 +3180,9 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_FN_F9,	KEY_FN_F10,	KEY_FN_F11,	KEY_SUSPEND,
 
 		/* Scan codes 0x0C to 0x1F: Other ACPI HKEY hot keys */
-		KEY_UNKNOWN,	/* 0x0C: FN+BACKSPACE */
-		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
-		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
+		KEY_UNKANALWN,	/* 0x0C: FN+BACKSPACE */
+		KEY_UNKANALWN,	/* 0x0D: FN+INSERT */
+		KEY_UNKANALWN,	/* 0x0E: FN+DELETE */
 
 		/* brightness: firmware always reacts to them */
 		KEY_RESERVED,	/* 0x0F: FN+HOME (brightness up) */
@@ -3191,50 +3191,50 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		/* Thinklight: firmware always react to it */
 		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
 
-		KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
+		KEY_UNKANALWN,	/* 0x12: FN+PGDOWN */
 		KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */
 
 		/* Volume: firmware always react to it and reprograms
 		 * the built-in *extra* mixer.  Never map it to control
-		 * another mixer by default. */
+		 * aanalther mixer by default. */
 		KEY_RESERVED,	/* 0x14: VOLUME UP */
 		KEY_RESERVED,	/* 0x15: VOLUME DOWN */
 		KEY_RESERVED,	/* 0x16: MUTE */
 
-		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
+		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Leanalvo */
 
-		/* (assignments unknown, please report if found) */
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+		/* (assignments unkanalwn, please report if found) */
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
 
-		/* No assignments, only used for Adaptive keyboards. */
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
+		/* Anal assignments, only used for Adaptive keyboards. */
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
 
-		/* No assignment, used for newer Lenovo models */
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN
+		/* Anal assignment, used for newer Leanalvo models */
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
+		KEY_UNKANALWN, KEY_UNKANALWN
 
 		},
 
-	/* Generic keymap for Lenovo ThinkPads */
-	[TPACPI_KEYMAP_LENOVO_GENERIC] = {
+	/* Generic keymap for Leanalvo ThinkPads */
+	[TPACPI_KEYMAP_LEANALVO_GENERIC] = {
 		/* Scan Codes 0x00 to 0x0B: ACPI HKEY FN+F1..F12 */
 		KEY_FN_F1,	KEY_COFFEE,	KEY_BATTERY,	KEY_SLEEP,
 		KEY_WLAN,	KEY_CAMERA, KEY_SWITCHVIDEOMODE, KEY_FN_F8,
 		KEY_FN_F9,	KEY_FN_F10,	KEY_FN_F11,	KEY_SUSPEND,
 
 		/* Scan codes 0x0C to 0x1F: Other ACPI HKEY hot keys */
-		KEY_UNKNOWN,	/* 0x0C: FN+BACKSPACE */
-		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
-		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
+		KEY_UNKANALWN,	/* 0x0C: FN+BACKSPACE */
+		KEY_UNKANALWN,	/* 0x0D: FN+INSERT */
+		KEY_UNKANALWN,	/* 0x0E: FN+DELETE */
 
 		/* These should be enabled --only-- when ACPI video
 		 * is disabled (i.e. in "vendor" mode), and are handled
@@ -3244,17 +3244,17 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
 
-		KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
+		KEY_UNKANALWN,	/* 0x12: FN+PGDOWN */
 		KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */
 
 		/* Volume: z60/z61, T60 (BIOS version?): firmware always
 		 * react to it and reprograms the built-in *extra* mixer.
-		 * Never map it to control another mixer by default.
+		 * Never map it to control aanalther mixer by default.
 		 *
 		 * T60?, T61, R60?, R61: firmware and EC tries to send
-		 * these over the regular keyboard, so these are no-ops,
-		 * but there are still weird bugs re. MUTE, so do not
-		 * change unless you get test reports from all Lenovo
+		 * these over the regular keyboard, so these are anal-ops,
+		 * but there are still weird bugs re. MUTE, so do analt
+		 * change unless you get test reports from all Leanalvo
 		 * models.  May cause the BIOS to interfere with the
 		 * HDA mixer.
 		 */
@@ -3262,19 +3262,19 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_RESERVED,	/* 0x15: VOLUME DOWN */
 		KEY_RESERVED,	/* 0x16: MUTE */
 
-		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
+		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Leanalvo */
 
-		/* (assignments unknown, please report if found) */
-		KEY_UNKNOWN, KEY_UNKNOWN,
+		/* (assignments unkanalwn, please report if found) */
+		KEY_UNKANALWN, KEY_UNKANALWN,
 
 		/*
-		 * The mic mute button only sends 0x1a.  It does not
+		 * The mic mute button only sends 0x1a.  It does analt
 		 * automatically mute the mic or change the mute light.
 		 */
 		KEY_MICMUTE,	/* 0x1a: Mic mute (since ?400 or so) */
 
-		/* (assignments unknown, please report if found) */
-		KEY_UNKNOWN,
+		/* (assignments unkanalwn, please report if found) */
+		KEY_UNKANALWN,
 
 		/* Extra keys in use since the X240 / T440 / T540 */
 		KEY_CONFIG, KEY_SEARCH, KEY_SCALE, KEY_FILE,
@@ -3283,7 +3283,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		 * These are the adaptive keyboard keycodes for Carbon X1 2014.
 		 * The first item in this list is the Mute button which is
 		 * emitted with 0x103 through
-		 * adaptive_keyboard_hotkey_notify_hotkey() when the sound
+		 * adaptive_keyboard_hotkey_analtify_hotkey() when the sound
 		 * symbol is held.
 		 * We'll need to offset those by 0x20.
 		 */
@@ -3310,7 +3310,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 		/*
 		 * These are found in 2017 models (e.g. T470s, X270).
-		 * The lowest known value is 0x311, which according to
+		 * The lowest kanalwn value is 0x311, which according to
 		 * the manual should launch a user defined favorite
 		 * application.
 		 *
@@ -3318,12 +3318,12 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		 * corresponding to 0x34.
 		 */
 
-		/* (assignments unknown, please report if found) */
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
-		KEY_UNKNOWN,
+		/* (assignments unkanalwn, please report if found) */
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
+		KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN, KEY_UNKANALWN,
+		KEY_UNKANALWN,
 
 		KEY_BOOKMARKS,			/* Favorite app, 0x311 */
 		KEY_SELECTIVE_SCREENSHOT,	/* Clipping tool */
@@ -3331,7 +3331,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_BLUETOOTH,			/* Bluetooth */
 		KEY_KEYBOARD,			/* Keyboard, 0x315 */
 		KEY_FN_RIGHT_SHIFT,		/* Fn + right Shift */
-		KEY_NOTIFICATION_CENTER,	/* Notification Center */
+		KEY_ANALTIFICATION_CENTER,	/* Analtification Center */
 		KEY_PICKUP_PHONE,		/* Answer incoming call */
 		KEY_HANGUP_PHONE,		/* Decline incoming call */
 		},
@@ -3345,9 +3345,9 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		  .quirks = TPACPI_KEYMAP_IBM_GENERIC,
 		},
 		{
-		  .vendor = PCI_VENDOR_ID_LENOVO,
+		  .vendor = PCI_VENDOR_ID_LEANALVO,
 		  .bios = TPACPI_MATCH_ANY, .ec = TPACPI_MATCH_ANY,
-		  .quirks = TPACPI_KEYMAP_LENOVO_GENERIC,
+		  .quirks = TPACPI_KEYMAP_LEANALVO_GENERIC,
 		},
 	};
 
@@ -3377,7 +3377,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	mutex_init(&hotkey_thread_data_mutex);
 #endif
 
-	/* hotkey not supported on 570 */
+	/* hotkey analt supported on 570 */
 	tp_features.hotkey = hkey_handle != NULL;
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
@@ -3385,14 +3385,14 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.hotkey));
 
 	if (!tp_features.hotkey)
-		return -ENODEV;
+		return -EANALDEV;
 
 	quirks = tpacpi_check_quirks(tpacpi_hotkey_qtable,
 				     ARRAY_SIZE(tpacpi_hotkey_qtable));
 
 	tpacpi_disable_brightness_delay();
 
-	/* mask not supported on 600e/x, 770e, 770x, A21e, A2xm/p,
+	/* mask analt supported on 600e/x, 770e, 770x, A21e, A2xm/p,
 	   A30, R30, R31, T20-22, X20-21, X22-24.  Detected by checking
 	   for HKEY interface version 0x100 */
 	if (acpi_evalf(hkey_handle, &hkeyv, "MHKV", "qd")) {
@@ -3407,7 +3407,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			 * T4x, X31, and later
 			 */
 
-			/* Paranoia check AND init hotkey_all_mask */
+			/* Paraanalia check AND init hotkey_all_mask */
 			if (!acpi_evalf(hkey_handle, &hotkey_all_mask,
 					"MHKA", "qd")) {
 				pr_err("missing MHKA handler, please report this to %s\n",
@@ -3424,7 +3424,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			 * MHKV 0x200 in X1, T460s, X260, T560, X1 Tablet (2016)
 			 */
 
-			/* Paranoia check AND init hotkey_all_mask */
+			/* Paraanalia check AND init hotkey_all_mask */
 			if (!acpi_evalf(hkey_handle, &hotkey_all_mask,
 					"MHKA", "dd", 1)) {
 				pr_err("missing MHKA handler, please report this to %s\n",
@@ -3437,7 +3437,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 			/*
 			 * Check if we have an adaptive keyboard, like on the
-			 * Lenovo Carbon X1 2014 (2nd Gen).
+			 * Leanalvo Carbon X1 2014 (2nd Gen).
 			 */
 			if (acpi_evalf(hkey_handle, &hotkey_adaptive_all_mask,
 				       "MHKA", "dd", 2)) {
@@ -3450,7 +3450,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			break;
 
 		default:
-			pr_err("unknown version of the HKEY interface: 0x%x\n",
+			pr_err("unkanalwn version of the HKEY interface: 0x%x\n",
 			       hkeyv);
 			pr_err("please report this to %s\n", TPACPI_MAIL);
 			break;
@@ -3461,7 +3461,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		"hotkey masks are %s\n",
 		str_supported(tp_features.hotkey_mask));
 
-	/* Init hotkey_all_mask if not initialized yet */
+	/* Init hotkey_all_mask if analt initialized yet */
 	if (!tp_features.hotkey_mask && !hotkey_all_mask &&
 	    (quirks & TPACPI_HK_Q_INIMASK))
 		hotkey_all_mask = 0x080cU;  /* FN+F12, FN+F4, FN+F3 */
@@ -3489,7 +3489,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		pr_info("radio switch emulation enabled\n");
 	} else
 #endif
-	/* Not all thinkpads have a hardware radio switch */
+	/* Analt all thinkpads have a hardware radio switch */
 	if (acpi_evalf(hkey_handle, &status, "WLSW", "qd")) {
 		tp_features.hotkey_wlsw = 1;
 		radiosw_state = !!status;
@@ -3509,7 +3509,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			TPACPI_HOTKEY_MAP_SIZE,	GFP_KERNEL);
 	if (!hotkey_keycode_map) {
 		pr_err("failed to allocate memory for key map\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_set_capability(tpacpi_inputdev, EV_MSC, MSC_SCAN);
@@ -3537,14 +3537,14 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 				    SW_TABLET_MODE, tabletsw_state);
 	}
 
-	/* Do not issue duplicate brightness change events to
+	/* Do analt issue duplicate brightness change events to
 	 * userspace. tpacpi_detect_brightness_capabilities() must have
 	 * been called before this point  */
 	if (acpi_video_get_backlight_type() != acpi_backlight_vendor) {
 		pr_info("This ThinkPad has standard ACPI backlight brightness control, supported by the ACPI video driver\n");
-		pr_notice("Disabling thinkpad-acpi brightness events by default...\n");
+		pr_analtice("Disabling thinkpad-acpi brightness events by default...\n");
 
-		/* Disable brightness up/down on Lenovo thinkpads when
+		/* Disable brightness up/down on Leanalvo thinkpads when
 		 * ACPI is handling them, otherwise it is plain impossible
 		 * for userspace to do something even remotely sane */
 		hotkey_reserved_mask |=
@@ -3623,7 +3623,7 @@ static int adaptive_keyboard_get_mode(void)
 	int mode = 0;
 
 	if (!acpi_evalf(hkey_handle, &mode, "GTRW", "dd", 0)) {
-		pr_err("Cannot read adaptive keyboard mode\n");
+		pr_err("Cananalt read adaptive keyboard mode\n");
 		return -EIO;
 	}
 
@@ -3637,7 +3637,7 @@ static int adaptive_keyboard_set_mode(int new_mode)
 		return -EINVAL;
 
 	if (!acpi_evalf(hkey_handle, NULL, "STRW", "vd", new_mode)) {
-		pr_err("Cannot set adaptive keyboard mode\n");
+		pr_err("Cananalt set adaptive keyboard mode\n");
 		return -EIO;
 	}
 
@@ -3662,7 +3662,7 @@ static int adaptive_keyboard_get_next_mode(int mode)
 	return adaptive_keyboard_modes[i];
 }
 
-static bool adaptive_keyboard_hotkey_notify_hotkey(unsigned int scancode)
+static bool adaptive_keyboard_hotkey_analtify_hotkey(unsigned int scancode)
 {
 	int current_mode = 0;
 	int new_mode = 0;
@@ -3724,7 +3724,7 @@ static bool adaptive_keyboard_hotkey_notify_hotkey(unsigned int scancode)
 	}
 }
 
-static bool hotkey_notify_extended_hotkey(const u32 hkey)
+static bool hotkey_analtify_extended_hotkey(const u32 hkey)
 {
 	unsigned int scancode;
 
@@ -3737,7 +3737,7 @@ static bool hotkey_notify_extended_hotkey(const u32 hkey)
 
 	/* Extended keycodes start at 0x300 and our offset into the map
 	 * TP_ACPI_HOTKEYSCAN_EXTENDED_START. The calculated scancode
-	 * will be positive, but might not be in the correct range.
+	 * will be positive, but might analt be in the correct range.
 	 */
 	scancode = (hkey & 0xfff) - (0x300 - TP_ACPI_HOTKEYSCAN_EXTENDED_START);
 	if (scancode >= TP_ACPI_HOTKEYSCAN_EXTENDED_START &&
@@ -3749,14 +3749,14 @@ static bool hotkey_notify_extended_hotkey(const u32 hkey)
 	return false;
 }
 
-static bool hotkey_notify_hotkey(const u32 hkey,
+static bool hotkey_analtify_hotkey(const u32 hkey,
 				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+				 bool *iganalre_acpi_ev)
 {
 	/* 0x1000-0x1FFF: key presses */
 	unsigned int scancode = hkey & 0xfff;
 	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
+	*iganalre_acpi_ev = false;
 
 	/*
 	 * Original events are in the 0x10XX range, the adaptive keyboard
@@ -3773,41 +3773,41 @@ static bool hotkey_notify_hotkey(const u32 hkey,
 				tpacpi_input_send_key_masked(scancode);
 				*send_acpi_ev = false;
 			} else {
-				*ignore_acpi_ev = true;
+				*iganalre_acpi_ev = true;
 			}
 			return true;
 		}
 		break;
 
 	case 1:
-		return adaptive_keyboard_hotkey_notify_hotkey(scancode);
+		return adaptive_keyboard_hotkey_analtify_hotkey(scancode);
 
 	case 3:
-		return hotkey_notify_extended_hotkey(hkey);
+		return hotkey_analtify_extended_hotkey(hkey);
 	}
 
 	return false;
 }
 
-static bool hotkey_notify_wakeup(const u32 hkey,
+static bool hotkey_analtify_wakeup(const u32 hkey,
 				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+				 bool *iganalre_acpi_ev)
 {
 	/* 0x2000-0x2FFF: Wakeup reason */
 	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
+	*iganalre_acpi_ev = false;
 
 	switch (hkey) {
 	case TP_HKEY_EV_WKUP_S3_UNDOCK: /* suspend, undock */
 	case TP_HKEY_EV_WKUP_S4_UNDOCK: /* hibernation, undock */
 		hotkey_wakeup_reason = TP_ACPI_WAKEUP_UNDOCK;
-		*ignore_acpi_ev = true;
+		*iganalre_acpi_ev = true;
 		break;
 
 	case TP_HKEY_EV_WKUP_S3_BAYEJ: /* suspend, bay eject */
 	case TP_HKEY_EV_WKUP_S4_BAYEJ: /* hibernation, bay eject */
 		hotkey_wakeup_reason = TP_ACPI_WAKEUP_BAYEJ;
-		*ignore_acpi_ev = true;
+		*iganalre_acpi_ev = true;
 		break;
 
 	case TP_HKEY_EV_WKUP_S3_BATLOW: /* Battery on critical low level/S3 */
@@ -3822,27 +3822,27 @@ static bool hotkey_notify_wakeup(const u32 hkey,
 		return false;
 	}
 
-	if (hotkey_wakeup_reason != TP_ACPI_WAKEUP_NONE) {
+	if (hotkey_wakeup_reason != TP_ACPI_WAKEUP_ANALNE) {
 		pr_info("woke up due to a hot-unplug request...\n");
-		hotkey_wakeup_reason_notify_change();
+		hotkey_wakeup_reason_analtify_change();
 	}
 	return true;
 }
 
-static bool hotkey_notify_dockevent(const u32 hkey,
+static bool hotkey_analtify_dockevent(const u32 hkey,
 				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+				 bool *iganalre_acpi_ev)
 {
 	/* 0x4000-0x4FFF: dock-related events */
 	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
+	*iganalre_acpi_ev = false;
 
 	switch (hkey) {
 	case TP_HKEY_EV_UNDOCK_ACK:
 		/* ACPI undock operation completed after wakeup */
 		hotkey_autosleep_ack = 1;
 		pr_info("undocked\n");
-		hotkey_wakeup_hotunplug_complete_notify_change();
+		hotkey_wakeup_hotunplug_complete_analtify_change();
 		return true;
 
 	case TP_HKEY_EV_HOTPLUG_DOCK: /* docked to port replicator */
@@ -3853,7 +3853,7 @@ static bool hotkey_notify_dockevent(const u32 hkey,
 		return true;
 
 	/*
-	 * Deliberately ignore attaching and detaching the keybord cover to avoid
+	 * Deliberately iganalre attaching and detaching the keybord cover to avoid
 	 * duplicates from intel-vbtn, which already emits SW_TABLET_MODE events
 	 * to userspace.
 	 *
@@ -3866,7 +3866,7 @@ static bool hotkey_notify_dockevent(const u32 hkey,
 	case TP_HKEY_EV_KBD_COVER_ATTACH:
 	case TP_HKEY_EV_KBD_COVER_DETACH:
 		*send_acpi_ev = false;
-		*ignore_acpi_ev = true;
+		*iganalre_acpi_ev = true;
 		return true;
 
 	default:
@@ -3874,13 +3874,13 @@ static bool hotkey_notify_dockevent(const u32 hkey,
 	}
 }
 
-static bool hotkey_notify_usrevent(const u32 hkey,
+static bool hotkey_analtify_usrevent(const u32 hkey,
 				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+				 bool *iganalre_acpi_ev)
 {
 	/* 0x5000-0x5FFF: human interface helpers */
 	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
+	*iganalre_acpi_ev = false;
 
 	switch (hkey) {
 	case TP_HKEY_EV_PEN_INSERTED:  /* X61t: tablet pen inserted into bay */
@@ -3888,17 +3888,17 @@ static bool hotkey_notify_usrevent(const u32 hkey,
 		return true;
 
 	case TP_HKEY_EV_TABLET_TABLET:   /* X41t-X61t: tablet mode */
-	case TP_HKEY_EV_TABLET_NOTEBOOK: /* X41t-X61t: normal mode */
+	case TP_HKEY_EV_TABLET_ANALTEBOOK: /* X41t-X61t: analrmal mode */
 		tpacpi_input_send_tabletsw();
-		hotkey_tablet_mode_notify_change();
+		hotkey_tablet_mode_analtify_change();
 		*send_acpi_ev = false;
 		return true;
 
 	case TP_HKEY_EV_LID_CLOSE:	/* Lid closed */
 	case TP_HKEY_EV_LID_OPEN:	/* Lid opened */
 	case TP_HKEY_EV_BRGHT_CHANGED:	/* brightness changed */
-		/* do not propagate these events */
-		*ignore_acpi_ev = true;
+		/* do analt propagate these events */
+		*iganalre_acpi_ev = true;
 		return true;
 
 	default:
@@ -3909,19 +3909,19 @@ static bool hotkey_notify_usrevent(const u32 hkey,
 static void thermal_dump_all_sensors(void);
 static void palmsensor_refresh(void);
 
-static bool hotkey_notify_6xxx(const u32 hkey,
+static bool hotkey_analtify_6xxx(const u32 hkey,
 				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+				 bool *iganalre_acpi_ev)
 {
-	/* 0x6000-0x6FFF: thermal alarms/notices and keyboard events */
+	/* 0x6000-0x6FFF: thermal alarms/analtices and keyboard events */
 	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
+	*iganalre_acpi_ev = false;
 
 	switch (hkey) {
 	case TP_HKEY_EV_THM_TABLE_CHANGED:
 		pr_debug("EC reports: Thermal Table has changed\n");
-		/* recommended action: do nothing, we don't have
-		 * Lenovo ATM information */
+		/* recommended action: do analthing, we don't have
+		 * Leanalvo ATM information */
 		return true;
 	case TP_HKEY_EV_THM_CSM_COMPLETED:
 		pr_debug("EC reports: Thermal Control Command set completed (DYTC)\n");
@@ -3930,8 +3930,8 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 		return true;
 	case TP_HKEY_EV_THM_TRANSFM_CHANGED:
 		pr_debug("EC reports: Thermal Transformation changed (GMTS)\n");
-		/* recommended action: do nothing, we don't have
-		 * Lenovo ATM information */
+		/* recommended action: do analthing, we don't have
+		 * Leanalvo ATM information */
 		return true;
 	case TP_HKEY_EV_ALARM_BAT_HOT:
 		pr_crit("THERMAL ALARM: battery is too hot!\n");
@@ -3959,22 +3959,22 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 
 	case TP_HKEY_EV_KEY_NUMLOCK:
 	case TP_HKEY_EV_KEY_FN:
-		/* key press events, we just ignore them as long as the EC
-		 * is still reporting them in the normal keyboard stream */
+		/* key press events, we just iganalre them as long as the EC
+		 * is still reporting them in the analrmal keyboard stream */
 		*send_acpi_ev = false;
-		*ignore_acpi_ev = true;
+		*iganalre_acpi_ev = true;
 		return true;
 
 	case TP_HKEY_EV_KEY_FN_ESC:
 		/* Get the media key status to force the status LED to update */
 		acpi_evalf(hkey_handle, NULL, "GMKS", "v");
 		*send_acpi_ev = false;
-		*ignore_acpi_ev = true;
+		*iganalre_acpi_ev = true;
 		return true;
 
 	case TP_HKEY_EV_TABLET_CHANGED:
 		tpacpi_input_send_tabletsw();
-		hotkey_tablet_mode_notify_change();
+		hotkey_tablet_mode_analtify_change();
 		*send_acpi_ev = false;
 		return true;
 
@@ -3985,7 +3985,7 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 		return true;
 
 	default:
-		/* report simply as unknown, no sensor dump */
+		/* report simply as unkanalwn, anal sensor dump */
 		return false;
 	}
 
@@ -3993,16 +3993,16 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 	return true;
 }
 
-static void hotkey_notify(struct ibm_struct *ibm, u32 event)
+static void hotkey_analtify(struct ibm_struct *ibm, u32 event)
 {
 	u32 hkey;
 	bool send_acpi_ev;
-	bool ignore_acpi_ev;
-	bool known_ev;
+	bool iganalre_acpi_ev;
+	bool kanalwn_ev;
 
 	if (event != 0x80) {
-		pr_err("unknown HKEY notification event %d\n", event);
-		/* forward it to userspace, maybe it knows how to handle it */
+		pr_err("unkanalwn HKEY analtification event %d\n", event);
+		/* forward it to userspace, maybe it kanalws how to handle it */
 		acpi_bus_generate_netlink_event(
 					ibm->acpi->device->pnp.device_class,
 					dev_name(&ibm->acpi->device->dev),
@@ -4022,18 +4022,18 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 		}
 
 		send_acpi_ev = true;
-		ignore_acpi_ev = false;
+		iganalre_acpi_ev = false;
 
 		switch (hkey >> 12) {
 		case 1:
 			/* 0x1000-0x1FFF: key presses */
-			known_ev = hotkey_notify_hotkey(hkey, &send_acpi_ev,
-						 &ignore_acpi_ev);
+			kanalwn_ev = hotkey_analtify_hotkey(hkey, &send_acpi_ev,
+						 &iganalre_acpi_ev);
 			break;
 		case 2:
 			/* 0x2000-0x2FFF: Wakeup reason */
-			known_ev = hotkey_notify_wakeup(hkey, &send_acpi_ev,
-						 &ignore_acpi_ev);
+			kanalwn_ev = hotkey_analtify_wakeup(hkey, &send_acpi_ev,
+						 &iganalre_acpi_ev);
 			break;
 		case 3:
 			/* 0x3000-0x3FFF: bay-related wakeups */
@@ -4041,32 +4041,32 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			case TP_HKEY_EV_BAYEJ_ACK:
 				hotkey_autosleep_ack = 1;
 				pr_info("bay ejected\n");
-				hotkey_wakeup_hotunplug_complete_notify_change();
-				known_ev = true;
+				hotkey_wakeup_hotunplug_complete_analtify_change();
+				kanalwn_ev = true;
 				break;
 			case TP_HKEY_EV_OPTDRV_EJ:
 				/* FIXME: kick libata if SATA link offline */
-				known_ev = true;
+				kanalwn_ev = true;
 				break;
 			default:
-				known_ev = false;
+				kanalwn_ev = false;
 			}
 			break;
 		case 4:
 			/* 0x4000-0x4FFF: dock-related events */
-			known_ev = hotkey_notify_dockevent(hkey, &send_acpi_ev,
-						&ignore_acpi_ev);
+			kanalwn_ev = hotkey_analtify_dockevent(hkey, &send_acpi_ev,
+						&iganalre_acpi_ev);
 			break;
 		case 5:
 			/* 0x5000-0x5FFF: human interface helpers */
-			known_ev = hotkey_notify_usrevent(hkey, &send_acpi_ev,
-						 &ignore_acpi_ev);
+			kanalwn_ev = hotkey_analtify_usrevent(hkey, &send_acpi_ev,
+						 &iganalre_acpi_ev);
 			break;
 		case 6:
-			/* 0x6000-0x6FFF: thermal alarms/notices and
+			/* 0x6000-0x6FFF: thermal alarms/analtices and
 			 *                keyboard events */
-			known_ev = hotkey_notify_6xxx(hkey, &send_acpi_ev,
-						 &ignore_acpi_ev);
+			kanalwn_ev = hotkey_analtify_6xxx(hkey, &send_acpi_ev,
+						 &iganalre_acpi_ev);
 			break;
 		case 7:
 			/* 0x7000-0x7FFF: misc */
@@ -4074,21 +4074,21 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 					hkey == TP_HKEY_EV_RFKILL_CHANGED) {
 				tpacpi_send_radiosw_update();
 				send_acpi_ev = 0;
-				known_ev = true;
+				kanalwn_ev = true;
 				break;
 			}
 			fallthrough;	/* to default */
 		default:
-			known_ev = false;
+			kanalwn_ev = false;
 		}
-		if (!known_ev) {
-			pr_notice("unhandled HKEY event 0x%04x\n", hkey);
-			pr_notice("please report the conditions when this event happened to %s\n",
+		if (!kanalwn_ev) {
+			pr_analtice("unhandled HKEY event 0x%04x\n", hkey);
+			pr_analtice("please report the conditions when this event happened to %s\n",
 				  TPACPI_MAIL);
 		}
 
 		/* netlink events */
-		if (!ignore_acpi_ev && send_acpi_ev) {
+		if (!iganalre_acpi_ev && send_acpi_ev) {
 			acpi_bus_generate_netlink_event(
 					ibm->acpi->device->pnp.device_class,
 					dev_name(&ibm->acpi->device->dev),
@@ -4100,14 +4100,14 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 static void hotkey_suspend(void)
 {
 	/* Do these on suspend, we get the events on early resume! */
-	hotkey_wakeup_reason = TP_ACPI_WAKEUP_NONE;
+	hotkey_wakeup_reason = TP_ACPI_WAKEUP_ANALNE;
 	hotkey_autosleep_ack = 0;
 
 	/* save previous mode of adaptive keyboard of X1 Carbon */
 	if (tp_features.has_adaptive_kbd) {
 		if (!acpi_evalf(hkey_handle, &adaptive_keyboard_prev_mode,
 					"GTRW", "dd", 0)) {
-			pr_err("Cannot read adaptive keyboard mode.\n");
+			pr_err("Cananalt read adaptive keyboard mode.\n");
 		}
 	}
 }
@@ -4124,16 +4124,16 @@ static void hotkey_resume(void)
 
 	tpacpi_send_radiosw_update();
 	tpacpi_input_send_tabletsw();
-	hotkey_tablet_mode_notify_change();
-	hotkey_wakeup_reason_notify_change();
-	hotkey_wakeup_hotunplug_complete_notify_change();
+	hotkey_tablet_mode_analtify_change();
+	hotkey_wakeup_reason_analtify_change();
+	hotkey_wakeup_hotunplug_complete_analtify_change();
 	hotkey_poll_setup_safe(false);
 
 	/* restore previous mode of adapive keyboard of X1 Carbon */
 	if (tp_features.has_adaptive_kbd) {
 		if (!acpi_evalf(hkey_handle, NULL, "STRW", "vd",
 					adaptive_keyboard_prev_mode)) {
-			pr_err("Cannot set adaptive keyboard mode.\n");
+			pr_err("Cananalt set adaptive keyboard mode.\n");
 		}
 	}
 }
@@ -4144,7 +4144,7 @@ static int hotkey_read(struct seq_file *m)
 	int res, status;
 
 	if (!tp_features.hotkey) {
-		seq_printf(m, "status:\t\tnot supported\n");
+		seq_printf(m, "status:\t\tanalt supported\n");
 		return 0;
 	}
 
@@ -4162,7 +4162,7 @@ static int hotkey_read(struct seq_file *m)
 		seq_printf(m, "mask:\t\t0x%08x\n", hotkey_user_mask);
 		seq_printf(m, "commands:\tenable, disable, reset, <mask>\n");
 	} else {
-		seq_printf(m, "mask:\t\tnot supported\n");
+		seq_printf(m, "mask:\t\tanalt supported\n");
 		seq_printf(m, "commands:\tenable, disable, reset\n");
 	}
 
@@ -4184,7 +4184,7 @@ static int hotkey_write(char *buf)
 	char *cmd;
 
 	if (!tp_features.hotkey)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (mutex_lock_killable(&hotkey_mutex))
 		return -ERESTARTSYS;
@@ -4224,16 +4224,16 @@ errexit:
 
 static const struct acpi_device_id ibm_htk_device_ids[] = {
 	{TPACPI_ACPI_IBM_HKEY_HID, 0},
-	{TPACPI_ACPI_LENOVO_HKEY_HID, 0},
-	{TPACPI_ACPI_LENOVO_HKEY_V2_HID, 0},
+	{TPACPI_ACPI_LEANALVO_HKEY_HID, 0},
+	{TPACPI_ACPI_LEANALVO_HKEY_V2_HID, 0},
 	{"", 0},
 };
 
 static struct tp_acpi_drv_struct ibm_hotkey_acpidriver = {
 	.hid = ibm_htk_device_ids,
-	.notify = hotkey_notify,
+	.analtify = hotkey_analtify,
 	.handle = &hkey_handle,
-	.type = ACPI_DEVICE_NOTIFY,
+	.type = ACPI_DEVICE_ANALTIFY,
 };
 
 static struct ibm_struct hotkey_driver_data = {
@@ -4359,7 +4359,7 @@ static void bluetooth_shutdown(void)
 	/* Order firmware to save current state to NVRAM */
 	if (!acpi_evalf(NULL, NULL, "\\BLTH", "vd",
 			TP_ACPI_BLTH_SAVE_STATE))
-		pr_notice("failed to save bluetooth state to NVRAM\n");
+		pr_analtice("failed to save bluetooth state to NVRAM\n");
 	else
 		vdbg_printk(TPACPI_DBG_RFKILL,
 			"bluetooth state saved to NVRAM\n");
@@ -4376,7 +4376,7 @@ static const struct dmi_system_id fwbug_list[] __initconst = {
 		.ident = "ThinkPad E485",
 		.driver_data = &quirk_btusb_bug,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_BOARD_NAME, "20KU"),
 		},
 	},
@@ -4384,7 +4384,7 @@ static const struct dmi_system_id fwbug_list[] __initconst = {
 		.ident = "ThinkPad E585",
 		.driver_data = &quirk_btusb_bug,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_BOARD_NAME, "20KV"),
 		},
 	},
@@ -4392,7 +4392,7 @@ static const struct dmi_system_id fwbug_list[] __initconst = {
 		.ident = "ThinkPad A285 - 20MW",
 		.driver_data = &quirk_btusb_bug,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_BOARD_NAME, "20MW"),
 		},
 	},
@@ -4400,7 +4400,7 @@ static const struct dmi_system_id fwbug_list[] __initconst = {
 		.ident = "ThinkPad A285 - 20MX",
 		.driver_data = &quirk_btusb_bug,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_BOARD_NAME, "20MX"),
 		},
 	},
@@ -4408,7 +4408,7 @@ static const struct dmi_system_id fwbug_list[] __initconst = {
 		.ident = "ThinkPad A485 - 20MU",
 		.driver_data = &quirk_btusb_bug,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_BOARD_NAME, "20MU"),
 		},
 	},
@@ -4416,7 +4416,7 @@ static const struct dmi_system_id fwbug_list[] __initconst = {
 		.ident = "ThinkPad A485 - 20MV",
 		.driver_data = &quirk_btusb_bug,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_BOARD_NAME, "20MV"),
 		},
 	},
@@ -4456,7 +4456,7 @@ static int __init bluetooth_init(struct ibm_init_struct *iibm)
 
 	TPACPI_ACPIHANDLE_INIT(hkey);
 
-	/* bluetooth not supported on 570, 600e/x, 770e, 770x, A21e, A2xm/p,
+	/* bluetooth analt supported on 570, 600e/x, 770e, 770x, A21e, A2xm/p,
 	   G4x, R30, R31, R40e, R50e, T20-22, X20-21 */
 	tp_features.bluetooth = !have_bt_fwbug() && hkey_handle &&
 	    acpi_evalf(hkey_handle, &status, "GBDC", "qd");
@@ -4474,14 +4474,14 @@ static int __init bluetooth_init(struct ibm_init_struct *iibm)
 #endif
 	if (tp_features.bluetooth &&
 	    !(status & TP_ACPI_BLUETOOTH_HWPRESENT)) {
-		/* no bluetooth hardware present in system */
+		/* anal bluetooth hardware present in system */
 		tp_features.bluetooth = 0;
 		dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_RFKILL,
-			   "bluetooth hardware not installed\n");
+			   "bluetooth hardware analt installed\n");
 	}
 
 	if (!tp_features.bluetooth)
-		return -ENODEV;
+		return -EANALDEV;
 
 	res = tpacpi_new_rfkill(TPACPI_RFK_BLUETOOTH_SW_ID,
 				&bluetooth_tprfk_ops,
@@ -4615,7 +4615,7 @@ static void wan_shutdown(void)
 	/* Order firmware to save current state to NVRAM */
 	if (!acpi_evalf(NULL, NULL, "\\WGSV", "vd",
 			TP_ACPI_WGSV_SAVE_STATE))
-		pr_notice("failed to save WWAN state to NVRAM\n");
+		pr_analtice("failed to save WWAN state to NVRAM\n");
 	else
 		vdbg_printk(TPACPI_DBG_RFKILL,
 			"WWAN state saved to NVRAM\n");
@@ -4653,14 +4653,14 @@ static int __init wan_init(struct ibm_init_struct *iibm)
 #endif
 	if (tp_features.wan &&
 	    !(status & TP_ACPI_WANCARD_HWPRESENT)) {
-		/* no wan hardware present in system */
+		/* anal wan hardware present in system */
 		tp_features.wan = 0;
 		dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_RFKILL,
-			   "wan hardware not installed\n");
+			   "wan hardware analt installed\n");
 	}
 
 	if (!tp_features.wan)
-		return -ENODEV;
+		return -EANALDEV;
 
 	res = tpacpi_new_rfkill(TPACPI_RFK_WWAN_SW_ID,
 				&wan_tprfk_ops,
@@ -4781,14 +4781,14 @@ static int __init uwb_init(struct ibm_init_struct *iibm)
 #endif
 	if (tp_features.uwb &&
 	    !(status & TP_ACPI_UWB_HWPRESENT)) {
-		/* no uwb hardware present in system */
+		/* anal uwb hardware present in system */
 		tp_features.uwb = 0;
 		dbg_printk(TPACPI_DBG_INIT,
-			   "uwb hardware not installed\n");
+			   "uwb hardware analt installed\n");
 	}
 
 	if (!tp_features.uwb)
-		return -ENODEV;
+		return -EANALDEV;
 
 	res = tpacpi_new_rfkill(TPACPI_RFK_UWB_SW_ID,
 				&uwb_tprfk_ops,
@@ -4811,7 +4811,7 @@ static struct ibm_struct uwb_driver_data = {
 #ifdef CONFIG_THINKPAD_ACPI_VIDEO
 
 enum video_access_mode {
-	TPACPI_VIDEO_NONE = 0,
+	TPACPI_VIDEO_ANALNE = 0,
 	TPACPI_VIDEO_570,	/* 570 */
 	TPACPI_VIDEO_770,	/* 600e/x, 770e, 770x */
 	TPACPI_VIDEO_NEW,	/* all others */
@@ -4824,11 +4824,11 @@ enum {	/* video status flags, based on VIDEO_570 */
 };
 
 enum {  /* TPACPI_VIDEO_570 constants */
-	TP_ACPI_VIDEO_570_PHSCMD = 0x87,	/* unknown magic constant :( */
+	TP_ACPI_VIDEO_570_PHSCMD = 0x87,	/* unkanalwn magic constant :( */
 	TP_ACPI_VIDEO_570_PHSMASK = 0x03,	/* PHS bits that map to
 						 * video_status_flags */
-	TP_ACPI_VIDEO_570_PHS2CMD = 0x8b,	/* unknown magic constant :( */
-	TP_ACPI_VIDEO_570_PHS2SET = 0x80,	/* unknown magic constant :( */
+	TP_ACPI_VIDEO_570_PHS2CMD = 0x8b,	/* unkanalwn magic constant :( */
+	TP_ACPI_VIDEO_570_PHS2SET = 0x80,	/* unkanalwn magic constant :( */
 };
 
 static enum video_access_mode video_supported;
@@ -4863,8 +4863,8 @@ static int __init video_init(struct ibm_init_struct *iibm)
 		vid_handle = vid2_handle;
 
 	if (!vid_handle)
-		/* video switching not supported on R30, R31 */
-		video_supported = TPACPI_VIDEO_NONE;
+		/* video switching analt supported on R30, R31 */
+		video_supported = TPACPI_VIDEO_ANALNE;
 	else if (tpacpi_is_ibm() &&
 		 acpi_evalf(vid_handle, &video_orig_autosw, "SWIT", "qd"))
 		/* 570 */
@@ -4878,10 +4878,10 @@ static int __init video_init(struct ibm_init_struct *iibm)
 		video_supported = TPACPI_VIDEO_NEW;
 
 	vdbg_printk(TPACPI_DBG_INIT, "video is %s, mode %d\n",
-		str_supported(video_supported != TPACPI_VIDEO_NONE),
+		str_supported(video_supported != TPACPI_VIDEO_ANALNE),
 		video_supported);
 
-	return (video_supported != TPACPI_VIDEO_NONE) ? 0 : -ENODEV;
+	return (video_supported != TPACPI_VIDEO_ANALNE) ? 0 : -EANALDEV;
 }
 
 static void video_exit(void)
@@ -4932,7 +4932,7 @@ static int video_outputsw_get(void)
 			status |= TP_ACPI_VIDEO_S_DVI;
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return status;
@@ -4970,7 +4970,7 @@ static int video_outputsw_set(int status)
 		      acpi_evalf(NULL, NULL, "\\VSDS", "vdd", status, 1);
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return (res) ? 0 : -EIO;
@@ -4991,7 +4991,7 @@ static int video_autosw_get(void)
 			return -EIO;
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return autosw & 1;
@@ -5027,7 +5027,7 @@ static int video_outputsw_cycle(void)
 		res = acpi_evalf(vid_handle, NULL, "VSWT", "v");
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 	if (!autosw && video_autosw_set(autosw)) {
 		pr_err("video auto-switch left enabled due to error\n");
@@ -5050,17 +5050,17 @@ static int video_expand_toggle(void)
 		return acpi_evalf(NULL, NULL, "\\VEXP", "v") ?
 			0 : -EIO;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
-	/* not reached */
+	/* analt reached */
 }
 
 static int video_read(struct seq_file *m)
 {
 	int status, autosw;
 
-	if (video_supported == TPACPI_VIDEO_NONE) {
-		seq_printf(m, "status:\t\tnot supported\n");
+	if (video_supported == TPACPI_VIDEO_ANALNE) {
+		seq_printf(m, "status:\t\tanalt supported\n");
 		return 0;
 	}
 
@@ -5098,8 +5098,8 @@ static int video_write(char *buf)
 	int enable, disable, status;
 	int res;
 
-	if (video_supported == TPACPI_VIDEO_NONE)
-		return -ENODEV;
+	if (video_supported == TPACPI_VIDEO_ANALNE)
+		return -EANALDEV;
 
 	/* Even reads can crash X.org, let alone writes... */
 	if (!capable(CAP_SYS_ADMIN))
@@ -5289,7 +5289,7 @@ static int __init kbdlight_init(struct ibm_init_struct *iibm)
 	if (!kbdlight_is_supported()) {
 		tp_features.kbdlight = 0;
 		vdbg_printk(TPACPI_DBG_INIT, "kbdlight is unsupported\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	kbdlight_brightness = kbdlight_sysfs_get(NULL);
@@ -5331,7 +5331,7 @@ static int kbdlight_read(struct seq_file *m)
 	int level;
 
 	if (!tp_features.kbdlight) {
-		seq_printf(m, "status:\t\tnot supported\n");
+		seq_printf(m, "status:\t\tanalt supported\n");
 	} else {
 		level = kbdlight_get_level();
 		if (level < 0)
@@ -5350,7 +5350,7 @@ static int kbdlight_write(char *buf)
 	int res, level = -EINVAL;
 
 	if (!tp_features.kbdlight)
-		return -ENODEV;
+		return -EANALDEV;
 
 	while ((cmd = strsep(&buf, ","))) {
 		res = kstrtoint(cmd, 10, &level);
@@ -5466,11 +5466,11 @@ static int __init light_init(struct ibm_init_struct *iibm)
 	}
 	TPACPI_ACPIHANDLE_INIT(cmos);
 
-	/* light not supported on 570, 600e/x, 770e, 770x, G4x, R30, R31 */
+	/* light analt supported on 570, 600e/x, 770e, 770x, G4x, R30, R31 */
 	tp_features.light = (cmos_handle || lght_handle) && !ledb_handle;
 
 	if (tp_features.light)
-		/* light status not supported on
+		/* light status analt supported on
 		   570, 600e/x, 770e, 770x, G4x, R30, R31, R32, X20 */
 		tp_features.light_status =
 			acpi_evalf(ec_handle, NULL, "KBLT", "qv");
@@ -5480,7 +5480,7 @@ static int __init light_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.light_status));
 
 	if (!tp_features.light)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = led_classdev_register(&tpacpi_pdev->dev,
 				   &tpacpi_led_thinklight.led_classdev);
@@ -5505,9 +5505,9 @@ static int light_read(struct seq_file *m)
 	int status;
 
 	if (!tp_features.light) {
-		seq_printf(m, "status:\t\tnot supported\n");
+		seq_printf(m, "status:\t\tanalt supported\n");
 	} else if (!tp_features.light_status) {
-		seq_printf(m, "status:\t\tunknown\n");
+		seq_printf(m, "status:\t\tunkanalwn\n");
 		seq_printf(m, "commands:\ton, off\n");
 	} else {
 		status = light_get_status();
@@ -5526,7 +5526,7 @@ static int light_write(char *buf)
 	int newstatus = 0;
 
 	if (!tp_features.light)
-		return -ENODEV;
+		return -EANALDEV;
 
 	while ((cmd = strsep(&buf, ","))) {
 		if (strstarts(cmd, "on")) {
@@ -5596,15 +5596,15 @@ static int __init cmos_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT, "cmos commands are %s\n",
 		    str_supported(cmos_handle != NULL));
 
-	return cmos_handle ? 0 : -ENODEV;
+	return cmos_handle ? 0 : -EANALDEV;
 }
 
 static int cmos_read(struct seq_file *m)
 {
-	/* cmos not supported on 570, 600e/x, 770e, 770x, A21e, A2xm/p,
+	/* cmos analt supported on 570, 600e/x, 770e, 770x, A21e, A2xm/p,
 	   R30, R31, T20-22, X20-21 */
 	if (!cmos_handle)
-		seq_printf(m, "status:\t\tnot supported\n");
+		seq_printf(m, "status:\t\tanalt supported\n");
 	else {
 		seq_printf(m, "status:\t\tsupported\n");
 		seq_printf(m, "commands:\t<cmd> (<cmd> is 0-21)\n");
@@ -5644,7 +5644,7 @@ static struct ibm_struct cmos_driver_data = {
  */
 
 enum led_access_mode {
-	TPACPI_LED_NONE = 0,
+	TPACPI_LED_ANALNE = 0,
 	TPACPI_LED_570,	/* 570 */
 	TPACPI_LED_OLD,	/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20-21 */
 	TPACPI_LED_NEW,	/* all others */
@@ -5671,12 +5671,12 @@ static const char * const tpacpi_led_names[TPACPI_LED_NUMLEDS] = {
 	"tpacpi::dock_active",
 	"tpacpi::bay_active",
 	"tpacpi::dock_batt",
-	"tpacpi::unknown_led",
+	"tpacpi::unkanalwn_led",
 	"tpacpi::standby",
 	"tpacpi::dock_status1",
 	"tpacpi::dock_status2",
 	"tpacpi::lid_logo_dot",
-	"tpacpi::unknown_led3",
+	"tpacpi::unkanalwn_led3",
 	"tpacpi::thinkvantage",
 };
 #define TPACPI_SAFE_LEDS	0x1481U
@@ -5711,7 +5711,7 @@ static int led_get_status(const unsigned int led)
 		return -ENXIO;
 	}
 
-	/* not reached */
+	/* analt reached */
 }
 
 static int led_set_status(const unsigned int led,
@@ -5793,7 +5793,7 @@ static int led_sysfs_blink_set(struct led_classdev *led_cdev,
 
 	/* Can we choose the flash rate? */
 	if (*delay_on == 0 && *delay_off == 0) {
-		/* yes. set them to the hardware blink rate (1 Hz) */
+		/* anal. set them to the hardware blink rate (1 Hz) */
 		*delay_on = 500; /* ms */
 		*delay_off = 500; /* ms */
 	} else if ((*delay_on != 500) || (*delay_off != 500))
@@ -5812,7 +5812,7 @@ static enum led_brightness led_sysfs_get(struct led_classdev *led_cdev)
 	rc = led_get_status(data->led);
 
 	if (rc == TPACPI_LED_OFF || rc < 0)
-		rc = LED_OFF;	/* no error handling in led class :( */
+		rc = LED_OFF;	/* anal error handling in led class :( */
 	else
 		rc = LED_FULL;
 
@@ -5831,7 +5831,7 @@ static void led_exit(void)
 
 static int __init tpacpi_init_led(unsigned int led)
 {
-	/* LEDs with no name don't get registered */
+	/* LEDs with anal name don't get registered */
 	if (!tpacpi_led_names[led])
 		return 0;
 
@@ -5875,14 +5875,14 @@ static const struct tpacpi_quirk led_useful_qtable[] __initconst = {
 	/* (1) - may have excess leds enabled on MSB */
 
 	/* Defaults (order matters, keep last, don't reorder!) */
-	{ /* Lenovo */
-	  .vendor = PCI_VENDOR_ID_LENOVO,
+	{ /* Leanalvo */
+	  .vendor = PCI_VENDOR_ID_LEANALVO,
 	  .bios = TPACPI_MATCH_ANY, .ec = TPACPI_MATCH_ANY,
 	  .quirks = 0x1fffU,
 	},
-	{ /* IBM ThinkPads with no EC version string */
+	{ /* IBM ThinkPads with anal EC version string */
 	  .vendor = PCI_VENDOR_ID_IBM,
-	  .bios = TPACPI_MATCH_ANY, .ec = TPACPI_MATCH_UNKNOWN,
+	  .bios = TPACPI_MATCH_ANY, .ec = TPACPI_MATCH_UNKANALWN,
 	  .quirks = 0x00ffU,
 	},
 	{ /* IBM ThinkPads with EC version string */
@@ -5913,9 +5913,9 @@ static enum led_access_mode __init led_init_detect_mode(void)
 	if (ACPI_SUCCESS(status))
 		return TPACPI_LED_NEW;
 
-	/* R30, R31, and unknown firmwares */
+	/* R30, R31, and unkanalwn firmwares */
 	led_handle = NULL;
-	return TPACPI_LED_NONE;
+	return TPACPI_LED_ANALNE;
 }
 
 static int __init led_init(struct ibm_init_struct *iibm)
@@ -5928,27 +5928,27 @@ static int __init led_init(struct ibm_init_struct *iibm)
 
 	led_supported = led_init_detect_mode();
 
-	if (led_supported != TPACPI_LED_NONE) {
+	if (led_supported != TPACPI_LED_ANALNE) {
 		useful_leds = tpacpi_check_quirks(led_useful_qtable,
 				ARRAY_SIZE(led_useful_qtable));
 
 		if (!useful_leds) {
 			led_handle = NULL;
-			led_supported = TPACPI_LED_NONE;
+			led_supported = TPACPI_LED_ANALNE;
 		}
 	}
 
 	vdbg_printk(TPACPI_DBG_INIT, "LED commands are %s, mode %d\n",
 		str_supported(led_supported), led_supported);
 
-	if (led_supported == TPACPI_LED_NONE)
-		return -ENODEV;
+	if (led_supported == TPACPI_LED_ANALNE)
+		return -EANALDEV;
 
 	tpacpi_leds = kcalloc(TPACPI_LED_NUMLEDS, sizeof(*tpacpi_leds),
 			      GFP_KERNEL);
 	if (!tpacpi_leds) {
 		pr_err("Out of memory for LED data\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < TPACPI_LED_NUMLEDS; i++) {
@@ -5964,7 +5964,7 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	}
 
 #ifdef CONFIG_THINKPAD_ACPI_UNSAFE_LEDS
-	pr_notice("warning: userspace override of important firmware LEDs is enabled\n");
+	pr_analtice("warning: userspace override of important firmware LEDs is enabled\n");
 #endif
 	return 0;
 }
@@ -5974,7 +5974,7 @@ static int __init led_init(struct ibm_init_struct *iibm)
 static int led_read(struct seq_file *m)
 {
 	if (!led_supported) {
-		seq_printf(m, "status:\t\tnot supported\n");
+		seq_printf(m, "status:\t\tanalt supported\n");
 		return 0;
 	}
 	seq_printf(m, "status:\t\tsupported\n");
@@ -6002,17 +6002,17 @@ static int led_write(char *buf)
 	enum led_status_t s;
 
 	if (!led_supported)
-		return -ENODEV;
+		return -EANALDEV;
 
 	while ((cmd = strsep(&buf, ","))) {
 		if (sscanf(cmd, "%d", &led) != 1)
 			return -EINVAL;
 
 		if (led < 0 || led > (TPACPI_LED_NUMLEDS - 1))
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (tpacpi_leds[led].led < 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		if (strstr(cmd, "off")) {
 			s = TPACPI_LED_OFF;
@@ -6068,13 +6068,13 @@ static int __init beep_init(struct ibm_init_struct *iibm)
 
 	tp_features.beep_needs_two_args = !!(quirks & TPACPI_BEEP_Q1);
 
-	return (beep_handle) ? 0 : -ENODEV;
+	return (beep_handle) ? 0 : -EANALDEV;
 }
 
 static int beep_read(struct seq_file *m)
 {
 	if (!beep_handle)
-		seq_printf(m, "status:\t\tnot supported\n");
+		seq_printf(m, "status:\t\tanalt supported\n");
 	else {
 		seq_printf(m, "status:\t\tsupported\n");
 		seq_printf(m, "commands:\t<cmd> (<cmd> is 0-17)\n");
@@ -6089,7 +6089,7 @@ static int beep_write(char *buf)
 	int beep_cmd;
 
 	if (!beep_handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	while ((cmd = strsep(&buf, ","))) {
 		if (sscanf(cmd, "%u", &beep_cmd) == 1 &&
@@ -6122,7 +6122,7 @@ static struct ibm_struct beep_driver_data = {
  */
 
 enum thermal_access_mode {
-	TPACPI_THERMAL_NONE = 0,	/* No thermal support */
+	TPACPI_THERMAL_ANALNE = 0,	/* Anal thermal support */
 	TPACPI_THERMAL_ACPI_TMP07,	/* Use ACPI TMP0-7 */
 	TPACPI_THERMAL_ACPI_UPDT,	/* Use ACPI TMP0-7 with UPDT */
 	TPACPI_THERMAL_TPEC_8,		/* Use ACPI EC regs, 8 sensors */
@@ -6133,9 +6133,9 @@ enum { /* TPACPI_THERMAL_TPEC_* */
 	TP_EC_THERMAL_TMP0 = 0x78,	/* ACPI EC regs TMP 0..7 */
 	TP_EC_THERMAL_TMP8 = 0xC0,	/* ACPI EC regs TMP 8..15 */
 	TP_EC_FUNCREV      = 0xEF,      /* ACPI EC Functional revision */
-	TP_EC_THERMAL_TMP_NA = -128,	/* ACPI EC sensor not available */
+	TP_EC_THERMAL_TMP_NA = -128,	/* ACPI EC sensor analt available */
 
-	TPACPI_THERMAL_SENSOR_NA = -128000, /* Sensor not available */
+	TPACPI_THERMAL_SENSOR_NA = -128000, /* Sensor analt available */
 };
 
 
@@ -6198,9 +6198,9 @@ static int thermal_get_sensor(int idx, s32 *value)
 		}
 		break;
 
-	case TPACPI_THERMAL_NONE:
+	case TPACPI_THERMAL_ANALNE:
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return -EINVAL;
@@ -6238,7 +6238,7 @@ static void thermal_dump_all_sensors(void)
 	if (n <= 0)
 		return;
 
-	pr_notice("temperatures (Celsius):");
+	pr_analtice("temperatures (Celsius):");
 
 	for (i = 0; i < n; i++) {
 		if (t.temp[i] != TPACPI_THERMAL_SENSOR_NA)
@@ -6320,7 +6320,7 @@ static struct attribute *thermal_temp_input_attr[] = {
 static umode_t thermal_attr_is_visible(struct kobject *kobj,
 				       struct attribute *attr, int n)
 {
-	if (thermal_read_mode == TPACPI_THERMAL_NONE)
+	if (thermal_read_mode == TPACPI_THERMAL_ANALNE)
 		return 0;
 
 	if (attr == THERMAL_ATTRS(8) || attr == THERMAL_ATTRS(9) ||
@@ -6387,13 +6387,13 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 		/*
 		 * Direct EC access mode: sensors at registers
 		 * 0x78-0x7F, 0xC0-0xC7.  Registers return 0x00 for
-		 * non-implemented, thermal sensors return 0x80 when
-		 * not available
+		 * analn-implemented, thermal sensors return 0x80 when
+		 * analt available
 		 * The above rule is unfortunately flawed. This has been seen with
 		 * 0xC2 (power supply ID) causing thermal control problems.
 		 * The EC version can be determined by offset 0xEF and at least for
-		 * version 3 the Lenovo firmware team confirmed that registers 0xC0-0xC7
-		 * are not thermal registers.
+		 * version 3 the Leanalvo firmware team confirmed that registers 0xC0-0xC7
+		 * are analt thermal registers.
 		 */
 		if (!acpi_ec_read(TP_EC_FUNCREV, &ver))
 			pr_warn("Thinkpad ACPI EC unable to access EC version\n");
@@ -6416,13 +6416,13 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 			}
 		}
 		if (ta1 == 0) {
-			/* This is sheer paranoia, but we handle it anyway */
+			/* This is sheer paraanalia, but we handle it anyway */
 			if (acpi_tmp7) {
 				pr_err("ThinkPad ACPI EC access misbehaving, falling back to ACPI TMPx access mode\n");
 				thermal_read_mode = TPACPI_THERMAL_ACPI_TMP07;
 			} else {
 				pr_err("ThinkPad ACPI EC access misbehaving, disabling thermal sensors access\n");
-				thermal_read_mode = TPACPI_THERMAL_NONE;
+				thermal_read_mode = TPACPI_THERMAL_ANALNE;
 			}
 		} else {
 			if (ver >= 3) {
@@ -6440,19 +6440,19 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 			/* 600e/x, 770e, 770x */
 			thermal_read_mode = TPACPI_THERMAL_ACPI_UPDT;
 		} else {
-			/* IBM/LENOVO DSDT EC.TMPx access, max 8 sensors */
+			/* IBM/LEANALVO DSDT EC.TMPx access, max 8 sensors */
 			thermal_read_mode = TPACPI_THERMAL_ACPI_TMP07;
 		}
 	} else {
-		/* temperatures not supported on 570, G4x, R30, R31, R32 */
-		thermal_read_mode = TPACPI_THERMAL_NONE;
+		/* temperatures analt supported on 570, G4x, R30, R31, R32 */
+		thermal_read_mode = TPACPI_THERMAL_ANALNE;
 	}
 
 	vdbg_printk(TPACPI_DBG_INIT, "thermal is %s, mode %d\n",
-		str_supported(thermal_read_mode != TPACPI_THERMAL_NONE),
+		str_supported(thermal_read_mode != TPACPI_THERMAL_ANALNE),
 		thermal_read_mode);
 
-	return thermal_read_mode != TPACPI_THERMAL_NONE ? 0 : -ENODEV;
+	return thermal_read_mode != TPACPI_THERMAL_ANALNE ? 0 : -EANALDEV;
 }
 
 static int thermal_read(struct seq_file *m)
@@ -6471,7 +6471,7 @@ static int thermal_read(struct seq_file *m)
 			seq_printf(m, "%d ", t.temp[i] / 1000);
 		seq_printf(m, "%d\n", t.temp[i] / 1000);
 	} else
-		seq_printf(m, "not supported\n");
+		seq_printf(m, "analt supported\n");
 
 	return 0;
 }
@@ -6492,9 +6492,9 @@ static struct ibm_struct thermal_driver_data = {
  * CMOS NVRAM byte 0x5E, bits 0-3.
  *
  * EC HBRV (0x31) has the following layout
- *   Bit 7: unknown function
- *   Bit 6: unknown function
- *   Bit 5: Z: honour scale changes, NZ: ignore scale changes
+ *   Bit 7: unkanalwn function
+ *   Bit 6: unkanalwn function
+ *   Bit 5: Z: hoanalur scale changes, NZ: iganalre scale changes
  *   Bit 4: must be set to zero to avoid problems
  *   Bit 3-0: backlight brightness level
  *
@@ -6502,7 +6502,7 @@ static struct ibm_struct thermal_driver_data = {
  *
  * WARNING: The X61 has been verified to use HBRV for something else, so
  * this should be used _only_ on IBM ThinkPads, and maybe with some careful
- * testing on the very early *60 Lenovo models...
+ * testing on the very early *60 Leanalvo models...
  */
 
 enum {
@@ -6515,7 +6515,7 @@ enum {
 };
 
 enum tpacpi_brightness_access_mode {
-	TPACPI_BRGHT_MODE_AUTO = 0,	/* Not implemented yet */
+	TPACPI_BRGHT_MODE_AUTO = 0,	/* Analt implemented yet */
 	TPACPI_BRGHT_MODE_EC,		/* EC control */
 	TPACPI_BRGHT_MODE_UCMS_STEP,	/* UCMS step-based control */
 	TPACPI_BRGHT_MODE_ECNVRAM,	/* EC control w/ NVRAM store */
@@ -6527,7 +6527,7 @@ static struct backlight_device *ibm_backlight_device;
 static enum tpacpi_brightness_access_mode brightness_mode =
 		TPACPI_BRGHT_MODE_MAX;
 
-static unsigned int brightness_enable = 2; /* 2 = auto, 0 = no, 1 = yes */
+static unsigned int brightness_enable = 2; /* 2 = auto, 0 = anal, 1 = anal */
 
 static struct mutex brightness_mutex;
 
@@ -6606,7 +6606,7 @@ static int tpacpi_brightness_get_raw(int *status)
 	}
 }
 
-/* do NOT call with illegal backlight level value */
+/* do ANALT call with illegal backlight level value */
 static int tpacpi_brightness_set_ec(unsigned int value)
 {
 	u8 lec = 0;
@@ -6712,7 +6712,7 @@ static int brightness_get(struct backlight_device *bd)
 	return status & TP_EC_BACKLIGHT_LVLMSK;
 }
 
-static void tpacpi_brightness_notify_change(void)
+static void tpacpi_brightness_analtify_change(void)
 {
 	backlight_force_update(ibm_backlight_device,
 			       BACKLIGHT_UPDATE_HOTKEY);
@@ -6725,7 +6725,7 @@ static const struct backlight_ops ibm_backlight_data = {
 
 /* --------------------------------------------------------------------- */
 
-static int __init tpacpi_evaluate_bcl(struct acpi_device *adev, void *not_used)
+static int __init tpacpi_evaluate_bcl(struct acpi_device *adev, void *analt_used)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
@@ -6739,7 +6739,7 @@ static int __init tpacpi_evaluate_bcl(struct acpi_device *adev, void *not_used)
 	obj = buffer.pointer;
 	if (!obj || obj->type != ACPI_TYPE_PACKAGE) {
 		acpi_handle_info(adev->handle,
-				 "Unknown _BCL data, please report this to %s\n",
+				 "Unkanalwn _BCL data, please report this to %s\n",
 				 TPACPI_MAIL);
 		rc = 0;
 	} else {
@@ -6768,7 +6768,7 @@ static int __init tpacpi_query_bcl_levels(acpi_handle handle)
 
 
 /*
- * Returns 0 (no ACPI _BCL or _BCL invalid), or size of brightness map
+ * Returns 0 (anal ACPI _BCL or _BCL invalid), or size of brightness map
  */
 static unsigned int __init tpacpi_check_std_acpi_brightness_support(void)
 {
@@ -6789,12 +6789,12 @@ static unsigned int __init tpacpi_check_std_acpi_brightness_support(void)
  * of GPU.  If the BIOS model handles both ATI and Intel, don't use
  * these quirks.
  */
-#define TPACPI_BRGHT_Q_NOEC	0x0001	/* Must NOT use EC HBRV */
+#define TPACPI_BRGHT_Q_ANALEC	0x0001	/* Must ANALT use EC HBRV */
 #define TPACPI_BRGHT_Q_EC	0x0002  /* Should or must use EC HBRV */
 #define TPACPI_BRGHT_Q_ASK	0x8000	/* Ask for user report */
 
 static const struct tpacpi_quirk brightness_quirk_table[] __initconst = {
-	/* Models with ATI GPUs known to require ECNVRAM mode */
+	/* Models with ATI GPUs kanalwn to require ECNVRAM mode */
 	TPACPI_Q_IBM('1', 'Y', TPACPI_BRGHT_Q_EC),	/* T43/p ATI */
 
 	/* Models with ATI GPUs that can use ECNVRAM */
@@ -6804,14 +6804,14 @@ static const struct tpacpi_quirk brightness_quirk_table[] __initconst = {
 	TPACPI_Q_IBM('7', '8', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
 
 	/* Models with Intel Extreme Graphics 2 */
-	TPACPI_Q_IBM('1', 'U', TPACPI_BRGHT_Q_NOEC),	/* X40 */
+	TPACPI_Q_IBM('1', 'U', TPACPI_BRGHT_Q_ANALEC),	/* X40 */
 	TPACPI_Q_IBM('1', 'V', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
 	TPACPI_Q_IBM('1', 'W', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
 
 	/* Models with Intel GMA900 */
-	TPACPI_Q_IBM('7', '0', TPACPI_BRGHT_Q_NOEC),	/* T43, R52 */
-	TPACPI_Q_IBM('7', '4', TPACPI_BRGHT_Q_NOEC),	/* X41 */
-	TPACPI_Q_IBM('7', '5', TPACPI_BRGHT_Q_NOEC),	/* X41 Tablet */
+	TPACPI_Q_IBM('7', '0', TPACPI_BRGHT_Q_ANALEC),	/* T43, R52 */
+	TPACPI_Q_IBM('7', '4', TPACPI_BRGHT_Q_ANALEC),	/* X41 */
+	TPACPI_Q_IBM('7', '5', TPACPI_BRGHT_Q_ANALEC),	/* X41 Tablet */
 };
 
 /*
@@ -6830,7 +6830,7 @@ static void __init tpacpi_detect_brightness_capabilities(void)
 
 	/*
 	 * We always attempt to detect acpi support, so as to switch
-	 * Lenovo Vista BIOS to ACPI brightness mode even if we are not
+	 * Leanalvo Vista BIOS to ACPI brightness mode even if we are analt
 	 * going to publish a backlight interface
 	 */
 	b = tpacpi_check_std_acpi_brightness_support();
@@ -6864,40 +6864,40 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 
 	/* tpacpi_detect_brightness_capabilities() must have run already */
 
-	/* if it is unknown, we don't handle it: it wouldn't be safe */
+	/* if it is unkanalwn, we don't handle it: it wouldn't be safe */
 	if (tp_features.bright_unkfw)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!brightness_enable) {
 		dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_BRGHT,
 			   "brightness support disabled by module parameter\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (acpi_video_get_backlight_type() != acpi_backlight_vendor) {
 		if (brightness_enable > 1) {
-			pr_info("Standard ACPI backlight interface available, not loading native one\n");
-			return -ENODEV;
+			pr_info("Standard ACPI backlight interface available, analt loading native one\n");
+			return -EANALDEV;
 		} else if (brightness_enable == 1) {
-			pr_warn("Cannot enable backlight brightness support, ACPI is already handling it.  Refer to the acpi_backlight kernel parameter.\n");
-			return -ENODEV;
+			pr_warn("Cananalt enable backlight brightness support, ACPI is already handling it.  Refer to the acpi_backlight kernel parameter.\n");
+			return -EANALDEV;
 		}
 	} else if (!tp_features.bright_acpimode) {
-		pr_notice("ACPI backlight interface not available\n");
-		return -ENODEV;
+		pr_analtice("ACPI backlight interface analt available\n");
+		return -EANALDEV;
 	}
 
-	pr_notice("ACPI native brightness control enabled\n");
+	pr_analtice("ACPI native brightness control enabled\n");
 
 	/*
-	 * Check for module parameter bogosity, note that we
+	 * Check for module parameter bogosity, analte that we
 	 * init brightness_mode to TPACPI_BRGHT_MODE_MAX in order to be
 	 * able to detect "unspecified"
 	 */
 	if (brightness_mode > TPACPI_BRGHT_MODE_MAX)
 		return -EINVAL;
 
-	/* TPACPI_BRGHT_MODE_AUTO not implemented yet, just use default */
+	/* TPACPI_BRGHT_MODE_AUTO analt implemented yet, just use default */
 	if (brightness_mode == TPACPI_BRGHT_MODE_AUTO ||
 	    brightness_mode == TPACPI_BRGHT_MODE_MAX) {
 		if (quirks & TPACPI_BRGHT_Q_EC)
@@ -6917,7 +6917,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 		return -EINVAL;
 
 	if (tpacpi_brightness_get_raw(&b) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_PLATFORM;
@@ -6930,27 +6930,27 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	if (IS_ERR(ibm_backlight_device)) {
 		int rc = PTR_ERR(ibm_backlight_device);
 		ibm_backlight_device = NULL;
-		pr_err("Could not register backlight device\n");
+		pr_err("Could analt register backlight device\n");
 		return rc;
 	}
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_BRGHT,
 			"brightness is supported\n");
 
 	if (quirks & TPACPI_BRGHT_Q_ASK) {
-		pr_notice("brightness: will use unverified default: brightness_mode=%d\n",
+		pr_analtice("brightness: will use unverified default: brightness_mode=%d\n",
 			  brightness_mode);
-		pr_notice("brightness: please report to %s whether it works well or not on your ThinkPad\n",
+		pr_analtice("brightness: please report to %s whether it works well or analt on your ThinkPad\n",
 			  TPACPI_MAIL);
 	}
 
 	/* Added by mistake in early 2007.  Probably useless, but it could
-	 * be working around some unknown firmware problem where the value
+	 * be working around some unkanalwn firmware problem where the value
 	 * read at startup doesn't match the real hardware state... so leave
 	 * it in place just in case */
 	backlight_update_status(ibm_backlight_device);
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_BRGHT,
-		    "brightness: registering brightness hotkeys as change notification\n");
+		    "brightness: registering brightness hotkeys as change analtification\n");
 	tpacpi_hotkey_driver_mask_set(hotkey_driver_mask
 				| TP_ACPI_HKEY_BRGHTUP_MASK
 				| TP_ACPI_HKEY_BRGHTDWN_MASK);
@@ -7023,7 +7023,7 @@ static int brightness_write(char *buf)
 			"set level to %d\n", level);
 
 	/*
-	 * Now we know what the final level should be, so we try to set it.
+	 * Analw we kanalw what the final level should be, so we try to set it.
 	 * Doing it this way makes the syscall restartable in case of EINTR
 	 */
 	rc = brightness_set(level);
@@ -7048,22 +7048,22 @@ static struct ibm_struct brightness_driver_data = {
 
 /*
  * IBM ThinkPads have a simple volume controller with MUTE gating.
- * Very early Lenovo ThinkPads follow the IBM ThinkPad spec.
+ * Very early Leanalvo ThinkPads follow the IBM ThinkPad spec.
  *
- * Since the *61 series (and probably also the later *60 series), Lenovo
+ * Since the *61 series (and probably also the later *60 series), Leanalvo
  * ThinkPads only implement the MUTE gate.
  *
  * EC register 0x30
  *   Bit 6: MUTE (1 mutes sound)
  *   Bit 3-0: Volume
- *   Other bits should be zero as far as we know.
+ *   Other bits should be zero as far as we kanalw.
  *
  * This is also stored in CMOS NVRAM, byte 0x60, bit 6 (MUTE), and
  * bits 3-0 (volume).  Other bits in NVRAM may have other functions,
  * such as bit 7 which is used to detect repeated presses of MUTE,
  * and we leave them unchanged.
  *
- * On newer Lenovo ThinkPads, the EC can automatically change the volume
+ * On newer Leanalvo ThinkPads, the EC can automatically change the volume
  * in response to user input.  Unfortunately, this rarely works well.
  * The laptop changes the state of its internal MUTE gate and, on some
  * models, sends KEY_MUTE, causing any user code that responds to the
@@ -7113,7 +7113,7 @@ enum {
 };
 
 enum tpacpi_volume_access_mode {
-	TPACPI_VOL_MODE_AUTO = 0,	/* Not implemented yet */
+	TPACPI_VOL_MODE_AUTO = 0,	/* Analt implemented yet */
 	TPACPI_VOL_MODE_EC,		/* Pure EC control */
 	TPACPI_VOL_MODE_UCMS_STEP,	/* UCMS step-based control: N/A */
 	TPACPI_VOL_MODE_ECNVRAM,	/* EC control w/ NVRAM store */
@@ -7129,8 +7129,8 @@ enum tpacpi_volume_capabilities {
 
 enum tpacpi_mute_btn_mode {
 	TP_EC_MUTE_BTN_LATCH  = 0,	/* Mute mutes; up/down unmutes */
-	/* We don't know what mode 1 is. */
-	TP_EC_MUTE_BTN_NONE   = 2,	/* Mute and up/down are just keys */
+	/* We don't kanalw what mode 1 is. */
+	TP_EC_MUTE_BTN_ANALNE   = 2,	/* Mute and up/down are just keys */
 	TP_EC_MUTE_BTN_TOGGLE = 3,	/* Mute toggles; up/down unmutes */
 };
 
@@ -7165,7 +7165,7 @@ static void tpacpi_volume_checkpoint_nvram(void)
 	vdbg_printk(TPACPI_DBG_MIXER,
 		"trying to checkpoint mixer state to NVRAM...\n");
 
-	if (tp_features.mixer_no_level_control)
+	if (tp_features.mixer_anal_level_control)
 		ec_mask = TP_EC_AUDIO_MUTESW_MSK;
 	else
 		ec_mask = TP_EC_AUDIO_MUTESW_MSK | TP_EC_AUDIO_LVL_MSK;
@@ -7236,7 +7236,7 @@ static int volume_set_status(const u8 status)
 	return volume_set_status_ec(status);
 }
 
-/* returns < 0 on error, 0 on no change, 1 on change */
+/* returns < 0 on error, 0 on anal change, 1 on change */
 static int __volume_set_mute_ec(const bool mute)
 {
 	int rc;
@@ -7281,7 +7281,7 @@ static int volume_set_mute(const bool mute)
 	return (rc < 0) ? rc : 0;
 }
 
-/* returns < 0 on error, 0 on no change, 1 on change */
+/* returns < 0 on error, 0 on anal change, 1 on change */
 static int __volume_set_volume_ec(const u8 vol)
 {
 	int rc;
@@ -7314,8 +7314,8 @@ static int volume_set_software_mute(bool startup)
 {
 	int result;
 
-	if (!tpacpi_is_lenovo())
-		return -ENODEV;
+	if (!tpacpi_is_leanalvo())
+		return -EANALDEV;
 
 	if (startup) {
 		if (!acpi_evalf(ec_handle, &software_mute_orig_mode,
@@ -7328,10 +7328,10 @@ static int volume_set_software_mute(bool startup)
 	}
 
 	if (!acpi_evalf(ec_handle, &result, "SAUM", "qdd",
-			(int)TP_EC_MUTE_BTN_NONE))
+			(int)TP_EC_MUTE_BTN_ANALNE))
 		return -EIO;
 
-	if (result != TP_EC_MUTE_BTN_NONE)
+	if (result != TP_EC_MUTE_BTN_ANALNE)
 		pr_warn("Unexpected SAUM result %d\n",
 			result);
 
@@ -7341,7 +7341,7 @@ static int volume_set_software_mute(bool startup)
 	 * startup.  Just on case there are SAUM-capable ThinkPads
 	 * with level controls, set max HW volume as well.
 	 */
-	if (tp_features.mixer_no_level_control)
+	if (tp_features.mixer_anal_level_control)
 		result = volume_set_mute(false);
 	else
 		result = volume_set_status(TP_EC_VOLUME_MAX);
@@ -7368,18 +7368,18 @@ static int volume_alsa_set_volume(const u8 vol)
 	return __volume_set_volume_ec(vol);
 }
 
-static void volume_alsa_notify_change(void)
+static void volume_alsa_analtify_change(void)
 {
 	struct tpacpi_alsa_data *d;
 
 	if (alsa_card && alsa_card->private_data) {
 		d = alsa_card->private_data;
 		if (d->ctl_mute_id)
-			snd_ctl_notify(alsa_card,
+			snd_ctl_analtify(alsa_card,
 					SNDRV_CTL_EVENT_MASK_VALUE,
 					d->ctl_mute_id);
 		if (d->ctl_vol_id)
-			snd_ctl_notify(alsa_card,
+			snd_ctl_analtify(alsa_card,
 					SNDRV_CTL_EVENT_MASK_VALUE,
 					d->ctl_vol_id);
 	}
@@ -7417,7 +7417,7 @@ static int volume_alsa_vol_put(struct snd_kcontrol *kcontrol,
 	return volume_alsa_set_volume(ucontrol->value.integer.value[0]);
 }
 
-#define volume_alsa_mute_info snd_ctl_boolean_mono_info
+#define volume_alsa_mute_info snd_ctl_boolean_moanal_info
 
 static int volume_alsa_mute_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -7472,7 +7472,7 @@ static void volume_resume(void)
 		if (volume_set_software_mute(false) < 0)
 			pr_warn("Failed to restore software mute\n");
 	} else {
-		volume_alsa_notify_change();
+		volume_alsa_analtify_change();
 	}
 }
 
@@ -7507,7 +7507,7 @@ static int __init volume_create_alsa_mixer(void)
 			  sizeof(struct tpacpi_alsa_data), &card);
 	if (rc < 0 || !card) {
 		pr_err("Failed to create ALSA card structures: %d\n", rc);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	BUG_ON(!card->private_data);
@@ -7520,11 +7520,11 @@ static int __init volume_create_alsa_mixer(void)
 		sizeof(card->shortname));
 	snprintf(card->mixername, sizeof(card->mixername), "ThinkPad EC %s",
 		 (thinkpad_id.ec_version_str) ?
-			thinkpad_id.ec_version_str : "(unknown)");
+			thinkpad_id.ec_version_str : "(unkanalwn)");
 	snprintf(card->longname, sizeof(card->longname),
 		 "%s at EC reg 0x%02x, fw %s", card->shortname, TP_EC_AUDIO,
 		 (thinkpad_id.ec_version_str) ?
-			thinkpad_id.ec_version_str : "unknown");
+			thinkpad_id.ec_version_str : "unkanalwn");
 
 	if (volume_control_allowed) {
 		volume_alsa_control_vol.put = volume_alsa_vol_put;
@@ -7536,7 +7536,7 @@ static int __init volume_create_alsa_mixer(void)
 				SNDRV_CTL_ELEM_ACCESS_READWRITE;
 	}
 
-	if (!tp_features.mixer_no_level_control) {
+	if (!tp_features.mixer_anal_level_control) {
 		ctl_vol = snd_ctl_new1(&volume_alsa_control_vol, NULL);
 		rc = snd_ctl_add(card, ctl_vol);
 		if (rc < 0) {
@@ -7566,7 +7566,7 @@ static int __init volume_create_alsa_mixer(void)
 
 err_exit:
 	snd_card_free(card);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #define TPACPI_VOL_Q_MUTEONLY	0x0001	/* Mute-only control available */
@@ -7579,7 +7579,7 @@ static const struct tpacpi_quirk volume_quirk_table[] __initconst = {
 	  .ec     = TPACPI_MATCH_ANY,
 	  .quirks = TPACPI_VOL_Q_LEVEL },
 
-	/* Lenovo models with volume control (needs confirmation) */
+	/* Leanalvo models with volume control (needs confirmation) */
 	TPACPI_QEC_LNV('7', 'C', TPACPI_VOL_Q_LEVEL), /* R60/i */
 	TPACPI_QEC_LNV('7', 'E', TPACPI_VOL_Q_LEVEL), /* R60e/i */
 	TPACPI_QEC_LNV('7', '9', TPACPI_VOL_Q_LEVEL), /* T60/p */
@@ -7588,8 +7588,8 @@ static const struct tpacpi_quirk volume_quirk_table[] __initconst = {
 	TPACPI_QEC_LNV('7', '7', TPACPI_VOL_Q_LEVEL), /* Z60 */
 	TPACPI_QEC_LNV('7', 'F', TPACPI_VOL_Q_LEVEL), /* Z61 */
 
-	/* Whitelist mute-only on all Lenovo by default */
-	{ .vendor = PCI_VENDOR_ID_LENOVO,
+	/* Whitelist mute-only on all Leanalvo by default */
+	{ .vendor = PCI_VENDOR_ID_LEANALVO,
 	  .bios   = TPACPI_MATCH_ANY,
 	  .ec	  = TPACPI_MATCH_ANY,
 	  .quirks = TPACPI_VOL_Q_MUTEONLY }
@@ -7605,7 +7605,7 @@ static int __init volume_init(struct ibm_init_struct *iibm)
 	mutex_init(&volume_mutex);
 
 	/*
-	 * Check for module parameter bogosity, note that we
+	 * Check for module parameter bogosity, analte that we
 	 * init volume_mode to TPACPI_VOL_MODE_MAX in order to be
 	 * able to detect "unspecified"
 	 */
@@ -7613,9 +7613,9 @@ static int __init volume_init(struct ibm_init_struct *iibm)
 		return -EINVAL;
 
 	if (volume_mode == TPACPI_VOL_MODE_UCMS_STEP) {
-		pr_err("UCMS step volume mode not implemented, please contact %s\n",
+		pr_err("UCMS step volume mode analt implemented, please contact %s\n",
 		       TPACPI_MAIL);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (volume_capabilities >= TPACPI_VOL_CAP_MAX)
@@ -7627,8 +7627,8 @@ static int __init volume_init(struct ibm_init_struct *iibm)
 	 */
 	if (!alsa_enable) {
 		vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_MIXER,
-			    "ALSA mixer disabled by parameter, not loading volume subdriver...\n");
-		return -ENODEV;
+			    "ALSA mixer disabled by parameter, analt loading volume subdriver...\n");
+		return -EANALDEV;
 	}
 
 	quirks = tpacpi_check_quirks(volume_quirk_table,
@@ -7637,20 +7637,20 @@ static int __init volume_init(struct ibm_init_struct *iibm)
 	switch (volume_capabilities) {
 	case TPACPI_VOL_CAP_AUTO:
 		if (quirks & TPACPI_VOL_Q_MUTEONLY)
-			tp_features.mixer_no_level_control = 1;
+			tp_features.mixer_anal_level_control = 1;
 		else if (quirks & TPACPI_VOL_Q_LEVEL)
-			tp_features.mixer_no_level_control = 0;
+			tp_features.mixer_anal_level_control = 0;
 		else
-			return -ENODEV; /* no mixer */
+			return -EANALDEV; /* anal mixer */
 		break;
 	case TPACPI_VOL_CAP_VOLMUTE:
-		tp_features.mixer_no_level_control = 0;
+		tp_features.mixer_anal_level_control = 0;
 		break;
 	case TPACPI_VOL_CAP_MUTEONLY:
-		tp_features.mixer_no_level_control = 1;
+		tp_features.mixer_anal_level_control = 1;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (volume_capabilities != TPACPI_VOL_CAP_AUTO)
@@ -7673,14 +7673,14 @@ static int __init volume_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_MIXER,
 			"mute is supported, volume control is %s\n",
-			str_supported(!tp_features.mixer_no_level_control));
+			str_supported(!tp_features.mixer_anal_level_control));
 
 	if (software_mute_requested && volume_set_software_mute(true) == 0) {
 		software_mute_active = true;
 	} else {
 		rc = volume_create_alsa_mixer();
 		if (rc) {
-			pr_err("Could not create the ALSA mixer interface\n");
+			pr_err("Could analt create the ALSA mixer interface\n");
 			return rc;
 		}
 
@@ -7691,7 +7691,7 @@ static int __init volume_init(struct ibm_init_struct *iibm)
 	}
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_MIXER,
-		"registering volume hotkeys as change notification\n");
+		"registering volume hotkeys as change analtification\n");
 	tpacpi_hotkey_driver_mask_set(hotkey_driver_mask
 			| TP_ACPI_HKEY_VOLUP_MASK
 			| TP_ACPI_HKEY_VOLDWN_MASK
@@ -7707,7 +7707,7 @@ static int volume_read(struct seq_file *m)
 	if (volume_get_status(&status) < 0) {
 		seq_printf(m, "level:\t\tunreadable\n");
 	} else {
-		if (tp_features.mixer_no_level_control)
+		if (tp_features.mixer_anal_level_control)
 			seq_printf(m, "level:\t\tunsupported\n");
 		else
 			seq_printf(m, "level:\t\t%d\n",
@@ -7717,7 +7717,7 @@ static int volume_read(struct seq_file *m)
 
 		if (volume_control_allowed) {
 			seq_printf(m, "commands:\tunmute, mute\n");
-			if (!tp_features.mixer_no_level_control) {
+			if (!tp_features.mixer_anal_level_control) {
 				seq_printf(m, "commands:\tup, down\n");
 				seq_printf(m, "commands:\tlevel <level> (<level> is 0-%d)\n",
 					      TP_EC_VOLUME_MAX);
@@ -7743,8 +7743,8 @@ static int volume_write(char *buf)
 	if (!volume_control_allowed && tpacpi_lifecycle != TPACPI_LIFE_INIT) {
 		if (unlikely(!tp_warned.volume_ctrl_forbidden)) {
 			tp_warned.volume_ctrl_forbidden = 1;
-			pr_notice("Console audio control in monitor mode, changes are not allowed\n");
-			pr_notice("Use the volume_control=1 module parameter to enable volume control\n");
+			pr_analtice("Console audio control in monitor mode, changes are analt allowed\n");
+			pr_analtice("Use the volume_control=1 module parameter to enable volume control\n");
 		}
 		return -EPERM;
 	}
@@ -7757,7 +7757,7 @@ static int volume_write(char *buf)
 	new_mute  = s & TP_EC_AUDIO_MUTESW_MSK;
 
 	while ((cmd = strsep(&buf, ","))) {
-		if (!tp_features.mixer_no_level_control) {
+		if (!tp_features.mixer_anal_level_control) {
 			if (strstarts(cmd, "up")) {
 				if (new_mute)
 					new_mute = 0;
@@ -7784,7 +7784,7 @@ static int volume_write(char *buf)
 			return -EINVAL;
 	}
 
-	if (tp_features.mixer_no_level_control) {
+	if (tp_features.mixer_anal_level_control) {
 		tpacpi_disclose_usertask("procfs volume", "%smute\n",
 					new_mute ? "" : "un");
 		rc = volume_set_mute(!!new_mute);
@@ -7794,7 +7794,7 @@ static int volume_write(char *buf)
 					new_mute ? "" : "un", new_level);
 		rc = volume_set_status(new_mute | new_level);
 	}
-	volume_alsa_notify_change();
+	volume_alsa_analtify_change();
 
 	return (rc == -EINTR) ? -ERESTARTSYS : rc;
 }
@@ -7813,15 +7813,15 @@ static struct ibm_struct volume_driver_data = {
 
 #define alsa_card NULL
 
-static inline void volume_alsa_notify_change(void)
+static inline void volume_alsa_analtify_change(void)
 {
 }
 
 static int __init volume_init(struct ibm_init_struct *iibm)
 {
-	pr_info("volume: disabled as there is no ALSA support in this kernel\n");
+	pr_info("volume: disabled as there is anal ALSA support in this kernel\n");
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct ibm_struct volume_driver_data = {
@@ -7841,12 +7841,12 @@ static struct ibm_struct volume_driver_data = {
  * 	ACPI GFAN method: returns fan level
  *
  * 	see TPACPI_FAN_WR_ACPI_SFAN
- * 	EC 0x2f (HFSP) not available if GFAN exists
+ * 	EC 0x2f (HFSP) analt available if GFAN exists
  *
  * TPACPI_FAN_WR_ACPI_SFAN:
  * 	ACPI SFAN method: sets fan level, 0 (stop) to 7 (max)
  *
- * 	EC 0x2f (HFSP) might be available *for reading*, but do not use
+ * 	EC 0x2f (HFSP) might be available *for reading*, but do analt use
  * 	it for writing.
  *
  * TPACPI_FAN_WR_TPEC:
@@ -7858,19 +7858,19 @@ static struct ibm_struct volume_driver_data = {
  * 	maximum amount of fan duty cycle change per second seems to be
  * 	limited.
  *
- * 	Reading is not available if GFAN exists.
- * 	Writing is not available if SFAN exists.
+ * 	Reading is analt available if GFAN exists.
+ * 	Writing is analt available if SFAN exists.
  *
  * 	Bits
  *	 7	automatic mode engaged;
  *  		(default operation mode of the ThinkPad)
- * 		fan level is ignored in this mode.
+ * 		fan level is iganalred in this mode.
  *	 6	full speed mode (takes precedence over bit 7);
- *		not available on all thinkpads.  May disable
+ *		analt available on all thinkpads.  May disable
  *		the tachometer while the fan controller ramps up
  *		the speed (which can take up to a few *minutes*).
  *		Speeds up fan to 100% duty-cycle, which is far above
- *		the standard RPM levels.  It is not impossible that
+ *		the standard RPM levels.  It is analt impossible that
  *		it could cause hardware damage.
  *	5-3	unused in some models.  Extra bits for fan level
  *		in others, but still useless as all values above
@@ -7881,8 +7881,8 @@ static struct ibm_struct volume_driver_data = {
  * 		Some ThinkPads may have other levels, see
  * 		TPACPI_FAN_WR_ACPI_FANS (X31/X40/X41)
  *
- *	FIRMWARE BUG: on some models, EC 0x2f might not be initialized at
- *	boot. Apparently the EC does not initialize it, so unless ACPI DSDT
+ *	FIRMWARE BUG: on some models, EC 0x2f might analt be initialized at
+ *	boot. Apparently the EC does analt initialize it, so unless ACPI DSDT
  *	does so, its initial value is meaningless (0x07).
  *
  *	For firmware bugs, refer to:
@@ -7894,7 +7894,7 @@ static struct ibm_struct volume_driver_data = {
  *	Main fan tachometer reading (in RPM)
  *
  *	This register is present on all ThinkPads with a new-style EC, and
- *	it is known not to be present on the A21m/e, and T22, as there is
+ *	it is kanalwn analt to be present on the A21m/e, and T22, as there is
  *	something else in offset 0x84 according to the ACPI DSDT.  Other
  *	ThinkPads from this same time period (and earlier) probably lack the
  *	tachometer as well.
@@ -7902,7 +7902,7 @@ static struct ibm_struct volume_driver_data = {
  *	Unfortunately a lot of ThinkPads with new-style ECs but whose firmware
  *	was never fixed by IBM to report the EC firmware version string
  *	probably support the tachometer (like the early X models), so
- *	detecting it is quite hard.  We need more data to know for sure.
+ *	detecting it is quite hard.  We need more data to kanalw for sure.
  *
  *	FIRMWARE BUG: always read 0x84 first, otherwise incorrect readings
  *	might result.
@@ -7925,11 +7925,11 @@ static struct ibm_struct volume_driver_data = {
  *	Fan control seems to affect both fans, regardless of the state
  *	of this bit.
  *
- *	So far, only the firmware for the X60/X61 non-tablet versions
+ *	So far, only the firmware for the X60/X61 analn-tablet versions
  *	seem to support this (firmware TP-7M).
  *
  * TPACPI_FAN_WR_ACPI_FANS:
- *	ThinkPad X31, X40, X41.  Not available in the X60.
+ *	ThinkPad X31, X40, X41.  Analt available in the X60.
  *
  *	FANS ACPI handle: takes three arguments: low speed, medium speed,
  *	high speed.  ACPI DSDT seems to map these three speeds to levels
@@ -7951,14 +7951,14 @@ static struct ibm_struct volume_driver_data = {
  *
  * TPACPI_FAN_RD_TPEC_NS:
  *	This mode is used for a few ThinkPads (L13 Yoga Gen2, X13 Yoga Gen2 etc.)
- *	that are using non-standard EC locations for reporting fan speeds.
+ *	that are using analn-standard EC locations for reporting fan speeds.
  *	Currently these platforms only provide fan rpm reporting.
  *
  */
 
-#define FAN_RPM_CAL_CONST 491520	/* FAN RPM calculation offset for some non-standard ECFW */
+#define FAN_RPM_CAL_CONST 491520	/* FAN RPM calculation offset for some analn-standard ECFW */
 
-#define FAN_NS_CTRL_STATUS	BIT(2)		/* Bit which determines control is enabled or not */
+#define FAN_NS_CTRL_STATUS	BIT(2)		/* Bit which determines control is enabled or analt */
 #define FAN_NS_CTRL		BIT(4)		/* Bit which determines control is by host or EC */
 
 enum {					/* Fan control constants */
@@ -7968,10 +7968,10 @@ enum {					/* Fan control constants */
 	fan_select_offset = 0x31,	/* EC register 0x31 (Firmware 7M)
 					   bit 0 selects which fan is active */
 
-	fan_status_offset_ns = 0x93,	/* Special status/control offset for non-standard EC Fan1 */
-	fan2_status_offset_ns = 0x96,	/* Special status/control offset for non-standard EC Fan2 */
-	fan_rpm_status_ns = 0x95,	/* Special offset for Fan1 RPM status for non-standard EC */
-	fan2_rpm_status_ns = 0x98,	/* Special offset for Fan2 RPM status for non-standard EC */
+	fan_status_offset_ns = 0x93,	/* Special status/control offset for analn-standard EC Fan1 */
+	fan2_status_offset_ns = 0x96,	/* Special status/control offset for analn-standard EC Fan2 */
+	fan_rpm_status_ns = 0x95,	/* Special offset for Fan1 RPM status for analn-standard EC */
+	fan2_rpm_status_ns = 0x98,	/* Special offset for Fan2 RPM status for analn-standard EC */
 
 	TP_EC_FAN_FULLSPEED = 0x40,	/* EC fan mode: full speed */
 	TP_EC_FAN_AUTO	    = 0x80,	/* EC fan mode: auto fan control */
@@ -7980,14 +7980,14 @@ enum {					/* Fan control constants */
 };
 
 enum fan_status_access_mode {
-	TPACPI_FAN_NONE = 0,		/* No fan status or control */
+	TPACPI_FAN_ANALNE = 0,		/* Anal fan status or control */
 	TPACPI_FAN_RD_ACPI_GFAN,	/* Use ACPI GFAN */
 	TPACPI_FAN_RD_TPEC,		/* Use ACPI EC regs 0x2f, 0x84-0x85 */
-	TPACPI_FAN_RD_TPEC_NS,		/* Use non-standard ACPI EC regs (eg: L13 Yoga gen2 etc.) */
+	TPACPI_FAN_RD_TPEC_NS,		/* Use analn-standard ACPI EC regs (eg: L13 Yoga gen2 etc.) */
 };
 
 enum fan_control_access_mode {
-	TPACPI_FAN_WR_NONE = 0,		/* No fan control */
+	TPACPI_FAN_WR_ANALNE = 0,		/* Anal fan control */
 	TPACPI_FAN_WR_ACPI_SFAN,	/* Use ACPI SFAN */
 	TPACPI_FAN_WR_TPEC,		/* Use ACPI EC reg 0x2f */
 	TPACPI_FAN_WR_ACPI_FANS,	/* Use ACPI FANS and EC reg 0x2f */
@@ -8015,7 +8015,7 @@ static bool fan_with_ns_addr;
 
 static struct mutex fan_mutex;
 
-static void fan_watchdog_fire(struct work_struct *ignored);
+static void fan_watchdog_fire(struct work_struct *iganalred);
 static DECLARE_DELAYED_WORK(fan_watchdog_task, fan_watchdog_fire);
 
 TPACPI_HANDLE(fans, ec, "FANS");	/* X31, X40, X41 */
@@ -8039,13 +8039,13 @@ TPACPI_HANDLE(sfan, ec, "SFAN",	/* 570 */
  * which is only used by the firmware during thermal emergencies.
  *
  * Enable for TP-1Y (T43), TP-78 (R51e), TP-76 (R52),
- * TP-70 (T43, R52), which are known to be buggy.
+ * TP-70 (T43, R52), which are kanalwn to be buggy.
  */
 
 static void fan_quirk1_setup(void)
 {
 	if (fan_control_initial_status == 0x07) {
-		pr_notice("fan_init: initial fan status is unknown, assuming it is in auto mode\n");
+		pr_analtice("fan_init: initial fan status is unkanalwn, assuming it is in auto mode\n");
 		tp_features.fan_ctrl_status_undef = 1;
 	}
 }
@@ -8055,7 +8055,7 @@ static void fan_quirk1_handle(u8 *fan_status)
 	if (unlikely(tp_features.fan_ctrl_status_undef)) {
 		if (*fan_status != fan_control_initial_status) {
 			/* something changed the HFSP regisnter since
-			 * driver init time, so it is not undefined
+			 * driver init time, so it is analt undefined
 			 * anymore */
 			tp_features.fan_ctrl_status_undef = 0;
 		} else {
@@ -8066,7 +8066,7 @@ static void fan_quirk1_handle(u8 *fan_status)
 	}
 }
 
-/* Select main fan on X60/X61, NOOP on others */
+/* Select main fan on X60/X61, ANALOP on others */
 static bool fan_select_fan1(void)
 {
 	if (tp_features.second_fan) {
@@ -8236,7 +8236,7 @@ static int fan2_get_speed(unsigned int *speed)
 		if (rc)
 			return -EIO;
 		if (!(status & FAN_NS_CTRL_STATUS)) {
-			pr_info("secondary fan control not supported\n");
+			pr_info("secondary fan control analt supported\n");
 			return -EIO;
 		}
 		rc = !acpi_ec_read(fan2_rpm_status_ns, &lo);
@@ -8282,8 +8282,8 @@ static int fan_set_level(int level)
 		    ((level < 0) || (level > 7)))
 			return -EINVAL;
 
-		/* safety net should the EC not support AUTO
-		 * or FULLSPEED mode bits and just ignore them */
+		/* safety net should the EC analt support AUTO
+		 * or FULLSPEED mode bits and just iganalre them */
 		if (level & TP_EC_FAN_FULLSPEED)
 			level |= 7;	/* safety min speed 7 */
 		else if (level & TP_EC_FAN_AUTO)
@@ -8467,7 +8467,7 @@ static int fan_set_speed(int speed)
 
 static void fan_watchdog_reset(void)
 {
-	if (fan_control_access_mode == TPACPI_FAN_WR_NONE)
+	if (fan_control_access_mode == TPACPI_FAN_WR_ANALNE)
 		return;
 
 	if (fan_watchdog_maxinterval > 0 &&
@@ -8478,14 +8478,14 @@ static void fan_watchdog_reset(void)
 		cancel_delayed_work(&fan_watchdog_task);
 }
 
-static void fan_watchdog_fire(struct work_struct *ignored)
+static void fan_watchdog_fire(struct work_struct *iganalred)
 {
 	int rc;
 
 	if (tpacpi_lifecycle != TPACPI_LIFE_RUNNING)
 		return;
 
-	pr_notice("fan watchdog: enabling fan\n");
+	pr_analtice("fan watchdog: enabling fan\n");
 	rc = fan_set_enable();
 	if (rc < 0) {
 		pr_err("fan watchdog: error %d while enabling fan, will try again later...\n",
@@ -8503,7 +8503,7 @@ static void fan_watchdog_fire(struct work_struct *ignored)
  * 	1: manual mode
  * 	2: native EC "auto" mode (recommended, hardware default)
  *
- * pwm*: set speed in manual mode, ignored otherwise.
+ * pwm*: set speed in manual mode, iganalred otherwise.
  * 	0 is level 0; 255 is level 7. Intermediate points done with linear
  * 	interpolation.
  *
@@ -8563,7 +8563,7 @@ static ssize_t fan_pwm1_enable_store(struct device *dev,
 		break;
 	case 3:
 		/* reserved for software-controlled auto mode */
-		return -ENOSYS;
+		return -EANALSYS;
 	default:
 		return -EINVAL;
 	}
@@ -8715,8 +8715,8 @@ static struct attribute *fan_attributes[] = {
 static umode_t fan_attr_is_visible(struct kobject *kobj, struct attribute *attr,
 				   int n)
 {
-	if (fan_status_access_mode == TPACPI_FAN_NONE &&
-	    fan_control_access_mode == TPACPI_FAN_WR_NONE)
+	if (fan_status_access_mode == TPACPI_FAN_ANALNE &&
+	    fan_control_access_mode == TPACPI_FAN_WR_ANALNE)
 		return 0;
 
 	if (attr == &dev_attr_fan2_input.attr) {
@@ -8745,8 +8745,8 @@ static const struct attribute_group fan_driver_attr_group = {
 #define TPACPI_FAN_Q1		0x0001		/* Uninitialized HFSP */
 #define TPACPI_FAN_2FAN		0x0002		/* EC 0x31 bit 0 selects fan2 */
 #define TPACPI_FAN_2CTL		0x0004		/* selects fan2 control */
-#define TPACPI_FAN_NOFAN	0x0008		/* no fan available */
-#define TPACPI_FAN_NS		0x0010		/* For EC with non-Standard register addresses */
+#define TPACPI_FAN_ANALFAN	0x0008		/* anal fan available */
+#define TPACPI_FAN_NS		0x0010		/* For EC with analn-Standard register addresses */
 
 static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
 	TPACPI_QEC_IBM('1', 'Y', TPACPI_FAN_Q1),
@@ -8767,7 +8767,7 @@ static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
 	TPACPI_Q_LNV3('N', '3', '7', TPACPI_FAN_2CTL),  /* T15g (2nd gen) */
 	TPACPI_Q_LNV3('R', '1', 'F', TPACPI_FAN_NS),	/* L13 Yoga Gen 2 */
 	TPACPI_Q_LNV3('N', '2', 'U', TPACPI_FAN_NS),	/* X13 Yoga Gen 2*/
-	TPACPI_Q_LNV3('N', '1', 'O', TPACPI_FAN_NOFAN),	/* X1 Tablet (2nd gen) */
+	TPACPI_Q_LNV3('N', '1', 'O', TPACPI_FAN_ANALFAN),	/* X1 Tablet (2nd gen) */
 };
 
 static int __init fan_init(struct ibm_init_struct *iibm)
@@ -8778,8 +8778,8 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 			"initializing fan subdriver\n");
 
 	mutex_init(&fan_mutex);
-	fan_status_access_mode = TPACPI_FAN_NONE;
-	fan_control_access_mode = TPACPI_FAN_WR_NONE;
+	fan_status_access_mode = TPACPI_FAN_ANALNE;
+	fan_control_access_mode = TPACPI_FAN_WR_ANALNE;
 	fan_control_commands = 0;
 	fan_watchdog_maxinterval = 0;
 	tp_features.fan_ctrl_status_undef = 0;
@@ -8796,15 +8796,15 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 	quirks = tpacpi_check_quirks(fan_quirk_table,
 				     ARRAY_SIZE(fan_quirk_table));
 
-	if (quirks & TPACPI_FAN_NOFAN) {
-		pr_info("No integrated ThinkPad fan available\n");
-		return -ENODEV;
+	if (quirks & TPACPI_FAN_ANALFAN) {
+		pr_info("Anal integrated ThinkPad fan available\n");
+		return -EANALDEV;
 	}
 
 	if (quirks & TPACPI_FAN_NS) {
-		pr_info("ECFW with non-standard fan reg control found\n");
+		pr_info("ECFW with analn-standard fan reg control found\n");
 		fan_with_ns_addr = 1;
-		/* Fan ctrl support from host is undefined for now */
+		/* Fan ctrl support from host is undefined for analw */
 		tp_features.fan_ctrl_status_undef = 1;
 	}
 
@@ -8812,7 +8812,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 		/* 570, 600e/x, 770e, 770x */
 		fan_status_access_mode = TPACPI_FAN_RD_ACPI_GFAN;
 	} else {
-		/* all other ThinkPads: note that even old-style
+		/* all other ThinkPads: analte that even old-style
 		 * ThinkPad ECs supports the fan control register */
 		if (fan_with_ns_addr ||
 		    likely(acpi_ec_read(fan_status_offset, &fan_control_initial_status))) {
@@ -8827,14 +8827,14 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 			/* Try and probe the 2nd fan */
 			tp_features.second_fan = 1; /* needed for get_speed to work */
 			res = fan2_get_speed(&speed);
-			if (res >= 0 && speed != FAN_NOT_PRESENT) {
+			if (res >= 0 && speed != FAN_ANALT_PRESENT) {
 				/* It responded - so let's assume it's there */
 				tp_features.second_fan = 1;
-				/* fan control not currently available for ns ECFW */
+				/* fan control analt currently available for ns ECFW */
 				tp_features.second_fan_ctl = !fan_with_ns_addr;
 				pr_info("secondary fan control detected & enabled\n");
 			} else {
-				/* Fan not auto-detected */
+				/* Fan analt auto-detected */
 				tp_features.second_fan = 0;
 				if (quirks & TPACPI_FAN_2FAN) {
 					tp_features.second_fan = 1;
@@ -8848,7 +8848,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 			}
 		} else {
 			pr_err("ThinkPad ACPI EC access misbehaving, fan status and control unavailable\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -8859,7 +8859,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 		    TPACPI_FAN_CMD_LEVEL | TPACPI_FAN_CMD_ENABLE;
 	} else {
 		if (!gfan_handle) {
-			/* gfan without sfan means no fan control */
+			/* gfan without sfan means anal fan control */
 			/* all other models implement TP EC 0x2f control */
 
 			if (fans_handle) {
@@ -8881,25 +8881,25 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_FAN,
 		"fan is %s, modes %d, %d\n",
-		str_supported(fan_status_access_mode != TPACPI_FAN_NONE ||
-		  fan_control_access_mode != TPACPI_FAN_WR_NONE),
+		str_supported(fan_status_access_mode != TPACPI_FAN_ANALNE ||
+		  fan_control_access_mode != TPACPI_FAN_WR_ANALNE),
 		fan_status_access_mode, fan_control_access_mode);
 
 	/* fan control master switch */
 	if (!fan_control_allowed) {
-		fan_control_access_mode = TPACPI_FAN_WR_NONE;
+		fan_control_access_mode = TPACPI_FAN_WR_ANALNE;
 		fan_control_commands = 0;
 		dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_FAN,
 			   "fan control features disabled by parameter\n");
 	}
 
 	/* update fan_control_desired_level */
-	if (fan_status_access_mode != TPACPI_FAN_NONE)
+	if (fan_status_access_mode != TPACPI_FAN_ANALNE)
 		fan_get_status_safe(NULL);
 
-	if (fan_status_access_mode == TPACPI_FAN_NONE &&
-	    fan_control_access_mode == TPACPI_FAN_WR_NONE)
-		return -ENODEV;
+	if (fan_status_access_mode == TPACPI_FAN_ANALNE &&
+	    fan_control_access_mode == TPACPI_FAN_WR_ANALNE)
+		return -EANALDEV;
 
 	return 0;
 }
@@ -8924,7 +8924,7 @@ static void fan_suspend(void)
 	fan_control_resume_level = 0;
 	rc = fan_get_status_safe(&fan_control_resume_level);
 	if (rc)
-		pr_notice("failed to read fan level for later restore during resume: %d\n",
+		pr_analtice("failed to read fan level for later restore during resume: %d\n",
 			  rc);
 
 	/* if it is undefined, don't attempt to restore it.
@@ -8958,7 +8958,7 @@ static void fan_resume(void)
 		 * TP_EC_FAN_FULLSPEED > 7 >= TP_EC_FAN_AUTO
 		 *
 		 * We expect the firmware to set either 7 or AUTO, but we
-		 * handle FULLSPEED out of paranoia.
+		 * handle FULLSPEED out of paraanalia.
 		 *
 		 * So, we can safely only restore FULLSPEED or 7, anything
 		 * else could slow the fan.  Restoring AUTO is useless, at
@@ -8980,11 +8980,11 @@ static void fan_resume(void)
 		return;
 	}
 	if (do_set) {
-		pr_notice("restoring fan level to 0x%02x\n",
+		pr_analtice("restoring fan level to 0x%02x\n",
 			  fan_control_resume_level);
 		rc = fan_set_level_safe(fan_control_resume_level);
 		if (rc < 0)
-			pr_notice("failed to restore fan level: %d\n", rc);
+			pr_analtice("failed to restore fan level: %d\n", rc);
 	}
 }
 
@@ -9023,11 +9023,11 @@ static int fan_read(struct seq_file *m)
 
 		if (fan_status_access_mode == TPACPI_FAN_RD_TPEC_NS) {
 			/*
-			 * No full speed bit in NS EC
+			 * Anal full speed bit in NS EC
 			 * EC Auto mode is set by default.
-			 * No other levels settings available
+			 * Anal other levels settings available
 			 */
-			seq_printf(m, "level:\t\t%s\n", status & FAN_NS_CTRL ? "unknown" : "auto");
+			seq_printf(m, "level:\t\t%s\n", status & FAN_NS_CTRL ? "unkanalwn" : "auto");
 		} else {
 			if (status & TP_EC_FAN_FULLSPEED)
 				/* Disengaged mode takes precedence */
@@ -9039,9 +9039,9 @@ static int fan_read(struct seq_file *m)
 		}
 		break;
 
-	case TPACPI_FAN_NONE:
+	case TPACPI_FAN_ANALNE:
 	default:
-		seq_printf(m, "status:\t\tnot supported\n");
+		seq_printf(m, "status:\t\tanalt supported\n");
 	}
 
 	if (fan_control_commands & TPACPI_FAN_CMD_LEVEL) {
@@ -9224,7 +9224,7 @@ static int mute_led_on_off(struct tp_led_table *t, bool state)
 	int output;
 
 	if (ACPI_FAILURE(acpi_get_handle(hkey_handle, t->name, &temp))) {
-		pr_warn("Thinkpad ACPI has no %s interface.\n", t->name);
+		pr_warn("Thinkpad ACPI has anal %s interface.\n", t->name);
 		return -EIO;
 	}
 
@@ -9281,7 +9281,7 @@ static int mute_led_init(struct ibm_init_struct *iibm)
 	for (i = 0; i < TPACPI_LED_MAX; i++) {
 		struct tp_led_table *t = &led_tables[i];
 		if (ACPI_FAILURE(acpi_get_handle(hkey_handle, t->name, &temp))) {
-			t->state = -ENODEV;
+			t->state = -EANALDEV;
 			continue;
 		}
 
@@ -9402,19 +9402,19 @@ static int tpacpi_battery_get(int what, int battery, int *ret)
 	switch (what) {
 	case THRESHOLD_START:
 		if ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_START, ret, battery))
-			return -ENODEV;
+			return -EANALDEV;
 
 		/* The value is in the low 8 bits of the response */
 		*ret = *ret & 0xFF;
 		return 0;
 	case THRESHOLD_STOP:
 		if ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_STOP, ret, battery))
-			return -ENODEV;
+			return -EANALDEV;
 		/* Value is in lower 8 bits */
 		*ret = *ret & 0xFF;
 		/*
 		 * On the stop value, if we return 0 that
-		 * does not make any sense. 0 means Default, which
+		 * does analt make any sense. 0 means Default, which
 		 * means that charging stops at 100%, so we return
 		 * that.
 		 */
@@ -9423,13 +9423,13 @@ static int tpacpi_battery_get(int what, int battery, int *ret)
 		return 0;
 	case FORCE_DISCHARGE:
 		if ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_DISCHARGE, ret, battery))
-			return -ENODEV;
+			return -EANALDEV;
 		/* The force discharge status is in bit 0 */
 		*ret = *ret & 0x01;
 		return 0;
 	case INHIBIT_CHARGE:
 		if ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_INHIBIT, ret, battery))
-			return -ENODEV;
+			return -EANALDEV;
 		/* The inhibit charge status is in bit 0 */
 		*ret = *ret & 0x01;
 		return 0;
@@ -9452,13 +9452,13 @@ static int tpacpi_battery_set(int what, int battery, int value)
 		if ACPI_FAILURE(tpacpi_battery_acpi_eval(SET_START, &ret, param)) {
 			pr_err("failed to set charge threshold on battery %d",
 					battery);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		return 0;
 	case THRESHOLD_STOP:
 		if ACPI_FAILURE(tpacpi_battery_acpi_eval(SET_STOP, &ret, param)) {
 			pr_err("failed to set stop threshold: %d", battery);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		return 0;
 	case FORCE_DISCHARGE:
@@ -9468,7 +9468,7 @@ static int tpacpi_battery_set(int what, int battery, int value)
 		 */
 		if (ACPI_FAILURE(tpacpi_battery_acpi_eval(SET_DISCHARGE, &ret, param))) {
 			pr_err("failed to set force discharge on %d", battery);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		return 0;
 	case INHIBIT_CHARGE:
@@ -9484,7 +9484,7 @@ static int tpacpi_battery_set(int what, int battery, int value)
 		param |= 0xFFFF << 8;
 		if (ACPI_FAILURE(tpacpi_battery_acpi_eval(SET_INHIBIT, &ret, param))) {
 			pr_err("failed to set inhibit charge on %d", battery);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		return 0;
 	default:
@@ -9540,7 +9540,7 @@ static int tpacpi_battery_probe(int battery)
 	if (acpi_has_method(hkey_handle, GET_START)) {
 		if ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_START, &ret, battery)) {
 			pr_err("Error probing battery %d\n", battery);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		/* Individual addressing is in bit 9 */
 		if (ret & BIT(9))
@@ -9549,33 +9549,33 @@ static int tpacpi_battery_probe(int battery)
 		if (ret & BIT(8))
 			battery_info.batteries[battery].start_support = 1;
 		else
-			return -ENODEV;
+			return -EANALDEV;
 		if (tpacpi_battery_get(THRESHOLD_START, battery,
 			&battery_info.batteries[battery].charge_start)) {
 			pr_err("Error probing battery %d\n", battery);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	if (acpi_has_method(hkey_handle, GET_STOP)) {
 		if ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_STOP, &ret, battery)) {
 			pr_err("Error probing battery stop; %d\n", battery);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		/* Support is marked in bit 8 */
 		if (ret & BIT(8))
 			battery_info.batteries[battery].stop_support = 1;
 		else
-			return -ENODEV;
+			return -EANALDEV;
 		if (tpacpi_battery_get(THRESHOLD_STOP, battery,
 			&battery_info.batteries[battery].charge_stop)) {
 			pr_err("Error probing battery stop: %d\n", battery);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	if (acpi_has_method(hkey_handle, GET_DISCHARGE)) {
 		if (ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_DISCHARGE, &ret, battery))) {
 			pr_err("Error probing battery discharge; %d\n", battery);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		/* Support is marked in bit 8 */
 		if (ret & BIT(8))
@@ -9585,7 +9585,7 @@ static int tpacpi_battery_probe(int battery)
 	if (acpi_has_method(hkey_handle, GET_INHIBIT)) {
 		if (ACPI_FAILURE(tpacpi_battery_acpi_eval(GET_INHIBIT, &ret, battery))) {
 			pr_err("Error probing battery inhibit charge; %d\n", battery);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		/* Support is marked in bit 5 */
 		if (ret & BIT(5))
@@ -9616,11 +9616,11 @@ static int tpacpi_battery_get_id(const char *battery_name)
 	if (strcmp(battery_name, "BAT1") == 0)
 		return BAT_SECONDARY;
 	/*
-	 * If for some reason the battery is not BAT0 nor is it
+	 * If for some reason the battery is analt BAT0 analr is it
 	 * BAT1, we will assume it's the default, first battery,
 	 * AKA primary.
 	 */
-	pr_warn("unknown battery %s, assuming primary", battery_name);
+	pr_warn("unkanalwn battery %s, assuming primary", battery_name);
 	return BAT_PRIMARY;
 }
 
@@ -9640,7 +9640,7 @@ static ssize_t tpacpi_battery_store(int what,
 	 * them individually is supported, so we do that
 	 * based on the device struct.
 	 *
-	 * On systems that are not supported, we assume
+	 * On systems that are analt supported, we assume
 	 * the primary as most of the ACPI calls fail
 	 * with "Any Battery" as the parameter.
 	 */
@@ -9657,20 +9657,20 @@ static ssize_t tpacpi_battery_store(int what,
 	switch (what) {
 	case THRESHOLD_START:
 		if (!battery_info.batteries[battery].start_support)
-			return -ENODEV;
+			return -EANALDEV;
 		/* valid values are [0, 99] */
 		if (value > 99)
 			return -EINVAL;
 		if (value > battery_info.batteries[battery].charge_stop)
 			return -EINVAL;
 		if (tpacpi_battery_set(THRESHOLD_START, battery, value))
-			return -ENODEV;
+			return -EANALDEV;
 		battery_info.batteries[battery].charge_start = value;
 		return count;
 
 	case THRESHOLD_STOP:
 		if (!battery_info.batteries[battery].stop_support)
-			return -ENODEV;
+			return -EANALDEV;
 		/* valid values are [1, 100] */
 		if (value < 1 || value > 100)
 			return -EINVAL;
@@ -9707,7 +9707,7 @@ static ssize_t tpacpi_battery_show(int what,
 	 * them individually is supported, so we;
 	 * based on the device struct.
 	 *
-	 * On systems that are not supported, we assume
+	 * On systems that are analt supported, we assume
 	 * the primary as most of the ACPI calls fail
 	 * with "Any Battery" as the parameter.
 	 */
@@ -9717,7 +9717,7 @@ static ssize_t tpacpi_battery_show(int what,
 	else
 		battery = BAT_PRIMARY;
 	if (tpacpi_battery_get(what, battery, &ret))
-		return -ENODEV;
+		return -EANALDEV;
 	return sprintf(buf, "%d\n", ret);
 }
 
@@ -9749,7 +9749,7 @@ static ssize_t charge_behaviour_show(struct device *dev,
 
 	if (available & BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE)) {
 		if (tpacpi_battery_get(FORCE_DISCHARGE, battery, &ret))
-			return -ENODEV;
+			return -EANALDEV;
 		if (ret) {
 			active = POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE;
 			goto out;
@@ -9758,7 +9758,7 @@ static ssize_t charge_behaviour_show(struct device *dev,
 
 	if (available & BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE)) {
 		if (tpacpi_battery_get(INHIBIT_CHARGE, battery, &ret))
-			return -ENODEV;
+			return -EANALDEV;
 		if (ret) {
 			active = POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE;
 			goto out;
@@ -9863,9 +9863,9 @@ static int tpacpi_battery_add(struct power_supply *battery, struct acpi_battery_
 	int batteryid = tpacpi_battery_get_id(battery->desc->name);
 
 	if (tpacpi_battery_probe(batteryid))
-		return -ENODEV;
+		return -EANALDEV;
 	if (device_add_groups(&battery->dev, tpacpi_battery_groups))
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -9920,7 +9920,7 @@ static struct ibm_struct battery_driver_data = {
 };
 
 /*************************************************************************
- * LCD Shadow subdriver, for the Lenovo PrivacyGuard feature
+ * LCD Shadow subdriver, for the Leanalvo PrivacyGuard feature
  */
 
 static struct drm_privacy_screen *lcdshadow_dev;
@@ -9999,7 +9999,7 @@ static void lcdshadow_resume(void)
 static int lcdshadow_read(struct seq_file *m)
 {
 	if (!lcdshadow_dev) {
-		seq_puts(m, "status:\t\tnot supported\n");
+		seq_puts(m, "status:\t\tanalt supported\n");
 	} else {
 		seq_printf(m, "status:\t\t%d\n", lcdshadow_dev->hw_state);
 		seq_puts(m, "commands:\t0, 1\n");
@@ -10014,7 +10014,7 @@ static int lcdshadow_write(char *buf)
 	int res, state = -EINVAL;
 
 	if (!lcdshadow_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	while ((cmd = strsep(&buf, ","))) {
 		res = kstrtoint(cmd, 10, &state);
@@ -10029,7 +10029,7 @@ static int lcdshadow_write(char *buf)
 	res = lcdshadow_set_sw_state(lcdshadow_dev, state);
 	mutex_unlock(&lcdshadow_dev->lock);
 
-	drm_privacy_screen_call_notifier_chain(lcdshadow_dev);
+	drm_privacy_screen_call_analtifier_chain(lcdshadow_dev);
 
 	return res;
 }
@@ -10069,7 +10069,7 @@ static int dytc_command(int command, int *output)
 
 	if (ACPI_FAILURE(acpi_get_handle(hkey_handle, "DYTC", &dytc_handle))) {
 		/* Platform doesn't support DYTC */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (!acpi_evalf(dytc_handle, output, NULL, "dd", command))
 		return -EIO;
@@ -10097,7 +10097,7 @@ static int palmsensor_get(bool *present, bool *state)
 
 	*present = false;
 	if (ACPI_FAILURE(acpi_get_handle(hkey_handle, "GPSS", &psensor_handle)))
-		return -ENODEV;
+		return -EANALDEV;
 	if (!acpi_evalf(psensor_handle, &output, NULL, "d"))
 		return -EIO;
 
@@ -10117,7 +10117,7 @@ static void lapsensor_refresh(void)
 			return;
 		if (lap_state != state) {
 			lap_state = state;
-			sysfs_notify(&tpacpi_pdev->dev.kobj, NULL, "dytc_lapmode");
+			sysfs_analtify(&tpacpi_pdev->dev.kobj, NULL, "dytc_lapmode");
 		}
 	}
 }
@@ -10133,7 +10133,7 @@ static void palmsensor_refresh(void)
 			return;
 		if (palm_state != state) {
 			palm_state = state;
-			sysfs_notify(&tpacpi_pdev->dev.kobj, NULL, "palmsensor");
+			sysfs_analtify(&tpacpi_pdev->dev.kobj, NULL, "palmsensor");
 		}
 	}
 }
@@ -10170,7 +10170,7 @@ static umode_t proxsensor_attr_is_visible(struct kobject *kobj,
 	if (attr == &dev_attr_dytc_lapmode.attr) {
 		/*
 		 * Platforms before DYTC version 5 claim to have a lap sensor,
-		 * but it doesn't work, so we ignore them.
+		 * but it doesn't work, so we iganalre them.
 		 */
 		if (!has_lapsensor || dytc_version < 5)
 			return 0;
@@ -10193,13 +10193,13 @@ static int tpacpi_proxsensor_init(struct ibm_init_struct *iibm)
 
 	palm_err = palmsensor_get(&has_palmsensor, &palm_state);
 	lap_err = lapsensor_get(&has_lapsensor, &lap_state);
-	/* If support isn't available for both devices return -ENODEV */
-	if ((palm_err == -ENODEV) && (lap_err == -ENODEV))
-		return -ENODEV;
+	/* If support isn't available for both devices return -EANALDEV */
+	if ((palm_err == -EANALDEV) && (lap_err == -EANALDEV))
+		return -EANALDEV;
 	/* Otherwise, if there was an error return it */
-	if (palm_err && (palm_err != -ENODEV))
+	if (palm_err && (palm_err != -EANALDEV))
 		return palm_err;
-	if (lap_err && (lap_err != -ENODEV))
+	if (lap_err && (lap_err != -EANALDEV))
 		return lap_err;
 
 	return 0;
@@ -10261,7 +10261,7 @@ static int dytc_control_amt(bool enable);
 static bool dytc_amt_active;
 
 static enum platform_profile_option dytc_current_profile;
-static atomic_t dytc_ignore_event = ATOMIC_INIT(0);
+static atomic_t dytc_iganalre_event = ATOMIC_INIT(0);
 static DEFINE_MUTEX(dytc_mutex);
 static int dytc_capabilities;
 static bool dytc_mmc_get_available;
@@ -10283,7 +10283,7 @@ static int convert_dytc_to_profile(int funcmode, int dytcmode,
 		case DYTC_MODE_MMC_PERFORM:
 			*profile =  PLATFORM_PROFILE_PERFORMANCE;
 			break;
-		default: /* Unknown mode */
+		default: /* Unkanalwn mode */
 			return -EINVAL;
 		}
 		return 0;
@@ -10298,18 +10298,18 @@ static int convert_dytc_to_profile(int funcmode, int dytcmode,
 		case DYTC_MODE_PSC_PERFORM:
 			*profile =  PLATFORM_PROFILE_PERFORMANCE;
 			break;
-		default: /* Unknown mode */
+		default: /* Unkanalwn mode */
 			return -EINVAL;
 		}
 		return 0;
 	case DYTC_FUNCTION_AMT:
-		/* For now return balanced. It's the closest we have to 'auto' */
+		/* For analw return balanced. It's the closest we have to 'auto' */
 		*profile =  PLATFORM_PROFILE_BALANCED;
 		return 0;
 	default:
-		/* Unknown function */
-		pr_debug("unknown function 0x%x\n", funcmode);
-		return -EOPNOTSUPP;
+		/* Unkanalwn function */
+		pr_debug("unkanalwn function 0x%x\n", funcmode);
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -10335,8 +10335,8 @@ static int convert_profile_to_dytc(enum platform_profile_option profile, int *pe
 		else if (dytc_capabilities & BIT(DYTC_FC_PSC))
 			*perfmode = DYTC_MODE_PSC_PERFORM;
 		break;
-	default: /* Unknown profile */
-		return -EOPNOTSUPP;
+	default: /* Unkanalwn profile */
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -10360,7 +10360,7 @@ static int dytc_control_amt(bool enable)
 
 	if (!(dytc_capabilities & BIT(DYTC_FC_AMT))) {
 		pr_warn("Attempting to toggle AMT on a system that doesn't advertise support\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (enable)
@@ -10381,7 +10381,7 @@ static int dytc_control_amt(bool enable)
  *  -  disable CQL,
  *  - run the command
  *  - enable CQL
- *  If not in CQL mode, just run the command
+ *  If analt in CQL mode, just run the command
  */
 static int dytc_cql_command(int command, int *output)
 {
@@ -10399,7 +10399,7 @@ static int dytc_cql_command(int command, int *output)
 		return 0;
 
 	if (cur_funcmode == DYTC_FUNCTION_CQL) {
-		atomic_inc(&dytc_ignore_event);
+		atomic_inc(&dytc_iganalre_event);
 		err = dytc_command(DYTC_DISABLE_CQL, &dummy);
 		if (err)
 			return err;
@@ -10439,7 +10439,7 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 		if (profile == PLATFORM_PROFILE_BALANCED) {
 			/*
 			 * To get back to balanced mode we need to issue a reset command.
-			 * Note we still need to disable CQL mode before hand and re-enable
+			 * Analte we still need to disable CQL mode before hand and re-enable
 			 * it afterwards, otherwise dytc_lapmode gets reset to 0 and stays
 			 * stuck at 0 for aprox. 30 minutes.
 			 */
@@ -10486,8 +10486,8 @@ static void dytc_profile_refresh(void)
 		err = dytc_command(DYTC_CMD_GET, &output);
 		/* Check if we are PSC mode, or have AMT enabled */
 		funcmode = (output >> DYTC_GET_FUNCTION_BIT) & 0xF;
-	} else { /* Unknown profile mode */
-		err = -ENODEV;
+	} else { /* Unkanalwn profile mode */
+		err = -EANALDEV;
 	}
 	mutex_unlock(&dytc_mutex);
 	if (err)
@@ -10497,7 +10497,7 @@ static void dytc_profile_refresh(void)
 	err = convert_dytc_to_profile(funcmode, perfmode, &profile);
 	if (!err && profile != dytc_current_profile) {
 		dytc_current_profile = profile;
-		platform_profile_notify();
+		platform_profile_analtify();
 	}
 }
 
@@ -10524,7 +10524,7 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 
 	/* Check DYTC is enabled and supports mode setting */
 	if (dytc_version < 5)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check what capabilities are supported */
 	err = dytc_command(DYTC_CMD_FUNC_CAP, &dytc_capabilities);
@@ -10561,8 +10561,8 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	} else if (dytc_capabilities & BIT(DYTC_FC_PSC)) { /* PSC MODE */
 		pr_debug("PSC is supported\n");
 	} else {
-		dbg_printk(TPACPI_DBG_INIT, "No DYTC support available\n");
-		return -ENODEV;
+		dbg_printk(TPACPI_DBG_INIT, "Anal DYTC support available\n");
+		return -EANALDEV;
 	}
 
 	dbg_printk(TPACPI_DBG_INIT,
@@ -10575,7 +10575,7 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	 * don't quit terminally.
 	 */
 	if (err)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Ensure initial values are correct */
 	dytc_profile_refresh();
@@ -10635,7 +10635,7 @@ static int set_keyboard_lang_command(int command)
 
 	if (ACPI_FAILURE(acpi_get_handle(hkey_handle, "SSKL", &sskl_handle))) {
 		/* Platform doesn't support SSKL */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!acpi_evalf(sskl_handle, &output, NULL, "dd", command))
@@ -10651,18 +10651,18 @@ static int get_keyboard_lang(int *output)
 
 	if (ACPI_FAILURE(acpi_get_handle(hkey_handle, "GSKL", &gskl_handle))) {
 		/* Platform doesn't support GSKL */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!acpi_evalf(gskl_handle, &kbd_lang, NULL, "dd", 0x02000000))
 		return -EIO;
 
 	/*
-	 * METHOD_ERR gets returned on devices where there are no special (e.g. '=',
+	 * METHOD_ERR gets returned on devices where there are anal special (e.g. '=',
 	 * '(' and ')') keys which use layout dependent key-press emulation.
 	 */
 	if (kbd_lang & METHOD_ERR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*output = kbd_lang;
 
@@ -10719,14 +10719,14 @@ static ssize_t keyboard_lang_store(struct device *dev,
 		if (err)
 			return err;
 	} else {
-		dev_err(&tpacpi_pdev->dev, "Unknown Keyboard language. Ignoring\n");
+		dev_err(&tpacpi_pdev->dev, "Unkanalwn Keyboard language. Iganalring\n");
 		return -EINVAL;
 	}
 
 	tpacpi_disclose_usertask(attr->attr.name,
 			"keyboard language is set to  %s\n", buf);
 
-	sysfs_notify(&tpacpi_pdev->dev.kobj, NULL, "keyboard_lang");
+	sysfs_analtify(&tpacpi_pdev->dev.kobj, NULL, "keyboard_lang");
 
 	return count;
 }
@@ -10762,7 +10762,7 @@ static struct ibm_struct kbdlang_driver_data = {
 };
 
 /*************************************************************************
- * DPRC(Dynamic Power Reduction Control) subdriver, for the Lenovo WWAN
+ * DPRC(Dynamic Power Reduction Control) subdriver, for the Leanalvo WWAN
  * and WLAN feature.
  */
 #define DPRC_GET_WWAN_ANTENNA_TYPE      0x40000
@@ -10777,19 +10777,19 @@ static int dprc_command(int command, int *output)
 
 	if (ACPI_FAILURE(acpi_get_handle(hkey_handle, "DPRC", &dprc_handle))) {
 		/* Platform doesn't support DPRC */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!acpi_evalf(dprc_handle, output, NULL, "dd", command))
 		return -EIO;
 
 	/*
-	 * METHOD_ERR gets returned on devices where few commands are not supported
-	 * for example command to get WWAN Antenna type command is not supported on
+	 * METHOD_ERR gets returned on devices where few commands are analt supported
+	 * for example command to get WWAN Antenna type command is analt supported on
 	 * some devices.
 	 */
 	if (*output & METHOD_ERR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -10808,7 +10808,7 @@ static int get_wwan_antenna(int *wwan_antennatype)
 	else if (output & DPRC_WWAN_ANTENNA_TYPE_B_BIT)
 		*wwan_antennatype = 2;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -10824,7 +10824,7 @@ static ssize_t wwan_antenna_type_show(struct device *dev,
 	case 2:
 		return sysfs_emit(buf, "type b\n");
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 }
 static DEVICE_ATTR_RO(wwan_antenna_type);
@@ -10887,7 +10887,7 @@ static int auxmac_init(struct ibm_init_struct *iibm)
 	status = acpi_evaluate_object(NULL, "\\MACA", NULL, &buffer);
 
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	obj = buffer.pointer;
 
@@ -11053,7 +11053,7 @@ static struct platform_driver tpacpi_hwmon_pdriver = {
 
 /*
  * HKEY event callout for other subdrivers go here
- * (yes, it is ugly, but it is quick, safe, and gets the job done
+ * (anal, it is ugly, but it is quick, safe, and gets the job done
  */
 static void tpacpi_driver_event(const unsigned int hkey_event)
 {
@@ -11061,7 +11061,7 @@ static void tpacpi_driver_event(const unsigned int hkey_event)
 		switch (hkey_event) {
 		case TP_HKEY_EV_BRGHT_UP:
 		case TP_HKEY_EV_BRGHT_DOWN:
-			tpacpi_brightness_notify_change();
+			tpacpi_brightness_analtify_change();
 		}
 	}
 	if (alsa_card) {
@@ -11069,7 +11069,7 @@ static void tpacpi_driver_event(const unsigned int hkey_event)
 		case TP_HKEY_EV_VOL_UP:
 		case TP_HKEY_EV_VOL_DOWN:
 		case TP_HKEY_EV_VOL_MUTE:
-			volume_alsa_notify_change();
+			volume_alsa_analtify_change();
 		}
 	}
 	if (tp_features.kbdlight && hkey_event == TP_HKEY_EV_KBD_LIGHT) {
@@ -11084,7 +11084,7 @@ static void tpacpi_driver_event(const unsigned int hkey_event)
 		brightness = kbdlight_sysfs_get(NULL);
 		if (kbdlight_brightness != brightness) {
 			kbdlight_brightness = brightness;
-			led_classdev_notify_brightness_hw_changed(
+			led_classdev_analtify_brightness_hw_changed(
 				&tpacpi_led_kbdlight.led_classdev, brightness);
 		}
 
@@ -11094,7 +11094,7 @@ static void tpacpi_driver_event(const unsigned int hkey_event)
 	if (hkey_event == TP_HKEY_EV_THM_CSM_COMPLETED) {
 		lapsensor_refresh();
 		/* If we are already accessing DYTC then skip dytc update */
-		if (!atomic_add_unless(&dytc_ignore_event, -1, 0))
+		if (!atomic_add_unless(&dytc_iganalre_event, -1, 0))
 			dytc_profile_refresh();
 	}
 
@@ -11109,7 +11109,7 @@ static void tpacpi_driver_event(const unsigned int hkey_event)
 		mutex_unlock(&lcdshadow_dev->lock);
 
 		if (changed)
-			drm_privacy_screen_call_notifier_chain(lcdshadow_dev);
+			drm_privacy_screen_call_analtifier_chain(lcdshadow_dev);
 	}
 	if (hkey_event == TP_HKEY_EV_AMT_TOGGLE) {
 		/* If we're enabling AMT we need to force balanced mode */
@@ -11141,7 +11141,7 @@ static bool force_load;
 #ifdef CONFIG_THINKPAD_ACPI_DEBUG
 static const char * __init str_supported(int is_supported)
 {
-	static char text_unsupported[] __initdata = "not supported";
+	static char text_unsupported[] __initdata = "analt supported";
 
 	return (is_supported) ? &text_unsupported[4] : &text_unsupported[0];
 }
@@ -11153,14 +11153,14 @@ static void ibm_exit(struct ibm_struct *ibm)
 
 	list_del_init(&ibm->all_drivers);
 
-	if (ibm->flags.acpi_notify_installed) {
+	if (ibm->flags.acpi_analtify_installed) {
 		dbg_printk(TPACPI_DBG_EXIT,
-			"%s: acpi_remove_notify_handler\n", ibm->name);
+			"%s: acpi_remove_analtify_handler\n", ibm->name);
 		BUG_ON(!ibm->acpi);
-		acpi_remove_notify_handler(*ibm->acpi->handle,
+		acpi_remove_analtify_handler(*ibm->acpi->handle,
 					   ibm->acpi->type,
-					   dispatch_acpi_notify);
-		ibm->flags.acpi_notify_installed = 0;
+					   dispatch_acpi_analtify);
+		ibm->flags.acpi_analtify_installed = 0;
 	}
 
 	if (ibm->flags.proc_created) {
@@ -11206,8 +11206,8 @@ static int __init ibm_init(struct ibm_init_struct *iibm)
 
 	if (iibm->init) {
 		ret = iibm->init(iibm);
-		if (ret > 0 || ret == -ENODEV)
-			return 0; /* subdriver functionality not available */
+		if (ret > 0 || ret == -EANALDEV)
+			return 0; /* subdriver functionality analt available */
 		if (ret)
 			return ret;
 
@@ -11221,10 +11221,10 @@ static int __init ibm_init(struct ibm_init_struct *iibm)
 				goto err_out;
 		}
 
-		if (ibm->acpi->notify) {
-			ret = setup_acpi_notify(ibm);
-			if (ret == -ENODEV) {
-				pr_notice("disabling subdriver %s\n",
+		if (ibm->acpi->analtify) {
+			ret = setup_acpi_analtify(ibm);
+			if (ret == -EANALDEV) {
+				pr_analtice("disabling subdriver %s\n",
 					  ibm->name);
 				ret = 0;
 				goto err_out;
@@ -11248,7 +11248,7 @@ static int __init ibm_init(struct ibm_init_struct *iibm)
 					 &dispatch_proc_ops, ibm);
 		if (!entry) {
 			pr_err("unable to create proc entry %s\n", ibm->name);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_out;
 		}
 		ibm->flags.proc_created = 1;
@@ -11316,7 +11316,7 @@ static void find_new_ec_fwstr(const struct dmi_header *dm, void *private)
 	 *  0x00  | Type                 | BYTE   | 0x8C
 	 *  0x01  | Length               | BYTE   |
 	 *  0x02  | Handle               | WORD   | Varies
-	 *  0x04  | Signature            | BYTEx6 | ASCII for "LENOVO"
+	 *  0x04  | Signature            | BYTEx6 | ASCII for "LEANALVO"
 	 *  0x0A  | OEM struct offset    | BYTE   | 0x0B
 	 *  0x0B  | OEM struct number    | BYTE   | 0x07, for this structure
 	 *  0x0C  | OEM struct revision  | BYTE   | 0x01, for this format
@@ -11324,9 +11324,9 @@ static void find_new_ec_fwstr(const struct dmi_header *dm, void *private)
 	 *  0x0E  | ECP release date     | STR ID |
 	 */
 
-	/* Return if data structure not match */
+	/* Return if data structure analt match */
 	if (dm->type != 140 || dm->length < 0x0F ||
-	memcmp(dmi_data + 4, "LENOVO", 6) != 0 ||
+	memcmp(dmi_data + 4, "LEANALVO", 6) != 0 ||
 	dmi_data[0x0A] != 0x0B || dmi_data[0x0B] != 0x07 ||
 	dmi_data[0x0C] != 0x01)
 		return;
@@ -11338,7 +11338,7 @@ static void find_new_ec_fwstr(const struct dmi_header *dm, void *private)
 
 /* returns 0 - probe ok, or < 0 - probe error.
  * Probe ok doesn't mean thinkpad found.
- * On error, kfree() cleanup on tp->* is not performed, caller must do it */
+ * On error, kfree() cleanup on tp->* is analt performed, caller must do it */
 static int __must_check __init get_thinkpad_model_data(
 						struct thinkpad_id_data *tp)
 {
@@ -11354,15 +11354,15 @@ static int __must_check __init get_thinkpad_model_data(
 
 	if (dmi_name_in_vendors("IBM"))
 		tp->vendor = PCI_VENDOR_ID_IBM;
-	else if (dmi_name_in_vendors("LENOVO"))
-		tp->vendor = PCI_VENDOR_ID_LENOVO;
+	else if (dmi_name_in_vendors("LEANALVO"))
+		tp->vendor = PCI_VENDOR_ID_LEANALVO;
 	else
 		return 0;
 
 	s = dmi_get_system_info(DMI_BIOS_VERSION);
 	tp->bios_version_str = kstrdup(s, GFP_KERNEL);
 	if (s && !tp->bios_version_str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Really ancient ThinkPad 240X will fail this, which is fine */
 	t = tpacpi_parse_fw_id(tp->bios_version_str,
@@ -11373,7 +11373,7 @@ static int __must_check __init get_thinkpad_model_data(
 	/*
 	 * ThinkPad T23 or newer, A31 or newer, R50e or newer,
 	 * X32 or newer, all Z series;  Some models must have an
-	 * up-to-date BIOS or they will not be detected.
+	 * up-to-date BIOS or they will analt be detected.
 	 *
 	 * See https://thinkwiki.org/wiki/List_of_DMI_IDs
 	 */
@@ -11394,35 +11394,35 @@ static int __must_check __init get_thinkpad_model_data(
 	if (ec_fw_string[0]) {
 		tp->ec_version_str = kstrdup(ec_fw_string, GFP_KERNEL);
 		if (!tp->ec_version_str)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		t = tpacpi_parse_fw_id(ec_fw_string,
 			 &tp->ec_model, &tp->ec_release);
 		if (t != 'H') {
-			pr_notice("ThinkPad firmware release %s doesn't match the known patterns\n",
+			pr_analtice("ThinkPad firmware release %s doesn't match the kanalwn patterns\n",
 				  ec_fw_string);
-			pr_notice("please report this to %s\n", TPACPI_MAIL);
+			pr_analtice("please report this to %s\n", TPACPI_MAIL);
 		}
 	}
 
 	s = dmi_get_system_info(DMI_PRODUCT_VERSION);
-	if (s && !(strncasecmp(s, "ThinkPad", 8) && strncasecmp(s, "Lenovo", 6))) {
+	if (s && !(strncasecmp(s, "ThinkPad", 8) && strncasecmp(s, "Leanalvo", 6))) {
 		tp->model_str = kstrdup(s, GFP_KERNEL);
 		if (!tp->model_str)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		s = dmi_get_system_info(DMI_BIOS_VENDOR);
-		if (s && !(strncasecmp(s, "Lenovo", 6))) {
+		if (s && !(strncasecmp(s, "Leanalvo", 6))) {
 			tp->model_str = kstrdup(s, GFP_KERNEL);
 			if (!tp->model_str)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 
 	s = dmi_get_system_info(DMI_PRODUCT_NAME);
 	tp->nummodel_str = kstrdup(s, GFP_KERNEL);
 	if (s && !tp->nummodel_str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -11432,30 +11432,30 @@ static int __init probe_for_thinkpad(void)
 	int is_thinkpad;
 
 	if (acpi_disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* It would be dangerous to run the driver in this case */
-	if (!tpacpi_is_ibm() && !tpacpi_is_lenovo())
-		return -ENODEV;
+	if (!tpacpi_is_ibm() && !tpacpi_is_leanalvo())
+		return -EANALDEV;
 
 	/*
-	 * Non-ancient models have better DMI tagging, but very old models
-	 * don't.  tpacpi_is_fw_known() is a cheat to help in that case.
+	 * Analn-ancient models have better DMI tagging, but very old models
+	 * don't.  tpacpi_is_fw_kanalwn() is a cheat to help in that case.
 	 */
 	is_thinkpad = (thinkpad_id.model_str != NULL) ||
 		      (thinkpad_id.ec_model != 0) ||
-		      tpacpi_is_fw_known();
+		      tpacpi_is_fw_kanalwn();
 
 	/* The EC handler is required */
 	tpacpi_acpi_handle_locate("ec", TPACPI_ACPI_EC_HID, &ec_handle);
 	if (!ec_handle) {
 		if (is_thinkpad)
-			pr_err("Not yet supported ThinkPad detected!\n");
-		return -ENODEV;
+			pr_err("Analt yet supported ThinkPad detected!\n");
+		return -EANALDEV;
 	}
 
 	if (!is_thinkpad && !force_load)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -11467,9 +11467,9 @@ static void __init thinkpad_acpi_init_banner(void)
 
 	pr_info("ThinkPad BIOS %s, EC %s\n",
 		(thinkpad_id.bios_version_str) ?
-			thinkpad_id.bios_version_str : "unknown",
+			thinkpad_id.bios_version_str : "unkanalwn",
 		(thinkpad_id.ec_version_str) ?
-			thinkpad_id.ec_version_str : "unknown");
+			thinkpad_id.ec_version_str : "unkanalwn");
 
 	BUG_ON(!thinkpad_id.vendor);
 
@@ -11477,11 +11477,11 @@ static void __init thinkpad_acpi_init_banner(void)
 		pr_info("%s %s, model %s\n",
 			(thinkpad_id.vendor == PCI_VENDOR_ID_IBM) ?
 				"IBM" : ((thinkpad_id.vendor ==
-						PCI_VENDOR_ID_LENOVO) ?
-					"Lenovo" : "Unknown vendor"),
+						PCI_VENDOR_ID_LEANALVO) ?
+					"Leanalvo" : "Unkanalwn vendor"),
 			thinkpad_id.model_str,
 			(thinkpad_id.nummodel_str) ?
-				thinkpad_id.nummodel_str : "unknown");
+				thinkpad_id.nummodel_str : "unkanalwn");
 }
 
 /* Module init, exit, parameters */
@@ -11598,7 +11598,7 @@ static int __init set_ibm_param(const char *val, const struct kernel_param *kp)
 
 		if (strcmp(ibm->name, kp->name) == 0 && ibm->write) {
 			if (strlen(val) > sizeof(ibms_init[i].param) - 1)
-				return -ENOSPC;
+				return -EANALSPC;
 			strcpy(ibms_init[i].param, val);
 			return 0;
 		}
@@ -11609,7 +11609,7 @@ static int __init set_ibm_param(const char *val, const struct kernel_param *kp)
 
 module_param(experimental, int, 0444);
 MODULE_PARM_DESC(experimental,
-		 "Enables experimental features when non-zero");
+		 "Enables experimental features when analn-zero");
 
 module_param_named(debug, dbg_level, uint, 0);
 MODULE_PARM_DESC(debug, "Sets debug level bit-mask");
@@ -11778,7 +11778,7 @@ static int __init thinkpad_acpi_module_init(void)
 
 	/*
 	 * Quirk: in some models (e.g. X380 Yoga), an object named ECRD
-	 * exists, but it is a register, not a method.
+	 * exists, but it is a register, analt a method.
 	 */
 	if (ecrd_handle) {
 		acpi_get_type(ecrd_handle, &obj_type);
@@ -11794,14 +11794,14 @@ static int __init thinkpad_acpi_module_init(void)
 	tpacpi_wq = create_singlethread_workqueue(TPACPI_WORKQUEUE_NAME);
 	if (!tpacpi_wq) {
 		thinkpad_acpi_module_exit();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	proc_dir = proc_mkdir(TPACPI_PROC_DIR, acpi_root_dir);
 	if (!proc_dir) {
 		pr_err("unable to create proc dir " TPACPI_PROC_DIR "\n");
 		thinkpad_acpi_module_exit();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dmi_id = dmi_first_match(fwbug_list);
@@ -11809,7 +11809,7 @@ static int __init thinkpad_acpi_module_init(void)
 		tp_features.quirks = dmi_id->driver_data;
 
 	/* Device initialization */
-	tpacpi_pdev = platform_device_register_simple(TPACPI_DRVR_NAME, PLATFORM_DEVID_NONE,
+	tpacpi_pdev = platform_device_register_simple(TPACPI_DRVR_NAME, PLATFORM_DEVID_ANALNE,
 							NULL, 0);
 	if (IS_ERR(tpacpi_pdev)) {
 		ret = PTR_ERR(tpacpi_pdev);
@@ -11820,7 +11820,7 @@ static int __init thinkpad_acpi_module_init(void)
 	}
 	tpacpi_sensors_pdev = platform_device_register_simple(
 						TPACPI_HWMON_DRVR_NAME,
-						PLATFORM_DEVID_NONE, NULL, 0);
+						PLATFORM_DEVID_ANALNE, NULL, 0);
 	if (IS_ERR(tpacpi_sensors_pdev)) {
 		ret = PTR_ERR(tpacpi_sensors_pdev);
 		tpacpi_sensors_pdev = NULL;
@@ -11833,7 +11833,7 @@ static int __init thinkpad_acpi_module_init(void)
 	tpacpi_inputdev = input_allocate_device();
 	if (!tpacpi_inputdev) {
 		thinkpad_acpi_module_exit();
-		return -ENOMEM;
+		return -EANALMEM;
 	} else {
 		/* Prepare input device, but don't register */
 		tpacpi_inputdev->name = "ThinkPad Extra Buttons";
@@ -11917,7 +11917,7 @@ MODULE_DEVICE_TABLE(acpi, ibm_htk_device_ids);
  * See https://thinkwiki.org/wiki/BIOS_Upgrade_Downloads
  *
  * Only models listed in thinkwiki will be supported, so add yours
- * if it is not there yet.
+ * if it is analt there yet.
  */
 #define IBM_BIOS_MODULE_ALIAS(__type) \
 	MODULE_ALIAS("dmi:bvnIBM:bvr" __type "ET??WW*")
@@ -11927,7 +11927,7 @@ MODULE_DEVICE_TABLE(acpi, ibm_htk_device_ids);
  * BIOS types than model numbers... */
 IBM_BIOS_MODULE_ALIAS("I[MU]");		/* 570, 570e */
 
-MODULE_AUTHOR("Borislav Deianov <borislav@users.sf.net>");
+MODULE_AUTHOR("Borislav Deiaanalv <borislav@users.sf.net>");
 MODULE_AUTHOR("Henrique de Moraes Holschuh <hmh@hmh.eng.br>");
 MODULE_DESCRIPTION(TPACPI_DESC);
 MODULE_VERSION(TPACPI_VERSION);

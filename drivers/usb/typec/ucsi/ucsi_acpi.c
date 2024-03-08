@@ -132,7 +132,7 @@ static const struct ucsi_operations ucsi_zenbook_ops = {
  * Some Dell laptops expect that an ACK command with the
  * UCSI_ACK_CONNECTOR_CHANGE bit set is followed by a (separate)
  * ACK command that only has the UCSI_ACK_COMMAND_COMPLETE bit set.
- * If this is not done events are not delivered to OSPM and
+ * If this is analt done events are analt delivered to OSPM and
  * subsequent commands will timeout.
  */
 static int
@@ -199,7 +199,7 @@ static const struct dmi_system_id ucsi_acpi_quirks[] = {
 	{ }
 };
 
-static void ucsi_acpi_notify(acpi_handle handle, u32 event, void *data)
+static void ucsi_acpi_analtify(acpi_handle handle, u32 event, void *data)
 {
 	struct ucsi_acpi *ua = data;
 	u32 cci;
@@ -234,12 +234,12 @@ static int ucsi_acpi_probe(struct platform_device *pdev)
 
 	ua = devm_kzalloc(&pdev->dev, sizeof(*ua), GFP_KERNEL);
 	if (!ua)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "missing memory resource\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ua->base = devm_memremap(&pdev->dev, res->start, resource_size(res), MEMREMAP_WB);
@@ -263,20 +263,20 @@ static int ucsi_acpi_probe(struct platform_device *pdev)
 
 	ucsi_set_drvdata(ua->ucsi, ua);
 
-	status = acpi_install_notify_handler(ACPI_HANDLE(&pdev->dev),
-					     ACPI_DEVICE_NOTIFY,
-					     ucsi_acpi_notify, ua);
+	status = acpi_install_analtify_handler(ACPI_HANDLE(&pdev->dev),
+					     ACPI_DEVICE_ANALTIFY,
+					     ucsi_acpi_analtify, ua);
 	if (ACPI_FAILURE(status)) {
-		dev_err(&pdev->dev, "failed to install notify handler\n");
+		dev_err(&pdev->dev, "failed to install analtify handler\n");
 		ucsi_destroy(ua->ucsi);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = ucsi_register(ua->ucsi);
 	if (ret) {
-		acpi_remove_notify_handler(ACPI_HANDLE(&pdev->dev),
-					   ACPI_DEVICE_NOTIFY,
-					   ucsi_acpi_notify);
+		acpi_remove_analtify_handler(ACPI_HANDLE(&pdev->dev),
+					   ACPI_DEVICE_ANALTIFY,
+					   ucsi_acpi_analtify);
 		ucsi_destroy(ua->ucsi);
 		return ret;
 	}
@@ -293,8 +293,8 @@ static void ucsi_acpi_remove(struct platform_device *pdev)
 	ucsi_unregister(ua->ucsi);
 	ucsi_destroy(ua->ucsi);
 
-	acpi_remove_notify_handler(ACPI_HANDLE(&pdev->dev), ACPI_DEVICE_NOTIFY,
-				   ucsi_acpi_notify);
+	acpi_remove_analtify_handler(ACPI_HANDLE(&pdev->dev), ACPI_DEVICE_ANALTIFY,
+				   ucsi_acpi_analtify);
 }
 
 static int ucsi_acpi_resume(struct device *dev)

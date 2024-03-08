@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* OMAP SSI port driver.
  *
- * Copyright (C) 2010 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2010 Analkia Corporation. All rights reserved.
  * Copyright (C) 2014 Sebastian Reichel <sre@kernel.org>
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@analkia.com>
  */
 
 #include <linux/mod_devicetable.h>
@@ -378,7 +378,7 @@ static int ssi_async(struct hsi_msg *msg)
 	BUG_ON(!msg);
 
 	if (msg->sgt.nents > 1)
-		return -ENOSYS; /* TODO: Add sg support */
+		return -EANALSYS; /* TODO: Add sg support */
 
 	if (msg->break_frame)
 		return ssi_async_break(msg);
@@ -427,14 +427,14 @@ static u32 ssi_calculate_div(struct hsi_controller *ssi)
 
 static void ssi_flush_queue(struct list_head *queue, struct hsi_client *cl)
 {
-	struct list_head *node, *tmp;
+	struct list_head *analde, *tmp;
 	struct hsi_msg *msg;
 
-	list_for_each_safe(node, tmp, queue) {
-		msg = list_entry(node, struct hsi_msg, link);
+	list_for_each_safe(analde, tmp, queue) {
+		msg = list_entry(analde, struct hsi_msg, link);
 		if ((cl) && (cl != msg->cl))
 			continue;
-		list_del(node);
+		list_del(analde);
 		pr_debug("flush queue: ch %d, msg %p len %d type %d ctxt %p\n",
 			msg->channel, msg, msg->sgt.sgl->length,
 					msg->ttype, msg->context);
@@ -770,7 +770,7 @@ static int ssi_release(struct hsi_client *cl)
 	spin_lock_bh(&omap_port->lock);
 	/* Stop all the pending DMA requests for that client */
 	ssi_cleanup_gdd(ssi, cl);
-	/* Now cleanup all the queues */
+	/* Analw cleanup all the queues */
 	ssi_cleanup_queues(cl);
 	/* If it is the last client of the port, do extra checks and cleanup */
 	if (port->claimed <= 1) {
@@ -811,7 +811,7 @@ static void ssi_error(struct hsi_port *port)
 	err = readl(omap_port->ssr_base + SSI_SSR_ERROR_REG);
 	dev_err(&port->device, "SSI error: 0x%02x\n", err);
 	if (!err) {
-		dev_dbg(&port->device, "spurious SSI error ignored!\n");
+		dev_dbg(&port->device, "spurious SSI error iganalred!\n");
 		return;
 	}
 	spin_lock(&omap_ssi->lock);
@@ -847,7 +847,7 @@ static void ssi_error(struct hsi_port *port)
 		msg->status = HSI_STATUS_ERROR;
 		spin_unlock(&omap_port->lock);
 		msg->complete(msg);
-		/* Now restart queued reads if any */
+		/* Analw restart queued reads if any */
 		ssi_transfer(omap_port, &omap_port->rxqueue[i]);
 		spin_lock(&omap_port->lock);
 	}
@@ -1118,7 +1118,7 @@ static int ssi_port_get_iomem(struct platform_device *pd,
 
 static int ssi_port_probe(struct platform_device *pd)
 {
-	struct device_node *np = pd->dev.of_node;
+	struct device_analde *np = pd->dev.of_analde;
 	struct hsi_port *port;
 	struct omap_ssi_port *omap_port;
 	struct hsi_controller *ssi = dev_get_drvdata(pd->dev.parent);
@@ -1130,8 +1130,8 @@ static int ssi_port_probe(struct platform_device *pd)
 	dev_dbg(&pd->dev, "init ssi port...\n");
 
 	if (!ssi->port || !omap_ssi->port) {
-		dev_err(&pd->dev, "ssi controller not initialized!\n");
-		err = -ENODEV;
+		dev_err(&pd->dev, "ssi controller analt initialized!\n");
+		err = -EANALDEV;
 		goto error;
 	}
 
@@ -1142,7 +1142,7 @@ static int ssi_port_probe(struct platform_device *pd)
 
 	if (port_id >= ssi->num_ports) {
 		dev_err(&pd->dev, "port id out of range!\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto error;
 	}
 
@@ -1163,7 +1163,7 @@ static int ssi_port_probe(struct platform_device *pd)
 
 	omap_port = devm_kzalloc(&port->device, sizeof(*omap_port), GFP_KERNEL);
 	if (!omap_port) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 	omap_port->wake_gpio = cawake_gpio;

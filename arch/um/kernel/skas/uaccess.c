@@ -234,7 +234,7 @@ EXPORT_SYMBOL(strnlen_user);
 /**
  * arch_futex_atomic_op_inuser() - Atomic arithmetic operation with constant
  *			  argument and comparison of the previous
- *			  futex value with another constant.
+ *			  futex value with aanalther constant.
  *
  * @op:		operation to execute
  * @oparg:	argument to operation
@@ -245,7 +245,7 @@ EXPORT_SYMBOL(strnlen_user);
  * 0 - On success
  * -EFAULT - User access resulted in a page fault
  * -EAGAIN - Atomic operation was unable to complete due to contention
- * -ENOSYS - Operation not supported
+ * -EANALSYS - Operation analt supported
  */
 
 int arch_futex_atomic_op_inuser(int op, u32 oparg, int *oval, u32 __user *uaddr)
@@ -294,7 +294,7 @@ int arch_futex_atomic_op_inuser(int op, u32 oparg, int *oval, u32 __user *uaddr)
 		*uaddr ^= oparg;
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 	}
 #ifdef CONFIG_64BIT
 	pagefault_enable();

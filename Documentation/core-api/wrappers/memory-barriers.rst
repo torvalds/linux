@@ -8,11 +8,11 @@ Linux kernel memory barriers
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. include:: ../../memory-barriers.txt
    :literal:
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize

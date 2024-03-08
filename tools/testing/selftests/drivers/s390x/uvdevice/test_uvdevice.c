@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
@@ -42,7 +42,7 @@ FIXTURE_SETUP(uvio_fixture)
 	self->uvio_ioctl.argument_addr = (__u64)self->buffer;
 	self->uvio_ioctl.argument_len = variant->arg_size;
 	self->fault_page =
-		(__u64)mmap(NULL, (size_t)getpagesize(), PROT_NONE, MAP_ANONYMOUS, -1, 0);
+		(__u64)mmap(NULL, (size_t)getpagesize(), PROT_ANALNE, MAP_AANALNYMOUS, -1, 0);
 }
 
 FIXTURE_TEARDOWN(uvio_fixture)
@@ -54,34 +54,34 @@ FIXTURE_TEARDOWN(uvio_fixture)
 
 TEST_F(uvio_fixture, fault_ioctl_arg)
 {
-	int rc, errno_cache;
+	int rc, erranal_cache;
 
 	rc = ioctl(self->uv_fd, variant->ioctl_cmd, NULL);
-	errno_cache = errno;
+	erranal_cache = erranal;
 	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_cache, EFAULT);
+	ASSERT_EQ(erranal_cache, EFAULT);
 
 	rc = ioctl(self->uv_fd, variant->ioctl_cmd, self->fault_page);
-	errno_cache = errno;
+	erranal_cache = erranal;
 	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_cache, EFAULT);
+	ASSERT_EQ(erranal_cache, EFAULT);
 }
 
 TEST_F(uvio_fixture, fault_uvio_arg)
 {
-	int rc, errno_cache;
+	int rc, erranal_cache;
 
 	self->uvio_ioctl.argument_addr = 0;
 	rc = ioctl(self->uv_fd, variant->ioctl_cmd, &self->uvio_ioctl);
-	errno_cache = errno;
+	erranal_cache = erranal;
 	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_cache, EFAULT);
+	ASSERT_EQ(erranal_cache, EFAULT);
 
 	self->uvio_ioctl.argument_addr = self->fault_page;
 	rc = ioctl(self->uv_fd, variant->ioctl_cmd, &self->uvio_ioctl);
-	errno_cache = errno;
+	erranal_cache = erranal;
 	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_cache, EFAULT);
+	ASSERT_EQ(erranal_cache, EFAULT);
 }
 
 /*
@@ -90,33 +90,33 @@ TEST_F(uvio_fixture, fault_uvio_arg)
  */
 TEST_F(uvio_fixture, inval_ioctl_cb)
 {
-	int rc, errno_cache;
+	int rc, erranal_cache;
 
 	self->uvio_ioctl.argument_len = 0;
 	rc = ioctl(self->uv_fd, variant->ioctl_cmd, &self->uvio_ioctl);
-	errno_cache = errno;
+	erranal_cache = erranal;
 	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_cache, EINVAL);
+	ASSERT_EQ(erranal_cache, EINVAL);
 
 	self->uvio_ioctl.argument_len = (uint32_t)-1;
 	rc = ioctl(self->uv_fd, variant->ioctl_cmd, &self->uvio_ioctl);
-	errno_cache = errno;
+	erranal_cache = erranal;
 	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_cache, EINVAL);
+	ASSERT_EQ(erranal_cache, EINVAL);
 	self->uvio_ioctl.argument_len = variant->arg_size;
 
 	self->uvio_ioctl.flags = (uint32_t)-1;
 	rc = ioctl(self->uv_fd, variant->ioctl_cmd, &self->uvio_ioctl);
-	errno_cache = errno;
+	erranal_cache = erranal;
 	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_cache, EINVAL);
+	ASSERT_EQ(erranal_cache, EINVAL);
 	self->uvio_ioctl.flags = 0;
 
 	memset(self->uvio_ioctl.reserved14, 0xff, sizeof(self->uvio_ioctl.reserved14));
 	rc = ioctl(self->uv_fd, variant->ioctl_cmd, &self->uvio_ioctl);
-	errno_cache = errno;
+	erranal_cache = erranal;
 	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_cache, EINVAL);
+	ASSERT_EQ(erranal_cache, EINVAL);
 
 	memset(&self->uvio_ioctl, 0x11, sizeof(self->uvio_ioctl));
 	rc = ioctl(self->uv_fd, variant->ioctl_cmd, &self->uvio_ioctl);
@@ -125,7 +125,7 @@ TEST_F(uvio_fixture, inval_ioctl_cb)
 
 TEST_F(uvio_fixture, inval_ioctl_cmd)
 {
-	int rc, errno_cache;
+	int rc, erranal_cache;
 	uint8_t nr = _IOC_NR(variant->ioctl_cmd);
 	unsigned long cmds[] = {
 		_IOWR('a', nr, struct uvio_ioctl_cb),
@@ -137,9 +137,9 @@ TEST_F(uvio_fixture, inval_ioctl_cmd)
 
 	for (size_t i = 0; i < ARRAY_SIZE(cmds); i++) {
 		rc = ioctl(self->uv_fd, cmds[i], &self->uvio_ioctl);
-		errno_cache = errno;
+		erranal_cache = erranal;
 		ASSERT_EQ(rc, -1);
-		ASSERT_EQ(errno_cache, ENOTTY);
+		ASSERT_EQ(erranal_cache, EANALTTY);
 	}
 }
 
@@ -173,7 +173,7 @@ FIXTURE_SETUP(attest_fixture)
 	self->uvio_attest.add_data_addr = (__u64)&self->attest_buffer.add;
 	self->uvio_attest.add_data_len = sizeof(self->attest_buffer.add);
 	self->fault_page =
-		(__u64)mmap(NULL, (size_t)getpagesize(), PROT_NONE, MAP_ANONYMOUS, -1, 0);
+		(__u64)mmap(NULL, (size_t)getpagesize(), PROT_ANALNE, MAP_AANALNYMOUS, -1, 0);
 }
 
 FIXTURE_TEARDOWN(attest_fixture)
@@ -187,21 +187,21 @@ static void att_inval_sizes_test(uint32_t *size, uint32_t max_size, bool test_ze
 				 struct __test_metadata *_metadata,
 				 FIXTURE_DATA(attest_fixture) *self)
 {
-	int rc, errno_cache;
+	int rc, erranal_cache;
 	uint32_t tmp = *size;
 
 	if (test_zero) {
 		*size = 0;
 		rc = ioctl(self->uv_fd, UVIO_IOCTL_ATT, &self->uvio_ioctl);
-		errno_cache = errno;
+		erranal_cache = erranal;
 		ASSERT_EQ(rc, -1);
-		ASSERT_EQ(errno_cache, EINVAL);
+		ASSERT_EQ(erranal_cache, EINVAL);
 	}
 	*size = max_size + 1;
 	rc = ioctl(self->uv_fd, UVIO_IOCTL_ATT, &self->uvio_ioctl);
-	errno_cache = errno;
+	erranal_cache = erranal;
 	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_cache, EINVAL);
+	ASSERT_EQ(erranal_cache, EINVAL);
 	*size = tmp;
 }
 
@@ -211,7 +211,7 @@ static void att_inval_sizes_test(uint32_t *size, uint32_t max_size, bool test_ze
  */
 TEST_F(attest_fixture, att_inval_request)
 {
-	int rc, errno_cache;
+	int rc, erranal_cache;
 
 	att_inval_sizes_test(&self->uvio_attest.add_data_len, UVIO_ATT_ADDITIONAL_MAX_LEN,
 			     false, _metadata, self);
@@ -222,9 +222,9 @@ TEST_F(attest_fixture, att_inval_request)
 
 	self->uvio_attest.reserved136 = (uint16_t)-1;
 	rc = ioctl(self->uv_fd, UVIO_IOCTL_ATT, &self->uvio_ioctl);
-	errno_cache = errno;
+	erranal_cache = erranal;
 	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_cache, EINVAL);
+	ASSERT_EQ(erranal_cache, EINVAL);
 
 	memset(&self->uvio_attest, 0x11, sizeof(self->uvio_attest));
 	rc = ioctl(self->uv_fd, UVIO_IOCTL_ATT, &self->uvio_ioctl);
@@ -234,19 +234,19 @@ TEST_F(attest_fixture, att_inval_request)
 static void att_inval_addr_test(__u64 *addr, struct __test_metadata *_metadata,
 				FIXTURE_DATA(attest_fixture) *self)
 {
-	int rc, errno_cache;
+	int rc, erranal_cache;
 	__u64 tmp = *addr;
 
 	*addr = 0;
 	rc = ioctl(self->uv_fd, UVIO_IOCTL_ATT, &self->uvio_ioctl);
-	errno_cache = errno;
+	erranal_cache = erranal;
 	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_cache, EFAULT);
+	ASSERT_EQ(erranal_cache, EFAULT);
 	*addr = self->fault_page;
 	rc = ioctl(self->uv_fd, UVIO_IOCTL_ATT, &self->uvio_ioctl);
-	errno_cache = errno;
+	erranal_cache = erranal;
 	ASSERT_EQ(rc, -1);
-	ASSERT_EQ(errno_cache, EFAULT);
+	ASSERT_EQ(erranal_cache, EFAULT);
 	*addr = tmp;
 }
 
@@ -268,7 +268,7 @@ int main(int argc, char **argv)
 	int fd = open(UV_PATH, O_ACCMODE);
 
 	if (fd < 0)
-		ksft_exit_skip("No uv-device or cannot access " UV_PATH  "\n"
+		ksft_exit_skip("Anal uv-device or cananalt access " UV_PATH  "\n"
 			       "Enable CONFIG_S390_UV_UAPI and check the access rights on "
 			       UV_PATH ".\n");
 	close(fd);

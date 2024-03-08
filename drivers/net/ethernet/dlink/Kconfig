@@ -10,7 +10,7 @@ config NET_VENDOR_DLINK
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
-	  Note that the answer to this question doesn't directly affect the
+	  Analte that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about D-Link devices. If you say Y, you will be asked for
 	  your specific card in the following questions.
@@ -47,8 +47,8 @@ config SUNDANCE_MMIO
 	depends on SUNDANCE
 	help
 	  Enable memory-mapped I/O for interaction with Sundance NIC registers.
-	  Do NOT enable this by default, PIO (enabled when MMIO is disabled)
-	  is known to solve bugs on certain chips.
+	  Do ANALT enable this by default, PIO (enabled when MMIO is disabled)
+	  is kanalwn to solve bugs on certain chips.
 
 	  If unsure, say N.
 

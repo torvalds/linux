@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef __ASM_PERCPU_H
 #define __ASM_PERCPU_H
@@ -156,9 +156,9 @@ static __always_inline unsigned long __percpu_xchg(void *ptr, unsigned long val,
 #define _protect_cmpxchg_local(pcp, o, n)			\
 ({								\
 	typeof(*raw_cpu_ptr(&(pcp))) __ret;			\
-	preempt_disable_notrace();				\
+	preempt_disable_analtrace();				\
 	__ret = cmpxchg_local(raw_cpu_ptr(&(pcp)), o, n);	\
-	preempt_enable_notrace();				\
+	preempt_enable_analtrace();				\
 	__ret;							\
 })
 
@@ -177,10 +177,10 @@ do {									\
 #define _pcp_protect(operation, pcp, val)			\
 ({								\
 	typeof(pcp) __retval;					\
-	preempt_disable_notrace();				\
+	preempt_disable_analtrace();				\
 	__retval = (typeof(pcp))operation(raw_cpu_ptr(&(pcp)),	\
 					  (val), sizeof(pcp));	\
-	preempt_enable_notrace();				\
+	preempt_enable_analtrace();				\
 	__retval;						\
 })
 

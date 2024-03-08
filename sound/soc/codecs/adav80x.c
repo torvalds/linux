@@ -83,7 +83,7 @@
 #define ADAV80X_DAC_CTRL2_INTERPOL_64FS		0x80
 #define ADAV80X_DAC_CTRL2_INTERPOL_MASK		0xc0
 
-#define ADAV80X_DAC_CTRL2_DEEMPH_NONE		0x00
+#define ADAV80X_DAC_CTRL2_DEEMPH_ANALNE		0x00
 #define ADAV80X_DAC_CTRL2_DEEMPH_44		0x01
 #define ADAV80X_DAC_CTRL2_DEEMPH_32		0x02
 #define ADAV80X_DAC_CTRL2_DEEMPH_48		0x03
@@ -178,7 +178,7 @@ static const struct snd_kcontrol_new adav80x_dac_mux_ctrl =
 	SOC_DAPM_ENUM("Route", adav80x_dac_enum);
 
 #define ADAV80X_MUX(name, ctrl) \
-	SND_SOC_DAPM_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
+	SND_SOC_DAPM_MUX(name, SND_SOC_ANALPM, 0, 0, ctrl)
 
 static const struct snd_soc_dapm_widget adav80x_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC", NULL, ADAV80X_DAC_CTRL1, 7, 1),
@@ -187,11 +187,11 @@ static const struct snd_soc_dapm_widget adav80x_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("Right PGA", ADAV80X_ADC_CTRL1, 0, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("Left PGA", ADAV80X_ADC_CTRL1, 1, 1, NULL, 0),
 
-	SND_SOC_DAPM_AIF_OUT("AIFOUT", "HiFi Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("AIFIN", "HiFi Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIFOUT", "HiFi Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIFIN", "HiFi Playback", 0, SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_AIF_OUT("AIFAUXOUT", "Aux Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("AIFAUXIN", "Aux Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIFAUXOUT", "Aux Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIFAUXIN", "Aux Playback", 0, SND_SOC_ANALPM, 0, 0),
 
 	ADAV80X_MUX("Aux Capture Select", &adav80x_aux_capture_mux_ctrl),
 	ADAV80X_MUX("Capture Select", &adav80x_capture_mux_ctrl),
@@ -202,7 +202,7 @@ static const struct snd_soc_dapm_widget adav80x_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("VOUTR"),
 	SND_SOC_DAPM_OUTPUT("VOUTL"),
 
-	SND_SOC_DAPM_SUPPLY("SYSCLK", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("SYSCLK", SND_SOC_ANALPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("PLL1", ADAV80X_PLL_CTRL1, 2, 1, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("PLL2", ADAV80X_PLL_CTRL1, 3, 1, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("OSC", ADAV80X_PLL_CTRL1, 1, 1, NULL, 0),
@@ -300,11 +300,11 @@ static int adav80x_set_deemph(struct snd_soc_component *component)
 			val = ADAV80X_DAC_CTRL2_DEEMPH_48;
 			break;
 		default:
-			val = ADAV80X_DAC_CTRL2_DEEMPH_NONE;
+			val = ADAV80X_DAC_CTRL2_DEEMPH_ANALNE;
 			break;
 		}
 	} else {
-		val = ADAV80X_DAC_CTRL2_DEEMPH_NONE;
+		val = ADAV80X_DAC_CTRL2_DEEMPH_ANALNE;
 	}
 
 	return regmap_update_bits(adav80x->regmap, ADAV80X_DAC_CTRL2,
@@ -809,7 +809,7 @@ static int adav80x_probe(struct snd_soc_component *component)
 	snd_soc_dapm_force_enable_pin(dapm, "PLL1");
 	snd_soc_dapm_force_enable_pin(dapm, "PLL2");
 
-	/* Power down S/PDIF receiver, since it is currently not supported */
+	/* Power down S/PDIF receiver, since it is currently analt supported */
 	regmap_write(adav80x->regmap, ADAV80X_PLL_OUTE, 0x20);
 	/* Disable DAC zero flag */
 	regmap_write(adav80x->regmap, ADAV80X_DAC_CTRL3, 0x6);
@@ -853,7 +853,7 @@ int adav80x_bus_probe(struct device *dev, struct regmap *regmap)
 
 	adav80x = devm_kzalloc(dev, sizeof(*adav80x), GFP_KERNEL);
 	if (!adav80x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, adav80x);
 	adav80x->regmap = regmap;

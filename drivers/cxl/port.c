@@ -75,7 +75,7 @@ static int cxl_switch_port_probe(struct cxl_port *port)
 	if (!IS_ERR(cxlhdm))
 		return devm_cxl_enumerate_decoders(cxlhdm, NULL);
 
-	if (PTR_ERR(cxlhdm) != -ENODEV) {
+	if (PTR_ERR(cxlhdm) != -EANALDEV) {
 		dev_err(&port->dev, "Failed to map HDM decoder capability\n");
 		return PTR_ERR(cxlhdm);
 	}
@@ -85,7 +85,7 @@ static int cxl_switch_port_probe(struct cxl_port *port)
 		return devm_cxl_add_passthrough_decoder(port);
 	}
 
-	dev_err(&port->dev, "HDM decoder capability not found\n");
+	dev_err(&port->dev, "HDM decoder capability analt found\n");
 	return -ENXIO;
 }
 
@@ -104,8 +104,8 @@ static int cxl_endpoint_port_probe(struct cxl_port *port)
 
 	cxlhdm = devm_cxl_setup_hdm(port, &info);
 	if (IS_ERR(cxlhdm)) {
-		if (PTR_ERR(cxlhdm) == -ENODEV)
-			dev_err(&port->dev, "HDM decoder registers not found\n");
+		if (PTR_ERR(cxlhdm) == -EANALDEV)
+			dev_err(&port->dev, "HDM decoder registers analt found\n");
 		return PTR_ERR(cxlhdm);
 	}
 
@@ -135,7 +135,7 @@ static int cxl_endpoint_port_probe(struct cxl_port *port)
 	root = &cxl_root->port;
 
 	/*
-	 * Now that all endpoint decoders are successfully enumerated, try to
+	 * Analw that all endpoint decoders are successfully enumerated, try to
 	 * assemble regions from committed decoders
 	 */
 	device_for_each_child(&port->dev, root, discover_region);

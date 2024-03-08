@@ -66,7 +66,7 @@ static int cxgb4_mps_ref_inc(struct adapter *adap, const u8 *mac_addr,
 	}
 	mps_entry = kzalloc(sizeof(*mps_entry), GFP_ATOMIC);
 	if (!mps_entry) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 	ether_addr_copy(mps_entry->mask, mask ? mask : bitmask);
@@ -111,7 +111,7 @@ int cxgb4_alloc_mac_filt(struct adapter *adap, unsigned int viid,
 	for (i = 0; i < naddr; i++) {
 		if (idx[i] != 0xffff) {
 			if (cxgb4_mps_ref_inc(adap, addr[i], idx[i], NULL)) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error;
 			}
 		}
@@ -178,7 +178,7 @@ int cxgb4_alloc_raw_mac_filt(struct adapter *adap,
 		return ret;
 
 	if (cxgb4_mps_ref_inc(adap, addr, ret, mask)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		t4_free_raw_mac_filt(adap, viid, addr,
 				     mask, idx, lookup_type,
 				     port_id, sleep_ok);
@@ -211,7 +211,7 @@ int cxgb4_alloc_encap_mac_filt(struct adapter *adap, unsigned int viid,
 		return ret;
 
 	if (cxgb4_mps_ref_inc(adap, addr, ret, mask)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		t4_free_encap_mac_filt(adap, viid, ret, sleep_ok);
 	}
 	return ret;

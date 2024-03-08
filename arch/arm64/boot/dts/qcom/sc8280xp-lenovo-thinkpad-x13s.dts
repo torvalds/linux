@@ -19,8 +19,8 @@
 #include "sc8280xp-pmics.dtsi"
 
 / {
-	model = "Lenovo ThinkPad X13s";
-	compatible = "lenovo,thinkpad-x13s", "qcom,sc8280xp";
+	model = "Leanalvo ThinkPad X13s";
+	compatible = "leanalvo,thinkpad-x13s", "qcom,sc8280xp";
 
 	aliases {
 		i2c4 = &i2c4;
@@ -90,7 +90,7 @@
 			function = LED_FUNCTION_INDICATOR;
 			color = <LED_COLOR_ID_WHITE>;
 			gpios = <&tlmm 28 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 			default-state = "off";
 			/* Reuse as a panic indicator until we get a "camera on" trigger */
 			panic-indicator;
@@ -285,7 +285,7 @@
 	reserved-memory {
 		gpu_mem: gpu-mem@8bf00000 {
 			reg = <0 0x8bf00000 0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		linux,cma {
@@ -325,18 +325,18 @@
 			cooling-maps {
 				map0 {
 					trip = <&skin_temp_alert0>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 
 				map1 {
 					trip = <&skin_temp_alert1>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -545,7 +545,7 @@
 
 	zap-shader {
 		memory-region = <&gpu_mem>;
-		firmware-name = "qcom/sc8280xp/LENOVO/21BX/qcdxkmsuc8280.mbn";
+		firmware-name = "qcom/sc8280xp/LEANALVO/21BX/qcdxkmsuc8280.mbn";
 	};
 };
 
@@ -958,13 +958,13 @@
 };
 
 &remoteproc_adsp {
-	firmware-name = "qcom/sc8280xp/LENOVO/21BX/qcadsp8280.mbn";
+	firmware-name = "qcom/sc8280xp/LEANALVO/21BX/qcadsp8280.mbn";
 
 	status = "okay";
 };
 
 &remoteproc_nsp0 {
-	firmware-name = "qcom/sc8280xp/LENOVO/21BX/qccdsp8280.mbn";
+	firmware-name = "qcom/sc8280xp/LEANALVO/21BX/qccdsp8280.mbn";
 
 	status = "okay";
 };
@@ -975,7 +975,7 @@
 
 &sound {
 	compatible = "qcom,sc8280xp-sndcard";
-	model = "SC8280XP-LENOVO-X13S";
+	model = "SC8280XP-LEANALVO-X13S";
 	audio-routing =
 		"SpkrLeft IN", "WSA_SPK1 OUT",
 		"SpkrRight IN", "WSA_SPK2 OUT",
@@ -1231,24 +1231,24 @@
 &pmc8280_1_gpios {
 	edp_bl_en: edp-bl-en-state {
 		pins = "gpio8";
-		function = "normal";
+		function = "analrmal";
 	};
 
 	edp_bl_reg_en: edp-bl-reg-en-state {
 		pins = "gpio9";
-		function = "normal";
+		function = "analrmal";
 	};
 
 	misc_3p3_reg_en: misc-3p3-reg-en-state {
 		pins = "gpio1";
-		function = "normal";
+		function = "analrmal";
 	};
 };
 
 &pmc8280_2_gpios {
 	wwan_sw_en: wwan-sw-en-state {
 		pins = "gpio1";
-		function = "normal";
+		function = "analrmal";
 	};
 };
 
@@ -1262,7 +1262,7 @@
 &pmr735a_gpios {
 	hastings_reg_en: hastings-reg-en-state {
 		pins = "gpio1";
-		function = "normal";
+		function = "analrmal";
 	};
 };
 

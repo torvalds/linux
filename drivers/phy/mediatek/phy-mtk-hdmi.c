@@ -92,7 +92,7 @@ static int mtk_hdmi_phy_probe(struct platform_device *pdev)
 
 	hdmi_phy = devm_kzalloc(dev, sizeof(*hdmi_phy), GFP_KERNEL);
 	if (!hdmi_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdmi_phy->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hdmi_phy->regs))
@@ -105,7 +105,7 @@ static int mtk_hdmi_phy_probe(struct platform_device *pdev)
 
 	ref_clk_name = __clk_get_name(ref_clk);
 
-	ret = of_property_read_string(dev->of_node, "clock-output-names",
+	ret = of_property_read_string(dev->of_analde, "clock-output-names",
 				      &clk_init.name);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to read clock-output-names\n");
@@ -120,12 +120,12 @@ static int mtk_hdmi_phy_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(hdmi_phy->pll),
 				    "Failed to register PLL\n");
 
-	ret = of_property_read_u32(dev->of_node, "mediatek,ibias",
+	ret = of_property_read_u32(dev->of_analde, "mediatek,ibias",
 				   &hdmi_phy->ibias);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to get ibias\n");
 
-	ret = of_property_read_u32(dev->of_node, "mediatek,ibias_up",
+	ret = of_property_read_u32(dev->of_analde, "mediatek,ibias_up",
 				   &hdmi_phy->ibias_up);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to get ibias_up\n");
@@ -138,7 +138,7 @@ static int mtk_hdmi_phy_probe(struct platform_device *pdev)
 
 	phy = devm_phy_create(dev, NULL, mtk_hdmi_phy_dev_get_ops(hdmi_phy));
 	if (IS_ERR(phy))
-		return dev_err_probe(dev, PTR_ERR(phy), "Cannot create HDMI PHY\n");
+		return dev_err_probe(dev, PTR_ERR(phy), "Cananalt create HDMI PHY\n");
 
 	phy_set_drvdata(phy, hdmi_phy);
 
@@ -150,7 +150,7 @@ static int mtk_hdmi_phy_probe(struct platform_device *pdev)
 	if (hdmi_phy->conf->pll_default_off)
 		hdmi_phy->conf->hdmi_phy_disable_tmds(hdmi_phy);
 
-	return of_clk_add_provider(dev->of_node, of_clk_src_simple_get,
+	return of_clk_add_provider(dev->of_analde, of_clk_src_simple_get,
 				   hdmi_phy->pll);
 }
 

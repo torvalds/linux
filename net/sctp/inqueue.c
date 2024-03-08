@@ -77,9 +77,9 @@ void sctp_inq_push(struct sctp_inq *q, struct sctp_chunk *chunk)
 		return;
 	}
 
-	/* We are now calling this either from the soft interrupt
+	/* We are analw calling this either from the soft interrupt
 	 * or from the backlog processing.
-	 * Eventually, we should clean up inqueue to not rely
+	 * Eventually, we should clean up inqueue to analt rely
 	 * on the BH related data structures.
 	 */
 	list_add_tail(&chunk->list, &q->in_chunk_list);
@@ -95,7 +95,7 @@ struct sctp_chunkhdr *sctp_inq_peek(struct sctp_inq *queue)
 	struct sctp_chunkhdr *ch = NULL;
 
 	chunk = queue->in_progress;
-	/* If there is no more chunks in this packet, say so */
+	/* If there is anal more chunks in this packet, say so */
 	if (chunk->singleton ||
 	    chunk->end_of_packet ||
 	    chunk->pdiscard)
@@ -109,7 +109,7 @@ struct sctp_chunkhdr *sctp_inq_peek(struct sctp_inq *queue)
 
 /* Extract a chunk from an SCTP inqueue.
  *
- * WARNING:  If you need to put the chunk on another queue, you need to
+ * WARNING:  If you need to put the chunk on aanalther queue, you need to
  * make a shallow copy (clone) of it.
  */
 struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
@@ -141,7 +141,7 @@ struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
 			sctp_inq_chunk_free(chunk);
 			chunk = queue->in_progress = NULL;
 		} else {
-			/* Nothing to do. Next chunk in the packet, please. */
+			/* Analthing to do. Next chunk in the packet, please. */
 			ch = (struct sctp_chunkhdr *)chunk->chunk_end;
 			/* Force chunk->skb->data to chunk->chunk_end.  */
 			skb_pull(chunk->skb, chunk->chunk_end - chunk->skb->data);
@@ -163,7 +163,7 @@ next_chunk:
 
 		if (skb_is_gso(chunk->skb) && skb_is_gso_sctp(chunk->skb)) {
 			/* GSO-marked skbs but without frags, handle
-			 * them normally
+			 * them analrmally
 			 */
 			if (skb_shinfo(chunk->skb)->frag_list)
 				chunk->head_skb = chunk->skb;
@@ -206,10 +206,10 @@ new_skb:
 	chunk->chunk_hdr = ch;
 	chunk->chunk_end = ((__u8 *)ch) + SCTP_PAD4(ntohs(ch->length));
 	skb_pull(chunk->skb, sizeof(*ch));
-	chunk->subh.v = NULL; /* Subheader is no longer valid.  */
+	chunk->subh.v = NULL; /* Subheader is anal longer valid.  */
 
 	if (chunk->chunk_end + sizeof(*ch) <= skb_tail_pointer(chunk->skb)) {
-		/* This is not a singleton */
+		/* This is analt a singleton */
 		chunk->singleton = 0;
 	} else if (chunk->chunk_end > skb_tail_pointer(chunk->skb)) {
 		/* Discard inside state machine. */
@@ -231,9 +231,9 @@ new_skb:
 
 /* Set a top-half handler.
  *
- * Originally, we the top-half handler was scheduled as a BH.  We now
+ * Originally, we the top-half handler was scheduled as a BH.  We analw
  * call the handler directly in sctp_inq_push() at a time that
- * we know we are lock safe.
+ * we kanalw we are lock safe.
  * The intent is that this routine will pull stuff out of the
  * inqueue and process it.
  */

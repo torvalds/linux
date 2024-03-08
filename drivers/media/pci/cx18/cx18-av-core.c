@@ -49,9 +49,9 @@ cx18_av_write4_expect(struct cx18 *cx, u16 addr, u32 value, u32 eval, u32 mask)
 	return 0;
 }
 
-int cx18_av_write4_noretry(struct cx18 *cx, u16 addr, u32 value)
+int cx18_av_write4_analretry(struct cx18 *cx, u16 addr, u32 value)
 {
-	cx18_write_reg_noretry(cx, value, 0xc40000 + addr);
+	cx18_write_reg_analretry(cx, value, 0xc40000 + addr);
 	return 0;
 }
 
@@ -172,7 +172,7 @@ static void cx18_av_initialize(struct v4l2_subdev *sd)
 	 * 0x108-0x109 (CXADEC_PLL_CTRL1), and 0x10c-0x10f (CXADEC_VID_PLL_FRAC)
 	 * ourselves, than to run around cleaning up after the auto-config.
 	 *
-	 * (Note: my CX23418 chip doesn't seem to let the ACFG_DIS bit
+	 * (Analte: my CX23418 chip doesn't seem to let the ACFG_DIS bit
 	 * get set to 1, but OTOH, it doesn't seem to do AFE and VID PLL
 	 * autoconfig either.)
 	 *
@@ -185,7 +185,7 @@ static void cx18_av_initialize(struct v4l2_subdev *sd)
 
 	/* set video to auto-detect */
 	/* Clear bits 11-12 to enable slow locking mode.  Set autodetect mode */
-	/* set the comb notch = 1 */
+	/* set the comb analtch = 1 */
 	cx18_av_and_or4(cx, CXADEC_MODE_CTRL, 0xFFF7E7F0, 0x02040800);
 
 	/* Enable wtw_en in CRUSH_CTRL (Set bit 22) */
@@ -294,7 +294,7 @@ void cx18_av_std_setup(struct cx18 *cx)
 		cx18_av_write(cx, 0x49f, 0x14);
 
 	/*
-	 * Note: At the end of a field, there are 3 sets of half line duration
+	 * Analte: At the end of a field, there are 3 sets of half line duration
 	 * (double horizontal rate) pulses:
 	 *
 	 * 5 (625) or 6 (525) half-lines to blank for the vertical retrace
@@ -320,7 +320,7 @@ void cx18_av_std_setup(struct cx18 *cx)
 		 *
 		 * For 625 line systems the driver will extract VBI information
 		 * from lines 6-23 and lines 318-335 (but the slicer can only
-		 * handle 17 lines, not the 18 in the vblank region).
+		 * handle 17 lines, analt the 18 in the vblank region).
 		 * In addition, we need vblank656 and vblank to be one whole
 		 * line longer, to cover line 24 and 336, so the SAV/EAV RP
 		 * codes get generated such that the encoder can actually
@@ -342,7 +342,7 @@ void cx18_av_std_setup(struct cx18 *cx)
 		 * 864 pixels = 720 active + 144 blanking.  ITU-R BT.601
 		 * specifies 12 luma clock periods or ~ 0.9 * 13.5 Mpps after
 		 * the end of active video to start a horizontal line, so that
-		 * leaves 132 pixels of hblank to ignore.
+		 * leaves 132 pixels of hblank to iganalre.
 		 */
 		hblank = 132;
 		hactive = 720;
@@ -401,7 +401,7 @@ void cx18_av_std_setup(struct cx18 *cx)
 		 * For a 13.5 Mpps clock and 15,734.26 Hz line rate, a line is
 		 * 858 pixels = 720 active + 138 blanking.  The Hsync leading
 		 * edge should happen 1.2 us * 13.5 Mpps ~= 16 pixels after the
-		 * end of active video, leaving 122 pixels of hblank to ignore
+		 * end of active video, leaving 122 pixels of hblank to iganalre
 		 * before active video starts.
 		 */
 		hactive = 720;
@@ -573,8 +573,8 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 	struct v4l2_subdev *sd = &state->sd;
 
 	enum analog_signal_type {
-		NONE, CVBS, Y, C, SIF, Pb, Pr
-	} ch[3] = {NONE, NONE, NONE};
+		ANALNE, CVBS, Y, C, SIF, Pb, Pr
+	} ch[3] = {ANALNE, ANALNE, ANALNE};
 
 	u8 afe_mux_cfg;
 	u8 adc2_cfg;
@@ -602,7 +602,7 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 		    r_chroma > CX18_AV_COMPONENT_R_CHROMA6 ||
 		    b_chroma < CX18_AV_COMPONENT_B_CHROMA7 ||
 		    b_chroma > CX18_AV_COMPONENT_B_CHROMA8) {
-			CX18_ERR_DEV(sd, "0x%06x is not a valid video input!\n",
+			CX18_ERR_DEV(sd, "0x%06x is analt a valid video input!\n",
 				     vid_input);
 			return -EINVAL;
 		}
@@ -622,7 +622,7 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 		    luma > CX18_AV_SVIDEO_LUMA8 ||
 		    chroma < CX18_AV_SVIDEO_CHROMA4 ||
 		    chroma > CX18_AV_SVIDEO_CHROMA8) {
-			CX18_ERR_DEV(sd, "0x%06x is not a valid video input!\n",
+			CX18_ERR_DEV(sd, "0x%06x is analt a valid video input!\n",
 				     vid_input);
 			return -EINVAL;
 		}
@@ -643,7 +643,7 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 	switch (aud_input) {
 	case CX18_AV_AUDIO_SERIAL1:
 	case CX18_AV_AUDIO_SERIAL2:
-		/* do nothing, use serial audio input */
+		/* do analthing, use serial audio input */
 		break;
 	case CX18_AV_AUDIO4:
 		afe_mux_cfg &= ~0x30;
@@ -667,7 +667,7 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 		break;
 
 	default:
-		CX18_ERR_DEV(sd, "0x%04x is not a valid audio input!\n",
+		CX18_ERR_DEV(sd, "0x%04x is analt a valid audio input!\n",
 			     aud_input);
 		return -EINVAL;
 	}
@@ -679,13 +679,13 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 
 	/* Set CH_SEL_ADC2 to 1 if input comes from CH3 */
 	adc2_cfg = cx18_av_read(cx, 0x102);
-	if (ch[2] == NONE)
-		adc2_cfg &= ~0x2; /* No sig on CH3, set ADC2 to CH2 for input */
+	if (ch[2] == ANALNE)
+		adc2_cfg &= ~0x2; /* Anal sig on CH3, set ADC2 to CH2 for input */
 	else
 		adc2_cfg |= 0x2;  /* Signal on CH3, set ADC2 to CH3 for input */
 
 	/* Set DUAL_MODE_ADC2 to 1 if input comes from both CH2 and CH3 */
-	if (ch[1] != NONE && ch[2] != NONE)
+	if (ch[1] != ANALNE && ch[2] != ANALNE)
 		adc2_cfg |= 0x4; /* Set dual mode */
 	else
 		adc2_cfg &= ~0x4; /* Clear dual mode */
@@ -695,13 +695,13 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 	afe_cfg = cx18_av_read4(cx, CXADEC_AFE_CTRL);
 	afe_cfg &= 0xff000000;
 	afe_cfg |= 0x00005000; /* CHROMA_IN, AUD_IN: ADC2; LUMA_IN: ADC1 */
-	if (ch[1] != NONE && ch[2] != NONE)
+	if (ch[1] != ANALNE && ch[2] != ANALNE)
 		afe_cfg |= 0x00000030; /* half_bw_ch[2-3] since in dual mode */
 
 	for (i = 0; i < 3; i++) {
 		switch (ch[i]) {
 		default:
-		case NONE:
+		case ANALNE:
 			/* CLAMP_SEL = Fixed to midcode clamp level */
 			afe_cfg |= (0x00000200 << i);
 			break;
@@ -779,7 +779,7 @@ static int cx18_av_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	if ((mode & 0xf) == 1)
 		val |= V4L2_TUNER_SUB_STEREO;
 	else
-		val |= V4L2_TUNER_SUB_MONO;
+		val |= V4L2_TUNER_SUB_MOANAL;
 
 	if (mode == 2 || mode == 4)
 		val = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
@@ -805,26 +805,26 @@ static int cx18_av_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 	v &= ~0xf;
 
 	switch (vt->audmode) {
-	case V4L2_TUNER_MODE_MONO:
-		/* mono      -> mono
-		   stereo    -> mono
+	case V4L2_TUNER_MODE_MOANAL:
+		/* moanal      -> moanal
+		   stereo    -> moanal
 		   bilingual -> lang1 */
 		break;
 	case V4L2_TUNER_MODE_STEREO:
 	case V4L2_TUNER_MODE_LANG1:
-		/* mono      -> mono
+		/* moanal      -> moanal
 		   stereo    -> stereo
 		   bilingual -> lang1 */
 		v |= 0x4;
 		break;
 	case V4L2_TUNER_MODE_LANG1_LANG2:
-		/* mono      -> mono
+		/* moanal      -> moanal
 		   stereo    -> stereo
 		   bilingual -> lang1/lang2 */
 		v |= 0x7;
 		break;
 	case V4L2_TUNER_MODE_LANG2:
-		/* mono      -> mono
+		/* moanal      -> moanal
 		   stereo    -> stereo
 		   bilingual -> lang2 */
 		v |= 0x1;
@@ -837,7 +837,7 @@ static int cx18_av_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int cx18_av_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int cx18_av_s_std(struct v4l2_subdev *sd, v4l2_std_id analrm)
 {
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
@@ -845,11 +845,11 @@ static int cx18_av_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	u8 fmt = 0;	/* zero is autodetect */
 	u8 pal_m = 0;
 
-	if (state->radio == 0 && state->std == norm)
+	if (state->radio == 0 && state->std == analrm)
 		return 0;
 
 	state->radio = 0;
-	state->std = norm;
+	state->std = analrm;
 
 	/* First tests should be against specific std */
 	if (state->std == V4L2_STD_NTSC_M_JP) {
@@ -969,7 +969,7 @@ static int cx18_av_set_fmt(struct v4l2_subdev *sd,
 	 */
 	if ((fmt->width * 16 < Hsrc) || (Hsrc < fmt->width) ||
 	    (Vlines * 8 < Vsrc) || (Vsrc < Vlines)) {
-		CX18_ERR_DEV(sd, "%dx%d is not a valid size!\n",
+		CX18_ERR_DEV(sd, "%dx%d is analt a valid size!\n",
 			     fmt->width, fmt->height);
 		return -ERANGE;
 	}
@@ -1040,7 +1040,7 @@ static void log_video_status(struct cx18 *cx)
 	int vid_input = state->vid_input;
 
 	CX18_INFO_DEV(sd, "Video signal:              %spresent\n",
-		      (gen_stat2 & 0x20) ? "" : "not ");
+		      (gen_stat2 & 0x20) ? "" : "analt ");
 	CX18_INFO_DEV(sd, "Detected format:           %s\n",
 		      fmt_strs[gen_stat1 & 0xf]);
 
@@ -1077,45 +1077,45 @@ static void log_audio_status(struct cx18 *cx)
 	char *p;
 
 	switch (mod_det_stat0) {
-	case 0x00: p = "mono"; break;
+	case 0x00: p = "moanal"; break;
 	case 0x01: p = "stereo"; break;
 	case 0x02: p = "dual"; break;
 	case 0x04: p = "tri"; break;
-	case 0x10: p = "mono with SAP"; break;
+	case 0x10: p = "moanal with SAP"; break;
 	case 0x11: p = "stereo with SAP"; break;
 	case 0x12: p = "dual with SAP"; break;
 	case 0x14: p = "tri with SAP"; break;
 	case 0xfe: p = "forced mode"; break;
-	default: p = "not defined"; break;
+	default: p = "analt defined"; break;
 	}
 	CX18_INFO_DEV(sd, "Detected audio mode:       %s\n", p);
 
 	switch (mod_det_stat1) {
-	case 0x00: p = "not defined"; break;
+	case 0x00: p = "analt defined"; break;
 	case 0x01: p = "EIAJ"; break;
 	case 0x02: p = "A2-M"; break;
 	case 0x03: p = "A2-BG"; break;
 	case 0x04: p = "A2-DK1"; break;
 	case 0x05: p = "A2-DK2"; break;
 	case 0x06: p = "A2-DK3"; break;
-	case 0x07: p = "A1 (6.0 MHz FM Mono)"; break;
+	case 0x07: p = "A1 (6.0 MHz FM Moanal)"; break;
 	case 0x08: p = "AM-L"; break;
 	case 0x09: p = "NICAM-BG"; break;
 	case 0x0a: p = "NICAM-DK"; break;
 	case 0x0b: p = "NICAM-I"; break;
 	case 0x0c: p = "NICAM-L"; break;
-	case 0x0d: p = "BTSC/EIAJ/A2-M Mono (4.5 MHz FMMono)"; break;
+	case 0x0d: p = "BTSC/EIAJ/A2-M Moanal (4.5 MHz FMMoanal)"; break;
 	case 0x0e: p = "IF FM Radio"; break;
 	case 0x0f: p = "BTSC"; break;
 	case 0x10: p = "detected chrominance"; break;
-	case 0xfd: p = "unknown audio standard"; break;
+	case 0xfd: p = "unkanalwn audio standard"; break;
 	case 0xfe: p = "forced audio standard"; break;
-	case 0xff: p = "no detected audio standard"; break;
-	default: p = "not defined"; break;
+	case 0xff: p = "anal detected audio standard"; break;
+	default: p = "analt defined"; break;
 	}
 	CX18_INFO_DEV(sd, "Detected audio standard:   %s\n", p);
 	CX18_INFO_DEV(sd, "Audio muted:               %s\n",
-		      (mute_ctl & 0x2) ? "yes" : "no");
+		      (mute_ctl & 0x2) ? "anal" : "anal");
 	CX18_INFO_DEV(sd, "Audio microcontroller:     %s\n",
 		      (download_ctl & 0x10) ? "running" : "stopped");
 
@@ -1128,7 +1128,7 @@ static void log_audio_status(struct cx18 *cx)
 	case 0x05: p = "A2-DK1"; break;
 	case 0x06: p = "A2-DK2"; break;
 	case 0x07: p = "A2-DK3"; break;
-	case 0x08: p = "A1 (6.0 MHz FM Mono)"; break;
+	case 0x08: p = "A1 (6.0 MHz FM Moanal)"; break;
 	case 0x09: p = "AM-L"; break;
 	case 0x0a: p = "NICAM-BG"; break;
 	case 0x0b: p = "NICAM-DK"; break;
@@ -1142,10 +1142,10 @@ static void log_audio_status(struct cx18 *cx)
 
 	if ((audio_config >> 4) < 0xF) {
 		switch (audio_config & 0xF) {
-		case 0x00: p = "MONO1 (LANGUAGE A/Mono L+R channel for BTSC, EIAJ, A2)"; break;
-		case 0x01: p = "MONO2 (LANGUAGE B)"; break;
-		case 0x02: p = "MONO3 (STEREO forced MONO)"; break;
-		case 0x03: p = "MONO4 (NICAM ANALOG-Language C/Analog Fallback)"; break;
+		case 0x00: p = "MOANAL1 (LANGUAGE A/Moanal L+R channel for BTSC, EIAJ, A2)"; break;
+		case 0x01: p = "MOANAL2 (LANGUAGE B)"; break;
+		case 0x02: p = "MOANAL3 (STEREO forced MOANAL)"; break;
+		case 0x03: p = "MOANAL4 (NICAM ANALOG-Language C/Analog Fallback)"; break;
 		case 0x04: p = "STEREO"; break;
 		case 0x05: p = "DUAL1 (AC)"; break;
 		case 0x06: p = "DUAL2 (BC)"; break;
@@ -1180,7 +1180,7 @@ static void log_audio_status(struct cx18 *cx)
 		CX18_INFO_DEV(sd, "Specified audio input:     External\n");
 
 	switch (pref_mode & 0xf) {
-	case 0: p = "mono/language A"; break;
+	case 0: p = "moanal/language A"; break;
 	case 1: p = "language B"; break;
 	case 2: p = "language C"; break;
 	case 3: p = "analog fallback"; break;

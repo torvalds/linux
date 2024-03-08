@@ -86,8 +86,8 @@ static int hccs_get_pcc_chan_id(struct hccs_dev *hdev)
 	acpi_status status;
 
 	if (!acpi_has_method(handle, METHOD_NAME__CRS)) {
-		dev_err(hdev->dev, "No _CRS method.\n");
-		return -ENODEV;
+		dev_err(hdev->dev, "Anal _CRS method.\n");
+		return -EANALDEV;
 	}
 
 	ctx.dev = hdev->dev;
@@ -103,7 +103,7 @@ static int hccs_get_pcc_chan_id(struct hccs_dev *hdev)
 static void hccs_chan_tx_done(struct mbox_client *cl, void *msg, int ret)
 {
 	if (ret < 0)
-		pr_debug("TX did not complete: CMD sent:0x%x, ret:%d\n",
+		pr_debug("TX did analt complete: CMD sent:0x%x, ret:%d\n",
 			 *(u8 *)msg, ret);
 	else
 		pr_debug("TX completed. CMD sent:0x%x, ret:%d\n",
@@ -137,7 +137,7 @@ static int hccs_register_pcc_channel(struct hccs_dev *hdev)
 
 	cl->dev = dev;
 	cl->tx_block = false;
-	cl->knows_txdone = true;
+	cl->kanalws_txdone = true;
 	cl->tx_done = hccs_chan_tx_done;
 	cl->rx_callback = hdev->verspec_data->rx_callback;
 	init_completion(&cl_info->done);
@@ -145,16 +145,16 @@ static int hccs_register_pcc_channel(struct hccs_dev *hdev)
 	pcc_chan = pcc_mbox_request_channel(cl, hdev->chan_id);
 	if (IS_ERR(pcc_chan)) {
 		dev_err(dev, "PPC channel request failed.\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out;
 	}
 	cl_info->pcc_chan = pcc_chan;
 	cl_info->mbox_chan = pcc_chan->mchan;
 
 	/*
-	 * pcc_chan->latency is just a nominal value. In reality the remote
+	 * pcc_chan->latency is just a analminal value. In reality the remote
 	 * processor could be much slower to reply. So add an arbitrary amount
-	 * of wait on top of nominal.
+	 * of wait on top of analminal.
 	 */
 	cl_info->deadline_us =
 			HCCS_PCC_CMD_WAIT_RETRIES_NUM * pcc_chan->latency;
@@ -176,7 +176,7 @@ static int hccs_register_pcc_channel(struct hccs_dev *hdev)
 		if (!cl_info->pcc_comm_addr) {
 			dev_err(dev, "Failed to ioremap PCC communication region for channel-%u.\n",
 				hdev->chan_id);
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err_mbx_channel_free;
 		}
 	}
@@ -251,7 +251,7 @@ static inline void hccs_fill_ext_pcc_shared_mem_region(struct hccs_dev *hdev,
 {
 	struct acpi_pcct_ext_pcc_shared_memory tmp = {
 		.signature = PCC_SIGNATURE | hdev->chan_id,
-		.flags = PCC_CMD_COMPLETION_NOTIFY,
+		.flags = PCC_CMD_COMPLETION_ANALTIFY,
 		.length = HCCS_PCC_SHARE_MEM_BYTES,
 		.command = cmd,
 	};
@@ -393,7 +393,7 @@ static int hccs_query_chip_info_on_platform(struct hccs_dev *hdev)
 				GFP_KERNEL);
 	if (!hdev->chips) {
 		dev_err(hdev->dev, "allocate all chips memory failed.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (idx = 0; idx < hdev->chip_num; idx++) {
@@ -465,7 +465,7 @@ static int hccs_query_all_die_info_on_platform(struct hccs_dev *hdev)
 		if (!chip->dies) {
 			dev_err(dev, "allocate all dies memory on chip%u failed.\n",
 				i);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		for (j = 0; j < chip->die_num; j++) {
@@ -502,7 +502,7 @@ static int hccs_get_bd_info(struct hccs_dev *hdev, u8 opcode,
 		dev_err(hdev->dev,
 			"buffer overflow (buf_len = %zu, data_len = %u)!\n",
 			buf_len, head->data_len);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(buf, rsp->data, head->data_len);
@@ -549,7 +549,7 @@ static int hccs_get_all_port_attr(struct hccs_dev *hdev,
 		left_buf_len -= rsp_head.data_len;
 		if (unlikely(rsp_head.next_id <= start_id)) {
 			dev_err(hdev->dev,
-				"next port id (%u) is not greater than last start id (%u) on die%u.\n",
+				"next port id (%u) is analt greater than last start id (%u) on die%u.\n",
 				rsp_head.next_id, start_id, die->die_id);
 			return -EINVAL;
 		}
@@ -570,7 +570,7 @@ static int hccs_get_all_port_info_on_die(struct hccs_dev *hdev,
 	attrs = kcalloc(die->port_num, sizeof(struct hccs_port_attr),
 			GFP_KERNEL);
 	if (!attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hccs_get_all_port_attr(hdev, die, attrs, die->port_num);
 	if (ret)
@@ -611,7 +611,7 @@ static int hccs_query_all_port_info_on_platform(struct hccs_dev *hdev)
 			if (!die->ports) {
 				dev_err(dev, "allocate ports memory on chip%u/die%u failed.\n",
 					i, die->die_id);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			ret = hccs_get_all_port_info_on_die(hdev, die);
@@ -869,7 +869,7 @@ static ssize_t link_fsm_show(struct kobject *kobj,
 		{HCCS_PORT_CONFIG, "config"},
 		{HCCS_PORT_READY, "link-up"},
 	};
-	const char *link_fsm_str = "unknown";
+	const char *link_fsm_str = "unkanalwn";
 	size_t i;
 	int ret;
 
@@ -1263,15 +1263,15 @@ static int hccs_probe(struct platform_device *pdev)
 
 	if (acpi_disabled) {
 		dev_err(&pdev->dev, "acpi is disabled.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	acpi_dev = ACPI_COMPANION(&pdev->dev);
 	if (!acpi_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hdev = devm_kzalloc(&pdev->dev, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
-		return -ENOMEM;
+		return -EANALMEM;
 	hdev->acpi_dev = acpi_dev;
 	hdev->dev = &pdev->dev;
 	platform_set_drvdata(pdev, hdev);

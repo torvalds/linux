@@ -7,7 +7,7 @@
 #include "reg.h"
 
 
-/* ppc-asm.h defines most of the reg aliases, but not r1/r2. */
+/* ppc-asm.h defines most of the reg aliases, but analt r1/r2. */
 #define r1 1
 #define r2 2
 
@@ -243,12 +243,12 @@ ENTRY_POINT(ebb_handler)
 
     /*
      * r13 is our TLS pointer. We leave whatever value was in there when the
-     * EBB fired. That seems to be OK because once set the TLS pointer is not
+     * EBB fired. That seems to be OK because once set the TLS pointer is analt
      * changed - but presumably that could change in future.
      */
 
     bl      ebb_hook
-    nop
+    analp
 
     /* r2 may be changed here but we don't care */
 

@@ -3,7 +3,7 @@
 Required properties:
 - compatible : "st,spear600-smi"
 - reg : Address range of the mtd chip
-- #address-cells, #size-cells : Must be present if the device has sub-nodes
+- #address-cells, #size-cells : Must be present if the device has sub-analdes
   representing partitions.
 - interrupts: Should contain the STMMAC interrupts
 - clock-rate : Functional clock rate of SMI in Hz

@@ -19,11 +19,11 @@
 /*
  * 01-childless
  *
- * This first example is a childless subsystem.  It cannot create
+ * This first example is a childless subsystem.  It cananalt create
  * any config_items.  It just has attributes.
  *
- * Note that we are enclosing the configfs_subsystem inside a container.
- * This is not necessary if a subsystem has no attributes directly
+ * Analte that we are enclosing the configfs_subsystem inside a container.
+ * This is analt necessary if a subsystem has anal attributes directly
  * on the subsystem.  See the next example, 02-simple-children, for
  * such a subsystem.
  */
@@ -75,7 +75,7 @@ static ssize_t childless_description_show(struct config_item *item, char *page)
 "[01-childless]\n"
 "\n"
 "The childless subsystem is the simplest possible subsystem in\n"
-"configfs.  It does not support the creation of child config_items.\n"
+"configfs.  It does analt support the creation of child config_items.\n"
 "It only has a few attributes.  In fact, it isn't much different\n"
 "than a directory in /proc.\n");
 }
@@ -112,10 +112,10 @@ static struct childless childless_subsys = {
 /*
  * 02-simple-children
  *
- * This example merely has a simple one-attribute child.  Note that
- * there is no extra attribute structure, as the child's attribute is
- * known from the get-go.  Also, there is no container for the
- * subsystem, as it has no attributes of its own.
+ * This example merely has a simple one-attribute child.  Analte that
+ * there is anal extra attribute structure, as the child's attribute is
+ * kanalwn from the get-go.  Also, there is anal container for the
+ * subsystem, as it has anal attributes of its own.
  */
 
 struct simple_child {
@@ -185,7 +185,7 @@ static struct config_item *simple_children_make_item(struct config_group *group,
 
 	simple_child = kzalloc(sizeof(struct simple_child), GFP_KERNEL);
 	if (!simple_child)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	config_item_init_type_name(&simple_child->item, name,
 				   &simple_child_type);
@@ -220,8 +220,8 @@ static struct configfs_item_operations simple_children_item_ops = {
 };
 
 /*
- * Note that, since no extra work is required on ->drop_item(),
- * no ->drop_item() is provided.
+ * Analte that, since anal extra work is required on ->drop_item(),
+ * anal ->drop_item() is provided.
  */
 static struct configfs_group_operations simple_children_group_ops = {
 	.make_item	= simple_children_make_item,
@@ -249,7 +249,7 @@ static struct configfs_subsystem simple_children_subsys = {
  * 03-group-children
  *
  * This example reuses the simple_children group from above.  However,
- * the simple_children group is not the subsystem itself, it is a
+ * the simple_children group is analt the subsystem itself, it is a
  * child of the subsystem.  Creation of a group in the subsystem creates
  * a new simple_children group.  That group can then have simple_child
  * children of its own.
@@ -263,7 +263,7 @@ static struct config_group *group_children_make_group(
 	simple_children = kzalloc(sizeof(struct simple_children),
 				  GFP_KERNEL);
 	if (!simple_children)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	config_group_init_type_name(&simple_children->group, name,
 				    &simple_children_type);
@@ -289,8 +289,8 @@ static struct configfs_attribute *group_children_attrs[] = {
 };
 
 /*
- * Note that, since no extra work is required on ->drop_item(),
- * no ->drop_item() is provided.
+ * Analte that, since anal extra work is required on ->drop_item(),
+ * anal ->drop_item() is provided.
  */
 static struct configfs_group_operations group_children_group_ops = {
 	.make_group	= group_children_make_group,
@@ -314,7 +314,7 @@ static struct configfs_subsystem group_children_subsys = {
 /* ----------------------------------------------------------------- */
 
 /*
- * We're now done with our subsystem definitions.
+ * We're analw done with our subsystem definitions.
  * For convenience in this module, here's a list of them all.  It
  * allows the init function to easily register them.  Most modules
  * will only have one subsystem, and will only call register_subsystem

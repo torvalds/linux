@@ -34,8 +34,8 @@ static int mtk_vcodec_get_hw_count(struct mtk_vcodec_dec_ctx *ctx, struct mtk_vc
 	case MTK_VDEC_LAT_SINGLE_CORE:
 		return MTK_VDEC_ONE_LAT_ONE_CORE;
 	default:
-		mtk_v4l2_vdec_err(ctx, "hw arch %d not supported", dev->vdec_pdata->hw_arch);
-		return MTK_VDEC_NO_HW;
+		mtk_v4l2_vdec_err(ctx, "hw arch %d analt supported", dev->vdec_pdata->hw_arch);
+		return MTK_VDEC_ANAL_HW;
 	}
 }
 
@@ -62,7 +62,7 @@ static irqreturn_t mtk_vcodec_dec_irq_handler(int irq, void *priv)
 	ctx = mtk_vcodec_get_curr_ctx(dev, MTK_VDEC_CORE);
 
 	if (!mtk_vcodec_is_hw_active(dev)) {
-		mtk_v4l2_vdec_err(ctx, "DEC ISR, VDEC active is not 0x0");
+		mtk_v4l2_vdec_err(ctx, "DEC ISR, VDEC active is analt 0x0");
 		return IRQ_HANDLED;
 	}
 
@@ -122,7 +122,7 @@ static int mtk_vcodec_get_reg_bases(struct mtk_vcodec_dec_dev *dev)
 					      ARRAY_SIZE(mtk_dec_reg_names);
 
 	/* Sizeof(u32) * 4 bytes for each register base. */
-	reg_num = of_property_count_elems_of_size(pdev->dev.of_node, "reg",
+	reg_num = of_property_count_elems_of_size(pdev->dev.of_analde, "reg",
 						  sizeof(u32) * 4);
 	if (reg_num <= 0 || reg_num > num_max_vdec_regs) {
 		dev_err(&pdev->dev, "Invalid register property size: %d\n", reg_num);
@@ -146,7 +146,7 @@ static int mtk_vcodec_get_reg_bases(struct mtk_vcodec_dec_dev *dev)
 			dev_dbg(&pdev->dev, "reg[%d] base=%p", i + 1, dev->reg_base[i + 1]);
 		}
 
-		dev->vdecsys_regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+		dev->vdecsys_regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 								      "mediatek,vdecsys");
 		if (IS_ERR(dev->vdecsys_regmap)) {
 			dev_err(&pdev->dev, "Missing mediatek,vdecsys property");
@@ -173,7 +173,7 @@ static int mtk_vcodec_init_dec_resources(struct mtk_vcodec_dec_dev *dev)
 	if (dev->dec_irq < 0)
 		return dev->dec_irq;
 
-	irq_set_status_flags(dev->dec_irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(dev->dec_irq, IRQ_ANALAUTOEN);
 	ret = devm_request_irq(&pdev->dev, dev->dec_irq,
 			       mtk_vcodec_dec_irq_handler, 0, pdev->name, dev);
 	if (ret) {
@@ -201,7 +201,7 @@ static int fops_vcodec_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&dev->dev_mutex);
 	ctx->id = dev->id_counter++;
@@ -248,7 +248,7 @@ static int fops_vcodec_open(struct file *file)
 
 	if (v4l2_fh_is_singular(&ctx->fh)) {
 		/*
-		 * Does nothing if firmware was already loaded.
+		 * Does analthing if firmware was already loaded.
 		 */
 		ret = mtk_vcodec_fw_load_firmware(dev->fw_handler);
 		if (ret < 0) {
@@ -299,7 +299,7 @@ static int fops_vcodec_release(struct file *file)
 
 	/*
 	 * Call v4l2_m2m_ctx_release before mtk_vcodec_dec_release. First, it
-	 * makes sure the worker thread is not running after vdec_if_deinit.
+	 * makes sure the worker thread is analt running after vdec_if_deinit.
 	 * Second, the decoder will be flushed and all the buffers will be
 	 * returned in stop_streaming.
 	 */
@@ -330,17 +330,17 @@ static void mtk_vcodec_dec_get_chip_name(struct mtk_vcodec_dec_dev *vdec_dev)
 {
 	struct device *dev = &vdec_dev->plat_dev->dev;
 
-	if (of_device_is_compatible(dev->of_node, "mediatek,mt8173-vcodec-dec"))
+	if (of_device_is_compatible(dev->of_analde, "mediatek,mt8173-vcodec-dec"))
 		vdec_dev->chip_name = MTK_VDEC_MT8173;
-	else if (of_device_is_compatible(dev->of_node, "mediatek,mt8183-vcodec-dec"))
+	else if (of_device_is_compatible(dev->of_analde, "mediatek,mt8183-vcodec-dec"))
 		vdec_dev->chip_name = MTK_VDEC_MT8183;
-	else if (of_device_is_compatible(dev->of_node, "mediatek,mt8192-vcodec-dec"))
+	else if (of_device_is_compatible(dev->of_analde, "mediatek,mt8192-vcodec-dec"))
 		vdec_dev->chip_name = MTK_VDEC_MT8192;
-	else if (of_device_is_compatible(dev->of_node, "mediatek,mt8195-vcodec-dec"))
+	else if (of_device_is_compatible(dev->of_analde, "mediatek,mt8195-vcodec-dec"))
 		vdec_dev->chip_name = MTK_VDEC_MT8195;
-	else if (of_device_is_compatible(dev->of_node, "mediatek,mt8186-vcodec-dec"))
+	else if (of_device_is_compatible(dev->of_analde, "mediatek,mt8186-vcodec-dec"))
 		vdec_dev->chip_name = MTK_VDEC_MT8186;
-	else if (of_device_is_compatible(dev->of_node, "mediatek,mt8188-vcodec-dec"))
+	else if (of_device_is_compatible(dev->of_analde, "mediatek,mt8188-vcodec-dec"))
 		vdec_dev->chip_name = MTK_VDEC_MT8188;
 	else
 		vdec_dev->chip_name = MTK_VDEC_INVAL;
@@ -356,7 +356,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&dev->ctx_list);
 	dev->plat_dev = pdev;
@@ -368,15 +368,15 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 	}
 
 	dev->vdec_pdata = of_device_get_match_data(&pdev->dev);
-	if (!of_property_read_u32(pdev->dev.of_node, "mediatek,vpu",
+	if (!of_property_read_u32(pdev->dev.of_analde, "mediatek,vpu",
 				  &rproc_phandle)) {
 		fw_type = VPU;
-	} else if (!of_property_read_u32(pdev->dev.of_node, "mediatek,scp",
+	} else if (!of_property_read_u32(pdev->dev.of_analde, "mediatek,scp",
 					 &rproc_phandle)) {
 		fw_type = SCP;
 	} else {
-		dev_dbg(&pdev->dev, "Could not get vdec IPI device");
-		return -ENODEV;
+		dev_dbg(&pdev->dev, "Could analt get vdec IPI device");
+		return -EANALDEV;
 	}
 	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 
@@ -418,7 +418,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 	vfd_dec = video_device_alloc();
 	if (!vfd_dec) {
 		dev_err(&pdev->dev, "Failed to allocate video device");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dec_alloc;
 	}
 	vfd_dec->fops		= &mtk_vcodec_fops;
@@ -453,7 +453,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 	}
 
 	if (dev->vdec_pdata->is_subdev_supported) {
-		ret = of_platform_populate(pdev->dev.of_node, NULL, NULL,
+		ret = of_platform_populate(pdev->dev.of_analde, NULL, NULL,
 					   &pdev->dev);
 		if (ret) {
 			dev_err(&pdev->dev, "Main device of_platform_populate failed.");
@@ -498,11 +498,11 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 			goto err_media_reg;
 		}
 
-		dev_dbg(&pdev->dev, "media registered as /dev/media%d", vfd_dec->minor);
+		dev_dbg(&pdev->dev, "media registered as /dev/media%d", vfd_dec->mianalr);
 	}
 
 	mtk_vcodec_dbgfs_init(dev, false);
-	dev_dbg(&pdev->dev, "decoder registered as /dev/video%d", vfd_dec->minor);
+	dev_dbg(&pdev->dev, "decoder registered as /dev/video%d", vfd_dec->mianalr);
 
 	return 0;
 
@@ -565,7 +565,7 @@ static void mtk_vcodec_dec_remove(struct platform_device *pdev)
 
 	destroy_workqueue(dev->decode_workqueue);
 
-	if (media_devnode_is_registered(dev->mdev_dec.devnode)) {
+	if (media_devanalde_is_registered(dev->mdev_dec.devanalde)) {
 		media_device_unregister(&dev->mdev_dec);
 		v4l2_m2m_unregister_media_controller(dev->m2m_dev_dec);
 		media_device_cleanup(&dev->mdev_dec);

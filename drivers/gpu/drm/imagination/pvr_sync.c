@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include <uapi/drm/pvr_drm.h>
 
@@ -66,7 +66,7 @@ pvr_sync_signal_array_add(struct xarray *array, struct drm_file *file, u32 handl
 
 	sig_sync = kzalloc(sizeof(*sig_sync), GFP_KERNEL);
 	if (!sig_sync)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sig_sync->handle = handle;
 	sig_sync->point = point;
@@ -74,7 +74,7 @@ pvr_sync_signal_array_add(struct xarray *array, struct drm_file *file, u32 handl
 	if (point > 0) {
 		sig_sync->chain = dma_fence_chain_alloc();
 		if (!sig_sync->chain) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_free_sig_sync;
 		}
 	}
@@ -87,7 +87,7 @@ pvr_sync_signal_array_add(struct xarray *array, struct drm_file *file, u32 handl
 
 	/* Retrieve the current fence attached to that point. It's
 	 * perfectly fine to get a NULL fence here, it just means there's
-	 * no fence attached to that point yet.
+	 * anal fence attached to that point yet.
 	 */
 	if (!drm_syncobj_find_fence(file, handle, point, 0, &cur_fence))
 		sig_sync->fence = cur_fence;
@@ -215,12 +215,12 @@ pvr_sync_add_dep_to_job(struct drm_sched_job *job, struct dma_fence *f)
 			native_fence_count++;
 	}
 
-	/* No need to unwrap the fence if it's fully non-native. */
+	/* Anal need to unwrap the fence if it's fully analn-native. */
 	if (!native_fence_count)
 		return drm_sched_job_add_dependency(job, f);
 
 	dma_fence_unwrap_for_each(uf, &iter, f) {
-		/* There's no dma_fence_unwrap_stop() helper cleaning up the refs
+		/* There's anal dma_fence_unwrap_stop() helper cleaning up the refs
 		 * owned by dma_fence_unwrap(), so let's just iterate over all
 		 * entries without doing anything when something failed.
 		 */

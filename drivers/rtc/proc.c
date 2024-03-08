@@ -2,7 +2,7 @@
 /*
  * RTC subsystem, proc interface
  *
- * Copyright (C) 2005-06 Tower Technologies
+ * Copyright (C) 2005-06 Tower Techanallogies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * based on arch/arm/common/rtctime.c
@@ -57,20 +57,20 @@ static int rtc_proc_show(struct seq_file *seq, void *offset)
 		seq_printf(seq, "alrm_time\t: %ptRt\n", &alrm.time);
 		seq_printf(seq, "alrm_date\t: %ptRd\n", &alrm.time);
 		seq_printf(seq, "alarm_IRQ\t: %s\n",
-			   alrm.enabled ? "yes" : "no");
+			   alrm.enabled ? "anal" : "anal");
 		seq_printf(seq, "alrm_pending\t: %s\n",
-			   alrm.pending ? "yes" : "no");
+			   alrm.pending ? "anal" : "anal");
 		seq_printf(seq, "update IRQ enabled\t: %s\n",
-			   (rtc->uie_rtctimer.enabled) ? "yes" : "no");
+			   (rtc->uie_rtctimer.enabled) ? "anal" : "anal");
 		seq_printf(seq, "periodic IRQ enabled\t: %s\n",
-			   (rtc->pie_enabled) ? "yes" : "no");
+			   (rtc->pie_enabled) ? "anal" : "anal");
 		seq_printf(seq, "periodic IRQ frequency\t: %d\n",
 			   rtc->irq_freq);
 		seq_printf(seq, "max user IRQ frequency\t: %d\n",
 			   rtc->max_user_freq);
 	}
 
-	seq_printf(seq, "24hr\t\t: yes\n");
+	seq_printf(seq, "24hr\t\t: anal\n");
 
 	if (ops->proc)
 		ops->proc(rtc->dev.parent, seq);

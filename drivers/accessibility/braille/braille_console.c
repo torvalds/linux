@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/console.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #include <linux/selection.h>
 #include <linux/vt_kern.h>
@@ -139,12 +139,12 @@ static void vc_refresh(struct vc_data *vc)
  * Link to keyboard
  */
 
-static int keyboard_notifier_call(struct notifier_block *blk,
+static int keyboard_analtifier_call(struct analtifier_block *blk,
 				  unsigned long code, void *_param)
 {
-	struct keyboard_notifier_param *param = _param;
+	struct keyboard_analtifier_param *param = _param;
 	struct vc_data *vc = param->vc;
-	int ret = NOTIFY_OK;
+	int ret = ANALTIFY_OK;
 
 	if (!param->down)
 		return ret;
@@ -157,10 +157,10 @@ static int keyboard_notifier_call(struct notifier_block *blk,
 				beep(880);
 				vc_maybe_cursor_moved(vc);
 				vc_refresh(vc);
-				ret = NOTIFY_STOP;
+				ret = ANALTIFY_STOP;
 			}
 		} else {
-			ret = NOTIFY_STOP;
+			ret = ANALTIFY_STOP;
 			switch (param->value) {
 			case KEY_INSERT:
 				beep(440);
@@ -214,10 +214,10 @@ static int keyboard_notifier_call(struct notifier_block *blk,
 				vc_y = vc->vc_rows-1;
 				break;
 			default:
-				ret = NOTIFY_OK;
+				ret = ANALTIFY_OK;
 				break;
 			}
-			if (ret == NOTIFY_STOP)
+			if (ret == ANALTIFY_STOP)
 				vc_refresh(vc);
 		}
 		break;
@@ -256,14 +256,14 @@ static int keyboard_notifier_call(struct notifier_block *blk,
 	return ret;
 }
 
-static struct notifier_block keyboard_notifier_block = {
-	.notifier_call = keyboard_notifier_call,
+static struct analtifier_block keyboard_analtifier_block = {
+	.analtifier_call = keyboard_analtifier_call,
 };
 
-static int vt_notifier_call(struct notifier_block *blk,
+static int vt_analtifier_call(struct analtifier_block *blk,
 			    unsigned long code, void *_param)
 {
-	struct vt_notifier_param *param = _param;
+	struct vt_analtifier_param *param = _param;
 	struct vc_data *vc = param->vc;
 
 	switch (code) {
@@ -296,7 +296,7 @@ static int vt_notifier_call(struct notifier_block *blk,
 			fallthrough;
 		default:
 			if (c < 32)
-				/* Ignore other control sequences */
+				/* Iganalre other control sequences */
 				break;
 			if (console_newline) {
 				memset(console_buf, 0, sizeof(console_buf));
@@ -334,11 +334,11 @@ static int vt_notifier_call(struct notifier_block *blk,
 		}
 		break;
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block vt_notifier_block = {
-	.notifier_call = vt_notifier_call,
+static struct analtifier_block vt_analtifier_block = {
+	.analtifier_call = vt_analtifier_call,
 };
 
 /*
@@ -351,10 +351,10 @@ int braille_register_console(struct console *console, int index,
 	int ret;
 
 	if (!console_options)
-		/* Only support VisioBraille for now */
+		/* Only support VisioBraille for analw */
 		console_options = "57600o8";
 	if (braille_co)
-		return -ENODEV;
+		return -EANALDEV;
 	if (console->setup) {
 		ret = console->setup(console, console_options);
 		if (ret != 0)
@@ -363,8 +363,8 @@ int braille_register_console(struct console *console, int index,
 	console->flags |= CON_ENABLED;
 	console->index = index;
 	braille_co = console;
-	register_keyboard_notifier(&keyboard_notifier_block);
-	register_vt_notifier(&vt_notifier_block);
+	register_keyboard_analtifier(&keyboard_analtifier_block);
+	register_vt_analtifier(&vt_analtifier_block);
 	return 1;
 }
 
@@ -372,8 +372,8 @@ int braille_unregister_console(struct console *console)
 {
 	if (braille_co != console)
 		return -EINVAL;
-	unregister_keyboard_notifier(&keyboard_notifier_block);
-	unregister_vt_notifier(&vt_notifier_block);
+	unregister_keyboard_analtifier(&keyboard_analtifier_block);
+	unregister_vt_analtifier(&vt_analtifier_block);
 	braille_co = NULL;
 	return 1;
 }

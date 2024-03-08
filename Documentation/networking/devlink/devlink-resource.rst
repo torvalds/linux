@@ -59,7 +59,7 @@ Some resource's size can be changed. Examples:
     $devlink resource set pci/0000:03:00.0 path /kvd/hash_single size 73088
     $devlink resource set pci/0000:03:00.0 path /kvd/hash_double size 74368
 
-The changes do not apply immediately, this can be validated by the 'size_new'
+The changes do analt apply immediately, this can be validated by the 'size_new'
 attribute, which represents the pending change in size. For example:
 
 .. code:: shell
@@ -72,5 +72,5 @@ attribute, which represents the pending change in size. For example:
         name hash_double size 60416 unit entry size_min 32768 size_max 180224 size_gran 128
         name hash_single size 87040 unit entry size_min 65536 size_max 212992 size_gran 128
 
-Note that changes in resource size may require a device reload to properly
+Analte that changes in resource size may require a device reload to properly
 take effect.

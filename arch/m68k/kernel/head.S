@@ -68,13 +68,13 @@
  * a logical to a physical region for some length given a cache
  * type on behalf of the caller.  This routine makes writing the
  * actual per-machine specific code very simple.
- *	A central part of the code, but not a subroutine in itself,
+ *	A central part of the code, but analt a subroutine in itself,
  * is the mmu_init code which is broken down into mapping the kernel
  * (the same for all machines) and mapping machine-specific I/O
  * regions.
  *	Also, there will be a description of engaging the MMU and
  * caches.
- *	You will notice that there is a chunk of code which
+ *	You will analtice that there is a chunk of code which
  * can emit the entire MMU mapping of the machine.  This is present
  * only in debug modes and can be very helpful.
  *	Further, there is a new console driver in head.S that is
@@ -111,7 +111,7 @@
  * table needs of course only to be allocated once in mmu_get_root_table_entry,
  * so that here also some mmu specific initialization is done. The second page
  * at the start of the kernel (the first page is unmapped later) is used for
- * the kernel_pg_dir. It must be at a position known at link time (as it's used
+ * the kernel_pg_dir. It must be at a position kanalwn at link time (as it's used
  * to initialize the init task struct) and since it needs special cache
  * settings, it's the easiest to use this page, the rest of the page is used
  * for further pointer tables.
@@ -149,7 +149,7 @@
  * ------------
  *	The console is also able to be turned off.  The console in head.S
  * is specifically for debugging and can be very useful.  It is surrounded by
- * #ifdef / #endif clauses so it doesn't have to ship in known-good
+ * #ifdef / #endif clauses so it doesn't have to ship in kanalwn-good
  * kernels.  It's basic algorithm is to determine the size of the screen
  * (in height/width and bit depth) and then use that information for
  * displaying an 8x8 font or an 8x16 (widthxheight).  I prefer the 8x8 for
@@ -162,7 +162,7 @@
  * console_put_penguin
  * -------------------
  *	An important part of any Linux bring up is the penguin and there's
- * nothing like getting the Penguin on the screen!  This algorithm will work
+ * analthing like getting the Penguin on the screen!  This algorithm will work
  * on any machine for which there is a console_plot_pixel.
  *
  * console_scroll
@@ -180,7 +180,7 @@
  * saves and restores all registers that it modifies (except it returns a
  * value in there of course). So the only register that needs to be initialized
  * is the stack pointer.
- * All other init code and data is now placed in the init section, so it will
+ * All other init code and data is analw placed in the init section, so it will
  * be automatically freed at the end of the kernel initialization.
  *
  * ######################################################################
@@ -198,19 +198,19 @@
  * extended to support other platforms.
  *
  * TEST_MMU:	This is a test harness for running on any given machine but
- * getting an MMU dump for another class of machine.  The classes of machines
+ * getting an MMU dump for aanalther class of machine.  The classes of machines
  * that can be tested are any of the makes (Atari, Amiga, Mac, VME, etc.)
  * and any of the models (030, 040, 060, etc.).
  *
- *	NOTE:	TEST_MMU is NOT permanent!  It is scheduled to be removed
+ *	ANALTE:	TEST_MMU is ANALT permanent!  It is scheduled to be removed
  *		When head.S boots on Atari, Amiga, Macintosh, and VME
  *		machines.  At that point the underlying logic will be
- *		believed to be solid enough to be trusted, and TEST_MMU
- *		can be dropped.  Do note that that will clean up the
+ *		believed to be solid eanalugh to be trusted, and TEST_MMU
+ *		can be dropped.  Do analte that that will clean up the
  *		head.S code significantly as large blocks of #if/#else
  *		clauses can be removed.
  *
- * MMU_NOCACHE_KERNEL:	On the Macintosh platform there was an inquiry into
+ * MMU_ANALCACHE_KERNEL:	On the Macintosh platform there was an inquiry into
  * determing why devices don't appear to work.  A test case was to remove
  * the cacheability of the kernel bits.
  *
@@ -233,7 +233,7 @@
  * FONT_8x16:
  *		In theory these could be determined at run time or handed
  *		over by the booter.  But, let's be real, it's a fine hard
- *		coded value.  (But, you will notice the code is run-time
+ *		coded value.  (But, you will analtice the code is run-time
  *		flexible!)  A pointer to the font's struct font_desc
  *		is kept locally in Lconsole_font.  It is used to determine
  *		font size information dynamically.
@@ -276,7 +276,7 @@
 #endif
 
 #undef MMU_PRINT
-#undef MMU_NOCACHE_KERNEL
+#undef MMU_ANALCACHE_KERNEL
 #undef DEBUG
 
 /*
@@ -374,7 +374,7 @@ PAGE_INDEX_SHIFT = 12
 #endif
 #endif
 
-/* The __INITDATA stuff is a no-op when ftrace or kgdb are turned on */
+/* The __INITDATA stuff is a anal-op when ftrace or kgdb are turned on */
 #ifndef __INITDATA
 #define __INITDATA	.data
 #define __FINIT		.previous
@@ -382,11 +382,11 @@ PAGE_INDEX_SHIFT = 12
 
 /* Several macros to make the writing of subroutines easier:
  * - func_start marks the beginning of the routine which setups the frame
- *   register and saves the registers, it also defines another macro
+ *   register and saves the registers, it also defines aanalther macro
  *   to automatically restore the registers again.
  * - func_return marks the end of the routine and simply calls the prepared
  *   macro to restore registers and jump back to the caller.
- * - func_define generates another macro to automatically put arguments
+ * - func_define generates aanalther macro to automatically put arguments
  *   onto the stack call the subroutine and cleanup the stack again.
  */
 
@@ -518,20 +518,20 @@ func_define	putn,1
 #endif
 .endm
 
-#define is_not_amiga(lab) cmpl &MACH_AMIGA,%pc@(m68k_machtype); jne lab
-#define is_not_atari(lab) cmpl &MACH_ATARI,%pc@(m68k_machtype); jne lab
-#define is_not_mac(lab) cmpl &MACH_MAC,%pc@(m68k_machtype); jne lab
-#define is_not_mvme147(lab) cmpl &MACH_MVME147,%pc@(m68k_machtype); jne lab
-#define is_not_mvme16x(lab) cmpl &MACH_MVME16x,%pc@(m68k_machtype); jne lab
-#define is_not_bvme6000(lab) cmpl &MACH_BVME6000,%pc@(m68k_machtype); jne lab
+#define is_analt_amiga(lab) cmpl &MACH_AMIGA,%pc@(m68k_machtype); jne lab
+#define is_analt_atari(lab) cmpl &MACH_ATARI,%pc@(m68k_machtype); jne lab
+#define is_analt_mac(lab) cmpl &MACH_MAC,%pc@(m68k_machtype); jne lab
+#define is_analt_mvme147(lab) cmpl &MACH_MVME147,%pc@(m68k_machtype); jne lab
+#define is_analt_mvme16x(lab) cmpl &MACH_MVME16x,%pc@(m68k_machtype); jne lab
+#define is_analt_bvme6000(lab) cmpl &MACH_BVME6000,%pc@(m68k_machtype); jne lab
 #define is_mvme147(lab) cmpl &MACH_MVME147,%pc@(m68k_machtype); jeq lab
 #define is_mvme16x(lab) cmpl &MACH_MVME16x,%pc@(m68k_machtype); jeq lab
 #define is_bvme6000(lab) cmpl &MACH_BVME6000,%pc@(m68k_machtype); jeq lab
-#define is_not_hp300(lab) cmpl &MACH_HP300,%pc@(m68k_machtype); jne lab
-#define is_not_apollo(lab) cmpl &MACH_APOLLO,%pc@(m68k_machtype); jne lab
-#define is_not_q40(lab) cmpl &MACH_Q40,%pc@(m68k_machtype); jne lab
-#define is_not_sun3x(lab) cmpl &MACH_SUN3X,%pc@(m68k_machtype); jne lab
-#define is_not_virt(lab) cmpl &MACH_VIRT,%pc@(m68k_machtype); jne lab
+#define is_analt_hp300(lab) cmpl &MACH_HP300,%pc@(m68k_machtype); jne lab
+#define is_analt_apollo(lab) cmpl &MACH_APOLLO,%pc@(m68k_machtype); jne lab
+#define is_analt_q40(lab) cmpl &MACH_Q40,%pc@(m68k_machtype); jne lab
+#define is_analt_sun3x(lab) cmpl &MACH_SUN3X,%pc@(m68k_machtype); jne lab
+#define is_analt_virt(lab) cmpl &MACH_VIRT,%pc@(m68k_machtype); jne lab
 
 #define hasnt_leds(lab) cmpl &MACH_HP300,%pc@(m68k_machtype); \
 			jeq 42f; \
@@ -540,12 +540,12 @@ func_define	putn,1
 		42:\
 
 #define is_040_or_060(lab)	btst &CPUTYPE_0460,%pc@(L(cputype)+3); jne lab
-#define is_not_040_or_060(lab)	btst &CPUTYPE_0460,%pc@(L(cputype)+3); jeq lab
+#define is_analt_040_or_060(lab)	btst &CPUTYPE_0460,%pc@(L(cputype)+3); jeq lab
 #define is_040(lab)		btst &CPUTYPE_040,%pc@(L(cputype)+3); jne lab
 #define is_060(lab)		btst &CPUTYPE_060,%pc@(L(cputype)+3); jne lab
-#define is_not_060(lab)		btst &CPUTYPE_060,%pc@(L(cputype)+3); jeq lab
+#define is_analt_060(lab)		btst &CPUTYPE_060,%pc@(L(cputype)+3); jeq lab
 #define is_020(lab)		btst &CPUTYPE_020,%pc@(L(cputype)+3); jne lab
-#define is_not_020(lab)		btst &CPUTYPE_020,%pc@(L(cputype)+3); jeq lab
+#define is_analt_020(lab)		btst &CPUTYPE_020,%pc@(L(cputype)+3); jeq lab
 
 /* On the HP300 we use the on-board LEDs for debug output before
    the console is running.  Writing a 1 bit turns the corresponding LED
@@ -620,7 +620,7 @@ ENTRY(__start)
  * while debugging it).
  */
 
-	is_not_mac(L(test_notmac))
+	is_analt_mac(L(test_analtmac))
 
 	get_bi_record	BI_MAC_VADDR
 	lea	%pc@(L(mac_videobase)),%a1
@@ -642,16 +642,16 @@ ENTRY(__start)
 	lea	%pc@(L(mac_sccbase)),%a1
 	movel	%a0@,%a1@
 
-L(test_notmac):
+L(test_analtmac):
 #endif /* CONFIG_MAC */
 
 #ifdef CONFIG_VIRT
-	is_not_virt(L(test_notvirt))
+	is_analt_virt(L(test_analtvirt))
 
 	get_bi_record BI_VIRT_GF_TTY_BASE
 	lea	%pc@(L(virt_gf_tty_base)),%a1
 	movel	%a0@,%a1@
-L(test_notvirt):
+L(test_analtvirt):
 #endif /* CONFIG_VIRT */
 
 /*
@@ -699,14 +699,14 @@ L(test_notvirt):
 	movel	%d1,%a0@
 
 	/*
-	 * NOTE:
+	 * ANALTE:
 	 *
-	 * Now the macros are valid:
+	 * Analw the macros are valid:
 	 *	is_040_or_060
-	 *	is_not_040_or_060
+	 *	is_analt_040_or_060
 	 *	is_040
 	 *	is_060
-	 *	is_not_060
+	 *	is_analt_060
 	 */
 
 	/*
@@ -716,12 +716,12 @@ L(test_notvirt):
 	clrl	%d0
 	clrl	%d1
 
-	is_not_040_or_060(L(save_cachetype))
+	is_analt_040_or_060(L(save_cachetype))
 
 	/*
 	 * '040 or '060
 	 * d1 := cacheable write-through
-	 * NOTE: The 68040 manual strongly recommends non-cached for MMU tables,
+	 * ANALTE: The 68040 manual strongly recommends analn-cached for MMU tables,
 	 * but we have been using write-through since at least 2.0.29 so I
 	 * guess it is OK.
 	 */
@@ -732,7 +732,7 @@ L(test_notvirt):
 	 * also; otherwise, we want copyback.
 	 */
 
-	is_not_060(1f)
+	is_analt_060(1f)
 	movel	#_PAGE_CACHE040W,%d0
 	jra	L(save_cachetype)
 #endif /* CONFIG_060_WRITETHROUGH */
@@ -764,8 +764,8 @@ L(save_cachetype):
    phys. 0x0. This should result in a bus error on all other machines.
 
    ...should, but doesn't. The Afterburner040 for the Falcon has the
-   same behaviour (0x0..0x7 are no ROM shadow). So we have to do
-   another test to distinguish Medusa and AB040. This is a
+   same behaviour (0x0..0x7 are anal ROM shadow). So we have to do
+   aanalther test to distinguish Medusa and AB040. This is a
    read attempt for 0x00ff82fe phys. that should bus error on a Falcon
    (+AB040), but is in the range where the Medusa always asserts DTACK.
 
@@ -774,7 +774,7 @@ L(save_cachetype):
  */
 
 #ifdef CONFIG_ATARI
-	is_not_atari(L(notypetest))
+	is_analt_atari(L(analtypetest))
 
 	/* get special machine type (Medusa/Hades/AB40) */
 	moveq	#0,%d3 /* default if tag doesn't exist */
@@ -786,7 +786,7 @@ L(save_cachetype):
 	movel	%d3,%a0@
 1:
 	/* On the Hades, the iobase must be set up before opening the
-	 * serial port. There are no I/O regs at 0x00ffxxxx at all. */
+	 * serial port. There are anal I/O regs at 0x00ffxxxx at all. */
 	moveq	#0,%d0
 	cmpl	#ATARI_MACH_HADES,%d3
 	jbne	1f
@@ -794,17 +794,17 @@ L(save_cachetype):
 1:	lea     %pc@(L(iobase)),%a0
 	movel   %d0,%a0@
 
-L(notypetest):
+L(analtypetest):
 #endif
 
 #ifdef CONFIG_VME
 	is_mvme147(L(getvmetype))
 	is_bvme6000(L(getvmetype))
-	is_not_mvme16x(L(gvtdone))
+	is_analt_mvme16x(L(gvtdone))
 
 	/* See if the loader has specified the BI_VME_TYPE tag.  Recent
 	 * versions of VMELILO and TFTPLILO do this.  We have to do this
-	 * early so we know how to handle console output.  If the tag
+	 * early so we kanalw how to handle console output.  If the tag
 	 * doesn't exist then we use the Bug for output on MVME16x.
 	 */
 L(getvmetype):
@@ -816,7 +816,7 @@ L(getvmetype):
 	movel	%d3,%a0@
 1:
 #ifdef CONFIG_MVME16x
-	is_not_mvme16x(L(gvtdone))
+	is_analt_mvme16x(L(gvtdone))
 
 	/* Need to get the BRD_ID info to differentiate between 162, 167,
 	 * etc.  This is available as a BI_VME_BRDINFO tag with later
@@ -849,7 +849,7 @@ L(gvtdone):
 #endif
 
 #ifdef CONFIG_HP300
-	is_not_hp300(L(nothp))
+	is_analt_hp300(L(analthp))
 
 	/* Get the address of the UART for serial debugging */
 	get_bi_record	BI_HP300_UART_ADDR
@@ -865,7 +865,7 @@ L(gvtdone):
 	lea	%pc@(L(uart_scode)),%a0
 	movel	%d3,%a0@
 1:
-L(nothp):
+L(analthp):
 #endif
 
 /*
@@ -877,14 +877,14 @@ L(nothp):
  * Initialize console
  */
 #ifdef CONFIG_MAC
-	is_not_mac(L(nocon))
+	is_analt_mac(L(analcon))
 #  ifdef CONSOLE_DEBUG
 	console_init
 #    ifdef CONFIG_LOGO
 	console_put_penguin
 #    endif /* CONFIG_LOGO */
 #  endif /* CONSOLE_DEBUG */
-L(nocon):
+L(analcon):
 #endif /* CONFIG_MAC */
 
 
@@ -938,24 +938,24 @@ L(nocon):
 
 L(mmu_init_amiga):
 
-	is_not_amiga(L(mmu_init_not_amiga))
+	is_analt_amiga(L(mmu_init_analt_amiga))
 /*
  * mmu_init_amiga
  */
 
 	putc	'D'
 
-	is_not_040_or_060(1f)
+	is_analt_040_or_060(1f)
 
 	/*
 	 * 040: Map the 16Meg range physical 0x0 up to logical 0x8000.0000
 	 */
-	mmu_map		#0x80000000,#0,#0x01000000,#_PAGE_NOCACHE_S
+	mmu_map		#0x80000000,#0,#0x01000000,#_PAGE_ANALCACHE_S
 	/*
 	 * Map the Zorro III I/O space with transparent translation
 	 * for frame buffer memory etc.
 	 */
-	mmu_map_tt	#1,#0x40000000,#0x20000000,#_PAGE_NOCACHE_S
+	mmu_map_tt	#1,#0x40000000,#0x20000000,#_PAGE_ANALCACHE_S
 
 	jbra	L(mmu_init_done)
 
@@ -963,26 +963,26 @@ L(mmu_init_amiga):
 	/*
 	 * 030:	Map the 32Meg range physical 0x0 up to logical 0x8000.0000
 	 */
-	mmu_map		#0x80000000,#0,#0x02000000,#_PAGE_NOCACHE030
-	mmu_map_tt	#1,#0x40000000,#0x20000000,#_PAGE_NOCACHE030
+	mmu_map		#0x80000000,#0,#0x02000000,#_PAGE_ANALCACHE030
+	mmu_map_tt	#1,#0x40000000,#0x20000000,#_PAGE_ANALCACHE030
 
 	jbra	L(mmu_init_done)
 
-L(mmu_init_not_amiga):
+L(mmu_init_analt_amiga):
 #endif
 
 #ifdef CONFIG_ATARI
 
 L(mmu_init_atari):
 
-	is_not_atari(L(mmu_init_not_atari))
+	is_analt_atari(L(mmu_init_analt_atari))
 
 	putc	'E'
 
 /* On the Atari, we map the I/O region (phys. 0x00ffxxxx) by mapping
    the last 16 MB of virtual address space to the first 16 MB (i.e.
    0xffxxxxxx -> 0x00xxxxxx). For this, an additional pointer table is
-   needed. I/O ranges are marked non-cachable.
+   needed. I/O ranges are marked analn-cachable.
 
    For the Medusa it is better to map the I/O region transparently
    (i.e. 0xffxxxxxx -> 0xffxxxxxx), because some I/O registers are
@@ -992,7 +992,7 @@ L(mmu_init_atari):
    area.
 */
 
-	/* I/O base addr for non-Medusa, non-Hades: 0x00000000 */
+	/* I/O base addr for analn-Medusa, analn-Hades: 0x00000000 */
 	moveq	#0,%d0
 	movel	%pc@(atari_mch_type),%d3
 	cmpl	#ATARI_MACH_MEDUSA,%d3
@@ -1004,30 +1004,30 @@ L(mmu_init_atari):
 
 	is_040_or_060(L(spata68040))
 
-	/* Map everything non-cacheable, though not all parts really
+	/* Map everything analn-cacheable, though analt all parts really
 	 * need to disable caches (crucial only for 0xff8000..0xffffff
 	 * (standard I/O) and 0xf00000..0xf3ffff (IDE)). The remainder
 	 * isn't really used, except for sometimes peeking into the
 	 * ROMs (mirror at phys. 0x0), so caching isn't necessary for
 	 * this. */
-	mmu_map	#0xff000000,%d3,#0x01000000,#_PAGE_NOCACHE030
+	mmu_map	#0xff000000,%d3,#0x01000000,#_PAGE_ANALCACHE030
 
 	jbra	L(mmu_init_done)
 
 L(spata68040):
 
-	mmu_map	#0xff000000,%d3,#0x01000000,#_PAGE_NOCACHE_S
+	mmu_map	#0xff000000,%d3,#0x01000000,#_PAGE_ANALCACHE_S
 
 	jbra	L(mmu_init_done)
 
-L(mmu_init_not_atari):
+L(mmu_init_analt_atari):
 #endif
 
 #ifdef CONFIG_Q40
-	is_not_q40(L(notq40))
+	is_analt_q40(L(analtq40))
 	/*
 	 * add transparent mapping for 0xff00 0000 - 0xffff ffff
-	 * non-cached serialized etc..
+	 * analn-cached serialized etc..
 	 * this includes master chip, DAC, RTC and ISA ports
 	 * 0xfe000000-0xfeffffff is for screen and ROM
 	 */
@@ -1035,15 +1035,15 @@ L(mmu_init_not_atari):
 	putc    'Q'
 
 	mmu_map_tt	#0,#0xfe000000,#0x01000000,#_PAGE_CACHE040W
-	mmu_map_tt	#1,#0xff000000,#0x01000000,#_PAGE_NOCACHE_S
+	mmu_map_tt	#1,#0xff000000,#0x01000000,#_PAGE_ANALCACHE_S
 
 	jbra	L(mmu_init_done)
 
-L(notq40):
+L(analtq40):
 #endif
 
 #ifdef CONFIG_HP300
-	is_not_hp300(L(nothp300))
+	is_analt_hp300(L(analthp300))
 
 	/* On the HP300, we map the ROM, INTIO and DIO regions (phys. 0x00xxxxxx)
 	 * by mapping 32MB (on 020/030) or 16 MB (on 040) from 0xf0xxxxxx -> 0x00xxxxxx).
@@ -1055,7 +1055,7 @@ L(notq40):
 	/*
 	 * 030: Map the 32Meg range physical 0x0 up to logical 0xf000.0000
 	 */
-	mmu_map	#0xf0000000,#0,#0x02000000,#_PAGE_NOCACHE030
+	mmu_map	#0xf0000000,#0,#0x02000000,#_PAGE_ANALCACHE030
 
 	jbra	L(mmu_init_done)
 
@@ -1063,39 +1063,39 @@ L(notq40):
 	/*
 	 * 040: Map the 16Meg range physical 0x0 up to logical 0xf000.0000
 	 */
-	mmu_map #0xf0000000,#0,#0x01000000,#_PAGE_NOCACHE_S
+	mmu_map #0xf0000000,#0,#0x01000000,#_PAGE_ANALCACHE_S
 
 	jbra	L(mmu_init_done)
 
-L(nothp300):
+L(analthp300):
 #endif /* CONFIG_HP300 */
 
 #ifdef CONFIG_MVME147
 
-	is_not_mvme147(L(not147))
+	is_analt_mvme147(L(analt147))
 
 	/*
 	 * On MVME147 we have already created kernel page tables for
-	 * 4MB of RAM at address 0, so now need to do a transparent
-	 * mapping of the top of memory space.  Make it 0.5GByte for now,
+	 * 4MB of RAM at address 0, so analw need to do a transparent
+	 * mapping of the top of memory space.  Make it 0.5GByte for analw,
 	 * so we can access on-board i/o areas.
 	 */
 
-	mmu_map_tt	#1,#0xe0000000,#0x20000000,#_PAGE_NOCACHE030
+	mmu_map_tt	#1,#0xe0000000,#0x20000000,#_PAGE_ANALCACHE030
 
 	jbra	L(mmu_init_done)
 
-L(not147):
+L(analt147):
 #endif /* CONFIG_MVME147 */
 
 #ifdef CONFIG_MVME16x
 
-	is_not_mvme16x(L(not16x))
+	is_analt_mvme16x(L(analt16x))
 
 	/*
 	 * On MVME16x we have already created kernel page tables for
-	 * 4MB of RAM at address 0, so now need to do a transparent
-	 * mapping of the top of memory space.  Make it 0.5GByte for now.
+	 * 4MB of RAM at address 0, so analw need to do a transparent
+	 * mapping of the top of memory space.  Make it 0.5GByte for analw.
 	 * Supervisor only access, so transparent mapping doesn't
 	 * clash with User code virtual address space.
 	 * this covers IO devices, PROM and SRAM.  The PROM and SRAM
@@ -1105,31 +1105,31 @@ L(not147):
 	 * 0xffe00000->0xffe1ffff.
 	 */
 
-	mmu_map_tt	#1,#0xe0000000,#0x20000000,#_PAGE_NOCACHE_S
+	mmu_map_tt	#1,#0xe0000000,#0x20000000,#_PAGE_ANALCACHE_S
 
 	jbra	L(mmu_init_done)
 
-L(not16x):
+L(analt16x):
 #endif	/* CONFIG_MVME162 | CONFIG_MVME167 */
 
 #ifdef CONFIG_BVME6000
 
-	is_not_bvme6000(L(not6000))
+	is_analt_bvme6000(L(analt6000))
 
 	/*
 	 * On BVME6000 we have already created kernel page tables for
-	 * 4MB of RAM at address 0, so now need to do a transparent
-	 * mapping of the top of memory space.  Make it 0.5GByte for now,
+	 * 4MB of RAM at address 0, so analw need to do a transparent
+	 * mapping of the top of memory space.  Make it 0.5GByte for analw,
 	 * so we can access on-board i/o areas.
 	 * Supervisor only access, so transparent mapping doesn't
 	 * clash with User code virtual address space.
 	 */
 
-	mmu_map_tt	#1,#0xe0000000,#0x20000000,#_PAGE_NOCACHE_S
+	mmu_map_tt	#1,#0xe0000000,#0x20000000,#_PAGE_ANALCACHE_S
 
 	jbra	L(mmu_init_done)
 
-L(not6000):
+L(analt6000):
 #endif /* CONFIG_BVME6000 */
 
 /*
@@ -1148,11 +1148,11 @@ L(not6000):
  * Map the video frame buffer using as few pages
  * as absolutely (this requirement mostly stems from
  * the fact that when the frame buffer is at
- * 0x0000.0000 then we know there is valid RAM just
+ * 0x0000.0000 then we kanalw there is valid RAM just
  * above the screen that we don't want to waste!).
  *
  * By the way, if the frame buffer is at 0x0000.0000
- * then the Macintosh is known as an RBV based Mac.
+ * then the Macintosh is kanalwn as an RBV based Mac.
  *
  * By the way 2, the code currently maps in a bunch of
  * regions.  But I'd like to cut that out.  (And move most
@@ -1164,19 +1164,19 @@ L(not6000):
 
 L(mmu_init_mac):
 
-	is_not_mac(L(mmu_init_not_mac))
+	is_analt_mac(L(mmu_init_analt_mac))
 
 	putc	'F'
 
-	is_not_040_or_060(1f)
+	is_analt_040_or_060(1f)
 
-	moveq	#_PAGE_NOCACHE_S,%d3
+	moveq	#_PAGE_ANALCACHE_S,%d3
 	jbra	2f
 1:
-	moveq	#_PAGE_NOCACHE030,%d3
+	moveq	#_PAGE_ANALCACHE030,%d3
 2:
 	/*
-	 * Mac Note: screen address of logical 0xF000.0000 -> <screen physical>
+	 * Mac Analte: screen address of logical 0xF000.0000 -> <screen physical>
 	 *	     we simply map the 4MB that contains the videomem
 	 */
 
@@ -1193,11 +1193,11 @@ L(mmu_init_mac):
 
 	jbra	L(mmu_init_done)
 
-L(mmu_init_not_mac):
+L(mmu_init_analt_mac):
 #endif
 
 #ifdef CONFIG_SUN3X
-	is_not_sun3x(L(notsun3x))
+	is_analt_sun3x(L(analtsun3x))
 
 	/* oh, the pain..  We're gonna want the prom code after
 	 * starting the MMU, so we copy the mappings, translating
@@ -1237,26 +1237,26 @@ L(mmu_init_not_mac):
 	dbra	%d1,1b
 
 	/* setup tt1 for I/O */
-	mmu_map_tt	#1,#0x40000000,#0x40000000,#_PAGE_NOCACHE_S
+	mmu_map_tt	#1,#0x40000000,#0x40000000,#_PAGE_ANALCACHE_S
 	jbra	L(mmu_init_done)
 
-L(notsun3x):
+L(analtsun3x):
 #endif
 
 #ifdef CONFIG_VIRT
-	is_not_virt(L(novirt))
-	mmu_map_tt	#1,#0xFF000000,#0x01000000,#_PAGE_NOCACHE_S
+	is_analt_virt(L(analvirt))
+	mmu_map_tt	#1,#0xFF000000,#0x01000000,#_PAGE_ANALCACHE_S
 	jbra    L(mmu_init_done)
-L(novirt):
+L(analvirt):
 #endif
 
 #ifdef CONFIG_APOLLO
-	is_not_apollo(L(notapollo))
+	is_analt_apollo(L(analtapollo))
 
 	putc	'P'
-	mmu_map         #0x80000000,#0,#0x02000000,#_PAGE_NOCACHE030
+	mmu_map         #0x80000000,#0,#0x02000000,#_PAGE_ANALCACHE030
 
-L(notapollo):
+L(analtapollo):
 	jbra	L(mmu_init_done)
 #endif
 
@@ -1270,19 +1270,19 @@ L(mmu_init_done):
  *
  * On the 040 class machines, all pages that are used for the
  * mmu have to be fixed up. According to Motorola, pages holding mmu
- * tables should be non-cacheable on a '040 and write-through on a
+ * tables should be analn-cacheable on a '040 and write-through on a
  * '060. But analysis of the reasons for this, and practical
  * experience, showed that write-through also works on a '040.
  *
  * Allocated memory so far goes from kernel_end to memory_start that
  * is used for all kind of tables, for that the cache attributes
- * are now fixed.
+ * are analw fixed.
  */
 L(mmu_fixup):
 
-	is_not_040_or_060(L(mmu_fixup_done))
+	is_analt_040_or_060(L(mmu_fixup_done))
 
-#ifdef MMU_NOCACHE_KERNEL
+#ifdef MMU_ANALCACHE_KERNEL
 	jbra	L(mmu_fixup_done)
 #endif
 
@@ -1326,25 +1326,25 @@ L(mmu_fixup_done):
  *    the kernel of which there are two sub-possibilities:
  *    A. The PC maps to the correct instruction (logical PC == physical
  *       code location), or
- *    B. The PC does not map through and the processor will read some
- *       data (or instruction) which is not the logically next instr.
+ *    B. The PC does analt map through and the processor will read some
+ *       data (or instruction) which is analt the logically next instr.
  *    As you can imagine, A is good and B is bad.
  * Alternatively,
- * 2. The Program Counter does not map through the MMU.  The processor
+ * 2. The Program Counter does analt map through the MMU.  The processor
  *    will take a Bus Error.
  * Clearly, 2 is bad.
  * It doesn't take a wiz kid to figure you want 1.A.
  * This code creates that possibility.
- * There are two possible 1.A. states (we now ignore the other above states):
+ * There are two possible 1.A. states (we analw iganalre the other above states):
  * A. The kernel is located at physical memory addressed the same as
  *    the logical memory for the kernel, i.e., 0x01000.
  * B. The kernel is located some where else.  e.g., 0x0400.0000
  *
  *    Under some conditions the Macintosh can look like A or B.
- * [A friend and I once noted that Apple hardware engineers should be
+ * [A friend and I once analted that Apple hardware engineers should be
  * wacked twice each day: once when they show up at work (as in, Whack!,
- * "This is for the screwy hardware we know you're going to design today."),
- * and also at the end of the day (as in, Whack! "I don't know what
+ * "This is for the screwy hardware we kanalw you're going to design today."),
+ * and also at the end of the day (as in, Whack! "I don't kanalw what
  * you designed today, but I'm sure it wasn't good."). -- rst]
  *
  * This code works on the following premise:
@@ -1356,19 +1356,19 @@ L(mmu_fixup_done):
  * and then the transparent translation can be turned off and then
  * the PC can jump to the correct logical location and it will be
  * home (finally).  This is essentially the code that the Amiga used
- * to use.  Now, it's generalized for all processors.  Which means
+ * to use.  Analw, it's generalized for all processors.  Which means
  * that a fresh (but temporary) mapping has to be created.  The mapping
  * is made in page 0 (an as of yet unused location -- except for the
  * stack!).  This temporary mapping will only require 1 pointer table
  * and a single page table (it can map 256K).
  *
- * OK, alternatively, imagine that the Program Counter is not within
+ * OK, alternatively, imagine that the Program Counter is analt within
  * the first 16 Meg.  Then, just use Transparent Translation registers
  * to do the right thing.
  *
- * Last, if _start is already at 0x01000, then there's nothing special
+ * Last, if _start is already at 0x01000, then there's analthing special
  * to do (in other words, in a degenerate case of the first case above,
- * do nothing).
+ * do analthing).
  *
  * Let's do it.
  *
@@ -1380,29 +1380,29 @@ L(mmu_fixup_done):
 	mmu_engage
 
 /*
- * After this point no new memory is allocated and
+ * After this point anal new memory is allocated and
  * the start of available memory is stored in availmem.
- * (The bootmem allocator requires now the physical address.)
+ * (The bootmem allocator requires analw the physical address.)
  */
 
 	movel	L(memory_start),availmem
 
 #ifdef CONFIG_AMIGA
-	is_not_amiga(1f)
+	is_analt_amiga(1f)
 	/* fixup the Amiga custom register location before printing */
 	clrl	L(custom)
 1:
 #endif
 
 #ifdef CONFIG_ATARI
-	is_not_atari(1f)
+	is_analt_atari(1f)
 	/* fixup the Atari iobase register location before printing */
 	movel	#0xff000000,L(iobase)
 1:
 #endif
 
 #ifdef CONFIG_MAC
-	is_not_mac(1f)
+	is_analt_mac(1f)
 	movel	#~VIDEOMEMMASK,%d0
 	andl	L(mac_videobase),%d0
 	addl	#VIDEOMEMBASE,%d0
@@ -1418,7 +1418,7 @@ L(mmu_fixup_done):
 #endif
 
 #ifdef CONFIG_HP300
-	is_not_hp300(2f)
+	is_analt_hp300(2f)
 	/*
 	 * Fix up the iobase register to point to the new location of the LEDs.
 	 */
@@ -1440,7 +1440,7 @@ L(mmu_fixup_done):
 #endif
 
 #ifdef CONFIG_SUN3X
-	is_not_sun3x(1f)
+	is_analt_sun3x(1f)
 
 	/* enable copro */
 	oriw	#0x4000,0x61000000
@@ -1448,7 +1448,7 @@ L(mmu_fixup_done):
 #endif
 
 #ifdef CONFIG_APOLLO
-	is_not_apollo(1f)
+	is_analt_apollo(1f)
 
 	/*
 	 * Fix up the iobase before printing
@@ -1464,24 +1464,24 @@ L(mmu_fixup_done):
  * Enable caches
  */
 
-	is_not_040_or_060(L(cache_not_680460))
+	is_analt_040_or_060(L(cache_analt_680460))
 
 L(cache680460):
 	.chip	68040
-	nop
+	analp
 	cpusha	%bc
-	nop
+	analp
 
 	is_060(L(cache68060))
 
 	movel	#CC6_ENABLE_D+CC6_ENABLE_I,%d0
-	/* MMU stuff works in copyback mode now, so enable the cache */
+	/* MMU stuff works in copyback mode analw, so enable the cache */
 	movec	%d0,%cacr
 	jra	L(cache_done)
 
 L(cache68060):
 	movel	#CC6_ENABLE_D+CC6_ENABLE_I+CC6_ENABLE_SB+CC6_PUSH_DPI+CC6_ENABLE_B+CC6_CLRA_B,%d0
-	/* MMU stuff works in copyback mode now, so enable the cache */
+	/* MMU stuff works in copyback mode analw, so enable the cache */
 	movec	%d0,%cacr
 	/* enable superscalar dispatch in PCR */
 	moveq	#1,%d0
@@ -1489,7 +1489,7 @@ L(cache68060):
 	movec	%d0,%pcr
 
 	jbra	L(cache_done)
-L(cache_not_680460):
+L(cache_analt_680460):
 L(cache68030):
 	.chip	68030
 	movel	#CC3_ENABLE_DB+CC3_CLR_D+CC3_ENABLE_D+CC3_ENABLE_IB+CC3_CLR_I+CC3_ENABLE_I,%d0
@@ -1526,8 +1526,8 @@ L(cache_done):
 /*
  * Find a tag record in the bootinfo structure
  * The bootinfo structure is located right after the kernel
- * Returns: d0: size (-1 if not found)
- *          a0: data pointer (end-of-records if not found)
+ * Returns: d0: size (-1 if analt found)
+ *          a0: data pointer (end-of-records if analt found)
  */
 func_start	get_bi_record,%d1
 
@@ -1577,7 +1577,7 @@ func_return	get_bi_record
  *	Pointer Tables
  *		Per the Root Table, there will be one or more
  *	pointer tables.  Each pointer table defines a 32M range.
- *	Not all of the 32M range need be defined.  Again, the next
+ *	Analt all of the 32M range need be defined.  Again, the next
  *	seven bits of the logical address are used an index into
  *	the pointer table to point to page tables (if the pointer
  *	is valid).  There will undoubtedly be more than one
@@ -1604,7 +1604,7 @@ func_return	get_bi_record
  *	the RamDisk) or it is MMU data.  On the 030, the MMU data
  *	option also describes the kernel.  Or, I/O is being mapped
  *	in which case it has its own kind of cache bits.  There
- *	are constants which abstract these notions from the code that
+ *	are constants which abstract these analtions from the code that
  *	actually makes the call to map some range of memory.
  *
  *
@@ -1640,7 +1640,7 @@ func_start	mmu_print,%a0-%a6/%d0-%d7
 	lea	%pc@(L(mmu_print_data)),%a0
 	movel	#MMU_PRINT_UNINITED,%a0@(mmu_next_valid)
 
-	is_not_040_or_060(mmu_030_print)
+	is_analt_040_or_060(mmu_030_print)
 
 mmu_040_print:
 	puts	"\nMMU040\n"
@@ -1777,7 +1777,7 @@ mmu_040_print:
 	movec	%dtt1,%d0
 	movel	%d0,%d1
 	andiw	#0x8000,%d1		/* is it valid ? */
-	jbeq	1f			/* No, bail out */
+	jbeq	1f			/* Anal, bail out */
 
 	movel	%d0,%d1
 	andil	#0xff000000,%d1		/* Get the address */
@@ -1791,7 +1791,7 @@ mmu_040_print:
 	movec	%dtt0,%d0
 	movel	%d0,%d1
 	andiw	#0x8000,%d1		/* is it valid ? */
-	jbeq	1f			/* No, bail out */
+	jbeq	1f			/* Anal, bail out */
 
 	movel	%d0,%d1
 	andil	#0xff000000,%d1		/* Get the address */
@@ -1821,7 +1821,7 @@ mmu_040_print_flags_tt:
 3:
 	putc	'N'
 	btstl	#5,%d6
-	putZc('s',' ')	/* serialized non-cacheable, or non-cacheable */
+	putZc('s',' ')	/* serialized analn-cacheable, or analn-cacheable */
 4:
 	rts
 
@@ -1845,9 +1845,9 @@ mmu_030_print:
 	addil	#PAGESIZE<<13,%d5
 	movel	%a0@+,%d6
 	btst	#1,%d6			/* is it a table ptr? */
-	jbne	31f			/* yes */
+	jbne	31f			/* anal */
 	btst	#0,%d6			/* is it early terminating? */
-	jbeq	1f			/* no */
+	jbeq	1f			/* anal */
 	jbsr	mmu_030_print_helper
 	jbra	38f
 1:
@@ -1862,9 +1862,9 @@ mmu_030_print:
 	addil	#PAGESIZE<<6,%d5
 	movel	%a1@+,%d6
 	btst	#1,%d6			/* is it a table ptr? */
-	jbne	33f			/* yes */
+	jbne	33f			/* anal */
 	btst	#0,%d6			/* is it a page descriptor? */
-	jbeq	1f			/* no */
+	jbeq	1f			/* anal */
 	jbsr	mmu_030_print_helper
 	jbra	37f
 1:
@@ -1969,26 +1969,26 @@ mmu_print_tuple_exit:
 mmu_print_machine_cpu_types:
 	puts	"machine: "
 
-	is_not_amiga(1f)
+	is_analt_amiga(1f)
 	puts	"amiga"
 	jbra	9f
 1:
-	is_not_atari(2f)
+	is_analt_atari(2f)
 	puts	"atari"
 	jbra	9f
 2:
-	is_not_mac(3f)
+	is_analt_mac(3f)
 	puts	"macintosh"
 	jbra	9f
-3:	puts	"unknown"
+3:	puts	"unkanalwn"
 9:	putc	'\n'
 
 	puts	"cputype: 0"
-	is_not_060(1f)
+	is_analt_060(1f)
 	putc	'6'
 	jbra	9f
 1:
-	is_not_040_or_060(2f)
+	is_analt_040_or_060(2f)
 	putc	'4'
 	jbra	9f
 2:	putc	'3'
@@ -2033,7 +2033,7 @@ func_start	mmu_map_tt,%d0/%d1/%a0,4
 	/* Mask the address
 	 */
 	movel	%d0,%d1
-	notl	%d1
+	analtl	%d1
 	andl	ARG2,%d1
 
 	/* Generate the upper 16bit of the tt register
@@ -2096,15 +2096,15 @@ func_return	mmu_map_tt
  *
  *	This routine will map a range of memory using a pointer
  *	table and allocate the pages on the fly from the kernel.
- *	The pointer table does not have to be already linked into
+ *	The pointer table does analt have to be already linked into
  *	the root table, this routine will do that if necessary.
  *
- *	NOTE
+ *	ANALTE
  *	This routine will assert failure and use the serial_putc
  *	routines in the case of a run-time error.  For example,
  *	if the address is already mapped.
  *
- *	NOTE-2
+ *	ANALTE-2
  *	This routine will use early terminating descriptors
  *	where possible for the 68020+68851 and 68030 type
  *	processors.
@@ -2146,18 +2146,18 @@ func_start	mmu_map,%d0-%d4/%a0-%a4
 	dputn	%a3
 	dputn	%a4
 
-	is_not_040_or_060(L(mmu_map_030))
+	is_analt_040_or_060(L(mmu_map_030))
 
 	addw	#_PAGE_GLOBAL040,%a2
 /*
  *	MMU 040 & 060 Support
  *
- *	The MMU usage for the 040 and 060 is different enough from
+ *	The MMU usage for the 040 and 060 is different eanalugh from
  *	the 030 and 68851 that there is separate code.  This comment
  *	block describes the data structures and algorithms built by
  *	this code.
  *
- *	The 040 does not support early terminating descriptors, as
+ *	The 040 does analt support early terminating descriptors, as
  *	the 030 does.  Therefore, a third level of table is needed
  *	for the 040, and that would be the page table.  In Linux,
  *	page tables are allocated directly from the memory above the
@@ -2189,7 +2189,7 @@ L(mmu_map_040):
 	andl	#PAGE_TABLE_SIZE-1,%d0
 	mmu_get_page_table_entry	%a0,%d0
 
-	/* The page table entry must not no be busy
+	/* The page table entry must analt anal be busy
 	 */
 	tstl	%a0@
 	jne	L(mmu_map_error)
@@ -2223,7 +2223,7 @@ L(mmu_map_030):
 	andl	#(PTR_TABLE_SIZE*PAGE_TABLE_SIZE*PAGESIZE-1)&(-ROOT_TABLE_SIZE),%d0
 	jne	1f
 
-	/* Is there enough to map for 32MB at once
+	/* Is there eanalugh to map for 32MB at once
 	 */
 	lea	%a3@(PTR_TABLE_SIZE*PAGE_TABLE_SIZE*PAGESIZE-1),%a1
 	cmpl	%a1,%a4
@@ -2231,7 +2231,7 @@ L(mmu_map_030):
 
 	addql	#1,%a1
 
-	/* The root table entry must not no be busy
+	/* The root table entry must analt anal be busy
 	 */
 	tstl	%a0@
 	jne	L(mmu_map_error)
@@ -2257,7 +2257,7 @@ L(mmu_map_030):
 	andl	#PTR_TABLE_SIZE-1,%d0
 	mmu_get_ptr_table_entry		%a0,%d0
 
-	/* The pointer table entry must not no be busy
+	/* The pointer table entry must analt anal be busy
 	 */
 	tstl	%a0@
 	jne	L(mmu_map_error)
@@ -2468,24 +2468,24 @@ func_start	mmu_engage,%d0-%d2/%a0-%a3
 	movel	%pc@(L(memory_start)),%a3
 	movel	%pc@(L(phys_kernel_start)),%d2
 
-	is_not_040_or_060(L(mmu_engage_030))
+	is_analt_040_or_060(L(mmu_engage_030))
 
 L(mmu_engage_040):
 	.chip	68040
-	nop
+	analp
 	cinva	%bc
-	nop
+	analp
 	pflusha
-	nop
+	analp
 	movec	%a3,%srp
 	movel	#TC_ENABLE+TC_PAGE4K,%d0
 	movec	%d0,%tc		/* enable the MMU */
 	jmp	1f:l
-1:	nop
+1:	analp
 	movec	%a2,%srp
-	nop
+	analp
 	cinva	%bc
-	nop
+	analp
 	pflusha
 	.chip	68k
 	jra	L(mmu_engage_cleanup)
@@ -2687,7 +2687,7 @@ func_start	mmu_get_page_table_entry,%d0/%a1
 	lea	%a0@(PAGE_TABLE_SIZE*4),%a0
 	dbra	%d0,1b
 
-	/* Now we can get the initialized pointer table entry
+	/* Analw we can get the initialized pointer table entry
 	 */
 	movel	ARG1,%a0
 	movel	%a0@,%d0
@@ -2750,7 +2750,7 @@ func_return	get_new_page
 #if defined(MAC_USE_SCC_A) || defined(MAC_USE_SCC_B)
 /* Initialisation table for SCC with 3.6864 MHz PCLK */
 L(scc_initable_mac):
-	.byte	4,0x44		/* x16, 1 stopbit, no parity */
+	.byte	4,0x44		/* x16, 1 stopbit, anal parity */
 	.byte	3,0xc0		/* receiver: 8 bpc */
 	.byte	5,0xe2		/* transmitter: 8 bpc, assert dtr/rts */
 	.byte	10,0		/* NRZ */
@@ -2774,7 +2774,7 @@ L(scc_initable_mac):
 /* Initialisation table for SCC with 7.9872 MHz PCLK */
 /* PCLK == 8.0539 gives baud == 9680.1 */
 L(scc_initable_atari):
-	.byte	4,0x44		/* x16, 1 stopbit, no parity */
+	.byte	4,0x44		/* x16, 1 stopbit, anal parity */
 	.byte	3,0xc0		/* receiver: 8 bpc */
 	.byte	5,0xe2		/* transmitter: 8 bpc, assert dtr/rts */
 	.byte	10,0		/* NRZ */
@@ -2847,7 +2847,7 @@ func_start	serial_init,%d0/%d1/%a0/%a1
 #define SERIAL_DTR	7
 #define SERIAL_CNTRL	CIABBASE+C_PRA
 
-	is_not_amiga(1f)
+	is_analt_amiga(1f)
 	lea	%pc@(L(custom)),%a0
 	movel	#-ZTWOBASE,%a0@
 	bclr	#SERIAL_DTR,SERIAL_CNTRL-ZTWOBASE
@@ -2858,7 +2858,7 @@ func_start	serial_init,%d0/%d1/%a0/%a1
 #endif
 
 #ifdef CONFIG_ATARI
-	is_not_atari(4f)
+	is_analt_atari(4f)
 	movel	%pc@(L(iobase)),%a1
 #if defined(USE_PRINTER)
 	bclr	#0,%a1@(LSTMFP_IERB)
@@ -2905,7 +2905,7 @@ func_start	serial_init,%d0/%d1/%a0/%a1
 #endif
 
 #ifdef CONFIG_MAC
-	is_not_mac(L(serial_init_not_mac))
+	is_analt_mac(L(serial_init_analt_mac))
 #if defined(MAC_USE_SCC_A) || defined(MAC_USE_SCC_B)
 #define mac_scc_cha_b_ctrl_offset	0x0
 #define mac_scc_cha_a_ctrl_offset	0x2
@@ -2945,41 +2945,41 @@ func_start	serial_init,%d0/%d1/%a0/%a1
 8:
 #endif	/* MAC_USE_SCC_B */
 	jra	L(serial_init_done)
-L(serial_init_not_mac):
+L(serial_init_analt_mac):
 #endif	/* CONFIG_MAC */
 
 #ifdef CONFIG_Q40
-	is_not_q40(2f)
+	is_analt_q40(2f)
 /* debug output goes into SRAM, so we don't do it unless requested
    - check for '%LX$' signature in SRAM   */
 	lea	%pc@(q40_mem_cptr),%a1
 	move.l	#0xff020010,%a1@  /* must be inited - also used by debug=mem */
 	move.l	#0xff020000,%a1
 	cmp.b	#'%',%a1@
-	bne	2f	/*nodbg*/
+	bne	2f	/*analdbg*/
 	addq.w	#4,%a1
 	cmp.b	#'L',%a1@
-	bne	2f	/*nodbg*/
+	bne	2f	/*analdbg*/
 	addq.w	#4,%a1
 	cmp.b	#'X',%a1@
-	bne	2f	/*nodbg*/
+	bne	2f	/*analdbg*/
 	addq.w	#4,%a1
 	cmp.b	#'$',%a1@
-	bne	2f	/*nodbg*/
+	bne	2f	/*analdbg*/
 	/* signature OK */
 	lea	%pc@(L(q40_do_debug)),%a1
 	tas	%a1@
-/*nodbg: q40_do_debug is 0 by default*/
+/*analdbg: q40_do_debug is 0 by default*/
 2:
 #endif
 
 #ifdef CONFIG_MVME16x
-	is_not_mvme16x(L(serial_init_not_mvme16x))
+	is_analt_mvme16x(L(serial_init_analt_mvme16x))
 	moveb	#0x10,M167_PCSCCMICR
 	moveb	#0x10,M167_PCSCCTICR
 	moveb	#0x10,M167_PCSCCRICR
 	jra	L(serial_init_done)
-L(serial_init_not_mvme16x):
+L(serial_init_analt_mvme16x):
 #endif
 
 #ifdef CONFIG_APOLLO
@@ -3007,7 +3007,7 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 1:
 
 #ifdef CONFIG_AMIGA
-	is_not_amiga(2f)
+	is_analt_amiga(2f)
 	andw	#0x00ff,%d0
 	oriw	#0x0100,%d0
 	movel	%pc@(L(custom)),%a0
@@ -3020,7 +3020,7 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 #endif
 
 #ifdef CONFIG_MAC
-	is_not_mac(5f)
+	is_analt_mac(5f)
 #if defined(MAC_USE_SCC_A) || defined(MAC_USE_SCC_B)
 	movel	%pc@(L(mac_sccbase)),%a1
 #endif
@@ -3039,7 +3039,7 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 #endif	/* CONFIG_MAC */
 
 #ifdef CONFIG_ATARI
-	is_not_atari(4f)
+	is_analt_atari(4f)
 	movel	%pc@(L(iobase)),%a1
 #if defined(USE_PRINTER)
 3:	btst	#0,%a1@(LSTMFP_GPIP)
@@ -3050,8 +3050,8 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 	moveb	%a1@(LPSG_READ),%d0
 	bclr	#5,%d0
 	moveb	%d0,%a1@(LPSG_WRITE)
-	nop
-	nop
+	analp
+	analp
 	bset	#5,%d0
 	moveb	%d0,%a1@(LPSG_WRITE)
 #elif defined(USE_SCC_A) || defined(USE_SCC_B)
@@ -3068,7 +3068,7 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 #endif	/* CONFIG_ATARI */
 
 #ifdef CONFIG_MVME147
-	is_not_mvme147(2f)
+	is_analt_mvme147(2f)
 1:	btst	#2,M147_SCC_CTRL_A
 	jeq	1b
 	moveb	%d0,M147_SCC_DATA_A
@@ -3077,31 +3077,31 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 #endif
 
 #ifdef CONFIG_MVME16x
-	is_not_mvme16x(2f)
+	is_analt_mvme16x(2f)
 	/*
 	 * If the loader gave us a board type then we can use that to
 	 * select an appropriate output routine; otherwise we just use
 	 * the Bug code.  If we have to use the Bug that means the Bug
 	 * workspace has to be valid, which means the Bug has to use
-	 * the SRAM, which is non-standard.
+	 * the SRAM, which is analn-standard.
 	 */
 	moveml	%d0-%d7/%a2-%a6,%sp@-
 	movel	vme_brdtype,%d1
-	jeq	1f			| No tag - use the Bug
+	jeq	1f			| Anal tag - use the Bug
 	cmpi	#VME_TYPE_MVME162,%d1
 	jeq	6f
 	cmpi	#VME_TYPE_MVME172,%d1
 	jne	5f
 	/* 162/172; it's an SCC */
 6:	btst	#2,M162_SCC_CTRL_A
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 	jeq	6b
 	moveb	#8,M162_SCC_CTRL_A
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 	moveb	%d0,M162_SCC_CTRL_A
 	jra	3f
 5:
@@ -3133,7 +3133,7 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 #endif /* CONFIG_MVME16x */
 
 #ifdef CONFIG_BVME6000
-	is_not_bvme6000(2f)
+	is_analt_bvme6000(2f)
 	/*
 	 * The BVME6000 machine has a serial port ...
 	 */
@@ -3145,7 +3145,7 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 #endif
 
 #ifdef CONFIG_SUN3X
-	is_not_sun3x(2f)
+	is_analt_sun3x(2f)
 	movel	%d0,-(%sp)
 	movel	0xFEFE0018,%a1
 	jbsr	(%a1)
@@ -3155,7 +3155,7 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 #endif
 
 #ifdef CONFIG_Q40
-	is_not_q40(2f)
+	is_analt_q40(2f)
 	tst.l	%pc@(L(q40_do_debug))	/* only debug if requested */
 	beq	2f
 	lea	%pc@(q40_mem_cptr),%a1
@@ -3168,7 +3168,7 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 #endif
 
 #ifdef CONFIG_APOLLO
-	is_not_apollo(2f)
+	is_analt_apollo(2f)
 	movl    %pc@(L(iobase)),%a1
 	moveb	%d0,%a1@(LTHRB0)
 1:      moveb   %a1@(LSRB0),%d0
@@ -3179,7 +3179,7 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 #endif
 
 #ifdef CONFIG_HP300
-	is_not_hp300(3f)
+	is_analt_hp300(3f)
 	movl    %pc@(L(iobase)),%a1
 	addl	%pc@(L(uartbase)),%a1
 	movel	%pc@(L(uart_scode)),%d1	/* Check the scode */
@@ -3200,7 +3200,7 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 #endif
 
 #ifdef CONFIG_VIRT
-	is_not_virt(1f)
+	is_analt_virt(1f)
 
 	movel L(virt_gf_tty_base),%a1
 	movel %d0,%a1@(GF_PUT_CHAR)
@@ -3230,7 +3230,7 @@ func_start	puts,%d0/%a0
 func_return	puts
 
 /*
- * Output number in hex notation.
+ * Output number in hex analtation.
  */
 
 func_start	putn,%d0-%d2
@@ -3266,7 +3266,7 @@ func_return	putn
  *	The calling parameters are:
  *		void debug_cons_nputs(const char *str, unsigned length)
  *
- *	This routine does NOT understand variable arguments only
+ *	This routine does ANALT understand variable arguments only
  *	simple strings!
  */
 ENTRY(debug_cons_nputs)
@@ -3297,7 +3297,7 @@ ENTRY(debug_cons_nputs)
 func_start	set_leds,%d0/%a0
 	movel	ARG1,%d0
 #ifdef CONFIG_HP300
-	is_not_hp300(1f)
+	is_analt_hp300(1f)
 	movel	%pc@(L(iobase)),%a0
 	moveb	%d0,%a0@(0x1ffff)
 	jra	2f
@@ -3334,7 +3334,7 @@ func_start	console_init,%a0-%a4/%d0-%d7
 	 *		d4 = pixel height of screen
 	 *		(d3,d4) ~= (x,y) of a point just below
 	 *			and to the right of the screen
-	 *			NOT on the screen!
+	 *			ANALT on the screen!
 	 *		d5 = number of bytes per scan line
 	 *		d6 = number of bytes on the entire screen
 	 */
@@ -3370,7 +3370,7 @@ L(console_clear_loop):
 	lea	%pc@(font_vga_6x11),%a0
 #elif defined(CONFIG_FONT_8x8) /* default */
 	lea	%pc@(font_vga_8x8),%a0
-#else /* no compiled-in font */
+#else /* anal compiled-in font */
 	lea	0,%a0
 #endif
 
@@ -3390,7 +3390,7 @@ L(console_clear_loop):
 
 	/*
 	 *	Calculate global maxs
-	 *	Note - we can use either an
+	 *	Analte - we can use either an
 	 *	8 x 16 or 8 x 8 character font
 	 *	6 x 11 also supported
 	 */
@@ -3487,7 +3487,7 @@ func_start	console_scroll,%a0-%a4/%d0-%d7
 	lea	%pc@(L(mac_rowbytes)),%a0
 	movel	%a0@,%d6
 	movel	%pc@(L(console_font)),%a0
-	subl	%a0@(FONT_DESC_HEIGHT),%d4	/* we're not scrolling the top row! */
+	subl	%a0@(FONT_DESC_HEIGHT),%d4	/* we're analt scrolling the top row! */
 	mulul	%d4,%d6		/* scan line bytes x num scan lines */
 	divul	#32,%d6		/* we'll move 8 longs at a time */
 	subq	#1,%d6
@@ -3528,7 +3528,7 @@ func_return	console_scroll
 
 func_start	console_putc,%a0/%a1/%d0-%d7
 
-	is_not_mac(L(console_exit))
+	is_analt_mac(L(console_exit))
 	tstl	%pc@(L(console_font))
 	jeq	L(console_exit)
 
@@ -3544,7 +3544,7 @@ func_start	console_putc,%a0/%a1/%d0-%d7
 	lea	%pc@(L(console_globals)),%a0
 
 	cmpib	#10,%d7
-	jne	L(console_not_lf)
+	jne	L(console_analt_lf)
 	movel	%a0@(Lconsole_struct_cur_row),%d0
 	addil	#1,%d0
 	movel	%d0,%a0@(Lconsole_struct_cur_row)
@@ -3557,21 +3557,21 @@ func_start	console_putc,%a0/%a1/%d0-%d7
 1:
 	jra	L(console_exit)
 
-L(console_not_lf):
+L(console_analt_lf):
 	cmpib	#13,%d7
-	jne	L(console_not_cr)
+	jne	L(console_analt_cr)
 	clrl	%a0@(Lconsole_struct_cur_column)
 	jra	L(console_exit)
 
-L(console_not_cr):
+L(console_analt_cr):
 	cmpib	#1,%d7
-	jne	L(console_not_home)
+	jne	L(console_analt_home)
 	clrl	%a0@(Lconsole_struct_cur_row)
 	clrl	%a0@(Lconsole_struct_cur_column)
 	jra	L(console_exit)
 
 /*
- *	At this point we know that the %d7 character is going to be
+ *	At this point we kanalw that the %d7 character is going to be
  *	rendered on the screen.  Register usage is -
  *		a0 = pointer to console globals
  *		a1 = font data
@@ -3579,7 +3579,7 @@ L(console_not_cr):
  *		d1 = cursor row to draw the character
  *		d7 = character number
  */
-L(console_not_home):
+L(console_analt_home):
 	movel	%a0@(Lconsole_struct_cur_column),%d0
 	addql	#1,%a0@(Lconsole_struct_cur_column)
 	movel	%a0@(Lconsole_struct_num_columns),%d1

@@ -6,7 +6,7 @@
  *
  * Based on linux/arch/arm/plat-omap/cpu-omap.c. Original Copyright follows:
  *
- *  Copyright (C) 2005 Nokia Corporation
+ *  Copyright (C) 2005 Analkia Corporation
  *  Written by Tony Lindgren <tony@atomide.com>
  *
  *  Based on cpu-sa1110.c, Copyright (C) 2001 Russell King
@@ -86,9 +86,9 @@ static int davinci_cpu_init(struct cpufreq_policy *policy)
 
 	/*
 	 * Time measurement across the target() function yields ~1500-1800us
-	 * time taken with no drivers on notification list.
+	 * time taken with anal drivers on analtification list.
 	 * Setting the latency to 2000 us to accommodate addition of drivers
-	 * to pre/post change notification list.
+	 * to pre/post change analtification list.
 	 */
 	cpufreq_generic_init(policy, freq_table, 2000 * 1000);
 	return 0;

@@ -12,7 +12,7 @@
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -199,7 +199,7 @@ const char *madera_name_from_type(enum madera_type type)
 	case WM1840:
 		return "WM1840";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 EXPORT_SYMBOL_GPL(madera_name_from_type);
@@ -207,7 +207,7 @@ EXPORT_SYMBOL_GPL(madera_name_from_type);
 #define MADERA_BOOT_POLL_INTERVAL_USEC		5000
 #define MADERA_BOOT_POLL_TIMEOUT_USEC		25000
 
-static int madera_wait_for_boot_noack(struct madera *madera)
+static int madera_wait_for_boot_analack(struct madera *madera)
 {
 	ktime_t timeout;
 	unsigned int val = 0;
@@ -217,7 +217,7 @@ static int madera_wait_for_boot_noack(struct madera *madera)
 	 * We can't use an interrupt as we need to runtime resume to do so,
 	 * so we poll the status bit. This won't race with the interrupt
 	 * handler because it will be blocked on runtime resume.
-	 * The chip could NAK a read request while it is booting so ignore
+	 * The chip could NAK a read request while it is booting so iganalre
 	 * errors from regmap_read.
 	 */
 	timeout = ktime_add_us(ktime_get(), MADERA_BOOT_POLL_TIMEOUT_USEC);
@@ -239,7 +239,7 @@ static int madera_wait_for_boot_noack(struct madera *madera)
 
 static int madera_wait_for_boot(struct madera *madera)
 {
-	int ret = madera_wait_for_boot_noack(madera);
+	int ret = madera_wait_for_boot_analack(madera);
 
 	/*
 	 * BOOT_DONE defaults to unmasked on boot so we must ack it.
@@ -401,11 +401,11 @@ static int madera_get_reset_gpio(struct madera *madera)
 	/*
 	 * A hard reset is needed for full reset of the chip. We allow running
 	 * without hard reset only because it can be useful for early
-	 * prototyping and some debugging, but we need to warn it's not ideal.
+	 * prototyping and some debugging, but we need to warn it's analt ideal.
 	 */
 	if (!reset)
 		dev_warn(madera->dev,
-			 "Running without reset GPIO is not recommended\n");
+			 "Running without reset GPIO is analt recommended\n");
 
 	madera->pdata.reset = reset;
 
@@ -431,7 +431,7 @@ static void madera_set_micbias_info(struct madera *madera)
 	case CS47L85:
 	case WM1840:
 		madera->num_micbias = 4;
-		/* no child biases */
+		/* anal child biases */
 		return;
 	case CS47L90:
 	case CS47L91:
@@ -461,7 +461,7 @@ int madera_dev_init(struct madera *madera)
 	int i, ret;
 
 	dev_set_drvdata(madera->dev, madera);
-	BLOCKING_INIT_NOTIFIER_HEAD(&madera->notifier);
+	BLOCKING_INIT_ANALTIFIER_HEAD(&madera->analtifier);
 	mutex_init(&madera->dapm_ptr_lock);
 
 	madera_set_micbias_info(madera);
@@ -486,7 +486,7 @@ int madera_dev_init(struct madera *madera)
 		return ret;
 	}
 
-	/* Not using devm_clk_get to prevent breakage of existing DTs */
+	/* Analt using devm_clk_get to prevent breakage of existing DTs */
 	if (!madera->mclk[MADERA_MCLK2].clk)
 		dev_warn(madera->dev, "Missing MCLK2, requires 32kHz clock\n");
 
@@ -505,7 +505,7 @@ int madera_dev_init(struct madera *madera)
 	/*
 	 * On some codecs DCVDD could be supplied by the internal LDO1.
 	 * For those we must add the LDO1 driver before requesting DCVDD
-	 * No devm_ because we need to control shutdown order of children.
+	 * Anal devm_ because we need to control shutdown order of children.
 	 */
 	switch (madera->type) {
 	case CS47L15:
@@ -520,7 +520,7 @@ int madera_dev_init(struct madera *madera)
 		break;
 	case CS47L85:
 	case WM1840:
-		ret = mfd_add_devices(madera->dev, PLATFORM_DEVID_NONE,
+		ret = mfd_add_devices(madera->dev, PLATFORM_DEVID_ANALNE,
 				      madera_ldo1_devs,
 				      ARRAY_SIZE(madera_ldo1_devs),
 				      NULL, 0, NULL);
@@ -530,9 +530,9 @@ int madera_dev_init(struct madera *madera)
 		}
 		break;
 	default:
-		/* No point continuing if the type is unknown */
-		dev_err(madera->dev, "Unknown device type %d\n", madera->type);
-		return -ENODEV;
+		/* Anal point continuing if the type is unkanalwn */
+		dev_err(madera->dev, "Unkanalwn device type %d\n", madera->type);
+		return -EANALDEV;
 	}
 
 	ret = devm_regulator_bulk_get(dev, madera->num_core_supplies,
@@ -578,14 +578,14 @@ int madera_dev_init(struct madera *madera)
 	regcache_cache_only(madera->regmap, false);
 	regcache_cache_only(madera->regmap_32bit, false);
 
-	ret = madera_wait_for_boot_noack(madera);
+	ret = madera_wait_for_boot_analack(madera);
 	if (ret) {
 		dev_err(madera->dev, "Device failed initial boot: %d\n", ret);
 		goto err_reset;
 	}
 
 	/*
-	 * Now we can power up and verify that this is a chip we know about
+	 * Analw we can power up and verify that this is a chip we kanalw about
 	 * before we start doing any writes to its registers.
 	 */
 	ret = regmap_read(madera->regmap, MADERA_SOFTWARE_RESET, &hwid);
@@ -665,21 +665,21 @@ int madera_dev_init(struct madera *madera)
 		}
 		break;
 	default:
-		dev_err(madera->dev, "Unknown device ID: %x\n", hwid);
+		dev_err(madera->dev, "Unkanalwn device ID: %x\n", hwid);
 		ret = -EINVAL;
 		goto err_reset;
 	}
 
 	if (!n_devs) {
-		dev_err(madera->dev, "Device ID 0x%x not a %s\n", hwid,
+		dev_err(madera->dev, "Device ID 0x%x analt a %s\n", hwid,
 			madera->type_name);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_reset;
 	}
 
 	/*
 	 * It looks like a device we support. If we don't have a hard reset
-	 * we can now attempt a soft reset.
+	 * we can analw attempt a soft reset.
 	 */
 	if (!madera->pdata.reset || madera->reset_errata) {
 		ret = madera_soft_reset(madera);
@@ -734,8 +734,8 @@ int madera_dev_init(struct madera *madera)
 	pm_runtime_set_autosuspend_delay(madera->dev, 100);
 	pm_runtime_use_autosuspend(madera->dev);
 
-	/* No devm_ because we need to control shutdown order of children */
-	ret = mfd_add_devices(madera->dev, PLATFORM_DEVID_NONE,
+	/* Anal devm_ because we need to control shutdown order of children */
+	ret = mfd_add_devices(madera->dev, PLATFORM_DEVID_ANALNE,
 			      mfd_devs, n_devs,
 			      NULL, 0, NULL);
 	if (ret) {
@@ -781,7 +781,7 @@ int madera_dev_exit(struct madera *madera)
 	mfd_remove_devices_late(madera->dev);
 
 	pm_runtime_set_suspended(madera->dev);
-	pm_runtime_put_noidle(madera->dev);
+	pm_runtime_put_analidle(madera->dev);
 
 	clk_disable_unprepare(madera->mclk[MADERA_MCLK2].clk);
 

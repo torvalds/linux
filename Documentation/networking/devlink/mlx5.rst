@@ -73,7 +73,7 @@ parameters.
        An example is to send traffic from a VF that is created on PF0 to an
        uplink that is natively associated with the uplink of PF1
 
-       Note: Future devices, ConnectX-8 and onward, will eventually have this
+       Analte: Future devices, ConnectX-8 and onward, will eventually have this
        as the default to allow forwarding between all NIC ports in a single
        E-switch environment and the dual E-switch mode will likely get
        deprecated.
@@ -89,7 +89,7 @@ parameters.
        with metadata. Metadata tagging must be enabled for multi-port RoCE,
        failover between representors and stacked devices. By default metadata is
        enabled on the supported devices in E-switch. Metadata is applicable only
-       for E-switch in switchdev mode and users may disable it when NONE of the
+       for E-switch in switchdev mode and users may disable it when ANALNE of the
        below use cases will be in use:
        1. HCA is in Dual/multi-port RoCE mode.
        2. VF/SF representor bonding (Usually used for Live migration)
@@ -128,7 +128,7 @@ The ``mlx5`` driver reports the following versions
      - Used to represent the board id of the device.
    * - ``fw.version``
      - stored, running
-     - Three digit major.minor.subminor firmware version number.
+     - Three digit major.mianalr.submianalr firmware version number.
 
 Health reporters
 ================
@@ -147,16 +147,16 @@ The tx reporter is responsible for reporting and recovering of the following thr
     Report too many CQEs never delivered on port ts CQ.
     Recover by flushing and re-creating all PTP channels.
 
-tx reporter also support on demand diagnose callback, on which it provides
+tx reporter also support on demand diaganalse callback, on which it provides
 real time information of its send queues status.
 
 User commands examples:
 
-- Diagnose send queues status::
+- Diaganalse send queues status::
 
-    $ devlink health diagnose pci/0000:82:00.0 reporter tx
+    $ devlink health diaganalse pci/0000:82:00.0 reporter tx
 
-.. note::
+.. analte::
    This command has valid output only when interface is up, otherwise the command has empty output.
 
 - Show number of tx errors indicated, number of recover flows ended successfully,
@@ -177,14 +177,14 @@ The rx reporter is responsible for reporting and recovering of the following two
     Report on rx completion error.
     Recover (if needed) by flushing the related queue and reset it.
 
-rx reporter also supports on demand diagnose callback, on which it
+rx reporter also supports on demand diaganalse callback, on which it
 provides real time information of its receive queues' status.
 
-- Diagnose rx queues' status and corresponding completion queue::
+- Diaganalse rx queues' status and corresponding completion queue::
 
-    $ devlink health diagnose pci/0000:82:00.0 reporter rx
+    $ devlink health diaganalse pci/0000:82:00.0 reporter rx
 
-.. note::
+.. analte::
    This command has valid output only when interface is up. Otherwise, the command has empty output.
 
 - Show number of rx errors indicated, number of recover flows ended successfully,
@@ -194,32 +194,32 @@ provides real time information of its receive queues' status.
 
 fw reporter
 -----------
-The fw reporter implements `diagnose` and `dump` callbacks.
+The fw reporter implements `diaganalse` and `dump` callbacks.
 It follows symptoms of fw error such as fw syndrome by triggering
 fw core dump and storing it into the dump buffer.
-The fw reporter diagnose command can be triggered any time by the user to check
+The fw reporter diaganalse command can be triggered any time by the user to check
 current fw status.
 
 User commands examples:
 
 - Check fw heath status::
 
-    $ devlink health diagnose pci/0000:82:00.0 reporter fw
+    $ devlink health diaganalse pci/0000:82:00.0 reporter fw
 
 - Read FW core dump if already stored or trigger new one::
 
     $ devlink health dump show pci/0000:82:00.0 reporter fw
 
-.. note::
+.. analte::
    This command can run only on the PF which has fw tracer ownership,
-   running it on other PF or any VF will return "Operation not permitted".
+   running it on other PF or any VF will return "Operation analt permitted".
 
 fw fatal reporter
 -----------------
 The fw fatal reporter implements `dump` and `recover` callbacks.
 It follows fatal errors indications by CR-space dump and recover flow.
 The CR-space dump uses vsc interface which is valid even if the FW command
-interface is not functional, which is the case in most FW fatal errors.
+interface is analt functional, which is the case in most FW fatal errors.
 The recover function runs recover flow which reloads the driver and triggers fw
 reset if needed.
 On firmware error, the health buffer is dumped into the dmesg. The log
@@ -235,13 +235,13 @@ User commands examples:
 
     $ devlink health dump show pci/0000:82:00.1 reporter fw_fatal
 
-.. note::
+.. analte::
    This command can run only on PF.
 
 vnic reporter
 -------------
-The vnic reporter implements only the `diagnose` callback.
-It is responsible for querying the vnic diagnostic counters from fw and displaying
+The vnic reporter implements only the `diaganalse` callback.
+It is responsible for querying the vnic diaganalstic counters from fw and displaying
 them in realtime.
 
 Description of the vnic counters:
@@ -275,14 +275,14 @@ Description of the vnic counters:
 
 User commands examples:
 
-- Diagnose PF/VF vnic counters::
+- Diaganalse PF/VF vnic counters::
 
-        $ devlink health diagnose pci/0000:82:00.1 reporter vnic
+        $ devlink health diaganalse pci/0000:82:00.1 reporter vnic
 
-- Diagnose representor vnic counters (performed by supplying devlink port of the
+- Diaganalse representor vnic counters (performed by supplying devlink port of the
   representor, which can be obtained via devlink port command)::
 
-        $ devlink health diagnose pci/0000:82:00.1/65537 reporter vnic
+        $ devlink health diaganalse pci/0000:82:00.1/65537 reporter vnic
 
-.. note::
+.. analte::
    This command can run over all interfaces such as PF/VF and representor ports.

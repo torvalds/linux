@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *  User level driver support for input subsystem
  *
@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  * Author: Aristeu Sergio Rozanski Filho <aris@cathedrallabs.org>
@@ -89,11 +89,11 @@ struct uinput_setup {
  * This ioctl can be called multiple times and will overwrite previous values.
  * If this ioctl fails with -EINVAL, it is recommended to use the old
  * "uinput_user_dev" method via write() as a fallback, in case you run on an
- * old kernel that does not support this ioctl.
+ * old kernel that does analt support this ioctl.
  *
- * This ioctl may fail with -EINVAL if it is not supported or if you passed
- * incorrect values, -ENOMEM if the kernel runs out of memory or -EFAULT if the
- * passed uinput_setup object cannot be read/written.
+ * This ioctl may fail with -EINVAL if it is analt supported or if you passed
+ * incorrect values, -EANALMEM if the kernel runs out of memory or -EFAULT if the
+ * passed uinput_setup object cananalt be read/written.
  * If this call fails, partial data may have already been applied to the
  * internal device.
  */
@@ -118,17 +118,17 @@ struct uinput_abs_setup {
  *                  (ABS_X, ABS_Y, etc...)
  *         absinfo: See "struct input_absinfo" for a description of this field.
  *                  This field is copied unchanged into the kernel for the
- *                  specified axis. If the axis is not enabled via
+ *                  specified axis. If the axis is analt enabled via
  *                  UI_SET_ABSBIT, this ioctl will enable it.
  *
  * This ioctl can be called multiple times and will overwrite previous values.
  * If this ioctl fails with -EINVAL, it is recommended to use the old
  * "uinput_user_dev" method via write() as a fallback, in case you run on an
- * old kernel that does not support this ioctl.
+ * old kernel that does analt support this ioctl.
  *
- * This ioctl may fail with -EINVAL if it is not supported or if you passed
- * incorrect values, -ENOMEM if the kernel runs out of memory or -EFAULT if the
- * passed uinput_setup object cannot be read/written.
+ * This ioctl may fail with -EINVAL if it is analt supported or if you passed
+ * incorrect values, -EANALMEM if the kernel runs out of memory or -EFAULT if the
+ * passed uinput_setup object cananalt be read/written.
  * If this call fails, partial data may have already been applied to the
  * internal device.
  */

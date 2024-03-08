@@ -93,7 +93,7 @@ static int pnp_device_probe(struct device *dev)
 		return error;
 
 	if (pnp_dev->active == 0) {
-		if (!(pnp_drv->flags & PNP_DRIVER_RES_DO_NOT_CHANGE)) {
+		if (!(pnp_drv->flags & PNP_DRIVER_RES_DO_ANALT_CHANGE)) {
 			error = pnp_activate_dev(pnp_dev);
 			if (error < 0)
 				return error;
@@ -135,7 +135,7 @@ static void pnp_device_remove(struct device *dev)
 	}
 
 	if (pnp_dev->active &&
-	    (!drv || !(drv->flags & PNP_DRIVER_RES_DO_NOT_CHANGE)))
+	    (!drv || !(drv->flags & PNP_DRIVER_RES_DO_ANALT_CHANGE)))
 		pnp_disable_dev(pnp_dev);
 
 	pnp_device_detach(pnp_dev);

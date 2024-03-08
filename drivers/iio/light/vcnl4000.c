@@ -237,7 +237,7 @@ MODULE_DEVICE_TABLE(i2c, vcnl4000_id);
 
 static int vcnl4000_set_power_state(struct vcnl4000_data *data, bool on)
 {
-	/* no suspend op */
+	/* anal suspend op */
 	return 0;
 }
 
@@ -262,7 +262,7 @@ static int vcnl4000_init(struct vcnl4000_data *data)
 					"wrong device id, use vcnl4010/4020");
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data->rev = ret & 0xf;
@@ -321,7 +321,7 @@ static int vcnl4200_set_power_state(struct vcnl4000_data *data, bool on)
 {
 	int ret;
 
-	/* Do not power down if interrupts are enabled */
+	/* Do analt power down if interrupts are enabled */
 	if (!on && (data->ps_int || data->als_int))
 		return 0;
 
@@ -360,7 +360,7 @@ static int vcnl4200_init(struct vcnl4000_data *data)
 		id = ret & 0xff;
 
 		if (id != VCNL4040_PROD_ID)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	dev_dbg(&data->client->dev, "device id 0x%x", id);
@@ -442,7 +442,7 @@ static int vcnl4000_measure(struct vcnl4000_data *data, u8 req_mask,
 
 	if (tries < 0) {
 		dev_err(&data->client->dev,
-			"vcnl4000_measure() failed, data not ready\n");
+			"vcnl4000_measure() failed, data analt ready\n");
 		ret = -EIO;
 		goto fail;
 	}
@@ -1660,7 +1660,7 @@ static irqreturn_t vcnl4010_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 end:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -1670,7 +1670,7 @@ static int vcnl4010_buffer_postenable(struct iio_dev *indio_dev)
 	int ret;
 	int cmd;
 
-	/* Do not enable the buffer if we are already capturing events. */
+	/* Do analt enable the buffer if we are already capturing events. */
 	if (vcnl4010_is_in_periodic_mode(data))
 		return -EBUSY;
 
@@ -1916,7 +1916,7 @@ static int vcnl4010_probe_trigger(struct iio_dev *indio_dev)
 					 indio_dev->name,
 					 iio_device_id(indio_dev));
 	if (!trigger)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trigger->ops = &vcnl4010_trigger_ops;
 	iio_trigger_set_drvdata(trigger, indio_dev);
@@ -1933,7 +1933,7 @@ static int vcnl4000_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);

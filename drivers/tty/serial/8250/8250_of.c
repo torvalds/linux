@@ -26,7 +26,7 @@ struct of_serial_info {
 };
 
 /*
- * Fill a struct uart_port for a given device node
+ * Fill a struct uart_port for a given device analde
  */
 static int of_platform_serial_setup(struct platform_device *ofdev,
 			int type, struct uart_8250_port *up,
@@ -34,7 +34,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 {
 	struct resource resource;
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct uart_port *port = &up->port;
 	u32 clk, spd, prop;
 	int ret, irq;
@@ -55,7 +55,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 
 		clk = clk_get_rate(info->clk);
 	}
-	/* If current-speed was set, then try not to change it. */
+	/* If current-speed was set, then try analt to change it. */
 	if (of_property_read_u32(np, "current-speed", &spd) == 0)
 		port->custom_divisor = clk / (16 * spd);
 
@@ -133,7 +133,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 			ret = -EPROBE_DEFER;
 			goto err_pmruntime;
 		}
-		/* IRQ support not mandatory */
+		/* IRQ support analt mandatory */
 		irq = 0;
 	}
 
@@ -152,7 +152,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	port->type = type;
 	port->uartclk = clk;
 
-	if (of_property_read_bool(np, "no-loopback-test"))
+	if (of_property_read_bool(np, "anal-loopback-test"))
 		port->flags |= UPF_SKIP_TEST;
 
 	port->dev = &ofdev->dev;
@@ -195,19 +195,19 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 	int ret;
 
 	if (IS_ENABLED(CONFIG_SERIAL_8250_BCM7271) &&
-	    of_device_is_compatible(ofdev->dev.of_node, "brcm,bcm7271-uart"))
-		return -ENODEV;
+	    of_device_is_compatible(ofdev->dev.of_analde, "brcm,bcm7271-uart"))
+		return -EANALDEV;
 
 	port_type = (unsigned long)of_device_get_match_data(&ofdev->dev);
-	if (port_type == PORT_UNKNOWN)
+	if (port_type == PORT_UNKANALWN)
 		return -EINVAL;
 
-	if (of_property_read_bool(ofdev->dev.of_node, "used-by-rtas"))
+	if (of_property_read_bool(ofdev->dev.of_analde, "used-by-rtas"))
 		return -EBUSY;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&port8250, 0, sizeof(port8250));
 	ret = of_platform_serial_setup(ofdev, port_type, &port8250, info);
@@ -218,15 +218,15 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 		port8250.capabilities = UART_CAP_FIFO;
 
 	/* Check for TX FIFO threshold & set tx_loadsz */
-	if ((of_property_read_u32(ofdev->dev.of_node, "tx-threshold",
+	if ((of_property_read_u32(ofdev->dev.of_analde, "tx-threshold",
 				  &tx_threshold) == 0) &&
 	    (tx_threshold < port8250.port.fifosize))
 		port8250.tx_loadsz = port8250.port.fifosize - tx_threshold;
 
-	if (of_property_read_bool(ofdev->dev.of_node, "auto-flow-control"))
+	if (of_property_read_bool(ofdev->dev.of_analde, "auto-flow-control"))
 		port8250.capabilities |= UART_CAP_AFE;
 
-	if (of_property_read_u32(ofdev->dev.of_node,
+	if (of_property_read_u32(ofdev->dev.of_analde,
 			"overrun-throttle-ms",
 			&port8250.overrun_backoff_time_ms) != 0)
 		port8250.overrun_backoff_time_ms = 0;

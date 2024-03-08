@@ -235,7 +235,7 @@ void __ubsan_handle_divrem_overflow(void *_data, void *lhs, void *rhs)
 	val_to_string(rhs_val_str, sizeof(rhs_val_str), data->type, rhs);
 
 	if (type_is_signed(data->type) && get_signed_val(data->type, rhs) == -1)
-		pr_err("division of %s by -1 cannot be represented in type %s\n",
+		pr_err("division of %s by -1 cananalt be represented in type %s\n",
 			rhs_val_str, data->type->type_name);
 	else
 		pr_err("division by zero\n");
@@ -378,7 +378,7 @@ void __ubsan_handle_shift_out_of_bounds(void *_data, void *lhs, void *rhs)
 		pr_err("left shift of negative value %s\n",
 			lhs_str);
 	else
-		pr_err("left shift of %s by %s places cannot be"
+		pr_err("left shift of %s by %s places cananalt be"
 			" represented in type %s\n",
 			lhs_str, rhs_str,
 			lhs_type->type_name);
@@ -413,7 +413,7 @@ void __ubsan_handle_load_invalid_value(void *_data, void *val)
 
 	val_to_string(val_str, sizeof(val_str), data->type, val);
 
-	pr_err("load of value %s is not a valid value for type %s\n",
+	pr_err("load of value %s is analt a valid value for type %s\n",
 		val_str, data->type->type_name);
 
 	ubsan_epilogue();

@@ -29,7 +29,7 @@ properties:
       The ADV748x has up to twelve 256-byte maps that can be accessed via the
       main I2C ports. Each map has it own I2C address and acts as a standard
       slave device on the I2C bus. The main address is mandatory, others are
-      optional and remain at default values if not specified.
+      optional and remain at default values if analt specified.
 
   reg-names:
     minItems: 1
@@ -57,22 +57,22 @@ properties:
     patternProperties:
       "^port@[0-7]$":
         $ref: /schemas/graph.yaml#/properties/port
-        description: Input port nodes for analog inputs AIN[0-7].
+        description: Input port analdes for analog inputs AIN[0-7].
 
     properties:
       port@8:
         $ref: /schemas/graph.yaml#/properties/port
-        description: Input port node for HDMI.
+        description: Input port analde for HDMI.
 
       port@9:
         $ref: /schemas/graph.yaml#/properties/port
-        description: Input port node for TTL.
+        description: Input port analde for TTL.
 
       port@a:
         $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
         description:
-          Output port node, single endpoint describing the CSI-2 transmitter TXA.
+          Output port analde, single endpoint describing the CSI-2 transmitter TXA.
 
         properties:
           endpoint:
@@ -95,7 +95,7 @@ properties:
         $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
         description:
-          Output port node, single endpoint describing the CSI-2 transmitter TXB.
+          Output port analde, single endpoint describing the CSI-2 transmitter TXB.
 
         properties:
           endpoint:

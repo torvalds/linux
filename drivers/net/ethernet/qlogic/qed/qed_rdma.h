@@ -38,7 +38,7 @@
 #define QED_RDMA_MAX_CQE_16_BIT             (0x7FFF - 1)
 
 /* Up to 2^16 XRC Domains are supported, but the actual number of supported XRC
- * SRQs is much smaller so there's no need to have that many domains.
+ * SRQs is much smaller so there's anal need to have that many domains.
  */
 #define QED_RDMA_MAX_XRCDS      (roundup_pow_of_two(RDMA_MAX_XRC_SRQS))
 

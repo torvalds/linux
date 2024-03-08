@@ -7,7 +7,7 @@
 #include <linux/mempool.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/skbuff.h>
@@ -34,8 +34,8 @@
 
 #define PCI_DEVICE_ID_CISCO_FNIC	0x0045
 
-/* Timer to poll notification area for events. Used for MSI interrupts */
-#define FNIC_NOTIFY_TIMER_PERIOD	(2 * HZ)
+/* Timer to poll analtification area for events. Used for MSI interrupts */
+#define FNIC_ANALTIFY_TIMER_PERIOD	(2 * HZ)
 
 static struct kmem_cache *fnic_sgl_cache[FNIC_SGL_NUM_CACHES];
 static struct kmem_cache *fnic_io_req_cache;
@@ -135,7 +135,7 @@ static void fnic_reset_host_stats(struct Scsi_Host *);
 
 static struct fc_function_template fnic_fc_functions = {
 
-	.show_host_node_name = 1,
+	.show_host_analde_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
 	.show_host_supported_fc4s = 1,
@@ -152,7 +152,7 @@ static struct fc_function_template fnic_fc_functions = {
 	.show_rport_maxframe_size = 1,
 	.show_rport_supported_classes = 1,
 	.show_host_fabric_name = 1,
-	.show_starget_node_name = 1,
+	.show_starget_analde_name = 1,
 	.show_starget_port_name = 1,
 	.show_starget_port_id = 1,
 	.show_rport_dev_loss_tmo = 1,
@@ -190,7 +190,7 @@ static void fnic_get_host_speed(struct Scsi_Host *shost)
 		fc_host_speed(shost) = FC_PORTSPEED_100GBIT;
 		break;
 	default:
-		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
+		fc_host_speed(shost) = FC_PORTSPEED_UNKANALWN;
 		break;
 	}
 }
@@ -236,69 +236,69 @@ static struct fc_host_statistics *fnic_get_stats(struct Scsi_Host *host)
 
 /*
  * fnic_dump_fchost_stats
- * note : dumps fc_statistics into system logs
+ * analte : dumps fc_statistics into system logs
  */
 void fnic_dump_fchost_stats(struct Scsi_Host *host,
 				struct fc_host_statistics *stats)
 {
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: seconds since last reset = %llu\n",
 			stats->seconds_since_last_reset);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: tx frames		= %llu\n",
 			stats->tx_frames);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: tx words		= %llu\n",
 			stats->tx_words);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: rx frames		= %llu\n",
 			stats->rx_frames);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: rx words		= %llu\n",
 			stats->rx_words);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: lip count		= %llu\n",
 			stats->lip_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
-			"fnic: nos count		= %llu\n",
-			stats->nos_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
+			"fnic: anals count		= %llu\n",
+			stats->anals_count);
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: error frames		= %llu\n",
 			stats->error_frames);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: dumped frames	= %llu\n",
 			stats->dumped_frames);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: link failure count	= %llu\n",
 			stats->link_failure_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: loss of sync count	= %llu\n",
 			stats->loss_of_sync_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: loss of signal count	= %llu\n",
 			stats->loss_of_signal_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: prim seq protocol err count = %llu\n",
 			stats->prim_seq_protocol_err_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: invalid tx word count= %llu\n",
 			stats->invalid_tx_word_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: invalid crc count	= %llu\n",
 			stats->invalid_crc_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: fcp input requests	= %llu\n",
 			stats->fcp_input_requests);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: fcp output requests	= %llu\n",
 			stats->fcp_output_requests);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: fcp control requests	= %llu\n",
 			stats->fcp_control_requests);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: fcp input megabytes	= %llu\n",
 			stats->fcp_input_megabytes);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_ANALTE(KERN_ANALTICE, host,
 			"fnic: fcp output megabytes	= %llu\n",
 			stats->fcp_output_megabytes);
 	return;
@@ -306,7 +306,7 @@ void fnic_dump_fchost_stats(struct Scsi_Host *host,
 
 /*
  * fnic_reset_host_stats : clears host stats
- * note : called when reset_statistics set under sysfs dir
+ * analte : called when reset_statistics set under sysfs dir
  */
 static void fnic_reset_host_stats(struct Scsi_Host *host)
 {
@@ -381,24 +381,24 @@ void fnic_handle_link_event(struct fnic *fnic)
 
 }
 
-static int fnic_notify_set(struct fnic *fnic)
+static int fnic_analtify_set(struct fnic *fnic)
 {
 	int err;
 
 	switch (vnic_dev_get_intr_mode(fnic->vdev)) {
 	case VNIC_DEV_INTR_MODE_INTX:
-		err = vnic_dev_notify_set(fnic->vdev, FNIC_INTX_NOTIFY);
+		err = vnic_dev_analtify_set(fnic->vdev, FNIC_INTX_ANALTIFY);
 		break;
 	case VNIC_DEV_INTR_MODE_MSI:
-		err = vnic_dev_notify_set(fnic->vdev, -1);
+		err = vnic_dev_analtify_set(fnic->vdev, -1);
 		break;
 	case VNIC_DEV_INTR_MODE_MSIX:
-		err = vnic_dev_notify_set(fnic->vdev, fnic->wq_copy_count + fnic->copy_wq_base);
+		err = vnic_dev_analtify_set(fnic->vdev, fnic->wq_copy_count + fnic->copy_wq_base);
 		break;
 	default:
 		shost_printk(KERN_ERR, fnic->lport->host,
 			     "Interrupt mode should be set up"
-			     " before devcmd notify set %d\n",
+			     " before devcmd analtify set %d\n",
 			     vnic_dev_get_intr_mode(fnic->vdev));
 		err = -1;
 		break;
@@ -407,34 +407,34 @@ static int fnic_notify_set(struct fnic *fnic)
 	return err;
 }
 
-static void fnic_notify_timer(struct timer_list *t)
+static void fnic_analtify_timer(struct timer_list *t)
 {
-	struct fnic *fnic = from_timer(fnic, t, notify_timer);
+	struct fnic *fnic = from_timer(fnic, t, analtify_timer);
 
 	fnic_handle_link_event(fnic);
-	mod_timer(&fnic->notify_timer,
-		  round_jiffies(jiffies + FNIC_NOTIFY_TIMER_PERIOD));
+	mod_timer(&fnic->analtify_timer,
+		  round_jiffies(jiffies + FNIC_ANALTIFY_TIMER_PERIOD));
 }
 
-static void fnic_fip_notify_timer(struct timer_list *t)
+static void fnic_fip_analtify_timer(struct timer_list *t)
 {
 	struct fnic *fnic = from_timer(fnic, t, fip_timer);
 
 	fnic_handle_fip_timer(fnic);
 }
 
-static void fnic_notify_timer_start(struct fnic *fnic)
+static void fnic_analtify_timer_start(struct fnic *fnic)
 {
 	switch (vnic_dev_get_intr_mode(fnic->vdev)) {
 	case VNIC_DEV_INTR_MODE_MSI:
 		/*
 		 * Schedule first timeout immediately. The driver is
-		 * initiatialized and ready to look for link up notification
+		 * initiatialized and ready to look for link up analtification
 		 */
-		mod_timer(&fnic->notify_timer, jiffies);
+		mod_timer(&fnic->analtify_timer, jiffies);
 		break;
 	default:
-		/* Using intr for notification for INTx/MSI-X */
+		/* Using intr for analtification for INTx/MSI-X */
 		break;
 	}
 }
@@ -457,7 +457,7 @@ static int fnic_dev_wait(struct vnic_dev *vdev,
 
 	/* Wait for func to complete.
 	* Sometime schedule_timeout_uninterruptible take long time
-	* to wake up so we do not retry as we are only waiting for
+	* to wake up so we do analt retry as we are only waiting for
 	* 2 seconds in while loop. By adding count, we make sure
 	* we try atleast three times before returning -ETIMEDOUT
 	*/
@@ -507,7 +507,7 @@ static int fnic_cleanup(struct fnic *fnic)
 	fnic_wq_cmpl_handler(fnic, -1);
 	fnic_rq_cmpl_handler(fnic, -1);
 
-	/* Clean up the IOs and FCS frames that have not completed */
+	/* Clean up the IOs and FCS frames that have analt completed */
 	for (i = 0; i < fnic->raw_wq_count; i++)
 		vnic_wq_clean(&fnic->wq[i], fnic_free_wq_buf);
 	for (i = 0; i < fnic->rq_count; i++)
@@ -588,7 +588,7 @@ void fnic_mq_map_queues_cpus(struct Scsi_Host *host)
 
 	if (intr_mode == VNIC_DEV_INTR_MODE_MSI || intr_mode == VNIC_DEV_INTR_MODE_INTX) {
 		FNIC_MAIN_DBG(KERN_ERR, fnic->lport->host, fnic->fnic_num,
-			"intr_mode is not msix\n");
+			"intr_mode is analt msix\n");
 		return;
 	}
 
@@ -623,7 +623,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	lp = libfc_host_alloc(&fnic_host_template, sizeof(struct fnic));
 	if (!lp) {
 		printk(KERN_ERR PFX "Unable to alloc libfc local port\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -642,7 +642,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	fnic->pdev = pdev;
 
 	snprintf(fnic->name, sizeof(fnic->name) - 1, "%s%d", DRV_NAME,
-		 host->host_no);
+		 host->host_anal);
 
 	host->transportt = fnic_fc_transport;
 	fnic->fnic_num = fnic_id;
@@ -651,14 +651,14 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = pci_enable_device(pdev);
 	if (err) {
 		shost_printk(KERN_ERR, fnic->lport->host,
-			     "Cannot enable PCI device, aborting.\n");
+			     "Cananalt enable PCI device, aborting.\n");
 		goto err_out_free_hba;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
 		shost_printk(KERN_ERR, fnic->lport->host,
-			     "Cannot enable PCI resources, aborting\n");
+			     "Cananalt enable PCI resources, aborting\n");
 		goto err_out_disable_device;
 	}
 
@@ -673,7 +673,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
 			shost_printk(KERN_ERR, fnic->lport->host,
-				     "No usable DMA configuration "
+				     "Anal usable DMA configuration "
 				     "aborting\n");
 			goto err_out_release_regions;
 		}
@@ -682,8 +682,8 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Map vNIC resources from BAR0 */
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
 		shost_printk(KERN_ERR, fnic->lport->host,
-			     "BAR0 not memory-map'able, aborting.\n");
-		err = -ENODEV;
+			     "BAR0 analt memory-map'able, aborting.\n");
+		err = -EANALDEV;
 		goto err_out_release_regions;
 	}
 
@@ -693,9 +693,9 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (!fnic->bar0.vaddr) {
 		shost_printk(KERN_ERR, fnic->lport->host,
-			     "Cannot memory-map BAR0 res hdr, "
+			     "Cananalt memory-map BAR0 res hdr, "
 			     "aborting.\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out_release_regions;
 	}
 
@@ -704,7 +704,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		shost_printk(KERN_ERR, fnic->lport->host,
 			     "vNIC registration failed, "
 			     "aborting.\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out_iounmap;
 	}
 
@@ -737,7 +737,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			     "vNIC get MAC addr failed \n");
 		goto err_out_dev_close;
 	}
-	/* set data_src for point-to-point mode and to keep it non-zero */
+	/* set data_src for point-to-point mode and to keep it analn-zero */
 	memcpy(fnic->data_src_addr, fnic->ctlr.ctl_src_addr, ETH_ALEN);
 
 	/* Get vNIC configuration */
@@ -794,7 +794,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		fnic->fw_ack_index[i] = -1;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	fnic->io_req_pool = mempool_create_slab_pool(2, fnic_io_req_cache);
 	if (!fnic->io_req_pool)
 		goto err_out_free_resources;
@@ -822,11 +822,11 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			     "firmware supports FIP\n");
 		/* enable directed and multicast */
 		vnic_dev_packet_filter(fnic->vdev, 1, 1, 0, 0, 0);
-		vnic_dev_add_addr(fnic->vdev, FIP_ALL_ENODE_MACS);
+		vnic_dev_add_addr(fnic->vdev, FIP_ALL_EANALDE_MACS);
 		vnic_dev_add_addr(fnic->vdev, fnic->ctlr.ctl_src_addr);
 		fnic->set_vlan = fnic_set_vlan;
 		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_AUTO);
-		timer_setup(&fnic->fip_timer, fnic_fip_notify_timer, 0);
+		timer_setup(&fnic->fip_timer, fnic_fip_analtify_timer, 0);
 		spin_lock_init(&fnic->vlans_lock);
 		INIT_WORK(&fnic->fip_frame_work, fnic_handle_fip_frame);
 		INIT_WORK(&fnic->event_work, fnic_handle_event);
@@ -836,29 +836,29 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		INIT_LIST_HEAD(&fnic->vlans);
 	} else {
 		shost_printk(KERN_INFO, fnic->lport->host,
-			     "firmware uses non-FIP mode\n");
-		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_NON_FIP);
-		fnic->ctlr.state = FIP_ST_NON_FIP;
+			     "firmware uses analn-FIP mode\n");
+		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_ANALN_FIP);
+		fnic->ctlr.state = FIP_ST_ANALN_FIP;
 	}
 	fnic->state = FNIC_IN_FC_MODE;
 
 	atomic_set(&fnic->in_flight, 0);
-	fnic->state_flags = FNIC_FLAGS_NONE;
+	fnic->state_flags = FNIC_FLAGS_ANALNE;
 
 	/* Enable hardware stripping of vlan header on ingress */
 	fnic_set_nic_config(fnic, 0, 0, 0, 0, 0, 0, 1);
 
-	/* Setup notification buffer area */
-	err = fnic_notify_set(fnic);
+	/* Setup analtification buffer area */
+	err = fnic_analtify_set(fnic);
 	if (err) {
 		shost_printk(KERN_ERR, fnic->lport->host,
-			     "Failed to alloc notify buffer, aborting.\n");
+			     "Failed to alloc analtify buffer, aborting.\n");
 		goto err_out_free_max_pool;
 	}
 
-	/* Setup notify timer when using MSI interrupts */
+	/* Setup analtify timer when using MSI interrupts */
 	if (vnic_dev_get_intr_mode(fnic->vdev) == VNIC_DEV_INTR_MODE_MSI)
-		timer_setup(&fnic->notify_timer, fnic_notify_timer, 0);
+		timer_setup(&fnic->analtify_timer, fnic_analtify_timer, 0);
 
 	/* allocate RQ buffers and post them to RQ*/
 	for (i = 0; i < fnic->rq_count; i++) {
@@ -915,14 +915,14 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	lp->e_d_tov = fnic->config.ed_tov;
 	lp->r_a_tov = fnic->config.ra_tov;
 	lp->link_supported_speeds = FC_PORTSPEED_10GBIT;
-	fc_set_wwnn(lp, fnic->config.node_wwn);
+	fc_set_wwnn(lp, fnic->config.analde_wwn);
 	fc_set_wwpn(lp, fnic->config.port_wwn);
 
 	fcoe_libfc_config(lp, &fnic->ctlr, &fnic_transport_template, 0);
 
 	if (!fc_exch_mgr_alloc(lp, FC_CLASS_3, FCPIO_HOST_EXCH_RANGE_START,
 			       FCPIO_HOST_EXCH_RANGE_END, NULL)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_fc_exch_mgr_alloc;
 	}
 
@@ -958,7 +958,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	for (i = 0; i < fnic->intr_count; i++)
 		vnic_intr_unmask(&fnic->intr[i]);
 
-	fnic_notify_timer_start(fnic);
+	fnic_analtify_timer_start(fnic);
 
 	return 0;
 
@@ -973,7 +973,7 @@ err_out_request_intr:
 	for (i = 0; i < fnic->rq_count; i++)
 		vnic_rq_clean(&fnic->rq[i], fnic_free_rq_buf);
 err_out_rq_buf:
-	vnic_dev_notify_unset(fnic->vdev);
+	vnic_dev_analtify_unset(fnic->vdev);
 err_out_free_max_pool:
 	mempool_destroy(fnic->io_sgl_pool[FNIC_SGL_CACHE_MAX]);
 err_out_free_dflt_pool:
@@ -1024,11 +1024,11 @@ static void fnic_remove(struct pci_dev *pdev)
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
 	if (vnic_dev_get_intr_mode(fnic->vdev) == VNIC_DEV_INTR_MODE_MSI)
-		del_timer_sync(&fnic->notify_timer);
+		del_timer_sync(&fnic->analtify_timer);
 
 	/*
 	 * Flush the fnic event queue. After this call, there should
-	 * be no event queued for this fnic device in the workqueue
+	 * be anal event queued for this fnic device in the workqueue
 	 */
 	flush_workqueue(fnic_event_queue);
 	skb_queue_purge(&fnic->frame_queue);
@@ -1075,7 +1075,7 @@ static void fnic_remove(struct pci_dev *pdev)
 	for (hwq = 0; hwq < fnic->wq_copy_count; hwq++)
 		kfree(fnic->sw_copy_wq[hwq].io_req_table);
 	fc_exch_mgr_free(fnic->lport);
-	vnic_dev_notify_unset(fnic->vdev);
+	vnic_dev_analtify_unset(fnic->vdev);
 	fnic_free_intr(fnic);
 	fnic_free_vnic_resources(fnic);
 	fnic_clear_intr_mode(fnic);
@@ -1135,7 +1135,7 @@ static int __init fnic_init_module(void)
 		 NULL);
 	if (!fnic_sgl_cache[FNIC_SGL_CACHE_DFLT]) {
 		printk(KERN_ERR PFX "failed to create fnic dflt sgl slab\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_create_fnic_sgl_slab_dflt;
 	}
 
@@ -1147,7 +1147,7 @@ static int __init fnic_init_module(void)
 		  NULL);
 	if (!fnic_sgl_cache[FNIC_SGL_CACHE_MAX]) {
 		printk(KERN_ERR PFX "failed to create fnic max sgl slab\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_create_fnic_sgl_slab_max;
 	}
 
@@ -1157,28 +1157,28 @@ static int __init fnic_init_module(void)
 					      0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!fnic_io_req_cache) {
 		printk(KERN_ERR PFX "failed to create fnic io_req slab\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_create_fnic_ioreq_slab;
 	}
 
 	fnic_event_queue = create_singlethread_workqueue("fnic_event_wq");
 	if (!fnic_event_queue) {
 		printk(KERN_ERR PFX "fnic work queue create failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_create_fnic_workq;
 	}
 
 	fnic_fip_queue = create_singlethread_workqueue("fnic_fip_q");
 	if (!fnic_fip_queue) {
 		printk(KERN_ERR PFX "fnic FIP work queue create failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_create_fip_workq;
 	}
 
 	fnic_fc_transport = fc_attach_transport(&fnic_fc_functions);
 	if (!fnic_fc_transport) {
 		printk(KERN_ERR PFX "fc_attach_transport error\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_fc_transport;
 	}
 

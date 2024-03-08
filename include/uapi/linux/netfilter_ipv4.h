@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* IPv4-specific defines for netfilter. 
  * (C)1998 Rusty Russell -- This code is GPL.
  */
@@ -18,7 +18,7 @@
 #define NF_IP_PRE_ROUTING	0
 /* If the packet is destined for this box. */
 #define NF_IP_LOCAL_IN		1
-/* If the packet is destined for another interface. */
+/* If the packet is destined for aanalther interface. */
 #define NF_IP_FORWARD		2
 /* Packets coming from a local process. */
 #define NF_IP_LOCAL_OUT		3

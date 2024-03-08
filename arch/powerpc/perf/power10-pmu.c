@@ -307,14 +307,14 @@ static u64 power10_bhrb_filter_map(u64 branch_sample_type)
 	 * filter configuration. BHRB is always recorded along with a
 	 * regular PMU event. As the privilege state filter is handled
 	 * in the basic PMC configuration of the accompanying regular
-	 * PMU event, we ignore any separate BHRB specific request.
+	 * PMU event, we iganalre any separate BHRB specific request.
 	 */
 
-	/* No branch filter requested */
+	/* Anal branch filter requested */
 	if (branch_sample_type & PERF_SAMPLE_BRANCH_ANY)
 		return pmu_bhrb_filter;
 
-	/* Invalid branch filter options - HW does not support */
+	/* Invalid branch filter options - HW does analt support */
 	if (branch_sample_type & PERF_SAMPLE_BRANCH_ANY_RETURN)
 		return -1;
 
@@ -352,7 +352,7 @@ static void power10_config_bhrb(u64 pmu_bhrb_filter)
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means analt supported, -1 means analnsensical, other values
  * are event codes.
  */
 static u64 power10_cache_events_dd1[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
@@ -440,7 +440,7 @@ static u64 power10_cache_events_dd1[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 			[C(RESULT_MISS)] = -1,
 		},
 	},
-	[C(NODE)] = {
+	[C(ANALDE)] = {
 		[C(OP_READ)] = {
 			[C(RESULT_ACCESS)] = -1,
 			[C(RESULT_MISS)] = -1,
@@ -541,7 +541,7 @@ static u64 power10_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 			[C(RESULT_MISS)] = -1,
 		},
 	},
-	[C(NODE)] = {
+	[C(ANALDE)] = {
 		[C(OP_READ)] = {
 			[C(RESULT_ACCESS)] = -1,
 			[C(RESULT_MISS)] = -1,
@@ -610,7 +610,7 @@ int __init init_power10_pmu(void)
 
 	pvr = mfspr(SPRN_PVR);
 	if (PVR_VER(pvr) != PVR_POWER10)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Add the ppmu flag for power10 DD1 */
 	if ((PVR_CFG(pvr) == 1))

@@ -104,11 +104,11 @@ static int pericom8250_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	pericom = devm_kzalloc(&pdev->dev, struct_size(pericom, line, nr), GFP_KERNEL);
 	if (!pericom)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pericom->virt = pcim_iomap(pdev, bar, 0);
 	if (!pericom->virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&uart, 0, sizeof(uart));
 
@@ -153,7 +153,7 @@ static void pericom8250_remove(struct pci_dev *pdev)
 
 static const struct pci_device_id pericom8250_pci_ids[] = {
 	/*
-	 * Pericom PI7C9X795[1248] Uno/Dual/Quad/Octal UART
+	 * Pericom PI7C9X795[1248] Uanal/Dual/Quad/Octal UART
 	 * (Only 7954 has an offset jump for port 4)
 	 */
 	{ PCI_VDEVICE(PERICOM, PCI_DEVICE_ID_PERICOM_PI7C9X7951) },

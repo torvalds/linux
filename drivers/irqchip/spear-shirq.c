@@ -218,7 +218,7 @@ static void __init spear_shirq_register(struct spear_shirq *shirq,
 }
 
 static int __init shirq_init(struct spear_shirq **shirq_blocks, int block_nr,
-		struct device_node *np)
+		struct device_analde *np)
 {
 	int i, parent_irq, virq_base, hwirq = 0, nr_irqs = 0;
 	struct irq_domain *shirq_domain;
@@ -265,24 +265,24 @@ err_unmap:
 	return -ENXIO;
 }
 
-static int __init spear300_shirq_of_init(struct device_node *np,
-					 struct device_node *parent)
+static int __init spear300_shirq_of_init(struct device_analde *np,
+					 struct device_analde *parent)
 {
 	return shirq_init(spear300_shirq_blocks,
 			ARRAY_SIZE(spear300_shirq_blocks), np);
 }
 IRQCHIP_DECLARE(spear300_shirq, "st,spear300-shirq", spear300_shirq_of_init);
 
-static int __init spear310_shirq_of_init(struct device_node *np,
-					 struct device_node *parent)
+static int __init spear310_shirq_of_init(struct device_analde *np,
+					 struct device_analde *parent)
 {
 	return shirq_init(spear310_shirq_blocks,
 			ARRAY_SIZE(spear310_shirq_blocks), np);
 }
 IRQCHIP_DECLARE(spear310_shirq, "st,spear310-shirq", spear310_shirq_of_init);
 
-static int __init spear320_shirq_of_init(struct device_node *np,
-					 struct device_node *parent)
+static int __init spear320_shirq_of_init(struct device_analde *np,
+					 struct device_analde *parent)
 {
 	return shirq_init(spear320_shirq_blocks,
 			ARRAY_SIZE(spear320_shirq_blocks), np);

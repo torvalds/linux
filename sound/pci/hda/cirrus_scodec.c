@@ -15,7 +15,7 @@ int cirrus_scodec_get_speaker_id(struct device *dev, int amp_index,
 				 int num_amps, int fixed_gpio_id)
 {
 	struct gpio_desc *speaker_id_desc;
-	int speaker_id = -ENOENT;
+	int speaker_id = -EANALENT;
 
 	if (fixed_gpio_id >= 0) {
 		dev_dbg(dev, "Found Fixed Speaker ID GPIO (index = %d)\n", fixed_gpio_id);

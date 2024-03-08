@@ -10,7 +10,7 @@
 #define __DT_BINDINGS_ACTIONS_S500_RESET_H
 
 #define RESET_DMAC				0
-#define RESET_NORIF				1
+#define RESET_ANALRIF				1
 #define RESET_DDR				2
 #define RESET_NANDC				3
 #define RESET_SD0				4

@@ -30,21 +30,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -93,9 +93,9 @@
 
 /* Quark DTS has 2 trip points: hot & catastrophic */
 #define QRK_MAX_DTS_TRIPS	2
-/* If DTS not locked, all trip points are configurable */
+/* If DTS analt locked, all trip points are configurable */
 #define QRK_DTS_WR_MASK_SET	0x3
-/* If DTS locked, all trip points are not configurable */
+/* If DTS locked, all trip points are analt configurable */
 #define QRK_DTS_WR_MASK_CLR	0
 
 #define DEFAULT_POLL_DELAY	2000
@@ -138,7 +138,7 @@ static int soc_dts_enable(struct thermal_zone_device *tzd)
 		if (ret)
 			return ret;
 	} else {
-		pr_info("DTS is locked. Cannot enable DTS\n");
+		pr_info("DTS is locked. Cananalt enable DTS\n");
 		ret = -EPERM;
 	}
 
@@ -167,7 +167,7 @@ static int soc_dts_disable(struct thermal_zone_device *tzd)
 		if (ret)
 			return ret;
 	} else {
-		pr_info("DTS is locked. Cannot disable DTS\n");
+		pr_info("DTS is locked. Cananalt disable DTS\n");
 		ret = -EPERM;
 	}
 
@@ -220,7 +220,7 @@ static int update_trip_temp(struct soc_sensor_entry *aux_entry,
 
 	/*
 	 * Protection against unsafe trip point thresdhold value.
-	 * As Quark X1000 data-sheet does not provide any recommendation
+	 * As Quark X1000 data-sheet does analt provide any recommendation
 	 * regarding the safe trip point threshold value to use, we choose
 	 * the safe value according to the threshold value set by UEFI BIOS.
 	 */
@@ -327,8 +327,8 @@ static struct soc_sensor_entry *alloc_soc_dts(void)
 
 	aux_entry = kzalloc(sizeof(*aux_entry), GFP_KERNEL);
 	if (!aux_entry) {
-		err = -ENOMEM;
-		return ERR_PTR(-ENOMEM);
+		err = -EANALMEM;
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/* Check if DTS register is locked */
@@ -345,7 +345,7 @@ static struct soc_sensor_entry *alloc_soc_dts(void)
 		wr_mask = QRK_DTS_WR_MASK_SET;
 	}
 
-	/* Store DTS default state if DTS registers are not locked */
+	/* Store DTS default state if DTS registers are analt locked */
 	if (!aux_entry->locked) {
 		/* Store DTS default enable for restore on exit */
 		err = iosf_mbi_read(QRK_MBI_UNIT_RMU, MBI_REG_READ,
@@ -401,7 +401,7 @@ MODULE_DEVICE_TABLE(x86cpu, qrk_thermal_ids);
 static int __init intel_quark_thermal_init(void)
 {
 	if (!x86_match_cpu(qrk_thermal_ids) || !iosf_mbi_available())
-		return -ENODEV;
+		return -EANALDEV;
 
 	soc_dts = alloc_soc_dts();
 	if (IS_ERR(soc_dts))

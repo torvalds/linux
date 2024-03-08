@@ -3,7 +3,7 @@
  * atlas-ezo-sensor.c - Support for Atlas Scientific EZO sensors
  *
  * Copyright (C) 2020 Konsulko Group
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Raanalstay <matt.raanalstay@konsulko.com>
  */
 
 #include <linux/init.h>
@@ -209,7 +209,7 @@ static int atlas_ezo_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = i2c_get_match_data(client);
 	if (!chip)
@@ -239,6 +239,6 @@ static struct i2c_driver atlas_ezo_driver = {
 };
 module_i2c_driver(atlas_ezo_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Raanalstay <matt.raanalstay@konsulko.com>");
 MODULE_DESCRIPTION("Atlas Scientific EZO sensors");
 MODULE_LICENSE("GPL");

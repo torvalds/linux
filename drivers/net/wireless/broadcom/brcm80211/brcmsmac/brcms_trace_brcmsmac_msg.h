@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -24,9 +24,9 @@
 
 #define MAX_MSG_LEN	100
 
-#pragma GCC diagnostic push
+#pragma GCC diaganalstic push
 #ifndef __clang__
-#pragma GCC diagnostic ignored "-Wsuggest-attribute=format"
+#pragma GCC diaganalstic iganalred "-Wsuggest-attribute=format"
 #endif
 
 DECLARE_EVENT_CLASS(brcms_msg_event,
@@ -77,7 +77,7 @@ TRACE_EVENT(brcms_dbg,
 	TP_printk("%s: %s", __get_str(func), __get_str(msg))
 );
 
-#pragma GCC diagnostic pop
+#pragma GCC diaganalstic pop
 
 #endif /* __TRACE_BRCMSMAC_MSG_H */
 

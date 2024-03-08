@@ -240,7 +240,7 @@ static int max98520_dai_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = MAX98520_PCM_SR_192000;
 		break;
 	default:
-		dev_err(component->dev, "rate %d not supported\n",
+		dev_err(component->dev, "rate %d analt supported\n",
 			params_rate(params));
 		goto err;
 	}
@@ -277,7 +277,7 @@ static int max98520_dai_tdm_slot(struct snd_soc_dai *dai,
 	/* BCLK configuration */
 	bsel = max98520_get_bclk_sel(slots * slot_width);
 	if (bsel == 0) {
-		dev_err(component->dev, "BCLK %d not supported\n",
+		dev_err(component->dev, "BCLK %d analt supported\n",
 			slots * slot_width);
 		return -EINVAL;
 	}
@@ -411,16 +411,16 @@ static const struct snd_kcontrol_new max98520_right_input_mixer_controls[] = {
 
 static const struct snd_soc_dapm_widget max98520_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC_E("Amp Enable", "HiFi Playback",
-			   SND_SOC_NOPM, 0, 0, max98520_dac_event,
+			   SND_SOC_ANALPM, 0, 0, max98520_dac_event,
 	SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_NOPM, 0, 0,	&max98520_dai_controls),
+	SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_ANALPM, 0, 0,	&max98520_dai_controls),
 	SND_SOC_DAPM_OUTPUT("BE_OUT"),
 	/* Left Input Selection */
-	SND_SOC_DAPM_MIXER("Left Input Selection", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Left Input Selection", SND_SOC_ANALPM, 0, 0,
 			   &max98520_left_input_mixer_controls[0],
 			   ARRAY_SIZE(max98520_left_input_mixer_controls)),
 	/* Right Input Selection */
-	SND_SOC_DAPM_MIXER("Right Input Selection", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Right Input Selection", SND_SOC_ANALPM, 0, 0,
 			   &max98520_right_input_mixer_controls[0],
 			   ARRAY_SIZE(max98520_right_input_mixer_controls)),
 };
@@ -600,7 +600,7 @@ static int max98520_probe(struct snd_soc_component *component)
 	/* Software Reset */
 	regmap_write(max98520->regmap, MAX98520_R2000_SW_RESET, 1);
 
-	/* L/R mono mix configuration : "DAI Sel" for 0x2043 */
+	/* L/R moanal mix configuration : "DAI Sel" for 0x2043 */
 	regmap_write(max98520->regmap, MAX98520_R2043_PCM_RX_SRC1, 0x2);
 
 	/* PCM input channles configuration : "Left Input Selection" for 0x2044 */
@@ -690,7 +690,7 @@ static int max98520_i2c_probe(struct i2c_client *i2c)
 	max98520 = devm_kzalloc(&i2c->dev, sizeof(*max98520), GFP_KERNEL);
 
 	if (!max98520)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, max98520);
 

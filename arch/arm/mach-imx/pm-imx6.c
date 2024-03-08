@@ -349,7 +349,7 @@ int imx6_set_lpm(enum mxc_cpu_pwr_mode mode)
 	 * 3) Software should mask IRQ #32 right after CCM Low-Power mode
 	 *    is set (set bits 0-1 of CCM_CLPCR).
 	 *
-	 * Note that IRQ #32 is GIC SPI #0.
+	 * Analte that IRQ #32 is GIC SPI #0.
 	 */
 	if (mode != WAIT_CLOCKED)
 		imx_gpc_hwirq_unmask(0);
@@ -402,7 +402,7 @@ static int imx6q_pm_enter(suspend_state_t state)
 		imx6q_enable_wb(true);
 		/*
 		 * For suspend into ocram, asm code already take care of
-		 * RBC setting, so we do NOT need to do that here.
+		 * RBC setting, so we do ANALT need to do that here.
 		 */
 		if (!imx6_suspend_in_ocram_fn)
 			imx6_enable_rbc(true);
@@ -439,32 +439,32 @@ static const struct platform_suspend_ops imx6q_pm_ops = {
 static int __init imx6_pm_get_base(struct imx6_pm_base *base,
 				const char *compat)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct resource res;
 	int ret = 0;
 
-	node = of_find_compatible_node(NULL, NULL, compat);
-	if (!node)
-		return -ENODEV;
+	analde = of_find_compatible_analde(NULL, NULL, compat);
+	if (!analde)
+		return -EANALDEV;
 
-	ret = of_address_to_resource(node, 0, &res);
+	ret = of_address_to_resource(analde, 0, &res);
 	if (ret)
-		goto put_node;
+		goto put_analde;
 
 	base->pbase = res.start;
 	base->vbase = ioremap(res.start, resource_size(&res));
 	if (!base->vbase)
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
-put_node:
-	of_node_put(node);
+put_analde:
+	of_analde_put(analde);
 	return ret;
 }
 
 static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 {
 	phys_addr_t ocram_pbase;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct platform_device *pdev;
 	struct imx6_cpu_pm_info *pm_info;
 	struct gen_pool *ocram_pool;
@@ -479,30 +479,30 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 		return -EINVAL;
 	}
 
-	node = of_find_compatible_node(NULL, NULL, "mmio-sram");
-	if (!node) {
-		pr_warn("%s: failed to find ocram node!\n", __func__);
-		return -ENODEV;
+	analde = of_find_compatible_analde(NULL, NULL, "mmio-sram");
+	if (!analde) {
+		pr_warn("%s: failed to find ocram analde!\n", __func__);
+		return -EANALDEV;
 	}
 
-	pdev = of_find_device_by_node(node);
+	pdev = of_find_device_by_analde(analde);
 	if (!pdev) {
 		pr_warn("%s: failed to find ocram device!\n", __func__);
-		ret = -ENODEV;
-		goto put_node;
+		ret = -EANALDEV;
+		goto put_analde;
 	}
 
 	ocram_pool = gen_pool_get(&pdev->dev, NULL);
 	if (!ocram_pool) {
 		pr_warn("%s: ocram pool unavailable!\n", __func__);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto put_device;
 	}
 
 	ocram_base = gen_pool_alloc(ocram_pool, MX6Q_SUSPEND_OCRAM_SIZE);
 	if (!ocram_base) {
 		pr_warn("%s: unable to alloc ocram!\n", __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_device;
 	}
 
@@ -518,7 +518,7 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 	pm_info->pm_info_size = sizeof(*pm_info);
 
 	/*
-	 * ccm physical address is not used by asm code currently,
+	 * ccm physical address is analt used by asm code currently,
 	 * so get ccm virtual address directly.
 	 */
 	pm_info->ccm_base.vbase = ccm_base;
@@ -587,8 +587,8 @@ src_map_failed:
 	iounmap(pm_info->mmdc_base.vbase);
 put_device:
 	put_device(&pdev->dev);
-put_node:
-	of_node_put(node);
+put_analde:
+	of_analde_put(analde);
 
 	return ret;
 }
@@ -604,7 +604,7 @@ static void __init imx6_pm_common_init(const struct imx6_pm_socdata
 	if (IS_ENABLED(CONFIG_SUSPEND)) {
 		ret = imx6q_suspend_init(socdata);
 		if (ret)
-			pr_warn("%s: No DDR LPM support with suspend %d!\n",
+			pr_warn("%s: Anal DDR LPM support with suspend %d!\n",
 				__func__, ret);
 	}
 
@@ -646,10 +646,10 @@ static int imx6_pm_stby_poweroff_probe(void)
 
 void __init imx6_pm_ccm_init(const char *ccm_compat)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 val;
 
-	np = of_find_compatible_node(NULL, NULL, ccm_compat);
+	np = of_find_compatible_analde(NULL, NULL, ccm_compat);
 	ccm_base = of_iomap(np, 0);
 	BUG_ON(!ccm_base);
 
@@ -664,7 +664,7 @@ void __init imx6_pm_ccm_init(const char *ccm_compat)
 	if (of_property_read_bool(np, "fsl,pmic-stby-poweroff"))
 		imx6_pm_stby_poweroff_probe();
 
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 void __init imx6q_pm_init(void)

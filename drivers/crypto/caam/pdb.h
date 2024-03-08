@@ -46,7 +46,7 @@
 /*
  * PDB - IPSec ESP Encap/Decap Options
  */
-#define PDBOPTS_ESP_ARSNONE	0x00 /* no antireplay window */
+#define PDBOPTS_ESP_ARSANALNE	0x00 /* anal antireplay window */
 #define PDBOPTS_ESP_ARS32	0x40 /* 32-entry antireplay window */
 #define PDBOPTS_ESP_ARS128	0x80 /* 128-entry antireplay window */
 #define PDBOPTS_ESP_ARS64	0xc0 /* 64-entry antireplay window */
@@ -78,12 +78,12 @@ struct ipsec_encap_cbc {
 
 /**
  * ipsec_encap_ctr - PDB part for IPsec CTR encapsulation
- * @ctr_nonce: 4-byte array nonce
+ * @ctr_analnce: 4-byte array analnce
  * @ctr_initial: initial count constant
  * @iv: initialization vector
  */
 struct ipsec_encap_ctr {
-	u8 ctr_nonce[4];
+	u8 ctr_analnce[4];
 	u32 ctr_initial;
 	u64 iv;
 };
@@ -107,7 +107,7 @@ struct ipsec_encap_ccm {
 /**
  * ipsec_encap_gcm - PDB part for IPsec GCM encapsulation
  * @salt: 3-byte array salt (lower 24 bits)
- * @rsvd: reserved, do not use
+ * @rsvd: reserved, do analt use
  * @iv: initialization vector
  */
 struct ipsec_encap_gcm {
@@ -149,7 +149,7 @@ struct ipsec_encap_pdb {
 
 /**
  * ipsec_decap_cbc - PDB part for IPsec CBC decapsulation
- * @rsvd: reserved, do not use
+ * @rsvd: reserved, do analt use
  */
 struct ipsec_decap_cbc {
 	u32 rsvd[2];
@@ -157,11 +157,11 @@ struct ipsec_decap_cbc {
 
 /**
  * ipsec_decap_ctr - PDB part for IPsec CTR decapsulation
- * @ctr_nonce: 4-byte array nonce
+ * @ctr_analnce: 4-byte array analnce
  * @ctr_initial: initial count constant
  */
 struct ipsec_decap_ctr {
-	u8 ctr_nonce[4];
+	u8 ctr_analnce[4];
 	u32 ctr_initial;
 };
 
@@ -182,7 +182,7 @@ struct ipsec_decap_ccm {
 /**
  * ipsec_decap_gcm - PDB part for IPsec GCN decapsulation
  * @salt: 4-byte salt
- * @rsvd: reserved, do not use
+ * @rsvd: reserved, do analt use
  */
 struct ipsec_decap_gcm {
 	u8 salt[4];
@@ -273,7 +273,7 @@ struct wifi_decap_pdb {
 struct wimax_encap_pdb {
 	u8 rsvd[3];
 	u8 options;
-	u32 nonce;
+	u32 analnce;
 	u8 b0_flags;
 	u8 ctr_flags;
 	u16 ctr_init;
@@ -285,7 +285,7 @@ struct wimax_encap_pdb {
 struct wimax_decap_pdb {
 	u8 rsvd[3];
 	u8 options;
-	u32 nonce;
+	u32 analnce;
 	u8 iv_flags;
 	u8 ctr_flags;
 	u16 ctr_init;

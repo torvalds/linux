@@ -15,12 +15,12 @@ static int trigger_module_test_writable(int *val)
 	ssize_t rd;
 
 	fd = open(BPF_TESTMOD_TEST_FILE, O_RDONLY);
-	err = -errno;
+	err = -erranal;
 	if (!ASSERT_GE(fd, 0, "testmode_file_open"))
 		return err;
 
 	rd = read(fd, buf, sizeof(buf) - 1);
-	err = -errno;
+	err = -erranal;
 	if (!ASSERT_GT(rd, 0, "testmod_file_rd_val")) {
 		close(fd);
 		return err;

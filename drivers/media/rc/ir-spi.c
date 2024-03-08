@@ -117,7 +117,7 @@ static int ir_spi_probe(struct spi_device *spi)
 
 	idata = devm_kzalloc(&spi->dev, sizeof(*idata), GFP_KERNEL);
 	if (!idata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idata->regulator = devm_regulator_get(&spi->dev, "irda_regulator");
 	if (IS_ERR(idata->regulator))
@@ -125,7 +125,7 @@ static int ir_spi_probe(struct spi_device *spi)
 
 	idata->rc = devm_rc_allocate_device(&spi->dev, RC_DRIVER_IR_RAW_TX);
 	if (!idata->rc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idata->rc->tx_ir           = ir_spi_tx;
 	idata->rc->s_tx_carrier    = ir_spi_set_tx_carrier;
@@ -135,13 +135,13 @@ static int ir_spi_probe(struct spi_device *spi)
 	idata->rc->priv            = idata;
 	idata->spi                 = spi;
 
-	idata->negated = of_property_read_bool(spi->dev.of_node,
+	idata->negated = of_property_read_bool(spi->dev.of_analde,
 							"led-active-low");
-	ret = of_property_read_u8(spi->dev.of_node, "duty-cycle", &dc);
+	ret = of_property_read_u8(spi->dev.of_analde, "duty-cycle", &dc);
 	if (ret)
 		dc = 50;
 
-	/* ir_spi_set_duty_cycle cannot fail,
+	/* ir_spi_set_duty_cycle cananalt fail,
 	 * it returns int to be compatible with the
 	 * rc->s_tx_duty_cycle function
 	 */

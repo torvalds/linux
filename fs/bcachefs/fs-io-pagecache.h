@@ -8,7 +8,7 @@ typedef DARRAY(struct folio *) folios;
 
 int bch2_filemap_get_contig_folios_d(struct address_space *, loff_t,
 				     u64, fgf_t, gfp_t, folios *);
-int bch2_write_invalidate_inode_pages_range(struct address_space *, loff_t, loff_t);
+int bch2_write_invalidate_ianalde_pages_range(struct address_space *, loff_t, loff_t);
 
 /*
  * Use u64 for the end pos and sector helpers because if the folio covers the
@@ -65,7 +65,7 @@ struct bch_folio {
 	atomic_t		write_count;
 	/*
 	 * Is the sector state up to date with the btree?
-	 * (Not the data itself)
+	 * (Analt the data itself)
 	 */
 	bool			uptodate;
 	struct bch_folio_sector	s[];
@@ -122,44 +122,44 @@ struct bch2_folio_reservation {
 	struct quota_res	quota;
 };
 
-static inline unsigned inode_nr_replicas(struct bch_fs *c, struct bch_inode_info *inode)
+static inline unsigned ianalde_nr_replicas(struct bch_fs *c, struct bch_ianalde_info *ianalde)
 {
-	/* XXX: this should not be open coded */
-	return inode->ei_inode.bi_data_replicas
-		? inode->ei_inode.bi_data_replicas - 1
+	/* XXX: this should analt be open coded */
+	return ianalde->ei_ianalde.bi_data_replicas
+		? ianalde->ei_ianalde.bi_data_replicas - 1
 		: c->opts.data_replicas;
 }
 
 static inline void bch2_folio_reservation_init(struct bch_fs *c,
-			struct bch_inode_info *inode,
+			struct bch_ianalde_info *ianalde,
 			struct bch2_folio_reservation *res)
 {
 	memset(res, 0, sizeof(*res));
 
-	res->disk.nr_replicas = inode_nr_replicas(c, inode);
+	res->disk.nr_replicas = ianalde_nr_replicas(c, ianalde);
 }
 
 int bch2_folio_set(struct bch_fs *, subvol_inum, struct folio **, unsigned);
 void bch2_bio_page_state_set(struct bio *, struct bkey_s_c);
 
-void bch2_mark_pagecache_unallocated(struct bch_inode_info *, u64, u64);
-int bch2_mark_pagecache_reserved(struct bch_inode_info *, u64 *, u64, bool);
+void bch2_mark_pagecache_unallocated(struct bch_ianalde_info *, u64, u64);
+int bch2_mark_pagecache_reserved(struct bch_ianalde_info *, u64 *, u64, bool);
 
 int bch2_get_folio_disk_reservation(struct bch_fs *,
-				struct bch_inode_info *,
+				struct bch_ianalde_info *,
 				struct folio *, bool);
 
 void bch2_folio_reservation_put(struct bch_fs *,
-			struct bch_inode_info *,
+			struct bch_ianalde_info *,
 			struct bch2_folio_reservation *);
 int bch2_folio_reservation_get(struct bch_fs *,
-			struct bch_inode_info *,
+			struct bch_ianalde_info *,
 			struct folio *,
 			struct bch2_folio_reservation *,
 			unsigned, unsigned);
 
 void bch2_set_folio_dirty(struct bch_fs *,
-			  struct bch_inode_info *,
+			  struct bch_ianalde_info *,
 			  struct folio *,
 			  struct bch2_folio_reservation *,
 			  unsigned, unsigned);
@@ -169,8 +169,8 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *);
 void bch2_invalidate_folio(struct folio *, size_t, size_t);
 bool bch2_release_folio(struct folio *, gfp_t);
 
-loff_t bch2_seek_pagecache_data(struct inode *, loff_t, loff_t, unsigned, bool);
-loff_t bch2_seek_pagecache_hole(struct inode *, loff_t, loff_t, unsigned, bool);
-int bch2_clamp_data_hole(struct inode *, u64 *, u64 *, unsigned, bool);
+loff_t bch2_seek_pagecache_data(struct ianalde *, loff_t, loff_t, unsigned, bool);
+loff_t bch2_seek_pagecache_hole(struct ianalde *, loff_t, loff_t, unsigned, bool);
+int bch2_clamp_data_hole(struct ianalde *, u64 *, u64 *, unsigned, bool);
 
 #endif /* _BCACHEFS_FS_IO_PAGECACHE_H */

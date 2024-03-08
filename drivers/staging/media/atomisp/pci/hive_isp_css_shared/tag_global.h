@@ -43,7 +43,7 @@
  *                      past or future.
  * exp_id		Exposure id of the RAW frame to tag.
  *
- * NOTE: Either exp_id = 0 or all other fields are 0
+ * ANALTE: Either exp_id = 0 or all other fields are 0
  *	 (so yeah, this could be a union)
  */
 

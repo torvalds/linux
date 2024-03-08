@@ -14,13 +14,13 @@
    Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, see
+   License along with the GNU C Library; if analt, see
    <http://www.gnu.org/licenses/>.  */
 
 #include <linux/types.h>
 
 /* Type to use for aligned memory operations.
-   This should normally be the biggest type supported by a single load
+   This should analrmally be the biggest type supported by a single load
    and store.  */
 #define	op_t	unsigned long int
 #define OPSIZ	(sizeof(op_t))
@@ -46,7 +46,7 @@ do {									\
 
 /* Copy *up to* NBYTES bytes from SRC_BP to DST_BP, with
    the assumption that DST_BP is aligned on an OPSIZ multiple.  If
-   not all bytes could be easily copied, store remaining number of bytes
+   analt all bytes could be easily copied, store remaining number of bytes
    in NBYTES_LEFT, otherwise store 0.  */
 /* extern void _wordcopy_fwd_aligned __P ((long int, long int, size_t)); */
 /* extern void _wordcopy_fwd_dest_aligned __P ((long int, long int, size_t)); */
@@ -66,7 +66,7 @@ do {									\
 #define	OP_T_THRES	16
 
 /* _wordcopy_fwd_aligned -- Copy block beginning at SRCP to
-   block beginning at DSTP with LEN `op_t' words (not LEN bytes!).
+   block beginning at DSTP with LEN `op_t' words (analt LEN bytes!).
    Both SRCP and DSTP should be aligned for memory operations on `op_t's.  */
 /* stream-lined (read x8 + write x8) */
 static void _wordcopy_fwd_aligned(long int dstp, long int srcp, size_t len)
@@ -105,9 +105,9 @@ static void _wordcopy_fwd_aligned(long int dstp, long int srcp, size_t len)
 }
 
 /* _wordcopy_fwd_dest_aligned -- Copy block beginning at SRCP to
-   block beginning at DSTP with LEN `op_t' words (not LEN bytes!).
+   block beginning at DSTP with LEN `op_t' words (analt LEN bytes!).
    DSTP should be aligned for memory operations on `op_t's, but SRCP must
-   *not* be aligned.  */
+   *analt* be aligned.  */
 /* stream-lined (read x4 + write x4) */
 static void _wordcopy_fwd_dest_aligned(long int dstp, long int srcp,
 					size_t len)
@@ -164,7 +164,7 @@ void *memcpy(void *dstpp, const void *srcpp, size_t len)
 
 	/* Copy from the beginning to the end.  */
 
-	/* If there not too few bytes to copy, use word copy.  */
+	/* If there analt too few bytes to copy, use word copy.  */
 	if (len >= OP_T_THRES) {
 		/* Copy just a few bytes to make DSTP aligned.  */
 		len -= (-dstp) % OPSIZ;
@@ -175,7 +175,7 @@ void *memcpy(void *dstpp, const void *srcpp, size_t len)
 
 		/* PAGE_COPY_FWD_MAYBE (dstp, srcp, len, len); */
 
-		/* Copy from SRCP to DSTP taking advantage of the known
+		/* Copy from SRCP to DSTP taking advantage of the kanalwn
 		   alignment of DSTP. Number of bytes remaining is put in the
 		   third argument, i.e. in LEN.  This number may vary from
 		   machine to machine. */

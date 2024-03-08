@@ -4,12 +4,12 @@
  *
  *   Permission to use, copy, modify, and/or distribute this software
  *   for any purpose with or without fee is hereby granted, provided
- *   that the above copyright notice and this permission notice appear
+ *   that the above copyright analtice and this permission analtice appear
  *   in all copies.
  *
  *   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
  *   WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- *   WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ *   WARRANTIES OF MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL
  *   THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
  *   CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  *   LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
@@ -23,7 +23,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
@@ -87,10 +87,10 @@ qca_tty_receive(struct serdev_device *serdev, const u8 *data, size_t count)
 
 		switch (retcode) {
 		case QCAFRM_GATHER:
-		case QCAFRM_NOHEAD:
+		case QCAFRM_ANALHEAD:
 			break;
-		case QCAFRM_NOTAIL:
-			netdev_dbg(netdev, "recv: no RX tail\n");
+		case QCAFRM_ANALTAIL:
+			netdev_dbg(netdev, "recv: anal RX tail\n");
 			n_stats->rx_errors++;
 			n_stats->rx_dropped++;
 			break;
@@ -105,7 +105,7 @@ qca_tty_receive(struct serdev_device *serdev, const u8 *data, size_t count)
 			skb_put(qca->rx_skb, retcode);
 			qca->rx_skb->protocol = eth_type_trans(
 						qca->rx_skb, qca->rx_skb->dev);
-			skb_checksum_none_assert(qca->rx_skb);
+			skb_checksum_analne_assert(qca->rx_skb);
 			netif_rx(qca->rx_skb);
 			qca->rx_skb = netdev_alloc_skb_ip_align(netdev,
 								netdev->mtu +
@@ -137,8 +137,8 @@ static void qcauart_transmit(struct work_struct *work)
 	}
 
 	if (qca->tx_left <= 0)  {
-		/* Now serial buffer is almost free & we can start
-		 * transmission of another packet
+		/* Analw serial buffer is almost free & we can start
+		 * transmission of aanalther packet
 		 */
 		n_stats->tx_packets++;
 		spin_unlock_bh(&qca->lock);
@@ -268,13 +268,13 @@ static int qcauart_netdev_init(struct net_device *dev)
 	len = QCAFRM_HEADER_LEN + QCAFRM_MAX_LEN + QCAFRM_FOOTER_LEN;
 	qca->tx_buffer = devm_kmalloc(&qca->serdev->dev, len, GFP_KERNEL);
 	if (!qca->tx_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qca->rx_skb = netdev_alloc_skb_ip_align(qca->net_dev,
 						qca->net_dev->mtu +
 						VLAN_ETH_HLEN);
 	if (!qca->rx_skb)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	return 0;
 }
@@ -325,7 +325,7 @@ static int qca_uart_probe(struct serdev_device *serdev)
 	int ret;
 
 	if (!qcauart_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qcauart_netdev_setup(qcauart_dev);
 	SET_NETDEV_DEV(qcauart_dev, &serdev->dev);
@@ -333,7 +333,7 @@ static int qca_uart_probe(struct serdev_device *serdev)
 	qca = netdev_priv(qcauart_dev);
 	if (!qca) {
 		pr_err("qca_uart: Fail to retrieve private structure\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free;
 	}
 	qca->net_dev = qcauart_dev;
@@ -343,9 +343,9 @@ static int qca_uart_probe(struct serdev_device *serdev)
 	spin_lock_init(&qca->lock);
 	INIT_WORK(&qca->tx_work, qcauart_transmit);
 
-	of_property_read_u32(serdev->dev.of_node, "current-speed", &speed);
+	of_property_read_u32(serdev->dev.of_analde, "current-speed", &speed);
 
-	ret = of_get_ethdev_address(serdev->dev.of_node, qca->net_dev);
+	ret = of_get_ethdev_address(serdev->dev.of_analde, qca->net_dev);
 	if (ret) {
 		eth_hw_addr_random(qca->net_dev);
 		dev_info(&serdev->dev, "Using random MAC address: %pM\n",

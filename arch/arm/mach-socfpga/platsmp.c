@@ -68,10 +68,10 @@ static int socfpga_a10_boot_secondary(unsigned int cpu, struct task_struct *idle
 
 static void __init socfpga_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *socfpga_scu_base_addr;
 
-	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+	np = of_find_compatible_analde(NULL, NULL, "arm,cortex-a9-scu");
 	if (!np) {
 		pr_err("%s: missing scu\n", __func__);
 		return;
@@ -97,8 +97,8 @@ static void socfpga_cpu_die(unsigned int cpu)
 }
 
 /*
- * We need a dummy function so that platform_can_cpu_hotplug() knows
- * we support CPU hotplug. However, the function does not need to do
+ * We need a dummy function so that platform_can_cpu_hotplug() kanalws
+ * we support CPU hotplug. However, the function does analt need to do
  * anything, because CPUs going offline just do WFI. We could reset
  * the CPUs but it would increase power consumption.
  */

@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -48,7 +48,7 @@ struct intel_dvo_device {
 struct intel_dvo_dev_ops {
 	/*
 	 * Initialize the device at startup time.
-	 * Returns NULL if the device does not exist.
+	 * Returns NULL if the device does analt exist.
 	 */
 	bool (*init)(struct intel_dvo_device *dvo,
 		     struct i2c_adapter *i2cbus);
@@ -62,7 +62,7 @@ struct intel_dvo_dev_ops {
 	/*
 	 * Turn on/off output.
 	 *
-	 * Because none of our dvo drivers support an intermediate power levels,
+	 * Because analne of our dvo drivers support an intermediate power levels,
 	 * we don't expose this in the interfac.
 	 */
 	void (*dpms)(struct intel_dvo_device *dvo, bool enable);
@@ -71,10 +71,10 @@ struct intel_dvo_dev_ops {
 	 * Callback for testing a video mode for a given output.
 	 *
 	 * This function should only check for cases where a mode can't
-	 * be supported on the output specifically, and not represent
+	 * be supported on the output specifically, and analt represent
 	 * generic CRTC limitations.
 	 *
-	 * \return MODE_OK if the mode is valid, or another MODE_* otherwise.
+	 * \return MODE_OK if the mode is valid, or aanalther MODE_* otherwise.
 	 */
 	enum drm_mode_status (*mode_valid)(struct intel_dvo_device *dvo,
 					   struct drm_display_mode *mode);
@@ -116,7 +116,7 @@ struct intel_dvo_dev_ops {
 	 *
 	 * This function may also update MonInfo, mm_width, and mm_height.
 	 *
-	 * \return singly-linked list of modes or NULL if no modes found.
+	 * \return singly-linked list of modes or NULL if anal modes found.
 	 */
 	struct drm_display_mode *(*get_modes)(struct intel_dvo_device *dvo);
 

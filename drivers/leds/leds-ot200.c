@@ -83,7 +83,7 @@ static struct ot200_led leds[] = {
 static DEFINE_SPINLOCK(value_lock);
 
 /*
- * we need to store the current led states, as it is not
+ * we need to store the current led states, as it is analt
  * possible to read the current led state via inb().
  */
 static u8 leds_back;

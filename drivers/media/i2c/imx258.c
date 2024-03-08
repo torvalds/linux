@@ -9,7 +9,7 @@
 #include <linux/pm_runtime.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <asm/unaligned.h>
 
 #define IMX258_REG_VALUE_08BIT		1
@@ -714,7 +714,7 @@ static int imx258_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	try_fmt->width = supported_modes[0].width;
 	try_fmt->height = supported_modes[0].height;
 	try_fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	try_fmt->field = V4L2_FIELD_NONE;
+	try_fmt->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -802,7 +802,7 @@ static int imx258_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		dev_info(&client->dev,
-			 "ctrl(id:0x%x,val:0x%x) is not handled\n",
+			 "ctrl(id:0x%x,val:0x%x) is analt handled\n",
 			 ctrl->id, ctrl->val);
 		ret = -EINVAL;
 		break;
@@ -854,7 +854,7 @@ static void imx258_update_pad_format(const struct imx258_mode *mode,
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 }
 
 static int __imx258_get_pad_format(struct imx258 *imx258,
@@ -995,7 +995,7 @@ static int imx258_stop_streaming(struct imx258 *imx258)
 		dev_err(&client->dev, "%s failed to set stream\n", __func__);
 
 	/*
-	 * Return success even if it was an error, as there is nothing the
+	 * Return success even if it was an error, as there is analthing the
 	 * caller can do about it.
 	 */
 	return 0;
@@ -1109,7 +1109,7 @@ static const struct v4l2_subdev_internal_ops imx258_internal_ops = {
 static int imx258_init_controls(struct imx258 *imx258)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&imx258->sd);
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	struct v4l2_ctrl *vflip, *hflip;
 	s64 vblank_def;
@@ -1206,11 +1206,11 @@ static int imx258_init_controls(struct imx258 *imx258)
 		goto error;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwanalde_device_parse(&client->dev, &props);
 	if (ret)
 		goto error;
 
-	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &imx258_ctrl_ops,
+	ret = v4l2_ctrl_new_fwanalde_properties(ctrl_hdlr, &imx258_ctrl_ops,
 					      &props);
 	if (ret)
 		goto error;
@@ -1240,7 +1240,7 @@ static int imx258_probe(struct i2c_client *client)
 
 	imx258 = devm_kzalloc(&client->dev, sizeof(*imx258), GFP_KERNEL);
 	if (!imx258)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imx258->clk = devm_clk_get_optional(&client->dev, NULL);
 	if (IS_ERR(imx258->clk))
@@ -1248,14 +1248,14 @@ static int imx258_probe(struct i2c_client *client)
 				     "error getting clock\n");
 	if (!imx258->clk) {
 		dev_dbg(&client->dev,
-			"no clock provided, using clock-frequency property\n");
+			"anal clock provided, using clock-frequency property\n");
 
 		device_property_read_u32(&client->dev, "clock-frequency", &val);
 	} else {
 		val = clk_get_rate(imx258->clk);
 	}
 	if (val != IMX258_INPUT_CLOCK_FREQ) {
-		dev_err(&client->dev, "input clock frequency not supported\n");
+		dev_err(&client->dev, "input clock frequency analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1281,7 +1281,7 @@ static int imx258_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	imx258->sd.internal_ops = &imx258_internal_ops;
-	imx258->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	imx258->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	imx258->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	/* Initialize source pad */

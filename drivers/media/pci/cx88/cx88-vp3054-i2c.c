@@ -99,7 +99,7 @@ int vp3054_i2c_probe(struct cx8802_dev *dev)
 
 	vp3054_i2c = kzalloc(sizeof(*vp3054_i2c), GFP_KERNEL);
 	if (!vp3054_i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->vp3054 = vp3054_i2c;
 
 	vp3054_i2c->algo = vp3054_i2c_algo_template;

@@ -9,7 +9,7 @@
 #define __DRX3973D_MAP__H__
 
 /*
- * Note: originally, this file contained 12000+ lines of data
+ * Analte: originally, this file contained 12000+ lines of data
  * Probably a few lines for every firwmare assembler instruction. However,
  * only a few defines were actually used. So, removed all uneeded lines.
  * If ever needed, the other lines can be easily obtained via git history.
@@ -59,7 +59,7 @@
 #define     SC_RA_RAM_OP_PARAM_CONST_QPSK                            0x0
 #define     SC_RA_RAM_OP_PARAM_CONST_QAM16                           0x10
 #define     SC_RA_RAM_OP_PARAM_CONST_QAM64                           0x20
-#define     SC_RA_RAM_OP_PARAM_HIER_NO                               0x0
+#define     SC_RA_RAM_OP_PARAM_HIER_ANAL                               0x0
 #define     SC_RA_RAM_OP_PARAM_HIER_A1                               0x40
 #define     SC_RA_RAM_OP_PARAM_HIER_A2                               0x80
 #define     SC_RA_RAM_OP_PARAM_HIER_A4                               0xC0
@@ -119,8 +119,8 @@
 #define SC_RA_RAM_LC_ABS_2K__PRE                                     0x1F
 #define SC_RA_RAM_LC_ABS_8K__A                                       0x8200F5
 #define SC_RA_RAM_LC_ABS_8K__PRE                                     0x1F
-#define SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__PRE                        0x1D6
-#define SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__PRE                        0x4
+#define SC_RA_RAM_EQ_IS_GAIN_UNKANALWN_MAN__PRE                        0x1D6
+#define SC_RA_RAM_EQ_IS_GAIN_UNKANALWN_EXP__PRE                        0x4
 #define SC_RA_RAM_EQ_IS_GAIN_QPSK_MAN__PRE                           0x1BB
 #define SC_RA_RAM_EQ_IS_GAIN_QPSK_EXP__PRE                           0x5
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_MAN__PRE                          0x1EF
@@ -290,7 +290,7 @@
 #define CE_REG_TP_A1_MU_LMS_STEP__A                                  0x181006A
 #define CE_REG_TI_NEXP_OFFS__A                                       0x1810070
 #define CE_REG_FI_SHT_INCR__A                                        0x1810090
-#define CE_REG_FI_EXP_NORM__A                                        0x1810091
+#define CE_REG_FI_EXP_ANALRM__A                                        0x1810091
 #define CE_REG_IR_INPUTSEL__A                                        0x18100A0
 #define CE_REG_IR_STARTPOS__A                                        0x18100A1
 #define CE_REG_IR_NEXP_THRES__A                                      0x18100A2
@@ -490,7 +490,7 @@
 #define   CC_REG_UPDATE_KEY                                          0x3973
 #define CC_REG_JTAGID_L__A                                           0x2410019
 #define LC_COMM_EXEC__A                                              0x2800000
-#define LC_RA_RAM_IFINCR_NOM_L__A                                    0x282000C
+#define LC_RA_RAM_IFINCR_ANALM_L__A                                    0x282000C
 #define LC_RA_RAM_FILTER_SYM_SET__A                                  0x282001A
 #define LC_RA_RAM_FILTER_SYM_SET__PRE                                0x3E8
 #define LC_RA_RAM_FILTER_CRMM_A__A                                   0x2820060
@@ -545,7 +545,7 @@
 #define     B_SC_RA_RAM_OP_PARAM_CONST_QPSK                          0x0
 #define     B_SC_RA_RAM_OP_PARAM_CONST_QAM16                         0x10
 #define     B_SC_RA_RAM_OP_PARAM_CONST_QAM64                         0x20
-#define     B_SC_RA_RAM_OP_PARAM_HIER_NO                             0x0
+#define     B_SC_RA_RAM_OP_PARAM_HIER_ANAL                             0x0
 #define     B_SC_RA_RAM_OP_PARAM_HIER_A1                             0x40
 #define     B_SC_RA_RAM_OP_PARAM_HIER_A2                             0x80
 #define     B_SC_RA_RAM_OP_PARAM_HIER_A4                             0xC0
@@ -617,8 +617,8 @@
 #define B_SC_RA_RAM_LC_ABS_2K__PRE                                   0x1F
 #define B_SC_RA_RAM_LC_ABS_8K__A                                     0x8200F5
 #define B_SC_RA_RAM_LC_ABS_8K__PRE                                   0x1F
-#define B_SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__PRE                      0x100
-#define B_SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__PRE                      0x4
+#define B_SC_RA_RAM_EQ_IS_GAIN_UNKANALWN_MAN__PRE                      0x100
+#define B_SC_RA_RAM_EQ_IS_GAIN_UNKANALWN_EXP__PRE                      0x4
 #define B_SC_RA_RAM_EQ_IS_GAIN_QPSK_MAN__PRE                         0x1E2
 #define B_SC_RA_RAM_EQ_IS_GAIN_QPSK_EXP__PRE                         0x4
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_MAN__PRE                        0x10D
@@ -790,7 +790,7 @@
 #define B_CE_REG_TP_A1_MU_LMS_STEP__A                                0x181006A
 #define B_CE_REG_TI_PHN_ENABLE__A                                    0x1810073
 #define B_CE_REG_FI_SHT_INCR__A                                      0x1810090
-#define B_CE_REG_FI_EXP_NORM__A                                      0x1810091
+#define B_CE_REG_FI_EXP_ANALRM__A                                      0x1810091
 #define B_CE_REG_IR_INPUTSEL__A                                      0x18100A0
 #define B_CE_REG_IR_STARTPOS__A                                      0x18100A1
 #define B_CE_REG_IR_NEXP_THRES__A                                    0x18100A2
@@ -982,7 +982,7 @@
 #define B_CC_REG_JTAGID_L__A                                         0x2410019
 #define B_CC_REG_DIVERSITY__A                                        0x241001B
 #define B_LC_COMM_EXEC__A                                            0x2800000
-#define B_LC_RA_RAM_IFINCR_NOM_L__A                                  0x282000C
+#define B_LC_RA_RAM_IFINCR_ANALM_L__A                                  0x282000C
 #define B_LC_RA_RAM_FILTER_SYM_SET__A                                0x282001A
 #define B_LC_RA_RAM_FILTER_SYM_SET__PRE                              0x3E8
 #define B_LC_RA_RAM_FILTER_CRMM_A__A                                 0x2820060

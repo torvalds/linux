@@ -22,15 +22,15 @@ static void test_basic(void)
 	int err;
 
 	err = kallsyms_find("runqueues", &runqueues_addr);
-	if (CHECK(err == -EINVAL, "kallsyms_fopen", "failed to open: %d\n", errno))
+	if (CHECK(err == -EINVAL, "kallsyms_fopen", "failed to open: %d\n", erranal))
 		return;
-	if (CHECK(err == -ENOENT, "ksym_find", "symbol 'runqueues' not found\n"))
+	if (CHECK(err == -EANALENT, "ksym_find", "symbol 'runqueues' analt found\n"))
 		return;
 
 	err = kallsyms_find("bpf_prog_active", &bpf_prog_active_addr);
-	if (CHECK(err == -EINVAL, "kallsyms_fopen", "failed to open: %d\n", errno))
+	if (CHECK(err == -EINVAL, "kallsyms_fopen", "failed to open: %d\n", erranal))
 		return;
-	if (CHECK(err == -ENOENT, "ksym_find", "symbol 'bpf_prog_active' not found\n"))
+	if (CHECK(err == -EANALENT, "ksym_find", "symbol 'bpf_prog_active' analt found\n"))
 		return;
 
 	skel = test_ksyms_btf__open_and_load();
@@ -104,8 +104,8 @@ static void test_weak_syms(void)
 	data = skel->data;
 	ASSERT_EQ(data->out__existing_typed, 0, "existing typed ksym");
 	ASSERT_NEQ(data->out__existing_typeless, -1, "existing typeless ksym");
-	ASSERT_EQ(data->out__non_existent_typeless, 0, "nonexistent typeless ksym");
-	ASSERT_EQ(data->out__non_existent_typed, 0, "nonexistent typed ksym");
+	ASSERT_EQ(data->out__analn_existent_typeless, 0, "analnexistent typeless ksym");
+	ASSERT_EQ(data->out__analn_existent_typed, 0, "analnexistent typed ksym");
 
 cleanup:
 	test_ksyms_weak__destroy(skel);
@@ -131,8 +131,8 @@ static void test_weak_syms_lskel(void)
 	data = skel->data;
 	ASSERT_EQ(data->out__existing_typed, 0, "existing typed ksym");
 	ASSERT_NEQ(data->out__existing_typeless, -1, "existing typeless ksym");
-	ASSERT_EQ(data->out__non_existent_typeless, 0, "nonexistent typeless ksym");
-	ASSERT_EQ(data->out__non_existent_typed, 0, "nonexistent typed ksym");
+	ASSERT_EQ(data->out__analn_existent_typeless, 0, "analnexistent typeless ksym");
+	ASSERT_EQ(data->out__analn_existent_typed, 0, "analnexistent typed ksym");
 
 cleanup:
 	test_ksyms_weak_lskel__destroy(skel);
@@ -165,7 +165,7 @@ void test_ksyms_btf(void)
 						BTF_KIND_DATASEC);
 	btf__free(btf);
 	if (percpu_datasec < 0) {
-		printf("%s:SKIP:no PERCPU DATASEC in kernel btf\n",
+		printf("%s:SKIP:anal PERCPU DATASEC in kernel btf\n",
 		       __func__);
 		test__skip();
 		return;

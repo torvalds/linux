@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/message/fusion/mptsas.c
  *      For use with LSI PCI chip/adapter(s)
- *      running LSI Fusion MPT (Message Passing Technology) firmware.
+ *      running LSI Fusion MPT (Message Passing Techanallogy) firmware.
  *
  *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
@@ -17,19 +17,19 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    NO WARRANTY
+    ANAL WARRANTY
     THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
     CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-    LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+    LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
     MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
     solely responsible for determining the appropriateness of using and
     distributing the Program and assumes all risks associated with its
-    exercise of rights under this Agreement, including but not limited to
+    exercise of rights under this Agreement, including but analt limited to
     the risks and costs of program errors, damage to or loss of data,
     programs or equipment, and unavailability or interruption of operations.
 
     DISCLAIMER OF LIABILITY
-    NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+    NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
     DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
     DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
     ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -38,7 +38,7 @@
     HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if analt, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -47,7 +47,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/jiffies.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>	/* for mdelay */
@@ -127,7 +127,7 @@ static struct mptsas_portinfo	*mptsas_find_portinfo_by_sas_address
 static void mptsas_expander_delete(MPT_ADAPTER *ioc,
 		struct mptsas_portinfo *port_info, u8 force);
 static void mptsas_send_expander_event(struct fw_event_work *fw_event);
-static void mptsas_not_responding_devices(MPT_ADAPTER *ioc);
+static void mptsas_analt_responding_devices(MPT_ADAPTER *ioc);
 static void mptsas_scan_sas_topology(MPT_ADAPTER *ioc);
 static void mptsas_broadcast_primitive_work(struct fw_event_work *fw_event);
 static void mptsas_handle_queue_full_event(struct fw_event_work *fw_event);
@@ -427,7 +427,7 @@ mptsas_find_portinfo_by_handle(MPT_ADAPTER *ioc, u16 handle)
  *
  *	This function should be called with the sas_topology_mutex already held.
  *
- *	Return: %NULL if not found.
+ *	Return: %NULL if analt found.
  **/
 static struct mptsas_portinfo *
 mptsas_find_portinfo_by_sas_address(MPT_ADAPTER *ioc, u64 sas_address)
@@ -473,7 +473,7 @@ mptsas_is_end_device(struct mptsas_devinfo * attached)
 		return 0;
 }
 
-/* no mutex */
+/* anal mutex */
 static void
 mptsas_port_delete(MPT_ADAPTER *ioc, struct mptsas_portinfo_details * port_details)
 {
@@ -1074,7 +1074,7 @@ mptsas_target_reset(MPT_ADAPTER *ioc, u8 channel, u8 id)
 	mf = mpt_get_msg_frame(mptsasDeviceResetCtx, ioc);
 	if (mf == NULL) {
 		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT
-			"%s, no msg frames @%d!!\n", ioc->name,
+			"%s, anal msg frames @%d!!\n", ioc->name,
 			__func__, __LINE__));
 		goto out_fail;
 	}
@@ -1128,7 +1128,7 @@ mptsas_block_io_starget(struct scsi_target *starget)
  * @sas_event_data: SAS Device Status Change Event data
  *
  * Receive request for TARGET_RESET after receiving a firmware
- * event NOT_RESPONDING_EVENT, then put command in link list
+ * event ANALT_RESPONDING_EVENT, then put command in link list
  * and queue if task_queue already in use.
  *
  **/
@@ -1213,7 +1213,7 @@ mptsas_schedule_target_reset(void *iocp)
  *	@mf: MPT message frame
  *	@mr: SCSI Task Management Reply structure ptr (may be %NULL)
  *
- *	Completion for TARGET_RESET after NOT_RESPONDING_EVENT, enable work
+ *	Completion for TARGET_RESET after ANALT_RESPONDING_EVENT, enable work
  *	queue to finish off removing device from upper layers, then send next
  *	TARGET_RESET in the queue.
  **/
@@ -1402,7 +1402,7 @@ mptsas_sas_enclosure_pg0(MPT_ADAPTER *ioc, struct mptsas_enclosure *enclosure,
 	buffer = dma_alloc_coherent(&ioc->pcidev->dev, hdr.ExtPageLength * 4,
 				    &dma_handle, GFP_KERNEL);
 	if (!buffer) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out;
 	}
 
@@ -1495,7 +1495,7 @@ mptsas_add_end_device(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info)
 		dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
 			"%s: fw_id=%d exit at line=%d\n", ioc->name,
 			 __func__, fw_id, __LINE__));
-		return 5; /* non-fatal: an rphy can be added later */
+		return 5; /* analn-fatal: an rphy can be added later */
 	}
 
 	rphy->identify = identify;
@@ -1652,14 +1652,14 @@ mptsas_firmware_event_work(struct work_struct *work)
 	if (fw_event->event == -1) {
 		if (ioc->in_rescan) {
 			devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
-				"%s: rescan ignored as it is in progress\n",
+				"%s: rescan iganalred as it is in progress\n",
 				ioc->name, __func__));
 			return;
 		}
 		devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: rescan after "
 		    "reset\n", ioc->name, __func__));
 		ioc->in_rescan = 1;
-		mptsas_not_responding_devices(ioc);
+		mptsas_analt_responding_devices(ioc);
 		mptsas_scan_sas_topology(ioc);
 		ioc->in_rescan = 0;
 		mptsas_free_fw_event(ioc, fw_event);
@@ -1689,7 +1689,7 @@ mptsas_firmware_event_work(struct work_struct *work)
 		break;
 	case MPI_EVENT_PERSISTENT_TABLE_FULL:
 		mptbase_sas_persist_operation(ioc,
-		    MPI_SAS_OP_CLEAR_NOT_PRESENT);
+		    MPI_SAS_OP_CLEAR_ANALT_PRESENT);
 		mptsas_free_fw_event(ioc, fw_event);
 		break;
 	case MPI_EVENT_SAS_BROADCAST_PRIMITIVE:
@@ -1724,7 +1724,7 @@ mptsas_slave_configure(struct scsi_device *sdev)
 
 	/*
 	 * RAID volumes placed beyond the last expected port.
-	 * Ignore sending sas mode pages in that case..
+	 * Iganalre sending sas mode pages in that case..
 	 */
 	if (sdev->channel == MPTSAS_RAID_CHANNEL) {
 		mptsas_add_device_component_starget_ir(ioc, scsi_target(sdev));
@@ -1753,11 +1753,11 @@ mptsas_target_alloc(struct scsi_target *starget)
 
 	vtarget = kzalloc(sizeof(VirtTarget), GFP_KERNEL);
 	if (!vtarget)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vtarget->starget = starget;
 	vtarget->ioc_id = ioc->id;
-	vtarget->tflags = MPT_TARGET_FLAGS_Q_YES;
+	vtarget->tflags = MPT_TARGET_FLAGS_Q_ANAL;
 	id = starget->id;
 	channel = 0;
 
@@ -1882,7 +1882,7 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 	if (!vdevice) {
 		printk(MYIOC_s_ERR_FMT "slave_alloc kzalloc(%zd) FAILED!\n",
 				ioc->name, sizeof(VirtDevice));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	starget = scsi_target(sdev);
 	vdevice->vtarget = starget->hostdata;
@@ -1904,7 +1904,7 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 			if (mptscsih_is_phys_disk(ioc,
 			    p->phy_info[i].attached.channel,
 			    p->phy_info[i].attached.id))
-				sdev->no_uld_attach = 1;
+				sdev->anal_uld_attach = 1;
 			mutex_unlock(&ioc->sas_topology_mutex);
 			goto out;
 		}
@@ -1928,7 +1928,7 @@ mptsas_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
 	VirtDevice	*vdevice = SCpnt->device->hostdata;
 
 	if (!vdevice || !vdevice->vtarget || vdevice->vtarget->deleted) {
-		SCpnt->result = DID_NO_CONNECT << 16;
+		SCpnt->result = DID_ANAL_CONNECT << 16;
 		scsi_done(SCpnt);
 		return 0;
 	}
@@ -1957,7 +1957,7 @@ static enum scsi_timeout_action mptsas_eh_timed_out(struct scsi_cmnd *sc)
 	MPT_SCSI_HOST *hd;
 	MPT_ADAPTER   *ioc;
 	VirtDevice    *vdevice;
-	enum scsi_timeout_action rc = SCSI_EH_NOT_HANDLED;
+	enum scsi_timeout_action rc = SCSI_EH_ANALT_HANDLED;
 
 	hd = shost_priv(sc->device->host);
 	if (hd == NULL) {
@@ -1974,7 +1974,7 @@ static enum scsi_timeout_action mptsas_eh_timed_out(struct scsi_cmnd *sc)
 	}
 
 	/* In case if IOC is in reset from internal context.
-	*  Do not execute EEH for the same IOC. SML should to reset timer.
+	*  Do analt execute EEH for the same IOC. SML should to reset timer.
 	*/
 	if (ioc->ioc_reset_in_progress) {
 		dtmprintk(ioc, printk(MYIOC_s_WARN_FMT ": %s: ioc is in reset,"
@@ -2021,7 +2021,7 @@ static const struct scsi_host_template mptsas_driver_template = {
 	.max_sectors			= 8192,
 	.cmd_per_lun			= 7,
 	.shost_groups			= mptscsih_host_attr_groups,
-	.no_write_same			= 1,
+	.anal_write_same			= 1,
 };
 
 static int mptsas_get_linkerrors(struct sas_phy *phy)
@@ -2061,7 +2061,7 @@ static int mptsas_get_linkerrors(struct sas_phy *phy)
 	buffer = dma_alloc_coherent(&ioc->pcidev->dev, hdr.ExtPageLength * 4,
 				    &dma_handle, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cfg.physAddr = dma_handle;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
@@ -2114,11 +2114,11 @@ static int mptsas_phy_reset(struct sas_phy *phy, int hard_reset)
 	unsigned long timeleft;
 	int error = -ERESTARTSYS;
 
-	/* FIXME: fusion doesn't allow non-local phy reset */
+	/* FIXME: fusion doesn't allow analn-local phy reset */
 	if (!scsi_is_sas_phy_local(phy))
 		return -EINVAL;
 
-	/* not implemented for expanders */
+	/* analt implemented for expanders */
 	if (phy->identify.target_port_protocols & SAS_PROTOCOL_SMP)
 		return -ENXIO;
 
@@ -2127,7 +2127,7 @@ static int mptsas_phy_reset(struct sas_phy *phy, int hard_reset)
 
 	mf = mpt_get_msg_frame(mptsasMgmtCtx, ioc);
 	if (!mf) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -2265,7 +2265,7 @@ static void mptsas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 
 	mf = mpt_get_msg_frame(mptsasMgmtCtx, ioc);
 	if (!mf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -2415,7 +2415,7 @@ mptsas_sas_io_unit_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 	buffer = dma_alloc_coherent(&ioc->pcidev->dev, hdr.ExtPageLength * 4,
 				    &dma_handle, GFP_KERNEL);
 	if (!buffer) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out;
 	}
 
@@ -2430,7 +2430,7 @@ mptsas_sas_io_unit_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 	port_info->phy_info = kcalloc(port_info->num_phys,
 		sizeof(struct mptsas_phyinfo), GFP_KERNEL);
 	if (!port_info->phy_info) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out_free_consistent;
 	}
 
@@ -2490,7 +2490,7 @@ mptsas_sas_io_unit_pg1(MPT_ADAPTER *ioc)
 	buffer = dma_alloc_coherent(&ioc->pcidev->dev, hdr.ExtPageLength * 4,
 				    &dma_handle, GFP_KERNEL);
 	if (!buffer) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out;
 	}
 
@@ -2554,7 +2554,7 @@ mptsas_sas_phy_pg0(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info,
 	buffer = dma_alloc_coherent(&ioc->pcidev->dev, hdr.ExtPageLength * 4,
 				    &dma_handle, GFP_KERNEL);
 	if (!buffer) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out;
 	}
 
@@ -2617,7 +2617,7 @@ mptsas_sas_device_pg0(MPT_ADAPTER *ioc, struct mptsas_devinfo *device_info,
 	buffer = dma_alloc_coherent(&ioc->pcidev->dev, hdr.ExtPageLength * 4,
 				    &dma_handle, GFP_KERNEL);
 	if (!buffer) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out;
 	}
 
@@ -2627,7 +2627,7 @@ mptsas_sas_device_pg0(MPT_ADAPTER *ioc, struct mptsas_devinfo *device_info,
 	error = mpt_config(ioc, &cfg);
 
 	if (error == MPI_IOCSTATUS_CONFIG_INVALID_PAGE) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out_free_consistent;
 	}
 
@@ -2700,7 +2700,7 @@ mptsas_sas_expander_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info,
 	buffer = dma_alloc_coherent(&ioc->pcidev->dev, hdr.ExtPageLength * 4,
 				    &dma_handle, GFP_KERNEL);
 	if (!buffer) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out;
 	}
 
@@ -2709,7 +2709,7 @@ mptsas_sas_expander_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info,
 
 	error = mpt_config(ioc, &cfg);
 	if (error == MPI_IOCSTATUS_CONFIG_INVALID_PAGE) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out_free_consistent;
 	}
 
@@ -2721,7 +2721,7 @@ mptsas_sas_expander_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info,
 	port_info->phy_info = kcalloc(port_info->num_phys,
 		sizeof(struct mptsas_phyinfo), GFP_KERNEL);
 	if (!port_info->phy_info) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out_free_consistent;
 	}
 
@@ -2780,7 +2780,7 @@ mptsas_sas_expander_pg1(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info,
 	buffer = dma_alloc_coherent(&ioc->pcidev->dev, hdr.ExtPageLength * 4,
 				    &dma_handle, GFP_KERNEL);
 	if (!buffer) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out;
 	}
 
@@ -2790,7 +2790,7 @@ mptsas_sas_expander_pg1(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info,
 	error = mpt_config(ioc, &cfg);
 
 	if (error == MPI_IOCSTATUS_CONFIG_INVALID_PAGE) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out_free_consistent;
 	}
 
@@ -2849,10 +2849,10 @@ struct rep_manu_reply{
   * @sas_address: expander sas address
   * @edev: the sas_expander_device object
   *
-  * For an edge expander or a fanout expander:
+  * For an edge expander or a faanalut expander:
   * fills in the sas_expander_device object when SMP port is created.
   *
-  * Return: 0 for success, non-zero for failure.
+  * Return: 0 for success, analn-zero for failure.
   */
 static int
 mptsas_exp_repmanufacture_info(MPT_ADAPTER *ioc,
@@ -2887,7 +2887,7 @@ mptsas_exp_repmanufacture_info(MPT_ADAPTER *ioc,
 
 	mf = mpt_get_msg_frame(mptsasMgmtCtx, ioc);
 	if (!mf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -2901,7 +2901,7 @@ mptsas_exp_repmanufacture_info(MPT_ADAPTER *ioc,
 	if (!data_out) {
 		printk(KERN_ERR "Memory allocation failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_mf;
 	}
 
@@ -3044,7 +3044,7 @@ mptsas_parse_device_info(struct sas_identify *identify,
 	 */
 	switch (device_info->device_info &
 			MPI_SAS_DEVICE_INFO_MASK_DEVICE_TYPE) {
-	case MPI_SAS_DEVICE_INFO_NO_DEVICE:
+	case MPI_SAS_DEVICE_INFO_ANAL_DEVICE:
 		identify->device_type = SAS_PHY_UNUSED;
 		break;
 	case MPI_SAS_DEVICE_INFO_END_DEVICE:
@@ -3053,8 +3053,8 @@ mptsas_parse_device_info(struct sas_identify *identify,
 	case MPI_SAS_DEVICE_INFO_EDGE_EXPANDER:
 		identify->device_type = SAS_EDGE_EXPANDER_DEVICE;
 		break;
-	case MPI_SAS_DEVICE_INFO_FANOUT_EXPANDER:
-		identify->device_type = SAS_FANOUT_EXPANDER_DEVICE;
+	case MPI_SAS_DEVICE_INFO_FAANALUT_EXPANDER:
+		identify->device_type = SAS_FAANALUT_EXPANDER_DEVICE;
 		break;
 	}
 }
@@ -3069,14 +3069,14 @@ static int mptsas_probe_one_phy(struct device *dev,
 	VirtTarget *vtarget;
 
 	if (!dev) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out;
 	}
 
 	if (!phy_info->phy) {
 		phy = sas_phy_alloc(dev, index);
 		if (!phy) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto out;
 		}
 	} else
@@ -3104,9 +3104,9 @@ static int mptsas_probe_one_phy(struct device *dev,
 		phy->negotiated_linkrate = SAS_LINK_RATE_6_0_GBPS;
 		break;
 	case MPI_SAS_IOUNIT0_RATE_SATA_OOB_COMPLETE:
-	case MPI_SAS_IOUNIT0_RATE_UNKNOWN:
+	case MPI_SAS_IOUNIT0_RATE_UNKANALWN:
 	default:
-		phy->negotiated_linkrate = SAS_LINK_RATE_UNKNOWN;
+		phy->negotiated_linkrate = SAS_LINK_RATE_UNKANALWN;
 		break;
 	}
 
@@ -3190,7 +3190,7 @@ static int mptsas_probe_one_phy(struct device *dev,
 		if (!port) {
 			port = sas_port_alloc_num(dev);
 			if (!port) {
-				error = -ENOMEM;
+				error = -EANALMEM;
 				goto out;
 			}
 			error = sas_port_add(port);
@@ -3261,7 +3261,7 @@ static int mptsas_probe_one_phy(struct device *dev,
 			rphy = sas_end_device_alloc(port);
 			break;
 		case SAS_EDGE_EXPANDER_DEVICE:
-		case SAS_FANOUT_EXPANDER_DEVICE:
+		case SAS_FAANALUT_EXPANDER_DEVICE:
 			rphy = sas_expander_alloc(port, identify.device_type);
 			break;
 		default:
@@ -3286,7 +3286,7 @@ static int mptsas_probe_one_phy(struct device *dev,
 		}
 		mptsas_set_rphy(ioc, phy_info, rphy);
 		if (identify.device_type == SAS_EDGE_EXPANDER_DEVICE ||
-			identify.device_type == SAS_FANOUT_EXPANDER_DEVICE)
+			identify.device_type == SAS_FAANALUT_EXPANDER_DEVICE)
 				mptsas_exp_repmanufacture_info(ioc,
 					identify.sas_address,
 					rphy_to_expander_device(rphy));
@@ -3310,7 +3310,7 @@ static int
 mptsas_probe_hba_phys(MPT_ADAPTER *ioc)
 {
 	struct mptsas_portinfo *port_info, *hba;
-	int error = -ENOMEM, i;
+	int error = -EANALMEM, i;
 
 	hba = kzalloc(sizeof(struct mptsas_portinfo), GFP_KERNEL);
 	if (! hba)
@@ -3508,7 +3508,7 @@ mptsas_delete_expander_siblings(MPT_ADAPTER *ioc, struct mptsas_portinfo
 		if (rphy->identify.device_type ==
 		    MPI_SAS_DEVICE_INFO_EDGE_EXPANDER ||
 		    rphy->identify.device_type ==
-		    MPI_SAS_DEVICE_INFO_FANOUT_EXPANDER) {
+		    MPI_SAS_DEVICE_INFO_FAANALUT_EXPANDER) {
 			port_info = mptsas_find_portinfo_by_sas_address(ioc,
 			    rphy->identify.sas_address);
 			if (!port_info)
@@ -3656,7 +3656,7 @@ mptsas_send_expander_event(struct fw_event_work *fw_event)
 		} else if (!port_info && expander_data->NumPhys)
 			mptsas_expander_event_add(ioc, expander_data);
 	} else if (expander_data->ReasonCode ==
-	    MPI_EVENT_SAS_EXP_RC_NOT_RESPONDING)
+	    MPI_EVENT_SAS_EXP_RC_ANALT_RESPONDING)
 		mptsas_expander_delete(ioc, port_info, 0);
 
 	mptsas_free_fw_event(ioc, fw_event);
@@ -3755,7 +3755,7 @@ mptsas_send_link_status_event(struct fw_event_work *fw_event)
 			    SAS_LINK_RATE_FAILED;
 		else {
 			phy_info->phy->negotiated_linkrate =
-			    SAS_LINK_RATE_UNKNOWN;
+			    SAS_LINK_RATE_UNKANALWN;
 			if (ioc->device_missing_delay &&
 			    mptsas_is_end_device(&phy_info->attached)) {
 				struct scsi_device		*sdev;
@@ -3795,7 +3795,7 @@ mptsas_send_link_status_event(struct fw_event_work *fw_event)
 }
 
 static void
-mptsas_not_responding_devices(MPT_ADAPTER *ioc)
+mptsas_analt_responding_devices(MPT_ADAPTER *ioc)
 {
 	struct mptsas_portinfo buffer, *port_info;
 	struct mptsas_device_info	*sas_info;
@@ -3854,7 +3854,7 @@ retry_page:
 				flags);
 			}
 
-			if (retval && (retval != -ENODEV)) {
+			if (retval && (retval != -EANALDEV)) {
 				if (retry_count < 10) {
 					retry_count++;
 					goto retry_page;
@@ -3988,7 +3988,7 @@ mptsas_probe_devices(MPT_ADAPTER *ioc)
 		      MPI_SAS_DEVICE_INFO_SATA_DEVICE)) == 0)
 			continue;
 
-		/* If there is no FW B_T mapping for this device then continue
+		/* If there is anal FW B_T mapping for this device then continue
 		 * */
 		if (!(sas_device.flags & MPI_SAS_DEVICE0_FLAGS_DEVICE_PRESENT)
 			|| !(sas_device.flags &
@@ -4123,7 +4123,7 @@ mptsas_handle_queue_full_event(struct fw_event_work *fw_event)
 					"disabled\n");
 				else if (depth == 0)
 					sdev_printk(KERN_DEBUG, sdev,
-					"Queue depth not changed yet\n");
+					"Queue depth analt changed yet\n");
 			}
 		}
 	}
@@ -4190,7 +4190,7 @@ mptsas_find_phyinfo_by_phys_disk_num(MPT_ADAPTER *ioc, u8 phys_disk_num,
 	mpt_raid_phys_disk_pg1(ioc, phys_disk_num, phys_disk);
 	for (i = 0; i < num_paths; i++) {
 		if ((phys_disk->Path[i].Flags & 1) != 0)
-			/* entry no longer valid */
+			/* entry anal longer valid */
 			continue;
 		if ((id == phys_disk->Path[i].PhysDiskID) &&
 		    (channel == phys_disk->Path[i].PhysDiskBus)) {
@@ -4208,7 +4208,7 @@ mptsas_find_phyinfo_by_phys_disk_num(MPT_ADAPTER *ioc, u8 phys_disk_num,
 		return phy_info;
 
 	/*
-	 * Extra code to handle RAID0 case, where the sas_address is not updated
+	 * Extra code to handle RAID0 case, where the sas_address is analt updated
 	 * in phys_disk_page_1 when hotswapped
 	 */
 	mutex_lock(&ioc->sas_topology_mutex);
@@ -4236,7 +4236,7 @@ mptsas_reprobe_lun(struct scsi_device *sdev, void *data)
 {
 	int rc;
 
-	sdev->no_uld_attach = data ? 1 : 0;
+	sdev->anal_uld_attach = data ? 1 : 0;
 	rc = scsi_device_reprobe(sdev);
 }
 
@@ -4305,7 +4305,7 @@ mptsas_adding_inactive_raid_components(MPT_ADAPTER *ioc, u8 channel, u8 id)
 			phys_disk.PhysDiskID))
 			continue;
 
-		/* If there is no FW B_T mapping for this device then continue
+		/* If there is anal FW B_T mapping for this device then continue
 		 * */
 		if (!(sas_device.flags & MPI_SAS_DEVICE0_FLAGS_DEVICE_PRESENT)
 			|| !(sas_device.flags &
@@ -4365,7 +4365,7 @@ mptsas_hotplug_work(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 		    (hot_plug_info->channel << 8) +
 		    hot_plug_info->id);
 
-		/* If there is no FW B_T mapping for this device then break
+		/* If there is anal FW B_T mapping for this device then break
 		 * */
 		if (!(sas_device.flags & MPI_SAS_DEVICE0_FLAGS_DEVICE_PRESENT)
 			|| !(sas_device.flags &
@@ -4441,7 +4441,7 @@ mptsas_hotplug_work(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 			break;
 		}
 
-		/* If there is no FW B_T mapping for this device then break
+		/* If there is anal FW B_T mapping for this device then break
 		 * */
 		if (!(sas_device.flags & MPI_SAS_DEVICE0_FLAGS_DEVICE_PRESENT)
 			|| !(sas_device.flags &
@@ -4501,7 +4501,7 @@ mptsas_hotplug_work(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 			break;
 		}
 
-		/* If there is no FW B_T mapping for this device then break
+		/* If there is anal FW B_T mapping for this device then break
 		 * */
 		if (!(sas_device.flags & MPI_SAS_DEVICE0_FLAGS_DEVICE_PRESENT)
 			|| !(sas_device.flags &
@@ -4613,15 +4613,15 @@ mptsas_send_sas_event(struct fw_event_work *fw_event)
 	}
 
 	if (sas_event_data->ReasonCode ==
-		MPI_EVENT_SAS_DEV_STAT_RC_NO_PERSIST_ADDED) {
+		MPI_EVENT_SAS_DEV_STAT_RC_ANAL_PERSIST_ADDED) {
 		mptbase_sas_persist_operation(ioc,
-		MPI_SAS_OP_CLEAR_NOT_PRESENT);
+		MPI_SAS_OP_CLEAR_ANALT_PRESENT);
 		mptsas_free_fw_event(ioc, fw_event);
 		return;
 	}
 
 	switch (sas_event_data->ReasonCode) {
-	case MPI_EVENT_SAS_DEV_STAT_RC_NOT_RESPONDING:
+	case MPI_EVENT_SAS_DEV_STAT_RC_ANALT_RESPONDING:
 	case MPI_EVENT_SAS_DEV_STAT_RC_ADDED:
 		memset(&hot_plug_info, 0, sizeof(struct mptsas_hotplug_event));
 		hot_plug_info.handle = le16_to_cpu(sas_event_data->DevHandle);
@@ -4640,9 +4640,9 @@ mptsas_send_sas_event(struct fw_event_work *fw_event)
 		mptsas_hotplug_work(ioc, fw_event, &hot_plug_info);
 		break;
 
-	case MPI_EVENT_SAS_DEV_STAT_RC_NO_PERSIST_ADDED:
+	case MPI_EVENT_SAS_DEV_STAT_RC_ANAL_PERSIST_ADDED:
 		mptbase_sas_persist_operation(ioc,
-		    MPI_SAS_OP_CLEAR_NOT_PRESENT);
+		    MPI_SAS_OP_CLEAR_ANALT_PRESENT);
 		mptsas_free_fw_event(ioc, fw_event);
 		break;
 
@@ -4703,7 +4703,7 @@ mptsas_send_raid_event(struct fw_event_work *fw_event)
 	case MPI_EVENT_RAID_RC_PHYSDISK_STATUS_CHANGED:
 		switch (state) {
 		case MPI_PD_STATE_ONLINE:
-		case MPI_PD_STATE_NOT_COMPATIBLE:
+		case MPI_PD_STATE_ANALT_COMPATIBLE:
 			mpt_raid_phys_disk_pg0(ioc,
 			    raid_event_data->PhysDiskNum, &phys_disk);
 			hot_plug_info.id = phys_disk.PhysDiskID;
@@ -4714,7 +4714,7 @@ mptsas_send_raid_event(struct fw_event_work *fw_event)
 		case MPI_PD_STATE_MISSING:
 		case MPI_PD_STATE_OFFLINE_AT_HOST_REQUEST:
 		case MPI_PD_STATE_FAILED_AT_HOST_REQUEST:
-		case MPI_PD_STATE_OFFLINE_FOR_ANOTHER_REASON:
+		case MPI_PD_STATE_OFFLINE_FOR_AANALTHER_REASON:
 			hot_plug_info.event_type = MPTSAS_DEL_PHYSDISK;
 			break;
 		default:
@@ -4766,7 +4766,7 @@ mptsas_send_raid_event(struct fw_event_work *fw_event)
 		break;
 	}
 
-	if (hot_plug_info.event_type != MPTSAS_IGNORE_EVENT)
+	if (hot_plug_info.event_type != MPTSAS_IGANALRE_EVENT)
 		mptsas_hotplug_work(ioc, fw_event, &hot_plug_info);
 	else
 		mptsas_free_fw_event(ioc, fw_event);
@@ -4799,7 +4799,7 @@ mptsas_issue_tm(MPT_ADAPTER *ioc, u8 type, u8 channel, u8 id, u64 lun,
 	mf = mpt_get_msg_frame(mptsasDeviceResetCtx, ioc);
 	if (mf == NULL) {
 		retval = -1; /* return failure */
-		dtmprintk(ioc, printk(MYIOC_s_WARN_FMT "TaskMgmt request: no "
+		dtmprintk(ioc, printk(MYIOC_s_WARN_FMT "TaskMgmt request: anal "
 		    "msg frames!!\n", ioc->name));
 		goto out;
 	}
@@ -4828,7 +4828,7 @@ mptsas_issue_tm(MPT_ADAPTER *ioc, u8 type, u8 channel, u8 id, u64 lun,
 	retval = 0;
 	mpt_put_msg_frame_hi_pri(mptsasDeviceResetCtx, ioc, mf);
 
-	/* Now wait for the command to complete */
+	/* Analw wait for the command to complete */
 	timeleft = wait_for_completion_timeout(&ioc->taskmgmt_cmds.done,
 	    timeout*HZ);
 	if (!(ioc->taskmgmt_cmds.status & MPT_MGMT_STATUS_COMMAND_GOOD)) {
@@ -4845,7 +4845,7 @@ mptsas_issue_tm(MPT_ADAPTER *ioc, u8 type, u8 channel, u8 id, u64 lun,
 	if (!(ioc->taskmgmt_cmds.status & MPT_MGMT_STATUS_RF_VALID)) {
 		retval = -1; /* return failure */
 		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
-		    "TaskMgmt request: failed with no reply\n", ioc->name));
+		    "TaskMgmt request: failed with anal reply\n", ioc->name));
 		goto out;
 	}
 
@@ -5000,7 +5000,7 @@ mptsas_send_ir2_event(struct fw_event_work *fw_event)
 }
 
 static int
-mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
+mptsas_event_process(MPT_ADAPTER *ioc, EventAnaltificationReply_t *reply)
 {
 	u32 event = le32_to_cpu(reply->Event);
 	int event_data_sz;
@@ -5021,7 +5021,7 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 		EVENT_DATA_SAS_BROADCAST_PRIMITIVE *broadcast_event_data =
 		    (EVENT_DATA_SAS_BROADCAST_PRIMITIVE *)reply->Data;
 		if (broadcast_event_data->Primitive !=
-		    MPI_EVENT_PRIMITIVE_ASYNCHRONOUS_EVENT)
+		    MPI_EVENT_PRIMITIVE_ASYNCHROANALUS_EVENT)
 			return 0;
 		if (ioc->broadcast_aen_busy)
 			return 0;
@@ -5036,7 +5036,7 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 		ioc_stat = le16_to_cpu(reply->IOCStatus);
 
 		if (sas_event_data->ReasonCode ==
-		    MPI_EVENT_SAS_DEV_STAT_RC_NOT_RESPONDING) {
+		    MPI_EVENT_SAS_DEV_STAT_RC_ANALT_RESPONDING) {
 			mptsas_target_reset_queue(ioc, sas_event_data);
 			return 0;
 		}
@@ -5084,7 +5084,7 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 			return 0;
 
 		if (expander_data->ReasonCode ==
-		    MPI_EVENT_SAS_EXP_RC_NOT_RESPONDING &&
+		    MPI_EVENT_SAS_EXP_RC_ANALT_RESPONDING &&
 		    ioc->device_missing_delay)
 			delay = HZ * ioc->device_missing_delay;
 		break;
@@ -5112,7 +5112,7 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 	}
 
 	event_data_sz = ((reply->MsgLength * 4) -
-	    offsetof(EventNotificationReply_t, Data));
+	    offsetof(EventAnaltificationReply_t, Data));
 	fw_event = kzalloc(sizeof(*fw_event) + event_data_sz, GFP_ATOMIC);
 	if (!fw_event) {
 		printk(MYIOC_s_WARN_FMT "%s: failed at (line=%d)\n", ioc->name,
@@ -5126,7 +5126,7 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 	return 0;
 }
 
-/* Delete a volume when no longer listed in ioc pg2
+/* Delete a volume when anal longer listed in ioc pg2
  */
 static void mptsas_volume_delete(MPT_ADAPTER *ioc, u8 id)
 {
@@ -5181,16 +5181,16 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	if (ioc->last_state != MPI_IOC_STATE_OPERATIONAL) {
 		printk(MYIOC_s_WARN_FMT
-		  "Skipping because it's not operational!\n",
+		  "Skipping because it's analt operational!\n",
 		  ioc->name);
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out_mptsas_probe;
 	}
 
 	if (!ioc->active) {
 		printk(MYIOC_s_WARN_FMT "Skipping because it's disabled!\n",
 		  ioc->name);
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out_mptsas_probe;
 	}
 
@@ -5206,7 +5206,7 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!ioc_cap) {
 		printk(MYIOC_s_WARN_FMT
 			"Skipping ioc=%p because SCSI Initiator mode "
-			"is NOT enabled!\n", ioc->name, ioc);
+			"is ANALT enabled!\n", ioc->name, ioc);
 		return 0;
 	}
 
@@ -5297,7 +5297,7 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	ioc->ScsiLookup = kcalloc(ioc->req_depth, sizeof(void *), GFP_ATOMIC);
 	if (!ioc->ScsiLookup) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		spin_unlock_irqrestore(&ioc->FreeQlock, flags);
 		goto out_mptsas_probe;
 	}
@@ -5365,7 +5365,7 @@ static void mptsas_remove(struct pci_dev *pdev)
 
 	mptsas_del_device_components(ioc);
 
-	ioc->sas_discovery_ignore_events = 1;
+	ioc->sas_discovery_iganalre_events = 1;
 	sas_remove_host(ioc->sh);
 
 	mutex_lock(&ioc->sas_topology_mutex);
@@ -5422,7 +5422,7 @@ mptsas_init(void)
 	mptsas_transport_template =
 	    sas_attach_transport(&mptsas_transport_functions);
 	if (!mptsas_transport_template)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mptsasDoneCtx = mpt_register(mptscsih_io_done, MPTSAS_DRIVER,
 	    "mptscsih_io_done");

@@ -119,7 +119,7 @@ static int inv_icm42600_gyro_update_scan_mode(struct iio_dev *indio_dev,
 
 	if (*scan_mask & INV_ICM42600_SCAN_MASK_GYRO_3AXIS) {
 		/* enable gyro sensor */
-		conf.mode = INV_ICM42600_SENSOR_MODE_LOW_NOISE;
+		conf.mode = INV_ICM42600_SENSOR_MODE_LOW_ANALISE;
 		ret = inv_icm42600_set_gyro_conf(st, &conf, &sleep_gyro);
 		if (ret)
 			goto out_unlock;
@@ -174,7 +174,7 @@ static int inv_icm42600_gyro_read_sensor(struct inv_icm42600_state *st,
 	mutex_lock(&st->lock);
 
 	/* enable gyro sensor */
-	conf.mode = INV_ICM42600_SENSOR_MODE_LOW_NOISE;
+	conf.mode = INV_ICM42600_SENSOR_MODE_LOW_ANALISE;
 	ret = inv_icm42600_set_gyro_conf(st, &conf, NULL);
 	if (ret)
 		goto exit;
@@ -195,7 +195,7 @@ exit:
 	return ret;
 }
 
-/* IIO format int + nano */
+/* IIO format int + naanal */
 static const int inv_icm42600_gyro_scale[] = {
 	/* +/- 2000dps => 0.001065264 rad/s */
 	[2 * INV_ICM42600_GYRO_FS_2000DPS] = 0,
@@ -232,7 +232,7 @@ static int inv_icm42600_gyro_read_scale(struct inv_icm42600_state *st,
 
 	*val = inv_icm42600_gyro_scale[2 * idx];
 	*val2 = inv_icm42600_gyro_scale[2 * idx + 1];
-	return IIO_VAL_INT_PLUS_NANO;
+	return IIO_VAL_INT_PLUS_NAANAL;
 }
 
 static int inv_icm42600_gyro_write_scale(struct inv_icm42600_state *st,
@@ -360,7 +360,7 @@ out_unlock:
 }
 
 /*
- * Calibration bias values, IIO range format int + nano.
+ * Calibration bias values, IIO range format int + naanal.
  * Value is limited to +/-64dps coded on 12 bits signed. Step is 1/32 dps.
  */
 static int inv_icm42600_gyro_calibbias[] = {
@@ -429,7 +429,7 @@ static int inv_icm42600_gyro_read_offset(struct inv_icm42600_state *st,
 	 * convert raw offset to dps then to rad/s
 	 * 12 bits signed raw max 64 to dps: 64 / 2048
 	 * dps to rad: Pi / 180
-	 * result in nano (1000000000)
+	 * result in naanal (1000000000)
 	 * (offset * 64 * Pi * 1000000000) / (2048 * 180)
 	 */
 	val64 = (int64_t)offset * 64LL * 3141592653LL;
@@ -442,7 +442,7 @@ static int inv_icm42600_gyro_read_offset(struct inv_icm42600_state *st,
 	*val = bias / 1000000000L;
 	*val2 = bias % 1000000000L;
 
-	return IIO_VAL_INT_PLUS_NANO;
+	return IIO_VAL_INT_PLUS_NAANAL;
 }
 
 static int inv_icm42600_gyro_write_offset(struct inv_icm42600_state *st,
@@ -472,7 +472,7 @@ static int inv_icm42600_gyro_write_offset(struct inv_icm42600_state *st,
 		return -EINVAL;
 	}
 
-	/* inv_icm42600_gyro_calibbias: min - step - max in nano */
+	/* inv_icm42600_gyro_calibbias: min - step - max in naanal */
 	min = (int64_t)inv_icm42600_gyro_calibbias[0] * 1000000000LL +
 	      (int64_t)inv_icm42600_gyro_calibbias[1];
 	max = (int64_t)inv_icm42600_gyro_calibbias[4] * 1000000000LL +
@@ -485,7 +485,7 @@ static int inv_icm42600_gyro_write_offset(struct inv_icm42600_state *st,
 	 * convert rad/s to dps then to raw value
 	 * rad to dps: 180 / Pi
 	 * dps to raw 12 bits signed, max 64: 2048 / 64
-	 * val in nano (1000000000)
+	 * val in naanal (1000000000)
 	 * val * 180 * 2048 / (Pi * 1000000000 * 64)
 	 */
 	val64 = val64 * 180LL * 2048LL;
@@ -597,7 +597,7 @@ static int inv_icm42600_gyro_read_avail(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
 		*vals = inv_icm42600_gyro_scale;
-		*type = IIO_VAL_INT_PLUS_NANO;
+		*type = IIO_VAL_INT_PLUS_NAANAL;
 		*length = ARRAY_SIZE(inv_icm42600_gyro_scale);
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -607,7 +607,7 @@ static int inv_icm42600_gyro_read_avail(struct iio_dev *indio_dev,
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		*vals = inv_icm42600_gyro_calibbias;
-		*type = IIO_VAL_INT_PLUS_NANO;
+		*type = IIO_VAL_INT_PLUS_NAANAL;
 		return IIO_AVAIL_RANGE;
 	default:
 		return -EINVAL;
@@ -655,11 +655,11 @@ static int inv_icm42600_gyro_write_raw_get_fmt(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_CALIBBIAS:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -723,11 +723,11 @@ struct iio_dev *inv_icm42600_gyro_init(struct inv_icm42600_state *st)
 
 	name = devm_kasprintf(dev, GFP_KERNEL, "%s-gyro", st->name);
 	if (!name)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*ts));
 	if (!indio_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * clock period is 32kHz (31250ns)
@@ -765,7 +765,7 @@ int inv_icm42600_gyro_parse_fifo(struct iio_dev *indio_dev)
 	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
 	struct inv_sensors_timestamp *ts = iio_priv(indio_dev);
 	ssize_t i, size;
-	unsigned int no;
+	unsigned int anal;
 	const void *accel, *gyro, *timestamp;
 	const int8_t *temp;
 	unsigned int odr;
@@ -773,21 +773,21 @@ int inv_icm42600_gyro_parse_fifo(struct iio_dev *indio_dev)
 	struct inv_icm42600_gyro_buffer buffer;
 
 	/* parse all fifo packets */
-	for (i = 0, no = 0; i < st->fifo.count; i += size, ++no) {
+	for (i = 0, anal = 0; i < st->fifo.count; i += size, ++anal) {
 		size = inv_icm42600_fifo_decode_packet(&st->fifo.data[i],
 				&accel, &gyro, &temp, &timestamp, &odr);
 		/* quit if error or FIFO is empty */
 		if (size <= 0)
 			return size;
 
-		/* skip packet if no gyro data or data is invalid */
+		/* skip packet if anal gyro data or data is invalid */
 		if (gyro == NULL || !inv_icm42600_fifo_is_data_valid(gyro))
 			continue;
 
 		/* update odr */
 		if (odr & INV_ICM42600_SENSOR_GYRO)
 			inv_sensors_timestamp_apply_odr(ts, st->fifo.period,
-							st->fifo.nb.total, no);
+							st->fifo.nb.total, anal);
 
 		/* buffer is copied to userspace, zeroing it to avoid any data leak */
 		memset(&buffer, 0, sizeof(buffer));

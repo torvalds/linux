@@ -20,10 +20,10 @@
  *  DOMAIN_KERNEL - domain 0 includes all kernel memory only
  *
  * The domain numbering depends on whether we support 36 physical
- * address for I/O or not.  Addresses above the 32 bit boundary can
+ * address for I/O or analt.  Addresses above the 32 bit boundary can
  * only be mapped using supersections and supersections can only
  * be set for domain 0.  We could just default to DOMAIN_IO as zero,
- * but there may be systems with supersection support and no 36-bit
+ * but there may be systems with supersection support and anal 36-bit
  * addressing.  In such cases, we want to map system memory with
  * supersections to reduce TLB misses and footprint.
  *
@@ -44,7 +44,7 @@
 /*
  * Domain types
  */
-#define DOMAIN_NOACCESS	0
+#define DOMAIN_ANALACCESS	0
 #define DOMAIN_CLIENT	1
 #ifdef CONFIG_CPU_USE_DOMAINS
 #define DOMAIN_MANAGER	3
@@ -57,7 +57,7 @@
 
 #ifdef CONFIG_CPU_SW_DOMAIN_PAN
 #define DACR_INIT \
-	(domain_val(DOMAIN_USER, DOMAIN_NOACCESS) | \
+	(domain_val(DOMAIN_USER, DOMAIN_ANALACCESS) | \
 	 domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
 	 domain_val(DOMAIN_IO, DOMAIN_CLIENT) | \
 	 domain_val(DOMAIN_VECTORS, DOMAIN_CLIENT))
@@ -75,7 +75,7 @@
 	domain_val(DOMAIN_VECTORS, DOMAIN_CLIENT)
 
 #define DACR_UACCESS_DISABLE	\
-	(__DACR_DEFAULT | domain_val(DOMAIN_USER, DOMAIN_NOACCESS))
+	(__DACR_DEFAULT | domain_val(DOMAIN_USER, DOMAIN_ANALACCESS))
 #define DACR_UACCESS_ENABLE	\
 	(__DACR_DEFAULT | domain_val(DOMAIN_USER, DOMAIN_CLIENT))
 

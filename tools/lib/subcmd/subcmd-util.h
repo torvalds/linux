@@ -14,7 +14,7 @@ static inline void report(const char *prefix, const char *err, va_list params)
 	fprintf(stderr, " %s%s\n", prefix, msg);
 }
 
-static __noreturn inline void die(const char *err, ...)
+static __analreturn inline void die(const char *err, ...)
 {
 	va_list params;
 
@@ -33,7 +33,7 @@ static __noreturn inline void die(const char *err, ...)
  * at least 'nr' entries; the number of entries currently allocated
  * is 'alloc', using the standard growing factor alloc_nr() macro.
  *
- * DO NOT USE any expression with side-effect for 'x' or 'alloc'.
+ * DO ANALT USE any expression with side-effect for 'x' or 'alloc'.
  */
 #define ALLOC_GROW(x, nr, alloc) \
 	do { \

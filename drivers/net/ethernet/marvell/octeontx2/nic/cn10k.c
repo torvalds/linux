@@ -44,7 +44,7 @@ int cn10k_lmtst_init(struct otx2_nic *pfvf)
 	req = otx2_mbox_alloc_msg_lmtst_tbl_setup(&pfvf->mbox);
 	if (!req) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	req->use_local_lmt_region = true;
@@ -80,7 +80,7 @@ int cn10k_sq_aq_init(void *dev, u16 qidx, u16 sqb_aura)
 	/* Get memory to put this msg */
 	aq = otx2_mbox_alloc_msg_nix_cn10k_aq_enq(&pfvf->mbox);
 	if (!aq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aq->sq.cq = pfvf->hw.rx_queues + qidx;
 	aq->sq.max_sqe_size = NIX_MAXSQESZ_W16; /* 128 byte */
@@ -143,7 +143,7 @@ void cn10k_sqe_flush(void *dev, struct otx2_snd_queue *sq, int size, int qidx)
 
 	lmt_info = per_cpu_ptr(pfvf->hw.lmt_info, smp_processor_id());
 	/* FIXME: val[0:10] LMT_ID.
-	 * [12:15] no of LMTST - 1 in the burst.
+	 * [12:15] anal of LMTST - 1 in the burst.
 	 * [19:63] data size of each LMTST in the burst except first.
 	 */
 	val = (lmt_info->lmt_id & 0x7FF);
@@ -172,7 +172,7 @@ int cn10k_free_all_ipolicers(struct otx2_nic *pfvf)
 
 	req = otx2_mbox_alloc_msg_nix_bandprof_free(&pfvf->mbox);
 	if (!req) {
-		rc =  -ENOMEM;
+		rc =  -EANALMEM;
 		goto out;
 	}
 
@@ -193,7 +193,7 @@ int cn10k_alloc_leaf_profile(struct otx2_nic *pfvf, u16 *leaf)
 
 	req = otx2_mbox_alloc_msg_nix_bandprof_alloc(&pfvf->mbox);
 	if (!req)
-		return  -ENOMEM;
+		return  -EANALMEM;
 
 	req->prof_count[BAND_PROF_LEAF_LAYER] = 1;
 
@@ -247,7 +247,7 @@ static void cn10k_get_ingress_burst_cfg(u32 burst, u32 *burst_exp,
 	 */
 	*burst_exp = ilog2(burst);
 	if (burst < 256) {
-		/* No float: can't express mantissa in this case */
+		/* Anal float: can't express mantissa in this case */
 		*burst_mantissa = 0;
 		return;
 	}
@@ -276,7 +276,7 @@ static void cn10k_get_ingress_rate_cfg(u64 rate, u32 *rate_exp,
 	 * (1+[RATE_MANTISSA]/256)*2^[RATE_EXPONENT] tokens (bytes) at every
 	 * policer timeunit * 2^rdiv ie 2 * 2^rdiv usecs, to the token bucket.
 	 * Here policer timeunit is 2 usecs and rate is in bits per sec.
-	 * Since floating point cannot be used below algorithm uses 1000000
+	 * Since floating point cananalt be used below algorithm uses 1000000
 	 * scale factor to support rates upto 100Gbps.
 	 */
 	tmp = rate * 32 * 2;
@@ -305,7 +305,7 @@ int cn10k_map_unmap_rq_policer(struct otx2_nic *pfvf, int rq_idx,
 
 	aq = otx2_mbox_alloc_msg_nix_cn10k_aq_enq(&pfvf->mbox);
 	if (!aq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Enable policing and set the bandwidth profile (policer) index */
 	if (map)
@@ -331,7 +331,7 @@ int cn10k_free_leaf_profile(struct otx2_nic *pfvf, u16 leaf)
 
 	req = otx2_mbox_alloc_msg_nix_bandprof_free(&pfvf->mbox);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->prof_count[BAND_PROF_LEAF_LAYER] = 1;
 	req->prof_idx[BAND_PROF_LEAF_LAYER][0] = leaf;
@@ -372,7 +372,7 @@ int cn10k_set_ipolicer_rate(struct otx2_nic *pfvf, u16 profile,
 	/* Init bandwidth profile */
 	aq = otx2_mbox_alloc_msg_nix_cn10k_aq_enq(&pfvf->mbox);
 	if (!aq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set initial color mode to blind */
 	aq->prof.icolor = 0x03;

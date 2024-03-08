@@ -3,11 +3,11 @@
 /plugin/;
 
 /*
- * &electric_1/motor-1 and &spin_ctrl_1 are the same node:
+ * &electric_1/motor-1 and &spin_ctrl_1 are the same analde:
  *   /testcase-data-2/substation@100/motor-1
  *
- * Thus the new node "controller" in each fragment will
- * result in an attempt to add the same node twice.
+ * Thus the new analde "controller" in each fragment will
+ * result in an attempt to add the same analde twice.
  * This will result in an error and the overlay apply
  * will fail.
  */

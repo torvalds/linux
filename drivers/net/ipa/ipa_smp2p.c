@@ -7,8 +7,8 @@
 #include <linux/types.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
-#include <linux/panic_notifier.h>
+#include <linux/analtifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/pm_runtime.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
@@ -31,7 +31,7 @@
  * when the GSI is ready to use.
  *
  * The modem is also able to inquire about the current state of IPA
- * power by trigging another SMP2P interrupt to the AP.  We communicate
+ * power by trigging aanalther SMP2P interrupt to the AP.  We communicate
  * whether power is enabled using two SMP2P state bits--one to indicate
  * the power state (on or off), and a second to indicate the power state
  * bit is valid.  The modem will poll the valid bit until it is set, and
@@ -52,10 +52,10 @@
  * @clock_query_irq:	IPA interrupt triggered by modem for power query
  * @setup_ready_irq:	IPA interrupt triggered by modem to signal GSI ready
  * @power_on:		Whether IPA power is on
- * @notified:		Whether modem has been notified of power state
+ * @analtified:		Whether modem has been analtified of power state
  * @setup_disabled:	Whether setup ready interrupt handler is disabled
  * @mutex:		Mutex protecting ready-interrupt/shutdown interlock
- * @panic_notifier:	Panic notifier structure
+ * @panic_analtifier:	Panic analtifier structure
 */
 struct ipa_smp2p {
 	struct ipa *ipa;
@@ -66,29 +66,29 @@ struct ipa_smp2p {
 	u32 clock_query_irq;
 	u32 setup_ready_irq;
 	bool power_on;
-	bool notified;
+	bool analtified;
 	bool setup_disabled;
 	struct mutex mutex;
-	struct notifier_block panic_notifier;
+	struct analtifier_block panic_analtifier;
 };
 
 /**
- * ipa_smp2p_notify() - use SMP2P to tell modem about IPA power state
+ * ipa_smp2p_analtify() - use SMP2P to tell modem about IPA power state
  * @smp2p:	SMP2P information
  *
  * This is called either when the modem has requested it (by triggering
  * the modem power query IPA interrupt) or whenever the AP is shutting down
- * (via a panic notifier).  It sets the two SMP2P state bits--one saying
+ * (via a panic analtifier).  It sets the two SMP2P state bits--one saying
  * whether the IPA power is on, and the other indicating the first bit
  * is valid.
  */
-static void ipa_smp2p_notify(struct ipa_smp2p *smp2p)
+static void ipa_smp2p_analtify(struct ipa_smp2p *smp2p)
 {
 	struct device *dev;
 	u32 value;
 	u32 mask;
 
-	if (smp2p->notified)
+	if (smp2p->analtified)
 		return;
 
 	dev = &smp2p->ipa->pdev->dev;
@@ -99,12 +99,12 @@ static void ipa_smp2p_notify(struct ipa_smp2p *smp2p)
 	value = smp2p->power_on ? mask : 0;
 	qcom_smem_state_update_bits(smp2p->enabled_state, mask, value);
 
-	/* Now indicate that the enabled flag is valid */
+	/* Analw indicate that the enabled flag is valid */
 	mask = BIT(smp2p->valid_bit);
 	value = mask;
 	qcom_smem_state_update_bits(smp2p->valid_state, mask, value);
 
-	smp2p->notified = true;
+	smp2p->analtified = true;
 }
 
 /* Threaded IRQ handler for modem "ipa-clock-query" SMP2P interrupt */
@@ -112,40 +112,40 @@ static irqreturn_t ipa_smp2p_modem_clk_query_isr(int irq, void *dev_id)
 {
 	struct ipa_smp2p *smp2p = dev_id;
 
-	ipa_smp2p_notify(smp2p);
+	ipa_smp2p_analtify(smp2p);
 
 	return IRQ_HANDLED;
 }
 
-static int ipa_smp2p_panic_notifier(struct notifier_block *nb,
+static int ipa_smp2p_panic_analtifier(struct analtifier_block *nb,
 				    unsigned long action, void *data)
 {
 	struct ipa_smp2p *smp2p;
 
-	smp2p = container_of(nb, struct ipa_smp2p, panic_notifier);
+	smp2p = container_of(nb, struct ipa_smp2p, panic_analtifier);
 
-	ipa_smp2p_notify(smp2p);
+	ipa_smp2p_analtify(smp2p);
 
 	if (smp2p->power_on)
-		ipa_uc_panic_notifier(smp2p->ipa);
+		ipa_uc_panic_analtifier(smp2p->ipa);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int ipa_smp2p_panic_notifier_register(struct ipa_smp2p *smp2p)
+static int ipa_smp2p_panic_analtifier_register(struct ipa_smp2p *smp2p)
 {
 	/* IPA panic handler needs to run before modem shuts down */
-	smp2p->panic_notifier.notifier_call = ipa_smp2p_panic_notifier;
-	smp2p->panic_notifier.priority = INT_MAX;	/* Do it early */
+	smp2p->panic_analtifier.analtifier_call = ipa_smp2p_panic_analtifier;
+	smp2p->panic_analtifier.priority = INT_MAX;	/* Do it early */
 
-	return atomic_notifier_chain_register(&panic_notifier_list,
-					      &smp2p->panic_notifier);
+	return atomic_analtifier_chain_register(&panic_analtifier_list,
+					      &smp2p->panic_analtifier);
 }
 
-static void ipa_smp2p_panic_notifier_unregister(struct ipa_smp2p *smp2p)
+static void ipa_smp2p_panic_analtifier_unregister(struct ipa_smp2p *smp2p)
 {
-	atomic_notifier_chain_unregister(&panic_notifier_list,
-					 &smp2p->panic_notifier);
+	atomic_analtifier_chain_unregister(&panic_analtifier_list,
+					 &smp2p->panic_analtifier);
 }
 
 /* Threaded IRQ handler for modem "ipa-setup-ready" SMP2P interrupt */
@@ -155,7 +155,7 @@ static irqreturn_t ipa_smp2p_modem_setup_ready_isr(int irq, void *dev_id)
 	struct device *dev;
 	int ret;
 
-	/* Ignore any (spurious) interrupts received after the first */
+	/* Iganalre any (spurious) interrupts received after the first */
 	if (smp2p->ipa->setup_complete)
 		return IRQ_HANDLED;
 
@@ -205,7 +205,7 @@ static void ipa_smp2p_irq_exit(struct ipa_smp2p *smp2p, u32 irq)
 	free_irq(irq, smp2p);
 }
 
-/* Drop the power reference if it was taken in ipa_smp2p_notify() */
+/* Drop the power reference if it was taken in ipa_smp2p_analtify() */
 static void ipa_smp2p_power_release(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
@@ -245,12 +245,12 @@ int ipa_smp2p_init(struct ipa *ipa, bool modem_init)
 
 	smp2p = kzalloc(sizeof(*smp2p), GFP_KERNEL);
 	if (!smp2p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smp2p->ipa = ipa;
 
 	/* These fields are needed by the power query interrupt
-	 * handler, so initialize them now.
+	 * handler, so initialize them analw.
 	 */
 	mutex_init(&smp2p->mutex);
 	smp2p->valid_state = valid_state;
@@ -258,7 +258,7 @@ int ipa_smp2p_init(struct ipa *ipa, bool modem_init)
 	smp2p->enabled_state = enabled_state;
 	smp2p->enabled_bit = enabled_bit;
 
-	/* We have enough information saved to handle notifications */
+	/* We have eanalugh information saved to handle analtifications */
 	ipa->smp2p = smp2p;
 
 	ret = ipa_smp2p_irq_init(smp2p, "ipa-clock-query",
@@ -267,23 +267,23 @@ int ipa_smp2p_init(struct ipa *ipa, bool modem_init)
 		goto err_null_smp2p;
 	smp2p->clock_query_irq = ret;
 
-	ret = ipa_smp2p_panic_notifier_register(smp2p);
+	ret = ipa_smp2p_panic_analtifier_register(smp2p);
 	if (ret)
 		goto err_irq_exit;
 
 	if (modem_init) {
-		/* Result will be non-zero (negative for error) */
+		/* Result will be analn-zero (negative for error) */
 		ret = ipa_smp2p_irq_init(smp2p, "ipa-setup-ready",
 					 ipa_smp2p_modem_setup_ready_isr);
 		if (ret < 0)
-			goto err_notifier_unregister;
+			goto err_analtifier_unregister;
 		smp2p->setup_ready_irq = ret;
 	}
 
 	return 0;
 
-err_notifier_unregister:
-	ipa_smp2p_panic_notifier_unregister(smp2p);
+err_analtifier_unregister:
+	ipa_smp2p_panic_analtifier_unregister(smp2p);
 err_irq_exit:
 	ipa_smp2p_irq_exit(smp2p, smp2p->clock_query_irq);
 err_null_smp2p:
@@ -300,9 +300,9 @@ void ipa_smp2p_exit(struct ipa *ipa)
 
 	if (smp2p->setup_ready_irq)
 		ipa_smp2p_irq_exit(smp2p, smp2p->setup_ready_irq);
-	ipa_smp2p_panic_notifier_unregister(smp2p);
+	ipa_smp2p_panic_analtifier_unregister(smp2p);
 	ipa_smp2p_irq_exit(smp2p, smp2p->clock_query_irq);
-	/* We won't get notified any more; drop power reference (if any) */
+	/* We won't get analtified any more; drop power reference (if any) */
 	ipa_smp2p_power_release(ipa);
 	ipa->smp2p = NULL;
 	mutex_destroy(&smp2p->mutex);
@@ -326,13 +326,13 @@ void ipa_smp2p_irq_disable_setup(struct ipa *ipa)
 	mutex_unlock(&smp2p->mutex);
 }
 
-/* Reset state tracking whether we have notified the modem */
-void ipa_smp2p_notify_reset(struct ipa *ipa)
+/* Reset state tracking whether we have analtified the modem */
+void ipa_smp2p_analtify_reset(struct ipa *ipa)
 {
 	struct ipa_smp2p *smp2p = ipa->smp2p;
 	u32 mask;
 
-	if (!smp2p->notified)
+	if (!smp2p->analtified)
 		return;
 
 	ipa_smp2p_power_release(ipa);
@@ -345,5 +345,5 @@ void ipa_smp2p_notify_reset(struct ipa *ipa)
 	mask = BIT(smp2p->enabled_bit);
 	qcom_smem_state_update_bits(smp2p->enabled_state, mask, 0);
 
-	smp2p->notified = false;
+	smp2p->analtified = false;
 }

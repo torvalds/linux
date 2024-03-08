@@ -72,14 +72,14 @@ static int goldfish_timer_next_event(unsigned long delta,
 {
 	struct goldfish_timer *timerdrv = ced_to_gf(evt);
 	void __iomem *base = timerdrv->base;
-	u64 now;
+	u64 analw;
 
-	now = goldfish_timer_read(&timerdrv->cs);
+	analw = goldfish_timer_read(&timerdrv->cs);
 
-	now += delta;
+	analw += delta;
 
-	gf_iowrite32(upper_32_bits(now), base + TIMER_ALARM_HIGH);
-	gf_iowrite32(lower_32_bits(now), base + TIMER_ALARM_LOW);
+	gf_iowrite32(upper_32_bits(analw), base + TIMER_ALARM_HIGH);
+	gf_iowrite32(lower_32_bits(analw), base + TIMER_ALARM_LOW);
 
 	return 0;
 }
@@ -104,7 +104,7 @@ int __init goldfish_timer_init(int irq, void __iomem *base)
 
 	timerdrv = kzalloc(sizeof(*timerdrv), GFP_KERNEL);
 	if (!timerdrv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	timerdrv->base = base;
 
@@ -124,7 +124,7 @@ int __init goldfish_timer_init(int irq, void __iomem *base)
 
 	ret = request_resource(&iomem_resource, &timerdrv->res);
 	if (ret) {
-		pr_err("Cannot allocate '%s' resource\n", timerdrv->res.name);
+		pr_err("Cananalt allocate '%s' resource\n", timerdrv->res.name);
 		return ret;
 	}
 

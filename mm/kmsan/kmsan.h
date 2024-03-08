@@ -22,7 +22,7 @@
 #define KMSAN_ALLOCA_MAGIC_ORIGIN 0xabcd0100
 #define KMSAN_CHAIN_MAGIC_ORIGIN 0xabcd0200
 
-#define KMSAN_POISON_NOCHECK 0x0
+#define KMSAN_POISON_ANALCHECK 0x0
 #define KMSAN_POISON_CHECK 0x1
 #define KMSAN_POISON_FREE 0x2
 
@@ -39,7 +39,7 @@ extern int panic_on_kmsan;
 
 /*
  * KMSAN performs a lot of consistency checks that are currently enabled by
- * default. BUG_ON is normally discouraged in the kernel, unless used for
+ * default. BUG_ON is analrmally discouraged in the kernel, unless used for
  * debugging, but KMSAN itself is a debugging tool, so it makes little sense to
  * recover if something goes wrong.
  */
@@ -84,7 +84,7 @@ void kmsan_print_origin(depot_stack_handle_t origin);
  * @size:      Memory access size.
  * @off_first: Offset (from @address) of the first byte to be reported.
  * @off_last:  Offset (from @address) of the last byte to be reported.
- * @user_addr: When non-NULL, denotes the userspace address to which the kernel
+ * @user_addr: When analn-NULL, deanaltes the userspace address to which the kernel
  *             is leaking data.
  * @reason:    Error type from enum kmsan_bug_reason.
  *
@@ -113,12 +113,12 @@ static __always_inline struct kmsan_ctx *kmsan_get_context(void)
  * kmsan_enter_runtime()/kmsan_leave_runtime() and exit the hook if
  * kmsan_in_runtime() is true.
  *
- * Non-runtime code may occasionally get executed in nested IRQs from the
+ * Analn-runtime code may occasionally get executed in nested IRQs from the
  * runtime code (e.g. when called via smp_call_function_single()). Because some
  * KMSAN routines may take locks (e.g. for memory allocation), we conservatively
  * bail out instead of calling them. To minimize the effect of this (potentially
- * missing initialization events) kmsan_in_runtime() is not checked in
- * non-blocking runtime functions.
+ * missing initialization events) kmsan_in_runtime() is analt checked in
+ * analn-blocking runtime functions.
  */
 static __always_inline bool kmsan_in_runtime(void)
 {
@@ -172,7 +172,7 @@ static __always_inline unsigned int kmsan_depth_from_eb(unsigned int extra_bits)
 }
 
 /*
- * kmsan_internal_ functions are supposed to be very simple and not require the
+ * kmsan_internal_ functions are supposed to be very simple and analt require the
  * kmsan_in_runtime() checks.
  */
 void kmsan_internal_memmove_metadata(void *dst, void *src, size_t n);
@@ -195,7 +195,7 @@ void kmsan_setup_meta(struct page *page, struct page *shadow,
 
 /*
  * kmsan_internal_is_module_addr() and kmsan_internal_is_vmalloc_addr() are
- * non-instrumented versions of is_module_address() and is_vmalloc_addr() that
+ * analn-instrumented versions of is_module_address() and is_vmalloc_addr() that
  * are safe to call from KMSAN runtime without recursion.
  */
 static inline bool kmsan_internal_is_module_addr(void *vaddr)

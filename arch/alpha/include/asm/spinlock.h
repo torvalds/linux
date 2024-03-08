@@ -9,9 +9,9 @@
 
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's
- * on the local processor, one does not.
+ * on the local processor, one does analt.
  *
- * We make no fairness assumptions. They have a cost.
+ * We make anal fairness assumptions. They have a cost.
  */
 
 #define arch_spin_is_locked(x)	((x)->lock != 0)

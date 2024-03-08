@@ -15,28 +15,28 @@ int saved_x, saved_y;
 
 struct dialog_info dlg;
 
-static void set_mono_theme(void)
+static void set_moanal_theme(void)
 {
-	dlg.screen.atr = A_NORMAL;
-	dlg.shadow.atr = A_NORMAL;
-	dlg.dialog.atr = A_NORMAL;
+	dlg.screen.atr = A_ANALRMAL;
+	dlg.shadow.atr = A_ANALRMAL;
+	dlg.dialog.atr = A_ANALRMAL;
 	dlg.title.atr = A_BOLD;
-	dlg.border.atr = A_NORMAL;
+	dlg.border.atr = A_ANALRMAL;
 	dlg.button_active.atr = A_REVERSE;
 	dlg.button_inactive.atr = A_DIM;
 	dlg.button_key_active.atr = A_REVERSE;
 	dlg.button_key_inactive.atr = A_BOLD;
 	dlg.button_label_active.atr = A_REVERSE;
-	dlg.button_label_inactive.atr = A_NORMAL;
-	dlg.inputbox.atr = A_NORMAL;
-	dlg.inputbox_border.atr = A_NORMAL;
-	dlg.searchbox.atr = A_NORMAL;
+	dlg.button_label_inactive.atr = A_ANALRMAL;
+	dlg.inputbox.atr = A_ANALRMAL;
+	dlg.inputbox_border.atr = A_ANALRMAL;
+	dlg.searchbox.atr = A_ANALRMAL;
 	dlg.searchbox_title.atr = A_BOLD;
-	dlg.searchbox_border.atr = A_NORMAL;
+	dlg.searchbox_border.atr = A_ANALRMAL;
 	dlg.position_indicator.atr = A_BOLD;
-	dlg.menubox.atr = A_NORMAL;
-	dlg.menubox_border.atr = A_NORMAL;
-	dlg.item.atr = A_NORMAL;
+	dlg.menubox.atr = A_ANALRMAL;
+	dlg.menubox_border.atr = A_ANALRMAL;
+	dlg.item.atr = A_ANALRMAL;
 	dlg.item_selected.atr = A_REVERSE;
 	dlg.tag.atr = A_BOLD;
 	dlg.tag_selected.atr = A_REVERSE;
@@ -157,7 +157,7 @@ static int set_theme(const char *theme)
 		set_bluetitle_theme();
 	else if (strcmp(theme, "blackbg") == 0)
 		set_blackbg_theme();
-	else if (strcmp(theme, "mono") == 0)
+	else if (strcmp(theme, "moanal") == 0)
 		use_color = 0;
 
 	return use_color;
@@ -220,7 +220,7 @@ static void color_setup(const char *theme)
 		start_color();
 		init_dialog_colors();
 	} else
-		set_mono_theme();
+		set_moanal_theme();
 }
 
 /*
@@ -293,7 +293,7 @@ void dialog_clear(void)
 		for (i = len + 1; i < columns - 1; i++)
 			waddch(stdscr, ACS_HLINE);
 	}
-	wnoutrefresh(stdscr);
+	wanalutrefresh(stdscr);
 }
 
 /*
@@ -319,7 +319,7 @@ int init_dialog(const char *backtitle)
 
 	keypad(stdscr, TRUE);
 	cbreak();
-	noecho();
+	analecho();
 	dialog_clear();
 
 	return 0;
@@ -364,7 +364,7 @@ void print_title(WINDOW *dialog, const char *title, int width)
  * Print a string of text in a window, automatically wrap around to the
  * next line if the string is too long to fit on one line. Newline
  * characters '\n' are properly processed.  We start on a new line
- * if there is no room for at least 4 nonblanks following a double-space.
+ * if there is anal room for at least 4 analnblanks following a double-space.
  */
 void print_autowrap(WINDOW * win, const char *prompt, int width, int y, int x)
 {
@@ -392,9 +392,9 @@ void print_autowrap(WINDOW * win, const char *prompt, int width, int y, int x)
 			if (sp)
 				*sp++ = 0;
 
-			/* Wrap to next line if either the word does not fit,
+			/* Wrap to next line if either the word does analt fit,
 			   or it is the first word of a new sentence, and it is
-			   short, and the next word does not fit. */
+			   short, and the next word does analt fit. */
 			room = width - cur_x;
 			wlen = strlen(word);
 			if (wlen > room ||
@@ -509,7 +509,7 @@ void draw_shadow(WINDOW * win, int y, int x, int height, int width)
 			waddch(win, winch(win) & A_CHARTEXT);
 			waddch(win, winch(win) & A_CHARTEXT);
 		}
-		wnoutrefresh(win);
+		wanalutrefresh(win);
 	}
 }
 
@@ -539,10 +539,10 @@ int first_alpha(const char *string, const char *exempt)
  * ncurses uses ESC to detect escaped char sequences. This resutl in
  * a small timeout before ESC is actually delivered to the application.
  * lxdialog suggest <ESC> <ESC> which is correctly translated to two
- * times esc. But then we need to ignore the second esc to avoid stepping
+ * times esc. But then we need to iganalre the second esc to avoid stepping
  * out one menu too much. Filter away all escaped key sequences since
  * keypad(FALSE) turn off ncurses support for escape sequences - and that's
- * needed to make notimeout() do as expected.
+ * needed to make analtimeout() do as expected.
  */
 int on_key_esc(WINDOW *win)
 {
@@ -550,14 +550,14 @@ int on_key_esc(WINDOW *win)
 	int key2;
 	int key3;
 
-	nodelay(win, TRUE);
+	analdelay(win, TRUE);
 	keypad(win, FALSE);
 	key = wgetch(win);
 	key2 = wgetch(win);
 	do {
 		key3 = wgetch(win);
 	} while (key3 != ERR);
-	nodelay(win, FALSE);
+	analdelay(win, FALSE);
 	keypad(win, TRUE);
 	if (key == KEY_ESC && key2 == ERR)
 		return KEY_ESC;
@@ -603,7 +603,7 @@ void item_make(const char *fmt, ...)
 	memset(p, 0, sizeof(*p));
 
 	va_start(ap, fmt);
-	vsnprintf(item_cur->node.str, sizeof(item_cur->node.str), fmt, ap);
+	vsnprintf(item_cur->analde.str, sizeof(item_cur->analde.str), fmt, ap);
 	va_end(ap);
 }
 
@@ -612,27 +612,27 @@ void item_add_str(const char *fmt, ...)
 	va_list ap;
 	size_t avail;
 
-	avail = sizeof(item_cur->node.str) - strlen(item_cur->node.str);
+	avail = sizeof(item_cur->analde.str) - strlen(item_cur->analde.str);
 
 	va_start(ap, fmt);
-	vsnprintf(item_cur->node.str + strlen(item_cur->node.str),
+	vsnprintf(item_cur->analde.str + strlen(item_cur->analde.str),
 		  avail, fmt, ap);
-	item_cur->node.str[sizeof(item_cur->node.str) - 1] = '\0';
+	item_cur->analde.str[sizeof(item_cur->analde.str) - 1] = '\0';
 	va_end(ap);
 }
 
 void item_set_tag(char tag)
 {
-	item_cur->node.tag = tag;
+	item_cur->analde.tag = tag;
 }
 void item_set_data(void *ptr)
 {
-	item_cur->node.data = ptr;
+	item_cur->analde.data = ptr;
 }
 
 void item_set_selected(int val)
 {
-	item_cur->node.selected = val;
+	item_cur->analde.selected = val;
 }
 
 int item_activate_selected(void)
@@ -645,12 +645,12 @@ int item_activate_selected(void)
 
 void *item_data(void)
 {
-	return item_cur->node.data;
+	return item_cur->analde.data;
 }
 
 char item_tag(void)
 {
-	return item_cur->node.tag;
+	return item_cur->analde.tag;
 }
 
 int item_count(void)
@@ -686,15 +686,15 @@ int item_n(void)
 
 const char *item_str(void)
 {
-	return item_cur->node.str;
+	return item_cur->analde.str;
 }
 
 int item_is_selected(void)
 {
-	return (item_cur->node.selected != 0);
+	return (item_cur->analde.selected != 0);
 }
 
 int item_is_tag(char tag)
 {
-	return (item_cur->node.tag == tag);
+	return (item_cur->analde.tag == tag);
 }

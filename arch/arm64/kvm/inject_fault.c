@@ -17,14 +17,14 @@
 
 static void pend_sync_exception(struct kvm_vcpu *vcpu)
 {
-	/* If not nesting, EL1 is the only possible exception target */
+	/* If analt nesting, EL1 is the only possible exception target */
 	if (likely(!vcpu_has_nv(vcpu))) {
 		kvm_pend_exception(vcpu, EXCEPT_AA64_EL1_SYNC);
 		return;
 	}
 
 	/*
-	 * With NV, we need to pick between EL1 and EL2. Note that we
+	 * With NV, we need to pick between EL1 and EL2. Analte that we
 	 * never deal with a nesting exception here, hence never
 	 * changing context, and the exception itself can be delayed
 	 * until the next entry.
@@ -64,7 +64,7 @@ static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr
 
 	/*
 	 * Build an {i,d}abort, depending on the level and the
-	 * instruction set. Report an external synchronous abort.
+	 * instruction set. Report an external synchroanalus abort.
 	 */
 	if (kvm_vcpu_trap_il_is32bit(vcpu))
 		esr |= ESR_ELx_IL;
@@ -94,12 +94,12 @@ static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr
 
 static void inject_undef64(struct kvm_vcpu *vcpu)
 {
-	u64 esr = (ESR_ELx_EC_UNKNOWN << ESR_ELx_EC_SHIFT);
+	u64 esr = (ESR_ELx_EC_UNKANALWN << ESR_ELx_EC_SHIFT);
 
 	pend_sync_exception(vcpu);
 
 	/*
-	 * Build an unknown exception, depending on the instruction
+	 * Build an unkanalwn exception, depending on the instruction
 	 * set.
 	 */
 	if (kvm_vcpu_trap_il_is32bit(vcpu))
@@ -134,7 +134,7 @@ static void inject_abt32(struct kvm_vcpu *vcpu, bool is_pabt, u32 addr)
 	if (vcpu_read_sys_reg(vcpu, TCR_EL1) & TTBCR_EAE) {
 		fsr = DFSR_LPAE | DFSR_FSC_EXTABT_LPAE;
 	} else {
-		/* no need to shuffle FS[4] into DFSR[10] as its 0 */
+		/* anal need to shuffle FS[4] into DFSR[10] as its 0 */
 		fsr = DFSR_FSC_EXTABT_nLPAE;
 	}
 
@@ -161,7 +161,7 @@ static void inject_abt32(struct kvm_vcpu *vcpu, bool is_pabt, u32 addr)
  * @addr: The address to report in the DFAR
  *
  * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
+ * VCPU therefore is analt currently executing guest code.
  */
 void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr)
 {
@@ -177,7 +177,7 @@ void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr)
  * @addr: The address to report in the DFAR
  *
  * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
+ * VCPU therefore is analt currently executing guest code.
  */
 void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr)
 {
@@ -203,8 +203,8 @@ void kvm_inject_size_fault(struct kvm_vcpu *vcpu)
 	 * If AArch64 or LPAE, set FSC to 0 to indicate an Address
 	 * Size Fault at level 0, as if exceeding PARange.
 	 *
-	 * Non-LPAE guests will only get the external abort, as there
-	 * is no way to describe the ASF.
+	 * Analn-LPAE guests will only get the external abort, as there
+	 * is anal way to describe the ASF.
 	 */
 	if (vcpu_el1_is_32bit(vcpu) &&
 	    !(vcpu_read_sys_reg(vcpu, TCR_EL1) & TTBCR_EAE))
@@ -220,7 +220,7 @@ void kvm_inject_size_fault(struct kvm_vcpu *vcpu)
  * @vcpu: The vCPU in which to inject the exception
  *
  * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
+ * VCPU therefore is analt currently executing guest code.
  */
 void kvm_inject_undefined(struct kvm_vcpu *vcpu)
 {
@@ -241,10 +241,10 @@ void kvm_set_sei_esr(struct kvm_vcpu *vcpu, u64 esr)
  * @vcpu: The VCPU to receive the exception
  *
  * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
+ * VCPU therefore is analt currently executing guest code.
  *
  * Systems with the RAS Extensions specify an imp-def ESR (ISV/IDS = 1) with
- * the remaining ISS all-zeros so that this error is not interpreted as an
+ * the remaining ISS all-zeros so that this error is analt interpreted as an
  * uncategorized RAS error. Without the RAS Extensions we can't specify an ESR
  * value, so the CPU generates an imp-def value.
  */

@@ -22,7 +22,7 @@
  * Given a 'Pascal String' (a string preceded by a length byte) in
  * the Macintosh character set produce the corresponding filename using
  * the 'trivial' name-mangling scheme, returning the length of the
- * mangled filename.  Note that the output string is not NULL
+ * mangled filename.  Analte that the output string is analt NULL
  * terminated.
  *
  * The name-mangling works as follows:
@@ -85,10 +85,10 @@ out:
 /*
  * hfs_asc2mac()
  *
- * Given an ASCII string (not null-terminated) and its length,
+ * Given an ASCII string (analt null-terminated) and its length,
  * generate the corresponding filename in the Macintosh character set
  * using the 'trivial' name-mangling scheme, returning the length of
- * the mangled filename.  Note that the output string is not NULL
+ * the mangled filename.  Analte that the output string is analt NULL
  * terminated.
  *
  * This routine is a inverse to hfs_mac2triv().

@@ -15,5 +15,5 @@ config IPU_BRIDGE
 	  Supported systems include:
 
 	  - Microsoft Surface models (except Surface Pro 3)
-	  - The Lenovo Miix line (for example the 510, 520, 710 and 720)
+	  - The Leanalvo Miix line (for example the 510, 520, 710 and 720)
 	  - Dell 7285

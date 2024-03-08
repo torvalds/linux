@@ -8,9 +8,9 @@
  * published by the Free Software Foundation;
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
- * IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+ * IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
  * CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -52,11 +52,11 @@ int compute_ecdh_secret(struct crypto_kpp *tfm, const u8 public_key[64],
 
 	tmp = kmalloc(64, GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = kpp_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_tmp;
 	}
 
@@ -90,10 +90,10 @@ free_tmp:
 /* set_ecdh_privkey() - set or generate ecc private key.
  *
  * Function generates an ecc private key in the crypto subsystem when receiving
- * a NULL private key or sets the received key when not NULL.
+ * a NULL private key or sets the received key when analt NULL.
  *
  * @tfm:           KPP tfm handle allocated with crypto_alloc_kpp().
- * @private_key:   user's ecc private key. When not NULL, the key is expected
+ * @private_key:   user's ecc private key. When analt NULL, the key is expected
  *                 in little endian format.
  *
  * Return: zero on success; error code in case of error.
@@ -108,7 +108,7 @@ int set_ecdh_privkey(struct crypto_kpp *tfm, const u8 private_key[32])
 	if (private_key) {
 		tmp = kmalloc(32, GFP_KERNEL);
 		if (!tmp)
-			return -ENOMEM;
+			return -EANALMEM;
 		swap_digits((u64 *)private_key, (u64 *)tmp, 4);
 		p.key = tmp;
 		p.key_size = 32;
@@ -117,7 +117,7 @@ int set_ecdh_privkey(struct crypto_kpp *tfm, const u8 private_key[32])
 	buf_len = crypto_ecdh_key_len(&p);
 	buf = kmalloc(buf_len, GFP_KERNEL);
 	if (!buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_tmp;
 	}
 
@@ -152,11 +152,11 @@ int generate_ecdh_public_key(struct crypto_kpp *tfm, u8 public_key[64])
 
 	tmp = kmalloc(64, GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = kpp_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_tmp;
 	}
 

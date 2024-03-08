@@ -68,7 +68,7 @@ static int pl_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret;
 
-	hdev->quirks |= HID_QUIRK_NOGET;
+	hdev->quirks |= HID_QUIRK_ANALGET;
 
 	ret = hid_parse(hdev);
 	if (ret) {

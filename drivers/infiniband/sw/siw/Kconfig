@@ -9,7 +9,7 @@ config RDMA_SIW
 	This driver implements the iWARP RDMA transport over
 	the Linux TCP/IP network stack. It enables a system with a
 	standard Ethernet adapter to interoperate with a iWARP
-	adapter or with another system running the SIW driver.
+	adapter or with aanalther system running the SIW driver.
 	(See also RXE which is a similar software driver for RoCE.)
 
 	The driver interfaces with the Linux RDMA stack and

@@ -38,12 +38,12 @@ typedef int (*func_proto_typedef)(long);
 typedef char arr_typedef[20];
 
 struct core_reloc_type_id_output {
-	int local_anon_struct;
-	int local_anon_union;
-	int local_anon_enum;
-	int local_anon_func_proto_ptr;
-	int local_anon_void_ptr;
-	int local_anon_arr;
+	int local_aanaln_struct;
+	int local_aanaln_union;
+	int local_aanaln_enum;
+	int local_aanaln_func_proto_ptr;
+	int local_aanaln_void_ptr;
+	int local_aanaln_arr;
 
 	int local_struct;
 	int local_union;
@@ -85,12 +85,12 @@ int test_core_type_id(void *ctx)
 #if __has_builtin(__builtin_preserve_type_info)
 	struct core_reloc_type_id_output *out = (void *)&data.out;
 
-	out->local_anon_struct = bpf_core_type_id_local(struct { int marker_field; });
-	out->local_anon_union = bpf_core_type_id_local(union { int marker_field; });
-	out->local_anon_enum = bpf_core_type_id_local(enum { MARKER_ENUM_VAL = 123 });
-	out->local_anon_func_proto_ptr = bpf_core_type_id_local(_Bool(*)(int));
-	out->local_anon_void_ptr = bpf_core_type_id_local(void *);
-	out->local_anon_arr = bpf_core_type_id_local(_Bool[47]);
+	out->local_aanaln_struct = bpf_core_type_id_local(struct { int marker_field; });
+	out->local_aanaln_union = bpf_core_type_id_local(union { int marker_field; });
+	out->local_aanaln_enum = bpf_core_type_id_local(enum { MARKER_ENUM_VAL = 123 });
+	out->local_aanaln_func_proto_ptr = bpf_core_type_id_local(_Bool(*)(int));
+	out->local_aanaln_void_ptr = bpf_core_type_id_local(void *);
+	out->local_aanaln_arr = bpf_core_type_id_local(_Bool[47]);
 
 	out->local_struct = bpf_core_type_id_local(struct a_struct);
 	out->local_union = bpf_core_type_id_local(union a_union);

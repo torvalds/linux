@@ -12,10 +12,10 @@ maintainers:
 
 description: |
   RPMh interconnect providers support system bandwidth requirements through
-  RPMh hardware accelerators known as Bus Clock Manager (BCM). The provider is
+  RPMh hardware accelerators kanalwn as Bus Clock Manager (BCM). The provider is
   able to communicate with the BCM through the Resource State Coordinator (RSC)
-  associated with each execution environment. Provider nodes must point to at
-  least one RPMh device child node pertaining to their RSC and each provider
+  associated with each execution environment. Provider analdes must point to at
+  least one RPMh device child analde pertaining to their RSC and each provider
   can map to multiple RPMh resources.
 
   See also:: include/dt-bindings/interconnect/qcom,x1e80100-rpmh.h
@@ -23,25 +23,25 @@ description: |
 properties:
   compatible:
     enum:
-      - qcom,x1e80100-aggre1-noc
-      - qcom,x1e80100-aggre2-noc
+      - qcom,x1e80100-aggre1-analc
+      - qcom,x1e80100-aggre2-analc
       - qcom,x1e80100-clk-virt
-      - qcom,x1e80100-cnoc-cfg
-      - qcom,x1e80100-cnoc-main
-      - qcom,x1e80100-gem-noc
-      - qcom,x1e80100-lpass-ag-noc
-      - qcom,x1e80100-lpass-lpiaon-noc
-      - qcom,x1e80100-lpass-lpicx-noc
+      - qcom,x1e80100-canalc-cfg
+      - qcom,x1e80100-canalc-main
+      - qcom,x1e80100-gem-analc
+      - qcom,x1e80100-lpass-ag-analc
+      - qcom,x1e80100-lpass-lpiaon-analc
+      - qcom,x1e80100-lpass-lpicx-analc
       - qcom,x1e80100-mc-virt
-      - qcom,x1e80100-mmss-noc
-      - qcom,x1e80100-nsp-noc
-      - qcom,x1e80100-pcie-center-anoc
-      - qcom,x1e80100-pcie-north-anoc
-      - qcom,x1e80100-pcie-south-anoc
-      - qcom,x1e80100-system-noc
-      - qcom,x1e80100-usb-center-anoc
-      - qcom,x1e80100-usb-north-anoc
-      - qcom,x1e80100-usb-south-anoc
+      - qcom,x1e80100-mmss-analc
+      - qcom,x1e80100-nsp-analc
+      - qcom,x1e80100-pcie-center-aanalc
+      - qcom,x1e80100-pcie-analrth-aanalc
+      - qcom,x1e80100-pcie-south-aanalc
+      - qcom,x1e80100-system-analc
+      - qcom,x1e80100-usb-center-aanalc
+      - qcom,x1e80100-usb-analrth-aanalc
+      - qcom,x1e80100-usb-south-aanalc
 
   reg:
     maxItems: 1
@@ -75,8 +75,8 @@ examples:
       qcom,bcm-voters = <&apps_bcm_voter>;
     };
 
-    aggre1_noc: interconnect@16e0000 {
-      compatible = "qcom,x1e80100-aggre1-noc";
+    aggre1_analc: interconnect@16e0000 {
+      compatible = "qcom,x1e80100-aggre1-analc";
       reg = <0x016e0000 0x14400>;
       #interconnect-cells = <2>;
       qcom,bcm-voters = <&apps_bcm_voter>;

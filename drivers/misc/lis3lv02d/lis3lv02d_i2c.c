@@ -6,9 +6,9 @@
  * Driver is based on corresponding SPI driver written by Daniel Mack
  * (lis3lv02d_spi.c (C) 2009 Daniel Mack <daniel@caiaq.de> ).
  *
- * Copyright (C) 2009 Nokia Corporation and/or its subsidiary(-ies).
+ * Copyright (C) 2009 Analkia Corporation and/or its subsidiary(-ies).
  *
- * Contact: Samu Onkalo <samu.p.onkalo@nokia.com>
+ * Contact: Samu Onkalo <samu.p.onkalo@analkia.com>
  */
 
 #include <linux/module.h>
@@ -37,7 +37,7 @@ static int lis3_reg_ctrl(struct lis3lv02d *lis3, bool state)
 	} else {
 		ret = regulator_bulk_enable(ARRAY_SIZE(lis3->regulators),
 					lis3->regulators);
-		/* Chip needs time to wakeup. Not mentioned in datasheet */
+		/* Chip needs time to wakeup. Analt mentioned in datasheet */
 		usleep_range(10000, 20000);
 	}
 	return ret;
@@ -107,7 +107,7 @@ static int lis3lv02d_i2c_probe(struct i2c_client *client)
 
 #ifdef CONFIG_OF
 	if (of_match_device(lis3lv02d_i2c_dt_ids, &client->dev)) {
-		lis3_dev.of_node = client->dev.of_node;
+		lis3_dev.of_analde = client->dev.of_analde;
 		ret = lis3lv02d_init_dt(&lis3_dev);
 		if (ret)
 			return ret;
@@ -270,6 +270,6 @@ static struct i2c_driver lis3lv02d_i2c_driver = {
 
 module_i2c_driver(lis3lv02d_i2c_driver);
 
-MODULE_AUTHOR("Nokia Corporation");
+MODULE_AUTHOR("Analkia Corporation");
 MODULE_DESCRIPTION("lis3lv02d I2C interface");
 MODULE_LICENSE("GPL");

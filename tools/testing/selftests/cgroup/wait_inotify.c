@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Wait until an inotify event on the given cgroup file.
+ * Wait until an ianaltify event on the given cgroup file.
  */
 #include <linux/limits.h>
-#include <sys/inotify.h>
+#include <sys/ianaltify.h>
 #include <sys/mman.h>
 #include <sys/ptrace.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <stdio.h>
@@ -48,14 +48,14 @@ int main(int argc, char *argv[])
 	file = argv[1];
 	fd = open(file, O_RDONLY);
 	if (fd < 0)
-		fail_message("Cgroup file %s not found!\n");
+		fail_message("Cgroup file %s analt found!\n");
 	close(fd);
 
-	fd = inotify_init();
+	fd = ianaltify_init();
 	if (fd < 0)
-		fail_message("inotify_init() fails on %s!\n");
-	if (inotify_add_watch(fd, file, IN_MODIFY) < 0)
-		fail_message("inotify_add_watch() fails on %s!\n");
+		fail_message("ianaltify_init() fails on %s!\n");
+	if (ianaltify_add_watch(fd, file, IN_MODIFY) < 0)
+		fail_message("ianaltify_add_watch() fails on %s!\n");
 	fds.fd = fd;
 
 	/*
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
 		int ret = poll(&fds, 1, 10000);
 
 		if (ret < 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 			perror("poll");
 			exit(1);
@@ -74,13 +74,13 @@ int main(int argc, char *argv[])
 			break;
 	}
 	if (verbose) {
-		struct inotify_event events[10];
+		struct ianaltify_event events[10];
 		long len;
 
 		usleep(1000);
 		len = read(fd, events, sizeof(events));
 		printf("Number of events read = %ld\n",
-			len/sizeof(struct inotify_event));
+			len/sizeof(struct ianaltify_event));
 	}
 	close(fd);
 	return 0;

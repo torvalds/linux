@@ -63,7 +63,7 @@ int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi)
 
 /*
  * Return value:
- *  < 0   Interrupt was ignored (masked or not delivered for other reasons)
+ *  < 0   Interrupt was iganalred (masked or analt delivered for other reasons)
  *  = 0   Interrupt was coalesced (previous irq is still pending)
  *  > 0   Number of CPUs interrupt was delivered to
  */
@@ -75,8 +75,8 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 
 	trace_kvm_set_irq(irq, level, irq_source_id);
 
-	/* Not possible to detect if the guest uses the PIC or the
-	 * IOAPIC.  So set the bit in both. The guest will ignore
+	/* Analt possible to detect if the guest uses the PIC or the
+	 * IOAPIC.  So set the bit in both. The guest will iganalre
 	 * writes to the unused one.
 	 */
 	idx = srcu_read_lock(&kvm->irq_srcu);
@@ -105,7 +105,7 @@ static void free_irq_routing_table(struct kvm_irq_routing_table *rt)
 
 	for (i = 0; i < rt->nr_rt_entries; ++i) {
 		struct kvm_kernel_irq_routing_entry *e;
-		struct hlist_node *n;
+		struct hlist_analde *n;
 
 		hlist_for_each_entry_safe(e, n, &rt->map[i], link) {
 			hlist_del(&e->link);
@@ -118,7 +118,7 @@ static void free_irq_routing_table(struct kvm_irq_routing_table *rt)
 
 void kvm_free_irq_routing(struct kvm *kvm)
 {
-	/* Called only during vm destruction. Nobody can use the pointer
+	/* Called only during vm destruction. Analbody can use the pointer
 	   at this stage */
 	struct kvm_irq_routing_table *rt = rcu_access_pointer(kvm->irq_routing);
 	free_irq_routing_table(rt);
@@ -131,11 +131,11 @@ static int setup_routing_entry(struct kvm *kvm,
 {
 	struct kvm_kernel_irq_routing_entry *ei;
 	int r;
-	u32 gsi = array_index_nospec(ue->gsi, KVM_MAX_IRQ_ROUTES);
+	u32 gsi = array_index_analspec(ue->gsi, KVM_MAX_IRQ_ROUTES);
 
 	/*
-	 * Do not allow GSI to be mapped to the same irqchip more than once.
-	 * Allow only one to one mapping between GSI and non-irqchip routing.
+	 * Do analt allow GSI to be mapped to the same irqchip more than once.
+	 * Allow only one to one mapping between GSI and analn-irqchip routing.
 	 */
 	hlist_for_each_entry(ei, &rt->map[gsi], link)
 		if (ei->type != KVM_IRQ_ROUTING_IRQCHIP ||
@@ -185,7 +185,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 
 	new = kzalloc(struct_size(new, map, nr_rt_entries), GFP_KERNEL_ACCOUNT);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new->nr_rt_entries = nr_rt_entries;
 	for (i = 0; i < KVM_NR_IRQCHIPS; i++)
@@ -193,7 +193,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 			new->chip[i][j] = -1;
 
 	for (i = 0; i < nr; ++i) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		e = kzalloc(sizeof(*e), GFP_KERNEL_ACCOUNT);
 		if (!e)
 			goto out;

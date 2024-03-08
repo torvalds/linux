@@ -4,11 +4,11 @@
  * Author: Sumit Semwal <sumit.semwal@linaro.org>
  *
  * This driver is for the DSI interface to panels using the NT36672A display driver IC
- * from Novatek.
+ * from Analvatek.
  * Currently supported are the Tianma FHD+ panels found in some Xiaomi phones, including
  * some variants of the Poco F1 phone.
  *
- * Panels using the Novatek NT37762A IC should add appropriate configuration per-panel and
+ * Panels using the Analvatek NT37762A IC should add appropriate configuration per-panel and
  * use this driver.
  */
 
@@ -241,7 +241,7 @@ static int nt36672a_panel_get_modes(struct drm_panel *panel,
 	if (!mode) {
 		dev_err(panel->dev, "failed to add mode %ux%u@%u\n", m->hdisplay,
 			m->vdisplay, drm_mode_vrefresh(m));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	connector->display_info.width_mm = pinfo->desc->width_mm;
@@ -588,7 +588,7 @@ static const struct nt36672a_panel_desc tianma_fhd_video_panel_desc = {
 
 	.mode_flags = MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_VIDEO
 			| MIPI_DSI_MODE_VIDEO_HSE
-			| MIPI_DSI_CLOCK_NON_CONTINUOUS
+			| MIPI_DSI_CLOCK_ANALN_CONTINUOUS
 			| MIPI_DSI_MODE_VIDEO_BURST,
 	.format = MIPI_DSI_FMT_RGB888,
 	.lanes = 4,
@@ -644,7 +644,7 @@ static int nt36672a_panel_probe(struct mipi_dsi_device *dsi)
 
 	pinfo = devm_kzalloc(&dsi->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc = of_device_get_match_data(&dsi->dev);
 	dsi->mode_flags = desc->mode_flags;
@@ -714,5 +714,5 @@ static struct mipi_dsi_driver nt36672a_panel_driver = {
 module_mipi_dsi_driver(nt36672a_panel_driver);
 
 MODULE_AUTHOR("Sumit Semwal <sumit.semwal@linaro.org>");
-MODULE_DESCRIPTION("NOVATEK NT36672A based MIPI-DSI LCD panel driver");
+MODULE_DESCRIPTION("ANALVATEK NT36672A based MIPI-DSI LCD panel driver");
 MODULE_LICENSE("GPL");

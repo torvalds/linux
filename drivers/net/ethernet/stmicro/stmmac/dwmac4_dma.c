@@ -161,7 +161,7 @@ static void dwmac4_dma_init(void __iomem *ioaddr,
 	if (dma_cfg->fixed_burst)
 		value |= DMA_SYS_BUS_FB;
 
-	/* Mixed Burst has no effect when fb is set */
+	/* Mixed Burst has anal effect when fb is set */
 	if (dma_cfg->mixed_burst)
 		value |= DMA_SYS_BUS_MB;
 
@@ -194,7 +194,7 @@ static void _dwmac4_dump_dma_regs(struct stmmac_priv *priv,
 	const struct dwmac4_addrs *dwmac4_addrs = priv->plat->dwmac4_addrs;
 	const struct dwmac4_addrs *default_addrs = NULL;
 
-	/* Purposely save the registers in the "normal" layout, regardless of
+	/* Purposely save the registers in the "analrmal" layout, regardless of
 	 * platform modifications, to keep reg_space size constant
 	 */
 	reg_space[DMA_CHAN_CONTROL(default_addrs, channel) / 4] =
@@ -281,7 +281,7 @@ static void dwmac4_dma_rx_chan_op_mode(struct stmmac_priv *priv,
 	mtl_rx_op |= rqs << MTL_OP_MODE_RQS_SHIFT;
 
 	/* Enable flow control only if each channel gets 4 KiB or more FIFO and
-	 * only if channel is not an AVB channel.
+	 * only if channel is analt an AVB channel.
 	 */
 	if ((fifosz >= 4096) && (qmode != MTL_QUEUE_AVB)) {
 		unsigned int rfd, rfa;
@@ -330,7 +330,7 @@ static void dwmac4_dma_tx_chan_op_mode(struct stmmac_priv *priv,
 
 	if (mode == SF_DMA_MODE) {
 		pr_debug("GMAC: enable TX store and forward mode\n");
-		/* Transmit COE type 2 cannot be done in cut-through mode. */
+		/* Transmit COE type 2 cananalt be done in cut-through mode. */
 		mtl_tx_op |= MTL_OP_MODE_TSF;
 	} else {
 		pr_debug("GMAC: disabling TX SF (threshold %d)\n", mode);

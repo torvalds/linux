@@ -10,10 +10,10 @@
 #define HCLGE_COMM_CMD_FLAG_IN			BIT(0)
 #define HCLGE_COMM_CMD_FLAG_NEXT		BIT(2)
 #define HCLGE_COMM_CMD_FLAG_WR			BIT(3)
-#define HCLGE_COMM_CMD_FLAG_NO_INTR		BIT(4)
+#define HCLGE_COMM_CMD_FLAG_ANAL_INTR		BIT(4)
 
 #define HCLGE_COMM_SEND_SYNC(flag) \
-	((flag) & HCLGE_COMM_CMD_FLAG_NO_INTR)
+	((flag) & HCLGE_COMM_CMD_FLAG_ANAL_INTR)
 
 #define HCLGE_COMM_LINK_EVENT_REPORT_EN_B	0
 #define HCLGE_COMM_NCSI_ERROR_REPORT_EN_B	1
@@ -143,7 +143,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_TM_PRI_SCH_MODE_CFG   = 0x0813,
 	HCLGE_OPC_TM_QS_SCH_MODE_CFG    = 0x0814,
 	HCLGE_OPC_TM_BP_TO_QSET_MAPPING = 0x0815,
-	HCLGE_OPC_TM_NODES		= 0x0816,
+	HCLGE_OPC_TM_ANALDES		= 0x0816,
 	HCLGE_OPC_ETS_TC_WEIGHT		= 0x0843,
 	HCLGE_OPC_QSET_DFX_STS		= 0x0844,
 	HCLGE_OPC_PRI_DFX_STS		= 0x0845,
@@ -308,14 +308,14 @@ enum hclge_opcode_type {
 	HCLGE_OPC_PHY_LINK_KSETTING	= 0x7025,
 	HCLGE_OPC_PHY_REG		= 0x7026,
 
-	/* Query link diagnosis info command */
-	HCLGE_OPC_QUERY_LINK_DIAGNOSIS	= 0x702A,
+	/* Query link diaganalsis info command */
+	HCLGE_OPC_QUERY_LINK_DIAGANALSIS	= 0x702A,
 };
 
 enum hclge_comm_cmd_return_status {
 	HCLGE_COMM_CMD_EXEC_SUCCESS	= 0,
-	HCLGE_COMM_CMD_NO_AUTH		= 1,
-	HCLGE_COMM_CMD_NOT_SUPPORTED	= 2,
+	HCLGE_COMM_CMD_ANAL_AUTH		= 1,
+	HCLGE_COMM_CMD_ANALT_SUPPORTED	= 2,
 	HCLGE_COMM_CMD_QUEUE_FULL	= 3,
 	HCLGE_COMM_CMD_NEXT_ERR		= 4,
 	HCLGE_COMM_CMD_UNEXE_ERR	= 5,
@@ -381,7 +381,7 @@ enum hclge_comm_cmd_state {
 
 struct hclge_comm_errcode {
 	u32 imp_errcode;
-	int common_errno;
+	int common_erranal;
 };
 
 #define HCLGE_COMM_QUERY_CAP_LENGTH		3

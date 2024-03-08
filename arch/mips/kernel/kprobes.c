@@ -48,13 +48,13 @@ static int insn_has_delayslot(union mips_instruction insn)
 {
 	return __insn_has_delay_slot(insn);
 }
-NOKPROBE_SYMBOL(insn_has_delayslot);
+ANALKPROBE_SYMBOL(insn_has_delayslot);
 
 /*
  * insn_has_ll_or_sc function checks whether instruction is ll or sc
  * one; putting breakpoint on top of atomic ll/sc pair is bad idea;
  * so we need to prevent it and refuse kprobes insertion for such
- * instructions; cannot do much about breakpoint in the middle of
+ * instructions; cananalt do much about breakpoint in the middle of
  * ll/sc pair; it is up to user to avoid those places
  */
 static int insn_has_ll_or_sc(union mips_instruction insn)
@@ -73,7 +73,7 @@ static int insn_has_ll_or_sc(union mips_instruction insn)
 	}
 	return ret;
 }
-NOKPROBE_SYMBOL(insn_has_ll_or_sc);
+ANALKPROBE_SYMBOL(insn_has_ll_or_sc);
 
 int arch_prepare_kprobe(struct kprobe *p)
 {
@@ -84,21 +84,21 @@ int arch_prepare_kprobe(struct kprobe *p)
 	insn = p->addr[0];
 
 	if (insn_has_ll_or_sc(insn)) {
-		pr_notice("Kprobes for ll and sc instructions are not supported\n");
+		pr_analtice("Kprobes for ll and sc instructions are analt supported\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (copy_from_kernel_nofault(&prev_insn, p->addr - 1,
+	if (copy_from_kernel_analfault(&prev_insn, p->addr - 1,
 			sizeof(mips_instruction)) == 0 &&
 	    insn_has_delayslot(prev_insn)) {
-		pr_notice("Kprobes for branch delayslot are not supported\n");
+		pr_analtice("Kprobes for branch delayslot are analt supported\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (__insn_is_compact_branch(insn)) {
-		pr_notice("Kprobes for compact branches are not supported\n");
+		pr_analtice("Kprobes for compact branches are analt supported\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -106,7 +106,7 @@ int arch_prepare_kprobe(struct kprobe *p)
 	/* insn: must be on special executable page on mips. */
 	p->ainsn.insn = get_insn_slot();
 	if (!p->ainsn.insn) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -119,8 +119,8 @@ int arch_prepare_kprobe(struct kprobe *p)
 	 * branch instruction, we need to execute the instruction at
 	 * Branch Delayslot (BD) at the time of probe hit. As MIPS also
 	 * doesn't have single stepping support, the BD instruction can
-	 * not be executed in-line and it would be executed on SSOL slot
-	 * using a normal breakpoint instruction in the next slot.
+	 * analt be executed in-line and it would be executed on SSOL slot
+	 * using a analrmal breakpoint instruction in the next slot.
 	 * So, read the instruction and save it for later execution.
 	 */
 	if (insn_has_delayslot(insn))
@@ -134,21 +134,21 @@ int arch_prepare_kprobe(struct kprobe *p)
 out:
 	return ret;
 }
-NOKPROBE_SYMBOL(arch_prepare_kprobe);
+ANALKPROBE_SYMBOL(arch_prepare_kprobe);
 
 void arch_arm_kprobe(struct kprobe *p)
 {
 	*p->addr = breakpoint_insn;
 	flush_insn_slot(p);
 }
-NOKPROBE_SYMBOL(arch_arm_kprobe);
+ANALKPROBE_SYMBOL(arch_arm_kprobe);
 
 void arch_disarm_kprobe(struct kprobe *p)
 {
 	*p->addr = p->opcode;
 	flush_insn_slot(p);
 }
-NOKPROBE_SYMBOL(arch_disarm_kprobe);
+ANALKPROBE_SYMBOL(arch_disarm_kprobe);
 
 void arch_remove_kprobe(struct kprobe *p)
 {
@@ -157,7 +157,7 @@ void arch_remove_kprobe(struct kprobe *p)
 		p->ainsn.insn = NULL;
 	}
 }
-NOKPROBE_SYMBOL(arch_remove_kprobe);
+ANALKPROBE_SYMBOL(arch_remove_kprobe);
 
 static void save_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
@@ -190,11 +190,11 @@ static void set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
  *
  * Evaluate the branch instruction at probed address during probe hit. The
  * result of evaluation would be the updated epc. The insturction in delayslot
- * would actually be single stepped using a normal breakpoint) on SSOL slot.
+ * would actually be single stepped using a analrmal breakpoint) on SSOL slot.
  *
  * The result is also saved in the kprobe control block for later use,
  * in case we need to execute the delayslot instruction. The latter will be
- * false for NOP instruction in dealyslot and the branch-likely instructions
+ * false for ANALP instruction in dealyslot and the branch-likely instructions
  * when the branch is taken. And for those cases we set a flag as
  * SKIP_DELAYSLOT in the kprobe control block
  */
@@ -226,7 +226,7 @@ static int evaluate_branch_instruction(struct kprobe *p, struct pt_regs *regs,
 	return 0;
 
 unaligned:
-	pr_notice("Failed to emulate branch instruction because of unaligned epc - sending SIGBUS to %s.\n", current->comm);
+	pr_analtice("Failed to emulate branch instruction because of unaligned epc - sending SIGBUS to %s.\n", current->comm);
 	force_sig(SIGBUS);
 	return -EFAULT;
 
@@ -274,7 +274,7 @@ static void resume_execution(struct kprobe *p,
 		regs->cp0_epc = orig_epc + 4;
 	}
 }
-NOKPROBE_SYMBOL(resume_execution);
+ANALKPROBE_SYMBOL(resume_execution);
 
 static int kprobe_handler(struct pt_regs *regs)
 {
@@ -292,7 +292,7 @@ static int kprobe_handler(struct pt_regs *regs)
 	preempt_disable();
 	kcb = get_kprobe_ctlblk();
 
-	/* Check we're not actually recursing */
+	/* Check we're analt actually recursing */
 	if (kprobe_running()) {
 		p = get_kprobe(addr);
 		if (p) {
@@ -300,11 +300,11 @@ static int kprobe_handler(struct pt_regs *regs)
 			    p->ainsn.insn->word == breakpoint_insn.word) {
 				regs->cp0_status &= ~ST0_IE;
 				regs->cp0_status |= kcb->kprobe_saved_SR;
-				goto no_kprobe;
+				goto anal_kprobe;
 			}
 			/*
 			 * We have reentered the kprobe_handler(), since
-			 * another probe was hit while within the handler.
+			 * aanalther probe was hit while within the handler.
 			 * We here save the original kprobes variables and
 			 * just single step on the instruction of the new probe
 			 * without calling any user handlers.
@@ -317,18 +317,18 @@ static int kprobe_handler(struct pt_regs *regs)
 			if (kcb->flags & SKIP_DELAYSLOT) {
 				resume_execution(p, regs, kcb);
 				restore_previous_kprobe(kcb);
-				preempt_enable_no_resched();
+				preempt_enable_anal_resched();
 			}
 			return 1;
 		} else if (addr->word != breakpoint_insn.word) {
 			/*
 			 * The breakpoint instruction was removed by
-			 * another cpu right after we hit, no further
+			 * aanalther cpu right after we hit, anal further
 			 * handling of this interrupt is appropriate
 			 */
 			ret = 1;
 		}
-		goto no_kprobe;
+		goto anal_kprobe;
 	}
 
 	p = get_kprobe(addr);
@@ -336,15 +336,15 @@ static int kprobe_handler(struct pt_regs *regs)
 		if (addr->word != breakpoint_insn.word) {
 			/*
 			 * The breakpoint instruction was removed right
-			 * after we hit it.  Another cpu has removed
+			 * after we hit it.  Aanalther cpu has removed
 			 * either a probepoint or a debugger breakpoint
-			 * at this address.  In either case, no further
+			 * at this address.  In either case, anal further
 			 * handling of this interrupt is appropriate.
 			 */
 			ret = 1;
 		}
-		/* Not one of ours: let kernel handle it */
-		goto no_kprobe;
+		/* Analt one of ours: let kernel handle it */
+		goto anal_kprobe;
 	}
 
 	set_current_kprobe(p, regs, kcb);
@@ -353,7 +353,7 @@ static int kprobe_handler(struct pt_regs *regs)
 	if (p->pre_handler && p->pre_handler(p, regs)) {
 		/* handler has already set things up, so skip ss setup */
 		reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 		return 1;
 	}
 
@@ -363,18 +363,18 @@ static int kprobe_handler(struct pt_regs *regs)
 		if (p->post_handler)
 			p->post_handler(p, regs, 0);
 		resume_execution(p, regs, kcb);
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 	} else
 		kcb->kprobe_status = KPROBE_HIT_SS;
 
 	return 1;
 
-no_kprobe:
-	preempt_enable_no_resched();
+anal_kprobe:
+	preempt_enable_anal_resched();
 	return ret;
 
 }
-NOKPROBE_SYMBOL(kprobe_handler);
+ANALKPROBE_SYMBOL(kprobe_handler);
 
 static inline int post_kprobe_handler(struct pt_regs *regs)
 {
@@ -400,7 +400,7 @@ static inline int post_kprobe_handler(struct pt_regs *regs)
 	}
 	reset_current_kprobe();
 out:
-	preempt_enable_no_resched();
+	preempt_enable_anal_resched();
 
 	return 1;
 }
@@ -415,7 +415,7 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		regs->cp0_status |= kcb->kprobe_old_SR;
 
 		reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 	}
 	return 0;
 }
@@ -423,21 +423,21 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 /*
  * Wrapper routine for handling exceptions.
  */
-int kprobe_exceptions_notify(struct notifier_block *self,
+int kprobe_exceptions_analtify(struct analtifier_block *self,
 				       unsigned long val, void *data)
 {
 
 	struct die_args *args = (struct die_args *)data;
-	int ret = NOTIFY_DONE;
+	int ret = ANALTIFY_DONE;
 
 	switch (val) {
 	case DIE_BREAK:
 		if (kprobe_handler(args->regs))
-			ret = NOTIFY_STOP;
+			ret = ANALTIFY_STOP;
 		break;
 	case DIE_SSTEPBP:
 		if (post_kprobe_handler(args->regs))
-			ret = NOTIFY_STOP;
+			ret = ANALTIFY_STOP;
 		break;
 
 	case DIE_PAGE_FAULT:
@@ -446,7 +446,7 @@ int kprobe_exceptions_notify(struct notifier_block *self,
 
 		if (kprobe_running()
 		    && kprobe_fault_handler(args->regs, args->trapnr))
-			ret = NOTIFY_STOP;
+			ret = ANALTIFY_STOP;
 		preempt_enable();
 		break;
 	default:
@@ -454,7 +454,7 @@ int kprobe_exceptions_notify(struct notifier_block *self,
 	}
 	return ret;
 }
-NOKPROBE_SYMBOL(kprobe_exceptions_notify);
+ANALKPROBE_SYMBOL(kprobe_exceptions_analtify);
 
 /*
  * Function return probe trampoline:
@@ -467,11 +467,11 @@ static void __used kretprobe_trampoline_holder(void)
 	asm volatile(
 		".set push\n\t"
 		/* Keep the assembler from reordering and placing JR here. */
-		".set noreorder\n\t"
-		"nop\n\t"
+		".set analreorder\n\t"
+		"analp\n\t"
 		".global __kretprobe_trampoline\n"
 		"__kretprobe_trampoline:\n\t"
-		"nop\n\t"
+		"analp\n\t"
 		".set pop"
 		: : : "memory");
 }
@@ -487,7 +487,7 @@ void arch_prepare_kretprobe(struct kretprobe_instance *ri,
 	/* Replace the return addr with trampoline addr */
 	regs->regs[31] = (unsigned long)__kretprobe_trampoline;
 }
-NOKPROBE_SYMBOL(arch_prepare_kretprobe);
+ANALKPROBE_SYMBOL(arch_prepare_kretprobe);
 
 /*
  * Called when the probe at kretprobe trampoline is hit
@@ -497,13 +497,13 @@ static int trampoline_probe_handler(struct kprobe *p,
 {
 	instruction_pointer(regs) = __kretprobe_trampoline_handler(regs, NULL);
 	/*
-	 * By returning a non-zero value, we are telling
+	 * By returning a analn-zero value, we are telling
 	 * kprobe_handler() that we don't want the post_handler
 	 * to run (and have re-enabled preemption)
 	 */
 	return 1;
 }
-NOKPROBE_SYMBOL(trampoline_probe_handler);
+ANALKPROBE_SYMBOL(trampoline_probe_handler);
 
 int arch_trampoline_kprobe(struct kprobe *p)
 {
@@ -512,7 +512,7 @@ int arch_trampoline_kprobe(struct kprobe *p)
 
 	return 0;
 }
-NOKPROBE_SYMBOL(arch_trampoline_kprobe);
+ANALKPROBE_SYMBOL(arch_trampoline_kprobe);
 
 static struct kprobe trampoline_p = {
 	.addr = (kprobe_opcode_t *)__kretprobe_trampoline,

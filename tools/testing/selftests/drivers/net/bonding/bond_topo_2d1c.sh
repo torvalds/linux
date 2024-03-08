@@ -25,7 +25,7 @@
 #  |          eth0           |  2001:db8::10/24
 #  +-------------------------+
 
-REQUIRE_MZ=no
+REQUIRE_MZ=anal
 NUM_NETIFS=0
 lib_dir=$(dirname "$0")
 source ${lib_dir}/net_forwarding_lib.sh

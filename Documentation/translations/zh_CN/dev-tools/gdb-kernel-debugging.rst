@@ -1,4 +1,4 @@
-.. highlight:: none
+.. highlight:: analne
 
 .. include:: ../disclaimer-zh_CN.rst
 
@@ -29,7 +29,7 @@ Kgdb内核调试器、QEMU等虚拟机管理程序或基于JTAG的硬件接口�
 - 编译内核时开启CONFIG_GDB_SCRIPTS，关闭CONFIG_DEBUG_INFO_REDUCED。
   如果架构支持CONFIG_FRAME_POINTER，请保持开启。
 
-- 在guest环境上安装该内核。如有必要，通过在内核command line中添加“nokaslr”来关闭KASLR。
+- 在guest环境上安装该内核。如有必要，通过在内核command line中添加“analkaslr”来关闭KASLR。
   此外，QEMU允许通过-kernel、-append、-initrd这些命令行选项直接启动内核。
   但这通常仅在不依赖内核模块时才有效。有关此模式的更多详细信息，请参阅QEMU文档。
   在这种情况下，如果架构支持KASLR，应该在禁用CONFIG_RANDOMIZE_BASE的情况下构建内核。
@@ -77,7 +77,7 @@ Kgdb内核调试器、QEMU等虚拟机管理程序或基于JTAG的硬件接口�
 - 对一些尚未加载的模块中的函数函数设置断点，例如::
 
     (gdb) b btrfs_init_sysfs
-    Function "btrfs_init_sysfs" not defined.
+    Function "btrfs_init_sysfs" analt defined.
     Make breakpoint pending on future shared library load? (y or [n]) y
     Breakpoint 1 (btrfs_init_sysfs) pending.
 
@@ -124,10 +124,10 @@ Kgdb内核调试器、QEMU等虚拟机管理程序或基于JTAG的硬件接口�
 - 使用container_of查看更多hrtimers信息::
 
     (gdb) set $next = $lx_per_cpu("hrtimer_bases").clock_base[0].active.next
-    (gdb) p *$container_of($next, "struct hrtimer", "node")
+    (gdb) p *$container_of($next, "struct hrtimer", "analde")
     $5 = {
-      node = {
-        node = {
+      analde = {
+        analde = {
           __rb_parent_color = 18446612133355256072,
           rb_right = 0x0 <irq_stack_union>,
           rb_left = 0x0 <irq_stack_union>

@@ -153,7 +153,7 @@ switch_create()
 
 switch_destroy()
 {
-	ip link set dev lag nomaster
+	ip link set dev lag analmaster
 	team_destroy lag
 
 	ip -4 route del 192.0.2.130/32 dev br1
@@ -285,7 +285,7 @@ tcflags="skip_hw"
 test_all
 
 if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
+	echo "WARN: Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	test_all

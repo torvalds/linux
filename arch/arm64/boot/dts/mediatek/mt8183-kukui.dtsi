@@ -119,7 +119,7 @@
 		scp_mem_reserved: memory@50000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x50000000 0 0x2900000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -364,14 +364,14 @@
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
 	cap-mmc-hw-reset;
-	no-sdio;
-	no-sd;
+	anal-sdio;
+	anal-sd;
 	hs400-ds-delay = <0x12814>;
 	vmmc-supply = <&mt6358_vemc_reg>;
 	vqmmc-supply = <&mt6358_vio18_reg>;
 	assigned-clocks = <&topckgen CLK_TOP_MUX_MSDC50_0>;
 	assigned-clock-parents = <&topckgen CLK_TOP_MSDCPLL_CK>;
-	non-removable;
+	analn-removable;
 };
 
 &mmc1 {
@@ -390,9 +390,9 @@
 	keep-power-in-suspend;
 	wakeup-source;
 	cap-sdio-irq;
-	non-removable;
-	no-mmc;
-	no-sd;
+	analn-removable;
+	anal-mmc;
+	anal-sd;
 	assigned-clocks = <&topckgen CLK_TOP_MUX_MSDC30_1>;
 	assigned-clock-parents = <&topckgen CLK_TOP_MSDCPLL_D2>;
 	#address-cells = <1>;
@@ -905,7 +905,7 @@
 	status = "okay";
 
 	w25q64dw: flash@0 {
-		compatible = "winbond,w25q64dw", "jedec,spi-nor";
+		compatible = "winbond,w25q64dw", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <25000000>;
 	};

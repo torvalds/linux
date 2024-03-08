@@ -5,7 +5,7 @@
 int main(void)
 {
 	/*
-	 * This function is guarded via: __nonnull_attribute__ (1, 2).
+	 * This function is guarded via: __analnnull_attribute__ (1, 2).
 	 * Passing '1' as arguments value. This code is never executed,
 	 * only compiled.
 	 */

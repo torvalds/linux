@@ -15,10 +15,10 @@
 
 #if defined(__XTENSA_EL__)
 #define J_INSN 0x6
-#define NOP_INSN 0x0020f0
+#define ANALP_INSN 0x0020f0
 #elif defined(__XTENSA_EB__)
 #define J_INSN 0x60000000
-#define NOP_INSN 0x0f020000
+#define ANALP_INSN 0x0f020000
 #else
 #error Unsupported endianness.
 #endif
@@ -88,8 +88,8 @@ void arch_jump_label_transform(struct jump_entry *e,
 		insn = ((d & J_OFFSET_MASK) << 8) | J_INSN;
 #endif
 	} else {
-		insn = NOP_INSN;
+		insn = ANALP_INSN;
 	}
 
-	patch_text(jump_entry_code(e), &insn, JUMP_LABEL_NOP_SIZE);
+	patch_text(jump_entry_code(e), &insn, JUMP_LABEL_ANALP_SIZE);
 }

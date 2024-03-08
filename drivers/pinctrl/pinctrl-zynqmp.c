@@ -48,7 +48,7 @@
  * @name:	Name of the pin mux function
  * @groups:	List of pin groups for this function
  * @ngroups:	Number of entries in @groups
- * @node:	Firmware node matching with the function
+ * @analde:	Firmware analde matching with the function
  *
  * This structure holds information about pin control function
  * and function group names supporting that function.
@@ -125,7 +125,7 @@ static const struct pinctrl_ops zynqmp_pctrl_ops = {
 	.get_groups_count = zynqmp_pctrl_get_groups_count,
 	.get_group_name = zynqmp_pctrl_get_group_name,
 	.get_group_pins = zynqmp_pctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -319,7 +319,7 @@ static int zynqmp_pinconf_cfg_get(struct pinctrl_dev *pctldev,
 		}
 		break;
 	default:
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		break;
 	}
 
@@ -422,8 +422,8 @@ static int zynqmp_pinconf_cfg_set(struct pinctrl_dev *pctldev,
 		case PIN_CONFIG_MODE_LOW_POWER:
 			/*
 			 * These cases are mentioned in dts but configurable
-			 * registers are unknown. So falling through to ignore
-			 * boot time warnings as of now.
+			 * registers are unkanalwn. So falling through to iganalre
+			 * boot time warnings as of analw.
 			 */
 			ret = 0;
 			break;
@@ -436,7 +436,7 @@ static int zynqmp_pinconf_cfg_set(struct pinctrl_dev *pctldev,
 			dev_warn(pctldev->dev,
 				 "unsupported configuration parameter '%u'\n",
 				 param);
-			ret = -ENOTSUPP;
+			ret = -EANALTSUPP;
 			break;
 		}
 
@@ -564,7 +564,7 @@ static int zynqmp_pinctrl_prepare_func_groups(struct device *dev, u32 fid,
 
 	fgroups = devm_kzalloc(dev, sizeof(*fgroups) * func->ngroups, GFP_KERNEL);
 	if (!fgroups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (index = 0; index < func->ngroups; index += NUM_GROUPS_PER_RESP) {
 		ret = zynqmp_pinctrl_get_function_groups(fid, index, resp);
@@ -583,14 +583,14 @@ static int zynqmp_pinctrl_prepare_func_groups(struct device *dev, u32 fid,
 							    func->name,
 							    index + i);
 			if (!fgroups[index + i])
-				return -ENOMEM;
+				return -EANALMEM;
 
 			groups[resp[i]].name = devm_kasprintf(dev, GFP_KERNEL,
 							      "%s_%d_grp",
 							      func->name,
 							      index + i);
 			if (!groups[resp[i]].name)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 done:
@@ -608,8 +608,8 @@ static void zynqmp_pinctrl_get_function_name(u32 fid, char *name)
 	qdata.arg1 = fid;
 
 	/*
-	 * Name of the function is maximum 16 bytes and cannot
-	 * accommodate the return value in SMC buffers, hence ignoring
+	 * Name of the function is maximum 16 bytes and cananalt
+	 * accommodate the return value in SMC buffers, hence iganalring
 	 * the return value for this specific qid.
 	 */
 	zynqmp_pm_query_data(qdata, payload);
@@ -756,7 +756,7 @@ static int zynqmp_pinctrl_prepare_function_info(struct device *dev,
 
 	funcs = devm_kzalloc(dev, sizeof(*funcs) * pctrl->nfuncs, GFP_KERNEL);
 	if (!funcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pctrl->nfuncs; i++) {
 		zynqmp_pinctrl_get_function_name(i, funcs[i].name);
@@ -770,7 +770,7 @@ static int zynqmp_pinctrl_prepare_function_info(struct device *dev,
 
 	groups = devm_kzalloc(dev, sizeof(*groups) * pctrl->ngroups, GFP_KERNEL);
 	if (!groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pctrl->nfuncs; i++) {
 		ret = zynqmp_pinctrl_prepare_func_groups(dev, i, &funcs[i],
@@ -832,7 +832,7 @@ static int zynqmp_pinctrl_prepare_pin_desc(struct device *dev,
 
 	pins = devm_kzalloc(dev, sizeof(*pins) * *npins, GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < *npins; i++) {
 		pin = &pins[i];
@@ -840,7 +840,7 @@ static int zynqmp_pinctrl_prepare_pin_desc(struct device *dev,
 		pin->name = devm_kasprintf(dev, GFP_KERNEL, "%s%d",
 					   ZYNQMP_PIN_PREFIX, i);
 		if (!pin->name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	*zynqmp_pins = pins;
@@ -855,7 +855,7 @@ static int zynqmp_pinctrl_probe(struct platform_device *pdev)
 
 	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = zynqmp_pinctrl_prepare_pin_desc(&pdev->dev,
 					      &zynqmp_desc.pins,

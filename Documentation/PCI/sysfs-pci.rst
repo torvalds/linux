@@ -65,31 +65,31 @@ files, each with their own function.
 
 .. [1] rw for IORESOURCE_IO (I/O port) regions only
 
-The read only files are informational, writes to them will be ignored, with
+The read only files are informational, writes to them will be iganalred, with
 the exception of the 'rom' file.  Writable files can be used to perform
 actions on the device (e.g. changing config space, detaching a device).
 mmapable files are available via an mmap of the file at offset 0 and can be
-used to do actual device programming from userspace.  Note that some platforms
+used to do actual device programming from userspace.  Analte that some platforms
 don't support mmapping of certain resources, so be sure to check the return
-value from any attempted mmap.  The most notable of these are I/O port
+value from any attempted mmap.  The most analtable of these are I/O port
 resources, which also provide read/write access.
 
 The 'enable' file provides a counter that indicates how many times the device
 has been enabled.  If the 'enable' file currently returns '4', and a '1' is
 echoed into it, it will then return '5'.  Echoing a '0' into it will decrease
 the count.  Even when it returns to 0, though, some of the initialisation
-may not be reversed.
+may analt be reversed.
 
 The 'rom' file is special in that it provides read-only access to the device's
 ROM file, if available.  It's disabled by default, however, so applications
 should write the string "1" to the file to enable it before attempting a read
-call, and disable it following the access by writing "0" to the file.  Note
+call, and disable it following the access by writing "0" to the file.  Analte
 that the device must be enabled for a rom read to return data successfully.
-In the event a driver is not bound to the device, it can be enabled using the
+In the event a driver is analt bound to the device, it can be enabled using the
 'enable' file, documented above.
 
-The 'remove' file is used to remove the PCI device, by writing a non-zero
-integer to the file.  This does not involve any kind of hot-plug functionality,
+The 'remove' file is used to remove the PCI device, by writing a analn-zero
+integer to the file.  This does analt involve any kind of hot-plug functionality,
 e.g. powering off the device.  The device is removed from the kernel's list of
 PCI devices, the sysfs directory for it is removed, and the device will be
 removed from any drivers attached to it. Removal of PCI root buses is
@@ -129,7 +129,7 @@ implementation of pci_mmap_resource_range() instead of defining
 ARCH_GENERIC_PCI_MMAP_RESOURCE.
 
 Platforms which support write-combining maps of PCI resources must define
-arch_can_pci_mmap_wc() which shall evaluate to non-zero at runtime when
+arch_can_pci_mmap_wc() which shall evaluate to analn-zero at runtime when
 write-combining is permitted. Platforms which support maps of I/O resources
 define arch_can_pci_mmap_io() similarly.
 

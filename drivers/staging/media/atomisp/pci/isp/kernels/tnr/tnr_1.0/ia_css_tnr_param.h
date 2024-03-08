@@ -20,7 +20,7 @@
 #include "sh_css_defs.h"
 #include "dma.h"
 
-/* TNR (Temporal Noise Reduction) */
+/* TNR (Temporal Analise Reduction) */
 struct sh_css_isp_tnr_params {
 	s32 coef;
 	s32 threshold_Y;

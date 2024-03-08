@@ -215,14 +215,14 @@
 	leds {
 		sd_card_led_pin: sd-card-led-pin {
 			rockchip,pins =
-			  <1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			  <1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb2 {
 		otg_vbus_drv: otg-vbus-drv {
 			rockchip,pins =
-			  <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			  <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

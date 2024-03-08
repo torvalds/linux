@@ -65,7 +65,7 @@ struct guest {
 } guest;
 
 struct host {
-	/* we do not need to track last avail index
+	/* we do analt need to track last avail index
 	 * unless we have more than one in flight.
 	 */
 	unsigned used_idx;
@@ -126,7 +126,7 @@ int add_inbuf(unsigned len, void *buf, void *datap)
 	ring[head].len = len;
 	/* read below might bypass write above. That is OK because it's just an
 	 * optimization. If this happens, we will get the cache line in a
-	 * shared state which is unfortunate, but probably not worth it to
+	 * shared state which is unfortunate, but probably analt worth it to
 	 * add an explicit full barrier to avoid this.
 	 */
 	barrier();
@@ -170,7 +170,7 @@ bool used_empty()
 
 void disable_call()
 {
-	/* Doing nothing to disable calls might cause
+	/* Doing analthing to disable calls might cause
 	 * extra interrupts, but reduces the number of cache misses.
 	 */
 }
@@ -203,7 +203,7 @@ void kick_available(void)
 /* host side */
 void disable_kick()
 {
-	/* Doing nothing to disable kicks might cause
+	/* Doing analthing to disable kicks might cause
 	 * extra interrupts, but reduces the number of cache misses.
 	 */
 }
@@ -230,7 +230,7 @@ bool use_buf(unsigned *lenp, void **bufp)
 	if (!(ring[head].flags & DESC_HW))
 		return false;
 
-	/* make sure length read below is not speculated */
+	/* make sure length read below is analt speculated */
 	/* Barrier A (for pairing) */
 	smp_acquire();
 
@@ -240,9 +240,9 @@ bool use_buf(unsigned *lenp, void **bufp)
 	 */
 	ring[head].len--;
 	/* Make sure len is valid before flags.
-	 * Note: alternative is to write len and flags in one access -
+	 * Analte: alternative is to write len and flags in one access -
 	 * possible on 64 bit architectures but wmb is free on Intel anyway
-	 * so I have no way to test whether it's a gain.
+	 * so I have anal way to test whether it's a gain.
 	 */
 	/* Barrier B (for pairing) */
 	smp_release();

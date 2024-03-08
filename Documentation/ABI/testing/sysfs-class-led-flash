@@ -60,7 +60,7 @@ Description:	read only
 			has exceeded the limit specific to the flash controller
 		* flash-timeout-exceeded
 			the flash strobe was still on when
-			the timeout set by the user has expired; not all flash
+			the timeout set by the user has expired; analt all flash
 			controllers may set this in all such conditions
 		* controller-over-temperature
 			the flash controller has
@@ -82,8 +82,8 @@ Description:	read only
 		* controller-under-voltage
 			the input voltage of the flash
 			controller is below the limit under which strobing the
-			flash at full current will not be possible;
-			the condition persists until this flag is no longer set
+			flash at full current will analt be possible;
+			the condition persists until this flag is anal longer set
 		* led-over-temperature
 			the temperature of the LED has exceeded
 			its allowed upper limit

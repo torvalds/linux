@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -693,7 +693,7 @@ void mpc32_power_on_shaper_3dlut(
 		REG_WAIT(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], MPCC_MCM_3DLUT_MEM_PWR_STATE, 0, 1, max_retries);
 	}
 
-	/*read status is not mandatory, it is just for debugging*/
+	/*read status is analt mandatory, it is just for debugging*/
 	REG_GET(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], MPCC_MCM_SHAPER_MEM_PWR_STATE, &power_status_shaper);
 	REG_GET(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], MPCC_MCM_3DLUT_MEM_PWR_STATE, &power_status_3dlut);
 
@@ -998,8 +998,8 @@ static const struct mpc_funcs dcn32_mpc_funcs = {
 	.wait_for_idle = mpc2_assert_idle_mpcc,
 	.assert_mpcc_idle_before_connect = mpc2_assert_mpcc_idle_before_connect,
 	.init_mpcc_list_from_hw = mpc1_init_mpcc_list_from_hw,
-	.set_denorm =  mpc3_set_denorm,
-	.set_denorm_clamp = mpc3_set_denorm_clamp,
+	.set_deanalrm =  mpc3_set_deanalrm,
+	.set_deanalrm_clamp = mpc3_set_deanalrm_clamp,
 	.set_output_csc = mpc3_set_output_csc,
 	.set_ocsc_default = mpc3_set_ocsc_default,
 	.set_output_gamma = mpc3_set_output_gamma,

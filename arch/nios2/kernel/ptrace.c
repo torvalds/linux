@@ -8,7 +8,7 @@
  */
 
 #include <linux/elf.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/ptrace.h>
@@ -52,9 +52,9 @@ static int genregs_set(struct task_struct *target,
 	const struct switch_stack *sw = (struct switch_stack *)regs - 1;
 	int ret = 0;
 
-#define REG_IGNORE_RANGE(START, END)		\
+#define REG_IGANALRE_RANGE(START, END)		\
 	if (!ret)					\
-		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, \
+		user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf, \
 			START * 4, (END * 4) + 4);
 
 #define REG_IN_ONE(PTR, LOC)	\
@@ -67,20 +67,20 @@ static int genregs_set(struct task_struct *target,
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, \
 			(void *)(PTR), START * 4, (END * 4) + 4);
 
-	REG_IGNORE_RANGE(PTR_R0, PTR_R0);
+	REG_IGANALRE_RANGE(PTR_R0, PTR_R0);
 	REG_IN_RANGE(&regs->r1, PTR_R1, PTR_R7);
 	REG_IN_RANGE(&regs->r8, PTR_R8, PTR_R15);
 	REG_IN_RANGE(sw, PTR_R16, PTR_R23);
-	REG_IGNORE_RANGE(PTR_R24, PTR_R25); /* et and bt */
+	REG_IGANALRE_RANGE(PTR_R24, PTR_R25); /* et and bt */
 	REG_IN_ONE(&regs->gp, PTR_GP);
 	REG_IN_ONE(&regs->sp, PTR_SP);
 	REG_IN_ONE(&regs->fp, PTR_FP);
 	REG_IN_ONE(&regs->ea, PTR_EA);
-	REG_IGNORE_RANGE(PTR_BA, PTR_BA);
+	REG_IGANALRE_RANGE(PTR_BA, PTR_BA);
 	REG_IN_ONE(&regs->ra, PTR_RA);
 	REG_IN_ONE(&regs->ea, PTR_PC); /* use ea for PC */
 	if (!ret)
-		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		user_regset_copyin_iganalre(&pos, &count, &kbuf, &ubuf,
 					  PTR_STATUS * 4, -1);
 
 	return ret;
@@ -95,7 +95,7 @@ enum nios2_regset {
 
 static const struct user_regset nios2_regsets[] = {
 	[REGSET_GENERAL] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_analte_type = NT_PRSTATUS,
 		.n = NUM_PTRACE_REG,
 		.size = sizeof(unsigned long),
 		.align = sizeof(unsigned long),

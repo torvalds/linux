@@ -52,7 +52,7 @@
 
 		compatible = "brcm,ubus", "simple-bus";
 		ranges;
-		/* No dma-ranges on Viper. */
+		/* Anal dma-ranges on Viper. */
 
 		periph_intc: periph_intc@14e00048 {
 			compatible = "brcm,bcm3380-l2-intc";
@@ -100,7 +100,7 @@
 			compatible = "brcm,bcm3384-ohci", "generic-ohci";
 			reg = <0x15400400 0x100>;
 			big-endian;
-			no-big-frame-no;
+			anal-big-frame-anal;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <40>;
 			status = "disabled";

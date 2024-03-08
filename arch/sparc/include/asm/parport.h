@@ -18,7 +18,7 @@
 
 /*
  * While sparc64 doesn't have an ISA DMA API, we provide something that looks
- * close enough to make parport_pc happy
+ * close eanalugh to make parport_pc happy
  */
 #define HAS_DMA
 
@@ -84,7 +84,7 @@ static inline void disable_dma(unsigned int dmanr)
 
 static inline void clear_dma_ff(unsigned int dmanr)
 {
-	/* nothing */
+	/* analthing */
 }
 
 static inline void set_dma_mode(unsigned int dmanr, char mode)
@@ -113,17 +113,17 @@ static int ecpp_probe(struct platform_device *op)
 	unsigned long config = op->resource[1].start;
 	unsigned long d_base = op->resource[2].start;
 	unsigned long d_len;
-	struct device_node *parent;
+	struct device_analde *parent;
 	struct parport *p;
 	int slot, err;
 
-	parent = op->dev.of_node->parent;
-	if (of_node_name_eq(parent, "dma")) {
+	parent = op->dev.of_analde->parent;
+	if (of_analde_name_eq(parent, "dma")) {
 		p = parport_pc_probe_port(base, base + 0x400,
-					  op->archdata.irqs[0], PARPORT_DMA_NOFIFO,
+					  op->archdata.irqs[0], PARPORT_DMA_ANALFIFO,
 					  op->dev.parent->parent, 0);
 		if (!p)
-			return -ENOMEM;
+			return -EANALMEM;
 		dev_set_drvdata(&op->dev, p);
 		return 0;
 	}
@@ -132,7 +132,7 @@ static int ecpp_probe(struct platform_device *op)
 		if (!test_and_set_bit(slot, dma_slot_map))
 			break;
 	}
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (slot >= PARPORT_PC_MAX_PORTS)
 		goto out_err;
 
@@ -174,7 +174,7 @@ static int ecpp_probe(struct platform_device *op)
 				  slot,
 				  op->dev.parent,
 				  0);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!p)
 		goto out_disable_irq;
 
@@ -203,7 +203,7 @@ static int ecpp_remove(struct platform_device *op)
 
 	parport_pc_unregister_port(p);
 
-	if (slot != PARPORT_DMA_NOFIFO) {
+	if (slot != PARPORT_DMA_ANALFIFO) {
 		unsigned long d_base = op->resource[2].start;
 		unsigned long d_len;
 
@@ -248,7 +248,7 @@ static struct platform_driver ecpp_driver = {
 	.remove			= ecpp_remove,
 };
 
-static int parport_pc_find_nonpci_ports(int autoirq, int autodma)
+static int parport_pc_find_analnpci_ports(int autoirq, int autodma)
 {
 	return platform_driver_register(&ecpp_driver);
 }

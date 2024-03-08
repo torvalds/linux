@@ -26,7 +26,7 @@ static int dwmac_generic_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		plat_dat = devm_stmmac_probe_config_dt(pdev, stmmac_res.mac);
 		if (IS_ERR(plat_dat)) {
 			dev_err(&pdev->dev, "dt configuration failed\n");
@@ -35,7 +35,7 @@ static int dwmac_generic_probe(struct platform_device *pdev)
 	} else {
 		plat_dat = dev_get_platdata(&pdev->dev);
 		if (!plat_dat) {
-			dev_err(&pdev->dev, "no platform data provided\n");
+			dev_err(&pdev->dev, "anal platform data provided\n");
 			return  -EINVAL;
 		}
 

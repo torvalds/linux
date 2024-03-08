@@ -38,13 +38,13 @@
 
 /* hcall macros */
 #define h_register_logical_lan(ua, buflst, rxq, fltlst, mac) \
-  plpar_hcall_norets(H_REGISTER_LOGICAL_LAN, ua, buflst, rxq, fltlst, mac)
+  plpar_hcall_analrets(H_REGISTER_LOGICAL_LAN, ua, buflst, rxq, fltlst, mac)
 
 #define h_free_logical_lan(ua) \
-  plpar_hcall_norets(H_FREE_LOGICAL_LAN, ua)
+  plpar_hcall_analrets(H_FREE_LOGICAL_LAN, ua)
 
 #define h_add_logical_lan_buffer(ua, buf) \
-  plpar_hcall_norets(H_ADD_LOGICAL_LAN_BUFFER, ua, buf)
+  plpar_hcall_analrets(H_ADD_LOGICAL_LAN_BUFFER, ua, buf)
 
 /* FW allows us to send 6 descriptors but we only use one so mark
  * the other 5 as unused (0)
@@ -85,10 +85,10 @@ static inline long h_illan_attributes(unsigned long unit_address,
 }
 
 #define h_multicast_ctrl(ua, cmd, mac) \
-  plpar_hcall_norets(H_MULTICAST_CTRL, ua, cmd, mac)
+  plpar_hcall_analrets(H_MULTICAST_CTRL, ua, cmd, mac)
 
 #define h_change_logical_lan_mac(ua, mac) \
-  plpar_hcall_norets(H_CHANGE_LOGICAL_LAN_MAC, ua, mac)
+  plpar_hcall_analrets(H_CHANGE_LOGICAL_LAN_MAC, ua, mac)
 
 #define IBMVETH_NUM_BUFF_POOLS 5
 #define IBMVETH_IO_ENTITLEMENT_DEFAULT 4243456 /* MTU of 1500 needs 4.2Mb */
@@ -156,11 +156,11 @@ struct ibmveth_adapter {
     u64 fw_large_send_support;
     /* adapter specific stats */
     u64 replenish_task_cycles;
-    u64 replenish_no_mem;
+    u64 replenish_anal_mem;
     u64 replenish_add_buff_failure;
     u64 replenish_add_buff_success;
     u64 rx_invalid_buffer;
-    u64 rx_no_buffer;
+    u64 rx_anal_buffer;
     u64 tx_map_failed;
     u64 tx_send_failed;
     u64 tx_large_packets;
@@ -188,7 +188,7 @@ struct ibmveth_buf_desc_fields {
 #define IBMVETH_BUF_VALID	0x80000000
 #define IBMVETH_BUF_TOGGLE	0x40000000
 #define IBMVETH_BUF_LRG_SND     0x04000000
-#define IBMVETH_BUF_NO_CSUM	0x02000000
+#define IBMVETH_BUF_ANAL_CSUM	0x02000000
 #define IBMVETH_BUF_CSUM_GOOD	0x01000000
 #define IBMVETH_BUF_LEN_MASK	0x00FFFFFF
 };
@@ -204,12 +204,12 @@ struct ibmveth_rx_q_entry {
 #define IBMVETH_RXQ_TOGGLE_SHIFT	31
 #define IBMVETH_RXQ_VALID		0x40000000
 #define IBMVETH_RXQ_LRG_PKT		0x04000000
-#define IBMVETH_RXQ_NO_CSUM		0x02000000
+#define IBMVETH_RXQ_ANAL_CSUM		0x02000000
 #define IBMVETH_RXQ_CSUM_GOOD		0x01000000
 #define IBMVETH_RXQ_OFF_MASK		0x0000FFFF
 
 	__be32 length;
-	/* correlator is only used by the OS, no need to byte swap */
+	/* correlator is only used by the OS, anal need to byte swap */
 	u64 correlator;
 };
 

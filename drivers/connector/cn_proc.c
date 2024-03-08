@@ -4,7 +4,7 @@
  *
  * Copyright (C) Matt Helsley, IBM Corp. 2005
  * Based on cn_fork.c by Guillaume Thouvenin <guillaume.thouvenin@bull.net>
- * Original copyright notice follows:
+ * Original copyright analtice follows:
  * Copyright (C) 2005 BULL SA.
  */
 
@@ -22,7 +22,7 @@
 
 /*
  * Size of a cn_msg followed by a proc_event structure.  Since the
- * sizeof struct cn_msg is a multiple of 4 bytes, but not 8 bytes, we
+ * sizeof struct cn_msg is a multiple of 4 bytes, but analt 8 bytes, we
  * add one 4-byte word to the size here, and then start the actual
  * cn_msg structure 4 bytes into the stack buffer.  The result is that
  * the immediately following proc_event structure is aligned to 8 bytes.
@@ -63,17 +63,17 @@ static int cn_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 	val = ((struct proc_input *)(dsk->sk_user_data))->event_type;
 	mc_op = ((struct proc_input *)(dsk->sk_user_data))->mcast_op;
 
-	if (mc_op == PROC_CN_MCAST_IGNORE)
+	if (mc_op == PROC_CN_MCAST_IGANALRE)
 		return 1;
 
 	if ((__u32)val == PROC_EVENT_ALL)
 		return 0;
 
 	/*
-	 * Drop packet if we have to report only non-zero exit status
-	 * (PROC_EVENT_NONZERO_EXIT) and exit status is 0
+	 * Drop packet if we have to report only analn-zero exit status
+	 * (PROC_EVENT_ANALNZERO_EXIT) and exit status is 0
 	 */
-	if (((__u32)val & PROC_EVENT_NONZERO_EXIT) &&
+	if (((__u32)val & PROC_EVENT_ANALNZERO_EXIT) &&
 	    (what == PROC_EVENT_EXIT)) {
 		if (exit_code)
 			return 0;
@@ -98,7 +98,7 @@ static inline void send_msg(struct cn_msg *msg)
 	 * local_lock() disables preemption during send to ensure the messages
 	 * are ordered according to their sequence numbers.
 	 *
-	 * If cn_netlink_send() fails, the data is not sent.
+	 * If cn_netlink_send() fails, the data is analt sent.
 	 */
 	filter_data[0] = ((struct proc_event *)msg->data)->what;
 	if (filter_data[0] == PROC_EVENT_EXIT) {
@@ -108,7 +108,7 @@ static inline void send_msg(struct cn_msg *msg)
 		filter_data[1] = 0;
 	}
 
-	cn_netlink_send_mult(msg, msg->len, 0, CN_IDX_PROC, GFP_NOWAIT,
+	cn_netlink_send_mult(msg, msg->len, 0, CN_IDX_PROC, GFP_ANALWAIT,
 			     cn_filter, (void *)filter_data);
 
 	local_unlock(&local_event.lock);
@@ -138,9 +138,9 @@ void proc_fork_connector(struct task_struct *task)
 	ev->event_data.fork.child_tgid = task->tgid;
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* analt used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* analt used */
 	send_msg(msg);
 }
 
@@ -162,9 +162,9 @@ void proc_exec_connector(struct task_struct *task)
 	ev->event_data.exec.process_tgid = task->tgid;
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* analt used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* analt used */
 	send_msg(msg);
 }
 
@@ -200,9 +200,9 @@ void proc_id_connector(struct task_struct *task, int which_id)
 	ev->timestamp_ns = ktime_get_ns();
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* analt used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* analt used */
 	send_msg(msg);
 }
 
@@ -224,9 +224,9 @@ void proc_sid_connector(struct task_struct *task)
 	ev->event_data.sid.process_tgid = task->tgid;
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* analt used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* analt used */
 	send_msg(msg);
 }
 
@@ -256,9 +256,9 @@ void proc_ptrace_connector(struct task_struct *task, int ptrace_id)
 		return;
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* analt used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* analt used */
 	send_msg(msg);
 }
 
@@ -281,9 +281,9 @@ void proc_comm_connector(struct task_struct *task)
 	get_task_comm(ev->event_data.comm.comm, task);
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* analt used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* analt used */
 	send_msg(msg);
 }
 
@@ -314,9 +314,9 @@ void proc_coredump_connector(struct task_struct *task)
 	rcu_read_unlock();
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* analt used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* analt used */
 	send_msg(msg);
 }
 
@@ -349,18 +349,18 @@ void proc_exit_connector(struct task_struct *task)
 	rcu_read_unlock();
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* analt used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* analt used */
 	send_msg(msg);
 }
 
 /*
- * Send an acknowledgement message to userspace
+ * Send an ackanalwledgement message to userspace
  *
  * Use 0 for success, EFOO otherwise.
- * Note: this is the negative of conventional kernel error
- * values because it's not being returned via syscall return
+ * Analte: this is the negative of conventional kernel error
+ * values because it's analt being returned via syscall return
  * mechanisms.
  */
 static void cn_proc_ack(int err, int rcvd_seq, int rcvd_ack)
@@ -378,12 +378,12 @@ static void cn_proc_ack(int err, int rcvd_seq, int rcvd_ack)
 	msg->seq = rcvd_seq;
 	ev->timestamp_ns = ktime_get_ns();
 	ev->cpu = -1;
-	ev->what = PROC_EVENT_NONE;
+	ev->what = PROC_EVENT_ANALNE;
 	ev->event_data.ack.err = err;
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
 	msg->ack = rcvd_ack + 1;
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* analt used */
 	send_msg(msg);
 }
 
@@ -403,7 +403,7 @@ static void cn_proc_mcast_ctl(struct cn_msg *msg,
 
 	/* 
 	 * Events are reported with respect to the initial pid
-	 * and user namespaces so ignore requestors from
+	 * and user namespaces so iganalre requestors from
 	 * other namespaces.
 	 */
 	if ((current_user_ns() != &init_user_ns) ||
@@ -423,7 +423,7 @@ static void cn_proc_mcast_ctl(struct cn_msg *msg,
 
 	ev_type = valid_event((enum proc_cn_event)ev_type);
 
-	if (ev_type == PROC_EVENT_NONE)
+	if (ev_type == PROC_EVENT_ANALNE)
 		ev_type = PROC_EVENT_ALL;
 
 	if (nsp->sk) {
@@ -432,7 +432,7 @@ static void cn_proc_mcast_ctl(struct cn_msg *msg,
 			sk->sk_user_data = kzalloc(sizeof(struct proc_input),
 						   GFP_KERNEL);
 			if (sk->sk_user_data == NULL) {
-				err = ENOMEM;
+				err = EANALMEM;
 				goto out;
 			}
 			initial = 1;
@@ -450,11 +450,11 @@ static void cn_proc_mcast_ctl(struct cn_msg *msg,
 		if (initial || (prev_mc_op != PROC_CN_MCAST_LISTEN))
 			atomic_inc(&proc_event_num_listeners);
 		break;
-	case PROC_CN_MCAST_IGNORE:
-		if (!initial && (prev_mc_op != PROC_CN_MCAST_IGNORE))
+	case PROC_CN_MCAST_IGANALRE:
+		if (!initial && (prev_mc_op != PROC_CN_MCAST_IGANALRE))
 			atomic_dec(&proc_event_num_listeners);
 		((struct proc_input *)(sk->sk_user_data))->event_type =
-			PROC_EVENT_NONE;
+			PROC_EVENT_ANALNE;
 		break;
 	default:
 		err = EINVAL;

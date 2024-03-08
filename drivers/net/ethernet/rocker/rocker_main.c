@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/net/ethernet/rocker/rocker.c - Rocker switch device driver
- * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellaanalx.com>
  * Copyright (c) 2014 Scott Feldman <sfeldma@gmail.com>
  */
 
@@ -30,8 +30,8 @@
 #include <net/netevent.h>
 #include <net/arp.h>
 #include <net/fib_rules.h>
-#include <net/fib_notifier.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <net/fib_analtifier.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <generated/utsrelease.h>
 
 #include "rocker_hw.h"
@@ -48,13 +48,13 @@ static const struct pci_device_id rocker_pci_id_table[] = {
 struct rocker_wait {
 	wait_queue_head_t wait;
 	bool done;
-	bool nowait;
+	bool analwait;
 };
 
 static void rocker_wait_reset(struct rocker_wait *wait)
 {
 	wait->done = false;
-	wait->nowait = false;
+	wait->analwait = false;
 }
 
 static void rocker_wait_init(struct rocker_wait *wait)
@@ -165,7 +165,7 @@ static int rocker_dma_test_one(const struct rocker *rocker,
 	rocker_write32(rocker, TEST_DMA_CTRL, test_type);
 
 	if (!rocker_wait_event_timeout(wait, HZ / 10)) {
-		dev_err(&pdev->dev, "no interrupt received within a timeout\n");
+		dev_err(&pdev->dev, "anal interrupt received within a timeout\n");
 		return -EIO;
 	}
 
@@ -196,7 +196,7 @@ static int rocker_dma_test_offset(const struct rocker *rocker,
 	alloc = kzalloc(ROCKER_TEST_DMA_BUF_SIZE * 2 + offset,
 			GFP_KERNEL | GFP_DMA);
 	if (!alloc)
-		return -ENOMEM;
+		return -EANALMEM;
 	buf = alloc + offset;
 	expect = buf + ROCKER_TEST_DMA_BUF_SIZE;
 
@@ -281,7 +281,7 @@ static int rocker_basic_hw_test(const struct rocker *rocker)
 			  rocker_test_irq_handler, 0,
 			  rocker_driver_name, &wait);
 	if (err) {
-		dev_err(&pdev->dev, "cannot assign test irq\n");
+		dev_err(&pdev->dev, "cananalt assign test irq\n");
 		return err;
 	}
 
@@ -289,7 +289,7 @@ static int rocker_basic_hw_test(const struct rocker *rocker)
 	rocker_write32(rocker, TEST_IRQ, ROCKER_MSIX_VEC_TEST);
 
 	if (!rocker_wait_event_timeout(&wait, HZ / 10)) {
-		dev_err(&pdev->dev, "no interrupt received within a timeout\n");
+		dev_err(&pdev->dev, "anal interrupt received within a timeout\n");
 		err = -EIO;
 		goto free_irq;
 	}
@@ -319,22 +319,22 @@ static int rocker_desc_err(const struct rocker_desc_info *desc_info)
 	switch (err) {
 	case ROCKER_OK:
 		return 0;
-	case -ROCKER_ENOENT:
-		return -ENOENT;
+	case -ROCKER_EANALENT:
+		return -EANALENT;
 	case -ROCKER_ENXIO:
 		return -ENXIO;
-	case -ROCKER_ENOMEM:
-		return -ENOMEM;
+	case -ROCKER_EANALMEM:
+		return -EANALMEM;
 	case -ROCKER_EEXIST:
 		return -EEXIST;
 	case -ROCKER_EINVAL:
 		return -EINVAL;
 	case -ROCKER_EMSGSIZE:
 		return -EMSGSIZE;
-	case -ROCKER_ENOTSUP:
-		return -EOPNOTSUPP;
-	case -ROCKER_ENOBUFS:
-		return -ENOBUFS;
+	case -ROCKER_EANALTSUP:
+		return -EOPANALTSUPP;
+	case -ROCKER_EANALBUFS:
+		return -EANALBUFS;
 	}
 
 	return -EINVAL;
@@ -401,10 +401,10 @@ rocker_desc_tail_get(struct rocker_dma_ring_info *info)
 	struct rocker_desc_info *desc_info;
 
 	if (info->tail == info->head)
-		return NULL; /* nothing to be done between head and tail */
+		return NULL; /* analthing to be done between head and tail */
 	desc_info = &info->desc_info[info->tail];
 	if (!rocker_desc_gen(desc_info))
-		return NULL; /* gen bit not set, desc is not ready yet */
+		return NULL; /* gen bit analt set, desc is analt ready yet */
 	info->tail = __pos_inc(info->tail, info->size);
 	desc_info->tlv_size = desc_info->desc->tlv_size;
 	return desc_info;
@@ -439,14 +439,14 @@ static int rocker_dma_ring_create(const struct rocker *rocker,
 	info->desc_info = kcalloc(info->size, sizeof(*info->desc_info),
 				  GFP_KERNEL);
 	if (!info->desc_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->desc = dma_alloc_coherent(&rocker->pdev->dev,
 					info->size * sizeof(*info->desc),
 					&info->mapaddr, GFP_KERNEL);
 	if (!info->desc) {
 		kfree(info->desc_info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < info->size; i++)
@@ -502,7 +502,7 @@ static int rocker_dma_ring_bufs_alloc(const struct rocker *rocker,
 
 		buf = kzalloc(buf_size, GFP_KERNEL | GFP_DMA);
 		if (!buf) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto rollback;
 		}
 
@@ -561,7 +561,7 @@ static int rocker_dma_cmd_ring_wait_alloc(struct rocker_desc_info *desc_info)
 
 	wait = rocker_wait_create();
 	if (!wait)
-		return -ENOMEM;
+		return -EANALMEM;
 	rocker_desc_cookie_ptr_set(desc_info, wait);
 	return 0;
 }
@@ -708,14 +708,14 @@ static int rocker_dma_rx_ring_skb_alloc(const struct rocker_port *rocker_port,
 	int err;
 
 	/* Ensure that hw will see tlv_size zero in case of an error.
-	 * That tells hw to use another descriptor.
+	 * That tells hw to use aanalther descriptor.
 	 */
 	rocker_desc_cookie_ptr_set(desc_info, NULL);
 	desc_info->tlv_size = 0;
 
 	skb = netdev_alloc_skb_ip_align(dev, buf_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = rocker_dma_rx_ring_skb_map(rocker_port, desc_info, skb, buf_len);
 	if (err) {
 		dev_kfree_skb_any(skb);
@@ -884,7 +884,7 @@ static irqreturn_t rocker_cmd_irq_handler(int irq, void *dev_id)
 	spin_lock(&rocker->cmd_ring_lock);
 	while ((desc_info = rocker_desc_tail_get(&rocker->cmd_ring))) {
 		wait = rocker_desc_cookie_ptr_get(desc_info);
-		if (wait->nowait) {
+		if (wait->analwait) {
 			rocker_desc_gen_clear(desc_info);
 		} else {
 			rocker_wait_wake_up(wait);
@@ -991,7 +991,7 @@ static int rocker_event_process(const struct rocker *rocker,
 		return rocker_event_mac_vlan_seen(rocker, info);
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static irqreturn_t rocker_event_irq_handler(int irq, void *dev_id)
@@ -1042,7 +1042,7 @@ static irqreturn_t rocker_rx_irq_handler(int irq, void *dev_id)
  * Command interface
  ********************/
 
-int rocker_cmd_exec(struct rocker_port *rocker_port, bool nowait,
+int rocker_cmd_exec(struct rocker_port *rocker_port, bool analwait,
 		    rocker_cmd_prep_cb_t prepare, void *prepare_priv,
 		    rocker_cmd_proc_cb_t process, void *process_priv)
 {
@@ -1062,7 +1062,7 @@ int rocker_cmd_exec(struct rocker_port *rocker_port, bool nowait,
 
 	wait = rocker_desc_cookie_ptr_get(desc_info);
 	rocker_wait_init(wait);
-	wait->nowait = nowait;
+	wait->analwait = analwait;
 
 	err = prepare(rocker_port, desc_info, prepare_priv);
 	if (err) {
@@ -1074,7 +1074,7 @@ int rocker_cmd_exec(struct rocker_port *rocker_port, bool nowait,
 
 	spin_unlock_irqrestore(&rocker->cmd_ring_lock, lock_flags);
 
-	if (nowait)
+	if (analwait)
 		return 0;
 
 	if (!rocker_wait_event_timeout(wait, HZ / 10))
@@ -1440,14 +1440,14 @@ static int rocker_world_init(struct rocker *rocker, u8 mode)
 
 	wops = rocker_world_ops_find(mode);
 	if (!wops) {
-		dev_err(&rocker->pdev->dev, "port mode \"%d\" is not supported\n",
+		dev_err(&rocker->pdev->dev, "port mode \"%d\" is analt supported\n",
 			mode);
 		return -EINVAL;
 	}
 	rocker->wops = wops;
 	rocker->wpriv = kzalloc(wops->priv_size, GFP_KERNEL);
 	if (!rocker->wpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!wops->init)
 		return 0;
 	err = wops->init(rocker);
@@ -1479,7 +1479,7 @@ static int rocker_world_check_init(struct rocker_port *rocker_port)
 	}
 	if (rocker->wops) {
 		if (rocker->wops->mode != mode) {
-			dev_err(&rocker->pdev->dev, "hardware has ports in different worlds, which is not supported\n");
+			dev_err(&rocker->pdev->dev, "hardware has ports in different worlds, which is analt supported\n");
 			return -EINVAL;
 		}
 		return 0;
@@ -1494,7 +1494,7 @@ static int rocker_world_port_pre_init(struct rocker_port *rocker_port)
 
 	rocker_port->wpriv = kzalloc(wops->port_priv_size, GFP_KERNEL);
 	if (!rocker_port->wpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!wops->port_pre_init)
 		return 0;
 	err = wops->port_pre_init(rocker_port);
@@ -1555,7 +1555,7 @@ static int rocker_world_port_attr_stp_state_set(struct rocker_port *rocker_port,
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
 	if (!wops->port_attr_stp_state_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return wops->port_attr_stp_state_set(rocker_port, state);
 }
@@ -1569,7 +1569,7 @@ rocker_world_port_attr_bridge_flags_support_get(const struct rocker_port *
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
 	if (!wops->port_attr_bridge_flags_support_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return wops->port_attr_bridge_flags_support_get(rocker_port,
 							p_brport_flags_support);
 }
@@ -1583,7 +1583,7 @@ rocker_world_port_attr_pre_bridge_flags_set(struct rocker_port *rocker_port,
 	int err;
 
 	if (!wops->port_attr_bridge_flags_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = rocker_world_port_attr_bridge_flags_support_get(rocker_port,
 							      &brport_flags_s);
@@ -1603,7 +1603,7 @@ rocker_world_port_attr_bridge_flags_set(struct rocker_port *rocker_port,
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
 	if (!wops->port_attr_bridge_flags_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return wops->port_attr_bridge_flags_set(rocker_port, flags.val);
 }
@@ -1615,7 +1615,7 @@ rocker_world_port_attr_bridge_ageing_time_set(struct rocker_port *rocker_port,
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
 	if (!wops->port_attr_bridge_ageing_time_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return wops->port_attr_bridge_ageing_time_set(rocker_port, ageing_time);
 }
@@ -1627,7 +1627,7 @@ rocker_world_port_obj_vlan_add(struct rocker_port *rocker_port,
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
 	if (!wops->port_obj_vlan_add)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return wops->port_obj_vlan_add(rocker_port, vlan);
 }
@@ -1639,33 +1639,33 @@ rocker_world_port_obj_vlan_del(struct rocker_port *rocker_port,
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
 	if (netif_is_bridge_master(vlan->obj.orig_dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!wops->port_obj_vlan_del)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return wops->port_obj_vlan_del(rocker_port, vlan);
 }
 
 static int
 rocker_world_port_fdb_add(struct rocker_port *rocker_port,
-			  struct switchdev_notifier_fdb_info *info)
+			  struct switchdev_analtifier_fdb_info *info)
 {
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
 	if (!wops->port_obj_fdb_add)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return wops->port_obj_fdb_add(rocker_port, info->vid, info->addr);
 }
 
 static int
 rocker_world_port_fdb_del(struct rocker_port *rocker_port,
-			  struct switchdev_notifier_fdb_info *info)
+			  struct switchdev_analtifier_fdb_info *info)
 {
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
 	if (!wops->port_obj_fdb_del)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return wops->port_obj_fdb_del(rocker_port, info->vid, info->addr);
 }
 
@@ -1676,7 +1676,7 @@ static int rocker_world_port_master_linked(struct rocker_port *rocker_port,
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
 	if (!wops->port_master_linked)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return wops->port_master_linked(rocker_port, master, extack);
 }
 
@@ -1686,7 +1686,7 @@ static int rocker_world_port_master_unlinked(struct rocker_port *rocker_port,
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
 	if (!wops->port_master_unlinked)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return wops->port_master_unlinked(rocker_port, master);
 }
 
@@ -1696,7 +1696,7 @@ static int rocker_world_port_neigh_update(struct rocker_port *rocker_port,
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
 	if (!wops->port_neigh_update)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return wops->port_neigh_update(rocker_port, n);
 }
 
@@ -1706,7 +1706,7 @@ static int rocker_world_port_neigh_destroy(struct rocker_port *rocker_port,
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
 	if (!wops->port_neigh_destroy)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return wops->port_neigh_destroy(rocker_port, n);
 }
 
@@ -1717,12 +1717,12 @@ static int rocker_world_port_ev_mac_vlan_seen(struct rocker_port *rocker_port,
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
 	if (!wops->port_ev_mac_vlan_seen)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return wops->port_ev_mac_vlan_seen(rocker_port, addr, vlan_id);
 }
 
 static int rocker_world_fib4_add(struct rocker *rocker,
-				 const struct fib_entry_notifier_info *fen_info)
+				 const struct fib_entry_analtifier_info *fen_info)
 {
 	struct rocker_world_ops *wops = rocker->wops;
 
@@ -1732,7 +1732,7 @@ static int rocker_world_fib4_add(struct rocker *rocker,
 }
 
 static int rocker_world_fib4_del(struct rocker *rocker,
-				 const struct fib_entry_notifier_info *fen_info)
+				 const struct fib_entry_analtifier_info *fen_info)
 {
 	struct rocker_world_ops *wops = rocker->wops;
 
@@ -1766,7 +1766,7 @@ static int rocker_port_open(struct net_device *dev)
 			  rocker_tx_irq_handler, 0,
 			  rocker_driver_name, rocker_port);
 	if (err) {
-		netdev_err(rocker_port->dev, "cannot assign tx irq\n");
+		netdev_err(rocker_port->dev, "cananalt assign tx irq\n");
 		goto err_request_tx_irq;
 	}
 
@@ -1774,13 +1774,13 @@ static int rocker_port_open(struct net_device *dev)
 			  rocker_rx_irq_handler, 0,
 			  rocker_driver_name, rocker_port);
 	if (err) {
-		netdev_err(rocker_port->dev, "cannot assign rx irq\n");
+		netdev_err(rocker_port->dev, "cananalt assign rx irq\n");
 		goto err_request_rx_irq;
 	}
 
 	err = rocker_world_port_open(rocker_port);
 	if (err) {
-		netdev_err(rocker_port->dev, "cannot open port in world\n");
+		netdev_err(rocker_port->dev, "cananalt open port in world\n");
 		goto err_world_port_open;
 	}
 
@@ -1949,7 +1949,7 @@ static int rocker_port_set_mac_address(struct net_device *dev, void *p)
 	int err;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	err = rocker_cmd_set_port_settings_macaddr(rocker_port, addr->sa_data);
 	if (err)
@@ -1992,7 +1992,7 @@ static int rocker_port_get_phys_port_name(struct net_device *dev,
 			      rocker_cmd_get_port_settings_phys_name_proc,
 			      &name);
 
-	return err ? -EOPNOTSUPP : 0;
+	return err ? -EOPANALTSUPP : 0;
 }
 
 static void rocker_port_neigh_destroy(struct net_device *dev,
@@ -2058,7 +2058,7 @@ static int rocker_port_attr_set(struct net_device *dev,
 								    attr->u.ageing_time);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -2077,7 +2077,7 @@ static int rocker_port_obj_add(struct net_device *dev,
 						     SWITCHDEV_OBJ_PORT_VLAN(obj));
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -2096,7 +2096,7 @@ static int rocker_port_obj_del(struct net_device *dev,
 						     SWITCHDEV_OBJ_PORT_VLAN(obj));
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -2106,8 +2106,8 @@ static int rocker_port_obj_del(struct net_device *dev,
 struct rocker_fib_event_work {
 	struct work_struct work;
 	union {
-		struct fib_entry_notifier_info fen_info;
-		struct fib_rule_notifier_info fr_info;
+		struct fib_entry_analtifier_info fen_info;
+		struct fib_rule_analtifier_info fr_info;
 	};
 	struct rocker *rocker;
 	unsigned long event;
@@ -2147,19 +2147,19 @@ static void rocker_router_fib_event_work(struct work_struct *work)
 }
 
 /* Called with rcu_read_lock() */
-static int rocker_router_fib_event(struct notifier_block *nb,
+static int rocker_router_fib_event(struct analtifier_block *nb,
 				   unsigned long event, void *ptr)
 {
 	struct rocker *rocker = container_of(nb, struct rocker, fib_nb);
 	struct rocker_fib_event_work *fib_work;
-	struct fib_notifier_info *info = ptr;
+	struct fib_analtifier_info *info = ptr;
 
 	if (info->family != AF_INET)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	fib_work = kzalloc(sizeof(*fib_work), GFP_ATOMIC);
 	if (WARN_ON(!fib_work))
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
 	INIT_WORK(&fib_work->work, rocker_router_fib_event_work);
 	fib_work->rocker = rocker;
@@ -2169,17 +2169,17 @@ static int rocker_router_fib_event(struct notifier_block *nb,
 	case FIB_EVENT_ENTRY_REPLACE:
 	case FIB_EVENT_ENTRY_DEL:
 		if (info->family == AF_INET) {
-			struct fib_entry_notifier_info *fen_info = ptr;
+			struct fib_entry_analtifier_info *fen_info = ptr;
 
 			if (fen_info->fi->fib_nh_is_v6) {
-				NL_SET_ERR_MSG_MOD(info->extack, "IPv6 gateway with IPv4 route is not supported");
+				NL_SET_ERR_MSG_MOD(info->extack, "IPv6 gateway with IPv4 route is analt supported");
 				kfree(fib_work);
-				return notifier_from_errno(-EINVAL);
+				return analtifier_from_erranal(-EINVAL);
 			}
 			if (fen_info->fi->nh) {
-				NL_SET_ERR_MSG_MOD(info->extack, "IPv4 route with nexthop objects is not supported");
+				NL_SET_ERR_MSG_MOD(info->extack, "IPv4 route with nexthop objects is analt supported");
 				kfree(fib_work);
-				return notifier_from_errno(-EINVAL);
+				return analtifier_from_erranal(-EINVAL);
 			}
 		}
 
@@ -2198,7 +2198,7 @@ static int rocker_router_fib_event(struct notifier_block *nb,
 
 	queue_work(rocker->rocker_owq, &fib_work->work);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /********************
@@ -2353,7 +2353,7 @@ static int rocker_port_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		return ROCKER_PORT_STATS_LEN;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -2425,7 +2425,7 @@ static int rocker_port_rx_proc(const struct rocker *rocker,
 	u16 rx_flags = 0;
 
 	if (!skb)
-		return -ENOENT;
+		return -EANALENT;
 
 	rocker_tlv_parse_desc(attrs, ROCKER_TLV_RX_MAX, desc_info);
 	if (!attrs[ROCKER_TLV_RX_FRAG_LEN])
@@ -2556,7 +2556,7 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 
 	dev = alloc_etherdev(sizeof(struct rocker_port));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	rocker_port = netdev_priv(dev);
 	rocker_port->dev = dev;
@@ -2623,7 +2623,7 @@ static int rocker_probe_ports(struct rocker *rocker)
 	alloc_size = sizeof(struct rocker_port *) * rocker->port_count;
 	rocker->ports = kzalloc(alloc_size, GFP_KERNEL);
 	if (!rocker->ports)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < rocker->port_count; i++) {
 		err = rocker_probe_port(rocker, i);
 		if (err)
@@ -2654,7 +2654,7 @@ static int rocker_msix_init(struct rocker *rocker)
 					     sizeof(struct msix_entry),
 					     GFP_KERNEL);
 	if (!rocker->msix_entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < msix_entries; i++)
 		rocker->msix_entries[i].entry = i;
@@ -2683,33 +2683,33 @@ static bool rocker_port_dev_check(const struct net_device *dev)
 
 static int
 rocker_switchdev_port_attr_set_event(struct net_device *netdev,
-		struct switchdev_notifier_port_attr_info *port_attr_info)
+		struct switchdev_analtifier_port_attr_info *port_attr_info)
 {
 	int err;
 
 	err = rocker_port_attr_set(netdev, port_attr_info->attr);
 
 	port_attr_info->handled = true;
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
 struct rocker_switchdev_event_work {
 	struct work_struct work;
-	struct switchdev_notifier_fdb_info fdb_info;
+	struct switchdev_analtifier_fdb_info fdb_info;
 	struct rocker_port *rocker_port;
 	unsigned long event;
 };
 
 static void
-rocker_fdb_offload_notify(struct rocker_port *rocker_port,
-			  struct switchdev_notifier_fdb_info *recv_info)
+rocker_fdb_offload_analtify(struct rocker_port *rocker_port,
+			  struct switchdev_analtifier_fdb_info *recv_info)
 {
-	struct switchdev_notifier_fdb_info info = {};
+	struct switchdev_analtifier_fdb_info info = {};
 
 	info.addr = recv_info->addr;
 	info.vid = recv_info->vid;
 	info.offloaded = true;
-	call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED,
+	call_switchdev_analtifiers(SWITCHDEV_FDB_OFFLOADED,
 				 rocker_port->dev, &info.info, NULL);
 }
 
@@ -2718,7 +2718,7 @@ static void rocker_switchdev_event_work(struct work_struct *work)
 	struct rocker_switchdev_event_work *switchdev_work =
 		container_of(work, struct rocker_switchdev_event_work, work);
 	struct rocker_port *rocker_port = switchdev_work->rocker_port;
-	struct switchdev_notifier_fdb_info *fdb_info;
+	struct switchdev_analtifier_fdb_info *fdb_info;
 	int err;
 
 	rtnl_lock();
@@ -2732,7 +2732,7 @@ static void rocker_switchdev_event_work(struct work_struct *work)
 			netdev_dbg(rocker_port->dev, "fdb add failed err=%d\n", err);
 			break;
 		}
-		rocker_fdb_offload_notify(rocker_port, fdb_info);
+		rocker_fdb_offload_analtify(rocker_port, fdb_info);
 		break;
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
 		fdb_info = &switchdev_work->fdb_info;
@@ -2751,16 +2751,16 @@ static void rocker_switchdev_event_work(struct work_struct *work)
 }
 
 /* called under rcu_read_lock() */
-static int rocker_switchdev_event(struct notifier_block *unused,
+static int rocker_switchdev_event(struct analtifier_block *unused,
 				  unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_analtifier_info_to_dev(ptr);
 	struct rocker_switchdev_event_work *switchdev_work;
-	struct switchdev_notifier_fdb_info *fdb_info = ptr;
+	struct switchdev_analtifier_fdb_info *fdb_info = ptr;
 	struct rocker_port *rocker_port;
 
 	if (!rocker_port_dev_check(dev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (event == SWITCHDEV_PORT_ATTR_SET)
 		return rocker_switchdev_port_attr_set_event(dev, ptr);
@@ -2768,7 +2768,7 @@ static int rocker_switchdev_event(struct notifier_block *unused,
 	rocker_port = netdev_priv(dev);
 	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
 	if (WARN_ON(!switchdev_work))
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
 	INIT_WORK(&switchdev_work->work, rocker_switchdev_event_work);
 	switchdev_work->rocker_port = rocker_port;
@@ -2782,7 +2782,7 @@ static int rocker_switchdev_event(struct notifier_block *unused,
 		switchdev_work->fdb_info.addr = kzalloc(ETH_ALEN, GFP_ATOMIC);
 		if (unlikely(!switchdev_work->fdb_info.addr)) {
 			kfree(switchdev_work);
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 		}
 
 		ether_addr_copy((u8 *)switchdev_work->fdb_info.addr,
@@ -2792,19 +2792,19 @@ static int rocker_switchdev_event(struct notifier_block *unused,
 		break;
 	default:
 		kfree(switchdev_work);
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	queue_work(rocker_port->rocker->rocker_owq,
 		   &switchdev_work->work);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int
 rocker_switchdev_port_obj_event(unsigned long event, struct net_device *netdev,
-			struct switchdev_notifier_port_obj_info *port_obj_info)
+			struct switchdev_analtifier_port_obj_info *port_obj_info)
 {
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	switch (event) {
 	case SWITCHDEV_PORT_OBJ_ADD:
@@ -2816,16 +2816,16 @@ rocker_switchdev_port_obj_event(unsigned long event, struct net_device *netdev,
 	}
 
 	port_obj_info->handled = true;
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
-static int rocker_switchdev_blocking_event(struct notifier_block *unused,
+static int rocker_switchdev_blocking_event(struct analtifier_block *unused,
 					   unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_analtifier_info_to_dev(ptr);
 
 	if (!rocker_port_dev_check(dev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case SWITCHDEV_PORT_OBJ_ADD:
@@ -2835,26 +2835,26 @@ static int rocker_switchdev_blocking_event(struct notifier_block *unused,
 		return rocker_switchdev_port_attr_set_event(dev, ptr);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block rocker_switchdev_notifier = {
-	.notifier_call = rocker_switchdev_event,
+static struct analtifier_block rocker_switchdev_analtifier = {
+	.analtifier_call = rocker_switchdev_event,
 };
 
-static struct notifier_block rocker_switchdev_blocking_notifier = {
-	.notifier_call = rocker_switchdev_blocking_event,
+static struct analtifier_block rocker_switchdev_blocking_analtifier = {
+	.analtifier_call = rocker_switchdev_blocking_event,
 };
 
 static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct notifier_block *nb;
+	struct analtifier_block *nb;
 	struct rocker *rocker;
 	int err;
 
 	rocker = kzalloc(sizeof(*rocker), GFP_KERNEL);
 	if (!rocker)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -2916,7 +2916,7 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			  rocker_cmd_irq_handler, 0,
 			  rocker_driver_name, rocker);
 	if (err) {
-		dev_err(&pdev->dev, "cannot assign cmd irq\n");
+		dev_err(&pdev->dev, "cananalt assign cmd irq\n");
 		goto err_request_cmd_irq;
 	}
 
@@ -2924,14 +2924,14 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			  rocker_event_irq_handler, 0,
 			  rocker_driver_name, rocker);
 	if (err) {
-		dev_err(&pdev->dev, "cannot assign event irq\n");
+		dev_err(&pdev->dev, "cananalt assign event irq\n");
 		goto err_request_event_irq;
 	}
 
 	rocker->rocker_owq = alloc_ordered_workqueue(rocker_driver_name,
 						     WQ_MEM_RECLAIM);
 	if (!rocker->rocker_owq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_ordered_workqueue;
 	}
 
@@ -2942,24 +2942,24 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Only FIBs pointing to our own netdevs are programmed into
-	 * the device, so no need to pass a callback.
+	 * the device, so anal need to pass a callback.
 	 */
-	rocker->fib_nb.notifier_call = rocker_router_fib_event;
-	err = register_fib_notifier(&init_net, &rocker->fib_nb, NULL, NULL);
+	rocker->fib_nb.analtifier_call = rocker_router_fib_event;
+	err = register_fib_analtifier(&init_net, &rocker->fib_nb, NULL, NULL);
 	if (err)
-		goto err_register_fib_notifier;
+		goto err_register_fib_analtifier;
 
-	err = register_switchdev_notifier(&rocker_switchdev_notifier);
+	err = register_switchdev_analtifier(&rocker_switchdev_analtifier);
 	if (err) {
-		dev_err(&pdev->dev, "Failed to register switchdev notifier\n");
-		goto err_register_switchdev_notifier;
+		dev_err(&pdev->dev, "Failed to register switchdev analtifier\n");
+		goto err_register_switchdev_analtifier;
 	}
 
-	nb = &rocker_switchdev_blocking_notifier;
-	err = register_switchdev_blocking_notifier(nb);
+	nb = &rocker_switchdev_blocking_analtifier;
+	err = register_switchdev_blocking_analtifier(nb);
 	if (err) {
-		dev_err(&pdev->dev, "Failed to register switchdev blocking notifier\n");
-		goto err_register_switchdev_blocking_notifier;
+		dev_err(&pdev->dev, "Failed to register switchdev blocking analtifier\n");
+		goto err_register_switchdev_blocking_analtifier;
 	}
 
 	rocker->hw.id = rocker_read64(rocker, SWITCH_ID);
@@ -2969,11 +2969,11 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
-err_register_switchdev_blocking_notifier:
-	unregister_switchdev_notifier(&rocker_switchdev_notifier);
-err_register_switchdev_notifier:
-	unregister_fib_notifier(&init_net, &rocker->fib_nb);
-err_register_fib_notifier:
+err_register_switchdev_blocking_analtifier:
+	unregister_switchdev_analtifier(&rocker_switchdev_analtifier);
+err_register_switchdev_analtifier:
+	unregister_fib_analtifier(&init_net, &rocker->fib_nb);
+err_register_fib_analtifier:
 	rocker_remove_ports(rocker);
 err_probe_ports:
 	destroy_workqueue(rocker->rocker_owq);
@@ -3002,13 +3002,13 @@ err_pci_enable_device:
 static void rocker_remove(struct pci_dev *pdev)
 {
 	struct rocker *rocker = pci_get_drvdata(pdev);
-	struct notifier_block *nb;
+	struct analtifier_block *nb;
 
-	nb = &rocker_switchdev_blocking_notifier;
-	unregister_switchdev_blocking_notifier(nb);
+	nb = &rocker_switchdev_blocking_analtifier;
+	unregister_switchdev_blocking_analtifier(nb);
 
-	unregister_switchdev_notifier(&rocker_switchdev_notifier);
-	unregister_fib_notifier(&init_net, &rocker->fib_nb);
+	unregister_switchdev_analtifier(&rocker_switchdev_analtifier);
+	unregister_fib_analtifier(&init_net, &rocker->fib_nb);
 	rocker_remove_ports(rocker);
 	rocker_write32(rocker, CONTROL, ROCKER_CONTROL_RESET);
 	destroy_workqueue(rocker->rocker_owq);
@@ -3030,7 +3030,7 @@ static struct pci_driver rocker_pci_driver = {
 };
 
 /************************************
- * Net device notifier event handler
+ * Net device analtifier event handler
  ************************************/
 
 static bool rocker_port_dev_check_under(const struct net_device *dev,
@@ -3084,17 +3084,17 @@ struct rocker_port *rocker_port_dev_lower_find(struct net_device *dev,
 	return data.port;
 }
 
-static int rocker_netdevice_event(struct notifier_block *unused,
+static int rocker_netdevice_event(struct analtifier_block *unused,
 				  unsigned long event, void *ptr)
 {
-	struct netlink_ext_ack *extack = netdev_notifier_info_to_extack(ptr);
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct netdev_notifier_changeupper_info *info;
+	struct netlink_ext_ack *extack = netdev_analtifier_info_to_extack(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
+	struct netdev_analtifier_changeupper_info *info;
 	struct rocker_port *rocker_port;
 	int err;
 
 	if (!rocker_port_dev_check(dev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_CHANGEUPPER:
@@ -3118,18 +3118,18 @@ static int rocker_netdevice_event(struct notifier_block *unused,
 		}
 	}
 out:
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block rocker_netdevice_nb __read_mostly = {
-	.notifier_call = rocker_netdevice_event,
+static struct analtifier_block rocker_netdevice_nb __read_mostly = {
+	.analtifier_call = rocker_netdevice_event,
 };
 
 /************************************
- * Net event notifier event handler
+ * Net event analtifier event handler
  ************************************/
 
-static int rocker_netevent_event(struct notifier_block *unused,
+static int rocker_netevent_event(struct analtifier_block *unused,
 				 unsigned long event, void *ptr)
 {
 	struct rocker_port *rocker_port;
@@ -3140,10 +3140,10 @@ static int rocker_netevent_event(struct notifier_block *unused,
 	switch (event) {
 	case NETEVENT_NEIGH_UPDATE:
 		if (n->tbl != &arp_tbl)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		dev = n->dev;
 		if (!rocker_port_dev_check(dev))
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		rocker_port = netdev_priv(dev);
 		err = rocker_world_port_neigh_update(rocker_port, n);
 		if (err)
@@ -3152,11 +3152,11 @@ static int rocker_netevent_event(struct notifier_block *unused,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block rocker_netevent_nb __read_mostly = {
-	.notifier_call = rocker_netevent_event,
+static struct analtifier_block rocker_netevent_nb __read_mostly = {
+	.analtifier_call = rocker_netevent_event,
 };
 
 /***********************
@@ -3167,23 +3167,23 @@ static int __init rocker_module_init(void)
 {
 	int err;
 
-	register_netdevice_notifier(&rocker_netdevice_nb);
-	register_netevent_notifier(&rocker_netevent_nb);
+	register_netdevice_analtifier(&rocker_netdevice_nb);
+	register_netevent_analtifier(&rocker_netevent_nb);
 	err = pci_register_driver(&rocker_pci_driver);
 	if (err)
 		goto err_pci_register_driver;
 	return 0;
 
 err_pci_register_driver:
-	unregister_netevent_notifier(&rocker_netevent_nb);
-	unregister_netdevice_notifier(&rocker_netdevice_nb);
+	unregister_netevent_analtifier(&rocker_netevent_nb);
+	unregister_netdevice_analtifier(&rocker_netdevice_nb);
 	return err;
 }
 
 static void __exit rocker_module_exit(void)
 {
-	unregister_netevent_notifier(&rocker_netevent_nb);
-	unregister_netdevice_notifier(&rocker_netdevice_nb);
+	unregister_netevent_analtifier(&rocker_netevent_nb);
+	unregister_netdevice_analtifier(&rocker_netdevice_nb);
 	pci_unregister_driver(&rocker_pci_driver);
 }
 

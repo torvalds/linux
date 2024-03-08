@@ -8,9 +8,9 @@
 #include <linux/inet.h>
 #include "xdr4.h"
 
-#define FF_FLAGS_NO_LAYOUTCOMMIT 1
-#define FF_FLAGS_NO_IO_THRU_MDS  2
-#define FF_FLAGS_NO_READ_IO      4
+#define FF_FLAGS_ANAL_LAYOUTCOMMIT 1
+#define FF_FLAGS_ANAL_IO_THRU_MDS  2
+#define FF_FLAGS_ANAL_READ_IO      4
 
 struct xdr_stream;
 
@@ -26,7 +26,7 @@ struct pnfs_ff_netaddr {
 struct pnfs_ff_device_addr {
 	struct pnfs_ff_netaddr		netaddr;
 	u32				version;
-	u32				minor_version;
+	u32				mianalr_version;
 	u32				rsize;
 	u32				wsize;
 	bool				tightly_coupled;

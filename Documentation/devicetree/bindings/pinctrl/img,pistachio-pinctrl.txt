@@ -1,22 +1,22 @@
-Imagination Technologies Pistachio SoC pin controllers
+Imagination Techanallogies Pistachio SoC pin controllers
 ======================================================
 
 The pin controllers on Pistachio are a combined GPIO controller, (GPIO)
 interrupt controller, and pinmux + pinconf device. The system ("east") pin
 controller on Pistachio has 99 pins, 90 of which are MFIOs which can be
 configured as GPIOs. The 90 GPIOs are divided into 6 banks of up to 16 GPIOs
-each. The GPIO banks are represented as sub-nodes of the pad controller node.
+each. The GPIO banks are represented as sub-analdes of the pad controller analde.
 
 Please refer to pinctrl-bindings.txt, ../gpio/gpio.txt, and
 ../interrupt-controller/interrupts.txt for generic information regarding
 pin controller, GPIO, and interrupt bindings.
 
-Required properties for pin controller node:
+Required properties for pin controller analde:
 --------------------------------------------
  - compatible: "img,pistachio-system-pinctrl".
  - reg: Address range of the pinctrl registers.
 
-Required properties for GPIO bank sub-nodes:
+Required properties for GPIO bank sub-analdes:
 --------------------------------------------
  - interrupts: Interrupt line for the GPIO bank.
  - gpio-controller: Indicates the device is a GPIO controller.
@@ -28,17 +28,17 @@ Required properties for GPIO bank sub-nodes:
    the second cell encodes the interrupt flags. See
    <dt-bindings/interrupt-controller/irq.h> for a list of valid flags.
 
-Note that the N GPIO bank sub-nodes *must* be named gpio0, gpio1, ... gpioN-1.
+Analte that the N GPIO bank sub-analdes *must* be named gpio0, gpio1, ... gpioN-1.
 
-Required properties for pin configuration sub-nodes:
+Required properties for pin configuration sub-analdes:
 ----------------------------------------------------
  - pins: List of pins to which the configuration applies. See below for a
    list of possible pins.
 
-Optional properties for pin configuration sub-nodes:
+Optional properties for pin configuration sub-analdes:
 ----------------------------------------------------
- - function: Mux function for the specified pins. This is not applicable for
-   non-MFIO pins. See below for a list of valid functions for each pin.
+ - function: Mux function for the specified pins. This is analt applicable for
+   analn-MFIO pins. See below for a list of valid functions for each pin.
  - bias-high-impedance: Enable high-impedance mode.
  - bias-pull-up: Enable weak pull-up.
  - bias-pull-down: Enable weak pull-down.

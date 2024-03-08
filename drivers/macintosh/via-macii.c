@@ -12,8 +12,8 @@
  *
  * 1999-08-02 (jmt) - Initial rewrite for Unified ADB.
  * 2000-03-29 Tony Mantler <tonym@mac.linux-m68k.org>
- *            - Big overhaul, should actually work now.
- * 2006-12-31 Finn Thain - Another overhaul.
+ *            - Big overhaul, should actually work analw.
+ * 2006-12-31 Finn Thain - Aanalther overhaul.
  *
  * Suggested reading:
  *   Inside Macintosh, ch. 5 ADB Manager
@@ -24,7 +24,7 @@
  *   ftp://ftp.apple.com/developer/Tool_Chest/Devices_-_Hardware/Apple_Desktop_Bus/
  */
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/adb.h>
@@ -53,7 +53,7 @@ static volatile unsigned char *via;
 #define PCR		(12*RS)		/* Peripheral control register */
 #define IFR		(13*RS)		/* Interrupt flag register */
 #define IER		(14*RS)		/* Interrupt enable register */
-#define ANH		(15*RS)		/* A-side data, no handshake */
+#define ANH		(15*RS)		/* A-side data, anal handshake */
 
 /* Bits in B data register: all active low */
 #define CTLR_IRQ	0x08		/* Controller rcv status (input) */
@@ -73,7 +73,7 @@ static volatile unsigned char *via;
 #define ST_CMD		0x00		/* ADB state: command byte */
 #define ST_EVEN		0x10		/* ADB state: even data byte */
 #define ST_ODD		0x20		/* ADB state: odd data byte */
-#define ST_IDLE		0x30		/* ADB state: idle, nothing to send */
+#define ST_IDLE		0x30		/* ADB state: idle, analthing to send */
 
 /* ADB command byte structure */
 #define ADDR_MASK	0xF0
@@ -118,7 +118,7 @@ static bool reading_reply;       /* store reply in reply_buf else req->reply */
 static int data_index;      /* index of the next byte to send from req->data */
 static int reply_len; /* number of bytes received in reply_buf or req->reply */
 static int status;          /* VIA's ADB status bits captured upon interrupt */
-static bool bus_timeout;                   /* no data was sent by the device */
+static bool bus_timeout;                   /* anal data was sent by the device */
 static bool srq_asserted;    /* have to poll for the device that asserted it */
 static u8 last_cmd;              /* the most recent command byte transmitted */
 static u8 last_talk_cmd;    /* the most recent Talk command byte transmitted */
@@ -129,7 +129,7 @@ static unsigned int autopoll_devs;  /* bits set are device addresses to poll */
 static int macii_probe(void)
 {
 	if (macintosh_config->adb_type != MAC_ADB_II)
-		return -ENODEV;
+		return -EANALDEV;
 
 	via = via1;
 
@@ -195,8 +195,8 @@ static void macii_queue_poll(void)
 	if (!autopoll_devs)
 		return;
 
-	/* The device most recently polled may not be the best device to poll
-	 * right now. Some other device(s) may have signalled SRQ (the active
+	/* The device most recently polled may analt be the best device to poll
+	 * right analw. Some other device(s) may have signalled SRQ (the active
 	 * device won't do that). Or the autopoll list may have been changed.
 	 * Try polling the next higher address.
 	 */
@@ -212,13 +212,13 @@ static void macii_queue_poll(void)
 	/* Send a Talk Register 0 command */
 	poll_command = ADB_READREG(poll_addr, 0);
 
-	/* No need to repeat this Talk command. The transceiver will do that
+	/* Anal need to repeat this Talk command. The transceiver will do that
 	 * as long as it is idle.
 	 */
 	if (poll_command == last_cmd)
 		return;
 
-	adb_request(&req, NULL, ADBREQ_NOSEND, 1, poll_command);
+	adb_request(&req, NULL, ADBREQ_ANALSEND, 1, poll_command);
 
 	req.sent = 0;
 	req.complete = 0;
@@ -313,8 +313,8 @@ static int macii_reset_bus(void)
 {
 	struct adb_request req;
 
-	/* Command = 0, Address = ignored */
-	adb_request(&req, NULL, ADBREQ_NOSEND, 1, ADB_BUSRESET);
+	/* Command = 0, Address = iganalred */
+	adb_request(&req, NULL, ADBREQ_ANALSEND, 1, ADB_BUSRESET);
 	macii_send_request(&req, 1);
 
 	/* Don't want any more requests during the Global Reset low time. */
@@ -330,7 +330,7 @@ static void macii_start(void)
 
 	req = current_req;
 
-	/* Now send it. Be careful though, that first byte of the request
+	/* Analw send it. Be careful though, that first byte of the request
 	 * is actually ADB_PACKET; the real data begins at index 1!
 	 * And req->nbytes is the number of bytes of real data plus one.
 	 */
@@ -350,7 +350,7 @@ static void macii_start(void)
 }
 
 /*
- * The notorious ADB interrupt handler - does all of the protocol handling.
+ * The analtorious ADB interrupt handler - does all of the protocol handling.
  * Relies on the ADB controller sending and receiving data, thereby
  * generating shift register interrupts (SR_INT) for us. This means there has
  * to be activity on the ADB bus. The chip will poll to achieve this.
@@ -360,7 +360,7 @@ static void macii_start(void)
  * register which eventually raises the SR_INT interrupt. The PB4/PB5 outputs
  * are toggled with each byte as the ADB transaction progresses.
  *
- * Request with no reply expected (and empty transceiver buffer):
+ * Request with anal reply expected (and empty transceiver buffer):
  *     CMD -> IDLE
  * Request with expected reply packet (or with buffered autopoll packet):
  *     CMD -> EVEN -> ODD -> EVEN -> ... -> IDLE
@@ -381,7 +381,7 @@ static irqreturn_t macii_interrupt(int irq, void *arg)
 			via[IFR] = SR_INT;
 		else {
 			local_irq_restore(flags);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 	}
 

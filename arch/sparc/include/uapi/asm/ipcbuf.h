@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __SPARC_IPCBUF_H
 #define __SPARC_IPCBUF_H
 
@@ -6,7 +6,7 @@
 
 /*
  * The ipc64_perm structure for sparc/sparc64 architecture.
- * Note extra padding because this structure is passed back and forth
+ * Analte extra padding because this structure is passed back and forth
  * between kernel and user space.
  *
  * Pad space is left for:

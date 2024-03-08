@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Platform driver for the Synopsys DesignWare DMA Controller
+ * Platform driver for the Syanalpsys DesignWare DMA Controller
  *
  * Copyright (C) 2007-2008 Atmel Corporation
  * Copyright (C) 2010-2011 ST Microelectronics
@@ -48,7 +48,7 @@ static struct dma_chan *dw_dma_of_xlate(struct of_phandle_args *dma_spec,
 
 struct dw_dma_platform_data *dw_dma_parse_dt(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct dw_dma_platform_data *pdata;
 	u32 tmp, arr[DW_DMA_MAX_NR_MASTERS];
 	u32 nr_masters;
@@ -103,20 +103,20 @@ void dw_dma_of_controller_register(struct dw_dma *dw)
 	struct device *dev = dw->dma.dev;
 	int ret;
 
-	if (!dev->of_node)
+	if (!dev->of_analde)
 		return;
 
-	ret = of_dma_controller_register(dev->of_node, dw_dma_of_xlate, dw);
+	ret = of_dma_controller_register(dev->of_analde, dw_dma_of_xlate, dw);
 	if (ret)
-		dev_err(dev, "could not register of_dma_controller\n");
+		dev_err(dev, "could analt register of_dma_controller\n");
 }
 
 void dw_dma_of_controller_free(struct dw_dma *dw)
 {
 	struct device *dev = dw->dma.dev;
 
-	if (!dev->of_node)
+	if (!dev->of_analde)
 		return;
 
-	of_dma_controller_free(dev->of_node);
+	of_dma_controller_free(dev->of_analde);
 }

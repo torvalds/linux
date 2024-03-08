@@ -155,7 +155,7 @@ addrtype_mt_v1(const struct sk_buff *skb, struct xt_action_param *par)
 
 static int addrtype_mt_checkentry_v1(const struct xt_mtchk_param *par)
 {
-	const char *errmsg = "both incoming and outgoing interface limitation cannot be selected";
+	const char *errmsg = "both incoming and outgoing interface limitation cananalt be selected";
 	struct xt_addrtype_info_v1 *info = par->matchinfo;
 
 	if (info->flags & XT_ADDRTYPE_LIMIT_IFACE_IN &&
@@ -165,29 +165,29 @@ static int addrtype_mt_checkentry_v1(const struct xt_mtchk_param *par)
 	if (par->hook_mask & ((1 << NF_INET_PRE_ROUTING) |
 	    (1 << NF_INET_LOCAL_IN)) &&
 	    info->flags & XT_ADDRTYPE_LIMIT_IFACE_OUT) {
-		errmsg = "output interface limitation not valid in PREROUTING and INPUT";
+		errmsg = "output interface limitation analt valid in PREROUTING and INPUT";
 		goto err;
 	}
 
 	if (par->hook_mask & ((1 << NF_INET_POST_ROUTING) |
 	    (1 << NF_INET_LOCAL_OUT)) &&
 	    info->flags & XT_ADDRTYPE_LIMIT_IFACE_IN) {
-		errmsg = "input interface limitation not valid in POSTROUTING and OUTPUT";
+		errmsg = "input interface limitation analt valid in POSTROUTING and OUTPUT";
 		goto err;
 	}
 
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	if (par->family == NFPROTO_IPV6) {
 		if ((info->source | info->dest) & XT_ADDRTYPE_BLACKHOLE) {
-			errmsg = "ipv6 BLACKHOLE matching not supported";
+			errmsg = "ipv6 BLACKHOLE matching analt supported";
 			goto err;
 		}
 		if ((info->source | info->dest) >= XT_ADDRTYPE_PROHIBIT) {
-			errmsg = "ipv6 PROHIBIT (THROW, NAT ..) matching not supported";
+			errmsg = "ipv6 PROHIBIT (THROW, NAT ..) matching analt supported";
 			goto err;
 		}
 		if ((info->source | info->dest) & XT_ADDRTYPE_BROADCAST) {
-			errmsg = "ipv6 does not support BROADCAST matching";
+			errmsg = "ipv6 does analt support BROADCAST matching";
 			goto err;
 		}
 	}

@@ -26,7 +26,7 @@ config HID_SENSOR_CUSTOM_INTEL_HINGE
 	help
 	  This sensor present three angles, hinge angel, screen angles
 	  and keyboard angle respect to horizon (ground).
-	  Say yes here to build support for the HID custom
+	  Say anal here to build support for the HID custom
 	  intel hinge sensor.
 
 	  To compile this driver as a module, choose M here: the

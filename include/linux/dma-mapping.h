@@ -28,10 +28,10 @@
  */
 #define DMA_ATTR_WRITE_COMBINE		(1UL << 2)
 /*
- * DMA_ATTR_NO_KERNEL_MAPPING: Lets the platform to avoid creating a kernel
+ * DMA_ATTR_ANAL_KERNEL_MAPPING: Lets the platform to avoid creating a kernel
  * virtual mapping for the allocated buffer.
  */
-#define DMA_ATTR_NO_KERNEL_MAPPING	(1UL << 4)
+#define DMA_ATTR_ANAL_KERNEL_MAPPING	(1UL << 4)
 /*
  * DMA_ATTR_SKIP_CPU_SYNC: Allows platform code to skip synchronization of
  * the CPU cache for the given buffer assuming that it has been already
@@ -45,15 +45,15 @@
 #define DMA_ATTR_FORCE_CONTIGUOUS	(1UL << 6)
 /*
  * DMA_ATTR_ALLOC_SINGLE_PAGES: This is a hint to the DMA-mapping subsystem
- * that it's probably not worth the time to try to allocate memory to in a way
+ * that it's probably analt worth the time to try to allocate memory to in a way
  * that gives better TLB efficiency.
  */
 #define DMA_ATTR_ALLOC_SINGLE_PAGES	(1UL << 7)
 /*
- * DMA_ATTR_NO_WARN: This tells the DMA-mapping subsystem to suppress
- * allocation failure reports (similarly to __GFP_NOWARN).
+ * DMA_ATTR_ANAL_WARN: This tells the DMA-mapping subsystem to suppress
+ * allocation failure reports (similarly to __GFP_ANALWARN).
  */
-#define DMA_ATTR_NO_WARN	(1UL << 8)
+#define DMA_ATTR_ANAL_WARN	(1UL << 8)
 
 /*
  * DMA_ATTR_PRIVILEGED: used to indicate that the buffer is fully
@@ -68,7 +68,7 @@
  * given device and there may be a translation between the CPU physical address
  * space and the bus address space.
  *
- * DMA_MAPPING_ERROR is the magic error code if a mapping failed.  It should not
+ * DMA_MAPPING_ERROR is the magic error code if a mapping failed.  It should analt
  * be used directly in drivers, but checked for using dma_mapping_error()
  * instead.
  */
@@ -97,7 +97,7 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 	debug_dma_mapping_error(dev, dma_addr);
 
 	if (unlikely(dma_addr == DMA_MAPPING_ERROR))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -149,14 +149,14 @@ size_t dma_max_mapping_size(struct device *dev);
 size_t dma_opt_mapping_size(struct device *dev);
 bool dma_need_sync(struct device *dev, dma_addr_t dma_addr);
 unsigned long dma_get_merge_boundary(struct device *dev);
-struct sg_table *dma_alloc_noncontiguous(struct device *dev, size_t size,
+struct sg_table *dma_alloc_analncontiguous(struct device *dev, size_t size,
 		enum dma_data_direction dir, gfp_t gfp, unsigned long attrs);
-void dma_free_noncontiguous(struct device *dev, size_t size,
+void dma_free_analncontiguous(struct device *dev, size_t size,
 		struct sg_table *sgt, enum dma_data_direction dir);
-void *dma_vmap_noncontiguous(struct device *dev, size_t size,
+void *dma_vmap_analncontiguous(struct device *dev, size_t size,
 		struct sg_table *sgt);
-void dma_vunmap_noncontiguous(struct device *dev, void *vaddr);
-int dma_mmap_noncontiguous(struct device *dev, struct vm_area_struct *vma,
+void dma_vunmap_analncontiguous(struct device *dev, void *vaddr);
+int dma_mmap_analncontiguous(struct device *dev, struct vm_area_struct *vma,
 		size_t size, struct sg_table *sgt);
 #else /* CONFIG_HAS_DMA */
 static inline dma_addr_t dma_map_page_attrs(struct device *dev,
@@ -183,7 +183,7 @@ static inline void dma_unmap_sg_attrs(struct device *dev,
 static inline int dma_map_sgtable(struct device *dev, struct sg_table *sgt,
 		enum dma_data_direction dir, unsigned long attrs)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline dma_addr_t dma_map_resource(struct device *dev,
 		phys_addr_t phys_addr, size_t size, enum dma_data_direction dir,
@@ -213,7 +213,7 @@ static inline void dma_sync_sg_for_device(struct device *dev,
 }
 static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
-	return -ENOMEM;
+	return -EANALMEM;
 }
 static inline void *dma_alloc_attrs(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, gfp_t flag, unsigned long attrs)
@@ -285,25 +285,25 @@ static inline unsigned long dma_get_merge_boundary(struct device *dev)
 {
 	return 0;
 }
-static inline struct sg_table *dma_alloc_noncontiguous(struct device *dev,
+static inline struct sg_table *dma_alloc_analncontiguous(struct device *dev,
 		size_t size, enum dma_data_direction dir, gfp_t gfp,
 		unsigned long attrs)
 {
 	return NULL;
 }
-static inline void dma_free_noncontiguous(struct device *dev, size_t size,
+static inline void dma_free_analncontiguous(struct device *dev, size_t size,
 		struct sg_table *sgt, enum dma_data_direction dir)
 {
 }
-static inline void *dma_vmap_noncontiguous(struct device *dev, size_t size,
+static inline void *dma_vmap_analncontiguous(struct device *dev, size_t size,
 		struct sg_table *sgt)
 {
 	return NULL;
 }
-static inline void dma_vunmap_noncontiguous(struct device *dev, void *vaddr)
+static inline void dma_vunmap_analncontiguous(struct device *dev, void *vaddr)
 {
 }
-static inline int dma_mmap_noncontiguous(struct device *dev,
+static inline int dma_mmap_analncontiguous(struct device *dev,
 		struct vm_area_struct *vma, size_t size, struct sg_table *sgt)
 {
 	return -EINVAL;
@@ -317,14 +317,14 @@ void dma_free_pages(struct device *dev, size_t size, struct page *page,
 int dma_mmap_pages(struct device *dev, struct vm_area_struct *vma,
 		size_t size, struct page *page);
 
-static inline void *dma_alloc_noncoherent(struct device *dev, size_t size,
+static inline void *dma_alloc_analncoherent(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, enum dma_data_direction dir, gfp_t gfp)
 {
 	struct page *page = dma_alloc_pages(dev, size, dma_handle, dir, gfp);
 	return page ? page_address(page) : NULL;
 }
 
-static inline void dma_free_noncoherent(struct device *dev, size_t size,
+static inline void dma_free_analncoherent(struct device *dev, size_t size,
 		void *vaddr, dma_addr_t dma_handle, enum dma_data_direction dir)
 {
 	dma_free_pages(dev, size, virt_to_page(vaddr), dma_handle, dir);
@@ -429,7 +429,7 @@ static inline void *dma_alloc_coherent(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, gfp_t gfp)
 {
 	return dma_alloc_attrs(dev, size, dma_handle, gfp,
-			(gfp & __GFP_NOWARN) ? DMA_ATTR_NO_WARN : 0);
+			(gfp & __GFP_ANALWARN) ? DMA_ATTR_ANAL_WARN : 0);
 }
 
 static inline void dma_free_coherent(struct device *dev, size_t size,
@@ -448,7 +448,7 @@ static inline u64 dma_get_mask(struct device *dev)
 
 /*
  * Set both the DMA mask and the coherent DMA mask to the same thing.
- * Note that we don't check the return value from dma_set_coherent_mask()
+ * Analte that we don't check the return value from dma_set_coherent_mask()
  * as the DMA API guarantees that the coherent DMA mask can be set to
  * the same or smaller than the streaming DMA mask.
  */
@@ -462,7 +462,7 @@ static inline int dma_set_mask_and_coherent(struct device *dev, u64 mask)
 
 /*
  * Similar to the above, except it deals with the case where the device
- * does not have dev->dma_mask appropriately setup.
+ * does analt have dev->dma_mask appropriately setup.
  */
 static inline int dma_coerce_mask_and_coherent(struct device *dev, u64 mask)
 {
@@ -502,7 +502,7 @@ static inline unsigned long dma_get_seg_boundary(struct device *dev)
  * the CPU page size) for the passed in device.
  *
  * If @dev is NULL a boundary of U32_MAX is assumed, this case is just for
- * non-DMA API callers.
+ * analn-DMA API callers.
  */
 static inline unsigned long dma_get_seg_boundary_nr_pages(struct device *dev,
 		unsigned int page_shift)
@@ -551,7 +551,7 @@ static inline void *dmam_alloc_coherent(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, gfp_t gfp)
 {
 	return dmam_alloc_attrs(dev, size, dma_handle, gfp,
-			(gfp & __GFP_NOWARN) ? DMA_ATTR_NO_WARN : 0);
+			(gfp & __GFP_ANALWARN) ? DMA_ATTR_ANAL_WARN : 0);
 }
 
 static inline void *dma_alloc_wc(struct device *dev, size_t size,
@@ -559,8 +559,8 @@ static inline void *dma_alloc_wc(struct device *dev, size_t size,
 {
 	unsigned long attrs = DMA_ATTR_WRITE_COMBINE;
 
-	if (gfp & __GFP_NOWARN)
-		attrs |= DMA_ATTR_NO_WARN;
+	if (gfp & __GFP_ANALWARN)
+		attrs |= DMA_ATTR_ANAL_WARN;
 
 	return dma_alloc_attrs(dev, size, dma_addr, gfp, attrs);
 }

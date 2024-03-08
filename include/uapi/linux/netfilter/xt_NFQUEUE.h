@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* iptables module for using NFQUEUE mechanism
  *
  * (C) 2005 Harald Welte <laforge@netfilter.org>
@@ -32,7 +32,7 @@ struct xt_NFQ_info_v3 {
 	__u16 queues_total;
 	__u16 flags;
 #define NFQ_FLAG_BYPASS		0x01 /* for compatibility with v2 */
-#define NFQ_FLAG_CPU_FANOUT	0x02 /* use current CPU (no hashing) */
+#define NFQ_FLAG_CPU_FAANALUT	0x02 /* use current CPU (anal hashing) */
 #define NFQ_FLAG_MASK		0x03
 };
 

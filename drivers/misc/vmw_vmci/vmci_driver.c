@@ -35,7 +35,7 @@ static bool vmci_vsock_cb_host_called;
 /*
  * vmci_get_context_id() - Gets the current context ID.
  *
- * Returns the current context ID.  Note that since this is accessed only
+ * Returns the current context ID.  Analte that since this is accessed only
  * from code running in the host, this always returns the host context ID.
  */
 u32 vmci_get_context_id(void)
@@ -151,7 +151,7 @@ static int __init vmci_drv_init(void)
 	if (!vmci_guest_personality_initialized &&
 	    !vmci_host_personality_initialized) {
 		vmci_event_exit();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;

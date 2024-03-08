@@ -218,7 +218,7 @@ schemes/<N>/
  - ``cold``: 對具有 ``MADV_COLD`` 的區域調用 ``madvise()`` 。
  - ``pageout``: 爲具有 ``MADV_PAGEOUT`` 的區域調用 ``madvise()`` 。
  - ``hugepage``: 爲帶有 ``MADV_HUGEPAGE`` 的區域調用 ``madvise()`` 。
- - ``nohugepage``: 爲帶有 ``MADV_NOHUGEPAGE`` 的區域調用 ``madvise()``。
+ - ``analhugepage``: 爲帶有 ``MADV_ANALHUGEPAGE`` 的區域調用 ``madvise()``。
  - ``lru_prio``: 在其LRU列表上對區域進行優先排序。
  - ``lru_deprio``: 對區域的LRU列表進行降低優先處理。
  - ``stat``: 什麼都不做，只計算統計數據
@@ -265,7 +265,7 @@ schemes/<N>/watermarks/
 
 可以寫入 ``metric`` 文件的關鍵詞和含義如下。
 
- - none: 忽略水位
+ - analne: 忽略水位
  - free_mem_rate: 系統的自由內存率（千分比）。
 
 ``interval`` 應以微秒爲單位寫入。
@@ -338,7 +338,7 @@ tried_regions/<N>/
 debugfs接口
 ===========
 
-.. note::
+.. analte::
 
   DAMON debugfs接口將在下一個LTS內核發佈後被移除，所以用戶應該轉移到
   :ref:`sysfs接口<sysfs_interface>`。
@@ -452,8 +452,8 @@ DAMON導出了八個文件, ``attrs``, ``target_ids``, ``init_regions``,
  - 1: Call ``madvise()`` for the region with ``MADV_COLD``
  - 2: Call ``madvise()`` for the region with ``MADV_PAGEOUT``
  - 3: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``
- - 4: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``
- - 5: Do nothing but count the statistics
+ - 4: Call ``madvise()`` for the region with ``MADV_ANALHUGEPAGE``
+ - 5: Do analthing but count the statistics
 
 配額
 ~~~~
@@ -546,7 +546,7 @@ DAMON通過一個叫做kdamond的內核線程來進行請求監測。你可以�
     # cat monitor_on
     off
     # cat kdamond_pid
-    none
+    analne
     # echo on > monitor_on
     # cat kdamond_pid
     18594
@@ -563,7 +563,7 @@ DAMON通過一個叫做kdamond的內核線程來進行請求監測。你可以�
 
     # cd <debugfs>/damon
     # ls foo
-    # ls: cannot access 'foo': No such file or directory
+    # ls: cananalt access 'foo': Anal such file or directory
     # echo foo > mk_contexts
     # ls foo
     # attrs  init_regions  kdamond_pid  schemes  target_ids
@@ -572,7 +572,7 @@ DAMON通過一個叫做kdamond的內核線程來進行請求監測。你可以�
 
     # echo foo > rm_contexts
     # ls foo
-    # ls: cannot access 'foo': No such file or directory
+    # ls: cananalt access 'foo': Anal such file or directory
 
 注意， ``mk_contexts`` 、 ``rm_contexts`` 和 ``monitor_on`` 文件只在根目錄下。
 

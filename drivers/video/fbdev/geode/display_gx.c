@@ -164,7 +164,7 @@ void gx_set_mode(struct fb_info *info)
 	write_dc(par, DC_UNLOCK, DC_UNLOCK_LOCK);
 }
 
-void gx_set_hw_palette_reg(struct fb_info *info, unsigned regno,
+void gx_set_hw_palette_reg(struct fb_info *info, unsigned reganal,
 		unsigned red, unsigned green, unsigned blue)
 {
 	struct gxfb_par *par = info->par;
@@ -175,6 +175,6 @@ void gx_set_hw_palette_reg(struct fb_info *info, unsigned regno,
 	val |= (green)      & 0x00ff00;
 	val |= (blue  >> 8) & 0x0000ff;
 
-	write_dc(par, DC_PAL_ADDRESS, regno);
+	write_dc(par, DC_PAL_ADDRESS, reganal);
 	write_dc(par, DC_PAL_DATA, val);
 }

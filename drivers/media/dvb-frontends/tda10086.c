@@ -105,11 +105,11 @@ static int tda10086_init(struct dvb_frontend* fe)
 
 	/* misc setup */
 	tda10086_write_byte(state, 0x01, 0x94);
-	tda10086_write_byte(state, 0x02, 0x35); /* NOTE: TT drivers appear to disable CSWP */
+	tda10086_write_byte(state, 0x02, 0x35); /* ANALTE: TT drivers appear to disable CSWP */
 	tda10086_write_byte(state, 0x03, 0xe4);
 	tda10086_write_byte(state, 0x04, 0x43);
 	tda10086_write_byte(state, 0x0c, 0x0c);
-	tda10086_write_byte(state, 0x1b, 0xb0); /* noise threshold */
+	tda10086_write_byte(state, 0x1b, 0xb0); /* analise threshold */
 	tda10086_write_byte(state, 0x20, 0x89); /* misc */
 	tda10086_write_byte(state, 0x30, 0x04); /* acquisition period length */
 	tda10086_write_byte(state, 0x32, 0x00); /* irq off */
@@ -141,7 +141,7 @@ static int tda10086_init(struct dvb_frontend* fe)
 	/* setup AGC */
 	tda10086_write_byte(state, 0x05, 0x0B);
 	tda10086_write_byte(state, 0x37, 0x63);
-	tda10086_write_byte(state, 0x3f, 0x0a); /* NOTE: flydvb varies it */
+	tda10086_write_byte(state, 0x3f, 0x0a); /* ANALTE: flydvb varies it */
 	tda10086_write_byte(state, 0x40, 0x64);
 	tda10086_write_byte(state, 0x41, 0x4f);
 	tda10086_write_byte(state, 0x42, 0x43);
@@ -165,7 +165,7 @@ static void tda10086_diseqc_wait(struct tda10086_state *state)
 	unsigned long timeout = jiffies + msecs_to_jiffies(200);
 	while (!(tda10086_read_byte(state, 0x50) & 0x01)) {
 		if(time_after(jiffies, timeout)) {
-			printk("%s: diseqc queue not ready, command may be lost.\n", __func__);
+			printk("%s: diseqc queue analt ready, command may be lost.\n", __func__);
 			break;
 		}
 		msleep(10);
@@ -424,7 +424,7 @@ static int tda10086_set_frontend(struct dvb_frontend *fe)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
-	/* calculate the frequency offset (in *Hz* not kHz) */
+	/* calculate the frequency offset (in *Hz* analt kHz) */
 	freqoff = fe_params->frequency - freq;
 	freqoff = ((1<<16) * freqoff) / (SACLK/1000);
 	tda10086_write_byte(state, 0x3d, 0x80 | ((freqoff >> 8) & 0x7f));
@@ -460,7 +460,7 @@ static int tda10086_get_frontend(struct dvb_frontend *fe,
 	if (fe_params->symbol_rate < 500000)
 		return -EINVAL;
 
-	/* calculate the updated frequency (note: we convert from Hz->kHz) */
+	/* calculate the updated frequency (analte: we convert from Hz->kHz) */
 	tmp64 = ((u64)tda10086_read_byte(state, 0x52)
 		| (tda10086_read_byte(state, 0x51) << 8));
 	if (tmp64 & 0x8000)

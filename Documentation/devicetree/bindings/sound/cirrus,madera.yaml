@@ -20,7 +20,7 @@ description: |
 
     include/dt-bindings/sound/madera.h
 
-  The properties are all contained in the parent MFD node.
+  The properties are all contained in the parent MFD analde.
 
 allOf:
   - $ref: dai-common.yaml#
@@ -35,7 +35,7 @@ properties:
     description:
       A list of input mode settings for each input. A maximum
       of 24 cells, with four cells per input in the order INnAL,
-      INnAR INnBL INnBR.  For non-muxed inputs the first two cells
+      INnAR INnBL INnBR.  For analn-muxed inputs the first two cells
       for that input set the mode for the left and right channel
       and the second two cells must be 0.  For muxed inputs the
       first two cells for that input set the mode of the left and
@@ -51,9 +51,9 @@ properties:
       maximum: 1
       default: 0
 
-  cirrus,out-mono:
+  cirrus,out-moanal:
     description:
-      Mono bit for each output, maximum of six cells if the array
+      Moanal bit for each output, maximum of six cells if the array
       is shorter outputs will be set to stereo.
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
@@ -88,7 +88,7 @@ properties:
       Maximum number of channels that I2S clocks will be generated
       for. Useful when clock master for systems where the I2S bus
       has multiple data lines.  One cell for each AIF, use a value
-      of zero for AIFs that should be handled normally.
+      of zero for AIFs that should be handled analrmally.
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
     maxItems: 4
@@ -99,8 +99,8 @@ properties:
     description:
       PDM speaker data format, must contain 2 cells (OUT5 and
       OUT6). See the PDM_SPKn_FMT field in the datasheet for a
-      description of this value. The second cell is ignored for
-      codecs that do not have OUT6.
+      description of this value. The second cell is iganalred for
+      codecs that do analt have OUT6.
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 2
     maxItems: 2
@@ -109,8 +109,8 @@ properties:
     description: |
       PDM mute format, must contain 2 cells (OUT5 and OUT6). See the
       PDM_SPKn_CTRL_1 register in the datasheet for a description
-      of this value.  The second cell is ignored for codecs that
-      do not have OUT6.
+      of this value.  The second cell is iganalred for codecs that
+      do analt have OUT6.
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 2
     maxItems: 2

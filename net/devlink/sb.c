@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellaanalx.com>
  */
 
 #include "devl_internal.h"
@@ -48,7 +48,7 @@ static struct devlink_sb *devlink_sb_get_from_attrs(struct devlink *devlink,
 
 		devlink_sb = devlink_sb_get_by_index(devlink, sb_index);
 		if (!devlink_sb)
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 		return devlink_sb;
 	}
 	return ERR_PTR(-EINVAL);
@@ -215,7 +215,7 @@ int devlink_nl_sb_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = devlink_nl_sb_fill(msg, devlink, devlink_sb,
 				 DEVLINK_CMD_SB_NEW,
@@ -322,11 +322,11 @@ int devlink_nl_sb_pool_get_doit(struct sk_buff *skb, struct genl_info *info)
 		return err;
 
 	if (!devlink->ops->sb_pool_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = devlink_nl_sb_pool_fill(msg, devlink, devlink_sb, pool_index,
 				      DEVLINK_CMD_SB_POOL_NEW,
@@ -382,7 +382,7 @@ devlink_nl_sb_pool_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
 					   devlink, devlink_sb,
 					   NETLINK_CB(cb->skb).portid,
 					   cb->nlh->nlmsg_seq, flags);
-		if (err == -EOPNOTSUPP) {
+		if (err == -EOPANALTSUPP) {
 			err = 0;
 		} else if (err) {
 			state->idx = idx;
@@ -410,7 +410,7 @@ static int devlink_sb_pool_set(struct devlink *devlink, unsigned int sb_index,
 	if (ops->sb_pool_set)
 		return ops->sb_pool_set(devlink, sb_index, pool_index,
 					size, threshold_type, extack);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int devlink_nl_sb_pool_set_doit(struct sk_buff *skb, struct genl_info *info)
@@ -483,7 +483,7 @@ static int devlink_nl_sb_port_pool_fill(struct sk_buff *msg,
 
 		err = ops->sb_occ_port_pool_get(devlink_port, devlink_sb->index,
 						pool_index, &cur, &max);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			goto sb_occ_get_failure;
 		if (!err) {
 			if (nla_put_u32(msg, DEVLINK_ATTR_SB_OCC_CUR, cur))
@@ -523,11 +523,11 @@ int devlink_nl_sb_port_pool_get_doit(struct sk_buff *skb,
 		return err;
 
 	if (!devlink->ops->sb_port_pool_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = devlink_nl_sb_port_pool_fill(msg, devlink, devlink_port,
 					   devlink_sb, pool_index,
@@ -590,7 +590,7 @@ devlink_nl_sb_port_pool_get_dump_one(struct sk_buff *msg,
 						devlink, devlink_sb,
 						NETLINK_CB(cb->skb).portid,
 						cb->nlh->nlmsg_seq, flags);
-		if (err == -EOPNOTSUPP) {
+		if (err == -EOPANALTSUPP) {
 			err = 0;
 		} else if (err) {
 			state->idx = idx;
@@ -618,7 +618,7 @@ static int devlink_sb_port_pool_set(struct devlink_port *devlink_port,
 	if (ops->sb_port_pool_set)
 		return ops->sb_port_pool_set(devlink_port, sb_index,
 					     pool_index, threshold, extack);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int devlink_nl_sb_port_pool_set_doit(struct sk_buff *skb,
@@ -695,7 +695,7 @@ devlink_nl_sb_tc_pool_bind_fill(struct sk_buff *msg, struct devlink *devlink,
 						   devlink_sb->index,
 						   tc_index, pool_type,
 						   &cur, &max);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			return err;
 		if (!err) {
 			if (nla_put_u32(msg, DEVLINK_ATTR_SB_OCC_CUR, cur))
@@ -738,11 +738,11 @@ int devlink_nl_sb_tc_pool_bind_get_doit(struct sk_buff *skb,
 		return err;
 
 	if (!devlink->ops->sb_tc_pool_bind_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = devlink_nl_sb_tc_pool_bind_fill(msg, devlink, devlink_port,
 					      devlink_sb, tc_index, pool_type,
@@ -827,7 +827,7 @@ static int devlink_nl_sb_tc_pool_bind_get_dump_one(struct sk_buff *msg,
 						   devlink, devlink_sb,
 						   NETLINK_CB(cb->skb).portid,
 						   cb->nlh->nlmsg_seq, flags);
-		if (err == -EOPNOTSUPP) {
+		if (err == -EOPANALTSUPP) {
 			err = 0;
 		} else if (err) {
 			state->idx = idx;
@@ -858,7 +858,7 @@ static int devlink_sb_tc_pool_bind_set(struct devlink_port *devlink_port,
 		return ops->sb_tc_pool_bind_set(devlink_port, sb_index,
 						tc_index, pool_type,
 						pool_index, threshold, extack);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int devlink_nl_sb_tc_pool_bind_set_doit(struct sk_buff *skb,
@@ -912,7 +912,7 @@ int devlink_nl_sb_occ_snapshot_doit(struct sk_buff *skb, struct genl_info *info)
 
 	if (ops->sb_occ_snapshot)
 		return ops->sb_occ_snapshot(devlink, devlink_sb->index);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int devlink_nl_sb_occ_max_clear_doit(struct sk_buff *skb,
@@ -928,7 +928,7 @@ int devlink_nl_sb_occ_max_clear_doit(struct sk_buff *skb,
 
 	if (ops->sb_occ_max_clear)
 		return ops->sb_occ_max_clear(devlink, devlink_sb->index);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int devl_sb_register(struct devlink *devlink, unsigned int sb_index,
@@ -945,7 +945,7 @@ int devl_sb_register(struct devlink *devlink, unsigned int sb_index,
 
 	devlink_sb = kzalloc(sizeof(*devlink_sb), GFP_KERNEL);
 	if (!devlink_sb)
-		return -ENOMEM;
+		return -EANALMEM;
 	devlink_sb->index = sb_index;
 	devlink_sb->size = size;
 	devlink_sb->ingress_pools_count = ingress_pools_count;

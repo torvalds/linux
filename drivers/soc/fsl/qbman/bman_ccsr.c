@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 analtice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor analr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -17,11 +17,11 @@
  * later version.
  *
  * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DISCLAIMED. IN ANAL EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
@@ -56,7 +56,7 @@ EXPORT_SYMBOL(bman_ip_rev);
 #define BM_EIRQ_FLWI	0x00000008	/* FBPR Low Watermark */
 #define BM_EIRQ_MBEI	0x00000004	/* Multi-bit ECC Error */
 #define BM_EIRQ_SBEI	0x00000002	/* Single-bit ECC Error */
-#define BM_EIRQ_BSCN	0x00000001	/* pool State Change Notification */
+#define BM_EIRQ_BSCN	0x00000001	/* pool State Change Analtification */
 
 struct bman_hwerr_txt {
 	u32 mask;
@@ -68,7 +68,7 @@ static const struct bman_hwerr_txt bman_hwerr_txts[] = {
 	{ BM_EIRQ_FLWI, "FBPR Low Watermark" },
 	{ BM_EIRQ_MBEI, "Multi-bit ECC Error" },
 	{ BM_EIRQ_SBEI, "Single-bit ECC Error" },
-	{ BM_EIRQ_BSCN, "Pool State Change Notification" },
+	{ BM_EIRQ_BSCN, "Pool State Change Analtification" },
 };
 
 /* Only trigger low water mark interrupt once only */
@@ -86,12 +86,12 @@ static inline void bm_ccsr_out(u32 offset, u32 val)
 	iowrite32be(val, bm_ccsr_start + offset/4);
 }
 
-static void bm_get_version(u16 *id, u8 *major, u8 *minor)
+static void bm_get_version(u16 *id, u8 *major, u8 *mianalr)
 {
 	u32 v = bm_ccsr_in(REG_IP_REV_1);
 	*id = (v >> 16);
 	*major = (v >> 8) & 0xff;
-	*minor = v & 0xff;
+	*mianalr = v & 0xff;
 }
 
 /* signal transactions for FBPRs with higher priority */
@@ -120,7 +120,7 @@ static int bm_set_memory(u64 ba, u32 size)
 		if (bare != upper_32_bits(ba) || bar != lower_32_bits(ba)) {
 			pr_err("Attempted to reinitialize BMan with different BAR, got 0x%llx read BARE=0x%x BAR=0x%x\n",
 			       ba, bare, bar);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		pr_info("BMan BAR already configured\n");
 		__bman_requires_cleanup = 1;
@@ -138,7 +138,7 @@ static int bm_set_memory(u64 ba, u32 size)
  *
  * Ideally we would use the DMA API to turn rmem->base into a DMA address
  * (especially if iommu translations ever get involved).  Unfortunately, the
- * DMA API currently does not allow mapping anything that is not backed with
+ * DMA API currently does analt allow mapping anything that is analt backed with
  * a struct page.
  */
 static dma_addr_t fbpr_a;
@@ -166,7 +166,7 @@ static irqreturn_t bman_isr(int irq, void *ptr)
 	isr_mask = isr_val & ier_val;
 
 	if (!isr_mask)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (i = 0; i < ARRAY_SIZE(bman_hwerr_txts); i++) {
 		if (bman_hwerr_txts[i].mask & isr_mask) {
@@ -209,37 +209,37 @@ static int fsl_bman_probe(struct platform_device *pdev)
 {
 	int ret, err_irq;
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct resource *res;
 	u16 id, bm_pool_cnt;
-	u8 major, minor;
+	u8 major, mianalr;
 
 	__bman_probed = -1;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "Can't get %pOF property 'IORESOURCE_MEM'\n",
-			node);
+			analde);
 		return -ENXIO;
 	}
 	bm_ccsr_start = devm_ioremap(dev, res->start, resource_size(res));
 	if (!bm_ccsr_start)
 		return -ENXIO;
 
-	bm_get_version(&id, &major, &minor);
-	if (major == 1 && minor == 0) {
+	bm_get_version(&id, &major, &mianalr);
+	if (major == 1 && mianalr == 0) {
 		bman_ip_rev = BMAN_REV10;
 		bm_pool_cnt = BM_POOL_MAX;
-	} else if (major == 2 && minor == 0) {
+	} else if (major == 2 && mianalr == 0) {
 		bman_ip_rev = BMAN_REV20;
 		bm_pool_cnt = 8;
-	} else if (major == 2 && minor == 1) {
+	} else if (major == 2 && mianalr == 1) {
 		bman_ip_rev = BMAN_REV21;
 		bm_pool_cnt = BM_POOL_MAX;
 	} else {
-		dev_err(dev, "Unknown Bman version:%04x,%02x,%02x\n",
-			id, major, minor);
-		return -ENODEV;
+		dev_err(dev, "Unkanalwn Bman version:%04x,%02x,%02x\n",
+			id, major, mianalr);
+		return -EANALDEV;
 	}
 
 	/*
@@ -251,7 +251,7 @@ static int fsl_bman_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(dev, "qbman_init_private_mem() failed 0x%x\n",
 				ret);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -261,14 +261,14 @@ static int fsl_bman_probe(struct platform_device *pdev)
 
 	err_irq = platform_get_irq(pdev, 0);
 	if (err_irq <= 0) {
-		dev_info(dev, "Can't get %pOF IRQ\n", node);
-		return -ENODEV;
+		dev_info(dev, "Can't get %pOF IRQ\n", analde);
+		return -EANALDEV;
 	}
 	ret = devm_request_irq(dev, err_irq, bman_isr, IRQF_SHARED, "bman-err",
 			       dev);
 	if (ret)  {
 		dev_err(dev, "devm_request_irq() failed %d for '%pOF'\n",
-			ret, node);
+			ret, analde);
 		return ret;
 	}
 	/* Disable Buffer Pool State Change */

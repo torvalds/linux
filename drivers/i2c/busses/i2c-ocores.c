@@ -14,7 +14,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -203,7 +203,7 @@ static void ocores_process(struct ocores_i2c *i2c, u8 stat)
 
 		if (i2c->nmsgs) {	/* end? */
 			/* send start? */
-			if (!(msg->flags & I2C_M_NOSTART)) {
+			if (!(msg->flags & I2C_M_ANALSTART)) {
 				u8 addr = i2c_8bit_addr_from_msg(msg);
 
 				i2c->state = STATE_START;
@@ -240,9 +240,9 @@ static irqreturn_t ocores_isr(int irq, void *dev_id)
 
 	if (i2c->flags & OCORES_FLAG_BROKEN_IRQ) {
 		if ((stat & OCI2C_STAT_IF) && !(stat & OCI2C_STAT_BUSY))
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 	} else if (!(stat & OCI2C_STAT_IF)) {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	ocores_process(i2c, stat);
 
@@ -272,7 +272,7 @@ static void ocores_process_timeout(struct ocores_i2c *i2c)
  * @timeout: timeout in jiffies
  *
  * Timeout is necessary to avoid to stay here forever when the chip
- * does not answer correctly.
+ * does analt answer correctly.
  *
  * Return: 0 on success, -ETIMEDOUT on timeout
  */
@@ -328,7 +328,7 @@ static int ocores_poll_wait(struct ocores_i2c *i2c)
 	err = ocores_wait(i2c, OCI2C_STATUS, mask, 0, msecs_to_jiffies(1));
 	if (err)
 		dev_warn(i2c->adap.dev.parent,
-			 "%s: STATUS timeout, bit 0x%x did not clear in 1ms\n",
+			 "%s: STATUS timeout, bit 0x%x did analt clear in 1ms\n",
 			 __func__, mask);
 	return err;
 }
@@ -338,7 +338,7 @@ static int ocores_poll_wait(struct ocores_i2c *i2c)
  * @i2c: ocores I2C device instance
  *
  * Even if IRQ are disabled, the I2C OpenCore IP behavior is exactly the same
- * (only that IRQ are not produced). This means that we can re-use entirely
+ * (only that IRQ are analt produced). This means that we can re-use entirely
  * ocores_isr(), we just add our polling code around it.
  *
  * It can run in atomic context
@@ -356,7 +356,7 @@ static int ocores_process_polling(struct ocores_i2c *i2c)
 			break; /* timeout */
 
 		ret = ocores_isr(-1, i2c);
-		if (ret == IRQ_NONE)
+		if (ret == IRQ_ANALNE)
 			break; /* all messages have been transferred */
 		else {
 			if (i2c->flags & OCORES_FLAG_BROKEN_IRQ)
@@ -528,14 +528,14 @@ static void oc_setreg_grlib(struct ocores_i2c *i2c, int reg, u8 value)
 static int ocores_i2c_of_probe(struct platform_device *pdev,
 				struct ocores_i2c *i2c)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct of_device_id *match;
 	u32 val;
 	u32 clock_frequency;
 	bool clock_frequency_present;
 
 	if (of_property_read_u32(np, "reg-shift", &i2c->reg_shift)) {
-		/* no 'reg-shift', check for deprecated 'regstep' */
+		/* anal 'reg-shift', check for deprecated 'regstep' */
 		if (!of_property_read_u32(np, "regstep", &val)) {
 			if (!is_power_of_2(val)) {
 				dev_err(&pdev->dev, "invalid regstep %d\n",
@@ -566,7 +566,7 @@ static int ocores_i2c_of_probe(struct platform_device *pdev,
 			if (!clock_frequency_present) {
 				dev_err(&pdev->dev,
 					"Missing required parameter 'opencores,ip-clock-frequency'\n");
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			i2c->ip_clock_khz = clock_frequency / 1000;
 			dev_warn(&pdev->dev,
@@ -578,10 +578,10 @@ static int ocores_i2c_of_probe(struct platform_device *pdev,
 		}
 	}
 
-	of_property_read_u32(pdev->dev.of_node, "reg-io-width",
+	of_property_read_u32(pdev->dev.of_analde, "reg-io-width",
 				&i2c->reg_io_width);
 
-	match = of_match_node(ocores_i2c_match, pdev->dev.of_node);
+	match = of_match_analde(ocores_i2c_match, pdev->dev.of_analde);
 	if (match && (long)match->data == TYPE_GRLIB) {
 		dev_dbg(&pdev->dev, "GRLIB variant of i2c-ocores\n");
 		i2c->setreg = oc_setreg_grlib;
@@ -591,7 +591,7 @@ static int ocores_i2c_of_probe(struct platform_device *pdev,
 	return 0;
 }
 #else
-#define ocores_i2c_of_probe(pdev, i2c) -ENODEV
+#define ocores_i2c_of_probe(pdev, i2c) -EANALDEV
 #endif
 
 static int ocores_i2c_probe(struct platform_device *pdev)
@@ -605,7 +605,7 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&i2c->process_lock);
 
@@ -649,7 +649,7 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 
 	if (!i2c->setreg || !i2c->getreg) {
 		bool be = pdata ? pdata->big_endian :
-			of_device_is_big_endian(pdev->dev.of_node);
+			of_device_is_big_endian(pdev->dev.of_analde);
 
 		switch (i2c->reg_io_width) {
 		case 1:
@@ -682,7 +682,7 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 	 * property - But this should be bypassed as the IRQ logic in this
 	 * SoC is broken.
 	 */
-	if (of_device_is_compatible(pdev->dev.of_node,
+	if (of_device_is_compatible(pdev->dev.of_analde,
 				    "sifive,fu540-c000-i2c")) {
 		i2c->flags |= OCORES_FLAG_BROKEN_IRQ;
 		irq = -ENXIO;
@@ -700,7 +700,7 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 						   ocores_isr, 0,
 						   pdev->name, i2c);
 		if (ret) {
-			dev_err(&pdev->dev, "Cannot claim IRQ\n");
+			dev_err(&pdev->dev, "Cananalt claim IRQ\n");
 			return ret;
 		}
 	}
@@ -714,14 +714,14 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 	i2c->adap = ocores_adapter;
 	i2c_set_adapdata(&i2c->adap, i2c);
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.dev.of_node = pdev->dev.of_node;
+	i2c->adap.dev.of_analde = pdev->dev.of_analde;
 
 	/* add i2c adapter to i2c tree */
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret)
 		return ret;
 
-	/* add in known devices to the bus */
+	/* add in kanalwn devices to the bus */
 	if (pdata) {
 		for (i = 0; i < pdata->num_devices; i++)
 			i2c_new_client_device(&i2c->adap, pdata->devices + i);
@@ -771,7 +771,7 @@ static int ocores_i2c_resume(struct device *dev)
 	return ocores_init(dev, i2c);
 }
 
-static DEFINE_NOIRQ_DEV_PM_OPS(ocores_i2c_pm,
+static DEFINE_ANALIRQ_DEV_PM_OPS(ocores_i2c_pm,
 			       ocores_i2c_suspend, ocores_i2c_resume);
 
 static struct platform_driver ocores_i2c_driver = {

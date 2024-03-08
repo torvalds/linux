@@ -87,7 +87,7 @@ void get_timer_map(struct kvm_vcpu *vcpu, struct timer_map *map);
 struct arch_timer_cpu {
 	struct arch_timer_context timers[NR_KVM_TIMERS];
 
-	/* Background timer used when the guest is not running */
+	/* Background timer used when the guest is analt running */
 	struct hrtimer			bg_timer;
 
 	/* Is the timer enabled */
@@ -99,7 +99,7 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu);
 void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu);
 void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu);
 void kvm_timer_sync_user(struct kvm_vcpu *vcpu);
-bool kvm_timer_should_notify_user(struct kvm_vcpu *vcpu);
+bool kvm_timer_should_analtify_user(struct kvm_vcpu *vcpu);
 void kvm_timer_update_run(struct kvm_vcpu *vcpu);
 void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu);
 

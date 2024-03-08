@@ -13,7 +13,7 @@ struct buffer {
 static ssize_t atags_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	struct buffer *b = pde_data(file_inode(file));
+	struct buffer *b = pde_data(file_ianalde(file));
 	return simple_read_from_buffer(buf, count, ppos, b->data, b->size);
 }
 
@@ -33,7 +33,7 @@ void __init save_atags(const struct tag *tags)
 static int __init init_atags_procfs(void)
 {
 	/*
-	 * This cannot go into save_atags() because kmalloc and proc don't work
+	 * This cananalt go into save_atags() because kmalloc and proc don't work
 	 * yet when it is called.
 	 */
 	struct proc_dir_entry *tags_entry;
@@ -42,35 +42,35 @@ static int __init init_atags_procfs(void)
 	size_t size;
 
 	if (tag->hdr.tag != ATAG_CORE) {
-		pr_info("No ATAGs?\n");
+		pr_info("Anal ATAGs?\n");
 		return -EINVAL;
 	}
 
 	for (; tag->hdr.size; tag = tag_next(tag))
 		;
 
-	/* include the terminating ATAG_NONE */
+	/* include the terminating ATAG_ANALNE */
 	size = (char *)tag - atags_copy + sizeof(struct tag_header);
 
-	WARN_ON(tag->hdr.tag != ATAG_NONE);
+	WARN_ON(tag->hdr.tag != ATAG_ANALNE);
 
 	b = kmalloc(struct_size(b, data, size), GFP_KERNEL);
 	if (!b)
-		goto nomem;
+		goto analmem;
 
 	b->size = size;
 	memcpy(b->data, atags_copy, size);
 
 	tags_entry = proc_create_data("atags", 0400, NULL, &atags_proc_ops, b);
 	if (!tags_entry)
-		goto nomem;
+		goto analmem;
 
 	return 0;
 
-nomem:
+analmem:
 	kfree(b);
-	pr_err("Exporting ATAGs: not enough memory\n");
+	pr_err("Exporting ATAGs: analt eanalugh memory\n");
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 arch_initcall(init_atags_procfs);

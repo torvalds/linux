@@ -129,7 +129,7 @@ static int qed_iwarp_alloc_cid(struct qed_hwfn *p_hwfn, u32 *cid)
 	rc = qed_rdma_bmap_alloc_id(p_hwfn, &p_hwfn->p_rdma_info->cid_map, cid);
 	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed in allocating iwarp cid\n");
+		DP_ANALTICE(p_hwfn, "Failed in allocating iwarp cid\n");
 		return rc;
 	}
 	*cid += qed_cxt_get_proto_cid_start(p_hwfn, p_hwfn->p_rdma_info->proto);
@@ -196,7 +196,7 @@ int qed_iwarp_create_qp(struct qed_hwfn *p_hwfn,
 					      &qp->shared_queue_phys_addr,
 					      GFP_KERNEL);
 	if (!qp->shared_queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	out_params->sq_pbl_virt = (u8 *)qp->shared_queue +
 	    IWARP_SHARED_QUEUE_PAGE_SQ_PBL_OFFSET;
@@ -431,7 +431,7 @@ qed_iwarp_modify_qp(struct qed_hwfn *p_hwfn,
 			qp->iwarp_state = new_state;
 			break;
 		case QED_IWARP_QP_STATE_CLOSING:
-			/* could happen due to race... do nothing.... */
+			/* could happen due to race... do analthing.... */
 			break;
 		default:
 			rc = -EINVAL;
@@ -524,7 +524,7 @@ int qed_iwarp_destroy_qp(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp)
 			msleep(100);
 
 		if (ep->state != QED_IWARP_EP_CLOSED)
-			DP_NOTICE(p_hwfn, "ep state close timeout state=%x\n",
+			DP_ANALTICE(p_hwfn, "ep state close timeout state=%x\n",
 				  ep->state);
 
 		qed_iwarp_destroy_ep(p_hwfn, ep, false);
@@ -548,7 +548,7 @@ qed_iwarp_create_ep(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep **ep_out)
 
 	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (!ep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ep->state = QED_IWARP_EP_INIT;
 
@@ -557,7 +557,7 @@ qed_iwarp_create_ep(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep **ep_out)
 						&ep->ep_buffer_phys,
 						GFP_KERNEL);
 	if (!ep->ep_buffer_virt) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -770,7 +770,7 @@ qed_iwarp_mpa_received(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 					    QED_IWARP_IRD_DEFAULT);
 
 		/* Peer2Peer negotiation */
-		ep->rtr_type = MPA_RTR_TYPE_NONE;
+		ep->rtr_type = MPA_RTR_TYPE_ANALNE;
 		if (mpa_ird & MPA_V2_PEER2PEER_MODEL) {
 			if (mpa_ord & MPA_V2_WRITE_RTR)
 				ep->rtr_type |= MPA_RTR_TYPE_ZERO_WRITE;
@@ -783,8 +783,8 @@ qed_iwarp_mpa_received(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 
 			ep->rtr_type &= iwarp_info->rtr_type;
 
-			/* if we're left with no match send our capabilities */
-			if (ep->rtr_type == MPA_RTR_TYPE_NONE)
+			/* if we're left with anal match send our capabilities */
+			if (ep->rtr_type == MPA_RTR_TYPE_ANALNE)
 				ep->rtr_type = iwarp_info->rtr_type;
 		}
 
@@ -901,7 +901,7 @@ qed_iwarp_mpa_offload(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 	ep->state = QED_IWARP_EP_MPA_OFFLOADED;
 	rc = qed_spq_post(p_hwfn, p_ent, NULL);
 	if (!reject)
-		ep->cid = qp->icid;	/* Now they're migrated. */
+		ep->cid = qp->icid;	/* Analw they're migrated. */
 
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_RDMA,
@@ -970,8 +970,8 @@ qed_iwarp_mpa_reply_arrived(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep *ep)
 	struct qed_iwarp_cm_event_params params;
 
 	if (ep->connect_mode == TCP_CONNECT_PASSIVE) {
-		DP_NOTICE(p_hwfn,
-			  "MPA reply event not expected on passive side!\n");
+		DP_ANALTICE(p_hwfn,
+			  "MPA reply event analt expected on passive side!\n");
 		return;
 	}
 
@@ -1029,48 +1029,48 @@ qed_iwarp_mpa_complete(struct qed_hwfn *p_hwfn,
 		params.status = 0;
 		break;
 	case IWARP_CONN_ERROR_MPA_TIMEOUT:
-		DP_NOTICE(p_hwfn, "%s(0x%x) MPA timeout\n",
+		DP_ANALTICE(p_hwfn, "%s(0x%x) MPA timeout\n",
 			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
 		params.status = -EBUSY;
 		break;
 	case IWARP_CONN_ERROR_MPA_ERROR_REJECT:
-		DP_NOTICE(p_hwfn, "%s(0x%x) MPA Reject\n",
+		DP_ANALTICE(p_hwfn, "%s(0x%x) MPA Reject\n",
 			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
 		params.status = -ECONNREFUSED;
 		break;
 	case IWARP_CONN_ERROR_MPA_RST:
-		DP_NOTICE(p_hwfn, "%s(0x%x) MPA reset(tcp cid: 0x%x)\n",
+		DP_ANALTICE(p_hwfn, "%s(0x%x) MPA reset(tcp cid: 0x%x)\n",
 			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid,
 			  ep->tcp_cid);
 		params.status = -ECONNRESET;
 		break;
 	case IWARP_CONN_ERROR_MPA_FIN:
-		DP_NOTICE(p_hwfn, "%s(0x%x) MPA received FIN\n",
+		DP_ANALTICE(p_hwfn, "%s(0x%x) MPA received FIN\n",
 			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
 		params.status = -ECONNREFUSED;
 		break;
 	case IWARP_CONN_ERROR_MPA_INSUF_IRD:
-		DP_NOTICE(p_hwfn, "%s(0x%x) MPA insufficient ird\n",
+		DP_ANALTICE(p_hwfn, "%s(0x%x) MPA insufficient ird\n",
 			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
 		params.status = -ECONNREFUSED;
 		break;
 	case IWARP_CONN_ERROR_MPA_RTR_MISMATCH:
-		DP_NOTICE(p_hwfn, "%s(0x%x) MPA RTR MISMATCH\n",
+		DP_ANALTICE(p_hwfn, "%s(0x%x) MPA RTR MISMATCH\n",
 			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
 		params.status = -ECONNREFUSED;
 		break;
 	case IWARP_CONN_ERROR_MPA_INVALID_PACKET:
-		DP_NOTICE(p_hwfn, "%s(0x%x) MPA Invalid Packet\n",
+		DP_ANALTICE(p_hwfn, "%s(0x%x) MPA Invalid Packet\n",
 			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
 		params.status = -ECONNREFUSED;
 		break;
 	case IWARP_CONN_ERROR_MPA_LOCAL_ERROR:
-		DP_NOTICE(p_hwfn, "%s(0x%x) MPA Local Error\n",
+		DP_ANALTICE(p_hwfn, "%s(0x%x) MPA Local Error\n",
 			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
 		params.status = -ECONNREFUSED;
 		break;
 	case IWARP_CONN_ERROR_MPA_TERMINATE:
-		DP_NOTICE(p_hwfn, "%s(0x%x) MPA TERMINATE\n",
+		DP_ANALTICE(p_hwfn, "%s(0x%x) MPA TERMINATE\n",
 			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
 		params.status = -ECONNREFUSED;
 		break;
@@ -1085,7 +1085,7 @@ qed_iwarp_mpa_complete(struct qed_hwfn *p_hwfn,
 
 	ep->event_cb(ep->cb_context, &params);
 
-	/* on passive side, if there is no associated QP (REJECT) we need to
+	/* on passive side, if there is anal associated QP (REJECT) we need to
 	 * return the ep to the pool, (in the regular case we add an element
 	 * in accept instead of this one.
 	 * In both cases we need to remove it from the ep_list.
@@ -1119,7 +1119,7 @@ qed_iwarp_mpa_v2_set_private(struct qed_hwfn *p_hwfn,
 		mpa_ird = (u16)ep->cm_info.ird;
 		mpa_ord = (u16)ep->cm_info.ord;
 
-		if (ep->rtr_type != MPA_RTR_TYPE_NONE) {
+		if (ep->rtr_type != MPA_RTR_TYPE_ANALNE) {
 			mpa_ird |= MPA_V2_PEER2PEER_MODEL;
 
 			if (ep->rtr_type & MPA_RTR_TYPE_ZERO_SEND)
@@ -1163,7 +1163,7 @@ int qed_iwarp_connect(void *rdma_cxt,
 
 	if ((iparams->cm_info.ord > QED_IWARP_ORD_DEFAULT) ||
 	    (iparams->cm_info.ird > QED_IWARP_IRD_DEFAULT)) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "QP(0x%x) ERROR: Invalid ord(0x%x)/ird(0x%x)\n",
 			  iparams->qp->icid, iparams->cm_info.ord,
 			  iparams->cm_info.ird);
@@ -1199,7 +1199,7 @@ int qed_iwarp_connect(void *rdma_cxt,
 
 	ep->rtr_type = iwarp_info->rtr_type;
 	if (!iwarp_info->peer2peer)
-		ep->rtr_type = MPA_RTR_TYPE_NONE;
+		ep->rtr_type = MPA_RTR_TYPE_ANALNE;
 
 	if ((ep->rtr_type & MPA_RTR_TYPE_ZERO_READ) && (ep->cm_info.ord == 0))
 		ep->cm_info.ord = 1;
@@ -1258,14 +1258,14 @@ static struct qed_iwarp_ep *qed_iwarp_get_free_ep(struct qed_hwfn *p_hwfn)
 			      struct qed_iwarp_ep, list_entry);
 
 	/* in some cases we could have failed allocating a tcp cid when added
-	 * from accept / failure... retry now..this is not the common case.
+	 * from accept / failure... retry analw..this is analt the common case.
 	 */
 	if (ep->tcp_cid == QED_IWARP_INVALID_TCP_CID) {
 		rc = qed_iwarp_alloc_tcp_cid(p_hwfn, &ep->tcp_cid);
 
-		/* if we fail we could look for another entry with a valid
+		/* if we fail we could look for aanalther entry with a valid
 		 * tcp_cid, but since we don't expect to reach this anyway
-		 * it's not worth the handling
+		 * it's analt worth the handling
 		 */
 		if (rc) {
 			ep->tcp_cid = QED_IWARP_INVALID_TCP_CID;
@@ -1282,7 +1282,7 @@ out:
 }
 
 #define QED_IWARP_MAX_CID_CLEAN_TIME  100
-#define QED_IWARP_MAX_NO_PROGRESS_CNT 5
+#define QED_IWARP_MAX_ANAL_PROGRESS_CNT 5
 
 /* This function waits for all the bits of a bmap to be cleared, as long as
  * there is progress ( i.e. the number of bits left to be cleared decreases )
@@ -1318,8 +1318,8 @@ qed_iwarp_wait_cid_map_cleared(struct qed_hwfn *p_hwfn, struct qed_bmap *bmap)
 			wait_count = 0;
 		}
 
-		if (wait_count > QED_IWARP_MAX_NO_PROGRESS_CNT) {
-			DP_NOTICE(p_hwfn,
+		if (wait_count > QED_IWARP_MAX_ANAL_PROGRESS_CNT) {
+			DP_ANALTICE(p_hwfn,
 				  "%s bitmap wait timed out (%d cids pending)\n",
 				  bmap->name, weight);
 			return -EBUSY;
@@ -1338,11 +1338,11 @@ static int qed_iwarp_wait_for_all_cids(struct qed_hwfn *p_hwfn)
 	if (rc)
 		return rc;
 
-	/* Now free the tcp cids from the main cid map */
+	/* Analw free the tcp cids from the main cid map */
 	for (i = 0; i < QED_IWARP_PREALLOC_CNT; i++)
 		qed_bmap_release_id(p_hwfn, &p_hwfn->p_rdma_info->cid_map, i);
 
-	/* Now wait for all cids to be completed */
+	/* Analw wait for all cids to be completed */
 	return qed_iwarp_wait_cid_map_cleared(p_hwfn,
 					      &p_hwfn->p_rdma_info->cid_map);
 }
@@ -1583,7 +1583,7 @@ qed_iwarp_ll2_post_rx(struct qed_hwfn *p_hwfn,
 	rc = qed_ll2_post_rx_buffer(p_hwfn, handle, buf->data_phys_addr,
 				    (u16)buf->buff_size, buf, 1);
 	if (rc) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Failed to repost rx buffer to ll2 rc = %d, handle=%d\n",
 			  rc, handle);
 		dma_free_coherent(&p_hwfn->cdev->pdev->dev, buf->buff_size,
@@ -1616,7 +1616,7 @@ qed_iwarp_ep_exists(struct qed_hwfn *p_hwfn, struct qed_iwarp_cm_info *cm_info)
 	}
 
 	if (found) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "SYN received on active connection - dropping\n");
 		qed_iwarp_print_cm_info(p_hwfn, cm_info);
 
@@ -1660,7 +1660,7 @@ qed_iwarp_get_listener(struct qed_hwfn *p_hwfn,
 		return listener;
 	}
 
-	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "listener not found\n");
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "listener analt found\n");
 	return NULL;
 }
 
@@ -1716,7 +1716,7 @@ qed_iwarp_parse_rx_pkt(struct qed_hwfn *p_hwfn,
 
 	if (eth_type == ETH_P_IP) {
 		if (iph->protocol != IPPROTO_TCP) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Unexpected ip protocol on ll2 %x\n",
 				  iph->protocol);
 			return -EINVAL;
@@ -1732,7 +1732,7 @@ qed_iwarp_parse_rx_pkt(struct qed_hwfn *p_hwfn,
 		ip6h = (struct ipv6hdr *)iph;
 
 		if (ip6h->nexthdr != IPPROTO_TCP) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Unexpected ip protocol on ll2 %x\n",
 				  iph->protocol);
 			return -EINVAL;
@@ -1749,14 +1749,14 @@ qed_iwarp_parse_rx_pkt(struct qed_hwfn *p_hwfn,
 		ip_hlen = sizeof(*ip6h);
 		*payload_len = ntohs(ip6h->payload_len);
 	} else {
-		DP_NOTICE(p_hwfn, "Unexpected ethertype on ll2 %x\n", eth_type);
+		DP_ANALTICE(p_hwfn, "Unexpected ethertype on ll2 %x\n", eth_type);
 		return -EINVAL;
 	}
 
 	tcph = (struct tcphdr *)((u8 *)iph + ip_hlen);
 
 	if (!tcph->syn) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Only SYN type packet expected on this ll2 conn, iph->ihl=%d source=%d dest=%d\n",
 			  iph->ihl, tcph->source, tcph->dest);
 		return -EINVAL;
@@ -1896,13 +1896,13 @@ qed_iwarp_cp_pkt(struct qed_hwfn *p_hwfn,
 
 	/* need to copy the data from the partial packet stored in fpdu
 	 * to the new buf, for this we also need to move the data currently
-	 * placed on the buf. The assumption is that the buffer is big enough
+	 * placed on the buf. The assumption is that the buffer is big eanalugh
 	 * since fpdu_length <= mss, we use an intermediate buffer since
 	 * we may need to copy the new data to an overlapping location
 	 */
 	if ((fpdu->mpa_frag_len + tcp_payload_size) > (u16)buf->buff_size) {
 		DP_ERR(p_hwfn,
-		       "MPA ALIGN: Unexpected: buffer is not large enough for split fpdu buff_size = %d mpa_frag_len = %d, tcp_payload_size = %d, incomplete_bytes = %d\n",
+		       "MPA ALIGN: Unexpected: buffer is analt large eanalugh for split fpdu buff_size = %d mpa_frag_len = %d, tcp_payload_size = %d, incomplete_bytes = %d\n",
 		       buf->buff_size, fpdu->mpa_frag_len,
 		       tcp_payload_size, fpdu->incomplete_bytes);
 		return -EINVAL;
@@ -1953,7 +1953,7 @@ qed_iwarp_update_fpdu_length(struct qed_hwfn *p_hwfn,
 
 	/* Update incomplete packets if needed */
 	if (fpdu->incomplete_bytes == QED_IWARP_INVALID_FPDU_LENGTH) {
-		/* Missing lower byte is now available */
+		/* Missing lower byte is analw available */
 		mpa_len = fpdu->fpdu_length | *mpa_data;
 		fpdu->fpdu_length = QED_IWARP_FPDU_LEN_WITH_PAD(mpa_len);
 		/* one byte of hdr */
@@ -2087,7 +2087,7 @@ qed_iwarp_send_fpdu(struct qed_hwfn *p_hwfn,
 	/* vlan overload with enum iwarp_ll2_tx_queues */
 	tx_pkt.vlan = IWARP_LL2_ALIGNED_TX_QUEUE;
 
-	/* special case of unaligned packet and not packed, need to send
+	/* special case of unaligned packet and analt packed, need to send
 	 * both buffers as cookie to release.
 	 */
 	if (tcp_payload_size == fpdu->incomplete_bytes)
@@ -2261,7 +2261,7 @@ qed_iwarp_process_mpa_pkt(struct qed_hwfn *p_hwfn,
 			le16_add_cpu(&curr_pkt->first_mpa_offset,
 				     fpdu->incomplete_bytes);
 
-			/* The framed PDU was sent - no more incomplete bytes */
+			/* The framed PDU was sent - anal more incomplete bytes */
 			fpdu->incomplete_bytes = 0;
 			break;
 		}
@@ -2299,7 +2299,7 @@ static void qed_iwarp_process_pending_pkts(struct qed_hwfn *p_hwfn)
 			       &iwarp_info->mpa_buf_list);
 
 		if (rc) {	/* different error, don't continue */
-			DP_NOTICE(p_hwfn, "process pkts failed rc=%d\n", rc);
+			DP_ANALTICE(p_hwfn, "process pkts failed rc=%d\n", rc);
 			break;
 		}
 	}
@@ -2317,7 +2317,7 @@ qed_iwarp_ll2_comp_mpa_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 	mpa_buf = list_first_entry(&iwarp_info->mpa_buf_list,
 				   struct qed_iwarp_ll2_mpa_buf, list_entry);
 	if (!mpa_buf) {
-		DP_ERR(p_hwfn, "No free mpa buf\n");
+		DP_ERR(p_hwfn, "Anal free mpa buf\n");
 		goto err;
 	}
 
@@ -2373,7 +2373,7 @@ qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 
 	/* Check if packet was received with errors... */
 	if (data->err_flags) {
-		DP_NOTICE(p_hwfn, "Error received on SYN packet: 0x%x\n",
+		DP_ANALTICE(p_hwfn, "Error received on SYN packet: 0x%x\n",
 			  data->err_flags);
 		goto err;
 	}
@@ -2381,7 +2381,7 @@ qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 	if (GET_FIELD(data->parse_flags,
 		      PARSING_AND_ERR_FLAGS_L4CHKSMWASCALCULATED) &&
 	    GET_FIELD(data->parse_flags, PARSING_AND_ERR_FLAGS_L4CHKSMERROR)) {
-		DP_NOTICE(p_hwfn, "Syn packet received with checksum error\n");
+		DP_ANALTICE(p_hwfn, "Syn packet received with checksum error\n");
 		goto err;
 	}
 
@@ -2397,7 +2397,7 @@ qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 	if (!listener) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_RDMA,
-			   "SYN received on tuple not listened on parse_flags=%d packet len=%d\n",
+			   "SYN received on tuple analt listened on parse_flags=%d packet len=%d\n",
 			   data->parse_flags, data->length.packet_length);
 
 		memset(&tx_pkt, 0, sizeof(tx_pkt));
@@ -2413,7 +2413,7 @@ qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 					       &tx_pkt, true);
 
 		if (rc) {
-			DP_NOTICE(p_hwfn,
+			DP_ANALTICE(p_hwfn,
 				  "Can't post SYN back to chip rc=%d\n", rc);
 			goto err;
 		}
@@ -2604,7 +2604,7 @@ qed_iwarp_ll2_alloc_buffers(struct qed_hwfn *p_hwfn,
 	for (i = 0; i < num_rx_bufs; i++) {
 		buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 		if (!buffer) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			break;
 		}
 
@@ -2614,7 +2614,7 @@ qed_iwarp_ll2_alloc_buffers(struct qed_hwfn *p_hwfn,
 						  GFP_KERNEL);
 		if (!buffer->data) {
 			kfree(buffer);
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			break;
 		}
 
@@ -2680,14 +2680,14 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 
 	rc = qed_ll2_acquire_connection(p_hwfn, &data);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to acquire LL2 connection\n");
+		DP_ANALTICE(p_hwfn, "Failed to acquire LL2 connection\n");
 		qed_llh_remove_mac_filter(p_hwfn->cdev, 0, params->mac_addr);
 		return rc;
 	}
 
 	rc = qed_ll2_establish_connection(p_hwfn, iwarp_info->ll2_syn_handle);
 	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to establish LL2 connection\n");
+		DP_ANALTICE(p_hwfn, "Failed to establish LL2 connection\n");
 		goto err;
 	}
 
@@ -2763,7 +2763,7 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 					    sizeof(*iwarp_info->partial_fpdus),
 					    GFP_KERNEL);
 	if (!iwarp_info->partial_fpdus) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -2771,20 +2771,20 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 
 	iwarp_info->mpa_intermediate_buf = kzalloc(buff_size, GFP_KERNEL);
 	if (!iwarp_info->mpa_intermediate_buf) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
 	/* The mpa_bufs array serves for pending RX packets received on the
 	 * mpa ll2 that don't have place on the tx ring and require later
 	 * processing. We can't fail on allocation of such a struct therefore
-	 * we allocate enough to take care of all rx packets
+	 * we allocate eanalugh to take care of all rx packets
 	 */
 	iwarp_info->mpa_bufs = kcalloc(data.input.rx_num_desc,
 				       sizeof(*iwarp_info->mpa_bufs),
 				       GFP_KERNEL);
 	if (!iwarp_info->mpa_bufs) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -2983,17 +2983,17 @@ qed_iwarp_tcp_connect_unsuccessful(struct qed_hwfn *p_hwfn,
 		params.status = -ECONNRESET;
 		break;
 	case IWARP_CONN_ERROR_TCP_CONNECT_TIMEOUT:
-		DP_NOTICE(p_hwfn, "%s(0x%x) TCP timeout\n",
+		DP_ANALTICE(p_hwfn, "%s(0x%x) TCP timeout\n",
 			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->tcp_cid);
 		params.status = -EBUSY;
 		break;
-	case IWARP_CONN_ERROR_MPA_NOT_SUPPORTED_VER:
-		DP_NOTICE(p_hwfn, "%s(0x%x) MPA not supported VER\n",
+	case IWARP_CONN_ERROR_MPA_ANALT_SUPPORTED_VER:
+		DP_ANALTICE(p_hwfn, "%s(0x%x) MPA analt supported VER\n",
 			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->tcp_cid);
 		params.status = -ECONNREFUSED;
 		break;
 	case IWARP_CONN_ERROR_MPA_INVALID_PACKET:
-		DP_NOTICE(p_hwfn, "%s(0x%x) MPA Invalid Packet\n",
+		DP_ANALTICE(p_hwfn, "%s(0x%x) MPA Invalid Packet\n",
 			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->tcp_cid);
 		params.status = -ECONNRESET;
 		break;
@@ -3029,7 +3029,7 @@ qed_iwarp_connect_complete(struct qed_hwfn *p_hwfn,
 
 		ep->syn = NULL;
 
-		/* If connect failed - upper layer doesn't know about it */
+		/* If connect failed - upper layer doesn't kanalw about it */
 		if (fw_return_code == RDMA_RETURN_OK)
 			qed_iwarp_mpa_received(p_hwfn, ep);
 		else
@@ -3126,25 +3126,25 @@ static int qed_iwarp_async_event(struct qed_hwfn *p_hwfn, u8 fw_event_code,
 
 		break;
 	case IWARP_EVENT_TYPE_ASYNC_SRQ_EMPTY:
-		DP_NOTICE(p_hwfn, "IWARP_EVENT_TYPE_ASYNC_SRQ_EMPTY\n");
+		DP_ANALTICE(p_hwfn, "IWARP_EVENT_TYPE_ASYNC_SRQ_EMPTY\n");
 		srq_offset = p_hwfn->p_rdma_info->srq_id_offset;
-		/* FW assigns value that is no greater than u16 */
+		/* FW assigns value that is anal greater than u16 */
 		srq_id = ((u16)le32_to_cpu(fw_handle->lo)) - srq_offset;
 		events.affiliated_event(events.context,
 					QED_IWARP_EVENT_SRQ_EMPTY,
 					&srq_id);
 		break;
 	case IWARP_EVENT_TYPE_ASYNC_SRQ_LIMIT:
-		DP_NOTICE(p_hwfn, "IWARP_EVENT_TYPE_ASYNC_SRQ_LIMIT\n");
+		DP_ANALTICE(p_hwfn, "IWARP_EVENT_TYPE_ASYNC_SRQ_LIMIT\n");
 		srq_offset = p_hwfn->p_rdma_info->srq_id_offset;
-		/* FW assigns value that is no greater than u16 */
+		/* FW assigns value that is anal greater than u16 */
 		srq_id = ((u16)le32_to_cpu(fw_handle->lo)) - srq_offset;
 		events.affiliated_event(events.context,
 					QED_IWARP_EVENT_SRQ_LIMIT,
 					&srq_id);
 		break;
 	case IWARP_EVENT_TYPE_ASYNC_CQ_OVERFLOW:
-		DP_NOTICE(p_hwfn, "IWARP_EVENT_TYPE_ASYNC_CQ_OVERFLOW\n");
+		DP_ANALTICE(p_hwfn, "IWARP_EVENT_TYPE_ASYNC_CQ_OVERFLOW\n");
 
 		p_hwfn->p_rdma_info->events.affiliated_event(
 			p_hwfn->p_rdma_info->events.context,
@@ -3169,7 +3169,7 @@ qed_iwarp_create_listen(void *rdma_cxt,
 
 	listener = kzalloc(sizeof(*listener), GFP_KERNEL);
 	if (!listener)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	listener->ip_version = iparams->ip_version;
 	memcpy(listener->ip_addr, iparams->ip_addr, sizeof(listener->ip_addr));

@@ -19,7 +19,7 @@
 
 #define INT_NR			0x20
 
-static_assert(ATOMIC_INT_LOCK_FREE == 2, "atomic int is not lockless");
+static_assert(ATOMIC_INT_LOCK_FREE == 2, "atomic int is analt lockless");
 
 static unsigned int bp_fired;
 static void guest_bp_handler(struct ex_regs *regs)
@@ -43,7 +43,7 @@ static void l2_guest_code_int(void)
 	/*
          * Same as the vmmcall() function, but with a ud2 sneaked after the
          * vmmcall.  The caller injects an exception with the return address
-         * increased by 2, so the "pop rbp" must be after the ud2 and we cannot
+         * increased by 2, so the "pop rbp" must be after the ud2 and we cananalt
 	 * use vmmcall() directly.
          */
 	__asm__ __volatile__("push %%rbp; vmmcall; ud2; pop %%rbp"
@@ -125,7 +125,7 @@ static void l1_guest_code(struct svm_test_data *svm, uint64_t is_nmi, uint64_t i
 
 	/* Switch to alternate IDT to cause intervening NPF again */
 	vmcb->save.idtr.base = idt_alt;
-	vmcb->control.clean = 0; /* &= ~BIT(VMCB_DT) would be enough */
+	vmcb->control.clean = 0; /* &= ~BIT(VMCB_DT) would be eanalugh */
 
 	vmcb->control.event_inj = BP_VECTOR | SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_EXEPT;
 	/* The return address pushed on stack, skip over UD2 */
@@ -187,11 +187,11 @@ static void run_test(bool is_nmi)
 	case UCALL_ABORT:
 		REPORT_GUEST_ASSERT(uc);
 		break;
-		/* NOT REACHED */
+		/* ANALT REACHED */
 	case UCALL_DONE:
 		goto done;
 	default:
-		TEST_FAIL("Unknown ucall 0x%lx.", uc.cmd);
+		TEST_FAIL("Unkanalwn ucall 0x%lx.", uc.cmd);
 	}
 done:
 	kvm_vm_free(vm);

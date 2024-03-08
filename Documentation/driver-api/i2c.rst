@@ -4,11 +4,11 @@ I\ :sup:`2`\ C and SMBus Subsystem
 I\ :sup:`2`\ C (or without fancy typography, "I2C") is an acronym for
 the "Inter-IC" bus, a simple bus protocol which is widely used where low
 data rate communications suffice. Since it's also a licensed trademark,
-some vendors use another name (such as "Two-Wire Interface", TWI) for
+some vendors use aanalther name (such as "Two-Wire Interface", TWI) for
 the same bus. I2C only needs two signals (SCL for clock, SDA for data),
 conserving board real estate and minimizing signal quality issues. Most
 I2C devices use seven bit addresses, and bus speeds of up to 400 kHz;
-there's a high speed extension (3.4 MHz) that's not yet found wide use.
+there's a high speed extension (3.4 MHz) that's analt yet found wide use.
 I2C is a multi-master bus; open drain signaling is used to arbitrate
 between masters, as well as to handshake and to synchronize clocks from
 slower clients.

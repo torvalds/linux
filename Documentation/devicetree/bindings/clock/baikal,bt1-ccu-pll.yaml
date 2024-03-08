@@ -16,9 +16,9 @@ description: |
   connected with an external fixed rate oscillator, which signal is transformed
   into clocks of various frequencies and then propagated to either individual
   IP-blocks or to groups of blocks (clock domains). The transformation is done
-  by means of PLLs and gateable/non-gateable dividers embedded into the CCU.
+  by means of PLLs and gateable/analn-gateable dividers embedded into the CCU.
   It's logically divided into the next components:
-  1) External oscillator (normally XTAL's 25 MHz crystal oscillator, but
+  1) External oscillator (analrmally XTAL's 25 MHz crystal oscillator, but
      in general can provide any frequency supported by the CCU PLLs).
   2) PLLs clocks generators (PLLs) - described in this binding file.
   3) AXI-bus clock dividers (AXI).
@@ -40,7 +40,7 @@ description: |
           |         +---+-|- High-speed Devices
           +---------------+
 
-  Each CCU sub-block is represented as a separate dts-node and has an
+  Each CCU sub-block is represented as a separate dts-analde and has an
   individual driver to be bound with.
 
   In order to create signals of wide range frequencies the external oscillator
@@ -78,10 +78,10 @@ description: |
   clocks consumer (like P5600 cores or DDR controller) or passed over a CCU
   divider to create a signal required for the clock domain.
 
-  The CCU PLL dts-node uses the common clock bindings with no custom
+  The CCU PLL dts-analde uses the common clock bindings with anal custom
   parameters. The list of exported clocks can be found in
   'include/dt-bindings/clock/bt1-ccu.h'. Since CCU PLL is a part of the
-  Baikal-T1 SoC System Controller its DT node is supposed to be a child of
+  Baikal-T1 SoC System Controller its DT analde is supposed to be a child of
   later one.
 
 properties:
@@ -110,7 +110,7 @@ required:
   - clock-names
 
 examples:
-  # Clock Control Unit PLL node:
+  # Clock Control Unit PLL analde:
   - |
     clock-controller@1f04d000 {
       compatible = "baikal,bt1-ccu-pll";

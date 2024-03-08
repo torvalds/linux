@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2022, Linaro Limited
  */
 
@@ -1208,7 +1208,7 @@ static struct clk_regmap_div gcc_usb30_prim_mock_utmi_postdiv_clk_src = {
 	},
 };
 
-static struct clk_branch gcc_aggre_noc_pcie_axi_clk = {
+static struct clk_branch gcc_aggre_analc_pcie_axi_clk = {
 	.halt_reg = 0x1003c,
 	.halt_check = BRANCH_HALT_SKIP,
 	.hwcg_reg = 0x1003c,
@@ -1217,7 +1217,7 @@ static struct clk_branch gcc_aggre_noc_pcie_axi_clk = {
 		.enable_reg = 0x52000,
 		.enable_mask = BIT(12),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_aggre_noc_pcie_axi_clk",
+			.name = "gcc_aggre_analc_pcie_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1328,7 +1328,7 @@ static struct clk_branch gcc_camera_sf_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_pcie_anoc_ahb_clk = {
+static struct clk_branch gcc_cfg_analc_pcie_aanalc_ahb_clk = {
 	.halt_reg = 0x10028,
 	.halt_check = BRANCH_HALT_SKIP,
 	.hwcg_reg = 0x10028,
@@ -1337,13 +1337,13 @@ static struct clk_branch gcc_cfg_noc_pcie_anoc_ahb_clk = {
 		.enable_reg = 0x52000,
 		.enable_mask = BIT(20),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_cfg_noc_pcie_anoc_ahb_clk",
+			.name = "gcc_cfg_analc_pcie_aanalc_ahb_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_cfg_noc_usb3_prim_axi_clk = {
+static struct clk_branch gcc_cfg_analc_usb3_prim_axi_clk = {
 	.halt_reg = 0x39088,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x39088,
@@ -1352,7 +1352,7 @@ static struct clk_branch gcc_cfg_noc_usb3_prim_axi_clk = {
 		.enable_reg = 0x39088,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_cfg_noc_usb3_prim_axi_clk",
+			.name = "gcc_cfg_analc_usb3_prim_axi_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&gcc_usb30_prim_master_clk_src.clkr.hw,
 			},
@@ -1363,7 +1363,7 @@ static struct clk_branch gcc_cfg_noc_usb3_prim_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_cnoc_pcie_sf_axi_clk = {
+static struct clk_branch gcc_canalc_pcie_sf_axi_clk = {
 	.halt_reg = 0x10030,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x10030,
@@ -1372,7 +1372,7 @@ static struct clk_branch gcc_cnoc_pcie_sf_axi_clk = {
 		.enable_reg = 0x52008,
 		.enable_mask = BIT(6),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_cnoc_pcie_sf_axi_clk",
+			.name = "gcc_canalc_pcie_sf_axi_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1511,7 +1511,7 @@ static struct clk_branch gcc_gpu_gpll0_div_clk_src = {
 	},
 };
 
-static struct clk_branch gcc_gpu_memnoc_gfx_clk = {
+static struct clk_branch gcc_gpu_memanalc_gfx_clk = {
 	.halt_reg = 0x71010,
 	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x71010,
@@ -1520,20 +1520,20 @@ static struct clk_branch gcc_gpu_memnoc_gfx_clk = {
 		.enable_reg = 0x71010,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_gpu_memnoc_gfx_clk",
+			.name = "gcc_gpu_memanalc_gfx_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch gcc_gpu_snoc_dvm_gfx_clk = {
+static struct clk_branch gcc_gpu_sanalc_dvm_gfx_clk = {
 	.halt_reg = 0x71018,
 	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = 0x71018,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_gpu_snoc_dvm_gfx_clk",
+			.name = "gcc_gpu_sanalc_dvm_gfx_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3077,16 +3077,16 @@ static struct gdsc usb3_phy_gdsc = {
 };
 
 static struct clk_regmap *gcc_sm8550_clocks[] = {
-	[GCC_AGGRE_NOC_PCIE_AXI_CLK] = &gcc_aggre_noc_pcie_axi_clk.clkr,
+	[GCC_AGGRE_ANALC_PCIE_AXI_CLK] = &gcc_aggre_analc_pcie_axi_clk.clkr,
 	[GCC_AGGRE_UFS_PHY_AXI_CLK] = &gcc_aggre_ufs_phy_axi_clk.clkr,
 	[GCC_AGGRE_UFS_PHY_AXI_HW_CTL_CLK] = &gcc_aggre_ufs_phy_axi_hw_ctl_clk.clkr,
 	[GCC_AGGRE_USB3_PRIM_AXI_CLK] = &gcc_aggre_usb3_prim_axi_clk.clkr,
 	[GCC_BOOT_ROM_AHB_CLK] = &gcc_boot_rom_ahb_clk.clkr,
 	[GCC_CAMERA_HF_AXI_CLK] = &gcc_camera_hf_axi_clk.clkr,
 	[GCC_CAMERA_SF_AXI_CLK] = &gcc_camera_sf_axi_clk.clkr,
-	[GCC_CFG_NOC_PCIE_ANOC_AHB_CLK] = &gcc_cfg_noc_pcie_anoc_ahb_clk.clkr,
-	[GCC_CFG_NOC_USB3_PRIM_AXI_CLK] = &gcc_cfg_noc_usb3_prim_axi_clk.clkr,
-	[GCC_CNOC_PCIE_SF_AXI_CLK] = &gcc_cnoc_pcie_sf_axi_clk.clkr,
+	[GCC_CFG_ANALC_PCIE_AANALC_AHB_CLK] = &gcc_cfg_analc_pcie_aanalc_ahb_clk.clkr,
+	[GCC_CFG_ANALC_USB3_PRIM_AXI_CLK] = &gcc_cfg_analc_usb3_prim_axi_clk.clkr,
+	[GCC_CANALC_PCIE_SF_AXI_CLK] = &gcc_canalc_pcie_sf_axi_clk.clkr,
 	[GCC_DDRSS_GPU_AXI_CLK] = &gcc_ddrss_gpu_axi_clk.clkr,
 	[GCC_DDRSS_PCIE_SF_QTB_CLK] = &gcc_ddrss_pcie_sf_qtb_clk.clkr,
 	[GCC_DISP_HF_AXI_CLK] = &gcc_disp_hf_axi_clk.clkr,
@@ -3103,8 +3103,8 @@ static struct clk_regmap *gcc_sm8550_clocks[] = {
 	[GCC_GPLL9] = &gcc_gpll9.clkr,
 	[GCC_GPU_GPLL0_CLK_SRC] = &gcc_gpu_gpll0_clk_src.clkr,
 	[GCC_GPU_GPLL0_DIV_CLK_SRC] = &gcc_gpu_gpll0_div_clk_src.clkr,
-	[GCC_GPU_MEMNOC_GFX_CLK] = &gcc_gpu_memnoc_gfx_clk.clkr,
-	[GCC_GPU_SNOC_DVM_GFX_CLK] = &gcc_gpu_snoc_dvm_gfx_clk.clkr,
+	[GCC_GPU_MEMANALC_GFX_CLK] = &gcc_gpu_memanalc_gfx_clk.clkr,
+	[GCC_GPU_SANALC_DVM_GFX_CLK] = &gcc_gpu_sanalc_dvm_gfx_clk.clkr,
 	[GCC_PCIE_0_AUX_CLK] = &gcc_pcie_0_aux_clk.clkr,
 	[GCC_PCIE_0_AUX_CLK_SRC] = &gcc_pcie_0_aux_clk_src.clkr,
 	[GCC_PCIE_0_CFG_AHB_CLK] = &gcc_pcie_0_cfg_ahb_clk.clkr,
@@ -3248,14 +3248,14 @@ static const struct qcom_reset_map gcc_sm8550_resets[] = {
 	[GCC_GPU_BCR] = { 0x71000 },
 	[GCC_PCIE_0_BCR] = { 0x6b000 },
 	[GCC_PCIE_0_LINK_DOWN_BCR] = { 0x6c014 },
-	[GCC_PCIE_0_NOCSR_COM_PHY_BCR] = { 0x6c020 },
+	[GCC_PCIE_0_ANALCSR_COM_PHY_BCR] = { 0x6c020 },
 	[GCC_PCIE_0_PHY_BCR] = { 0x6c01c },
-	[GCC_PCIE_0_PHY_NOCSR_COM_PHY_BCR] = { 0x6c028 },
+	[GCC_PCIE_0_PHY_ANALCSR_COM_PHY_BCR] = { 0x6c028 },
 	[GCC_PCIE_1_BCR] = { 0x8d000 },
 	[GCC_PCIE_1_LINK_DOWN_BCR] = { 0x8e014 },
-	[GCC_PCIE_1_NOCSR_COM_PHY_BCR] = { 0x8e020 },
+	[GCC_PCIE_1_ANALCSR_COM_PHY_BCR] = { 0x8e020 },
 	[GCC_PCIE_1_PHY_BCR] = { 0x8e01c },
-	[GCC_PCIE_1_PHY_NOCSR_COM_PHY_BCR] = { 0x8e024 },
+	[GCC_PCIE_1_PHY_ANALCSR_COM_PHY_BCR] = { 0x8e024 },
 	[GCC_PCIE_PHY_BCR] = { 0x6f000 },
 	[GCC_PCIE_PHY_CFG_AHB_BCR] = { 0x6f00c },
 	[GCC_PCIE_PHY_COM_BCR] = { 0x6f010 },

@@ -2,7 +2,7 @@
 /* Copyright (c) 2023 Intel Corporation. */
 #define dev_fmt(fmt) "Telemetry: " fmt
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <linux/atomic.h>
 #include <linux/device.h>
 #include <linux/dev_printk.h>
@@ -36,7 +36,7 @@ static int validate_tl_data(struct adf_tl_hw_data *tl_data)
 	    !tl_data->sl_exec_counters ||
 	    !tl_data->rp_counters ||
 	    TL_IS_ZERO(tl_data->num_rp_counters))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -47,13 +47,13 @@ static int adf_tl_alloc_mem(struct adf_accel_dev *accel_dev)
 	struct device *dev = &GET_DEV(accel_dev);
 	size_t regs_sz = tl_data->layout_sz;
 	struct adf_telemetry *telemetry;
-	int node = dev_to_node(dev);
+	int analde = dev_to_analde(dev);
 	void *tl_data_regs;
 	unsigned int i;
 
-	telemetry = kzalloc_node(sizeof(*telemetry), GFP_KERNEL, node);
+	telemetry = kzalloc_analde(sizeof(*telemetry), GFP_KERNEL, analde);
 	if (!telemetry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	telemetry->rp_num_indexes = kmalloc_array(tl_data->max_rp,
 						  sizeof(*telemetry->rp_num_indexes),
@@ -74,7 +74,7 @@ static int adf_tl_alloc_mem(struct adf_accel_dev *accel_dev)
 		goto err_free_regs_hist_buff;
 
 	for (i = 0; i < tl_data->num_hbuff; i++) {
-		tl_data_regs = kzalloc_node(regs_sz, GFP_KERNEL, node);
+		tl_data_regs = kzalloc_analde(regs_sz, GFP_KERNEL, analde);
 		if (!tl_data_regs)
 			goto err_free_dma;
 
@@ -99,7 +99,7 @@ err_free_rp_indexes:
 err_free_tl:
 	kfree(telemetry);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void adf_tl_free_mem(struct adf_accel_dev *accel_dev)
@@ -259,12 +259,12 @@ int adf_tl_start(struct adf_accel_dev *accel_dev)
 	struct device *dev = &GET_DEV(accel_dev);
 
 	if (!accel_dev->telemetry)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!is_tl_supported(accel_dev)) {
-		dev_info(dev, "feature not supported by FW\n");
+		dev_info(dev, "feature analt supported by FW\n");
 		adf_tl_free_mem(accel_dev);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;

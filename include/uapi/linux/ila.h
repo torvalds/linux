@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* ila.h - ILA Interface */
 
 #ifndef _UAPI_LINUX_ILA_H
@@ -43,7 +43,7 @@ enum {
 enum {
 	ILA_CSUM_ADJUST_TRANSPORT,
 	ILA_CSUM_NEUTRAL_MAP,
-	ILA_CSUM_NO_ACTION,
+	ILA_CSUM_ANAL_ACTION,
 	ILA_CSUM_NEUTRAL_MAP_AUTO,
 };
 
@@ -53,7 +53,7 @@ enum {
 	ILA_ATYPE_VIRT_V4,
 	ILA_ATYPE_VIRT_UNI_V6,
 	ILA_ATYPE_VIRT_MULTI_V6,
-	ILA_ATYPE_NONLOCAL_ADDR,
+	ILA_ATYPE_ANALNLOCAL_ADDR,
 	ILA_ATYPE_RSVD_1,
 	ILA_ATYPE_RSVD_2,
 

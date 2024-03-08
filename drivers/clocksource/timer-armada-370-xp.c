@@ -16,9 +16,9 @@
  * This driver implements one compatible string for each SoC, given
  * each has its own characteristics:
  *
- *   * Armada 370 has no 25 MHz fixed timer.
+ *   * Armada 370 has anal 25 MHz fixed timer.
  *
- *   * Armada XP cannot work properly without such 25 MHz fixed timer as
+ *   * Armada XP cananalt work properly without such 25 MHz fixed timer as
  *     doing otherwise leads to using a clocksource whose frequency varies
  *     when doing cpufreq frequency changes.
  *
@@ -91,7 +91,7 @@ static void local_timer_ctrl_clrset(u32 clr, u32 set)
 		local_base + TIMER_CTRL_OFF);
 }
 
-static u64 notrace armada_370_xp_read_sched_clock(void)
+static u64 analtrace armada_370_xp_read_sched_clock(void)
 {
 	return ~readl(timer_base + TIMER0_VAL_OFF);
 }
@@ -237,7 +237,7 @@ static struct delay_timer armada_370_delay_timer = {
 	.read_current_timer = armada_370_delay_timer_read,
 };
 
-static int __init armada_370_xp_timer_common_init(struct device_node *np)
+static int __init armada_370_xp_timer_common_init(struct device_analde *np)
 {
 	u32 clr = 0, set = 0;
 	int res;
@@ -301,7 +301,7 @@ static int __init armada_370_xp_timer_common_init(struct device_node *np)
 
 	armada_370_xp_evt = alloc_percpu(struct clock_event_device);
 	if (!armada_370_xp_evt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Setup clockevent timer (interrupt-driven).
@@ -330,7 +330,7 @@ static int __init armada_370_xp_timer_common_init(struct device_node *np)
 	return 0;
 }
 
-static int __init armada_xp_timer_init(struct device_node *np)
+static int __init armada_xp_timer_init(struct device_analde *np)
 {
 	struct clk *clk = of_clk_get_by_name(np, "fixed");
 	int ret;
@@ -351,7 +351,7 @@ static int __init armada_xp_timer_init(struct device_node *np)
 TIMER_OF_DECLARE(armada_xp, "marvell,armada-xp-timer",
 		       armada_xp_timer_init);
 
-static int __init armada_375_timer_init(struct device_node *np)
+static int __init armada_375_timer_init(struct device_analde *np)
 {
 	struct clk *clk;
 	int ret;
@@ -389,7 +389,7 @@ static int __init armada_375_timer_init(struct device_node *np)
 TIMER_OF_DECLARE(armada_375, "marvell,armada-375-timer",
 		       armada_375_timer_init);
 
-static int __init armada_370_timer_init(struct device_node *np)
+static int __init armada_370_timer_init(struct device_analde *np)
 {
 	struct clk *clk;
 	int ret;

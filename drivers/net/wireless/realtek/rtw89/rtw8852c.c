@@ -150,7 +150,7 @@ static const struct rtw89_dig_regs rtw8852c_dig_regs = {
 	.bmode_pd_reg = R_BMODE_PDTH_EN_V1,
 	.bmode_cca_rssi_limit_en = B_BMODE_PDTH_LIMIT_EN_MSK_V1,
 	.bmode_pd_lower_bound_reg = R_BMODE_PDTH_V1,
-	.bmode_rssi_nocca_low_th_mask = B_BMODE_PDTH_LOWER_BOUND_MSK_V1,
+	.bmode_rssi_analcca_low_th_mask = B_BMODE_PDTH_LOWER_BOUND_MSK_V1,
 	.p0_lna_init = {R_PATH0_LNA_INIT_V1, B_PATH0_LNA_INIT_IDX_MSK},
 	.p1_lna_init = {R_PATH1_LNA_INIT_V1, B_PATH1_LNA_INIT_IDX_MSK},
 	.p0_tia_init = {R_PATH0_TIA_INIT_V1, B_PATH0_TIA_INIT_IDX_MSK_V1},
@@ -486,7 +486,7 @@ static int rtw8852c_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
 		rtw8852c_e_efuse_parsing(efuse, map);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	rtw89_info(rtwdev, "chip rfe_type is %d\n", efuse->rfe_type);
@@ -528,7 +528,7 @@ static void rtw8852c_phycap_parsing_tssi(struct rtw89_dev *rtwdev, u8 *phycap_ma
 		memset(tssi->tssi_trim, 0, sizeof(tssi->tssi_trim));
 		memset(tssi->tssi_trim_6g, 0, sizeof(tssi->tssi_trim_6g));
 		rtw89_debug(rtwdev, RTW89_DBG_TSSI,
-			    "[TSSI][TRIM] no PG, set all trim info to 0\n");
+			    "[TSSI][TRIM] anal PG, set all trim info to 0\n");
 	}
 
 	for (i = 0; i < RF_PATH_NUM_8852C; i++)
@@ -571,7 +571,7 @@ static void rtw8852c_thermal_trim(struct rtw89_dev *rtwdev)
 
 	if (!info->pg_thermal_trim) {
 		rtw89_debug(rtwdev, RTW89_DBG_RFK,
-			    "[THERMAL][TRIM] no PG, do nothing\n");
+			    "[THERMAL][TRIM] anal PG, do analthing\n");
 
 		return;
 	}
@@ -615,7 +615,7 @@ static void rtw8852c_pa_bias_trim(struct rtw89_dev *rtwdev)
 
 	if (!info->pg_pa_bias_trim) {
 		rtw89_debug(rtwdev, RTW89_DBG_RFK,
-			    "[PA_BIAS][TRIM] no PG, do nothing\n");
+			    "[PA_BIAS][TRIM] anal PG, do analthing\n");
 
 		return;
 	}
@@ -1276,20 +1276,20 @@ static void rtw8852c_set_csi_tone_idx(struct rtw89_dev *rtwdev,
 
 static const struct rtw89_nbi_reg_def rtw8852c_nbi_reg_def[] = {
 	[RF_PATH_A] = {
-		.notch1_idx = {0x4C14, 0xFF},
-		.notch1_frac_idx = {0x4C14, 0xC00},
-		.notch1_en = {0x4C14, 0x1000},
-		.notch2_idx = {0x4C20, 0xFF},
-		.notch2_frac_idx = {0x4C20, 0xC00},
-		.notch2_en = {0x4C20, 0x1000},
+		.analtch1_idx = {0x4C14, 0xFF},
+		.analtch1_frac_idx = {0x4C14, 0xC00},
+		.analtch1_en = {0x4C14, 0x1000},
+		.analtch2_idx = {0x4C20, 0xFF},
+		.analtch2_frac_idx = {0x4C20, 0xC00},
+		.analtch2_en = {0x4C20, 0x1000},
 	},
 	[RF_PATH_B] = {
-		.notch1_idx = {0x4CD8, 0xFF},
-		.notch1_frac_idx = {0x4CD8, 0xC00},
-		.notch1_en = {0x4CD8, 0x1000},
-		.notch2_idx = {0x4CE4, 0xFF},
-		.notch2_frac_idx = {0x4CE4, 0xC00},
-		.notch2_en = {0x4CE4, 0x1000},
+		.analtch1_idx = {0x4CD8, 0xFF},
+		.analtch1_frac_idx = {0x4CD8, 0xC00},
+		.analtch1_en = {0x4CD8, 0x1000},
+		.analtch2_idx = {0x4CE4, 0xFF},
+		.analtch2_frac_idx = {0x4CE4, 0xC00},
+		.analtch2_en = {0x4CE4, 0x1000},
 	},
 };
 
@@ -1302,12 +1302,12 @@ static void rtw8852c_set_nbi_tone_idx(struct rtw89_dev *rtwdev,
 	s32 freq_diff;
 	s32 nbi_idx, nbi_tone_idx;
 	s32 nbi_frac_idx, nbi_frac_tone_idx;
-	bool notch2_chk = false;
+	bool analtch2_chk = false;
 
 	spur_freq = rtw8852c_spur_freq(rtwdev, chan);
 	if (spur_freq == 0) {
-		rtw89_phy_write32_mask(rtwdev, nbi->notch1_en.addr, nbi->notch1_en.mask, 0);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch1_en.addr, nbi->notch1_en.mask, 0);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch1_en.addr, nbi->analtch1_en.mask, 0);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch1_en.addr, nbi->analtch1_en.mask, 0);
 		return;
 	}
 
@@ -1318,7 +1318,7 @@ static void rtw8852c_set_nbi_tone_idx(struct rtw89_dev *rtwdev,
 		     chan->channel < chan->primary_channel) ||
 		    (fc < spur_freq &&
 		     chan->channel > chan->primary_channel))
-			notch2_chk = true;
+			analtch2_chk = true;
 	}
 
 	freq_diff = (spur_freq - fc) * 1000000;
@@ -1334,45 +1334,45 @@ static void rtw8852c_set_nbi_tone_idx(struct rtw89_dev *rtwdev,
 	}
 	nbi_frac_tone_idx = s32_div_u32_round_closest(nbi_frac_idx, CARRIER_SPACING_78_125);
 
-	if (chan->band_width == RTW89_CHANNEL_WIDTH_160 && notch2_chk) {
-		rtw89_phy_write32_mask(rtwdev, nbi->notch2_idx.addr,
-				       nbi->notch2_idx.mask, nbi_tone_idx);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch2_frac_idx.addr,
-				       nbi->notch2_frac_idx.mask, nbi_frac_tone_idx);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch2_en.addr, nbi->notch2_en.mask, 0);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch2_en.addr, nbi->notch2_en.mask, 1);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch1_en.addr, nbi->notch1_en.mask, 0);
+	if (chan->band_width == RTW89_CHANNEL_WIDTH_160 && analtch2_chk) {
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch2_idx.addr,
+				       nbi->analtch2_idx.mask, nbi_tone_idx);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch2_frac_idx.addr,
+				       nbi->analtch2_frac_idx.mask, nbi_frac_tone_idx);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch2_en.addr, nbi->analtch2_en.mask, 0);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch2_en.addr, nbi->analtch2_en.mask, 1);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch1_en.addr, nbi->analtch1_en.mask, 0);
 	} else {
-		rtw89_phy_write32_mask(rtwdev, nbi->notch1_idx.addr,
-				       nbi->notch1_idx.mask, nbi_tone_idx);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch1_frac_idx.addr,
-				       nbi->notch1_frac_idx.mask, nbi_frac_tone_idx);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch1_en.addr, nbi->notch1_en.mask, 0);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch1_en.addr, nbi->notch1_en.mask, 1);
-		rtw89_phy_write32_mask(rtwdev, nbi->notch2_en.addr, nbi->notch2_en.mask, 0);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch1_idx.addr,
+				       nbi->analtch1_idx.mask, nbi_tone_idx);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch1_frac_idx.addr,
+				       nbi->analtch1_frac_idx.mask, nbi_frac_tone_idx);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch1_en.addr, nbi->analtch1_en.mask, 0);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch1_en.addr, nbi->analtch1_en.mask, 1);
+		rtw89_phy_write32_mask(rtwdev, nbi->analtch2_en.addr, nbi->analtch2_en.mask, 0);
 	}
 }
 
-static void rtw8852c_spur_notch(struct rtw89_dev *rtwdev, u32 val,
+static void rtw8852c_spur_analtch(struct rtw89_dev *rtwdev, u32 val,
 				enum rtw89_phy_idx phy_idx)
 {
-	u32 notch;
-	u32 notch2;
+	u32 analtch;
+	u32 analtch2;
 
 	if (phy_idx == RTW89_PHY_0) {
-		notch = R_PATH0_NOTCH;
-		notch2 = R_PATH0_NOTCH2;
+		analtch = R_PATH0_ANALTCH;
+		analtch2 = R_PATH0_ANALTCH2;
 	} else {
-		notch = R_PATH1_NOTCH;
-		notch2 = R_PATH1_NOTCH2;
+		analtch = R_PATH1_ANALTCH;
+		analtch2 = R_PATH1_ANALTCH2;
 	}
 
-	rtw89_phy_write32_mask(rtwdev, notch,
-			       B_PATH0_NOTCH_VAL | B_PATH0_NOTCH_EN, val);
-	rtw89_phy_write32_set(rtwdev, notch, B_PATH0_NOTCH_EN);
-	rtw89_phy_write32_mask(rtwdev, notch2,
-			       B_PATH0_NOTCH2_VAL | B_PATH0_NOTCH2_EN, val);
-	rtw89_phy_write32_set(rtwdev, notch2, B_PATH0_NOTCH2_EN);
+	rtw89_phy_write32_mask(rtwdev, analtch,
+			       B_PATH0_ANALTCH_VAL | B_PATH0_ANALTCH_EN, val);
+	rtw89_phy_write32_set(rtwdev, analtch, B_PATH0_ANALTCH_EN);
+	rtw89_phy_write32_mask(rtwdev, analtch2,
+			       B_PATH0_ANALTCH2_VAL | B_PATH0_ANALTCH2_EN, val);
+	rtw89_phy_write32_set(rtwdev, analtch2, B_PATH0_ANALTCH2_EN);
 }
 
 static void rtw8852c_spur_elimination(struct rtw89_dev *rtwdev,
@@ -1386,15 +1386,15 @@ static void rtw8852c_spur_elimination(struct rtw89_dev *rtwdev,
 		if (chan->band_width == RTW89_CHANNEL_WIDTH_160 &&
 		    (pri_ch_idx == RTW89_SC_20_LOWER ||
 		     pri_ch_idx == RTW89_SC_20_UP3X)) {
-			rtw8852c_spur_notch(rtwdev, 0xe7f, RTW89_PHY_0);
+			rtw8852c_spur_analtch(rtwdev, 0xe7f, RTW89_PHY_0);
 			if (!rtwdev->dbcc_en)
-				rtw8852c_spur_notch(rtwdev, 0xe7f, RTW89_PHY_1);
+				rtw8852c_spur_analtch(rtwdev, 0xe7f, RTW89_PHY_1);
 		} else if (chan->band_width == RTW89_CHANNEL_WIDTH_160 &&
 			   (pri_ch_idx == RTW89_SC_20_UPPER ||
 			    pri_ch_idx == RTW89_SC_20_LOW3X)) {
-			rtw8852c_spur_notch(rtwdev, 0x280, RTW89_PHY_0);
+			rtw8852c_spur_analtch(rtwdev, 0x280, RTW89_PHY_0);
 			if (!rtwdev->dbcc_en)
-				rtw8852c_spur_notch(rtwdev, 0x280, RTW89_PHY_1);
+				rtw8852c_spur_analtch(rtwdev, 0x280, RTW89_PHY_1);
 		} else {
 			rtw8852c_set_nbi_tone_idx(rtwdev, chan, RF_PATH_A);
 			if (!rtwdev->dbcc_en)
@@ -1405,11 +1405,11 @@ static void rtw8852c_spur_elimination(struct rtw89_dev *rtwdev,
 		if (chan->band_width == RTW89_CHANNEL_WIDTH_160 &&
 		    (pri_ch_idx == RTW89_SC_20_LOWER ||
 		     pri_ch_idx == RTW89_SC_20_UP3X)) {
-			rtw8852c_spur_notch(rtwdev, 0xe7f, RTW89_PHY_1);
+			rtw8852c_spur_analtch(rtwdev, 0xe7f, RTW89_PHY_1);
 		} else if (chan->band_width == RTW89_CHANNEL_WIDTH_160 &&
 			   (pri_ch_idx == RTW89_SC_20_UPPER ||
 			    pri_ch_idx == RTW89_SC_20_LOW3X)) {
-			rtw8852c_spur_notch(rtwdev, 0x280, RTW89_PHY_1);
+			rtw8852c_spur_analtch(rtwdev, 0x280, RTW89_PHY_1);
 		} else {
 			rtw8852c_set_nbi_tone_idx(rtwdev, chan, RF_PATH_B);
 		}
@@ -1725,19 +1725,19 @@ static void rtw8852c_set_channel_bb(struct rtw89_dev *rtwdev,
 				      B_CDD_EVM_CHK_EN, 1, phy_idx);
 
 	if (!rtwdev->dbcc_en) {
-		mask = B_P0_TXPW_RSTB_TSSI | B_P0_TXPW_RSTB_MANON;
+		mask = B_P0_TXPW_RSTB_TSSI | B_P0_TXPW_RSTB_MAANALN;
 		rtw89_phy_write32_mask(rtwdev, R_P0_TXPW_RSTB, mask, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_P0_TXPW_RSTB, mask, 0x3);
-		mask = B_P1_TXPW_RSTB_TSSI | B_P1_TXPW_RSTB_MANON;
+		mask = B_P1_TXPW_RSTB_TSSI | B_P1_TXPW_RSTB_MAANALN;
 		rtw89_phy_write32_mask(rtwdev, R_P1_TXPW_RSTB, mask, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_P1_TXPW_RSTB, mask, 0x3);
 	} else {
 		if (phy_idx == RTW89_PHY_0) {
-			mask = B_P0_TXPW_RSTB_TSSI | B_P0_TXPW_RSTB_MANON;
+			mask = B_P0_TXPW_RSTB_TSSI | B_P0_TXPW_RSTB_MAANALN;
 			rtw89_phy_write32_mask(rtwdev, R_P0_TXPW_RSTB, mask, 0x1);
 			rtw89_phy_write32_mask(rtwdev, R_P0_TXPW_RSTB, mask, 0x3);
 		} else {
-			mask = B_P1_TXPW_RSTB_TSSI | B_P1_TXPW_RSTB_MANON;
+			mask = B_P1_TXPW_RSTB_TSSI | B_P1_TXPW_RSTB_MAANALN;
 			rtw89_phy_write32_mask(rtwdev, R_P1_TXPW_RSTB, mask, 0x1);
 			rtw89_phy_write32_mask(rtwdev, R_P1_TXPW_RSTB, mask, 0x3);
 		}
@@ -1846,7 +1846,7 @@ static void rtw8852c_rfk_band_changed(struct rtw89_dev *rtwdev,
 
 static void rtw8852c_rfk_scan(struct rtw89_dev *rtwdev, bool start)
 {
-	rtw8852c_wifi_scan_notify(rtwdev, start, RTW89_PHY_0);
+	rtw8852c_wifi_scan_analtify(rtwdev, start, RTW89_PHY_0);
 }
 
 static void rtw8852c_rfk_track(struct rtw89_dev *rtwdev)
@@ -1980,7 +1980,7 @@ static void rtw8852c_bb_set_tx_shape_dfir(struct rtw89_dev *rtwdev,
 
 	if (ch > 14) {
 		rtw89_warn(rtwdev,
-			   "set tx shape dfir by unknown ch: %d on 2G\n", ch);
+			   "set tx shape dfir by unkanalwn ch: %d on 2G\n", ch);
 		return;
 	}
 
@@ -2099,8 +2099,8 @@ static void rtw8852c_bb_cfg_rx_path(struct rtw89_dev *rtwdev, u8 rx_path)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u8 band = chan->band_type;
-	u32 rst_mask0 = B_P0_TXPW_RSTB_MANON | B_P0_TXPW_RSTB_TSSI;
-	u32 rst_mask1 = B_P1_TXPW_RSTB_MANON | B_P1_TXPW_RSTB_TSSI;
+	u32 rst_mask0 = B_P0_TXPW_RSTB_MAANALN | B_P0_TXPW_RSTB_TSSI;
+	u32 rst_mask1 = B_P1_TXPW_RSTB_MAANALN | B_P1_TXPW_RSTB_TSSI;
 
 	if (rtwdev->dbcc_en) {
 		rtw89_phy_write32_mask(rtwdev, R_CHBW_MOD, B_ANT_RX_SEG0, 1);
@@ -2473,7 +2473,7 @@ static void rtw8852c_btc_init_cfg(struct rtw89_dev *rtwdev)
 				      RF_PATH_A, BTC_BT_SS_GROUP, 0x5ff);
 		rtw8852c_set_trx_mask(rtwdev,
 				      RF_PATH_B, BTC_BT_SS_GROUP, 0x5ff);
-		/* set path-A(S0) Tx/Rx no-mask if GNT_WL=0 && BT_S1=tx group */
+		/* set path-A(S0) Tx/Rx anal-mask if GNT_WL=0 && BT_S1=tx group */
 		rtw8852c_set_trx_mask(rtwdev,
 				      RF_PATH_A, BTC_BT_TX_GROUP, 0x5ff);
 	} else { /* set WL Tx stb if GNT_WL = 0 && BT_S1 = ss group for 3-ant */
@@ -2598,7 +2598,7 @@ static const struct rtw89_btc_rf_trx_para rtw89_btc_8852c_rf_ul[] = {
 	{255, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
 	{255, 0, 0, 7}, /* 3- >reserved for shared-antenna */
 	{255, 0, 0, 7}, /* 4 ->reserved for shared-antenna */
-	{255, 1, 0, 7}, /* the below id is for non-shared-antenna free-run */
+	{255, 1, 0, 7}, /* the below id is for analn-shared-antenna free-run */
 	{6, 1, 0, 7},
 	{13, 1, 0, 7},
 	{13, 1, 0, 7}
@@ -2610,7 +2610,7 @@ static const struct rtw89_btc_rf_trx_para rtw89_btc_8852c_rf_dl[] = {
 	{255, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
 	{255, 0, 0, 7}, /* 3- >reserved for shared-antenna */
 	{255, 0, 0, 7}, /* 4 ->reserved for shared-antenna */
-	{255, 1, 0, 7}, /* the below id is for non-shared-antenna free-run */
+	{255, 1, 0, 7}, /* the below id is for analn-shared-antenna free-run */
 	{255, 1, 0, 7},
 	{255, 1, 0, 7},
 	{255, 1, 0, 7}

@@ -19,12 +19,12 @@ static void nsp_message_in(struct scsi_cmnd *SCpnt)
 	 * XXX: NSP QUIRK
 	 * NSP invoke interrupts only in the case of scsi phase changes,
 	 * therefore we should poll the scsi phase here to catch 
-	 * the next "msg in" if exists (no scsi phase changes).
+	 * the next "msg in" if exists (anal scsi phase changes).
 	 */
 	ret = 16;
 	len = 0;
 
-	nsp_dbg(NSP_DEBUG_MSGINOCCUR, "msgin loop");
+	nsp_dbg(NSP_DEBUG_MSGIANALCCUR, "msgin loop");
 	do {
 		/* read data */
 		data_reg = nsp_index_read(base, SCSIDATAIN);
@@ -60,7 +60,7 @@ static void nsp_message_out(struct scsi_cmnd *SCpnt)
 	 * XXX: NSP QUIRK
 	 * NSP invoke interrupts only in the case of scsi phase changes,
 	 * therefore we should poll the scsi phase here to catch 
-	 * the next "msg out" if exists (no scsi phase changes).
+	 * the next "msg out" if exists (anal scsi phase changes).
 	 */
 
 	nsp_dbg(NSP_DEBUG_MSGOUTOCCUR, "msgout loop");

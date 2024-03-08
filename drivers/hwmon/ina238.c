@@ -33,7 +33,7 @@
 #define INA238_BUS_UNDER_VOLTAGE	0xf
 #define INA238_TEMP_LIMIT		0x10
 #define INA238_POWER_LIMIT		0x11
-#define INA238_DEVICE_ID		0x3f /* not available on INA237 */
+#define INA238_DEVICE_ID		0x3f /* analt available on INA237 */
 
 #define INA238_CONFIG_ADCRANGE		BIT(4)
 
@@ -155,7 +155,7 @@ static int ina238_read_in(struct device *dev, u32 attr, int channel,
 			mask = INA238_DIAG_ALERT_SHNTUL;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case 1:
@@ -178,11 +178,11 @@ static int ina238_read_in(struct device *dev, u32 attr, int channel,
 			mask = INA238_DIAG_ALERT_BUSUL;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = regmap_read(data->regmap, reg, &regval);
@@ -218,7 +218,7 @@ static int ina238_write_in(struct device *dev, u32 attr, int channel,
 	int regval;
 
 	if (attr != hwmon_in_max && attr != hwmon_in_min)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* convert decimal to register value */
 	switch (channel) {
@@ -237,7 +237,7 @@ static int ina238_write_in(struct device *dev, u32 attr, int channel,
 			return regmap_write(data->regmap,
 					    INA238_SHUNT_UNDER_VOLTAGE, regval);
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	case 1:
 		/* signed value, positive values only. Clamp to max 102.396 V */
@@ -253,10 +253,10 @@ static int ina238_write_in(struct device *dev, u32 attr, int channel,
 			return regmap_write(data->regmap,
 					    INA238_BUS_UNDER_VOLTAGE, regval);
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -277,7 +277,7 @@ static int ina238_read_current(struct device *dev, u32 attr, long *val)
 			       data->rshunt * 4);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -324,7 +324,7 @@ static int ina238_read_power(struct device *dev, u32 attr, long *val)
 		*val = !!(regval & INA238_DIAG_ALERT_POL);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -336,7 +336,7 @@ static int ina238_write_power(struct device *dev, u32 attr, long val)
 	long regval;
 
 	if (attr != hwmon_power_max)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 * Unsigned postive values. Compared against the 24-bit power register,
@@ -382,7 +382,7 @@ static int ina238_read_temp(struct device *dev, u32 attr, long *val)
 		*val = !!(regval & INA238_DIAG_ALERT_TMPOL);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -394,7 +394,7 @@ static int ina238_write_temp(struct device *dev, u32 attr, long val)
 	int regval;
 
 	if (attr != hwmon_temp_max)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Signed, bits 15-4 of register */
 	regval = (val / INA238_DIE_TEMP_LSB) << 4;
@@ -416,7 +416,7 @@ static int ina238_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return ina238_read_temp(dev, attr, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -440,7 +440,7 @@ static int ina238_write(struct device *dev, enum hwmon_sensor_types type,
 		err = ina238_write_temp(dev, attr, val);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -541,7 +541,7 @@ static int ina238_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->config_lock);
@@ -576,7 +576,7 @@ static int ina238_probe(struct i2c_client *client)
 	ret = regmap_write(data->regmap, INA238_CONFIG, config);
 	if (ret < 0) {
 		dev_err(dev, "error configuring the device: %d\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Setup ADC_CONFIG register */
@@ -584,7 +584,7 @@ static int ina238_probe(struct i2c_client *client)
 			   INA238_ADC_CONFIG_DEFAULT);
 	if (ret < 0) {
 		dev_err(dev, "error configuring the device: %d\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Setup SHUNT_CALIBRATION register with fixed value */
@@ -592,7 +592,7 @@ static int ina238_probe(struct i2c_client *client)
 			   INA238_CALIBRATION_VALUE);
 	if (ret < 0) {
 		dev_err(dev, "error configuring the device: %d\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Setup alert/alarm configuration */
@@ -600,7 +600,7 @@ static int ina238_probe(struct i2c_client *client)
 			   INA238_DIAG_ALERT_DEFAULT);
 	if (ret < 0) {
 		dev_err(dev, "error configuring the device: %d\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name, data,

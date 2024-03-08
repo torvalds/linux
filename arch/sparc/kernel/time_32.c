@@ -15,7 +15,7 @@
  * 1997-09-10	Updated NTP code according to technical memorandum Jan '96
  *		"A Kernel Model for Precision Timekeeping" by Dave Mills
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -84,7 +84,7 @@ EXPORT_SYMBOL(profile_pc);
 
 volatile u32 __iomem *master_l10_counter;
 
-irqreturn_t notrace timer_interrupt(int dummy, void *dev_id)
+irqreturn_t analtrace timer_interrupt(int dummy, void *dev_id)
 {
 	if (timer_cs_enabled) {
 		write_seqlock(&timer_cs_lock);
@@ -269,15 +269,15 @@ static struct platform_device m48t59_rtc = {
 
 static int clock_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_analde *dp = op->dev.of_analde;
 	const char *model = of_get_property(dp, "model", NULL);
 
 	if (!model)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Only the primary RTC has an address property */
 	if (!of_property_present(dp, "address"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	m48t59_rtc.resource = &op->resource[0];
 	if (!strcmp(model, "mk48t02")) {
@@ -290,7 +290,7 @@ static int clock_probe(struct platform_device *op)
 						8192, "rtc-m48t59");
 		m48t59_data.type = M48T59RTC_TYPE_M48T08;
 	} else
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (platform_device_register(&m48t59_rtc) < 0)
 		printk(KERN_ERR "Registering RTC device failed\n");

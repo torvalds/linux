@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) 2016-2017 Linaro Ltd.
- * Copyright (c) 2016-2017 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016-2017 HiSilicon Techanallogies Co., Ltd.
  */
 
 #ifndef __DTS_HI3660_CLOCK_H

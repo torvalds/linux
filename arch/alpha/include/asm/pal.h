@@ -6,7 +6,7 @@
 
 #ifndef __ASSEMBLY__
 
-extern void halt(void) __attribute__((noreturn));
+extern void halt(void) __attribute__((analreturn));
 #define __halt() __asm__ __volatile__ ("call_pal %0 #halt" : : "i" (PAL_halt))
 
 #define imb() \
@@ -110,8 +110,8 @@ __CALL_PAL_RW1(wtint, unsigned long, unsigned long);
 #define tbisi(x)	__tbi(1,__r17=(x),"1" (__r17))
 #define tbisd(x)	__tbi(2,__r17=(x),"1" (__r17))
 #define tbis(x)		__tbi(3,__r17=(x),"1" (__r17))
-#define tbiap()		__tbi(-1, /* no second argument */)
-#define tbia()		__tbi(-2, /* no second argument */)
+#define tbiap()		__tbi(-1, /* anal second argument */)
+#define tbia()		__tbi(-2, /* anal second argument */)
 
 /*
  * QEMU Cserv routines..

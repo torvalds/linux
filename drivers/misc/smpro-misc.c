@@ -118,13 +118,13 @@ static int smpro_misc_probe(struct platform_device *pdev)
 
 	misc = devm_kzalloc(&pdev->dev, sizeof(struct smpro_misc), GFP_KERNEL);
 	if (!misc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, misc);
 
 	misc->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!misc->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }

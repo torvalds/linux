@@ -29,7 +29,7 @@ struct ext2_xattr_header {
 	__le32	h_refcount;	/* reference count */
 	__le32	h_blocks;	/* number of disk blocks used */
 	__le32	h_hash;		/* hash value of all attributes */
-	__u32	h_reserved[4];	/* zero right now */
+	__u32	h_reserved[4];	/* zero right analw */
 };
 
 struct ext2_xattr_entry {
@@ -64,10 +64,10 @@ extern const struct xattr_handler ext2_xattr_security_handler;
 
 extern ssize_t ext2_listxattr(struct dentry *, char *, size_t);
 
-extern int ext2_xattr_get(struct inode *, int, const char *, void *, size_t);
-extern int ext2_xattr_set(struct inode *, int, const char *, const void *, size_t, int);
+extern int ext2_xattr_get(struct ianalde *, int, const char *, void *, size_t);
+extern int ext2_xattr_set(struct ianalde *, int, const char *, const void *, size_t, int);
 
-extern void ext2_xattr_delete_inode(struct inode *);
+extern void ext2_xattr_delete_ianalde(struct ianalde *);
 
 extern struct mb_cache *ext2_xattr_create_cache(void);
 extern void ext2_xattr_destroy_cache(struct mb_cache *cache);
@@ -77,21 +77,21 @@ extern const struct xattr_handler * const ext2_xattr_handlers[];
 # else  /* CONFIG_EXT2_FS_XATTR */
 
 static inline int
-ext2_xattr_get(struct inode *inode, int name_index,
+ext2_xattr_get(struct ianalde *ianalde, int name_index,
 	       const char *name, void *buffer, size_t size)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int
-ext2_xattr_set(struct inode *inode, int name_index, const char *name,
+ext2_xattr_set(struct ianalde *ianalde, int name_index, const char *name,
 	       const void *value, size_t size, int flags)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void
-ext2_xattr_delete_inode(struct inode *inode)
+ext2_xattr_delete_ianalde(struct ianalde *ianalde)
 {
 }
 
@@ -105,10 +105,10 @@ static inline void ext2_xattr_destroy_cache(struct mb_cache *cache)
 # endif  /* CONFIG_EXT2_FS_XATTR */
 
 #ifdef CONFIG_EXT2_FS_SECURITY
-extern int ext2_init_security(struct inode *inode, struct inode *dir,
+extern int ext2_init_security(struct ianalde *ianalde, struct ianalde *dir,
 			      const struct qstr *qstr);
 #else
-static inline int ext2_init_security(struct inode *inode, struct inode *dir,
+static inline int ext2_init_security(struct ianalde *ianalde, struct ianalde *dir,
 				     const struct qstr *qstr)
 {
 	return 0;

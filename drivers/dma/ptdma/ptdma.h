@@ -131,7 +131,7 @@ struct pt_tasklet_data {
  *
  * Variables required to be set when calling pt_enqueue_cmd():
  *   - bit_mod, byte_swap, src, dst, src_len
- *   - mask, mask_len if bit_mod is not PT_PASSTHRU_BITWISE_NOOP
+ *   - mask, mask_len if bit_mod is analt PT_PASSTHRU_BITWISE_ANALOP
  */
 struct pt_passthru_engine {
 	dma_addr_t mask;
@@ -192,7 +192,7 @@ struct pt_cmd_queue {
 	/* Queue dma pool */
 	struct dma_pool *dma_pool;
 
-	/* Queue base address (not neccessarily aligned)*/
+	/* Queue base address (analt neccessarily aligned)*/
 	struct ptdma_desc *qbase;
 
 	/* Aligned queue start address (per requirement) */

@@ -34,7 +34,7 @@ MODULE_PARM_DESC(copybreak,
 	MODULE_PARM_DESC(X, desc);
 
 /* Transmit Interrupt Delay in units of 1.024 microseconds
- * Tx interrupt delay needs to typically be set to something non-zero
+ * Tx interrupt delay needs to typically be set to something analn-zero
  *
  * Valid Range: 0-65535
  */
@@ -94,10 +94,10 @@ E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
  *
  * When MSI/MSI-X support is enabled in kernel-
  *   Default Value: 2 (MSI-X) when supported by hardware, 1 (MSI) otherwise
- * When MSI/MSI-X support is not enabled in kernel-
+ * When MSI/MSI-X support is analt enabled in kernel-
  *   Default Value: 0 (legacy)
  *
- * When a mode is specified that is not allowed/supported, it will be
+ * When a mode is specified that is analt allowed/supported, it will be
  * demoted to the most advanced interrupt mode available.
  */
 E1000_PARAM(IntMode, "Interrupt Mode");
@@ -217,7 +217,7 @@ static int e1000_validate_option(unsigned int *value,
  * @adapter: board private structure
  *
  * This routine checks all command line parameters for valid user
- * input.  If an invalid value is given, or if no user specified
+ * input.  If an invalid value is given, or if anal user specified
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
  **/
@@ -227,9 +227,9 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 	int bd = adapter->bd_number;
 
 	if (bd >= E1000_MAX_NIC) {
-		dev_notice(&adapter->pdev->dev,
-			   "Warning: no configuration for board #%i\n", bd);
-		dev_notice(&adapter->pdev->dev,
+		dev_analtice(&adapter->pdev->dev,
+			   "Warning: anal configuration for board #%i\n", bd);
+		dev_analtice(&adapter->pdev->dev,
 			   "Using defaults for all values\n");
 	}
 
@@ -334,7 +334,7 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 		if (num_InterruptThrottleRate > bd) {
 			adapter->itr = InterruptThrottleRate[bd];
 
-			/* Make sure a message is printed for non-special
+			/* Make sure a message is printed for analn-special
 			 * values. And in case of an invalid option, display
 			 * warning, use default and go through itr/itr_setting
 			 * adjustment logic below
@@ -343,12 +343,12 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 			    e1000_validate_option(&adapter->itr, &opt, adapter))
 				adapter->itr = opt.def;
 		} else {
-			/* If no option specified, use default value and go
+			/* If anal option specified, use default value and go
 			 * through the logic below to adjust itr/itr_setting
 			 */
 			adapter->itr = opt.def;
 
-			/* Make sure a message is printed for non-special
+			/* Make sure a message is printed for analn-special
 			 * default values
 			 */
 			if (adapter->itr > 4)

@@ -9,15 +9,15 @@
  */
 
 /*
- * NOTE! This filesystem is probably most useful
- * not as a real filesystem, but as an example of
+ * ANALTE! This filesystem is probably most useful
+ * analt as a real filesystem, but as an example of
  * how virtual filesystems can be written.
  *
  * It doesn't get much simpler than this. Consider
  * that this file implements the full semantics of
  * a POSIX-compliant read-write filesystem.
  *
- * Note in particular how the filesystem does not
+ * Analte in particular how the filesystem does analt
  * need to implement any data structures of its own
  * to keep track of the virtual data: using the VFS
  * caches is sufficient.
@@ -52,113 +52,113 @@ struct ramfs_fs_info {
 #define RAMFS_DEFAULT_MODE	0755
 
 static const struct super_operations ramfs_ops;
-static const struct inode_operations ramfs_dir_inode_operations;
+static const struct ianalde_operations ramfs_dir_ianalde_operations;
 
-struct inode *ramfs_get_inode(struct super_block *sb,
-				const struct inode *dir, umode_t mode, dev_t dev)
+struct ianalde *ramfs_get_ianalde(struct super_block *sb,
+				const struct ianalde *dir, umode_t mode, dev_t dev)
 {
-	struct inode * inode = new_inode(sb);
+	struct ianalde * ianalde = new_ianalde(sb);
 
-	if (inode) {
-		inode->i_ino = get_next_ino();
-		inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
-		inode->i_mapping->a_ops = &ram_aops;
-		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
-		mapping_set_unevictable(inode->i_mapping);
-		simple_inode_init_ts(inode);
+	if (ianalde) {
+		ianalde->i_ianal = get_next_ianal();
+		ianalde_init_owner(&analp_mnt_idmap, ianalde, dir, mode);
+		ianalde->i_mapping->a_ops = &ram_aops;
+		mapping_set_gfp_mask(ianalde->i_mapping, GFP_HIGHUSER);
+		mapping_set_unevictable(ianalde->i_mapping);
+		simple_ianalde_init_ts(ianalde);
 		switch (mode & S_IFMT) {
 		default:
-			init_special_inode(inode, mode, dev);
+			init_special_ianalde(ianalde, mode, dev);
 			break;
 		case S_IFREG:
-			inode->i_op = &ramfs_file_inode_operations;
-			inode->i_fop = &ramfs_file_operations;
+			ianalde->i_op = &ramfs_file_ianalde_operations;
+			ianalde->i_fop = &ramfs_file_operations;
 			break;
 		case S_IFDIR:
-			inode->i_op = &ramfs_dir_inode_operations;
-			inode->i_fop = &simple_dir_operations;
+			ianalde->i_op = &ramfs_dir_ianalde_operations;
+			ianalde->i_fop = &simple_dir_operations;
 
-			/* directory inodes start off with i_nlink == 2 (for "." entry) */
-			inc_nlink(inode);
+			/* directory ianaldes start off with i_nlink == 2 (for "." entry) */
+			inc_nlink(ianalde);
 			break;
 		case S_IFLNK:
-			inode->i_op = &page_symlink_inode_operations;
-			inode_nohighmem(inode);
+			ianalde->i_op = &page_symlink_ianalde_operations;
+			ianalde_analhighmem(ianalde);
 			break;
 		}
 	}
-	return inode;
+	return ianalde;
 }
 
 /*
- * File creation. Allocate an inode, and we're done..
+ * File creation. Allocate an ianalde, and we're done..
  */
 /* SMP-safe */
 static int
-ramfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+ramfs_mkanald(struct mnt_idmap *idmap, struct ianalde *dir,
 	    struct dentry *dentry, umode_t mode, dev_t dev)
 {
-	struct inode * inode = ramfs_get_inode(dir->i_sb, dir, mode, dev);
-	int error = -ENOSPC;
+	struct ianalde * ianalde = ramfs_get_ianalde(dir->i_sb, dir, mode, dev);
+	int error = -EANALSPC;
 
-	if (inode) {
-		d_instantiate(dentry, inode);
+	if (ianalde) {
+		d_instantiate(dentry, ianalde);
 		dget(dentry);	/* Extra count - pin the dentry in core */
 		error = 0;
-		inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
+		ianalde_set_mtime_to_ts(dir, ianalde_set_ctime_current(dir));
 	}
 	return error;
 }
 
-static int ramfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static int ramfs_mkdir(struct mnt_idmap *idmap, struct ianalde *dir,
 		       struct dentry *dentry, umode_t mode)
 {
-	int retval = ramfs_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFDIR, 0);
+	int retval = ramfs_mkanald(&analp_mnt_idmap, dir, dentry, mode | S_IFDIR, 0);
 	if (!retval)
 		inc_nlink(dir);
 	return retval;
 }
 
-static int ramfs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int ramfs_create(struct mnt_idmap *idmap, struct ianalde *dir,
 			struct dentry *dentry, umode_t mode, bool excl)
 {
-	return ramfs_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFREG, 0);
+	return ramfs_mkanald(&analp_mnt_idmap, dir, dentry, mode | S_IFREG, 0);
 }
 
-static int ramfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int ramfs_symlink(struct mnt_idmap *idmap, struct ianalde *dir,
 			 struct dentry *dentry, const char *symname)
 {
-	struct inode *inode;
-	int error = -ENOSPC;
+	struct ianalde *ianalde;
+	int error = -EANALSPC;
 
-	inode = ramfs_get_inode(dir->i_sb, dir, S_IFLNK|S_IRWXUGO, 0);
-	if (inode) {
+	ianalde = ramfs_get_ianalde(dir->i_sb, dir, S_IFLNK|S_IRWXUGO, 0);
+	if (ianalde) {
 		int l = strlen(symname)+1;
-		error = page_symlink(inode, symname, l);
+		error = page_symlink(ianalde, symname, l);
 		if (!error) {
-			d_instantiate(dentry, inode);
+			d_instantiate(dentry, ianalde);
 			dget(dentry);
-			inode_set_mtime_to_ts(dir,
-					      inode_set_ctime_current(dir));
+			ianalde_set_mtime_to_ts(dir,
+					      ianalde_set_ctime_current(dir));
 		} else
-			iput(inode);
+			iput(ianalde);
 	}
 	return error;
 }
 
 static int ramfs_tmpfile(struct mnt_idmap *idmap,
-			 struct inode *dir, struct file *file, umode_t mode)
+			 struct ianalde *dir, struct file *file, umode_t mode)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	inode = ramfs_get_inode(dir->i_sb, dir, mode, 0);
-	if (!inode)
-		return -ENOSPC;
-	d_tmpfile(file, inode);
+	ianalde = ramfs_get_ianalde(dir->i_sb, dir, mode, 0);
+	if (!ianalde)
+		return -EANALSPC;
+	d_tmpfile(file, ianalde);
 	return finish_open_simple(file, 0);
 }
 
-static const struct inode_operations ramfs_dir_inode_operations = {
+static const struct ianalde_operations ramfs_dir_ianalde_operations = {
 	.create		= ramfs_create,
 	.lookup		= simple_lookup,
 	.link		= simple_link,
@@ -166,7 +166,7 @@ static const struct inode_operations ramfs_dir_inode_operations = {
 	.symlink	= ramfs_symlink,
 	.mkdir		= ramfs_mkdir,
 	.rmdir		= simple_rmdir,
-	.mknod		= ramfs_mknod,
+	.mkanald		= ramfs_mkanald,
 	.rename		= simple_rename,
 	.tmpfile	= ramfs_tmpfile,
 };
@@ -185,7 +185,7 @@ static int ramfs_show_options(struct seq_file *m, struct dentry *root)
 
 static const struct super_operations ramfs_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
+	.drop_ianalde	= generic_delete_ianalde,
 	.show_options	= ramfs_show_options,
 };
 
@@ -205,15 +205,15 @@ static int ramfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	int opt;
 
 	opt = fs_parse(fc, ramfs_fs_parameters, param, &result);
-	if (opt == -ENOPARAM) {
+	if (opt == -EANALPARAM) {
 		opt = vfs_parse_fs_param_source(fc, param);
-		if (opt != -ENOPARAM)
+		if (opt != -EANALPARAM)
 			return opt;
 		/*
 		 * We might like to report bad mount options here;
-		 * but traditionally ramfs has ignored all mount options,
+		 * but traditionally ramfs has iganalred all mount options,
 		 * and as it is used as a !CONFIG_SHMEM simple substitute
-		 * for tmpfs, better continue to ignore other mount options.
+		 * for tmpfs, better continue to iganalre other mount options.
 		 */
 		return 0;
 	}
@@ -232,7 +232,7 @@ static int ramfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 static int ramfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct ramfs_fs_info *fsi = sb->s_fs_info;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	sb->s_maxbytes		= MAX_LFS_FILESIZE;
 	sb->s_blocksize		= PAGE_SIZE;
@@ -241,17 +241,17 @@ static int ramfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_op		= &ramfs_ops;
 	sb->s_time_gran		= 1;
 
-	inode = ramfs_get_inode(sb, NULL, S_IFDIR | fsi->mount_opts.mode, 0);
-	sb->s_root = d_make_root(inode);
+	ianalde = ramfs_get_ianalde(sb, NULL, S_IFDIR | fsi->mount_opts.mode, 0);
+	sb->s_root = d_make_root(ianalde);
 	if (!sb->s_root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
 
 static int ramfs_get_tree(struct fs_context *fc)
 {
-	return get_tree_nodev(fc, ramfs_fill_super);
+	return get_tree_analdev(fc, ramfs_fill_super);
 }
 
 static void ramfs_free_fc(struct fs_context *fc)
@@ -271,7 +271,7 @@ int ramfs_init_fs_context(struct fs_context *fc)
 
 	fsi = kzalloc(sizeof(*fsi), GFP_KERNEL);
 	if (!fsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fsi->mount_opts.mode = RAMFS_DEFAULT_MODE;
 	fc->s_fs_info = fsi;

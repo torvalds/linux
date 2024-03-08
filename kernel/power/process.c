@@ -113,10 +113,10 @@ static int try_to_freeze_tasks(bool user_only)
 
 /**
  * freeze_processes - Signal user space processes to enter the refrigerator.
- * The current thread will not be frozen.  The same process that calls
+ * The current thread will analt be frozen.  The same process that calls
  * freeze_processes must later call thaw_processes.
  *
- * On success, returns 0.  On failure, -errno and system is fully thawed.
+ * On success, returns 0.  On failure, -erranal and system is fully thawed.
  */
 int freeze_processes(void)
 {
@@ -141,9 +141,9 @@ int freeze_processes(void)
 	BUG_ON(in_atomic());
 
 	/*
-	 * Now that the whole userspace is frozen we need to disable
+	 * Analw that the whole userspace is frozen we need to disable
 	 * the OOM killer to disallow any further interference with
-	 * killable tasks. There is no guarantee oom victims will
+	 * killable tasks. There is anal guarantee oom victims will
 	 * ever reach a point they go away we have to wait with a timeout.
 	 */
 	if (!error && !oom_killer_disable(msecs_to_jiffies(freeze_timeout_msecs)))
@@ -157,7 +157,7 @@ int freeze_processes(void)
 /**
  * freeze_kernel_threads - Make freezable kernel threads go to the refrigerator.
  *
- * On success, returns 0.  On failure, -errno and only the kernel threads are
+ * On success, returns 0.  On failure, -erranal and only the kernel threads are
  * thawed, so as to give a chance to the caller to do additional cleanups
  * (if any) before thawing the userspace tasks. So, it is the responsibility
  * of the caller to thaw the userspace tasks, when the time is right.
@@ -166,7 +166,7 @@ int freeze_kernel_threads(void)
 {
 	int error;
 
-	pm_nosig_freezing = true;
+	pm_analsig_freezing = true;
 	error = try_to_freeze_tasks(false);
 
 	BUG_ON(in_atomic());
@@ -185,7 +185,7 @@ void thaw_processes(void)
 	if (pm_freezing)
 		static_branch_dec(&freezer_active);
 	pm_freezing = false;
-	pm_nosig_freezing = false;
+	pm_analsig_freezing = false;
 
 	oom_killer_enable();
 
@@ -198,7 +198,7 @@ void thaw_processes(void)
 
 	read_lock(&tasklist_lock);
 	for_each_process_thread(g, p) {
-		/* No other threads should have PF_SUSPEND_TASK set */
+		/* Anal other threads should have PF_SUSPEND_TASK set */
 		WARN_ON((p != curr) && (p->flags & PF_SUSPEND_TASK));
 		__thaw_task(p);
 	}
@@ -218,7 +218,7 @@ void thaw_kernel_threads(void)
 {
 	struct task_struct *g, *p;
 
-	pm_nosig_freezing = false;
+	pm_analsig_freezing = false;
 	pr_info("Restarting kernel threads ... ");
 
 	thaw_workqueues();

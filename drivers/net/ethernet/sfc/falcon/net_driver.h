@@ -41,11 +41,11 @@
 #define EF4_DRIVER_VERSION	"4.1"
 
 #ifdef DEBUG
-#define EF4_BUG_ON_PARANOID(x) BUG_ON(x)
-#define EF4_WARN_ON_PARANOID(x) WARN_ON(x)
+#define EF4_BUG_ON_PARAANALID(x) BUG_ON(x)
+#define EF4_WARN_ON_PARAANALID(x) WARN_ON(x)
 #else
-#define EF4_BUG_ON_PARANOID(x) do {} while (0)
-#define EF4_WARN_ON_PARANOID(x) do {} while (0)
+#define EF4_BUG_ON_PARAANALID(x) do {} while (0)
+#define EF4_WARN_ON_PARAANALID(x) do {} while (0)
 #endif
 
 /**************************************************************************
@@ -76,7 +76,7 @@
 /* Minimum MTU, from RFC791 (IP) */
 #define EF4_MIN_MTU 68
 
-/* Size of an RX scatter buffer.  Small enough to pack 2 into a 4K page,
+/* Size of an RX scatter buffer.  Small eanalugh to pack 2 into a 4K page,
  * and should be a multiple of the cache line size.
  */
 #define EF4_RX_USR_BUF_SIZE	(2048 - 256)
@@ -116,8 +116,8 @@ struct ef4_buffer {
  *
  * The NIC has a buffer table that maps buffers of size %EF4_BUF_SIZE.
  * Event and descriptor rings are addressed via one or more buffer
- * table entries (and so can be physically non-contiguous, although we
- * currently do not take advantage of that).  On Falcon and Siena we
+ * table entries (and so can be physically analn-contiguous, although we
+ * currently do analt take advantage of that).  On Falcon and Siena we
  * have to take care of allocating and initialising the entries
  * ourselves.  On later hardware this is managed by the firmware and
  * @index and @entries are left as 0.
@@ -152,7 +152,7 @@ struct ef4_tx_buffer {
 	unsigned short unmap_len;
 	unsigned short dma_offset;
 };
-#define EF4_TX_BUF_CONT		1	/* not last descriptor of packet */
+#define EF4_TX_BUF_CONT		1	/* analt last descriptor of packet */
 #define EF4_TX_BUF_SKB		2	/* buffer is last part of skb */
 #define EF4_TX_BUF_MAP_SINGLE	8	/* buffer was mapped with dma_map_single() */
 #define EF4_TX_BUF_OPTION	0x10	/* empty buffer for option descriptor */
@@ -168,7 +168,7 @@ struct ef4_tx_buffer {
  * This is particularly important if the xmit path is always
  * executing on one CPU which is different from the completion
  * path.  There is also a cache line for members which are
- * read but not written on the fast path.
+ * read but analt written on the fast path.
  *
  * @efx: The associated Efx NIC
  * @queue: DMA queue number
@@ -206,7 +206,7 @@ struct ef4_tx_buffer {
  * @xmit_more_available: Are any packets waiting to be pushed to the NIC
  * @cb_packets: Number of times the TX copybreak feature has been used
  * @empty_read_count: If the completion path has seen the queue as empty
- *	and the transmission path has not yet checked this, the value of
+ *	and the transmission path has analt yet checked this, the value of
  *	@read_count bitwise-added to %EF4_EMPTY_COUNT_VALID; otherwise 0.
  */
 struct ef4_tx_queue {
@@ -303,7 +303,7 @@ struct ef4_rx_page_state {
  * @flush_pending: Set when a RX flush is pending. Has the same lifetime as
  *	@rxq_flush_pending.
  * @added_count: Number of buffers added to the receive queue.
- * @notified_count: Number of buffers given to NIC (<= @added_count).
+ * @analtified_count: Number of buffers given to NIC (<= @added_count).
  * @removed_count: Number of buffers removed from the receive queue.
  * @scatter_n: Used by NIC specific receive code.
  * @scatter_len: Used by NIC specific receive code.
@@ -319,7 +319,7 @@ struct ef4_rx_page_state {
  * @max_fill: RX descriptor maximum fill level (<= ring size)
  * @fast_fill_trigger: RX descriptor fill level that will trigger a fast fill
  *	(<= @max_fill)
- * @min_fill: RX descriptor minimum non-zero fill level.
+ * @min_fill: RX descriptor minimum analn-zero fill level.
  *	This records the minimum fill level observed when a ring
  *	refill was triggered.
  * @recycle_count: RX buffer recycle counter.
@@ -335,7 +335,7 @@ struct ef4_rx_queue {
 	bool flush_pending;
 
 	unsigned int added_count;
-	unsigned int notified_count;
+	unsigned int analtified_count;
 	unsigned int removed_count;
 	unsigned int scatter_n;
 	unsigned int scatter_len;
@@ -390,12 +390,12 @@ struct ef4_rx_queue {
  * @n_rx_frm_trunc: Count of RX_FRM_TRUNC errors
  * @n_rx_overlength: Count of RX_OVERLENGTH errors
  * @n_skbuff_leaks: Count of skbuffs leaked due to RX overrun
- * @n_rx_nodesc_trunc: Number of RX packets truncated and then dropped due to
+ * @n_rx_analdesc_trunc: Number of RX packets truncated and then dropped due to
  *	lack of descriptors
  * @n_rx_merge_events: Number of RX merged completion events
  * @n_rx_merge_packets: Number of RX packets completed by merged events
  * @rx_pkt_n_frags: Number of fragments in next packet to be delivered by
- *	__ef4_rx_packet(), or zero if there is none
+ *	__ef4_rx_packet(), or zero if there is analne
  * @rx_pkt_index: Ring index of first buffer for next packet to be delivered
  *	by __ef4_rx_packet(), if @rx_pkt_n_frags != 0
  * @rx_queue: RX queue for this channel
@@ -434,7 +434,7 @@ struct ef4_channel {
 	unsigned n_rx_frm_trunc;
 	unsigned n_rx_overlength;
 	unsigned n_skbuff_leaks;
-	unsigned int n_rx_nodesc_trunc;
+	unsigned int n_rx_analdesc_trunc;
 	unsigned int n_rx_merge_events;
 	unsigned int n_rx_merge_packets;
 
@@ -462,19 +462,19 @@ struct ef4_msi_context {
 
 /**
  * struct ef4_channel_type - distinguishes traffic and extra channels
- * @handle_no_channel: Handle failure to allocate an extra channel
+ * @handle_anal_channel: Handle failure to allocate an extra channel
  * @pre_probe: Set up extra state prior to initialisation
  * @post_remove: Tear down extra state after finalisation, if allocated.
- *	May be called on channels that have not been probed.
+ *	May be called on channels that have analt been probed.
  * @get_name: Generate the channel's name (used for its IRQ handler)
  * @copy: Copy the channel state prior to reallocation.  May be %NULL if
- *	reallocation is not supported.
+ *	reallocation is analt supported.
  * @receive_skb: Handle an skb ready to be passed to netif_receive_skb()
  * @keep_eventq: Flag for whether event queue should be kept initialised
  *	while the device is stopped
  */
 struct ef4_channel_type {
-	void (*handle_no_channel)(struct ef4_nic *);
+	void (*handle_anal_channel)(struct ef4_nic *);
 	int (*pre_probe)(struct ef4_channel *);
 	void (*post_remove)(struct ef4_channel *);
 	void (*get_name)(struct ef4_channel *, char *buf, size_t len);
@@ -589,14 +589,14 @@ struct ef4_phy_operations {
 
 /**
  * enum ef4_phy_mode - PHY operating mode flags
- * @PHY_MODE_NORMAL: on and should pass traffic
+ * @PHY_MODE_ANALRMAL: on and should pass traffic
  * @PHY_MODE_TX_DISABLED: on with TX disabled
  * @PHY_MODE_LOW_POWER: set to low power through MDIO
  * @PHY_MODE_OFF: switched off through external control
- * @PHY_MODE_SPECIAL: on but will not pass traffic
+ * @PHY_MODE_SPECIAL: on but will analt pass traffic
  */
 enum ef4_phy_mode {
-	PHY_MODE_NORMAL		= 0,
+	PHY_MODE_ANALRMAL		= 0,
 	PHY_MODE_TX_DISABLED	= 1,
 	PHY_MODE_LOW_POWER	= 2,
 	PHY_MODE_OFF		= 4,
@@ -611,9 +611,9 @@ static inline bool ef4_phy_mode_disabled(enum ef4_phy_mode mode)
 /**
  * struct ef4_hw_stat_desc - Description of a hardware statistic
  * @name: Name of the statistic as visible through ethtool, or %NULL if
- *	it should not be exposed
- * @dma_width: Width in bits (0 for non-DMA statistics)
- * @offset: Offset within stats (ignored for non-DMA statistics)
+ *	it should analt be exposed
+ * @dma_width: Width in bits (0 for analn-DMA statistics)
+ * @offset: Offset within stats (iganalred for analn-DMA statistics)
  */
 struct ef4_hw_stat_desc {
 	const char *name;
@@ -637,9 +637,9 @@ union ef4_multicast_hash {
  * struct ef4_nic - an Efx NIC
  * @name: Device name (net device name or bus id before net device registered)
  * @pci_dev: The PCI device
- * @node: List node for maintaining primary/secondary function lists
+ * @analde: List analde for maintaining primary/secondary function lists
  * @primary: &struct ef4_nic instance for the primary function of this
- *	controller.  May be the same structure, and may be %NULL if no
+ *	controller.  May be the same structure, and may be %NULL if anal
  *	primary function is bound.  Serialised by rtnl_lock.
  * @secondary_list: List of &struct ef4_nic instances for the secondary PCI
  *	functions of the controller, if this is for the primary function.
@@ -647,14 +647,14 @@ union ef4_multicast_hash {
  * @type: Controller type attributes
  * @legacy_irq: IRQ number
  * @workqueue: Workqueue for port reconfigures and the HW monitor.
- *	Work items do not hold and must not acquire RTNL.
+ *	Work items do analt hold and must analt acquire RTNL.
  * @workqueue_name: Name of workqueue
  * @reset_work: Scheduled reset workitem
  * @membase_phys: Memory BAR value as physical address
  * @membase: Memory BAR value
  * @interrupt_mode: Interrupt mode
- * @timer_quantum_ns: Interrupt timer quantum, in nanoseconds
- * @timer_max_ns: Interrupt timer maximum value, in nanoseconds
+ * @timer_quantum_ns: Interrupt timer quantum, in naanalseconds
+ * @timer_max_ns: Interrupt timer maximum value, in naanalseconds
  * @irq_rx_adaptive: Adaptive IRQ moderation enabled for RX event queues
  * @irq_rx_mod_step_us: Step size for IRQ moderation for RX event queues
  * @irq_rx_moderation_us: IRQ moderation time for RX event queues
@@ -665,7 +665,7 @@ union ef4_multicast_hash {
  * @rx_queue: RX DMA queues
  * @channel: Channels
  * @msi_context: Context for each MSI
- * @extra_channel_types: Types of extra (non-traffic) channels that
+ * @extra_channel_types: Types of extra (analn-traffic) channels that
  *	should be allocated for this NIC
  * @rxq_entries: Size of receive queues requested by user.
  * @txq_entries: Size of transmit queues requested by user.
@@ -696,12 +696,12 @@ union ef4_multicast_hash {
  * @rx_scatter: Scatter mode enabled for receives
  * @int_error_count: Number of internal errors seen recently
  * @int_error_expire: Time at which error count will be expired
- * @irq_soft_enabled: Are IRQs soft-enabled? If not, IRQ handler will
- *	acknowledge but do nothing else.
+ * @irq_soft_enabled: Are IRQs soft-enabled? If analt, IRQ handler will
+ *	ackanalwledge but do analthing else.
  * @irq_status: Interrupt status buffer
  * @irq_zero_count: Number of legacy IRQs seen with queue flags == 0
- * @irq_level: IRQ level/index for IRQs not triggered by an event queue
- * @selftest_work: Work item for asynchronous self-test
+ * @irq_level: IRQ level/index for IRQs analt triggered by an event queue
+ * @selftest_work: Work item for asynchroanalus self-test
  * @mtd_list: List of MTDs attached to the NIC
  * @nic_data: Hardware dependent state
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
@@ -713,7 +713,7 @@ union ef4_multicast_hash {
  *	be held to modify it.
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
- * @fixed_features: Features which cannot be turned off
+ * @fixed_features: Features which cananalt be turned off
  * @stats_buffer: DMA buffer for statistics
  * @phy_type: PHY type
  * @phy_op: PHY interface
@@ -728,7 +728,7 @@ union ef4_multicast_hash {
  * @multicast_hash: Multicast hash table for Falcon-arch.
  *	Protected by @mac_lock.
  * @wanted_fc: Wanted flow control flags
- * @fc_disable: When non-zero flow control is disabled. Typically used to
+ * @fc_disable: When analn-zero flow control is disabled. Typically used to
  *	ensure that network back pressure doesn't delay dma queue flushes.
  *	Serialised by the rtnl lock.
  * @mac_work: Work item for changing MAC promiscuity and multicast hash
@@ -744,8 +744,8 @@ union ef4_multicast_hash {
  * @active_queues: Count of RX and TX queues that haven't been flushed and drained.
  * @rxq_flush_pending: Count of number of receive queues that need to be flushed.
  *	Decremented when the ef4_flush_rx_queue() is called.
- * @rxq_flush_outstanding: Count of number of RX flushes started but not yet
- *	completed (either success or failure). Not used when MCDI is used to
+ * @rxq_flush_outstanding: Count of number of RX flushes started but analt yet
+ *	completed (either success or failure). Analt used when MCDI is used to
  *	flush receive queues.
  * @flush_wq: wait queue used by ef4_nic_flush_queues() to wait for flush completions.
  * @vpd_sn: Serial number read from VPD
@@ -756,7 +756,7 @@ union ef4_multicast_hash {
  *	interrupt has occurred.
  * @stats_lock: Statistics update lock. Must be held when calling
  *	ef4_nic_type::{update,start,stop}_stats.
- * @n_rx_noskb_drops: Count of RX packets dropped due to failure to allocate an skb
+ * @n_rx_analskb_drops: Count of RX packets dropped due to failure to allocate an skb
  *
  * This is stored in the private area of the &struct net_device.
  */
@@ -764,7 +764,7 @@ struct ef4_nic {
 	/* The following fields should be written very rarely */
 
 	char name[IFNAMSIZ];
-	struct list_head node;
+	struct list_head analde;
 	struct ef4_nic *primary;
 	struct list_head secondary_list;
 	struct pci_dev *pci_dev;
@@ -852,9 +852,9 @@ struct ef4_nic {
 	netdev_features_t fixed_features;
 
 	struct ef4_buffer stats_buffer;
-	u64 rx_nodesc_drops_total;
-	u64 rx_nodesc_drops_while_down;
-	bool rx_nodesc_drops_prev_state;
+	u64 rx_analdesc_drops_total;
+	u64 rx_analdesc_drops_while_down;
+	bool rx_analdesc_drops_prev_state;
 
 	unsigned int phy_type;
 	const struct ef4_phy_operations *phy_op;
@@ -898,7 +898,7 @@ struct ef4_nic {
 	spinlock_t biu_lock;
 	int last_irq_cpu;
 	spinlock_t stats_lock;
-	atomic_t n_rx_noskb_drops;
+	atomic_t n_rx_analskb_drops;
 };
 
 static inline int ef4_dev_registered(struct ef4_nic *efx)
@@ -912,7 +912,7 @@ static inline unsigned int ef4_port_num(struct ef4_nic *efx)
 }
 
 struct ef4_mtd_partition {
-	struct list_head node;
+	struct list_head analde;
 	struct mtd_info mtd;
 	const char *dev_type_name;
 	const char *type_name;
@@ -945,7 +945,7 @@ struct ef4_mtd_partition {
  * @prepare_flr: Prepare for an FLR
  * @finish_flr: Clean up after an FLR
  * @describe_stats: Describe statistics for ethtool
- * @update_stats: Update statistics not provided by event handling.
+ * @update_stats: Update statistics analt provided by event handling.
  *	Either argument may be %NULL.
  * @start_stats: Start the regular fetching of statistics
  * @pull_stats: Pull stats from the NIC and wait until they arrive.
@@ -966,7 +966,7 @@ struct ef4_mtd_partition {
  * @irq_enable_master: Enable IRQs on the NIC.  Each event queue must
  *	be separately enabled after this.
  * @irq_test_generate: Generate a test IRQ
- * @irq_disable_non_ev: Disable non-event IRQs on the NIC.  Each event
+ * @irq_disable_analn_ev: Disable analn-event IRQs on the NIC.  Each event
  *	queue must be separately disabled before this.
  * @irq_handle_msi: Handle MSI for a channel.  The @dev_id argument is
  *	a pointer to the &struct ef4_msi_context for the channel.
@@ -987,7 +987,7 @@ struct ef4_mtd_partition {
  * @ev_fini: Deinitialise event queue on the NIC
  * @ev_remove: Free resources for event queue
  * @ev_process: Process events for a queue, up to the given NAPI quota
- * @ev_read_ack: Acknowledge read events on a queue, rearming its IRQ
+ * @ev_read_ack: Ackanalwledge read events on a queue, rearming its IRQ
  * @ev_test_generate: Generate a test event
  * @filter_table_probe: Probe filter capabilities and set up filter software state
  * @filter_table_restore: Restore filters removed from hardware
@@ -997,13 +997,13 @@ struct ef4_mtd_partition {
  * @filter_remove_safe: remove a filter by ID, carefully
  * @filter_get_safe: retrieve a filter by ID, carefully
  * @filter_clear_rx: Remove all RX filters whose priority is less than or
- *	equal to the given priority and is not %EF4_FILTER_PRI_AUTO
+ *	equal to the given priority and is analt %EF4_FILTER_PRI_AUTO
  * @filter_count_rx_used: Get the number of filters in use at a given priority
  * @filter_get_rx_id_limit: Get maximum value of a filter id, plus 1
  * @filter_get_rx_ids: Get list of RX filters at a given priority
  * @filter_rfs_insert: Add or replace a filter for RFS.  This must be
- *	atomic.  The hardware change may be asynchronous but should
- *	not be delayed for long.  It may fail if this can't be done
+ *	atomic.  The hardware change may be asynchroanalus but should
+ *	analt be delayed for long.  It may fail if this can't be done
  *	atomically.
  * @filter_rfs_expire_one: Consider expiring a filter inserted for RFS.
  *	This must check whether the specified table entry is used by RFS
@@ -1015,7 +1015,7 @@ struct ef4_mtd_partition {
  * @mtd_erase: Erase part of an MTD partition
  * @mtd_write: Write to an MTD partition
  * @mtd_sync: Wait for write-back to complete on MTD partition.  This
- *	also notifies the driver that a writer has finished using this
+ *	also analtifies the driver that a writer has finished using this
  *	partition.
  * @set_mac_address: Set the MAC address of the device
  * @revision: Hardware architecture revision
@@ -1076,7 +1076,7 @@ struct ef4_nic_type {
 	int (*test_nvram)(struct ef4_nic *efx);
 	void (*irq_enable_master)(struct ef4_nic *efx);
 	int (*irq_test_generate)(struct ef4_nic *efx);
-	void (*irq_disable_non_ev)(struct ef4_nic *efx);
+	void (*irq_disable_analn_ev)(struct ef4_nic *efx);
 	irqreturn_t (*irq_handle_msi)(int irq, void *dev_id);
 	irqreturn_t (*irq_handle_legacy)(int irq, void *dev_id);
 	int (*tx_probe)(struct ef4_tx_queue *tx_queue);
@@ -1166,7 +1166,7 @@ struct ef4_nic_type {
 static inline struct ef4_channel *
 ef4_get_channel(struct ef4_nic *efx, unsigned index)
 {
-	EF4_BUG_ON_PARANOID(index >= efx->n_channels);
+	EF4_BUG_ON_PARAANALID(index >= efx->n_channels);
 	return efx->channel[index];
 }
 
@@ -1187,7 +1187,7 @@ ef4_get_channel(struct ef4_nic *efx, unsigned index)
 static inline struct ef4_tx_queue *
 ef4_get_tx_queue(struct ef4_nic *efx, unsigned index, unsigned type)
 {
-	EF4_BUG_ON_PARANOID(index >= efx->n_tx_channels ||
+	EF4_BUG_ON_PARAANALID(index >= efx->n_tx_channels ||
 			    type >= EF4_TXQ_TYPES);
 	return &efx->channel[efx->tx_channel_offset + index]->tx_queue[type];
 }
@@ -1201,7 +1201,7 @@ static inline bool ef4_channel_has_tx_queues(struct ef4_channel *channel)
 static inline struct ef4_tx_queue *
 ef4_channel_get_tx_queue(struct ef4_channel *channel, unsigned type)
 {
-	EF4_BUG_ON_PARANOID(!ef4_channel_has_tx_queues(channel) ||
+	EF4_BUG_ON_PARAANALID(!ef4_channel_has_tx_queues(channel) ||
 			    type >= EF4_TXQ_TYPES);
 	return &channel->tx_queue[type];
 }
@@ -1239,7 +1239,7 @@ static inline bool ef4_channel_has_rx_queue(struct ef4_channel *channel)
 static inline struct ef4_rx_queue *
 ef4_channel_get_rx_queue(struct ef4_channel *channel)
 {
-	EF4_BUG_ON_PARANOID(!ef4_channel_has_rx_queue(channel));
+	EF4_BUG_ON_PARAANALID(!ef4_channel_has_rx_queue(channel));
 	return &channel->rx_queue;
 }
 
@@ -1294,8 +1294,8 @@ static inline struct ef4_rx_buffer *ef4_rx_buffer(struct ef4_rx_queue *rx_queue,
 	(ALIGN(((mtu) + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN + EF4_FRAME_PAD), 8))
 
 /* Get all supported features.
- * If a feature is not fixed, it is present in hw_features.
- * If a feature is fixed, it does not present in hw_features, but
+ * If a feature is analt fixed, it is present in hw_features.
+ * If a feature is fixed, it does analt present in hw_features, but
  * always in features.
  */
 static inline netdev_features_t ef4_supported_features(const struct ef4_nic *efx)
@@ -1319,16 +1319,16 @@ __ef4_tx_queue_get_insert_buffer(const struct ef4_tx_queue *tx_queue)
 	return &tx_queue->buffer[ef4_tx_queue_get_insert_index(tx_queue)];
 }
 
-/* Get a TX buffer, checking it's not currently in use. */
+/* Get a TX buffer, checking it's analt currently in use. */
 static inline struct ef4_tx_buffer *
 ef4_tx_queue_get_insert_buffer(const struct ef4_tx_queue *tx_queue)
 {
 	struct ef4_tx_buffer *buffer =
 		__ef4_tx_queue_get_insert_buffer(tx_queue);
 
-	EF4_BUG_ON_PARANOID(buffer->len);
-	EF4_BUG_ON_PARANOID(buffer->flags);
-	EF4_BUG_ON_PARANOID(buffer->unmap_len);
+	EF4_BUG_ON_PARAANALID(buffer->len);
+	EF4_BUG_ON_PARAANALID(buffer->flags);
+	EF4_BUG_ON_PARAANALID(buffer->unmap_len);
 
 	return buffer;
 }

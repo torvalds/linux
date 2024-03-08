@@ -42,7 +42,7 @@ struct ip_tunnel_info;
 #define NEXTHDR_ESP		50	/* Encapsulating security payload. */
 #define NEXTHDR_AUTH		51	/* Authentication header. */
 #define NEXTHDR_ICMP		58	/* ICMP for IPv6. */
-#define NEXTHDR_NONE		59	/* No next header */
+#define NEXTHDR_ANALNE		59	/* Anal next header */
 #define NEXTHDR_DEST		60	/* Destination options header. */
 #define NEXTHDR_SCTP		132	/* SCTP message. */
 #define NEXTHDR_MOBILITY	135	/* Mobility header. */
@@ -54,7 +54,7 @@ struct ip_tunnel_info;
 
 /* Limits on Hop-by-Hop and Destination options.
  *
- * Per RFC8200 there is no limit on the maximum number or lengths of options in
+ * Per RFC8200 there is anal limit on the maximum number or lengths of options in
  * Hop-by-Hop or Destination options other then the packet must fit in an MTU.
  * We allow configurable limits in order to mitigate potential denial of
  * service attacks.
@@ -64,7 +64,7 @@ struct ip_tunnel_info;
  *     extension header
  *   - Limit the byte length of a Hop-by-Hop or Destination options extension
  *     header
- *   - Disallow unknown options
+ *   - Disallow unkanalwn options
  *
  * The limits are expressed in corresponding sysctls:
  *
@@ -74,13 +74,13 @@ struct ip_tunnel_info;
  * ipv6.sysctl.max_hbh_opts_len
  *
  * max_*_opts_cnt is the number of TLVs that are allowed for Destination
- * options or Hop-by-Hop options. If the number is less than zero then unknown
- * TLVs are disallowed and the number of known options that are allowed is the
- * absolute value. Setting the value to INT_MAX indicates no limit.
+ * options or Hop-by-Hop options. If the number is less than zero then unkanalwn
+ * TLVs are disallowed and the number of kanalwn options that are allowed is the
+ * absolute value. Setting the value to INT_MAX indicates anal limit.
  *
  * max_*_opts_len is the length limit in bytes of a Destination or
  * Hop-by-Hop options extension header. Setting the value to INT_MAX
- * indicates no length limit.
+ * indicates anal length limit.
  *
  * If a limit is exceeded when processing an extension header the packet is
  * silently discarded.
@@ -89,8 +89,8 @@ struct ip_tunnel_info;
 /* Default limits for Hop-by-Hop and Destination options */
 #define IP6_DEFAULT_MAX_DST_OPTS_CNT	 8
 #define IP6_DEFAULT_MAX_HBH_OPTS_CNT	 8
-#define IP6_DEFAULT_MAX_DST_OPTS_LEN	 INT_MAX /* No limit */
-#define IP6_DEFAULT_MAX_HBH_OPTS_LEN	 INT_MAX /* No limit */
+#define IP6_DEFAULT_MAX_DST_OPTS_LEN	 INT_MAX /* Anal limit */
+#define IP6_DEFAULT_MAX_HBH_OPTS_LEN	 INT_MAX /* Anal limit */
 
 /*
  *	Addr type
@@ -122,9 +122,9 @@ struct ip_tunnel_info;
  *	Addr scopes
  */
 #define IPV6_ADDR_MC_SCOPE(a)	\
-	((a)->s6_addr[1] & 0x0f)	/* nonstandard */
+	((a)->s6_addr[1] & 0x0f)	/* analnstandard */
 #define __IPV6_ADDR_SCOPE_INVALID	-1
-#define IPV6_ADDR_SCOPE_NODELOCAL	0x01
+#define IPV6_ADDR_SCOPE_ANALDELOCAL	0x01
 #define IPV6_ADDR_SCOPE_LINKLOCAL	0x02
 #define IPV6_ADDR_SCOPE_SITELOCAL	0x05
 #define IPV6_ADDR_SCOPE_ORGLOCAL	0x08
@@ -184,7 +184,7 @@ static inline struct sk_buff *ip6_fraglist_next(struct ip6_fraglist_iter *iter)
 	struct sk_buff *skb = iter->frag;
 
 	iter->frag = skb->next;
-	skb_mark_not_on_list(skb);
+	skb_mark_analt_on_list(skb);
 
 	return skb;
 }
@@ -389,7 +389,7 @@ static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
 	rcu_read_lock();
 	opt = rcu_dereference(np->opt);
 	if (opt) {
-		if (!refcount_inc_not_zero(&opt->refcnt))
+		if (!refcount_inc_analt_zero(&opt->refcnt))
 			opt = NULL;
 		else
 			opt = rcu_pointer_handoff(opt);
@@ -413,7 +413,7 @@ static inline struct ip6_flowlabel *fl6_sock_lookup(struct sock *sk,
 {
 	if (static_branch_unlikely(&ipv6_flowlabel_exclusive.key) &&
 	    READ_ONCE(sock_net(sk)->ipv6.flowlabel_has_excl))
-		return __fl6_sock_lookup(sk, label) ? : ERR_PTR(-ENOENT);
+		return __fl6_sock_lookup(sk, label) ? : ERR_PTR(-EANALENT);
 
 	return NULL;
 }
@@ -436,7 +436,7 @@ static inline void fl6_sock_release(struct ip6_flowlabel *fl)
 		atomic_dec(&fl->users);
 }
 
-enum skb_drop_reason icmpv6_notify(struct sk_buff *skb, u8 type,
+enum skb_drop_reason icmpv6_analtify(struct sk_buff *skb, u8 type,
 				   u8 code, __be32 info);
 
 void icmpv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
@@ -502,7 +502,7 @@ static inline int ipv6_has_hopopt_jumbo(const struct sk_buff *skb)
 }
 
 /* Return 0 if HBH header is successfully removed
- * Or if HBH removal is unnecessary (packet is not big TCP)
+ * Or if HBH removal is unnecessary (packet is analt big TCP)
  * Return error to indicate dropping the packet
  */
 static inline int ipv6_hopopt_jumbo_remove(struct sk_buff *skb)
@@ -536,7 +536,7 @@ static inline int ipv6_hopopt_jumbo_remove(struct sk_buff *skb)
 
 static inline bool ipv6_accept_ra(struct inet6_dev *idev)
 {
-	/* If forwarding is enabled, RA are not accepted unless the special
+	/* If forwarding is enabled, RA are analt accepted unless the special
 	 * hybrid mode (accept_ra=2) is enabled.
 	 */
 	return idev->cnf.forwarding ? idev->cnf.accept_ra == 2 :
@@ -769,8 +769,8 @@ static inline bool ipv6_addr_loopback(const struct in6_addr *a)
 }
 
 /*
- * Note that we must __force cast these to unsigned long to make sparse happy,
- * since all of the endian-annotated types are fixed size regardless of arch.
+ * Analte that we must __force cast these to unsigned long to make sparse happy,
+ * since all of the endian-ananaltated types are fixed size regardless of arch.
  */
 static inline bool ipv6_addr_v4mapped(const struct in6_addr *a)
 {
@@ -857,7 +857,7 @@ static inline int __ipv6_addr_diff32(const void *token1, const void *token2, int
 	 *	and we are here.
 	 *
 	 *	Ideally, this function should stop comparison
-	 *	at prefix length. It does not, but it is still OK,
+	 *	at prefix length. It does analt, but it is still OK,
 	 *	if returned value is greater than prefix length.
 	 *					--ANK (980803)
 	 */
@@ -933,10 +933,10 @@ static inline void iph_to_flow_copy_v6addrs(struct flow_keys *flow,
 
 #if IS_ENABLED(CONFIG_IPV6)
 
-static inline bool ipv6_can_nonlocal_bind(struct net *net,
+static inline bool ipv6_can_analnlocal_bind(struct net *net,
 					  struct inet_sock *inet)
 {
-	return net->ipv6.sysctl.ip_nonlocal_bind ||
+	return net->ipv6.sysctl.ip_analnlocal_bind ||
 		test_bit(INET_FLAGS_FREEBIND, &inet->inet_flags) ||
 		test_bit(INET_FLAGS_TRANSPARENT, &inet->inet_flags);
 }
@@ -1341,10 +1341,10 @@ static inline int ip6_sock_set_addr_preferences(struct sock *sk, int val)
 		return -EINVAL;
 	}
 
-	/* check CGA/NONCGA conflicts */
-	switch (val & (IPV6_PREFER_SRC_CGA|IPV6_PREFER_SRC_NONCGA)) {
+	/* check CGA/ANALNCGA conflicts */
+	switch (val & (IPV6_PREFER_SRC_CGA|IPV6_PREFER_SRC_ANALNCGA)) {
 	case IPV6_PREFER_SRC_CGA:
-	case IPV6_PREFER_SRC_NONCGA:
+	case IPV6_PREFER_SRC_ANALNCGA:
 	case 0:
 		break;
 	default:

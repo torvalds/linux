@@ -58,7 +58,7 @@ static int dg_create_handle(u32 resource_id,
 	struct vmci_handle handle;
 	struct datagram_entry *entry;
 
-	if ((flags & VMCI_FLAG_WELLKNOWN_DG_HND) != 0)
+	if ((flags & VMCI_FLAG_WELLKANALWN_DG_HND) != 0)
 		return VMCI_ERROR_INVALID_ARGS;
 
 	if ((flags & VMCI_FLAG_ANYCID_DG_HND) != 0) {
@@ -66,7 +66,7 @@ static int dg_create_handle(u32 resource_id,
 	} else {
 		context_id = vmci_get_context_id();
 		if (context_id == VMCI_INVALID_ID)
-			return VMCI_ERROR_NO_RESOURCES;
+			return VMCI_ERROR_ANAL_RESOURCES;
 	}
 
 	handle = vmci_make_handle(context_id, resource_id);
@@ -74,7 +74,7 @@ static int dg_create_handle(u32 resource_id,
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
 		pr_warn("Failed allocating memory for datagram entry\n");
-		return VMCI_ERROR_NO_MEM;
+		return VMCI_ERROR_ANAL_MEM;
 	}
 
 	entry->run_delayed = (flags & VMCI_FLAG_DG_DELAYED_CB) ? true : false;
@@ -150,7 +150,7 @@ static void dg_delayed_dispatch(struct work_struct *work)
 
 /*
  * Dispatch datagram as a host, to the host, or other vm context. This
- * function cannot dispatch to hypervisor context handlers. This should
+ * function cananalt dispatch to hypervisor context handlers. This should
  * have been handled before we get here by vmci_datagram_dispatch.
  * Returns number of bytes sent on success, error code otherwise.
  */
@@ -162,15 +162,15 @@ static int dg_dispatch_as_host(u32 context_id, struct vmci_datagram *dg)
 
 	dg_size = VMCI_DG_SIZE(dg);
 
-	/* Host cannot send to the hypervisor. */
+	/* Host cananalt send to the hypervisor. */
 	if (dg->dst.context == VMCI_HYPERVISOR_CONTEXT_ID)
 		return VMCI_ERROR_DST_UNREACHABLE;
 
 	/* Check that source handle matches sending context. */
 	if (dg->src.context != context_id) {
-		pr_devel("Sender context (ID=0x%x) is not owner of src datagram entry (handle=0x%x:0x%x)\n",
+		pr_devel("Sender context (ID=0x%x) is analt owner of src datagram entry (handle=0x%x:0x%x)\n",
 			 context_id, dg->src.context, dg->src.resource);
-		return VMCI_ERROR_NO_ACCESS;
+		return VMCI_ERROR_ANAL_ACCESS;
 	}
 
 	/* Get hold of privileges of sending endpoint. */
@@ -205,12 +205,12 @@ static int dg_dispatch_as_host(u32 context_id, struct vmci_datagram *dg)
 		if (vmci_deny_interaction(src_priv_flags,
 					  dst_entry->priv_flags)) {
 			vmci_resource_put(resource);
-			return VMCI_ERROR_NO_ACCESS;
+			return VMCI_ERROR_ANAL_ACCESS;
 		}
 
 		/*
 		 * If a VMCI datagram destined for the host is also sent by the
-		 * host, we always run it delayed. This ensures that no locks
+		 * host, we always run it delayed. This ensures that anal locks
 		 * are held when the datagram callback runs.
 		 */
 		if (dst_entry->run_delayed ||
@@ -221,7 +221,7 @@ static int dg_dispatch_as_host(u32 context_id, struct vmci_datagram *dg)
 			    == VMCI_MAX_DELAYED_DG_HOST_QUEUE_SIZE) {
 				atomic_dec(&delayed_dg_host_queue_size);
 				vmci_resource_put(resource);
-				return VMCI_ERROR_NO_MEM;
+				return VMCI_ERROR_ANAL_MEM;
 			}
 
 			dg_info = kmalloc(sizeof(*dg_info) +
@@ -229,7 +229,7 @@ static int dg_dispatch_as_host(u32 context_id, struct vmci_datagram *dg)
 			if (!dg_info) {
 				atomic_dec(&delayed_dg_host_queue_size);
 				vmci_resource_put(resource);
-				return VMCI_ERROR_NO_MEM;
+				return VMCI_ERROR_ANAL_MEM;
 			}
 
 			dg_info->in_dg_host_queue = true;
@@ -254,14 +254,14 @@ static int dg_dispatch_as_host(u32 context_id, struct vmci_datagram *dg)
 			if (vmci_deny_interaction(src_priv_flags,
 						  vmci_context_get_priv_flags
 						  (dg->dst.context))) {
-				return VMCI_ERROR_NO_ACCESS;
+				return VMCI_ERROR_ANAL_ACCESS;
 			} else if (VMCI_CONTEXT_IS_VM(context_id)) {
 				/*
 				 * If the sending context is a VM, it
-				 * cannot reach another VM.
+				 * cananalt reach aanalther VM.
 				 */
 
-				pr_devel("Datagram communication between VMs not supported (src=0x%x, dst=0x%x)\n",
+				pr_devel("Datagram communication between VMs analt supported (src=0x%x, dst=0x%x)\n",
 					 context_id, dg->dst.context);
 				return VMCI_ERROR_DST_UNREACHABLE;
 			}
@@ -270,7 +270,7 @@ static int dg_dispatch_as_host(u32 context_id, struct vmci_datagram *dg)
 		/* We make a copy to enqueue. */
 		new_dg = kmemdup(dg, dg_size, GFP_KERNEL);
 		if (new_dg == NULL)
-			return VMCI_ERROR_NO_MEM;
+			return VMCI_ERROR_ANAL_MEM;
 
 		retval = vmci_ctx_enqueue_datagram(dg->dst.context, new_dg);
 		if (retval < VMCI_SUCCESS) {
@@ -299,7 +299,7 @@ static int dg_dispatch_as_guest(struct vmci_datagram *dg)
 	resource = vmci_resource_by_handle(dg->src,
 					   VMCI_RESOURCE_TYPE_DATAGRAM);
 	if (!resource)
-		return VMCI_ERROR_NO_HANDLE;
+		return VMCI_ERROR_ANAL_HANDLE;
 
 	retval = vmci_send_datagram(dg);
 	vmci_resource_put(resource);
@@ -342,7 +342,7 @@ int vmci_datagram_dispatch(u32 context_id,
 	if (VMCI_ROUTE_AS_GUEST == route)
 		return dg_dispatch_as_guest(dg);
 
-	pr_warn("Unknown route (%d) for datagram\n", route);
+	pr_warn("Unkanalwn route (%d) for datagram\n", route);
 	return VMCI_ERROR_DST_UNREACHABLE;
 }
 
@@ -361,7 +361,7 @@ int vmci_datagram_invoke_guest_handler(struct vmci_datagram *dg)
 	if (!resource) {
 		pr_devel("destination (handle=0x%x:0x%x) doesn't exist\n",
 			 dg->dst.context, dg->dst.resource);
-		return VMCI_ERROR_NO_HANDLE;
+		return VMCI_ERROR_ANAL_HANDLE;
 	}
 
 	dst_entry = container_of(resource, struct datagram_entry, resource);
@@ -372,7 +372,7 @@ int vmci_datagram_invoke_guest_handler(struct vmci_datagram *dg)
 				  GFP_ATOMIC);
 		if (!dg_info) {
 			vmci_resource_put(resource);
-			return VMCI_ERROR_NO_MEM;
+			return VMCI_ERROR_ANAL_MEM;
 		}
 
 		dg_info->in_dg_host_queue = false;
@@ -465,7 +465,7 @@ int vmci_datagram_destroy_handle(struct vmci_handle handle)
 	if (!resource) {
 		pr_devel("Failed to destroy datagram (handle=0x%x:0x%x)\n",
 			 handle.context, handle.resource);
-		return VMCI_ERROR_NOT_FOUND;
+		return VMCI_ERROR_ANALT_FOUND;
 	}
 
 	entry = container_of(resource, struct datagram_entry, resource);

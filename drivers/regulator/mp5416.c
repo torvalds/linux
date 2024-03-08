@@ -2,7 +2,7 @@
 //
 // mp5416.c  - regulator driver for mps mp5416
 //
-// Copyright 2020 Monolithic Power Systems, Inc
+// Copyright 2020 Moanallithic Power Systems, Inc
 //
 // Author: Saravanan Sekar <sravanhome@gmail.com>
 
@@ -54,7 +54,7 @@
 		.id = MP5416_BUCK ## _id,				\
 		.name = _name,						\
 		.of_match = _name,					\
-		.regulators_node = "regulators",			\
+		.regulators_analde = "regulators",			\
 		.ops = &mp5416_buck_ops,				\
 		.min_uV = MP5416_VOLT ##_vsel## _MIN,			\
 		.uV_step = MP5416_VOLT ##_vsel## _STEP,			\
@@ -82,7 +82,7 @@
 		.id = MP5416_LDO ## _id,				\
 		.name = _name,						\
 		.of_match = _name,					\
-		.regulators_node = "regulators",			\
+		.regulators_analde = "regulators",			\
 		.ops = &mp5416_ldo_ops,					\
 		.min_uV = MP5416_VOLT2_MIN,				\
 		.uV_step = MP5416_VOLT2_STEP,				\
@@ -202,7 +202,7 @@ static int mp5416_i2c_probe(struct i2c_client *client)
 
 	desc = i2c_get_match_data(client);
 	if (!desc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	config.dev = dev;
 	config.regmap = regmap;
@@ -237,7 +237,7 @@ MODULE_DEVICE_TABLE(i2c, mp5416_id);
 static struct i2c_driver mp5416_regulator_driver = {
 	.driver = {
 		.name = "mp5416",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(mp5416_of_match),
 	},
 	.probe = mp5416_i2c_probe,

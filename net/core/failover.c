@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2018, Intel Corporation. */
 
-/* A common module to handle registrations and notifications for paravirtual
+/* A common module to handle registrations and analtifications for paravirtual
  * drivers to enable accelerated datapath and support VF live migration.
  *
- * The notifier and event handling code is based on netvsc driver.
+ * The analtifier and event handling code is based on netvsc driver.
  */
 
 #include <linux/module.h>
@@ -66,7 +66,7 @@ static int failover_slave_register(struct net_device *slave_dev)
 	err = netdev_rx_handler_register(slave_dev, fops->slave_handle_frame,
 					 failover_dev);
 	if (err) {
-		netdev_err(slave_dev, "can not register failover rx handler (err = %d)\n",
+		netdev_err(slave_dev, "can analt register failover rx handler (err = %d)\n",
 			   err);
 		goto done;
 	}
@@ -75,23 +75,23 @@ static int failover_slave_register(struct net_device *slave_dev)
 	err = netdev_master_upper_dev_link(slave_dev, failover_dev, NULL,
 					   &lag_upper_info, NULL);
 	if (err) {
-		netdev_err(slave_dev, "can not set failover device %s (err = %d)\n",
+		netdev_err(slave_dev, "can analt set failover device %s (err = %d)\n",
 			   failover_dev->name, err);
 		goto err_upper_link;
 	}
 
-	slave_dev->priv_flags |= (IFF_FAILOVER_SLAVE | IFF_NO_ADDRCONF);
+	slave_dev->priv_flags |= (IFF_FAILOVER_SLAVE | IFF_ANAL_ADDRCONF);
 
 	if (fops && fops->slave_register &&
 	    !fops->slave_register(slave_dev, failover_dev))
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	netdev_upper_dev_unlink(slave_dev, failover_dev);
-	slave_dev->priv_flags &= ~(IFF_FAILOVER_SLAVE | IFF_NO_ADDRCONF);
+	slave_dev->priv_flags &= ~(IFF_FAILOVER_SLAVE | IFF_ANAL_ADDRCONF);
 err_upper_link:
 	netdev_rx_handler_unregister(slave_dev);
 done:
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /**
@@ -121,14 +121,14 @@ int failover_slave_unregister(struct net_device *slave_dev)
 
 	netdev_rx_handler_unregister(slave_dev);
 	netdev_upper_dev_unlink(slave_dev, failover_dev);
-	slave_dev->priv_flags &= ~(IFF_FAILOVER_SLAVE | IFF_NO_ADDRCONF);
+	slave_dev->priv_flags &= ~(IFF_FAILOVER_SLAVE | IFF_ANAL_ADDRCONF);
 
 	if (fops && fops->slave_unregister &&
 	    !fops->slave_unregister(slave_dev, failover_dev))
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 done:
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 EXPORT_SYMBOL_GPL(failover_slave_unregister);
 
@@ -151,10 +151,10 @@ static int failover_slave_link_change(struct net_device *slave_dev)
 
 	if (fops && fops->slave_link_change &&
 	    !fops->slave_link_change(slave_dev, failover_dev))
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 done:
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int failover_slave_name_change(struct net_device *slave_dev)
@@ -176,20 +176,20 @@ static int failover_slave_name_change(struct net_device *slave_dev)
 
 	if (fops && fops->slave_name_change &&
 	    !fops->slave_name_change(slave_dev, failover_dev))
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 done:
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int
-failover_event(struct notifier_block *this, unsigned long event, void *ptr)
+failover_event(struct analtifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *event_dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *event_dev = netdev_analtifier_info_to_dev(ptr);
 
 	/* Skip parent events */
 	if (netif_is_failover(event_dev))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_REGISTER:
@@ -203,12 +203,12 @@ failover_event(struct notifier_block *this, unsigned long event, void *ptr)
 	case NETDEV_CHANGENAME:
 		return failover_slave_name_change(event_dev);
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 }
 
-static struct notifier_block failover_notifier = {
-	.notifier_call = failover_event,
+static struct analtifier_block failover_analtifier = {
+	.analtifier_call = failover_event,
 };
 
 static void
@@ -249,7 +249,7 @@ struct failover *failover_register(struct net_device *dev,
 
 	failover = kzalloc(sizeof(*failover), GFP_KERNEL);
 	if (!failover)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rcu_assign_pointer(failover->ops, ops);
 	netdev_hold(dev, &failover->dev_tracker, GFP_KERNEL);
@@ -298,7 +298,7 @@ EXPORT_SYMBOL_GPL(failover_unregister);
 static __init int
 failover_init(void)
 {
-	register_netdevice_notifier(&failover_notifier);
+	register_netdevice_analtifier(&failover_analtifier);
 
 	return 0;
 }
@@ -307,7 +307,7 @@ module_init(failover_init);
 static __exit
 void failover_exit(void)
 {
-	unregister_netdevice_notifier(&failover_notifier);
+	unregister_netdevice_analtifier(&failover_analtifier);
 }
 module_exit(failover_exit);
 

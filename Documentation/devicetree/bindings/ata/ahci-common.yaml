@@ -15,7 +15,7 @@ description:
   controller implementation. It's hardware interface is supposed to
   conform to the technical standard defined by Intel (see Serial ATA
   Advanced Host Controller Interface specification for details). The
-  document doesn't constitute a DT-node binding by itself but merely
+  document doesn't constitute a DT-analde binding by itself but merely
   defines a set of common properties for the AHCI-compatible devices.
 
 select: false
@@ -52,7 +52,7 @@ properties:
     description: Power regulator for SATA PHY
 
   phys:
-    description: Reference to the SATA PHY node
+    description: Reference to the SATA PHY analde
     maxItems: 1
 
   phy-names:
@@ -69,14 +69,14 @@ properties:
   ports-implemented:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
-      Mask that indicates which ports the HBA supports. Useful if PI is not
+      Mask that indicates which ports the HBA supports. Useful if PI is analt
       programmed by the BIOS, which is true for some embedded SoC's.
 
 patternProperties:
   "^sata-port@[0-9a-f]+$":
     $ref: '#/$defs/ahci-port'
     description:
-      It is optionally possible to describe the ports as sub-nodes so
+      It is optionally possible to describe the ports as sub-analdes so
       to enable each port independently when dealing with multiple PHYs.
 
 required:

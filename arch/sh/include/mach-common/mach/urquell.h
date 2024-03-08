@@ -4,9 +4,9 @@
 
 /*
  * ------ 0x00000000 ------------------------------------
- *  CS0 | (SW1,SW47)    EEPROM, SRAM, NOR FLASH
+ *  CS0 | (SW1,SW47)    EEPROM, SRAM, ANALR FLASH
  * -----+ 0x04000000 ------------------------------------
- *  CS1 | (SW47)        SRAM, SRAM-LAN-PCMCIA, NOR FLASH
+ *  CS1 | (SW47)        SRAM, SRAM-LAN-PCMCIA, ANALR FLASH
  * -----+ 0x08000000 ------------------------------------
  *  CS2 |               DDR3
  *  CS3 |
@@ -21,8 +21,8 @@
  * -----+------------------------------------------------
  */
 
-#define NOR_FLASH_ADDR	0x00000000
-#define NOR_FLASH_SIZE	0x04000000
+#define ANALR_FLASH_ADDR	0x00000000
+#define ANALR_FLASH_SIZE	0x04000000
 
 #define CS1_BASE	0x05000000
 #define CS5_BASE	0x15000000

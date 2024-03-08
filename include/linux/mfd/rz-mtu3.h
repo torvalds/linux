@@ -30,7 +30,7 @@
 
 /* 8-bit register offset macros of MTU3 channels except MTU5 */
 #define RZ_MTU3_TIER	0 /* Timer interrupt register */
-#define RZ_MTU3_NFCR	1 /* Noise filter control register */
+#define RZ_MTU3_NFCR	1 /* Analise filter control register */
 #define RZ_MTU3_TSR	2 /* Timer status register */
 #define RZ_MTU3_TCR	3 /* Timer control register */
 #define RZ_MTU3_TCR2	4 /* Timer control register 2 */
@@ -38,7 +38,7 @@
 /* Timer mode register 1 */
 #define RZ_MTU3_TMDR1	5
 #define RZ_MTU3_TMDR1_MD		GENMASK(3, 0)
-#define RZ_MTU3_TMDR1_MD_NORMAL		FIELD_PREP(RZ_MTU3_TMDR1_MD, 0)
+#define RZ_MTU3_TMDR1_MD_ANALRMAL		FIELD_PREP(RZ_MTU3_TMDR1_MD, 0)
 #define RZ_MTU3_TMDR1_MD_PWMMODE1	FIELD_PREP(RZ_MTU3_TMDR1_MD, 2)
 
 #define RZ_MTU3_TIOR	6 /* Timer I/O control register */

@@ -59,7 +59,7 @@ config USB_DWC2_PCI
 	tristate "DWC2 PCI"
 	depends on USB_PCI
 	depends on USB_GADGET || !USB_GADGET
-	select NOP_USB_XCEIV
+	select ANALP_USB_XCEIV
 	help
 	  The Designware USB2.0 PCI interface module for controllers
 	  connected to a PCI bus.
@@ -91,7 +91,7 @@ config USB_DWC2_DEBUG_PERIODIC
 	help
 	  Say N here to disable (verbose) debugging messages to be
 	  logged for periodic transfers. This allows better debugging of
-	  non-periodic transfers, but of course the debug logs will be
-	  incomplete. Note that this also disables some debug messages
-	  for which the transfer type cannot be deduced.
+	  analn-periodic transfers, but of course the debug logs will be
+	  incomplete. Analte that this also disables some debug messages
+	  for which the transfer type cananalt be deduced.
 endif

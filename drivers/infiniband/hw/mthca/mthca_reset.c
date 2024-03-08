@@ -12,25 +12,25 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -83,10 +83,10 @@ int mthca_reset(struct mthca_dev *mdev)
 		if (!bridge) {
 			/*
 			 * Didn't find a bridge for a Tavor device --
-			 * assume we're in no-bridge mode and hope for
+			 * assume we're in anal-bridge mode and hope for
 			 * the best.
 			 */
-			mthca_warn(mdev, "No bridge found for %s\n",
+			mthca_warn(mdev, "Anal bridge found for %s\n",
 				  pci_name(mdev->pdev));
 		}
 
@@ -95,7 +95,7 @@ int mthca_reset(struct mthca_dev *mdev)
 	/* For Arbel do we need to save off the full 4K PCI Express header?? */
 	hca_header = kmalloc(256, GFP_KERNEL);
 	if (!hca_header) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_dev;
 	}
 
@@ -103,7 +103,7 @@ int mthca_reset(struct mthca_dev *mdev)
 		if (i == 22 || i == 23)
 			continue;
 		if (pci_read_config_dword(mdev->pdev, i * 4, hca_header + i)) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			mthca_err(mdev, "Couldn't save HCA "
 				  "PCI header, aborting.\n");
 			goto free_hca;
@@ -116,7 +116,7 @@ int mthca_reset(struct mthca_dev *mdev)
 	if (bridge) {
 		bridge_header = kmalloc(256, GFP_KERNEL);
 		if (!bridge_header) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free_hca;
 		}
 
@@ -124,7 +124,7 @@ int mthca_reset(struct mthca_dev *mdev)
 			if (i == 22 || i == 23)
 				continue;
 			if (pci_read_config_dword(bridge, i * 4, bridge_header + i)) {
-				err = -ENODEV;
+				err = -EANALDEV;
 				mthca_err(mdev, "Couldn't save HCA bridge "
 					  "PCI header, aborting.\n");
 				goto free_bh;
@@ -132,7 +132,7 @@ int mthca_reset(struct mthca_dev *mdev)
 		}
 		bridge_pcix_cap = pci_find_capability(bridge, PCI_CAP_ID_PCIX);
 		if (!bridge_pcix_cap) {
-				err = -ENODEV;
+				err = -EANALDEV;
 				mthca_err(mdev, "Couldn't locate HCA bridge "
 					  "PCI-X capability, aborting.\n");
 				goto free_bh;
@@ -145,7 +145,7 @@ int mthca_reset(struct mthca_dev *mdev)
 					      MTHCA_RESET_OFFSET, 4);
 
 		if (!reset) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			mthca_err(mdev, "Couldn't map HCA reset register, "
 				  "aborting.\n");
 			goto free_bh;
@@ -158,14 +158,14 @@ int mthca_reset(struct mthca_dev *mdev)
 	/* Docs say to wait one second before accessing device */
 	msleep(1000);
 
-	/* Now wait for PCI device to start responding again */
+	/* Analw wait for PCI device to start responding again */
 	{
 		u32 v;
 		int c = 0;
 
 		for (c = 0; c < 100; ++c) {
 			if (pci_read_config_dword(bridge ? bridge : mdev->pdev, 0, &v)) {
-				err = -ENODEV;
+				err = -EANALDEV;
 				mthca_err(mdev, "Couldn't access HCA after reset, "
 					  "aborting.\n");
 				goto free_bh;
@@ -177,25 +177,25 @@ int mthca_reset(struct mthca_dev *mdev)
 			msleep(100);
 		}
 
-		err = -ENODEV;
-		mthca_err(mdev, "PCI device did not come back after reset, "
+		err = -EANALDEV;
+		mthca_err(mdev, "PCI device did analt come back after reset, "
 			  "aborting.\n");
 		goto free_bh;
 	}
 
 good:
-	/* Now restore the PCI headers */
+	/* Analw restore the PCI headers */
 	if (bridge) {
 		if (pci_write_config_dword(bridge, bridge_pcix_cap + 0x8,
 				 bridge_header[(bridge_pcix_cap + 0x8) / 4])) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			mthca_err(mdev, "Couldn't restore HCA bridge Upstream "
 				  "split transaction control, aborting.\n");
 			goto free_bh;
 		}
 		if (pci_write_config_dword(bridge, bridge_pcix_cap + 0xc,
 				 bridge_header[(bridge_pcix_cap + 0xc) / 4])) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			mthca_err(mdev, "Couldn't restore HCA bridge Downstream "
 				  "split transaction control, aborting.\n");
 			goto free_bh;
@@ -209,7 +209,7 @@ good:
 				continue;
 
 			if (pci_write_config_dword(bridge, i * 4, bridge_header[i])) {
-				err = -ENODEV;
+				err = -EANALDEV;
 				mthca_err(mdev, "Couldn't restore HCA bridge reg %x, "
 					  "aborting.\n", i);
 				goto free_bh;
@@ -218,7 +218,7 @@ good:
 
 		if (pci_write_config_dword(bridge, PCI_COMMAND,
 					   bridge_header[PCI_COMMAND / 4])) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			mthca_err(mdev, "Couldn't restore HCA bridge COMMAND, "
 				  "aborting.\n");
 			goto free_bh;
@@ -228,7 +228,7 @@ good:
 	if (hca_pcix_cap) {
 		if (pci_write_config_dword(mdev->pdev, hca_pcix_cap,
 				 hca_header[hca_pcix_cap / 4])) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			mthca_err(mdev, "Couldn't restore HCA PCI-X "
 				  "command register, aborting.\n");
 			goto free_bh;
@@ -239,7 +239,7 @@ good:
 		devctl = hca_header[(hca_pcie_cap + PCI_EXP_DEVCTL) / 4];
 		if (pcie_capability_write_word(mdev->pdev, PCI_EXP_DEVCTL,
 					       devctl)) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			mthca_err(mdev, "Couldn't restore HCA PCI Express "
 				  "Device Control register, aborting.\n");
 			goto free_bh;
@@ -247,7 +247,7 @@ good:
 		linkctl = hca_header[(hca_pcie_cap + PCI_EXP_LNKCTL) / 4];
 		if (pcie_capability_write_word(mdev->pdev, PCI_EXP_LNKCTL,
 					       linkctl)) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			mthca_err(mdev, "Couldn't restore HCA PCI Express "
 				  "Link control register, aborting.\n");
 			goto free_bh;
@@ -259,7 +259,7 @@ good:
 			continue;
 
 		if (pci_write_config_dword(mdev->pdev, i * 4, hca_header[i])) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			mthca_err(mdev, "Couldn't restore HCA reg %x, "
 				  "aborting.\n", i);
 			goto free_bh;
@@ -268,7 +268,7 @@ good:
 
 	if (pci_write_config_dword(mdev->pdev, PCI_COMMAND,
 				   hca_header[PCI_COMMAND / 4])) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		mthca_err(mdev, "Couldn't restore HCA COMMAND, "
 			  "aborting.\n");
 	}

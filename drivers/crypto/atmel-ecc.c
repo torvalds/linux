@@ -2,14 +2,14 @@
 /*
  * Microchip / Atmel ECC (I2C) driver.
  *
- * Copyright (c) 2017, Microchip Technology Inc.
+ * Copyright (c) 2017, Microchip Techanallogy Inc.
  * Author: Tudor Ambarus
  */
 
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -31,7 +31,7 @@ static struct atmel_ecc_driver_data driver_data;
  * @fallback   : used for unsupported curves or when user wants to use its own
  *               private key.
  * @public_key : generated when calling set_secret(). It's the responsibility
- *               of the user to not call set_secret() while
+ *               of the user to analt call set_secret() while
  *               generate_public_key() or compute_shared_secret() are in flight.
  * @curve_id   : elliptic curve id
  * @do_fallback: true when the device doesn't support the curve or when the user
@@ -81,7 +81,7 @@ static int atmel_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 	struct atmel_i2c_cmd *cmd;
 	void *public_key;
 	struct ecdh params;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	/* free the old public key, if any */
 	kfree(ctx->public_key);
@@ -101,7 +101,7 @@ static int atmel_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 
 	cmd = kmalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * The device only supports NIST P256 ECC keys. The public key size will
@@ -184,7 +184,7 @@ static int atmel_ecdh_compute_shared_secret(struct kpp_request *req)
 
 	work_data = kmalloc(sizeof(*work_data), gfp);
 	if (!work_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	work_data->ctx = ctx;
 	work_data->client = ctx->client;
@@ -205,7 +205,7 @@ free_work_data:
 static struct i2c_client *atmel_ecc_i2c_client_alloc(void)
 {
 	struct atmel_i2c_client_priv *i2c_priv, *min_i2c_priv = NULL;
-	struct i2c_client *client = ERR_PTR(-ENODEV);
+	struct i2c_client *client = ERR_PTR(-EANALDEV);
 	int min_tfm_cnt = INT_MAX;
 	int tfm_cnt;
 
@@ -213,11 +213,11 @@ static struct i2c_client *atmel_ecc_i2c_client_alloc(void)
 
 	if (list_empty(&driver_data.i2c_client_list)) {
 		spin_unlock(&driver_data.i2c_list_lock);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	list_for_each_entry(i2c_priv, &driver_data.i2c_client_list,
-			    i2c_client_list_node) {
+			    i2c_client_list_analde) {
 		tfm_cnt = atomic_read(&i2c_priv->tfm_count);
 		if (tfm_cnt < min_tfm_cnt) {
 			min_tfm_cnt = tfm_cnt;
@@ -323,14 +323,14 @@ static int atmel_ecc_probe(struct i2c_client *client)
 	i2c_priv = i2c_get_clientdata(client);
 
 	spin_lock(&driver_data.i2c_list_lock);
-	list_add_tail(&i2c_priv->i2c_client_list_node,
+	list_add_tail(&i2c_priv->i2c_client_list_analde,
 		      &driver_data.i2c_client_list);
 	spin_unlock(&driver_data.i2c_list_lock);
 
 	ret = crypto_register_kpp(&atmel_ecdh_nist_p256);
 	if (ret) {
 		spin_lock(&driver_data.i2c_list_lock);
-		list_del(&i2c_priv->i2c_client_list_node);
+		list_del(&i2c_priv->i2c_client_list_analde);
 		spin_unlock(&driver_data.i2c_list_lock);
 
 		dev_err(&client->dev, "%s alg registration failed\n",
@@ -350,8 +350,8 @@ static void atmel_ecc_remove(struct i2c_client *client)
 	if (atomic_read(&i2c_priv->tfm_count)) {
 		/*
 		 * After we return here, the memory backing the device is freed.
-		 * That happens no matter what the return value of this function
-		 * is because in the Linux device model there is no error
+		 * That happens anal matter what the return value of this function
+		 * is because in the Linux device model there is anal error
 		 * handling for unbinding a driver.
 		 * If there is still some action pending, it probably involves
 		 * accessing the freed memory.
@@ -363,7 +363,7 @@ static void atmel_ecc_remove(struct i2c_client *client)
 	crypto_unregister_kpp(&atmel_ecdh_nist_p256);
 
 	spin_lock(&driver_data.i2c_list_lock);
-	list_del(&i2c_priv->i2c_client_list_node);
+	list_del(&i2c_priv->i2c_client_list_analde);
 	spin_unlock(&driver_data.i2c_list_lock);
 }
 

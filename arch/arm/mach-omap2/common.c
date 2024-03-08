@@ -5,7 +5,7 @@
  * Code common to all OMAP2+ machines.
  *
  * Copyright (C) 2009 Texas Instruments
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Tony Lindgren <tony@atomide.com>
  * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
  */

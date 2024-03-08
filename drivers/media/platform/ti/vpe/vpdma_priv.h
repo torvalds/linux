@@ -181,8 +181,8 @@ struct vpdma_dtd {
 };
 
 /* Data Transfer Descriptor specifics */
-#define DTD_NO_NOTIFY		0
-#define DTD_NOTIFY		1
+#define DTD_ANAL_ANALTIFY		0
+#define DTD_ANALTIFY		1
 
 #define DTD_PKT_TYPE		0xa
 #define DTD_DIR_IN		0
@@ -191,8 +191,8 @@ struct vpdma_dtd {
 /* type_ctl_stride */
 #define DTD_DATA_TYPE_MASK	0x3f
 #define DTD_DATA_TYPE_SHFT	26
-#define DTD_NOTIFY_MASK		0x01
-#define DTD_NOTIFY_SHFT		25
+#define DTD_ANALTIFY_MASK		0x01
+#define DTD_ANALTIFY_SHFT		25
 #define DTD_FIELD_MASK		0x01
 #define DTD_FIELD_SHFT		24
 #define DTD_1D_MASK		0x01
@@ -251,11 +251,11 @@ struct vpdma_dtd {
 #define DTD_MAX_HEIGHT_MASK	0x07
 #define DTD_MAX_HEIGHT_SHFT	0
 
-static inline u32 dtd_type_ctl_stride(int type, bool notify, int field,
+static inline u32 dtd_type_ctl_stride(int type, bool analtify, int field,
 			bool one_d, bool even_line_skip, bool odd_line_skip,
 			int line_stride)
 {
-	return (type << DTD_DATA_TYPE_SHFT) | (notify << DTD_NOTIFY_SHFT) |
+	return (type << DTD_DATA_TYPE_SHFT) | (analtify << DTD_ANALTIFY_SHFT) |
 		(field << DTD_FIELD_SHFT) | (one_d << DTD_1D_SHFT) |
 		(even_line_skip << DTD_EVEN_LINE_SKIP_SHFT) |
 		(odd_line_skip << DTD_ODD_LINE_SKIP_SHFT) |
@@ -304,9 +304,9 @@ static inline int dtd_get_data_type(struct vpdma_dtd *dtd)
 	return dtd->type_ctl_stride >> DTD_DATA_TYPE_SHFT;
 }
 
-static inline bool dtd_get_notify(struct vpdma_dtd *dtd)
+static inline bool dtd_get_analtify(struct vpdma_dtd *dtd)
 {
-	return (dtd->type_ctl_stride >> DTD_NOTIFY_SHFT) & DTD_NOTIFY_MASK;
+	return (dtd->type_ctl_stride >> DTD_ANALTIFY_SHFT) & DTD_ANALTIFY_MASK;
 }
 
 static inline int dtd_get_field(struct vpdma_dtd *dtd)

@@ -19,7 +19,7 @@
  * The DIO32HS board appears as one subdevice, with 32 channels. Each
  * channel is individually I/O configurable. The channel order is 0=A0,
  * 1=A1, 2=A2, ... 8=B0, 16=C0, 24=D0. The driver only supports simple
- * digital I/O; no handshaking is supported.
+ * digital I/O; anal handshaking is supported.
  *
  * DMA mostly works for the PCI-DIO32HS, but only in timed input mode.
  *
@@ -32,7 +32,7 @@
  *
  * The PCI-6534 requires a firmware upload after power-up to work, the
  * firmware data and instructions for loading it with comedi_config
- * it are contained in the comedi_nonfree_firmware tarball available from
+ * it are contained in the comedi_analnfree_firmware tarball available from
  * https://www.comedi.org
  */
 
@@ -159,7 +159,7 @@
 #define DMA_LINE_CONTROL_GROUP1		76
 #define DMA_LINE_CONTROL_GROUP2		108
 
-/* channel zero is none */
+/* channel zero is analne */
 static inline unsigned int primary_DMAChannel_bits(unsigned int channel)
 {
 	return channel & 0x3;
@@ -192,13 +192,13 @@ static inline unsigned int secondary_DMAChannel_bits(unsigned int channel)
 #define REQ_DELAY			PROTOCOL_REGISTER_9
 
 #define PROTOCOL_REGISTER_10		83
-#define REQ_NOT_DELAY			PROTOCOL_REGISTER_10
+#define REQ_ANALT_DELAY			PROTOCOL_REGISTER_10
 
 #define PROTOCOL_REGISTER_11		84
 #define ACK_DELAY			PROTOCOL_REGISTER_11
 
 #define PROTOCOL_REGISTER_12		85
-#define ACK_NOT_DELAY			PROTOCOL_REGISTER_12
+#define ACK_ANALT_DELAY			PROTOCOL_REGISTER_12
 
 #define PROTOCOL_REGISTER_13		86
 #define DATA_1_DELAY			PROTOCOL_REGISTER_13
@@ -243,7 +243,7 @@ enum FPGA_Control_Bits {
 	FPGA_Enable_Bit = 0x8000,
 };
 
-#define TIMER_BASE 50		/* nanoseconds */
+#define TIMER_BASE 50		/* naanalseconds */
 
 #ifdef USE_DMA
 #define INT_EN (COUNT_EXPIRED | WAITED | PRIMARY_TC | SECONDARY_TC)
@@ -383,8 +383,8 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 
 	/* interrupcions parasites */
 	if (!dev->attached) {
-		/* assume it's from another card */
-		return IRQ_NONE;
+		/* assume it's from aanalther card */
+		return IRQ_ANALNE;
 	}
 
 	/* Lock to avoid race with comedi_poll */
@@ -501,7 +501,7 @@ static int ni_pcidio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int ni_pcidio_ns_to_timer(int *nanosec, unsigned int flags)
+static int ni_pcidio_ns_to_timer(int *naanalsec, unsigned int flags)
 {
 	int divider, base;
 
@@ -510,17 +510,17 @@ static int ni_pcidio_ns_to_timer(int *nanosec, unsigned int flags)
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_NEAREST:
 	default:
-		divider = DIV_ROUND_CLOSEST(*nanosec, base);
+		divider = DIV_ROUND_CLOSEST(*naanalsec, base);
 		break;
 	case CMDF_ROUND_DOWN:
-		divider = (*nanosec) / base;
+		divider = (*naanalsec) / base;
 		break;
 	case CMDF_ROUND_UP:
-		divider = DIV_ROUND_UP(*nanosec, base);
+		divider = DIV_ROUND_UP(*naanalsec, base);
 		break;
 	}
 
-	*nanosec = base * divider;
+	*naanalsec = base * divider;
 	return divider;
 }
 
@@ -532,12 +532,12 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_INT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_TIMER | TRIG_EXT);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -557,12 +557,12 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 
 	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
-#define MAX_SPEED	(TIMER_BASE)	/* in nanoseconds */
+#define MAX_SPEED	(TIMER_BASE)	/* in naanalseconds */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
 						    MAX_SPEED);
-		/* no minimum speed */
+		/* anal minimum speed */
 	} else {
 		/* TRIG_EXT */
 		/* should be level/edge, hi/lo specification here */
@@ -578,7 +578,7 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -649,9 +649,9 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 					     CMDF_ROUND_NEAREST),
 		       dev->mmio + START_DELAY);
 		writeb(1, dev->mmio + REQ_DELAY);
-		writeb(1, dev->mmio + REQ_NOT_DELAY);
+		writeb(1, dev->mmio + REQ_ANALT_DELAY);
 		writeb(1, dev->mmio + ACK_DELAY);
-		writeb(0x0b, dev->mmio + ACK_NOT_DELAY);
+		writeb(0x0b, dev->mmio + ACK_ANALT_DELAY);
 		writeb(0x01, dev->mmio + DATA_1_DELAY);
 		/*
 		 * manual, page 4-5:
@@ -674,9 +674,9 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		writeb(0x00, dev->mmio + ACK_SER);
 		writel(1, dev->mmio + START_DELAY);
 		writeb(1, dev->mmio + REQ_DELAY);
-		writeb(1, dev->mmio + REQ_NOT_DELAY);
+		writeb(1, dev->mmio + REQ_ANALT_DELAY);
 		writeb(1, dev->mmio + ACK_DELAY);
-		writeb(0x0C, dev->mmio + ACK_NOT_DELAY);
+		writeb(0x0C, dev->mmio + ACK_ANALT_DELAY);
 		writeb(0x10, dev->mmio + DATA_1_DELAY);
 		writew(0, dev->mmio + CLOCK_SPEED);
 		writeb(0x60, dev->mmio + DAQ_OPTIONS);
@@ -711,12 +711,12 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writeb(INT_EN, dev->mmio + INTERRUPT_CONTROL);
 	writeb(0x03, dev->mmio + MASTER_DMA_AND_INTERRUPT_CONTROL);
 
-	if (cmd->stop_src == TRIG_NONE) {
+	if (cmd->stop_src == TRIG_ANALNE) {
 		devpriv->OP_MODEBits = DATA_LATCHING(0) | RUN_MODE(7);
 	} else {		/* TRIG_TIMER */
 		devpriv->OP_MODEBits = NUMBERED | RUN_MODE(7);
 	}
-	if (cmd->start_src == TRIG_NOW) {
+	if (cmd->start_src == TRIG_ANALW) {
 		/* start */
 		writeb(devpriv->OP_MODEBits, dev->mmio + OP_MODE);
 		s->async->inttrig = NULL;
@@ -889,7 +889,7 @@ static int nidio_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(nidio_boards))
 		board = &nidio_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
@@ -899,17 +899,17 @@ static int nidio_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&devpriv->mite_channel_lock);
 
 	devpriv->mite = mite_attach(dev, false);	/* use win0 */
 	if (!devpriv->mite)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devpriv->di_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (!devpriv->di_mite_ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (board->uses_firmware) {
 		ret = pci_6534_upload_firmware(dev);

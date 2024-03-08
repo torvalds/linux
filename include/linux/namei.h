@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/path.h>
 #include <linux/fcntl.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 enum { MAX_NESTED_LINKS = 8 };
 
@@ -15,7 +15,7 @@ enum { MAX_NESTED_LINKS = 8 };
 /*
  * Type of the last component on LOOKUP_PARENT
  */
-enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT};
+enum {LAST_ANALRM, LAST_ROOT, LAST_DOT, LAST_DOTDOT};
 
 /* pathwalk mode */
 #define LOOKUP_FOLLOW		0x0001	/* follow links at the end */
@@ -25,7 +25,7 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT};
 #define LOOKUP_DOWN		0x8000	/* follow mounts in the starting point */
 #define LOOKUP_MOUNTPOINT	0x0080	/* follow mounts in the end */
 
-#define LOOKUP_REVAL		0x0020	/* tell ->d_revalidate() to trust no cache */
+#define LOOKUP_REVAL		0x0020	/* tell ->d_revalidate() to trust anal cache */
 #define LOOKUP_RCU		0x0040	/* RCU pathwalk mode; semi-internal */
 
 /* These tell filesystem methods that we are dealing with the final component... */
@@ -38,10 +38,10 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT};
 #define LOOKUP_PARENT		0x0010
 
 /* Scoping flags for lookup. */
-#define LOOKUP_NO_SYMLINKS	0x010000 /* No symlink crossing. */
-#define LOOKUP_NO_MAGICLINKS	0x020000 /* No nd_jump_link() crossing. */
-#define LOOKUP_NO_XDEV		0x040000 /* No mountpoint crossing. */
-#define LOOKUP_BENEATH		0x080000 /* No escaping from starting point. */
+#define LOOKUP_ANAL_SYMLINKS	0x010000 /* Anal symlink crossing. */
+#define LOOKUP_ANAL_MAGICLINKS	0x020000 /* Anal nd_jump_link() crossing. */
+#define LOOKUP_ANAL_XDEV		0x040000 /* Anal mountpoint crossing. */
+#define LOOKUP_BENEATH		0x080000 /* Anal escaping from starting point. */
 #define LOOKUP_IN_ROOT		0x100000 /* Treat dirfd as fs root. */
 #define LOOKUP_CACHED		0x200000 /* Only do cached lookup */
 /* LOOKUP_* flags which do scope-related checks based on the dirfd. */
@@ -95,24 +95,24 @@ extern void unlock_rename(struct dentry *, struct dentry *);
 
 /**
  * mode_strip_umask - handle vfs umask stripping
- * @dir:	parent directory of the new inode
- * @mode:	mode of the new inode to be created in @dir
+ * @dir:	parent directory of the new ianalde
+ * @mode:	mode of the new ianalde to be created in @dir
  *
- * In most filesystems, umask stripping depends on whether or not the
+ * In most filesystems, umask stripping depends on whether or analt the
  * filesystem supports POSIX ACLs. If the filesystem doesn't support it umask
  * stripping is done directly in here. If the filesystem does support POSIX
  * ACLs umask stripping is deferred until the filesystem calls
  * posix_acl_create().
  *
  * Some filesystems (like NFSv4) also want to avoid umask stripping by the
- * VFS, but don't support POSIX ACLs. Those filesystems can set SB_I_NOUMASK
+ * VFS, but don't support POSIX ACLs. Those filesystems can set SB_I_ANALUMASK
  * to get this effect without declaring that they support POSIX ACLs.
  *
  * Returns: mode
  */
-static inline umode_t __must_check mode_strip_umask(const struct inode *dir, umode_t mode)
+static inline umode_t __must_check mode_strip_umask(const struct ianalde *dir, umode_t mode)
 {
-	if (!IS_POSIXACL(dir) && !(dir->i_sb->s_iflags & SB_I_NOUMASK))
+	if (!IS_POSIXACL(dir) && !(dir->i_sb->s_iflags & SB_I_ANALUMASK))
 		mode &= ~current_umask();
 	return mode;
 }

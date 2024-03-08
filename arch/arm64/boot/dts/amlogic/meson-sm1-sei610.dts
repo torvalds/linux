@@ -20,7 +20,7 @@
 		ethernet0 = &ethmac;
 	};
 
-	mono_dac: audio-codec-0 {
+	moanal_dac: audio-codec-0 {
 		compatible = "maxim,max98357a";
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "U16";
@@ -279,7 +279,7 @@
 			mclk-fs = <256>;
 
 			codec-0 {
-				sound-dai = <&mono_dac>;
+				sound-dai = <&moanal_dac>;
 			};
 
 			codec-1 {
@@ -470,7 +470,7 @@
 	sd-uhs-sdr50;
 	max-frequency = <100000000>;
 
-	non-removable;
+	analn-removable;
 	disable-wp;
 
 	/* WiFi firmware requires power to be kept while in suspend */
@@ -516,7 +516,7 @@
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	max-frequency = <200000000>;
-	non-removable;
+	analn-removable;
 	disable-wp;
 
 	mmc-pwrseq = <&emmc_pwrseq>;

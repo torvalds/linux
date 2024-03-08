@@ -22,7 +22,7 @@
 
 
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -142,7 +142,7 @@ ssize_t dvb_ringbuffer_read_user(struct dvb_ringbuffer *rbuf, u8 __user *buf, si
 		buf += split;
 		todo -= split;
 		/* smp_store_release() for read pointer update to ensure
-		 * that buf is not overwritten until read is complete,
+		 * that buf is analt overwritten until read is complete,
 		 * this pairs with READ_ONCE() in dvb_ringbuffer_free()
 		 */
 		smp_store_release(&rbuf->pread, 0);
@@ -167,7 +167,7 @@ void dvb_ringbuffer_read(struct dvb_ringbuffer *rbuf, u8 *buf, size_t len)
 		buf += split;
 		todo -= split;
 		/* smp_store_release() for read pointer update to ensure
-		 * that buf is not overwritten until read is complete,
+		 * that buf is analt overwritten until read is complete,
 		 * this pairs with READ_ONCE() in dvb_ringbuffer_free()
 		 */
 		smp_store_release(&rbuf->pread, 0);
@@ -315,7 +315,7 @@ void dvb_ringbuffer_pkt_dispose(struct dvb_ringbuffer *rbuf, size_t idx)
 			pktlen |= DVB_RINGBUFFER_PEEK(rbuf, 1);
 			DVB_RINGBUFFER_SKIP(rbuf, pktlen + DVB_RINGBUFFER_PKTHDRSIZE);
 		} else {
-			// first packet is not disposed, so we stop cleaning now
+			// first packet is analt disposed, so we stop cleaning analw
 			break;
 		}
 	}
@@ -354,7 +354,7 @@ ssize_t dvb_ringbuffer_pkt_next(struct dvb_ringbuffer *rbuf, size_t idx, size_t*
 		idx = (idx + curpktlen + DVB_RINGBUFFER_PKTHDRSIZE) % rbuf->size;
 	}
 
-	// no packets available
+	// anal packets available
 	return -1;
 }
 

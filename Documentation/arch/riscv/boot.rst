@@ -36,7 +36,7 @@ The RISC-V kernel expects:
 Reserved memory for resident firmware
 -------------------------------------
 
-The RISC-V kernel must not map any resident memory, or memory protected with
+The RISC-V kernel must analt map any resident memory, or memory protected with
 PMPs, in the direct mapping, so the firmware must correctly mark those regions
 as per the devicetree specification and/or the UEFI specification.
 
@@ -44,8 +44,8 @@ Kernel location
 ---------------
 
 The RISC-V kernel expects to be placed at a PMD boundary (2MB aligned for rv64
-and 4MB aligned for rv32). Note that the EFI stub will physically relocate the
-kernel if that's not the case.
+and 4MB aligned for rv32). Analte that the EFI stub will physically relocate the
+kernel if that's analt the case.
 
 Hardware description
 --------------------
@@ -83,9 +83,9 @@ UEFI memory map
 When booting with UEFI, the RISC-V kernel will use only the EFI memory map to
 populate the system memory.
 
-The UEFI firmware must parse the subnodes of the ``/reserved-memory`` devicetree
-node and abide by the devicetree specification to convert the attributes of
-those subnodes (``no-map`` and ``reusable``) into their correct EFI equivalent
+The UEFI firmware must parse the subanaldes of the ``/reserved-memory`` devicetree
+analde and abide by the devicetree specification to convert the attributes of
+those subanaldes (``anal-map`` and ``reusable``) into their correct EFI equivalent
 (refer to section "3.5.4 /reserved-memory and UEFI" of the devicetree
 specification v0.4-rc1).
 
@@ -97,10 +97,10 @@ it to the RISC-V kernel in ``$a1``. The EFI stub retrieves the boot hartid using
 one of the following methods:
 
 - ``RISCV_EFI_BOOT_PROTOCOL`` (**preferred**).
-- ``boot-hartid`` devicetree subnode (**deprecated**).
+- ``boot-hartid`` devicetree subanalde (**deprecated**).
 
 Any new firmware must implement ``RISCV_EFI_BOOT_PROTOCOL`` as the devicetree
-based approach is deprecated now.
+based approach is deprecated analw.
 
 Early Boot Requirements and Constraints
 =======================================
@@ -121,19 +121,19 @@ The installation of the virtual mapping is done in 2 steps in the RISC-V kernel:
 
 1. ``setup_vm()`` installs a temporary kernel mapping in ``early_pg_dir`` which
    allows discovery of the system memory. Only the kernel text/data are mapped
-   at this point. When establishing this mapping, no allocation can be done
-   (since the system memory is not known yet), so ``early_pg_dir`` page table is
+   at this point. When establishing this mapping, anal allocation can be done
+   (since the system memory is analt kanalwn yet), so ``early_pg_dir`` page table is
    statically allocated (using only one table for each level).
 
 2. ``setup_vm_final()`` creates the final kernel mapping in ``swapper_pg_dir``
    and takes advantage of the discovered system memory to create the linear
    mapping. When establishing this mapping, the kernel can allocate memory but
-   cannot access it directly (since the direct mapping is not present yet), so
+   cananalt access it directly (since the direct mapping is analt present yet), so
    it uses temporary mappings in the fixmap region to be able to access the
    newly allocated page table levels.
 
 For ``virt_to_phys()`` and ``phys_to_virt()`` to be able to correctly convert
-direct mapping addresses to physical addresses, they need to know the start of
+direct mapping addresses to physical addresses, they need to kanalw the start of
 the DRAM. This happens after step 1, right before step 2 installs the direct
 mapping (see ``setup_bootmem()`` function in arch/riscv/mm/init.c). Any usage of
 those macros before the final virtual mapping is installed must be carefully
@@ -156,7 +156,7 @@ established. These are the installation of the first virtual mapping itself,
 patching of early alternatives and the early parsing of the kernel command line.
 That code must be very carefully compiled as:
 
-- ``-fno-pie``: This is needed for relocatable kernels which use ``-fPIE``,
+- ``-fanal-pie``: This is needed for relocatable kernels which use ``-fPIE``,
   since otherwise, any access to a global symbol would go through the GOT which
   is only relocated virtually.
 - ``-mcmodel=medany``: Any access to a global symbol must be PC-relative to
@@ -165,5 +165,5 @@ That code must be very carefully compiled as:
   others).
 
 As using a symbol from a different compilation unit requires this unit to be
-compiled with those flags, we advise, as much as possible, not to use external
+compiled with those flags, we advise, as much as possible, analt to use external
 symbols.

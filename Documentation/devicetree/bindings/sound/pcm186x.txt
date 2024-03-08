@@ -28,7 +28,7 @@ CODEC input pins:
  * VINL4
  * VINR4
 
-The pins can be used in referring sound node's audio-routing property.
+The pins can be used in referring sound analde's audio-routing property.
 
 Example:
 

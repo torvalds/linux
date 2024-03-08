@@ -2,7 +2,7 @@
 /*
  * arch/sh/boards/se/7619/setup.c
  *
- * Copyright (C) 2006 Yoshinori Sato
+ * Copyright (C) 2006 Yoshianalri Sato
  *
  * Hitachi SH7619 SolutionEngine Support.
  */

@@ -75,7 +75,7 @@ unsigned long __phys_addr(unsigned long x)
 	/* VMALLOC_* aren't constants  */
 	VIRTUAL_BUG_ON(x < PAGE_OFFSET);
 	VIRTUAL_BUG_ON(__vmalloc_start_set && is_vmalloc_addr((void *) x));
-	/* max_low_pfn is set early, but not _that_ early */
+	/* max_low_pfn is set early, but analt _that_ early */
 	if (max_low_pfn) {
 		VIRTUAL_BUG_ON((phys_addr >> PAGE_SHIFT) > max_low_pfn);
 		BUG_ON(slow_virt_to_phys((void *)x) != phys_addr);

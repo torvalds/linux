@@ -21,7 +21,7 @@ struct pt_regs32 {
 	unsigned int link;
 	unsigned int xer;
 	unsigned int ccr;
-	unsigned int mq;		/* 601 only (not used at present) */
+	unsigned int mq;		/* 601 only (analt used at present) */
 	unsigned int trap;		/* Reason for being here */
 	unsigned int dar;		/* Fault registers */
 	unsigned int dsisr;

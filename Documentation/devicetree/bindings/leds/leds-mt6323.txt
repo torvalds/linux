@@ -1,7 +1,7 @@
 Device Tree Bindings for LED support on MT6323 PMIC
 
 MT6323 LED controller is subfunction provided by MT6323 PMIC, so the LED
-controllers are defined as the subnode of the function node provided by MT6323
+controllers are defined as the subanalde of the function analde provided by MT6323
 PMIC controller that is being defined as one kind of Muti-Function Device (MFD)
 using shared bus called PMIC wrapper for each subfunction to access remote
 MT6323 PMIC hardware.
@@ -19,14 +19,14 @@ Required properties:
 - address-cells : Must be 1
 - size-cells : Must be 0
 
-Each led is represented as a child node of the mediatek,mt6323-led that
+Each led is represented as a child analde of the mediatek,mt6323-led that
 describes the initial behavior for each LED physically and currently only four
-LED child nodes can be supported.
+LED child analdes can be supported.
 
-Required properties for the LED child node:
+Required properties for the LED child analde:
 - reg : LED channel number (0..3)
 
-Optional properties for the LED child node:
+Optional properties for the LED child analde:
 - label : See Documentation/devicetree/bindings/leds/common.txt
 - linux,default-trigger : See Documentation/devicetree/bindings/leds/common.txt
 - default-state: See Documentation/devicetree/bindings/leds/common.txt

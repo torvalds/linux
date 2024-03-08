@@ -147,7 +147,7 @@ static unsigned int mt6397_map_mode(unsigned int mode)
 {
 	switch (mode) {
 	case MT6397_BUCK_MODE_AUTO:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case MT6397_BUCK_MODE_FORCE_PWM:
 		return REGULATOR_MODE_FAST;
 	default:
@@ -165,7 +165,7 @@ static int mt6397_regulator_set_mode(struct regulator_dev *rdev,
 	case REGULATOR_MODE_FAST:
 		val = MT6397_BUCK_MODE_FORCE_PWM;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = MT6397_BUCK_MODE_AUTO;
 		break;
 	default:
@@ -207,7 +207,7 @@ static unsigned int mt6397_regulator_get_mode(struct regulator_dev *rdev)
 
 	switch (regval) {
 	case MT6397_BUCK_MODE_AUTO:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case MT6397_BUCK_MODE_FORCE_PWM:
 		return REGULATOR_MODE_FAST;
 	default:
@@ -406,7 +406,7 @@ MODULE_DEVICE_TABLE(of, mt6397_of_match);
 static struct platform_driver mt6397_regulator_driver = {
 	.driver = {
 		.name = "mt6397-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(mt6397_of_match),
 	},
 	.probe = mt6397_regulator_probe,

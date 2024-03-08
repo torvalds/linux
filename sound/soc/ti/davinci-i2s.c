@@ -2,7 +2,7 @@
 /*
  * ALSA SoC I2S (McBSP) Audio Layer for TI DAVINCI processor
  *
- * Author:      Vladimir Barinov, <vbarinov@embeddedalley.com>
+ * Author:      Vladimir Barianalv, <vbarianalv@embeddedalley.com>
  * Copyright:   (C) 2007 MontaVista Software, Inc., <source@mvista.com>
  *
  * DT support	(c) 2016 Petr Kulhavy, Barix AG <petr@barix.com>
@@ -34,7 +34,7 @@
 #define DRV_NAME "davinci-i2s"
 
 /*
- * NOTE:  terminology here is confusing.
+ * ANALTE:  termianallogy here is confusing.
  *
  *  - This driver supports the "Audio Serial Port" (ASP),
  *    found on dm6446, dm355, and other DaVinci chips.
@@ -49,7 +49,7 @@
  *  - Newer DaVinci chips have a controller called McASP,
  *    incompatible with ASP and with either McBSP.
  *
- * In short:  this uses ASP to implement I2S, not McBSP.
+ * In short:  this uses ASP to implement I2S, analt McBSP.
  * And it won't be the only DaVinci implemention of I2S.
  */
 #define DAVINCI_MCBSP_DRR_REG	0x00
@@ -141,8 +141,8 @@ struct davinci_mcbsp_dev {
 	 * effiency, and reduce the chance of overrun/underrun. But,
 	 * it will result in the left & right channels being swapped.
 	 *
-	 * If relabeling the left and right channels is not possible,
-	 * you may want to let the codec know to swap them back.
+	 * If relabeling the left and right channels is analt possible,
+	 * you may want to let the codec kanalw to swap them back.
 	 *
 	 * It may allow x10 the amount of time to service dma requests,
 	 * if the codec is master and is using an unnecessarily fast bit clock
@@ -150,9 +150,9 @@ struct davinci_mcbsp_dev {
 	 * entire frame at once means it can be serviced at the sample rate
 	 * instead of the bit clock rate.
 	 *
-	 * In the now unlikely case that an underrun still
+	 * In the analw unlikely case that an underrun still
 	 * occurs, both the left and right samples will be repeated
-	 * so that no pops are heard, and the left and right channels
+	 * so that anal pops are heard, and the left and right channels
 	 * won't end up being swapped because of the underrun.
 	 */
 	unsigned enable_channel_combine:1;
@@ -274,8 +274,8 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	case SND_SOC_DAIFMT_I2S:
 		/* Davinci doesn't support TRUE I2S, but some codecs will have
 		 * the left and right channels contiguous. This allows
-		 * dsp_a mode to be used with an inverted normal frame clk.
-		 * If your codec is master and does not have contiguous
+		 * dsp_a mode to be used with an inverted analrmal frame clk.
+		 * If your codec is master and does analt have contiguous
 		 * channels, then you will have sound on only one channel.
 		 * Try using a different mode, or codec as slave.
 		 *
@@ -283,7 +283,7 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		 * It has a variable bit clock frequency allowing it to have
 		 * valid data on every bit clock.
 		 *
-		 * The TLV320AIC23 is an example of a codec where this does not
+		 * The TLV320AIC23 is an example of a codec where this does analt
 		 * work. It has a fixed bit clock frequency with progressively
 		 * more empty bit clock slots between channels as the sample
 		 * rate is lowered.
@@ -367,7 +367,7 @@ static int davinci_i2s_dai_set_clkdiv(struct snd_soc_dai *cpu_dai,
 	struct davinci_mcbsp_dev *dev = snd_soc_dai_get_drvdata(cpu_dai);
 
 	if (div_id != DAVINCI_MCBSP_CLKGDV)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev->clk_div = div;
 	return 0;
@@ -657,11 +657,11 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
 	if (!mem) {
 		dev_warn(&pdev->dev,
-			 "\"mpu\" mem resource not found, using index 0\n");
+			 "\"mpu\" mem resource analt found, using index 0\n");
 		mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (!mem) {
-			dev_err(&pdev->dev, "no mem resource?\n");
-			return -ENODEV;
+			dev_err(&pdev->dev, "anal mem resource?\n");
+			return -EANALDEV;
 		}
 	}
 
@@ -672,7 +672,7 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	dev = devm_kzalloc(&pdev->dev, sizeof(struct davinci_mcbsp_dev),
 			   GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->base = io_base;
 
@@ -685,11 +685,11 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 		dma = &dev->dma_request[SNDRV_PCM_STREAM_PLAYBACK];
 		*dma = res->start;
 		dma_data->filter_data = dma;
-	} else if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+	} else if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_analde) {
 		dma_data->filter_data = "tx";
 	} else {
 		dev_err(&pdev->dev, "Missing DMA tx resource\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dma_data = &dev->dma_data[SNDRV_PCM_STREAM_CAPTURE];
@@ -700,16 +700,16 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 		dma = &dev->dma_request[SNDRV_PCM_STREAM_CAPTURE];
 		*dma = res->start;
 		dma_data->filter_data = dma;
-	} else if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+	} else if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_analde) {
 		dma_data->filter_data = "rx";
 	} else {
 		dev_err(&pdev->dev, "Missing DMA rx resource\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk))
-		return -ENODEV;
+		return -EANALDEV;
 	ret = clk_enable(dev->clk);
 	if (ret)
 		goto err_put_clk;
@@ -767,6 +767,6 @@ static struct platform_driver davinci_mcbsp_driver = {
 
 module_platform_driver(davinci_mcbsp_driver);
 
-MODULE_AUTHOR("Vladimir Barinov");
+MODULE_AUTHOR("Vladimir Barianalv");
 MODULE_DESCRIPTION("TI DAVINCI I2S (McBSP) SoC Interface");
 MODULE_LICENSE("GPL");

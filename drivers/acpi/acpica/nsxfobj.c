@@ -30,7 +30,7 @@ ACPI_MODULE_NAME("nsxfobj")
  ******************************************************************************/
 acpi_status acpi_get_type(acpi_handle handle, acpi_object_type *ret_type)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	acpi_status status;
 
 	/* Parameter Validation */
@@ -39,7 +39,7 @@ acpi_status acpi_get_type(acpi_handle handle, acpi_object_type *ret_type)
 		return (AE_BAD_PARAMETER);
 	}
 
-	/* Special case for the predefined Root Node (return type ANY) */
+	/* Special case for the predefined Root Analde (return type ANY) */
 
 	if (handle == ACPI_ROOT_OBJECT) {
 		*ret_type = ACPI_TYPE_ANY;
@@ -53,13 +53,13 @@ acpi_status acpi_get_type(acpi_handle handle, acpi_object_type *ret_type)
 
 	/* Convert and validate the handle */
 
-	node = acpi_ns_validate_handle(handle);
-	if (!node) {
+	analde = acpi_ns_validate_handle(handle);
+	if (!analde) {
 		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 		return (AE_BAD_PARAMETER);
 	}
 
-	*ret_type = node->type;
+	*ret_type = analde->type;
 
 	status = acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);
@@ -82,15 +82,15 @@ ACPI_EXPORT_SYMBOL(acpi_get_type)
  ******************************************************************************/
 acpi_status acpi_get_parent(acpi_handle handle, acpi_handle *ret_handle)
 {
-	struct acpi_namespace_node *node;
-	struct acpi_namespace_node *parent_node;
+	struct acpi_namespace_analde *analde;
+	struct acpi_namespace_analde *parent_analde;
 	acpi_status status;
 
 	if (!ret_handle) {
 		return (AE_BAD_PARAMETER);
 	}
 
-	/* Special case for the predefined Root Node (no parent) */
+	/* Special case for the predefined Root Analde (anal parent) */
 
 	if (handle == ACPI_ROOT_OBJECT) {
 		return (AE_NULL_ENTRY);
@@ -103,20 +103,20 @@ acpi_status acpi_get_parent(acpi_handle handle, acpi_handle *ret_handle)
 
 	/* Convert and validate the handle */
 
-	node = acpi_ns_validate_handle(handle);
-	if (!node) {
+	analde = acpi_ns_validate_handle(handle);
+	if (!analde) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
 	}
 
 	/* Get the parent entry */
 
-	parent_node = node->parent;
-	*ret_handle = ACPI_CAST_PTR(acpi_handle, parent_node);
+	parent_analde = analde->parent;
+	*ret_handle = ACPI_CAST_PTR(acpi_handle, parent_analde);
 
 	/* Return exception if parent is null */
 
-	if (!parent_node) {
+	if (!parent_analde) {
 		status = AE_NULL_ENTRY;
 	}
 
@@ -141,7 +141,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_parent)
  * RETURN:      Status
  *
  * DESCRIPTION: Return the next peer object within the namespace. If Handle is
- *              valid, Scope is ignored. Otherwise, the first object within
+ *              valid, Scope is iganalred. Otherwise, the first object within
  *              Scope is returned.
  *
  ******************************************************************************/
@@ -151,9 +151,9 @@ acpi_get_next_object(acpi_object_type type,
 		     acpi_handle child, acpi_handle *ret_handle)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
-	struct acpi_namespace_node *parent_node = NULL;
-	struct acpi_namespace_node *child_node = NULL;
+	struct acpi_namespace_analde *analde;
+	struct acpi_namespace_analde *parent_analde = NULL;
+	struct acpi_namespace_analde *child_analde = NULL;
 
 	/* Parameter validation */
 
@@ -172,17 +172,17 @@ acpi_get_next_object(acpi_object_type type,
 
 		/* Start search at the beginning of the specified scope */
 
-		parent_node = acpi_ns_validate_handle(parent);
-		if (!parent_node) {
+		parent_analde = acpi_ns_validate_handle(parent);
+		if (!parent_analde) {
 			status = AE_BAD_PARAMETER;
 			goto unlock_and_exit;
 		}
 	} else {
-		/* Non-null handle, ignore the parent */
+		/* Analn-null handle, iganalre the parent */
 		/* Convert and validate the handle */
 
-		child_node = acpi_ns_validate_handle(child);
-		if (!child_node) {
+		child_analde = acpi_ns_validate_handle(child);
+		if (!child_analde) {
 			status = AE_BAD_PARAMETER;
 			goto unlock_and_exit;
 		}
@@ -190,14 +190,14 @@ acpi_get_next_object(acpi_object_type type,
 
 	/* Internal function does the real work */
 
-	node = acpi_ns_get_next_node_typed(type, parent_node, child_node);
-	if (!node) {
-		status = AE_NOT_FOUND;
+	analde = acpi_ns_get_next_analde_typed(type, parent_analde, child_analde);
+	if (!analde) {
+		status = AE_ANALT_FOUND;
 		goto unlock_and_exit;
 	}
 
 	if (ret_handle) {
-		*ret_handle = ACPI_CAST_PTR(acpi_handle, node);
+		*ret_handle = ACPI_CAST_PTR(acpi_handle, analde);
 	}
 
 unlock_and_exit:

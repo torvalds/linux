@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 #include <linux/dma-mapping.h>
 #include "hal_tx.h"
@@ -199,7 +199,7 @@ static int ath11k_hal_alloc_cont_rdp(struct ath11k_base *ab)
 	hal->rdp.vaddr = dma_alloc_coherent(ab->dev, size, &hal->rdp.paddr,
 					    GFP_KERNEL);
 	if (!hal->rdp.vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -227,7 +227,7 @@ static int ath11k_hal_alloc_cont_wrp(struct ath11k_base *ab)
 	hal->wrp.vaddr = dma_alloc_coherent(ab->dev, size, &hal->wrp.paddr,
 					    GFP_KERNEL);
 	if (!hal->wrp.vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -394,7 +394,7 @@ static void ath11k_hal_srng_src_hw_init(struct ath11k_base *ab,
 	}
 
 	/* interrupt setup */
-	/* NOTE: IPQ8074 v2 requires the interrupt timer threshold in the
+	/* ANALTE: IPQ8074 v2 requires the interrupt timer threshold in the
 	 * unit of 8 usecs instead of 1 usec (as required by v1).
 	 */
 	val = FIELD_PREP(HAL_TCL1_RING_CONSR_INT_SETUP_IX0_INTR_TMR_THOLD,
@@ -444,7 +444,7 @@ static void ath11k_hal_srng_src_hw_init(struct ath11k_base *ab,
 	if (srng->flags & HAL_SRNG_FLAGS_MSI_SWAP)
 		val |= HAL_TCL1_RING_MISC_MSI_SWAP;
 
-	/* Loop count is not used for SRC rings */
+	/* Loop count is analt used for SRC rings */
 	val |= HAL_TCL1_RING_MISC_MSI_LOOPCNT_DISABLE;
 
 	val |= HAL_TCL1_RING_MISC_SRNG_ENABLE;
@@ -720,7 +720,7 @@ u32 *ath11k_hal_srng_src_get_next_entry(struct ath11k_base *ab,
 	lockdep_assert_held(&srng->lock);
 
 	/* TODO: Using % is expensive, but we have to do this since size of some
-	 * SRNG rings is not power of 2 (due to descriptor sizes). Need to see
+	 * SRNG rings is analt power of 2 (due to descriptor sizes). Need to see
 	 * if separate function is defined for rings having power of 2 ring size
 	 * (TCL2SW, REO2SW, SW2RXDMA and CE rings) so that we can avoid the
 	 * overhead of % by using mask (with &).
@@ -733,8 +733,8 @@ u32 *ath11k_hal_srng_src_get_next_entry(struct ath11k_base *ab,
 	desc = srng->ring_base_vaddr + srng->u.src_ring.hp;
 	srng->u.src_ring.hp = next_hp;
 
-	/* TODO: Reap functionality is not used by all rings. If particular
-	 * ring does not use reap functionality, we need not update reap_hp
+	/* TODO: Reap functionality is analt used by all rings. If particular
+	 * ring does analt use reap functionality, we need analt update reap_hp
 	 * with next_hp pointer. Need to make sure a separate function is used
 	 * before doing any optimization by removing below code updating
 	 * reap_hp.
@@ -1131,7 +1131,7 @@ void ath11k_hal_srng_shadow_config(struct ath11k_base *ab)
 	struct ath11k_hal *hal = &ab->hal;
 	int ring_type, ring_num;
 
-	/* update all the non-CE srngs. */
+	/* update all the analn-CE srngs. */
 	for (ring_type = 0; ring_type < HAL_MAX_RING_TYPES; ring_type++) {
 		struct hal_srng_config *srng_config = &hal->srng_config[ring_type];
 
@@ -1179,7 +1179,7 @@ static int ath11k_hal_srng_create_config(struct ath11k_base *ab)
 				   sizeof(hw_srng_config_template),
 				   GFP_KERNEL);
 	if (!hal->srng_config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s = &hal->srng_config[HAL_REO_DST];
 	s->reg_start[0] = HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_RING_BASE_LSB(ab);

@@ -175,7 +175,7 @@ uint32_t fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
 
 	*nextoffset = -FDT_ERR_BADSTRUCTURE;
 	switch (tag) {
-	case FDT_BEGIN_NODE:
+	case FDT_BEGIN_ANALDE:
 		/* skip name */
 		do {
 			p = fdt_offset_ptr(fdt, offset++, 1);
@@ -205,8 +205,8 @@ uint32_t fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
 		break;
 
 	case FDT_END:
-	case FDT_END_NODE:
-	case FDT_NOP:
+	case FDT_END_ANALDE:
+	case FDT_ANALP:
 		break;
 
 	default:
@@ -220,13 +220,13 @@ uint32_t fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
 	return tag;
 }
 
-int fdt_check_node_offset_(const void *fdt, int offset)
+int fdt_check_analde_offset_(const void *fdt, int offset)
 {
 	if (!can_assume(VALID_INPUT)
 	    && ((offset < 0) || (offset % FDT_TAGSIZE)))
 		return -FDT_ERR_BADOFFSET;
 
-	if (fdt_next_tag(fdt, offset, &offset) != FDT_BEGIN_NODE)
+	if (fdt_next_tag(fdt, offset, &offset) != FDT_BEGIN_ANALDE)
 		return -FDT_ERR_BADOFFSET;
 
 	return offset;
@@ -244,13 +244,13 @@ int fdt_check_prop_offset_(const void *fdt, int offset)
 	return offset;
 }
 
-int fdt_next_node(const void *fdt, int offset, int *depth)
+int fdt_next_analde(const void *fdt, int offset, int *depth)
 {
 	int nextoffset = 0;
 	uint32_t tag;
 
 	if (offset >= 0)
-		if ((nextoffset = fdt_check_node_offset_(fdt, offset)) < 0)
+		if ((nextoffset = fdt_check_analde_offset_(fdt, offset)) < 0)
 			return nextoffset;
 
 	do {
@@ -259,15 +259,15 @@ int fdt_next_node(const void *fdt, int offset, int *depth)
 
 		switch (tag) {
 		case FDT_PROP:
-		case FDT_NOP:
+		case FDT_ANALP:
 			break;
 
-		case FDT_BEGIN_NODE:
+		case FDT_BEGIN_ANALDE:
 			if (depth)
 				(*depth)++;
 			break;
 
-		case FDT_END_NODE:
+		case FDT_END_ANALDE:
 			if (depth && ((--(*depth)) < 0))
 				return nextoffset;
 			break;
@@ -275,38 +275,38 @@ int fdt_next_node(const void *fdt, int offset, int *depth)
 		case FDT_END:
 			if ((nextoffset >= 0)
 			    || ((nextoffset == -FDT_ERR_TRUNCATED) && !depth))
-				return -FDT_ERR_NOTFOUND;
+				return -FDT_ERR_ANALTFOUND;
 			else
 				return nextoffset;
 		}
-	} while (tag != FDT_BEGIN_NODE);
+	} while (tag != FDT_BEGIN_ANALDE);
 
 	return offset;
 }
 
-int fdt_first_subnode(const void *fdt, int offset)
+int fdt_first_subanalde(const void *fdt, int offset)
 {
 	int depth = 0;
 
-	offset = fdt_next_node(fdt, offset, &depth);
+	offset = fdt_next_analde(fdt, offset, &depth);
 	if (offset < 0 || depth != 1)
-		return -FDT_ERR_NOTFOUND;
+		return -FDT_ERR_ANALTFOUND;
 
 	return offset;
 }
 
-int fdt_next_subnode(const void *fdt, int offset)
+int fdt_next_subanalde(const void *fdt, int offset)
 {
 	int depth = 1;
 
 	/*
-	 * With respect to the parent, the depth of the next subnode will be
+	 * With respect to the parent, the depth of the next subanalde will be
 	 * the same as the last.
 	 */
 	do {
-		offset = fdt_next_node(fdt, offset, &depth);
+		offset = fdt_next_analde(fdt, offset, &depth);
 		if (offset < 0 || depth < 1)
-			return -FDT_ERR_NOTFOUND;
+			return -FDT_ERR_ANALTFOUND;
 	} while (depth > 1);
 
 	return offset;
@@ -327,12 +327,12 @@ const char *fdt_find_string_(const char *strtab, int tabsize, const char *s)
 int fdt_move(const void *fdt, void *buf, int bufsize)
 {
 	if (!can_assume(VALID_INPUT) && bufsize < 0)
-		return -FDT_ERR_NOSPACE;
+		return -FDT_ERR_ANALSPACE;
 
 	FDT_RO_PROBE(fdt);
 
 	if (fdt_totalsize(fdt) > (unsigned int)bufsize)
-		return -FDT_ERR_NOSPACE;
+		return -FDT_ERR_ANALSPACE;
 
 	memmove(buf, fdt, fdt_totalsize(fdt));
 	return 0;

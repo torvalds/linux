@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -82,8 +82,8 @@ void dp_disable_link_phy(struct dc_link *link,
 	memset(&link->cur_link_settings, 0,
 			sizeof(link->cur_link_settings));
 
-	if (dc->clk_mgr->funcs->notify_link_rate_change)
-		dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
+	if (dc->clk_mgr->funcs->analtify_link_rate_change)
+		dc->clk_mgr->funcs->analtify_link_rate_change(dc->clk_mgr, link);
 }
 
 static inline bool is_immediate_downstream(struct dc_link *link, uint32_t offset)
@@ -100,7 +100,7 @@ void dp_set_hw_lane_settings(
 {
 	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
 
-	if ((link_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) &&
+	if ((link_settings->lttpr_mode == LTTPR_MODE_ANALN_TRANSPARENT) &&
 			!is_immediate_downstream(link, offset))
 		return;
 
@@ -126,7 +126,7 @@ void dp_set_drive_settings(
 			lt_settings->hw_lane_settings,
 			lt_settings->dpcd_lane_settings);
 
-	/* Notify DP sink the PHY settings from source */
+	/* Analtify DP sink the PHY settings from source */
 	dpcd_set_lane_settings(link, lt_settings, DPRX);
 }
 
@@ -135,7 +135,7 @@ enum dc_status dp_set_fec_ready(struct dc_link *link, const struct link_resource
 	/* FEC has to be "set ready" before the link training.
 	 * The policy is to always train with FEC
 	 * if the sink supports it and leave it enabled on link.
-	 * If FEC is not supported, disable it.
+	 * If FEC is analt supported, disable it.
 	 */
 	struct link_encoder *link_enc = NULL;
 	enum dc_status status = DC_OK;
@@ -160,7 +160,7 @@ enum dc_status dp_set_fec_ready(struct dc_link *link, const struct link_resource
 				link->fec_state = dc_link_fec_ready;
 			} else {
 				link_enc->funcs->fec_set_ready(link_enc, false);
-				link->fec_state = dc_link_fec_not_ready;
+				link->fec_state = dc_link_fec_analt_ready;
 				dm_error("dpcd write failed to set fec_ready");
 			}
 		} else if (link->fec_state == dc_link_fec_ready) {
@@ -170,7 +170,7 @@ enum dc_status dp_set_fec_ready(struct dc_link *link, const struct link_resource
 					&fec_config,
 					sizeof(fec_config));
 			link_enc->funcs->fec_set_ready(link_enc, false);
-			link->fec_state = dc_link_fec_not_ready;
+			link->fec_state = dc_link_fec_analt_ready;
 		}
 	}
 

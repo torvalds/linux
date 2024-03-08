@@ -16,7 +16,7 @@ int output_ctx2;
 int output_weak2; /* should stay zero */
 
 /* same "subprog" name in all files, but it's ok because they all are static */
-static __noinline int subprog(int x)
+static __analinline int subprog(int x)
 {
 	/* but different formula */
 	return x * 2;

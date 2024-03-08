@@ -15,12 +15,12 @@
 #include <net/flow.h>
 #include <linux/seq_file.h>
 #include <linux/rcupdate.h>
-#include <net/fib_notifier.h>
+#include <net/fib_analtifier.h>
 #include <net/fib_rules.h>
 #include <net/inet_dscp.h>
 #include <net/inetpeer.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/refcount.h>
 
 struct fib_config {
@@ -104,7 +104,7 @@ struct fib_nh_common {
 
 struct fib_nh {
 	struct fib_nh_common	nh_common;
-	struct hlist_node	nh_hash;
+	struct hlist_analde	nh_hash;
 	struct fib_info		*nh_parent;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	__u32			nh_tclassid;
@@ -132,8 +132,8 @@ struct fib_nh {
 struct nexthop;
 
 struct fib_info {
-	struct hlist_node	fib_hash;
-	struct hlist_node	fib_lhash;
+	struct hlist_analde	fib_hash;
+	struct hlist_analde	fib_lhash;
 	struct list_head	nh_list;
 	struct net		*fib_net;
 	refcount_t		fib_treeref;
@@ -221,8 +221,8 @@ struct fib_rt_info {
 				unused:5;
 };
 
-struct fib_entry_notifier_info {
-	struct fib_notifier_info info; /* must be first */
+struct fib_entry_analtifier_info {
+	struct fib_analtifier_info info; /* must be first */
 	u32 dst;
 	int dst_len;
 	struct fib_info *fi;
@@ -231,26 +231,26 @@ struct fib_entry_notifier_info {
 	u32 tb_id;
 };
 
-struct fib_nh_notifier_info {
-	struct fib_notifier_info info; /* must be first */
+struct fib_nh_analtifier_info {
+	struct fib_analtifier_info info; /* must be first */
 	struct fib_nh *fib_nh;
 };
 
-int call_fib4_notifier(struct notifier_block *nb,
+int call_fib4_analtifier(struct analtifier_block *nb,
 		       enum fib_event_type event_type,
-		       struct fib_notifier_info *info);
-int call_fib4_notifiers(struct net *net, enum fib_event_type event_type,
-			struct fib_notifier_info *info);
+		       struct fib_analtifier_info *info);
+int call_fib4_analtifiers(struct net *net, enum fib_event_type event_type,
+			struct fib_analtifier_info *info);
 
-int __net_init fib4_notifier_init(struct net *net);
-void __net_exit fib4_notifier_exit(struct net *net);
+int __net_init fib4_analtifier_init(struct net *net);
+void __net_exit fib4_analtifier_exit(struct net *net);
 
-void fib_info_notify_update(struct net *net, struct nl_info *info);
-int fib_notify(struct net *net, struct notifier_block *nb,
+void fib_info_analtify_update(struct net *net, struct nl_info *info);
+int fib_analtify(struct net *net, struct analtifier_block *nb,
 	       struct netlink_ext_ack *extack);
 
 struct fib_table {
-	struct hlist_node	tb_hlist;
+	struct hlist_analde	tb_hlist;
 	u32			tb_id;
 	int			tb_num_default;
 	struct rcu_head		rcu;
@@ -290,7 +290,7 @@ void fib_free_table(struct fib_table *tb);
 
 static inline struct fib_table *fib_get_table(struct net *net, u32 id)
 {
-	struct hlist_node *tb_hlist;
+	struct hlist_analde *tb_hlist;
 	struct hlist_head *ptr;
 
 	ptr = id == RT_TABLE_LOCAL ?
@@ -317,7 +317,7 @@ static inline int fib_lookup(struct net *net, const struct flowi4 *flp,
 
 	tb = fib_get_table(net, RT_TABLE_MAIN);
 	if (tb)
-		err = fib_table_lookup(tb, flp, res, flags | FIB_LOOKUP_NOREF);
+		err = fib_table_lookup(tb, flp, res, flags | FIB_LOOKUP_ANALREF);
 
 	if (err == -EAGAIN)
 		err = -ENETUNREACH;
@@ -337,7 +337,7 @@ static inline bool fib4_rule_default(const struct fib_rule *rule)
 	return true;
 }
 
-static inline int fib4_rules_dump(struct net *net, struct notifier_block *nb,
+static inline int fib4_rules_dump(struct net *net, struct analtifier_block *nb,
 				  struct netlink_ext_ack *extack)
 {
 	return 0;
@@ -371,7 +371,7 @@ static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 	struct fib_table *tb;
 	int err = -ENETUNREACH;
 
-	flags |= FIB_LOOKUP_NOREF;
+	flags |= FIB_LOOKUP_ANALREF;
 	if (net->ipv4.fib_has_custom_rules)
 		return __fib_lookup(net, flp, res, flags);
 
@@ -405,7 +405,7 @@ static inline bool fib4_has_custom_rules(const struct net *net)
 }
 
 bool fib4_rule_default(const struct fib_rule *rule);
-int fib4_rules_dump(struct net *net, struct notifier_block *nb,
+int fib4_rules_dump(struct net *net, struct analtifier_block *nb,
 		    struct netlink_ext_ack *extack);
 unsigned int fib4_rules_seq_read(struct net *net);
 

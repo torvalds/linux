@@ -12,7 +12,7 @@ maintainers:
 description: |
   List of regulators provided by this controller. It is named
   according to its regulator type, buck_<name> and ldo_<name>.
-  MT6359 regulators node should be sub node of the MT6397 MFD node.
+  MT6359 regulators analde should be sub analde of the MT6397 MFD analde.
 
 patternProperties:
   "^buck_v(s1|gpu11|modem|pu|core|s2|pa|proc2|proc1|core_sshub)$":

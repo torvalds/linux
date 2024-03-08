@@ -49,27 +49,27 @@ struct fsl_audmix_state {
 };
 
 static const struct fsl_audmix_state prms[4][4] = {{
-	/* DIS->DIS, do nothing */
+	/* DIS->DIS, do analthing */
 	{ .tdms = 0, .clk = 0, .msg = "" },
 	/* DIS->TDM1*/
-	{ .tdms = 1, .clk = 1, .msg = "DIS->TDM1: TDM1 not started!\n" },
+	{ .tdms = 1, .clk = 1, .msg = "DIS->TDM1: TDM1 analt started!\n" },
 	/* DIS->TDM2*/
-	{ .tdms = 2, .clk = 2, .msg = "DIS->TDM2: TDM2 not started!\n" },
+	{ .tdms = 2, .clk = 2, .msg = "DIS->TDM2: TDM2 analt started!\n" },
 	/* DIS->MIX */
 	{ .tdms = 3, .clk = 0, .msg = "DIS->MIX: Please start both TDMs!\n" }
 }, {	/* TDM1->DIS */
-	{ .tdms = 1, .clk = 0, .msg = "TDM1->DIS: TDM1 not started!\n" },
-	/* TDM1->TDM1, do nothing */
+	{ .tdms = 1, .clk = 0, .msg = "TDM1->DIS: TDM1 analt started!\n" },
+	/* TDM1->TDM1, do analthing */
 	{ .tdms = 0, .clk = 0, .msg = "" },
 	/* TDM1->TDM2 */
 	{ .tdms = 3, .clk = 2, .msg = "TDM1->TDM2: Please start both TDMs!\n" },
 	/* TDM1->MIX */
 	{ .tdms = 3, .clk = 0, .msg = "TDM1->MIX: Please start both TDMs!\n" }
 }, {	/* TDM2->DIS */
-	{ .tdms = 2, .clk = 0, .msg = "TDM2->DIS: TDM2 not started!\n" },
+	{ .tdms = 2, .clk = 0, .msg = "TDM2->DIS: TDM2 analt started!\n" },
 	/* TDM2->TDM1 */
 	{ .tdms = 3, .clk = 1, .msg = "TDM2->TDM1: Please start both TDMs!\n" },
-	/* TDM2->TDM2, do nothing */
+	/* TDM2->TDM2, do analthing */
 	{ .tdms = 0, .clk = 0, .msg = "" },
 	/* TDM2->MIX */
 	{ .tdms = 3, .clk = 0, .msg = "TDM2->MIX: Please start both TDMs!\n" }
@@ -79,7 +79,7 @@ static const struct fsl_audmix_state prms[4][4] = {{
 	{ .tdms = 3, .clk = 1, .msg = "MIX->TDM1: Please start both TDMs!\n" },
 	/* MIX->TDM2 */
 	{ .tdms = 3, .clk = 2, .msg = "MIX->TDM2: Please start both TDMs!\n" },
-	/* MIX->MIX, do nothing */
+	/* MIX->MIX, do analthing */
 	{ .tdms = 0, .clk = 0, .msg = "" }
 }, };
 
@@ -138,7 +138,7 @@ static int fsl_audmix_put_mix_clk_src(struct snd_kcontrol *kcontrol,
 
 	if (!(priv->tdms & BIT(val))) {
 		dev_err(comp->dev,
-			"The selected clock source has no TDM%d enabled!\n",
+			"The selected clock source has anal TDM%d enabled!\n",
 			val + 1);
 		return -EINVAL;
 	}
@@ -282,7 +282,7 @@ static int fsl_audmix_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct fsl_audmix *priv = snd_soc_dai_get_drvdata(dai);
 	unsigned long lock_flags;
 
-	/* Capture stream shall not be handled */
+	/* Capture stream shall analt be handled */
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		return 0;
 
@@ -461,7 +461,7 @@ static int fsl_audmix_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get the addresses */
 	regs = devm_platform_ioremap_resource(pdev, 0);

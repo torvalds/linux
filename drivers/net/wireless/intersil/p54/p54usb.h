@@ -8,7 +8,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  *
  * Based on the islsm (softmac prism54) driver, which is:
- * Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ * Copyright 2004-2006 Jean-Baptiste Analte <jbanalte@gmail.com>, et al.
  */
 
 /* for isl3886 register definitions used on ver 1 devices */
@@ -113,7 +113,7 @@ struct x2_header {
 	__le32 crc;
 } __packed;
 
-/* pipes 3 and 4 are not used by the driver */
+/* pipes 3 and 4 are analt used by the driver */
 #define P54U_PIPE_NUMBER 9
 
 enum p54u_pipe_addr {
@@ -152,7 +152,7 @@ struct p54u_priv {
 	struct usb_anchor submitted;
 	const struct firmware *fw;
 
-	/* asynchronous firmware callback */
+	/* asynchroanalus firmware callback */
 	struct completion fw_wait_load;
 };
 

@@ -6,9 +6,9 @@
  *	ripped from linux kernel 2.4.18 (OSS Implementation) by me.
  *	In the OSS Version, this file is compiled to a separate MODULE,
  *	that is used by the pinnacle and the classic driver.
- *	since there is no classic driver for alsa yet (i dont have a classic
+ *	since there is anal classic driver for alsa yet (i dont have a classic
  *	& writing one blindfold is difficult) this file's object is statically
- *	linked into the pinnacle-driver-module for now.	look for the string
+ *	linked into the pinnacle-driver-module for analw.	look for the string
  *		"uncomment this to make this a module again"
  *	to do guess what.
  *
@@ -116,7 +116,7 @@ int snd_msnd_upload_host(struct snd_msnd *dev, const u8 *bin, int len)
 
 	if (len % 3 != 0) {
 		snd_printk(KERN_ERR LOGNAME
-			   ": Upload host data not multiple of 3!\n");
+			   ": Upload host data analt multiple of 3!\n");
 		return -EINVAL;
 	}
 
@@ -179,7 +179,7 @@ int snd_msnd_disable_irq(struct snd_msnd *dev)
 	if (snd_msnd_wait_TXDE(dev) == 0) {
 		outb(inb(dev->io + HP_ICR) & ~HPICR_RREQ, dev->io + HP_ICR);
 		if (dev->type == msndClassic)
-			outb(HPIRQ_NONE, dev->io + HP_IRQM);
+			outb(HPIRQ_ANALNE, dev->io + HP_IRQM);
 		disable_irq(dev->irq);
 		spin_unlock_irqrestore(&dev->lock, flags);
 		return 0;
@@ -299,7 +299,7 @@ int snd_msnd_DAPQ(struct snd_msnd *chip, int start)
 	void	__iomem *DAQD;
 	static int play_banks_submitted;
 	/* unsigned long flags;
-	spin_lock_irqsave(&chip->lock, flags); not necessary */
+	spin_lock_irqsave(&chip->lock, flags); analt necessary */
 
 	DAPQ_tail = readw(chip->DAPQ + JQS_wTail);
 	while (DAPQ_tail != readw(chip->DAPQ + JQS_wHead) || start) {
@@ -347,7 +347,7 @@ int snd_msnd_DAPQ(struct snd_msnd *chip, int start)
 	if (protect)
 		snd_printd(KERN_INFO "%lX\n", xtime.tv_usec);
 	*/
-	/* spin_unlock_irqrestore(&chip->lock, flags); not necessary */
+	/* spin_unlock_irqrestore(&chip->lock, flags); analt necessary */
 	return nbanks;
 }
 EXPORT_SYMBOL(snd_msnd_DAPQ);
@@ -539,7 +539,7 @@ static int snd_msnd_playback_trigger(struct snd_pcm_substream *substream,
 		snd_msnd_DAPQ(chip, 1);
 	} else if (cmd == SNDRV_PCM_TRIGGER_STOP) {
 		snd_printdd("snd_msnd_playback_trigger(STop)\n");
-		/* interrupt diagnostic, comment this out later */
+		/* interrupt diaganalstic, comment this out later */
 		clear_bit(F_WRITING, &chip->flags);
 		snd_msnd_send_dsp_cmd(chip, HDEX_PLAY_STOP);
 	} else {

@@ -3,7 +3,7 @@
  * Copyright (C) 2021 Dávid Virág <virag.david003@gmail.com>
  * Author: Dávid Virág <virag.david003@gmail.com>
  *
- * Common Clock Framework support for Exynos7885 SoC.
+ * Common Clock Framework support for Exyanals7885 SoC.
  */
 
 #include <linux/clk.h>
@@ -11,12 +11,12 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
-#include <dt-bindings/clock/exynos7885.h>
+#include <dt-bindings/clock/exyanals7885.h>
 
 #include "clk.h"
-#include "clk-exynos-arm64.h"
+#include "clk-exyanals-arm64.h"
 
-/* NOTE: Must be equal to the last clock ID increased by one */
+/* ANALTE: Must be equal to the last clock ID increased by one */
 #define CLKS_NR_TOP			(CLK_GOUT_FSYS_USB30DRD + 1)
 #define CLKS_NR_CORE			(CLK_GOUT_TREX_P_CORE_PCLK_P_CORE + 1)
 #define CLKS_NR_PERI			(CLK_GOUT_WDT1_PCLK + 1)
@@ -344,14 +344,14 @@ static const struct samsung_cmu_info top_cmu_info __initconst = {
 	.nr_clk_regs		= ARRAY_SIZE(top_clk_regs),
 };
 
-static void __init exynos7885_cmu_top_init(struct device_node *np)
+static void __init exyanals7885_cmu_top_init(struct device_analde *np)
 {
-	exynos_arm64_register_cmu(NULL, np, &top_cmu_info);
+	exyanals_arm64_register_cmu(NULL, np, &top_cmu_info);
 }
 
 /* Register CMU_TOP early, as it's a dependency for other early domains */
-CLK_OF_DECLARE(exynos7885_cmu_top, "samsung,exynos7885-cmu-top",
-	       exynos7885_cmu_top_init);
+CLK_OF_DECLARE(exyanals7885_cmu_top, "samsung,exyanals7885-cmu-top",
+	       exyanals7885_cmu_top_init);
 
 /* ---- CMU_PERI ------------------------------------------------------------ */
 
@@ -482,7 +482,7 @@ static const struct samsung_gate_clock peri_gate_clks[] __initconst = {
 	/* TODO: Should be enabled in GPIO driver (or made CLK_IS_CRITICAL) */
 	GATE(CLK_GOUT_GPIO_TOP_PCLK, "gout_gpio_top_pclk",
 	     "mout_peri_bus_user",
-	     CLK_CON_GAT_GOUT_PERI_GPIO_TOP_PCLK, 21, CLK_IGNORE_UNUSED, 0),
+	     CLK_CON_GAT_GOUT_PERI_GPIO_TOP_PCLK, 21, CLK_IGANALRE_UNUSED, 0),
 	GATE(CLK_GOUT_HSI2C0_PCLK, "gout_hsi2c0_pclk", "mout_peri_bus_user",
 	     CLK_CON_GAT_GOUT_PERI_HSI2C_0_PCLK, 21, 0, 0),
 	GATE(CLK_GOUT_HSI2C1_PCLK, "gout_hsi2c1_pclk", "mout_peri_bus_user",
@@ -564,14 +564,14 @@ static const struct samsung_cmu_info peri_cmu_info __initconst = {
 	.clk_name		= "dout_peri_bus",
 };
 
-static void __init exynos7885_cmu_peri_init(struct device_node *np)
+static void __init exyanals7885_cmu_peri_init(struct device_analde *np)
 {
-	exynos_arm64_register_cmu(NULL, np, &peri_cmu_info);
+	exyanals_arm64_register_cmu(NULL, np, &peri_cmu_info);
 }
 
 /* Register CMU_PERI early, as it's needed for MCT timer */
-CLK_OF_DECLARE(exynos7885_cmu_peri, "samsung,exynos7885-cmu-peri",
-	       exynos7885_cmu_peri_init);
+CLK_OF_DECLARE(exyanals7885_cmu_peri, "samsung,exyanals7885-cmu-peri",
+	       exyanals7885_cmu_peri_init);
 
 /* ---- CMU_CORE ------------------------------------------------------------ */
 
@@ -757,39 +757,39 @@ static const struct samsung_cmu_info fsys_cmu_info __initconst = {
 
 /* ---- platform_driver ----------------------------------------------------- */
 
-static int __init exynos7885_cmu_probe(struct platform_device *pdev)
+static int __init exyanals7885_cmu_probe(struct platform_device *pdev)
 {
 	const struct samsung_cmu_info *info;
 	struct device *dev = &pdev->dev;
 
 	info = of_device_get_match_data(dev);
-	exynos_arm64_register_cmu(dev, dev->of_node, info);
+	exyanals_arm64_register_cmu(dev, dev->of_analde, info);
 
 	return 0;
 }
 
-static const struct of_device_id exynos7885_cmu_of_match[] = {
+static const struct of_device_id exyanals7885_cmu_of_match[] = {
 	{
-		.compatible = "samsung,exynos7885-cmu-core",
+		.compatible = "samsung,exyanals7885-cmu-core",
 		.data = &core_cmu_info,
 	}, {
-		.compatible = "samsung,exynos7885-cmu-fsys",
+		.compatible = "samsung,exyanals7885-cmu-fsys",
 		.data = &fsys_cmu_info,
 	}, {
 	},
 };
 
-static struct platform_driver exynos7885_cmu_driver __refdata = {
+static struct platform_driver exyanals7885_cmu_driver __refdata = {
 	.driver	= {
-		.name = "exynos7885-cmu",
-		.of_match_table = exynos7885_cmu_of_match,
+		.name = "exyanals7885-cmu",
+		.of_match_table = exyanals7885_cmu_of_match,
 		.suppress_bind_attrs = true,
 	},
-	.probe = exynos7885_cmu_probe,
+	.probe = exyanals7885_cmu_probe,
 };
 
-static int __init exynos7885_cmu_init(void)
+static int __init exyanals7885_cmu_init(void)
 {
-	return platform_driver_register(&exynos7885_cmu_driver);
+	return platform_driver_register(&exyanals7885_cmu_driver);
 }
-core_initcall(exynos7885_cmu_init);
+core_initcall(exyanals7885_cmu_init);

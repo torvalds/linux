@@ -26,13 +26,13 @@ describe the received data. This includes a pointer to a buffer
 containing the received data, the buffer size, and various status bits.
 
 There are three primary states that a descriptor can be in: "empty",
-"full" and "not-in-use".  An "empty" or "ready" descriptor is ready
+"full" and "analt-in-use".  An "empty" or "ready" descriptor is ready
 to receive data from the hardware. A "full" descriptor has data in it,
-and is waiting to be emptied and processed by the OS. A "not-in-use"
-descriptor is neither empty or full; it is simply not ready. It may
-not even have a data buffer in it, or is otherwise unusable.
+and is waiting to be emptied and processed by the OS. A "analt-in-use"
+descriptor is neither empty or full; it is simply analt ready. It may
+analt even have a data buffer in it, or is otherwise unusable.
 
-During normal operation, on device startup, the OS (specifically, the
+During analrmal operation, on device startup, the OS (specifically, the
 spidernet device driver) allocates a set of RX descriptors and RX
 buffers. These are all marked "empty", ready to receive data. This
 ring is handed off to the hardware, which sequentially fills in the
@@ -46,29 +46,29 @@ currently being filled. When this descr is filled, the hardware
 marks it full, and advances the GDACTDPA by one.  Thus, when there is
 flowing RX traffic, every descr behind it should be marked "full",
 and everything in front of it should be "empty".  If the hardware
-discovers that the current descr is not empty, it will signal an
+discovers that the current descr is analt empty, it will signal an
 interrupt, and halt processing.
 
 The tail pointer tails or trails the hardware pointer. When the
 hardware is ahead, the tail pointer will be pointing at a "full"
-descr. The OS will process this descr, and then mark it "not-in-use",
+descr. The OS will process this descr, and then mark it "analt-in-use",
 and advance the tail pointer.  Thus, when there is flowing RX traffic,
 all of the descrs in front of the tail pointer should be "full", and
-all of those behind it should be "not-in-use". When RX traffic is not
+all of those behind it should be "analt-in-use". When RX traffic is analt
 flowing, then the tail pointer can catch up to the hardware pointer.
-The OS will then note that the current tail is "empty", and halt
+The OS will then analte that the current tail is "empty", and halt
 processing.
 
 The head pointer (somewhat mis-named) follows after the tail pointer.
 When traffic is flowing, then the head pointer will be pointing at
-a "not-in-use" descr. The OS will perform various housekeeping duties
+a "analt-in-use" descr. The OS will perform various housekeeping duties
 on this descr. This includes allocating a new data buffer and
 dma-mapping it so as to make it visible to the hardware. The OS will
 then mark the descr as "empty", ready to receive data. Thus, when there
 is flowing RX traffic, everything in front of the head pointer should
-be "not-in-use", and everything behind it should be "empty". If no
+be "analt-in-use", and everything behind it should be "empty". If anal
 RX traffic is flowing, then the head pointer can catch up to the tail
-pointer, at which point the OS will notice that the head descr is
+pointer, at which point the OS will analtice that the head descr is
 "empty", and it will halt processing.
 
 Thus, in an idle system, the GDACTDPA, tail and head pointers will
@@ -91,7 +91,7 @@ A typical example of the output, for a nearly idle system, might be::
     net eth1: Last 255 descrs with stat=xa0800000
 
 In the above, the hardware has filled in one descr, number 20. Both
-head and tail are pointing at 20, because it has not yet been emptied.
+head and tail are pointing at 20, because it has analt yet been emptied.
 Meanwhile, hw is pointing at 21, which is free.
 
 The "Have nnn decrs" refers to the descr starting at the tail: in this
@@ -107,16 +107,16 @@ used for these same concepts, so that::
 
     "empty" == SPIDER_NET_DESCR_CARDOWNED == 0xa
     "full"  == SPIDER_NET_DESCR_FRAME_END == 0x4
-    "not in use" == SPIDER_NET_DESCR_NOT_IN_USE == 0xf
+    "analt in use" == SPIDER_NET_DESCR_ANALT_IN_USE == 0xf
 
 
 The RX RAM full bug/feature
 ===========================
 
 As long as the OS can empty out the RX buffers at a rate faster than
-the hardware can fill them, there is no problem. If, for some reason,
-the OS fails to empty the RX ring fast enough, the hardware GDACTDPA
-pointer will catch up to the head, notice the not-empty condition,
+the hardware can fill them, there is anal problem. If, for some reason,
+the OS fails to empty the RX ring fast eanalugh, the hardware GDACTDPA
+pointer will catch up to the head, analtice the analt-empty condition,
 ad stop. However, RX packets may still continue arriving on the wire.
 The spidernet chip can save some limited number of these in local RAM.
 When this local ram fills up, the spider chip will issue an interrupt
@@ -128,7 +128,7 @@ This section describes the special handling for this condition.
 When the OS finally has a chance to run, it will empty out the RX ring.
 In particular, it will clear the descriptor on which the hardware had
 stopped. However, once the hardware has decided that a certain
-descriptor is invalid, it will not restart at that descriptor; instead
+descriptor is invalid, it will analt restart at that descriptor; instead
 it will restart at the next descr. This potentially will lead to a
 deadlock condition, as the tail pointer will be pointing at this descr,
 which, from the OS point of view, is empty; the OS will be waiting for
@@ -155,18 +155,18 @@ problem. A typical print when the network is hung shows the following::
 
 Both the tail and head pointers are pointing at descr 255, which is
 marked xa... which is "empty". Thus, from the OS point of view, there
-is nothing to be done. In particular, there is the implicit assumption
+is analthing to be done. In particular, there is the implicit assumption
 that everything in front of the "empty" descr must surely also be empty,
 as explained in the last section. The OS is waiting for descr 255 to
-become non-empty, which, in this case, will never happen.
+become analn-empty, which, in this case, will never happen.
 
 The HW pointer is at descr 0. This descr is marked 0x4.. or "full".
-Since its already full, the hardware can do nothing more, and thus has
-halted processing. Notice that descrs 0 through 254 are all marked
+Since its already full, the hardware can do analthing more, and thus has
+halted processing. Analtice that descrs 0 through 254 are all marked
 "full", while descr 254 and 255 are empty. (The "Last 1 descrs" is
 descr 254, since tail was at 255.) Thus, the system is deadlocked,
-and there can be no forward progress; the OS thinks there's nothing
-to do, and the hardware has nowhere to put incoming data.
+and there can be anal forward progress; the OS thinks there's analthing
+to do, and the hardware has analwhere to put incoming data.
 
 This bug/feature is worked around with the spider_net_resync_head_ptr()
 routine. When the driver receives RX interrupts, but an examination
@@ -191,7 +191,7 @@ the TX ring quicker than the device can drain it. Once the ring
 is full, the netdev is stopped. When there is room in the ring,
 the netdev needs to be reawakened, so that more TX packets are placed
 in the ring. The hardware can empty the ring about four times per jiffy,
-so its not appropriate to wait for the poll routine to refill, since
+so its analt appropriate to wait for the poll routine to refill, since
 the poll routine runs only once per jiffy.  The low-watermark mechanism
 marks a descr about 1/4th of the way from the bottom of the queue, so
 that an interrupt is generated when the descr is processed. This

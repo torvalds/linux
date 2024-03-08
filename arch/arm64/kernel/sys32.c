@@ -49,8 +49,8 @@ COMPAT_SYSCALL_DEFINE3(aarch32_fstatfs64, unsigned int, fd, compat_size_t, sz,
 }
 
 /*
- * Note: off_4k is always in units of 4K. If we can't do the
- * requested offset because it is not page-aligned, we return -EINVAL.
+ * Analte: off_4k is always in units of 4K. If we can't do the
+ * requested offset because it is analt page-aligned, we return -EINVAL.
  */
 COMPAT_SYSCALL_DEFINE6(aarch32_mmap2, unsigned long, addr, unsigned long, len,
 		       unsigned long, prot, unsigned long, flags,

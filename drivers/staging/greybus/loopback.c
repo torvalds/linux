@@ -134,7 +134,7 @@ static ssize_t name##_##field##_show(struct device *dev,	\
 			    char *buf)					\
 {									\
 	struct gb_loopback *gb = dev_get_drvdata(dev);			\
-	/* Report 0 for min and max if no transfer succeeded */		\
+	/* Report 0 for min and max if anal transfer succeeded */		\
 	if (!gb->requests_completed)					\
 		return sprintf(buf, "0\n");				\
 	return sprintf(buf, "%" #type "\n", gb->name.field);		\
@@ -243,7 +243,7 @@ static void gb_loopback_check_attr(struct gb_loopback *gb)
 
 	if (kfifo_depth < gb->iteration_max) {
 		dev_warn(gb->dev,
-			 "cannot log bytes %u kfifo_depth %u\n",
+			 "cananalt log bytes %u kfifo_depth %u\n",
 			 gb->iteration_max, kfifo_depth);
 	}
 	kfifo_reset_out(&gb->kfifo_lat);
@@ -294,7 +294,7 @@ gb_loopback_ro_attr(timeout_max);
  * 2 => Send ping message continuously (message without payload)
  * 3 => Send transfer message continuously (message with payload,
  *					   payload returned in response)
- * 4 => Send a sink message (message with payload, no payload in response)
+ * 4 => Send a sink message (message with payload, anal payload in response)
  */
 gb_dev_loopback_rw_attr(type, d);
 /* Size of transfer message payload: 0-4096 bytes */
@@ -305,9 +305,9 @@ gb_dev_loopback_rw_attr(us_wait, d);
 gb_dev_loopback_rw_attr(iteration_max, u);
 /* The current index of the for (i = 0; i < iteration_max; i++) loop */
 gb_dev_loopback_ro_attr(iteration_count, false);
-/* A flag to indicate synchronous or asynchronous operations */
+/* A flag to indicate synchroanalus or asynchroanalus operations */
 gb_dev_loopback_rw_attr(async, u);
-/* Timeout of an individual asynchronous request */
+/* Timeout of an individual asynchroanalus request */
 gb_dev_loopback_rw_attr(timeout, u);
 /* Maximum number of in-flight operations before back-off */
 gb_dev_loopback_rw_attr(outstanding_operations_max, u);
@@ -378,7 +378,7 @@ static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
 	operation = gb_operation_create(gb->connection, type, request_size,
 					response_size, GFP_KERNEL);
 	if (!operation)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (request_size)
 		memcpy(operation->request->payload, request, request_size);
@@ -386,7 +386,7 @@ static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
 	ret = gb_operation_request_send_sync(operation);
 	if (ret) {
 		dev_err(&gb->connection->bundle->dev,
-			"synchronous operation failed: %d\n", ret);
+			"synchroanalus operation failed: %d\n", ret);
 		goto out_put_operation;
 	} else {
 		if (response_size == operation->response->payload_size) {
@@ -472,13 +472,13 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 
 	op_async = kzalloc(sizeof(*op_async), GFP_KERNEL);
 	if (!op_async)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	operation = gb_operation_create(gb->connection, type, request_size,
 					response_size, GFP_KERNEL);
 	if (!operation) {
 		kfree(op_async);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (request_size)
@@ -512,7 +512,7 @@ static int gb_loopback_sync_sink(struct gb_loopback *gb, u32 len)
 
 	request = kmalloc(len + sizeof(*request), GFP_KERNEL);
 	if (!request)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	request->len = cpu_to_le32(len);
 	retval = gb_loopback_operation_sync(gb, GB_LOOPBACK_TYPE_SINK,
@@ -533,11 +533,11 @@ static int gb_loopback_sync_transfer(struct gb_loopback *gb, u32 len)
 
 	request = kmalloc(len + sizeof(*request), GFP_KERNEL);
 	if (!request)
-		return -ENOMEM;
+		return -EANALMEM;
 	response = kmalloc(len + sizeof(*response), GFP_KERNEL);
 	if (!response) {
 		kfree(request);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(request->data, 0x5A, len);
@@ -577,7 +577,7 @@ static int gb_loopback_async_sink(struct gb_loopback *gb, u32 len)
 
 	request = kmalloc(len + sizeof(*request), GFP_KERNEL);
 	if (!request)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	request->len = cpu_to_le32(len);
 	retval = gb_loopback_async_operation(gb, GB_LOOPBACK_TYPE_SINK,
@@ -625,7 +625,7 @@ static int gb_loopback_async_transfer(struct gb_loopback *gb, u32 len)
 
 	request = kmalloc(len + sizeof(*request), GFP_KERNEL);
 	if (!request)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(request->data, 0x5A, len);
 
@@ -680,7 +680,7 @@ static int gb_loopback_request_handler(struct gb_operation *operation)
 		if (!gb_operation_response_alloc(operation,
 				len + sizeof(*response), GFP_KERNEL)) {
 			dev_err(dev, "error allocating response\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		response = operation->response->payload;
 		response->len = cpu_to_le32(len);
@@ -869,7 +869,7 @@ static int gb_loopback_fn(void *data)
 		if (gb->send_count == gb->iteration_max) {
 			mutex_unlock(&gb->mutex);
 
-			/* Wait for synchronous and asynchronous completion */
+			/* Wait for synchroanalus and asynchroanalus completion */
 			gb_loopback_async_wait_all(gb);
 
 			/* Mark complete unless user-space has poked us */
@@ -877,7 +877,7 @@ static int gb_loopback_fn(void *data)
 			if (gb->iteration_count == gb->iteration_max) {
 				gb->type = 0;
 				gb->send_count = 0;
-				sysfs_notify(&gb->dev->kobj,  NULL,
+				sysfs_analtify(&gb->dev->kobj,  NULL,
 					     "iteration_count");
 				dev_dbg(&bundle->dev, "load test complete\n");
 			} else {
@@ -982,15 +982,15 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 	unsigned long flags;
 
 	if (bundle->num_cports != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cport_desc = &bundle->cport_desc[0];
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_LOOPBACK)
-		return -ENODEV;
+		return -EANALDEV;
 
 	gb = kzalloc(sizeof(*gb), GFP_KERNEL);
 	if (!gb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
 					  gb_loopback_request_handler);
@@ -1051,7 +1051,7 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 	/* Allocate kfifo */
 	if (kfifo_alloc(&gb->kfifo_lat, kfifo_depth * sizeof(u32),
 			GFP_KERNEL)) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out_conn;
 	}
 	/* Fork worker thread */
@@ -1098,7 +1098,7 @@ static void gb_loopback_disconnect(struct gb_bundle *bundle)
 
 	ret = gb_pm_runtime_get_sync(bundle);
 	if (ret)
-		gb_pm_runtime_get_noresume(bundle);
+		gb_pm_runtime_get_analresume(bundle);
 
 	gb_connection_disable(gb->connection);
 
@@ -1110,7 +1110,7 @@ static void gb_loopback_disconnect(struct gb_bundle *bundle)
 	debugfs_remove(gb->file);
 
 	/*
-	 * FIXME: gb_loopback_async_wait_all() is redundant now, as connection
+	 * FIXME: gb_loopback_async_wait_all() is redundant analw, as connection
 	 * is disabled at the beginning and so we can't have any more
 	 * incoming/outgoing requests.
 	 */

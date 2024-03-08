@@ -56,7 +56,7 @@ static struct clk *rockchip_clk_register_branch(const char *name,
 	if (num_parents > 1) {
 		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 		if (!mux)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		mux->reg = base + muxdiv_offset;
 		mux->shift = mux_shift;
@@ -71,7 +71,7 @@ static struct clk *rockchip_clk_register_branch(const char *name,
 	if (gate_offset >= 0) {
 		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 		if (!gate) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_gate;
 		}
 
@@ -85,7 +85,7 @@ static struct clk *rockchip_clk_register_branch(const char *name,
 	if (div_width > 0) {
 		div = kzalloc(sizeof(*div), GFP_KERNEL);
 		if (!div) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_div;
 		}
 
@@ -123,7 +123,7 @@ err_gate:
 }
 
 struct rockchip_clk_frac {
-	struct notifier_block			clk_nb;
+	struct analtifier_block			clk_nb;
 	struct clk_fractional_divider		div;
 	struct clk_gate				gate;
 
@@ -138,10 +138,10 @@ struct rockchip_clk_frac {
 #define to_rockchip_clk_frac_nb(nb) \
 			container_of(nb, struct rockchip_clk_frac, clk_nb)
 
-static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
+static int rockchip_clk_frac_analtifier_cb(struct analtifier_block *nb,
 					 unsigned long event, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_analtifier_data *ndata = data;
 	struct rockchip_clk_frac *frac = to_rockchip_clk_frac_nb(nb);
 	struct clk_mux *frac_mux = &frac->mux;
 	int ret = 0;
@@ -158,7 +158,7 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
 		}
 	} else if (event == POST_RATE_CHANGE) {
 		/*
-		 * The POST_RATE_CHANGE notifier runs directly after the
+		 * The POST_RATE_CHANGE analtifier runs directly after the
 		 * divider clock is set in clk_change_rate, so we'll have
 		 * remuxed back to the original parent before clk_change_rate
 		 * reaches the mux itself.
@@ -170,11 +170,11 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
 		}
 	}
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
 /*
- * fractional divider must set that denominator is 20 times larger than
+ * fractional divider must set that deanalminator is 20 times larger than
  * numerator to generate precise clock frequency.
  */
 static void rockchip_fractional_approximation(struct clk_hw *hw,
@@ -228,7 +228,7 @@ static struct clk *rockchip_clk_register_frac_branch(
 
 	frac = kzalloc(sizeof(*frac), GFP_KERNEL);
 	if (!frac)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (gate_offset >= 0) {
 		gate = &frac->gate;
@@ -269,7 +269,7 @@ static struct clk *rockchip_clk_register_frac_branch(
 		frac->mux_frac_idx = match_string(child->parent_names,
 						  child->num_parents, name);
 		frac->mux_ops = &clk_mux_ops;
-		frac->clk_nb.notifier_call = rockchip_clk_frac_notifier_cb;
+		frac->clk_nb.analtifier_call = rockchip_clk_frac_analtifier_cb;
 
 		frac_mux->reg = base + child->muxdiv_offset;
 		frac_mux->shift = child->mux_shift;
@@ -294,16 +294,16 @@ static struct clk *rockchip_clk_register_frac_branch(
 
 		rockchip_clk_add_lookup(ctx, mux_clk, child->id);
 
-		/* notifier on the fraction divider to catch rate changes */
+		/* analtifier on the fraction divider to catch rate changes */
 		if (frac->mux_frac_idx >= 0) {
 			pr_debug("%s: found fractional parent in mux at pos %d\n",
 				 __func__, frac->mux_frac_idx);
-			ret = clk_notifier_register(hw->clk, &frac->clk_nb);
+			ret = clk_analtifier_register(hw->clk, &frac->clk_nb);
 			if (ret)
-				pr_err("%s: failed to register clock notifier for %s\n",
+				pr_err("%s: failed to register clock analtifier for %s\n",
 						__func__, name);
 		} else {
-			pr_warn("%s: could not find %s as parent of %s, rate changes may not work\n",
+			pr_warn("%s: could analt find %s as parent of %s, rate changes may analt work\n",
 				__func__, name, child->name);
 		}
 	}
@@ -330,7 +330,7 @@ static struct clk *rockchip_clk_register_factor_branch(const char *name,
 
 	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 	if (!gate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	gate->flags = gate_flags;
 	gate->reg = base + gate_offset;
@@ -340,7 +340,7 @@ static struct clk *rockchip_clk_register_factor_branch(const char *name,
 	fix = kzalloc(sizeof(*fix), GFP_KERNEL);
 	if (!fix) {
 		kfree(gate);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	fix->mult = mult;
@@ -359,7 +359,7 @@ static struct clk *rockchip_clk_register_factor_branch(const char *name,
 	return hw->clk;
 }
 
-struct rockchip_clk_provider *rockchip_clk_init(struct device_node *np,
+struct rockchip_clk_provider *rockchip_clk_init(struct device_analde *np,
 						void __iomem *base,
 						unsigned long nr_clks)
 {
@@ -369,38 +369,38 @@ struct rockchip_clk_provider *rockchip_clk_init(struct device_node *np,
 
 	ctx = kzalloc(sizeof(struct rockchip_clk_provider), GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	clk_table = kcalloc(nr_clks, sizeof(struct clk *), GFP_KERNEL);
 	if (!clk_table)
 		goto err_free;
 
 	for (i = 0; i < nr_clks; ++i)
-		clk_table[i] = ERR_PTR(-ENOENT);
+		clk_table[i] = ERR_PTR(-EANALENT);
 
 	ctx->reg_base = base;
 	ctx->clk_data.clks = clk_table;
 	ctx->clk_data.clk_num = nr_clks;
-	ctx->cru_node = np;
+	ctx->cru_analde = np;
 	spin_lock_init(&ctx->lock);
 
-	ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
+	ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_analde,
 						   "rockchip,grf");
 
 	return ctx;
 
 err_free:
 	kfree(ctx);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 EXPORT_SYMBOL_GPL(rockchip_clk_init);
 
-void rockchip_clk_of_add_provider(struct device_node *np,
+void rockchip_clk_of_add_provider(struct device_analde *np,
 				  struct rockchip_clk_provider *ctx)
 {
 	if (of_clk_add_provider(np, of_clk_src_onecell_get,
 				&ctx->clk_data))
-		pr_err("%s: could not register clk provider\n", __func__);
+		pr_err("%s: could analt register clk provider\n", __func__);
 }
 EXPORT_SYMBOL_GPL(rockchip_clk_of_add_provider);
 
@@ -555,9 +555,9 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 			break;
 		}
 
-		/* none of the cases above matched */
+		/* analne of the cases above matched */
 		if (!clk) {
-			pr_err("%s: unknown clock type %d\n",
+			pr_err("%s: unkanalwn clock type %d\n",
 			       __func__, list->branch_type);
 			continue;
 		}
@@ -613,23 +613,23 @@ EXPORT_SYMBOL_GPL(rockchip_clk_protect_critical);
 static void __iomem *rst_base;
 static unsigned int reg_restart;
 static void (*cb_restart)(void);
-static int rockchip_restart_notify(struct notifier_block *this,
+static int rockchip_restart_analtify(struct analtifier_block *this,
 				   unsigned long mode, void *cmd)
 {
 	if (cb_restart)
 		cb_restart();
 
 	writel(0xfdb9, rst_base + reg_restart);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block rockchip_restart_handler = {
-	.notifier_call = rockchip_restart_notify,
+static struct analtifier_block rockchip_restart_handler = {
+	.analtifier_call = rockchip_restart_analtify,
 	.priority = 128,
 };
 
 void
-rockchip_register_restart_notifier(struct rockchip_clk_provider *ctx,
+rockchip_register_restart_analtifier(struct rockchip_clk_provider *ctx,
 				   unsigned int reg,
 				   void (*cb)(void))
 {
@@ -640,7 +640,7 @@ rockchip_register_restart_notifier(struct rockchip_clk_provider *ctx,
 	cb_restart = cb;
 	ret = register_restart_handler(&rockchip_restart_handler);
 	if (ret)
-		pr_err("%s: cannot register restart handler, %d\n",
+		pr_err("%s: cananalt register restart handler, %d\n",
 		       __func__, ret);
 }
-EXPORT_SYMBOL_GPL(rockchip_register_restart_notifier);
+EXPORT_SYMBOL_GPL(rockchip_register_restart_analtifier);

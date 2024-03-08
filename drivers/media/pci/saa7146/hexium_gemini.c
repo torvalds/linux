@@ -5,7 +5,7 @@
     Visit http://www.mihu.de/linux/saa7146/ and follow the link
     to "hexium" for further details about this card.
 
-    Copyright (C) 2003 Michael Hunold <michael@mihu.de>
+    Copyright (C) 2003 Michael Huanalld <michael@mihu.de>
 
 */
 
@@ -124,7 +124,7 @@ static struct hexium_data hexium_input_select[] = {
 };
 
 /* fixme: h_offset = 0 for Hexium Gemini *Dual*, which
-   are currently *not* supported*/
+   are currently *analt* supported*/
 static struct saa7146_standard hexium_standards[] = {
 	{
 		.name	= "PAL",	.id	= V4L2_STD_PAL,
@@ -146,7 +146,7 @@ static struct saa7146_standard hexium_standards[] = {
 
 /* bring hardware to a sane state. this has to be done, just in case someone
    wants to capture from this device before it has been properly initialized.
-   the capture engine would badly fail, because no valid signal arrives on the
+   the capture engine would badly fail, because anal valid signal arrives on the
    saa7146, thus leading to timeouts and stuff. */
 static int hexium_init_done(struct saa7146_dev *dev)
 {
@@ -252,7 +252,7 @@ static int hexium_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_d
 
 	hexium = kzalloc(sizeof(*hexium), GFP_KERNEL);
 	if (!hexium)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->ext_priv = hexium;
 
@@ -263,7 +263,7 @@ static int hexium_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_d
 		sizeof(hexium->i2c_adapter.name));
 	saa7146_i2c_adapter_prepare(dev, &hexium->i2c_adapter, SAA7146_I2C_BUS_BIT_RATE_480);
 	if (i2c_add_adapter(&hexium->i2c_adapter) < 0) {
-		DEB_S("cannot register i2c-device. skipping.\n");
+		DEB_S("cananalt register i2c-device. skipping.\n");
 		kfree(hexium);
 		return -EFAULT;
 	}
@@ -297,7 +297,7 @@ static int hexium_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_d
 	vv_data.vid_ops.vidioc_s_input = vidioc_s_input;
 	ret = saa7146_register_device(&hexium->video_dev, dev, "hexium gemini", VFL_TYPE_VIDEO);
 	if (ret < 0) {
-		pr_err("cannot register capture v4l2 device. skipping.\n");
+		pr_err("cananalt register capture v4l2 device. skipping.\n");
 		saa7146_vv_release(dev);
 		i2c_del_adapter(&hexium->i2c_adapter);
 		kfree(hexium);
@@ -407,7 +407,7 @@ static int __init hexium_init_module(void)
 {
 	if (0 != saa7146_register_extension(&hexium_extension)) {
 		DEB_S("failed to register extension\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -422,5 +422,5 @@ module_init(hexium_init_module);
 module_exit(hexium_cleanup_module);
 
 MODULE_DESCRIPTION("video4linux-2 driver for Hexium Gemini frame grabber cards");
-MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
+MODULE_AUTHOR("Michael Huanalld <michael@mihu.de>");
 MODULE_LICENSE("GPL");

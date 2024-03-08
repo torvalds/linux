@@ -13,7 +13,7 @@
 #include "iss_video.h"
 
 enum ipipeif_input_entity {
-	IPIPEIF_INPUT_NONE,
+	IPIPEIF_INPUT_ANALNE,
 	IPIPEIF_INPUT_CSI2A,
 	IPIPEIF_INPUT_CSI2B
 };
@@ -35,7 +35,7 @@ enum ipipeif_input_entity {
  * @formats: Active video formats
  * @input: Active input
  * @output: Active outputs
- * @video_out: Output video node
+ * @video_out: Output video analde
  * @error: A hardware error occurred during capture
  * @alaw: A-law compression enabled (1) or disabled (0)
  * @lpf: Low pass filter enabled (1) or disabled (0)

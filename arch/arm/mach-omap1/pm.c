@@ -20,18 +20,18 @@
  * option) any later version.
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
- * NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
  * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * with this program; if analt, write to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -161,7 +161,7 @@ static void omap_pm_wakeup_setup(void)
 
 	/*
 	 * Turn off all interrupts except GPIO bank 1, L1-2nd level cascade,
-	 * and the L2 wakeup interrupts: keypad and UART2. Note that the
+	 * and the L2 wakeup interrupts: keypad and UART2. Analte that the
 	 * drivers must still separately call omap_set_gpio_wakeup() to
 	 * wake up to a GPIO interrupt.
 	 */
@@ -210,7 +210,7 @@ void omap1_pm_suspend(void)
 		omap_writew(0xffff, ULPD_SOFT_DISABLE_REQ_REG);
 
 	/*
-	 * Step 1: turn off interrupts (FIXME: NOTE: already disabled)
+	 * Step 1: turn off interrupts (FIXME: ANALTE: already disabled)
 	 */
 
 	local_irq_disable();
@@ -260,7 +260,7 @@ void omap1_pm_suspend(void)
 	ULPD_SAVE(ULPD_CLOCK_CTRL);
 	ULPD_SAVE(ULPD_STATUS_REQ);
 
-	/* (Step 3 removed - we now allow deep sleep by default) */
+	/* (Step 3 removed - we analw allow deep sleep by default) */
 
 	/*
 	 * Step 4: OMAP DSP Shutdown
@@ -505,7 +505,7 @@ static void omap_pm_init_debugfs(void)
  */
 static int omap_pm_prepare(void)
 {
-	/* We cannot sleep in idle until we have resumed */
+	/* We cananalt sleep in idle until we have resumed */
 	cpu_idle_poll_ctrl(true);
 	return 0;
 }
@@ -565,15 +565,15 @@ static int __init omap_pm_init(void)
 	int irq;
 
 	if (!cpu_class_is_omap1())
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("Power Management for TI OMAP.\n");
 
 	if (!IS_ENABLED(CONFIG_OMAP_32K_TIMER))
-		pr_info("OMAP1 PM: sleep states in idle disabled due to no 32KiHz timer\n");
+		pr_info("OMAP1 PM: sleep states in idle disabled due to anal 32KiHz timer\n");
 
 	if (!IS_ENABLED(CONFIG_OMAP_DM_TIMER))
-		pr_info("OMAP1 PM: sleep states in idle disabled due to no DMTIMER support\n");
+		pr_info("OMAP1 PM: sleep states in idle disabled due to anal DMTIMER support\n");
 
 	if (IS_ENABLED(CONFIG_OMAP_32K_TIMER) &&
 	    IS_ENABLED(CONFIG_OMAP_DM_TIMER)) {
@@ -596,8 +596,8 @@ static int __init omap_pm_init(void)
 	}
 
 	if (omap_sram_suspend == NULL) {
-		printk(KERN_ERR "PM not initialized: Missing SRAM support\n");
-		return -ENODEV;
+		printk(KERN_ERR "PM analt initialized: Missing SRAM support\n");
+		return -EANALDEV;
 	}
 
 	arm_pm_idle = omap1_pm_idle;

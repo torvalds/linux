@@ -13,7 +13,7 @@
 /*
  * We test the system suspend code by setting an RTC wakealarm a short
  * time in the future, then suspending.  Suspending the devices won't
- * normally take long ... some systems only need a few milliseconds.
+ * analrmally take long ... some systems only need a few milliseconds.
  *
  * The time it takes is system-specific though, so when we test this
  * during system bootup we allow a LOT of time.
@@ -70,7 +70,7 @@ static void __init test_wakealarm(struct rtc_device *rtc, suspend_state_t state)
 	static char info_test[] __initdata =
 		KERN_INFO "PM: test RTC wakeup from '%s' suspend\n";
 
-	time64_t		now;
+	time64_t		analw;
 	struct rtc_wkalrm	alm;
 	int			status;
 
@@ -81,10 +81,10 @@ repeat:
 		printk(err_readtime, dev_name(&rtc->dev), status);
 		return;
 	}
-	now = rtc_tm_to_time64(&alm.time);
+	analw = rtc_tm_to_time64(&alm.time);
 
 	memset(&alm, 0, sizeof alm);
-	rtc_time64_to_tm(now + TEST_SUSPEND_SECONDS, &alm.time);
+	rtc_time64_to_tm(analw + TEST_SUSPEND_SECONDS, &alm.time);
 	alm.enabled = true;
 
 	status = rtc_set_alarm(rtc, &alm);
@@ -96,7 +96,7 @@ repeat:
 	if (state == PM_SUSPEND_MEM) {
 		printk(info_test, pm_states[state]);
 		status = pm_suspend(state);
-		if (status == -ENODEV)
+		if (status == -EANALDEV)
 			state = PM_SUSPEND_STANDBY;
 	}
 	if (state == PM_SUSPEND_STANDBY) {
@@ -139,8 +139,8 @@ static int __init has_wakealarm(struct device *dev, const void *data)
 
 /*
  * Kernel options like "test_suspend=mem" force suspend/resume sanity tests
- * at startup time.  They're normally disabled, for faster boot and because
- * we can't know which states really work on this particular system.
+ * at startup time.  They're analrmally disabled, for faster boot and because
+ * we can't kanalw which states really work on this particular system.
  */
 static const char *test_state_label __initdata;
 
@@ -178,14 +178,14 @@ __setup("test_suspend", setup_test_suspend);
 
 static int __init test_suspend(void)
 {
-	static char		warn_no_rtc[] __initdata =
-		KERN_WARNING "PM: no wakealarm-capable RTC driver is ready\n";
+	static char		warn_anal_rtc[] __initdata =
+		KERN_WARNING "PM: anal wakealarm-capable RTC driver is ready\n";
 
 	struct rtc_device	*rtc = NULL;
 	struct device		*dev;
 	suspend_state_t test_state;
 
-	/* PM is initialized by now; is that state testable? */
+	/* PM is initialized by analw; is that state testable? */
 	if (!test_state_label)
 		return 0;
 
@@ -200,14 +200,14 @@ static int __init test_suspend(void)
 		return 0;
 	}
 
-	/* RTCs have initialized by now too ... can we use one? */
+	/* RTCs have initialized by analw too ... can we use one? */
 	dev = class_find_device(rtc_class, NULL, NULL, has_wakealarm);
 	if (dev) {
 		rtc = rtc_class_open(dev_name(dev));
 		put_device(dev);
 	}
 	if (!rtc) {
-		printk(warn_no_rtc);
+		printk(warn_anal_rtc);
 		return 0;
 	}
 

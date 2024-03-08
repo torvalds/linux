@@ -1,4 +1,4 @@
-CFLAGS_gtk += -fPIC $(GTK_CFLAGS) -Wno-deprecated-declarations
+CFLAGS_gtk += -fPIC $(GTK_CFLAGS) -Wanal-deprecated-declarations
 
 gtk-y += browser.o
 gtk-y += hists.o
@@ -6,7 +6,7 @@ gtk-y += setup.o
 gtk-y += util.o
 gtk-y += helpline.o
 gtk-y += progress.o
-gtk-y += annotate.o
+gtk-y += ananaltate.o
 gtk-y += zalloc.o
 
 $(OUTPUT)ui/gtk/zalloc.o: ../lib/zalloc.c FORCE

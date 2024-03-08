@@ -23,9 +23,9 @@
 #define CORTEX_A9_SCU_SIZE	0x58
 
 /*
- * Enable the Cortex A9 Snoop Control Unit
+ * Enable the Cortex A9 Sanalop Control Unit
  *
- * By the time this is called we already know there are multiple
+ * By the time this is called we already kanalw there are multiple
  * cores present.  We assume we're running on a Cortex A9 processor,
  * so any trouble getting the base address register or getting the
  * SCU base is a problem.
@@ -39,7 +39,7 @@ static int __init scu_a9_enable(void)
 	unsigned int i, ncores;
 
 	if (!scu_a9_has_base()) {
-		pr_err("no configuration base address register!\n");
+		pr_err("anal configuration base address register!\n");
 		return -ENXIO;
 	}
 
@@ -47,14 +47,14 @@ static int __init scu_a9_enable(void)
 	config_base = scu_a9_get_base();
 	if (!config_base) {
 		pr_err("hardware reports only one core\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	scu_base = ioremap((phys_addr_t)config_base, CORTEX_A9_SCU_SIZE);
 	if (!scu_base) {
 		pr_err("failed to remap config base (%lu/%u) for SCU\n",
 			config_base, CORTEX_A9_SCU_SIZE);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	scu_enable(scu_base);
@@ -68,12 +68,12 @@ static int __init scu_a9_enable(void)
 	}
 
 	/* The BCM63138 SoC has two Cortex-A9 CPUs, CPU0 features a complete
-	 * and fully functional VFP unit that can be used, but CPU1 does not.
-	 * Since we will not be able to trap kernel-mode NEON to force
-	 * migration to CPU0, just do not advertise VFP support at all.
+	 * and fully functional VFP unit that can be used, but CPU1 does analt.
+	 * Since we will analt be able to trap kernel-mode NEON to force
+	 * migration to CPU0, just do analt advertise VFP support at all.
 	 *
-	 * This will make vfp_init bail out and do not attempt to use VFP at
-	 * all, for kernel-mode NEON, we do not want to introduce any
+	 * This will make vfp_init bail out and do analt attempt to use VFP at
+	 * all, for kernel-mode NEON, we do analt want to introduce any
 	 * conditionals in hot-paths, so we just restrict the system to UP.
 	 */
 #ifdef CONFIG_VFP
@@ -107,29 +107,29 @@ static int bcm63138_smp_boot_secondary(unsigned int cpu,
 				       struct task_struct *idle)
 {
 	void __iomem *bootlut_base;
-	struct device_node *dn;
+	struct device_analde *dn;
 	int ret = 0;
 	u32 val;
 
-	dn = of_find_matching_node(NULL, bcm63138_bootlut_ids);
+	dn = of_find_matching_analde(NULL, bcm63138_bootlut_ids);
 	if (!dn) {
-		pr_err("SMP: unable to find bcm63138 boot LUT node\n");
-		return -ENODEV;
+		pr_err("SMP: unable to find bcm63138 boot LUT analde\n");
+		return -EANALDEV;
 	}
 
 	bootlut_base = of_iomap(dn, 0);
-	of_node_put(dn);
+	of_analde_put(dn);
 
 	if (!bootlut_base) {
 		pr_err("SMP: unable to remap boot LUT base register\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	/* Locate the secondary CPU node */
-	dn = of_get_cpu_node(cpu, NULL);
+	/* Locate the secondary CPU analde */
+	dn = of_get_cpu_analde(cpu, NULL);
 	if (!dn) {
-		pr_err("SMP: failed to locate secondary CPU%d node\n", cpu);
-		ret = -ENODEV;
+		pr_err("SMP: failed to locate secondary CPU%d analde\n", cpu);
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -141,7 +141,7 @@ static int bcm63138_smp_boot_secondary(unsigned int cpu,
 	 * return
 	 */
 	ret = bcm63xx_pmb_power_on_cpu(dn);
-	of_node_put(dn);
+	of_analde_put(dn);
 
 out:
 	iounmap(bootlut_base);

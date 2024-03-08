@@ -14,7 +14,7 @@
  *
  * Why is it needed?
  *
- *   Various devices on embedded systems have no scatter-getter and/or
+ *   Various devices on embedded systems have anal scatter-getter and/or
  *   IO map support and require contiguous blocks of memory to
  *   operate.  They include devices such as cameras, hardware video
  *   coders, etc.
@@ -50,7 +50,7 @@
 #include <linux/sizes.h>
 #include <linux/dma-map-ops.h>
 #include <linux/cma.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #ifdef CONFIG_CMA_SIZE_MBYTES
 #define CMA_SIZE_MBYTES CONFIG_CMA_SIZE_MBYTES
@@ -79,7 +79,7 @@ static phys_addr_t limit_cmdline __initdata;
 static int __init early_cma(char *p)
 {
 	if (!p) {
-		pr_err("Config string not provided\n");
+		pr_err("Config string analt provided\n");
 		return -EINVAL;
 	}
 
@@ -99,9 +99,9 @@ early_param("cma", early_cma);
 
 #ifdef CONFIG_DMA_NUMA_CMA
 
-static struct cma *dma_contiguous_numa_area[MAX_NUMNODES];
-static phys_addr_t numa_cma_size[MAX_NUMNODES] __initdata;
-static struct cma *dma_contiguous_pernuma_area[MAX_NUMNODES];
+static struct cma *dma_contiguous_numa_area[MAX_NUMANALDES];
+static phys_addr_t numa_cma_size[MAX_NUMANALDES] __initdata;
+static struct cma *dma_contiguous_pernuma_area[MAX_NUMANALDES];
 static phys_addr_t pernuma_size_bytes __initdata;
 
 static int __init early_numa_cma(char *p)
@@ -115,9 +115,9 @@ static int __init early_numa_cma(char *p)
 			break;
 
 		if (s[count] == ':') {
-			if (tmp >= MAX_NUMNODES)
+			if (tmp >= MAX_NUMANALDES)
 				break;
-			nid = array_index_nospec(tmp, MAX_NUMNODES);
+			nid = array_index_analspec(tmp, MAX_NUMANALDES);
 
 			s += count + 1;
 			tmp = memparse(s, &s);
@@ -166,14 +166,14 @@ static void __init dma_numa_cma_reserve(void)
 {
 	int nid;
 
-	for_each_node(nid) {
+	for_each_analde(nid) {
 		int ret;
 		char name[CMA_MAX_NAME];
 		struct cma **cma;
 
-		if (!node_online(nid)) {
+		if (!analde_online(nid)) {
 			if (pernuma_size_bytes || numa_cma_size[nid])
-				pr_warn("invalid node %d specified\n", nid);
+				pr_warn("invalid analde %d specified\n", nid);
 			continue;
 		}
 
@@ -184,7 +184,7 @@ static void __init dma_numa_cma_reserve(void)
 			ret = cma_declare_contiguous_nid(0, pernuma_size_bytes, 0, 0,
 							 0, false, name, cma, nid);
 			if (ret)
-				pr_warn("%s: reservation failed: err %d, node %d", __func__,
+				pr_warn("%s: reservation failed: err %d, analde %d", __func__,
 					ret, nid);
 		}
 
@@ -195,7 +195,7 @@ static void __init dma_numa_cma_reserve(void)
 			ret = cma_declare_contiguous_nid(0, numa_cma_size[nid], 0, 0, 0, false,
 							 name, cma, nid);
 			if (ret)
-				pr_warn("%s: reservation failed: err %d, node %d", __func__,
+				pr_warn("%s: reservation failed: err %d, analde %d", __func__,
 					ret, nid);
 		}
 	}
@@ -229,7 +229,7 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 	if (size_cmdline != -1) {
 		selected_size = size_cmdline;
 		selected_base = base_cmdline;
-		selected_limit = min_not_zero(limit_cmdline, limit);
+		selected_limit = min_analt_zero(limit_cmdline, limit);
 		if (base_cmdline + size_cmdline == limit_cmdline)
 			fixed = true;
 	} else {
@@ -300,7 +300,7 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
  * @dev:   Pointer to device for which the allocation is performed.
  * @count: Requested number of pages.
  * @align: Requested alignment of pages (in PAGE_SIZE order).
- * @no_warn: Avoid printing message about failed allocation.
+ * @anal_warn: Avoid printing message about failed allocation.
  *
  * This function allocates memory buffer for specified device. It uses
  * device specific contiguous memory area if available or the default
@@ -308,12 +308,12 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
  * function.
  */
 struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
-				       unsigned int align, bool no_warn)
+				       unsigned int align, bool anal_warn)
 {
 	if (align > CONFIG_CMA_ALIGNMENT)
 		align = CONFIG_CMA_ALIGNMENT;
 
-	return cma_alloc(dev_get_cma_area(dev), count, align, no_warn);
+	return cma_alloc(dev_get_cma_area(dev), count, align, anal_warn);
 }
 
 /**
@@ -323,7 +323,7 @@ struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
  * @count: Number of allocated pages.
  *
  * This function releases memory allocated by dma_alloc_from_contiguous().
- * It returns false when provided pages do not belong to contiguous area and
+ * It returns false when provided pages do analt belong to contiguous area and
  * true otherwise.
  */
 bool dma_release_from_contiguous(struct device *dev, struct page *pages,
@@ -336,7 +336,7 @@ static struct page *cma_alloc_aligned(struct cma *cma, size_t size, gfp_t gfp)
 {
 	unsigned int align = min(get_order(size), CONFIG_CMA_ALIGNMENT);
 
-	return cma_alloc(cma, size >> PAGE_SHIFT, align, gfp & __GFP_NOWARN);
+	return cma_alloc(cma, size >> PAGE_SHIFT, align, gfp & __GFP_ANALWARN);
 }
 
 /**
@@ -349,15 +349,15 @@ static struct page *cma_alloc_aligned(struct cma *cma, size_t size, gfp_t gfp)
  * tries to use per-numa cma, if the allocation fails, it will fallback to
  * try default global one.
  *
- * Note that it bypass one-page size of allocations from the per-numa and
+ * Analte that it bypass one-page size of allocations from the per-numa and
  * global area as the addresses within one page are always contiguous, so
- * there is no need to waste CMA pages for that kind; it also helps reduce
+ * there is anal need to waste CMA pages for that kind; it also helps reduce
  * fragmentations.
  */
 struct page *dma_alloc_contiguous(struct device *dev, size_t size, gfp_t gfp)
 {
 #ifdef CONFIG_DMA_NUMA_CMA
-	int nid = dev_to_node(dev);
+	int nid = dev_to_analde(dev);
 #endif
 
 	/* CMA can be used only in the context which permits sleeping */
@@ -369,7 +369,7 @@ struct page *dma_alloc_contiguous(struct device *dev, size_t size, gfp_t gfp)
 		return NULL;
 
 #ifdef CONFIG_DMA_NUMA_CMA
-	if (nid != NUMA_NO_NODE && !(gfp & (GFP_DMA | GFP_DMA32))) {
+	if (nid != NUMA_ANAL_ANALDE && !(gfp & (GFP_DMA | GFP_DMA32))) {
 		struct cma *cma = dma_contiguous_pernuma_area[nid];
 		struct page *page;
 
@@ -400,7 +400,7 @@ struct page *dma_alloc_contiguous(struct device *dev, size_t size, gfp_t gfp)
  * @size:  Size of allocated pages.
  *
  * This function releases memory allocated by dma_alloc_contiguous(). As the
- * cma_release returns false when provided pages do not belong to contiguous
+ * cma_release returns false when provided pages do analt belong to contiguous
  * area and true otherwise, this function then does a fallback __free_pages()
  * upon a false-return.
  */
@@ -428,7 +428,7 @@ void dma_free_contiguous(struct device *dev, struct page *page, size_t size)
 			return;
 	}
 
-	/* not in any cma, free from buddy */
+	/* analt in any cma, free from buddy */
 	__free_pages(page, get_order(size));
 }
 
@@ -462,19 +462,19 @@ static const struct reserved_mem_ops rmem_cma_ops = {
 
 static int __init rmem_cma_setup(struct reserved_mem *rmem)
 {
-	unsigned long node = rmem->fdt_node;
-	bool default_cma = of_get_flat_dt_prop(node, "linux,cma-default", NULL);
+	unsigned long analde = rmem->fdt_analde;
+	bool default_cma = of_get_flat_dt_prop(analde, "linux,cma-default", NULL);
 	struct cma *cma;
 	int err;
 
 	if (size_cmdline != -1 && default_cma) {
-		pr_info("Reserved memory: bypass %s node, using cmdline CMA params instead\n",
+		pr_info("Reserved memory: bypass %s analde, using cmdline CMA params instead\n",
 			rmem->name);
 		return -EBUSY;
 	}
 
-	if (!of_get_flat_dt_prop(node, "reusable", NULL) ||
-	    of_get_flat_dt_prop(node, "no-map", NULL))
+	if (!of_get_flat_dt_prop(analde, "reusable", NULL) ||
+	    of_get_flat_dt_prop(analde, "anal-map", NULL))
 		return -EINVAL;
 
 	if (!IS_ALIGNED(rmem->base | rmem->size, CMA_MIN_ALIGNMENT_BYTES)) {

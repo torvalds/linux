@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Hisilicon Limited.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -62,7 +62,7 @@ static void flush_work_handle(struct work_struct *work)
 
 	/*
 	 * make sure we signal QP destroy leg that flush QP was completed
-	 * so that it can safely proceed ahead now and destroy QP
+	 * so that it can safely proceed ahead analw and destroy QP
 	 */
 	if (refcount_dec_and_test(&hr_qp->refcount))
 		complete(&hr_qp->free);
@@ -81,13 +81,13 @@ void init_flush_work(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 void flush_cqe(struct hns_roce_dev *dev, struct hns_roce_qp *qp)
 {
 	/*
-	 * Hip08 hardware cannot flush the WQEs in SQ/RQ if the QP state
+	 * Hip08 hardware cananalt flush the WQEs in SQ/RQ if the QP state
 	 * gets into errored mode. Hence, as a workaround to this
 	 * hardware limitation, driver needs to assist in flushing. But
 	 * the flushing operation uses mailbox to convey the QP state to
 	 * the hardware and which can sleep due to the mutex protection
 	 * around the mailbox calls. Hence, use the deferred flush for
-	 * now.
+	 * analw.
 	 */
 	if (!test_and_set_bit(HNS_ROCE_FLUSH_FLAG, &qp->flush_flag))
 		init_flush_work(dev, qp);
@@ -269,11 +269,11 @@ static void add_qp_to_list(struct hns_roce_dev *hr_dev,
 	spin_lock_irqsave(&hr_dev->qp_list_lock, flags);
 	hns_roce_lock_cqs(hr_send_cq, hr_recv_cq);
 
-	list_add_tail(&hr_qp->node, &hr_dev->qp_list);
+	list_add_tail(&hr_qp->analde, &hr_dev->qp_list);
 	if (hr_send_cq)
-		list_add_tail(&hr_qp->sq_node, &hr_send_cq->sq_list);
+		list_add_tail(&hr_qp->sq_analde, &hr_send_cq->sq_list);
 	if (hr_recv_cq)
-		list_add_tail(&hr_qp->rq_node, &hr_recv_cq->rq_list);
+		list_add_tail(&hr_qp->rq_analde, &hr_recv_cq->rq_list);
 
 	hns_roce_unlock_cqs(hr_send_cq, hr_recv_cq);
 	spin_unlock_irqrestore(&hr_dev->qp_list_lock, flags);
@@ -369,14 +369,14 @@ void hns_roce_qp_remove(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 	struct xarray *xa = &hr_dev->qp_table_xa;
 	unsigned long flags;
 
-	list_del(&hr_qp->node);
+	list_del(&hr_qp->analde);
 
 	if (hr_qp->ibqp.qp_type != IB_QPT_XRC_TGT)
-		list_del(&hr_qp->sq_node);
+		list_del(&hr_qp->sq_analde);
 
 	if (hr_qp->ibqp.qp_type != IB_QPT_XRC_INI &&
 	    hr_qp->ibqp.qp_type != IB_QPT_XRC_TGT)
-		list_del(&hr_qp->rq_node);
+		list_del(&hr_qp->rq_analde);
 
 	xa_lock_irqsave(xa, flags);
 	__xa_erase(xa, hr_qp->qpn);
@@ -427,7 +427,7 @@ static u32 proc_rq_sge(struct hns_roce_dev *dev, struct hns_roce_qp *hr_qp,
 
 	/* Reserve SGEs only for HIP08 in kernel; The userspace driver will
 	 * calculate number of max_sge with reserved SGEs when allocating wqe
-	 * buf, so there is no need to do this again in kernel. But the number
+	 * buf, so there is anal need to do this again in kernel. But the number
 	 * may exceed the capacity of SGEs recorded in the firmware, so the
 	 * kernel driver should just adapt the value accordingly.
 	 */
@@ -536,7 +536,7 @@ static unsigned int get_sge_num_from_max_inl_data(bool is_ud_or_gsi,
 	/*
 	 * if max_inline_data less than
 	 * HNS_ROCE_SGE_IN_WQE * HNS_ROCE_SGE_SIZE,
-	 * In addition to ud's mode, no need to extend sge.
+	 * In addition to ud's mode, anal need to extend sge.
 	 */
 	if (!is_ud_or_gsi && inline_sge <= HNS_ROCE_SGE_IN_WQE)
 		inline_sge = 0;
@@ -578,7 +578,7 @@ static void set_ext_sge_param(struct hns_roce_dev *hr_dev, u32 sq_wqe_cnt,
 		hr_qp->sq.ext_sge_cnt = hr_qp->sq.max_gs;
 	}
 
-	/* If the number of extended sge is not zero, they MUST use the
+	/* If the number of extended sge is analt zero, they MUST use the
 	 * space of HNS_HW_PAGE_SIZE at least.
 	 */
 	if (ext_wqe_sge_cnt) {
@@ -826,7 +826,7 @@ static int qp_mmap_entry(struct hns_roce_qp *hr_qp,
 
 	if (!hr_qp->dwqe_mmap_entry) {
 		ibdev_err(&hr_dev->ib_dev, "failed to get dwqe mmap entry.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rdma_entry = &hr_qp->dwqe_mmap_entry->rdma_entry;
@@ -977,14 +977,14 @@ static int alloc_kernel_wrid(struct hns_roce_dev *hr_dev,
 	sq_wrid = kcalloc(hr_qp->sq.wqe_cnt, sizeof(u64), GFP_KERNEL);
 	if (ZERO_OR_NULL_PTR(sq_wrid)) {
 		ibdev_err(ibdev, "failed to alloc SQ wrid.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (hr_qp->rq.wqe_cnt) {
 		rq_wrid = kcalloc(hr_qp->rq.wqe_cnt, sizeof(u64), GFP_KERNEL);
 		if (ZERO_OR_NULL_PTR(rq_wrid)) {
 			ibdev_err(ibdev, "failed to alloc RQ wrid.\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_sq;
 		}
 	}
@@ -1075,7 +1075,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	hr_qp->flush_flag = 0;
 
 	if (init_attr->create_flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = set_qp_param(hr_dev, hr_qp, init_attr, udata, &ucmd);
 	if (ret) {
@@ -1200,9 +1200,9 @@ static int check_qp_type(struct hns_roce_dev *hr_dev, enum ib_qp_type type,
 	return 0;
 
 out:
-	ibdev_err(&hr_dev->ib_dev, "not support QP type %d\n", type);
+	ibdev_err(&hr_dev->ib_dev, "analt support QP type %d\n", type);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int hns_roce_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *init_attr,
@@ -1347,7 +1347,7 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				hr_qp->rq.head = *(int *)(hr_qp->rdb.virt_addr);
 		} else {
 			ibdev_warn(&hr_dev->ib_dev,
-				  "flush cqe is not supported in userspace!\n");
+				  "flush cqe is analt supported in userspace!\n");
 			goto out;
 		}
 	}
@@ -1472,7 +1472,7 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 	qp_table->idx_table.spare_idx = kcalloc(hr_dev->caps.num_qps,
 					sizeof(u32), GFP_KERNEL);
 	if (!qp_table->idx_table.spare_idx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&qp_table->scc_mutex);
 	mutex_init(&qp_table->bank_mutex);

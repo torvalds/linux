@@ -17,7 +17,7 @@
 #include <asm/asm_pointer_auth.h>
 #include <asm/bug.h>
 #include <asm/cpufeature.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/esr.h>
 #include <asm/irq.h>
 #include <asm/memory.h>
@@ -91,7 +91,7 @@
 	mrs	x0, tpidr_el0			// sp of interrupted context
 	sub	x0, sp, x0			// delta with top of overflow stack
 	tst	x0, #~(OVERFLOW_STACK_SIZE - 1)	// within range?
-	b.ne	__bad_stack			// no? -> bad stack pointer
+	b.ne	__bad_stack			// anal? -> bad stack pointer
 
 	/* We were already on the overflow stack. Restore sp/x0 and carry on. */
 	sub	sp, sp, x0
@@ -114,7 +114,7 @@
 	 */
 	.macro	apply_ssbd, state, tmp1, tmp2
 alternative_cb	ARM64_ALWAYS_SYSTEM, spectre_v4_patch_fw_mitigation_enable
-	b	.L__asm_ssbd_skip\@		// Patched to NOP
+	b	.L__asm_ssbd_skip\@		// Patched to ANALP
 alternative_cb_end
 	ldr_this_cpu	\tmp2, arm64_ssbd_callback_required, \tmp1
 	cbz	\tmp2,	.L__asm_ssbd_skip\@
@@ -123,27 +123,27 @@ alternative_cb_end
 	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_2
 	mov	w1, #\state
 alternative_cb	ARM64_ALWAYS_SYSTEM, smccc_patch_fw_mitigation_conduit
-	nop					// Patched to SMC/HVC #0
+	analp					// Patched to SMC/HVC #0
 alternative_cb_end
 .L__asm_ssbd_skip\@:
 	.endm
 
-	/* Check for MTE asynchronous tag check faults */
+	/* Check for MTE asynchroanalus tag check faults */
 	.macro check_mte_async_tcf, tmp, ti_flags, thread_sctlr
 #ifdef CONFIG_ARM64_MTE
 	.arch_extension lse
-alternative_if_not ARM64_MTE
+alternative_if_analt ARM64_MTE
 	b	1f
-alternative_else_nop_endif
+alternative_else_analp_endif
 	/*
-	 * Asynchronous tag check faults are only possible in ASYNC (2) or
+	 * Asynchroanalus tag check faults are only possible in ASYNC (2) or
 	 * ASYM (3) modes. In each of these modes bit 1 of SCTLR_EL1.TCF0 is
 	 * set, so skip the check if it is unset.
 	 */
 	tbz	\thread_sctlr, #(SCTLR_EL1_TCF0_SHIFT + 1), 1f
 	mrs_s	\tmp, SYS_TFSRE0_EL1
 	tbz	\tmp, #SYS_TFSR_EL1_TF0_SHIFT, 1f
-	/* Asynchronous TCF occurred for TTBR0 access, set the TI flag */
+	/* Asynchroanalus TCF occurred for TTBR0 access, set the TI flag */
 	mov	\tmp, #_TIF_MTE_ASYNC_FAULT
 	add	\ti_flags, tsk, #TSK_TI_FLAGS
 	stset	\tmp, [\ti_flags]
@@ -151,7 +151,7 @@ alternative_else_nop_endif
 #endif
 	.endm
 
-	/* Clear the MTE asynchronous tag check faults */
+	/* Clear the MTE asynchroanalus tag check faults */
 	.macro clear_mte_async_tcf thread_sctlr
 #ifdef CONFIG_ARM64_MTE
 alternative_if ARM64_MTE
@@ -160,7 +160,7 @@ alternative_if ARM64_MTE
 	dsb	ish
 	msr_s	SYS_TFSRE0_EL1, xzr
 1:
-alternative_else_nop_endif
+alternative_else_analp_endif
 #endif
 	.endm
 
@@ -197,7 +197,7 @@ alternative_cb_end
 
 	.macro	kernel_entry, el, regsize = 64
 	.if	\el == 0
-	alternative_insn nop, SET_PSTATE_DIT(1), ARM64_HAS_DIT
+	alternative_insn analp, SET_PSTATE_DIT(1), ARM64_HAS_DIT
 	.endif
 	.if	\regsize == 32
 	mov	w0, w0				// zero upper 32 bits of x0
@@ -231,7 +231,7 @@ alternative_cb_end
 	ldr	x19, [tsk, #TSK_TI_FLAGS]
 	disable_step_tsk x19, x20
 
-	/* Check for asynchronous tag check faults in user space */
+	/* Check for asynchroanalus tag check faults in user space */
 	ldr	x0, [tsk, THREAD_SCTLR_USER]
 	check_mte_async_tcf x22, x23, x0
 
@@ -244,17 +244,17 @@ alternative_if ARM64_HAS_ADDRESS_AUTH
 	 *
 	 * Install the kernel IA key only if IA was enabled in the task. If IA
 	 * was disabled on kernel exit then we would have left the kernel IA
-	 * installed so there is no need to install it again.
+	 * installed so there is anal need to install it again.
 	 */
 	tbz	x0, SCTLR_ELx_ENIA_SHIFT, 1f
-	__ptrauth_keys_install_kernel_nosync tsk, x20, x22, x23
+	__ptrauth_keys_install_kernel_analsync tsk, x20, x22, x23
 	b	2f
 1:
 	mrs	x0, sctlr_el1
 	orr	x0, x0, SCTLR_ELx_ENIA
 	msr	sctlr_el1, x0
 2:
-alternative_else_nop_endif
+alternative_else_analp_endif
 #endif
 
 	apply_ssbd 1, x22, x23
@@ -262,16 +262,16 @@ alternative_else_nop_endif
 	mte_set_kernel_gcr x22, x23
 
 	/*
-	 * Any non-self-synchronizing system register updates required for
+	 * Any analn-self-synchronizing system register updates required for
 	 * kernel entry should be placed before this point.
 	 */
 alternative_if ARM64_MTE
 	isb
 	b	1f
-alternative_else_nop_endif
+alternative_else_analp_endif
 alternative_if ARM64_HAS_ADDRESS_AUTH
 	isb
-alternative_else_nop_endif
+alternative_else_analp_endif
 1:
 
 	scs_load_current
@@ -296,23 +296,23 @@ alternative_else_nop_endif
 	add	x29, sp, #S_STACKFRAME
 
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
-alternative_if_not ARM64_HAS_PAN
+alternative_if_analt ARM64_HAS_PAN
 	bl	__swpan_entry_el\el
-alternative_else_nop_endif
+alternative_else_analp_endif
 #endif
 
 	stp	x22, x23, [sp, #S_PC]
 
-	/* Not in a syscall by default (el0_svc overwrites for real syscall) */
+	/* Analt in a syscall by default (el0_svc overwrites for real syscall) */
 	.if	\el == 0
-	mov	w21, #NO_SYSCALL
-	str	w21, [sp, #S_SYSCALLNO]
+	mov	w21, #ANAL_SYSCALL
+	str	w21, [sp, #S_SYSCALLANAL]
 	.endif
 
 #ifdef CONFIG_ARM64_PSEUDO_NMI
-alternative_if_not ARM64_HAS_GIC_PRIO_MASKING
+alternative_if_analt ARM64_HAS_GIC_PRIO_MASKING
 	b	.Lskip_pmr_save\@
-alternative_else_nop_endif
+alternative_else_analp_endif
 
 	mrs_s	x20, SYS_ICC_PMR_EL1
 	str	x20, [sp, #S_PMR_SAVE]
@@ -338,17 +338,17 @@ alternative_else_nop_endif
 	.endif
 
 #ifdef CONFIG_ARM64_PSEUDO_NMI
-alternative_if_not ARM64_HAS_GIC_PRIO_MASKING
+alternative_if_analt ARM64_HAS_GIC_PRIO_MASKING
 	b	.Lskip_pmr_restore\@
-alternative_else_nop_endif
+alternative_else_analp_endif
 
 	ldr	x20, [sp, #S_PMR_SAVE]
 	msr_s	SYS_ICC_PMR_EL1, x20
 
 	/* Ensure priority change is seen by redistributor */
-alternative_if_not ARM64_HAS_GIC_PRIO_RELAXED_SYNC
+alternative_if_analt ARM64_HAS_GIC_PRIO_RELAXED_SYNC
 	dsb	sy
-alternative_else_nop_endif
+alternative_else_analp_endif
 
 .Lskip_pmr_restore\@:
 #endif
@@ -356,9 +356,9 @@ alternative_else_nop_endif
 	ldp	x21, x22, [sp, #S_PC]		// load ELR, SPSR
 
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
-alternative_if_not ARM64_HAS_PAN
+alternative_if_analt ARM64_HAS_PAN
 	bl	__swpan_exit_el\el
-alternative_else_nop_endif
+alternative_else_analp_endif
 #endif
 
 	.if	\el == 0
@@ -375,23 +375,23 @@ alternative_if ARM64_WORKAROUND_845719
 #else
 	msr contextidr_el1, xzr
 #endif
-alternative_else_nop_endif
+alternative_else_analp_endif
 #endif
 3:
 	scs_save tsk
 
-	/* Ignore asynchronous tag check faults in the uaccess routines */
+	/* Iganalre asynchroanalus tag check faults in the uaccess routines */
 	ldr	x0, [tsk, THREAD_SCTLR_USER]
 	clear_mte_async_tcf x0
 
 #ifdef CONFIG_ARM64_PTR_AUTH
 alternative_if ARM64_HAS_ADDRESS_AUTH
 	/*
-	 * IA was enabled for in-kernel PAC. Disable it now if needed, or
+	 * IA was enabled for in-kernel PAC. Disable it analw if needed, or
 	 * alternatively install the user's IA. All other per-task keys and
 	 * SCTLR bits were updated on task switch.
 	 *
-	 * No kernel C function calls after this.
+	 * Anal kernel C function calls after this.
 	 */
 	tbz	x0, SCTLR_ELx_ENIA_SHIFT, 1f
 	__ptrauth_keys_install_user tsk, x0, x1, x2
@@ -401,7 +401,7 @@ alternative_if ARM64_HAS_ADDRESS_AUTH
 	bic	x0, x0, SCTLR_ELx_ENIA
 	msr	sctlr_el1, x0
 2:
-alternative_else_nop_endif
+alternative_else_analp_endif
 #endif
 
 	mte_set_user_gcr tsk, x0, x1
@@ -429,7 +429,7 @@ alternative_else_nop_endif
 
 	.if	\el == 0
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-	alternative_insn "b .L_skip_tramp_exit_\@", nop, ARM64_UNMAP_KERNEL_AT_EL0
+	alternative_insn "b .L_skip_tramp_exit_\@", analp, ARM64_UNMAP_KERNEL_AT_EL0
 
 	msr	far_el1, x29
 
@@ -452,10 +452,10 @@ alternative_else_nop_endif
 alternative_if ARM64_WORKAROUND_SPECULATIVE_UNPRIV_LOAD
 	tlbi	vale1, xzr
 	dsb	nsh
-alternative_else_nop_endif
+alternative_else_analp_endif
 	.else
 	/* Ensure any device/NC reads complete */
-	alternative_insn nop, "dmb sy", ARM64_WORKAROUND_1508412
+	alternative_insn analp, "dmb sy", ARM64_WORKAROUND_1508412
 	.endif
 
 	eret
@@ -465,10 +465,10 @@ alternative_else_nop_endif
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	/*
 	 * Set the TTBR0 PAN bit in SPSR. When the exception is taken from
-	 * EL0, there is no need to check the state of TTBR0_EL1 since
+	 * EL0, there is anal need to check the state of TTBR0_EL1 since
 	 * accesses are always enabled.
-	 * Note that the meaning of this bit differs from the ARMv8.1 PAN
-	 * feature as all TTBR0_EL1 accesses are disabled, not just those to
+	 * Analte that the meaning of this bit differs from the ARMv8.1 PAN
+	 * feature as all TTBR0_EL1 accesses are disabled, analt just those to
 	 * user mappings.
 	 */
 SYM_CODE_START_LOCAL(__swpan_entry_el1)
@@ -483,13 +483,13 @@ SYM_INNER_LABEL(__swpan_entry_el0, SYM_L_LOCAL)
 SYM_CODE_END(__swpan_entry_el1)
 
 	/*
-	 * Restore access to TTBR0_EL1. If returning to EL0, no need for SPSR
+	 * Restore access to TTBR0_EL1. If returning to EL0, anal need for SPSR
 	 * PAN bit checking.
 	 */
 SYM_CODE_START_LOCAL(__swpan_exit_el1)
 	tbnz	x22, #22, 1f			// Skip re-enabling TTBR0 access if the PSR_PAN_BIT is set
 	__uaccess_ttbr0_enable x0, x1
-1:	and	x22, x22, #~PSR_PAN_BIT		// ARMv8.0 CPUs do not understand this bit
+1:	and	x22, x22, #~PSR_PAN_BIT		// ARMv8.0 CPUs do analt understand this bit
 	ret
 SYM_CODE_END(__swpan_exit_el1)
 
@@ -517,22 +517,22 @@ tsk	.req	x28		// current thread_info
 
 	.align	11
 SYM_CODE_START(vectors)
-	kernel_ventry	1, t, 64, sync		// Synchronous EL1t
+	kernel_ventry	1, t, 64, sync		// Synchroanalus EL1t
 	kernel_ventry	1, t, 64, irq		// IRQ EL1t
 	kernel_ventry	1, t, 64, fiq		// FIQ EL1t
 	kernel_ventry	1, t, 64, error		// Error EL1t
 
-	kernel_ventry	1, h, 64, sync		// Synchronous EL1h
+	kernel_ventry	1, h, 64, sync		// Synchroanalus EL1h
 	kernel_ventry	1, h, 64, irq		// IRQ EL1h
 	kernel_ventry	1, h, 64, fiq		// FIQ EL1h
 	kernel_ventry	1, h, 64, error		// Error EL1h
 
-	kernel_ventry	0, t, 64, sync		// Synchronous 64-bit EL0
+	kernel_ventry	0, t, 64, sync		// Synchroanalus 64-bit EL0
 	kernel_ventry	0, t, 64, irq		// IRQ 64-bit EL0
 	kernel_ventry	0, t, 64, fiq		// FIQ 64-bit EL0
 	kernel_ventry	0, t, 64, error		// Error 64-bit EL0
 
-	kernel_ventry	0, t, 32, sync		// Synchronous 32-bit EL0
+	kernel_ventry	0, t, 32, sync		// Synchroanalus 32-bit EL0
 	kernel_ventry	0, t, 32, irq		// IRQ 32-bit EL0
 	kernel_ventry	0, t, 32, fiq		// FIQ 32-bit EL0
 	kernel_ventry	0, t, 32, error		// Error 32-bit EL0
@@ -631,12 +631,12 @@ alternative_if ARM64_WORKAROUND_QCOM_FALKOR_E1003
 	/* ASID already in \tmp[63:48] */
 	movk	\tmp, #:abs_g2_nc:(TRAMP_VALIAS >> 12)
 	movk	\tmp, #:abs_g1_nc:(TRAMP_VALIAS >> 12)
-	/* 2MB boundary containing the vectors, so we nobble the walk cache */
+	/* 2MB boundary containing the vectors, so we analbble the walk cache */
 	movk	\tmp, #:abs_g0_nc:((TRAMP_VALIAS & ~(SZ_2M - 1)) >> 12)
 	isb
 	tlbi	vae1, \tmp
 	dsb	nsh
-alternative_else_nop_endif
+alternative_else_analp_endif
 #endif /* CONFIG_QCOM_FALKOR_ERRATUM_1003 */
 	.endm
 
@@ -666,7 +666,7 @@ alternative_else_nop_endif
 #else
 	/*
 	 * As !RELOCATABLE implies !RANDOMIZE_BASE the address is always a
-	 * compile time constant (and hence not secret and not worth hiding).
+	 * compile time constant (and hence analt secret and analt worth hiding).
 	 *
 	 * As statically allocated kernel code and data always live in the top
 	 * 47 bits of the address space we can sign-extend bit 47 and avoid an
@@ -678,7 +678,7 @@ alternative_else_nop_endif
 #endif
 	.endm
 
-#define BHB_MITIGATION_NONE	0
+#define BHB_MITIGATION_ANALNE	0
 #define BHB_MITIGATION_LOOP	1
 #define BHB_MITIGATION_FW	2
 #define BHB_MITIGATION_INSN	3
@@ -713,11 +713,11 @@ alternative_else_nop_endif
 	b	.
 2:
 	tramp_map_kernel	x30
-alternative_insn isb, nop, ARM64_WORKAROUND_QCOM_FALKOR_E1003
+alternative_insn isb, analp, ARM64_WORKAROUND_QCOM_FALKOR_E1003
 	tramp_data_read_var	x30, vectors
-alternative_if_not ARM64_WORKAROUND_CAVIUM_TX2_219_PRFM
+alternative_if_analt ARM64_WORKAROUND_CAVIUM_TX2_219_PRFM
 	prfm	plil1strm, [x30, #(1b - \vector_start)]
-alternative_else_nop_endif
+alternative_else_analp_endif
 
 	msr	vbar_el1, x30
 	isb
@@ -759,13 +759,13 @@ alternative_else_nop_endif
  */
 	.pushsection ".entry.tramp.text", "ax"
 	.align	11
-SYM_CODE_START_LOCAL_NOALIGN(tramp_vectors)
+SYM_CODE_START_LOCAL_ANALALIGN(tramp_vectors)
 #ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
 	generate_tramp_vector	kpti=1, bhb=BHB_MITIGATION_LOOP
 	generate_tramp_vector	kpti=1, bhb=BHB_MITIGATION_FW
 	generate_tramp_vector	kpti=1, bhb=BHB_MITIGATION_INSN
 #endif /* CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY */
-	generate_tramp_vector	kpti=1, bhb=BHB_MITIGATION_NONE
+	generate_tramp_vector	kpti=1, bhb=BHB_MITIGATION_ANALNE
 SYM_CODE_END(tramp_vectors)
 
 SYM_CODE_START_LOCAL(tramp_exit)
@@ -779,16 +779,16 @@ SYM_CODE_END(tramp_exit)
 
 /*
  * Exception vectors for spectre mitigations on entry from EL1 when
- * kpti is not in use.
+ * kpti is analt in use.
  */
 	.macro generate_el1_vector, bhb
 .Lvector_start\@:
-	kernel_ventry	1, t, 64, sync		// Synchronous EL1t
+	kernel_ventry	1, t, 64, sync		// Synchroanalus EL1t
 	kernel_ventry	1, t, 64, irq		// IRQ EL1t
 	kernel_ventry	1, t, 64, fiq		// FIQ EL1h
 	kernel_ventry	1, t, 64, error		// Error EL1t
 
-	kernel_ventry	1, h, 64, sync		// Synchronous EL1h
+	kernel_ventry	1, h, 64, sync		// Synchroanalus EL1h
 	kernel_ventry	1, h, 64, irq		// IRQ EL1h
 	kernel_ventry	1, h, 64, fiq		// FIQ EL1h
 	kernel_ventry	1, h, 64, error		// Error EL1h
@@ -819,7 +819,7 @@ SYM_CODE_END(__bp_harden_el1_vectors)
  * and restored. On entry:
  *   x0 = previous task_struct (must be preserved across the switch)
  *   x1 = next task_struct
- * Previous and next are guaranteed not to be the same.
+ * Previous and next are guaranteed analt to be the same.
  *
  */
 SYM_FUNC_START(cpu_switch_to)
@@ -848,14 +848,14 @@ SYM_FUNC_START(cpu_switch_to)
 	scs_load_current
 	ret
 SYM_FUNC_END(cpu_switch_to)
-NOKPROBE(cpu_switch_to)
+ANALKPROBE(cpu_switch_to)
 
 /*
  * This is how we return from a fork.
  */
 SYM_CODE_START(ret_from_fork)
 	bl	schedule_tail
-	cbz	x19, 1f				// not a kernel thread
+	cbz	x19, 1f				// analt a kernel thread
 	mov	x0, x20
 	blr	x19
 1:	get_current_task tsk
@@ -863,7 +863,7 @@ SYM_CODE_START(ret_from_fork)
 	bl	asm_exit_to_user_mode
 	b	ret_to_user
 SYM_CODE_END(ret_from_fork)
-NOKPROBE(ret_from_fork)
+ANALKPROBE(ret_from_fork)
 
 /*
  * void call_on_irq_stack(struct pt_regs *regs,
@@ -897,7 +897,7 @@ SYM_FUNC_START(call_on_irq_stack)
 	scs_load_current
 	ret
 SYM_FUNC_END(call_on_irq_stack)
-NOKPROBE(call_on_irq_stack)
+ANALKPROBE(call_on_irq_stack)
 
 #ifdef CONFIG_ARM_SDE_INTERFACE
 
@@ -939,7 +939,7 @@ SYM_CODE_START(__sdei_asm_entry_trampoline)
 	tramp_data_read_var     x4, __sdei_asm_handler
 	br	x4
 SYM_CODE_END(__sdei_asm_entry_trampoline)
-NOKPROBE(__sdei_asm_entry_trampoline)
+ANALKPROBE(__sdei_asm_entry_trampoline)
 
 /*
  * Make the exit call and restore the original ttbr1_el1
@@ -956,7 +956,7 @@ SYM_CODE_START(__sdei_asm_exit_trampoline)
 
 1:	sdei_handler_exit exit_mode=x2
 SYM_CODE_END(__sdei_asm_exit_trampoline)
-NOKPROBE(__sdei_asm_exit_trampoline)
+ANALKPROBE(__sdei_asm_exit_trampoline)
 .popsection		// .entry.tramp.text
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 
@@ -996,7 +996,7 @@ SYM_CODE_START(__sdei_asm_handler)
 	/* Store the registered-event for crash_smp_send_stop() */
 	ldrb	w4, [x19, #SDEI_EVENT_PRIORITY]
 	cbnz	w4, 1f
-	adr_this_cpu dst=x5, sym=sdei_active_normal_event, tmp=x6
+	adr_this_cpu dst=x5, sym=sdei_active_analrmal_event, tmp=x6
 	b	2f
 1:	adr_this_cpu dst=x5, sym=sdei_active_critical_event, tmp=x6
 2:	str	x19, [x5]
@@ -1004,11 +1004,11 @@ SYM_CODE_START(__sdei_asm_handler)
 #ifdef CONFIG_VMAP_STACK
 	/*
 	 * entry.S may have been using sp as a scratch register, find whether
-	 * this is a normal or critical event and switch to the appropriate
+	 * this is a analrmal or critical event and switch to the appropriate
 	 * stack for this CPU.
 	 */
 	cbnz	w4, 1f
-	ldr_this_cpu dst=x5, sym=sdei_stack_normal_ptr, tmp=x6
+	ldr_this_cpu dst=x5, sym=sdei_stack_analrmal_ptr, tmp=x6
 	b	2f
 1:	ldr_this_cpu dst=x5, sym=sdei_stack_critical_ptr, tmp=x6
 2:	mov	x6, #SDEI_STACK_SIZE
@@ -1017,9 +1017,9 @@ SYM_CODE_START(__sdei_asm_handler)
 #endif
 
 #ifdef CONFIG_SHADOW_CALL_STACK
-	/* Use a separate shadow call stack for normal and critical events */
+	/* Use a separate shadow call stack for analrmal and critical events */
 	cbnz	w4, 3f
-	ldr_this_cpu dst=scs_sp, sym=sdei_shadow_call_stack_normal_ptr, tmp=x6
+	ldr_this_cpu dst=scs_sp, sym=sdei_shadow_call_stack_analrmal_ptr, tmp=x6
 	b	4f
 3:	ldr_this_cpu dst=scs_sp, sym=sdei_shadow_call_stack_critical_ptr, tmp=x6
 4:
@@ -1069,21 +1069,21 @@ SYM_CODE_START(__sdei_asm_handler)
 	/* Clear the registered-event seen by crash_smp_send_stop() */
 	ldrb	w3, [x4, #SDEI_EVENT_PRIORITY]
 	cbnz	w3, 1f
-	adr_this_cpu dst=x5, sym=sdei_active_normal_event, tmp=x6
+	adr_this_cpu dst=x5, sym=sdei_active_analrmal_event, tmp=x6
 	b	2f
 1:	adr_this_cpu dst=x5, sym=sdei_active_critical_event, tmp=x6
 2:	str	xzr, [x5]
 
-alternative_if_not ARM64_UNMAP_KERNEL_AT_EL0
+alternative_if_analt ARM64_UNMAP_KERNEL_AT_EL0
 	sdei_handler_exit exit_mode=x2
-alternative_else_nop_endif
+alternative_else_analp_endif
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	tramp_alias	dst=x5, sym=__sdei_asm_exit_trampoline
 	br	x5
 #endif
 SYM_CODE_END(__sdei_asm_handler)
-NOKPROBE(__sdei_asm_handler)
+ANALKPROBE(__sdei_asm_handler)
 
 SYM_CODE_START(__sdei_handler_abort)
 	mov_q	x0, SDEI_1_0_FN_SDEI_EVENT_COMPLETE_AND_RESUME
@@ -1094,5 +1094,5 @@ SYM_CODE_START(__sdei_handler_abort)
 	// Exit will stomp x0-x17, PSTATE, ELR_ELx, and SPSR_ELx.
 1:	ret
 SYM_CODE_END(__sdei_handler_abort)
-NOKPROBE(__sdei_handler_abort)
+ANALKPROBE(__sdei_handler_abort)
 #endif /* CONFIG_ARM_SDE_INTERFACE */

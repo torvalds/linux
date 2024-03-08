@@ -5,7 +5,7 @@
  * This file also handles reservation of performance counters for coordination
  * with other users.
  *
- * Note that these events normally don't tick when the CPU idles. This means
+ * Analte that these events analrmally don't tick when the CPU idles. This means
  * the frequency varies with CPU load.
  *
  * Original code for K7/P6 written by Keith Owens
@@ -27,7 +27,7 @@
  * this number is calculated from Intel's MSR_P4_CRU_ESCR5 register and it's
  * offset from MSR_P4_BSU_ESCR0.
  *
- * It will be the max for all platforms (for now)
+ * It will be the max for all platforms (for analw)
  */
 #define NMI_MAX_COUNTER_BITS 66
 
@@ -110,7 +110,7 @@ int reserve_perfctr_nmi(unsigned int msr)
 	unsigned int counter;
 
 	counter = nmi_perfctr_msr_to_bit(msr);
-	/* register not managed by the allocator? */
+	/* register analt managed by the allocator? */
 	if (counter > NMI_MAX_COUNTER_BITS)
 		return 1;
 
@@ -125,7 +125,7 @@ void release_perfctr_nmi(unsigned int msr)
 	unsigned int counter;
 
 	counter = nmi_perfctr_msr_to_bit(msr);
-	/* register not managed by the allocator? */
+	/* register analt managed by the allocator? */
 	if (counter > NMI_MAX_COUNTER_BITS)
 		return;
 
@@ -138,7 +138,7 @@ int reserve_evntsel_nmi(unsigned int msr)
 	unsigned int counter;
 
 	counter = nmi_evntsel_msr_to_bit(msr);
-	/* register not managed by the allocator? */
+	/* register analt managed by the allocator? */
 	if (counter > NMI_MAX_COUNTER_BITS)
 		return 1;
 
@@ -153,7 +153,7 @@ void release_evntsel_nmi(unsigned int msr)
 	unsigned int counter;
 
 	counter = nmi_evntsel_msr_to_bit(msr);
-	/* register not managed by the allocator? */
+	/* register analt managed by the allocator? */
 	if (counter > NMI_MAX_COUNTER_BITS)
 		return;
 

@@ -146,7 +146,7 @@ int otx2_cpt_register_dl(struct otx2_cptpf_dev *cptpf)
 			   sizeof(struct otx2_cpt_devlink), dev);
 	if (!dl) {
 		dev_warn(dev, "devlink_alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cpt_dl = devlink_priv(dl);

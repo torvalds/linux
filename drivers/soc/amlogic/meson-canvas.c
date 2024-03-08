@@ -51,26 +51,26 @@ static u32 canvas_read(struct meson_canvas *canvas, u32 reg)
 
 struct meson_canvas *meson_canvas_get(struct device *dev)
 {
-	struct device_node *canvas_node;
+	struct device_analde *canvas_analde;
 	struct platform_device *canvas_pdev;
 	struct meson_canvas *canvas;
 
-	canvas_node = of_parse_phandle(dev->of_node, "amlogic,canvas", 0);
-	if (!canvas_node)
-		return ERR_PTR(-ENODEV);
+	canvas_analde = of_parse_phandle(dev->of_analde, "amlogic,canvas", 0);
+	if (!canvas_analde)
+		return ERR_PTR(-EANALDEV);
 
-	canvas_pdev = of_find_device_by_node(canvas_node);
+	canvas_pdev = of_find_device_by_analde(canvas_analde);
 	if (!canvas_pdev) {
-		of_node_put(canvas_node);
+		of_analde_put(canvas_analde);
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	of_node_put(canvas_node);
+	of_analde_put(canvas_analde);
 
 	/*
 	 * If priv is NULL, it's probably because the canvas hasn't
 	 * properly initialized. Bail out with -EINVAL because, in the
-	 * current state, this driver probe cannot return -EPROBE_DEFER
+	 * current state, this driver probe cananalt return -EPROBE_DEFER
 	 */
 	canvas = dev_get_drvdata(&canvas_pdev->dev);
 	if (!canvas) {
@@ -92,14 +92,14 @@ int meson_canvas_config(struct meson_canvas *canvas, u8 canvas_index,
 
 	if (endian && !canvas->supports_endianness) {
 		dev_err(canvas->dev,
-			"Endianness is not supported on this SoC\n");
+			"Endianness is analt supported on this SoC\n");
 		return -EINVAL;
 	}
 
 	spin_lock_irqsave(&canvas->lock, flags);
 	if (!canvas->used[canvas_index]) {
 		dev_err(canvas->dev,
-			"Trying to setup non allocated canvas %u\n",
+			"Trying to setup analn allocated canvas %u\n",
 			canvas_index);
 		spin_unlock_irqrestore(&canvas->lock, flags);
 		return -EINVAL;
@@ -144,8 +144,8 @@ int meson_canvas_alloc(struct meson_canvas *canvas, u8 *canvas_index)
 	}
 	spin_unlock_irqrestore(&canvas->lock, flags);
 
-	dev_err(canvas->dev, "No more canvas available\n");
-	return -ENODEV;
+	dev_err(canvas->dev, "Anal more canvas available\n");
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_GPL(meson_canvas_alloc);
 
@@ -174,7 +174,7 @@ static int meson_canvas_probe(struct platform_device *pdev)
 
 	canvas = devm_kzalloc(dev, sizeof(*canvas), GFP_KERNEL);
 	if (!canvas)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	canvas->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(canvas->reg_base))

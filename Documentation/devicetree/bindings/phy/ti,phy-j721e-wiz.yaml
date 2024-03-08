@@ -67,7 +67,7 @@ properties:
     default: 100
     description:
       Number of milliseconds to wait before sampling typec-dir-gpio.
-      If not specified, the default debounce of 100ms will be used.
+      If analt specified, the default debounce of 100ms will be used.
       Type-C spec states minimum CC pin debounce of 100 ms and maximum
       of 200 ms. However, some solutions might need more than 200 ms.
 
@@ -75,7 +75,7 @@ properties:
     type: object
     additionalProperties: false
     description: |
-      WIZ node should have subnode for refclk_dig to select the reference
+      WIZ analde should have subanalde for refclk_dig to select the reference
       clock source for the reference clock used in the PHY and PMA digital
       logic.
     deprecated: true
@@ -83,7 +83,7 @@ properties:
       clocks:
         minItems: 2
         maxItems: 4
-        description: Phandle to two (Torrent) or four (Sierra) clock nodes representing
+        description: Phandle to two (Torrent) or four (Sierra) clock analdes representing
           the inputs to refclk_dig
 
       "#clock-cells":
@@ -114,13 +114,13 @@ patternProperties:
     type: object
     additionalProperties: false
     description: |
-      WIZ node should have subnodes for each of the PLLs present in
+      WIZ analde should have subanaldes for each of the PLLs present in
       the SERDES.
     deprecated: true
     properties:
       clocks:
         maxItems: 2
-        description: Phandle to clock nodes representing the two inputs to PLL.
+        description: Phandle to clock analdes representing the two inputs to PLL.
 
       "#clock-cells":
         const: 0
@@ -144,13 +144,13 @@ patternProperties:
     type: object
     additionalProperties: false
     description:
-      WIZ node should have subnodes for each of the PMA common refclock
+      WIZ analde should have subanaldes for each of the PMA common refclock
       provided by the SERDES.
     deprecated: true
     properties:
       clocks:
         maxItems: 1
-        description: Phandle to the clock node representing the input to the
+        description: Phandle to the clock analde representing the input to the
           divider clock.
 
       "#clock-cells":
@@ -166,7 +166,7 @@ patternProperties:
   "^serdes@[0-9a-f]+$":
     type: object
     description: |
-      WIZ node should have '1' subnode for the SERDES. It could be either
+      WIZ analde should have '1' subanalde for the SERDES. It could be either
       Sierra SERDES or Torrent SERDES. Sierra SERDES should follow the
       bindings specified in
       Documentation/devicetree/bindings/phy/phy-cadence-sierra.yaml

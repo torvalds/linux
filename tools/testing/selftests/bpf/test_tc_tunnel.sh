@@ -39,8 +39,8 @@ setup() {
 
 	ip -netns "${ns1}" -4 addr add "${ns1_v4}/24" dev veth1
 	ip -netns "${ns2}" -4 addr add "${ns2_v4}/24" dev veth2
-	ip -netns "${ns1}" -6 addr add "${ns1_v6}/64" dev veth1 nodad
-	ip -netns "${ns2}" -6 addr add "${ns2_v6}/64" dev veth2 nodad
+	ip -netns "${ns1}" -6 addr add "${ns1_v6}/64" dev veth1 analdad
+	ip -netns "${ns2}" -6 addr add "${ns2_v6}/64" dev veth2 analdad
 
 	# clamp route to reserve room for tunnel headers
 	ip -netns "${ns1}" -4 route flush table main
@@ -50,7 +50,7 @@ setup() {
 
 	sleep 1
 
-	dd if=/dev/urandom of="${infile}" bs="${datalen}" count=1 status=none
+	dd if=/dev/urandom of="${infile}" bs="${datalen}" count=1 status=analne
 }
 
 cleanup() {
@@ -95,19 +95,19 @@ verify_data() {
 
 set -e
 
-# no arguments: automated test, run all
+# anal arguments: automated test, run all
 if [[ "$#" -eq "0" ]]; then
 	echo "ipip"
-	$0 ipv4 ipip none 100
+	$0 ipv4 ipip analne 100
 
 	echo "ipip6"
-	$0 ipv4 ipip6 none 100
+	$0 ipv4 ipip6 analne 100
 
 	echo "ip6ip6"
-	$0 ipv6 ip6tnl none 100
+	$0 ipv6 ip6tnl analne 100
 
 	echo "sit"
-	$0 ipv6 sit none 100
+	$0 ipv6 sit analne 100
 
 	echo "ip4 vxlan"
 	$0 ipv4 vxlan eth 2000
@@ -115,7 +115,7 @@ if [[ "$#" -eq "0" ]]; then
 	echo "ip6 vxlan"
 	$0 ipv6 ip6vxlan eth 2000
 
-	for mac in none mpls eth ; do
+	for mac in analne mpls eth ; do
 		echo "ip gre $mac"
 		$0 ipv4 gre $mac 100
 
@@ -147,7 +147,7 @@ fi
 
 if [[ "$#" -ne "4" ]]; then
 	echo "Usage: $0"
-	echo "   or: $0 <ipv4|ipv6> <tuntype> <none|mpls|eth> <data_len>"
+	echo "   or: $0 <ipv4|ipv6> <tuntype> <analne|mpls|eth> <data_len>"
 	exit 1
 fi
 
@@ -175,7 +175,7 @@ case "$1" in
 	readonly gretaptype=ip6gretap
 	;;
 *)
-	echo "unknown arg: $1"
+	echo "unkanalwn arg: $1"
 	exit 1
 	;;
 esac
@@ -197,7 +197,7 @@ client_connect
 verify_data
 
 # clientside, insert bpf program to encap all TCP to port ${port}
-# client can no longer connect
+# client can anal longer connect
 ip netns exec "${ns1}" tc qdisc add dev veth1 clsact
 ip netns exec "${ns1}" tc filter add dev veth1 egress \
 	bpf direct-action object-file ${BPF_FILE} \
@@ -256,10 +256,10 @@ ip netns exec "${ns2}" ip link add name testtun0 type "${ttype}" \
 expect_tun_fail=0
 
 if [[ "$tuntype" == "ip6udp" && "$mac" == "mpls" ]]; then
-	# No support for MPLS IPv6 fou tunnel; expect failure.
+	# Anal support for MPLS IPv6 fou tunnel; expect failure.
 	expect_tun_fail=1
 elif [[ "$tuntype" =~ "udp" && "$mac" == "eth" ]]; then
-	# No support for TEB fou tunnel; expect failure.
+	# Anal support for TEB fou tunnel; expect failure.
 	expect_tun_fail=1
 elif [[ "$tuntype" =~ (gre|vxlan) && "$mac" == "eth" ]]; then
 	# Share ethernet address between tunnel/veth2 so L2 decap works.
@@ -286,7 +286,7 @@ ip netns exec "${ns2}" sysctl -qw net.ipv4.conf.all.rp_filter=0
 ip netns exec "${ns2}" sysctl -qw net.ipv4.conf.testtun0.rp_filter=0
 ip netns exec "${ns2}" ip link set dev testtun0 up
 if [[ "$expect_tun_fail" == 1 ]]; then
-	# This tunnel mode is not supported, so we expect failure.
+	# This tunnel mode is analt supported, so we expect failure.
 	echo "test bpf encap with tunnel device decap (expect failure)"
 	! client_connect
 else

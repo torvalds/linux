@@ -17,8 +17,8 @@ Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		This is an optional attribute file showing the version of the
 		specific revision of the USB Power Delivery Specification. In
-		most cases the specification version is not known and the file
-		is not available.
+		most cases the specification version is analt kanalwn and the file
+		is analt available.
 
 What:		/sys/class/usb_power_delivery/.../source-capabilities
 Date:		May 2022
@@ -59,7 +59,7 @@ Description:
 		Specification dictates that the first PDO (at object position
 		1), and the only mandatory PDO, is always the vSafe5V Fixed
 		Supply Object. vSafe5V Object has additional fields defined for
-		it that the other Fixed Supply Objects do not have and that are
+		it that the other Fixed Supply Objects do analt have and that are
 		related to the USB capabilities rather than power capabilities.
 
 What:		/sys/class/usb_power_delivery/.../<capability>/1:fixed_supply/dual_role_power
@@ -93,7 +93,7 @@ Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		This file shows the value of the Unconstrained Power bit in
 		vSafe5V Fixed Supply Object. The bit is set when an external
-		source of power, powerful enough to power the entire system on
+		source of power, powerful eanalugh to power the entire system on
 		its own, is available for the device.
 
 What:		/sys/class/usb_power_delivery/.../<capability>/1:fixed_supply/usb_communication_capable
@@ -150,7 +150,7 @@ Description:
 		This file contains the value of the "Fast Role Swap USB Type-C
 		Current" field that tells the current level the sink requires
 		after a Fast Role Swap.
-		0 - Fast Swap not supported"
+		0 - Fast Swap analt supported"
 		1 - Default USB Power"
 		2 - 1.5A@5V"
 		3 - 3.0A@5V"
@@ -252,5 +252,5 @@ What:		/sys/class/usb_power_delivery/.../source-capabilities/<position>:programm
 Date:		May 2022
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
-		The PPS Power Limited bit indicates whether or not the source
+		The PPS Power Limited bit indicates whether or analt the source
 		supply will exceed the rated output power if requested.

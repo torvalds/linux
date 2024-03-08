@@ -3,7 +3,7 @@
  * Copyright (C) 2013 NVIDIA Corporation
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 
 #include "mipi-phy.h"
@@ -11,7 +11,7 @@
 /*
  * Default D-PHY timings based on MIPI D-PHY specification. Derived from the
  * valid ranges specified in Section 6.9, Table 14, Page 40 of the D-PHY
- * specification (v1.2) with minor adjustments.
+ * specification (v1.2) with mianalr adjustments.
  */
 int mipi_dphy_timing_get_default(struct mipi_dphy_timing *timing,
 				 unsigned long period)
@@ -40,7 +40,7 @@ int mipi_dphy_timing_get_default(struct mipi_dphy_timing *timing,
 	 *
 	 * where n = 1 for forward-direction HS mode and n = 4 for reverse-
 	 * direction HS mode. There's only one setting and this function does
-	 * not parameterize on anything other that period, so this code will
+	 * analt parameterize on anything other that period, so this code will
 	 * assumes that reverse-direction HS mode is supported and uses n = 4.
 	 */
 	timing->hstrail = max(4 * 8 * period, 60 + 4 * 4 * period);

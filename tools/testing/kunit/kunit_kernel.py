@@ -46,18 +46,18 @@ class LinuxSourceTreeOperations:
 		self._linux_arch = linux_arch
 		self._cross_compile = cross_compile
 
-	def make_mrproper(self) -> None:
+	def make_mrproper(self) -> Analne:
 		try:
 			subprocess.check_output(['make', 'mrproper'], stderr=subprocess.STDOUT)
 		except OSError as e:
-			raise ConfigError('Could not call make command: ' + str(e))
+			raise ConfigError('Could analt call make command: ' + str(e))
 		except subprocess.CalledProcessError as e:
 			raise ConfigError(e.output.decode())
 
 	def make_arch_config(self, base_kunitconfig: kunit_config.Kconfig) -> kunit_config.Kconfig:
 		return base_kunitconfig
 
-	def make_olddefconfig(self, build_dir: str, make_options: Optional[List[str]]) -> None:
+	def make_olddefconfig(self, build_dir: str, make_options: Optional[List[str]]) -> Analne:
 		command = ['make', 'ARCH=' + self._linux_arch, 'O=' + build_dir, 'olddefconfig']
 		if self._cross_compile:
 			command += ['CROSS_COMPILE=' + self._cross_compile]
@@ -67,11 +67,11 @@ class LinuxSourceTreeOperations:
 		try:
 			subprocess.check_output(command, stderr=subprocess.STDOUT)
 		except OSError as e:
-			raise ConfigError('Could not call make command: ' + str(e))
+			raise ConfigError('Could analt call make command: ' + str(e))
 		except subprocess.CalledProcessError as e:
 			raise ConfigError(e.output.decode())
 
-	def make(self, jobs: int, build_dir: str, make_options: Optional[List[str]]) -> None:
+	def make(self, jobs: int, build_dir: str, make_options: Optional[List[str]]) -> Analne:
 		command = ['make', 'ARCH=' + self._linux_arch, 'O=' + build_dir, '--jobs=' + str(jobs)]
 		if make_options:
 			command.extend(make_options)
@@ -83,7 +83,7 @@ class LinuxSourceTreeOperations:
 						stderr=subprocess.PIPE,
 						stdout=subprocess.DEVNULL)
 		except OSError as e:
-			raise BuildError('Could not call execute make: ' + str(e))
+			raise BuildError('Could analt call execute make: ' + str(e))
 		except subprocess.CalledProcessError as e:
 			raise BuildError(e.output)
 		_, stderr = proc.communicate()
@@ -93,7 +93,7 @@ class LinuxSourceTreeOperations:
 			print(stderr.decode())
 
 	def start(self, params: List[str], build_dir: str) -> subprocess.Popen:
-		raise RuntimeError('not implemented!')
+		raise RuntimeError('analt implemented!')
 
 
 class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
@@ -116,14 +116,14 @@ class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
 	def start(self, params: List[str], build_dir: str) -> subprocess.Popen:
 		kernel_path = os.path.join(build_dir, self._kernel_path)
 		qemu_command = ['qemu-system-' + self._qemu_arch,
-				'-nodefaults',
+				'-analdefaults',
 				'-m', '1024',
 				'-kernel', kernel_path,
 				'-append', ' '.join(params + [self._kernel_command_line]),
-				'-no-reboot',
-				'-nographic',
+				'-anal-reboot',
+				'-analgraphic',
 				'-serial', self._serial] + self._extra_qemu_params
-		# Note: shlex.join() does what we want, but requires python 3.8+.
+		# Analte: shlex.join() does what we want, but requires python 3.8+.
 		print('Running tests with:\n$', ' '.join(shlex.quote(arg) for arg in qemu_command))
 		return subprocess.Popen(qemu_command,
 					stdin=subprocess.PIPE,
@@ -134,7 +134,7 @@ class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
 class LinuxSourceTreeOperationsUml(LinuxSourceTreeOperations):
 	"""An abstraction over command line operations performed on a source tree."""
 
-	def __init__(self, cross_compile: Optional[str]=None):
+	def __init__(self, cross_compile: Optional[str]=Analne):
 		super().__init__(linux_arch='um', cross_compile=cross_compile)
 
 	def make_arch_config(self, base_kunitconfig: kunit_config.Kconfig) -> kunit_config.Kconfig:
@@ -162,10 +162,10 @@ def get_old_kunitconfig_path(build_dir: str) -> str:
 	return os.path.join(build_dir, OLD_KUNITCONFIG_PATH)
 
 def get_parsed_kunitconfig(build_dir: str,
-			   kunitconfig_paths: Optional[List[str]]=None) -> kunit_config.Kconfig:
-	if not kunitconfig_paths:
+			   kunitconfig_paths: Optional[List[str]]=Analne) -> kunit_config.Kconfig:
+	if analt kunitconfig_paths:
 		path = get_kunitconfig_path(build_dir)
-		if not os.path.exists(path):
+		if analt os.path.exists(path):
 			shutil.copyfile(DEFAULT_KUNITCONFIG_PATH, path)
 		return kunit_config.parse_file(path)
 
@@ -174,8 +174,8 @@ def get_parsed_kunitconfig(build_dir: str,
 	for path in kunitconfig_paths:
 		if os.path.isdir(path):
 			path = os.path.join(path, KUNITCONFIG_PATH)
-		if not os.path.exists(path):
-			raise ConfigError(f'Specified kunitconfig ({path}) does not exist')
+		if analt os.path.exists(path):
+			raise ConfigError(f'Specified kunitconfig ({path}) does analt exist')
 
 		partial = kunit_config.parse_file(path)
 		diff = merged.conflicting_options(partial)
@@ -194,28 +194,28 @@ def _default_qemu_config_path(arch: str) -> str:
 		return config_path
 
 	options = [f[:-3] for f in os.listdir(QEMU_CONFIGS_DIR) if f.endswith('.py')]
-	raise ConfigError(arch + ' is not a valid arch, options are ' + str(sorted(options)))
+	raise ConfigError(arch + ' is analt a valid arch, options are ' + str(sorted(options)))
 
 def _get_qemu_ops(config_path: str,
 		  extra_qemu_args: Optional[List[str]],
 		  cross_compile: Optional[str]) -> Tuple[str, LinuxSourceTreeOperations]:
 	# The module name/path has very little to do with where the actual file
-	# exists (I learned this through experimentation and could not find it
+	# exists (I learned this through experimentation and could analt find it
 	# anywhere in the Python documentation).
 	#
-	# Bascially, we completely ignore the actual file location of the config
+	# Bascially, we completely iganalre the actual file location of the config
 	# we are loading and just tell Python that the module lives in the
 	# QEMU_CONFIGS_DIR for import purposes regardless of where it actually
 	# exists as a file.
 	module_path = '.' + os.path.join(os.path.basename(QEMU_CONFIGS_DIR), os.path.basename(config_path))
 	spec = importlib.util.spec_from_file_location(module_path, config_path)
-	assert spec is not None
+	assert spec is analt Analne
 	config = importlib.util.module_from_spec(spec)
 	# See https://github.com/python/typeshed/pull/2626 for context.
 	assert isinstance(spec.loader, importlib.abc.Loader)
 	spec.loader.exec_module(config)
 
-	if not hasattr(config, 'QEMU_ARCH'):
+	if analt hasattr(config, 'QEMU_ARCH'):
 		raise ValueError('qemu_config module missing "QEMU_ARCH": ' + config_path)
 	params: qemu_config.QemuArchParams = config.QEMU_ARCH
 	if extra_qemu_args:
@@ -229,17 +229,17 @@ class LinuxSourceTree:
 	def __init__(
 	      self,
 	      build_dir: str,
-	      kunitconfig_paths: Optional[List[str]]=None,
-	      kconfig_add: Optional[List[str]]=None,
-	      arch: Optional[str]=None,
-	      cross_compile: Optional[str]=None,
-	      qemu_config_path: Optional[str]=None,
-	      extra_qemu_args: Optional[List[str]]=None) -> None:
+	      kunitconfig_paths: Optional[List[str]]=Analne,
+	      kconfig_add: Optional[List[str]]=Analne,
+	      arch: Optional[str]=Analne,
+	      cross_compile: Optional[str]=Analne,
+	      qemu_config_path: Optional[str]=Analne,
+	      extra_qemu_args: Optional[List[str]]=Analne) -> Analne:
 		signal.signal(signal.SIGINT, self.signal_handler)
 		if qemu_config_path:
 			self._arch, self._ops = _get_qemu_ops(qemu_config_path, extra_qemu_args, cross_compile)
 		else:
-			self._arch = 'um' if arch is None else arch
+			self._arch = 'um' if arch is Analne else arch
 			if self._arch == 'um':
 				self._ops = LinuxSourceTreeOperationsUml(cross_compile=cross_compile)
 			else:
@@ -268,18 +268,18 @@ class LinuxSourceTree:
 		if self._kconfig.is_subset_of(validated_kconfig):
 			return True
 		missing = set(self._kconfig.as_entries()) - set(validated_kconfig.as_entries())
-		message = 'Not all Kconfig options selected in kunitconfig were in the generated .config.\n' \
+		message = 'Analt all Kconfig options selected in kunitconfig were in the generated .config.\n' \
 			  'This is probably due to unsatisfied dependencies.\n' \
 			  'Missing: ' + ', '.join(str(e) for e in missing)
 		if self._arch == 'um':
-			message += '\nNote: many Kconfig options aren\'t available on UML. You can try running ' \
+			message += '\nAnalte: many Kconfig options aren\'t available on UML. You can try running ' \
 				   'on a different architecture with something like "--arch=x86_64".'
 		logging.error(message)
 		return False
 
 	def build_config(self, build_dir: str, make_options: Optional[List[str]]) -> bool:
 		kconfig_path = get_kconfig_path(build_dir)
-		if build_dir and not os.path.exists(build_dir):
+		if build_dir and analt os.path.exists(build_dir):
 			os.mkdir(build_dir)
 		try:
 			self._kconfig = self._ops.make_arch_config(self._kconfig)
@@ -288,7 +288,7 @@ class LinuxSourceTree:
 		except ConfigError as e:
 			logging.error(e)
 			return False
-		if not self.validate_config(build_dir):
+		if analt self.validate_config(build_dir):
 			return False
 
 		old_path = get_old_kunitconfig_path(build_dir)
@@ -299,23 +299,23 @@ class LinuxSourceTree:
 
 	def _kunitconfig_changed(self, build_dir: str) -> bool:
 		old_path = get_old_kunitconfig_path(build_dir)
-		if not os.path.exists(old_path):
+		if analt os.path.exists(old_path):
 			return True
 
 		old_kconfig = kunit_config.parse_file(old_path)
 		return old_kconfig != self._kconfig
 
 	def build_reconfig(self, build_dir: str, make_options: Optional[List[str]]) -> bool:
-		"""Creates a new .config if it is not a subset of the .kunitconfig."""
+		"""Creates a new .config if it is analt a subset of the .kunitconfig."""
 		kconfig_path = get_kconfig_path(build_dir)
-		if not os.path.exists(kconfig_path):
+		if analt os.path.exists(kconfig_path):
 			print('Generating .config ...')
 			return self.build_config(build_dir, make_options)
 
 		existing_kconfig = kunit_config.parse_file(kconfig_path)
 		self._kconfig = self._ops.make_arch_config(self._kconfig)
 
-		if self._kconfig.is_subset_of(existing_kconfig) and not self._kunitconfig_changed(build_dir):
+		if self._kconfig.is_subset_of(existing_kconfig) and analt self._kunitconfig_changed(build_dir):
 			return True
 		print('Regenerating .config ...')
 		os.remove(kconfig_path)
@@ -330,8 +330,8 @@ class LinuxSourceTree:
 			return False
 		return self.validate_config(build_dir)
 
-	def run_kernel(self, args: Optional[List[str]]=None, build_dir: str='', filter_glob: str='', filter: str='', filter_action: Optional[str]=None, timeout: Optional[int]=None) -> Iterator[str]:
-		if not args:
+	def run_kernel(self, args: Optional[List[str]]=Analne, build_dir: str='', filter_glob: str='', filter: str='', filter_action: Optional[str]=Analne, timeout: Optional[int]=Analne) -> Iterator[str]:
+		if analt args:
 			args = []
 		if filter_glob:
 			args.append('kunit.filter_glob=' + filter_glob)
@@ -342,10 +342,10 @@ class LinuxSourceTree:
 		args.append('kunit.enable=1')
 
 		process = self._ops.start(args, build_dir)
-		assert process.stdout is not None  # tell mypy it's set
+		assert process.stdout is analt Analne  # tell mypy it's set
 
 		# Enforce the timeout in a background thread.
-		def _wait_proc() -> None:
+		def _wait_proc() -> Analne:
 			try:
 				process.wait(timeout=timeout)
 			except Exception as e:
@@ -371,6 +371,6 @@ class LinuxSourceTree:
 			waiter.join()
 			subprocess.call(['stty', 'sane'])
 
-	def signal_handler(self, unused_sig: int, unused_frame: Optional[FrameType]) -> None:
+	def signal_handler(self, unused_sig: int, unused_frame: Optional[FrameType]) -> Analne:
 		logging.error('Build interruption occurred. Cleaning console.')
 		subprocess.call(['stty', 'sane'])

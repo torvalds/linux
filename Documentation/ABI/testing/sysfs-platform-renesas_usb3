@@ -13,5 +13,5 @@ Description:
 
 		Read the file, then it shows the following strings:
 
-		- "host" - The mode is host now.
-		- "peripheral" - The mode is peripheral now.
+		- "host" - The mode is host analw.
+		- "peripheral" - The mode is peripheral analw.

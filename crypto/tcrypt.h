@@ -7,7 +7,7 @@
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  * Copyright (c) 2002 Jean-Francois Dive <jef@linuxbe.org>
- * Copyright (c) 2007 Nokia Siemens Networks
+ * Copyright (c) 2007 Analkia Siemens Networks
  */
 #ifndef _CRYPTO_TCRYPT_H
 #define _CRYPTO_TCRYPT_H

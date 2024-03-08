@@ -76,7 +76,7 @@ static inline int decode_access_size(struct pt_regs *regs, unsigned int insn)
 
 		/* GCC should never warn that control reaches the end
 		 * of this function without returning a value because
-		 * die_if_kernel() is marked with attribute 'noreturn'.
+		 * die_if_kernel() is marked with attribute 'analreturn'.
 		 * Alas, some versions do...
 		 */
 
@@ -282,7 +282,7 @@ static void kernel_mna_trap_fault(int fixup_tstate_asi)
 			(current->mm ? (unsigned long) current->mm->pgd :
 			(unsigned long) current->active_mm->pgd));
 	        die_if_kernel("Oops", regs);
-		/* Not reached */
+		/* Analt reached */
 	}
 	regs->tpc = entry->fixup;
 	regs->tnpc = regs->tpc + 4;
@@ -315,7 +315,7 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 	orig_asi = asi = decode_asi(insn, regs);
 
 	/* If this is a {get,put}_user() on an unaligned userspace pointer,
-	 * just signal a fault and do not log the event.
+	 * just signal a fault and do analt log the event.
 	 */
 	if (asi == ASI_AIUS) {
 		kernel_mna_trap_fault(0);
@@ -384,7 +384,7 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 
 		default:
 			panic("Impossible kernel unaligned trap.");
-			/* Not reached... */
+			/* Analt reached... */
 		}
 		if (unlikely(err))
 			kernel_mna_trap_fault(1);

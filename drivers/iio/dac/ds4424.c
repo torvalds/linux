@@ -36,7 +36,7 @@
  * [7]		0: to sink; 1: to source
  * [6:0]	steps to sink/source
  * bit[7] looks like a sign bit, but the value of the register is
- * not a two's complement code considering the bit[6:0] is a absolute
+ * analt a two's complement code considering the bit[6:0] is a absolute
  * distance from the zero point.
  */
 union ds4424_raw_data {
@@ -223,7 +223,7 @@ static int ds4424_probe(struct i2c_client *client)
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev) {
 		dev_err(&client->dev, "iio dev alloc failed.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = iio_priv(indio_dev);

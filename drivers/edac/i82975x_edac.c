@@ -55,7 +55,7 @@
 					 * 15:12 reserved
 					 * 11    Thermal Sensor Event
 					 * 10    reserved
-					 *  9    non-DRAM lock error (ndlock)
+					 *  9    analn-DRAM lock error (ndlock)
 					 *  8    Refresh Timeout
 					 *  7:2  reserved
 					 *  1    ECC UE (multibit DRAM error)
@@ -66,14 +66,14 @@
   1. DMI SERR generation  ( ERRCMD )
   2. SMI DMI  generation  ( SMICMD )
   3. SCI DMI  generation  ( SCICMD )
-NOTE: Only ONE of the three must be enabled
+ANALTE: Only ONE of the three must be enabled
 */
 #define I82975X_ERRCMD		0xca	/* Error Command (16b)
 					 *
 					 * 15:12 reserved
 					 * 11    Thermal Sensor Event
 					 * 10    reserved
-					 *  9    non-DRAM lock error (ndlock)
+					 *  9    analn-DRAM lock error (ndlock)
 					 *  8    Refresh Timeout
 					 *  7:2  reserved
 					 *  1    ECC UE (multibit DRAM error)
@@ -108,7 +108,7 @@ NOTE: Only ONE of the three must be enabled
 					 *  0    mem-mapped config space enable
 					 */
 
-/* NOTE: Following addresses have to indexed using MCHBAR offset (44h, 32b) */
+/* ANALTE: Following addresses have to indexed using MCHBAR offset (44h, 32b) */
 /* Intel 82975x memory mapped register space */
 
 #define I82975X_DRB_SHIFT 25	/* fixed 32MiB grain */
@@ -179,7 +179,7 @@ NOTE: Only ONE of the three must be enabled
 					 *		bits in 82975 in Asus
 					 *		P5W
 					 *	 19:18 Data Integ Mode
-					 *		00=none 01=ECC in 82875
+					 *		00=analne 01=ECC in 82875
 					 * 10:8  refresh mode
 					 *  7    reserved
 					 *  6:4  mode select
@@ -243,7 +243,7 @@ static void i82975x_get_error_info(struct mem_ctl_info *mci,
 	pdev = to_pci_dev(mci->pdev);
 
 	/*
-	 * This is a mess because there is no atomic way to read all the
+	 * This is a mess because there is anal atomic way to read all the
 	 * registers at once and the registers can transition from CE being
 	 * overwritten by UE.
 	 */
@@ -259,7 +259,7 @@ static void i82975x_get_error_info(struct mem_ctl_info *mci,
 	/*
 	 * If the error is the same then we can for both reads then
 	 * the first set of reads is valid.  If there is a change then
-	 * there is a CE no info and the second set of reads is valid
+	 * there is a CE anal info and the second set of reads is valid
 	 * and should be UE info.
 	 */
 	if (!(info->errsts2 & 0x0003))
@@ -462,7 +462,7 @@ static void i82975x_print_dram_timings(void __iomem *mch_window)
 
 static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 {
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[2];
 	struct i82975x_pvt *pvt;
@@ -545,15 +545,15 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 	layers[1].is_virt_csrow = false;
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
 	if (!mci) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail1;
 	}
 
 	edac_dbg(3, "init mci\n");
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR2;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
-	mci->edac_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_SECDED;
+	mci->edac_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_SECDED;
 	mci->mod_name = EDAC_MOD_STR;
 	mci->ctl_name = i82975x_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
@@ -660,7 +660,7 @@ static int __init i82975x_init(void)
 
 		if (!mci_pdev) {
 			edac_dbg(0, "i82975x pci_get_device fail\n");
-			pci_rc = -ENODEV;
+			pci_rc = -EANALDEV;
 			goto fail1;
 		}
 
@@ -668,7 +668,7 @@ static int __init i82975x_init(void)
 
 		if (pci_rc < 0) {
 			edac_dbg(0, "i82975x init fail\n");
-			pci_rc = -ENODEV;
+			pci_rc = -EANALDEV;
 			goto fail1;
 		}
 	}
@@ -699,7 +699,7 @@ module_init(i82975x_init);
 module_exit(i82975x_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Arvind R. <arvino55@gmail.com>");
+MODULE_AUTHOR("Arvind R. <arvianal55@gmail.com>");
 MODULE_DESCRIPTION("MC support for Intel 82975 memory hub controllers");
 
 module_param(edac_op_state, int, 0444);

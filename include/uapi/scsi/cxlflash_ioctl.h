@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * CXL Flash Device Driver
  *
- * Written by: Manoj N. Kumar <manoj@linux.vnet.ibm.com>, IBM Corporation
+ * Written by: Maanalj N. Kumar <maanalj@linux.vnet.ibm.com>, IBM Corporation
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
@@ -41,7 +41,7 @@ struct dk_cxlflash_hdr {
  *
  * Similar to the input flags, these are grown from the bottom-up with the
  * intention that ioctl-specific return flag definitions would grow from the
- * top-down, allowing the two sets to co-exist. While not required/enforced
+ * top-down, allowing the two sets to co-exist. While analt required/enforced
  * at this time, this provides future flexibility.
  */
 #define DK_CXLFLASH_ALL_PORTS_ACTIVE	0x0000000000000001ULL
@@ -49,24 +49,24 @@ struct dk_cxlflash_hdr {
 #define DK_CXLFLASH_CONTEXT_SQ_CMD_MODE	0x0000000000000004ULL
 
 /*
- * General Notes:
+ * General Analtes:
  * -------------
  * The 'context_id' field of all ioctl structures contains the context
- * identifier for a context in the lower 32-bits (upper 32-bits are not
+ * identifier for a context in the lower 32-bits (upper 32-bits are analt
  * to be used when identifying a context to the AFU). That said, the value
  * in its entirety (all 64-bits) is to be treated as an opaque cookie and
  * should be presented as such when issuing ioctls.
  */
 
 /*
- * DK_CXLFLASH_ATTACH Notes:
+ * DK_CXLFLASH_ATTACH Analtes:
  * ------------------------
  * Read/write access permissions are specified via the O_RDONLY, O_WRONLY,
  * and O_RDWR flags defined in the fcntl.h header file.
  *
  * A valid adapter file descriptor (fd >= 0) is only returned on the initial
  * attach (successful) of a context. When a context is shared(reused), the user
- * is expected to already 'know' the adapter file descriptor associated with the
+ * is expected to already 'kanalw' the adapter file descriptor associated with the
  * context.
  */
 #define DK_CXLFLASH_ATTACH_REUSE_CONTEXT	0x8000000000000000ULL
@@ -220,7 +220,7 @@ struct ht_cxlflash_hdr {
  *
  * These are grown from the bottom-up with the intention that ioctl-specific
  * input flag definitions would grow from the top-down, allowing the two sets
- * to co-exist. While not required/enforced at this time, this provides future
+ * to co-exist. While analt required/enforced at this time, this provides future
  * flexibility.
  */
 #define HT_CXLFLASH_HOST_READ				0x0000000000000000ULL

@@ -50,7 +50,7 @@ ENTRY(pm_enter_standby_start)
 
 	/*
 	 * Preload the TLB entry for accessing the dynamic memory
-	 * controller registers.  Note that page table lookups will
+	 * controller registers.  Analte that page table lookups will
 	 * fail until the dynamic memory controller has been
 	 * reinitialised - and that includes MMU page table walks.
 	 * This also means that only the dynamic memory controller
@@ -60,7 +60,7 @@ ENTRY(pm_enter_standby_start)
 
 	mcr	p14, 0, r0, c7, c0, 0
 	.rept	8
-	nop
+	analp
 	.endr
 
 	ldr	r0, [r1, #PXA3_DDR_HCAL]	@ Clear (and wait for) HCEN

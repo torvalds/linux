@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -31,13 +31,13 @@
 
 #define MAX_XCP 8
 
-#define AMDGPU_XCP_MODE_NONE -1
+#define AMDGPU_XCP_MODE_ANALNE -1
 #define AMDGPU_XCP_MODE_TRANS -2
 
-#define AMDGPU_XCP_FL_NONE 0
+#define AMDGPU_XCP_FL_ANALNE 0
 #define AMDGPU_XCP_FL_LOCKED (1 << 0)
 
-#define AMDGPU_XCP_NO_PARTITION (~0)
+#define AMDGPU_XCP_ANAL_PARTITION (~0)
 
 struct amdgpu_fpriv;
 
@@ -149,7 +149,7 @@ void amdgpu_xcp_release_sched(struct amdgpu_device *adev,
 #define amdgpu_xcp_select_scheds(adev, e, c, d, x, y) \
 	((adev)->xcp_mgr && (adev)->xcp_mgr->funcs && \
 	(adev)->xcp_mgr->funcs->select_scheds ? \
-	(adev)->xcp_mgr->funcs->select_scheds((adev), (e), (c), (d), (x), (y)) : -ENOENT)
+	(adev)->xcp_mgr->funcs->select_scheds((adev), (e), (c), (d), (x), (y)) : -EANALENT)
 #define amdgpu_xcp_update_partition_sched_list(adev) \
 	((adev)->xcp_mgr && (adev)->xcp_mgr->funcs && \
 	(adev)->xcp_mgr->funcs->update_partition_sched_list ? \

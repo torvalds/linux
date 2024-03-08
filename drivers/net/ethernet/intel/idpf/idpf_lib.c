@@ -36,7 +36,7 @@ static int idpf_init_vector_stack(struct idpf_adapter *adapter)
 	if (!stack->vec_idx) {
 		mutex_unlock(&adapter->vector_lock);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < stack->size; i++)
@@ -67,7 +67,7 @@ static void idpf_deinit_vector_stack(struct idpf_adapter *adapter)
  * @adapter: adapter structure
  *
  * This will also disable interrupt mode and queue up mailbox task. Mailbox
- * task will reschedule itself if not in interrupt mode.
+ * task will reschedule itself if analt in interrupt mode.
  */
 static void idpf_mb_intr_rel_irq(struct idpf_adapter *adapter)
 {
@@ -216,7 +216,7 @@ static int idpf_vector_lifo_pop(struct idpf_adapter *adapter)
 	lockdep_assert_held(&adapter->vector_lock);
 
 	if (stack->top == stack->size) {
-		dev_err(&adapter->pdev->dev, "No interrupt vectors are available to distribute!\n");
+		dev_err(&adapter->pdev->dev, "Anal interrupt vectors are available to distribute!\n");
 
 		return -EINVAL;
 	}
@@ -230,7 +230,7 @@ static int idpf_vector_lifo_pop(struct idpf_adapter *adapter)
  * @q_vector_idxs: vector index array
  * @vec_info: info related to the number of vectors
  *
- * This function is a no-op if there are no vectors indexes to be stashed
+ * This function is a anal-op if there are anal vectors indexes to be stashed
  */
 static void idpf_vector_stash(struct idpf_adapter *adapter, u16 *q_vector_idxs,
 			      struct idpf_vector_info *vec_info)
@@ -243,7 +243,7 @@ static void idpf_vector_stash(struct idpf_adapter *adapter, u16 *q_vector_idxs,
 	if (!vec_info->num_curr_vecs)
 		return;
 
-	/* For default vports, no need to stash vector allocated from the
+	/* For default vports, anal need to stash vector allocated from the
 	 * default pool onto the stack
 	 */
 	if (vec_info->default_vport)
@@ -271,7 +271,7 @@ static void idpf_vector_stash(struct idpf_adapter *adapter, u16 *q_vector_idxs,
  * vectors and returns 0.
  *
  * Returns actual number of vectors allocated on success, error value on failure
- * If 0 is returned, implies the stack has no vectors to allocate which is also
+ * If 0 is returned, implies the stack has anal vectors to allocate which is also
  * a failure case for the caller
  */
 int idpf_req_rel_vector_indexes(struct idpf_adapter *adapter,
@@ -303,7 +303,7 @@ int idpf_req_rel_vector_indexes(struct idpf_adapter *adapter,
 		}
 	}
 
-	/* Find if stack has enough vector to allocate */
+	/* Find if stack has eanalugh vector to allocate */
 	max_vecs = min(adapter->num_avail_msix, num_req_vecs);
 
 	for (j = 0; j < max_vecs; j++) {
@@ -357,7 +357,7 @@ int idpf_intr_req(struct idpf_adapter *adapter)
 					GFP_KERNEL);
 
 	if (!adapter->msix_entries) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_irq;
 	}
 
@@ -365,7 +365,7 @@ int idpf_intr_req(struct idpf_adapter *adapter)
 
 	vecids = kcalloc(total_vecs, sizeof(u16), GFP_KERNEL);
 	if (!vecids) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_msix;
 	}
 
@@ -545,7 +545,7 @@ static int __idpf_add_mac_filter(struct idpf_vport_config *vport_config,
 	if (!f) {
 		spin_unlock_bh(&vport_config->mac_filter_list_lock);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ether_addr_copy(f->macaddr, macaddr);
@@ -701,7 +701,7 @@ static int idpf_init_mac_addr(struct idpf_vport *vport,
 	if (!idpf_is_cap_ena(adapter, IDPF_OTHER_CAPS,
 			     VIRTCHNL2_CAP_MACFILTER)) {
 		dev_err(&adapter->pdev->dev,
-			"MAC address is not provided and capability is not set\n");
+			"MAC address is analt provided and capability is analt set\n");
 
 		return -EINVAL;
 	}
@@ -755,7 +755,7 @@ static int idpf_cfg_netdev(struct idpf_vport *vport)
 				    vport_config->max_q.max_txq,
 				    vport_config->max_q.max_rxq);
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vport->netdev = netdev;
 	np = netdev_priv(netdev);
@@ -859,7 +859,7 @@ static int idpf_cfg_netdev(struct idpf_vport *vport)
 }
 
 /**
- * idpf_get_free_slot - get the next non-NULL location index in array
+ * idpf_get_free_slot - get the next analn-NULL location index in array
  * @adapter: adapter in which to look for a free vport slot
  */
 static int idpf_get_free_slot(struct idpf_adapter *adapter)
@@ -871,7 +871,7 @@ static int idpf_get_free_slot(struct idpf_adapter *adapter)
 			return i;
 	}
 
-	return IDPF_NO_FREE_SLOT;
+	return IDPF_ANAL_FREE_SLOT;
 }
 
 /**
@@ -903,7 +903,7 @@ static void idpf_vport_stop(struct idpf_vport *vport)
 	idpf_send_disable_vport_msg(vport);
 	idpf_send_disable_queues_msg(vport);
 	idpf_send_map_unmap_queue_vector_msg(vport, false);
-	/* Normally we ask for queues in create_vport, but if the number of
+	/* Analrmally we ask for queues in create_vport, but if the number of
 	 * initially requested queues have changed, for example via ethtool
 	 * set channels, we do delete queues and then add the queues back
 	 * instead of deleting and reallocating the vport.
@@ -928,7 +928,7 @@ static void idpf_vport_stop(struct idpf_vport *vport)
  * and the netdevice enters the DOWN state.  The hardware is still under the
  * driver's control, but the netdev interface is disabled.
  *
- * Returns success only - not allowed to fail
+ * Returns success only - analt allowed to fail
  */
 static int idpf_stop(struct net_device *netdev)
 {
@@ -985,7 +985,7 @@ static void idpf_vport_rel(struct idpf_vport *vport)
 
 	idpf_send_destroy_vport_msg(vport);
 
-	/* Set all bits as we dont know on which vc_state the vport vhnl_wq
+	/* Set all bits as we dont kanalw on which vc_state the vport vhnl_wq
 	 * is waiting on and wakeup the virtchnl workqueue even if it is
 	 * waiting for the response as we are going down
 	 */
@@ -1032,7 +1032,7 @@ static void idpf_vport_rel(struct idpf_vport *vport)
  * idpf_vport_dealloc - cleanup and release a given vport
  * @vport: pointer to idpf vport structure
  *
- * returns nothing
+ * returns analthing
  */
 static void idpf_vport_dealloc(struct idpf_vport *vport)
 {
@@ -1063,7 +1063,7 @@ static void idpf_vport_dealloc(struct idpf_vport *vport)
  * idpf_is_hsplit_supported - check whether the header split is supported
  * @vport: virtual port to check the capability for
  *
- * Return: true if it's supported by the HW/FW, false if not.
+ * Return: true if it's supported by the HW/FW, false if analt.
  */
 static bool idpf_is_hsplit_supported(const struct idpf_vport *vport)
 {
@@ -1076,7 +1076,7 @@ static bool idpf_is_hsplit_supported(const struct idpf_vport *vport)
  * idpf_vport_get_hsplit - get the current header split feature state
  * @vport: virtual port to query the state for
  *
- * Return: ``ETHTOOL_TCP_DATA_SPLIT_UNKNOWN`` if not supported,
+ * Return: ``ETHTOOL_TCP_DATA_SPLIT_UNKANALWN`` if analt supported,
  *         ``ETHTOOL_TCP_DATA_SPLIT_DISABLED`` if disabled,
  *         ``ETHTOOL_TCP_DATA_SPLIT_ENABLED`` if active.
  */
@@ -1085,7 +1085,7 @@ u8 idpf_vport_get_hsplit(const struct idpf_vport *vport)
 	const struct idpf_vport_user_config_data *config;
 
 	if (!idpf_is_hsplit_supported(vport))
-		return ETHTOOL_TCP_DATA_SPLIT_UNKNOWN;
+		return ETHTOOL_TCP_DATA_SPLIT_UNKANALWN;
 
 	config = &vport->adapter->vport_config[vport->idx]->user_config;
 
@@ -1099,19 +1099,19 @@ u8 idpf_vport_get_hsplit(const struct idpf_vport *vport)
  * @vport: virtual port to configure
  * @val: Ethtool flag controlling the header split state
  *
- * Return: true on success, false if not supported by the HW.
+ * Return: true on success, false if analt supported by the HW.
  */
 bool idpf_vport_set_hsplit(const struct idpf_vport *vport, u8 val)
 {
 	struct idpf_vport_user_config_data *config;
 
 	if (!idpf_is_hsplit_supported(vport))
-		return val == ETHTOOL_TCP_DATA_SPLIT_UNKNOWN;
+		return val == ETHTOOL_TCP_DATA_SPLIT_UNKANALWN;
 
 	config = &vport->adapter->vport_config[vport->idx]->user_config;
 
 	switch (val) {
-	case ETHTOOL_TCP_DATA_SPLIT_UNKNOWN:
+	case ETHTOOL_TCP_DATA_SPLIT_UNKANALWN:
 		/* Default is to enable */
 	case ETHTOOL_TCP_DATA_SPLIT_ENABLED:
 		__set_bit(__IDPF_USER_FLAG_HSPLIT, config->user_flags);
@@ -1139,7 +1139,7 @@ static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
 	struct idpf_vport *vport;
 	u16 num_max_q;
 
-	if (idx == IDPF_NO_FREE_SLOT)
+	if (idx == IDPF_ANAL_FREE_SLOT)
 		return NULL;
 
 	vport = kzalloc(sizeof(*vport), GFP_KERNEL);
@@ -1174,7 +1174,7 @@ static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
 	}
 	idpf_vport_init(vport, max_q);
 
-	/* This alloc is done separate from the LUT because it's not strictly
+	/* This alloc is done separate from the LUT because it's analt strictly
 	 * dependent on how many queues we have. If we change number of queues
 	 * and soft reset we'll need a new LUT but the key can remain the same
 	 * for as long as the vport exists.
@@ -1253,7 +1253,7 @@ void idpf_mbx_task(struct work_struct *work)
 		queue_delayed_work(adapter->mbx_wq, &adapter->mbx_task,
 				   msecs_to_jiffies(300));
 
-	idpf_recv_mb_msg(adapter, VIRTCHNL2_OP_UNKNOWN, NULL, 0);
+	idpf_recv_mb_msg(adapter, VIRTCHNL2_OP_UNKANALWN, NULL, 0);
 }
 
 /**
@@ -1374,7 +1374,7 @@ static int idpf_vport_open(struct idpf_vport *vport, bool alloc_res)
 	if (np->state != __IDPF_VPORT_DOWN)
 		return -EBUSY;
 
-	/* we do not allow interface up just yet */
+	/* we do analt allow interface up just yet */
 	netif_carrier_off(vport->netdev);
 
 	if (alloc_res) {
@@ -1493,7 +1493,7 @@ queues_rel:
  * idpf_init_task - Delayed initialization task
  * @work: work_struct handle to our data
  *
- * Init task finishes up pending work started in probe. Due to the asynchronous
+ * Init task finishes up pending work started in probe. Due to the asynchroanalus
  * nature in which the device communicates with hardware, we may have to wait
  * several milliseconds to get a response.  Instead of busy polling in probe,
  * pulling it out into a delayed work task prevents us from bogging down the
@@ -1593,7 +1593,7 @@ void idpf_init_task(struct work_struct *work)
 	 * unconditionally here in case we were in reset and the link was down.
 	 */
 	clear_bit(IDPF_HR_RESET_IN_PROG, adapter->flags);
-	/* Start the statistics task now */
+	/* Start the statistics task analw */
 	queue_delayed_work(adapter->stats_wq, &adapter->stats_task,
 			   msecs_to_jiffies(10 * (pdev->devfn & 0x07)));
 
@@ -1657,9 +1657,9 @@ int idpf_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	struct idpf_adapter *adapter = pci_get_drvdata(pdev);
 
 	if (!idpf_is_cap_ena(adapter, IDPF_OTHER_CAPS, VIRTCHNL2_CAP_SRIOV)) {
-		dev_info(&pdev->dev, "SR-IOV is not supported on this device\n");
+		dev_info(&pdev->dev, "SR-IOV is analt supported on this device\n");
 
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (num_vfs)
@@ -1722,7 +1722,7 @@ static int idpf_check_reset_complete(struct idpf_hw *hw,
 		u32 reg_val = readl(reset_reg->rstat);
 
 		/* 0xFFFFFFFF might be read if other side hasn't cleared the
-		 * register for us yet and 0xFFFFFFFF is not a valid value for
+		 * register for us yet and 0xFFFFFFFF is analt a valid value for
 		 * the register, so treat that as invalid.
 		 */
 		if (reg_val != 0xFFFFFFFF && (reg_val & reset_reg->rstat_m))
@@ -1895,11 +1895,11 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 	 */
 	new_vport = kzalloc(sizeof(*vport), GFP_KERNEL);
 	if (!new_vport)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* This purposely avoids copying the end of the struct because it
 	 * contains wait_queues and mutexes and other stuff we don't want to
-	 * mess with. Nothing below should use those variables from new_vport
+	 * mess with. Analthing below should use those variables from new_vport
 	 * and should instead always refer to them in vport if they need to.
 	 */
 	memcpy(new_vport, vport, offsetof(struct idpf_vport, vc_state));
@@ -1937,7 +1937,7 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 	idpf_deinit_rss(vport);
 	/* We're passing in vport here because we need its wait_queue
 	 * to send a message and it should be getting all the vport
-	 * config data out of the adapter but we need to be careful not
+	 * config data out of the adapter but we need to be careful analt
 	 * to add code to add_queues to change the vport config within
 	 * vport itself as it will be wiped with a memcpy later.
 	 */
@@ -1949,7 +1949,7 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 		goto err_reset;
 
 	/* Same comment as above regarding avoiding copying the wait_queues and
-	 * mutexes applies here. We do not want to mess with those if possible.
+	 * mutexes applies here. We do analt want to mess with those if possible.
 	 */
 	memcpy(vport, new_vport, offsetof(struct idpf_vport, vc_state));
 
@@ -2022,9 +2022,9 @@ free_vport:
  *
  * Called by __dev_(mc|uc)_sync when an address needs to be added. We call
  * __dev_(uc|mc)_sync from .set_rx_mode. Kernel takes addr_list_lock spinlock
- * meaning we cannot sleep in this context. Due to this, we have to add the
- * filter and send the virtchnl message asynchronously without waiting for the
- * response from the other side. We won't know whether or not the operation
+ * meaning we cananalt sleep in this context. Due to this, we have to add the
+ * filter and send the virtchnl message asynchroanalusly without waiting for the
+ * response from the other side. We won't kanalw whether or analt the operation
  * actually succeeded until we get the message back.  Returns 0 on success,
  * negative on failure.
  */
@@ -2042,9 +2042,9 @@ static int idpf_addr_sync(struct net_device *netdev, const u8 *addr)
  *
  * Called by __dev_(mc|uc)_sync when an address needs to be added. We call
  * __dev_(uc|mc)_sync from .set_rx_mode. Kernel takes addr_list_lock spinlock
- * meaning we cannot sleep in this context. Due to this we have to delete the
- * filter and send the virtchnl message asynchronously without waiting for the
- * return from the other side.  We won't know whether or not the operation
+ * meaning we cananalt sleep in this context. Due to this we have to delete the
+ * filter and send the virtchnl message asynchroanalusly without waiting for the
+ * return from the other side.  We won't kanalw whether or analt the operation
  * actually succeeded until we get the message back. Returns 0 on success,
  * negative on failure.
  */
@@ -2054,8 +2054,8 @@ static int idpf_addr_unsync(struct net_device *netdev, const u8 *addr)
 
 	/* Under some circumstances, we might receive a request to delete
 	 * our own device address from our uc list. Because we store the
-	 * device address in the VSI's MAC filter list, we need to ignore
-	 * such requests and not delete our device address from this list.
+	 * device address in the VSI's MAC filter list, we need to iganalre
+	 * such requests and analt delete our device address from this list.
 	 */
 	if (ether_addr_equal(addr, netdev->dev_addr))
 		return 0;
@@ -2070,7 +2070,7 @@ static int idpf_addr_unsync(struct net_device *netdev, const u8 *addr)
  * @netdev: network interface device structure
  *
  * Stack takes addr_list_lock spinlock before calling our .set_rx_mode.  We
- * cannot sleep in this context.
+ * cananalt sleep in this context.
  */
 static void idpf_set_rx_mode(struct net_device *netdev)
 {
@@ -2225,7 +2225,7 @@ unlock_mutex:
  * active by the system (IFF_UP).  At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the netdev watchdog is enabled,
- * and the stack is notified that the interface is ready.
+ * and the stack is analtified that the interface is ready.
  *
  * Returns 0 on success, negative value on failure
  */
@@ -2282,21 +2282,21 @@ static netdev_features_t idpf_features_check(struct sk_buff *skb,
 	struct idpf_adapter *adapter = vport->adapter;
 	size_t len;
 
-	/* No point in doing any of this if neither checksum nor GSO are
+	/* Anal point in doing any of this if neither checksum analr GSO are
 	 * being requested for this frame.  We can rule out both by just
 	 * checking for CHECKSUM_PARTIAL
 	 */
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return features;
 
-	/* We cannot support GSO if the MSS is going to be less than
+	/* We cananalt support GSO if the MSS is going to be less than
 	 * 88 bytes. If it is then we need to drop support for GSO.
 	 */
 	if (skb_is_gso(skb) &&
 	    (skb_shinfo(skb)->gso_size < IDPF_TX_TSO_MIN_MSS))
 		features &= ~NETIF_F_GSO_MASK;
 
-	/* Ensure MACLEN is <= 126 bytes (63 words) and not an odd size */
+	/* Ensure MACLEN is <= 126 bytes (63 words) and analt an odd size */
 	len = skb_network_offset(skb);
 	if (unlikely(len & ~(126)))
 		goto unsupported;
@@ -2318,7 +2318,7 @@ static netdev_features_t idpf_features_check(struct sk_buff *skb,
 	if (unlikely(len > idpf_get_max_tx_hdr_size(adapter)))
 		goto unsupported;
 
-	/* No need to validate L4LEN as TCP is the only protocol with a
+	/* Anal need to validate L4LEN as TCP is the only protocol with a
 	 * a flexible value and we support all possible values supported
 	 * by TCP, which is at most 15 dwords
 	 */
@@ -2349,15 +2349,15 @@ static int idpf_set_mac(struct net_device *netdev, void *p)
 
 	if (!idpf_is_cap_ena(vport->adapter, IDPF_OTHER_CAPS,
 			     VIRTCHNL2_CAP_MACFILTER)) {
-		dev_info(&vport->adapter->pdev->dev, "Setting MAC address is not supported\n");
-		err = -EOPNOTSUPP;
+		dev_info(&vport->adapter->pdev->dev, "Setting MAC address is analt supported\n");
+		err = -EOPANALTSUPP;
 		goto unlock_mutex;
 	}
 
 	if (!is_valid_ether_addr(addr->sa_data)) {
 		dev_info(&vport->adapter->pdev->dev, "Invalid MAC address: %pM\n",
 			 addr->sa_data);
-		err = -EADDRNOTAVAIL;
+		err = -EADDRANALTAVAIL;
 		goto unlock_mutex;
 	}
 

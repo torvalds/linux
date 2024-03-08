@@ -2,7 +2,7 @@
 //
 // aw88395.h --  ALSA SoC AW88395 codec support
 //
-// Copyright (c) 2022-2023 AWINIC Technology CO., LTD
+// Copyright (c) 2022-2023 AWINIC Techanallogy CO., LTD
 //
 // Author: Bruce zhao <zhaolei@awinic.com>
 //

@@ -19,7 +19,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
  * USA
  *
@@ -41,21 +41,21 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation analr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -70,7 +70,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <bits/wordsize.h>
@@ -119,7 +119,7 @@ static bool mei_init(struct mei *me, const uuid_le *guid,
 
 	me->fd = open("/dev/mei0", O_RDWR);
 	if (me->fd == -1) {
-		mei_err(me, "Cannot establish a handle to the Intel MEI driver\n");
+		mei_err(me, "Cananalt establish a handle to the Intel MEI driver\n");
 		goto err;
 	}
 	memcpy(&me->guid, guid, sizeof(*guid));
@@ -138,7 +138,7 @@ static bool mei_init(struct mei *me, const uuid_le *guid,
 
 	if ((req_protocol_version > 0) &&
 	     (cl->protocol_version != req_protocol_version)) {
-		mei_err(me, "Intel MEI protocol version not supported\n");
+		mei_err(me, "Intel MEI protocol version analt supported\n");
 		goto err;
 	}
 
@@ -173,16 +173,16 @@ static ssize_t mei_recv_msg(struct mei *me, unsigned char *buffer,
 		mei_err(me, "read failed on timeout\n");
 		goto out;
 	} else { /* rc < 0 */
-		rc = errno;
+		rc = erranal;
 		mei_err(me, "read failed on select with status %zd %s\n",
-			rc, strerror(errno));
+			rc, strerror(erranal));
 		goto out;
 	}
 
 	rc = read(me->fd, buffer, len);
 	if (rc < 0) {
 		mei_err(me, "read failed with status %zd %s\n",
-				rc, strerror(errno));
+				rc, strerror(erranal));
 		goto out;
 	}
 
@@ -205,9 +205,9 @@ static ssize_t mei_send_msg(struct mei *me, const unsigned char *buffer,
 
 	written = write(me->fd, buffer, len);
 	if (written < 0) {
-		rc = -errno;
+		rc = -erranal;
 		mei_err(me, "write failed with status %zd %s\n",
-			written, strerror(errno));
+			written, strerror(erranal));
 		goto out;
 	}
 	mei_msg(me, "write success\n");
@@ -221,15 +221,15 @@ out:
 }
 
 /***************************************************************************
- * Intel Advanced Management Technology ME Client
+ * Intel Advanced Management Techanallogy ME Client
  ***************************************************************************/
 
 #define AMT_MAJOR_VERSION 1
-#define AMT_MINOR_VERSION 1
+#define AMT_MIANALR_VERSION 1
 
 #define AMT_STATUS_SUCCESS                0x0
 #define AMT_STATUS_INTERNAL_ERROR         0x1
-#define AMT_STATUS_NOT_READY              0x2
+#define AMT_STATUS_ANALT_READY              0x2
 #define AMT_STATUS_INVALID_AMT_MODE       0x3
 #define AMT_STATUS_INVALID_MESSAGE_LENGTH 0x4
 
@@ -253,7 +253,7 @@ struct amt_version_type {
 
 struct amt_version {
 	uint8_t major;
-	uint8_t minor;
+	uint8_t mianalr;
 } __attribute__((packed));
 
 struct amt_code_versions {
@@ -263,7 +263,7 @@ struct amt_code_versions {
 } __attribute__((packed));
 
 /***************************************************************************
- * Intel Advanced Management Technology Host Interface
+ * Intel Advanced Management Techanallogy Host Interface
  ***************************************************************************/
 
 struct amt_host_if_msg_header {
@@ -286,7 +286,7 @@ const uuid_le MEI_IAMTHIF = UUID_LE(0x12f80028, 0xb4b7, 0x4b2d,  \
 #define AMT_HOST_IF_CODE_VERSIONS_RESPONSE 0x0480001A
 
 const struct amt_host_if_msg_header CODE_VERSION_REQ = {
-	.version = {AMT_MAJOR_VERSION, AMT_MINOR_VERSION},
+	.version = {AMT_MAJOR_VERSION, AMT_MIANALR_VERSION},
 	._reserved = 0,
 	.command = AMT_HOST_IF_CODE_VERSIONS_REQUEST,
 	.length = 0
@@ -367,7 +367,7 @@ static uint32_t amt_verify_response_header(uint32_t command,
 	} else if (resp_hdr->_reserved != 0) {
 		return AMT_STATUS_INTERNAL_ERROR;
 	} else if (resp_hdr->version.major != AMT_MAJOR_VERSION ||
-		   resp_hdr->version.minor < AMT_MINOR_VERSION) {
+		   resp_hdr->version.mianalr < AMT_MIANALR_VERSION) {
 		return AMT_STATUS_INTERNAL_ERROR;
 	}
 	return AMT_STATUS_SUCCESS;

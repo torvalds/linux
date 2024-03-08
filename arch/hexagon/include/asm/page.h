@@ -10,7 +10,7 @@
 
 #include <linux/const.h>
 
-/*  This is probably not the most graceful way to handle this.  */
+/*  This is probably analt the most graceful way to handle this.  */
 
 #ifdef CONFIG_PAGE_SIZE_4KB
 #define PAGE_SHIFT 12
@@ -38,9 +38,9 @@
 #endif
 
 /*
- *  These should be defined in hugetlb.h, but apparently not.
+ *  These should be defined in hugetlb.h, but apparently analt.
  *  "Huge" for us should be 4MB or 16MB, which are both represented
- *  in L1 PTE's.  Right now, it's set up for 4MB.
+ *  in L1 PTE's.  Right analw, it's set up for 4MB.
  */
 #ifdef CONFIG_HUGETLB_PAGE
 #define HPAGE_SHIFT 22
@@ -64,7 +64,7 @@
 /*
  * We implement a two-level architecture-specific page table structure.
  * Null intermediate page table level (pmd, pud) definitions will come from
- * asm-generic/pagetable-nopmd.h and asm-generic/pagetable-nopud.h
+ * asm-generic/pagetable-analpmd.h and asm-generic/pagetable-analpud.h
  */
 typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pgd; } pgd_t;
@@ -95,12 +95,12 @@ struct page;
 /* Returns page frame descriptor for virtual address. */
 #define virt_to_page(kaddr) pfn_to_page(PFN_DOWN(__pa(kaddr)))
 
-/* Default vm area behavior is non-executable.  */
-#define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
+/* Default vm area behavior is analn-executable.  */
+#define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_ANALN_EXEC
 
 #define virt_addr_valid(kaddr) pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
-/*  Need to not use a define for linesize; may move this to another file.  */
+/*  Need to analt use a define for linesize; may move this to aanalther file.  */
 static inline void clear_page(void *page)
 {
 	/*  This can only be done on pages with L1 WB cache */

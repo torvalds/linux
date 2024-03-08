@@ -66,11 +66,11 @@ static u16 nvmet_auth_negotiate(struct nvmet_req *req, void *d)
 	}
 	if (hash_id == 0) {
 		if (fallback_hash_id == 0) {
-			pr_debug("%s: ctrl %d qid %d: no usable hash found\n",
+			pr_debug("%s: ctrl %d qid %d: anal usable hash found\n",
 				 __func__, ctrl->cntlid, req->sq->qid);
 			return NVME_AUTH_DHCHAP_FAILURE_HASH_UNUSABLE;
 		}
-		pr_debug("%s: ctrl %d qid %d: no usable hash found, falling back to %s\n",
+		pr_debug("%s: ctrl %d qid %d: anal usable hash found, falling back to %s\n",
 			 __func__, ctrl->cntlid, req->sq->qid,
 			 nvme_auth_hmac_name(fallback_hash_id));
 		ctrl->shash_id = fallback_hash_id;
@@ -94,11 +94,11 @@ static u16 nvmet_auth_negotiate(struct nvmet_req *req, void *d)
 	}
 	if (dhgid < 0) {
 		if (fallback_dhgid < 0) {
-			pr_debug("%s: ctrl %d qid %d: no usable DH group found\n",
+			pr_debug("%s: ctrl %d qid %d: anal usable DH group found\n",
 				 __func__, ctrl->cntlid, req->sq->qid);
 			return NVME_AUTH_DHCHAP_FAILURE_DHGROUP_UNUSABLE;
 		}
-		pr_debug("%s: ctrl %d qid %d: configured DH group %s not found\n",
+		pr_debug("%s: ctrl %d qid %d: configured DH group %s analt found\n",
 			 __func__, ctrl->cntlid, req->sq->qid,
 			 nvme_auth_dhgroup_name(fallback_dhgid));
 		ctrl->dh_gid = fallback_dhgid;
@@ -133,7 +133,7 @@ static u16 nvmet_auth_reply(struct nvmet_req *req, void *d)
 		return NVME_AUTH_DHCHAP_FAILURE_FAILED;
 
 	if (!ctrl->host_key) {
-		pr_warn("ctrl %d qid %d no host key\n",
+		pr_warn("ctrl %d qid %d anal host key\n",
 			ctrl->cntlid, req->sq->qid);
 		kfree(response);
 		return NVME_AUTH_DHCHAP_FAILURE_FAILED;
@@ -375,7 +375,7 @@ static int nvmet_auth_challenge(struct nvmet_req *req, void *d, int al)
 	data->seqnum = cpu_to_le32(req->sq->dhchap_s1);
 	req->sq->dhchap_c1 = kmalloc(data->hl, GFP_KERNEL);
 	if (!req->sq->dhchap_c1)
-		return -ENOMEM;
+		return -EANALMEM;
 	get_random_bytes(req->sq->dhchap_c1, data->hl);
 	memcpy(data->cval, req->sq->dhchap_c1, data->hl);
 	if (ctrl->dh_tfm) {
@@ -404,7 +404,7 @@ static int nvmet_auth_success1(struct nvmet_req *req, void *d, int al)
 	data->hl = hash_len;
 	if (req->sq->dhchap_c2) {
 		if (!ctrl->ctrl_key) {
-			pr_warn("ctrl %d qid %d no ctrl key\n",
+			pr_warn("ctrl %d qid %d anal ctrl key\n",
 				ctrl->cntlid, req->sq->qid);
 			return NVME_AUTH_DHCHAP_FAILURE_FAILED;
 		}

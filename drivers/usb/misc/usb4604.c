@@ -14,7 +14,7 @@
 #include <linux/gpio/consumer.h>
 
 enum usb4604_mode {
-	USB4604_MODE_UNKNOWN,
+	USB4604_MODE_UNKANALWN,
 	USB4604_MODE_HUB,
 	USB4604_MODE_STANDBY,
 };
@@ -71,7 +71,7 @@ static int usb4604_switch_mode(struct usb4604 *hub, enum usb4604_mode mode)
 		break;
 
 	default:
-		dev_err(dev, "unknown mode is requested\n");
+		dev_err(dev, "unkanalwn mode is requested\n");
 		err = -EINVAL;
 		break;
 	}
@@ -82,7 +82,7 @@ static int usb4604_switch_mode(struct usb4604 *hub, enum usb4604_mode mode)
 static int usb4604_probe(struct usb4604 *hub)
 {
 	struct device *dev = hub->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct gpio_desc *gpio;
 	u32 mode = USB4604_MODE_HUB;
 
@@ -103,7 +103,7 @@ static int usb4604_i2c_probe(struct i2c_client *i2c)
 
 	hub = devm_kzalloc(&i2c->dev, sizeof(*hub), GFP_KERNEL);
 	if (!hub)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, hub);
 	hub->dev = &i2c->dev;

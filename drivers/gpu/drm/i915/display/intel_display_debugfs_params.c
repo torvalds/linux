@@ -21,9 +21,9 @@ static int intel_display_param_int_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int intel_display_param_int_open(struct inode *inode, struct file *file)
+static int intel_display_param_int_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, intel_display_param_int_show, inode->i_private);
+	return single_open(file, intel_display_param_int_show, ianalde->i_private);
 }
 
 static ssize_t intel_display_param_int_write(struct file *file,
@@ -74,9 +74,9 @@ static int intel_display_param_uint_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int intel_display_param_uint_open(struct inode *inode, struct file *file)
+static int intel_display_param_uint_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, intel_display_param_uint_show, inode->i_private);
+	return single_open(file, intel_display_param_uint_show, ianalde->i_private);
 }
 
 static ssize_t intel_display_param_uint_write(struct file *file,
@@ -152,19 +152,19 @@ intel_display_debugfs_create_uint(const char *name, umode_t mode,
 /* add a subdirectory with files for each intel display param */
 void intel_display_debugfs_params(struct drm_i915_private *i915)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	struct drm_mianalr *mianalr = i915->drm.primary;
 	struct dentry *dir;
 	char dirname[16];
 
 	snprintf(dirname, sizeof(dirname), "%s_params", i915->drm.driver->name);
-	dir = debugfs_lookup(dirname, minor->debugfs_root);
+	dir = debugfs_lookup(dirname, mianalr->debugfs_root);
 	if (!dir)
-		dir = debugfs_create_dir(dirname, minor->debugfs_root);
+		dir = debugfs_create_dir(dirname, mianalr->debugfs_root);
 	if (IS_ERR(dir))
 		return;
 
 	/*
-	 * Note: We could create files for params needing special handling
+	 * Analte: We could create files for params needing special handling
 	 * here. Set mode in params to 0 to skip the generic create file, or
 	 * just let the generic create file fail silently with -EEXIST.
 	 */

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2013 Politecnico di Torino, Italy
+ * Copyright (C) 2013 Politecnico di Torianal, Italy
  *                    TORSEC group -- https://security.polito.it
  *
  * Author: Roberto Sassu <roberto.sassu@polito.it>
@@ -54,16 +54,16 @@ int ima_eventmodsig_init(struct ima_event_data *event_data,
 			 struct ima_field_data *field_data);
 int ima_eventevmsig_init(struct ima_event_data *event_data,
 			 struct ima_field_data *field_data);
-int ima_eventinodeuid_init(struct ima_event_data *event_data,
+int ima_eventianaldeuid_init(struct ima_event_data *event_data,
 			   struct ima_field_data *field_data);
-int ima_eventinodegid_init(struct ima_event_data *event_data,
+int ima_eventianaldegid_init(struct ima_event_data *event_data,
 			   struct ima_field_data *field_data);
-int ima_eventinodemode_init(struct ima_event_data *event_data,
+int ima_eventianaldemode_init(struct ima_event_data *event_data,
 			    struct ima_field_data *field_data);
-int ima_eventinodexattrnames_init(struct ima_event_data *event_data,
+int ima_eventianaldexattrnames_init(struct ima_event_data *event_data,
 				  struct ima_field_data *field_data);
-int ima_eventinodexattrlengths_init(struct ima_event_data *event_data,
+int ima_eventianaldexattrlengths_init(struct ima_event_data *event_data,
 				    struct ima_field_data *field_data);
-int ima_eventinodexattrvalues_init(struct ima_event_data *event_data,
+int ima_eventianaldexattrvalues_init(struct ima_event_data *event_data,
 				   struct ima_field_data *field_data);
 #endif /* __LINUX_IMA_TEMPLATE_LIB_H */

@@ -392,7 +392,7 @@ static int wm831x_irq_set_type(struct irq_data *data, unsigned int type)
 	irq = data->hwirq;
 
 	if (irq < WM831X_IRQ_GPIO_1 || irq > WM831X_IRQ_GPIO_11) {
-		/* Ignore internal-only IRQs */
+		/* Iganalre internal-only IRQs */
 		if (irq >= 0 && irq < WM831X_NUM_IRQS)
 			return 0;
 		else
@@ -498,11 +498,11 @@ static irqreturn_t wm831x_irq_thread(int irq, void *data)
 
 			read[offset] = 1;
 
-			/* Ignore any bits that we don't think are masked */
+			/* Iganalre any bits that we don't think are masked */
 			*status &= ~wm831x->irq_masks_cur[offset];
 
-			/* Acknowledge now so we don't miss
-			 * notifications while we handle.
+			/* Ackanalwledge analw so we don't miss
+			 * analtifications while we handle.
 			 */
 			wm831x_reg_write(wm831x, status_addr, *status);
 		}
@@ -547,7 +547,7 @@ static int wm831x_irq_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_data(virq, h->host_data);
 	irq_set_chip_and_handler(virq, &wm831x_irq_chip, handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_analprobe(virq);
 
 	return 0;
 }
@@ -573,7 +573,7 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 				 0xffff);
 	}
 
-	/* Try to dynamically allocate IRQs if no base is specified */
+	/* Try to dynamically allocate IRQs if anal base is specified */
 	if (pdata->irq_base) {
 		irq_base = irq_alloc_descs(pdata->irq_base, 0,
 					   WM831X_NUM_IRQS, 0);
@@ -587,13 +587,13 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 	}
 
 	if (irq_base)
-		domain = irq_domain_add_legacy(wm831x->dev->of_node,
+		domain = irq_domain_add_legacy(wm831x->dev->of_analde,
 					       ARRAY_SIZE(wm831x_irqs),
 					       irq_base, 0,
 					       &wm831x_irq_domain_ops,
 					       wm831x);
 	else
-		domain = irq_domain_add_linear(wm831x->dev->of_node,
+		domain = irq_domain_add_linear(wm831x->dev->of_analde,
 					       ARRAY_SIZE(wm831x_irqs),
 					       &wm831x_irq_domain_ops,
 					       wm831x);
@@ -637,7 +637,7 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 		}
 	} else {
 		dev_warn(wm831x->dev,
-			 "No interrupt specified - functionality limited\n");
+			 "Anal interrupt specified - functionality limited\n");
 	}
 
 	/* Enable top level interrupts, we mask at secondary level */

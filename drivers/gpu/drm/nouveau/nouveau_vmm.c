@@ -8,25 +8,25 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "nouveau_vmm.h"
-#include "nouveau_drv.h"
-#include "nouveau_bo.h"
-#include "nouveau_svm.h"
-#include "nouveau_mem.h"
+#include "analuveau_vmm.h"
+#include "analuveau_drv.h"
+#include "analuveau_bo.h"
+#include "analuveau_svm.h"
+#include "analuveau_mem.h"
 
 void
-nouveau_vma_unmap(struct nouveau_vma *vma)
+analuveau_vma_unmap(struct analuveau_vma *vma)
 {
 	if (vma->mem) {
 		nvif_vmm_unmap(&vma->vmm->vmm, vma->addr);
@@ -35,20 +35,20 @@ nouveau_vma_unmap(struct nouveau_vma *vma)
 }
 
 int
-nouveau_vma_map(struct nouveau_vma *vma, struct nouveau_mem *mem)
+analuveau_vma_map(struct analuveau_vma *vma, struct analuveau_mem *mem)
 {
 	struct nvif_vma tmp = { .addr = vma->addr };
-	int ret = nouveau_mem_map(mem, &vma->vmm->vmm, &tmp);
+	int ret = analuveau_mem_map(mem, &vma->vmm->vmm, &tmp);
 	if (ret)
 		return ret;
 	vma->mem = mem;
 	return 0;
 }
 
-struct nouveau_vma *
-nouveau_vma_find(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm)
+struct analuveau_vma *
+analuveau_vma_find(struct analuveau_bo *nvbo, struct analuveau_vmm *vmm)
 {
-	struct nouveau_vma *vma;
+	struct analuveau_vma *vma;
 
 	list_for_each_entry(vma, &nvbo->vma_list, head) {
 		if (vma->vmm == vmm)
@@ -59,9 +59,9 @@ nouveau_vma_find(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm)
 }
 
 void
-nouveau_vma_del(struct nouveau_vma **pvma)
+analuveau_vma_del(struct analuveau_vma **pvma)
 {
-	struct nouveau_vma *vma = *pvma;
+	struct analuveau_vma *vma = *pvma;
 	if (vma && --vma->refs <= 0) {
 		if (likely(vma->addr != ~0ULL)) {
 			struct nvif_vma tmp = { .addr = vma->addr, .size = 1 };
@@ -74,21 +74,21 @@ nouveau_vma_del(struct nouveau_vma **pvma)
 }
 
 int
-nouveau_vma_new(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm,
-		struct nouveau_vma **pvma)
+analuveau_vma_new(struct analuveau_bo *nvbo, struct analuveau_vmm *vmm,
+		struct analuveau_vma **pvma)
 {
-	struct nouveau_mem *mem = nouveau_mem(nvbo->bo.resource);
-	struct nouveau_vma *vma;
+	struct analuveau_mem *mem = analuveau_mem(nvbo->bo.resource);
+	struct analuveau_vma *vma;
 	struct nvif_vma tmp;
 	int ret;
 
-	if ((vma = *pvma = nouveau_vma_find(nvbo, vmm))) {
+	if ((vma = *pvma = analuveau_vma_find(nvbo, vmm))) {
 		vma->refs++;
 		return 0;
 	}
 
 	if (!(vma = *pvma = kmalloc(sizeof(*vma), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	vma->vmm = vmm;
 	vma->refs = 1;
 	vma->addr = ~0ULL;
@@ -104,7 +104,7 @@ nouveau_vma_new(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm,
 			goto done;
 
 		vma->addr = tmp.addr;
-		ret = nouveau_vma_map(vma, mem);
+		ret = analuveau_vma_map(vma, mem);
 	} else {
 		ret = nvif_vmm_get(&vmm->vmm, PTES, false, mem->mem.page, 0,
 				   mem->mem.size, &tmp);
@@ -116,20 +116,20 @@ nouveau_vma_new(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm,
 
 done:
 	if (ret)
-		nouveau_vma_del(pvma);
+		analuveau_vma_del(pvma);
 	return ret;
 }
 
 void
-nouveau_vmm_fini(struct nouveau_vmm *vmm)
+analuveau_vmm_fini(struct analuveau_vmm *vmm)
 {
-	nouveau_svmm_fini(&vmm->svmm);
+	analuveau_svmm_fini(&vmm->svmm);
 	nvif_vmm_dtor(&vmm->vmm);
 	vmm->cli = NULL;
 }
 
 int
-nouveau_vmm_init(struct nouveau_cli *cli, s32 oclass, struct nouveau_vmm *vmm)
+analuveau_vmm_init(struct analuveau_cli *cli, s32 oclass, struct analuveau_vmm *vmm)
 {
 	int ret = nvif_vmm_ctor(&cli->mmu, "drmVmm", oclass, UNMANAGED,
 				PAGE_SIZE, 0, NULL, 0, &vmm->vmm);

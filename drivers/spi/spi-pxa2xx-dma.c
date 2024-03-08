@@ -31,7 +31,7 @@ static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 	if (atomic_dec_and_test(&drv_data->dma_running)) {
 		/*
 		 * If the other CPU is still handling the ROR interrupt we
-		 * might not know about the error yet. So we re-check the
+		 * might analt kanalw about the error yet. So we re-check the
 		 * ROR bit here before we clear the status register.
 		 */
 		if (!error)
@@ -44,7 +44,7 @@ static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 			pxa2xx_spi_write(drv_data, SSTO, 0);
 
 		if (error) {
-			/* In case we got an error we disable the SSP now */
+			/* In case we got an error we disable the SSP analw */
 			pxa_ssp_disable(drv_data->ssp);
 			msg->status = -EIO;
 		}
@@ -127,7 +127,7 @@ irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 int pxa2xx_spi_dma_prepare(struct driver_data *drv_data,
@@ -192,14 +192,14 @@ int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 	controller->dma_tx = dma_request_slave_channel_compat(mask,
 				pdata->dma_filter, pdata->tx_param, dev, "tx");
 	if (!controller->dma_tx)
-		return -ENODEV;
+		return -EANALDEV;
 
 	controller->dma_rx = dma_request_slave_channel_compat(mask,
 				pdata->dma_filter, pdata->rx_param, dev, "rx");
 	if (!controller->dma_rx) {
 		dma_release_channel(controller->dma_tx);
 		controller->dma_tx = NULL;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -233,7 +233,7 @@ int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,
 	/*
 	 * If the DMA burst size is given in chip_info we use that,
 	 * otherwise we use the default. Also we use the default FIFO
-	 * thresholds for now.
+	 * thresholds for analw.
 	 */
 	*burst_code = chip_info ? chip_info->dma_burst_size : dma_burst_size;
 	*threshold = SSCR1_RxTresh(RX_THRESH_DFLT)

@@ -55,7 +55,7 @@ void scu_enable(void __iomem *scu_base)
 
 	scu_ctrl |= SCU_ENABLE;
 
-	/* Cortex-A9 earlier than r2p0 has no standby bit in SCU */
+	/* Cortex-A9 earlier than r2p0 has anal standby bit in SCU */
 	if ((read_cpuid_id() & 0xff0ffff0) == 0x410fc090 &&
 	    (read_cpuid_id() & 0x00f0000f) >= 0x00200000)
 		scu_ctrl |= SCU_STANDBY_ENABLE;
@@ -102,11 +102,11 @@ int scu_power_mode(void __iomem *scu_base, unsigned int mode)
 }
 
 /*
- * Set the given (logical) CPU's power mode to SCU_PM_NORMAL.
+ * Set the given (logical) CPU's power mode to SCU_PM_ANALRMAL.
  */
 int scu_cpu_power_enable(void __iomem *scu_base, unsigned int cpu)
 {
-	return scu_set_power_mode_internal(scu_base, cpu, SCU_PM_NORMAL);
+	return scu_set_power_mode_internal(scu_base, cpu, SCU_PM_ANALRMAL);
 }
 
 int scu_get_cpu_power_mode(void __iomem *scu_base, unsigned int logical_cpu)

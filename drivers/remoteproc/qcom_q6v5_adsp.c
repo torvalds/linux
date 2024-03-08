@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Qualcomm Technology Inc. ADSP Peripheral Image Loader for SDM845.
+ * Qualcomm Techanallogy Inc. ADSP Peripheral Image Loader for SDM845.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  */
 
@@ -147,7 +147,7 @@ static int qcom_rproc_pds_attach(struct device *dev, struct qcom_adsp *adsp,
 	for (i = 0; i < num_pds; i++) {
 		devs[i] = dev_pm_domain_attach_by_name(dev, pd_names[i]);
 		if (IS_ERR_OR_NULL(devs[i])) {
-			ret = PTR_ERR(devs[i]) ? : -ENODATA;
+			ret = PTR_ERR(devs[i]) ? : -EANALDATA;
 			goto unroll_attach;
 		}
 	}
@@ -324,7 +324,7 @@ static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 	struct qcom_adsp *adsp = rproc->priv;
 	int ret;
 
-	ret = qcom_mdt_load_no_init(adsp->dev, fw, rproc->firmware, 0,
+	ret = qcom_mdt_load_anal_init(adsp->dev, fw, rproc->firmware, 0,
 				    adsp->mem_region, adsp->mem_phys,
 				    adsp->mem_size, &adsp->mem_reloc);
 	if (ret)
@@ -357,7 +357,7 @@ static int adsp_map_carveout(struct rproc *rproc)
 	if (!rproc->domain)
 		return -EINVAL;
 
-	ret = of_parse_phandle_with_args(adsp->dev->of_node, "iommus", "#iommu-cells", 0, &args);
+	ret = of_parse_phandle_with_args(adsp->dev->of_analde, "iommus", "#iommu-cells", 0, &args);
 	if (ret < 0)
 		return ret;
 
@@ -559,7 +559,7 @@ static int adsp_init_clock(struct qcom_adsp *adsp, const char **clk_ids)
 	adsp->clks = devm_kcalloc(adsp->dev, adsp->num_clks,
 				sizeof(*adsp->clks), GFP_KERNEL);
 	if (!adsp->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < adsp->num_clks; i++)
 		adsp->clks[i].id = clk_ids[i];
@@ -594,7 +594,7 @@ static int adsp_init_mmio(struct qcom_adsp *adsp,
 				struct platform_device *pdev)
 {
 	struct resource *efuse_region;
-	struct device_node *syscon;
+	struct device_analde *syscon;
 	int ret;
 
 	adsp->qdsp6ss_base = devm_platform_ioremap_resource(pdev, 0);
@@ -614,21 +614,21 @@ static int adsp_init_mmio(struct qcom_adsp *adsp,
 			return PTR_ERR(adsp->lpass_efuse);
 		}
 	}
-	syscon = of_parse_phandle(pdev->dev.of_node, "qcom,halt-regs", 0);
+	syscon = of_parse_phandle(pdev->dev.of_analde, "qcom,halt-regs", 0);
 	if (!syscon) {
 		dev_err(&pdev->dev, "failed to parse qcom,halt-regs\n");
 		return -EINVAL;
 	}
 
-	adsp->halt_map = syscon_node_to_regmap(syscon);
-	of_node_put(syscon);
+	adsp->halt_map = syscon_analde_to_regmap(syscon);
+	of_analde_put(syscon);
 	if (IS_ERR(adsp->halt_map))
 		return PTR_ERR(adsp->halt_map);
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "qcom,halt-regs",
+	ret = of_property_read_u32_index(pdev->dev.of_analde, "qcom,halt-regs",
 			1, &adsp->halt_lpass);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "no offset in syscon\n");
+		dev_err(&pdev->dev, "anal offset in syscon\n");
 		return ret;
 	}
 
@@ -638,12 +638,12 @@ static int adsp_init_mmio(struct qcom_adsp *adsp,
 static int adsp_alloc_memory_region(struct qcom_adsp *adsp)
 {
 	struct reserved_mem *rmem = NULL;
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_parse_phandle(adsp->dev->of_node, "memory-region", 0);
-	if (node)
-		rmem = of_reserved_mem_lookup(node);
-	of_node_put(node);
+	analde = of_parse_phandle(adsp->dev->of_analde, "memory-region", 0);
+	if (analde)
+		rmem = of_reserved_mem_lookup(analde);
+	of_analde_put(analde);
 
 	if (!rmem) {
 		dev_err(adsp->dev, "unable to resolve memory-region\n");
@@ -676,7 +676,7 @@ static int adsp_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	firmware_name = desc->firmware_name;
-	ret = of_property_read_string(pdev->dev.of_node, "firmware-name",
+	ret = of_property_read_string(pdev->dev.of_analde, "firmware-name",
 				      &firmware_name);
 	if (ret < 0 && ret != -EINVAL) {
 		dev_err(&pdev->dev, "unable to read firmware-name\n");
@@ -687,12 +687,12 @@ static int adsp_probe(struct platform_device *pdev)
 			    firmware_name, sizeof(*adsp));
 	if (!rproc) {
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rproc->auto_boot = desc->auto_boot;
 	rproc->has_iommu = desc->has_iommu;
-	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_NONE);
+	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_ANALNE);
 
 	adsp = rproc->priv;
 	adsp->dev = &pdev->dev;
@@ -803,7 +803,7 @@ static const struct adsp_pil_data adsp_sc7280_resource_init = {
 	.has_iommu = true,
 	.auto_boot = true,
 	.clk_ids = (const char*[]) {
-		"gcc_cfg_noc_lpass", NULL
+		"gcc_cfg_analc_lpass", NULL
 	},
 	.num_clks = 1,
 };

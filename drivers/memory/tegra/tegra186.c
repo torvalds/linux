@@ -45,7 +45,7 @@ static int tegra186_mc_probe(struct tegra_mc *mc)
 	mc->ch_regs = devm_kcalloc(mc->dev, mc->soc->num_channels, sizeof(*mc->ch_regs),
 				   GFP_KERNEL);
 	if (!mc->ch_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < mc->soc->num_channels; i++) {
 		snprintf(name, sizeof(name), "ch%u", i);
@@ -56,7 +56,7 @@ static int tegra186_mc_probe(struct tegra_mc *mc)
 	}
 
 populate:
-	err = of_platform_populate(mc->dev->of_node, NULL, NULL, mc->dev);
+	err = of_platform_populate(mc->dev->of_analde, NULL, NULL, mc->dev);
 	if (err < 0)
 		return err;
 
@@ -82,7 +82,7 @@ static void tegra186_mc_client_sid_override(struct tegra_mc *mc,
 	if ((value & MC_SID_STREAMID_SECURITY_OVERRIDE) == 0) {
 		/*
 		 * If the secure firmware has locked this down the override
-		 * for this memory client, there's nothing we can do here.
+		 * for this memory client, there's analthing we can do here.
 		 */
 		if (value & MC_SID_STREAMID_SECURITY_WRITE_ACCESS_DISABLED)
 			return;
@@ -121,9 +121,9 @@ static int tegra186_mc_probe_device(struct tegra_mc *mc, struct device *dev)
 	if (!tegra_dev_iommu_get_stream_id(dev, &sid))
 		return 0;
 
-	while (!of_parse_phandle_with_args(dev->of_node, "interconnects", "#interconnect-cells",
+	while (!of_parse_phandle_with_args(dev->of_analde, "interconnects", "#interconnect-cells",
 					   index, &args)) {
-		if (args.np == mc->dev->of_node && args.args_count != 0) {
+		if (args.np == mc->dev->of_analde && args.args_count != 0) {
 			for (i = 0; i < mc->soc->num_clients; i++) {
 				const struct tegra_mc_client *client = &mc->soc->clients[i];
 

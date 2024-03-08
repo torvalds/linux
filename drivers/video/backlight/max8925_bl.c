@@ -89,7 +89,7 @@ static const struct backlight_ops max8925_backlight_ops = {
 
 static void max8925_backlight_dt_init(struct platform_device *pdev)
 {
-	struct device_node *nproot = pdev->dev.parent->of_node, *np;
+	struct device_analde *nproot = pdev->dev.parent->of_analde, *np;
 	struct max8925_backlight_pdata *pdata;
 	u32 val;
 
@@ -104,14 +104,14 @@ static void max8925_backlight_dt_init(struct platform_device *pdev)
 
 	np = of_get_child_by_name(nproot, "backlight");
 	if (!np) {
-		dev_err(&pdev->dev, "failed to find backlight node\n");
+		dev_err(&pdev->dev, "failed to find backlight analde\n");
 		return;
 	}
 
 	if (!of_property_read_u32(np, "maxim,max8925-dual-string", &val))
 		pdata->dual_string = val;
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	pdev->dev.platform_data = pdata;
 }
@@ -130,17 +130,17 @@ static int max8925_backlight_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(struct max8925_backlight_data),
 			    GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "No REG resource for mode control!\n");
+		dev_err(&pdev->dev, "Anal REG resource for mode control!\n");
 		return -ENXIO;
 	}
 	data->reg_mode_cntl = res->start;
 	res = platform_get_resource(pdev, IORESOURCE_REG, 1);
 	if (!res) {
-		dev_err(&pdev->dev, "No REG resource for control!\n");
+		dev_err(&pdev->dev, "Anal REG resource for control!\n");
 		return -ENXIO;
 	}
 	data->reg_cntl = res->start;

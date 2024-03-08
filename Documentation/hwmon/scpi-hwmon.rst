@@ -27,10 +27,10 @@ by the SCP:
 The SCP interface provides an API to query the available sensors and
 their values which are then exported to userspace by this driver.
 
-Usage Notes
+Usage Analtes
 -----------
 
-The driver relies on device tree node to indicate the presence of SCPI
+The driver relies on device tree analde to indicate the presence of SCPI
 support in the kernel. See
 Documentation/devicetree/bindings/firmware/arm,scpi.yaml for details of the
-devicetree node.
+devicetree analde.

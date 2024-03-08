@@ -239,7 +239,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		.transaction	= 112,
 		.raw_data	= (void *)raw_data,
 		.callchain	= &callchain.callchain,
-		.no_hw_idx      = false,
+		.anal_hw_idx      = false,
 		.branch_stack	= &branch_stack.branch_stack,
 		.user_regs	= {
 			.abi	= PERF_SAMPLE_REGS_ABI_64,
@@ -315,7 +315,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		goto out_free;
 	}
 
-	/* The data does not contain 0xff so we use that to check the size */
+	/* The data does analt contain 0xff so we use that to check the size */
 	for (i = bufsz; i > 0; i--) {
 		if (*(i - 1 + (u8 *)event) != 0xff)
 			break;
@@ -383,7 +383,7 @@ static int test__sample_parsing(struct test_suite *test __maybe_unused, int subt
 	int err;
 
 	/*
-	 * Fail the test if it has not been updated when new sample format bits
+	 * Fail the test if it has analt been updated when new sample format bits
 	 * were added.  Please actually update the test rather than just change
 	 * the condition below.
 	 */
@@ -419,7 +419,7 @@ static int test__sample_parsing(struct test_suite *test __maybe_unused, int subt
 
 	/*
 	 * Test all sample format bits together
-	 * Note: PERF_SAMPLE_WEIGHT and PERF_SAMPLE_WEIGHT_STRUCT cannot
+	 * Analte: PERF_SAMPLE_WEIGHT and PERF_SAMPLE_WEIGHT_STRUCT cananalt
 	 *       be set simultaneously.
 	 */
 	sample_type = (PERF_SAMPLE_MAX - 1) & ~PERF_SAMPLE_WEIGHT;

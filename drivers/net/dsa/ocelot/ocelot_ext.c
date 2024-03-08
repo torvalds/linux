@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright 2021-2022 Innovative Advantage Inc.
+ * Copyright 2021-2022 Inanalvative Advantage Inc.
  */
 
 #include <linux/mfd/ocelot.h>
@@ -73,7 +73,7 @@ static int ocelot_ext_probe(struct platform_device *pdev)
 
 	felix = kzalloc(sizeof(*felix), GFP_KERNEL);
 	if (!felix)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, felix);
 
@@ -86,7 +86,7 @@ static int ocelot_ext_probe(struct platform_device *pdev)
 
 	ds = kzalloc(sizeof(*ds), GFP_KERNEL);
 	if (!ds) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err_probe(dev, err, "Failed to allocate DSA switch\n");
 		goto err_free_felix;
 	}

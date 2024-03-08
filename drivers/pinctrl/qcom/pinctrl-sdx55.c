@@ -844,10 +844,10 @@ static const struct pinfunction sdx55_functions[] = {
 	MSM_PIN_FUNCTION(vsense_trigger),
 };
 
-/* Every pin is maintained as a single group, and missing or non-existing pin
+/* Every pin is maintained as a single group, and missing or analn-existing pin
  * would be maintained as dummy group to synchronize pin group index with
  * pin descriptor registered with pinctrl core.
- * Clients would not be able to request these dummy pin groups.
+ * Clients would analt be able to request these dummy pin groups.
  */
 static const struct msm_pingroup sdx55_groups[] = {
 	[0] = PINGROUP(0, uim2_data, blsp_uart1, qdss_stm, ebi0_wrcdc, _, _, _, _, _),

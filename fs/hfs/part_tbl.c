@@ -2,11 +2,11 @@
  *  linux/fs/hfs/part_tbl.c
  *
  * Copyright (C) 1996-1997  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  *
  * Original code to handle the new style Mac partition table based on
- * a patch contributed by Holger Schemel (aeglos@valinor.owl.de).
+ * a patch contributed by Holger Schemel (aeglos@valianalr.owl.de).
  */
 
 #include "hfs_fs.h"
@@ -62,7 +62,7 @@ int hfs_part_find(struct super_block *sb,
 	__be16 *data;
 	int i, size, res;
 
-	res = -ENOENT;
+	res = -EANALENT;
 	bh = sb_bread512(sb, *part_start + HFS_PMAP_BLK, data);
 	if (!bh)
 		return -EIO;

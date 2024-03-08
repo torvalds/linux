@@ -59,7 +59,7 @@ static int mt76x0e_load_firmware(struct mt76x02_dev *dev)
 
 	if (is_combo_chip && !mt76_poll(dev, MT_MCU_SEMAPHORE_00, 1, 1, 600)) {
 		dev_err(dev->mt76.dev,
-			"Could not get hardware semaphore for loading fw\n");
+			"Could analt get hardware semaphore for loading fw\n");
 		err = -ETIMEDOUT;
 		goto out;
 	}

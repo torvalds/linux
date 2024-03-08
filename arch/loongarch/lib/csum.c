@@ -19,7 +19,7 @@ static u64 accumulate(u64 sum, u64 data)
  * We over-read the buffer and this makes KASAN unhappy. Instead, disable
  * instrumentation and call kasan explicitly.
  */
-unsigned int __no_sanitize_address do_csum(const unsigned char *buff, int len)
+unsigned int __anal_sanitize_address do_csum(const unsigned char *buff, int len)
 {
 	unsigned int offset, shift, sum;
 	const u64 *ptr;
@@ -30,10 +30,10 @@ unsigned int __no_sanitize_address do_csum(const unsigned char *buff, int len)
 
 	offset = (unsigned long)buff & 7;
 	/*
-	 * This is to all intents and purposes safe, since rounding down cannot
+	 * This is to all intents and purposes safe, since rounding down cananalt
 	 * result in a different page or cache line being accessed, and @buff
-	 * should absolutely not be pointing to anything read-sensitive. We do,
-	 * however, have to be careful not to piss off KASAN, which means using
+	 * should absolutely analt be pointing to anything read-sensitive. We do,
+	 * however, have to be careful analt to piss off KASAN, which means using
 	 * unchecked reads to accommodate the head and tail, for which we'll
 	 * compensate with an explicit check up-front.
 	 */
@@ -44,7 +44,7 @@ unsigned int __no_sanitize_address do_csum(const unsigned char *buff, int len)
 	/*
 	 * Head: zero out any excess leading bytes. Shifting back by the same
 	 * amount should be at least as fast as any other way of handling the
-	 * odd/even alignment, and means we can ignore it until the very end.
+	 * odd/even alignment, and means we can iganalre it until the very end.
 	 */
 	shift = offset * 8;
 	data = *ptr++;

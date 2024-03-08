@@ -7,7 +7,7 @@
  * Written by:
  * Sergey Lapin <slapin@ossfans.org>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiranalv <alex.bluesman.smiranalv@gmail.com>
  */
 
 #include <linux/module.h>
@@ -132,7 +132,7 @@ static int fakelb_add_one(struct device *dev)
 
 	hw = ieee802154_alloc_hw(sizeof(*phy), &fakelb_ops);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy = hw->priv;
 	phy->hw = hw;

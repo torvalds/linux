@@ -51,7 +51,7 @@ void simd_unregister_aeads(struct aead_alg *algs, int count,
  *
  * This delegates to may_use_simd(), except that this also returns false if SIMD
  * in crypto code has been temporarily disabled on this CPU by the crypto
- * self-tests, in order to test the no-SIMD fallback code.  This override is
+ * self-tests, in order to test the anal-SIMD fallback code.  This override is
  * currently limited to configurations where the extra self-tests are enabled,
  * because it might be a bit too invasive to be part of the regular self-tests.
  *

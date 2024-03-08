@@ -12,20 +12,20 @@ over TCP. TLS provides end-to-end data integrity and confidentiality in
 addition to peer authentication.
 
 The kernel's kTLS implementation handles the TLS record subprotocol, but
-does not handle the TLS handshake subprotocol which is used to establish
+does analt handle the TLS handshake subprotocol which is used to establish
 a TLS session. Kernel consumers can use the API described here to
 request TLS session establishment.
 
 There are several possible ways to provide a handshake service in the
 kernel. The API described here is designed to hide the details of those
-implementations so that in-kernel TLS consumers do not need to be
+implementations so that in-kernel TLS consumers do analt need to be
 aware of how the handshake gets done.
 
 
 User handshake agent
 ====================
 
-As of this writing, there is no TLS handshake implementation in the
+As of this writing, there is anal TLS handshake implementation in the
 Linux kernel. To provide a handshake service, a handshake agent
 (typically in user space) is started in each network namespace where a
 kernel consumer might require a TLS handshake. Handshake agents listen
@@ -73,7 +73,7 @@ has completed. Further explanation of this function is in the "Handshake
 Completion" sesction below.
 
 The consumer can provide a NUL-terminated hostname in the @ta_peername
-field that is sent as part of ClientHello. If no peername is provided,
+field that is sent as part of ClientHello. If anal peername is provided,
 the DNS hostname associated with the server's IP address is used instead.
 
 The consumer can fill in the @ta_timeout_ms field to force the servicing
@@ -99,9 +99,9 @@ certificate. Then, it invokes this function:
 
 The function returns zero when the handshake request is under way. A
 zero return guarantees the callback function @ta_done will be invoked
-for this socket. The function returns a negative errno if the handshake
-could not be started. A negative errno guarantees the callback function
-@ta_done will not be invoked on this socket.
+for this socket. The function returns a negative erranal if the handshake
+could analt be started. A negative erranal guarantees the callback function
+@ta_done will analt be invoked on this socket.
 
 
 To initiate a client-side TLS handshake with a pre-shared key, use:
@@ -116,13 +116,13 @@ to offer, and the @ta_num_peerids field with the number of array
 entries it has filled in. The other fields are filled in as above.
 
 
-To initiate an anonymous client-side TLS handshake use:
+To initiate an aanalnymous client-side TLS handshake use:
 
 .. code-block:: c
 
-  ret = tls_client_hello_anon(args, gfp_flags);
+  ret = tls_client_hello_aanaln(args, gfp_flags);
 
-The handshake agent presents no peer identity information to the remote
+The handshake agent presents anal peer identity information to the remote
 during this type of handshake. Only server authentication (ie the client
 verifies the server's identity) is performed during the handshake. Thus
 the established session uses encryption only.
@@ -152,19 +152,19 @@ or other exigent event, the consumer can invoke:
 
 This function returns true if the handshake request associated with
 @sock has been canceled. The consumer's handshake completion callback
-will not be invoked. If this function returns false, then the consumer's
+will analt be invoked. If this function returns false, then the consumer's
 completion callback has already been invoked.
 
 
 Handshake Completion
 ====================
 
-When the handshake agent has completed processing, it notifies the
+When the handshake agent has completed processing, it analtifies the
 kernel that the socket may be used by the consumer again. At this point,
 the consumer's handshake completion callback, provided in the @ta_done
 field in the tls_handshake_args structure, is invoked.
 
-The synopsis of this function is:
+The syanalpsis of this function is:
 
 .. code-block:: c
 
@@ -187,17 +187,17 @@ parameter:
 |  -EACCESS  |  Remote peer rejected the handshake or       |
 |            |  authentication failed                       |
 +------------+----------------------------------------------+
-|  -ENOMEM   |  Temporary resource allocation failure       |
+|  -EANALMEM   |  Temporary resource allocation failure       |
 +------------+----------------------------------------------+
 |  -EINVAL   |  Consumer provided an invalid argument       |
 +------------+----------------------------------------------+
-|  -ENOKEY   |  Missing authentication material             |
+|  -EANALKEY   |  Missing authentication material             |
 +------------+----------------------------------------------+
 |  -EIO      |  An unexpected fault occurred                |
 +------------+----------------------------------------------+
 
 The @peerid parameter contains the serial number of a key containing the
-remote peer's identity or the value TLS_NO_PEERID if the session is not
+remote peer's identity or the value TLS_ANAL_PEERID if the session is analt
 authenticated.
 
 A best practice is to close and destroy the socket immediately if the
@@ -208,8 +208,8 @@ Other considerations
 --------------------
 
 While a handshake is under way, the kernel consumer must alter the
-socket's sk_data_ready callback function to ignore all incoming data.
-Once the handshake completion callback function has been invoked, normal
+socket's sk_data_ready callback function to iganalre all incoming data.
+Once the handshake completion callback function has been invoked, analrmal
 receive operation can be resumed.
 
 Once a TLS session is established, the consumer must provide a buffer

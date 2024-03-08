@@ -19,9 +19,9 @@ static void set_df_gdt_entry(unsigned int cpu);
 
 /*
  * Called by double_fault with CR0.TS and EFLAGS.NT cleared.  The CPU thinks
- * we're running the doublefault task.  Cannot return.
+ * we're running the doublefault task.  Cananalt return.
  */
-asmlinkage noinstr void __noreturn doublefault_shim(void)
+asmlinkage analinstr void __analreturn doublefault_shim(void)
 {
 	unsigned long cr2;
 	struct pt_regs regs;
@@ -30,7 +30,7 @@ asmlinkage noinstr void __noreturn doublefault_shim(void)
 
 	cr2 = native_read_cr2();
 
-	/* Reset back to the normal kernel task. */
+	/* Reset back to the analrmal kernel task. */
 	force_reload_TR();
 	set_df_gdt_entry(smp_processor_id());
 
@@ -38,7 +38,7 @@ asmlinkage noinstr void __noreturn doublefault_shim(void)
 
 	/*
 	 * Fill in pt_regs.  A downside of doing this in C is that the unwinder
-	 * won't see it (no ENCODE_FRAME_POINTER), so a nested stack dump
+	 * won't see it (anal ENCODE_FRAME_POINTER), so a nested stack dump
 	 * won't successfully unwind to the source of the double fault.
 	 * The main dump from exc_double_fault() is fine, though, since it
 	 * uses these regs directly.
@@ -73,19 +73,19 @@ asmlinkage noinstr void __noreturn doublefault_shim(void)
 	exc_double_fault(&regs, 0, cr2);
 
 	/*
-	 * x86_32 does not save the original CR3 anywhere on a task switch.
+	 * x86_32 does analt save the original CR3 anywhere on a task switch.
 	 * This means that, even if we wanted to return, we would need to find
 	 * some way to reconstruct CR3.  We could make a credible guess based
-	 * on cpu_tlbstate, but that would be racy and would not account for
+	 * on cpu_tlbstate, but that would be racy and would analt account for
 	 * PTI.
 	 */
-	panic("cannot return from double fault\n");
+	panic("cananalt return from double fault\n");
 }
 
 DEFINE_PER_CPU_PAGE_ALIGNED(struct doublefault_stack, doublefault_stack) = {
 	.tss = {
                 /*
-                 * No sp0 or ss0 -- we never run CPL != 0 with this TSS
+                 * Anal sp0 or ss0 -- we never run CPL != 0 with this TSS
                  * active.  sp is filled in later.
                  */
 		.ldt		= 0,
@@ -100,7 +100,7 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct doublefault_stack, doublefault_stack) = {
 		.fs		= __KERNEL_PERCPU,
 		.gs		= 0,
 
-		.__cr3		= __pa_nodebug(swapper_pg_dir),
+		.__cr3		= __pa_analdebug(swapper_pg_dir),
 	},
 };
 
@@ -118,7 +118,7 @@ void doublefault_init_cpu_tss(void)
 	struct cpu_entry_area *cea = get_cpu_entry_area(cpu);
 
 	/*
-	 * The linker isn't smart enough to initialize percpu variables that
+	 * The linker isn't smart eanalugh to initialize percpu variables that
 	 * point to other places in percpu space.
 	 */
         this_cpu_write(doublefault_stack.tss.sp,

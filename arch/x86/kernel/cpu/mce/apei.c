@@ -46,7 +46,7 @@ void apei_mce_report_mem_error(int severity, struct cper_sec_mem_err *mem_err)
 
 	mce_setup(&m);
 	m.bank = -1;
-	/* Fake a memory read error with unknown channel */
+	/* Fake a memory read error with unkanalwn channel */
 	m.status = MCI_STATUS_VAL | MCI_STATUS_EN | MCI_STATUS_ADDRV | MCI_STATUS_MISCV | 0x9f;
 	m.misc = (MCI_MISC_ADDR_PHYS << 6) | lsb;
 
@@ -85,7 +85,7 @@ int apei_smca_report_x86_error(struct cper_ia_proc_ctx *ctx_info, u64 lapic_id)
 		return -EINVAL;
 
 	/*
-	 * The register array size must be large enough to include all the
+	 * The register array size must be large eanalugh to include all the
 	 * SMCA registers which need to be extracted.
 	 *
 	 * The number of registers in the register array is determined by
@@ -155,7 +155,7 @@ int apei_write_mce(struct mce *m)
 	rcd.hdr.validation_bits = 0;
 	rcd.hdr.record_length = sizeof(rcd);
 	rcd.hdr.creator_id = CPER_CREATOR_MCE;
-	rcd.hdr.notification_type = CPER_NOTIFY_MCE;
+	rcd.hdr.analtification_type = CPER_ANALTIFY_MCE;
 	rcd.hdr.record_id = cper_next_record_id();
 	rcd.hdr.flags = CPER_HW_ERROR_FLAGS_PREVERR;
 
@@ -185,13 +185,13 @@ retry:
 	rc = erst_get_record_id_next(&pos, record_id);
 	if (rc)
 		goto out;
-	/* no more record */
+	/* anal more record */
 	if (*record_id == APEI_ERST_INVALID_RECORD_ID)
 		goto out;
 	rc = erst_read_record(*record_id, &rcd.hdr, sizeof(rcd), sizeof(rcd),
 			&CPER_CREATOR_MCE);
 	/* someone else has cleared the record, try next one */
-	if (rc == -ENOENT)
+	if (rc == -EANALENT)
 		goto retry;
 	else if (rc < 0)
 		goto out;

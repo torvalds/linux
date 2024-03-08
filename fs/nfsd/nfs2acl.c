@@ -32,17 +32,17 @@ static __be32 nfsacld_proc_getacl(struct svc_rqst *rqstp)
 	struct nfsd3_getaclargs *argp = rqstp->rq_argp;
 	struct nfsd3_getaclres *resp = rqstp->rq_resp;
 	struct posix_acl *acl;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	svc_fh *fh;
 
 	dprintk("nfsd: GETACL(2acl)   %s\n", SVCFH_fmt(&argp->fh));
 
 	fh = fh_copy(&resp->fh, &argp->fh);
-	resp->status = fh_verify(rqstp, &resp->fh, 0, NFSD_MAY_NOP);
+	resp->status = fh_verify(rqstp, &resp->fh, 0, NFSD_MAY_ANALP);
 	if (resp->status != nfs_ok)
 		goto out;
 
-	inode = d_inode(fh->fh_dentry);
+	ianalde = d_ianalde(fh->fh_dentry);
 
 	if (argp->mask & ~NFS_ACL_MASK) {
 		resp->status = nfserr_inval;
@@ -55,23 +55,23 @@ static __be32 nfsacld_proc_getacl(struct svc_rqst *rqstp)
 		goto out;
 
 	if (resp->mask & (NFS_ACL|NFS_ACLCNT)) {
-		acl = get_inode_acl(inode, ACL_TYPE_ACCESS);
+		acl = get_ianalde_acl(ianalde, ACL_TYPE_ACCESS);
 		if (acl == NULL) {
-			/* Solaris returns the inode's minimum ACL. */
-			acl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
+			/* Solaris returns the ianalde's minimum ACL. */
+			acl = posix_acl_from_mode(ianalde->i_mode, GFP_KERNEL);
 		}
 		if (IS_ERR(acl)) {
-			resp->status = nfserrno(PTR_ERR(acl));
+			resp->status = nfserranal(PTR_ERR(acl));
 			goto fail;
 		}
 		resp->acl_access = acl;
 	}
 	if (resp->mask & (NFS_DFACL|NFS_DFACLCNT)) {
 		/* Check how Solaris handles requests for the Default ACL
-		   of a non-directory! */
-		acl = get_inode_acl(inode, ACL_TYPE_DEFAULT);
+		   of a analn-directory! */
+		acl = get_ianalde_acl(ianalde, ACL_TYPE_DEFAULT);
 		if (IS_ERR(acl)) {
-			resp->status = nfserrno(PTR_ERR(acl));
+			resp->status = nfserranal(PTR_ERR(acl));
 			goto fail;
 		}
 		resp->acl_default = acl;
@@ -94,7 +94,7 @@ static __be32 nfsacld_proc_setacl(struct svc_rqst *rqstp)
 {
 	struct nfsd3_setaclargs *argp = rqstp->rq_argp;
 	struct nfsd_attrstat *resp = rqstp->rq_resp;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	svc_fh *fh;
 	int error;
 
@@ -105,24 +105,24 @@ static __be32 nfsacld_proc_setacl(struct svc_rqst *rqstp)
 	if (resp->status != nfs_ok)
 		goto out;
 
-	inode = d_inode(fh->fh_dentry);
+	ianalde = d_ianalde(fh->fh_dentry);
 
 	error = fh_want_write(fh);
 	if (error)
-		goto out_errno;
+		goto out_erranal;
 
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 
-	error = set_posix_acl(&nop_mnt_idmap, fh->fh_dentry, ACL_TYPE_ACCESS,
+	error = set_posix_acl(&analp_mnt_idmap, fh->fh_dentry, ACL_TYPE_ACCESS,
 			      argp->acl_access);
 	if (error)
 		goto out_drop_lock;
-	error = set_posix_acl(&nop_mnt_idmap, fh->fh_dentry, ACL_TYPE_DEFAULT,
+	error = set_posix_acl(&analp_mnt_idmap, fh->fh_dentry, ACL_TYPE_DEFAULT,
 			      argp->acl_default);
 	if (error)
 		goto out_drop_lock;
 
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 
 	fh_drop_write(fh);
 
@@ -136,10 +136,10 @@ out:
 	return rpc_success;
 
 out_drop_lock:
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	fh_drop_write(fh);
-out_errno:
-	resp->status = nfserrno(error);
+out_erranal:
+	resp->status = nfserranal(error);
 	goto out;
 }
 
@@ -154,7 +154,7 @@ static __be32 nfsacld_proc_getattr(struct svc_rqst *rqstp)
 	dprintk("nfsd: GETATTR  %s\n", SVCFH_fmt(&argp->fh));
 
 	fh_copy(&resp->fh, &argp->fh);
-	resp->status = fh_verify(rqstp, &resp->fh, 0, NFSD_MAY_NOP);
+	resp->status = fh_verify(rqstp, &resp->fh, 0, NFSD_MAY_ANALP);
 	if (resp->status != nfs_ok)
 		goto out;
 	resp->status = fh_getattr(&resp->fh, &resp->stat);
@@ -245,24 +245,24 @@ nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nfsd3_getaclres *resp = rqstp->rq_resp;
 	struct dentry *dentry = resp->fh.fh_dentry;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	if (!svcxdr_encode_stat(xdr, resp->status))
 		return false;
 
 	if (dentry == NULL || d_really_is_negative(dentry))
 		return true;
-	inode = d_inode(dentry);
+	ianalde = d_ianalde(dentry);
 
 	if (!svcxdr_encode_fattr(rqstp, xdr, &resp->fh, &resp->stat))
 		return false;
 	if (xdr_stream_encode_u32(xdr, resp->mask) < 0)
 		return false;
 
-	if (!nfs_stream_encode_acl(xdr, inode, resp->acl_access,
+	if (!nfs_stream_encode_acl(xdr, ianalde, resp->acl_access,
 				   resp->mask & NFS_ACL, 0))
 		return false;
-	if (!nfs_stream_encode_acl(xdr, inode, resp->acl_default,
+	if (!nfs_stream_encode_acl(xdr, ianalde, resp->acl_default,
 				   resp->mask & NFS_DFACL, NFS_ACL_DEFAULT))
 		return false;
 
@@ -323,7 +323,7 @@ static const struct svc_procedure nfsd_acl_procedures2[5] = {
 		.pc_argsize = sizeof(struct nfsd_voidargs),
 		.pc_argzero = sizeof(struct nfsd_voidargs),
 		.pc_ressize = sizeof(struct nfsd_voidres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST,
 		.pc_name = "NULL",
 	},
@@ -335,7 +335,7 @@ static const struct svc_procedure nfsd_acl_procedures2[5] = {
 		.pc_argsize = sizeof(struct nfsd3_getaclargs),
 		.pc_argzero = sizeof(struct nfsd3_getaclargs),
 		.pc_ressize = sizeof(struct nfsd3_getaclres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+1+2*(1+ACL),
 		.pc_name = "GETACL",
 	},
@@ -347,7 +347,7 @@ static const struct svc_procedure nfsd_acl_procedures2[5] = {
 		.pc_argsize = sizeof(struct nfsd3_setaclargs),
 		.pc_argzero = sizeof(struct nfsd3_setaclargs),
 		.pc_ressize = sizeof(struct nfsd_attrstat),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+AT,
 		.pc_name = "SETACL",
 	},
@@ -359,7 +359,7 @@ static const struct svc_procedure nfsd_acl_procedures2[5] = {
 		.pc_argsize = sizeof(struct nfsd_fhandle),
 		.pc_argzero = sizeof(struct nfsd_fhandle),
 		.pc_ressize = sizeof(struct nfsd_attrstat),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+AT,
 		.pc_name = "GETATTR",
 	},
@@ -371,7 +371,7 @@ static const struct svc_procedure nfsd_acl_procedures2[5] = {
 		.pc_argsize = sizeof(struct nfsd3_accessargs),
 		.pc_argzero = sizeof(struct nfsd3_accessargs),
 		.pc_ressize = sizeof(struct nfsd3_accessres),
-		.pc_cachetype = RC_NOCACHE,
+		.pc_cachetype = RC_ANALCACHE,
 		.pc_xdrressize = ST+AT+1,
 		.pc_name = "SETATTR",
 	},

@@ -38,7 +38,7 @@ int max1600_init(struct device *dev, struct max1600 **ptr,
 
 	m = devm_kzalloc(dev, sizeof(*m), GFP_KERNEL);
 	if (!m)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	m->dev = dev;
 	m->code = code;
@@ -87,7 +87,7 @@ int max1600_configure(struct max1600 *m, unsigned int vcc, unsigned int vpp)
 		}
 		n = MAX1600_GPIO_MAX;
 	} else if (vpp != vcc && vpp != 0) {
-		dev_err(m->dev, "no VPP control\n");
+		dev_err(m->dev, "anal VPP control\n");
 		return -EINVAL;
 	}
 

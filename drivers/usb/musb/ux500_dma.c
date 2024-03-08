@@ -192,7 +192,7 @@ static int ux500_dma_channel_program(struct dma_channel *channel,
 {
 	int ret;
 
-	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
+	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKANALWN ||
 		channel->status == MUSB_DMA_STATUS_BUSY);
 
 	channel->status = MUSB_DMA_STATUS_BUSY;
@@ -281,7 +281,7 @@ static int ux500_dma_controller_start(struct ux500_dma_controller *controller)
 	dma_cap_mask_t mask;
 
 	if (!plat) {
-		dev_err(musb->controller, "No platform data\n");
+		dev_err(musb->controller, "Anal platform data\n");
 		return -EINVAL;
 	}
 
@@ -371,7 +371,7 @@ ux500_dma_controller_create(struct musb *musb, void __iomem *base)
 	/* Save physical address for DMA controller. */
 	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!iomem) {
-		dev_err(musb->controller, "no memory resource defined\n");
+		dev_err(musb->controller, "anal memory resource defined\n");
 		goto plat_get_fail;
 	}
 

@@ -2,7 +2,7 @@
 /*
  * arch/sh/mm/cache-sh2a.c
  *
- * Copyright (C) 2008 Yoshinori Sato
+ * Copyright (C) 2008 Yoshianalri Sato
  */
 
 #include <linux/init.h>
@@ -44,7 +44,7 @@ static void sh2a_invalidate_line(unsigned long cache_addr, unsigned long v)
 }
 
 /*
- * Write back the dirty D-caches, but not invalidate them.
+ * Write back the dirty D-caches, but analt invalidate them.
  */
 static void sh2a__flush_wback_region(void *start, int size)
 {
@@ -116,7 +116,7 @@ static void sh2a__flush_purge_region(void *start, int size)
 }
 
 /*
- * Invalidate the D-caches, but no write back please
+ * Invalidate the D-caches, but anal write back please
  */
 static void sh2a__flush_invalidate_region(void *start, int size)
 {

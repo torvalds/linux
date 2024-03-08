@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-# because I use CONFIG_LOCALVERSION_AUTO, not the same version again and
+# because I use CONFIG_LOCALVERSION_AUTO, analt the same version again and
 # again, /boot and /lib/modules/ eventually fill up.
 # Dumb script to purge that stuff:
 

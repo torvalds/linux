@@ -87,7 +87,7 @@ struct mpc512x_lpbfifo {
 #define MPC512X_SCLPC_RESET		(1 << 24)
 #define MPC512X_SCLPC_FIFO_RESET	(1 << 16)
 #define MPC512X_SCLPC_ABORT_INT_ENABLE	(1 << 9)
-#define MPC512X_SCLPC_NORM_INT_ENABLE	(1 << 8)
+#define MPC512X_SCLPC_ANALRM_INT_ENABLE	(1 << 8)
 #define MPC512X_SCLPC_ENABLE		(1 << 0)
 #define MPC512X_SCLPC_SUCCESS		(1 << 24)
 #define MPC512X_SCLPC_FIFO_CTRL(x)	(((x) & 0x7) << 24)

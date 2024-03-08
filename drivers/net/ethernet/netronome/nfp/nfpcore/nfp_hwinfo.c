@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2017 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2017 Netroanalme Systems, Inc. */
 
 /* Parse the hwinfo table that the ARM firmware builds in the ARM scratch SRAM
  * after chip reset.
@@ -62,7 +62,7 @@
  * -------------------------
  *
  *  The key/value table is a set of offsets to ASCIIZ strings which have
- *  been strcmp(3) sorted (yes, please use bsearch(3) on the table).
+ *  been strcmp(3) sorted (anal, please use bsearch(3) on the table).
  *
  *  All keys are guaranteed to be unique.
  *
@@ -168,7 +168,7 @@ hwinfo_try_fetch(struct nfp_cpp *cpp, size_t *cpp_size)
 
 		if (*cpp_size < HWINFO_SIZE_MIN)
 			return NULL;
-	} else if (PTR_ERR(res) == -ENOENT) {
+	} else if (PTR_ERR(res) == -EANALENT) {
 		/* Try getting the HWInfo table from the 'classic' location */
 		cpp_id = NFP_CPP_ISLAND_ID(NFP_CPP_TARGET_MU,
 					   NFP_CPP_ACTION_RW, 0, 1);
@@ -191,7 +191,7 @@ hwinfo_try_fetch(struct nfp_cpp *cpp, size_t *cpp_size)
 		goto exit_free;
 
 	if (le32_to_cpu(header->version) != NFP_HWINFO_VERSION_2) {
-		nfp_err(cpp, "Unknown HWInfo version: 0x%08x\n",
+		nfp_err(cpp, "Unkanalwn HWInfo version: 0x%08x\n",
 			le32_to_cpu(header->version));
 		goto exit_free;
 	}

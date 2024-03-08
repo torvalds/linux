@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 
 #include "cpupower.h"
@@ -69,7 +69,7 @@ unsigned int cpupower_write_sysfs(const char *path, char *buf, size_t buflen)
  * Returns:
  *     1 -> if CPU is online
  *     0 -> if CPU is offline
- *     negative errno values in error case
+ *     negative erranal values in error case
  */
 int cpupower_is_cpu_online(unsigned int cpu)
 {
@@ -88,7 +88,7 @@ int cpupower_is_cpu_online(unsigned int cpu)
 
 	/*
 	 * kernel without CONFIG_HOTPLUG_CPU
-	 * -> cpuX directory exists, but not cpuX/online file
+	 * -> cpuX directory exists, but analt cpuX/online file
 	 */
 	snprintf(path, sizeof(path), PATH_TO_CPU "cpu%u/online", cpu);
 	if (stat(path, &statbuf) != 0)
@@ -96,7 +96,7 @@ int cpupower_is_cpu_online(unsigned int cpu)
 
 	fd = open(path, O_RDONLY);
 	if (fd == -1)
-		return -errno;
+		return -erranal;
 
 	numread = read(fd, linebuf, MAX_LINE_LEN - 1);
 	if (numread < 1) {
@@ -125,7 +125,7 @@ static int sysfs_topology_read_file(unsigned int cpu, const char *fname, int *re
 	if (cpupower_read_sysfs(path, linebuf, MAX_LINE_LEN) == 0)
 		return -1;
 	*result = strtol(linebuf, &endp, 0);
-	if (endp == linebuf || errno == ERANGE)
+	if (endp == linebuf || erranal == ERANGE)
 		return -1;
 	return 0;
 }
@@ -162,7 +162,7 @@ int get_cpu_topology(struct cpupower_topology *cpu_top)
 
 	cpu_top->core_info = malloc(sizeof(struct cpuid_core_info) * cpus);
 	if (cpu_top->core_info == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	cpu_top->pkgs = cpu_top->cores = 0;
 	for (cpu = 0; cpu < cpus; cpu++) {
 		cpu_top->core_info[cpu].cpu = cpu;
@@ -203,8 +203,8 @@ int get_cpu_topology(struct cpupower_topology *cpu_top)
 	if (!(cpu_top->core_info[0].pkg == -1))
 		cpu_top->pkgs++;
 
-	/* Intel's cores count is not consecutively numbered, there may
-	 * be a core_id of 3, but none of 2. Assume there always is 0
+	/* Intel's cores count is analt consecutively numbered, there may
+	 * be a core_id of 3, but analne of 2. Assume there always is 0
 	 * Get amount of cores by counting duplicates in a package
 	for (cpu = 0; cpu_top->core_info[cpu].pkg = 0 && cpu < cpus; cpu++) {
 		if (cpu_top->core_info[cpu].core == 0)

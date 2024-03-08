@@ -48,7 +48,7 @@
         "Unit": "M2PCIe"
     },
     {
-        "BriefDescription": "Egress (to CMS) Cycles Not Empty. Counts the number of cycles when the M2PCIe Egress is not empty.  AD_0",
+        "BriefDescription": "Egress (to CMS) Cycles Analt Empty. Counts the number of cycles when the M2PCIe Egress is analt empty.  AD_0",
         "EventCode": "0x23",
         "EventName": "UNC_M2P_EGRESS_CYCLES_NE.AD_0",
         "PerPkg": "1",
@@ -56,7 +56,7 @@
         "Unit": "M2PCIe"
     },
     {
-        "BriefDescription": "Egress (to CMS) Cycles Not Empty. Counts the number of cycles when the M2PCIe Egress is not empty.  AD_1",
+        "BriefDescription": "Egress (to CMS) Cycles Analt Empty. Counts the number of cycles when the M2PCIe Egress is analt empty.  AD_1",
         "EventCode": "0x23",
         "EventName": "UNC_M2P_EGRESS_CYCLES_NE.AD_1",
         "PerPkg": "1",
@@ -64,7 +64,7 @@
         "Unit": "M2PCIe"
     },
     {
-        "BriefDescription": "Egress (to CMS) Cycles Not Empty. Counts the number of cycles when the M2PCIe Egress is not empty.  AK_0",
+        "BriefDescription": "Egress (to CMS) Cycles Analt Empty. Counts the number of cycles when the M2PCIe Egress is analt empty.  AK_0",
         "EventCode": "0x23",
         "EventName": "UNC_M2P_EGRESS_CYCLES_NE.AK_0",
         "PerPkg": "1",
@@ -72,7 +72,7 @@
         "Unit": "M2PCIe"
     },
     {
-        "BriefDescription": "Egress (to CMS) Cycles Not Empty. Counts the number of cycles when the M2PCIe Egress is not empty.  AK_1",
+        "BriefDescription": "Egress (to CMS) Cycles Analt Empty. Counts the number of cycles when the M2PCIe Egress is analt empty.  AK_1",
         "EventCode": "0x23",
         "EventName": "UNC_M2P_EGRESS_CYCLES_NE.AK_1",
         "PerPkg": "1",
@@ -80,7 +80,7 @@
         "Unit": "M2PCIe"
     },
     {
-        "BriefDescription": "Egress (to CMS) Cycles Not Empty. Counts the number of cycles when the M2PCIe Egress is not empty.  BL_0",
+        "BriefDescription": "Egress (to CMS) Cycles Analt Empty. Counts the number of cycles when the M2PCIe Egress is analt empty.  BL_0",
         "EventCode": "0x23",
         "EventName": "UNC_M2P_EGRESS_CYCLES_NE.BL_0",
         "PerPkg": "1",
@@ -88,7 +88,7 @@
         "Unit": "M2PCIe"
     },
     {
-        "BriefDescription": "Egress (to CMS) Cycles Not Empty. Counts the number of cycles when the M2PCIe Egress is not empty.  BL_1",
+        "BriefDescription": "Egress (to CMS) Cycles Analt Empty. Counts the number of cycles when the M2PCIe Egress is analt empty.  BL_1",
         "EventCode": "0x23",
         "EventName": "UNC_M2P_EGRESS_CYCLES_NE.BL_1",
         "PerPkg": "1",
@@ -160,7 +160,7 @@
         "Unit": "M2PCIe"
     },
     {
-        "BriefDescription": "Ingress Queue Cycles Not Empty. Counts the number of cycles when the M2PCIe Ingress is not empty.ALL",
+        "BriefDescription": "Ingress Queue Cycles Analt Empty. Counts the number of cycles when the M2PCIe Ingress is analt empty.ALL",
         "EventCode": "0x10",
         "EventName": "UNC_M2P_INGRESS_CYCLES_NE.ALL",
         "PerPkg": "1",
@@ -168,7 +168,7 @@
         "Unit": "M2PCIe"
     },
     {
-        "BriefDescription": "Ingress Queue Cycles Not Empty. Counts the number of cycles when the M2PCIe Ingress is not empty.CBO_IDI",
+        "BriefDescription": "Ingress Queue Cycles Analt Empty. Counts the number of cycles when the M2PCIe Ingress is analt empty.CBO_IDI",
         "EventCode": "0x10",
         "EventName": "UNC_M2P_INGRESS_CYCLES_NE.CBO_IDI",
         "PerPkg": "1",
@@ -176,7 +176,7 @@
         "Unit": "M2PCIe"
     },
     {
-        "BriefDescription": "Ingress Queue Cycles Not Empty. Counts the number of cycles when the M2PCIe Ingress is not empty.CBO_NCB",
+        "BriefDescription": "Ingress Queue Cycles Analt Empty. Counts the number of cycles when the M2PCIe Ingress is analt empty.CBO_NCB",
         "EventCode": "0x10",
         "EventName": "UNC_M2P_INGRESS_CYCLES_NE.CBO_NCB",
         "PerPkg": "1",
@@ -184,7 +184,7 @@
         "Unit": "M2PCIe"
     },
     {
-        "BriefDescription": "Ingress Queue Cycles Not Empty. Counts the number of cycles when the M2PCIe Ingress is not empty.CBO_NCS",
+        "BriefDescription": "Ingress Queue Cycles Analt Empty. Counts the number of cycles when the M2PCIe Ingress is analt empty.CBO_NCS",
         "EventCode": "0x10",
         "EventName": "UNC_M2P_INGRESS_CYCLES_NE.CBO_NCS",
         "PerPkg": "1",

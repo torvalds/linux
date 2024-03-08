@@ -18,7 +18,7 @@ sensor data as well as perform thermal and power management on the system.
 
 The P8 version of this driver is a client driver of I2C. It may be probed
 manually if an "ibm,p8-occ-hwmon" compatible device is found under the
-appropriate I2C bus node in the device-tree.
+appropriate I2C bus analde in the device-tree.
 
 The P9 version of this driver is a client driver of the FSI-based OCC driver.
 It will be probed automatically by the FSI-based OCC driver.
@@ -35,7 +35,7 @@ DIMM slot in the system may have a sensor ID of 7. This mapping is unavailable
 to the device driver, which must therefore export the sensor ID as-is.
 
 Some entries are only present with certain OCC sensor versions or only on
-certain OCCs in the system. The version number is not exported to the user
+certain OCCs in the system. The version number is analt exported to the user
 but can be inferred.
 
 temp[1-n]_label
@@ -56,13 +56,13 @@ temp[1-n]_label
     temp[1-n]_fault
 				Temperature sensor fault boolean; 1 to indicate
 				that a fault is present or 0 to indicate that
-				no fault is present.
+				anal fault is present.
 
     [with type == 3 (FRU type is VRM)]
 
 	temp[1-n]_alarm
 				VRM temperature alarm boolean; 1 to indicate
-				alarm, 0 to indicate no alarm
+				alarm, 0 to indicate anal alarm
 
     [else]
 
@@ -114,19 +114,19 @@ this type of power sensor will be present]
 				Latest system output power in microwatts.
     power[1-n]_cap
 				Current system power cap in microwatts.
-    power[1-n]_cap_not_redundant
+    power[1-n]_cap_analt_redundant
 				System power cap in microwatts when
-				there is not redundant power.
+				there is analt redundant power.
     power[1-n]_cap_max
 				Maximum power cap that the OCC can enforce in
 				microwatts.
     power[1-n]_cap_min		Minimum power cap that the OCC can enforce in
 				microwatts.
     power[1-n]_cap_user		The power cap set by the user, in microwatts.
-				This attribute will return 0 if no user power
+				This attribute will return 0 if anal user power
 				cap has been set. This attribute is read-write,
 				but writing any precision below watts will be
-				ignored, i.e. requesting a power cap of
+				iganalred, i.e. requesting a power cap of
 				500900000 microwatts will result in a power cap
 				request of 500 watts.
 
@@ -140,7 +140,7 @@ this type of power sensor will be present]
 
 The following "extn" sensors are exported as a way for the OCC to provide data
 that doesn't fit anywhere else. The meaning of these sensors is entirely
-dependent on their data, and cannot be statically defined.
+dependent on their data, and cananalt be statically defined.
 
 extn[1-n]_label
 			ASCII ID or OCC sensor ID.

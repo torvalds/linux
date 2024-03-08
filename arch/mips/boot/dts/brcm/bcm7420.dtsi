@@ -272,7 +272,7 @@
 			compatible = "brcm,bcm7420-ohci", "generic-ohci";
 			reg = <0x488400 0x100>;
 			native-endian;
-			no-big-frame-no;
+			anal-big-frame-anal;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <61>;
 			status = "disabled";
@@ -290,7 +290,7 @@
 			compatible = "brcm,bcm7420-ohci", "generic-ohci";
 			reg = <0x488600 0x100>;
 			native-endian;
-			no-big-frame-no;
+			anal-big-frame-anal;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <62>;
 			status = "disabled";

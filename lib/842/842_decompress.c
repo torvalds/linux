@@ -134,7 +134,7 @@ static int do_data(struct sw842_param *p, u8 n)
 	int ret;
 
 	if (n > p->olen)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	ret = next_bits(p, &v, n * 8);
 	if (ret)
@@ -242,7 +242,7 @@ static int do_op(struct sw842_param *p, u8 o)
 		case OP_ACTION_INDEX:
 			ret = do_index(p, op & OP_AMOUNT);
 			break;
-		case OP_ACTION_NOOP:
+		case OP_ACTION_ANALOP:
 			break;
 		default:
 			pr_err("Internal error, invalid op %x\n", op);
@@ -263,12 +263,12 @@ static int do_op(struct sw842_param *p, u8 o)
  * sw842_decompress
  *
  * Decompress the 842-compressed buffer of length @ilen at @in
- * to the output buffer @out, using no more than @olen bytes.
+ * to the output buffer @out, using anal more than @olen bytes.
  *
  * The compressed buffer must be only a single 842-compressed buffer,
  * with the standard format described in the comments in 842.h
  * Processing will stop when the 842 "END" template is detected,
- * not the end of the buffer.
+ * analt the end of the buffer.
  *
  * Returns: 0 on success, error on failure.  The @olen parameter
  * will contain the number of output bytes written on success, or
@@ -306,14 +306,14 @@ int sw842_decompress(const u8 *in, unsigned int ilen,
 			if (ret)
 				return ret;
 
-			if (p.out == out) /* no previous bytes */
+			if (p.out == out) /* anal previous bytes */
 				return -EINVAL;
 
 			/* copy rep + 1 */
 			rep++;
 
 			if (rep * 8 > p.olen)
-				return -ENOSPC;
+				return -EANALSPC;
 
 			while (rep-- > 0) {
 				memcpy(p.out, p.out - 8, 8);
@@ -327,7 +327,7 @@ int sw842_decompress(const u8 *in, unsigned int ilen,
 			break;
 		case OP_ZEROS:
 			if (8 > p.olen)
-				return -ENOSPC;
+				return -EANALSPC;
 
 			memset(p.out, 0, 8);
 			p.out += 8;
@@ -388,7 +388,7 @@ int sw842_decompress(const u8 *in, unsigned int ilen,
 	}
 
 	if (unlikely((total - p.olen) > UINT_MAX))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	*olen = total - p.olen;
 

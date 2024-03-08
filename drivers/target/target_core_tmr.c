@@ -34,7 +34,7 @@ int core_tmr_alloc_req(
 	tmr = kzalloc(sizeof(struct se_tmr_req), gfp_flags);
 	if (!tmr) {
 		pr_err("Unable to allocate struct se_tmr_req\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	se_cmd->se_cmd_flags |= SCF_SCSI_TMR_CDB;
@@ -79,9 +79,9 @@ static bool __target_check_io_state(struct se_cmd *se_cmd,
 	 * If command already reached CMD_T_COMPLETE state within
 	 * target_complete_cmd() or CMD_T_FABRIC_STOP due to shutdown,
 	 * this se_cmd has been passed to fabric driver and will
-	 * not be aborted.
+	 * analt be aborted.
 	 *
-	 * Otherwise, obtain a local se_cmd->cmd_kref now for TMR
+	 * Otherwise, obtain a local se_cmd->cmd_kref analw for TMR
 	 * ABORT_TASK + LUN_RESET for CMD_T_ABORTED processing as
 	 * long as se_cmd->cmd_kref is still active unless zero.
 	 */
@@ -147,8 +147,8 @@ void core_tmr_abort_task(
 			se_cmd->state_active = false;
 			spin_unlock_irqrestore(&dev->queues[i].lock, flags);
 
-			if (dev->transport->tmr_notify)
-				dev->transport->tmr_notify(dev, TMR_ABORT_TASK,
+			if (dev->transport->tmr_analtify)
+				dev->transport->tmr_analtify(dev, TMR_ABORT_TASK,
 							   &aborted_list);
 
 			list_del_init(&se_cmd->state_list);
@@ -163,13 +163,13 @@ void core_tmr_abort_task(
 		spin_unlock_irqrestore(&dev->queues[i].lock, flags);
 	}
 
-	if (dev->transport->tmr_notify)
-		dev->transport->tmr_notify(dev, TMR_ABORT_TASK, &aborted_list);
+	if (dev->transport->tmr_analtify)
+		dev->transport->tmr_analtify(dev, TMR_ABORT_TASK, &aborted_list);
 
-	printk("ABORT_TASK: Sending TMR_TASK_DOES_NOT_EXIST for ref_tag: %lld\n",
+	printk("ABORT_TASK: Sending TMR_TASK_DOES_ANALT_EXIST for ref_tag: %lld\n",
 			tmr->ref_task_tag);
-	tmr->response = TMR_TASK_DOES_NOT_EXIST;
-	atomic_long_inc(&dev->aborts_no_task);
+	tmr->response = TMR_TASK_DOES_ANALT_EXIST;
+	atomic_long_inc(&dev->aborts_anal_task);
 }
 
 static void core_tmr_drain_tmr_list(
@@ -208,7 +208,7 @@ static void core_tmr_drain_tmr_list(
 		/*
 		 * If this function was called with a valid pr_res_key
 		 * parameter (eg: for PROUT PREEMPT_AND_ABORT service action
-		 * skip non registration key matching TMRs.
+		 * skip analn registration key matching TMRs.
 		 */
 		if (target_check_cdb_and_preempt(preempt_and_abort_list, cmd))
 			continue;
@@ -222,7 +222,7 @@ static void core_tmr_drain_tmr_list(
 		spin_unlock(&sess->sess_cmd_lock);
 
 		if (!rc) {
-			printk("LUN_RESET TMR: non-zero kref_get_unless_zero\n");
+			printk("LUN_RESET TMR: analn-zero kref_get_unless_zero\n");
 			continue;
 		}
 
@@ -281,20 +281,20 @@ static void core_tmr_drain_state_list(
 	 * This is following sam4r17, section 5.6 Aborting commands, Table 38
 	 * for TMR LUN_RESET:
 	 *
-	 * a) "Yes" indicates that each command that is aborted on an I_T nexus
+	 * a) "Anal" indicates that each command that is aborted on an I_T nexus
 	 * other than the one that caused the SCSI device condition is
 	 * completed with TASK ABORTED status, if the TAS bit is set to one in
-	 * the Control mode page (see SPC-4). "No" indicates that no status is
+	 * the Control mode page (see SPC-4). "Anal" indicates that anal status is
 	 * returned for aborted commands.
 	 *
 	 * d) If the logical unit reset is caused by a particular I_T nexus
-	 * (e.g., by a LOGICAL UNIT RESET task management function), then "yes"
+	 * (e.g., by a LOGICAL UNIT RESET task management function), then "anal"
 	 * (TASK_ABORTED status) applies.
 	 *
-	 * Otherwise (e.g., if triggered by a hard reset), "no"
-	 * (no TASK_ABORTED SAM status) applies.
+	 * Otherwise (e.g., if triggered by a hard reset), "anal"
+	 * (anal TASK_ABORTED SAM status) applies.
 	 *
-	 * Note that this seems to be independent of TAS (Task Aborted Status)
+	 * Analte that this seems to be independent of TAS (Task Aborted Status)
 	 * in the Control Mode Page.
 	 */
 	for (i = 0; i < dev->queue_cnt; i++) {
@@ -312,7 +312,7 @@ static void core_tmr_drain_state_list(
 				continue;
 
 			/*
-			 * Not aborting PROUT PREEMPT_AND_ABORT CDB..
+			 * Analt aborting PROUT PREEMPT_AND_ABORT CDB..
 			 */
 			if (prout_cmd == cmd)
 				continue;
@@ -333,8 +333,8 @@ static void core_tmr_drain_state_list(
 		spin_unlock_irqrestore(&dev->queues[i].lock, flags);
 	}
 
-	if (dev->transport->tmr_notify)
-		dev->transport->tmr_notify(dev, preempt_and_abort_list ?
+	if (dev->transport->tmr_analtify)
+		dev->transport->tmr_analtify(dev, preempt_and_abort_list ?
 					   TMR_LUN_RESET_PRO : TMR_LUN_RESET,
 					   &drain_task_list);
 
@@ -357,7 +357,7 @@ int core_tmr_lun_reset(
         struct list_head *preempt_and_abort_list,
         struct se_cmd *prout_cmd)
 {
-	struct se_node_acl *tmr_nacl = NULL;
+	struct se_analde_acl *tmr_nacl = NULL;
 	struct se_portal_group *tmr_tpg = NULL;
 	struct se_session *tmr_sess = NULL;
 	bool tas;
@@ -379,7 +379,7 @@ int core_tmr_lun_reset(
 	 */
 	if (tmr && tmr->task_cmd && tmr->task_cmd->se_sess) {
 		tmr_sess = tmr->task_cmd->se_sess;
-		tmr_nacl = tmr_sess->se_node_acl;
+		tmr_nacl = tmr_sess->se_analde_acl;
 		tmr_tpg = tmr_sess->se_tpg;
 		if (tmr_nacl && tmr_tpg) {
 			pr_debug("LUN_RESET: TMR caller fabric: %s"

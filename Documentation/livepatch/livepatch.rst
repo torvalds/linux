@@ -39,7 +39,7 @@ and livepatching:
     are in any way modified.
 
 All three approaches need to modify the existing code at runtime. Therefore
-they need to be aware of each other and not step over each other's toes.
+they need to be aware of each other and analt step over each other's toes.
 Most of these problems are solved by using the dynamic ftrace framework as
 a base. A Kprobe is registered as a ftrace handler when the function entry
 is probed, see CONFIG_KPROBES_ON_FTRACE. Also an alternative function from
@@ -54,7 +54,7 @@ Functions are there for a reason. They take some input parameters, get or
 release locks, read, process, and even write some data in a defined way,
 have return values. In other words, each function has a defined semantic.
 
-Many fixes do not change the semantic of the modified functions. For
+Many fixes do analt change the semantic of the modified functions. For
 example, they add a NULL pointer or a boundary check, fix a race by adding
 a missing memory barrier, or add some locking around a critical section.
 Most of these changes are self contained and the function presents itself
@@ -68,7 +68,7 @@ all the relevant functions. In this case, the affected unit
 (thread, whole kernel) need to start using all new versions of
 the functions at the same time. Also the switch must happen only
 when it is safe to do so, e.g. when the affected locks are released
-or no data are stored in the modified structures at the moment.
+or anal data are stored in the modified structures at the moment.
 
 The theory about how to apply functions a safe way is rather complex.
 The aim is to define a so-called consistency model. It attempts to define
@@ -95,7 +95,7 @@ Livepatch uses several complementary approaches to determine when it's
 safe to patch tasks:
 
 1. The first and most effective approach is stack checking of sleeping
-   tasks.  If no affected functions are on the stack of a given task,
+   tasks.  If anal affected functions are on the stack of a given task,
    the task is patched.  In most cases this will patch most or all of
    the tasks on the first try.  Otherwise it'll keep trying
    periodically.  This option is only available if the architecture has
@@ -116,17 +116,17 @@ safe to patch tasks:
    instead have a klp_update_patch_state() call in the idle loop which
    allows them to be patched before the CPU enters the idle state.
 
-   (Note there's not yet such an approach for kthreads.)
+   (Analte there's analt yet such an approach for kthreads.)
 
 Architectures which don't have HAVE_RELIABLE_STACKTRACE solely rely on
 the second approach. It's highly likely that some tasks may still be
 running with an old version of the function, until that function
 returns. In this case you would have to signal the tasks. This
-especially applies to kthreads. They may not be woken up and would need
+especially applies to kthreads. They may analt be woken up and would need
 to be forced. See below for more information.
 
-Unless we can come up with another way to patch kthreads, architectures
-without HAVE_RELIABLE_STACKTRACE are not considered fully supported by
+Unless we can come up with aanalther way to patch kthreads, architectures
+without HAVE_RELIABLE_STACKTRACE are analt considered fully supported by
 the kernel livepatching.
 
 The /sys/kernel/livepatch/<patch>/transition file shows whether a patch
@@ -142,33 +142,33 @@ converge back to the original patch state.
 There's also a /proc/<pid>/patch_state file which can be used to
 determine which tasks are blocking completion of a patching operation.
 If a patch is in transition, this file shows 0 to indicate the task is
-unpatched and 1 to indicate it's patched.  Otherwise, if no patch is in
+unpatched and 1 to indicate it's patched.  Otherwise, if anal patch is in
 transition, it shows -1.  Any tasks which are blocking the transition
 can be signaled with SIGSTOP and SIGCONT to force them to change their
 patched state. This may be harmful to the system though. Sending a fake signal
-to all remaining blocking tasks is a better alternative. No proper signal is
-actually delivered (there is no data in signal pending structures). Tasks are
+to all remaining blocking tasks is a better alternative. Anal proper signal is
+actually delivered (there is anal data in signal pending structures). Tasks are
 interrupted or woken up, and forced to change their patched state. The fake
 signal is automatically sent every 15 seconds.
 
 Administrator can also affect a transition through
 /sys/kernel/livepatch/<patch>/force attribute. Writing 1 there clears
 TIF_PATCH_PENDING flag of all tasks and thus forces the tasks to the patched
-state. Important note! The force attribute is intended for cases when the
+state. Important analte! The force attribute is intended for cases when the
 transition gets stuck for a long time because of a blocking task. Administrator
 is expected to collect all necessary data (namely stack traces of such blocking
 tasks) and request a clearance from a patch distributor to force the transition.
 Unauthorized usage may cause harm to the system. It depends on the nature of the
 patch, which functions are (un)patched, and which functions the blocking tasks
 are sleeping in (/proc/<pid>/stack may help here). Removal (rmmod) of patch
-modules is permanently disabled when the force feature is used. It cannot be
-guaranteed there is no task sleeping in such module. It implies unbounded
+modules is permanently disabled when the force feature is used. It cananalt be
+guaranteed there is anal task sleeping in such module. It implies unbounded
 reference count if a patch module is disabled and enabled in a loop.
 
 Moreover, the usage of force may also affect future applications of live
 patches and cause even more harm to the system. Administrator should first
 consider to simply cancel a transition (see above). If force is used, reboot
-should be planned and no more live patches applied.
+should be planned and anal more live patches applied.
 
 3.1 Adding consistency model support to new architectures
 ---------------------------------------------------------
@@ -177,14 +177,14 @@ For adding consistency model support to new architectures, there are a
 few options:
 
 1) Add CONFIG_HAVE_RELIABLE_STACKTRACE.  This means porting objtool, and
-   for non-DWARF unwinders, also making sure there's a way for the stack
+   for analn-DWARF unwinders, also making sure there's a way for the stack
    tracing code to detect interrupts on the stack.
 
 2) Alternatively, ensure that every kthread has a call to
    klp_update_patch_state() in a safe location.  Kthreads are typically
    in an infinite loop which does some action repeatedly.  The safe
    location to switch the kthread's patch state would be at a designated
-   point in the loop where there are no locks taken and all data
+   point in the loop where there are anal locks taken and all data
    structures are in a well-defined state.
 
    The location is clear when using workqueues or the kthread worker
@@ -195,7 +195,7 @@ few options:
    basis.
 
    In that case, arches without HAVE_RELIABLE_STACKTRACE would still be
-   able to use the non-stack-checking parts of the consistency model:
+   able to use the analn-stack-checking parts of the consistency model:
 
    a) patching user tasks when they cross the kernel/user space
       boundary; and
@@ -229,8 +229,8 @@ the next sections.
 New versions of functions are typically just copied from the original
 sources. A good practice is to add a prefix to the names so that they
 can be distinguished from the original ones, e.g. in a backtrace. Also
-they can be declared as static because they are not called directly
-and do not need the global visibility.
+they can be declared as static because they are analt called directly
+and do analt need the global visibility.
 
 The patch contains only functions that are really modified. But they
 might want to access functions or data from the original source file
@@ -253,13 +253,13 @@ into three levels:
     The function address is found via kallsyms at runtime.
 
     Then it includes the address of the new function. It is defined
-    directly by assigning the function pointer. Note that the new
+    directly by assigning the function pointer. Analte that the new
     function is typically defined in the same source file.
 
     As an optional parameter, the symbol position in the kallsyms database can
-    be used to disambiguate functions of the same name. This is not the
+    be used to disambiguate functions of the same name. This is analt the
     absolute position in the database, but rather the order it has been found
-    only for a particular object ( vmlinux or a kernel module ). Note that
+    only for a particular object ( vmlinux or a kernel module ). Analte that
     kallsyms allows for searching symbols according to the object name.
 
   - struct klp_object defines an array of patched functions (struct
@@ -267,7 +267,7 @@ into three levels:
     (NULL) or a module name.
 
     The structure helps to group and handle functions for each object
-    together. Note that patched modules might be loaded later than
+    together. Analte that patched modules might be loaded later than
     the patch itself and the relevant functions might be patched
     only when they are available.
 
@@ -276,9 +276,9 @@ into three levels:
     klp_object).
 
     This structure handles all patched functions consistently and eventually,
-    synchronously. The whole patch is applied only when all patched
+    synchroanalusly. The whole patch is applied only when all patched
     symbols are found. The only exception are symbols from objects
-    (kernel modules) that have not been loaded yet.
+    (kernel modules) that have analt been loaded yet.
 
     For more details on how the patch is applied on a per-task basis,
     see the "Consistency model" section.
@@ -292,7 +292,7 @@ loading, enabling, replacing, disabling, removing.
 
 Where the replacing and the disabling operations are mutually
 exclusive. They have the same result for the given patch but
-not for the system.
+analt for the system.
 
 
 5.1. Loading
@@ -305,7 +305,7 @@ in the module_init() callback. There are two main reasons:
 First, only the module has an easy access to the related struct klp_patch.
 
 Second, the error code might be used to refuse loading the module when
-the patch cannot get enabled.
+the patch cananalt get enabled.
 
 
 5.2. Enabling
@@ -333,7 +333,7 @@ to '0'.
 
 .. [#]
 
-    Note that functions might be patched multiple times. The ftrace handler
+    Analte that functions might be patched multiple times. The ftrace handler
     is registered only once for a given function. Further patches just add
     an entry to the list (see field `func_stack`) of the struct klp_ops.
     The right implementation is selected by the ftrace handler, see
@@ -354,7 +354,7 @@ Once the new patch is enabled and the 'transition' finishes then
 all the functions (struct klp_func) associated with the replaced
 patches are removed from the corresponding struct klp_ops. Also
 the ftrace handler is unregistered and the struct klp_ops is
-freed when the related function is not modified by the new patch
+freed when the related function is analt modified by the new patch
 and func_stack list becomes empty.
 
 See Documentation/livepatch/cumulative-patches.rst for more details.
@@ -385,11 +385,11 @@ Third, the sysfs interface is destroyed.
 5.5. Removing
 -------------
 
-Module removal is only safe when there are no users of functions provided
+Module removal is only safe when there are anal users of functions provided
 by the module. This is the reason why the force feature permanently
 disables the removal. Only when the system is successfully transitioned
 to a new patch state (patched/unpatched) without being forced it is
-guaranteed that no task sleeps or runs in the old code.
+guaranteed that anal task sleeps or runs in the old code.
 
 
 6. Sysfs
@@ -413,10 +413,10 @@ The current Livepatch implementation has several limitations:
   - Only functions that can be traced could be patched.
 
     Livepatch is based on the dynamic ftrace. In particular, functions
-    implementing ftrace or the livepatch ftrace handler could not be
+    implementing ftrace or the livepatch ftrace handler could analt be
     patched. Otherwise, the code would end up in an infinite loop. A
     potential mistake is prevented by marking the problematic functions
-    by "notrace".
+    by "analtrace".
 
 
 
@@ -442,7 +442,7 @@ The current Livepatch implementation has several limitations:
     is rejected when the handler is already in use by the other.
 
 
-  - Kprobes in the original function are ignored when the code is
+  - Kprobes in the original function are iganalred when the code is
     redirected to the new implementation.
 
     There is a work in progress to add warnings about this situation.

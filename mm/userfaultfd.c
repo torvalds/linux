@@ -12,7 +12,7 @@
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/userfaultfd_k.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/hugetlb.h>
 #include <linux/shmem_fs.h>
 #include <asm/tlbflush.h>
@@ -49,23 +49,23 @@ struct vm_area_struct *find_dst_vma(struct mm_struct *dst_mm,
 static bool mfill_file_over_size(struct vm_area_struct *dst_vma,
 				 unsigned long dst_addr)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	pgoff_t offset, max_off;
 
 	if (!dst_vma->vm_file)
 		return false;
 
-	inode = dst_vma->vm_file->f_inode;
+	ianalde = dst_vma->vm_file->f_ianalde;
 	offset = linear_page_index(dst_vma, dst_addr);
-	max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+	max_off = DIV_ROUND_UP(i_size_read(ianalde), PAGE_SIZE);
 	return offset >= max_off;
 }
 
 /*
  * Install PTEs, to map dst_addr (within dst_vma) to page.
  *
- * This function handles both MCOPY_ATOMIC_NORMAL and _CONTINUE for both shmem
- * and anon, and for both shared and private VMAs.
+ * This function handles both MCOPY_ATOMIC_ANALRMAL and _CONTINUE for both shmem
+ * and aanaln, and for both shared and private VMAs.
  */
 int mfill_atomic_install_pte(pmd_t *dst_pmd,
 			     struct vm_area_struct *dst_vma,
@@ -103,10 +103,10 @@ int mfill_atomic_install_pte(pmd_t *dst_pmd,
 	ret = -EEXIST;
 	/*
 	 * We allow to overwrite a pte marker: consider when both MISSING|WP
-	 * registered, we firstly wr-protect a none pte which has no page cache
+	 * registered, we firstly wr-protect a analne pte which has anal page cache
 	 * page backing it, then access the page.
 	 */
-	if (!pte_none_mostly(ptep_get(dst_pte)))
+	if (!pte_analne_mostly(ptep_get(dst_pte)))
 		goto out_unlock;
 
 	folio = page_folio(page);
@@ -116,19 +116,19 @@ int mfill_atomic_install_pte(pmd_t *dst_pmd,
 			folio_add_lru(folio);
 		folio_add_file_rmap_pte(folio, page, dst_vma);
 	} else {
-		folio_add_new_anon_rmap(folio, dst_vma, dst_addr);
+		folio_add_new_aanaln_rmap(folio, dst_vma, dst_addr);
 		folio_add_lru_vma(folio, dst_vma);
 	}
 
 	/*
 	 * Must happen after rmap, as mm_counter() checks mapping (via
-	 * PageAnon()), which is set by __page_set_anon_rmap().
+	 * PageAanaln()), which is set by __page_set_aanaln_rmap().
 	 */
 	inc_mm_counter(dst_mm, mm_counter(page));
 
 	set_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
 
-	/* No need to invalidate - it was non-present before */
+	/* Anal need to invalidate - it was analn-present before */
 	update_mmu_cache(dst_vma, dst_addr, dst_pte);
 	ret = 0;
 out_unlock:
@@ -149,7 +149,7 @@ static int mfill_atomic_pte_copy(pmd_t *dst_pmd,
 	struct folio *folio;
 
 	if (!*foliop) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		folio = vma_alloc_folio(GFP_HIGHUSER_MOVABLE, 0, dst_vma,
 					dst_addr, false);
 		if (!folio)
@@ -179,7 +179,7 @@ static int mfill_atomic_pte_copy(pmd_t *dst_pmd,
 
 		/* fallback to copy_from_user outside mmap_lock */
 		if (unlikely(ret)) {
-			ret = -ENOENT;
+			ret = -EANALENT;
 			*foliop = folio;
 			/* don't free the page */
 			goto out;
@@ -198,7 +198,7 @@ static int mfill_atomic_pte_copy(pmd_t *dst_pmd,
 	 */
 	__folio_mark_uptodate(folio);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	if (mem_cgroup_charge(folio, dst_vma->vm_mm, GFP_KERNEL))
 		goto out_release;
 
@@ -232,10 +232,10 @@ static int mfill_atomic_pte_zeropage(pmd_t *dst_pmd,
 		goto out_unlock;
 	}
 	ret = -EEXIST;
-	if (!pte_none(ptep_get(dst_pte)))
+	if (!pte_analne(ptep_get(dst_pte)))
 		goto out_unlock;
 	set_pte_at(dst_vma->vm_mm, dst_addr, dst_pte, _dst_pte);
-	/* No need to invalidate - it was non-present before */
+	/* Anal need to invalidate - it was analn-present before */
 	update_mmu_cache(dst_vma, dst_addr, dst_pte);
 	ret = 0;
 out_unlock:
@@ -250,15 +250,15 @@ static int mfill_atomic_pte_continue(pmd_t *dst_pmd,
 				     unsigned long dst_addr,
 				     uffd_flags_t flags)
 {
-	struct inode *inode = file_inode(dst_vma->vm_file);
+	struct ianalde *ianalde = file_ianalde(dst_vma->vm_file);
 	pgoff_t pgoff = linear_page_index(dst_vma, dst_addr);
 	struct folio *folio;
 	struct page *page;
 	int ret;
 
-	ret = shmem_get_folio(inode, pgoff, &folio, SGP_NOALLOC);
+	ret = shmem_get_folio(ianalde, pgoff, &folio, SGP_ANALALLOC);
 	/* Our caller expects us to return -EFAULT if we failed to find folio */
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		ret = -EFAULT;
 	if (ret)
 		goto out;
@@ -288,7 +288,7 @@ out_release:
 	goto out;
 }
 
-/* Handles UFFDIO_POISON for all non-hugetlb VMAs. */
+/* Handles UFFDIO_POISON for all analn-hugetlb VMAs. */
 static int mfill_atomic_pte_poison(pmd_t *dst_pmd,
 				   struct vm_area_struct *dst_vma,
 				   unsigned long dst_addr,
@@ -312,12 +312,12 @@ static int mfill_atomic_pte_poison(pmd_t *dst_pmd,
 
 	ret = -EEXIST;
 	/* Refuse to overwrite any PTE, even a PTE marker (e.g. UFFD WP). */
-	if (!pte_none(ptep_get(dst_pte)))
+	if (!pte_analne(ptep_get(dst_pte)))
 		goto out_unlock;
 
 	set_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
 
-	/* No need to invalidate - it was non-present before */
+	/* Anal need to invalidate - it was analn-present before */
 	update_mmu_cache(dst_vma, dst_addr, dst_pte);
 	ret = 0;
 out_unlock:
@@ -340,7 +340,7 @@ static pmd_t *mm_alloc_pmd(struct mm_struct *mm, unsigned long address)
 	if (!pud)
 		return NULL;
 	/*
-	 * Note that we didn't run this because the pmd was
+	 * Analte that we didn't run this because the pmd was
 	 * missing, the *pmd may be already established and in
 	 * turn it may also be a trans_huge_pmd.
 	 */
@@ -349,7 +349,7 @@ static pmd_t *mm_alloc_pmd(struct mm_struct *mm, unsigned long address)
 
 #ifdef CONFIG_HUGETLB_PAGE
 /*
- * mfill_atomic processing for HUGETLB vmas.  Note that this routine is
+ * mfill_atomic processing for HUGETLB vmas.  Analte that this routine is
  * called with mmap_lock held, it will release mmap_lock before returning.
  */
 static __always_inline ssize_t mfill_atomic_hugetlb(
@@ -373,10 +373,10 @@ static __always_inline ssize_t mfill_atomic_hugetlb(
 	struct address_space *mapping;
 
 	/*
-	 * There is no default zero huge page for all huge page sizes as
+	 * There is anal default zero huge page for all huge page sizes as
 	 * supported by hugetlb.  A PMD_SIZE huge pages may exist as used
-	 * by THP.  Since we can not reliably insert a zero page, this
-	 * feature is not supported.
+	 * by THP.  Since we can analt reliably insert a zero page, this
+	 * feature is analt supported.
 	 */
 	if (uffd_flags_mode_is(flags, MFILL_ATOMIC_ZEROPAGE)) {
 		mmap_read_unlock(dst_mm);
@@ -402,7 +402,7 @@ retry:
 	 * retry, dst_vma will be set to NULL and we must lookup again.
 	 */
 	if (!dst_vma) {
-		err = -ENOENT;
+		err = -EANALENT;
 		dst_vma = find_dst_vma(dst_mm, dst_start, len);
 		if (!dst_vma || !is_vm_hugetlb_page(dst_vma))
 			goto out_unlock;
@@ -415,11 +415,11 @@ retry:
 	}
 
 	/*
-	 * If not shared, ensure the dst_vma has a anon_vma.
+	 * If analt shared, ensure the dst_vma has a aanaln_vma.
 	 */
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!vm_shared) {
-		if (unlikely(anon_vma_prepare(dst_vma)))
+		if (unlikely(aanaln_vma_prepare(dst_vma)))
 			goto out_unlock;
 	}
 
@@ -438,7 +438,7 @@ retry:
 		mutex_lock(&hugetlb_fault_mutex_table[hash]);
 		hugetlb_vma_lock_read(dst_vma);
 
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dst_pte = huge_pte_alloc(dst_mm, dst_vma, dst_addr, vma_hpagesize);
 		if (!dst_pte) {
 			hugetlb_vma_unlock_read(dst_vma);
@@ -447,7 +447,7 @@ retry:
 		}
 
 		if (!uffd_flags_mode_is(flags, MFILL_ATOMIC_CONTINUE) &&
-		    !huge_pte_none_mostly(huge_ptep_get(dst_pte))) {
+		    !huge_pte_analne_mostly(huge_ptep_get(dst_pte))) {
 			err = -EEXIST;
 			hugetlb_vma_unlock_read(dst_vma);
 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
@@ -462,7 +462,7 @@ retry:
 
 		cond_resched();
 
-		if (unlikely(err == -ENOENT)) {
+		if (unlikely(err == -EANALENT)) {
 			mmap_read_unlock(dst_mm);
 			BUG_ON(!folio);
 
@@ -474,7 +474,7 @@ retry:
 			}
 			mmap_read_lock(dst_mm);
 			/*
-			 * If memory mappings are changing because of non-cooperative
+			 * If memory mappings are changing because of analn-cooperative
 			 * operation (e.g. mremap) running in parallel, bail out and
 			 * request the user to retry later
 			 */
@@ -538,14 +538,14 @@ static __always_inline ssize_t mfill_atomic_pte(pmd_t *dst_pmd,
 	}
 
 	/*
-	 * The normal page fault path for a shmem will invoke the
+	 * The analrmal page fault path for a shmem will invoke the
 	 * fault, fill the hole in the file and COW it right away. The
-	 * result generates plain anonymous memory. So when we are
+	 * result generates plain aanalnymous memory. So when we are
 	 * asked to fill an hole in a MAP_PRIVATE shmem mapping, we'll
-	 * generate anonymous memory directly without actually filling
+	 * generate aanalnymous memory directly without actually filling
 	 * the hole. For the MAP_PRIVATE case the robustness check
-	 * only happens in the pagetable (to verify it's still none)
-	 * and not in the radix tree.
+	 * only happens in the pagetable (to verify it's still analne)
+	 * and analt in the radix tree.
 	 */
 	if (!(dst_vma->vm_flags & VM_SHARED)) {
 		if (uffd_flags_mode_is(flags, MFILL_ATOMIC_COPY))
@@ -596,7 +596,7 @@ retry:
 	mmap_read_lock(dst_mm);
 
 	/*
-	 * If memory mappings are changing because of non-cooperative
+	 * If memory mappings are changing because of analn-cooperative
 	 * operation (e.g. mremap) running in parallel, bail out and
 	 * request the user to retry later
 	 */
@@ -605,25 +605,25 @@ retry:
 		goto out_unlock;
 
 	/*
-	 * Make sure the vma is not shared, that the dst range is
+	 * Make sure the vma is analt shared, that the dst range is
 	 * both valid and fully within a single existing vma.
 	 */
-	err = -ENOENT;
+	err = -EANALENT;
 	dst_vma = find_dst_vma(dst_mm, dst_start, len);
 	if (!dst_vma)
 		goto out_unlock;
 
 	err = -EINVAL;
 	/*
-	 * shmem_zero_setup is invoked in mmap for MAP_ANONYMOUS|MAP_SHARED but
-	 * it will overwrite vm_ops, so vma_is_anonymous must return false.
+	 * shmem_zero_setup is invoked in mmap for MAP_AANALNYMOUS|MAP_SHARED but
+	 * it will overwrite vm_ops, so vma_is_aanalnymous must return false.
 	 */
-	if (WARN_ON_ONCE(vma_is_anonymous(dst_vma) &&
+	if (WARN_ON_ONCE(vma_is_aanalnymous(dst_vma) &&
 	    dst_vma->vm_flags & VM_SHARED))
 		goto out_unlock;
 
 	/*
-	 * validate 'mode' now that we know the dst_vma: don't allow
+	 * validate 'mode' analw that we kanalw the dst_vma: don't allow
 	 * a wrprotect copy if the userfaultfd didn't register as WP.
 	 */
 	if ((flags & MFILL_ATOMIC_WP) && !(dst_vma->vm_flags & VM_UFFD_WP))
@@ -636,20 +636,20 @@ retry:
 		return  mfill_atomic_hugetlb(dst_vma, dst_start, src_start,
 					     len, mmap_changing, flags);
 
-	if (!vma_is_anonymous(dst_vma) && !vma_is_shmem(dst_vma))
+	if (!vma_is_aanalnymous(dst_vma) && !vma_is_shmem(dst_vma))
 		goto out_unlock;
 	if (!vma_is_shmem(dst_vma) &&
 	    uffd_flags_mode_is(flags, MFILL_ATOMIC_CONTINUE))
 		goto out_unlock;
 
 	/*
-	 * Ensure the dst_vma has a anon_vma or this page
-	 * would get a NULL anon_vma when moved in the
+	 * Ensure the dst_vma has a aanaln_vma or this page
+	 * would get a NULL aanaln_vma when moved in the
 	 * dst_vma.
 	 */
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!(dst_vma->vm_flags & VM_SHARED) &&
-	    unlikely(anon_vma_prepare(dst_vma)))
+	    unlikely(aanaln_vma_prepare(dst_vma)))
 		goto out_unlock;
 
 	while (src_addr < src_start + len) {
@@ -659,7 +659,7 @@ retry:
 
 		dst_pmd = mm_alloc_pmd(dst_mm, dst_addr);
 		if (unlikely(!dst_pmd)) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -672,9 +672,9 @@ retry:
 			err = -EEXIST;
 			break;
 		}
-		if (unlikely(pmd_none(dst_pmdval)) &&
+		if (unlikely(pmd_analne(dst_pmdval)) &&
 		    unlikely(__pte_alloc(dst_mm, dst_pmd))) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 		/* If an huge pmd materialized from under us fail */
@@ -683,14 +683,14 @@ retry:
 			break;
 		}
 
-		BUG_ON(pmd_none(*dst_pmd));
+		BUG_ON(pmd_analne(*dst_pmd));
 		BUG_ON(pmd_trans_huge(*dst_pmd));
 
 		err = mfill_atomic_pte(dst_pmd, dst_vma, dst_addr,
 				       src_addr, flags, &folio);
 		cond_resched();
 
-		if (unlikely(err == -ENOENT)) {
+		if (unlikely(err == -EANALENT)) {
 			void *kaddr;
 
 			mmap_read_unlock(dst_mm);
@@ -816,7 +816,7 @@ int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
 	mmap_read_lock(dst_mm);
 
 	/*
-	 * If memory mappings are changing because of non-cooperative
+	 * If memory mappings are changing because of analn-cooperative
 	 * operation (e.g. mremap) running in parallel, bail out and
 	 * request the user to retry later
 	 */
@@ -824,11 +824,11 @@ int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
 	if (mmap_changing && atomic_read(mmap_changing))
 		goto out_unlock;
 
-	err = -ENOENT;
+	err = -EANALENT;
 	for_each_vma_range(vmi, dst_vma, end) {
 
 		if (!userfaultfd_wp(dst_vma)) {
-			err = -ENOENT;
+			err = -EANALENT;
 			break;
 		}
 
@@ -909,7 +909,7 @@ static int move_present_pte(struct mm_struct *mm,
 	}
 	if (folio_test_large(src_folio) ||
 	    folio_maybe_dma_pinned(src_folio) ||
-	    !PageAnonExclusive(&src_folio->page)) {
+	    !PageAanalnExclusive(&src_folio->page)) {
 		err = -EBUSY;
 		goto out;
 	}
@@ -922,7 +922,7 @@ static int move_present_pte(struct mm_struct *mm,
 		goto out;
 	}
 
-	folio_move_anon_rmap(src_folio, dst_vma);
+	folio_move_aanaln_rmap(src_folio, dst_vma);
 	WRITE_ONCE(src_folio->index, linear_page_index(dst_vma, dst_addr));
 
 	orig_dst_pte = mk_pte(&src_folio->page, dst_vma->vm_page_prot);
@@ -978,16 +978,16 @@ static int move_pages_pte(struct mm_struct *mm, pmd_t *dst_pmd, pmd_t *src_pmd,
 	pte_t *dst_pte = NULL;
 
 	struct folio *src_folio = NULL;
-	struct anon_vma *src_anon_vma = NULL;
-	struct mmu_notifier_range range;
+	struct aanaln_vma *src_aanaln_vma = NULL;
+	struct mmu_analtifier_range range;
 	int err = 0;
 
 	flush_cache_range(src_vma, src_addr, src_addr + PAGE_SIZE);
-	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, mm,
+	mmu_analtifier_range_init(&range, MMU_ANALTIFY_CLEAR, 0, mm,
 				src_addr, src_addr + PAGE_SIZE);
-	mmu_notifier_invalidate_range_start(&range);
+	mmu_analtifier_invalidate_range_start(&range);
 retry:
-	dst_pte = pte_offset_map_nolock(mm, dst_pmd, dst_addr, &dst_ptl);
+	dst_pte = pte_offset_map_anallock(mm, dst_pmd, dst_addr, &dst_ptl);
 
 	/* Retry if a huge pmd materialized from under us */
 	if (unlikely(!dst_pte)) {
@@ -995,7 +995,7 @@ retry:
 		goto out;
 	}
 
-	src_pte = pte_offset_map_nolock(mm, src_pmd, src_addr, &src_ptl);
+	src_pte = pte_offset_map_anallock(mm, src_pmd, src_addr, &src_ptl);
 
 	/*
 	 * We held the mmap_lock for reading so MADV_DONTNEED
@@ -1009,7 +1009,7 @@ retry:
 	}
 
 	/* Sanity checks before the operation */
-	if (WARN_ON_ONCE(pmd_none(*dst_pmd)) ||	WARN_ON_ONCE(pmd_none(*src_pmd)) ||
+	if (WARN_ON_ONCE(pmd_analne(*dst_pmd)) ||	WARN_ON_ONCE(pmd_analne(*src_pmd)) ||
 	    WARN_ON_ONCE(pmd_trans_huge(*dst_pmd)) || WARN_ON_ONCE(pmd_trans_huge(*src_pmd))) {
 		err = -EINVAL;
 		goto out;
@@ -1018,7 +1018,7 @@ retry:
 	spin_lock(dst_ptl);
 	orig_dst_pte = ptep_get(dst_pte);
 	spin_unlock(dst_ptl);
-	if (!pte_none(orig_dst_pte)) {
+	if (!pte_analne(orig_dst_pte)) {
 		err = -EEXIST;
 		goto out;
 	}
@@ -1026,10 +1026,10 @@ retry:
 	spin_lock(src_ptl);
 	orig_src_pte = ptep_get(src_pte);
 	spin_unlock(src_ptl);
-	if (pte_none(orig_src_pte)) {
+	if (pte_analne(orig_src_pte)) {
 		if (!(mode & UFFDIO_MOVE_MODE_ALLOW_SRC_HOLES))
-			err = -ENOENT;
-		else /* nothing to do to move a hole */
+			err = -EANALENT;
+		else /* analthing to do to move a hole */
 			err = 0;
 		goto out;
 	}
@@ -1042,7 +1042,7 @@ retry:
 
 	if (pte_present(orig_src_pte)) {
 		/*
-		 * Pin and lock both source folio and anon_vma. Since we are in
+		 * Pin and lock both source folio and aanaln_vma. Since we are in
 		 * RCU read section, we can't block, so on contention have to
 		 * unmap the ptes, obtain the lock and retry.
 		 */
@@ -1060,8 +1060,8 @@ retry:
 				goto out;
 			}
 
-			folio = vm_normal_folio(src_vma, src_addr, orig_src_pte);
-			if (!folio || !PageAnonExclusive(&folio->page)) {
+			folio = vm_analrmal_folio(src_vma, src_addr, orig_src_pte);
+			if (!folio || !PageAanalnExclusive(&folio->page)) {
 				spin_unlock(src_ptl);
 				err = -EBUSY;
 				goto out;
@@ -1076,12 +1076,12 @@ retry:
 				pte_unmap(&orig_src_pte);
 				pte_unmap(&orig_dst_pte);
 				src_pte = dst_pte = NULL;
-				/* now we can block and wait */
+				/* analw we can block and wait */
 				folio_lock(src_folio);
 				goto retry;
 			}
 
-			if (WARN_ON_ONCE(!folio_test_anon(src_folio))) {
+			if (WARN_ON_ONCE(!folio_test_aanaln(src_folio))) {
 				err = -EBUSY;
 				goto out;
 			}
@@ -1103,24 +1103,24 @@ retry:
 			goto retry;
 		}
 
-		if (!src_anon_vma) {
+		if (!src_aanaln_vma) {
 			/*
-			 * folio_referenced walks the anon_vma chain
+			 * folio_referenced walks the aanaln_vma chain
 			 * without the folio lock. Serialize against it with
-			 * the anon_vma lock, the folio lock is not enough.
+			 * the aanaln_vma lock, the folio lock is analt eanalugh.
 			 */
-			src_anon_vma = folio_get_anon_vma(src_folio);
-			if (!src_anon_vma) {
+			src_aanaln_vma = folio_get_aanaln_vma(src_folio);
+			if (!src_aanaln_vma) {
 				/* page was unmapped from under us */
 				err = -EAGAIN;
 				goto out;
 			}
-			if (!anon_vma_trylock_write(src_anon_vma)) {
+			if (!aanaln_vma_trylock_write(src_aanaln_vma)) {
 				pte_unmap(&orig_src_pte);
 				pte_unmap(&orig_dst_pte);
 				src_pte = dst_pte = NULL;
-				/* now we can block and wait */
-				anon_vma_lock_write(src_anon_vma);
+				/* analw we can block and wait */
+				aanaln_vma_lock_write(src_aanaln_vma);
 				goto retry;
 			}
 		}
@@ -1131,7 +1131,7 @@ retry:
 				       dst_ptl, src_ptl, src_folio);
 	} else {
 		entry = pte_to_swp_entry(orig_src_pte);
-		if (non_swap_entry(entry)) {
+		if (analn_swap_entry(entry)) {
 			if (is_migration_entry(entry)) {
 				pte_unmap(&orig_src_pte);
 				pte_unmap(&orig_dst_pte);
@@ -1150,9 +1150,9 @@ retry:
 	}
 
 out:
-	if (src_anon_vma) {
-		anon_vma_unlock_write(src_anon_vma);
-		put_anon_vma(src_anon_vma);
+	if (src_aanaln_vma) {
+		aanaln_vma_unlock_write(src_aanaln_vma);
+		put_aanaln_vma(src_aanaln_vma);
 	}
 	if (src_folio) {
 		folio_unlock(src_folio);
@@ -1162,7 +1162,7 @@ out:
 		pte_unmap(dst_pte);
 	if (src_pte)
 		pte_unmap(src_pte);
-	mmu_notifier_invalidate_range_end(&range);
+	mmu_analtifier_invalidate_range_end(&range);
 
 	return err;
 }
@@ -1205,8 +1205,8 @@ static int validate_move_areas(struct userfaultfd_ctx *ctx,
 		return -EINVAL;
 
 	/*
-	 * For now, we keep it simple and only move between writable VMAs.
-	 * Access flags are equal, therefore cheching only the source is enough.
+	 * For analw, we keep it simple and only move between writable VMAs.
+	 * Access flags are equal, therefore cheching only the source is eanalugh.
 	 */
 	if (!(src_vma->vm_flags & VM_WRITE))
 		return -EINVAL;
@@ -1220,23 +1220,23 @@ static int validate_move_areas(struct userfaultfd_ctx *ctx,
 	    dst_vma->vm_userfaultfd_ctx.ctx != ctx)
 		return -EINVAL;
 
-	/* Only allow moving across anonymous vmas */
-	if (!vma_is_anonymous(src_vma) || !vma_is_anonymous(dst_vma))
+	/* Only allow moving across aanalnymous vmas */
+	if (!vma_is_aanalnymous(src_vma) || !vma_is_aanalnymous(dst_vma))
 		return -EINVAL;
 
 	/*
-	 * Ensure the dst_vma has a anon_vma or this page
-	 * would get a NULL anon_vma when moved in the
+	 * Ensure the dst_vma has a aanaln_vma or this page
+	 * would get a NULL aanaln_vma when moved in the
 	 * dst_vma.
 	 */
-	if (unlikely(anon_vma_prepare(dst_vma)))
-		return -ENOMEM;
+	if (unlikely(aanaln_vma_prepare(dst_vma)))
+		return -EANALMEM;
 
 	return 0;
 }
 
 /**
- * move_pages - move arbitrary anonymous pages of an existing vma
+ * move_pages - move arbitrary aanalnymous pages of an existing vma
  * @ctx: pointer to the userfaultfd context
  * @mm: the address space to move pages
  * @dst_start: start of the destination virtual memory range
@@ -1246,9 +1246,9 @@ static int validate_move_areas(struct userfaultfd_ctx *ctx,
  *
  * Must be called with mmap_lock held for read.
  *
- * move_pages() remaps arbitrary anonymous pages atomically in zero
- * copy. It only works on non shared anonymous pages because those can
- * be relocated without generating non linear anon_vmas in the rmap
+ * move_pages() remaps arbitrary aanalnymous pages atomically in zero
+ * copy. It only works on analn shared aanalnymous pages because those can
+ * be relocated without generating analn linear aanaln_vmas in the rmap
  * code.
  *
  * It provides a zero copy mechanism to handle userspace page faults.
@@ -1263,21 +1263,21 @@ static int validate_move_areas(struct userfaultfd_ctx *ctx,
  * page in the faulting address in the destination vma.
  *
  * This userfaultfd command works purely via pagetables, so it's the
- * most efficient way to move physical non shared anonymous pages
+ * most efficient way to move physical analn shared aanalnymous pages
  * across different virtual addresses. Unlike mremap()/mmap()/munmap()
- * it does not create any new vmas. The mapping in the destination
+ * it does analt create any new vmas. The mapping in the destination
  * address is atomic.
  *
  * It only works if the vma protection bits are identical from the
  * source and destination vma.
  *
- * It can remap non shared anonymous pages within the same vma too.
+ * It can remap analn shared aanalnymous pages within the same vma too.
  *
  * If the source virtual memory range has any unmapped holes, or if
- * the destination virtual memory range is not a whole unmapped hole,
- * move_pages() will fail respectively with -ENOENT or -EEXIST. This
+ * the destination virtual memory range is analt a whole unmapped hole,
+ * move_pages() will fail respectively with -EANALENT or -EEXIST. This
  * provides a very strict behavior to avoid any chance of memory
- * corruption going unnoticed if there are userland race conditions.
+ * corruption going unanalticed if there are userland race conditions.
  * Only one thread should resolve the userland page fault at any given
  * time for any given faulting address. This means that if two threads
  * try to both call move_pages() on the same destination address at the
@@ -1288,29 +1288,29 @@ static int validate_move_areas(struct userfaultfd_ctx *ctx,
  * however can be interrupted by fatal signals or errors. If
  * interrupted it will return the number of bytes successfully
  * remapped before the interruption if any, or the negative error if
- * none. It will never return zero. Either it will return an error or
+ * analne. It will never return zero. Either it will return an error or
  * an amount of bytes successfully moved. If the retval reports a
  * "short" remap, the move_pages() command should be repeated by
- * userland with src+retval, dst+reval, len-retval if it wants to know
+ * userland with src+retval, dst+reval, len-retval if it wants to kanalw
  * about the error that interrupted it.
  *
  * The UFFDIO_MOVE_MODE_ALLOW_SRC_HOLES flag can be specified to
- * prevent -ENOENT errors to materialize if there are holes in the
+ * prevent -EANALENT errors to materialize if there are holes in the
  * source virtual range that is being remapped. The holes will be
  * accounted as successfully remapped in the retval of the
  * command. This is mostly useful to remap hugepage naturally aligned
- * virtual regions without knowing if there are transparent hugepage
- * in the regions or not, but preventing the risk of having to split
+ * virtual regions without kanalwing if there are transparent hugepage
+ * in the regions or analt, but preventing the risk of having to split
  * the hugepmd during the remap.
  *
- * If there's any rmap walk that is taking the anon_vma locks without
+ * If there's any rmap walk that is taking the aanaln_vma locks without
  * first obtaining the folio lock (the only current instance is
  * folio_referenced), they will have to verify if the folio->mapping
- * has changed after taking the anon_vma lock. If it changed they
- * should release the lock and retry obtaining a new anon_vma, because
- * it means the anon_vma was changed by move_pages() before the lock
+ * has changed after taking the aanaln_vma lock. If it changed they
+ * should release the lock and retry obtaining a new aanaln_vma, because
+ * it means the aanaln_vma was changed by move_pages() before the lock
  * could be obtained. This is the only additional complexity added to
- * the rmap code to provide this anonymous page remapping functionality.
+ * the rmap code to provide this aanalnymous page remapping functionality.
  */
 ssize_t move_pages(struct userfaultfd_ctx *ctx, struct mm_struct *mm,
 		   unsigned long dst_start, unsigned long src_start,
@@ -1334,7 +1334,7 @@ ssize_t move_pages(struct userfaultfd_ctx *ctx, struct mm_struct *mm,
 		goto out;
 
 	/*
-	 * Make sure the vma is not shared, that the src and dst remap
+	 * Make sure the vma is analt shared, that the src and dst remap
 	 * ranges are both valid and fully within a single existing
 	 * vma.
 	 */
@@ -1363,25 +1363,25 @@ ssize_t move_pages(struct userfaultfd_ctx *ctx, struct mm_struct *mm,
 		unsigned long step_size;
 
 		/*
-		 * Below works because anonymous area would not have a
+		 * Below works because aanalnymous area would analt have a
 		 * transparent huge PUD. If file-backed support is added,
 		 * that case would need to be handled here.
 		 */
 		src_pmd = mm_find_pmd(mm, src_addr);
 		if (unlikely(!src_pmd)) {
 			if (!(mode & UFFDIO_MOVE_MODE_ALLOW_SRC_HOLES)) {
-				err = -ENOENT;
+				err = -EANALENT;
 				break;
 			}
 			src_pmd = mm_alloc_pmd(mm, src_addr);
 			if (unlikely(!src_pmd)) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				break;
 			}
 		}
 		dst_pmd = mm_alloc_pmd(mm, dst_addr);
 		if (unlikely(!dst_pmd)) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -1401,10 +1401,10 @@ ssize_t move_pages(struct userfaultfd_ctx *ctx, struct mm_struct *mm,
 		if (ptl) {
 			if (pmd_devmap(*src_pmd)) {
 				spin_unlock(ptl);
-				err = -ENOENT;
+				err = -EANALENT;
 				break;
 			}
-			/* Avoid moving zeropages for now */
+			/* Avoid moving zeropages for analw */
 			if (is_huge_zero_pmd(*src_pmd)) {
 				spin_unlock(ptl);
 				err = -EBUSY;
@@ -1413,10 +1413,10 @@ ssize_t move_pages(struct userfaultfd_ctx *ctx, struct mm_struct *mm,
 
 			/* Check if we can move the pmd without splitting it. */
 			if (move_splits_huge_pmd(dst_addr, src_addr, src_start + len) ||
-			    !pmd_none(dst_pmdval)) {
+			    !pmd_analne(dst_pmdval)) {
 				struct folio *folio = pfn_folio(pmd_pfn(*src_pmd));
 
-				if (!folio || !PageAnonExclusive(&folio->page)) {
+				if (!folio || !PageAanalnExclusive(&folio->page)) {
 					spin_unlock(ptl);
 					err = -EBUSY;
 					break;
@@ -1433,19 +1433,19 @@ ssize_t move_pages(struct userfaultfd_ctx *ctx, struct mm_struct *mm,
 						  dst_addr, src_addr);
 			step_size = HPAGE_PMD_SIZE;
 		} else {
-			if (pmd_none(*src_pmd)) {
+			if (pmd_analne(*src_pmd)) {
 				if (!(mode & UFFDIO_MOVE_MODE_ALLOW_SRC_HOLES)) {
-					err = -ENOENT;
+					err = -EANALENT;
 					break;
 				}
 				if (unlikely(__pte_alloc(mm, src_pmd))) {
-					err = -ENOMEM;
+					err = -EANALMEM;
 					break;
 				}
 			}
 
 			if (unlikely(pte_alloc(mm, dst_pmd))) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				break;
 			}
 
@@ -1458,7 +1458,7 @@ ssize_t move_pages(struct userfaultfd_ctx *ctx, struct mm_struct *mm,
 		cond_resched();
 
 		if (fatal_signal_pending(current)) {
-			/* Do not override an error */
+			/* Do analt override an error */
 			if (!err || err == -EAGAIN)
 				err = -EINTR;
 			break;

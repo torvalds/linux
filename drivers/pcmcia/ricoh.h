@@ -2,7 +2,7 @@
  * ricoh.h 1.9 1999/10/25 20:03:34
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may analt use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *
@@ -19,10 +19,10 @@
  * terms of the GNU General Public License version 2 (the "GPL"), in which
  * case the provisions of the GPL are applicable instead of the
  * above.  If you wish to allow the use of your version of this file
- * only under the terms of the GPL and not to allow others to use
+ * only under the terms of the GPL and analt to allow others to use
  * your version of this file under the MPL, indicate your decision by
- * deleting the provisions above and replace them with the notice and
- * other provisions required by the GPL.  If you do not delete the
+ * deleting the provisions above and replace them with the analtice and
+ * other provisions required by the GPL.  If you do analt delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
  */
@@ -131,13 +131,13 @@
 #define rl_mem(socket)		((socket)->private[3])
 #define rl_config(socket)	((socket)->private[4])
 
-static void ricoh_zoom_video(struct pcmcia_socket *sock, int onoff)
+static void ricoh_zoom_video(struct pcmcia_socket *sock, int oanalff)
 {
         u8 reg;
 	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
 
         reg = config_readb(socket, RL5C4XX_MISC_CONTROL);
-        if (onoff)
+        if (oanalff)
                 /* Zoom zoom, we will all go together, zoom zoom, zoom zoom */
                 reg |=  RL5C4XX_ZV_ENABLE;
         else
@@ -165,7 +165,7 @@ static void ricoh_set_clkrun(struct yenta_socket *socket, bool quiet)
 	u16 misc3;
 
 	/*
-	 * RL5C475II likely has this setting, too, however no datasheet
+	 * RL5C475II likely has this setting, too, however anal datasheet
 	 * is publicly available for this chip
 	 */
 	if (socket->dev->device != PCI_DEVICE_ID_RICOH_RL5C476 &&

@@ -16,7 +16,7 @@
 #include <asm/asmmacro.h>
 #include <asm/thread_info.h>
 
-/* Registers to not touch at all. */
+/* Registers to analt touch at all. */
 #define t_psr        l0 /* Set by caller */
 #define t_pc         l1 /* Set by caller */
 #define t_npc        l2 /* Set by caller */
@@ -48,15 +48,15 @@ tsetup_7win_patch6:	and	%g2, 0x7f, %g2
 	 * rd	%psr, %l0
 	 * b	some_handler
 	 * rd	%wim, %l3
-	 * nop
+	 * analp
 	 *
 	 * Then 'some_handler' if it needs a trap frame (ie. it has
-	 * to call c-code and the trap cannot be handled in-window)
+	 * to call c-code and the trap cananalt be handled in-window)
 	 * then it does the SAVE_ALL macro in entry.S which does
 	 *
 	 * sethi	%hi(trap_setup), %l4
 	 * jmpl		%l4 + %lo(trap_setup), %l6
-	 * nop
+	 * analp
 	 */
 
 	/* 2 3 4  window number
@@ -81,7 +81,7 @@ trap_setup:
 	 */
 	mov	1, %t_twinmask
 	andcc	%t_psr, PSR_PS, %g0		 ! fromsupv_p = (psr & PSR_PS)
-	be	trap_setup_from_user		 ! nope, from user mode
+	be	trap_setup_from_user		 ! analpe, from user mode
 	 sll	%t_twinmask, %t_psr, %t_twinmask ! t_twinmask = (1 << psr)
 
 	/* From kernel, allocate more kernel stack and
@@ -93,7 +93,7 @@ trap_setup:
 	/* See if we are in the trap window. */
 	andcc	%t_twinmask, %t_wim, %g0
 	bne	trap_setup_kernel_spill		! in trap window, clean up
-	 nop
+	 analp
 
 	/* Trap from kernel with a window available.
 	 * Just do it...
@@ -163,10 +163,10 @@ trap_setup_from_user:
 	bne	trap_setup_user_spill		! yep we are
 	 orn	%g0, %t_twinmask, %g1		! negate trap win mask into %g1
 
-	/* Trap from user, but not into the invalid window.
+	/* Trap from user, but analt into the invalid window.
 	 * Calculate new umask.  The way this works is,
 	 * any window from the %wim at trap time until
-	 * the window right before the one we are in now,
+	 * the window right before the one we are in analw,
 	 * is a user window.  A diagram:
 	 *
 	 *      7 6 5 4 3 2 1 0    window number
@@ -176,7 +176,7 @@ trap_setup_from_user:
 	 * Window 'I' is the invalid window in our example,
 	 * window 'L' is the window the user was in when
 	 * the trap occurred, window T is the trap window
-	 * we are in now.  So therefore, windows 5, 4 and
+	 * we are in analw.  So therefore, windows 5, 4 and
 	 * 3 are user windows.  The following sequence
 	 * computes the user winmask to represent this.
 	 */
@@ -249,15 +249,15 @@ trap_setup_user_stack_is_bolixed:
 	 mov	%t_kstack, %sp
 
 1:
-	/* Clear the fault status and turn on the no_fault bit. */
-	or	%glob_tmp, 0x2, %glob_tmp		! or in no_fault bit
+	/* Clear the fault status and turn on the anal_fault bit. */
+	or	%glob_tmp, 0x2, %glob_tmp		! or in anal_fault bit
 LEON_PI(sta	%glob_tmp, [%g0] ASI_LEON_MMUREGS)		! set it
 SUN_PI_(sta	%glob_tmp, [%g0] ASI_M_MMUREGS)		! set it
 
 	/* Dump the registers and cross fingers. */
 	STORE_WINDOW(sp)
 
-	/* Clear the no_fault bit and check the status. */
+	/* Clear the anal_fault bit and check the status. */
 	andn	%glob_tmp, 0x2, %glob_tmp
 LEON_PI(sta	%glob_tmp, [%g0] ASI_LEON_MMUREGS)
 SUN_PI_(sta	%glob_tmp, [%g0] ASI_M_MMUREGS)
@@ -272,7 +272,7 @@ SUN_PI_(lda	[%glob_tmp] ASI_M_MMUREGS, %glob_tmp)	! save away status of winstore
 
 	andcc	%glob_tmp, 0x2, %g0			! did we fault?
 	bne	trap_setup_user_stack_is_bolixed	! failure
-	 nop
+	 analp
 
 	restore %g0, %g0, %g0
 

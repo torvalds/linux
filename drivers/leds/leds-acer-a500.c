@@ -45,7 +45,7 @@ static int a500_ec_led_brightness_set(struct led_classdev *led_cdev,
 		control_seq[0] = led->enable_seq[0];
 	} else {
 		/*
-		 * There is no separate controls which can disable LEDs
+		 * There is anal separate controls which can disable LEDs
 		 * individually, there is only RESET_LEDS command that turns
 		 * off both LEDs.
 		 *
@@ -77,7 +77,7 @@ static int a500_ec_leds_probe(struct platform_device *pdev)
 
 	white_led = devm_kzalloc(&pdev->dev, sizeof(*white_led), GFP_KERNEL);
 	if (!white_led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	white_led->cdev.name = "power:white";
 	white_led->cdev.brightness_set_blocking = a500_ec_led_brightness_set;
@@ -88,7 +88,7 @@ static int a500_ec_leds_probe(struct platform_device *pdev)
 
 	orange_led = devm_kzalloc(&pdev->dev, sizeof(*orange_led), GFP_KERNEL);
 	if (!orange_led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	orange_led->cdev.name = "power:orange";
 	orange_led->cdev.brightness_set_blocking = a500_ec_led_brightness_set;

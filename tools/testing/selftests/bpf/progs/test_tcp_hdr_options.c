@@ -2,7 +2,7 @@
 /* Copyright (c) 2020 Facebook */
 
 #include <stddef.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -37,7 +37,7 @@ struct bpf_test_option active_fin_in	= {};
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, struct hdr_stg);
 } hdr_stg_map SEC(".maps");
@@ -59,7 +59,7 @@ static __u8 option_total_len(__u8 flags)
 	if (!flags)
 		return 0;
 
-	/* RESEND bit does not use a byte */
+	/* RESEND bit does analt use a byte */
 	for (i = OPTION_RESEND + 1; i < __NR_OPTION_FLAGS; i++)
 		len += !!TEST_OPTION_FLAGS(flags, i);
 
@@ -169,8 +169,8 @@ static int synack_opt_len(struct bpf_sock_ops *skops)
 
 	err = load_option(skops, &test_opt, true);
 
-	/* bpf_test_option is not found */
-	if (err == -ENOMSG)
+	/* bpf_test_option is analt found */
+	if (err == -EANALMSG)
 		return CG_OK;
 
 	if (err)
@@ -191,7 +191,7 @@ static int write_synack_opt(struct bpf_sock_ops *skops)
 	struct bpf_test_option opt;
 
 	if (!passive_synack_out.flags)
-		/* We should not even be called since no header
+		/* We should analt even be called since anal header
 		 * space has been reserved.
 		 */
 		RET_CG_ERR(0);
@@ -295,7 +295,7 @@ static int resend_in_ack(struct bpf_sock_ops *skops)
 	return !!hdr_stg->resend_syn;
 }
 
-static int nodata_opt_len(struct bpf_sock_ops *skops)
+static int analdata_opt_len(struct bpf_sock_ops *skops)
 {
 	int resend;
 
@@ -309,7 +309,7 @@ static int nodata_opt_len(struct bpf_sock_ops *skops)
 	return CG_OK;
 }
 
-static int write_nodata_opt(struct bpf_sock_ops *skops)
+static int write_analdata_opt(struct bpf_sock_ops *skops)
 {
 	int resend;
 
@@ -325,15 +325,15 @@ static int write_nodata_opt(struct bpf_sock_ops *skops)
 
 static int data_opt_len(struct bpf_sock_ops *skops)
 {
-	/* Same as the nodata version.  Mostly to show
+	/* Same as the analdata version.  Mostly to show
 	 * an example usage on skops->skb_len.
 	 */
-	return nodata_opt_len(skops);
+	return analdata_opt_len(skops);
 }
 
 static int write_data_opt(struct bpf_sock_ops *skops)
 {
-	return write_nodata_opt(skops);
+	return write_analdata_opt(skops);
 }
 
 static int current_mss_opt_len(struct bpf_sock_ops *skops)
@@ -368,7 +368,7 @@ static int handle_hdr_opt_len(struct bpf_sock_ops *skops)
 	if (skops->skb_len)
 		return data_opt_len(skops);
 
-	return nodata_opt_len(skops);
+	return analdata_opt_len(skops);
 }
 
 static int handle_write_hdr_opt(struct bpf_sock_ops *skops)
@@ -392,7 +392,7 @@ static int handle_write_hdr_opt(struct bpf_sock_ops *skops)
 	if (skops->skb_len > tcp_hdrlen(th))
 		return write_data_opt(skops);
 
-	return write_nodata_opt(skops);
+	return write_analdata_opt(skops);
 }
 
 static int set_delack_max(struct bpf_sock_ops *skops, __u8 max_delack_ms)
@@ -419,7 +419,7 @@ static int handle_active_estab(struct bpf_sock_ops *skops)
 	int err;
 
 	err = load_option(skops, &active_estab_in, false);
-	if (err && err != -ENOMSG)
+	if (err && err != -EANALMSG)
 		RET_CG_ERR(err);
 
 	init_stg.resend_syn = TEST_OPTION_FLAGS(active_estab_in.flags,
@@ -430,7 +430,7 @@ static int handle_active_estab(struct bpf_sock_ops *skops)
 		RET_CG_ERR(0);
 
 	if (init_stg.resend_syn)
-		/* Don't clear the write_hdr cb now because
+		/* Don't clear the write_hdr cb analw because
 		 * the ACK may get lost and retransmit may
 		 * be needed.
 		 *
@@ -444,7 +444,7 @@ static int handle_active_estab(struct bpf_sock_ops *skops)
 		 */
 		set_parse_all_hdr_cb_flags(skops);
 	else if (!active_fin_out.flags)
-		/* No options will be written from now */
+		/* Anal options will be written from analw */
 		clear_hdr_cb_flags(skops);
 
 	if (active_syn_out.max_delack_ms) {
@@ -471,19 +471,19 @@ static int handle_passive_estab(struct bpf_sock_ops *skops)
 	inherit_cb_flags = skops->bpf_sock_ops_cb_flags;
 
 	err = load_option(skops, &passive_estab_in, true);
-	if (err == -ENOENT) {
-		/* saved_syn is not found. It was in syncookie mode.
+	if (err == -EANALENT) {
+		/* saved_syn is analt found. It was in syncookie mode.
 		 * We have asked the active side to resend the options
-		 * in ACK, so try to find the bpf_test_option from ACK now.
+		 * in ACK, so try to find the bpf_test_option from ACK analw.
 		 */
 		err = load_option(skops, &passive_estab_in, false);
 		init_stg.syncookie = true;
 	}
 
-	/* ENOMSG: The bpf_test_option is not found which is fine.
-	 * Bail out now for all other errors.
+	/* EANALMSG: The bpf_test_option is analt found which is fine.
+	 * Bail out analw for all other errors.
 	 */
-	if (err && err != -ENOMSG)
+	if (err && err != -EANALMSG)
 		RET_CG_ERR(err);
 
 	th = skops->skb_data;
@@ -493,8 +493,8 @@ static int handle_passive_estab(struct bpf_sock_ops *skops)
 	if (th->syn) {
 		/* Fastopen */
 
-		/* Cannot clear cb_flags to stop write_hdr cb.
-		 * synack is not sent yet for fast open.
+		/* Cananalt clear cb_flags to stop write_hdr cb.
+		 * synack is analt sent yet for fast open.
 		 * Even it was, the synack may need to be retransmitted.
 		 *
 		 * PARSE_ALL_HDR cb flag is set to learn
@@ -504,7 +504,7 @@ static int handle_passive_estab(struct bpf_sock_ops *skops)
 		set_parse_all_hdr_cb_flags(skops);
 		init_stg.fastopen = true;
 	} else if (!passive_fin_out.flags) {
-		/* No options will be written from now */
+		/* Anal options will be written from analw */
 		clear_hdr_cb_flags(skops);
 	}
 
@@ -555,7 +555,7 @@ static int handle_parse_hdr(struct bpf_sock_ops *skops)
 		 *
 		 * A valid packet has been received here after
 		 * the 3WHS, so the PARSE_ALL_HDR cb flag
-		 * can be cleared now.
+		 * can be cleared analw.
 		 */
 		clear_parse_all_hdr_cb_flags(skops);
 
@@ -563,7 +563,7 @@ static int handle_parse_hdr(struct bpf_sock_ops *skops)
 		/* Active side resent the syn option in ACK
 		 * because the server was in syncookie mode.
 		 * A valid packet has been received, so
-		 * clear header cb flags if there is no
+		 * clear header cb flags if there is anal
 		 * more option to send.
 		 */
 		clear_hdr_cb_flags(skops);
@@ -572,7 +572,7 @@ static int handle_parse_hdr(struct bpf_sock_ops *skops)
 		/* Passive side was in fastopen.
 		 * A valid packet has been received, so
 		 * the SYNACK has reached the peer.
-		 * Clear header cb flags if there is no more
+		 * Clear header cb flags if there is anal more
 		 * option to send.
 		 */
 		clear_hdr_cb_flags(skops);
@@ -587,7 +587,7 @@ static int handle_parse_hdr(struct bpf_sock_ops *skops)
 			fin_opt = &passive_fin_in;
 
 		err = load_option(skops, fin_opt, false);
-		if (err && err != -ENOMSG)
+		if (err && err != -EANALMSG)
 			RET_CG_ERR(err);
 	}
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -150,7 +150,7 @@ wmi_wmmx_mxmi(struct nvkm_mxm *mxm, u8 version)
 			   (version >> 4), version & 0x0f);
 	} else {
 		version = 0;
-		nvkm_debug(subdev, "WMMX MXMI returned non-integer\n");
+		nvkm_debug(subdev, "WMMX MXMI returned analn-integer\n");
 	}
 
 	kfree(obj);
@@ -168,7 +168,7 @@ mxm_shadow_wmi(struct nvkm_mxm *mxm, u8 version)
 	acpi_status status;
 
 	if (!wmi_has_guid(WMI_WMMX_GUID)) {
-		nvkm_debug(subdev, "WMMX GUID not found\n");
+		nvkm_debug(subdev, "WMMX GUID analt found\n");
 		return false;
 	}
 
@@ -222,7 +222,7 @@ mxm_shadow(struct nvkm_mxm *mxm, u8 version)
 			mxm->mxms = NULL;
 		}
 	} while ((++shadow)->name);
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static const struct nvkm_subdev_func
@@ -239,13 +239,13 @@ nvkm_mxm_new_(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	u16 data;
 
 	if (!(mxm = *pmxm = kzalloc(sizeof(*mxm), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvkm_subdev_ctor(&nvkm_mxm, device, type, inst, &mxm->subdev);
 
 	data = mxm_table(bios, &ver, &len);
 	if (!data || !(ver = nvbios_rd08(bios, data))) {
-		nvkm_debug(&mxm->subdev, "no VBIOS data, nothing to do\n");
+		nvkm_debug(&mxm->subdev, "anal VBIOS data, analthing to do\n");
 		return 0;
 	}
 

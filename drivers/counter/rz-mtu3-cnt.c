@@ -51,7 +51,7 @@
 #define RZ_MTU3_16_BIT_MTU2_CH	(1)
 #define RZ_MTU3_32_BIT_CH	(2)
 
-#define RZ_MTU3_TIOR_NO_OUTPUT	(0) /* Output prohibited */
+#define RZ_MTU3_TIOR_ANAL_OUTPUT	(0) /* Output prohibited */
 #define RZ_MTU3_TIOR_IC_BOTH	(10) /* Input capture at both edges */
 
 #define SIGNAL_A_ID	(0)
@@ -413,7 +413,7 @@ static void rz_mtu3_16bit_cnt_setting(struct counter_device *counter, int id)
 	rz_mtu3_8bit_ch_write(ch, RZ_MTU3_TMDR1, RZ_MTU3_TMDR1_PH_CNT_MODE_1);
 
 	rz_mtu3_8bit_ch_write(ch, RZ_MTU3_TCR, RZ_MTU3_TCR_CCLR_TGRA);
-	rz_mtu3_8bit_ch_write(ch, RZ_MTU3_TIOR, RZ_MTU3_TIOR_NO_OUTPUT);
+	rz_mtu3_8bit_ch_write(ch, RZ_MTU3_TIOR, RZ_MTU3_TIOR_ANAL_OUTPUT);
 	rz_mtu3_enable(ch);
 }
 
@@ -619,7 +619,7 @@ static struct counter_comp rz_mtu3_count_ext[] = {
 static const enum counter_synapse_action rz_mtu3_synapse_actions[] = {
 	COUNTER_SYNAPSE_ACTION_BOTH_EDGES,
 	COUNTER_SYNAPSE_ACTION_RISING_EDGE,
-	COUNTER_SYNAPSE_ACTION_NONE,
+	COUNTER_SYNAPSE_ACTION_ANALNE,
 };
 
 static int rz_mtu3_action_read(struct counter_device *counter,
@@ -647,7 +647,7 @@ static int rz_mtu3_action_read(struct counter_device *counter,
 	}
 
 	/* Default action mode */
-	*action = COUNTER_SYNAPSE_ACTION_NONE;
+	*action = COUNTER_SYNAPSE_ACTION_ANALNE;
 
 	if (count->id != RZ_MTU3_16_BIT_MTU1_CH) {
 		tmdr = rz_mtu3_shared_reg_read(priv->ch, RZ_MTU3_TMDR3);
@@ -843,7 +843,7 @@ static int rz_mtu3_cnt_probe(struct platform_device *pdev)
 
 	counter = devm_counter_alloc(dev, sizeof(*priv));
 	if (!counter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = counter_priv(counter);
 	priv->clk = ddata->clk;

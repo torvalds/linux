@@ -26,7 +26,7 @@
 #define IP30_WIDGET_HEART       _AC(0x8, UL)    /* HEART is always 8 */
 #define IP30_WIDGET_PCI_BASE    _AC(0xf, UL)    /* BaseIO PCI is always 15 */
 
-#define XTALK_NODEV             0xffffffff
+#define XTALK_ANALDEV             0xffffffff
 
 #define XBOW_REG_LINK_STAT_0    0x114
 #define XBOW_REG_LINK_BLK_SIZE  0x40
@@ -164,7 +164,7 @@ static void __init xtalk_init_widget(s8 wid, s8 masterwid)
 		bridge_platform_create(wid, masterwid);
 		break;
 	default:
-		pr_info("xtalk:%x unknown widget (0x%x)\n", wid, partnum);
+		pr_info("xtalk:%x unkanalwn widget (0x%x)\n", wid, partnum);
 		break;
 	}
 }

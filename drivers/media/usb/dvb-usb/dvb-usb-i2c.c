@@ -16,7 +16,7 @@ int dvb_usb_i2c_init(struct dvb_usb_device *d)
 		return 0;
 
 	if (d->props.i2c_algo == NULL) {
-		err("no i2c algorithm specified");
+		err("anal i2c algorithm specified");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -30,7 +30,7 @@ int dvb_usb_i2c_init(struct dvb_usb_device *d)
 
 	ret = i2c_add_adapter(&d->i2c_adap);
 	if (ret < 0) {
-		err("could not add i2c adapter");
+		err("could analt add i2c adapter");
 		goto err;
 	}
 

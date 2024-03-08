@@ -2,7 +2,7 @@
 /*
  * HiSilicon I2C Controller Driver for Kunpeng SoC
  *
- * Copyright (c) 2021 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2021 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <linux/bits.h>
@@ -333,15 +333,15 @@ static irqreturn_t hisi_i2c_irq(int irq, void *context)
 	/*
 	 * Don't handle the interrupt if cltr->completion is NULL. We may
 	 * reach here because the interrupt is spurious or the transfer is
-	 * started by another port (e.g. firmware) rather than us.
+	 * started by aanalther port (e.g. firmware) rather than us.
 	 */
 	if (!ctlr->completion)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	int_stat = readl(ctlr->iobase + HISI_I2C_INT_MSTAT);
 	hisi_i2c_clear_int(ctlr, int_stat);
 	if (!(int_stat & HISI_I2C_INT_ALL))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (int_stat & HISI_I2C_INT_TX_EMPTY)
 		hisi_i2c_xfer_msg(ctlr);
@@ -455,7 +455,7 @@ static int hisi_i2c_probe(struct platform_device *pdev)
 
 	ctlr = devm_kzalloc(dev, sizeof(*ctlr), GFP_KERNEL);
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctlr->iobase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctlr->iobase))

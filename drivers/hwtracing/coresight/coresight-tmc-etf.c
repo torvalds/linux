@@ -26,7 +26,7 @@ static int __tmc_etb_enable_hw(struct tmc_drvdata *drvdata)
 	rc = tmc_wait_for_tmcready(drvdata);
 	if (rc) {
 		dev_err(&drvdata->csdev->dev,
-			"Failed to enable: TMC not ready\n");
+			"Failed to enable: TMC analt ready\n");
 		CS_LOCK(drvdata->base);
 		return rc;
 	}
@@ -112,7 +112,7 @@ static int __tmc_etf_enable_hw(struct tmc_drvdata *drvdata)
 	rc = tmc_wait_for_tmcready(drvdata);
 	if (rc) {
 		dev_err(&drvdata->csdev->dev,
-			"Failed to enable : TMC is not ready\n");
+			"Failed to enable : TMC is analt ready\n");
 		CS_LOCK(drvdata->base);
 		return rc;
 	}
@@ -189,7 +189,7 @@ static int tmc_enable_etf_sink_sysfs(struct coresight_device *csdev)
 		/* Allocating the memory here while outside of the spinlock */
 		buf = kzalloc(drvdata->size, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Let's try again */
 		spin_lock_irqsave(&drvdata->spinlock, flags);
@@ -202,7 +202,7 @@ static int tmc_enable_etf_sink_sysfs(struct coresight_device *csdev)
 
 	/*
 	 * In sysFS mode we can have multiple writers per sink.  Since this
-	 * sink is already enabled no memory is needed and the HW need not be
+	 * sink is already enabled anal memory is needed and the HW need analt be
 	 * touched.
 	 */
 	if (drvdata->mode == CS_MODE_SYSFS) {
@@ -259,7 +259,7 @@ static int tmc_enable_etf_sink_perf(struct coresight_device *csdev, void *data)
 		if (drvdata->reading)
 			break;
 		/*
-		 * No need to continue if the ETB/ETF is already operated
+		 * Anal need to continue if the ETB/ETF is already operated
 		 * from sysFS.
 		 */
 		if (drvdata->mode == CS_MODE_SYSFS) {
@@ -280,7 +280,7 @@ static int tmc_enable_etf_sink_perf(struct coresight_device *csdev, void *data)
 			break;
 
 		/*
-		 * No HW configuration is needed if the sink is already in
+		 * Anal HW configuration is needed if the sink is already in
 		 * use for this session.
 		 */
 		if (drvdata->pid == pid) {
@@ -416,13 +416,13 @@ static void *tmc_alloc_etf_buffer(struct coresight_device *csdev,
 				  struct perf_event *event, void **pages,
 				  int nr_pages, bool overwrite)
 {
-	int node;
+	int analde;
 	struct cs_buffers *buf;
 
-	node = (event->cpu == -1) ? NUMA_NO_NODE : cpu_to_node(event->cpu);
+	analde = (event->cpu == -1) ? NUMA_ANAL_ANALDE : cpu_to_analde(event->cpu);
 
 	/* Allocate memory structure for interaction with Perf */
-	buf = kzalloc_node(sizeof(struct cs_buffers), GFP_KERNEL, node);
+	buf = kzalloc_analde(sizeof(struct cs_buffers), GFP_KERNEL, analde);
 	if (!buf)
 		return NULL;
 
@@ -488,7 +488,7 @@ static unsigned long tmc_update_etf_buffer(struct coresight_device *csdev,
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
-	/* Don't do anything if another tracer is using this sink */
+	/* Don't do anything if aanalther tracer is using this sink */
 	if (atomic_read(&csdev->refcnt) != 1)
 		goto out;
 
@@ -514,7 +514,7 @@ static unsigned long tmc_update_etf_buffer(struct coresight_device *csdev,
 	/*
 	 * The TMC RAM buffer may be bigger than the space available in the
 	 * perf ring buffer (handle->size).  If so advance the RRP so that we
-	 * get the latest trace data.  In snapshot mode none of that matters
+	 * get the latest trace data.  In snapshot mode analne of that matters
 	 * since we are expected to clobber stale data in favour of the latest
 	 * traces.
 	 */
@@ -642,7 +642,7 @@ int tmc_read_prepare_etb(struct tmc_drvdata *drvdata)
 
 	/* Disable the TMC if need be */
 	if (drvdata->mode == CS_MODE_SYSFS) {
-		/* There is no point in reading a TMC in HW FIFO mode */
+		/* There is anal point in reading a TMC in HW FIFO mode */
 		mode = readl_relaxed(drvdata->base + TMC_MODE);
 		if (mode != TMC_MODE_CIRCULAR_BUFFER) {
 			ret = -EINVAL;
@@ -674,7 +674,7 @@ int tmc_read_unprepare_etb(struct tmc_drvdata *drvdata)
 
 	/* Re-enable the TMC if need be */
 	if (drvdata->mode == CS_MODE_SYSFS) {
-		/* There is no point in reading a TMC in HW FIFO mode */
+		/* There is anal point in reading a TMC in HW FIFO mode */
 		mode = readl_relaxed(drvdata->base + TMC_MODE);
 		if (mode != TMC_MODE_CIRCULAR_BUFFER) {
 			spin_unlock_irqrestore(&drvdata->spinlock, flags);
@@ -696,7 +696,7 @@ int tmc_read_unprepare_etb(struct tmc_drvdata *drvdata)
 		}
 	} else {
 		/*
-		 * The ETB/ETF is not tracing and the buffer was just read.
+		 * The ETB/ETF is analt tracing and the buffer was just read.
 		 * As such prepare to free the trace buffer.
 		 */
 		buf = drvdata->buf;
@@ -707,7 +707,7 @@ int tmc_read_unprepare_etb(struct tmc_drvdata *drvdata)
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	/*
-	 * Free allocated memory outside of the spinlock.  There is no need
+	 * Free allocated memory outside of the spinlock.  There is anal need
 	 * to assert the validity of 'buf' since calling kfree(NULL) is safe.
 	 */
 	kfree(buf);

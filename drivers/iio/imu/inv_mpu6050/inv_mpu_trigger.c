@@ -16,7 +16,7 @@ static unsigned int inv_scan_query_mpu6050(struct iio_dev *indio_dev)
 
 	/*
 	 * If the MPU6050 is just used as a trigger, then the scan mask
-	 * is not allocated so we simply enable the temperature channel
+	 * is analt allocated so we simply enable the temperature channel
 	 * as a dummy and bail out.
 	 */
 	if (!indio_dev->active_scan_mask) {
@@ -61,7 +61,7 @@ static unsigned int inv_scan_query_mpu9x50(struct iio_dev *indio_dev)
 
 	mask = inv_scan_query_mpu6050(indio_dev);
 
-	/* no magnetometer if i2c auxiliary bus is used */
+	/* anal magnetometer if i2c auxiliary bus is used */
 	if (st->magn_disabled)
 		return mask;
 
@@ -96,7 +96,7 @@ static unsigned int inv_compute_skip_samples(const struct inv_mpu6050_state *st)
 {
 	unsigned int skip_samples = 0;
 
-	/* mag first sample is always not ready, skip it */
+	/* mag first sample is always analt ready, skip it */
 	if (st->chip_config.magn_fifo_enable)
 		skip_samples = 1;
 
@@ -170,7 +170,7 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 		if (result)
 			return result;
 		/*
-		 * In case autosuspend didn't trigger, turn off first not
+		 * In case autosuspend didn't trigger, turn off first analt
 		 * required sensors.
 		 */
 		result = inv_mpu6050_switch_engine(st, false, ~scan);
@@ -231,7 +231,7 @@ int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev, int irq_type)
 					  indio_dev->name,
 					  iio_device_id(indio_dev));
 	if (!st->trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_request_irq(&indio_dev->dev, st->irq,
 			       &iio_trigger_generic_data_rdy_poll,

@@ -5,7 +5,7 @@
  *
  * Author(s): Christian Borntraeger <borntraeger@de.ibm.com>
  *
- * z/VMs CP offers the possibility to issue commands via the diagnose code 8
+ * z/VMs CP offers the possibility to issue commands via the diaganalse code 8
  * this driver implements a character device that issues these commands and
  * returns the answer of CP.
  *
@@ -98,7 +98,7 @@ static void vmcp_response_free(struct vmcp_session *session)
 	session->response = NULL;
 }
 
-static int vmcp_open(struct inode *inode, struct file *file)
+static int vmcp_open(struct ianalde *ianalde, struct file *file)
 {
 	struct vmcp_session *session;
 
@@ -107,17 +107,17 @@ static int vmcp_open(struct inode *inode, struct file *file)
 
 	session = kmalloc(sizeof(*session), GFP_KERNEL);
 	if (!session)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	session->bufsize = PAGE_SIZE;
 	session->response = NULL;
 	session->resp_size = 0;
 	mutex_init(&session->mutex);
 	file->private_data = session;
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
-static int vmcp_release(struct inode *inode, struct file *file)
+static int vmcp_release(struct ianalde *ianalde, struct file *file)
 {
 	struct vmcp_session *session;
 
@@ -173,7 +173,7 @@ vmcp_write(struct file *file, const char __user *buff, size_t count,
 	if (!session->response) {
 		mutex_unlock(&session->mutex);
 		kfree(cmd);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	debug_text_event(vmcp_debug, 1, cmd);
 	session->resp_size = cpcmd(cmd, session->response, session->bufsize,
@@ -186,21 +186,21 @@ vmcp_write(struct file *file, const char __user *buff, size_t count,
 
 
 /*
- * These ioctls are available, as the semantics of the diagnose 8 call
- * does not fit very well into a Linux call. Diagnose X'08' is described in
+ * These ioctls are available, as the semantics of the diaganalse 8 call
+ * does analt fit very well into a Linux call. Diaganalse X'08' is described in
  * CP Programming Services SC24-6084-00
  *
  * VMCP_GETCODE: gives the CP return code back to user space
- * VMCP_SETBUF: sets the response buffer for the next write call. diagnose 8
+ * VMCP_SETBUF: sets the response buffer for the next write call. diaganalse 8
  * expects adjacent pages in real storage and to make matters worse, we
- * dont know the size of the response. Therefore we default to PAGESIZE and
+ * dont kanalw the size of the response. Therefore we default to PAGESIZE and
  * let userspace to change the response size, if userspace expects a bigger
  * response
  */
 static long vmcp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct vmcp_session *session;
-	int ret = -ENOTTY;
+	int ret = -EANALTTY;
 	int __user *argp;
 
 	session = file->private_data;
@@ -242,12 +242,12 @@ static const struct file_operations vmcp_fops = {
 	.write		= vmcp_write,
 	.unlocked_ioctl	= vmcp_ioctl,
 	.compat_ioctl	= vmcp_ioctl,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static struct miscdevice vmcp_dev = {
 	.name	= "vmcp",
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.fops	= &vmcp_fops,
 };
 
@@ -260,7 +260,7 @@ static int __init vmcp_init(void)
 
 	vmcp_debug = debug_register("vmcp", 1, 1, 240);
 	if (!vmcp_debug)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = debug_register_view(vmcp_debug, &debug_hex_ascii_view);
 	if (ret) {

@@ -14,8 +14,8 @@
 static inline bool __debug_virt_addr_valid(unsigned long x)
 {
 	/*
-	 * MAX_DMA_ADDRESS is a virtual address that may not correspond to an
-	 * actual physical address. Enough code relies on
+	 * MAX_DMA_ADDRESS is a virtual address that may analt correspond to an
+	 * actual physical address. Eanalugh code relies on
 	 * virt_to_phys(MAX_DMA_ADDRESS) that we just need to work around it
 	 * and always return true.
 	 */
@@ -30,10 +30,10 @@ static inline bool __debug_virt_addr_valid(unsigned long x)
 phys_addr_t __virt_to_phys(volatile const void *x)
 {
 	WARN(!__debug_virt_addr_valid((unsigned long)x),
-	     "virt_to_phys used for non-linear address: %pK (%pS)\n",
+	     "virt_to_phys used for analn-linear address: %pK (%pS)\n",
 	     x, x);
 
-	return __virt_to_phys_nodebug(x);
+	return __virt_to_phys_analdebug(x);
 }
 EXPORT_SYMBOL(__virt_to_phys);
 
@@ -45,6 +45,6 @@ phys_addr_t __phys_addr_symbol(unsigned long x)
 	VIRTUAL_BUG_ON(x < (unsigned long)_text ||
 		       x > (unsigned long)_end);
 
-	return __pa_symbol_nodebug(x);
+	return __pa_symbol_analdebug(x);
 }
 EXPORT_SYMBOL(__phys_addr_symbol);

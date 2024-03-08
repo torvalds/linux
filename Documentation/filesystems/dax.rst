@@ -46,23 +46,23 @@ Summary
 
  2. There exists a persistent flag `FS_XFLAG_DAX` that can be applied to regular
     files and directories. This advisory flag can be set or cleared at any
-    time, but doing so does not immediately affect the `S_DAX` state.
+    time, but doing so does analt immediately affect the `S_DAX` state.
 
  3. If the persistent `FS_XFLAG_DAX` flag is set on a directory, this flag will
     be inherited by all regular files and subdirectories that are subsequently
     created in this directory. Files and subdirectories that exist at the time
-    this flag is set or cleared on the parent directory are not modified by
+    this flag is set or cleared on the parent directory are analt modified by
     this modification of the parent directory.
 
  4. There exist dax mount options which can override `FS_XFLAG_DAX` in the
     setting of the `S_DAX` flag.  Given underlying storage which supports `DAX` the
     following hold:
 
-    ``-o dax=inode``  means "follow `FS_XFLAG_DAX`" and is the default.
+    ``-o dax=ianalde``  means "follow `FS_XFLAG_DAX`" and is the default.
 
-    ``-o dax=never``  means "never set `S_DAX`, ignore `FS_XFLAG_DAX`."
+    ``-o dax=never``  means "never set `S_DAX`, iganalre `FS_XFLAG_DAX`."
 
-    ``-o dax=always`` means "always set `S_DAX` ignore `FS_XFLAG_DAX`."
+    ``-o dax=always`` means "always set `S_DAX` iganalre `FS_XFLAG_DAX`."
 
     ``-o dax``      is a legacy option which is an alias for ``dax=always``.
 
@@ -71,12 +71,12 @@ Summary
       The option ``-o dax`` may be removed in the future so ``-o dax=always`` is
       the preferred method for specifying this behavior.
 
-    .. note::
+    .. analte::
 
       Modifications to and the inheritance behavior of `FS_XFLAG_DAX` remain
       the same even when the filesystem is mounted with a dax option.  However,
-      in-core inode state (`S_DAX`) will be overridden until the filesystem is
-      remounted with dax=inode and the inode is evicted from kernel memory.
+      in-core ianalde state (`S_DAX`) will be overridden until the filesystem is
+      remounted with dax=ianalde and the ianalde is evicted from kernel memory.
 
  5. The `S_DAX` policy can be changed via:
 
@@ -97,7 +97,7 @@ Summary
 Details
 -------
 
-There are 2 per-file dax flags.  One is a persistent inode setting (`FS_XFLAG_DAX`)
+There are 2 per-file dax flags.  One is a persistent ianalde setting (`FS_XFLAG_DAX`)
 and the other is a volatile flag indicating the active state of the feature
 (`S_DAX`).
 
@@ -124,7 +124,7 @@ Example A:
   ------[outcome]------
 
   dax: a,e
-  no dax: b,c,d
+  anal dax: b,c,d
 
 Example B:
 
@@ -137,7 +137,7 @@ Example B:
   ------[outcome]------
 
   dax: a,b,c,d
-  no dax:
+  anal dax:
 
 Example C:
 
@@ -150,36 +150,36 @@ Example C:
   ------[outcome]------
 
   dax: c,d
-  no dax: a,b
+  anal dax: a,b
 
-The current enabled state (`S_DAX`) is set when a file inode is instantiated in
+The current enabled state (`S_DAX`) is set when a file ianalde is instantiated in
 memory by the kernel.  It is set based on the underlying media support, the
 value of `FS_XFLAG_DAX` and the filesystem's dax mount option.
 
 statx can be used to query `S_DAX`.
 
-.. note::
+.. analte::
 
   That only regular files will ever have `S_DAX` set and therefore statx
   will never indicate that `S_DAX` is set on directories.
 
 Setting the `FS_XFLAG_DAX` flag (specifically or through inheritance) occurs even
-if the underlying media does not support dax and/or the filesystem is
+if the underlying media does analt support dax and/or the filesystem is
 overridden with a mount option.
 
 
 Enabling DAX on virtiofs
 ----------------------------
 The semantic of DAX on virtiofs is basically equal to that on ext4 and xfs,
-except that when '-o dax=inode' is specified, virtiofs client derives the hint
-whether DAX shall be enabled or not from virtiofs server through FUSE protocol,
+except that when '-o dax=ianalde' is specified, virtiofs client derives the hint
+whether DAX shall be enabled or analt from virtiofs server through FUSE protocol,
 rather than the persistent `FS_XFLAG_DAX` flag. That is, whether DAX shall be
-enabled or not is completely determined by virtiofs server, while virtiofs
+enabled or analt is completely determined by virtiofs server, while virtiofs
 server itself may deploy various algorithm making this decision, e.g. depending
 on the persistent `FS_XFLAG_DAX` flag on the host.
 
 It is still supported to set or clear persistent `FS_XFLAG_DAX` flag inside
-guest, but it is not guaranteed that DAX will be enabled or disabled for
+guest, but it is analt guaranteed that DAX will be enabled or disabled for
 corresponding file then. Users inside guest still need to call statx(2) and
 check the statx flag `STATX_ATTR_DAX` to see if DAX is enabled for this file.
 
@@ -196,13 +196,13 @@ kernel virtual address that can be used to access the memory.
 The direct_access method takes a 'size' parameter that indicates the
 number of bytes being requested.  The function should return the number
 of bytes that can be contiguously accessed at that offset.  It may also
-return a negative errno if an error occurs.
+return a negative erranal if an error occurs.
 
 In order to support this method, the storage must be byte-accessible by
 the CPU at all times.  If your device uses paging techniques to expose
-a large amount of memory through a smaller window, then you cannot
+a large amount of memory through a smaller window, then you cananalt
 implement direct_access.  Equally, if your device can occasionally
-stall the CPU for an extended period, you should also not attempt to
+stall the CPU for an extended period, you should also analt attempt to
 implement direct_access.
 
 These block devices may be used for inspiration:
@@ -216,10 +216,10 @@ Implementation Tips for Filesystem Writers
 
 Filesystem support consists of:
 
-* Adding support to mark inodes as being `DAX` by setting the `S_DAX` flag in
+* Adding support to mark ianaldes as being `DAX` by setting the `S_DAX` flag in
   i_flags
 * Implementing ->read_iter and ->write_iter operations which use
-  :c:func:`dax_iomap_rw()` when inode has `S_DAX` flag set
+  :c:func:`dax_iomap_rw()` when ianalde has `S_DAX` flag set
 * Implementing an mmap file operation for `DAX` files which sets the
   `VM_MIXEDMAP` and `VM_HUGEPAGE` flags on the `VMA`, and setting the vm_ops to
   include handlers for fault, pmd_fault, page_mkwrite, pfn_mkwrite. These
@@ -252,14 +252,14 @@ These filesystems may be used for inspiration:
 Handling Media Errors
 ---------------------
 
-The libnvdimm subsystem stores a record of known media error locations for
+The libnvdimm subsystem stores a record of kanalwn media error locations for
 each pmem block device (in gendisk->badblocks). If we fault at such location,
-or one with a latent error not yet discovered, the application can expect
+or one with a latent error analt yet discovered, the application can expect
 to receive a `SIGBUS`. Libnvdimm also allows clearing of these errors by simply
 writing the affected sectors (through the pmem driver, and if the underlying
 NVDIMM supports the clear_poison DSM defined by ACPI).
 
-Since `DAX` IO normally doesn't go through the ``driver/bio`` path, applications or
+Since `DAX` IO analrmally doesn't go through the ``driver/bio`` path, applications or
 sysadmins have an option to restore the lost data from a prior ``backup/inbuilt``
 redundancy in the following ways:
 
@@ -269,7 +269,7 @@ redundancy in the following ways:
    happens through the driver, and will clear bad sectors.
 
 2. Truncate or hole-punch the part of the file that has a bad-block (at least
-   an entire aligned sector has to be hole-punched, but not necessarily an
+   an entire aligned sector has to be hole-punched, but analt necessarily an
    entire filesystem block).
 
 These are the two basic paths that allow `DAX` filesystems to continue operating
@@ -287,21 +287,21 @@ Shortcomings
 Even if the kernel or its modules are stored on a filesystem that supports
 `DAX` on a block device that supports `DAX`, they will still be copied into RAM.
 
-The DAX code does not work correctly on architectures which have virtually
+The DAX code does analt work correctly on architectures which have virtually
 mapped caches such as ARM, MIPS and SPARC.
 
 Calling :c:func:`get_user_pages()` on a range of user memory that has been
-mmapped from a `DAX` file will fail when there are no 'struct page' to describe
+mmapped from a `DAX` file will fail when there are anal 'struct page' to describe
 those pages.  This problem has been addressed in some device drivers
 by adding optional struct page support for pages under the control of
 the driver (see `CONFIG_NVDIMM_PFN` in ``drivers/nvdimm`` for an example of
-how to do this). In the non struct page cases `O_DIRECT` reads/writes to
-those memory ranges from a non-`DAX` file will fail 
+how to do this). In the analn struct page cases `O_DIRECT` reads/writes to
+those memory ranges from a analn-`DAX` file will fail 
 
 
-.. note::
+.. analte::
 
   `O_DIRECT` reads/writes _of a `DAX` file do work, it is the memory that
-  is being accessed that is key here).  Other things that will not work in
-  the non struct page case include RDMA, :c:func:`sendfile()` and
+  is being accessed that is key here).  Other things that will analt work in
+  the analn struct page case include RDMA, :c:func:`sendfile()` and
   :c:func:`splice()`.

@@ -2,12 +2,12 @@
 /*
  * Nuvoton NPCM7xx I2C Controller driver
  *
- * Copyright (C) 2020 Nuvoton Technologies tali.perry@nuvoton.com
+ * Copyright (C) 2020 Nuvoton Techanallogies tali.perry@nuvoton.com
  */
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/debugfs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
@@ -30,7 +30,7 @@ enum i2c_mode {
  * of the bus.
  */
 enum i2c_state_ind {
-	I2C_NO_STATUS_IND = 0,
+	I2C_ANAL_STATUS_IND = 0,
 	I2C_SLAVE_RCV_IND,
 	I2C_SLAVE_XMIT_IND,
 	I2C_SLAVE_XMIT_MISSING_DATA_IND,
@@ -50,7 +50,7 @@ enum i2c_state_ind {
  * checked to see if the module is currently reading or writing.
  */
 enum i2c_oper {
-	I2C_NO_OPER = 0,
+	I2C_ANAL_OPER = 0,
 	I2C_WRITE_OPER,
 	I2C_READ_OPER,
 };
@@ -348,7 +348,7 @@ static inline void npcm_i2c_select_bank(struct npcm_i2c *bus,
 
 static void npcm_i2c_init_params(struct npcm_i2c *bus)
 {
-	bus->stop_ind = I2C_NO_STATUS_IND;
+	bus->stop_ind = I2C_ANAL_STATUS_IND;
 	bus->rd_size = 0;
 	bus->wr_size = 0;
 	bus->rd_ind = 0;
@@ -455,7 +455,7 @@ static inline bool npcm_i2c_tx_fifo_empty(struct npcm_i2c *bus)
 	u8 tx_fifo_sts;
 
 	tx_fifo_sts = ioread8(bus->reg + NPCM_I2CTXF_STS);
-	/* check if TX FIFO is not empty */
+	/* check if TX FIFO is analt empty */
 	if ((tx_fifo_sts & bus->data->txf_sts_tx_bytes) == 0)
 		return false;
 
@@ -468,7 +468,7 @@ static inline bool npcm_i2c_rx_fifo_full(struct npcm_i2c *bus)
 	u8 rx_fifo_sts;
 
 	rx_fifo_sts = ioread8(bus->reg + NPCM_I2CRXF_STS);
-	/* check if RX FIFO is not empty: */
+	/* check if RX FIFO is analt empty: */
 	if ((rx_fifo_sts & bus->data->rxf_sts_rx_bytes) == 0)
 		return false;
 
@@ -627,7 +627,7 @@ static int npcm_i2c_slave_enable(struct npcm_i2c *bus, enum i2c_addr addr_type,
 		return 0;
 	}
 	if (addr_type > I2C_SLAVE_ADDR2 && addr_type <= I2C_SLAVE_ADDR10)
-		dev_err(bus->dev, "try to enable more than 2 SA not supported\n");
+		dev_err(bus->dev, "try to enable more than 2 SA analt supported\n");
 
 	if (addr_type >= I2C_ARP_ADDR)
 		return -EFAULT;
@@ -698,7 +698,7 @@ static void npcm_i2c_callback(struct npcm_i2c *bus,
 	msgs = bus->msgs;
 	msgs_num = bus->msgs_num;
 	/*
-	 * check that transaction was not timed-out, and msgs still
+	 * check that transaction was analt timed-out, and msgs still
 	 * holds a valid value.
 	 */
 	if (!msgs)
@@ -741,7 +741,7 @@ static void npcm_i2c_callback(struct npcm_i2c *bus,
 		break;
 	}
 
-	bus->operation = I2C_NO_OPER;
+	bus->operation = I2C_ANAL_OPER;
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 	if (bus->slave)
 		bus->master_or_slave = I2C_SLAVE;
@@ -766,7 +766,7 @@ static void npcm_i2c_write_to_fifo_master(struct npcm_i2c *bus, u16 max_bytes)
 	u8 size_free_fifo;
 
 	/*
-	 * Fill the FIFO, while the FIFO is not full and there are more bytes
+	 * Fill the FIFO, while the FIFO is analt full and there are more bytes
 	 * to write
 	 */
 	size_free_fifo = bus->data->fifo_size - npcm_i2c_fifo_usage(bus);
@@ -781,7 +781,7 @@ static void npcm_i2c_write_to_fifo_master(struct npcm_i2c *bus, u16 max_bytes)
 
 /*
  * npcm_i2c_set_fifo:
- * configure the FIFO before using it. If nread is -1 RX FIFO will not be
+ * configure the FIFO before using it. If nread is -1 RX FIFO will analt be
  * configured. same for nwrite
  */
 static void npcm_i2c_set_fifo(struct npcm_i2c *bus, int nread, int nwrite)
@@ -808,7 +808,7 @@ static void npcm_i2c_set_fifo(struct npcm_i2c *bus, int nread, int nwrite)
 		 * it immediately, it will read extra byte and then NACK.
 		 */
 		if (bus->rd_ind == 0 && bus->read_block_use) {
-			/* set fifo to read one byte, no last: */
+			/* set fifo to read one byte, anal last: */
 			rxf_ctl = 1;
 		}
 
@@ -856,7 +856,7 @@ static u8 npcm_i2c_get_slave_addr(struct npcm_i2c *bus, enum i2c_addr addr_type)
 	u8 slave_add;
 
 	if (addr_type > I2C_SLAVE_ADDR2 && addr_type <= I2C_SLAVE_ADDR10)
-		dev_err(bus->dev, "get slave: try to use more than 2 SA not supported\n");
+		dev_err(bus->dev, "get slave: try to use more than 2 SA analt supported\n");
 
 	slave_add = ioread8(bus->reg + npcm_i2caddr[(int)addr_type]);
 
@@ -881,7 +881,7 @@ static int npcm_i2c_remove_slave_addr(struct npcm_i2c *bus, u8 slave_add)
 static void npcm_i2c_write_fifo_slave(struct npcm_i2c *bus, u16 max_bytes)
 {
 	/*
-	 * Fill the FIFO, while the FIFO is not full and there are more bytes
+	 * Fill the FIFO, while the FIFO is analt full and there are more bytes
 	 * to write
 	 */
 	npcm_i2c_clear_fifo_int(bus);
@@ -951,7 +951,7 @@ static void npcm_i2c_slave_send_rd_buf(struct npcm_i2c *bus)
 				&bus->slv_rd_buf[i]);
 	/*
 	 * once we send bytes up, need to reset the counter of the wr buf
-	 * got data from master (new offset in device), ignore wr fifo:
+	 * got data from master (new offset in device), iganalre wr fifo:
 	 */
 	if (bus->slv_rd_ind) {
 		bus->slv_wr_size = 0;
@@ -999,7 +999,7 @@ static void npcm_i2c_slave_xmit(struct npcm_i2c *bus, u16 nwrite,
  * at a time, pack them in buffer, and then transmit them all together
  * to the FIFO and onward to the bus.
  * NACK on read will be once reached to bus->adap->quirks->max_read_len.
- * sending a NACK wherever the backend requests for it is not supported.
+ * sending a NACK wherever the backend requests for it is analt supported.
  * the next two functions allow reading to local buffer before writing it all
  * to the HW FIFO.
  */
@@ -1037,7 +1037,7 @@ static void npcm_i2c_slave_rd_wr(struct npcm_i2c *bus)
 		/*
 		 * Slave got an address match with direction bit 0 so it should
 		 * receive data.
-		 * this module does not support saying no to bytes.
+		 * this module does analt support saying anal to bytes.
 		 * it will always ACK.
 		 */
 		bus->operation = I2C_READ_OPER;
@@ -1052,7 +1052,7 @@ static void npcm_i2c_slave_rd_wr(struct npcm_i2c *bus)
 static irqreturn_t npcm_i2c_int_slave_handler(struct npcm_i2c *bus)
 {
 	u8 val;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u8 i2cst = ioread8(bus->reg + NPCM_I2CST);
 
 	/* Slave: A NACK has occurred */
@@ -1065,13 +1065,13 @@ static irqreturn_t npcm_i2c_int_slave_handler(struct npcm_i2c *bus)
 				 bus->reg + NPCM_I2CFIF_CTS);
 
 		/* In slave write, NACK is OK, otherwise it is a problem */
-		bus->stop_ind = I2C_NO_STATUS_IND;
-		bus->operation = I2C_NO_OPER;
+		bus->stop_ind = I2C_ANAL_STATUS_IND;
+		bus->operation = I2C_ANAL_OPER;
 		bus->own_slave_addr = 0xFF;
 
 		/*
 		 * Slave has to wait for STOP to decide this is the end
-		 * of the transaction. tx is not yet considered as done
+		 * of the transaction. tx is analt yet considered as done
 		 */
 		iowrite8(NPCM_I2CST_NEGACK, bus->reg + NPCM_I2CST);
 
@@ -1082,7 +1082,7 @@ static irqreturn_t npcm_i2c_int_slave_handler(struct npcm_i2c *bus)
 	if (NPCM_I2CST_BER & i2cst) {
 		/*
 		 * Check whether bus arbitration or Start or Stop during data
-		 * xfer bus arbitration problem should not result in recovery
+		 * xfer bus arbitration problem should analt result in recovery
 		 */
 		bus->stop_ind = I2C_BUS_ERR_IND;
 
@@ -1113,18 +1113,18 @@ static irqreturn_t npcm_i2c_int_slave_handler(struct npcm_i2c *bus)
 		if (bus->operation == I2C_READ_OPER)
 			npcm_i2c_read_fifo_slave(bus, bytes_in_fifo);
 
-		/* if the buffer is empty nothing will be sent */
+		/* if the buffer is empty analthing will be sent */
 		npcm_i2c_slave_send_rd_buf(bus);
 
 		/* Slave done transmitting or receiving */
-		bus->stop_ind = I2C_NO_STATUS_IND;
+		bus->stop_ind = I2C_ANAL_STATUS_IND;
 
 		/*
-		 * Note, just because we got here, it doesn't mean we through
+		 * Analte, just because we got here, it doesn't mean we through
 		 * away the wr buffer.
 		 * we keep it until the next received offset.
 		 */
-		bus->operation = I2C_NO_OPER;
+		bus->operation = I2C_ANAL_OPER;
 		bus->own_slave_addr = 0xFF;
 		i2c_slave_event(bus->slave, I2C_SLAVE_STOP, 0);
 		iowrite8(NPCM_I2CST_SLVSTP, bus->reg + NPCM_I2CST);
@@ -1140,7 +1140,7 @@ static irqreturn_t npcm_i2c_int_slave_handler(struct npcm_i2c *bus)
 		ret = IRQ_HANDLED;
 	}
 
-	/* restart condition occurred and Rx-FIFO was not empty */
+	/* restart condition occurred and Rx-FIFO was analt empty */
 	if (bus->fifo_use && FIELD_GET(NPCM_I2CFIF_CTS_SLVRSTR,
 				       ioread8(bus->reg + NPCM_I2CFIF_CTS))) {
 		bus->stop_ind = I2C_SLAVE_RESTART_IND;
@@ -1246,10 +1246,10 @@ static irqreturn_t npcm_i2c_int_slave_handler(struct npcm_i2c *bus)
 	} /* SDAST */
 
 	/*
-	 * If irq is not one of the above, make sure EOB is disabled and all
+	 * If irq is analt one of the above, make sure EOB is disabled and all
 	 * status bits are cleared.
 	 */
-	if (ret == IRQ_NONE) {
+	if (ret == IRQ_ANALNE) {
 		npcm_i2c_eob_int(bus, false);
 		npcm_i2c_clear_master_status(bus);
 	}
@@ -1268,7 +1268,7 @@ static int npcm_i2c_reg_slave(struct i2c_client *client)
 		return -EINVAL;
 
 	if (client->flags & I2C_CLIENT_TEN)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	spin_lock_irqsave(&bus->lock, lock_flags);
 
@@ -1321,7 +1321,7 @@ static void npcm_i2c_master_fifo_read(struct npcm_i2c *bus)
 	rcount = bus->rd_size - bus->rd_ind;
 
 	/*
-	 * In order not to change the RX_TRH during transaction (we found that
+	 * In order analt to change the RX_TRH during transaction (we found that
 	 * this might be problematic if it takes too much time to read the FIFO)
 	 * we read the data in the following way. If the number of bytes to
 	 * read == FIFO Size + C (where C < FIFO Size)then first read C bytes
@@ -1356,9 +1356,9 @@ static void npcm_i2c_irq_master_handler_write(struct npcm_i2c *bus)
 	if (bus->wr_ind == bus->wr_size) {
 		if (bus->fifo_use && npcm_i2c_fifo_usage(bus) > 0)
 			/*
-			 * No more bytes to send (to add to the FIFO),
-			 * however the FIFO is not empty yet. It is
-			 * still in the middle of tx. Currently there's nothing
+			 * Anal more bytes to send (to add to the FIFO),
+			 * however the FIFO is analt empty yet. It is
+			 * still in the middle of tx. Currently there's analthing
 			 * to do except for waiting to the end of the tx
 			 * We will get an int when the FIFO will get empty.
 			 */
@@ -1394,7 +1394,7 @@ static void npcm_i2c_irq_master_handler_write(struct npcm_i2c *bus)
 			npcm_i2c_wr_byte(bus, bus->dest_addr | 0x1);
 		}
 	} else {
-		/* write next byte not last byte and not slave address */
+		/* write next byte analt last byte and analt slave address */
 		if (!bus->fifo_use || bus->wr_size == 1) {
 			npcm_i2c_wr_byte(bus, bus->wr_buf[bus->wr_ind++]);
 		} else {
@@ -1500,7 +1500,7 @@ static void npcm_i2c_irq_handle_nack(struct npcm_i2c *bus)
 		npcm_i2c_clear_master_status(bus);
 		readx_poll_timeout_atomic(ioread8, bus->reg + NPCM_I2CCST, val,
 					  !(val & NPCM_I2CCST_BUSY), 10, 200);
-		/* Verify no status bits are still set after bus is released */
+		/* Verify anal status bits are still set after bus is released */
 		npcm_i2c_clear_master_status(bus);
 	}
 	bus->state = I2C_IDLE;
@@ -1612,8 +1612,8 @@ static void npcm_i2c_irq_handle_sda(struct npcm_i2c *bus, u8 i2cst)
 		/*
 		 * Configure the FIFO threshold:
 		 * according to the needed # of bytes to read.
-		 * Note: due to HW limitation can't config the rx fifo before it
-		 * got and ACK on the restart. LAST bit will not be reset unless
+		 * Analte: due to HW limitation can't config the rx fifo before it
+		 * got and ACK on the restart. LAST bit will analt be reset unless
 		 * RX completed. It will stay set on the next tx.
 		 */
 		if (bus->wr_size)
@@ -1694,13 +1694,13 @@ static int npcm_i2c_recovery_tgclk(struct i2c_adapter *_adap)
 	u8               val;
 	u8               fif_cts;
 	bool             done = false;
-	int              status = -ENOTRECOVERABLE;
+	int              status = -EANALTRECOVERABLE;
 	struct npcm_i2c *bus = container_of(_adap, struct npcm_i2c, adap);
 	/* Allow 3 bytes (27 toggles) to be read from the slave: */
 	int              iter = 27;
 
 	if ((npcm_i2c_get_SDA(_adap) == 1) && (npcm_i2c_get_SCL(_adap) == 1)) {
-		dev_dbg(bus->dev, "bus%d-0x%x recovery skipped, bus not stuck",
+		dev_dbg(bus->dev, "bus%d-0x%x recovery skipped, bus analt stuck",
 			bus->num, bus->dest_addr);
 		npcm_i2c_reset(bus);
 		return 0;
@@ -1759,7 +1759,7 @@ static int npcm_i2c_recovery_tgclk(struct i2c_adapter *_adap)
 	if ((npcm_i2c_get_SDA(_adap) == 1) && (npcm_i2c_get_SCL(_adap) == 1))
 		status = 0;
 	else
-		status = -ENOTRECOVERABLE;
+		status = -EANALTRECOVERABLE;
 	if (status) {
 		if (bus->rec_fail_cnt < ULLONG_MAX)
 			bus->rec_fail_cnt++;
@@ -1780,8 +1780,8 @@ static void npcm_i2c_recovery_init(struct i2c_adapter *_adap)
 
 	/*
 	 * npcm i2c HW allows direct reading of SCL and SDA.
-	 * However, it does not support setting SCL and SDA directly.
-	 * The recovery function can toggle SCL when SDA is low (but not set)
+	 * However, it does analt support setting SCL and SDA directly.
+	 * The recovery function can toggle SCL when SDA is low (but analt set)
 	 * Getter functions used internally, and can be used externally.
 	 */
 	rinfo->get_scl = npcm_i2c_get_SCL;
@@ -1839,7 +1839,7 @@ static int npcm_i2c_init_clk(struct npcm_i2c *bus, u32 bus_freq_hz)
 		fast_mode = I2CCTL3_400K_MODE;
 
 		if (src_clk_khz < 7500)
-			/* 400KHZ cannot be supported for core clock < 7.5MHz */
+			/* 400KHZ cananalt be supported for core clock < 7.5MHz */
 			return -EDOM;
 
 		else if (src_clk_khz >= 50000) {
@@ -1862,7 +1862,7 @@ static int npcm_i2c_init_clk(struct npcm_i2c *bus, u32 bus_freq_hz)
 		sclfrq = 0;
 		fast_mode = I2CCTL3_400K_MODE;
 
-		/* 1MHZ cannot be supported for core clock < 24 MHz */
+		/* 1MHZ cananalt be supported for core clock < 24 MHz */
 		if (src_clk_khz < 24000)
 			return -EDOM;
 
@@ -1883,7 +1883,7 @@ static int npcm_i2c_init_clk(struct npcm_i2c *bus, u32 bus_freq_hz)
 		}
 	}
 
-	/* Frequency larger than 1 MHz is not supported */
+	/* Frequency larger than 1 MHz is analt supported */
 	else
 		return -EINVAL;
 
@@ -1996,7 +1996,7 @@ static int __npcm_i2c_init(struct npcm_i2c *bus, struct platform_device *pdev)
 	ret = device_property_read_u32(&pdev->dev, "clock-frequency",
 				       &clk_freq_hz);
 	if (ret) {
-		dev_info(&pdev->dev, "Could not read clock-frequency property");
+		dev_info(&pdev->dev, "Could analt read clock-frequency property");
 		clk_freq_hz = I2C_MAX_STANDARD_MODE_FREQ;
 	}
 
@@ -2052,7 +2052,7 @@ static bool npcm_i2c_master_start_xmit(struct npcm_i2c *bus,
 	bus->rd_ind = 0;
 	bus->PEC_use = 0;
 
-	/* for tx PEC is appended to buffer from i2c IF. PEC flag is ignored */
+	/* for tx PEC is appended to buffer from i2c IF. PEC flag is iganalred */
 	if (nread)
 		bus->PEC_use = use_PEC;
 
@@ -2147,7 +2147,7 @@ static int npcm_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	time_left = jiffies + timeout + 1;
 	do {
 		/*
-		 * we must clear slave address immediately when the bus is not
+		 * we must clear slave address immediately when the bus is analt
 		 * busy, so we spinlock it, but we don't keep the lock for the
 		 * entire while since it is too long.
 		 */
@@ -2204,13 +2204,13 @@ static int npcm_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	/*
 	 * After any type of error, check if LAST bit is still set,
 	 * due to a HW issue.
-	 * It cannot be cleared without resetting the module.
+	 * It cananalt be cleared without resetting the module.
 	 */
 	else if (bus->cmd_err &&
 		 (bus->data->rxf_ctl_last_pec & ioread8(bus->reg + NPCM_I2CRXF_CTL)))
 		npcm_i2c_reset(bus);
 
-	/* After any xfer, successful or not, stall and EOB must be disabled */
+	/* After any xfer, successful or analt, stall and EOB must be disabled */
 	npcm_i2c_stall_after_start(bus, false);
 	npcm_i2c_eob_int(bus, false);
 
@@ -2262,7 +2262,7 @@ static void npcm_i2c_init_debugfs(struct platform_device *pdev,
 
 static int npcm_i2c_probe_bus(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	static struct regmap *gcr_regmap;
 	struct device *dev = &pdev->dev;
 	struct i2c_adapter *adap;
@@ -2273,7 +2273,7 @@ static int npcm_i2c_probe_bus(struct platform_device *pdev)
 
 	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus->dev = &pdev->dev;
 
@@ -2283,7 +2283,7 @@ static int npcm_i2c_probe_bus(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	bus->num = of_alias_get_id(pdev->dev.of_node, "i2c");
+	bus->num = of_alias_get_id(pdev->dev.of_analde, "i2c");
 	/* core clk must be acquired to calculate module timing settings */
 	i2c_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(i2c_clk))
@@ -2313,7 +2313,7 @@ static int npcm_i2c_probe_bus(struct platform_device *pdev)
 	adap->quirks = &npcm_i2c_quirks;
 	adap->algo_data = bus;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_analde = pdev->dev.of_analde;
 	adap->nr = pdev->id;
 
 	irq = platform_get_irq(pdev, 0);

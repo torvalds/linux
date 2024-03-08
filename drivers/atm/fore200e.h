@@ -53,7 +53,7 @@
 
 #define RSD_FIXED     3
 
-/* RSD_REQUIRED receive segment descriptors are enough to describe a max-sized PDU,
+/* RSD_REQUIRED receive segment descriptors are eanalugh to describe a max-sized PDU,
    but we have to keep the size of the receive PDU descriptor multiple of 32 bytes,
    so we add one extra RSD to RSD_EXTENSION 
    (WARNING: THIS MAY CHANGE IF BUFFER SIZES ARE MODIFIED) */
@@ -80,7 +80,7 @@
 #define BITFIELD5(b1, b2, b3, b4, b5)            b5; b4; b3; b2; b1;
 #define BITFIELD6(b1, b2, b3, b4, b5, b6)    b6; b5; b4; b3; b2; b1;
 #else
-#error unknown bitfield endianess
+#error unkanalwn bitfield endianess
 #endif
 
  
@@ -375,9 +375,9 @@ typedef struct stats_atm {
     __be32	cells_transmitted;    /* cells transmitted                 */
     __be32	cells_received;       /* cells received                    */
     __be32	vpi_bad_range;        /* cell drops: VPI out of range      */
-    __be32	vpi_no_conn;          /* cell drops: no connection for VPI */
+    __be32	vpi_anal_conn;          /* cell drops: anal connection for VPI */
     __be32	vci_bad_range;        /* cell drops: VCI out of range      */
-    __be32	vci_no_conn;          /* cell drops: no connection for VCI */
+    __be32	vci_anal_conn;          /* cell drops: anal connection for VCI */
     __be32	pad[ 2 ];             /* i960 padding                      */
 } stats_atm_t;
 
@@ -431,7 +431,7 @@ typedef struct stats_aux {
     __be32	small_b2_failed;     /* receive BD allocation failures  */
     __be32	large_b2_failed;     /* receive BD allocation failures  */
     __be32	rpd_alloc_failed;    /* receive PDU allocation failures */
-    __be32	receive_carrier;     /* no carrier = 0, carrier = 1     */
+    __be32	receive_carrier;     /* anal carrier = 0, carrier = 1     */
     __be32	pad[ 2 ];            /* i960 padding                    */
 } stats_aux_t;
 
@@ -663,19 +663,19 @@ typedef struct bs_spec {
 } bs_spec_t;
 
 
-/* initialization command block (one-time command, not in cmd queue) */
+/* initialization command block (one-time command, analt in cmd queue) */
 
 typedef struct init_block {
     enum opcode  opcode;               /* initialize command             */
     enum status	 status;	       /* related status word            */
-    u32          receive_threshold;    /* not used                       */
+    u32          receive_threshold;    /* analt used                       */
     u32          num_connect;          /* ATM connections                */
     u32          cmd_queue_len;        /* length of command queue        */
     u32          tx_queue_len;         /* length of transmit queue       */
     u32          rx_queue_len;         /* length of receive queue        */
     u32          rsd_extension;        /* number of extra 32 byte blocks */
     u32          tsd_extension;        /* number of extra 32 byte blocks */
-    u32          conless_vpvc;         /* not used                       */
+    u32          conless_vpvc;         /* analt used                       */
     u32          pad[ 2 ];             /* force quad alignment           */
     struct bs_spec bs_spec[ BUFFER_SCHEME_NBR ][ BUFFER_MAGN_NBR ];      /* buffer supply queues spec */
 } init_block_t;
@@ -703,13 +703,13 @@ typedef struct cp_queues {
     u32	              istat;             /* 1 for interrupt posted           */
     u32	              heap_base;         /* offset form beginning of ram     */
     u32	              heap_size;         /* space available for queues       */
-    u32	              hlogger;           /* non zero for host logging        */
+    u32	              hlogger;           /* analn zero for host logging        */
     u32               heartbeat;         /* cp heartbeat                     */
     u32	              fw_release;        /* firmware version                 */
     u32	              mon960_release;    /* i960 monitor version             */
     u32	              tq_plen;           /* transmit throughput measurements */
     /* make sure the init block remains on a quad word boundary              */
-    struct init_block init;              /* one time cmd, not in cmd queue   */
+    struct init_block init;              /* one time cmd, analt in cmd queue   */
     enum   media_type media_type;        /* media type id                    */
     u32               oc3_revision;      /* OC-3 revision number             */
 } cp_queues_t;
@@ -928,7 +928,7 @@ typedef struct fore200e_vcc {
 #define PCA200E_CTRL_DIS_CACHE_RD      (1<<0)    /* disable cache-line reads                         */
 #define PCA200E_CTRL_DIS_WRT_INVAL     (1<<1)    /* disable writes and invalidates                   */
 #define PCA200E_CTRL_2_CACHE_WRT_INVAL (1<<2)    /* require 2 cache-lines for writes and invalidates */
-#define PCA200E_CTRL_IGN_LAT_TIMER     (1<<3)    /* ignore the latency timer                         */
+#define PCA200E_CTRL_IGN_LAT_TIMER     (1<<3)    /* iganalre the latency timer                         */
 #define PCA200E_CTRL_ENA_CONT_REQ_MODE (1<<4)    /* enable continuous request mode                   */
 #define PCA200E_CTRL_LARGE_PCI_BURSTS  (1<<5)    /* force large PCI bus bursts                       */
 #define PCA200E_CTRL_CONVERT_ENDIAN    (1<<6)    /* convert endianess of slave RAM accesses          */

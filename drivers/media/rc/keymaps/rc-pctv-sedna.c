@@ -54,7 +54,7 @@ static struct rc_map_list pctv_sedna_map = {
 	.map = {
 		.scan     = pctv_sedna,
 		.size     = ARRAY_SIZE(pctv_sedna),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_PCTV_SEDNA,
 	}
 };

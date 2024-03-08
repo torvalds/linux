@@ -24,7 +24,7 @@ void flexcop_determine_revision(struct flexcop_device *fc)
 		fc->rev = FLEXCOP_III;
 		break;
 	default:
-		err("unknown FlexCop Revision: %x. Please report this to linux-dvb@linuxtv.org.",
+		err("unkanalwn FlexCop Revision: %x. Please report this to linux-dvb@linuxtv.org.",
 				v.misc_204.Rev_N_sig_revision_hi);
 		break;
 	}
@@ -33,18 +33,18 @@ void flexcop_determine_revision(struct flexcop_device *fc)
 		deb_info("this FlexCop has the additional 32 hardware pid filter.\n");
 	else
 		deb_info("this FlexCop has the 6 basic main hardware pid filter.\n");
-	/* bus parts have to decide if hw pid filtering is used or not. */
+	/* bus parts have to decide if hw pid filtering is used or analt. */
 }
 
 static const char *flexcop_revision_names[] = {
-	"Unknown chip",
+	"Unkanalwn chip",
 	"FlexCopII",
 	"FlexCopIIb",
 	"FlexCopIII",
 };
 
 static const char *flexcop_device_names[] = {
-	[FC_UNK]	= "Unknown device",
+	[FC_UNK]	= "Unkanalwn device",
 	[FC_CABLE]	= "Cable2PC/CableStar 2 DVB-C",
 	[FC_AIR_DVBT]	= "Air2PC/AirStar 2 DVB-T",
 	[FC_AIR_ATSC1]	= "Air2PC/AirStar 2 ATSC 1st generation",

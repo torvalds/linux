@@ -52,7 +52,7 @@ void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
 		do_cache_op(paddr, size, __invalidate_dcache_range);
 		break;
 
-	case DMA_NONE:
+	case DMA_ANALNE:
 		BUG();
 		break;
 
@@ -71,7 +71,7 @@ void arch_sync_dma_for_device(phys_addr_t paddr, size_t size,
 			do_cache_op(paddr, size, __flush_dcache_range);
 		break;
 
-	case DMA_NONE:
+	case DMA_ANALNE:
 		BUG();
 		break;
 
@@ -86,9 +86,9 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 }
 
 /*
- * Memory caching is platform-dependent in noMMU xtensa configurations.
+ * Memory caching is platform-dependent in analMMU xtensa configurations.
  * This function should be implemented in platform code in order to enable
- * coherent DMA memory operations when CONFIG_MMU is not enabled.
+ * coherent DMA memory operations when CONFIG_MMU is analt enabled.
  */
 #ifdef CONFIG_MMU
 void *arch_dma_set_uncached(void *p, size_t size)

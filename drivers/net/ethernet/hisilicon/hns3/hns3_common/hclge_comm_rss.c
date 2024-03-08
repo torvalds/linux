@@ -26,7 +26,7 @@ hclge_comm_init_rss_tuple(struct hnae3_ae_dev *ae_dev,
 	rss_tuple_cfg->ipv6_udp_en = HCLGE_COMM_RSS_INPUT_TUPLE_OTHER;
 	rss_tuple_cfg->ipv6_sctp_en =
 		ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2 ?
-		HCLGE_COMM_RSS_INPUT_TUPLE_SCTP_NO_PORT :
+		HCLGE_COMM_RSS_INPUT_TUPLE_SCTP_ANAL_PORT :
 		HCLGE_COMM_RSS_INPUT_TUPLE_SCTP;
 	rss_tuple_cfg->ipv6_fragment_en = HCLGE_COMM_RSS_INPUT_TUPLE_OTHER;
 }
@@ -52,7 +52,7 @@ int hclge_comm_rss_init_cfg(struct hnae3_handle *nic,
 	rss_ind_tbl = devm_kcalloc(&ae_dev->pdev->dev, rss_ind_tbl_size,
 				   sizeof(*rss_ind_tbl), GFP_KERNEL);
 	if (!rss_ind_tbl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rss_cfg->rss_indirection_tbl = rss_ind_tbl;
 	memcpy(rss_cfg->rss_hash_key, hclge_comm_hash_key,
@@ -201,7 +201,7 @@ int hclge_comm_parse_rss_hfunc(struct hclge_comm_rss_cfg *rss_cfg,
 	case ETH_RSS_HASH_XOR:
 		*hash_algo = HCLGE_COMM_RSS_HASH_ALGO_SIMPLE;
 		return 0;
-	case ETH_RSS_HASH_NO_CHANGE:
+	case ETH_RSS_HASH_ANAL_CHANGE:
 		*hash_algo = rss_cfg->rss_algo;
 		return 0;
 	default:
@@ -346,7 +346,7 @@ void hclge_comm_get_rss_hash_info(struct hclge_comm_rss_cfg *rss_cfg, u8 *key,
 			*hfunc = ETH_RSS_HASH_XOR;
 			break;
 		default:
-			*hfunc = ETH_RSS_HASH_UNKNOWN;
+			*hfunc = ETH_RSS_HASH_UNKANALWN;
 			break;
 		}
 	}

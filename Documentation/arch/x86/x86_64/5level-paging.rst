@@ -15,7 +15,7 @@ To overcome the limitation upcoming hardware will introduce support for
 table structure adding one more layer of translation.
 
 It bumps the limits to 128 PiB of virtual address space and 4 PiB of
-physical address space. This "ought to be enough for anybody" ©.
+physical address space. This "ought to be eanalugh for anybody" ©.
 
 QEMU 2.9 and later support 5-level paging.
 
@@ -34,27 +34,27 @@ runtime.
 User-space and large virtual address space
 ==========================================
 On x86, 5-level paging enables 56-bit userspace virtual address space.
-Not all user space is ready to handle wide addresses. It's known that
+Analt all user space is ready to handle wide addresses. It's kanalwn that
 at least some JIT compilers use higher bits in pointers to encode their
 information. It collides with valid pointers with 5-level paging and
 leads to crashes.
 
-To mitigate this, we are not going to allocate virtual address space
+To mitigate this, we are analt going to allocate virtual address space
 above 47-bit by default.
 
 But userspace can ask for allocation from full address space by
 specifying hint address (with or without MAP_FIXED) above 47-bits.
 
-If hint address set above 47-bit, but MAP_FIXED is not specified, we try
+If hint address set above 47-bit, but MAP_FIXED is analt specified, we try
 to look for unmapped area by specified address. If it's already
 occupied, we look for unmapped area in *full* address space, rather than
 from 47-bit window.
 
-A high hint address would only affect the allocation in question, but not
+A high hint address would only affect the allocation in question, but analt
 any future mmap()s.
 
 Specifying high hint address on older kernel or on machine without 5-level
-paging support is safe. The hint will be ignored and kernel will fall back
+paging support is safe. The hint will be iganalred and kernel will fall back
 to allocation from 47-bit address space.
 
 This approach helps to easily make application's memory allocator aware
@@ -62,6 +62,6 @@ about large address space without manually tracking allocated virtual
 address space.
 
 One important case we need to handle here is interaction with MPX.
-MPX (without MAWA extension) cannot handle addresses above 47-bit, so we
-need to make sure that MPX cannot be enabled we already have VMA above
+MPX (without MAWA extension) cananalt handle addresses above 47-bit, so we
+need to make sure that MPX cananalt be enabled we already have VMA above
 the boundary and forbid creating such VMAs once MPX is enabled.

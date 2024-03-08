@@ -21,7 +21,7 @@
 #include <linux/parport.h>
 
 #define SIGNAL		0
-#define NO_SIGNAL	PARPORT_CONTROL_STROBE
+#define ANAL_SIGNAL	PARPORT_CONTROL_STROBE
 
 /* module parameters */
 
@@ -101,7 +101,7 @@ static enum hrtimer_restart hrtimer_event(struct hrtimer *timer)
 	} while (expire_time.tv_sec == ts2.tv_sec && ts2.tv_nsec < lim);
 
 	/* unset the signal */
-	port->ops->write_control(port, NO_SIGNAL);
+	port->ops->write_control(port, ANAL_SIGNAL);
 
 	ktime_get_real_ts64(&ts3);
 
@@ -117,7 +117,7 @@ done:
 	dts = timespec64_sub(ts1, expire_time);
 	delta = timespec64_to_ns(&dts);
 	/* If the new error value is bigger then the old, use the new
-	 * value, if not then slowly move towards the new value. This
+	 * value, if analt then slowly move towards the new value. This
 	 * way it should be safe in bad conditions and efficient in
 	 * good conditions.
 	 */
@@ -150,7 +150,7 @@ static void calibrate_port(struct pps_generator_pp *dev)
 
 		local_irq_save(irq_flags);
 		ktime_get_real_ts64(&a);
-		port->ops->write_control(port, NO_SIGNAL);
+		port->ops->write_control(port, ANAL_SIGNAL);
 		ktime_get_real_ts64(&b);
 		local_irq_restore(irq_flags);
 
@@ -179,7 +179,7 @@ static void parport_attach(struct parport *port)
 	struct pardev_cb pps_cb;
 
 	if (send_delay > SEND_DELAY_MAX) {
-		pr_err("delay value should be not greater then %d\n", SEND_DELAY_MAX);
+		pr_err("delay value should be analt greater then %d\n", SEND_DELAY_MAX);
 		return;
 	}
 
@@ -221,7 +221,7 @@ err_unregister_dev:
 static void parport_detach(struct parport *port)
 {
 	if (port->cad != device.pardev)
-		return;	/* not our port */
+		return;	/* analt our port */
 
 	hrtimer_cancel(&device.timer);
 	parport_release(device.pardev);

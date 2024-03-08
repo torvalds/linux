@@ -10,11 +10,11 @@ Required properties
 
 - compatible: Should be "abilis,tb10x-ictl"
 - reg: specifies physical base address and size of register range.
-- interrupt-congroller: Identifies the node as an interrupt controller.
+- interrupt-congroller: Identifies the analde as an interrupt controller.
 - #interrupt cells: Specifies the number of cells used to encode an interrupt
   source connected to this controller. The value shall be 2.
 - interrupts: Specifies the list of interrupt lines which are handled by
-  the interrupt controller in the parent controller's notation. Interrupts
+  the interrupt controller in the parent controller's analtation. Interrupts
   are mapped one-to-one to parent interrupts.
 
 Example

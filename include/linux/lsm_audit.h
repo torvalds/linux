@@ -12,7 +12,7 @@
 #define _LSM_COMMON_LOGGING_
 
 #include <linux/stddef.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/kdev_t.h>
 #include <linux/spinlock.h>
@@ -66,21 +66,21 @@ struct common_audit_data {
 #define LSM_AUDIT_DATA_IPC	4
 #define LSM_AUDIT_DATA_TASK	5
 #define LSM_AUDIT_DATA_KEY	6
-#define LSM_AUDIT_DATA_NONE	7
+#define LSM_AUDIT_DATA_ANALNE	7
 #define LSM_AUDIT_DATA_KMOD	8
-#define LSM_AUDIT_DATA_INODE	9
+#define LSM_AUDIT_DATA_IANALDE	9
 #define LSM_AUDIT_DATA_DENTRY	10
 #define LSM_AUDIT_DATA_IOCTL_OP	11
 #define LSM_AUDIT_DATA_FILE	12
 #define LSM_AUDIT_DATA_IBPKEY	13
 #define LSM_AUDIT_DATA_IBENDPORT 14
 #define LSM_AUDIT_DATA_LOCKDOWN 15
-#define LSM_AUDIT_DATA_NOTIFICATION 16
-#define LSM_AUDIT_DATA_ANONINODE	17
+#define LSM_AUDIT_DATA_ANALTIFICATION 16
+#define LSM_AUDIT_DATA_AANALNIANALDE	17
 	union 	{
 		struct path path;
 		struct dentry *dentry;
-		struct inode *inode;
+		struct ianalde *ianalde;
 		struct lsm_network_audit *net;
 		int cap;
 		int ipc_id;
@@ -97,7 +97,7 @@ struct common_audit_data {
 		struct lsm_ibpkey_audit *ibpkey;
 		struct lsm_ibendport_audit *ibendport;
 		int reason;
-		const char *anonclass;
+		const char *aanalnclass;
 	} u;
 	/* this union contains LSM specific data */
 	union {

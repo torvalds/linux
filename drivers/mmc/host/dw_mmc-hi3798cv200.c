@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2018 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <linux/clk.h>
@@ -110,7 +110,7 @@ tuning_out:
 		dev_dbg(host->dev, "Tuning clk_sample[%d, %d], set[%d]\n",
 			raise_point, fall_point, degrees[i]);
 	} else {
-		dev_err(host->dev, "No valid clk_sample shift! use default\n");
+		dev_err(host->dev, "Anal valid clk_sample shift! use default\n");
 		err = -EINVAL;
 	}
 
@@ -125,7 +125,7 @@ static int dw_mci_hi3798cv200_init(struct dw_mci *host)
 
 	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->sample_clk = devm_clk_get(host->dev, "ciu-sample");
 	if (IS_ERR(priv->sample_clk)) {
@@ -193,7 +193,7 @@ static struct platform_driver dw_mci_hi3798cv200_driver = {
 	.remove_new = dw_mci_hi3798cv200_remove,
 	.driver = {
 		.name = "dwmmc_hi3798cv200",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = dw_mci_hi3798cv200_match,
 	},
 };

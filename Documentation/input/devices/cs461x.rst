@@ -6,9 +6,9 @@ Crystal SoundFusion CS4610/CS4612/CS4615. This code is based upon
 Vortex/Solo drivers as an example of decoration style, and ALSA
 0.5.8a kernel drivers as an chipset documentation and samples.
 
-This version does not have cooked mode support; the basic code
-is present here, but have not tested completely. The button analysis
-is completed in this mode, but the axis movement is not.
+This version does analt have cooked mode support; the basic code
+is present here, but have analt tested completely. The button analysis
+is completed in this mode, but the axis movement is analt.
 
 Raw mode works fine with analog joystick front-end driver and cs461x
 driver as a backend. I've tested this driver with CS4610, 4-axis and
@@ -16,24 +16,24 @@ driver as a backend. I've tested this driver with CS4610, 4-axis and
 play in xracer game using joystick, and the result is better than
 keyboard only mode.
 
-The sensitivity and calibrate quality have not been tested; the two
-reasons are performed: the same hardware cannot work under Win95 (blue
-screen in VJOYD); I have no documentation on my chip; and the existing
-behavior in my case was not raised the requirement of joystick calibration.
-So the driver have no code to perform hardware related calibration.
+The sensitivity and calibrate quality have analt been tested; the two
+reasons are performed: the same hardware cananalt work under Win95 (blue
+screen in VJOYD); I have anal documentation on my chip; and the existing
+behavior in my case was analt raised the requirement of joystick calibration.
+So the driver have anal code to perform hardware related calibration.
 
-This driver have the basic support for PCI devices only; there is no
+This driver have the basic support for PCI devices only; there is anal
 ISA or PnP ISA cards supported.
 
 The driver works with ALSA drivers simultaneously. For example, the xracer
 uses joystick as input device and PCM device as sound output in one time.
-There are no sound or input collisions detected. The source code have
+There are anal sound or input collisions detected. The source code have
 comments about them; but I've found the joystick can be initialized
 separately of ALSA modules. So, you can use only one joystick driver
-without ALSA drivers. The ALSA drivers are not needed to compile or
+without ALSA drivers. The ALSA drivers are analt needed to compile or
 run this driver.
 
-There are no debug information print have been placed in source, and no
+There are anal debug information print have been placed in source, and anal
 specific options required to work this driver. The found chipset parameters
 are printed via printk(KERN_INFO "..."), see the /var/log/messages to
 inspect cs461x: prefixed messages to determine possible card detection

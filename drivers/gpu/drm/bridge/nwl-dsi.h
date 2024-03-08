@@ -10,7 +10,7 @@
 
 /* DSI HOST registers */
 #define NWL_DSI_CFG_NUM_LANES			0x0
-#define NWL_DSI_CFG_NONCONTINUOUS_CLK		0x4
+#define NWL_DSI_CFG_ANALNCONTINUOUS_CLK		0x4
 #define NWL_DSI_CFG_T_PRE			0x8
 #define NWL_DSI_CFG_T_POST			0xc
 #define NWL_DSI_CFG_TX_GAP			0x10
@@ -60,7 +60,7 @@
 
 /* DSI IRQ handling */
 #define NWL_DSI_IRQ_STATUS			0x2a0
-#define NWL_DSI_SM_NOT_IDLE			BIT(0)
+#define NWL_DSI_SM_ANALT_IDLE			BIT(0)
 #define NWL_DSI_TX_PKT_DONE			BIT(1)
 #define NWL_DSI_DPHY_DIRECTION			BIT(2)
 #define NWL_DSI_TX_FIFO_OVFLW			BIT(3)
@@ -79,7 +79,7 @@
 #define NWL_DSI_CRC_ERR				BIT(2)
 
 #define NWL_DSI_IRQ_MASK			0x2a8
-#define NWL_DSI_SM_NOT_IDLE_MASK		BIT(0)
+#define NWL_DSI_SM_ANALT_IDLE_MASK		BIT(0)
 #define NWL_DSI_TX_PKT_DONE_MASK		BIT(1)
 #define NWL_DSI_DPHY_DIRECTION_MASK		BIT(2)
 #define NWL_DSI_TX_FIFO_OVFLW_MASK		BIT(3)
@@ -104,14 +104,14 @@
  * [23:18] - data type
  * [24]	   - LP or HS select (0 - LP, 1 - HS)
  * [25]	   - perform BTA after packet is sent
- * [26]	   - perform BTA only, no packet tx
+ * [26]	   - perform BTA only, anal packet tx
  */
 #define NWL_DSI_WC(x)		FIELD_PREP(GENMASK(15, 0), (x))
 #define NWL_DSI_TX_VC(x)	FIELD_PREP(GENMASK(17, 16), (x))
 #define NWL_DSI_TX_DT(x)	FIELD_PREP(GENMASK(23, 18), (x))
 #define NWL_DSI_HS_SEL(x)	FIELD_PREP(GENMASK(24, 24), (x))
 #define NWL_DSI_BTA_TX(x)	FIELD_PREP(GENMASK(25, 25), (x))
-#define NWL_DSI_BTA_NO_TX(x)	FIELD_PREP(GENMASK(26, 26), (x))
+#define NWL_DSI_BTA_ANAL_TX(x)	FIELD_PREP(GENMASK(26, 26), (x))
 
 /*
  * RX_PKT_HEADER format:
@@ -124,7 +124,7 @@
 
 /* DSI Video mode */
 #define NWL_DSI_VM_BURST_MODE_WITH_SYNC_PULSES		0
-#define NWL_DSI_VM_NON_BURST_MODE_WITH_SYNC_EVENTS	BIT(0)
+#define NWL_DSI_VM_ANALN_BURST_MODE_WITH_SYNC_EVENTS	BIT(0)
 #define NWL_DSI_VM_BURST_MODE				BIT(1)
 
 /* * DPI color coding */

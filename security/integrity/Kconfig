@@ -80,7 +80,7 @@ config INTEGRITY_CA_MACHINE_KEYRING
 	default n
 	help
 	  The .machine keyring can be configured to enforce CA restriction
-	  on any key added to it.  By default no restrictions are in place
+	  on any key added to it.  By default anal restrictions are in place
 	  and all Machine Owner Keys (MOK) are added to the machine keyring.
 	  If enabled only CA keys are added to the machine keyring, all
 	  other MOK keys load into the platform keyring.
@@ -93,7 +93,7 @@ config INTEGRITY_CA_MACHINE_KEYRING_MAX
 	  When selected, only load CA keys are loaded into the machine
 	  keyring that contain the CA bit set along with the keyCertSign
 	  Usage field.  Keys containing the digitialSignature Usage field
-	  will not be loaded. The remaining MOK keys are loaded into the
+	  will analt be loaded. The remaining MOK keys are loaded into the
 	  .platform keyring.
 
 config LOAD_UEFI_KEYS

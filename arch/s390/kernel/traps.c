@@ -50,36 +50,36 @@ int is_valid_bugaddr(unsigned long addr)
 }
 #endif
 
-void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
+void do_report_trap(struct pt_regs *regs, int si_siganal, int si_code, char *str)
 {
 	if (user_mode(regs)) {
-		force_sig_fault(si_signo, si_code, get_trap_ip(regs));
-		report_user_fault(regs, si_signo, 0);
+		force_sig_fault(si_siganal, si_code, get_trap_ip(regs));
+		report_user_fault(regs, si_siganal, 0);
         } else {
 		if (!fixup_exception(regs))
 			die(regs, str);
         }
 }
 
-static void do_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
+static void do_trap(struct pt_regs *regs, int si_siganal, int si_code, char *str)
 {
-	if (notify_die(DIE_TRAP, str, regs, 0,
-		       regs->int_code, si_signo) == NOTIFY_STOP)
+	if (analtify_die(DIE_TRAP, str, regs, 0,
+		       regs->int_code, si_siganal) == ANALTIFY_STOP)
 		return;
-	do_report_trap(regs, si_signo, si_code, str);
+	do_report_trap(regs, si_siganal, si_code, str);
 }
-NOKPROBE_SYMBOL(do_trap);
+ANALKPROBE_SYMBOL(do_trap);
 
 void do_per_trap(struct pt_regs *regs)
 {
-	if (notify_die(DIE_SSTEP, "sstep", regs, 0, 0, SIGTRAP) == NOTIFY_STOP)
+	if (analtify_die(DIE_SSTEP, "sstep", regs, 0, 0, SIGTRAP) == ANALTIFY_STOP)
 		return;
 	if (!current->ptrace)
 		return;
 	force_sig_fault(SIGTRAP, TRAP_HWBKPT,
 		(void __force __user *) current->thread.per_event.address);
 }
-NOKPROBE_SYMBOL(do_per_trap);
+ANALKPROBE_SYMBOL(do_per_trap);
 
 static void default_trap_handler(struct pt_regs *regs)
 {
@@ -87,7 +87,7 @@ static void default_trap_handler(struct pt_regs *regs)
 		report_user_fault(regs, SIGSEGV, 0);
 		force_exit_sig(SIGSEGV);
 	} else
-		die(regs, "Unknown program exception");
+		die(regs, "Unkanalwn program exception");
 }
 
 #define DO_ERROR_INFO(name, signr, sicode, str) \
@@ -176,17 +176,17 @@ static void illegal_op(struct pt_regs *regs)
 	/*
 	 * We got either an illegal op in kernel mode, or user space trapped
 	 * on a uprobes illegal instruction. See if kprobes or uprobes picks
-	 * it up. If not, SIGILL.
+	 * it up. If analt, SIGILL.
 	 */
 	if (is_uprobe_insn || !user_mode(regs)) {
-		if (notify_die(DIE_BPT, "bpt", regs, 0,
-			       3, SIGTRAP) != NOTIFY_STOP)
+		if (analtify_die(DIE_BPT, "bpt", regs, 0,
+			       3, SIGTRAP) != ANALTIFY_STOP)
 			signal = SIGILL;
 	}
 	if (signal)
 		do_trap(regs, signal, ILL_ILLOPC, "illegal operation");
 }
-NOKPROBE_SYMBOL(illegal_op);
+ANALKPROBE_SYMBOL(illegal_op);
 
 DO_ERROR_INFO(specification_exception, SIGILL, ILL_ILLOPN,
 	      "specification exception");
@@ -219,7 +219,7 @@ static void vector_exception(struct pt_regs *regs)
 	case 5:	/* inexact */
 		si_code = FPE_FLTRES;
 		break;
-	default: /* unknown cause */
+	default: /* unkanalwn cause */
 		si_code = 0;
 	}
 	do_trap(regs, SIGFPE, si_code, "vector exception");
@@ -249,7 +249,7 @@ static void monitor_event_exception(struct pt_regs *regs)
 		return;
 
 	switch (report_bug(regs->psw.addr - (regs->int_code >> 16), regs)) {
-	case BUG_TRAP_TYPE_NONE:
+	case BUG_TRAP_TYPE_ANALNE:
 		fixup_exception(regs);
 		break;
 	case BUG_TRAP_TYPE_WARN:
@@ -268,7 +268,7 @@ void kernel_stack_overflow(struct pt_regs *regs)
 	bust_spinlocks(0);
 	panic("Corrupt kernel stack, can't continue.");
 }
-NOKPROBE_SYMBOL(kernel_stack_overflow);
+ANALKPROBE_SYMBOL(kernel_stack_overflow);
 
 static void __init test_monitor_call(void)
 {
@@ -305,7 +305,7 @@ void __init trap_init(void)
 
 static void (*pgm_check_table[128])(struct pt_regs *regs);
 
-void noinstr __do_pgm_check(struct pt_regs *regs)
+void analinstr __do_pgm_check(struct pt_regs *regs)
 {
 	unsigned int trapnr;
 	irqentry_state_t state;
@@ -400,7 +400,7 @@ static void (*pgm_check_table[128])(struct pt_regs *regs) = {
 	[0x3b]		= do_dat_exception,
 	[0x3c]		= default_trap_handler,
 	[0x3d]		= do_secure_storage_access,
-	[0x3e]		= do_non_secure_storage_access,
+	[0x3e]		= do_analn_secure_storage_access,
 	[0x3f]		= do_secure_storage_violation,
 	[0x40]		= monitor_event_exception,
 	[0x41 ... 0x7f] = default_trap_handler,
@@ -412,5 +412,5 @@ static void (*pgm_check_table[128])(struct pt_regs *regs) = {
 	__stringify(default_trap_handler))
 
 COND_TRAP(do_secure_storage_access);
-COND_TRAP(do_non_secure_storage_access);
+COND_TRAP(do_analn_secure_storage_access);
 COND_TRAP(do_secure_storage_violation);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -138,7 +138,7 @@ static void req_check_sq_drain_done(struct rxe_qp *qp)
 
 			if (wqe && ((index != cons) ||
 				(wqe->state != wqe_state_posted)))
-				/* comp not done yet */
+				/* comp analt done yet */
 				break;
 
 			qp->attr.sq_draining = 0;
@@ -446,9 +446,9 @@ static struct sk_buff *init_req_packet(struct rxe_qp *qp,
 					 qp->attr.dest_qp_num;
 
 	ack_req = ((pkt->mask & RXE_END_MASK) ||
-		(qp->req.noack_pkts++ > RXE_MAX_PKT_PER_ACK));
+		(qp->req.analack_pkts++ > RXE_MAX_PKT_PER_ACK));
 	if (ack_req)
-		qp->req.noack_pkts = 0;
+		qp->req.analack_pkts = 0;
 
 	bth_init(pkt, pkt->opcode, solicited, 0, pad, IB_DEFAULT_PKEY_FULL, qp_num,
 		 ack_req, pkt->psn);
@@ -526,7 +526,7 @@ static int finish_packet(struct rxe_qp *qp, struct rxe_av *av,
 			memset(pad, 0, bth_pad(pkt));
 		}
 	} else if (pkt->mask & RXE_FLUSH_MASK) {
-		/* oA19-2: shall have no payload. */
+		/* oA19-2: shall have anal payload. */
 		wqe->dma.resid = 0;
 	}
 
@@ -655,9 +655,9 @@ static int rxe_do_local_ops(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	wqe->status = IB_WC_SUCCESS;
 	qp->req.wqe_index = queue_next_index(qp->sq.queue, qp->req.wqe_index);
 
-	/* There is no ack coming for local work requests
+	/* There is anal ack coming for local work requests
 	 * which can lead to a deadlock. So go ahead and complete
-	 * it now.
+	 * it analw.
 	 */
 	rxe_sched_task(&qp->comp.task);
 
@@ -773,7 +773,7 @@ int rxe_requester(struct rxe_qp *qp)
 		if (qp_type(qp) == IB_QPT_UD) {
 			/* C10-93.1.1: If the total sum of all the buffer lengths specified for a
 			 * UD message exceeds the MTU of the port as returned by QueryHCA, the CI
-			 * shall not emit any packets for this message. Further, the CI shall not
+			 * shall analt emit any packets for this message. Further, the CI shall analt
 			 * generate an error due to this condition.
 			 */
 
@@ -804,7 +804,7 @@ int rxe_requester(struct rxe_qp *qp)
 
 	av = rxe_get_av(&pkt, &ah);
 	if (unlikely(!av)) {
-		rxe_dbg_qp(qp, "Failed no address vector\n");
+		rxe_dbg_qp(qp, "Failed anal address vector\n");
 		wqe->status = IB_WC_LOC_QP_OP_ERR;
 		goto err;
 	}
@@ -861,7 +861,7 @@ int rxe_requester(struct rxe_qp *qp)
 
 	update_state(qp, &pkt);
 
-	/* A non-zero return value will cause rxe_do_task to
+	/* A analn-zero return value will cause rxe_do_task to
 	 * exit its loop and end the work item. A zero return
 	 * will continue looping and return to rxe_requester
 	 */

@@ -2,7 +2,7 @@
 /*
  * SPI host driver for ICP DAS LP-8841 RTC
  *
- * Copyright (C) 2016 Sergei Ianovich
+ * Copyright (C) 2016 Sergei Iaanalvich
  *
  * based on
  *
@@ -74,14 +74,14 @@ bitbang_txrx_be_cpha0_lsb(struct spi_lp8841_rtc *data,
 	for (; likely(bits); bits--) {
 
 		/* setup LSB (to target) on leading edge */
-		if ((flags & SPI_CONTROLLER_NO_TX) == 0)
+		if ((flags & SPI_CONTROLLER_ANAL_TX) == 0)
 			setmosi(data, (word & 1));
 
 		usleep_range(usecs, usecs + 1);	/* T(setup) */
 
 		/* sample LSB (from target) on trailing edge */
 		word >>= 1;
-		if ((flags & SPI_CONTROLLER_NO_RX) == 0)
+		if ((flags & SPI_CONTROLLER_ANAL_RX) == 0)
 			word |= (getmiso(data) << 31);
 
 		setsck(data, !cpol);
@@ -112,7 +112,7 @@ spi_lp8841_rtc_transfer_one(struct spi_controller *host,
 		while (likely(count > 0)) {
 			word = *tx++;
 			bitbang_txrx_be_cpha0_lsb(data, 1, 0,
-					SPI_CONTROLLER_NO_RX, word, 8);
+					SPI_CONTROLLER_ANAL_RX, word, 8);
 			count--;
 		}
 	} else if (rx) {
@@ -120,7 +120,7 @@ spi_lp8841_rtc_transfer_one(struct spi_controller *host,
 		writeb(data->state, data->iomem);
 		while (likely(count > 0)) {
 			word = bitbang_txrx_be_cpha0_lsb(data, 1, 0,
-					SPI_CONTROLLER_NO_TX, word, 8);
+					SPI_CONTROLLER_ANAL_TX, word, 8);
 			*rx++ = word;
 			count--;
 		}
@@ -187,7 +187,7 @@ spi_lp8841_rtc_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*data));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, host);
 
 	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
@@ -200,7 +200,7 @@ spi_lp8841_rtc_probe(struct platform_device *pdev)
 	host->transfer_one = spi_lp8841_rtc_transfer_one;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
 #ifdef CONFIG_OF
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 #endif
 
 	data = spi_controller_get_devdata(host);
@@ -215,7 +215,7 @@ spi_lp8841_rtc_probe(struct platform_device *pdev)
 	/* register with the SPI framework */
 	ret = devm_spi_register_controller(&pdev->dev, host);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot register spi host\n");
+		dev_err(&pdev->dev, "cananalt register spi host\n");
 		goto err_put_host;
 	}
 
@@ -240,5 +240,5 @@ static struct platform_driver spi_lp8841_rtc_driver = {
 module_platform_driver(spi_lp8841_rtc_driver);
 
 MODULE_DESCRIPTION("SPI host driver for ICP DAS LP-8841 RTC");
-MODULE_AUTHOR("Sergei Ianovich");
+MODULE_AUTHOR("Sergei Iaanalvich");
 MODULE_LICENSE("GPL");

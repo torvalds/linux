@@ -17,7 +17,7 @@ Description:	Read/write the current state of DDR Backup Mode, which controls
 			  the accessory power switch from a power switch to a
 			  wake-up switch,
 		       2. Switch accessory power switch off, to prepare for
-			  system suspend, which is a manual step not controlled
+			  system suspend, which is a manual step analt controlled
 			  by software,
 		       3. Suspend system,
 		       4. Switch accessory power switch on, to resume the

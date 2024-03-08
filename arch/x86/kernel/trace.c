@@ -1,13 +1,13 @@
 #include <asm/trace/irq_vectors.h>
 #include <linux/trace.h>
 
-#if defined(CONFIG_OSNOISE_TRACER) && defined(CONFIG_X86_LOCAL_APIC)
+#if defined(CONFIG_OSANALISE_TRACER) && defined(CONFIG_X86_LOCAL_APIC)
 /*
  * trace_intel_irq_entry - record intel specific IRQ entry
  */
 static void trace_intel_irq_entry(void *data, int vector)
 {
-	osnoise_trace_irq_entry(vector);
+	osanalise_trace_irq_entry(vector);
 }
 
 /*
@@ -17,13 +17,13 @@ static void trace_intel_irq_exit(void *data, int vector)
 {
 	char *vector_desc = (char *) data;
 
-	osnoise_trace_irq_exit(vector, vector_desc);
+	osanalise_trace_irq_exit(vector, vector_desc);
 }
 
 /*
  * register_intel_irq_tp - Register intel specific IRQ entry tracepoints
  */
-int osnoise_arch_register(void)
+int osanalise_arch_register(void)
 {
 	int ret;
 
@@ -190,7 +190,7 @@ out_err:
 	return -EINVAL;
 }
 
-void osnoise_arch_unregister(void)
+void osanalise_arch_unregister(void)
 {
 	unregister_trace_spurious_apic_exit(trace_intel_irq_exit, "spurious_apic");
 	unregister_trace_spurious_apic_entry(trace_intel_irq_entry, NULL);
@@ -231,4 +231,4 @@ void osnoise_arch_unregister(void)
 	unregister_trace_local_timer_exit(trace_intel_irq_exit, "local_timer");
 	unregister_trace_local_timer_entry(trace_intel_irq_entry, NULL);
 }
-#endif /* CONFIG_OSNOISE_TRACER && CONFIG_X86_LOCAL_APIC */
+#endif /* CONFIG_OSANALISE_TRACER && CONFIG_X86_LOCAL_APIC */

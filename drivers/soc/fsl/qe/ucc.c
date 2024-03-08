@@ -10,7 +10,7 @@
  * 		Li Yang <leoli@freescale.com>
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/stddef.h>
 #include <linux/spinlock.h>
 #include <linux/export.h>
@@ -201,7 +201,7 @@ int ucc_set_qe_mux_rxtx(unsigned int ucc_num, enum qe_clock clock,
 
 	/* Check for invalid combination of clock and UCC number */
 	if (!clock_bits)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (mode == COMM_DIR_RX)
 		shift += 4;

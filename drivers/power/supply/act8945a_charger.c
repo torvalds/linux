@@ -115,7 +115,7 @@ static int act8945a_get_charger_state(struct regmap *regmap, int *val)
 		if (!(status & APCH_STATUS_INDAT))
 			*val = POWER_SUPPLY_STATUS_DISCHARGING;
 		else
-			*val = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			*val = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 	}
 
@@ -146,14 +146,14 @@ static int act8945a_get_charge_type(struct regmap *regmap, int *val)
 		*val = POWER_SUPPLY_CHARGE_TYPE_FAST;
 		break;
 	case APCH_STATE_CSTATE_EOC:
-		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		*val = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		break;
 	case APCH_STATE_CSTATE_DISABLED:
 	default:
 		if (!(status & APCH_STATUS_INDAT))
-			*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
+			*val = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		else
-			*val = POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+			*val = POWER_SUPPLY_CHARGE_TYPE_UNKANALWN;
 		break;
 	}
 
@@ -183,7 +183,7 @@ static int act8945a_get_battery_health(struct regmap *regmap, int *val)
 	switch (state) {
 	case APCH_STATE_CSTATE_DISABLED:
 		if (config & APCH_CFG_SUSCHG) {
-			*val = POWER_SUPPLY_HEALTH_UNKNOWN;
+			*val = POWER_SUPPLY_HEALTH_UNKANALWN;
 		} else if (status & APCH_STATUS_INDAT) {
 			if (!(status & APCH_STATUS_TEMPDAT))
 				*val = POWER_SUPPLY_HEALTH_OVERHEAT;
@@ -242,14 +242,14 @@ static int act8945a_get_capacity_level(struct act8945a_charger *charger,
 		if (status & APCH_STATUS_CHGDAT)
 			*val = POWER_SUPPLY_CAPACITY_LEVEL_FULL;
 		else
-			*val = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+			*val = POWER_SUPPLY_CAPACITY_LEVEL_ANALRMAL;
 		break;
 	case APCH_STATE_CSTATE_DISABLED:
 	default:
 		if (config & APCH_CFG_SUSCHG) {
-			*val = POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN;
+			*val = POWER_SUPPLY_CAPACITY_LEVEL_UNKANALWN;
 		} else {
-			*val = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+			*val = POWER_SUPPLY_CAPACITY_LEVEL_ANALRMAL;
 			if (!(status & APCH_STATUS_INDAT)) {
 				if (!lbo_level)
 					*val = POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
@@ -331,7 +331,7 @@ static int act8945a_get_current_max(struct act8945a_charger *charger,
 static enum power_supply_property act8945a_charger_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
@@ -354,8 +354,8 @@ static int act8945a_charger_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		ret = act8945a_get_charge_type(regmap, &val->intval);
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		ret = act8945a_get_battery_health(regmap, &val->intval);
@@ -457,7 +457,7 @@ static irqreturn_t act8945a_status_changed(int irq, void *dev_id)
 static int act8945a_charger_config(struct device *dev,
 				   struct act8945a_charger *charger)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct regmap *regmap = charger->regmap;
 
 	u32 total_time_out;
@@ -469,7 +469,7 @@ static int act8945a_charger_config(struct device *dev,
 	unsigned int value = 0;
 
 	if (!np) {
-		dev_err(dev, "no charger of node\n");
+		dev_err(dev, "anal charger of analde\n");
 		return -EINVAL;
 	}
 
@@ -579,11 +579,11 @@ static int act8945a_charger_probe(struct platform_device *pdev)
 
 	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
 	if (!charger)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	charger->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!charger->regmap) {
-		dev_err(&pdev->dev, "Parent did not provide regmap\n");
+		dev_err(&pdev->dev, "Parent did analt provide regmap\n");
 		return -EINVAL;
 	}
 
@@ -591,7 +591,7 @@ static int act8945a_charger_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	irq = of_irq_get(pdev->dev.of_node, 0);
+	irq = of_irq_get(pdev->dev.of_analde, 0);
 	if (irq <= 0) {
 		dev_err(&pdev->dev, "failed to find IRQ number\n");
 		return irq ?: -ENXIO;
@@ -614,7 +614,7 @@ static int act8945a_charger_probe(struct platform_device *pdev)
 	if (ret)
 		return -EINVAL;
 
-	psy_cfg.of_node	= pdev->dev.of_node;
+	psy_cfg.of_analde	= pdev->dev.of_analde;
 	psy_cfg.drv_data = charger;
 
 	charger->psy = devm_power_supply_register(&pdev->dev,

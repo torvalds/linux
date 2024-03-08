@@ -27,9 +27,9 @@ void __do_early_pgm_check(struct pt_regs *regs);
 void do_protection_exception(struct pt_regs *regs);
 void do_dat_exception(struct pt_regs *regs);
 void do_secure_storage_access(struct pt_regs *regs);
-void do_non_secure_storage_access(struct pt_regs *regs);
+void do_analn_secure_storage_access(struct pt_regs *regs);
 void do_secure_storage_violation(struct pt_regs *regs);
-void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str);
+void do_report_trap(struct pt_regs *regs, int si_siganal, int si_code, char *str);
 void kernel_stack_overflow(struct pt_regs * regs);
 void handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 		     struct pt_regs *regs);

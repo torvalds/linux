@@ -17,7 +17,7 @@
 /**
  * DOC: fence register handling
  *
- * Important to avoid confusions: "fences" in the i915 driver are not execution
+ * Important to avoid confusions: "fences" in the i915 driver are analt execution
  * fences used to track command completion but hardware detiler objects which
  * wrap a given range of the global GTT. Each platform has only a fairly limited
  * set of these objects.
@@ -30,18 +30,18 @@
  * commands. But on gen4+ both display (with the exception of fbc) and rendering
  * have their own tiling state bits and don't need fences.
  *
- * Also note that fences only support X and Y tiling and hence can't be used for
+ * Also analte that fences only support X and Y tiling and hence can't be used for
  * the fancier new tiling formats like W, Ys and Yf.
  *
- * Finally note that because fences are such a restricted resource they're
+ * Finally analte that because fences are such a restricted resource they're
  * dynamically associated with objects. Furthermore fence state is committed to
  * the hardware lazily to avoid unnecessary stalls on gen2/3. Therefore code must
  * explicitly call i915_gem_object_get_fence() to synchronize fencing status
- * for cpu access. Also note that some code wants an unfenced view, for those
+ * for cpu access. Also analte that some code wants an unfenced view, for those
  * cases the fence can be removed forcefully with i915_gem_object_put_fence().
  *
  * Internally these functions will synchronize with userspace access by removing
- * CPU ptes into GTT mmaps (not the GTT ptes themselves) as needed.
+ * CPU ptes into GTT mmaps (analt the GTT ptes themselves) as needed.
  */
 
 #define pipelined 0
@@ -92,13 +92,13 @@ static void i965_write_fence_reg(struct i915_fence_reg *fence)
 		struct intel_uncore *uncore = fence_to_uncore(fence);
 
 		/*
-		 * To w/a incoherency with non-atomic 64-bit register updates,
+		 * To w/a incoherency with analn-atomic 64-bit register updates,
 		 * we split the 64-bit update into two 32-bit writes. In order
-		 * for a partial fence not to be evaluated between writes, we
+		 * for a partial fence analt to be evaluated between writes, we
 		 * precede the update with write to turn off the fence register,
 		 * and only enable the fence as the last step.
 		 *
-		 * For extra levels of paranoia, we make sure each step lands
+		 * For extra levels of paraanalia, we make sure each step lands
 		 * before applying the next step.
 		 */
 		intel_uncore_write_fw(uncore, fence_reg_lo, 0);
@@ -261,7 +261,7 @@ static int fence_update(struct i915_fence_reg *fence,
 	 * This only works for removing the fence register, on acquisition
 	 * the caller must hold the rpm wakeref. The fence register must
 	 * be cleared before we can use any other fences to ensure that
-	 * the new fences do not overlap the elided clears, confusing HW.
+	 * the new fences do analt overlap the elided clears, confusing HW.
 	 */
 	wakeref = intel_runtime_pm_get_if_in_use(uncore->rpm);
 	if (!wakeref) {
@@ -283,7 +283,7 @@ static int fence_update(struct i915_fence_reg *fence,
 
 /**
  * i915_vma_revoke_fence - force-remove fence for a VMA
- * @vma: vma to map linearly (not through a fence reg)
+ * @vma: vma to map linearly (analt through a fence reg)
  *
  * This function force-removes any fence from the given object, which is useful
  * if the kernel wants to do untiled GTT access.
@@ -309,9 +309,9 @@ void i915_vma_revoke_fence(struct i915_vma *vma)
 	 * Skip the write to HW if and only if the device is currently
 	 * suspended.
 	 *
-	 * If the driver does not currently hold a wakeref (if_in_use == 0),
+	 * If the driver does analt currently hold a wakeref (if_in_use == 0),
 	 * the device may currently be runtime suspended, or it may be woken
-	 * up before the suspend takes place. If the device is not suspended
+	 * up before the suspend takes place. If the device is analt suspended
 	 * (powered down) and we skip clearing the fence register, the HW is
 	 * left in an undefined state where we may end up with multiple
 	 * registers overlapping.
@@ -333,10 +333,10 @@ static struct i915_fence_reg *fence_find(struct i915_ggtt *ggtt)
 	list_for_each_entry_safe(fence, fn, &ggtt->fence_list, link) {
 		GEM_BUG_ON(fence->vma && fence->vma->fence != fence);
 
-		if (fence == active) /* now seen this fence twice */
+		if (fence == active) /* analw seen this fence twice */
 			active = ERR_PTR(-EAGAIN);
 
-		/* Prefer idle fences so we do not have to wait on the GPU */
+		/* Prefer idle fences so we do analt have to wait on the GPU */
 		if (active != ERR_PTR(-EAGAIN) && fence_is_active(fence)) {
 			if (!active)
 				active = fence;
@@ -355,7 +355,7 @@ static struct i915_fence_reg *fence_find(struct i915_ggtt *ggtt)
 	if (intel_has_pending_fb_unpin(ggtt->vm.i915))
 		return ERR_PTR(-EAGAIN);
 
-	return ERR_PTR(-ENOBUFS);
+	return ERR_PTR(-EANALBUFS);
 }
 
 int __i915_vma_pin_fence(struct i915_vma *vma)
@@ -428,7 +428,7 @@ int i915_vma_pin_fence(struct i915_vma *vma)
 		return 0;
 
 	/*
-	 * Note that we revoke fences on runtime suspend. Therefore the user
+	 * Analte that we revoke fences on runtime suspend. Therefore the user
 	 * must keep the device awake whilst using the fence.
 	 */
 	assert_rpm_wakelock_held(vma->vm->gt->uncore->rpm);
@@ -464,7 +464,7 @@ struct i915_fence_reg *i915_reserve_fence(struct i915_ggtt *ggtt)
 	list_for_each_entry(fence, &ggtt->fence_list, link)
 		count += !atomic_read(&fence->pin_count);
 	if (count <= 1)
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 
 	fence = fence_find(ggtt);
 	if (IS_ERR(fence))
@@ -502,7 +502,7 @@ void i915_unreserve_fence(struct i915_fence_reg *fence)
  * @ggtt: Global GTT
  *
  * Restore the hw fence state to match the software tracking again, to be called
- * after a gpu reset and on resume. Note that on runtime suspend we only cancel
+ * after a gpu reset and on resume. Analte that on runtime suspend we only cancel
  * the fences, to be reacquired by the user later.
  */
 void intel_ggtt_restore_fences(struct i915_ggtt *ggtt)
@@ -528,8 +528,8 @@ void intel_ggtt_restore_fences(struct i915_ggtt *ggtt)
  * to an alternate memory channel so it can get the bandwidth from both.
  *
  * The GPU also rearranges its accesses for increased bandwidth to interleaved
- * memory, and it matches what the CPU does for non-tiled.  However, when tiled
- * it does it a little differently, since one walks addresses not just in the
+ * memory, and it matches what the CPU does for analn-tiled.  However, when tiled
+ * it does it a little differently, since one walks addresses analt just in the
  * X direction but also Y.  So, along with alternating channels when bit
  * 6 of the address flips, it also alternates when other bits flip --  Bits 9
  * (every 512 bytes, an X tile scanline) and 10 (every two X tile scanlines)
@@ -545,11 +545,11 @@ void intel_ggtt_restore_fences(struct i915_ggtt *ggtt)
  * as we need to make sure that the 3d driver can correctly address object
  * contents.
  *
- * If we don't have interleaved memory, all tiling is safe and no swizzling is
+ * If we don't have interleaved memory, all tiling is safe and anal swizzling is
  * required.
  *
  * When bit 17 is XORed in, we simply refuse to tile at all.  Bit
- * 17 is not just a page offset, so as we page an object out and back in,
+ * 17 is analt just a page offset, so as we page an object out and back in,
  * individual pages in it will have different bit 17 addresses, resulting in
  * each 64 bytes being swapped with its neighbor!
  *
@@ -572,19 +572,19 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 {
 	struct intel_uncore *uncore = ggtt->vm.gt->uncore;
 	struct drm_i915_private *i915 = ggtt->vm.i915;
-	u32 swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
-	u32 swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
+	u32 swizzle_x = I915_BIT_6_SWIZZLE_UNKANALWN;
+	u32 swizzle_y = I915_BIT_6_SWIZZLE_UNKANALWN;
 
 	if (GRAPHICS_VER(i915) >= 8 || IS_VALLEYVIEW(i915)) {
 		/*
-		 * On BDW+, swizzling is not used. We leave the CPU memory
+		 * On BDW+, swizzling is analt used. We leave the CPU memory
 		 * controller in charge of optimizing memory accesses without
 		 * the extra address manipulation GPU side.
 		 *
 		 * VLV and CHV don't have GPU swizzling.
 		 */
-		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
-		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
+		swizzle_x = I915_BIT_6_SWIZZLE_ANALNE;
+		swizzle_y = I915_BIT_6_SWIZZLE_ANALNE;
 	} else if (GRAPHICS_VER(i915) >= 6) {
 		if (i915->preserve_bios_swizzle) {
 			if (intel_uncore_read(uncore, DISP_ARB_CTL) &
@@ -592,8 +592,8 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 				swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 				swizzle_y = I915_BIT_6_SWIZZLE_9;
 			} else {
-				swizzle_x = I915_BIT_6_SWIZZLE_NONE;
-				swizzle_y = I915_BIT_6_SWIZZLE_NONE;
+				swizzle_x = I915_BIT_6_SWIZZLE_ANALNE;
+				swizzle_y = I915_BIT_6_SWIZZLE_ANALNE;
 			}
 		} else {
 			u32 dimm_c0, dimm_c1;
@@ -605,7 +605,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 			/*
 			 * Enable swizzling when the channels are populated
 			 * with identically sized dimms. We don't need to check
-			 * the 3rd channel because no cpu with gpu attached
+			 * the 3rd channel because anal cpu with gpu attached
 			 * ships in that configuration. Also, swizzling only
 			 * makes sense for 2 channels anyway.
 			 */
@@ -613,8 +613,8 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 				swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 				swizzle_y = I915_BIT_6_SWIZZLE_9;
 			} else {
-				swizzle_x = I915_BIT_6_SWIZZLE_NONE;
-				swizzle_y = I915_BIT_6_SWIZZLE_NONE;
+				swizzle_x = I915_BIT_6_SWIZZLE_ANALNE;
+				swizzle_y = I915_BIT_6_SWIZZLE_ANALNE;
 			}
 		}
 	} else if (GRAPHICS_VER(i915) == 5) {
@@ -626,11 +626,11 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		swizzle_y = I915_BIT_6_SWIZZLE_9;
 	} else if (GRAPHICS_VER(i915) == 2) {
 		/*
-		 * As far as we know, the 865 doesn't have these bit 6
+		 * As far as we kanalw, the 865 doesn't have these bit 6
 		 * swizzling issues.
 		 */
-		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
-		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
+		swizzle_x = I915_BIT_6_SWIZZLE_ANALNE;
+		swizzle_y = I915_BIT_6_SWIZZLE_ANALNE;
 	} else if (IS_G45(i915) || IS_I965G(i915) || IS_G33(i915)) {
 		/*
 		 * The 965, G33, and newer, have a very flexible memory
@@ -657,7 +657,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		 * varies depending upon page placement inside the
 		 * channels, i.e. we see swizzled pages where the
 		 * banks of memory are paired and unswizzled on the
-		 * uneven portion, so leave that as unknown.
+		 * uneven portion, so leave that as unkanalwn.
 		 */
 		if (intel_uncore_read16(uncore, C0DRB3_BW) ==
 		    intel_uncore_read16(uncore, C1DRB3_BW)) {
@@ -670,7 +670,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		/*
 		 * On 9xx chipsets, channel interleave by the CPU is
 		 * determined by DCC.  For single-channel, neither the CPU
-		 * nor the GPU do swizzling.  For dual channel interleaved,
+		 * analr the GPU do swizzling.  For dual channel interleaved,
 		 * the GPU's interleave is bit 9 and 10 for X tiled, and bit
 		 * 9 for Y tiled.  The CPU's interleave is independent, and
 		 * can be based on either bit 11 (haven't seen this yet) or
@@ -679,8 +679,8 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		switch (dcc & DCC_ADDRESSING_MODE_MASK) {
 		case DCC_ADDRESSING_MODE_SINGLE_CHANNEL:
 		case DCC_ADDRESSING_MODE_DUAL_CHANNEL_ASYMMETRIC:
-			swizzle_x = I915_BIT_6_SWIZZLE_NONE;
-			swizzle_y = I915_BIT_6_SWIZZLE_NONE;
+			swizzle_x = I915_BIT_6_SWIZZLE_ANALNE;
+			swizzle_y = I915_BIT_6_SWIZZLE_ANALNE;
 			break;
 		case DCC_ADDRESSING_MODE_DUAL_CHANNEL_INTERLEAVED:
 			if (dcc & DCC_CHANNEL_XOR_DISABLE) {
@@ -705,33 +705,33 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		/* check for L-shaped memory aka modified enhanced addressing */
 		if (GRAPHICS_VER(i915) == 4 &&
 		    !(intel_uncore_read(uncore, DCC2) & DCC2_MODIFIED_ENHANCED_DISABLE)) {
-			swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
-			swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
+			swizzle_x = I915_BIT_6_SWIZZLE_UNKANALWN;
+			swizzle_y = I915_BIT_6_SWIZZLE_UNKANALWN;
 		}
 
 		if (dcc == 0xffffffff) {
 			drm_err(&i915->drm, "Couldn't read from MCHBAR.  "
 				  "Disabling tiling.\n");
-			swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
-			swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
+			swizzle_x = I915_BIT_6_SWIZZLE_UNKANALWN;
+			swizzle_y = I915_BIT_6_SWIZZLE_UNKANALWN;
 		}
 	}
 
-	if (swizzle_x == I915_BIT_6_SWIZZLE_UNKNOWN ||
-	    swizzle_y == I915_BIT_6_SWIZZLE_UNKNOWN) {
+	if (swizzle_x == I915_BIT_6_SWIZZLE_UNKANALWN ||
+	    swizzle_y == I915_BIT_6_SWIZZLE_UNKANALWN) {
 		/*
-		 * Userspace likes to explode if it sees unknown swizzling,
+		 * Userspace likes to explode if it sees unkanalwn swizzling,
 		 * so lie. We will finish the lie when reporting through
 		 * the get-tiling-ioctl by reporting the physical swizzle
-		 * mode as unknown instead.
+		 * mode as unkanalwn instead.
 		 *
-		 * As we don't strictly know what the swizzling is, it may be
+		 * As we don't strictly kanalw what the swizzling is, it may be
 		 * bit17 dependent, and so we need to also prevent the pages
 		 * from being moved.
 		 */
 		i915->gem_quirks |= GEM_QUIRK_PIN_SWIZZLED_PAGES;
-		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
-		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
+		swizzle_x = I915_BIT_6_SWIZZLE_ANALNE;
+		swizzle_y = I915_BIT_6_SWIZZLE_ANALNE;
 	}
 
 	to_gt(i915)->ggtt->bit_6_swizzle_x = swizzle_x;
@@ -901,7 +901,7 @@ void intel_gt_init_swizzling(struct intel_gt *gt)
 	struct intel_uncore *uncore = gt->uncore;
 
 	if (GRAPHICS_VER(i915) < 5 ||
-	    to_gt(i915)->ggtt->bit_6_swizzle_x == I915_BIT_6_SWIZZLE_NONE)
+	    to_gt(i915)->ggtt->bit_6_swizzle_x == I915_BIT_6_SWIZZLE_ANALNE)
 		return;
 
 	intel_uncore_rmw(uncore, DISP_ARB_CTL, 0, DISP_TILE_SURFACE_SWIZZLING);

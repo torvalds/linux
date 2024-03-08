@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-analte */
 /*
  * Userspace interface for AMD SEV and SNP guest driver.
  *
@@ -47,7 +47,7 @@ struct snp_derived_key_resp {
 };
 
 struct snp_guest_request_ioctl {
-	/* message version number (must be non-zero) */
+	/* message version number (must be analn-zero) */
 	__u8 msg_version;
 
 	/* Request and response structure address */

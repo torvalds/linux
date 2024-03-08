@@ -47,7 +47,7 @@ static struct clk_regmap axg_aoclk_##_name = {				\
 			.fw_name = "mpeg-clk",				\
 		},							\
 		.num_parents = 1,					\
-		.flags = CLK_IGNORE_UNUSED,				\
+		.flags = CLK_IGANALRE_UNUSED,				\
 	},								\
 }
 

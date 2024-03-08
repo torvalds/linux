@@ -39,8 +39,8 @@
 };
 
 &cpu_thermal {
-	/delete-node/ trips;
-	/delete-node/ cooling-maps;
+	/delete-analde/ trips;
+	/delete-analde/ cooling-maps;
 
 	trips {
 		cpu_alert_almost_warm: cpu_alert_almost_warm {
@@ -87,10 +87,10 @@
 		 */
 		cpu_warm_limit_cpu {
 			trip = <&cpu_alert_warm>;
-			cooling-device = <&cpu0 THERMAL_NO_LIMIT 4>,
-					 <&cpu1 THERMAL_NO_LIMIT 4>,
-					 <&cpu2 THERMAL_NO_LIMIT 4>,
-					 <&cpu3 THERMAL_NO_LIMIT 4>;
+			cooling-device = <&cpu0 THERMAL_ANAL_LIMIT 4>,
+					 <&cpu1 THERMAL_ANAL_LIMIT 4>,
+					 <&cpu2 THERMAL_ANAL_LIMIT 4>,
+					 <&cpu3 THERMAL_ANAL_LIMIT 4>;
 		};
 		cpu_warm_limit_gpu {
 			trip = <&cpu_alert_warm>;
@@ -107,7 +107,7 @@
 		 * - 800 MHz - 696 MHz (hotter)
 		 * - 696 MHz - min     (very hot)
 		 *
-		 * Note:
+		 * Analte:
 		 * - 800 MHz appears to be a "sweet spot" for me.  I can run
 		 *   some pretty serious workload here and be happy.
 		 * - After 696 MHz we stop lowering voltage, so throttling
@@ -130,10 +130,10 @@
 		};
 		cpu_very_hot_limit_cpu {
 			trip = <&cpu_alert_very_hot>;
-			cooling-device = <&cpu0 8 THERMAL_NO_LIMIT>,
-					 <&cpu1 8 THERMAL_NO_LIMIT>,
-					 <&cpu2 8 THERMAL_NO_LIMIT>,
-					 <&cpu3 8 THERMAL_NO_LIMIT>;
+			cooling-device = <&cpu0 8 THERMAL_ANAL_LIMIT>,
+					 <&cpu1 8 THERMAL_ANAL_LIMIT>,
+					 <&cpu2 8 THERMAL_ANAL_LIMIT>,
+					 <&cpu3 8 THERMAL_ANAL_LIMIT>;
 		};
 
 		/* At very hot, don't let GPU go over 300 MHz */
@@ -145,8 +145,8 @@
 };
 
 &gpu_thermal {
-	/delete-node/ trips;
-	/delete-node/ cooling-maps;
+	/delete-analde/ trips;
+	/delete-analde/ cooling-maps;
 
 	trips {
 		gpu_alert_warmish: gpu_alert_warmish {
@@ -180,12 +180,12 @@
 		/* After 1st level throttle the GPU down to as low as 400 MHz */
 		gpu_warmish_limit_gpu {
 			trip = <&gpu_alert_warmish>;
-			cooling-device = <&gpu THERMAL_NO_LIMIT 1>;
+			cooling-device = <&gpu THERMAL_ANAL_LIMIT 1>;
 		};
 
 		/*
 		 * Slightly after we throttle the GPU, we'll also make sure that
-		 * the CPU can't go faster than 1.4 GHz.  Note that we won't
+		 * the CPU can't go faster than 1.4 GHz.  Analte that we won't
 		 * throttle the CPU lower than 1.4 GHz due to GPU heat--we'll
 		 * let the CPU do the rest itself.
 		 */
@@ -206,7 +206,7 @@
 		/* When really hot, don't let GPU go _above_ 300 MHz */
 		gpu_very_very_hot_limit_gpu {
 			trip = <&gpu_alert_very_very_hot>;
-			cooling-device = <&gpu 2 THERMAL_NO_LIMIT>;
+			cooling-device = <&gpu 2 THERMAL_ANAL_LIMIT>;
 		};
 	};
 };
@@ -236,10 +236,10 @@
 
 	regulators {
 		/* vcc33_io is sourced directly from vcc33_sys */
-		/delete-node/ LDO_REG1;
-		/delete-node/ LDO_REG7;
+		/delete-analde/ LDO_REG1;
+		/delete-analde/ LDO_REG7;
 
-		/* This is not a pwren anymore, but the real power supply */
+		/* This is analt a pwren anymore, but the real power supply */
 		vdd10_lcd: LDO_REG7 {
 			regulator-always-on;
 			regulator-boot-on;
@@ -414,7 +414,7 @@
 &pinctrl {
 	pinctrl-names = "default";
 	pinctrl-0 = <
-		/* Common for sleep and wake, but no owners */
+		/* Common for sleep and wake, but anal owners */
 		&ddr0_retention
 		&ddrio_pwroff
 		&global_pwroff
@@ -422,7 +422,7 @@
 
 	hdmi {
 		power_hdmi_on: power-hdmi-on {
-			rockchip,pins = <7 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 

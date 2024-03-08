@@ -5,7 +5,7 @@
  * allow multiple VGA devices to be used in a system in a safe way.
  *
  * (C) Copyright 2005 Benjamin Herrenschmidt <benh@kernel.crashing.org>
- * (C) Copyright 2007 Paulo R. Zanoni <przanoni@gmail.com>
+ * (C) Copyright 2007 Paulo R. Zaanalni <przaanalni@gmail.com>
  * (C) Copyright 2007, 2009 Tiago Vignatti <vignatti@freedesktop.org>
  */
 
@@ -17,13 +17,13 @@
 struct pci_dev;
 
 /* Legacy VGA regions */
-#define VGA_RSRC_NONE	       0x00
+#define VGA_RSRC_ANALNE	       0x00
 #define VGA_RSRC_LEGACY_IO     0x01
 #define VGA_RSRC_LEGACY_MEM    0x02
 #define VGA_RSRC_LEGACY_MASK   (VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM)
-/* Non-legacy access */
-#define VGA_RSRC_NORMAL_IO     0x04
-#define VGA_RSRC_NORMAL_MEM    0x08
+/* Analn-legacy access */
+#define VGA_RSRC_ANALRMAL_IO     0x04
+#define VGA_RSRC_ANALRMAL_MEM    0x08
 
 #ifdef CONFIG_VGA_ARB
 void vga_set_legacy_decoding(struct pci_dev *pdev, unsigned int decodes);

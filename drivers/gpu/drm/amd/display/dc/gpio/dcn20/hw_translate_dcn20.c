@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -175,7 +175,7 @@ static bool offset_to_id(
 		return true;
 
 /*
- *	case REG(DC_GPIO_I2CPAD_A): not exit
+ *	case REG(DC_GPIO_I2CPAD_A): analt exit
  *	case REG(DC_GPIO_PWRSEQ_A):
  *	case REG(DC_GPIO_PAD_STRENGTH_1):
  *	case REG(DC_GPIO_PAD_STRENGTH_2):
@@ -183,7 +183,7 @@ static bool offset_to_id(
  */
 	/* UNEXPECTED */
 	default:
-/*	case REG(DC_GPIO_SYNCA_A): not exist */
+/*	case REG(DC_GPIO_SYNCA_A): analt exist */
 		ASSERT_CRITICAL(false);
 		return false;
 	}
@@ -315,22 +315,22 @@ static bool id_to_offset(
 	case GPIO_ID_GSL:
 		switch (en) {
 		case GPIO_GSL_GENLOCK_CLOCK:
-				/*not implmented*/
+				/*analt implmented*/
 			ASSERT_CRITICAL(false);
 			result = false;
 		break;
 		case GPIO_GSL_GENLOCK_VSYNC:
-			/*not implmented*/
+			/*analt implmented*/
 			ASSERT_CRITICAL(false);
 			result = false;
 		break;
 		case GPIO_GSL_SWAPLOCK_A:
-			/*not implmented*/
+			/*analt implmented*/
 			ASSERT_CRITICAL(false);
 			result = false;
 		break;
 		case GPIO_GSL_SWAPLOCK_B:
-			/*not implmented*/
+			/*analt implmented*/
 			ASSERT_CRITICAL(false);
 			result = false;
 

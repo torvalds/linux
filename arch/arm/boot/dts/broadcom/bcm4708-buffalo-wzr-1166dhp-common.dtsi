@@ -146,7 +146,7 @@
 	vcc-gpio = <&chipcommon 10 GPIO_ACTIVE_LOW>;
 };
 
-&spi_nor {
+&spi_analr {
 	status = "okay";
 };
 

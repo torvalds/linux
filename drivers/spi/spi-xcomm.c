@@ -210,7 +210,7 @@ static int spi_xcomm_probe(struct i2c_client *i2c)
 
 	host = spi_alloc_host(&i2c->dev, sizeof(*spi_xcomm));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_xcomm = spi_controller_get_devdata(host);
 	spi_xcomm->i2c = i2c;
@@ -220,7 +220,7 @@ static int spi_xcomm_probe(struct i2c_client *i2c)
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
 	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
 	host->transfer_one_message = spi_xcomm_transfer_one;
-	host->dev.of_node = i2c->dev.of_node;
+	host->dev.of_analde = i2c->dev.of_analde;
 	i2c_set_clientdata(i2c, host);
 
 	ret = devm_spi_register_controller(&i2c->dev, host);

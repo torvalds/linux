@@ -77,7 +77,7 @@ mt76x2_apply_cal_free_data(struct mt76x02_dev *dev, u8 *efuse)
 		MT_EE_RF_5G_GRP4_5_RX_HIGH_GAIN,
 		MT_EE_RF_5G_GRP4_5_RX_HIGH_GAIN + 1,
 	};
-	struct device_node *np = dev->mt76.dev->of_node;
+	struct device_analde *np = dev->mt76.dev->of_analde;
 	u8 *eeprom = dev->mt76.eeprom.data;
 	u8 prev_grp0[4] = {
 		eeprom[MT_EE_TX_POWER_0_START_5G],
@@ -156,7 +156,7 @@ mt76x2_eeprom_load(struct mt76x02_dev *dev)
 					  GFP_KERNEL);
 	dev->mt76.otp.size = MT7662_EEPROM_SIZE;
 	if (!dev->mt76.otp.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	efuse = dev->mt76.otp.data;
 
@@ -174,7 +174,7 @@ mt76x2_eeprom_load(struct mt76x02_dev *dev)
 
 out:
 	if (!found)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }

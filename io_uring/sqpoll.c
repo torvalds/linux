@@ -4,7 +4,7 @@
  * ring, offloading submissions from the application to a kernel thread.
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -30,7 +30,7 @@ void io_sq_thread_unpark(struct io_sq_data *sqd)
 	WARN_ON_ONCE(sqd->thread == current);
 
 	/*
-	 * Do the dance but not conditional clear_bit() because it'd race with
+	 * Do the dance but analt conditional clear_bit() because it'd race with
 	 * other threads incrementing park_pending and setting the bit.
 	 */
 	clear_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state);
@@ -148,7 +148,7 @@ static struct io_sq_data *io_get_sq_data(struct io_uring_params *p,
 
 	sqd = kzalloc(sizeof(*sqd), GFP_KERNEL);
 	if (!sqd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	atomic_set(&sqd->park_pending, 0);
 	refcount_set(&sqd->refs, 1);
@@ -286,7 +286,7 @@ static int io_sq_thread(void *data)
 				}
 
 				/*
-				 * Ensure the store of the wakeup flag is not
+				 * Ensure the store of the wakeup flag is analt
 				 * reordered with the load of the SQ tail
 				 */
 				smp_mb__after_atomic();
@@ -304,7 +304,7 @@ static int io_sq_thread(void *data)
 				sqd->sq_cpu = raw_smp_processor_id();
 			}
 			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
-				atomic_andnot(IORING_SQ_NEED_WAKEUP,
+				atomic_andanalt(IORING_SQ_NEED_WAKEUP,
 						&ctx->rings->sq_flags);
 		}
 
@@ -405,7 +405,7 @@ __cold int io_sq_offload_create(struct io_ring_ctx *ctx,
 
 		sqd->task_pid = current->pid;
 		sqd->task_tgid = current->tgid;
-		tsk = create_io_thread(io_sq_thread, sqd, NUMA_NO_NODE);
+		tsk = create_io_thread(io_sq_thread, sqd, NUMA_ANAL_ANALDE);
 		if (IS_ERR(tsk)) {
 			ret = PTR_ERR(tsk);
 			goto err_sqpoll;

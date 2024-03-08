@@ -84,7 +84,7 @@ static int lv5207lp_probe(struct i2c_client *client)
 	struct lv5207lp *lv;
 
 	if (pdata == NULL) {
-		dev_err(&client->dev, "No platform data supplied\n");
+		dev_err(&client->dev, "Anal platform data supplied\n");
 		return -EINVAL;
 	}
 
@@ -97,7 +97,7 @@ static int lv5207lp_probe(struct i2c_client *client)
 
 	lv = devm_kzalloc(&client->dev, sizeof(*lv), GFP_KERNEL);
 	if (!lv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lv->client = client;
 	lv->pdata = pdata;

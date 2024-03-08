@@ -15,7 +15,7 @@ BTTV cards list
      - PCI subsystem IDs
 
    * - 0
-     -  *** UNKNOWN/GENERIC ***
+     -  *** UNKANALWN/GENERIC ***
      -
 
    * - 1
@@ -63,7 +63,7 @@ BTTV cards list
      -
 
    * - 12
-     - ADS Technologies Channel Surfer TV (bt848)
+     - ADS Techanallogies Channel Surfer TV (bt848)
      -
 
    * - 13
@@ -107,7 +107,7 @@ BTTV cards list
      - 14ff:3002
 
    * - 23
-     - Modular Technology MM201/MM202/MM205/MM210/MM215 PCTV, bt878
+     - Modular Techanallogy MM201/MM202/MM205/MM210/MM215 PCTV, bt878
      - 14c7:0101
 
    * - 24
@@ -155,7 +155,7 @@ BTTV cards list
      - 107d:6606, 107d:6609, 6606:217d, f6ff:fff6
 
    * - 35
-     - Lifeview FlyVideo 98 LR50 / Chronos Video Shuttle II
+     - Lifeview FlyVideo 98 LR50 / Chroanals Video Shuttle II
      - 1851:1850, 1851:a050
 
    * - 36
@@ -247,7 +247,7 @@ BTTV cards list
      - 4344:4142
 
    * - 58
-     - Askey CPH060/ Phoebe TV Master Only (No FM)
+     - Askey CPH060/ Phoebe TV Master Only (Anal FM)
      -
 
    * - 59
@@ -255,7 +255,7 @@ BTTV cards list
      -
 
    * - 60
-     - Modular Technology MM100PCTV
+     - Modular Techanallogy MM100PCTV
      -
 
    * - 61
@@ -319,7 +319,7 @@ BTTV cards list
      -
 
    * - 76
-     - Canopus WinDVR PCI (COMPAQ Presario 3524JP, 5112JP)
+     - Caanalpus WinDVR PCI (COMPAQ Presario 3524JP, 5112JP)
      - 0e11:0079
 
    * - 77
@@ -655,7 +655,7 @@ BTTV cards list
      - 1830:1540, 1831:1540, 1832:1540, 1833:1540, 1834:1540, 1835:1540, 1836:1540, 1837:1540
 
    * - 160
-     - Tongwei Video Technology TD-3116
+     - Tongwei Video Techanallogy TD-3116
      - f200:3116
 
    * - 161

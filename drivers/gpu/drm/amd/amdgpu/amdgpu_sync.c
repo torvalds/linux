@@ -12,14 +12,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -36,7 +36,7 @@
 #include "amdgpu_amdkfd.h"
 
 struct amdgpu_sync_entry {
-	struct hlist_node	node;
+	struct hlist_analde	analde;
 	struct dma_fence	*fence;
 };
 
@@ -47,7 +47,7 @@ static struct kmem_cache *amdgpu_sync_slab;
  *
  * @sync: sync object to initialize
  *
- * Just clear the sync object for now.
+ * Just clear the sync object for analw.
  */
 void amdgpu_sync_create(struct amdgpu_sync *sync)
 {
@@ -134,7 +134,7 @@ static bool amdgpu_sync_add_later(struct amdgpu_sync *sync, struct dma_fence *f)
 {
 	struct amdgpu_sync_entry *e;
 
-	hash_for_each_possible(sync->fences, e, node, f->context) {
+	hash_for_each_possible(sync->fences, e, analde, f->context) {
 		if (unlikely(e->fence->context != f->context))
 			continue;
 
@@ -164,21 +164,21 @@ int amdgpu_sync_fence(struct amdgpu_sync *sync, struct dma_fence *f)
 
 	e = kmem_cache_alloc(amdgpu_sync_slab, GFP_KERNEL);
 	if (!e)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	hash_add(sync->fences, &e->node, f->context);
+	hash_add(sync->fences, &e->analde, f->context);
 	e->fence = dma_fence_get(f);
 	return 0;
 }
 
-/* Determine based on the owner and mode if we should sync to a fence or not */
+/* Determine based on the owner and mode if we should sync to a fence or analt */
 static bool amdgpu_sync_test_fence(struct amdgpu_device *adev,
 				   enum amdgpu_sync_mode mode,
 				   void *owner, struct dma_fence *f)
 {
 	void *fence_owner = amdgpu_sync_get_owner(f);
 
-	/* Always sync to moves, no matter what */
+	/* Always sync to moves, anal matter what */
 	if (fence_owner == AMDGPU_FENCE_OWNER_UNDEFINED)
 		return true;
 
@@ -195,7 +195,7 @@ static bool amdgpu_sync_test_fence(struct amdgpu_device *adev,
 	    owner != AMDGPU_FENCE_OWNER_KFD)
 		return false;
 
-	/* Ignore fences depending on the sync mode */
+	/* Iganalre fences depending on the sync mode */
 	switch (mode) {
 	case AMDGPU_SYNC_ALWAYS:
 		return true;
@@ -263,28 +263,28 @@ int amdgpu_sync_resv(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 /* Free the entry back to the slab */
 static void amdgpu_sync_entry_free(struct amdgpu_sync_entry *e)
 {
-	hash_del(&e->node);
+	hash_del(&e->analde);
 	dma_fence_put(e->fence);
 	kmem_cache_free(amdgpu_sync_slab, e);
 }
 
 /**
- * amdgpu_sync_peek_fence - get the next fence not signaled yet
+ * amdgpu_sync_peek_fence - get the next fence analt signaled yet
  *
  * @sync: the sync object
  * @ring: optional ring to use for test
  *
- * Returns the next fence not signaled yet without removing it from the sync
+ * Returns the next fence analt signaled yet without removing it from the sync
  * object.
  */
 struct dma_fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
 					 struct amdgpu_ring *ring)
 {
 	struct amdgpu_sync_entry *e;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int i;
 
-	hash_for_each_safe(sync->fences, i, tmp, e, node) {
+	hash_for_each_safe(sync->fences, i, tmp, e, analde) {
 		struct dma_fence *f = e->fence;
 		struct drm_sched_fence *s_fence = to_drm_sched_fence(f);
 
@@ -315,20 +315,20 @@ struct dma_fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
  *
  * @sync: sync object to use
  *
- * Get and removes the next fence from the sync object not signaled yet.
+ * Get and removes the next fence from the sync object analt signaled yet.
  */
 struct dma_fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync)
 {
 	struct amdgpu_sync_entry *e;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct dma_fence *f;
 	int i;
 
-	hash_for_each_safe(sync->fences, i, tmp, e, node) {
+	hash_for_each_safe(sync->fences, i, tmp, e, analde) {
 
 		f = e->fence;
 
-		hash_del(&e->node);
+		hash_del(&e->analde);
 		kmem_cache_free(amdgpu_sync_slab, e);
 
 		if (!dma_fence_is_signaled(f))
@@ -351,11 +351,11 @@ struct dma_fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync)
 int amdgpu_sync_clone(struct amdgpu_sync *source, struct amdgpu_sync *clone)
 {
 	struct amdgpu_sync_entry *e;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct dma_fence *f;
 	int i, r;
 
-	hash_for_each_safe(source->fences, i, tmp, e, node) {
+	hash_for_each_safe(source->fences, i, tmp, e, analde) {
 		f = e->fence;
 		if (!dma_fence_is_signaled(f)) {
 			r = amdgpu_sync_fence(clone, f);
@@ -379,11 +379,11 @@ int amdgpu_sync_clone(struct amdgpu_sync *source, struct amdgpu_sync *clone)
 int amdgpu_sync_push_to_job(struct amdgpu_sync *sync, struct amdgpu_job *job)
 {
 	struct amdgpu_sync_entry *e;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct dma_fence *f;
 	int i, r;
 
-	hash_for_each_safe(sync->fences, i, tmp, e, node) {
+	hash_for_each_safe(sync->fences, i, tmp, e, analde) {
 		f = e->fence;
 		if (dma_fence_is_signaled(f)) {
 			amdgpu_sync_entry_free(e);
@@ -403,10 +403,10 @@ int amdgpu_sync_push_to_job(struct amdgpu_sync *sync, struct amdgpu_job *job)
 int amdgpu_sync_wait(struct amdgpu_sync *sync, bool intr)
 {
 	struct amdgpu_sync_entry *e;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int i, r;
 
-	hash_for_each_safe(sync->fences, i, tmp, e, node) {
+	hash_for_each_safe(sync->fences, i, tmp, e, analde) {
 		r = dma_fence_wait(e->fence, intr);
 		if (r)
 			return r;
@@ -427,10 +427,10 @@ int amdgpu_sync_wait(struct amdgpu_sync *sync, bool intr)
 void amdgpu_sync_free(struct amdgpu_sync *sync)
 {
 	struct amdgpu_sync_entry *e;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	unsigned int i;
 
-	hash_for_each_safe(sync->fences, i, tmp, e, node)
+	hash_for_each_safe(sync->fences, i, tmp, e, analde)
 		amdgpu_sync_entry_free(e);
 }
 
@@ -445,7 +445,7 @@ int amdgpu_sync_init(void)
 		"amdgpu_sync", sizeof(struct amdgpu_sync_entry), 0,
 		SLAB_HWCACHE_ALIGN, NULL);
 	if (!amdgpu_sync_slab)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

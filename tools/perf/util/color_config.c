@@ -24,7 +24,7 @@ int perf_config_colorbool(const char *var, const char *value, int stdout_is_tty)
 	if (!perf_config_bool(var, value))
 		return 0;
 
-	/* any normal truth value defaults to 'auto' */
+	/* any analrmal truth value defaults to 'auto' */
  auto_color:
 	if (stdout_is_tty < 0)
 		stdout_is_tty = isatty(1);

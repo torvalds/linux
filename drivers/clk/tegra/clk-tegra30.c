@@ -173,7 +173,7 @@ static DEFINE_SPINLOCK(pll_d_lock);
 			TEGRA_DIVIDER_ROUND_UP, _clk_num,	\
 			_gate_flags, _clk_id)
 
-#define TEGRA_INIT_DATA_NODIV(_name, _parents, _offset, \
+#define TEGRA_INIT_DATA_ANALDIV(_name, _parents, _offset, \
 			      _mux_shift, _mux_width, _clk_num, \
 			      _gate_flags, _clk_id)			\
 	TEGRA_INIT_DATA(_name, NULL, NULL, _parents, _offset,	\
@@ -654,7 +654,7 @@ static struct tegra_devclk devclks[] = {
 	{ .dev_id = "2d", .dt_id = TEGRA30_CLK_GR2D },
 	{ .dev_id = "se", .dt_id = TEGRA30_CLK_SE },
 	{ .dev_id = "mselect", .dt_id = TEGRA30_CLK_MSELECT },
-	{ .dev_id = "tegra-nor", .dt_id = TEGRA30_CLK_NOR },
+	{ .dev_id = "tegra-analr", .dt_id = TEGRA30_CLK_ANALR },
 	{ .dev_id = "sdhci-tegra.0", .dt_id = TEGRA30_CLK_SDMMC1 },
 	{ .dev_id = "sdhci-tegra.1", .dt_id = TEGRA30_CLK_SDMMC2 },
 	{ .dev_id = "sdhci-tegra.2", .dt_id = TEGRA30_CLK_SDMMC3 },
@@ -749,7 +749,7 @@ static struct tegra_clk tegra30_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_gr2d] = { .dt_id = TEGRA30_CLK_GR2D, .present = true },
 	[tegra_clk_gr3d] = { .dt_id = TEGRA30_CLK_GR3D, .present = true },
 	[tegra_clk_mselect] = { .dt_id = TEGRA30_CLK_MSELECT, .present = true },
-	[tegra_clk_nor] = { .dt_id = TEGRA30_CLK_NOR, .present = true },
+	[tegra_clk_analr] = { .dt_id = TEGRA30_CLK_ANALR, .present = true },
 	[tegra_clk_sdmmc1] = { .dt_id = TEGRA30_CLK_SDMMC1, .present = true },
 	[tegra_clk_sdmmc2] = { .dt_id = TEGRA30_CLK_SDMMC2, .present = true },
 	[tegra_clk_sdmmc3] = { .dt_id = TEGRA30_CLK_SDMMC3, .present = true },
@@ -870,7 +870,7 @@ static void __init tegra30_pll_init(void)
 	/* PLLE */
 	clk = clk_register_mux(NULL, "pll_e_mux", pll_e_parents,
 			       ARRAY_SIZE(pll_e_parents),
-			       CLK_SET_RATE_NO_REPARENT,
+			       CLK_SET_RATE_ANAL_REPARENT,
 			       clk_base + PLLE_AUX, 2, 1, 0, NULL);
 }
 
@@ -919,7 +919,7 @@ static void __init tegra30_super_clk_init(void)
 	/* CCLKG */
 	clk = tegra_clk_register_super_cclk("cclk_g", cclk_g_parents,
 				  ARRAY_SIZE(cclk_g_parents),
-				  CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+				  CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 				  clk_base + CCLKG_BURST_POLICY,
 				  0, NULL);
 	clks[TEGRA30_CLK_CCLK_G] = clk;
@@ -993,8 +993,8 @@ static struct tegra_periph_init_data tegra_periph_clk_list[] = {
 	TEGRA_INIT_DATA("pwm", NULL, NULL, pwm_parents, CLK_SOURCE_PWM, 28, 2, 0, 0, 8, 1, 0, 17, TEGRA_PERIPH_ON_APB, TEGRA30_CLK_PWM),
 };
 
-static struct tegra_periph_init_data tegra_periph_nodiv_clk_list[] = {
-	TEGRA_INIT_DATA_NODIV("dsib", mux_plld_out0_plld2_out0, CLK_SOURCE_DSIB, 25, 1, 82, 0, TEGRA30_CLK_DSIB),
+static struct tegra_periph_init_data tegra_periph_analdiv_clk_list[] = {
+	TEGRA_INIT_DATA_ANALDIV("dsib", mux_plld_out0_plld2_out0, CLK_SOURCE_DSIB, 25, 1, 82, 0, TEGRA30_CLK_DSIB),
 };
 
 static void __init tegra30_periph_clk_init(void)
@@ -1043,9 +1043,9 @@ static void __init tegra30_periph_clk_init(void)
 		clks[data->clk_id] = clk;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(tegra_periph_nodiv_clk_list); i++) {
-		data = &tegra_periph_nodiv_clk_list[i];
-		clk = tegra_clk_register_periph_nodiv(data->name,
+	for (i = 0; i < ARRAY_SIZE(tegra_periph_analdiv_clk_list); i++) {
+		data = &tegra_periph_analdiv_clk_list[i];
+		clk = tegra_clk_register_periph_analdiv(data->name,
 					data->p.parent_names,
 					data->num_parents, &data->periph,
 					clk_base, data->offset);
@@ -1064,7 +1064,7 @@ static void tegra30_wait_cpu_in_reset(u32 cpu)
 		reg = readl(clk_base +
 			    TEGRA30_CLK_RST_CONTROLLER_CPU_CMPLX_STATUS);
 		cpu_relax();
-	} while (!(reg & (1 << cpu)));	/* check CPU been reset or not */
+	} while (!(reg & (1 << cpu)));	/* check CPU been reset or analt */
 
 	return;
 }
@@ -1303,9 +1303,9 @@ static struct clk *tegra30_clk_src_onecell_get(struct of_phandle_args *clkspec,
 	return clk;
 }
 
-static void __init tegra30_clock_init(struct device_node *np)
+static void __init tegra30_clock_init(struct device_analde *np)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
 	clk_base = of_iomap(np, 0);
 	if (!clk_base) {
@@ -1313,14 +1313,14 @@ static void __init tegra30_clock_init(struct device_node *np)
 		return;
 	}
 
-	node = of_find_matching_node(NULL, pmc_match);
-	if (!node) {
-		pr_err("Failed to find pmc node\n");
+	analde = of_find_matching_analde(NULL, pmc_match);
+	if (!analde) {
+		pr_err("Failed to find pmc analde\n");
 		BUG();
 	}
 
-	pmc_base = of_iomap(node, 0);
-	of_node_put(node);
+	pmc_base = of_iomap(analde, 0);
+	of_analde_put(analde);
 	if (!pmc_base) {
 		pr_err("Can't map pmc registers\n");
 		BUG();
@@ -1372,7 +1372,7 @@ static int tegra30_car_probe(struct platform_device *pdev)
 
 	/* PLLE */
 	clk = tegra_clk_register_plle("pll_e", "pll_e_mux", clk_base, pmc_base,
-				      CLK_GET_RATE_NOCACHE, &pll_e_params, NULL);
+				      CLK_GET_RATE_ANALCACHE, &pll_e_params, NULL);
 	clks[TEGRA30_CLK_PLL_E] = clk;
 
 	/* PLLM */

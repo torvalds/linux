@@ -7,7 +7,7 @@
 
 SEC("lwt_in")
 __description("invalid direct packet write for LWT_IN")
-__failure __msg("cannot write into packet")
+__failure __msg("cananalt write into packet")
 __naked void packet_write_for_lwt_in(void)
 {
 	asm volatile ("					\
@@ -27,7 +27,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("lwt_out")
 __description("invalid direct packet write for LWT_OUT")
-__failure __msg("cannot write into packet")
+__failure __msg("cananalt write into packet")
 __naked void packet_write_for_lwt_out(void)
 {
 	asm volatile ("					\
@@ -213,9 +213,9 @@ __naked void tc_classid_for_lwt_xmit(void)
 }
 
 SEC("lwt_in")
-__description("check skb->tc_classid half load not permitted for lwt prog")
+__description("check skb->tc_classid half load analt permitted for lwt prog")
 __failure __msg("invalid bpf_context access")
-__naked void not_permitted_for_lwt_prog(void)
+__naked void analt_permitted_for_lwt_prog(void)
 {
 	asm volatile (
 	"r0 = 0;"

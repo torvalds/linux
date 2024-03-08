@@ -2,7 +2,7 @@
 /*
  * This file is part of wl12xx
  *
- * Copyright (C) 2009-2010 Nokia Corporation
+ * Copyright (C) 2009-2010 Analkia Corporation
  * Copyright (C) 2011 Texas Instruments Inc.
  */
 
@@ -20,11 +20,11 @@ int wl1271_cmd_ext_radio_parms(struct wl1271 *wl)
 	int ret;
 
 	if (!wl->nvs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ext_radio_parms = kzalloc(sizeof(*ext_radio_parms), GFP_KERNEL);
 	if (!ext_radio_parms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ext_radio_parms->test.id = TEST_CMD_INI_FILE_RF_EXTENDED_PARAM;
 
@@ -56,7 +56,7 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 	int ret;
 
 	if (!wl->nvs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (gp->tx_bip_fem_manufacturer >= WL1271_INI_FEM_MODULE_COUNT) {
 		wl1271_warning("FEM index from INI out of bounds");
@@ -65,7 +65,7 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 
 	gen_parms = kzalloc(sizeof(*gen_parms), GFP_KERNEL);
 	if (!gen_parms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gen_parms->test.id = TEST_CMD_INI_FILE_GENERAL_PARAM;
 
@@ -123,7 +123,7 @@ int wl128x_cmd_general_parms(struct wl1271 *wl)
 	int ret;
 
 	if (!wl->nvs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (gp->tx_bip_fem_manufacturer >= WL1271_INI_FEM_MODULE_COUNT) {
 		wl1271_warning("FEM index from ini out of bounds");
@@ -132,7 +132,7 @@ int wl128x_cmd_general_parms(struct wl1271 *wl)
 
 	gen_parms = kzalloc(sizeof(*gen_parms), GFP_KERNEL);
 	if (!gen_parms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gen_parms->test.id = TEST_CMD_INI_FILE_GENERAL_PARAM;
 
@@ -189,11 +189,11 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	int ret, fem_idx;
 
 	if (!wl->nvs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	radio_parms = kzalloc(sizeof(*radio_parms), GFP_KERNEL);
 	if (!radio_parms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	radio_parms->test.id = TEST_CMD_INI_FILE_RADIO_PARAM;
 
@@ -233,11 +233,11 @@ int wl128x_cmd_radio_parms(struct wl1271 *wl)
 	int ret, fem_idx;
 
 	if (!wl->nvs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	radio_parms = kzalloc(sizeof(*radio_parms), GFP_KERNEL);
 	if (!radio_parms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	radio_parms->test.id = TEST_CMD_INI_FILE_RADIO_PARAM;
 
@@ -282,7 +282,7 @@ int wl12xx_cmd_channel_switch(struct wl1271 *wl,
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

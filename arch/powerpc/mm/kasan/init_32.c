@@ -45,7 +45,7 @@ int __init kasan_init_shadow_page_tables(unsigned long k_start, unsigned long k_
 		new = memblock_alloc(PTE_FRAG_SIZE, PTE_FRAG_SIZE);
 
 		if (!new)
-			return -ENOMEM;
+			return -EANALMEM;
 		kasan_populate_pte(new, PAGE_KERNEL);
 		pmd_populate_kernel(&init_mm, pmd, new);
 	}
@@ -67,7 +67,7 @@ int __init __weak kasan_init_region(void *start, size_t size)
 	k_start = k_start & PAGE_MASK;
 	block = memblock_alloc(k_end - k_start, PAGE_SIZE);
 	if (!block)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (k_cur = k_start & PAGE_MASK; k_cur < k_end; k_cur += PAGE_SIZE) {
 		pmd_t *pmd = pmd_off_k(k_cur);

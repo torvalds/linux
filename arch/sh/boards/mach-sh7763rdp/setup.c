@@ -5,7 +5,7 @@
  * Renesas Solutions sh7763rdp board
  *
  * Copyright (C) 2008 Renesas Solutions Corp.
- * Copyright (C) 2008 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
+ * Copyright (C) 2008 Analbuhiro Iwamatsu <iwamatsu.analbuhiro@renesas.com>
  */
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -19,8 +19,8 @@
 #include <mach/sh7763rdp.h>
 #include <asm/sh7760fb.h>
 
-/* NOR Flash */
-static struct mtd_partition sh7763rdp_nor_flash_partitions[] = {
+/* ANALR Flash */
+static struct mtd_partition sh7763rdp_analr_flash_partitions[] = {
 	{
 		.name = "U-Boot",
 		.offset = 0,
@@ -37,27 +37,27 @@ static struct mtd_partition sh7763rdp_nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data sh7763rdp_nor_flash_data = {
+static struct physmap_flash_data sh7763rdp_analr_flash_data = {
 	.width = 2,
-	.parts = sh7763rdp_nor_flash_partitions,
-	.nr_parts = ARRAY_SIZE(sh7763rdp_nor_flash_partitions),
+	.parts = sh7763rdp_analr_flash_partitions,
+	.nr_parts = ARRAY_SIZE(sh7763rdp_analr_flash_partitions),
 };
 
-static struct resource sh7763rdp_nor_flash_resources[] = {
+static struct resource sh7763rdp_analr_flash_resources[] = {
 	[0] = {
-		.name = "NOR Flash",
+		.name = "ANALR Flash",
 		.start = 0,
 		.end = (64 * 1024 * 1024),
 		.flags = IORESOURCE_MEM,
 	},
 };
 
-static struct platform_device sh7763rdp_nor_flash_device = {
+static struct platform_device sh7763rdp_analr_flash_device = {
 	.name = "physmap-flash",
-	.resource = sh7763rdp_nor_flash_resources,
-	.num_resources = ARRAY_SIZE(sh7763rdp_nor_flash_resources),
+	.resource = sh7763rdp_analr_flash_resources,
+	.num_resources = ARRAY_SIZE(sh7763rdp_analr_flash_resources),
 	.dev = {
-		.platform_data = &sh7763rdp_nor_flash_data,
+		.platform_data = &sh7763rdp_analr_flash_data,
 	},
 };
 
@@ -118,8 +118,8 @@ static struct fb_videomode sh7763fb_videomode = {
 	.hsync_len = 96,
 	.vsync_len = 1,
 	.sync = 0,
-	.vmode = FB_VMODE_NONINTERLACED,
-	.flag = FB_MODE_IS_UNKNOWN,
+	.vmode = FB_VMODE_ANALNINTERLACED,
+	.flag = FB_MODE_IS_UNKANALWN,
 };
 
 static struct sh7760fb_platdata sh7763fb_def_pdata = {
@@ -131,7 +131,7 @@ static struct sh7760fb_platdata sh7763fb_def_pdata = {
 	.ldaclnr = 0x0001,
 	.ldickr = 0x1102,
 	.rotate = 0,
-	.novsync = 0,
+	.analvsync = 0,
 	.blank = NULL,
 };
 
@@ -145,7 +145,7 @@ static struct platform_device sh7763rdp_fb_device = {
 };
 
 static struct platform_device *sh7763rdp_devices[] __initdata = {
-	&sh7763rdp_nor_flash_device,
+	&sh7763rdp_analr_flash_device,
 	&sh7763rdp_eth_device,
 	&sh7763rdp_fb_device,
 };

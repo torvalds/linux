@@ -70,34 +70,34 @@
     "BriefDescription": "indirect JR instruction miss (inlcude without target)"
   },
   {
-    "EventName": "IBUF_VAL_ID_NORDY",
+    "EventName": "IBUF_VAL_ID_ANALRDY",
     "EventCode": "0xF",
-    "BriefDescription": "IBUF valid while ID not ready"
+    "BriefDescription": "IBUF valid while ID analt ready"
   },
   {
-    "EventName": "IBUF_NOVAL_ID_RDY",
+    "EventName": "IBUF_ANALVAL_ID_RDY",
     "EventCode": "0x10",
-    "BriefDescription": "IBUF not valid while ID ready"
+    "BriefDescription": "IBUF analt valid while ID ready"
   },
   {
-    "EventName": "REN_INT_PHY_REG_NORDY",
+    "EventName": "REN_INT_PHY_REG_ANALRDY",
     "EventCode": "0x11",
-    "BriefDescription": "REN integer physical register file is not ready"
+    "BriefDescription": "REN integer physical register file is analt ready"
   },
   {
-    "EventName": "REN_FP_PHY_REG_NORDY",
+    "EventName": "REN_FP_PHY_REG_ANALRDY",
     "EventCode": "0x12",
-    "BriefDescription": "REN floating point physical register file is not ready"
+    "BriefDescription": "REN floating point physical register file is analt ready"
   },
   {
-    "EventName": "REN_CP_NORDY",
+    "EventName": "REN_CP_ANALRDY",
     "EventCode": "0x13",
-    "BriefDescription": "REN checkpoint is not ready"
+    "BriefDescription": "REN checkpoint is analt ready"
   },
   {
-    "EventName": "DEC_VAL_ROB_NORDY",
+    "EventName": "DEC_VAL_ROB_ANALRDY",
     "EventCode": "0x14",
-    "BriefDescription": "DEC is valid and ROB is not ready"
+    "BriefDescription": "DEC is valid and ROB is analt ready"
   },
   {
     "EventName": "OOD_FLUSH_LS_DEP",

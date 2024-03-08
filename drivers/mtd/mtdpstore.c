@@ -18,8 +18,8 @@ static struct mtdpstore_context {
 	unsigned long *usedmap;		/* used bit map */
 	/*
 	 * used for panic write
-	 * As there are no block_isbad for panic case, we should keep this
-	 * status before panic to ensure panic_write not failed.
+	 * As there are anal block_isbad for panic case, we should keep this
+	 * status before panic to ensure panic_write analt failed.
 	 */
 	unsigned long *badmap;		/* bad block bit map */
 } oops_cxt;
@@ -228,10 +228,10 @@ static ssize_t mtdpstore_erase(size_t size, loff_t off)
 
 /*
  * What is security for mtdpstore?
- * As there is no erase for panic case, we should ensure at least one zone
+ * As there is anal erase for panic case, we should ensure at least one zone
  * is writable. Otherwise, panic write will fail.
- * If zone is used, write operation will return -ENOMSG, which means that
- * pstore/blk will try one by one until gets an empty zone. So, it is not
+ * If zone is used, write operation will return -EANALMSG, which means that
+ * pstore/blk will try one by one until gets an empty zone. So, it is analt
  * needed to ensure the next zone is empty, but at least one.
  */
 static int mtdpstore_security(struct mtdpstore_context *cxt, loff_t off)
@@ -251,7 +251,7 @@ static int mtdpstore_security(struct mtdpstore_context *cxt, loff_t off)
 			return 0;
 	}
 
-	/* If there is no any empty zone, we have no way but to do erase */
+	/* If there is anal any empty zone, we have anal way but to do erase */
 	while (blkcnt--) {
 		div64_u64_rem(off + erasesize, cxt->mtd->size, (u64 *)&off);
 
@@ -279,11 +279,11 @@ static ssize_t mtdpstore_write(const char *buf, size_t size, loff_t off)
 	int ret;
 
 	if (mtdpstore_block_isbad(cxt, off))
-		return -ENOMSG;
+		return -EANALMSG;
 
 	/* zone is used, please try next one */
 	if (mtdpstore_is_used(cxt, off))
-		return -ENOMSG;
+		return -EANALMSG;
 
 	dev_dbg(&mtd->dev, "try to write off 0x%llx size %zu\n", off, size);
 	ret = mtd_write(cxt->mtd, off, size, &retlen, (u_char *)buf);
@@ -315,7 +315,7 @@ static ssize_t mtdpstore_read(char *buf, size_t size, loff_t off)
 	int ret;
 
 	if (mtdpstore_block_isbad(cxt, off))
-		return -ENOMSG;
+		return -EANALMSG;
 
 	dev_dbg(&mtd->dev, "try to read off 0x%llx size %zu\n", off, size);
 	for (done = 0, retlen = 0; done < size; done += retlen) {
@@ -327,19 +327,19 @@ static ssize_t mtdpstore_read(char *buf, size_t size, loff_t off)
 			dev_err(&mtd->dev, "read failure at %lld (%zu of %zu read), err %d\n",
 					off + done, retlen, size - done, ret);
 			/* the zone may be broken, try next one */
-			return -ENOMSG;
+			return -EANALMSG;
 		}
 
 		/*
 		 * ECC error. The impact on log data is so small. Maybe we can
 		 * still read it and try to understand. So mtdpstore just hands
 		 * over what it gets and user can judge whether the data is
-		 * valid or not.
+		 * valid or analt.
 		 */
 		if (mtd_is_eccerr(ret)) {
 			dev_err(&mtd->dev, "ecc error at %lld (%zu of %zu read), err %d\n",
 					off + done, retlen, size - done, ret);
-			/* driver may not set retlen when ecc error */
+			/* driver may analt set retlen when ecc error */
 			retlen = retlen == 0 ? size - done : retlen;
 		}
 	}
@@ -361,11 +361,11 @@ static ssize_t mtdpstore_panic_write(const char *buf, size_t size, loff_t off)
 	int ret;
 
 	if (mtdpstore_panic_block_isbad(cxt, off))
-		return -ENOMSG;
+		return -EANALMSG;
 
 	/* zone is used, please try next one */
 	if (mtdpstore_is_used(cxt, off))
-		return -ENOMSG;
+		return -EANALMSG;
 
 	ret = mtd_panic_write(cxt->mtd, off, size, &retlen, (u_char *)buf);
 	if (ret < 0 || size != retlen) {
@@ -378,7 +378,7 @@ static ssize_t mtdpstore_panic_write(const char *buf, size_t size, loff_t off)
 	return retlen;
 }
 
-static void mtdpstore_notify_add(struct mtd_info *mtd)
+static void mtdpstore_analtify_add(struct mtd_info *mtd)
 {
 	int ret;
 	struct mtdpstore_context *cxt = &oops_cxt;
@@ -394,7 +394,7 @@ static void mtdpstore_notify_add(struct mtd_info *mtd)
 	dev_dbg(&mtd->dev, "found matching MTD device %s\n", mtd->name);
 
 	if (mtd->size < info->kmsg_size * 2) {
-		dev_err(&mtd->dev, "MTD partition %d not big enough\n",
+		dev_err(&mtd->dev, "MTD partition %d analt big eanalugh\n",
 				mtd->index);
 		return;
 	}
@@ -423,7 +423,7 @@ static void mtdpstore_notify_add(struct mtd_info *mtd)
 	longcnt = BITS_TO_LONGS(div_u64(mtd->size, mtd->erasesize));
 	cxt->badmap = kcalloc(longcnt, sizeof(long), GFP_KERNEL);
 
-	/* just support dmesg right now */
+	/* just support dmesg right analw */
 	cxt->dev.flags = PSTORE_FLAGS_DMESG;
 	cxt->dev.zone.read = mtdpstore_read;
 	cxt->dev.zone.write = mtdpstore_write;
@@ -452,7 +452,7 @@ static int mtdpstore_flush_removed_do(struct mtdpstore_context *cxt,
 
 	buf = kmalloc(mtd->erasesize, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* 1st. read to cache */
 	ret = mtd_read(mtd, off, mtd->erasesize, &retlen, buf);
@@ -490,7 +490,7 @@ free:
 /*
  * What does mtdpstore_flush_removed() do?
  * When user remove any log file on pstore filesystem, mtdpstore should do
- * something to ensure log file removed. If the whole block is no longer used,
+ * something to ensure log file removed. If the whole block is anal longer used,
  * it's nice to erase the block. However if the block still contains valid log,
  * what mtdpstore can do is to erase and write the valid log back.
  */
@@ -517,7 +517,7 @@ static int mtdpstore_flush_removed(struct mtdpstore_context *cxt)
 	return 0;
 }
 
-static void mtdpstore_notify_remove(struct mtd_info *mtd)
+static void mtdpstore_analtify_remove(struct mtd_info *mtd)
 {
 	struct mtdpstore_context *cxt = &oops_cxt;
 
@@ -534,9 +534,9 @@ static void mtdpstore_notify_remove(struct mtd_info *mtd)
 	cxt->index = -1;
 }
 
-static struct mtd_notifier mtdpstore_notifier = {
-	.add	= mtdpstore_notify_add,
-	.remove	= mtdpstore_notify_remove,
+static struct mtd_analtifier mtdpstore_analtifier = {
+	.add	= mtdpstore_analtify_add,
+	.remove	= mtdpstore_analtify_remove,
 };
 
 static int __init mtdpstore_init(void)
@@ -554,7 +554,7 @@ static int __init mtdpstore_init(void)
 		return -EINVAL;
 	}
 	if (!info->kmsg_size) {
-		pr_err("no backend enabled (kmsg_size is 0)\n");
+		pr_err("anal backend enabled (kmsg_size is 0)\n");
 		return -EINVAL;
 	}
 
@@ -563,14 +563,14 @@ static int __init mtdpstore_init(void)
 	if (ret)
 		cxt->index = -1;
 
-	register_mtd_user(&mtdpstore_notifier);
+	register_mtd_user(&mtdpstore_analtifier);
 	return 0;
 }
 module_init(mtdpstore_init);
 
 static void __exit mtdpstore_exit(void)
 {
-	unregister_mtd_user(&mtdpstore_notifier);
+	unregister_mtd_user(&mtdpstore_analtifier);
 }
 module_exit(mtdpstore_exit);
 

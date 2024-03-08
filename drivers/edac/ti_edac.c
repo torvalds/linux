@@ -14,7 +14,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * this program.  If analt, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/init.h>
@@ -189,7 +189,7 @@ static void ti_edac_setup_dimm(struct mem_ctl_info *mci, u32 type)
 	if (val & ECC_ENABLED)
 		dimm->edac_mode = EDAC_SECDED;
 	else
-		dimm->edac_mode = EDAC_NONE;
+		dimm->edac_mode = EDAC_ANALNE;
 }
 
 static const struct of_device_id ti_edac_of_match[] = {
@@ -199,18 +199,18 @@ static const struct of_device_id ti_edac_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ti_edac_of_match);
 
-static int _emif_get_id(struct device_node *node)
+static int _emif_get_id(struct device_analde *analde)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const __be32 *addrp;
 	u32 addr, my_addr;
 	int my_id = 0;
 
-	addrp = of_get_address(node, 0, NULL, NULL);
-	my_addr = (u32)of_translate_address(node, addrp);
+	addrp = of_get_address(analde, 0, NULL, NULL);
+	my_addr = (u32)of_translate_address(analde, addrp);
 
-	for_each_matching_node(np, ti_edac_of_match) {
-		if (np == node)
+	for_each_matching_analde(np, ti_edac_of_match) {
+		if (np == analde)
 			continue;
 
 		addrp = of_get_address(np, 0, NULL, NULL);
@@ -229,7 +229,7 @@ static int _emif_get_id(struct device_node *node)
 
 static int ti_edac_probe(struct platform_device *pdev)
 {
-	int error_irq = 0, ret = -ENODEV;
+	int error_irq = 0, ret = -EANALDEV;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	void __iomem *reg;
@@ -241,7 +241,7 @@ static int ti_edac_probe(struct platform_device *pdev)
 
 	id = of_match_device(ti_edac_of_match, &pdev->dev);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg = devm_ioremap_resource(dev, res);
@@ -252,13 +252,13 @@ static int ti_edac_probe(struct platform_device *pdev)
 	layers[0].size = 1;
 
 	/* Allocate ID number for our EMIF controller */
-	emif_id = _emif_get_id(pdev->dev.of_node);
+	emif_id = _emif_get_id(pdev->dev.of_analde);
 	if (emif_id < 0)
 		return -EINVAL;
 
 	mci = edac_mc_alloc(emif_id, 1, layers, sizeof(*edac));
 	if (!mci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mci->pdev = &pdev->dev;
 	edac = mci->pvt_info;
@@ -266,7 +266,7 @@ static int ti_edac_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mci);
 
 	mci->mtype_cap = MEM_FLAG_DDR3 | MEM_FLAG_DDR2;
-	mci->edac_ctl_cap = EDAC_FLAG_SECDED | EDAC_FLAG_NONE;
+	mci->edac_ctl_cap = EDAC_FLAG_SECDED | EDAC_FLAG_ANALNE;
 	mci->mod_name = EDAC_MOD_NAME;
 	mci->ctl_name = id->compatible;
 	mci->dev_name = dev_name(&pdev->dev);

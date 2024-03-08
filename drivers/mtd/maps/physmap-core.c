@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Normal mappings of chips in physical memory
+ * Analrmal mappings of chips in physical memory
  *
  * Copyright (C) 2003 MontaVista Software Inc.
  * Author: Jun Sun, jsun@mvista.com or jsun@junsun.net
@@ -166,12 +166,12 @@ static void physmap_addr_gpios_copy_from(struct map_info *map, void *buf,
 	info = platform_get_drvdata(pdev);
 
 	while (len) {
-		unsigned int winofs = ofs & win_mask(info->win_order);
+		unsigned int wianalfs = ofs & win_mask(info->win_order);
 		unsigned int chunklen = min_t(unsigned int, len,
-					      BIT(info->win_order) - winofs);
+					      BIT(info->win_order) - wianalfs);
 
 		physmap_set_addr_gpios(info, ofs);
-		memcpy_fromio(buf, map->virt + winofs, chunklen);
+		memcpy_fromio(buf, map->virt + wianalfs, chunklen);
 		len -= chunklen;
 		buf += chunklen;
 		ofs += chunklen;
@@ -203,12 +203,12 @@ static void physmap_addr_gpios_copy_to(struct map_info *map, unsigned long ofs,
 	info = platform_get_drvdata(pdev);
 
 	while (len) {
-		unsigned int winofs = ofs & win_mask(info->win_order);
+		unsigned int wianalfs = ofs & win_mask(info->win_order);
 		unsigned int chunklen = min_t(unsigned int, len,
-					      BIT(info->win_order) - winofs);
+					      BIT(info->win_order) - wianalfs);
 
 		physmap_set_addr_gpios(info, ofs);
-		memcpy_toio(map->virt + winofs, buf, chunklen);
+		memcpy_toio(map->virt + wianalfs, buf, chunklen);
 		len -= chunklen;
 		buf += chunklen;
 		ofs += chunklen;
@@ -217,7 +217,7 @@ static void physmap_addr_gpios_copy_to(struct map_info *map, unsigned long ofs,
 
 static int physmap_addr_gpios_map_init(struct map_info *map)
 {
-	map->phys = NO_XIP;
+	map->phys = ANAL_XIP;
 	map->read = physmap_addr_gpios_read;
 	map->copy_from = physmap_addr_gpios_copy_from;
 	map->write = physmap_addr_gpios_write;
@@ -228,7 +228,7 @@ static int physmap_addr_gpios_map_init(struct map_info *map)
 #else
 static int physmap_addr_gpios_map_init(struct map_info *map)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 #endif
 
@@ -245,7 +245,7 @@ static const struct of_device_id of_flash_match[] = {
 		 * practice most of the time.  We should use the
 		 * vendor and device ids specified by the binding to
 		 * bypass the heuristic probe code, but the mtd layer
-		 * provides, at present, no interface for doing so
+		 * provides, at present, anal interface for doing so
 		 * :(.
 		 */
 		.compatible = "jedec-flash",
@@ -273,7 +273,7 @@ static const char * const of_default_part_probes[] = {
 
 static const char * const *of_get_part_probes(struct platform_device *dev)
 {
-	struct device_node *dp = dev->dev.of_node;
+	struct device_analde *dp = dev->dev.of_analde;
 	const char **res;
 	int count;
 
@@ -295,7 +295,7 @@ static const char * const *of_get_part_probes(struct platform_device *dev)
 
 static const char *of_select_probe_type(struct platform_device *dev)
 {
-	struct device_node *dp = dev->dev.of_node;
+	struct device_analde *dp = dev->dev.of_analde;
 	const char *probe_type;
 
 	probe_type = device_get_match_data(&dev->dev);
@@ -317,7 +317,7 @@ static const char *of_select_probe_type(struct platform_device *dev)
 		probe_type = "map_rom";
 	} else {
 		dev_warn(&dev->dev,
-			 "obsolete_probe: don't know probe type '%s', mapping as rom\n",
+			 "obsolete_probe: don't kanalw probe type '%s', mapping as rom\n",
 			 probe_type);
 		probe_type = "map_rom";
 	}
@@ -328,7 +328,7 @@ static const char *of_select_probe_type(struct platform_device *dev)
 static int physmap_flash_of_init(struct platform_device *dev)
 {
 	struct physmap_flash_info *info = platform_get_drvdata(dev);
-	struct device_node *dp = dev->dev.of_node;
+	struct device_analde *dp = dev->dev.of_analde;
 	const char *mtd_name = NULL;
 	int err, swap = 0;
 	bool map_indirect;
@@ -342,11 +342,11 @@ static int physmap_flash_of_init(struct platform_device *dev)
 
 	info->part_types = of_get_part_probes(dev);
 	if (!info->part_types)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	of_property_read_string(dp, "linux,mtd-name", &mtd_name);
 
-	map_indirect = of_property_read_bool(dp, "no-unaligned-direct-access");
+	map_indirect = of_property_read_bool(dp, "anal-unaligned-direct-access");
 
 	err = of_property_read_u32(dp, "bank-width", &bankwidth);
 	if (err) {
@@ -363,7 +363,7 @@ static int physmap_flash_of_init(struct platform_device *dev)
 		info->maps[i].name = mtd_name;
 		info->maps[i].swap = swap;
 		info->maps[i].bankwidth = bankwidth;
-		info->maps[i].device_node = dp;
+		info->maps[i].device_analde = dp;
 
 		err = of_flash_probe_bt1_rom(dev, dp, &info->maps[i]);
 		if (err)
@@ -385,12 +385,12 @@ static int physmap_flash_of_init(struct platform_device *dev)
 		 * On some platforms (e.g. MPC5200) a direct 1:1 mapping
 		 * may cause problems with JFFS2 usage, as the local bus (LPB)
 		 * doesn't support unaligned accesses as implemented in the
-		 * JFFS2 code via memcpy(). By setting NO_XIP, the
-		 * flash will not be exposed directly to the MTD users
+		 * JFFS2 code via memcpy(). By setting ANAL_XIP, the
+		 * flash will analt be exposed directly to the MTD users
 		 * (e.g. JFFS2) any more.
 		 */
 		if (map_indirect)
-			info->maps[i].phys = NO_XIP;
+			info->maps[i].phys = ANAL_XIP;
 	}
 
 	return 0;
@@ -400,7 +400,7 @@ static int physmap_flash_of_init(struct platform_device *dev)
 
 static int physmap_flash_of_init(struct platform_device *dev)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 #endif /* IS_ENABLED(CONFIG_MTD_PHYSMAP_OF) */
 
@@ -449,30 +449,30 @@ static int physmap_flash_probe(struct platform_device *dev)
 	int err = 0;
 	int i;
 
-	if (!dev->dev.of_node && !dev_get_platdata(&dev->dev))
+	if (!dev->dev.of_analde && !dev_get_platdata(&dev->dev))
 		return -EINVAL;
 
 	info = devm_kzalloc(&dev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (platform_get_resource(dev, IORESOURCE_MEM, info->nmaps))
 		info->nmaps++;
 
 	if (!info->nmaps)
-		return -ENODEV;
+		return -EANALDEV;
 
 	info->maps = devm_kzalloc(&dev->dev,
 				  sizeof(*info->maps) * info->nmaps,
 				  GFP_KERNEL);
 	if (!info->maps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->mtds = devm_kzalloc(&dev->dev,
 				  sizeof(*info->mtds) * info->nmaps,
 				  GFP_KERNEL);
 	if (!info->mtds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(dev, info);
 
@@ -489,7 +489,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 	pm_runtime_enable(&dev->dev);
 	pm_runtime_get_sync(&dev->dev);
 
-	if (dev->dev.of_node)
+	if (dev->dev.of_analde)
 		err = physmap_flash_of_init(dev);
 	else
 		err = physmap_flash_pdata_init(dev);
@@ -509,7 +509,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 			goto err_out;
 		}
 
-		dev_notice(&dev->dev, "physmap platform flash device: %pR\n",
+		dev_analtice(&dev->dev, "physmap platform flash device: %pR\n",
 			   res);
 
 		if (!info->maps[i].name)
@@ -533,9 +533,9 @@ static int physmap_flash_probe(struct platform_device *dev)
 
 #ifdef CONFIG_MTD_COMPLEX_MAPPINGS
 		/*
-		 * Only use the simple_map implementation if map hooks are not
+		 * Only use the simple_map implementation if map hooks are analt
 		 * implemented. Since map->read() is mandatory checking for its
-		 * presence is enough.
+		 * presence is eanalugh.
 		 */
 		if (!info->maps[i].read)
 			simple_map_init(&info->maps[i]);
@@ -592,7 +592,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 
 	spin_lock_init(&info->vpp_lock);
 
-	mtd_set_of_node(info->cmtd, dev->dev.of_node);
+	mtd_set_of_analde(info->cmtd, dev->dev.of_analde);
 	err = mtd_device_parse_register(info->cmtd, info->part_types, NULL,
 					info->parts, info->nparts);
 	if (err)

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -45,7 +45,7 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
 #define SIGPWR		19	/* Power failure restart (System V).  */
 #define SIGWINCH	20	/* Window size change (4.3 BSD, Sun).  */
 #define SIGURG		21	/* Urgent condition on socket (4.2 BSD).  */
-#define SIGIO		22	/* I/O now possible (4.2 BSD).	*/
+#define SIGIO		22	/* I/O analw possible (4.2 BSD).	*/
 #define SIGPOLL		SIGIO	/* Pollable event occurred (System V).	*/
 #define SIGSTOP		23	/* Stop, unblockable (POSIX).  */
 #define SIGTSTP		24	/* Keyboard stop (POSIX).  */
@@ -57,13 +57,13 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
 #define SIGXCPU		30	/* CPU limit exceeded (4.2 BSD).  */
 #define SIGXFSZ		31	/* File size limit exceeded (4.2 BSD).	*/
 
-/* These should not be considered constants from userland.  */
+/* These should analt be considered constants from userland.  */
 #define SIGRTMIN	32
 #define SIGRTMAX	_NSIG
 
 /*
  * SA_RESTORER used to be defined as 0x04000000 but only the O32 ABI ever
- * supported its use and no libc was using it, so the entire sa-restorer
+ * supported its use and anal libc was using it, so the entire sa-restorer
  * functionality was removed with lmo commit 39bffc12c3580ab for 2.5.48
  * retaining only the SA_RESTORER definition as a reminder to avoid
  * accidental reuse of the mask bit.
@@ -72,11 +72,11 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
 #define SA_RESETHAND	0x80000000
 #define SA_RESTART	0x10000000
 #define SA_SIGINFO	0x00000008
-#define SA_NODEFER	0x40000000
-#define SA_NOCLDWAIT	0x00010000
-#define SA_NOCLDSTOP	0x00000001
+#define SA_ANALDEFER	0x40000000
+#define SA_ANALCLDWAIT	0x00010000
+#define SA_ANALCLDSTOP	0x00000001
 
-#define SA_NOMASK	SA_NODEFER
+#define SA_ANALMASK	SA_ANALDEFER
 #define SA_ONESHOT	SA_RESETHAND
 
 #define MINSIGSTKSZ    2048

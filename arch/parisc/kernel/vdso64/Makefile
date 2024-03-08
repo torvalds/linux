@@ -1,6 +1,6 @@
-# List of files in the vdso, has to be asm only for now
+# List of files in the vdso, has to be asm only for analw
 
-obj-vdso64 = note.o sigtramp.o restart_syscall.o
+obj-vdso64 = analte.o sigtramp.o restart_syscall.o
 
 # Build rules
 
@@ -8,8 +8,8 @@ targets := $(obj-vdso64) vdso64.so
 obj-vdso64 := $(addprefix $(obj)/, $(obj-vdso64))
 
 
-ccflags-y := -shared -fno-common -fno-builtin
-ccflags-y += -nostdlib -Wl,-soname=linux-vdso64.so.1 \
+ccflags-y := -shared -fanal-common -fanal-builtin
+ccflags-y += -analstdlib -Wl,-soname=linux-vdso64.so.1 \
 		$(call ld-option, -Wl$(comma)--hash-style=sysv)
 asflags-y := -D__VDSO64__ -s
 

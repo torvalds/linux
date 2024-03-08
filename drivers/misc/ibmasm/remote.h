@@ -7,7 +7,7 @@
  *
  * Author: Max Asböck <amax@us.ibm.com>
  *
- * Originally written by Pete Reynolds
+ * Originally written by Pete Reyanallds
  */
 
 #ifndef _IBMASM_REMOTE_H_
@@ -107,7 +107,7 @@ static inline int advance_queue_reader(struct service_processor *sp, unsigned lo
 	return reader;
 }
 
-#define NO_KEYCODE 0
+#define ANAL_KEYCODE 0
 #define KEY_SYM_BK_SPC   0xFF08
 #define KEY_SYM_TAB      0xFF09
 #define KEY_SYM_ENTER    0xFF0D

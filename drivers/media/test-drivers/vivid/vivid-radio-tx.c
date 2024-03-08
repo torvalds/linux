@@ -5,7 +5,7 @@
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
 #include <linux/delay.h>
@@ -52,7 +52,7 @@ retry:
 		dev->radio_tx_rds_last_block = blk - VIVID_RDS_GEN_BLOCKS + 1;
 
 	/*
-	 * No data is available if there hasn't been time to get new data,
+	 * Anal data is available if there hasn't been time to get new data,
 	 * or if the RDS receiver has been disabled, or if we use the data
 	 * from the RDS transmitter and that RDS transmitter has been disabled,
 	 * or if the signal quality is too weak.
@@ -60,7 +60,7 @@ retry:
 	if (blk == dev->radio_tx_rds_last_block ||
 	    !(dev->radio_tx_subchans & V4L2_TUNER_SUB_RDS)) {
 		mutex_unlock(&dev->mutex);
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EWOULDBLOCK;
 		if (msleep_interruptible(20) && signal_pending(current))
 			return -EINTR;
@@ -93,7 +93,7 @@ retry:
 
 __poll_t vivid_radio_tx_poll(struct file *file, struct poll_table_struct *wait)
 {
-	return EPOLLOUT | EPOLLWRNORM | v4l2_ctrl_poll(file, wait);
+	return EPOLLOUT | EPOLLWRANALRM | v4l2_ctrl_poll(file, wait);
 }
 
 int vidioc_g_modulator(struct file *file, void *fh, struct v4l2_modulator *a)

@@ -48,11 +48,11 @@ static int switch_drv_probe(struct platform_device *pdev)
 
 	psw = kzalloc(sizeof(struct push_switch), GFP_KERNEL);
 	if (unlikely(!psw))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq = platform_get_irq(pdev, 0);
 	if (unlikely(irq < 0)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -120,7 +120,7 @@ static struct platform_driver switch_driver = {
 
 static int __init switch_init(void)
 {
-	printk(KERN_NOTICE DRV_NAME ": version %s loaded\n", DRV_VERSION);
+	printk(KERN_ANALTICE DRV_NAME ": version %s loaded\n", DRV_VERSION);
 	return platform_driver_register(&switch_driver);
 }
 

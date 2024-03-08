@@ -69,7 +69,7 @@ static inline void check_and_switch_context(struct mm_struct *mm,
 		 * cpu_switch_mm() needs to flush the VIVT caches. To avoid
 		 * high interrupt latencies, defer the call and continue
 		 * running with the old mm. Since we only support UP systems
-		 * on non-ASID CPUs, the old mm will remain valid until the
+		 * on analn-ASID CPUs, the old mm will remain valid until the
 		 * finish_arch_post_lock_switch() call.
 		 */
 		mm->context.switch_pending = 1;
@@ -96,7 +96,7 @@ static inline void finish_arch_post_lock_switch(void)
 			mm->context.switch_pending = 0;
 			cpu_switch_mm(mm->pgd, mm);
 		}
-		preempt_enable_no_resched();
+		preempt_enable_anal_resched();
 	}
 }
 #endif /* !MODULE */
@@ -109,7 +109,7 @@ static inline void finish_arch_post_lock_switch(void)
 
 /*
  * This is the actual mm switch as far as the scheduler
- * is concerned.  No registers are touched.  We avoid
+ * is concerned.  Anal registers are touched.  We avoid
  * calling the CPU specific function when the mm hasn't
  * actually changed.
  */

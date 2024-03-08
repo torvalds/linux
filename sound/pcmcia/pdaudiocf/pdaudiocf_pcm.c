@@ -51,7 +51,7 @@ static int pdacf_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 		mask = 0;
 		val = PDAUDIOCF_RECORD;
 		inc = 1;
-		rate = snd_ak4117_check_rate_and_errors(chip->ak4117, AK4117_CHECK_NO_STAT|AK4117_CHECK_NO_RATE);
+		rate = snd_ak4117_check_rate_and_errors(chip->ak4117, AK4117_CHECK_ANAL_STAT|AK4117_CHECK_ANAL_RATE);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -79,7 +79,7 @@ static int pdacf_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 	pdacf_reg_write(chip, PDAUDIOCF_REG_SCR, tmp);
       __end:
 	mutex_unlock(&chip->reg_lock);
-	snd_ak4117_check_rate_and_errors(chip->ak4117, AK4117_CHECK_NO_RATE);
+	snd_ak4117_check_rate_and_errors(chip->ak4117, AK4117_CHECK_ANAL_RATE);
 	return ret;
 }
 
@@ -262,7 +262,7 @@ int snd_pdacf_pcm_new(struct snd_pdacf *chip)
 
 	pcm->private_data = chip;
 	pcm->info_flags = 0;
-	pcm->nonatomic = true;
+	pcm->analnatomic = true;
 	strcpy(pcm->name, chip->card->shortname);
 	chip->pcm = pcm;
 	

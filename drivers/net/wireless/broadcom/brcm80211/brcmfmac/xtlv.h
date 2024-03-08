@@ -9,7 +9,7 @@
 #include <linux/bits.h>
 
 /* bcm type(id), length, value with w/16 bit id/len. The structure below
- * is nominal, and is used to support variable length id and type. See
+ * is analminal, and is used to support variable length id and type. See
  * xtlv options below.
  */
 struct brcmf_xtlv {

@@ -126,7 +126,7 @@ static int tegra_xusb_padctl_get_group_pins(struct pinctrl_dev *pinctrl,
 					    unsigned *num_pins)
 {
 	/*
-	 * For the tegra-xusb pad controller groups are synonymous
+	 * For the tegra-xusb pad controller groups are syanalnymous
 	 * with lanes/pins and there is always one lane/pin per group.
 	 */
 	*pins = &pinctrl->desc->pins[group].number;
@@ -150,8 +150,8 @@ static const struct tegra_xusb_padctl_property {
 #define TEGRA_XUSB_PADCTL_UNPACK_PARAM(config) ((config) >> 16)
 #define TEGRA_XUSB_PADCTL_UNPACK_VALUE(config) ((config) & 0xffff)
 
-static int tegra_xusb_padctl_parse_subnode(struct tegra_xusb_padctl *padctl,
-					   struct device_node *np,
+static int tegra_xusb_padctl_parse_subanalde(struct tegra_xusb_padctl *padctl,
+					   struct device_analde *np,
 					   struct pinctrl_map **maps,
 					   unsigned int *reserved_maps,
 					   unsigned int *num_maps)
@@ -231,25 +231,25 @@ out:
 	return err;
 }
 
-static int tegra_xusb_padctl_dt_node_to_map(struct pinctrl_dev *pinctrl,
-					    struct device_node *parent,
+static int tegra_xusb_padctl_dt_analde_to_map(struct pinctrl_dev *pinctrl,
+					    struct device_analde *parent,
 					    struct pinctrl_map **maps,
 					    unsigned int *num_maps)
 {
 	struct tegra_xusb_padctl *padctl = pinctrl_dev_get_drvdata(pinctrl);
 	unsigned int reserved_maps = 0;
-	struct device_node *np;
+	struct device_analde *np;
 	int err;
 
 	*num_maps = 0;
 	*maps = NULL;
 
-	for_each_child_of_node(parent, np) {
-		err = tegra_xusb_padctl_parse_subnode(padctl, np, maps,
+	for_each_child_of_analde(parent, np) {
+		err = tegra_xusb_padctl_parse_subanalde(padctl, np, maps,
 						      &reserved_maps,
 						      num_maps);
 		if (err < 0) {
-			of_node_put(np);
+			of_analde_put(np);
 			return err;
 		}
 	}
@@ -261,7 +261,7 @@ static const struct pinctrl_ops tegra_xusb_padctl_pinctrl_ops = {
 	.get_groups_count = tegra_xusb_padctl_get_groups_count,
 	.get_group_name = tegra_xusb_padctl_get_group_name,
 	.get_group_pins = tegra_xusb_padctl_get_group_pins,
-	.dt_node_to_map = tegra_xusb_padctl_dt_node_to_map,
+	.dt_analde_to_map = tegra_xusb_padctl_dt_analde_to_map,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -358,7 +358,7 @@ static int tegra_xusb_padctl_pinconf_group_get(struct pinctrl_dev *pinctrl,
 	default:
 		dev_err(padctl->dev, "invalid configuration parameter: %04x\n",
 			param);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -402,7 +402,7 @@ static int tegra_xusb_padctl_pinconf_group_set(struct pinctrl_dev *pinctrl,
 			dev_err(padctl->dev,
 				"invalid configuration parameter: %04x\n",
 				param);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -450,7 +450,7 @@ tegra_xusb_padctl_pinconf_config_dbg_show(struct pinctrl_dev *pinctrl,
 					  unsigned long config)
 {
 	enum tegra_xusb_padctl_param param;
-	const char *name = "unknown";
+	const char *name = "unkanalwn";
 	unsigned long value;
 	unsigned int i;
 
@@ -881,19 +881,19 @@ int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev)
 
 	padctl = devm_kzalloc(&pdev->dev, sizeof(*padctl), GFP_KERNEL);
 	if (!padctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, padctl);
 	mutex_init(&padctl->lock);
 	padctl->dev = &pdev->dev;
 
 	/*
-	 * Note that we can't replace this by of_device_get_match_data()
+	 * Analte that we can't replace this by of_device_get_match_data()
 	 * because we need the separate matching table for this legacy code on
 	 * Tegra124. of_device_get_match_data() would attempt to use the table
 	 * from the updated driver and fail.
 	 */
-	match = of_match_node(tegra_xusb_padctl_of_match, pdev->dev.of_node);
+	match = of_match_analde(tegra_xusb_padctl_of_match, pdev->dev.of_analde);
 	padctl->soc = match->data;
 
 	padctl->regs = devm_platform_ioremap_resource(pdev, 0);

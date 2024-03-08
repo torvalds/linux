@@ -7,10 +7,10 @@
  *
  * permission is granted to use, copy, create derivative works and
  * redistribute this software and such derivative works for any purpose,
- * so long as the name of the university of michigan is not used in
+ * so long as the name of the university of michigan is analt used in
  * any advertising or publicity pertaining to the use or distribution
  * of this software without specific, written prior authorization.  if
- * the above copyright notice or any other identification of the
+ * the above copyright analtice or any other identification of the
  * university of michigan is included in any copy of any portion of
  * this software, then the disclaimer below must also be included.
  *
@@ -19,7 +19,7 @@
  * warranty by the university of michigan of any kind, either express
  * or implied, including without limitation the implied warranties of
  * merchantability and fitness for a particular purpose.  the regents
- * of the university of michigan shall not be liable for any damages,
+ * of the university of michigan shall analt be liable for any damages,
  * including special, indirect, incidental, or consequential damages,
  * with respect to any claim arising out or in connection with the use
  * of the software, even if it has been or is hereafter advised of the
@@ -100,7 +100,7 @@ bl_resolve_deviceid(struct nfs_server *server, struct pnfs_block_volume *b,
 		goto out_free_data;
 	}
 
-	dev = MKDEV(reply->major, reply->minor);
+	dev = MKDEV(reply->major, reply->mianalr);
 out_free_data:
 	kfree(msg->data);
 out_unlock:
@@ -111,7 +111,7 @@ out_unlock:
 static ssize_t bl_pipe_downcall(struct file *filp, const char __user *src,
 			 size_t mlen)
 {
-	struct nfs_net *nn = net_generic(file_inode(filp)->i_sb->s_fs_info,
+	struct nfs_net *nn = net_generic(file_ianalde(filp)->i_sb->s_fs_info,
 					 nfs_net_id);
 
 	if (mlen != sizeof (struct bl_dev_msg))
@@ -130,7 +130,7 @@ static void bl_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 	struct bl_pipe_msg *bl_pipe_msg =
 		container_of(msg, struct bl_pipe_msg, msg);
 
-	if (msg->errno >= 0)
+	if (msg->erranal >= 0)
 		return;
 	wake_up(bl_pipe_msg->bl_wq);
 }
@@ -148,7 +148,7 @@ static struct dentry *nfs4blocklayout_register_sb(struct super_block *sb,
 
 	dir = rpc_d_lookup_sb(sb, NFS_PIPE_DIRNAME);
 	if (dir == NULL)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	dentry = rpc_mkpipe_dentry(dir, "blocklayout", NULL, pipe);
 	dput(dir);
 	return dentry;
@@ -161,7 +161,7 @@ static void nfs4blocklayout_unregister_sb(struct super_block *sb,
 		rpc_unlink(pipe->dentry);
 }
 
-static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
+static int rpc_pipefs_event(struct analtifier_block *nb, unsigned long event,
 			   void *ptr)
 {
 	struct super_block *sb = ptr;
@@ -192,15 +192,15 @@ static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 			nfs4blocklayout_unregister_sb(sb, nn->bl_device_pipe);
 		break;
 	default:
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		break;
 	}
 	module_put(THIS_MODULE);
 	return ret;
 }
 
-static struct notifier_block nfs4blocklayout_block = {
-	.notifier_call = rpc_pipefs_event,
+static struct analtifier_block nfs4blocklayout_block = {
+	.analtifier_call = rpc_pipefs_event,
 };
 
 static struct dentry *nfs4blocklayout_register_net(struct net *net,
@@ -266,22 +266,22 @@ int __init bl_init_pipefs(void)
 {
 	int ret;
 
-	ret = rpc_pipefs_notifier_register(&nfs4blocklayout_block);
+	ret = rpc_pipefs_analtifier_register(&nfs4blocklayout_block);
 	if (ret)
 		goto out;
 	ret = register_pernet_subsys(&nfs4blocklayout_net_ops);
 	if (ret)
-		goto out_unregister_notifier;
+		goto out_unregister_analtifier;
 	return 0;
 
-out_unregister_notifier:
-	rpc_pipefs_notifier_unregister(&nfs4blocklayout_block);
+out_unregister_analtifier:
+	rpc_pipefs_analtifier_unregister(&nfs4blocklayout_block);
 out:
 	return ret;
 }
 
 void bl_cleanup_pipefs(void)
 {
-	rpc_pipefs_notifier_unregister(&nfs4blocklayout_block);
+	rpc_pipefs_analtifier_unregister(&nfs4blocklayout_block);
 	unregister_pernet_subsys(&nfs4blocklayout_net_ops);
 }

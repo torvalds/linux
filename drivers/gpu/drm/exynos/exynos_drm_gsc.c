@@ -19,10 +19,10 @@
 
 #include <drm/drm_fourcc.h>
 #include <drm/drm_print.h>
-#include <drm/exynos_drm.h>
+#include <drm/exyanals_drm.h>
 
-#include "exynos_drm_drv.h"
-#include "exynos_drm_ipp.h"
+#include "exyanals_drm_drv.h"
+#include "exyanals_drm_ipp.h"
 #include "regs-gsc.h"
 
 /*
@@ -95,12 +95,12 @@ struct gsc_scaler {
  * @rotation: supports rotation of src.
  */
 struct gsc_context {
-	struct exynos_drm_ipp ipp;
+	struct exyanals_drm_ipp ipp;
 	struct drm_device *drm_dev;
 	void		*dma_priv;
 	struct device	*dev;
-	struct exynos_drm_ipp_task	*task;
-	struct exynos_drm_ipp_formats	*formats;
+	struct exyanals_drm_ipp_task	*task;
+	struct exyanals_drm_ipp_formats	*formats;
 	unsigned int			num_formats;
 
 	void __iomem	*regs;
@@ -122,7 +122,7 @@ struct gsc_context {
  * @num_clocks: the number of clocks needed by this variant
  */
 struct gsc_driverdata {
-	const struct drm_exynos_ipp_limit *limits;
+	const struct drm_exyanals_ipp_limit *limits;
 	int		num_limits;
 	const char	*clk_names[GSC_MAX_CLOCKS];
 	int		num_clocks;
@@ -562,7 +562,7 @@ static void gsc_src_set_transf(struct gsc_context *ctx, unsigned int rotation)
 }
 
 static void gsc_src_set_size(struct gsc_context *ctx,
-			     struct exynos_drm_ipp_buffer *buf)
+			     struct exyanals_drm_ipp_buffer *buf)
 {
 	struct gsc_scaler *sc = &ctx->sc;
 	u32 cfg;
@@ -623,7 +623,7 @@ static void gsc_src_set_buf_seq(struct gsc_context *ctx, u32 buf_id,
 }
 
 static void gsc_src_set_addr(struct gsc_context *ctx, u32 buf_id,
-			    struct exynos_drm_ipp_buffer *buf)
+			    struct exyanals_drm_ipp_buffer *buf)
 {
 	/* address register set */
 	gsc_write(buf->dma_addr[0], GSC_IN_BASE_ADDR_Y(buf_id));
@@ -741,8 +741,8 @@ static void gsc_get_prescaler_shfactor(u32 hratio, u32 vratio, u32 *shfactor)
 }
 
 static int gsc_set_prescaler(struct gsc_context *ctx, struct gsc_scaler *sc,
-			     struct drm_exynos_ipp_task_rect *src,
-			     struct drm_exynos_ipp_task_rect *dst)
+			     struct drm_exyanals_ipp_task_rect *src,
+			     struct drm_exyanals_ipp_task_rect *dst)
 {
 	u32 cfg;
 	u32 src_w, src_h, dst_w, dst_h;
@@ -862,7 +862,7 @@ static void gsc_set_scaler(struct gsc_context *ctx, struct gsc_scaler *sc)
 }
 
 static void gsc_dst_set_size(struct gsc_context *ctx,
-			     struct exynos_drm_ipp_buffer *buf)
+			     struct exyanals_drm_ipp_buffer *buf)
 {
 	struct gsc_scaler *sc = &ctx->sc;
 	u32 cfg;
@@ -948,7 +948,7 @@ static void gsc_dst_set_buf_seq(struct gsc_context *ctx, u32 buf_id,
 }
 
 static void gsc_dst_set_addr(struct gsc_context *ctx,
-			     u32 buf_id, struct exynos_drm_ipp_buffer *buf)
+			     u32 buf_id, struct exyanals_drm_ipp_buffer *buf)
 {
 	/* address register set */
 	gsc_write(buf->dma_addr[0], GSC_OUT_BASE_ADDR_Y(buf_id));
@@ -1050,12 +1050,12 @@ static irqreturn_t gsc_irq_handler(int irq, void *dev_id)
 	}
 
 	if (ctx->task) {
-		struct exynos_drm_ipp_task *task = ctx->task;
+		struct exyanals_drm_ipp_task *task = ctx->task;
 
 		ctx->task = NULL;
 		pm_runtime_mark_last_busy(ctx->dev);
 		pm_runtime_put_autosuspend(ctx->dev);
-		exynos_drm_ipp_task_done(task, err);
+		exyanals_drm_ipp_task_done(task, err);
 	}
 
 	return IRQ_HANDLED;
@@ -1111,8 +1111,8 @@ static void gsc_start(struct gsc_context *ctx)
 	gsc_write(cfg, GSC_ENABLE);
 }
 
-static int gsc_commit(struct exynos_drm_ipp *ipp,
-			  struct exynos_drm_ipp_task *task)
+static int gsc_commit(struct exyanals_drm_ipp *ipp,
+			  struct exyanals_drm_ipp_task *task)
 {
 	struct gsc_context *ctx = container_of(ipp, struct gsc_context, ipp);
 	int ret;
@@ -1145,24 +1145,24 @@ static int gsc_commit(struct exynos_drm_ipp *ipp,
 	return 0;
 }
 
-static void gsc_abort(struct exynos_drm_ipp *ipp,
-			  struct exynos_drm_ipp_task *task)
+static void gsc_abort(struct exyanals_drm_ipp *ipp,
+			  struct exyanals_drm_ipp_task *task)
 {
 	struct gsc_context *ctx =
 			container_of(ipp, struct gsc_context, ipp);
 
 	gsc_reset(ctx);
 	if (ctx->task) {
-		struct exynos_drm_ipp_task *task = ctx->task;
+		struct exyanals_drm_ipp_task *task = ctx->task;
 
 		ctx->task = NULL;
 		pm_runtime_mark_last_busy(ctx->dev);
 		pm_runtime_put_autosuspend(ctx->dev);
-		exynos_drm_ipp_task_done(task, -EIO);
+		exyanals_drm_ipp_task_done(task, -EIO);
 	}
 }
 
-static struct exynos_drm_ipp_funcs ipp_funcs = {
+static struct exyanals_drm_ipp_funcs ipp_funcs = {
 	.commit = gsc_commit,
 	.abort = gsc_abort,
 };
@@ -1171,18 +1171,18 @@ static int gsc_bind(struct device *dev, struct device *master, void *data)
 {
 	struct gsc_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_ipp *ipp = &ctx->ipp;
+	struct exyanals_drm_ipp *ipp = &ctx->ipp;
 
 	ctx->drm_dev = drm_dev;
 	ctx->drm_dev = drm_dev;
-	exynos_drm_register_dma(drm_dev, dev, &ctx->dma_priv);
+	exyanals_drm_register_dma(drm_dev, dev, &ctx->dma_priv);
 
-	exynos_drm_ipp_register(dev, ipp, &ipp_funcs,
-			DRM_EXYNOS_IPP_CAP_CROP | DRM_EXYNOS_IPP_CAP_ROTATE |
-			DRM_EXYNOS_IPP_CAP_SCALE | DRM_EXYNOS_IPP_CAP_CONVERT,
+	exyanals_drm_ipp_register(dev, ipp, &ipp_funcs,
+			DRM_EXYANALS_IPP_CAP_CROP | DRM_EXYANALS_IPP_CAP_ROTATE |
+			DRM_EXYANALS_IPP_CAP_SCALE | DRM_EXYANALS_IPP_CAP_CONVERT,
 			ctx->formats, ctx->num_formats, "gsc");
 
-	dev_info(dev, "The exynos gscaler has been probed successfully\n");
+	dev_info(dev, "The exyanals gscaler has been probed successfully\n");
 
 	return 0;
 }
@@ -1192,10 +1192,10 @@ static void gsc_unbind(struct device *dev, struct device *master,
 {
 	struct gsc_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_ipp *ipp = &ctx->ipp;
+	struct exyanals_drm_ipp *ipp = &ctx->ipp;
 
-	exynos_drm_ipp_unregister(dev, ipp);
-	exynos_drm_unregister_dma(drm_dev, dev, &ctx->dma_priv);
+	exyanals_drm_ipp_unregister(dev, ipp);
+	exyanals_drm_unregister_dma(drm_dev, dev, &ctx->dma_priv);
 }
 
 static const struct component_ops gsc_component_ops = {
@@ -1219,13 +1219,13 @@ static int gsc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct gsc_driverdata *driver_data;
-	struct exynos_drm_ipp_formats *formats;
+	struct exyanals_drm_ipp_formats *formats;
 	struct gsc_context *ctx;
 	int num_formats, ret, i, j;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	driver_data = device_get_match_data(dev);
 	ctx->dev = dev;
@@ -1236,13 +1236,13 @@ static int gsc_probe(struct platform_device *pdev)
 	num_formats = ARRAY_SIZE(gsc_formats) + ARRAY_SIZE(gsc_tiled_formats);
 	formats = devm_kcalloc(dev, num_formats, sizeof(*formats), GFP_KERNEL);
 	if (!formats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* linear formats */
 	for (i = 0; i < ARRAY_SIZE(gsc_formats); i++) {
 		formats[i].fourcc = gsc_formats[i];
-		formats[i].type = DRM_EXYNOS_IPP_FORMAT_SOURCE |
-				  DRM_EXYNOS_IPP_FORMAT_DESTINATION;
+		formats[i].type = DRM_EXYANALS_IPP_FORMAT_SOURCE |
+				  DRM_EXYANALS_IPP_FORMAT_DESTINATION;
 		formats[i].limits = driver_data->limits;
 		formats[i].num_limits = driver_data->num_limits;
 	}
@@ -1251,8 +1251,8 @@ static int gsc_probe(struct platform_device *pdev)
 	for (j = i, i = 0; i < ARRAY_SIZE(gsc_tiled_formats); j++, i++) {
 		formats[j].fourcc = gsc_tiled_formats[i];
 		formats[j].modifier = DRM_FORMAT_MOD_SAMSUNG_16_16_TILE;
-		formats[j].type = DRM_EXYNOS_IPP_FORMAT_SOURCE |
-				  DRM_EXYNOS_IPP_FORMAT_DESTINATION;
+		formats[j].type = DRM_EXYANALS_IPP_FORMAT_SOURCE |
+				  DRM_EXYANALS_IPP_FORMAT_DESTINATION;
 		formats[j].limits = driver_data->limits;
 		formats[j].num_limits = driver_data->num_limits;
 	}
@@ -1355,7 +1355,7 @@ static const struct dev_pm_ops gsc_pm_ops = {
 	SET_RUNTIME_PM_OPS(gsc_runtime_suspend, gsc_runtime_resume, NULL)
 };
 
-static const struct drm_exynos_ipp_limit gsc_5250_limits[] = {
+static const struct drm_exyanals_ipp_limit gsc_5250_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 32, 4800, 8 }, .v = { 16, 3344, 8 }) },
 	{ IPP_SIZE_LIMIT(AREA, .h = { 16, 4800, 2 }, .v = { 8, 3344, 2 }) },
 	{ IPP_SIZE_LIMIT(ROTATED, .h = { 32, 2048 }, .v = { 16, 2048 }) },
@@ -1363,7 +1363,7 @@ static const struct drm_exynos_ipp_limit gsc_5250_limits[] = {
 			  .v = { (1 << 16) / 16, (1 << 16) * 8 }) },
 };
 
-static const struct drm_exynos_ipp_limit gsc_5420_limits[] = {
+static const struct drm_exyanals_ipp_limit gsc_5420_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 32, 4800, 8 }, .v = { 16, 3344, 8 }) },
 	{ IPP_SIZE_LIMIT(AREA, .h = { 16, 4800, 2 }, .v = { 8, 3344, 2 }) },
 	{ IPP_SIZE_LIMIT(ROTATED, .h = { 16, 2016 }, .v = { 8, 2016 }) },
@@ -1371,7 +1371,7 @@ static const struct drm_exynos_ipp_limit gsc_5420_limits[] = {
 			  .v = { (1 << 16) / 16, (1 << 16) * 8 }) },
 };
 
-static const struct drm_exynos_ipp_limit gsc_5433_limits[] = {
+static const struct drm_exyanals_ipp_limit gsc_5433_limits[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 32, 8191, 16 }, .v = { 16, 8191, 2 }) },
 	{ IPP_SIZE_LIMIT(AREA, .h = { 16, 4800, 1 }, .v = { 8, 3344, 1 }) },
 	{ IPP_SIZE_LIMIT(ROTATED, .h = { 32, 2047 }, .v = { 8, 8191 }) },
@@ -1379,52 +1379,52 @@ static const struct drm_exynos_ipp_limit gsc_5433_limits[] = {
 			  .v = { (1 << 16) / 16, (1 << 16) * 8 }) },
 };
 
-static struct gsc_driverdata gsc_exynos5250_drvdata = {
+static struct gsc_driverdata gsc_exyanals5250_drvdata = {
 	.clk_names = {"gscl"},
 	.num_clocks = 1,
 	.limits = gsc_5250_limits,
 	.num_limits = ARRAY_SIZE(gsc_5250_limits),
 };
 
-static struct gsc_driverdata gsc_exynos5420_drvdata = {
+static struct gsc_driverdata gsc_exyanals5420_drvdata = {
 	.clk_names = {"gscl"},
 	.num_clocks = 1,
 	.limits = gsc_5420_limits,
 	.num_limits = ARRAY_SIZE(gsc_5420_limits),
 };
 
-static struct gsc_driverdata gsc_exynos5433_drvdata = {
+static struct gsc_driverdata gsc_exyanals5433_drvdata = {
 	.clk_names = {"pclk", "aclk", "aclk_xiu", "aclk_gsclbend"},
 	.num_clocks = 4,
 	.limits = gsc_5433_limits,
 	.num_limits = ARRAY_SIZE(gsc_5433_limits),
 };
 
-static const struct of_device_id exynos_drm_gsc_of_match[] = {
+static const struct of_device_id exyanals_drm_gsc_of_match[] = {
 	{
-		.compatible = "samsung,exynos5-gsc",
-		.data = &gsc_exynos5250_drvdata,
+		.compatible = "samsung,exyanals5-gsc",
+		.data = &gsc_exyanals5250_drvdata,
 	}, {
-		.compatible = "samsung,exynos5250-gsc",
-		.data = &gsc_exynos5250_drvdata,
+		.compatible = "samsung,exyanals5250-gsc",
+		.data = &gsc_exyanals5250_drvdata,
 	}, {
-		.compatible = "samsung,exynos5420-gsc",
-		.data = &gsc_exynos5420_drvdata,
+		.compatible = "samsung,exyanals5420-gsc",
+		.data = &gsc_exyanals5420_drvdata,
 	}, {
-		.compatible = "samsung,exynos5433-gsc",
-		.data = &gsc_exynos5433_drvdata,
+		.compatible = "samsung,exyanals5433-gsc",
+		.data = &gsc_exyanals5433_drvdata,
 	}, {
 	},
 };
-MODULE_DEVICE_TABLE(of, exynos_drm_gsc_of_match);
+MODULE_DEVICE_TABLE(of, exyanals_drm_gsc_of_match);
 
 struct platform_driver gsc_driver = {
 	.probe		= gsc_probe,
 	.remove_new	= gsc_remove,
 	.driver		= {
-		.name	= "exynos-drm-gsc",
+		.name	= "exyanals-drm-gsc",
 		.owner	= THIS_MODULE,
 		.pm	= &gsc_pm_ops,
-		.of_match_table = exynos_drm_gsc_of_match,
+		.of_match_table = exyanals_drm_gsc_of_match,
 	},
 };

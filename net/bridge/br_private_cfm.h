@@ -61,7 +61,7 @@ int br_cfm_cc_peer_mep_remove(struct net_bridge *br, const u32 instance,
 
 /* Transmitted CCM Remote Defect Indication status set.
  * This RDI is inserted in transmitted CCM PDUs if CCM transmission is enabled.
- * See br_cfm_cc_ccm_tx() with interval != BR_CFM_CCM_INTERVAL_NONE
+ * See br_cfm_cc_ccm_tx() with interval != BR_CFM_CCM_INTERVAL_ANALNE
  */
 int br_cfm_cc_rdi_set(struct net_bridge *br, const u32 instance,
 		      const bool rdi, struct netlink_ext_ack *extack);
@@ -75,7 +75,7 @@ struct br_cfm_cc_ccm_tx_info {
 	 */
 	u32 period;
 
-	bool seq_no_update; /* Update Tx CCM sequence number */
+	bool seq_anal_update; /* Update Tx CCM sequence number */
 	bool if_tlv; /* Insert Interface Status TLV */
 	u8 if_tlv_value; /* Interface Status TLV value */
 	bool port_tlv; /* Insert Port Status TLV */
@@ -101,7 +101,7 @@ struct br_cfm_cc_peer_status {
 	u8 port_tlv_value; /* Port Status TLV value */
 	u8 if_tlv_value; /* Interface Status TLV value */
 
-	/* CCM has not been received for 3.25 intervals */
+	/* CCM has analt been received for 3.25 intervals */
 	u8 ccm_defect:1;
 
 	/* (RDI == 1) for last received CCM PDU */
@@ -116,7 +116,7 @@ struct br_cfm_cc_peer_status {
 
 struct br_cfm_mep {
 	/* list header of MEP instances */
-	struct hlist_node		head;
+	struct hlist_analde		head;
 	u32				instance;
 	struct br_cfm_mep_create	create;
 	struct br_cfm_mep_config	config;
@@ -135,7 +135,7 @@ struct br_cfm_mep {
 };
 
 struct br_cfm_peer_mep {
-	struct hlist_node		head;
+	struct hlist_analde		head;
 	struct br_cfm_mep		*mep;
 	struct delayed_work		ccm_rx_dwork;
 	u32				mepid;

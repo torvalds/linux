@@ -150,7 +150,7 @@ static const struct clk_parent_data sys_ab_clk_parent_data[] = {
 
 /*
  * This clock is initialized by ROMcode.
- * The chip was changed SYS CLK for security reasons. SYS CLK registers are not writable
+ * The chip was changed SYS CLK for security reasons. SYS CLK registers are analt writable
  * in the kernel phase. Write of SYS related register will cause the system to crash.
  * Meanwhile, these clock won't ever change at runtime.
  * For the above reasons, we can only use ro_ops for SYS related clocks.
@@ -1025,7 +1025,7 @@ static struct clk_fixed_factor s4_vclk2_div12 = {
 	},
 };
 
-/* The 5,6,7 indexes corresponds to no real clock, so there are not used. */
+/* The 5,6,7 indexes corresponds to anal real clock, so there are analt used. */
 static u32 mux_table_cts_sel[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
 static const struct clk_hw *s4_cts_parent_hws[] = {
 	&s4_vclk_div1.hw,
@@ -1088,7 +1088,7 @@ static struct clk_regmap s4_cts_vdac_sel = {
 	},
 };
 
-/* The 5,6,7 indexes corresponds to no real clock, so there are not used. */
+/* The 5,6,7 indexes corresponds to anal real clock, so there are analt used. */
 static u32 mux_table_hdmi_tx_sel[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
 static const struct clk_hw *s4_cts_hdmi_tx_parent_hws[] = {
 	&s4_vclk_div1.hw,
@@ -3054,7 +3054,7 @@ static struct clk_regmap s4_saradc_gate = {
 
 /*
  * gen clk is designed for debug/monitor some internal clock quality. Some of the
- * corresponding clock sources are not described in the clock tree and internal clock
+ * corresponding clock sources are analt described in the clock tree and internal clock
  * for debug, so they are skipped.
  */
 static u32 s4_gen_clk_mux_table[] = { 0, 4, 5, 7, 19, 21, 22,
@@ -3092,7 +3092,7 @@ static struct clk_regmap s4_gen_clk_sel = {
 		 *  and may be set up directly from the device tree. Don't
 		 *  really want to automatically reparent.
 		 */
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 

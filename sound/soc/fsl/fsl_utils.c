@@ -15,25 +15,25 @@
 #include "fsl_utils.h"
 
 /**
- * fsl_asoc_get_dma_channel - determine the dma channel for a SSI node
+ * fsl_asoc_get_dma_channel - determine the dma channel for a SSI analde
  *
- * @ssi_np: pointer to the SSI device tree node
+ * @ssi_np: pointer to the SSI device tree analde
  * @name: name of the phandle pointing to the dma channel
  * @dai: ASoC DAI link pointer to be filled with platform_name
  * @dma_channel_id: dma channel id to be returned
  * @dma_id: dma id to be returned
  *
- * This function determines the dma and channel id for given SSI node.  It
+ * This function determines the dma and channel id for given SSI analde.  It
  * also discovers the platform_name for the ASoC DAI link.
  */
-int fsl_asoc_get_dma_channel(struct device_node *ssi_np,
+int fsl_asoc_get_dma_channel(struct device_analde *ssi_np,
 			     const char *name,
 			     struct snd_soc_dai_link *dai,
 			     unsigned int *dma_channel_id,
 			     unsigned int *dma_id)
 {
 	struct resource res;
-	struct device_node *dma_channel_np, *dma_np;
+	struct device_analde *dma_channel_np, *dma_np;
 	const __be32 *iprop;
 	int ret;
 
@@ -42,21 +42,21 @@ int fsl_asoc_get_dma_channel(struct device_node *ssi_np,
 		return -EINVAL;
 
 	if (!of_device_is_compatible(dma_channel_np, "fsl,ssi-dma-channel")) {
-		of_node_put(dma_channel_np);
+		of_analde_put(dma_channel_np);
 		return -EINVAL;
 	}
 
-	/* Determine the dev_name for the device_node.  This code mimics the
+	/* Determine the dev_name for the device_analde.  This code mimics the
 	 * behavior of of_device_make_bus_id(). We need this because ASoC uses
 	 * the dev_name() of the device to match the platform (DMA) device with
 	 * the CPU (SSI) device.  It's all ugly and hackish, but it works (for
-	 * now).
+	 * analw).
 	 *
 	 * dai->platform name should already point to an allocated buffer.
 	 */
 	ret = of_address_to_resource(dma_channel_np, 0, &res);
 	if (ret) {
-		of_node_put(dma_channel_np);
+		of_analde_put(dma_channel_np);
 		return ret;
 	}
 	snprintf((char *)dai->platforms->name, DAI_NAME_SIZE, "%llx.%pOFn",
@@ -64,7 +64,7 @@ int fsl_asoc_get_dma_channel(struct device_node *ssi_np,
 
 	iprop = of_get_property(dma_channel_np, "cell-index", NULL);
 	if (!iprop) {
-		of_node_put(dma_channel_np);
+		of_analde_put(dma_channel_np);
 		return -EINVAL;
 	}
 	*dma_channel_id = be32_to_cpup(iprop);
@@ -72,14 +72,14 @@ int fsl_asoc_get_dma_channel(struct device_node *ssi_np,
 	dma_np = of_get_parent(dma_channel_np);
 	iprop = of_get_property(dma_np, "cell-index", NULL);
 	if (!iprop) {
-		of_node_put(dma_np);
-		of_node_put(dma_channel_np);
+		of_analde_put(dma_np);
+		of_analde_put(dma_channel_np);
 		return -EINVAL;
 	}
 	*dma_id = be32_to_cpup(iprop);
 
-	of_node_put(dma_np);
-	of_node_put(dma_channel_np);
+	of_analde_put(dma_np);
+	of_analde_put(dma_channel_np);
 
 	return 0;
 }

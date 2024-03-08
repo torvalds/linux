@@ -21,10 +21,10 @@
  * NB: some bits of priority are dropped to
  *     make room for more ports.
  */
-static inline port_id br_make_port_id(__u8 priority, __u16 port_no)
+static inline port_id br_make_port_id(__u8 priority, __u16 port_anal)
 {
 	return ((u16)priority << BR_PORT_BITS)
-		| (port_no & ((1<<BR_PORT_BITS)-1));
+		| (port_anal & ((1<<BR_PORT_BITS)-1));
 }
 
 #define BR_MAX_PORT_PRIORITY ((u16)~0 >> BR_PORT_BITS)
@@ -34,7 +34,7 @@ void br_init_port(struct net_bridge_port *p)
 {
 	int err;
 
-	p->port_id = br_make_port_id(p->priority, p->port_no);
+	p->port_id = br_make_port_id(p->priority, p->port_anal);
 	br_become_designated_port(p);
 	br_set_state(p, BR_STATE_BLOCKING);
 	p->topology_change_ack = 0;
@@ -45,7 +45,7 @@ void br_init_port(struct net_bridge_port *p)
 		netdev_err(p->dev, "failed to offload ageing time\n");
 }
 
-/* NO locks held */
+/* ANAL locks held */
 void br_stp_enable_bridge(struct net_bridge *br)
 {
 	struct net_bridge_port *p;
@@ -65,7 +65,7 @@ void br_stp_enable_bridge(struct net_bridge *br)
 	spin_unlock_bh(&br->lock);
 }
 
-/* NO locks held */
+/* ANAL locks held */
 void br_stp_disable_bridge(struct net_bridge *br)
 {
 	struct net_bridge_port *p;
@@ -92,7 +92,7 @@ void br_stp_enable_port(struct net_bridge_port *p)
 {
 	br_init_port(p);
 	br_port_state_selection(p->br);
-	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
+	br_ifinfo_analtify(RTM_NEWLINK, NULL, p);
 }
 
 /* called under bridge lock */
@@ -107,7 +107,7 @@ void br_stp_disable_port(struct net_bridge_port *p)
 	p->topology_change_ack = 0;
 	p->config_pending = 0;
 
-	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
+	br_ifinfo_analtify(RTM_NEWLINK, NULL, p);
 
 	del_timer(&p->message_age_timer);
 	del_timer(&p->forward_delay_timer);
@@ -147,12 +147,12 @@ static int br_stp_call_user(struct net_bridge *br, char *arg)
 
 static void br_stp_start(struct net_bridge *br)
 {
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	if (net_eq(dev_net(br->dev), &init_net))
 		err = br_stp_call_user(br, "start");
 
-	if (err && err != -ENOENT)
+	if (err && err != -EANALENT)
 		br_err(br, "failed to start userspace STP (%d)\n", err);
 
 	spin_lock_bh(&br->lock);
@@ -193,7 +193,7 @@ static void br_stp_stop(struct net_bridge *br)
 		spin_unlock_bh(&br->lock);
 	}
 
-	br->stp_enabled = BR_NO_STP;
+	br->stp_enabled = BR_ANAL_STP;
 }
 
 int br_stp_set_enabled(struct net_bridge *br, unsigned long val,
@@ -208,10 +208,10 @@ int br_stp_set_enabled(struct net_bridge *br, unsigned long val,
 	}
 
 	if (val) {
-		if (br->stp_enabled == BR_NO_STP)
+		if (br->stp_enabled == BR_ANAL_STP)
 			br_stp_start(br);
 	} else {
-		if (br->stp_enabled != BR_NO_STP)
+		if (br->stp_enabled != BR_ANAL_STP)
 			br_stp_stop(br);
 	}
 
@@ -272,7 +272,7 @@ bool br_stp_recalculate_bridge_id(struct net_bridge *br)
 	}
 
 	if (ether_addr_equal(br->bridge_id.addr, addr))
-		return false;	/* no change */
+		return false;	/* anal change */
 
 	br_stp_change_bridge_id(br, addr);
 	return true;
@@ -313,7 +313,7 @@ int br_stp_set_port_priority(struct net_bridge_port *p, unsigned long newprio)
 	if (newprio > BR_MAX_PORT_PRIORITY)
 		return -ERANGE;
 
-	new_port_id = br_make_port_id(newprio, p->port_no);
+	new_port_id = br_make_port_id(newprio, p->port_anal);
 	if (br_is_designated_port(p))
 		p->designated_port = new_port_id;
 

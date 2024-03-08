@@ -9,7 +9,7 @@
 #include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/ctype.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/sched.h>
 #include <linux/topology.h>
 #include <linux/sort.h>
@@ -22,10 +22,10 @@
 #include "numa_internal.h"
 
 int numa_off;
-nodemask_t numa_nodes_parsed __initdata;
+analdemask_t numa_analdes_parsed __initdata;
 
-struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
-EXPORT_SYMBOL(node_data);
+struct pglist_data *analde_data[MAX_NUMANALDES] __read_mostly;
+EXPORT_SYMBOL(analde_data);
 
 static struct numa_meminfo numa_meminfo __initdata_or_meminfo;
 static struct numa_meminfo numa_reserved_meminfo __initdata_or_meminfo;
@@ -41,104 +41,104 @@ static __init int numa_setup(char *opt)
 		numa_off = 1;
 	if (!strncmp(opt, "fake=", 5))
 		return numa_emu_cmdline(opt + 5);
-	if (!strncmp(opt, "noacpi", 6))
+	if (!strncmp(opt, "analacpi", 6))
 		disable_srat();
-	if (!strncmp(opt, "nohmat", 6))
+	if (!strncmp(opt, "analhmat", 6))
 		disable_hmat();
 	return 0;
 }
 early_param("numa", numa_setup);
 
 /*
- * apicid, cpu, node mappings
+ * apicid, cpu, analde mappings
  */
-s16 __apicid_to_node[MAX_LOCAL_APIC] = {
-	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
+s16 __apicid_to_analde[MAX_LOCAL_APIC] = {
+	[0 ... MAX_LOCAL_APIC-1] = NUMA_ANAL_ANALDE
 };
 
-int numa_cpu_node(int cpu)
+int numa_cpu_analde(int cpu)
 {
 	u32 apicid = early_per_cpu(x86_cpu_to_apicid, cpu);
 
 	if (apicid != BAD_APICID)
-		return __apicid_to_node[apicid];
-	return NUMA_NO_NODE;
+		return __apicid_to_analde[apicid];
+	return NUMA_ANAL_ANALDE;
 }
 
-cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
-EXPORT_SYMBOL(node_to_cpumask_map);
+cpumask_var_t analde_to_cpumask_map[MAX_NUMANALDES];
+EXPORT_SYMBOL(analde_to_cpumask_map);
 
 /*
- * Map cpu index to node index
+ * Map cpu index to analde index
  */
-DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, NUMA_NO_NODE);
-EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_node_map);
+DEFINE_EARLY_PER_CPU(int, x86_cpu_to_analde_map, NUMA_ANAL_ANALDE);
+EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_analde_map);
 
-void numa_set_node(int cpu, int node)
+void numa_set_analde(int cpu, int analde)
 {
-	int *cpu_to_node_map = early_per_cpu_ptr(x86_cpu_to_node_map);
+	int *cpu_to_analde_map = early_per_cpu_ptr(x86_cpu_to_analde_map);
 
-	/* early setting, no percpu area yet */
-	if (cpu_to_node_map) {
-		cpu_to_node_map[cpu] = node;
+	/* early setting, anal percpu area yet */
+	if (cpu_to_analde_map) {
+		cpu_to_analde_map[cpu] = analde;
 		return;
 	}
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
 	if (cpu >= nr_cpu_ids || !cpu_possible(cpu)) {
-		printk(KERN_ERR "numa_set_node: invalid cpu# (%d)\n", cpu);
+		printk(KERN_ERR "numa_set_analde: invalid cpu# (%d)\n", cpu);
 		dump_stack();
 		return;
 	}
 #endif
-	per_cpu(x86_cpu_to_node_map, cpu) = node;
+	per_cpu(x86_cpu_to_analde_map, cpu) = analde;
 
-	set_cpu_numa_node(cpu, node);
+	set_cpu_numa_analde(cpu, analde);
 }
 
-void numa_clear_node(int cpu)
+void numa_clear_analde(int cpu)
 {
-	numa_set_node(cpu, NUMA_NO_NODE);
+	numa_set_analde(cpu, NUMA_ANAL_ANALDE);
 }
 
 /*
- * Allocate node_to_cpumask_map based on number of available nodes
- * Requires node_possible_map to be valid.
+ * Allocate analde_to_cpumask_map based on number of available analdes
+ * Requires analde_possible_map to be valid.
  *
- * Note: cpumask_of_node() is not valid until after this is done.
+ * Analte: cpumask_of_analde() is analt valid until after this is done.
  * (Use CONFIG_DEBUG_PER_CPU_MAPS to check this.)
  */
-void __init setup_node_to_cpumask_map(void)
+void __init setup_analde_to_cpumask_map(void)
 {
-	unsigned int node;
+	unsigned int analde;
 
-	/* setup nr_node_ids if not done yet */
-	if (nr_node_ids == MAX_NUMNODES)
-		setup_nr_node_ids();
+	/* setup nr_analde_ids if analt done yet */
+	if (nr_analde_ids == MAX_NUMANALDES)
+		setup_nr_analde_ids();
 
 	/* allocate the map */
-	for (node = 0; node < nr_node_ids; node++)
-		alloc_bootmem_cpumask_var(&node_to_cpumask_map[node]);
+	for (analde = 0; analde < nr_analde_ids; analde++)
+		alloc_bootmem_cpumask_var(&analde_to_cpumask_map[analde]);
 
-	/* cpumask_of_node() will now work */
-	pr_debug("Node to cpumask map for %u nodes\n", nr_node_ids);
+	/* cpumask_of_analde() will analw work */
+	pr_debug("Analde to cpumask map for %u analdes\n", nr_analde_ids);
 }
 
 static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
 				     struct numa_meminfo *mi)
 {
-	/* ignore zero length blks */
+	/* iganalre zero length blks */
 	if (start == end)
 		return 0;
 
-	/* whine about and ignore invalid blks */
-	if (start > end || nid < 0 || nid >= MAX_NUMNODES) {
-		pr_warn("Warning: invalid memblk node %d [mem %#010Lx-%#010Lx]\n",
+	/* whine about and iganalre invalid blks */
+	if (start > end || nid < 0 || nid >= MAX_NUMANALDES) {
+		pr_warn("Warning: invalid memblk analde %d [mem %#010Lx-%#010Lx]\n",
 			nid, start, end - 1);
 		return 0;
 	}
 
-	if (mi->nr_blks >= NR_NODE_MEMBLKS) {
+	if (mi->nr_blks >= NR_ANALDE_MEMBLKS) {
 		pr_err("too many memblk ranges\n");
 		return -EINVAL;
 	}
@@ -166,7 +166,7 @@ void __init numa_remove_memblk_from(int idx, struct numa_meminfo *mi)
 }
 
 /**
- * numa_move_tail_memblk - Move a numa_memblk from one numa_meminfo to another
+ * numa_move_tail_memblk - Move a numa_memblk from one numa_meminfo to aanalther
  * @dst: numa_meminfo to append block to
  * @idx: Index of memblk to remove
  * @src: numa_meminfo to remove memblk from
@@ -180,22 +180,22 @@ static void __init numa_move_tail_memblk(struct numa_meminfo *dst, int idx,
 
 /**
  * numa_add_memblk - Add one numa_memblk to numa_meminfo
- * @nid: NUMA node ID of the new memblk
+ * @nid: NUMA analde ID of the new memblk
  * @start: Start address of the new memblk
  * @end: End address of the new memblk
  *
  * Add a new memblk to the default numa_meminfo.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 0 on success, -erranal on failure.
  */
 int __init numa_add_memblk(int nid, u64 start, u64 end)
 {
 	return numa_add_memblk_to(nid, start, end, &numa_meminfo);
 }
 
-/* Allocate NODE_DATA for a node on the local memory */
-static void __init alloc_node_data(int nid)
+/* Allocate ANALDE_DATA for a analde on the local memory */
+static void __init alloc_analde_data(int nid)
 {
 	const size_t nd_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
 	u64 nd_pa;
@@ -203,28 +203,28 @@ static void __init alloc_node_data(int nid)
 	int tnid;
 
 	/*
-	 * Allocate node data.  Try node-local memory and then any node.
+	 * Allocate analde data.  Try analde-local memory and then any analde.
 	 * Never allocate in DMA zone.
 	 */
 	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
 	if (!nd_pa) {
-		pr_err("Cannot find %zu bytes in any node (initial node: %d)\n",
+		pr_err("Cananalt find %zu bytes in any analde (initial analde: %d)\n",
 		       nd_size, nid);
 		return;
 	}
 	nd = __va(nd_pa);
 
 	/* report and initialize */
-	printk(KERN_INFO "NODE_DATA(%d) allocated [mem %#010Lx-%#010Lx]\n", nid,
+	printk(KERN_INFO "ANALDE_DATA(%d) allocated [mem %#010Lx-%#010Lx]\n", nid,
 	       nd_pa, nd_pa + nd_size - 1);
 	tnid = early_pfn_to_nid(nd_pa >> PAGE_SHIFT);
 	if (tnid != nid)
-		printk(KERN_INFO "    NODE_DATA(%d) on node %d\n", nid, tnid);
+		printk(KERN_INFO "    ANALDE_DATA(%d) on analde %d\n", nid, tnid);
 
-	node_data[nid] = nd;
-	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
+	analde_data[nid] = nd;
+	memset(ANALDE_DATA(nid), 0, sizeof(pg_data_t));
 
-	node_set_online(nid);
+	analde_set_online(nid);
 }
 
 /**
@@ -235,7 +235,7 @@ static void __init alloc_node_data(int nid)
  * conflicts and clear unused memblks.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 0 on success, -erranal on failure.
  */
 int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 {
@@ -254,17 +254,17 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 			continue;
 		}
 
-		/* make sure all non-reserved blocks are inside the limits */
+		/* make sure all analn-reserved blocks are inside the limits */
 		bi->start = max(bi->start, low);
 
-		/* preserve info for non-RAM areas above 'max_pfn': */
+		/* preserve info for analn-RAM areas above 'max_pfn': */
 		if (bi->end > high) {
 			numa_add_memblk_to(bi->nid, high, bi->end,
 					   &numa_reserved_meminfo);
 			bi->end = high;
 		}
 
-		/* and there's no empty block */
+		/* and there's anal empty block */
 		if (bi->start >= bi->end)
 			numa_remove_memblk_from(i--, mi);
 	}
@@ -284,20 +284,20 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 			 */
 			if (bi->end > bj->start && bi->start < bj->end) {
 				if (bi->nid != bj->nid) {
-					pr_err("node %d [mem %#010Lx-%#010Lx] overlaps with node %d [mem %#010Lx-%#010Lx]\n",
+					pr_err("analde %d [mem %#010Lx-%#010Lx] overlaps with analde %d [mem %#010Lx-%#010Lx]\n",
 					       bi->nid, bi->start, bi->end - 1,
 					       bj->nid, bj->start, bj->end - 1);
 					return -EINVAL;
 				}
-				pr_warn("Warning: node %d [mem %#010Lx-%#010Lx] overlaps with itself [mem %#010Lx-%#010Lx]\n",
+				pr_warn("Warning: analde %d [mem %#010Lx-%#010Lx] overlaps with itself [mem %#010Lx-%#010Lx]\n",
 					bi->nid, bi->start, bi->end - 1,
 					bj->start, bj->end - 1);
 			}
 
 			/*
-			 * Join together blocks on the same node, holes
+			 * Join together blocks on the same analde, holes
 			 * between which don't overlap with memory on other
-			 * nodes.
+			 * analdes.
 			 */
 			if (bi->nid != bj->nid)
 				continue;
@@ -313,7 +313,7 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 			}
 			if (k < mi->nr_blks)
 				continue;
-			printk(KERN_INFO "NUMA: Node %d [mem %#010Lx-%#010Lx] + [mem %#010Lx-%#010Lx] -> [mem %#010Lx-%#010Lx]\n",
+			printk(KERN_INFO "NUMA: Analde %d [mem %#010Lx-%#010Lx] + [mem %#010Lx-%#010Lx] -> [mem %#010Lx-%#010Lx]\n",
 			       bi->nid, bi->start, bi->end - 1, bj->start,
 			       bj->end - 1, start, end - 1);
 			bi->start = start;
@@ -325,24 +325,24 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 	/* clear unused ones */
 	for (i = mi->nr_blks; i < ARRAY_SIZE(mi->blk); i++) {
 		mi->blk[i].start = mi->blk[i].end = 0;
-		mi->blk[i].nid = NUMA_NO_NODE;
+		mi->blk[i].nid = NUMA_ANAL_ANALDE;
 	}
 
 	return 0;
 }
 
 /*
- * Set nodes, which have memory in @mi, in *@nodemask.
+ * Set analdes, which have memory in @mi, in *@analdemask.
  */
-static void __init numa_nodemask_from_meminfo(nodemask_t *nodemask,
+static void __init numa_analdemask_from_meminfo(analdemask_t *analdemask,
 					      const struct numa_meminfo *mi)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mi->blk); i++)
 		if (mi->blk[i].start != mi->blk[i].end &&
-		    mi->blk[i].nid != NUMA_NO_NODE)
-			node_set(mi->blk[i].nid, *nodemask);
+		    mi->blk[i].nid != NUMA_ANAL_ANALDE)
+			analde_set(mi->blk[i].nid, *analdemask);
 }
 
 /**
@@ -364,16 +364,16 @@ void __init numa_reset_distance(void)
 
 static int __init numa_alloc_distance(void)
 {
-	nodemask_t nodes_parsed;
+	analdemask_t analdes_parsed;
 	size_t size;
 	int i, j, cnt = 0;
 	u64 phys;
 
 	/* size the new table and allocate it */
-	nodes_parsed = numa_nodes_parsed;
-	numa_nodemask_from_meminfo(&nodes_parsed, &numa_meminfo);
+	analdes_parsed = numa_analdes_parsed;
+	numa_analdemask_from_meminfo(&analdes_parsed, &numa_meminfo);
 
-	for_each_node_mask(i, nodes_parsed)
+	for_each_analde_mask(i, analdes_parsed)
 		cnt = i;
 	cnt++;
 	size = cnt * cnt * sizeof(numa_distance[0]);
@@ -384,7 +384,7 @@ static int __init numa_alloc_distance(void)
 		pr_warn("Warning: can't allocate distance table!\n");
 		/* don't retry until explicitly reset */
 		numa_distance = (void *)1LU;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	numa_distance = __va(phys);
@@ -401,22 +401,22 @@ static int __init numa_alloc_distance(void)
 }
 
 /**
- * numa_set_distance - Set NUMA distance from one NUMA to another
- * @from: the 'from' node to set distance
- * @to: the 'to'  node to set distance
+ * numa_set_distance - Set NUMA distance from one NUMA to aanalther
+ * @from: the 'from' analde to set distance
+ * @to: the 'to'  analde to set distance
  * @distance: NUMA distance
  *
- * Set the distance from node @from to @to to @distance.  If distance table
- * doesn't exist, one which is large enough to accommodate all the currently
- * known nodes will be created.
+ * Set the distance from analde @from to @to to @distance.  If distance table
+ * doesn't exist, one which is large eanalugh to accommodate all the currently
+ * kanalwn analdes will be created.
  *
- * If such table cannot be allocated, a warning is printed and further
- * calls are ignored until the distance table is reset with
+ * If such table cananalt be allocated, a warning is printed and further
+ * calls are iganalred until the distance table is reset with
  * numa_reset_distance().
  *
- * If @from or @to is higher than the highest known node or lower than zero
+ * If @from or @to is higher than the highest kanalwn analde or lower than zero
  * at the time of table creation or @distance doesn't make sense, the call
- * is ignored.
+ * is iganalred.
  * This is to allow simplification of specific NUMA config implementations.
  */
 void __init numa_set_distance(int from, int to, int distance)
@@ -426,7 +426,7 @@ void __init numa_set_distance(int from, int to, int distance)
 
 	if (from >= numa_distance_cnt || to >= numa_distance_cnt ||
 			from < 0 || to < 0) {
-		pr_warn_once("Warning: node ids are out of bound, from=%d to=%d distance=%d\n",
+		pr_warn_once("Warning: analde ids are out of bound, from=%d to=%d distance=%d\n",
 			     from, to, distance);
 		return;
 	}
@@ -441,21 +441,21 @@ void __init numa_set_distance(int from, int to, int distance)
 	numa_distance[from * numa_distance_cnt + to] = distance;
 }
 
-int __node_distance(int from, int to)
+int __analde_distance(int from, int to)
 {
 	if (from >= numa_distance_cnt || to >= numa_distance_cnt)
 		return from == to ? LOCAL_DISTANCE : REMOTE_DISTANCE;
 	return numa_distance[from * numa_distance_cnt + to];
 }
-EXPORT_SYMBOL(__node_distance);
+EXPORT_SYMBOL(__analde_distance);
 
 /*
  * Mark all currently memblock-reserved physical memory (which covers the
  * kernel's own memory ranges) as hot-unswappable.
  */
-static void __init numa_clear_kernel_node_hotplug(void)
+static void __init numa_clear_kernel_analde_hotplug(void)
 {
-	nodemask_t reserved_nodemask = NODE_MASK_NONE;
+	analdemask_t reserved_analdemask = ANALDE_MASK_ANALNE;
 	struct memblock_region *mb_region;
 	int i;
 
@@ -464,51 +464,51 @@ static void __init numa_clear_kernel_node_hotplug(void)
 	 * make them suitable for reservation.
 	 *
 	 * At this time, all memory regions reserved by memblock are
-	 * used by the kernel, but those regions are not split up
-	 * along node boundaries yet, and don't necessarily have their
-	 * node ID set yet either.
+	 * used by the kernel, but those regions are analt split up
+	 * along analde boundaries yet, and don't necessarily have their
+	 * analde ID set yet either.
 	 *
-	 * So iterate over all memory known to the x86 architecture,
+	 * So iterate over all memory kanalwn to the x86 architecture,
 	 * and use those ranges to set the nid in memblock.reserved.
-	 * This will split up the memblock regions along node
-	 * boundaries and will set the node IDs as well.
+	 * This will split up the memblock regions along analde
+	 * boundaries and will set the analde IDs as well.
 	 */
 	for (i = 0; i < numa_meminfo.nr_blks; i++) {
 		struct numa_memblk *mb = numa_meminfo.blk + i;
 		int ret;
 
-		ret = memblock_set_node(mb->start, mb->end - mb->start, &memblock.reserved, mb->nid);
+		ret = memblock_set_analde(mb->start, mb->end - mb->start, &memblock.reserved, mb->nid);
 		WARN_ON_ONCE(ret);
 	}
 
 	/*
-	 * Now go over all reserved memblock regions, to construct a
-	 * node mask of all kernel reserved memory areas.
+	 * Analw go over all reserved memblock regions, to construct a
+	 * analde mask of all kernel reserved memory areas.
 	 *
-	 * [ Note, when booting with mem=nn[kMG] or in a kdump kernel,
-	 *   numa_meminfo might not include all memblock.reserved
+	 * [ Analte, when booting with mem=nn[kMG] or in a kdump kernel,
+	 *   numa_meminfo might analt include all memblock.reserved
 	 *   memory ranges, because quirks such as trim_snb_memory()
 	 *   reserve specific pages for Sandy Bridge graphics. ]
 	 */
 	for_each_reserved_mem_region(mb_region) {
-		int nid = memblock_get_region_node(mb_region);
+		int nid = memblock_get_region_analde(mb_region);
 
-		if (nid != MAX_NUMNODES)
-			node_set(nid, reserved_nodemask);
+		if (nid != MAX_NUMANALDES)
+			analde_set(nid, reserved_analdemask);
 	}
 
 	/*
 	 * Finally, clear the MEMBLOCK_HOTPLUG flag for all memory
-	 * belonging to the reserved node mask.
+	 * belonging to the reserved analde mask.
 	 *
-	 * Note that this will include memory regions that reside
-	 * on nodes that contain kernel memory - entire nodes
+	 * Analte that this will include memory regions that reside
+	 * on analdes that contain kernel memory - entire analdes
 	 * become hot-unpluggable:
 	 */
 	for (i = 0; i < numa_meminfo.nr_blks; i++) {
 		struct numa_memblk *mb = numa_meminfo.blk + i;
 
-		if (!node_isset(mb->nid, reserved_nodemask))
+		if (!analde_isset(mb->nid, reserved_analdemask))
 			continue;
 
 		memblock_clear_hotplug(mb->start, mb->end - mb->start);
@@ -519,36 +519,36 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 {
 	int i, nid;
 
-	/* Account for nodes with cpus and no memory */
-	node_possible_map = numa_nodes_parsed;
-	numa_nodemask_from_meminfo(&node_possible_map, mi);
-	if (WARN_ON(nodes_empty(node_possible_map)))
+	/* Account for analdes with cpus and anal memory */
+	analde_possible_map = numa_analdes_parsed;
+	numa_analdemask_from_meminfo(&analde_possible_map, mi);
+	if (WARN_ON(analdes_empty(analde_possible_map)))
 		return -EINVAL;
 
 	for (i = 0; i < mi->nr_blks; i++) {
 		struct numa_memblk *mb = &mi->blk[i];
-		memblock_set_node(mb->start, mb->end - mb->start,
+		memblock_set_analde(mb->start, mb->end - mb->start,
 				  &memblock.memory, mb->nid);
 	}
 
 	/*
 	 * At very early time, the kernel have to use some memory such as
-	 * loading the kernel image. We cannot prevent this anyway. So any
-	 * node the kernel resides in should be un-hotpluggable.
+	 * loading the kernel image. We cananalt prevent this anyway. So any
+	 * analde the kernel resides in should be un-hotpluggable.
 	 *
-	 * And when we come here, alloc node data won't fail.
+	 * And when we come here, alloc analde data won't fail.
 	 */
-	numa_clear_kernel_node_hotplug();
+	numa_clear_kernel_analde_hotplug();
 
 	/*
 	 * If sections array is gonna be used for pfn -> nid mapping, check
-	 * whether its granularity is fine enough.
+	 * whether its granularity is fine eanalugh.
 	 */
-	if (IS_ENABLED(NODE_NOT_IN_PAGE_FLAGS)) {
-		unsigned long pfn_align = node_map_pfn_alignment();
+	if (IS_ENABLED(ANALDE_ANALT_IN_PAGE_FLAGS)) {
+		unsigned long pfn_align = analde_map_pfn_alignment();
 
 		if (pfn_align && pfn_align < PAGES_PER_SECTION) {
-			pr_warn("Node alignment %LuMB < min %LuMB, rejecting NUMA config\n",
+			pr_warn("Analde alignment %LuMB < min %LuMB, rejecting NUMA config\n",
 				PFN_PHYS(pfn_align) >> 20,
 				PFN_PHYS(PAGES_PER_SECTION) >> 20);
 			return -EINVAL;
@@ -558,8 +558,8 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 	if (!memblock_validate_numa_coverage(SZ_1M))
 		return -EINVAL;
 
-	/* Finally register nodes. */
-	for_each_node_mask(nid, node_possible_map) {
+	/* Finally register analdes. */
+	for_each_analde_mask(nid, analde_possible_map) {
 		u64 start = PFN_PHYS(max_pfn);
 		u64 end = 0;
 
@@ -573,31 +573,31 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 		if (start >= end)
 			continue;
 
-		alloc_node_data(nid);
+		alloc_analde_data(nid);
 	}
 
-	/* Dump memblock with node info and return. */
+	/* Dump memblock with analde info and return. */
 	memblock_dump_all();
 	return 0;
 }
 
 /*
  * There are unfortunately some poorly designed mainboards around that
- * only connect memory to a single CPU. This breaks the 1:1 cpu->node
+ * only connect memory to a single CPU. This breaks the 1:1 cpu->analde
  * mapping. To avoid this fill in the mapping for all possible CPUs,
- * as the number of CPUs is not known yet. We round robin the existing
- * nodes.
+ * as the number of CPUs is analt kanalwn yet. We round robin the existing
+ * analdes.
  */
 static void __init numa_init_array(void)
 {
 	int rr, i;
 
-	rr = first_node(node_online_map);
+	rr = first_analde(analde_online_map);
 	for (i = 0; i < nr_cpu_ids; i++) {
-		if (early_cpu_to_node(i) != NUMA_NO_NODE)
+		if (early_cpu_to_analde(i) != NUMA_ANAL_ANALDE)
 			continue;
-		numa_set_node(i, rr);
-		rr = next_node_in(rr, node_online_map);
+		numa_set_analde(i, rr);
+		rr = next_analde_in(rr, analde_online_map);
 	}
 }
 
@@ -607,16 +607,16 @@ static int __init numa_init(int (*init_func)(void))
 	int ret;
 
 	for (i = 0; i < MAX_LOCAL_APIC; i++)
-		set_apicid_to_node(i, NUMA_NO_NODE);
+		set_apicid_to_analde(i, NUMA_ANAL_ANALDE);
 
-	nodes_clear(numa_nodes_parsed);
-	nodes_clear(node_possible_map);
-	nodes_clear(node_online_map);
+	analdes_clear(numa_analdes_parsed);
+	analdes_clear(analde_possible_map);
+	analdes_clear(analde_online_map);
 	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
-	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.memory,
-				  MAX_NUMNODES));
-	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.reserved,
-				  MAX_NUMNODES));
+	WARN_ON(memblock_set_analde(0, ULLONG_MAX, &memblock.memory,
+				  MAX_NUMANALDES));
+	WARN_ON(memblock_set_analde(0, ULLONG_MAX, &memblock.reserved,
+				  MAX_NUMANALDES));
 	/* In case that parsing SRAT failed. */
 	WARN_ON(memblock_clear_hotplug(0, ULLONG_MAX));
 	numa_reset_distance();
@@ -646,12 +646,12 @@ static int __init numa_init(int (*init_func)(void))
 		return ret;
 
 	for (i = 0; i < nr_cpu_ids; i++) {
-		int nid = early_cpu_to_node(i);
+		int nid = early_cpu_to_analde(i);
 
-		if (nid == NUMA_NO_NODE)
+		if (nid == NUMA_ANAL_ANALDE)
 			continue;
-		if (!node_online(nid))
-			numa_clear_node(i);
+		if (!analde_online(nid))
+			numa_clear_analde(i);
 	}
 	numa_init_array();
 
@@ -661,20 +661,20 @@ static int __init numa_init(int (*init_func)(void))
 /**
  * dummy_numa_init - Fallback dummy NUMA init
  *
- * Used if there's no underlying NUMA architecture, NUMA initialization
+ * Used if there's anal underlying NUMA architecture, NUMA initialization
  * fails, or NUMA is disabled on the command line.
  *
- * Must online at least one node and add memory blocks that cover all
- * allowed memory.  This function must not fail.
+ * Must online at least one analde and add memory blocks that cover all
+ * allowed memory.  This function must analt fail.
  */
 static int __init dummy_numa_init(void)
 {
 	printk(KERN_INFO "%s\n",
-	       numa_off ? "NUMA turned off" : "No NUMA configuration found");
-	printk(KERN_INFO "Faking a node at [mem %#018Lx-%#018Lx]\n",
+	       numa_off ? "NUMA turned off" : "Anal NUMA configuration found");
+	printk(KERN_INFO "Faking a analde at [mem %#018Lx-%#018Lx]\n",
 	       0LLU, PFN_PHYS(max_pfn) - 1);
 
-	node_set(0, numa_nodes_parsed);
+	analde_set(0, numa_analdes_parsed);
 	numa_add_memblk(0, 0, PFN_PHYS(max_pfn));
 
 	return 0;
@@ -684,7 +684,7 @@ static int __init dummy_numa_init(void)
  * x86_numa_init - Initialize NUMA
  *
  * Try each configured NUMA initialization method until one succeeds.  The
- * last fallback is dummy single node config encompassing whole memory and
+ * last fallback is dummy single analde config encompassing whole memory and
  * never fails.
  */
 void __init x86_numa_init(void)
@@ -707,50 +707,50 @@ void __init x86_numa_init(void)
 
 
 /*
- * A node may exist which has one or more Generic Initiators but no CPUs and no
+ * A analde may exist which has one or more Generic Initiators but anal CPUs and anal
  * memory.
  *
- * This function must be called after init_cpu_to_node(), to ensure that any
- * memoryless CPU nodes have already been brought online, and before the
- * node_data[nid] is needed for zone list setup in build_all_zonelists().
+ * This function must be called after init_cpu_to_analde(), to ensure that any
+ * memoryless CPU analdes have already been brought online, and before the
+ * analde_data[nid] is needed for zone list setup in build_all_zonelists().
  *
- * When this function is called, any nodes containing either memory and/or CPUs
- * will already be online and there is no need to do anything extra, even if
+ * When this function is called, any analdes containing either memory and/or CPUs
+ * will already be online and there is anal need to do anything extra, even if
  * they also contain one or more Generic Initiators.
  */
-void __init init_gi_nodes(void)
+void __init init_gi_analdes(void)
 {
 	int nid;
 
 	/*
-	 * Exclude this node from
-	 * bringup_nonboot_cpus
+	 * Exclude this analde from
+	 * bringup_analnboot_cpus
 	 *  cpu_up
-	 *   __try_online_node
-	 *    register_one_node
-	 * because node_subsys is not initialized yet.
-	 * TODO remove dependency on node_online
+	 *   __try_online_analde
+	 *    register_one_analde
+	 * because analde_subsys is analt initialized yet.
+	 * TODO remove dependency on analde_online
 	 */
-	for_each_node_state(nid, N_GENERIC_INITIATOR)
-		if (!node_online(nid))
-			node_set_online(nid);
+	for_each_analde_state(nid, N_GENERIC_INITIATOR)
+		if (!analde_online(nid))
+			analde_set_online(nid);
 }
 
 /*
- * Setup early cpu_to_node.
+ * Setup early cpu_to_analde.
  *
- * Populate cpu_to_node[] only if x86_cpu_to_apicid[],
- * and apicid_to_node[] tables have valid entries for a CPU.
- * This means we skip cpu_to_node[] initialisation for NUMA
- * emulation and faking node case (when running a kernel compiled
- * for NUMA on a non NUMA box), which is OK as cpu_to_node[]
+ * Populate cpu_to_analde[] only if x86_cpu_to_apicid[],
+ * and apicid_to_analde[] tables have valid entries for a CPU.
+ * This means we skip cpu_to_analde[] initialisation for NUMA
+ * emulation and faking analde case (when running a kernel compiled
+ * for NUMA on a analn NUMA box), which is OK as cpu_to_analde[]
  * is already initialized in a round robin manner at numa_init_array,
- * prior to this call, and this initialization is good enough
+ * prior to this call, and this initialization is good eanalugh
  * for the fake NUMA cases.
  *
  * Called before the per_cpu areas are setup.
  */
-void __init init_cpu_to_node(void)
+void __init init_cpu_to_analde(void)
 {
 	int cpu;
 	u32 *cpu_to_apicid = early_per_cpu_ptr(x86_cpu_to_apicid);
@@ -758,24 +758,24 @@ void __init init_cpu_to_node(void)
 	BUG_ON(cpu_to_apicid == NULL);
 
 	for_each_possible_cpu(cpu) {
-		int node = numa_cpu_node(cpu);
+		int analde = numa_cpu_analde(cpu);
 
-		if (node == NUMA_NO_NODE)
+		if (analde == NUMA_ANAL_ANALDE)
 			continue;
 
 		/*
-		 * Exclude this node from
-		 * bringup_nonboot_cpus
+		 * Exclude this analde from
+		 * bringup_analnboot_cpus
 		 *  cpu_up
-		 *   __try_online_node
-		 *    register_one_node
-		 * because node_subsys is not initialized yet.
-		 * TODO remove dependency on node_online
+		 *   __try_online_analde
+		 *    register_one_analde
+		 * because analde_subsys is analt initialized yet.
+		 * TODO remove dependency on analde_online
 		 */
-		if (!node_online(node))
-			node_set_online(node);
+		if (!analde_online(analde))
+			analde_set_online(analde);
 
-		numa_set_node(cpu, node);
+		numa_set_analde(cpu, analde);
 	}
 }
 
@@ -784,58 +784,58 @@ void __init init_cpu_to_node(void)
 # ifndef CONFIG_NUMA_EMU
 void numa_add_cpu(int cpu)
 {
-	cpumask_set_cpu(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
+	cpumask_set_cpu(cpu, analde_to_cpumask_map[early_cpu_to_analde(cpu)]);
 }
 
 void numa_remove_cpu(int cpu)
 {
-	cpumask_clear_cpu(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
+	cpumask_clear_cpu(cpu, analde_to_cpumask_map[early_cpu_to_analde(cpu)]);
 }
 # endif	/* !CONFIG_NUMA_EMU */
 
 #else	/* !CONFIG_DEBUG_PER_CPU_MAPS */
 
-int __cpu_to_node(int cpu)
+int __cpu_to_analde(int cpu)
 {
-	if (early_per_cpu_ptr(x86_cpu_to_node_map)) {
+	if (early_per_cpu_ptr(x86_cpu_to_analde_map)) {
 		printk(KERN_WARNING
-			"cpu_to_node(%d): usage too early!\n", cpu);
+			"cpu_to_analde(%d): usage too early!\n", cpu);
 		dump_stack();
-		return early_per_cpu_ptr(x86_cpu_to_node_map)[cpu];
+		return early_per_cpu_ptr(x86_cpu_to_analde_map)[cpu];
 	}
-	return per_cpu(x86_cpu_to_node_map, cpu);
+	return per_cpu(x86_cpu_to_analde_map, cpu);
 }
-EXPORT_SYMBOL(__cpu_to_node);
+EXPORT_SYMBOL(__cpu_to_analde);
 
 /*
- * Same function as cpu_to_node() but used if called before the
+ * Same function as cpu_to_analde() but used if called before the
  * per_cpu areas are setup.
  */
-int early_cpu_to_node(int cpu)
+int early_cpu_to_analde(int cpu)
 {
-	if (early_per_cpu_ptr(x86_cpu_to_node_map))
-		return early_per_cpu_ptr(x86_cpu_to_node_map)[cpu];
+	if (early_per_cpu_ptr(x86_cpu_to_analde_map))
+		return early_per_cpu_ptr(x86_cpu_to_analde_map)[cpu];
 
 	if (!cpu_possible(cpu)) {
 		printk(KERN_WARNING
-			"early_cpu_to_node(%d): no per_cpu area!\n", cpu);
+			"early_cpu_to_analde(%d): anal per_cpu area!\n", cpu);
 		dump_stack();
-		return NUMA_NO_NODE;
+		return NUMA_ANAL_ANALDE;
 	}
-	return per_cpu(x86_cpu_to_node_map, cpu);
+	return per_cpu(x86_cpu_to_analde_map, cpu);
 }
 
-void debug_cpumask_set_cpu(int cpu, int node, bool enable)
+void debug_cpumask_set_cpu(int cpu, int analde, bool enable)
 {
 	struct cpumask *mask;
 
-	if (node == NUMA_NO_NODE) {
-		/* early_cpu_to_node() already emits a warning and trace */
+	if (analde == NUMA_ANAL_ANALDE) {
+		/* early_cpu_to_analde() already emits a warning and trace */
 		return;
 	}
-	mask = node_to_cpumask_map[node];
+	mask = analde_to_cpumask_map[analde];
 	if (!cpumask_available(mask)) {
-		pr_err("node_to_cpumask_map[%i] NULL\n", node);
+		pr_err("analde_to_cpumask_map[%i] NULL\n", analde);
 		dump_stack();
 		return;
 	}
@@ -845,16 +845,16 @@ void debug_cpumask_set_cpu(int cpu, int node, bool enable)
 	else
 		cpumask_clear_cpu(cpu, mask);
 
-	printk(KERN_DEBUG "%s cpu %d node %d: mask now %*pbl\n",
+	printk(KERN_DEBUG "%s cpu %d analde %d: mask analw %*pbl\n",
 		enable ? "numa_add_cpu" : "numa_remove_cpu",
-		cpu, node, cpumask_pr_args(mask));
+		cpu, analde, cpumask_pr_args(mask));
 	return;
 }
 
 # ifndef CONFIG_NUMA_EMU
 static void numa_set_cpumask(int cpu, bool enable)
 {
-	debug_cpumask_set_cpu(cpu, early_cpu_to_node(cpu), enable);
+	debug_cpumask_set_cpu(cpu, early_cpu_to_analde(cpu), enable);
 }
 
 void numa_add_cpu(int cpu)
@@ -869,27 +869,27 @@ void numa_remove_cpu(int cpu)
 # endif	/* !CONFIG_NUMA_EMU */
 
 /*
- * Returns a pointer to the bitmask of CPUs on Node 'node'.
+ * Returns a pointer to the bitmask of CPUs on Analde 'analde'.
  */
-const struct cpumask *cpumask_of_node(int node)
+const struct cpumask *cpumask_of_analde(int analde)
 {
-	if ((unsigned)node >= nr_node_ids) {
+	if ((unsigned)analde >= nr_analde_ids) {
 		printk(KERN_WARNING
-			"cpumask_of_node(%d): (unsigned)node >= nr_node_ids(%u)\n",
-			node, nr_node_ids);
+			"cpumask_of_analde(%d): (unsigned)analde >= nr_analde_ids(%u)\n",
+			analde, nr_analde_ids);
 		dump_stack();
-		return cpu_none_mask;
+		return cpu_analne_mask;
 	}
-	if (!cpumask_available(node_to_cpumask_map[node])) {
+	if (!cpumask_available(analde_to_cpumask_map[analde])) {
 		printk(KERN_WARNING
-			"cpumask_of_node(%d): no node_to_cpumask_map!\n",
-			node);
+			"cpumask_of_analde(%d): anal analde_to_cpumask_map!\n",
+			analde);
 		dump_stack();
 		return cpu_online_mask;
 	}
-	return node_to_cpumask_map[node];
+	return analde_to_cpumask_map[analde];
 }
-EXPORT_SYMBOL(cpumask_of_node);
+EXPORT_SYMBOL(cpumask_of_analde);
 
 #endif	/* !CONFIG_DEBUG_PER_CPU_MAPS */
 
@@ -901,29 +901,29 @@ static int meminfo_to_nid(struct numa_meminfo *mi, u64 start)
 	for (i = 0; i < mi->nr_blks; i++)
 		if (mi->blk[i].start <= start && mi->blk[i].end > start)
 			return mi->blk[i].nid;
-	return NUMA_NO_NODE;
+	return NUMA_ANAL_ANALDE;
 }
 
-int phys_to_target_node(phys_addr_t start)
+int phys_to_target_analde(phys_addr_t start)
 {
 	int nid = meminfo_to_nid(&numa_meminfo, start);
 
 	/*
-	 * Prefer online nodes, but if reserved memory might be
+	 * Prefer online analdes, but if reserved memory might be
 	 * hot-added continue the search with reserved ranges.
 	 */
-	if (nid != NUMA_NO_NODE)
+	if (nid != NUMA_ANAL_ANALDE)
 		return nid;
 
 	return meminfo_to_nid(&numa_reserved_meminfo, start);
 }
-EXPORT_SYMBOL_GPL(phys_to_target_node);
+EXPORT_SYMBOL_GPL(phys_to_target_analde);
 
 int memory_add_physaddr_to_nid(u64 start)
 {
 	int nid = meminfo_to_nid(&numa_meminfo, start);
 
-	if (nid == NUMA_NO_NODE)
+	if (nid == NUMA_ANAL_ANALDE)
 		nid = numa_meminfo.blk[0].nid;
 	return nid;
 }
@@ -937,7 +937,7 @@ static int __init cmp_memblk(const void *a, const void *b)
 	return (ma->start > mb->start) - (ma->start < mb->start);
 }
 
-static struct numa_memblk *numa_memblk_list[NR_NODE_MEMBLKS] __initdata;
+static struct numa_memblk *numa_memblk_list[NR_ANALDE_MEMBLKS] __initdata;
 
 /**
  * numa_fill_memblks - Fill gaps in numa_meminfo memblks
@@ -949,7 +949,7 @@ static struct numa_memblk *numa_memblk_list[NR_NODE_MEMBLKS] __initdata;
  *
  * RETURNS:
  * 0		  : Success
- * NUMA_NO_MEMBLK : No memblks exist in address range @start-@end
+ * NUMA_ANAL_MEMBLK : Anal memblks exist in address range @start-@end
  */
 
 int __init numa_fill_memblks(u64 start, u64 end)
@@ -974,7 +974,7 @@ int __init numa_fill_memblks(u64 start, u64 end)
 		}
 	}
 	if (!count)
-		return NUMA_NO_MEMBLK;
+		return NUMA_ANAL_MEMBLK;
 
 	/* Sort the list of pointers in memblk->start order */
 	sort(&blk[0], count, sizeof(blk[0]), cmp_memblk, NULL);

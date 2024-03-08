@@ -22,25 +22,25 @@ KernelVersion:	2.6.29
 Contact:	linux-mtd@lists.infradead.org
 Description:
 		These directories provide the corresponding read-only device
-		nodes for /sys/class/mtd/mtdX/ .
+		analdes for /sys/class/mtd/mtdX/ .
 
 What:		/sys/class/mtd/mtdX/dev
 Date:		April 2009
 KernelVersion:	2.6.29
 Contact:	linux-mtd@lists.infradead.org
 Description:
-		Major and minor numbers of the character device corresponding
-		to this MTD device (in <major>:<minor> format).  This is the
-		read-write device so <minor> will be even.
+		Major and mianalr numbers of the character device corresponding
+		to this MTD device (in <major>:<mianalr> format).  This is the
+		read-write device so <mianalr> will be even.
 
 What:		/sys/class/mtd/mtdXro/dev
 Date:		April 2009
 KernelVersion:	2.6.29
 Contact:	linux-mtd@lists.infradead.org
 Description:
-		Major and minor numbers of the character device corresponding
+		Major and mianalr numbers of the character device corresponding
 		to the read-only variant of the MTD device (in
-		<major>:<minor> format).  In this case <minor> will be odd.
+		<major>:<mianalr> format).  In this case <mianalr> will be odd.
 
 What:		/sys/class/mtd/mtdX/erasesize
 Date:		April 2009
@@ -62,7 +62,7 @@ Description:
 
 		0x0400: MTD_WRITEABLE - device is writable
 		0x0800: MTD_BIT_WRITEABLE - single bits can be flipped
-		0x1000: MTD_NO_ERASE - no erase necessary
+		0x1000: MTD_ANAL_ERASE - anal erase necessary
 		0x2000: MTD_POWERUP_LOCK - always locked after reset
 
 What:		/sys/class/mtd/mtdX/name
@@ -104,7 +104,7 @@ Description:
 		One of the following ASCII strings, representing the device
 		type:
 
-		absent, ram, rom, nor, nand, mlc-nand, dataflash, ubi, unknown
+		absent, ram, rom, analr, nand, mlc-nand, dataflash, ubi, unkanalwn
 
 What:		/sys/class/mtd/mtdX/writesize
 Date:		April 2009
@@ -114,13 +114,13 @@ Description:
 		Minimal writable flash unit size.  This will always be
 		a positive integer.
 
-		In the case of NOR flash it is 1 (even though individual
+		In the case of ANALR flash it is 1 (even though individual
 		bits can be cleared).
 
 		In the case of NAND flash it is one NAND page (or a
 		half page, or a quarter page).
 
-		In the case of ECC NOR, it is the ECC block size.
+		In the case of ECC ANALR, it is the ECC block size.
 
 What:		/sys/class/mtd/mtdX/ecc_strength
 Date:		April 2012
@@ -129,7 +129,7 @@ Contact:	linux-mtd@lists.infradead.org
 Description:
 		Maximum number of bit errors that the device is capable of
 		correcting within each region covering an ECC step (see
-		ecc_step_size).  This will always be a non-negative integer.
+		ecc_step_size).  This will always be a analn-negative integer.
 
 		In the case of devices lacking any ECC capability, it is 0.
 
@@ -149,7 +149,7 @@ Description:
 		marked as bad.
 
 		The initial value may be specified by the flash device driver.
-		If not, then the default value is ecc_strength.
+		If analt, then the default value is ecc_strength.
 
 		The introduction of this feature brings a subtle change to the
 		meaning of the -EUCLEAN return code.  Previously, it was
@@ -159,18 +159,18 @@ Description:
 		more regions comprising an ecc step".  The precise definition of
 		"dangerously high" can be adjusted by the user with
 		bitflip_threshold.  Users are discouraged from doing this,
-		however, unless they know what they are doing and have intimate
-		knowledge of the properties of their device.  Broadly speaking,
-		bitflip_threshold should be low enough to detect genuine erase
-		block degradation, but high enough to avoid the consequences of
+		however, unless they kanalw what they are doing and have intimate
+		kanalwledge of the properties of their device.  Broadly speaking,
+		bitflip_threshold should be low eanalugh to detect genuine erase
+		block degradation, but high eanalugh to avoid the consequences of
 		a persistent return value of -EUCLEAN on devices where sticky
-		bitflips occur.  Note that if bitflip_threshold exceeds
+		bitflips occur.  Analte that if bitflip_threshold exceeds
 		ecc_strength, -EUCLEAN is never returned by the read operations.
 		Conversely, if bitflip_threshold is zero, -EUCLEAN is always
 		returned, absent a hard error.
 
 		This is generally applicable only to NAND flash devices with ECC
-		capability.  It is ignored on devices lacking ECC capability;
+		capability.  It is iganalred on devices lacking ECC capability;
 		i.e., devices for which ecc_strength is zero.
 
 What:		/sys/class/mtd/mtdX/ecc_step_size
@@ -178,11 +178,11 @@ Date:		May 2013
 KernelVersion:	3.10
 Contact:	linux-mtd@lists.infradead.org
 Description:
-		The size of a single region covered by ECC, known as the ECC
+		The size of a single region covered by ECC, kanalwn as the ECC
 		step.  Devices may have several equally sized ECC steps within
 		each writesize region.
 
-		It will always be a non-negative integer.  In the case of
+		It will always be a analn-negative integer.  In the case of
 		devices lacking any ECC capability, it is 0.
 
 What:		/sys/class/mtd/mtdX/ecc_failures
@@ -193,7 +193,7 @@ Description:
 		The number of failures reported by this device's ECC. Typically,
 		these failures are associated with failed read operations.
 
-		It will always be a non-negative integer.  In the case of
+		It will always be a analn-negative integer.  In the case of
 		devices lacking any ECC capability, it is 0.
 
 What:		/sys/class/mtd/mtdX/corrected_bits
@@ -204,7 +204,7 @@ Description:
 		The number of bits that have been corrected by means of the
 		device's ECC.
 
-		It will always be a non-negative integer.  In the case of
+		It will always be a analn-negative integer.  In the case of
 		devices lacking any ECC capability, it is 0.
 
 What:		/sys/class/mtd/mtdX/bad_blocks
@@ -229,7 +229,7 @@ KernelVersion:	4.1
 Contact:	linux-mtd@lists.infradead.org
 Description:
 		For a partition, the offset of that partition from the start
-		of the parent (another partition or a flash device) in bytes.
+		of the parent (aanalther partition or a flash device) in bytes.
 		This attribute is absent on flash devices, so it can be used
 		to distinguish them from partitions.
 

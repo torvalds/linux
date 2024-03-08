@@ -6,12 +6,12 @@
 
 struct dentry;
 struct iattr;
-struct inode;
+struct ianalde;
 struct iomap;
 struct super_block;
 struct vfsmount;
 
-/* limit the handle size to NFSv4 handle size now */
+/* limit the handle size to NFSv4 handle size analw */
 #define MAX_HANDLE_SZ 128
 
 /*
@@ -20,7 +20,7 @@ struct vfsmount;
  * stick to conventions so we can share some generic code and don't confuse
  * sniffers like ethereal/wireshark.
  *
- * The filesystem must not use the value '0' or '0xff'.
+ * The filesystem must analt use the value '0' or '0xff'.
  */
 enum fid_type {
 	/*
@@ -30,15 +30,15 @@ enum fid_type {
 	FILEID_ROOT = 0,
 
 	/*
-	 * 32bit inode number, 32 bit generation number.
+	 * 32bit ianalde number, 32 bit generation number.
 	 */
-	FILEID_INO32_GEN = 1,
+	FILEID_IANAL32_GEN = 1,
 
 	/*
-	 * 32bit inode number, 32 bit generation number,
-	 * 32 bit parent directory inode number.
+	 * 32bit ianalde number, 32 bit generation number,
+	 * 32 bit parent directory ianalde number.
 	 */
-	FILEID_INO32_GEN_PARENT = 2,
+	FILEID_IANAL32_GEN_PARENT = 2,
 
 	/*
 	 * 64 bit object ID, 64 bit root object ID,
@@ -75,15 +75,15 @@ enum fid_type {
 	FILEID_UDF_WITH_PARENT = 0x52,
 
 	/*
-	 * 64 bit checkpoint number, 64 bit inode number,
+	 * 64 bit checkpoint number, 64 bit ianalde number,
 	 * 32 bit generation number.
 	 */
 	FILEID_NILFS_WITHOUT_PARENT = 0x61,
 
 	/*
-	 * 64 bit checkpoint number, 64 bit inode number,
+	 * 64 bit checkpoint number, 64 bit ianalde number,
 	 * 32 bit generation number, 32 bit parent generation.
-	 * 64 bit parent inode number.
+	 * 64 bit parent ianalde number.
 	 */
 	FILEID_NILFS_WITH_PARENT = 0x62,
 
@@ -99,15 +99,15 @@ enum fid_type {
 	FILEID_FAT_WITH_PARENT = 0x72,
 
 	/*
-	 * 64 bit inode number, 32 bit generation number.
+	 * 64 bit ianalde number, 32 bit generation number.
 	 */
-	FILEID_INO64_GEN = 0x81,
+	FILEID_IANAL64_GEN = 0x81,
 
 	/*
-	 * 64 bit inode number, 32 bit generation number,
-	 * 64 bit parent inode number, 32 bit parent generation.
+	 * 64 bit ianalde number, 32 bit generation number,
+	 * 64 bit parent ianalde number, 32 bit parent generation.
 	 */
-	FILEID_INO64_GEN_PARENT = 0x82,
+	FILEID_IANAL64_GEN_PARENT = 0x82,
 
 	/*
 	 * 128 bit child FID (struct lu_fid)
@@ -116,7 +116,7 @@ enum fid_type {
 	FILEID_LUSTRE = 0x97,
 
 	/*
-	 * 64 bit inode number, 32 bit subvolume, 32 bit generation number:
+	 * 64 bit ianalde number, 32 bit subvolume, 32 bit generation number:
 	 */
 	FILEID_BCACHEFS_WITHOUT_PARENT = 0xb1,
 	FILEID_BCACHEFS_WITH_PARENT = 0xb2,
@@ -127,7 +127,7 @@ enum fid_type {
 	FILEID_KERNFS = 0xfe,
 
 	/*
-	 * Filesystems must not use 0xff file ID.
+	 * Filesystems must analt use 0xff file ID.
 	 */
 	FILEID_INVALID = 0xff,
 };
@@ -135,13 +135,13 @@ enum fid_type {
 struct fid {
 	union {
 		struct {
-			u32 ino;
+			u32 ianal;
 			u32 gen;
-			u32 parent_ino;
+			u32 parent_ianal;
 			u32 parent_gen;
 		} i32;
 		struct {
-			u64 ino;
+			u64 ianal;
 			u32 gen;
 		} __packed i64;
 		struct {
@@ -157,14 +157,14 @@ struct fid {
 };
 
 #define EXPORT_FH_CONNECTABLE	0x1 /* Encode file handle with parent */
-#define EXPORT_FH_FID		0x2 /* File handle may be non-decodeable */
+#define EXPORT_FH_FID		0x2 /* File handle may be analn-decodeable */
 
 /**
  * struct export_operations - for nfsd to communicate with file systems
  * @encode_fh:      encode a file handle fragment from a dentry
  * @fh_to_dentry:   find the implied object and get a dentry for it
  * @fh_to_parent:   find the implied object's parent and get a dentry for it
- * @get_name:       find the name for a given inode in a given directory
+ * @get_name:       find the name for a given ianalde in a given directory
  * @get_parent:     find the parent of a given directory
  * @commit_metadata: commit metadata changes to stable storage
  *
@@ -176,7 +176,7 @@ struct fid {
  *    @max_len bytes) information that can be used by @decode_fh to recover the
  *    file referred to by the &struct dentry @de.  If @flag has CONNECTABLE bit
  *    set, the encode_fh() should store sufficient information so that a good
- *    attempt can be made to find not only the file but also it's place in the
+ *    attempt can be made to find analt only the file but also it's place in the
  *    filesystem.   This typically means storing a reference to de->d_parent in
  *    the filehandle fragment.  encode_fh() should return the fileid_type on
  *    success and on error returns 255 (if the space needed to encode fh is
@@ -186,9 +186,9 @@ struct fid {
  * fh_to_dentry:
  *    @fh_to_dentry is given a &struct super_block (@sb) and a file handle
  *    fragment (@fh, @fh_len). It should return a &struct dentry which refers
- *    to the same file that the file handle fragment refers to.  If it cannot,
- *    it should return a %NULL pointer if the file cannot be found, or an
- *    %ERR_PTR error code of %ENOMEM if a memory allocation failure occurred.
+ *    to the same file that the file handle fragment refers to.  If it cananalt,
+ *    it should return a %NULL pointer if the file cananalt be found, or an
+ *    %ERR_PTR error code of %EANALMEM if a memory allocation failure occurred.
  *    Any other error code is treated like %NULL, and will cause an %ESTALE error
  *    for callers of exportfs_decode_fh().
  *    Any suitable dentry can be returned including, if necessary, a new dentry
@@ -208,20 +208,20 @@ struct fid {
  *
  * get_parent:
  *    @get_parent should find the parent directory for the given @child which
- *    is also a directory.  In the event that it cannot be found, or storage
- *    space cannot be allocated, a %ERR_PTR should be returned.
+ *    is also a directory.  In the event that it cananalt be found, or storage
+ *    space cananalt be allocated, a %ERR_PTR should be returned.
  *
  * commit_metadata:
  *    @commit_metadata should commit metadata changes to stable storage.
  *
  * Locking rules:
- *    get_parent is called with child->d_inode->i_mutex down
- *    get_name is not (which is possibly inconsistent)
+ *    get_parent is called with child->d_ianalde->i_mutex down
+ *    get_name is analt (which is possibly inconsistent)
  */
 
 struct export_operations {
-	int (*encode_fh)(struct inode *inode, __u32 *fh, int *max_len,
-			struct inode *parent);
+	int (*encode_fh)(struct ianalde *ianalde, __u32 *fh, int *max_len,
+			struct ianalde *parent);
 	struct dentry * (*fh_to_dentry)(struct super_block *sb, struct fid *fid,
 			int fh_len, int fh_type);
 	struct dentry * (*fh_to_parent)(struct super_block *sb, struct fid *fid,
@@ -229,19 +229,19 @@ struct export_operations {
 	int (*get_name)(struct dentry *parent, char *name,
 			struct dentry *child);
 	struct dentry * (*get_parent)(struct dentry *child);
-	int (*commit_metadata)(struct inode *inode);
+	int (*commit_metadata)(struct ianalde *ianalde);
 
 	int (*get_uuid)(struct super_block *sb, u8 *buf, u32 *len, u64 *offset);
-	int (*map_blocks)(struct inode *inode, loff_t offset,
+	int (*map_blocks)(struct ianalde *ianalde, loff_t offset,
 			  u64 len, struct iomap *iomap,
 			  bool write, u32 *device_generation);
-	int (*commit_blocks)(struct inode *inode, struct iomap *iomaps,
+	int (*commit_blocks)(struct ianalde *ianalde, struct iomap *iomaps,
 			     int nr_iomaps, struct iattr *iattr);
-#define	EXPORT_OP_NOWCC			(0x1) /* don't collect v3 wcc data */
-#define	EXPORT_OP_NOSUBTREECHK		(0x2) /* no subtree checking */
+#define	EXPORT_OP_ANALWCC			(0x1) /* don't collect v3 wcc data */
+#define	EXPORT_OP_ANALSUBTREECHK		(0x2) /* anal subtree checking */
 #define	EXPORT_OP_CLOSE_BEFORE_UNLINK	(0x4) /* close files before unlink */
 #define EXPORT_OP_REMOTE_FS		(0x8) /* Filesystem is remote */
-#define EXPORT_OP_NOATOMIC_ATTR		(0x10) /* Filesystem cannot supply
+#define EXPORT_OP_ANALATOMIC_ATTR		(0x10) /* Filesystem cananalt supply
 						  atomic attribute updates
 						*/
 #define EXPORT_OP_FLUSH_ON_CLOSE	(0x20) /* fs flushes file data on close */
@@ -262,43 +262,43 @@ exportfs_lock_op_is_async(const struct export_operations *export_ops)
 	return export_ops->flags & EXPORT_OP_ASYNC_LOCK;
 }
 
-extern int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
-				    int *max_len, struct inode *parent,
+extern int exportfs_encode_ianalde_fh(struct ianalde *ianalde, struct fid *fid,
+				    int *max_len, struct ianalde *parent,
 				    int flags);
 extern int exportfs_encode_fh(struct dentry *dentry, struct fid *fid,
 			      int *max_len, int flags);
 
-static inline bool exportfs_can_encode_fid(const struct export_operations *nop)
+static inline bool exportfs_can_encode_fid(const struct export_operations *analp)
 {
-	return !nop || nop->encode_fh;
+	return !analp || analp->encode_fh;
 }
 
-static inline bool exportfs_can_decode_fh(const struct export_operations *nop)
+static inline bool exportfs_can_decode_fh(const struct export_operations *analp)
 {
-	return nop && nop->fh_to_dentry;
+	return analp && analp->fh_to_dentry;
 }
 
-static inline bool exportfs_can_encode_fh(const struct export_operations *nop,
+static inline bool exportfs_can_encode_fh(const struct export_operations *analp,
 					  int fh_flags)
 {
 	/*
-	 * If a non-decodeable file handle was requested, we only need to make
-	 * sure that filesystem did not opt-out of encoding fid.
+	 * If a analn-decodeable file handle was requested, we only need to make
+	 * sure that filesystem did analt opt-out of encoding fid.
 	 */
 	if (fh_flags & EXPORT_FH_FID)
-		return exportfs_can_encode_fid(nop);
+		return exportfs_can_encode_fid(analp);
 
 	/*
 	 * If a decodeable file handle was requested, we need to make sure that
 	 * filesystem can also decode file handles.
 	 */
-	return exportfs_can_decode_fh(nop);
+	return exportfs_can_decode_fh(analp);
 }
 
-static inline int exportfs_encode_fid(struct inode *inode, struct fid *fid,
+static inline int exportfs_encode_fid(struct ianalde *ianalde, struct fid *fid,
 				      int *max_len)
 {
-	return exportfs_encode_inode_fh(inode, fid, max_len, NULL,
+	return exportfs_encode_ianalde_fh(ianalde, fid, max_len, NULL,
 					EXPORT_FH_FID);
 }
 
@@ -314,13 +314,13 @@ extern struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 /*
  * Generic helpers for filesystems.
  */
-int generic_encode_ino32_fh(struct inode *inode, __u32 *fh, int *max_len,
-			    struct inode *parent);
+int generic_encode_ianal32_fh(struct ianalde *ianalde, __u32 *fh, int *max_len,
+			    struct ianalde *parent);
 struct dentry *generic_fh_to_dentry(struct super_block *sb,
 	struct fid *fid, int fh_len, int fh_type,
-	struct inode *(*get_inode) (struct super_block *sb, u64 ino, u32 gen));
+	struct ianalde *(*get_ianalde) (struct super_block *sb, u64 ianal, u32 gen));
 struct dentry *generic_fh_to_parent(struct super_block *sb,
 	struct fid *fid, int fh_len, int fh_type,
-	struct inode *(*get_inode) (struct super_block *sb, u64 ino, u32 gen));
+	struct ianalde *(*get_ianalde) (struct super_block *sb, u64 ianal, u32 gen));
 
 #endif /* LINUX_EXPORTFS_H */

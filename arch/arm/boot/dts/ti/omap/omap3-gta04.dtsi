@@ -154,7 +154,7 @@
 	};
 
 	hsusb2_phy: hsusb2-phy-pins {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		reset-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
 		#phy-cells = <0>;
 	};
@@ -649,14 +649,14 @@
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
-	ti,non-removable;
-	broken-cd;	/* hardware has no CD */
+	ti,analn-removable;
+	broken-cd;	/* hardware has anal CD */
 };
 
 &mmc2 {
 	vmmc-supply = <&vaux4>;
 	bus-width = <4>;
-	ti,non-removable;
+	ti,analn-removable;
 	cap-power-off-card;
 	mmc-pwrseq = <&wifi_pwrseq>;
 };
@@ -699,7 +699,7 @@
 		compatible = "wi2wi,w2sg0004";
 		pinctrl-names = "default";
 		pinctrl-0 = <&gps_pins>;
-		sirf,onoff-gpios = <&gpio5 17 GPIO_ACTIVE_HIGH>;
+		sirf,oanalff-gpios = <&gpio5 17 GPIO_ACTIVE_HIGH>;
 		lna-supply = <&vsim>;
 		vcc-supply = <&ldo_3v3>;
 	};
@@ -789,8 +789,8 @@
 		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
 		interrupt-parent = <&gpmc>;
-		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
-			     <1 IRQ_TYPE_NONE>;	/* termcount */
+		interrupts = <0 IRQ_TYPE_ANALNE>, /* fifoevent */
+			     <1 IRQ_TYPE_ANALNE>;	/* termcount */
 		ti,nand-ecc-opt = "ham1";
 		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 */
 		nand-bus-width = <16>;
@@ -888,6 +888,6 @@
 				pclk-sample = <1>;/* Falling */
 			};
 		};
-		/* port@1 and port@2 are not used by GTA04 */
+		/* port@1 and port@2 are analt used by GTA04 */
 	};
 };

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * These are the public elements of the Linux kernel X.25 implementation.
  *
@@ -136,11 +136,11 @@ struct x25_calluserdata {
 };
 
 /*
- *	Call clearing Cause and Diagnostic structure.
+ *	Call clearing Cause and Diaganalstic structure.
  */
 struct x25_causediag {
 	unsigned char	cause;
-	unsigned char	diagnostic;
+	unsigned char	diaganalstic;
 };
 
 /*

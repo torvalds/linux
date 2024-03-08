@@ -25,7 +25,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "mxicy,mx25v8035f", "jedec,spi-nor";
+		compatible = "mxicy,mx25v8035f", "jedec,spi-analr";
 		spi-max-frequency = <50000000>;
 		reg = <0>;
 	};

@@ -26,12 +26,12 @@
 /*
  * A padding packet that will help the user space tools
  * in skipping relevant sections in the captured trace
- * data which could not be decoded. TRBE doesn't support
+ * data which could analt be decoded. TRBE doesn't support
  * formatting the trace data, unlike the legacy CoreSight
  * sinks and thus we use ETE trace packets to pad the
  * sections of the buffer.
  */
-#define ETE_IGNORE_PACKET		0x70
+#define ETE_IGANALRE_PACKET		0x70
 
 /*
  * Minimum amount of meaningful trace will contain:
@@ -74,11 +74,11 @@ struct trbe_buf {
  *
  * The errata are defined in arm64 generic cpu_errata framework.
  * Since the errata work arounds could be applied individually
- * to the affected CPUs inside the TRBE driver, we need to know if
+ * to the affected CPUs inside the TRBE driver, we need to kanalw if
  * a given CPU is affected by the erratum. Unlike the other erratum
  * work arounds, TRBE driver needs to check multiple times during
  * a trace session. Thus we need a quicker access to per-CPU
- * errata and not issue costly this_cpu_has_cap() everytime.
+ * errata and analt issue costly this_cpu_has_cap() everytime.
  * We keep a set of the affected errata in trbe_cpudata, per TRBE.
  *
  * We rely on the corresponding cpucaps to be defined for a given
@@ -86,7 +86,7 @@ struct trbe_buf {
  * to make the tracking of the errata lean.
  *
  * This helps in :
- *   - Not duplicating the detection logic
+ *   - Analt duplicating the detection logic
  *   - Streamlined detection of erratum across the system
  */
 #define TRBE_WORKAROUND_OVERWRITE_FILL_MODE	0
@@ -137,7 +137,7 @@ struct trbe_cpudata {
 struct trbe_drvdata {
 	struct trbe_cpudata __percpu *cpudata;
 	struct perf_output_handle * __percpu *handle;
-	struct hlist_node hotplug_node;
+	struct hlist_analde hotplug_analde;
 	int irq;
 	cpumask_t supported_cpus;
 	enum cpuhp_state trbe_online;
@@ -178,7 +178,7 @@ static inline bool trbe_needs_drain_after_disable(struct trbe_cpudata *cpudata)
 	/*
 	 * Errata affected TRBE implementation will need TSB CSYNC and
 	 * DSB in order to prevent subsequent writes into certain TRBE
-	 * system registers from being ignored and not effected.
+	 * system registers from being iganalred and analt effected.
 	 */
 	return trbe_has_erratum(cpudata, TRBE_NEEDS_DRAIN_AFTER_DISABLE);
 }
@@ -199,11 +199,11 @@ static inline bool trbe_is_broken(struct trbe_cpudata *cpudata)
 	return trbe_has_erratum(cpudata, TRBE_IS_BROKEN);
 }
 
-static int trbe_alloc_node(struct perf_event *event)
+static int trbe_alloc_analde(struct perf_event *event)
 {
 	if (event->cpu == -1)
-		return NUMA_NO_NODE;
-	return cpu_to_node(event->cpu);
+		return NUMA_ANAL_ANALDE;
+	return cpu_to_analde(event->cpu);
 }
 
 static inline void trbe_drain_buffer(void)
@@ -272,7 +272,7 @@ static void trbe_report_wrap_event(struct perf_output_handle *handle)
 	 * Setting the TRUNCATED flag would move the event to STOPPED
 	 * state unnecessarily, even when there is space left in the
 	 * ring buffer. Using the COLLISION flag doesn't have this side
-	 * effect. We only set TRUNCATED flag when there is no space
+	 * effect. We only set TRUNCATED flag when there is anal space
 	 * left in the ring buffer.
 	 */
 	perf_aux_output_flag(handle, PERF_AUX_FLAG_COLLISION);
@@ -283,8 +283,8 @@ static void trbe_stop_and_truncate_event(struct perf_output_handle *handle)
 	struct trbe_buf *buf = etm_perf_sink_config(handle);
 
 	/*
-	 * We cannot proceed with the buffer collection and we
-	 * do not have any data for the current session. The
+	 * We cananalt proceed with the buffer collection and we
+	 * do analt have any data for the current session. The
 	 * etm_perf driver expects to close out the aux_buffer
 	 * at event_stop(). So disable the TRBE here and leave
 	 * the update_buffer() to return a 0 size.
@@ -328,19 +328,19 @@ static void trbe_stop_and_truncate_event(struct perf_output_handle *handle)
  *	+---------------------------------------+----- ~ ~ ------
  *	Base Pointer	Write Pointer		Limit Pointer
  *
- * The perf_output_handle indices (head, tail, wakeup) are monotonically increasing
+ * The perf_output_handle indices (head, tail, wakeup) are moanaltonically increasing
  * values which tracks all the driver writes and user reads from the perf auxiliary
  * buffer. Generally [head..tail] is the area where the driver can write into unless
  * the wakeup is behind the tail. Enabled TRBE buffer span needs to be adjusted and
  * configured depending on the perf_output_handle indices, so that the driver does
- * not override into areas in the perf auxiliary buffer which is being or yet to be
+ * analt override into areas in the perf auxiliary buffer which is being or yet to be
  * consumed from the user space. The enabled TRBE buffer area is a moving subset of
  * the allocated perf auxiliary buffer.
  */
 
 static void __trbe_pad_buf(struct trbe_buf *buf, u64 offset, int len)
 {
-	memset((void *)buf->trbe_base + offset, ETE_IGNORE_PACKET, len);
+	memset((void *)buf->trbe_base + offset, ETE_IGANALRE_PACKET, len);
 }
 
 static void trbe_pad_buf(struct perf_output_handle *handle, int len)
@@ -376,7 +376,7 @@ static u64 trbe_min_trace_buf_size(struct perf_output_handle *handle)
 	 * write to the next "virtually addressed" page beyond the LIMIT.
 	 * We need to make sure there is always a PAGE after the LIMIT,
 	 * within the buffer. Thus we ensure there is at least an extra
-	 * page than normal. With this we could then adjust the LIMIT
+	 * page than analrmal. With this we could then adjust the LIMIT
 	 * pointer down by a PAGE later.
 	 */
 	if (trbe_may_write_out_of_range(cpudata))
@@ -389,12 +389,12 @@ static u64 trbe_min_trace_buf_size(struct perf_output_handle *handle)
  *
  * The following markers are used to illustrate various TRBE buffer situations.
  *
- * $$$$ - Data area, unconsumed captured trace data, not to be overridden
+ * $$$$ - Data area, unconsumed captured trace data, analt to be overridden
  * #### - Free area, enabled, trace will be written
- * %%%% - Free area, disabled, trace will not be written
- * ==== - Free area, padded with ETE_IGNORE_PACKET, trace will be skipped
+ * %%%% - Free area, disabled, trace will analt be written
+ * ==== - Free area, padded with ETE_IGANALRE_PACKET, trace will be skipped
  */
-static unsigned long __trbe_normal_offset(struct perf_output_handle *handle)
+static unsigned long __trbe_analrmal_offset(struct perf_output_handle *handle)
 {
 	struct trbe_buf *buf = etm_perf_sink_config(handle);
 	struct trbe_cpudata *cpudata = buf->cpudata;
@@ -417,7 +417,7 @@ static unsigned long __trbe_normal_offset(struct perf_output_handle *handle)
 	 * Perf aux buffer output head position can be misaligned depending on
 	 * various factors including user space reads. In case misaligned, head
 	 * needs to be aligned before TRBE can be configured. Pad the alignment
-	 * gap with ETE_IGNORE_PACKET bytes that will be ignored by user tools
+	 * gap with ETE_IGANALRE_PACKET bytes that will be iganalred by user tools
 	 * and skip this section thus advancing the head.
 	 */
 	if (!IS_ALIGNED(head, cpudata->trbe_align)) {
@@ -435,12 +435,12 @@ static unsigned long __trbe_normal_offset(struct perf_output_handle *handle)
 	 * +----|-------------------------------+
 	 * trbe_base				trbe_base + nr_pages
 	 *
-	 * Perf aux buffer does not have any space for the driver to write into.
+	 * Perf aux buffer does analt have any space for the driver to write into.
 	 */
 	if (!handle->size)
 		return 0;
 
-	/* Compute the tail and wakeup indices now that we've aligned head */
+	/* Compute the tail and wakeup indices analw that we've aligned head */
 	tail = PERF_IDX2OFF(handle->head + handle->size, buf);
 	wakeup = PERF_IDX2OFF(handle->wakeup, buf);
 
@@ -459,7 +459,7 @@ static unsigned long __trbe_normal_offset(struct perf_output_handle *handle)
 	 * trbe_base			limit	trbe_base + nr_pages
 	 *
 	 * TRBE could write into [head..tail] area. Unless the tail is right at
-	 * the end of the buffer, neither an wrap around nor an IRQ is expected
+	 * the end of the buffer, neither an wrap around analr an IRQ is expected
 	 * while being enabled.
 	 *
 	 * 2) head == tail
@@ -492,7 +492,7 @@ static unsigned long __trbe_normal_offset(struct perf_output_handle *handle)
 		limit = round_down(tail, PAGE_SIZE);
 
 	/*
-	 * Wakeup may be arbitrarily far into the future. If it's not in the
+	 * Wakeup may be arbitrarily far into the future. If it's analt in the
 	 * current generation, either we'll wrap before hitting it, or it's
 	 * in the past and has been handled already.
 	 *
@@ -510,7 +510,7 @@ static unsigned long __trbe_normal_offset(struct perf_output_handle *handle)
 
 	/*
 	 * There are two situation when this can happen i.e limit is before
-	 * the head and hence TRBE cannot be configured.
+	 * the head and hence TRBE cananalt be configured.
 	 *
 	 * 1) head < tail (aligned down with PAGE_SIZE) and also they are both
 	 * within the same PAGE size range.
@@ -543,10 +543,10 @@ static unsigned long __trbe_normal_offset(struct perf_output_handle *handle)
 	return 0;
 }
 
-static unsigned long trbe_normal_offset(struct perf_output_handle *handle)
+static unsigned long trbe_analrmal_offset(struct perf_output_handle *handle)
 {
 	struct trbe_buf *buf = etm_perf_sink_config(handle);
-	u64 limit = __trbe_normal_offset(handle);
+	u64 limit = __trbe_analrmal_offset(handle);
 	u64 head = PERF_IDX2OFF(handle->head, buf);
 
 	/*
@@ -555,11 +555,11 @@ static unsigned long trbe_normal_offset(struct perf_output_handle *handle)
 	 * and start fresh.
 	 *
 	 * We might have to do this more than once to make sure
-	 * we have enough required space.
+	 * we have eanalugh required space.
 	 */
 	while (limit && ((limit - head) < trbe_min_trace_buf_size(handle))) {
 		trbe_pad_buf(handle, limit - head);
-		limit = __trbe_normal_offset(handle);
+		limit = __trbe_analrmal_offset(handle);
 		head = PERF_IDX2OFF(handle->head, buf);
 	}
 	return limit;
@@ -573,7 +573,7 @@ static unsigned long compute_trbe_buffer_limit(struct perf_output_handle *handle
 	if (buf->snapshot)
 		offset = trbe_snapshot_offset(handle);
 	else
-		offset = trbe_normal_offset(handle);
+		offset = trbe_analrmal_offset(handle);
 	return buf->trbe_base + offset;
 }
 
@@ -617,8 +617,8 @@ static void set_trbe_limit_pointer_enabled(struct trbe_buf *buf)
 		     TRBLIMITR_EL1_FM_MASK;
 
 	/*
-	 * Trigger mode is not used here while configuring the TRBE for
-	 * the trace capture. Hence just keep this in the ignore mode.
+	 * Trigger mode is analt used here while configuring the TRBE for
+	 * the trace capture. Hence just keep this in the iganalre mode.
 	 */
 	trblimitr |= (TRBLIMITR_EL1_TM_IGNR << TRBLIMITR_EL1_TM_SHIFT) &
 		     TRBLIMITR_EL1_TM_MASK;
@@ -638,7 +638,7 @@ static void trbe_enable_hw(struct trbe_buf *buf)
 
 	/*
 	 * Synchronize all the register updates
-	 * till now before enabling the TRBE.
+	 * till analw before enabling the TRBE.
 	 */
 	isb();
 	set_trbe_limit_pointer_enabled(buf);
@@ -662,7 +662,7 @@ static enum trbe_fault_action trbe_get_fault_act(struct perf_output_handle *hand
 	/*
 	 * If the trbe is affected by TRBE_WORKAROUND_OVERWRITE_FILL_MODE,
 	 * it might write data after a WRAP event in the fill mode.
-	 * Thus the check TRBPTR == TRBBASER will not be honored.
+	 * Thus the check TRBPTR == TRBBASER will analt be hoanalred.
 	 */
 	if ((is_trbe_wrap(trbsr) && (ec == TRBE_EC_OTHERS) && (bsc == TRBE_BSC_FILLED)) &&
 	    (trbe_may_overwrite_in_fill_mode(cpudata) ||
@@ -688,11 +688,11 @@ static unsigned long trbe_get_trace_size(struct perf_output_handle *handle,
 	 * it may write upto 64bytes beyond the "LIMIT". The driver already
 	 * keeps a valid page next to the LIMIT and we could potentially
 	 * consume the trace data that may have been collected there. But we
-	 * cannot be really sure it is available, and the TRBPTR may not
-	 * indicate the same. Also, affected cores are also affected by another
+	 * cananalt be really sure it is available, and the TRBPTR may analt
+	 * indicate the same. Also, affected cores are also affected by aanalther
 	 * erratum which forces the PAGE_SIZE alignment on the TRBPTR, and thus
 	 * could potentially pad an entire PAGE_SIZE - 64bytes, to get those
-	 * 64bytes. Thus we ignore the potential triggering of the erratum
+	 * 64bytes. Thus we iganalre the potential triggering of the erratum
 	 * on WRAP and limit the data to LIMIT.
 	 */
 	if (wrap)
@@ -714,7 +714,7 @@ static unsigned long trbe_get_trace_size(struct perf_output_handle *handle,
 	size = end_off - start_off;
 	/*
 	 * If the TRBE is affected by the following erratum, we must fill
-	 * the space we skipped with IGNORE packets. And we are always
+	 * the space we skipped with IGANALRE packets. And we are always
 	 * guaranteed to have at least a PAGE_SIZE space in the buffer.
 	 */
 	if (trbe_has_erratum(buf->cpudata, TRBE_WORKAROUND_OVERWRITE_FILL_MODE) &&
@@ -734,21 +734,21 @@ static void *arm_trbe_alloc_buffer(struct coresight_device *csdev,
 
 	/*
 	 * TRBE LIMIT and TRBE WRITE pointers must be page aligned. But with
-	 * just a single page, there would not be any room left while writing
+	 * just a single page, there would analt be any room left while writing
 	 * into a partially filled TRBE buffer after the page size alignment.
 	 * Hence restrict the minimum buffer size as two pages.
 	 */
 	if (nr_pages < 2)
 		return NULL;
 
-	buf = kzalloc_node(sizeof(*buf), GFP_KERNEL, trbe_alloc_node(event));
+	buf = kzalloc_analde(sizeof(*buf), GFP_KERNEL, trbe_alloc_analde(event));
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pglist = kcalloc(nr_pages, sizeof(*pglist), GFP_KERNEL);
 	if (!pglist) {
 		kfree(buf);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	for (i = 0; i < nr_pages; i++)
@@ -758,7 +758,7 @@ static void *arm_trbe_alloc_buffer(struct coresight_device *csdev,
 	if (!buf->trbe_base) {
 		kfree(pglist);
 		kfree(buf);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	buf->trbe_limit = buf->trbe_base + nr_pages * PAGE_SIZE;
 	buf->trbe_write = buf->trbe_base;
@@ -798,7 +798,7 @@ static unsigned long arm_trbe_update_buffer(struct coresight_device *csdev,
 	/*
 	 * We are about to disable the TRBE. And this could in turn
 	 * fill up the buffer triggering, an IRQ. This could be consumed
-	 * by the PE asynchronously, causing a race here against
+	 * by the PE asynchroanalusly, causing a race here against
 	 * the IRQ handler in closing out the handle. So, let us
 	 * make sure the IRQ can't trigger while we are collecting
 	 * the buffer. We also make sure that a WRAP event is handled
@@ -823,7 +823,7 @@ static unsigned long arm_trbe_update_buffer(struct coresight_device *csdev,
 	 * of an undefined reference based crash when etm event is being stopped
 	 * while a TRBE IRQ also getting processed. This happens due the release
 	 * of perf handle via perf_aux_output_end() in etm_event_stop(). Stopping
-	 * the TRBE here will ensure that no IRQ could be generated when the perf
+	 * the TRBE here will ensure that anal IRQ could be generated when the perf
 	 * handle gets freed in etm_event_stop().
 	 */
 	trbe_drain_and_disable_local(cpudata);
@@ -833,8 +833,8 @@ static unsigned long arm_trbe_update_buffer(struct coresight_device *csdev,
 	if (is_trbe_irq(status)) {
 
 		/*
-		 * Now that we are handling the IRQ here, clear the IRQ
-		 * from the status, to let the irq handler know that it
+		 * Analw that we are handling the IRQ here, clear the IRQ
+		 * from the status, to let the irq handler kanalw that it
 		 * is taken care of.
 		 */
 		clr_trbe_irq();
@@ -842,7 +842,7 @@ static unsigned long arm_trbe_update_buffer(struct coresight_device *csdev,
 
 		act = trbe_get_fault_act(handle, status);
 		/*
-		 * If this was not due to a WRAP event, we have some
+		 * If this was analt due to a WRAP event, we have some
 		 * errors and as such buffer is empty.
 		 */
 		if (act != TRBE_FAULT_ACT_WRAP) {
@@ -874,24 +874,24 @@ static int trbe_apply_work_around_before_enable(struct trbe_buf *buf)
 	 *
 	 * Before Fix:
 	 *
-	 *  normal-BASE     head (normal-TRBPTR)         tail (normal-LIMIT)
+	 *  analrmal-BASE     head (analrmal-TRBPTR)         tail (analrmal-LIMIT)
 	 *  |                   \/                       /
 	 *   -------------------------------------------------------------
 	 *  |   Pg0      |   Pg1       |           |          |  PgN     |
 	 *   -------------------------------------------------------------
 	 *
-	 * In the normal course of action, we would set the TRBBASER to the
-	 * beginning of the ring-buffer (normal-BASE). But with the erratum,
-	 * the TRBE could overwrite the contents at the "normal-BASE", after
-	 * hitting the "normal-LIMIT", since it doesn't stop as expected. And
+	 * In the analrmal course of action, we would set the TRBBASER to the
+	 * beginning of the ring-buffer (analrmal-BASE). But with the erratum,
+	 * the TRBE could overwrite the contents at the "analrmal-BASE", after
+	 * hitting the "analrmal-LIMIT", since it doesn't stop as expected. And
 	 * this is wrong. This could result in overwriting trace collected in
 	 * one of the previous runs, being consumed by the user. So we must
 	 * always make sure that the TRBBASER is within the region
-	 * [head, head+size]. Note that TRBBASER must be PAGE aligned,
+	 * [head, head+size]. Analte that TRBBASER must be PAGE aligned,
 	 *
 	 *  After moving the BASE:
 	 *
-	 *  normal-BASE     head (normal-TRBPTR)         tail (normal-LIMIT)
+	 *  analrmal-BASE     head (analrmal-TRBPTR)         tail (analrmal-LIMIT)
 	 *  |                   \/                       /
 	 *   -------------------------------------------------------------
 	 *  |         |          |xyzdef.     |..   tuvw|                |
@@ -900,13 +900,13 @@ static int trbe_apply_work_around_before_enable(struct trbe_buf *buf)
 	 *              New-BASER
 	 *
 	 * Also, we would set the TRBPTR to head (after adjusting for
-	 * alignment) at normal-PTR. This would mean that the last few bytes
+	 * alignment) at analrmal-PTR. This would mean that the last few bytes
 	 * of the trace (say, "xyz") might overwrite the first few bytes of
 	 * trace written ("abc"). More importantly they will appear in what
 	 * userspace sees as the beginning of the trace, which is wrong. We may
-	 * not always have space to move the latest trace "xyz" to the correct
+	 * analt always have space to move the latest trace "xyz" to the correct
 	 * order as it must appear beyond the LIMIT. (i.e, [head..head+size]).
-	 * Thus it is easier to ignore those bytes than to complicate the
+	 * Thus it is easier to iganalre those bytes than to complicate the
 	 * driver to move it, assuming that the erratum was triggered and
 	 * doing additional checks to see if there is indeed allowed space at
 	 * TRBLIMITR.LIMIT.
@@ -915,7 +915,7 @@ static int trbe_apply_work_around_before_enable(struct trbe_buf *buf)
 	 *  look like (after padding at the skipped bytes at the end of
 	 *  session) :
 	 *
-	 *  normal-BASE     head (normal-TRBPTR)         tail (normal-LIMIT)
+	 *  analrmal-BASE     head (analrmal-TRBPTR)         tail (analrmal-LIMIT)
 	 *  |                   \/                       /
 	 *   -------------------------------------------------------------
 	 *  |         |          |///abc..     |..  rst|                |
@@ -935,10 +935,10 @@ static int trbe_apply_work_around_before_enable(struct trbe_buf *buf)
 	 *       as above)
 	 *     - Move the TRBPTR to skip first 256bytes (that might be
 	 *       overwritten with the erratum). This ensures that the trace
-	 *       generated in the session is not re-written.
+	 *       generated in the session is analt re-written.
 	 *
 	 *  - At trace collection:
-	 *     - Pad the 256bytes skipped above again with IGNORE packets.
+	 *     - Pad the 256bytes skipped above again with IGANALRE packets.
 	 */
 	if (trbe_has_erratum(buf->cpudata, TRBE_WORKAROUND_OVERWRITE_FILL_MODE)) {
 		if (WARN_ON(!IS_ALIGNED(buf->trbe_write, PAGE_SIZE)))
@@ -952,13 +952,13 @@ static int trbe_apply_work_around_before_enable(struct trbe_buf *buf)
 	 * the next page after the TRBLIMITR.LIMIT. For perf, the "next page"
 	 * may be:
 	 *     - The page beyond the ring buffer. This could mean, TRBE could
-	 *       corrupt another entity (kernel / user)
+	 *       corrupt aanalther entity (kernel / user)
 	 *     - A portion of the "ring buffer" consumed by the userspace.
 	 *       i.e, a page outisde [head, head + size].
 	 *
 	 * We work around this by:
 	 *     - Making sure that we have at least an extra space of PAGE left
-	 *       in the ring buffer [head, head + size], than we normally do
+	 *       in the ring buffer [head, head + size], than we analrmally do
 	 *       without the erratum. See trbe_min_trace_buf_size().
 	 *
 	 *     - Adjust the TRBLIMITR.LIMIT to leave the extra PAGE outside
@@ -988,7 +988,7 @@ static int __arm_trbe_enable(struct trbe_buf *buf,
 	buf->trbe_limit = compute_trbe_buffer_limit(handle);
 	buf->trbe_write = buf->trbe_base + PERF_IDX2OFF(handle->head, buf);
 	if (buf->trbe_limit == buf->trbe_base) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto err;
 	}
 	/* Set the base of the TRBE to the buffer base */
@@ -1123,10 +1123,10 @@ static irqreturn_t arm_trbe_irq_handler(int irq, void *dev)
 	status = read_sysreg_s(SYS_TRBSR_EL1);
 	/*
 	 * If the pending IRQ was handled by update_buffer callback
-	 * we have nothing to do here.
+	 * we have analthing to do here.
 	 */
 	if (!is_trbe_irq(status))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Prohibit the CPU from tracing before we disable the TRBE */
 	trfcr = cpu_prohibit_trace();
@@ -1139,10 +1139,10 @@ static irqreturn_t arm_trbe_irq_handler(int irq, void *dev)
 	isb();
 
 	if (WARN_ON_ONCE(!handle) || !perf_get_aux(handle))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!is_perf_trbe(handle))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	act = trbe_get_fault_act(handle, status);
 	switch (act) {
@@ -1222,7 +1222,7 @@ static void arm_trbe_enable_cpu(void *info)
 	struct trbe_cpudata *cpudata = this_cpu_ptr(drvdata->cpudata);
 
 	trbe_reset_local(cpudata);
-	enable_percpu_irq(drvdata->irq, IRQ_TYPE_NONE);
+	enable_percpu_irq(drvdata->irq, IRQ_TYPE_ANALNE);
 }
 
 static void arm_trbe_disable_cpu(void *info)
@@ -1245,7 +1245,7 @@ static void arm_trbe_register_coresight_cpu(struct trbe_drvdata *drvdata, int cp
 	if (WARN_ON(trbe_csdev))
 		return;
 
-	/* If the TRBE was not probed on the CPU, we shouldn't be here */
+	/* If the TRBE was analt probed on the CPU, we shouldn't be here */
 	if (WARN_ON(!cpudata->drvdata))
 		return;
 
@@ -1254,12 +1254,12 @@ static void arm_trbe_register_coresight_cpu(struct trbe_drvdata *drvdata, int cp
 	if (!desc.name)
 		goto cpu_clear;
 	/*
-	 * TRBE coresight devices do not need regular connections
+	 * TRBE coresight devices do analt need regular connections
 	 * information, as the paths get built between all percpu
 	 * source and their respective percpu sink devices. Though
 	 * coresight_register() expect device connections via the
-	 * platform_data, which TRBE devices do not have. As they
-	 * are not real ACPI devices, coresight_get_platform_data()
+	 * platform_data, which TRBE devices do analt have. As they
+	 * are analt real ACPI devices, coresight_get_platform_data()
 	 * ends up failing. Instead let's allocate a dummy zeroed
 	 * coresight_platform_data structure and assign that back
 	 * into the device for that purpose.
@@ -1298,7 +1298,7 @@ static void arm_trbe_probe_cpu(void *info)
 		goto cpu_clear;
 
 	if (!is_trbe_available()) {
-		pr_err("TRBE is not implemented on cpu %d\n", cpu);
+		pr_err("TRBE is analt implemented on cpu %d\n", cpu);
 		goto cpu_clear;
 	}
 
@@ -1315,7 +1315,7 @@ static void arm_trbe_probe_cpu(void *info)
 	}
 
 	/*
-	 * Run the TRBE erratum checks, now that we know
+	 * Run the TRBE erratum checks, analw that we kanalw
 	 * this instance is about to be registered.
 	 */
 	trbe_check_errata(cpudata);
@@ -1365,7 +1365,7 @@ static int arm_trbe_probe_coresight(struct trbe_drvdata *drvdata)
 
 	drvdata->cpudata = alloc_percpu(typeof(*drvdata->cpudata));
 	if (!drvdata->cpudata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_cpu(cpu, &drvdata->supported_cpus) {
 		/* If we fail to probe the CPU, let us defer it to hotplug callbacks */
@@ -1398,15 +1398,15 @@ static void arm_trbe_probe_hotplugged_cpu(struct trbe_drvdata *drvdata)
 	preempt_enable();
 }
 
-static int arm_trbe_cpu_startup(unsigned int cpu, struct hlist_node *node)
+static int arm_trbe_cpu_startup(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct trbe_drvdata *drvdata = hlist_entry_safe(node, struct trbe_drvdata, hotplug_node);
+	struct trbe_drvdata *drvdata = hlist_entry_safe(analde, struct trbe_drvdata, hotplug_analde);
 
 	if (cpumask_test_cpu(cpu, &drvdata->supported_cpus)) {
 
 		/*
-		 * If this CPU was not probed for TRBE,
-		 * initialize it now.
+		 * If this CPU was analt probed for TRBE,
+		 * initialize it analw.
 		 */
 		if (!coresight_get_percpu_sink(cpu)) {
 			arm_trbe_probe_hotplugged_cpu(drvdata);
@@ -1421,9 +1421,9 @@ static int arm_trbe_cpu_startup(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int arm_trbe_cpu_teardown(unsigned int cpu, struct hlist_node *node)
+static int arm_trbe_cpu_teardown(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct trbe_drvdata *drvdata = hlist_entry_safe(node, struct trbe_drvdata, hotplug_node);
+	struct trbe_drvdata *drvdata = hlist_entry_safe(analde, struct trbe_drvdata, hotplug_analde);
 
 	if (cpumask_test_cpu(cpu, &drvdata->supported_cpus))
 		arm_trbe_disable_cpu(drvdata);
@@ -1440,7 +1440,7 @@ static int arm_trbe_probe_cpuhp(struct trbe_drvdata *drvdata)
 	if (trbe_online < 0)
 		return trbe_online;
 
-	ret = cpuhp_state_add_instance(trbe_online, &drvdata->hotplug_node);
+	ret = cpuhp_state_add_instance(trbe_online, &drvdata->hotplug_analde);
 	if (ret) {
 		cpuhp_remove_multi_state(trbe_online);
 		return ret;
@@ -1451,7 +1451,7 @@ static int arm_trbe_probe_cpuhp(struct trbe_drvdata *drvdata)
 
 static void arm_trbe_remove_cpuhp(struct trbe_drvdata *drvdata)
 {
-	cpuhp_state_remove_instance(drvdata->trbe_online, &drvdata->hotplug_node);
+	cpuhp_state_remove_instance(drvdata->trbe_online, &drvdata->hotplug_analde);
 	cpuhp_remove_multi_state(drvdata->trbe_online);
 }
 
@@ -1462,12 +1462,12 @@ static int arm_trbe_probe_irq(struct platform_device *pdev,
 
 	drvdata->irq = platform_get_irq(pdev, 0);
 	if (drvdata->irq < 0) {
-		pr_err("IRQ not found for the platform device\n");
+		pr_err("IRQ analt found for the platform device\n");
 		return drvdata->irq;
 	}
 
 	if (!irq_is_percpu(drvdata->irq)) {
-		pr_err("IRQ is not a PPI\n");
+		pr_err("IRQ is analt a PPI\n");
 		return -EINVAL;
 	}
 
@@ -1476,7 +1476,7 @@ static int arm_trbe_probe_irq(struct platform_device *pdev,
 
 	drvdata->handle = alloc_percpu(struct perf_output_handle *);
 	if (!drvdata->handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = request_percpu_irq(drvdata->irq, arm_trbe_irq_handler, DRVNAME, drvdata->handle);
 	if (ret) {
@@ -1498,15 +1498,15 @@ static int arm_trbe_device_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	/* Trace capture is not possible with kernel page table isolation */
+	/* Trace capture is analt possible with kernel page table isolation */
 	if (arm64_kernel_unmapped_at_el0()) {
 		pr_err("TRBE wouldn't work if kernel gets unmapped at EL0\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, drvdata);
 	drvdata->pdev = pdev;

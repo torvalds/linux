@@ -54,7 +54,7 @@
 	tps65917: tps65917@58 {
 		reg = <0x58>;
 
-		interrupts = <GIC_SPI 2 IRQ_TYPE_NONE>;  /* IRQ_SYS_1N */
+		interrupts = <GIC_SPI 2 IRQ_TYPE_ANALNE>;  /* IRQ_SYS_1N */
 	};
 };
 

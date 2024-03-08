@@ -3,7 +3,7 @@
  *
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -134,7 +134,7 @@ static int rose_link_up(struct rose_neigh *neigh)
 }
 
 /*
- *	This handles all restart and diagnostic frames.
+ *	This handles all restart and diaganalstic frames.
  */
 void rose_link_rx_restart(struct sk_buff *skb, struct rose_neigh *neigh, unsigned short frametype)
 {
@@ -153,13 +153,13 @@ void rose_link_rx_restart(struct sk_buff *skb, struct rose_neigh *neigh, unsigne
 		neigh->restarted = 1;
 		break;
 
-	case ROSE_DIAGNOSTIC:
-		pr_warn("ROSE: received diagnostic #%d - %3ph\n", skb->data[3],
+	case ROSE_DIAGANALSTIC:
+		pr_warn("ROSE: received diaganalstic #%d - %3ph\n", skb->data[3],
 			skb->data + 4);
 		break;
 
 	default:
-		printk(KERN_WARNING "ROSE: received unknown %02X with LCI 000\n", frametype);
+		printk(KERN_WARNING "ROSE: received unkanalwn %02X with LCI 000\n", frametype);
 		break;
 	}
 
@@ -230,7 +230,7 @@ static void rose_transmit_restart_confirmation(struct rose_neigh *neigh)
  * This routine is called when a Clear Request is needed outside of the context
  * of a connected socket.
  */
-void rose_transmit_clear_request(struct rose_neigh *neigh, unsigned int lci, unsigned char cause, unsigned char diagnostic)
+void rose_transmit_clear_request(struct rose_neigh *neigh, unsigned int lci, unsigned char cause, unsigned char diaganalstic)
 {
 	struct sk_buff *skb;
 	unsigned char *dptr;
@@ -253,7 +253,7 @@ void rose_transmit_clear_request(struct rose_neigh *neigh, unsigned int lci, uns
 	*dptr++ = ((lci >> 0) & 0xFF);
 	*dptr++ = ROSE_CLEAR_REQUEST;
 	*dptr++ = cause;
-	*dptr++ = diagnostic;
+	*dptr++ = diaganalstic;
 
 	if (!rose_send_frame(skb, neigh))
 		kfree_skb(skb);

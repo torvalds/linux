@@ -16,7 +16,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/parport.h>
@@ -56,7 +56,7 @@ static int do_active_device(struct ctl_table *table, int write,
 	}
 
 	if(!len) {
-		len += sprintf(buffer, "%s\n", "none");
+		len += sprintf(buffer, "%s\n", "analne");
 	}
 
 	if (len > *lenp)
@@ -420,7 +420,7 @@ int parport_proc_register(struct parport *port)
 
 	t = kmemdup(&parport_sysctl_template, sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t->device_dir[0].extra1 = port;
 
@@ -434,13 +434,13 @@ int parport_proc_register(struct parport *port)
 
 	tmp_dir_path = kasprintf(GFP_KERNEL, "dev/parport/%s/devices", port->name);
 	if (!tmp_dir_path) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_free_t;
 	}
 
 	t->devices_header = register_sysctl(tmp_dir_path, t->device_dir);
 	if (t->devices_header == NULL) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto  exit_free_tmp_dir_path;
 	}
 
@@ -448,13 +448,13 @@ int parport_proc_register(struct parport *port)
 
 	tmp_dir_path = kasprintf(GFP_KERNEL, "dev/parport/%s", port->name);
 	if (!tmp_dir_path) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unregister_devices_h;
 	}
 
 	t->port_header = register_sysctl(tmp_dir_path, t->vars);
 	if (t->port_header == NULL) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto unregister_devices_h;
 	}
 
@@ -495,12 +495,12 @@ int parport_device_proc_register(struct pardevice *device)
 	
 	t = kmemdup(&parport_device_sysctl_template, sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate a buffer for two paths: dev/parport/PORT/devices/DEVICE. */
 	tmp_dir_path = kasprintf(GFP_KERNEL, "dev/parport/%s/devices/%s", port->name, device->name);
 	if (!tmp_dir_path) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_free_t;
 	}
 
@@ -540,7 +540,7 @@ static int __init parport_default_proc_register(void)
 	parport_default_sysctl_table.sysctl_header =
 		register_sysctl("dev/parport/default", parport_default_sysctl_table.vars);
 	if (!parport_default_sysctl_table.sysctl_header)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = parport_bus_init();
 	if (ret) {
 		unregister_sysctl_table(parport_default_sysctl_table.
@@ -560,7 +560,7 @@ static void __exit parport_default_proc_unregister(void)
 	parport_bus_exit();
 }
 
-#else /* no sysctl or no procfs*/
+#else /* anal sysctl or anal procfs*/
 
 int parport_proc_register(struct parport *pp)
 {

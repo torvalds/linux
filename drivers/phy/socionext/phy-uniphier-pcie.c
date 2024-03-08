@@ -227,7 +227,7 @@ static int uniphier_pciephy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->data = of_device_get_match_data(dev);
 	if (WARN_ON(!priv->data))
@@ -266,11 +266,11 @@ static int uniphier_pciephy_probe(struct platform_device *pdev)
 			return PTR_ERR(priv->rst);
 	}
 
-	phy = devm_phy_create(dev, dev->of_node, &uniphier_pciephy_ops);
+	phy = devm_phy_create(dev, dev->of_analde, &uniphier_pciephy_ops);
 	if (IS_ERR(phy))
 		return PTR_ERR(phy);
 
-	regmap = syscon_regmap_lookup_by_phandle(dev->of_node,
+	regmap = syscon_regmap_lookup_by_phandle(dev->of_analde,
 						 "socionext,syscon");
 	if (!IS_ERR(regmap) && priv->data->set_phymode)
 		priv->data->set_phymode(regmap);

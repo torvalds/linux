@@ -2,8 +2,8 @@
 /*
  * linux/drivers/video/omap2/dss/dpi.c
  *
- * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2009 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -15,7 +15,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/string.h>
@@ -52,7 +52,7 @@ static struct dpi_data *dpi_get_data_from_dssdev(struct omap_dss_device *dssdev)
 	return container_of(dssdev, struct dpi_data, output);
 }
 
-/* only used in non-DT mode */
+/* only used in analn-DT mode */
 static struct dpi_data *dpi_get_data_from_pdev(struct platform_device *pdev)
 {
 	return platform_get_drvdata(pdev);
@@ -243,7 +243,7 @@ static bool dpi_dss_clk_calc(unsigned long pck, struct dpi_clk_calc_ctx *ctx)
 
 	/*
 	 * DSS fck gives us very few possibilities, so finding a good pixel
-	 * clock may not be possible. We try multiple times to find the clock,
+	 * clock may analt be possible. We try multiple times to find the clock,
 	 * each time widening the pixel clock range we look for, up to
 	 * +/- ~15MHz.
 	 */
@@ -342,7 +342,7 @@ static int dpi_set_mode(struct dpi_data *dpi)
 	pck = fck / lck_div / pck_div;
 
 	if (pck != t->pixelclock) {
-		DSSWARN("Could not find exact pixel clock. Requested %d Hz, got %lu Hz\n",
+		DSSWARN("Could analt find exact pixel clock. Requested %d Hz, got %lu Hz\n",
 			t->pixelclock, pck);
 
 		t->pixelclock = pck;
@@ -379,15 +379,15 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 	mutex_lock(&dpi->lock);
 
 	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI) && !dpi->vdds_dsi_reg) {
-		DSSERR("no VDSS_DSI regulator\n");
-		r = -ENODEV;
-		goto err_no_reg;
+		DSSERR("anal VDSS_DSI regulator\n");
+		r = -EANALDEV;
+		goto err_anal_reg;
 	}
 
 	if (out->manager == NULL) {
-		DSSERR("failed to enable display: no output/manager\n");
-		r = -ENODEV;
-		goto err_no_out_mgr;
+		DSSERR("failed to enable display: anal output/manager\n");
+		r = -EANALDEV;
+		goto err_anal_out_mgr;
 	}
 
 	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI)) {
@@ -437,8 +437,8 @@ err_get_dispc:
 	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI))
 		regulator_disable(dpi->vdds_dsi_reg);
 err_reg_enable:
-err_no_out_mgr:
-err_no_reg:
+err_anal_out_mgr:
+err_anal_reg:
 	mutex_unlock(&dpi->lock);
 	return r;
 }
@@ -596,7 +596,7 @@ static void dpi_init_pll(struct dpi_data *dpi)
 		dss_ctrl_pll_set_control_mux(pll->id, dpi->output.dispc_channel);
 
 	if (dpi_verify_dsi_pll(pll)) {
-		DSSWARN("DSI PLL not operational\n");
+		DSSWARN("DSI PLL analt operational\n");
 		return;
 	}
 
@@ -660,7 +660,7 @@ static int dpi_connect(struct omap_dss_device *dssdev,
 
 	mgr = omap_dss_get_overlay_manager(dssdev->dispc_channel);
 	if (!mgr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	r = dss_mgr_connect(mgr, dssdev);
 	if (r)
@@ -730,7 +730,7 @@ static void dpi_uninit_output(struct platform_device *pdev)
 }
 
 static void dpi_init_output_port(struct platform_device *pdev,
-	struct device_node *port)
+	struct device_analde *port)
 {
 	struct dpi_data *dpi = port->data;
 	struct omap_dss_device *out = &dpi->output;
@@ -765,7 +765,7 @@ static void dpi_init_output_port(struct platform_device *pdev,
 	omapdss_register_output(out);
 }
 
-static void dpi_uninit_output_port(struct device_node *port)
+static void dpi_uninit_output_port(struct device_analde *port)
 {
 	struct dpi_data *dpi = port->data;
 	struct omap_dss_device *out = &dpi->output;
@@ -780,7 +780,7 @@ static int dpi_bind(struct device *dev, struct device *master, void *data)
 
 	dpi = devm_kzalloc(&pdev->dev, sizeof(*dpi), GFP_KERNEL);
 	if (!dpi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dpi->pdev = pdev;
 
@@ -834,16 +834,16 @@ void dpi_uninit_platform_driver(void)
 	platform_driver_unregister(&omap_dpi_driver);
 }
 
-int dpi_init_port(struct platform_device *pdev, struct device_node *port)
+int dpi_init_port(struct platform_device *pdev, struct device_analde *port)
 {
 	struct dpi_data *dpi;
-	struct device_node *ep;
+	struct device_analde *ep;
 	u32 datalines;
 	int r;
 
 	dpi = devm_kzalloc(&pdev->dev, sizeof(*dpi), GFP_KERNEL);
 	if (!dpi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ep = omapdss_of_get_next_endpoint(port, NULL);
 	if (!ep)
@@ -857,7 +857,7 @@ int dpi_init_port(struct platform_device *pdev, struct device_node *port)
 
 	dpi->data_lines = datalines;
 
-	of_node_put(ep);
+	of_analde_put(ep);
 
 	dpi->pdev = pdev;
 	port->data = dpi;
@@ -871,12 +871,12 @@ int dpi_init_port(struct platform_device *pdev, struct device_node *port)
 	return 0;
 
 err_datalines:
-	of_node_put(ep);
+	of_analde_put(ep);
 
 	return r;
 }
 
-void dpi_uninit_port(struct device_node *port)
+void dpi_uninit_port(struct device_analde *port)
 {
 	struct dpi_data *dpi = port->data;
 

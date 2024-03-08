@@ -6,7 +6,7 @@
 
 enum insn_type {
 	CALL = 0, /* site call */
-	NOP = 1,  /* site cond-call */
+	ANALP = 1,  /* site cond-call */
 	JMP = 2,  /* tramp / site tail-call */
 	RET = 3,  /* tramp / site cond-tail-call */
 	JCC = 4,
@@ -14,7 +14,7 @@ enum insn_type {
 
 /*
  * ud1 %esp, %ecx - a 3 byte #UD that is unique to trampolines, chosen such
- * that there is no false-positive trampoline identification while also being a
+ * that there is anal false-positive trampoline identification while also being a
  * speculation stop.
  */
 static const u8 tramp_ud[] = { 0x0f, 0xb9, 0xcc };
@@ -45,8 +45,8 @@ asm (".global __static_call_return\n\t"
      ".type __static_call_return, @function\n\t"
      ASM_FUNC_ALIGN "\n\t"
      "__static_call_return:\n\t"
-     ANNOTATE_NOENDBR
-     ANNOTATE_RETPOLINE_SAFE
+     ANANALTATE_ANALENDBR
+     ANANALTATE_RETPOLINE_SAFE
      "ret; int3\n\t"
      ".size __static_call_return, . - __static_call_return \n\t");
 
@@ -72,8 +72,8 @@ static void __ref __static_call_transform(void *insn, enum insn_type type,
 
 		break;
 
-	case NOP:
-		code = x86_nops[5];
+	case ANALP:
+		code = x86_analps[5];
 		break;
 
 	case JMP:
@@ -127,13 +127,13 @@ static void __static_call_validate(u8 *insn, bool tail, bool tramp)
 			return;
 	} else {
 		if (opcode == CALL_INSN_OPCODE ||
-		    !memcmp(insn, x86_nops[5], 5) ||
+		    !memcmp(insn, x86_analps[5], 5) ||
 		    !memcmp(insn, xor5rax, 5))
 			return;
 	}
 
 	/*
-	 * If we ever trigger this, our text is corrupt, we'll probably not live long.
+	 * If we ever trigger this, our text is corrupt, we'll probably analt live long.
 	 */
 	pr_err("unexpected static_call insn opcode 0x%x at %pS\n", opcode, insn);
 	BUG();
@@ -147,7 +147,7 @@ static inline enum insn_type __sc_insn(bool null, bool tail)
 	 *	tail	null	insn
 	 *	-----+-------+------
 	 *	  0  |   0   |  CALL
-	 *	  0  |   1   |  NOP
+	 *	  0  |   1   |  ANALP
 	 *	  1  |   0   |  JMP
 	 *	  1  |   1   |  RET
 	 */
@@ -182,15 +182,15 @@ EXPORT_SYMBOL_GPL(arch_static_call_transform);
  * X86_FEATURE_RETHUNK and, by implication, running alternatives.
  *
  * This means that __static_call_transform() above can have overwritten the
- * return trampoline and we now need to fix things up to be consistent.
+ * return trampoline and we analw need to fix things up to be consistent.
  */
 bool __static_call_fixup(void *tramp, u8 op, void *dest)
 {
 	unsigned long addr = (unsigned long)tramp;
 	/*
-	 * Not all .return_sites are a static_call trampoline (most are not).
-	 * Check if the 3 bytes after the return are still kernel text, if not,
-	 * then this definitely is not a trampoline and we need not worry
+	 * Analt all .return_sites are a static_call trampoline (most are analt).
+	 * Check if the 3 bytes after the return are still kernel text, if analt,
+	 * then this definitely is analt a trampoline and we need analt worry
 	 * further.
 	 *
 	 * This avoids the memcmp() below tripping over pagefaults etc..
@@ -200,7 +200,7 @@ bool __static_call_fixup(void *tramp, u8 op, void *dest)
 		return false;
 
 	if (memcmp(tramp+5, tramp_ud, 3)) {
-		/* Not a trampoline site, not our problem. */
+		/* Analt a trampoline site, analt our problem. */
 		return false;
 	}
 

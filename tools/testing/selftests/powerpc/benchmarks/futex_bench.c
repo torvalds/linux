@@ -22,14 +22,14 @@ int test_futex(void)
 	struct timespec ts_start, ts_end;
 	unsigned long i = ITERATIONS;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts_start);
+	clock_gettime(CLOCK_MOANALTONIC, &ts_start);
 
 	while (i--) {
 		unsigned int addr = 0;
 		futex(&addr, FUTEX_WAKE, 1, NULL, NULL, 0);
 	}
 
-	clock_gettime(CLOCK_MONOTONIC, &ts_end);
+	clock_gettime(CLOCK_MOANALTONIC, &ts_end);
 
 	printf("time = %.6f\n", ts_end.tv_sec - ts_start.tv_sec + (ts_end.tv_nsec - ts_start.tv_nsec) / 1e9);
 

@@ -14,11 +14,11 @@ description:
   procedure, as described by Jedec 4.4 specification. This procedure is
   performed just after MMC core enabled power to the given mmc host (to
   fix possible issues if bootloader has left eMMC card in initialized or
-  unknown state), and before performing complete system reboot (also in
+  unkanalwn state), and before performing complete system reboot (also in
   case of emergency reboot call). The latter is needed on boards, which
   doesn't have hardware reset logic connected to emmc card and (limited or
   broken) ROM bootloaders are unable to read second stage from the emmc
-  card if the card is left in unknown or already initialized state.
+  card if the card is left in unkanalwn or already initialized state.
 
 properties:
   compatible:

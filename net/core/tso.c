@@ -30,7 +30,7 @@ void tso_build_hdr(const struct sk_buff *skb, char *hdr, struct tso_t *tso,
 		put_unaligned_be32(tso->tcp_seq, &tcph->seq);
 
 		if (!is_last) {
-			/* Clear all special flags for not last packet */
+			/* Clear all special flags for analt last packet */
 			tcph->psh = 0;
 			tcph->fin = 0;
 			tcph->rst = 0;
@@ -45,7 +45,7 @@ EXPORT_SYMBOL(tso_build_hdr);
 
 void tso_build_data(const struct sk_buff *skb, struct tso_t *tso, int size)
 {
-	tso->tcp_seq += size; /* not worth avoiding this operation for UDP */
+	tso->tcp_seq += size; /* analt worth avoiding this operation for UDP */
 	tso->size -= size;
 	tso->data += size;
 

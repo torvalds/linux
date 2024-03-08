@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
  * Copyright 2010 Florian Tobias Schandinat <FlorianSchandinat@gmx.de>
  */
@@ -140,7 +140,7 @@ void via_set_secondary_address(u32 addr)
 void via_set_primary_pitch(u32 pitch)
 {
 	DEBUG_MSG(KERN_DEBUG "via_set_primary_pitch(0x%08X)\n", pitch);
-	/* spec does not say that first adapter skips 3 bits but old
+	/* spec does analt say that first adapter skips 3 bits but old
 	 * code did it and seems to be reasonable in analogy to 2nd adapter
 	 */
 	pitch = pitch >> 3;

@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2000 ARM Limited
  *  Copyright (C) 2000 Deep Blue Solutions Ltd.
- *  hacked for non-paged-MM by Hyok S. Choi, 2003.
+ *  hacked for analn-paged-MM by Hyok S. Choi, 2003.
  *
  * These are the low level assembler for performing cache and TLB
  * functions on the ARM1026EJ-S.
@@ -181,7 +181,7 @@ ENTRY(arm1026_flush_user_cache_range)
  *	coherent_kern_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start.  If you have non-snooping
+ *	region described by start.  If you have analn-sanaloping
  *	Harvard caches, you need to implement this function.
  *
  *	- start	- virtual start address
@@ -193,7 +193,7 @@ ENTRY(arm1026_coherent_kern_range)
  *	coherent_user_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start.  If you have non-snooping
+ *	region described by start.  If you have analn-sanaloping
  *	Harvard caches, you need to implement this function.
  *
  *	- start	- virtual start address
@@ -219,7 +219,7 @@ ENTRY(arm1026_coherent_user_range)
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
  *
- *	Ensure no D cache aliasing occurs, either with itself or
+ *	Ensure anal D cache aliasing occurs, either with itself or
  *	the I cache
  *
  *	- addr	- kernel address
@@ -241,8 +241,8 @@ ENTRY(arm1026_flush_kern_dcache_area)
  *	dma_inv_range(start, end)
  *
  *	Invalidate (discard) the specified virtual address range.
- *	May not write back any entries.  If 'start' or 'end'
- *	are not cache line aligned, those lines must be written
+ *	May analt write back any entries.  If 'start' or 'end'
+ *	are analt cache line aligned, those lines must be written
  *	back.
  *
  *	- start	- virtual start address

@@ -12,7 +12,7 @@ maintainers:
 description: |
   Each Programmable Real-Time Unit and Industrial Communication Subsystem
   (PRU-ICSS or PRUSS) has two 32-bit load/store RISC CPU cores called
-  Programmable Real-Time Units (PRUs), each represented by a node. Each PRU
+  Programmable Real-Time Units (PRUs), each represented by a analde. Each PRU
   core has a dedicated Instruction RAM, Control and Debug register sets, and
   use the Data RAMs present within the PRU-ICSS for code execution.
 
@@ -23,8 +23,8 @@ description: |
   or Tx_PRU core can also be used independently like a PRU, or alongside a
   corresponding PRU core to provide/implement auxiliary functionality/support.
 
-  Each PRU, RTU or Tx_PRU core node should be defined as a child node of the
-  corresponding PRU-ICSS node. Each node can optionally be rendered inactive by
+  Each PRU, RTU or Tx_PRU core analde should be defined as a child analde of the
+  corresponding PRU-ICSS analde. Each analde can optionally be rendered inactive by
   using the standard DT string property, "status".
 
   Please see the overall PRU-ICSS bindings document for additional details
@@ -86,7 +86,7 @@ if:
         - ti,am642-rtu
 then:
   properties:
-    $nodename:
+    $analdename:
       pattern: "^rtu@[0-9a-f]+$"
 else:
   if:
@@ -98,11 +98,11 @@ else:
           - ti,am642-tx-pru
   then:
     properties:
-      $nodename:
+      $analdename:
         pattern: "^txpru@[0-9a-f]+"
   else:
     properties:
-      $nodename:
+      $analdename:
         pattern: "^pru@[0-9a-f]+$"
 
 required:

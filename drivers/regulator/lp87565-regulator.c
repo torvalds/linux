@@ -30,7 +30,7 @@ enum LP87565_regulator_id {
 			.supply_name		= _of "-in",		\
 			.id			= _id,			\
 			.of_match		= _of,			\
-			.regulators_node	= "regulators",		\
+			.regulators_analde	= "regulators",		\
 			.ops			= &_ops,		\
 			.n_voltages		= _n,			\
 			.type			= REGULATOR_VOLTAGE,	\
@@ -195,7 +195,7 @@ static int lp87565_regulator_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, lp87565);
 
 	config.dev = &pdev->dev;
-	config.dev->of_node = lp87565->dev->of_node;
+	config.dev->of_analde = lp87565->dev->of_analde;
 	config.driver_data = lp87565;
 	config.regmap = lp87565->regmap;
 
@@ -237,7 +237,7 @@ MODULE_DEVICE_TABLE(platform, lp87565_regulator_id_table);
 static struct platform_driver lp87565_regulator_driver = {
 	.driver = {
 		.name = "lp87565-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = lp87565_regulator_probe,
 	.id_table = lp87565_regulator_id_table,

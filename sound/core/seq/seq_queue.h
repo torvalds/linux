@@ -14,7 +14,7 @@
 #include <linux/list.h>
 #include <linux/bitops.h>
 
-#define SEQ_QUEUE_NO_OWNER (-1)
+#define SEQ_QUEUE_ANAL_OWNER (-1)
 
 struct snd_seq_queue {
 	int queue;		/* queue number */

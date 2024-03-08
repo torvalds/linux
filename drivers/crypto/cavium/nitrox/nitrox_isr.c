@@ -15,10 +15,10 @@
  *  - NPS packet ring, AQMQ ring and ZQMQ ring
  */
 #define NR_RING_VECTORS 3
-#define NR_NON_RING_VECTORS 1
+#define NR_ANALN_RING_VECTORS 1
 /* base entry for packet ring/port */
 #define PKT_RING_MSIX_BASE 0
-#define NON_RING_MSIX_BASE 192
+#define ANALN_RING_MSIX_BASE 192
 
 /**
  * nps_pkt_slc_isr - IRQ handler for NPS solicit port
@@ -323,7 +323,7 @@ int nitrox_register_interrupts(struct nitrox_device *ndev)
 	ndev->qvec = kcalloc(nr_vecs, sizeof(*qvec), GFP_KERNEL);
 	if (!ndev->qvec) {
 		pci_free_irq_vectors(pdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* request irqs for packet rings/ports */
@@ -352,8 +352,8 @@ int nitrox_register_interrupts(struct nitrox_device *ndev)
 		qvec->valid = true;
 	}
 
-	/* request irqs for non ring vectors */
-	i = NON_RING_MSIX_BASE;
+	/* request irqs for analn ring vectors */
+	i = ANALN_RING_MSIX_BASE;
 	qvec = &ndev->qvec[i];
 	qvec->ndev = ndev;
 
@@ -413,34 +413,34 @@ int nitrox_sriov_register_interupts(struct nitrox_device *ndev)
 	int ret;
 
 	/**
-	 * only non ring vectors i.e Entry 192 is available
+	 * only analn ring vectors i.e Entry 192 is available
 	 * for PF in SR-IOV mode.
 	 */
-	ndev->iov.msix.entry = NON_RING_MSIX_BASE;
-	ret = pci_enable_msix_exact(pdev, &ndev->iov.msix, NR_NON_RING_VECTORS);
+	ndev->iov.msix.entry = ANALN_RING_MSIX_BASE;
+	ret = pci_enable_msix_exact(pdev, &ndev->iov.msix, NR_ANALN_RING_VECTORS);
 	if (ret) {
 		dev_err(DEV(ndev), "failed to allocate nps-core-int%d\n",
-			NON_RING_MSIX_BASE);
+			ANALN_RING_MSIX_BASE);
 		return ret;
 	}
 
-	qvec = kcalloc(NR_NON_RING_VECTORS, sizeof(*qvec), GFP_KERNEL);
+	qvec = kcalloc(NR_ANALN_RING_VECTORS, sizeof(*qvec), GFP_KERNEL);
 	if (!qvec) {
 		pci_disable_msix(pdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	qvec->ndev = ndev;
 
 	ndev->qvec = qvec;
-	ndev->num_vecs = NR_NON_RING_VECTORS;
+	ndev->num_vecs = NR_ANALN_RING_VECTORS;
 	snprintf(qvec->name, IRQ_NAMESZ, "nitrox-core-int%d",
-		 NON_RING_MSIX_BASE);
+		 ANALN_RING_MSIX_BASE);
 
 	vec = ndev->iov.msix.vector;
 	ret = request_irq(vec, nps_core_int_isr, 0, qvec->name, qvec);
 	if (ret) {
 		dev_err(DEV(ndev), "irq failed for nitrox-core-int%d\n",
-			NON_RING_MSIX_BASE);
+			ANALN_RING_MSIX_BASE);
 		goto iov_irq_fail;
 	}
 	cpu = num_online_cpus();

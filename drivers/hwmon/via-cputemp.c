@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * via-cputemp.c - Driver for VIA CPU core temperature monitoring
- * Copyright (C) 2009 VIA Technologies, Inc.
+ * Copyright (C) 2009 VIA Techanallogies, Inc.
  *
  * based on existing coretemp.c, which is
  *
@@ -117,7 +117,7 @@ static int via_cputemp_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(struct via_cputemp_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->id = pdev->id;
 	data->name = "via_cputemp";
@@ -134,11 +134,11 @@ static int via_cputemp_probe(struct platform_device *pdev)
 			data->msr_vid = 0x198;
 			break;
 		case 0xF:
-			/* Nano */
+			/* Naanal */
 			data->msr_temp = 0x1423;
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -217,14 +217,14 @@ static int via_cputemp_online(unsigned int cpu)
 
 	pdev = platform_device_alloc(DRVNAME, cpu);
 	if (!pdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		pr_err("Device allocation failed\n");
 		goto exit;
 	}
 
 	pdev_entry = kzalloc(sizeof(struct pdev_entry), GFP_KERNEL);
 	if (!pdev_entry) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_device_put;
 	}
 
@@ -271,7 +271,7 @@ static int via_cputemp_down_prep(unsigned int cpu)
 static const struct x86_cpu_id __initconst cputemp_ids[] = {
 	X86_MATCH_VENDOR_FAM_MODEL(CENTAUR, 6, X86_CENTAUR_FAM6_C7_A,	NULL),
 	X86_MATCH_VENDOR_FAM_MODEL(CENTAUR, 6, X86_CENTAUR_FAM6_C7_D,	NULL),
-	X86_MATCH_VENDOR_FAM_MODEL(CENTAUR, 6, X86_CENTAUR_FAM6_NANO,	NULL),
+	X86_MATCH_VENDOR_FAM_MODEL(CENTAUR, 6, X86_CENTAUR_FAM6_NAANAL,	NULL),
 	X86_MATCH_VENDOR_FAM_MODEL(CENTAUR, 7, X86_MODEL_ANY,		NULL),
 	{}
 };
@@ -284,7 +284,7 @@ static int __init via_cputemp_init(void)
 	int err;
 
 	if (!x86_match_cpu(cputemp_ids))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = platform_driver_register(&via_cputemp_driver);
 	if (err)
@@ -298,7 +298,7 @@ static int __init via_cputemp_init(void)
 
 #ifndef CONFIG_HOTPLUG_CPU
 	if (list_empty(&pdev_list)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto exit_hp_unreg;
 	}
 #endif
@@ -306,7 +306,7 @@ static int __init via_cputemp_init(void)
 
 #ifndef CONFIG_HOTPLUG_CPU
 exit_hp_unreg:
-	cpuhp_remove_state_nocalls(via_temp_online);
+	cpuhp_remove_state_analcalls(via_temp_online);
 #endif
 exit_driver_unreg:
 	platform_driver_unregister(&via_cputemp_driver);

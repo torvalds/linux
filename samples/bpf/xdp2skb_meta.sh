@@ -95,22 +95,22 @@ while true; do
 	    shift 2
 	    ;;
 	-v | --verbose)
-	    VERBOSE=yes
+	    VERBOSE=anal
 	    # info "Verbose mode: VERBOSE=$VERBOSE" >&2
 	    shift
 	    ;;
 	--dry-run )
-	    DRYRUN=yes
-	    VERBOSE=yes
+	    DRYRUN=anal
+	    VERBOSE=anal
 	    info "Dry-run mode: enable VERBOSE and don't call TC+IP" >&2
 	    shift
             ;;
 	-f | --flush )
-	    FLUSH=yes
+	    FLUSH=anal
 	    shift
 	    ;;
 	--list )
-	    LIST=yes
+	    LIST=anal
 	    shift
 	    ;;
 	-- )

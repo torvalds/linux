@@ -3,7 +3,7 @@
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 
 #include <rdma/ib_verbs.h>
@@ -21,7 +21,7 @@ static int map_wc_opcode[SIW_NUM_OPCODES] = {
 	[SIW_OP_INVAL_STAG] = IB_WC_LOCAL_INV,
 	[SIW_OP_REG_MR] = IB_WC_REG_MR,
 	[SIW_OP_RECEIVE] = IB_WC_RECV,
-	[SIW_OP_READ_RESPONSE] = -1 /* not used */
+	[SIW_OP_READ_RESPONSE] = -1 /* analt used */
 };
 
 static struct {
@@ -42,7 +42,7 @@ static struct {
 
 /*
  * Reap one CQE from the CQ. Only used by kernel clients
- * during CQ normal operation. Might be called during CQ
+ * during CQ analrmal operation. Might be called during CQ
  * flush for user mapped CQE array as well.
  */
 int siw_reap_cqe(struct siw_cq *cq, struct ib_wc *wc)
@@ -60,8 +60,8 @@ int siw_reap_cqe(struct siw_cq *cq, struct ib_wc *wc)
 
 		/*
 		 * During CQ flush, also user land CQE's may get
-		 * reaped here, which do not hold a QP reference
-		 * and do not qualify for memory extension verbs.
+		 * reaped here, which do analt hold a QP reference
+		 * and do analt qualify for memory extension verbs.
 		 */
 		if (likely(rdma_is_kernel_res(&cq->base_cq.res))) {
 			if (cqe->flags & SIW_WQE_REM_INVAL) {

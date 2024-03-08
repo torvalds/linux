@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -101,7 +101,7 @@ void decide_8b_10b_training_settings(
 	lt_settings->link_settings.link_rate_set = link_setting->link_rate_set;
 	lt_settings->link_settings.link_rate = link_setting->link_rate;
 	lt_settings->link_settings.lane_count = link_setting->lane_count;
-	/* TODO hard coded to SS for now
+	/* TODO hard coded to SS for analw
 	 * lt_settings.link_settings.link_spread =
 	 * dal_display_path_is_ss_supported(
 	 * path_mode->display_path) ?
@@ -125,30 +125,30 @@ void decide_8b_10b_training_settings(
 enum lttpr_mode dp_decide_8b_10b_lttpr_mode(struct dc_link *link)
 {
 	bool is_lttpr_present = dp_is_lttpr_present(link);
-	bool vbios_lttpr_force_non_transparent = link->dc->caps.vbios_lttpr_enable;
+	bool vbios_lttpr_force_analn_transparent = link->dc->caps.vbios_lttpr_enable;
 	bool vbios_lttpr_aware = link->dc->caps.vbios_lttpr_aware;
 
 	if (!is_lttpr_present)
-		return LTTPR_MODE_NON_LTTPR;
+		return LTTPR_MODE_ANALN_LTTPR;
 
 	if (vbios_lttpr_aware) {
-		if (vbios_lttpr_force_non_transparent) {
-			DC_LOG_DC("chose LTTPR_MODE_NON_TRANSPARENT due to VBIOS DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE set to 1.\n");
-			return LTTPR_MODE_NON_TRANSPARENT;
+		if (vbios_lttpr_force_analn_transparent) {
+			DC_LOG_DC("chose LTTPR_MODE_ANALN_TRANSPARENT due to VBIOS DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE set to 1.\n");
+			return LTTPR_MODE_ANALN_TRANSPARENT;
 		} else {
-			DC_LOG_DC("chose LTTPR_MODE_NON_TRANSPARENT by default due to VBIOS not set DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE set to 1.\n");
+			DC_LOG_DC("chose LTTPR_MODE_ANALN_TRANSPARENT by default due to VBIOS analt set DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE set to 1.\n");
 			return LTTPR_MODE_TRANSPARENT;
 		}
 	}
 
-	if (link->dc->config.allow_lttpr_non_transparent_mode.bits.DP1_4A &&
+	if (link->dc->config.allow_lttpr_analn_transparent_mode.bits.DP1_4A &&
 			link->dc->caps.extended_aux_timeout_support) {
-		DC_LOG_DC("chose LTTPR_MODE_NON_TRANSPARENT by default and dc->config.allow_lttpr_non_transparent_mode.bits.DP1_4A set to 1.\n");
-		return LTTPR_MODE_NON_TRANSPARENT;
+		DC_LOG_DC("chose LTTPR_MODE_ANALN_TRANSPARENT by default and dc->config.allow_lttpr_analn_transparent_mode.bits.DP1_4A set to 1.\n");
+		return LTTPR_MODE_ANALN_TRANSPARENT;
 	}
 
-	DC_LOG_DC("chose LTTPR_MODE_NON_LTTPR.\n");
-	return LTTPR_MODE_NON_LTTPR;
+	DC_LOG_DC("chose LTTPR_MODE_ANALN_LTTPR.\n");
+	return LTTPR_MODE_ANALN_LTTPR;
 }
 
 enum link_training_result perform_8b_10b_clock_recovery_sequence(
@@ -237,7 +237,7 @@ enum link_training_result perform_8b_10b_clock_recovery_sequence(
 			break;
 
 		/* 7. same lane settings*/
-		/* Note: settings are the same for all lanes,
+		/* Analte: settings are the same for all lanes,
 		 * so comparing first lane is sufficient*/
 		if ((link_dp_get_encoding_format(&lt_settings->link_settings) == DP_8b_10b_ENCODING) &&
 				lt_settings->dpcd_lane_settings[0].bits.VOLTAGE_SWING_SET ==
@@ -258,7 +258,7 @@ enum link_training_result perform_8b_10b_clock_recovery_sequence(
 
 	if (retry_count >= LINK_TRAINING_MAX_CR_RETRY) {
 		ASSERT(0);
-		DC_LOG_ERROR("%s: Link Training Error, could not get CR after %d tries. Possibly voltage swing issue",
+		DC_LOG_ERROR("%s: Link Training Error, could analt get CR after %d tries. Possibly voltage swing issue",
 			__func__,
 			LINK_TRAINING_MAX_CR_RETRY);
 
@@ -281,7 +281,7 @@ enum link_training_result perform_8b_10b_channel_equalization_sequence(
 	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
 	union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
 
-	/* Note: also check that TPS4 is a supported feature*/
+	/* Analte: also check that TPS4 is a supported feature*/
 	tr_pattern = lt_settings->pattern_for_eq;
 
 	if (is_repeater(lt_settings, offset) && link_dp_get_encoding_format(&lt_settings->link_settings) == DP_8b_10b_ENCODING)
@@ -368,7 +368,7 @@ enum link_training_result dp_perform_8b_10b_link_training(
 	/* 1. set link rate, lane count and spread. */
 	dpcd_set_link_settings(link, lt_settings);
 
-	if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
+	if (lt_settings->lttpr_mode == LTTPR_MODE_ANALN_TRANSPARENT) {
 
 		/* 2. perform link training (set link training done
 		 *  to false is done as well)

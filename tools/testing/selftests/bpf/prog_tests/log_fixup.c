@@ -6,7 +6,7 @@
 #include "test_log_fixup.skel.h"
 
 enum trunc_type {
-	TRUNC_NONE,
+	TRUNC_ANALNE,
 	TRUNC_PARTIAL,
 	TRUNC_FULL,
 };
@@ -36,7 +36,7 @@ static void bad_core_relo(size_t log_buf_size, enum trunc_type trunc_type)
 			  "log_buf_part1");
 
 	switch (trunc_type) {
-	case TRUNC_NONE:
+	case TRUNC_ANALNE:
 		ASSERT_HAS_SUBSTR(log_buf,
 				  "struct task_struct___bad.fake_field (0:1 @ offset 4)\n",
 				  "log_buf_part2");
@@ -63,7 +63,7 @@ static void bad_core_relo(size_t log_buf_size, enum trunc_type trunc_type)
 		break;
 	}
 
-	if (env.verbosity > VERBOSE_NONE)
+	if (env.verbosity > VERBOSE_ANALNE)
 		printf("LOG:   \n=================\n%s=================\n", log_buf);
 cleanup:
 	test_log_fixup__destroy(skel);
@@ -94,7 +94,7 @@ static void bad_core_relo_subprog(void)
 			  "struct task_struct___bad.fake_field_subprog (0:2 @ offset 8)\n",
 			  "log_buf");
 
-	if (env.verbosity > VERBOSE_NONE)
+	if (env.verbosity > VERBOSE_ANALNE)
 		printf("LOG:   \n=================\n%s=================\n", log_buf);
 
 cleanup:
@@ -128,7 +128,7 @@ static void missing_map(void)
 			  "BPF map 'missing_map' is referenced but wasn't created\n",
 			  "log_buf");
 
-	if (env.verbosity > VERBOSE_NONE)
+	if (env.verbosity > VERBOSE_ANALNE)
 		printf("LOG:   \n=================\n%s=================\n", log_buf);
 
 cleanup:
@@ -154,10 +154,10 @@ static void missing_kfunc(void)
 
 	ASSERT_HAS_SUBSTR(log_buf,
 			  "0: <invalid kfunc call>\n"
-			  "kfunc 'bpf_nonexistent_kfunc' is referenced but wasn't resolved\n",
+			  "kfunc 'bpf_analnexistent_kfunc' is referenced but wasn't resolved\n",
 			  "log_buf");
 
-	if (env.verbosity > VERBOSE_NONE)
+	if (env.verbosity > VERBOSE_ANALNE)
 		printf("LOG:   \n=================\n%s=================\n", log_buf);
 
 cleanup:
@@ -166,8 +166,8 @@ cleanup:
 
 void test_log_fixup(void)
 {
-	if (test__start_subtest("bad_core_relo_trunc_none"))
-		bad_core_relo(0, TRUNC_NONE /* full buf */);
+	if (test__start_subtest("bad_core_relo_trunc_analne"))
+		bad_core_relo(0, TRUNC_ANALNE /* full buf */);
 	if (test__start_subtest("bad_core_relo_trunc_partial"))
 		bad_core_relo(280, TRUNC_PARTIAL /* truncate original log a bit */);
 	if (test__start_subtest("bad_core_relo_trunc_full"))

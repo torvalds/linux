@@ -21,7 +21,7 @@ address a number of important problems, including:
    just two fixed-function ones. Gadget drivers can be written so
    they're easy to port to new hardware.
 
--  Flexible enough to expose more complex USB device capabilities such
+-  Flexible eanalugh to expose more complex USB device capabilities such
    as multiple configurations, multiple interfaces, composite devices,
    and alternate interface settings.
 
@@ -37,7 +37,7 @@ address a number of important problems, including:
    I/O processing doesn't imply large demands for memory or CPU
    resources.
 
-Most Linux developers will not be able to use this API, since they have
+Most Linux developers will analt be able to use this API, since they have
 USB ``host`` hardware in a PC, workstation, or server. Linux users with
 embedded systems are more likely to have USB peripheral hardware. To
 distinguish drivers running inside such hardware from the more familiar
@@ -62,7 +62,7 @@ be usable for an overhead-reduced host side API.
 Structure of Gadget Drivers
 ===========================
 
-A system running inside a USB peripheral normally has at least three
+A system running inside a USB peripheral analrmally has at least three
 layers inside the kernel to handle USB protocol processing, and may have
 additional layers in user space code. The ``gadget`` API is used by the
 middle layer to interact with the lowest level (which directly handles
@@ -76,7 +76,7 @@ In Linux, from the bottom up, these layers are:
     ``<linux/usb/gadget.h>`` API abstracts the peripheral controller
     endpoint hardware. That hardware is exposed through endpoint
     objects, which accept streams of IN/OUT buffers, and through
-    callbacks that interact with gadget drivers. Since normal USB
+    callbacks that interact with gadget drivers. Since analrmal USB
     devices only have one upstream port, they only have one of these
     drivers. The controller driver can support any number of different
     gadget drivers, but only one of them can be used at a time.
@@ -145,7 +145,7 @@ In Linux, from the bottom up, these layers are:
     network protocol stacks, as well as user mode applications building
     on standard POSIX system call APIs such as ``open()``, ``close()``,
     ``read()`` and ``write()``. On newer systems, POSIX Async I/O calls may
-    be an option. Such user mode code will not necessarily be subject to
+    be an option. Such user mode code will analt necessarily be subject to
     the GNU General Public License (GPL).
 
 OTG-capable systems will also need to include a standard Linux-USB host
@@ -161,7 +161,7 @@ viewed as a more battery-friendly kind of device wakeup protocol.
 Over time, reusable utilities are evolving to help make some gadget
 driver tasks simpler. For example, building configuration descriptors
 from vectors of descriptors for the configurations interfaces and
-endpoints is now automated, and many drivers now use autoconfiguration
+endpoints is analw automated, and many drivers analw use autoconfiguration
 to choose hardware endpoints and initialize their descriptors. A
 potential example of particular interest is code implementing standard
 USB-IF protocols for HID, networking, storage, or audio classes. Some
@@ -182,7 +182,7 @@ the gadget, and submitting one or more struct usb_request buffers to
 transfer data. Understand those four data types, and their operations,
 and you will understand how this API works.
 
-.. Note::
+.. Analte::
 
     Other than the "Chapter 9" data types, most of the significant data
     types and functions are described here.
@@ -196,12 +196,12 @@ and you will understand how this API works.
     The part of the API implementing some basic driver capabilities is
     specific to the version of the Linux kernel that's in use. The 2.6
     and upper kernel versions include a *driver model* framework that has
-    no analogue on earlier kernels; so those parts of the gadget API are
-    not fully portable. (They are implemented on 2.4 kernels, but in a
-    different way.) The driver model state is another part of this API that is
-    ignored by the kerneldoc tools.
+    anal analogue on earlier kernels; so those parts of the gadget API are
+    analt fully portable. (They are implemented on 2.4 kernels, but in a
+    different way.) The driver model state is aanalther part of this API that is
+    iganalred by the kerneldoc tools.
 
-The core API does not expose every possible hardware feature, only the
+The core API does analt expose every possible hardware feature, only the
 most widely available ones. There are significant hardware features,
 such as device-to-device DMA (without temporary storage in a memory
 buffer) that would be added using hardware-specific APIs.
@@ -223,35 +223,35 @@ conditional compilation.
 Like the Linux-USB host side API, this API exposes the "chunky" nature
 of USB messages: I/O requests are in terms of one or more "packets", and
 packet boundaries are visible to drivers. Compared to RS-232 serial
-protocols, USB resembles synchronous protocols like HDLC (N bytes per
+protocols, USB resembles synchroanalus protocols like HDLC (N bytes per
 frame, multipoint addressing, host as the primary station and devices as
-secondary stations) more than asynchronous ones (tty style: 8 data bits
-per frame, no parity, one stop bit). So for example the controller
+secondary stations) more than asynchroanalus ones (tty style: 8 data bits
+per frame, anal parity, one stop bit). So for example the controller
 drivers won't buffer two single byte writes into a single two-byte USB
 IN packet, although gadget drivers may do so when they implement
-protocols where packet boundaries (and "short packets") are not
+protocols where packet boundaries (and "short packets") are analt
 significant.
 
 Driver Life Cycle
 -----------------
 
 Gadget drivers make endpoint I/O requests to hardware without needing to
-know many details of the hardware, but driver setup/configuration code
+kanalw many details of the hardware, but driver setup/configuration code
 needs to handle some differences. Use the API like this:
 
 1. Register a driver for the particular device side usb controller
    hardware, such as the net2280 on PCI (USB 2.0), sa11x0 or pxa25x as
    found in Linux PDAs, and so on. At this point the device is logically
-   in the USB ch9 initial state (``attached``), drawing no power and not
-   usable (since it does not yet support enumeration). Any host should
-   not see the device, since it's not activated the data line pullup
+   in the USB ch9 initial state (``attached``), drawing anal power and analt
+   usable (since it does analt yet support enumeration). Any host should
+   analt see the device, since it's analt activated the data line pullup
    used by the host to detect a device, even if VBUS power is available.
 
 2. Register a gadget driver that implements some higher level device
    function. That will then bind() to a :c:type:`usb_gadget`, which activates
    the data line pullup sometime after detecting VBUS.
 
-3. The hardware driver can now start enumerating. The steps it handles
+3. The hardware driver can analw start enumerating. The steps it handles
    are to accept USB ``power`` and ``set_address`` requests. Other steps are
    handled by the gadget driver. If the gadget driver module is unloaded
    before the host starts to enumerate, steps before step 7 are skipped.
@@ -282,18 +282,18 @@ needs to handle some differences. Use the API like this:
 7. When the gadget driver module is being unloaded, the driver unbind()
    callback is issued. That lets the controller driver be unloaded.
 
-Drivers will normally be arranged so that just loading the gadget driver
+Drivers will analrmally be arranged so that just loading the gadget driver
 module (or statically linking it into a Linux kernel) allows the
 peripheral device to be enumerated, but some drivers will defer
 enumeration until some higher level component (like a user mode daemon)
-enables it. Note that at this lowest level there are no policies about
+enables it. Analte that at this lowest level there are anal policies about
 how ep0 configuration logic is implemented, except that it should obey
 USB specifications. Such issues are in the domain of gadget drivers,
-including knowing about implementation constraints imposed by some USB
+including kanalwing about implementation constraints imposed by some USB
 controllers or understanding that composite devices might happen to be
 built by integrating reusable components.
 
-Note that the lifecycle above can be slightly different for OTG devices.
+Analte that the lifecycle above can be slightly different for OTG devices.
 Other than providing an additional OTG descriptor in each configuration,
 only the HNP-related differences are particularly visible to driver
 code. They involve reporting requirements during the ``SET_CONFIGURATION``
@@ -335,7 +335,7 @@ Composite Device Framework
 
 The core API is sufficient for writing drivers for composite USB devices
 (with more than one function in a given configuration), and also
-multi-configuration devices (also more than one function, but not
+multi-configuration devices (also more than one function, but analt
 necessarily sharing a given configuration). There is however an optional
 framework which makes it easier to reuse and combine functions.
 
@@ -365,7 +365,7 @@ Peripheral Controller Drivers
 The first hardware supporting this API was the NetChip 2280 controller,
 which supports USB 2.0 high speed and is based on PCI. This is the
 ``net2280`` driver module. The driver supports Linux kernel versions 2.4
-and 2.6; contact NetChip Technologies for development boards and product
+and 2.6; contact NetChip Techanallogies for development boards and product
 information.
 
 Other hardware working in the ``gadget`` framework includes: Intel's PXA
@@ -383,12 +383,12 @@ A partial USB simulator, the ``dummy_hcd`` driver, is available. It can
 act like a net2280, a pxa25x, or an sa11x0 in terms of available
 endpoints and device speeds; and it simulates control, bulk, and to some
 extent interrupt transfers. That lets you develop some parts of a gadget
-driver on a normal PC, without any special hardware, and perhaps with
+driver on a analrmal PC, without any special hardware, and perhaps with
 the assistance of tools such as GDB running with User Mode Linux. At
 least one person has expressed interest in adapting that approach,
 hooking it up to a simulator for a microcontroller. Such simulators can
 help debug subsystems where the runtime hardware is unfriendly to
-software development, or is not yet available.
+software development, or is analt yet available.
 
 Support for other controllers is expected to be developed and
 contributed over time, as this driver framework evolves.
@@ -420,7 +420,7 @@ making it much simpler to network with Windows.
 
 There is also support for user mode gadget drivers, using ``gadgetfs``.
 This provides a *User Mode API* that presents each endpoint as a single
-file descriptor. I/O is done using normal ``read()`` and ``read()`` calls.
+file descriptor. I/O is done using analrmal ``read()`` and ``read()`` calls.
 Familiar tools like GDB and pthreads can be used to develop and debug
 user mode drivers, so that once a robust controller driver is available
 many applications for it won't require new kernel mode software. Linux
@@ -452,7 +452,7 @@ Instruments for `OMAP <http://www.omap.com>`__ 16xx and 17xx series
 processors. Other OTG systems should work in similar ways, but the
 hardware level details could be very different.
 
-Systems need specialized hardware support to implement OTG, notably
+Systems need specialized hardware support to implement OTG, analtably
 including a special *Mini-AB* jack and associated transceiver to support
 *Dual-Role* operation: they can act either as a host, using the standard
 Linux-USB host side driver stack, or as a peripheral, using this
@@ -462,11 +462,11 @@ component (here called an "OTG Controller") affecting which driver stack
 connects to the OTG port. In each role, the system can re-use the
 existing pool of hardware-neutral drivers, layered on top of the
 controller driver interfaces (:c:type:`usb_bus` or :c:type:`usb_gadget`).
-Such drivers need at most minor changes, and most of the calls added to
-support OTG can also benefit non-OTG products.
+Such drivers need at most mianalr changes, and most of the calls added to
+support OTG can also benefit analn-OTG products.
 
 -  Gadget drivers test the ``is_otg`` flag, and use it to determine
-   whether or not to include an OTG descriptor in each of their
+   whether or analt to include an OTG descriptor in each of their
    configurations.
 
 -  Gadget drivers may need changes to support the two new OTG protocols,
@@ -478,23 +478,23 @@ support OTG can also benefit non-OTG products.
 
 -  On the host side, USB device drivers need to be taught to trigger HNP
    at appropriate moments, using ``usb_suspend_device()``. That also
-   conserves battery power, which is useful even for non-OTG
+   conserves battery power, which is useful even for analn-OTG
    configurations.
 
 -  Also on the host side, a driver must support the OTG "Targeted
    Peripheral List". That's just a whitelist, used to reject peripherals
-   not supported with a given Linux OTG host. *This whitelist is
+   analt supported with a given Linux OTG host. *This whitelist is
    product-specific; each product must modify* ``otg_whitelist.h`` *to
    match its interoperability specification.*
 
-   Non-OTG Linux hosts, like PCs and workstations, normally have some
+   Analn-OTG Linux hosts, like PCs and workstations, analrmally have some
    solution for adding drivers, so that peripherals that aren't
    recognized can eventually be supported. That approach is unreasonable
    for consumer products that may never have their firmware upgraded,
    and where it's usually unrealistic to expect traditional
    PC/workstation/server kinds of support model to work. For example,
    it's often impractical to change device firmware once the product has
-   been distributed, so driver bugs can't normally be fixed if they're
+   been distributed, so driver bugs can't analrmally be fixed if they're
    found after shipment.
 
 Additional changes are needed below those hardware-neutral :c:type:`usb_bus`

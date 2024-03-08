@@ -15,7 +15,7 @@ description:
   encapsulates sub-blocks like MDP5, DSI, HDMI, eDP, etc.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^display-subsystem@[0-9a-f]+$"
 
   compatible:

@@ -25,7 +25,7 @@
 #define MTK_MAX_CTRLS_HINT	20
 
 #define MTK_DEFAULT_FRAMERATE_NUM 1001
-#define MTK_DEFAULT_FRAMERATE_DENOM 30000
+#define MTK_DEFAULT_FRAMERATE_DEANALM 30000
 #define MTK_VENC_4K_CAPABILITY_ENABLE BIT(0)
 
 static void mtk_venc_worker(struct work_struct *work);
@@ -101,7 +101,7 @@ static int vidioc_venc_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_VP8_PROFILE:
 		/*
 		 * FIXME - what vp8 profiles are actually supported?
-		 * The ctrl is added (with only profile 0 supported) for now.
+		 * The ctrl is added (with only profile 0 supported) for analw.
 		 */
 		mtk_v4l2_venc_dbg(2, ctx, "V4L2_CID_MPEG_VIDEO_VP8_PROFILE val = %d", ctrl->val);
 		break;
@@ -204,15 +204,15 @@ static int mtk_vcodec_enc_get_chip_name(void *priv)
 	struct mtk_vcodec_enc_ctx *ctx = fh_to_enc_ctx(priv);
 	struct device *dev = &ctx->dev->plat_dev->dev;
 
-	if (of_device_is_compatible(dev->of_node, "mediatek,mt8173-vcodec-enc"))
+	if (of_device_is_compatible(dev->of_analde, "mediatek,mt8173-vcodec-enc"))
 		return 8173;
-	else if (of_device_is_compatible(dev->of_node, "mediatek,mt8183-vcodec-enc"))
+	else if (of_device_is_compatible(dev->of_analde, "mediatek,mt8183-vcodec-enc"))
 		return 8183;
-	else if (of_device_is_compatible(dev->of_node, "mediatek,mt8192-vcodec-enc"))
+	else if (of_device_is_compatible(dev->of_analde, "mediatek,mt8192-vcodec-enc"))
 		return 8192;
-	else if (of_device_is_compatible(dev->of_node, "mediatek,mt8195-vcodec-enc"))
+	else if (of_device_is_compatible(dev->of_analde, "mediatek,mt8195-vcodec-enc"))
 		return 8195;
-	else if (of_device_is_compatible(dev->of_node, "mediatek,mt8188-vcodec-enc"))
+	else if (of_device_is_compatible(dev->of_analde, "mediatek,mt8188-vcodec-enc"))
 		return 8188;
 	else
 		return 8173;
@@ -240,13 +240,13 @@ static int vidioc_venc_s_parm(struct file *file, void *priv,
 	if (a->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		return -EINVAL;
 
-	if (timeperframe->numerator == 0 || timeperframe->denominator == 0) {
+	if (timeperframe->numerator == 0 || timeperframe->deanalminator == 0) {
 		timeperframe->numerator = MTK_DEFAULT_FRAMERATE_NUM;
-		timeperframe->denominator = MTK_DEFAULT_FRAMERATE_DENOM;
+		timeperframe->deanalminator = MTK_DEFAULT_FRAMERATE_DEANALM;
 	}
 
-	ctx->enc_params.framerate_num = timeperframe->denominator;
-	ctx->enc_params.framerate_denom = timeperframe->numerator;
+	ctx->enc_params.framerate_num = timeperframe->deanalminator;
+	ctx->enc_params.framerate_deanalm = timeperframe->numerator;
 	ctx->param_change |= MTK_ENCODE_PARAM_FRAMERATE;
 
 	a->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
@@ -263,10 +263,10 @@ static int vidioc_venc_g_parm(struct file *file, void *priv,
 		return -EINVAL;
 
 	a->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
-	a->parm.output.timeperframe.denominator =
+	a->parm.output.timeperframe.deanalminator =
 			ctx->enc_params.framerate_num;
 	a->parm.output.timeperframe.numerator =
-			ctx->enc_params.framerate_denom;
+			ctx->enc_params.framerate_deanalm;
 
 	return 0;
 }
@@ -282,7 +282,7 @@ static struct mtk_q_data *mtk_venc_get_q_data(struct mtk_vcodec_enc_ctx *ctx,
 
 static void vidioc_try_fmt_cap(struct v4l2_format *f)
 {
-	f->fmt.pix_mp.field = V4L2_FIELD_NONE;
+	f->fmt.pix_mp.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix_mp.num_planes = 1;
 	f->fmt.pix_mp.plane_fmt[0].bytesperline = 0;
 	f->fmt.pix_mp.flags = 0;
@@ -298,7 +298,7 @@ static int vidioc_try_fmt_out(struct mtk_vcodec_enc_ctx *ctx, struct v4l2_format
 	int tmp_w, tmp_h;
 	unsigned int max_width, max_height;
 
-	pix_fmt_mp->field = V4L2_FIELD_NONE;
+	pix_fmt_mp->field = V4L2_FIELD_ANALNE;
 
 	if (ctx->dev->enc_capability & MTK_VENC_4K_CAPABILITY_ENABLE) {
 		max_width = MTK_VENC_4K_MAX_W;
@@ -397,7 +397,7 @@ static void mtk_venc_set_param(struct mtk_vcodec_enc_ctx *ctx,
 	param->buf_width = q_data_src->coded_width;
 	param->buf_height = q_data_src->coded_height;
 	param->frm_rate = enc_params->framerate_num /
-			enc_params->framerate_denom;
+			enc_params->framerate_deanalm;
 	param->intra_period = enc_params->intra_period;
 	param->gop_size = enc_params->gop_size;
 	param->bitrate = enc_params->bitrate;
@@ -695,7 +695,7 @@ static int vidioc_venc_dqbuf(struct file *file, void *priv,
 	    buf->m.planes[0].bytesused == 0 &&
 	    ctx->is_flushing) {
 		/*
-		 * Last CAPTURE buffer is dequeued, we can allow another flush
+		 * Last CAPTURE buffer is dequeued, we can allow aanalther flush
 		 * to take place.
 		 */
 		ctx->is_flushing = false;
@@ -734,11 +734,11 @@ static int vidioc_encoder_cmd(struct file *file, void *priv,
 		src_vq = v4l2_m2m_get_vq(ctx->m2m_ctx,
 					 V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
 		if (!vb2_is_streaming(src_vq)) {
-			mtk_v4l2_venc_dbg(1, ctx, "Output stream is off. No need to flush.");
+			mtk_v4l2_venc_dbg(1, ctx, "Output stream is off. Anal need to flush.");
 			return 0;
 		}
 		if (!vb2_is_streaming(dst_vq)) {
-			mtk_v4l2_venc_dbg(1, ctx, "Capture stream is off. No need to flush.");
+			mtk_v4l2_venc_dbg(1, ctx, "Capture stream is off. Anal need to flush.");
 			return 0;
 		}
 		ctx->is_flushing = true;
@@ -831,7 +831,7 @@ static int vb2ops_venc_buf_prepare(struct vb2_buffer *vb)
 
 	for (i = 0; i < q_data->fmt->num_planes; i++) {
 		if (vb2_plane_size(vb, i) < q_data->sizeimage[i]) {
-			mtk_v4l2_venc_err(ctx, "data will not fit into plane %d (%lu < %d)",
+			mtk_v4l2_venc_err(ctx, "data will analt fit into plane %d (%lu < %d)",
 					  i, vb2_plane_size(vb, i), q_data->sizeimage[i]);
 			return -EINVAL;
 		}
@@ -851,12 +851,12 @@ static void vb2ops_venc_buf_queue(struct vb2_buffer *vb)
 				     m2m_buf.vb);
 
 	if ((vb->vb2_queue->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) &&
-	    (ctx->param_change != MTK_ENCODE_PARAM_NONE)) {
+	    (ctx->param_change != MTK_ENCODE_PARAM_ANALNE)) {
 		mtk_v4l2_venc_dbg(1, ctx, "[%d] Before id=%d encode parameter change %x",
 				  ctx->id, vb2_v4l2->vb2_buf.index, ctx->param_change);
 		mtk_buf->param_change = ctx->param_change;
 		mtk_buf->enc_params = ctx->enc_params;
-		ctx->param_change = MTK_ENCODE_PARAM_NONE;
+		ctx->param_change = MTK_ENCODE_PARAM_ANALNE;
 	}
 
 	v4l2_m2m_buf_queue(ctx->m2m_ctx, to_vb2_v4l2_buffer(vb));
@@ -893,7 +893,7 @@ static int vb2ops_venc_start_streaming(struct vb2_queue *q, unsigned int count)
 		ctx->state = MTK_STATE_ABORT;
 		goto err_start_stream;
 	}
-	ctx->param_change = MTK_ENCODE_PARAM_NONE;
+	ctx->param_change = MTK_ENCODE_PARAM_ANALNE;
 
 	if ((ctx->q_data[MTK_Q_DATA_DST].fmt->fourcc == V4L2_PIX_FMT_H264) &&
 	    (ctx->enc_params.seq_hdr_mode !=
@@ -916,7 +916,7 @@ err_start_stream:
 		struct vb2_buffer *buf = vb2_get_buffer(q, i);
 
 		/*
-		 * FIXME: This check is not needed as only active buffers
+		 * FIXME: This check is analt needed as only active buffers
 		 * can be marked as done.
 		 */
 		if (buf && buf->state == VB2_BUF_STATE_ACTIVE) {
@@ -1000,7 +1000,7 @@ static int vb2ops_venc_buf_out_validate(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	return 0;
 }
 
@@ -1025,7 +1025,7 @@ static int mtk_venc_encode_header(void *priv)
 
 	dst_buf = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
 	if (!dst_buf) {
-		mtk_v4l2_venc_dbg(1, ctx, "No dst buffer");
+		mtk_v4l2_venc_dbg(1, ctx, "Anal dst buffer");
 		return -EINVAL;
 	}
 
@@ -1054,7 +1054,7 @@ static int mtk_venc_encode_header(void *priv)
 		dst_buf->vb2_buf.timestamp = src_buf->vb2_buf.timestamp;
 		dst_buf->timecode = src_buf->timecode;
 	} else {
-		mtk_v4l2_venc_err(ctx, "No timestamp for the header buffer.");
+		mtk_v4l2_venc_err(ctx, "Anal timestamp for the header buffer.");
 	}
 
 	ctx->state = MTK_STATE_HEADER;
@@ -1078,7 +1078,7 @@ static int mtk_venc_param_change(struct mtk_vcodec_enc_ctx *ctx)
 	mtk_buf = container_of(vb2_v4l2, struct mtk_video_enc_buf, m2m_buf.vb);
 
 	memset(&enc_prm, 0, sizeof(enc_prm));
-	if (mtk_buf->param_change == MTK_ENCODE_PARAM_NONE)
+	if (mtk_buf->param_change == MTK_ENCODE_PARAM_ANALNE)
 		return 0;
 
 	if (mtk_buf->param_change & MTK_ENCODE_PARAM_BITRATE) {
@@ -1091,7 +1091,7 @@ static int mtk_venc_param_change(struct mtk_vcodec_enc_ctx *ctx)
 	}
 	if (!ret && mtk_buf->param_change & MTK_ENCODE_PARAM_FRAMERATE) {
 		enc_prm.frm_rate = mtk_buf->enc_params.framerate_num /
-				   mtk_buf->enc_params.framerate_denom;
+				   mtk_buf->enc_params.framerate_deanalm;
 		mtk_v4l2_venc_dbg(1, ctx, "[%d] id=%d, change param fr=%d",
 				  ctx->id, vb2_v4l2->vb2_buf.index, enc_prm.frm_rate);
 		ret |= venc_if_set_param(ctx,
@@ -1115,7 +1115,7 @@ static int mtk_venc_param_change(struct mtk_vcodec_enc_ctx *ctx)
 						 NULL);
 	}
 
-	mtk_buf->param_change = MTK_ENCODE_PARAM_NONE;
+	mtk_buf->param_change = MTK_ENCODE_PARAM_ANALNE;
 
 	if (ret) {
 		ctx->state = MTK_STATE_ABORT;
@@ -1131,7 +1131,7 @@ static int mtk_venc_param_change(struct mtk_vcodec_enc_ctx *ctx)
  * v4l2_m2m_streamoff() holds dev_mutex and waits mtk_venc_worker()
  * to call v4l2_m2m_job_finish().
  * If mtk_venc_worker() tries to acquire dev_mutex, it will deadlock.
- * So this function must not try to acquire dev->dev_mutex.
+ * So this function must analt try to acquire dev->dev_mutex.
  * This means v4l2 ioctls and mtk_venc_worker() can run at the same time.
  * mtk_venc_worker() should be carefully implemented to avoid bugs.
  */
@@ -1236,7 +1236,7 @@ static int m2mops_venc_job_ready(void *m2m_priv)
 	struct mtk_vcodec_enc_ctx *ctx = m2m_priv;
 
 	if (ctx->state == MTK_STATE_ABORT || ctx->state == MTK_STATE_FREE) {
-		mtk_v4l2_venc_dbg(3, ctx, "[%d]Not ready: state=0x%x.", ctx->id, ctx->state);
+		mtk_v4l2_venc_dbg(3, ctx, "[%d]Analt ready: state=0x%x.", ctx->id, ctx->state);
 		return 0;
 	}
 
@@ -1276,7 +1276,7 @@ void mtk_vcodec_enc_set_default_params(struct mtk_vcodec_enc_ctx *ctx)
 	q_data->visible_height = DFT_CFG_HEIGHT;
 	q_data->coded_width = DFT_CFG_WIDTH;
 	q_data->coded_height = DFT_CFG_HEIGHT;
-	q_data->field = V4L2_FIELD_NONE;
+	q_data->field = V4L2_FIELD_ANALNE;
 
 	q_data->fmt = &ctx->dev->venc_pdata->output_formats[0];
 
@@ -1308,13 +1308,13 @@ void mtk_vcodec_enc_set_default_params(struct mtk_vcodec_enc_ctx *ctx)
 	q_data->coded_width = DFT_CFG_WIDTH;
 	q_data->coded_height = DFT_CFG_HEIGHT;
 	q_data->fmt = &ctx->dev->venc_pdata->capture_formats[0];
-	q_data->field = V4L2_FIELD_NONE;
+	q_data->field = V4L2_FIELD_ANALNE;
 	ctx->q_data[MTK_Q_DATA_DST].sizeimage[0] =
 		DFT_CFG_WIDTH * DFT_CFG_HEIGHT;
 	ctx->q_data[MTK_Q_DATA_DST].bytesperline[0] = 0;
 
 	ctx->enc_params.framerate_num = MTK_DEFAULT_FRAMERATE_NUM;
-	ctx->enc_params.framerate_denom = MTK_DEFAULT_FRAMERATE_DENOM;
+	ctx->enc_params.framerate_deanalm = MTK_DEFAULT_FRAMERATE_DEANALM;
 }
 
 int mtk_vcodec_enc_ctrls_setup(struct mtk_vcodec_enc_ctx *ctx)
@@ -1386,7 +1386,7 @@ int mtk_vcodec_enc_queue_init(void *priv, struct vb2_queue *src_vq,
 	struct mtk_vcodec_enc_ctx *ctx = priv;
 	int ret;
 
-	/* Note: VB2_USERPTR works with dma-contig because mt8173
+	/* Analte: VB2_USERPTR works with dma-contig because mt8173
 	 * support iommu
 	 * https://patchwork.kernel.org/patch/8335461/
 	 * https://patchwork.kernel.org/patch/7596181/

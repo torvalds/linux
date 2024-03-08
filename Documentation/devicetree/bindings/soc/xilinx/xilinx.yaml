@@ -13,7 +13,7 @@ description: |
   Xilinx boards with Zynq-7000 SOC or Zynq UltraScale+ MPSoC
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

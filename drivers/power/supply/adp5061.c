@@ -78,7 +78,7 @@
 #define ADP5061_IEND_IEND_MSK			GENMASK(7, 5)
 #define ADP5061_IEND_IEND_MODE(x)		(((x) & 0x07) << 5)
 
-#define ADP5061_NO_BATTERY	0x01
+#define ADP5061_ANAL_BATTERY	0x01
 #define ADP5061_ICHG_MAX	1300 // mA
 
 enum adp5061_chg_status {
@@ -93,7 +93,7 @@ enum adp5061_chg_status {
 };
 
 static const int adp5061_chg_type[4] = {
-	[ADP5061_CHG_OFF] = POWER_SUPPLY_CHARGE_TYPE_NONE,
+	[ADP5061_CHG_OFF] = POWER_SUPPLY_CHARGE_TYPE_ANALNE,
 	[ADP5061_CHG_TRICKLE] = POWER_SUPPLY_CHARGE_TYPE_TRICKLE,
 	[ADP5061_CHG_FAST_CC] = POWER_SUPPLY_CHARGE_TYPE_FAST,
 	[ADP5061_CHG_FAST_CV] = POWER_SUPPLY_CHARGE_TYPE_FAST,
@@ -429,7 +429,7 @@ static int adp5061_get_chg_type(struct adp5061_state *st,
 
 	chg_type = ADP5061_CHG_STATUS_1_CHG_STATUS(status1);
 	if (chg_type >= ARRAY_SIZE(adp5061_chg_type))
-		val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+		val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 	else
 		val->intval = adp5061_chg_type[chg_type];
 
@@ -448,7 +448,7 @@ static int adp5061_get_charger_status(struct adp5061_state *st,
 
 	switch (ADP5061_CHG_STATUS_1_CHG_STATUS(status1)) {
 	case ADP5061_CHG_OFF:
-		val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 	case ADP5061_CHG_TRICKLE:
 	case ADP5061_CHG_FAST_CC:
@@ -463,7 +463,7 @@ static int adp5061_get_charger_status(struct adp5061_state *st,
 		val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
 	default:
-		val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+		val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 	}
 
 	return ret;
@@ -481,8 +481,8 @@ static int adp5061_get_battery_status(struct adp5061_state *st,
 
 	switch (ADP5061_CHG_STATUS_2_BAT_STATUS(status2)) {
 	case 0x0: /* Battery monitor off */
-	case 0x1: /* No battery */
-		val->intval = POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN;
+	case 0x1: /* Anal battery */
+		val->intval = POWER_SUPPLY_CAPACITY_LEVEL_UNKANALWN;
 		break;
 	case 0x2: /* VBAT < VTRK */
 		val->intval = POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
@@ -491,10 +491,10 @@ static int adp5061_get_battery_status(struct adp5061_state *st,
 		val->intval = POWER_SUPPLY_CAPACITY_LEVEL_LOW;
 		break;
 	case 0x4: /* VBAT_SNS > VWEAK */
-		val->intval = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+		val->intval = POWER_SUPPLY_CAPACITY_LEVEL_ANALRMAL;
 		break;
 	default:
-		val->intval = POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN;
+		val->intval = POWER_SUPPLY_CAPACITY_LEVEL_UNKANALWN;
 		break;
 	}
 
@@ -547,7 +547,7 @@ static int adp5061_get_property(struct power_supply *psy,
 			return ret;
 
 		mode = ADP5061_CHG_STATUS_2_BAT_STATUS(status2);
-		if (mode == ADP5061_NO_BATTERY)
+		if (mode == ADP5061_ANAL_BATTERY)
 			val->intval = 0;
 		else
 			val->intval = 1;
@@ -701,7 +701,7 @@ static int adp5061_probe(struct i2c_client *client)
 
 	st = devm_kzalloc(&client->dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->client = client;
 	st->regmap = devm_regmap_init_i2c(client,

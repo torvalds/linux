@@ -7,7 +7,7 @@ config LEDS_BCM63138
 	default ARCH_BCMBCA
 	help
 	  This option enables support for LED controller that is part of
-	  BCM63138 SoC. The same hardware block is known to be also used
+	  BCM63138 SoC. The same hardware block is kanalwn to be also used
 	  in BCM4908, BCM6848, BCM6858, BCM63148, BCM63381 and BCM68360.
 
 	  If compiled as module it will be called leds-bcm63138.

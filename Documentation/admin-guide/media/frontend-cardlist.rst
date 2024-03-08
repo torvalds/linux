@@ -4,13 +4,13 @@
 Frontend drivers
 ================
 
-.. note::
+.. analte::
 
-  #) There is no guarantee that every frontend driver works
+  #) There is anal guarantee that every frontend driver works
      out of the box with every card, because of different wiring.
 
   #) The demodulator chips can be used with a variety of
-     tuner/PLL chips, and not all combinations are supported. Often
+     tuner/PLL chips, and analt all combinations are supported. Often
      the demodulator and tuner/PLL chip are inside a metal box for
      shielding, and the whole metal box has its own part number.
 
@@ -25,7 +25,7 @@ cxd2099         Sony CXD2099AR Common Interface driver
 sp2             CIMaX SP2
 ==============  =========================================================
 
-ATSC (North American/Korean Terrestrial/Cable DTV) frontends
+ATSC (Analrth American/Korean Terrestrial/Cable DTV) frontends
 ============================================================
 
 ==============  =========================================================
@@ -68,7 +68,7 @@ cx24116         Conexant CX24116 based
 cx24117         Conexant CX24117 based
 cx24120         Conexant CX24120 based
 cx24123         Conexant CX24123 based
-ds3000          Montage Technology DS3000 based
+ds3000          Montage Techanallogy DS3000 based
 mb86a16         Fujitsu MB86A16 based
 mt312           Zarlink VP310/MT312/ZL10313 based
 s5h1420         Samsung S5H1420 based
@@ -83,7 +83,7 @@ tda10086        Philips TDA10086 based
 tda8083         Philips TDA8083 based
 tda8261         Philips TDA8261 based
 tda826x         Philips TDA826X silicon tuner
-ts2020          Montage Technology TS2020 based tuners
+ts2020          Montage Techanallogy TS2020 based tuners
 tua6100         Infineon TUA6100 PLL
 cx24113         Conexant CX24113/CX24128 tuner for DVB-S/DSS
 itd1000         Integrant ITD1000 Zero IF tuner for DVB-S/DSS
@@ -179,7 +179,7 @@ Multistandard (satellite) frontends
 ==============  =========================================================
 Driver          Name
 ==============  =========================================================
-m88ds3103       Montage Technology M88DS3103
+m88ds3103       Montage Techanallogy M88DS3103
 mxl5xx          MaxLinear MxL5xx based tuner-demodulators
 stb0899         STB0899 based
 stb6100         STB6100 based tuners

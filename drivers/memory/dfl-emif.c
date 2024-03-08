@@ -7,10 +7,10 @@
  */
 #include <linux/bitfield.h>
 #include <linux/dfl.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -190,7 +190,7 @@ static umode_t dfl_emif_visible(struct kobject *kobj,
 	u64 val;
 
 	/*
-	 * This device supports up to 8 memory interfaces, but not all
+	 * This device supports up to 8 memory interfaces, but analt all
 	 * interfaces are used on different platforms. The read out value of
 	 * CAPABILITY_CHN_MSK field (which is a bitmap) indicates which
 	 * interfaces are available.
@@ -225,7 +225,7 @@ static int dfl_emif_probe(struct dfl_device *ddev)
 
 	de = devm_kzalloc(dev, sizeof(*de), GFP_KERNEL);
 	if (!de)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	de->base = devm_ioremap_resource(dev, &ddev->mmio_res);
 	if (IS_ERR(de->base))

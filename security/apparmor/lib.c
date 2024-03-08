@@ -4,8 +4,8 @@
  *
  * This file contains basic common functions used in AppArmor
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
 #include <linux/ctype.h>
@@ -47,16 +47,16 @@ void aa_free_str_table(struct aa_str_table *t)
 
 /**
  * aa_split_fqname - split a fqname into a profile and namespace name
- * @fqname: a full qualified name in namespace profile format (NOT NULL)
- * @ns_name: pointer to portion of the string containing the ns name (NOT NULL)
+ * @fqname: a full qualified name in namespace profile format (ANALT NULL)
+ * @ns_name: pointer to portion of the string containing the ns name (ANALT NULL)
  *
- * Returns: profile name or NULL if one is not specified
+ * Returns: profile name or NULL if one is analt specified
  *
  * Split a namespace name from a profile name (see policy.c for naming
  * description).  If a portion of the name is missing it returns NULL for
  * that portion.
  *
- * NOTE: may modify the @fqname string.  The pointers returned point
+ * ANALTE: may modify the @fqname string.  The pointers returned point
  *       into the @fqname string.
  */
 char *aa_split_fqname(char *fqname, char **ns_name)
@@ -88,7 +88,7 @@ char *aa_split_fqname(char *fqname, char **ns_name)
  * @str: The string to be stripped.
  * @n: length of str to parse, will stop at \0 if encountered before n
  *
- * Returns a pointer to the first non-whitespace character in @str.
+ * Returns a pointer to the first analn-whitespace character in @str.
  * if all whitespace will return NULL
  */
 
@@ -139,13 +139,13 @@ const char *aa_splitn_fqname(const char *fqname, size_t n, const char **ns_name,
 }
 
 /**
- * aa_info_message - log a none profile related status message
+ * aa_info_message - log a analne profile related status message
  * @str: message to log
  */
 void aa_info_message(const char *str)
 {
 	if (audit_enabled) {
-		DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE, NULL);
+		DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_ANALNE, AA_CLASS_ANALNE, NULL);
 
 		ad.info = str;
 		aa_audit_msg(AUDIT_APPARMOR_STATUS, &ad, NULL);
@@ -198,15 +198,15 @@ const char *aa_file_perm_names[] = {
 	"link",
 	"snapshot",
 
-	"unknown",
-	"unknown",
-	"unknown",
-	"unknown",
+	"unkanalwn",
+	"unkanalwn",
+	"unkanalwn",
+	"unkanalwn",
 
-	"unknown",
-	"unknown",
-	"unknown",
-	"unknown",
+	"unkanalwn",
+	"unkanalwn",
+	"unkanalwn",
+	"unkanalwn",
 
 	"stack",
 	"change_onexec",
@@ -277,8 +277,8 @@ void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
 
 /**
  * aa_audit_perms_cb - generic callback fn for auditing perms
- * @ab: audit buffer (NOT NULL)
- * @va: audit struct to audit values of (NOT NULL)
+ * @ab: audit buffer (ANALT NULL)
+ * @va: audit struct to audit values of (ANALT NULL)
  */
 static void aa_audit_perms_cb(struct audit_buffer *ab, void *va)
 {
@@ -299,7 +299,7 @@ static void aa_audit_perms_cb(struct audit_buffer *ab, void *va)
 	}
 	audit_log_format(ab, " peer=");
 	aa_label_xaudit(ab, labels_ns(ad->subj_label), ad->peer,
-				      FLAGS_NONE, GFP_ATOMIC);
+				      FLAGS_ANALNE, GFP_ATOMIC);
 }
 
 /**
@@ -315,7 +315,7 @@ void aa_apply_modes_to_perms(struct aa_profile *profile, struct aa_perms *perms)
 	case AUDIT_ALL:
 		perms->audit = ALL_PERMS_MASK;
 		fallthrough;
-	case AUDIT_NOQUIET:
+	case AUDIT_ANALQUIET:
 		perms->quiet = 0;
 		break;
 	case AUDIT_QUIET:
@@ -373,15 +373,15 @@ int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
  * @profile: profile being checked
  * @perms: perms computed for the request
  * @request: requested perms
- * @ad: initialized audit structure (MAY BE NULL if not auditing)
+ * @ad: initialized audit structure (MAY BE NULL if analt auditing)
  * @cb: callback fn for type specific fields (MAY BE NULL)
  *
  * Returns: 0 if permission else error code
  *
- * Note: profile audit modes need to be set before calling by setting the
+ * Analte: profile audit modes need to be set before calling by setting the
  *       perm masks appropriately.
  *
- *       If not auditing then complain mode is not enabled and the
+ *       If analt auditing then complain mode is analt enabled and the
  *       error code will indicate whether there was an explicit deny
  *	 with a positive value.
  */
@@ -393,7 +393,7 @@ int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
 	u32 denied = request & (~perms->allow | perms->deny);
 
 	if (likely(!denied)) {
-		/* mask off perms that are not being force audited */
+		/* mask off perms that are analt being force audited */
 		request &= perms->audit;
 		if (!request || !ad)
 			return 0;
@@ -411,7 +411,7 @@ int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
 			type = AUDIT_APPARMOR_DENIED;
 
 		if (denied == (denied & perms->hide))
-			error = -ENOENT;
+			error = -EANALENT;
 
 		denied &= ~perms->quiet;
 		if (!ad || !denied)
@@ -435,12 +435,12 @@ int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
 
 /**
  * aa_policy_init - initialize a policy structure
- * @policy: policy to initialize  (NOT NULL)
+ * @policy: policy to initialize  (ANALT NULL)
  * @prefix: prefix name if any is required.  (MAYBE NULL)
- * @name: name of the policy, init will make a copy of it  (NOT NULL)
+ * @name: name of the policy, init will make a copy of it  (ANALT NULL)
  * @gfp: allocation mode
  *
- * Note: this fn creates a copy of strings passed in
+ * Analte: this fn creates a copy of strings passed in
  *
  * Returns: true if policy init successful
  */
@@ -472,7 +472,7 @@ bool aa_policy_init(struct aa_policy *policy, const char *prefix,
 
 /**
  * aa_policy_destroy - free the elements referenced by @policy
- * @policy: policy that is to have its elements freed  (NOT NULL)
+ * @policy: policy that is to have its elements freed  (ANALT NULL)
  */
 void aa_policy_destroy(struct aa_policy *policy)
 {

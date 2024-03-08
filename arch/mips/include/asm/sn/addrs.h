@@ -42,8 +42,8 @@
 #endif
 #define NASID_MAKE(_m, _l)	(((_m) << NASID_LOCAL_BITS) | (_l))
 
-#define NODE_ADDRSPACE_MASK	(NODE_ADDRSPACE_SIZE - 1)
-#define TO_NODE_ADDRSPACE(_pa)	(UINT64_CAST (_pa) & NODE_ADDRSPACE_MASK)
+#define ANALDE_ADDRSPACE_MASK	(ANALDE_ADDRSPACE_SIZE - 1)
+#define TO_ANALDE_ADDRSPACE(_pa)	(UINT64_CAST (_pa) & ANALDE_ADDRSPACE_MASK)
 
 #define CHANGE_ADDR_NASID(_pa, _nasid)	\
 		((UINT64_CAST(_pa) & ~NASID_MASK) | \
@@ -52,33 +52,33 @@
 
 /*
  * The following macros are used to index to the beginning of a specific
- * node's address space.
+ * analde's address space.
  */
 
-#define NODE_OFFSET(_n)		(UINT64_CAST (_n) << NODE_SIZE_BITS)
+#define ANALDE_OFFSET(_n)		(UINT64_CAST (_n) << ANALDE_SIZE_BITS)
 
-#define NODE_CAC_BASE(_n)	(CAC_BASE   + NODE_OFFSET(_n))
-#define NODE_HSPEC_BASE(_n)	(HSPEC_BASE + NODE_OFFSET(_n))
-#define NODE_IO_BASE(_n)	(IO_BASE    + NODE_OFFSET(_n))
-#define NODE_MSPEC_BASE(_n)	(MSPEC_BASE + NODE_OFFSET(_n))
-#define NODE_UNCAC_BASE(_n)	(UNCAC_BASE + NODE_OFFSET(_n))
+#define ANALDE_CAC_BASE(_n)	(CAC_BASE   + ANALDE_OFFSET(_n))
+#define ANALDE_HSPEC_BASE(_n)	(HSPEC_BASE + ANALDE_OFFSET(_n))
+#define ANALDE_IO_BASE(_n)	(IO_BASE    + ANALDE_OFFSET(_n))
+#define ANALDE_MSPEC_BASE(_n)	(MSPEC_BASE + ANALDE_OFFSET(_n))
+#define ANALDE_UNCAC_BASE(_n)	(UNCAC_BASE + ANALDE_OFFSET(_n))
 
-#define TO_NODE(_n, _x)		(NODE_OFFSET(_n)     | ((_x)		   ))
-#define TO_NODE_CAC(_n, _x)	(NODE_CAC_BASE(_n)   | ((_x) & TO_PHYS_MASK))
-#define TO_NODE_UNCAC(_n, _x)	(NODE_UNCAC_BASE(_n) | ((_x) & TO_PHYS_MASK))
-#define TO_NODE_MSPEC(_n, _x)	(NODE_MSPEC_BASE(_n) | ((_x) & TO_PHYS_MASK))
-#define TO_NODE_HSPEC(_n, _x)	(NODE_HSPEC_BASE(_n) | ((_x) & TO_PHYS_MASK))
+#define TO_ANALDE(_n, _x)		(ANALDE_OFFSET(_n)     | ((_x)		   ))
+#define TO_ANALDE_CAC(_n, _x)	(ANALDE_CAC_BASE(_n)   | ((_x) & TO_PHYS_MASK))
+#define TO_ANALDE_UNCAC(_n, _x)	(ANALDE_UNCAC_BASE(_n) | ((_x) & TO_PHYS_MASK))
+#define TO_ANALDE_MSPEC(_n, _x)	(ANALDE_MSPEC_BASE(_n) | ((_x) & TO_PHYS_MASK))
+#define TO_ANALDE_HSPEC(_n, _x)	(ANALDE_HSPEC_BASE(_n) | ((_x) & TO_PHYS_MASK))
 
 
-#define RAW_NODE_SWIN_BASE(nasid, widget)				\
-	(NODE_IO_BASE(nasid) + (UINT64_CAST(widget) << SWIN_SIZE_BITS))
+#define RAW_ANALDE_SWIN_BASE(nasid, widget)				\
+	(ANALDE_IO_BASE(nasid) + (UINT64_CAST(widget) << SWIN_SIZE_BITS))
 
 #define WIDGETID_GET(addr)	((unsigned char)((addr >> SWIN_SIZE_BITS) & 0xff))
 
 /*
  * The following definitions pertain to the IO special address
  * space.  They define the location of the big and little windows
- * of any given node.
+ * of any given analde.
  */
 
 #define SWIN_SIZE_BITS		24
@@ -95,24 +95,24 @@
 #define SWIN_WIDGETADDR(addr)	((addr) & SWIN_SIZEMASK)
 #define SWIN_WIDGETNUM(addr)	(((addr)  >> SWIN_SIZE_BITS) & SWIN_WIDGET_MASK)
 /*
- * Verify if addr belongs to small window address on node with "nasid"
+ * Verify if addr belongs to small window address on analde with "nasid"
  *
  *
- * NOTE: "addr" is expected to be XKPHYS address, and NOT physical
+ * ANALTE: "addr" is expected to be XKPHYS address, and ANALT physical
  * address
  *
  *
  */
-#define NODE_SWIN_ADDR(nasid, addr)	\
-		(((addr) >= NODE_SWIN_BASE(nasid, 0))  && \
-		 ((addr) <  (NODE_SWIN_BASE(nasid, HUB_NUM_WIDGET) + SWIN_SIZE)\
+#define ANALDE_SWIN_ADDR(nasid, addr)	\
+		(((addr) >= ANALDE_SWIN_BASE(nasid, 0))  && \
+		 ((addr) <  (ANALDE_SWIN_BASE(nasid, HUB_NUM_WIDGET) + SWIN_SIZE)\
 		 ))
 
 /*
  * The following define the major position-independent aliases used
  * in SN.
  *	UALIAS -- 256MB in size, reads in the UALIAS result in
- *			uncached references to the memory of the reader's node.
+ *			uncached references to the memory of the reader's analde.
  *	CPU_UALIAS -- 128kb in size, the bottom part of UALIAS is flipped
  *			depending on which CPU does the access to provide
  *			all CPUs with unique uncached memory at low addresses.
@@ -129,7 +129,7 @@
 
 /*
  * The bottom of ualias space is flipped depending on whether you're
- * processor 0 or 1 within a node.
+ * processor 0 or 1 within a analde.
  */
 #ifdef CONFIG_SGI_IP27
 #define UALIAS_FLIP_BASE	UALIAS_BASE
@@ -146,7 +146,7 @@
 #endif
 
 #define HUB_REGISTER_WIDGET	1
-#define IALIAS_BASE		NODE_SWIN_BASE(0, HUB_REGISTER_WIDGET)
+#define IALIAS_BASE		ANALDE_SWIN_BASE(0, HUB_REGISTER_WIDGET)
 #define IALIAS_SIZE		0x800000	/* 8 Megabytes */
 #define IS_IALIAS(_a)		(((_a) >= IALIAS_BASE) &&		\
 				 ((_a) < (IALIAS_BASE + IALIAS_SIZE)))
@@ -157,15 +157,15 @@
 
 #ifdef CONFIG_SGI_IP27
 #define RBOOT_SIZE		0x10000000	/* 256 Megabytes */
-#define NODE_RBOOT_BASE(_n)	(NODE_HSPEC_BASE(_n) + 0x30000000)
-#define NODE_RBOOT_LIMIT(_n)	(NODE_RBOOT_BASE(_n) + RBOOT_SIZE)
+#define ANALDE_RBOOT_BASE(_n)	(ANALDE_HSPEC_BASE(_n) + 0x30000000)
+#define ANALDE_RBOOT_LIMIT(_n)	(ANALDE_RBOOT_BASE(_n) + RBOOT_SIZE)
 
 #endif
 
 /*
  * Macros for referring the Hub's back door space
  *
- *   These macros correctly process addresses in any node's space.
+ *   These macros correctly process addresses in any analde's space.
  *   WARNING: They won't work in assembler.
  *
  *   BDDIR_ENTRY_LO returns the address of the low double-word of the dir
@@ -180,27 +180,27 @@
  *   BDECC_ENTRY_H  returns the address of the two ECC bytes corresponding to a
  *		    quad-word at a specified physical address.
  */
-#define NODE_BDOOR_BASE(_n)	(NODE_HSPEC_BASE(_n) + (NODE_ADDRSPACE_SIZE/2))
+#define ANALDE_BDOOR_BASE(_n)	(ANALDE_HSPEC_BASE(_n) + (ANALDE_ADDRSPACE_SIZE/2))
 
-#define NODE_BDECC_BASE(_n)	(NODE_BDOOR_BASE(_n))
-#define NODE_BDDIR_BASE(_n)	(NODE_BDOOR_BASE(_n) + (NODE_ADDRSPACE_SIZE/4))
+#define ANALDE_BDECC_BASE(_n)	(ANALDE_BDOOR_BASE(_n))
+#define ANALDE_BDDIR_BASE(_n)	(ANALDE_BDOOR_BASE(_n) + (ANALDE_ADDRSPACE_SIZE/4))
 #ifdef CONFIG_SGI_IP27
 #define BDDIR_ENTRY_LO(_pa)	((HSPEC_BASE +				      \
-				  NODE_ADDRSPACE_SIZE * 3 / 4 +		      \
+				  ANALDE_ADDRSPACE_SIZE * 3 / 4 +		      \
 				  0x200)				    | \
 				 UINT64_CAST(_pa)	 & NASID_MASK	    | \
 				 UINT64_CAST(_pa) >> 2 & BDDIR_UPPER_MASK  | \
 				 UINT64_CAST(_pa) >> 3 & 0x1f << 4)
 
 #define BDDIR_ENTRY_HI(_pa)	((HSPEC_BASE +				      \
-				  NODE_ADDRSPACE_SIZE * 3 / 4 +		      \
+				  ANALDE_ADDRSPACE_SIZE * 3 / 4 +		      \
 				  0x208)				    | \
 				 UINT64_CAST(_pa)	 & NASID_MASK	    | \
 				 UINT64_CAST(_pa) >> 2 & BDDIR_UPPER_MASK  | \
 				 UINT64_CAST(_pa) >> 3 & 0x1f << 4)
 
 #define BDPRT_ENTRY(_pa, _rgn)	((HSPEC_BASE +				      \
-				  NODE_ADDRSPACE_SIZE * 3 / 4)		    | \
+				  ANALDE_ADDRSPACE_SIZE * 3 / 4)		    | \
 				 UINT64_CAST(_pa)	 & NASID_MASK	    | \
 				 UINT64_CAST(_pa) >> 2 & BDDIR_UPPER_MASK  | \
 				 (_rgn) << 3)
@@ -209,7 +209,7 @@
 #define BDPRT_ENTRY_L(_pa, _rgn)	(*(__psunsigned_t *)BDPRT_ENTRY((_pa), (_rgn)))
 
 #define BDECC_ENTRY(_pa)	((HSPEC_BASE +				      \
-				  NODE_ADDRSPACE_SIZE / 2)		    | \
+				  ANALDE_ADDRSPACE_SIZE / 2)		    | \
 				 UINT64_CAST(_pa)	 & NASID_MASK	    | \
 				 UINT64_CAST(_pa) >> 2 & BDECC_UPPER_MASK  | \
 				 UINT64_CAST(_pa) >> 3 & 3)
@@ -245,14 +245,14 @@
 
 /*
  * WARNING:
- *	When certain Hub chip workaround are defined, it's not sufficient
+ *	When certain Hub chip workaround are defined, it's analt sufficient
  *	to dereference the *_HUB_ADDR() macros.	 You should instead use
  *	HUB_L() and HUB_S() if you must deal with pointers to hub registers.
  *	Otherwise, the recommended approach is to use *_HUB_L() and *_HUB_S().
  *	They're always safe.
  */
 #define LOCAL_HUB_ADDR(_x)	(IALIAS_BASE + (_x))
-#define REMOTE_HUB_ADDR(_n, _x) ((NODE_SWIN_BASE(_n, 1) + 0x800000 + (_x)))
+#define REMOTE_HUB_ADDR(_n, _x) ((ANALDE_SWIN_BASE(_n, 1) + 0x800000 + (_x)))
 
 #ifndef __ASSEMBLY__
 
@@ -277,22 +277,22 @@
 
 #define EX_HANDLER_OFFSET(slice) ((slice) << 16)
 #define EX_HANDLER_ADDR(nasid, slice)					\
-	PHYS_TO_K0(NODE_OFFSET(nasid) | EX_HANDLER_OFFSET(slice))
+	PHYS_TO_K0(ANALDE_OFFSET(nasid) | EX_HANDLER_OFFSET(slice))
 #define EX_HANDLER_SIZE		0x0400
 
 #define EX_FRAME_OFFSET(slice)	((slice) << 16 | 0x400)
 #define EX_FRAME_ADDR(nasid, slice)					\
-	PHYS_TO_K0(NODE_OFFSET(nasid) | EX_FRAME_OFFSET(slice))
+	PHYS_TO_K0(ANALDE_OFFSET(nasid) | EX_FRAME_OFFSET(slice))
 #define EX_FRAME_SIZE		0x0c00
 
 #define ARCS_SPB_OFFSET		0x1000
 #define ARCS_SPB_ADDR(nasid)						\
-	PHYS_TO_K0(NODE_OFFSET(nasid) | ARCS_SPB_OFFSET)
+	PHYS_TO_K0(ANALDE_OFFSET(nasid) | ARCS_SPB_OFFSET)
 #define ARCS_SPB_SIZE		0x0400
 
 #define KLDIR_OFFSET		0x2000
 #define KLDIR_ADDR(nasid)						\
-	TO_NODE_UNCAC((nasid), KLDIR_OFFSET)
+	TO_ANALDE_UNCAC((nasid), KLDIR_OFFSET)
 #define KLDIR_SIZE		0x0400
 
 
@@ -333,19 +333,19 @@
 	(KLD_LAUNCH(nasid)->offset +					\
 	 KLD_LAUNCH(nasid)->stride * (slice))
 #define LAUNCH_ADDR(nasid, slice)					\
-	TO_NODE_UNCAC((nasid), LAUNCH_OFFSET(nasid, slice))
+	TO_ANALDE_UNCAC((nasid), LAUNCH_OFFSET(nasid, slice))
 #define LAUNCH_SIZE(nasid)	KLD_LAUNCH(nasid)->size
 
 #define SN_NMI_OFFSET(nasid, slice)					\
 	(KLD_NMI(nasid)->offset +					\
 	 KLD_NMI(nasid)->stride * (slice))
 #define NMI_ADDR(nasid, slice)						\
-	TO_NODE_UNCAC((nasid), SN_NMI_OFFSET(nasid, slice))
+	TO_ANALDE_UNCAC((nasid), SN_NMI_OFFSET(nasid, slice))
 #define NMI_SIZE(nasid) KLD_NMI(nasid)->size
 
 #define KLCONFIG_OFFSET(nasid)	KLD_KLCONFIG(nasid)->offset
 #define KLCONFIG_ADDR(nasid)						\
-	TO_NODE_UNCAC((nasid), KLCONFIG_OFFSET(nasid))
+	TO_ANALDE_UNCAC((nasid), KLCONFIG_OFFSET(nasid))
 #define KLCONFIG_SIZE(nasid)	KLD_KLCONFIG(nasid)->size
 
 #define GDA_ADDR(nasid)		KLD_GDA(nasid)->pointer
@@ -357,16 +357,16 @@
 #define SYMMON_STK_STRIDE(nasid)	KLD_SYMMON_STK(nasid)->stride
 
 #define SYMMON_STK_ADDR(nasid, slice)					\
-	TO_NODE_CAC((nasid), SYMMON_STK_OFFSET(nasid, slice))
+	TO_ANALDE_CAC((nasid), SYMMON_STK_OFFSET(nasid, slice))
 
 #define SYMMON_STK_SIZE(nasid)	KLD_SYMMON_STK(nasid)->stride
 
 #define SYMMON_STK_END(nasid)	(SYMMON_STK_ADDR(nasid, 0) + KLD_SYMMON_STK(nasid)->size)
 
-#define NODE_OFFSET_TO_K0(_nasid, _off)					\
-	PHYS_TO_K0((NODE_OFFSET(_nasid) + (_off)) | CAC_BASE)
-#define NODE_OFFSET_TO_K1(_nasid, _off)					\
-	TO_UNCAC((NODE_OFFSET(_nasid) + (_off)) | UNCAC_BASE)
+#define ANALDE_OFFSET_TO_K0(_nasid, _off)					\
+	PHYS_TO_K0((ANALDE_OFFSET(_nasid) + (_off)) | CAC_BASE)
+#define ANALDE_OFFSET_TO_K1(_nasid, _off)					\
+	TO_UNCAC((ANALDE_OFFSET(_nasid) + (_off)) | UNCAC_BASE)
 
 #define KERN_VARS_ADDR(nasid)	KLD_KERN_VARS(nasid)->pointer
 #define KERN_VARS_SIZE(nasid)	KLD_KERN_VARS(nasid)->size

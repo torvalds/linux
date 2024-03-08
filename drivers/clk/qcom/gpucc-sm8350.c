@@ -322,14 +322,14 @@ static struct clk_branch gpu_cc_cx_qdss_tsctr_clk = {
 	},
 };
 
-static struct clk_branch gpu_cc_cx_snoc_dvm_clk = {
+static struct clk_branch gpu_cc_cx_sanalc_dvm_clk = {
 	.halt_reg = 0x108c,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0x108c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gpu_cc_cx_snoc_dvm_clk",
+			.name = "gpu_cc_cx_sanalc_dvm_clk",
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -521,7 +521,7 @@ static struct gdsc gpu_gx_gdsc = {
 	.clamp_io_ctrl = 0x1508,
 	.pd = {
 		.name = "gpu_gx_gdsc",
-		.power_on = gdsc_gx_do_nothing_enable,
+		.power_on = gdsc_gx_do_analthing_enable,
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = CLAMP_IO | AON_RESET | POLL_CFG_GDSCR,
@@ -536,7 +536,7 @@ static struct clk_regmap *gpu_cc_sm8350_clocks[] = {
 	[GPU_CC_CX_QDSS_AT_CLK] = &gpu_cc_cx_qdss_at_clk.clkr,
 	[GPU_CC_CX_QDSS_TRIG_CLK] = &gpu_cc_cx_qdss_trig_clk.clkr,
 	[GPU_CC_CX_QDSS_TSCTR_CLK] = &gpu_cc_cx_qdss_tsctr_clk.clkr,
-	[GPU_CC_CX_SNOC_DVM_CLK] = &gpu_cc_cx_snoc_dvm_clk.clkr,
+	[GPU_CC_CX_SANALC_DVM_CLK] = &gpu_cc_cx_sanalc_dvm_clk.clkr,
 	[GPU_CC_CXO_AON_CLK] = &gpu_cc_cxo_aon_clk.clkr,
 	[GPU_CC_CXO_CLK] = &gpu_cc_cxo_clk.clkr,
 	[GPU_CC_FREQ_MEASURE_CLK] = &gpu_cc_freq_measure_clk.clkr,

@@ -78,8 +78,8 @@ static int fsl_spi_get_type(struct device *dev)
 {
 	const struct of_device_id *match;
 
-	if (dev->of_node) {
-		match = of_match_node(of_fsl_spi_match, dev->of_node);
+	if (dev->of_analde) {
+		match = of_match_analde(of_fsl_spi_match, dev->of_analde);
 		if (match && match->data)
 			return ((struct fsl_spi_match_data *)match->data)->type;
 	}
@@ -306,13 +306,13 @@ static int fsl_spi_prepare_message(struct spi_controller *ctlr,
 	 * bits_per_word values to reduce number of interrupts taken.
 	 *
 	 * Some glitches can appear on the SPI clock when the mode changes.
-	 * Check that there is no speed change during the transfer and set it up
-	 * now to change the mode without having a chip-select asserted.
+	 * Check that there is anal speed change during the transfer and set it up
+	 * analw to change the mode without having a chip-select asserted.
 	 */
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		if (t->speed_hz != first->speed_hz) {
 			dev_err(&m->spi->dev,
-				"speed_hz cannot change during message.\n");
+				"speed_hz cananalt change during message.\n");
 			return -EINVAL;
 		}
 		if (!(mpc8xxx_spi->flags & SPI_CPM_MODE)) {
@@ -327,8 +327,8 @@ static int fsl_spi_prepare_message(struct spi_controller *ctlr,
 			 * CPM/QE uses Little Endian for words > 8
 			 * so transform 16 and 32 bits words into 8 bits
 			 * Unfortnatly that doesn't work for LSB so
-			 * reject these for now
-			 * Note: 32 bits word, LSB works iff
+			 * reject these for analw
+			 * Analte: 32 bits word, LSB works iff
 			 * tfcr/rfcr is set to CPMFCR_GBL
 			 */
 			if (m->spi->mode & SPI_LSB_FIRST && t->bits_per_word > 8)
@@ -381,7 +381,7 @@ static int fsl_spi_setup(struct spi_device *spi)
 	if (!cs) {
 		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
-			return -ENOMEM;
+			return -EANALMEM;
 		spi_set_ctldata(spi, cs);
 		initial_setup = true;
 	}
@@ -458,7 +458,7 @@ static void fsl_spi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
 static irqreturn_t fsl_spi_irq(s32 irq, void *context_data)
 {
 	struct mpc8xxx_spi *mspi = context_data;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 events;
 	struct fsl_spi_reg __iomem *reg_base = mspi->reg_base;
 
@@ -538,7 +538,7 @@ static struct spi_controller *fsl_spi_probe(struct device *dev,
 
 	host = spi_alloc_host(dev, sizeof(struct mpc8xxx_spi));
 	if (host == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -635,7 +635,7 @@ err:
 static int of_fsl_spi_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_analde *np = ofdev->dev.of_analde;
 	struct spi_controller *host;
 	struct resource mem;
 	int irq, type;
@@ -660,7 +660,7 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 		if (spisel_boot) {
 			pinfo->immr_spi_cs = ioremap(get_immrbase() + IMMR_SPI_CS_OFFSET, 4);
 			if (!pinfo->immr_spi_cs)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 #endif
 		/*
@@ -723,7 +723,7 @@ static struct platform_driver of_fsl_spi_driver = {
  * XXX XXX XXX
  * This is "legacy" platform driver, was used by the MPC8323E-RDB boards
  * only. The driver should go away soon, since newer MPC8323E-RDB's device
- * tree can work with OpenFirmware driver. But for now we support old trees
+ * tree can work with OpenFirmware driver. But for analw we support old trees
  * as well.
  */
 static int plat_mpc8xxx_spi_probe(struct platform_device *pdev)

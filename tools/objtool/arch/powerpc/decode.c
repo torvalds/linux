@@ -29,7 +29,7 @@ int arch_decode_hint_reg(u8 sp_reg, int *base)
 	exit(-1);
 }
 
-const char *arch_nop_insn(int len)
+const char *arch_analp_insn(int len)
 {
 	exit(-1);
 }
@@ -84,7 +84,7 @@ bool arch_pc_relative_reloc(struct reloc *reloc)
 {
 	/*
 	 * The powerpc build only allows certain relocation types, see
-	 * relocs_check.sh, and none of those accepted are PC relative.
+	 * relocs_check.sh, and analne of those accepted are PC relative.
 	 */
 	return false;
 }

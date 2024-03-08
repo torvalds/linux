@@ -34,7 +34,7 @@
 #define E1000_ICS	0x000C8	/* Interrupt Cause Set - WO */
 #define E1000_IMS	0x000D0	/* Interrupt Mask Set - RW */
 #define E1000_IMC	0x000D8	/* Interrupt Mask Clear - WO */
-#define E1000_IAM	0x000E0	/* Interrupt Acknowledge Auto Mask */
+#define E1000_IAM	0x000E0	/* Interrupt Ackanalwledge Auto Mask */
 #define E1000_IVAR	0x000E4	/* Interrupt Vector Allocation Register - RW */
 #define E1000_SVCR	0x000F0
 #define E1000_SVT	0x000F4
@@ -74,7 +74,7 @@
 #define E1000_RADV	0x0282C	/* Rx Interrupt Absolute Delay Timer - RW */
 /* Convenience macros
  *
- * Note: "_n" is the queue number of the register to be written to.
+ * Analte: "_n" is the queue number of the register to be written to.
  *
  * Example usage:
  * E1000_RDBAL_REG(current_rx_queue)
@@ -129,7 +129,7 @@
 #define E1000_LATECOL	0x04020	/* Late Collision Count - R/clr */
 #define E1000_COLC	0x04028	/* Collision Count - R/clr */
 #define E1000_DC	0x04030	/* Defer Count - R/clr */
-#define E1000_TNCRS	0x04034	/* Tx-No CRS - R/clr */
+#define E1000_TNCRS	0x04034	/* Tx-Anal CRS - R/clr */
 #define E1000_SEC	0x04038	/* Sequence Error Count - R/clr */
 #define E1000_CEXTERR	0x0403C	/* Carrier Extension Error Count - R/clr */
 #define E1000_RLEC	0x04040	/* Receive Length Error Count - R/clr */
@@ -152,7 +152,7 @@
 #define E1000_GORCH	0x0408C	/* Good Octets Rx Count High - R/clr */
 #define E1000_GOTCL	0x04090	/* Good Octets Tx Count Low - R/clr */
 #define E1000_GOTCH	0x04094	/* Good Octets Tx Count High - R/clr */
-#define E1000_RNBC	0x040A0	/* Rx No Buffers Count - R/clr */
+#define E1000_RNBC	0x040A0	/* Rx Anal Buffers Count - R/clr */
 #define E1000_RUC	0x040A4	/* Rx Undersize Count - R/clr */
 #define E1000_RFC	0x040A8	/* Rx Fragment Count - R/clr */
 #define E1000_ROC	0x040AC	/* Rx Oversize Count - R/clr */
@@ -214,7 +214,7 @@
 #define E1000_SWSM	0x05B50	/* SW Semaphore */
 #define E1000_FWSM	0x05B54	/* FW Semaphore */
 #define E1000_EXFWSM	0x05B58	/* Extended FW Semaphore */
-/* Driver-only SW semaphore (not used by BOOT agents) */
+/* Driver-only SW semaphore (analt used by BOOT agents) */
 #define E1000_SWSM2	0x05B58
 #define E1000_FFLT_DBG	0x05F04	/* Debug Register */
 #define E1000_HICR	0x08F00	/* Host Interface Control */

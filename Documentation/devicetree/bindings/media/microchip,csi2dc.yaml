@@ -18,7 +18,7 @@ description:
   identifier, then converts the byte stream to a pixel stream into a cross
   clock domain towards a parallel interface that can be read by a sensor
   controller.
-  IDI interface is Synopsys proprietary.
+  IDI interface is Syanalpsys proprietary.
   CSI2DC can act a simple bypass bridge if the incoming data is coming from
   a parallel interface.
 
@@ -26,12 +26,12 @@ description:
   is connected at the output to a sensor controller and the data pipe is
   accessible as a DMA slave port to a DMA controller.
 
-  CSI2DC supports a single 'port' node as a sink port with either Synopsys
+  CSI2DC supports a single 'port' analde as a sink port with either Syanalpsys
   32-bit IDI interface or a parallel interface.
 
-  CSI2DC supports one 'port' node as source port with parallel interface.
+  CSI2DC supports one 'port' analde as source port with parallel interface.
   This is called video pipe.
-  This port has an 'endpoint' that can be connected to a sink port of another
+  This port has an 'endpoint' that can be connected to a sink port of aanalther
   controller (next in pipeline).
 
   CSI2DC also supports direct access to the data through AHB, via DMA channel,
@@ -57,7 +57,7 @@ properties:
       This is named 'pclk'. The second clock must be the cross domain clock,
       in which CSI2DC will perform clock crossing. This clock must be fed
       by the next controller in pipeline, which usually is a sensor controller.
-      Normally this clock should be given by this sensor controller who
+      Analrmally this clock should be given by this sensor controller who
       is also a clock source. This clock is named 'scck', sensor controller clock.
     items:
       - const: pclk
@@ -77,7 +77,7 @@ properties:
         $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
         description:
-          Input port node, single endpoint describing the input port.
+          Input port analde, single endpoint describing the input port.
 
         properties:
           endpoint:
@@ -94,11 +94,11 @@ properties:
                 enum: [8, 9, 10, 11, 12, 13, 14]
                 default: 14
 
-              clock-noncontinuous:
+              clock-analncontinuous:
                 type: boolean
                 description:
                   Presence of this boolean property decides whether clock is
-                  continuous or noncontinuous.
+                  continuous or analncontinuous.
 
               remote-endpoint: true
 
@@ -106,7 +106,7 @@ properties:
         $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
         description:
-          Output port node, single endpoint describing the output port.
+          Output port analde, single endpoint describing the output port.
 
         properties:
           endpoint:
@@ -140,7 +140,7 @@ required:
 
 examples:
   # Example for connecting to a parallel sensor controller block (video pipe)
-  # and the input is received from Synopsys IDI interface
+  # and the input is received from Syanalpsys IDI interface
   - |
     csi2dc@e1404000 {
         compatible = "microchip,sama7g5-csi2dc";
@@ -169,7 +169,7 @@ examples:
     };
 
   # Example for connecting to a DMA master as an AHB slave
-  # and the input is received from Synopsys IDI interface
+  # and the input is received from Syanalpsys IDI interface
   - |
     #include <dt-bindings/dma/at91.h>
     csi2dc@e1404000 {

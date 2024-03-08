@@ -8,7 +8,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/cdev.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/gnss.h>
 #include <linux/idr.h>
@@ -22,9 +22,9 @@
 
 #define GNSS_FLAG_HAS_WRITE_RAW		BIT(0)
 
-#define GNSS_MINORS	16
+#define GNSS_MIANALRS	16
 
-static DEFINE_IDA(gnss_minors);
+static DEFINE_IDA(gnss_mianalrs);
 static dev_t gnss_first;
 
 /* FIFO size must be a power of two */
@@ -33,21 +33,21 @@ static dev_t gnss_first;
 
 #define to_gnss_device(d) container_of((d), struct gnss_device, dev)
 
-static int gnss_open(struct inode *inode, struct file *file)
+static int gnss_open(struct ianalde *ianalde, struct file *file)
 {
 	struct gnss_device *gdev;
 	int ret = 0;
 
-	gdev = container_of(inode->i_cdev, struct gnss_device, cdev);
+	gdev = container_of(ianalde->i_cdev, struct gnss_device, cdev);
 
 	get_device(&gdev->dev);
 
-	stream_open(inode, file);
+	stream_open(ianalde, file);
 	file->private_data = gdev;
 
 	down_write(&gdev->rwsem);
 	if (gdev->disconnected) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock;
 	}
 
@@ -65,7 +65,7 @@ unlock:
 	return ret;
 }
 
-static int gnss_release(struct inode *inode, struct file *file)
+static int gnss_release(struct ianalde *ianalde, struct file *file)
 {
 	struct gnss_device *gdev = file->private_data;
 
@@ -99,7 +99,7 @@ static ssize_t gnss_read(struct file *file, char __user *buf,
 		if (gdev->disconnected)
 			return 0;
 
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
 		ret = wait_event_interruptible(gdev->read_queue,
@@ -136,7 +136,7 @@ static ssize_t gnss_write(struct file *file, const char __user *buf,
 	if (!(gdev->flags & GNSS_FLAG_HAS_WRITE_RAW))
 		return -EIO;
 
-	/* Ignoring O_NONBLOCK, write_raw() is synchronous. */
+	/* Iganalring O_ANALNBLOCK, write_raw() is synchroanalus. */
 
 	ret = mutex_lock_interruptible(&gdev->write_mutex);
 	if (ret)
@@ -192,7 +192,7 @@ static __poll_t gnss_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &gdev->read_queue, wait);
 
 	if (!kfifo_is_empty(&gdev->read_fifo))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	if (gdev->disconnected)
 		mask |= EPOLLHUP;
 
@@ -206,7 +206,7 @@ static const struct file_operations gnss_fops = {
 	.read		= gnss_read,
 	.write		= gnss_write,
 	.poll		= gnss_poll,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static struct class *gnss_class;
@@ -217,7 +217,7 @@ static void gnss_device_release(struct device *dev)
 
 	kfree(gdev->write_buf);
 	kfifo_free(&gdev->read_fifo);
-	ida_free(&gnss_minors, gdev->id);
+	ida_free(&gnss_mianalrs, gdev->id);
 	kfree(gdev);
 }
 
@@ -232,7 +232,7 @@ struct gnss_device *gnss_allocate_device(struct device *parent)
 	if (!gdev)
 		return NULL;
 
-	id = ida_alloc_max(&gnss_minors, GNSS_MINORS - 1, GFP_KERNEL);
+	id = ida_alloc_max(&gnss_mianalrs, GNSS_MIANALRS - 1, GFP_KERNEL);
 	if (id < 0) {
 		kfree(gdev);
 		return NULL;
@@ -315,7 +315,7 @@ EXPORT_SYMBOL_GPL(gnss_deregister_device);
 /*
  * Caller guarantees serialisation.
  *
- * Must not be called for a closed device.
+ * Must analt be called for a closed device.
  */
 int gnss_insert_raw(struct gnss_device *gdev, const unsigned char *buf,
 				size_t count)
@@ -345,7 +345,7 @@ static const char *gnss_type_name(const struct gnss_device *gdev)
 		name = gnss_type_names[gdev->type];
 
 	if (!name)
-		dev_WARN(&gdev->dev, "type name not defined\n");
+		dev_WARN(&gdev->dev, "type name analt defined\n");
 
 	return name;
 }
@@ -381,7 +381,7 @@ static int __init gnss_module_init(void)
 {
 	int ret;
 
-	ret = alloc_chrdev_region(&gnss_first, 0, GNSS_MINORS, "gnss");
+	ret = alloc_chrdev_region(&gnss_first, 0, GNSS_MIANALRS, "gnss");
 	if (ret < 0) {
 		pr_err("failed to allocate device numbers: %d\n", ret);
 		return ret;
@@ -402,7 +402,7 @@ static int __init gnss_module_init(void)
 	return 0;
 
 err_unregister_chrdev:
-	unregister_chrdev_region(gnss_first, GNSS_MINORS);
+	unregister_chrdev_region(gnss_first, GNSS_MIANALRS);
 
 	return ret;
 }
@@ -411,8 +411,8 @@ module_init(gnss_module_init);
 static void __exit gnss_module_exit(void)
 {
 	class_destroy(gnss_class);
-	unregister_chrdev_region(gnss_first, GNSS_MINORS);
-	ida_destroy(&gnss_minors);
+	unregister_chrdev_region(gnss_first, GNSS_MIANALRS);
+	ida_destroy(&gnss_mianalrs);
 }
 module_exit(gnss_module_exit);
 

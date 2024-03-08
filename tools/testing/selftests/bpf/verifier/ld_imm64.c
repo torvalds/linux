@@ -117,7 +117,7 @@
 	BPF_RAW_INSN(0, 0, 0, 0, 0),
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "not pointing to valid bpf_map",
+	.errstr = "analt pointing to valid bpf_map",
 	.result = REJECT,
 },
 {

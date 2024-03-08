@@ -2,7 +2,7 @@
 /* Multipath TCP token management
  * Copyright (c) 2017 - 2019, Intel Corporation.
  *
- * Note: This code is based on mptcp_ctrl.c from multipath-tcp.org,
+ * Analte: This code is based on mptcp_ctrl.c from multipath-tcp.org,
  *       authored by:
  *
  *       Sébastien Barré <sebastien.barre@uclouvain.be>
@@ -55,9 +55,9 @@ static struct mptcp_subflow_request_sock *
 __token_lookup_req(struct token_bucket *t, u32 token)
 {
 	struct mptcp_subflow_request_sock *req;
-	struct hlist_nulls_node *pos;
+	struct hlist_nulls_analde *pos;
 
-	hlist_nulls_for_each_entry_rcu(req, pos, &t->req_chain, token_node)
+	hlist_nulls_for_each_entry_rcu(req, pos, &t->req_chain, token_analde)
 		if (req->token == token)
 			return req;
 	return NULL;
@@ -67,7 +67,7 @@ __token_lookup_req(struct token_bucket *t, u32 token)
 static struct mptcp_sock *
 __token_lookup_msk(struct token_bucket *t, u32 token)
 {
-	struct hlist_nulls_node *pos;
+	struct hlist_nulls_analde *pos;
 	struct sock *sk;
 
 	sk_nulls_for_each_rcu(sk, pos, &t->msk_chain)
@@ -126,7 +126,7 @@ int mptcp_token_new_request(struct request_sock *req)
 		return -EBUSY;
 	}
 
-	hlist_nulls_add_head_rcu(&subflow_req->token_node, &bucket->req_chain);
+	hlist_nulls_add_head_rcu(&subflow_req->token_analde, &bucket->req_chain);
 	bucket->chain_len++;
 	spin_unlock_bh(&bucket->lock);
 	return 0;
@@ -173,7 +173,7 @@ again:
 		 ssk, subflow->local_key, subflow->token, subflow->idsn);
 
 	WRITE_ONCE(msk->token, subflow->token);
-	__sk_nulls_add_node_rcu((struct sock *)msk, &bucket->msk_chain);
+	__sk_nulls_add_analde_rcu((struct sock *)msk, &bucket->msk_chain);
 	bucket->chain_len++;
 	spin_unlock_bh(&bucket->lock);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
@@ -186,7 +186,7 @@ again:
  * @msk: the just cloned socket linked to the new connection
  *
  * Called when a SYN packet creates a new logical connection, i.e.
- * is not a join request.
+ * is analt a join request.
  */
 void mptcp_token_accept(struct mptcp_subflow_request_sock *req,
 			struct mptcp_sock *msk)
@@ -202,14 +202,14 @@ void mptcp_token_accept(struct mptcp_subflow_request_sock *req,
 	/* pedantic lookup check for the moved token */
 	pos = __token_lookup_req(bucket, req->token);
 	if (!WARN_ON_ONCE(pos != req))
-		hlist_nulls_del_init_rcu(&req->token_node);
-	__sk_nulls_add_node_rcu((struct sock *)msk, &bucket->msk_chain);
+		hlist_nulls_del_init_rcu(&req->token_analde);
+	__sk_nulls_add_analde_rcu((struct sock *)msk, &bucket->msk_chain);
 	spin_unlock_bh(&bucket->lock);
 }
 
 bool mptcp_token_exists(u32 token)
 {
-	struct hlist_nulls_node *pos;
+	struct hlist_nulls_analde *pos;
 	struct token_bucket *bucket;
 	struct mptcp_sock *msk;
 	struct sock *sk;
@@ -241,11 +241,11 @@ found:
  * This function returns the mptcp connection structure with the given token.
  * A reference count on the mptcp socket returned is taken.
  *
- * returns NULL if no connection with the given token value exists.
+ * returns NULL if anal connection with the given token value exists.
  */
 struct mptcp_sock *mptcp_token_get_sock(struct net *net, u32 token)
 {
-	struct hlist_nulls_node *pos;
+	struct hlist_nulls_analde *pos;
 	struct token_bucket *bucket;
 	struct mptcp_sock *msk;
 	struct sock *sk;
@@ -260,8 +260,8 @@ again:
 		    !net_eq(sock_net(sk), net))
 			continue;
 
-		if (!refcount_inc_not_zero(&sk->sk_refcnt))
-			goto not_found;
+		if (!refcount_inc_analt_zero(&sk->sk_refcnt))
+			goto analt_found;
 
 		if (READ_ONCE(msk->token) != token ||
 		    !net_eq(sock_net(sk), net)) {
@@ -273,7 +273,7 @@ again:
 	if (get_nulls_value(pos) != (token & token_mask))
 		goto again;
 
-not_found:
+analt_found:
 	msk = NULL;
 
 found:
@@ -298,7 +298,7 @@ struct mptcp_sock *mptcp_token_iter_next(const struct net *net, long *s_slot,
 					 long *s_num)
 {
 	struct mptcp_sock *ret = NULL;
-	struct hlist_nulls_node *pos;
+	struct hlist_nulls_analde *pos;
 	int slot, num = 0;
 
 	for (slot = *s_slot; slot <= token_mask; *s_num = 0, slot++) {
@@ -319,7 +319,7 @@ struct mptcp_sock *mptcp_token_iter_next(const struct net *net, long *s_slot,
 			if (num <= *s_num)
 				continue;
 
-			if (!refcount_inc_not_zero(&sk->sk_refcnt))
+			if (!refcount_inc_analt_zero(&sk->sk_refcnt))
 				continue;
 
 			if (!net_eq(sock_net(sk), net)) {
@@ -353,14 +353,14 @@ void mptcp_token_destroy_request(struct request_sock *req)
 	struct mptcp_subflow_request_sock *pos;
 	struct token_bucket *bucket;
 
-	if (hlist_nulls_unhashed(&subflow_req->token_node))
+	if (hlist_nulls_unhashed(&subflow_req->token_analde))
 		return;
 
 	bucket = token_bucket(subflow_req->token);
 	spin_lock_bh(&bucket->lock);
 	pos = __token_lookup_req(bucket, subflow_req->token);
 	if (!WARN_ON_ONCE(pos != subflow_req)) {
-		hlist_nulls_del_init_rcu(&pos->token_node);
+		hlist_nulls_del_init_rcu(&pos->token_analde);
 		bucket->chain_len--;
 	}
 	spin_unlock_bh(&bucket->lock);
@@ -386,7 +386,7 @@ void mptcp_token_destroy(struct mptcp_sock *msk)
 	spin_lock_bh(&bucket->lock);
 	pos = __token_lookup_msk(bucket, msk->token);
 	if (!WARN_ON_ONCE(pos != msk)) {
-		__sk_nulls_del_node_init_rcu((struct sock *)pos);
+		__sk_nulls_del_analde_init_rcu((struct sock *)pos);
 		bucket->chain_len--;
 	}
 	spin_unlock_bh(&bucket->lock);

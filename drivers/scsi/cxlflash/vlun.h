@@ -2,7 +2,7 @@
 /*
  * CXL Flash Device Driver
  *
- * Written by: Manoj N. Kumar <manoj@linux.vnet.ibm.com>, IBM Corporation
+ * Written by: Maanalj N. Kumar <maanalj@linux.vnet.ibm.com>, IBM Corporation
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
@@ -38,11 +38,11 @@
  * LXT tables are allocated dynamically in groups. This is done to avoid
  * a malloc/free overhead each time the LXT has to grow or shrink.
  *
- * Based on the current lxt_cnt (used), it is always possible to know
+ * Based on the current lxt_cnt (used), it is always possible to kanalw
  * how many are allocated (used+free). The number of allocated entries is
- * not stored anywhere.
+ * analt stored anywhere.
  *
- * The LXT table is re-allocated whenever it needs to cross into another group.
+ * The LXT table is re-allocated whenever it needs to cross into aanalther group.
  */
 #define LXT_GROUP_SIZE          8
 #define LXT_NUM_GROUPS(lxt_cnt) (((lxt_cnt) + 7)/8)	/* alloc'ed groups */

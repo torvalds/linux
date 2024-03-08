@@ -19,7 +19,7 @@ int hva_mem_alloc(struct hva_ctx *ctx, u32 size, const char *name,
 	b = devm_kzalloc(dev, sizeof(*b), GFP_KERNEL);
 	if (!b) {
 		ctx->sys_errors++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	base = dma_alloc_attrs(dev, size, &paddr, GFP_KERNEL,
@@ -29,7 +29,7 @@ int hva_mem_alloc(struct hva_ctx *ctx, u32 size, const char *name,
 			ctx->name, __func__, name, size);
 		ctx->sys_errors++;
 		devm_kfree(dev, b);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	b->size = size;

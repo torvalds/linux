@@ -74,7 +74,7 @@ int ltq_pci_read_config_dword(struct pci_bus *bus, unsigned int devfn,
 	u32 data = 0;
 
 	if (ltq_pci_config_access(PCI_ACCESS_READ, bus, devfn, where, &data))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (size == 1)
 		*val = (data >> ((where & 3) << 3)) & 0xff;
@@ -96,7 +96,7 @@ int ltq_pci_write_config_dword(struct pci_bus *bus, unsigned int devfn,
 	} else {
 		if (ltq_pci_config_access(PCI_ACCESS_READ, bus,
 				devfn, where, &data))
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 
 		if (size == 1)
 			data = (data & ~(0xff << ((where & 3) << 3))) |
@@ -107,7 +107,7 @@ int ltq_pci_write_config_dword(struct pci_bus *bus, unsigned int devfn,
 	}
 
 	if (ltq_pci_config_access(PCI_ACCESS_WRITE, bus, devfn, where, &data))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	return PCIBIOS_SUCCESSFUL;
 }

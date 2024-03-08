@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -446,7 +446,7 @@ struct SMU7_MclkDpmScoreboard {
 	uint8_t  MclkSwitchInProgress;
 	uint8_t  MclkSwitchCritical;
 
-	uint8_t  IgnoreVBlank;
+	uint8_t  IganalreVBlank;
 	uint8_t  TargetMclkIndex;
 	uint8_t  TargetMvddIndex;
 	uint8_t  MclkSwitchResult;
@@ -561,7 +561,7 @@ struct SMU7_BapmScoreboard {
 	int32_t Limit;
 	int32_t Hyst;
 	int32_t therm_influence_coeff_table[SMU75_DTE_ITERATIONS * SMU75_DTE_SOURCES * SMU75_DTE_SINKS * 2];
-	int32_t therm_node_table[SMU75_DTE_ITERATIONS * SMU75_DTE_SOURCES * SMU75_DTE_SINKS];
+	int32_t therm_analde_table[SMU75_DTE_ITERATIONS * SMU75_DTE_SOURCES * SMU75_DTE_SINKS];
 	uint16_t ConfigTDPPowerScalar;
 	uint16_t FanSpeedPowerScalar;
 	uint16_t OverDrivePowerScalar;

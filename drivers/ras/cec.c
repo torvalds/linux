@@ -51,12 +51,12 @@
  *
  * To the question why we've chosen a page and moving elements around with
  * memmove(), it is because it is a very simple structure to handle and max data
- * movement is 4K which on highly optimized modern CPUs is almost unnoticeable.
+ * movement is 4K which on highly optimized modern CPUs is almost unanalticeable.
  * We wanted to avoid the pointer traversal of more complex structures like a
  * linked list or some sort of a balancing search tree.
  *
  * Deleting an element takes O(n) but since it is only a single page, it should
- * be fast enough and it shouldn't happen all too often depending on error
+ * be fast eanalugh and it shouldn't happen all too often depending on error
  * patterns.
  */
 
@@ -136,7 +136,7 @@ static struct delayed_work cec_work;
 static u64 decay_interval = CEC_DECAY_DEFAULT_INTERVAL;
 
 /*
- * Decrement decay value. We're using DECAY_BITS bits to denote decay of an
+ * Decrement decay value. We're using DECAY_BITS bits to deanalte decay of an
  * element in the array. On insertion and any access, it gets reset to max.
  */
 static void do_spring_cleaning(struct ce_array *ca)
@@ -217,7 +217,7 @@ static int __find_elem(struct ce_array *ca, u64 pfn, unsigned int *to)
 	if (to)
 		*to = min;
 
-	return -ENOKEY;
+	return -EANALKEY;
 }
 
 static int find_elem(struct ce_array *ca, u64 pfn, unsigned int *to)
@@ -226,7 +226,7 @@ static int find_elem(struct ce_array *ca, u64 pfn, unsigned int *to)
 
 	if (!ca->n) {
 		*to = 0;
-		return -ENOKEY;
+		return -EANALKEY;
 	}
 	return __find_elem(ca, pfn, to);
 }
@@ -262,7 +262,7 @@ static u64 del_lru_elem_unlocked(struct ce_array *ca)
 }
 
 /*
- * We return the 0th pfn in the error case under the assumption that it cannot
+ * We return the 0th pfn in the error case under the assumption that it cananalt
  * be poisoned and excessive CEs in there are a serious deal anyway.
  */
 static u64 __maybe_unused del_lru_elem(void)
@@ -326,10 +326,10 @@ static int cec_add_elem(u64 pfn)
 
 	/*
 	 * We can be called very early on the identify_cpu() path where we are
-	 * not initialized yet. We ignore the error for simplicity.
+	 * analt initialized yet. We iganalre the error for simplicity.
 	 */
 	if (!ce_arr.array || ce_arr.disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&ce_mutex);
 
@@ -373,7 +373,7 @@ static int cec_add_elem(u64 pfn)
 		del_elem(ca, to);
 
 		/*
-		 * Return a >0 value to callers, to denote that we've reached
+		 * Return a >0 value to callers, to deanalte that we've reached
 		 * the offlining threshold.
 		 */
 		ret = 1;
@@ -461,7 +461,7 @@ static int array_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "}\n");
 
-	seq_printf(m, "Stats:\nCEs: %llu\nofflined pages: %llu\n",
+	seq_printf(m, "Stats:\nCEs: %llu\analfflined pages: %llu\n",
 		   ca->ces_entered, ca->pfns_poisoned);
 
 	seq_printf(m, "Flags: 0x%x\n", ca->flags);
@@ -478,27 +478,27 @@ static int array_show(struct seq_file *m, void *v)
 
 DEFINE_SHOW_ATTRIBUTE(array);
 
-static int __init create_debugfs_nodes(void)
+static int __init create_debugfs_analdes(void)
 {
 	struct dentry *d, *pfn, *decay, *count, *array;
 
 	d = debugfs_create_dir("cec", ras_debugfs_dir);
 	if (!d) {
-		pr_warn("Error creating cec debugfs node!\n");
+		pr_warn("Error creating cec debugfs analde!\n");
 		return -1;
 	}
 
 	decay = debugfs_create_file("decay_interval", S_IRUSR | S_IWUSR, d,
 				    &decay_interval, &decay_interval_ops);
 	if (!decay) {
-		pr_warn("Error creating decay_interval debugfs node!\n");
+		pr_warn("Error creating decay_interval debugfs analde!\n");
 		goto err;
 	}
 
 	count = debugfs_create_file("action_threshold", S_IRUSR | S_IWUSR, d,
 				    &action_threshold, &action_threshold_ops);
 	if (!count) {
-		pr_warn("Error creating action_threshold debugfs node!\n");
+		pr_warn("Error creating action_threshold debugfs analde!\n");
 		goto err;
 	}
 
@@ -507,13 +507,13 @@ static int __init create_debugfs_nodes(void)
 
 	pfn = debugfs_create_file("pfn", S_IRUSR | S_IWUSR, d, &dfs_pfn, &pfn_ops);
 	if (!pfn) {
-		pr_warn("Error creating pfn debugfs node!\n");
+		pr_warn("Error creating pfn debugfs analde!\n");
 		goto err;
 	}
 
 	array = debugfs_create_file("array", S_IRUSR, d, NULL, &array_fops);
 	if (!array) {
-		pr_warn("Error creating array debugfs node!\n");
+		pr_warn("Error creating array debugfs analde!\n");
 		goto err;
 	}
 
@@ -525,13 +525,13 @@ err:
 	return 1;
 }
 
-static int cec_notifier(struct notifier_block *nb, unsigned long val,
+static int cec_analtifier(struct analtifier_block *nb, unsigned long val,
 			void *data)
 {
 	struct mce *m = (struct mce *)data;
 
 	if (!m)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/* We eat only correctable DRAM errors with usable addresses. */
 	if (mce_is_memory_error(m) &&
@@ -539,22 +539,22 @@ static int cec_notifier(struct notifier_block *nb, unsigned long val,
 	    mce_usable_address(m)) {
 		if (!cec_add_elem(m->addr >> PAGE_SHIFT)) {
 			m->kflags |= MCE_HANDLED_CEC;
-			return NOTIFY_OK;
+			return ANALTIFY_OK;
 		}
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block cec_nb = {
-	.notifier_call	= cec_notifier,
+static struct analtifier_block cec_nb = {
+	.analtifier_call	= cec_analtifier,
 	.priority	= MCE_PRIO_CEC,
 };
 
 static int __init cec_init(void)
 {
 	if (ce_arr.disabled)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Intel systems may avoid uncorrectable errors
@@ -567,12 +567,12 @@ static int __init cec_init(void)
 	ce_arr.array = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!ce_arr.array) {
 		pr_err("Error allocating CE array page!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	if (create_debugfs_nodes()) {
+	if (create_debugfs_analdes()) {
 		free_page((unsigned long)ce_arr.array);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	INIT_DELAYED_WORK(&cec_work, cec_work_fn);

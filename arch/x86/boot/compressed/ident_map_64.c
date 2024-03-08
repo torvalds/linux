@@ -8,7 +8,7 @@
  * Copyright (C)      2016  Kees Cook
  */
 
-/* No PAGE_TABLE_ISOLATION support needed either: */
+/* Anal PAGE_TABLE_ISOLATION support needed either: */
 #undef CONFIG_PAGE_TABLE_ISOLATION
 
 #include "error.h"
@@ -83,7 +83,7 @@ phys_addr_t physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
 
 /*
  * Mapping information structure passed to kernel_ident_mapping_init().
- * Due to relocation, pointers must be assigned at run time not build time.
+ * Due to relocation, pointers must be assigned at run time analt build time.
  */
 static struct x86_mapping_info mapping_info;
 
@@ -122,7 +122,7 @@ void initialize_identity_maps(void *rmode)
 	mapping_info.kernpg_flag = _KERNPG_TABLE;
 
 	/*
-	 * It should be impossible for this not to already be true,
+	 * It should be impossible for this analt to already be true,
 	 * but since calling this a second time would rewind the other
 	 * counters, let's just make sure this is reset too.
 	 */
@@ -155,8 +155,8 @@ void initialize_identity_maps(void *rmode)
 	 * New page-table is set up - map the kernel image, boot_params and the
 	 * command line. The uncompressed kernel requires boot_params and the
 	 * command line to be mapped in the identity mapping. Map them
-	 * explicitly here in case the compressed kernel does not touch them,
-	 * or does not touch all the pages covering them.
+	 * explicitly here in case the compressed kernel does analt touch them,
+	 * or does analt touch all the pages covering them.
 	 */
 	kernel_add_identity_map((unsigned long)_head, (unsigned long)_end);
 	boot_params_ptr = rmode;
@@ -183,7 +183,7 @@ void initialize_identity_maps(void *rmode)
 	write_cr3(top_level_pgt);
 
 	/*
-	 * Now that the required page table mappings are established and a
+	 * Analw that the required page table mappings are established and a
 	 * GHCB can be used, check for SNP guest/HV feature compatibility.
 	 */
 	snp_check_features();
@@ -203,7 +203,7 @@ static pte_t *split_large_pmd(struct x86_mapping_info *info,
 		return NULL;
 
 	address     = __address & PMD_MASK;
-	/* No large page - clear PSE flag */
+	/* Anal large page - clear PSE flag */
 	page_flags  = info->page_flag & ~_PAGE_PSE;
 
 	/* Populate the PTEs */
@@ -218,7 +218,7 @@ static pte_t *split_large_pmd(struct x86_mapping_info *info,
 	 * PMD might contain the code we execute and/or the stack
 	 * we are on, so we can't do that. But that should be safe here
 	 * because we are going from large to small mappings and we are
-	 * also the only user of the page-table, so there is no chance
+	 * also the only user of the page-table, so there is anal chance
 	 * of a TLB multihit.
 	 */
 	pmd = __pmd((unsigned long)pte | info->kernpg_flag);
@@ -236,14 +236,14 @@ static void clflush_page(unsigned long address)
 
 	/*
 	 * Hardcode cl-size to 64 - CPUID can't be used here because that might
-	 * cause another #VC exception and the GHCB is not ready to use yet.
+	 * cause aanalther #VC exception and the GHCB is analt ready to use yet.
 	 */
 	flush_size = 64;
 	start      = (char *)(address & PAGE_MASK);
 	end        = start + PAGE_SIZE;
 
 	/*
-	 * First make sure there are no pending writes on the cache-lines to
+	 * First make sure there are anal pending writes on the cache-lines to
 	 * flush.
 	 */
 	asm volatile("mfence" : : : "memory");
@@ -266,7 +266,7 @@ static int set_clr_page_flags(struct x86_mapping_info *info,
 	 * First make sure there is a PMD mapping for 'address'.
 	 * It should already exist, but keep things generic.
 	 *
-	 * To map the page just read from it and fault it in if there is no
+	 * To map the page just read from it and fault it in if there is anal
 	 * mapping yet. kernel_add_identity_map() can't be called here because
 	 * that would unconditionally map the address on PMD level, destroying
 	 * any PTE-level mappings that might already exist. Use assembly here
@@ -290,7 +290,7 @@ static int set_clr_page_flags(struct x86_mapping_info *info,
 		ptep = pte_offset_kernel(pmdp, address);
 
 	if (!ptep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Changing encryption attributes of a page requires to flush it from
@@ -337,7 +337,7 @@ int set_page_encrypted(unsigned long address)
 	return set_clr_page_flags(&mapping_info, address, _PAGE_ENC, 0);
 }
 
-int set_page_non_present(unsigned long address)
+int set_page_analn_present(unsigned long address)
 {
 	return set_clr_page_flags(&mapping_info, address, 0, _PAGE_PRESENT);
 }
@@ -381,7 +381,7 @@ void do_boot_page_fault(struct pt_regs *regs, unsigned long error_code)
 		do_pf_error("Page-fault on GHCB page:", error_code, address, regs->ip);
 
 	/*
-	 * Error code is sane - now identity map the 2M region around
+	 * Error code is sane - analw identity map the 2M region around
 	 * the faulting address.
 	 */
 	kernel_add_identity_map(address, end);
@@ -389,5 +389,5 @@ void do_boot_page_fault(struct pt_regs *regs, unsigned long error_code)
 
 void do_boot_nmi_trap(struct pt_regs *regs, unsigned long error_code)
 {
-	/* Empty handler to ignore NMI during early boot */
+	/* Empty handler to iganalre NMI during early boot */
 }

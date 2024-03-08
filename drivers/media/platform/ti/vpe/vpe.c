@@ -566,7 +566,7 @@ static int realloc_mv_buffers(struct vpe_ctx *ctx, size_t size)
 				GFP_KERNEL);
 	if (!ctx->mv_buf[0]) {
 		vpe_err(ctx->dev, "failed to allocate motion vector buffer\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ctx->mv_buf[1] = dma_alloc_coherent(dev, size, &ctx->mv_buf_dma[1],
@@ -576,7 +576,7 @@ static int realloc_mv_buffers(struct vpe_ctx *ctx, size_t size)
 		dma_free_coherent(dev, size, ctx->mv_buf[0],
 			ctx->mv_buf_dma[0]);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ctx->mv_buf_size = size;
@@ -714,7 +714,7 @@ static void set_line_modes(struct vpe_ctx *ctx)
 	    fmt->fourcc == V4L2_PIX_FMT_NV21)
 		line_mode = 0;		/* double lines to line buffer */
 
-	/* regs for now */
+	/* regs for analw */
 	vpdma_set_line_mode(ctx->dev->vpdma, line_mode, VPE_CHAN_CHROMA1_IN);
 	vpdma_set_line_mode(ctx->dev->vpdma, line_mode, VPE_CHAN_CHROMA2_IN);
 	vpdma_set_line_mode(ctx->dev->vpdma, line_mode, VPE_CHAN_CHROMA3_IN);
@@ -770,7 +770,7 @@ static void set_dst_registers(struct vpe_ctx *ctx)
 
 	/*
 	 * the source of CHR_DS and CSC is always the scaler, irrespective of
-	 * whether it's used or not
+	 * whether it's used or analt
 	 */
 	val |= VPE_DS_SRC_DEI_SCALER | VPE_CSC_SRC_DEI_SCALER;
 
@@ -800,7 +800,7 @@ static void set_dei_regs(struct vpe_ctx *ctx)
 	 * according to TRM, we should set DEI in progressive bypass mode when
 	 * the input content is progressive, however, DEI is bypassed correctly
 	 * for both progressive and interlace content in interlace bypass mode.
-	 * It has been recommended not to use progressive bypass mode.
+	 * It has been recommended analt to use progressive bypass mode.
 	 */
 	if (!(s_q_data->flags & Q_IS_INTERLACED) || !ctx->deinterlacing) {
 		deinterlace = false;
@@ -882,7 +882,7 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 		 * we make sure that the source image has a 16 byte aligned
 		 * stride, we need to do the same for the motion vector buffer
 		 * by aligning it's stride to the next 16 byte boundary. this
-		 * extra space will not be used by the de-interlacer, but will
+		 * extra space will analt be used by the de-interlacer, but will
 		 * ensure that vpdma operates correctly
 		 */
 		bytes_per_line = ALIGN((spix->width * mv->depth) >> 3,
@@ -1050,7 +1050,7 @@ static void add_out_dtd(struct vpe_ctx *ctx, int port)
 			offset = pix->plane_fmt[0].bytesperline * pix->height;
 		} else {
 			dma_addr = vb2_dma_contig_plane_dma_addr(vb, plane);
-			/* Use address as is, no offset */
+			/* Use address as is, anal offset */
 			offset = 0;
 		}
 		if (!dma_addr) {
@@ -1116,7 +1116,7 @@ static void add_in_dtd(struct vpe_ctx *ctx, int port)
 			offset = pix->plane_fmt[0].bytesperline * pix->height;
 		} else {
 			dma_addr = vb2_dma_contig_plane_dma_addr(vb, plane);
-			/* Use address as is, no offset */
+			/* Use address as is, anal offset */
 			offset = 0;
 		}
 		if (!dma_addr) {
@@ -1223,7 +1223,7 @@ static void device_run(void *priv)
 		 * each buffer has two fields (top & bottom)
 		 * Removing one buffer is actually getting two fields
 		 * Alternate between two operations:-
-		 * Even : consume one field but DO NOT REMOVE from queue
+		 * Even : consume one field but DO ANALT REMOVE from queue
 		 * Odd : consume other field and REMOVE from queue
 		 */
 		ctx->src_vbs[0] = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
@@ -1247,7 +1247,7 @@ static void device_run(void *priv)
 
 		/*
 		 * we have output the first 2 frames through line average, we
-		 * now switch to EDI de-interlacer
+		 * analw switch to EDI de-interlacer
 		 */
 		if (ctx->sequence == 2)
 			config_edi_input_mode(ctx, 0x3); /* EDI (Y + UV) */
@@ -1456,7 +1456,7 @@ static irqreturn_t vpe_irq(int irq_vpe, void *data)
 			ctx->field = V4L2_FIELD_BOTTOM;
 		}
 	} else {
-		d_vb->field = V4L2_FIELD_NONE;
+		d_vb->field = V4L2_FIELD_ANALNE;
 		ctx->sequence++;
 	}
 
@@ -1465,7 +1465,7 @@ static irqreturn_t vpe_irq(int irq_vpe, void *data)
 		 * Allow source buffer to be dequeued only if it won't be used
 		 * in the next iteration. All vbs are initialized to first
 		 * buffer and we are shifting buffers every iteration, for the
-		 * first two iterations, no buffer will be dequeued.
+		 * first two iterations, anal buffer will be dequeued.
 		 * This ensures that driver will keep (n-2)th (n-1)th and (n)th
 		 * field when deinterlacing is enabled
 		 */
@@ -1491,7 +1491,7 @@ static irqreturn_t vpe_irq(int irq_vpe, void *data)
 
 	/*
 	 * Since the vb2_buf_done has already been called fir therse
-	 * buffer we can now NULL them out so that we won't try
+	 * buffer we can analw NULL them out so that we won't try
 	 * to clean out stray pointer later on.
 	*/
 	ctx->src_vbs[0] = NULL;
@@ -1609,11 +1609,11 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 		fmt = __find_format(V4L2_PIX_FMT_YUYV);
 	}
 
-	if (pix->field != V4L2_FIELD_NONE &&
+	if (pix->field != V4L2_FIELD_ANALNE &&
 	    pix->field != V4L2_FIELD_ALTERNATE &&
 	    pix->field != V4L2_FIELD_SEQ_TB &&
 	    pix->field != V4L2_FIELD_SEQ_BT)
-		pix->field = V4L2_FIELD_NONE;
+		pix->field = V4L2_FIELD_ANALNE;
 
 	depth = fmt->vpdma_fmt[VPE_LUMA]->depth;
 
@@ -1642,7 +1642,7 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 		 * HACK: using order_base_2() here causes lots of asm output
 		 * errors with smatch, on i386:
 		 * ./arch/x86/include/asm/bitops.h:457:22:
-		 *		 warning: asm output is not an lvalue
+		 *		 warning: asm output is analt an lvalue
 		 * Perhaps some gcc optimization is doing the wrong thing
 		 * there.
 		 * Let's get rid of them by doing the calculus on two steps
@@ -1844,7 +1844,7 @@ static int __vpe_try_selection(struct vpe_ctx *ctx, struct v4l2_selection *s)
 
 	/*
 	 * For SEQ_XX buffers, crop height should be less than the height of
-	 * the field height, not the buffer height
+	 * the field height, analt the buffer height
 	 */
 	if (q_data->flags & Q_IS_SEQ_XX)
 		height = pix->height / 2;
@@ -2066,7 +2066,7 @@ static int vpe_buf_prepare(struct vb2_buffer *vb)
 
 	if (vb->vb2_queue->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		if (!(q_data->flags & Q_IS_INTERLACED)) {
-			vbuf->field = V4L2_FIELD_NONE;
+			vbuf->field = V4L2_FIELD_ANALNE;
 		} else {
 			if (vbuf->field != V4L2_FIELD_TOP &&
 			    vbuf->field != V4L2_FIELD_BOTTOM &&
@@ -2079,7 +2079,7 @@ static int vpe_buf_prepare(struct vb2_buffer *vb)
 	for (i = 0; i < pix->num_planes; i++) {
 		if (vb2_plane_size(vb, i) < pix->plane_fmt[i].sizeimage) {
 			vpe_err(ctx->dev,
-				"data will not fit into plane (%lu < %lu)\n",
+				"data will analt fit into plane (%lu < %lu)\n",
 				vb2_plane_size(vb, i),
 				(long)pix->plane_fmt[i].sizeimage);
 			return -EINVAL;
@@ -2142,7 +2142,7 @@ static void vpe_return_all_buffers(struct vpe_ctx *ctx,  struct vb2_queue *q,
 	/*
 	 * Cleanup the in-transit vb2 buffers that have been
 	 * removed from their respective queue already but for
-	 * which procecessing has not been completed yet.
+	 * which procecessing has analt been completed yet.
 	 */
 	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
 		spin_lock_irqsave(&ctx->dev->lock, flags);
@@ -2279,7 +2279,7 @@ static int vpe_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = dev;
 
@@ -2289,7 +2289,7 @@ static int vpe_open(struct file *file)
 	}
 
 	ret = vpdma_create_desc_list(&ctx->desc_list, VPE_DESC_LIST_SIZE,
-			VPDMA_LIST_TYPE_NORMAL);
+			VPDMA_LIST_TYPE_ANALRMAL);
 	if (ret != 0)
 		goto unlock;
 
@@ -2337,7 +2337,7 @@ static int vpe_open(struct file *file)
 	pix->xfer_func = V4L2_XFER_FUNC_DEFAULT;
 	pix->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	pix->quantization = V4L2_QUANTIZATION_DEFAULT;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 	s_q_data->c_rect.left = 0;
 	s_q_data->c_rect.top = 0;
 	s_q_data->c_rect.width = pix->width;
@@ -2365,7 +2365,7 @@ static int vpe_open(struct file *file)
 	v4l2_fh_add(&ctx->fh);
 
 	/*
-	 * for now, just report the creation of the first instance, we can later
+	 * for analw, just report the creation of the first instance, we can later
 	 * optimize the driver to enable or disable clocks when the first
 	 * instance is created or the last instance released
 	 */
@@ -2428,7 +2428,7 @@ static int vpe_release(struct file *file)
 	kfree(ctx);
 
 	/*
-	 * for now, just report the release of the last instance, we can later
+	 * for analw, just report the release of the last instance, we can later
 	 * optimize the driver to enable or disable clocks when the first
 	 * instance is created or the last instance released
 	 */
@@ -2453,7 +2453,7 @@ static const struct video_device vpe_videodev = {
 	.name		= VPE_MODULE_NAME,
 	.fops		= &vpe_fops,
 	.ioctl_ops	= &vpe_ioctl_ops,
-	.minor		= -1,
+	.mianalr		= -1,
 	.release	= video_device_release_empty,
 	.vfl_dir	= VFL_DIR_M2M,
 	.device_caps	= V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING,
@@ -2484,7 +2484,7 @@ static void vpe_runtime_put(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "vpe_runtime_put\n");
 
 	r = pm_runtime_put_sync(&pdev->dev);
-	WARN_ON(r < 0 && r != -ENOSYS);
+	WARN_ON(r < 0 && r != -EANALSYS);
 }
 
 static void vpe_fw_cb(struct platform_device *pdev)
@@ -2530,7 +2530,7 @@ static int vpe_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&dev->lock);
 
@@ -2545,7 +2545,7 @@ static int vpe_probe(struct platform_device *pdev)
 						"vpe_top");
 	if (!dev->res) {
 		dev_err(&pdev->dev, "missing 'vpe_top' resources data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -2556,7 +2556,7 @@ static int vpe_probe(struct platform_device *pdev)
 	 */
 	dev->base = devm_ioremap(&pdev->dev, dev->res->start, SZ_32K);
 	if (!dev->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto v4l2_dev_unreg;
 	}
 

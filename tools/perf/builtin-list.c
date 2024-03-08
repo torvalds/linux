@@ -119,7 +119,7 @@ static void default_print_event(void *ps, const char *pmu_name, const char *topi
 	if (print_state->event_glob &&
 	    (!event_name || !strglobmatch(event_name, print_state->event_glob)) &&
 	    (!event_alias || !strglobmatch(event_alias, print_state->event_glob)) &&
-	    (!topic || !strglobmatch_nocase(topic, print_state->event_glob)))
+	    (!topic || !strglobmatch_analcase(topic, print_state->event_glob)))
 		return;
 
 	if (print_state->name_only) {
@@ -504,7 +504,7 @@ int cmd_list(int argc, const char **argv)
 		OPT_BOOLEAN(0, "raw-dump", &default_ps.name_only, "Dump raw events"),
 		OPT_BOOLEAN('j', "json", &json, "JSON encode events and metrics"),
 		OPT_BOOLEAN('d', "desc", &default_ps.desc,
-			    "Print extra event descriptions. --no-desc to not print."),
+			    "Print extra event descriptions. --anal-desc to analt print."),
 		OPT_BOOLEAN('v', "long-desc", &default_ps.long_desc,
 			    "Print longer event descriptions."),
 		OPT_BOOLEAN(0, "details", &default_ps.detailed,
@@ -534,7 +534,7 @@ int cmd_list(int argc, const char **argv)
 	set_option_flag(list_options, 0, "cputype", PARSE_OPT_HIDDEN);
 
 	argc = parse_options(argc, argv, list_options, list_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+			     PARSE_OPT_STOP_AT_ANALN_OPTION);
 
 	if (output_path) {
 		default_ps.fp = fopen(output_path, "w");
@@ -567,7 +567,7 @@ int cmd_list(int argc, const char **argv)
 			const struct perf_pmu *pmu = perf_pmus__pmu_for_pmu_filter(cputype);
 
 			if (!pmu) {
-				pr_err("ERROR: cputype is not supported!\n");
+				pr_err("ERROR: cputype is analt supported!\n");
 				ret = -1;
 				goto out;
 			}
@@ -636,7 +636,7 @@ int cmd_list(int argc, const char **argv)
 			default_ps.pmu_glob = old_pmu_glob;
 		} else {
 			if (asprintf(&s, "*%s*", argv[i]) < 0) {
-				printf("Critical: Not enough memory! Trying to continue...\n");
+				printf("Critical: Analt eanalugh memory! Trying to continue...\n");
 				continue;
 			}
 			default_ps.event_glob = s;

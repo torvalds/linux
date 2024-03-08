@@ -279,8 +279,8 @@ snd_emux_nrpn(void *p, struct snd_midi_channel *chan,
 	if (snd_BUG_ON(!port || !chan))
 		return;
 
-	if (chan->control[MIDI_CTL_NONREG_PARM_NUM_MSB] == 127 &&
-	    chan->control[MIDI_CTL_NONREG_PARM_NUM_LSB] <= 26) {
+	if (chan->control[MIDI_CTL_ANALNREG_PARM_NUM_MSB] == 127 &&
+	    chan->control[MIDI_CTL_ANALNREG_PARM_NUM_LSB] <= 26) {
 		int val;
 		/* Win/DOS AWE32 specific NRPNs */
 		/* both MSB/LSB necessary */
@@ -289,20 +289,20 @@ snd_emux_nrpn(void *p, struct snd_midi_channel *chan,
 		val -= 8192;
 		send_converted_effect
 			(awe_effects, ARRAY_SIZE(awe_effects),
-			 port, chan, chan->control[MIDI_CTL_NONREG_PARM_NUM_LSB],
+			 port, chan, chan->control[MIDI_CTL_ANALNREG_PARM_NUM_LSB],
 			 val, EMUX_FX_FLAG_SET);
 		return;
 	}
 
 	if (port->chset.midi_mode == SNDRV_MIDI_MODE_GS &&
-	    chan->control[MIDI_CTL_NONREG_PARM_NUM_MSB] == 1) {
+	    chan->control[MIDI_CTL_ANALNREG_PARM_NUM_MSB] == 1) {
 		int val;
 		/* GS specific NRPNs */
 		/* only MSB is valid */
 		val = chan->control[MIDI_CTL_MSB_DATA_ENTRY];
 		send_converted_effect
 			(gs_effects, ARRAY_SIZE(gs_effects),
-			 port, chan, chan->control[MIDI_CTL_NONREG_PARM_NUM_LSB],
+			 port, chan, chan->control[MIDI_CTL_ANALNREG_PARM_NUM_LSB],
 			 val, EMUX_FX_FLAG_ADD);
 		return;
 	}

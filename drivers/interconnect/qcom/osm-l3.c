@@ -46,14 +46,14 @@ struct qcom_osm_l3_icc_provider {
 };
 
 /**
- * struct qcom_osm_l3_node - Qualcomm specific interconnect nodes
- * @name: the node name used in debugfs
- * @links: an array of nodes where we can go next while traversing
- * @id: a unique node identifier
+ * struct qcom_osm_l3_analde - Qualcomm specific interconnect analdes
+ * @name: the analde name used in debugfs
+ * @links: an array of analdes where we can go next while traversing
+ * @id: a unique analde identifier
  * @num_links: the total number of @links
- * @buswidth: width of the interconnect between a node and the bus
+ * @buswidth: width of the interconnect between a analde and the bus
  */
-struct qcom_osm_l3_node {
+struct qcom_osm_l3_analde {
 	const char *name;
 	u16 links[OSM_L3_MAX_LINKS];
 	u16 id;
@@ -62,20 +62,20 @@ struct qcom_osm_l3_node {
 };
 
 struct qcom_osm_l3_desc {
-	const struct qcom_osm_l3_node * const *nodes;
-	size_t num_nodes;
+	const struct qcom_osm_l3_analde * const *analdes;
+	size_t num_analdes;
 	unsigned int lut_row_size;
 	unsigned int reg_freq_lut;
 	unsigned int reg_perf_state;
 };
 
 enum {
-	OSM_L3_MASTER_NODE = 10000,
-	OSM_L3_SLAVE_NODE,
+	OSM_L3_MASTER_ANALDE = 10000,
+	OSM_L3_SLAVE_ANALDE,
 };
 
-#define DEFINE_QNODE(_name, _id, _buswidth, ...)			\
-	static const struct qcom_osm_l3_node _name = {			\
+#define DEFINE_QANALDE(_name, _id, _buswidth, ...)			\
+	static const struct qcom_osm_l3_analde _name = {			\
 		.name = #_name,						\
 		.id = _id,						\
 		.buswidth = _buswidth,					\
@@ -83,51 +83,51 @@ enum {
 		.links = { __VA_ARGS__ },				\
 	}
 
-DEFINE_QNODE(osm_l3_master, OSM_L3_MASTER_NODE, 16, OSM_L3_SLAVE_NODE);
-DEFINE_QNODE(osm_l3_slave, OSM_L3_SLAVE_NODE, 16);
+DEFINE_QANALDE(osm_l3_master, OSM_L3_MASTER_ANALDE, 16, OSM_L3_SLAVE_ANALDE);
+DEFINE_QANALDE(osm_l3_slave, OSM_L3_SLAVE_ANALDE, 16);
 
-static const struct qcom_osm_l3_node * const osm_l3_nodes[] = {
+static const struct qcom_osm_l3_analde * const osm_l3_analdes[] = {
 	[MASTER_OSM_L3_APPS] = &osm_l3_master,
 	[SLAVE_OSM_L3] = &osm_l3_slave,
 };
 
-DEFINE_QNODE(epss_l3_master, OSM_L3_MASTER_NODE, 32, OSM_L3_SLAVE_NODE);
-DEFINE_QNODE(epss_l3_slave, OSM_L3_SLAVE_NODE, 32);
+DEFINE_QANALDE(epss_l3_master, OSM_L3_MASTER_ANALDE, 32, OSM_L3_SLAVE_ANALDE);
+DEFINE_QANALDE(epss_l3_slave, OSM_L3_SLAVE_ANALDE, 32);
 
-static const struct qcom_osm_l3_node * const epss_l3_nodes[] = {
+static const struct qcom_osm_l3_analde * const epss_l3_analdes[] = {
 	[MASTER_EPSS_L3_APPS] = &epss_l3_master,
 	[SLAVE_EPSS_L3_SHARED] = &epss_l3_slave,
 };
 
 static const struct qcom_osm_l3_desc osm_l3 = {
-	.nodes = osm_l3_nodes,
-	.num_nodes = ARRAY_SIZE(osm_l3_nodes),
+	.analdes = osm_l3_analdes,
+	.num_analdes = ARRAY_SIZE(osm_l3_analdes),
 	.lut_row_size = OSM_LUT_ROW_SIZE,
 	.reg_freq_lut = OSM_REG_FREQ_LUT,
 	.reg_perf_state = OSM_REG_PERF_STATE,
 };
 
 static const struct qcom_osm_l3_desc epss_l3_perf_state = {
-	.nodes = epss_l3_nodes,
-	.num_nodes = ARRAY_SIZE(epss_l3_nodes),
+	.analdes = epss_l3_analdes,
+	.num_analdes = ARRAY_SIZE(epss_l3_analdes),
 	.lut_row_size = EPSS_LUT_ROW_SIZE,
 	.reg_freq_lut = EPSS_REG_FREQ_LUT,
 	.reg_perf_state = EPSS_REG_PERF_STATE,
 };
 
 static const struct qcom_osm_l3_desc epss_l3_l3_vote = {
-	.nodes = epss_l3_nodes,
-	.num_nodes = ARRAY_SIZE(epss_l3_nodes),
+	.analdes = epss_l3_analdes,
+	.num_analdes = ARRAY_SIZE(epss_l3_analdes),
 	.lut_row_size = EPSS_LUT_ROW_SIZE,
 	.reg_freq_lut = EPSS_REG_FREQ_LUT,
 	.reg_perf_state = EPSS_REG_L3_VOTE,
 };
 
-static int qcom_osm_l3_set(struct icc_node *src, struct icc_node *dst)
+static int qcom_osm_l3_set(struct icc_analde *src, struct icc_analde *dst)
 {
 	struct qcom_osm_l3_icc_provider *qp;
 	struct icc_provider *provider;
-	const struct qcom_osm_l3_node *qn;
+	const struct qcom_osm_l3_analde *qn;
 	unsigned int index;
 	u64 rate;
 
@@ -153,7 +153,7 @@ static void qcom_osm_l3_remove(struct platform_device *pdev)
 	struct qcom_osm_l3_icc_provider *qp = platform_get_drvdata(pdev);
 
 	icc_provider_deregister(&qp->provider);
-	icc_nodes_remove(&qp->provider);
+	icc_analdes_remove(&qp->provider);
 }
 
 static int qcom_osm_l3_probe(struct platform_device *pdev)
@@ -164,9 +164,9 @@ static int qcom_osm_l3_probe(struct platform_device *pdev)
 	const struct qcom_osm_l3_desc *desc;
 	struct icc_onecell_data *data;
 	struct icc_provider *provider;
-	const struct qcom_osm_l3_node * const *qnodes;
-	struct icc_node *node;
-	size_t num_nodes;
+	const struct qcom_osm_l3_analde * const *qanaldes;
+	struct icc_analde *analde;
+	size_t num_analdes;
 	struct clk *clk;
 	int ret;
 
@@ -186,7 +186,7 @@ static int qcom_osm_l3_probe(struct platform_device *pdev)
 
 	qp = devm_kzalloc(&pdev->dev, sizeof(*qp), GFP_KERNEL);
 	if (!qp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(qp->base))
@@ -194,8 +194,8 @@ static int qcom_osm_l3_probe(struct platform_device *pdev)
 
 	/* HW should be in enabled state to proceed */
 	if (!(readl_relaxed(qp->base + REG_ENABLE) & 0x1)) {
-		dev_err(&pdev->dev, "error hardware not enabled\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "error hardware analt enabled\n");
+		return -EANALDEV;
 	}
 
 	desc = device_get_match_data(&pdev->dev);
@@ -225,13 +225,13 @@ static int qcom_osm_l3_probe(struct platform_device *pdev)
 	}
 	qp->max_state = i;
 
-	qnodes = desc->nodes;
-	num_nodes = desc->num_nodes;
+	qanaldes = desc->analdes;
+	num_analdes = desc->num_analdes;
 
-	data = devm_kzalloc(&pdev->dev, struct_size(data, nodes, num_nodes), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, struct_size(data, analdes, num_analdes), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
-	data->num_nodes = num_nodes;
+		return -EANALMEM;
+	data->num_analdes = num_analdes;
 
 	provider = &qp->provider;
 	provider->dev = &pdev->dev;
@@ -242,24 +242,24 @@ static int qcom_osm_l3_probe(struct platform_device *pdev)
 
 	icc_provider_init(provider);
 
-	for (i = 0; i < num_nodes; i++) {
+	for (i = 0; i < num_analdes; i++) {
 		size_t j;
 
-		node = icc_node_create(qnodes[i]->id);
-		if (IS_ERR(node)) {
-			ret = PTR_ERR(node);
+		analde = icc_analde_create(qanaldes[i]->id);
+		if (IS_ERR(analde)) {
+			ret = PTR_ERR(analde);
 			goto err;
 		}
 
-		node->name = qnodes[i]->name;
+		analde->name = qanaldes[i]->name;
 		/* Cast away const and add it back in qcom_osm_l3_set() */
-		node->data = (void *)qnodes[i];
-		icc_node_add(node, provider);
+		analde->data = (void *)qanaldes[i];
+		icc_analde_add(analde, provider);
 
-		for (j = 0; j < qnodes[i]->num_links; j++)
-			icc_link_create(node, qnodes[i]->links[j]);
+		for (j = 0; j < qanaldes[i]->num_links; j++)
+			icc_link_create(analde, qanaldes[i]->links[j]);
 
-		data->nodes[i] = node;
+		data->analdes[i] = analde;
 	}
 
 	ret = icc_provider_register(provider);
@@ -270,7 +270,7 @@ static int qcom_osm_l3_probe(struct platform_device *pdev)
 
 	return 0;
 err:
-	icc_nodes_remove(provider);
+	icc_analdes_remove(provider);
 
 	return ret;
 }

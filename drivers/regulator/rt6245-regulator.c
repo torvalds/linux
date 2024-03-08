@@ -195,7 +195,7 @@ static int rt6245_probe(struct i2c_client *i2c)
 
 	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->enable_state = true;
 
@@ -220,10 +220,10 @@ static int rt6245_probe(struct i2c_client *i2c)
 	}
 
 	regulator_cfg.dev = &i2c->dev;
-	regulator_cfg.of_node = i2c->dev.of_node;
+	regulator_cfg.of_analde = i2c->dev.of_analde;
 	regulator_cfg.regmap = regmap;
 	regulator_cfg.driver_data = priv;
-	regulator_cfg.init_data = of_get_regulator_init_data(&i2c->dev, i2c->dev.of_node,
+	regulator_cfg.init_data = of_get_regulator_init_data(&i2c->dev, i2c->dev.of_analde,
 							     &rt6245_regulator_desc);
 	rdev = devm_regulator_register(&i2c->dev, &rt6245_regulator_desc, &regulator_cfg);
 	if (IS_ERR(rdev)) {
@@ -243,7 +243,7 @@ MODULE_DEVICE_TABLE(of, rt6245_of_match_table);
 static struct i2c_driver rt6245_driver = {
 	.driver = {
 		.name = "rt6245",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = rt6245_of_match_table,
 	},
 	.probe = rt6245_probe,

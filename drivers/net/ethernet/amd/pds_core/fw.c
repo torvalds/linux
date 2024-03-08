@@ -4,7 +4,7 @@
 #include "core.h"
 
 /* The worst case wait for the install activity is about 25 minutes when
- * installing a new CPLD, which is very seldom.  Normal is about 30-35
+ * installing a new CPLD, which is very seldom.  Analrmal is about 30-35
  * seconds.  Since the driver can't tell if a CPLD update will happen we
  * set the timeout for the ugly case.
  */
@@ -111,7 +111,7 @@ int pdsc_firmware_update(struct pdsc *pdsc, const struct firmware *fw,
 		return -ENXIO;
 
 	dl = priv_to_devlink(pdsc);
-	devlink_flash_update_status_notify(dl, "Preparing to flash",
+	devlink_flash_update_status_analtify(dl, "Preparing to flash",
 					   NULL, 0, 0);
 
 	buf_sz = sizeof(pdsc->cmd_regs->data);
@@ -125,7 +125,7 @@ int pdsc_firmware_update(struct pdsc *pdsc, const struct firmware *fw,
 	data_addr = offsetof(struct pds_core_dev_cmd_regs, data);
 	while (offset < fw->size) {
 		if (offset >= next_interval) {
-			devlink_flash_update_status_notify(dl, "Downloading",
+			devlink_flash_update_status_analtify(dl, "Downloading",
 							   NULL, offset,
 							   fw->size);
 			next_interval = offset +
@@ -147,10 +147,10 @@ int pdsc_firmware_update(struct pdsc *pdsc, const struct firmware *fw,
 		}
 		offset += copy_sz;
 	}
-	devlink_flash_update_status_notify(dl, "Downloading", NULL,
+	devlink_flash_update_status_analtify(dl, "Downloading", NULL,
 					   fw->size, fw->size);
 
-	devlink_flash_update_timeout_notify(dl, "Installing", NULL,
+	devlink_flash_update_timeout_analtify(dl, "Installing", NULL,
 					    PDSC_FW_INSTALL_TIMEOUT);
 
 	fw_slot = pdsc_devcmd_fw_install(pdsc);
@@ -168,7 +168,7 @@ int pdsc_firmware_update(struct pdsc *pdsc, const struct firmware *fw,
 	if (err)
 		goto err_out;
 
-	devlink_flash_update_timeout_notify(dl, "Selecting", NULL,
+	devlink_flash_update_timeout_analtify(dl, "Selecting", NULL,
 					    PDSC_FW_SELECT_TIMEOUT);
 
 	err = pdsc_devcmd_fw_activate(pdsc, fw_slot);
@@ -188,10 +188,10 @@ int pdsc_firmware_update(struct pdsc *pdsc, const struct firmware *fw,
 
 err_out:
 	if (err)
-		devlink_flash_update_status_notify(dl, "Flash failed",
+		devlink_flash_update_status_analtify(dl, "Flash failed",
 						   NULL, 0, 0);
 	else
-		devlink_flash_update_status_notify(dl, "Flash done",
+		devlink_flash_update_status_analtify(dl, "Flash done",
 						   NULL, 0, 0);
 	return err;
 }

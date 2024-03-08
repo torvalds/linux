@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -156,7 +156,7 @@ static bool dce60_setup_scaling_configuration(
 	if (data->taps.h_taps + data->taps.v_taps <= 2) {
 		/* Set bypass */
 
-		/* DCE6 has no SCL_MODE register, skip scale mode programming */
+		/* DCE6 has anal SCL_MODE register, skip scale mode programming */
 
 		return false;
 	}
@@ -165,9 +165,9 @@ static bool dce60_setup_scaling_configuration(
 			SCL_H_NUM_OF_TAPS, data->taps.h_taps - 1,
 			SCL_V_NUM_OF_TAPS, data->taps.v_taps - 1);
 
-	/* DCE6 has no SCL_MODE register, skip scale mode programming */
+	/* DCE6 has anal SCL_MODE register, skip scale mode programming */
 
-	/* DCE6 has no SCL_BOUNDARY_MODE bit, skip replace out of bound pixels */
+	/* DCE6 has anal SCL_BOUNDARY_MODE bit, skip replace out of bound pixels */
 
 	return true;
 }
@@ -563,16 +563,16 @@ static void dce60_transform_set_scaler(
 	/* 6. Program the viewport */
 	program_viewport(xfm_dce, &data->viewport);
 
-	/* DCE6 has no SCL_COEF_UPDATE_COMPLETE bit to flip to new coefficient memory */
+	/* DCE6 has anal SCL_COEF_UPDATE_COMPLETE bit to flip to new coefficient memory */
 
-	/* DCE6 DATA_FORMAT register does not support ALPHA_EN */
+	/* DCE6 DATA_FORMAT register does analt support ALPHA_EN */
 }
 #endif
 
 /*****************************************************************************
  * set_clamp
  *
- * @param depth : bit depth to set the clamp to (should match denorm)
+ * @param depth : bit depth to set the clamp to (should match deanalrm)
  *
  * @brief
  *     Programs clamp according to panel bit depth.
@@ -782,7 +782,7 @@ static void set_dither(
  *     Programs the DCP bit depth reduction registers (Clamp, Round/Truncate,
  *      Dither) for dce
  *
- * @param depth : bit depth to set the clamp to (should match denorm)
+ * @param depth : bit depth to set the clamp to (should match deanalrm)
  *
  ******************************************************************************/
 static void program_bit_depth_reduction(
@@ -842,7 +842,7 @@ static void program_bit_depth_reduction(
  *     Programs the DCP bit depth reduction registers (Clamp, Round/Truncate,
  *      Dither) for dce
  *
- * @param depth : bit depth to set the clamp to (should match denorm)
+ * @param depth : bit depth to set the clamp to (should match deanalrm)
  *
  ******************************************************************************/
 static void dce60_program_bit_depth_reduction(
@@ -883,7 +883,7 @@ static void dce60_program_bit_depth_reduction(
 		}
 	}
 
-	/* DCE6 has no OUT_CLAMP_CONTROL_* registers - set_clamp() is skipped */
+	/* DCE6 has anal OUT_CLAMP_CONTROL_* registers - set_clamp() is skipped */
 	set_round(xfm_dce, trunc_mode, trunc_round_depth);
 	set_dither(xfm_dce,
 		   spatial_dither_enable,
@@ -906,7 +906,7 @@ static int dce_transform_get_max_num_of_supported_lines(
 	ASSERT(pixel_width);
 
 	/* Find number of pixels that can fit into a single LB entry and
-	 * take floor of the value since we cannot store a single pixel
+	 * take floor of the value since we cananalt store a single pixel
 	 * across multiple entries. */
 	switch (depth) {
 	case LB_PIXEL_DEPTH_18BPP:
@@ -941,38 +941,38 @@ static int dce_transform_get_max_num_of_supported_lines(
 	return (max_pixels_supports / pixel_width);
 }
 
-static void set_denormalization(
+static void set_deanalrmalization(
 	struct dce_transform *xfm_dce,
 	enum dc_color_depth depth)
 {
-	int denorm_mode = 0;
+	int deanalrm_mode = 0;
 
 	switch (depth) {
 	case COLOR_DEPTH_666:
 		/* 63/64 for 6 bit output color depth */
-		denorm_mode = 1;
+		deanalrm_mode = 1;
 		break;
 	case COLOR_DEPTH_888:
 		/* Unity for 8 bit output color depth
 		 * because prescale is disabled by default */
-		denorm_mode = 0;
+		deanalrm_mode = 0;
 		break;
 	case COLOR_DEPTH_101010:
 		/* 1023/1024 for 10 bit output color depth */
-		denorm_mode = 3;
+		deanalrm_mode = 3;
 		break;
 	case COLOR_DEPTH_121212:
 		/* 4095/4096 for 12 bit output color depth */
-		denorm_mode = 5;
+		deanalrm_mode = 5;
 		break;
 	case COLOR_DEPTH_141414:
 	case COLOR_DEPTH_161616:
 	default:
-		/* not valid used case! */
+		/* analt valid used case! */
 		break;
 	}
 
-	REG_SET(DENORM_CONTROL, 0, DENORM_MODE, denorm_mode);
+	REG_SET(DEANALRM_CONTROL, 0, DEANALRM_MODE, deanalrm_mode);
 }
 
 static void dce_transform_set_pixel_storage_depth(
@@ -1009,11 +1009,11 @@ static void dce_transform_set_pixel_storage_depth(
 		color_depth = COLOR_DEPTH_101010;
 		pixel_depth = 0;
 		expan_mode  = 1;
-		DC_LOG_DC("The pixel depth %d is not valid, set COLOR_DEPTH_101010 instead.", depth);
+		DC_LOG_DC("The pixel depth %d is analt valid, set COLOR_DEPTH_101010 instead.", depth);
 		break;
 	}
 
-	set_denormalization(xfm_dce, color_depth);
+	set_deanalrmalization(xfm_dce, color_depth);
 	program_bit_depth_reduction(xfm_dce, color_depth, bit_depth_params);
 
 	REG_UPDATE_2(LB_DATA_FORMAT,
@@ -1023,7 +1023,7 @@ static void dce_transform_set_pixel_storage_depth(
 	if (!(xfm_dce->lb_pixel_depth_supported & depth)) {
 		/*we should use unsupported capabilities
 		 *  unless it is required by w/a*/
-		DC_LOG_DC("%s: Capability not supported", __func__);
+		DC_LOG_DC("%s: Capability analt supported", __func__);
 	}
 }
 
@@ -1055,15 +1055,15 @@ static void dce60_transform_set_pixel_storage_depth(
 		break;
 	}
 
-	set_denormalization(xfm_dce, color_depth);
+	set_deanalrmalization(xfm_dce, color_depth);
 	dce60_program_bit_depth_reduction(xfm_dce, color_depth, bit_depth_params);
 
-	/* DATA_FORMAT in DCE6 does not have PIXEL_DEPTH and PIXEL_EXPAN_MODE masks */
+	/* DATA_FORMAT in DCE6 does analt have PIXEL_DEPTH and PIXEL_EXPAN_MODE masks */
 
 	if (!(xfm_dce->lb_pixel_depth_supported & depth)) {
 		/*we should use unsupported capabilities
 		 *  unless it is required by w/a*/
-		DC_LOG_WARNING("%s: Capability not supported",
+		DC_LOG_WARNING("%s: Capability analt supported",
 			__func__);
 	}
 }
@@ -1108,7 +1108,7 @@ static void program_gamut_remap(
  *  @return
  *     void
  *
- *  @note calculate and apply color temperature adjustment to in Rgb color space
+ *  @analte calculate and apply color temperature adjustment to in Rgb color space
  *
  *  @see
  *
@@ -1184,12 +1184,12 @@ bool dce_transform_get_optimal_number_of_taps(
 
 	/*
 	 * Set taps according to this policy (in this order)
-	 * - Use 1 for no scaling
+	 * - Use 1 for anal scaling
 	 * - Use input taps
 	 * - Use 4 and reduce as required by line buffer size
 	 * - Decide chroma taps if chroma is scaled
 	 *
-	 * Ignore input chroma taps. Decide based on non-chroma
+	 * Iganalre input chroma taps. Decide based on analn-chroma
 	 */
 	scl_data->taps.h_taps = decide_taps(scl_data->ratios.horz, in_taps->h_taps, false);
 	scl_data->taps.v_taps = decide_taps(scl_data->ratios.vert, in_taps->v_taps, false);
@@ -1356,7 +1356,7 @@ void dce110_opp_set_csc_adjustment(
 	program_color_matrix(
 			xfm_dce, tbl_entry, GRPH_COLOR_MATRIX_SW);
 
-	/*  We did everything ,now program DxOUTPUT_CSC_CONTROL */
+	/*  We did everything ,analw program DxOUTPUT_CSC_CONTROL */
 	configure_graphics_mode(xfm_dce, config, GRAPHICS_CSC_ADJUST_TYPE_SW,
 			tbl_entry->color_space);
 }
@@ -1371,14 +1371,14 @@ void dce110_opp_set_csc_default(
 
 	if (default_adjust->force_hw_default == false) {
 		const struct out_csc_color_matrix *elm;
-		/* currently parameter not in use */
+		/* currently parameter analt in use */
 		enum grph_color_adjust_option option =
 			GRPH_COLOR_MATRIX_HW_DEFAULT;
 		uint32_t i;
 		/*
 		 * HW default false we program locally defined matrix
 		 * HW default true  we use predefined hw matrix and we
-		 * do not need to program matrix
+		 * do analt need to program matrix
 		 * OEM wants the HW default via runtime parameter.
 		 */
 		option = GRPH_COLOR_MATRIX_SW;
@@ -1397,7 +1397,7 @@ void dce110_opp_set_csc_default(
 
 	/* configure the what we programmed :
 	 * 1. Default values from this file
-	 * 2. Use hardware default from ROM_A and we do not need to program
+	 * 2. Use hardware default from ROM_A and we do analt need to program
 	 * matrix */
 
 	configure_graphics_mode(xfm_dce, config,
@@ -1443,7 +1443,7 @@ static void program_pwl(struct dce_transform *xfm_dce,
 	}
 
 	if (counter == max_tries) {
-		DC_LOG_WARNING("%s: regamma lut was not powered on "
+		DC_LOG_WARNING("%s: regamma lut was analt powered on "
 				"in a timely manner,"
 				" programming still proceeds\n",
 				__func__);

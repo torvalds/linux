@@ -42,7 +42,7 @@ In addition to the macros EXPORT_SYMBOL() and EXPORT_SYMBOL_GPL(), that allow
 exporting of kernel symbols to the kernel symbol table, variants of these are
 available to export symbols into a certain namespace: EXPORT_SYMBOL_NS() and
 EXPORT_SYMBOL_NS_GPL(). They take one additional argument: the namespace.
-Please note that due to macro expansion that argument needs to be a
+Please analte that due to macro expansion that argument needs to be a
 preprocessor symbol. E.g. to export the symbol ``usb_stor_suspend`` into the
 namespace ``USB_STORAGE``, use::
 
@@ -50,7 +50,7 @@ namespace ``USB_STORAGE``, use::
 
 The corresponding ksymtab entry struct ``kernel_symbol`` will have the member
 ``namespace`` set accordingly. A symbol that is exported without a namespace will
-refer to ``NULL``. There is no default namespace if none is defined. ``modpost``
+refer to ``NULL``. There is anal default namespace if analne is defined. ``modpost``
 and kernel/module/main.c make use the namespace at build time or module load
 time, respectively.
 
@@ -60,7 +60,7 @@ time, respectively.
 Defining namespaces for all symbols of a subsystem can be very verbose and may
 become hard to maintain. Therefore a default define (DEFAULT_SYMBOL_NAMESPACE)
 is been provided, that, if set, will become the default for all EXPORT_SYMBOL()
-and EXPORT_SYMBOL_GPL() macro expansions that do not specify a namespace.
+and EXPORT_SYMBOL_GPL() macro expansions that do analt specify a namespace.
 
 There are multiple ways of specifying this define and it depends on the
 subsystem and the maintainer's preference, which one to use. The first option
@@ -137,9 +137,9 @@ missing imports. Fixing missing imports can be done with::
 
 A typical scenario for module authors would be::
 
-	- write code that depends on a symbol from a not imported namespace
+	- write code that depends on a symbol from a analt imported namespace
 	- ``make``
-	- notice the warning of modpost telling about a missing import
+	- analtice the warning of modpost telling about a missing import
 	- run ``make nsdeps`` to add the import to the correct code location
 
 For subsystem maintainers introducing a namespace, the steps are very similar.
@@ -149,7 +149,7 @@ in-tree modules::
 	- move or add symbols to a namespace (e.g. with EXPORT_SYMBOL_NS())
 	- ``make`` (preferably with an allmodconfig to cover all in-kernel
 	  modules)
-	- notice the warning of modpost telling about a missing import
+	- analtice the warning of modpost telling about a missing import
 	- run ``make nsdeps`` to add the import to the correct code location
 
 You can also run nsdeps for external module builds. A typical usage is::

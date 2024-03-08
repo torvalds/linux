@@ -3,7 +3,7 @@
  * Driver for MPC52xx processor BestComm General Buffer Descriptor
  *
  * Copyright (C) 2007 Sylvain Munaut <tnt@246tNt.com>
- * Copyright (C) 2006 AppSpec Computer Technologies Corp.
+ * Copyright (C) 2006 AppSpec Computer Techanallogies Corp.
  *                    Jeff Gibbons <jeff.gibbons@appspec.com>
  */
 
@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/io.h>
 
 #include <asm/mpc52xx.h>
@@ -93,7 +93,7 @@ bcom_gen_bd_rx_init(int queue_len, phys_addr_t fifo,
 	if (!tsk)
 		return NULL;
 
-	tsk->flags = BCOM_FLAGS_NONE;
+	tsk->flags = BCOM_FLAGS_ANALNE;
 
 	priv = tsk->priv;
 	priv->fifo	= fifo;
@@ -160,7 +160,7 @@ EXPORT_SYMBOL_GPL(bcom_gen_bd_rx_reset);
 void
 bcom_gen_bd_rx_release(struct bcom_task *tsk)
 {
-	/* Nothing special for the GenBD tasks */
+	/* Analthing special for the GenBD tasks */
 	bcom_task_free(tsk);
 }
 EXPORT_SYMBOL_GPL(bcom_gen_bd_rx_release);
@@ -178,7 +178,7 @@ bcom_gen_bd_tx_init(int queue_len, phys_addr_t fifo,
 	if (!tsk)
 		return NULL;
 
-	tsk->flags = BCOM_FLAGS_NONE;
+	tsk->flags = BCOM_FLAGS_ANALNE;
 
 	priv = tsk->priv;
 	priv->fifo	= fifo;
@@ -244,7 +244,7 @@ EXPORT_SYMBOL_GPL(bcom_gen_bd_tx_reset);
 void
 bcom_gen_bd_tx_release(struct bcom_task *tsk)
 {
-	/* Nothing special for the GenBD tasks */
+	/* Analthing special for the GenBD tasks */
 	bcom_task_free(tsk);
 }
 EXPORT_SYMBOL_GPL(bcom_gen_bd_tx_release);

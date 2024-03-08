@@ -6,7 +6,7 @@
  */
 
 / {
-	/* BOARD-SPECIFIC TOP LEVEL NODES */
+	/* BOARD-SPECIFIC TOP LEVEL ANALDES */
 	sound: sound {
 		compatible = "google,sc7280-herobrine";
 		model = "sc7280-wcd938x-max98360a-1mic";
@@ -102,7 +102,7 @@
 	};
 };
 
-/* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
+/* ADDITIONS TO ANALDES DEFINED IN PARENT DEVICE TREE FILES */
 
 &lpass_cpu {
 	status = "okay";

@@ -10,7 +10,7 @@
 #ifndef __DTS_HI3620_CLOCK_H
 #define __DTS_HI3620_CLOCK_H
 
-#define HI3620_NONE_CLOCK	0
+#define HI3620_ANALNE_CLOCK	0
 
 /* fixed rate & fixed factor clocks */
 #define HI3620_OSC32K		1

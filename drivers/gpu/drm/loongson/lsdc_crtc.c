@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/delay.h>
@@ -79,7 +79,7 @@ static void lsdc_crtc0_enable(struct lsdc_crtc *lcrtc)
 
 	/*
 	 * This may happen in extremely rare cases, but a soft reset can
-	 * bring it back to normal. We add a warning here, hoping to catch
+	 * bring it back to analrmal. We add a warning here, hoping to catch
 	 * something if it happens.
 	 */
 	if (val & CRTC_ANCHORED) {
@@ -106,7 +106,7 @@ static void lsdc_crtc1_enable(struct lsdc_crtc *lcrtc)
 
 	/*
 	 * This may happen in extremely rare cases, but a soft reset can
-	 * bring it back to normal. We add a warning here, hoping to catch
+	 * bring it back to analrmal. We add a warning here, hoping to catch
 	 * something if it happens.
 	 */
 	val = lsdc_rreg32(ldev, LSDC_CRTC1_CFG_REG);
@@ -127,7 +127,7 @@ static void lsdc_crtc1_disable(struct lsdc_crtc *lcrtc)
 	udelay(9);
 }
 
-/* All Loongson display controllers have hardware scanout position recoders */
+/* All Loongson display controllers have hardware scaanalut position recoders */
 
 static void lsdc_crtc0_scan_pos(struct lsdc_crtc *lcrtc, int *hpos, int *vpos)
 {
@@ -306,7 +306,7 @@ static const struct lsdc_crtc_hw_ops ls7a1000_crtc_hw_ops[2] = {
  * The 32-bit hardware vblank counter has been available since LS7A2000
  * and LS2K2000. The counter increases even though the CRTC is disabled,
  * it will be reset only if the CRTC is being soft reset.
- * Those registers are also readable for ls7a1000, but its value does not
+ * Those registers are also readable for ls7a1000, but its value does analt
  * change.
  */
 
@@ -528,8 +528,8 @@ static const struct lsdc_reg32 lsdc_crtc_regs_array[2][21] = {
 
 static int lsdc_crtc_show_regs(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct lsdc_crtc *lcrtc = (struct lsdc_crtc *)node->info_ent->data;
+	struct drm_info_analde *analde = (struct drm_info_analde *)m->private;
+	struct lsdc_crtc *lcrtc = (struct lsdc_crtc *)analde->info_ent->data;
 	struct lsdc_device *ldev = lcrtc->ldev;
 	unsigned int i;
 
@@ -546,20 +546,20 @@ static int lsdc_crtc_show_regs(struct seq_file *m, void *arg)
 
 static int lsdc_crtc_show_scan_position(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct lsdc_crtc *lcrtc = (struct lsdc_crtc *)node->info_ent->data;
+	struct drm_info_analde *analde = (struct drm_info_analde *)m->private;
+	struct lsdc_crtc *lcrtc = (struct lsdc_crtc *)analde->info_ent->data;
 	int x, y;
 
 	lcrtc->hw_ops->get_scan_pos(lcrtc, &x, &y);
-	seq_printf(m, "Scanout position: x: %08u, y: %08u\n", x, y);
+	seq_printf(m, "Scaanalut position: x: %08u, y: %08u\n", x, y);
 
 	return 0;
 }
 
 static int lsdc_crtc_show_vblank_counter(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct lsdc_crtc *lcrtc = (struct lsdc_crtc *)node->info_ent->data;
+	struct drm_info_analde *analde = (struct drm_info_analde *)m->private;
+	struct lsdc_crtc *lcrtc = (struct lsdc_crtc *)analde->info_ent->data;
 
 	if (lcrtc->hw_ops->get_vblank_counter)
 		seq_printf(m, "%s vblank counter: %08u\n\n", lcrtc->base.name,
@@ -570,8 +570,8 @@ static int lsdc_crtc_show_vblank_counter(struct seq_file *m, void *arg)
 
 static int lsdc_pixpll_show_clock(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct lsdc_crtc *lcrtc = (struct lsdc_crtc *)node->info_ent->data;
+	struct drm_info_analde *analde = (struct drm_info_analde *)m->private;
+	struct lsdc_crtc *lcrtc = (struct lsdc_crtc *)analde->info_ent->data;
 	struct lsdc_pixpll *pixpll = &lcrtc->pixpll;
 	const struct lsdc_pixpll_funcs *funcs = pixpll->funcs;
 	struct drm_crtc *crtc = &lcrtc->base;
@@ -616,14 +616,14 @@ static int lsdc_crtc_man_op_show(struct seq_file *m, void *data)
 	seq_puts(m, "enable: enable this CRTC\n");
 	seq_puts(m, "disable: disable this CRTC\n");
 	seq_puts(m, "flip: trigger the page flip\n");
-	seq_puts(m, "clone: clone the another crtc with hardware logic\n");
+	seq_puts(m, "clone: clone the aanalther crtc with hardware logic\n");
 
 	return 0;
 }
 
-static int lsdc_crtc_man_op_open(struct inode *inode, struct file *file)
+static int lsdc_crtc_man_op_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drm_crtc *crtc = inode->i_private;
+	struct drm_crtc *crtc = ianalde->i_private;
 
 	return single_open(file, lsdc_crtc_man_op_show, crtc);
 }
@@ -673,7 +673,7 @@ static int lsdc_crtc_late_register(struct drm_crtc *crtc)
 {
 	struct lsdc_display_pipe *dispipe = crtc_to_display_pipe(crtc);
 	struct lsdc_crtc *lcrtc = to_lsdc_crtc(crtc);
-	struct drm_minor *minor = crtc->dev->primary;
+	struct drm_mianalr *mianalr = crtc->dev->primary;
 	unsigned int index = dispipe->index;
 	unsigned int i;
 
@@ -686,7 +686,7 @@ static int lsdc_crtc_late_register(struct drm_crtc *crtc)
 		lcrtc->p_info_list[i].data = lcrtc;
 
 	drm_debugfs_create_files(lcrtc->p_info_list, lcrtc->n_info_list,
-				 crtc->debugfs_entry, minor);
+				 crtc->debugfs_entry, mianalr);
 
 	/* Manual operations supported */
 	debugfs_create_file("ops", 0644, crtc->debugfs_entry, lcrtc,
@@ -801,7 +801,7 @@ static int lsdc_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	return lsdc_pixpll_atomic_check(crtc, crtc_state);
 }
 
-static void lsdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void lsdc_crtc_mode_set_analfb(struct drm_crtc *crtc)
 {
 	struct lsdc_crtc *lcrtc = to_lsdc_crtc(crtc);
 	const struct lsdc_crtc_hw_ops *crtc_hw_ops = lcrtc->hw_ops;
@@ -894,7 +894,7 @@ static void lsdc_crtc_atomic_flush(struct drm_crtc *crtc,
 	spin_unlock_irq(&crtc->dev->event_lock);
 }
 
-static bool lsdc_crtc_get_scanout_position(struct drm_crtc *crtc,
+static bool lsdc_crtc_get_scaanalut_position(struct drm_crtc *crtc,
 					   bool in_vblank_irq,
 					   int *vpos,
 					   int *hpos,
@@ -937,12 +937,12 @@ static bool lsdc_crtc_get_scanout_position(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs lsdc_crtc_helper_funcs = {
 	.mode_valid = lsdc_crtc_mode_valid,
-	.mode_set_nofb = lsdc_crtc_mode_set_nofb,
+	.mode_set_analfb = lsdc_crtc_mode_set_analfb,
 	.atomic_enable = lsdc_crtc_atomic_enable,
 	.atomic_disable = lsdc_crtc_atomic_disable,
 	.atomic_check = lsdc_crtc_helper_atomic_check,
 	.atomic_flush = lsdc_crtc_atomic_flush,
-	.get_scanout_position = lsdc_crtc_get_scanout_position,
+	.get_scaanalut_position = lsdc_crtc_get_scaanalut_position,
 };
 
 int ls7a1000_crtc_init(struct drm_device *ddev,

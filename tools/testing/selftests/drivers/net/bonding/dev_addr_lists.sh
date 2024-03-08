@@ -11,7 +11,7 @@ ALL_TESTS="
 	bond_listen_lacpdu_multicast_case_up
 "
 
-REQUIRE_MZ=no
+REQUIRE_MZ=anal
 NUM_NETIFS=0
 lib_dir=$(dirname "$0")
 source "$lib_dir"/net_forwarding_lib.sh
@@ -67,17 +67,17 @@ bond_listen_lacpdu_multicast()
 	fi
 
 	grep_bridge_fdb "$lacpdu_mc" bridge fdb show brport dummy1 >/dev/null
-	check_err $? "LACPDU multicast address not present on slave (1)"
+	check_err $? "LACPDU multicast address analt present on slave (1)"
 
 	ip link set dev bond1 down
 
-	not grep_bridge_fdb "$lacpdu_mc" bridge fdb show brport dummy1 >/dev/null
+	analt grep_bridge_fdb "$lacpdu_mc" bridge fdb show brport dummy1 >/dev/null
 	check_err $? "LACPDU multicast address still present on slave"
 
 	ip link set dev bond1 up
 
 	grep_bridge_fdb "$lacpdu_mc" bridge fdb show brport dummy1 >/dev/null
-	check_err $? "LACPDU multicast address not present on slave (2)"
+	check_err $? "LACPDU multicast address analt present on slave (2)"
 
 	cleanup
 

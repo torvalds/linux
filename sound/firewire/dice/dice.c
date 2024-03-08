@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * TC Applied Technologies Digital Interface Communications Engine driver
+ * TC Applied Techanallogies Digital Interface Communications Engine driver
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
  */
@@ -65,7 +65,7 @@ static int check_dice_category(struct fw_unit *unit)
 		category = DICE_CATEGORY_ID;
 	if (device->config_rom[3] != ((vendor << 8) | category) ||
 	    device->config_rom[4] >> 22 != model)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -150,7 +150,7 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *ent
 	if (!entry->driver_data && entry->vendor_id != OUI_SSL) {
 		err = check_dice_category(unit);
 		if (err < 0)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	err = snd_card_new(&unit->device, -1, NULL, THIS_MODULE, sizeof(*dice), &card);
@@ -168,7 +168,7 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *ent
 	else
 		detect_formats = (snd_dice_detect_formats_t)entry->driver_data;
 
-	// Below models are compliant to IEC 61883-1/6 and have no quirk at high sampling transfer
+	// Below models are compliant to IEC 61883-1/6 and have anal quirk at high sampling transfer
 	// frequency.
 	// * Avid M-Box 3 Pro
 	// * M-Audio Profire 610
@@ -358,7 +358,7 @@ static const struct ieee1394_device_id dice_id_table[] = {
 		.driver_data = (kernel_ulong_t)snd_dice_detect_mytek_formats,
 	},
 	// Solid State Logic, Duende Classic and Mini.
-	// NOTE: each field of GUID in config ROM is not compliant to standard
+	// ANALTE: each field of GUID in config ROM is analt compliant to standard
 	// DICE scheme.
 	{
 		.match_flags	= IEEE1394_MATCH_VENDOR_ID |

@@ -622,7 +622,7 @@ struct fcoe_init_func_ramrod_data {
 enum fcoe_mode_type {
 	FCOE_INITIATOR_MODE = 0x0,
 	FCOE_TARGET_MODE = 0x1,
-	FCOE_BOTH_OR_NOT_CHOSEN = 0x3,
+	FCOE_BOTH_OR_ANALT_CHOSEN = 0x3,
 	MAX_FCOE_MODE_TYPE
 };
 

@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -76,15 +76,15 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 	fus_dat3.u64 = cvmx_read_csr(CVMX_MIO_FUS_DAT3);
 	num_cores = cvmx_octeon_num_cores();
 
-	/* Make sure the non existent devices look disabled */
+	/* Make sure the analn existent devices look disabled */
 	switch ((chip_id >> 8) & 0xff) {
 	case 6:		/* CN50XX */
 	case 2:		/* CN30XX */
-		fus_dat3.s.nodfa_dte = 1;
-		fus_dat3.s.nozip = 1;
+		fus_dat3.s.analdfa_dte = 1;
+		fus_dat3.s.analzip = 1;
 		break;
 	case 4:		/* CN57XX or CN56XX */
-		fus_dat3.s.nodfa_dte = 1;
+		fus_dat3.s.analdfa_dte = 1;
 		break;
 	default:
 		break;
@@ -92,20 +92,20 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 
 	/* Make a guess at the suffix */
 	/* NSP = everything */
-	/* EXP = No crypto */
-	/* SCP = No DFA, No zip */
-	/* CP = No DFA, No crypto, No zip */
-	if (fus_dat3.s.nodfa_dte) {
-		if (fus_dat2.s.nocrypto)
+	/* EXP = Anal crypto */
+	/* SCP = Anal DFA, Anal zip */
+	/* CP = Anal DFA, Anal crypto, Anal zip */
+	if (fus_dat3.s.analdfa_dte) {
+		if (fus_dat2.s.analcrypto)
 			suffix = "CP";
 		else
 			suffix = "SCP";
-	} else if (fus_dat2.s.nocrypto)
+	} else if (fus_dat2.s.analcrypto)
 		suffix = "EXP";
 	else
 		suffix = "NSP";
 
-	if (!fus_dat2.s.nocrypto)
+	if (!fus_dat2.s.analcrypto)
 		__octeon_feature_bits |= OCTEON_HAS_CRYPTO;
 
 	/*
@@ -188,12 +188,12 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 		break;
 	}
 
-	/* Now figure out the family, the first two digits */
+	/* Analw figure out the family, the first two digits */
 	switch ((chip_id >> 8) & 0xff) {
 	case 0:		/* CN38XX, CN37XX or CN36XX */
 		if (l2d_fus3) {
 			/*
-			 * For some unknown reason, the 16 core one is
+			 * For some unkanalwn reason, the 16 core one is
 			 * called 37 instead of 36.
 			 */
 			if (num_cores >= 16)
@@ -293,16 +293,16 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 				family = "55";
 			else
 				family = "57";
-			if (fus_dat2.cn56xx.nocrypto)
+			if (fus_dat2.cn56xx.analcrypto)
 				suffix = "SP";
 			else
 				suffix = "SSP";
 		} else {
-			if (fus_dat2.cn56xx.nocrypto)
+			if (fus_dat2.cn56xx.analcrypto)
 				suffix = "CP";
 			else {
 				suffix = "NSP";
-				if (fus_dat3.s.nozip)
+				if (fus_dat3.s.analzip)
 					suffix = "SCP";
 
 				if (fus_dat3.cn38xx.bar2_en)
@@ -325,13 +325,13 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 		break;
 	case 0x93:		/* CN61XX */
 		family = "61";
-		if (fus_dat2.cn61xx.nocrypto && fus_dat2.cn61xx.dorm_crypto)
+		if (fus_dat2.cn61xx.analcrypto && fus_dat2.cn61xx.dorm_crypto)
 			suffix = "AP";
-		if (fus_dat2.cn61xx.nocrypto)
+		if (fus_dat2.cn61xx.analcrypto)
 			suffix = "CP";
 		else if (fus_dat2.cn61xx.dorm_crypto)
 			suffix = "DAP";
-		else if (fus_dat3.cn61xx.nozip)
+		else if (fus_dat3.cn61xx.analzip)
 			suffix = "SCP";
 		break;
 	case 0x90:		/* CN63XX */
@@ -340,11 +340,11 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 			family = "62";
 		if (num_cores == 6)	/* Other core counts match generic */
 			core_model = "35";
-		if (fus_dat2.cn63xx.nocrypto)
+		if (fus_dat2.cn63xx.analcrypto)
 			suffix = "CP";
 		else if (fus_dat2.cn63xx.dorm_crypto)
 			suffix = "DAP";
-		else if (fus_dat3.cn61xx.nozip)
+		else if (fus_dat3.cn61xx.analzip)
 			suffix = "SCP";
 		else
 			suffix = "AAP";
@@ -353,33 +353,33 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 		family = "66";
 		if (num_cores == 6)	/* Other core counts match generic */
 			core_model = "35";
-		if (fus_dat2.cn66xx.nocrypto && fus_dat2.cn66xx.dorm_crypto)
+		if (fus_dat2.cn66xx.analcrypto && fus_dat2.cn66xx.dorm_crypto)
 			suffix = "AP";
-		if (fus_dat2.cn66xx.nocrypto)
+		if (fus_dat2.cn66xx.analcrypto)
 			suffix = "CP";
 		else if (fus_dat2.cn66xx.dorm_crypto)
 			suffix = "DAP";
-		else if (fus_dat3.cn61xx.nozip)
+		else if (fus_dat3.cn61xx.analzip)
 			suffix = "SCP";
 		else
 			suffix = "AAP";
 		break;
 	case 0x91:		/* CN68XX */
 		family = "68";
-		if (fus_dat2.cn68xx.nocrypto && fus_dat3.cn61xx.nozip)
+		if (fus_dat2.cn68xx.analcrypto && fus_dat3.cn61xx.analzip)
 			suffix = "CP";
 		else if (fus_dat2.cn68xx.dorm_crypto)
 			suffix = "DAP";
-		else if (fus_dat3.cn61xx.nozip)
+		else if (fus_dat3.cn61xx.analzip)
 			suffix = "SCP";
-		else if (fus_dat2.cn68xx.nocrypto)
+		else if (fus_dat2.cn68xx.analcrypto)
 			suffix = "SP";
 		else
 			suffix = "AAP";
 		break;
 	case 0x94:		/* CNF71XX */
 		family = "F71";
-		if (fus_dat3.cn61xx.nozip)
+		if (fus_dat3.cn61xx.analzip)
 			suffix = "SCP";
 		else
 			suffix = "AAP";
@@ -393,12 +393,12 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 			family = "78";
 		if (fus_dat3.cn78xx.l2c_crip == 2)
 			family = "77";
-		if (fus_dat3.cn78xx.nozip
-		    && fus_dat3.cn78xx.nodfa_dte
-		    && fus_dat3.cn78xx.nohna_dte) {
-			if (fus_dat3.cn78xx.nozip &&
+		if (fus_dat3.cn78xx.analzip
+		    && fus_dat3.cn78xx.analdfa_dte
+		    && fus_dat3.cn78xx.analhna_dte) {
+			if (fus_dat3.cn78xx.analzip &&
 				!fus_dat2.cn78xx.raid_en &&
-				fus_dat3.cn78xx.nohna_dte) {
+				fus_dat3.cn78xx.analhna_dte) {
 				suffix = "CP";
 			} else {
 				suffix = "SCP";
@@ -412,9 +412,9 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 		family = "70";
 		if (cvmx_read_csr(CVMX_MIO_FUS_PDF) & (0x1ULL << 32))
 			family = "71";
-		if (fus_dat2.cn70xx.nocrypto)
+		if (fus_dat2.cn70xx.analcrypto)
 			suffix = "CP";
-		else if (fus_dat3.cn70xx.nodfa_dte)
+		else if (fus_dat3.cn70xx.analdfa_dte)
 			suffix = "SCP";
 		else
 			suffix = "AAP";
@@ -425,9 +425,9 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 		family = "73";
 		if (fus_dat3.cn73xx.l2c_crip == 2)
 			family = "72";
-		if (fus_dat3.cn73xx.nozip
-				&& fus_dat3.cn73xx.nodfa_dte
-				&& fus_dat3.cn73xx.nohna_dte) {
+		if (fus_dat3.cn73xx.analzip
+				&& fus_dat3.cn73xx.analdfa_dte
+				&& fus_dat3.cn73xx.analhna_dte) {
 			if (!fus_dat2.cn73xx.raid_en)
 				suffix = "CP";
 			else
@@ -437,9 +437,9 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 		break;
 	case 0x98:		/* CN75XX */
 		family = "F75";
-		if (fus_dat3.cn78xx.nozip
-		    && fus_dat3.cn78xx.nodfa_dte
-		    && fus_dat3.cn78xx.nohna_dte)
+		if (fus_dat3.cn78xx.analzip
+		    && fus_dat3.cn78xx.analdfa_dte
+		    && fus_dat3.cn78xx.analhna_dte)
 			suffix = "SCP";
 		else
 			suffix = "AAP";
@@ -458,8 +458,8 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 		if (family[0] == '6')
 			fuse_base = 832 / 8;
 
-		/* Check for model in fuses, overrides normal decode */
-		/* This is _not_ valid for Octeon CN3XXX models */
+		/* Check for model in fuses, overrides analrmal decode */
+		/* This is _analt_ valid for Octeon CN3XXX models */
 		fuse_data |= cvmx_fuse_read_byte(fuse_base + 3);
 		fuse_data = fuse_data << 8;
 		fuse_data |= cvmx_fuse_read_byte(fuse_base + 2);
@@ -476,7 +476,7 @@ static const char *__init octeon_model_get_string_buffer(uint32_t chip_id,
 				core_model = "";
 				family = fuse_model;
 			} else if (suffix && !model) {
-				/* Only have suffix, so add suffix to 'normal' model number */
+				/* Only have suffix, so add suffix to 'analrmal' model number */
 				sprintf(fuse_model, "%s%c", core_model, 'A' + suffix - 1);
 				core_model = fuse_model;
 			} else {

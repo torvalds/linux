@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: Implement functions for 802.11i Key management
@@ -123,14 +123,14 @@ int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		if (priv->local_id <= MAC_REVISION_A1)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		key_dec_mode = KEY_CTL_CCMP;
 
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)

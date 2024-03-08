@@ -93,7 +93,7 @@ struct mace {
  */
 #define JABBER		0x80	/* jabber error - 10baseT xmission too long */
 #define BABBLE		0x40	/* babble - xmitter xmitting for too long */
-#define CERR		0x20	/* collision err - no SQE test (heartbeat) */
+#define CERR		0x20	/* collision err - anal SQE test (heartbeat) */
 #define RCVCCO		0x10	/* RCVCC overflow */
 #define RNTPCO		0x08	/* RNTPC overflow */
 #define MPCO		0x04	/* MPC overflow */
@@ -163,7 +163,7 @@ struct mace {
 #define RPAC		0x20	/* accept runt packets */
 #define FCOLL		0x10	/* force collision */
 #define RCVFCSE		0x08	/* receive FCS enable */
-#define LOOP_NONE	0x00	/* no loopback */
+#define LOOP_ANALNE	0x00	/* anal loopback */
 #define LOOP_EXT	0x02	/* external loopback */
 #define LOOP_INT	0x04	/* internal loopback, excludes MENDEC */
 #define LOOP_MENDEC	0x06	/* internal loopback, includes MENDEC */

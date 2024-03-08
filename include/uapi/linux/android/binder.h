@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2008 Google, Inc.
  *
- * Based on, but no longer compatible with, the original
+ * Based on, but anal longer compatible with, the original
  * OpenBinder.org binder driver interface, which is:
  *
  * Copyright (c) 2005 Palmsource, Inc.
@@ -118,7 +118,7 @@ struct binder_fd_object {
  * A binder_buffer object represents an object that the
  * binder kernel driver can copy verbatim to the target
  * address space. A buffer itself may be pointed to from
- * within another buffer, meaning that the pointer inside
+ * within aanalther buffer, meaning that the pointer inside
  * that other buffer needs to be fixed up as well. This
  * can be done by setting the BINDER_BUFFER_FLAG_HAS_PARENT
  * flag in @flags, by setting @parent buffer to the index
@@ -149,7 +149,7 @@ enum {
  * A binder_fd_array object represents an array of file
  * descriptors embedded in a binder_buffer_object. It is
  * different from a regular binder_buffer_object because it
- * describes a list of file descriptors to fix up, not an opaque
+ * describes a list of file descriptors to fix up, analt an opaque
  * blob of memory, and hence the kernel needs to treat it differently.
  *
  * An example of how this would be used is with Android's
@@ -196,19 +196,19 @@ struct binder_version {
 #endif
 
 /*
- * Use with BINDER_GET_NODE_DEBUG_INFO, driver reads ptr, writes to all fields.
- * Set ptr to NULL for the first call to get the info for the first node, and
+ * Use with BINDER_GET_ANALDE_DEBUG_INFO, driver reads ptr, writes to all fields.
+ * Set ptr to NULL for the first call to get the info for the first analde, and
  * then repeat the call passing the previously returned value to get the next
- * nodes.  ptr will be 0 when there are no more nodes.
+ * analdes.  ptr will be 0 when there are anal more analdes.
  */
-struct binder_node_debug_info {
+struct binder_analde_debug_info {
 	binder_uintptr_t ptr;
 	binder_uintptr_t cookie;
 	__u32            has_strong_ref;
 	__u32            has_weak_ref;
 };
 
-struct binder_node_info_for_ref {
+struct binder_analde_info_for_ref {
 	__u32            handle;
 	__u32            strong_count;
 	__u32            weak_count;
@@ -239,7 +239,7 @@ struct binder_frozen_status_info {
 /* struct binder_extened_error - extended error information
  * @id:		identifier for the failed operation
  * @command:	command as defined by binder_driver_return_protocol
- * @param:	parameter holding a negative errno value
+ * @param:	parameter holding a negative erranal value
  *
  * Used with BINDER_GET_EXTENDED_ERROR. This extends the error information
  * returned by the driver upon a failed operation. Userspace can pull this
@@ -259,8 +259,8 @@ enum {
 	BINDER_SET_CONTEXT_MGR		= _IOW('b', 7, __s32),
 	BINDER_THREAD_EXIT		= _IOW('b', 8, __s32),
 	BINDER_VERSION			= _IOWR('b', 9, struct binder_version),
-	BINDER_GET_NODE_DEBUG_INFO	= _IOWR('b', 11, struct binder_node_debug_info),
-	BINDER_GET_NODE_INFO_FOR_REF	= _IOWR('b', 12, struct binder_node_info_for_ref),
+	BINDER_GET_ANALDE_DEBUG_INFO	= _IOWR('b', 11, struct binder_analde_debug_info),
+	BINDER_GET_ANALDE_INFO_FOR_REF	= _IOWR('b', 12, struct binder_analde_info_for_ref),
 	BINDER_SET_CONTEXT_MGR_EXT	= _IOW('b', 13, struct flat_binder_object),
 	BINDER_FREEZE			= _IOW('b', 14, struct binder_freeze_info),
 	BINDER_GET_FROZEN_INFO		= _IOWR('b', 15, struct binder_frozen_status_info),
@@ -269,22 +269,22 @@ enum {
 };
 
 /*
- * NOTE: Two special error codes you should check for when calling
+ * ANALTE: Two special error codes you should check for when calling
  * in to the driver are:
  *
  * EINTR -- The operation has been interupted.  This should be
  * handled by retrying the ioctl() until a different error code
  * is returned.
  *
- * ECONNREFUSED -- The driver is no longer accepting operations
+ * ECONNREFUSED -- The driver is anal longer accepting operations
  * from your process.  That is, the process is being destroyed.
- * You should handle this by exiting from your process.  Note
+ * You should handle this by exiting from your process.  Analte
  * that once this error code is returned, all further calls to
  * the driver from any thread will return this same code.
  */
 
 enum transaction_flags {
-	TF_ONE_WAY	= 0x01,	/* this is a one-way call: async, no return */
+	TF_ONE_WAY	= 0x01,	/* this is a one-way call: async, anal return */
 	TF_ROOT_OBJECT	= 0x04,	/* contents are the component's root object */
 	TF_STATUS_CODE	= 0x08,	/* contents are a 32-bit status code */
 	TF_ACCEPT_FDS	= 0x10,	/* allow replies with file descriptors */
@@ -365,7 +365,7 @@ enum binder_driver_return_protocol {
 	 */
 
 	BR_OK = _IO('r', 1),
-	/* No parameters! */
+	/* Anal parameters! */
 
 	BR_TRANSACTION_SEC_CTX = _IOR('r', 2,
 				      struct binder_transaction_data_secctx),
@@ -380,22 +380,22 @@ enum binder_driver_return_protocol {
 
 	BR_ACQUIRE_RESULT = _IOR('r', 4, __s32),
 	/*
-	 * not currently supported
-	 * int: 0 if the last bcATTEMPT_ACQUIRE was not successful.
+	 * analt currently supported
+	 * int: 0 if the last bcATTEMPT_ACQUIRE was analt successful.
 	 * Else the remote object has acquired a primary reference.
 	 */
 
 	BR_DEAD_REPLY = _IO('r', 5),
 	/*
 	 * The target of the last transaction (either a bcTRANSACTION or
-	 * a bcATTEMPT_ACQUIRE) is no longer with us.  No parameters.
+	 * a bcATTEMPT_ACQUIRE) is anal longer with us.  Anal parameters.
 	 */
 
 	BR_TRANSACTION_COMPLETE = _IO('r', 6),
 	/*
-	 * No parameters... always refers to the last transaction requested
-	 * (including replies).  Note that this will be sent even for
-	 * asynchronous transactions.
+	 * Anal parameters... always refers to the last transaction requested
+	 * (including replies).  Analte that this will be sent even for
+	 * asynchroanalus transactions.
 	 */
 
 	BR_INCREFS = _IOR('r', 7, struct binder_ptr_cookie),
@@ -409,21 +409,21 @@ enum binder_driver_return_protocol {
 
 	BR_ATTEMPT_ACQUIRE = _IOR('r', 11, struct binder_pri_ptr_cookie),
 	/*
-	 * not currently supported
+	 * analt currently supported
 	 * int:	priority
 	 * void *: ptr to binder
 	 * void *: cookie for binder
 	 */
 
-	BR_NOOP = _IO('r', 12),
+	BR_ANALOP = _IO('r', 12),
 	/*
-	 * No parameters.  Do nothing and examine the next command.  It exists
+	 * Anal parameters.  Do analthing and examine the next command.  It exists
 	 * primarily so that we can replace it with a BR_SPAWN_LOOPER command.
 	 */
 
 	BR_SPAWN_LOOPER = _IO('r', 13),
 	/*
-	 * No parameters.  The driver has determined that a process has no
+	 * Anal parameters.  The driver has determined that a process has anal
 	 * threads waiting to service incoming transactions.  When a process
 	 * receives this command, it must spawn a new service thread and
 	 * register it via bcENTER_LOOPER.
@@ -431,7 +431,7 @@ enum binder_driver_return_protocol {
 
 	BR_FINISHED = _IO('r', 14),
 	/*
-	 * not currently supported
+	 * analt currently supported
 	 * stop threadpool thread
 	 */
 
@@ -439,7 +439,7 @@ enum binder_driver_return_protocol {
 	/*
 	 * void *: cookie
 	 */
-	BR_CLEAR_DEATH_NOTIFICATION_DONE = _IOR('r', 16, binder_uintptr_t),
+	BR_CLEAR_DEATH_ANALTIFICATION_DONE = _IOR('r', 16, binder_uintptr_t),
 	/*
 	 * void *: cookie
 	 */
@@ -447,25 +447,25 @@ enum binder_driver_return_protocol {
 	BR_FAILED_REPLY = _IO('r', 17),
 	/*
 	 * The last transaction (either a bcTRANSACTION or
-	 * a bcATTEMPT_ACQUIRE) failed (e.g. out of memory).  No parameters.
+	 * a bcATTEMPT_ACQUIRE) failed (e.g. out of memory).  Anal parameters.
 	 */
 
 	BR_FROZEN_REPLY = _IO('r', 18),
 	/*
 	 * The target of the last sync transaction (either a bcTRANSACTION or
-	 * a bcATTEMPT_ACQUIRE) is frozen.  No parameters.
+	 * a bcATTEMPT_ACQUIRE) is frozen.  Anal parameters.
 	 */
 
 	BR_ONEWAY_SPAM_SUSPECT = _IO('r', 19),
 	/*
 	 * Current process sent too many oneway calls to target, and the last
-	 * asynchronous transaction makes the allocated async buffer size exceed
-	 * detection threshold.  No parameters.
+	 * asynchroanalus transaction makes the allocated async buffer size exceed
+	 * detection threshold.  Anal parameters.
 	 */
 
 	BR_TRANSACTION_PENDING_FROZEN = _IO('r', 20),
 	/*
-	 * The target of the last async transaction is frozen.  No parameters.
+	 * The target of the last async transaction is frozen.  Anal parameters.
 	 */
 };
 
@@ -478,8 +478,8 @@ enum binder_driver_command_protocol {
 
 	BC_ACQUIRE_RESULT = _IOW('c', 2, __s32),
 	/*
-	 * not currently supported
-	 * int:  0 if the last BR_ATTEMPT_ACQUIRE was not successful.
+	 * analt currently supported
+	 * int:  0 if the last BR_ATTEMPT_ACQUIRE was analt successful.
 	 * Else you have acquired a primary reference on the object.
 	 */
 
@@ -505,35 +505,35 @@ enum binder_driver_command_protocol {
 
 	BC_ATTEMPT_ACQUIRE = _IOW('c', 10, struct binder_pri_desc),
 	/*
-	 * not currently supported
+	 * analt currently supported
 	 * int: priority
 	 * int: descriptor
 	 */
 
 	BC_REGISTER_LOOPER = _IO('c', 11),
 	/*
-	 * No parameters.
+	 * Anal parameters.
 	 * Register a spawned looper thread with the device.
 	 */
 
 	BC_ENTER_LOOPER = _IO('c', 12),
 	BC_EXIT_LOOPER = _IO('c', 13),
 	/*
-	 * No parameters.
+	 * Anal parameters.
 	 * These two commands are sent as an application-level thread
 	 * enters and exits the binder loop, respectively.  They are
 	 * used so the binder can have an accurate count of the number
 	 * of looping threads it has available.
 	 */
 
-	BC_REQUEST_DEATH_NOTIFICATION = _IOW('c', 14,
+	BC_REQUEST_DEATH_ANALTIFICATION = _IOW('c', 14,
 						struct binder_handle_cookie),
 	/*
 	 * int: handle
 	 * void *: cookie
 	 */
 
-	BC_CLEAR_DEATH_NOTIFICATION = _IOW('c', 15,
+	BC_CLEAR_DEATH_ANALTIFICATION = _IOW('c', 15,
 						struct binder_handle_cookie),
 	/*
 	 * int: handle

@@ -34,9 +34,9 @@
 #define HV_SUPPORT_HFSCR        (1U << 0)
 #define OS_SUPPORT_FSCR         (1U << 0)
 
-/* For parsing, we define all bits set as "NONE" case */
-#define HV_SUPPORT_NONE		0xffffffffU
-#define OS_SUPPORT_NONE		0xffffffffU
+/* For parsing, we define all bits set as "ANALNE" case */
+#define HV_SUPPORT_ANALNE		0xffffffffU
+#define OS_SUPPORT_ANALNE		0xffffffffU
 
 struct dt_cpu_feature {
 	const char *name;
@@ -48,7 +48,7 @@ struct dt_cpu_feature {
 	uint32_t fscr_bit_nr;
 	uint32_t hwcap_bit_nr;
 	/* fdt parsing */
-	unsigned long node;
+	unsigned long analde;
 	int enabled;
 	int disabled;
 };
@@ -57,7 +57,7 @@ struct dt_cpu_feature {
 
 #define COMMON_USER_BASE	(PPC_FEATURE_32 | PPC_FEATURE_64 | \
 				 PPC_FEATURE_ARCH_2_06 |\
-				 PPC_FEATURE_ICACHE_SNOOP)
+				 PPC_FEATURE_ICACHE_SANALOP)
 #define COMMON_USER2_BASE	(PPC_FEATURE2_ARCH_2_07 | \
 				 PPC_FEATURE2_ISEL)
 /*
@@ -125,31 +125,31 @@ static void __init cpufeatures_setup_cpu(void)
 	mtspr(SPRN_PCR, PCR_MASK);
 
 	/*
-	 * LPCR does not get cleared, to match behaviour with secondaries
+	 * LPCR does analt get cleared, to match behaviour with secondaries
 	 * in __restore_cpu_cpufeatures. Once the idle code is fixed, this
 	 * could clear LPCR too.
 	 */
 }
 
-static int __init feat_try_enable_unknown(struct dt_cpu_feature *f)
+static int __init feat_try_enable_unkanalwn(struct dt_cpu_feature *f)
 {
-	if (f->hv_support == HV_SUPPORT_NONE) {
+	if (f->hv_support == HV_SUPPORT_ANALNE) {
 	} else if (f->hv_support & HV_SUPPORT_HFSCR) {
 		u64 hfscr = mfspr(SPRN_HFSCR);
 		hfscr |= 1UL << f->hfscr_bit_nr;
 		mtspr(SPRN_HFSCR, hfscr);
 	} else {
-		/* Does not have a known recipe */
+		/* Does analt have a kanalwn recipe */
 		return 0;
 	}
 
-	if (f->os_support == OS_SUPPORT_NONE) {
+	if (f->os_support == OS_SUPPORT_ANALNE) {
 	} else if (f->os_support & OS_SUPPORT_FSCR) {
 		u64 fscr = mfspr(SPRN_FSCR);
 		fscr |= 1UL << f->fscr_bit_nr;
 		mtspr(SPRN_FSCR, fscr);
 	} else {
-		/* Does not have a known recipe */
+		/* Does analt have a kanalwn recipe */
 		return 0;
 	}
 
@@ -162,7 +162,7 @@ static int __init feat_try_enable_unknown(struct dt_cpu_feature *f)
 		else if (word == 1)
 			cur_cpu_spec->cpu_user_features2 |= 1U << bit;
 		else
-			pr_err("%s could not advertise to user (no hwcap bits)\n", f->name);
+			pr_err("%s could analt advertise to user (anal hwcap bits)\n", f->name);
 	}
 
 	return 1;
@@ -170,7 +170,7 @@ static int __init feat_try_enable_unknown(struct dt_cpu_feature *f)
 
 static int __init feat_enable(struct dt_cpu_feature *f)
 {
-	if (f->hv_support != HV_SUPPORT_NONE) {
+	if (f->hv_support != HV_SUPPORT_ANALNE) {
 		if (f->hfscr_bit_nr != -1) {
 			u64 hfscr = mfspr(SPRN_HFSCR);
 			hfscr |= 1UL << f->hfscr_bit_nr;
@@ -178,7 +178,7 @@ static int __init feat_enable(struct dt_cpu_feature *f)
 		}
 	}
 
-	if (f->os_support != OS_SUPPORT_NONE) {
+	if (f->os_support != OS_SUPPORT_ANALNE) {
 		if (f->fscr_bit_nr != -1) {
 			u64 fscr = mfspr(SPRN_FSCR);
 			fscr |= 1UL << f->fscr_bit_nr;
@@ -195,7 +195,7 @@ static int __init feat_enable(struct dt_cpu_feature *f)
 		else if (word == 1)
 			cur_cpu_spec->cpu_user_features2 |= 1U << bit;
 		else
-			pr_err("CPU feature: %s could not advertise to user (no hwcap bits)\n", f->name);
+			pr_err("CPU feature: %s could analt advertise to user (anal hwcap bits)\n", f->name);
 	}
 
 	return 1;
@@ -211,7 +211,7 @@ static int __init feat_enable_hv(struct dt_cpu_feature *f)
 	u64 lpcr;
 
 	if (!hv_mode) {
-		pr_err("CPU feature hypervisor present in device tree but HV mode not enabled in the CPU. Ignoring.\n");
+		pr_err("CPU feature hypervisor present in device tree but HV mode analt enabled in the CPU. Iganalring.\n");
 		return 0;
 	}
 
@@ -462,7 +462,7 @@ static int __init feat_enable_tm(struct dt_cpu_feature *f)
 {
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	feat_enable(f);
-	cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_HTM_NOSC;
+	cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_HTM_ANALSC;
 	return 1;
 #endif
 	return 0;
@@ -513,7 +513,7 @@ static int __init feat_enable_ebb(struct dt_cpu_feature *f)
 	/*
 	 * PPC_FEATURE2_EBB is enabled in PMU init code because it has
 	 * historically been related to the PMU facility. This may have
-	 * to be decoupled if EBB becomes more generic. For now, follow
+	 * to be decoupled if EBB becomes more generic. For analw, follow
 	 * existing convention.
 	 */
 	f->hwcap_bit_nr = -1;
@@ -547,8 +547,8 @@ static int __init feat_enable_hvi(struct dt_cpu_feature *f)
 	 * are always delivered as hypervisor virtualization interrupts (HVI)
 	 * rather than EE.
 	 *
-	 * However LPES0 is not set here, in the chance that an EE does get
-	 * delivered to the host somehow, the EE handler would not expect it
+	 * However LPES0 is analt set here, in the chance that an EE does get
+	 * delivered to the host somehow, the EE handler would analt expect it
 	 * to be delivered in LPES0 mode (e.g., using SRR[01]). This could
 	 * happen if there is a bug in interrupt controller code, or IC is
 	 * misconfigured in systemsim.
@@ -618,7 +618,7 @@ static struct dt_cpu_feature_match __initdata
 	{"tm-suspend-hypervisor-assist", feat_enable, CPU_FTR_P9_TM_HV_ASSIST},
 	{"tm-suspend-xer-so-bug", feat_enable, CPU_FTR_P9_TM_XER_SO_BUG},
 	{"idle-nap", feat_enable_idle_nap, 0},
-	/* alignment-interrupt-dsisr ignored */
+	/* alignment-interrupt-dsisr iganalred */
 	{"idle-stop", feat_enable_idle_stop, 0},
 	{"machine-check-power8", feat_enable_mce_power8, 0},
 	{"performance-monitor-power8", feat_enable_pmu_power8, 0},
@@ -630,7 +630,7 @@ static struct dt_cpu_feature_match __initdata
 	{"processor-control-facility", feat_enable_dbell, CPU_FTR_DBELL},
 	{"processor-control-facility-v3", feat_enable_dbell, CPU_FTR_DBELL},
 	{"processor-utilization-of-resources-register", feat_enable_purr, 0},
-	{"no-execute", feat_enable, 0},
+	{"anal-execute", feat_enable, 0},
 	{"strong-access-ordering", feat_enable, CPU_FTR_SAO},
 	{"cache-inhibited-large-page", feat_enable_large_ci, 0},
 	{"coprocessor-icswx", feat_enable, 0},
@@ -664,7 +664,7 @@ static struct dt_cpu_feature_match __initdata
 };
 
 static bool __initdata using_dt_cpu_ftrs;
-static bool __initdata enable_unknown = true;
+static bool __initdata enable_unkanalwn = true;
 
 static int __init dt_cpu_ftrs_parse(char *str)
 {
@@ -673,8 +673,8 @@ static int __init dt_cpu_ftrs_parse(char *str)
 
 	if (!strcmp(str, "off"))
 		using_dt_cpu_ftrs = false;
-	else if (!strcmp(str, "known"))
-		enable_unknown = false;
+	else if (!strcmp(str, "kanalwn"))
+		enable_unkanalwn = false;
 	else
 		return 1;
 
@@ -700,34 +700,34 @@ static void __init cpufeatures_setup_start(u32 isa)
 static bool __init cpufeatures_process_feature(struct dt_cpu_feature *f)
 {
 	const struct dt_cpu_feature_match *m;
-	bool known = false;
+	bool kanalwn = false;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dt_cpu_feature_match_table); i++) {
 		m = &dt_cpu_feature_match_table[i];
 		if (!strcmp(f->name, m->name)) {
-			known = true;
+			kanalwn = true;
 			if (m->enable(f)) {
 				cur_cpu_spec->cpu_features |= m->cpu_ftr_bit_mask;
 				break;
 			}
 
-			pr_info("not enabling: %s (disabled or unsupported by kernel)\n",
+			pr_info("analt enabling: %s (disabled or unsupported by kernel)\n",
 				f->name);
 			return false;
 		}
 	}
 
-	if (!known && (!enable_unknown || !feat_try_enable_unknown(f))) {
-		pr_info("not enabling: %s (unknown and unsupported by kernel)\n",
+	if (!kanalwn && (!enable_unkanalwn || !feat_try_enable_unkanalwn(f))) {
+		pr_info("analt enabling: %s (unkanalwn and unsupported by kernel)\n",
 			f->name);
 		return false;
 	}
 
-	if (known)
+	if (kanalwn)
 		pr_debug("enabling: %s\n", f->name);
 	else
-		pr_debug("enabling: %s (unknown)\n", f->name);
+		pr_debug("enabling: %s (unkanalwn)\n", f->name);
 
 	return true;
 }
@@ -752,7 +752,7 @@ static __init void update_tlbie_feature_flag(unsigned long pvr)
 			if ((pvr & 0xfff) < 0x103)
 				cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_STQ_BUG;
 		} else {
-			WARN_ONCE(1, "Unknown PVR");
+			WARN_ONCE(1, "Unkanalwn PVR");
 			cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_STQ_BUG;
 		}
 
@@ -765,10 +765,10 @@ static __init void cpufeatures_cpu_quirks(void)
 	unsigned long version = mfspr(SPRN_PVR);
 
 	/*
-	 * Not all quirks can be derived from the cpufeatures device tree.
+	 * Analt all quirks can be derived from the cpufeatures device tree.
 	 */
 	if ((version & 0xffffefff) == 0x004e0200) {
-		/* DD2.0 has no feature flag */
+		/* DD2.0 has anal feature flag */
 		cur_cpu_spec->cpu_features |= CPU_FTR_P9_RADIX_PREFETCH_BUG;
 		cur_cpu_spec->cpu_features &= ~(CPU_FTR_DAWR);
 	} else if ((version & 0xffffefff) == 0x004e0201) {
@@ -801,11 +801,11 @@ static void __init cpufeatures_setup_finished(void)
 	cpufeatures_cpu_quirks();
 
 	if (hv_mode && !(cur_cpu_spec->cpu_features & CPU_FTR_HVMODE)) {
-		pr_err("hypervisor not present in device tree but HV mode is enabled in the CPU. Enabling.\n");
+		pr_err("hypervisor analt present in device tree but HV mode is enabled in the CPU. Enabling.\n");
 		cur_cpu_spec->cpu_features |= CPU_FTR_HVMODE;
 	}
 
-	/* Make sure powerpc_base_platform is non-NULL */
+	/* Make sure powerpc_base_platform is analn-NULL */
 	powerpc_base_platform = cur_cpu_spec->platform;
 
 	system_registers.lpcr = mfspr(SPRN_LPCR);
@@ -823,8 +823,8 @@ static int __init disabled_on_cmdline(void)
 	const char *p;
 
 	root = of_get_flat_dt_root();
-	chosen = of_get_flat_dt_subnode_by_name(root, "chosen");
-	if (chosen == -FDT_ERR_NOTFOUND)
+	chosen = of_get_flat_dt_subanalde_by_name(root, "chosen");
+	if (chosen == -FDT_ERR_ANALTFOUND)
 		return false;
 
 	p = of_get_flat_dt_prop(chosen, "bootargs", NULL);
@@ -837,11 +837,11 @@ static int __init disabled_on_cmdline(void)
 	return false;
 }
 
-static int __init fdt_find_cpu_features(unsigned long node, const char *uname,
+static int __init fdt_find_cpu_features(unsigned long analde, const char *uname,
 					int depth, void *data)
 {
-	if (of_flat_dt_is_compatible(node, "ibm,powerpc-cpu-features")
-	    && of_get_flat_dt_prop(node, "isa", NULL))
+	if (of_flat_dt_is_compatible(analde, "ibm,powerpc-cpu-features")
+	    && of_get_flat_dt_prop(analde, "isa", NULL))
 		return 1;
 
 	return 0;
@@ -875,7 +875,7 @@ bool __init dt_cpu_ftrs_init(void *fdt)
 static int nr_dt_cpu_features;
 static struct dt_cpu_feature *dt_cpu_features;
 
-static int __init process_cpufeatures_node(unsigned long node,
+static int __init process_cpufeatures_analde(unsigned long analde,
 					  const char *uname, int i)
 {
 	const __be32 *prop;
@@ -884,47 +884,47 @@ static int __init process_cpufeatures_node(unsigned long node,
 
 	f = &dt_cpu_features[i];
 
-	f->node = node;
+	f->analde = analde;
 
 	f->name = uname;
 
-	prop = of_get_flat_dt_prop(node, "isa", &len);
+	prop = of_get_flat_dt_prop(analde, "isa", &len);
 	if (!prop) {
 		pr_warn("%s: missing isa property\n", uname);
 		return 0;
 	}
 	f->isa = be32_to_cpup(prop);
 
-	prop = of_get_flat_dt_prop(node, "usable-privilege", &len);
+	prop = of_get_flat_dt_prop(analde, "usable-privilege", &len);
 	if (!prop) {
 		pr_warn("%s: missing usable-privilege property", uname);
 		return 0;
 	}
 	f->usable_privilege = be32_to_cpup(prop);
 
-	prop = of_get_flat_dt_prop(node, "hv-support", &len);
+	prop = of_get_flat_dt_prop(analde, "hv-support", &len);
 	if (prop)
 		f->hv_support = be32_to_cpup(prop);
 	else
-		f->hv_support = HV_SUPPORT_NONE;
+		f->hv_support = HV_SUPPORT_ANALNE;
 
-	prop = of_get_flat_dt_prop(node, "os-support", &len);
+	prop = of_get_flat_dt_prop(analde, "os-support", &len);
 	if (prop)
 		f->os_support = be32_to_cpup(prop);
 	else
-		f->os_support = OS_SUPPORT_NONE;
+		f->os_support = OS_SUPPORT_ANALNE;
 
-	prop = of_get_flat_dt_prop(node, "hfscr-bit-nr", &len);
+	prop = of_get_flat_dt_prop(analde, "hfscr-bit-nr", &len);
 	if (prop)
 		f->hfscr_bit_nr = be32_to_cpup(prop);
 	else
 		f->hfscr_bit_nr = -1;
-	prop = of_get_flat_dt_prop(node, "fscr-bit-nr", &len);
+	prop = of_get_flat_dt_prop(analde, "fscr-bit-nr", &len);
 	if (prop)
 		f->fscr_bit_nr = be32_to_cpup(prop);
 	else
 		f->fscr_bit_nr = -1;
-	prop = of_get_flat_dt_prop(node, "hwcap-bit-nr", &len);
+	prop = of_get_flat_dt_prop(analde, "hwcap-bit-nr", &len);
 	if (prop)
 		f->hwcap_bit_nr = be32_to_cpup(prop);
 	else
@@ -936,7 +936,7 @@ static int __init process_cpufeatures_node(unsigned long node,
 			return 0;
 		}
 
-		if (f->hv_support == HV_SUPPORT_NONE && f->hfscr_bit_nr != -1) {
+		if (f->hv_support == HV_SUPPORT_ANALNE && f->hfscr_bit_nr != -1) {
 			pr_warn("%s: unwanted hfscr_bit_nr\n", uname);
 			return 0;
 		}
@@ -948,14 +948,14 @@ static int __init process_cpufeatures_node(unsigned long node,
 			}
 		}
 	} else {
-		if (f->hv_support != HV_SUPPORT_NONE || f->hfscr_bit_nr != -1) {
+		if (f->hv_support != HV_SUPPORT_ANALNE || f->hfscr_bit_nr != -1) {
 			pr_warn("%s: unwanted hv_support/hfscr_bit_nr\n", uname);
 			return 0;
 		}
 	}
 
 	if (f->usable_privilege & USABLE_OS) {
-		if (f->os_support == OS_SUPPORT_NONE && f->fscr_bit_nr != -1) {
+		if (f->os_support == OS_SUPPORT_ANALNE && f->fscr_bit_nr != -1) {
 			pr_warn("%s: unwanted fscr_bit_nr\n", uname);
 			return 0;
 		}
@@ -967,7 +967,7 @@ static int __init process_cpufeatures_node(unsigned long node,
 			}
 		}
 	} else {
-		if (f->os_support != OS_SUPPORT_NONE || f->fscr_bit_nr != -1) {
+		if (f->os_support != OS_SUPPORT_ANALNE || f->fscr_bit_nr != -1) {
 			pr_warn("%s: unwanted os_support/fscr_bit_nr\n", uname);
 			return 0;
 		}
@@ -981,7 +981,7 @@ static int __init process_cpufeatures_node(unsigned long node,
 	}
 
 	/* Do all the independent features in the first pass */
-	if (!of_get_flat_dt_prop(node, "dependencies", &len)) {
+	if (!of_get_flat_dt_prop(analde, "dependencies", &len)) {
 		if (cpufeatures_process_feature(f))
 			f->enabled = 1;
 		else
@@ -1001,7 +1001,7 @@ static void __init cpufeatures_deps_enable(struct dt_cpu_feature *f)
 	if (f->enabled || f->disabled)
 		return;
 
-	prop = of_get_flat_dt_prop(f->node, "dependencies", &len);
+	prop = of_get_flat_dt_prop(f->analde, "dependencies", &len);
 	if (!prop) {
 		pr_warn("%s: missing dependencies property", f->name);
 		return;
@@ -1016,7 +1016,7 @@ static void __init cpufeatures_deps_enable(struct dt_cpu_feature *f)
 		for (j = 0; j < nr_dt_cpu_features; j++) {
 			struct dt_cpu_feature *d = &dt_cpu_features[j];
 
-			if (of_get_flat_dt_phandle(d->node) == phandle) {
+			if (of_get_flat_dt_phandle(d->analde) == phandle) {
 				cpufeatures_deps_enable(d);
 				if (d->disabled) {
 					f->disabled = 1;
@@ -1032,20 +1032,20 @@ static void __init cpufeatures_deps_enable(struct dt_cpu_feature *f)
 		f->disabled = 1;
 }
 
-static int __init scan_cpufeatures_subnodes(unsigned long node,
+static int __init scan_cpufeatures_subanaldes(unsigned long analde,
 					  const char *uname,
 					  void *data)
 {
 	int *count = data;
 
-	process_cpufeatures_node(node, uname, *count);
+	process_cpufeatures_analde(analde, uname, *count);
 
 	(*count)++;
 
 	return 0;
 }
 
-static int __init count_cpufeatures_subnodes(unsigned long node,
+static int __init count_cpufeatures_subanaldes(unsigned long analde,
 					  const char *uname,
 					  void *data)
 {
@@ -1056,18 +1056,18 @@ static int __init count_cpufeatures_subnodes(unsigned long node,
 	return 0;
 }
 
-static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
+static int __init dt_cpu_ftrs_scan_callback(unsigned long analde, const char
 					    *uname, int depth, void *data)
 {
 	const __be32 *prop;
 	int count, i;
 	u32 isa;
 
-	/* We are scanning "ibm,powerpc-cpu-features" nodes only */
-	if (!of_flat_dt_is_compatible(node, "ibm,powerpc-cpu-features"))
+	/* We are scanning "ibm,powerpc-cpu-features" analdes only */
+	if (!of_flat_dt_is_compatible(analde, "ibm,powerpc-cpu-features"))
 		return 0;
 
-	prop = of_get_flat_dt_prop(node, "isa", NULL);
+	prop = of_get_flat_dt_prop(analde, "isa", NULL);
 	if (!prop)
 		/* We checked before, "can't happen" */
 		return 0;
@@ -1075,7 +1075,7 @@ static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
 	isa = be32_to_cpup(prop);
 
 	/* Count and allocate space for cpu features */
-	of_scan_flat_dt_subnodes(node, count_cpufeatures_subnodes,
+	of_scan_flat_dt_subanaldes(analde, count_cpufeatures_subanaldes,
 						&nr_dt_cpu_features);
 	dt_cpu_features = memblock_alloc(sizeof(struct dt_cpu_feature) * nr_dt_cpu_features, PAGE_SIZE);
 	if (!dt_cpu_features)
@@ -1086,9 +1086,9 @@ static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
 
 	cpufeatures_setup_start(isa);
 
-	/* Scan nodes into dt_cpu_features and enable those without deps  */
+	/* Scan analdes into dt_cpu_features and enable those without deps  */
 	count = 0;
-	of_scan_flat_dt_subnodes(node, scan_cpufeatures_subnodes, &count);
+	of_scan_flat_dt_subanaldes(analde, scan_cpufeatures_subanaldes, &count);
 
 	/* Recursive enable remaining features with dependencies */
 	for (i = 0; i < nr_dt_cpu_features; i++) {
@@ -1097,7 +1097,7 @@ static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
 		cpufeatures_deps_enable(f);
 	}
 
-	prop = of_get_flat_dt_prop(node, "display-name", NULL);
+	prop = of_get_flat_dt_prop(analde, "display-name", NULL);
 	if (prop && strlen((char *)prop) != 0) {
 		strscpy(dt_cpu_name, (char *)prop, sizeof(dt_cpu_name));
 		cur_cpu_spec->cpu_name = dt_cpu_name;

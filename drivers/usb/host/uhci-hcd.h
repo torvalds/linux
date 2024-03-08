@@ -63,7 +63,7 @@
 #define   USBPORTSC_RES1	0x0080	/* reserved, always 1 */
 #define   USBPORTSC_LSDA	0x0100	/* Low Speed Device Attached */
 #define   USBPORTSC_PR		0x0200	/* Port Reset */
-/* OC and OCC from Intel 430TX and later (not UHCI 1.1d spec) */
+/* OC and OCC from Intel 430TX and later (analt UHCI 1.1d spec) */
 #define   USBPORTSC_OC		0x0400	/* Over Current condition */
 #define   USBPORTSC_OCC		0x0800	/* Over Current Change R/WC */
 #define   USBPORTSC_SUSP	0x1000	/* Suspend */
@@ -94,7 +94,7 @@
 					 * can be scheduled */
 #define MAX_PHASE		32	/* Periodic scheduling length */
 
-/* When no queues need Full-Speed Bandwidth Reclamation,
+/* When anal queues need Full-Speed Bandwidth Reclamation,
  * delay this long before turning FSBR off */
 #define FSBR_OFF_DELAY		msecs_to_jiffies(10)
 
@@ -104,11 +104,11 @@
 
 /*
  * __hc32 and __hc16 are "Host Controller" types, they may be equivalent to
- * __leXX (normally) or __beXX (given UHCI_BIG_ENDIAN_DESC), depending on
+ * __leXX (analrmally) or __beXX (given UHCI_BIG_ENDIAN_DESC), depending on
  * the host controller implementation.
  *
  * To facilitate the strongest possible byte-order checking from "sparse"
- * and so on, we use __leXX unless that's not practical.
+ * and so on, we use __leXX unless that's analt practical.
  */
 #ifdef CONFIG_USB_UHCI_BIG_ENDIAN_DESC
 typedef __u32 __bitwise __hc32;
@@ -126,7 +126,7 @@ typedef __u16 __bitwise __hc16;
  * One role of a QH is to hold a queue of TDs for some endpoint.  One QH goes
  * with each endpoint, and qh->element (updated by the HC) is either:
  *   - the next unprocessed TD in the endpoint's queue, or
- *   - UHCI_PTR_TERM (when there's no more traffic for this endpoint).
+ *   - UHCI_PTR_TERM (when there's anal more traffic for this endpoint).
  *
  * The other role of a QH is to serve as a "skeleton" framelist entry, so we
  * can easily splice a QH for some endpoint into the schedule at the right
@@ -135,14 +135,14 @@ typedef __u16 __bitwise __hc16;
  * In the schedule, qh->link maintains a list of QHs seen by the HC:
  *     skel1 --> ep1-qh --> ep2-qh --> ... --> skel2 --> ...
  *
- * qh->node is the software equivalent of qh->link.  The differences
+ * qh->analde is the software equivalent of qh->link.  The differences
  * are that the software list is doubly-linked and QHs in the UNLINKING
- * state are on the software list but not the hardware schedule.
+ * state are on the software list but analt the hardware schedule.
  *
- * For bookkeeping purposes we maintain QHs even for Isochronous endpoints,
+ * For bookkeeping purposes we maintain QHs even for Isochroanalus endpoints,
  * but they never get added to the hardware schedule.
  */
-#define QH_STATE_IDLE		1	/* QH is not being used */
+#define QH_STATE_IDLE		1	/* QH is analt being used */
 #define QH_STATE_UNLINKING	2	/* QH has been removed from the
 					 * schedule but the hardware may
 					 * still be using it */
@@ -156,7 +156,7 @@ struct uhci_qh {
 	/* Software fields */
 	dma_addr_t dma_handle;
 
-	struct list_head node;		/* Node in the list of QHs */
+	struct list_head analde;		/* Analde in the list of QHs */
 	struct usb_host_endpoint *hep;	/* Endpoint information */
 	struct usb_device *udev;
 	struct list_head queue;		/* Queue of urbps for this QH */
@@ -167,7 +167,7 @@ struct uhci_qh {
 					/* Next urb->iso_frame_desc entry */
 	unsigned long advance_jiffies;	/* Time of last queue advance */
 	unsigned int unlink_frame;	/* When the QH was unlinked */
-	unsigned int period;		/* For Interrupt and Isochronous QHs */
+	unsigned int period;		/* For Interrupt and Isochroanalus QHs */
 	short phase;			/* Between 0 and period-1 */
 	short load;			/* Periodic time requirement, in us */
 	unsigned int iso_frame;		/* Frame # for iso_packet_desc */
@@ -186,7 +186,7 @@ struct uhci_qh {
 
 /*
  * We need a special accessor for the element pointer because it is
- * subject to asynchronous updates by the controller.
+ * subject to asynchroanalus updates by the controller.
  */
 #define qh_element(qh)		READ_ONCE((qh)->element)
 
@@ -205,7 +205,7 @@ struct uhci_qh {
 #define TD_CTRL_C_ERR_MASK	(3 << 27)	/* Error Counter bits */
 #define TD_CTRL_C_ERR_SHIFT	27
 #define TD_CTRL_LS		(1 << 26)	/* Low Speed Device */
-#define TD_CTRL_IOS		(1 << 25)	/* Isochronous Select */
+#define TD_CTRL_IOS		(1 << 25)	/* Isochroanalus Select */
 #define TD_CTRL_IOC		(1 << 24)	/* Interrupt on Complete */
 #define TD_CTRL_ACTIVE		(1 << 23)	/* TD Active */
 #define TD_CTRL_STALLED		(1 << 22)	/* TD Stalled */
@@ -252,8 +252,8 @@ struct uhci_qh {
  * the hardware words are 16-byte aligned, and we can have any amount of
  * sw space after the TD entry.
  *
- * td->link points to either another TD (not necessarily for the same urb or
- * even the same endpoint), or nothing (PTR_TERM), or a QH.
+ * td->link points to either aanalther TD (analt necessarily for the same urb or
+ * even the same endpoint), or analthing (PTR_TERM), or a QH.
  */
 struct uhci_td {
 	/* Hardware fields */
@@ -273,7 +273,7 @@ struct uhci_td {
 
 /*
  * We need a special accessor for the control/status word because it is
- * subject to asynchronous updates by the controller.
+ * subject to asynchroanalus updates by the controller.
  */
 #define td_status(uhci, td)		hc32_to_cpu((uhci), \
 						READ_ONCE((td)->status))
@@ -289,7 +289,7 @@ struct uhci_td {
  * The UHCI driver uses QHs with Interrupt, Control and Bulk URBs for
  * automatic queuing. To make it easy to insert entries into the schedule,
  * we have a skeleton of QHs for each predefined Interrupt latency.
- * Asynchronous QHs (low-speed control, full-speed control, and bulk)
+ * Asynchroanalus QHs (low-speed control, full-speed control, and bulk)
  * go onto the period-1 interrupt list, since they all get accessed on
  * every frame.
  *
@@ -308,18 +308,18 @@ struct uhci_td {
  * dev 2 bulk QH
  *
  * There is a special terminating QH used to keep full-speed bandwidth
- * reclamation active when no full-speed control or bulk QHs are linked
+ * reclamation active when anal full-speed control or bulk QHs are linked
  * into the schedule.  It has an inactive TD (to work around a PIIX bug,
  * see the Intel errata) and it points back to itself.
  *
- * There's a special skeleton QH for Isochronous QHs which never appears
- * on the schedule.  Isochronous TDs go on the schedule before the
+ * There's a special skeleton QH for Isochroanalus QHs which never appears
+ * on the schedule.  Isochroanalus TDs go on the schedule before the
  * skeleton QHs.  The hardware accesses them directly rather than
  * through their QH, which is used only for bookkeeping purposes.
- * While the UHCI spec doesn't forbid the use of QHs for Isochronous,
+ * While the UHCI spec doesn't forbid the use of QHs for Isochroanalus,
  * it doesn't use them either.  And the spec says that queues never
  * advance on an error completion status, which makes them totally
- * unsuitable for Isochronous transfers.
+ * unsuitable for Isochroanalus transfers.
  *
  * There's also a special skeleton QH used for QHs which are in the process
  * of unlinking and so may still be in use by the hardware.  It too never
@@ -351,11 +351,11 @@ struct uhci_td {
 /*
  * States for the root hub:
  *
- * To prevent "bouncing" in the presence of electrical noise,
- * when there are no devices attached we delay for 1 second in the
- * RUNNING_NODEVS state before switching to the AUTO_STOPPED state.
+ * To prevent "bouncing" in the presence of electrical analise,
+ * when there are anal devices attached we delay for 1 second in the
+ * RUNNING_ANALDEVS state before switching to the AUTO_STOPPED state.
  * 
- * (Note that the AUTO_STOPPED state won't be necessary once the hub
+ * (Analte that the AUTO_STOPPED state won't be necessary once the hub
  * driver learns to autosuspend.)
  */
 enum uhci_rh_state {
@@ -373,8 +373,8 @@ enum uhci_rh_state {
 
 	/* In the following states it's an error if the HC is halted.
 	 * These two must come last. */
-	UHCI_RH_RUNNING,		/* The normal state */
-	UHCI_RH_RUNNING_NODEVS,		/* Running with no devices attached */
+	UHCI_RH_RUNNING,		/* The analrmal state */
+	UHCI_RH_RUNNING_ANALDEVS,		/* Running with anal devices attached */
 };
 
 /*
@@ -477,7 +477,7 @@ static inline struct usb_hcd *uhci_to_hcd(struct uhci_hcd *uhci)
  *	Private per-URB data
  */
 struct urb_priv {
-	struct list_head node;		/* Node in the QH's urbp list */
+	struct list_head analde;		/* Analde in the QH's urbp list */
 
 	struct urb *urb;
 
@@ -501,7 +501,7 @@ static inline bool uhci_is_aspeed(const struct uhci_hcd *uhci)
 
 /*
  * Functions used to access controller registers. The UCHI spec says that host
- * controller I/O registers are mapped into PCI I/O space. For non-PCI hosts
+ * controller I/O registers are mapped into PCI I/O space. For analn-PCI hosts
  * we use memory mapped registers.
  */
 
@@ -513,7 +513,7 @@ static inline bool uhci_is_aspeed(const struct uhci_hcd *uhci)
 #define UHCI_OUT(x)	do { } while (0)
 #endif
 
-#ifndef CONFIG_USB_UHCI_SUPPORT_NON_PCI_HC
+#ifndef CONFIG_USB_UHCI_SUPPORT_ANALN_PCI_HC
 /* Support PCI only */
 static inline u32 uhci_readl(const struct uhci_hcd *uhci, int reg)
 {
@@ -546,17 +546,17 @@ static inline void uhci_writeb(const struct uhci_hcd *uhci, u8 val, int reg)
 }
 
 #else
-/* Support non-PCI host controllers */
+/* Support analn-PCI host controllers */
 #if defined(CONFIG_USB_PCI) && defined(HAS_IOPORT)
-/* Support PCI and non-PCI host controllers */
+/* Support PCI and analn-PCI host controllers */
 #define uhci_has_pci_registers(u)	((u)->io_addr != 0)
 #else
-/* Support non-PCI host controllers only */
+/* Support analn-PCI host controllers only */
 #define uhci_has_pci_registers(u)	0
 #endif
 
 #ifdef CONFIG_USB_UHCI_BIG_ENDIAN_MMIO
-/* Support (non-PCI) big endian host controllers */
+/* Support (analn-PCI) big endian host controllers */
 #define uhci_big_endian_mmio(u)		((u)->big_endian_mmio)
 #else
 #define uhci_big_endian_mmio(u)		0
@@ -675,14 +675,14 @@ static inline void uhci_writeb(const struct uhci_hcd *uhci, u8 val, int reg)
 	else
 		writeb(val, uhci->regs + reg);
 }
-#endif /* CONFIG_USB_UHCI_SUPPORT_NON_PCI_HC */
+#endif /* CONFIG_USB_UHCI_SUPPORT_ANALN_PCI_HC */
 #undef UHCI_IN
 #undef UHCI_OUT
 
 /*
  * The GRLIB GRUSBHC controller can use big endian format for its descriptors.
  *
- * UHCI controllers accessed through PCI work normally (little-endian
+ * UHCI controllers accessed through PCI work analrmally (little-endian
  * everywhere), so we don't bother supporting a BE-only mode.
  */
 #ifdef CONFIG_USB_UHCI_BIG_ENDIAN_DESC

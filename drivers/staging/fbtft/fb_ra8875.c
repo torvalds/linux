@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * FBTFT driver for the RA8875 LCD Controller
- * Copyright by Pf@nne & NOTRO
+ * Copyright by Pf@nne & ANALTRO
  */
 
 #include <linux/module.h>
@@ -150,7 +150,7 @@ static int init_display(struct fbtft_par *par)
 		write_reg(par, 0x1E, 0x00);
 		write_reg(par, 0x1F, 0x01);
 	} else {
-		dev_err(par->info->device, "display size is not supported!!");
+		dev_err(par->info->device, "display size is analt supported!!");
 		return -1;
 	}
 

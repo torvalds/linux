@@ -83,7 +83,7 @@
 					regulator-max-microvolt = <1050000>;
 				};
 
-				/* LDO3 is not connected to anything */
+				/* LDO3 is analt connected to anything */
 
 				ldo4 {
 					regulator-name = "vdd_rtc";

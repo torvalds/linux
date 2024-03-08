@@ -34,7 +34,7 @@ struct rt4801_priv {
 	unsigned int volt_sel[DSV_OUT_MAX];
 };
 
-static int rt4801_of_parse_cb(struct device_node *np,
+static int rt4801_of_parse_cb(struct device_analde *np,
 			      const struct regulator_desc *desc,
 			      struct regulator_config *config)
 {
@@ -45,8 +45,8 @@ static int rt4801_of_parse_cb(struct device_node *np,
 		dev_warn(priv->dev, "duplicated enable-gpios property\n");
 		return 0;
 	}
-	priv->enable_gpios[id] = devm_fwnode_gpiod_get_index(priv->dev,
-							     of_fwnode_handle(np),
+	priv->enable_gpios[id] = devm_fwanalde_gpiod_get_index(priv->dev,
+							     of_fwanalde_handle(np),
 							     "enable", 0,
 							     GPIOD_OUT_HIGH,
 							     "rt4801");
@@ -88,7 +88,7 @@ static int rt4801_enable(struct regulator_dev *rdev)
 	int id = rdev_get_id(rdev), ret;
 
 	if (!priv->enable_gpios[id]) {
-		dev_warn(&rdev->dev, "no dedicated gpio can control\n");
+		dev_warn(&rdev->dev, "anal dedicated gpio can control\n");
 		goto bypass_gpio;
 	}
 
@@ -109,7 +109,7 @@ static int rt4801_disable(struct regulator_dev *rdev)
 	int id = rdev_get_id(rdev);
 
 	if (!priv->enable_gpios[id]) {
-		dev_warn(&rdev->dev, "no dedicated gpio can control\n");
+		dev_warn(&rdev->dev, "anal dedicated gpio can control\n");
 		goto bypass_gpio;
 	}
 
@@ -182,7 +182,7 @@ static int rt4801_probe(struct i2c_client *i2c)
 
 	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &i2c->dev;
 	/* bootloader will on, driver only reconfigure enable to all output high */
@@ -239,7 +239,7 @@ MODULE_DEVICE_TABLE(of, rt4801_of_id);
 static struct i2c_driver rt4801_driver = {
 	.driver = {
 		.name = "rt4801",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(rt4801_of_id),
 	},
 	.probe = rt4801_probe,

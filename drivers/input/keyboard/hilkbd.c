@@ -14,7 +14,7 @@
 #include <linux/pci_ids.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -57,7 +57,7 @@ MODULE_LICENSE("GPL v2");
  #define hil_writeb(v, p)	writeb((v), (volatile void __iomem *)(p))
 
 #else
-#error "HIL is not supported on this platform"
+#error "HIL is analt supported on this platform"
 #endif
 
 
@@ -204,14 +204,14 @@ static int hil_keyb_init(void)
 	int err;
 
 	if (hil_dev.dev)
-		return -ENODEV; /* already initialized */
+		return -EANALDEV; /* already initialized */
 
 	init_waitqueue_head(&hil_wait);
 	spin_lock_init(&hil_dev.lock);
 
 	hil_dev.dev = input_allocate_device();
 	if (!hil_dev.dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = request_irq(HIL_IRQ, hil_interrupt, 0, "hil", hil_dev.dev_id);
 	if (err) {
@@ -228,13 +228,13 @@ static int hil_keyb_init(void)
 
 	wait_event_interruptible_timeout(hil_wait, hil_dev.valid, 3 * HZ);
 	if (!hil_dev.valid)
-		printk(KERN_WARNING "HIL: timed out, assuming no keyboard present\n");
+		printk(KERN_WARNING "HIL: timed out, assuming anal keyboard present\n");
 
 	c = hil_dev.c;
 	hil_dev.valid = 0;
 	if (c == 0) {
 		kbid = -1;
-		printk(KERN_WARNING "HIL: no keyboard present\n");
+		printk(KERN_WARNING "HIL: anal keyboard present\n");
 	} else {
 		kbid = ffz(~c);
 		printk(KERN_INFO "HIL: keyboard found at id %d\n", kbid);
@@ -299,12 +299,12 @@ static int __init hil_probe_chip(struct parisc_device *dev)
 {
 	/* Only allow one HIL keyboard */
 	if (hil_dev.dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!dev->irq) {
-		printk(KERN_WARNING "HIL: IRQ not found for HIL bus at 0x%p\n",
+		printk(KERN_WARNING "HIL: IRQ analt found for HIL bus at 0x%p\n",
 			(void *)dev->hpa.start);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	hil_base = dev->hpa.start;
@@ -359,11 +359,11 @@ static int __init hil_init(void)
 		return -EBUSY;
 
 	if (!MACH_IS_HP300)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!hwreg_present((void *)(HILBASE + HIL_DATA))) {
-		printk(KERN_ERR "HIL: hardware register was not found\n");
-		return -ENODEV;
+		printk(KERN_ERR "HIL: hardware register was analt found\n");
+		return -EANALDEV;
 	}
 
 	if (!request_region(HILBASE + HIL_DATA, 2, "hil")) {

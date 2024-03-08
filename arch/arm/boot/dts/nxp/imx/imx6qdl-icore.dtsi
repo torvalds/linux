@@ -280,15 +280,15 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	cd-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
-	no-1-8-v;
+	anal-1-8-v;
 	status = "okay";
 };
 
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	status = "disabled";
 };
 

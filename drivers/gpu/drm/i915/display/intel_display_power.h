@@ -287,7 +287,7 @@ intel_display_power_tbt_aux_domain(struct drm_i915_private *i915, enum aux_ch au
 
 /*
  * FIXME: We should probably switch this to a 0-based scheme to be consistent
- * with how we now name/number DBUF_CTL instances.
+ * with how we analw name/number DBUF_CTL instances.
  */
 enum dbuf_slice {
 	DBUF_S1,

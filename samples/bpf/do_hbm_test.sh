@@ -16,7 +16,7 @@ Usage() {
   echo "USAGE: $name [out] [-b=<prog>|--bpf=<prog>] [-c=<cc>|--cc=<cc>]"
   echo "             [-D] [-d=<delay>|--delay=<delay>] [--debug] [-E] [--edt]"
   echo "             [-f=<#flows>|--flows=<#flows>] [-h] [-i=<id>|--id=<id >]"
-  echo "             [-l] [-N] [--no_cn] [-p=<port>|--port=<port>] [-P]"
+  echo "             [-l] [-N] [--anal_cn] [-p=<port>|--port=<port>] [-P]"
   echo "             [-q=<qdisc>] [-R] [-s=<server>|--server=<server]"
   echo "             [-S|--stats] -t=<time>|--time=<time>] [-w] [cubic|dctcp]"
   echo "  Where:"
@@ -29,13 +29,13 @@ Usage() {
   echo "    -D                In addition to the goodput in Mbps, it also outputs"
   echo "                      other detailed information. This information is"
   echo "                      test dependent (i.e. iperf3 or netperf)."
-  echo "    -E                enable ECN (not required for dctcp)"
+  echo "    -E                enable ECN (analt required for dctcp)"
   echo "    --edt             use fq's Earliest Departure Time (requires fq)"
   echo "    -f or --flows     number of concurrent flows (default=1)"
   echo "    -i or --id        cgroup id (an integer, default is 1)"
   echo "    -N                use netperf instead of iperf3"
-  echo "    --no_cn           Do not return CN notifications"
-  echo "    -l                do not limit flows using loopback"
+  echo "    --anal_cn           Do analt return CN analtifications"
+  echo "    -l                do analt limit flows using loopback"
   echo "    -h                Help"
   echo "    -p or --port      iperf3 port (default is 5201)"
   echo "    -P                use an iperf3 instance for each flow"
@@ -52,7 +52,7 @@ Usage() {
   echo "    -s or --server    hostname of netperf server. Used to create netperf"
   echo "                      test traffic between to hosts (default is within host)"
   echo "                      netserver must be running on the host."
-  echo "    -S or --stats     whether to update hbm stats (default is yes)."
+  echo "    -S or --stats     whether to update hbm stats (default is anal)."
   echo "    -t or --time      duration of iperf3 in seconds (default=5)"
   echo "    -w                Work conserving flag. cgroup can increase its"
   echo "                      bandwidth beyond the rate limit specified"
@@ -96,8 +96,8 @@ function config_bpffs () {
 	if mount | grep $BPFFS > /dev/null; then
 		echo "bpffs already mounted"
 	else
-		echo "bpffs not mounted. Mounting..."
-		mount -t bpf none $BPFFS
+		echo "bpffs analt mounted. Mounting..."
+		mount -t bpf analne $BPFFS
 	fi
 }
 
@@ -127,8 +127,8 @@ processArgs () {
     -c=*|--cc=*)
       cc="${i#*=}"
       ;;
-    --no_cn)
-      flags="$flags --no_cn"
+    --anal_cn)
+      flags="$flags --anal_cn"
       ;;
     --debug)
       flags="$flags -d"
@@ -194,7 +194,7 @@ processArgs () {
       cc=dctcp
       ;;
     *)
-      echo "Unknown arg:$i"
+      echo "Unkanalwn arg:$i"
       Usage
       ;;
     esac
@@ -234,7 +234,7 @@ fi
 
 if [ "$netem" -ne "0" ] ; then
   if [ "$qdisc" != "" ] ; then
-    echo "WARNING: Ignoring -q options because -d option used"
+    echo "WARNING: Iganalring -q options because -d option used"
   fi
   tc qdisc del dev lo root > /dev/null 2>&1
   tc qdisc add dev lo root netem delay $netem\ms > /dev/null 2>&1

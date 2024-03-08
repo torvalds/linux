@@ -12,7 +12,7 @@
 /*
  * The kernel only distinguishes between i.MX6 Quad and DualLite,
  * but the Solo is actually a DualLite with only one CPU. So use
- * DualLite for the Solo and disable one CPU node.
+ * DualLite for the Solo and disable one CPU analde.
  */
 
 #include "imx6dl.dtsi"
@@ -25,6 +25,6 @@
 		     "fsl,imx6dl";
 
 	cpus {
-		/delete-node/ cpu@1;
+		/delete-analde/ cpu@1;
 	};
 };

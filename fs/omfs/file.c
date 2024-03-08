@@ -28,9 +28,9 @@ void omfs_make_empty_table(struct buffer_head *bh, int offset)
 	oe->e_entry[0].e_blocks = ~cpu_to_be64(0ULL);
 }
 
-int omfs_shrink_inode(struct inode *inode)
+int omfs_shrink_ianalde(struct ianalde *ianalde)
 {
-	struct omfs_sb_info *sbi = OMFS_SB(inode->i_sb);
+	struct omfs_sb_info *sbi = OMFS_SB(ianalde->i_sb);
 	struct omfs_extent *oe;
 	struct omfs_extent_entry *entry;
 	struct buffer_head *bh;
@@ -40,16 +40,16 @@ int omfs_shrink_inode(struct inode *inode)
 	int ret;
 
 	/* traverse extent table, freeing each entry that is greater
-	 * than inode->i_size;
+	 * than ianalde->i_size;
 	 */
-	next = inode->i_ino;
+	next = ianalde->i_ianal;
 
-	/* only support truncate -> 0 for now */
+	/* only support truncate -> 0 for analw */
 	ret = -EIO;
-	if (inode->i_size != 0)
+	if (ianalde->i_size != 0)
 		goto out;
 
-	bh = omfs_bread(inode->i_sb, next);
+	bh = omfs_bread(ianalde->i_sb, next);
 	if (!bh)
 		goto out;
 
@@ -70,26 +70,26 @@ int omfs_shrink_inode(struct inode *inode)
 		next = be64_to_cpu(oe->e_next);
 		entry = oe->e_entry;
 
-		/* ignore last entry as it is the terminator */
+		/* iganalre last entry as it is the terminator */
 		for (; extent_count > 1; extent_count--) {
 			u64 start, count;
 			start = be64_to_cpu(entry->e_cluster);
 			count = be64_to_cpu(entry->e_blocks);
 
-			omfs_clear_range(inode->i_sb, start, (int) count);
+			omfs_clear_range(ianalde->i_sb, start, (int) count);
 			entry++;
 		}
 		omfs_make_empty_table(bh, (char *) oe - bh->b_data);
 		mark_buffer_dirty(bh);
 		brelse(bh);
 
-		if (last != inode->i_ino)
-			omfs_clear_range(inode->i_sb, last, sbi->s_mirrors);
+		if (last != ianalde->i_ianal)
+			omfs_clear_range(ianalde->i_sb, last, sbi->s_mirrors);
 
 		if (next == ~0)
 			break;
 
-		bh = omfs_bread(inode->i_sb, next);
+		bh = omfs_bread(ianalde->i_sb, next);
 		if (!bh)
 			goto out;
 		oe = (struct omfs_extent *) (&bh->b_data[OMFS_EXTENT_CONT]);
@@ -103,32 +103,32 @@ out_brelse:
 	return ret;
 }
 
-static void omfs_truncate(struct inode *inode)
+static void omfs_truncate(struct ianalde *ianalde)
 {
-	omfs_shrink_inode(inode);
-	mark_inode_dirty(inode);
+	omfs_shrink_ianalde(ianalde);
+	mark_ianalde_dirty(ianalde);
 }
 
 /*
  * Add new blocks to the current extent, or create new entries/continuations
  * as necessary.
  */
-static int omfs_grow_extent(struct inode *inode, struct omfs_extent *oe,
+static int omfs_grow_extent(struct ianalde *ianalde, struct omfs_extent *oe,
 			u64 *ret_block)
 {
 	struct omfs_extent_entry *terminator;
 	struct omfs_extent_entry *entry = oe->e_entry;
-	struct omfs_sb_info *sbi = OMFS_SB(inode->i_sb);
+	struct omfs_sb_info *sbi = OMFS_SB(ianalde->i_sb);
 	u32 extent_count = be32_to_cpu(oe->e_extent_count);
 	u64 new_block = 0;
 	u32 max_count;
 	int new_count;
 	int ret = 0;
 
-	/* reached the end of the extent table with no blocks mapped.
+	/* reached the end of the extent table with anal blocks mapped.
 	 * there are three possibilities for adding: grow last extent,
 	 * add a new extent to the current extent table, and add a
-	 * continuation inode.  in last two cases need an allocator for
+	 * continuation ianalde.  in last two cases need an allocator for
 	 * sbi->s_cluster_size
 	 */
 
@@ -138,14 +138,14 @@ static int omfs_grow_extent(struct inode *inode, struct omfs_extent *oe,
 	if (extent_count < 1)
 		return -EIO;
 
-	/* trivially grow current extent, if next block is not taken */
+	/* trivially grow current extent, if next block is analt taken */
 	terminator = entry + extent_count - 1;
 	if (extent_count > 1) {
 		entry = terminator-1;
 		new_block = be64_to_cpu(entry->e_cluster) +
 			be64_to_cpu(entry->e_blocks);
 
-		if (omfs_allocate_block(inode->i_sb, new_block)) {
+		if (omfs_allocate_block(ianalde->i_sb, new_block)) {
 			be64_add_cpu(&entry->e_blocks, 1);
 			terminator->e_blocks = ~(cpu_to_be64(
 				be64_to_cpu(~terminator->e_blocks) + 1));
@@ -159,7 +159,7 @@ static int omfs_grow_extent(struct inode *inode, struct omfs_extent *oe,
 		return -EIO;
 
 	/* try to allocate a new cluster */
-	ret = omfs_allocate_range(inode->i_sb, 1, sbi->s_clustersize,
+	ret = omfs_allocate_range(ianalde->i_sb, 1, sbi->s_clustersize,
 		&new_block, &new_count);
 	if (ret)
 		goto out_fail;
@@ -186,15 +186,15 @@ out_fail:
 
 /*
  * Scans across the directory table for a given file block number.
- * If block not found, return 0.
+ * If block analt found, return 0.
  */
-static sector_t find_block(struct inode *inode, struct omfs_extent_entry *ent,
+static sector_t find_block(struct ianalde *ianalde, struct omfs_extent_entry *ent,
 			sector_t block, int count, int *left)
 {
 	/* count > 1 because of terminator */
 	sector_t searched = 0;
 	for (; count > 1; count--) {
-		int numblocks = clus_to_blk(OMFS_SB(inode->i_sb),
+		int numblocks = clus_to_blk(OMFS_SB(ianalde->i_sb),
 			be64_to_cpu(ent->e_blocks));
 
 		if (block >= searched  &&
@@ -204,7 +204,7 @@ static sector_t find_block(struct inode *inode, struct omfs_extent_entry *ent,
 			 * numblocks - (block - searched) is remainder
 			 */
 			*left = numblocks - (block - searched);
-			return clus_to_blk(OMFS_SB(inode->i_sb),
+			return clus_to_blk(OMFS_SB(ianalde->i_sb),
 				be64_to_cpu(ent->e_cluster)) +
 				block - searched;
 		}
@@ -214,7 +214,7 @@ static sector_t find_block(struct inode *inode, struct omfs_extent_entry *ent,
 	return 0;
 }
 
-static int omfs_get_block(struct inode *inode, sector_t block,
+static int omfs_get_block(struct ianalde *ianalde, sector_t block,
 			  struct buffer_head *bh_result, int create)
 {
 	struct buffer_head *bh;
@@ -225,18 +225,18 @@ static int omfs_get_block(struct inode *inode, sector_t block,
 	int extent_count;
 	struct omfs_extent *oe;
 	struct omfs_extent_entry *entry;
-	struct omfs_sb_info *sbi = OMFS_SB(inode->i_sb);
-	int max_blocks = bh_result->b_size >> inode->i_blkbits;
+	struct omfs_sb_info *sbi = OMFS_SB(ianalde->i_sb);
+	int max_blocks = bh_result->b_size >> ianalde->i_blkbits;
 	int remain;
 
 	ret = -EIO;
-	bh = omfs_bread(inode->i_sb, inode->i_ino);
+	bh = omfs_bread(ianalde->i_sb, ianalde->i_ianal);
 	if (!bh)
 		goto out;
 
 	oe = (struct omfs_extent *)(&bh->b_data[OMFS_EXTENT_START]);
 	max_extents = omfs_max_extents(sbi, OMFS_EXTENT_START);
-	next = inode->i_ino;
+	next = ianalde->i_ianal;
 
 	for (;;) {
 
@@ -250,31 +250,31 @@ static int omfs_get_block(struct inode *inode, sector_t block,
 		if (extent_count > max_extents)
 			goto out_brelse;
 
-		offset = find_block(inode, entry, block, extent_count, &remain);
+		offset = find_block(ianalde, entry, block, extent_count, &remain);
 		if (offset > 0) {
 			ret = 0;
-			map_bh(bh_result, inode->i_sb, offset);
+			map_bh(bh_result, ianalde->i_sb, offset);
 			if (remain > max_blocks)
 				remain = max_blocks;
-			bh_result->b_size = (remain << inode->i_blkbits);
+			bh_result->b_size = (remain << ianalde->i_blkbits);
 			goto out_brelse;
 		}
 		if (next == ~0)
 			break;
 
 		brelse(bh);
-		bh = omfs_bread(inode->i_sb, next);
+		bh = omfs_bread(ianalde->i_sb, next);
 		if (!bh)
 			goto out;
 		oe = (struct omfs_extent *) (&bh->b_data[OMFS_EXTENT_CONT]);
 		max_extents = omfs_max_extents(sbi, OMFS_EXTENT_CONT);
 	}
 	if (create) {
-		ret = omfs_grow_extent(inode, oe, &new_block);
+		ret = omfs_grow_extent(ianalde, oe, &new_block);
 		if (ret == 0) {
 			mark_buffer_dirty(bh);
-			mark_inode_dirty(inode);
-			map_bh(bh_result, inode->i_sb,
+			mark_ianalde_dirty(ianalde);
+			map_bh(bh_result, ianalde->i_sb,
 					clus_to_blk(sbi, new_block));
 		}
 	}
@@ -302,11 +302,11 @@ omfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 
 static void omfs_write_failed(struct address_space *mapping, loff_t to)
 {
-	struct inode *inode = mapping->host;
+	struct ianalde *ianalde = mapping->host;
 
-	if (to > inode->i_size) {
-		truncate_pagecache(inode, inode->i_size);
-		omfs_truncate(inode);
+	if (to > ianalde->i_size) {
+		truncate_pagecache(ianalde, ianalde->i_size);
+		omfs_truncate(ianalde);
 	}
 }
 
@@ -340,28 +340,28 @@ const struct file_operations omfs_file_operations = {
 static int omfs_setattr(struct mnt_idmap *idmap,
 			struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	int error;
 
-	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
+	error = setattr_prepare(&analp_mnt_idmap, dentry, attr);
 	if (error)
 		return error;
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		error = inode_newsize_ok(inode, attr->ia_size);
+	    attr->ia_size != i_size_read(ianalde)) {
+		error = ianalde_newsize_ok(ianalde, attr->ia_size);
 		if (error)
 			return error;
-		truncate_setsize(inode, attr->ia_size);
-		omfs_truncate(inode);
+		truncate_setsize(ianalde, attr->ia_size);
+		omfs_truncate(ianalde);
 	}
 
-	setattr_copy(&nop_mnt_idmap, inode, attr);
-	mark_inode_dirty(inode);
+	setattr_copy(&analp_mnt_idmap, ianalde, attr);
+	mark_ianalde_dirty(ianalde);
 	return 0;
 }
 
-const struct inode_operations omfs_file_inops = {
+const struct ianalde_operations omfs_file_ianalps = {
 	.setattr = omfs_setattr,
 };
 

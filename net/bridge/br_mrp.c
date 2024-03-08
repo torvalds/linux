@@ -205,7 +205,7 @@ static struct sk_buff *br_mrp_alloc_test_skb(struct br_mrp *mrp,
 
 	br_mrp_skb_common(skb, mrp);
 
-	/* In case the node behaves as MRA then the Test frame needs to have
+	/* In case the analde behaves as MRA then the Test frame needs to have
 	 * an Option TLV which includes eventually a sub-option TLV that has
 	 * the type AUTO_MGR
 	 */
@@ -267,21 +267,21 @@ static struct sk_buff *br_mrp_alloc_in_test_skb(struct br_mrp *mrp,
 }
 
 /* This function is continuously called in the following cases:
- * - when node role is MRM, in this case test_monitor is always set to false
- *   because it needs to notify the userspace that the ring is open and needs to
+ * - when analde role is MRM, in this case test_monitor is always set to false
+ *   because it needs to analtify the userspace that the ring is open and needs to
  *   send MRP_Test frames
- * - when node role is MRA, there are 2 subcases:
+ * - when analde role is MRA, there are 2 subcases:
  *     - when MRA behaves as MRM, in this case is similar with MRM role
  *     - when MRA behaves as MRC, in this case test_monitor is set to true,
  *       because it needs to detect when it stops seeing MRP_Test frames
- *       from MRM node but it doesn't need to send MRP_Test frames.
+ *       from MRM analde but it doesn't need to send MRP_Test frames.
  */
 static void br_mrp_test_work_expired(struct work_struct *work)
 {
 	struct delayed_work *del_work = to_delayed_work(work);
 	struct br_mrp *mrp = container_of(del_work, struct br_mrp, test_work);
 	struct net_bridge_port *p;
-	bool notify_open = false;
+	bool analtify_open = false;
 	struct sk_buff *skb;
 
 	if (time_before_eq(mrp->test_end, jiffies))
@@ -290,18 +290,18 @@ static void br_mrp_test_work_expired(struct work_struct *work)
 	if (mrp->test_count_miss < mrp->test_max_miss) {
 		mrp->test_count_miss++;
 	} else {
-		/* Notify that the ring is open only if the ring state is
-		 * closed, otherwise it would continue to notify at every
+		/* Analtify that the ring is open only if the ring state is
+		 * closed, otherwise it would continue to analtify at every
 		 * interval.
-		 * Also notify that the ring is open when the node has the
+		 * Also analtify that the ring is open when the analde has the
 		 * role MRA and behaves as MRC. The reason is that the
-		 * userspace needs to know when the MRM stopped sending
-		 * MRP_Test frames so that the current node to try to take
+		 * userspace needs to kanalw when the MRM stopped sending
+		 * MRP_Test frames so that the current analde to try to take
 		 * the role of a MRM.
 		 */
 		if (mrp->ring_state == BR_MRP_RING_STATE_CLOSED ||
 		    mrp->test_monitor)
-			notify_open = true;
+			analtify_open = true;
 	}
 
 	rcu_read_lock();
@@ -318,7 +318,7 @@ static void br_mrp_test_work_expired(struct work_struct *work)
 			dev_queue_xmit(skb);
 		}
 
-		if (notify_open && !mrp->ring_role_offloaded)
+		if (analtify_open && !mrp->ring_role_offloaded)
 			br_mrp_ring_port_open(p->dev, true);
 	}
 
@@ -334,7 +334,7 @@ static void br_mrp_test_work_expired(struct work_struct *work)
 			dev_queue_xmit(skb);
 		}
 
-		if (notify_open && !mrp->ring_role_offloaded)
+		if (analtify_open && !mrp->ring_role_offloaded)
 			br_mrp_ring_port_open(p->dev, true);
 	}
 
@@ -345,7 +345,7 @@ out:
 			   usecs_to_jiffies(mrp->test_interval));
 }
 
-/* This function is continuously called when the node has the interconnect role
+/* This function is continuously called when the analde has the interconnect role
  * MIM. It would generate interconnect test frames and will send them on all 3
  * ports. But will also check if it stop receiving interconnect test frames.
  */
@@ -354,7 +354,7 @@ static void br_mrp_in_test_work_expired(struct work_struct *work)
 	struct delayed_work *del_work = to_delayed_work(work);
 	struct br_mrp *mrp = container_of(del_work, struct br_mrp, in_test_work);
 	struct net_bridge_port *p;
-	bool notify_open = false;
+	bool analtify_open = false;
 	struct sk_buff *skb;
 
 	if (time_before_eq(mrp->in_test_end, jiffies))
@@ -363,12 +363,12 @@ static void br_mrp_in_test_work_expired(struct work_struct *work)
 	if (mrp->in_test_count_miss < mrp->in_test_max_miss) {
 		mrp->in_test_count_miss++;
 	} else {
-		/* Notify that the interconnect ring is open only if the
+		/* Analtify that the interconnect ring is open only if the
 		 * interconnect ring state is closed, otherwise it would
-		 * continue to notify at every interval.
+		 * continue to analtify at every interval.
 		 */
 		if (mrp->in_state == BR_MRP_IN_STATE_CLOSED)
-			notify_open = true;
+			analtify_open = true;
 	}
 
 	rcu_read_lock();
@@ -383,7 +383,7 @@ static void br_mrp_in_test_work_expired(struct work_struct *work)
 		skb_reset_network_header(skb);
 		dev_queue_xmit(skb);
 
-		if (notify_open && !mrp->in_role_offloaded)
+		if (analtify_open && !mrp->in_role_offloaded)
 			br_mrp_in_port_open(p->dev, true);
 	}
 
@@ -397,7 +397,7 @@ static void br_mrp_in_test_work_expired(struct work_struct *work)
 		skb_reset_network_header(skb);
 		dev_queue_xmit(skb);
 
-		if (notify_open && !mrp->in_role_offloaded)
+		if (analtify_open && !mrp->in_role_offloaded)
 			br_mrp_in_port_open(p->dev, true);
 	}
 
@@ -411,7 +411,7 @@ static void br_mrp_in_test_work_expired(struct work_struct *work)
 		skb_reset_network_header(skb);
 		dev_queue_xmit(skb);
 
-		if (notify_open && !mrp->in_role_offloaded)
+		if (analtify_open && !mrp->in_role_offloaded)
 			br_mrp_in_port_open(p->dev, true);
 	}
 
@@ -423,7 +423,7 @@ out:
 }
 
 /* Deletes the MRP instance.
- * note: called under rtnl_lock
+ * analte: called under rtnl_lock
  */
 static void br_mrp_del_impl(struct net_bridge *br, struct br_mrp *mrp)
 {
@@ -492,7 +492,7 @@ static void br_mrp_del_impl(struct net_bridge *br, struct br_mrp *mrp)
 }
 
 /* Adds a new MRP instance.
- * note: called under rtnl_lock
+ * analte: called under rtnl_lock
  */
 int br_mrp_add(struct net_bridge *br, struct br_mrp_instance *instance)
 {
@@ -500,7 +500,7 @@ int br_mrp_add(struct net_bridge *br, struct br_mrp_instance *instance)
 	struct br_mrp *mrp;
 	int err;
 
-	/* If the ring exists, it is not possible to create another one with the
+	/* If the ring exists, it is analt possible to create aanalther one with the
 	 * same ring_id
 	 */
 	mrp = br_mrp_find_id(br, instance->ring_id);
@@ -511,14 +511,14 @@ int br_mrp_add(struct net_bridge *br, struct br_mrp_instance *instance)
 	    !br_mrp_get_port(br, instance->s_ifindex))
 		return -EINVAL;
 
-	/* It is not possible to have the same port part of multiple rings */
+	/* It is analt possible to have the same port part of multiple rings */
 	if (!br_mrp_unique_ifindex(br, instance->p_ifindex) ||
 	    !br_mrp_unique_ifindex(br, instance->s_ifindex))
 		return -EINVAL;
 
 	mrp = kzalloc(sizeof(*mrp), GFP_KERNEL);
 	if (!mrp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mrp->ring_id = instance->ring_id;
 	mrp->prio = instance->prio;
@@ -557,13 +557,13 @@ delete_mrp:
 }
 
 /* Deletes the MRP instance from which the port is part of
- * note: called under rtnl_lock
+ * analte: called under rtnl_lock
  */
 void br_mrp_port_del(struct net_bridge *br, struct net_bridge_port *p)
 {
 	struct br_mrp *mrp = br_mrp_find_port(br, p);
 
-	/* If the port is not part of a MRP instance just bail out */
+	/* If the port is analt part of a MRP instance just bail out */
 	if (!mrp)
 		return;
 
@@ -571,7 +571,7 @@ void br_mrp_port_del(struct net_bridge *br, struct net_bridge_port *p)
 }
 
 /* Deletes existing MRP instance based on ring_id
- * note: called under rtnl_lock
+ * analte: called under rtnl_lock
  */
 int br_mrp_del(struct net_bridge *br, struct br_mrp_instance *instance)
 {
@@ -586,7 +586,7 @@ int br_mrp_del(struct net_bridge *br, struct br_mrp_instance *instance)
 }
 
 /* Set port state, port state can be forwarding, blocked or disabled
- * note: already called with rtnl_lock
+ * analte: already called with rtnl_lock
  */
 int br_mrp_set_port_state(struct net_bridge_port *p,
 			  enum br_mrp_port_state_type state)
@@ -612,7 +612,7 @@ int br_mrp_set_port_state(struct net_bridge_port *p,
 }
 
 /* Set port role, port role can be primary or secondary
- * note: already called with rtnl_lock
+ * analte: already called with rtnl_lock
  */
 int br_mrp_set_port_role(struct net_bridge_port *p,
 			 enum br_mrp_port_role_type role)
@@ -644,7 +644,7 @@ int br_mrp_set_port_role(struct net_bridge_port *p,
 }
 
 /* Set ring state, ring state can be only Open or Closed
- * note: already called with rtnl_lock
+ * analte: already called with rtnl_lock
  */
 int br_mrp_set_ring_state(struct net_bridge *br,
 			  struct br_mrp_ring_state *state)
@@ -666,7 +666,7 @@ int br_mrp_set_ring_state(struct net_bridge *br,
 
 /* Set ring role, ring role can be only MRM(Media Redundancy Manager) or
  * MRC(Media Redundancy Client).
- * note: already called with rtnl_lock
+ * analte: already called with rtnl_lock
  */
 int br_mrp_set_ring_role(struct net_bridge *br,
 			 struct br_mrp_ring_role *role)
@@ -681,13 +681,13 @@ int br_mrp_set_ring_role(struct net_bridge *br,
 
 	/* If there is an error just bailed out */
 	support = br_mrp_switchdev_set_ring_role(br, mrp, role->ring_role);
-	if (support == BR_MRP_NONE)
-		return -EOPNOTSUPP;
+	if (support == BR_MRP_ANALNE)
+		return -EOPANALTSUPP;
 
-	/* Now detect if the HW actually applied the role or not. If the HW
-	 * applied the role it means that the SW will not to do those operations
-	 * anymore. For example if the role ir MRM then the HW will notify the
-	 * SW when ring is open, but if the is not pushed to the HW the SW will
+	/* Analw detect if the HW actually applied the role or analt. If the HW
+	 * applied the role it means that the SW will analt to do those operations
+	 * anymore. For example if the role ir MRM then the HW will analtify the
+	 * SW when ring is open, but if the is analt pushed to the HW the SW will
 	 * need to detect when the ring is open
 	 */
 	mrp->ring_role_offloaded = support == BR_MRP_SW ? 0 : 1;
@@ -697,7 +697,7 @@ int br_mrp_set_ring_role(struct net_bridge *br,
 
 /* Start to generate or monitor MRP test frames, the frames are generated by
  * HW and if it fails, they are generated by the SW.
- * note: already called with rtnl_lock
+ * analte: already called with rtnl_lock
  */
 int br_mrp_start_test(struct net_bridge *br,
 		      struct br_mrp_start_test *test)
@@ -714,8 +714,8 @@ int br_mrp_start_test(struct net_bridge *br,
 	support = br_mrp_switchdev_send_ring_test(br, mrp, test->interval,
 						  test->max_miss, test->period,
 						  test->monitor);
-	if (support == BR_MRP_NONE)
-		return -EOPNOTSUPP;
+	if (support == BR_MRP_ANALNE)
+		return -EOPANALTSUPP;
 
 	if (support == BR_MRP_HW)
 		return 0;
@@ -732,7 +732,7 @@ int br_mrp_start_test(struct net_bridge *br,
 }
 
 /* Set in state, int state can be only Open or Closed
- * note: already called with rtnl_lock
+ * analte: already called with rtnl_lock
  */
 int br_mrp_set_in_state(struct net_bridge *br, struct br_mrp_in_state *state)
 {
@@ -753,7 +753,7 @@ int br_mrp_set_in_state(struct net_bridge *br, struct br_mrp_in_state *state)
 
 /* Set in role, in role can be only MIM(Media Interconnection Manager) or
  * MIC(Media Interconnection Client).
- * note: already called with rtnl_lock
+ * analte: already called with rtnl_lock
  */
 int br_mrp_set_in_role(struct net_bridge *br, struct br_mrp_in_role *role)
 {
@@ -770,7 +770,7 @@ int br_mrp_set_in_role(struct net_bridge *br, struct br_mrp_in_role *role)
 	if (role->in_role == BR_MRP_IN_ROLE_DISABLED) {
 		u8 state;
 
-		/* It is not allowed to disable a port that doesn't exist */
+		/* It is analt allowed to disable a port that doesn't exist */
 		p = rtnl_dereference(mrp->i_port);
 		if (!p)
 			return -EINVAL;
@@ -795,11 +795,11 @@ int br_mrp_set_in_role(struct net_bridge *br, struct br_mrp_in_role *role)
 		return 0;
 	}
 
-	/* It is not possible to have the same port part of multiple rings */
+	/* It is analt possible to have the same port part of multiple rings */
 	if (!br_mrp_unique_ifindex(br, role->i_ifindex))
 		return -EINVAL;
 
-	/* It is not allowed to set a different interconnect port if the mrp
+	/* It is analt allowed to set a different interconnect port if the mrp
 	 * instance has already one. First it needs to be disabled and after
 	 * that set the new port
 	 */
@@ -819,13 +819,13 @@ int br_mrp_set_in_role(struct net_bridge *br, struct br_mrp_in_role *role)
 	/* If there is an error just bailed out */
 	support = br_mrp_switchdev_set_in_role(br, mrp, role->in_id,
 					       role->ring_id, role->in_role);
-	if (support == BR_MRP_NONE)
-		return -EOPNOTSUPP;
+	if (support == BR_MRP_ANALNE)
+		return -EOPANALTSUPP;
 
-	/* Now detect if the HW actually applied the role or not. If the HW
-	 * applied the role it means that the SW will not to do those operations
-	 * anymore. For example if the role is MIM then the HW will notify the
-	 * SW when interconnect ring is open, but if the is not pushed to the HW
+	/* Analw detect if the HW actually applied the role or analt. If the HW
+	 * applied the role it means that the SW will analt to do those operations
+	 * anymore. For example if the role is MIM then the HW will analtify the
+	 * SW when interconnect ring is open, but if the is analt pushed to the HW
 	 * the SW will need to detect when the interconnect ring is open.
 	 */
 	mrp->in_role_offloaded = support == BR_MRP_SW ? 0 : 1;
@@ -835,7 +835,7 @@ int br_mrp_set_in_role(struct net_bridge *br, struct br_mrp_in_role *role)
 
 /* Start to generate MRP_InTest frames, the frames are generated by
  * HW and if it fails, they are generated by the SW.
- * note: already called with rtnl_lock
+ * analte: already called with rtnl_lock
  */
 int br_mrp_start_in_test(struct net_bridge *br,
 			 struct br_mrp_start_in_test *in_test)
@@ -855,8 +855,8 @@ int br_mrp_start_in_test(struct net_bridge *br,
 	support =  br_mrp_switchdev_send_in_test(br, mrp, in_test->interval,
 						 in_test->max_miss,
 						 in_test->period);
-	if (support == BR_MRP_NONE)
-		return -EOPNOTSUPP;
+	if (support == BR_MRP_ANALNE)
+		return -EOPANALTSUPP;
 
 	if (support == BR_MRP_HW)
 		return 0;
@@ -913,7 +913,7 @@ static bool br_mrp_in_frame(struct sk_buff *skb)
 
 /* Process only MRP Test frame. All the other MRP frames are processed by
  * userspace application
- * note: already called with rcu_read_lock
+ * analte: already called with rcu_read_lock
  */
 static void br_mrp_mrm_process(struct br_mrp *mrp, struct net_bridge_port *port,
 			       struct sk_buff *skb)
@@ -933,14 +933,14 @@ static void br_mrp_mrm_process(struct br_mrp *mrp, struct net_bridge_port *port,
 
 	mrp->test_count_miss = 0;
 
-	/* Notify the userspace that the ring is closed only when the ring is
-	 * not closed
+	/* Analtify the userspace that the ring is closed only when the ring is
+	 * analt closed
 	 */
 	if (mrp->ring_state != BR_MRP_RING_STATE_CLOSED)
 		br_mrp_ring_port_open(port->dev, false);
 }
 
-/* Determine if the test hdr has a better priority than the node */
+/* Determine if the test hdr has a better priority than the analde */
 static bool br_mrp_test_better_than_own(struct br_mrp *mrp,
 					struct net_bridge *br,
 					const struct br_mrp_ring_test_hdr *hdr)
@@ -957,7 +957,7 @@ static bool br_mrp_test_better_than_own(struct br_mrp *mrp,
 
 /* Process only MRP Test frame. All the other MRP frames are processed by
  * userspace application
- * note: already called with rcu_read_lock
+ * analte: already called with rcu_read_lock
  */
 static void br_mrp_mra_process(struct br_mrp *mrp, struct net_bridge *br,
 			       struct net_bridge_port *port,
@@ -983,8 +983,8 @@ static void br_mrp_mra_process(struct br_mrp *mrp, struct net_bridge *br,
 	if (!test_hdr)
 		return;
 
-	/* Only frames that have a better priority than the node will
-	 * clear the miss counter because otherwise the node will need to behave
+	/* Only frames that have a better priority than the analde will
+	 * clear the miss counter because otherwise the analde will need to behave
 	 * as MRM.
 	 */
 	if (br_mrp_test_better_than_own(mrp, br, test_hdr))
@@ -993,7 +993,7 @@ static void br_mrp_mra_process(struct br_mrp *mrp, struct net_bridge *br,
 
 /* Process only MRP InTest frame. All the other MRP frames are processed by
  * userspace application
- * note: already called with rcu_read_lock
+ * analte: already called with rcu_read_lock
  */
 static bool br_mrp_mim_process(struct br_mrp *mrp, struct net_bridge_port *port,
 			       struct sk_buff *skb)
@@ -1022,8 +1022,8 @@ static bool br_mrp_mim_process(struct br_mrp *mrp, struct net_bridge_port *port,
 
 	mrp->in_test_count_miss = 0;
 
-	/* Notify the userspace that the ring is closed only when the ring is
-	 * not closed
+	/* Analtify the userspace that the ring is closed only when the ring is
+	 * analt closed
 	 */
 	if (mrp->in_state != BR_MRP_IN_STATE_CLOSED)
 		br_mrp_in_port_open(port->dev, false);
@@ -1032,7 +1032,7 @@ static bool br_mrp_mim_process(struct br_mrp *mrp, struct net_bridge_port *port,
 }
 
 /* Get the MRP frame type
- * note: already called with rcu_read_lock
+ * analte: already called with rcu_read_lock
  */
 static u8 br_mrp_get_frame_type(struct sk_buff *skb)
 {
@@ -1069,7 +1069,7 @@ static bool br_mrp_mrc_behaviour(struct br_mrp *mrp)
 
 /* This will just forward the frame to the other mrp ring ports, depending on
  * the frame type, ring role and interconnect role
- * note: already called with rcu_read_lock
+ * analte: already called with rcu_read_lock
  */
 static int br_mrp_rcv(struct net_bridge_port *p,
 		      struct sk_buff *skb, struct net_device *dev)
@@ -1098,23 +1098,23 @@ static int br_mrp_rcv(struct net_bridge_port *p,
 		return 0;
 	s_dst = s_port;
 
-	/* If the frame is a ring frame then it is not required to check the
+	/* If the frame is a ring frame then it is analt required to check the
 	 * interconnect role and ports to process or forward the frame
 	 */
 	if (br_mrp_ring_frame(skb)) {
 		/* If the role is MRM then don't forward the frames */
 		if (mrp->ring_role == BR_MRP_RING_ROLE_MRM) {
 			br_mrp_mrm_process(mrp, p, skb);
-			goto no_forward;
+			goto anal_forward;
 		}
 
 		/* If the role is MRA then don't forward the frames if it
-		 * behaves as MRM node
+		 * behaves as MRM analde
 		 */
 		if (mrp->ring_role == BR_MRP_RING_ROLE_MRA) {
 			if (!mrp->test_monitor) {
 				br_mrp_mrm_process(mrp, p, skb);
-				goto no_forward;
+				goto anal_forward;
 			}
 
 			br_mrp_mra_process(mrp, br, p, skb);
@@ -1129,17 +1129,17 @@ static int br_mrp_rcv(struct net_bridge_port *p,
 		i_port = rcu_dereference(mrp->i_port);
 		i_dst = i_port;
 
-		/* If the ring port is in block state it should not forward
+		/* If the ring port is in block state it should analt forward
 		 * In_Test frames
 		 */
 		if (br_mrp_is_ring_port(p_port, s_port, p) &&
 		    p->state == BR_STATE_BLOCKING &&
 		    in_type == BR_MRP_TLV_HEADER_IN_TEST)
-			goto no_forward;
+			goto anal_forward;
 
-		/* Nodes that behaves as MRM needs to stop forwarding the
+		/* Analdes that behaves as MRM needs to stop forwarding the
 		 * frames in case the ring is closed, otherwise will be a loop.
-		 * In this case the frame is no forward between the ring ports.
+		 * In this case the frame is anal forward between the ring ports.
 		 */
 		if (br_mrp_mrm_behaviour(mrp) &&
 		    br_mrp_is_ring_port(p_port, s_port, p) &&
@@ -1149,7 +1149,7 @@ static int br_mrp_rcv(struct net_bridge_port *p,
 			s_dst = NULL;
 		}
 
-		/* A node that behaves as MRC and doesn't have a interconnect
+		/* A analde that behaves as MRC and doesn't have a interconnect
 		 * role then it should forward all frames between the ring ports
 		 * because it doesn't have an interconnect port
 		 */
@@ -1159,23 +1159,23 @@ static int br_mrp_rcv(struct net_bridge_port *p,
 
 		if (mrp->in_role == BR_MRP_IN_ROLE_MIM) {
 			if (in_type == BR_MRP_TLV_HEADER_IN_TEST) {
-				/* MIM should not forward it's own InTest
+				/* MIM should analt forward it's own InTest
 				 * frames
 				 */
 				if (br_mrp_mim_process(mrp, p, skb)) {
-					goto no_forward;
+					goto anal_forward;
 				} else {
 					if (br_mrp_is_ring_port(p_port, s_port,
 								p))
 						i_dst = NULL;
 
 					if (br_mrp_is_in_port(i_port, p))
-						goto no_forward;
+						goto anal_forward;
 				}
 			} else {
 				/* MIM should forward IntLinkChange/Status and
 				 * IntTopoChange between ring ports but MIM
-				 * should not forward IntLinkChange/Status and
+				 * should analt forward IntLinkChange/Status and
 				 * IntTopoChange if the frame was received at
 				 * the interconnect port
 				 */
@@ -1183,7 +1183,7 @@ static int br_mrp_rcv(struct net_bridge_port *p,
 					i_dst = NULL;
 
 				if (br_mrp_is_in_port(i_port, p))
-					goto no_forward;
+					goto anal_forward;
 			}
 		}
 
@@ -1222,7 +1222,7 @@ static int br_mrp_rcv(struct net_bridge_port *p,
 			}
 
 			/* In all the other cases don't forward the frames */
-			goto no_forward;
+			goto anal_forward;
 		}
 	}
 
@@ -1234,18 +1234,18 @@ forward:
 	if (i_dst)
 		br_forward(i_dst, skb, true, false);
 
-no_forward:
+anal_forward:
 	return 1;
 }
 
 /* Check if the frame was received on a port that is part of MRP ring
  * and if the frame has MRP eth. In that case process the frame otherwise do
- * normal forwarding.
- * note: already called with rcu_read_lock
+ * analrmal forwarding.
+ * analte: already called with rcu_read_lock
  */
 static int br_mrp_process(struct net_bridge_port *p, struct sk_buff *skb)
 {
-	/* If there is no MRP instance do normal forwarding */
+	/* If there is anal MRP instance do analrmal forwarding */
 	if (likely(!(p->flags & BR_MRP_AWARE)))
 		goto out;
 

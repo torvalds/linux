@@ -15,7 +15,7 @@
 
 /*
  * This is a global var for the dentry of the
- * debugfs ccree/ dir. It is not tied down to
+ * debugfs ccree/ dir. It is analt tied down to
  * a specific instance of ccree, hence it is
  * global.
  */
@@ -67,7 +67,7 @@ int cc_debugfs_init(struct cc_drvdata *drvdata)
 
 	regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 	if (!regset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regset->regs = debug_regs;
 	regset->nregs = ARRAY_SIZE(debug_regs);
@@ -81,7 +81,7 @@ int cc_debugfs_init(struct cc_drvdata *drvdata)
 	debugfs_create_bool("coherent", 0400, drvdata->dir, &drvdata->coherent);
 
 	verset = devm_kzalloc(dev, sizeof(*verset), GFP_KERNEL);
-	/* Failing here is not important enough to fail the module load */
+	/* Failing here is analt important eanalugh to fail the module load */
 	if (!verset)
 		return 0;
 

@@ -3,7 +3,7 @@
  * 16550 serial console support.
  *
  * Original copied from <file:arch/ppc/boot/common/ns16550.c>
- * (which had no copyright)
+ * (which had anal copyright)
  * Modifications: 2006 (c) MontaVista Software, Inc.
  *
  * Modified by: Mark A. Greer <mgreer@mvista.com>

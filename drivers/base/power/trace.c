@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2006 Linus Torvalds
  *
- * Trace facility for suspend/resume problems, when none of the
+ * Trace facility for suspend/resume problems, when analne of the
  * devices may be working.
  */
 #define pr_fmt(fmt) "PM: " fmt
@@ -34,7 +34,7 @@
  *
  * It means, for example, that we can't use the seconds at all
  * (since the time between the hang and the boot might be more
- * than a minute), and we'd better not depend on the low bits of
+ * than a minute), and we'd better analt depend on the low bits of
  * the minutes either.
  *
  * There are the wday fields etc, but I wouldn't guarantee those
@@ -54,14 +54,14 @@
  * And if your box can't boot in less than three minutes,
  * you're screwed.
  *
- * Now, almost 24 bits of data is pitifully small, so we need
+ * Analw, almost 24 bits of data is pitifully small, so we need
  * to be pretty dense if we want to use it for anything nice.
  * What we do is that instead of saving off nice readable info,
  * we save off _hashes_ of information that we can hopefully
  * regenerate after the reboot.
  *
  * In particular, this means that we might be unlucky, and hit
- * a case where we have a hash collision, and we end up not
+ * a case where we have a hash collision, and we end up analt
  * being able to tell for certain exactly which case happened.
  * But that's hopefully unlikely.
  *
@@ -160,13 +160,13 @@ EXPORT_SYMBOL(set_trace_device);
  * section instead. Generating a hash of the data gives us a
  * chance to work across kernel versions, and perhaps more
  * importantly it also gives us valid/invalid check (ie we will
- * likely not give totally bogus reports - if the hash matches,
- * it's not any guarantee, but it's a high _likelihood_ that
+ * likely analt give totally bogus reports - if the hash matches,
+ * it's analt any guarantee, but it's a high _likelihood_ that
  * the match is valid).
  */
 void generate_pm_trace(const void *tracedata, unsigned int user)
 {
-	unsigned short lineno = *(unsigned short *)tracedata;
+	unsigned short lineanal = *(unsigned short *)tracedata;
 	const char *file = *(const char **)(tracedata + 2);
 	unsigned int user_hash_value, file_hash_value;
 
@@ -174,7 +174,7 @@ void generate_pm_trace(const void *tracedata, unsigned int user)
 		return;
 
 	user_hash_value = user % USERHASH;
-	file_hash_value = hash_string(lineno, file, FILEHASH);
+	file_hash_value = hash_string(lineanal, file, FILEHASH);
 	set_magic_time(user_hash_value, file_hash_value, dev_hash_value);
 }
 EXPORT_SYMBOL(generate_pm_trace);
@@ -188,12 +188,12 @@ static int show_file_hash(unsigned int value)
 	match = 0;
 	for (tracedata = __tracedata_start ; tracedata < __tracedata_end ;
 			tracedata += 2 + sizeof(unsigned long)) {
-		unsigned short lineno = *(unsigned short *)tracedata;
+		unsigned short lineanal = *(unsigned short *)tracedata;
 		const char *file = *(const char **)(tracedata + 2);
-		unsigned int hash = hash_string(lineno, file, FILEHASH);
+		unsigned int hash = hash_string(lineanal, file, FILEHASH);
 		if (hash != value)
 			continue;
-		pr_info("  hash matches %s:%u\n", file, lineno);
+		pr_info("  hash matches %s:%u\n", file, lineanal);
 		match++;
 	}
 	return match;
@@ -253,7 +253,7 @@ int show_trace_dev_match(char *buf, size_t size)
 }
 
 static int
-pm_trace_notify(struct notifier_block *nb, unsigned long mode, void *_unused)
+pm_trace_analtify(struct analtifier_block *nb, unsigned long mode, void *_unused)
 {
 	switch (mode) {
 	case PM_POST_HIBERNATION:
@@ -269,8 +269,8 @@ pm_trace_notify(struct notifier_block *nb, unsigned long mode, void *_unused)
 	return 0;
 }
 
-static struct notifier_block pm_trace_nb = {
-	.notifier_call = pm_trace_notify,
+static struct analtifier_block pm_trace_nb = {
+	.analtifier_call = pm_trace_analtify,
 };
 
 static int __init early_resume_init(void)
@@ -279,7 +279,7 @@ static int __init early_resume_init(void)
 		return 0;
 
 	hash_value_early_read = read_magic_time();
-	register_pm_notifier(&pm_trace_nb);
+	register_pm_analtifier(&pm_trace_nb);
 	return 0;
 }
 

@@ -34,7 +34,7 @@ static const struct rpc_procinfo rpcproc_tls_probe = {
 
 static void rpc_tls_probe_call_prepare(struct rpc_task *task, void *data)
 {
-	task->tk_flags &= ~RPC_TASK_NO_RETRANS_TIMEOUT;
+	task->tk_flags &= ~RPC_TASK_ANAL_RETRANS_TIMEOUT;
 	rpc_call_start(task);
 }
 
@@ -129,9 +129,9 @@ static int tls_validate(struct rpc_task *task, struct xdr_stream *xdr)
 	if (*p != rpc_auth_null)
 		return -EIO;
 	if (xdr_stream_decode_opaque_inline(xdr, &str, starttls_len) != starttls_len)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	if (memcmp(str, starttls_token, starttls_len))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	return 0;
 }
 

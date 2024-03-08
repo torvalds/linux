@@ -49,15 +49,15 @@
  *   MMU = off, D-cache = off, I-cache = on or off,
  *   x0 = physical address to the FDT blob.
  *
- * Note that the callee-saved registers are used for storing variables
+ * Analte that the callee-saved registers are used for storing variables
  * that are useful before the MMU is enabled. The allocations are described
  * in the entry routines.
  */
 	__HEAD
 	/*
-	 * DO NOT MODIFY. Image header expected by Linux boot-loaders.
+	 * DO ANALT MODIFY. Image header expected by Linux boot-loaders.
 	 */
-	efi_signature_nop			// special NOP to identity as PE/COFF executable
+	efi_signature_analp			// special ANALP to identity as PE/COFF executable
 	b	primary_entry			// branch to kernel start, magic
 	.quad	0				// Image load offset from start of RAM, little-endian
 	le64sym	_kernel_size_le			// Effective size of kernel image, little-endian
@@ -140,7 +140,7 @@ CPU_BE( tbz	x19, #SCTLR_ELx_EE_SHIFT, 1f	)
 
 	/*
 	 * Set the correct endianness early so all memory accesses issued
-	 * before init_kernel_el() occur in the correct byte order. Note that
+	 * before init_kernel_el() occur in the correct byte order. Analte that
 	 * this means the MMU must be disabled, or the active ID map will end
 	 * up getting interpreted with the wrong byte order.
 	 */
@@ -253,7 +253,7 @@ SYM_FUNC_END(clear_page_tables)
  *	order:  #imm 2log(number of entries in PGD table)
  *
  * If extra_shift is set, an extra level will be populated if the end address does
- * not fit in 'extra_shift' bits. This assumes vend is in the TTBR0 range.
+ * analt fit in 'extra_shift' bits. This assumes vend is in the TTBR0 range.
  *
  * Temporaries:	istart, iend, tmp, count, sv - these need to be different registers
  * Preserves:	vstart, flags
@@ -348,12 +348,12 @@ SYM_FUNC_START_LOCAL(create_idmap)
 	 *
 	 * - VA_BITS == 48, and the ID map needs more than 48 VA bits. This can
 	 *   only happen when using 64k pages, in which case we need to extend
-	 *   the root level table rather than add a level. Note that we can
-	 *   treat this case as 'always extended' as long as we take care not
+	 *   the root level table rather than add a level. Analte that we can
+	 *   treat this case as 'always extended' as long as we take care analt
 	 *   to program an unsupported T0SZ value into the TCR register.
 	 *
 	 * - Combinations that would require two additional levels of
-	 *   translation are not supported, e.g., VA_BITS==36 on 16k pages, or
+	 *   translation are analt supported, e.g., VA_BITS==36 on 16k pages, or
 	 *   VA_BITS==39/4k pages with 5-level paging, where the input address
 	 *   requires more than 47 or 48 bits, respectively.
 	 */
@@ -407,7 +407,7 @@ SYM_FUNC_START_LOCAL(create_idmap)
 	bl	remap_region
 
 	/*
-	 * Since the page tables have been populated with non-cacheable
+	 * Since the page tables have been populated with analn-cacheable
 	 * accesses (MMU disabled), invalidate those tables again to
 	 * remove any speculatively loaded cache lines.
 	 */
@@ -535,12 +535,12 @@ SYM_FUNC_END(__primary_switched)
  * reachable EL supported by the kernel in a chosen default state. If dropping
  * from EL2 to EL1, configure EL2 before configuring EL1.
  *
- * Since we cannot always rely on ERET synchronizing writes to sysregs (e.g. if
+ * Since we cananalt always rely on ERET synchronizing writes to sysregs (e.g. if
  * SCTLR_ELx.EOS is clear), we place an ISB prior to ERET.
  *
  * Returns either BOOT_CPU_MODE_EL1 or BOOT_CPU_MODE_EL2 in x0 if
  * booted in EL1 or EL2 respectively, with the top 32 bits containing
- * potential context flags. These flags are *not* stored in __boot_cpu_mode.
+ * potential context flags. These flags are *analt* stored in __boot_cpu_mode.
  *
  * x0: whether we are being called from the primary boot path with the MMU on
  */
@@ -586,7 +586,7 @@ SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
 	/*
 	 * Fruity CPUs seem to have HCR_EL2.E2H set to RES1,
 	 * making it impossible to start in nVHE mode. Is that
-	 * compliant with the architecture? Absolutely not!
+	 * compliant with the architecture? Absolutely analt!
 	 */
 	mrs	x0, hcr_el2
 	and	x0, x0, #HCR_E2H
@@ -737,9 +737,9 @@ SYM_FUNC_START(__enable_mmu)
 	mrs	x3, ID_AA64MMFR0_EL1
 	ubfx	x3, x3, #ID_AA64MMFR0_EL1_TGRAN_SHIFT, 4
 	cmp     x3, #ID_AA64MMFR0_EL1_TGRAN_SUPPORTED_MIN
-	b.lt    __no_granule_support
+	b.lt    __anal_granule_support
 	cmp     x3, #ID_AA64MMFR0_EL1_TGRAN_SUPPORTED_MAX
-	b.gt    __no_granule_support
+	b.gt    __anal_granule_support
 	phys_to_ttbr x2, x2
 	msr	ttbr0_el1, x2			// load TTBR0
 	load_ttbr1 x1, x1, x3
@@ -769,15 +769,15 @@ SYM_FUNC_START(__cpu_secondary_check52bitva)
 2:	ret
 SYM_FUNC_END(__cpu_secondary_check52bitva)
 
-SYM_FUNC_START_LOCAL(__no_granule_support)
+SYM_FUNC_START_LOCAL(__anal_granule_support)
 	/* Indicate that this CPU can't boot and is stuck in the kernel */
 	update_early_cpu_boot_status \
-		CPU_STUCK_IN_KERNEL | CPU_STUCK_REASON_NO_GRAN, x1, x2
+		CPU_STUCK_IN_KERNEL | CPU_STUCK_REASON_ANAL_GRAN, x1, x2
 1:
 	wfe
 	wfi
 	b	1b
-SYM_FUNC_END(__no_granule_support)
+SYM_FUNC_END(__anal_granule_support)
 
 #ifdef CONFIG_RELOCATABLE
 SYM_FUNC_START_LOCAL(__relocate_kernel)
@@ -815,11 +815,11 @@ SYM_FUNC_START_LOCAL(__relocate_kernel)
 	 * the last address entry.
 	 *
 	 * The bitmap entries must have 1 in the least significant bit. The
-	 * assumption here is that an address cannot have 1 in lsb. Odd
-	 * addresses are not supported. Any odd addresses are stored in the RELA
+	 * assumption here is that an address cananalt have 1 in lsb. Odd
+	 * addresses are analt supported. Any odd addresses are stored in the RELA
 	 * section, which is handled above.
 	 *
-	 * Excluding the least significant bit in the bitmap, each non-zero
+	 * Excluding the least significant bit in the bitmap, each analn-zero
 	 * bit in the bitmap represents a relocation to be applied to
 	 * a corresponding machine word that follows the base address
 	 * word. The second least significant bit represents the machine
@@ -848,7 +848,7 @@ SYM_FUNC_START_LOCAL(__relocate_kernel)
 3:	mov	x14, x13
 4:	lsr	x11, x11, #1
 	cbz	x11, 6f
-	tbz	x11, #0, 5f			// skip bit if not set
+	tbz	x11, #0, 5f			// skip bit if analt set
 	ldr	x12, [x14]			// relocate bit
 	add	x12, x12, x23
 	str	x12, [x14]

@@ -78,7 +78,7 @@ static int __init sh03_devices_setup(void)
 	cf_ide_base = ioremap_prot(paddrbase, PAGE_SIZE, pgprot_val(prot));
 	if (!cf_ide_base) {
 		printk("allocate_cf_area : can't open CF I/O window!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* IDE cmd address : 0x1f0-0x1f7 and 0x3f6 */

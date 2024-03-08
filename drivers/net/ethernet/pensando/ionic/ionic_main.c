@@ -35,14 +35,14 @@ static const char *ionic_error_to_str(enum ionic_status_code code)
 		return "IONIC_RC_EQID";
 	case IONIC_RC_EQTYPE:
 		return "IONIC_RC_EQTYPE";
-	case IONIC_RC_ENOENT:
-		return "IONIC_RC_ENOENT";
+	case IONIC_RC_EANALENT:
+		return "IONIC_RC_EANALENT";
 	case IONIC_RC_EINTR:
 		return "IONIC_RC_EINTR";
 	case IONIC_RC_EAGAIN:
 		return "IONIC_RC_EAGAIN";
-	case IONIC_RC_ENOMEM:
-		return "IONIC_RC_ENOMEM";
+	case IONIC_RC_EANALMEM:
+		return "IONIC_RC_EANALMEM";
 	case IONIC_RC_EFAULT:
 		return "IONIC_RC_EFAULT";
 	case IONIC_RC_EBUSY:
@@ -51,16 +51,16 @@ static const char *ionic_error_to_str(enum ionic_status_code code)
 		return "IONIC_RC_EEXIST";
 	case IONIC_RC_EINVAL:
 		return "IONIC_RC_EINVAL";
-	case IONIC_RC_ENOSPC:
-		return "IONIC_RC_ENOSPC";
+	case IONIC_RC_EANALSPC:
+		return "IONIC_RC_EANALSPC";
 	case IONIC_RC_ERANGE:
 		return "IONIC_RC_ERANGE";
 	case IONIC_RC_BAD_ADDR:
 		return "IONIC_RC_BAD_ADDR";
 	case IONIC_RC_DEV_CMD:
 		return "IONIC_RC_DEV_CMD";
-	case IONIC_RC_ENOSUPP:
-		return "IONIC_RC_ENOSUPP";
+	case IONIC_RC_EANALSUPP:
+		return "IONIC_RC_EANALSUPP";
 	case IONIC_RC_ERROR:
 		return "IONIC_RC_ERROR";
 	case IONIC_RC_ERDMA:
@@ -68,11 +68,11 @@ static const char *ionic_error_to_str(enum ionic_status_code code)
 	case IONIC_RC_EBAD_FW:
 		return "IONIC_RC_EBAD_FW";
 	default:
-		return "IONIC_RC_UNKNOWN";
+		return "IONIC_RC_UNKANALWN";
 	}
 }
 
-static int ionic_error_to_errno(enum ionic_status_code code)
+static int ionic_error_to_erranal(enum ionic_status_code code)
 {
 	switch (code) {
 	case IONIC_RC_SUCCESS:
@@ -81,24 +81,24 @@ static int ionic_error_to_errno(enum ionic_status_code code)
 	case IONIC_RC_EQTYPE:
 	case IONIC_RC_EQID:
 	case IONIC_RC_EINVAL:
-	case IONIC_RC_ENOSUPP:
+	case IONIC_RC_EANALSUPP:
 		return -EINVAL;
 	case IONIC_RC_EPERM:
 		return -EPERM;
-	case IONIC_RC_ENOENT:
-		return -ENOENT;
+	case IONIC_RC_EANALENT:
+		return -EANALENT;
 	case IONIC_RC_EAGAIN:
 		return -EAGAIN;
-	case IONIC_RC_ENOMEM:
-		return -ENOMEM;
+	case IONIC_RC_EANALMEM:
+		return -EANALMEM;
 	case IONIC_RC_EFAULT:
 		return -EFAULT;
 	case IONIC_RC_EBUSY:
 		return -EBUSY;
 	case IONIC_RC_EEXIST:
 		return -EEXIST;
-	case IONIC_RC_ENOSPC:
-		return -ENOSPC;
+	case IONIC_RC_EANALSPC:
+		return -EANALSPC;
 	case IONIC_RC_ERANGE:
 		return -ERANGE;
 	case IONIC_RC_BAD_ADDR:
@@ -117,8 +117,8 @@ static int ionic_error_to_errno(enum ionic_status_code code)
 static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 {
 	switch (opcode) {
-	case IONIC_CMD_NOP:
-		return "IONIC_CMD_NOP";
+	case IONIC_CMD_ANALP:
+		return "IONIC_CMD_ANALP";
 	case IONIC_CMD_INIT:
 		return "IONIC_CMD_INIT";
 	case IONIC_CMD_RESET:
@@ -184,7 +184,7 @@ static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 	case IONIC_CMD_VF_SETATTR:
 		return "IONIC_CMD_VF_SETATTR";
 	default:
-		return "DEVCMD_UNKNOWN";
+		return "DEVCMD_UNKANALWN";
 	}
 }
 
@@ -233,7 +233,7 @@ static int ionic_adminq_check_err(struct ionic_lif *lif,
 
 	if (ctx->comp.comp.status || timeout) {
 		err = timeout ? -ETIMEDOUT :
-				ionic_error_to_errno(ctx->comp.comp.status);
+				ionic_error_to_erranal(ctx->comp.comp.status);
 
 		if (do_msg)
 			ionic_adminq_netdev_err_print(lif, ctx->cmd.cmd.opcode,
@@ -270,7 +270,7 @@ static void ionic_adminq_cb(struct ionic_queue *q,
 bool ionic_adminq_poke_doorbell(struct ionic_queue *q)
 {
 	struct ionic_lif *lif = q->lif;
-	unsigned long now, then, dif;
+	unsigned long analw, then, dif;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&lif->adminq_lock, irqflags);
@@ -280,15 +280,15 @@ bool ionic_adminq_poke_doorbell(struct ionic_queue *q)
 		return false;
 	}
 
-	now = READ_ONCE(jiffies);
+	analw = READ_ONCE(jiffies);
 	then = q->dbell_jiffies;
-	dif = now - then;
+	dif = analw - then;
 
 	if (dif > q->dbell_deadline) {
 		ionic_dbell_ring(q->lif->kern_dbpage, q->hw_type,
 				 q->dbval | q->head_idx);
 
-		q->dbell_jiffies = now;
+		q->dbell_jiffies = analw;
 	}
 
 	spin_unlock_irqrestore(&lif->adminq_lock, irqflags);
@@ -312,7 +312,7 @@ int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 	q = &lif->adminqcq->q;
 
 	if (!ionic_q_has_space(q, 1)) {
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto err_out;
 	}
 
@@ -407,7 +407,7 @@ int ionic_adminq_post_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 	return __ionic_adminq_post_wait(lif, ctx, true);
 }
 
-int ionic_adminq_post_wait_nomsg(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
+int ionic_adminq_post_wait_analmsg(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 {
 	return __ionic_adminq_post_wait(lif, ctx, false);
 }
@@ -499,9 +499,9 @@ try_again:
 		if (!(opcode == IONIC_CMD_FW_CONTROL && err == IONIC_RC_EAGAIN))
 			if (do_msg)
 				ionic_dev_cmd_dev_err_print(ionic, opcode, err,
-							    ionic_error_to_errno(err));
+							    ionic_error_to_erranal(err));
 
-		return ionic_error_to_errno(err);
+		return ionic_error_to_erranal(err);
 	}
 
 	ionic_dev_cmd_clean(ionic);
@@ -514,7 +514,7 @@ int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_seconds)
 	return __ionic_dev_cmd_wait(ionic, max_seconds, true);
 }
 
-int ionic_dev_cmd_wait_nomsg(struct ionic *ionic, unsigned long max_seconds)
+int ionic_dev_cmd_wait_analmsg(struct ionic *ionic, unsigned long max_seconds)
 {
 	return __ionic_dev_cmd_wait(ionic, max_seconds, false);
 }
@@ -558,7 +558,7 @@ int ionic_identify(struct ionic *ionic)
 	mutex_unlock(&ionic->dev_cmd_lock);
 
 	if (err) {
-		dev_err(ionic->dev, "Cannot identify ionic: %d\n", err);
+		dev_err(ionic->dev, "Cananalt identify ionic: %d\n", err);
 		goto err_out;
 	}
 
@@ -577,7 +577,7 @@ int ionic_identify(struct ionic *ionic)
 	err = ionic_lif_identify(ionic, IONIC_LIF_TYPE_CLASSIC,
 				 &ionic->ident.lif);
 	if (err) {
-		dev_err(ionic->dev, "Cannot identify LIFs: %d\n", err);
+		dev_err(ionic->dev, "Cananalt identify LIFs: %d\n", err);
 		goto err_out;
 	}
 
@@ -651,7 +651,7 @@ int ionic_port_init(struct ionic *ionic)
 						     &idev->port_info_pa,
 						     GFP_KERNEL);
 		if (!idev->port_info)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	sz = min(sizeof(ident->port.config), sizeof(idev->dev_cmd_regs->data));

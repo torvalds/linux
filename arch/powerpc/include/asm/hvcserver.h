@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * hvcserver.h
- * Copyright (C) 2004 Ryan S Arnold, IBM Corporation
+ * Copyright (C) 2004 Ryan S Aranalld, IBM Corporation
  *
  * PPC64 virtual I/O console server support.
  */
@@ -17,7 +17,7 @@
 
 /**
  * hvcs_partner_info - an element in a list of partner info
- * @node: list_head denoting this partner_info struct's position in the list of
+ * @analde: list_head deanalting this partner_info struct's position in the list of
  *	partner info.
  * @unit_address: The partner unit address of this entry.
  * @partition_ID: The partner partition ID of this entry.
@@ -29,7 +29,7 @@
  * a list using linux kernel lists.
  */
 struct hvcs_partner_info {
-	struct list_head node;
+	struct list_head analde;
 	uint32_t unit_address;
 	uint32_t partition_ID;
 	char location_code[HVCS_CLC_LENGTH + 1]; /* CLC + 1 null-term char */

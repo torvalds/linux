@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved. */
 
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -55,7 +55,7 @@ struct qts_timeval {
 } __packed;
 
 /**
- * struct qts_host_time_sync_msg_data - Structure to denote the timesync message.
+ * struct qts_host_time_sync_msg_data - Structure to deanalte the timesync message.
  * @header: Header of the timesync message.
  * @data: Time information.
  */
@@ -124,7 +124,7 @@ static void qaic_timesync_dl_xfer_cb(struct mhi_device *mhi_dev, struct mhi_resu
 {
 	struct mqts_dev *mqtsdev = dev_get_drvdata(&mhi_dev->dev);
 
-	dev_err(mqtsdev->dev, "%s no data expected on dl channel\n", __func__);
+	dev_err(mqtsdev->dev, "%s anal data expected on dl channel\n", __func__);
 }
 
 static void qaic_timesync_timer(struct timer_list *t)
@@ -139,7 +139,7 @@ static void qaic_timesync_timer(struct timer_list *t)
 	int ret;
 
 	if (atomic_read(&mqtsdev->buff_in_use)) {
-		dev_dbg(mqtsdev->dev, "%s buffer not free, schedule next cycle\n", __func__);
+		dev_dbg(mqtsdev->dev, "%s buffer analt free, schedule next cycle\n", __func__);
 		goto mod_timer;
 	}
 	atomic_set(&mqtsdev->buff_in_use, 1);
@@ -180,7 +180,7 @@ static int qaic_timesync_probe(struct mhi_device *mhi_dev, const struct mhi_devi
 
 	mqtsdev = kzalloc(sizeof(*mqtsdev), GFP_KERNEL);
 	if (!mqtsdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -191,7 +191,7 @@ static int qaic_timesync_probe(struct mhi_device *mhi_dev, const struct mhi_devi
 
 	mqtsdev->sync_msg = kzalloc(sizeof(*mqtsdev->sync_msg), GFP_KERNEL);
 	if (!mqtsdev->sync_msg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_mqts_dev;
 	}
 	atomic_set(&mqtsdev->buff_in_use, 0);
@@ -297,7 +297,7 @@ static int qaic_boot_timesync_queue_resp(struct mhi_device *mhi_dev, struct qaic
 
 	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
 	if (!resp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	resp->qdev = qdev;
 	INIT_WORK(&resp->work, qaic_boot_timesync_worker);

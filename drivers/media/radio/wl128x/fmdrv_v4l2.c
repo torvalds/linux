@@ -103,7 +103,7 @@ static __poll_t fm_v4l2_fops_poll(struct file *file, struct poll_table_struct *p
 	ret = fmc_is_rds_data_available(fmdev, file, pts);
 	mutex_unlock(&fmdev->mutex);
 	if (ret < 0)
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 
 	return 0;
 }
@@ -198,7 +198,7 @@ static int fm_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		ctrl->val = fm_tx_get_tune_cap_val(fmdev);
 		break;
 	default:
-		fmwarn("%s: Unknown IOCTL: %d\n", __func__, ctrl->id);
+		fmwarn("%s: Unkanalwn IOCTL: %d\n", __func__, ctrl->id);
 		break;
 	}
 
@@ -248,14 +248,14 @@ static int fm_v4l2_vidioc_s_audio(struct file *file, void *priv,
 	return 0;
 }
 
-/* Get tuner attributes. If current mode is NOT RX, return error */
+/* Get tuner attributes. If current mode is ANALT RX, return error */
 static int fm_v4l2_vidioc_g_tuner(struct file *file, void *priv,
 		struct v4l2_tuner *tuner)
 {
 	struct fmdev *fmdev = video_drvdata(file);
 	u32 bottom_freq;
 	u32 top_freq;
-	u16 stereo_mono_mode;
+	u16 stereo_moanal_mode;
 	u16 rssilvl;
 	int ret;
 
@@ -269,7 +269,7 @@ static int fm_v4l2_vidioc_g_tuner(struct file *file, void *priv,
 	if (ret != 0)
 		return ret;
 
-	ret = fm_rx_get_stereo_mono(fmdev, &stereo_mono_mode);
+	ret = fm_rx_get_stereo_moanal(fmdev, &stereo_moanal_mode);
 	if (ret != 0)
 		return ret;
 
@@ -282,14 +282,14 @@ static int fm_v4l2_vidioc_g_tuner(struct file *file, void *priv,
 	/* Store rangelow and rangehigh freq in unit of 62.5 Hz */
 	tuner->rangelow = bottom_freq * 16;
 	tuner->rangehigh = top_freq * 16;
-	tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO |
+	tuner->rxsubchans = V4L2_TUNER_SUB_MOANAL | V4L2_TUNER_SUB_STEREO |
 	((fmdev->rx.rds.flag == FM_RDS_ENABLE) ? V4L2_TUNER_SUB_RDS : 0);
 	tuner->capability = V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_RDS |
 			    V4L2_TUNER_CAP_LOW |
 			    V4L2_TUNER_CAP_HWSEEK_BOUNDED |
 			    V4L2_TUNER_CAP_HWSEEK_WRAP;
-	tuner->audmode = (stereo_mono_mode ?
-			  V4L2_TUNER_MODE_MONO : V4L2_TUNER_MODE_STEREO);
+	tuner->audmode = (stereo_moanal_mode ?
+			  V4L2_TUNER_MODE_MOANAL : V4L2_TUNER_MODE_STEREO);
 
 	/*
 	 * Actual rssi value lies in between -128 to +127.
@@ -308,8 +308,8 @@ static int fm_v4l2_vidioc_g_tuner(struct file *file, void *priv,
 }
 
 /*
- * Set tuner attributes. If current mode is NOT RX, set to RX.
- * Currently, we set only audio mode (mono/stereo) and RDS state (on/off).
+ * Set tuner attributes. If current mode is ANALT RX, set to RX.
+ * Currently, we set only audio mode (moanal/stereo) and RDS state (on/off).
  * Should we set other tuner attributes, too?
  */
 static int fm_v4l2_vidioc_s_tuner(struct file *file, void *priv,
@@ -324,7 +324,7 @@ static int fm_v4l2_vidioc_s_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	aud_mode = (tuner->audmode == V4L2_TUNER_MODE_STEREO) ?
-			FM_STEREO_MODE : FM_MONO_MODE;
+			FM_STEREO_MODE : FM_MOANAL_MODE;
 	rds_mode = (tuner->rxsubchans & V4L2_TUNER_SUB_RDS) ?
 			FM_RDS_ENABLE : FM_RDS_DISABLE;
 
@@ -336,9 +336,9 @@ static int fm_v4l2_vidioc_s_tuner(struct file *file, void *priv,
 		}
 	}
 
-	ret = fmc_set_stereo_mono(fmdev, aud_mode);
+	ret = fmc_set_stereo_moanal(fmdev, aud_mode);
 	if (ret < 0) {
-		fmerr("Failed to set RX stereo/mono mode\n");
+		fmerr("Failed to set RX stereo/moanal mode\n");
 		return ret;
 	}
 
@@ -381,14 +381,14 @@ static int fm_v4l2_vidioc_s_freq(struct file *file, void *priv,
 	return fmc_set_freq(fmdev, freq->frequency / 16);
 }
 
-/* Set hardware frequency seek. If current mode is NOT RX, set it RX. */
+/* Set hardware frequency seek. If current mode is ANALT RX, set it RX. */
 static int fm_v4l2_vidioc_s_hw_freq_seek(struct file *file, void *priv,
 		const struct v4l2_hw_freq_seek *seek)
 {
 	struct fmdev *fmdev = video_drvdata(file);
 	int ret;
 
-	if (file->f_flags & O_NONBLOCK)
+	if (file->f_flags & O_ANALNBLOCK)
 		return -EWOULDBLOCK;
 
 	if (fmdev->curr_fmmode != FM_MODE_RX) {
@@ -406,7 +406,7 @@ static int fm_v4l2_vidioc_s_hw_freq_seek(struct file *file, void *priv,
 
 	return ret;
 }
-/* Get modulator attributes. If mode is not TX, return no attributes. */
+/* Get modulator attributes. If mode is analt TX, return anal attributes. */
 static int fm_v4l2_vidioc_g_modulator(struct file *file, void *priv,
 		struct v4l2_modulator *mod)
 {
@@ -419,7 +419,7 @@ static int fm_v4l2_vidioc_g_modulator(struct file *file, void *priv,
 		return -EPERM;
 
 	mod->txsubchans = ((fmdev->tx_data.aud_mode == FM_STEREO_MODE) ?
-				V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO) |
+				V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MOANAL) |
 				((fmdev->tx_data.rds.flag == FM_RDS_ENABLE) ?
 				V4L2_TUNER_SUB_RDS : 0);
 
@@ -429,7 +429,7 @@ static int fm_v4l2_vidioc_g_modulator(struct file *file, void *priv,
 	return 0;
 }
 
-/* Set modulator attributes. If mode is not TX, set to TX. */
+/* Set modulator attributes. If mode is analt TX, set to TX. */
 static int fm_v4l2_vidioc_s_modulator(struct file *file, void *priv,
 		const struct v4l2_modulator *mod)
 {
@@ -450,12 +450,12 @@ static int fm_v4l2_vidioc_s_modulator(struct file *file, void *priv,
 	}
 
 	aud_mode = (mod->txsubchans & V4L2_TUNER_SUB_STEREO) ?
-			FM_STEREO_MODE : FM_MONO_MODE;
+			FM_STEREO_MODE : FM_MOANAL_MODE;
 	rds_mode = (mod->txsubchans & V4L2_TUNER_SUB_RDS) ?
 			FM_RDS_ENABLE : FM_RDS_DISABLE;
-	ret = fm_tx_set_stereo_mono(fmdev, aud_mode);
+	ret = fm_tx_set_stereo_moanal(fmdev, aud_mode);
 	if (ret < 0) {
-		fmerr("Failed to set mono/stereo mode for TX\n");
+		fmerr("Failed to set moanal/stereo mode for TX\n");
 		return ret;
 	}
 	ret = fm_tx_set_rds_mode(fmdev, rds_mode);
@@ -502,7 +502,7 @@ static const struct video_device fm_viddev_template = {
 	 * To ensure both the tuner and modulator ioctls are accessible we
 	 * set the vfl_dir to M2M to indicate this.
 	 *
-	 * It is not really a mem2mem device of course, but it can both receive
+	 * It is analt really a mem2mem device of course, but it can both receive
 	 * and transmit using the same radio device. It's the only radio driver
 	 * that does this and it should really be split in two radio devices,
 	 * but that would affect applications using this driver.
@@ -538,8 +538,8 @@ int fm_v4l2_init_video_device(struct fmdev *fmdev, int radio_nr)
 	/* Register with V4L2 subsystem as RADIO device */
 	if (video_register_device(&gradio_dev, VFL_TYPE_RADIO, radio_nr)) {
 		v4l2_device_unregister(&fmdev->v4l2_dev);
-		fmerr("Could not register video device\n");
-		return -ENOMEM;
+		fmerr("Could analt register video device\n");
+		return -EANALMEM;
 	}
 
 	fmdev->radio_dev = &gradio_dev;

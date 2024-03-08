@@ -132,7 +132,7 @@ static void stm32_dfsdm_clk_disable_unprepare(struct stm32_dfsdm *dfsdm)
 /**
  * stm32_dfsdm_start_dfsdm - start global dfsdm interface.
  *
- * Enable interface if n_active_ch is not null.
+ * Enable interface if n_active_ch is analt null.
  * @dfsdm: Handle used to retrieve dfsdm context.
  */
 int stm32_dfsdm_start_dfsdm(struct stm32_dfsdm *dfsdm)
@@ -222,13 +222,13 @@ EXPORT_SYMBOL_GPL(stm32_dfsdm_stop_dfsdm);
 static int stm32_dfsdm_parse_of(struct platform_device *pdev,
 				struct dfsdm_priv *priv)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct resource *res;
 	unsigned long clk_freq, divider;
 	unsigned int spi_freq, rem;
 	int ret;
 
-	if (!node)
+	if (!analde)
 		return -EINVAL;
 
 	priv->dfsdm.base = devm_platform_get_and_ioremap_resource(pdev, 0,
@@ -259,21 +259,21 @@ static int stm32_dfsdm_parse_of(struct platform_device *pdev,
 		clk_freq = clk_get_rate(priv->clk);
 
 	/* SPI clock out frequency */
-	ret = of_property_read_u32(pdev->dev.of_node, "spi-max-frequency",
+	ret = of_property_read_u32(pdev->dev.of_analde, "spi-max-frequency",
 				   &spi_freq);
 	if (ret < 0) {
-		/* No SPI master mode */
+		/* Anal SPI master mode */
 		return 0;
 	}
 
 	divider = div_u64_rem(clk_freq, spi_freq, &rem);
-	/* Round up divider when ckout isn't precise, not to exceed spi_freq */
+	/* Round up divider when ckout isn't precise, analt to exceed spi_freq */
 	if (rem)
 		divider++;
 
 	/* programmable divider is in range of [2:256] */
 	if (divider < 2 || divider > 256) {
-		dev_err(&pdev->dev, "spi-max-frequency not achievable\n");
+		dev_err(&pdev->dev, "spi-max-frequency analt achievable\n");
 		return -EINVAL;
 	}
 
@@ -282,7 +282,7 @@ static int stm32_dfsdm_parse_of(struct platform_device *pdev,
 	priv->dfsdm.spi_master_freq = clk_freq / (priv->spi_clk_out_div + 1);
 
 	if (rem) {
-		dev_warn(&pdev->dev, "SPI clock not accurate\n");
+		dev_warn(&pdev->dev, "SPI clock analt accurate\n");
 		dev_warn(&pdev->dev, "%ld = %d * %d + %d\n",
 			 clk_freq, spi_freq, priv->spi_clk_out_div + 1, rem);
 	}
@@ -307,8 +307,8 @@ static int stm32_dfsdm_probe_identification(struct platform_device *pdev,
 					    struct dfsdm_priv *priv,
 					    const struct stm32_dfsdm_dev_data *dev_data)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *child;
 	struct stm32_dfsdm *dfsdm = &priv->dfsdm;
 	const char *compat;
 	int ret, count = 0;
@@ -329,11 +329,11 @@ static int stm32_dfsdm_probe_identification(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		ret = of_property_read_string(child, "compatible", &compat);
 		if (ret)
 			continue;
-		/* Count only child nodes with dfsdm compatible */
+		/* Count only child analdes with dfsdm compatible */
 		if (strstr(compat, "dfsdm"))
 			count++;
 	}
@@ -371,7 +371,7 @@ static int stm32_dfsdm_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->pdev = pdev;
 
@@ -400,12 +400,12 @@ static int stm32_dfsdm_probe(struct platform_device *pdev)
 	dfsdm->fl_list = devm_kcalloc(&pdev->dev, dfsdm->num_fls,
 				      sizeof(*dfsdm->fl_list), GFP_KERNEL);
 	if (!dfsdm->fl_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dfsdm->ch_list = devm_kcalloc(&pdev->dev, dfsdm->num_chs,
 				      sizeof(*dfsdm->ch_list), GFP_KERNEL);
 	if (!dfsdm->ch_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, dfsdm);
 
@@ -415,11 +415,11 @@ static int stm32_dfsdm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	ret = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	ret = of_platform_populate(pdev->dev.of_analde, NULL, NULL, &pdev->dev);
 	if (ret)
 		goto pm_put;
 
@@ -430,7 +430,7 @@ static int stm32_dfsdm_probe(struct platform_device *pdev)
 pm_put:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	stm32_dfsdm_clk_disable_unprepare(dfsdm);
 
 	return ret;
@@ -444,7 +444,7 @@ static void stm32_dfsdm_core_remove(struct platform_device *pdev)
 	of_platform_depopulate(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	stm32_dfsdm_clk_disable_unprepare(dfsdm);
 }
 

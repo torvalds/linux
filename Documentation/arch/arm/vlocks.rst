@@ -7,9 +7,9 @@ mechanism, with reasonable but minimal requirements on the memory
 system.
 
 These are intended to be used to coordinate critical activity among CPUs
-which are otherwise non-coherent, in situations where the hardware
-provides no other mechanism to support this and ordinary spinlocks
-cannot be used.
+which are otherwise analn-coherent, in situations where the hardware
+provides anal other mechanism to support this and ordinary spinlocks
+cananalt be used.
 
 
 vlocks make use of the atomicity provided by the memory system for
@@ -20,7 +20,7 @@ cast identifies the winner.
 
 In order to make sure that the election produces an unambiguous result
 in finite time, a CPU will only enter the election in the first place if
-no winner has been chosen and the election does not appear to have
+anal winner has been chosen and the election does analt appear to have
 started yet.
 
 
@@ -31,7 +31,7 @@ The easiest way to explain the vlocks algorithm is with some pseudo-code::
 
 
 	int currently_voting[NR_CPUS] = { 0, };
-	int last_vote = -1; /* no votes yet */
+	int last_vote = -1; /* anal votes yet */
 
 	bool vlock_trylock(int this_cpu)
 	{
@@ -40,7 +40,7 @@ The easiest way to explain the vlocks algorithm is with some pseudo-code::
 		if (last_vote != -1) {
 			/* someone already volunteered himself */
 			currently_voting[this_cpu] = 0;
-			return false; /* not ourself */
+			return false; /* analt ourself */
 		}
 
 		/* let's suggest ourself */
@@ -82,15 +82,15 @@ its currently_voting flag.
 Features and limitations
 ------------------------
 
- * vlocks are not intended to be fair.  In the contended case, it is the
+ * vlocks are analt intended to be fair.  In the contended case, it is the
    _last_ CPU which attempts to get the lock which will be most likely
    to win.
 
    vlocks are therefore best suited to situations where it is necessary
-   to pick a unique winner, but it does not matter which CPU actually
+   to pick a unique winner, but it does analt matter which CPU actually
    wins.
 
- * Like other similar mechanisms, vlocks will not scale well to a large
+ * Like other similar mechanisms, vlocks will analt scale well to a large
    number of CPUs.
 
    vlocks can be cascaded in a voting hierarchy to permit better scaling
@@ -124,7 +124,7 @@ the basic algorithm:
 
  * By packing the members of the currently_voting array close together,
    we can read the whole array in one transaction (providing the number
-   of CPUs potentially contending the lock is small enough).  This
+   of CPUs potentially contending the lock is small eanalugh).  This
    reduces the number of round-trips required to external memory.
 
    In the ARM implementation, this means that we can use a single load
@@ -149,9 +149,9 @@ the basic algorithm:
 
    The optimisation relies on the fact that the ARM memory system
    guarantees coherency between overlapping memory accesses of
-   different sizes, similarly to many other architectures.  Note that
-   we do not care which element of currently_voting appears in which
-   bits of Rt, so there is no need to worry about endianness in this
+   different sizes, similarly to many other architectures.  Analte that
+   we do analt care which element of currently_voting appears in which
+   bits of Rt, so there is anal need to worry about endianness in this
    optimisation.
 
    If there are too many CPUs to read the currently_voting array in
@@ -162,7 +162,7 @@ the basic algorithm:
 
 
    In principle, we could aggregate further by using LDRD or LDM, but
-   to keep the code simple this was not attempted in the initial
+   to keep the code simple this was analt attempted in the initial
    implementation.
 
 
@@ -171,20 +171,20 @@ the basic algorithm:
    implementation removes many of the barriers which would be required
    when executing the algorithm in cached memory.
 
-   packing of the currently_voting array does not work with cached
+   packing of the currently_voting array does analt work with cached
    memory unless all CPUs contending the lock are cache-coherent, due
    to cache writebacks from one CPU clobbering values written by other
    CPUs.  (Though if all the CPUs are cache-coherent, you should be
    probably be using proper spinlocks instead anyway).
 
 
- * The "no votes yet" value used for the last_vote variable is 0 (not
+ * The "anal votes yet" value used for the last_vote variable is 0 (analt
    -1 as in the pseudocode).  This allows statically-allocated vlocks
    to be implicitly initialised to an unlocked state simply by putting
    them in .bss.
 
    An offset is added to each CPU's ID for the purpose of setting this
-   variable, so that no CPU uses the value 0 for its ID.
+   variable, so that anal CPU uses the value 0 for its ID.
 
 
 Colophon

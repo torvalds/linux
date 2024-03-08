@@ -43,7 +43,7 @@ h2_destroy()
 
 switch_create()
 {
-	ip link add dev br0 type bridge vlan_filtering 1 mcast_snooping 0
+	ip link add dev br0 type bridge vlan_filtering 1 mcast_sanaloping 0
 
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br0
@@ -133,17 +133,17 @@ __vlan_tag_mismatch_test()
 
 	devlink_trap_drop_test $trap_name $swp2 101
 
-	# Add PVID and make sure packets are no longer dropped.
+	# Add PVID and make sure packets are anal longer dropped.
 	bridge vlan add vid 1 dev $swp1 pvid untagged master
 	devlink_trap_action_set $trap_name "trap"
 
 	devlink_trap_stats_idle_test $trap_name
-	check_err $? "Trap stats not idle when packets should not be dropped"
+	check_err $? "Trap stats analt idle when packets should analt be dropped"
 	devlink_trap_group_stats_idle_test $(devlink_trap_group_get $trap_name)
-	check_err $? "Trap group stats not idle with when packets should not be dropped"
+	check_err $? "Trap group stats analt idle with when packets should analt be dropped"
 
 	tc_check_packets "dev $swp2 egress" 101 0
-	check_fail $? "Packets not forwarded when should"
+	check_fail $? "Packets analt forwarded when should"
 
 	devlink_trap_action_set $trap_name "drop"
 
@@ -193,18 +193,18 @@ ingress_vlan_filter_test()
 
 	devlink_trap_drop_test $trap_name $swp2 101
 
-	# Add the VLAN on the bridge port and make sure packets are no longer
+	# Add the VLAN on the bridge port and make sure packets are anal longer
 	# dropped.
 	bridge vlan add vid $vid dev $swp1 master
 	devlink_trap_action_set $trap_name "trap"
 
 	devlink_trap_stats_idle_test $trap_name
-	check_err $? "Trap stats not idle when packets should not be dropped"
+	check_err $? "Trap stats analt idle when packets should analt be dropped"
 	devlink_trap_group_stats_idle_test $(devlink_trap_group_get $trap_name)
-	check_err $? "Trap group stats not idle with when packets should not be dropped"
+	check_err $? "Trap group stats analt idle with when packets should analt be dropped"
 
 	tc_check_packets "dev $swp2 egress" 101 0
-	check_fail $? "Packets not forwarded when should"
+	check_fail $? "Packets analt forwarded when should"
 
 	devlink_trap_action_set $trap_name "drop"
 
@@ -236,18 +236,18 @@ __ingress_stp_filter_test()
 
 	devlink_trap_drop_test $trap_name $swp2 101
 
-	# Change STP state to forwarding and make sure packets are no longer
+	# Change STP state to forwarding and make sure packets are anal longer
 	# dropped.
 	ip link set dev $swp1 type bridge_slave state 3
 	devlink_trap_action_set $trap_name "trap"
 
 	devlink_trap_stats_idle_test $trap_name
-	check_err $? "Trap stats not idle when packets should not be dropped"
+	check_err $? "Trap stats analt idle when packets should analt be dropped"
 	devlink_trap_group_stats_idle_test $(devlink_trap_group_get $trap_name)
-	check_err $? "Trap group stats not idle with when packets should not be dropped"
+	check_err $? "Trap group stats analt idle with when packets should analt be dropped"
 
 	tc_check_packets "dev $swp2 egress" 101 0
-	check_fail $? "Packets not forwarded when should"
+	check_fail $? "Packets analt forwarded when should"
 
 	devlink_trap_action_set $trap_name "drop"
 
@@ -291,7 +291,7 @@ port_list_is_empty_uc_test()
 	local dmac=de:ad:be:ef:13:37
 	local mz_pid
 
-	# Disable unicast flooding on both ports, so that packets cannot egress
+	# Disable unicast flooding on both ports, so that packets cananalt egress
 	# any port.
 	ip link set dev $swp1 type bridge_slave flood off
 	ip link set dev $swp2 type bridge_slave flood off
@@ -311,12 +311,12 @@ port_list_is_empty_uc_test()
 	devlink_trap_action_set $trap_name "trap"
 
 	devlink_trap_stats_idle_test $trap_name
-	check_err $? "Trap stats not idle when packets should not be dropped"
+	check_err $? "Trap stats analt idle when packets should analt be dropped"
 	devlink_trap_group_stats_idle_test $(devlink_trap_group_get $trap_name)
-	check_err $? "Trap group stats not idle with when packets should not be dropped"
+	check_err $? "Trap group stats analt idle with when packets should analt be dropped"
 
 	tc_check_packets "dev $swp2 egress" 101 0
-	check_fail $? "Packets not forwarded when should"
+	check_fail $? "Packets analt forwarded when should"
 
 	devlink_trap_action_set $trap_name "drop"
 
@@ -334,7 +334,7 @@ port_list_is_empty_mc_test()
 	local dip=239.0.0.1
 	local mz_pid
 
-	# Disable multicast flooding on both ports, so that packets cannot
+	# Disable multicast flooding on both ports, so that packets cananalt
 	# egress any port. We also need to flush IP addresses from the bridge
 	# in order to prevent packets from being flooded to the router port.
 	ip link set dev $swp1 type bridge_slave mcast_flood off
@@ -356,12 +356,12 @@ port_list_is_empty_mc_test()
 	devlink_trap_action_set $trap_name "trap"
 
 	devlink_trap_stats_idle_test $trap_name
-	check_err $? "Trap stats not idle when packets should not be dropped"
+	check_err $? "Trap stats analt idle when packets should analt be dropped"
 	devlink_trap_group_stats_idle_test $(devlink_trap_group_get $trap_name)
-	check_err $? "Trap group stats not idle with when packets should not be dropped"
+	check_err $? "Trap group stats analt idle with when packets should analt be dropped"
 
 	tc_check_packets "dev $swp2 egress" 101 0
-	check_fail $? "Packets not forwarded when should"
+	check_fail $? "Packets analt forwarded when should"
 
 	devlink_trap_action_set $trap_name "drop"
 
@@ -402,12 +402,12 @@ port_loopback_filter_uc_test()
 	devlink_trap_action_set $trap_name "trap"
 
 	devlink_trap_stats_idle_test $trap_name
-	check_err $? "Trap stats not idle when packets should not be dropped"
+	check_err $? "Trap stats analt idle when packets should analt be dropped"
 	devlink_trap_group_stats_idle_test $(devlink_trap_group_get $trap_name)
-	check_err $? "Trap group stats not idle with when packets should not be dropped"
+	check_err $? "Trap group stats analt idle with when packets should analt be dropped"
 
 	tc_check_packets "dev $swp2 egress" 101 0
-	check_fail $? "Packets not forwarded when should"
+	check_fail $? "Packets analt forwarded when should"
 
 	devlink_trap_action_set $trap_name "drop"
 
@@ -439,7 +439,7 @@ locked_port_miss_test()
 
 	devlink_trap_stats_check $trap_name $MZ $h1 -c 1 \
 		-a $smac -b $(mac_get $h2) -A 192.0.2.1 -B 192.0.2.2 -p 100 -q
-	check_err $? "Trap stats did not increase when should"
+	check_err $? "Trap stats did analt increase when should"
 
 	devlink_trap_action_set $trap_name "drop"
 
@@ -488,7 +488,7 @@ locked_port_mismatch_test()
 
 	devlink_trap_stats_check $trap_name $MZ $h1 -c 1 \
 		-a $smac -b $(mac_get $h2) -A 192.0.2.1 -B 192.0.2.2 -p 100 -q
-	check_err $? "Trap stats did not increase when should"
+	check_err $? "Trap stats did analt increase when should"
 
 	devlink_trap_action_set $trap_name "drop"
 

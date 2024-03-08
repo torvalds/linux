@@ -52,7 +52,7 @@
 #define TTC_CLK_CNTRL_PSV_SHIFT		1
 
 /*
- * Setup the timers to use pre-scaling, using a fixed value for now that will
+ * Setup the timers to use pre-scaling, using a fixed value for analw that will
  * work across most input frequency, but it may need to be more dynamic
  */
 #define PRESCALE_EXPONENT	11	/* 2 ^ PRESCALE_EXPONENT = PRESCALE */
@@ -69,13 +69,13 @@
  * @base_addr:	Base address of timer
  * @freq:	Timer input clock frequency
  * @clk:	Associated clock source
- * @clk_rate_change_nb:	Notifier block for clock rate changes
+ * @clk_rate_change_nb:	Analtifier block for clock rate changes
  */
 struct ttc_timer {
 	void __iomem *base_addr;
 	unsigned long freq;
 	struct clk *clk;
-	struct notifier_block clk_rate_change_nb;
+	struct analtifier_block clk_rate_change_nb;
 };
 
 #define to_ttc_timer(x) \
@@ -141,7 +141,7 @@ static irqreturn_t ttc_clock_event_interrupt(int irq, void *dev_id)
 	struct ttc_timer_clockevent *ttce = dev_id;
 	struct ttc_timer *timer = &ttce->ttc;
 
-	/* Acknowledge the interrupt and call event handler */
+	/* Ackanalwledge the interrupt and call event handler */
 	readl_relaxed(timer->base_addr + TTC_ISR_OFFSET);
 
 	ttce->ce.event_handler(&ttce->ce);
@@ -163,7 +163,7 @@ static u64 __ttc_clocksource_read(struct clocksource *cs)
 				TTC_COUNT_VAL_OFFSET);
 }
 
-static u64 notrace ttc_sched_clock_read(void)
+static u64 analtrace ttc_sched_clock_read(void)
 {
 	return readl_relaxed(ttc_sched_clock_val_reg);
 }
@@ -234,10 +234,10 @@ static int ttc_resume(struct clock_event_device *evt)
 	return 0;
 }
 
-static int ttc_rate_change_clocksource_cb(struct notifier_block *nb,
+static int ttc_rate_change_clocksource_cb(struct analtifier_block *nb,
 		unsigned long event, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_analtifier_data *ndata = data;
 	struct ttc_timer *ttc = to_ttc_timer(nb);
 	struct ttc_timer_clocksource *ttccs = container_of(ttc,
 			struct ttc_timer_clocksource, ttc);
@@ -261,10 +261,10 @@ static int ttc_rate_change_clocksource_cb(struct notifier_block *nb,
 		}
 
 		if (!is_power_of_2(factor))
-				return NOTIFY_BAD;
+				return ANALTIFY_BAD;
 
 		if (abs(rate_high - (factor * rate_low)) > MAX_F_ERR)
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 
 		factor = __ilog2_u32(factor);
 
@@ -286,28 +286,28 @@ static int ttc_rate_change_clocksource_cb(struct notifier_block *nb,
 
 		/* prescaler within legal range? */
 		if (psv & ~(TTC_CLK_CNTRL_PSV_MASK >> TTC_CLK_CNTRL_PSV_SHIFT))
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 
 		ttccs->scale_clk_ctrl_reg_new = ttccs->scale_clk_ctrl_reg_old &
 			~TTC_CLK_CNTRL_PSV_MASK;
 		ttccs->scale_clk_ctrl_reg_new |= psv << TTC_CLK_CNTRL_PSV_SHIFT;
 
 
-		/* scale down: adjust divider in post-change notification */
+		/* scale down: adjust divider in post-change analtification */
 		if (ndata->new_rate < ndata->old_rate)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 
-		/* scale up: adjust divider now - before frequency change */
+		/* scale up: adjust divider analw - before frequency change */
 		writel_relaxed(ttccs->scale_clk_ctrl_reg_new,
 			       ttccs->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
 		break;
 	}
 	case POST_RATE_CHANGE:
-		/* scale up: pre-change notification did the adjustment */
+		/* scale up: pre-change analtification did the adjustment */
 		if (ndata->new_rate > ndata->old_rate)
-			return NOTIFY_OK;
+			return ANALTIFY_OK;
 
-		/* scale down: adjust divider now - after frequency change */
+		/* scale down: adjust divider analw - after frequency change */
 		writel_relaxed(ttccs->scale_clk_ctrl_reg_new,
 			       ttccs->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
 		break;
@@ -315,17 +315,17 @@ static int ttc_rate_change_clocksource_cb(struct notifier_block *nb,
 	case ABORT_RATE_CHANGE:
 		/* we have to undo the adjustment in case we scale up */
 		if (ndata->new_rate < ndata->old_rate)
-			return NOTIFY_OK;
+			return ANALTIFY_OK;
 
 		/* restore original register value */
 		writel_relaxed(ttccs->scale_clk_ctrl_reg_old,
 			       ttccs->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
 		fallthrough;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int __init ttc_setup_clocksource(struct clk *clk, void __iomem *base,
@@ -336,7 +336,7 @@ static int __init ttc_setup_clocksource(struct clk *clk, void __iomem *base,
 
 	ttccs = kzalloc(sizeof(*ttccs), GFP_KERNEL);
 	if (!ttccs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ttccs->ttc.clk = clk;
 
@@ -348,14 +348,14 @@ static int __init ttc_setup_clocksource(struct clk *clk, void __iomem *base,
 
 	ttccs->ttc.freq = clk_get_rate(ttccs->ttc.clk);
 
-	ttccs->ttc.clk_rate_change_nb.notifier_call =
+	ttccs->ttc.clk_rate_change_nb.analtifier_call =
 		ttc_rate_change_clocksource_cb;
 	ttccs->ttc.clk_rate_change_nb.next = NULL;
 
-	err = clk_notifier_register(ttccs->ttc.clk,
+	err = clk_analtifier_register(ttccs->ttc.clk,
 				    &ttccs->ttc.clk_rate_change_nb);
 	if (err)
-		pr_warn("Unable to register clock notifier.\n");
+		pr_warn("Unable to register clock analtifier.\n");
 
 	ttccs->ttc.base_addr = base;
 	ttccs->cs.name = "ttc_clocksource";
@@ -366,8 +366,8 @@ static int __init ttc_setup_clocksource(struct clk *clk, void __iomem *base,
 
 	/*
 	 * Setup the clock source counter to be an incrementing counter
-	 * with no interrupt and it rolls over at 0xFFFF. Pre-scale
-	 * it by 32 also. Let it start running now.
+	 * with anal interrupt and it rolls over at 0xFFFF. Pre-scale
+	 * it by 32 also. Let it start running analw.
 	 */
 	writel_relaxed(0x0,  ttccs->ttc.base_addr + TTC_IER_OFFSET);
 	writel_relaxed(CLK_CNTRL_PRESCALE | CLK_CNTRL_PRESCALE_EN,
@@ -388,10 +388,10 @@ static int __init ttc_setup_clocksource(struct clk *clk, void __iomem *base,
 	return 0;
 }
 
-static int ttc_rate_change_clockevent_cb(struct notifier_block *nb,
+static int ttc_rate_change_clockevent_cb(struct analtifier_block *nb,
 		unsigned long event, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_analtifier_data *ndata = data;
 	struct ttc_timer *ttc = to_ttc_timer(nb);
 	struct ttc_timer_clockevent *ttcce = container_of(ttc,
 			struct ttc_timer_clockevent, ttc);
@@ -407,7 +407,7 @@ static int ttc_rate_change_clockevent_cb(struct notifier_block *nb,
 	case PRE_RATE_CHANGE:
 	case ABORT_RATE_CHANGE:
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 }
 
@@ -419,7 +419,7 @@ static int __init ttc_setup_clockevent(struct clk *clk,
 
 	ttcce = kzalloc(sizeof(*ttcce), GFP_KERNEL);
 	if (!ttcce)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ttcce->ttc.clk = clk;
 
@@ -427,14 +427,14 @@ static int __init ttc_setup_clockevent(struct clk *clk,
 	if (err)
 		goto out_kfree;
 
-	ttcce->ttc.clk_rate_change_nb.notifier_call =
+	ttcce->ttc.clk_rate_change_nb.analtifier_call =
 		ttc_rate_change_clockevent_cb;
 	ttcce->ttc.clk_rate_change_nb.next = NULL;
 
-	err = clk_notifier_register(ttcce->ttc.clk,
+	err = clk_analtifier_register(ttcce->ttc.clk,
 				    &ttcce->ttc.clk_rate_change_nb);
 	if (err) {
-		pr_warn("Unable to register clock notifier.\n");
+		pr_warn("Unable to register clock analtifier.\n");
 		goto out_kfree;
 	}
 
@@ -455,7 +455,7 @@ static int __init ttc_setup_clockevent(struct clk *clk,
 	/*
 	 * Setup the clock event timer to be an interval timer which
 	 * is prescaled by 32 using the interval interrupt. Leave it
-	 * disabled for now.
+	 * disabled for analw.
 	 */
 	writel_relaxed(0x23, ttcce->ttc.base_addr + TTC_CNT_CNTRL_OFFSET);
 	writel_relaxed(CLK_CNTRL_PRESCALE | CLK_CNTRL_PRESCALE_EN,
@@ -485,7 +485,7 @@ static int __init ttc_timer_probe(struct platform_device *pdev)
 	static int initialized;
 	int clksel, ret;
 	u32 timer_width = 16;
-	struct device_node *timer = pdev->dev.of_node;
+	struct device_analde *timer = pdev->dev.of_analde;
 
 	if (initialized)
 		return 0;
@@ -494,7 +494,7 @@ static int __init ttc_timer_probe(struct platform_device *pdev)
 
 	/*
 	 * Get the 1st Triple Timer Counter (TTC) block from the device tree
-	 * and use it. Note that the event timer uses the interrupt and it's the
+	 * and use it. Analte that the event timer uses the interrupt and it's the
 	 * 2nd TTC hence the irq_of_parse_and_map(,1)
 	 */
 	timer_baseaddr = devm_of_iomap(&pdev->dev, timer, 0, NULL);
@@ -515,7 +515,7 @@ static int __init ttc_timer_probe(struct platform_device *pdev)
 	clksel = !!(clksel & TTC_CLK_CNTRL_CSRC_MASK);
 	clk_cs = of_clk_get(timer, clksel);
 	if (IS_ERR(clk_cs)) {
-		pr_err("ERROR: timer input clock not found\n");
+		pr_err("ERROR: timer input clock analt found\n");
 		return PTR_ERR(clk_cs);
 	}
 
@@ -523,7 +523,7 @@ static int __init ttc_timer_probe(struct platform_device *pdev)
 	clksel = !!(clksel & TTC_CLK_CNTRL_CSRC_MASK);
 	clk_ce = of_clk_get(timer, clksel);
 	if (IS_ERR(clk_ce)) {
-		pr_err("ERROR: timer input clock not found\n");
+		pr_err("ERROR: timer input clock analt found\n");
 		ret = PTR_ERR(clk_ce);
 		goto put_clk_cs;
 	}

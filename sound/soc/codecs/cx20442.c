@@ -40,16 +40,16 @@ static const struct snd_soc_dapm_widget cx20442_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("SPKOUT"),
 	SND_SOC_DAPM_OUTPUT("AGCOUT"),
 
-	SND_SOC_DAPM_MIXER("SPKOUT Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("SPKOUT Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_PGA("TELOUT Amp", CX20442_PM, CX20442_TELOUT, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("SPKOUT Amp", CX20442_PM, CX20442_SPKOUT, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("SPKOUT AGC", CX20442_PM, CX20442_AGC, 0, NULL, 0),
 
-	SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("ADC", "Capture", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC", "Playback", SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC", "Capture", SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_MIXER("Input Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Input Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_MICBIAS("TELIN Bias", CX20442_PM, CX20442_TELIN, 0),
 	SND_SOC_DAPM_MICBIAS("MIC Bias", CX20442_PM, CX20442_MIC, 0),
@@ -97,7 +97,7 @@ static unsigned int cx20442_read_reg_cache(struct snd_soc_component *component,
 }
 
 enum v253_vls {
-	V253_VLS_NONE = 0,
+	V253_VLS_ANALNE = 0,
 	V253_VLS_T,
 	V253_VLS_L,
 	V253_VLS_LT,
@@ -134,7 +134,7 @@ static int cx20442_pm_to_v253_vls(u8 value)
 	case (1 << CX20442_TELOUT) | (1 << CX20442_TELIN):
 		return V253_VLS_L;
 	case (1 << CX20442_TELOUT) | (1 << CX20442_MIC):
-		return V253_VLS_NONE;
+		return V253_VLS_ANALNE;
 	}
 	return -EINVAL;
 }
@@ -187,7 +187,7 @@ static int cx20442_write(struct snd_soc_component *component, unsigned int reg,
 					"at+vls=%d;+vsp=%d\r", vls, vsp);
 
 	if (unlikely(len > (ARRAY_SIZE(buf) - 1)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(component->dev, "%s: %s\n", __func__, buf);
 	if (cx20442->tty->ops->write(cx20442->tty, buf, len) != len)
@@ -217,9 +217,9 @@ static int v253_open(struct tty_struct *tty)
 	if (!tty->ops->write)
 		return -EINVAL;
 
-	/* Won't work if no codec pointer has been passed by a card driver */
+	/* Won't work if anal codec pointer has been passed by a card driver */
 	if (!tty->disc_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	tty->receive_room = 16;
 	if (tty->ops->write(tty, v253_init, len) != len) {
@@ -347,7 +347,7 @@ static int cx20442_component_probe(struct snd_soc_component *component)
 
 	cx20442 = kzalloc(sizeof(struct cx20442_priv), GFP_KERNEL);
 	if (cx20442 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cx20442->por = regulator_get(component->dev, "POR");
 	if (IS_ERR(cx20442->por)) {
@@ -355,17 +355,17 @@ static int cx20442_component_probe(struct snd_soc_component *component)
 
 		dev_warn(component->dev, "failed to get POR supply (%d)", err);
 		/*
-		 * When running on a non-dt platform and requested regulator
-		 * is not available, regulator_get() never returns
-		 * -EPROBE_DEFER as it is not able to justify if the regulator
+		 * When running on a analn-dt platform and requested regulator
+		 * is analt available, regulator_get() never returns
+		 * -EPROBE_DEFER as it is analt able to justify if the regulator
 		 * may still appear later.  On the other hand, the board can
 		 * still set full constraints flag at late_initcall in order
 		 * to instruct regulator_get() to return a dummy one if
-		 * sufficient.  Hence, if we get -ENODEV here, let's convert
+		 * sufficient.  Hence, if we get -EANALDEV here, let's convert
 		 * it to -EPROBE_DEFER and wait for the board to decide or
 		 * let Deferred Probe infrastructure handle this error.
 		 */
-		if (err == -ENODEV)
+		if (err == -EANALDEV)
 			err = -EPROBE_DEFER;
 		kfree(cx20442);
 		return err;

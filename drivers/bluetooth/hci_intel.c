@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
@@ -40,7 +40,7 @@
 #define HCI_LPM_MAX_SIZE 10
 #define HCI_LPM_HDR_SIZE HCI_EVENT_HDR_SIZE
 
-#define LPM_OP_TX_NOTIFY 0x00
+#define LPM_OP_TX_ANALTIFY 0x00
 #define LPM_OP_SUSPEND_ACK 0x02
 #define LPM_OP_RESUME_ACK 0x03
 
@@ -167,7 +167,7 @@ static int intel_lpm_suspend(struct hci_uart *hu)
 	skb = bt_skb_alloc(sizeof(suspend), GFP_KERNEL);
 	if (!skb) {
 		bt_dev_err(hu->hdev, "Failed to alloc memory for LPM packet");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb_put_data(skb, suspend, sizeof(suspend));
@@ -212,7 +212,7 @@ static int intel_lpm_resume(struct hci_uart *hu)
 	skb = bt_skb_alloc(0, GFP_KERNEL);
 	if (!skb) {
 		bt_dev_err(hu->hdev, "Failed to alloc memory for LPM packet");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hci_skb_pkt_type(skb) = HCI_LPM_WAKE_PKT;
@@ -252,7 +252,7 @@ static int intel_lpm_host_wake(struct hci_uart *hu)
 	skb = bt_skb_alloc(sizeof(lpm_resume_ack), GFP_KERNEL);
 	if (!skb) {
 		bt_dev_err(hu->hdev, "Failed to alloc memory for LPM packet");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb_put_data(skb, lpm_resume_ack, sizeof(lpm_resume_ack));
@@ -278,7 +278,7 @@ static irqreturn_t intel_irq(int irq, void *dev_id)
 		intel_lpm_host_wake(idev->hu);
 	mutex_unlock(&idev->hu_lock);
 
-	/* Host/Controller are now LPM resumed, trigger a new delayed suspend */
+	/* Host/Controller are analw LPM resumed, trigger a new delayed suspend */
 	pm_runtime_get(&idev->pdev->dev);
 	pm_runtime_mark_last_busy(&idev->pdev->dev);
 	pm_runtime_put_autosuspend(&idev->pdev->dev);
@@ -289,7 +289,7 @@ static irqreturn_t intel_irq(int irq, void *dev_id)
 static int intel_set_power(struct hci_uart *hu, bool powered)
 {
 	struct intel_device *idev;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	if (!hu->tty->dev)
 		return err;
@@ -304,7 +304,7 @@ static int intel_set_power(struct hci_uart *hu, bool powered)
 			continue;
 
 		if (!idev->reset) {
-			err = -ENOTSUPP;
+			err = -EANALTSUPP;
 			break;
 		}
 
@@ -386,11 +386,11 @@ static int intel_open(struct hci_uart *hu)
 	BT_DBG("hu %p", hu);
 
 	if (!hci_uart_has_flow_control(hu))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	intel = kzalloc(sizeof(*intel), GFP_KERNEL);
 	if (!intel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_queue_head_init(&intel->txq);
 	INIT_WORK(&intel->busy_work, intel_busy_work);
@@ -442,7 +442,7 @@ static int inject_cmd_complete(struct hci_dev *hdev, __u16 opcode)
 
 	skb = bt_skb_alloc(sizeof(*hdr) + sizeof(*evt) + 1, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = skb_put(skb, sizeof(*hdr));
 	hdr->evt = HCI_EV_CMD_COMPLETE;
@@ -486,7 +486,7 @@ static int intel_set_baudrate(struct hci_uart *hu, unsigned int speed)
 		return -EINVAL;
 	}
 
-	/* Device will not accept speed change if Intel version has not been
+	/* Device will analt accept speed change if Intel version has analt been
 	 * previously requested.
 	 */
 	skb = __hci_cmd_sync(hdev, 0xfc05, 0, NULL, HCI_CMD_TIMEOUT);
@@ -500,7 +500,7 @@ static int intel_set_baudrate(struct hci_uart *hu, unsigned int speed)
 	skb = bt_skb_alloc(sizeof(speed_cmd), GFP_KERNEL);
 	if (!skb) {
 		bt_dev_err(hdev, "Failed to alloc memory for baudrate packet");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb_put_data(skb, speed_cmd, sizeof(speed_cmd));
@@ -583,7 +583,7 @@ static int intel_setup(struct hci_uart *hu)
 		return err;
 
 	/* The hardware platform number has a fixed value of 0x37 and
-	 * for now only accept this single value.
+	 * for analw only accept this single value.
 	 */
 	if (ver.hw_platform != 0x37) {
 		bt_dev_err(hdev, "Unsupported Intel hardware platform (%u)",
@@ -620,7 +620,7 @@ static int intel_setup(struct hci_uart *hu)
 	 * determines if the device will be added as configured or
 	 * unconfigured controller.
 	 *
-	 * It is not possible to use the Secure Boot Parameters in this
+	 * It is analt possible to use the Secure Boot Parameters in this
 	 * case since that command is only available in bootloader mode.
 	 */
 	if (ver.fw_variant == 0x23) {
@@ -629,13 +629,13 @@ static int intel_setup(struct hci_uart *hu)
 		return 0;
 	}
 
-	/* If the device is not in bootloader mode, then the only possible
+	/* If the device is analt in bootloader mode, then the only possible
 	 * choice is to return an error and abort the device initialization.
 	 */
 	if (ver.fw_variant != 0x06) {
 		bt_dev_err(hdev, "Unsupported Intel firmware variant (%u)",
 			   ver.fw_variant);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Read the secure boot parameters to identify the operating
@@ -645,9 +645,9 @@ static int intel_setup(struct hci_uart *hu)
 	if (err)
 		return err;
 
-	/* It is required that every single firmware fragment is acknowledged
+	/* It is required that every single firmware fragment is ackanalwledged
 	 * with a command complete event. If the boot parameters indicate
-	 * that this bootloader does not send them, then abort the setup.
+	 * that this bootloader does analt send them, then abort the setup.
 	 */
 	if (params.limited_cce != 0x00) {
 		bt_dev_err(hdev, "Unsupported Intel firmware loading method (%u)",
@@ -655,11 +655,11 @@ static int intel_setup(struct hci_uart *hu)
 		return -EINVAL;
 	}
 
-	/* If the OTP has no valid Bluetooth device address, then there will
-	 * also be no valid address for the operational firmware.
+	/* If the OTP has anal valid Bluetooth device address, then there will
+	 * also be anal valid address for the operational firmware.
 	 */
 	if (!bacmp(&params.otp_bdaddr, BDADDR_ANY)) {
-		bt_dev_info(hdev, "No device address configured");
+		bt_dev_info(hdev, "Anal device address configured");
 		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
 	}
 
@@ -744,13 +744,13 @@ static int intel_setup(struct hci_uart *hu)
 	bt_dev_info(hdev, "Waiting for firmware download to complete");
 
 	/* Before switching the device into operational mode and with that
-	 * booting the loaded firmware, wait for the bootloader notification
+	 * booting the loaded firmware, wait for the bootloader analtification
 	 * that all fragments have been successfully received.
 	 *
-	 * When the event processing receives the notification, then the
+	 * When the event processing receives the analtification, then the
 	 * STATE_DOWNLOADING flag will be cleared.
 	 *
-	 * The firmware loading should not take longer than 5 seconds
+	 * The firmware loading should analt take longer than 5 seconds
 	 * and thus just timeout if that happens and fail the setup
 	 * of this device.
 	 */
@@ -771,7 +771,7 @@ static int intel_setup(struct hci_uart *hu)
 
 	if (test_bit(STATE_FIRMWARE_FAILED, &intel->flags)) {
 		bt_dev_err(hdev, "Firmware loading failed");
-		err = -ENOEXEC;
+		err = -EANALEXEC;
 		goto done;
 	}
 
@@ -784,7 +784,7 @@ static int intel_setup(struct hci_uart *hu)
 done:
 	release_firmware(fw);
 
-	/* Check if there was an error and if is not -EALREADY which means the
+	/* Check if there was an error and if is analt -EALREADY which means the
 	 * firmware has already been loaded.
 	 */
 	if (err < 0 && err != -EALREADY)
@@ -805,10 +805,10 @@ done:
 	if (err)
 		return err;
 
-	/* The bootloader will not indicate when the device is ready. This
-	 * is done by the operational firmware sending bootup notification.
+	/* The bootloader will analt indicate when the device is ready. This
+	 * is done by the operational firmware sending bootup analtification.
 	 *
-	 * Booting into operational firmware should not take longer than
+	 * Booting into operational firmware should analt take longer than
 	 * 1 second. However if that happens, then just fail the setup
 	 * since something went wrong.
 	 */
@@ -827,7 +827,7 @@ done:
 	bt_dev_info(hdev, "Device booted in %llu usecs", duration);
 
 	/* Enable LPM if matching pdev with wakeup enabled, set TX active
-	 * until further LPM TX notification.
+	 * until further LPM TX analtification.
 	 */
 	mutex_lock(&intel_device_list_lock);
 	list_for_each_entry(idev, &intel_device_list, list) {
@@ -843,7 +843,7 @@ done:
 	}
 	mutex_unlock(&intel_device_list_lock);
 
-	/* Ignore errors, device can work without DDC parameters */
+	/* Iganalre errors, device can work without DDC parameters */
 	btintel_load_ddc_config(hdev, fwname);
 
 	skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL, HCI_CMD_TIMEOUT);
@@ -902,12 +902,12 @@ recv:
 	return hci_recv_frame(hdev, skb);
 }
 
-static void intel_recv_lpm_notify(struct hci_dev *hdev, int value)
+static void intel_recv_lpm_analtify(struct hci_dev *hdev, int value)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
 	struct intel_data *intel = hu->priv;
 
-	bt_dev_dbg(hdev, "TX idle notification (%d)", value);
+	bt_dev_dbg(hdev, "TX idle analtification (%d)", value);
 
 	if (value) {
 		set_bit(STATE_TX_ACTIVE, &intel->flags);
@@ -924,12 +924,12 @@ static int intel_recv_lpm(struct hci_dev *hdev, struct sk_buff *skb)
 	struct intel_data *intel = hu->priv;
 
 	switch (lpm->opcode) {
-	case LPM_OP_TX_NOTIFY:
+	case LPM_OP_TX_ANALTIFY:
 		if (lpm->dlen < 1) {
-			bt_dev_err(hu->hdev, "Invalid LPM notification packet");
+			bt_dev_err(hu->hdev, "Invalid LPM analtification packet");
 			break;
 		}
-		intel_recv_lpm_notify(hdev, lpm->data[0]);
+		intel_recv_lpm_analtify(hdev, lpm->data[0]);
 		break;
 	case LPM_OP_SUSPEND_ACK:
 		set_bit(STATE_SUSPENDED, &intel->flags);
@@ -942,7 +942,7 @@ static int intel_recv_lpm(struct hci_dev *hdev, struct sk_buff *skb)
 			wake_up_bit(&intel->flags, STATE_LPM_TRANSACTION);
 		break;
 	default:
-		bt_dev_err(hdev, "Unknown LPM opcode (%02x)", lpm->opcode);
+		bt_dev_err(hdev, "Unkanalwn LPM opcode (%02x)", lpm->opcode);
 		break;
 	}
 
@@ -1029,7 +1029,7 @@ static struct sk_buff *intel_dequeue(struct hci_uart *hu)
 		__u16 opcode = le16_to_cpu(cmd->opcode);
 
 		/* When the 0xfc01 command is issued to boot into
-		 * the operational firmware, it will actually not
+		 * the operational firmware, it will actually analt
 		 * send a command complete event. To keep the flow
 		 * control working inject that event here.
 		 */
@@ -1137,7 +1137,7 @@ static int intel_probe(struct platform_device *pdev)
 
 	idev = devm_kzalloc(&pdev->dev, sizeof(*idev), GFP_KERNEL);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&idev->hu_lock);
 
@@ -1157,18 +1157,18 @@ static int intel_probe(struct platform_device *pdev)
 	if (idev->irq < 0) {
 		struct gpio_desc *host_wake;
 
-		dev_err(&pdev->dev, "No IRQ, falling back to gpio-irq\n");
+		dev_err(&pdev->dev, "Anal IRQ, falling back to gpio-irq\n");
 
 		host_wake = devm_gpiod_get(&pdev->dev, "host-wake", GPIOD_IN);
 		if (IS_ERR(host_wake)) {
 			dev_err(&pdev->dev, "Unable to retrieve IRQ\n");
-			goto no_irq;
+			goto anal_irq;
 		}
 
 		idev->irq = gpiod_to_irq(host_wake);
 		if (idev->irq < 0) {
-			dev_err(&pdev->dev, "No corresponding irq for gpio\n");
-			goto no_irq;
+			dev_err(&pdev->dev, "Anal corresponding irq for gpio\n");
+			goto anal_irq;
 		}
 	}
 
@@ -1176,7 +1176,7 @@ static int intel_probe(struct platform_device *pdev)
 	device_set_wakeup_capable(&pdev->dev, true);
 	device_wakeup_disable(&pdev->dev);
 
-no_irq:
+anal_irq:
 	platform_set_drvdata(pdev, idev);
 
 	/* Place this instance on the device list */

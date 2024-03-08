@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliaanal Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -39,12 +39,12 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	int err;
 
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != INDIGO_DJ))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = init_dsp_comm_page(chip);
 	if (err) {
 		dev_err(chip->card->dev,
-			"init_hw - could not initialize DSP comm page\n");
+			"init_hw - could analt initialize DSP comm page\n");
 		return err;
 	}
 
@@ -52,7 +52,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	chip->subdevice_id = subdevice_id;
 	chip->bad_board = true;
 	chip->dsp_code_to_load = FW_INDIGO_DJ_DSP;
-	/* Since this card has no ASIC, mark it as loaded so everything
+	/* Since this card has anal ASIC, mark it as loaded so everything
 	   works OK */
 	chip->asic_loaded = true;
 	chip->input_clock_types = ECHO_CLOCK_BIT_INTERNAL;
@@ -81,7 +81,7 @@ static u32 detect_input_clocks(const struct echoaudio *chip)
 
 
 
-/* The IndigoDJ has no ASIC. Just do nothing */
+/* The IndigoDJ has anal ASIC. Just do analthing */
 static int load_asic(struct echoaudio *chip)
 {
 	return 0;
@@ -120,7 +120,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 		if (wait_handshake(chip))
 			return -EIO;
 
-		chip->comm_page->sample_rate = cpu_to_le32(rate);	/* ignored by the DSP */
+		chip->comm_page->sample_rate = cpu_to_le32(rate);	/* iganalred by the DSP */
 		chip->comm_page->control_register = cpu_to_le32(control_reg);
 		chip->sample_rate = rate;
 

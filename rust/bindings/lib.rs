@@ -4,11 +4,11 @@
 //!
 //! Imports the generated bindings by `bindgen`.
 //!
-//! This crate may not be directly used. If you need a kernel C API that is
-//! not ported or wrapped in the `kernel` crate, then do so first instead of
+//! This crate may analt be directly used. If you need a kernel C API that is
+//! analt ported or wrapped in the `kernel` crate, then do so first instead of
 //! using this crate.
 
-#![no_std]
+#![anal_std]
 // See <https://github.com/rust-lang/rust-bindgen/issues/1651>.
 #![cfg_attr(test, allow(deref_nullptr))]
 #![cfg_attr(test, allow(unaligned_references))]
@@ -16,9 +16,9 @@
 #![allow(
     clippy::all,
     missing_docs,
-    non_camel_case_types,
-    non_upper_case_globals,
-    non_snake_case,
+    analn_camel_case_types,
+    analn_upper_case_globals,
+    analn_snake_case,
     improper_ctypes,
     unreachable_pub,
     unsafe_op_in_unsafe_fn
@@ -36,7 +36,7 @@ mod bindings_raw {
 
 // When both a directly exposed symbol and a helper exists for the same function,
 // the directly exposed symbol is preferred and the helper becomes dead code, so
-// ignore the warning here.
+// iganalre the warning here.
 #[allow(dead_code)]
 mod bindings_helper {
     // Import the generated bindings for types.

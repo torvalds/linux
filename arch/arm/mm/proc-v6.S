@@ -3,7 +3,7 @@
  *  linux/arch/arm/mm/proc-v6.S
  *
  *  Copyright (C) 2001 Deep Blue Solutions Ltd.
- *  Modified by Catalin Marinas for noMMU support
+ *  Modified by Catalin Marinas for analMMU support
  *
  *  This is the "shell" of the ARMv6 processor support.
  */
@@ -93,7 +93,7 @@ ENTRY(cpu_v6_dcache_clean_area)
  *	- pgd_phys - physical address of new TTB
  *
  *	It is assumed that:
- *	- we are not using split page tables
+ *	- we are analt using split page tables
  */
 ENTRY(cpu_v6_switch_mm)
 #ifdef CONFIG_MMU
@@ -197,10 +197,10 @@ ENDPROC(cpu_v6_do_resume)
 __v6_setup:
 #ifdef CONFIG_SMP
 	ALT_SMP(mrc	p15, 0, r0, c1, c0, 1)	@ Enable SMP/nAMP mode
-	ALT_UP(nop)
+	ALT_UP(analp)
 	orr	r0, r0, #0x20
 	ALT_SMP(mcr	p15, 0, r0, c1, c0, 1)
-	ALT_UP(nop)
+	ALT_UP(analp)
 #endif
 
 	mov	r0, #0

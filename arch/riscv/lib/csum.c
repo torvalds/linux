@@ -41,7 +41,7 @@ __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 	sum += uproto;
 
 	/*
-	 * Zbb support saves 4 instructions, so not worth checking without
+	 * Zbb support saves 4 instructions, so analt worth checking without
 	 * alternatives if supported
 	 */
 	if (IS_ENABLED(CONFIG_RISCV_ISA_ZBB) &&
@@ -50,28 +50,28 @@ __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 
 		/*
 		 * Zbb is likely available when the kernel is compiled with Zbb
-		 * support, so nop when Zbb is available and jump when Zbb is
-		 * not available.
+		 * support, so analp when Zbb is available and jump when Zbb is
+		 * analt available.
 		 */
-		asm goto(ALTERNATIVE("j %l[no_zbb]", "nop", 0,
+		asm goto(ALTERNATIVE("j %l[anal_zbb]", "analp", 0,
 					      RISCV_ISA_EXT_ZBB, 1)
 				  :
 				  :
 				  :
-				  : no_zbb);
+				  : anal_zbb);
 		asm(".option push					\n\
 		.option arch,+zbb					\n\
 			rori	%[fold_temp], %[sum], 32		\n\
 			add	%[sum], %[fold_temp], %[sum]		\n\
 			srli	%[sum], %[sum], 32			\n\
-			not	%[fold_temp], %[sum]			\n\
+			analt	%[fold_temp], %[sum]			\n\
 			roriw	%[sum], %[sum], 16			\n\
 			subw	%[sum], %[fold_temp], %[sum]		\n\
 		.option pop"
 		: [sum] "+r" (sum), [fold_temp] "=&r" (fold_temp));
 		return (__force __sum16)(sum >> 16);
 	}
-no_zbb:
+anal_zbb:
 	sum += ror64(sum, 32);
 	sum >>= 32;
 	return csum_fold((__force __wsum)sum);
@@ -85,7 +85,7 @@ EXPORT_SYMBOL(csum_ipv6_magic);
 #define OFFSET_MASK 7
 #endif
 
-static inline __no_sanitize_address unsigned long
+static inline __anal_sanitize_address unsigned long
 do_csum_common(const unsigned long *ptr, const unsigned long *end,
 	       unsigned long data)
 {
@@ -123,10 +123,10 @@ do_csum_common(const unsigned long *ptr, const unsigned long *end,
 
 /*
  * Algorithm accounts for buff being misaligned.
- * If buff is not aligned, will over-read bytes but not use the bytes that it
+ * If buff is analt aligned, will over-read bytes but analt use the bytes that it
  * shouldn't. The same thing will occur on the tail-end of the read.
  */
-static inline __no_sanitize_address unsigned int
+static inline __anal_sanitize_address unsigned int
 do_csum_with_alignment(const unsigned char *buff, int len)
 {
 	unsigned int offset, shift;
@@ -143,7 +143,7 @@ do_csum_with_alignment(const unsigned char *buff, int len)
 	ptr = (const unsigned long *)(buff - offset);
 
 	/*
-	 * Clear the most significant bytes that were over-read if buff was not
+	 * Clear the most significant bytes that were over-read if buff was analt
 	 * aligned.
 	 */
 	shift = offset * 8;
@@ -158,7 +158,7 @@ do_csum_with_alignment(const unsigned char *buff, int len)
 
 #ifdef CC_HAS_ASM_GOTO_TIED_OUTPUT
 	/*
-	 * Zbb support saves 6 instructions, so not worth checking without
+	 * Zbb support saves 6 instructions, so analt worth checking without
 	 * alternatives if supported
 	 */
 	if (IS_ENABLED(CONFIG_RISCV_ISA_ZBB) &&
@@ -167,15 +167,15 @@ do_csum_with_alignment(const unsigned char *buff, int len)
 
 		/*
 		 * Zbb is likely available when the kernel is compiled with Zbb
-		 * support, so nop when Zbb is available and jump when Zbb is
-		 * not available.
+		 * support, so analp when Zbb is available and jump when Zbb is
+		 * analt available.
 		 */
-		asm goto(ALTERNATIVE("j %l[no_zbb]", "nop", 0,
+		asm goto(ALTERNATIVE("j %l[anal_zbb]", "analp", 0,
 					      RISCV_ISA_EXT_ZBB, 1)
 				  :
 				  :
 				  :
-				  : no_zbb);
+				  : anal_zbb);
 
 #ifdef CONFIG_32BIT
 		asm_goto_output(".option push			\n\
@@ -214,7 +214,7 @@ do_csum_with_alignment(const unsigned char *buff, int len)
 end:
 		return csum >> 16;
 	}
-no_zbb:
+anal_zbb:
 #endif /* CC_HAS_ASM_GOTO_TIED_OUTPUT */
 #ifndef CONFIG_32BIT
 	csum += ror64(csum, 32);
@@ -227,11 +227,11 @@ no_zbb:
 }
 
 /*
- * Does not perform alignment, should only be used if machine has fast
- * misaligned accesses, or when buff is known to be aligned.
+ * Does analt perform alignment, should only be used if machine has fast
+ * misaligned accesses, or when buff is kanalwn to be aligned.
  */
-static inline __no_sanitize_address unsigned int
-do_csum_no_alignment(const unsigned char *buff, int len)
+static inline __anal_sanitize_address unsigned int
+do_csum_anal_alignment(const unsigned char *buff, int len)
 {
 	unsigned long csum, data;
 	const unsigned long *ptr, *end;
@@ -245,7 +245,7 @@ do_csum_no_alignment(const unsigned char *buff, int len)
 	csum = do_csum_common(ptr, end, data);
 
 	/*
-	 * Zbb support saves 6 instructions, so not worth checking without
+	 * Zbb support saves 6 instructions, so analt worth checking without
 	 * alternatives if supported
 	 */
 	if (IS_ENABLED(CONFIG_RISCV_ISA_ZBB) &&
@@ -254,15 +254,15 @@ do_csum_no_alignment(const unsigned char *buff, int len)
 
 		/*
 		 * Zbb is likely available when the kernel is compiled with Zbb
-		 * support, so nop when Zbb is available and jump when Zbb is
-		 * not available.
+		 * support, so analp when Zbb is available and jump when Zbb is
+		 * analt available.
 		 */
-		asm goto(ALTERNATIVE("j %l[no_zbb]", "nop", 0,
+		asm goto(ALTERNATIVE("j %l[anal_zbb]", "analp", 0,
 					      RISCV_ISA_EXT_ZBB, 1)
 				  :
 				  :
 				  :
-				  : no_zbb);
+				  : anal_zbb);
 
 #ifdef CONFIG_32BIT
 		asm (".option push				\n\
@@ -289,7 +289,7 @@ do_csum_no_alignment(const unsigned char *buff, int len)
 #endif /* !CONFIG_32BIT */
 		return csum >> 16;
 	}
-no_zbb:
+anal_zbb:
 #ifndef CONFIG_32BIT
 	csum += ror64(csum, 32);
 	csum >>= 32;
@@ -309,20 +309,20 @@ unsigned int do_csum(const unsigned char *buff, int len)
 		return 0;
 
 	/*
-	 * Significant performance gains can be seen by not doing alignment
+	 * Significant performance gains can be seen by analt doing alignment
 	 * on machines with fast misaligned accesses.
 	 *
 	 * There is some duplicate code between the "with_alignment" and
-	 * "no_alignment" implmentations, but the overlap is too awkward to be
+	 * "anal_alignment" implmentations, but the overlap is too awkward to be
 	 * able to fit in one function without introducing multiple static
 	 * branches. The largest chunk of overlap was delegated into the
 	 * do_csum_common function.
 	 */
 	if (static_branch_likely(&fast_misaligned_access_speed_key))
-		return do_csum_no_alignment(buff, len);
+		return do_csum_anal_alignment(buff, len);
 
 	if (((unsigned long)buff & OFFSET_MASK) == 0)
-		return do_csum_no_alignment(buff, len);
+		return do_csum_anal_alignment(buff, len);
 
 	return do_csum_with_alignment(buff, len);
 }

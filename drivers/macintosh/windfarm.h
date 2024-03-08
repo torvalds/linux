@@ -12,7 +12,7 @@
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/device.h>
 
 /* Display a 16.16 fixed point value */
@@ -48,7 +48,7 @@ struct wf_control {
 #define WF_CONTROL_PWM_FAN		2
 
 
-/* Note about lifetime rules: wf_register_control() will initialize
+/* Analte about lifetime rules: wf_register_control() will initialize
  * the kref and wf_unregister_control will decrement it, thus the
  * object creating/disposing a given control shouldn't assume it
  * still exists after wf_unregister_control has been called.
@@ -122,20 +122,20 @@ static inline int wf_sensor_get(struct wf_sensor *sr, s32 *val)
 	return sr->ops->get_value(sr, val);
 }
 
-/* For use by clients. Note that we are a bit racy here since
- * notifier_block doesn't have a module owner field. I may fix
+/* For use by clients. Analte that we are a bit racy here since
+ * analtifier_block doesn't have a module owner field. I may fix
  * it one day ...
  *
- * LOCKING NOTE !
+ * LOCKING ANALTE !
  *
  * All "events" except WF_EVENT_TICK are called with an internal mutex
  * held which will deadlock if you call basically any core routine.
- * So don't ! Just take note of the event and do your actual operations
+ * So don't ! Just take analte of the event and do your actual operations
  * from the ticker.
  *
  */
-extern int wf_register_client(struct notifier_block *nb);
-extern int wf_unregister_client(struct notifier_block *nb);
+extern int wf_register_client(struct analtifier_block *nb);
+extern int wf_unregister_client(struct analtifier_block *nb);
 
 /* Overtemp conditions. Those are refcounted */
 extern void wf_set_overtemp(void);
@@ -143,13 +143,13 @@ extern void wf_clear_overtemp(void);
 
 #define WF_EVENT_NEW_CONTROL	0 /* param is wf_control * */
 #define WF_EVENT_NEW_SENSOR	1 /* param is wf_sensor * */
-#define WF_EVENT_OVERTEMP	2 /* no param */
-#define WF_EVENT_NORMALTEMP	3 /* overtemp condition cleared */
+#define WF_EVENT_OVERTEMP	2 /* anal param */
+#define WF_EVENT_ANALRMALTEMP	3 /* overtemp condition cleared */
 #define WF_EVENT_TICK		4 /* 1 second tick */
 
-/* Note: If that driver gets more broad use, we could replace the
+/* Analte: If that driver gets more broad use, we could replace the
  * simplistic overtemp bits with "environmental conditions". That
- * could then be used to also notify of things like fan failure,
+ * could then be used to also analtify of things like fan failure,
  * case open, battery conditions, ...
  */
 

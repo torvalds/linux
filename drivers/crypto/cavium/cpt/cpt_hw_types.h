@@ -15,7 +15,7 @@
  * Enumerates the values of CPT_RES_S[COMPCODE].
  */
 enum cpt_comp_e {
-	CPT_COMP_E_NOTDONE = 0x00,
+	CPT_COMP_E_ANALTDONE = 0x00,
 	CPT_COMP_E_GOOD = 0x01,
 	CPT_COMP_E_FAULT = 0x02,
 	CPT_COMP_E_SWERR = 0x03,
@@ -31,35 +31,35 @@ enum cpt_comp_e {
  * cpt_inst_s_s
  * Word 0
  * doneint:1 Done interrupt.
- *	0 = No interrupts related to this instruction.
+ *	0 = Anal interrupts related to this instruction.
  *	1 = When the instruction completes, CPT()_VQ()_DONE[DONE] will be
  *	incremented,and based on the rules described there an interrupt may
  *	occur.
  * Word 1
  * res_addr [127: 64] Result IOVA.
- *	If nonzero, specifies where to write CPT_RES_S.
- *	If zero, no result structure will be written.
+ *	If analnzero, specifies where to write CPT_RES_S.
+ *	If zero, anal result structure will be written.
  *	Address must be 16-byte aligned.
- *	Bits <63:49> are ignored by hardware; software should use a
+ *	Bits <63:49> are iganalred by hardware; software should use a
  *	sign-extended bit <48> for forward compatibility.
  * Word 2
- *  grp:10 [171:162] If [WQ_PTR] is nonzero, the SSO guest-group to use when
+ *  grp:10 [171:162] If [WQ_PTR] is analnzero, the SSO guest-group to use when
  *	CPT submits work SSO.
- *	For the SSO to not discard the add-work request, FPA_PF_MAP() must map
+ *	For the SSO to analt discard the add-work request, FPA_PF_MAP() must map
  *	[GRP] and CPT()_PF_Q()_GMCTL[GMID] as valid.
- *  tt:2 [161:160] If [WQ_PTR] is nonzero, the SSO tag type to use when CPT
+ *  tt:2 [161:160] If [WQ_PTR] is analnzero, the SSO tag type to use when CPT
  *	submits work to SSO
- *  tag:32 [159:128] If [WQ_PTR] is nonzero, the SSO tag to use when CPT
+ *  tag:32 [159:128] If [WQ_PTR] is analnzero, the SSO tag to use when CPT
  *	submits work to SSO.
  * Word 3
- *  wq_ptr [255:192] If [WQ_PTR] is nonzero, it is a pointer to a
+ *  wq_ptr [255:192] If [WQ_PTR] is analnzero, it is a pointer to a
  *	work-queue entry that CPT submits work to SSO after all context,
  *	output data, and result write operations are visible to other
  *	CNXXXX units and the cores. Bits <2:0> must be zero.
- *	Bits <63:49> are ignored by hardware; software should
+ *	Bits <63:49> are iganalred by hardware; software should
  *	use a sign-extended bit <48> for forward compatibility.
  *	Internal:
- *	Bits <63:49>, <2:0> are ignored by hardware, treated as always 0x0.
+ *	Bits <63:49>, <2:0> are iganalred by hardware, treated as always 0x0.
  * Word 4
  *  ei0; [319:256] Engine instruction word 0. Passed to the AE/SE.
  * Word 5
@@ -120,8 +120,8 @@ union cpt_inst_s {
  *	for the	associated instruction, as enumerated by CPT_COMP_E.
  *	Core software may write the memory location containing [COMPCODE] to
  *	0x0 before ringing the doorbell, and then poll for completion by
- *	checking for a nonzero value.
- *	Once the core observes a nonzero [COMPCODE] value in this case,the CPT
+ *	checking for a analnzero value.
+ *	Once the core observes a analnzero [COMPCODE] value in this case,the CPT
  *	coprocessor will have also completed L2/DRAM write operations.
  * Word 1
  *  reserved
@@ -242,7 +242,7 @@ union cptx_pf_exe_bist_status {
  *  reserved_60_63:4 [63:60] reserved.
  *  aura:12; [59:48](R/W) Guest-aura for returning this queue's
  *	instruction-chunk buffers to FPA. Only used when [INST_FREE] is set.
- *	For the FPA to not discard the request, FPA_PF_MAP() must map
+ *	For the FPA to analt discard the request, FPA_PF_MAP() must map
  *	[AURA] and CPT()_PF_Q()_GMCTL[GMID] as valid.
  *  reserved_45_47:3 [47:45] reserved.
  *  size:13 [44:32](R/W) Command-buffer size, in number of 64-bit words per
@@ -256,8 +256,8 @@ union cptx_pf_exe_bist_status {
  *	pipelining, additional instructions may have been processed between the
  *	instruction causing the error and the next instruction in the disabled
  *	queue (the instruction at CPT()_VQ()_SADDR).
- *	1 = Ignore errors and continue processing instructions.
- *	For diagnostic use only.
+ *	1 = Iganalre errors and continue processing instructions.
+ *	For diaganalstic use only.
  *  inst_free:1 [9:9](R/W) Instruction FPA free. When set, when CPT reaches the
  *	end of an instruction chunk, that chunk will be freed to the FPA.
  *  inst_be:1 [8:8](R/W) Instruction big-endian control. When set, instructions,
@@ -269,9 +269,9 @@ union cptx_pf_exe_bist_status {
  *	written back before being replaced.
  *	1 = The hardware issues NCB LDWB read-and-invalidate command towards
  *	the cache when fetching the last word of instructions; as a result the
- *	line will not be written back when replaced.  This improves
- *	performance, but software must not read the instructions after they are
- *	posted to the hardware.	Reads that do not consume the last word of a
+ *	line will analt be written back when replaced.  This improves
+ *	performance, but software must analt read the instructions after they are
+ *	posted to the hardware.	Reads that do analt consume the last word of a
  *	cache line always use LDI.
  *  reserved_4_6:3 [6:4] Reserved.
  *  grp:3; [3:1](R/W) Engine group.
@@ -429,9 +429,9 @@ union cptx_vqx_doorbell {
  *  reserved_8_63:56 [63:8] Reserved.
  *  inflight:8 [7:0](RO/H) Inflight count. Counts the number of instructions
  *	for the VF for which CPT is fetching, executing or responding to
- *	instructions. However this does not include any interrupts that are
+ *	instructions. However this does analt include any interrupts that are
  *	awaiting software handling (CPT()_VQ()_DONE[DONE] != 0x0).
- *	A queue may not be reconfigured until:
+ *	A queue may analt be reconfigured until:
  *	1. CPT()_VQ()_CTL[ENA] is cleared by software.
  *	2. [INFLIGHT] is polled until equals to zero.
  */
@@ -489,13 +489,13 @@ union cptx_vqx_misc_int {
  * Register (NCB) cpt#_vq#_done_ack
  *
  * CPT Queue Done Count Ack Registers
- * This register is written by software to acknowledge interrupts.
+ * This register is written by software to ackanalwledge interrupts.
  * cptx_vqx_done_ack_s
  * Word0
  *  reserved_20_63:44 [63:20] Reserved.
  *  done_ack:20 [19:0](R/W/H) Number of decrements to CPT()_VQ()_DONE[DONE].
- *	Reads CPT()_VQ()_DONE[DONE]. Written by software to acknowledge
- *	interrupts. If CPT()_VQ()_DONE[DONE] is still nonzero the interrupt
+ *	Reads CPT()_VQ()_DONE[DONE]. Written by software to ackanalwledge
+ *	interrupts. If CPT()_VQ()_DONE[DONE] is still analnzero the interrupt
  *	will be re-sent if the conditions described in CPT()_VQ()_DONE[DONE]
  *	are satisfied.
  *
@@ -523,34 +523,34 @@ union cptx_vqx_done_ack {
  *  reserved_20_63:44 [63:20] Reserved.
  *  done:20 [19:0](R/W/H) Done count. When CPT_INST_S[DONEINT] set and that
  *	instruction completes, CPT()_VQ()_DONE[DONE] is incremented when the
- *	instruction finishes. Write to this field are for diagnostic use only;
+ *	instruction finishes. Write to this field are for diaganalstic use only;
  *	instead software writes CPT()_VQ()_DONE_ACK with the number of
  *	decrements for this field.
  *	Interrupts are sent as follows:
- *	* When CPT()_VQ()_DONE[DONE] = 0, then no results are pending, the
- *	interrupt coalescing timer is held to zero, and an interrupt is not
+ *	* When CPT()_VQ()_DONE[DONE] = 0, then anal results are pending, the
+ *	interrupt coalescing timer is held to zero, and an interrupt is analt
  *	sent.
  *	* When CPT()_VQ()_DONE[DONE] != 0, then the interrupt coalescing timer
  *	counts. If the counter is >= CPT()_VQ()_DONE_WAIT[TIME_WAIT]*1024, or
- *	CPT()_VQ()_DONE[DONE] >= CPT()_VQ()_DONE_WAIT[NUM_WAIT], i.e. enough
- *	time has passed or enough results have arrived, then the interrupt is
+ *	CPT()_VQ()_DONE[DONE] >= CPT()_VQ()_DONE_WAIT[NUM_WAIT], i.e. eanalugh
+ *	time has passed or eanalugh results have arrived, then the interrupt is
  *	sent.
  *	* When CPT()_VQ()_DONE_ACK is written (or CPT()_VQ()_DONE is written
- *	but this is not typical), the interrupt coalescing timer restarts.
- *	Note after decrementing this interrupt equation is recomputed,
+ *	but this is analt typical), the interrupt coalescing timer restarts.
+ *	Analte after decrementing this interrupt equation is recomputed,
  *	for example if CPT()_VQ()_DONE[DONE] >= CPT()_VQ()_DONE_WAIT[NUM_WAIT]
  *	and because the timer is zero, the interrupt will be resent immediately.
- *	(This covers the race case between software acknowledging an interrupt
+ *	(This covers the race case between software ackanalwledging an interrupt
  *	and a result returning.)
- *	* When CPT()_VQ()_DONE_ENA_W1S[DONE] = 0, interrupts are not sent,
+ *	* When CPT()_VQ()_DONE_ENA_W1S[DONE] = 0, interrupts are analt sent,
  *	but the counting described above still occurs.
  *	Since CPT instructions complete out-of-order, if software is using
  *	completion interrupts the suggested scheme is to request a DONEINT on
  *	each request, and when an interrupt arrives perform a "greedy" scan for
- *	completions; even if a later command is acknowledged first this will
- *	not result in missing a completion.
- *	Software is responsible for making sure [DONE] does not overflow;
- *	for example by insuring there are not more than 2^20-1 instructions in
+ *	completions; even if a later command is ackanalwledged first this will
+ *	analt result in missing a completion.
+ *	Software is responsible for making sure [DONE] does analt overflow;
+ *	for example by insuring there are analt more than 2^20-1 instructions in
  *	flight that may request interrupts.
  *
  */
@@ -611,7 +611,7 @@ union cptx_vqx_done_wait {
  * Word0
  *  reserved_1_63:63 [63:1] Reserved.
  *  done:1 [0:0](R/W1S/H) Write 1 will enable DONEINT for this queue.
- *	Write 0 has no effect. Read will return the enable bit.
+ *	Write 0 has anal effect. Read will return the enable bit.
  */
 union cptx_vqx_done_ena_w1s {
 	u64 u;

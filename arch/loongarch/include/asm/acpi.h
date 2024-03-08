@@ -2,7 +2,7 @@
 /*
  * Author: Jianmin Lv <lvjianmin@loongson.cn>
  *         Huacai Chen <chenhuacai@loongson.cn>
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef _ASM_LOONGARCH_ACPI_H
@@ -14,7 +14,7 @@
 extern int acpi_strict;
 extern int acpi_disabled;
 extern int acpi_pci_disabled;
-extern int acpi_noirq;
+extern int acpi_analirq;
 extern int pptt_enabled;
 
 #define acpi_os_ioremap acpi_os_ioremap
@@ -24,7 +24,7 @@ static inline void disable_acpi(void)
 {
 	acpi_disabled = 1;
 	acpi_pci_disabled = 1;
-	acpi_noirq = 1;
+	acpi_analirq = 1;
 }
 
 static inline bool acpi_has_cpu_in_madt(void)

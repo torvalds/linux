@@ -16,9 +16,9 @@ targets += $(OBJECTS) sizes.h
 
 KBUILD_CFLAGS := -D__KERNEL__ -O2 -DBOOTLOADER
 KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
-KBUILD_CFLAGS += -fno-strict-aliasing
-KBUILD_CFLAGS += $(cflags-y) -fno-delete-null-pointer-checks -fno-builtin-printf
-KBUILD_CFLAGS += -fno-PIE -mno-space-regs -mdisable-fpregs -Os
+KBUILD_CFLAGS += -fanal-strict-aliasing
+KBUILD_CFLAGS += $(cflags-y) -fanal-delete-null-pointer-checks -fanal-builtin-printf
+KBUILD_CFLAGS += -fanal-PIE -manal-space-regs -mdisable-fpregs -Os
 ifndef CONFIG_64BIT
 KBUILD_CFLAGS += -mfast-indirect-calls
 endif
@@ -46,7 +46,7 @@ AFLAGS_real2.o += -DBOOTLOADER
 CPPFLAGS_vmlinux.lds += -I$(objtree)/$(obj) -DBOOTLOADER
 $(obj)/vmlinux.lds: $(obj)/sizes.h
 
-OBJCOPYFLAGS_vmlinux.bin := -R .comment -R .note -S
+OBJCOPYFLAGS_vmlinux.bin := -R .comment -R .analte -S
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 

@@ -26,7 +26,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #include "s5c73m3.h"
 
@@ -117,7 +117,7 @@ static void s5c73m3_fill_mbus_fmt(struct v4l2_mbus_framefmt *mf,
 	mf->height = fs->height;
 	mf->code = code;
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 }
 
 static int s5c73m3_i2c_write(struct i2c_client *client, u16 addr, u16 data)
@@ -517,13 +517,13 @@ static int s5c73m3_read_fw_version(struct s5c73m3 *state)
 static int s5c73m3_fw_update_from(struct s5c73m3 *state)
 {
 	struct v4l2_subdev *sd = &state->sensor_sd;
-	u16 status = COMM_FW_UPDATE_NOT_READY;
+	u16 status = COMM_FW_UPDATE_ANALT_READY;
 	int ret;
 	int count = 0;
 
 	v4l2_warn(sd, "Updating F-ROM firmware.\n");
 	do {
-		if (status == COMM_FW_UPDATE_NOT_READY) {
+		if (status == COMM_FW_UPDATE_ANALT_READY) {
 			ret = s5c73m3_isp_command(state, COMM_FW_UPDATE, 0);
 			if (ret < 0)
 				return ret;
@@ -581,7 +581,7 @@ static int s5c73m3_spi_boot(struct s5c73m3 *state, bool load_fw)
 	/* Check SPI status */
 	ret = s5c73m3_system_status_wait(state, 0x210d, 100, 300);
 	if (ret < 0)
-		v4l2_err(sd, "SPI not ready: %d\n", ret);
+		v4l2_err(sd, "SPI analt ready: %d\n", ret);
 
 	/* Firmware download over SPI */
 	if (load_fw)
@@ -692,7 +692,7 @@ static int s5c73m3_get_fw_version(struct s5c73m3 *state)
 	/* Check SPI status */
 	ret = s5c73m3_system_status_wait(state, 0x230e, 100, 300);
 	if (ret < 0)
-		v4l2_err(sd, "SPI not ready: %d\n", ret);
+		v4l2_err(sd, "SPI analt ready: %d\n", ret);
 
 	/* ARM reset */
 	ret = s5c73m3_write(state, 0x30000004, 0xfffd);
@@ -898,10 +898,10 @@ static int __s5c73m3_set_frame_interval(struct s5c73m3 *state,
 	unsigned int ret, min_err = UINT_MAX;
 	unsigned int i, fr_time;
 
-	if (fi->interval.denominator == 0)
+	if (fi->interval.deanalminator == 0)
 		return -EINVAL;
 
-	fr_time = fi->interval.numerator * 1000 / fi->interval.denominator;
+	fr_time = fi->interval.numerator * 1000 / fi->interval.deanalminator;
 
 	for (i = 0; i < ARRAY_SIZE(s5c73m3_intervals); i++) {
 		const struct s5c73m3_interval *iv = &s5c73m3_intervals[i];
@@ -941,7 +941,7 @@ static int s5c73m3_oif_set_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	v4l2_dbg(1, s5c73m3_dbg, sd, "Setting %d/%d frame interval\n",
-		 fi->interval.numerator, fi->interval.denominator);
+		 fi->interval.numerator, fi->interval.deanalminator);
 
 	mutex_lock(&state->lock);
 
@@ -1537,19 +1537,19 @@ static const struct v4l2_subdev_ops oif_subdev_ops = {
 static int s5c73m3_get_dt_data(struct s5c73m3 *state)
 {
 	struct device *dev = &state->i2c_client->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *node_ep;
-	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
+	struct device_analde *analde = dev->of_analde;
+	struct device_analde *analde_ep;
+	struct v4l2_fwanalde_endpoint ep = { .bus_type = 0 };
 	int ret;
 
-	if (!node)
+	if (!analde)
 		return -EINVAL;
 
 	state->clock = devm_clk_get(dev, S5C73M3_CLK_NAME);
 	if (IS_ERR(state->clock))
 		return PTR_ERR(state->clock);
 
-	if (of_property_read_u32(node, "clock-frequency",
+	if (of_property_read_u32(analde, "clock-frequency",
 				 &state->mclk_frequency)) {
 		state->mclk_frequency = S5C73M3_DEFAULT_MCLK_FREQ;
 		dev_info(dev, "using default %u Hz clock frequency\n",
@@ -1568,14 +1568,14 @@ static int s5c73m3_get_dt_data(struct s5c73m3 *state)
 				     "failed to request gpio S5C73M3_RST\n");
 	gpiod_set_consumer_name(state->reset, "S5C73M3_RST");
 
-	node_ep = of_graph_get_next_endpoint(node, NULL);
-	if (!node_ep) {
-		dev_warn(dev, "no endpoint defined for node: %pOF\n", node);
+	analde_ep = of_graph_get_next_endpoint(analde, NULL);
+	if (!analde_ep) {
+		dev_warn(dev, "anal endpoint defined for analde: %pOF\n", analde);
 		return 0;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(node_ep), &ep);
-	of_node_put(node_ep);
+	ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(analde_ep), &ep);
+	of_analde_put(analde_ep);
 	if (ret)
 		return ret;
 
@@ -1584,7 +1584,7 @@ static int s5c73m3_get_dt_data(struct s5c73m3 *state)
 		return -EINVAL;
 	}
 	/*
-	 * Number of MIPI CSI-2 data lanes is currently not configurable,
+	 * Number of MIPI CSI-2 data lanes is currently analt configurable,
 	 * always a default value of 4 lanes is used.
 	 */
 	if (ep.bus.mipi_csi2.num_data_lanes != S5C73M3_MIPI_DATA_LANES)
@@ -1603,7 +1603,7 @@ static int s5c73m3_probe(struct i2c_client *client)
 
 	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->i2c_client = client;
 	ret = s5c73m3_get_dt_data(state);
@@ -1620,7 +1620,7 @@ static int s5c73m3_probe(struct i2c_client *client)
 	strscpy(sd->name, "S5C73M3", sizeof(sd->name));
 
 	sd->internal_ops = &s5c73m3_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	state->sensor_pads[S5C73M3_JPEG_PAD].flags = MEDIA_PAD_FL_SOURCE;
 	state->sensor_pads[S5C73M3_ISP_PAD].flags = MEDIA_PAD_FL_SOURCE;
@@ -1636,7 +1636,7 @@ static int s5c73m3_probe(struct i2c_client *client)
 	strscpy(oif_sd->name, "S5C73M3-OIF", sizeof(oif_sd->name));
 
 	oif_sd->internal_ops = &oif_internal_ops;
-	oif_sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	oif_sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	state->oif_pads[OIF_ISP_PAD].flags = MEDIA_PAD_FL_SINK;
 	state->oif_pads[OIF_JPEG_PAD].flags = MEDIA_PAD_FL_SINK;

@@ -56,11 +56,11 @@
 #define PGID_MCIPV4			(PGID_AGGR - 2)
 #define PGID_MCIPV6			(PGID_AGGR - 1)
 
-/* Non-reserved PGIDs, used for general purpose */
+/* Analn-reserved PGIDs, used for general purpose */
 #define PGID_GP_START			(CPU_PORT + 1)
 #define PGID_GP_END			PGID_CPU
 
-#define LAN966X_SPEED_NONE		0
+#define LAN966X_SPEED_ANALNE		0
 #define LAN966X_SPEED_2500		1
 #define LAN966X_SPEED_1000		1
 #define LAN966X_SPEED_100		2
@@ -70,7 +70,7 @@
 #define LAN966X_PHC_PORT		0
 #define LAN966X_PHC_PINS_NUM		7
 
-#define IFH_REW_OP_NOOP			0x0
+#define IFH_REW_OP_ANALOP			0x0
 #define IFH_REW_OP_ONE_STEP_PTP		0x3
 #define IFH_REW_OP_TWO_STEP_PTP		0x4
 
@@ -122,13 +122,13 @@
 #define LAN966X_PORT_QOS_REWR_DSCP_ALL		3
 
 /* MAC table entry types.
- * ENTRYTYPE_NORMAL is subject to aging.
- * ENTRYTYPE_LOCKED is not subject to aging.
- * ENTRYTYPE_MACv4 is not subject to aging. For IPv4 multicast.
- * ENTRYTYPE_MACv6 is not subject to aging. For IPv6 multicast.
+ * ENTRYTYPE_ANALRMAL is subject to aging.
+ * ENTRYTYPE_LOCKED is analt subject to aging.
+ * ENTRYTYPE_MACv4 is analt subject to aging. For IPv4 multicast.
+ * ENTRYTYPE_MACv6 is analt subject to aging. For IPv6 multicast.
  */
 enum macaccess_entry_type {
-	ENTRYTYPE_NORMAL = 0,
+	ENTRYTYPE_ANALRMAL = 0,
 	ENTRYTYPE_LOCKED,
 	ENTRYTYPE_MACV4,
 	ENTRYTYPE_MACV6,
@@ -151,7 +151,7 @@ enum lan966x_fdma_action {
 
 /* Controls how PORT_MASK is applied */
 enum LAN966X_PORT_MASK_MODE {
-	LAN966X_PMM_NO_ACTION,
+	LAN966X_PMM_ANAL_ACTION,
 	LAN966X_PMM_REPLACE,
 	LAN966X_PMM_FORWARDING,
 	LAN966X_PMM_REDIRECT,
@@ -165,14 +165,14 @@ enum vcap_is2_port_sel_ipv6 {
 };
 
 enum vcap_is1_port_sel_other {
-	VCAP_IS1_PS_OTHER_NORMAL,
+	VCAP_IS1_PS_OTHER_ANALRMAL,
 	VCAP_IS1_PS_OTHER_7TUPLE,
 	VCAP_IS1_PS_OTHER_DBL_VID,
 	VCAP_IS1_PS_OTHER_DMAC_VID,
 };
 
 enum vcap_is1_port_sel_ipv4 {
-	VCAP_IS1_PS_IPV4_NORMAL,
+	VCAP_IS1_PS_IPV4_ANALRMAL,
 	VCAP_IS1_PS_IPV4_7TUPLE,
 	VCAP_IS1_PS_IPV4_5TUPLE_IP4,
 	VCAP_IS1_PS_IPV4_DBL_VID,
@@ -180,17 +180,17 @@ enum vcap_is1_port_sel_ipv4 {
 };
 
 enum vcap_is1_port_sel_ipv6 {
-	VCAP_IS1_PS_IPV6_NORMAL,
+	VCAP_IS1_PS_IPV6_ANALRMAL,
 	VCAP_IS1_PS_IPV6_7TUPLE,
 	VCAP_IS1_PS_IPV6_5TUPLE_IP4,
-	VCAP_IS1_PS_IPV6_NORMAL_IP6,
+	VCAP_IS1_PS_IPV6_ANALRMAL_IP6,
 	VCAP_IS1_PS_IPV6_5TUPLE_IP6,
 	VCAP_IS1_PS_IPV6_DBL_VID,
 	VCAP_IS1_PS_IPV6_DMAC_VID,
 };
 
 enum vcap_is1_port_sel_rt {
-	VCAP_IS1_PS_RT_NORMAL,
+	VCAP_IS1_PS_RT_ANALRMAL,
 	VCAP_IS1_PS_RT_7TUPLE,
 	VCAP_IS1_PS_RT_DBL_VID,
 	VCAP_IS1_PS_RT_DMAC_VID,
@@ -454,7 +454,7 @@ struct lan966x_port {
 	struct lan966x_port_config config;
 	struct phylink *phylink;
 	struct phy *serdes;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 
 	u8 ptp_tx_cmd;
 	bool ptp_rx_cmd;
@@ -474,13 +474,13 @@ struct lan966x_port {
 extern const struct phylink_mac_ops lan966x_phylink_mac_ops;
 extern const struct phylink_pcs_ops lan966x_phylink_pcs_ops;
 extern const struct ethtool_ops lan966x_ethtool_ops;
-extern struct notifier_block lan966x_switchdev_nb __read_mostly;
-extern struct notifier_block lan966x_switchdev_blocking_nb __read_mostly;
+extern struct analtifier_block lan966x_switchdev_nb __read_mostly;
+extern struct analtifier_block lan966x_switchdev_blocking_nb __read_mostly;
 
 bool lan966x_netdevice_check(const struct net_device *dev);
 
-void lan966x_register_notifier_blocks(void);
-void lan966x_unregister_notifier_blocks(void);
+void lan966x_register_analtifier_blocks(void);
+void lan966x_unregister_analtifier_blocks(void);
 
 bool lan966x_hw_offload(struct lan966x *lan966x, u32 port, struct sk_buff *skb);
 
@@ -564,7 +564,7 @@ void lan966x_fdb_flush_workqueue(struct lan966x *lan966x);
 int lan966x_handle_fdb(struct net_device *dev,
 		       struct net_device *orig_dev,
 		       unsigned long event, const void *ctx,
-		       const struct switchdev_notifier_fdb_info *fdb_info);
+		       const struct switchdev_analtifier_fdb_info *fdb_info);
 
 void lan966x_mdb_init(struct lan966x *lan966x);
 void lan966x_mdb_deinit(struct lan966x *lan966x);
@@ -614,22 +614,22 @@ int lan966x_lag_port_join(struct lan966x_port *port,
 			  struct netlink_ext_ack *extack);
 void lan966x_lag_port_leave(struct lan966x_port *port, struct net_device *bond);
 int lan966x_lag_port_prechangeupper(struct net_device *dev,
-				    struct netdev_notifier_changeupper_info *info);
+				    struct netdev_analtifier_changeupper_info *info);
 int lan966x_lag_port_changelowerstate(struct net_device *dev,
-				      struct netdev_notifier_changelowerstate_info *info);
+				      struct netdev_analtifier_changelowerstate_info *info);
 int lan966x_lag_netdev_prechangeupper(struct net_device *dev,
-				      struct netdev_notifier_changeupper_info *info);
+				      struct netdev_analtifier_changeupper_info *info);
 int lan966x_lag_netdev_changeupper(struct net_device *dev,
-				   struct netdev_notifier_changeupper_info *info);
+				   struct netdev_analtifier_changeupper_info *info);
 bool lan966x_lag_first_port(struct net_device *lag, struct net_device *dev);
 u32 lan966x_lag_get_mask(struct lan966x *lan966x, struct net_device *bond);
 
 int lan966x_port_changeupper(struct net_device *dev,
 			     struct net_device *brport_dev,
-			     struct netdev_notifier_changeupper_info *info);
+			     struct netdev_analtifier_changeupper_info *info);
 int lan966x_port_prechangeupper(struct net_device *dev,
 				struct net_device *brport_dev,
-				struct netdev_notifier_changeupper_info *info);
+				struct netdev_analtifier_changeupper_info *info);
 void lan966x_port_stp_state_set(struct lan966x_port *port, u8 state);
 void lan966x_port_ageing_set(struct lan966x_port *port,
 			     unsigned long ageing_clock_t);

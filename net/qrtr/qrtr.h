@@ -6,7 +6,7 @@
 
 struct sk_buff;
 
-/* endpoint node id auto assignment */
+/* endpoint analde id auto assignment */
 #define QRTR_EP_NID_AUTO (-1)
 
 /**
@@ -19,8 +19,8 @@ struct sk_buff;
  */
 struct qrtr_endpoint {
 	int (*xmit)(struct qrtr_endpoint *ep, struct sk_buff *skb);
-	/* private: not for endpoint use */
-	struct qrtr_node *node;
+	/* private: analt for endpoint use */
+	struct qrtr_analde *analde;
 };
 
 int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int nid);

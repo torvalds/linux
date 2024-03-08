@@ -83,17 +83,17 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *state);
  */
 acpi_status
 acpi_ds_create_field(union acpi_parse_object *op,
-		     struct acpi_namespace_node *region_node,
+		     struct acpi_namespace_analde *region_analde,
 		     struct acpi_walk_state *walk_state);
 
 acpi_status
 acpi_ds_create_bank_field(union acpi_parse_object *op,
-			  struct acpi_namespace_node *region_node,
+			  struct acpi_namespace_analde *region_analde,
 			  struct acpi_walk_state *walk_state);
 
 acpi_status
 acpi_ds_create_index_field(union acpi_parse_object *op,
-			   struct acpi_namespace_node *region_node,
+			   struct acpi_namespace_analde *region_analde,
 			   struct acpi_walk_state *walk_state);
 
 acpi_status
@@ -139,7 +139,7 @@ acpi_status
 acpi_ds_method_data_get_entry(u16 opcode,
 			      u32 index,
 			      struct acpi_walk_state *walk_state,
-			      union acpi_operand_object ***node);
+			      union acpi_operand_object ***analde);
 
 void acpi_ds_method_data_delete_all(struct acpi_walk_state *walk_state);
 
@@ -157,10 +157,10 @@ acpi_ds_method_data_init_args(union acpi_operand_object **params,
 			      struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ds_method_data_get_node(u8 type,
+acpi_ds_method_data_get_analde(u8 type,
 			     u32 index,
 			     struct acpi_walk_state *walk_state,
-			     struct acpi_namespace_node **node);
+			     struct acpi_namespace_analde **analde);
 
 void acpi_ds_method_data_init(struct acpi_walk_state *walk_state);
 
@@ -168,7 +168,7 @@ void acpi_ds_method_data_init(struct acpi_walk_state *walk_state);
  * dsmethod - Parser/Interpreter interface - control method parsing
  */
 acpi_status
-acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
+acpi_ds_auto_serialize_method(struct acpi_namespace_analde *analde,
 			      union acpi_operand_object *obj_desc);
 
 acpi_status
@@ -185,7 +185,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 				 struct acpi_walk_state *walk_state);
 
 acpi_status
-acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
+acpi_ds_begin_method_execution(struct acpi_namespace_analde *method_analde,
 			       union acpi_operand_object *obj_desc,
 			       struct acpi_walk_state *walk_state);
 
@@ -197,7 +197,7 @@ acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state);
  */
 acpi_status
 acpi_ds_initialize_objects(u32 table_index,
-			   struct acpi_namespace_node *start_node);
+			   struct acpi_namespace_analde *start_analde);
 
 /*
  * dsobject - Parser/Interpreter interface - object initialization and conversion
@@ -225,8 +225,8 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			    u16 opcode, union acpi_operand_object **obj_desc);
 
 acpi_status
-acpi_ds_create_node(struct acpi_walk_state *walk_state,
-		    struct acpi_namespace_node *node,
+acpi_ds_create_analde(struct acpi_walk_state *walk_state,
+		    struct acpi_namespace_analde *analde,
 		    union acpi_parse_object *op);
 
 /*
@@ -252,7 +252,7 @@ acpi_ds_is_result_used(union acpi_parse_object *op,
 		       struct acpi_walk_state *walk_state);
 
 void
-acpi_ds_delete_result_if_not_used(union acpi_parse_object *op,
+acpi_ds_delete_result_if_analt_used(union acpi_parse_object *op,
 				  union acpi_operand_object *result_obj,
 				  struct acpi_walk_state *walk_state);
 
@@ -274,7 +274,7 @@ acpi_status acpi_ds_evaluate_name_path(struct acpi_walk_state *walk_state);
  * dswscope - Scope Stack manipulation
  */
 acpi_status
-acpi_ds_scope_stack_push(struct acpi_namespace_node *node,
+acpi_ds_scope_stack_push(struct acpi_namespace_analde *analde,
 			 acpi_object_type type,
 			 struct acpi_walk_state *walk_state);
 
@@ -302,7 +302,7 @@ struct acpi_walk_state * acpi_ds_create_walk_state(acpi_owner_id owner_id,
 acpi_status
 acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 		      union acpi_parse_object *op,
-		      struct acpi_namespace_node *method_node,
+		      struct acpi_namespace_analde *method_analde,
 		      u8 * aml_start,
 		      u32 aml_length,
 		      struct acpi_evaluate_info *info, u8 pass_number);

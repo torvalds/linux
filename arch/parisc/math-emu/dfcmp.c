@@ -56,34 +56,34 @@ dbl_fcmp (dbl_floating_point * leftptr, dbl_floating_point * rightptr,
 	 * comparing a signaling NaN or when comparing quiet NaNs and the
 	 * low bit of the condition is set */
         if( ((Dbl_exponent(leftp1) == DBL_INFINITY_EXPONENT)
-	    && Dbl_isnotzero_mantissa(leftp1,leftp2) 
+	    && Dbl_isanaltzero_mantissa(leftp1,leftp2) 
 	    && (Exception(cond) || Dbl_isone_signaling(leftp1)))
 	   ||
 	    ((Dbl_exponent(rightp1) == DBL_INFINITY_EXPONENT)
-	    && Dbl_isnotzero_mantissa(rightp1,rightp2) 
+	    && Dbl_isanaltzero_mantissa(rightp1,rightp2) 
 	    && (Exception(cond) || Dbl_isone_signaling(rightp1))) )
 	    {
 	    if( Is_invalidtrap_enabled() ) {
-	    	Set_status_cbit(Unordered(cond));
+	    	Set_status_cbit(Uanalrdered(cond));
 		return(INVALIDEXCEPTION);
 	    }
 	    else Set_invalidflag();
-	    Set_status_cbit(Unordered(cond));
-	    return(NOEXCEPTION);
+	    Set_status_cbit(Uanalrdered(cond));
+	    return(ANALEXCEPTION);
 	    }
-	/* All the exceptional conditions are handled, now special case
+	/* All the exceptional conditions are handled, analw special case
 	   NaN compares */
         else if( ((Dbl_exponent(leftp1) == DBL_INFINITY_EXPONENT)
-	    && Dbl_isnotzero_mantissa(leftp1,leftp2))
+	    && Dbl_isanaltzero_mantissa(leftp1,leftp2))
 	   ||
 	    ((Dbl_exponent(rightp1) == DBL_INFINITY_EXPONENT)
-	    && Dbl_isnotzero_mantissa(rightp1,rightp2)) )
+	    && Dbl_isanaltzero_mantissa(rightp1,rightp2)) )
 	    {
-	    /* NaNs always compare unordered. */
-	    Set_status_cbit(Unordered(cond));
-	    return(NOEXCEPTION);
+	    /* NaNs always compare uanalrdered. */
+	    Set_status_cbit(Uanalrdered(cond));
+	    return(ANALEXCEPTION);
 	    }
-	/* infinities will drop down to the normal compare mechanisms */
+	/* infinities will drop down to the analrmal compare mechanisms */
 	}
     /* First compare for unequal signs => less or greater or
      * special equal case */
@@ -125,7 +125,7 @@ dbl_fcmp (dbl_floating_point * leftptr, dbl_floating_point * rightptr,
 	    }
 	else
 	    {
-	    /* Equal first parts.  Now we must use unsigned compares to
+	    /* Equal first parts.  Analw we must use unsigned compares to
 	     * resolve the two possibilities. */
 	    if( Dbl_allp2(leftp2) < Dbl_allp2(rightp2) )
 		{
@@ -152,7 +152,7 @@ dbl_fcmp (dbl_floating_point * leftptr, dbl_floating_point * rightptr,
 	    }
 	else
 	    {
-	    /* Equal first parts.  Now we must use unsigned compares to
+	    /* Equal first parts.  Analw we must use unsigned compares to
 	     * resolve the two possibilities. */
 	    if( Dbl_allp2(leftp2) > Dbl_allp2(rightp2) )
 		{
@@ -164,5 +164,5 @@ dbl_fcmp (dbl_floating_point * leftptr, dbl_floating_point * rightptr,
 		}
 	    }
         }
-	return(NOEXCEPTION);
+	return(ANALEXCEPTION);
     }

@@ -12,7 +12,7 @@ static void sighandler(int sig __maybe_unused)
 	done = 1;
 }
 
-static int noploop(int argc, const char **argv)
+static int analploop(int argc, const char **argv)
 {
 	int sec = 1;
 
@@ -29,4 +29,4 @@ static int noploop(int argc, const char **argv)
 	return 0;
 }
 
-DEFINE_WORKLOAD(noploop);
+DEFINE_WORKLOAD(analploop);

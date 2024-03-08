@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -97,7 +97,7 @@ static void reset_lb_on_vblank(struct compressor *compressor, uint32_t crtc_inst
 			udelay(10);
 		}
 		if (!retry)
-			dm_error("Frame count did not increase for 100ms.\n");
+			dm_error("Frame count did analt increase for 100ms.\n");
 
 		/* Resetting LB on VBlank */
 		value = dm_read_reg(compressor->ctx, DCP_REG(mmLB_SYNC_RESET_SEL));
@@ -127,7 +127,7 @@ static void wait_for_fbc_state_changed(
 	}
 
 	if (counter == 1000) {
-		DC_LOG_WARNING("%s: wait counter exceeded, changes to HW not applied",
+		DC_LOG_WARNING("%s: wait counter exceeded, changes to HW analt applied",
 			__func__);
 	} else {
 		DC_LOG_SYNC("FBC status changed to %d", enabled);
@@ -207,7 +207,7 @@ void dce110_compressor_enable_fbc(
 		/* Keep track of enum controller_id FBC is attached to */
 		compressor->is_enabled = true;
 		/* attached_inst is SW CRTC instance start from 1
-		 * 0 = CONTROLLER_ID_UNDEFINED means not attached crtc
+		 * 0 = CONTROLLER_ID_UNDEFINED means analt attached crtc
 		 */
 		compressor->attached_inst = params->inst + CONTROLLER_ID_D0;
 
@@ -345,7 +345,7 @@ void dce110_compressor_set_fbc_invalidation_triggers(
 	uint32_t fbc_trigger)
 {
 	/* Disable region hit event, FBC_MEMORY_REGION_MASK = 0 (bits 16-19)
-	 * for DCE 11 regions cannot be used - does not work with S/G
+	 * for DCE 11 regions cananalt be used - does analt work with S/G
 	 */
 	uint32_t addr = mmFBC_CLIENT_REGION_MASK;
 	uint32_t value = dm_read_reg(compressor->ctx, addr);
@@ -359,11 +359,11 @@ void dce110_compressor_set_fbc_invalidation_triggers(
 
 	/* Setup events when to clear all CSM entries (effectively marking
 	 * current compressed data invalid)
-	 * For DCE 11 CSM metadata 11111 means - "Not Compressed"
+	 * For DCE 11 CSM metadata 11111 means - "Analt Compressed"
 	 * Used as the initial value of the metadata sent to the compressor
 	 * after invalidation, to indicate that the compressor should attempt
 	 * to compress all chunks on the current pass.  Also used when the chunk
-	 * is not successfully written to memory.
+	 * is analt successfully written to memory.
 	 * When this CSM value is detected, FBC reads from the uncompressed
 	 * buffer. Set events according to passed in value, these events are
 	 * valid for DCE11:
@@ -445,7 +445,7 @@ void dce110_compressor_construct(struct dce110_compressor *compressor,
 
 	/*
 	 * check if this system has more than 1 dram channel; if only 1 then lpt
-	 * should not be supported
+	 * should analt be supported
 	 */
 
 

@@ -382,7 +382,7 @@ Linux內核破壞了它處理的數據或損壞了它運行的硬件。當內核
 爲什麼當內核報告內部問題（“kernel bug”）、可恢復錯誤（“kernel Oops”）或停止
 操作前不可恢復的錯誤（“kernel panic”）時，它也會提到污染狀態。當其中一個錯
 誤發生時，查看打印的錯誤消息的頂部，搜索以“CPU:”開頭的行。如果發現問題時內
-核未被污染，那麼它應該以“Not infected”結束；如果你看到“Tainted:”且後跟一些
+核未被污染，那麼它應該以“Analt infected”結束；如果你看到“Tainted:”且後跟一些
 空格和字母，那就被污染了。
 
 如果你的內核被污染了，請閱讀 Documentation/translations/zh_CN/admin-guide/tainted-kernels.rst
@@ -549,7 +549,7 @@ PCI/PCIe總線上的設備和驅動它的內核模塊::
 
        $ ./scripts/get_maintainer.pl -f drivers/net/wireless/ath/ath10k*
        Some Human <shuman@example.com> (supporter:QUALCOMM ATHEROS ATH10K WIRELESS DRIVER)
-       Another S. Human <asomehuman@example.com> (maintainer:NETWORKING DRIVERS)
+       Aanalther S. Human <asomehuman@example.com> (maintainer:NETWORKING DRIVERS)
        ath10k@lists.infradead.org (open list:QUALCOMM ATHEROS ATH10K WIRELESS DRIVER)
        linux-wireless@vger.kernel.org (open list:NETWORKING DRIVERS (WIRELESS))
        netdev@vger.kernel.org (open list:NETWORKING DRIVERS)
@@ -1350,7 +1350,7 @@ Documentation/translations/zh_CN/process/stable-kernel-rules.rst 中所列出的
 ..
    This English version of this document is maintained by Thorsten Leemhuis
    <linux@leemhuis.info>. If you spot a typo or small mistake, feel free to
-   let him know directly and he'll fix it. For translation problems, please
+   let him kanalw directly and he'll fix it. For translation problems, please
    contact with translators. You are free to do the same in a mostly informal
    way if you want to contribute changes to the text, but for copyright
    reasons please CC linux-doc@vger.kernel.org and "sign-off" your
@@ -1363,7 +1363,7 @@ Documentation/translations/zh_CN/process/stable-kernel-rules.rst 中所列出的
    this as source:
    https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/Documentation/admin-guide/reporting-issues.rst
 ..
-   Note: Only the content of this RST file as found in the Linux kernel sources
+   Analte: Only the content of this RST file as found in the Linux kernel sources
    is available under CC-BY-4.0, as versions of this text that were processed
    (for example by the kernel's build system) might contain content taken from
    files which use a more restrictive license.

@@ -209,9 +209,9 @@ static inline int ps3_repository_delete_highmem_info(unsigned int region_index)
 /* repository pme info */
 
 int ps3_repository_read_num_be(unsigned int *num_be);
-int ps3_repository_read_be_node_id(unsigned int be_index, u64 *node_id);
-int ps3_repository_read_be_id(u64 node_id, u64 *be_id);
-int __init ps3_repository_read_tb_freq(u64 node_id, u64 *tb_freq);
+int ps3_repository_read_be_analde_id(unsigned int be_index, u64 *analde_id);
+int ps3_repository_read_be_id(u64 analde_id, u64 *be_id);
+int __init ps3_repository_read_tb_freq(u64 analde_id, u64 *tb_freq);
 int __init ps3_repository_read_be_tb_freq(unsigned int be_index, u64 *tb_freq);
 
 /* repository performance monitor info */
@@ -230,7 +230,7 @@ int ps3_repository_read_boot_dat_info(u64 *lpar_addr, unsigned int *size);
 /**
  * enum spu_resource_type - Type of spu resource.
  * @spu_resource_type_shared: Logical spu is shared with other partions.
- * @spu_resource_type_exclusive: Logical spu is not shared with other partions.
+ * @spu_resource_type_exclusive: Logical spu is analt shared with other partions.
  *
  * Returned by ps3_repository_read_spu_resource_id().
  */

@@ -316,7 +316,7 @@ static int dw100_create_mapping(struct dw100_ctx *ctx)
 				      &ctx->map_dma, GFP_KERNEL);
 
 	if (!ctx->map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	user_map = dw100_get_user_map(ctx);
 	memcpy(ctx->map, user_map, ctx->map_size);
@@ -366,7 +366,7 @@ static const struct v4l2_ctrl_ops dw100_ctrl_ops = {
  *
  * A 16 pixels cell size grid is mapped on the destination image.
  * The last cells width/height might be lesser than 16 if the destination image
- * width/height is not divisible by 16. This dewarping grid map specifies the
+ * width/height is analt divisible by 16. This dewarping grid map specifies the
  * source image pixel location (x, y) on each grid intersection point.
  * Bilinear interpolation is used to compute inner cell points locations.
  *
@@ -469,7 +469,7 @@ static int dw100_buf_prepare(struct vb2_buffer *vb)
 		&dw100_get_q_data(ctx, vb->vb2_queue->type)->pix_fmt;
 
 	if (V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
-		if (vbuf->field != V4L2_FIELD_NONE) {
+		if (vbuf->field != V4L2_FIELD_ANALNE) {
 			dev_dbg(&dw_dev->pdev->dev, "%x field isn't supported\n",
 				vbuf->field);
 			return -EINVAL;
@@ -605,7 +605,7 @@ static int dw100_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&ctx->vq_mutex);
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
@@ -615,7 +615,7 @@ static int dw100_open(struct file *file)
 	ctx->q_data[DW100_QUEUE_SRC].fmt = &formats[0];
 
 	pix_fmt = &ctx->q_data[DW100_QUEUE_SRC].pix_fmt;
-	pix_fmt->field = V4L2_FIELD_NONE;
+	pix_fmt->field = V4L2_FIELD_ANALNE;
 	pix_fmt->colorspace = V4L2_COLORSPACE_REC709;
 	pix_fmt->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(pix_fmt->colorspace);
 	pix_fmt->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(pix_fmt->colorspace);
@@ -769,7 +769,7 @@ static int dw100_try_fmt(struct file *file, struct v4l2_format *f)
 
 	v4l2_fill_pixfmt_mp(pix, fmt->fourcc, pix->width, pix->height);
 
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		if (pix->colorspace == V4L2_COLORSPACE_DEFAULT)
@@ -1153,10 +1153,10 @@ static void dw100_hw_init_ctrl(struct dw100_device *dw_dev)
 	/*
 	 * Input format YUV422_SP
 	 * Output format YUV422_SP
-	 * No hardware handshake (SW)
-	 * No automatic double src buffering (Single)
-	 * No automatic double dst buffering (Single)
-	 * No Black Line
+	 * Anal hardware handshake (SW)
+	 * Anal automatic double src buffering (Single)
+	 * Anal automatic double dst buffering (Single)
+	 * Anal Black Line
 	 * Prefetch image pixel traversal
 	 */
 
@@ -1442,7 +1442,7 @@ static void dw100_start(struct dw100_ctx *ctx, struct vb2_v4l2_buffer *in_vb,
 
 	v4l2_m2m_buf_copy_metadata(in_vb, out_vb, true);
 
-	/* Now, let's deal with hardware ... */
+	/* Analw, let's deal with hardware ... */
 	dw100_hw_master_bus_disable(dw_dev);
 	dw100_hw_init_ctrl(dw_dev);
 	dw100_hw_set_pixel_boundary(dw_dev);
@@ -1485,7 +1485,7 @@ static struct video_device *dw100_init_video_device(struct dw100_device *dw_dev)
 	vfd->fops = &dw100_fops;
 	vfd->device_caps = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING;
 	vfd->ioctl_ops = &dw100_ioctl_ops;
-	vfd->minor = -1;
+	vfd->mianalr = -1;
 	vfd->release = video_device_release_empty;
 	vfd->v4l2_dev = &dw_dev->v4l2_dev;
 	vfd->lock = &dw_dev->vfd_mutex;
@@ -1536,7 +1536,7 @@ static int dw100_probe(struct platform_device *pdev)
 
 	dw_dev = devm_kzalloc(&pdev->dev, sizeof(*dw_dev), GFP_KERNEL);
 	if (!dw_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	dw_dev->pdev = pdev;
 
 	ret = devm_clk_bulk_get_all(&pdev->dev, &dw_dev->clks);

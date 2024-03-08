@@ -20,7 +20,7 @@ struct intel_framebuffer;
 struct intel_plane;
 struct intel_plane_state;
 
-#define INTEL_PLANE_CAP_NONE		0
+#define INTEL_PLANE_CAP_ANALNE		0
 #define INTEL_PLANE_CAP_CCS_RC		BIT(0)
 #define INTEL_PLANE_CAP_CCS_RC_CC	BIT(1)
 #define INTEL_PLANE_CAP_CCS_MC		BIT(2)

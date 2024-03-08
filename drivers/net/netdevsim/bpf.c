@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017 Netroanalme Systems, Inc.
  *
  * This software is licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -7,7 +7,7 @@
  *
  * THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS"
  * WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
- * BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE
  * OF THE PROGRAM IS WITH YOU. SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME
  * THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
@@ -73,7 +73,7 @@ nsim_bpf_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn)
 		pr_vlog(env, "Hello from netdevsim!\n");
 
 		if (!state->nsim_dev->bpf_bind_verifier_accept)
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -107,7 +107,7 @@ nsim_bpf_offload(struct netdevsim *ns, struct bpf_prog *prog, bool oldprog)
 
 	WARN(!!ns->bpf_offloaded != oldprog,
 	     "bad offload state, expected offload %sto be active",
-	     oldprog ? "" : "not ");
+	     oldprog ? "" : "analt ");
 	ns->bpf_offloaded = prog;
 	ns->bpf_offloaded_id = prog ? prog->aux->id : 0;
 	nsim_prog_set_loaded(prog, true);
@@ -126,32 +126,32 @@ int nsim_bpf_setup_tc_block_cb(enum tc_setup_type type,
 	if (type != TC_SETUP_CLSBPF) {
 		NSIM_EA(cls_bpf->common.extack,
 			"only offload of BPF classifiers supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!tc_cls_can_offload_and_chain0(ns->netdev, &cls_bpf->common))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (cls_bpf->common.protocol != htons(ETH_P_ALL)) {
 		NSIM_EA(cls_bpf->common.extack,
 			"only ETH_P_ALL supported as filter protocol");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!ns->bpf_tc_accept) {
 		NSIM_EA(cls_bpf->common.extack,
 			"netdevsim configured to reject BPF TC offload");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
-	/* Note: progs without skip_sw will probably not be dev bound */
-	if (prog && !prog->aux->offload && !ns->bpf_tc_non_bound_accept) {
+	/* Analte: progs without skip_sw will probably analt be dev bound */
+	if (prog && !prog->aux->offload && !ns->bpf_tc_analn_bound_accept) {
 		NSIM_EA(cls_bpf->common.extack,
 			"netdevsim configured to reject unbound programs");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (cls_bpf->command != TC_CLSBPF_OFFLOAD)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	oldprog = cls_bpf->oldprog;
 
@@ -197,11 +197,11 @@ nsim_xdp_set_prog(struct netdevsim *ns, struct netdev_bpf *bpf,
 
 	if (bpf->command == XDP_SETUP_PROG && !ns->bpf_xdpdrv_accept) {
 		NSIM_EA(bpf->extack, "driver XDP disabled in DebugFS");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (bpf->command == XDP_SETUP_PROG_HW && !ns->bpf_xdpoffload_accept) {
 		NSIM_EA(bpf->extack, "XDP offload disabled in DebugFS");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (bpf->command == XDP_SETUP_PROG_HW) {
@@ -224,13 +224,13 @@ static int nsim_bpf_create_prog(struct nsim_dev *nsim_dev,
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->nsim_dev = nsim_dev;
 	state->prog = prog;
 	state->state = "verify";
 
-	/* Program id is not populated yet when we create the state. */
+	/* Program id is analt populated yet when we create the state. */
 	sprintf(name, "%u", nsim_dev->prog_id_gen++);
 	state->ddir = debugfs_create_dir(name, nsim_dev->ddir_bpf_bound_progs);
 	if (IS_ERR(state->ddir)) {
@@ -257,7 +257,7 @@ static int nsim_bpf_verifier_prep(struct bpf_prog *prog)
 			bpf_offload_dev_priv(prog->aux->offload->offdev);
 
 	if (!nsim_dev->bpf_bind_accept)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return nsim_bpf_create_prog(nsim_dev, prog);
 }
@@ -312,7 +312,7 @@ nsim_setup_prog_hw_checks(struct netdevsim *ns, struct netdev_bpf *bpf)
 		return 0;
 
 	if (!bpf_prog_is_offloaded(bpf->prog->aux)) {
-		NSIM_EA(bpf->extack, "xdpoffload of non-bound program");
+		NSIM_EA(bpf->extack, "xdpoffload of analn-bound program");
 		return -EINVAL;
 	}
 
@@ -339,7 +339,7 @@ static int nsim_map_key_find(struct bpf_offloaded_map *offmap, void *key)
 		if (nsim_map_key_match(&offmap->map, &nmap->entry[i], key))
 			return i;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int
@@ -348,15 +348,15 @@ nsim_map_alloc_elem(struct bpf_offloaded_map *offmap, unsigned int idx)
 	struct nsim_bpf_bound_map *nmap = offmap->dev_priv;
 
 	nmap->entry[idx].key = kmalloc(offmap->map.key_size,
-				       GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
+				       GFP_KERNEL_ACCOUNT | __GFP_ANALWARN);
 	if (!nmap->entry[idx].key)
-		return -ENOMEM;
+		return -EANALMEM;
 	nmap->entry[idx].value = kmalloc(offmap->map.value_size,
-					 GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
+					 GFP_KERNEL_ACCOUNT | __GFP_ANALWARN);
 	if (!nmap->entry[idx].value) {
 		kfree(nmap->entry[idx].key);
 		nmap->entry[idx].key = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -367,13 +367,13 @@ nsim_map_get_next_key(struct bpf_offloaded_map *offmap,
 		      void *key, void *next_key)
 {
 	struct nsim_bpf_bound_map *nmap = offmap->dev_priv;
-	int idx = -ENOENT;
+	int idx = -EANALENT;
 
 	mutex_lock(&nmap->mutex);
 
 	if (key)
 		idx = nsim_map_key_find(offmap, key);
-	if (idx == -ENOENT)
+	if (idx == -EANALENT)
 		idx = 0;
 	else
 		idx++;
@@ -389,7 +389,7 @@ nsim_map_get_next_key(struct bpf_offloaded_map *offmap,
 	mutex_unlock(&nmap->mutex);
 
 	if (idx == ARRAY_SIZE(nmap->entry))
-		return -ENOENT;
+		return -EANALENT;
 	return 0;
 }
 
@@ -424,7 +424,7 @@ nsim_map_update_elem(struct bpf_offloaded_map *offmap,
 		err = idx;
 		goto exit_unlock;
 	}
-	if (idx >= 0 && flags == BPF_NOEXIST) {
+	if (idx >= 0 && flags == BPF_ANALEXIST) {
 		err = -EEXIST;
 		goto exit_unlock;
 	}
@@ -490,13 +490,13 @@ nsim_bpf_map_alloc(struct netdevsim *ns, struct bpf_offloaded_map *offmap)
 		    offmap->map.map_type != BPF_MAP_TYPE_HASH))
 		return -EINVAL;
 	if (offmap->map.max_entries > NSIM_BPF_MAX_KEYS)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (offmap->map.map_flags)
 		return -EINVAL;
 
 	nmap = kzalloc(sizeof(*nmap), GFP_KERNEL_ACCOUNT);
 	if (!nmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	offmap->dev_priv = nmap;
 	nmap->ns = ns;
@@ -566,7 +566,7 @@ int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 		return nsim_xdp_set_prog(ns, bpf, &ns->xdp_hw);
 	case BPF_OFFLOAD_MAP_ALLOC:
 		if (!ns->bpf_map_accept)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		return nsim_bpf_map_alloc(ns, bpf->offmap);
 	case BPF_OFFLOAD_MAP_FREE:
@@ -628,8 +628,8 @@ int nsim_bpf_init(struct netdevsim *ns)
 	ns->bpf_tc_accept = true;
 	debugfs_create_bool("bpf_tc_accept", 0600, ddir,
 			    &ns->bpf_tc_accept);
-	debugfs_create_bool("bpf_tc_non_bound_accept", 0600, ddir,
-			    &ns->bpf_tc_non_bound_accept);
+	debugfs_create_bool("bpf_tc_analn_bound_accept", 0600, ddir,
+			    &ns->bpf_tc_analn_bound_accept);
 	ns->bpf_xdpdrv_accept = true;
 	debugfs_create_bool("bpf_xdpdrv_accept", 0600, ddir,
 			    &ns->bpf_xdpdrv_accept);

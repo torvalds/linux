@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -31,8 +31,8 @@ gp108_acr_hsfw_load_bld(struct nvkm_falcon_fw *fw)
 	struct flcn_bl_dmem_desc_v2 hsdesc = {
 		.ctx_dma = FALCON_DMAIDX_VIRT,
 		.code_dma_base = fw->vma->addr,
-		.non_sec_code_off = fw->nmem_base,
-		.non_sec_code_size = fw->nmem_size,
+		.analn_sec_code_off = fw->nmem_base,
+		.analn_sec_code_size = fw->nmem_size,
 		.sec_code_off = fw->imem_base,
 		.sec_code_size = fw->imem_size,
 		.code_entry_point = 0,
@@ -100,7 +100,7 @@ gp108_acr = {
 static const struct nvkm_acr_fwif
 gp108_acr_fwif[] = {
 	{  0, gp102_acr_load, &gp108_acr },
-	{ -1, gm200_acr_nofw, &gm200_acr },
+	{ -1, gm200_acr_analfw, &gm200_acr },
 	{}
 };
 

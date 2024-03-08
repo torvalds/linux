@@ -14,7 +14,7 @@ allOf:
 
 description: |
   This file covers the generic description of a NAND chip. It implies that the
-  bus interface should not be taken into account: both raw NAND devices and
+  bus interface should analt be taken into account: both raw NAND devices and
   SPI-NAND devices are concerned by this description.
 
 properties:
@@ -27,19 +27,19 @@ properties:
       A phandle on the hardware ECC engine if any. There are
       basically three possibilities:
       1/ The ECC engine is part of the NAND controller, in this
-      case the phandle should reference the parent node.
+      case the phandle should reference the parent analde.
       2/ The ECC engine is part of the NAND part (on-die), in this
-      case the phandle should reference the node itself.
+      case the phandle should reference the analde itself.
       3/ The ECC engine is external, in this case the phandle should
-      reference the specific ECC engine node.
+      reference the specific ECC engine analde.
     $ref: /schemas/types.yaml#/definitions/phandle
 
   nand-use-soft-ecc-engine:
     description: Use a software ECC engine.
     type: boolean
 
-  nand-no-ecc-engine:
-    description: Do not use any ECC correction.
+  nand-anal-ecc-engine:
+    description: Do analt use any ECC correction.
     type: boolean
 
   nand-ecc-algo:

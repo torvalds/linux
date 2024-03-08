@@ -114,7 +114,7 @@
 /*
  * R48 (0x30) - DAC Control
  */
-#define WM8350_DAC_MONO                         0x2000
+#define WM8350_DAC_MOANAL                         0x2000
 #define WM8350_AIF_LRCLKRATE                    0x1000
 #define WM8350_DEEMP_MASK                       0x0030
 #define WM8350_DACL_DATINV                      0x0002
@@ -493,7 +493,7 @@
 /*
  * WM8350 Platform setup
  */
-#define WM8350_S_CURVE_NONE			0x0
+#define WM8350_S_CURVE_ANALNE			0x0
 #define WM8350_S_CURVE_FAST			0x1
 #define WM8350_S_CURVE_MEDIUM			0x2
 #define WM8350_S_CURVE_SLOW			0x3

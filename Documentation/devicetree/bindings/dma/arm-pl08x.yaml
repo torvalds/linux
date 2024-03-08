@@ -7,13 +7,13 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: ARM PrimeCells PL080 and PL081 and derivatives DMA controller
 
 maintainers:
-  - Vinod Koul <vkoul@kernel.org>
+  - Vianald Koul <vkoul@kernel.org>
 
 allOf:
   - $ref: /schemas/arm/primecell.yaml#
   - $ref: dma-controller.yaml#
 
-# We need a select here so we don't match all nodes with 'arm,primecell'
+# We need a select here so we don't match all analdes with 'arm,primecell'
 select:
   properties:
     compatible:
@@ -124,7 +124,7 @@ examples:
     #include <dt-bindings/clock/cortina,gemini-clock.h>
     dma-controller@67000000 {
       compatible = "faraday,ftdma020", "arm,pl080", "arm,primecell";
-      /* Faraday Technology FTDMAC020 variant */
+      /* Faraday Techanallogy FTDMAC020 variant */
       arm,primecell-periphid = <0x0003b080>;
       reg = <0x67000000 0x1000>;
       interrupts = <9 IRQ_TYPE_EDGE_RISING>;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2013 Politecnico di Torino, Italy
+ * Copyright (C) 2013 Politecnico di Torianal, Italy
  *                    TORSEC group -- https://security.polito.it
  *
  * Author: Roberto Sassu <roberto.sassu@polito.it>
@@ -54,20 +54,20 @@ static const struct ima_template_field supported_fields[] = {
 	 .field_show = ima_show_template_sig},
 	{.field_id = "evmsig", .field_init = ima_eventevmsig_init,
 	 .field_show = ima_show_template_sig},
-	{.field_id = "iuid", .field_init = ima_eventinodeuid_init,
+	{.field_id = "iuid", .field_init = ima_eventianaldeuid_init,
 	 .field_show = ima_show_template_uint},
-	{.field_id = "igid", .field_init = ima_eventinodegid_init,
+	{.field_id = "igid", .field_init = ima_eventianaldegid_init,
 	 .field_show = ima_show_template_uint},
-	{.field_id = "imode", .field_init = ima_eventinodemode_init,
+	{.field_id = "imode", .field_init = ima_eventianaldemode_init,
 	 .field_show = ima_show_template_uint},
 	{.field_id = "xattrnames",
-	 .field_init = ima_eventinodexattrnames_init,
+	 .field_init = ima_eventianaldexattrnames_init,
 	 .field_show = ima_show_template_string},
 	{.field_id = "xattrlengths",
-	 .field_init = ima_eventinodexattrlengths_init,
+	 .field_init = ima_eventianaldexattrlengths_init,
 	 .field_show = ima_show_template_sig},
 	{.field_id = "xattrvalues",
-	 .field_init = ima_eventinodexattrvalues_init,
+	 .field_init = ima_eventianaldexattrvalues_init,
 	 .field_show = ima_show_template_sig},
 };
 
@@ -114,11 +114,11 @@ static int __init ima_template_setup(char *str)
 
 	/*
 	 * Verify that a template with the supplied name exists.
-	 * If not, use CONFIG_IMA_DEFAULT_TEMPLATE.
+	 * If analt, use CONFIG_IMA_DEFAULT_TEMPLATE.
 	 */
 	template_desc = lookup_template_desc(str);
 	if (!template_desc) {
-		pr_err("template %s not found, using %s\n",
+		pr_err("template %s analt found, using %s\n",
 		       str, CONFIG_IMA_DEFAULT_TEMPLATE);
 		return 1;
 	}
@@ -129,7 +129,7 @@ static int __init ima_template_setup(char *str)
 	 */
 	if (template_len == 3 && strcmp(str, IMA_TEMPLATE_IMA_NAME) == 0 &&
 	    ima_hash_algo != HASH_ALGO_SHA1 && ima_hash_algo != HASH_ALGO_MD5) {
-		pr_err("template does not support hash alg\n");
+		pr_err("template does analt support hash alg\n");
 		return 1;
 	}
 
@@ -147,7 +147,7 @@ static int __init ima_template_fmt_setup(char *str)
 		return 1;
 
 	if (template_desc_init_fields(str, NULL, NULL) < 0) {
-		pr_err("format string '%s' not valid, using template %s\n",
+		pr_err("format string '%s' analt valid, using template %s\n",
 		       str, CONFIG_IMA_DEFAULT_TEMPLATE);
 		return 1;
 	}
@@ -239,15 +239,15 @@ int template_desc_init_fields(const char *template_fmt,
 		tmp_field_id[len] = '\0';
 		found_fields[i] = lookup_template_field(tmp_field_id);
 		if (!found_fields[i]) {
-			pr_err("field '%s' not found\n", tmp_field_id);
-			return -ENOENT;
+			pr_err("field '%s' analt found\n", tmp_field_id);
+			return -EANALENT;
 		}
 	}
 
 	if (fields && num_fields) {
 		*fields = kmalloc_array(i, sizeof(**fields), GFP_KERNEL);
 		if (*fields == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(*fields, found_fields, i * sizeof(**fields));
 		*num_fields = i;
@@ -363,15 +363,15 @@ static int ima_restore_template_data(struct ima_template_desc *template_desc,
 	int i;
 
 	*entry = kzalloc(struct_size(*entry, template_data,
-				     template_desc->num_fields), GFP_NOFS);
+				     template_desc->num_fields), GFP_ANALFS);
 	if (!*entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	digests = kcalloc(NR_BANKS(ima_tpm_chip) + ima_extra_slots,
-			  sizeof(*digests), GFP_NOFS);
+			  sizeof(*digests), GFP_ANALFS);
 	if (!digests) {
 		kfree(*entry);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	(*entry)->digests = digests;
@@ -394,7 +394,7 @@ static int ima_restore_template_data(struct ima_template_desc *template_desc,
 		(*entry)->template_data[i].data =
 			kzalloc(field_data->len + 1, GFP_KERNEL);
 		if (!(*entry)->template_data[i].data) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 		memcpy((*entry)->template_data[i].data, data, field_data->len);
@@ -433,7 +433,7 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 	if (!buf || size < sizeof(*khdr))
 		return 0;
 
-	if (ima_canonical_fmt) {
+	if (ima_caanalnical_fmt) {
 		khdr->version = le16_to_cpu((__force __le16)khdr->version);
 		khdr->count = le64_to_cpu((__force __le64)khdr->count);
 		khdr->buffer_size = le64_to_cpu((__force __le64)khdr->buffer_size);
@@ -474,7 +474,7 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 			break;
 		}
 
-		/* template name is not null terminated */
+		/* template name is analt null terminated */
 		memcpy(template_name, hdr[HDR_TEMPLATE_NAME].data,
 		       hdr[HDR_TEMPLATE_NAME].len);
 		template_name[hdr[HDR_TEMPLATE_NAME].len] = 0;
@@ -519,13 +519,13 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 						&entry->template_data[0],
 						entry);
 			if (ret < 0) {
-				pr_err("cannot calculate template digest\n");
+				pr_err("cananalt calculate template digest\n");
 				ret = -EINVAL;
 				break;
 			}
 		}
 
-		entry->pcr = !ima_canonical_fmt ? *(u32 *)(hdr[HDR_PCR].data) :
+		entry->pcr = !ima_caanalnical_fmt ? *(u32 *)(hdr[HDR_PCR].data) :
 			     le32_to_cpu(*(__le32 *)(hdr[HDR_PCR].data));
 		ret = ima_restore_measurement_entry(entry);
 		if (ret < 0)

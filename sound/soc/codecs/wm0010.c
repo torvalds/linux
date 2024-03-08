@@ -49,7 +49,7 @@ struct dfw_binrec {
 struct dfw_inforec {
 	u8 info_version;
 	u8 tool_major_version;
-	u8 tool_minor_version;
+	u8 tool_mianalr_version;
 	u8 dsp_target;
 };
 
@@ -124,7 +124,7 @@ struct wm0010_spi_msg {
 };
 
 static const struct snd_soc_dapm_widget wm0010_dapm_widgets[] = {
-SND_SOC_DAPM_SUPPLY("CLKIN",  SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("CLKIN",  SND_SOC_ANALPM, 0, 0, NULL, 0),
 };
 
 static const struct snd_soc_dapm_route wm0010_dapm_routes[] = {
@@ -166,7 +166,7 @@ static void wm0010_halt(struct snd_soc_component *component)
 
 	switch (state) {
 	case WM0010_POWER_OFF:
-		/* If there's nothing to do, bail out */
+		/* If there's analthing to do, bail out */
 		return;
 	case WM0010_OUT_OF_RESET:
 	case WM0010_BOOTROM:
@@ -371,7 +371,7 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 
 	/* First record should be INFO */
 	if (rec->command != DFW_CMD_INFO) {
-		dev_err(component->dev, "First record not INFO\r\n");
+		dev_err(component->dev, "First record analt INFO\r\n");
 		ret = -EINVAL;
 		goto abort;
 	}
@@ -389,7 +389,7 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 
 	/* Check it's a DSP file */
 	if (dsp != DEVICE_ID_WM0010) {
-		dev_err(component->dev, "Not a WM0010 firmware file.\r\n");
+		dev_err(component->dev, "Analt a WM0010 firmware file.\r\n");
 		ret = -EINVAL;
 		goto abort;
 	}
@@ -406,7 +406,7 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 
 		xfer = kzalloc(sizeof(*xfer), GFP_KERNEL);
 		if (!xfer) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto abort;
 		}
 
@@ -415,14 +415,14 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 
 		out = kzalloc(len, GFP_KERNEL | GFP_DMA);
 		if (!out) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto abort1;
 		}
 		xfer->t.rx_buf = out;
 
 		img = kzalloc(len, GFP_KERNEL | GFP_DMA);
 		if (!img) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto abort1;
 		}
 		xfer->t.tx_buf = img;
@@ -514,13 +514,13 @@ static int wm0010_stage2_load(struct snd_soc_component *component)
 	/* Copy to local buffer first as vmalloc causes problems for dma */
 	img = kmemdup(&fw->data[0], fw->size, GFP_KERNEL | GFP_DMA);
 	if (!img) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto abort2;
 	}
 
 	out = kzalloc(fw->size, GFP_KERNEL | GFP_DMA);
 	if (!out) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto abort1;
 	}
 
@@ -644,7 +644,7 @@ static int wm0010_boot(struct snd_soc_component *component)
 		/* On wm0010 only the CLKCTRL1 value is used */
 		pll_rec.clkctrl1 = wm0010->pll_clkctrl1;
 
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		len = pll_rec.length + 8;
 		out = kzalloc(len, GFP_KERNEL | GFP_DMA);
 		if (!out)
@@ -694,7 +694,7 @@ static int wm0010_boot(struct snd_soc_component *component)
 		kfree(img_swap);
 		kfree(out);
 	} else
-		dev_dbg(component->dev, "Not enabling DSP PLL.");
+		dev_dbg(component->dev, "Analt enabling DSP PLL.");
 
 	ret = wm0010_firmware_load("wm0010.dfw", component);
 
@@ -844,10 +844,10 @@ static irqreturn_t wm0010_irq(int irq, void *data)
 		spin_unlock(&wm0010->irq_lock);
 		return IRQ_HANDLED;
 	default:
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int wm0010_probe(struct snd_soc_component *component)
@@ -869,7 +869,7 @@ static int wm0010_spi_probe(struct spi_device *spi)
 	wm0010 = devm_kzalloc(&spi->dev, sizeof(*wm0010),
 			      GFP_KERNEL);
 	if (!wm0010)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&wm0010->lock);
 	spin_lock_init(&wm0010->irq_lock);
@@ -903,7 +903,7 @@ static int wm0010_spi_probe(struct spi_device *spi)
 	wm0010->reset = devm_gpiod_get(wm0010->dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(wm0010->reset))
 		return dev_err_probe(wm0010->dev, PTR_ERR(wm0010->reset),
-				     "could not get RESET GPIO\n");
+				     "could analt get RESET GPIO\n");
 	gpiod_set_consumer_name(wm0010->reset, "wm0010 reset");
 
 	wm0010->state = WM0010_POWER_OFF;

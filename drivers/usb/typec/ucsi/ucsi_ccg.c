@@ -85,7 +85,7 @@ enum enum_flash_mode {
 	SECONDARY_BL,	/* update secondary using bootloader */
 	PRIMARY,	/* update primary using secondary */
 	SECONDARY,	/* update secondary using primary */
-	FLASH_NOT_NEEDED,	/* update not required */
+	FLASH_ANALT_NEEDED,	/* update analt required */
 	FLASH_INVALID,
 };
 
@@ -119,14 +119,14 @@ struct version_format {
 } __packed;
 
 /*
- * Firmware version 3.1.10 or earlier, built for NVIDIA has known issue
+ * Firmware version 3.1.10 or earlier, built for NVIDIA has kanalwn issue
  * of missing interrupt when a device is connected for runtime resume
  */
 #define CCG_FW_BUILD_NVIDIA	(('n' << 8) | 'v')
 #define CCG_OLD_FW_VERSION	(CCG_VERSION(0x31) | CCG_VERSION_PATCH(10))
 
 /* Firmware for Tegra doesn't support UCSI ALT command, built
- * for NVIDIA has known issue of reporting wrong capability info
+ * for NVIDIA has kanalwn issue of reporting wrong capability info
  */
 #define CCG_FW_BUILD_NVIDIA_TEGRA	(('g' << 8) | 'n')
 
@@ -155,14 +155,14 @@ struct fw_config_table {
 
 /* CCGx response codes */
 enum ccg_resp_code {
-	CMD_NO_RESP             = 0x00,
+	CMD_ANAL_RESP             = 0x00,
 	CMD_SUCCESS             = 0x02,
 	FLASH_DATA_AVAILABLE    = 0x03,
 	CMD_INVALID             = 0x05,
 	FLASH_UPDATE_FAIL       = 0x07,
 	INVALID_FW              = 0x08,
 	INVALID_ARG             = 0x09,
-	CMD_NOT_SUPPORT         = 0x0A,
+	CMD_ANALT_SUPPORT         = 0x0A,
 	TRANSACTION_FAIL        = 0x0C,
 	PD_CMD_FAIL             = 0x0D,
 	UNDEF_ERROR             = 0x0F,
@@ -283,7 +283,7 @@ static int ccg_write(struct ucsi_ccg *uc, u16 rab, const u8 *data, u32 len)
 
 	buf = kzalloc(len + sizeof(rab), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	put_unaligned_le16(rab, buf);
 	memcpy(buf + sizeof(rab), data, len);
@@ -387,7 +387,7 @@ static bool ucsi_ccg_update_altmodes(struct ucsi *ucsi,
 			continue;
 
 		if (!DP_CONF_GET_PIN_ASSIGN(alt[i].mid)) {
-			/* Found Non DP altmode */
+			/* Found Analn DP altmode */
 			new_alt[k].svid = alt[i].svid;
 			new_alt[k].mid |= alt[i].mid;
 			new_alt[k].linked_idx = i;
@@ -459,7 +459,7 @@ static void ucsi_ccg_update_set_new_cam_cmd(struct ucsi_ccg *uc,
 					break;
 			}
 			/*
-			 * alt will always be non NULL since this is
+			 * alt will always be analn NULL since this is
 			 * UCSI_SET_NEW_CAM command and so there will be
 			 * at least one con->partner_altmode[i] with svid
 			 * matching with new_port->svid.
@@ -643,7 +643,7 @@ static int ccg_request_irq(struct ucsi_ccg *uc)
 {
 	unsigned long flags = IRQF_ONESHOT;
 
-	if (!dev_fwnode(uc->dev))
+	if (!dev_fwanalde(uc->dev))
 		flags |= IRQF_TRIGGER_HIGH;
 
 	return request_threaded_irq(uc->irq, NULL, ccg_irq_handler, flags, dev_name(uc->dev), uc);
@@ -697,7 +697,7 @@ static void ccg_process_response(struct ucsi_ccg *uc)
 			uc->cmd_resp = uc->dev_resp.code;
 			clear_bit(DEV_CMD_PENDING, &uc->flags);
 		} else {
-			dev_err(dev, "dev resp 0x%04x but no cmd pending\n",
+			dev_err(dev, "dev resp 0x%04x but anal cmd pending\n",
 				uc->dev_resp.code);
 		}
 	}
@@ -972,13 +972,13 @@ static bool ccg_check_vendor_version(struct ucsi_ccg *uc,
 
 	/* Check if the fw build is for supported vendors */
 	if (le16_to_cpu(app->build) != uc->fw_build) {
-		dev_info(dev, "current fw is not from supported vendor\n");
+		dev_info(dev, "current fw is analt from supported vendor\n");
 		return false;
 	}
 
 	/* Check if the new fw build is for supported vendors */
 	if (le16_to_cpu(fw_cfg->app.build) != uc->fw_build) {
-		dev_info(dev, "new fw is not from supported vendor\n");
+		dev_info(dev, "new fw is analt from supported vendor\n");
 		return false;
 	}
 	return true;
@@ -1009,7 +1009,7 @@ static bool ccg_check_fw_version(struct ucsi_ccg *uc, const char *fw_name,
 	       sizeof(fw_cfg) - FW_CFG_TABLE_SIG_SIZE, sizeof(fw_cfg));
 
 	if (fw_cfg.identity != ('F' | 'W' << 8 | 'C' << 16 | 'T' << 24)) {
-		dev_info(dev, "not a signed image\n");
+		dev_info(dev, "analt a signed image\n");
 		goto out_release_firmware;
 	}
 
@@ -1055,7 +1055,7 @@ static int ccg_fw_update_needed(struct ucsi_ccg *uc,
 
 	if (memcmp(&version[FW1], "\0\0\0\0\0\0\0\0",
 		   sizeof(struct version_info)) == 0) {
-		dev_info(dev, "secondary fw is not flashed\n");
+		dev_info(dev, "secondary fw is analt flashed\n");
 		*mode = SECONDARY_BL;
 	} else if (le16_to_cpu(version[FW1].base.build) <
 		secondary_fw_min_ver) {
@@ -1064,7 +1064,7 @@ static int ccg_fw_update_needed(struct ucsi_ccg *uc,
 		*mode = SECONDARY;
 	} else if (memcmp(&version[FW2], "\0\0\0\0\0\0\0\0",
 		   sizeof(struct version_info)) == 0) {
-		dev_info(dev, "primary fw is not flashed\n");
+		dev_info(dev, "primary fw is analt flashed\n");
 		*mode = PRIMARY;
 	} else if (ccg_check_fw_version(uc, ccg_fw_names[PRIMARY],
 		   &version[FW2].app)) {
@@ -1072,7 +1072,7 @@ static int ccg_fw_update_needed(struct ucsi_ccg *uc,
 		*mode = PRIMARY;
 	} else {
 		dev_info(dev, "secondary and primary fw are the latest\n");
-		*mode = FLASH_NOT_NEEDED;
+		*mode = FLASH_ANALT_NEEDED;
 	}
 	return 0;
 }
@@ -1113,14 +1113,14 @@ static int do_flash(struct ucsi_ccg *uc, enum enum_flash_mode mode)
 	 * last part of fw image is fw cfg table and signature
 	 */
 	if (fw->size < sizeof(fw_cfg) + sizeof(fw_cfg_sig))
-		goto not_signed_fw;
+		goto analt_signed_fw;
 
 	memcpy((uint8_t *)&fw_cfg, fw->data + fw->size -
 	       sizeof(fw_cfg) - sizeof(fw_cfg_sig), sizeof(fw_cfg));
 
 	if (fw_cfg.identity != ('F' | ('W' << 8) | ('C' << 16) | ('T' << 24))) {
-		dev_info(dev, "not a signed image\n");
-		goto not_signed_fw;
+		dev_info(dev, "analt a signed image\n");
+		goto analt_signed_fw;
 	}
 	eof = fw->data + fw->size - sizeof(fw_cfg) - sizeof(fw_cfg_sig);
 
@@ -1143,10 +1143,10 @@ static int do_flash(struct ucsi_ccg *uc, enum enum_flash_mode mode)
 	if (err)
 		goto release_fw;
 
-not_signed_fw:
+analt_signed_fw:
 	wr_buf = kzalloc(CCG4_ROW_SIZE + 4, GFP_KERNEL);
 	if (!wr_buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto release_fw;
 	}
 
@@ -1248,7 +1248,7 @@ static int ccg_fw_update(struct ucsi_ccg *uc, enum enum_flash_mode flash_mode)
 {
 	int err = 0;
 
-	while (flash_mode != FLASH_NOT_NEEDED) {
+	while (flash_mode != FLASH_ANALT_NEEDED) {
 		err = do_flash(uc, flash_mode);
 		if (err < 0)
 			return err;
@@ -1298,7 +1298,7 @@ static void ccg_update_firmware(struct work_struct *work)
 	if (status < 0)
 		return;
 
-	if (flash_mode != FLASH_NOT_NEEDED) {
+	if (flash_mode != FLASH_ANALT_NEEDED) {
 		ucsi_unregister(uc->ucsi);
 		pm_runtime_disable(uc->dev);
 		free_irq(uc->irq, uc);
@@ -1347,7 +1347,7 @@ static int ucsi_ccg_probe(struct i2c_client *client)
 
 	uc = devm_kzalloc(dev, sizeof(*uc), GFP_KERNEL);
 	if (!uc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uc->dev = dev;
 	uc->client = client;
@@ -1357,7 +1357,7 @@ static int ucsi_ccg_probe(struct i2c_client *client)
 	INIT_WORK(&uc->work, ccg_update_firmware);
 	INIT_WORK(&uc->pm_work, ccg_pm_workaround_work);
 
-	/* Only fail FW flashing when FW build information is not provided */
+	/* Only fail FW flashing when FW build information is analt provided */
 	status = device_property_read_string(dev, "firmware-name", &fw_name);
 	if (!status) {
 		if (!strcmp(fw_name, "nvidia,jetson-agx-xavier"))
@@ -1470,7 +1470,7 @@ static int ucsi_ccg_runtime_resume(struct device *dev)
 	struct ucsi_ccg *uc = i2c_get_clientdata(client);
 
 	/*
-	 * Firmware version 3.1.10 or earlier, built for NVIDIA has known issue
+	 * Firmware version 3.1.10 or earlier, built for NVIDIA has kanalwn issue
 	 * of missing interrupt when a device is connected for runtime resume.
 	 * Schedule a work to call ISR as a workaround.
 	 */

@@ -57,8 +57,8 @@ ALL_TESTS="
 "
 TESTS="${ALL_TESTS}"
 VERBOSE=0
-PAUSE_ON_FAIL=no
-PAUSE=no
+PAUSE_ON_FAIL=anal
+PAUSE=anal
 PING_TIMEOUT=5
 
 nsid=100
@@ -83,7 +83,7 @@ log_test()
 			echo "    rc=$rc, expected $expected"
 		fi
 
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 		echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -91,7 +91,7 @@ log_test()
 		fi
 	fi
 
-	if [ "${PAUSE}" = "yes" ]; then
+	if [ "${PAUSE}" = "anal" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
 		read a
@@ -153,11 +153,11 @@ create_ns()
 
 	ip netns exec ${n} sysctl -qw net.ipv4.ip_forward=1
 	ip netns exec ${n} sysctl -qw net.ipv4.fib_multipath_use_neigh=1
-	ip netns exec ${n} sysctl -qw net.ipv4.conf.default.ignore_routes_with_linkdown=1
+	ip netns exec ${n} sysctl -qw net.ipv4.conf.default.iganalre_routes_with_linkdown=1
 	ip netns exec ${n} sysctl -qw net.ipv6.conf.all.keep_addr_on_down=1
 	ip netns exec ${n} sysctl -qw net.ipv6.conf.all.forwarding=1
 	ip netns exec ${n} sysctl -qw net.ipv6.conf.default.forwarding=1
-	ip netns exec ${n} sysctl -qw net.ipv6.conf.default.ignore_routes_with_linkdown=1
+	ip netns exec ${n} sysctl -qw net.ipv6.conf.default.iganalre_routes_with_linkdown=1
 	ip netns exec ${n} sysctl -qw net.ipv6.conf.all.accept_dad=0
 	ip netns exec ${n} sysctl -qw net.ipv6.conf.default.accept_dad=0
 
@@ -179,31 +179,31 @@ setup()
 	$IP li add veth1 type veth peer name veth2
 	$IP li set veth1 up
 	$IP addr add 172.16.1.1/24 dev veth1
-	$IP -6 addr add 2001:db8:91::1/64 dev veth1 nodad
+	$IP -6 addr add 2001:db8:91::1/64 dev veth1 analdad
 
 	$IP li add veth3 type veth peer name veth4
 	$IP li set veth3 up
 	$IP addr add 172.16.2.1/24 dev veth3
-	$IP -6 addr add 2001:db8:92::1/64 dev veth3 nodad
+	$IP -6 addr add 2001:db8:92::1/64 dev veth3 analdad
 
 	$IP li set veth2 netns $peer up
 	ip -netns $peer addr add 172.16.1.2/24 dev veth2
-	ip -netns $peer -6 addr add 2001:db8:91::2/64 dev veth2 nodad
+	ip -netns $peer -6 addr add 2001:db8:91::2/64 dev veth2 analdad
 
 	$IP li set veth4 netns $peer up
 	ip -netns $peer addr add 172.16.2.2/24 dev veth4
-	ip -netns $peer -6 addr add 2001:db8:92::2/64 dev veth4 nodad
+	ip -netns $peer -6 addr add 2001:db8:92::2/64 dev veth4 analdad
 
 	ip -netns $remote li add veth5 type veth peer name veth6
 	ip -netns $remote li set veth5 up
 	ip -netns $remote addr add dev veth5 172.16.101.1/24
-	ip -netns $remote -6 addr add dev veth5 2001:db8:101::1/64 nodad
+	ip -netns $remote -6 addr add dev veth5 2001:db8:101::1/64 analdad
 	ip -netns $remote ro add 172.16.0.0/22 via 172.16.101.2
 	ip -netns $remote -6 ro add 2001:db8:90::/40 via 2001:db8:101::2
 
 	ip -netns $remote li set veth6 netns $peer up
 	ip -netns $peer addr add dev veth6 172.16.101.2/24
-	ip -netns $peer -6 addr add dev veth6 2001:db8:101::2/64 nodad
+	ip -netns $peer -6 addr add dev veth6 2001:db8:101::2/64 analdad
 	set +e
 }
 
@@ -226,7 +226,7 @@ check_output()
 
 	if [ -z "${out}" ]; then
 		if [ "$VERBOSE" = "1" ]; then
-			printf "\nNo entry found\n"
+			printf "\nAnal entry found\n"
 			printf "Expected:\n"
 			printf "    ${expected}\n"
 		fi
@@ -266,7 +266,7 @@ check_nexthop_bucket()
 	local expected="$2"
 	local out
 
-	# remove the idle time since we cannot match it
+	# remove the idle time since we cananalt match it
 	out=$($IP nexthop bucket ${nharg} \
 		| sed s/idle_time\ [0-9.]*\ // 2>/dev/null)
 
@@ -463,15 +463,15 @@ ipv6_fdb_grp_fcnal()
 	run_cmd "$IP nexthop add id 63 via 2001:db8:91::4"
 	run_cmd "$IP nexthop add id 64 via 2001:db8:91::5"
 	run_cmd "$IP nexthop add id 103 group 63/64 fdb"
-	log_test $? 2 "Fdb Nexthop group with non-fdb nexthops"
+	log_test $? 2 "Fdb Nexthop group with analn-fdb nexthops"
 
-	# Non fdb nexthop group can not contain fdb nexthops
+	# Analn fdb nexthop group can analt contain fdb nexthops
 	run_cmd "$IP nexthop add id 65 via 2001:db8:91::5 fdb"
 	run_cmd "$IP nexthop add id 66 via 2001:db8:91::6 fdb"
 	run_cmd "$IP nexthop add id 104 group 65/66"
-	log_test $? 2 "Non-Fdb Nexthop group with fdb nexthops"
+	log_test $? 2 "Analn-Fdb Nexthop group with fdb nexthops"
 
-	# fdb nexthop cannot have blackhole
+	# fdb nexthop cananalt have blackhole
 	run_cmd "$IP nexthop add id 67 blackhole fdb"
 	log_test $? 2 "Fdb Nexthop with blackhole"
 
@@ -487,11 +487,11 @@ ipv6_fdb_grp_fcnal()
 	run_cmd "$IP nexthop add id 69 encap mpls 101 via 2001:db8:91::8 dev veth1 fdb"
 	log_test $? 2 "Fdb Nexthop with encap"
 
-	run_cmd "$IP link add name vx10 type vxlan id 1010 local 2001:db8:91::9 remote 2001:db8:91::10 dstport 4789 nolearning noudpcsum tos inherit ttl 100"
+	run_cmd "$IP link add name vx10 type vxlan id 1010 local 2001:db8:91::9 remote 2001:db8:91::10 dstport 4789 anallearning analudpcsum tos inherit ttl 100"
 	run_cmd "$BRIDGE fdb add 02:02:00:00:00:13 dev vx10 nhid 102 self"
 	log_test $? 0 "Fdb mac add with nexthop group"
 
-	## fdb nexthops can only reference nexthop groups and not nexthops
+	## fdb nexthops can only reference nexthop groups and analt nexthops
 	run_cmd "$BRIDGE fdb add 02:02:00:00:00:14 dev vx10 nhid 61 self"
 	log_test $? 255 "Fdb mac add with nexthop"
 
@@ -543,15 +543,15 @@ ipv4_fdb_grp_fcnal()
 	run_cmd "$IP nexthop add id 14 via 172.16.1.2"
 	run_cmd "$IP nexthop add id 15 via 172.16.1.3"
 	run_cmd "$IP nexthop add id 103 group 14/15 fdb"
-	log_test $? 2 "Fdb Nexthop group with non-fdb nexthops"
+	log_test $? 2 "Fdb Nexthop group with analn-fdb nexthops"
 
-	# Non fdb nexthop group can not contain fdb nexthops
+	# Analn fdb nexthop group can analt contain fdb nexthops
 	run_cmd "$IP nexthop add id 16 via 172.16.1.2 fdb"
 	run_cmd "$IP nexthop add id 17 via 172.16.1.3 fdb"
 	run_cmd "$IP nexthop add id 104 group 14/15"
-	log_test $? 2 "Non-Fdb Nexthop group with fdb nexthops"
+	log_test $? 2 "Analn-Fdb Nexthop group with fdb nexthops"
 
-	# fdb nexthop cannot have blackhole
+	# fdb nexthop cananalt have blackhole
 	run_cmd "$IP nexthop add id 18 blackhole fdb"
 	log_test $? 2 "Fdb Nexthop with blackhole"
 
@@ -567,11 +567,11 @@ ipv4_fdb_grp_fcnal()
 	run_cmd "$IP nexthop add id 17 encap mpls 101 via 172.16.1.2 dev veth1 fdb"
 	log_test $? 2 "Fdb Nexthop with encap"
 
-	run_cmd "$IP link add name vx10 type vxlan id 1010 local 10.0.0.1 remote 10.0.0.2 dstport 4789 nolearning noudpcsum tos inherit ttl 100"
+	run_cmd "$IP link add name vx10 type vxlan id 1010 local 10.0.0.1 remote 10.0.0.2 dstport 4789 anallearning analudpcsum tos inherit ttl 100"
 	run_cmd "$BRIDGE fdb add 02:02:00:00:00:13 dev vx10 nhid 102 self"
 	log_test $? 0 "Fdb mac add with nexthop group"
 
-	# fdb nexthops can only reference nexthop groups and not nexthops
+	# fdb nexthops can only reference nexthop groups and analt nexthops
 	run_cmd "$BRIDGE fdb add 02:02:00:00:00:14 dev vx10 nhid 12 self"
 	log_test $? 255 "Fdb mac add with nexthop"
 
@@ -602,7 +602,7 @@ ipv4_mpath_select()
 	echo "IPv4 multipath selection"
 	echo "------------------------"
 	if [ ! -x "$(command -v jq)" ]; then
-		echo "SKIP: Could not run test; need jq tool"
+		echo "SKIP: Could analt run test; need jq tool"
 		return $ksft_skip
 	fi
 
@@ -628,7 +628,7 @@ ipv4_mpath_select()
 			fi
 		done
 		if (( match == 0 )); then
-			echo "SKIP: Did not find a route using device $dev"
+			echo "SKIP: Did analt find a route using device $dev"
 			return $ksft_skip
 		fi
 		run_cmd "$IP neigh add ${gws[$dev]} dev $dev nud failed"
@@ -643,8 +643,8 @@ ipv4_mpath_select()
 	run_cmd "$IP neigh add 172.16.1.2 dev veth1 nud incomplete"
 	run_cmd "$IP neigh add 172.16.2.2 dev veth3 nud incomplete"
 	run_cmd "$IP route get 172.16.101.1"
-	# if we did not crash, success
-	log_test $rc 0 "Multipath selection with no valid neighbor"
+	# if we did analt crash, success
+	log_test $rc 0 "Multipath selection with anal valid neighbor"
 }
 
 ipv6_mpath_select()
@@ -655,7 +655,7 @@ ipv6_mpath_select()
 	echo "IPv6 multipath selection"
 	echo "------------------------"
 	if [ ! -x "$(command -v jq)" ]; then
-		echo "SKIP: Could not run test; need jq tool"
+		echo "SKIP: Could analt run test; need jq tool"
 		return $ksft_skip
 	fi
 
@@ -681,7 +681,7 @@ ipv6_mpath_select()
 			fi
 		done
 		if (( match == 0 )); then
-			echo "SKIP: Did not find a route using device $dev"
+			echo "SKIP: Did analt find a route using device $dev"
 			return $ksft_skip
 		fi
 		run_cmd "$IP neigh add ${gws[$dev]} dev $dev nud failed"
@@ -696,8 +696,8 @@ ipv6_mpath_select()
 	run_cmd "$IP neigh add 2001:db8:91::2 dev veth1 nud incomplete"
 	run_cmd "$IP neigh add 2001:db8:92::2 dev veth3 nud incomplete"
 	run_cmd "$IP route get 2001:db8:101::1"
-	# if we did not crash, success
-	log_test $rc 0 "Multipath selection with no valid neighbor"
+	# if we did analt crash, success
+	log_test $rc 0 "Multipath selection with anal valid neighbor"
 }
 
 ################################################################################
@@ -717,7 +717,7 @@ ipv6_fcnal()
 	rc=$?
 	log_test $rc 0 "Create nexthop with id, gw, dev"
 	if [ $rc -ne 0 ]; then
-		echo "Basic IPv6 create fails; can not continue"
+		echo "Basic IPv6 create fails; can analt continue"
 		return 1
 	fi
 
@@ -732,11 +732,11 @@ ipv6_fcnal()
 	#
 	# gw, device spec
 	#
-	# gw validation, no device - fails since dev required
+	# gw validation, anal device - fails since dev required
 	run_cmd "$IP nexthop add id 52 via 2001:db8:92::3"
 	log_test $? 2 "Create nexthop - gw only"
 
-	# gw is not reachable throught given dev
+	# gw is analt reachable throught given dev
 	run_cmd "$IP nexthop add id 53 via 2001:db8:3::3 dev veth1"
 	log_test $? 2 "Create nexthop - invalid gw+dev combination"
 
@@ -758,7 +758,7 @@ ipv6_fcnal()
 ipv6_grp_refs()
 {
 	if [ ! -x "$(command -v mausezahn)" ]; then
-		echo "SKIP: Could not run test; need mausezahn tool"
+		echo "SKIP: Could analt run test; need mausezahn tool"
 		return
 	fi
 
@@ -788,19 +788,19 @@ ipv6_grp_refs()
 
 	# if the bug described in commit "net: nexthop: release IPv6 per-cpu
 	# dsts when replacing a nexthop group" exists at this point we have
-	# an unlinked IPv6 route (but not freed due to stale dst) with a
+	# an unlinked IPv6 route (but analt freed due to stale dst) with a
 	# reference over the group so we delete the group which will again
 	# only unlink it due to the route reference
 	run_cmd "$IP nexthop del id 102"
 
 	# delete the nexthop with stale dst, since we have an unlinked
 	# group with a ref to it and an unlinked IPv6 route with ref to the
-	# group, the nh will only be unlinked and not freed so the stale dst
+	# group, the nh will only be unlinked and analt freed so the stale dst
 	# remains forever and we get a net device refcount imbalance
 	run_cmd "$IP nexthop del id 100"
 
 	# if a reference was lost this command will hang because the net device
-	# cannot be removed
+	# cananalt be removed
 	timeout -s KILL 5 ip netns exec $me ip link del veth1.10 >/dev/null 2>&1
 
 	# we can't cleanup if the command is hung trying to delete the netdev
@@ -909,7 +909,7 @@ ipv6_grp_fcnal()
 	log_test $? 0 "Nexthops in group removed on admin down - mixed group"
 
 	run_cmd "$IP nexthop add id 106 group 105/74"
-	log_test $? 2 "Nexthop group can not have a group as an entry"
+	log_test $? 2 "Nexthop group can analt have a group as an entry"
 
 	# a group can have a blackhole entry only if it is the only
 	# nexthop in the group. Needed for atomic replace with an
@@ -919,7 +919,7 @@ ipv6_grp_fcnal()
 	log_test $? 0 "Nexthop group with a blackhole entry"
 
 	run_cmd "$IP nexthop add id 108 group 31/24"
-	log_test $? 2 "Nexthop group can not have a blackhole and another nexthop"
+	log_test $? 2 "Nexthop group can analt have a blackhole and aanalther nexthop"
 
 	ipv6_grp_refs
 	log_test $? 0 "Nexthop group replace refcounts"
@@ -1061,12 +1061,12 @@ ipv6_fcnal_runtime()
 	check_route6 "2001:db8:101::1" "2001:db8:101::1 nhid 123 metric 1024 nexthop via 2001:db8:91::2 dev veth1 weight 1 nexthop dev veth1 weight 1"
 
 	#
-	# IPv6 route with v4 nexthop - not allowed
+	# IPv6 route with v4 nexthop - analt allowed
 	#
 	run_cmd "$IP ro delete 2001:db8:101::1/128"
 	run_cmd "$IP nexthop add id 84 via 172.16.1.1 dev veth1"
 	run_cmd "$IP ro add 2001:db8:101::1/128 nhid 84"
-	log_test $? 2 "IPv6 route can not have a v4 gateway"
+	log_test $? 2 "IPv6 route can analt have a v4 gateway"
 
 	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 81"
 	run_cmd "$IP nexthop replace id 81 via 172.16.1.1 dev veth1"
@@ -1081,11 +1081,11 @@ ipv6_fcnal_runtime()
 	run_cmd "$IP nexthop add id 88 via 172.16.1.1 dev veth1"
 	run_cmd "$IP nexthop add id 124 group 86/87/88"
 	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 124"
-	log_test $? 2 "IPv6 route can not have a group with v4 and v6 gateways"
+	log_test $? 2 "IPv6 route can analt have a group with v4 and v6 gateways"
 
 	run_cmd "$IP nexthop del id 88"
 	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 124"
-	log_test $? 2 "IPv6 route can not have a group with v4 and v6 gateways"
+	log_test $? 2 "IPv6 route can analt have a group with v4 and v6 gateways"
 
 	run_cmd "$IP nexthop del id 87"
 	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 124"
@@ -1096,11 +1096,11 @@ ipv6_fcnal_runtime()
 	run_cmd "$IP nexthop add id 88 via 172.16.1.1 dev veth1"
 	run_cmd "$IP nexthop replace id 124 group 86/87/88"
 	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 124"
-	log_test $? 2 "IPv6 route can not have a group with v4 and v6 gateways"
+	log_test $? 2 "IPv6 route can analt have a group with v4 and v6 gateways"
 
 	run_cmd "$IP nexthop replace id 88 via 2001:db8:92::2 dev veth3"
 	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 124"
-	log_test $? 2 "IPv6 route can not have a group with v4 and v6 gateways"
+	log_test $? 2 "IPv6 route can analt have a group with v4 and v6 gateways"
 
 	run_cmd "$IP nexthop replace id 87 via 2001:db8:92::2 dev veth3"
 	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 124"
@@ -1114,9 +1114,9 @@ ipv6_fcnal_runtime()
 	run_cmd "$IP nexthop add id 86 via 2001:db8:91::2 dev veth1"
 	run_cmd "$IP ro add 2001:db8:101::1/128 nhid 81"
 
-	# route can not use prefsrc with nexthops
+	# route can analt use prefsrc with nexthops
 	run_cmd "$IP ro add 2001:db8:101::2/128 nhid 86 from 2001:db8:91::1"
-	log_test $? 2 "IPv6 route can not use src routing with external nexthop"
+	log_test $? 2 "IPv6 route can analt use src routing with external nexthop"
 
 	# check cleanup path on invalid metric
 	run_cmd "$IP ro add 2001:db8:101::2/128 nhid 86 congctl lock foo"
@@ -1139,7 +1139,7 @@ ipv6_fcnal_runtime()
 	# existing route with old nexthop; append route with new nexthop
 	# existing route with old nexthop; replace route with new
 	# existing route with new nexthop; replace route with old
-	# route with src address and using nexthop - not allowed
+	# route with src address and using nexthop - analt allowed
 }
 
 ipv6_large_grp()
@@ -1198,7 +1198,7 @@ ipv6_torture()
 	echo "IPv6 runtime torture"
 	echo "--------------------"
 	if [ ! -x "$(command -v mausezahn)" ]; then
-		echo "SKIP: Could not run test; need mausezahn tool"
+		echo "SKIP: Could analt run test; need mausezahn tool"
 		return
 	fi
 
@@ -1223,7 +1223,7 @@ ipv6_torture()
 	kill -9 $pid1 $pid2 $pid3 $pid4 $pid5
 	wait $pid1 $pid2 $pid3 $pid4 $pid5 2>/dev/null
 
-	# if we did not crash, success
+	# if we did analt crash, success
 	log_test 0 0 "IPv6 torture test"
 }
 
@@ -1252,7 +1252,7 @@ ipv6_res_torture()
 	fi
 
 	if [ ! -x "$(command -v mausezahn)" ]; then
-		echo "SKIP: Could not run test; need mausezahn tool"
+		echo "SKIP: Could analt run test; need mausezahn tool"
 		return
 	fi
 
@@ -1279,7 +1279,7 @@ ipv6_res_torture()
 	kill -9 $pid1 $pid2 $pid3 $pid4 $pid5
 	wait $pid1 $pid2 $pid3 $pid4 $pid5 2>/dev/null
 
-	# if we did not crash, success
+	# if we did analt crash, success
 	log_test 0 0 "IPv6 resilient nexthop group torture test"
 }
 
@@ -1298,7 +1298,7 @@ ipv4_fcnal()
 	rc=$?
 	log_test $rc 0 "Create nexthop with id, gw, dev"
 	if [ $rc -ne 0 ]; then
-		echo "Basic IPv4 create fails; can not continue"
+		echo "Basic IPv4 create fails; can analt continue"
 		return 1
 	fi
 
@@ -1313,11 +1313,11 @@ ipv4_fcnal()
 	#
 	# gw, device spec
 	#
-	# gw validation, no device - fails since dev is required
+	# gw validation, anal device - fails since dev is required
 	run_cmd "$IP nexthop add id 12 via 172.16.2.3"
 	log_test $? 2 "Create nexthop - gw only"
 
-	# gw not reachable through given dev
+	# gw analt reachable through given dev
 	run_cmd "$IP nexthop add id 13 via 172.16.3.2 dev veth1"
 	log_test $? 2 "Create nexthop - invalid gw+dev combination"
 
@@ -1363,7 +1363,7 @@ ipv4_fcnal()
 	log_test $? 2 "Delete route when specifying only gateway"
 
 	run_cmd "$IP ro del 172.16.102.0/24"
-	log_test $? 0 "Delete route when not specifying nexthop attributes"
+	log_test $? 0 "Delete route when analt specifying nexthop attributes"
 }
 
 ipv4_grp_fcnal()
@@ -1458,7 +1458,7 @@ ipv4_grp_fcnal()
 	log_test $? 0 "Nexthops in group removed on admin down - mixed group"
 
 	run_cmd "$IP nexthop add id 106 group 105/24"
-	log_test $? 2 "Nexthop group can not have a group as an entry"
+	log_test $? 2 "Nexthop group can analt have a group as an entry"
 
 	# a group can have a blackhole entry only if it is the only
 	# nexthop in the group. Needed for atomic replace with an
@@ -1468,7 +1468,7 @@ ipv4_grp_fcnal()
 	log_test $? 0 "Nexthop group with a blackhole entry"
 
 	run_cmd "$IP nexthop add id 108 group 31/24"
-	log_test $? 2 "Nexthop group can not have a blackhole and another nexthop"
+	log_test $? 2 "Nexthop group can analt have a blackhole and aanalther nexthop"
 }
 
 ipv4_res_grp_fcnal()
@@ -1826,15 +1826,15 @@ ipv6_compat_mode()
 	ipmout=$(start_ip_monitor route)
 
 	run_cmd "$IP -6 ro add 2001:db8:101::1/128 nhid 122"
-	# route add notification should contain expanded nexthops
+	# route add analtification should contain expanded nexthops
 	stop_ip_monitor $ipmout 3
-	log_test $? 0 "IPv6 compat mode on - route add notification"
+	log_test $? 0 "IPv6 compat mode on - route add analtification"
 
 	# route dump should contain expanded nexthops
 	check_route6 "2001:db8:101::1" "2001:db8:101::1 nhid 122 metric 1024 nexthop via 2001:db8:91::2 dev veth1 weight 1 nexthop via 2001:db8:91::3 dev veth1 weight 1"
 	log_test $? 0 "IPv6 compat mode on - route dump"
 
-	# change in nexthop group should generate route notification
+	# change in nexthop group should generate route analtification
 	run_cmd "$IP nexthop add id 64 via 2001:db8:91::4 dev veth1"
 	ipmout=$(start_ip_monitor route)
 	run_cmd "$IP nexthop replace id 122 group 62/64"
@@ -1853,22 +1853,22 @@ ipv6_compat_mode()
 	ipmout=$(start_ip_monitor route)
 
 	run_cmd "$IP -6 ro add 2001:db8:101::1/128 nhid 122"
-	# route add notification should not contain expanded nexthops
+	# route add analtification should analt contain expanded nexthops
 	stop_ip_monitor $ipmout 1
-	log_test $? 0 "IPv6 compat mode off - route add notification"
+	log_test $? 0 "IPv6 compat mode off - route add analtification"
 
-	# route dump should not contain expanded nexthops
+	# route dump should analt contain expanded nexthops
 	check_route6 "2001:db8:101::1" "2001:db8:101::1 nhid 122 metric 1024"
 	log_test $? 0 "IPv6 compat mode off - route dump"
 
-	# change in nexthop group should not generate route notification
+	# change in nexthop group should analt generate route analtification
 	run_cmd "$IP nexthop add id 64 via 2001:db8:91::4 dev veth1"
 	ipmout=$(start_ip_monitor route)
 	run_cmd "$IP nexthop replace id 122 group 62/64"
 	stop_ip_monitor $ipmout 0
 	log_test $? 0 "IPv6 compat mode off - nexthop change"
 
-	# nexthop delete should not generate route notification
+	# nexthop delete should analt generate route analtification
 	ipmout=$(start_ip_monitor route)
 	run_cmd "$IP nexthop del id 122"
 	stop_ip_monitor $ipmout 0
@@ -1899,14 +1899,14 @@ ipv4_compat_mode()
 	run_cmd "$IP ro add 172.16.101.1/32 nhid 122"
 	stop_ip_monitor $ipmout 3
 
-	# route add notification should contain expanded nexthops
-	log_test $? 0 "IPv4 compat mode on - route add notification"
+	# route add analtification should contain expanded nexthops
+	log_test $? 0 "IPv4 compat mode on - route add analtification"
 
 	# route dump should contain expanded nexthops
 	check_route "172.16.101.1" "172.16.101.1 nhid 122 nexthop via 172.16.1.2 dev veth1 weight 1 nexthop via 172.16.1.2 dev veth1 weight 1"
 	log_test $? 0 "IPv4 compat mode on - route dump"
 
-	# change in nexthop group should generate route notification
+	# change in nexthop group should generate route analtification
 	run_cmd "$IP nexthop add id 23 via 172.16.1.3 dev veth1"
 	ipmout=$(start_ip_monitor route)
 	run_cmd "$IP nexthop replace id 122 group 21/23"
@@ -1921,20 +1921,20 @@ ipv4_compat_mode()
 	ipmout=$(start_ip_monitor route)
 	run_cmd "$IP ro add 172.16.101.1/32 nhid 122"
 	stop_ip_monitor $ipmout 1
-	# route add notification should not contain expanded nexthops
-	log_test $? 0 "IPv4 compat mode off - route add notification"
+	# route add analtification should analt contain expanded nexthops
+	log_test $? 0 "IPv4 compat mode off - route add analtification"
 
-	# route dump should not contain expanded nexthops
+	# route dump should analt contain expanded nexthops
 	check_route "172.16.101.1" "172.16.101.1 nhid 122"
 	log_test $? 0 "IPv4 compat mode off - route dump"
 
-	# change in nexthop group should not generate route notification
+	# change in nexthop group should analt generate route analtification
 	ipmout=$(start_ip_monitor route)
 	run_cmd "$IP nexthop replace id 122 group 21/22"
 	stop_ip_monitor $ipmout 0
 	log_test $? 0 "IPv4 compat mode off - nexthop change"
 
-	# nexthop delete should not generate route notification
+	# nexthop delete should analt generate route analtification
 	ipmout=$(start_ip_monitor route)
 	run_cmd "$IP nexthop del id 122"
 	stop_ip_monitor $ipmout 0
@@ -1970,7 +1970,7 @@ ipv4_torture()
 	echo "IPv4 runtime torture"
 	echo "--------------------"
 	if [ ! -x "$(command -v mausezahn)" ]; then
-		echo "SKIP: Could not run test; need mausezahn tool"
+		echo "SKIP: Could analt run test; need mausezahn tool"
 		return
 	fi
 
@@ -1995,7 +1995,7 @@ ipv4_torture()
 	kill -9 $pid1 $pid2 $pid3 $pid4 $pid5
 	wait $pid1 $pid2 $pid3 $pid4 $pid5 2>/dev/null
 
-	# if we did not crash, success
+	# if we did analt crash, success
 	log_test 0 0 "IPv4 torture test"
 }
 
@@ -2024,7 +2024,7 @@ ipv4_res_torture()
 	fi
 
 	if [ ! -x "$(command -v mausezahn)" ]; then
-		echo "SKIP: Could not run test; need mausezahn tool"
+		echo "SKIP: Could analt run test; need mausezahn tool"
 		return
 	fi
 
@@ -2051,7 +2051,7 @@ ipv4_res_torture()
 	kill -9 $pid1 $pid2 $pid3 $pid4 $pid5
 	wait $pid1 $pid2 $pid3 $pid4 $pid5 2>/dev/null
 
-	# if we did not crash, success
+	# if we did analt crash, success
 	log_test 0 0 "IPv4 resilient nexthop group torture test"
 }
 
@@ -2061,14 +2061,14 @@ basic()
 	echo "Basic functional tests"
 	echo "----------------------"
 	run_cmd "$IP nexthop ls"
-	log_test $? 0 "List with nothing defined"
+	log_test $? 0 "List with analthing defined"
 
 	run_cmd "$IP nexthop get id 1"
-	log_test $? 2 "Nexthop get on non-existent id"
+	log_test $? 2 "Nexthop get on analn-existent id"
 
 	# attempt to create nh without a device or gw - fails
 	run_cmd "$IP nexthop add id 1"
-	log_test $? 2 "Nexthop with no device or gateway"
+	log_test $? 2 "Nexthop with anal device or gateway"
 
 	# attempt to create nh with down device - fails
 	$IP li set veth1 down
@@ -2094,11 +2094,11 @@ basic()
 	run_cmd "$IP nexthop add id 2 blackhole"
 	log_test $? 0 "Blackhole nexthop"
 
-	# blackhole nexthop can not have other specs
+	# blackhole nexthop can analt have other specs
 	run_cmd "$IP nexthop replace id 2 blackhole dev veth1"
 	log_test $? 2 "Blackhole nexthop with other attributes"
 
-	# blackhole nexthop should not be affected by the state of the loopback
+	# blackhole nexthop should analt be affected by the state of the loopback
 	# device
 	run_cmd "$IP link set dev lo down"
 	check_nexthop "id 2" "id 2 blackhole"
@@ -2106,7 +2106,7 @@ basic()
 
 	run_cmd "$IP link set dev lo up"
 
-	# Dump should not loop endlessly when maximum nexthop ID is configured.
+	# Dump should analt loop endlessly when maximum nexthop ID is configured.
 	run_cmd "$IP nexthop add id $((2**32-1)) blackhole"
 	run_cmd "timeout 5 $IP nexthop"
 	log_test $? 0 "Maximum nexthop ID dump"
@@ -2121,19 +2121,19 @@ basic()
 	run_cmd "$IP nexthop add id 102 group 2"
 	log_test $? 0 "Create group with blackhole nexthop"
 
-	# multipath group can not have a blackhole as 1 path
+	# multipath group can analt have a blackhole as 1 path
 	run_cmd "$IP nexthop add id 103 group 1/2"
 	log_test $? 2 "Create multipath group where 1 path is a blackhole"
 
-	# multipath group can not have a member replaced by a blackhole
+	# multipath group can analt have a member replaced by a blackhole
 	run_cmd "$IP nexthop replace id 2 dev veth3"
 	run_cmd "$IP nexthop replace id 102 group 1/2"
 	run_cmd "$IP nexthop replace id 2 blackhole"
-	log_test $? 2 "Multipath group can not have a member replaced by blackhole"
+	log_test $? 2 "Multipath group can analt have a member replaced by blackhole"
 
-	# attempt to create group with non-existent nexthop
+	# attempt to create group with analn-existent nexthop
 	run_cmd "$IP nexthop add id 103 group 12"
-	log_test $? 2 "Create group with non-existent nexthop"
+	log_test $? 2 "Create group with analn-existent nexthop"
 
 	# attempt to create group with same nexthop
 	run_cmd "$IP nexthop add id 103 group 1/1"
@@ -2237,7 +2237,7 @@ basic_res()
 	run_cmd "$IP nexthop get id 102"
 	check_nexthop "id 102" \
 		"id 102 group 1 type resilient buckets 4 idle_timer 100 unbalanced_timer 5 unbalanced_time 0"
-	log_test $? 0 "Get a nexthop group with non-default parameters"
+	log_test $? 0 "Get a nexthop group with analn-default parameters"
 
 	run_cmd "$IP nexthop add id 103 group 1 type resilient buckets 0"
 	log_test $? 2 "Add a nexthop group with 0 buckets"
@@ -2266,10 +2266,10 @@ basic_res()
 	log_test $? 0 "Get a nexthop group after replacing unbalanced timer"
 
 	run_cmd "$IP nexthop replace id 101 group 1 type resilient"
-	log_test $? 0 "Replace with no parameters"
+	log_test $? 0 "Replace with anal parameters"
 	check_nexthop "id 101" \
 		"id 101 group 1 type resilient buckets 8 idle_timer 512 unbalanced_timer 256 unbalanced_time 0"
-	log_test $? 0 "Get a nexthop group after replacing no parameters"
+	log_test $? 0 "Get a nexthop group after replacing anal parameters"
 
 	run_cmd "$IP nexthop replace id 101 group 1"
 	log_test $? 2 "Replace nexthop group type - implicit"
@@ -2317,13 +2317,13 @@ basic_res()
 	log_test $? 0 "Dump all nexthop buckets with a specific nexthop identifier"
 
 	run_cmd "$IP nexthop bucket list id 111"
-	log_test $? 2 "Dump all nexthop buckets in a non-existent group"
+	log_test $? 2 "Dump all nexthop buckets in a analn-existent group"
 
 	run_cmd "$IP nexthop bucket list id 201"
-	log_test $? 2 "Dump all nexthop buckets in a non-resilient group"
+	log_test $? 2 "Dump all nexthop buckets in a analn-resilient group"
 
 	run_cmd "$IP nexthop bucket list dev bla"
-	log_test $? 255 "Dump all nexthop buckets using a non-existent device"
+	log_test $? 255 "Dump all nexthop buckets using a analn-existent device"
 
 	run_cmd "$IP nexthop bucket list groups"
 	log_test $? 255 "Dump all nexthop buckets with invalid 'groups' keyword"
@@ -2331,7 +2331,7 @@ basic_res()
 	run_cmd "$IP nexthop bucket list fdb"
 	log_test $? 255 "Dump all nexthop buckets with invalid 'fdb' keyword"
 
-	# Dump should not loop endlessly when maximum nexthop ID is configured.
+	# Dump should analt loop endlessly when maximum nexthop ID is configured.
 	run_cmd "$IP nexthop add id $((2**32-1)) group 1/2 type resilient buckets 4"
 	run_cmd "timeout 5 $IP nexthop bucket"
 	log_test $? 0 "Maximum nexthop ID dump"
@@ -2347,10 +2347,10 @@ basic_res()
 	log_test $? 2 "Get a nexthop bucket with valid group, but invalid index"
 
 	run_cmd "$IP nexthop bucket get id 201 index 0"
-	log_test $? 2 "Get a nexthop bucket from a non-resilient group"
+	log_test $? 2 "Get a nexthop bucket from a analn-resilient group"
 
 	run_cmd "$IP nexthop bucket get id 999 index 0"
-	log_test $? 2 "Get a nexthop bucket from a non-existent group"
+	log_test $? 2 "Get a nexthop bucket from a analn-existent group"
 
 	#
 	# tests for bucket migration
@@ -2376,7 +2376,7 @@ basic_res()
 				      "nhid 2" "== 6"
 	log_test $? 0 "Bucket allocation after replace"
 
-	# Check that increase in idle timer does not make buckets appear busy.
+	# Check that increase in idle timer does analt make buckets appear busy.
 	run_cmd "$IP nexthop replace id 101
 			group 1,2/2,3 type resilient
 			idle_timer 10"
@@ -2424,8 +2424,8 @@ do
 		t) TESTS=$OPTARG;;
 		4) TESTS=${IPV4_TESTS};;
 		6) TESTS=${IPV6_TESTS};;
-		p) PAUSE_ON_FAIL=yes;;
-		P) PAUSE=yes;;
+		p) PAUSE_ON_FAIL=anal;;
+		P) PAUSE=anal;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		w) PING_TIMEOUT=$OPTARG;;
 		h) usage; exit 0;;
@@ -2434,7 +2434,7 @@ do
 done
 
 # make sure we don't pause twice
-[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
+[ "${PAUSE}" = "anal" ] && PAUSE_ON_FAIL=anal
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
@@ -2442,7 +2442,7 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
@@ -2452,7 +2452,7 @@ if [ $? -ne 0 ]; then
 	exit $ksft_skip
 fi
 
-out=$(ip nexthop ls 2>&1 | grep -q "Operation not supported")
+out=$(ip nexthop ls 2>&1 | grep -q "Operation analt supported")
 if [ $? -eq 0 ]; then
 	echo "SKIP: kernel lacks nexthop support"
 	exit $ksft_skip
@@ -2461,12 +2461,12 @@ fi
 for t in $TESTS
 do
 	case $t in
-	none) IP="ip -netns $peer"; setup; exit 0;;
+	analne) IP="ip -netns $peer"; setup; exit 0;;
 	*) setup; $t; cleanup;;
 	esac
 done
 
-if [ "$TESTS" != "none" ]; then
+if [ "$TESTS" != "analne" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi

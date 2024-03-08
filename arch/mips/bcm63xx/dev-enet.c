@@ -215,10 +215,10 @@ int __init bcm63xx_enet_register(int unit,
 	int ret;
 
 	if (unit > 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (unit == 1 && (BCMCPU_IS_6338() || BCMCPU_IS_6345()))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = register_shared();
 	if (ret)
@@ -251,7 +251,7 @@ int __init bcm63xx_enet_register(int unit,
 
 		/* internal phy only exists for enet0 */
 		if (unit == 1)
-			return -ENODEV;
+			return -EANALDEV;
 
 		dpd->phy_id = 1;
 		dpd->has_phy_interrupt = 1;
@@ -265,7 +265,7 @@ int __init bcm63xx_enet_register(int unit,
 		dpd->dma_chan_en_mask |= ENETDMAC_CHANCFG_WRAP_EN_MASK;
 		dpd->dma_chan_en_mask |= ENETDMAC_CHANCFG_FLOWC_EN_MASK;
 		dpd->dma_chan_int_mask |= ENETDMA_IR_BUFDONE_MASK;
-		dpd->dma_chan_int_mask |= ENETDMA_IR_NOTOWNER_MASK;
+		dpd->dma_chan_int_mask |= ENETDMA_IR_ANALTOWNER_MASK;
 		dpd->dma_chan_width = ENETDMA_6345_CHAN_WIDTH;
 		dpd->dma_desc_shift = ENETDMA_6345_DESC_SHIFT;
 	} else {
@@ -293,7 +293,7 @@ bcm63xx_enetsw_register(const struct bcm63xx_enetsw_platform_data *pd)
 	int ret;
 
 	if (!BCMCPU_IS_6328() && !BCMCPU_IS_6362() && !BCMCPU_IS_6368())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = register_shared();
 	if (ret)

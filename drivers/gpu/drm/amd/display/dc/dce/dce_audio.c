@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -246,7 +246,7 @@ static void check_audio_bandwidth_dpsst(
 	uint32_t channel_count,
 	union audio_sample_rates *sample_rates)
 {
-	/* do nothing */
+	/* do analthing */
 }
 
 /*For DP MST, calculate if specified sample rates can fit into a given timing */
@@ -255,7 +255,7 @@ static void check_audio_bandwidth_dpmst(
 	uint32_t channel_count,
 	union audio_sample_rates *sample_rates)
 {
-	/* do nothing  */
+	/* do analthing  */
 }
 
 static void check_audio_bandwidth(
@@ -283,7 +283,7 @@ static void check_audio_bandwidth(
 	}
 }
 
-/* expose/not expose HBR capability to Audio driver */
+/* expose/analt expose HBR capability to Audio driver */
 static void set_high_bit_rate_capable(
 	struct audio *audio,
 	bool capable)
@@ -429,7 +429,7 @@ void dce_aud_az_configure(
 		SPEAKER_ALLOCATION);
 
 	/* LFE_PLAYBACK_LEVEL = LFEPBL
-	 * LFEPBL = 0 : Unknown or refer to other information
+	 * LFEPBL = 0 : Unkanalwn or refer to other information
 	 * LFEPBL = 1 : 0dB playback
 	 * LFEPBL = 2 : +10dB playback
 	 * LFE_BL = 3 : Reserved
@@ -439,7 +439,7 @@ void dce_aud_az_configure(
 		AZALIA_F0_CODEC_PIN_CONTROL_CHANNEL_SPEAKER,
 		LFE_PLAYBACK_LEVEL);
 	/* todo: according to reg spec LFE_PLAYBACK_LEVEL is read only.
-	 *  why are we writing to it?  DCE8 does not write this */
+	 *  why are we writing to it?  DCE8 does analt write this */
 
 
 	set_reg_field_value(value,
@@ -771,7 +771,7 @@ static void get_azalia_clock_info_dp(
 	struct azalia_clock_info *azalia_clock_info)
 {
 	/* Reported dpDtoSourceClockInkhz value for
-	 * DCE8 already adjusted for SS, do not need any
+	 * DCE8 already adjusted for SS, do analt need any
 	 * adjustment here anymore
 	 */
 
@@ -819,7 +819,7 @@ void dce_aud_wall_dto_setup(
 
 		/* On TN/SI, Program DTO source select and DTO select before
 		programming DTO modulo and DTO phase. These bits must be
-		programmed first, otherwise there will be no HDMI audio at boot
+		programmed first, otherwise there will be anal HDMI audio at boot
 		up. This is a HW sequence change (different from old ASICs).
 		Caution when changing this programming sequence.
 
@@ -858,7 +858,7 @@ void dce_aud_wall_dto_setup(
 
 			/* DCCG_AUDIO_DTO2_USE_512FBR_DTO, 1)
 			 * Select 512fs for DP TODO: web register definition
-			 * does not match register header file
+			 * does analt match register header file
 			 * DCE11 version it's commented out while DCE8 it's set to 1
 			*/
 
@@ -911,7 +911,7 @@ static void dce60_aud_wall_dto_setup(
 
 		/* On TN/SI, Program DTO source select and DTO select before
 		programming DTO modulo and DTO phase. These bits must be
-		programmed first, otherwise there will be no HDMI audio at boot
+		programmed first, otherwise there will be anal HDMI audio at boot
 		up. This is a HW sequence change (different from old ASICs).
 		Caution when changing this programming sequence.
 
@@ -931,7 +931,7 @@ static void dce60_aud_wall_dto_setup(
 			DCCG_AUDIO_DTO0_PHASE, clock_info.audio_dto_phase);
 	} else {
 		/*DTO1 Programming goal:
-		-generate 24MHz, 128*Fs from 24MHz (DCE6 does not support 512*Fs)
+		-generate 24MHz, 128*Fs from 24MHz (DCE6 does analt support 512*Fs)
 		-default is to used DTO1, and switch to DTO0 when an audio
 		master HDMI port is connected
 		-use as default for DP
@@ -949,9 +949,9 @@ static void dce60_aud_wall_dto_setup(
 				DCCG_AUDIO_DTO_SEL, 1);
 
 			/* DCCG_AUDIO_DTO2_USE_512FBR_DTO, 1)
-			 * Cannot select 512fs for DP
+			 * Cananalt select 512fs for DP
 			 *
-			 * DCE6 has no DCCG_AUDIO_DTO2_USE_512FBR_DTO mask
+			 * DCE6 has anal DCCG_AUDIO_DTO2_USE_512FBR_DTO mask
 			*/
 
 		/* module */
@@ -962,7 +962,7 @@ static void dce60_aud_wall_dto_setup(
 		REG_UPDATE(DCCG_AUDIO_DTO1_PHASE,
 				DCCG_AUDIO_DTO1_PHASE, clock_info.audio_dto_phase);
 
-		/* DCE6 has no DCCG_AUDIO_DTO2_USE_512FBR_DTO mask in DCCG_AUDIO_DTO_SOURCE reg */
+		/* DCE6 has anal DCCG_AUDIO_DTO2_USE_512FBR_DTO mask in DCCG_AUDIO_DTO_SOURCE reg */
 
 	}
 }

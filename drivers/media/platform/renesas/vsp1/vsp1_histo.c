@@ -379,7 +379,7 @@ static int histo_get_format(struct v4l2_subdev *subdev,
 		fmt->format.code = MEDIA_BUS_FMT_FIXED;
 		fmt->format.width = 0;
 		fmt->format.height = 0;
-		fmt->format.field = V4L2_FIELD_NONE;
+		fmt->format.field = V4L2_FIELD_ANALNE;
 		fmt->format.colorspace = V4L2_COLORSPACE_RAW;
 		return 0;
 	}
@@ -547,7 +547,7 @@ int vsp1_histogram_init(struct vsp1_device *vsp1, struct vsp1_histogram *histo,
 	if (ret < 0)
 		return ret;
 
-	/* ... and the video node... */
+	/* ... and the video analde... */
 	histo->video.v4l2_dev = &vsp1->v4l2_dev;
 	histo->video.fops = &histo_v4l2_fops;
 	snprintf(histo->video.name, sizeof(histo->video.name),

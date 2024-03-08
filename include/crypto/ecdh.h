@@ -14,7 +14,7 @@
  * To use ECDH with the KPP cipher API, the following data structure and
  * functions should be used.
  *
- * The ECC curves known to the ECDH implementation are specified in this
+ * The ECC curves kanalwn to the ECDH implementation are specified in this
  * header file.
  *
  * To use ECDH with KPP, the following functions should be used to operate on

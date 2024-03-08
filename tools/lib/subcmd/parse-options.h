@@ -11,7 +11,7 @@ enum parse_opt_type {
 	OPTION_END,
 	OPTION_ARGUMENT,
 	OPTION_GROUP,
-	/* options with no arguments */
+	/* options with anal arguments */
 	OPTION_BIT,
 	OPTION_BOOLEAN,
 	OPTION_INCR,
@@ -29,22 +29,22 @@ enum parse_opt_type {
 
 enum parse_opt_flags {
 	PARSE_OPT_KEEP_DASHDASH = 1,
-	PARSE_OPT_STOP_AT_NON_OPTION = 2,
+	PARSE_OPT_STOP_AT_ANALN_OPTION = 2,
 	PARSE_OPT_KEEP_ARGV0 = 4,
-	PARSE_OPT_KEEP_UNKNOWN = 8,
-	PARSE_OPT_NO_INTERNAL_HELP = 16,
+	PARSE_OPT_KEEP_UNKANALWN = 8,
+	PARSE_OPT_ANAL_INTERNAL_HELP = 16,
 };
 
 enum parse_opt_option_flags {
 	PARSE_OPT_OPTARG  = 1,
-	PARSE_OPT_NOARG   = 2,
-	PARSE_OPT_NONEG   = 4,
+	PARSE_OPT_ANALARG   = 2,
+	PARSE_OPT_ANALNEG   = 4,
 	PARSE_OPT_HIDDEN  = 8,
 	PARSE_OPT_LASTARG_DEFAULT = 16,
 	PARSE_OPT_DISABLED = 32,
 	PARSE_OPT_EXCLUSIVE = 64,
-	PARSE_OPT_NOEMPTY  = 128,
-	PARSE_OPT_NOBUILD  = 256,
+	PARSE_OPT_ANALEMPTY  = 128,
+	PARSE_OPT_ANALBUILD  = 256,
 	PARSE_OPT_CANSKIP  = 512,
 };
 
@@ -57,10 +57,10 @@ typedef int parse_opt_cb(const struct option *, const char *arg, int unset);
  *   array.
  *
  * `short_name`::
- *   the character to use as a short option name, '\0' if none.
+ *   the character to use as a short option name, '\0' if analne.
  *
  * `long_name`::
- *   the long option name, without the leading dashes, NULL if none.
+ *   the long option name, without the leading dashes, NULL if analne.
  *
  * `value`::
  *   stores pointers to the values to be filled.
@@ -76,9 +76,9 @@ typedef int parse_opt_cb(const struct option *, const char *arg, int unset);
  *
  * `flags`::
  *   mask of parse_opt_option_flags.
- *   PARSE_OPT_OPTARG: says that the argument is optional (not for BOOLEANs)
- *   PARSE_OPT_NOARG: says that this option takes no argument, for CALLBACKs
- *   PARSE_OPT_NONEG: says that this option cannot be negated
+ *   PARSE_OPT_OPTARG: says that the argument is optional (analt for BOOLEANs)
+ *   PARSE_OPT_ANALARG: says that this option takes anal argument, for CALLBACKs
+ *   PARSE_OPT_ANALNEG: says that this option cananalt be negated
  *   PARSE_OPT_HIDDEN this option is skipped in the default usage, showed in
  *                    the long one.
  *
@@ -143,31 +143,31 @@ struct option {
 	  .value = check_vtype(v, const char **), .argh = (a), .help = (h), \
 	  .flags = PARSE_OPT_OPTARG, .defval = (intptr_t)(d), \
 	  .set = check_vtype(os, bool *)}
-#define OPT_STRING_NOEMPTY(s, l, v, a, h)   { .type = OPTION_STRING,  .short_name = (s), .long_name = (l), .value = check_vtype(v, const char **), .argh = (a), .help = (h), .flags = PARSE_OPT_NOEMPTY}
+#define OPT_STRING_ANALEMPTY(s, l, v, a, h)   { .type = OPTION_STRING,  .short_name = (s), .long_name = (l), .value = check_vtype(v, const char **), .argh = (a), .help = (h), .flags = PARSE_OPT_ANALEMPTY}
 #define OPT_DATE(s, l, v, h) \
 	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), .argh = "time", .help = (h), .callback = parse_opt_approxidate_cb }
 #define OPT_CALLBACK(s, l, v, a, h, f) \
 	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), .argh = (a), .help = (h), .callback = (f) }
 #define OPT_CALLBACK_SET(s, l, v, os, a, h, f) \
 	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), .argh = (a), .help = (h), .callback = (f), .set = check_vtype(os, bool *)}
-#define OPT_CALLBACK_NOOPT(s, l, v, a, h, f) \
-	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), .argh = (a), .help = (h), .callback = (f), .flags = PARSE_OPT_NOARG }
+#define OPT_CALLBACK_ANALOPT(s, l, v, a, h, f) \
+	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), .argh = (a), .help = (h), .callback = (f), .flags = PARSE_OPT_ANALARG }
 #define OPT_CALLBACK_DEFAULT(s, l, v, a, h, f, d) \
 	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), .value = (v), .argh = (a), .help = (h), .callback = (f), .defval = (intptr_t)d, .flags = PARSE_OPT_LASTARG_DEFAULT }
-#define OPT_CALLBACK_DEFAULT_NOOPT(s, l, v, a, h, f, d) \
+#define OPT_CALLBACK_DEFAULT_ANALOPT(s, l, v, a, h, f, d) \
 	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l),\
 	.value = (v), .arg = (a), .help = (h), .callback = (f), .defval = (intptr_t)d,\
-	.flags = PARSE_OPT_LASTARG_DEFAULT | PARSE_OPT_NOARG}
+	.flags = PARSE_OPT_LASTARG_DEFAULT | PARSE_OPT_ANALARG}
 #define OPT_CALLBACK_OPTARG(s, l, v, d, a, h, f) \
 	{ .type = OPTION_CALLBACK, .short_name = (s), .long_name = (l), \
 	  .value = (v), .argh = (a), .help = (h), .callback = (f), \
 	  .flags = PARSE_OPT_OPTARG, .data = (d) }
 
 /* parse_options() will filter out the processed options and leave the
- * non-option argments in argv[].
+ * analn-option argments in argv[].
  * Returns the number of arguments left in argv[].
  *
- * NOTE: parse_options() and parse_options_subcommand() may call exit() in the
+ * ANALTE: parse_options() and parse_options_subcommand() may call exit() in the
  * case of an error (or for 'special' options like --list-cmds or --list-opts).
  */
 extern int parse_options(int argc, const char **argv,
@@ -179,9 +179,9 @@ extern int parse_options_subcommand(int argc, const char **argv,
 				const char *const subcommands[],
 				const char *usagestr[], int flags);
 
-extern __noreturn void usage_with_options(const char * const *usagestr,
+extern __analreturn void usage_with_options(const char * const *usagestr,
                                         const struct option *options);
-extern __noreturn __attribute__((format(printf,3,4)))
+extern __analreturn __attribute__((format(printf,3,4)))
 void usage_with_options_msg(const char * const *usagestr,
 			    const struct option *options,
 			    const char *fmt, ...);
@@ -193,12 +193,12 @@ enum {
 	PARSE_OPT_DONE,
 	PARSE_OPT_LIST_OPTS,
 	PARSE_OPT_LIST_SUBCMDS,
-	PARSE_OPT_UNKNOWN,
+	PARSE_OPT_UNKANALWN,
 };
 
 /*
  * It's okay for the caller to consume argv/argc in the usual way.
- * Other fields of that structure are private to parse-options and should not
+ * Other fields of that structure are private to parse-options and should analt
  * be modified in any way.
  */
 struct parse_opt_ctx_t {
@@ -225,9 +225,9 @@ extern int parse_opt_verbosity_cb(const struct option *, const char *, int);
 #define OPT__QUIET(var)    OPT_BOOLEAN('q', "quiet",   (var), "be quiet")
 #define OPT__VERBOSITY(var) \
 	{ OPTION_CALLBACK, 'v', "verbose", (var), NULL, "be more verbose", \
-	  PARSE_OPT_NOARG, &parse_opt_verbosity_cb, 0 }, \
+	  PARSE_OPT_ANALARG, &parse_opt_verbosity_cb, 0 }, \
 	{ OPTION_CALLBACK, 'q', "quiet", (var), NULL, "be more quiet", \
-	  PARSE_OPT_NOARG, &parse_opt_verbosity_cb, 0 }
+	  PARSE_OPT_ANALARG, &parse_opt_verbosity_cb, 0 }
 #define OPT__DRY_RUN(var)  OPT_BOOLEAN('n', "dry-run", (var), "dry run")
 #define OPT__ABBREV(var)  \
 	{ OPTION_CALLBACK, 0, "abbrev", (var), "n", \
@@ -237,7 +237,7 @@ extern int parse_opt_verbosity_cb(const struct option *, const char *, int);
 extern const char *parse_options_fix_filename(const char *prefix, const char *file);
 
 void set_option_flag(struct option *opts, int sopt, const char *lopt, int flag);
-void set_option_nobuild(struct option *opts, int shortopt, const char *longopt,
+void set_option_analbuild(struct option *opts, int shortopt, const char *longopt,
 			const char *build_opt, bool can_skip);
 
 #endif /* __SUBCMD_PARSE_OPTIONS_H */

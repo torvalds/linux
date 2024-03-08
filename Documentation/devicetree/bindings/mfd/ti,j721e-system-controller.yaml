@@ -9,12 +9,12 @@ title: TI J721e System Controller Registers R/W
 
 description: |
   This represents the Control Module registers (CTRL_MMR0) on the SoC.
-  System controller node represents a register region containing a set
-  of miscellaneous registers. The registers are not cohesive enough to
+  System controller analde represents a register region containing a set
+  of miscellaneous registers. The registers are analt cohesive eanalugh to
   represent as any specific type of device. The typical use-case is
-  for some other node's driver, or platform-specific code, to acquire
-  a reference to the syscon node (e.g. by phandle, node path, or
-  search using a specific compatible value), interrogate the node (or
+  for some other analde's driver, or platform-specific code, to acquire
+  a reference to the syscon analde (e.g. by phandle, analde path, or
+  search using a specific compatible value), interrogate the analde (or
   associated OS driver) to determine the location of the registers,
   and access the registers directly.
 
@@ -54,19 +54,19 @@ patternProperties:
     type: object
     $ref: /schemas/clock/ti,am654-ehrpwm-tbclk.yaml#
     description:
-      Clock provider for TI EHRPWM nodes.
+      Clock provider for TI EHRPWM analdes.
 
   "phy@[0-9a-f]+$":
     type: object
     $ref: /schemas/phy/ti,phy-gmii-sel.yaml#
     description:
-      The phy node corresponding to the ethernet MAC.
+      The phy analde corresponding to the ethernet MAC.
 
   "^chipid@[0-9a-f]+$":
     type: object
     $ref: /schemas/hwinfo/ti,k3-socinfo.yaml#
     description:
-      The node corresponding to SoC chip identification.
+      The analde corresponding to SoC chip identification.
 
 required:
   - compatible

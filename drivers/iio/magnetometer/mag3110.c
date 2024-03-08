@@ -44,7 +44,7 @@
 #define MAG3110_CTRL_AC BIT(0) /* continuous measurements */
 
 #define MAG3110_CTRL_AUTO_MRST_EN BIT(7) /* magnetic auto-reset */
-#define MAG3110_CTRL_RAW BIT(5) /* measurements not user-offset corrected */
+#define MAG3110_CTRL_RAW BIT(5) /* measurements analt user-offset corrected */
 
 #define MAG3110_DEVICE_ID 0xc4
 
@@ -91,7 +91,7 @@ static int mag3110_request(struct mag3110_data *data)
 	}
 
 	if (tries < 0) {
-		dev_err(&data->client->dev, "data not ready\n");
+		dev_err(&data->client->dev, "data analt ready\n");
 		return -EIO;
 	}
 
@@ -201,7 +201,7 @@ static int mag3110_wait_standby(struct mag3110_data *data)
 	}
 
 	if (tries < 0) {
-		dev_err(&data->client->dev, "device not entering standby mode\n");
+		dev_err(&data->client->dev, "device analt entering standby mode\n");
 		return -EIO;
 	}
 
@@ -413,7 +413,7 @@ static irqreturn_t mag3110_trigger_handler(int irq, void *p)
 		iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -478,7 +478,7 @@ static int mag3110_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 
@@ -508,7 +508,7 @@ static int mag3110_probe(struct i2c_client *client)
 	if (ret < 0)
 		goto disable_regulators;
 	if (ret != MAG3110_DEVICE_ID) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto disable_regulators;
 	}
 

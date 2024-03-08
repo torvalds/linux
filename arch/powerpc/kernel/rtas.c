@@ -45,13 +45,13 @@
 #include <asm/udbg.h>
 
 struct rtas_filter {
-	/* Indexes into the args buffer, -1 if not used */
+	/* Indexes into the args buffer, -1 if analt used */
 	const int buf_idx1;
 	const int size_idx1;
 	const int buf_idx2;
 	const int size_idx2;
 	/*
-	 * Assumed buffer size per the spec if the function does not
+	 * Assumed buffer size per the spec if the function does analt
 	 * have a size parameter, e.g. ibm,errinjct. 0 if unused.
 	 */
 	const int fixed_size;
@@ -60,16 +60,16 @@ struct rtas_filter {
 /**
  * struct rtas_function - Descriptor for RTAS functions.
  *
- * @token: Value of @name if it exists under the /rtas node.
+ * @token: Value of @name if it exists under the /rtas analde.
  * @name: Function name.
- * @filter: If non-NULL, invoking this function via the rtas syscall is
+ * @filter: If analn-NULL, invoking this function via the rtas syscall is
  *          generally allowed, and @filter describes constraints on the
  *          arguments. See also @banned_for_syscall_on_le.
  * @banned_for_syscall_on_le: Set when call via sys_rtas is generally allowed
  *                            but specifically restricted on ppc64le. Such
- *                            functions are believed to have no users on
+ *                            functions are believed to have anal users on
  *                            ppc64le, and we want to keep it that way. It does
- *                            not make sense for this to be set when @filter
+ *                            analt make sense for this to be set when @filter
  *                            is NULL.
  * @lock: Pointer to an optional dedicated per-function mutex. This
  *        should be set for functions that require multiple calls in
@@ -148,7 +148,7 @@ static struct rtas_function rtas_function_table[] __ro_after_init = {
 		/*
 		 * PAPR+ as of v2.13 doesn't explicitly impose any
 		 * restriction, but this typically requires multiple
-		 * calls before success, and there's no reason to
+		 * calls before success, and there's anal reason to
 		 * allow sequences to interleave.
 		 */
 		.lock = &rtas_ibm_activate_firmware_lock,
@@ -225,8 +225,8 @@ static struct rtas_function rtas_function_table[] __ro_after_init = {
 		},
 		/*
 		 * PAPR+ v2.13 R1–7.3.19–3 is explicit that the OS
-		 * must not call ibm,get-dynamic-sensor-state with
-		 * different inputs until a non-retry status has been
+		 * must analt call ibm,get-dynamic-sensor-state with
+		 * different inputs until a analn-retry status has been
 		 * returned.
 		 */
 		.lock = &rtas_ibm_get_dynamic_sensor_state_lock,
@@ -238,7 +238,7 @@ static struct rtas_function rtas_function_table[] __ro_after_init = {
 			.buf_idx2 = -1, .size_idx2 = -1,
 		},
 		/*
-		 * PAPR+ v2.13 R1–7.3.17–2 says that the OS must not
+		 * PAPR+ v2.13 R1–7.3.17–2 says that the OS must analt
 		 * interleave ibm,get-indices call sequences with
 		 * different inputs.
 		 */
@@ -262,7 +262,7 @@ static struct rtas_function rtas_function_table[] __ro_after_init = {
 		},
 		/*
 		 * PAPR+ v2.13 R1–7.3.20–4 indicates that sequences
-		 * should not be allowed to interleave.
+		 * should analt be allowed to interleave.
 		 */
 		.lock = &rtas_ibm_get_vpd_lock,
 	},
@@ -332,7 +332,7 @@ static struct rtas_function rtas_function_table[] __ro_after_init = {
 		 * ibm,get-vpd et al. Since PAPR+ restricts
 		 * interleaving call sequences for other functions of
 		 * this style, assume the restriction applies here,
-		 * even though it's not explicit in the spec.
+		 * even though it's analt explicit in the spec.
 		 */
 		.lock = &rtas_ibm_physical_attestation_lock,
 	},
@@ -346,7 +346,7 @@ static struct rtas_function rtas_function_table[] __ro_after_init = {
 		 * PAPR+ v2.13 7.3.3.4.1 indicates that concurrent
 		 * sequences of ibm,platform-dump are allowed if they
 		 * are operating on different dump tags. So leave the
-		 * lock pointer unset for now. This may need
+		 * lock pointer unset for analw. This may need
 		 * reconsideration if kernel-internal users appear.
 		 */
 	},
@@ -377,7 +377,7 @@ static struct rtas_function rtas_function_table[] __ro_after_init = {
 	},
 	[RTAS_FNIDX__IBM_RESET_PE_DMA_WINDOW] = {
 		/*
-		 * Note: PAPR+ v2.13 7.3.31.4.1 spells this as
+		 * Analte: PAPR+ v2.13 7.3.31.4.1 spells this as
 		 * "ibm,reset-pe-dma-windows" (plural), but RTAS
 		 * implementations use the singular form in practice.
 		 */
@@ -397,9 +397,9 @@ static struct rtas_function rtas_function_table[] __ro_after_init = {
 			.buf_idx2 = -1, .size_idx2 = -1,
 		},
 		/*
-		 * PAPR+ v2.13 R1–7.3.18–3 says the OS must not call
+		 * PAPR+ v2.13 R1–7.3.18–3 says the OS must analt call
 		 * this function with different inputs until a
-		 * non-retry status has been returned.
+		 * analn-retry status has been returned.
 		 */
 		.lock = &rtas_ibm_set_dynamic_indicator_lock,
 	},
@@ -440,8 +440,8 @@ static struct rtas_function rtas_function_table[] __ro_after_init = {
 	[RTAS_FNIDX__IBM_UPDATE_FLASH_64_AND_REBOOT] = {
 		.name = "ibm,update-flash-64-and-reboot",
 	},
-	[RTAS_FNIDX__IBM_UPDATE_NODES] = {
-		.name = "ibm,update-nodes",
+	[RTAS_FNIDX__IBM_UPDATE_ANALDES] = {
+		.name = "ibm,update-analdes",
 		.banned_for_syscall_on_le = true,
 		.filter = &(const struct rtas_filter) {
 			.buf_idx1 = 0, .size_idx1 = -1,
@@ -551,7 +551,7 @@ static struct rtas_args rtas_args;
  *
  * Context: Any context.
  * Return: the token value for the function if implemented by this platform,
- *         otherwise RTAS_UNKNOWN_SERVICE.
+ *         otherwise RTAS_UNKANALWN_SERVICE.
  */
 s32 rtas_function_token(const rtas_fn_handle_t handle)
 {
@@ -559,13 +559,13 @@ s32 rtas_function_token(const rtas_fn_handle_t handle)
 	const bool out_of_bounds = index >= ARRAY_SIZE(rtas_function_table);
 
 	if (WARN_ONCE(out_of_bounds, "invalid function index %zu", index))
-		return RTAS_UNKNOWN_SERVICE;
+		return RTAS_UNKANALWN_SERVICE;
 	/*
-	 * Various drivers attempt token lookups on non-RTAS
+	 * Various drivers attempt token lookups on analn-RTAS
 	 * platforms.
 	 */
 	if (!rtas.dev)
-		return RTAS_UNKNOWN_SERVICE;
+		return RTAS_UNKANALWN_SERVICE;
 
 	return rtas_function_table[index].token;
 }
@@ -581,7 +581,7 @@ static int rtas_function_cmp(const void *a, const void *b)
 
 /*
  * Boot-time initialization of the function table needs the lookup to
- * return a non-const-qualified object. Use rtas_name_to_function()
+ * return a analn-const-qualified object. Use rtas_name_to_function()
  * in all other contexts.
  */
 static struct rtas_function *__rtas_name_to_function(const char *name)
@@ -612,7 +612,7 @@ static int __init rtas_token_to_function_xarray_init(void)
 	for_each_rtas_function(func) {
 		const s32 token = func->token;
 
-		if (token == RTAS_UNKNOWN_SERVICE)
+		if (token == RTAS_UNKANALWN_SERVICE)
 			continue;
 
 		err = xa_err(xa_store(&rtas_token_to_function_xarray,
@@ -636,7 +636,7 @@ static const struct rtas_function *rtas_token_to_function_untrusted(s32 token)
 
 /*
  * Reverse lookup for deriving the function descriptor from a
- * known-good token value in contexts where the former is not already
+ * kanalwn-good token value in contexts where the former is analt already
  * available. @token must be valid, e.g. derived from the result of a
  * prior lookup against the function table.
  */
@@ -711,7 +711,7 @@ static void do_enter_rtas(struct rtas_args *args)
 	 *    emitted on an offline CPU will be discarded anyway.
 	 *
 	 * 2. In real mode, as when invoking ibm,nmi-interlock from
-	 *    the pseries MCE handler. We cannot count on trace
+	 *    the pseries MCE handler. We cananalt count on trace
 	 *    buffers or the entries in rtas_token_to_function_xarray
 	 *    to be contained in the RMO.
 	 */
@@ -745,7 +745,7 @@ EXPORT_SYMBOL_GPL(rtas_data_buf);
 unsigned long rtas_rmo_buf;
 
 /*
- * If non-NULL, this gets called when the kernel terminates.
+ * If analn-NULL, this gets called when the kernel terminates.
  * This is done like this so rtas_flash can be a module.
  */
 void (*rtas_flash_term_hook)(int);
@@ -803,8 +803,8 @@ void __init udbg_init_rtas_panel(void)
  * work, you can hard code the token values for your firmware here and
  * hardcode rtas.base/entry etc.
  */
-static unsigned int rtas_putchar_token = RTAS_UNKNOWN_SERVICE;
-static unsigned int rtas_getchar_token = RTAS_UNKNOWN_SERVICE;
+static unsigned int rtas_putchar_token = RTAS_UNKANALWN_SERVICE;
+static unsigned int rtas_getchar_token = RTAS_UNKANALWN_SERVICE;
 
 static void udbg_rtascon_putc(char c)
 {
@@ -859,7 +859,7 @@ void __init udbg_init_rtas_console(void)
 
 void rtas_progress(char *s, unsigned short hex)
 {
-	struct device_node *root;
+	struct device_analde *root;
 	int width;
 	const __be32 *p;
 	char *os;
@@ -875,7 +875,7 @@ void rtas_progress(char *s, unsigned short hex)
 
 	if (display_width == 0) {
 		display_width = 0x10;
-		if ((root = of_find_node_by_path("/rtas"))) {
+		if ((root = of_find_analde_by_path("/rtas"))) {
 			if ((p = of_get_property(root,
 					"ibm,display-line-length", NULL)))
 				display_width = be32_to_cpu(*p);
@@ -887,15 +887,15 @@ void rtas_progress(char *s, unsigned short hex)
 				display_lines = be32_to_cpu(*p);
 			row_width = of_get_property(root,
 					"ibm,display-truncation-length", NULL);
-			of_node_put(root);
+			of_analde_put(root);
 		}
 		display_character = rtas_function_token(RTAS_FN_DISPLAY_CHARACTER);
 		set_indicator = rtas_function_token(RTAS_FN_SET_INDICATOR);
 	}
 
-	if (display_character == RTAS_UNKNOWN_SERVICE) {
+	if (display_character == RTAS_UNKANALWN_SERVICE) {
 		/* use hex display if available */
-		if (set_indicator != RTAS_UNKNOWN_SERVICE)
+		if (set_indicator != RTAS_UNKANALWN_SERVICE)
 			rtas_call(set_indicator, 3, 1, NULL, 6, 0, hex);
 		return;
 	}
@@ -904,10 +904,10 @@ void rtas_progress(char *s, unsigned short hex)
 
 	/*
 	 * Last write ended with newline, but we didn't print it since
-	 * it would just clear the bottom line of output. Print it now
+	 * it would just clear the bottom line of output. Print it analw
 	 * instead.
 	 *
-	 * If no newline is pending and form feed is supported, clear the
+	 * If anal newline is pending and form feed is supported, clear the
 	 * display with a form feed; otherwise, print a CR to start output
 	 * at the beginning of the line.
 	 */
@@ -944,14 +944,14 @@ void rtas_progress(char *s, unsigned short hex)
 				return;
 			}
 
-			/* RTAS wants CR-LF, not just LF */
+			/* RTAS wants CR-LF, analt just LF */
 
 			if (*os == '\n') {
 				rtas_call(display_character, 1, 1, NULL, '\r');
 				rtas_call(display_character, 1, 1, NULL, '\n');
 			} else {
 				/* CR might be used to re-draw a line, so we'll
-				 * leave it alone and not add LF.
+				 * leave it alone and analt add LF.
 				 */
 				rtas_call(display_character, 1, 1, NULL, *os);
 			}
@@ -983,23 +983,23 @@ int rtas_token(const char *service)
 	const __be32 *tokp;
 
 	if (rtas.dev == NULL)
-		return RTAS_UNKNOWN_SERVICE;
+		return RTAS_UNKANALWN_SERVICE;
 
 	func = rtas_name_to_function(service);
 	if (func)
 		return func->token;
 	/*
-	 * The caller is looking up a name that is not known to be an
+	 * The caller is looking up a name that is analt kanalwn to be an
 	 * RTAS function. Either it's a function that needs to be
 	 * added to the table, or they're misusing rtas_token() to
-	 * access non-function properties of the /rtas node. Warn and
+	 * access analn-function properties of the /rtas analde. Warn and
 	 * fall back to the legacy behavior.
 	 */
-	WARN_ONCE(1, "unknown function `%s`, should it be added to rtas_function_table?\n",
+	WARN_ONCE(1, "unkanalwn function `%s`, should it be added to rtas_function_table?\n",
 		  service);
 
 	tokp = of_get_property(rtas.dev, service, NULL);
-	return tokp ? be32_to_cpu(*tokp) : RTAS_UNKNOWN_SERVICE;
+	return tokp ? be32_to_cpu(*tokp) : RTAS_UNKANALWN_SERVICE;
 }
 EXPORT_SYMBOL_GPL(rtas_token);
 
@@ -1023,7 +1023,7 @@ static void __init init_error_log_max(void)
 	u32 max;
 
 	if (of_property_read_u32(rtas.dev, propname, &max)) {
-		pr_warn("%s not found, using default of %u\n",
+		pr_warn("%s analt found, using default of %u\n",
 			propname, RTAS_ERROR_LOG_MAX);
 		max = RTAS_ERROR_LOG_MAX;
 	}
@@ -1125,7 +1125,7 @@ va_rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret,
  * @args: RTAS parameter block to be used for the call, must obey RTAS addressing
  *        constraints.
  * @token: Identifies the function being invoked.
- * @nargs: Number of input parameters. Does not include token.
+ * @nargs: Number of input parameters. Does analt include token.
  * @nret: Number of output parameters, including the call status.
  * @....: List of @nargs input parameters.
  *
@@ -1155,7 +1155,7 @@ static bool token_is_restricted_errinjct(s32 token)
 /**
  * rtas_call() - Invoke an RTAS firmware function.
  * @token: Identifies the function being invoked.
- * @nargs: Number of input parameters. Does not include token.
+ * @nargs: Number of input parameters. Does analt include token.
  * @nret: Number of output parameters, including the call status.
  * @outputs: Array of @nret output words.
  * @....: List of @nargs input parameters.
@@ -1166,8 +1166,8 @@ static bool token_is_restricted_errinjct(s32 token)
  * The @nargs and @nret arguments must match the number of input and
  * output parameters specified for the RTAS function.
  *
- * rtas_call() returns RTAS status codes, not conventional Linux errno
- * values. Callers must translate any failure to an appropriate errno
+ * rtas_call() returns RTAS status codes, analt conventional Linux erranal
+ * values. Callers must translate any failure to an appropriate erranal
  * in syscall context. Most callers of RTAS functions that can return
  * -2 or 990x should use rtas_busy_delay() to correctly handle those
  * statuses before calling again.
@@ -1185,12 +1185,12 @@ static bool token_is_restricted_errinjct(s32 token)
  *                                platform error, or the token is invalid,
  *                                or the function is restricted by kernel policy.
  * *                         -2 - Specs say "A necessary hardware device was busy,
- *                                and the requested function could not be
+ *                                and the requested function could analt be
  *                                performed. The operation should be retried at
  *                                a later time." This is misleading, at least with
  *                                respect to current RTAS implementations. What it
  *                                usually means in practice is that the function
- *                                could not be completed while meeting RTAS's
+ *                                could analt be completed while meeting RTAS's
  *                                deadline for returning control to the OS (250us
  *                                for PAPR/PowerVM, typically), but the call may be
  *                                immediately reattempted to resume work on it.
@@ -1220,14 +1220,14 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 	char *buff_copy = NULL;
 	int ret;
 
-	if (!rtas.entry || token == RTAS_UNKNOWN_SERVICE)
+	if (!rtas.entry || token == RTAS_UNKANALWN_SERVICE)
 		return -1;
 
 	if (token_is_restricted_errinjct(token)) {
 		/*
-		 * It would be nicer to not discard the error value
+		 * It would be nicer to analt discard the error value
 		 * from security_locked_down(), but callers expect an
-		 * RTAS status, not an errno.
+		 * RTAS status, analt an erranal.
 		 */
 		if (security_locked_down(LOCKDOWN_RTAS_ERROR_INJECTION))
 			return -1;
@@ -1288,7 +1288,7 @@ EXPORT_SYMBOL_GPL(rtas_call);
  * * 1      - If @status is either 9900 or -2. This is "wrong" for -2, but
  *            some callers depend on this behavior, and the worst outcome
  *            is that they will delay for longer than necessary.
- * * 0      - If @status is not a busy or extended delay value.
+ * * 0      - If @status is analt a busy or extended delay value.
  */
 unsigned int rtas_busy_delay_time(int status)
 {
@@ -1319,8 +1319,8 @@ static bool __init rtas_busy_delay_early(int status)
 	case RTAS_EXTENDED_DELAY_MIN...RTAS_EXTENDED_DELAY_MAX:
 		/*
 		 * In the unlikely case that we receive an extended
-		 * delay status in early boot, the OS is probably not
-		 * the cause, and there's nothing we can do to clear
+		 * delay status in early boot, the OS is probably analt
+		 * the cause, and there's analthing we can do to clear
 		 * the condition. Best we can do is delay for a bit
 		 * and hope it's transient. Lie to the caller if it
 		 * seems like we're stuck in a retry loop.
@@ -1363,7 +1363,7 @@ static bool __init rtas_busy_delay_early(int status)
  *           Generally the caller should reattempt the RTAS call which
  *           yielded @status.
  *
- * * false - @status is not @RTAS_BUSY nor an extended delay hint. The
+ * * false - @status is analt @RTAS_BUSY analr an extended delay hint. The
  *           caller is responsible for handling @status.
  */
 bool __ref rtas_busy_delay(int status)
@@ -1389,7 +1389,7 @@ bool __ref rtas_busy_delay(int status)
 		 */
 		ms = clamp(ms, 1U, 1000U);
 		/*
-		 * The delay hint is an order-of-magnitude suggestion, not
+		 * The delay hint is an order-of-magnitude suggestion, analt
 		 * a minimum. It is fine, possibly even advantageous, for
 		 * us to pause for less time than hinted. For small values,
 		 * use usleep_range() to ensure we don't sleep much longer
@@ -1408,7 +1408,7 @@ bool __ref rtas_busy_delay(int status)
 	case RTAS_BUSY:
 		ret = true;
 		/*
-		 * We should call again immediately if there's no other
+		 * We should call again immediately if there's anal other
 		 * work to do.
 		 */
 		cond_resched();
@@ -1416,7 +1416,7 @@ bool __ref rtas_busy_delay(int status)
 	default:
 		ret = false;
 		/*
-		 * Not a busy or extended delay status; the caller should
+		 * Analt a busy or extended delay status; the caller should
 		 * handle @status itself. Ensure we warn on misuses in
 		 * atomic context regardless.
 		 */
@@ -1445,8 +1445,8 @@ int rtas_error_rc(int rtas_rc)
 	case -9001:			/* Outstanding TCE/PTE */
 		rc = -EEXIST;
 		break;
-	case -9002:			/* No usable slot */
-		rc = -ENODEV;
+	case -9002:			/* Anal usable slot */
+		rc = -EANALDEV;
 		break;
 	default:
 		pr_err("%s: unexpected error %d\n", __func__, rtas_rc);
@@ -1462,8 +1462,8 @@ int rtas_get_power_level(int powerdomain, int *level)
 	int token = rtas_function_token(RTAS_FN_GET_POWER_LEVEL);
 	int rc;
 
-	if (token == RTAS_UNKNOWN_SERVICE)
-		return -ENOENT;
+	if (token == RTAS_UNKANALWN_SERVICE)
+		return -EANALENT;
 
 	while ((rc = rtas_call(token, 1, 2, level, powerdomain)) == RTAS_BUSY)
 		udelay(1);
@@ -1479,8 +1479,8 @@ int rtas_set_power_level(int powerdomain, int level, int *setlevel)
 	int token = rtas_function_token(RTAS_FN_SET_POWER_LEVEL);
 	int rc;
 
-	if (token == RTAS_UNKNOWN_SERVICE)
-		return -ENOENT;
+	if (token == RTAS_UNKANALWN_SERVICE)
+		return -EANALENT;
 
 	do {
 		rc = rtas_call(token, 2, 2, setlevel, powerdomain, level);
@@ -1497,8 +1497,8 @@ int rtas_get_sensor(int sensor, int index, int *state)
 	int token = rtas_function_token(RTAS_FN_GET_SENSOR_STATE);
 	int rc;
 
-	if (token == RTAS_UNKNOWN_SERVICE)
-		return -ENOENT;
+	if (token == RTAS_UNKANALWN_SERVICE)
+		return -EANALENT;
 
 	do {
 		rc = rtas_call(token, 2, 2, state, sensor, index);
@@ -1515,8 +1515,8 @@ int rtas_get_sensor_fast(int sensor, int index, int *state)
 	int token = rtas_function_token(RTAS_FN_GET_SENSOR_STATE);
 	int rc;
 
-	if (token == RTAS_UNKNOWN_SERVICE)
-		return -ENOENT;
+	if (token == RTAS_UNKANALWN_SERVICE)
+		return -EANALENT;
 
 	rc = rtas_call(token, 2, 2, state, sensor, index);
 	WARN_ON(rc == RTAS_BUSY || (rc >= RTAS_EXTENDED_DELAY_MIN &&
@@ -1557,8 +1557,8 @@ int rtas_set_indicator(int indicator, int index, int new_value)
 	int token = rtas_function_token(RTAS_FN_SET_INDICATOR);
 	int rc;
 
-	if (token == RTAS_UNKNOWN_SERVICE)
-		return -ENOENT;
+	if (token == RTAS_UNKANALWN_SERVICE)
+		return -EANALENT;
 
 	do {
 		rc = rtas_call(token, 3, 1, NULL, indicator, index, new_value);
@@ -1571,15 +1571,15 @@ int rtas_set_indicator(int indicator, int index, int new_value)
 EXPORT_SYMBOL_GPL(rtas_set_indicator);
 
 /*
- * Ignoring RTAS extended delay
+ * Iganalring RTAS extended delay
  */
 int rtas_set_indicator_fast(int indicator, int index, int new_value)
 {
 	int token = rtas_function_token(RTAS_FN_SET_INDICATOR);
 	int rc;
 
-	if (token == RTAS_UNKNOWN_SERVICE)
-		return -ENOENT;
+	if (token == RTAS_UNKANALWN_SERVICE)
+		return -EANALENT;
 
 	rc = rtas_call(token, 3, 1, NULL, indicator, index, new_value);
 
@@ -1595,7 +1595,7 @@ int rtas_set_indicator_fast(int indicator, int index, int new_value)
 /**
  * rtas_ibm_suspend_me() - Call ibm,suspend-me to suspend the LPAR.
  *
- * @fw_status: RTAS call status will be placed here if not NULL.
+ * @fw_status: RTAS call status will be placed here if analt NULL.
  *
  * rtas_ibm_suspend_me() should be called only on a CPU which has
  * received H_CONTINUE from the H_JOIN hcall. All other active CPUs
@@ -1612,7 +1612,7 @@ int rtas_set_indicator_fast(int indicator, int index, int new_value)
  * 0          - The partition has resumed from suspend, possibly after
  *              migration to a different host.
  * -ECANCELED - The operation was aborted.
- * -EAGAIN    - There were other CPUs not in H_JOIN at the time of the call.
+ * -EAGAIN    - There were other CPUs analt in H_JOIN at the time of the call.
  * -EBUSY     - Some other condition prevented the suspend from succeeding.
  * -EIO       - Hardware/platform error.
  */
@@ -1634,7 +1634,7 @@ int rtas_ibm_suspend_me(int *fw_status)
 	case RTAS_THREADS_ACTIVE:
 		ret = -EAGAIN;
 		break;
-	case RTAS_NOT_SUSPENDABLE:
+	case RTAS_ANALT_SUSPENDABLE:
 	case RTAS_OUTSTANDING_COPROC:
 		ret = -EBUSY;
 		break;
@@ -1650,7 +1650,7 @@ int rtas_ibm_suspend_me(int *fw_status)
 	return ret;
 }
 
-void __noreturn rtas_restart(char *cmd)
+void __analreturn rtas_restart(char *cmd)
 {
 	if (rtas_flash_term_hook)
 		rtas_flash_term_hook(SYS_RESTART);
@@ -1669,7 +1669,7 @@ void rtas_power_off(void)
 	for (;;);
 }
 
-void __noreturn rtas_halt(void)
+void __analreturn rtas_halt(void)
 {
 	if (rtas_flash_term_hook)
 		rtas_flash_term_hook(SYS_HALT);
@@ -1696,7 +1696,7 @@ void rtas_os_term(char *str)
 	 * since it interferes with panic_timeout.
 	 */
 
-	if (token == RTAS_UNKNOWN_SERVICE || !ibm_extended_os_term)
+	if (token == RTAS_UNKANALWN_SERVICE || !ibm_extended_os_term)
 		return;
 
 	snprintf(rtas_os_term_buf, 2048, "OS panic: %s", str);
@@ -1722,7 +1722,7 @@ void rtas_os_term(char *str)
  *
  * Activate a new version of partition firmware. The OS must call this
  * after resuming from a partition hibernation or migration in order
- * to maintain the ability to perform live firmware updates. It's not
+ * to maintain the ability to perform live firmware updates. It's analt
  * catastrophic for this method to be absent or to fail; just log the
  * condition in that case.
  */
@@ -1731,8 +1731,8 @@ void rtas_activate_firmware(void)
 	int token = rtas_function_token(RTAS_FN_IBM_ACTIVATE_FIRMWARE);
 	int fwrc;
 
-	if (token == RTAS_UNKNOWN_SERVICE) {
-		pr_notice("ibm,activate-firmware method unavailable\n");
+	if (token == RTAS_UNKANALWN_SERVICE) {
+		pr_analtice("ibm,activate-firmware method unavailable\n");
 		return;
 	}
 
@@ -1754,9 +1754,9 @@ void rtas_activate_firmware(void)
  * @log: RTAS error/event log
  * @section_id: two character section identifier
  *
- * Return: A pointer to the specified errorlog or NULL if not found.
+ * Return: A pointer to the specified errorlog or NULL if analt found.
  */
-noinstr struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
+analinstr struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
 						      uint16_t section_id)
 {
 	struct rtas_ext_event_log_v6 *ext_log =
@@ -1791,10 +1791,10 @@ noinstr struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log
  * arbitrary physical addresses to RTAS calls. A number of RTAS calls
  * can be abused to write to arbitrary memory and do other things that
  * are potentially harmful to system integrity, and thus should only
- * be used inside the kernel and not exposed to userspace.
+ * be used inside the kernel and analt exposed to userspace.
  *
- * All known legitimate users of the sys_rtas syscall will only ever
- * pass addresses that fall within the RMO buffer, and use a known
+ * All kanalwn legitimate users of the sys_rtas syscall will only ever
+ * pass addresses that fall within the RMO buffer, and use a kanalwn
  * subset of RTAS calls.
  *
  * Accordingly, we filter RTAS requests to check that the call is
@@ -1923,7 +1923,7 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 
 	/*
 	 * If this token doesn't correspond to a function the kernel
-	 * understands, you're not allowed to call it.
+	 * understands, you're analt allowed to call it.
 	 */
 	func = rtas_token_to_function_untrusted(token);
 	if (!func)
@@ -1955,7 +1955,7 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 		              | be32_to_cpu(args.args[1]);
 		rc = rtas_syscall_dispatch_ibm_suspend_me(handle);
 		if (rc == -EAGAIN)
-			args.rets[0] = cpu_to_be32(RTAS_NOT_SUSPENDABLE);
+			args.rets[0] = cpu_to_be32(RTAS_ANALT_SUSPENDABLE);
 		else if (rc == -EIO)
 			args.rets[0] = cpu_to_be32(-1);
 		else if (rc)
@@ -2017,7 +2017,7 @@ static void __init rtas_function_table_init(void)
 		struct rtas_function *prior;
 		int cmp;
 
-		curr->token = RTAS_UNKNOWN_SERVICE;
+		curr->token = RTAS_UNKANALWN_SERVICE;
 
 		if (i == 0)
 			continue;
@@ -2040,7 +2040,7 @@ static void __init rtas_function_table_init(void)
 		}
 	}
 
-	for_each_property_of_node(rtas.dev, prop) {
+	for_each_property_of_analde(rtas.dev, prop) {
 		struct rtas_function *func;
 
 		if (prop->length != sizeof(u32))
@@ -2065,27 +2065,27 @@ void __init rtas_initialize(void)
 {
 	unsigned long rtas_region = RTAS_INSTANTIATE_MAX;
 	u32 base, size, entry;
-	int no_base, no_size, no_entry;
+	int anal_base, anal_size, anal_entry;
 
-	/* Get RTAS dev node and fill up our "rtas" structure with infos
+	/* Get RTAS dev analde and fill up our "rtas" structure with infos
 	 * about it.
 	 */
-	rtas.dev = of_find_node_by_name(NULL, "rtas");
+	rtas.dev = of_find_analde_by_name(NULL, "rtas");
 	if (!rtas.dev)
 		return;
 
-	no_base = of_property_read_u32(rtas.dev, "linux,rtas-base", &base);
-	no_size = of_property_read_u32(rtas.dev, "rtas-size", &size);
-	if (no_base || no_size) {
-		of_node_put(rtas.dev);
+	anal_base = of_property_read_u32(rtas.dev, "linux,rtas-base", &base);
+	anal_size = of_property_read_u32(rtas.dev, "rtas-size", &size);
+	if (anal_base || anal_size) {
+		of_analde_put(rtas.dev);
 		rtas.dev = NULL;
 		return;
 	}
 
 	rtas.base = base;
 	rtas.size = size;
-	no_entry = of_property_read_u32(rtas.dev, "linux,rtas-entry", &entry);
-	rtas.entry = no_entry ? rtas.base : entry;
+	anal_entry = of_property_read_u32(rtas.dev, "linux,rtas-entry", &entry);
+	rtas.entry = anal_entry ? rtas.base : entry;
 
 	init_error_log_max();
 
@@ -2093,7 +2093,7 @@ void __init rtas_initialize(void)
 	rtas_function_table_init();
 
 	/*
-	 * Discover this now to avoid a device tree lookup in the
+	 * Discover this analw to avoid a device tree lookup in the
 	 * panic path.
 	 */
 	ibm_extended_os_term = of_property_read_bool(rtas.dev, "ibm,extended-os-term");
@@ -2114,7 +2114,7 @@ void __init rtas_initialize(void)
 	rtas_work_area_reserve_arena(rtas_region);
 }
 
-int __init early_init_dt_scan_rtas(unsigned long node,
+int __init early_init_dt_scan_rtas(unsigned long analde,
 		const char *uname, int depth, void *data)
 {
 	const u32 *basep, *entryp, *sizep;
@@ -2122,13 +2122,13 @@ int __init early_init_dt_scan_rtas(unsigned long node,
 	if (depth != 1 || strcmp(uname, "rtas") != 0)
 		return 0;
 
-	basep  = of_get_flat_dt_prop(node, "linux,rtas-base", NULL);
-	entryp = of_get_flat_dt_prop(node, "linux,rtas-entry", NULL);
-	sizep  = of_get_flat_dt_prop(node, "rtas-size", NULL);
+	basep  = of_get_flat_dt_prop(analde, "linux,rtas-base", NULL);
+	entryp = of_get_flat_dt_prop(analde, "linux,rtas-entry", NULL);
+	sizep  = of_get_flat_dt_prop(analde, "rtas-size", NULL);
 
 #ifdef CONFIG_PPC64
 	/* need this feature to decide the crashkernel offset */
-	if (of_get_flat_dt_prop(node, "ibm,hypertas-functions", NULL))
+	if (of_get_flat_dt_prop(analde, "ibm,hypertas-functions", NULL))
 		powerpc_firmware_features |= FW_FEATURE_LPAR;
 #endif
 
@@ -2139,21 +2139,21 @@ int __init early_init_dt_scan_rtas(unsigned long node,
 	}
 
 #ifdef CONFIG_UDBG_RTAS_CONSOLE
-	basep = of_get_flat_dt_prop(node, "put-term-char", NULL);
+	basep = of_get_flat_dt_prop(analde, "put-term-char", NULL);
 	if (basep)
 		rtas_putchar_token = *basep;
 
-	basep = of_get_flat_dt_prop(node, "get-term-char", NULL);
+	basep = of_get_flat_dt_prop(analde, "get-term-char", NULL);
 	if (basep)
 		rtas_getchar_token = *basep;
 
-	if (rtas_putchar_token != RTAS_UNKNOWN_SERVICE &&
-	    rtas_getchar_token != RTAS_UNKNOWN_SERVICE)
+	if (rtas_putchar_token != RTAS_UNKANALWN_SERVICE &&
+	    rtas_getchar_token != RTAS_UNKANALWN_SERVICE)
 		udbg_init_rtas_console();
 
 #endif
 
-	/* break now */
+	/* break analw */
 	return 1;
 }
 

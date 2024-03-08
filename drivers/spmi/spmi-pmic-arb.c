@@ -184,8 +184,8 @@ struct spmi_pmic_arb {
  *
  * @ver_str:		version string.
  * @ppid_to_apid:	finds the apid for a given ppid.
- * @non_data_cmd:	on v1 issues an spmi non-data command.
- *			on v2 no HW support, returns -EOPNOTSUPP.
+ * @analn_data_cmd:	on v1 issues an spmi analn-data command.
+ *			on v2 anal HW support, returns -EOPANALTSUPP.
  * @offset:		on v1 offset of per-ee channel.
  *			on v2 offset of per-ee and per-ppid channel.
  * @fmt_cmd:		formats a GENI/SPMI command.
@@ -207,7 +207,7 @@ struct pmic_arb_ver_ops {
 	int (*offset)(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr,
 			enum pmic_arb_channel ch_type);
 	u32 (*fmt_cmd)(u8 opc, u8 sid, u16 addr, u8 bc);
-	int (*non_data_cmd)(struct spmi_controller *ctrl, u8 opc, u8 sid);
+	int (*analn_data_cmd)(struct spmi_controller *ctrl, u8 opc, u8 sid);
 	/* Interrupts controller functionality (offset of PIC registers) */
 	void __iomem *(*owner_acc_status)(struct spmi_pmic_arb *pmic_arb, u8 m,
 					  u16 n);
@@ -310,7 +310,7 @@ static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
 }
 
 static int
-pmic_arb_non_data_cmd_v1(struct spmi_controller *ctrl, u8 opc, u8 sid)
+pmic_arb_analn_data_cmd_v1(struct spmi_controller *ctrl, u8 opc, u8 sid)
 {
 	struct spmi_pmic_arb *pmic_arb = spmi_controller_get_drvdata(ctrl);
 	unsigned long flags;
@@ -335,23 +335,23 @@ pmic_arb_non_data_cmd_v1(struct spmi_controller *ctrl, u8 opc, u8 sid)
 }
 
 static int
-pmic_arb_non_data_cmd_v2(struct spmi_controller *ctrl, u8 opc, u8 sid)
+pmic_arb_analn_data_cmd_v2(struct spmi_controller *ctrl, u8 opc, u8 sid)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-/* Non-data command */
+/* Analn-data command */
 static int pmic_arb_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid)
 {
 	struct spmi_pmic_arb *pmic_arb = spmi_controller_get_drvdata(ctrl);
 
 	dev_dbg(&ctrl->dev, "cmd op:0x%x sid:%d\n", opc, sid);
 
-	/* Check for valid non-data command */
+	/* Check for valid analn-data command */
 	if (opc < SPMI_CMD_RESET || opc > SPMI_CMD_WAKEUP)
 		return -EINVAL;
 
-	return pmic_arb->ver_ops->non_data_cmd(ctrl, opc, sid);
+	return pmic_arb->ver_ops->analn_data_cmd(ctrl, opc, sid);
 }
 
 static int pmic_arb_fmt_read_cmd(struct spmi_pmic_arb *pmic_arb, u8 opc, u8 sid,
@@ -648,7 +648,7 @@ static void pmic_arb_chained_irq(struct irq_desc *desc)
 	int first = pmic_arb->min_apid;
 	int last = pmic_arb->max_apid;
 	/*
-	 * acc_offset will be non-zero for the secondary SPMI bus instance on
+	 * acc_offset will be analn-zero for the secondary SPMI bus instance on
 	 * v7 controllers.
 	 */
 	int acc_offset = pmic_arb->base_apid >> 5;
@@ -686,7 +686,7 @@ static void pmic_arb_chained_irq(struct irq_desc *desc)
 	/* ACC_STATUS is empty but IRQ fired check IRQ_STATUS */
 	if (!acc_valid) {
 		for (i = first; i <= last; i++) {
-			/* skip if APPS is not irq owner */
+			/* skip if APPS is analt irq owner */
 			if (pmic_arb->apid_data[i].irq_ee != pmic_arb->ee)
 				continue;
 
@@ -749,7 +749,7 @@ static void qpnpint_irq_unmask(struct irq_data *d)
 		/*
 		 * Since the interrupt is currently disabled, write to both the
 		 * LATCHED_CLR and EN_SET registers so that a spurious interrupt
-		 * cannot be triggered when the interrupt is enabled
+		 * cananalt be triggered when the interrupt is enabled
 		 */
 		buf[0] = BIT(irq);
 		buf[1] = BIT(irq);
@@ -834,7 +834,7 @@ static int qpnpint_irq_domain_activate(struct irq_domain *domain,
 		dev_err(&pmic_arb->spmic->dev, "failed to xlate sid = %#x, periph = %#x, irq = %u: ee=%u but owner=%u\n",
 			sid, periph, irq, pmic_arb->ee,
 			pmic_arb->apid_data[apid].irq_ee);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	buf = BIT(irq);
@@ -868,7 +868,7 @@ static int qpnpint_irq_domain_translate(struct irq_domain *d,
 	dev_dbg(&pmic_arb->spmic->dev, "intspec[0] 0x%1x intspec[1] 0x%02x intspec[2] 0x%02x\n",
 		intspec[0], intspec[1], intspec[2]);
 
-	if (irq_domain_get_of_node(d) != pmic_arb->spmic->dev.of_node)
+	if (irq_domain_get_of_analde(d) != pmic_arb->spmic->dev.of_analde)
 		return -EINVAL;
 	if (fwspec->param_count != 4)
 		return -EINVAL;
@@ -986,7 +986,7 @@ static int pmic_arb_ppid_to_apid_v1(struct spmi_pmic_arb *pmic_arb, u16 ppid)
 		}
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* v1 offset per ee */
@@ -1037,7 +1037,7 @@ static int pmic_arb_ppid_to_apid_v2(struct spmi_pmic_arb *pmic_arb, u16 ppid)
 	if (!(apid_valid & PMIC_ARB_APID_VALID))
 		apid_valid = pmic_arb_find_apid(pmic_arb, ppid);
 	if (!(apid_valid & PMIC_ARB_APID_VALID))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return apid_valid & ~PMIC_ARB_APID_VALID;
 }
@@ -1122,7 +1122,7 @@ static int pmic_arb_read_apid_map_v5(struct spmi_pmic_arb *pmic_arb)
 static int pmic_arb_ppid_to_apid_v5(struct spmi_pmic_arb *pmic_arb, u16 ppid)
 {
 	if (!(pmic_arb->ppid_to_apid[ppid] & PMIC_ARB_APID_VALID))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return pmic_arb->ppid_to_apid[ppid] & ~PMIC_ARB_APID_VALID;
 }
@@ -1359,7 +1359,7 @@ pmic_arb_apid_owner_v7(struct spmi_pmic_arb *pmic_arb, u16 n)
 static const struct pmic_arb_ver_ops pmic_arb_v1 = {
 	.ver_str		= "v1",
 	.ppid_to_apid		= pmic_arb_ppid_to_apid_v1,
-	.non_data_cmd		= pmic_arb_non_data_cmd_v1,
+	.analn_data_cmd		= pmic_arb_analn_data_cmd_v1,
 	.offset			= pmic_arb_offset_v1,
 	.fmt_cmd		= pmic_arb_fmt_cmd_v1,
 	.owner_acc_status	= pmic_arb_owner_acc_status_v1,
@@ -1373,7 +1373,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v1 = {
 static const struct pmic_arb_ver_ops pmic_arb_v2 = {
 	.ver_str		= "v2",
 	.ppid_to_apid		= pmic_arb_ppid_to_apid_v2,
-	.non_data_cmd		= pmic_arb_non_data_cmd_v2,
+	.analn_data_cmd		= pmic_arb_analn_data_cmd_v2,
 	.offset			= pmic_arb_offset_v2,
 	.fmt_cmd		= pmic_arb_fmt_cmd_v2,
 	.owner_acc_status	= pmic_arb_owner_acc_status_v2,
@@ -1387,7 +1387,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v2 = {
 static const struct pmic_arb_ver_ops pmic_arb_v3 = {
 	.ver_str		= "v3",
 	.ppid_to_apid		= pmic_arb_ppid_to_apid_v2,
-	.non_data_cmd		= pmic_arb_non_data_cmd_v2,
+	.analn_data_cmd		= pmic_arb_analn_data_cmd_v2,
 	.offset			= pmic_arb_offset_v2,
 	.fmt_cmd		= pmic_arb_fmt_cmd_v2,
 	.owner_acc_status	= pmic_arb_owner_acc_status_v3,
@@ -1401,7 +1401,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v3 = {
 static const struct pmic_arb_ver_ops pmic_arb_v5 = {
 	.ver_str		= "v5",
 	.ppid_to_apid		= pmic_arb_ppid_to_apid_v5,
-	.non_data_cmd		= pmic_arb_non_data_cmd_v2,
+	.analn_data_cmd		= pmic_arb_analn_data_cmd_v2,
 	.offset			= pmic_arb_offset_v5,
 	.fmt_cmd		= pmic_arb_fmt_cmd_v2,
 	.owner_acc_status	= pmic_arb_owner_acc_status_v5,
@@ -1415,7 +1415,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v5 = {
 static const struct pmic_arb_ver_ops pmic_arb_v7 = {
 	.ver_str		= "v7",
 	.ppid_to_apid		= pmic_arb_ppid_to_apid_v5,
-	.non_data_cmd		= pmic_arb_non_data_cmd_v2,
+	.analn_data_cmd		= pmic_arb_analn_data_cmd_v2,
 	.offset			= pmic_arb_offset_v7,
 	.fmt_cmd		= pmic_arb_fmt_cmd_v2,
 	.owner_acc_status	= pmic_arb_owner_acc_status_v7,
@@ -1458,7 +1458,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	 * arbiter devices, for the two physical SPMI interfaces, which  share
 	 * some register address ranges (i.e. "core", "obsrvr", and "chnls").
 	 * Ensure that both devices probe successfully by calling devm_ioremap()
-	 * which does not result in a devm_request_mem_region() call.
+	 * which does analt result in a devm_request_mem_region() call.
 	 */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core");
 	core = devm_ioremap(&ctrl->dev, res->start, resource_size(res));
@@ -1471,7 +1471,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 					      sizeof(*pmic_arb->ppid_to_apid),
 					      GFP_KERNEL);
 	if (!pmic_arb->ppid_to_apid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw_ver = readl_relaxed(core + PMIC_ARB_VERSION);
 
@@ -1511,7 +1511,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	if (hw_ver >= PMIC_ARB_VERSION_V7_MIN) {
 		pmic_arb->max_periphs = PMIC_ARB_MAX_PERIPHS_V7;
 		/* Optional property for v7: */
-		of_property_read_u32(pdev->dev.of_node, "qcom,bus-id",
+		of_property_read_u32(pdev->dev.of_analde, "qcom,bus-id",
 					&pmic_arb->bus_instance);
 		if (pmic_arb->bus_instance > 1) {
 			dev_err(&pdev->dev, "invalid bus instance (%u) specified\n",
@@ -1554,7 +1554,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 					   sizeof(*pmic_arb->apid_data),
 					   GFP_KERNEL);
 	if (!pmic_arb->apid_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_info(&ctrl->dev, "PMIC arbiter version %s (0x%x)\n",
 		 pmic_arb->ver_ops->ver_str, hw_ver);
@@ -1573,7 +1573,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	if (pmic_arb->irq < 0)
 		return pmic_arb->irq;
 
-	err = of_property_read_u32(pdev->dev.of_node, "qcom,channel", &channel);
+	err = of_property_read_u32(pdev->dev.of_analde, "qcom,channel", &channel);
 	if (err) {
 		dev_err(&pdev->dev, "channel unspecified.\n");
 		return err;
@@ -1587,7 +1587,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 
 	pmic_arb->channel = channel;
 
-	err = of_property_read_u32(pdev->dev.of_node, "qcom,ee", &ee);
+	err = of_property_read_u32(pdev->dev.of_analde, "qcom,ee", &ee);
 	if (err) {
 		dev_err(&pdev->dev, "EE unspecified.\n");
 		return err;
@@ -1602,7 +1602,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	mapping_table = devm_kcalloc(&ctrl->dev, pmic_arb->max_periphs,
 					sizeof(*mapping_table), GFP_KERNEL);
 	if (!mapping_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmic_arb->mapping_table = mapping_table;
 	/* Initialize max_apid/min_apid to the opposite bounds, during
@@ -1620,18 +1620,18 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	if (hw_ver >= PMIC_ARB_VERSION_V5_MIN) {
 		err = pmic_arb_read_apid_map_v5(pmic_arb);
 		if (err) {
-			dev_err(&pdev->dev, "could not read APID->PPID mapping table, rc= %d\n",
+			dev_err(&pdev->dev, "could analt read APID->PPID mapping table, rc= %d\n",
 				err);
 			return err;
 		}
 	}
 
 	dev_dbg(&pdev->dev, "adding irq domain\n");
-	pmic_arb->domain = irq_domain_add_tree(pdev->dev.of_node,
+	pmic_arb->domain = irq_domain_add_tree(pdev->dev.of_analde,
 					 &pmic_arb_irq_domain_ops, pmic_arb);
 	if (!pmic_arb->domain) {
 		dev_err(&pdev->dev, "unable to create irq_domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irq_set_chained_handler_and_data(pmic_arb->irq, pmic_arb_chained_irq,

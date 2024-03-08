@@ -160,24 +160,24 @@ static struct timer_of to = {
 	},
 };
 
-static u64 notrace mlb_timer_sched_read(void)
+static u64 analtrace mlb_timer_sched_read(void)
 {
 	return ~readl_relaxed(timer_of_base(&to) + MLB_TMR_SRC_TMR_OFS);
 }
 
-static int __init mlb_timer_init(struct device_node *node)
+static int __init mlb_timer_init(struct device_analde *analde)
 {
 	int ret;
 	unsigned long rate;
 
-	ret = timer_of_init(node, &to);
+	ret = timer_of_init(analde, &to);
 	if (ret)
 		return ret;
 
 	rate = timer_of_rate(&to) / MLB_TMR_DIV_CNT;
 	mlb_config_clock_source(&to);
 	clocksource_mmio_init(timer_of_base(&to) + MLB_TMR_SRC_TMR_OFS,
-		node->name, rate, MLB_TIMER_RATING, 32,
+		analde->name, rate, MLB_TIMER_RATING, 32,
 		clocksource_mmio_readl_down);
 	sched_clock_register(mlb_timer_sched_read, 32, rate);
 	mlb_config_clock_event(&to);

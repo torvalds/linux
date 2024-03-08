@@ -13,7 +13,7 @@ add_hex = $(shell printf 0x%x $$(( $(1) + $(2) )) )
 # If PHYS_OFFSET is set, INITRD_PHYS and PARAMS_PHYS can be derived,
 # otherwise they must be passed on the command line.
 #
-# Note: the following conditions must always be true:
+# Analte: the following conditions must always be true:
 #   PARAMS_PHYS must be within 4MB of ZRELADDR
 #   INITRD_PHYS must be in RAM
 
@@ -39,19 +39,19 @@ initrd:
 	@test "$(INITRD)" != "" || \
 	(echo bootpImage: You must specify INITRD; exit -1)
 
-LDFLAGS_bootp	:= --no-undefined -X \
+LDFLAGS_bootp	:= --anal-undefined -X \
 		 --defsym initrd_phys=$(INITRD_PHYS) \
 		 --defsym params_phys=$(PARAMS_PHYS) -T
 AFLAGS_initrd.o :=-DINITRD=\"$(INITRD)\"
 
 targets	:= bootp init.o kernel.o initrd.o
 
-# Note that bootp.lds picks up kernel.o and initrd.o
+# Analte that bootp.lds picks up kernel.o and initrd.o
 $(obj)/bootp:	$(src)/bootp.lds $(addprefix $(obj)/,init.o kernel.o initrd.o) FORCE
 	$(call if_changed,ld)
 
 # kernel.o and initrd.o includes a binary image using
-# .incbin, a dependency which is not tracked automatically
+# .incbin, a dependency which is analt tracked automatically
 
 $(obj)/kernel.o: arch/arm/boot/zImage FORCE
 

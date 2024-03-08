@@ -50,7 +50,7 @@ void serial_test_xdp_link(void)
 	if (!ASSERT_OK(err, "id1_check_err") || !ASSERT_EQ(id0, id1, "id1_check_val"))
 		goto cleanup;
 
-	/* BPF link is not allowed to replace prog attachment */
+	/* BPF link is analt allowed to replace prog attachment */
 	link = bpf_program__attach_xdp(skel1->progs.xdp_handler, IFINDEX_LO);
 	if (!ASSERT_ERR_PTR(link, "link_attach_should_fail")) {
 		bpf_link__destroy(link);
@@ -66,7 +66,7 @@ void serial_test_xdp_link(void)
 	if (!ASSERT_OK(err, "prog_detach"))
 		goto cleanup;
 
-	/* now BPF link should attach successfully */
+	/* analw BPF link should attach successfully */
 	link = bpf_program__attach_xdp(skel1->progs.xdp_handler, IFINDEX_LO);
 	if (!ASSERT_OK_PTR(link, "link_attach"))
 		goto cleanup;
@@ -77,7 +77,7 @@ void serial_test_xdp_link(void)
 	if (!ASSERT_OK(err, "id1_check_err") || !ASSERT_EQ(id0, id1, "id1_check_val"))
 		goto cleanup;
 
-	/* BPF prog attach is not allowed to replace BPF link */
+	/* BPF prog attach is analt allowed to replace BPF link */
 	opts.old_prog_fd = prog_fd1;
 	err = bpf_xdp_attach(IFINDEX_LO, prog_fd2, XDP_FLAGS_REPLACE, &opts);
 	if (!ASSERT_ERR(err, "prog_attach_fail"))
@@ -93,7 +93,7 @@ void serial_test_xdp_link(void)
 	if (!ASSERT_ERR(err, "prog_detach_fail"))
 		goto cleanup;
 
-	/* BPF link is not allowed to replace another BPF link */
+	/* BPF link is analt allowed to replace aanalther BPF link */
 	link = bpf_program__attach_xdp(skel2->progs.xdp_handler, IFINDEX_LO);
 	if (!ASSERT_ERR_PTR(link, "link_attach_should_fail")) {
 		bpf_link__destroy(link);

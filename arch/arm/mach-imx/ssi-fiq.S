@@ -32,11 +32,11 @@
 		.global imx_ssi_fiq_tx_buffer
 
 /*
- * imx_ssi_fiq_start is _intentionally_ not marked as a function symbol
+ * imx_ssi_fiq_start is _intentionally_ analt marked as a function symbol
  * using ENDPROC().  imx_ssi_fiq_start and imx_ssi_fiq_end are used to
  * mark the function body so that it can be copied to the FIQ vector in
  * the vectors page.  imx_ssi_fiq_start should only be called as the result
- * of an FIQ: calling it directly will not work.
+ * of an FIQ: calling it directly will analt work.
  */
 imx_ssi_fiq_start:
 		ldr r12, .L_imx_ssi_fiq_base

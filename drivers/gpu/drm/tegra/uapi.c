@@ -88,11 +88,11 @@ int tegra_drm_ioctl_channel_open(struct drm_device *drm, void *data, struct drm_
 
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	client = tegra_drm_find_client(tegra, args->host1x_class);
 	if (!client) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto free;
 	}
 
@@ -119,12 +119,12 @@ int tegra_drm_ioctl_channel_open(struct drm_device *drm, void *data, struct drm_
 				host, client->base.dev, get_task_pid(current, PIDTYPE_TGID));
 
 		if (IS_ERR(context->memory_context)) {
-			if (PTR_ERR(context->memory_context) != -EOPNOTSUPP) {
+			if (PTR_ERR(context->memory_context) != -EOPANALTSUPP) {
 				err = PTR_ERR(context->memory_context);
 				goto put_channel;
 			} else {
 				/*
-				 * OK, HW does not support contexts or contexts
+				 * OK, HW does analt support contexts or contexts
 				 * are disabled.
 				 */
 				context->memory_context = NULL;
@@ -205,7 +205,7 @@ int tegra_drm_ioctl_channel_map(struct drm_device *drm, void *data, struct drm_f
 
 	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
 	if (!mapping) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unlock;
 	}
 
@@ -349,7 +349,7 @@ int tegra_drm_ioctl_syncpoint_wait(struct drm_device *drm, void *data, struct dr
 	if (args->padding != 0)
 		return -EINVAL;
 
-	sp = host1x_syncpt_get_by_id_noref(host1x, args->id);
+	sp = host1x_syncpt_get_by_id_analref(host1x, args->id);
 	if (!sp)
 		return -EINVAL;
 

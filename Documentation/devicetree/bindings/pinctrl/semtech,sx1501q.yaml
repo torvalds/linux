@@ -62,8 +62,8 @@ patternProperties:
       - pins
 
     allOf:
-      - $ref: pincfg-node.yaml#
-      - $ref: pinmux-node.yaml#
+      - $ref: pincfg-analde.yaml#
+      - $ref: pinmux-analde.yaml#
       - if:
           properties:
             pins:
@@ -88,7 +88,7 @@ required:
 allOf:
   - $ref: pinctrl.yaml#
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

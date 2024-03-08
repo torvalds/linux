@@ -22,7 +22,7 @@ static inline __sum16 csum_fold(__wsum csum)
 }
 #define csum_fold csum_fold
 
-static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+static inline __wsum csum_tcpudp_analfold(__be32 saddr, __be32 daddr,
 		unsigned short len, unsigned short proto, __wsum sum)
 {
 	asm volatile(
@@ -42,7 +42,7 @@ static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 	: "cc");
 	return sum;
 }
-#define csum_tcpudp_nofold csum_tcpudp_nofold
+#define csum_tcpudp_analfold csum_tcpudp_analfold
 
 #include <asm-generic/checksum.h>
 

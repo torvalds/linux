@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2008  Yoichi Yuasa <yuasa@linux-mips.org>
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
@@ -22,7 +22,7 @@ static __init int cobalt_lcd_add(void)
 
 	pdev = platform_device_alloc("cobalt-lcd", -1);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = platform_device_add_resources(pdev, &cobalt_lcd_resource, 1);
 	if (retval)

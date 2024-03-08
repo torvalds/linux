@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -72,7 +72,7 @@
 static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
 		char __user *buf, size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 	bool pm_pg_lock, use_bank, use_ring;
@@ -204,21 +204,21 @@ static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
 	return amdgpu_debugfs_process_reg_op(false, f, (char __user *)buf, size, pos);
 }
 
-static int amdgpu_debugfs_regs2_open(struct inode *inode, struct file *file)
+static int amdgpu_debugfs_regs2_open(struct ianalde *ianalde, struct file *file)
 {
 	struct amdgpu_debugfs_regs2_data *rd;
 
 	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
 	if (!rd)
-		return -ENOMEM;
-	rd->adev = file_inode(file)->i_private;
+		return -EANALMEM;
+	rd->adev = file_ianalde(file)->i_private;
 	file->private_data = rd;
 	mutex_init(&rd->lock);
 
 	return 0;
 }
 
-static int amdgpu_debugfs_regs2_release(struct inode *inode, struct file *file)
+static int amdgpu_debugfs_regs2_release(struct ianalde *ianalde, struct file *file)
 {
 	struct amdgpu_debugfs_regs2_data *rd = file->private_data;
 
@@ -371,21 +371,21 @@ static ssize_t amdgpu_debugfs_regs2_write(struct file *f, const char __user *buf
 	return amdgpu_debugfs_regs2_op(f, (char __user *)buf, *pos, size, 1);
 }
 
-static int amdgpu_debugfs_gprwave_open(struct inode *inode, struct file *file)
+static int amdgpu_debugfs_gprwave_open(struct ianalde *ianalde, struct file *file)
 {
 	struct amdgpu_debugfs_gprwave_data *rd;
 
 	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
 	if (!rd)
-		return -ENOMEM;
-	rd->adev = file_inode(file)->i_private;
+		return -EANALMEM;
+	rd->adev = file_ianalde(file)->i_private;
 	file->private_data = rd;
 	mutex_init(&rd->lock);
 
 	return 0;
 }
 
-static int amdgpu_debugfs_gprwave_release(struct inode *inode, struct file *file)
+static int amdgpu_debugfs_gprwave_release(struct ianalde *ianalde, struct file *file)
 {
 	struct amdgpu_debugfs_gprwave_data *rd = file->private_data;
 
@@ -421,7 +421,7 @@ static ssize_t amdgpu_debugfs_gprwave_read(struct file *f, char __user *buf, siz
 	if (!data) {
 		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 		amdgpu_virt_disable_access_debugfs(adev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* switch to the specific se/sh/cu */
@@ -518,7 +518,7 @@ done:
 static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -578,7 +578,7 @@ out:
 static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -638,7 +638,7 @@ out:
 static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -646,7 +646,7 @@ static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
 		return -EINVAL;
 
 	if (!adev->didt_rreg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (r < 0) {
@@ -697,7 +697,7 @@ out:
 static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -705,7 +705,7 @@ static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user 
 		return -EINVAL;
 
 	if (!adev->didt_wreg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (r < 0) {
@@ -757,12 +757,12 @@ out:
 static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
 	if (!adev->smc_rreg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
@@ -816,12 +816,12 @@ out:
 static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
 	if (!adev->smc_wreg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
@@ -878,67 +878,67 @@ out:
 static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
-	uint32_t *config, no_regs = 0;
+	uint32_t *config, anal_regs = 0;
 
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
 
 	config = kmalloc_array(256, sizeof(*config), GFP_KERNEL);
 	if (!config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* version, increment each time something is added */
-	config[no_regs++] = 5;
-	config[no_regs++] = adev->gfx.config.max_shader_engines;
-	config[no_regs++] = adev->gfx.config.max_tile_pipes;
-	config[no_regs++] = adev->gfx.config.max_cu_per_sh;
-	config[no_regs++] = adev->gfx.config.max_sh_per_se;
-	config[no_regs++] = adev->gfx.config.max_backends_per_se;
-	config[no_regs++] = adev->gfx.config.max_texture_channel_caches;
-	config[no_regs++] = adev->gfx.config.max_gprs;
-	config[no_regs++] = adev->gfx.config.max_gs_threads;
-	config[no_regs++] = adev->gfx.config.max_hw_contexts;
-	config[no_regs++] = adev->gfx.config.sc_prim_fifo_size_frontend;
-	config[no_regs++] = adev->gfx.config.sc_prim_fifo_size_backend;
-	config[no_regs++] = adev->gfx.config.sc_hiz_tile_fifo_size;
-	config[no_regs++] = adev->gfx.config.sc_earlyz_tile_fifo_size;
-	config[no_regs++] = adev->gfx.config.num_tile_pipes;
-	config[no_regs++] = adev->gfx.config.backend_enable_mask;
-	config[no_regs++] = adev->gfx.config.mem_max_burst_length_bytes;
-	config[no_regs++] = adev->gfx.config.mem_row_size_in_kb;
-	config[no_regs++] = adev->gfx.config.shader_engine_tile_size;
-	config[no_regs++] = adev->gfx.config.num_gpus;
-	config[no_regs++] = adev->gfx.config.multi_gpu_tile_size;
-	config[no_regs++] = adev->gfx.config.mc_arb_ramcfg;
-	config[no_regs++] = adev->gfx.config.gb_addr_config;
-	config[no_regs++] = adev->gfx.config.num_rbs;
+	config[anal_regs++] = 5;
+	config[anal_regs++] = adev->gfx.config.max_shader_engines;
+	config[anal_regs++] = adev->gfx.config.max_tile_pipes;
+	config[anal_regs++] = adev->gfx.config.max_cu_per_sh;
+	config[anal_regs++] = adev->gfx.config.max_sh_per_se;
+	config[anal_regs++] = adev->gfx.config.max_backends_per_se;
+	config[anal_regs++] = adev->gfx.config.max_texture_channel_caches;
+	config[anal_regs++] = adev->gfx.config.max_gprs;
+	config[anal_regs++] = adev->gfx.config.max_gs_threads;
+	config[anal_regs++] = adev->gfx.config.max_hw_contexts;
+	config[anal_regs++] = adev->gfx.config.sc_prim_fifo_size_frontend;
+	config[anal_regs++] = adev->gfx.config.sc_prim_fifo_size_backend;
+	config[anal_regs++] = adev->gfx.config.sc_hiz_tile_fifo_size;
+	config[anal_regs++] = adev->gfx.config.sc_earlyz_tile_fifo_size;
+	config[anal_regs++] = adev->gfx.config.num_tile_pipes;
+	config[anal_regs++] = adev->gfx.config.backend_enable_mask;
+	config[anal_regs++] = adev->gfx.config.mem_max_burst_length_bytes;
+	config[anal_regs++] = adev->gfx.config.mem_row_size_in_kb;
+	config[anal_regs++] = adev->gfx.config.shader_engine_tile_size;
+	config[anal_regs++] = adev->gfx.config.num_gpus;
+	config[anal_regs++] = adev->gfx.config.multi_gpu_tile_size;
+	config[anal_regs++] = adev->gfx.config.mc_arb_ramcfg;
+	config[anal_regs++] = adev->gfx.config.gb_addr_config;
+	config[anal_regs++] = adev->gfx.config.num_rbs;
 
 	/* rev==1 */
-	config[no_regs++] = adev->rev_id;
-	config[no_regs++] = lower_32_bits(adev->pg_flags);
-	config[no_regs++] = lower_32_bits(adev->cg_flags);
+	config[anal_regs++] = adev->rev_id;
+	config[anal_regs++] = lower_32_bits(adev->pg_flags);
+	config[anal_regs++] = lower_32_bits(adev->cg_flags);
 
 	/* rev==2 */
-	config[no_regs++] = adev->family;
-	config[no_regs++] = adev->external_rev_id;
+	config[anal_regs++] = adev->family;
+	config[anal_regs++] = adev->external_rev_id;
 
 	/* rev==3 */
-	config[no_regs++] = adev->pdev->device;
-	config[no_regs++] = adev->pdev->revision;
-	config[no_regs++] = adev->pdev->subsystem_device;
-	config[no_regs++] = adev->pdev->subsystem_vendor;
+	config[anal_regs++] = adev->pdev->device;
+	config[anal_regs++] = adev->pdev->revision;
+	config[anal_regs++] = adev->pdev->subsystem_device;
+	config[anal_regs++] = adev->pdev->subsystem_vendor;
 
 	/* rev==4 APU flag */
-	config[no_regs++] = adev->flags & AMD_IS_APU ? 1 : 0;
+	config[anal_regs++] = adev->flags & AMD_IS_APU ? 1 : 0;
 
 	/* rev==5 PG/CG flag upper 32bit */
-	config[no_regs++] = upper_32_bits(adev->pg_flags);
-	config[no_regs++] = upper_32_bits(adev->cg_flags);
+	config[anal_regs++] = upper_32_bits(adev->pg_flags);
+	config[anal_regs++] = upper_32_bits(adev->cg_flags);
 
-	while (size && (*pos < no_regs * 4)) {
+	while (size && (*pos < anal_regs * 4)) {
 		uint32_t value;
 
 		value = config[*pos >> 2];
@@ -974,7 +974,7 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	int idx, x, outsize, r, valuesize;
 	uint32_t values[16];
 
@@ -1055,7 +1055,7 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = f->f_ianalde->i_private;
 	int r, x;
 	ssize_t result = 0;
 	uint32_t offset, se, sh, cu, wave, simd, data[32];
@@ -1147,7 +1147,7 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 static ssize_t amdgpu_debugfs_gpr_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = f->f_ianalde->i_private;
 	int r;
 	ssize_t result = 0;
 	uint32_t offset, se, sh, cu, wave, simd, thread, bank, *data;
@@ -1167,7 +1167,7 @@ static ssize_t amdgpu_debugfs_gpr_read(struct file *f, char __user *buf,
 
 	data = kcalloc(1024, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (r < 0)
@@ -1234,7 +1234,7 @@ err:
 static ssize_t amdgpu_debugfs_gfxoff_residency_read(struct file *f, char __user *buf,
 						    size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -1280,12 +1280,12 @@ out:
  * @size: Number of bytes to write
  * @pos:  Offset to seek to
  *
- * Write a 32-bit non-zero to start logging; write a 32-bit zero to stop
+ * Write a 32-bit analn-zero to start logging; write a 32-bit zero to stop
  */
 static ssize_t amdgpu_debugfs_gfxoff_residency_write(struct file *f, const char __user *buf,
 						     size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -1333,7 +1333,7 @@ out:
 static ssize_t amdgpu_debugfs_gfxoff_count_read(struct file *f, char __user *buf,
 						size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -1379,12 +1379,12 @@ out:
  * @size: Number of bytes to write
  * @pos:  Offset to seek to
  *
- * Write a 32-bit zero to disable or a 32-bit non-zero to enable
+ * Write a 32-bit zero to disable or a 32-bit analn-zero to enable
  */
 static ssize_t amdgpu_debugfs_gfxoff_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -1432,7 +1432,7 @@ out:
 static ssize_t amdgpu_debugfs_gfxoff_read(struct file *f, char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -1469,7 +1469,7 @@ out:
 static ssize_t amdgpu_debugfs_gfxoff_status_read(struct file *f, char __user *buf,
 						 size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_ianalde(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -1642,8 +1642,8 @@ static const char * const debugfs_regs_names[] = {
  */
 int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 {
-	struct drm_minor *minor = adev_to_drm(adev)->primary;
-	struct dentry *ent, *root = minor->debugfs_root;
+	struct drm_mianalr *mianalr = adev_to_drm(adev)->primary;
+	struct dentry *ent, *root = mianalr->debugfs_root;
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(debugfs_regs); i++) {
@@ -1651,7 +1651,7 @@ int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 					  S_IFREG | 0444, root,
 					  adev, debugfs_regs[i]);
 		if (!i && !IS_ERR_OR_NULL(ent))
-			i_size_write(ent->d_inode, adev->rmmio_size);
+			i_size_write(ent->d_ianalde, adev->rmmio_size);
 	}
 
 	return 0;
@@ -1880,14 +1880,14 @@ static void amdgpu_ib_preempt_mark_partial_job(struct amdgpu_ring *ring)
 	preempt_seq = le32_to_cpu(*(drv->cpu_addr + 2));
 	if (preempt_seq <= atomic_read(&drv->last_seq)) {
 		preempted = false;
-		goto no_preempt;
+		goto anal_preempt;
 	}
 
 	preempt_seq &= drv->num_fences_mask;
 	ptr = &drv->fences[preempt_seq];
 	fence = rcu_dereference_protected(*ptr, 1);
 
-no_preempt:
+anal_preempt:
 	spin_lock(&sched->job_list_lock);
 	list_for_each_entry_safe(s_job, tmp, &sched->pending_list, list) {
 		if (dma_fence_is_signaled(&s_job->s_fence->finished)) {
@@ -1927,7 +1927,7 @@ static int amdgpu_debugfs_ib_preempt(void *data, u64 val)
 	length = ring->fence_drv.num_fences_mask + 1;
 	fences = kcalloc(length, sizeof(void *), GFP_KERNEL);
 	if (!fences)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Avoid accidently unparking the sched thread during GPU reset */
 	r = down_read_killable(&adev->reset_domain->sem);
@@ -1995,7 +1995,7 @@ static int amdgpu_debugfs_sclk_set(void *data, u64 val)
 	}
 
 	ret = amdgpu_dpm_get_dpm_freq_range(adev, PP_SCLK, &min_freq, &max_freq);
-	if (ret == -EOPNOTSUPP) {
+	if (ret == -EOPANALTSUPP) {
 		ret = 0;
 		goto out;
 	}
@@ -2024,7 +2024,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_sclk_set, NULL,
 static ssize_t amdgpu_reset_dump_register_list_read(struct file *f,
 				char __user *buf, size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
+	struct amdgpu_device *adev = (struct amdgpu_device *)file_ianalde(f)->i_private;
 	char reg_offset[12];
 	int i, ret, len = 0;
 
@@ -2057,7 +2057,7 @@ static ssize_t amdgpu_reset_dump_register_list_read(struct file *f,
 static ssize_t amdgpu_reset_dump_register_list_write(struct file *f,
 			const char __user *buf, size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
+	struct amdgpu_device *adev = (struct amdgpu_device *)file_ianalde(f)->i_private;
 	char reg_offset[11];
 	uint32_t *new = NULL, *tmp = NULL;
 	int ret, i = 0, len = 0;
@@ -2072,7 +2072,7 @@ static ssize_t amdgpu_reset_dump_register_list_write(struct file *f,
 
 		new = krealloc_array(tmp, i + 1, sizeof(uint32_t), GFP_KERNEL);
 		if (!new) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error_free;
 		}
 		tmp = new;
@@ -2087,7 +2087,7 @@ static ssize_t amdgpu_reset_dump_register_list_write(struct file *f,
 
 	new = kmalloc_array(i, sizeof(uint32_t), GFP_KERNEL);
 	if (!new) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_free;
 	}
 	ret = down_write_killable(&adev->reset_domain->sem);

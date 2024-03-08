@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012, 2019-20 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012, 2019-20 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * MMUv3 (arc700) / MMUv4 (archs) are software page walked and software managed.
  * This file contains the TLB access registers and commands
@@ -65,12 +65,12 @@
 #define PTE_BITS_IN_PD0		(_PAGE_GLOBAL | _PAGE_PRESENT | _PAGE_HW_SZ)
 #define PTE_BITS_RWX		(_PAGE_EXECUTE | _PAGE_WRITE | _PAGE_READ)
 
-#define PTE_BITS_NON_RWX_IN_PD1	(PAGE_MASK_PHYS | _PAGE_CACHEABLE)
+#define PTE_BITS_ANALN_RWX_IN_PD1	(PAGE_MASK_PHYS | _PAGE_CACHEABLE)
 
 #ifndef __ASSEMBLY__
 
 struct mm_struct;
-extern int pae40_exist_but_not_enab(void);
+extern int pae40_exist_but_analt_enab(void);
 
 static inline int is_pae40_enabled(void)
 {

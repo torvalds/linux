@@ -57,7 +57,7 @@
 			next-level-cache = <&L2_0>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
+			interconnects = <&gem_analc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD0>;
 			power-domain-names = "psci";
@@ -86,7 +86,7 @@
 			next-level-cache = <&L2_100>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
+			interconnects = <&gem_analc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD1>;
 			power-domain-names = "psci";
@@ -110,7 +110,7 @@
 			next-level-cache = <&L2_200>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
+			interconnects = <&gem_analc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD2>;
 			power-domain-names = "psci";
@@ -134,7 +134,7 @@
 			next-level-cache = <&L2_300>;
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
+			interconnects = <&gem_analc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD3>;
 			power-domain-names = "psci";
@@ -158,7 +158,7 @@
 			next-level-cache = <&L2_400>;
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
+			interconnects = <&gem_analc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD4>;
 			power-domain-names = "psci";
@@ -182,7 +182,7 @@
 			next-level-cache = <&L2_500>;
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
+			interconnects = <&gem_analc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD5>;
 			power-domain-names = "psci";
@@ -206,7 +206,7 @@
 			next-level-cache = <&L2_600>;
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
+			interconnects = <&gem_analc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD6>;
 			power-domain-names = "psci";
@@ -230,7 +230,7 @@
 			next-level-cache = <&L2_700>;
 			qcom,freq-domain = <&cpufreq_hw 2>;
 			operating-points-v2 = <&cpu7_opp_table>;
-			interconnects = <&gem_noc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
+			interconnects = <&gem_analc MASTER_AMPSS_M0 0 &mc_virt SLAVE_EBI_CH0 0>,
 					<&osm_l3 MASTER_OSM_L3_APPS &osm_l3 SLAVE_OSM_L3>;
 			power-domains = <&CPU_PD7>;
 			power-domain-names = "psci";
@@ -687,39 +687,39 @@
 
 		hyp_mem: memory@85700000 {
 			reg = <0x0 0x85700000 0x0 0x600000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_mem: memory@85d00000 {
 			reg = <0x0 0x85d00000 0x0 0x140000>;
-			no-map;
+			anal-map;
 		};
 
 		aop_mem: memory@85f00000 {
 			reg = <0x0 0x85f00000 0x0 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		aop_cmd_db: memory@85f20000 {
 			compatible = "qcom,cmd-db";
 			reg = <0x0 0x85f20000 0x0 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_mem: memory@86000000 {
 			reg = <0x0 0x86000000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		tz_mem: memory@86200000 {
 			reg = <0x0 0x86200000 0x0 0x3900000>;
-			no-map;
+			anal-map;
 		};
 
 		rmtfs_mem: memory@89b00000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x89b00000 0x0 0x200000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
@@ -727,67 +727,67 @@
 
 		camera_mem: memory@8b700000 {
 			reg = <0x0 0x8b700000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_mem: memory@8bc00000 {
 			reg = <0x0 0x8bc00000 0x0 0x180000>;
-			no-map;
+			anal-map;
 		};
 
 		npu_mem: memory@8bd80000 {
 			reg = <0x0 0x8bd80000 0x0 0x80000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: memory@8be00000 {
 			reg = <0x0 0x8be00000 0x0 0x1a00000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_mem: memory@8d800000 {
 			reg = <0x0 0x8d800000 0x0 0x9600000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: memory@96e00000 {
 			reg = <0x0 0x96e00000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		slpi_mem: memory@97300000 {
 			reg = <0x0 0x97300000 0x0 0x1400000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_fw_mem: memory@98700000 {
 			reg = <0x0 0x98700000 0x0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_gsi_mem: memory@98710000 {
 			reg = <0x0 0x98710000 0x0 0x5000>;
-			no-map;
+			anal-map;
 		};
 
 		gpu_mem: memory@98715000 {
 			reg = <0x0 0x98715000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		spss_mem: memory@98800000 {
 			reg = <0x0 0x98800000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_mem: memory@98900000 {
 			reg = <0x0 0x98900000 0x0 0x1400000>;
-			no-map;
+			anal-map;
 		};
 
 		qseecom_mem: memory@9e400000 {
 			reg = <0x0 0x9e400000 0x0 0x1400000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -1759,15 +1759,15 @@
 			};
 		};
 
-		config_noc: interconnect@1500000 {
-			compatible = "qcom,sm8150-config-noc";
+		config_analc: interconnect@1500000 {
+			compatible = "qcom,sm8150-config-analc";
 			reg = <0 0x01500000 0 0x7400>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		system_noc: interconnect@1620000 {
-			compatible = "qcom,sm8150-system-noc";
+		system_analc: interconnect@1620000 {
+			compatible = "qcom,sm8150-system-analc";
 			reg = <0 0x01620000 0 0x19400>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
@@ -1780,29 +1780,29 @@
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		aggre1_noc: interconnect@16e0000 {
-			compatible = "qcom,sm8150-aggre1-noc";
+		aggre1_analc: interconnect@16e0000 {
+			compatible = "qcom,sm8150-aggre1-analc";
 			reg = <0 0x016e0000 0 0xd080>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		aggre2_noc: interconnect@1700000 {
-			compatible = "qcom,sm8150-aggre2-noc";
+		aggre2_analc: interconnect@1700000 {
+			compatible = "qcom,sm8150-aggre2-analc";
 			reg = <0 0x01700000 0 0x20000>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		compute_noc: interconnect@1720000 {
-			compatible = "qcom,sm8150-compute-noc";
+		compute_analc: interconnect@1720000 {
+			compatible = "qcom,sm8150-compute-analc";
 			reg = <0 0x01720000 0 0x7000>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		mmss_noc: interconnect@1740000 {
-			compatible = "qcom,sm8150-mmss-noc";
+		mmss_analc: interconnect@1740000 {
+			compatible = "qcom,sm8150-mmss-analc";
 			reg = <0 0x01740000 0 0x1c100>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
@@ -1858,7 +1858,7 @@
 				 <&gcc GCC_PCIE_0_MSTR_AXI_CLK>,
 				 <&gcc GCC_PCIE_0_SLV_AXI_CLK>,
 				 <&gcc GCC_PCIE_0_SLV_Q2A_AXI_CLK>,
-				 <&gcc GCC_AGGRE_NOC_PCIE_TBU_CLK>;
+				 <&gcc GCC_AGGRE_ANALC_PCIE_TBU_CLK>;
 			clock-names = "pipe",
 				      "aux",
 				      "cfg",
@@ -1949,7 +1949,7 @@
 				 <&gcc GCC_PCIE_1_MSTR_AXI_CLK>,
 				 <&gcc GCC_PCIE_1_SLV_AXI_CLK>,
 				 <&gcc GCC_PCIE_1_SLV_Q2A_AXI_CLK>,
-				 <&gcc GCC_AGGRE_NOC_PCIE_TBU_CLK>;
+				 <&gcc GCC_AGGRE_ANALC_PCIE_TBU_CLK>;
 			clock-names = "pipe",
 				      "aux",
 				      "cfg",
@@ -2104,7 +2104,7 @@
 				 <&apps_smmu 0x506 0x0011>,
 				 <&apps_smmu 0x508 0x0011>,
 				 <&apps_smmu 0x512 0x0000>;
-			interconnects = <&aggre2_noc MASTER_CRYPTO_CORE_0 0 &mc_virt SLAVE_EBI_CH0 0>;
+			interconnects = <&aggre2_analc MASTER_CRYPTO_CORE_0 0 &mc_virt SLAVE_EBI_CH0 0>;
 			interconnect-names = "memory";
 		};
 
@@ -2157,7 +2157,7 @@
 					compatible = "qcom,fastrpc";
 					qcom,glink-channels = "fastrpcglink-apps-dsp";
 					label = "sdsp";
-					qcom,non-secure-domain;
+					qcom,analn-secure-domain;
 					#address-cells = <1>;
 					#size-cells = <0>;
 
@@ -2177,20 +2177,20 @@
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <3>;
 						iommus = <&apps_smmu 0x05a3 0x0>;
-						/* note: shared-cb = <4> in downstream */
+						/* analte: shared-cb = <4> in downstream */
 					};
 				};
 			};
 		};
 
 		gpu: gpu@2c00000 {
-			compatible = "qcom,adreno-640.1", "qcom,adreno";
+			compatible = "qcom,adreanal-640.1", "qcom,adreanal";
 			reg = <0 0x02c00000 0 0x40000>;
 			reg-names = "kgsl_3d0_reg_memory";
 
 			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
 
-			iommus = <&adreno_smmu 0 0x401>;
+			iommus = <&adreanal_smmu 0 0x401>;
 
 			operating-points-v2 = <&gpu_opp_table>;
 
@@ -2210,13 +2210,13 @@
 
 				opp-675000000 {
 					opp-hz = /bits/ 64 <675000000>;
-					opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+					opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L1>;
 					opp-supported-hw = <0x2>;
 				};
 
 				opp-585000000 {
 					opp-hz = /bits/ 64 <585000000>;
-					opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+					opp-level = <RPMH_REGULATOR_LEVEL_ANALM>;
 					opp-supported-hw = <0x3>;
 				};
 
@@ -2247,7 +2247,7 @@
 		};
 
 		gmu: gmu@2c6a000 {
-			compatible = "qcom,adreno-gmu-640.1", "qcom,adreno-gmu";
+			compatible = "qcom,adreanal-gmu-640.1", "qcom,adreanal-gmu";
 
 			reg = <0 0x02c6a000 0 0x30000>,
 			      <0 0x0b290000 0 0x10000>,
@@ -2262,14 +2262,14 @@
 				 <&gpucc GPU_CC_CX_GMU_CLK>,
 				 <&gpucc GPU_CC_CXO_CLK>,
 				 <&gcc GCC_DDRSS_GPU_AXI_CLK>,
-				 <&gcc GCC_GPU_MEMNOC_GFX_CLK>;
-			clock-names = "ahb", "gmu", "cxo", "axi", "memnoc";
+				 <&gcc GCC_GPU_MEMANALC_GFX_CLK>;
+			clock-names = "ahb", "gmu", "cxo", "axi", "memanalc";
 
 			power-domains = <&gpucc GPU_CX_GDSC>,
 					<&gpucc GPU_GX_GDSC>;
 			power-domain-names = "cx", "gx";
 
-			iommus = <&adreno_smmu 5 0x400>;
+			iommus = <&adreanal_smmu 5 0x400>;
 
 			operating-points-v2 = <&gmu_opp_table>;
 
@@ -2299,8 +2299,8 @@
 			#power-domain-cells = <1>;
 		};
 
-		adreno_smmu: iommu@2ca0000 {
-			compatible = "qcom,sm8150-smmu-500", "qcom,adreno-smmu",
+		adreanal_smmu: iommu@2ca0000 {
+			compatible = "qcom,sm8150-smmu-500", "qcom,adreanal-smmu",
 				     "qcom,smmu-500", "arm,mmu-500";
 			reg = <0 0x02ca0000 0 0x10000>;
 			#iommu-cells = <2>;
@@ -2315,8 +2315,8 @@
 				<GIC_SPI 687 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 688 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gpucc GPU_CC_AHB_CLK>,
-				 <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
-				 <&gcc GCC_GPU_SNOC_DVM_GFX_CLK>;
+				 <&gcc GCC_GPU_MEMANALC_GFX_CLK>,
+				 <&gcc GCC_GPU_SANALC_DVM_GFX_CLK>;
 			clock-names = "ahb", "bus", "iface";
 
 			power-domains = <&gpucc GPU_CX_GDSC>;
@@ -2328,7 +2328,7 @@
 			      <0x0 0x03500000 0x0 0x300000>,
 			      <0x0 0x03900000 0x0 0x300000>,
 			      <0x0 0x03D00000 0x0 0x300000>;
-			reg-names = "west", "east", "north", "south";
+			reg-names = "west", "east", "analrth", "south";
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-ranges = <&tlmm 0 0 176>;
 			gpio-controller;
@@ -3332,7 +3332,7 @@
 					compatible = "qcom,fastrpc";
 					qcom,glink-channels = "fastrpcglink-apps-dsp";
 					label = "cdsp";
-					qcom,non-secure-domain;
+					qcom,analn-secure-domain;
 					#address-cells = <1>;
 					#size-cells = <0>;
 
@@ -3384,7 +3384,7 @@
 						iommus = <&apps_smmu 0x1008 0x0460>;
 					};
 
-					/* note: secure cb9 in downstream */
+					/* analte: secure cb9 in downstream */
 				};
 			};
 		};
@@ -3533,15 +3533,15 @@
 			};
 		};
 
-		dc_noc: interconnect@9160000 {
-			compatible = "qcom,sm8150-dc-noc";
+		dc_analc: interconnect@9160000 {
+			compatible = "qcom,sm8150-dc-analc";
 			reg = <0 0x09160000 0 0x3200>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		gem_noc: interconnect@9680000 {
-			compatible = "qcom,sm8150-gem-noc";
+		gem_analc: interconnect@9680000 {
+			compatible = "qcom,sm8150-gem-analc";
 			reg = <0 0x09680000 0 0x3e200>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
@@ -3556,13 +3556,13 @@
 			ranges;
 			dma-ranges;
 
-			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_ANALC_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
 				 <&gcc GCC_AGGRE_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
 				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
 				 <&gcc GCC_USB3_SEC_CLKREF_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				      "core",
 				      "iface",
 				      "sleep",
@@ -3584,8 +3584,8 @@
 
 			resets = <&gcc GCC_USB30_PRIM_BCR>;
 
-			interconnects = <&aggre1_noc MASTER_USB3 0 &mc_virt SLAVE_EBI_CH0 0>,
-					<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_USB3 0>;
+			interconnects = <&aggre1_analc MASTER_USB3 0 &mc_virt SLAVE_EBI_CH0 0>,
+					<&gem_analc MASTER_AMPSS_M0 0 &config_analc SLAVE_USB3 0>;
 			interconnect-names = "usb-ddr", "apps-usb";
 
 			usb_1_dwc3: usb@a600000 {
@@ -3628,13 +3628,13 @@
 			ranges;
 			dma-ranges;
 
-			clocks = <&gcc GCC_CFG_NOC_USB3_SEC_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_ANALC_USB3_SEC_AXI_CLK>,
 				 <&gcc GCC_USB30_SEC_MASTER_CLK>,
 				 <&gcc GCC_AGGRE_USB3_SEC_AXI_CLK>,
 				 <&gcc GCC_USB30_SEC_SLEEP_CLK>,
 				 <&gcc GCC_USB30_SEC_MOCK_UTMI_CLK>,
 				 <&gcc GCC_USB3_SEC_CLKREF_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				      "core",
 				      "iface",
 				      "sleep",
@@ -3656,8 +3656,8 @@
 
 			resets = <&gcc GCC_USB30_SEC_BCR>;
 
-			interconnects = <&aggre1_noc MASTER_USB3_1 0 &mc_virt SLAVE_EBI_CH0 0>,
-					<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_USB3_1 0>;
+			interconnects = <&aggre1_analc MASTER_USB3_1 0 &mc_virt SLAVE_EBI_CH0 0>,
+					<&gem_analc MASTER_AMPSS_M0 0 &config_analc SLAVE_USB3_1 0>;
 			interconnect-names = "usb-ddr", "apps-usb";
 
 			usb_2_dwc3: usb@a800000 {
@@ -3672,8 +3672,8 @@
 			};
 		};
 
-		camnoc_virt: interconnect@ac00000 {
-			compatible = "qcom,sm8150-camnoc-virt";
+		camanalc_virt: interconnect@ac00000 {
+			compatible = "qcom,sm8150-camanalc-virt";
 			reg = <0 0x0ac00000 0 0x1000>;
 			#interconnect-cells = <2>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
@@ -3684,8 +3684,8 @@
 			reg = <0 0x0ae00000 0 0x1000>;
 			reg-names = "mdss";
 
-			interconnects = <&mmss_noc MASTER_MDP_PORT0 0 &mc_virt SLAVE_EBI_CH0 0>,
-					<&mmss_noc MASTER_MDP_PORT1 0 &mc_virt SLAVE_EBI_CH0 0>;
+			interconnects = <&mmss_analc MASTER_MDP_PORT0 0 &mc_virt SLAVE_EBI_CH0 0>,
+					<&mmss_analc MASTER_MDP_PORT1 0 &mc_virt SLAVE_EBI_CH0 0>;
 			interconnect-names = "mdp0-mem", "mdp1-mem";
 
 			power-domains = <&dispcc MDSS_GDSC>;
@@ -3775,7 +3775,7 @@
 
 					opp-460000000 {
 						opp-hz = /bits/ 64 <460000000>;
-						required-opps = <&rpmhpd_opp_nom>;
+						required-opps = <&rpmhpd_opp_analm>;
 					};
 				};
 			};
@@ -3855,7 +3855,7 @@
 
 					opp-810000000 {
 						opp-hz = /bits/ 64 <810000000>;
-						required-opps = <&rpmhpd_opp_nom>;
+						required-opps = <&rpmhpd_opp_analm>;
 					};
 				};
 			};
@@ -4240,7 +4240,7 @@
 					compatible = "qcom,fastrpc";
 					qcom,glink-channels = "fastrpcglink-apps-dsp";
 					label = "adsp";
-					qcom,non-secure-domain;
+					qcom,analn-secure-domain;
 					#address-cells = <1>;
 					#size-cells = <0>;
 
@@ -4404,16 +4404,16 @@
 						opp-level = <224>;
 					};
 
-					rpmhpd_opp_nom: opp7 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+					rpmhpd_opp_analm: opp7 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM>;
 					};
 
-					rpmhpd_opp_nom_l1: opp8 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+					rpmhpd_opp_analm_l1: opp8 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L1>;
 					};
 
-					rpmhpd_opp_nom_l2: opp9 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
+					rpmhpd_opp_analm_l2: opp9 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L2>;
 					};
 
 					rpmhpd_opp_turbo: opp10 {
@@ -4541,17 +4541,17 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu0_alert0>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 				map1 {
 					trip = <&cpu0_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -4585,17 +4585,17 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu1_alert0>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 				map1 {
 					trip = <&cpu1_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -4629,17 +4629,17 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu2_alert0>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 				map1 {
 					trip = <&cpu2_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -4673,17 +4673,17 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu3_alert0>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 				map1 {
 					trip = <&cpu3_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -4717,17 +4717,17 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu4_top_alert0>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 				map1 {
 					trip = <&cpu4_top_alert1>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -4761,17 +4761,17 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu5_top_alert0>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 				map1 {
 					trip = <&cpu5_top_alert1>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -4805,17 +4805,17 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu6_top_alert0>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 				map1 {
 					trip = <&cpu6_top_alert1>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -4849,17 +4849,17 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu7_top_alert0>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 				map1 {
 					trip = <&cpu7_top_alert1>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -4893,17 +4893,17 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu4_bottom_alert0>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 				map1 {
 					trip = <&cpu4_bottom_alert1>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -4937,17 +4937,17 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu5_bottom_alert0>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 				map1 {
 					trip = <&cpu5_bottom_alert1>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -4981,17 +4981,17 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu6_bottom_alert0>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 				map1 {
 					trip = <&cpu6_bottom_alert1>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -5025,17 +5025,17 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu7_bottom_alert0>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 				map1 {
 					trip = <&cpu7_bottom_alert1>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

@@ -2,7 +2,7 @@ TI/National Semiconductor LP3943 GPIO controller
 
 Required properties:
   - compatible: "ti,lp3943-gpio"
-  - gpio-controller: Marks the device node as a GPIO controller.
+  - gpio-controller: Marks the device analde as a GPIO controller.
   - #gpio-cells: Should be 2. See gpio.txt in this directory for a
                  description of the cells format.
 

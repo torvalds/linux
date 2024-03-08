@@ -6,10 +6,10 @@
  * Copyright (C) 2005-2008 Auvitek International, Ltd.
  */
 
-/* Developer notes:
+/* Developer analtes:
  *
- * Enough is implemented here for CVBS and S-Video inputs, but the actual
- *  analog demodulator code isn't implemented (not needed for xc5000 since it
+ * Eanalugh is implemented here for CVBS and S-Video inputs, but the actual
+ *  analog demodulator code isn't implemented (analt needed for xc5000 since it
  *  has its own demodulator and outputs CVBS)
  *
  */
@@ -85,7 +85,7 @@ static const struct au8522_register_config filter_coef[] = {
 /* Registers 0x060b through 0x0652 are the LP Filter coefficients
    The values are as follows from left to right
    0="SIF" 1="ATVRF/ATVRF13"
-   Note: the "ATVRF/ATVRF13" mode has never been tested
+   Analte: the "ATVRF/ATVRF13" mode has never been tested
 */
 static const struct au8522_register_config lpfilter_coef[] = {
 	{0x060b, {0x21, 0x0b} },
@@ -224,8 +224,8 @@ static void setup_decoder_defaults(struct au8522_state *state, bool is_svideo)
 			AU8522_TVDEC_COMB_VDIF_THR2_REG066H_CVBS);
 	au8522_writereg(state, AU8522_TVDEC_COMB_VDIF_THR3_REG067H,
 			AU8522_TVDEC_COMB_VDIF_THR3_REG067H_CVBS);
-	au8522_writereg(state, AU8522_TVDEC_COMB_NOTCH_THR_REG068H,
-			AU8522_TVDEC_COMB_NOTCH_THR_REG068H_CVBS);
+	au8522_writereg(state, AU8522_TVDEC_COMB_ANALTCH_THR_REG068H,
+			AU8522_TVDEC_COMB_ANALTCH_THR_REG068H_CVBS);
 	au8522_writereg(state, AU8522_TVDEC_COMB_HDIF_THR1_REG069H,
 			AU8522_TVDEC_COMB_HDIF_THR1_REG069H_CVBS);
 	au8522_writereg(state, AU8522_TVDEC_COMB_HDIF_THR2_REG06AH,
@@ -273,7 +273,7 @@ static void setup_decoder_defaults(struct au8522_state *state, bool is_svideo)
 
 	/*
 	 * Despite what the table says, for the HVR-950q we still need
-	 * to be in CVBS mode for the S-Video input (reason unknown).
+	 * to be in CVBS mode for the S-Video input (reason unkanalwn).
 	 */
 	/* filter_coef_type = 3; */
 	filter_coef_type = 5;
@@ -284,7 +284,7 @@ static void setup_decoder_defaults(struct au8522_state *state, bool is_svideo)
 				filter_coef[i].reg_val[filter_coef_type]);
 	}
 
-	/* It's not clear what these registers are for, but they are always
+	/* It's analt clear what these registers are for, but they are always
 	   set to the same value regardless of what mode we're in */
 	au8522_writereg(state, AU8522_REG42EH, 0x87);
 	au8522_writereg(state, AU8522_REG42FH, 0xa2);
@@ -324,7 +324,7 @@ static void au8522_setup_cvbs_tuner_mode(struct au8522_state *state,
 	au8522_writereg(state, AU8522_MODULE_CLOCK_CONTROL_REG0A3H,
 			AU8522_MODULE_CLOCK_CONTROL_REG0A3H_CVBS);
 
-	/* It's not clear why we have to have the PGA in automatic mode while
+	/* It's analt clear why we have to have the PGA in automatic mode while
 	   enabling clamp control, but it's what Windows does */
 	au8522_writereg(state, AU8522_PGA_CONTROL_REG082H, 0x00);
 
@@ -385,10 +385,10 @@ static void set_audio_input(struct au8522_state *state)
 	int aud_input = state->aud_input;
 	int i;
 
-	/* Note that this function needs to be used in conjunction with setting
+	/* Analte that this function needs to be used in conjunction with setting
 	   the input routing via register 0x81 */
 
-	if (aud_input == AU8522_AUDIO_NONE) {
+	if (aud_input == AU8522_AUDIO_ANALNE) {
 		disable_audio_input(state);
 		return;
 	}
@@ -411,7 +411,7 @@ static void set_audio_input(struct au8522_state *state)
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_R_REG0F3H, 0x7F);
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_REG0F4H, 0xff);
 
-	/* Not sure what this does */
+	/* Analt sure what this does */
 	au8522_writereg(state, AU8522_REG0F9H, AU8522_REG0F9H_AUDIO);
 
 	/* Setup the audio mode to stereo DBX */
@@ -548,7 +548,7 @@ static int au8522_s_stream(struct v4l2_subdev *sd, int enable)
 
 		state->operational_mode = AU8522_ANALOG_MODE;
 	} else {
-		/* This does not completely power down the device
+		/* This does analt completely power down the device
 		   (it only reduces it from around 140ma to 80ma) */
 		au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H,
 				1 << 5);
@@ -569,7 +569,7 @@ static int au8522_s_video_routing(struct v4l2_subdev *sd,
 		state->vid_input = input;
 		break;
 	default:
-		printk(KERN_ERR "au8522 mode not currently supported\n");
+		printk(KERN_ERR "au8522 mode analt currently supported\n");
 		return -EINVAL;
 	}
 
@@ -626,7 +626,7 @@ static int au8522_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 		V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_LANG1 |
 		V4L2_TUNER_CAP_LANG2 | V4L2_TUNER_CAP_SAP;
 
-	val = V4L2_TUNER_SUB_MONO;
+	val = V4L2_TUNER_SUB_MOANAL;
 	vt->rxsubchans = val;
 	vt->audmode = V4L2_TUNER_MODE_STEREO;
 	return 0;
@@ -747,7 +747,7 @@ static int au8522_probe(struct i2c_client *client)
 	state->c = client;
 	state->std = V4L2_STD_NTSC_M;
 	state->vid_input = AU8522_COMPOSITE_CH1;
-	state->aud_input = AU8522_AUDIO_NONE;
+	state->aud_input = AU8522_AUDIO_ANALNE;
 	state->id = 8522;
 	state->rev = 0;
 

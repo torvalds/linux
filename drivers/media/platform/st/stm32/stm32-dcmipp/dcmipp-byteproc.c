@@ -85,7 +85,7 @@ static const struct v4l2_mbus_framefmt fmt_default = {
 	.width = DCMIPP_FMT_WIDTH_DEFAULT,
 	.height = DCMIPP_FMT_HEIGHT_DEFAULT,
 	.code = MEDIA_BUS_FMT_RGB565_2X8_LE,
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 	.colorspace = DCMIPP_COLORSPACE_DEFAULT,
 	.ycbcr_enc = DCMIPP_YCBCR_ENC_DEFAULT,
 	.quantization = DCMIPP_QUANTIZATION_DEFAULT,
@@ -113,7 +113,7 @@ static void dcmipp_byteproc_adjust_compose(struct v4l2_rect *r,
 	r->top = 0;
 	r->left = 0;
 
-	/* Compose is not possible for JPEG or Bayer formats */
+	/* Compose is analt possible for JPEG or Bayer formats */
 	if (fmt->code == MEDIA_BUS_FMT_JPEG_1X8 ||
 	    fmt->code == MEDIA_BUS_FMT_SBGGR8_1X8 ||
 	    fmt->code == MEDIA_BUS_FMT_SGBRG8_1X8 ||
@@ -418,7 +418,7 @@ static int dcmipp_byteproc_configure_scale_crop
 	reg_write(byteproc, DCMIPP_P0SCSTR, 0);
 	reg_write(byteproc, DCMIPP_P0SCSZR, 0);
 
-	/* Ignore decimation/crop with JPEG */
+	/* Iganalre decimation/crop with JPEG */
 	if (vpix->code == MEDIA_BUS_FMT_JPEG_1X8)
 		return 0;
 
@@ -542,7 +542,7 @@ dcmipp_byteproc_ent_init(struct device *dev, const char *entity_name,
 	/* Allocate the byteproc struct */
 	byteproc = kzalloc(sizeof(*byteproc), GFP_KERNEL);
 	if (!byteproc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	byteproc->regs = regs;
 

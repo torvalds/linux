@@ -25,7 +25,7 @@ struct xfs_attri_log_nameval {
  * currently either a set or remove.  Set or remove operations are described by
  * the xfs_attr_intent which may be logged to this intent.
  *
- * During a normal attr operation, name and value point to the name and value
+ * During a analrmal attr operation, name and value point to the name and value
  * fields of the caller's xfs_da_args structure.  During a recovery, the name
  * and value buffers are copied from the log, and stored in a trailing buffer
  * attached to the xfs_attr_intent until they are committed.  They are freed

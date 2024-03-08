@@ -39,13 +39,13 @@ static void guest_code(void)
 #define REG_COMPARE(reg) \
 	TEST_ASSERT(left->reg == right->reg, \
 		    "Register " #reg \
-		    " values did not match: 0x%llx, 0x%llx", \
+		    " values did analt match: 0x%llx, 0x%llx", \
 		    left->reg, right->reg)
 
 #define REG_COMPARE32(reg) \
 	TEST_ASSERT(left->reg == right->reg, \
 		    "Register " #reg \
-		    " values did not match: 0x%x, 0x%x", \
+		    " values did analt match: 0x%x, 0x%x", \
 		    left->reg, right->reg)
 
 
@@ -81,15 +81,15 @@ void test_read_invalid(struct kvm_vcpu *vcpu)
 	/* Request reading invalid register set from VCPU. */
 	run->kvm_valid_regs = INVALID_SYNC_FIELD;
 	rv = _vcpu_run(vcpu);
-	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d",
+	TEST_ASSERT(rv < 0 && erranal == EINVAL,
+		    "Invalid kvm_valid_regs did analt cause expected KVM_RUN error: %d",
 		    rv);
 	run->kvm_valid_regs = 0;
 
 	run->kvm_valid_regs = INVALID_SYNC_FIELD | TEST_SYNC_FIELDS;
 	rv = _vcpu_run(vcpu);
-	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d",
+	TEST_ASSERT(rv < 0 && erranal == EINVAL,
+		    "Invalid kvm_valid_regs did analt cause expected KVM_RUN error: %d",
 		    rv);
 	run->kvm_valid_regs = 0;
 }
@@ -102,15 +102,15 @@ void test_set_invalid(struct kvm_vcpu *vcpu)
 	/* Request setting invalid register set into VCPU. */
 	run->kvm_dirty_regs = INVALID_SYNC_FIELD;
 	rv = _vcpu_run(vcpu);
-	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d",
+	TEST_ASSERT(rv < 0 && erranal == EINVAL,
+		    "Invalid kvm_dirty_regs did analt cause expected KVM_RUN error: %d",
 		    rv);
 	run->kvm_dirty_regs = 0;
 
 	run->kvm_dirty_regs = INVALID_SYNC_FIELD | TEST_SYNC_FIELDS;
 	rv = _vcpu_run(vcpu);
-	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d",
+	TEST_ASSERT(rv < 0 && erranal == EINVAL,
+		    "Invalid kvm_dirty_regs did analt cause expected KVM_RUN error: %d",
 		    rv);
 	run->kvm_dirty_regs = 0;
 }

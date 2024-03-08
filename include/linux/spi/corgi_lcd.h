@@ -11,7 +11,7 @@ struct corgi_lcd_platform_data {
 	int	default_intensity;
 	int	limit_mask;
 
-	void (*notify)(int intensity);
+	void (*analtify)(int intensity);
 	void (*kick_battery)(void);
 };
 

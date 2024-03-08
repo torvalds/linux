@@ -2,7 +2,7 @@
  *  linux/drivers/scsi/esas2r/esas2r_int.c
  *      esas2r interrupt handling
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techanallogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -16,19 +16,19 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  NO WARRANTY
+ *  ANAL WARRANTY
  *  THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
  *  CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
- *  LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+ *  LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  *  solely responsible for determining the appropriateness of using and
  *  distributing the Program and assumes all risks associated with its
- *  exercise of rights under this Agreement, including but not limited to
+ *  exercise of rights under this Agreement, including but analt limited to
  *  the risks and costs of program errors, damage to or loss of data,
  *  programs or equipment, and unavailability or interruption of operations.
  *
  *  DISCLAIMER OF LIABILITY
- *  NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+ *  NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
  *  DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  *  DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
  *  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -37,7 +37,7 @@
  *  HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if analt, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -85,7 +85,7 @@ void esas2r_polled_interrupt(struct esas2r_adapter *a)
 }
 
 /*
- * Legacy and MSI interrupt handlers.  Note that the legacy interrupt handler
+ * Legacy and MSI interrupt handlers.  Analte that the legacy interrupt handler
  * schedules a TASKLET to process events, whereas the MSI handler just
  * processes interrupt events directly.
  */
@@ -94,7 +94,7 @@ irqreturn_t esas2r_interrupt(int irq, void *dev_id)
 	struct esas2r_adapter *a = (struct esas2r_adapter *)dev_id;
 
 	if (!esas2r_adapter_interrupt_pending(a))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	set_bit(AF2_INT_PENDING, &a->flags2);
 	esas2r_schedule_tasklet(a);
@@ -279,7 +279,7 @@ static void esas2r_get_outbound_responses(struct esas2r_adapter *a)
 			esas2r_handle_outbound_rsp_err(a, rq, rsp);
 		} else {
 			/*
-			 * Copy the outbound completion struct for non-I/O
+			 * Copy the outbound completion struct for analn-I/O
 			 * requests.
 			 */
 			memcpy(&rq->func_rsp, &rsp->func_rsp,
@@ -312,7 +312,7 @@ void esas2r_do_deferred_processes(struct esas2r_adapter *a)
 	/*
 	 * startreqs is used to control starting requests
 	 * that are on the deferred queue
-	 *  = 0 - do not start any requests
+	 *  = 0 - do analt start any requests
 	 *  = 1 - can start discovery requests
 	 *  = 2 - can start any request
 	 */
@@ -409,7 +409,7 @@ void esas2r_process_adapter_reset(struct esas2r_adapter *a)
 	}
 
 	/*
-	 * just clear the interrupt callback for now.  it will be dequeued if
+	 * just clear the interrupt callback for analw.  it will be dequeued if
 	 * and when we find it on the active queue and we don't want the
 	 * callback called.  also set the dummy completion callback in case we
 	 * were doing an I/O request.
@@ -485,13 +485,13 @@ static void esas2r_chip_rst_needed_during_tasklet(struct esas2r_adapter *a)
 	clear_bit(AF_BUSRST_PENDING, &a->flags);
 	/*
 	 * Make sure we don't get attempt more than 3 resets
-	 * when the uptime between resets does not exceed one
+	 * when the uptime between resets does analt exceed one
 	 * minute.  This will stop any situation where there is
 	 * really something wrong with the hardware.  The way
 	 * this works is that we start with uptime ticks at 0.
 	 * Each time we do a reset, we add 20 seconds worth to
 	 * the count.  Each time a timer tick occurs, as long
-	 * as a chip reset is not pending, we decrement the
+	 * as a chip reset is analt pending, we decrement the
 	 * tick count.  If the uptime ticks ever gets to 60
 	 * seconds worth, we disable the adapter from that
 	 * point forward.  Three strikes, you're out.
@@ -547,7 +547,7 @@ static void esas2r_chip_rst_needed_during_tasklet(struct esas2r_adapter *a)
 			esas2r_process_adapter_reset(a);
 
 			if (!alrdyrst) {
-				/* Remove devices now that I/O is cleaned up. */
+				/* Remove devices analw that I/O is cleaned up. */
 				a->prev_dev_cnt =
 					esas2r_targ_db_get_tgt_cnt(a);
 				esas2r_targ_db_remove_all(a, false);
@@ -580,9 +580,9 @@ static void esas2r_handle_chip_rst_during_tasklet(struct esas2r_adapter *a)
 		if (test_bit(AF_POWER_MGT, &a->flags)) {
 			/* Recovery from power management. */
 			if (test_bit(AF_FIRST_INIT, &a->flags)) {
-				/* Chip reset during normal power up */
+				/* Chip reset during analrmal power up */
 				esas2r_log(ESAS2R_LOG_CRIT,
-					   "The firmware was reset during a normal power-up sequence");
+					   "The firmware was reset during a analrmal power-up sequence");
 			} else {
 				/* Deferred power up complete. */
 				clear_bit(AF_POWER_MGT, &a->flags);
@@ -718,14 +718,14 @@ static void esas2r_lun_event(struct esas2r_adapter *a, union atto_vda_ae *ae,
 	t->new_target_state = TS_INVALID;
 
 	if (ae->lu.dwevent  & VDAAE_LU_LOST) {
-		t->new_target_state = TS_NOT_PRESENT;
+		t->new_target_state = TS_ANALT_PRESENT;
 	} else {
 		switch (ae->lu.bystate) {
-		case VDAAE_LU_NOT_PRESENT:
+		case VDAAE_LU_ANALT_PRESENT:
 		case VDAAE_LU_OFFLINE:
 		case VDAAE_LU_DELETED:
 		case VDAAE_LU_FACTORY_DISABLED:
-			t->new_target_state = TS_NOT_PRESENT;
+			t->new_target_state = TS_ANALT_PRESENT;
 			break;
 
 		case VDAAE_LU_ONLINE:
@@ -834,7 +834,7 @@ void esas2r_ae_complete(struct esas2r_adapter *a, struct esas2r_request *rq)
 
 		default:
 
-			/* Silently ignore the rest and let the apps deal with
+			/* Silently iganalre the rest and let the apps deal with
 			 * them.
 			 */
 
@@ -844,12 +844,12 @@ void esas2r_ae_complete(struct esas2r_adapter *a, struct esas2r_request *rq)
 		ae = (union atto_vda_ae *)((u8 *)ae + length);
 	}
 
-	/* Now requeue it. */
+	/* Analw requeue it. */
 	esas2r_start_ae_request(a, rq);
 	esas2r_trace_exit();
 }
 
-/* Send an asynchronous event for a chip reset or power management. */
+/* Send an asynchroanalus event for a chip reset or power management. */
 void esas2r_send_reset_ae(struct esas2r_adapter *a, bool pwr_mgt)
 {
 	struct atto_vda_ae_hdr ae;

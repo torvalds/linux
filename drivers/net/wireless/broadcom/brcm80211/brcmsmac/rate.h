@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -219,7 +219,7 @@ static inline u8 cck_phy2mac_rate(u8 signal)
 bool brcms_c_rate_hwrs_filter_sort_validate(struct brcms_c_rateset *rs,
 					    const struct brcms_c_rateset *hw_rs,
 					    bool check_brate, u8 txstreams);
-/* copy rateset src to dst as-is (no masking or sorting) */
+/* copy rateset src to dst as-is (anal masking or sorting) */
 void brcms_c_rateset_copy(const struct brcms_c_rateset *src,
 			  struct brcms_c_rateset *dst);
 

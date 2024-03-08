@@ -113,12 +113,12 @@ void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
 	enum cipher cipher = rxdesc->cipher;
 	enum rx_crypto status = rxdesc->cipher_status;
 
-	if (cipher == CIPHER_TKIP_NO_MIC)
+	if (cipher == CIPHER_TKIP_ANAL_MIC)
 		cipher = CIPHER_TKIP;
-	if (cipher == CIPHER_NONE || cipher >= CIPHER_MAX)
+	if (cipher == CIPHER_ANALNE || cipher >= CIPHER_MAX)
 		return;
 
-	/* Remove CIPHER_NONE index */
+	/* Remove CIPHER_ANALNE index */
 	cipher--;
 
 	intf->crypto_stats[cipher].success += (status == RX_CRYPTO_SUCCESS);
@@ -182,18 +182,18 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	wake_up_interruptible(&intf->frame_dump_waitqueue);
 
 	/*
-	 * Verify that the file has not been closed while we were working.
+	 * Verify that the file has analt been closed while we were working.
 	 */
 	if (!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags))
 		skb_queue_purge(&intf->frame_dump_skbqueue);
 }
 EXPORT_SYMBOL_GPL(rt2x00debug_dump_frame);
 
-static int rt2x00debug_file_open(struct inode *inode, struct file *file)
+static int rt2x00debug_file_open(struct ianalde *ianalde, struct file *file)
 {
-	struct rt2x00debug_intf *intf = inode->i_private;
+	struct rt2x00debug_intf *intf = ianalde->i_private;
 
-	file->private_data = inode->i_private;
+	file->private_data = ianalde->i_private;
 
 	if (!try_module_get(intf->debug->owner))
 		return -EBUSY;
@@ -201,7 +201,7 @@ static int rt2x00debug_file_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int rt2x00debug_file_release(struct inode *inode, struct file *file)
+static int rt2x00debug_file_release(struct ianalde *ianalde, struct file *file)
 {
 	struct rt2x00debug_intf *intf = file->private_data;
 
@@ -210,32 +210,32 @@ static int rt2x00debug_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int rt2x00debug_open_queue_dump(struct inode *inode, struct file *file)
+static int rt2x00debug_open_queue_dump(struct ianalde *ianalde, struct file *file)
 {
-	struct rt2x00debug_intf *intf = inode->i_private;
+	struct rt2x00debug_intf *intf = ianalde->i_private;
 	int retval;
 
-	retval = rt2x00debug_file_open(inode, file);
+	retval = rt2x00debug_file_open(ianalde, file);
 	if (retval)
 		return retval;
 
 	if (test_and_set_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags)) {
-		rt2x00debug_file_release(inode, file);
+		rt2x00debug_file_release(ianalde, file);
 		return -EBUSY;
 	}
 
 	return 0;
 }
 
-static int rt2x00debug_release_queue_dump(struct inode *inode, struct file *file)
+static int rt2x00debug_release_queue_dump(struct ianalde *ianalde, struct file *file)
 {
-	struct rt2x00debug_intf *intf = inode->i_private;
+	struct rt2x00debug_intf *intf = ianalde->i_private;
 
 	skb_queue_purge(&intf->frame_dump_skbqueue);
 
 	clear_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags);
 
-	return rt2x00debug_file_release(inode, file);
+	return rt2x00debug_file_release(ianalde, file);
 }
 
 static ssize_t rt2x00debug_read_queue_dump(struct file *file,
@@ -248,7 +248,7 @@ static ssize_t rt2x00debug_read_queue_dump(struct file *file,
 	size_t status;
 	int retval;
 
-	if (file->f_flags & O_NONBLOCK)
+	if (file->f_flags & O_ANALNBLOCK)
 		return -EAGAIN;
 
 	retval =
@@ -280,7 +280,7 @@ static __poll_t rt2x00debug_poll_queue_dump(struct file *file,
 	poll_wait(file, &intf->frame_dump_waitqueue, wait);
 
 	if (!skb_queue_empty(&intf->frame_dump_skbqueue))
-		return EPOLLOUT | EPOLLWRNORM;
+		return EPOLLOUT | EPOLLWRANALRM;
 
 	return 0;
 }
@@ -312,7 +312,7 @@ static ssize_t rt2x00debug_read_queue_stats(struct file *file,
 
 	data = kcalloc(lines, MAX_LINE_LENGTH, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	temp = data +
 	    sprintf(data, "qid\tflags\t\tcount\tlimit\tlength\tindex\tdma done\tdone\n");
@@ -370,7 +370,7 @@ static ssize_t rt2x00debug_read_crypto_stats(struct file *file,
 
 	data = kcalloc(1 + CIPHER_MAX, MAX_LINE_LENGTH, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	temp = data;
 	temp += sprintf(data, "cipher\tsuccess\ticv err\tmic err\tkey err\n");
@@ -558,7 +558,7 @@ static ssize_t rt2x00debug_write_restart_hw(struct file *file,
 	static unsigned long last_reset = INITIAL_JIFFIES;
 
 	if (!rt2x00_has_cap_restart_hw(rt2x00dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (time_before(jiffies, last_reset + msecs_to_jiffies(2000)))
 		return -EBUSY;

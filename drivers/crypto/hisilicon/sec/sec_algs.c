@@ -193,7 +193,7 @@ static int sec_alloc_and_fill_hw_sgl(struct sec_hw_sgl **sec_sgl,
 			sgl_next = dma_pool_zalloc(info->hw_sgl_pool,
 						   gfp, &sgl_next_dma);
 			if (!sgl_next) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_free_hw_sgls;
 			}
 
@@ -241,7 +241,7 @@ static int sec_alg_skcipher_setkey(struct crypto_skcipher *tfm,
 					      &ctx->pkey, GFP_KERNEL);
 		if (!ctx->key) {
 			mutex_unlock(&ctx->lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	mutex_unlock(&ctx->lock);
@@ -390,10 +390,10 @@ static int sec_send_request(struct sec_request *sec_req, struct sec_queue *queue
 	list_for_each_entry_safe(el, temp, &sec_req->elements, head) {
 		/*
 		 * Add to hardware queue only under following circumstances
-		 * 1) Software and hardware queue empty so no chain dependencies
-		 * 2) No dependencies as new IV - (check software queue empty
+		 * 1) Software and hardware queue empty so anal chain dependencies
+		 * 2) Anal dependencies as new IV - (check software queue empty
 		 *    to maintain order)
-		 * 3) No dependencies because the mode does no chaining.
+		 * 3) Anal dependencies because the mode does anal chaining.
 		 *
 		 * In other cases first insert onto the software queue which
 		 * is then emptied as requests complete
@@ -404,7 +404,7 @@ static int sec_send_request(struct sec_request *sec_req, struct sec_queue *queue
 			ret = sec_queue_send(queue, &el->req, sec_req);
 			if (ret == -EAGAIN) {
 				/* Wait unti we can send then try again */
-				/* DEAD if here - should not happen */
+				/* DEAD if here - should analt happen */
 				ret = -EBUSY;
 				goto err_unlock;
 			}
@@ -469,7 +469,7 @@ static void sec_skcipher_alg_callback(struct sec_bd_info *sec_resp,
 					   crypto_skcipher_ivsize(atfm),
 					   sec_req_el->el_length -
 					   crypto_skcipher_ivsize(atfm));
-		/* No need to sync to the device as coherent DMA */
+		/* Anal need to sync to the device as coherent DMA */
 		break;
 	case SEC_C_AES_CTR_128:
 	case SEC_C_AES_CTR_192:
@@ -477,7 +477,7 @@ static void sec_skcipher_alg_callback(struct sec_bd_info *sec_resp,
 		crypto_inc(skreq->iv, 16);
 		break;
 	default:
-		/* Do not update */
+		/* Do analt update */
 		break;
 	}
 
@@ -490,7 +490,7 @@ static void sec_skcipher_alg_callback(struct sec_bd_info *sec_resp,
 				"Error getting next element from kfifo %d\n",
 				ret);
 		else
-			/* We know there is space so this cannot fail */
+			/* We kanalw there is space so this cananalt fail */
 			sec_queue_send(ctx->queue, &nextrequest->req,
 				       nextrequest->sec_req);
 	} else if (!list_empty(&ctx->backlog)) {
@@ -555,7 +555,7 @@ static int sec_alg_alloc_and_calc_split_sizes(int length, size_t **split_sizes,
 	*steps = roundup(length, SEC_REQ_LIMIT) / SEC_REQ_LIMIT;
 	sizes = kcalloc(*steps, sizeof(*sizes), gfp);
 	if (!sizes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < *steps - 1; i++)
 		sizes[i] = SEC_REQ_LIMIT;
@@ -579,12 +579,12 @@ static int sec_map_and_split_sg(struct scatterlist *sgl, size_t *split_sizes,
 
 	*splits = kcalloc(steps, sizeof(struct scatterlist *), gfp);
 	if (!*splits) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unmap_sg;
 	}
 	*splits_nents = kcalloc(steps, sizeof(int), gfp);
 	if (!*splits_nents) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_splits;
 	}
 
@@ -592,7 +592,7 @@ static int sec_map_and_split_sg(struct scatterlist *sgl, size_t *split_sizes,
 	ret = sg_split(sgl, count, 0, steps, split_sizes,
 		       *splits, *splits_nents, gfp);
 	if (ret) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_splits_nents;
 	}
 
@@ -609,7 +609,7 @@ err_unmap_sg:
 }
 
 /*
- * Reverses the sec_map_and_split_sg call for messages not yet added to
+ * Reverses the sec_map_and_split_sg call for messages analt yet added to
  * the queues.
  */
 static void sec_unmap_sg_on_err(struct scatterlist *sgl, int steps,
@@ -639,7 +639,7 @@ static struct sec_request_el
 
 	el = kzalloc(sizeof(*el), gfp);
 	if (!el)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	el->el_length = el_size;
 	req = &el->req;
 	memcpy(req, template, sizeof(*req));
@@ -658,7 +658,7 @@ static struct sec_request_el
 	req->w0 |= ((el_size >> 20) << SEC_BD_W0_C_GRAN_SIZE_21_20_S) &
 		SEC_BD_W0_C_GRAN_SIZE_21_20_M;
 
-	/* Writing whole u32 so no need to take care of masking */
+	/* Writing whole u32 so anal need to take care of masking */
 	req->w2 = ((1 << SEC_BD_W2_GRAN_NUM_S) & SEC_BD_W2_GRAN_NUM_M) |
 		((el_size << SEC_BD_W2_C_GRAN_SIZE_15_0_S) &
 		 SEC_BD_W2_C_GRAN_SIZE_15_0_M);
@@ -756,14 +756,14 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 	/*
 	 * Future optimization.
 	 * In the chaining case we can't use a dma pool bounce buffer
-	 * but in the case where we know there is no chaining we can
+	 * but in the case where we kanalw there is anal chaining we can
 	 */
 	if (crypto_skcipher_ivsize(atfm)) {
 		sec_req->dma_iv = dma_map_single(info->dev, skreq->iv,
 						 crypto_skcipher_ivsize(atfm),
 						 DMA_TO_DEVICE);
 		if (dma_mapping_error(info->dev, sec_req->dma_iv)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_unmap_out_sg;
 		}
 	}
@@ -794,7 +794,7 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 	 * must succeed or fail atomically.
 	 *
 	 * Big hammer test of both software and hardware queues - could be
-	 * more refined but this is unlikely to happen so no need.
+	 * more refined but this is unlikely to happen so anal need.
 	 */
 
 	/* Grab a big lock for a long time to avoid concurrency issues */
@@ -802,9 +802,9 @@ static int sec_alg_skcipher_crypto(struct skcipher_request *skreq,
 
 	/*
 	 * Can go on to queue if we have space in either:
-	 * 1) The hardware queue and no software queue
+	 * 1) The hardware queue and anal software queue
 	 * 2) The software queue
-	 * AND there is nothing in the backlog.  If there is backlog we
+	 * AND there is analthing in the backlog.  If there is backlog we
 	 * have to only queue to the backlog queue and return busy.
 	 */
 	if ((!sec_queue_can_enqueue(queue, steps) &&

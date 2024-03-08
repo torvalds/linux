@@ -70,7 +70,7 @@ static int nvidia_init_iorr(u32 base, u32 size)
 	u32 iorr_addr, free_iorr_addr;
 
 	/* Find the iorr that is already used for the base */
-	/* If not found, determine the uppermost available iorr */
+	/* If analt found, determine the uppermost available iorr */
 	free_iorr_addr = AMD_K7_NUM_IORR;
 	for (iorr_addr = 0; iorr_addr < AMD_K7_NUM_IORR; iorr_addr++) {
 		rdmsr(IORR_BASE0 + 2 * iorr_addr, base_lo, base_hi);
@@ -158,7 +158,7 @@ static int nvidia_configure(void)
 		(volatile u32 __iomem *) ioremap(apbase_phys, 33 * PAGE_SIZE);
 
 	if (!nvidia_private.aperture)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -191,7 +191,7 @@ static void nvidia_cleanup(void)
 
 
 /*
- * Note we can't use the generic routines, even though they are 99% the same.
+ * Analte we can't use the generic routines, even though they are 99% the same.
  * Aperture sizes <64M still requires a full 64k GART directory, but
  * only use the portion of the TLB entries that correspond to the apertures
  * alignment inside the surrounding 64M block.
@@ -355,13 +355,13 @@ static int agp_nvidia_probe(struct pci_dev *pdev,
 
 	if (!nvidia_private.dev_1 || !nvidia_private.dev_2 || !nvidia_private.dev_3) {
 		printk(KERN_INFO PFX "Detected an NVIDIA nForce/nForce2 "
-			"chipset, but could not find the secondary devices.\n");
-		return -ENODEV;
+			"chipset, but could analt find the secondary devices.\n");
+		return -EANALDEV;
 	}
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_NVIDIA_NFORCE:
@@ -375,12 +375,12 @@ static int agp_nvidia_probe(struct pci_dev *pdev,
 	default:
 		printk(KERN_ERR PFX "Unsupported NVIDIA chipset (device id: %04x)\n",
 			    pdev->device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	bridge = agp_alloc_bridge();
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bridge->driver = &nvidia_driver;
 	bridge->dev_private_data = &nvidia_private;

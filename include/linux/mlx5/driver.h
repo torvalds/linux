@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -46,7 +46,7 @@
 #include <linux/mempool.h>
 #include <linux/interrupt.h>
 #include <linux/idr.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/refcount.h>
 #include <linux/auxiliary_bus.h>
 #include <linux/mutex.h>
@@ -132,7 +132,7 @@ enum {
 	MLX5_REG_PMLP		 = 0x5002,
 	MLX5_REG_PPLM		 = 0x5023,
 	MLX5_REG_PCAM		 = 0x507f,
-	MLX5_REG_NODE_DESC	 = 0x6001,
+	MLX5_REG_ANALDE_DESC	 = 0x6001,
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
 	MLX5_REG_MTCAP		 = 0x9009,
 	MLX5_REG_MTMP		 = 0x900A,
@@ -277,8 +277,8 @@ struct mlx5_cmd_stats {
 	u64		failed;
 	/* number of times command failed on bad status returned by FW */
 	u64		failed_mbox_status;
-	/* last command failed returned errno */
-	u32		last_failed_errno;
+	/* last command failed returned erranal */
+	u32		last_failed_erranal;
 	/* last bad status returned by FW */
 	u8		last_failed_mbox_status;
 	/* last command failed syndrome returned by FW */
@@ -401,7 +401,7 @@ struct mlx5_uars_page {
 	u32			index;
 	struct list_head	list;
 	unsigned int		bfregs;
-	unsigned long	       *reg_bitmap; /* for non fast path bf regs */
+	unsigned long	       *reg_bitmap; /* for analn fast path bf regs */
 	unsigned long	       *fp_bitmap;
 	unsigned int		reg_avail;
 	unsigned int		fp_avail;
@@ -448,21 +448,21 @@ struct mlx5_core_health {
 };
 
 enum {
-	MLX5_PF_NOTIFY_DISABLE_VF,
-	MLX5_PF_NOTIFY_ENABLE_VF,
+	MLX5_PF_ANALTIFY_DISABLE_VF,
+	MLX5_PF_ANALTIFY_ENABLE_VF,
 };
 
 struct mlx5_vf_context {
 	int	enabled;
 	u64	port_guid;
-	u64	node_guid;
+	u64	analde_guid;
 	/* Valid bits are used to validate administrative guid only.
 	 * Enabled after ndo_set_vf_guid
 	 */
 	u8	port_guid_valid:1;
-	u8	node_guid_valid:1;
+	u8	analde_guid_valid:1;
 	enum port_state_policy	policy;
-	struct blocking_notifier_head notifier;
+	struct blocking_analtifier_head analtifier;
 };
 
 struct mlx5_core_sriov {
@@ -510,7 +510,7 @@ struct mlx5_devcom_dev;
 struct mlx5_fw_reset;
 struct mlx5_eq_table;
 struct mlx5_irq_table;
-struct mlx5_vhca_state_notifier;
+struct mlx5_vhca_state_analtifier;
 struct mlx5_sf_dev_table;
 struct mlx5_sf_hw_table;
 struct mlx5_sf_table;
@@ -604,9 +604,9 @@ struct mlx5_priv {
 	struct mlx5_debugfs_entries dbg;
 
 	/* start: alloc staff */
-	/* protect buffer allocation according to numa node */
+	/* protect buffer allocation according to numa analde */
 	struct mutex            alloc_mutex;
-	int                     numa_node;
+	int                     numa_analde;
 
 	struct mutex            pgdir_mutex;
 	struct list_head        pgdir_list;
@@ -635,7 +635,7 @@ struct mlx5_priv {
 	struct mlx5_bfreg_data		bfregs;
 	struct mlx5_uars_page	       *uar;
 #ifdef CONFIG_MLX5_SF
-	struct mlx5_vhca_state_notifier *vhca_state_notifier;
+	struct mlx5_vhca_state_analtifier *vhca_state_analtifier;
 	struct mlx5_sf_dev_table *sf_dev_table;
 	struct mlx5_core_dev *parent_mdev;
 #endif
@@ -716,7 +716,7 @@ struct mlx5_pps {
 struct mlx5_timer {
 	struct cyclecounter        cycles;
 	struct timecounter         tc;
-	u32                        nominal_c_mult;
+	u32                        analminal_c_mult;
 	unsigned long              overflow_period;
 	struct delayed_work        overflow_work;
 };
@@ -819,8 +819,8 @@ struct mlx5_core_dev {
 	u64			num_block_ipsec;
 #ifdef CONFIG_MLX5_MACSEC
 	struct mlx5_macsec_fs *macsec_fs;
-	/* MACsec notifier chain to sync MACsec core and IB database */
-	struct blocking_notifier_head macsec_nh;
+	/* MACsec analtifier chain to sync MACsec core and IB database */
+	struct blocking_analtifier_head macsec_nh;
 #endif
 	u64 num_ipsec_offloads;
 };
@@ -892,7 +892,7 @@ struct mlx5_hca_vport_context {
 	u8			port_physical_state;
 	u64			sys_image_guid;
 	u64			port_guid;
-	u64			node_guid;
+	u64			analde_guid;
 	u32			cap_mask1;
 	u32			cap_mask1_perm;
 	u16			cap_mask2;
@@ -1017,7 +1017,7 @@ int mlx5_cmd_check(struct mlx5_core_dev *dev, int err, void *in, void *out);
 int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 		  int out_size);
 
-#define mlx5_cmd_exec_inout(dev, ifc_cmd, in, out)                             \
+#define mlx5_cmd_exec_ianalut(dev, ifc_cmd, in, out)                             \
 	({                                                                     \
 		mlx5_cmd_exec(dev, in, MLX5_ST_SZ_BYTES(ifc_cmd##_in), out,    \
 			      MLX5_ST_SZ_BYTES(ifc_cmd##_out));                \
@@ -1026,7 +1026,7 @@ int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 #define mlx5_cmd_exec_in(dev, ifc_cmd, in)                                     \
 	({                                                                     \
 		u32 _out[MLX5_ST_SZ_DW(ifc_cmd##_out)] = {};                   \
-		mlx5_cmd_exec_inout(dev, ifc_cmd, in, _out);                   \
+		mlx5_cmd_exec_ianalut(dev, ifc_cmd, in, _out);                   \
 	})
 
 int mlx5_cmd_exec_polling(struct mlx5_core_dev *dev, void *in, int in_size,
@@ -1045,8 +1045,8 @@ void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health);
 void mlx5_start_health_fw_log_up(struct mlx5_core_dev *dev);
 void mlx5_drain_health_wq(struct mlx5_core_dev *dev);
 void mlx5_trigger_health_work(struct mlx5_core_dev *dev);
-int mlx5_frag_buf_alloc_node(struct mlx5_core_dev *dev, int size,
-			     struct mlx5_frag_buf *buf, int node);
+int mlx5_frag_buf_alloc_analde(struct mlx5_core_dev *dev, int size,
+			     struct mlx5_frag_buf *buf, int analde);
 void mlx5_frag_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf);
 int mlx5_core_create_mkey(struct mlx5_core_dev *dev, u32 *mkey, u32 *in,
 			  int inlen);
@@ -1082,12 +1082,12 @@ int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 			 int size_in, void *data_out, int size_out,
 			 u16 reg_num, int arg, int write);
 
-int mlx5_db_alloc_node(struct mlx5_core_dev *dev, struct mlx5_db *db,
-		       int node);
+int mlx5_db_alloc_analde(struct mlx5_core_dev *dev, struct mlx5_db *db,
+		       int analde);
 
 static inline int mlx5_db_alloc(struct mlx5_core_dev *dev, struct mlx5_db *db)
 {
-	return mlx5_db_alloc_node(dev, db, dev->priv.numa_node);
+	return mlx5_db_alloc_analde(dev, db, dev->priv.numa_analde);
 }
 
 void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db);
@@ -1138,24 +1138,24 @@ static inline u8 mlx5_mkey_variant(u32 mkey)
 	return mkey & 0xff;
 }
 
-/* Async-atomic event notifier used by mlx5 core to forward FW
+/* Async-atomic event analtifier used by mlx5 core to forward FW
  * evetns received from event queue to mlx5 consumers.
  * Optimise event queue dipatching.
  */
-int mlx5_notifier_register(struct mlx5_core_dev *dev, struct notifier_block *nb);
-int mlx5_notifier_unregister(struct mlx5_core_dev *dev, struct notifier_block *nb);
+int mlx5_analtifier_register(struct mlx5_core_dev *dev, struct analtifier_block *nb);
+int mlx5_analtifier_unregister(struct mlx5_core_dev *dev, struct analtifier_block *nb);
 
-/* Async-atomic event notifier used for forwarding
+/* Async-atomic event analtifier used for forwarding
  * evetns from the event queue into the to mlx5 events dispatcher,
  * eswitch, clock and others.
  */
-int mlx5_eq_notifier_register(struct mlx5_core_dev *dev, struct mlx5_nb *nb);
-int mlx5_eq_notifier_unregister(struct mlx5_core_dev *dev, struct mlx5_nb *nb);
+int mlx5_eq_analtifier_register(struct mlx5_core_dev *dev, struct mlx5_nb *nb);
+int mlx5_eq_analtifier_unregister(struct mlx5_core_dev *dev, struct mlx5_nb *nb);
 
-/* Blocking event notifier used to forward SW events, used for slow path */
-int mlx5_blocking_notifier_register(struct mlx5_core_dev *dev, struct notifier_block *nb);
-int mlx5_blocking_notifier_unregister(struct mlx5_core_dev *dev, struct notifier_block *nb);
-int mlx5_blocking_notifier_call_chain(struct mlx5_core_dev *dev, unsigned int event,
+/* Blocking event analtifier used to forward SW events, used for slow path */
+int mlx5_blocking_analtifier_register(struct mlx5_core_dev *dev, struct analtifier_block *nb);
+int mlx5_blocking_analtifier_unregister(struct mlx5_core_dev *dev, struct analtifier_block *nb);
+int mlx5_blocking_analtifier_call_chain(struct mlx5_core_dev *dev, unsigned int event,
 				      void *data);
 
 int mlx5_core_query_vendor_id(struct mlx5_core_dev *mdev, u32 *vendor_id);
@@ -1195,12 +1195,12 @@ int mlx5_dm_sw_icm_dealloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type
 struct mlx5_core_dev *mlx5_vf_get_core_dev(struct pci_dev *pdev);
 void mlx5_vf_put_core_dev(struct mlx5_core_dev *mdev);
 
-int mlx5_sriov_blocking_notifier_register(struct mlx5_core_dev *mdev,
+int mlx5_sriov_blocking_analtifier_register(struct mlx5_core_dev *mdev,
 					  int vf_id,
-					  struct notifier_block *nb);
-void mlx5_sriov_blocking_notifier_unregister(struct mlx5_core_dev *mdev,
+					  struct analtifier_block *nb);
+void mlx5_sriov_blocking_analtifier_unregister(struct mlx5_core_dev *mdev,
 					     int vf_id,
-					     struct notifier_block *nb);
+					     struct analtifier_block *nb);
 int mlx5_rdma_rn_get_params(struct mlx5_core_dev *mdev,
 			    struct ib_device *device,
 			    struct rdma_netdev_alloc_params *params);

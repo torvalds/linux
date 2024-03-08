@@ -212,7 +212,7 @@
 			  "I2S0_SDI",
 			  "I2S0_SDO0",
 			  "HP_DET_H",
-			  "ALS_INT",		/* not connected */
+			  "ALS_INT",		/* analt connected */
 			  "INT_CODEC",
 
 			  "I2S0_CLK",
@@ -282,7 +282,7 @@
 &pinctrl {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <
-		/* Common for sleep and wake, but no owners */
+		/* Common for sleep and wake, but anal owners */
 		&ddr0_retention
 		&ddrio_pwroff
 		&global_pwroff
@@ -291,7 +291,7 @@
 		&suspend_l_wake
 	>;
 	pinctrl-1 = <
-		/* Common for sleep and wake, but no owners */
+		/* Common for sleep and wake, but anal owners */
 		&ddr0_retention
 		&ddrio_pwroff
 		&global_pwroff
@@ -302,13 +302,13 @@
 
 	buck-5v {
 		drv_5v: drv-5v {
-			rockchip,pins = <7 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PC5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	hdmi {
 		vcc50_hdmi_en: vcc50-hdmi-en {
-			rockchip,pins = <5 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <5 RK_PC3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 

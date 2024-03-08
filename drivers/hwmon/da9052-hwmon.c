@@ -401,7 +401,7 @@ static int da9052_hwmon_probe(struct platform_device *pdev)
 
 	hwmon = devm_kzalloc(dev, sizeof(struct da9052_hwmon), GFP_KERNEL);
 	if (!hwmon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, hwmon);
 

@@ -23,11 +23,11 @@
 /*
  * Simplified handling
  *
- * If no events enabled - single polled channel read
+ * If anal events enabled - single polled channel read
  * If event enabled direct reads disable unless channel
  * is in the read mask.
  *
- * The noise-delayed bit as per datasheet suggestion is always enabled.
+ * The analise-delayed bit as per datasheet suggestion is always enabled.
  */
 
 /*
@@ -55,7 +55,7 @@
 #define AD7291_ALERT_CLEAR		BIT(2)
 #define AD7291_ALERT_POLARITY		BIT(3)
 #define AD7291_EXT_REF			BIT(4)
-#define AD7291_NOISE_DELAY		BIT(5)
+#define AD7291_ANALISE_DELAY		BIT(5)
 #define AD7291_T_SENSE_MASK		BIT(7)
 #define AD7291_VOLTAGE_MASK		GENMASK(15, 8)
 #define AD7291_VOLTAGE_OFFSET		8
@@ -129,7 +129,7 @@ static irqreturn_t ad7291_event_handler(int irq, void *private)
 	command = chip->command & ~AD7291_ALERT_CLEAR;
 	ad7291_i2c_write(chip, AD7291_COMMAND, command);
 
-	/* For now treat t_sense and t_sense_average the same */
+	/* For analw treat t_sense and t_sense_average the same */
 	if ((t_status & AD7291_T_LOW) || (t_status & AD7291_T_AVG_LOW))
 		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
@@ -474,20 +474,20 @@ static int ad7291_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	chip = iio_priv(indio_dev);
 
 	mutex_init(&chip->state_lock);
 
 	chip->client = client;
 
-	chip->command = AD7291_NOISE_DELAY |
+	chip->command = AD7291_ANALISE_DELAY |
 			AD7291_T_SENSE_MASK | /* Tsense always enabled */
 			AD7291_ALERT_POLARITY; /* set irq polarity low level */
 
 	chip->reg = devm_regulator_get_optional(&client->dev, "vref");
 	if (IS_ERR(chip->reg)) {
-		if (PTR_ERR(chip->reg) != -ENODEV)
+		if (PTR_ERR(chip->reg) != -EANALDEV)
 			return PTR_ERR(chip->reg);
 
 		chip->reg = NULL;

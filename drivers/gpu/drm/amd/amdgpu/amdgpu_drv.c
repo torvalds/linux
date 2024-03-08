@@ -9,13 +9,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -34,7 +34,7 @@
 #include <linux/cc_platform.h>
 #include <linux/dynamic_debug.h>
 #include <linux/module.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
 #include <linux/vga_switcheroo.h>
@@ -60,7 +60,7 @@
  *           at the end of IBs.
  * - 3.3.0 - Add VM support for UVD on supported hardware.
  * - 3.4.0 - Add AMDGPU_INFO_NUM_EVICTIONS.
- * - 3.5.0 - Add support for new UVD_NO_OP register.
+ * - 3.5.0 - Add support for new UVD_ANAL_OP register.
  * - 3.6.0 - kmd involves use CONTEXT_CONTROL in ring buffer.
  * - 3.7.0 - Add support for VCE clock list packet
  * - 3.8.0 - Add support raster config init in the kernel
@@ -69,7 +69,7 @@
  * - 3.11.0 - Add support for sensor query info (clocks, temp, etc).
  * - 3.12.0 - Add query for double offchip LDS buffers
  * - 3.13.0 - Add PRT support
- * - 3.14.0 - Fix race in amdgpu_ctx_get_fence() and note new functionality
+ * - 3.14.0 - Fix race in amdgpu_ctx_get_fence() and analte new functionality
  * - 3.15.0 - Export more gpu info for gfx9
  * - 3.16.0 - Add reserved vmid support
  * - 3.17.0 - Add AMDGPU_NUM_VRAM_CPU_PAGE_FAULTS.
@@ -81,15 +81,15 @@
  * - 3.23.0 - Add query for VRAM lost counter
  * - 3.24.0 - Add high priority compute support for gfx9
  * - 3.25.0 - Add support for sensor query info (stable pstate sclk/mclk).
- * - 3.26.0 - GFX9: Process AMDGPU_IB_FLAG_TC_WB_NOT_INVALIDATE.
+ * - 3.26.0 - GFX9: Process AMDGPU_IB_FLAG_TC_WB_ANALT_INVALIDATE.
  * - 3.27.0 - Add new chunk to AMDGPU_CS to enable BO_LIST creation.
  * - 3.28.0 - Add AMDGPU_CHUNK_ID_SCHEDULED_DEPENDENCIES
  * - 3.29.0 - Add AMDGPU_IB_FLAG_RESET_GDS_MAX_WAVE_ID
  * - 3.30.0 - Add AMDGPU_SCHED_OP_CONTEXT_PRIORITY_OVERRIDE.
  * - 3.31.0 - Add support for per-flip tiling attribute changes with DC
  * - 3.32.0 - Add syncobj timeline support to AMDGPU_CS.
- * - 3.33.0 - Fixes for GDS ENOMEM failures in AMDGPU_CS.
- * - 3.34.0 - Non-DC can flip correctly between buffers with different pitches
+ * - 3.33.0 - Fixes for GDS EANALMEM failures in AMDGPU_CS.
+ * - 3.34.0 - Analn-DC can flip correctly between buffers with different pitches
  * - 3.35.0 - Add drm_amdgpu_info_device::tcc_disabled_mask
  * - 3.36.0 - Allow reading more status registers on si/cik
  * - 3.37.0 - L2 is invalidated before SDMA IBs, needed for correctness
@@ -102,7 +102,7 @@
  * - 3.44.0 - DCN3 supports DCC independent block settings: !64B && 128B, 64B && 128B
  * - 3.45.0 - Add context ioctl stable pstate interface
  * - 3.46.0 - To enable hot plug amdgpu tests in libdrm
- * - 3.47.0 - Add AMDGPU_GEM_CREATE_DISCARDABLE and AMDGPU_VM_NOALLOC flags
+ * - 3.47.0 - Add AMDGPU_GEM_CREATE_DISCARDABLE and AMDGPU_VM_ANALALLOC flags
  * - 3.48.0 - Add IP discovery version info to HW INFO
  * - 3.49.0 - Add gang submit into CS IOCTL
  * - 3.50.0 - Update AMDGPU_INFO_DEV_INFO IOCTL for minimum engine and memory clock
@@ -118,7 +118,7 @@
  * - 3.57.0 - Compute tunneling on GFX10+
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	57
+#define KMS_DRIVER_MIANALR	57
 #define KMS_DRIVER_PATCHLEVEL	0
 
 /*
@@ -182,11 +182,11 @@ int amdgpu_smu_pptable_id = -1;
  * FBC (bit 0) disabled by default
  * MULTI_MON_PP_MCLK_SWITCH (bit 1) enabled by default
  *   - With this, for multiple monitors in sync(e.g. with the same model),
- *     mclk switching will be allowed. And the mclk will be not foced to the
+ *     mclk switching will be allowed. And the mclk will be analt foced to the
  *     highest. That helps saving some idle power.
  * DISABLE_FRACTIONAL_PWM (bit 2) disabled by default
  * PSR (bit 3) disabled by default
- * EDP NO POWER SEQUENCING (bit 4) disabled by default
+ * EDP ANAL POWER SEQUENCING (bit 4) disabled by default
  */
 uint amdgpu_dc_feature_mask = 2;
 uint amdgpu_dc_debug_mask;
@@ -196,7 +196,7 @@ int amdgpu_mcbp = -1;
 int amdgpu_discovery = -1;
 int amdgpu_mes;
 int amdgpu_mes_kiq;
-int amdgpu_noretry = -1;
+int amdgpu_analretry = -1;
 int amdgpu_force_asic_type = -1;
 int amdgpu_tmz = -1; /* auto */
 int amdgpu_reset_method = -1; /* auto */
@@ -280,21 +280,21 @@ module_param_named(moverate, amdgpu_moverate, int, 0600);
 
 /**
  * DOC: audio (int)
- * Set HDMI/DPAudio. Only affects non-DC display handling. The default is -1 (Enabled), set 0 to disabled it.
+ * Set HDMI/DPAudio. Only affects analn-DC display handling. The default is -1 (Enabled), set 0 to disabled it.
  */
 MODULE_PARM_DESC(audio, "Audio enable (-1 = auto, 0 = disable, 1 = enable)");
 module_param_named(audio, amdgpu_audio, int, 0444);
 
 /**
  * DOC: disp_priority (int)
- * Set display Priority (1 = normal, 2 = high). Only affects non-DC display handling. The default is 0 (auto).
+ * Set display Priority (1 = analrmal, 2 = high). Only affects analn-DC display handling. The default is 0 (auto).
  */
-MODULE_PARM_DESC(disp_priority, "Display Priority (0 = auto, 1 = normal, 2 = high)");
+MODULE_PARM_DESC(disp_priority, "Display Priority (0 = auto, 1 = analrmal, 2 = high)");
 module_param_named(disp_priority, amdgpu_disp_priority, int, 0444);
 
 /**
  * DOC: hw_i2c (int)
- * To enable hw i2c engine. Only affects non-DC display handling. The default is 0 (Disabled).
+ * To enable hw i2c engine. Only affects analn-DC display handling. The default is 0 (Disabled).
  */
 MODULE_PARM_DESC(hw_i2c, "hw i2c engine enable (0 = disable)");
 module_param_named(hw_i2c, amdgpu_hw_i2c, int, 0444);
@@ -317,20 +317,20 @@ module_param_named(msi, amdgpu_msi, int, 0444);
  * DOC: lockup_timeout (string)
  * Set GPU scheduler timeout value in ms.
  *
- * The format can be [Non-Compute] or [GFX,Compute,SDMA,Video]. That is there can be one or
+ * The format can be [Analn-Compute] or [GFX,Compute,SDMA,Video]. That is there can be one or
  * multiple values specified. 0 and negative values are invalidated. They will be adjusted
  * to the default timeout.
  *
- * - With one value specified, the setting will apply to all non-compute jobs.
+ * - With one value specified, the setting will apply to all analn-compute jobs.
  * - With multiple values specified, the first one will be for GFX.
  *   The second one is for Compute. The third and fourth ones are
  *   for SDMA and Video.
  *
- * By default(with no lockup_timeout settings), the timeout for all non-compute(GFX, SDMA and Video)
+ * By default(with anal lockup_timeout settings), the timeout for all analn-compute(GFX, SDMA and Video)
  * jobs is 10000. The timeout for compute is 60000.
  */
-MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (default: for bare metal 10000 for non-compute jobs and 60000 for compute jobs; "
-		"for passthrough or sriov, 10000 for all jobs. 0: keep default value. negative: infinity timeout), format: for bare metal [Non-Compute] or [GFX,Compute,SDMA,Video]; "
+MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (default: for bare metal 10000 for analn-compute jobs and 60000 for compute jobs; "
+		"for passthrough or sriov, 10000 for all jobs. 0: keep default value. negative: infinity timeout), format: for bare metal [Analn-Compute] or [GFX,Compute,SDMA,Video]; "
 		"for passthrough or sriov [all jobs] or [GFX,Compute,SDMA,Video].");
 module_param_string(lockup_timeout, amdgpu_lockup_timeout, sizeof(amdgpu_lockup_timeout), 0444);
 
@@ -373,7 +373,7 @@ module_param_named(runpm, amdgpu_runtime_pm, int, 0444);
 /**
  * DOC: ip_block_mask (uint)
  * Override what IP blocks are enabled on the GPU. Each GPU is a collection of IP blocks (gfx, display, video, etc.).
- * Use this parameter to disable specific blocks. Note that the IP blocks do not have a fixed index. Some asics may not have
+ * Use this parameter to disable specific blocks. Analte that the IP blocks do analt have a fixed index. Some asics may analt have
  * some IPs or may include multiple instances of an IP so the ordering various from asic to asic. See the driver output in
  * the kernel log for the list of IPs on the asic. The default is 0xffffffff (enable all blocks on a device).
  */
@@ -390,7 +390,7 @@ module_param_named(bapm, amdgpu_bapm, int, 0444);
 
 /**
  * DOC: deep_color (int)
- * Set 1 to enable Deep Color support. Only affects non-DC display handling. The default is 0 (disabled).
+ * Set 1 to enable Deep Color support. Only affects analn-DC display handling. The default is 0 (disabled).
  */
 MODULE_PARM_DESC(deep_color, "Deep Color support (1 = enable, 0 = disable (default))");
 module_param_named(deep_color, amdgpu_deep_color, int, 0444);
@@ -418,7 +418,7 @@ module_param_named(vm_block_size, amdgpu_vm_block_size, int, 0444);
 
 /**
  * DOC: vm_fault_stop (int)
- * Stop on VM fault for debugging (0 = never, 1 = print first, 2 = always). The default is 0 (No stop).
+ * Stop on VM fault for debugging (0 = never, 1 = print first, 2 = always). The default is 0 (Anal stop).
  */
 MODULE_PARM_DESC(vm_fault_stop, "Stop on VM fault (0 = never (default), 1 = print first, 2 = always)");
 module_param_named(vm_fault_stop, amdgpu_vm_fault_stop, int, 0444);
@@ -509,9 +509,9 @@ module_param_named(pg_mask, amdgpu_pg_mask, uint, 0444);
 
 /**
  * DOC: sdma_phase_quantum (uint)
- * Override SDMA context switch phase quantum (x 1K GPU clock cycles, 0 = no change). The default is 32.
+ * Override SDMA context switch phase quantum (x 1K GPU clock cycles, 0 = anal change). The default is 32.
  */
-MODULE_PARM_DESC(sdma_phase_quantum, "SDMA context switch phase quantum (x 1K GPU clock cycles, 0 = no change (default 32))");
+MODULE_PARM_DESC(sdma_phase_quantum, "SDMA context switch phase quantum (x 1K GPU clock cycles, 0 = anal change (default 32))");
 module_param_named(sdma_phase_quantum, amdgpu_sdma_phase_quantum, uint, 0444);
 
 /**
@@ -637,7 +637,7 @@ module_param_named(smu_memory_pool_size, amdgpu_smu_memory_pool_size, uint, 0444
  * It is used to enable gfx rings that could be configured with different prioritites or equal priorities
  */
 MODULE_PARM_DESC(async_gfx_ring,
-	"Asynchronous GFX rings that could be configured with either different priorities (HP3D ring and LP3D ring), or equal priorities (0 = disabled, 1 = enabled (default))");
+	"Asynchroanalus GFX rings that could be configured with either different priorities (HP3D ring and LP3D ring), or equal priorities (0 = disabled, 1 = enabled (default))");
 module_param_named(async_gfx_ring, amdgpu_async_gfx_ring, int, 0444);
 
 /**
@@ -676,21 +676,21 @@ MODULE_PARM_DESC(mes_kiq,
 module_param_named(mes_kiq, amdgpu_mes_kiq, int, 0444);
 
 /**
- * DOC: noretry (int)
+ * DOC: analretry (int)
  * Disable XNACK retry in the SQ by default on GFXv9 hardware. On ASICs that
- * do not support per-process XNACK this also disables retry page faults.
+ * do analt support per-process XNACK this also disables retry page faults.
  * (0 = retry enabled, 1 = retry disabled, -1 auto (default))
  */
-MODULE_PARM_DESC(noretry,
+MODULE_PARM_DESC(analretry,
 	"Disable retry faults (0 = retry enabled, 1 = retry disabled, -1 auto (default))");
-module_param_named(noretry, amdgpu_noretry, int, 0644);
+module_param_named(analretry, amdgpu_analretry, int, 0644);
 
 /**
  * DOC: force_asic_type (int)
- * A non negative value used to specify the asic type for all supported GPUs.
+ * A analn negative value used to specify the asic type for all supported GPUs.
  */
 MODULE_PARM_DESC(force_asic_type,
-	"A non negative value used to specify the asic type for all supported GPUs");
+	"A analn negative value used to specify the asic type for all supported GPUs");
 module_param_named(force_asic_type, amdgpu_force_asic_type, int, 0444);
 
 /**
@@ -712,7 +712,7 @@ module_param_named(use_xgmi_p2p, amdgpu_use_xgmi_p2p, int, 0444);
 int sched_policy = KFD_SCHED_POLICY_HWS;
 module_param(sched_policy, int, 0444);
 MODULE_PARM_DESC(sched_policy,
-	"Scheduling policy (0 = HWS (Default), 1 = HWS without over-subscription, 2 = Non-HWS (Used for debugging only)");
+	"Scheduling policy (0 = HWS (Default), 1 = HWS without over-subscription, 2 = Analn-HWS (Used for debugging only)");
 
 /**
  * DOC: hws_max_conc_proc (int)
@@ -722,7 +722,7 @@ MODULE_PARM_DESC(sched_policy,
 int hws_max_conc_proc = -1;
 module_param(hws_max_conc_proc, int, 0444);
 MODULE_PARM_DESC(hws_max_conc_proc,
-	"Max # processes HWS can execute concurrently when sched_policy=0 (0 = no concurrency, #VMIDs for KFD = Maximum(default))");
+	"Max # processes HWS can execute concurrently when sched_policy=0 (0 = anal concurrency, #VMIDs for KFD = Maximum(default))");
 
 /**
  * DOC: cwsr_enable (int)
@@ -746,7 +746,7 @@ MODULE_PARM_DESC(max_num_of_queues_per_device,
 
 /**
  * DOC: send_sigterm (int)
- * Send sigterm to HSA process on unhandled exceptions. Default is not to send sigterm
+ * Send sigterm to HSA process on unhandled exceptions. Default is analt to send sigterm
  * but just print errors on dmesg. Setting 1 enables sending sigterm.
  */
 int send_sigterm;
@@ -789,20 +789,20 @@ module_param(debug_evictions, bool, 0644);
 MODULE_PARM_DESC(debug_evictions, "enable eviction debug messages (false = default)");
 
 /**
- * DOC: no_system_mem_limit(bool)
+ * DOC: anal_system_mem_limit(bool)
  * Disable system memory limit, to support multiple process shared memory
  */
-bool no_system_mem_limit;
-module_param(no_system_mem_limit, bool, 0644);
-MODULE_PARM_DESC(no_system_mem_limit, "disable system memory limit (false = default)");
+bool anal_system_mem_limit;
+module_param(anal_system_mem_limit, bool, 0644);
+MODULE_PARM_DESC(anal_system_mem_limit, "disable system memory limit (false = default)");
 
 /**
- * DOC: no_queue_eviction_on_vm_fault (int)
- * If set, process queues will not be evicted on gpuvm fault. This is to keep the wavefront context for debugging (0 = queue eviction, 1 = no queue eviction). The default is 0 (queue eviction).
+ * DOC: anal_queue_eviction_on_vm_fault (int)
+ * If set, process queues will analt be evicted on gpuvm fault. This is to keep the wavefront context for debugging (0 = queue eviction, 1 = anal queue eviction). The default is 0 (queue eviction).
  */
-int amdgpu_no_queue_eviction_on_vm_fault;
-MODULE_PARM_DESC(no_queue_eviction_on_vm_fault, "No queue eviction on VM fault (0 = queue eviction, 1 = no queue eviction)");
-module_param_named(no_queue_eviction_on_vm_fault, amdgpu_no_queue_eviction_on_vm_fault, int, 0444);
+int amdgpu_anal_queue_eviction_on_vm_fault;
+MODULE_PARM_DESC(anal_queue_eviction_on_vm_fault, "Anal queue eviction on VM fault (0 = queue eviction, 1 = anal queue eviction)");
+module_param_named(anal_queue_eviction_on_vm_fault, amdgpu_anal_queue_eviction_on_vm_fault, int, 0444);
 #endif
 
 /**
@@ -895,7 +895,7 @@ module_param_named(reset_method, amdgpu_reset_method, int, 0444);
  * result in the GPU entering bad status when the number of total
  * faulty pages by ECC exceeds the threshold value.
  */
-MODULE_PARM_DESC(bad_page_threshold, "Bad page threshold(-1 = ignore threshold (default value), 0 = disable bad page retirement, -2 = driver sets threshold)");
+MODULE_PARM_DESC(bad_page_threshold, "Bad page threshold(-1 = iganalre threshold (default value), 0 = disable bad page retirement, -2 = driver sets threshold)");
 module_param_named(bad_page_threshold, amdgpu_bad_page_threshold, int, 0444);
 
 MODULE_PARM_DESC(num_kcq, "number of kernel compute queue user want to setup (8 if set to greater than 8 or less than 0, only affect gfx 8+)");
@@ -970,7 +970,7 @@ module_param_named(seamless, amdgpu_seamless, int, 0444);
  * Debug options for amdgpu, work as a binary mask with the following options:
  *
  * - 0x1: Debug VM handling
- * - 0x2: Enable simulating large-bar capability on non-large bar system. This
+ * - 0x2: Enable simulating large-bar capability on analn-large bar system. This
  *   limits the VRAM size reported to ROCm applications to the visible
  *   size, usually 256MB.
  * - 0x4: Disable GPU soft recovery, always do a full reset
@@ -981,8 +981,8 @@ module_param_named(debug_mask, amdgpu_debug_mask, uint, 0444);
 /**
  * DOC: agp (int)
  * Enable the AGP aperture.  This provides an aperture in the GPU's internal
- * address space for direct access to system memory.  Note that these accesses
- * are non-snooped, so they are only used for access to uncached memory.
+ * address space for direct access to system memory.  Analte that these accesses
+ * are analn-sanaloped, so they are only used for access to uncached memory.
  */
 MODULE_PARM_DESC(agp, "AGP (-1 = auto (default), 0 = disable, 1 = enable)");
 module_param_named(agp, amdgpu_agp, int, 0444);
@@ -1003,7 +1003,7 @@ MODULE_PARM_DESC(wbrf,
 	"Enable Wifi RFI interference mitigation (0 = disabled, 1 = enabled, -1 = auto(default)");
 module_param_named(wbrf, amdgpu_wbrf, int, 0444);
 
-/* These devices are not supported by amdgpu.
+/* These devices are analt supported by amdgpu.
  * They are supported by the mach64, r128, radeon drivers
  */
 static const u16 amdgpu_unsupported_pciidlist[] = {
@@ -1991,11 +1991,11 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x7347, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI14},
 	{0x1002, 0x734F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI14},
 
-	/* Renoir */
-	{0x1002, 0x15E7, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RENOIR|AMD_IS_APU},
-	{0x1002, 0x1636, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RENOIR|AMD_IS_APU},
-	{0x1002, 0x1638, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RENOIR|AMD_IS_APU},
-	{0x1002, 0x164C, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RENOIR|AMD_IS_APU},
+	/* Reanalir */
+	{0x1002, 0x15E7, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_REANALIR|AMD_IS_APU},
+	{0x1002, 0x1636, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_REANALIR|AMD_IS_APU},
+	{0x1002, 0x1638, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_REANALIR|AMD_IS_APU},
+	{0x1002, 0x164C, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_REANALIR|AMD_IS_APU},
 
 	/* Navi12 */
 	{0x1002, 0x7360, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI12},
@@ -2123,7 +2123,7 @@ static void amdgpu_init_debug_options(struct amdgpu_device *adev)
 	}
 
 	if (amdgpu_debug_mask & AMDGPU_DEBUG_LARGEBAR) {
-		pr_info("debug: enabled simulating large-bar capability on non-large bar system\n");
+		pr_info("debug: enabled simulating large-bar capability on analn-large bar system\n");
 		adev->debug_largebar = true;
 	}
 
@@ -2166,7 +2166,7 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 	/* skip devices which are owned by radeon */
 	for (i = 0; i < ARRAY_SIZE(amdgpu_unsupported_pciidlist); i++) {
 		if (amdgpu_unsupported_pciidlist[i] == pdev->device)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	if (amdgpu_aspm == -1 && !pcie_aspm_enabled(pdev))
@@ -2179,7 +2179,7 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 	if ((flags & AMD_EXP_HW_SUPPORT) && !amdgpu_exp_hw_support) {
 		DRM_INFO("This hardware requires experimental hardware support.\n"
 			 "See modparam exp_hw_support\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	flags = amdgpu_fix_asic_type(pdev, flags);
@@ -2191,8 +2191,8 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 	if (cc_platform_has(CC_ATTR_MEM_ENCRYPT) &&
 	    ((flags & AMD_ASIC_MASK) == CHIP_RAVEN)) {
 		dev_info(&pdev->dev,
-			 "SME is not compatible with RAVEN\n");
-		return -ENOTSUPP;
+			 "SME is analt compatible with RAVEN\n");
+		return -EANALTSUPP;
 	}
 
 #ifdef CONFIG_DRM_AMDGPU_SI
@@ -2208,7 +2208,7 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 			dev_info(&pdev->dev,
 				 "Use radeon.si_support=0 amdgpu.si_support=1 to override.\n"
 				);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 #endif
@@ -2225,7 +2225,7 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 			dev_info(&pdev->dev,
 				 "Use radeon.cik_support=0 amdgpu.cik_support=1 to override.\n"
 				);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 #endif
@@ -2274,7 +2274,7 @@ retry_init:
 
 	/*
 	 * 1. don't init fbdev on hw without DCE
-	 * 2. don't init fbdev if there are no connectors
+	 * 2. don't init fbdev if there are anal connectors
 	 */
 	if (adev->mode_info.mode_config_initialized &&
 	    !list_empty(&adev_to_drm(adev)->mode_config.connector_list)) {
@@ -2289,10 +2289,10 @@ retry_init:
 	if (ret)
 		DRM_ERROR("Creating debugfs files failed (%d).\n", ret);
 
-	if (adev->pm.rpm_mode != AMDGPU_RUNPM_NONE) {
+	if (adev->pm.rpm_mode != AMDGPU_RUNPM_ANALNE) {
 		/* only need to skip on ATPX */
 		if (amdgpu_device_supports_px(ddev))
-			dev_pm_set_driver_flags(ddev->dev, DPM_FLAG_NO_DIRECT_COMPLETE);
+			dev_pm_set_driver_flags(ddev->dev, DPM_FLAG_ANAL_DIRECT_COMPLETE);
 		/* we want direct complete for BOCO */
 		if (amdgpu_device_supports_boco(ddev))
 			dev_pm_set_driver_flags(ddev->dev, DPM_FLAG_SMART_PREPARE |
@@ -2320,8 +2320,8 @@ retry_init:
 		 *
 		 * So if snd driver was loaded prior to amdgpu driver
 		 * and audio function was put into D3 state, there will
-		 * be no PMFW-aware D-state transition(D0->D3) on runpm
-		 * suspend. Thus the BACO will be not correctly kicked in.
+		 * be anal PMFW-aware D-state transition(D0->D3) on runpm
+		 * suspend. Thus the BACO will be analt correctly kicked in.
 		 *
 		 * Via amdgpu_get_secondary_funcs(), the audio dev is put
 		 * into D0 state. Then there will be a PMFW-aware D-state
@@ -2349,7 +2349,7 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 	amdgpu_xcp_dev_unplug(adev);
 	drm_dev_unplug(dev);
 
-	if (adev->pm.rpm_mode != AMDGPU_RUNPM_NONE) {
+	if (adev->pm.rpm_mode != AMDGPU_RUNPM_ANALNE) {
 		pm_runtime_get_sync(dev->dev);
 		pm_runtime_forbid(dev->dev);
 	}
@@ -2382,7 +2382,7 @@ amdgpu_pci_shutdown(struct pci_dev *pdev)
 	if (!amdgpu_passthrough(adev))
 		adev->mp1_state = PP_MP1_STATE_UNLOAD;
 	amdgpu_device_ip_suspend(adev);
-	adev->mp1_state = PP_MP1_STATE_NONE;
+	adev->mp1_state = PP_MP1_STATE_ANALNE;
 }
 
 /**
@@ -2408,7 +2408,7 @@ static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work)
 	mutex_unlock(&mgpu_info.mutex);
 
 	/* Use a common context, just need to make sure full reset is done */
-	reset_context.method = AMD_RESET_METHOD_NONE;
+	reset_context.method = AMD_RESET_METHOD_ANALNE;
 	set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
 
 	for (i = 0; i < mgpu_info.num_dgpu; i++) {
@@ -2428,7 +2428,7 @@ static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work)
 		adev->gmc.xgmi.pending_reset = false;
 	}
 
-	/* reset function will rebuild the xgmi hive info , clear it now */
+	/* reset function will rebuild the xgmi hive info , clear it analw */
 	for (i = 0; i < mgpu_info.num_dgpu; i++)
 		amdgpu_xgmi_remove_device(mgpu_info.gpu_ins[i].adev);
 
@@ -2469,7 +2469,7 @@ static int amdgpu_pmops_prepare(struct device *dev)
 	    pm_runtime_suspended(dev))
 		return 1;
 
-	/* if we will not support s3 or s2i for the device
+	/* if we will analt support s3 or s2i for the device
 	 *  then skip suspend
 	 */
 	if (!amdgpu_acpi_is_s0ix_active(adev) &&
@@ -2481,7 +2481,7 @@ static int amdgpu_pmops_prepare(struct device *dev)
 
 static void amdgpu_pmops_complete(struct device *dev)
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 
 static int amdgpu_pmops_suspend(struct device *dev)
@@ -2499,7 +2499,7 @@ static int amdgpu_pmops_suspend(struct device *dev)
 	return amdgpu_device_suspend(drm_dev, true);
 }
 
-static int amdgpu_pmops_suspend_noirq(struct device *dev)
+static int amdgpu_pmops_suspend_analirq(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(drm_dev);
@@ -2522,7 +2522,7 @@ static int amdgpu_pmops_resume(struct device *dev)
 
 	/* Avoids registers access if device is physically gone */
 	if (!pci_device_is_present(adev->pdev))
-		adev->no_hw_access = true;
+		adev->anal_hw_access = true;
 
 	r = amdgpu_device_resume(drm_dev, true);
 	if (amdgpu_acpi_is_s0ix_active(adev))
@@ -2644,7 +2644,7 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 	struct amdgpu_device *adev = drm_to_adev(drm_dev);
 	int ret, i;
 
-	if (adev->pm.rpm_mode == AMDGPU_RUNPM_NONE) {
+	if (adev->pm.rpm_mode == AMDGPU_RUNPM_ANALNE) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
@@ -2685,12 +2685,12 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 	if (ret) {
 		adev->in_runpm = false;
 		if (amdgpu_device_supports_boco(drm_dev))
-			adev->mp1_state = PP_MP1_STATE_NONE;
+			adev->mp1_state = PP_MP1_STATE_ANALNE;
 		return ret;
 	}
 
 	if (amdgpu_device_supports_boco(drm_dev))
-		adev->mp1_state = PP_MP1_STATE_NONE;
+		adev->mp1_state = PP_MP1_STATE_ANALNE;
 
 	if (amdgpu_device_supports_px(drm_dev)) {
 		/* Only need to handle PCI state in the driver for ATPX
@@ -2698,11 +2698,11 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 		 */
 		amdgpu_device_cache_pci_state(pdev);
 		pci_disable_device(pdev);
-		pci_ignore_hotplug(pdev);
+		pci_iganalre_hotplug(pdev);
 		pci_set_power_state(pdev, PCI_D3cold);
 		drm_dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
 	} else if (amdgpu_device_supports_boco(drm_dev)) {
-		/* nothing to do */
+		/* analthing to do */
 	} else if (amdgpu_device_supports_baco(drm_dev)) {
 		amdgpu_device_baco_enter(drm_dev);
 	}
@@ -2719,12 +2719,12 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 	struct amdgpu_device *adev = drm_to_adev(drm_dev);
 	int ret;
 
-	if (adev->pm.rpm_mode == AMDGPU_RUNPM_NONE)
+	if (adev->pm.rpm_mode == AMDGPU_RUNPM_ANALNE)
 		return -EINVAL;
 
 	/* Avoids registers access if device is physically gone */
 	if (!pci_device_is_present(adev->pdev))
-		adev->no_hw_access = true;
+		adev->anal_hw_access = true;
 
 	if (amdgpu_device_supports_px(drm_dev)) {
 		drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
@@ -2766,7 +2766,7 @@ static int amdgpu_pmops_runtime_idle(struct device *dev)
 	/* we don't want the main rpm_idle to call suspend - we want to autosuspend */
 	int ret = 1;
 
-	if (adev->pm.rpm_mode == AMDGPU_RUNPM_NONE) {
+	if (adev->pm.rpm_mode == AMDGPU_RUNPM_ANALNE) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
@@ -2785,7 +2785,7 @@ long amdgpu_drm_ioctl(struct file *filp,
 	struct drm_device *dev;
 	long ret;
 
-	dev = file_priv->minor->dev;
+	dev = file_priv->mianalr->dev;
 	ret = pm_runtime_get_sync(dev->dev);
 	if (ret < 0)
 		goto out;
@@ -2802,7 +2802,7 @@ static const struct dev_pm_ops amdgpu_pm_ops = {
 	.prepare = amdgpu_pmops_prepare,
 	.complete = amdgpu_pmops_complete,
 	.suspend = amdgpu_pmops_suspend,
-	.suspend_noirq = amdgpu_pmops_suspend_noirq,
+	.suspend_analirq = amdgpu_pmops_suspend_analirq,
 	.resume = amdgpu_pmops_resume,
 	.freeze = amdgpu_pmops_freeze,
 	.thaw = amdgpu_pmops_thaw,
@@ -2902,7 +2902,7 @@ static const struct drm_driver amdgpu_kms_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = KMS_DRIVER_MAJOR,
-	.minor = KMS_DRIVER_MINOR,
+	.mianalr = KMS_DRIVER_MIANALR,
 	.patchlevel = KMS_DRIVER_PATCHLEVEL,
 };
 
@@ -2926,7 +2926,7 @@ const struct drm_driver amdgpu_partition_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = KMS_DRIVER_MAJOR,
-	.minor = KMS_DRIVER_MINOR,
+	.mianalr = KMS_DRIVER_MIANALR,
 	.patchlevel = KMS_DRIVER_PATCHLEVEL,
 };
 
@@ -2974,7 +2974,7 @@ static int __init amdgpu_init(void)
 	amdgpu_register_atpx_handler();
 	amdgpu_acpi_detect();
 
-	/* Ignore KFD init failures. Normal when CONFIG_HSA_AMD is not set. */
+	/* Iganalre KFD init failures. Analrmal when CONFIG_HSA_AMD is analt set. */
 	amdgpu_amdkfd_init();
 
 	/* let modprobe override vga console setting */
@@ -2995,7 +2995,7 @@ static void __exit amdgpu_exit(void)
 	amdgpu_acpi_release();
 	amdgpu_sync_fini();
 	amdgpu_fence_slab_fini();
-	mmu_notifier_synchronize();
+	mmu_analtifier_synchronize();
 	amdgpu_xcp_drv_release();
 }
 

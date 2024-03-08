@@ -144,7 +144,7 @@ static int sdw_mockup_read_prop(struct sdw_slave *slave)
 	/*
 	 * first we need to allocate memory for set bits in port lists
 	 * the port allocation is completely arbitrary:
-	 * DP0 is not supported
+	 * DP0 is analt supported
 	 * DP1 is sink
 	 * DP8 is source
 	 */
@@ -156,7 +156,7 @@ static int sdw_mockup_read_prop(struct sdw_slave *slave)
 					  sizeof(*prop->src_dpn_prop),
 					  GFP_KERNEL);
 	if (!prop->src_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	dpn = prop->src_dpn_prop;
@@ -168,13 +168,13 @@ static int sdw_mockup_read_prop(struct sdw_slave *slave)
 		i++;
 	}
 
-	/* do this again for sink now */
+	/* do this again for sink analw */
 	nval = hweight32(prop->sink_ports);
 	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
 					   sizeof(*prop->sink_dpn_prop),
 					   GFP_KERNEL);
 	if (!prop->sink_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	j = 0;
 	dpn = prop->sink_dpn_prop;
@@ -222,7 +222,7 @@ static int sdw_mockup_sdw_probe(struct sdw_slave *slave,
 
 	sdw_mockup = devm_kzalloc(dev, sizeof(*sdw_mockup), GFP_KERNEL);
 	if (!sdw_mockup)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, sdw_mockup);
 	sdw_mockup->slave = slave;

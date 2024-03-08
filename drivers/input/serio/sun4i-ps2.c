@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/serio.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/clk.h>
@@ -35,7 +35,7 @@
 #define PS2_GCTL_BUSEN		BIT(0)
 
 /* PS2 LINE CONTROL REGISTER */
-#define PS2_LCTL_NOACK		BIT(18)
+#define PS2_LCTL_ANALACK		BIT(18)
 #define PS2_LCTL_TXDTOEN	BIT(8)
 #define PS2_LCTL_STOPERREN	BIT(3)
 #define PS2_LCTL_ACKERREN	BIT(2)
@@ -216,7 +216,7 @@ static int sun4i_ps2_probe(struct platform_device *pdev)
 	drvdata = kzalloc(sizeof(struct sun4i_ps2data), GFP_KERNEL);
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!drvdata || !serio) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 
@@ -233,7 +233,7 @@ static int sun4i_ps2_probe(struct platform_device *pdev)
 	drvdata->reg_base = ioremap(res->start, resource_size(res));
 	if (!drvdata->reg_base) {
 		dev_err(dev, "failed to map registers\n");
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_free_mem;
 	}
 

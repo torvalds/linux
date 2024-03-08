@@ -9,7 +9,7 @@ title: BCM6345 reset controller
 description: This document describes the BCM6345 reset controller.
 
 maintainers:
-  - Álvaro Fernández Rojas <noltari@gmail.com>
+  - Álvaro Fernández Rojas <analltari@gmail.com>
 
 properties:
   compatible:

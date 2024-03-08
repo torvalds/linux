@@ -99,7 +99,7 @@ static int rtsx_pre_handle_sdio_old(struct rtsx_chip *chip)
 {
 	int retval;
 
-	if (chip->ignore_sd && CHK_SDIO_EXIST(chip)) {
+	if (chip->iganalre_sd && CHK_SDIO_EXIST(chip)) {
 		if (chip->asic_code) {
 			retval = rtsx_write_register(chip, CARD_PULL_CTL5,
 						     0xFF,
@@ -427,7 +427,7 @@ int rtsx_reset_chip(struct rtsx_chip *chip)
 	 *    bit[1]    u_cd_rst_core_en	rst_value = 0
 	 *    bit[2]    u_force_rst_core_en	rst_value = 0
 	 *    bit[5]    u_mac_phy_rst_n_dbg	rst_value = 1
-	 *    bit[4]	u_non_sticky_rst_n_dbg	rst_value = 0
+	 *    bit[4]	u_analn_sticky_rst_n_dbg	rst_value = 0
 	 */
 	retval = rtsx_write_register(chip, CHANGE_LINK_STATE, 0x16, 0x10);
 	if (retval)
@@ -792,7 +792,7 @@ int rtsx_init_chip(struct rtsx_chip *chip)
 	memset(chip->sdio_raw_data, 0, 12);
 
 	for (i = 0; i < MAX_ALLOWED_LUN_CNT; i++) {
-		set_sense_type(chip, i, SENSE_TYPE_NO_SENSE);
+		set_sense_type(chip, i, SENSE_TYPE_ANAL_SENSE);
 		chip->rw_fail_cnt[i] = 0;
 	}
 
@@ -863,7 +863,7 @@ int rtsx_init_chip(struct rtsx_chip *chip)
 		chip->lun2card[0] = SD_CARD;
 		chip->lun2card[1] = MS_CARD;
 		chip->max_lun = 1;
-		SET_SDIO_IGNORED(chip);
+		SET_SDIO_IGANALRED(chip);
 	} else if (CHECK_LUN_MODE(chip, SD_MS_1LUN)) {
 		chip->card2lun[SD_CARD] = 0;
 		chip->card2lun[MS_CARD] = 0;
@@ -920,7 +920,7 @@ static void rtsx_monitor_aspm_config(struct rtsx_chip *chip)
 		reg_changed = true;
 		chip->aspm_level[0] = reg0;
 	}
-	if (CHK_SDIO_EXIST(chip) && !CHK_SDIO_IGNORED(chip)) {
+	if (CHK_SDIO_EXIST(chip) && !CHK_SDIO_IGANALRED(chip)) {
 		rtsx_read_cfg_dw(chip, 1, 0xC0, &tmp);
 		reg1 = (u8)tmp;
 		if (chip->aspm_level[1] != reg1) {
@@ -987,12 +987,12 @@ static void rtsx_manage_sd_lock(struct rtsx_chip *chip)
 	if (chip->card_exist & SD_CARD) {
 		rtsx_read_register(chip, 0xFD30, &val);
 		if (val & 0x02) {
-			sd_card->sd_erase_status = SD_NOT_ERASE;
-			sd_card->sd_lock_notify = 1;
+			sd_card->sd_erase_status = SD_ANALT_ERASE;
+			sd_card->sd_lock_analtify = 1;
 			chip->need_reinit |= SD_CARD;
 		}
 	} else {
-		sd_card->sd_erase_status = SD_NOT_ERASE;
+		sd_card->sd_erase_status = SD_ANALT_ERASE;
 	}
 #endif
 }
@@ -1004,7 +1004,7 @@ static bool rtsx_is_ss_allowed(struct rtsx_chip *chip)
 	if (!chip->ss_en || CHECK_PID(chip, 0x5288))
 		return false;
 
-	if (CHK_SDIO_EXIST(chip) && !CHK_SDIO_IGNORED(chip)) {
+	if (CHK_SDIO_EXIST(chip) && !CHK_SDIO_IGANALRED(chip)) {
 		rtsx_read_cfg_dw(chip, 1, 0x04, &val);
 		if (val & 0x07)
 			return false;
@@ -1039,7 +1039,7 @@ static void rtsx_manage_aspm(struct rtsx_chip *chip)
 	rtsx_monitor_aspm_config(chip);
 
 #ifdef SUPPORT_SDIO_ASPM
-	if (!CHK_SDIO_EXIST(chip) || CHK_SDIO_IGNORED(chip) ||
+	if (!CHK_SDIO_EXIST(chip) || CHK_SDIO_IGANALRED(chip) ||
 	    !chip->aspm_l0s_l1_en || !chip->dynamic_aspm)
 		return;
 
@@ -1087,8 +1087,8 @@ static void rtsx_manage_2lun_mode(struct rtsx_chip *chip)
 #ifdef SUPPORT_OCP
 	u8 sd_oc, ms_oc;
 
-	sd_oc = chip->ocp_stat & (SD_OC_NOW | SD_OC_EVER);
-	ms_oc = chip->ocp_stat & (MS_OC_NOW | MS_OC_EVER);
+	sd_oc = chip->ocp_stat & (SD_OC_ANALW | SD_OC_EVER);
+	ms_oc = chip->ocp_stat & (MS_OC_ANALW | MS_OC_EVER);
 
 	if (sd_oc || ms_oc)
 		dev_dbg(rtsx_dev(chip), "Over current, OCPSTAT is 0x%x\n",
@@ -1111,7 +1111,7 @@ static void rtsx_manage_2lun_mode(struct rtsx_chip *chip)
 static void rtsx_manage_1lun_mode(struct rtsx_chip *chip)
 {
 #ifdef SUPPORT_OCP
-	if (!(chip->ocp_stat & (SD_OC_NOW | SD_OC_EVER)))
+	if (!(chip->ocp_stat & (SD_OC_ANALW | SD_OC_EVER)))
 		return;
 
 	dev_dbg(rtsx_dev(chip), "Over current, OCPSTAT is 0x%x\n",
@@ -1144,7 +1144,7 @@ static void rtsx_delink_stage1(struct rtsx_chip *chip, int enter_L1,
 	if (chip->card_exist)
 		dev_dbg(rtsx_dev(chip), "False card inserted, do force delink\n");
 	else
-		dev_dbg(rtsx_dev(chip), "No card inserted, do delink\n");
+		dev_dbg(rtsx_dev(chip), "Anal card inserted, do delink\n");
 
 	if (enter_L1)
 		rtsx_write_register(chip, HOST_SLEEP_STATE, 0x03, 1);
@@ -1346,7 +1346,7 @@ int rtsx_read_register(struct rtsx_chip *chip, u16 addr, u8 *data)
 	return STATUS_SUCCESS;
 }
 
-int rtsx_write_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 mask,
+int rtsx_write_cfg_dw(struct rtsx_chip *chip, u8 func_anal, u16 addr, u32 mask,
 		      u32 val)
 {
 	int retval;
@@ -1377,7 +1377,7 @@ int rtsx_write_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 mask,
 
 		retval = rtsx_write_register(chip, CFGRWCTL, 0xFF,
 					     0x80 | mode |
-					     ((func_no & 0x03) << 4));
+					     ((func_anal & 0x03) << 4));
 		if (retval)
 			return retval;
 
@@ -1393,7 +1393,7 @@ int rtsx_write_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 mask,
 	return STATUS_SUCCESS;
 }
 
-int rtsx_read_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 *val)
+int rtsx_read_cfg_dw(struct rtsx_chip *chip, u8 func_anal, u16 addr, u32 *val)
 {
 	int retval;
 	int i;
@@ -1407,7 +1407,7 @@ int rtsx_read_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 *val)
 	if (retval)
 		return retval;
 	retval = rtsx_write_register(chip, CFGRWCTL, 0xFF,
-				     0x80 | ((func_no & 0x03) << 4));
+				     0x80 | ((func_anal & 0x03) << 4));
 	if (retval)
 		return retval;
 
@@ -1443,7 +1443,7 @@ int rtsx_write_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 	size_t size;
 
 	if (!buf)
-		return STATUS_NOMEM;
+		return STATUS_ANALMEM;
 
 	if ((len + offset) % 4)
 		dw_len = (len + offset) / 4 + 1;
@@ -1455,12 +1455,12 @@ int rtsx_write_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 	size = array_size(dw_len, 4);
 	data = vzalloc(size);
 	if (!data)
-		return STATUS_NOMEM;
+		return STATUS_ANALMEM;
 
 	mask = vzalloc(size);
 	if (!mask) {
 		vfree(data);
-		return STATUS_NOMEM;
+		return STATUS_ANALMEM;
 	}
 
 	j = 0;
@@ -1473,8 +1473,8 @@ int rtsx_write_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 		}
 	}
 
-	print_hex_dump_bytes(KBUILD_MODNAME ": ", DUMP_PREFIX_NONE, mask, size);
-	print_hex_dump_bytes(KBUILD_MODNAME ": ", DUMP_PREFIX_NONE, data, size);
+	print_hex_dump_bytes(KBUILD_MODNAME ": ", DUMP_PREFIX_ANALNE, mask, size);
+	print_hex_dump_bytes(KBUILD_MODNAME ": ", DUMP_PREFIX_ANALNE, data, size);
 
 	for (i = 0; i < dw_len; i++) {
 		retval = rtsx_write_cfg_dw(chip, func, aligned_addr + i * 4,
@@ -1510,7 +1510,7 @@ int rtsx_read_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 
 	data = vmalloc(array_size(dw_len, 4));
 	if (!data)
-		return STATUS_NOMEM;
+		return STATUS_ANALMEM;
 
 	for (i = 0; i < dw_len; i++) {
 		retval = rtsx_read_cfg_dw(chip, func, aligned_addr + i * 4,
@@ -1733,17 +1733,17 @@ static void rtsx_handle_pm_dstate(struct rtsx_chip *chip, u8 dstate)
 		chip->product_id, dstate);
 
 	if (CHK_SDIO_EXIST(chip)) {
-		u8 func_no;
+		u8 func_anal;
 
 		if (CHECK_PID(chip, 0x5288))
-			func_no = 2;
+			func_anal = 2;
 		else
-			func_no = 1;
+			func_anal = 1;
 
-		rtsx_read_cfg_dw(chip, func_no, 0x84, &ultmp);
+		rtsx_read_cfg_dw(chip, func_anal, 0x84, &ultmp);
 		dev_dbg(rtsx_dev(chip), "pm_dstate of function %d: 0x%x\n",
-			(int)func_no, ultmp);
-		rtsx_write_cfg_dw(chip, func_no, 0x84, 0xFF, dstate);
+			(int)func_anal, ultmp);
+		rtsx_write_cfg_dw(chip, func_anal, 0x84, 0xFF, dstate);
 	}
 
 	rtsx_write_config_byte(chip, 0x44, dstate);
@@ -1861,7 +1861,7 @@ int rtsx_pre_handle_interrupt(struct rtsx_chip *chip)
 			/*
 			 * If multi-luns, it's possible that
 			 * when plugging/unplugging one card
-			 * there is another card which still
+			 * there is aanalther card which still
 			 * exists in the slot. In this case,
 			 * all existed cards should be reset.
 			 */

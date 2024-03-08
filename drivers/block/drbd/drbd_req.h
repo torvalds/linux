@@ -4,7 +4,7 @@
 
    This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
 
-   Copyright (C) 2006-2008, LINBIT Information Technologies GmbH.
+   Copyright (C) 2006-2008, LINBIT Information Techanallogies GmbH.
    Copyright (C) 2006-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
    Copyright (C) 2006-2008, Philipp Reisner <philipp.reisner@linbit.com>.
 
@@ -25,7 +25,7 @@
    Try to get the locking right :) */
 
 /*
- * Objects of type struct drbd_request do only exist on a R_PRIMARY node, and are
+ * Objects of type struct drbd_request do only exist on a R_PRIMARY analde, and are
  * associated with IO requests originating from the block layer above us.
  *
  * There are quite a few things that may happen to a drbd request
@@ -51,7 +51,7 @@
  *  It may be queued for sending.
  *  It may be handed over to the network stack,
  *    which may fail.
- *  It may be acknowledged by the "peer" according to the wire_protocol in use.
+ *  It may be ackanalwledged by the "peer" according to the wire_protocol in use.
  *    this may be a negative ack.
  *  It may receive a faked ack when the network connection is lost and the
  *  transfer log is cleaned up.
@@ -68,8 +68,8 @@ enum drbd_req_event {
 	TO_BE_SENT,
 	TO_BE_SUBMITTED,
 
-	/* XXX yes, now I am inconsistent...
-	 * these are not "events" but "actions"
+	/* XXX anal, analw I am inconsistent...
+	 * these are analt "events" but "actions"
 	 * oh, well... */
 	QUEUE_FOR_NET_WRITE,
 	QUEUE_FOR_NET_READ,
@@ -80,7 +80,7 @@ enum drbd_req_event {
 	 * even if the local disk flush failed.
 	 *
 	 * Just like "real" requests, empty flushes (blkdev_issue_flush()) will
-	 * only see an error if neither local nor remote data is reachable. */
+	 * only see an error if neither local analr remote data is reachable. */
 	QUEUE_AS_DRBD_BARRIER,
 
 	SEND_CANCELED,
@@ -102,24 +102,24 @@ enum drbd_req_event {
 	READ_COMPLETED_WITH_ERROR,
 	READ_AHEAD_COMPLETED_WITH_ERROR,
 	WRITE_COMPLETED_WITH_ERROR,
-	DISCARD_COMPLETED_NOTSUPP,
+	DISCARD_COMPLETED_ANALTSUPP,
 	DISCARD_COMPLETED_WITH_ERROR,
 
 	ABORT_DISK_IO,
 	RESEND,
 	FAIL_FROZEN_DISK_IO,
 	RESTART_FROZEN_DISK_IO,
-	NOTHING,
+	ANALTHING,
 };
 
-/* encoding of request states for now.  we don't actually need that many bits.
+/* encoding of request states for analw.  we don't actually need that many bits.
  * we don't need to do atomic bit operations either, since most of the time we
  * need to look at the connection state and/or manipulate some lists at the
  * same time, so we should hold the request lock anyways.
  */
 enum drbd_req_state_bits {
 	/* 3210
-	 * 0000: no local possible
+	 * 0000: anal local possible
 	 * 0001: to be submitted
 	 *    UNUSED, we could map: 011: submitted, completion still pending
 	 * 0110: completed ok
@@ -133,7 +133,7 @@ enum drbd_req_state_bits {
 	__RQ_LOCAL_ABORTED,
 
 	/* 87654
-	 * 00000: no network possible
+	 * 00000: anal network possible
 	 * 00001: to be send
 	 * 00011: to be send, on worker queue
 	 * 00101: sent, expecting recv_ack (B) or write_ack (C)
@@ -154,7 +154,7 @@ enum drbd_req_state_bits {
 	 *        request can be freed
 	 */
 
-	/* if "SENT" is not set, yet, this can still fail or be canceled.
+	/* if "SENT" is analt set, yet, this can still fail or be canceled.
 	 * if "SENT" is set already, we still wait for an Ack packet.
 	 * when cleared, the master_bio may be completed.
 	 * in (B,A) the request object may still linger on the transaction log
@@ -165,14 +165,14 @@ enum drbd_req_state_bits {
 	 * transfer log. Currently we need this flag to avoid conflicts between
 	 * worker canceling the request and tl_clear_barrier killing it from
 	 * transfer log.  We should restructure the code so this conflict does
-	 * no longer occur. */
+	 * anal longer occur. */
 	__RQ_NET_QUEUED,
 
 	/* well, actually only "handed over to the network stack".
 	 *
 	 * TODO can potentially be dropped because of the similar meaning
 	 * of RQ_NET_SENT and ~RQ_NET_QUEUED.
-	 * however it is not exactly the same. before we drop it
+	 * however it is analt exactly the same. before we drop it
 	 * we must ensure that we can tell a request with network part
 	 * from a request without, regardless of what happens to it. */
 	__RQ_NET_SENT,
@@ -181,7 +181,7 @@ enum drbd_req_state_bits {
 	 * basically this means the corresponding P_BARRIER_ACK was received */
 	__RQ_NET_DONE,
 
-	/* whether or not we know (C) or pretend (B,A) that the write
+	/* whether or analt we kanalw (C) or pretend (B,A) that the write
 	 * was successfully written on the peer.
 	 */
 	__RQ_NET_OK,
@@ -210,7 +210,7 @@ enum drbd_req_state_bits {
 	__RQ_POSTPONED,
 
 	/* would have been completed,
-	 * but was not, because of drbd_suspended() */
+	 * but was analt, because of drbd_suspended() */
 	__RQ_COMPLETION_SUSP,
 
 	/* We expect a receive ACK (wire proto B) */
@@ -288,7 +288,7 @@ static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what,
 	struct bio_and_error m;
 	int rv;
 
-	/* __req_mod possibly frees req, do not touch req after that! */
+	/* __req_mod possibly frees req, do analt touch req after that! */
 	rv = __req_mod(req, what, peer_device, &m);
 	if (m.bio)
 		complete_master_bio(device, &m);
@@ -297,7 +297,7 @@ static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what,
 }
 
 /* completion of master bio is outside of our spinlock.
- * We still may or may not be inside some irqs disabled section
+ * We still may or may analt be inside some irqs disabled section
  * of the lower level driver completion callback, so we need to
  * spin_lock_irqsave here. */
 static inline int req_mod(struct drbd_request *req,

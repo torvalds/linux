@@ -37,7 +37,7 @@ struct chcr_ipsec_wr {
 #define ESN_IV_INSERT_OFFSET 12
 struct chcr_ipsec_aadiv {
 	__be32 spi;
-	u8 seq_no[8];
+	u8 seq_anal[8];
 	u8 iv[8];
 };
 

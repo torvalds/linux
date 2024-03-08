@@ -41,7 +41,7 @@ static void drm_block_free(struct drm_buddy *mm,
 static void list_insert_sorted(struct drm_buddy *mm,
 			       struct drm_buddy_block *block)
 {
-	struct drm_buddy_block *node;
+	struct drm_buddy_block *analde;
 	struct list_head *head;
 
 	head = &mm->free_list[drm_buddy_block_order(block)];
@@ -50,11 +50,11 @@ static void list_insert_sorted(struct drm_buddy *mm,
 		return;
 	}
 
-	list_for_each_entry(node, head, link)
-		if (drm_buddy_block_offset(block) < drm_buddy_block_offset(node))
+	list_for_each_entry(analde, head, link)
+		if (drm_buddy_block_offset(block) < drm_buddy_block_offset(analde))
 			break;
 
-	__list_add(&block->link, node->link.prev, &node->link);
+	__list_add(&block->link, analde->link.prev, &analde->link);
 }
 
 static void mark_allocated(struct drm_buddy_block *block)
@@ -121,7 +121,7 @@ int drm_buddy_init(struct drm_buddy *mm, u64 size, u64 chunk_size)
 				      sizeof(struct list_head),
 				      GFP_KERNEL);
 	if (!mm->free_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i <= mm->max_order; ++i)
 		INIT_LIST_HEAD(&mm->free_list[i]);
@@ -139,7 +139,7 @@ int drm_buddy_init(struct drm_buddy *mm, u64 size, u64 chunk_size)
 
 	/*
 	 * Split into power-of-two blocks, in case we are given a size that is
-	 * not itself a power-of-two.
+	 * analt itself a power-of-two.
 	 */
 	do {
 		struct drm_buddy_block *root;
@@ -173,7 +173,7 @@ out_free_roots:
 	kfree(mm->roots);
 out_free_list:
 	kfree(mm->free_list);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL(drm_buddy_init);
 
@@ -211,13 +211,13 @@ static int split_block(struct drm_buddy *mm,
 
 	block->left = drm_block_alloc(mm, block, block_order, offset);
 	if (!block->left)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	block->right = drm_block_alloc(mm, block, block_order,
 				       offset + (mm->chunk_size << block_order));
 	if (!block->right) {
 		drm_block_free(mm, block->left);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mark_free(mm, block->left);
@@ -398,7 +398,7 @@ alloc_range_bias(struct drm_buddy *mm,
 		list_add(&block->left->tmp_link, &dfs);
 	} while (1);
 
-	return ERR_PTR(-ENOSPC);
+	return ERR_PTR(-EANALSPC);
 
 err_undo:
 	/*
@@ -417,22 +417,22 @@ err_undo:
 static struct drm_buddy_block *
 get_maxblock(struct drm_buddy *mm, unsigned int order)
 {
-	struct drm_buddy_block *max_block = NULL, *node;
+	struct drm_buddy_block *max_block = NULL, *analde;
 	unsigned int i;
 
 	for (i = order; i <= mm->max_order; ++i) {
 		if (!list_empty(&mm->free_list[i])) {
-			node = list_last_entry(&mm->free_list[i],
+			analde = list_last_entry(&mm->free_list[i],
 					       struct drm_buddy_block,
 					       link);
 			if (!max_block) {
-				max_block = node;
+				max_block = analde;
 				continue;
 			}
 
-			if (drm_buddy_block_offset(node) >
+			if (drm_buddy_block_offset(analde) >
 			    drm_buddy_block_offset(max_block)) {
-				max_block = node;
+				max_block = analde;
 			}
 		}
 	}
@@ -467,7 +467,7 @@ alloc_from_freelist(struct drm_buddy *mm,
 	}
 
 	if (!block)
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 
 	BUG_ON(!drm_buddy_block_is_free(block));
 
@@ -521,13 +521,13 @@ static int __alloc_range(struct drm_buddy *mm,
 			continue;
 
 		if (drm_buddy_block_is_allocated(block)) {
-			err = -ENOSPC;
+			err = -EANALSPC;
 			goto err_free;
 		}
 
 		if (contains(start, end, block_start, block_end)) {
 			if (!drm_buddy_block_is_free(block)) {
-				err = -ENOSPC;
+				err = -EANALSPC;
 				goto err_free;
 			}
 
@@ -549,7 +549,7 @@ static int __alloc_range(struct drm_buddy *mm,
 	} while (1);
 
 	if (total_allocated < size) {
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto err_free;
 	}
 
@@ -570,7 +570,7 @@ err_undo:
 		__drm_buddy_free(mm, block);
 
 err_free:
-	if (err == -ENOSPC && total_allocated_on_err) {
+	if (err == -EANALSPC && total_allocated_on_err) {
 		list_splice_tail(&allocated, blocks);
 		*total_allocated_on_err = total_allocated;
 	} else {
@@ -614,18 +614,18 @@ static int __alloc_contig_try_harder(struct drm_buddy *mm,
 	pages = modify_size >> ilog2(mm->chunk_size);
 	order = fls(pages) - 1;
 	if (order == 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	list = &mm->free_list[order];
 	if (list_empty(list))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	list_for_each_entry_reverse(block, list, link) {
 		/* Allocate blocks traversing RHS */
 		rhs_offset = drm_buddy_block_offset(block);
 		err =  __drm_buddy_alloc_range(mm, rhs_offset, size,
 					       &filled, blocks);
-		if (!err || err != -ENOSPC)
+		if (!err || err != -EANALSPC)
 			return err;
 
 		lhs_size = max((size - filled), min_block_size);
@@ -639,7 +639,7 @@ static int __alloc_contig_try_harder(struct drm_buddy *mm,
 		if (!err) {
 			list_splice(&blocks_lhs, blocks);
 			return 0;
-		} else if (err != -ENOSPC) {
+		} else if (err != -EANALSPC) {
 			drm_buddy_free_list(mm, blocks);
 			return err;
 		}
@@ -647,7 +647,7 @@ static int __alloc_contig_try_harder(struct drm_buddy *mm,
 		drm_buddy_free_list(mm, blocks);
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /**
@@ -701,7 +701,7 @@ int drm_buddy_block_trim(struct drm_buddy *mm,
 	mark_free(mm, block);
 	mm->avail += drm_buddy_block_size(mm, block);
 
-	/* Prevent recursively freeing this node */
+	/* Prevent recursively freeing this analde */
 	parent = block->parent;
 	block->parent = NULL;
 
@@ -733,7 +733,7 @@ EXPORT_SYMBOL(drm_buddy_block_trim);
  * alloc_range_bias() called on range limitations, which traverses
  * the tree and returns the desired block.
  *
- * alloc_from_freelist() called when *no* range restrictions
+ * alloc_from_freelist() called when *anal* range restrictions
  * are enforced, which picks the block from the freelist.
  *
  * Returns:
@@ -821,7 +821,7 @@ int drm_buddy_alloc_blocks(struct drm_buddy *mm,
 									 original_size,
 									 original_min_size,
 									 blocks);
-				err = -ENOSPC;
+				err = -EANALSPC;
 				goto err_free;
 			}
 		} while (1);
@@ -933,7 +933,7 @@ static int __init drm_buddy_module_init(void)
 {
 	slab_blocks = KMEM_CACHE(drm_buddy_block, 0);
 	if (!slab_blocks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

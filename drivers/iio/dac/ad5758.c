@@ -4,7 +4,7 @@
  *
  * Copyright 2018 Analog Devices Inc.
  *
- * TODO: Currently CRC is not supported in this driver
+ * TODO: Currently CRC is analt supported in this driver
  */
 #include <linux/bsearch.h>
 #include <linux/delay.h>
@@ -19,7 +19,7 @@
 #include <linux/iio/sysfs.h>
 
 /* AD5758 registers definition */
-#define AD5758_NOP				0x00
+#define AD5758_ANALP				0x00
 #define AD5758_DAC_INPUT			0x01
 #define AD5758_DAC_OUTPUT			0x02
 #define AD5758_CLEAR_CODE			0x03
@@ -106,7 +106,7 @@ struct ad5758_range {
  * @dc_dc_mode:	variable which stores the mode of operation
  * @dc_dc_ilim:	variable which stores the dc-to-dc converter current limit
  * @slew_time:	variable which stores the target slew time
- * @pwr_down:	variable which contains whether a channel is powered down or not
+ * @pwr_down:	variable which contains whether a channel is powered down or analt
  * @d32:	spi transfer buffers
  */
 struct ad5758_state {
@@ -201,7 +201,7 @@ static int ad5758_spi_reg_read(struct ad5758_state *st, unsigned int addr)
 	st->d32[0] = cpu_to_be32(
 		(AD5758_WR_FLAG_MSK(AD5758_TWO_STAGE_READBACK_SELECT) << 24) |
 		(addr << 8));
-	st->d32[1] = cpu_to_be32(AD5758_WR_FLAG_MSK(AD5758_NOP) << 24);
+	st->d32[1] = cpu_to_be32(AD5758_WR_FLAG_MSK(AD5758_ANALP) << 24);
 
 	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
@@ -844,7 +844,7 @@ static int ad5758_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);

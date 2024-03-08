@@ -20,7 +20,7 @@ static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 
 	fence_cookie = dma_fence_begin_signalling();
 
-	ret_overrun = hrtimer_forward_now(&output->vblank_hrtimer,
+	ret_overrun = hrtimer_forward_analw(&output->vblank_hrtimer,
 					  output->period_ns);
 	if (ret_overrun != 1)
 		pr_warn("%s: vblank timer overrun\n", __func__);
@@ -68,7 +68,7 @@ static int vkms_enable_vblank(struct drm_crtc *crtc)
 
 	drm_calc_timestamping_constants(crtc, &crtc->mode);
 
-	hrtimer_init(&out->vblank_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&out->vblank_hrtimer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	out->vblank_hrtimer.function = &vkms_vblank_simulate;
 	out->period_ns = ktime_set(0, vblank->framedur_ns);
 	hrtimer_start(&out->vblank_hrtimer, out->period_ns, HRTIMER_MODE_REL);
@@ -98,7 +98,7 @@ static bool vkms_get_vblank_timestamp(struct drm_crtc *crtc,
 		return true;
 	}
 
-	*vblank_time = READ_ONCE(output->vblank_hrtimer.node.expires);
+	*vblank_time = READ_ONCE(output->vblank_hrtimer.analde.expires);
 
 	if (WARN_ON(*vblank_time == vblank->time))
 		return true;
@@ -203,7 +203,7 @@ static int vkms_crtc_atomic_check(struct drm_crtc *crtc,
 
 	vkms_state->active_planes = kcalloc(i, sizeof(plane), GFP_KERNEL);
 	if (!vkms_state->active_planes)
-		return -ENOMEM;
+		return -EANALMEM;
 	vkms_state->num_active_planes = i;
 
 	i = 0;
@@ -298,7 +298,7 @@ int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 
 	vkms_out->composer_workq = alloc_ordered_workqueue("vkms_composer", 0);
 	if (!vkms_out->composer_workq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return ret;
 }

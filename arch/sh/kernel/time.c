@@ -27,9 +27,9 @@ static void __init sh_late_time_init(void)
 	 *
 	 * Run probe() for two "earlytimer" devices, these will be the
 	 * clockevents and clocksource devices respectively. In the event
-	 * that only a clockevents device is available, we -ENODEV on the
+	 * that only a clockevents device is available, we -EANALDEV on the
 	 * clocksource and the jiffies clocksource is used transparently
-	 * instead. No error handling is necessary here.
+	 * instead. Anal error handling is necessary here.
 	 */
 	sh_early_platform_driver_register_all("earlytimer");
 	sh_early_platform_driver_probe("earlytimer", 2, 0);

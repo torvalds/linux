@@ -17,7 +17,7 @@
 
 /**
  * @dependent: optional dependent module. Meant for legacy gadget.
- * If non-null its refcount will be increased when a tpg is created and
+ * If analn-null its refcount will be increased when a tpg is created and
  * decreased when tpg is dropped.
  * @dep_lock: lock for dependent module operations.
  * @ready: true if the dependent module information is set.

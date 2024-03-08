@@ -21,7 +21,7 @@ ACPI_MODULE_NAME("utaddress")
  * PARAMETERS:  space_id            - Address space ID
  *              address             - op_region start address
  *              length              - op_region length
- *              region_node         - op_region namespace node
+ *              region_analde         - op_region namespace analde
  *
  * RETURN:      Status
  *
@@ -31,8 +31,8 @@ ACPI_MODULE_NAME("utaddress")
  *
  * MUTEX:       Locks the namespace
  *
- * NOTE: Because this interface is only called when an op_region argument
- * list is evaluated, there cannot be any duplicate region_nodes.
+ * ANALTE: Because this interface is only called when an op_region argument
+ * list is evaluated, there cananalt be any duplicate region_analdes.
  * Duplicate Address/Length values are allowed, however, so that multiple
  * address conflicts can be detected.
  *
@@ -40,7 +40,7 @@ ACPI_MODULE_NAME("utaddress")
 acpi_status
 acpi_ut_add_address_range(acpi_adr_space_type space_id,
 			  acpi_physical_address address,
-			  u32 length, struct acpi_namespace_node *region_node)
+			  u32 length, struct acpi_namespace_analde *region_analde)
 {
 	struct acpi_address_range *range_info;
 
@@ -55,19 +55,19 @@ acpi_ut_add_address_range(acpi_adr_space_type space_id,
 
 	range_info = ACPI_ALLOCATE(sizeof(struct acpi_address_range));
 	if (!range_info) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	range_info->start_address = address;
 	range_info->end_address = (address + length - 1);
-	range_info->region_node = region_node;
+	range_info->region_analde = region_analde;
 
 	range_info->next = acpi_gbl_address_range_list[space_id];
 	acpi_gbl_address_range_list[space_id] = range_info;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 			  "\nAdded [%4.4s] address range: 0x%8.8X%8.8X-0x%8.8X%8.8X\n",
-			  acpi_ut_get_node_name(range_info->region_node),
+			  acpi_ut_get_analde_name(range_info->region_analde),
 			  ACPI_FORMAT_UINT64(address),
 			  ACPI_FORMAT_UINT64(range_info->end_address)));
 
@@ -79,9 +79,9 @@ acpi_ut_add_address_range(acpi_adr_space_type space_id,
  * FUNCTION:    acpi_ut_remove_address_range
  *
  * PARAMETERS:  space_id            - Address space ID
- *              region_node         - op_region namespace node
+ *              region_analde         - op_region namespace analde
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Remove the Operation Region from the global list. The only
  *              supported Space IDs are Memory and I/O. Called when an
@@ -93,7 +93,7 @@ acpi_ut_add_address_range(acpi_adr_space_type space_id,
 
 void
 acpi_ut_remove_address_range(acpi_adr_space_type space_id,
-			     struct acpi_namespace_node *region_node)
+			     struct acpi_namespace_analde *region_analde)
 {
 	struct acpi_address_range *range_info;
 	struct acpi_address_range *prev;
@@ -109,7 +109,7 @@ acpi_ut_remove_address_range(acpi_adr_space_type space_id,
 
 	range_info = prev = acpi_gbl_address_range_list[space_id];
 	while (range_info) {
-		if (range_info->region_node == region_node) {
+		if (range_info->region_analde == region_analde) {
 			if (range_info == prev) {	/* Found at list head */
 				acpi_gbl_address_range_list[space_id] =
 				    range_info->next;
@@ -119,8 +119,8 @@ acpi_ut_remove_address_range(acpi_adr_space_type space_id,
 
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 					  "\nRemoved [%4.4s] address range: 0x%8.8X%8.8X-0x%8.8X%8.8X\n",
-					  acpi_ut_get_node_name(range_info->
-								region_node),
+					  acpi_ut_get_analde_name(range_info->
+								region_analde),
 					  ACPI_FORMAT_UINT64(range_info->
 							     start_address),
 					  ACPI_FORMAT_UINT64(range_info->
@@ -197,8 +197,8 @@ acpi_ut_check_address_range(acpi_adr_space_type space_id,
 			overlap_count++;
 			if (warn) {	/* Optional warning message */
 				pathname =
-				    acpi_ns_get_normalized_pathname(range_info->
-								    region_node,
+				    acpi_ns_get_analrmalized_pathname(range_info->
+								    region_analde,
 								    TRUE);
 
 				ACPI_WARNING((AE_INFO,
@@ -225,9 +225,9 @@ acpi_ut_check_address_range(acpi_adr_space_type space_id,
  *
  * FUNCTION:    acpi_ut_delete_address_lists
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Delete all global address range lists (called during
  *              subsystem shutdown).

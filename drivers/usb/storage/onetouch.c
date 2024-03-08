@@ -97,7 +97,7 @@ static void usb_onetouch_irq(struct urb *urb)
 	case 0:			/* success */
 		break;
 	case -ECONNRESET:	/* unlink */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	/* -EPIPE:  should clear the halt */
@@ -149,7 +149,7 @@ static void usb_onetouch_pm_hook(struct us_data *us, int action)
 			usb_kill_urb(onetouch->irq);
 			break;
 		case US_RESUME:
-			if (usb_submit_urb(onetouch->irq, GFP_NOIO) != 0)
+			if (usb_submit_urb(onetouch->irq, GFP_ANALIO) != 0)
 				dev_err(&onetouch->irq->dev->dev,
 					"usb_submit_urb failed\n");
 			break;
@@ -168,16 +168,16 @@ static int onetouch_connect_input(struct us_data *ss)
 	struct usb_onetouch *onetouch;
 	struct input_dev *input_dev;
 	int pipe, maxp;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	interface = ss->pusb_intf->cur_altsetting;
 
 	if (interface->desc.bNumEndpoints != 3)
-		return -ENODEV;
+		return -EANALDEV;
 
 	endpoint = &interface->endpoint[2].desc;
 	if (!usb_endpoint_is_int_in(endpoint))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pipe = usb_rcvintpipe(udev, endpoint->bEndpointAddress);
 	maxp = usb_maxpacket(udev, pipe);
@@ -235,7 +235,7 @@ static int onetouch_connect_input(struct us_data *ss)
 	usb_fill_int_urb(onetouch->irq, udev, pipe, onetouch->data, maxp,
 			 usb_onetouch_irq, onetouch, endpoint->bInterval);
 	onetouch->irq->transfer_dma = onetouch->data_dma;
-	onetouch->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	onetouch->irq->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	ss->extra_destructor = onetouch_release_input;
 	ss->extra = onetouch;
@@ -301,7 +301,7 @@ static struct usb_driver onetouch_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	onetouch_usb_ids,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
+	.anal_dynamic_id = 1,
 };
 
 module_usb_stor_driver(onetouch_driver, onetouch_host_template, DRV_NAME);

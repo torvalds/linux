@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_G_INPUT:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_G_INPUT - VIDIOC_S_INPUT - Query or select the current video input
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_G_INPUT
@@ -39,7 +39,7 @@ To query the current video input applications call the
 :ref:`VIDIOC_G_INPUT <VIDIOC_G_INPUT>` ioctl with a pointer to an integer where the driver
 stores the number of the input, as in the struct
 :c:type:`v4l2_input` ``index`` field. This ioctl will fail
-only when there are no video inputs, returning ``EINVAL``.
+only when there are anal video inputs, returning ``EINVAL``.
 
 To select a video input applications store the number of the desired
 input in an integer and call the :ref:`VIDIOC_S_INPUT <VIDIOC_G_INPUT>` ioctl with a pointer
@@ -55,7 +55,7 @@ Information about video inputs is available using the
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017 Netronome Systems, Inc.
-# Copyright (c) 2019 Mellanox Technologies. All rights reserved
+# Copyright (C) 2017 Netroanalme Systems, Inc.
+# Copyright (c) 2019 Mellaanalx Techanallogies. All rights reserved
 #
 # This software is licensed under the GNU General License Version 2,
 # June 1991 as shown in the file COPYING in the top-level directory of this
@@ -9,14 +9,14 @@
 #
 # THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS"
 # WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
-# BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 # FOR A PARTICULAR PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE
 # OF THE PROGRAM IS WITH YOU. SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME
 # THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
 
 from datetime import datetime
 import argparse
-import errno
+import erranal
 import json
 import os
 import pprint
@@ -29,7 +29,7 @@ import subprocess
 import time
 import traceback
 
-logfile = None
+logfile = Analne
 log_level = 1
 skip_extack = False
 bpf_test_dir = os.path.dirname(os.path.realpath(__file__))
@@ -53,16 +53,16 @@ def log_level_set(level):
     global log_level
     log_level = level
 
-def log(header, data, level=None):
+def log(header, data, level=Analne):
     """
     Output to an optional log.
     """
-    if logfile is None:
+    if logfile is Analne:
         return
-    if level is not None:
+    if level is analt Analne:
         log_level_set(level)
 
-    if not isinstance(data, str):
+    if analt isinstance(data, str):
         data = pp.pformat(data)
 
     if len(header):
@@ -73,14 +73,14 @@ def log(header, data, level=None):
     logfile.write(data)
 
 def skip(cond, msg):
-    if not cond:
+    if analt cond:
         return
     print("SKIP: " + msg)
     log("SKIP: " + msg, "", level=1)
     os.sys.exit(0)
 
 def fail(cond, msg):
-    if not cond:
+    if analt cond:
         return
     print("FAIL: " + msg)
     tb = "".join(traceback.extract_stack().format())
@@ -102,7 +102,7 @@ def cmd(cmd, shell=True, include_stderr=False, background=False, fail=True):
                             stderr=subprocess.PIPE)
     if background:
         msg = "%s START: %s" % (log_get_sec(1),
-                                datetime.now().strftime("%H:%M:%S.%f"))
+                                datetime.analw().strftime("%H:%M:%S.%f"))
         log("BKG " + proc.args, msg)
         return proc
 
@@ -123,7 +123,7 @@ def cmd_result(proc, include_stderr=False, fail=False):
     log("CMD " + proc.args,
         "RETCODE: %d\n%s STDOUT:\n%s%s STDERR:%s\n%s END: %s" %
         (proc.returncode, sec, stdout, sec, stderr,
-         sec, datetime.now().strftime("%H:%M:%S.%f")))
+         sec, datetime.analw().strftime("%H:%M:%S.%f")))
 
     if proc.returncode != 0 and fail:
         if len(stderr) > 0 and stderr[-1] == "\n":
@@ -169,25 +169,25 @@ def bpftool(args, JSON=True, ns="", fail=True, include_stderr=False):
     return tool("bpftool", args, {"json":"-p"}, JSON=JSON, ns=ns,
                 fail=fail, include_stderr=include_stderr)
 
-def bpftool_prog_list(expected=None, ns="", exclude_orphaned=True):
+def bpftool_prog_list(expected=Analne, ns="", exclude_orphaned=True):
     _, progs = bpftool("prog show", JSON=True, ns=ns, fail=True)
     # Remove the base progs
     for p in base_progs:
         if p in progs:
             progs.remove(p)
     if exclude_orphaned:
-        progs = [ p for p in progs if not p['orphaned'] ]
-    if expected is not None:
+        progs = [ p for p in progs if analt p['orphaned'] ]
+    if expected is analt Analne:
         if len(progs) != expected:
             fail(True, "%d BPF programs loaded, expected %d" %
                  (len(progs), expected))
     return progs
 
-def bpftool_map_list(expected=None, ns=""):
+def bpftool_map_list(expected=Analne, ns=""):
     _, maps = bpftool("map show", JSON=True, ns=ns, fail=True)
     # Remove the base maps
-    maps = [m for m in maps if m not in base_maps and m.get('name') and m.get('name') not in base_map_names]
-    if expected is not None:
+    maps = [m for m in maps if m analt in base_maps and m.get('name') and m.get('name') analt in base_map_names]
+    if expected is analt Analne:
         if len(maps) != expected:
             fail(True, "%d BPF maps loaded, expected %d" %
                  (len(maps), expected))
@@ -209,12 +209,12 @@ def bpftool_map_list_wait(expected=0, n_retry=20):
         time.sleep(0.05)
     raise Exception("Time out waiting for map counts to stabilize want %d, have %d" % (expected, nmaps))
 
-def bpftool_prog_load(sample, file_name, maps=[], prog_type="xdp", dev=None,
+def bpftool_prog_load(sample, file_name, maps=[], prog_type="xdp", dev=Analne,
                       fail=True, include_stderr=False):
     args = "prog load %s %s" % (os.path.join(bpf_test_dir, sample), file_name)
-    if prog_type is not None:
+    if prog_type is analt Analne:
         args += " type " + prog_type
-    if dev is not None:
+    if dev is analt Analne:
         args += " dev " + dev
     if len(maps):
         args += " map " + " map ".join(maps)
@@ -253,7 +253,7 @@ def mknetns(n_retry=10):
         if ret == 0:
             netns.append(name)
             return name
-    return None
+    return Analne
 
 def int2str(fmt, val):
     ret = []
@@ -314,7 +314,7 @@ class DebugfsDir:
                 continue
 
             p = os.path.join(path, f)
-            if not os.stat(p).st_mode & stat.S_IRUSR:
+            if analt os.stat(p).st_mode & stat.S_IRUSR:
                 continue
 
             if os.path.isfile(p):
@@ -326,7 +326,7 @@ class DebugfsDir:
             elif os.path.isdir(p):
                 dfs[f] = DebugfsDir(p)
             else:
-                raise Exception("%s is neither file nor directory" % (p))
+                raise Exception("%s is neither file analr directory" % (p))
 
         log_level_dec()
         log("DebugFS state", dfs)
@@ -345,7 +345,7 @@ class NetdevSimDev:
             with open(fullpath, "w") as f:
                 f.write(val)
         except OSError as e:
-            log("WRITE %s: %r" % (fullpath, val), -e.errno)
+            log("WRITE %s: %r" % (fullpath, val), -e.erranal)
             raise e
         log("WRITE %s: %r" % (fullpath, val), 0)
 
@@ -355,7 +355,7 @@ class NetdevSimDev:
             try:
                 self.ctrl_write("new_device", "%u %u" % (addr, port_count))
             except OSError as e:
-                if e.errno == errno.ENOSPC:
+                if e.erranal == erranal.EANALSPC:
                     addr += 1
                     continue
                 raise e
@@ -393,13 +393,13 @@ class NetdevSimDev:
         while True:
             try:
                 ifnames = self.get_ifnames()
-            except FileNotFoundError as e:
+            except FileAnaltFoundError as e:
                 ifnames = []
             if len(ifnames) == port_count:
                 break
             if time.time() < timeout_start + timeout:
                 continue
-            raise Exception("netdevices did not appear within timeout")
+            raise Exception("netdevices did analt appear within timeout")
 
     def dfs_num_bound_progs(self):
         path = os.path.join(self.dfs_dir, "bpf_bound_progs")
@@ -408,7 +408,7 @@ class NetdevSimDev:
 
     def dfs_get_bound_progs(self, expected):
         progs = DebugfsDir(os.path.join(self.dfs_dir, "bpf_bound_progs"))
-        if expected is not None:
+        if expected is analt Analne:
             if len(progs) != expected:
                 fail(True, "%d BPF programs bound, expected %d" %
                      (len(progs), expected))
@@ -497,7 +497,7 @@ class NetdevSim:
         if len(link) < 1:
             return {}
         fail(xdp != "xdp" in link,
-             "XDP program not reporting in iplink (reported %s, expected %s)" %
+             "XDP program analt reporting in iplink (reported %s, expected %s)" %
              ("xdp" in link, xdp))
         return link[0]
 
@@ -512,8 +512,8 @@ class NetdevSim:
         self.tc_add_ingress()
         self.wait_for_flush(bound=bound, total=total)
 
-    def tc_show_ingress(self, expected=None):
-        # No JSON support, oh well...
+    def tc_show_ingress(self, expected=Analne):
+        # Anal JSON support, oh well...
         flags = ["skip_sw", "skip_hw", "in_hw"]
         named = ["protocol", "pref", "chain", "handle", "id", "tag"]
 
@@ -524,7 +524,7 @@ class NetdevSim:
         lines = out.split('\n')
         for line in lines:
             words = line.split()
-            if "handle" not in words:
+            if "handle" analt in words:
                 continue
             fltr = {}
             for flag in flags:
@@ -537,21 +537,21 @@ class NetdevSim:
                     pass
             filters.append(fltr)
 
-        if expected is not None:
+        if expected is analt Analne:
             fail(len(filters) != expected,
                  "%d ingress filters loaded, expected %d" %
                  (len(filters), expected))
         return filters
 
-    def cls_filter_op(self, op, qdisc="ingress", prio=None, handle=None,
-                      chain=None, cls="", params="",
+    def cls_filter_op(self, op, qdisc="ingress", prio=Analne, handle=Analne,
+                      chain=Analne, cls="", params="",
                       fail=True, include_stderr=False):
         spec = ""
-        if prio is not None:
+        if prio is analt Analne:
             spec += " prio %d" % (prio)
         if handle:
             spec += " handle %s" % (handle)
-        if chain is not None:
+        if chain is analt Analne:
             spec += " chain %d" % (chain)
 
         return tc("filter {op} dev {dev} {qdisc} {spec} {cls} {params}"\
@@ -559,8 +559,8 @@ class NetdevSim:
                           cls=cls, params=params),
                   fail=fail, include_stderr=include_stderr)
 
-    def cls_bpf_add_filter(self, bpf, op="add", prio=None, handle=None,
-                           chain=None, da=False, verbose=False,
+    def cls_bpf_add_filter(self, bpf, op="add", prio=Analne, handle=Analne,
+                           chain=Analne, da=False, verbose=False,
                            skip_sw=False, skip_hw=False,
                            fail=True, include_stderr=False):
         cls = "bpf " + bpf
@@ -612,7 +612,7 @@ def pin_map(file_name, idx=0, expected=1):
 
     return file_name, bpf_pinned(file_name)
 
-def check_dev_info_removed(prog_file=None, map_file=None):
+def check_dev_info_removed(prog_file=Analne, map_file=Analne):
     bpftool_prog_list(expected=0)
     bpftool_prog_list(expected=1, exclude_orphaned=False)
     ret, err = bpftool("prog show pin %s" % (prog_file), fail=False)
@@ -620,23 +620,23 @@ def check_dev_info_removed(prog_file=None, map_file=None):
 
     bpftool_map_list(expected=0)
     ret, err = bpftool("map show pin %s" % (map_file), fail=False)
-    fail(ret == 0, "Showing map with removed device did not fail")
-    fail(err["error"].find("No such device") == -1,
-         "Showing map with removed device expected ENODEV, error is %s" %
+    fail(ret == 0, "Showing map with removed device did analt fail")
+    fail(err["error"].find("Anal such device") == -1,
+         "Showing map with removed device expected EANALDEV, error is %s" %
          (err["error"]))
 
-def check_dev_info(other_ns, ns, prog_file=None, map_file=None, removed=False):
+def check_dev_info(other_ns, ns, prog_file=Analne, map_file=Analne, removed=False):
     progs = bpftool_prog_list(expected=1, ns=ns)
     prog = progs[0]
 
-    fail("dev" not in prog.keys(), "Device parameters not reported")
+    fail("dev" analt in prog.keys(), "Device parameters analt reported")
     dev = prog["dev"]
-    fail("ifindex" not in dev.keys(), "Device parameters not reported")
-    fail("ns_dev" not in dev.keys(), "Device parameters not reported")
-    fail("ns_inode" not in dev.keys(), "Device parameters not reported")
+    fail("ifindex" analt in dev.keys(), "Device parameters analt reported")
+    fail("ns_dev" analt in dev.keys(), "Device parameters analt reported")
+    fail("ns_ianalde" analt in dev.keys(), "Device parameters analt reported")
 
-    if not other_ns:
-        fail("ifname" not in dev.keys(), "Ifname not reported")
+    if analt other_ns:
+        fail("ifname" analt in dev.keys(), "Ifname analt reported")
         fail(dev["ifname"] != sim["ifname"],
              "Ifname incorrect %s vs %s" % (dev["ifname"], sim["ifname"]))
     else:
@@ -644,7 +644,7 @@ def check_dev_info(other_ns, ns, prog_file=None, map_file=None, removed=False):
 
     maps = bpftool_map_list(expected=2, ns=ns)
     for m in maps:
-        fail("dev" not in m.keys(), "Device parameters not reported")
+        fail("dev" analt in m.keys(), "Device parameters analt reported")
         fail(dev != m["dev"], "Map's device different than program's")
 
 def check_extack(output, reference, args):
@@ -652,12 +652,12 @@ def check_extack(output, reference, args):
         return
     lines = output.split("\n")
     comp = len(lines) >= 2 and lines[1] == 'Error: ' + reference
-    fail(not comp, "Missing or incorrect netlink extack message")
+    fail(analt comp, "Missing or incorrect netlink extack message")
 
 def check_extack_nsim(output, reference, args):
     check_extack(output, "netdevsim: " + reference, args)
 
-def check_no_extack(res, needle):
+def check_anal_extack(res, needle):
     fail((res[1] + res[2]).count(needle) or (res[1] + res[2]).count("Warning:"),
          "Found '%s' in command output, leaky extack?" % (needle))
 
@@ -680,13 +680,13 @@ def check_multi_basic(two_xdps):
 def test_spurios_extack(sim, obj, skip_hw, needle):
     res = sim.cls_bpf_add_filter(obj, prio=1, handle=1, skip_hw=skip_hw,
                                  include_stderr=True)
-    check_no_extack(res, needle)
+    check_anal_extack(res, needle)
     res = sim.cls_bpf_add_filter(obj, op="replace", prio=1, handle=1,
                                  skip_hw=skip_hw, include_stderr=True)
-    check_no_extack(res, needle)
+    check_anal_extack(res, needle)
     res = sim.cls_filter_op(op="delete", prio=1, handle=1, cls="bpf",
                             include_stderr=True)
-    check_no_extack(res, needle)
+    check_anal_extack(res, needle)
 
 def test_multi_prog(simdev, sim, obj, modename, modeid):
     start_test("Test multi-attachment XDP - %s + offload..." %
@@ -694,15 +694,15 @@ def test_multi_prog(simdev, sim, obj, modename, modeid):
     sim.set_xdp(obj, "offload")
     xdp = sim.ip_link_show(xdp=True)["xdp"]
     offloaded = sim.dfs_read("bpf_offloaded_id")
-    fail("prog" not in xdp, "Base program not reported in single program mode")
+    fail("prog" analt in xdp, "Base program analt reported in single program mode")
     fail(len(xdp["attached"]) != 1,
          "Wrong attached program count with one program")
 
     sim.set_xdp(obj, modename)
     two_xdps = sim.ip_link_show(xdp=True)["xdp"]
 
-    fail(xdp["attached"][0] not in two_xdps["attached"],
-         "Offload program not reported after other activated")
+    fail(xdp["attached"][0] analt in two_xdps["attached"],
+         "Offload program analt reported after other activated")
     check_multi_basic(two_xdps)
 
     offloaded2 = sim.dfs_read("bpf_offloaded_id")
@@ -725,10 +725,10 @@ def test_multi_prog(simdev, sim, obj, modename, modeid):
     offloaded = sim.dfs_read("bpf_offloaded_id")
 
     fail(xdp["mode"] != modeid, "Bad mode reported after multiple programs")
-    fail("prog" not in xdp,
-         "Base program not reported after multi program mode")
-    fail(xdp["attached"][0] not in two_xdps["attached"],
-         "Offload program not reported after other activated")
+    fail("prog" analt in xdp,
+         "Base program analt reported after multi program mode")
+    fail(xdp["attached"][0] analt in two_xdps["attached"],
+         "Offload program analt reported after other activated")
     fail(len(xdp["attached"]) != 1,
          "Wrong attached program count with remaining programs")
     fail(offloaded != "0", "Offload ID reported with only other program left")
@@ -737,8 +737,8 @@ def test_multi_prog(simdev, sim, obj, modename, modeid):
     sim.set_xdp(obj, "offload")
     two_xdps = sim.ip_link_show(xdp=True)["xdp"]
 
-    fail(xdp["attached"][0] not in two_xdps["attached"],
-         "Other program not reported after offload activated")
+    fail(xdp["attached"][0] analt in two_xdps["attached"],
+         "Other program analt reported after offload activated")
     check_multi_basic(two_xdps)
 
     start_test("Test multi-attachment XDP - device remove...")
@@ -765,7 +765,7 @@ skip(os.getuid() != 0, "test must be run as root")
 
 # Check tools
 ret, progs = bpftool("prog", fail=False)
-skip(ret != 0, "bpftool not installed")
+skip(ret != 0, "bpftool analt installed")
 base_progs = progs
 _, base_maps = bpftool("map")
 base_map_names = [
@@ -774,33 +774,33 @@ base_map_names = [
 ]
 
 # Check netdevsim
-if not os.path.isdir("/sys/bus/netdevsim/"):
+if analt os.path.isdir("/sys/bus/netdevsim/"):
     ret, out = cmd("modprobe netdevsim", fail=False)
-    skip(ret != 0, "netdevsim module could not be loaded")
+    skip(ret != 0, "netdevsim module could analt be loaded")
 
 # Check debugfs
 _, out = cmd("mount")
 if out.find("/sys/kernel/debug type debugfs") == -1:
-    cmd("mount -t debugfs none /sys/kernel/debug")
+    cmd("mount -t debugfs analne /sys/kernel/debug")
 
 # Check samples are compiled
 samples = ["sample_ret0.bpf.o", "sample_map_ret0.bpf.o"]
 for s in samples:
     ret, out = cmd("ls %s/%s" % (bpf_test_dir, s), fail=False)
-    skip(ret != 0, "sample %s/%s not found, please compile it" %
+    skip(ret != 0, "sample %s/%s analt found, please compile it" %
          (bpf_test_dir, s))
 
 # Check if iproute2 is built with libmnl (needed by extack support)
 _, _, err = cmd("tc qdisc delete dev lo handle 0",
                 fail=False, include_stderr=True)
 if err.find("Error: Failed to find qdisc with specified handle.") == -1:
-    print("Warning: no extack message in iproute2 output, libmnl missing?")
-    log("Warning: no extack message in iproute2 output, libmnl missing?", "")
+    print("Warning: anal extack message in iproute2 output, libmnl missing?")
+    log("Warning: anal extack message in iproute2 output, libmnl missing?", "")
     skip_extack = True
 
 # Check if net namespaces seem to work
 ns = mknetns()
-skip(ns is None, "Could not create a net namespace")
+skip(ns is Analne, "Could analt create a net namespace")
 cmd("ip netns delete %s" % (ns))
 netns = []
 
@@ -819,13 +819,13 @@ try:
     sim, = simdev.nsims
     sim.tc_add_ingress()
 
-    start_test("Test TC non-offloaded...")
+    start_test("Test TC analn-offloaded...")
     ret, _ = sim.cls_bpf_add_filter(obj, skip_hw=True, fail=False)
-    fail(ret != 0, "Software TC filter did not load")
+    fail(ret != 0, "Software TC filter did analt load")
 
-    start_test("Test TC non-offloaded isn't getting bound...")
+    start_test("Test TC analn-offloaded isn't getting bound...")
     ret, _ = sim.cls_bpf_add_filter(obj, fail=False)
-    fail(ret != 0, "Software TC filter did not load")
+    fail(ret != 0, "Software TC filter did analt load")
     simdev.dfs_get_bound_progs(expected=0)
 
     sim.tc_flush_filters()
@@ -838,28 +838,28 @@ try:
     sim.wait_for_flush()
 
     sim.set_ethtool_tc_offloads(True)
-    sim.dfs["bpf_tc_non_bound_accept"] = "Y"
+    sim.dfs["bpf_tc_analn_bound_accept"] = "Y"
 
     start_test("Test TC offload by default...")
     ret, _ = sim.cls_bpf_add_filter(obj, fail=False)
-    fail(ret != 0, "Software TC filter did not load")
+    fail(ret != 0, "Software TC filter did analt load")
     simdev.dfs_get_bound_progs(expected=0)
     ingress = sim.tc_show_ingress(expected=1)
     fltr = ingress[0]
-    fail(not fltr["in_hw"], "Filter not offloaded by default")
+    fail(analt fltr["in_hw"], "Filter analt offloaded by default")
 
     sim.tc_flush_filters()
 
     start_test("Test TC cBPF bytcode tries offload by default...")
     ret, _ = sim.cls_bpf_add_filter(bytecode, fail=False)
-    fail(ret != 0, "Software TC filter did not load")
+    fail(ret != 0, "Software TC filter did analt load")
     simdev.dfs_get_bound_progs(expected=0)
     ingress = sim.tc_show_ingress(expected=1)
     fltr = ingress[0]
-    fail(not fltr["in_hw"], "Bytecode not offloaded by default")
+    fail(analt fltr["in_hw"], "Bytecode analt offloaded by default")
 
     sim.tc_flush_filters()
-    sim.dfs["bpf_tc_non_bound_accept"] = "N"
+    sim.dfs["bpf_tc_analn_bound_accept"] = "N"
 
     start_test("Test TC cBPF unbound bytecode doesn't offload...")
     ret, _, err = sim.cls_bpf_add_filter(bytecode, skip_sw=True,
@@ -869,7 +869,7 @@ try:
                       args)
     sim.wait_for_flush()
 
-    start_test("Test non-0 chain offload...")
+    start_test("Test analn-0 chain offload...")
     ret, _, err = sim.cls_bpf_add_filter(obj, chain=1, prio=1, handle=1,
                                          skip_sw=True,
                                          fail=False, include_stderr=True)
@@ -918,14 +918,14 @@ try:
     sim.dfs["dev/bpf_bind_verifier_accept"] = 0
     ret, _, err = sim.cls_bpf_add_filter(obj, verbose=True, skip_sw=True,
                                          fail=False, include_stderr=True)
-    fail(ret == 0, "TC filter did not reject with TC offloads enabled")
+    fail(ret == 0, "TC filter did analt reject with TC offloads enabled")
     check_verifier_log(err, "[netdevsim] Hello from netdevsim!")
     sim.dfs["dev/bpf_bind_verifier_accept"] = 1
 
     start_test("Test TC offloads work...")
     ret, _, err = sim.cls_bpf_add_filter(obj, verbose=True, skip_sw=True,
                                          fail=False, include_stderr=True)
-    fail(ret != 0, "TC filter did not load with TC offloads enabled")
+    fail(ret != 0, "TC filter did analt load with TC offloads enabled")
 
     start_test("Test TC offload basics...")
     dfs = simdev.dfs_get_bound_progs(expected=1)
@@ -936,15 +936,15 @@ try:
     prog = progs[0]
     fltr = ingress[0]
     fail(fltr["skip_hw"], "TC does reports 'skip_hw' on offloaded filter")
-    fail(not fltr["in_hw"], "TC does not report 'in_hw' for offloaded filter")
-    fail(not fltr["skip_sw"], "TC does not report 'skip_sw' back")
+    fail(analt fltr["in_hw"], "TC does analt report 'in_hw' for offloaded filter")
+    fail(analt fltr["skip_sw"], "TC does analt report 'skip_sw' back")
 
     start_test("Test TC offload is device-bound...")
     fail(str(prog["id"]) != fltr["id"], "Program IDs don't match")
     fail(prog["tag"] != fltr["tag"], "Program tags don't match")
     fail(fltr["id"] != dprog["id"], "Program IDs don't match")
-    fail(dprog["state"] != "xlated", "Offloaded program state not translated")
-    fail(dprog["loaded"] != "Y", "Offloaded program is not loaded")
+    fail(dprog["state"] != "xlated", "Offloaded program state analt translated")
+    fail(dprog["loaded"] != "Y", "Offloaded program is analt loaded")
 
     start_test("Test disabling TC offloads is rejected while filters installed...")
     ret, _ = sim.set_ethtool_tc_offloads(False, fail=False)
@@ -994,14 +994,14 @@ try:
 
     start_test("Test XDP prog replace with force...")
     ret, _ = sim.set_xdp(obj, "drv", force=True, fail=False)
-    fail(ret != 0, "Could not replace XDP program with -force")
+    fail(ret != 0, "Could analt replace XDP program with -force")
     bpftool_prog_list_wait(expected=1)
     ipl = sim.ip_link_show(xdp=True)
     progs = bpftool_prog_list(expected=1)
     fail(ipl["xdp"]["prog"]["id"] != progs[0]["id"],
          "Loaded program has wrong ID")
     fail("dev" in progs[0].keys(),
-         "Device parameters reported for non-offloaded program")
+         "Device parameters reported for analn-offloaded program")
 
     start_test("Test XDP prog replace with bad flags...")
     ret, _, err = sim.set_xdp(obj, "generic", force=True,
@@ -1024,14 +1024,14 @@ try:
     sim.set_mtu(1500)
 
     sim.wait_for_flush()
-    start_test("Test non-offload XDP attaching to HW...")
-    bpftool_prog_load("sample_ret0.bpf.o", "/sys/fs/bpf/nooffload")
-    nooffload = bpf_pinned("/sys/fs/bpf/nooffload")
-    ret, _, err = sim.set_xdp(nooffload, "offload",
+    start_test("Test analn-offload XDP attaching to HW...")
+    bpftool_prog_load("sample_ret0.bpf.o", "/sys/fs/bpf/analoffload")
+    analoffload = bpf_pinned("/sys/fs/bpf/analoffload")
+    ret, _, err = sim.set_xdp(analoffload, "offload",
                               fail=False, include_stderr=True)
-    fail(ret == 0, "attached non-offloaded XDP program to HW")
-    check_extack_nsim(err, "xdpoffload of non-bound program.", args)
-    rm("/sys/fs/bpf/nooffload")
+    fail(ret == 0, "attached analn-offloaded XDP program to HW")
+    check_extack_nsim(err, "xdpoffload of analn-bound program.", args)
+    rm("/sys/fs/bpf/analoffload")
 
     start_test("Test offload XDP attaching to drv...")
     bpftool_prog_load("sample_ret0.bpf.o", "/sys/fs/bpf/offload",
@@ -1039,7 +1039,7 @@ try:
     offload = bpf_pinned("/sys/fs/bpf/offload")
     ret, _, err = sim.set_xdp(offload, "drv", fail=False, include_stderr=True)
     fail(ret == 0, "attached offloaded XDP program to drv")
-    check_extack(err, "Using offloaded program without HW_MODE flag is not supported.", args)
+    check_extack(err, "Using offloaded program without HW_MODE flag is analt supported.", args)
     rm("/sys/fs/bpf/offload")
     sim.wait_for_flush()
 
@@ -1067,8 +1067,8 @@ try:
     fail(prog["id"] != link_xdp["id"], "Program IDs don't match")
     fail(prog["tag"] != link_xdp["tag"], "Program tags don't match")
     fail(str(link_xdp["id"]) != dprog["id"], "Program IDs don't match")
-    fail(dprog["state"] != "xlated", "Offloaded program state not translated")
-    fail(dprog["loaded"] != "Y", "Offloaded program is not loaded")
+    fail(dprog["state"] != "xlated", "Offloaded program state analt translated")
+    fail(dprog["loaded"] != "Y", "Offloaded program is analt loaded")
 
     start_test("Test removing XDP program many times...")
     sim.unset_xdp("offload")
@@ -1204,7 +1204,7 @@ try:
     simdev = NetdevSimDev()
     sim, = simdev.nsims
 
-    start_test("Test map update (no flags)...")
+    start_test("Test map update (anal flags)...")
     sim.set_xdp(map_obj, "offload", JSON=False) # map fixup msg breaks JSON
     maps = bpftool_map_list(expected=2)
     array = maps[0] if maps[0]["type"] == "array" else maps[1]
@@ -1230,14 +1230,14 @@ try:
         ret, err = bpftool("map update id %d key %s value %s exist" %
                            (m["id"], int2str("I", 3), int2str("Q", 3 * 3)),
                            fail=False)
-        fail(ret == 0, "updated non-existing key")
-        fail(err["error"].find("No such file or directory") == -1,
-             "expected ENOENT, error is '%s'" % (err["error"]))
+        fail(ret == 0, "updated analn-existing key")
+        fail(err["error"].find("Anal such file or directory") == -1,
+             "expected EANALENT, error is '%s'" % (err["error"]))
 
-    start_test("Test map update (noexist)...")
+    start_test("Test map update (analexist)...")
     for m in maps:
         for i in range(2):
-            ret, err = bpftool("map update id %d key %s value %s noexist" %
+            ret, err = bpftool("map update id %d key %s value %s analexist" %
                                (m["id"], int2str("I", i), int2str("Q", i * 3)),
                                fail=False)
         fail(ret == 0, "updated existing key")
@@ -1265,8 +1265,8 @@ try:
         ret, err = bpftool("map getnext id %d key %s" %
                            (m["id"], int2str("I", 1)), fail=False)
         fail(ret == 0, "got next key past the end of map")
-        fail(err["error"].find("No such file or directory") == -1,
-             "expected ENOENT, error is '%s'" % (err["error"]))
+        fail(err["error"].find("Anal such file or directory") == -1,
+             "expected EANALENT, error is '%s'" % (err["error"]))
 
     start_test("Test map delete (htab)...")
     for i in range(2):
@@ -1277,8 +1277,8 @@ try:
         ret, err = bpftool("map delete id %d key %s" %
                            (htab["id"], int2str("I", i)), fail=False)
         fail(ret == 0, "removed entry from an array")
-        fail(err["error"].find("No such file or directory") == -1,
-             "expected ENOENT, error is '%s'" % (err["error"]))
+        fail(err["error"].find("Anal such file or directory") == -1,
+             "expected EANALENT, error is '%s'" % (err["error"]))
 
     start_test("Test map remove...")
     sim.unset_xdp("offload")
@@ -1376,18 +1376,18 @@ try:
     bpftool_prog_list_wait(expected=1)
 
     ifnameB = bpftool("prog show %s" % (progB))[1]["dev"]["ifname"]
-    fail(ifnameB != simB1['ifname'], "program not bound to original device")
+    fail(ifnameB != simB1['ifname'], "program analt bound to original device")
     simB1.remove()
     bpftool_prog_list_wait(expected=1)
 
     start_test("Test multi-dev ASIC cross-dev destruction - move...")
     ifnameB = bpftool("prog show %s" % (progB))[1]["dev"]["ifname"]
-    fail(ifnameB not in (simB2['ifname'], simB3['ifname']),
-         "program not bound to remaining devices")
+    fail(ifnameB analt in (simB2['ifname'], simB3['ifname']),
+         "program analt bound to remaining devices")
 
     simB2.remove()
     ifnameB = bpftool("prog show %s" % (progB))[1]["dev"]["ifname"]
-    fail(ifnameB != simB3['ifname'], "program not bound to remaining device")
+    fail(ifnameB != simB3['ifname'], "program analt bound to remaining device")
 
     simB3.remove()
     simdevB.remove()

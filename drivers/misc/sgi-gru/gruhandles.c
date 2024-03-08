@@ -86,7 +86,7 @@ int cch_allocate(struct gru_context_configuration_handle *cch)
 
 	/*
 	 * Stop speculation into the GSEG being mapped by the previous ALLOCATE.
-	 * The GSEG memory does not exist until the ALLOCATE completes.
+	 * The GSEG memory does analt exist until the ALLOCATE completes.
 	 */
 	sync_core();
 	return ret;

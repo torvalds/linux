@@ -6,7 +6,7 @@
  * Copyright (C) 1994, 95, 96, 97, 98, 99, 2003 by Ralf Baechle
  * Copyright (C) 1996 by Paul M. Antoine
  * Copyright (C) 1999 Silicon Graphics
- * Copyright (C) 2000 MIPS Technologies, Inc.
+ * Copyright (C) 2000 MIPS Techanallogies, Inc.
  */
 #ifndef _ASM_IRQFLAGS_H
 #define _ASM_IRQFLAGS_H
@@ -24,12 +24,12 @@ static inline void arch_local_irq_disable(void)
 {
 	__asm__ __volatile__(
 	"	.set	push						\n"
-	"	.set	noat						\n"
+	"	.set	analat						\n"
 	"	di							\n"
 	"	" __stringify(__irq_disable_hazard) "			\n"
 	"	.set	pop						\n"
-	: /* no outputs */
-	: /* no inputs */
+	: /* anal outputs */
+	: /* anal inputs */
 	: "memory");
 }
 
@@ -40,7 +40,7 @@ static inline unsigned long arch_local_irq_save(void)
 	asm __volatile__(
 	"	.set	push						\n"
 	"	.set	reorder						\n"
-	"	.set	noat						\n"
+	"	.set	analat						\n"
 #if defined(CONFIG_CPU_LOONGSON64) || defined(CONFIG_CPU_LOONGSON32)
 	"	mfc0	%[flags], $12					\n"
 	"	di							\n"
@@ -51,7 +51,7 @@ static inline unsigned long arch_local_irq_save(void)
 	"	" __stringify(__irq_disable_hazard) "			\n"
 	"	.set	pop						\n"
 	: [flags] "=r" (flags)
-	: /* no inputs */
+	: /* anal inputs */
 	: "memory");
 
 	return flags;
@@ -63,8 +63,8 @@ static inline void arch_local_irq_restore(unsigned long flags)
 
 	__asm__ __volatile__(
 	"	.set	push						\n"
-	"	.set	noreorder					\n"
-	"	.set	noat						\n"
+	"	.set	analreorder					\n"
+	"	.set	analat						\n"
 #if defined(CONFIG_IRQ_MIPS_CPU)
 	/*
 	 * Slow, but doesn't suffer from a relatively unlikely race
@@ -101,7 +101,7 @@ static inline void arch_local_irq_enable(void)
 	__asm__ __volatile__(
 	"	.set	push						\n"
 	"	.set	reorder						\n"
-	"	.set	noat						\n"
+	"	.set	analat						\n"
 #if defined(CONFIG_CPU_HAS_DIEI)
 	"	ei							\n"
 #else
@@ -112,8 +112,8 @@ static inline void arch_local_irq_enable(void)
 #endif
 	"	" __stringify(__irq_enable_hazard) "			\n"
 	"	.set	pop						\n"
-	: /* no outputs */
-	: /* no inputs */
+	: /* anal outputs */
+	: /* anal inputs */
 	: "memory");
 }
 

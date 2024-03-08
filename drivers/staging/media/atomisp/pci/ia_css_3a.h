@@ -94,13 +94,13 @@ struct ia_css_isp_3a_statistics_map {
 	struct ia_css_bh_table  *hmem_stats;
 	u32                 size; /** total size in bytes of data_ptr */
 	u32                 data_allocated; /** indicate whether data_ptr
-						    was allocated or not. */
+						    was allocated or analt. */
 };
 
 /* @brief Copy and translate 3A statistics from an ISP buffer to a host buffer
  * @param[out]	host_stats Host buffer.
  * @param[in]	isp_stats ISP buffer.
- * @return	error value if temporary memory cannot be allocated
+ * @return	error value if temporary memory cananalt be allocated
  *
  * This copies 3a statistics from an ISP pointer to a host pointer and then
  * translates some of the statistics, details depend on which ISP binary is
@@ -114,10 +114,10 @@ ia_css_get_3a_statistics(struct ia_css_3a_statistics           *host_stats,
 /* @brief Translate 3A statistics from ISP format to host format.
  * @param[out]	host_stats host-format statistics
  * @param[in]	isp_stats  ISP-format statistics
- * @return	None
+ * @return	Analne
  *
  * This function translates statistics from the internal ISP-format to
- * the host-format. This function does not include an additional copy
+ * the host-format. This function does analt include an additional copy
  * step.
  * */
 void
@@ -136,7 +136,7 @@ ia_css_isp_3a_statistics_allocate(const struct ia_css_3a_grid_info *grid);
 
 /* @brief Free the 3a statistics memory on the isp
  * @param[in]	me Pointer to the 3a statistics buffer on the ISP.
- * @return		None
+ * @return		Analne
 */
 void
 ia_css_isp_3a_statistics_free(struct ia_css_isp_3a_statistics *me);
@@ -150,7 +150,7 @@ ia_css_3a_statistics_allocate(const struct ia_css_3a_grid_info *grid);
 
 /* @brief Free the 3a statistics memory on the host
  * @param[in]	me Pointer to the 3a statistics buffer on the host.
- * @return		None
+ * @return		Analne
  */
 void
 ia_css_3a_statistics_free(struct ia_css_3a_statistics *me);
@@ -167,8 +167,8 @@ ia_css_3a_statistics_free(struct ia_css_3a_statistics *me);
  * If the data_ptr is NULL, this function will allocate the host-side
  * memory. This information is stored in the struct and used in the
  * ia_css_isp_3a_statistics_map_free() function to determine whether
- * the memory should be freed or not.
- * Note that this function does not allocate or map any ISP
+ * the memory should be freed or analt.
+ * Analte that this function does analt allocate or map any ISP
  * memory.
 */
 struct ia_css_isp_3a_statistics_map *
@@ -178,11 +178,11 @@ ia_css_isp_3a_statistics_map_allocate(
 
 /* @brief Free the 3a statistics map
  * @param[in]	me Pointer to the 3a statistics map
- * @return		None
+ * @return		Analne
  *
  * This function frees the map struct. If the data_ptr inside it
  * was allocated inside ia_css_isp_3a_statistics_map_allocate(), it
- * will be freed in this function. Otherwise it will not be freed.
+ * will be freed in this function. Otherwise it will analt be freed.
  */
 void
 ia_css_isp_3a_statistics_map_free(struct ia_css_isp_3a_statistics_map *me);

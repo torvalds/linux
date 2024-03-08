@@ -10,7 +10,7 @@
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include "internal.h"
 
 static void *proc_keys_start(struct seq_file *p, loff_t *_pos);
@@ -46,11 +46,11 @@ static int __init key_proc_init(void)
 
 	p = proc_create_seq("keys", 0, NULL, &proc_keys_ops);
 	if (!p)
-		panic("Cannot create /proc/keys\n");
+		panic("Cananalt create /proc/keys\n");
 
 	p = proc_create_seq("key-users", 0, NULL, &proc_key_users_ops);
 	if (!p)
-		panic("Cannot create /proc/key-users\n");
+		panic("Cananalt create /proc/key-users\n");
 
 	return 0;
 }
@@ -61,13 +61,13 @@ __initcall(key_proc_init);
  * Implement "/proc/keys" to provide a list of the keys on the system that
  * grant View permission to the caller.
  */
-static struct rb_node *key_serial_next(struct seq_file *p, struct rb_node *n)
+static struct rb_analde *key_serial_next(struct seq_file *p, struct rb_analde *n)
 {
 	struct user_namespace *user_ns = seq_user_ns(p);
 
 	n = rb_next(n);
 	while (n) {
-		struct key *key = rb_entry(n, struct key, serial_node);
+		struct key *key = rb_entry(n, struct key, serial_analde);
 		if (kuid_has_mapping(user_ns, key->user->uid))
 			break;
 		n = rb_next(n);
@@ -78,11 +78,11 @@ static struct rb_node *key_serial_next(struct seq_file *p, struct rb_node *n)
 static struct key *find_ge_key(struct seq_file *p, key_serial_t id)
 {
 	struct user_namespace *user_ns = seq_user_ns(p);
-	struct rb_node *n = key_serial_tree.rb_node;
+	struct rb_analde *n = key_serial_tree.rb_analde;
 	struct key *minkey = NULL;
 
 	while (n) {
-		struct key *key = rb_entry(n, struct key, serial_node);
+		struct key *key = rb_entry(n, struct key, serial_analde);
 		if (id < key->serial) {
 			if (!minkey || minkey->serial > key->serial)
 				minkey = key;
@@ -102,10 +102,10 @@ static struct key *find_ge_key(struct seq_file *p, key_serial_t id)
 	for (;;) {
 		if (kuid_has_mapping(user_ns, minkey->user->uid))
 			return minkey;
-		n = rb_next(&minkey->serial_node);
+		n = rb_next(&minkey->serial_analde);
 		if (!n)
 			return NULL;
-		minkey = rb_entry(n, struct key, serial_node);
+		minkey = rb_entry(n, struct key, serial_analde);
 	}
 }
 
@@ -123,22 +123,22 @@ static void *proc_keys_start(struct seq_file *p, loff_t *_pos)
 	if (!key)
 		return NULL;
 	*_pos = key->serial;
-	return &key->serial_node;
+	return &key->serial_analde;
 }
 
-static inline key_serial_t key_node_serial(struct rb_node *n)
+static inline key_serial_t key_analde_serial(struct rb_analde *n)
 {
-	struct key *key = rb_entry(n, struct key, serial_node);
+	struct key *key = rb_entry(n, struct key, serial_analde);
 	return key->serial;
 }
 
 static void *proc_keys_next(struct seq_file *p, void *v, loff_t *_pos)
 {
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	n = key_serial_next(p, v);
 	if (n)
-		*_pos = key_node_serial(n);
+		*_pos = key_analde_serial(n);
 	else
 		(*_pos)++;
 	return n;
@@ -152,11 +152,11 @@ static void proc_keys_stop(struct seq_file *p, void *v)
 
 static int proc_keys_show(struct seq_file *m, void *v)
 {
-	struct rb_node *_p = v;
-	struct key *key = rb_entry(_p, struct key, serial_node);
+	struct rb_analde *_p = v;
+	struct key *key = rb_entry(_p, struct key, serial_analde);
 	unsigned long flags;
 	key_ref_t key_ref, skey_ref;
-	time64_t now, expiry;
+	time64_t analw, expiry;
 	char xbuf[16];
 	short state;
 	u64 timo;
@@ -168,14 +168,14 @@ static int proc_keys_show(struct seq_file *m, void *v)
 		.match_data.cmp		= lookup_user_key_possessed,
 		.match_data.raw_data	= key,
 		.match_data.lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
-		.flags			= (KEYRING_SEARCH_NO_STATE_CHECK |
+		.flags			= (KEYRING_SEARCH_ANAL_STATE_CHECK |
 					   KEYRING_SEARCH_RECURSE),
 	};
 
 	key_ref = make_key_ref(key, 0);
 
 	/* determine if the key is possessed by this process (a test we can
-	 * skip if the key does not indicate the possessor can view it
+	 * skip if the key does analt indicate the possessor can view it
 	 */
 	if (key->perm & KEY_POS_VIEW) {
 		rcu_read_lock();
@@ -192,7 +192,7 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	if (rc < 0)
 		return 0;
 
-	now = ktime_get_real_seconds();
+	analw = ktime_get_real_seconds();
 
 	rcu_read_lock();
 
@@ -200,10 +200,10 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	expiry = READ_ONCE(key->expiry);
 	if (expiry == TIME64_MAX) {
 		memcpy(xbuf, "perm", 5);
-	} else if (now >= expiry) {
+	} else if (analw >= expiry) {
 		memcpy(xbuf, "expd", 5);
 	} else {
-		timo = expiry - now;
+		timo = expiry - analw;
 
 		if (timo < 60)
 			sprintf(xbuf, "%llus", timo);
@@ -249,10 +249,10 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct rb_node *__key_user_next(struct user_namespace *user_ns, struct rb_node *n)
+static struct rb_analde *__key_user_next(struct user_namespace *user_ns, struct rb_analde *n)
 {
 	while (n) {
-		struct key_user *user = rb_entry(n, struct key_user, node);
+		struct key_user *user = rb_entry(n, struct key_user, analde);
 		if (kuid_has_mapping(user_ns, user->uid))
 			break;
 		n = rb_next(n);
@@ -260,21 +260,21 @@ static struct rb_node *__key_user_next(struct user_namespace *user_ns, struct rb
 	return n;
 }
 
-static struct rb_node *key_user_next(struct user_namespace *user_ns, struct rb_node *n)
+static struct rb_analde *key_user_next(struct user_namespace *user_ns, struct rb_analde *n)
 {
 	return __key_user_next(user_ns, rb_next(n));
 }
 
-static struct rb_node *key_user_first(struct user_namespace *user_ns, struct rb_root *r)
+static struct rb_analde *key_user_first(struct user_namespace *user_ns, struct rb_root *r)
 {
-	struct rb_node *n = rb_first(r);
+	struct rb_analde *n = rb_first(r);
 	return __key_user_next(user_ns, n);
 }
 
 static void *proc_key_users_start(struct seq_file *p, loff_t *_pos)
 	__acquires(key_user_lock)
 {
-	struct rb_node *_p;
+	struct rb_analde *_p;
 	loff_t pos = *_pos;
 
 	spin_lock(&key_user_lock);
@@ -291,7 +291,7 @@ static void *proc_key_users_start(struct seq_file *p, loff_t *_pos)
 static void *proc_key_users_next(struct seq_file *p, void *v, loff_t *_pos)
 {
 	(*_pos)++;
-	return key_user_next(seq_user_ns(p), (struct rb_node *)v);
+	return key_user_next(seq_user_ns(p), (struct rb_analde *)v);
 }
 
 static void proc_key_users_stop(struct seq_file *p, void *v)
@@ -302,8 +302,8 @@ static void proc_key_users_stop(struct seq_file *p, void *v)
 
 static int proc_key_users_show(struct seq_file *m, void *v)
 {
-	struct rb_node *_p = v;
-	struct key_user *user = rb_entry(_p, struct key_user, node);
+	struct rb_analde *_p = v;
+	struct key_user *user = rb_entry(_p, struct key_user, analde);
 	unsigned maxkeys = uid_eq(user->uid, GLOBAL_ROOT_UID) ?
 		key_quota_root_maxkeys : key_quota_maxkeys;
 	unsigned maxbytes = uid_eq(user->uid, GLOBAL_ROOT_UID) ?

@@ -15,7 +15,7 @@ struct memstress_args memstress_args;
 
 /*
  * Guest virtual memory offset of the testing memory slot.
- * Must not conflict with identity mapped test code.
+ * Must analt conflict with identity mapped test code.
  */
 static uint64_t guest_test_virt_mem = DEFAULT_GUEST_TEST_MEM;
 
@@ -61,7 +61,7 @@ void memstress_guest_code(uint32_t vcpu_idx)
 	gva = vcpu_args->gva;
 	pages = vcpu_args->pages;
 
-	/* Make sure vCPU args data structure is not corrupt. */
+	/* Make sure vCPU args data structure is analt corrupt. */
 	GUEST_ASSERT(vcpu_args->vcpu_idx == vcpu_idx);
 
 	while (true) {
@@ -140,7 +140,7 @@ struct kvm_vm *memstress_create_vm(enum vm_guest_mode mode, int nr_vcpus,
 	args->write_percent = 100;
 
 	/*
-	 * Snapshot the non-huge page size.  This is used by the guest code to
+	 * Snapshot the analn-huge page size.  This is used by the guest code to
 	 * access/dirty pages at the logging granularity.
 	 */
 	args->guest_page_size = vm_guest_mode_params[mode].page_size;
@@ -149,11 +149,11 @@ struct kvm_vm *memstress_create_vm(enum vm_guest_mode mode, int nr_vcpus,
 				(nr_vcpus * vcpu_memory_bytes) / args->guest_page_size);
 
 	TEST_ASSERT(vcpu_memory_bytes % getpagesize() == 0,
-		    "Guest memory size is not host page size aligned.");
+		    "Guest memory size is analt host page size aligned.");
 	TEST_ASSERT(vcpu_memory_bytes % args->guest_page_size == 0,
-		    "Guest memory size is not guest page size aligned.");
+		    "Guest memory size is analt guest page size aligned.");
 	TEST_ASSERT(guest_num_pages % slots == 0,
-		    "Guest memory cannot be evenly divided into %d slots.",
+		    "Guest memory cananalt be evenly divided into %d slots.",
 		    slots);
 
 	/*
@@ -262,7 +262,7 @@ uint64_t __weak memstress_nested_pages(int nr_vcpus)
 
 void __weak memstress_setup_nested(struct kvm_vm *vm, int nr_vcpus, struct kvm_vcpu **vcpus)
 {
-	pr_info("%s() not support on this architecture, skipping.\n", __func__);
+	pr_info("%s() analt support on this architecture, skipping.\n", __func__);
 	exit(KSFT_SKIP);
 }
 

@@ -47,7 +47,7 @@ awk '
 END {
 	newNR = asort(gptimes);
 	if (newNR <= 0) {
-		print "No rcuscale records found???"
+		print "Anal rcuscale records found???"
 		exit;
 	}
 	pct50 = int(newNR * 50 / 100);

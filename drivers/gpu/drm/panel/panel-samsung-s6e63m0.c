@@ -237,7 +237,7 @@ static u8 const s6e63m0_acl_per_gamma[NUM_GAMMA_LEVELS] = {
 #define S6E63M0_ELVSS_LEVELS 5
 
 static u8 const s6e63m0_elvss_offsets[S6E63M0_ELVSS_LEVELS] = {
-	0x00,   /* not set */
+	0x00,   /* analt set */
 	0x0D,   /* 30 cd - 100 cd */
 	0x09,   /* 110 cd - 160 cd */
 	0x07,   /* 170 cd - 200 cd */
@@ -364,7 +364,7 @@ static int s6e63m0_check_lcd_type(struct s6e63m0 *ctx)
 		ctx->elvss_pulse = id3;
 		break;
 	default:
-		dev_info(ctx->dev, "unknown LCD panel type %02x\n", id2);
+		dev_info(ctx->dev, "unkanalwn LCD panel type %02x\n", id2);
 		/* Default ELVSS pulse level */
 		ctx->elvss_pulse = 0x16;
 		break;
@@ -378,8 +378,8 @@ static int s6e63m0_check_lcd_type(struct s6e63m0 *ctx)
 static void s6e63m0_init(struct s6e63m0 *ctx)
 {
 	/*
-	 * We do not know why there is a difference in the DSI mode.
-	 * (No datasheet.)
+	 * We do analt kanalw why there is a difference in the DSI mode.
+	 * (Anal datasheet.)
 	 *
 	 * In the vendor driver this sequence is called
 	 * "SEQ_PANEL_CONDITION_SET" or "DCS_CMD_SEQ_PANEL_COND_SET".
@@ -581,7 +581,7 @@ static int s6e63m0_get_modes(struct drm_panel *panel,
 		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			drm_mode_vrefresh(&default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	connector->display_info.width_mm = mode->width_mm;
@@ -677,7 +677,7 @@ int s6e63m0_probe(struct device *dev, void *trsp,
 
 	ctx = devm_kzalloc(dev, sizeof(struct s6e63m0), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->transport_data = trsp;
 	ctx->dsi_mode = dsi_mode;
@@ -706,7 +706,7 @@ int s6e63m0_probe(struct device *dev, void *trsp,
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio)) {
-		dev_err(dev, "cannot get reset-gpios %ld\n", PTR_ERR(ctx->reset_gpio));
+		dev_err(dev, "cananalt get reset-gpios %ld\n", PTR_ERR(ctx->reset_gpio));
 		return PTR_ERR(ctx->reset_gpio);
 	}
 

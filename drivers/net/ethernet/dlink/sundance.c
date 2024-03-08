@@ -5,7 +5,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license analtice.  This file is analt
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -16,7 +16,7 @@
 
 	Support and updates available at
 	http://www.scyld.com/network/sundance.html
-	[link no longer provides useful info -jgarzik]
+	[link anal longer provides useful info -jgarzik]
 	Archives of the mailing list are still available at
 	https://www.beowulf.org/pipermail/netdrivers/
 
@@ -26,14 +26,14 @@
 
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
-static int debug = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
+static int debug = 1;			/* 1 analrmal messages, 0 quiet .. 7 verbose. */
 /* Maximum number of multicast addresses to filter (vs. rx-all-multicast).
    Typical is a 64 element hash table based on the Ethernet CRC.  */
 static const int multicast_filter_limit = 32;
 
 /* Set the copy breakpoint for the copy-only-tiny-frames scheme.
    Setting to > 1518 effectively disables this feature.
-   This chip can receive into offset buffers, so the Alpha does not
+   This chip can receive into offset buffers, so the Alpha does analt
    need a copy-align. */
 static int rx_copybreak;
 static int flowctrl=1;
@@ -69,7 +69,7 @@ static char *media[MAX_UNITS];
 #define TX_TOTAL_SIZE	TX_RING_SIZE*sizeof(struct netdev_desc)
 #define RX_TOTAL_SIZE	RX_RING_SIZE*sizeof(struct netdev_desc)
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are analt changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (4*HZ)
 #define PKT_BUF_SZ		1536	/* Size of each temporary Rx buffer.*/
@@ -79,7 +79,7 @@ static char *media[MAX_UNITS];
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -115,7 +115,7 @@ MODULE_PARM_DESC(flowctrl, "Sundance Alta flow control [0|1]");
 
 I. Board Compatibility
 
-This driver is designed for the Sundance Technologies "Alta" ST201 chip.
+This driver is designed for the Sundance Techanallogies "Alta" ST201 chip.
 
 II. Board-specific settings
 
@@ -172,7 +172,7 @@ from the Tx ring.  After reaping the stats, it marks the Tx queue entry as
 empty by incrementing the dirty_tx mark. Iff the 'lp->tx_full' flag is set, it
 clears both the tx_full and tbusy flags.
 
-IV. Notes
+IV. Analtes
 
 IVb. References
 
@@ -216,7 +216,7 @@ static const struct pci_id_info pci_id_tbl[] = {
 	{"D-Link DFE-580TX 4 port Server Adapter"},
 	{"D-Link DFE-530TXS FAST Ethernet Adapter"},
 	{"D-Link DL10050-based FAST Ethernet Adapter"},
-	{"Sundance Technology Alta"},
+	{"Sundance Techanallogy Alta"},
 	{"IC Plus Corporation IP100A FAST Ethernet Adapter"},
 	{ }	/* terminate list. */
 };
@@ -226,7 +226,7 @@ static const struct pci_id_info pci_id_tbl[] = {
 
 /* Offsets to the device registers.
    Unlike software-only systems, device drivers interact with complex hardware.
-   It's not useful to define symbolic names for every register bit in the
+   It's analt useful to define symbolic names for every register bit in the
    device.  The name can only partially document the semantics and make
    the driver longer and more difficult to read.
    In general, only the important configuration values or bits changed
@@ -335,7 +335,7 @@ enum wake_event_bits {
 };
 
 /* The Rx and Tx buffer descriptors. */
-/* Note that using only 32 bit fields simplifies conversion to big-endian
+/* Analte that using only 32 bit fields simplifies conversion to big-endian
    architectures. */
 struct netdev_desc {
 	__le32 next_desc;
@@ -455,7 +455,7 @@ static void sundance_reset(struct net_device *dev, unsigned long reset_cmd)
 	countdown = 10 + 1;
 	while (ioread32 (ioaddr) & (ResetBusy << 16)) {
 		if (--countdown == 0) {
-			printk(KERN_WARNING "%s : reset not completed !!\n", dev->name);
+			printk(KERN_WARNING "%s : reset analt completed !!\n", dev->name);
 			break;
 		}
 		udelay(100);
@@ -518,7 +518,7 @@ static int sundance_probe1(struct pci_dev *pdev,
 
 	dev = alloc_etherdev(sizeof(*np));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (pci_request_regions(pdev, DRV_NAME))
@@ -613,7 +613,7 @@ static int sundance_probe1(struct pci_dev *pdev,
 	np->mii_preamble_required--;
 
 	if (phy_idx == 0) {
-		printk(KERN_INFO "%s: No MII transceiver found, aborting.  ASIC status %x\n",
+		printk(KERN_INFO "%s: Anal MII transceiver found, aborting.  ASIC status %x\n",
 			   dev->name, ioread32(ioaddr + ASICCtrl));
 		goto err_out_unregister;
 	}
@@ -682,7 +682,7 @@ static int sundance_probe1(struct pci_dev *pdev,
 		printk("ASIC Control is %x.\n", ioread32(ioaddr + ASICCtrl));
 	sundance_reset(dev, 0x00ff << 16);
 	if (netif_msg_hw(np))
-		printk("ASIC Control is now %x.\n", ioread32(ioaddr + ASICCtrl));
+		printk("ASIC Control is analw %x.\n", ioread32(ioaddr + ASICCtrl));
 
 	card_idx++;
 	return 0;
@@ -701,7 +701,7 @@ err_out_res:
 	pci_release_regions(pdev);
 err_out_netdev:
 	free_netdev (dev);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int change_mtu(struct net_device *dev, int new_mtu)
@@ -1113,7 +1113,7 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 	/* On some architectures: explicitly flush cache lines here. */
 	if (np->cur_tx - np->dirty_tx < TX_QUEUE_LEN - 1 &&
 	    !netif_queue_stopped(dev)) {
-		/* do nothing */
+		/* do analthing */
 	} else {
 		netif_stop_queue (dev);
 	}
@@ -1229,7 +1229,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 					if (tx_status & 0x10) {	/* TxUnderrun */
 						/* Restart Tx FIFO and transmitter */
 						sundance_reset(dev, (NetworkReset|FIFOReset|TxReset) << 16);
-						/* No need to reset the Tx pointer here */
+						/* Anal need to reset the Tx pointer here */
 					}
 					/* Restart the Tx. Need to make sure tx enabled */
 					i = 10;
@@ -1302,10 +1302,10 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 
 		if (netif_queue_stopped(dev) &&
 			np->cur_tx - np->dirty_tx < TX_QUEUE_LEN - 4) {
-			/* The ring is no longer full, clear busy flag. */
+			/* The ring is anal longer full, clear busy flag. */
 			netif_wake_queue (dev);
 		}
-		/* Abnormal error summary/uncommon events handlers. */
+		/* Abanalrmal error summary/uncommon events handlers. */
 		if (intr_status & (IntrPCIErr | LinkChange | StatsMax))
 			netdev_error(dev, intr_status);
 	} while (0);
@@ -1331,7 +1331,7 @@ static void rx_poll(struct tasklet_struct *t)
 		int pkt_len;
 
 		if (--boguscnt < 0) {
-			goto not_done;
+			goto analt_done;
 		}
 		if (!(frame_status & DescOwn))
 			break;
@@ -1362,11 +1362,11 @@ static void rx_poll(struct tasklet_struct *t)
 			struct sk_buff *skb;
 #ifndef final_version
 			if (netif_msg_rx_status(np))
-				printk(KERN_DEBUG "  netdev_rx() normal Rx pkt length %d"
+				printk(KERN_DEBUG "  netdev_rx() analrmal Rx pkt length %d"
 					   ", bogus_cnt %d.\n",
 					   pkt_len, boguscnt);
 #endif
-			/* Check if the packet is long enough to accept without copying
+			/* Check if the packet is long eanalugh to accept without copying
 			   to a minimally-sized skbuff. */
 			if (pkt_len < rx_copybreak &&
 			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
@@ -1387,7 +1387,7 @@ static void rx_poll(struct tasklet_struct *t)
 				np->rx_skbuff[entry] = NULL;
 			}
 			skb->protocol = eth_type_trans(skb, dev);
-			/* Note: checksum -> skb->ip_summed = CHECKSUM_UNNECESSARY; */
+			/* Analte: checksum -> skb->ip_summed = CHECKSUM_UNNECESSARY; */
 			netif_rx(skb);
 		}
 		entry = (entry + 1) % RX_RING_SIZE;
@@ -1399,7 +1399,7 @@ static void rx_poll(struct tasklet_struct *t)
 	iowrite16(DEFAULT_INTR, ioaddr + IntrEnable);
 	return;
 
-not_done:
+analt_done:
 	np->cur_rx = entry;
 	refill_rx (dev);
 	if (!received)
@@ -1436,7 +1436,7 @@ static void refill_rx (struct net_device *dev)
 			    break;
 			}
 		}
-		/* Perhaps we need not reset this field. */
+		/* Perhaps we need analt reset this field. */
 		np->rx_ring[entry].frag.length =
 			cpu_to_le32(np->rx_buf_sz | LastFrag);
 		np->rx_ring[entry].status = 0;
@@ -1610,7 +1610,7 @@ static int sundance_set_mac_addr(struct net_device *dev, void *data)
 	const struct sockaddr *addr = data;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	eth_hw_addr_set(dev, addr->sa_data);
 	__set_mac_addr(dev);
 
@@ -1704,7 +1704,7 @@ static int get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(sundance_stats);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1757,7 +1757,7 @@ static int sundance_set_wol(struct net_device *dev,
 	u8 wol_bits;
 
 	if (!device_can_wakeup(&np->pci_dev->dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	np->wol_enabled = !!(wol->wolopts);
 	wol_bits = ioread8(ioaddr + WakeEvent);

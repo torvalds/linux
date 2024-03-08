@@ -95,7 +95,7 @@ EXPORT_SYMBOL(key_task_permission);
  * key_validate - Validate a key.
  * @key: The key to be validated.
  *
- * Check that a key is valid, returning 0 if the key is okay, -ENOKEY if the
+ * Check that a key is valid, returning 0 if the key is okay, -EANALKEY if the
  * key is invalidated, -EKEYREVOKED if the key's type has been removed or if
  * the key has been revoked or -EKEYEXPIRED if the key has expired.
  */
@@ -105,7 +105,7 @@ int key_validate(const struct key *key)
 	time64_t expiry = READ_ONCE(key->expiry);
 
 	if (flags & (1 << KEY_FLAG_INVALIDATED))
-		return -ENOKEY;
+		return -EANALKEY;
 
 	/* check it's still accessible */
 	if (flags & ((1 << KEY_FLAG_REVOKED) |

@@ -11,14 +11,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -83,7 +83,7 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 		/* Try placing BOs which don't need CPU access outside of the
 		 * CPU accessible part of VRAM
 		 */
-		if ((rbo->flags & RADEON_GEM_NO_CPU_ACCESS) &&
+		if ((rbo->flags & RADEON_GEM_ANAL_CPU_ACCESS) &&
 		    rbo->rdev->mc.visible_vram_size < rbo->rdev->mc.real_vram_size) {
 			rbo->placements[c].fpfn =
 				rbo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
@@ -151,7 +151,7 @@ int radeon_bo_create(struct radeon_device *rdev,
 
 	bo = kzalloc(sizeof(struct radeon_bo), GFP_KERNEL);
 	if (bo == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	drm_gem_private_object_init(rdev->ddev, &bo->tbo.base, size);
 	bo->rdev = rdev;
 	bo->surface_reg = -1;
@@ -162,7 +162,7 @@ int radeon_bo_create(struct radeon_device *rdev,
 				       RADEON_GEM_DOMAIN_CPU);
 
 	bo->flags = flags;
-	/* PCI GART is always snooped */
+	/* PCI GART is always sanaloped */
 	if (!(rdev->flags & RADEON_IS_PCIE))
 		bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
 
@@ -301,7 +301,7 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 		return 0;
 	}
 	if (bo->prime_shared_count && domain == RADEON_GEM_DOMAIN_VRAM) {
-		/* A BO shared as a dma-buf cannot be sensibly migrated to VRAM */
+		/* A BO shared as a dma-buf cananalt be sensibly migrated to VRAM */
 		return -EINVAL;
 	}
 
@@ -309,7 +309,7 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 	for (i = 0; i < bo->placement.num_placement; i++) {
 		/* force to pin into visible video ram */
 		if ((bo->placements[i].mem_type == TTM_PL_VRAM) &&
-		    !(bo->flags & RADEON_GEM_NO_CPU_ACCESS) &&
+		    !(bo->flags & RADEON_GEM_ANAL_CPU_ACCESS) &&
 		    (!max_offset || max_offset > bo->rdev->mc.visible_vram_size))
 			bo->placements[i].lpfn =
 				bo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
@@ -445,7 +445,7 @@ static u64 radeon_bo_get_threshold_for_moves(struct radeon_device *rdev)
 	 *    VRAM 0 %             100 %
 	 *         used            used
 	 *
-	 * Note: It's a threshold, not a limit. The threshold must be crossed
+	 * Analte: It's a threshold, analt a limit. The threshold must be crossed
 	 * for buffer relocations to stop, so any buffer of an arbitrary size
 	 * can be moved as long as the threshold isn't crossed before
 	 * the relocation takes place. We don't want to disable buffer
@@ -495,7 +495,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 			/* Check if this buffer will be moved and don't move it
 			 * if we have moved too many buffers for this IB already.
 			 *
-			 * Note that this allows moving at least one buffer of
+			 * Analte that this allows moving at least one buffer of
 			 * any size, because it doesn't take the current "bo"
 			 * into account. We don't want to disallow buffer moves
 			 * completely.
@@ -572,7 +572,7 @@ int radeon_bo_get_surface_reg(struct radeon_bo *bo)
 	/* if we are all out */
 	if (i == RADEON_GEM_MAX_SURFACES) {
 		if (steal == -1)
-			return -ENOMEM;
+			return -EANALMEM;
 		/* find someone with a surface reg and nuke their BO */
 		reg = &rdev->surface_regs[steal];
 		old_object = reg->bo;
@@ -709,7 +709,7 @@ int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 	return radeon_bo_get_surface_reg(bo);
 }
 
-void radeon_bo_move_notify(struct ttm_buffer_object *bo)
+void radeon_bo_move_analtify(struct ttm_buffer_object *bo)
 {
 	struct radeon_bo *rbo;
 
@@ -721,7 +721,7 @@ void radeon_bo_move_notify(struct ttm_buffer_object *bo)
 	radeon_vm_bo_invalidate(rbo->rdev, rbo);
 }
 
-vm_fault_t radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
+vm_fault_t radeon_bo_fault_reserve_analtify(struct ttm_buffer_object *bo)
 {
 	struct ttm_operation_ctx ctx = { false, false };
 	struct radeon_device *rdev;
@@ -746,7 +746,7 @@ vm_fault_t radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	if (rbo->tbo.pin_count > 0)
 		return VM_FAULT_SIGBUS;
 
-	/* hurrah the memory is not visible ! */
+	/* hurrah the memory is analt visible ! */
 	radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_VRAM);
 	lpfn =	rdev->mc.visible_vram_size >> PAGE_SHIFT;
 	for (i = 0; i < rbo->placement.num_placement; i++) {
@@ -756,7 +756,7 @@ vm_fault_t radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 			rbo->placements[i].lpfn = lpfn;
 	}
 	r = ttm_bo_validate(bo, &rbo->placement, &ctx);
-	if (unlikely(r == -ENOMEM)) {
+	if (unlikely(r == -EANALMEM)) {
 		radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_GTT);
 		r = ttm_bo_validate(bo, &rbo->placement, &ctx);
 	} else if (likely(!r)) {
@@ -767,7 +767,7 @@ vm_fault_t radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	}
 
 	if (unlikely(r == -EBUSY || r == -ERESTARTSYS))
-		return VM_FAULT_NOPAGE;
+		return VM_FAULT_ANALPAGE;
 	else if (unlikely(r))
 		return VM_FAULT_SIGBUS;
 

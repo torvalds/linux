@@ -23,7 +23,7 @@
 
 /*
  * Memory and IO mappings. We use a 1:1 mapping for local host memory to
- * PCI bus memory (no reason not to really). IO space is mapped in its own
+ * PCI bus memory (anal reason analt to really). IO space is mapped in its own
  * separate address region. The device configuration space is mapped over
  * the IO map space when we enable it in the PCICAR register.
  */
@@ -33,7 +33,7 @@ static unsigned long iospace;
 /*
  * We need to be careful probing on bus 0 (directly connected to host
  * bridge). We should only access the well defined possible devices in
- * use, ignore aliases and the like.
+ * use, iganalre aliases and the like.
  */
 static unsigned char mcf_host_slot2sid[32] = {
 	0, 0, 0, 0, 0, 0, 0, 0,
@@ -170,7 +170,7 @@ static int __init mcf_pci_init(void)
 
 	bridge = pci_alloc_host_bridge(0);
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pr_info("ColdFire: PCI bus initialization...\n");
 
@@ -218,7 +218,7 @@ static int __init mcf_pci_init(void)
 	iospace = (unsigned long) ioremap(PCI_IO_PA, PCI_IO_SIZE);
 	if (iospace == 0) {
 		pci_free_host_bridge(bridge);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	pr_info("Coldfire: PCI IO/config window mapped to 0x%x\n",
 		(u32) iospace);

@@ -72,7 +72,7 @@
 #define F_MMU_DCM_ON				BIT(1)
 #define REG_MMU_CPE_DONE			0x60c
 #define F_DESC_VALID				0x2
-#define F_DESC_NONSEC				BIT(3)
+#define F_DESC_ANALNSEC				BIT(3)
 #define MT2701_M4U_TF_LARB(TF)			(6 - (((TF) >> 13) & 0x7))
 #define MT2701_M4U_TF_PORT(TF)			(((TF) >> 8) & 0xF)
 /* MTK generation one iommu HW only support 4K size mapping */
@@ -209,7 +209,7 @@ static irqreturn_t mtk_iommu_v1_isr(int irq, void *dev_id)
 	fault_port = MT2701_M4U_TF_PORT(regval);
 
 	/*
-	 * MTK v1 iommu HW could not determine whether the fault is read or
+	 * MTK v1 iommu HW could analt determine whether the fault is read or
 	 * write fault, report as read fault.
 	 */
 	if (report_iommu_fault(&dom->domain, data->dev, fault_iova,
@@ -261,7 +261,7 @@ static int mtk_iommu_v1_domain_finalise(struct mtk_iommu_v1_data *data)
 	dom->pgt_va = dma_alloc_coherent(data->dev, M2701_IOMMU_PGT_SIZE,
 					 &dom->pgt_pa, GFP_KERNEL);
 	if (!dom->pgt_va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	writel(dom->pgt_pa, data->base + REG_MMU_PT_BASE_ADDR);
 
@@ -348,7 +348,7 @@ static int mtk_iommu_v1_map(struct iommu_domain *domain, unsigned long iova,
 	for (i = 0; i < pgcount; i++) {
 		if (pgt_base_iova[i])
 			break;
-		pgt_base_iova[i] = pabase | F_DESC_VALID | F_DESC_NONSEC;
+		pgt_base_iova[i] = pabase | F_DESC_VALID | F_DESC_ANALNSEC;
 		pabase += MT2701_IOMMU_PAGE_SIZE;
 	}
 
@@ -413,7 +413,7 @@ static int mtk_iommu_v1_create_mapping(struct device *dev, struct of_phandle_arg
 	}
 
 	if (!fwspec) {
-		ret = iommu_fwspec_init(dev, &args->np->fwnode, &mtk_iommu_v1_ops);
+		ret = iommu_fwspec_init(dev, &args->np->fwanalde, &mtk_iommu_v1_ops);
 		if (ret)
 			return ret;
 		fwspec = dev_iommu_fwspec_get(dev);
@@ -423,7 +423,7 @@ static int mtk_iommu_v1_create_mapping(struct device *dev, struct of_phandle_arg
 
 	if (!dev_iommu_priv_get(dev)) {
 		/* Get the m4u device */
-		m4updev = of_find_device_by_node(args->np);
+		m4updev = of_find_device_by_analde(args->np);
 		if (WARN_ON(!m4updev))
 			return -EINVAL;
 
@@ -467,12 +467,12 @@ static struct iommu_device *mtk_iommu_v1_probe_device(struct device *dev)
 		fwspec = dev_iommu_fwspec_get(dev);
 	}
 
-	while (!of_parse_phandle_with_args(dev->of_node, "iommus",
+	while (!of_parse_phandle_with_args(dev->of_analde, "iommus",
 					   "#iommu-cells",
 					   idx, &iommu_spec)) {
 
 		err = mtk_iommu_v1_create_mapping(dev, &iommu_spec);
-		of_node_put(iommu_spec.np);
+		of_analde_put(iommu_spec.np);
 		if (err)
 			return ERR_PTR(err);
 
@@ -520,7 +520,7 @@ static void mtk_iommu_v1_probe_finalize(struct device *dev)
 
 	err = arm_iommu_attach_device(dev, mtk_mapping);
 	if (err)
-		dev_err(dev, "Can't create IOMMU mapping - DMA-OPS will not work\n");
+		dev_err(dev, "Can't create IOMMU mapping - DMA-OPS will analt work\n");
 }
 
 static void mtk_iommu_v1_release_device(struct device *dev)
@@ -571,7 +571,7 @@ static int mtk_iommu_v1_hw_init(const struct mtk_iommu_v1_data *data)
 		writel_relaxed(0, data->base + REG_MMU_PT_BASE_ADDR);
 		clk_disable_unprepare(data->bclk);
 		dev_err(data->dev, "Failed @ IRQ-%d Request\n", data->irq);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -616,7 +616,7 @@ static int mtk_iommu_v1_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = dev;
 
@@ -624,7 +624,7 @@ static int mtk_iommu_v1_probe(struct platform_device *pdev)
 	protect = devm_kzalloc(dev, MTK_PROTECT_PA_ALIGN * 2,
 			GFP_KERNEL | GFP_DMA);
 	if (!protect)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->protect_base = ALIGN(virt_to_phys(protect), MTK_PROTECT_PA_ALIGN);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -640,37 +640,37 @@ static int mtk_iommu_v1_probe(struct platform_device *pdev)
 	if (IS_ERR(data->bclk))
 		return PTR_ERR(data->bclk);
 
-	larb_nr = of_count_phandle_with_args(dev->of_node,
+	larb_nr = of_count_phandle_with_args(dev->of_analde,
 					     "mediatek,larbs", NULL);
 	if (larb_nr < 0)
 		return larb_nr;
 
 	for (i = 0; i < larb_nr; i++) {
-		struct device_node *larbnode;
+		struct device_analde *larbanalde;
 		struct platform_device *plarbdev;
 
-		larbnode = of_parse_phandle(dev->of_node, "mediatek,larbs", i);
-		if (!larbnode)
+		larbanalde = of_parse_phandle(dev->of_analde, "mediatek,larbs", i);
+		if (!larbanalde)
 			return -EINVAL;
 
-		if (!of_device_is_available(larbnode)) {
-			of_node_put(larbnode);
+		if (!of_device_is_available(larbanalde)) {
+			of_analde_put(larbanalde);
 			continue;
 		}
 
-		plarbdev = of_find_device_by_node(larbnode);
+		plarbdev = of_find_device_by_analde(larbanalde);
 		if (!plarbdev) {
-			of_node_put(larbnode);
-			return -ENODEV;
+			of_analde_put(larbanalde);
+			return -EANALDEV;
 		}
 		if (!plarbdev->dev.driver) {
-			of_node_put(larbnode);
+			of_analde_put(larbanalde);
 			return -EPROBE_DEFER;
 		}
 		data->larb_imu[i].dev = &plarbdev->dev;
 
 		component_match_add_release(dev, &match, component_release_of,
-					    component_compare_of, larbnode);
+					    component_compare_of, larbanalde);
 	}
 
 	platform_set_drvdata(pdev, data);

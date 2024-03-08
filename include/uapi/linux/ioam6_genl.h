@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *  IPv6 IOAM Generic Netlink API
  *
@@ -22,7 +22,7 @@ enum {
 #define IOAM6_MAX_SCHEMA_DATA_LEN (255 * 4)
 	IOAM6_ATTR_SC_ID,	/* u32 */
 	IOAM6_ATTR_SC_DATA,	/* Binary */
-	IOAM6_ATTR_SC_NONE,	/* Flag */
+	IOAM6_ATTR_SC_ANALNE,	/* Flag */
 
 	IOAM6_ATTR_PAD,
 

@@ -46,7 +46,7 @@ kernel)::
 	hid_generic
 
 After this, the USB keyboard will work straight away, and the USB mouse
-will be available as a character device on major 13, minor 63::
+will be available as a character device on major 13, mianalr 63::
 
 	crw-r--r--   1 root     root      13,  63 Mar 28 22:45 mice
 
@@ -55,7 +55,7 @@ to create it by hand are::
 
 	cd /dev
 	mkdir input
-	mknod input/mice c 13 63
+	mkanald input/mice c 13 63
 
 After that you have to point GPM (the textmode mouse cut&paste tool) and
 XFree to this device to use it - GPM should be called like::
@@ -92,7 +92,7 @@ independent.
 This is the preferred interface for userspace to consume user
 input, and all clients are encouraged to use it.
 
-See :ref:`event-interface` for notes on API.
+See :ref:`event-interface` for analtes on API.
 
 The devices are in /dev/input::
 
@@ -102,9 +102,9 @@ The devices are in /dev/input::
 	crw-r--r--   1 root     root      13,  67 Apr  1 10:50 event3
 	...
 
-There are two ranges of minors: 64 through 95 is the static legacy
+There are two ranges of mianalrs: 64 through 95 is the static legacy
 range. If there are more than 32 input devices in a system, additional
-evdev nodes are created with minors starting with 256.
+evdev analdes are created with mianalrs starting with 256.
 
 keyboard
 ~~~~~~~~
@@ -133,9 +133,9 @@ Mousedev devices in /dev/input (as shown above) are::
 
 Each ``mouse`` device is assigned to a single mouse or digitizer, except
 the last one - ``mice``. This single character device is shared by all
-mice and digitizers, and even if none are connected, the device is
+mice and digitizers, and even if analne are connected, the device is
 present.  This is useful for hotplugging USB mice, so that older programs
-that do not handle hotplug can open the device even when no mice are
+that do analt handle hotplug can open the device even when anal mice are
 present.
 
 CONFIG_INPUT_MOUSEDEV_SCREEN_[XY] in the kernel configuration are
@@ -164,7 +164,7 @@ As soon as any joystick is connected, it can be accessed in /dev/input on::
 	crw-r--r--   1 root     root      13,   3 Apr  1 10:50 js3
 	...
 
-And so on up to js31 in legacy range, and additional nodes with minors
+And so on up to js31 in legacy range, and additional analdes with mianalrs
 above 256 if there are more joystick devices.
 
 Device drivers
@@ -191,7 +191,7 @@ interface, but for the UPSs and LCDs it doesn't make much sense. For this,
 the hiddev interface was designed. See Documentation/hid/hiddev.rst
 for more information about it.
 
-The usage of the usbhid module is very simple, it takes no parameters,
+The usage of the usbhid module is very simple, it takes anal parameters,
 detects everything automatically and when a HID device is inserted, it
 detects it appropriately.
 
@@ -205,7 +205,7 @@ usbmouse
 For embedded systems, for mice with broken HID descriptors and just any
 other use when the big usbhid wouldn't be a good choice, there is the
 usbmouse driver. It handles USB mice only. It uses a simpler HIDBP
-protocol. This also means the mice must support this simpler protocol. Not
+protocol. This also means the mice must support this simpler protocol. Analt
 all do. If you don't have any strong reason to use this module, use usbhid
 instead.
 
@@ -232,14 +232,14 @@ iforce
 ~~~~~~
 
 A driver for I-Force joysticks and wheels, both over USB and RS232.
-It includes Force Feedback support now, even though Immersion
+It includes Force Feedback support analw, even though Immersion
 Corp. considers the protocol a trade secret and won't disclose a word
 about it.
 
 Verifying if it works
 =====================
 
-Typing a couple keys on the keyboard should be enough to check that
+Typing a couple keys on the keyboard should be eanalugh to check that
 a keyboard works and is correctly connected to the kernel keyboard
 driver.
 
@@ -256,7 +256,7 @@ You can test the event devices with the ``evtest`` utility.
 Event interface
 ===============
 
-You can use blocking and nonblocking reads, and also select() on the
+You can use blocking and analnblocking reads, and also select() on the
 /dev/input/eventX devices, and you'll always get a whole number of input
 events on a read. Their layout is::
 

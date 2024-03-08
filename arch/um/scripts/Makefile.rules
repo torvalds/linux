@@ -19,7 +19,7 @@ $(UNPROFILE_OBJS:.o=.%): \
 	c_flags = -Wp,-MD,$(depfile) $(call unprofile,$(USER_CFLAGS)) $(CFLAGS_$(basetarget).o)
 
 $(USER_OBJS) $(UNPROFILE_OBJS): \
-	CHECKFLAGS := $(patsubst $(NOSTDINC_FLAGS),,$(CHECKFLAGS))
+	CHECKFLAGS := $(patsubst $(ANALSTDINC_FLAGS),,$(CHECKFLAGS))
 
 # The stubs can't try to call mcount or update basic block data
 define unprofile

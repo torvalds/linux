@@ -41,7 +41,7 @@ int transport_backend_register(const struct target_backend_ops *ops)
 
 	tb = kzalloc(sizeof(*tb), GFP_KERNEL);
 	if (!tb)
-		return -ENOMEM;
+		return -EANALMEM;
 	tb->ops = ops;
 
 	mutex_lock(&backend_mutex);
@@ -114,7 +114,7 @@ core_alloc_hba(const char *plugin_name, u32 plugin_dep_id, u32 hba_flags)
 	hba = kzalloc(sizeof(*hba), GFP_KERNEL);
 	if (!hba) {
 		pr_err("Unable to allocate struct se_hba\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	spin_lock_init(&hba->device_lock);
@@ -135,7 +135,7 @@ core_alloc_hba(const char *plugin_name, u32 plugin_dep_id, u32 hba_flags)
 
 	spin_lock(&hba_lock);
 	hba->hba_id = hba_id_counter++;
-	list_add_tail(&hba->hba_node, &hba_list);
+	list_add_tail(&hba->hba_analde, &hba_list);
 	spin_unlock(&hba_lock);
 
 	pr_debug("CORE_HBA[%d] - Attached HBA to Generic Target"
@@ -159,7 +159,7 @@ core_delete_hba(struct se_hba *hba)
 	hba->backend->ops->detach_hba(hba);
 
 	spin_lock(&hba_lock);
-	list_del(&hba->hba_node);
+	list_del(&hba->hba_analde);
 	spin_unlock(&hba_lock);
 
 	pr_debug("CORE_HBA[%d] - Detached HBA from Generic Target"

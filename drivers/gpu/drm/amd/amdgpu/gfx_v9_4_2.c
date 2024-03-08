@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -497,7 +497,7 @@ static int gfx_v9_4_2_do_sgprs_init(struct amdgpu_device *adev)
 	struct dma_fence *fences[3];
 	u32 pattern[3] = { 0x1, 0x5, 0xa };
 
-	/* bail if the compute ring is not ready */
+	/* bail if the compute ring is analt ready */
 	if (!adev->gfx.compute_ring[0].sched.ready ||
 		 !adev->gfx.compute_ring[1].sched.ready)
 		return 0;
@@ -641,7 +641,7 @@ static int gfx_v9_4_2_do_vgprs_init(struct amdgpu_device *adev)
 	struct dma_fence *fence;
 	u32 pattern = 0xa;
 
-	/* bail if the compute ring is not ready */
+	/* bail if the compute ring is analt ready */
 	if (!adev->gfx.compute_ring[0].sched.ready)
 		return 0;
 
@@ -742,7 +742,7 @@ void gfx_v9_4_2_init_golden_registers(struct amdgpu_device *adev,
 		break;
 	default:
 		dev_warn(adev->dev,
-			 "invalid die id %d, ignore channel fabricid remap settings\n",
+			 "invalid die id %d, iganalre channel fabricid remap settings\n",
 			 die_id);
 		break;
 	}

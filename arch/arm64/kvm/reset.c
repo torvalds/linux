@@ -8,7 +8,7 @@
  * Author: Christoffer Dall <c.dall@virtualopensystems.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
@@ -63,7 +63,7 @@ int __init kvm_arm_init_sve(void)
 
 		/*
 		 * Don't even try to make use of vector lengths that
-		 * aren't available on all CPUs, for now:
+		 * aren't available on all CPUs, for analw:
 		 */
 		if (kvm_sve_max_vl < sve_max_vl())
 			pr_warn("KVM: SVE vector length for guests limited to %u bytes\n",
@@ -110,7 +110,7 @@ static int kvm_vcpu_finalize_sve(struct kvm_vcpu *vcpu)
 	reg_sz = vcpu_sve_state_size(vcpu);
 	buf = kzalloc(reg_sz, GFP_KERNEL_ACCOUNT);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = kvm_share_hyp(buf, buf + reg_sz);
 	if (ret) {
@@ -178,15 +178,15 @@ static void kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
  * architecturally defined reset values, except for registers whose reset is
  * deferred until kvm_arm_vcpu_finalize().
  *
- * Note: This function can be called from two paths: The KVM_ARM_VCPU_INIT
- * ioctl or as part of handling a request issued by another VCPU in the PSCI
- * handling code.  In the first case, the VCPU will not be loaded, and in the
+ * Analte: This function can be called from two paths: The KVM_ARM_VCPU_INIT
+ * ioctl or as part of handling a request issued by aanalther VCPU in the PSCI
+ * handling code.  In the first case, the VCPU will analt be loaded, and in the
  * second case the VCPU will be loaded.  Because this function operates purely
  * on the memory-backed values of system registers, we want to do a full put if
  * we were loaded (handling a request) and load the values back at the end of
  * the function.  Otherwise we leave the state alone.  In both cases, we
  * disable preemption around the vcpu reset as we would otherwise race with
- * preempt notifiers which also call put/load.
+ * preempt analtifiers which also call put/load.
  */
 void kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 {
@@ -199,7 +199,7 @@ void kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	vcpu->arch.reset_state.reset = false;
 	spin_unlock(&vcpu->arch.mp_state_lock);
 
-	/* Reset PMU outside of the non-preemptible section */
+	/* Reset PMU outside of the analn-preemptible section */
 	kvm_pmu_vcpu_reset(vcpu);
 
 	preempt_disable();
@@ -289,11 +289,11 @@ int __init kvm_set_ipa_limit(void)
 
 	/*
 	 * Check with ARMv8.5-GTG that our PAGE_SIZE is supported at
-	 * Stage-2. If not, things will stop very quickly.
+	 * Stage-2. If analt, things will stop very quickly.
 	 */
 	switch (cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_EL1_TGRAN_2_SHIFT)) {
-	case ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_NONE:
-		kvm_err("PAGE_SIZE not supported at Stage-2, giving up\n");
+	case ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_ANALNE:
+		kvm_err("PAGE_SIZE analt supported at Stage-2, giving up\n");
 		return -EINVAL;
 	case ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_DEFAULT:
 		kvm_debug("PAGE_SIZE supported at Stage-2 (default)\n");

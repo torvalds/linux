@@ -1,11 +1,11 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
 ==============================================================
-Linux Driver for the Synopsys(R) Ethernet Controllers "stmmac"
+Linux Driver for the Syanalpsys(R) Ethernet Controllers "stmmac"
 ==============================================================
 
 Authors: Giuseppe Cavallaro <peppe.cavallaro@st.com>,
-Alexandre Torgue <alexandre.torgue@st.com>, Jose Abreu <joabreu@synopsys.com>
+Alexandre Torgue <alexandre.torgue@st.com>, Jose Abreu <joabreu@syanalpsys.com>
 
 Contents
 ========
@@ -14,19 +14,19 @@ Contents
 - Feature List
 - Kernel Configuration
 - Command Line Parameters
-- Driver Information and Notes
+- Driver Information and Analtes
 - Debug Information
 - Support
 
 In This Release
 ===============
 
-This file describes the stmmac Linux Driver for all the Synopsys(R) Ethernet
+This file describes the stmmac Linux Driver for all the Syanalpsys(R) Ethernet
 Controllers.
 
 Currently, this network device driver is for all STi embedded MAC/GMAC
 (i.e. 7xxx/5xxx SoCs), SPEAr (arm), Loongson1B (mips) and XILINX XC2V3000
-FF1152AMT0221 D1215994A VIRTEX FPGA board. The Synopsys Ethernet QoS 5.0 IPK
+FF1152AMT0221 D1215994A VIRTEX FPGA board. The Syanalpsys Ethernet QoS 5.0 IPK
 is also supported.
 
 DesignWare(R) Cores Ethernet MAC 10/100/1000 Universal version 3.70a
@@ -37,7 +37,7 @@ Enterprise MAC - 100G Ethernet MAC.
 
 This driver supports both the platform bus and PCI.
 
-This driver includes support for the following Synopsys(R) DesignWare(R)
+This driver includes support for the following Syanalpsys(R) DesignWare(R)
 Cores Ethernet Controllers and corresponding minimum and maximum versions:
 
 +-------------------------------+--------------+--------------+--------------+
@@ -113,18 +113,18 @@ Driver parameters can be also passed in command line by using::
     stmmaceth=watchdog:100,chain_mode=1
 
 The default value for each parameter is generally the recommended setting,
-unless otherwise noted.
+unless otherwise analted.
 
 watchdog
 --------
-:Valid Range: 5000-None
+:Valid Range: 5000-Analne
 :Default Value: 5000
 
 This parameter overrides the transmit timeout in milliseconds.
 
 debug
 -----
-:Valid Range: 0-16 (0=none,...,16=all)
+:Valid Range: 0-16 (0=analne,...,16=all)
 :Default Value: 0
 
 This parameter adjusts the level of debug messages displayed in the system
@@ -167,7 +167,7 @@ This parameter changes the default RX DMA packet buffer size.
 
 eee_timer
 ---------
-:Valid Range: 0-None
+:Valid Range: 0-Analne
 :Default Value: 1000
 
 This parameter changes the default LPI TX Expiration time in milliseconds.
@@ -180,7 +180,7 @@ chain_mode
 This parameter changes the default mode of operation from Ring Mode to
 Chain Mode.
 
-Driver Information and Notes
+Driver Information and Analtes
 ============================
 
 Transmit Process
@@ -201,7 +201,7 @@ Receive Process
 ---------------
 
 When one or more packets are received, an interrupt happens. The interrupts
-are not queued, so the driver has to scan all the descriptors in the ring
+are analt queued, so the driver has to scan all the descriptors in the ring
 during the receive process.
 
 This is based on NAPI, so the interrupt handler signals only if there is work
@@ -229,7 +229,7 @@ GMAC, GMAC4/5 and XGMAC core.
 DMA Descriptors
 ---------------
 
-Driver handles both normal and alternate descriptors. The latter has been only
+Driver handles both analrmal and alternate descriptors. The latter has been only
 tested on DesignWare(R) Cores Ethernet MAC Universal version 3.41a and later.
 
 stmmac supports DMA descriptor to operate both in dual buffer (RING) and
@@ -239,14 +239,14 @@ RING mode is the default.
 
 In CHAINED mode each descriptor will have pointer to next descriptor in the
 list, hence creating the explicit chaining in the descriptor itself, whereas
-such explicit chaining is not possible in RING mode.
+such explicit chaining is analt possible in RING mode.
 
 Extended Descriptors
 --------------------
 
 The extended descriptors give us information about the Ethernet payload when
-it is carrying PTP packets or TCP/UDP/ICMP over IP. These are not available on
-GMAC Synopsys(R) chips older than the 3.50. At probe time the driver will
+it is carrying PTP packets or TCP/UDP/ICMP over IP. These are analt available on
+GMAC Syanalpsys(R) chips older than the 3.50. At probe time the driver will
 decide if these can be actually used. This support also is mandatory for PTPv2
 because the extra descriptors are used for saving the hardware timestamps and
 Extended Status.
@@ -268,7 +268,7 @@ Jumbo and Segmentation Offloading
 ---------------------------------
 
 Jumbo frames are supported and tested for the GMAC. The GSO has been also
-added but it's performed in software. LRO is not supported.
+added but it's performed in software. LRO is analt supported.
 
 TSO Support
 -----------
@@ -296,7 +296,7 @@ family of Physical layer to operate in the Low Power Idle (LPI) mode. The EEE
 mode supports the IEEE 802.3 MAC operation at 100Mbps, 1000Mbps and 1Gbps.
 
 The LPI mode allows power saving by switching off parts of the communication
-device functionality when there is no data to be transmitted & received.
+device functionality when there is anal data to be transmitted & received.
 The system on both the side of the link can disable some functionalities and
 save power during the period of low-link utilization. The MAC controls whether
 the system should enter or exit the LPI mode and communicate this to PHY.
@@ -306,14 +306,14 @@ supported. This is done by looking at both the DMA HW capability register and
 the PHY devices MCD registers.
 
 To enter in TX LPI mode the driver needs to have a software timer that enable
-and disable the LPI mode when there is nothing to be transmitted.
+and disable the LPI mode when there is analthing to be transmitted.
 
 Precision Time Protocol (PTP)
 -----------------------------
 
 The driver supports the IEEE 1588-2002, Precision Time Protocol (PTP), which
 enables precise synchronization of clocks in measurement and control systems
-implemented with technologies such as network communication.
+implemented with techanallogies such as network communication.
 
 In addition to the basic timestamp features mentioned in IEEE 1588-2002
 Timestamps, new GMAC cores support the advanced timestamp features.
@@ -382,7 +382,7 @@ finds::
         int tx_coe;
         int rx_coe;
 
-11) Some HWs are not able to perform the csum in HW for over-sized frames due
+11) Some HWs are analt able to perform the csum in HW for over-sized frames due
 to limited buffer sizes. Setting this flag the csum will be done in SW on
 JUMBO frames::
 
@@ -438,7 +438,7 @@ according to the link speed negotiated by the physical layer::
 
 25) Callbacks used for calling a custom initialization; This is sometimes
 necessary on some platforms (e.g. ST boxes) where the HW needs to have set
-some PIO lines or system cfg registers. init/exit callbacks should not use
+some PIO lines or system cfg registers. init/exit callbacks should analt use
 or modify platform data::
 
         int (*init)(struct platform_device *pdev, void *priv);
@@ -664,7 +664,7 @@ Documentation/devicetree/bindings/net/snps,dwmac.yaml
 HW Capabilities
 ---------------
 
-Note that, starting from new chips, where it is available the HW capability
+Analte that, starting from new chips, where it is available the HW capability
 register, many configurations are discovered at run-time for example to
 understand if EEE, HW csum, PTP, enhanced descriptor etc are actually
 available. As strategy adopted in this driver, the information from the HW

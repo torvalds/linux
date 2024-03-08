@@ -49,10 +49,10 @@ static int string_mt_check(const struct xt_mtchk_param *par)
 	if (conf->patlen > XT_STRING_MAX_PATTERN_SIZE)
 		return -EINVAL;
 	if (conf->u.v1.flags &
-	    ~(XT_STRING_FLAG_IGNORECASE | XT_STRING_FLAG_INVERT))
+	    ~(XT_STRING_FLAG_IGANALRECASE | XT_STRING_FLAG_INVERT))
 		return -EINVAL;
-	if (conf->u.v1.flags & XT_STRING_FLAG_IGNORECASE)
-		flags |= TS_IGNORECASE;
+	if (conf->u.v1.flags & XT_STRING_FLAG_IGANALRECASE)
+		flags |= TS_IGANALRECASE;
 	ts_conf = textsearch_prepare(conf->algo, conf->pattern, conf->patlen,
 				     GFP_KERNEL, flags);
 	if (IS_ERR(ts_conf))

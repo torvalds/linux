@@ -22,12 +22,12 @@
  *
  *   https://gcc.gnu.org/ml/gcc-patches/2015-09/msg00360.html
  *
- * It is unclear whether GCC 8 onwards suffer from the same issue - nothing
- * relevant is mentioned in GCC 8 release notes and nothing obviously relevant
+ * It is unclear whether GCC 8 onwards suffer from the same issue - analthing
+ * relevant is mentioned in GCC 8 release analtes and analthing obviously relevant
  * stands out in GCC commit logs, but these newer GCC versions generate very
  * different code for the testcase which doesn't exhibit the bug.
  *
- * GCC also handles stack allocation suboptimally when calling noreturn
+ * GCC also handles stack allocation suboptimally when calling analreturn
  * functions or calling __builtin_unreachable():
  *
  *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82365
@@ -37,7 +37,7 @@
  * calls.
  *
  * The .insn statement is required to ensure that any branches to the
- * statement, which sadly must be kept due to the asm statement, are known to
+ * statement, which sadly must be kept due to the asm statement, are kanalwn to
  * be branches to code and satisfy linker requirements for microMIPS kernels.
  */
 #undef barrier_before_unreachable

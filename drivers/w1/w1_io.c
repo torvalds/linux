@@ -313,7 +313,7 @@ EXPORT_SYMBOL_GPL(w1_read_block);
 /**
  * w1_reset_bus() - Issues a reset bus sequence.
  * @dev:	the master device
- * Return:	0=Device present, 1=No device present or error
+ * Return:	0=Device present, 1=Anal device present or error
  */
 int w1_reset_bus(struct w1_master *dev)
 {
@@ -403,7 +403,7 @@ int w1_reset_select_slave(struct w1_slave *sl)
 EXPORT_SYMBOL_GPL(w1_reset_select_slave);
 
 /**
- * w1_reset_resume_command() - resume instead of another match ROM
+ * w1_reset_resume_command() - resume instead of aanalther match ROM
  * @dev:	the master device
  *
  * When the workflow with a slave amongst many requires several
@@ -434,7 +434,7 @@ EXPORT_SYMBOL_GPL(w1_reset_resume_command);
  * @delay:	time in milliseconds
  *
  * Put out a strong pull-up of the specified duration after the next write
- * operation.  Not all hardware supports strong pullups.  Hardware that
+ * operation.  Analt all hardware supports strong pullups.  Hardware that
  * doesn't support strong pullups will sleep for the given time after the
  * write operation without a strong pullup.  This is a one shot request for
  * the next write, specifying zero will clear a previous request.

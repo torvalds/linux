@@ -9,7 +9,7 @@
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/stat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/major.h>
 #include <linux/wait.h>
 #include <linux/blkpg.h>
@@ -100,7 +100,7 @@ static DEFINE_MUTEX(loop_validate_mutex);
  * loop_global_lock_killable() - take locks for safe loop_validate_file() test
  *
  * @lo: struct loop_device
- * @global: true if @lo is about to bind another "struct loop_device", false otherwise
+ * @global: true if @lo is about to bind aanalther "struct loop_device", false otherwise
  *
  * Returns 0 on success, -EINTR otherwise.
  *
@@ -127,7 +127,7 @@ static int loop_global_lock_killable(struct loop_device *lo, bool global)
  * loop_global_unlock() - release locks taken by loop_global_lock_killable()
  *
  * @lo: struct loop_device
- * @global: true if @lo was about to bind another "struct loop_device", false otherwise
+ * @global: true if @lo was about to bind aanalther "struct loop_device", false otherwise
  */
 static void loop_global_unlock(struct loop_device *lo, bool global)
 {
@@ -185,14 +185,14 @@ static bool lo_bdev_can_use_dio(struct loop_device *lo,
 static void __loop_update_dio(struct loop_device *lo, bool dio)
 {
 	struct file *file = lo->lo_backing_file;
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 	struct block_device *backing_bdev = NULL;
 	bool use_dio;
 
-	if (S_ISBLK(inode->i_mode))
-		backing_bdev = I_BDEV(inode);
-	else if (inode->i_sb->s_bdev)
-		backing_bdev = inode->i_sb->s_bdev;
+	if (S_ISBLK(ianalde->i_mode))
+		backing_bdev = I_BDEV(ianalde);
+	else if (ianalde->i_sb->s_bdev)
+		backing_bdev = ianalde->i_sb->s_bdev;
 
 	use_dio = dio && (file->f_mode & FMODE_CAN_ODIRECT) &&
 		(!backing_bdev || lo_bdev_can_use_dio(lo, backing_bdev));
@@ -212,10 +212,10 @@ static void __loop_update_dio(struct loop_device *lo, bool dio)
 		blk_mq_freeze_queue(lo->lo_queue);
 	lo->use_dio = use_dio;
 	if (use_dio) {
-		blk_queue_flag_clear(QUEUE_FLAG_NOMERGES, lo->lo_queue);
+		blk_queue_flag_clear(QUEUE_FLAG_ANALMERGES, lo->lo_queue);
 		lo->lo_flags |= LO_FLAGS_DIRECT_IO;
 	} else {
-		blk_queue_flag_set(QUEUE_FLAG_NOMERGES, lo->lo_queue);
+		blk_queue_flag_set(QUEUE_FLAG_ANALMERGES, lo->lo_queue);
 		lo->lo_flags &= ~LO_FLAGS_DIRECT_IO;
 	}
 	if (lo->lo_state == Lo_bound)
@@ -223,7 +223,7 @@ static void __loop_update_dio(struct loop_device *lo, bool dio)
 }
 
 /**
- * loop_set_size() - sets device size and notifies userspace
+ * loop_set_size() - sets device size and analtifies userspace
  * @lo: struct loop_device to set the size for
  * @size: new size of the loop device
  *
@@ -232,7 +232,7 @@ static void __loop_update_dio(struct loop_device *lo, bool dio)
  */
 static void loop_set_size(struct loop_device *lo, loff_t size)
 {
-	if (!set_capacity_and_notify(lo->lo_disk, size))
+	if (!set_capacity_and_analtify(lo->lo_disk, size))
 		kobject_uevent(&disk_to_dev(lo->lo_disk)->kobj, KOBJ_CHANGE);
 }
 
@@ -315,10 +315,10 @@ static int lo_fallocate(struct loop_device *lo, struct request *rq, loff_t pos,
 	mode |= FALLOC_FL_KEEP_SIZE;
 
 	if (!bdev_max_discard_sectors(lo->lo_device))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = file->f_op->fallocate(file, mode, pos, blk_rq_bytes(rq));
-	if (unlikely(ret && ret != -EINVAL && ret != -EOPNOTSUPP))
+	if (unlikely(ret && ret != -EINVAL && ret != -EOPANALTSUPP))
 		return -EIO;
 	return ret;
 }
@@ -340,13 +340,13 @@ static void lo_complete_rq(struct request *rq)
 	if (!cmd->use_aio || cmd->ret < 0 || cmd->ret == blk_rq_bytes(rq) ||
 	    req_op(rq) != REQ_OP_READ) {
 		if (cmd->ret < 0)
-			ret = errno_to_blk_status(cmd->ret);
+			ret = erranal_to_blk_status(cmd->ret);
 		goto end_io;
 	}
 
 	/*
 	 * Short READ - if we got some data, advance our request and
-	 * retry it. If we got no data, end the rest with EIO.
+	 * retry it. If we got anal data, end the rest with EIO.
 	 */
 	if (cmd->ret) {
 		blk_update_request(rq, BLK_STS_OK, cmd->ret);
@@ -407,7 +407,7 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 	if (rq->bio != rq->biotail) {
 
 		bvec = kmalloc_array(nr_bvec, sizeof(struct bio_vec),
-				     GFP_NOIO);
+				     GFP_ANALIO);
 		if (!bvec)
 			return -EIO;
 		cmd->bvec = bvec;
@@ -442,7 +442,7 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 	cmd->iocb.ki_filp = file;
 	cmd->iocb.ki_complete = lo_rw_aio_complete;
 	cmd->iocb.ki_flags = IOCB_DIRECT;
-	cmd->iocb.ki_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_NONE, 0);
+	cmd->iocb.ki_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_ANALNE, 0);
 
 	if (rw == ITER_SOURCE)
 		ret = call_write_iter(file, &cmd->iocb, &iter);
@@ -479,7 +479,7 @@ static int do_req_filebacked(struct loop_device *lo, struct request *rq)
 		 * write zeroes the range.  Otherwise, punch them out.
 		 */
 		return lo_fallocate(lo, rq, pos,
-			(rq->cmd_flags & REQ_NOUNMAP) ?
+			(rq->cmd_flags & REQ_ANALUNMAP) ?
 				FALLOC_FL_ZERO_RANGE :
 				FALLOC_FL_PUNCH_HOLE);
 	case REQ_OP_DISCARD:
@@ -520,14 +520,14 @@ static void loop_reread_partitions(struct loop_device *lo)
 
 static inline int is_loop_device(struct file *file)
 {
-	struct inode *i = file->f_mapping->host;
+	struct ianalde *i = file->f_mapping->host;
 
 	return i && S_ISBLK(i->i_mode) && imajor(i) == LOOP_MAJOR;
 }
 
 static int loop_validate_file(struct file *file, struct block_device *bdev)
 {
-	struct inode	*inode = file->f_mapping->host;
+	struct ianalde	*ianalde = file->f_mapping->host;
 	struct file	*f = file;
 
 	/* Avoid recursion */
@@ -545,7 +545,7 @@ static int loop_validate_file(struct file *file, struct block_device *bdev)
 		rmb();
 		f = l->lo_backing_file;
 	}
-	if (!S_ISREG(inode->i_mode) && !S_ISBLK(inode->i_mode))
+	if (!S_ISREG(ianalde->i_mode) && !S_ISBLK(ianalde->i_mode))
 		return -EINVAL;
 	return 0;
 }
@@ -630,7 +630,7 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
 
 	error = 0;
 done:
-	/* enable and uncork uevent now that we are done */
+	/* enable and uncork uevent analw that we are done */
 	dev_set_uevent_suppress(disk_to_dev(lo->lo_disk), 0);
 	return error;
 
@@ -753,7 +753,7 @@ static void loop_sysfs_exit(struct loop_device *lo)
 static void loop_config_discard(struct loop_device *lo)
 {
 	struct file *file = lo->lo_backing_file;
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 	struct request_queue *q = lo->lo_queue;
 	u32 granularity, max_discard_sectors;
 
@@ -761,14 +761,14 @@ static void loop_config_discard(struct loop_device *lo)
 	 * If the backing device is a block device, mirror its zeroing
 	 * capability. Set the discard sectors to the block device's zeroing
 	 * capabilities because loop discards result in blkdev_issue_zeroout(),
-	 * not blkdev_issue_discard(). This maintains consistent behavior with
+	 * analt blkdev_issue_discard(). This maintains consistent behavior with
 	 * file-backed loop devices: discarded regions read back as zero.
 	 */
-	if (S_ISBLK(inode->i_mode)) {
-		struct request_queue *backingq = bdev_get_queue(I_BDEV(inode));
+	if (S_ISBLK(ianalde->i_mode)) {
+		struct request_queue *backingq = bdev_get_queue(I_BDEV(ianalde));
 
 		max_discard_sectors = backingq->limits.max_write_zeroes_sectors;
-		granularity = bdev_discard_granularity(I_BDEV(inode)) ?:
+		granularity = bdev_discard_granularity(I_BDEV(ianalde)) ?:
 			queue_physical_block_size(backingq);
 
 	/*
@@ -801,7 +801,7 @@ static void loop_config_discard(struct loop_device *lo)
 }
 
 struct loop_worker {
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 	struct work_struct work;
 	struct list_head cmd_list;
 	struct list_head idle_list;
@@ -826,7 +826,7 @@ static inline int queue_on_root_worker(struct cgroup_subsys_state *css)
 
 static void loop_queue_work(struct loop_device *lo, struct loop_cmd *cmd)
 {
-	struct rb_node **node, *parent = NULL;
+	struct rb_analde **analde, *parent = NULL;
 	struct loop_worker *cur_worker, *worker = NULL;
 	struct work_struct *work;
 	struct list_head *cmd_list;
@@ -836,26 +836,26 @@ static void loop_queue_work(struct loop_device *lo, struct loop_cmd *cmd)
 	if (queue_on_root_worker(cmd->blkcg_css))
 		goto queue_work;
 
-	node = &lo->worker_tree.rb_node;
+	analde = &lo->worker_tree.rb_analde;
 
-	while (*node) {
-		parent = *node;
-		cur_worker = container_of(*node, struct loop_worker, rb_node);
+	while (*analde) {
+		parent = *analde;
+		cur_worker = container_of(*analde, struct loop_worker, rb_analde);
 		if (cur_worker->blkcg_css == cmd->blkcg_css) {
 			worker = cur_worker;
 			break;
 		} else if ((long)cur_worker->blkcg_css < (long)cmd->blkcg_css) {
-			node = &(*node)->rb_left;
+			analde = &(*analde)->rb_left;
 		} else {
-			node = &(*node)->rb_right;
+			analde = &(*analde)->rb_right;
 		}
 	}
 	if (worker)
 		goto queue_work;
 
-	worker = kzalloc(sizeof(struct loop_worker), GFP_NOWAIT | __GFP_NOWARN);
+	worker = kzalloc(sizeof(struct loop_worker), GFP_ANALWAIT | __GFP_ANALWARN);
 	/*
-	 * In the event we cannot allocate a worker, just queue on the
+	 * In the event we cananalt allocate a worker, just queue on the
 	 * rootcg worker and issue the I/O as the rootcg
 	 */
 	if (!worker) {
@@ -872,8 +872,8 @@ static void loop_queue_work(struct loop_device *lo, struct loop_cmd *cmd)
 	INIT_LIST_HEAD(&worker->cmd_list);
 	INIT_LIST_HEAD(&worker->idle_list);
 	worker->lo = lo;
-	rb_link_node(&worker->rb_node, parent, node);
-	rb_insert_color(&worker->rb_node, &lo->worker_tree);
+	rb_link_analde(&worker->rb_analde, parent, analde);
+	rb_insert_color(&worker->rb_analde, &lo->worker_tree);
 queue_work:
 	if (worker) {
 		/*
@@ -911,7 +911,7 @@ static void loop_free_idle_workers(struct loop_device *lo, bool delete_all)
 					  LOOP_IDLE_WORKER_TIMEOUT))
 			break;
 		list_del(&worker->idle_list);
-		rb_erase(&worker->rb_node, &lo->worker_tree);
+		rb_erase(&worker->rb_analde, &lo->worker_tree);
 		css_put(worker->blkcg_css);
 		kfree(worker);
 	}
@@ -930,19 +930,19 @@ static void loop_free_idle_workers_timer(struct timer_list *timer)
 static void loop_update_rotational(struct loop_device *lo)
 {
 	struct file *file = lo->lo_backing_file;
-	struct inode *file_inode = file->f_mapping->host;
-	struct block_device *file_bdev = file_inode->i_sb->s_bdev;
+	struct ianalde *file_ianalde = file->f_mapping->host;
+	struct block_device *file_bdev = file_ianalde->i_sb->s_bdev;
 	struct request_queue *q = lo->lo_queue;
-	bool nonrot = true;
+	bool analnrot = true;
 
-	/* not all filesystems (e.g. tmpfs) have a sb->s_bdev */
+	/* analt all filesystems (e.g. tmpfs) have a sb->s_bdev */
 	if (file_bdev)
-		nonrot = bdev_nonrot(file_bdev);
+		analnrot = bdev_analnrot(file_bdev);
 
-	if (nonrot)
-		blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
+	if (analnrot)
+		blk_queue_flag_set(QUEUE_FLAG_ANALNROT, q);
 	else
-		blk_queue_flag_clear(QUEUE_FLAG_NONROT, q);
+		blk_queue_flag_clear(QUEUE_FLAG_ANALNROT, q);
 }
 
 /**
@@ -961,7 +961,7 @@ loop_set_status_from_info(struct loop_device *lo,
 		return -EINVAL;
 
 	switch (info->lo_encrypt_type) {
-	case LO_CRYPT_NONE:
+	case LO_CRYPT_ANALNE:
 		break;
 	case LO_CRYPT_XOR:
 		pr_warn("support for the xor transformation has been removed.\n");
@@ -991,7 +991,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 			  const struct loop_config *config)
 {
 	struct file *file = fget(config->fd);
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct address_space *mapping;
 	int error;
 	loff_t size;
@@ -1029,7 +1029,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 		goto out_unlock;
 
 	mapping = file->f_mapping;
-	inode = mapping->host;
+	ianalde = mapping->host;
 
 	if ((config->info.lo_flags & ~LOOP_CONFIGURE_SETTABLE_FLAGS) != 0) {
 		error = -EINVAL;
@@ -1055,7 +1055,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 						WQ_UNBOUND | WQ_FREEZABLE,
 						0, lo->lo_number);
 		if (!lo->workqueue) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto out_unlock;
 		}
 	}
@@ -1077,9 +1077,9 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 
 	if (config->block_size)
 		bsize = config->block_size;
-	else if ((lo->lo_backing_file->f_flags & O_DIRECT) && inode->i_sb->s_bdev)
+	else if ((lo->lo_backing_file->f_flags & O_DIRECT) && ianalde->i_sb->s_bdev)
 		/* In case of direct I/O, match underlying block size */
-		bsize = bdev_logical_block_size(inode->i_sb->s_bdev);
+		bsize = bdev_logical_block_size(ianalde->i_sb->s_bdev);
 	else
 		bsize = 512;
 
@@ -1105,7 +1105,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 	if (partscan)
 		clear_bit(GD_SUPPRESS_PART_SCAN, &lo->lo_disk->state);
 
-	/* enable and uncork uevent now that we are done */
+	/* enable and uncork uevent analw that we are done */
 	dev_set_uevent_suppress(disk_to_dev(lo->lo_disk), 0);
 
 	loop_global_unlock(lo, is_loop);
@@ -1140,7 +1140,7 @@ static void __loop_clr_fd(struct loop_device *lo, bool release)
 	/*
 	 * Freeze the request queue when unbinding on a live file descriptor and
 	 * thus an open device.  When called from ->release we are guaranteed
-	 * that there is no I/O in progress already.
+	 * that there is anal I/O in progress already.
 	 */
 	if (!release)
 		blk_mq_freeze_queue(lo->lo_queue);
@@ -1159,7 +1159,7 @@ static void __loop_clr_fd(struct loop_device *lo, bool release)
 	blk_queue_io_min(lo->lo_queue, 512);
 	invalidate_disk(lo->lo_disk);
 	loop_sysfs_exit(lo);
-	/* let user-space know about this change */
+	/* let user-space kanalw about this change */
 	kobject_uevent(&disk_to_dev(lo->lo_disk)->kobj, KOBJ_CHANGE);
 	mapping_set_gfp_mask(filp->f_mapping, gfp);
 	/* This is safe: open() is still holding a reference. */
@@ -1188,12 +1188,12 @@ static void __loop_clr_fd(struct loop_device *lo, bool release)
 		if (err)
 			pr_warn("%s: partition scan of loop%d failed (rc=%d)\n",
 				__func__, lo->lo_number, err);
-		/* Device is gone, no point in returning error */
+		/* Device is gone, anal point in returning error */
 	}
 
 	/*
 	 * lo->lo_state is set to Lo_unbound here after above partscan has
-	 * finished. There cannot be anybody else entering __loop_clr_fd() as
+	 * finished. There cananalt be anybody else entering __loop_clr_fd() as
 	 * Lo_rundown state protects us from all the other places trying to
 	 * change the 'lo' device.
 	 */
@@ -1205,7 +1205,7 @@ static void __loop_clr_fd(struct loop_device *lo, bool release)
 	mutex_unlock(&lo->lo_mutex);
 
 	/*
-	 * Need not hold lo_mutex to fput backing file. Calling fput holding
+	 * Need analt hold lo_mutex to fput backing file. Calling fput holding
 	 * lo_mutex triggers a circular lock dependency possibility warning as
 	 * fput can take open_mutex which is usually taken before lo_mutex.
 	 */
@@ -1237,7 +1237,7 @@ static int loop_clr_fd(struct loop_device *lo)
 	 * and it has an elevated reference count, set it for auto-teardown when
 	 * the last reference goes away. This stops $!~#$@ udev from
 	 * preventing teardown because it decided that it needs to run blkid on
-	 * the loopback device whenever they appear. xfstests is notorious for
+	 * the loopback device whenever they appear. xfstests is analtorious for
 	 * failing tests because blkid via udev races with a losetup
 	 * <dev>/do something like mkfs/losetup -d <dev> causing the losetup -d
 	 * command to fail with EBUSY.
@@ -1344,10 +1344,10 @@ loop_get_status(struct loop_device *lo, struct loop_info64 *info)
 	path = lo->lo_backing_file->f_path;
 	path_get(&path);
 	mutex_unlock(&lo->lo_mutex);
-	ret = vfs_getattr(&path, &stat, STATX_INO, AT_STATX_SYNC_AS_STAT);
+	ret = vfs_getattr(&path, &stat, STATX_IANAL, AT_STATX_SYNC_AS_STAT);
 	if (!ret) {
 		info->lo_device = huge_encode_dev(stat.dev);
-		info->lo_inode = stat.ino;
+		info->lo_ianalde = stat.ianal;
 		info->lo_rdevice = huge_encode_dev(stat.rdev);
 	}
 	path_put(&path);
@@ -1360,7 +1360,7 @@ loop_info64_from_old(const struct loop_info *info, struct loop_info64 *info64)
 	memset(info64, 0, sizeof(*info64));
 	info64->lo_number = info->lo_number;
 	info64->lo_device = info->lo_device;
-	info64->lo_inode = info->lo_inode;
+	info64->lo_ianalde = info->lo_ianalde;
 	info64->lo_rdevice = info->lo_rdevice;
 	info64->lo_offset = info->lo_offset;
 	info64->lo_sizelimit = 0;
@@ -1374,7 +1374,7 @@ loop_info64_to_old(const struct loop_info64 *info64, struct loop_info *info)
 	memset(info, 0, sizeof(*info));
 	info->lo_number = info64->lo_number;
 	info->lo_device = info64->lo_device;
-	info->lo_inode = info64->lo_inode;
+	info->lo_ianalde = info64->lo_ianalde;
 	info->lo_rdevice = info64->lo_rdevice;
 	info->lo_offset = info64->lo_offset;
 	info->lo_flags = info64->lo_flags;
@@ -1383,7 +1383,7 @@ loop_info64_to_old(const struct loop_info64 *info64, struct loop_info *info)
 	/* error in case values were truncated */
 	if (info->lo_device != info64->lo_device ||
 	    info->lo_rdevice != info64->lo_rdevice ||
-	    info->lo_inode != info64->lo_inode ||
+	    info->lo_ianalde != info64->lo_ianalde ||
 	    info->lo_offset != info64->lo_offset)
 		return -EOVERFLOW;
 
@@ -1587,10 +1587,10 @@ static int lo_ioctl(struct block_device *bdev, blk_mode_t mode,
 struct compat_loop_info {
 	compat_int_t	lo_number;      /* ioctl r/o */
 	compat_dev_t	lo_device;      /* ioctl r/o */
-	compat_ulong_t	lo_inode;       /* ioctl r/o */
+	compat_ulong_t	lo_ianalde;       /* ioctl r/o */
 	compat_dev_t	lo_rdevice;     /* ioctl r/o */
 	compat_int_t	lo_offset;
-	compat_int_t	lo_encrypt_type;        /* obsolete, ignored */
+	compat_int_t	lo_encrypt_type;        /* obsolete, iganalred */
 	compat_int_t	lo_encrypt_key_size;    /* ioctl w/o */
 	compat_int_t	lo_flags;       /* ioctl r/o */
 	char		lo_name[LO_NAME_SIZE];
@@ -1601,9 +1601,9 @@ struct compat_loop_info {
 
 /*
  * Transfer 32-bit compatibility structure in userspace to 64-bit loop info
- * - noinlined to reduce stack space usage in main part of driver
+ * - analinlined to reduce stack space usage in main part of driver
  */
-static noinline int
+static analinline int
 loop_info64_from_compat(const struct compat_loop_info __user *arg,
 			struct loop_info64 *info64)
 {
@@ -1615,7 +1615,7 @@ loop_info64_from_compat(const struct compat_loop_info __user *arg,
 	memset(info64, 0, sizeof(*info64));
 	info64->lo_number = info.lo_number;
 	info64->lo_device = info.lo_device;
-	info64->lo_inode = info.lo_inode;
+	info64->lo_ianalde = info.lo_ianalde;
 	info64->lo_rdevice = info.lo_rdevice;
 	info64->lo_offset = info.lo_offset;
 	info64->lo_sizelimit = 0;
@@ -1626,9 +1626,9 @@ loop_info64_from_compat(const struct compat_loop_info __user *arg,
 
 /*
  * Transfer 64-bit loop info to 32-bit compatibility structure in userspace
- * - noinlined to reduce stack space usage in main part of driver
+ * - analinlined to reduce stack space usage in main part of driver
  */
-static noinline int
+static analinline int
 loop_info64_to_compat(const struct loop_info64 *info64,
 		      struct compat_loop_info __user *arg)
 {
@@ -1637,7 +1637,7 @@ loop_info64_to_compat(const struct loop_info64 *info64,
 	memset(&info, 0, sizeof(info));
 	info.lo_number = info64->lo_number;
 	info.lo_device = info64->lo_device;
-	info.lo_inode = info64->lo_inode;
+	info.lo_ianalde = info64->lo_ianalde;
 	info.lo_rdevice = info64->lo_rdevice;
 	info.lo_offset = info64->lo_offset;
 	info.lo_flags = info64->lo_flags;
@@ -1646,7 +1646,7 @@ loop_info64_to_compat(const struct loop_info64 *info64,
 	/* error in case values were truncated */
 	if (info.lo_device != info64->lo_device ||
 	    info.lo_rdevice != info64->lo_rdevice ||
-	    info.lo_inode != info64->lo_inode ||
+	    info.lo_ianalde != info64->lo_ianalde ||
 	    info.lo_offset != info64->lo_offset)
 		return -EOVERFLOW;
 
@@ -1712,7 +1712,7 @@ static int lo_compat_ioctl(struct block_device *bdev, blk_mode_t mode,
 		err = lo_ioctl(bdev, mode, cmd, arg);
 		break;
 	default:
-		err = -ENOIOCTLCMD;
+		err = -EANALIOCTLCMD;
 		break;
 	}
 	return err;
@@ -1763,18 +1763,18 @@ static const struct block_device_operations lo_fops = {
 };
 
 /*
- * And now the modules code and kernel interface.
+ * And analw the modules code and kernel interface.
  */
 
 /*
  * If max_loop is specified, create that many devices upfront.
- * This also becomes a hard limit. If max_loop is not specified,
+ * This also becomes a hard limit. If max_loop is analt specified,
  * the default isn't a hard limit (as before commit 85c50197716c
  * changed the default value from 0 for max_loop=0 reasons), just
  * create CONFIG_BLK_DEV_LOOP_MIN_COUNT loop devices at module
  * init time. Loop devices can be requested on-demand with the
  * /dev/loop-control interface, or be instantiated by accessing
- * a 'dead' device node.
+ * a 'dead' device analde.
  */
 static int max_loop = CONFIG_BLK_DEV_LOOP_MIN_COUNT;
 
@@ -1901,10 +1901,10 @@ static void loop_handle_cmd(struct loop_cmd *cmd)
 			mem_cgroup_from_css(cmd_memcg_css));
 
 	/*
-	 * do_req_filebacked() may call blk_mq_complete_request() synchronously
-	 * or asynchronously if using aio. Hence, do not touch 'cmd' after
+	 * do_req_filebacked() may call blk_mq_complete_request() synchroanalusly
+	 * or asynchroanalusly if using aio. Hence, do analt touch 'cmd' after
 	 * do_req_filebacked() has returned unless we are sure that 'cmd' has
-	 * not yet been completed.
+	 * analt yet been completed.
 	 */
 	ret = do_req_filebacked(lo, rq);
 
@@ -1916,9 +1916,9 @@ static void loop_handle_cmd(struct loop_cmd *cmd)
 		css_put(cmd_memcg_css);
 	}
  failed:
-	/* complete non-aio request */
+	/* complete analn-aio request */
 	if (!use_aio || ret) {
-		if (ret == -EOPNOTSUPP)
+		if (ret == -EOPANALTSUPP)
 			cmd->ret = ret;
 		else
 			cmd->ret = ret ? -EIO : 0;
@@ -1933,7 +1933,7 @@ static void loop_process_work(struct loop_worker *worker,
 	int orig_flags = current->flags;
 	struct loop_cmd *cmd;
 
-	current->flags |= PF_LOCAL_THROTTLE | PF_MEMALLOC_NOIO;
+	current->flags |= PF_LOCAL_THROTTLE | PF_MEMALLOC_ANALIO;
 	spin_lock_irq(&lo->lo_work_lock);
 	while (!list_empty(cmd_list)) {
 		cmd = container_of(
@@ -1948,8 +1948,8 @@ static void loop_process_work(struct loop_worker *worker,
 	}
 
 	/*
-	 * We only add to the idle list if there are no pending cmds
-	 * *and* the worker will not run again which ensures that it
+	 * We only add to the idle list if there are anal pending cmds
+	 * *and* the worker will analt run again which ensures that it
 	 * is safe to free any worker on the idle list
 	 */
 	if (worker && !work_pending(&worker->work)) {
@@ -1986,7 +1986,7 @@ static int loop_add(int i)
 	struct gendisk *disk;
 	int err;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	lo = kzalloc(sizeof(*lo), GFP_KERNEL);
 	if (!lo)
 		goto out;
@@ -2002,7 +2002,7 @@ static int loop_add(int i)
 	/* allocate id, if @id >= 0, we're requesting that specific id */
 	if (i >= 0) {
 		err = idr_alloc(&loop_index_idr, lo, i, i + 1, GFP_KERNEL);
-		if (err == -ENOSPC)
+		if (err == -EANALSPC)
 			err = -EEXIST;
 	} else {
 		err = idr_alloc(&loop_index_idr, lo, 0, 0, GFP_KERNEL);
@@ -2015,10 +2015,10 @@ static int loop_add(int i)
 	lo->tag_set.ops = &loop_mq_ops;
 	lo->tag_set.nr_hw_queues = 1;
 	lo->tag_set.queue_depth = hw_queue_depth;
-	lo->tag_set.numa_node = NUMA_NO_NODE;
+	lo->tag_set.numa_analde = NUMA_ANAL_ANALDE;
 	lo->tag_set.cmd_size = sizeof(struct loop_cmd);
 	lo->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_STACKING |
-		BLK_MQ_F_NO_SCHED_BY_DEFAULT;
+		BLK_MQ_F_ANAL_SCHED_BY_DEFAULT;
 	lo->tag_set.driver_data = lo;
 
 	err = blk_mq_alloc_tag_set(&lo->tag_set);
@@ -2041,22 +2041,22 @@ static int loop_add(int i)
 	 * page. For directio mode, merge does help to dispatch bigger request
 	 * to underlayer disk. We will enable merge once directio is enabled.
 	 */
-	blk_queue_flag_set(QUEUE_FLAG_NOMERGES, lo->lo_queue);
+	blk_queue_flag_set(QUEUE_FLAG_ANALMERGES, lo->lo_queue);
 
 	/*
 	 * Disable partition scanning by default. The in-kernel partition
 	 * scanning can be requested individually per-device during its
 	 * setup. Userspace can always add and remove partitions from all
-	 * devices. The needed partition minors are allocated from the
-	 * extended minor space, the main loop device numbers will continue
-	 * to match the loop minors, regardless of the number of partitions
+	 * devices. The needed partition mianalrs are allocated from the
+	 * extended mianalr space, the main loop device numbers will continue
+	 * to match the loop mianalrs, regardless of the number of partitions
 	 * used.
 	 *
 	 * If max_part is given, partition scanning is globally enabled for
-	 * all loop devices. The minors for the main loop devices will be
+	 * all loop devices. The mianalrs for the main loop devices will be
 	 * multiples of max_part.
 	 *
-	 * Note: Global-for-all-devices, set-only-at-init, read-only module
+	 * Analte: Global-for-all-devices, set-only-at-init, read-only module
 	 * parameteters like 'max_loop' and 'max_part' make things needlessly
 	 * complicated, are too static, inflexible and may surprise
 	 * userspace tools. Parameters like this in general should be avoided.
@@ -2070,8 +2070,8 @@ static int loop_add(int i)
 	INIT_WORK(&lo->rootcg_work, loop_rootcg_workfn);
 	INIT_LIST_HEAD(&lo->rootcg_cmd_list);
 	disk->major		= LOOP_MAJOR;
-	disk->first_minor	= i << part_shift;
-	disk->minors		= 1 << part_shift;
+	disk->first_mianalr	= i << part_shift;
+	disk->mianalrs		= 1 << part_shift;
 	disk->fops		= &lo_fops;
 	disk->private_data	= lo;
 	disk->queue		= lo->lo_queue;
@@ -2120,7 +2120,7 @@ static void loop_remove(struct loop_device *lo)
 #ifdef CONFIG_BLOCK_LEGACY_AUTOLOAD
 static void loop_probe(dev_t dev)
 {
-	int idx = MINOR(dev) >> part_shift;
+	int idx = MIANALR(dev) >> part_shift;
 
 	if (max_loop_specified && max_loop && idx >= max_loop)
 		return;
@@ -2136,7 +2136,7 @@ static int loop_control_remove(int idx)
 	int ret;
 
 	if (idx < 0) {
-		pr_warn_once("deleting an unspecified loop device is not supported.\n");
+		pr_warn_once("deleting an unspecified loop device is analt supported.\n");
 		return -EINVAL;
 	}
 		
@@ -2146,7 +2146,7 @@ static int loop_control_remove(int idx)
 		return ret;
 	lo = idr_find(&loop_index_idr, idx);
 	if (!lo || !lo->idr_visible)
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	else
 		lo->idr_visible = false;
 	mutex_unlock(&loop_ctl_mutex);
@@ -2162,7 +2162,7 @@ static int loop_control_remove(int idx)
 		ret = -EBUSY;
 		goto mark_visible;
 	}
-	/* Mark this loop device as no more bound, but not quite unbound yet */
+	/* Mark this loop device as anal more bound, but analt quite unbound yet */
 	lo->lo_state = Lo_deleting;
 	mutex_unlock(&lo->lo_mutex);
 
@@ -2208,25 +2208,25 @@ static long loop_control_ioctl(struct file *file, unsigned int cmd,
 	case LOOP_CTL_GET_FREE:
 		return loop_control_get_free(parm);
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 }
 
 static const struct file_operations loop_ctl_fops = {
-	.open		= nonseekable_open,
+	.open		= analnseekable_open,
 	.unlocked_ioctl	= loop_control_ioctl,
 	.compat_ioctl	= loop_control_ioctl,
 	.owner		= THIS_MODULE,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static struct miscdevice loop_misc = {
-	.minor		= LOOP_CTRL_MINOR,
+	.mianalr		= LOOP_CTRL_MIANALR,
 	.name		= "loop-control",
 	.fops		= &loop_ctl_fops,
 };
 
-MODULE_ALIAS_MISCDEV(LOOP_CTRL_MINOR);
+MODULE_ALIAS_MISCDEV(LOOP_CTRL_MIANALR);
 MODULE_ALIAS("devname:loop-control");
 
 static int __init loop_init(void)
@@ -2240,10 +2240,10 @@ static int __init loop_init(void)
 
 		/*
 		 * Adjust max_part according to part_shift as it is exported
-		 * to user space so that user can decide correct minor number
+		 * to user space so that user can decide correct mianalr number
 		 * if [s]he want to create more devices.
 		 *
-		 * Note that -1 is required because partition 0 is reserved
+		 * Analte that -1 is required because partition 0 is reserved
 		 * for the whole disk.
 		 */
 		max_part = (1UL << part_shift) - 1;
@@ -2254,7 +2254,7 @@ static int __init loop_init(void)
 		goto err_out;
 	}
 
-	if (max_loop > 1UL << (MINORBITS - part_shift)) {
+	if (max_loop > 1UL << (MIANALRBITS - part_shift)) {
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -2291,10 +2291,10 @@ static void __exit loop_exit(void)
 	misc_deregister(&loop_misc);
 
 	/*
-	 * There is no need to use loop_ctl_mutex here, for nobody else can
+	 * There is anal need to use loop_ctl_mutex here, for analbody else can
 	 * access loop_index_idr when this module is unloading (unless forced
-	 * module unloading is requested). If this is not a clean unloading,
-	 * we have no means to avoid kernel crash.
+	 * module unloading is requested). If this is analt a clean unloading,
+	 * we have anal means to avoid kernel crash.
 	 */
 	idr_for_each_entry(&loop_index_idr, lo, id)
 		loop_remove(lo);

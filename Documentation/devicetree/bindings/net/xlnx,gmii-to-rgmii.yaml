@@ -17,7 +17,7 @@ description:
   The Management Data Input/Output (MDIO) interface is used to configure the
   speed of operation. This core can switch dynamically between the three
   different speed modes by configuring the converter register through mdio write.
-  The core cannot function without an external phy connected to it.
+  The core cananalt function without an external phy connected to it.
 
 properties:
   compatible:

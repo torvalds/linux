@@ -102,7 +102,7 @@ static int twlreg_grp(struct regulator_dev *rdev)
 
 /*
  * Enable/disable regulators by joining/leaving the P1 (processor) group.
- * We assume nobody else is updating the DEV_GRP registers.
+ * We assume analbody else is updating the DEV_GRP registers.
  */
 /* definition for 4030 family */
 #define P3_GRP_4030	BIT(7)		/* "peripherals" */
@@ -227,11 +227,11 @@ static int twl4030reg_get_status(struct regulator_dev *rdev)
 		return state;
 	state &= 0x0f;
 
-	/* assume state != WARM_RESET; we'd not be running...  */
+	/* assume state != WARM_RESET; we'd analt be running...  */
 	if (!state)
 		return REGULATOR_STATUS_OFF;
 	return (state & BIT(3))
-		? REGULATOR_STATUS_NORMAL
+		? REGULATOR_STATUS_ANALRMAL
 		: REGULATOR_STATUS_STANDBY;
 }
 
@@ -242,7 +242,7 @@ static int twl4030reg_set_mode(struct regulator_dev *rdev, unsigned mode)
 
 	/* We can only set the mode through state machine commands... */
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		message = MSG_SINGULAR(DEV_GRP_P1, info->id, RES_STATE_ACTIVE);
 		break;
 	case REGULATOR_MODE_STANDBY:
@@ -259,7 +259,7 @@ static inline unsigned int twl4030reg_map_mode(unsigned int mode)
 {
 	switch (mode) {
 	case RES_STATE_ACTIVE:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case RES_STATE_SLEEP:
 		return REGULATOR_MODE_STANDBY;
 	default:
@@ -274,12 +274,12 @@ static inline unsigned int twl4030reg_map_mode(unsigned int mode)
  * select field in its control register.   We use tables indexed by VSEL
  * to record voltages in milliVolts.  (Accuracy is about three percent.)
  *
- * Note that VSEL values for VAUX2 changed in twl5030 and newer silicon;
+ * Analte that VSEL values for VAUX2 changed in twl5030 and newer silicon;
  * currently handled by listing two slightly different VAUX2 regulators,
  * only one of which will be configured.
  *
- * VSEL values documented as "TI cannot support these values" are flagged
- * in these tables as UNSUP() values; we normally won't assign them.
+ * VSEL values documented as "TI cananalt support these values" are flagged
+ * in these tables as UNSUP() values; we analrmally won't assign them.
  *
  * VAUX3 at 3V is incorrectly listed in some TI manuals as unsupported.
  * TI are revising the twl5030/tps659x0 specs to support that 3.0V setting.
@@ -453,7 +453,7 @@ static const struct regulator_ops twl4030fixed_ops = {
 
 /*----------------------------------------------------------------------*/
 
-#define TWL4030_ADJUSTABLE_LDO(label, offset, num, turnon_delay, remap_conf) \
+#define TWL4030_ADJUSTABLE_LDO(label, offset, num, turanaln_delay, remap_conf) \
 static const struct twlreg_info TWL4030_INFO_##label = { \
 	.base = offset, \
 	.id = num, \
@@ -467,12 +467,12 @@ static const struct twlreg_info TWL4030_INFO_##label = { \
 		.ops = &twl4030ldo_ops, \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
-		.enable_time = turnon_delay, \
+		.enable_time = turanaln_delay, \
 		.of_map_mode = twl4030reg_map_mode, \
 		}, \
 	}
 
-#define TWL4030_ADJUSTABLE_SMPS(label, offset, num, turnon_delay, remap_conf, \
+#define TWL4030_ADJUSTABLE_SMPS(label, offset, num, turanaln_delay, remap_conf, \
 		n_volt) \
 static const struct twlreg_info TWL4030_INFO_##label = { \
 	.base = offset, \
@@ -484,7 +484,7 @@ static const struct twlreg_info TWL4030_INFO_##label = { \
 		.ops = &twl4030smps_ops, \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
-		.enable_time = turnon_delay, \
+		.enable_time = turanaln_delay, \
 		.of_map_mode = twl4030reg_map_mode, \
 		.n_voltages = n_volt, \
 		.n_linear_ranges = ARRAY_SIZE(label ## _ranges), \
@@ -492,7 +492,7 @@ static const struct twlreg_info TWL4030_INFO_##label = { \
 		}, \
 	}
 
-#define TWL4030_FIXED_LDO(label, offset, mVolts, num, turnon_delay, \
+#define TWL4030_FIXED_LDO(label, offset, mVolts, num, turanaln_delay, \
 			remap_conf) \
 static const struct twlreg_info TWLFIXED_INFO_##label = { \
 	.base = offset, \
@@ -506,7 +506,7 @@ static const struct twlreg_info TWLFIXED_INFO_##label = { \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
 		.min_uV = mVolts * 1000, \
-		.enable_time = turnon_delay, \
+		.enable_time = turanaln_delay, \
 		.of_map_mode = twl4030reg_map_mode, \
 		}, \
 	}
@@ -586,23 +586,23 @@ static int twlreg_probe(struct platform_device *pdev)
 
 	template = of_device_get_match_data(&pdev->dev);
 	if (!template)
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = template->desc.id;
-	initdata = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node,
+	initdata = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_analde,
 						&template->desc);
 	if (!initdata)
 		return -EINVAL;
 
 	info = devm_kmemdup(&pdev->dev, template, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Constrain board-specific capabilities according to what
 	 * this driver and the chip itself can actually do.
 	 */
 	c = &initdata->constraints;
-	c->valid_modes_mask &= REGULATOR_MODE_NORMAL | REGULATOR_MODE_STANDBY;
+	c->valid_modes_mask &= REGULATOR_MODE_ANALRMAL | REGULATOR_MODE_STANDBY;
 	c->valid_ops_mask &= REGULATOR_CHANGE_VOLTAGE
 				| REGULATOR_CHANGE_MODE
 				| REGULATOR_CHANGE_STATUS;
@@ -623,7 +623,7 @@ static int twlreg_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 	config.init_data = initdata;
 	config.driver_data = info;
-	config.of_node = pdev->dev.of_node;
+	config.of_analde = pdev->dev.of_analde;
 
 	rdev = devm_regulator_register(&pdev->dev, &info->desc, &config);
 	if (IS_ERR(rdev)) {
@@ -635,8 +635,8 @@ static int twlreg_probe(struct platform_device *pdev)
 
 	twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_REMAP, info->remap);
 
-	/* NOTE:  many regulators support short-circuit IRQs (presentable
-	 * as REGULATOR_OVER_CURRENT notifications?) configured via:
+	/* ANALTE:  many regulators support short-circuit IRQs (presentable
+	 * as REGULATOR_OVER_CURRENT analtifications?) configured via:
 	 *  - SC_CONFIG
 	 *  - SC_DETECT1 (vintana2, vmmc1/2, vaux1/2/3/4)
 	 *  - SC_DETECT2 (vusb, vdac, vio, vdd1/2, vpll2)
@@ -650,12 +650,12 @@ MODULE_ALIAS("platform:twl4030_reg");
 
 static struct platform_driver twlreg_driver = {
 	.probe		= twlreg_probe,
-	/* NOTE: short name, to work around driver model truncation of
+	/* ANALTE: short name, to work around driver model truncation of
 	 * "twl_regulator.12" (and friends) to "twl_regulator.1".
 	 */
 	.driver  = {
 		.name  = "twl4030_reg",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(twl_of_match),
 	},
 };

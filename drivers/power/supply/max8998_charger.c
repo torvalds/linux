@@ -22,11 +22,11 @@ struct max8998_battery_data {
 
 static enum power_supply_property max8998_battery_props[] = {
 	POWER_SUPPLY_PROP_PRESENT, /* the presence of battery */
-	POWER_SUPPLY_PROP_ONLINE, /* charger is active or not */
+	POWER_SUPPLY_PROP_ONLINE, /* charger is active or analt */
 	POWER_SUPPLY_PROP_STATUS, /* charger is charging/discharging/full */
 };
 
-/* Note that the charger control is done by a current regulator "CHARGER" */
+/* Analte that the charger control is done by a current regulator "CHARGER" */
 static int max8998_battery_get_property(struct power_supply *psy,
 		enum power_supply_property psp,
 		union power_supply_propval *val)
@@ -70,7 +70,7 @@ static int max8998_battery_get_property(struct power_supply *psy,
 			else if (reg & (1 << 3))
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
 			else
-				val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+				val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		}
 		break;
 	default:
@@ -98,14 +98,14 @@ static int max8998_battery_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	if (!pdata) {
-		dev_err(pdev->dev.parent, "No platform init data supplied\n");
-		return -ENODEV;
+		dev_err(pdev->dev.parent, "Anal platform init data supplied\n");
+		return -EANALDEV;
 	}
 
 	max8998 = devm_kzalloc(&pdev->dev, sizeof(struct max8998_battery_data),
 				GFP_KERNEL);
 	if (!max8998)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max8998->dev = &pdev->dev;
 	max8998->iodev = iodev;
@@ -120,7 +120,7 @@ static int max8998_battery_probe(struct platform_device *pdev)
 				(pdata->eoc / 5 - 2) << 5, 0x7 << 5);
 	} else if (pdata->eoc == 0) {
 		dev_dbg(max8998->dev,
-			"EOC value not set: leave it unchanged.\n");
+			"EOC value analt set: leave it unchanged.\n");
 	} else {
 		dev_err(max8998->dev, "Invalid EOC value\n");
 		return -EINVAL;
@@ -142,7 +142,7 @@ static int max8998_battery_probe(struct platform_device *pdev)
 		break;
 	case 0:
 		dev_dbg(max8998->dev,
-			"Restart Level not set: leave it unchanged.\n");
+			"Restart Level analt set: leave it unchanged.\n");
 		break;
 	default:
 		dev_err(max8998->dev, "Invalid Restart Level\n");
@@ -165,7 +165,7 @@ static int max8998_battery_probe(struct platform_device *pdev)
 		break;
 	case 0:
 		dev_dbg(max8998->dev,
-			"Full Timeout not set: leave it unchanged.\n");
+			"Full Timeout analt set: leave it unchanged.\n");
 		break;
 	default:
 		dev_err(max8998->dev, "Invalid Full Timeout value\n");

@@ -1,16 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __nosy_user_h
-#define __nosy_user_h
+#ifndef __analsy_user_h
+#define __analsy_user_h
 
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-#define NOSY_IOC_GET_STATS _IOR('&', 0, struct nosy_stats)
-#define NOSY_IOC_START     _IO('&', 1)
-#define NOSY_IOC_STOP      _IO('&', 2)
-#define NOSY_IOC_FILTER    _IOW('&', 2, __u32)
+#define ANALSY_IOC_GET_STATS _IOR('&', 0, struct analsy_stats)
+#define ANALSY_IOC_START     _IO('&', 1)
+#define ANALSY_IOC_STOP      _IO('&', 2)
+#define ANALSY_IOC_FILTER    _IOW('&', 2, __u32)
 
-struct nosy_stats {
+struct analsy_stats {
 	__u32 total_packet_count;
 	__u32 lost_packet_count;
 };
@@ -23,4 +23,4 @@ struct nosy_stats {
  *	quadlet with ack		(little endian)
  */
 
-#endif /* __nosy_user_h */
+#endif /* __analsy_user_h */

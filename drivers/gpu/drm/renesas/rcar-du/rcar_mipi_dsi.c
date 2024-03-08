@@ -908,7 +908,7 @@ static int rcar_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 	dsi->lanes = device->lanes;
 	dsi->format = device->format;
 
-	dsi->next_bridge = devm_drm_of_get_bridge(dsi->dev, dsi->dev->of_node,
+	dsi->next_bridge = devm_drm_of_get_bridge(dsi->dev, dsi->dev->of_analde,
 						  1, 0);
 	if (IS_ERR(dsi->next_bridge)) {
 		ret = PTR_ERR(dsi->next_bridge);
@@ -918,7 +918,7 @@ static int rcar_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 
 	/* Initialize the DRM bridge. */
 	dsi->bridge.funcs = &rcar_mipi_dsi_bridge_ops;
-	dsi->bridge.of_node = dsi->dev->of_node;
+	dsi->bridge.of_analde = dsi->dev->of_analde;
 	drm_bridge_add(&dsi->bridge);
 
 	return 0;
@@ -947,7 +947,7 @@ static int rcar_mipi_dsi_parse_dt(struct rcar_mipi_dsi *dsi)
 {
 	int ret;
 
-	ret = drm_of_get_data_lanes_count_ep(dsi->dev->of_node, 1, 0, 1, 4);
+	ret = drm_of_get_data_lanes_count_ep(dsi->dev->of_analde, 1, 0, 1, 4);
 	if (ret < 0) {
 		dev_err(dsi->dev, "missing or invalid data-lanes property\n");
 		return ret;
@@ -967,7 +967,7 @@ static struct clk *rcar_mipi_dsi_get_clock(struct rcar_mipi_dsi *dsi,
 	if (!IS_ERR(clk))
 		return clk;
 
-	if (PTR_ERR(clk) == -ENOENT && optional)
+	if (PTR_ERR(clk) == -EANALENT && optional)
 		return NULL;
 
 	dev_err_probe(dsi->dev, PTR_ERR(clk), "failed to get %s clock\n",
@@ -991,7 +991,7 @@ static int rcar_mipi_dsi_get_clocks(struct rcar_mipi_dsi *dsi)
 		return PTR_ERR(dsi->clocks.dsi);
 
 	if (!dsi->clocks.pll && !dsi->clocks.dsi) {
-		dev_err(dsi->dev, "no input clock (pll, dsi)\n");
+		dev_err(dsi->dev, "anal input clock (pll, dsi)\n");
 		return -EINVAL;
 	}
 
@@ -1005,7 +1005,7 @@ static int rcar_mipi_dsi_probe(struct platform_device *pdev)
 
 	dsi = devm_kzalloc(&pdev->dev, sizeof(*dsi), GFP_KERNEL);
 	if (dsi == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, dsi);
 

@@ -70,17 +70,17 @@ static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 
 	/* We used the stale old_read_count above, which gives us a
 	 * pessimistic estimate of the fill level (which may even
-	 * validly be >= efx->txq_entries).  Now try again using
+	 * validly be >= efx->txq_entries).  Analw try again using
 	 * read_count (more likely to be a cache miss).
 	 *
 	 * If we read read_count and then conditionally stop the
 	 * queue, it is possible for the completion path to race with
 	 * us and complete all outstanding descriptors in the middle,
-	 * after which there will be no more completions to wake it.
+	 * after which there will be anal more completions to wake it.
 	 * Therefore we stop the queue first, then read read_count
 	 * (with a memory barrier to ensure the ordering), then
 	 * restart the queue if the fill level turns out to be low
-	 * enough.
+	 * eanalugh.
 	 */
 	netif_tx_stop_queue(txq1->core_txq);
 	smp_mb();
@@ -88,7 +88,7 @@ static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 		txq2->old_read_count = READ_ONCE(txq2->read_count);
 
 	fill_level = efx_channel_tx_old_fill_level(txq1->channel);
-	EFX_WARN_ON_ONCE_PARANOID(fill_level >= efx->txq_entries);
+	EFX_WARN_ON_ONCE_PARAANALID(fill_level >= efx->txq_entries);
 	if (likely(fill_level < efx->txq_stop_thresh)) {
 		smp_mb();
 		if (likely(!efx->loopback_selftest))
@@ -104,16 +104,16 @@ static int efx_enqueue_skb_copy(struct efx_tx_queue *tx_queue,
 	u8 *copy_buffer;
 	int rc;
 
-	EFX_WARN_ON_ONCE_PARANOID(copy_len > EFX_TX_CB_SIZE);
+	EFX_WARN_ON_ONCE_PARAANALID(copy_len > EFX_TX_CB_SIZE);
 
 	buffer = efx_tx_queue_get_insert_buffer(tx_queue);
 
 	copy_buffer = efx_tx_get_copy_buffer(tx_queue, buffer);
 	if (unlikely(!copy_buffer))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = skb_copy_bits(skb, 0, copy_buffer, copy_len);
-	EFX_WARN_ON_PARANOID(rc);
+	EFX_WARN_ON_PARAANALID(rc);
 	buffer->len = copy_len;
 
 	buffer->skb = skb;
@@ -167,7 +167,7 @@ static void efx_memcpy_toio_aligned_cb(struct efx_nic *efx, u8 __iomem **piobuf,
 		memcpy(copy_buf->buf + copy_buf->used, data, copy_to_buf);
 		copy_buf->used += copy_to_buf;
 
-		/* if we didn't fill it up then we're done for now */
+		/* if we didn't fill it up then we're done for analw */
 		if (copy_buf->used < sizeof(copy_buf->buf))
 			return;
 
@@ -214,7 +214,7 @@ static void efx_skb_copy_bits_to_pio(struct efx_nic *efx, struct sk_buff *skb,
 		kunmap_local(vaddr);
 	}
 
-	EFX_WARN_ON_ONCE_PARANOID(skb_shinfo(skb)->frag_list);
+	EFX_WARN_ON_ONCE_PARAANALID(skb_shinfo(skb)->frag_list);
 }
 
 static int efx_enqueue_skb_pio(struct efx_tx_queue *tx_queue,
@@ -242,8 +242,8 @@ static int efx_enqueue_skb_pio(struct efx_tx_queue *tx_queue,
 		efx_flush_copy_buffer(tx_queue->efx, piobuf, &copy_buf);
 	} else {
 		/* Pad the write to the size of a cache line.
-		 * We can do this because we know the skb_shared_info struct is
-		 * after the source, and the destination buffer is big enough.
+		 * We can do this because we kanalw the skb_shared_info struct is
+		 * after the source, and the destination buffer is big eanalugh.
 		 */
 		BUILD_BUG_ON(L1_CACHE_BYTES >
 			     SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
@@ -270,7 +270,7 @@ static int efx_enqueue_skb_pio(struct efx_tx_queue *tx_queue,
  * throughput, so we only do this if both hardware and software TX rings
  * are empty, including all queues for the channel.  This also ensures that
  * only one packet at a time can be using the PIO buffer. If the xmit_more
- * flag is set then we don't use this - there'll be another packet along
+ * flag is set then we don't use this - there'll be aanalther packet along
  * shortly and we want to hold off the doorbell.
  */
 static bool efx_tx_may_pio(struct efx_tx_queue *tx_queue)
@@ -280,7 +280,7 @@ static bool efx_tx_may_pio(struct efx_tx_queue *tx_queue)
 	if (!tx_queue->piobuf)
 		return false;
 
-	EFX_WARN_ON_ONCE_PARANOID(!channel->efx->type->option_descriptors);
+	EFX_WARN_ON_ONCE_PARAANALID(!channel->efx->type->option_descriptors);
 
 	efx_for_each_channel_tx_queue(tx_queue, channel)
 		if (!efx_nic_tx_is_empty(tx_queue, tx_queue->packet_write_count))
@@ -345,7 +345,7 @@ netdev_tx_t __efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb
 		case 2:
 			rc = efx_ef10_tx_tso_desc(tx_queue, skb, &data_mapped);
 			break;
-		case 0: /* No TSO on this queue, SW fallback needed */
+		case 0: /* Anal TSO on this queue, SW fallback needed */
 		default:
 			rc = -EINVAL;
 			break;
@@ -402,7 +402,7 @@ err:
 	efx_enqueue_unwind(tx_queue, old_insert_count);
 	dev_kfree_skb_any(skb);
 
-	/* If we're not expecting another transmit and we had something to push
+	/* If we're analt expecting aanalther transmit and we had something to push
 	 * on this queue or a partner queue then we need to push here to get the
 	 * previous packets out.
 	 */
@@ -506,7 +506,7 @@ unlock:
 /* Initiate a packet transmission.  We use one channel per CPU
  * (sharing when we have more CPUs than channels).
  *
- * Context: non-blocking.
+ * Context: analn-blocking.
  * Should always return NETDEV_TX_OK and consume the skb.
  */
 netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
@@ -516,7 +516,7 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 	struct efx_tx_queue *tx_queue;
 	unsigned index, type;
 
-	EFX_WARN_ON_PARANOID(!netif_device_present(net_dev));
+	EFX_WARN_ON_PARAANALID(!netif_device_present(net_dev));
 	index = skb_get_queue_mapping(skb);
 	type = efx_tx_csum_type_skb(skb);
 
@@ -539,7 +539,7 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 		 * features unless we can support them.
 		 */
 		dev_kfree_skb_any(skb);
-		/* If we're not expecting another transmit and we had something to push
+		/* If we're analt expecting aanalther transmit and we had something to push
 		 * on this queue or a partner queue then we need to push here to get the
 		 * previous packets out.
 		 */
@@ -586,7 +586,7 @@ void efx_xmit_done_single(struct efx_tx_queue *tx_queue)
 	tx_queue->pkts_compl += pkts_compl;
 	tx_queue->bytes_compl += bytes_compl;
 
-	EFX_WARN_ON_PARANOID(pkts_compl + efv_pkts_compl != 1);
+	EFX_WARN_ON_PARAANALID(pkts_compl + efv_pkts_compl != 1);
 
 	efx_xmit_done_check_empty(tx_queue);
 }

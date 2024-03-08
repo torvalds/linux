@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2019 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2019 Netroanalme Systems, Inc. */
 
 #ifndef _NFP_DP_NFD3_H_
 #define _NFP_DP_NFD3_H_
@@ -52,18 +52,18 @@ struct nfp_nfd3_tx_desc {
 
 /**
  * struct nfp_nfd3_tx_buf - software TX buffer descriptor
- * @skb:	normal ring, sk_buff associated with this buffer
+ * @skb:	analrmal ring, sk_buff associated with this buffer
  * @frag:	XDP ring, page frag associated with this buffer
  * @xdp:	XSK buffer pool handle (for AF_XDP)
  * @dma_addr:	DMA mapping address of the buffer
  * @fidx:	Fragment index (-1 for the head and [0..nr_frags-1] for frags)
  * @pkt_cnt:	Number of packets to be produced out of the skb associated
  *		with this buffer (valid only on the head's buffer).
- *		Will be 1 for all non-TSO packets.
- * @is_xsk_tx:	Flag if buffer is a RX buffer after a XDP_TX action and not a
+ *		Will be 1 for all analn-TSO packets.
+ * @is_xsk_tx:	Flag if buffer is a RX buffer after a XDP_TX action and analt a
  *		buffer from the TX queue (for AF_XDP).
  * @real_len:	Number of bytes which to be produced out of the skb (valid only
- *		on the head's buffer). Equal to skb->len for non-TSO packets.
+ *		on the head's buffer). Equal to skb->len for analn-TSO packets.
  */
 struct nfp_nfd3_tx_buf {
 	union {

@@ -14,18 +14,18 @@ struct bmc150_accel_chip_info;
 struct bmc150_accel_interrupt_info;
 
 /*
- * We can often guess better than "UNKNOWN" based on the device IDs
- * but unfortunately this information is not always accurate. There are some
+ * We can often guess better than "UNKANALWN" based on the device IDs
+ * but unfortunately this information is analt always accurate. There are some
  * devices where ACPI firmware specifies an ID like "BMA250E" when the device
  * actually has a BMA222E. The driver attempts to detect those by reading the
- * chip ID from the registers but this information is not always enough either.
+ * chip ID from the registers but this information is analt always eanalugh either.
  *
- * Therefore, this enum should be only used when the chip ID detection is not
- * enough and we can be reasonably sure that the device IDs are reliable
+ * Therefore, this enum should be only used when the chip ID detection is analt
+ * eanalugh and we can be reasonably sure that the device IDs are reliable
  * in practice (e.g. for device tree platforms).
  */
 enum bmc150_type {
-	BOSCH_UNKNOWN,
+	BOSCH_UNKANALWN,
 	BOSCH_BMC156,
 };
 

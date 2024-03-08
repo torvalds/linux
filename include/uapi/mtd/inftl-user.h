@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Parts of INFTL headers shared with userspace
  *
@@ -23,8 +23,8 @@ struct inftl_bci {
 } __attribute__((packed));
 
 struct inftl_unithead1 {
-	__u16 virtualUnitNo;
-	__u16 prevUnitNo;
+	__u16 virtualUnitAnal;
+	__u16 prevUnitAnal;
 	__u8 ANAC;
 	__u8 NACs;
 	__u8 parityPerField;
@@ -34,8 +34,8 @@ struct inftl_unithead1 {
 struct inftl_unithead2 {
 	__u8 parityPerField;
 	__u8 ANAC;
-	__u16 prevUnitNo;
-	__u16 virtualUnitNo;
+	__u16 prevUnitAnal;
+	__u16 virtualUnitAnal;
 	__u8 NACs;
 	__u8 discarded;
 } __attribute__((packed));
@@ -72,9 +72,9 @@ struct INFTLPartition {
 
 struct INFTLMediaHeader {
 	char bootRecordID[8];
-	__u32 NoOfBootImageBlocks;
-	__u32 NoOfBinaryPartitions;
-	__u32 NoOfBDTLPartitions;
+	__u32 AnalOfBootImageBlocks;
+	__u32 AnalOfBinaryPartitions;
+	__u32 AnalOfBDTLPartitions;
 	__u32 BlockMultiplierBits;
 	__u32 FormatFlags;
 	__u32 OsakVersion;

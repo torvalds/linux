@@ -104,14 +104,14 @@ irqreturn_t smsc_phy_handle_interrupt(struct phy_device *phydev)
 
 	irq_status = phy_read(phydev, MII_LAN83C185_ISF);
 	if (irq_status < 0) {
-		if (irq_status != -ENODEV)
+		if (irq_status != -EANALDEV)
 			phy_error(phydev);
 
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & MII_LAN83C185_ISF_INT_PHYLIB_EVENTS))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -210,7 +210,7 @@ static int lan95xx_config_aneg_ext(struct phy_device *phydev)
  * The Energy Detect Power-Down mode is enabled again in the end of procedure to
  * save approximately 220 mW of power if cable is unplugged.
  * The workaround is only applicable to poll mode. Energy Detect Power-Down may
- * not be used in interrupt mode lest link change detection becomes unreliable.
+ * analt be used in interrupt mode lest link change detection becomes unreliable.
  */
 int lan87xx_read_status(struct phy_device *phydev)
 {
@@ -236,7 +236,7 @@ int lan87xx_read_status(struct phy_device *phydev)
 		if (rc < 0)
 			return rc;
 
-		/* Wait max 640 ms to detect energy and the timeout is not
+		/* Wait max 640 ms to detect energy and the timeout is analt
 		 * an actual error.
 		 */
 		read_poll_timeout(phy_read, rc,
@@ -340,16 +340,16 @@ static int lan874x_chk_wol_pattern(const u8 pattern[], const u16 *mask,
 	 * CRC16 calculation for hardware comparison.  This helper function
 	 * makes sure only relevant frame data are included in this
 	 * calculation.  It provides a warning when the masks and expected
-	 * data size do not match.
+	 * data size do analt match.
 	 */
 	i = 0;
 	k = 0;
 	while (len > 0) {
 		bits = *mask;
 		for (j = 0; j < 16; j++, i++, len--) {
-			/* No more pattern. */
+			/* Anal more pattern. */
 			if (!len) {
-				/* The rest of bitmap is not empty. */
+				/* The rest of bitmap is analt empty. */
 				if (bits)
 					ret = i + 1;
 				break;
@@ -418,7 +418,7 @@ static int lan874x_set_wol(struct phy_device *phydev,
 	    (WAKE_ARP | WAKE_MCAST)) {
 		phydev_info(phydev,
 			    "lan874x WoL supports one of ARP|MCAST at a time\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	rc = phy_read_mmd(phydev, MDIO_MMD_PCS, MII_LAN874X_PHY_MMD_WOL_WUCSR);
@@ -455,7 +455,7 @@ static int lan874x_set_wol(struct phy_device *phydev,
 		rc = lan874x_chk_wol_pattern(pattern, mask, 2, data,
 					     &datalen);
 		if (rc)
-			phydev_dbg(phydev, "pattern not valid at %d\n", rc);
+			phydev_dbg(phydev, "pattern analt valid at %d\n", rc);
 
 		/* Need to match broadcast destination address and provided
 		 * data pattern at offset 12.
@@ -540,12 +540,12 @@ static int smsc_phy_get_edpd(struct phy_device *phydev, u16 *edpd)
 	struct smsc_phy_priv *priv = phydev->priv;
 
 	if (!priv)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!priv->edpd_enable)
 		*edpd = ETHTOOL_PHY_EDPD_DISABLE;
 	else if (!priv->edpd_max_wait_ms)
-		*edpd = ETHTOOL_PHY_EDPD_NO_TX;
+		*edpd = ETHTOOL_PHY_EDPD_ANAL_TX;
 	else
 		*edpd = PHY_STATE_MACH_MS + priv->edpd_max_wait_ms;
 
@@ -557,13 +557,13 @@ static int smsc_phy_set_edpd(struct phy_device *phydev, u16 edpd)
 	struct smsc_phy_priv *priv = phydev->priv;
 
 	if (!priv)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (edpd) {
 	case ETHTOOL_PHY_EDPD_DISABLE:
 		priv->edpd_enable = false;
 		break;
-	case ETHTOOL_PHY_EDPD_NO_TX:
+	case ETHTOOL_PHY_EDPD_ANAL_TX:
 		priv->edpd_enable = true;
 		priv->edpd_max_wait_ms = 0;
 		break;
@@ -572,7 +572,7 @@ static int smsc_phy_set_edpd(struct phy_device *phydev, u16 edpd)
 		fallthrough;
 	default:
 		if (phydev->irq != PHY_POLL)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (edpd < PHY_STATE_MACH_MS || edpd > PHY_STATE_MACH_MS + 1000)
 			return -EINVAL;
 		priv->edpd_enable = true;
@@ -591,7 +591,7 @@ int smsc_phy_get_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_EDPD:
 		return smsc_phy_get_edpd(phydev, data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 EXPORT_SYMBOL_GPL(smsc_phy_get_tunable);
@@ -603,7 +603,7 @@ int smsc_phy_set_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_EDPD:
 		return smsc_phy_set_edpd(phydev, *(u16 *)data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 EXPORT_SYMBOL_GPL(smsc_phy_set_tunable);
@@ -616,7 +616,7 @@ int smsc_phy_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->edpd_enable = true;
 	priv->edpd_max_wait_ms = EDPD_MAX_WAIT_DFLT_MS;

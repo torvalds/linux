@@ -498,11 +498,11 @@ static int sprd_spi_dma_submit(struct dma_chan *dma_chan,
 	if (ret < 0)
 		return ret;
 
-	flags = SPRD_DMA_FLAGS(SPRD_DMA_CHN_MODE_NONE, SPRD_DMA_NO_TRG,
+	flags = SPRD_DMA_FLAGS(SPRD_DMA_CHN_MODE_ANALNE, SPRD_DMA_ANAL_TRG,
 			       SPRD_DMA_FRAG_REQ, SPRD_DMA_TRANS_INT);
 	desc = dmaengine_prep_slave_sg(dma_chan, sg->sgl, sg->nents, dir, flags);
 	if (!desc)
-		return  -ENODEV;
+		return  -EANALDEV;
 
 	cookie = dmaengine_submit(desc);
 	if (dma_submit_error(cookie))
@@ -836,7 +836,7 @@ static irqreturn_t sprd_spi_handle_irq(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int sprd_spi_irq_init(struct platform_device *pdev, struct sprd_spi *ss)
@@ -904,7 +904,7 @@ static int sprd_spi_dma_init(struct platform_device *pdev, struct sprd_spi *ss)
 			return ret;
 
 		dev_warn(&pdev->dev,
-			 "failed to request dma, enter no dma mode, ret = %d\n",
+			 "failed to request dma, enter anal dma mode, ret = %d\n",
 			 ret);
 
 		return 0;
@@ -922,10 +922,10 @@ static int sprd_spi_probe(struct platform_device *pdev)
 	struct sprd_spi *ss;
 	int ret;
 
-	pdev->id = of_alias_get_id(pdev->dev.of_node, "spi");
+	pdev->id = of_alias_get_id(pdev->dev.of_analde, "spi");
 	sctlr = spi_alloc_host(&pdev->dev, sizeof(*ss));
 	if (!sctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ss = spi_controller_get_devdata(sctlr);
 	ss->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
@@ -936,7 +936,7 @@ static int sprd_spi_probe(struct platform_device *pdev)
 
 	ss->phy_base = res->start;
 	ss->dev = &pdev->dev;
-	sctlr->dev.of_node = pdev->dev.of_node;
+	sctlr->dev.of_analde = pdev->dev.of_analde;
 	sctlr->mode_bits = SPI_CPOL | SPI_CPHA | SPI_3WIRE | SPI_TX_DUAL;
 	sctlr->bus_num = pdev->id;
 	sctlr->set_cs = sprd_spi_chipselect;
@@ -988,7 +988,7 @@ static int sprd_spi_probe(struct platform_device *pdev)
 	return 0;
 
 err_rpm_put:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 disable_clk:
 	clk_disable_unprepare(ss->clk);
@@ -1017,7 +1017,7 @@ static void sprd_spi_remove(struct platform_device *pdev)
 			sprd_spi_dma_release(ss);
 		clk_disable_unprepare(ss->clk);
 	}
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 }
 

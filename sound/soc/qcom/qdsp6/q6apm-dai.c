@@ -78,7 +78,7 @@ struct q6apm_dai_rtd {
 	spinlock_t lock;
 	uint32_t initial_samples_drop;
 	uint32_t trailing_samples_drop;
-	bool notify_on_drain;
+	bool analtify_on_drain;
 };
 
 struct q6apm_dai_data {
@@ -170,9 +170,9 @@ static void event_handler_compr(uint32_t opcode, uint32_t token,
 	switch (opcode) {
 	case APM_CLIENT_EVENT_CMD_EOS_DONE:
 		spin_lock_irqsave(&prtd->lock, flags);
-		if (prtd->notify_on_drain) {
-			snd_compr_drain_notify(prtd->cstream);
-			prtd->notify_on_drain = false;
+		if (prtd->analtify_on_drain) {
+			snd_compr_drain_analtify(prtd->cstream);
+			prtd->analtify_on_drain = false;
 		} else {
 			prtd->state = Q6APM_STREAM_STOPPED;
 		}
@@ -194,7 +194,7 @@ static void event_handler_compr(uint32_t opcode, uint32_t token,
 		if (avail > prtd->pcm_count) {
 			bytes_to_write = prtd->pcm_count;
 		} else {
-			if (substream->partial_drain || prtd->notify_on_drain)
+			if (substream->partial_drain || prtd->analtify_on_drain)
 				is_last_buffer = true;
 			bytes_to_write = avail;
 		}
@@ -208,7 +208,7 @@ static void event_handler_compr(uint32_t opcode, uint32_t token,
 
 			prtd->bytes_sent += bytes_to_write;
 
-			if (prtd->notify_on_drain && is_last_buffer)
+			if (prtd->analtify_on_drain && is_last_buffer)
 				audioreach_shared_memory_send_eos(prtd->graph);
 		}
 
@@ -268,7 +268,7 @@ static int q6apm_dai_prepare(struct snd_soc_component *component,
 
 	if (ret < 0) {
 		dev_err(dev, "Audio Start: Buffer Allocation failed rc = %d\n",	ret);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = q6apm_graph_prepare(prtd->graph);
@@ -291,7 +291,7 @@ static int q6apm_dai_prepare(struct snd_soc_component *component,
 
 	}
 
-	/* Now that graph as been prepared and started update the internal state accordingly */
+	/* Analw that graph as been prepared and started update the internal state accordingly */
 	prtd->state = Q6APM_STREAM_RUNNING;
 
 	return 0;
@@ -342,19 +342,19 @@ static int q6apm_dai_open(struct snd_soc_component *component,
 
 	pdata = snd_soc_component_get_drvdata(component);
 	if (!pdata) {
-		dev_err(dev, "Drv data not found ..\n");
+		dev_err(dev, "Drv data analt found ..\n");
 		return -EINVAL;
 	}
 
 	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
 	if (prtd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&prtd->lock);
 	prtd->substream = substream;
 	prtd->graph = q6apm_graph_open(dev, event_handler, prtd, graph_id);
 	if (IS_ERR(prtd->graph)) {
-		dev_err(dev, "%s: Could not allocate memory\n", __func__);
+		dev_err(dev, "%s: Could analt allocate memory\n", __func__);
 		ret = PTR_ERR(prtd->graph);
 		goto err;
 	}
@@ -493,7 +493,7 @@ static int q6apm_dai_compr_open(struct snd_soc_component *component,
 
 	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
 	if (prtd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prtd->cstream = stream;
 	prtd->graph = q6apm_graph_open(dev, event_handler_compr, prtd, graph_id);
@@ -598,7 +598,7 @@ static int q6apm_dai_compr_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		ret = q6apm_write_async(prtd->graph, prtd->pcm_count, 0, 0, NO_TIMESTAMP);
+		ret = q6apm_write_async(prtd->graph, prtd->pcm_count, 0, 0, ANAL_TIMESTAMP);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		break;
@@ -610,7 +610,7 @@ static int q6apm_dai_compr_trigger(struct snd_soc_component *component,
 		break;
 	case SND_COMPR_TRIGGER_DRAIN:
 	case SND_COMPR_TRIGGER_PARTIAL_DRAIN:
-		prtd->notify_on_drain = true;
+		prtd->analtify_on_drain = true;
 		break;
 	default:
 		ret = -EINVAL;
@@ -683,7 +683,7 @@ static int q6apm_dai_compr_set_params(struct snd_soc_component *component,
 					       prtd->phys, (prtd->pcm_size / prtd->periods),
 					       prtd->periods);
 		if (ret < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = q6apm_graph_prepare(prtd->graph);
 		if (ret)
@@ -846,16 +846,16 @@ static const struct snd_soc_component_driver q6apm_fe_dai_component = {
 static int q6apm_dai_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct q6apm_dai_data *pdata;
 	struct of_phandle_args args;
 	int rc;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	rc = of_parse_phandle_with_fixed_args(node, "iommus", 1, 0, &args);
+	rc = of_parse_phandle_with_fixed_args(analde, "iommus", 1, 0, &args);
 	if (rc < 0)
 		pdata->sid = -1;
 	else

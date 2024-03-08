@@ -2,7 +2,7 @@
 /*
  * FB driver for the SSD1289 LCD Controller
  *
- * Copyright (C) 2013 Noralf Tronnes
+ * Copyright (C) 2013 Analralf Tronnes
  *
  * Init sequence taken from ITDB02_Graph16.cpp - (C)2010-2011 Henning Karlsen
  */
@@ -175,5 +175,5 @@ MODULE_ALIAS("spi:ssd1289");
 MODULE_ALIAS("platform:ssd1289");
 
 MODULE_DESCRIPTION("FB driver for the SSD1289 LCD Controller");
-MODULE_AUTHOR("Noralf Tronnes");
+MODULE_AUTHOR("Analralf Tronnes");
 MODULE_LICENSE("GPL");

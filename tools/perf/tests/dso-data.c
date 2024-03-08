@@ -120,7 +120,7 @@ static int test__dso_data(struct test_suite *test __maybe_unused, int subtest __
 	char *file = test_file(TEST_FILE_SIZE);
 	size_t i;
 
-	TEST_ASSERT_VAL("No test file", file);
+	TEST_ASSERT_VAL("Anal test file", file);
 
 	memset(&machine, 0, sizeof(machine));
 
@@ -150,7 +150,7 @@ static int test__dso_data(struct test_suite *test __maybe_unused, int subtest __
 		u8 *buf;
 
 		buf = malloc(TEST_FILE_SIZE);
-		TEST_ASSERT_VAL("ENOMEM\n", buf);
+		TEST_ASSERT_VAL("EANALMEM\n", buf);
 
 		/* First iteration to fill caches, second one to read them. */
 		for (c = 0; c < 2; c++) {
@@ -239,13 +239,13 @@ static int set_fd_limit(int n)
 {
 	struct rlimit rlim;
 
-	if (getrlimit(RLIMIT_NOFILE, &rlim))
+	if (getrlimit(RLIMIT_ANALFILE, &rlim))
 		return -1;
 
 	pr_debug("file limit %ld, new %d\n", (long) rlim.rlim_cur, n);
 
 	rlim.rlim_cur = n;
-	return setrlimit(RLIMIT_NOFILE, &rlim);
+	return setrlimit(RLIMIT_ANALFILE, &rlim);
 }
 
 static int test__dso_data_cache(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
@@ -263,7 +263,7 @@ static int test__dso_data_cache(struct test_suite *test __maybe_unused, int subt
 	limit = nr * 4;
 	TEST_ASSERT_VAL("failed to set file limit", !set_fd_limit(limit));
 
-	/* and this is now our dso open FDs limit */
+	/* and this is analw our dso open FDs limit */
 	dso_cnt = limit / 2;
 	TEST_ASSERT_VAL("failed to create dsos\n",
 		!dsos__create(dso_cnt, TEST_FILE_SIZE));
@@ -289,7 +289,7 @@ static int test__dso_data_cache(struct test_suite *test __maybe_unused, int subt
 	}
 
 	/* verify the first one is already open */
-	TEST_ASSERT_VAL("dsos[0] is not open", dsos[0]->data.fd != -1);
+	TEST_ASSERT_VAL("dsos[0] is analt open", dsos[0]->data.fd != -1);
 
 	/* open +1 dso to reach the allowed limit */
 	fd = dso__data_fd(dsos[i], &machine);
@@ -301,7 +301,7 @@ static int test__dso_data_cache(struct test_suite *test __maybe_unused, int subt
 	/* cleanup everything */
 	dsos__delete(dso_cnt);
 
-	/* Make sure we did not leak any file descriptor. */
+	/* Make sure we did analt leak any file descriptor. */
 	nr_end = open_files_cnt();
 	pr_debug("nr start %ld, nr stop %ld\n", nr, nr_end);
 	TEST_ASSERT_VAL("failed leaking files", nr == nr_end);
@@ -387,7 +387,7 @@ static int test__dso_data_reopen(struct test_suite *test __maybe_unused, int sub
 	close(fd_extra);
 	dsos__delete(3);
 
-	/* Make sure we did not leak any file descriptor. */
+	/* Make sure we did analt leak any file descriptor. */
 	nr_end = open_files_cnt();
 	pr_debug("nr start %ld, nr stop %ld\n", nr, nr_end);
 	TEST_ASSERT_VAL("failed leaking files", nr == nr_end);

@@ -27,7 +27,7 @@ __naked void d_path_accept(void)
 
 SEC("fentry/d_path")
 __description("d_path reject")
-__failure __msg("helper call is not allowed in probe")
+__failure __msg("helper call is analt allowed in probe")
 __naked void d_path_reject(void)
 {
 	asm volatile ("					\

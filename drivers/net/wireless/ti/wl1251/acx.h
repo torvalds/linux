@@ -3,7 +3,7 @@
  * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  */
 
 #ifndef __WL1251_ACX_H__
@@ -19,7 +19,7 @@ struct acx_header {
 	/* acx (or information element) header */
 	u16 id;
 
-	/* payload length (not including headers */
+	/* payload length (analt including headers */
 	u16 len;
 } __packed;
 
@@ -190,14 +190,14 @@ struct acx_rx_msdu_lifetime {
  * 31:14		Reserved
  * 13		Copy RX Status - when set, write three receive status words
  * 	 	to top of rx'd MPDUs.
- * 		When cleared, do not write three status words (added rev 1.5)
+ * 		When cleared, do analt write three status words (added rev 1.5)
  * 12		Reserved
  * 11		RX Complete upon FCS error - when set, give rx complete
  *	 	interrupt for FCS errors, after the rx filtering, e.g. unicast
- *	 	frames not to us with FCS error will not generate an interrupt.
+ *	 	frames analt to us with FCS error will analt generate an interrupt.
  * 10		SSID Filter Enable - When set, the WiLink discards all beacon,
  *	        probe request, and probe response frames with an SSID that does
- *		not match the SSID specified by the host in the START/JOIN
+ *		analt match the SSID specified by the host in the START/JOIN
  *		command.
  *		When clear, the WiLink receives frames with any SSID.
  * 9		Broadcast Filter Enable - When set, the WiLink discards all
@@ -205,11 +205,11 @@ struct acx_rx_msdu_lifetime {
  *		broadcast frames.
  * 8:6		Reserved
  * 5		BSSID Filter Enable - When set, the WiLink discards any frames
- * 	 	with a BSSID that does not match the BSSID specified by the
+ * 	 	with a BSSID that does analt match the BSSID specified by the
  *		host.
  *		When clear, the WiLink receives frames from any BSSID.
  * 4		MAC Addr Filter - When set, the WiLink discards any frames
- * 	 	with a destination address that does not match the MAC address
+ * 	 	with a destination address that does analt match the MAC address
  *		of the adaptor.
  *		When clear, the WiLink receives frames destined to any MAC
  *		address.
@@ -445,7 +445,7 @@ struct acx_beacon_filter_option {
 } __packed;
 
 /*
- * ACXBeaconFilterEntry (not 221)
+ * ACXBeaconFilterEntry (analt 221)
  * Byte Offset     Size (Bytes)    Definition
  * ===========     ============    ==========
  * 0				1               IE identifier
@@ -466,7 +466,7 @@ struct acx_beacon_filter_option {
  * in case of change.
  * bit 1 - The information element is transferred to the host
  * with each appearance or disappearance.
- * Note that both bits can be set at the same time.
+ * Analte that both bits can be set at the same time.
  */
 #define	BEACON_FILTER_TABLE_MAX_IE_NUM		       (32)
 #define BEACON_FILTER_TABLE_MAX_VENDOR_SPECIFIC_IE_NUM (6)
@@ -491,7 +491,7 @@ struct acx_beacon_filter_ie_table {
 } __packed;
 
 #define SYNCH_FAIL_DEFAULT_THRESHOLD    10     /* number of beacons */
-#define NO_BEACON_DEFAULT_TIMEOUT       (500) /* in microseconds */
+#define ANAL_BEACON_DEFAULT_TIMEOUT       (500) /* in microseconds */
 
 struct acx_conn_monit_params {
 	struct acx_header header;
@@ -503,7 +503,7 @@ struct acx_conn_monit_params {
 enum {
 	SG_ENABLE = 0,
 	SG_DISABLE,
-	SG_SENSE_NO_ACTIVITY,
+	SG_SENSE_ANAL_ACTIVITY,
 	SG_SENSE_ACTIVE
 };
 
@@ -513,7 +513,7 @@ struct acx_bt_wlan_coex {
 	/*
 	 * 0 -> PTA enabled
 	 * 1 -> PTA disabled
-	 * 2 -> sense no active mode, i.e.
+	 * 2 -> sense anal active mode, i.e.
 	 *      an interrupt is sent upon
 	 *      BT activity.
 	 * 3 -> PTA is switched on in response
@@ -547,7 +547,7 @@ struct acx_bt_wlan_coex {
 #define PTA_TIME_BEFORE_BEACON_DEF	  (6300)
 #define PTA_HPDM_MAX_TIME_DEF		  (1600)
 #define PTA_TIME_OUT_NEXT_WLAN_DEF	  (2550)
-#define PTA_AUTO_MODE_NO_CTS_DEF	  (0)
+#define PTA_AUTO_MODE_ANAL_CTS_DEF	  (0)
 #define PTA_BT_HP_RESPECTED_DEF		  (3)
 #define PTA_WLAN_RX_MIN_RATE_DEF	  (24)
 #define PTA_ACK_MODE_DEF		  (1)
@@ -616,14 +616,14 @@ struct acx_bt_wlan_coex_param {
 
 	/*
 	 * BT AFH status
-	 * 0 -> no AFH
+	 * 0 -> anal AFH
 	 * 1 -> from dedicated GPIO
 	 * 2 -> AFH on (from host)
 	 */
 	u8 afh_leverage_on;
 
 	/*
-	 * The number of cycles during which no
+	 * The number of cycles during which anal
 	 * TX will be sent after 1 cycle of RX
 	 * transaction in protective mode
 	 */
@@ -886,7 +886,7 @@ struct acx_isr_statistics {
 	/* (INT_STS_ND & INT_TRIG_RX_CMPLT) */
 	u32 rx_completes;
 
-	/* (INT_STS_ND & INT_TRIG_NO_RX_BUF) */
+	/* (INT_STS_ND & INT_TRIG_ANAL_RX_BUF) */
 	u32 rx_mem_overflow;
 
 	/* (INT_STS_ND & INT_TRIG_S_RX_RDY) */
@@ -919,8 +919,8 @@ struct acx_isr_statistics {
 	/* (INT_STS_ND & INT_TRIG_PM_802) */
 	u32 hw_pm_mode_changes;
 
-	/* (INT_STS_ND & INT_TRIG_ACKNOWLEDGE) */
-	u32 host_acknowledges;
+	/* (INT_STS_ND & INT_TRIG_ACKANALWLEDGE) */
+	u32 host_ackanalwledges;
 
 	/* (INT_STS_ND & INT_TRIG_PM_PCI) */
 	u32 pci_pm;
@@ -941,8 +941,8 @@ struct acx_wep_statistics {
 
 	u32 reserved;
 
-	/* number of times that WEP key not found on lookup */
-	u32 key_not_found;
+	/* number of times that WEP key analt found on lookup */
+	u32 key_analt_found;
 
 	/* number of times that WEP key decryption failed */
 	u32 decrypt_fail;
@@ -988,7 +988,7 @@ struct acx_pwr_statistics {
 	u16 enable_ps;
 
 	/*
-	 * the number of exits from power save, not including failed PS
+	 * the number of exits from power save, analt including failed PS
 	 * transitions
 	 */
 	u16 disable_ps;
@@ -1099,7 +1099,7 @@ struct wl1251_acx_memory {
 	/*
 	 * Nmber of memory buffers for the RX mem pool.
 	 * The actual number may be less if there are
-	 * not enough blocks left for the minimum num
+	 * analt eanalugh blocks left for the minimum num
 	 * of TX ones.
 	 */
 	u8 rx_mem_block_num;
@@ -1227,9 +1227,9 @@ struct wl1251_acx_arp_filter {
 	u8 enable;	/* 1 - ARP filtering is enabled, 0 - disabled */
 	u8 padding[2];
 	u8 address[16];	/* The IP address used to filter ARP packets.
-			   ARP packets that do not match this address are
+			   ARP packets that do analt match this address are
 			   dropped. When the IP Version is 4, the last 12
-			   bytes of the address are ignored. */
+			   bytes of the address are iganalred. */
 } __attribute__((packed));
 
 struct wl1251_acx_ac_cfg {
@@ -1285,7 +1285,7 @@ enum wl1251_acx_ps_scheme {
 
 enum wl1251_acx_ack_policy {
 	WL1251_ACX_ACK_POLICY_LEGACY	= 0,
-	WL1251_ACX_ACK_POLICY_NO_ACK	= 1,
+	WL1251_ACX_ACK_POLICY_ANAL_ACK	= 1,
 	WL1251_ACX_ACK_POLICY_BLOCK	= 2,
 };
 
@@ -1309,7 +1309,7 @@ struct wl1251_acx_tid_cfg {
 
 	u8 padding[3];
 
-	/* not supported */
+	/* analt supported */
 	u32 apsdconf[2];
 } __packed;
 
@@ -1362,8 +1362,8 @@ enum {
 	ACX_AC_CFG                  = 0x0007,
 	ACX_MEM_MAP                 = 0x0008,
 	ACX_AID                     = 0x000A,
-	ACX_RADIO_PARAM             = 0x000B, /* Not used */
-	ACX_CFG                     = 0x000C, /* Not used */
+	ACX_RADIO_PARAM             = 0x000B, /* Analt used */
+	ACX_CFG                     = 0x000C, /* Analt used */
 	ACX_FW_REV                  = 0x000D,
 	ACX_MEDIUM_USAGE            = 0x000F,
 	ACX_RX_CFG                  = 0x0010,
@@ -1371,11 +1371,11 @@ enum {
 	ACX_BSS_IN_PS               = 0x0012, /* for AP only */
 	ACX_STATISTICS              = 0x0013, /* Debug API */
 	ACX_FEATURE_CFG             = 0x0015,
-	ACX_MISC_CFG                = 0x0017, /* Not used */
+	ACX_MISC_CFG                = 0x0017, /* Analt used */
 	ACX_TID_CFG                 = 0x001A,
 	ACX_BEACON_FILTER_OPT       = 0x001F,
 	ACX_LOW_RSSI                = 0x0020,
-	ACX_NOISE_HIST              = 0x0021,
+	ACX_ANALISE_HIST              = 0x0021,
 	ACX_HDK_VERSION             = 0x0022, /* ??? */
 	ACX_PD_THRESHOLD            = 0x0023,
 	ACX_DATA_PATH_PARAMS        = 0x0024, /* WO */
@@ -1388,11 +1388,11 @@ enum {
 	ACX_WR_TBTT_AND_DTIM        = 0x0027, /* STA only */
 #endif
 	ACX_ACI_OPTION_CFG          = 0x0029, /* OBSOLETE (for 1251)*/
-	ACX_GPIO_CFG                = 0x002A, /* Not used */
-	ACX_GPIO_SET                = 0x002B, /* Not used */
+	ACX_GPIO_CFG                = 0x002A, /* Analt used */
+	ACX_GPIO_SET                = 0x002B, /* Analt used */
 	ACX_PM_CFG                  = 0x002C, /* To Be Documented */
 	ACX_CONN_MONIT_PARAMS       = 0x002D,
-	ACX_AVERAGE_RSSI            = 0x002E, /* Not used */
+	ACX_AVERAGE_RSSI            = 0x002E, /* Analt used */
 	ACX_CONS_TX_FAILURE         = 0x002F,
 	ACX_BCN_DTIM_OPTIONS        = 0x0031,
 	ACX_SG_ENABLE               = 0x0032,

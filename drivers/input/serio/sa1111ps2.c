@@ -8,7 +8,7 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/serio.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -95,7 +95,7 @@ static irqreturn_t ps2_txint(int irq, void *dev_id)
 	spin_lock(&ps2if->lock);
 	status = readl_relaxed(ps2if->base + PS2STAT);
 	if (ps2if->head == ps2if->tail) {
-		disable_irq_nosync(irq);
+		disable_irq_analsync(irq);
 		/* done */
 	} else if (status & PS2STAT_TXE) {
 		writel_relaxed(ps2if->buf[ps2if->tail], ps2if->base + PS2DATA);
@@ -149,7 +149,7 @@ static int ps2_open(struct serio *io)
 	ret = request_irq(ps2if->rx_irq, ps2_rxint, 0,
 			  SA1111_DRIVER_NAME(ps2if->dev), ps2if);
 	if (ret) {
-		printk(KERN_ERR "sa1111ps2: could not allocate IRQ%d: %d\n",
+		printk(KERN_ERR "sa1111ps2: could analt allocate IRQ%d: %d\n",
 			ps2if->rx_irq, ret);
 		sa1111_disable_device(ps2if->dev);
 		return ret;
@@ -158,7 +158,7 @@ static int ps2_open(struct serio *io)
 	ret = request_irq(ps2if->tx_irq, ps2_txint, 0,
 			  SA1111_DRIVER_NAME(ps2if->dev), ps2if);
 	if (ret) {
-		printk(KERN_ERR "sa1111ps2: could not allocate IRQ%d: %d\n",
+		printk(KERN_ERR "sa1111ps2: could analt allocate IRQ%d: %d\n",
 			ps2if->tx_irq, ret);
 		free_irq(ps2if->rx_irq, ps2if);
 		sa1111_disable_device(ps2if->dev);
@@ -227,19 +227,19 @@ static int ps2_test(struct ps2if *ps2if)
 	stat = ps2_test_one(ps2if, PS2CR_FKC);
 	if (stat != PS2STAT_KBD) {
 		printk("PS/2 interface test failed[1]: %02x\n", stat);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	stat = ps2_test_one(ps2if, 0);
 	if (stat != (PS2STAT_KBC | PS2STAT_KBD)) {
 		printk("PS/2 interface test failed[2]: %02x\n", stat);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	stat = ps2_test_one(ps2if, PS2CR_FKD);
 	if (stat != PS2STAT_KBC) {
 		printk("PS/2 interface test failed[3]: %02x\n", stat);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	writel_relaxed(0, ps2if->base + PS2CR);
@@ -259,7 +259,7 @@ static int ps2_probe(struct sa1111_dev *dev)
 	ps2if = kzalloc(sizeof(struct ps2if), GFP_KERNEL);
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!ps2if || !serio) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free;
 	}
 

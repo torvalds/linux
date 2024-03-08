@@ -76,7 +76,7 @@ static const struct ccu_pll_info pll_info[] = {
 };
 
 struct ccu_pll_data {
-	struct device_node *np;
+	struct device_analde *np;
 	struct regmap *sys_regs;
 	struct ccu_pll *plls[CCU_PLL_NUM];
 };
@@ -96,13 +96,13 @@ static struct ccu_pll *ccu_pll_find_desc(struct ccu_pll_data *data,
 	return ERR_PTR(-EINVAL);
 }
 
-static struct ccu_pll_data *ccu_pll_create_data(struct device_node *np)
+static struct ccu_pll_data *ccu_pll_create_data(struct device_analde *np)
 {
 	struct ccu_pll_data *data;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	data->np = np;
 
@@ -116,10 +116,10 @@ static void ccu_pll_free_data(struct ccu_pll_data *data)
 
 static int ccu_pll_find_sys_regs(struct ccu_pll_data *data)
 {
-	data->sys_regs = syscon_node_to_regmap(data->np->parent);
+	data->sys_regs = syscon_analde_to_regmap(data->np->parent);
 	if (IS_ERR(data->sys_regs)) {
 		pr_err("Failed to find syscon regs for '%s'\n",
-			of_node_full_name(data->np));
+			of_analde_full_name(data->np));
 		return PTR_ERR(data->sys_regs);
 	}
 
@@ -153,7 +153,7 @@ static int ccu_pll_clk_register(struct ccu_pll_data *data, bool defer)
 		const struct ccu_pll_info *info = &pll_info[idx];
 		struct ccu_pll_init_data init = {0};
 
-		/* Defer non-basic PLLs allocation for the probe stage */
+		/* Defer analn-basic PLLs allocation for the probe stage */
 		if (!!(info->features & CCU_PLL_BASIC) ^ defer) {
 			if (!data->plls[idx])
 				data->plls[idx] = ERR_PTR(-EPROBE_DEFER);
@@ -212,7 +212,7 @@ static int ccu_pll_of_register(struct ccu_pll_data *data)
 	ret = of_clk_add_hw_provider(data->np, ccu_pll_of_clk_hw_get, data);
 	if (ret) {
 		pr_err("Couldn't register PLL provider of '%s'\n",
-			of_node_full_name(data->np));
+			of_analde_full_name(data->np));
 	}
 
 	return ret;
@@ -243,7 +243,7 @@ static struct platform_driver ccu_pll_driver = {
 };
 builtin_platform_driver(ccu_pll_driver);
 
-static __init void ccu_pll_init(struct device_node *np)
+static __init void ccu_pll_init(struct device_analde *np)
 {
 	struct ccu_pll_data *data;
 	int ret;

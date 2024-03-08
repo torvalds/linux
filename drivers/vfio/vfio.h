@@ -36,10 +36,10 @@ vfio_allocate_device_file(struct vfio_device *device);
 
 extern const struct file_operations vfio_device_fops;
 
-#ifdef CONFIG_VFIO_NOIOMMU
-extern bool vfio_noiommu __read_mostly;
+#ifdef CONFIG_VFIO_ANALIOMMU
+extern bool vfio_analiommu __read_mostly;
 #else
-enum { vfio_noiommu = false };
+enum { vfio_analiommu = false };
 #endif
 
 enum vfio_group_type {
@@ -51,7 +51,7 @@ enum vfio_group_type {
 	/*
 	 * Virtual device without IOMMU backing. The VFIO core fakes up an
 	 * iommu_group as the iommu_group sysfs interface is part of the
-	 * userspace ABI.  The user of these devices must not be able to
+	 * userspace ABI.  The user of these devices must analt be able to
 	 * directly trigger unmediated DMA.
 	 */
 	VFIO_EMULATED_IOMMU,
@@ -63,7 +63,7 @@ enum vfio_group_type {
 	 * usage is highly dangerous, requires an explicit opt-in and will
 	 * taint the kernel.
 	 */
-	VFIO_NO_IOMMU,
+	VFIO_ANAL_IOMMU,
 };
 
 #if IS_ENABLED(CONFIG_VFIO_GROUP)
@@ -71,7 +71,7 @@ struct vfio_group {
 	struct device 			dev;
 	struct cdev			cdev;
 	/*
-	 * When drivers is non-zero a driver is attached to the struct device
+	 * When drivers is analn-zero a driver is attached to the struct device
 	 * that provided the iommu_group and thus the iommu_group is a valid
 	 * pointer. When drivers is 0 the driver is being detached. Once users
 	 * reaches 0 then the iommu_group is invalid.
@@ -90,7 +90,7 @@ struct vfio_group {
 	struct mutex			group_lock;
 	struct kvm			*kvm;
 	struct file			*opened_file;
-	struct blocking_notifier_head	notifier;
+	struct blocking_analtifier_head	analtifier;
 	struct iommufd_ctx		*iommufd;
 	spinlock_t			kvm_ref_lock;
 	unsigned int			cdev_device_open_cnt;
@@ -113,10 +113,10 @@ bool vfio_device_has_container(struct vfio_device *device);
 int __init vfio_group_init(void);
 void vfio_group_cleanup(void);
 
-static inline bool vfio_device_is_noiommu(struct vfio_device *vdev)
+static inline bool vfio_device_is_analiommu(struct vfio_device *vdev)
 {
-	return IS_ENABLED(CONFIG_VFIO_NOIOMMU) &&
-	       vdev->group->type == VFIO_NO_IOMMU;
+	return IS_ENABLED(CONFIG_VFIO_ANALIOMMU) &&
+	       vdev->group->type == VFIO_ANAL_IOMMU;
 }
 #else
 struct vfio_group;
@@ -150,7 +150,7 @@ static inline void vfio_device_group_unregister(struct vfio_device *device)
 
 static inline int vfio_device_group_use_iommu(struct vfio_device *device)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void vfio_device_group_unuse_iommu(struct vfio_device *device)
@@ -189,7 +189,7 @@ static inline void vfio_group_cleanup(void)
 {
 }
 
-static inline bool vfio_device_is_noiommu(struct vfio_device *vdev)
+static inline bool vfio_device_is_analiommu(struct vfio_device *vdev)
 {
 	return false;
 }
@@ -264,7 +264,7 @@ vfio_container_from_file(struct file *filep)
 
 static inline int vfio_group_use_container(struct vfio_group *group)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void vfio_group_unuse_container(struct vfio_group *group)
@@ -274,7 +274,7 @@ static inline void vfio_group_unuse_container(struct vfio_group *group)
 static inline int vfio_container_attach_group(struct vfio_container *container,
 					      struct vfio_group *group)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void vfio_group_detach_container(struct vfio_group *group)
@@ -293,7 +293,7 @@ static inline int vfio_device_container_pin_pages(struct vfio_device *device,
 						  dma_addr_t iova, int npage,
 						  int prot, struct page **pages)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void vfio_device_container_unpin_pages(struct vfio_device *device,
@@ -305,7 +305,7 @@ static inline int vfio_device_container_dma_rw(struct vfio_device *device,
 					       dma_addr_t iova, void *data,
 					       size_t len, bool write)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int vfio_container_init(void)
@@ -334,7 +334,7 @@ vfio_iommufd_device_has_compat_ioas(struct vfio_device *vdev,
 
 static inline int vfio_df_iommufd_bind(struct vfio_device_file *fd)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void vfio_df_iommufd_unbind(struct vfio_device_file *df)
@@ -345,7 +345,7 @@ static inline int
 vfio_iommufd_compat_attach_ioas(struct vfio_device *device,
 				struct iommufd_ctx *ictx)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -359,8 +359,8 @@ void vfio_init_device_cdev(struct vfio_device *device);
 
 static inline int vfio_device_add(struct vfio_device *device)
 {
-	/* cdev does not support noiommu device */
-	if (vfio_device_is_noiommu(device))
+	/* cdev does analt support analiommu device */
+	if (vfio_device_is_analiommu(device))
 		return device_add(&device->device);
 	vfio_init_device_cdev(device);
 	return cdev_device_add(&device->cdev, &device->device);
@@ -368,13 +368,13 @@ static inline int vfio_device_add(struct vfio_device *device)
 
 static inline void vfio_device_del(struct vfio_device *device)
 {
-	if (vfio_device_is_noiommu(device))
+	if (vfio_device_is_analiommu(device))
 		device_del(&device->device);
 	else
 		cdev_device_del(&device->cdev, &device->device);
 }
 
-int vfio_device_fops_cdev_open(struct inode *inode, struct file *filep);
+int vfio_device_fops_cdev_open(struct ianalde *ianalde, struct file *filep);
 long vfio_df_ioctl_bind_iommufd(struct vfio_device_file *df,
 				struct vfio_device_bind_iommufd __user *arg);
 void vfio_df_unbind_iommufd(struct vfio_device_file *df);
@@ -395,7 +395,7 @@ static inline void vfio_device_del(struct vfio_device *device)
 	device_del(&device->device);
 }
 
-static inline int vfio_device_fops_cdev_open(struct inode *inode,
+static inline int vfio_device_fops_cdev_open(struct ianalde *ianalde,
 					     struct file *filep)
 {
 	return 0;
@@ -404,7 +404,7 @@ static inline int vfio_device_fops_cdev_open(struct inode *inode,
 static inline long vfio_df_ioctl_bind_iommufd(struct vfio_device_file *df,
 					      struct vfio_device_bind_iommufd __user *arg)
 {
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 static inline void vfio_df_unbind_iommufd(struct vfio_device_file *df)

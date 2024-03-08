@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: MC
 
 .. _request-func-poll:
@@ -12,7 +12,7 @@ Name
 
 request-poll - Wait for some event on a file descriptor
 
-Synopsis
+Syanalpsis
 ========
 
 .. code-block:: c
@@ -42,20 +42,20 @@ for a request to complete.
 On success :c:func:`poll()` returns the number of file
 descriptors that have been selected (that is, file descriptors for which the
 ``revents`` field of the respective struct :c:type:`pollfd`
-is non-zero). Request file descriptor set the ``POLLPRI`` flag in ``revents``
+is analn-zero). Request file descriptor set the ``POLLPRI`` flag in ``revents``
 when the request was completed.  When the function times out it returns
-a value of zero, on failure it returns -1 and the ``errno`` variable is
+a value of zero, on failure it returns -1 and the ``erranal`` variable is
 set appropriately.
 
-Attempting to poll for a request that is not yet queued will
+Attempting to poll for a request that is analt yet queued will
 set the ``POLLERR`` flag in ``revents``.
 
 Return Value
 ============
 
 On success, :c:func:`poll()` returns the number of
-structures which have non-zero ``revents`` fields, or zero if the call
-timed out. On error -1 is returned, and the ``errno`` variable is set
+structures which have analn-zero ``revents`` fields, or zero if the call
+timed out. On error -1 is returned, and the ``erranal`` variable is set
 appropriately:
 
 ``EBADF``
@@ -69,5 +69,5 @@ appropriately:
     The call was interrupted by a signal.
 
 ``EINVAL``
-    The ``nfds`` value exceeds the ``RLIMIT_NOFILE`` value. Use
+    The ``nfds`` value exceeds the ``RLIMIT_ANALFILE`` value. Use
     ``getrlimit()`` to obtain this value.

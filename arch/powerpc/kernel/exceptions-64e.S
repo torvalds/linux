@@ -32,8 +32,8 @@
 
 /* XXX This will ultimately add space for a special exception save
  *     structure used to save things like SRR0/SRR1, SPRGs, MAS, etc...
- *     when taking special interrupts. For now we don't support that,
- *     special interrupts from within a non-standard level will probably
+ *     when taking special interrupts. For analw we don't support that,
+ *     special interrupts from within a analn-standard level will probably
  *     blow you up
  */
 #define SPECIAL_EXC_SRR0	0
@@ -152,13 +152,13 @@ SYM_CODE_START_LOCAL(ret_from_level_except)
 	 * TLB miss handler, and inserted the same entry that the
 	 * interrupted handler was about to insert.  On CPUs without TLB
 	 * write conditional, this can result in a duplicate TLB entry.
-	 * Wipe all non-bolted entries to be safe.
+	 * Wipe all analn-bolted entries to be safe.
 	 *
-	 * Note that this doesn't protect against any TLB misses
+	 * Analte that this doesn't protect against any TLB misses
 	 * we may take accessing the stack from here to the end of
-	 * the special level exception.  It's not clear how we can
+	 * the special level exception.  It's analt clear how we can
 	 * reasonably protect against that, but only CPUs with
-	 * neither TLB write conditional nor bolted kernel memory
+	 * neither TLB write conditional analr bolted kernel memory
 	 * are affected.  Do any such CPUs even exist?
 	 */
 	PPC_TLBILX_ALL(0,R0)
@@ -309,7 +309,7 @@ SYM_CODE_END(ret_from_mc_except)
 #define MC_BTB_FLUSH CRIT_BTB_FLUSH
 #define GDBELL_BTB_FLUSH GEN_BTB_FLUSH
 
-#define NORMAL_EXCEPTION_PROLOG(n, intnum, addition)			    \
+#define ANALRMAL_EXCEPTION_PROLOG(n, intnum, addition)			    \
 	EXCEPTION_PROLOG(n, intnum, GEN, addition##_GEN(n))
 
 #define CRIT_EXCEPTION_PROLOG(n, intnum, addition)			    \
@@ -326,15 +326,15 @@ SYM_CODE_END(ret_from_mc_except)
 
 /* Variants of the "addition" argument for the prolog
  */
-#define PROLOG_ADDITION_NONE_GEN(n)
-#define PROLOG_ADDITION_NONE_GDBELL(n)
-#define PROLOG_ADDITION_NONE_CRIT(n)
-#define PROLOG_ADDITION_NONE_DBG(n)
-#define PROLOG_ADDITION_NONE_MC(n)
+#define PROLOG_ADDITION_ANALNE_GEN(n)
+#define PROLOG_ADDITION_ANALNE_GDBELL(n)
+#define PROLOG_ADDITION_ANALNE_CRIT(n)
+#define PROLOG_ADDITION_ANALNE_DBG(n)
+#define PROLOG_ADDITION_ANALNE_MC(n)
 
 #define PROLOG_ADDITION_MASKABLE_GEN(n)					    \
 	lbz	r10,PACAIRQSOFTMASK(r13);	/* are irqs soft-masked? */ \
-	andi.	r10,r10,IRQS_DISABLED;	/* yes -> go out of line */ \
+	andi.	r10,r10,IRQS_DISABLED;	/* anal -> go out of line */ \
 	bne	masked_interrupt_book3e_##n
 
 /*
@@ -419,15 +419,15 @@ exc_##n##_bad_stack:							    \
 /* WARNING: If you change the layout of this stub, make sure you check
 	*   the debug exception handler which handles single stepping
 	*   into exceptions from userspace, and the MM code in
-	*   arch/powerpc/mm/tlb_nohash.c which patches the branch here
+	*   arch/powerpc/mm/tlb_analhash.c which patches the branch here
 	*   and would need to be updated if that branch is moved
 	*/
 #define	EXCEPTION_STUB(loc, label)					\
 	. = interrupt_base_book3e + loc;				\
-	nop;	/* To make debug interrupts happy */			\
+	analp;	/* To make debug interrupts happy */			\
 	b	exc_##label##_book3e;
 
-#define ACK_NONE(r)
+#define ACK_ANALNE(r)
 #define ACK_DEC(r)							\
 	lis	r,TSR_DIS@h;						\
 	mtspr	SPRN_TSR,r
@@ -435,9 +435,9 @@ exc_##n##_bad_stack:							    \
 	lis	r,TSR_FIS@h;						\
 	mtspr	SPRN_TSR,r
 
-/* Used by asynchronous interrupt that may happen in the idle loop.
+/* Used by asynchroanalus interrupt that may happen in the idle loop.
  *
- * This check if the thread was in the idle loop, and if yes, returns
+ * This check if the thread was in the idle loop, and if anal, returns
  * to the caller rather than the PC. This is to avoid a race if
  * interrupts happen before the wait instruction.
  */
@@ -455,7 +455,7 @@ exc_##n##_bad_stack:							    \
 
 #define MASKABLE_EXCEPTION(trapnum, intnum, label, hdlr, ack)		\
 	START_EXCEPTION(label);						\
-	NORMAL_EXCEPTION_PROLOG(trapnum, intnum, PROLOG_ADDITION_MASKABLE)\
+	ANALRMAL_EXCEPTION_PROLOG(trapnum, intnum, PROLOG_ADDITION_MASKABLE)\
 	EXCEPTION_COMMON(trapnum)					\
 	ack(r8);							\
 	CHECK_NAPPING();						\
@@ -504,18 +504,18 @@ __end_interrupts:
 /* Critical Input Interrupt */
 	START_EXCEPTION(critical_input);
 	CRIT_EXCEPTION_PROLOG(0x100, BOOKE_INTERRUPT_CRITICAL,
-			      PROLOG_ADDITION_NONE)
+			      PROLOG_ADDITION_ANALNE)
 	EXCEPTION_COMMON_CRIT(0x100)
 	bl	special_reg_save
 	CHECK_NAPPING();
 	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	unknown_nmi_exception
+	bl	unkanalwn_nmi_exception
 	b	ret_from_crit_except
 
 /* Machine Check Interrupt */
 	START_EXCEPTION(machine_check);
 	MC_EXCEPTION_PROLOG(0x000, BOOKE_INTERRUPT_MACHINE_CHECK,
-			    PROLOG_ADDITION_NONE)
+			    PROLOG_ADDITION_ANALNE)
 	EXCEPTION_COMMON_MC(0x000)
 	bl	special_reg_save
 	CHECK_NAPPING();
@@ -525,7 +525,7 @@ __end_interrupts:
 
 /* Data Storage Interrupt */
 	START_EXCEPTION(data_storage)
-	NORMAL_EXCEPTION_PROLOG(0x300, BOOKE_INTERRUPT_DATA_STORAGE,
+	ANALRMAL_EXCEPTION_PROLOG(0x300, BOOKE_INTERRUPT_DATA_STORAGE,
 				PROLOG_ADDITION_2REGS)
 	mfspr	r14,SPRN_DEAR
 	mfspr	r15,SPRN_ESR
@@ -538,7 +538,7 @@ __end_interrupts:
 
 /* Instruction Storage Interrupt */
 	START_EXCEPTION(instruction_storage);
-	NORMAL_EXCEPTION_PROLOG(0x400, BOOKE_INTERRUPT_INST_STORAGE,
+	ANALRMAL_EXCEPTION_PROLOG(0x400, BOOKE_INTERRUPT_INST_STORAGE,
 				PROLOG_ADDITION_2REGS)
 	li	r15,0
 	mr	r14,r10
@@ -551,11 +551,11 @@ __end_interrupts:
 
 /* External Input Interrupt */
 	MASKABLE_EXCEPTION(0x500, BOOKE_INTERRUPT_EXTERNAL,
-			   external_input, do_IRQ, ACK_NONE)
+			   external_input, do_IRQ, ACK_ANALNE)
 
 /* Alignment */
 	START_EXCEPTION(alignment);
-	NORMAL_EXCEPTION_PROLOG(0x600, BOOKE_INTERRUPT_ALIGNMENT,
+	ANALRMAL_EXCEPTION_PROLOG(0x600, BOOKE_INTERRUPT_ALIGNMENT,
 				PROLOG_ADDITION_2REGS)
 	mfspr	r14,SPRN_DEAR
 	mfspr	r15,SPRN_ESR
@@ -564,11 +564,11 @@ __end_interrupts:
 	ld	r14,PACA_EXGEN+EX_R14(r13)
 	ld	r15,PACA_EXGEN+EX_R15(r13)
 	EXCEPTION_COMMON(0x600)
-	b	alignment_more	/* no room, go out of line */
+	b	alignment_more	/* anal room, go out of line */
 
 /* Program Interrupt */
 	START_EXCEPTION(program);
-	NORMAL_EXCEPTION_PROLOG(0x700, BOOKE_INTERRUPT_PROGRAM,
+	ANALRMAL_EXCEPTION_PROLOG(0x700, BOOKE_INTERRUPT_PROGRAM,
 				PROLOG_ADDITION_1REG)
 	mfspr	r14,SPRN_ESR
 	std	r14,_ESR(r1)
@@ -581,8 +581,8 @@ __end_interrupts:
 
 /* Floating Point Unavailable Interrupt */
 	START_EXCEPTION(fp_unavailable);
-	NORMAL_EXCEPTION_PROLOG(0x800, BOOKE_INTERRUPT_FP_UNAVAIL,
-				PROLOG_ADDITION_NONE)
+	ANALRMAL_EXCEPTION_PROLOG(0x800, BOOKE_INTERRUPT_FP_UNAVAIL,
+				PROLOG_ADDITION_ANALNE)
 	/* we can probably do a shorter exception entry for that one... */
 	EXCEPTION_COMMON(0x800)
 	ld	r12,_MSR(r1)
@@ -596,8 +596,8 @@ __end_interrupts:
 
 /* Altivec Unavailable Interrupt */
 	START_EXCEPTION(altivec_unavailable);
-	NORMAL_EXCEPTION_PROLOG(0x200, BOOKE_INTERRUPT_ALTIVEC_UNAVAIL,
-				PROLOG_ADDITION_NONE)
+	ANALRMAL_EXCEPTION_PROLOG(0x200, BOOKE_INTERRUPT_ALTIVEC_UNAVAIL,
+				PROLOG_ADDITION_ANALNE)
 	/* we can probably do a shorter exception entry for that one... */
 	EXCEPTION_COMMON(0x200)
 #ifdef CONFIG_ALTIVEC
@@ -616,9 +616,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 /* AltiVec Assist */
 	START_EXCEPTION(altivec_assist);
-	NORMAL_EXCEPTION_PROLOG(0x220,
+	ANALRMAL_EXCEPTION_PROLOG(0x220,
 				BOOKE_INTERRUPT_ALTIVEC_ASSIST,
-				PROLOG_ADDITION_NONE)
+				PROLOG_ADDITION_ANALNE)
 	EXCEPTION_COMMON(0x220)
 	addi	r3,r1,STACK_INT_FRAME_REGS
 #ifdef CONFIG_ALTIVEC
@@ -627,7 +627,7 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	REST_NVGPRS(r1)
 #else
-	bl	unknown_exception
+	bl	unkanalwn_exception
 #endif
 	b	interrupt_return
 
@@ -638,12 +638,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 /* Fixed Interval Timer Interrupt */
 	MASKABLE_EXCEPTION(0x980, BOOKE_INTERRUPT_FIT,
-			   fixed_interval, unknown_exception, ACK_FIT)
+			   fixed_interval, unkanalwn_exception, ACK_FIT)
 
 /* Watchdog Timer Interrupt */
 	START_EXCEPTION(watchdog);
 	CRIT_EXCEPTION_PROLOG(0x9f0, BOOKE_INTERRUPT_WATCHDOG,
-			      PROLOG_ADDITION_NONE)
+			      PROLOG_ADDITION_ANALNE)
 	EXCEPTION_COMMON_CRIT(0x9f0)
 	bl	special_reg_save
 	CHECK_NAPPING();
@@ -651,7 +651,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #ifdef CONFIG_BOOKE_WDT
 	bl	WatchdogException
 #else
-	bl	unknown_nmi_exception
+	bl	unkanalwn_nmi_exception
 #endif
 	b	ret_from_crit_except
 
@@ -665,11 +665,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 /* Auxiliary Processor Unavailable Interrupt */
 	START_EXCEPTION(ap_unavailable);
-	NORMAL_EXCEPTION_PROLOG(0xf20, BOOKE_INTERRUPT_AP_UNAVAIL,
-				PROLOG_ADDITION_NONE)
+	ANALRMAL_EXCEPTION_PROLOG(0xf20, BOOKE_INTERRUPT_AP_UNAVAIL,
+				PROLOG_ADDITION_ANALNE)
 	EXCEPTION_COMMON(0xf20)
 	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	unknown_exception
+	bl	unkanalwn_exception
 	b	interrupt_return
 
 /* Debug exception as a critical interrupt*/
@@ -720,15 +720,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	mfspr	r13,SPRN_SPRG_CRIT_SCRATCH
 	rfci
 
-	/* Normal debug exception */
-	/* XXX We only handle coming from userspace for now since we can't
+	/* Analrmal debug exception */
+	/* XXX We only handle coming from userspace for analw since we can't
 	 *     quite save properly an interrupted kernel state yet
 	 */
 1:	andi.	r14,r11,MSR_PR;		/* check for userspace again */
 	beq	kernel_dbg_exc;		/* if from kernel mode */
 
-	/* Now we mash up things to make it look like we are coming on a
-	 * normal exception
+	/* Analw we mash up things to make it look like we are coming on a
+	 * analrmal exception
 	 */
 	mfspr	r14,SPRN_DBSR
 	std	r14,_DSISR(r1)
@@ -791,15 +791,15 @@ kernel_dbg_exc:
 	mfspr	r13,SPRN_SPRG_DBG_SCRATCH
 	rfdi
 
-	/* Normal debug exception */
-	/* XXX We only handle coming from userspace for now since we can't
+	/* Analrmal debug exception */
+	/* XXX We only handle coming from userspace for analw since we can't
 	 *     quite save properly an interrupted kernel state yet
 	 */
 1:	andi.	r14,r11,MSR_PR;		/* check for userspace again */
 	beq	kernel_dbg_exc;		/* if from kernel mode */
 
-	/* Now we mash up things to make it look like we are coming on a
-	 * normal exception
+	/* Analw we mash up things to make it look like we are coming on a
+	 * analrmal exception
 	 */
 	mfspr	r14,SPRN_DBSR
 	std	r14,_DSISR(r1)
@@ -812,8 +812,8 @@ kernel_dbg_exc:
 	b	interrupt_return
 
 	START_EXCEPTION(perfmon);
-	NORMAL_EXCEPTION_PROLOG(0x260, BOOKE_INTERRUPT_PERFORMANCE_MONITOR,
-				PROLOG_ADDITION_NONE)
+	ANALRMAL_EXCEPTION_PROLOG(0x260, BOOKE_INTERRUPT_PERFORMANCE_MONITOR,
+				PROLOG_ADDITION_ANALNE)
 	EXCEPTION_COMMON(0x260)
 	CHECK_NAPPING()
 	addi	r3,r1,STACK_INT_FRAME_REGS
@@ -821,7 +821,7 @@ kernel_dbg_exc:
 	 * XXX: Returning from performance_monitor_exception taken as a
 	 * soft-NMI (Linux irqs disabled) may be risky to use interrupt_return
 	 * and could cause bugs in return or elsewhere. That case should just
-	 * restore registers and return. There is a workaround for one known
+	 * restore registers and return. There is a workaround for one kanalwn
 	 * problem in interrupt_exit_kernel_prepare().
 	 */
 	bl	performance_monitor_exception
@@ -829,17 +829,17 @@ kernel_dbg_exc:
 
 /* Doorbell interrupt */
 	MASKABLE_EXCEPTION(0x280, BOOKE_INTERRUPT_DOORBELL,
-			   doorbell, doorbell_exception, ACK_NONE)
+			   doorbell, doorbell_exception, ACK_ANALNE)
 
 /* Doorbell critical Interrupt */
 	START_EXCEPTION(doorbell_crit);
 	CRIT_EXCEPTION_PROLOG(0x2a0, BOOKE_INTERRUPT_DOORBELL_CRITICAL,
-			      PROLOG_ADDITION_NONE)
+			      PROLOG_ADDITION_ANALNE)
 	EXCEPTION_COMMON_CRIT(0x2a0)
 	bl	special_reg_save
 	CHECK_NAPPING();
 	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	unknown_nmi_exception
+	bl	unkanalwn_nmi_exception
 	b	ret_from_crit_except
 
 /*
@@ -848,48 +848,48 @@ kernel_dbg_exc:
  */
 	START_EXCEPTION(guest_doorbell);
 	GDBELL_EXCEPTION_PROLOG(0x2c0, BOOKE_INTERRUPT_GUEST_DBELL,
-			        PROLOG_ADDITION_NONE)
+			        PROLOG_ADDITION_ANALNE)
 	EXCEPTION_COMMON(0x2c0)
 	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	unknown_exception
+	bl	unkanalwn_exception
 	b	interrupt_return
 
 /* Guest Doorbell critical Interrupt */
 	START_EXCEPTION(guest_doorbell_crit);
 	CRIT_EXCEPTION_PROLOG(0x2e0, BOOKE_INTERRUPT_GUEST_DBELL_CRIT,
-			      PROLOG_ADDITION_NONE)
+			      PROLOG_ADDITION_ANALNE)
 	EXCEPTION_COMMON_CRIT(0x2e0)
 	bl	special_reg_save
 	CHECK_NAPPING();
 	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	unknown_nmi_exception
+	bl	unkanalwn_nmi_exception
 	b	ret_from_crit_except
 
 /* Hypervisor call */
 	START_EXCEPTION(hypercall);
-	NORMAL_EXCEPTION_PROLOG(0x310, BOOKE_INTERRUPT_HV_SYSCALL,
-			        PROLOG_ADDITION_NONE)
+	ANALRMAL_EXCEPTION_PROLOG(0x310, BOOKE_INTERRUPT_HV_SYSCALL,
+			        PROLOG_ADDITION_ANALNE)
 	EXCEPTION_COMMON(0x310)
 	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	unknown_exception
+	bl	unkanalwn_exception
 	b	interrupt_return
 
 /* Embedded Hypervisor priviledged  */
 	START_EXCEPTION(ehpriv);
-	NORMAL_EXCEPTION_PROLOG(0x320, BOOKE_INTERRUPT_HV_PRIV,
-			        PROLOG_ADDITION_NONE)
+	ANALRMAL_EXCEPTION_PROLOG(0x320, BOOKE_INTERRUPT_HV_PRIV,
+			        PROLOG_ADDITION_ANALNE)
 	EXCEPTION_COMMON(0x320)
 	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	unknown_exception
+	bl	unkanalwn_exception
 	b	interrupt_return
 
 /* LRAT Error interrupt */
 	START_EXCEPTION(lrat_error);
-	NORMAL_EXCEPTION_PROLOG(0x340, BOOKE_INTERRUPT_LRAT_ERROR,
-			        PROLOG_ADDITION_NONE)
+	ANALRMAL_EXCEPTION_PROLOG(0x340, BOOKE_INTERRUPT_LRAT_ERROR,
+			        PROLOG_ADDITION_ANALNE)
 	EXCEPTION_COMMON(0x340)
 	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	unknown_exception
+	bl	unkanalwn_exception
 	b	interrupt_return
 
 .macro SEARCH_RESTART_TABLE
@@ -1080,7 +1080,7 @@ _GLOBAL(bad_stack_book3e)
 
 /*
  * Setup the initial TLB for a core. This current implementation
- * assume that whatever we are running off will not conflict with
+ * assume that whatever we are running off will analt conflict with
  * the new mapping at PAGE_OFFSET.
  */
 _GLOBAL(initial_tlb_book3e)
@@ -1154,7 +1154,7 @@ invstr:	mflr	r6				/* Make it accessible */
 	isync
 skpinv:	addi	r6,r6,1				/* Increment */
 	cmpw	r6,r4				/* Are we done? */
-	bne	1b				/* If not, repeat */
+	bne	1b				/* If analt, repeat */
 
 	/* Invalidate all TLBs */
 	PPC_TLBILX_ALL(0,R0)
@@ -1166,7 +1166,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
  * r3 = MAS0 w/TLBSEL & ESEL for the entry we are running in
  * r5 = ESEL of entry we are running in
  */
-	andi.	r7,r5,0x1	/* Find an entry not used and is non-zero */
+	andi.	r7,r5,0x1	/* Find an entry analt used and is analn-zero */
 	addi	r7,r7,0x1
 	mr	r4,r3		/* Set MAS0(TLBSEL) = 1 */
 	mtspr	SPRN_MAS0,r4
@@ -1243,7 +1243,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
  *
  * r4 = MAS0 w/TLBSEL & ESEL for the temp mapping
  */
-	/* Now we branch the new virtual address mapped by this entry */
+	/* Analw we branch the new virtual address mapped by this entry */
 	bcl	20,31,$+4	/* Find our address */
 1:	mflr	r6
 	addi	r6,r6,(2f - 1b)
@@ -1286,7 +1286,7 @@ have_hes:
 	 * secondary CPUs. We read the code between the initial_tlb_code_start
 	 * and initial_tlb_code_end labels one instruction at a time and RAM it
 	 * into the new core via SCOM. That doesn't process branches, so there
-	 * must be none between those two labels. It also means if this code
+	 * must be analne between those two labels. It also means if this code
 	 * ever takes any parameters, the SCOM code must also be updated to
 	 * provide them.
 	 */
@@ -1311,7 +1311,7 @@ _GLOBAL(a2_tlbinit_code_start)
 	.globl a2_tlbinit_after_linear_map
 a2_tlbinit_after_linear_map:
 
-	/* Now we branch the new virtual address mapped by this entry */
+	/* Analw we branch the new virtual address mapped by this entry */
 #ifdef CONFIG_RELOCATABLE
 	__LOAD_PACA_TOC(r5)
 	LOAD_REG_ADDR_ALTTOC(r3, r5, 1f)
@@ -1321,7 +1321,7 @@ a2_tlbinit_after_linear_map:
 	mtctr	r3
 	bctr
 
-1:	/* We are now running at PAGE_OFFSET, clean the TLB of everything
+1:	/* We are analw running at PAGE_OFFSET, clean the TLB of everything
 	 * else (including IPROTed things left by firmware)
 	 * r4 = TLBnCFG
 	 * r3 = current address (more or less)
@@ -1396,9 +1396,9 @@ a2_tlbinit_code_end:
  * - A good lump of memory mapped 0:0 by UTLB entry 0
  * - MSR:IS & MSR:DS set to 0
  *
- * Note that some of the above requirements will be relaxed in the future
+ * Analte that some of the above requirements will be relaxed in the future
  * as the kernel becomes smarter at dealing with different initial conditions
- * but for now you have to be careful
+ * but for analw you have to be careful
  */
 _GLOBAL(start_initialization_book3e)
 	mflr	r28
@@ -1460,12 +1460,12 @@ _GLOBAL(book3e_secondary_core_init)
 
 	/* Return to common init code at proper virtual address.
 	 *
-	 * Due to various previous assumptions, we know we entered this
+	 * Due to various previous assumptions, we kanalw we entered this
 	 * function at either the final PAGE_OFFSET mapping or using a
 	 * 1:1 mapping at 0, so we don't bother doing a complicated check
 	 * here, we just ensure the return address has the right top bits.
 	 *
-	 * Note that if we ever want to be smarter about where we can be
+	 * Analte that if we ever want to be smarter about where we can be
 	 * started from, we have to be careful that by the time we reach
 	 * the code below we may already be running at a different location
 	 * than the one we were called from since initial_tlb_book3e can

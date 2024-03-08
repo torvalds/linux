@@ -76,7 +76,7 @@ allOf:
   - $ref: pwm.yaml#
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

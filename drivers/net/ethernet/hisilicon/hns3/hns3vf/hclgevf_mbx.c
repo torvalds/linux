@@ -8,7 +8,7 @@
 #define CREATE_TRACE_POINTS
 #include "hclgevf_trace.h"
 
-static int hclgevf_resp_to_errno(u16 resp_code)
+static int hclgevf_resp_to_erranal(u16 resp_code)
 {
 	return resp_code ? -resp_code : 0;
 }
@@ -23,7 +23,7 @@ static void hclgevf_reset_mbx_resp_status(struct hclgevf_dev *hdev)
 	hdev->mbx_resp.origin_mbx_msg = 0;
 	hdev->mbx_resp.resp_status    = 0;
 	hdev->mbx_resp.match_id++;
-	/* Update match_id and ensure the value of match_id is not zero */
+	/* Update match_id and ensure the value of match_id is analt zero */
 	if (hdev->mbx_resp.match_id == 0)
 		hdev->mbx_resp.match_id = HCLGEVF_MBX_MATCH_ID_START;
 	memset(hdev->mbx_resp.additional_info, 0, HCLGE_MBX_MAX_RESP_DATA_SIZE);
@@ -68,7 +68,7 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 
 	if (i >= HCLGEVF_MAX_TRY_TIMES) {
 		dev_err(&hdev->pdev->dev,
-			"VF could not get mbx(%u,%u) resp(=%d) from PF in %d tries\n",
+			"VF could analt get mbx(%u,%u) resp(=%d) from PF in %d tries\n",
 			code0, code1, hdev->mbx_resp.received_resp, i);
 		return -EIO;
 	}
@@ -87,10 +87,10 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 
 	if (!(r_code0 == code0 && r_code1 == code1 && !mbx_resp->resp_status)) {
 		dev_err(&hdev->pdev->dev,
-			"VF could not match resp code(code0=%u,code1=%u), %d\n",
+			"VF could analt match resp code(code0=%u,code1=%u), %d\n",
 			code0, code1, mbx_resp->resp_status);
 		dev_err(&hdev->pdev->dev,
-			"VF could not match resp r_code(r_code0=%u,r_code1=%u)\n",
+			"VF could analt match resp r_code(r_code0=%u,r_code1=%u)\n",
 			r_code0, r_code1);
 		return -EIO;
 	}
@@ -123,7 +123,7 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev,
 	if (test_bit(HCLGEVF_STATE_NIC_REGISTERED, &hdev->state))
 		trace_hclge_vf_mbx_send(hdev, req);
 
-	/* synchronous send */
+	/* synchroanalus send */
 	if (need_resp) {
 		mutex_lock(&hdev->mbx_resp.mbx_mutex);
 		hclgevf_reset_mbx_resp_status(hdev);
@@ -142,7 +142,7 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev,
 					      resp_len);
 		mutex_unlock(&hdev->mbx_resp.mbx_mutex);
 	} else {
-		/* asynchronous send */
+		/* asynchroanalus send */
 		status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 		if (status) {
 			dev_err(&hdev->pdev->dev,
@@ -173,12 +173,12 @@ static void hclgevf_handle_mbx_response(struct hclgevf_dev *hdev,
 
 	if (resp->received_resp)
 		dev_warn(&hdev->pdev->dev,
-			"VF mbx resp flag not clear(%u)\n",
+			"VF mbx resp flag analt clear(%u)\n",
 			 vf_mbx_msg_code);
 
 	resp->origin_mbx_msg = (vf_mbx_msg_code << 16);
 	resp->origin_mbx_msg |= vf_mbx_msg_subcode;
-	resp->resp_status = hclgevf_resp_to_errno(resp_status);
+	resp->resp_status = hclgevf_resp_to_erranal(resp_status);
 	memcpy(resp->additional_info, req->msg.resp_data,
 	       HCLGE_MBX_MAX_RESP_DATA_SIZE * sizeof(u8));
 
@@ -186,9 +186,9 @@ static void hclgevf_handle_mbx_response(struct hclgevf_dev *hdev,
 	smp_wmb();
 
 	if (match_id) {
-		/* If match_id is not zero, it means PF support match_id.
+		/* If match_id is analt zero, it means PF support match_id.
 		 * if the match_id is right, VF get the right response, or
-		 * ignore the response. and driver will clear hdev->mbx_resp
+		 * iganalre the response. and driver will clear hdev->mbx_resp
 		 * when send next message which need response.
 		 */
 		if (match_id == resp->match_id)
@@ -248,7 +248,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 				 "dropped invalid mailbox message, code = %u\n",
 				 code);
 
-			/* dropping/not processing this invalid message */
+			/* dropping/analt processing this invalid message */
 			crq->desc[crq->next_to_use].flag = 0;
 			hclge_mbx_ring_ptr_move_crq(crq);
 			continue;
@@ -256,9 +256,9 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 
 		trace_hclge_vf_mbx_get(hdev, req);
 
-		/* synchronous messages are time critical and need preferential
-		 * treatment. Therefore, we need to acknowledge all the sync
-		 * responses as quickly as possible so that waiting tasks do not
+		/* synchroanalus messages are time critical and need preferential
+		 * treatment. Therefore, we need to ackanalwledge all the sync
+		 * responses as quickly as possible so that waiting tasks do analt
 		 * timeout and simultaneously queue the async messages for later
 		 * prcessing in context of mailbox task i.e. the slow path.
 		 */

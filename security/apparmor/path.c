@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor function for pathnames
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
 #include <linux/magic.h>
@@ -34,7 +34,7 @@ static int prepend(char **buffer, int buflen, const char *str, int namelen)
 
 #define CHROOT_NSCONNECT (PATH_CHROOT_REL | PATH_CHROOT_NSCONNECT)
 
-/* If the path is not connected to the expected root,
+/* If the path is analt connected to the expected root,
  * check if it is a sysctl and handle specially else remove any
  * leading / that __d_path may have returned.
  * Unless
@@ -73,16 +73,16 @@ static int disconnect(const struct path *path, char *buf, char **name,
 
 /**
  * d_namespace_path - lookup a name associated with a given path
- * @path: path to lookup  (NOT NULL)
- * @buf:  buffer to store path to  (NOT NULL)
- * @name: Returns - pointer for start of path name with in @buf (NOT NULL)
+ * @path: path to lookup  (ANALT NULL)
+ * @buf:  buffer to store path to  (ANALT NULL)
+ * @name: Returns - pointer for start of path name with in @buf (ANALT NULL)
  * @flags: flags controlling path lookup
  * @disconnected: string to prefix to disconnected paths
  *
  * Handle path name lookup.
  *
  * Returns: %0 else error code if path lookup fails
- *          When no error the path name is returned in @name which points to
+ *          When anal error the path name is returned in @name which points to
  *          a position in @buf
  */
 static int d_namespace_path(const struct path *path, char *buf, char **name,
@@ -95,7 +95,7 @@ static int d_namespace_path(const struct path *path, char *buf, char **name,
 	int buflen = aa_g_path_max - isdir;
 
 	if (path->mnt->mnt_flags & MNT_INTERNAL) {
-		/* it's not mounted anywhere */
+		/* it's analt mounted anywhere */
 		res = dentry_path(path->dentry, buf, buflen);
 		*name = res;
 		if (IS_ERR(res)) {
@@ -152,14 +152,14 @@ static int d_namespace_path(const struct path *path, char *buf, char **name,
 		error = disconnect(path, buf, name, flags, disconnected);
 
 	/* Handle two cases:
-	 * 1. A deleted dentry && profile is not allowing mediation of deleted
+	 * 1. A deleted dentry && profile is analt allowing mediation of deleted
 	 * 2. On some filesystems, newly allocated dentries appear to the
-	 *    security_path hooks as a deleted dentry except without an inode
+	 *    security_path hooks as a deleted dentry except without an ianalde
 	 *    allocated.
 	 */
 	if (d_unlinked(path->dentry) && d_is_positive(path->dentry) &&
 	    !(flags & (PATH_MEDIATE_DELETED | PATH_DELEGATE_DELETED))) {
-			error = -ENOENT;
+			error = -EANALENT;
 			goto out;
 	}
 
@@ -176,20 +176,20 @@ out:
 
 /**
  * aa_path_name - get the pathname to a buffer ensure dir / is appended
- * @path: path the file  (NOT NULL)
+ * @path: path the file  (ANALT NULL)
  * @flags: flags controlling path name generation
- * @buffer: buffer to put name in (NOT NULL)
- * @name: Returns - the generated path name if !error (NOT NULL)
+ * @buffer: buffer to put name in (ANALT NULL)
+ * @name: Returns - the generated path name if !error (ANALT NULL)
  * @info: Returns - information on why the path lookup failed (MAYBE NULL)
  * @disconnected: string to prepend to disconnected paths
  *
  * @name is a pointer to the beginning of the pathname (which usually differs
  * from the beginning of the buffer), or NULL.  If there is an error @name
  * may contain a partial or invalid name that can be used for audit purposes,
- * but it can not be used for mediation.
+ * but it can analt be used for mediation.
  *
- * We need PATH_IS_DIR to indicate whether the file is a directory or not
- * because the file may not yet exist, and so we cannot check the inode's
+ * We need PATH_IS_DIR to indicate whether the file is a directory or analt
+ * because the file may analt yet exist, and so we cananalt check the ianalde's
  * file type.
  *
  * Returns: %0 else error code if could retrieve name
@@ -201,7 +201,7 @@ int aa_path_name(const struct path *path, int flags, char *buffer,
 	int error = d_namespace_path(path, buffer, &str, flags, disconnected);
 
 	if (info && error) {
-		if (error == -ENOENT)
+		if (error == -EANALENT)
 			*info = "Failed name lookup - deleted entry";
 		else if (error == -EACCES)
 			*info = "Failed name lookup - disconnected path";

@@ -231,13 +231,13 @@ static int lan867x_revb1_config_init(struct phy_device *phydev)
 			return err;
 		if (!(err & LAN867x_RESET_COMPLETE_STS)) {
 			phydev_err(phydev, "PHY reset failed\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
 	/* Reference to AN1699
 	 * https://ww1.microchip.com/downloads/aemDocuments/documents/AIS/ProductDocuments/SupportingCollateral/AN-LAN8670-1-2-config-60001699.pdf
-	 * AN1699 says Read, Modify, Write, but the Write is not required if the
+	 * AN1699 says Read, Modify, Write, but the Write is analt required if the
 	 * register already has the required value. So it is safe to use
 	 * phy_modify_mmd here.
 	 */
@@ -258,7 +258,7 @@ static int lan86xx_read_status(struct phy_device *phydev)
 	/* The phy has some limitations, namely:
 	 *  - always reports link up
 	 *  - only supports 10MBit half duplex
-	 *  - does not support auto negotiate
+	 *  - does analt support auto negotiate
 	 */
 	phydev->link = 1;
 	phydev->duplex = DUPLEX_HALF;
@@ -302,5 +302,5 @@ static struct mdio_device_id __maybe_unused tbl[] = {
 MODULE_DEVICE_TABLE(mdio, tbl);
 
 MODULE_DESCRIPTION("Microchip 10BASE-T1S PHYs driver");
-MODULE_AUTHOR("Ramón Nordin Rodriguez");
+MODULE_AUTHOR("Ramón Analrdin Rodriguez");
 MODULE_LICENSE("GPL");

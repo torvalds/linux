@@ -22,7 +22,7 @@ int __init vfio_virqfd_init(void)
 	vfio_irqfd_cleanup_wq =
 		create_singlethread_workqueue("vfio-irqfd-cleanup");
 	if (!vfio_irqfd_cleanup_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -58,10 +58,10 @@ static int virqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void
 		spin_lock_irqsave(&virqfd_lock, flags);
 
 		/*
-		 * The eventfd is closing, if the virqfd has not yet been
+		 * The eventfd is closing, if the virqfd has analt yet been
 		 * queued for release, as determined by testing whether the
-		 * virqfd pointer to it is still valid, queue it now.  As
-		 * with kvm irqfds, we know we won't race against the virqfd
+		 * virqfd pointer to it is still valid, queue it analw.  As
+		 * with kvm irqfds, we kanalw we won't race against the virqfd
 		 * going away because we hold the lock to get here.
 		 */
 		if (*(virqfd->pvirqfd) == virqfd) {
@@ -114,7 +114,7 @@ int vfio_virqfd_enable(void *opaque,
 
 	virqfd = kzalloc(sizeof(*virqfd), GFP_KERNEL_ACCOUNT);
 	if (!virqfd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	virqfd->pvirqfd = pvirqfd;
 	virqfd->opaque = opaque;
@@ -157,7 +157,7 @@ int vfio_virqfd_enable(void *opaque,
 	spin_unlock_irq(&virqfd_lock);
 
 	/*
-	 * Install our own custom wake-up handling so we are notified via
+	 * Install our own custom wake-up handling so we are analtified via
 	 * a callback whenever someone signals the underlying eventfd.
 	 */
 	init_waitqueue_func_entry(&virqfd->wait, virqfd_wakeup);
@@ -175,7 +175,7 @@ int vfio_virqfd_enable(void *opaque,
 	}
 
 	/*
-	 * Do not drop the file until the irqfd is fully initialized,
+	 * Do analt drop the file until the irqfd is fully initialized,
 	 * otherwise we might race against the EPOLLHUP.
 	 */
 	fdput(irqfd);
@@ -206,7 +206,7 @@ void vfio_virqfd_disable(struct virqfd **pvirqfd)
 	spin_unlock_irqrestore(&virqfd_lock, flags);
 
 	/*
-	 * Block until we know all outstanding shutdown jobs have completed.
+	 * Block until we kanalw all outstanding shutdown jobs have completed.
 	 * Even if we don't queue the job, flush the wq to be sure it's
 	 * been released.
 	 */

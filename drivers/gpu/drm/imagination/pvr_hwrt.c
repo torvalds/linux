@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_free_list.h"
 #include "pvr_hwrt.h"
@@ -451,7 +451,7 @@ hwrt_data_fini_fw_structure(struct pvr_hwrt_dataset *hwrt, int hwrt_nr)
  *
  * Return:
  *  * Pointer to new HWRT, or
- *  * ERR_PTR(-%ENOMEM) on out of memory.
+ *  * ERR_PTR(-%EANALMEM) on out of memory.
  */
 struct pvr_hwrt_dataset *
 pvr_hwrt_dataset_create(struct pvr_file *pvr_file,
@@ -464,7 +464,7 @@ pvr_hwrt_dataset_create(struct pvr_file *pvr_file,
 	hwrt = kzalloc(sizeof(*hwrt), GFP_KERNEL);
 
 	if (!hwrt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = hwrt_init_kernel_structure(pvr_file, args, hwrt);
 	if (err < 0)

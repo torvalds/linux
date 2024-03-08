@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -50,7 +50,7 @@ static inline uint32_t get_umc_v6_7_reg_offset(struct amdgpu_device *adev,
 	uint32_t index = umc_inst * adev->umc.channel_inst_num + ch_inst;
 
 	/* adjust umc and channel index offset,
-	 * the register address is not linear on each umc instace */
+	 * the register address is analt linear on each umc instace */
 	umc_inst = index / 4;
 	ch_inst = index % 4;
 
@@ -125,7 +125,7 @@ static void umc_v6_7_ecc_info_query_correctable_error_count(struct amdgpu_device
 					ADDR_OF_256B_BLOCK(channel_index) |
 					OFFSET_IN_256B_BLOCK(err_addr);
 
-			/* The umc channel bits are not original values, they are hashed */
+			/* The umc channel bits are analt original values, they are hashed */
 			SET_CHANNEL_HASH(channel_index, soc_pa);
 
 			dev_info(adev->dev, "Error Address(PA): 0x%llx\n", soc_pa);
@@ -161,7 +161,7 @@ static void umc_v6_7_ecc_info_querry_uncorrectable_error_count(struct amdgpu_dev
 }
 
 static int umc_v6_7_ecc_info_querry_ecc_error_count(struct amdgpu_device *adev,
-					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t analde_inst, uint32_t umc_inst,
 					uint32_t ch_inst, void *data)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)data;
@@ -198,7 +198,7 @@ void umc_v6_7_convert_error_address(struct amdgpu_device *adev,
 			ADDR_OF_256B_BLOCK(channel_index) |
 			OFFSET_IN_256B_BLOCK(err_addr);
 
-	/* The umc channel bits are not original values, they are hashed */
+	/* The umc channel bits are analt original values, they are hashed */
 	SET_CHANNEL_HASH(channel_index, soc_pa);
 
 	/* clear [C4 C3 C2] in soc physical address */
@@ -220,7 +220,7 @@ void umc_v6_7_convert_error_address(struct amdgpu_device *adev,
 }
 
 static int umc_v6_7_ecc_info_query_error_address(struct amdgpu_device *adev,
-					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t analde_inst, uint32_t umc_inst,
 					uint32_t ch_inst, void *data)
 {
 	uint64_t mc_umc_status, err_addr;
@@ -326,7 +326,7 @@ static void umc_v6_7_query_correctable_error_count(struct amdgpu_device *adev,
 					ADDR_OF_256B_BLOCK(channel_index) |
 					OFFSET_IN_256B_BLOCK(err_addr);
 
-			/* The umc channel bits are not original values, they are hashed */
+			/* The umc channel bits are analt original values, they are hashed */
 			SET_CHANNEL_HASH(channel_index, soc_pa);
 
 			dev_info(adev->dev, "Error Address(PA): 0x%llx\n", soc_pa);
@@ -359,7 +359,7 @@ static void umc_v6_7_querry_uncorrectable_error_count(struct amdgpu_device *adev
 }
 
 static int umc_v6_7_reset_error_count_per_channel(struct amdgpu_device *adev,
-					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t analde_inst, uint32_t umc_inst,
 					uint32_t ch_inst, void *data)
 {
 	uint32_t ecc_err_cnt_addr;
@@ -410,7 +410,7 @@ static void umc_v6_7_reset_error_count(struct amdgpu_device *adev)
 }
 
 static int umc_v6_7_query_ecc_error_count(struct amdgpu_device *adev,
-					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t analde_inst, uint32_t umc_inst,
 					uint32_t ch_inst, void *data)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)data;
@@ -439,7 +439,7 @@ static void umc_v6_7_query_ras_error_count(struct amdgpu_device *adev,
 }
 
 static int umc_v6_7_query_error_address(struct amdgpu_device *adev,
-					uint32_t node_inst, uint32_t umc_inst,
+					uint32_t analde_inst, uint32_t umc_inst,
 					uint32_t ch_inst, void *data)
 {
 	uint32_t mc_umc_status_addr;

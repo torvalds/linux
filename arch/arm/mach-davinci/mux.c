@@ -2,10 +2,10 @@
 /*
  * Utility to set the DAVINCI MUX register from a table in mux.h
  *
- * Author: Vladimir Barinov, MontaVista Software, Inc. <source@mvista.com>
+ * Author: Vladimir Barianalv, MontaVista Software, Inc. <source@mvista.com>
  *
  * Based on linux/arch/arm/plat-omap/mux.c:
- * Copyright (C) 2003 - 2005 Nokia Corporation
+ * Copyright (C) 2003 - 2005 Analkia Corporation
  *
  * Written by Tony Lindgren
  *
@@ -38,26 +38,26 @@ int davinci_cfg_reg(const unsigned long index)
 	unsigned int mask, warn = 0;
 
 	if (WARN_ON(!soc_info->pinmux_pins))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!pinmux_base) {
 		pinmux_base = ioremap(soc_info->pinmux_base, SZ_4K);
 		if (WARN_ON(!pinmux_base))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (index >= soc_info->pinmux_pins_num) {
 		pr_err("Invalid pin mux index: %lu (%lu)\n",
 		       index, soc_info->pinmux_pins_num);
 		dump_stack();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	cfg = &soc_info->pinmux_pins[index];
 
 	if (cfg->name == NULL) {
-		pr_err("No entry for the specified index\n");
-		return -ENODEV;
+		pr_err("Anal entry for the specified index\n");
+		return -EANALDEV;
 	}
 
 	/* Update the mux register in question */

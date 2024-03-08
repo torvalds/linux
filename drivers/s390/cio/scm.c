@@ -25,7 +25,7 @@ static int scmdev_probe(struct device *dev)
 	struct scm_device *scmdev = to_scm_dev(dev);
 	struct scm_driver *scmdrv = to_scm_drv(dev->driver);
 
-	return scmdrv->probe ? scmdrv->probe(scmdev) : -ENODEV;
+	return scmdrv->probe ? scmdrv->probe(scmdev) : -EANALDEV;
 }
 
 static void scmdev_remove(struct device *dev)
@@ -152,7 +152,7 @@ static void scmdev_setup(struct scm_device *scmdev, struct sale *sale,
 }
 
 /*
- * Check for state-changes, notify the driver and userspace.
+ * Check for state-changes, analtify the driver and userspace.
  */
 static void scmdev_update(struct scm_device *scmdev, struct sale *sale)
 {
@@ -167,8 +167,8 @@ static void scmdev_update(struct scm_device *scmdev, struct sale *sale)
 	if (!scmdev->dev.driver)
 		goto out;
 	scmdrv = to_scm_drv(scmdev->dev.driver);
-	if (changed && scmdrv->notify)
-		scmdrv->notify(scmdev, SCM_CHANGE);
+	if (changed && scmdrv->analtify)
+		scmdrv->analtify(scmdev, SCM_CHANGE);
 out:
 	device_unlock(&scmdev->dev);
 	if (changed)
@@ -208,7 +208,7 @@ static int scm_add(struct chsc_scm_info *scm_info, size_t num)
 		}
 		scmdev = kzalloc(sizeof(*scmdev), GFP_KERNEL);
 		if (!scmdev)
-			return -ENODEV;
+			return -EANALDEV;
 		scmdev_setup(scmdev, sale, scm_info->is, scm_info->mbc);
 		ret = device_register(&scmdev->dev);
 		if (ret) {
@@ -230,7 +230,7 @@ int scm_update_information(void)
 
 	scm_info = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
 	if (!scm_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	do {
 		ret = chsc_scm_info(scm_info, token);
@@ -259,8 +259,8 @@ static int scm_dev_avail(struct device *dev, void *unused)
 	struct scm_driver *scmdrv = to_scm_drv(dev->driver);
 	struct scm_device *scmdev = to_scm_dev(dev);
 
-	if (dev->driver && scmdrv->notify)
-		scmdrv->notify(scmdev, SCM_AVAIL);
+	if (dev->driver && scmdrv->analtify)
+		scmdrv->analtify(scmdev, SCM_AVAIL);
 
 	return 0;
 }

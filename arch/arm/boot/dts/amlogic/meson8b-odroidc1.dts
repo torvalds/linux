@@ -96,7 +96,7 @@
 	vcc_1v8: regulator-vcc-1v8 {
 		/*
 		 * RICHTEK RT9179 configured for a fixed output voltage of
-		 * 1.8V. This supplies not only VCC1V8 but also IOREF_1V8 and
+		 * 1.8V. This supplies analt only VCC1V8 but also IOREF_1V8 and
 		 * VDD1V8 according to the schematics.
 		 */
 		compatible = "regulator-fixed";
@@ -110,8 +110,8 @@
 
 	vcc_3v3: regulator-vcc-3v3 {
 		/*
-		 * Monolithic Power Systems MP2161 configured for a fixed
-		 * output voltage of 3.3V. This supplies not only VCC3V3 but
+		 * Moanallithic Power Systems MP2161 configured for a fixed
+		 * output voltage of 3.3V. This supplies analt only VCC3V3 but
 		 * also VDD3V3 and VDDIO_AO3V3 according to the schematics.
 		 */
 		compatible = "regulator-fixed";
@@ -124,7 +124,7 @@
 	};
 
 	vcck: regulator-vcck {
-		/* Monolithic Power Systems MP2161 */
+		/* Moanallithic Power Systems MP2161 */
 		compatible = "pwm-regulator";
 
 		regulator-name = "VCCK";
@@ -142,8 +142,8 @@
 
 	vddc_ddr: regulator-vddc-ddr {
 		/*
-		 * Monolithic Power Systems MP2161 configured for a fixed
-		 * output voltage of 1.5V. This supplies not only DDR_VDDC but
+		 * Moanallithic Power Systems MP2161 configured for a fixed
+		 * output voltage of 1.5V. This supplies analt only DDR_VDDC but
 		 * also DDR3_1V5 according to the schematics.
 		 */
 		compatible = "regulator-fixed";
@@ -156,7 +156,7 @@
 	};
 
 	vddee: regulator-vddee {
-		/* Monolithic Power Systems MP2161 */
+		/* Moanallithic Power Systems MP2161 */
 		compatible = "pwm-regulator";
 
 		regulator-name = "VDDEE";
@@ -310,7 +310,7 @@
 	disable-wp;
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
-	no-sdio;
+	anal-sdio;
 
 	mmc-pwrseq = <&emmc_pwrseq>;
 
@@ -331,7 +331,7 @@
 		status = "okay";
 
 		bus-width = <4>;
-		no-sdio;
+		anal-sdio;
 		cap-mmc-highspeed;
 		cap-sd-highspeed;
 		disable-wp;

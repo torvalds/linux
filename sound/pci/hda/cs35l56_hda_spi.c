@@ -18,7 +18,7 @@ static int cs35l56_hda_spi_probe(struct spi_device *spi)
 
 	cs35l56 = devm_kzalloc(&spi->dev, sizeof(*cs35l56), GFP_KERNEL);
 	if (!cs35l56)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cs35l56->base.dev = &spi->dev;
 

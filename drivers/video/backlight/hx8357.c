@@ -24,11 +24,11 @@
 #define HX8357_GET_PIXEL_FORMAT		0x0c
 #define HX8357_GET_DISPLAY_MODE		0x0d
 #define HX8357_GET_SIGNAL_MODE		0x0e
-#define HX8357_GET_DIAGNOSTIC_RESULT	0x0f
+#define HX8357_GET_DIAGANALSTIC_RESULT	0x0f
 #define HX8357_ENTER_SLEEP_MODE		0x10
 #define HX8357_EXIT_SLEEP_MODE		0x11
 #define HX8357_ENTER_PARTIAL_MODE	0x12
-#define HX8357_ENTER_NORMAL_MODE	0x13
+#define HX8357_ENTER_ANALRMAL_MODE	0x13
 #define HX8357_EXIT_INVERSION_MODE	0x20
 #define HX8357_ENTER_INVERSION_MODE	0x21
 #define HX8357_SET_DISPLAY_OFF		0x28
@@ -67,7 +67,7 @@
 #define HX8357_SET_GAMMA		0xc8
 #define HX8357_SET_POWER		0xd0
 #define HX8357_SET_VCOM			0xd1
-#define HX8357_SET_POWER_NORMAL		0xd2
+#define HX8357_SET_POWER_ANALRMAL		0xd2
 #define HX8357_SET_PANEL_RELATED	0xe9
 
 #define HX8369_SET_DISPLAY_BRIGHTNESS		0x51
@@ -97,8 +97,8 @@ static u8 hx8357_seq_vcom[] = {
 	HX8357_SET_VCOM, 0x40, 0x10,
 };
 
-static u8 hx8357_seq_power_normal[] = {
-	HX8357_SET_POWER_NORMAL, 0x05, 0x12,
+static u8 hx8357_seq_power_analrmal[] = {
+	HX8357_SET_POWER_ANALRMAL, 0x05, 0x12,
 };
 
 static u8 hx8357_seq_panel_driving[] = {
@@ -228,7 +228,7 @@ static int hx8357_spi_write_then_read(struct lcd_device *lcdev,
 		local_txbuf = kcalloc(txlen, sizeof(*local_txbuf), GFP_KERNEL);
 
 		if (!local_txbuf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < txlen; i++) {
 			local_txbuf[i] = txbuf[i];
@@ -355,8 +355,8 @@ static int hx8357_lcd_init(struct lcd_device *lcdev)
 	if (ret < 0)
 		return ret;
 
-	ret = hx8357_spi_write_array(lcdev, hx8357_seq_power_normal,
-				ARRAY_SIZE(hx8357_seq_power_normal));
+	ret = hx8357_spi_write_array(lcdev, hx8357_seq_power_analrmal,
+				ARRAY_SIZE(hx8357_seq_power_analrmal));
 	if (ret < 0)
 		return ret;
 
@@ -532,7 +532,7 @@ static int hx8369_lcd_init(struct lcd_device *lcdev)
 	return 0;
 }
 
-#define POWER_IS_ON(pwr)	((pwr) <= FB_BLANK_NORMAL)
+#define POWER_IS_ON(pwr)	((pwr) <= FB_BLANK_ANALRMAL)
 
 static int hx8357_set_power(struct lcd_device *lcdev, int power)
 {
@@ -587,7 +587,7 @@ static int hx8357_probe(struct spi_device *spi)
 
 	lcd = devm_kzalloc(&spi->dev, sizeof(*lcd), GFP_KERNEL);
 	if (!lcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = spi_setup(spi);
 	if (ret < 0) {
@@ -610,7 +610,7 @@ static int hx8357_probe(struct spi_device *spi)
 	if (IS_ERR(lcd->im_pins))
 		return dev_err_probe(dev, PTR_ERR(lcd->im_pins), "failed to request im GPIOs\n");
 	if (lcd->im_pins->ndescs < HX8357_NUM_IM_PINS)
-		return dev_err_probe(dev, -EINVAL, "not enough im GPIOs\n");
+		return dev_err_probe(dev, -EINVAL, "analt eanalugh im GPIOs\n");
 
 	for (i = 0; i < HX8357_NUM_IM_PINS; i++)
 		gpiod_set_consumer_name(lcd->im_pins->desc[i], "im_pins");

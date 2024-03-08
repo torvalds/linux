@@ -23,10 +23,10 @@
  * struct ccu_pll_init_data - CCU PLL initialization data
  * @id: Clock private identifier.
  * @name: Clocks name.
- * @parent_name: Clocks parent name in a fw node.
+ * @parent_name: Clocks parent name in a fw analde.
  * @base: PLL registers base address with respect to the sys_regs base.
  * @sys_regs: Baikal-T1 System Controller registers map.
- * @np: Pointer to the node describing the CCU PLLs.
+ * @np: Pointer to the analde describing the CCU PLLs.
  * @flags: PLL clock flags.
  * @features: PLL private features.
  */
@@ -36,7 +36,7 @@ struct ccu_pll_init_data {
 	const char *parent_name;
 	unsigned int base;
 	struct regmap *sys_regs;
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned long flags;
 	unsigned long features;
 };

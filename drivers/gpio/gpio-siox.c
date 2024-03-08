@@ -21,7 +21,7 @@ struct gpio_siox_ddata {
 };
 
 /*
- * Note that this callback only sets the value that is clocked out in the next
+ * Analte that this callback only sets the value that is clocked out in the next
  * cycle.
  */
 static int gpio_siox_set_data(struct siox_device *sdevice, u8 status, u8 buf[])
@@ -223,7 +223,7 @@ static int gpio_siox_probe(struct siox_device *sdevice)
 
 	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, ddata);
 
@@ -244,7 +244,7 @@ static int gpio_siox_probe(struct siox_device *sdevice)
 
 	girq = &gc->irq;
 	gpio_irq_chip_set_chip(girq, &gpio_siox_irq_chip);
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_level_irq;
 	girq->threaded = true;
 

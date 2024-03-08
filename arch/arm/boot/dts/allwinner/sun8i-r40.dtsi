@@ -1,10 +1,10 @@
 /*
  * Copyright 2017 Chen-Yu Tsai <wens@csie.org>
- * Copyright 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
  *
  * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * of the GPL or the X11 license, at your option. Analte that this dual
+ * licensing only applies to this file, and analt this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -28,13 +28,13 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright analtice and this permission analtice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT
  *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -148,10 +148,10 @@
 			cooling-maps {
 				cpu-hot-limit {
 					trip = <&cpu_hot_trip>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -234,7 +234,7 @@
 			clocks = <&ccu CLK_BUS_DEINTERLACE>,
 				 <&ccu CLK_DEINTERLACE>,
 				 /*
-				  * NOTE: Contrary to what datasheet claims,
+				  * ANALTE: Contrary to what datasheet claims,
 				  * DRAM deinterlace gate doesn't exist and
 				  * it's shared with CSI1.
 				  */
@@ -566,7 +566,7 @@
 				function = "clk_out_a";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			csi0_8bits_pins: csi0-8bits-pins {
 				pins = "PE0", "PE2", "PE3", "PE4", "PE5",
 				       "PE6", "PE7", "PE8", "PE9", "PE10",
@@ -574,7 +574,7 @@
 				function = "csi0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			csi0_mclk_pin: csi0-mclk-pin {
 				pins = "PE1";
 				function = "csi0";
@@ -653,7 +653,7 @@
 				bias-pull-up;
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			mmc3_pins: mmc3-pins {
 				pins = "PI4", "PI5", "PI6",
 				       "PI7", "PI8", "PI9";
@@ -662,79 +662,79 @@
 				bias-pull-up;
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			spi0_pc_pins: spi0-pc-pins {
 				pins = "PC0", "PC1", "PC2";
 				function = "spi0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			spi0_cs0_pc_pin: spi0-cs0-pc-pin {
 				pins = "PC23";
 				function = "spi0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			spi1_pi_pins: spi1-pi-pins {
 				pins = "PI17", "PI18", "PI19";
 				function = "spi1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			spi1_cs0_pi_pin: spi1-cs0-pi-pin {
 				pins = "PI16";
 				function = "spi1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			spi1_cs1_pi_pin: spi1-cs1-pi-pin {
 				pins = "PI15";
 				function = "spi1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart0_pb_pins: uart0-pb-pins {
 				pins = "PB22", "PB23";
 				function = "uart0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart2_pi_pins: uart2-pi-pins {
 				pins = "PI18", "PI19";
 				function = "uart2";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart2_rts_cts_pi_pins: uart2-rts-cts-pi-pins{
 				pins = "PI16", "PI17";
 				function = "uart2";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart3_pg_pins: uart3-pg-pins {
 				pins = "PG6", "PG7";
 				function = "uart3";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart3_rts_cts_pg_pins: uart3-rts-cts-pg-pins {
 				pins = "PG8", "PG9";
 				function = "uart3";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart4_pg_pins: uart4-pg-pins {
 				pins = "PG10", "PG11";
 				function = "uart4";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart5_ph_pins: uart5-ph-pins {
 				pins = "PH6", "PH7";
 				function = "uart5";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart7_pi_pins: uart7-pi-pins {
 				pins = "PI20", "PI21";
 				function = "uart7";

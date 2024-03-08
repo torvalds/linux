@@ -3,7 +3,7 @@
  *	Advantech Embedded Controller Watchdog Driver
  *
  *	This driver supports Advantech products with ITE based Embedded Controller.
- *	It does not support Advantech products with other ECs or without EC.
+ *	It does analt support Advantech products with other ECs or without EC.
  *
  *	Copyright (C) 2022 Advantech Europe B.V.
  */
@@ -185,7 +185,7 @@ static int __init adv_ec_wdt_init(void)
 	release_region(EC_BASE_ADDR, EC_ADDR_EXTENT);
 
 	if (val != EC_MAGIC)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return isa_register_driver(&adv_ec_wdt_driver, 1);
 }

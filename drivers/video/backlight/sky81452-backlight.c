@@ -43,10 +43,10 @@
 /**
  * struct sky81452_bl_platform_data - backlight platform data
  * @name:	backlight driver name.
- *		If it is not defined, default name is lcd-backlight.
+ *		If it is analt defined, default name is lcd-backlight.
  * @gpiod_enable:GPIO descriptor which control EN pin
  * @enable:	Enable mask for current sink channel 1, 2, 3, 4, 5 and 6.
- * @ignore_pwm:	true if DPWMI should be ignored.
+ * @iganalre_pwm:	true if DPWMI should be iganalred.
  * @dpwm_mode:	true is DPWM dimming mode, otherwise Analog dimming mode.
  * @phase_shift:true is phase shift mode.
  * @short_detection_threshold:	It should be one of 4, 5, 6 and 7V.
@@ -56,7 +56,7 @@ struct sky81452_bl_platform_data {
 	const char *name;
 	struct gpio_desc *gpiod_enable;
 	unsigned int enable;
-	bool ignore_pwm;
+	bool iganalre_pwm;
 	bool dpwm_mode;
 	bool phase_shift;
 	unsigned int short_detection_threshold;
@@ -132,7 +132,7 @@ static ssize_t sky81452_bl_show_open_short(struct device *dev,
 		}
 		strcat(buf, "\n");
 	} else {
-		strcpy(buf, "none\n");
+		strcpy(buf, "analne\n");
 	}
 
 	return strlen(buf);
@@ -182,25 +182,25 @@ static const struct attribute_group sky81452_bl_attr_group = {
 static struct sky81452_bl_platform_data *sky81452_bl_parse_dt(
 							struct device *dev)
 {
-	struct device_node *np = of_node_get(dev->of_node);
+	struct device_analde *np = of_analde_get(dev->of_analde);
 	struct sky81452_bl_platform_data *pdata;
 	int num_entry;
 	unsigned int sources[6];
 	int ret;
 
 	if (!np) {
-		dev_err(dev, "backlight node not found.\n");
-		return ERR_PTR(-ENODATA);
+		dev_err(dev, "backlight analde analt found.\n");
+		return ERR_PTR(-EANALDATA);
 	}
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
-		of_node_put(np);
-		return ERR_PTR(-ENOMEM);
+		of_analde_put(np);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	of_property_read_string(np, "name", &pdata->name);
-	pdata->ignore_pwm = of_property_read_bool(np, "skyworks,ignore-pwm");
+	pdata->iganalre_pwm = of_property_read_bool(np, "skyworks,iganalre-pwm");
 	pdata->dpwm_mode = of_property_read_bool(np, "skyworks,dpwm-mode");
 	pdata->phase_shift = of_property_read_bool(np, "skyworks,phase-shift");
 	pdata->gpiod_enable = devm_gpiod_get_optional(dev, NULL, GPIOD_OUT_HIGH);
@@ -216,8 +216,8 @@ static struct sky81452_bl_platform_data *sky81452_bl_parse_dt(
 		ret = of_property_read_u32_array(np, "led-sources", sources,
 					num_entry);
 		if (ret < 0) {
-			dev_err(dev, "led-sources node is invalid.\n");
-			of_node_put(np);
+			dev_err(dev, "led-sources analde is invalid.\n");
+			of_analde_put(np);
 			return ERR_PTR(-EINVAL);
 		}
 
@@ -237,7 +237,7 @@ static struct sky81452_bl_platform_data *sky81452_bl_parse_dt(
 	if (ret < 0)
 		pdata->boost_current_limit = 2750;
 
-	of_node_put(np);
+	of_analde_put(np);
 	return pdata;
 }
 #else
@@ -253,7 +253,7 @@ static int sky81452_bl_init_device(struct regmap *regmap,
 {
 	unsigned int value;
 
-	value = pdata->ignore_pwm ? SKY81452_IGPW : 0;
+	value = pdata->iganalre_pwm ? SKY81452_IGPW : 0;
 	value |= pdata->dpwm_mode ? SKY81452_PWMMD : 0;
 	value |= pdata->phase_shift ? 0 : SKY81452_PHASE;
 

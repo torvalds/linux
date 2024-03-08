@@ -32,7 +32,7 @@ static void *ah_alloc_tmp(struct crypto_ahash *ahash, int nfrags,
 	len = ALIGN(len, crypto_tfm_ctx_alignment());
 
 	len += sizeof(struct ahash_request) + crypto_ahash_reqsize(ahash);
-	len = ALIGN(len, __alignof__(struct scatterlist));
+	len = ALIGN(len, __aliganalf__(struct scatterlist));
 
 	len += sizeof(struct scatterlist) * nfrags;
 
@@ -67,12 +67,12 @@ static inline struct scatterlist *ah_req_sg(struct crypto_ahash *ahash,
 {
 	return (void *)ALIGN((unsigned long)(req + 1) +
 			     crypto_ahash_reqsize(ahash),
-			     __alignof__(struct scatterlist));
+			     __aliganalf__(struct scatterlist));
 }
 
 /* Clear mutable options and find final destination to substitute
  * into IP header for icv calculation. Options are already checked
- * for validity, so paranoia is not required. */
+ * for validity, so paraanalia is analt required. */
 
 static int ip_clear_mutable_options(const struct iphdr *iph, __be32 *daddr)
 {
@@ -84,7 +84,7 @@ static int ip_clear_mutable_options(const struct iphdr *iph, __be32 *daddr)
 		switch (*optptr) {
 		case IPOPT_END:
 			return 0;
-		case IPOPT_NOOP:
+		case IPOPT_ANALOP:
 			l--;
 			optptr++;
 			continue;
@@ -174,7 +174,7 @@ static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 		sglists = 1;
 		seqhi_len = sizeof(*seqhi);
 	}
-	err = -ENOMEM;
+	err = -EANALMEM;
 	iph = ah_alloc_tmp(ahash, nfrags + sglists, ihl + seqhi_len);
 	if (!iph)
 		goto out;
@@ -216,10 +216,10 @@ static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
-	ah->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.low);
+	ah->seq_anal = htonl(XFRM_SKB_CB(skb)->seq.output.low);
 
 	sg_init_table(sg, nfrags + sglists);
-	err = skb_to_sgvec_nomark(skb, sg, 0, skb->len);
+	err = skb_to_sgvec_analmark(skb, sg, 0, skb->len);
 	if (unlikely(err < 0))
 		goto out_free;
 
@@ -238,7 +238,7 @@ static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 		if (err == -EINPROGRESS)
 			goto out;
 
-		if (err == -ENOSPC)
+		if (err == -EANALSPC)
 			err = NET_XMIT_DROP;
 		goto out_free;
 	}
@@ -312,7 +312,7 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 	struct iphdr *iph, *work_iph;
 	struct ip_auth_hdr *ah;
 	struct ah_data *ahp;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int seqhi_len = 0;
 	__be32 *seqhi;
 	int sglists = 0;
@@ -346,7 +346,7 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 	if (skb_unclone(skb, GFP_ATOMIC))
 		goto out;
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 
 	if ((err = skb_cow_data(skb, 0, &trailer)) < 0)
@@ -365,7 +365,7 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 	work_iph = ah_alloc_tmp(ahash, nfrags + sglists, ihl +
 				ahp->icv_trunc_len + seqhi_len);
 	if (!work_iph) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -394,7 +394,7 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 	skb_push(skb, ihl);
 
 	sg_init_table(sg, nfrags + sglists);
-	err = skb_to_sgvec_nomark(skb, sg, 0, skb->len);
+	err = skb_to_sgvec_analmark(skb, sg, 0, skb->len);
 	if (unlikely(err < 0))
 		goto out_free;
 
@@ -480,13 +480,13 @@ static int ah_init_state(struct xfrm_state *x, struct netlink_ext_ack *extack)
 	}
 
 	if (x->encap) {
-		NL_SET_ERR_MSG(extack, "AH is not compatible with encapsulation");
+		NL_SET_ERR_MSG(extack, "AH is analt compatible with encapsulation");
 		goto error;
 	}
 
 	ahp = kzalloc(sizeof(*ahp), GFP_KERNEL);
 	if (!ahp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ahash = crypto_alloc_ahash(x->aalg->alg_name, 0, 0);
 	if (IS_ERR(ahash)) {
@@ -504,7 +504,7 @@ static int ah_init_state(struct xfrm_state *x, struct netlink_ext_ack *extack)
 	/*
 	 * Lookup the algorithm description maintained by xfrm_algo,
 	 * verify crypto transform properties, and store information
-	 * we need for AH processing.  This lookup cannot fail here
+	 * we need for AH processing.  This lookup cananalt fail here
 	 * after a successful crypto_alloc_ahash().
 	 */
 	aalg_desc = xfrm_aalg_get_byname(x->aalg->alg_name, 0);

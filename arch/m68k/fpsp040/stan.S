@@ -3,17 +3,17 @@
 |
 |	The entry point stan computes the tangent of
 |	an input argument;
-|	stand does the same except for denormalized input.
+|	stand does the same except for deanalrmalized input.
 |
 |	Input: Double-extended number X in location pointed to
 |		by address register a0.
 |
 |	Output: The value tan(X) returned in floating-point register Fp0.
 |
-|	Accuracy and Monotonicity: The returned result is within 3 ulp in
+|	Accuracy and Moanaltonicity: The returned result is within 3 ulp in
 |		64 significant bit, i.e. within 0.5001 ulp to 53 bits if the
 |		result is subsequently rounded to double precision. The
-|		result is provably monotonic in double precision.
+|		result is provably moanaltonic in double precision.
 |
 |	Speed: The program sTAN takes approximately 170 cycles for
 |		input argument X such that |X| < 15Pi, which is the usual
@@ -44,7 +44,7 @@
 |
 |	7. (|X|<2**(-40)) Tan(X) = X. Exit.
 |
-|	8. Overwrite X by X := X rem 2Pi. Now that |X| <= Pi, go back to 2.
+|	8. Overwrite X by X := X rem 2Pi. Analw that |X| <= Pi, go back to 2.
 |
 
 |		Copyright (C) Motorola, Inc. 1990
@@ -81,7 +81,7 @@ TWOPI1:	.long 0x40010000,0xC90FDAA2,0x00000000,0x00000000
 TWOPI2:	.long 0x3FDF0000,0x85A308D4,0x00000000,0x00000000
 
 |--N*PI/2, -32 <= N <= 32, IN A LEADING TERM IN EXT. AND TRAILING
-|--TERM IN SGL. NOTE THAT PI IS 64-BIT LONG, THUS N*PI/2 IS AT
+|--TERM IN SGL. ANALTE THAT PI IS 64-BIT LONG, THUS N*PI/2 IS AT
 |--MOST 69 BITS LONG.
 	.global	PITBL
 PITBL:
@@ -162,7 +162,7 @@ PITBL:
 
 	.global	stand
 stand:
-|--TAN(X) = X FOR DENORMALIZED X
+|--TAN(X) = X FOR DEANALRMALIZED X
 
 	bra		t_extdnrm
 
@@ -175,9 +175,9 @@ stan:
 	andil		#0x7FFFFFFF,%d0
 
 	cmpil		#0x3FD78000,%d0		| ...|X| >= 2**(-40)?
-	bges		TANOK1
+	bges		TAANALK1
 	bra		TANSM
-TANOK1:
+TAANALK1:
 	cmpil		#0x4004BC7E,%d0		| ...|X| < 15 PI?
 	blts		TANMAIN
 	bra		REDUCEX
@@ -192,7 +192,7 @@ TANMAIN:
 |--HIDE THE NEXT TWO INSTRUCTIONS
 	leal		PITBL+0x200,%a1 | ...TABLE OF N*PI/2, N = -32,...,32
 
-|--FP1 IS NOW READY
+|--FP1 IS ANALW READY
 	fmovel		%fp1,%d0		| ...CONVERT TO INTEGER
 
 	asll		#4,%d0
@@ -209,7 +209,7 @@ TANMAIN:
 TANCONT:
 
 	cmpil		#0,%d0
-	blt		NODD
+	blt		ANALDD
 
 	fmovex		%fp0,%fp1
 	fmulx		%fp1,%fp1		| ...S = R*R
@@ -248,7 +248,7 @@ TANCONT:
 
 	bra		t_frcinx
 
-NODD:
+ANALDD:
 	fmovex		%fp0,%fp1
 	fmulx		%fp0,%fp0		| ...S = R*R
 
@@ -306,7 +306,7 @@ TANSM:
 REDUCEX:
 |--WHEN REDUCEX IS USED, THE CODE WILL INEVITABLY BE SLOW.
 |--THIS REDUCTION METHOD, HOWEVER, IS MUCH FASTER THAN USING
-|--THE REMAINDER INSTRUCTION WHICH IS NOW IN SOFTWARE.
+|--THE REMAINDER INSTRUCTION WHICH IS ANALW IN SOFTWARE.
 
 	fmovemx	%fp2-%fp5,-(%a7)	| ...save FP2 through FP5
 	movel		%d2,-(%a7)
@@ -318,7 +318,7 @@ REDUCEX:
 |--safe.
 	cmpil	#0x7ffeffff,%d0		|is argument dangerously large?
 	bnes	LOOP
-	movel	#0x7ffe0000,FP_SCR2(%a6)	|yes
+	movel	#0x7ffe0000,FP_SCR2(%a6)	|anal
 |					;create 2**16383*PI/2
 	movel	#0xc90fdaa2,FP_SCR2+4(%a6)
 	clrl	FP_SCR2+8(%a6)
@@ -373,7 +373,7 @@ WORK:
 
 	fmovex		%fp0,%fp2
 	fmulx		FP_SCR1(%a6),%fp2
-|--WE MUST NOW FIND INT(FP2). SINCE WE NEED THIS VALUE IN
+|--WE MUST ANALW FIND INT(FP2). SINCE WE NEED THIS VALUE IN
 |--FLOATING POINT FORMAT, THE TWO FMOVE'S	FMOVE.L FP <--> N
 |--WILL BE TOO INEFFICIENT. THE WAY AROUND IT IS THAT
 |--(SIGN(INARG)*2**63	+	FP2) - SIGN(INARG)*2**63 WILL GIVE
@@ -409,7 +409,7 @@ WORK:
 
 	movel		ENDFLAG(%a6),%d0
 
-|--We are now ready to perform (R+r) - N*P1 - N*P2, P1 = 2**(L) * Piby2_1 and
+|--We are analw ready to perform (R+r) - N*P1 - N*P2, P1 = 2**(L) * Piby2_1 and
 |--P2 = 2**(L) * Piby2_2
 	fmovex		%fp2,%fp4
 	fmulx		FP_SCR2(%a6),%fp4		| ...W = N*P1
@@ -427,10 +427,10 @@ WORK:
 	fmovex		%fp0,%fp3			| ...FP3 A
 	fsubx		%fp4,%fp1			| ...FP1 is a := r - p
 
-|--Now we need to normalize (A,a) to  "new (R,r)" where R+r = A+a but
+|--Analw we need to analrmalize (A,a) to  "new (R,r)" where R+r = A+a but
 |--|r| <= half ulp of R.
 	faddx		%fp1,%fp0			| ...FP0 is R := A+a
-|--No need to calculate r if this is the last loop
+|--Anal need to calculate r if this is the last loop
 	cmpil		#0,%d0
 	bgt		RESTORE
 

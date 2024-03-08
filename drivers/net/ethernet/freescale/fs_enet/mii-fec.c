@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -103,7 +103,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	struct mii_bus *new_bus;
 	struct fec_info *fec;
 	int (*get_bus_freq)(struct device *);
-	int ret = -ENOMEM, clock, speed;
+	int ret = -EANALMEM, clock, speed;
 
 	get_bus_freq = device_get_match_data(&ofdev->dev);
 
@@ -120,7 +120,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	new_bus->read = &fs_enet_fec_mii_read;
 	new_bus->write = &fs_enet_fec_mii_write;
 
-	ret = of_address_to_resource(ofdev->dev.of_node, 0, &res);
+	ret = of_address_to_resource(ofdev->dev.of_analde, 0, &res);
 	if (ret)
 		goto out_res;
 
@@ -128,15 +128,15 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 
 	fec->fecp = ioremap(res.start, resource_size(&res));
 	if (!fec->fecp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_fec;
 	}
 
 	if (get_bus_freq) {
 		clock = get_bus_freq(&ofdev->dev);
 		if (!clock) {
-			/* Use maximum divider if clock is unknown */
-			dev_warn(&ofdev->dev, "could not determine IPS clock\n");
+			/* Use maximum divider if clock is unkanalwn */
+			dev_warn(&ofdev->dev, "could analt determine IPS clock\n");
 			clock = 0x3F * 5000000;
 		}
 	} else
@@ -144,7 +144,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 
 	/*
 	 * Scale for a MII clock <= 2.5 MHz
-	 * Note that only 6 bits (25:30) are available for MII speed.
+	 * Analte that only 6 bits (25:30) are available for MII speed.
 	 */
 	speed = (clock + 4999999) / 5000000;
 	if (speed > 0x3F) {
@@ -167,7 +167,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	new_bus->parent = &ofdev->dev;
 	platform_set_drvdata(ofdev, new_bus);
 
-	ret = of_mdiobus_register(new_bus, ofdev->dev.of_node);
+	ret = of_mdiobus_register(new_bus, ofdev->dev.of_analde);
 	if (ret)
 		goto out_unmap_regs;
 

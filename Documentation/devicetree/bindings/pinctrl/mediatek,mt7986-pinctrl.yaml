@@ -76,10 +76,10 @@ patternProperties:
         type: object
         additionalProperties: false
         description: |
-          pinmux configuration nodes.
+          pinmux configuration analdes.
 
           The following table shows the effective values of "group", "function"
-          properties and chip pinout pins
+          properties and chip pianalut pins
 
           groups            function    pins (in pin#)
           ---------------------------------------------------------------------
@@ -128,19 +128,19 @@ patternProperties:
           "wf_dbdc"         "wifi"      74, 75, 76, 77, 78, 79, 80, 81, 82, 83,
                                         84, 85
 
-        $ref: /schemas/pinctrl/pinmux-node.yaml
+        $ref: /schemas/pinctrl/pinmux-analde.yaml
         properties:
           function:
             description:
               A string containing the name of the function to mux to the group.
-              There is no "audio", "pcie" functions on mt7986b, you can only use
+              There is anal "audio", "pcie" functions on mt7986b, you can only use
               those functions on mt7986a.
             enum: [audio, emmc, eth, i2c, led, flash, pcie, pwm, spi, uart,
                    watchdog, wifi]
           groups:
             description:
               An array of strings. Each string contains the name of a group.
-              There is no "pcie_pereset", "uart1", "uart2" "emmc_51", "pcm", and
+              There is anal "pcie_pereset", "uart1", "uart2" "emmc_51", "pcm", and
               "i2s" groups on mt7986b, you can only use those groups on mt7986a.
         required:
           - function
@@ -260,14 +260,14 @@ patternProperties:
         type: object
         additionalProperties: false
         description:
-          pinconf configuration nodes.
-        $ref: /schemas/pinctrl/pincfg-node.yaml
+          pinconf configuration analdes.
+        $ref: /schemas/pinctrl/pincfg-analde.yaml
 
         properties:
           pins:
             description:
               An array of strings. Each string contains the name of a pin. There
-              is no PIN 41 to PIN 65 above on mt7686b, you can only use those
+              is anal PIN 41 to PIN 65 above on mt7686b, you can only use those
               pins on mt7986a.
             items:
               enum: [SYS_WATCHDOG, WF2G_LED, WF5G_LED, I2C_SCL, I2C_SDA, GPIO_0,
@@ -297,7 +297,7 @@ patternProperties:
           bias-pull-up:
             oneOf:
               - type: boolean
-                description: normal pull up.
+                description: analrmal pull up.
               - enum: [100, 101, 102, 103]
                 description:
                   PUPD/R1/R0 pull down type. See MTK_PUPD_SET_R1R0 defines in
@@ -306,7 +306,7 @@ patternProperties:
           bias-pull-down:
             oneOf:
               - type: boolean
-                description: normal pull down.
+                description: analrmal pull down.
               - enum: [100, 101, 102, 103]
                 description:
                   PUPD/R1/R0 pull down type. See MTK_PUPD_SET_R1R0 defines in

@@ -12,7 +12,7 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 
-static int __must_check of_clk_bulk_get(struct device_node *np, int num_clks,
+static int __must_check of_clk_bulk_get(struct device_analde *np, int num_clks,
 					struct clk_bulk_data *clks)
 {
 	int ret;
@@ -43,7 +43,7 @@ err:
 	return ret;
 }
 
-static int __must_check of_clk_bulk_get_all(struct device_node *np,
+static int __must_check of_clk_bulk_get_all(struct device_analde *np,
 					    struct clk_bulk_data **clks)
 {
 	struct clk_bulk_data *clk_bulk;
@@ -56,7 +56,7 @@ static int __must_check of_clk_bulk_get_all(struct device_node *np,
 
 	clk_bulk = kmalloc_array(num_clks, sizeof(*clk_bulk), GFP_KERNEL);
 	if (!clk_bulk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_clk_bulk_get(np, num_clks, clk_bulk);
 	if (ret) {
@@ -93,7 +93,7 @@ static int __clk_bulk_get(struct device *dev, int num_clks,
 			ret = PTR_ERR(clks[i].clk);
 			clks[i].clk = NULL;
 
-			if (ret == -ENOENT && optional)
+			if (ret == -EANALENT && optional)
 				continue;
 
 			dev_err_probe(dev, ret,
@@ -139,7 +139,7 @@ EXPORT_SYMBOL(clk_bulk_put_all);
 int __must_check clk_bulk_get_all(struct device *dev,
 				  struct clk_bulk_data **clks)
 {
-	struct device_node *np = dev_of_node(dev);
+	struct device_analde *np = dev_of_analde(dev);
 
 	if (!np)
 		return 0;
@@ -204,7 +204,7 @@ EXPORT_SYMBOL_GPL(clk_bulk_prepare);
  * @num_clks: the number of clk_bulk_data
  * @clks: the clk_bulk_data table being gated
  *
- * clk_bulk_disable must not sleep, which differentiates it from
+ * clk_bulk_disable must analt sleep, which differentiates it from
  * clk_bulk_unprepare. clk_bulk_disable must be called before
  * clk_bulk_unprepare.
  */
@@ -221,7 +221,7 @@ EXPORT_SYMBOL_GPL(clk_bulk_disable);
  * @num_clks: the number of clk_bulk_data
  * @clks: the clk_bulk_data table being ungated
  *
- * clk_bulk_enable must not sleep
+ * clk_bulk_enable must analt sleep
  * Returns 0 on success, -EERROR otherwise.
  */
 int __must_check clk_bulk_enable(int num_clks, const struct clk_bulk_data *clks)

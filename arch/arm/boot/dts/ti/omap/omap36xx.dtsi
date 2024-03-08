@@ -151,7 +151,7 @@
 			reg-names = "sysc";
 			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			clocks = <&sr2_fck>;
 			clock-names = "fck";
@@ -173,7 +173,7 @@
 			reg-names = "sysc";
 			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			clocks = <&sr1_fck>;
 			clock-names = "fck";
@@ -190,7 +190,7 @@
 		};
 
 		/*
-		 * Note that the sysconfig register layout is a subset of the
+		 * Analte that the sysconfig register layout is a subset of the
 		 * "ti,sysc-omap4" type register with just sidle and midle bits
 		 * available while omap34xx has "ti,sysc-omap2" type sysconfig.
 		 */
@@ -200,10 +200,10 @@
 			      <0x5000fe10 0x4>;
 			reg-names = "rev", "sysc";
 			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			clocks = <&sgx_fck>, <&sgx_ick>;
 			clock-names = "fck", "ick";
@@ -212,7 +212,7 @@
 			ranges = <0 0x50000000 0x2000000>;
 
 			/*
-			 * Closed source PowerVR driver, no child device
+			 * Closed source PowerVR driver, anal child device
 			 * binding or driver in mainline
 			 */
 		};

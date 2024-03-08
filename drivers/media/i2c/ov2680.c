@@ -25,7 +25,7 @@
 #include <media/v4l2-cci.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define OV2680_CHIP_ID				0x2680
@@ -195,7 +195,7 @@ static const struct reg_sequence ov2680_global_setting[] = {
 	/* MIPI PHY, 0x10 -> 0x1c enable bp_c_hs_en_lat and bp_d_hs_en_lat */
 	{0x3016, 0x1c},
 
-	/* R MANUAL set exposure and gain to manual (hw does not do auto) */
+	/* R MANUAL set exposure and gain to manual (hw does analt do auto) */
 	{0x3503, 0x03},
 
 	/* Analog control register tweaks */
@@ -333,7 +333,7 @@ static void ov2680_fill_format(struct ov2680_dev *sensor,
 	memset(fmt, 0, sizeof(*fmt));
 	fmt->width = width;
 	fmt->height = height;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 	ov2680_set_bayer_order(sensor, fmt);
 }
@@ -910,7 +910,7 @@ static int ov2680_mode_init(struct ov2680_dev *sensor)
 			   OV2680_DEFAULT_WIDTH, OV2680_DEFAULT_HEIGHT);
 	ov2680_calc_mode(sensor);
 
-	sensor->mode.frame_interval.denominator = OV2680_FRAME_RATE;
+	sensor->mode.frame_interval.deanalminator = OV2680_FRAME_RATE;
 	sensor->mode.frame_interval.numerator = 1;
 
 	return 0;
@@ -928,7 +928,7 @@ static int ov2680_v4l2_register(struct ov2680_dev *sensor)
 	v4l2_i2c_subdev_init(&sensor->sd, client, &ov2680_subdev_ops);
 	sensor->sd.internal_ops = &ov2680_internal_ops;
 
-	sensor->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sensor->sd.flags = V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sensor->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
@@ -1008,9 +1008,9 @@ static int ov2680_check_id(struct ov2680_dev *sensor)
 	}
 
 	if (chip_id != OV2680_CHIP_ID) {
-		dev_err(sensor->dev, "chip id: 0x%04llx does not match expected 0x%04x\n",
+		dev_err(sensor->dev, "chip id: 0x%04llx does analt match expected 0x%04x\n",
 			chip_id, OV2680_CHIP_ID);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(sensor->dev, "sensor_revision id = 0x%llx, rev= %lld\n",
@@ -1021,26 +1021,26 @@ static int ov2680_check_id(struct ov2680_dev *sensor)
 
 static int ov2680_parse_dt(struct ov2680_dev *sensor)
 {
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
 	struct device *dev = sensor->dev;
-	struct fwnode_handle *ep_fwnode;
+	struct fwanalde_handle *ep_fwanalde;
 	struct gpio_desc *gpio;
 	unsigned int rate = 0;
 	int i, ret;
 
 	/*
-	 * Sometimes the fwnode graph is initialized by the bridge driver.
+	 * Sometimes the fwanalde graph is initialized by the bridge driver.
 	 * Bridge drivers doing this may also add GPIO mappings, wait for this.
 	 */
-	ep_fwnode = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
-	if (!ep_fwnode)
+	ep_fwanalde = fwanalde_graph_get_next_endpoint(dev_fwanalde(dev), NULL);
+	if (!ep_fwanalde)
 		return dev_err_probe(dev, -EPROBE_DEFER,
-				     "waiting for fwnode graph endpoint\n");
+				     "waiting for fwanalde graph endpoint\n");
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep_fwnode, &bus_cfg);
-	fwnode_handle_put(ep_fwnode);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep_fwanalde, &bus_cfg);
+	fwanalde_handle_put(ep_fwanalde);
 	if (ret)
 		return ret;
 
@@ -1048,7 +1048,7 @@ static int ov2680_parse_dt(struct ov2680_dev *sensor)
 	 * The pin we want is named XSHUTDN in the datasheet. Linux sensor
 	 * drivers have standardized on using "powerdown" as con-id name
 	 * for powerdown or shutdown pins. Older DTB files use "reset",
-	 * so fallback to that if there is no "powerdown" pin.
+	 * so fallback to that if there is anal "powerdown" pin.
 	 */
 	gpio = devm_gpiod_get_optional(dev, "powerdown", GPIOD_OUT_HIGH);
 	if (!gpio)
@@ -1078,7 +1078,7 @@ static int ov2680_parse_dt(struct ov2680_dev *sensor)
 	 * uses devicetree then the configured rate should already be set, so
 	 * we can just read it.
 	 */
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+	ret = fwanalde_property_read_u32(dev_fwanalde(dev), "clock-frequency",
 				       &rate);
 	if (ret && !sensor->xvclk) {
 		dev_err_probe(dev, ret, "invalid clock config\n");
@@ -1130,13 +1130,13 @@ static int ov2680_parse_dt(struct ov2680_dev *sensor)
 	if (bus_cfg.nr_of_link_frequencies == 0 ||
 	    bus_cfg.nr_of_link_frequencies == i) {
 		ret = dev_err_probe(dev, -EINVAL,
-				    "supported link freq %lld not found\n",
+				    "supported link freq %lld analt found\n",
 				    sensor->link_freq[0]);
 		goto out_free_bus_cfg;
 	}
 
 out_free_bus_cfg:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 	return ret;
 }
 
@@ -1148,7 +1148,7 @@ static int ov2680_probe(struct i2c_client *client)
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensor->dev = &client->dev;
 
@@ -1173,7 +1173,7 @@ static int ov2680_probe(struct i2c_client *client)
 	mutex_init(&sensor->lock);
 
 	/*
-	 * Power up and verify the chip now, so that if runtime pm is
+	 * Power up and verify the chip analw, so that if runtime pm is
 	 * disabled the chip is left on and streaming will work.
 	 */
 	ret = ov2680_power_on(sensor);
@@ -1185,7 +1185,7 @@ static int ov2680_probe(struct i2c_client *client)
 		goto err_powerdown;
 
 	pm_runtime_set_active(&client->dev);
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_analresume(&client->dev);
 	pm_runtime_enable(&client->dev);
 
 	ret = ov2680_v4l2_register(sensor);
@@ -1200,7 +1200,7 @@ static int ov2680_probe(struct i2c_client *client)
 
 err_pm_runtime:
 	pm_runtime_disable(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_analidle(&client->dev);
 err_powerdown:
 	ov2680_power_off(sensor);
 lock_destroy:

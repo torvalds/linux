@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Software nodes for the firmware node framework.
+ * Software analdes for the firmware analde framework.
  *
  * Copyright (C) 2018, Intel Corporation
  * Author: Heikki Krogerus <heikki.krogerus@linux.intel.com>
@@ -13,95 +13,95 @@
 
 #include "base.h"
 
-struct swnode {
+struct swanalde {
 	struct kobject kobj;
-	struct fwnode_handle fwnode;
-	const struct software_node *node;
+	struct fwanalde_handle fwanalde;
+	const struct software_analde *analde;
 	int id;
 
 	/* hierarchy */
 	struct ida child_ids;
 	struct list_head entry;
 	struct list_head children;
-	struct swnode *parent;
+	struct swanalde *parent;
 
 	unsigned int allocated:1;
 	unsigned int managed:1;
 };
 
-static DEFINE_IDA(swnode_root_ids);
-static struct kset *swnode_kset;
+static DEFINE_IDA(swanalde_root_ids);
+static struct kset *swanalde_kset;
 
-#define kobj_to_swnode(_kobj_) container_of(_kobj_, struct swnode, kobj)
+#define kobj_to_swanalde(_kobj_) container_of(_kobj_, struct swanalde, kobj)
 
-static const struct fwnode_operations software_node_ops;
+static const struct fwanalde_operations software_analde_ops;
 
-bool is_software_node(const struct fwnode_handle *fwnode)
+bool is_software_analde(const struct fwanalde_handle *fwanalde)
 {
-	return !IS_ERR_OR_NULL(fwnode) && fwnode->ops == &software_node_ops;
+	return !IS_ERR_OR_NULL(fwanalde) && fwanalde->ops == &software_analde_ops;
 }
-EXPORT_SYMBOL_GPL(is_software_node);
+EXPORT_SYMBOL_GPL(is_software_analde);
 
-#define to_swnode(__fwnode)						\
+#define to_swanalde(__fwanalde)						\
 	({								\
-		typeof(__fwnode) __to_swnode_fwnode = __fwnode;		\
+		typeof(__fwanalde) __to_swanalde_fwanalde = __fwanalde;		\
 									\
-		is_software_node(__to_swnode_fwnode) ?			\
-			container_of(__to_swnode_fwnode,		\
-				     struct swnode, fwnode) : NULL;	\
+		is_software_analde(__to_swanalde_fwanalde) ?			\
+			container_of(__to_swanalde_fwanalde,		\
+				     struct swanalde, fwanalde) : NULL;	\
 	})
 
-static inline struct swnode *dev_to_swnode(struct device *dev)
+static inline struct swanalde *dev_to_swanalde(struct device *dev)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
 
-	if (!fwnode)
+	if (!fwanalde)
 		return NULL;
 
-	if (!is_software_node(fwnode))
-		fwnode = fwnode->secondary;
+	if (!is_software_analde(fwanalde))
+		fwanalde = fwanalde->secondary;
 
-	return to_swnode(fwnode);
+	return to_swanalde(fwanalde);
 }
 
-static struct swnode *
-software_node_to_swnode(const struct software_node *node)
+static struct swanalde *
+software_analde_to_swanalde(const struct software_analde *analde)
 {
-	struct swnode *swnode = NULL;
+	struct swanalde *swanalde = NULL;
 	struct kobject *k;
 
-	if (!node)
+	if (!analde)
 		return NULL;
 
-	spin_lock(&swnode_kset->list_lock);
+	spin_lock(&swanalde_kset->list_lock);
 
-	list_for_each_entry(k, &swnode_kset->list, entry) {
-		swnode = kobj_to_swnode(k);
-		if (swnode->node == node)
+	list_for_each_entry(k, &swanalde_kset->list, entry) {
+		swanalde = kobj_to_swanalde(k);
+		if (swanalde->analde == analde)
 			break;
-		swnode = NULL;
+		swanalde = NULL;
 	}
 
-	spin_unlock(&swnode_kset->list_lock);
+	spin_unlock(&swanalde_kset->list_lock);
 
-	return swnode;
+	return swanalde;
 }
 
-const struct software_node *to_software_node(const struct fwnode_handle *fwnode)
+const struct software_analde *to_software_analde(const struct fwanalde_handle *fwanalde)
 {
-	const struct swnode *swnode = to_swnode(fwnode);
+	const struct swanalde *swanalde = to_swanalde(fwanalde);
 
-	return swnode ? swnode->node : NULL;
+	return swanalde ? swanalde->analde : NULL;
 }
-EXPORT_SYMBOL_GPL(to_software_node);
+EXPORT_SYMBOL_GPL(to_software_analde);
 
-struct fwnode_handle *software_node_fwnode(const struct software_node *node)
+struct fwanalde_handle *software_analde_fwanalde(const struct software_analde *analde)
 {
-	struct swnode *swnode = software_node_to_swnode(node);
+	struct swanalde *swanalde = software_analde_to_swanalde(analde);
 
-	return swnode ? &swnode->fwnode : NULL;
+	return swanalde ? &swanalde->fwanalde : NULL;
 }
-EXPORT_SYMBOL_GPL(software_node_fwnode);
+EXPORT_SYMBOL_GPL(software_analde_fwanalde);
 
 /* -------------------------------------------------------------------------- */
 /* property_entry processing */
@@ -138,7 +138,7 @@ static const void *property_entry_find(const struct property_entry *props,
 		return ERR_PTR(-EINVAL);
 	pointer = property_get_pointer(prop);
 	if (!pointer)
-		return ERR_PTR(-ENODATA);
+		return ERR_PTR(-EANALDATA);
 	if (length > prop->length)
 		return ERR_PTR(-EOVERFLOW);
 	return pointer;
@@ -256,11 +256,11 @@ static int property_entry_copy_data(struct property_entry *dst,
 	size_t nval;
 
 	/*
-	 * Properties with no data should not be marked as stored
+	 * Properties with anal data should analt be marked as stored
 	 * out of line.
 	 */
 	if (!src->is_inline && !src->length)
-		return -ENODATA;
+		return -EANALDATA;
 
 	/*
 	 * Reference properties are never stored inline as
@@ -275,7 +275,7 @@ static int property_entry_copy_data(struct property_entry *dst,
 	} else {
 		dst_ptr = kmalloc(src->length, GFP_KERNEL);
 		if (!dst_ptr)
-			return -ENOMEM;
+			return -EANALMEM;
 		dst->pointer = dst_ptr;
 	}
 
@@ -284,7 +284,7 @@ static int property_entry_copy_data(struct property_entry *dst,
 		if (!property_copy_string_array(dst_ptr, pointer, nval)) {
 			if (!dst->is_inline)
 				kfree(dst->pointer);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else {
 		memcpy(dst_ptr, pointer, src->length);
@@ -295,7 +295,7 @@ static int property_entry_copy_data(struct property_entry *dst,
 	dst->name = kstrdup(src->name, GFP_KERNEL);
 	if (!dst->name) {
 		property_entry_free_data(dst);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -323,7 +323,7 @@ property_entries_dup(const struct property_entry *properties)
 
 	p = kcalloc(n + 1, sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = 0; i < n; i++) {
 		ret = property_entry_copy_data(&p[i], &properties[i]);
@@ -361,152 +361,152 @@ void property_entries_free(const struct property_entry *properties)
 EXPORT_SYMBOL_GPL(property_entries_free);
 
 /* -------------------------------------------------------------------------- */
-/* fwnode operations */
+/* fwanalde operations */
 
-static struct fwnode_handle *software_node_get(struct fwnode_handle *fwnode)
+static struct fwanalde_handle *software_analde_get(struct fwanalde_handle *fwanalde)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swanalde *swanalde = to_swanalde(fwanalde);
 
-	kobject_get(&swnode->kobj);
+	kobject_get(&swanalde->kobj);
 
-	return &swnode->fwnode;
+	return &swanalde->fwanalde;
 }
 
-static void software_node_put(struct fwnode_handle *fwnode)
+static void software_analde_put(struct fwanalde_handle *fwanalde)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swanalde *swanalde = to_swanalde(fwanalde);
 
-	kobject_put(&swnode->kobj);
+	kobject_put(&swanalde->kobj);
 }
 
-static bool software_node_property_present(const struct fwnode_handle *fwnode,
+static bool software_analde_property_present(const struct fwanalde_handle *fwanalde,
 					   const char *propname)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swanalde *swanalde = to_swanalde(fwanalde);
 
-	return !!property_entry_get(swnode->node->properties, propname);
+	return !!property_entry_get(swanalde->analde->properties, propname);
 }
 
-static int software_node_read_int_array(const struct fwnode_handle *fwnode,
+static int software_analde_read_int_array(const struct fwanalde_handle *fwanalde,
 					const char *propname,
 					unsigned int elem_size, void *val,
 					size_t nval)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swanalde *swanalde = to_swanalde(fwanalde);
 
-	return property_entry_read_int_array(swnode->node->properties, propname,
+	return property_entry_read_int_array(swanalde->analde->properties, propname,
 					     elem_size, val, nval);
 }
 
-static int software_node_read_string_array(const struct fwnode_handle *fwnode,
+static int software_analde_read_string_array(const struct fwanalde_handle *fwanalde,
 					   const char *propname,
 					   const char **val, size_t nval)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swanalde *swanalde = to_swanalde(fwanalde);
 
-	return property_entry_read_string_array(swnode->node->properties,
+	return property_entry_read_string_array(swanalde->analde->properties,
 						propname, val, nval);
 }
 
 static const char *
-software_node_get_name(const struct fwnode_handle *fwnode)
+software_analde_get_name(const struct fwanalde_handle *fwanalde)
 {
-	const struct swnode *swnode = to_swnode(fwnode);
+	const struct swanalde *swanalde = to_swanalde(fwanalde);
 
-	return kobject_name(&swnode->kobj);
+	return kobject_name(&swanalde->kobj);
 }
 
 static const char *
-software_node_get_name_prefix(const struct fwnode_handle *fwnode)
+software_analde_get_name_prefix(const struct fwanalde_handle *fwanalde)
 {
-	struct fwnode_handle *parent;
+	struct fwanalde_handle *parent;
 	const char *prefix;
 
-	parent = fwnode_get_parent(fwnode);
+	parent = fwanalde_get_parent(fwanalde);
 	if (!parent)
 		return "";
 
 	/* Figure out the prefix from the parents. */
-	while (is_software_node(parent))
-		parent = fwnode_get_next_parent(parent);
+	while (is_software_analde(parent))
+		parent = fwanalde_get_next_parent(parent);
 
-	prefix = fwnode_get_name_prefix(parent);
-	fwnode_handle_put(parent);
+	prefix = fwanalde_get_name_prefix(parent);
+	fwanalde_handle_put(parent);
 
 	/* Guess something if prefix was NULL. */
 	return prefix ?: "/";
 }
 
-static struct fwnode_handle *
-software_node_get_parent(const struct fwnode_handle *fwnode)
+static struct fwanalde_handle *
+software_analde_get_parent(const struct fwanalde_handle *fwanalde)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swanalde *swanalde = to_swanalde(fwanalde);
 
-	if (!swnode || !swnode->parent)
+	if (!swanalde || !swanalde->parent)
 		return NULL;
 
-	return fwnode_handle_get(&swnode->parent->fwnode);
+	return fwanalde_handle_get(&swanalde->parent->fwanalde);
 }
 
-static struct fwnode_handle *
-software_node_get_next_child(const struct fwnode_handle *fwnode,
-			     struct fwnode_handle *child)
+static struct fwanalde_handle *
+software_analde_get_next_child(const struct fwanalde_handle *fwanalde,
+			     struct fwanalde_handle *child)
 {
-	struct swnode *p = to_swnode(fwnode);
-	struct swnode *c = to_swnode(child);
+	struct swanalde *p = to_swanalde(fwanalde);
+	struct swanalde *c = to_swanalde(child);
 
 	if (!p || list_empty(&p->children) ||
 	    (c && list_is_last(&c->entry, &p->children))) {
-		fwnode_handle_put(child);
+		fwanalde_handle_put(child);
 		return NULL;
 	}
 
 	if (c)
 		c = list_next_entry(c, entry);
 	else
-		c = list_first_entry(&p->children, struct swnode, entry);
+		c = list_first_entry(&p->children, struct swanalde, entry);
 
-	fwnode_handle_put(child);
-	return fwnode_handle_get(&c->fwnode);
+	fwanalde_handle_put(child);
+	return fwanalde_handle_get(&c->fwanalde);
 }
 
-static struct fwnode_handle *
-software_node_get_named_child_node(const struct fwnode_handle *fwnode,
+static struct fwanalde_handle *
+software_analde_get_named_child_analde(const struct fwanalde_handle *fwanalde,
 				   const char *childname)
 {
-	struct swnode *swnode = to_swnode(fwnode);
-	struct swnode *child;
+	struct swanalde *swanalde = to_swanalde(fwanalde);
+	struct swanalde *child;
 
-	if (!swnode || list_empty(&swnode->children))
+	if (!swanalde || list_empty(&swanalde->children))
 		return NULL;
 
-	list_for_each_entry(child, &swnode->children, entry) {
+	list_for_each_entry(child, &swanalde->children, entry) {
 		if (!strcmp(childname, kobject_name(&child->kobj))) {
 			kobject_get(&child->kobj);
-			return &child->fwnode;
+			return &child->fwanalde;
 		}
 	}
 	return NULL;
 }
 
 static int
-software_node_get_reference_args(const struct fwnode_handle *fwnode,
+software_analde_get_reference_args(const struct fwanalde_handle *fwanalde,
 				 const char *propname, const char *nargs_prop,
 				 unsigned int nargs, unsigned int index,
-				 struct fwnode_reference_args *args)
+				 struct fwanalde_reference_args *args)
 {
-	struct swnode *swnode = to_swnode(fwnode);
-	const struct software_node_ref_args *ref_array;
-	const struct software_node_ref_args *ref;
+	struct swanalde *swanalde = to_swanalde(fwanalde);
+	const struct software_analde_ref_args *ref_array;
+	const struct software_analde_ref_args *ref;
 	const struct property_entry *prop;
-	struct fwnode_handle *refnode;
+	struct fwanalde_handle *refanalde;
 	u32 nargs_prop_val;
 	int error;
 	int i;
 
-	prop = property_entry_get(swnode->node->properties, propname);
+	prop = property_entry_get(swanalde->analde->properties, propname);
 	if (!prop)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (prop->type != DEV_PROP_REF)
 		return -EINVAL;
@@ -519,17 +519,17 @@ software_node_get_reference_args(const struct fwnode_handle *fwnode,
 		return -EINVAL;
 
 	if (index * sizeof(*ref) >= prop->length)
-		return -ENOENT;
+		return -EANALENT;
 
 	ref_array = prop->pointer;
 	ref = &ref_array[index];
 
-	refnode = software_node_fwnode(ref->node);
-	if (!refnode)
-		return -ENOENT;
+	refanalde = software_analde_fwanalde(ref->analde);
+	if (!refanalde)
+		return -EANALENT;
 
 	if (nargs_prop) {
-		error = property_entry_read_int_array(ref->node->properties,
+		error = property_entry_read_int_array(ref->analde->properties,
 						      nargs_prop, sizeof(u32),
 						      &nargs_prop_val, 1);
 		if (error)
@@ -538,13 +538,13 @@ software_node_get_reference_args(const struct fwnode_handle *fwnode,
 		nargs = nargs_prop_val;
 	}
 
-	if (nargs > NR_FWNODE_REFERENCE_ARGS)
+	if (nargs > NR_FWANALDE_REFERENCE_ARGS)
 		return -EINVAL;
 
 	if (!args)
 		return 0;
 
-	args->fwnode = software_node_get(refnode);
+	args->fwanalde = software_analde_get(refanalde);
 	args->nargs = nargs;
 
 	for (i = 0; i < nargs; i++)
@@ -553,18 +553,18 @@ software_node_get_reference_args(const struct fwnode_handle *fwnode,
 	return 0;
 }
 
-static struct fwnode_handle *
-swnode_graph_find_next_port(const struct fwnode_handle *parent,
-			    struct fwnode_handle *port)
+static struct fwanalde_handle *
+swanalde_graph_find_next_port(const struct fwanalde_handle *parent,
+			    struct fwanalde_handle *port)
 {
-	struct fwnode_handle *old = port;
+	struct fwanalde_handle *old = port;
 
-	while ((port = software_node_get_next_child(parent, old))) {
+	while ((port = software_analde_get_next_child(parent, old))) {
 		/*
-		 * fwnode ports have naming style "port@", so we search for any
+		 * fwanalde ports have naming style "port@", so we search for any
 		 * children that follow that convention.
 		 */
-		if (!strncmp(to_swnode(port)->node->name, "port@",
+		if (!strncmp(to_swanalde(port)->analde->name, "port@",
 			     strlen("port@")))
 			return port;
 		old = port;
@@ -573,78 +573,78 @@ swnode_graph_find_next_port(const struct fwnode_handle *parent,
 	return NULL;
 }
 
-static struct fwnode_handle *
-software_node_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
-				      struct fwnode_handle *endpoint)
+static struct fwanalde_handle *
+software_analde_graph_get_next_endpoint(const struct fwanalde_handle *fwanalde,
+				      struct fwanalde_handle *endpoint)
 {
-	struct swnode *swnode = to_swnode(fwnode);
-	struct fwnode_handle *parent;
-	struct fwnode_handle *port;
+	struct swanalde *swanalde = to_swanalde(fwanalde);
+	struct fwanalde_handle *parent;
+	struct fwanalde_handle *port;
 
-	if (!swnode)
+	if (!swanalde)
 		return NULL;
 
 	if (endpoint) {
-		port = software_node_get_parent(endpoint);
-		parent = software_node_get_parent(port);
+		port = software_analde_get_parent(endpoint);
+		parent = software_analde_get_parent(port);
 	} else {
-		parent = software_node_get_named_child_node(fwnode, "ports");
+		parent = software_analde_get_named_child_analde(fwanalde, "ports");
 		if (!parent)
-			parent = software_node_get(&swnode->fwnode);
+			parent = software_analde_get(&swanalde->fwanalde);
 
-		port = swnode_graph_find_next_port(parent, NULL);
+		port = swanalde_graph_find_next_port(parent, NULL);
 	}
 
-	for (; port; port = swnode_graph_find_next_port(parent, port)) {
-		endpoint = software_node_get_next_child(port, endpoint);
+	for (; port; port = swanalde_graph_find_next_port(parent, port)) {
+		endpoint = software_analde_get_next_child(port, endpoint);
 		if (endpoint) {
-			fwnode_handle_put(port);
+			fwanalde_handle_put(port);
 			break;
 		}
 	}
 
-	fwnode_handle_put(parent);
+	fwanalde_handle_put(parent);
 
 	return endpoint;
 }
 
-static struct fwnode_handle *
-software_node_graph_get_remote_endpoint(const struct fwnode_handle *fwnode)
+static struct fwanalde_handle *
+software_analde_graph_get_remote_endpoint(const struct fwanalde_handle *fwanalde)
 {
-	struct swnode *swnode = to_swnode(fwnode);
-	const struct software_node_ref_args *ref;
+	struct swanalde *swanalde = to_swanalde(fwanalde);
+	const struct software_analde_ref_args *ref;
 	const struct property_entry *prop;
 
-	if (!swnode)
+	if (!swanalde)
 		return NULL;
 
-	prop = property_entry_get(swnode->node->properties, "remote-endpoint");
+	prop = property_entry_get(swanalde->analde->properties, "remote-endpoint");
 	if (!prop || prop->type != DEV_PROP_REF || prop->is_inline)
 		return NULL;
 
 	ref = prop->pointer;
 
-	return software_node_get(software_node_fwnode(ref[0].node));
+	return software_analde_get(software_analde_fwanalde(ref[0].analde));
 }
 
-static struct fwnode_handle *
-software_node_graph_get_port_parent(struct fwnode_handle *fwnode)
+static struct fwanalde_handle *
+software_analde_graph_get_port_parent(struct fwanalde_handle *fwanalde)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swanalde *swanalde = to_swanalde(fwanalde);
 
-	swnode = swnode->parent;
-	if (swnode && !strcmp(swnode->node->name, "ports"))
-		swnode = swnode->parent;
+	swanalde = swanalde->parent;
+	if (swanalde && !strcmp(swanalde->analde->name, "ports"))
+		swanalde = swanalde->parent;
 
-	return swnode ? software_node_get(&swnode->fwnode) : NULL;
+	return swanalde ? software_analde_get(&swanalde->fwanalde) : NULL;
 }
 
 static int
-software_node_graph_parse_endpoint(const struct fwnode_handle *fwnode,
-				   struct fwnode_endpoint *endpoint)
+software_analde_graph_parse_endpoint(const struct fwanalde_handle *fwanalde,
+				   struct fwanalde_endpoint *endpoint)
 {
-	struct swnode *swnode = to_swnode(fwnode);
-	const char *parent_name = swnode->parent->node->name;
+	struct swanalde *swanalde = to_swanalde(fwanalde);
+	const char *parent_name = swanalde->parent->analde->name;
 	int ret;
 
 	if (strlen("port@") >= strlen(parent_name) ||
@@ -656,156 +656,156 @@ software_node_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 	if (ret)
 		return ret;
 
-	endpoint->id = swnode->id;
-	endpoint->local_fwnode = fwnode;
+	endpoint->id = swanalde->id;
+	endpoint->local_fwanalde = fwanalde;
 
 	return 0;
 }
 
-static const struct fwnode_operations software_node_ops = {
-	.get = software_node_get,
-	.put = software_node_put,
-	.property_present = software_node_property_present,
-	.property_read_int_array = software_node_read_int_array,
-	.property_read_string_array = software_node_read_string_array,
-	.get_name = software_node_get_name,
-	.get_name_prefix = software_node_get_name_prefix,
-	.get_parent = software_node_get_parent,
-	.get_next_child_node = software_node_get_next_child,
-	.get_named_child_node = software_node_get_named_child_node,
-	.get_reference_args = software_node_get_reference_args,
-	.graph_get_next_endpoint = software_node_graph_get_next_endpoint,
-	.graph_get_remote_endpoint = software_node_graph_get_remote_endpoint,
-	.graph_get_port_parent = software_node_graph_get_port_parent,
-	.graph_parse_endpoint = software_node_graph_parse_endpoint,
+static const struct fwanalde_operations software_analde_ops = {
+	.get = software_analde_get,
+	.put = software_analde_put,
+	.property_present = software_analde_property_present,
+	.property_read_int_array = software_analde_read_int_array,
+	.property_read_string_array = software_analde_read_string_array,
+	.get_name = software_analde_get_name,
+	.get_name_prefix = software_analde_get_name_prefix,
+	.get_parent = software_analde_get_parent,
+	.get_next_child_analde = software_analde_get_next_child,
+	.get_named_child_analde = software_analde_get_named_child_analde,
+	.get_reference_args = software_analde_get_reference_args,
+	.graph_get_next_endpoint = software_analde_graph_get_next_endpoint,
+	.graph_get_remote_endpoint = software_analde_graph_get_remote_endpoint,
+	.graph_get_port_parent = software_analde_graph_get_port_parent,
+	.graph_parse_endpoint = software_analde_graph_parse_endpoint,
 };
 
 /* -------------------------------------------------------------------------- */
 
 /**
- * software_node_find_by_name - Find software node by name
- * @parent: Parent of the software node
- * @name: Name of the software node
+ * software_analde_find_by_name - Find software analde by name
+ * @parent: Parent of the software analde
+ * @name: Name of the software analde
  *
- * The function will find a node that is child of @parent and that is named
- * @name. If no node is found, the function returns NULL.
+ * The function will find a analde that is child of @parent and that is named
+ * @name. If anal analde is found, the function returns NULL.
  *
- * NOTE: you will need to drop the reference with fwnode_handle_put() after use.
+ * ANALTE: you will need to drop the reference with fwanalde_handle_put() after use.
  */
-const struct software_node *
-software_node_find_by_name(const struct software_node *parent, const char *name)
+const struct software_analde *
+software_analde_find_by_name(const struct software_analde *parent, const char *name)
 {
-	struct swnode *swnode = NULL;
+	struct swanalde *swanalde = NULL;
 	struct kobject *k;
 
 	if (!name)
 		return NULL;
 
-	spin_lock(&swnode_kset->list_lock);
+	spin_lock(&swanalde_kset->list_lock);
 
-	list_for_each_entry(k, &swnode_kset->list, entry) {
-		swnode = kobj_to_swnode(k);
-		if (parent == swnode->node->parent && swnode->node->name &&
-		    !strcmp(name, swnode->node->name)) {
-			kobject_get(&swnode->kobj);
+	list_for_each_entry(k, &swanalde_kset->list, entry) {
+		swanalde = kobj_to_swanalde(k);
+		if (parent == swanalde->analde->parent && swanalde->analde->name &&
+		    !strcmp(name, swanalde->analde->name)) {
+			kobject_get(&swanalde->kobj);
 			break;
 		}
-		swnode = NULL;
+		swanalde = NULL;
 	}
 
-	spin_unlock(&swnode_kset->list_lock);
+	spin_unlock(&swanalde_kset->list_lock);
 
-	return swnode ? swnode->node : NULL;
+	return swanalde ? swanalde->analde : NULL;
 }
-EXPORT_SYMBOL_GPL(software_node_find_by_name);
+EXPORT_SYMBOL_GPL(software_analde_find_by_name);
 
-static struct software_node *software_node_alloc(const struct property_entry *properties)
+static struct software_analde *software_analde_alloc(const struct property_entry *properties)
 {
 	struct property_entry *props;
-	struct software_node *node;
+	struct software_analde *analde;
 
 	props = property_entries_dup(properties);
 	if (IS_ERR(props))
 		return ERR_CAST(props);
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node) {
+	analde = kzalloc(sizeof(*analde), GFP_KERNEL);
+	if (!analde) {
 		property_entries_free(props);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
-	node->properties = props;
+	analde->properties = props;
 
-	return node;
+	return analde;
 }
 
-static void software_node_free(const struct software_node *node)
+static void software_analde_free(const struct software_analde *analde)
 {
-	property_entries_free(node->properties);
-	kfree(node);
+	property_entries_free(analde->properties);
+	kfree(analde);
 }
 
-static void software_node_release(struct kobject *kobj)
+static void software_analde_release(struct kobject *kobj)
 {
-	struct swnode *swnode = kobj_to_swnode(kobj);
+	struct swanalde *swanalde = kobj_to_swanalde(kobj);
 
-	if (swnode->parent) {
-		ida_free(&swnode->parent->child_ids, swnode->id);
-		list_del(&swnode->entry);
+	if (swanalde->parent) {
+		ida_free(&swanalde->parent->child_ids, swanalde->id);
+		list_del(&swanalde->entry);
 	} else {
-		ida_free(&swnode_root_ids, swnode->id);
+		ida_free(&swanalde_root_ids, swanalde->id);
 	}
 
-	if (swnode->allocated)
-		software_node_free(swnode->node);
+	if (swanalde->allocated)
+		software_analde_free(swanalde->analde);
 
-	ida_destroy(&swnode->child_ids);
-	kfree(swnode);
+	ida_destroy(&swanalde->child_ids);
+	kfree(swanalde);
 }
 
-static const struct kobj_type software_node_type = {
-	.release = software_node_release,
+static const struct kobj_type software_analde_type = {
+	.release = software_analde_release,
 	.sysfs_ops = &kobj_sysfs_ops,
 };
 
-static struct fwnode_handle *
-swnode_register(const struct software_node *node, struct swnode *parent,
+static struct fwanalde_handle *
+swanalde_register(const struct software_analde *analde, struct swanalde *parent,
 		unsigned int allocated)
 {
-	struct swnode *swnode;
+	struct swanalde *swanalde;
 	int ret;
 
-	swnode = kzalloc(sizeof(*swnode), GFP_KERNEL);
-	if (!swnode)
-		return ERR_PTR(-ENOMEM);
+	swanalde = kzalloc(sizeof(*swanalde), GFP_KERNEL);
+	if (!swanalde)
+		return ERR_PTR(-EANALMEM);
 
-	ret = ida_alloc(parent ? &parent->child_ids : &swnode_root_ids,
+	ret = ida_alloc(parent ? &parent->child_ids : &swanalde_root_ids,
 			GFP_KERNEL);
 	if (ret < 0) {
-		kfree(swnode);
+		kfree(swanalde);
 		return ERR_PTR(ret);
 	}
 
-	swnode->id = ret;
-	swnode->node = node;
-	swnode->parent = parent;
-	swnode->kobj.kset = swnode_kset;
-	fwnode_init(&swnode->fwnode, &software_node_ops);
+	swanalde->id = ret;
+	swanalde->analde = analde;
+	swanalde->parent = parent;
+	swanalde->kobj.kset = swanalde_kset;
+	fwanalde_init(&swanalde->fwanalde, &software_analde_ops);
 
-	ida_init(&swnode->child_ids);
-	INIT_LIST_HEAD(&swnode->entry);
-	INIT_LIST_HEAD(&swnode->children);
+	ida_init(&swanalde->child_ids);
+	INIT_LIST_HEAD(&swanalde->entry);
+	INIT_LIST_HEAD(&swanalde->children);
 
-	if (node->name)
-		ret = kobject_init_and_add(&swnode->kobj, &software_node_type,
+	if (analde->name)
+		ret = kobject_init_and_add(&swanalde->kobj, &software_analde_type,
 					   parent ? &parent->kobj : NULL,
-					   "%s", node->name);
+					   "%s", analde->name);
 	else
-		ret = kobject_init_and_add(&swnode->kobj, &software_node_type,
+		ret = kobject_init_and_add(&swanalde->kobj, &software_analde_type,
 					   parent ? &parent->kobj : NULL,
-					   "node%d", swnode->id);
+					   "analde%d", swanalde->id);
 	if (ret) {
-		kobject_put(&swnode->kobj);
+		kobject_put(&swanalde->kobj);
 		return ERR_PTR(ret);
 	}
 
@@ -813,304 +813,304 @@ swnode_register(const struct software_node *node, struct swnode *parent,
 	 * Assign the flag only in the successful case, so
 	 * the above kobject_put() won't mess up with properties.
 	 */
-	swnode->allocated = allocated;
+	swanalde->allocated = allocated;
 
 	if (parent)
-		list_add_tail(&swnode->entry, &parent->children);
+		list_add_tail(&swanalde->entry, &parent->children);
 
-	kobject_uevent(&swnode->kobj, KOBJ_ADD);
-	return &swnode->fwnode;
+	kobject_uevent(&swanalde->kobj, KOBJ_ADD);
+	return &swanalde->fwanalde;
 }
 
 /**
- * software_node_register_node_group - Register a group of software nodes
- * @node_group: NULL terminated array of software node pointers to be registered
+ * software_analde_register_analde_group - Register a group of software analdes
+ * @analde_group: NULL terminated array of software analde pointers to be registered
  *
- * Register multiple software nodes at once. If any node in the array
- * has its .parent pointer set (which can only be to another software_node),
+ * Register multiple software analdes at once. If any analde in the array
+ * has its .parent pointer set (which can only be to aanalther software_analde),
  * then its parent **must** have been registered before it is; either outside
  * of this function or by ordering the array such that parent comes before
  * child.
  */
-int software_node_register_node_group(const struct software_node **node_group)
+int software_analde_register_analde_group(const struct software_analde **analde_group)
 {
 	unsigned int i;
 	int ret;
 
-	if (!node_group)
+	if (!analde_group)
 		return 0;
 
-	for (i = 0; node_group[i]; i++) {
-		ret = software_node_register(node_group[i]);
+	for (i = 0; analde_group[i]; i++) {
+		ret = software_analde_register(analde_group[i]);
 		if (ret) {
-			software_node_unregister_node_group(node_group);
+			software_analde_unregister_analde_group(analde_group);
 			return ret;
 		}
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(software_node_register_node_group);
+EXPORT_SYMBOL_GPL(software_analde_register_analde_group);
 
 /**
- * software_node_unregister_node_group - Unregister a group of software nodes
- * @node_group: NULL terminated array of software node pointers to be unregistered
+ * software_analde_unregister_analde_group - Unregister a group of software analdes
+ * @analde_group: NULL terminated array of software analde pointers to be unregistered
  *
- * Unregister multiple software nodes at once. If parent pointers are set up
- * in any of the software nodes then the array **must** be ordered such that
+ * Unregister multiple software analdes at once. If parent pointers are set up
+ * in any of the software analdes then the array **must** be ordered such that
  * parents come before their children.
  *
- * NOTE: If you are uncertain whether the array is ordered such that
+ * ANALTE: If you are uncertain whether the array is ordered such that
  * parents will be unregistered before their children, it is wiser to
- * remove the nodes individually, in the correct order (child before
+ * remove the analdes individually, in the correct order (child before
  * parent).
  */
-void software_node_unregister_node_group(
-		const struct software_node **node_group)
+void software_analde_unregister_analde_group(
+		const struct software_analde **analde_group)
 {
 	unsigned int i = 0;
 
-	if (!node_group)
+	if (!analde_group)
 		return;
 
-	while (node_group[i])
+	while (analde_group[i])
 		i++;
 
 	while (i--)
-		software_node_unregister(node_group[i]);
+		software_analde_unregister(analde_group[i]);
 }
-EXPORT_SYMBOL_GPL(software_node_unregister_node_group);
+EXPORT_SYMBOL_GPL(software_analde_unregister_analde_group);
 
 /**
- * software_node_register - Register static software node
- * @node: The software node to be registered
+ * software_analde_register - Register static software analde
+ * @analde: The software analde to be registered
  */
-int software_node_register(const struct software_node *node)
+int software_analde_register(const struct software_analde *analde)
 {
-	struct swnode *parent = software_node_to_swnode(node->parent);
+	struct swanalde *parent = software_analde_to_swanalde(analde->parent);
 
-	if (software_node_to_swnode(node))
+	if (software_analde_to_swanalde(analde))
 		return -EEXIST;
 
-	if (node->parent && !parent)
+	if (analde->parent && !parent)
 		return -EINVAL;
 
-	return PTR_ERR_OR_ZERO(swnode_register(node, parent, 0));
+	return PTR_ERR_OR_ZERO(swanalde_register(analde, parent, 0));
 }
-EXPORT_SYMBOL_GPL(software_node_register);
+EXPORT_SYMBOL_GPL(software_analde_register);
 
 /**
- * software_node_unregister - Unregister static software node
- * @node: The software node to be unregistered
+ * software_analde_unregister - Unregister static software analde
+ * @analde: The software analde to be unregistered
  */
-void software_node_unregister(const struct software_node *node)
+void software_analde_unregister(const struct software_analde *analde)
 {
-	struct swnode *swnode;
+	struct swanalde *swanalde;
 
-	swnode = software_node_to_swnode(node);
-	if (swnode)
-		fwnode_remove_software_node(&swnode->fwnode);
+	swanalde = software_analde_to_swanalde(analde);
+	if (swanalde)
+		fwanalde_remove_software_analde(&swanalde->fwanalde);
 }
-EXPORT_SYMBOL_GPL(software_node_unregister);
+EXPORT_SYMBOL_GPL(software_analde_unregister);
 
-struct fwnode_handle *
-fwnode_create_software_node(const struct property_entry *properties,
-			    const struct fwnode_handle *parent)
+struct fwanalde_handle *
+fwanalde_create_software_analde(const struct property_entry *properties,
+			    const struct fwanalde_handle *parent)
 {
-	struct fwnode_handle *fwnode;
-	struct software_node *node;
-	struct swnode *p;
+	struct fwanalde_handle *fwanalde;
+	struct software_analde *analde;
+	struct swanalde *p;
 
 	if (IS_ERR(parent))
 		return ERR_CAST(parent);
 
-	p = to_swnode(parent);
+	p = to_swanalde(parent);
 	if (parent && !p)
 		return ERR_PTR(-EINVAL);
 
-	node = software_node_alloc(properties);
-	if (IS_ERR(node))
-		return ERR_CAST(node);
+	analde = software_analde_alloc(properties);
+	if (IS_ERR(analde))
+		return ERR_CAST(analde);
 
-	node->parent = p ? p->node : NULL;
+	analde->parent = p ? p->analde : NULL;
 
-	fwnode = swnode_register(node, p, 1);
-	if (IS_ERR(fwnode))
-		software_node_free(node);
+	fwanalde = swanalde_register(analde, p, 1);
+	if (IS_ERR(fwanalde))
+		software_analde_free(analde);
 
-	return fwnode;
+	return fwanalde;
 }
-EXPORT_SYMBOL_GPL(fwnode_create_software_node);
+EXPORT_SYMBOL_GPL(fwanalde_create_software_analde);
 
-void fwnode_remove_software_node(struct fwnode_handle *fwnode)
+void fwanalde_remove_software_analde(struct fwanalde_handle *fwanalde)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swanalde *swanalde = to_swanalde(fwanalde);
 
-	if (!swnode)
+	if (!swanalde)
 		return;
 
-	kobject_put(&swnode->kobj);
+	kobject_put(&swanalde->kobj);
 }
-EXPORT_SYMBOL_GPL(fwnode_remove_software_node);
+EXPORT_SYMBOL_GPL(fwanalde_remove_software_analde);
 
 /**
- * device_add_software_node - Assign software node to a device
- * @dev: The device the software node is meant for.
- * @node: The software node.
+ * device_add_software_analde - Assign software analde to a device
+ * @dev: The device the software analde is meant for.
+ * @analde: The software analde.
  *
- * This function will make @node the secondary firmware node pointer of @dev. If
- * @dev has no primary node, then @node will become the primary node. The
- * function will register @node automatically if it wasn't already registered.
+ * This function will make @analde the secondary firmware analde pointer of @dev. If
+ * @dev has anal primary analde, then @analde will become the primary analde. The
+ * function will register @analde automatically if it wasn't already registered.
  */
-int device_add_software_node(struct device *dev, const struct software_node *node)
+int device_add_software_analde(struct device *dev, const struct software_analde *analde)
 {
-	struct swnode *swnode;
+	struct swanalde *swanalde;
 	int ret;
 
-	/* Only one software node per device. */
-	if (dev_to_swnode(dev))
+	/* Only one software analde per device. */
+	if (dev_to_swanalde(dev))
 		return -EBUSY;
 
-	swnode = software_node_to_swnode(node);
-	if (swnode) {
-		kobject_get(&swnode->kobj);
+	swanalde = software_analde_to_swanalde(analde);
+	if (swanalde) {
+		kobject_get(&swanalde->kobj);
 	} else {
-		ret = software_node_register(node);
+		ret = software_analde_register(analde);
 		if (ret)
 			return ret;
 
-		swnode = software_node_to_swnode(node);
+		swanalde = software_analde_to_swanalde(analde);
 	}
 
-	set_secondary_fwnode(dev, &swnode->fwnode);
+	set_secondary_fwanalde(dev, &swanalde->fwanalde);
 
 	/*
 	 * If the device has been fully registered by the time this function is
-	 * called, software_node_notify() must be called separately so that the
-	 * symlinks get created and the reference count of the node is kept in
+	 * called, software_analde_analtify() must be called separately so that the
+	 * symlinks get created and the reference count of the analde is kept in
 	 * balance.
 	 */
 	if (device_is_registered(dev))
-		software_node_notify(dev);
+		software_analde_analtify(dev);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(device_add_software_node);
+EXPORT_SYMBOL_GPL(device_add_software_analde);
 
 /**
- * device_remove_software_node - Remove device's software node
- * @dev: The device with the software node.
+ * device_remove_software_analde - Remove device's software analde
+ * @dev: The device with the software analde.
  *
- * This function will unregister the software node of @dev.
+ * This function will unregister the software analde of @dev.
  */
-void device_remove_software_node(struct device *dev)
+void device_remove_software_analde(struct device *dev)
 {
-	struct swnode *swnode;
+	struct swanalde *swanalde;
 
-	swnode = dev_to_swnode(dev);
-	if (!swnode)
+	swanalde = dev_to_swanalde(dev);
+	if (!swanalde)
 		return;
 
 	if (device_is_registered(dev))
-		software_node_notify_remove(dev);
+		software_analde_analtify_remove(dev);
 
-	set_secondary_fwnode(dev, NULL);
-	kobject_put(&swnode->kobj);
+	set_secondary_fwanalde(dev, NULL);
+	kobject_put(&swanalde->kobj);
 }
-EXPORT_SYMBOL_GPL(device_remove_software_node);
+EXPORT_SYMBOL_GPL(device_remove_software_analde);
 
 /**
- * device_create_managed_software_node - Create a software node for a device
- * @dev: The device the software node is assigned to.
- * @properties: Device properties for the software node.
- * @parent: Parent of the software node.
+ * device_create_managed_software_analde - Create a software analde for a device
+ * @dev: The device the software analde is assigned to.
+ * @properties: Device properties for the software analde.
+ * @parent: Parent of the software analde.
  *
- * Creates a software node as a managed resource for @dev, which means the
- * lifetime of the newly created software node is tied to the lifetime of @dev.
- * Software nodes created with this function should not be reused or shared
+ * Creates a software analde as a managed resource for @dev, which means the
+ * lifetime of the newly created software analde is tied to the lifetime of @dev.
+ * Software analdes created with this function should analt be reused or shared
  * because of that. The function takes a deep copy of @properties for the
- * software node.
+ * software analde.
  *
- * Since the new software node is assigned directly to @dev, and since it should
- * not be shared, it is not returned to the caller. The function returns 0 on
- * success, and errno in case of an error.
+ * Since the new software analde is assigned directly to @dev, and since it should
+ * analt be shared, it is analt returned to the caller. The function returns 0 on
+ * success, and erranal in case of an error.
  */
-int device_create_managed_software_node(struct device *dev,
+int device_create_managed_software_analde(struct device *dev,
 					const struct property_entry *properties,
-					const struct software_node *parent)
+					const struct software_analde *parent)
 {
-	struct fwnode_handle *p = software_node_fwnode(parent);
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *p = software_analde_fwanalde(parent);
+	struct fwanalde_handle *fwanalde;
 
 	if (parent && !p)
 		return -EINVAL;
 
-	fwnode = fwnode_create_software_node(properties, p);
-	if (IS_ERR(fwnode))
-		return PTR_ERR(fwnode);
+	fwanalde = fwanalde_create_software_analde(properties, p);
+	if (IS_ERR(fwanalde))
+		return PTR_ERR(fwanalde);
 
-	to_swnode(fwnode)->managed = true;
-	set_secondary_fwnode(dev, fwnode);
+	to_swanalde(fwanalde)->managed = true;
+	set_secondary_fwanalde(dev, fwanalde);
 
 	if (device_is_registered(dev))
-		software_node_notify(dev);
+		software_analde_analtify(dev);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(device_create_managed_software_node);
+EXPORT_SYMBOL_GPL(device_create_managed_software_analde);
 
-void software_node_notify(struct device *dev)
+void software_analde_analtify(struct device *dev)
 {
-	struct swnode *swnode;
+	struct swanalde *swanalde;
 	int ret;
 
-	swnode = dev_to_swnode(dev);
-	if (!swnode)
+	swanalde = dev_to_swanalde(dev);
+	if (!swanalde)
 		return;
 
-	ret = sysfs_create_link(&dev->kobj, &swnode->kobj, "software_node");
+	ret = sysfs_create_link(&dev->kobj, &swanalde->kobj, "software_analde");
 	if (ret)
 		return;
 
-	ret = sysfs_create_link(&swnode->kobj, &dev->kobj, dev_name(dev));
+	ret = sysfs_create_link(&swanalde->kobj, &dev->kobj, dev_name(dev));
 	if (ret) {
-		sysfs_remove_link(&dev->kobj, "software_node");
+		sysfs_remove_link(&dev->kobj, "software_analde");
 		return;
 	}
 
-	kobject_get(&swnode->kobj);
+	kobject_get(&swanalde->kobj);
 }
 
-void software_node_notify_remove(struct device *dev)
+void software_analde_analtify_remove(struct device *dev)
 {
-	struct swnode *swnode;
+	struct swanalde *swanalde;
 
-	swnode = dev_to_swnode(dev);
-	if (!swnode)
+	swanalde = dev_to_swanalde(dev);
+	if (!swanalde)
 		return;
 
-	sysfs_remove_link(&swnode->kobj, dev_name(dev));
-	sysfs_remove_link(&dev->kobj, "software_node");
-	kobject_put(&swnode->kobj);
+	sysfs_remove_link(&swanalde->kobj, dev_name(dev));
+	sysfs_remove_link(&dev->kobj, "software_analde");
+	kobject_put(&swanalde->kobj);
 
-	if (swnode->managed) {
-		set_secondary_fwnode(dev, NULL);
-		kobject_put(&swnode->kobj);
+	if (swanalde->managed) {
+		set_secondary_fwanalde(dev, NULL);
+		kobject_put(&swanalde->kobj);
 	}
 }
 
-static int __init software_node_init(void)
+static int __init software_analde_init(void)
 {
-	swnode_kset = kset_create_and_add("software_nodes", NULL, kernel_kobj);
-	if (!swnode_kset)
-		return -ENOMEM;
+	swanalde_kset = kset_create_and_add("software_analdes", NULL, kernel_kobj);
+	if (!swanalde_kset)
+		return -EANALMEM;
 	return 0;
 }
-postcore_initcall(software_node_init);
+postcore_initcall(software_analde_init);
 
-static void __exit software_node_exit(void)
+static void __exit software_analde_exit(void)
 {
-	ida_destroy(&swnode_root_ids);
-	kset_unregister(swnode_kset);
+	ida_destroy(&swanalde_root_ids);
+	kset_unregister(swanalde_kset);
 }
-__exitcall(software_node_exit);
+__exitcall(software_analde_exit);

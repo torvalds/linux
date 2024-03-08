@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2014 Marvell Technology Group Ltd.
+ * Copyright (C) 2014 Marvell Techanallogy Group Ltd.
  *
  * Antoine Ténart <antoine.tenart@free-electrons.com>
  */
@@ -18,10 +18,10 @@
 
 /*
  * There are two reset registers, one with self-clearing (SC)
- * reset and one with non-self-clearing reset (NON_SC).
+ * reset and one with analn-self-clearing reset (ANALN_SC).
  */
 #define CPU_RESET_SC		0x00
-#define CPU_RESET_NON_SC	0x20
+#define CPU_RESET_ANALN_SC	0x20
 
 #define RESET_VECT		0x00
 #define SW_RESET_ADDR		0x94
@@ -34,11 +34,11 @@ static inline void berlin_perform_reset_cpu(unsigned int cpu)
 {
 	u32 val;
 
-	val = readl(cpu_ctrl + CPU_RESET_NON_SC);
+	val = readl(cpu_ctrl + CPU_RESET_ANALN_SC);
 	val &= ~BIT(cpu_logical_map(cpu));
-	writel(val, cpu_ctrl + CPU_RESET_NON_SC);
+	writel(val, cpu_ctrl + CPU_RESET_ANALN_SC);
 	val |= BIT(cpu_logical_map(cpu));
-	writel(val, cpu_ctrl + CPU_RESET_NON_SC);
+	writel(val, cpu_ctrl + CPU_RESET_ANALN_SC);
 }
 
 static int berlin_boot_secondary(unsigned int cpu, struct task_struct *idle)
@@ -57,19 +57,19 @@ static int berlin_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init berlin_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *scu_base;
 	void __iomem *vectors_base;
 
-	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+	np = of_find_compatible_analde(NULL, NULL, "arm,cortex-a9-scu");
 	scu_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!scu_base)
 		return;
 
-	np = of_find_compatible_node(NULL, NULL, "marvell,berlin-cpu-ctrl");
+	np = of_find_compatible_analde(NULL, NULL, "marvell,berlin-cpu-ctrl");
 	cpu_ctrl = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!cpu_ctrl)
 		goto unmap_scu;
 
@@ -108,9 +108,9 @@ static int berlin_cpu_kill(unsigned int cpu)
 {
 	u32 val;
 
-	val = readl(cpu_ctrl + CPU_RESET_NON_SC);
+	val = readl(cpu_ctrl + CPU_RESET_ANALN_SC);
 	val &= ~BIT(cpu_logical_map(cpu));
-	writel(val, cpu_ctrl + CPU_RESET_NON_SC);
+	writel(val, cpu_ctrl + CPU_RESET_ANALN_SC);
 
 	return 1;
 }

@@ -4,7 +4,7 @@
  *	Written 1993,1994,1995 by Donald Becker.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
@@ -22,7 +22,7 @@ static void ltalk_setup(struct net_device *dev)
 
 	dev->broadcast[0]	= 0xFF;
 
-	dev->flags		= IFF_BROADCAST|IFF_MULTICAST|IFF_NOARP;
+	dev->flags		= IFF_BROADCAST|IFF_MULTICAST|IFF_ANALARP;
 }
 
 /**
@@ -34,13 +34,13 @@ static void ltalk_setup(struct net_device *dev)
  * values. Basically does everything except registering the device.
  *
  * Constructs a new net device, complete with a private data area of
- * size @sizeof_priv.  A 32-byte (not bit) alignment is enforced for
+ * size @sizeof_priv.  A 32-byte (analt bit) alignment is enforced for
  * this private data area.
  */
 
 struct net_device *alloc_ltalkdev(int sizeof_priv)
 {
-	return alloc_netdev(sizeof_priv, "lt%d", NET_NAME_UNKNOWN,
+	return alloc_netdev(sizeof_priv, "lt%d", NET_NAME_UNKANALWN,
 			    ltalk_setup);
 }
 EXPORT_SYMBOL(alloc_ltalkdev);

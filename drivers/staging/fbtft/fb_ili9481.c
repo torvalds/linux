@@ -3,7 +3,7 @@
  * FB driver for the ILI9481 LCD Controller
  *
  * Copyright (c) 2014 Petr Olivka
- * Copyright (c) 2013 Noralf Tronnes
+ * Copyright (c) 2013 Analralf Tronnes
  */
 
 #include <linux/module.h>
@@ -26,7 +26,7 @@ static const s16 default_init_sequence[] = {
 	-1, 0xD0, 0x07, 0x42, 0x18,
 	/* VCOM */
 	-1, 0xD1, 0x00, 0x07, 0x10,
-	/* Power setting for norm. mode */
+	/* Power setting for analrm. mode */
 	-1, 0xD2, 0x01, 0x02,
 	/* Panel driving setting */
 	-1, 0xC0, 0x10, 0x3B, 0x00, 0x02, 0x11,

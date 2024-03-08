@@ -3,7 +3,7 @@
  *  sst_pvt.c - Intel SST Driver for audio engine
  *
  *  Copyright (C) 2008-14	Intel Corp
- *  Authors:	Vinod Koul <vinod.koul@intel.com>
+ *  Authors:	Vianald Koul <vianald.koul@intel.com>
  *		Harsha Priya <priya.harsha@intel.com>
  *		Dharageswari R <dharageswari.r@intel.com>
  *		KP Jeeja <jeeja.kp@intel.com>
@@ -108,7 +108,7 @@ int sst_wait_interruptible(struct intel_sst_drv *sst_drv_ctx,
  * @sst_drv_ctx: Driver context
  * @block: Driver block to wait on
  *
- * This function waits with a timeout value (and is not interruptible) on a
+ * This function waits with a timeout value (and is analt interruptible) on a
  * given block event
  */
 int sst_wait_timeout(struct intel_sst_drv *sst_drv_ctx, struct sst_block *block)
@@ -116,7 +116,7 @@ int sst_wait_timeout(struct intel_sst_drv *sst_drv_ctx, struct sst_block *block)
 	int retval = 0;
 
 	/*
-	 * NOTE:
+	 * ANALTE:
 	 * Observed that FW processes the alloc msg and replies even
 	 * before the alloc thread has finished execution
 	 */
@@ -159,12 +159,12 @@ int sst_create_ipc_msg(struct ipc_post **arg, bool large)
 
 	msg = kzalloc(sizeof(*msg), GFP_ATOMIC);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (large) {
 		msg->mailbox_data = kzalloc(SST_MAILBOX_SIZE, GFP_ATOMIC);
 		if (!msg->mailbox_data) {
 			kfree(msg);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else {
 		msg->mailbox_data = NULL;
@@ -195,7 +195,7 @@ int sst_create_block_and_ipc_msg(struct ipc_post **arg, bool large,
 	*block = sst_create_block(sst_drv_ctx, msg_id, drv_id);
 	if (*block == NULL) {
 		kfree(*arg);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -239,7 +239,7 @@ int sst_prepare_and_post_msg(struct intel_sst_drv *sst,
 
 	if (ret < 0) {
 		test_and_clear_bit(pvt_id, &sst->pvt_id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev_dbg(sst->dev, "pvt_id = %d, pipe id = %d, task = %d ipc_msg: %d\n",
@@ -276,7 +276,7 @@ int sst_prepare_and_post_msg(struct intel_sst_drv *sst,
 		if (data && block->data) {
 			*data = kmemdup(block->data, block->size, GFP_KERNEL);
 			if (!*data) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 		}
@@ -342,7 +342,7 @@ int sst_assign_pvt_id(struct intel_sst_drv *drv)
 	dev_dbg(drv->dev, "pvt_id assigned --> %d\n", local);
 	if (local >= SST_MAX_BLOCKS){
 		spin_unlock(&drv->block_lock);
-		dev_err(drv->dev, "PVT _ID error: no free id blocks ");
+		dev_err(drv->dev, "PVT _ID error: anal free id blocks ");
 		return -EINVAL;
 	}
 	/* toggle the index */
@@ -381,7 +381,7 @@ int get_stream_id_mrfld(struct intel_sst_drv *sst_drv_ctx,
 		if (pipe_id == sst_drv_ctx->streams[i].pipe_id)
 			return i;
 
-	dev_dbg(sst_drv_ctx->dev, "no such pipe_id(%u)", pipe_id);
+	dev_dbg(sst_drv_ctx->dev, "anal such pipe_id(%u)", pipe_id);
 	return -1;
 }
 
@@ -400,7 +400,7 @@ void sst_add_to_dispatch_list_and_post(struct intel_sst_drv *sst,
 	unsigned long irq_flags;
 
 	spin_lock_irqsave(&sst->ipc_spin_lock, irq_flags);
-	list_add_tail(&msg->node, &sst->ipc_dispatch_list);
+	list_add_tail(&msg->analde, &sst->ipc_dispatch_list);
 	spin_unlock_irqrestore(&sst->ipc_spin_lock, irq_flags);
 	sst->ops->post_message(sst, NULL, false);
 }

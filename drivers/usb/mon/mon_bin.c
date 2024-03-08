@@ -52,11 +52,11 @@
 #endif
 
 /*
- * Some architectures have enormous basic pages (16KB for ia64, 64KB for ppc).
+ * Some architectures have eanalrmous basic pages (16KB for ia64, 64KB for ppc).
  * But it's all right. Just use a simple way to make sure the chunk is never
  * smaller than a page.
  *
- * N.B. An application does not know our chunk size.
+ * N.B. An application does analt kanalw our chunk size.
  *
  * Woops, get_zeroed_page() returns a single page. I guess we're stuck with
  * page-sized chunks for the time being.
@@ -66,12 +66,12 @@
 
 /*
  * The magic limit was calculated so that it allows the monitoring
- * application to pick data once in two ticks. This way, another application,
+ * application to pick data once in two ticks. This way, aanalther application,
  * which presumably drives the bus, gets to hog CPU, yet we collect our data.
  * If HZ is 100, a 480 mbit/s bus drives 614 KB every jiffy. USB has an
- * enormous overhead built into the bus protocol, so we need about 1000 KB.
+ * eanalrmous overhead built into the bus protocol, so we need about 1000 KB.
  *
- * This is still too much for most cases, where we just snoop a few
+ * This is still too much for most cases, where we just sanalop a few
  * descriptor fetches for enumeration. So, the default is a "reasonable"
  * amount for systems with HZ=250 and incomplete bus saturation.
  *
@@ -116,7 +116,7 @@ struct mon_bin_hdr {
 /*
  * ISO vector, packed into the head of data stream.
  * This has to take 16 bytes to make sure that the end of buffer
- * wrap is not happening in the middle of a descriptor.
+ * wrap is analt happening in the middle of a descriptor.
  */
 struct mon_bin_isodesc {
 	int          iso_status;
@@ -167,7 +167,7 @@ struct mon_bin_mfetch32 {
 #define ISODESC_MAX   128	/* Same number as usbfs allows, 2048 bytes. */
 
 /* max number of USB bus supported */
-#define MON_BIN_MAX_MINOR 128
+#define MON_BIN_MAX_MIANALR 128
 
 /*
  * The buffer: map of used pages.
@@ -210,7 +210,7 @@ static inline struct mon_bin_hdr *MON_OFF2HDR(const struct mon_reader_bin *rp,
 #define MON_RING_EMPTY(rp)	((rp)->b_cnt == 0)
 
 static unsigned char xfer_to_pipe[4] = {
-	PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
+	PIPE_CONTROL, PIPE_ISOCHROANALUS, PIPE_BULK, PIPE_INTERRUPT
 };
 
 static const struct class mon_bin_class = {
@@ -227,7 +227,7 @@ static int mon_alloc_buff(struct mon_pgmap *map, int npages);
 static void mon_free_buff(struct mon_pgmap *map, int npages);
 
 /*
- * This is a "chunked memcpy". It does not manipulate any counters.
+ * This is a "chunked memcpy". It does analt manipulate any counters.
  */
 static unsigned int mon_copy_to_buff(const struct mon_reader_bin *this,
     unsigned int off, const unsigned char *from, unsigned int length)
@@ -259,7 +259,7 @@ static unsigned int mon_copy_to_buff(const struct mon_reader_bin *this,
 
 /*
  * This is a little worse than the above because it's "chunked copy_to_user".
- * The return value is an error code, not an offset.
+ * The return value is an error code, analt an offset.
  */
 static int copy_from_buf(const struct mon_reader_bin *this, unsigned int off,
     char __user *to, int length)
@@ -311,12 +311,12 @@ static unsigned int mon_buff_area_alloc(struct mon_reader_bin *rp,
 }
 
 /*
- * This is the same thing as mon_buff_area_alloc, only it does not allow
+ * This is the same thing as mon_buff_area_alloc, only it does analt allow
  * buffers to wrap. This is needed by applications which pass references
  * into mmap-ed buffers up their stacks (libpcap can do that).
  *
  * Currently, we always have the header stuck with the data, although
- * it is not strictly speaking necessary.
+ * it is analt strictly speaking necessary.
  *
  * When a buffer would wrap, we place a filler packet to mark the space.
  */
@@ -421,13 +421,13 @@ static unsigned int mon_bin_get_data(const struct mon_reader_bin *rp,
 		length = 0;
 
 	} else {
-		/* If IOMMU coalescing occurred, we cannot trust sg_page */
+		/* If IOMMU coalescing occurred, we cananalt trust sg_page */
 		if (urb->transfer_flags & URB_DMA_SG_COMBINED) {
 			*flag = 'D';
 			return length;
 		}
 
-		/* Copy up to the first non-addressable segment */
+		/* Copy up to the first analn-addressable segment */
 		for_each_sg(urb->sg, sg, urb->num_sgs, i) {
 			if (length == 0 || PageHighMem(sg_page(sg)))
 				break;
@@ -444,7 +444,7 @@ static unsigned int mon_bin_get_data(const struct mon_reader_bin *rp,
 }
 
 /*
- * This is the look-ahead pass in case of 'C Zi', when actual_length cannot
+ * This is the look-ahead pass in case of 'C Zi', when actual_length cananalt
  * be used to determine the length of the whole contiguous buffer.
  */
 static unsigned int mon_bin_collate_isodesc(const struct mon_reader_bin *rp,
@@ -526,7 +526,7 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	}
 	lendesc = ndesc*sizeof(struct mon_bin_isodesc);
 
-	/* not an issue unless there's a subtle bug in a HCD somewhere */
+	/* analt an issue unless there's a subtle bug in a HCD somewhere */
 	if (length >= urb->transfer_buffer_length)
 		length = urb->transfer_buffer_length;
 
@@ -538,7 +538,7 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 			length = 0;
 			data_tag = '<';
 		}
-		/* Cannot rely on endpoint number in case of control ep.0 */
+		/* Cananalt rely on endpoint number in case of control ep.0 */
 		dir = USB_DIR_IN;
 	} else {
 		if (ev_type == 'C') {
@@ -646,7 +646,7 @@ static void mon_bin_error(void *data, struct urb *urb, int error)
 
 	offset = mon_buff_area_alloc(rp, PKT_SIZE);
 	if (offset == ~0) {
-		/* Not incrementing cnt_lost. Just because. */
+		/* Analt incrementing cnt_lost. Just because. */
 		spin_unlock_irqrestore(&rp->b_lock, flags);
 		return;
 	}
@@ -673,7 +673,7 @@ static void mon_bin_error(void *data, struct urb *urb, int error)
 	wake_up(&rp->b_wait);
 }
 
-static int mon_bin_open(struct inode *inode, struct file *file)
+static int mon_bin_open(struct ianalde *ianalde, struct file *file)
 {
 	struct mon_bus *mbus;
 	struct mon_reader_bin *rp;
@@ -681,20 +681,20 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 	int rc;
 
 	mutex_lock(&mon_lock);
-	mbus = mon_bus_lookup(iminor(inode));
+	mbus = mon_bus_lookup(imianalr(ianalde));
 	if (mbus == NULL) {
 		mutex_unlock(&mon_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (mbus != &mon_bus0 && mbus->u_bus == NULL) {
 		printk(KERN_ERR TAG ": consistency error on open\n");
 		mutex_unlock(&mon_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rp = kzalloc(sizeof(struct mon_reader_bin), GFP_KERNEL);
 	if (rp == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_alloc;
 	}
 	spin_lock_init(&rp->b_lock);
@@ -704,7 +704,7 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 
 	size = sizeof(struct mon_pgmap) * (rp->b_size/CHUNK_SIZE);
 	if ((rp->b_vec = kzalloc(size, GFP_KERNEL)) == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_allocvec;
 	}
 
@@ -734,7 +734,7 @@ err_alloc:
 
 /*
  * Extract an event from buffer and copy it to user space.
- * Wait if there is no event ready.
+ * Wait if there is anal event ready.
  * Returns zero or error.
  */
 static int mon_bin_get_event(struct file *file, struct mon_reader_bin *rp,
@@ -778,7 +778,7 @@ static int mon_bin_get_event(struct file *file, struct mon_reader_bin *rp,
 	return 0;
 }
 
-static int mon_bin_release(struct inode *inode, struct file *file)
+static int mon_bin_release(struct ianalde *ianalde, struct file *file)
 {
 	struct mon_reader_bin *rp = file->private_data;
 	struct mon_bus* mbus = rp->r.m_bus;
@@ -947,7 +947,7 @@ static int mon_bin_fetch(struct file *file, struct mon_reader_bin *rp,
 
 /*
  * Count events. This is almost the same as the above mon_bin_fetch,
- * only we do not store offsets into user vector, and we have no limit.
+ * only we do analt store offsets into user vector, and we have anal limit.
  */
 static int mon_bin_queued(struct mon_reader_bin *rp)
 {
@@ -1030,7 +1030,7 @@ static long mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		vec = kcalloc(size / CHUNK_SIZE, sizeof(struct mon_pgmap),
 			      GFP_KERNEL);
 		if (vec == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -1127,7 +1127,7 @@ static long mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		break;
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	return ret;
@@ -1197,7 +1197,7 @@ static long mon_bin_compat_ioctl(struct file *file,
 	default:
 		;
 	}
-	return -ENOTTY;
+	return -EANALTTY;
 }
 #endif /* CONFIG_COMPAT */
 
@@ -1213,7 +1213,7 @@ mon_bin_poll(struct file *file, struct poll_table_struct *wait)
 
 	spin_lock_irqsave(&rp->b_lock, flags);
 	if (!MON_RING_EMPTY(rp))
-		mask |= EPOLLIN | EPOLLRDNORM;    /* readable */
+		mask |= EPOLLIN | EPOLLRDANALRM;    /* readable */
 	spin_unlock_irqrestore(&rp->b_lock, flags);
 	return mask;
 }
@@ -1289,7 +1289,7 @@ static int mon_bin_mmap(struct file *filp, struct vm_area_struct *vma)
 static const struct file_operations mon_fops_binary = {
 	.owner =	THIS_MODULE,
 	.open =		mon_bin_open,
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 	.read =		mon_bin_read,
 	/* .write =	mon_text_write, */
 	.poll =		mon_bin_poll,
@@ -1313,7 +1313,7 @@ static int mon_bin_wait_event(struct file *file, struct mon_reader_bin *rp)
 	while (MON_RING_EMPTY(rp)) {
 		spin_unlock_irqrestore(&rp->b_lock, flags);
 
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			set_current_state(TASK_RUNNING);
 			remove_wait_queue(&rp->b_wait, &waita);
 			return -EWOULDBLOCK; /* Same as EAGAIN in Linux */
@@ -1344,7 +1344,7 @@ static int mon_alloc_buff(struct mon_pgmap *map, int npages)
 		if (vaddr == 0) {
 			while (n-- != 0)
 				free_page((unsigned long) map[n].ptr);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		map[n].ptr = (unsigned char *) vaddr;
 		map[n].pg = virt_to_page((void *) vaddr);
@@ -1363,14 +1363,14 @@ static void mon_free_buff(struct mon_pgmap *map, int npages)
 int mon_bin_add(struct mon_bus *mbus, const struct usb_bus *ubus)
 {
 	struct device *dev;
-	unsigned minor = ubus? ubus->busnum: 0;
+	unsigned mianalr = ubus? ubus->busnum: 0;
 
-	if (minor >= MON_BIN_MAX_MINOR)
+	if (mianalr >= MON_BIN_MAX_MIANALR)
 		return 0;
 
 	dev = device_create(&mon_bin_class, ubus ? ubus->controller : NULL,
-			    MKDEV(MAJOR(mon_bin_dev0), minor), NULL,
-			    "usbmon%d", minor);
+			    MKDEV(MAJOR(mon_bin_dev0), mianalr), NULL,
+			    "usbmon%d", mianalr);
 	if (IS_ERR(dev))
 		return 0;
 
@@ -1391,21 +1391,21 @@ int __init mon_bin_init(void)
 	if (rc)
 		goto err_class;
 
-	rc = alloc_chrdev_region(&mon_bin_dev0, 0, MON_BIN_MAX_MINOR, "usbmon");
+	rc = alloc_chrdev_region(&mon_bin_dev0, 0, MON_BIN_MAX_MIANALR, "usbmon");
 	if (rc < 0)
 		goto err_dev;
 
 	cdev_init(&mon_bin_cdev, &mon_fops_binary);
 	mon_bin_cdev.owner = THIS_MODULE;
 
-	rc = cdev_add(&mon_bin_cdev, mon_bin_dev0, MON_BIN_MAX_MINOR);
+	rc = cdev_add(&mon_bin_cdev, mon_bin_dev0, MON_BIN_MAX_MIANALR);
 	if (rc < 0)
 		goto err_add;
 
 	return 0;
 
 err_add:
-	unregister_chrdev_region(mon_bin_dev0, MON_BIN_MAX_MINOR);
+	unregister_chrdev_region(mon_bin_dev0, MON_BIN_MAX_MIANALR);
 err_dev:
 	class_unregister(&mon_bin_class);
 err_class:
@@ -1415,6 +1415,6 @@ err_class:
 void mon_bin_exit(void)
 {
 	cdev_del(&mon_bin_cdev);
-	unregister_chrdev_region(mon_bin_dev0, MON_BIN_MAX_MINOR);
+	unregister_chrdev_region(mon_bin_dev0, MON_BIN_MAX_MIANALR);
 	class_unregister(&mon_bin_class);
 }

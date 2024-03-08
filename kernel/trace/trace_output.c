@@ -353,7 +353,7 @@ EXPORT_SYMBOL_GPL(trace_output_call);
 static inline const char *kretprobed(const char *name, unsigned long addr)
 {
 	if (is_kretprobe_trampoline(addr))
-		return "[unknown/kretprobe'd]";
+		return "[unkanalwn/kretprobe'd]";
 	return name;
 }
 
@@ -460,7 +460,7 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
 		(entry->flags & TRACE_FLAG_IRQS_OFF && bh_off) ? 'D' :
 		(entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
 		bh_off ? 'b' :
-		(entry->flags & TRACE_FLAG_IRQS_NOSUPPORT) ? 'X' :
+		(entry->flags & TRACE_FLAG_IRQS_ANALSUPPORT) ? 'X' :
 		'.';
 
 	switch (entry->flags & (TRACE_FLAG_NEED_RESCHED |
@@ -683,7 +683,7 @@ struct trace_event *ftrace_find_event(int type)
 
 	key = type & (EVENT_HASHSIZE - 1);
 
-	hlist_for_each_entry(event, &event_hash[key], node) {
+	hlist_for_each_entry(event, &event_hash[key], analde) {
 		if (event->type == type)
 			return event;
 	}
@@ -763,17 +763,17 @@ int register_trace_event(struct trace_event *event)
 	}
 
 	if (event->funcs->trace == NULL)
-		event->funcs->trace = trace_nop_print;
+		event->funcs->trace = trace_analp_print;
 	if (event->funcs->raw == NULL)
-		event->funcs->raw = trace_nop_print;
+		event->funcs->raw = trace_analp_print;
 	if (event->funcs->hex == NULL)
-		event->funcs->hex = trace_nop_print;
+		event->funcs->hex = trace_analp_print;
 	if (event->funcs->binary == NULL)
-		event->funcs->binary = trace_nop_print;
+		event->funcs->binary = trace_analp_print;
 
 	key = event->type & (EVENT_HASHSIZE - 1);
 
-	hlist_add_head(&event->node, &event_hash[key]);
+	hlist_add_head(&event->analde, &event_hash[key]);
 
 	ret = event->type;
  out:
@@ -788,13 +788,13 @@ EXPORT_SYMBOL_GPL(register_trace_event);
  */
 int __unregister_trace_event(struct trace_event *event)
 {
-	hlist_del(&event->node);
+	hlist_del(&event->analde);
 	free_trace_event_type(event->type);
 	return 0;
 }
 
 /**
- * unregister_trace_event - remove a no longer used event
+ * unregister_trace_event - remove a anal longer used event
  * @event: the event to remove
  */
 int unregister_trace_event(struct trace_event *event)
@@ -879,7 +879,7 @@ static void print_fields(struct trace_iterator *iter, struct trace_event_call *c
 			if (!iter->fmt_size)
 				trace_iter_expand_format(iter);
 			pos = *(void **)pos;
-			ret = strncpy_from_kernel_nofault(iter->fmt, pos,
+			ret = strncpy_from_kernel_analfault(iter->fmt, pos,
 							  iter->fmt_size);
 			if (ret < 0)
 				trace_seq_printf(&iter->seq, "(0x%px)", pos);
@@ -956,13 +956,13 @@ enum print_line_t print_event_fields(struct trace_iterator *iter,
 				found = true;
 				break;
 			}
-			/* No need to search all events */
+			/* Anal need to search all events */
 			if (call->event.type > __TRACE_LAST_TYPE)
 				break;
 		}
 		up_read(&trace_event_sem);
 		if (!found) {
-			trace_seq_printf(&iter->seq, "UNKNOWN TYPE %d\n", event->type);
+			trace_seq_printf(&iter->seq, "UNKANALWN TYPE %d\n", event->type);
 			goto out;
 		}
 	} else {
@@ -975,13 +975,13 @@ enum print_line_t print_event_fields(struct trace_iterator *iter,
 	if (head && !list_empty(head))
 		print_fields(iter, call, head);
 	else
-		trace_seq_puts(&iter->seq, "No fields found\n");
+		trace_seq_puts(&iter->seq, "Anal fields found\n");
 
  out:
 	return trace_handle_return(&iter->seq);
 }
 
-enum print_line_t trace_nop_print(struct trace_iterator *iter, int flags,
+enum print_line_t trace_analp_print(struct trace_iterator *iter, int flags,
 				  struct trace_event *event)
 {
 	trace_seq_printf(&iter->seq, "type: %d\n", iter->ent->type);
@@ -1331,8 +1331,8 @@ trace_hwlat_print(struct trace_iterator *iter, int flags,
 
 	if (field->nmi_count) {
 		/*
-		 * The generic sched_clock() is not NMI safe, thus
-		 * we only record the count and not the time.
+		 * The generic sched_clock() is analt NMI safe, thus
+		 * we only record the count and analt the time.
 		 */
 		if (!IS_ENABLED(CONFIG_GENERIC_SCHED_CLOCK))
 			trace_seq_printf(s, " nmi-total:%llu",
@@ -1375,14 +1375,14 @@ static struct trace_event trace_hwlat_event = {
 	.funcs		= &trace_hwlat_funcs,
 };
 
-/* TRACE_OSNOISE */
+/* TRACE_OSANALISE */
 static enum print_line_t
-trace_osnoise_print(struct trace_iterator *iter, int flags,
+trace_osanalise_print(struct trace_iterator *iter, int flags,
 		    struct trace_event *event)
 {
 	struct trace_entry *entry = iter->ent;
 	struct trace_seq *s = &iter->seq;
-	struct osnoise_entry *field;
+	struct osanalise_entry *field;
 	u64 ratio, ratio_dec;
 	u64 net_runtime;
 
@@ -1391,14 +1391,14 @@ trace_osnoise_print(struct trace_iterator *iter, int flags,
 	/*
 	 * compute the available % of cpu time.
 	 */
-	net_runtime = field->runtime - field->noise;
+	net_runtime = field->runtime - field->analise;
 	ratio = net_runtime * 10000000;
 	do_div(ratio, field->runtime);
 	ratio_dec = do_div(ratio, 100000);
 
 	trace_seq_printf(s, "%llu %10llu %3llu.%05llu %7llu",
 			 field->runtime,
-			 field->noise,
+			 field->analise,
 			 ratio, ratio_dec,
 			 field->max_sample);
 
@@ -1414,17 +1414,17 @@ trace_osnoise_print(struct trace_iterator *iter, int flags,
 }
 
 static enum print_line_t
-trace_osnoise_raw(struct trace_iterator *iter, int flags,
+trace_osanalise_raw(struct trace_iterator *iter, int flags,
 		  struct trace_event *event)
 {
-	struct osnoise_entry *field;
+	struct osanalise_entry *field;
 	struct trace_seq *s = &iter->seq;
 
 	trace_assign_type(field, iter->ent);
 
 	trace_seq_printf(s, "%lld %llu %llu %u %u %u %u %u\n",
 			 field->runtime,
-			 field->noise,
+			 field->analise,
 			 field->max_sample,
 			 field->hw_count,
 			 field->nmi_count,
@@ -1435,14 +1435,14 @@ trace_osnoise_raw(struct trace_iterator *iter, int flags,
 	return trace_handle_return(s);
 }
 
-static struct trace_event_functions trace_osnoise_funcs = {
-	.trace		= trace_osnoise_print,
-	.raw		= trace_osnoise_raw,
+static struct trace_event_functions trace_osanalise_funcs = {
+	.trace		= trace_osanalise_print,
+	.raw		= trace_osanalise_raw,
 };
 
-static struct trace_event trace_osnoise_event = {
-	.type		= TRACE_OSNOISE,
-	.funcs		= &trace_osnoise_funcs,
+static struct trace_event trace_osanalise_event = {
+	.type		= TRACE_OSANALISE,
+	.funcs		= &trace_osanalise_funcs,
 };
 
 /* TRACE_TIMERLAT */
@@ -1705,7 +1705,7 @@ static struct trace_event *events[] __initdata = {
 	&trace_bprint_event,
 	&trace_print_event,
 	&trace_hwlat_event,
-	&trace_osnoise_event,
+	&trace_osanalise_event,
 	&trace_timerlat_event,
 	&trace_raw_data_event,
 	&trace_func_repeats_event,

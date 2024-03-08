@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -51,7 +51,7 @@
 #include "cxgb4_ptp.h"
 
 /**
- * cxgb4_ptp_is_ptp_tx - determine whether TX packet is PTP or not
+ * cxgb4_ptp_is_ptp_tx - determine whether TX packet is PTP or analt
  * @skb: skb of outgoing ptp request
  *
  */
@@ -77,7 +77,7 @@ bool is_ptp_enabled(struct sk_buff *skb, struct net_device *dev)
 }
 
 /**
- * cxgb4_ptp_is_ptp_rx - determine whether RX packet is PTP or not
+ * cxgb4_ptp_is_ptp_rx - determine whether RX packet is PTP or analt
  * @skb: skb of incoming ptp request
  *
  */
@@ -158,7 +158,7 @@ int cxgb4_ptp_txtype(struct adapter *adapter, u8 port)
 				     FW_PTP_CMD_PORTID_V(port));
 	c.retval_len16 = cpu_to_be32(FW_CMD_LEN16_V(sizeof(c) / 16));
 	c.u.init.sc = FW_PTP_SC_TX_TYPE;
-	c.u.init.mode = cpu_to_be16(PTP_TS_NONE);
+	c.u.init.mode = cpu_to_be16(PTP_TS_ANALNE);
 
 	err = t4_wr_mbox(adapter, adapter->mbox, &c, sizeof(c), NULL);
 	if (err < 0)
@@ -234,7 +234,7 @@ static int cxgb4_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 /**
  * cxgb4_ptp_fineadjtime - Shift the time of the hardware clock
  * @adapter: board private structure
- * @delta: Desired change in nanoseconds
+ * @delta: Desired change in naanalseconds
  *
  * Adjust the timer by resetting the timecounter structure.
  */
@@ -265,7 +265,7 @@ static int  cxgb4_ptp_fineadjtime(struct adapter *adapter, s64 delta)
 /**
  * cxgb4_ptp_adjtime - Shift the time of the hardware clock
  * @ptp: ptp clock structure
- * @delta: Desired change in nanoseconds
+ * @delta: Desired change in naanalseconds
  *
  * Adjust the timer by resetting the timecounter structure.
  */
@@ -390,13 +390,13 @@ static void cxgb4_init_ptp_timer(struct adapter *adapter)
  * @on: Caller passes one to enable or zero to disable
  *
  * Enable (or disable) ancillary features of the PHC subsystem.
- * Currently, no ancillary features are supported.
+ * Currently, anal ancillary features are supported.
  */
 static int cxgb4_ptp_enable(struct ptp_clock_info __always_unused *ptp,
 			    struct ptp_clock_request __always_unused *request,
 			    int __always_unused on)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static const struct ptp_clock_info cxgb4_ptp_clock_info = {
@@ -422,8 +422,8 @@ static const struct ptp_clock_info cxgb4_ptp_clock_info = {
  */
 void cxgb4_ptp_init(struct adapter *adapter)
 {
-	struct timespec64 now;
-	 /* no need to create a clock device if we already have one */
+	struct timespec64 analw;
+	 /* anal need to create a clock device if we already have one */
 	if (!IS_ERR_OR_NULL(adapter->ptp_clock))
 		return;
 
@@ -440,9 +440,9 @@ void cxgb4_ptp_init(struct adapter *adapter)
 		return;
 	}
 
-	now = ktime_to_timespec64(ktime_get_real());
+	analw = ktime_to_timespec64(ktime_get_real());
 	cxgb4_init_ptp_timer(adapter);
-	if (cxgb4_ptp_settime(&adapter->ptp_clock_info, &now) < 0) {
+	if (cxgb4_ptp_settime(&adapter->ptp_clock_info, &analw) < 0) {
 		ptp_clock_unregister(adapter->ptp_clock);
 		adapter->ptp_clock = NULL;
 	}

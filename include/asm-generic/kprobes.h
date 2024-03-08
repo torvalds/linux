@@ -5,21 +5,21 @@
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 #ifdef CONFIG_KPROBES
 /*
- * Blacklist ganerating macro. Specify functions which is not probed
+ * Blacklist ganerating macro. Specify functions which is analt probed
  * by using this macro.
  */
-# define __NOKPROBE_SYMBOL(fname)				\
+# define __ANALKPROBE_SYMBOL(fname)				\
 static unsigned long __used					\
 	__section("_kprobe_blacklist")				\
 	_kbl_addr_##fname = (unsigned long)fname;
-# define NOKPROBE_SYMBOL(fname)	__NOKPROBE_SYMBOL(fname)
+# define ANALKPROBE_SYMBOL(fname)	__ANALKPROBE_SYMBOL(fname)
 /* Use this to forbid a kprobes attach on very low level functions */
 # define __kprobes	__section(".kprobes.text")
-# define nokprobe_inline	__always_inline
+# define analkprobe_inline	__always_inline
 #else
-# define NOKPROBE_SYMBOL(fname)
+# define ANALKPROBE_SYMBOL(fname)
 # define __kprobes
-# define nokprobe_inline	inline
+# define analkprobe_inline	inline
 #endif
 #endif /* defined(__KERNEL__) && !defined(__ASSEMBLY__) */
 

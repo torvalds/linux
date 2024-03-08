@@ -102,7 +102,7 @@ u16 nvmet_parse_fabrics_admin_cmd(struct nvmet_req *req)
 		break;
 #endif
 	default:
-		pr_debug("received unknown capsule type 0x%x\n",
+		pr_debug("received unkanalwn capsule type 0x%x\n",
 			cmd->fabrics.fctype);
 		req->error_loc = offsetof(struct nvmf_common_command, fctype);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
@@ -125,7 +125,7 @@ u16 nvmet_parse_fabrics_io_cmd(struct nvmet_req *req)
 		break;
 #endif
 	default:
-		pr_debug("received unknown capsule type 0x%x\n",
+		pr_debug("received unkanalwn capsule type 0x%x\n",
 			cmd->fabrics.fctype);
 		req->error_loc = offsetof(struct nvmf_common_command, fctype);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
@@ -172,7 +172,7 @@ static u16 nvmet_install_queue(struct nvmet_ctrl *ctrl, struct nvmet_req *req)
 		return NVME_SC_CONNECT_CTRL_BUSY | NVME_SC_DNR;
 	}
 
-	/* note: convert queue size from 0's-based value to 1's-based value */
+	/* analte: convert queue size from 0's-based value to 1's-based value */
 	nvmet_cq_setup(ctrl, req->cq, qid, sqsize + 1);
 	nvmet_sq_setup(ctrl, req->sq, qid, sqsize + 1);
 

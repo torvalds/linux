@@ -24,7 +24,7 @@
 /* load nvm chunk response */
 enum {
 	READ_NVM_CHUNK_SUCCEED = 0,
-	READ_NVM_CHUNK_NOT_VALID_ADDRESS = 1
+	READ_NVM_CHUNK_ANALT_VALID_ADDRESS = 1
 };
 
 /*
@@ -105,14 +105,14 @@ static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
 	resp_data = nvm_resp->data;
 	if (ret) {
 		if ((offset != 0) &&
-		    (ret == READ_NVM_CHUNK_NOT_VALID_ADDRESS)) {
+		    (ret == READ_NVM_CHUNK_ANALT_VALID_ADDRESS)) {
 			/*
-			 * meaning of NOT_VALID_ADDRESS:
+			 * meaning of ANALT_VALID_ADDRESS:
 			 * driver try to read chunk from address that is
 			 * multiple of 2K and got an error since addr is empty.
 			 * meaning of (offset != 0): driver already
-			 * read valid data from another chunk so this case
-			 * is not an error.
+			 * read valid data from aanalther chunk so this case
+			 * is analt an error.
 			 */
 			IWL_DEBUG_EEPROM(mvm->trans->dev,
 					 "NVM access command failed on offset 0x%x since that section size is multiple 2K\n",
@@ -122,7 +122,7 @@ static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
 			IWL_DEBUG_EEPROM(mvm->trans->dev,
 					 "NVM access command failed with status %d (device: %s)\n",
 					 ret, mvm->trans->name);
-			ret = -ENODATA;
+			ret = -EANALDATA;
 		}
 		goto exit;
 	}
@@ -175,7 +175,7 @@ static int iwl_nvm_write_section(struct iwl_mvm *mvm, u16 section,
  * overflow and try to read more than the EEPROM size.
  * For 7000 family NICs, we supply the maximal size we can read, and
  * the uCode fills the response with as much data as we can,
- * without overflowing, so no check is needed.
+ * without overflowing, so anal check is needed.
  */
 static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
 				u8 *data, u32 size_read)
@@ -190,17 +190,17 @@ static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
 
 	/* Read the NVM until exhausted (reading less than requested) */
 	while (ret == length) {
-		/* Check no memory assumptions fail and cause an overflow */
+		/* Check anal memory assumptions fail and cause an overflow */
 		if ((size_read + offset + length) >
 		    mvm->trans->trans_cfg->base_params->eeprom_size) {
 			IWL_ERR(mvm, "EEPROM size is too small for NVM\n");
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 
 		ret = iwl_nvm_read_chunk(mvm, section, offset, length, data);
 		if (ret < 0) {
 			IWL_DEBUG_EEPROM(mvm->trans->dev,
-					 "Cannot read NVM from section %d offset %d, length %d\n",
+					 "Cananalt read NVM from section %d offset %d, length %d\n",
 					 section, offset, length);
 			return ret;
 		}
@@ -321,12 +321,12 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 	nvm_buffer = kmalloc(mvm->trans->trans_cfg->base_params->eeprom_size,
 			     GFP_KERNEL);
 	if (!nvm_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (section = 0; section < NVM_MAX_NUM_SECTIONS; section++) {
 		/* we override the constness for initial read */
 		ret = iwl_nvm_read_section(mvm, section, nvm_buffer,
 					   size_read);
-		if (ret == -ENODATA) {
+		if (ret == -EANALDATA) {
 			ret = 0;
 			continue;
 		}
@@ -335,7 +335,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 		size_read += ret;
 		temp = kmemdup(nvm_buffer, ret, GFP_KERNEL);
 		if (!temp) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -388,7 +388,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 		if (ret) {
 			mvm->nvm_file_name = nvm_file_C;
 
-			if ((ret == -EFAULT || ret == -ENOENT) &&
+			if ((ret == -EFAULT || ret == -EANALENT) &&
 			    mvm->nvm_file_name) {
 				/* in case nvm file was failed try again */
 				ret = iwl_read_external_nvm(mvm->trans,
@@ -405,7 +405,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 	/* parse the relevant nvm sections */
 	mvm->nvm_data = iwl_parse_nvm_sections(mvm);
 	if (!mvm->nvm_data)
-		return -ENODATA;
+		return -EANALDATA;
 	IWL_DEBUG_EEPROM(mvm->trans->dev, "nvm version = %x\n",
 			 mvm->nvm_data->nvm_version);
 
@@ -434,7 +434,7 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 	u16 mcc;
 
 	if (WARN_ON_ONCE(!iwl_mvm_is_lar_supported(mvm)))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	cmd.len[0] = sizeof(struct iwl_mcc_update_cmd);
 
@@ -447,7 +447,7 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 
 	pkt = cmd.resp_pkt;
 
-	resp_ver = iwl_fw_lookup_notif_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
+	resp_ver = iwl_fw_lookup_analtif_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
 					   MCC_UPDATE_CMD, 0);
 
 	/* Extract MCC response */
@@ -463,7 +463,7 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		resp_len = struct_size(resp_cp, channels, n_channels);
 		resp_cp = kzalloc(resp_len, GFP_KERNEL);
 		if (!resp_cp) {
-			resp_cp = ERR_PTR(-ENOMEM);
+			resp_cp = ERR_PTR(-EANALMEM);
 			goto exit;
 		}
 		resp_cp->status = mcc_resp_v8->status;
@@ -488,7 +488,7 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		resp_len = struct_size(resp_cp, channels, n_channels);
 		resp_cp = kzalloc(resp_len, GFP_KERNEL);
 		if (!resp_cp) {
-			resp_cp = ERR_PTR(-ENOMEM);
+			resp_cp = ERR_PTR(-EANALMEM);
 			goto exit;
 		}
 
@@ -513,7 +513,7 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		resp_len = struct_size(resp_cp, channels, n_channels);
 		resp_cp = kzalloc(resp_len, GFP_KERNEL);
 		if (!resp_cp) {
-			resp_cp = ERR_PTR(-ENOMEM);
+			resp_cp = ERR_PTR(-EANALMEM);
 			goto exit;
 		}
 
@@ -574,14 +574,14 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	 * queue an update to cfg80211 to retrieve the default alpha2 from FW.
 	 */
 	retval = iwl_mvm_init_fw_regd(mvm, true);
-	if (retval != -ENOENT)
+	if (retval != -EANALENT)
 		return retval;
 
 	/*
 	 * Driver regulatory hint for initial update, this also informs the
 	 * firmware we support wifi location updates.
 	 * Disallow scans that might crash the FW while the LAR regdomain
-	 * is not set.
+	 * is analt set.
 	 */
 	mvm->lar_regdom_set = false;
 
@@ -607,7 +607,7 @@ void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 				struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_mcc_chub_notif *notif = (void *)pkt->data;
+	struct iwl_mcc_chub_analtif *analtif = (void *)pkt->data;
 	enum iwl_mcc_source src;
 	char mcc[3];
 	struct ieee80211_regdomain *regd;
@@ -615,18 +615,18 @@ void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (iwl_mvm_is_vif_assoc(mvm) && notif->source_id == MCC_SOURCE_WIFI) {
-		IWL_DEBUG_LAR(mvm, "Ignore mcc update while associated\n");
+	if (iwl_mvm_is_vif_assoc(mvm) && analtif->source_id == MCC_SOURCE_WIFI) {
+		IWL_DEBUG_LAR(mvm, "Iganalre mcc update while associated\n");
 		return;
 	}
 
 	if (WARN_ON_ONCE(!iwl_mvm_is_lar_supported(mvm)))
 		return;
 
-	mcc[0] = le16_to_cpu(notif->mcc) >> 8;
-	mcc[1] = le16_to_cpu(notif->mcc) & 0xff;
+	mcc[0] = le16_to_cpu(analtif->mcc) >> 8;
+	mcc[1] = le16_to_cpu(analtif->mcc) & 0xff;
 	mcc[2] = '\0';
-	src = notif->source_id;
+	src = analtif->source_id;
 
 	IWL_DEBUG_LAR(mvm,
 		      "RX: received chub update mcc cmd (mcc '%s' src %d)\n",

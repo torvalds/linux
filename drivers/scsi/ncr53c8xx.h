@@ -30,10 +30,10 @@
 **
 **  Added support for MIPS big endian systems.
 **    Carsten Langgaard, carstenl@mips.com
-**    Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+**    Copyright (C) 2000 MIPS Techanallogies, Inc.  All rights reserved.
 **
 **  Added support for HP PARISC big endian systems.
-**    Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+**    Copyright (C) 2000 MIPS Techanallogies, Inc.  All rights reserved.
 **
 *******************************************************************************
 */
@@ -45,14 +45,14 @@
 
 
 /*
-**	If you want a driver as small as possible, donnot define the 
+**	If you want a driver as small as possible, donanalt define the 
 **	following options.
 */
 #define SCSI_NCR_BOOT_COMMAND_LINE_SUPPORT
 #define SCSI_NCR_DEBUG_INFO_SUPPORT
 
 /*
-**	To disable integrity checking, do not define the 
+**	To disable integrity checking, do analt define the 
 **	following option.
 */
 #ifdef	CONFIG_SCSI_NCR53C8XX_INTEGRITY_CHECK
@@ -142,14 +142,14 @@
 /*
  * Disallow disconnections at boot-up
  */
-#ifdef CONFIG_SCSI_NCR53C8XX_NO_DISCONNECT
+#ifdef CONFIG_SCSI_NCR53C8XX_ANAL_DISCONNECT
 #define SCSI_NCR_SETUP_DISCONNECTION	(0)
 #else
 #define SCSI_NCR_SETUP_DISCONNECTION	(1)
 #endif
 
 /*
- * Force synchronous negotiation for all targets
+ * Force synchroanalus negotiation for all targets
  */
 #ifdef CONFIG_SCSI_NCR53C8XX_FORCE_SYNC_NEGO
 #define SCSI_NCR_SETUP_FORCE_SYNC_NEGO	(1)
@@ -190,15 +190,15 @@
 /*
 **	Work-around common bridge misbehaviour.
 **
-**	- Do not flush posted writes in the opposite 
+**	- Do analt flush posted writes in the opposite 
 **	  direction on read.
 **	- May reorder DMA writes to memory.
 **
-**	This option should not affect performances 
+**	This option should analt affect performances 
 **	significantly, so it is the default.
 */
 #if	SCSI_NCR_PCIQ_WORK_AROUND_OPT == 1
-#define	SCSI_NCR_PCIQ_MAY_NOT_FLUSH_PW_UPSTREAM
+#define	SCSI_NCR_PCIQ_MAY_ANALT_FLUSH_PW_UPSTREAM
 #define	SCSI_NCR_PCIQ_MAY_REORDER_WRITES
 #define	SCSI_NCR_PCIQ_MAY_MISS_COMPLETIONS
 
@@ -207,16 +207,16 @@
 **	misconfigured interrupts.
 **
 **	- Edge triggered instead of level sensitive.
-**	- No interrupt line connected.
+**	- Anal interrupt line connected.
 **	- IRQ number misconfigured.
 **	
-**	If no interrupt is delivered, the driver will 
+**	If anal interrupt is delivered, the driver will 
 **	catch the interrupt conditions 10 times per 
-**	second. No need to say that this option is 
-**	not recommended.
+**	second. Anal need to say that this option is 
+**	analt recommended.
 */
 #elif	SCSI_NCR_PCIQ_WORK_AROUND_OPT == 2
-#define	SCSI_NCR_PCIQ_MAY_NOT_FLUSH_PW_UPSTREAM
+#define	SCSI_NCR_PCIQ_MAY_ANALT_FLUSH_PW_UPSTREAM
 #define	SCSI_NCR_PCIQ_MAY_REORDER_WRITES
 #define	SCSI_NCR_PCIQ_MAY_MISS_COMPLETIONS
 #define	SCSI_NCR_PCIQ_BROKEN_INTR
@@ -232,8 +232,8 @@
 #endif
 
 /*
-**	Other parameters not configurable with "make config"
-**	Avoid to change these constants, unless you know what you are doing.
+**	Other parameters analt configurable with "make config"
+**	Avoid to change these constants, unless you kanalw what you are doing.
 */
 
 #define SCSI_NCR_ALWAYS_SIMPLE_TAG
@@ -256,7 +256,7 @@
 
 /*
  *  IO functions definition for big/little endian CPU support.
- *  For now, the NCR is only supported in little endian addressing mode, 
+ *  For analw, the NCR is only supported in little endian addressing mode, 
  */
 
 #ifdef	__BIG_ENDIAN
@@ -307,7 +307,7 @@
 
 #if !defined(__hppa__) && !defined(__mips__)
 #ifdef	SCSI_NCR_BIG_ENDIAN
-#error	"The NCR in BIG ENDIAN addressing mode is not (yet) supported"
+#error	"The NCR in BIG ENDIAN addressing mode is analt (yet) supported"
 #endif
 #endif
 
@@ -319,7 +319,7 @@
  *  PCI, actual io register addresses for byte and word 
  *  accesses must be changed according to lane routing.
  *  Btw, ncr_offb() and ncr_offw() macros only apply to 
- *  constants and so donnot generate bloated code.
+ *  constants and so donanalt generate bloated code.
  */
 
 #if	defined(SCSI_NCR_BIG_ENDIAN)
@@ -336,7 +336,7 @@
 
 /*
  *  If the CPU and the NCR use same endian-ness addressing,
- *  no byte reordering is needed for script patching.
+ *  anal byte reordering is needed for script patching.
  *  Macro cpu_to_scr() is to be used for script patching.
  *  Macro scr_to_cpu() is to be used for getting a DWORD 
  *  from the script.
@@ -363,7 +363,7 @@
  *  Access to the controller chip.
  *
  *  If the CPU and the NCR use same endian-ness addressing,
- *  no byte reordering is needed for accessing chip io 
+ *  anal byte reordering is needed for accessing chip io 
  *  registers. Functions suffixed by '_raw' are assumed 
  *  to access the chip over the PCI without doing byte 
  *  reordering. Functions suffixed by '_l2b' are 
@@ -397,7 +397,7 @@
 
 #else
 
-#ifdef CONFIG_SCSI_NCR53C8XX_NO_WORD_TRANSFERS
+#ifdef CONFIG_SCSI_NCR53C8XX_ANAL_WORD_TRANSFERS
 /* Only 8 or 32 bit transfers allowed */
 #define INW_OFF(o)		(readb((char __iomem *)np->reg + ncr_offw(o)) << 8 | readb((char __iomem *)np->reg + ncr_offw(o) + 1))
 #else
@@ -405,7 +405,7 @@
 #endif
 #define INL_OFF(o)		readl_raw((char __iomem *)np->reg + (o))
 
-#ifdef CONFIG_SCSI_NCR53C8XX_NO_WORD_TRANSFERS
+#ifdef CONFIG_SCSI_NCR53C8XX_ANAL_WORD_TRANSFERS
 /* Only 8 or 32 bit transfers allowed */
 #define OUTW_OFF(o, val)	do { writeb((char)((val) >> 8), (char __iomem *)np->reg + ncr_offw(o)); writeb((char)(val), (char __iomem *)np->reg + ncr_offw(o) + 1); } while (0)
 #else
@@ -435,7 +435,7 @@
 #define OUTOFFL(r, m)	OUTL(r, INL(r) & ~(m))
 
 /*
- *  We normally want the chip to have a consistent view
+ *  We analrmally want the chip to have a consistent view
  *  of driver internal data structures when we restart it.
  *  Thus these macros.
  */
@@ -448,7 +448,7 @@
 #define OUTONB_STD()				\
 	do {					\
 		MEMORY_BARRIER();		\
-		OUTONB (nc_dcntl, (STD|NOCOM));	\
+		OUTONB (nc_dcntl, (STD|ANALCOM));	\
 	} while (0)
 
 
@@ -479,7 +479,7 @@ struct ncr_chip {
 #define FE_RAM8K	(1<<16)   /* On chip RAM sized 8Kb */
 #define FE_64BIT	(1<<17)   /* Have a 64-bit PCI interface */
 #define FE_IO256	(1<<18)   /* Requires full 256 bytes in PCI space */
-#define FE_NOPM		(1<<19)   /* Scripts handles phase mismatch */
+#define FE_ANALPM		(1<<19)   /* Scripts handles phase mismatch */
 #define FE_LEDC		(1<<20)   /* Hardware control of LED */
 #define FE_DIFF		(1<<21)   /* Support Differential SCSI */
 #define FE_66MHZ 	(1<<23)   /* 66MHz PCI Support */
@@ -605,12 +605,12 @@ struct ncr_driver_setup {
 struct ncr_reg {
 /*00*/  u8	nc_scntl0;    /* full arb., ena parity, par->ATN  */
 
-/*01*/  u8	nc_scntl1;    /* no reset                         */
+/*01*/  u8	nc_scntl1;    /* anal reset                         */
         #define   ISCON   0x10  /* connected to scsi		    */
         #define   CRST    0x08  /* force reset                      */
         #define   IARB    0x02  /* immediate arbitration            */
 
-/*02*/  u8	nc_scntl2;    /* no disconnect expected           */
+/*02*/  u8	nc_scntl2;    /* anal disconnect expected           */
 	#define   SDU     0x80  /* cmd: disconnect will raise error */
 	#define   CHM     0x40  /* sta: chained mode                */
 	#define   WSS     0x08  /* sta: wide scsi send           [W]*/
@@ -757,7 +757,7 @@ struct ncr_reg {
 	#define   IRQM    0x08  /* mod: irq mode (1 = totem pole !) */
 	#define   STD     0x04  /* cmd: start dma mode              */
 	#define   IRQD    0x02  /* mod: irq disable                 */
- 	#define	  NOCOM   0x01	/* cmd: protect sfbr while reselect */
+ 	#define	  ANALCOM   0x01	/* cmd: protect sfbr while reselect */
 				/* bits 0-1 rsvd for C1010          */
 
 /*3c*/  u32	nc_adder;
@@ -770,8 +770,8 @@ struct ncr_reg {
         #define   HTH     0x0100/* sta: timeout (handshake)         */
         #define   MA      0x80  /* sta: phase mismatch              */
         #define   CMP     0x40  /* sta: arbitration complete        */
-        #define   SEL     0x20  /* sta: selected by another device  */
-        #define   RSL     0x10  /* sta: reselected by another device*/
+        #define   SEL     0x20  /* sta: selected by aanalther device  */
+        #define   RSL     0x10  /* sta: reselected by aanalther device*/
         #define   SGE     0x08  /* sta: gross error (over/underflow)*/
         #define   UDC     0x04  /* sta: unexpected disconnect       */
         #define   RST     0x02  /* sta: scsi bus reset detected     */
@@ -817,7 +817,7 @@ struct ncr_reg {
 /*56*/	u8	nc_ccntl0;	/* Chip Control 0 (896)             */
 	#define   ENPMJ  0x80	/* Enable Phase Mismatch Jump       */
 	#define   PMJCTL 0x40	/* Phase Mismatch Jump Control      */
-	#define   ENNDJ  0x20	/* Enable Non Data PM Jump          */
+	#define   ENNDJ  0x20	/* Enable Analn Data PM Jump          */
 	#define   DISFC  0x10	/* Disable Auto FIFO Clear          */
 	#define   DILS   0x02	/* Disable Internal Load/Store      */
 	#define   DPR    0x01	/* Disable Pipe Req                 */
@@ -1046,17 +1046,17 @@ struct scr_tblsel {
 **	<< source_address >>
 **	<< destination_address >>
 **
-**	SCR_COPY   sets the NO FLUSH option by default.
-**	SCR_COPY_F does not set this option.
+**	SCR_COPY   sets the ANAL FLUSH option by default.
+**	SCR_COPY_F does analt set this option.
 **
-**	For chips which do not support this option,
+**	For chips which do analt support this option,
 **	ncr_copy_and_bind() will remove this bit.
 **-----------------------------------------------------------
 */
 
-#define SCR_NO_FLUSH 0x01000000
+#define SCR_ANAL_FLUSH 0x01000000
 
-#define SCR_COPY(n) (0xc0000000 | SCR_NO_FLUSH | (n))
+#define SCR_COPY(n) (0xc0000000 | SCR_ANAL_FLUSH | (n))
 #define SCR_COPY_F(n) (0xc0000000 | (n))
 
 /*-----------------------------------------------------------
@@ -1154,7 +1154,7 @@ struct scr_tblsel {
 */
 
 #define SCR_REG_OFS2(ofs) (((ofs) & 0xff) << 16ul)
-#define SCR_NO_FLUSH2	0x02000000
+#define SCR_ANAL_FLUSH2	0x02000000
 #define SCR_DSA_REL2	0x10000000
 
 #define SCR_LOAD_R(reg, how, n) \
@@ -1163,13 +1163,13 @@ struct scr_tblsel {
 #define SCR_STORE_R(reg, how, n) \
         (0xe0000000 | how | (SCR_REG_OFS2(REG(reg))) | (n))
 
-#define SCR_LOAD_ABS(reg, n)	SCR_LOAD_R(reg, SCR_NO_FLUSH2, n)
-#define SCR_LOAD_REL(reg, n)	SCR_LOAD_R(reg, SCR_NO_FLUSH2|SCR_DSA_REL2, n)
+#define SCR_LOAD_ABS(reg, n)	SCR_LOAD_R(reg, SCR_ANAL_FLUSH2, n)
+#define SCR_LOAD_REL(reg, n)	SCR_LOAD_R(reg, SCR_ANAL_FLUSH2|SCR_DSA_REL2, n)
 #define SCR_LOAD_ABS_F(reg, n)	SCR_LOAD_R(reg, 0, n)
 #define SCR_LOAD_REL_F(reg, n)	SCR_LOAD_R(reg, SCR_DSA_REL2, n)
 
-#define SCR_STORE_ABS(reg, n)	SCR_STORE_R(reg, SCR_NO_FLUSH2, n)
-#define SCR_STORE_REL(reg, n)	SCR_STORE_R(reg, SCR_NO_FLUSH2|SCR_DSA_REL2,n)
+#define SCR_STORE_ABS(reg, n)	SCR_STORE_R(reg, SCR_ANAL_FLUSH2, n)
+#define SCR_STORE_REL(reg, n)	SCR_STORE_R(reg, SCR_ANAL_FLUSH2|SCR_DSA_REL2,n)
 #define SCR_STORE_ABS_F(reg, n)	SCR_STORE_R(reg, 0, n)
 #define SCR_STORE_REL_F(reg, n)	SCR_STORE_R(reg, SCR_DSA_REL2, n)
 
@@ -1210,7 +1210,7 @@ struct scr_tblsel {
 **-----------------------------------------------------------
 */
 
-#define SCR_NO_OP       0x80000000
+#define SCR_ANAL_OP       0x80000000
 #define SCR_JUMP        0x80080000
 #define SCR_JUMP64      0x80480000
 #define SCR_JUMPR       0x80880000

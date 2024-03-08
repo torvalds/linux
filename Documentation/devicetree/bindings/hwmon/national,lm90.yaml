@@ -93,7 +93,7 @@ patternProperties:
 
 allOf:
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

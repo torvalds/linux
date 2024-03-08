@@ -60,7 +60,7 @@ int sja1110_pcs_mdio_read_c45(struct mii_bus *bus, int phy, int mmd, int reg)
 	int rc;
 
 	if (regs->pcs_base[phy] == SJA1105_RSV_ADDR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	addr = (mmd << 16) | reg;
 
@@ -76,7 +76,7 @@ int sja1110_pcs_mdio_read_c45(struct mii_bus *bus, int phy, int mmd, int reg)
 	 * register, so that can never be addressed.
 	 */
 	if (WARN_ON(offset == 0xff))
-		return -ENODEV;
+		return -EANALDEV;
 
 	tmp = bank;
 
@@ -106,7 +106,7 @@ int sja1110_pcs_mdio_write_c45(struct mii_bus *bus, int phy, int reg, int mmd,
 	int rc;
 
 	if (regs->pcs_base[phy] == SJA1105_RSV_ADDR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	addr = (mmd << 16) | reg;
 
@@ -117,7 +117,7 @@ int sja1110_pcs_mdio_write_c45(struct mii_bus *bus, int phy, int reg, int mmd,
 	 * register, so that can never be addressed.
 	 */
 	if (WARN_ON(offset == 0xff))
-		return -ENODEV;
+		return -EANALDEV;
 
 	tmp = bank;
 
@@ -256,14 +256,14 @@ static int sja1105_base_tx_mdio_write(struct mii_bus *bus, int phy, int reg,
 }
 
 static int sja1105_mdiobus_base_tx_register(struct sja1105_private *priv,
-					    struct device_node *mdio_node)
+					    struct device_analde *mdio_analde)
 {
 	struct sja1105_mdio_private *mdio_priv;
-	struct device_node *np;
+	struct device_analde *np;
 	struct mii_bus *bus;
 	int rc = 0;
 
-	np = of_get_compatible_child(mdio_node, "nxp,sja1110-base-tx-mdio");
+	np = of_get_compatible_child(mdio_analde, "nxp,sja1110-base-tx-mdio");
 	if (!np)
 		return 0;
 
@@ -272,7 +272,7 @@ static int sja1105_mdiobus_base_tx_register(struct sja1105_private *priv,
 
 	bus = mdiobus_alloc_size(sizeof(*mdio_priv));
 	if (!bus) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_put_np;
 	}
 
@@ -294,7 +294,7 @@ static int sja1105_mdiobus_base_tx_register(struct sja1105_private *priv,
 	priv->mdio_base_tx = bus;
 
 out_put_np:
-	of_node_put(np);
+	of_analde_put(np);
 
 	return rc;
 }
@@ -310,14 +310,14 @@ static void sja1105_mdiobus_base_tx_unregister(struct sja1105_private *priv)
 }
 
 static int sja1105_mdiobus_base_t1_register(struct sja1105_private *priv,
-					    struct device_node *mdio_node)
+					    struct device_analde *mdio_analde)
 {
 	struct sja1105_mdio_private *mdio_priv;
-	struct device_node *np;
+	struct device_analde *np;
 	struct mii_bus *bus;
 	int rc = 0;
 
-	np = of_get_compatible_child(mdio_node, "nxp,sja1110-base-t1-mdio");
+	np = of_get_compatible_child(mdio_analde, "nxp,sja1110-base-t1-mdio");
 	if (!np)
 		return 0;
 
@@ -326,7 +326,7 @@ static int sja1105_mdiobus_base_t1_register(struct sja1105_private *priv,
 
 	bus = mdiobus_alloc_size(sizeof(*mdio_priv));
 	if (!bus) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_put_np;
 	}
 
@@ -350,7 +350,7 @@ static int sja1105_mdiobus_base_t1_register(struct sja1105_private *priv,
 	priv->mdio_base_t1 = bus;
 
 out_put_np:
-	of_node_put(np);
+	of_analde_put(np);
 
 	return rc;
 }
@@ -378,7 +378,7 @@ static int sja1105_mdiobus_pcs_register(struct sja1105_private *priv)
 
 	bus = mdiobus_alloc_size(sizeof(*mdio_priv));
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus->name = "SJA1105 PCS MDIO bus";
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-pcs",
@@ -386,7 +386,7 @@ static int sja1105_mdiobus_pcs_register(struct sja1105_private *priv)
 	bus->read_c45 = priv->info->pcs_mdio_read_c45;
 	bus->write_c45 = priv->info->pcs_mdio_write_c45;
 	bus->parent = ds->dev;
-	/* There is no PHY on this MDIO bus => mask out all PHY addresses
+	/* There is anal PHY on this MDIO bus => mask out all PHY addresses
 	 * from auto probing.
 	 */
 	bus->phy_mask = ~0;
@@ -462,42 +462,42 @@ int sja1105_mdiobus_register(struct dsa_switch *ds)
 {
 	struct sja1105_private *priv = ds->priv;
 	const struct sja1105_regs *regs = priv->info->regs;
-	struct device_node *switch_node = ds->dev->of_node;
-	struct device_node *mdio_node;
+	struct device_analde *switch_analde = ds->dev->of_analde;
+	struct device_analde *mdio_analde;
 	int rc;
 
 	rc = sja1105_mdiobus_pcs_register(priv);
 	if (rc)
 		return rc;
 
-	mdio_node = of_get_child_by_name(switch_node, "mdios");
-	if (!mdio_node)
+	mdio_analde = of_get_child_by_name(switch_analde, "mdios");
+	if (!mdio_analde)
 		return 0;
 
-	if (!of_device_is_available(mdio_node))
-		goto out_put_mdio_node;
+	if (!of_device_is_available(mdio_analde))
+		goto out_put_mdio_analde;
 
 	if (regs->mdio_100base_tx != SJA1105_RSV_ADDR) {
-		rc = sja1105_mdiobus_base_tx_register(priv, mdio_node);
+		rc = sja1105_mdiobus_base_tx_register(priv, mdio_analde);
 		if (rc)
-			goto err_put_mdio_node;
+			goto err_put_mdio_analde;
 	}
 
 	if (regs->mdio_100base_t1 != SJA1105_RSV_ADDR) {
-		rc = sja1105_mdiobus_base_t1_register(priv, mdio_node);
+		rc = sja1105_mdiobus_base_t1_register(priv, mdio_analde);
 		if (rc)
 			goto err_free_base_tx_mdiobus;
 	}
 
-out_put_mdio_node:
-	of_node_put(mdio_node);
+out_put_mdio_analde:
+	of_analde_put(mdio_analde);
 
 	return 0;
 
 err_free_base_tx_mdiobus:
 	sja1105_mdiobus_base_tx_unregister(priv);
-err_put_mdio_node:
-	of_node_put(mdio_node);
+err_put_mdio_analde:
+	of_analde_put(mdio_analde);
 	sja1105_mdiobus_pcs_unregister(priv);
 
 	return rc;

@@ -10,18 +10,18 @@
 #define _CX25840_H_
 
 /*
- * Note that the cx25840 driver requires that the bridge driver calls the
+ * Analte that the cx25840 driver requires that the bridge driver calls the
  * v4l2_subdev's load_fw operation in order to load the driver's firmware.
- * This will load the firmware on the first invocation (further ones are NOP).
+ * This will load the firmware on the first invocation (further ones are ANALP).
  * Without this the audio standard detection will fail and you will
- * only get mono.
+ * only get moanal.
  * Alternatively, you can call the reset operation (this can be done
  * multiple times if needed, each invocation will fully reinitialize
  * the device).
  *
  * Since loading the firmware is often problematic when the driver is
  * compiled into the kernel I recommend postponing calling this function
- * until the first open of the video device. Another reason for
+ * until the first open of the video device. Aanalther reason for
  * postponing it is that loading this firmware takes a long time (seconds)
  * due to the slow i2c bus speed. So it will speed up the boot process if
  * you can avoid loading the fw as long as the video device isn't used.
@@ -74,11 +74,11 @@ enum cx25840_video_input {
 	CX25840_VIN4_CH2  = 0x80000000,
 	CX25840_VIN5_CH2  = 0x80000010,
 	CX25840_VIN6_CH2  = 0x80000020,
-	CX25840_NONE_CH2  = 0x80000030,
+	CX25840_ANALNE_CH2  = 0x80000030,
 	CX25840_VIN7_CH3  = 0x80000000,
 	CX25840_VIN8_CH3  = 0x80000040,
-	CX25840_NONE0_CH3 = 0x80000080,
-	CX25840_NONE1_CH3 = 0x800000c0,
+	CX25840_ANALNE0_CH3 = 0x80000080,
+	CX25840_ANALNE1_CH3 = 0x800000c0,
 	CX25840_SVIDEO_ON = 0x80000100,
 	CX25840_COMPONENT_ON = 0x80000200,
 	CX25840_DIF_ON = 0x80000400,
@@ -130,17 +130,17 @@ enum cx25840_video_input {
 
 #define CX25840_VCONFIG_VALID_SHIFT 13
 #define CX25840_VCONFIG_VALID_MASK GENMASK(14, 13)
-#define CX25840_VCONFIG_VALID_NORMAL BIT(13)
+#define CX25840_VCONFIG_VALID_ANALRMAL BIT(13)
 #define CX25840_VCONFIG_VALID_ANDACTIVE BIT(14)
 
 #define CX25840_VCONFIG_HRESETW_SHIFT 15
 #define CX25840_VCONFIG_HRESETW_MASK GENMASK(16, 15)
-#define CX25840_VCONFIG_HRESETW_NORMAL BIT(15)
+#define CX25840_VCONFIG_HRESETW_ANALRMAL BIT(15)
 #define CX25840_VCONFIG_HRESETW_PIXCLK BIT(16)
 
 #define CX25840_VCONFIG_CLKGATE_SHIFT 17
 #define CX25840_VCONFIG_CLKGATE_MASK GENMASK(18, 17)
-#define CX25840_VCONFIG_CLKGATE_NONE BIT(17)
+#define CX25840_VCONFIG_CLKGATE_ANALNE BIT(17)
 #define CX25840_VCONFIG_CLKGATE_VALID BIT(18)
 #define CX25840_VCONFIG_CLKGATE_VALIDACTIVE GENMASK(18, 17)
 
@@ -151,7 +151,7 @@ enum cx25840_video_input {
 
 #define CX25840_VCONFIG_IDID0S_SHIFT 21
 #define CX25840_VCONFIG_IDID0S_MASK GENMASK(22, 21)
-#define CX25840_VCONFIG_IDID0S_NORMAL BIT(21)
+#define CX25840_VCONFIG_IDID0S_ANALRMAL BIT(21)
 #define CX25840_VCONFIG_IDID0S_LINECNT BIT(22)
 
 #define CX25840_VCONFIG_VIPCLAMP_SHIFT 23

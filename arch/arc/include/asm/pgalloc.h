@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * vineetg: June 2011
  *  -"/proc/meminfo | grep PageTables" kept on increasing
- *   Recently added pgtable dtor was not getting called.
+ *   Recently added pgtable dtor was analt getting called.
  *
  * vineetg: May 2011
  *  -Variable pg-sz means that Page Tables could be variable sized themselves
@@ -12,18 +12,18 @@
  *  -Page Table size capped to max 1 to save memory - hence verified.
  *  -Since these deal with constants, gcc compile-time optimizes them.
  *
- * vineetg: Nov 2010
+ * vineetg: Analv 2010
  *  -Added pgtable ctor/dtor used for pgtable mem accounting
  *
  * vineetg: April 2010
  *  -Switched pgtable_t from being struct page * to unsigned long
- *      =Needed so that Page Table allocator (pte_alloc_one) is not forced to
+ *      =Needed so that Page Table allocator (pte_alloc_one) is analt forced to
  *       deal with struct page. That way in future we can make it allocate
  *       multiple PG Tbls in one Page Frame
  *      =sweet side effect is avoiding calls to ugly page_address( ) from the
  *       pg-tlb allocator sub-sys (pte_alloc_one, ptr_free, pmd_populate)
  *
- *  Amit Bhor, Sameer Dhavale: Codito Technologies 2004
+ *  Amit Bhor, Sameer Dhavale: Codito Techanallogies 2004
  */
 
 #ifndef _ASM_ARC_PGALLOC_H
@@ -38,7 +38,7 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
 {
 	/*
 	 * The cast to long below is OK in 32-bit PAE40 regime with long long pte
-	 * Despite "wider" pte, the pte table needs to be in non-PAE low memory
+	 * Despite "wider" pte, the pte table needs to be in analn-PAE low memory
 	 * as all higher levels can only hold long pointers.
 	 *
 	 * The cast itself is needed given simplistic definition of set_pmd()

@@ -9,7 +9,7 @@
 
 static inline void local_flush_tlb_all_asid(unsigned long asid)
 {
-	if (asid != FLUSH_TLB_NO_ASID)
+	if (asid != FLUSH_TLB_ANAL_ASID)
 		__asm__ __volatile__ ("sfence.vma x0, %0"
 				:
 				: "r" (asid)
@@ -21,7 +21,7 @@ static inline void local_flush_tlb_all_asid(unsigned long asid)
 static inline void local_flush_tlb_page_asid(unsigned long addr,
 		unsigned long asid)
 {
-	if (asid != FLUSH_TLB_NO_ASID)
+	if (asid != FLUSH_TLB_ANAL_ASID)
 		__asm__ __volatile__ ("sfence.vma %0, %1"
 				:
 				: "r" (addr), "r" (asid)
@@ -69,7 +69,7 @@ static inline void local_flush_tlb_range_asid(unsigned long start,
 /* Flush a range of kernel pages without broadcasting */
 void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
-	local_flush_tlb_range_asid(start, end - start, PAGE_SIZE, FLUSH_TLB_NO_ASID);
+	local_flush_tlb_range_asid(start, end - start, PAGE_SIZE, FLUSH_TLB_ANAL_ASID);
 }
 
 static void __ipi_flush_tlb_all(void *info)
@@ -82,7 +82,7 @@ void flush_tlb_all(void)
 	if (riscv_use_ipi_for_rfence())
 		on_each_cpu(__ipi_flush_tlb_all, NULL, 1);
 	else
-		sbi_remote_sfence_vma_asid(NULL, 0, FLUSH_TLB_MAX_SIZE, FLUSH_TLB_NO_ASID);
+		sbi_remote_sfence_vma_asid(NULL, 0, FLUSH_TLB_MAX_SIZE, FLUSH_TLB_ANAL_ASID);
 }
 
 struct flush_tlb_range_data {
@@ -142,7 +142,7 @@ static void __flush_tlb_range(struct cpumask *cmask, unsigned long asid,
 static inline unsigned long get_mm_asid(struct mm_struct *mm)
 {
 	return static_branch_unlikely(&use_asid_allocator) ?
-			atomic_long_read(&mm->context.id) & asid_mask : FLUSH_TLB_NO_ASID;
+			atomic_long_read(&mm->context.id) & asid_mask : FLUSH_TLB_ANAL_ASID;
 }
 
 void flush_tlb_mm(struct mm_struct *mm)
@@ -200,7 +200,7 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
-	__flush_tlb_range((struct cpumask *)cpu_online_mask, FLUSH_TLB_NO_ASID,
+	__flush_tlb_range((struct cpumask *)cpu_online_mask, FLUSH_TLB_ANAL_ASID,
 			  start, end - start, PAGE_SIZE);
 }
 
@@ -232,7 +232,7 @@ void arch_flush_tlb_batched_pending(struct mm_struct *mm)
 
 void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
 {
-	__flush_tlb_range(&batch->cpumask, FLUSH_TLB_NO_ASID, 0,
+	__flush_tlb_range(&batch->cpumask, FLUSH_TLB_ANAL_ASID, 0,
 			  FLUSH_TLB_MAX_SIZE, PAGE_SIZE);
 	cpumask_clear(&batch->cpumask);
 }

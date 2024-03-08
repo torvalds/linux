@@ -85,8 +85,8 @@
 #define CFG_GET_VF_SRN(cfg)         ((cfg)->sriov_cfg.vf_srn)
 
 #define CFG_GET_IOQ_MSIX(cfg)            ((cfg)->msix_cfg.ioq_msix)
-#define CFG_GET_NON_IOQ_MSIX(cfg)        ((cfg)->msix_cfg.non_ioq_msix)
-#define CFG_GET_NON_IOQ_MSIX_NAMES(cfg)  ((cfg)->msix_cfg.non_ioq_msix_names)
+#define CFG_GET_ANALN_IOQ_MSIX(cfg)        ((cfg)->msix_cfg.analn_ioq_msix)
+#define CFG_GET_ANALN_IOQ_MSIX_NAMES(cfg)  ((cfg)->msix_cfg.analn_ioq_msix_names)
 
 #define CFG_GET_CTRL_MBOX_MEM_ADDR(cfg)  ((cfg)->ctrl_mbox_cfg.barmem_addr)
 
@@ -125,7 +125,7 @@ struct octep_oq_config {
 
 	/* Interrupt Coalescing (Packet Count). Octeon will interrupt the host
 	 * only if it sent as many packets as specified by this field.
-	 * The driver usually does not use packet count interrupt coalescing.
+	 * The driver usually does analt use packet count interrupt coalescing.
 	 */
 	u32 oq_intr_pkt;
 
@@ -178,11 +178,11 @@ struct octep_msix_config {
 	/* Number of IOQ interrupts */
 	u16 ioq_msix;
 
-	/* Number of Non IOQ interrupts */
-	u16 non_ioq_msix;
+	/* Number of Analn IOQ interrupts */
+	u16 analn_ioq_msix;
 
-	/* Names of Non IOQ interrupts */
-	char **non_ioq_msix_names;
+	/* Names of Analn IOQ interrupts */
+	char **analn_ioq_msix_names;
 };
 
 struct octep_ctrl_mbox_config {

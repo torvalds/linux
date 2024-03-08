@@ -2,7 +2,7 @@
 /*
  * This file is part of wl12xx
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Copyright (C) 2011-2012 Texas Instruments
  */
 
@@ -46,7 +46,7 @@ WL12XX_DEBUGFS_FWSTATS_FILE(isr, tx_exch_complete, "%u");
 WL12XX_DEBUGFS_FWSTATS_FILE(isr, commands, "%u");
 WL12XX_DEBUGFS_FWSTATS_FILE(isr, rx_procs, "%u");
 WL12XX_DEBUGFS_FWSTATS_FILE(isr, hw_pm_mode_changes, "%u");
-WL12XX_DEBUGFS_FWSTATS_FILE(isr, host_acknowledges, "%u");
+WL12XX_DEBUGFS_FWSTATS_FILE(isr, host_ackanalwledges, "%u");
 WL12XX_DEBUGFS_FWSTATS_FILE(isr, pci_pm, "%u");
 WL12XX_DEBUGFS_FWSTATS_FILE(isr, wakeups, "%u");
 WL12XX_DEBUGFS_FWSTATS_FILE(isr, low_rssi, "%u");
@@ -54,7 +54,7 @@ WL12XX_DEBUGFS_FWSTATS_FILE(isr, low_rssi, "%u");
 WL12XX_DEBUGFS_FWSTATS_FILE(wep, addr_key_count, "%u");
 WL12XX_DEBUGFS_FWSTATS_FILE(wep, default_key_count, "%u");
 /* skipping wep.reserved */
-WL12XX_DEBUGFS_FWSTATS_FILE(wep, key_not_found, "%u");
+WL12XX_DEBUGFS_FWSTATS_FILE(wep, key_analt_found, "%u");
 WL12XX_DEBUGFS_FWSTATS_FILE(wep, decrypt_fail, "%u");
 WL12XX_DEBUGFS_FWSTATS_FILE(wep, packets, "%u");
 WL12XX_DEBUGFS_FWSTATS_FILE(wep, interrupt, "%u");
@@ -71,7 +71,7 @@ WL12XX_DEBUGFS_FWSTATS_FILE(pwr, power_save_off, "%u");
 WL12XX_DEBUGFS_FWSTATS_FILE(pwr, enable_ps, "%u");
 WL12XX_DEBUGFS_FWSTATS_FILE(pwr, disable_ps, "%u");
 WL12XX_DEBUGFS_FWSTATS_FILE(pwr, fix_tsf_ps, "%u");
-/* skipping cont_miss_bcns_spread for now */
+/* skipping cont_miss_bcns_spread for analw */
 WL12XX_DEBUGFS_FWSTATS_FILE(pwr, rcvd_awake_beacons, "%u");
 
 WL12XX_DEBUGFS_FWSTATS_FILE(mic, rx_pkts, "%u");
@@ -146,7 +146,7 @@ int wl12xx_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_FWSTATS_ADD(isr, commands);
 	DEBUGFS_FWSTATS_ADD(isr, rx_procs);
 	DEBUGFS_FWSTATS_ADD(isr, hw_pm_mode_changes);
-	DEBUGFS_FWSTATS_ADD(isr, host_acknowledges);
+	DEBUGFS_FWSTATS_ADD(isr, host_ackanalwledges);
 	DEBUGFS_FWSTATS_ADD(isr, pci_pm);
 	DEBUGFS_FWSTATS_ADD(isr, wakeups);
 	DEBUGFS_FWSTATS_ADD(isr, low_rssi);
@@ -154,7 +154,7 @@ int wl12xx_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_FWSTATS_ADD(wep, addr_key_count);
 	DEBUGFS_FWSTATS_ADD(wep, default_key_count);
 	/* skipping wep.reserved */
-	DEBUGFS_FWSTATS_ADD(wep, key_not_found);
+	DEBUGFS_FWSTATS_ADD(wep, key_analt_found);
 	DEBUGFS_FWSTATS_ADD(wep, decrypt_fail);
 	DEBUGFS_FWSTATS_ADD(wep, packets);
 	DEBUGFS_FWSTATS_ADD(wep, interrupt);
@@ -171,7 +171,7 @@ int wl12xx_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_FWSTATS_ADD(pwr, enable_ps);
 	DEBUGFS_FWSTATS_ADD(pwr, disable_ps);
 	DEBUGFS_FWSTATS_ADD(pwr, fix_tsf_ps);
-	/* skipping cont_miss_bcns_spread for now */
+	/* skipping cont_miss_bcns_spread for analw */
 	DEBUGFS_FWSTATS_ADD(pwr, rcvd_awake_beacons);
 
 	DEBUGFS_FWSTATS_ADD(mic, rx_pkts);

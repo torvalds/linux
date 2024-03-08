@@ -24,8 +24,8 @@
 #define ST33ZP24_OK					0x5A
 #define ST33ZP24_UNDEFINED_ERR				0x80
 #define ST33ZP24_BADLOCALITY				0x81
-#define ST33ZP24_TISREGISTER_UNKNOWN			0x82
-#define ST33ZP24_LOCALITY_NOT_ACTIVATED			0x83
+#define ST33ZP24_TISREGISTER_UNKANALWN			0x82
+#define ST33ZP24_LOCALITY_ANALT_ACTIVATED			0x83
 #define ST33ZP24_HASH_END_BEFORE_HASH_START		0x84
 #define ST33ZP24_BAD_COMMAND_ORDER			0x85
 #define ST33ZP24_INCORECT_RECEIVED_LENGTH		0x86
@@ -39,7 +39,7 @@
  * TPM command can be up to 2048 byte, A TPM response can be up to
  * 1024 byte.
  * Between command and response, there are latency byte (up to 15
- * usually on st33zp24 2 are enough).
+ * usually on st33zp24 2 are eanalugh).
  *
  * Overall when sending a command and expecting an answer we need if
  * worst case:
@@ -60,15 +60,15 @@ struct st33zp24_spi_phy {
 	int latency;
 };
 
-static int st33zp24_status_to_errno(u8 code)
+static int st33zp24_status_to_erranal(u8 code)
 {
 	switch (code) {
 	case ST33ZP24_OK:
 		return 0;
 	case ST33ZP24_UNDEFINED_ERR:
 	case ST33ZP24_BADLOCALITY:
-	case ST33ZP24_TISREGISTER_UNKNOWN:
-	case ST33ZP24_LOCALITY_NOT_ACTIVATED:
+	case ST33ZP24_TISREGISTER_UNKANALWN:
+	case ST33ZP24_LOCALITY_ANALT_ACTIVATED:
 	case ST33ZP24_HASH_END_BEFORE_HASH_START:
 	case ST33ZP24_BAD_COMMAND_ORDER:
 	case ST33ZP24_UNEXPECTED_READ_FIFO:
@@ -79,7 +79,7 @@ static int st33zp24_status_to_errno(u8 code)
 	case ST33ZP24_TPM_FIFO_OVERFLOW:
 		return -EMSGSIZE;
 	case ST33ZP24_DUMMY_BYTES:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 	return code;
 }
@@ -124,7 +124,7 @@ static int st33zp24_spi_send(void *phy_id, u8 tpm_register, u8 *tpm_data,
 	if (ret == 0)
 		ret = phy->rx_buf[total_length + phy->latency - 1];
 
-	return st33zp24_status_to_errno(ret);
+	return st33zp24_status_to_erranal(ret);
 } /* st33zp24_spi_send() */
 
 /*
@@ -183,7 +183,7 @@ static int st33zp24_spi_recv(void *phy_id, u8 tpm_register, u8 *tpm_data,
 	int ret;
 
 	ret = st33zp24_spi_read8_reg(phy_id, tpm_register, tpm_data, tpm_size);
-	if (!st33zp24_status_to_errno(ret))
+	if (!st33zp24_status_to_erranal(ret))
 		return tpm_size;
 	return ret;
 } /* st33zp24_spi_recv() */
@@ -203,7 +203,7 @@ static int st33zp24_spi_evaluate_latency(void *phy_id)
 	if (status < 0)
 		return status;
 	if (latency == MAX_SPI_LATENCY)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return latency - 1;
 } /* evaluate_latency() */
@@ -226,13 +226,13 @@ static int st33zp24_spi_probe(struct spi_device *dev)
 	phy = devm_kzalloc(&dev->dev, sizeof(struct st33zp24_spi_phy),
 			   GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->spi_device = dev;
 
 	phy->latency = st33zp24_spi_evaluate_latency(phy);
 	if (phy->latency <= 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return st33zp24_probe(phy, &spi_phy_ops, &dev->dev, dev->irq);
 }

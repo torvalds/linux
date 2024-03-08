@@ -15,9 +15,9 @@
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
 /*
- * Due to -fpatchable-function-entry=2, the compiler has placed two NOPs before
- * the regular function prologue. For an enabled callsite, ftrace_init_nop() and
- * ftrace_make_call() have patched those NOPs to:
+ * Due to -fpatchable-function-entry=2, the compiler has placed two ANALPs before
+ * the regular function prologue. For an enabled callsite, ftrace_init_analp() and
+ * ftrace_make_call() have patched those ANALPs to:
  *
  * 	MOV	X9, LR
  * 	BL	ftrace_caller
@@ -28,7 +28,7 @@
  *
  * We save the callsite's context into a struct ftrace_regs before invoking any
  * ftrace callbacks. So that we can get a sensible backtrace, we create frame
- * records for the callsite and the ftrace entry assembly. This is not
+ * records for the callsite and the ftrace entry assembly. This is analt
  * sufficient for reliable stacktrace: until we create the callsite stack
  * record, its caller is missing from the LR and existing chain of frame
  * records.
@@ -145,7 +145,7 @@ SYM_INNER_LABEL(ftrace_caller_direct_late, SYM_L_LOCAL)
 	/*
 	 * Head to a direct trampoline in x17 after having run other tracers.
 	 * The ftrace_regs are live, and x0-x8 and FP have been restored. The
-	 * LR, PC, and SP have not been restored.
+	 * LR, PC, and SP have analt been restored.
 	 */
 
 	/*
@@ -163,7 +163,7 @@ SYM_INNER_LABEL(ftrace_caller_direct, SYM_L_LOCAL)
 	 * Head to a direct trampoline in x17.
 	 *
 	 * We use `BR X17` as this can safely land on a `BTI C` or `PACIASP` in
-	 * the trampoline, and will not unbalance any return stack.
+	 * the trampoline, and will analt unbalance any return stack.
 	 */
 	br	x17
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */
@@ -185,10 +185,10 @@ SYM_CODE_END(ftrace_stub_direct_tramp)
  *      mov x0, x30
  *      bl _mcount
  *	[function's body ...]
- * "bl _mcount" may be replaced to "bl ftrace_caller" or NOP if dynamic
+ * "bl _mcount" may be replaced to "bl ftrace_caller" or ANALP if dynamic
  * ftrace is enabled.
  *
- * Please note that x0 as an argument will not be used here because we can
+ * Please analte that x0 as an argument will analt be used here because we can
  * get lr(x30) of instrumented function at any time by winding up call stack
  * as long as the kernel is compiled without -fomit-frame-pointer.
  * (or CONFIG_FRAME_POINTER, this is forced on arm64)
@@ -254,15 +254,15 @@ SYM_CODE_END(ftrace_stub_direct_tramp)
 
 /*
  * _mcount() is used to build the kernel with -pg option, but all the branch
- * instructions to _mcount() are replaced to NOP initially at kernel start up,
- * and later on, NOP to branch to ftrace_caller() when enabled or branch to
- * NOP when disabled per-function base.
+ * instructions to _mcount() are replaced to ANALP initially at kernel start up,
+ * and later on, ANALP to branch to ftrace_caller() when enabled or branch to
+ * ANALP when disabled per-function base.
  */
 SYM_FUNC_START(_mcount)
 	ret
 SYM_FUNC_END(_mcount)
 EXPORT_SYMBOL(_mcount)
-NOKPROBE(_mcount)
+ANALKPROBE(_mcount)
 
 /*
  * void ftrace_caller(unsigned long return_address)
@@ -280,12 +280,12 @@ SYM_FUNC_START(ftrace_caller)
 	mcount_get_lr	x1		//     function's lr
 
 SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)	// tracer(pc, lr);
-	nop				// This will be replaced with "bl xxx"
+	analp				// This will be replaced with "bl xxx"
 					// where xxx can be any kind of tracer.
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 SYM_INNER_LABEL(ftrace_graph_call, SYM_L_GLOBAL) // ftrace_graph_caller();
-	nop				// If enabled, this will be replaced
+	analp				// If enabled, this will be replaced
 					// "b ftrace_graph_caller"
 #endif
 

@@ -7,14 +7,14 @@ Description:
 		for the bias current.
 
 		============	  ============================================
-		normal		  Normal measurement configurations (default)
+		analrmal		  Analrmal measurement configurations (default)
 		positivebias	  Positive bias configuration
 		negativebias	  Negative bias configuration
 		disabled	  Only available on HMC5983. Disables magnetic
 				  sensor and enables temperature sensor.
 		============	  ============================================
 
-		Note:
+		Analte:
 		  The effect of this configuration may vary
 		  according to the device. For exact documentation
 		  check the device's datasheet.

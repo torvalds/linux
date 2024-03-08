@@ -60,9 +60,9 @@ int intc_irq_lookup(const char *chipname, intc_enum enum_id)
 			continue;
 
 		/*
-		 * Catch early lookups for subgroup VIRQs that have not
+		 * Catch early lookups for subgroup VIRQs that have analt
 		 * yet been allocated an IRQ. This already includes a
-		 * fast-path out if the tree is untagged, so there is no
+		 * fast-path out if the tree is untagged, so there is anal
 		 * need to explicitly test the root tree.
 		 */
 		tagged = radix_tree_tag_get(&d->tree, enum_id,
@@ -95,7 +95,7 @@ static int add_virq_to_pirq(unsigned int irq, unsigned int virq)
 
 	entry = kzalloc(sizeof(struct intc_virq_list), GFP_ATOMIC);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->irq = virq;
 
@@ -168,7 +168,7 @@ static void __init intc_subgroup_init_one(struct intc_desc *desc,
 		if (!subgroup->enum_ids[i])
 			continue;
 
-		entry = kmalloc(sizeof(*entry), GFP_NOWAIT);
+		entry = kmalloc(sizeof(*entry), GFP_ANALWAIT);
 		if (!entry)
 			break;
 
@@ -222,9 +222,9 @@ restart:
 		if (radix_tree_deref_retry(entry))
 			goto restart;
 
-		irq = irq_alloc_desc(numa_node_id());
+		irq = irq_alloc_desc(numa_analde_id());
 		if (unlikely(irq < 0)) {
-			pr_err("no more free IRQs, bailing..\n");
+			pr_err("anal more free IRQs, bailing..\n");
 			break;
 		}
 
@@ -242,9 +242,9 @@ restart:
 		irq_set_handler_data(irq, (void *)entry->handle);
 
 		/*
-		 * Set the virtual IRQ as non-threadable.
+		 * Set the virtual IRQ as analn-threadable.
 		 */
-		irq_set_nothread(irq);
+		irq_set_analthread(irq);
 
 		/* Set handler data before installing the handler */
 		add_virq_to_pirq(entry->pirq, irq);

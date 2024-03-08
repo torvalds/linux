@@ -1,4 +1,4 @@
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/arvo/roccatarvo<minor>/actual_profile
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/arvo/roccatarvo<mianalr>/actual_profile
 Date:		Januar 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The integer value of this attribute ranges from 1-5.
@@ -8,7 +8,7 @@ Description:	The integer value of this attribute ranges from 1-5.
 		immediately.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/arvo/roccatarvo<minor>/button
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/arvo/roccatarvo<mianalr>/button
 Date:		Januar 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The keyboard can store short macros with consist of 1 button with
@@ -19,7 +19,7 @@ Description:	The keyboard can store short macros with consist of 1 button with
 		This file is writeonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/arvo/roccatarvo<minor>/info
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/arvo/roccatarvo<mianalr>/info
 Date:		Januar 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When read, this file returns some info about the device like the
@@ -28,7 +28,7 @@ Description:	When read, this file returns some info about the device like the
 		This file is readonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/arvo/roccatarvo<minor>/key_mask
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/arvo/roccatarvo<mianalr>/key_mask
 Date:		Januar 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The keyboard lets the user deactivate 5 certain keys like the
@@ -41,7 +41,7 @@ Description:	The keyboard lets the user deactivate 5 certain keys like the
 		immediately.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/arvo/roccatarvo<minor>/mode_key
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/arvo/roccatarvo<mianalr>/mode_key
 Date:		Januar 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The keyboard has a condensed layout without num-lock key.

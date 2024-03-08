@@ -322,7 +322,7 @@ static void gen11_sseu_info_init(struct intel_gt *gt)
 
 	gen11_compute_sseu_info(sseu, ss_en, eu_en);
 
-	/* ICL has no power gating restrictions. */
+	/* ICL has anal power gating restrictions. */
 	sseu->has_slice_pg = 1;
 	sseu->has_subslice_pg = 1;
 	sseu->has_eu_pg = 1;
@@ -632,7 +632,7 @@ static void hsw_sseu_info_init(struct intel_gt *gt)
 
 	sseu->eu_total = compute_eu_total(sseu);
 
-	/* No powergating for you. */
+	/* Anal powergating for you. */
 	sseu->has_slice_pg = 0;
 	sseu->has_subslice_pg = 0;
 	sseu->has_eu_pg = 0;
@@ -668,7 +668,7 @@ u32 intel_sseu_make_rpcs(struct intel_gt *gt,
 	u32 rpcs = 0;
 
 	/*
-	 * No explicit RPCS request is needed to ensure full
+	 * Anal explicit RPCS request is needed to ensure full
 	 * slice/subslice/EU enablement prior to Gen9.
 	 */
 	if (GRAPHICS_VER(i915) < 9)
@@ -700,10 +700,10 @@ u32 intel_sseu_make_rpcs(struct intel_gt *gt,
 	 * be enabled instead.
 	 *
 	 * 2.
-	 * When more than one slice is enabled, hardware ignores the subslice
+	 * When more than one slice is enabled, hardware iganalres the subslice
 	 * count altogether.
 	 *
-	 * From these restrictions it follows that it is not possible to enable
+	 * From these restrictions it follows that it is analt possible to enable
 	 * a count of subslices between the SScount maximum of four restriction,
 	 * and the maximum available number on a particular SKU. Either all
 	 * subslices are enabled, or a count between one and four on the first
@@ -803,11 +803,11 @@ void intel_sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p)
 	drm_printf(p, "EU total: %u\n", sseu->eu_total);
 	drm_printf(p, "EU per subslice: %u\n", sseu->eu_per_subslice);
 	drm_printf(p, "has slice power gating: %s\n",
-		   str_yes_no(sseu->has_slice_pg));
+		   str_anal_anal(sseu->has_slice_pg));
 	drm_printf(p, "has subslice power gating: %s\n",
-		   str_yes_no(sseu->has_subslice_pg));
+		   str_anal_anal(sseu->has_subslice_pg));
 	drm_printf(p, "has EU power gating: %s\n",
-		   str_yes_no(sseu->has_eu_pg));
+		   str_anal_anal(sseu->has_eu_pg));
 }
 
 static void sseu_print_hsw_topology(const struct sseu_dev_info *sseu,
@@ -839,8 +839,8 @@ static void sseu_print_xehp_topology(const struct sseu_dev_info *sseu,
 		u16 enabled_eus = sseu_get_eus(sseu, 0, dss);
 
 		drm_printf(p, "DSS_%02d: G:%3s C:%3s, %2u EUs (0x%04hx)\n", dss,
-			   str_yes_no(test_bit(dss, sseu->geometry_subslice_mask.xehp)),
-			   str_yes_no(test_bit(dss, sseu->compute_subslice_mask.xehp)),
+			   str_anal_anal(test_bit(dss, sseu->geometry_subslice_mask.xehp)),
+			   str_anal_anal(test_bit(dss, sseu->compute_subslice_mask.xehp)),
 			   hweight16(enabled_eus), enabled_eus);
 	}
 }

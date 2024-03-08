@@ -25,12 +25,12 @@
 	"%s/devices/system/cpu/cpu%d/topology/core_cpus_list"
 #define CORE_CPUS_FMT_OLD \
 	"%s/devices/system/cpu/cpu%d/topology/thread_siblings_list"
-#define NODE_ONLINE_FMT \
-	"%s/devices/system/node/online"
-#define NODE_MEMINFO_FMT \
-	"%s/devices/system/node/node%d/meminfo"
-#define NODE_CPULIST_FMT \
-	"%s/devices/system/node/node%d/cpulist"
+#define ANALDE_ONLINE_FMT \
+	"%s/devices/system/analde/online"
+#define ANALDE_MEMINFO_FMT \
+	"%s/devices/system/analde/analde%d/meminfo"
+#define ANALDE_CPULIST_FMT \
+	"%s/devices/system/analde/analde%d/cpulist"
 
 static int build_cpu_topology(struct cpu_topology *tp, int cpu)
 {
@@ -203,7 +203,7 @@ bool cpu_topology__core_wide(const struct cpu_topology *topology,
 				 * If the first core CPU is user requested then
 				 * all subsequent CPUs in the core must be user
 				 * requested too. If the first CPU isn't user
-				 * requested then none of the others must be
+				 * requested then analne of the others must be
 				 * too.
 				 */
 				if (perf_cpu_map__has(user_requested_cpus, cpu) != has_first) {
@@ -312,7 +312,7 @@ out_free:
 	return tp;
 }
 
-static int load_numa_node(struct numa_topology_node *node, int nr)
+static int load_numa_analde(struct numa_topology_analde *analde, int nr)
 {
 	char str[MAXPATHLEN];
 	char field[32];
@@ -322,9 +322,9 @@ static int load_numa_node(struct numa_topology_node *node, int nr)
 	FILE *fp;
 	u64 mem;
 
-	node->node = (u32) nr;
+	analde->analde = (u32) nr;
 
-	scnprintf(str, MAXPATHLEN, NODE_MEMINFO_FMT,
+	scnprintf(str, MAXPATHLEN, ANALDE_MEMINFO_FMT,
 		  sysfs__mountpoint(), nr);
 	fp = fopen(str, "r");
 	if (!fp)
@@ -337,17 +337,17 @@ static int load_numa_node(struct numa_topology_node *node, int nr)
 		if (sscanf(buf, "%*s %*d %31s %"PRIu64, field, &mem) != 2)
 			goto err;
 		if (!strcmp(field, "MemTotal:"))
-			node->mem_total = mem;
+			analde->mem_total = mem;
 		if (!strcmp(field, "MemFree:"))
-			node->mem_free = mem;
-		if (node->mem_total && node->mem_free)
+			analde->mem_free = mem;
+		if (analde->mem_total && analde->mem_free)
 			break;
 	}
 
 	fclose(fp);
 	fp = NULL;
 
-	scnprintf(str, MAXPATHLEN, NODE_CPULIST_FMT,
+	scnprintf(str, MAXPATHLEN, ANALDE_CPULIST_FMT,
 		  sysfs__mountpoint(), nr);
 
 	fp = fopen(str, "r");
@@ -361,7 +361,7 @@ static int load_numa_node(struct numa_topology_node *node, int nr)
 	if (p)
 		*p = '\0';
 
-	node->cpus = buf;
+	analde->cpus = buf;
 	fclose(fp);
 	return 0;
 
@@ -374,7 +374,7 @@ err:
 
 struct numa_topology *numa_topology__new(void)
 {
-	struct perf_cpu_map *node_map = NULL;
+	struct perf_cpu_map *analde_map = NULL;
 	struct numa_topology *tp = NULL;
 	char path[MAXPATHLEN];
 	char *buf = NULL;
@@ -383,7 +383,7 @@ struct numa_topology *numa_topology__new(void)
 	FILE *fp;
 	char *c;
 
-	scnprintf(path, MAXPATHLEN, NODE_ONLINE_FMT,
+	scnprintf(path, MAXPATHLEN, ANALDE_ONLINE_FMT,
 		  sysfs__mountpoint());
 
 	fp = fopen(path, "r");
@@ -397,20 +397,20 @@ struct numa_topology *numa_topology__new(void)
 	if (c)
 		*c = '\0';
 
-	node_map = perf_cpu_map__new(buf);
-	if (!node_map)
+	analde_map = perf_cpu_map__new(buf);
+	if (!analde_map)
 		goto out;
 
-	nr = (u32) perf_cpu_map__nr(node_map);
+	nr = (u32) perf_cpu_map__nr(analde_map);
 
-	tp = zalloc(sizeof(*tp) + sizeof(tp->nodes[0])*nr);
+	tp = zalloc(sizeof(*tp) + sizeof(tp->analdes[0])*nr);
 	if (!tp)
 		goto out;
 
 	tp->nr = nr;
 
 	for (i = 0; i < nr; i++) {
-		if (load_numa_node(&tp->nodes[i], perf_cpu_map__cpu(node_map, i).cpu)) {
+		if (load_numa_analde(&tp->analdes[i], perf_cpu_map__cpu(analde_map, i).cpu)) {
 			numa_topology__delete(tp);
 			tp = NULL;
 			break;
@@ -420,7 +420,7 @@ struct numa_topology *numa_topology__new(void)
 out:
 	free(buf);
 	fclose(fp);
-	perf_cpu_map__put(node_map);
+	perf_cpu_map__put(analde_map);
 	return tp;
 }
 
@@ -429,20 +429,20 @@ void numa_topology__delete(struct numa_topology *tp)
 	u32 i;
 
 	for (i = 0; i < tp->nr; i++)
-		zfree(&tp->nodes[i].cpus);
+		zfree(&tp->analdes[i].cpus);
 
 	free(tp);
 }
 
-static int load_hybrid_node(struct hybrid_topology_node *node,
+static int load_hybrid_analde(struct hybrid_topology_analde *analde,
 			    struct perf_pmu *pmu)
 {
 	char *buf = NULL, *p;
 	FILE *fp;
 	size_t len = 0;
 
-	node->pmu_name = strdup(pmu->name);
-	if (!node->pmu_name)
+	analde->pmu_name = strdup(pmu->name);
+	if (!analde->pmu_name)
 		return -1;
 
 	fp = perf_pmu__open_file(pmu, "cpus");
@@ -459,11 +459,11 @@ static int load_hybrid_node(struct hybrid_topology_node *node,
 		*p = '\0';
 
 	fclose(fp);
-	node->cpus = buf;
+	analde->cpus = buf;
 	return 0;
 
 err:
-	zfree(&node->pmu_name);
+	zfree(&analde->pmu_name);
 	free(buf);
 	return -1;
 }
@@ -477,13 +477,13 @@ struct hybrid_topology *hybrid_topology__new(void)
 	if (nr <= 1)
 		return NULL;
 
-	tp = zalloc(sizeof(*tp) + sizeof(tp->nodes[0]) * nr);
+	tp = zalloc(sizeof(*tp) + sizeof(tp->analdes[0]) * nr);
 	if (!tp)
 		return NULL;
 
 	tp->nr = nr;
 	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
-		if (load_hybrid_node(&tp->nodes[i], pmu)) {
+		if (load_hybrid_analde(&tp->analdes[i], pmu)) {
 			hybrid_topology__delete(tp);
 			return NULL;
 		}
@@ -498,8 +498,8 @@ void hybrid_topology__delete(struct hybrid_topology *tp)
 	u32 i;
 
 	for (i = 0; i < tp->nr; i++) {
-		zfree(&tp->nodes[i].pmu_name);
-		zfree(&tp->nodes[i].cpus);
+		zfree(&tp->analdes[i].pmu_name);
+		zfree(&tp->analdes[i].cpus);
 	}
 
 	free(tp);

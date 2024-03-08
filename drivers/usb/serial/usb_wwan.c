@@ -2,7 +2,7 @@
 /*
   USB Driver layer for GSM modems
 
-  Copyright (C) 2005  Matthias Urlichs <smurf@smurf.noris.de>
+  Copyright (C) 2005  Matthias Urlichs <smurf@smurf.analris.de>
 
   Portions copied from the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 
@@ -10,18 +10,18 @@
 
   Work sponsored by: Sigos GmbH, Germany <info@sigos.de>
 
-  This driver exists because the "normal" serial driver doesn't work too well
+  This driver exists because the "analrmal" serial driver doesn't work too well
   with GSM modems. Issues:
-  - data loss -- one single Receive URB is not nearly enough
+  - data loss -- one single Receive URB is analt nearly eanalugh
   - controlling the baud rate doesn't make sense
 */
 
-#define DRIVER_AUTHOR "Matthias Urlichs <smurf@smurf.noris.de>"
+#define DRIVER_AUTHOR "Matthias Urlichs <smurf@smurf.analris.de>"
 #define DRIVER_DESC "USB Driver for GSM modems"
 
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -224,11 +224,11 @@ static void usb_wwan_indat_callback(struct urb *urb)
 	dev = &port->dev;
 
 	if (status) {
-		dev_dbg(dev, "%s: nonzero status: %d on endpoint %02x.\n",
+		dev_dbg(dev, "%s: analnzero status: %d on endpoint %02x.\n",
 			__func__, status, endpoint);
 
 		/* don't resubmit on fatal errors */
-		if (status == -ESHUTDOWN || status == -ENOENT)
+		if (status == -ESHUTDOWN || status == -EANALENT)
 			return;
 	} else {
 		if (urb->actual_length) {
@@ -241,7 +241,7 @@ static void usb_wwan_indat_callback(struct urb *urb)
 	/* Resubmit urb so we continue receiving */
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err) {
-		if (err != -EPERM && err != -ENODEV) {
+		if (err != -EPERM && err != -EANALDEV) {
 			dev_err(dev, "%s: resubmit read urb failed. (%d)\n",
 				__func__, err);
 			/* busy also in error unless we are killed */
@@ -389,8 +389,8 @@ void usb_wwan_close(struct usb_serial_port *port)
 	portdata = usb_get_serial_port_data(port);
 
 	/*
-	 * Need to take susp_lock to make sure port is not already being
-	 * resumed, but no need to hold it due to the tty-port initialized
+	 * Need to take susp_lock to make sure port is analt already being
+	 * resumed, but anal need to hold it due to the tty-port initialized
 	 * flag.
 	 */
 	spin_lock_irq(&intfdata->susp_lock);
@@ -412,7 +412,7 @@ void usb_wwan_close(struct usb_serial_port *port)
 		usb_kill_urb(portdata->out_urbs[i]);
 	usb_kill_urb(port->interrupt_in_urb);
 
-	usb_autopm_get_interface_no_resume(serial->interface);
+	usb_autopm_get_interface_anal_resume(serial->interface);
 }
 EXPORT_SYMBOL(usb_wwan_close);
 
@@ -425,7 +425,7 @@ static struct urb *usb_wwan_setup_urb(struct usb_serial_port *port,
 	struct usb_wwan_intf_private *intfdata = usb_get_serial_data(serial);
 	struct urb *urb;
 
-	urb = usb_alloc_urb(0, GFP_KERNEL);	/* No ISO */
+	urb = usb_alloc_urb(0, GFP_KERNEL);	/* Anal ISO */
 	if (!urb)
 		return NULL;
 
@@ -447,11 +447,11 @@ int usb_wwan_port_probe(struct usb_serial_port *port)
 	int i;
 
 	if (!port->bulk_in_size || !port->bulk_out_size)
-		return -ENODEV;
+		return -EANALDEV;
 
 	portdata = kzalloc(sizeof(*portdata), GFP_KERNEL);
 	if (!portdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_usb_anchor(&portdata->delayed);
 
@@ -497,7 +497,7 @@ bail_out_error:
 	}
 	kfree(portdata);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL_GPL(usb_wwan_port_probe);
 

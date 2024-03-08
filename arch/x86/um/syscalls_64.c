@@ -48,7 +48,7 @@ SYSCALL_DEFINE2(arch_prctl, int, option, unsigned long, arg2)
 void arch_switch_to(struct task_struct *to)
 {
 	/*
-	 * Nothing needs to be done on x86_64.
+	 * Analthing needs to be done on x86_64.
 	 * The FS_BASE/GS_BASE registers are saved in the ptrace register set.
 	 */
 }

@@ -13,8 +13,8 @@
 #include "pm6150.dtsi"
 #include "pm6150l.dtsi"
 
-/delete-node/ &ipa_fw_mem;
-/delete-node/ &rmtfs_mem;
+/delete-analde/ &ipa_fw_mem;
+/delete-analde/ &rmtfs_mem;
 
 / {
 	chassis-type = "handset";
@@ -53,42 +53,42 @@
 	reserved-memory {
 		mpss_mem: memory@86000000 {
 			reg = <0x0 0x86000000 0x0 0x8400000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: memory@8ee00000 {
 			reg = <0x0 0x8ee00000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_mem: memory@8f300000 {
 			reg = <0x0 0x8f300000 0x0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_mem: memory@91100000 {
 			reg = <0x0 0x91100000 0x0 0x2800000>;
-			no-map;
+			anal-map;
 		};
 
 		wlan_mem: memory@93900000 {
 			reg = <0x0 0x93900000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		ipa_fw_mem: memory@93b00000 {
 			reg = <0x0 0x93b00000 0x0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		gpu_mem: memory@93b15000 {
 			reg = <0x0 0x93b15000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		cont_splash_mem: memory@9c000000 {
 			reg = <0x0 0x9c000000 0x0 (1080 * 2400 * 4)>;
-			no-map;
+			anal-map;
 		};
 
 		pstore_mem: ramoops@9d800000 {
@@ -102,7 +102,7 @@
 		rmtfs_mem: memory@fa601000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0xfa601000 0x0 0x200000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;

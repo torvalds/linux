@@ -2,7 +2,7 @@
 /*
  * Character line display core support
  *
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  *
  * Copyright (C) 2021 Glider bv

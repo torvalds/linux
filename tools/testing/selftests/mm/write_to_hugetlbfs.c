@@ -5,7 +5,7 @@
  */
 
 #include <err.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,10 +43,10 @@ static void exit_usage(void)
 	exit(EXIT_FAILURE);
 }
 
-void sig_handler(int signo)
+void sig_handler(int siganal)
 {
-	printf("Received %d.\n", signo);
-	if (signo == SIGINT) {
+	printf("Received %d.\n", siganal);
+	if (siganal == SIGINT) {
 		printf("Deleting the memory\n");
 		if (shmdt((const void *)shmaddr) != 0) {
 			perror("Detach failure");
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 			break;
 		case 'm':
 			if (atoi(optarg) >= MAX_METHOD) {
-				errno = EINVAL;
+				erranal = EINVAL;
 				perror("Invalid -m.");
 				exit_usage();
 			}
@@ -114,7 +114,7 @@ int main(int argc, char **argv)
 			reserve = 0;
 			break;
 		default:
-			errno = EINVAL;
+			erranal = EINVAL;
 			perror("Invalid arg");
 			exit_usage();
 		}
@@ -123,29 +123,29 @@ int main(int argc, char **argv)
 	if (strncmp(path, "", sizeof(path)) != 0) {
 		printf("Writing to this path: %s\n", path);
 	} else {
-		errno = EINVAL;
-		perror("path not found");
+		erranal = EINVAL;
+		perror("path analt found");
 		exit_usage();
 	}
 
 	if (size != 0) {
 		printf("Writing this size: %d\n", size);
 	} else {
-		errno = EINVAL;
-		perror("size not found");
+		erranal = EINVAL;
+		perror("size analt found");
 		exit_usage();
 	}
 
 	if (!populate)
-		printf("Not populating.\n");
+		printf("Analt populating.\n");
 	else
 		printf("Populating.\n");
 
 	if (!write)
-		printf("Not writing to memory.\n");
+		printf("Analt writing to memory.\n");
 
 	if (method == MAX_METHOD) {
-		errno = EINVAL;
+		erranal = EINVAL;
 		perror("-m Invalid");
 		exit_usage();
 	} else
@@ -157,7 +157,7 @@ int main(int argc, char **argv)
 		printf("Private mapping.\n");
 
 	if (!reserve)
-		printf("NO_RESERVE mapping.\n");
+		printf("ANAL_RESERVE mapping.\n");
 	else
 		printf("RESERVE mapping.\n");
 
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 		ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
 			   (private ? MAP_PRIVATE : MAP_SHARED) |
 				   (populate ? MAP_POPULATE : 0) |
-				   (reserve ? 0 : MAP_NORESERVE),
+				   (reserve ? 0 : MAP_ANALRESERVE),
 			   fd, 0);
 
 		if (ptr == MAP_FAILED) {
@@ -182,10 +182,10 @@ int main(int argc, char **argv)
 	case MMAP_MAP_HUGETLB:
 		printf("Allocating using MAP_HUGETLB.\n");
 		ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
-			   (private ? (MAP_PRIVATE | MAP_ANONYMOUS) :
+			   (private ? (MAP_PRIVATE | MAP_AANALNYMOUS) :
 				      MAP_SHARED) |
 				   MAP_HUGETLB | (populate ? MAP_POPULATE : 0) |
-				   (reserve ? 0 : MAP_NORESERVE),
+				   (reserve ? 0 : MAP_ANALRESERVE),
 			   -1, 0);
 
 		if (ptr == MAP_FAILED)
@@ -215,7 +215,7 @@ int main(int argc, char **argv)
 
 		break;
 	default:
-		errno = EINVAL;
+		erranal = EINVAL;
 		err(1, "Invalid method.");
 	}
 

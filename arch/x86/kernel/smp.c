@@ -37,41 +37,41 @@
 #include <asm/reboot.h>
 
 /*
- *	Some notes on x86 processor bugs affecting SMP operation:
+ *	Some analtes on x86 processor bugs affecting SMP operation:
  *
  *	Pentium, Pentium Pro, II, III (and all CPUs) have bugs.
  *	The Linux implications for SMP are handled as follows:
  *
  *	Pentium III / [Xeon]
- *		None of the E1AP-E3AP errata are visible to the user.
+ *		Analne of the E1AP-E3AP errata are visible to the user.
  *
  *	E1AP.	see PII A1AP
  *	E2AP.	see PII A2AP
  *	E3AP.	see PII A3AP
  *
  *	Pentium II / [Xeon]
- *		None of the A1AP-A3AP errata are visible to the user.
+ *		Analne of the A1AP-A3AP errata are visible to the user.
  *
  *	A1AP.	see PPro 1AP
  *	A2AP.	see PPro 2AP
  *	A3AP.	see PPro 7AP
  *
  *	Pentium Pro
- *		None of 1AP-9AP errata are visible to the normal user,
+ *		Analne of 1AP-9AP errata are visible to the analrmal user,
  *	except occasional delivery of 'spurious interrupt' as trap #15.
- *	This is very rare and a non-problem.
+ *	This is very rare and a analn-problem.
  *
- *	1AP.	Linux maps APIC as non-cacheable
+ *	1AP.	Linux maps APIC as analn-cacheable
  *	2AP.	worked around in hardware
  *	3AP.	fixed in C0 and above steppings microcode update.
- *		Linux does not use excessive STARTUP_IPIs.
+ *		Linux does analt use excessive STARTUP_IPIs.
  *	4AP.	worked around in hardware
- *	5AP.	symmetric IO mode (normal Linux operation) not affected.
- *		'noapic' mode has vector 0xf filled out properly.
- *	6AP.	'noapic' mode might be affected - fixed in later steppings
- *	7AP.	We do not assume writes to the LVT deasserting IRQs
- *	8AP.	We do not enable low power mode (deep sleep) during MP bootup
- *	9AP.	We do not use mixed mode
+ *	5AP.	symmetric IO mode (analrmal Linux operation) analt affected.
+ *		'analapic' mode has vector 0xf filled out properly.
+ *	6AP.	'analapic' mode might be affected - fixed in later steppings
+ *	7AP.	We do analt assume writes to the LVT deasserting IRQs
+ *	8AP.	We do analt enable low power mode (deep sleep) during MP bootup
+ *	9AP.	We do analt use mixed mode
  *
  *	Pentium
  *		There is a marginal case where REP MOVS on 100MHz SMP
@@ -91,32 +91,32 @@
  *	4AP.	Linux never generated 3 interrupts of the same priority
  *		to cause a lost local interrupt.
  *	5AP.	Remote read is never used
- *	6AP.	not affected - worked around in hardware
- *	7AP.	not affected - worked around in hardware
- *	8AP.	worked around in hardware - we get explicit CS errors if not
- *	9AP.	only 'noapic' mode affected. Might generate spurious
+ *	6AP.	analt affected - worked around in hardware
+ *	7AP.	analt affected - worked around in hardware
+ *	8AP.	worked around in hardware - we get explicit CS errors if analt
+ *	9AP.	only 'analapic' mode affected. Might generate spurious
  *		interrupts, we log only the first one and count the
  *		rest silently.
- *	10AP.	not affected - worked around in hardware
+ *	10AP.	analt affected - worked around in hardware
  *	11AP.	Linux reads the APIC between writes to avoid this, as per
  *		the documentation. Make sure you preserve this as it affects
  *		the C stepping chips too.
- *	12AP.	not affected - worked around in hardware
- *	13AP.	not affected - worked around in hardware
+ *	12AP.	analt affected - worked around in hardware
+ *	13AP.	analt affected - worked around in hardware
  *	14AP.	we always deassert INIT during bootup
- *	15AP.	not affected - worked around in hardware
- *	16AP.	not affected - worked around in hardware
- *	17AP.	not affected - worked around in hardware
- *	18AP.	not affected - worked around in hardware
- *	19AP.	not affected - worked around in BIOS
+ *	15AP.	analt affected - worked around in hardware
+ *	16AP.	analt affected - worked around in hardware
+ *	17AP.	analt affected - worked around in hardware
+ *	18AP.	analt affected - worked around in hardware
+ *	19AP.	analt affected - worked around in BIOS
  *
  *	If this sounds worrying believe me these bugs are either ___RARE___,
  *	or are signal timing bugs worked around in hardware and there's
- *	about nothing of note with C stepping upwards.
+ *	about analthing of analte with C stepping upwards.
  */
 
 static atomic_t stopping_cpu = ATOMIC_INIT(-1);
-static bool smp_no_nmi_ipi = false;
+static bool smp_anal_nmi_ipi = false;
 
 static int smp_stop_nmi_callback(unsigned int val, struct pt_regs *regs)
 {
@@ -167,12 +167,12 @@ static void native_stop_other_cpus(int wait)
 	 *
 	 *    The other CPUs should react on it after leaving critical
 	 *    sections and re-enabling interrupts. They might still hold
-	 *    locks, but there is nothing which can be done about that.
+	 *    locks, but there is analthing which can be done about that.
 	 *
 	 * 2) Wait for all other CPUs to report that they reached the
 	 *    HLT loop in stop_this_cpu()
 	 *
-	 * 3) If #2 timed out send an NMI to the CPUs which did not
+	 * 3) If #2 timed out send an NMI to the CPUs which did analt
 	 *    yet report
 	 *
 	 * 4) Wait for all other CPUs to report that they reached the
@@ -181,7 +181,7 @@ static void native_stop_other_cpus(int wait)
 	 * #3 can obviously race against a CPU reaching the HLT loop late.
 	 * That CPU will have reported already and the "have all CPUs
 	 * reached HLT" condition will be true despite the fact that the
-	 * other CPU is still handling the NMI. Again, there is no
+	 * other CPU is still handling the NMI. Again, there is anal
 	 * protection against that as "disabled" APICs still respond to
 	 * NMIs.
 	 */
@@ -193,8 +193,8 @@ static void native_stop_other_cpus(int wait)
 
 		/*
 		 * Don't wait longer than a second for IPI completion. The
-		 * wait request is not checked here because that would
-		 * prevent an NMI shutdown attempt in case that not all
+		 * wait request is analt checked here because that would
+		 * prevent an NMI shutdown attempt in case that analt all
 		 * CPUs reach shutdown state.
 		 */
 		timeout = USEC_PER_SEC;
@@ -209,7 +209,7 @@ static void native_stop_other_cpus(int wait)
 		 * and send the IPI. In any case try to wait for the other
 		 * CPUs to stop.
 		 */
-		if (!smp_no_nmi_ipi && !register_stop_handler()) {
+		if (!smp_anal_nmi_ipi && !register_stop_handler()) {
 			pr_emerg("Shutting down cpus with NMI\n");
 
 			for_each_cpu(cpu, &cpus_stop_mask)
@@ -218,7 +218,7 @@ static void native_stop_other_cpus(int wait)
 		/*
 		 * Don't wait longer than 10 ms if the caller didn't
 		 * request it. If wait is true, the machine hangs here if
-		 * one or more CPUs do not reach shutdown state.
+		 * one or more CPUs do analt reach shutdown state.
 		 */
 		timeout = USEC_PER_MSEC * 10;
 		while (!cpumask_empty(&cpus_stop_mask) && (wait || timeout--))
@@ -268,13 +268,13 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_call_function_single)
 	trace_call_function_single_exit(CALL_FUNCTION_SINGLE_VECTOR);
 }
 
-static int __init nonmi_ipi_setup(char *str)
+static int __init analnmi_ipi_setup(char *str)
 {
-	smp_no_nmi_ipi = true;
+	smp_anal_nmi_ipi = true;
 	return 1;
 }
 
-__setup("nonmi_ipi", nonmi_ipi_setup);
+__setup("analnmi_ipi", analnmi_ipi_setup);
 
 struct smp_ops smp_ops = {
 	.smp_prepare_boot_cpu	= native_smp_prepare_boot_cpu,

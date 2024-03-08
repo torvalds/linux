@@ -39,7 +39,7 @@
 	/* If you want to get 24 bit RGB and 16 BGR mode instead of
 	 * current 16 bit RGB and 24 BGR modes, set the propety
 	 * below to "crossed" and uncomment the video-ports -property
-	 * in tda19988 node.
+	 * in tda19988 analde.
 	 * AM335x errata for wiring:
 	 * https://www.ti.com/lit/er/sprz360i/sprz360i.pdf
 	 */

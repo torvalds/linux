@@ -83,12 +83,12 @@ static int __compute_metric(const char *name, struct value *vals,
 	 */
 	evlist = evlist__new();
 	if (!evlist)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpus = perf_cpu_map__new("0");
 	if (!cpus) {
 		evlist__delete(evlist);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	perf_evlist__set_maps(&evlist->core, cpus, NULL);
@@ -155,7 +155,7 @@ static int test_frontend(void)
 {
 	double ratio;
 	struct value vals[] = {
-		{ .event = "idq_uops_not_delivered.core",        .val = 300 },
+		{ .event = "idq_uops_analt_delivered.core",        .val = 300 },
 		{ .event = "cpu_clk_unhalted.thread",            .val = 200 },
 		{ .event = "cpu_clk_unhalted.one_thread_active", .val = 400 },
 		{ .event = "cpu_clk_unhalted.ref_xclk",          .val = 600 },

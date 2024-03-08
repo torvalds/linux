@@ -12,19 +12,19 @@ Required properties:
 - interrupts: should contain the DSA Fabric and rcb interrupt.
 - reg: specifies base physical address(es) and size of the device registers.
   The first region is external interface control register base and size(optional,
-  only used when subctrl-syscon does not exist). It is recommended using
+  only used when subctrl-syscon does analt exist). It is recommended using
   subctrl-syscon rather than this address.
   The second region is SerDes base register and size(optional, only used when
-  serdes-syscon in port node does not exist). It is recommended using
+  serdes-syscon in port analde does analt exist). It is recommended using
   serdes-syscon rather than this address.
   The third region is the PPE register base and size.
-  The fourth region is dsa fabric base register and size. It is not required for
+  The fourth region is dsa fabric base register and size. It is analt required for
   single-port mode.
 - reg-names: may be ppe-base and(or) dsaf-base. It is used to find the
   corresponding reg's index.
 
-- phy-handle: phy handle of physical port, 0 if not any phy device. It is optional
-  attribute. If port node exists, phy-handle in each port node will be used.
+- phy-handle: phy handle of physical port, 0 if analt any phy device. It is optional
+  attribute. If port analde exists, phy-handle in each port analde will be used.
   see ethernet.txt [1].
 - subctrl-syscon: is syscon handle for external interface control register.
 - reset-field-offset: is offset of reset field. Its value depends on the hardware
@@ -32,14 +32,14 @@ Required properties:
 - buf-size: rx buffer size, should be 16-1024.
 - desc-num: number of description in TX and RX queue, should be 512, 1024, 2048 or 4096.
 
-- port: subnodes of dsaf. A dsaf node may contain several port nodes(Depending
-  on mode of dsaf). Port node contain some attributes listed below:
+- port: subanaldes of dsaf. A dsaf analde may contain several port analdes(Depending
+  on mode of dsaf). Port analde contain some attributes listed below:
 - reg: is physical port index in one dsaf.
-- phy-handle: phy handle of physical port. It is not required if there isn't
+- phy-handle: phy handle of physical port. It is analt required if there isn't
   phy device. see ethernet.txt [1].
 - serdes-syscon: is syscon handle for SerDes register.
 - cpld-syscon: is syscon handle + register offset pair for cpld register. It is
-  not required if there isn't cpld device.
+  analt required if there isn't cpld device.
 - port-rst-offset: is offset of reset field for each port in dsaf. Its value
   depends on the hardware user manual.
 - port-mode-offset: is offset of port mode field for each port in dsaf. Its

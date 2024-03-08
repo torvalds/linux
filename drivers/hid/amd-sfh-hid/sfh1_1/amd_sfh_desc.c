@@ -70,7 +70,7 @@ static void get_common_features(struct common_feature_property *common, int repo
 
 static u8 get_feature_rep(int sensor_idx, int report_id, u8 *feature_report)
 {
-	struct magno_feature_report magno_feature;
+	struct maganal_feature_report maganal_feature;
 	struct accel3_feature_report acc_feature;
 	struct gyro_feature_report gyro_feature;
 	struct hpd_feature_report hpd_feature;
@@ -98,15 +98,15 @@ static u8 get_feature_rep(int sensor_idx, int report_id, u8 *feature_report)
 		report_size = sizeof(gyro_feature);
 		break;
 	case MAG_IDX: /* magnetometer */
-		get_common_features(&magno_feature.common_property, report_id);
-		magno_feature.magno_headingchange_sensitivity = HID_DEFAULT_SENSITIVITY;
-		magno_feature.heading_min = HID_DEFAULT_MIN_VALUE;
-		magno_feature.heading_max = HID_DEFAULT_MAX_VALUE;
-		magno_feature.flux_change_sensitivity = HID_DEFAULT_MIN_VALUE;
-		magno_feature.flux_min = HID_DEFAULT_MIN_VALUE;
-		magno_feature.flux_max = HID_DEFAULT_MAX_VALUE;
-		memcpy(feature_report, &magno_feature, sizeof(magno_feature));
-		report_size = sizeof(magno_feature);
+		get_common_features(&maganal_feature.common_property, report_id);
+		maganal_feature.maganal_headingchange_sensitivity = HID_DEFAULT_SENSITIVITY;
+		maganal_feature.heading_min = HID_DEFAULT_MIN_VALUE;
+		maganal_feature.heading_max = HID_DEFAULT_MAX_VALUE;
+		maganal_feature.flux_change_sensitivity = HID_DEFAULT_MIN_VALUE;
+		maganal_feature.flux_min = HID_DEFAULT_MIN_VALUE;
+		maganal_feature.flux_max = HID_DEFAULT_MAX_VALUE;
+		memcpy(feature_report, &maganal_feature, sizeof(maganal_feature));
+		report_size = sizeof(maganal_feature);
 		break;
 	case ALS_IDX:  /* ambient light sensor */
 		get_common_features(&als_feature.common_property, report_id);
@@ -178,7 +178,7 @@ static u8 get_input_rep(u8 current_index, int sensor_idx, int report_id,
 {
 	struct amd_mp2_dev *mp2 = container_of(in_data, struct amd_mp2_dev, in_data);
 	u8 *input_report = in_data->input_report[current_index];
-	struct magno_input_report magno_input;
+	struct maganal_input_report maganal_input;
 	struct accel3_input_report acc_input;
 	struct gyro_input_report gyro_input;
 	struct als_input_report als_input;
@@ -222,13 +222,13 @@ static u8 get_input_rep(u8 current_index, int sensor_idx, int report_id,
 		sensoraddr = mp2->vsbase + (MAG_IDX * SENSOR_DATA_MEM_SIZE_DEFAULT) +
 			     OFFSET_SENSOR_DATA_DEFAULT;
 		memcpy_fromio(&mag_data, sensoraddr, sizeof(struct sfh_mag_data));
-		get_common_inputs(&magno_input.common_property, report_id);
-		magno_input.in_magno_x = amd_sfh_float_to_int(mag_data.magdata.x) / 100;
-		magno_input.in_magno_y = amd_sfh_float_to_int(mag_data.magdata.y) / 100;
-		magno_input.in_magno_z = amd_sfh_float_to_int(mag_data.magdata.z) / 100;
-		magno_input.in_magno_accuracy = mag_data.accuracy / 100;
-		memcpy(input_report, &magno_input, sizeof(magno_input));
-		report_size = sizeof(magno_input);
+		get_common_inputs(&maganal_input.common_property, report_id);
+		maganal_input.in_maganal_x = amd_sfh_float_to_int(mag_data.magdata.x) / 100;
+		maganal_input.in_maganal_y = amd_sfh_float_to_int(mag_data.magdata.y) / 100;
+		maganal_input.in_maganal_z = amd_sfh_float_to_int(mag_data.magdata.z) / 100;
+		maganal_input.in_maganal_accuracy = mag_data.accuracy / 100;
+		memcpy(input_report, &maganal_input, sizeof(maganal_input));
+		report_size = sizeof(maganal_input);
 		break;
 	case ALS_IDX:
 		sensoraddr = mp2->vsbase + (ALS_IDX * SENSOR_DATA_MEM_SIZE_DEFAULT) +
@@ -288,9 +288,9 @@ static u32 get_desc_size(int sensor_idx, int descriptor_name)
 		case descr_size:
 			return sizeof(comp3_report_descriptor);
 		case input_size:
-			return sizeof(struct magno_input_report);
+			return sizeof(struct maganal_input_report);
 		case feature_size:
-			return sizeof(struct magno_feature_report);
+			return sizeof(struct maganal_feature_report);
 		}
 		break;
 	case ALS_IDX:

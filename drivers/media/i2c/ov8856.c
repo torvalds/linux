@@ -12,7 +12,7 @@
 #include <linux/regulator/consumer.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define OV8856_REG_VALUE_08BIT		1
 #define OV8856_REG_VALUE_16BIT		2
@@ -1974,7 +1974,7 @@ static void ov8856_update_pad_format(struct ov8856 *ov8856,
 		index = mode->default_mbus_index;
 	fmt->code = ov8856_mbus_codes[index];
 	ov8856->cur_mbus_index = index;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 }
 
 static int ov8856_start_streaming(struct ov8856 *ov8856)
@@ -2069,7 +2069,7 @@ static int ov8856_power_on(struct device *dev)
 	struct ov8856 *ov8856 = to_ov8856(sd);
 	int ret;
 
-	if (is_acpi_node(dev_fwnode(dev)))
+	if (is_acpi_analde(dev_fwanalde(dev)))
 		return 0;
 
 	ret = clk_prepare_enable(ov8856->xvclk);
@@ -2107,7 +2107,7 @@ static int ov8856_power_off(struct device *dev)
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov8856 *ov8856 = to_ov8856(sd);
 
-	if (is_acpi_node(dev_fwnode(dev)))
+	if (is_acpi_analde(dev_fwanalde(dev)))
 		return 0;
 
 	gpiod_set_value_cansleep(ov8856->reset_gpio, 1);
@@ -2257,26 +2257,26 @@ static const struct v4l2_subdev_internal_ops ov8856_internal_ops = {
 
 static int ov8856_get_hwcfg(struct ov8856 *ov8856, struct device *dev)
 {
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	u32 xvclk_rate;
 	int ret;
 	unsigned int i, j;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -ENXIO;
 
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &xvclk_rate);
+	ret = fwanalde_property_read_u32(fwanalde, "clock-frequency", &xvclk_rate);
 	if (ret)
 		return ret;
 
-	if (!is_acpi_node(fwnode)) {
+	if (!is_acpi_analde(fwanalde)) {
 		ov8856->xvclk = devm_clk_get(dev, "xvclk");
 		if (IS_ERR(ov8856->xvclk)) {
-			dev_err(dev, "could not get xvclk clock (%pe)\n",
+			dev_err(dev, "could analt get xvclk clock (%pe)\n",
 				ov8856->xvclk);
 			return PTR_ERR(ov8856->xvclk);
 		}
@@ -2303,19 +2303,19 @@ static int ov8856_get_hwcfg(struct ov8856 *ov8856, struct device *dev)
 		dev_warn(dev, "external clock rate %u is unsupported",
 			 xvclk_rate);
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return -ENXIO;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
 	/* Get number of data lanes */
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != 2 &&
 	    bus_cfg.bus.mipi_csi2.num_data_lanes != 4) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
+		dev_err(dev, "number of CSI2 data lanes %d is analt supported",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto check_hwcfg_error;
@@ -2331,7 +2331,7 @@ static int ov8856_get_hwcfg(struct ov8856 *ov8856, struct device *dev)
 	ov8856->modes_size = ov8856_modes_num(ov8856);
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
+		dev_err(dev, "anal link frequencies defined");
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
@@ -2344,7 +2344,7 @@ static int ov8856_get_hwcfg(struct ov8856 *ov8856, struct device *dev)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
+			dev_err(dev, "anal link frequency %lld supported",
 				ov8856->priv_lane->link_freq_menu_items[i]);
 			ret = -EINVAL;
 			goto check_hwcfg_error;
@@ -2352,7 +2352,7 @@ static int ov8856_get_hwcfg(struct ov8856 *ov8856, struct device *dev)
 	}
 
 check_hwcfg_error:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -2379,7 +2379,7 @@ static int ov8856_probe(struct i2c_client *client)
 
 	ov8856 = devm_kzalloc(&client->dev, sizeof(*ov8856), GFP_KERNEL);
 	if (!ov8856)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ov8856_get_hwcfg(ov8856, &client->dev);
 	if (ret) {
@@ -2415,7 +2415,7 @@ static int ov8856_probe(struct i2c_client *client)
 	}
 
 	ov8856->sd.internal_ops = &ov8856_internal_ops;
-	ov8856->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ov8856->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	ov8856->sd.entity.ops = &ov8856_subdev_entity_ops;
 	ov8856->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ov8856->pad.flags = MEDIA_PAD_FL_SOURCE;

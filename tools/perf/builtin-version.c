@@ -87,7 +87,7 @@ static void library_status(void)
 int cmd_version(int argc, const char **argv)
 {
 	argc = parse_options(argc, argv, version_options, version_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+			     PARSE_OPT_STOP_AT_ANALN_OPTION);
 
 	printf("perf version %s\n", perf_version_string);
 

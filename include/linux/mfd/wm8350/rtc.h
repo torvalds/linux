@@ -71,7 +71,7 @@
 #define WM8350_RTC_MTH_AUG                           8
 #define WM8350_RTC_MTH_SEP                           9
 #define WM8350_RTC_MTH_OCT                          10
-#define WM8350_RTC_MTH_NOV                          11
+#define WM8350_RTC_MTH_ANALV                          11
 #define WM8350_RTC_MTH_DEC                          12
 #define WM8350_RTC_MTH_JAN_BCD                    0x01
 #define WM8350_RTC_MTH_FEB_BCD                    0x02
@@ -83,7 +83,7 @@
 #define WM8350_RTC_MTH_AUG_BCD                    0x08
 #define WM8350_RTC_MTH_SEP_BCD                    0x09
 #define WM8350_RTC_MTH_OCT_BCD                    0x10
-#define WM8350_RTC_MTH_NOV_BCD                    0x11
+#define WM8350_RTC_MTH_ANALV_BCD                    0x11
 #define WM8350_RTC_MTH_DEC_BCD                    0x12
 
 /*
@@ -153,7 +153,7 @@
 #define WM8350_RTC_ALMMTH_AUG                        8
 #define WM8350_RTC_ALMMTH_SEP                        9
 #define WM8350_RTC_ALMMTH_OCT                       10
-#define WM8350_RTC_ALMMTH_NOV                       11
+#define WM8350_RTC_ALMMTH_ANALV                       11
 #define WM8350_RTC_ALMMTH_DEC                       12
 #define WM8350_RTC_ALMMTH_JAN_BCD                 0x01
 #define WM8350_RTC_ALMMTH_FEB_BCD                 0x02
@@ -165,7 +165,7 @@
 #define WM8350_RTC_ALMMTH_AUG_BCD                 0x08
 #define WM8350_RTC_ALMMTH_SEP_BCD                 0x09
 #define WM8350_RTC_ALMMTH_OCT_BCD                 0x10
-#define WM8350_RTC_ALMMTH_NOV_BCD                 0x11
+#define WM8350_RTC_ALMMTH_ANALV_BCD                 0x11
 #define WM8350_RTC_ALMMTH_DEC_BCD                 0x12
 
 /*

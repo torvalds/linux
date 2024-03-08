@@ -8,7 +8,7 @@ title: Microchip Ocelot Switch Family
 
 maintainers:
   - Vladimir Oltean <vladimir.oltean@nxp.com>
-  - Claudiu Manoil <claudiu.manoil@nxp.com>
+  - Claudiu Maanalil <claudiu.maanalil@nxp.com>
   - Alexandre Belloni <alexandre.belloni@bootlin.com>
   - UNGLinuxDriver@microchip.com
 
@@ -36,14 +36,14 @@ description: |
   VSC9959 (Felix):
 
     This is found in the NXP LS1028A. It is a PCI device, part of the larger
-    enetc root complex. As a result, the ethernet-switch node is a sub-node of
-    the PCIe root complex node and its "reg" property conforms to the parent
-    node bindings, describing it as PF 5 of device 0, bus 0.
+    enetc root complex. As a result, the ethernet-switch analde is a sub-analde of
+    the PCIe root complex analde and its "reg" property conforms to the parent
+    analde bindings, describing it as PF 5 of device 0, bus 0.
 
     If any external switch port is enabled, the enetc PF2 (enetc_port2) should
     be enabled as well. This is because the internal MDIO bus (exposed through
     EA BAR 0) used to access the MAC PCS registers truly belongs to the enetc
-    port 2 and not to Felix.
+    port 2 and analt to Felix.
 
     The following PHY interface types are supported:
 

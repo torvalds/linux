@@ -37,7 +37,7 @@ struct sprd_pcm_dma_private {
 static const struct snd_pcm_hardware sprd_pcm_hardware = {
 	.info = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_PAUSE |
-		SNDRV_PCM_INFO_RESUME | SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
+		SNDRV_PCM_INFO_RESUME | SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
 	.period_bytes_min = 1,
 	.period_bytes_max = 64 * 1024,
@@ -76,7 +76,7 @@ static int sprd_pcm_open(struct snd_soc_component *component,
 
 	dma_private = devm_kzalloc(dev, sizeof(*dma_private), GFP_KERNEL);
 	if (!dma_private)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = runtime->hw.periods_max * SPRD_PCM_DMA_LINKLIST_SIZE;
 
@@ -86,7 +86,7 @@ static int sprd_pcm_open(struct snd_soc_component *component,
 		data->virt = dmam_alloc_coherent(dev, size, &data->phys,
 						 GFP_KERNEL);
 		if (!data->virt) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 	}
@@ -177,7 +177,7 @@ static int sprd_pcm_request_dma_channel(struct snd_soc_component *component,
 			dev_err(dev, "failed to request dma channel:%s\n",
 				dma_params->chan_name[i]);
 			sprd_pcm_release_dma_channel(substream);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -202,7 +202,7 @@ static int sprd_pcm_hw_params(struct snd_soc_component *component,
 
 	dma_params = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0), substream);
 	if (!dma_params) {
-		dev_warn(component->dev, "no dma parameters setting\n");
+		dev_warn(component->dev, "anal dma parameters setting\n");
 		dma_private->params = NULL;
 		return 0;
 	}
@@ -220,7 +220,7 @@ static int sprd_pcm_hw_params(struct snd_soc_component *component,
 
 	sg = devm_kcalloc(component->dev, sg_num, sizeof(*sg), GFP_KERNEL);
 	if (!sg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto sg_err;
 	}
 
@@ -274,18 +274,18 @@ static int sprd_pcm_hw_params(struct snd_soc_component *component,
 		 * We configure the DMA request mode, interrupt mode, channel
 		 * mode and channel trigger mode by the flags.
 		 */
-		flags = SPRD_DMA_FLAGS(SPRD_DMA_CHN_MODE_NONE, SPRD_DMA_NO_TRG,
+		flags = SPRD_DMA_FLAGS(SPRD_DMA_CHN_MODE_ANALNE, SPRD_DMA_ANAL_TRG,
 				       SPRD_DMA_FRAG_REQ, SPRD_DMA_TRANS_INT);
 		data->desc = chan->device->device_prep_slave_sg(chan, sg,
 								sg_num, dir,
 								flags, &link);
 		if (!data->desc) {
 			dev_err(component->dev, "failed to prepare slave sg\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto config_err;
 		}
 
-		if (!runtime->no_period_wakeup) {
+		if (!runtime->anal_period_wakeup) {
 			data->desc->callback = sprd_pcm_dma_complete;
 			data->desc->callback_param = dma_private;
 		}
@@ -459,18 +459,18 @@ static const struct snd_soc_component_driver sprd_soc_component = {
 
 static int sprd_soc_platform_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int ret;
 
 	ret = of_reserved_mem_device_init_by_idx(&pdev->dev, np, 0);
 	if (ret)
 		dev_warn(&pdev->dev,
-			 "no reserved DMA memory for audio platform device\n");
+			 "anal reserved DMA memory for audio platform device\n");
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &sprd_soc_component,
 					      NULL, 0);
 	if (ret)
-		dev_err(&pdev->dev, "could not register platform:%d\n", ret);
+		dev_err(&pdev->dev, "could analt register platform:%d\n", ret);
 
 	return ret;
 }

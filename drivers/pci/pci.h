@@ -42,7 +42,7 @@ enum pci_mmap_api {
 	PCI_MMAP_SYSFS,	/* mmap on /sys/bus/pci/devices/<BDF>/resource<N> */
 	PCI_MMAP_PROCFS	/* mmap on /proc/bus/pci/<BDF> */
 };
-int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vmai,
+int pci_mmap_fits(struct pci_dev *pdev, int resanal, struct vm_area_struct *vmai,
 		  enum pci_mmap_api mmap_api);
 
 bool pci_reset_supported(struct pci_dev *dev);
@@ -58,7 +58,7 @@ struct pci_cap_saved_data {
 };
 
 struct pci_cap_saved_state {
-	struct hlist_node		next;
+	struct hlist_analde		next;
 	struct pci_cap_saved_data	cap;
 };
 
@@ -114,7 +114,7 @@ static inline bool pci_has_subordinate(struct pci_dev *pci_dev)
 static inline bool pci_power_manageable(struct pci_dev *pci_dev)
 {
 	/*
-	 * Currently we allow normal PCI devices and PCI bridges transition
+	 * Currently we allow analrmal PCI devices and PCI bridges transition
 	 * into D3 if their bridge_d3 is set.
 	 */
 	return !pci_has_subordinate(pci_dev) || pci_dev->bridge_d3;
@@ -169,20 +169,20 @@ extern raw_spinlock_t pci_lock;
 extern unsigned int pci_pm_d3hot_delay;
 
 #ifdef CONFIG_PCI_MSI
-void pci_no_msi(void);
+void pci_anal_msi(void);
 #else
-static inline void pci_no_msi(void) { }
+static inline void pci_anal_msi(void) { }
 #endif
 
 void pci_realloc_get_opt(char *);
 
-static inline int pci_no_d1d2(struct pci_dev *dev)
+static inline int pci_anal_d1d2(struct pci_dev *dev)
 {
 	unsigned int parent_dstates = 0;
 
 	if (dev->bus->self)
-		parent_dstates = dev->bus->self->no_d1d2;
-	return (dev->no_d1d2 || parent_dstates);
+		parent_dstates = dev->bus->self->anal_d1d2;
+	return (dev->anal_d1d2 || parent_dstates);
 
 }
 extern const struct attribute_group *pci_dev_groups[];
@@ -201,7 +201,7 @@ extern unsigned long pci_hotplug_bus_size;
  * @id: single PCI device id structure to match
  * @dev: the PCI device structure to match against
  *
- * Returns the matching pci_device_id structure or %NULL if there is no match.
+ * Returns the matching pci_device_id structure or %NULL if there is anal match.
  */
 static inline const struct pci_device_id *
 pci_match_one_device(const struct pci_device_id *id, const struct pci_dev *dev)
@@ -228,7 +228,7 @@ struct pci_slot_attribute {
 #define to_pci_slot_attr(s) container_of(s, struct pci_slot_attribute, attr)
 
 enum pci_bar_type {
-	pci_bar_unknown,	/* Standard PCI BAR probe */
+	pci_bar_unkanalwn,	/* Standard PCI BAR probe */
 	pci_bar_io,		/* An I/O port BAR */
 	pci_bar_mem32,		/* A 32-bit memory BAR */
 	pci_bar_mem64,		/* A 64-bit memory BAR */
@@ -270,7 +270,7 @@ void pci_bus_put(struct pci_bus *bus);
 	 (lnkcap2) & PCI_EXP_LNKCAP2_SLS_8_0GB ? PCIE_SPEED_8_0GT : \
 	 (lnkcap2) & PCI_EXP_LNKCAP2_SLS_5_0GB ? PCIE_SPEED_5_0GT : \
 	 (lnkcap2) & PCI_EXP_LNKCAP2_SLS_2_5GB ? PCIE_SPEED_2_5GT : \
-	 PCI_SPEED_UNKNOWN)
+	 PCI_SPEED_UNKANALWN)
 
 /* PCIe speed to Mb/s reduced by encoding overhead */
 #define PCIE_SPEED2MBS_ENC(speed) \
@@ -348,12 +348,12 @@ static inline bool pci_dev_set_io_state(struct pci_dev *dev,
 		xchg(&dev->error_state, pci_channel_io_perm_failure);
 		return true;
 	case pci_channel_io_frozen:
-		old = cmpxchg(&dev->error_state, pci_channel_io_normal,
+		old = cmpxchg(&dev->error_state, pci_channel_io_analrmal,
 			      pci_channel_io_frozen);
 		return old != pci_channel_io_perm_failure;
-	case pci_channel_io_normal:
+	case pci_channel_io_analrmal:
 		old = cmpxchg(&dev->error_state, pci_channel_io_frozen,
-			      pci_channel_io_normal);
+			      pci_channel_io_analrmal);
 		return old != pci_channel_io_perm_failure;
 	default:
 		return false;
@@ -391,7 +391,7 @@ static inline bool pci_dev_is_added(const struct pci_dev *dev)
 #ifdef CONFIG_PCIEAER
 #include <linux/aer.h>
 
-#define AER_MAX_MULTI_ERR_DEVICES	5	/* Not likely to have more */
+#define AER_MAX_MULTI_ERR_DEVICES	5	/* Analt likely to have more */
 
 struct aer_err_info {
 	struct pci_dev *dev[AER_MAX_MULTI_ERR_DEVICES];
@@ -399,7 +399,7 @@ struct aer_err_info {
 
 	unsigned int id:16;
 
-	unsigned int severity:2;	/* 0:NONFATAL | 1:FATAL | 2:COR */
+	unsigned int severity:2;	/* 0:ANALNFATAL | 1:FATAL | 2:COR */
 	unsigned int __pad1:5;
 	unsigned int multi_error_valid:1;
 
@@ -484,8 +484,8 @@ static inline void pci_restore_pasid_state(struct pci_dev *pdev) { }
 int pci_iov_init(struct pci_dev *dev);
 void pci_iov_release(struct pci_dev *dev);
 void pci_iov_remove(struct pci_dev *dev);
-void pci_iov_update_resource(struct pci_dev *dev, int resno);
-resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno);
+void pci_iov_update_resource(struct pci_dev *dev, int resanal);
+resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resanal);
 void pci_restore_iov_state(struct pci_dev *dev);
 int pci_iov_bus_range(struct pci_bus *bus);
 extern const struct attribute_group sriov_pf_dev_attr_group;
@@ -493,7 +493,7 @@ extern const struct attribute_group sriov_vf_dev_attr_group;
 #else
 static inline int pci_iov_init(struct pci_dev *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void pci_iov_release(struct pci_dev *dev) { }
 static inline void pci_iov_remove(struct pci_dev *dev) { }
@@ -525,10 +525,10 @@ static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 						     struct resource *res)
 {
 #ifdef CONFIG_PCI_IOV
-	int resno = res - dev->resource;
+	int resanal = res - dev->resource;
 
-	if (resno >= PCI_IOV_RESOURCES && resno <= PCI_IOV_RESOURCE_END)
-		return pci_sriov_resource_alignment(dev, resno);
+	if (resanal >= PCI_IOV_RESOURCES && resanal <= PCI_IOV_RESOURCE_END)
+		return pci_sriov_resource_alignment(dev, resanal);
 #endif
 	if (dev->class >> 8 == PCI_CLASS_BRIDGE_CARDBUS)
 		return pci_cardbus_resource_alignment(res);
@@ -545,15 +545,15 @@ bool pcie_failed_link_retrain(struct pci_dev *dev);
 static inline int pci_dev_specific_acs_enabled(struct pci_dev *dev,
 					       u16 acs_flags)
 {
-	return -ENOTTY;
+	return -EANALTTY;
 }
 static inline int pci_dev_specific_enable_acs(struct pci_dev *dev)
 {
-	return -ENOTTY;
+	return -EANALTTY;
 }
 static inline int pci_dev_specific_disable_acs_redir(struct pci_dev *dev)
 {
-	return -ENOTTY;
+	return -EANALTTY;
 }
 static inline bool pcie_failed_link_retrain(struct pci_dev *dev)
 {
@@ -604,7 +604,7 @@ int pci_dev_specific_reset(struct pci_dev *dev, bool probe);
 #else
 static inline int pci_dev_specific_reset(struct pci_dev *dev, bool probe)
 {
-	return -ENOTTY;
+	return -EANALTTY;
 }
 #endif
 
@@ -615,7 +615,7 @@ int acpi_get_rc_resources(struct device *dev, const char *hid, u16 segment,
 static inline int acpi_get_rc_resources(struct device *dev, const char *hid,
 					u16 segment, struct resource *res)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -626,43 +626,43 @@ static inline u64 pci_rebar_size_to_bytes(int size)
 	return 1ULL << (size + 20);
 }
 
-struct device_node;
+struct device_analde;
 
 #ifdef CONFIG_OF
-int of_pci_parse_bus_range(struct device_node *node, struct resource *res);
-int of_get_pci_domain_nr(struct device_node *node);
-int of_pci_get_max_link_speed(struct device_node *node);
-u32 of_pci_get_slot_power_limit(struct device_node *node,
+int of_pci_parse_bus_range(struct device_analde *analde, struct resource *res);
+int of_get_pci_domain_nr(struct device_analde *analde);
+int of_pci_get_max_link_speed(struct device_analde *analde);
+u32 of_pci_get_slot_power_limit(struct device_analde *analde,
 				u8 *slot_power_limit_value,
 				u8 *slot_power_limit_scale);
-int pci_set_of_node(struct pci_dev *dev);
-void pci_release_of_node(struct pci_dev *dev);
-void pci_set_bus_of_node(struct pci_bus *bus);
-void pci_release_bus_of_node(struct pci_bus *bus);
+int pci_set_of_analde(struct pci_dev *dev);
+void pci_release_of_analde(struct pci_dev *dev);
+void pci_set_bus_of_analde(struct pci_bus *bus);
+void pci_release_bus_of_analde(struct pci_bus *bus);
 
 int devm_of_pci_bridge_init(struct device *dev, struct pci_host_bridge *bridge);
 
 #else
 static inline int
-of_pci_parse_bus_range(struct device_node *node, struct resource *res)
+of_pci_parse_bus_range(struct device_analde *analde, struct resource *res)
 {
 	return -EINVAL;
 }
 
 static inline int
-of_get_pci_domain_nr(struct device_node *node)
+of_get_pci_domain_nr(struct device_analde *analde)
 {
 	return -1;
 }
 
 static inline int
-of_pci_get_max_link_speed(struct device_node *node)
+of_pci_get_max_link_speed(struct device_analde *analde)
 {
 	return -EINVAL;
 }
 
 static inline u32
-of_pci_get_slot_power_limit(struct device_node *node,
+of_pci_get_slot_power_limit(struct device_analde *analde,
 			    u8 *slot_power_limit_value,
 			    u8 *slot_power_limit_scale)
 {
@@ -673,10 +673,10 @@ of_pci_get_slot_power_limit(struct device_node *node,
 	return 0;
 }
 
-static inline int pci_set_of_node(struct pci_dev *dev) { return 0; }
-static inline void pci_release_of_node(struct pci_dev *dev) { }
-static inline void pci_set_bus_of_node(struct pci_bus *bus) { }
-static inline void pci_release_bus_of_node(struct pci_bus *bus) { }
+static inline int pci_set_of_analde(struct pci_dev *dev) { return 0; }
+static inline void pci_release_of_analde(struct pci_dev *dev) { }
+static inline void pci_set_bus_of_analde(struct pci_bus *bus) { }
+static inline void pci_release_bus_of_analde(struct pci_bus *bus) { }
 
 static inline int devm_of_pci_bridge_init(struct device *dev, struct pci_host_bridge *bridge)
 {
@@ -687,18 +687,18 @@ static inline int devm_of_pci_bridge_init(struct device *dev, struct pci_host_br
 
 struct of_changeset;
 
-#ifdef CONFIG_PCI_DYNAMIC_OF_NODES
-void of_pci_make_dev_node(struct pci_dev *pdev);
-void of_pci_remove_node(struct pci_dev *pdev);
+#ifdef CONFIG_PCI_DYNAMIC_OF_ANALDES
+void of_pci_make_dev_analde(struct pci_dev *pdev);
+void of_pci_remove_analde(struct pci_dev *pdev);
 int of_pci_add_properties(struct pci_dev *pdev, struct of_changeset *ocs,
-			  struct device_node *np);
+			  struct device_analde *np);
 #else
-static inline void of_pci_make_dev_node(struct pci_dev *pdev) { }
-static inline void of_pci_remove_node(struct pci_dev *pdev) { }
+static inline void of_pci_make_dev_analde(struct pci_dev *pdev) { }
+static inline void of_pci_remove_analde(struct pci_dev *pdev) { }
 #endif
 
 #ifdef CONFIG_PCIEAER
-void pci_no_aer(void);
+void pci_anal_aer(void);
 void pci_aer_init(struct pci_dev *dev);
 void pci_aer_exit(struct pci_dev *dev);
 extern const struct attribute_group aer_stats_attr_group;
@@ -708,7 +708,7 @@ int pci_aer_raw_clear_status(struct pci_dev *dev);
 void pci_save_aer_state(struct pci_dev *dev);
 void pci_restore_aer_state(struct pci_dev *dev);
 #else
-static inline void pci_no_aer(void) { }
+static inline void pci_anal_aer(void) { }
 static inline void pci_aer_init(struct pci_dev *d) { }
 static inline void pci_aer_exit(struct pci_dev *d) { }
 static inline void pci_aer_clear_fatal_status(struct pci_dev *dev) { }
@@ -721,7 +721,7 @@ static inline void pci_restore_aer_state(struct pci_dev *dev) { }
 #ifdef CONFIG_ACPI
 int pci_acpi_program_hp_params(struct pci_dev *dev);
 extern const struct attribute_group pci_dev_acpi_attr_group;
-void pci_set_acpi_fwnode(struct pci_dev *dev);
+void pci_set_acpi_fwanalde(struct pci_dev *dev);
 int pci_dev_acpi_reset(struct pci_dev *dev, bool probe);
 bool acpi_pci_power_manageable(struct pci_dev *dev);
 bool acpi_pci_bridge_d3(struct pci_dev *dev);
@@ -734,12 +734,12 @@ pci_power_t acpi_pci_choose_state(struct pci_dev *pdev);
 #else
 static inline int pci_dev_acpi_reset(struct pci_dev *dev, bool probe)
 {
-	return -ENOTTY;
+	return -EANALTTY;
 }
-static inline void pci_set_acpi_fwnode(struct pci_dev *dev) { }
+static inline void pci_set_acpi_fwanalde(struct pci_dev *dev) { }
 static inline int pci_acpi_program_hp_params(struct pci_dev *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline bool acpi_pci_power_manageable(struct pci_dev *dev)
 {
@@ -751,16 +751,16 @@ static inline bool acpi_pci_bridge_d3(struct pci_dev *dev)
 }
 static inline int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline pci_power_t acpi_pci_get_power_state(struct pci_dev *dev)
 {
-	return PCI_UNKNOWN;
+	return PCI_UNKANALWN;
 }
 static inline void acpi_pci_refresh_power_state(struct pci_dev *dev) { }
 static inline int acpi_pci_wakeup(struct pci_dev *dev, bool enable)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline bool acpi_pci_need_resume(struct pci_dev *dev)
 {
@@ -789,11 +789,11 @@ static inline bool pci_use_mid_pm(void)
 }
 static inline int mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline pci_power_t mid_pci_get_power_state(struct pci_dev *pdev)
 {
-	return PCI_UNKNOWN;
+	return PCI_UNKANALWN;
 }
 #endif
 
@@ -829,7 +829,7 @@ static inline pci_power_t mid_pci_get_power_state(struct pci_dev *pdev)
 /*
  * Extension of PCI Config Address for accessing extended PCIe registers
  *
- * No standardized specification, but used on lot of non-ECAM-compliant ARM SoCs
+ * Anal standardized specification, but used on lot of analn-ECAM-compliant ARM SoCs
  * or on AMD Barcelona and new CPUs. Reserved bits [27:24] of PCI Config Address
  * are used for specifying additional 4 high bits of PCI Express register.
  */

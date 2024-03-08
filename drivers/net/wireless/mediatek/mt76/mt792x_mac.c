@@ -238,17 +238,17 @@ mt792x_phy_update_channel(struct mt76_phy *mphy, int idx)
 				   MT_MIB_OBSSTIME_MASK);
 
 	nf = mt792x_phy_get_nf(phy, idx);
-	if (!phy->noise)
-		phy->noise = nf << 4;
+	if (!phy->analise)
+		phy->analise = nf << 4;
 	else if (nf)
-		phy->noise += nf - (phy->noise >> 4);
+		phy->analise += nf - (phy->analise >> 4);
 
 	state = mphy->chan_state;
 	state->cc_busy += busy_time;
 	state->cc_tx += tx_time;
 	state->cc_rx += rx_time + obss_time;
 	state->cc_bss_rx += rx_time;
-	state->noise = -(phy->noise >> 4);
+	state->analise = -(phy->analise >> 4);
 }
 
 void mt792x_update_channel(struct mt76_phy *mphy)
@@ -304,7 +304,7 @@ void mt792x_mac_init_band(struct mt792x_dev *dev, u8 band)
 	/* disable rx rate report by default due to hw issues */
 	mt76_clear(dev, MT_DMA_DCR0(band), MT_DMA_DCR0_RXD_G5_EN);
 
-	/* filter out non-resp frames and get instantaneous signal reporting */
+	/* filter out analn-resp frames and get instantaneous signal reporting */
 	mask = MT_WTBLOFF_TOP_RSCR_RCPI_MODE | MT_WTBLOFF_TOP_RSCR_RCPI_PARAM;
 	set = FIELD_PREP(MT_WTBLOFF_TOP_RSCR_RCPI_MODE, 0) |
 	      FIELD_PREP(MT_WTBLOFF_TOP_RSCR_RCPI_PARAM, 0x3);
@@ -363,7 +363,7 @@ void mt792x_pm_power_save_work(struct work_struct *work)
 		goto out;
 
 	if (mutex_is_locked(&dev->mt76.mutex))
-		/* if mt76 mutex is held we should not put the device
+		/* if mt76 mutex is held we should analt put the device
 		 * to sleep since we are currently accessing device
 		 * register map. We need to wait for the next power_save
 		 * trigger.

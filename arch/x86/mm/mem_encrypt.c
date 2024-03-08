@@ -25,12 +25,12 @@ bool force_dma_unencrypted(struct device *dev)
 
 	/*
 	 * For SME, all DMA must be to unencrypted addresses if the
-	 * device does not support DMA to addresses that include the
+	 * device does analt support DMA to addresses that include the
 	 * encryption mask.
 	 */
 	if (cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT)) {
 		u64 dma_enc_mask = DMA_BIT_MASK(__ffs64(sme_me_mask));
-		u64 dma_dev_mask = min_not_zero(dev->coherent_dma_mask,
+		u64 dma_dev_mask = min_analt_zero(dev->coherent_dma_mask,
 						dev->bus_dma_limit);
 
 		if (dma_dev_mask <= dma_enc_mask)
@@ -100,7 +100,7 @@ void __init mem_encrypt_setup_arch(void)
 	 * For SEV and TDX, all DMA has to occur via shared/unencrypted pages.
 	 * Kernel uses SWIOTLB to make this happen without changing device
 	 * drivers. However, depending on the workload being run, the
-	 * default 64MB of SWIOTLB may not be enough and SWIOTLB may
+	 * default 64MB of SWIOTLB may analt be eanalugh and SWIOTLB may
 	 * run out of buffers for DMA, resulting in I/O errors and/or
 	 * performance degradation especially with high I/O workloads.
 	 *

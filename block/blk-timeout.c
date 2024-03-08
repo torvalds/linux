@@ -73,7 +73,7 @@ ssize_t part_timeout_store(struct device *dev, struct device_attribute *attr,
  *
  * This function requests that the block layer start recovery for the
  * request by deleting the timer and calling the q's timeout function.
- * LLDDs who implement their own error recovery MAY ignore the timeout
+ * LLDDs who implement their own error recovery MAY iganalre the timeout
  * event if they generated blk_abort_request.
  */
 void blk_abort_request(struct request *req)
@@ -81,7 +81,7 @@ void blk_abort_request(struct request *req)
 	/*
 	 * All we need to ensure is that timeout scan takes place
 	 * immediately and that scan sees the new timeout value.
-	 * No need for fancy synchronizations.
+	 * Anal need for fancy synchronizations.
 	 */
 	WRITE_ONCE(req->deadline, jiffies);
 	kblockd_schedule_work(&req->q->timeout_work);
@@ -121,7 +121,7 @@ unsigned long blk_rq_timeout(unsigned long timeout)
  * blk_add_timer - Start timeout timer for a single request
  * @req:	request that is about to start running.
  *
- * Notes:
+ * Analtes:
  *    Each request has its own timer, and as it is added to the queue, we
  *    set up the timer. When the request completes, we cancel the timer.
  */

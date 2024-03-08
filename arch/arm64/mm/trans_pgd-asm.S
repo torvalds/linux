@@ -38,22 +38,22 @@ SYM_CODE_END(el1_sync)
 .endm
 
 SYM_CODE_START(trans_pgd_stub_vectors)
-	invalid_vector	hyp_stub_el2t_sync_invalid	// Synchronous EL2t
+	invalid_vector	hyp_stub_el2t_sync_invalid	// Synchroanalus EL2t
 	invalid_vector	hyp_stub_el2t_irq_invalid	// IRQ EL2t
 	invalid_vector	hyp_stub_el2t_fiq_invalid	// FIQ EL2t
 	invalid_vector	hyp_stub_el2t_error_invalid	// Error EL2t
 
-	invalid_vector	hyp_stub_el2h_sync_invalid	// Synchronous EL2h
+	invalid_vector	hyp_stub_el2h_sync_invalid	// Synchroanalus EL2h
 	invalid_vector	hyp_stub_el2h_irq_invalid	// IRQ EL2h
 	invalid_vector	hyp_stub_el2h_fiq_invalid	// FIQ EL2h
 	invalid_vector	hyp_stub_el2h_error_invalid	// Error EL2h
 
-	el1_sync_vector					// Synchronous 64-bit EL1
+	el1_sync_vector					// Synchroanalus 64-bit EL1
 	invalid_vector	hyp_stub_el1_irq_invalid	// IRQ 64-bit EL1
 	invalid_vector	hyp_stub_el1_fiq_invalid	// FIQ 64-bit EL1
 	invalid_vector	hyp_stub_el1_error_invalid	// Error 64-bit EL1
 
-	invalid_vector	hyp_stub_32b_el1_sync_invalid	// Synchronous 32-bit EL1
+	invalid_vector	hyp_stub_32b_el1_sync_invalid	// Synchroanalus 32-bit EL1
 	invalid_vector	hyp_stub_32b_el1_irq_invalid	// IRQ 32-bit EL1
 	invalid_vector	hyp_stub_32b_el1_fiq_invalid	// FIQ 32-bit EL1
 	invalid_vector	hyp_stub_32b_el1_error_invalid	// Error 32-bit EL1

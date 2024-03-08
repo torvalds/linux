@@ -2,7 +2,7 @@
 /dts-v1/;
 /plugin/;
 
-/* overlay_4 - test insertion of a full node */
+/* overlay_4 - test insertion of a full analde */
 
 &unittest_test_bus {
 	/* suppress DTC warning */

@@ -13,7 +13,7 @@ config X86_ANDROID_TABLETS
 	  hardcoded in the kernel, rather than specified in their DSDT.
 
 	  With the DSDT containing a random collection of devices which may or
-	  may not actually be present. This driver contains various fixes for
+	  may analt actually be present. This driver contains various fixes for
 	  such tablets, including instantiating kernel devices for devices which
 	  are missing from the DSDT.
 

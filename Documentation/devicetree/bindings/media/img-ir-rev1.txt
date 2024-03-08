@@ -1,6 +1,6 @@
 * ImgTec Infrared (IR) decoder version 1
 
-This binding is for Imagination Technologies' Infrared decoder block,
+This binding is for Imagination Techanallogies' Infrared decoder block,
 specifically major revision 1.
 
 Required properties:

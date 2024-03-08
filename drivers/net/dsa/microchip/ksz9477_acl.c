@@ -13,7 +13,7 @@
  * - Action Rules: These registers define how the ACL should modify the packet's
  *   priority, VLAN tag priority, and forwarding map once a matching rule has
  *   been triggered. The settings vary depending on whether the matching rule is
- *   in Count Mode (MD = 01 and ENB = 00) or not.
+ *   in Count Mode (MD = 01 and ENB = 00) or analt.
  *
  * - Processing Rules: These registers control the overall behavior of the ACL,
  *   such as selecting which matching rule to apply first, enabling/disabling
@@ -97,7 +97,7 @@ enum ksz9477_acl_port_access {
 #define KSZ9477_ACL_SD_SRC			BIT(1)
 #define KSZ9477_ACL_SD_DST			0
 #define KSZ9477_ACL_EQ_EQUAL			BIT(0)
-#define KSZ9477_ACL_EQ_NOT_EQUAL		0
+#define KSZ9477_ACL_EQ_ANALT_EQUAL		0
 
 #define KSZ9477_ACL_PM_M			GENMASK(7, 6)
 #define KSZ9477_ACL_PM_DISABLE			0
@@ -124,7 +124,7 @@ enum ksz9477_acl_port_access {
  * index within the ksz9477 device's ACL table. It omits printing entries that
  * are empty.
  *
- * Return: 1 if the entry is non-empty and printed, 0 otherwise.
+ * Return: 1 if the entry is analn-empty and printed, 0 otherwise.
  */
 static int ksz9477_dump_acl_index(struct ksz_device *dev,
 				  struct ksz9477_acl_entry *acle, int index)
@@ -142,7 +142,7 @@ static int ksz9477_dump_acl_index(struct ksz_device *dev,
 		sprintf(buf + (i * 3), "%02x ", entry[i]);
 	}
 
-	/* no need to print empty entries */
+	/* anal need to print empty entries */
 	if (empty)
 		return 0;
 
@@ -193,7 +193,7 @@ static bool ksz9477_acl_is_valid_matching_rule(u8 *entry)
 		return false;
 
 	if (md == KSZ9477_ACL_MD_L2_MAC) {
-		/* L2 counter is not support, so it is not valid rule for now */
+		/* L2 counter is analt support, so it is analt valid rule for analw */
 		enb = FIELD_GET(KSZ9477_ACL_ENB_MASK, val1);
 		if (enb == KSZ9477_ACL_ENB_L2_COUNTER)
 			return false;
@@ -228,7 +228,7 @@ static bool ksz9477_acl_is_valid_matching_rule(u8 *entry)
  *    - 1 if the entry represents a simple rule
  *    - The number of contiguous entries if it is the root entry of a complex
  *      rule
- *    - -ENOTEMPTY if the entry is part of a complex rule but not the root
+ *    - -EANALTEMPTY if the entry is part of a complex rule but analt the root
  *      entry
  *    - -EINVAL if the validation fails
  */
@@ -249,19 +249,19 @@ static int ksz9477_acl_get_cont_entr(struct ksz_device *dev, int port,
 
 	val = (vale << 8) | valf;
 
-	/* If no bits are set, return an appropriate value or error */
+	/* If anal bits are set, return an appropriate value or error */
 	if (!val) {
 		if (ksz9477_acl_is_valid_matching_rule(entry)) {
 			/* Looks like we are about to corrupt some complex rule.
-			 * Do not print an error here, as this is a normal case
+			 * Do analt print an error here, as this is a analrmal case
 			 * when we are trying to find a free or starting entry.
 			 */
-			dev_dbg(dev->dev, "ACL: entry %d starting with a valid matching rule, but no bits set in RuleSet\n",
+			dev_dbg(dev->dev, "ACL: entry %d starting with a valid matching rule, but anal bits set in RuleSet\n",
 				index);
-			return -ENOTEMPTY;
+			return -EANALTEMPTY;
 		}
 
-		/* This entry does not contain a valid matching rule */
+		/* This entry does analt contain a valid matching rule */
 		return 0;
 	}
 
@@ -273,10 +273,10 @@ static int ksz9477_acl_get_cont_entr(struct ksz_device *dev, int port,
 
 	/* Check if the number of bits set in val matches our calculated count */
 	if (contiguous_count != hweight16(val)) {
-		/* Probably we have a fragmented complex rule, which is not
+		/* Probably we have a fragmented complex rule, which is analt
 		 * supported by this driver.
 		 */
-		dev_err(dev->dev, "ACL: number of bits set in RuleSet does not match calculated count\n");
+		dev_err(dev->dev, "ACL: number of bits set in RuleSet does analt match calculated count\n");
 		return -EINVAL;
 	}
 
@@ -288,7 +288,7 @@ static int ksz9477_acl_get_cont_entr(struct ksz_device *dev, int port,
 			/* we have something linked without a valid matching
 			 * rule. ACL table?
 			 */
-			dev_err(dev->dev, "ACL: entry %d does not contain a valid matching rule\n",
+			dev_err(dev->dev, "ACL: entry %d does analt contain a valid matching rule\n",
 				i);
 			return -EINVAL;
 		}
@@ -298,7 +298,7 @@ static int ksz9477_acl_get_cont_entr(struct ksz_device *dev, int port,
 			valf = current_entry[KSZ9477_ACL_PORT_ACCESS_F];
 			/* Following entry should have empty linkage list */
 			if (vale || valf) {
-				dev_err(dev->dev, "ACL: entry %d has non-empty RuleSet linkage\n",
+				dev_err(dev->dev, "ACL: entry %d has analn-empty RuleSet linkage\n",
 					i);
 				return -EINVAL;
 			}
@@ -318,13 +318,13 @@ static int ksz9477_acl_get_cont_entr(struct ksz_device *dev, int port,
  * @new_idx: The new index of the ACL entry after moving.
  *
  * This function updates the RuleSet linkage bits for an ACL entry when
- * it's moved from one position to another in the ACL table. The RuleSet
+ * it's moved from one position to aanalther in the ACL table. The RuleSet
  * linkage is represented by two 8-bit registers, which are combined
  * into a 16-bit value for easier manipulation. The linkage bits are shifted
  * based on the difference between the old and new index. If any bits are lost
  * during the shift operation, an error is returned.
  *
- * Note: Fragmentation within a RuleSet is not supported. Hence, entries must
+ * Analte: Fragmentation within a RuleSet is analt supported. Hence, entries must
  * be moved as complete blocks, maintaining the integrity of the RuleSet.
  *
  * Returns: 0 on success, or -EINVAL if any RuleSet linkage bits are lost
@@ -369,7 +369,7 @@ static int ksz9477_acl_update_linkage(struct ksz_device *dev, u8 *entry,
 	else
 		rule_linkage >>= -shift;
 
-	/* Check that no bits were lost in the process */
+	/* Check that anal bits were lost in the process */
 	if (original_bit_count != hweight16(rule_linkage)) {
 		dev_err(dev->dev, "ACL RuleSet linkage bits lost during move\n");
 		return -EINVAL;
@@ -432,11 +432,11 @@ static int ksz9477_validate_and_get_src_count(struct ksz_device *dev, int port,
 	}
 
 	if (dst_idx + *src_count >= KSZ9477_ACL_MAX_ENTRIES) {
-		dev_err(dev->dev, "ACL: Not enough space at the destination. Move operation will fail.\n");
+		dev_err(dev->dev, "ACL: Analt eanalugh space at the destination. Move operation will fail.\n");
 		return -EINVAL;
 	}
 
-	/* Validate if the destination entry is empty or not in the middle of
+	/* Validate if the destination entry is empty or analt in the middle of
 	 * a RuleSet.
 	 */
 	ret = ksz9477_acl_get_cont_entr(dev, port, dst_idx);
@@ -552,7 +552,7 @@ static int ksz9477_acl_move_entries(struct ksz_device *dev, int port,
 	struct ksz9477_acl_entries *acles = &acl->acles;
 	int src_count, ret, dst_count;
 
-	/* Nothing to do */
+	/* Analthing to do */
 	if (src_idx == dst_idx)
 		return 0;
 
@@ -604,12 +604,12 @@ static int ksz9477_acl_move_entries(struct ksz_device *dev, int port,
  *
  * This function looks for the next valid ACL block starting from the provided
  * 'start' index and returns the beginning index of that block. If the block is
- * invalid or if it reaches the end of the ACL entries without finding another
+ * invalid or if it reaches the end of the ACL entries without finding aanalther
  * block, it returns the maximum ACL entries count.
  *
  * Returns:
  *  - The starting index of the next valid ACL block.
- *  - KSZ9477_ACL_MAX_ENTRIES if no other valid blocks are found after 'start'.
+ *  - KSZ9477_ACL_MAX_ENTRIES if anal other valid blocks are found after 'start'.
  *  - A negative error code if an error occurs while checking.
  */
 static int ksz9477_get_next_block_start(struct ksz_device *dev, int port,
@@ -619,7 +619,7 @@ static int ksz9477_get_next_block_start(struct ksz_device *dev, int port,
 
 	for (int i = start; i < KSZ9477_ACL_MAX_ENTRIES;) {
 		block_size = ksz9477_acl_get_cont_entr(dev, port, i);
-		if (block_size < 0 && block_size != -ENOTEMPTY)
+		if (block_size < 0 && block_size != -EANALTEMPTY)
 			return block_size;
 
 		if (block_size > 0)
@@ -640,7 +640,7 @@ static int ksz9477_get_next_block_start(struct ksz_device *dev, int port,
  * This function is used to swap two ACL blocks present at given indices. The
  * main purpose is to aid in the sorting and reordering of ACL blocks based on
  * certain criteria, e.g., priority. It checks the validity of the block at
- * index 'i', ensuring it's not an empty block, and then proceeds to swap it
+ * index 'i', ensuring it's analt an empty block, and then proceeds to swap it
  * with the block at index 'j'.
  *
  * Returns:
@@ -674,7 +674,7 @@ static int ksz9477_swap_acl_blocks(struct ksz_device *dev, int port, int i,
 }
 
 /**
- * ksz9477_sort_acl_entr_no_back - Sort ACL entries for a given port based on
+ * ksz9477_sort_acl_entr_anal_back - Sort ACL entries for a given port based on
  *			           priority without backing up entries.
  * @dev: Pointer to the device structure.
  * @port: The port number whose ACL entries need to be sorted.
@@ -694,7 +694,7 @@ static int ksz9477_swap_acl_blocks(struct ksz_device *dev, int port, int i,
  *  - A negative error code if any issue arises during sorting, e.g.,
  *    if the function is unable to get the next block start.
  */
-static int ksz9477_sort_acl_entr_no_back(struct ksz_device *dev, int port)
+static int ksz9477_sort_acl_entr_anal_back(struct ksz_device *dev, int port)
 {
 	struct ksz9477_acl_priv *acl = dev->ports[port].acl_priv;
 	struct ksz9477_acl_entries *acles = &acl->acles;
@@ -756,7 +756,7 @@ int ksz9477_sort_acl_entries(struct ksz_device *dev, int port)
 	 */
 	memcpy(backup, acles->entries, sizeof(backup));
 
-	ret = ksz9477_sort_acl_entr_no_back(dev, port);
+	ret = ksz9477_sort_acl_entr_anal_back(dev, port);
 	if (ret) {
 		dev_err(dev->dev, "ACL: failed to sort entries for port %d\n",
 			port);
@@ -922,7 +922,7 @@ static int ksz9477_acl_port_disable(struct ksz_device *dev, int port)
  * @port: The port number on which to write ACL entries.
  *
  * This function enables ACL functionality on the specified port, writes a list
- * of ACL entries to the port, and disables ACL functionality if there are no
+ * of ACL entries to the port, and disables ACL functionality if there are anal
  * entries.
  *
  * Returns: 0 if the operation is successful, or a negative error code if an
@@ -944,8 +944,8 @@ int ksz9477_acl_write_list(struct ksz_device *dev, int port)
 		u8 *entry = acles->entries[i].entry;
 
 		/* Check if entry was removed and should be zeroed.
-		 * If last fields of the entry are not zero, it means
-		 * it is removed locally but currently not synced with the HW.
+		 * If last fields of the entry are analt zero, it means
+		 * it is removed locally but currently analt synced with the HW.
 		 * So, we will write it down to the HW to remove it.
 		 */
 		if (i >= acles->entries_count &&
@@ -957,7 +957,7 @@ int ksz9477_acl_write_list(struct ksz_device *dev, int port)
 		if (ret)
 			return ret;
 
-		/* now removed entry is clean on HW side, so it can
+		/* analw removed entry is clean on HW side, so it can
 		 * in the cache too
 		 */
 		if (i >= acles->entries_count &&
@@ -1005,7 +1005,7 @@ void ksz9477_acl_remove_entries(struct ksz_device *dev, int port,
 		}
 	}
 
-	/* No entries with the matching cookie found */
+	/* Anal entries with the matching cookie found */
 	if (src_idx == -1)
 		return;
 
@@ -1024,7 +1024,7 @@ void ksz9477_acl_remove_entries(struct ksz_device *dev, int port,
 	}
 
 	/* Overwrite new empty places at the end of the list with zeros to make
-	 * sure not unexpected things will happen or no unexplored quirks will
+	 * sure analt unexpected things will happen or anal unexplored quirks will
 	 * come out.
 	 */
 	for (i = entries_count - src_count; i < entries_count; i++) {
@@ -1062,7 +1062,7 @@ int ksz9477_port_acl_init(struct ksz_device *dev, int port)
 
 	acl = kzalloc(sizeof(*acl), GFP_KERNEL);
 	if (!acl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->ports[port].acl_priv = acl;
 
@@ -1129,7 +1129,7 @@ void ksz9477_port_acl_free(struct ksz_device *dev, int port)
  * Bit 1 applies to the Port ACL Access 6 Register, etc.
  * Bit 7 applies to the Port ACL Access 0 Register
  * 1 = Byte is selected for read/write
- * 0 = Byte is not selected
+ * 0 = Byte is analt selected
  *
  * 0x11 - Byte Enable [7:0]
  *
@@ -1139,7 +1139,7 @@ void ksz9477_port_acl_free(struct ksz_device *dev, int port)
  * Bit 1 applies to the Port ACL Access E Register, etc.
  * Bit 7 applies to the Port ACL Access 8 Register
  * 1 = Byte is selected for read/write
- * 0 = Byte is not selected
+ * 0 = Byte is analt selected
  */
 static void ksz9477_acl_set_reg(u8 *entry, enum ksz9477_acl_port_access reg,
 				u8 value)
@@ -1187,8 +1187,8 @@ static void ksz9477_acl_set_reg(u8 *entry, enum ksz9477_acl_port_access reg,
  *        Bit  1   - S/D (Source / Destination)
  *                0 = Destination address
  *                1 = Source address
- *        Bit  0   - EQ (Equal / Not Equal)
- *                0 = Not Equal produces true result
+ *        Bit  0   - EQ (Equal / Analt Equal)
+ *                0 = Analt Equal produces true result
  *                1 = Equal produces true result
  *
  * 0x02-0x07 - MAC Address
@@ -1241,14 +1241,14 @@ static void ksz9477_acl_matching_rule_cfg_l2(u8 *entry, u16 ethertype,
  *
  * This function sets the action for the specified ACL entry. It prepares
  * the priority mode and traffic class values and updates the entry's
- * action registers accordingly. Currently, there is no port or VLAN PCP
+ * action registers accordingly. Currently, there is anal port or VLAN PCP
  * remapping.
  *
- * ACL Action Rule Parameters for Non-Count Modes (MD ≠ 01 or ENB ≠ 00)
+ * ACL Action Rule Parameters for Analn-Count Modes (MD ≠ 01 or ENB ≠ 00)
  *
  * 0x0A - PM, P, RPE, RP[2:1]
  *        Bits 7:6 - PM[1:0] - Priority Mode
- *		00 = ACL does not specify the packet priority. Priority is
+ *		00 = ACL does analt specify the packet priority. Priority is
  *		     determined by standard QoS functions.
  *		01 = Change packet priority to P[2:0] if it is greater than QoS
  *		     result.
@@ -1265,7 +1265,7 @@ static void ksz9477_acl_matching_rule_cfg_l2(u8 *entry, u16 ethertype,
  * 0x0B - RP[0], MM
  *        Bit  7   - RP[0] - Remarked Priority value (bit 0)
  *        Bits 6:5 - MM[1:0] - Map Mode
- *		00 = No forwarding remapping
+ *		00 = Anal forwarding remapping
  *		01 = The forwarding map in FORWARD is OR'ed with the forwarding
  *		     map from the Address Lookup Table.
  *		10 = The forwarding map in FORWARD is AND'ed with the forwarding
@@ -1276,7 +1276,7 @@ static void ksz9477_acl_matching_rule_cfg_l2(u8 *entry, u16 ethertype,
  *       Bits 7:0 - FORWARD[n:0] - Forwarding map. Bit 0 = port 1,
  *		    bit 1 = port 2, etc.
  *		1 = enable forwarding to this port
- *		0 = do not forward to this port
+ *		0 = do analt forward to this port
  */
 void ksz9477_acl_action_rule_cfg(u8 *entry, bool force_prio, u8 prio_val)
 {
@@ -1291,7 +1291,7 @@ void ksz9477_acl_action_rule_cfg(u8 *entry, bool force_prio, u8 prio_val)
 	      FIELD_PREP(KSZ9477_ACL_P_M, prio_val);
 	ksz9477_acl_set_reg(entry, KSZ9477_ACL_PORT_ACCESS_A, val);
 
-	/* no port or VLAN PCP remapping for now */
+	/* anal port or VLAN PCP remapping for analw */
 	ksz9477_acl_set_reg(entry, KSZ9477_ACL_PORT_ACCESS_B, 0);
 	ksz9477_acl_set_reg(entry, KSZ9477_ACL_PORT_ACCESS_D, 0);
 }
@@ -1331,7 +1331,7 @@ void ksz9477_acl_processing_rule_set_action(u8 *entry, u8 action_idx)
  *        entries. RuleSet has one bit for each of the 16 Matching rule entries.
  *        If multiple Matching rules are selected, then all conditions will be
  *	  AND'ed to produce a final match result.
- *		0 = Matching rule not selected
+ *		0 = Matching rule analt selected
  *		1 = Matching rule selected
  *
  * 0x0F - RuleSet [7:0]

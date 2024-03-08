@@ -56,7 +56,7 @@ static struct ctl_table x25_table[] = {
 		.extra2 =	&max_timer,
 	},
 	{
-		.procname =	"acknowledgement_hold_back_timeout",
+		.procname =	"ackanalwledgement_hold_back_timeout",
 		.data =		&sysctl_x25_ack_holdback_timeout,
 		.maxlen =	sizeof(int),
 		.mode =		0644,
@@ -78,7 +78,7 @@ int __init x25_register_sysctl(void)
 {
 	x25_table_header = register_net_sysctl(&init_net, "net/x25", x25_table);
 	if (!x25_table_header)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

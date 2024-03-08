@@ -25,7 +25,7 @@
 #define CESA_TDMA_SRC_BURST_128B		(4 << 6)
 #define CESA_TDMA_CHAIN				BIT(9)
 #define CESA_TDMA_BYTE_SWAP			BIT(11)
-#define CESA_TDMA_NO_BYTE_SWAP			BIT(11)
+#define CESA_TDMA_ANAL_BYTE_SWAP			BIT(11)
 #define CESA_TDMA_EN				BIT(12)
 #define CESA_TDMA_FETCH_ND			BIT(13)
 #define CESA_TDMA_ACT				BIT(14)
@@ -114,7 +114,7 @@
 #define CESA_SA_DESC_CFG_AES_LEN_192		(1 << 24)
 #define CESA_SA_DESC_CFG_AES_LEN_256		(2 << 24)
 #define CESA_SA_DESC_CFG_AES_LEN_MSK		GENMASK(25, 24)
-#define CESA_SA_DESC_CFG_NOT_FRAG		(0 << 30)
+#define CESA_SA_DESC_CFG_ANALT_FRAG		(0 << 30)
 #define CESA_SA_DESC_CFG_FIRST_FRAG		(1 << 30)
 #define CESA_SA_DESC_CFG_LAST_FRAG		(2 << 30)
 #define CESA_SA_DESC_CFG_MID_FRAG		(3 << 30)
@@ -391,7 +391,7 @@ struct mv_cesa_caps {
  * @cache_pool:		data cache pool (used by hash implementation when the
  *			hash request is smaller than the hash block size)
  * @padding_pool:	padding pool (used by hash implementation when hardware
- *			padding cannot be used)
+ *			padding cananalt be used)
  *
  * Structure containing the different DMA pools used by this driver.
  */
@@ -603,7 +603,7 @@ struct mv_cesa_ahash_dma_req {
  * @len:		hash total length
  * @src_nents:		number of entries in the scatterlist
  * @last_req:		define whether the current operation is the last one
- *			or not
+ *			or analt
  * @state:		hash state
  */
 struct mv_cesa_ahash_req {
@@ -757,22 +757,22 @@ static inline struct mv_cesa_engine *mv_cesa_select_engine(int weight)
 
 /*
  * Helper function that indicates whether a crypto request needs to be
- * cleaned up or not after being enqueued using mv_cesa_queue_req().
+ * cleaned up or analt after being enqueued using mv_cesa_queue_req().
  */
 static inline int mv_cesa_req_needs_cleanup(struct crypto_async_request *req,
 					    int ret)
 {
 	/*
 	 * The queue still had some space, the request was queued
-	 * normally, so there's no need to clean it up.
+	 * analrmally, so there's anal need to clean it up.
 	 */
 	if (ret == -EINPROGRESS)
 		return false;
 
 	/*
-	 * The queue had not space left, but since the request is
+	 * The queue had analt space left, but since the request is
 	 * flagged with CRYPTO_TFM_REQ_MAY_BACKLOG, it was added to
-	 * the backlog and will be processed later. There's no need to
+	 * the backlog and will be processed later. There's anal need to
 	 * clean it up.
 	 */
 	if (ret == -EBUSY)

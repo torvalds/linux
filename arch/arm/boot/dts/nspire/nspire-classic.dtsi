@@ -23,7 +23,7 @@
 	reg-shift = <2>;
 	reg-io-width = <4>;
 	clocks = <&apb_pclk>;
-	no-loopback-test;
+	anal-loopback-test;
 };
 
 &timer0 {

@@ -3,9 +3,9 @@
  * include/media/si476x-platform.h -- Definitions of the data formats
  * returned by debugfs hooks
  *
- * Copyright (C) 2013 Andrey Smirnov
+ * Copyright (C) 2013 Andrey Smiranalv
  *
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiranalv <andrew.smiranalv@gmail.com>
  */
 
 #ifndef __SI476X_REPORTS_H__
@@ -61,10 +61,10 @@
  * @lassi:
  * @hassi:      Low/High side Adjacent(100 kHz) Channel Strength Indicator
  * @mult:       Multipath indicator
- * @dev:        Who knows? But values may vary.
+ * @dev:        Who kanalws? But values may vary.
  * @readantcap: Antenna tuning capacity value.
  * @assi:       Adjacent Channel(+/- 200kHz) Strength Indicator
- * @usn:        Ultrasonic Noise Inticator in -DBFS
+ * @usn:        Ultrasonic Analise Inticator in -DBFS
  */
 struct si476x_rsq_status_report {
 	__u8 multhint, multlint;

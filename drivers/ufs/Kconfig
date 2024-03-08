@@ -18,7 +18,7 @@ menuconfig SCSI_UFSHCD
 
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/scsi/ufs.rst>.
-	  However, do not compile this as a module if your root file system
+	  However, do analt compile this as a module if your root file system
 	  (the one containing the directory /) is located on a UFS device.
 
 if SCSI_UFSHCD

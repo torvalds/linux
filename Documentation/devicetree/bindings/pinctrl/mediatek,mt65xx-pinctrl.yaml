@@ -31,7 +31,7 @@ properties:
   pins-are-numbered:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      Specify the subnodes are using numbered pinmux to specify pins. (UNUSED)
+      Specify the subanaldes are using numbered pinmux to specify pins. (UNUSED)
     deprecated: true
 
   gpio-controller: true
@@ -50,7 +50,7 @@ properties:
     minItems: 1
     maxItems: 2
     description:
-      Should be phandles of the syscfg node.
+      Should be phandles of the syscfg analde.
 
   interrupt-controller: true
 
@@ -78,12 +78,12 @@ patternProperties:
         type: object
         additionalProperties: false
         description:
-          A pinctrl node should contain at least one subnodes representing the
-          pinctrl groups available on the machine. Each subnode will list the
+          A pinctrl analde should contain at least one subanaldes representing the
+          pinctrl groups available on the machine. Each subanalde will list the
           pins it needs, and how they should be configured, with regard to muxer
           configuration, pullups, drive strength, input enable/disable and input
           schmitt.
-        $ref: /schemas/pinctrl/pincfg-node.yaml
+        $ref: /schemas/pinctrl/pincfg-analde.yaml
 
         properties:
           pinmux:

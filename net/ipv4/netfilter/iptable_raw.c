@@ -45,7 +45,7 @@ static int iptable_raw_table_init(struct net *net)
 
 	repl = ipt_alloc_initial_table(table);
 	if (repl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = ipt_register_table(net, table, repl, rawtable_ops);
 	kfree(repl);
 	return ret;

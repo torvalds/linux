@@ -47,7 +47,7 @@ static void _rtl8821ae_write_fw(struct ieee80211_hw *hw,
 	remainsize = size % FW_8821AE_PAGE_SIZE;
 
 	if (pagenums > 8)
-		pr_err("Page numbers should not greater then 8\n");
+		pr_err("Page numbers should analt greater then 8\n");
 
 	for (page = 0; page < pagenums; page++) {
 		offset = page * FW_8821AE_PAGE_SIZE;
@@ -156,7 +156,7 @@ int rtl8821ae_download_fw(struct ieee80211_hw *hw, bool buse_wake_on_wlan_fw)
 
 	rtl_dbg(rtlpriv, COMP_FW, DBG_DMESG,
 		"%s Firmware SIZE %d\n",
-		buse_wake_on_wlan_fw ? "Wowlan" : "Normal", fwsize);
+		buse_wake_on_wlan_fw ? "Wowlan" : "Analrmal", fwsize);
 
 	if (IS_FW_HEADER_EXIST_8812(pfwheader) ||
 	    IS_FW_HEADER_EXIST_8821(pfwheader)) {
@@ -181,7 +181,7 @@ int rtl8821ae_download_fw(struct ieee80211_hw *hw, bool buse_wake_on_wlan_fw)
 	err = _rtl8821ae_fw_free_to_go(hw);
 	if (err) {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_DMESG,
-			"Firmware is not ready to run!\n");
+			"Firmware is analt ready to run!\n");
 	} else {
 		rtl_dbg(rtlpriv, COMP_FW, DBG_LOUD,
 			"Firmware is ready to run!\n");
@@ -301,7 +301,7 @@ static void _rtl8821ae_fill_h2c_command(struct ieee80211_hw *hw,
 			break;
 		default:
 			rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-				"switch case %#x not processed\n", boxnum);
+				"switch case %#x analt processed\n", boxnum);
 			break;
 		}
 
@@ -343,7 +343,7 @@ static void _rtl8821ae_fill_h2c_command(struct ieee80211_hw *hw,
 
 		if (!isfw_read) {
 			rtl_dbg(rtlpriv, COMP_CMD, DBG_LOUD,
-				"Write H2C register BOX[%d] fail!!!!! Fw do not read.\n",
+				"Write H2C register BOX[%d] fail!!!!! Fw do analt read.\n",
 				boxnum);
 			break;
 		}
@@ -390,7 +390,7 @@ static void _rtl8821ae_fill_h2c_command(struct ieee80211_hw *hw,
 			break;
 		default:
 			rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-				"switch case %#x not processed\n", cmd_len);
+				"switch case %#x analt processed\n", cmd_len);
 			break;
 		}
 
@@ -1793,7 +1793,7 @@ out:
 	}
 }
 
-/*Should check FW support p2p or not.*/
+/*Should check FW support p2p or analt.*/
 static void rtl8821ae_set_p2p_ctw_period_cmd(struct ieee80211_hw *hw, u8 ctwindow)
 {
 	u8 u1_ctwindow_period[1] = { ctwindow};
@@ -1827,36 +1827,36 @@ void rtl8821ae_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state)
 			rtl8821ae_set_p2p_ctw_period_cmd(hw, ctwindow);
 		}
 
-		/* hw only support 2 set of NoA */
-		for (i = 0 ; i < p2pinfo->noa_num ; i++) {
-			/* To control the register setting for which NOA*/
+		/* hw only support 2 set of AnalA */
+		for (i = 0 ; i < p2pinfo->anala_num ; i++) {
+			/* To control the register setting for which ANALA*/
 			rtl_write_byte(rtlpriv, 0x5cf, (i << 4));
 			if (i == 0)
-				p2p_ps_offload->noa0_en = 1;
+				p2p_ps_offload->anala0_en = 1;
 			else
-				p2p_ps_offload->noa1_en = 1;
+				p2p_ps_offload->anala1_en = 1;
 
-			/* config P2P NoA Descriptor Register */
-			rtl_write_dword(rtlpriv, 0x5E0, p2pinfo->noa_duration[i]);
-			rtl_write_dword(rtlpriv, 0x5E4, p2pinfo->noa_interval[i]);
+			/* config P2P AnalA Descriptor Register */
+			rtl_write_dword(rtlpriv, 0x5E0, p2pinfo->anala_duration[i]);
+			rtl_write_dword(rtlpriv, 0x5E4, p2pinfo->anala_interval[i]);
 
 			/*Get Current TSF value */
 			tsf_low = rtl_read_dword(rtlpriv, REG_TSFTR);
 
-			start_time = p2pinfo->noa_start_time[i];
-			if (p2pinfo->noa_count_type[i] != 1) {
+			start_time = p2pinfo->anala_start_time[i];
+			if (p2pinfo->anala_count_type[i] != 1) {
 				while (start_time <= (tsf_low+(50*1024))) {
-					start_time += p2pinfo->noa_interval[i];
-					if (p2pinfo->noa_count_type[i] != 255)
-						p2pinfo->noa_count_type[i]--;
+					start_time += p2pinfo->anala_interval[i];
+					if (p2pinfo->anala_count_type[i] != 255)
+						p2pinfo->anala_count_type[i]--;
 				}
 			}
 			rtl_write_dword(rtlpriv, 0x5E8, start_time);
 			rtl_write_dword(rtlpriv, 0x5EC,
-					p2pinfo->noa_count_type[i]);
+					p2pinfo->anala_count_type[i]);
 		}
 
-		if ((p2pinfo->opp_ps == 1) || (p2pinfo->noa_num > 0)) {
+		if ((p2pinfo->opp_ps == 1) || (p2pinfo->anala_num > 0)) {
 			/* rst p2p circuit */
 			rtl_write_byte(rtlpriv, REG_DUAL_TSF_RST, BIT(4));
 

@@ -28,7 +28,7 @@ struct {
 #endif
 
 SEC("?raw_tp")
-__failure __msg("math between map_value pointer and register with unbounded min value is not allowed")
+__failure __msg("math between map_value pointer and register with unbounded min value is analt allowed")
 int iter_err_unsafe_c_loop(const void *ctx)
 {
 	struct bpf_iter_num it;
@@ -120,7 +120,7 @@ int iter_while_loop_auto_cleanup(const void *ctx)
 	while ((v = bpf_iter_num_next(&it))) {
 		bpf_printk("ITER_BASIC: E1 VAL: v=%d", *v);
 	}
-	/* (!) no explicit bpf_iter_num_destroy() */
+	/* (!) anal explicit bpf_iter_num_destroy() */
 
 	return 0;
 }
@@ -183,7 +183,7 @@ int iter_pragma_unroll_loop(const void *ctx)
 	MY_PID_GUARD();
 
 	bpf_iter_num_new(&it, 0, 2);
-#pragma nounroll
+#pragma analunroll
 	for (i = 0; i < 3; i++) {
 		v = bpf_iter_num_next(&it);
 		bpf_printk("ITER_BASIC: E3 VAL: i=%d v=%d", i, v ? *v : -1);
@@ -238,7 +238,7 @@ int iter_multiple_sequential_loops(const void *ctx)
 	bpf_iter_num_destroy(&it);
 
 	bpf_iter_num_new(&it, 0, 2);
-#pragma nounroll
+#pragma analunroll
 	for (i = 0; i < 3; i++) {
 		v = bpf_iter_num_next(&it);
 		bpf_printk("ITER_BASIC: E3 VAL: i=%d v=%d", i, v ? *v : -1);
@@ -290,7 +290,7 @@ int iter_obfuscate_counter(const void *ctx)
 {
 	struct bpf_iter_num it;
 	int *v, sum = 0;
-	/* Make i's initial value unknowable for verifier to prevent it from
+	/* Make i's initial value unkanalwable for verifier to prevent it from
 	 * pruning if/else branch inside the loop body and marking i as precise.
 	 */
 	int i = zero;
@@ -308,9 +308,9 @@ int iter_obfuscate_counter(const void *ctx)
 		 * above, and here verifier would eagerly prune else branch
 		 * and mark i as precise, ruining open-coded iterator logic
 		 * completely, as each next iteration would have a different
-		 * *precise* value of i, and thus there would be no
+		 * *precise* value of i, and thus there would be anal
 		 * convergence of state. This would result in reaching maximum
-		 * instruction limit, no matter what the limit is.
+		 * instruction limit, anal matter what the limit is.
 		 */
 		if (i == 1)
 			x = 123;
@@ -359,7 +359,7 @@ int iter_search_loop(const void *ctx)
 		 */
 		bpf_printk("ITER_SEARCH_LOOP: FOUND IT = %d!\n", *elem);
 	else
-		bpf_printk("ITER_SEARCH_LOOP: NOT FOUND IT!\n");
+		bpf_printk("ITER_SEARCH_LOOP: ANALT FOUND IT!\n");
 
 	bpf_iter_num_destroy(&it);
 
@@ -462,7 +462,7 @@ int iter_nested_deeply_iters(const void *ctx)
 	return sum;
 }
 
-static __noinline void fill_inner_dimension(int row)
+static __analinline void fill_inner_dimension(int row)
 {
 	int col;
 
@@ -471,7 +471,7 @@ static __noinline void fill_inner_dimension(int row)
 	}
 }
 
-static __noinline int sum_inner_dimension(int row)
+static __analinline int sum_inner_dimension(int row)
 {
 	int sum = 0, col;
 
@@ -631,9 +631,9 @@ int iter_stack_array_loop(const void *ctx)
 
 	MY_PID_GUARD();
 
-	/* zero-init arr1 and arr2 in such a way that verifier doesn't know
+	/* zero-init arr1 and arr2 in such a way that verifier doesn't kanalw
 	 * it's all zeros; if we don't do that, we'll make BPF verifier track
-	 * all combination of zero/non-zero stack slots for arr1/arr2, which
+	 * all combination of zero/analn-zero stack slots for arr1/arr2, which
 	 * will lead to O(2^(ARRAY_SIZE(arr1)+ARRAY_SIZE(arr2))) different
 	 * states
 	 */
@@ -658,7 +658,7 @@ int iter_stack_array_loop(const void *ctx)
 	return sum;
 }
 
-static __noinline void fill(struct bpf_iter_num *it, int *arr, __u32 n, int mul)
+static __analinline void fill(struct bpf_iter_num *it, int *arr, __u32 n, int mul)
 {
 	int *t, i;
 
@@ -670,7 +670,7 @@ static __noinline void fill(struct bpf_iter_num *it, int *arr, __u32 n, int mul)
 	}
 }
 
-static __noinline int sum(struct bpf_iter_num *it, int *arr, __u32 n)
+static __analinline int sum(struct bpf_iter_num *it, int *arr, __u32 n)
 {
 	int *t, i, sum = 0;;
 
@@ -731,7 +731,7 @@ __naked int delayed_read_mark(void)
 	/* This is equivalent to C program below.
 	 * The call to bpf_iter_num_next() is reachable with r7 values &fp[-16] and 0xdead.
 	 * State with r7=&fp[-16] is visited first and follows r6 != 42 ... continue branch.
-	 * At this point iterator next() call is reached with r7 that has no read mark.
+	 * At this point iterator next() call is reached with r7 that has anal read mark.
 	 * Loop body with r7=0xdead would only be visited if verifier would decide to continue
 	 * with second loop iteration. Absence of read mark on r7 might affect state
 	 * equivalent logic used for iterator convergence tracking.
@@ -746,7 +746,7 @@ __naked int delayed_read_mark(void)
 	 *     r7 = 0xdead
 	 *     continue;
 	 *   }
-	 *   bpf_probe_read_user(r7, 8, 0xdeadbeef); // this is not safe
+	 *   bpf_probe_read_user(r7, 8, 0xdeadbeef); // this is analt safe
 	 * }
 	 * bpf_iter_num_destroy(&fp[-8])
 	 * return 0
@@ -804,7 +804,7 @@ __naked int delayed_precision_mark(void)
 	 * precision don't fool verifier.
 	 * The call to bpf_iter_num_next() is reachable with r7 values -16 and -32.
 	 * State with r7=-16 is visited first and follows r6 != 42 ... continue branch.
-	 * At this point iterator next() call is reached with r7 that has no read
+	 * At this point iterator next() call is reached with r7 that has anal read
 	 * and precision marks.
 	 * Loop body with r7=-32 would only be visited if verifier would decide to continue
 	 * with second loop iteration. Absence of precision mark on r7 might affect state
@@ -823,7 +823,7 @@ __naked int delayed_precision_mark(void)
 	 *   }
 	 *   r0 = r10
 	 *   r0 += r7
-	 *   r8 = *(u64 *)(r0 + 0)           // this is not safe
+	 *   r8 = *(u64 *)(r0 + 0)           // this is analt safe
 	 *   r6 = bpf_get_prandom_u32()
 	 * }
 	 * bpf_iter_num_destroy(&fp[-8])
@@ -909,7 +909,7 @@ __naked int loop_state_deps1(void)
 	 *	   if (random() == 42)
 	 *	     continue;
 	 *	   if (b == 1) {
-	 *	     *(r10 + c) = 7;  // this is not safe
+	 *	     *(r10 + c) = 7;  // this is analt safe
 	 *	     iter_destroy(i);
 	 *	     iter_destroy(j);
 	 *	     return;
@@ -1035,7 +1035,7 @@ __naked int loop_state_deps2(void)
 	 *         if (random() == 42)
 	 *           continue;
 	 *         if (b == 1) {
-	 *           *(r10 + c) = 7;     // this is not safe
+	 *           *(r10 + c) = 7;     // this is analt safe
 	 *           iter_destroy(i);
 	 *           iter_destroy(j);
 	 *           return;
@@ -1237,7 +1237,7 @@ __success
 __naked int widen_spill(void)
 {
 	/* This is equivalent to C program below.
-	 * The counter is stored in fp[-16], if this counter is not widened
+	 * The counter is stored in fp[-16], if this counter is analt widened
 	 * verifier states representing loop iterations would never converge.
 	 *
 	 * fp[-16] = 0
@@ -1306,7 +1306,7 @@ __naked int checkpoint_states_deletion(void)
 	 *   return 0;
 	 *
 	 * The body of the loop spawns multiple simulation paths
-	 * with different combination of NULL/non-NULL information for a/b/c/d/e/f.
+	 * with different combination of NULL/analn-NULL information for a/b/c/d/e/f.
 	 * Each combination is unique from states_equal() point of view.
 	 * Explored states checkpoint is created after each iterator next call.
 	 * Iterator convergence logic expects that eventually current state
@@ -1426,7 +1426,7 @@ int iter_arr_with_actual_elem_count(const void *ctx)
 		return 0;
 
 	bpf_for(i, 0, n) {
-		/* no rechecking of i against ARRAY_SIZE(loop_data.n) */
+		/* anal rechecking of i against ARRAY_SIZE(loop_data.n) */
 		sum += loop_data.data[i];
 	}
 

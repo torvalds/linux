@@ -25,15 +25,15 @@ static int armada510_crtc_init(struct armada_crtc *dcrtc, struct device *dev)
 
 	v = devm_kzalloc(dev, sizeof(*v), GFP_KERNEL);
 	if (!v)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dcrtc->variant_data = v;
 
-	if (dev->of_node) {
+	if (dev->of_analde) {
 		struct property *prop;
 		const char *s;
 
-		of_property_for_each_string(dev->of_node, "clock-names", prop,
+		of_property_for_each_string(dev->of_analde, "clock-names", prop,
 					    s) {
 			if (!strcmp(s, "ext_ref_clk0"))
 				idx = 0;
@@ -48,14 +48,14 @@ static int armada510_crtc_init(struct armada_crtc *dcrtc, struct device *dev)
 
 			clk = devm_clk_get(dev, s);
 			if (IS_ERR(clk))
-				return PTR_ERR(clk) == -ENOENT ? -EPROBE_DEFER :
+				return PTR_ERR(clk) == -EANALENT ? -EPROBE_DEFER :
 					PTR_ERR(clk);
 			v->clks[idx] = clk;
 		}
 	} else {
 		clk = devm_clk_get(dev, "ext_ref_clk1");
 		if (IS_ERR(clk))
-			return PTR_ERR(clk) == -ENOENT ? -EPROBE_DEFER :
+			return PTR_ERR(clk) == -EANALENT ? -EPROBE_DEFER :
 				PTR_ERR(clk);
 
 		v->clks[1] = clk;
@@ -96,7 +96,7 @@ static const struct armada_clocking_params armada510_clocking = {
  * This gets called with sclk = NULL to test whether the mode is
  * supportable, and again with sclk != NULL to set the clocks up for
  * that.  The former can return an error, but the latter is expected
- * not to.
+ * analt to.
  */
 static int armada510_crtc_compute_clock(struct armada_crtc *dcrtc,
 	const struct drm_display_mode *mode, uint32_t *sclk)
@@ -121,7 +121,7 @@ static int armada510_crtc_compute_clock(struct armada_crtc *dcrtc,
 
 		*sclk = res.div | armada510_clk_sels[idx];
 
-		/* We are now using this clock */
+		/* We are analw using this clock */
 		v->sel_clk = res.clk;
 		swap(dcrtc->clk, res.clk);
 	}

@@ -26,7 +26,7 @@ minstrel_stats_read(struct file *file, char __user *buf, size_t len, loff_t *ppo
 }
 
 static int
-minstrel_stats_release(struct inode *inode, struct file *file)
+minstrel_stats_release(struct ianalde *ianalde, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
@@ -142,16 +142,16 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 }
 
 static int
-minstrel_ht_stats_open(struct inode *inode, struct file *file)
+minstrel_ht_stats_open(struct ianalde *ianalde, struct file *file)
 {
-	struct minstrel_ht_sta *mi = inode->i_private;
+	struct minstrel_ht_sta *mi = ianalde->i_private;
 	struct minstrel_debugfs_info *ms;
 	unsigned int i;
 	char *p;
 
 	ms = kmalloc(32768, GFP_KERNEL);
 	if (!ms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	file->private_data = ms;
 	p = ms->buf;
@@ -179,7 +179,7 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 	ms->len = p - ms->buf;
 	WARN_ON(ms->len + sizeof(*ms) > 32768);
 
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
 static const struct file_operations minstrel_ht_stat_fops = {
@@ -187,7 +187,7 @@ static const struct file_operations minstrel_ht_stat_fops = {
 	.open = minstrel_ht_stats_open,
 	.read = minstrel_stats_read,
 	.release = minstrel_stats_release,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static char *
@@ -291,16 +291,16 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 }
 
 static int
-minstrel_ht_stats_csv_open(struct inode *inode, struct file *file)
+minstrel_ht_stats_csv_open(struct ianalde *ianalde, struct file *file)
 {
-	struct minstrel_ht_sta *mi = inode->i_private;
+	struct minstrel_ht_sta *mi = ianalde->i_private;
 	struct minstrel_debugfs_info *ms;
 	unsigned int i;
 	char *p;
 
 	ms = kmalloc(32768, GFP_KERNEL);
 	if (!ms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	file->private_data = ms;
 
@@ -315,7 +315,7 @@ minstrel_ht_stats_csv_open(struct inode *inode, struct file *file)
 	ms->len = p - ms->buf;
 	WARN_ON(ms->len + sizeof(*ms) > 32768);
 
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
 static const struct file_operations minstrel_ht_stat_csv_fops = {
@@ -323,7 +323,7 @@ static const struct file_operations minstrel_ht_stat_csv_fops = {
 	.open = minstrel_ht_stats_csv_open,
 	.read = minstrel_stats_read,
 	.release = minstrel_stats_release,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 void

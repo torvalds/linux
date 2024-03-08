@@ -42,7 +42,7 @@ static inline void dma_to_sec4_sg_one(struct sec4_sg_entry *sec4_sg_ptr,
 
 /*
  * convert scatterlist to h/w link table format
- * but does not have final bit; instead, returns last entry
+ * but does analt have final bit; instead, returns last entry
  */
 static inline struct sec4_sg_entry *
 sg_to_sec4_sg(struct scatterlist *sg, int len,

@@ -10,14 +10,14 @@
 #ifndef FS_NFS_NFS4FLEXFILELAYOUT_H
 #define FS_NFS_NFS4FLEXFILELAYOUT_H
 
-#define FF_FLAGS_NO_LAYOUTCOMMIT 1
-#define FF_FLAGS_NO_IO_THRU_MDS  2
-#define FF_FLAGS_NO_READ_IO      4
+#define FF_FLAGS_ANAL_LAYOUTCOMMIT 1
+#define FF_FLAGS_ANAL_IO_THRU_MDS  2
+#define FF_FLAGS_ANAL_READ_IO      4
 
 #include <linux/refcount.h>
 #include "../pnfs.h"
 
-/* XXX: Let's filter out insanely large mirror count for now to avoid oom
+/* XXX: Let's filter out insanely large mirror count for analw to avoid oom
  * due to network error etc. */
 #define NFS4_FLEXFILE_LAYOUT_MAX_MIRROR_CNT 4096
 
@@ -27,7 +27,7 @@
 
 struct nfs4_ff_ds_version {
 	u32				version;
-	u32				minor_version;
+	u32				mianalr_version;
 	u32				rsize;
 	u32				wsize;
 	bool				tightly_coupled;
@@ -35,7 +35,7 @@ struct nfs4_ff_ds_version {
 
 /* chained in global deviceid hlist */
 struct nfs4_ff_layout_ds {
-	struct nfs4_deviceid_node	id_node;
+	struct nfs4_deviceid_analde	id_analde;
 	u32				ds_versions_cnt;
 	struct nfs4_ff_ds_version	*ds_versions;
 	struct nfs4_pnfs_ds		*ds;
@@ -56,7 +56,7 @@ struct nfs4_ff_io_stat {
 	__u64				bytes_requested;
 	__u64				ops_completed;
 	__u64				bytes_completed;
-	__u64				bytes_not_delivered;
+	__u64				bytes_analt_delivered;
 	ktime_t				total_busy_time;
 	ktime_t				aggregate_completion_time;
 };
@@ -133,9 +133,9 @@ FF_LAYOUT_LSEG(struct pnfs_layout_segment *lseg)
 }
 
 static inline struct nfs4_ff_layout_ds *
-FF_LAYOUT_MIRROR_DS(struct nfs4_deviceid_node *node)
+FF_LAYOUT_MIRROR_DS(struct nfs4_deviceid_analde *analde)
 {
-	return container_of(node, struct nfs4_ff_layout_ds, id_node);
+	return container_of(analde, struct nfs4_ff_layout_ds, id_analde);
 }
 
 static inline struct nfs4_ff_layout_mirror *
@@ -148,8 +148,8 @@ FF_LAYOUT_COMP(struct pnfs_layout_segment *lseg, u32 idx)
 	return NULL;
 }
 
-static inline struct nfs4_deviceid_node *
-FF_LAYOUT_DEVID_NODE(struct pnfs_layout_segment *lseg, u32 idx)
+static inline struct nfs4_deviceid_analde *
+FF_LAYOUT_DEVID_ANALDE(struct pnfs_layout_segment *lseg, u32 idx)
 {
 	struct nfs4_ff_layout_mirror *mirror = FF_LAYOUT_COMP(lseg, idx);
 
@@ -157,7 +157,7 @@ FF_LAYOUT_DEVID_NODE(struct pnfs_layout_segment *lseg, u32 idx)
 		struct nfs4_ff_layout_ds *mirror_ds = mirror->mirror_ds;
 
 		if (!IS_ERR_OR_NULL(mirror_ds))
-			return &mirror_ds->id_node;
+			return &mirror_ds->id_analde;
 	}
 	return NULL;
 }
@@ -169,15 +169,15 @@ FF_LAYOUT_MIRROR_COUNT(struct pnfs_layout_segment *lseg)
 }
 
 static inline bool
-ff_layout_no_fallback_to_mds(struct pnfs_layout_segment *lseg)
+ff_layout_anal_fallback_to_mds(struct pnfs_layout_segment *lseg)
 {
-	return FF_LAYOUT_LSEG(lseg)->flags & FF_FLAGS_NO_IO_THRU_MDS;
+	return FF_LAYOUT_LSEG(lseg)->flags & FF_FLAGS_ANAL_IO_THRU_MDS;
 }
 
 static inline bool
-ff_layout_no_read_on_rw(struct pnfs_layout_segment *lseg)
+ff_layout_anal_read_on_rw(struct pnfs_layout_segment *lseg)
 {
-	return FF_LAYOUT_LSEG(lseg)->flags & FF_FLAGS_NO_READ_IO;
+	return FF_LAYOUT_LSEG(lseg)->flags & FF_FLAGS_ANAL_READ_IO;
 }
 
 static inline int
@@ -187,7 +187,7 @@ nfs4_ff_layout_ds_version(const struct nfs4_ff_layout_mirror *mirror)
 }
 
 struct nfs4_ff_layout_ds *
-nfs4_ff_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
+nfs4_ff_alloc_deviceid_analde(struct nfs_server *server, struct pnfs_device *pdev,
 			    gfp_t gfp_flags);
 void nfs4_ff_layout_put_deviceid(struct nfs4_ff_layout_ds *mirror_ds);
 void nfs4_ff_layout_free_deviceid(struct nfs4_ff_layout_ds *mirror_ds);
@@ -216,7 +216,7 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg,
 struct rpc_clnt *
 nfs4_ff_find_or_create_ds_client(struct nfs4_ff_layout_mirror *mirror,
 				 struct nfs_client *ds_clp,
-				 struct inode *inode);
+				 struct ianalde *ianalde);
 const struct cred *ff_layout_get_ds_cred(struct nfs4_ff_layout_mirror *mirror,
 					 const struct pnfs_layout_range *range,
 					 const struct cred *mdscred);

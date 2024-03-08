@@ -57,7 +57,7 @@ static void irq_ck_mask_set_bit(struct irq_data *d)
 	irq_gc_unlock(gc);
 }
 
-static void __init ck_set_gc(struct device_node *node, void __iomem *reg_base,
+static void __init ck_set_gc(struct device_analde *analde, void __iomem *reg_base,
 			     u32 mask_reg, u32 irq_base)
 {
 	struct irq_chip_generic *gc;
@@ -68,7 +68,7 @@ static void __init ck_set_gc(struct device_node *node, void __iomem *reg_base,
 	gc->chip_types[0].chip.irq_mask = irq_gc_mask_clr_bit;
 	gc->chip_types[0].chip.irq_unmask = irq_gc_mask_set_bit;
 
-	if (of_property_read_bool(node, "csky,support-pulse-signal"))
+	if (of_property_read_bool(analde, "csky,support-pulse-signal"))
 		gc->chip_types[0].chip.irq_unmask = irq_ck_mask_set_bit;
 }
 
@@ -99,34 +99,34 @@ static inline void setup_irq_channel(u32 magic, void __iomem *reg_addr)
 }
 
 static int __init
-ck_intc_init_comm(struct device_node *node, struct device_node *parent)
+ck_intc_init_comm(struct device_analde *analde, struct device_analde *parent)
 {
 	int ret;
 
 	if (parent) {
-		pr_err("C-SKY Intc not a root irq controller\n");
+		pr_err("C-SKY Intc analt a root irq controller\n");
 		return -EINVAL;
 	}
 
-	reg_base = of_iomap(node, 0);
+	reg_base = of_iomap(analde, 0);
 	if (!reg_base) {
-		pr_err("C-SKY Intc unable to map: %p.\n", node);
+		pr_err("C-SKY Intc unable to map: %p.\n", analde);
 		return -EINVAL;
 	}
 
-	root_domain = irq_domain_add_linear(node, nr_irq,
+	root_domain = irq_domain_add_linear(analde, nr_irq,
 					    &irq_generic_chip_ops, NULL);
 	if (!root_domain) {
 		pr_err("C-SKY Intc irq_domain_add failed.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = irq_alloc_domain_generic_chips(root_domain, 32, 1,
 			"csky_intc", handle_level_irq,
-			IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN, 0, 0);
+			IRQ_ANALREQUEST | IRQ_ANALPROBE | IRQ_ANALAUTOEN, 0, 0);
 	if (ret) {
 		pr_err("C-SKY Intc irq_alloc_gc failed.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -161,11 +161,11 @@ retry:
 }
 
 static int __init
-gx_intc_init(struct device_node *node, struct device_node *parent)
+gx_intc_init(struct device_analde *analde, struct device_analde *parent)
 {
 	int ret;
 
-	ret = ck_intc_init_comm(node, parent);
+	ret = ck_intc_init_comm(analde, parent);
 	if (ret)
 		return ret;
 
@@ -183,8 +183,8 @@ gx_intc_init(struct device_node *node, struct device_node *parent)
 
 	setup_irq_channel(0x03020100, reg_base + GX_INTC_SOURCE);
 
-	ck_set_gc(node, reg_base, GX_INTC_NEN31_00, 0);
-	ck_set_gc(node, reg_base, GX_INTC_NEN63_32, 32);
+	ck_set_gc(analde, reg_base, GX_INTC_NEN31_00, 0);
+	ck_set_gc(analde, reg_base, GX_INTC_NEN63_32, 32);
 
 	set_handle_irq(gx_irq_handler);
 
@@ -228,11 +228,11 @@ retry:
 }
 
 static int __init
-ck_intc_init(struct device_node *node, struct device_node *parent)
+ck_intc_init(struct device_analde *analde, struct device_analde *parent)
 {
 	int ret;
 
-	ret = ck_intc_init_comm(node, parent);
+	ret = ck_intc_init_comm(analde, parent);
 	if (ret)
 		return ret;
 
@@ -243,8 +243,8 @@ ck_intc_init(struct device_node *node, struct device_node *parent)
 	/* Enable irq intc */
 	writel(BIT(31), reg_base + CK_INTC_ICR);
 
-	ck_set_gc(node, reg_base, CK_INTC_NEN31_00, 0);
-	ck_set_gc(node, reg_base, CK_INTC_NEN63_32, 32);
+	ck_set_gc(analde, reg_base, CK_INTC_NEN31_00, 0);
+	ck_set_gc(analde, reg_base, CK_INTC_NEN63_32, 32);
 
 	setup_irq_channel(0x00010203, reg_base + CK_INTC_SOURCE);
 
@@ -255,14 +255,14 @@ ck_intc_init(struct device_node *node, struct device_node *parent)
 IRQCHIP_DECLARE(ck_intc, "csky,apb-intc", ck_intc_init);
 
 static int __init
-ck_dual_intc_init(struct device_node *node, struct device_node *parent)
+ck_dual_intc_init(struct device_analde *analde, struct device_analde *parent)
 {
 	int ret;
 
 	/* dual-apb-intc up to 128 irq sources*/
 	nr_irq = INTC_IRQS * 2;
 
-	ret = ck_intc_init(node, parent);
+	ret = ck_intc_init(analde, parent);
 	if (ret)
 		return ret;
 
@@ -270,8 +270,8 @@ ck_dual_intc_init(struct device_node *node, struct device_node *parent)
 	writel(0, reg_base + CK_INTC_NEN31_00 + CK_INTC_DUAL_BASE);
 	writel(0, reg_base + CK_INTC_NEN63_32 + CK_INTC_DUAL_BASE);
 
-	ck_set_gc(node, reg_base + CK_INTC_DUAL_BASE, CK_INTC_NEN31_00, 64);
-	ck_set_gc(node, reg_base + CK_INTC_DUAL_BASE, CK_INTC_NEN63_32, 96);
+	ck_set_gc(analde, reg_base + CK_INTC_DUAL_BASE, CK_INTC_NEN31_00, 64);
+	ck_set_gc(analde, reg_base + CK_INTC_DUAL_BASE, CK_INTC_NEN63_32, 96);
 
 	setup_irq_channel(0x00010203,
 			  reg_base + CK_INTC_SOURCE + CK_INTC_DUAL_BASE);

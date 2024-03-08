@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -24,21 +24,21 @@
 #ifndef _cl827e_h_
 #define _cl827e_h_
 
-#define NV_DISP_NOTIFICATION_1                                                       0x00000000
-#define NV_DISP_NOTIFICATION_1_SIZEOF                                                0x00000010
-#define NV_DISP_NOTIFICATION_1_TIME_STAMP_0                                          0x00000000
-#define NV_DISP_NOTIFICATION_1_TIME_STAMP_0_NANOSECONDS0                             31:0
-#define NV_DISP_NOTIFICATION_1_TIME_STAMP_1                                          0x00000001
-#define NV_DISP_NOTIFICATION_1_TIME_STAMP_1_NANOSECONDS1                             31:0
-#define NV_DISP_NOTIFICATION_1__2                                                    0x00000002
-#define NV_DISP_NOTIFICATION_1__2_AUDIT_TIMESTAMP                                    31:0
-#define NV_DISP_NOTIFICATION_1__3                                                    0x00000003
-#define NV_DISP_NOTIFICATION_1__3_PRESENT_COUNT                                      7:0
-#define NV_DISP_NOTIFICATION_1__3_R0                                                 15:8
-#define NV_DISP_NOTIFICATION_1__3_STATUS                                             31:16
-#define NV_DISP_NOTIFICATION_1__3_STATUS_NOT_BEGUN                                   0x00008000
-#define NV_DISP_NOTIFICATION_1__3_STATUS_BEGUN                                       0x0000FFFF
-#define NV_DISP_NOTIFICATION_1__3_STATUS_FINISHED                                    0x00000000
+#define NV_DISP_ANALTIFICATION_1                                                       0x00000000
+#define NV_DISP_ANALTIFICATION_1_SIZEOF                                                0x00000010
+#define NV_DISP_ANALTIFICATION_1_TIME_STAMP_0                                          0x00000000
+#define NV_DISP_ANALTIFICATION_1_TIME_STAMP_0_NAANALSECONDS0                             31:0
+#define NV_DISP_ANALTIFICATION_1_TIME_STAMP_1                                          0x00000001
+#define NV_DISP_ANALTIFICATION_1_TIME_STAMP_1_NAANALSECONDS1                             31:0
+#define NV_DISP_ANALTIFICATION_1__2                                                    0x00000002
+#define NV_DISP_ANALTIFICATION_1__2_AUDIT_TIMESTAMP                                    31:0
+#define NV_DISP_ANALTIFICATION_1__3                                                    0x00000003
+#define NV_DISP_ANALTIFICATION_1__3_PRESENT_COUNT                                      7:0
+#define NV_DISP_ANALTIFICATION_1__3_R0                                                 15:8
+#define NV_DISP_ANALTIFICATION_1__3_STATUS                                             31:16
+#define NV_DISP_ANALTIFICATION_1__3_STATUS_ANALT_BEGUN                                   0x00008000
+#define NV_DISP_ANALTIFICATION_1__3_STATUS_BEGUN                                       0x0000FFFF
+#define NV_DISP_ANALTIFICATION_1__3_STATUS_FINISHED                                    0x00000000
 
 
 // class methods

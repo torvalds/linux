@@ -8,7 +8,7 @@ config KVM_COMMON
        bool
        select EVENTFD
        select INTERVAL_TREE
-       select PREEMPT_NOTIFIERS
+       select PREEMPT_ANALTIFIERS
 
 config HAVE_KVM_PFNCACHE
        bool
@@ -48,7 +48,7 @@ config KVM_MMIO
 config KVM_ASYNC_PF
        bool
 
-# Toggle to switch between direct notification and batch job
+# Toggle to switch between direct analtification and batch job
 config KVM_ASYNC_PF_SYNC
        bool
 
@@ -80,24 +80,24 @@ config HAVE_KVM_VCPU_ASYNC_IOCTL
 config HAVE_KVM_VCPU_RUN_PID_CHANGE
        bool
 
-config HAVE_KVM_NO_POLL
+config HAVE_KVM_ANAL_POLL
        bool
 
 config KVM_XFER_TO_GUEST_WORK
        bool
 
-config HAVE_KVM_PM_NOTIFIER
+config HAVE_KVM_PM_ANALTIFIER
        bool
 
 config KVM_GENERIC_HARDWARE_ENABLING
        bool
 
-config KVM_GENERIC_MMU_NOTIFIER
-       select MMU_NOTIFIER
+config KVM_GENERIC_MMU_ANALTIFIER
+       select MMU_ANALTIFIER
        bool
 
 config KVM_GENERIC_MEMORY_ATTRIBUTES
-       depends on KVM_GENERIC_MMU_NOTIFIER
+       depends on KVM_GENERIC_MMU_ANALTIFIER
        bool
 
 config KVM_PRIVATE_MEM

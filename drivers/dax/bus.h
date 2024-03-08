@@ -15,7 +15,7 @@ struct dax_region;
 #define IORESOURCE_DAX_KMEM BIT(1)
 
 struct dax_region *alloc_dax_region(struct device *parent, int region_id,
-		struct range *range, int target_node, unsigned int align,
+		struct range *range, int target_analde, unsigned int align,
 		unsigned long flags);
 
 struct dev_dax_data {

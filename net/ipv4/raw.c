@@ -13,9 +13,9 @@
  *		Alan Cox	:	verify_area() fixed up
  *		Alan Cox	:	ICMP error handling
  *		Alan Cox	:	EMSGSIZE if you send too big a packet
- *		Alan Cox	: 	Now uses generic datagrams and shared
- *					skbuff library. No more peek crashes,
- *					no more backlogs
+ *		Alan Cox	: 	Analw uses generic datagrams and shared
+ *					skbuff library. Anal more peek crashes,
+ *					anal more backlogs
  *		Alan Cox	:	Checks sk->broadcast.
  *		Alan Cox	:	Uses skb_free_datagram/skb_copy_datagram
  *		Alan Cox	:	Raw passes ip options too
@@ -41,7 +41,7 @@
 #include <asm/ioctls.h>
 #include <linux/stddef.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>
@@ -96,7 +96,7 @@ int raw_hash_sk(struct sock *sk)
 	hlist = &h->ht[raw_hashfunc(sock_net(sk), inet_sk(sk)->inet_num)];
 
 	spin_lock(&h->lock);
-	sk_add_node_rcu(sk, hlist);
+	sk_add_analde_rcu(sk, hlist);
 	sock_set_flag(sk, SOCK_RCU_FREE);
 	spin_unlock(&h->lock);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
@@ -110,7 +110,7 @@ void raw_unhash_sk(struct sock *sk)
 	struct raw_hashinfo *h = sk->sk_prot->h.raw_hash;
 
 	spin_lock(&h->lock);
-	if (sk_del_node_init_rcu(sk))
+	if (sk_del_analde_init_rcu(sk))
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	spin_unlock(&h->lock);
 }
@@ -150,7 +150,7 @@ static int icmp_filter(const struct sock *sk, const struct sk_buff *skb)
 		return ((1U << hdr->type) & data) != 0;
 	}
 
-	/* Do not block unknown ICMP types */
+	/* Do analt block unkanalwn ICMP types */
 	return 0;
 }
 
@@ -158,7 +158,7 @@ static int icmp_filter(const struct sock *sk, const struct sk_buff *skb)
  * Caller owns SKB, so we must make clones.
  *
  * RFC 1122: SHOULD pass TOS value up to the transport layer.
- * -> It does. And not only TOS, but all IP header.
+ * -> It does. And analt only TOS, but all IP header.
  */
 static int raw_v4_input(struct net *net, struct sk_buff *skb,
 			const struct iphdr *iph, int hash)
@@ -181,7 +181,7 @@ static int raw_v4_input(struct net *net, struct sk_buff *skb,
 				   skb->dev->ifindex, sdif)) {
 			struct sk_buff *clone = skb_clone(skb, GFP_ATOMIC);
 
-			/* Not releasing hash table! */
+			/* Analt releasing hash table! */
 			if (clone)
 				raw_rcv(sk, clone);
 		}
@@ -242,7 +242,7 @@ static void raw_err(struct sock *sk, struct sk_buff *skb, u32 info)
 			harderr = READ_ONCE(inet->pmtudisc) != IP_PMTUDISC_DONT;
 			err = EMSGSIZE;
 		} else {
-			err = icmp_err_convert[code].errno;
+			err = icmp_err_convert[code].erranal;
 			harderr = icmp_err_convert[code].fatal;
 		}
 	}
@@ -360,7 +360,7 @@ static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
 	iph = ip_hdr(skb);
 	skb_put(skb, length);
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	skb_setup_tx_timestamp(skb, sockc->tsflags);
 
@@ -405,7 +405,7 @@ static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
 		      net, sk, skb, NULL, rt->dst.dev,
 		      dst_output);
 	if (err > 0)
-		err = net_xmit_errno(err);
+		err = net_xmit_erranal(err);
 	if (err)
 		goto error;
 out:
@@ -415,7 +415,7 @@ error_free:
 	kfree_skb(skb);
 error:
 	IP_INC_STATS(net, IPSTATS_MIB_OUTDISCARDS);
-	if (err == -ENOBUFS && !inet_test_bit(RECVERR, sk))
+	if (err == -EANALBUFS && !inet_test_bit(RECVERR, sk))
 		err = 0;
 	return err;
 }
@@ -453,7 +453,7 @@ static int raw_getfrag(void *from, char *to, int offset, int len, int odd,
 		else
 			skb->csum = csum_block_add(
 				skb->csum,
-				csum_partial_copy_nocheck(rfv->hdr.c + offset,
+				csum_partial_copy_analcheck(rfv->hdr.c + offset,
 							  to, copy),
 				odd);
 
@@ -497,7 +497,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	 *	Check the flags.
 	 */
 
-	err = -EOPNOTSUPP;
+	err = -EOPANALTSUPP;
 	if (msg->msg_flags & MSG_OOB)	/* Mirror BSD error message */
 		goto out;               /* compatibility */
 
@@ -513,13 +513,13 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		if (usin->sin_family != AF_INET) {
 			pr_info_once("%s: %s forgot to set AF_INET. Fix it!\n",
 				     __func__, current->comm);
-			err = -EAFNOSUPPORT;
+			err = -EAFANALSUPPORT;
 			if (usin->sin_family)
 				goto out;
 		}
 		daddr = usin->sin_addr.s_addr;
-		/* ANK: I did not forget to get protocol from port field.
-		 * I just do not know, who uses this weirdness.
+		/* ANK: I did analt forget to get protocol from port field.
+		 * I just do analt kanalw, who uses this weirdness.
 		 * IP_HDRINCL is much more convenient.
 		 */
 	} else {
@@ -562,8 +562,8 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	if (ipc.opt) {
 		err = -EINVAL;
-		/* Linux does not mangle headers on raw sockets,
-		 * so that IP options + IP_HDRINCL is non-sense.
+		/* Linux does analt mangle headers on raw sockets,
+		 * so that IP options + IP_HDRINCL is analn-sense.
 		 */
 		if (hdrincl)
 			goto done;
@@ -601,7 +601,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	flowi4_init_output(&fl4, ipc.oif, ipc.sockc.mark, tos, scope,
 			   hdrincl ? ipc.protocol : sk->sk_protocol,
 			   inet_sk_flowi_flags(sk) |
-			    (hdrincl ? FLOWI_FLAG_KNOWN_NH : 0),
+			    (hdrincl ? FLOWI_FLAG_KANALWN_NH : 0),
 			   daddr, saddr, 0, 0, sk->sk_uid);
 
 	if (!hdrincl) {
@@ -644,7 +644,7 @@ back_from_confirm:
 			ip_flush_pending_frames(sk);
 		else if (!(msg->msg_flags & MSG_MORE)) {
 			err = ip_push_pending_frames(sk, &fl4);
-			if (err == -ENOBUFS && !inet_test_bit(RECVERR, sk))
+			if (err == -EANALBUFS && !inet_test_bit(RECVERR, sk))
 				err = 0;
 		}
 		release_sock(sk);
@@ -705,8 +705,8 @@ static int raw_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	chk_addr_ret = inet_addr_type_table(net, addr->sin_addr.s_addr, tb_id);
 
-	ret = -EADDRNOTAVAIL;
-	if (!inet_addr_valid_or_nonlocal(net, inet, addr->sin_addr.s_addr,
+	ret = -EADDRANALTAVAIL;
+	if (!inet_addr_valid_or_analnlocal(net, inet, addr->sin_addr.s_addr,
 					 chk_addr_ret))
 		goto out;
 
@@ -730,7 +730,7 @@ static int raw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 {
 	struct inet_sock *inet = inet_sk(sk);
 	size_t copied = 0;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 	DECLARE_SOCKADDR(struct sockaddr_in *, sin, msg->msg_name);
 	struct sk_buff *skb;
 
@@ -820,11 +820,11 @@ static int do_raw_setsockopt(struct sock *sk, int level, int optname,
 {
 	if (optname == ICMP_FILTER) {
 		if (inet_sk(sk)->inet_num != IPPROTO_ICMP)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		else
 			return raw_seticmpfilter(sk, optval, optlen);
 	}
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 static int raw_setsockopt(struct sock *sk, int level, int optname,
@@ -840,11 +840,11 @@ static int do_raw_getsockopt(struct sock *sk, int level, int optname,
 {
 	if (optname == ICMP_FILTER) {
 		if (inet_sk(sk)->inet_num != IPPROTO_ICMP)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		else
 			return raw_geticmpfilter(sk, optval, optlen);
 	}
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 }
 
 static int raw_getsockopt(struct sock *sk, int level, int optname,
@@ -879,7 +879,7 @@ static int raw_ioctl(struct sock *sk, int cmd, int *karg)
 #ifdef CONFIG_IP_MROUTE
 		return ipmr_ioctl(sk, cmd, karg);
 #else
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 #endif
 	}
 }
@@ -890,12 +890,12 @@ static int compat_raw_ioctl(struct sock *sk, unsigned int cmd, unsigned long arg
 	switch (cmd) {
 	case SIOCOUTQ:
 	case SIOCINQ:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	default:
 #ifdef CONFIG_IP_MROUTE
 		return ipmr_compat_ioctl(sk, cmd, compat_ptr(arg));
 #else
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 #endif
 	}
 }
@@ -946,7 +946,7 @@ struct proto raw_prot = {
 #ifdef CONFIG_PROC_FS
 static struct sock *raw_get_first(struct seq_file *seq, int bucket)
 {
-	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
+	struct raw_hashinfo *h = pde_data(file_ianalde(seq->file));
 	struct raw_iter_state *state = raw_seq_private(seq);
 	struct hlist_head *hlist;
 	struct sock *sk;
@@ -988,7 +988,7 @@ static struct sock *raw_get_idx(struct seq_file *seq, loff_t pos)
 void *raw_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(&h->lock)
 {
-	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
+	struct raw_hashinfo *h = pde_data(file_ianalde(seq->file));
 
 	spin_lock(&h->lock);
 
@@ -1012,7 +1012,7 @@ EXPORT_SYMBOL_GPL(raw_seq_next);
 void raw_seq_stop(struct seq_file *seq, void *v)
 	__releases(&h->lock)
 {
-	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
+	struct raw_hashinfo *h = pde_data(file_ianalde(seq->file));
 
 	spin_unlock(&h->lock);
 }
@@ -1033,7 +1033,7 @@ static void raw_sock_seq_show(struct seq_file *seq, struct sock *sp, int i)
 		sk_rmem_alloc_get(sp),
 		0, 0L, 0,
 		from_kuid_munged(seq_user_ns(seq), sock_i_uid(sp)),
-		0, sock_i_ino(sp),
+		0, sock_i_ianal(sp),
 		refcount_read(&sp->sk_refcnt), sp, atomic_read(&sp->sk_drops));
 }
 
@@ -1042,7 +1042,7 @@ static int raw_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_printf(seq, "  sl  local_address rem_address   st tx_queue "
 				"rx_queue tr tm->when retrnsmt   uid  timeout "
-				"inode ref pointer drops\n");
+				"ianalde ref pointer drops\n");
 	else
 		raw_sock_seq_show(seq, v, raw_seq_private(seq)->bucket);
 	return 0;
@@ -1059,7 +1059,7 @@ static __net_init int raw_init_net(struct net *net)
 {
 	if (!proc_create_net_data("raw", 0444, net->proc_net, &raw_seq_ops,
 			sizeof(struct raw_iter_state), &raw_v4_hashinfo))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

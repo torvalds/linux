@@ -34,9 +34,9 @@ enum {
 #define OPA_SA_CLASS_VERSION	0x80
 enum {
 	IB_SA_ATTR_CLASS_PORTINFO    = 0x01,
-	IB_SA_ATTR_NOTICE	     = 0x02,
+	IB_SA_ATTR_ANALTICE	     = 0x02,
 	IB_SA_ATTR_INFORM_INFO	     = 0x03,
-	IB_SA_ATTR_NODE_REC	     = 0x11,
+	IB_SA_ATTR_ANALDE_REC	     = 0x11,
 	IB_SA_ATTR_PORT_INFO_REC     = 0x12,
 	IB_SA_ATTR_SL2VL_REC	     = 0x13,
 	IB_SA_ATTR_SWITCH_REC	     = 0x14,
@@ -72,13 +72,13 @@ enum ib_sa_selector {
 
 /*
  * There are 4 types of join states:
- * FullMember, NonMember, SendOnlyNonMember, SendOnlyFullMember.
+ * FullMember, AnalnMember, SendOnlyAnalnMember, SendOnlyFullMember.
  * The order corresponds to JoinState bits in MCMemberRecord.
  */
 enum ib_sa_mc_join_states {
 	FULLMEMBER_JOIN,
-	NONMEMBER_JOIN,
-	SENDONLY_NONMEBER_JOIN,
+	ANALNMEMBER_JOIN,
+	SENDONLY_ANALNMEBER_JOIN,
 	SENDONLY_FULLMEMBER_JOIN,
 	NUM_JOIN_MEMBERSHIP_TYPES,
 };
@@ -86,7 +86,7 @@ enum ib_sa_mc_join_states {
 #define IB_SA_CAP_MASK2_SENDONLY_FULL_MEM_SUPPORT	BIT(12)
 
 /*
- * Structures for SA records are named "struct ib_sa_xxx_rec."  No
+ * Structures for SA records are named "struct ib_sa_xxx_rec."  Anal
  * attempt is made to pack structures to match the physical layout of
  * SA records in SA MADs; all packing and unpacking is handled by the
  * SA query code.
@@ -443,9 +443,9 @@ struct ib_sa_multicast {
  * multicast group.  If the join operation is started successfully, it returns
  * an ib_sa_multicast structure that is used to track the multicast operation.
  * Users must free this structure by calling ib_free_multicast, even if the
- * join operation later fails.  (The callback status is non-zero.)
+ * join operation later fails.  (The callback status is analn-zero.)
  *
- * If the join operation fails; status will be non-zero, with the following
+ * If the join operation fails; status will be analn-zero, with the following
  * failures possible:
  * -ETIMEDOUT: The request timed out.
  * -EIO: An error occurred sending the query.
@@ -469,7 +469,7 @@ struct ib_sa_multicast *ib_sa_join_multicast(struct ib_sa_client *client,
  * @multicast: Multicast tracking structure allocated by ib_join_multicast.
  *
  * This call blocks until the multicast identifier is destroyed.  It may
- * not be called from within the multicast callback; however, returning a non-
+ * analt be called from within the multicast callback; however, returning a analn-
  * zero value from the callback will result in destroying the multicast
  * tracking structure.
  */

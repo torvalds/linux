@@ -79,7 +79,7 @@ static inline int sht21_rh_ticks_to_per_cent_mille(int ticks)
  * sht21_update_measurements() - get updated measurements from device
  * @dev: device
  *
- * Returns 0 on success, else negative errno.
+ * Returns 0 on success, else negative erranal.
  */
 static int sht21_update_measurements(struct device *dev)
 {
@@ -90,7 +90,7 @@ static int sht21_update_measurements(struct device *dev)
 	mutex_lock(&sht21->lock);
 	/*
 	 * Data sheet 2.4:
-	 * SHT2x should not be active for more than 10% of the time - e.g.
+	 * SHT2x should analt be active for more than 10% of the time - e.g.
 	 * maximum two measurements per second at 12bit accuracy shall be made.
 	 */
 	if (time_after(jiffies, sht21->last_update + HZ / 2) || !sht21->valid) {
@@ -120,7 +120,7 @@ out:
  * @buf: sysfs buffer (PAGE_SIZE) where measurement values are written to
  *
  * Will be called on read access to temp1_input sysfs attribute.
- * Returns number of bytes written into buffer, negative errno on error.
+ * Returns number of bytes written into buffer, negative erranal on error.
  */
 static ssize_t sht21_temperature_show(struct device *dev,
 				      struct device_attribute *attr,
@@ -142,7 +142,7 @@ static ssize_t sht21_temperature_show(struct device *dev,
  * @buf: sysfs buffer (PAGE_SIZE) where measurement values are written to
  *
  * Will be called on read access to humidity1_input sysfs attribute.
- * Returns number of bytes written into buffer, negative errno on error.
+ * Returns number of bytes written into buffer, negative erranal on error.
  */
 static ssize_t sht21_humidity_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
@@ -217,7 +217,7 @@ out:
  * @buf: sysfs buffer (PAGE_SIZE) where EIC is written
  *
  * Will be called on read access to eic sysfs attribute.
- * Returns number of bytes written into buffer, negative errno on error.
+ * Returns number of bytes written into buffer, negative erranal on error.
  */
 static ssize_t eic_show(struct device *dev,
 	struct device_attribute *attr,
@@ -259,13 +259,13 @@ static int sht21_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WORD_DATA)) {
 		dev_err(&client->dev,
-			"adapter does not support SMBus word transactions\n");
-		return -ENODEV;
+			"adapter does analt support SMBus word transactions\n");
+		return -EANALDEV;
 	}
 
 	sht21 = devm_kzalloc(dev, sizeof(*sht21), GFP_KERNEL);
 	if (!sht21)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sht21->client = client;
 

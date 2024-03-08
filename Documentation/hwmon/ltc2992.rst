@@ -4,7 +4,7 @@ Kernel driver ltc2992
 =====================
 
 Supported chips:
-  * Linear Technology LTC2992
+  * Linear Techanallogy LTC2992
     Prefix: 'ltc2992'
     Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/ltc2992.pdf
 
@@ -14,7 +14,7 @@ Author: Alexandru Tachici <alexandru.tachici@analog.com>
 Description
 -----------
 
-This driver supports hardware monitoring for Linear Technology LTC2992 power monitor.
+This driver supports hardware monitoring for Linear Techanallogy LTC2992 power monitor.
 
 LTC2992 is a rail-to-rail system monitor that measures current,
 voltage, and power of two supplies.

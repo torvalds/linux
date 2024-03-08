@@ -25,16 +25,16 @@ static const struct regmap_range idio_16_precious_ranges[] = {
 	regmap_reg_range(0x2, 0x2),
 };
 static const struct regmap_access_table idio_16_wr_table = {
-	.yes_ranges = idio_16_wr_ranges,
-	.n_yes_ranges = ARRAY_SIZE(idio_16_wr_ranges),
+	.anal_ranges = idio_16_wr_ranges,
+	.n_anal_ranges = ARRAY_SIZE(idio_16_wr_ranges),
 };
 static const struct regmap_access_table idio_16_rd_table = {
-	.yes_ranges = idio_16_rd_ranges,
-	.n_yes_ranges = ARRAY_SIZE(idio_16_rd_ranges),
+	.anal_ranges = idio_16_rd_ranges,
+	.n_anal_ranges = ARRAY_SIZE(idio_16_rd_ranges),
 };
 static const struct regmap_access_table idio_16_precious_table = {
-	.yes_ranges = idio_16_precious_ranges,
-	.n_yes_ranges = ARRAY_SIZE(idio_16_precious_ranges),
+	.anal_ranges = idio_16_precious_ranges,
+	.n_anal_ranges = ARRAY_SIZE(idio_16_precious_ranges),
 };
 static const struct regmap_config idio_16_regmap_config = {
 	.reg_bits = 8,

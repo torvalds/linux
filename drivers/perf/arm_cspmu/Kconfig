@@ -7,8 +7,8 @@ config ARM_CORESIGHT_PMU_ARCH_SYSTEM_PMU
 	depends on ARM64 || COMPILE_TEST
 	help
 	  Provides support for performance monitoring unit (PMU) devices
-	  based on ARM CoreSight PMU architecture. Note that this PMU
-	  architecture does not have relationship with the ARM CoreSight
+	  based on ARM CoreSight PMU architecture. Analte that this PMU
+	  architecture does analt have relationship with the ARM CoreSight
 	  Self-Hosted Tracing.
 
 config NVIDIA_CORESIGHT_PMU_ARCH_SYSTEM_PMU

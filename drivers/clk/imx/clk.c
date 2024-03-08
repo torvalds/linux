@@ -63,19 +63,19 @@ EXPORT_SYMBOL_GPL(imx_check_clk_hws);
 static struct clk *imx_obtain_fixed_clock_from_dt(const char *name)
 {
 	struct of_phandle_args phandle;
-	struct clk *clk = ERR_PTR(-ENODEV);
+	struct clk *clk = ERR_PTR(-EANALDEV);
 	char *path;
 
 	path = kasprintf(GFP_KERNEL, "/clocks/%s", name);
 	if (!path)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	phandle.np = of_find_node_by_path(path);
+	phandle.np = of_find_analde_by_path(path);
 	kfree(path);
 
 	if (phandle.np) {
 		clk = of_clk_get_from_provider(&phandle);
-		of_node_put(phandle.np);
+		of_analde_put(phandle.np);
 	}
 	return clk;
 }
@@ -102,7 +102,7 @@ struct clk_hw *imx_obtain_fixed_clock_hw(
 	return __clk_get_hw(clk);
 }
 
-struct clk_hw *imx_obtain_fixed_of_clock(struct device_node *np,
+struct clk_hw *imx_obtain_fixed_of_clock(struct device_analde *np,
 					 const char *name, unsigned long rate)
 {
 	struct clk *clk = of_clk_get_by_name(np, name);
@@ -116,13 +116,13 @@ struct clk_hw *imx_obtain_fixed_of_clock(struct device_node *np,
 	return hw;
 }
 
-struct clk_hw *imx_get_clk_hw_by_name(struct device_node *np, const char *name)
+struct clk_hw *imx_get_clk_hw_by_name(struct device_analde *np, const char *name)
 {
 	struct clk *clk;
 
 	clk = of_clk_get_by_name(np, name);
 	if (IS_ERR(clk))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	return __clk_get_hw(clk);
 }
@@ -177,7 +177,7 @@ void imx_register_uart_clocks(void)
 
 	imx_enabled_uart_clocks = 0;
 
-/* i.MX boards use device trees now.  For build tests without CONFIG_OF, do nothing */
+/* i.MX boards use device trees analw.  For build tests without CONFIG_OF, do analthing */
 #ifdef CONFIG_OF
 	if (imx_keep_uart_clocks) {
 		int i;
@@ -196,11 +196,11 @@ void imx_register_uart_clocks(void)
 		for (i = 0; i < num; i++) {
 			imx_uart_clocks[imx_enabled_uart_clocks] = of_clk_get(of_stdout, i);
 
-			/* Stop if there are no more of_stdout references */
+			/* Stop if there are anal more of_stdout references */
 			if (IS_ERR(imx_uart_clocks[imx_enabled_uart_clocks]))
 				return;
 
-			/* Only enable the clock if it's not NULL */
+			/* Only enable the clock if it's analt NULL */
 			if (imx_uart_clocks[imx_enabled_uart_clocks])
 				clk_prepare_enable(imx_uart_clocks[imx_enabled_uart_clocks++]);
 		}

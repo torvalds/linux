@@ -21,7 +21,7 @@ typedef int (*core_decode_cb_t)(struct vdec_lat_buf *lat_buf);
 
 /**
  * enum core_ctx_status - Context decode status for core hardwre.
- * @CONTEXT_LIST_EMPTY: No buffer queued on core hardware(must always be 0)
+ * @CONTEXT_LIST_EMPTY: Anal buffer queued on core hardware(must always be 0)
  * @CONTEXT_LIST_QUEUED: Buffer queued to core work list
  * @CONTEXT_LIST_DEC_DONE: context decode done
  */
@@ -153,7 +153,7 @@ int vdec_msg_queue_qbuf(struct vdec_msg_queue_ctx *ctx, struct vdec_lat_buf *buf
  * vdec_msg_queue_dqbuf - dequeue lat buffer from queue list.
  * @ctx: message queue context
  *
- * Return: returns not null if dq successfully, or fail.
+ * Return: returns analt null if dq successfully, or fail.
  */
 struct vdec_lat_buf *vdec_msg_queue_dqbuf(struct vdec_msg_queue_ctx *ctx);
 

@@ -17,11 +17,11 @@
 
 #include "sysfs.h"
 
-static int sysfs_do_create_link_sd(struct kernfs_node *parent,
+static int sysfs_do_create_link_sd(struct kernfs_analde *parent,
 				   struct kobject *target_kobj,
 				   const char *name, int warn)
 {
-	struct kernfs_node *kn, *target = NULL;
+	struct kernfs_analde *kn, *target = NULL;
 
 	if (WARN_ON(!name || !parent))
 		return -EINVAL;
@@ -39,7 +39,7 @@ static int sysfs_do_create_link_sd(struct kernfs_node *parent,
 	spin_unlock(&sysfs_symlink_target_lock);
 
 	if (!target)
-		return -ENOENT;
+		return -EANALENT;
 
 	kn = kernfs_create_link(parent, name, target);
 	kernfs_put(target);
@@ -58,7 +58,7 @@ static int sysfs_do_create_link_sd(struct kernfs_node *parent,
  *	@target:	object we're pointing to.
  *	@name:		name of the symlink.
  */
-int sysfs_create_link_sd(struct kernfs_node *kn, struct kobject *target,
+int sysfs_create_link_sd(struct kernfs_analde *kn, struct kobject *target,
 			 const char *name)
 {
 	return sysfs_do_create_link_sd(kn, target, name, 1);
@@ -67,7 +67,7 @@ int sysfs_create_link_sd(struct kernfs_node *kn, struct kobject *target,
 static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
 				const char *name, int warn)
 {
-	struct kernfs_node *parent = NULL;
+	struct kernfs_analde *parent = NULL;
 
 	if (!kobj)
 		parent = sysfs_root_kn;
@@ -94,7 +94,7 @@ int sysfs_create_link(struct kobject *kobj, struct kobject *target,
 EXPORT_SYMBOL_GPL(sysfs_create_link);
 
 /**
- *	sysfs_create_link_nowarn - create symlink between two objects.
+ *	sysfs_create_link_analwarn - create symlink between two objects.
  *	@kobj:	object whose directory we're creating the link in.
  *	@target:	object we're pointing to.
  *	@name:		name of the symlink.
@@ -102,12 +102,12 @@ EXPORT_SYMBOL_GPL(sysfs_create_link);
  *	This function does the same as sysfs_create_link(), but it
  *	doesn't warn if the link already exists.
  */
-int sysfs_create_link_nowarn(struct kobject *kobj, struct kobject *target,
+int sysfs_create_link_analwarn(struct kobject *kobj, struct kobject *target,
 			     const char *name)
 {
 	return sysfs_do_create_link(kobj, target, name, 0);
 }
-EXPORT_SYMBOL_GPL(sysfs_create_link_nowarn);
+EXPORT_SYMBOL_GPL(sysfs_create_link_analwarn);
 
 /**
  *	sysfs_delete_link - remove symlink in object's directory.
@@ -115,7 +115,7 @@ EXPORT_SYMBOL_GPL(sysfs_create_link_nowarn);
  *	@targ:	object we're pointing to.
  *	@name:	name of the symlink to remove.
  *
- *	Unlike sysfs_remove_link sysfs_delete_link has enough information
+ *	Unlike sysfs_remove_link sysfs_delete_link has eanalugh information
  *	to successfully delete symlinks in tagged directories.
  */
 void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
@@ -142,7 +142,7 @@ void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
  */
 void sysfs_remove_link(struct kobject *kobj, const char *name)
 {
-	struct kernfs_node *parent = NULL;
+	struct kernfs_analde *parent = NULL;
 
 	if (!kobj)
 		parent = sysfs_root_kn;
@@ -166,7 +166,7 @@ EXPORT_SYMBOL_GPL(sysfs_remove_link);
 int sysfs_rename_link_ns(struct kobject *kobj, struct kobject *targ,
 			 const char *old, const char *new, const void *new_ns)
 {
-	struct kernfs_node *parent, *kn = NULL;
+	struct kernfs_analde *parent, *kn = NULL;
 	const void *old_ns = NULL;
 	int result;
 
@@ -178,7 +178,7 @@ int sysfs_rename_link_ns(struct kobject *kobj, struct kobject *targ,
 	if (targ->sd)
 		old_ns = targ->sd->ns;
 
-	result = -ENOENT;
+	result = -EANALENT;
 	kn = kernfs_find_and_get_ns(parent, old, old_ns);
 	if (!kn)
 		goto out;

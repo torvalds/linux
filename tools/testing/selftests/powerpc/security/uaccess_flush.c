@@ -2,7 +2,7 @@
 
 /*
  * Copyright 2018 IBM Corporation.
- * Copyright 2020 Canonical Ltd.
+ * Copyright 2020 Caanalnical Ltd.
  */
 
 #define __SANE_USERSPACE_TYPES__

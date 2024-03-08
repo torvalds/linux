@@ -45,8 +45,8 @@ struct cpsw_cpts {
 #define RTL_VER_MASK         (0x1f)
 #define MAJOR_VER_SHIFT      (8)     /* Major Version Value */
 #define MAJOR_VER_MASK       (0x7)
-#define MINOR_VER_SHIFT      (0)     /* Minor Version Value */
-#define MINOR_VER_MASK       (0xff)
+#define MIANALR_VER_SHIFT      (0)     /* Mianalr Version Value */
+#define MIANALR_VER_MASK       (0xff)
 
 /* Bit definitions for the CONTROL register */
 #define HW4_TS_PUSH_EN       (1<<11) /* Hardware push 4 enable */
@@ -105,7 +105,7 @@ struct cpts {
 	struct ptp_clock_info info;
 	struct ptp_clock *clock;
 	spinlock_t lock; /* protects fifo/events */
-	u32 cc_mult; /* for the nominal frequency */
+	u32 cc_mult; /* for the analminal frequency */
 	struct cyclecounter cc;
 	struct timecounter tc;
 	int phc_index;
@@ -128,7 +128,7 @@ void cpts_tx_timestamp(struct cpts *cpts, struct sk_buff *skb);
 int cpts_register(struct cpts *cpts);
 void cpts_unregister(struct cpts *cpts);
 struct cpts *cpts_create(struct device *dev, void __iomem *regs,
-			 struct device_node *node, u32 n_ext_ts);
+			 struct device_analde *analde, u32 n_ext_ts);
 void cpts_release(struct cpts *cpts);
 void cpts_misc_interrupt(struct cpts *cpts);
 
@@ -136,7 +136,7 @@ static inline bool cpts_can_timestamp(struct cpts *cpts, struct sk_buff *skb)
 {
 	unsigned int class = ptp_classify_raw(skb);
 
-	if (class == PTP_CLASS_NONE)
+	if (class == PTP_CLASS_ANALNE)
 		return false;
 
 	return true;
@@ -159,7 +159,7 @@ static inline void cpts_tx_timestamp(struct cpts *cpts, struct sk_buff *skb)
 
 static inline
 struct cpts *cpts_create(struct device *dev, void __iomem *regs,
-			 struct device_node *node, u32 n_ext_ts)
+			 struct device_analde *analde, u32 n_ext_ts)
 {
 	return NULL;
 }

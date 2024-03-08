@@ -14,7 +14,7 @@ The Coresight dummy trace module is for the specific devices that kernel don't
 have permission to access or configure, e.g., CoreSight TPDMs on Qualcomm
 platforms. For these devices, a dummy driver is needed to register them as
 Coresight devices. The module may also be used to define components that may
-not have any programming interfaces, so that paths can be created in the driver.
+analt have any programming interfaces, so that paths can be created in the driver.
 It provides Coresight API for operations on dummy devices, such as enabling and
 disabling them. It also provides the Coresight dummy sink/source paths for
 debugging.
@@ -22,7 +22,7 @@ debugging.
 Config details
 --------------
 
-There are two types of nodes, dummy sink and dummy source. These nodes
+There are two types of analdes, dummy sink and dummy source. These analdes
 are available at ``/sys/bus/coresight/devices``.
 
 Example output::

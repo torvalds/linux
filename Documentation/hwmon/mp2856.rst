@@ -20,7 +20,7 @@ Author:
 Description
 -----------
 
-This driver implements support for Monolithic Power Systems, Inc. (MPS)
+This driver implements support for Moanallithic Power Systems, Inc. (MPS)
 vendor dual-loop, digital, multi-phase controller MP2856/MP2857
 
 This device:

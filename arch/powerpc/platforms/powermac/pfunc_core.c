@@ -538,7 +538,7 @@ static pmf_cmd_parser_t pmf_parsers[PMF_CMD_COUNT] =
 
 struct pmf_device {
 	struct list_head	link;
-	struct device_node	*node;
+	struct device_analde	*analde;
 	struct pmf_handlers	*handlers;
 	struct list_head	functions;
 	struct kref		ref;
@@ -565,12 +565,12 @@ static inline struct pmf_device *pmf_get_device(struct pmf_device *dev)
 	return dev;
 }
 
-static inline struct pmf_device *pmf_find_device(struct device_node *np)
+static inline struct pmf_device *pmf_find_device(struct device_analde *np)
 {
 	struct pmf_device *dev;
 
 	list_for_each_entry(dev, &pmf_devices, link) {
-		if (dev->node == np)
+		if (dev->analde == np)
 			return pmf_get_device(dev);
 	}
 	return NULL;
@@ -595,7 +595,7 @@ static int pmf_parse_one(struct pmf_function *func,
 		  func->name, func->length,
 		  handlers ? "executing" : "parsing");
 
-	/* One subcommand to parse for now */
+	/* One subcommand to parse for analw */
 	count = 1;
 
 	while(count-- && cmd.cmdptr < cmd.cmdend) {
@@ -607,15 +607,15 @@ static int pmf_parse_one(struct pmf_function *func,
 			ccode = pmf_next32(&cmd);
 		}
 		if (cmd.error) {
-			LOG_ERROR("pmf: parse error, not enough data\n");
+			LOG_ERROR("pmf: parse error, analt eanalugh data\n");
 			return -ENXIO;
 		}
 		if (ccode >= PMF_CMD_COUNT) {
-			LOG_ERROR("pmf: command code %d unknown !\n", ccode);
+			LOG_ERROR("pmf: command code %d unkanalwn !\n", ccode);
 			return -ENXIO;
 		}
 		if (pmf_parsers[ccode] == NULL) {
-			LOG_ERROR("pmf: no parser for command %d !\n", ccode);
+			LOG_ERROR("pmf: anal parser for command %d !\n", ccode);
 			return -ENXIO;
 		}
 		rc = pmf_parsers[ccode](&cmd, handlers);
@@ -649,7 +649,7 @@ static int pmf_add_function_prop(struct pmf_device *dev, void *driverdata,
 			goto bail;
 		kref_init(&func->ref);
 		INIT_LIST_HEAD(&func->irq_clients);
-		func->node = dev->node;
+		func->analde = dev->analde;
 		func->driver_data = driverdata;
 		func->name = name;
 		func->phandle = data[0];
@@ -685,7 +685,7 @@ static int pmf_add_functions(struct pmf_device *dev, void *driverdata)
 	const int plen = strlen(PP_PREFIX);
 	int count = 0;
 
-	for_each_property_of_node(dev->node, pp) {
+	for_each_property_of_analde(dev->analde, pp) {
 		const char *name;
 		if (strncmp(pp->name, PP_PREFIX, plen) != 0)
 			continue;
@@ -698,7 +698,7 @@ static int pmf_add_functions(struct pmf_device *dev, void *driverdata)
 }
 
 
-int pmf_register_driver(struct device_node *np,
+int pmf_register_driver(struct device_analde *np,
 			struct pmf_handlers *handlers,
 			void *driverdata)
 {
@@ -709,7 +709,7 @@ int pmf_register_driver(struct device_node *np,
 	if (handlers == NULL)
 		return -EINVAL;
 
-	DBG("pmf: registering driver for node %pOF\n", np);
+	DBG("pmf: registering driver for analde %pOF\n", np);
 
 	spin_lock_irqsave(&pmf_lock, flags);
 	dev = pmf_find_device(np);
@@ -722,20 +722,20 @@ int pmf_register_driver(struct device_node *np,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		DBG("pmf: no memory !\n");
-		return -ENOMEM;
+		DBG("pmf: anal memory !\n");
+		return -EANALMEM;
 	}
 	kref_init(&dev->ref);
-	dev->node = of_node_get(np);
+	dev->analde = of_analde_get(np);
 	dev->handlers = handlers;
 	INIT_LIST_HEAD(&dev->functions);
 
 	rc = pmf_add_functions(dev, driverdata);
 	if (rc == 0) {
-		DBG("pmf: no functions, disposing.. \n");
-		of_node_put(np);
+		DBG("pmf: anal functions, disposing.. \n");
+		of_analde_put(np);
 		kfree(dev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spin_lock_irqsave(&pmf_lock, flags);
@@ -777,17 +777,17 @@ void pmf_put_function(struct pmf_function *func)
 }
 EXPORT_SYMBOL_GPL(pmf_put_function);
 
-void pmf_unregister_driver(struct device_node *np)
+void pmf_unregister_driver(struct device_analde *np)
 {
 	struct pmf_device *dev;
 	unsigned long flags;
 
-	DBG("pmf: unregistering driver for node %pOF\n", np);
+	DBG("pmf: unregistering driver for analde %pOF\n", np);
 
 	spin_lock_irqsave(&pmf_lock, flags);
 	dev = pmf_find_device(np);
 	if (dev == NULL) {
-		DBG("pmf: not such driver !\n");
+		DBG("pmf: analt such driver !\n");
 		spin_unlock_irqrestore(&pmf_lock, flags);
 		return;
 	}
@@ -805,10 +805,10 @@ void pmf_unregister_driver(struct device_node *np)
 }
 EXPORT_SYMBOL_GPL(pmf_unregister_driver);
 
-static struct pmf_function *__pmf_find_function(struct device_node *target,
+static struct pmf_function *__pmf_find_function(struct device_analde *target,
 					 const char *name, u32 flags)
 {
-	struct device_node *actor = of_node_get(target);
+	struct device_analde *actor = of_analde_get(target);
 	struct pmf_device *dev;
 	struct pmf_function *func, *result = NULL;
 	char fname[64];
@@ -828,11 +828,11 @@ static struct pmf_function *__pmf_find_function(struct device_node *target,
 		goto find_it;
 
 	/*
-	 * Ok, now try to find the actor. If we can't find it, we fail,
-	 * there is no point in falling back there
+	 * Ok, analw try to find the actor. If we can't find it, we fail,
+	 * there is anal point in falling back there
 	 */
-	of_node_put(actor);
-	actor = of_find_node_by_phandle(ph);
+	of_analde_put(actor);
+	actor = of_find_analde_by_phandle(ph);
 	if (actor == NULL)
 		return NULL;
  find_it:
@@ -854,12 +854,12 @@ static struct pmf_function *__pmf_find_function(struct device_node *target,
 	}
 	pmf_put_device(dev);
 out:
-	of_node_put(actor);
+	of_analde_put(actor);
 	return result;
 }
 
 
-int pmf_register_irq_client(struct device_node *target,
+int pmf_register_irq_client(struct device_analde *target,
 			    const char *name,
 			    struct pmf_irq_client *client)
 {
@@ -872,7 +872,7 @@ int pmf_register_irq_client(struct device_node *target,
 		func = pmf_get_function(func);
 	spin_unlock_irqrestore(&pmf_lock, flags);
 	if (func == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* guard against manipulations of list */
 	mutex_lock(&pmf_irq_mutex);
@@ -920,7 +920,7 @@ void pmf_do_irq(struct pmf_function *func)
 	unsigned long flags;
 	struct pmf_irq_client *client;
 
-	/* For now, using a spinlock over the whole function. Can be made
+	/* For analw, using a spinlock over the whole function. Can be made
 	 * to drop the lock using 2 lists if necessary
 	 */
 	spin_lock_irqsave(&pmf_lock, flags);
@@ -941,7 +941,7 @@ int pmf_call_one(struct pmf_function *func, struct pmf_args *args)
 	void *instdata = NULL;
 	int rc = 0;
 
-	DBG(" ** pmf_call_one(%pOF/%s) **\n", dev->node, func->name);
+	DBG(" ** pmf_call_one(%pOF/%s) **\n", dev->analde, func->name);
 
 	if (dev->handlers->begin)
 		instdata = dev->handlers->begin(func, args);
@@ -953,20 +953,20 @@ int pmf_call_one(struct pmf_function *func, struct pmf_args *args)
 }
 EXPORT_SYMBOL_GPL(pmf_call_one);
 
-int pmf_do_functions(struct device_node *np, const char *name,
+int pmf_do_functions(struct device_analde *np, const char *name,
 		     u32 phandle, u32 fflags, struct pmf_args *args)
 {
 	struct pmf_device *dev;
 	struct pmf_function *func, *tmp;
 	unsigned long flags;
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 
 	spin_lock_irqsave(&pmf_lock, flags);
 
 	dev = pmf_find_device(np);
 	if (dev == NULL) {
 		spin_unlock_irqrestore(&pmf_lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	list_for_each_entry_safe(func, tmp, &dev->functions, link) {
 		if (name && strcmp(name, func->name))
@@ -990,7 +990,7 @@ int pmf_do_functions(struct device_node *np, const char *name,
 EXPORT_SYMBOL_GPL(pmf_do_functions);
 
 
-struct pmf_function *pmf_find_function(struct device_node *target,
+struct pmf_function *pmf_find_function(struct device_analde *target,
 				       const char *name)
 {
 	struct pmf_function *func;
@@ -1005,14 +1005,14 @@ struct pmf_function *pmf_find_function(struct device_node *target,
 }
 EXPORT_SYMBOL_GPL(pmf_find_function);
 
-int pmf_call_function(struct device_node *target, const char *name,
+int pmf_call_function(struct device_analde *target, const char *name,
 		      struct pmf_args *args)
 {
 	struct pmf_function *func = pmf_find_function(target, name);
 	int rc;
 
 	if (func == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = pmf_call_one(func, args);
 	pmf_put_function(func);

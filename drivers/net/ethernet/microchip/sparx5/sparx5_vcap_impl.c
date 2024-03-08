@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver VCAP implementation
  *
- * Copyright (c) 2022 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  *
  * The Sparx5 Chip Register Model can be browsed at this location:
  * https://github.com/microchip-ung/sparx-5_reginfo
@@ -18,9 +18,9 @@
 #define STREAMSIZE (64 * 4)  /* bytes in the VCAP cache area */
 
 #define SPARX5_IS2_LOOKUPS 4
-#define VCAP_IS2_KEYSEL(_ena, _noneth, _v4_mc, _v4_uc, _v6_mc, _v6_uc, _arp) \
+#define VCAP_IS2_KEYSEL(_ena, _analneth, _v4_mc, _v4_uc, _v6_mc, _v6_uc, _arp) \
 	(ANA_ACL_VCAP_S2_KEY_SEL_KEY_SEL_ENA_SET(_ena) | \
-	 ANA_ACL_VCAP_S2_KEY_SEL_NON_ETH_KEY_SEL_SET(_noneth) | \
+	 ANA_ACL_VCAP_S2_KEY_SEL_ANALN_ETH_KEY_SEL_SET(_analneth) | \
 	 ANA_ACL_VCAP_S2_KEY_SEL_IP4_MC_KEY_SEL_SET(_v4_mc) | \
 	 ANA_ACL_VCAP_S2_KEY_SEL_IP4_UC_KEY_SEL_SET(_v4_uc) | \
 	 ANA_ACL_VCAP_S2_KEY_SEL_IP6_MC_KEY_SEL_SET(_v6_mc) | \
@@ -56,9 +56,9 @@ static struct sparx5_vcap_inst {
 	int lookups_per_instance; /* number of lookups in this instance */
 	int first_cid; /* first chain id in this vcap */
 	int last_cid; /* last chain id in this vcap */
-	int count; /* number of available addresses, not in super vcap */
+	int count; /* number of available addresses, analt in super vcap */
 	int map_id; /* id in the super vcap block mapping (if applicable) */
-	int blockno; /* starting block in super vcap (if applicable) */
+	int blockanal; /* starting block in super vcap (if applicable) */
 	int blocks; /* number of blocks in super vcap (if applicable) */
 	bool ingress; /* is vcap in the ingress path */
 } sparx5_vcap_inst_cfg[] = {
@@ -70,7 +70,7 @@ static struct sparx5_vcap_inst {
 		.lookups_per_instance = SPARX5_IS0_LOOKUPS / 3,
 		.first_cid = SPARX5_VCAP_CID_IS0_L0,
 		.last_cid = SPARX5_VCAP_CID_IS0_L2 - 1,
-		.blockno = 8, /* Maps block 8-9 */
+		.blockanal = 8, /* Maps block 8-9 */
 		.blocks = 2,
 		.ingress = true,
 	},
@@ -82,7 +82,7 @@ static struct sparx5_vcap_inst {
 		.lookups_per_instance = SPARX5_IS0_LOOKUPS / 3,
 		.first_cid = SPARX5_VCAP_CID_IS0_L2,
 		.last_cid = SPARX5_VCAP_CID_IS0_L4 - 1,
-		.blockno = 6, /* Maps block 6-7 */
+		.blockanal = 6, /* Maps block 6-7 */
 		.blocks = 2,
 		.ingress = true,
 	},
@@ -94,7 +94,7 @@ static struct sparx5_vcap_inst {
 		.lookups_per_instance = SPARX5_IS0_LOOKUPS / 3,
 		.first_cid = SPARX5_VCAP_CID_IS0_L4,
 		.last_cid = SPARX5_VCAP_CID_IS0_MAX,
-		.blockno = 4, /* Maps block 4-5 */
+		.blockanal = 4, /* Maps block 4-5 */
 		.blocks = 2,
 		.ingress = true,
 	},
@@ -106,7 +106,7 @@ static struct sparx5_vcap_inst {
 		.lookups_per_instance = SPARX5_IS2_LOOKUPS / 2,
 		.first_cid = SPARX5_VCAP_CID_IS2_L0,
 		.last_cid = SPARX5_VCAP_CID_IS2_L2 - 1,
-		.blockno = 0, /* Maps block 0-1 */
+		.blockanal = 0, /* Maps block 0-1 */
 		.blocks = 2,
 		.ingress = true,
 	},
@@ -118,7 +118,7 @@ static struct sparx5_vcap_inst {
 		.lookups_per_instance = SPARX5_IS2_LOOKUPS / 2,
 		.first_cid = SPARX5_VCAP_CID_IS2_L2,
 		.last_cid = SPARX5_VCAP_CID_IS2_MAX,
-		.blockno = 2, /* Maps block 2-3 */
+		.blockanal = 2, /* Maps block 2-3 */
 		.blocks = 2,
 		.ingress = true,
 	},
@@ -143,14 +143,14 @@ static struct sparx5_vcap_inst {
 };
 
 /* These protocols have dedicated keysets in IS0 and a TC dissector */
-static u16 sparx5_vcap_is0_known_etypes[] = {
+static u16 sparx5_vcap_is0_kanalwn_etypes[] = {
 	ETH_P_ALL,
 	ETH_P_IP,
 	ETH_P_IPV6,
 };
 
 /* These protocols have dedicated keysets in IS2 and a TC dissector */
-static u16 sparx5_vcap_is2_known_etypes[] = {
+static u16 sparx5_vcap_is2_kanalwn_etypes[] = {
 	ETH_P_ALL,
 	ETH_P_ARP,
 	ETH_P_IP,
@@ -158,7 +158,7 @@ static u16 sparx5_vcap_is2_known_etypes[] = {
 };
 
 /* These protocols have dedicated keysets in ES2 and a TC dissector */
-static u16 sparx5_vcap_es2_known_etypes[] = {
+static u16 sparx5_vcap_es2_kanalwn_etypes[] = {
 	ETH_P_ALL,
 	ETH_P_ARP,
 	ETH_P_IP,
@@ -169,7 +169,7 @@ static void sparx5_vcap_type_err(struct sparx5 *sparx5,
 				 struct vcap_admin *admin,
 				 const char *fname)
 {
-	pr_err("%s: vcap type: %s not supported\n",
+	pr_err("%s: vcap type: %s analt supported\n",
 	       fname, sparx5_vcaps[admin->vtype].name);
 }
 
@@ -312,9 +312,9 @@ static void sparx5_vcap_add_ingress_range_port_mask(struct vcap_rule *rule,
 	u32 port_mask;
 	u32 range;
 
-	range = port->portno / BITS_PER_TYPE(u32);
+	range = port->portanal / BITS_PER_TYPE(u32);
 	/* Port bit set to match-any */
-	port_mask = ~BIT(port->portno % BITS_PER_TYPE(u32));
+	port_mask = ~BIT(port->portanal % BITS_PER_TYPE(u32));
 	vcap_rule_add_key_u32(rule, VCAP_KF_IF_IGR_PORT_MASK_SEL, 0, 0xf);
 	vcap_rule_add_key_u32(rule, VCAP_KF_IF_IGR_PORT_MASK_RNG, range, 0xf);
 	vcap_rule_add_key_u32(rule, VCAP_KF_IF_IGR_PORT_MASK, 0, port_mask);
@@ -331,8 +331,8 @@ static void sparx5_vcap_add_wide_port_mask(struct vcap_rule *rule,
 	/* Port bit set to match-any */
 	memset(port_mask.value, 0, sizeof(port_mask.value));
 	memset(port_mask.mask, 0xff, sizeof(port_mask.mask));
-	range = port->portno / BITS_PER_BYTE;
-	port_mask.mask[range] = ~BIT(port->portno % BITS_PER_BYTE);
+	range = port->portanal / BITS_PER_BYTE;
+	port_mask.mask[range] = ~BIT(port->portanal % BITS_PER_BYTE);
 	vcap_rule_add_key_u72(rule, VCAP_KF_IF_IGR_PORT_MASK, &port_mask);
 }
 
@@ -350,9 +350,9 @@ static void sparx5_vcap_add_egress_range_port_mask(struct vcap_rule *rule,
 	 *
 	 * Use physical/logical port ranges (0-2)
 	 */
-	range = port->portno / BITS_PER_TYPE(u32);
+	range = port->portanal / BITS_PER_TYPE(u32);
 	/* Port bit set to match-any */
-	port_mask = ~BIT(port->portno % BITS_PER_TYPE(u32));
+	port_mask = ~BIT(port->portanal % BITS_PER_TYPE(u32));
 	vcap_rule_add_key_u32(rule, VCAP_KF_IF_EGR_PORT_MASK_RNG, range, 0xf);
 	vcap_rule_add_key_u32(rule, VCAP_KF_IF_EGR_PORT_MASK, 0, port_mask);
 }
@@ -408,11 +408,11 @@ sparx5_vcap_is0_get_port_etype_keysets(struct vcap_keyset_list *keysetlist,
 				       u32 value)
 {
 	switch (ANA_CL_ADV_CL_CFG_ETYPE_CLM_KEY_SEL_GET(value)) {
-	case VCAP_IS0_PS_ETYPE_NORMAL_7TUPLE:
-		vcap_keyset_list_add(keysetlist, VCAP_KFS_NORMAL_7TUPLE);
+	case VCAP_IS0_PS_ETYPE_ANALRMAL_7TUPLE:
+		vcap_keyset_list_add(keysetlist, VCAP_KFS_ANALRMAL_7TUPLE);
 		break;
-	case VCAP_IS0_PS_ETYPE_NORMAL_5TUPLE_IP4:
-		vcap_keyset_list_add(keysetlist, VCAP_KFS_NORMAL_5TUPLE_IP4);
+	case VCAP_IS0_PS_ETYPE_ANALRMAL_5TUPLE_IP4:
+		vcap_keyset_list_add(keysetlist, VCAP_KFS_ANALRMAL_5TUPLE_IP4);
 		break;
 	}
 }
@@ -425,10 +425,10 @@ static int sparx5_vcap_is0_get_port_keysets(struct net_device *ndev,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5 *sparx5 = port->sparx5;
-	int portno = port->portno;
+	int portanal = port->portanal;
 	u32 value;
 
-	value = spx5_rd(sparx5, ANA_CL_ADV_CL_CFG(portno, lookup));
+	value = spx5_rd(sparx5, ANA_CL_ADV_CL_CFG(portanal, lookup));
 
 	/* Collect all keysets for the port in a list */
 	if (l3_proto == ETH_P_ALL)
@@ -440,13 +440,13 @@ static int sparx5_vcap_is0_get_port_keysets(struct net_device *ndev,
 			sparx5_vcap_is0_get_port_etype_keysets(keysetlist,
 							       value);
 			break;
-		case VCAP_IS0_PS_ETYPE_NORMAL_7TUPLE:
+		case VCAP_IS0_PS_ETYPE_ANALRMAL_7TUPLE:
 			vcap_keyset_list_add(keysetlist,
-					     VCAP_KFS_NORMAL_7TUPLE);
+					     VCAP_KFS_ANALRMAL_7TUPLE);
 			break;
-		case VCAP_IS0_PS_ETYPE_NORMAL_5TUPLE_IP4:
+		case VCAP_IS0_PS_ETYPE_ANALRMAL_5TUPLE_IP4:
 			vcap_keyset_list_add(keysetlist,
-					     VCAP_KFS_NORMAL_5TUPLE_IP4);
+					     VCAP_KFS_ANALRMAL_5TUPLE_IP4);
 			break;
 		}
 
@@ -456,13 +456,13 @@ static int sparx5_vcap_is0_get_port_keysets(struct net_device *ndev,
 			sparx5_vcap_is0_get_port_etype_keysets(keysetlist,
 							       value);
 			break;
-		case VCAP_IS0_PS_ETYPE_NORMAL_7TUPLE:
+		case VCAP_IS0_PS_ETYPE_ANALRMAL_7TUPLE:
 			vcap_keyset_list_add(keysetlist,
-					     VCAP_KFS_NORMAL_7TUPLE);
+					     VCAP_KFS_ANALRMAL_7TUPLE);
 			break;
-		case VCAP_IS0_PS_ETYPE_NORMAL_5TUPLE_IP4:
+		case VCAP_IS0_PS_ETYPE_ANALRMAL_5TUPLE_IP4:
 			vcap_keyset_list_add(keysetlist,
-					     VCAP_KFS_NORMAL_5TUPLE_IP4);
+					     VCAP_KFS_ANALRMAL_5TUPLE_IP4);
 			break;
 		}
 
@@ -479,10 +479,10 @@ static int sparx5_vcap_is2_get_port_keysets(struct net_device *ndev,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5 *sparx5 = port->sparx5;
-	int portno = port->portno;
+	int portanal = port->portanal;
 	u32 value;
 
-	value = spx5_rd(sparx5, ANA_ACL_VCAP_S2_KEY_SEL(portno, lookup));
+	value = spx5_rd(sparx5, ANA_ACL_VCAP_S2_KEY_SEL(portanal, lookup));
 
 	/* Collect all keysets for the port in a list */
 	if (l3_proto == ETH_P_ALL || l3_proto == ETH_P_ARP) {
@@ -556,16 +556,16 @@ static int sparx5_vcap_is2_get_port_keysets(struct net_device *ndev,
 			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_OTHER);
 			break;
 		case VCAP_IS2_PS_IPV6_MC_IP6_VID:
-			/* Not used */
+			/* Analt used */
 			break;
 		}
 	}
 
 	if (l3_proto != ETH_P_ARP && l3_proto != ETH_P_IP &&
 	    l3_proto != ETH_P_IPV6) {
-		switch (ANA_ACL_VCAP_S2_KEY_SEL_NON_ETH_KEY_SEL_GET(value)) {
-		case VCAP_IS2_PS_NONETH_MAC_ETYPE:
-			/* IS2 non-classified frames generate MAC_ETYPE */
+		switch (ANA_ACL_VCAP_S2_KEY_SEL_ANALN_ETH_KEY_SEL_GET(value)) {
+		case VCAP_IS2_PS_ANALNETH_MAC_ETYPE:
+			/* IS2 analn-classified frames generate MAC_ETYPE */
 			vcap_keyset_list_add(keysetlist, VCAP_KFS_MAC_ETYPE);
 			break;
 		}
@@ -593,7 +593,7 @@ sparx5_vcap_es2_get_port_ipv4_keysets(struct vcap_keyset_list *keysetlist,
 		vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_OTHER);
 		break;
 	case VCAP_ES2_PS_IPV4_IP4_VID:
-		/* Not used */
+		/* Analt used */
 		break;
 	case VCAP_ES2_PS_IPV4_IP4_OTHER:
 		vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_OTHER);
@@ -608,14 +608,14 @@ static int sparx5_vcap_es0_get_port_keysets(struct net_device *ndev,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5 *sparx5 = port->sparx5;
-	int portno = port->portno;
+	int portanal = port->portanal;
 	u32 value;
 
-	value = spx5_rd(sparx5, REW_RTAG_ETAG_CTRL(portno));
+	value = spx5_rd(sparx5, REW_RTAG_ETAG_CTRL(portanal));
 
 	/* Collect all keysets for the port in a list */
 	switch (REW_RTAG_ETAG_CTRL_ES0_ISDX_KEY_ENA_GET(value)) {
-	case VCAP_ES0_PS_NORMAL_SELECTION:
+	case VCAP_ES0_PS_ANALRMAL_SELECTION:
 	case VCAP_ES0_PS_FORCE_ISDX_LOOKUPS:
 		vcap_keyset_list_add(keysetlist, VCAP_KFS_ISDX);
 		break;
@@ -633,10 +633,10 @@ static int sparx5_vcap_es2_get_port_keysets(struct net_device *ndev,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5 *sparx5 = port->sparx5;
-	int portno = port->portno;
+	int portanal = port->portanal;
 	u32 value;
 
-	value = spx5_rd(sparx5, EACL_VCAP_ES2_KEY_SEL(portno, lookup));
+	value = spx5_rd(sparx5, EACL_VCAP_ES2_KEY_SEL(portanal, lookup));
 
 	/* Collect all keysets for the port in a list */
 	if (l3_proto == ETH_P_ALL || l3_proto == ETH_P_ARP) {
@@ -669,7 +669,7 @@ static int sparx5_vcap_es2_get_port_keysets(struct net_device *ndev,
 			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP6_STD);
 			break;
 		case VCAP_ES2_PS_IPV6_IP6_VID:
-			/* Not used */
+			/* Analt used */
 			break;
 		case VCAP_ES2_PS_IPV6_IP6_STD:
 			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP6_STD);
@@ -726,31 +726,31 @@ int sparx5_vcap_get_port_keyset(struct net_device *ndev,
 }
 
 /* Check if the ethertype is supported by the vcap port classification */
-bool sparx5_vcap_is_known_etype(struct vcap_admin *admin, u16 etype)
+bool sparx5_vcap_is_kanalwn_etype(struct vcap_admin *admin, u16 etype)
 {
-	const u16 *known_etypes;
+	const u16 *kanalwn_etypes;
 	int size, idx;
 
 	switch (admin->vtype) {
 	case VCAP_TYPE_IS0:
-		known_etypes = sparx5_vcap_is0_known_etypes;
-		size = ARRAY_SIZE(sparx5_vcap_is0_known_etypes);
+		kanalwn_etypes = sparx5_vcap_is0_kanalwn_etypes;
+		size = ARRAY_SIZE(sparx5_vcap_is0_kanalwn_etypes);
 		break;
 	case VCAP_TYPE_IS2:
-		known_etypes = sparx5_vcap_is2_known_etypes;
-		size = ARRAY_SIZE(sparx5_vcap_is2_known_etypes);
+		kanalwn_etypes = sparx5_vcap_is2_kanalwn_etypes;
+		size = ARRAY_SIZE(sparx5_vcap_is2_kanalwn_etypes);
 		break;
 	case VCAP_TYPE_ES0:
 		return true;
 	case VCAP_TYPE_ES2:
-		known_etypes = sparx5_vcap_es2_known_etypes;
-		size = ARRAY_SIZE(sparx5_vcap_es2_known_etypes);
+		kanalwn_etypes = sparx5_vcap_es2_kanalwn_etypes;
+		size = ARRAY_SIZE(sparx5_vcap_es2_kanalwn_etypes);
 		break;
 	default:
 		return false;
 	}
 	for (idx = 0; idx < size; ++idx)
-		if (known_etypes[idx] == etype)
+		if (kanalwn_etypes[idx] == etype)
 			return true;
 	return false;
 }
@@ -769,7 +769,7 @@ sparx5_vcap_validate_keyset(struct net_device *ndev,
 	int idx, jdx, lookup;
 
 	if (!kslist || kslist->cnt == 0)
-		return VCAP_KFS_NO_VALUE;
+		return VCAP_KFS_ANAL_VALUE;
 
 	keysetlist.max = ARRAY_SIZE(keysets);
 	keysetlist.keysets = keysets;
@@ -806,11 +806,11 @@ sparx5_vcap_validate_keyset(struct net_device *ndev,
 			if (kslist->keysets[idx] == keysets[jdx])
 				return kslist->keysets[idx];
 
-	pr_err("%s:%d: %s not supported in port key selection\n",
+	pr_err("%s:%d: %s analt supported in port key selection\n",
 	       __func__, __LINE__,
 	       sparx5_vcap_keyset_name(ndev, kslist->keysets[0]));
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static void sparx5_vcap_ingress_add_default_fields(struct net_device *ndev,
@@ -827,7 +827,7 @@ static void sparx5_vcap_ingress_add_default_fields(struct net_device *ndev,
 	else if (field && field->width == BITS_PER_TYPE(u32))
 		sparx5_vcap_add_ingress_range_port_mask(rule, ndev);
 	else
-		pr_err("%s:%d: %s: could not add an ingress port mask for: %s\n",
+		pr_err("%s:%d: %s: could analt add an ingress port mask for: %s\n",
 		       __func__, __LINE__, netdev_name(ndev),
 		       sparx5_vcap_keyset_name(ndev, rule->keyset));
 
@@ -851,8 +851,8 @@ static void sparx5_vcap_es0_add_default_fields(struct net_device *ndev,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 
-	vcap_rule_add_key_u32(rule, VCAP_KF_IF_EGR_PORT_NO, port->portno, ~0);
-	/* Match untagged frames if there was no VLAN key */
+	vcap_rule_add_key_u32(rule, VCAP_KF_IF_EGR_PORT_ANAL, port->portanal, ~0);
+	/* Match untagged frames if there was anal VLAN key */
 	vcap_rule_add_key_u32(rule, VCAP_KF_8021Q_TPID, SPX5_TPID_SEL_UNTAGGED,
 			      ~0);
 }
@@ -906,7 +906,7 @@ static void sparx5_vcap_add_default_fields(struct net_device *ndev,
 	}
 }
 
-/* API callback used for erasing the vcap cache area (not the register area) */
+/* API callback used for erasing the vcap cache area (analt the register area) */
 static void sparx5_vcap_cache_erase(struct vcap_admin *admin)
 {
 	memset(admin->cache.keystream, 0, STREAMSIZE);
@@ -944,7 +944,7 @@ static void sparx5_vcap_is0_cache_write(struct sparx5 *sparx5,
 				VCAP_SUPER_VCAP_ACTION_DAT(idx));
 		break;
 	case VCAP_SEL_ALL:
-		pr_err("%s:%d: cannot write all streams at once\n",
+		pr_err("%s:%d: cananalt write all streams at once\n",
 		       __func__, __LINE__);
 		break;
 	default:
@@ -985,7 +985,7 @@ static void sparx5_vcap_is2_cache_write(struct sparx5 *sparx5,
 				VCAP_SUPER_VCAP_ACTION_DAT(idx));
 		break;
 	case VCAP_SEL_ALL:
-		pr_err("%s:%d: cannot write all streams at once\n",
+		pr_err("%s:%d: cananalt write all streams at once\n",
 		       __func__, __LINE__);
 		break;
 	default:
@@ -1045,7 +1045,7 @@ static void sparx5_vcap_es0_cache_write(struct sparx5 *sparx5,
 				VCAP_ES0_VCAP_ACTION_DAT(idx));
 		break;
 	case VCAP_SEL_ALL:
-		pr_err("%s:%d: cannot write all streams at once\n",
+		pr_err("%s:%d: cananalt write all streams at once\n",
 		       __func__, __LINE__);
 		break;
 	default:
@@ -1086,7 +1086,7 @@ static void sparx5_vcap_es2_cache_write(struct sparx5 *sparx5,
 				VCAP_ES2_VCAP_ACTION_DAT(idx));
 		break;
 	case VCAP_SEL_ALL:
-		pr_err("%s:%d: cannot write all streams at once\n",
+		pr_err("%s:%d: cananalt write all streams at once\n",
 		       __func__, __LINE__);
 		break;
 	default:
@@ -1522,12 +1522,12 @@ static struct vcap_operations sparx5_vcap_ops = {
 static u32 sparx5_vcap_is0_keyset_to_etype_ps(enum vcap_keyfield_set keyset)
 {
 	switch (keyset) {
-	case VCAP_KFS_NORMAL_7TUPLE:
-		return VCAP_IS0_PS_ETYPE_NORMAL_7TUPLE;
-	case VCAP_KFS_NORMAL_5TUPLE_IP4:
-		return VCAP_IS0_PS_ETYPE_NORMAL_5TUPLE_IP4;
+	case VCAP_KFS_ANALRMAL_7TUPLE:
+		return VCAP_IS0_PS_ETYPE_ANALRMAL_7TUPLE;
+	case VCAP_KFS_ANALRMAL_5TUPLE_IP4:
+		return VCAP_IS0_PS_ETYPE_ANALRMAL_5TUPLE_IP4;
 	default:
-		return VCAP_IS0_PS_ETYPE_NORMAL_7TUPLE;
+		return VCAP_IS0_PS_ETYPE_ANALRMAL_7TUPLE;
 	}
 }
 
@@ -1537,7 +1537,7 @@ static void sparx5_vcap_is0_set_port_keyset(struct net_device *ndev, int lookup,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5 *sparx5 = port->sparx5;
-	int portno = port->portno;
+	int portanal = port->portanal;
 	u32 value;
 
 	switch (l3_proto) {
@@ -1546,21 +1546,21 @@ static void sparx5_vcap_is0_set_port_keyset(struct net_device *ndev, int lookup,
 		spx5_rmw(ANA_CL_ADV_CL_CFG_IP4_CLM_KEY_SEL_SET(value),
 			 ANA_CL_ADV_CL_CFG_IP4_CLM_KEY_SEL,
 			 sparx5,
-			 ANA_CL_ADV_CL_CFG(portno, lookup));
+			 ANA_CL_ADV_CL_CFG(portanal, lookup));
 		break;
 	case ETH_P_IPV6:
 		value = sparx5_vcap_is0_keyset_to_etype_ps(keyset);
 		spx5_rmw(ANA_CL_ADV_CL_CFG_IP6_CLM_KEY_SEL_SET(value),
 			 ANA_CL_ADV_CL_CFG_IP6_CLM_KEY_SEL,
 			 sparx5,
-			 ANA_CL_ADV_CL_CFG(portno, lookup));
+			 ANA_CL_ADV_CL_CFG(portanal, lookup));
 		break;
 	default:
 		value = sparx5_vcap_is0_keyset_to_etype_ps(keyset);
 		spx5_rmw(ANA_CL_ADV_CL_CFG_ETYPE_CLM_KEY_SEL_SET(value),
 			 ANA_CL_ADV_CL_CFG_ETYPE_CLM_KEY_SEL,
 			 sparx5,
-			 ANA_CL_ADV_CL_CFG(portno, lookup));
+			 ANA_CL_ADV_CL_CFG(portanal, lookup));
 		break;
 	}
 }
@@ -1586,7 +1586,7 @@ static u32 sparx5_vcap_is2_keyset_to_ipv4_ps(enum vcap_keyfield_set keyset)
 	case VCAP_KFS_IP_7TUPLE:
 		return VCAP_IS2_PS_IPV4_UC_IP_7TUPLE;
 	default:
-		return VCAP_KFS_NO_VALUE;
+		return VCAP_KFS_ANAL_VALUE;
 	}
 }
 
@@ -1601,7 +1601,7 @@ static u32 sparx5_vcap_is2_keyset_to_ipv6_uc_ps(enum vcap_keyfield_set keyset)
 	case VCAP_KFS_IP_7TUPLE:
 		return VCAP_IS2_PS_IPV6_UC_IP_7TUPLE;
 	default:
-		return VCAP_KFS_NO_VALUE;
+		return VCAP_KFS_ANAL_VALUE;
 	}
 }
 
@@ -1616,7 +1616,7 @@ static u32 sparx5_vcap_is2_keyset_to_ipv6_mc_ps(enum vcap_keyfield_set keyset)
 	case VCAP_KFS_IP_7TUPLE:
 		return VCAP_IS2_PS_IPV6_MC_IP_7TUPLE;
 	default:
-		return VCAP_KFS_NO_VALUE;
+		return VCAP_KFS_ANAL_VALUE;
 	}
 }
 
@@ -1626,7 +1626,7 @@ static void sparx5_vcap_is2_set_port_keyset(struct net_device *ndev, int lookup,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5 *sparx5 = port->sparx5;
-	int portno = port->portno;
+	int portanal = port->portanal;
 	u32 value;
 
 	switch (l3_proto) {
@@ -1635,37 +1635,37 @@ static void sparx5_vcap_is2_set_port_keyset(struct net_device *ndev, int lookup,
 		spx5_rmw(ANA_ACL_VCAP_S2_KEY_SEL_ARP_KEY_SEL_SET(value),
 			 ANA_ACL_VCAP_S2_KEY_SEL_ARP_KEY_SEL,
 			 sparx5,
-			 ANA_ACL_VCAP_S2_KEY_SEL(portno, lookup));
+			 ANA_ACL_VCAP_S2_KEY_SEL(portanal, lookup));
 		break;
 	case ETH_P_IP:
 		value = sparx5_vcap_is2_keyset_to_ipv4_ps(keyset);
 		spx5_rmw(ANA_ACL_VCAP_S2_KEY_SEL_IP4_UC_KEY_SEL_SET(value),
 			 ANA_ACL_VCAP_S2_KEY_SEL_IP4_UC_KEY_SEL,
 			 sparx5,
-			 ANA_ACL_VCAP_S2_KEY_SEL(portno, lookup));
+			 ANA_ACL_VCAP_S2_KEY_SEL(portanal, lookup));
 		spx5_rmw(ANA_ACL_VCAP_S2_KEY_SEL_IP4_MC_KEY_SEL_SET(value),
 			 ANA_ACL_VCAP_S2_KEY_SEL_IP4_MC_KEY_SEL,
 			 sparx5,
-			 ANA_ACL_VCAP_S2_KEY_SEL(portno, lookup));
+			 ANA_ACL_VCAP_S2_KEY_SEL(portanal, lookup));
 		break;
 	case ETH_P_IPV6:
 		value = sparx5_vcap_is2_keyset_to_ipv6_uc_ps(keyset);
 		spx5_rmw(ANA_ACL_VCAP_S2_KEY_SEL_IP6_UC_KEY_SEL_SET(value),
 			 ANA_ACL_VCAP_S2_KEY_SEL_IP6_UC_KEY_SEL,
 			 sparx5,
-			 ANA_ACL_VCAP_S2_KEY_SEL(portno, lookup));
+			 ANA_ACL_VCAP_S2_KEY_SEL(portanal, lookup));
 		value = sparx5_vcap_is2_keyset_to_ipv6_mc_ps(keyset);
 		spx5_rmw(ANA_ACL_VCAP_S2_KEY_SEL_IP6_MC_KEY_SEL_SET(value),
 			 ANA_ACL_VCAP_S2_KEY_SEL_IP6_MC_KEY_SEL,
 			 sparx5,
-			 ANA_ACL_VCAP_S2_KEY_SEL(portno, lookup));
+			 ANA_ACL_VCAP_S2_KEY_SEL(portanal, lookup));
 		break;
 	default:
-		value = VCAP_IS2_PS_NONETH_MAC_ETYPE;
-		spx5_rmw(ANA_ACL_VCAP_S2_KEY_SEL_NON_ETH_KEY_SEL_SET(value),
-			 ANA_ACL_VCAP_S2_KEY_SEL_NON_ETH_KEY_SEL,
+		value = VCAP_IS2_PS_ANALNETH_MAC_ETYPE;
+		spx5_rmw(ANA_ACL_VCAP_S2_KEY_SEL_ANALN_ETH_KEY_SEL_SET(value),
+			 ANA_ACL_VCAP_S2_KEY_SEL_ANALN_ETH_KEY_SEL,
 			 sparx5,
-			 ANA_ACL_VCAP_S2_KEY_SEL(portno, lookup));
+			 ANA_ACL_VCAP_S2_KEY_SEL(portanal, lookup));
 		break;
 	}
 }
@@ -1719,7 +1719,7 @@ static void sparx5_vcap_es2_set_port_keyset(struct net_device *ndev, int lookup,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5 *sparx5 = port->sparx5;
-	int portno = port->portno;
+	int portanal = port->portanal;
 	u32 value;
 
 	switch (l3_proto) {
@@ -1728,21 +1728,21 @@ static void sparx5_vcap_es2_set_port_keyset(struct net_device *ndev, int lookup,
 		spx5_rmw(EACL_VCAP_ES2_KEY_SEL_IP4_KEY_SEL_SET(value),
 			 EACL_VCAP_ES2_KEY_SEL_IP4_KEY_SEL,
 			 sparx5,
-			 EACL_VCAP_ES2_KEY_SEL(portno, lookup));
+			 EACL_VCAP_ES2_KEY_SEL(portanal, lookup));
 		break;
 	case ETH_P_IPV6:
 		value = sparx5_vcap_es2_keyset_to_ipv6_ps(keyset);
 		spx5_rmw(EACL_VCAP_ES2_KEY_SEL_IP6_KEY_SEL_SET(value),
 			 EACL_VCAP_ES2_KEY_SEL_IP6_KEY_SEL,
 			 sparx5,
-			 EACL_VCAP_ES2_KEY_SEL(portno, lookup));
+			 EACL_VCAP_ES2_KEY_SEL(portanal, lookup));
 		break;
 	case ETH_P_ARP:
 		value = sparx5_vcap_es2_keyset_to_arp_ps(keyset);
 		spx5_rmw(EACL_VCAP_ES2_KEY_SEL_ARP_KEY_SEL_SET(value),
 			 EACL_VCAP_ES2_KEY_SEL_ARP_KEY_SEL,
 			 sparx5,
-			 EACL_VCAP_ES2_KEY_SEL(portno, lookup));
+			 EACL_VCAP_ES2_KEY_SEL(portanal, lookup));
 		break;
 	}
 }
@@ -1793,24 +1793,24 @@ void sparx5_vcap_set_port_keyset(struct net_device *ndev,
 static void sparx5_vcap_is0_port_key_selection(struct sparx5 *sparx5,
 					       struct vcap_admin *admin)
 {
-	int portno, lookup;
+	int portanal, lookup;
 	u32 keysel;
 
 	keysel = VCAP_IS0_KEYSEL(false,
-				 VCAP_IS0_PS_ETYPE_NORMAL_7TUPLE,
-				 VCAP_IS0_PS_ETYPE_NORMAL_5TUPLE_IP4,
-				 VCAP_IS0_PS_ETYPE_NORMAL_7TUPLE,
+				 VCAP_IS0_PS_ETYPE_ANALRMAL_7TUPLE,
+				 VCAP_IS0_PS_ETYPE_ANALRMAL_5TUPLE_IP4,
+				 VCAP_IS0_PS_ETYPE_ANALRMAL_7TUPLE,
 				 VCAP_IS0_PS_MPLS_FOLLOW_ETYPE,
 				 VCAP_IS0_PS_MPLS_FOLLOW_ETYPE,
 				 VCAP_IS0_PS_MLBS_FOLLOW_ETYPE);
 	for (lookup = 0; lookup < admin->lookups; ++lookup) {
-		for (portno = 0; portno < SPX5_PORTS; ++portno) {
+		for (portanal = 0; portanal < SPX5_PORTS; ++portanal) {
 			spx5_wr(keysel, sparx5,
-				ANA_CL_ADV_CL_CFG(portno, lookup));
+				ANA_CL_ADV_CL_CFG(portanal, lookup));
 			spx5_rmw(ANA_CL_ADV_CL_CFG_LOOKUP_ENA,
 				 ANA_CL_ADV_CL_CFG_LOOKUP_ENA,
 				 sparx5,
-				 ANA_CL_ADV_CL_CFG(portno, lookup));
+				 ANA_CL_ADV_CL_CFG(portanal, lookup));
 		}
 	}
 }
@@ -1819,40 +1819,40 @@ static void sparx5_vcap_is0_port_key_selection(struct sparx5 *sparx5,
 static void sparx5_vcap_is2_port_key_selection(struct sparx5 *sparx5,
 					       struct vcap_admin *admin)
 {
-	int portno, lookup;
+	int portanal, lookup;
 	u32 keysel;
 
-	keysel = VCAP_IS2_KEYSEL(true, VCAP_IS2_PS_NONETH_MAC_ETYPE,
+	keysel = VCAP_IS2_KEYSEL(true, VCAP_IS2_PS_ANALNETH_MAC_ETYPE,
 				 VCAP_IS2_PS_IPV4_MC_IP4_TCP_UDP_OTHER,
 				 VCAP_IS2_PS_IPV4_UC_IP4_TCP_UDP_OTHER,
 				 VCAP_IS2_PS_IPV6_MC_IP_7TUPLE,
 				 VCAP_IS2_PS_IPV6_UC_IP_7TUPLE,
 				 VCAP_IS2_PS_ARP_ARP);
 	for (lookup = 0; lookup < admin->lookups; ++lookup) {
-		for (portno = 0; portno < SPX5_PORTS; ++portno) {
+		for (portanal = 0; portanal < SPX5_PORTS; ++portanal) {
 			spx5_wr(keysel, sparx5,
-				ANA_ACL_VCAP_S2_KEY_SEL(portno, lookup));
+				ANA_ACL_VCAP_S2_KEY_SEL(portanal, lookup));
 		}
 	}
 	/* IS2 lookups are in bit 0:3 */
-	for (portno = 0; portno < SPX5_PORTS; ++portno)
+	for (portanal = 0; portanal < SPX5_PORTS; ++portanal)
 		spx5_rmw(ANA_ACL_VCAP_S2_CFG_SEC_ENA_SET(0xf),
 			 ANA_ACL_VCAP_S2_CFG_SEC_ENA,
 			 sparx5,
-			 ANA_ACL_VCAP_S2_CFG(portno));
+			 ANA_ACL_VCAP_S2_CFG(portanal));
 }
 
 /* Enable ES0 lookups per port and set the keyset generation */
 static void sparx5_vcap_es0_port_key_selection(struct sparx5 *sparx5,
 					       struct vcap_admin *admin)
 {
-	int portno;
+	int portanal;
 	u32 keysel;
 
 	keysel = VCAP_ES0_KEYSEL(VCAP_ES0_PS_FORCE_ISDX_LOOKUPS);
-	for (portno = 0; portno < SPX5_PORTS; ++portno)
+	for (portanal = 0; portanal < SPX5_PORTS; ++portanal)
 		spx5_rmw(keysel, REW_RTAG_ETAG_CTRL_ES0_ISDX_KEY_ENA,
-			 sparx5, REW_RTAG_ETAG_CTRL(portno));
+			 sparx5, REW_RTAG_ETAG_CTRL(portanal));
 
 	spx5_rmw(REW_ES0_CTRL_ES0_LU_ENA_SET(1), REW_ES0_CTRL_ES0_LU_ENA,
 		 sparx5, REW_ES0_CTRL);
@@ -1862,16 +1862,16 @@ static void sparx5_vcap_es0_port_key_selection(struct sparx5 *sparx5,
 static void sparx5_vcap_es2_port_key_selection(struct sparx5 *sparx5,
 					       struct vcap_admin *admin)
 {
-	int portno, lookup;
+	int portanal, lookup;
 	u32 keysel;
 
 	keysel = VCAP_ES2_KEYSEL(true, VCAP_ES2_PS_ARP_MAC_ETYPE,
 				 VCAP_ES2_PS_IPV4_IP4_TCP_UDP_OTHER,
 				 VCAP_ES2_PS_IPV6_IP_7TUPLE);
 	for (lookup = 0; lookup < admin->lookups; ++lookup)
-		for (portno = 0; portno < SPX5_PORTS; ++portno)
+		for (portanal = 0; portanal < SPX5_PORTS; ++portanal)
 			spx5_wr(keysel, sparx5,
-				EACL_VCAP_ES2_KEY_SEL(portno, lookup));
+				EACL_VCAP_ES2_KEY_SEL(portanal, lookup));
 }
 
 /* Enable lookups per port and set the keyset generation */
@@ -1901,23 +1901,23 @@ static void sparx5_vcap_port_key_selection(struct sparx5 *sparx5,
 static void sparx5_vcap_port_key_deselection(struct sparx5 *sparx5,
 					     struct vcap_admin *admin)
 {
-	int portno, lookup;
+	int portanal, lookup;
 
 	switch (admin->vtype) {
 	case VCAP_TYPE_IS0:
 		for (lookup = 0; lookup < admin->lookups; ++lookup)
-			for (portno = 0; portno < SPX5_PORTS; ++portno)
+			for (portanal = 0; portanal < SPX5_PORTS; ++portanal)
 				spx5_rmw(ANA_CL_ADV_CL_CFG_LOOKUP_ENA_SET(0),
 					 ANA_CL_ADV_CL_CFG_LOOKUP_ENA,
 					 sparx5,
-					 ANA_CL_ADV_CL_CFG(portno, lookup));
+					 ANA_CL_ADV_CL_CFG(portanal, lookup));
 		break;
 	case VCAP_TYPE_IS2:
-		for (portno = 0; portno < SPX5_PORTS; ++portno)
+		for (portanal = 0; portanal < SPX5_PORTS; ++portanal)
 			spx5_rmw(ANA_ACL_VCAP_S2_CFG_SEC_ENA_SET(0),
 				 ANA_ACL_VCAP_S2_CFG_SEC_ENA,
 				 sparx5,
-				 ANA_ACL_VCAP_S2_CFG(portno));
+				 ANA_ACL_VCAP_S2_CFG(portanal));
 		break;
 	case VCAP_TYPE_ES0:
 		spx5_rmw(REW_ES0_CTRL_ES0_LU_ENA_SET(0),
@@ -1925,11 +1925,11 @@ static void sparx5_vcap_port_key_deselection(struct sparx5 *sparx5,
 		break;
 	case VCAP_TYPE_ES2:
 		for (lookup = 0; lookup < admin->lookups; ++lookup)
-			for (portno = 0; portno < SPX5_PORTS; ++portno)
+			for (portanal = 0; portanal < SPX5_PORTS; ++portanal)
 				spx5_rmw(EACL_VCAP_ES2_KEY_SEL_KEY_ENA_SET(0),
 					 EACL_VCAP_ES2_KEY_SEL_KEY_ENA,
 					 sparx5,
-					 EACL_VCAP_ES2_KEY_SEL(portno, lookup));
+					 EACL_VCAP_ES2_KEY_SEL(portanal, lookup));
 		break;
 	default:
 		sparx5_vcap_type_err(sparx5, admin, __func__);
@@ -1957,7 +1957,7 @@ sparx5_vcap_admin_alloc(struct sparx5 *sparx5, struct vcap_control *ctrl,
 
 	admin = kzalloc(sizeof(*admin), GFP_KERNEL);
 	if (!admin)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	INIT_LIST_HEAD(&admin->list);
 	INIT_LIST_HEAD(&admin->rules);
 	INIT_LIST_HEAD(&admin->enabled);
@@ -1978,7 +1978,7 @@ sparx5_vcap_admin_alloc(struct sparx5 *sparx5, struct vcap_control *ctrl,
 	if (!admin->cache.keystream || !admin->cache.maskstream ||
 	    !admin->cache.actionstream) {
 		sparx5_vcap_admin_free(admin);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	return admin;
 }
@@ -1997,14 +1997,14 @@ static void sparx5_vcap_block_alloc(struct sparx5 *sparx5,
 		 * is assigned addresses 0 through 3071, block 1 is assigned
 		 * addresses 3072 though 6143, and so on.
 		 */
-		for (idx = cfg->blockno; idx < cfg->blockno + cfg->blocks;
+		for (idx = cfg->blockanal; idx < cfg->blockanal + cfg->blocks;
 		     ++idx) {
 			spx5_wr(VCAP_SUPER_IDX_CORE_IDX_SET(idx), sparx5,
 				VCAP_SUPER_IDX);
 			spx5_wr(VCAP_SUPER_MAP_CORE_MAP_SET(cfg->map_id),
 				sparx5, VCAP_SUPER_MAP);
 		}
-		admin->first_valid_addr = cfg->blockno * SUPER_VCAP_BLK_SIZE;
+		admin->first_valid_addr = cfg->blockanal * SUPER_VCAP_BLK_SIZE;
 		admin->last_used_addr = admin->first_valid_addr +
 			cfg->blocks * SUPER_VCAP_BLK_SIZE;
 		admin->last_valid_addr = admin->last_used_addr - 1;
@@ -2059,7 +2059,7 @@ int sparx5_vcap_init(struct sparx5 *sparx5)
 	 */
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sparx5->vcap_ctrl = ctrl;
 	/* select the sparx5 VCAP model */

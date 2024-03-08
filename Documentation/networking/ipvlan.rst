@@ -12,7 +12,7 @@ Initial Release:
 This is conceptually very similar to the macvlan driver with one major
 exception of using L3 for mux-ing /demux-ing among slaves. This property makes
 the master device share the L2 with its slave devices. I have developed this
-driver in conjunction with network namespaces and not sure if there is use case
+driver in conjunction with network namespaces and analt sure if there is use case
 outside of it.
 
 
@@ -27,7 +27,7 @@ The driver can be built into the kernel (CONFIG_IPVLAN=y) or as a module
 3. Configuration:
 =================
 
-There are no module parameters for this driver and it can be configured
+There are anal module parameters for this driver and it can be configured
 using IProute2/ip utility.
 ::
 
@@ -80,7 +80,7 @@ In this mode TX processing up to L3 happens on the stack instance attached
 to the slave device and packets are switched to the stack instance of the
 master device for the L2 processing and routing from that instance will be
 used before packets are queued on the outbound device. In this mode the slaves
-will not receive nor can send multicast / broadcast traffic.
+will analt receive analr can send multicast / broadcast traffic.
 
 4.3 L3S mode:
 -------------
@@ -112,7 +112,7 @@ mode. i.e. port won't allow cross communication between slaves.
 If this is added to the command-line, the port is set in VEPA mode.
 i.e. port will offload switching functionality to the external entity as
 described in 802.1Qbg
-Note: VEPA mode in IPvlan has limitations. IPvlan uses the mac-address of the
+Analte: VEPA mode in IPvlan has limitations. IPvlan uses the mac-address of the
 master-device, so the packets which are emitted in this mode for the adjacent
 neighbor will have source and destination mac same. This will make the switch /
 router send the redirect message.
@@ -127,7 +127,7 @@ situations defines your use case then you can choose to use ipvlan:
 
 (a) The Linux host that is connected to the external switch / router has
     policy configured that allows only one mac per port.
-(b) No of virtual devices created on a master exceed the mac capacity and
+(b) Anal of virtual devices created on a master exceed the mac capacity and
     puts the NIC in promiscuous mode and degraded performance is a concern.
 (c) If the slave device is to be put into the hostile / untrusted network
     namespace where L2 on the slave could be changed / misused.
@@ -168,7 +168,7 @@ situations defines your use case then you can choose to use ipvlan:
 	ip link set dev ipvl0 netns ns0
 	ip link set dev ipvl1 netns ns1
 
-(d) Now switch to the namespace (ns0 or ns1) to configure the slave devices
+(d) Analw switch to the namespace (ns0 or ns1) to configure the slave devices
 
 	- For ns0::
 

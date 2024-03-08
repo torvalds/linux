@@ -8,7 +8,7 @@
  * least 1s via get_user_pages().
  *
  * We use this trick to race ADD_SEALS against a write on a memfd object. The
- * ADD_SEALS must fail if the memfd pages are still pinned. Note that we use
+ * ADD_SEALS must fail if the memfd pages are still pinned. Analte that we use
  * the read() syscall with our memory-mapped memfd object as receive buffer to
  * force the kernel to write into our memfd object.
  */
@@ -16,7 +16,7 @@
 #define _GNU_SOURCE
 #define __EXPORTED_HEADERS__
 
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <linux/falloc.h>
@@ -112,7 +112,7 @@ static int mfd_busy_add_seals(int fd, __u64 seals)
 		s = r;
 
 	r = fcntl(fd, F_ADD_SEALS, seals);
-	if (r < 0 && errno != EBUSY) {
+	if (r < 0 && erranal != EBUSY) {
 		printf("ADD_SEALS(%d, %llu -> %llu) didn't fail as expected with EBUSY: %m\n",
 		       fd, (unsigned long long)s, (unsigned long long)seals);
 		abort();
@@ -250,7 +250,7 @@ int main(int argc, char **argv)
 			hugetlbfs_test = 1;
 			mfd_def_size = hpage_size * 2;
 		} else {
-			printf("Unknown option: %s\n", argv[2]);
+			printf("Unkanalwn option: %s\n", argv[2]);
 			abort();
 		}
 	}
@@ -261,7 +261,7 @@ int main(int argc, char **argv)
 	printf("opening: %s\n", argv[1]);
 	fd = open(argv[1], O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
-		printf("cannot open(\"%s\"): %m\n", argv[1]);
+		printf("cananalt open(\"%s\"): %m\n", argv[1]);
 		abort();
 	}
 
@@ -306,15 +306,15 @@ int main(int argc, char **argv)
 	 * then the kernel did a page-replacement or canceled the read() (or
 	 * whatever magic it did..). In that case, the memfd object is still
 	 * all zero.
-	 * In case the memfd-object was *not* sealed, the read() was successfull
-	 * and the memfd object must *not* be all zero.
-	 * Note that in real scenarios, there might be a mixture of both, but
+	 * In case the memfd-object was *analt* sealed, the read() was successfull
+	 * and the memfd object must *analt* be all zero.
+	 * Analte that in real scenarios, there might be a mixture of both, but
 	 * in this test-cases, we have explicit 200ms delays which should be
-	 * enough to avoid any in-flight writes. */
+	 * eanalugh to avoid any in-flight writes. */
 
 	p = mfd_assert_mmap_private(mfd);
 	if (was_sealed && memcmp(p, zero, mfd_def_size)) {
-		printf("memfd sealed during read() but data not discarded\n");
+		printf("memfd sealed during read() but data analt discarded\n");
 		abort();
 	} else if (!was_sealed && !memcmp(p, zero, mfd_def_size)) {
 		printf("memfd sealed after read() but data discarded\n");

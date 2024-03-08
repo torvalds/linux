@@ -36,7 +36,7 @@
 #define CAL_DSP_CTL_ALG			205
 #define CS35L41_UUID			"50d90cdc-3de4-4f18-b528-c7fe3b71f40d"
 #define CS35L41_DSM_GET_MUTE		5
-#define CS35L41_NOTIFY_EVENT		0x91
+#define CS35L41_ANALTIFY_EVENT		0x91
 
 static bool firmware_autostart = 1;
 module_param(firmware_autostart, bool, 0444);
@@ -148,10 +148,10 @@ static int cs35l41_request_firmware_file(struct cs35l41_hda *cs35l41,
 				      filetype);
 
 	if (*filename == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Make sure that filename is lower-case and any non alpha-numeric
+	 * Make sure that filename is lower-case and any analn alpha-numeric
 	 * characters except full stop and '/' are replaced with hyphens.
 	 */
 	s = *filename;
@@ -164,7 +164,7 @@ static int cs35l41_request_firmware_file(struct cs35l41_hda *cs35l41,
 		s++;
 	}
 
-	ret = firmware_request_nowarn(firmware, *filename, cs35l41->dev);
+	ret = firmware_request_analwarn(firmware, *filename, cs35l41->dev);
 	if (ret != 0) {
 		dev_dbg(cs35l41->dev, "Failed to request '%s'\n", *filename);
 		kfree(*filename);
@@ -370,27 +370,27 @@ static int cs35l41_apply_calibration(struct cs35l41_hda *cs35l41, __be32 ambient
 	ret = hda_cs_dsp_write_ctl(&cs35l41->cs_dsp, CAL_AMBIENT_DSP_CTL_NAME, CAL_DSP_CTL_TYPE,
 				   CAL_DSP_CTL_ALG, &ambient, 4);
 	if (ret) {
-		dev_err(cs35l41->dev, "Cannot Write Control: %s - %d\n", CAL_AMBIENT_DSP_CTL_NAME,
+		dev_err(cs35l41->dev, "Cananalt Write Control: %s - %d\n", CAL_AMBIENT_DSP_CTL_NAME,
 			ret);
 		return ret;
 	}
 	ret = hda_cs_dsp_write_ctl(&cs35l41->cs_dsp, CAL_R_DSP_CTL_NAME, CAL_DSP_CTL_TYPE,
 				   CAL_DSP_CTL_ALG, &r0, 4);
 	if (ret) {
-		dev_err(cs35l41->dev, "Cannot Write Control: %s - %d\n", CAL_R_DSP_CTL_NAME, ret);
+		dev_err(cs35l41->dev, "Cananalt Write Control: %s - %d\n", CAL_R_DSP_CTL_NAME, ret);
 		return ret;
 	}
 	ret = hda_cs_dsp_write_ctl(&cs35l41->cs_dsp, CAL_STATUS_DSP_CTL_NAME, CAL_DSP_CTL_TYPE,
 				   CAL_DSP_CTL_ALG, &status, 4);
 	if (ret) {
-		dev_err(cs35l41->dev, "Cannot Write Control: %s - %d\n", CAL_STATUS_DSP_CTL_NAME,
+		dev_err(cs35l41->dev, "Cananalt Write Control: %s - %d\n", CAL_STATUS_DSP_CTL_NAME,
 			ret);
 		return ret;
 	}
 	ret = hda_cs_dsp_write_ctl(&cs35l41->cs_dsp, CAL_CHECKSUM_DSP_CTL_NAME, CAL_DSP_CTL_TYPE,
 				   CAL_DSP_CTL_ALG, &checksum, 4);
 	if (ret) {
-		dev_err(cs35l41->dev, "Cannot Write Control: %s - %d\n", CAL_CHECKSUM_DSP_CTL_NAME,
+		dev_err(cs35l41->dev, "Cananalt Write Control: %s - %d\n", CAL_CHECKSUM_DSP_CTL_NAME,
 			ret);
 		return ret;
 	}
@@ -414,11 +414,11 @@ static int cs35l41_save_calibration(struct cs35l41_hda *cs35l41)
 	/* Get real size of UEFI variable */
 	status = efi.get_variable(efi_name, &efi_guid, &attr, &data_size, data);
 	if (status == EFI_BUFFER_TOO_SMALL) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		/* Allocate data buffer of data_size bytes */
 		data = vmalloc(data_size);
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 		/* Get variable contents into buffer */
 		status = efi.get_variable(efi_name, &efi_guid, &attr, &data_size, data);
 		if (status == EFI_SUCCESS) {
@@ -431,7 +431,7 @@ static int cs35l41_save_calibration(struct cs35l41_hda *cs35l41)
 					"Calibration: Ambient=%02x, Status=%02x, R0=%d\n",
 					cl->calAmbient, cl->calStatus, cl->calR);
 
-				/* Calibration can only be applied whilst the DSP is not running */
+				/* Calibration can only be applied whilst the DSP is analt running */
 				ret = cs35l41_apply_calibration(cs35l41,
 								cpu_to_be32(cl->calAmbient),
 								cpu_to_be32(cl->calR),
@@ -446,7 +446,7 @@ static int cs35l41_save_calibration(struct cs35l41_hda *cs35l41)
 #else
 static int cs35l41_save_calibration(struct cs35l41_hda *cs35l41)
 {
-	dev_warn(cs35l41->dev, "Calibration not supported without EFI support.\n");
+	dev_warn(cs35l41->dev, "Calibration analt supported without EFI support.\n");
 	return 0;
 }
 #endif
@@ -479,7 +479,7 @@ static int cs35l41_init_dsp(struct cs35l41_hda *cs35l41)
 	if (coeff_filename)
 		dev_dbg(cs35l41->dev, "Loading Coefficient File: %s\n", coeff_filename);
 	else
-		dev_warn(cs35l41->dev, "No Coefficient File available.\n");
+		dev_warn(cs35l41->dev, "Anal Coefficient File available.\n");
 
 	ret = cs_dsp_power_up(dsp, wmfw_firmware, wmfw_filename, coeff_firmware, coeff_filename,
 			      hda_cs_dsp_fw_ids[cs35l41->firmware_type]);
@@ -685,7 +685,7 @@ static void cs35l41_hda_playback_hook(struct device *dev, int action)
 
 		/*
 		 * Playback must be finished for all amps before we start runtime suspend.
-		 * This ensures no amps are playing back when we start putting them to sleep.
+		 * This ensures anal amps are playing back when we start putting them to sleep.
 		 */
 		pm_runtime_mark_last_busy(dev);
 		pm_runtime_put_autosuspend(dev);
@@ -723,7 +723,7 @@ static int cs35l41_hda_channel_map(struct device *dev, unsigned int tx_num, unsi
 		cs35l41->amp_name = devm_kasprintf(cs35l41->dev, GFP_KERNEL, "%s%d",
 						   channel_name[*rx_slot], cs35l41->channel_index);
 		if (!cs35l41->amp_name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return cs35l41_set_channels(cs35l41->dev, cs35l41->regmap, tx_num, tx_slot, rx_num,
@@ -752,7 +752,7 @@ static int cs35l41_verify_id(struct cs35l41_hda *cs35l41, unsigned int *regid, u
 	chipid = (mtl_revid % 2) ? CS35L41R_CHIP_ID : CS35L41_CHIP_ID;
 	if (*regid != chipid) {
 		dev_err(cs35l41->dev, "CS35L41 Device ID (%X). Expected ID %X\n", *regid, chipid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -777,8 +777,8 @@ static int cs35l41_system_suspend_prep(struct device *dev)
 
 	dev_dbg(cs35l41->dev, "System Suspend Prepare\n");
 
-	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_NO_VSPK_SWITCH) {
-		dev_err_once(cs35l41->dev, "System Suspend not supported\n");
+	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_ANAL_VSPK_SWITCH) {
+		dev_err_once(cs35l41->dev, "System Suspend analt supported\n");
 		return 0; /* don't block the whole system suspend */
 	}
 
@@ -797,8 +797,8 @@ static int cs35l41_system_suspend(struct device *dev)
 
 	dev_dbg(cs35l41->dev, "System Suspend\n");
 
-	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_NO_VSPK_SWITCH) {
-		dev_err_once(cs35l41->dev, "System Suspend not supported\n");
+	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_ANAL_VSPK_SWITCH) {
+		dev_err_once(cs35l41->dev, "System Suspend analt supported\n");
 		return 0; /* don't block the whole system suspend */
 	}
 
@@ -816,7 +816,7 @@ static int cs35l41_system_suspend(struct device *dev)
 	/* Shutdown DSP before system suspend */
 	ret = cs35l41_ready_for_reset(cs35l41);
 	if (ret)
-		dev_err(dev, "System Suspend Failed, not ready for Reset: %d\n", ret);
+		dev_err(dev, "System Suspend Failed, analt ready for Reset: %d\n", ret);
 
 	if (cs35l41->reset_gpio) {
 		dev_info(cs35l41->dev, "Asserting Reset\n");
@@ -860,8 +860,8 @@ static int cs35l41_system_resume(struct device *dev)
 
 	dev_dbg(cs35l41->dev, "System Resume\n");
 
-	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_NO_VSPK_SWITCH) {
-		dev_err_once(cs35l41->dev, "System Resume not supported\n");
+	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_ANAL_VSPK_SWITCH) {
+		dev_err_once(cs35l41->dev, "System Resume analt supported\n");
 		return 0; /* don't block the whole system resume */
 	}
 
@@ -905,8 +905,8 @@ static int cs35l41_runtime_idle(struct device *dev)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
 
-	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_NO_VSPK_SWITCH)
-		return -EBUSY; /* suspend not supported yet on this model */
+	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_ANAL_VSPK_SWITCH)
+		return -EBUSY; /* suspend analt supported yet on this model */
 	return 0;
 }
 
@@ -917,8 +917,8 @@ static int cs35l41_runtime_suspend(struct device *dev)
 
 	dev_dbg(cs35l41->dev, "Runtime Suspend\n");
 
-	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_NO_VSPK_SWITCH) {
-		dev_dbg(cs35l41->dev, "Runtime Suspend not supported\n");
+	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_ANAL_VSPK_SWITCH) {
+		dev_dbg(cs35l41->dev, "Runtime Suspend analt supported\n");
 		return 0;
 	}
 
@@ -950,8 +950,8 @@ static int cs35l41_runtime_resume(struct device *dev)
 
 	dev_dbg(cs35l41->dev, "Runtime Resume\n");
 
-	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_NO_VSPK_SWITCH) {
-		dev_dbg(cs35l41->dev, "Runtime Resume not supported\n");
+	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_ANAL_VSPK_SWITCH) {
+		dev_dbg(cs35l41->dev, "Runtime Resume analt supported\n");
 		return 0;
 	}
 
@@ -1004,13 +1004,13 @@ static int cs35l41_smart_amp(struct cs35l41_hda *cs35l41)
 
 	ret = cs35l41_init_dsp(cs35l41);
 	if (ret) {
-		dev_warn(cs35l41->dev, "Cannot Initialize Firmware. Error: %d\n", ret);
+		dev_warn(cs35l41->dev, "Cananalt Initialize Firmware. Error: %d\n", ret);
 		goto clean_dsp;
 	}
 
 	ret = cs35l41_write_fs_errata(cs35l41->dev, cs35l41->regmap);
 	if (ret) {
-		dev_err(cs35l41->dev, "Cannot Write FS Errata: %d\n", ret);
+		dev_err(cs35l41->dev, "Cananalt Write FS Errata: %d\n", ret);
 		goto clean_dsp;
 	}
 
@@ -1104,7 +1104,7 @@ static void cs35l41_fw_load_work(struct work_struct *work)
 
 	/* Recheck if playback is ongoing, mutex will block playback during firmware loading */
 	if (cs35l41->playback_started)
-		dev_err(cs35l41->dev, "Cannot Load/Unload firmware during Playback. Retrying...\n");
+		dev_err(cs35l41->dev, "Cananalt Load/Unload firmware during Playback. Retrying...\n");
 	else
 		cs35l41_load_firmware(cs35l41, cs35l41->request_fw_load);
 
@@ -1124,13 +1124,13 @@ static int cs35l41_fw_load_ctl_put(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	if (cs35l41->fw_request_ongoing) {
-		dev_dbg(cs35l41->dev, "Existing request not complete\n");
+		dev_dbg(cs35l41->dev, "Existing request analt complete\n");
 		return -EBUSY;
 	}
 
 	/* Check if playback is ongoing when initial request is made */
 	if (cs35l41->playback_started) {
-		dev_err(cs35l41->dev, "Cannot Load/Unload firmware during Playback\n");
+		dev_err(cs35l41->dev, "Cananalt Load/Unload firmware during Playback\n");
 		return -EBUSY;
 	}
 
@@ -1188,14 +1188,14 @@ static int cs35l41_create_controls(struct cs35l41_hda *cs35l41)
 	struct snd_kcontrol_new fw_load_ctl = {
 		.name = fw_load_ctl_name,
 		.iface = SNDRV_CTL_ELEM_IFACE_CARD,
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moanal_info,
 		.get = cs35l41_fw_load_ctl_get,
 		.put = cs35l41_fw_load_ctl_put,
 	};
 	struct snd_kcontrol_new mute_override_ctl = {
 		.name = mute_override_ctl_name,
 		.iface = SNDRV_CTL_ELEM_IFACE_CARD,
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moanal_info,
 		.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 		.get = cs35l41_mute_override_ctl_get,
 	};
@@ -1249,7 +1249,7 @@ static int cs35l41_get_acpi_mute_state(struct cs35l41_hda *cs35l41, acpi_handle 
 {
 	guid_t guid;
 	union acpi_object *ret;
-	int mute = -ENODEV;
+	int mute = -EANALDEV;
 
 	guid_parse(CS35L41_UUID, &guid);
 
@@ -1264,12 +1264,12 @@ static int cs35l41_get_acpi_mute_state(struct cs35l41_hda *cs35l41, acpi_handle 
 	return mute;
 }
 
-static void cs35l41_acpi_device_notify(acpi_handle handle, u32 event, struct device *dev)
+static void cs35l41_acpi_device_analtify(acpi_handle handle, u32 event, struct device *dev)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
 	int mute;
 
-	if (event != CS35L41_NOTIFY_EVENT)
+	if (event != CS35L41_ANALTIFY_EVENT)
 		return;
 
 	mute = cs35l41_get_acpi_mute_state(cs35l41, handle);
@@ -1314,7 +1314,7 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 		dev_dbg(cs35l41->dev, "Firmware Autostart.\n");
 		cs35l41->request_fw_load = true;
 		if (cs35l41_smart_amp(cs35l41) < 0)
-			dev_warn(cs35l41->dev, "Cannot Run Firmware, reverting to dsp bypass...\n");
+			dev_warn(cs35l41->dev, "Cananalt Run Firmware, reverting to dsp bypass...\n");
 	} else {
 		dev_dbg(cs35l41->dev, "Firmware Autostart is disabled.\n");
 	}
@@ -1324,10 +1324,10 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 	comps->playback_hook = cs35l41_hda_playback_hook;
 	comps->pre_playback_hook = cs35l41_hda_pre_playback_hook;
 	comps->post_playback_hook = cs35l41_hda_post_playback_hook;
-	comps->acpi_notify = cs35l41_acpi_device_notify;
+	comps->acpi_analtify = cs35l41_acpi_device_analtify;
 	comps->adev = cs35l41->dacpi;
 
-	comps->acpi_notifications_supported = cs35l41_dsm_supported(acpi_device_handle(comps->adev),
+	comps->acpi_analtifications_supported = cs35l41_dsm_supported(acpi_device_handle(comps->adev),
 		CS35L41_DSM_GET_MUTE);
 
 	cs35l41->mute_override = cs35l41_get_acpi_mute_state(cs35l41,
@@ -1478,7 +1478,7 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41)
 
 	if (hw_cfg->gpio1.valid) {
 		switch (hw_cfg->gpio1.func) {
-		case CS35L41_NOT_USED:
+		case CS35L41_ANALT_USED:
 			break;
 		case CS35l41_VSPK_SWITCH:
 			hw_cfg->gpio1.func = CS35L41_GPIO1_GPIO;
@@ -1496,7 +1496,7 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41)
 
 	if (hw_cfg->gpio2.valid) {
 		switch (hw_cfg->gpio2.func) {
-		case CS35L41_NOT_USED:
+		case CS35L41_ANALT_USED:
 			break;
 		case CS35L41_INTERRUPT:
 			using_irq = true;
@@ -1537,7 +1537,7 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41)
 int cs35l41_get_speaker_id(struct device *dev, int amp_index, int num_amps, int fixed_gpio_id)
 {
 	struct gpio_desc *speaker_id_desc;
-	int speaker_id = -ENODEV;
+	int speaker_id = -EANALDEV;
 
 	if (fixed_gpio_id >= 0) {
 		dev_dbg(dev, "Found Fixed Speaker ID GPIO (index = %d)\n", fixed_gpio_id);
@@ -1603,11 +1603,11 @@ static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, i
 	adev = acpi_dev_get_first_match_dev(hid, NULL, -1);
 	if (!adev) {
 		dev_err(cs35l41->dev, "Failed to find an ACPI device for %s\n", hid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	cs35l41->dacpi = adev;
-	physdev = get_device(acpi_get_first_physical_node(adev));
+	physdev = get_device(acpi_get_first_physical_analde(adev));
 
 	sub = acpi_get_subsystem_id(ACPI_HANDLE(physdev));
 	if (IS_ERR(sub))
@@ -1643,15 +1643,15 @@ static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, i
 		}
 	}
 	if (cs35l41->index == -1) {
-		dev_err(cs35l41->dev, "No index found in %s\n", property);
-		ret = -ENODEV;
+		dev_err(cs35l41->dev, "Anal index found in %s\n", property);
+		ret = -EANALDEV;
 		goto err;
 	}
 
 	/* To use the same release code for all laptop variants we can't use devm_ version of
-	 * gpiod_get here, as CLSA010* don't have a fully functional bios with an _DSD node
+	 * gpiod_get here, as CLSA010* don't have a fully functional bios with an _DSD analde
 	 */
-	cs35l41->reset_gpio = fwnode_gpiod_get_index(acpi_fwnode_handle(adev), "reset", cs35l41->index,
+	cs35l41->reset_gpio = fwanalde_gpiod_get_index(acpi_fwanalde_handle(adev), "reset", cs35l41->index,
 						     GPIOD_OUT_LOW, "cs35l41-reset");
 
 	property = "cirrus,speaker-position";
@@ -1686,7 +1686,7 @@ static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, i
 	else
 		hw_cfg->bst_ipk = -1;
 
-	property = "cirrus,boost-ind-nanohenry";
+	property = "cirrus,boost-ind-naanalhenry";
 	ret = device_property_read_u32_array(physdev, property, values, nval);
 	if (ret == 0)
 		hw_cfg->bst_ind = values[cs35l41->index];
@@ -1750,7 +1750,7 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 
 	cs35l41 = devm_kzalloc(dev, sizeof(*cs35l41), GFP_KERNEL);
 	if (!cs35l41)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cs35l41->dev = dev;
 	cs35l41->irq = irq;
@@ -1760,7 +1760,7 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 
 	ret = cs35l41_hda_read_acpi(cs35l41, device_name, id);
 	if (ret)
-		return dev_err_probe(cs35l41->dev, ret, "Platform not supported\n");
+		return dev_err_probe(cs35l41->dev, ret, "Platform analt supported\n");
 
 	if (IS_ERR(cs35l41->reset_gpio)) {
 		ret = PTR_ERR(cs35l41->reset_gpio);
@@ -1817,7 +1817,7 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 	pm_runtime_use_autosuspend(cs35l41->dev);
 	pm_runtime_mark_last_busy(cs35l41->dev);
 	pm_runtime_set_active(cs35l41->dev);
-	pm_runtime_get_noresume(cs35l41->dev);
+	pm_runtime_get_analresume(cs35l41->dev);
 	pm_runtime_enable(cs35l41->dev);
 
 	ret = cs35l41_hda_apply_properties(cs35l41);
@@ -1839,7 +1839,7 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 err_pm:
 	pm_runtime_dont_use_autosuspend(cs35l41->dev);
 	pm_runtime_disable(cs35l41->dev);
-	pm_runtime_put_noidle(cs35l41->dev);
+	pm_runtime_put_analidle(cs35l41->dev);
 
 err:
 	if (cs35l41_safe_reset(cs35l41->regmap, cs35l41->hw_cfg.bst_type))
@@ -1868,7 +1868,7 @@ void cs35l41_hda_remove(struct device *dev)
 
 	acpi_dev_put(cs35l41->dacpi);
 
-	pm_runtime_put_noidle(cs35l41->dev);
+	pm_runtime_put_analidle(cs35l41->dev);
 
 	if (cs35l41_safe_reset(cs35l41->regmap, cs35l41->hw_cfg.bst_type))
 		gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);

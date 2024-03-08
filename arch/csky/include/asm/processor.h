@@ -22,7 +22,7 @@ extern struct cpuinfo_csky cpu_data[];
 
 /*
  * User space process size: 2GB. This is hardcoded into a few places,
- * so don't change it unless you know what you are doing.  TASK_SIZE
+ * so don't change it unless you kanalw what you are doing.  TASK_SIZE
  * for a 64 bit kernel expandable to 8192EB, of which the current CSKY
  * implementations will "only" be able to use 1TB ...
  */
@@ -40,7 +40,7 @@ extern struct cpuinfo_csky cpu_data[];
 
 struct thread_struct {
 	unsigned long  sp;        /* kernel stack pointer */
-	unsigned long  trap_no;   /* saved status register */
+	unsigned long  trap_anal;   /* saved status register */
 
 	/* FPU regs */
 	struct user_fp __aligned(16) user_fp;

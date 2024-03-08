@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
 
-/* MDIO support for Mellanox Gigabit Ethernet driver
+/* MDIO support for Mellaanalx Gigabit Ethernet driver
  *
  * Copyright (C) 2020-2021 NVIDIA CORPORATION & AFFILIATES
  */
@@ -292,13 +292,13 @@ int mlxbf_gige_mdio_probe(struct platform_device *pdev, struct mlxbf_gige *priv)
 	int ret;
 
 	if (priv->hw_version > MLXBF_GIGE_VERSION_BF3)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv->mdio_io = devm_platform_ioremap_resource(pdev, MLXBF_GIGE_RES_MDIO9);
 	if (IS_ERR(priv->mdio_io))
 		return PTR_ERR(priv->mdio_io);
 
-	/* clk resource shared with other drivers so cannot use
+	/* clk resource shared with other drivers so cananalt use
 	 * devm_platform_ioremap_resource
 	 */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, MLXBF_GIGE_RES_CLK);
@@ -311,7 +311,7 @@ int mlxbf_gige_mdio_probe(struct platform_device *pdev, struct mlxbf_gige *priv)
 
 	priv->clk_io = devm_ioremap(dev, res->start, resource_size(res));
 	if (!priv->clk_io)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->mdio_gw = &mlxbf_gige_mdio_gw_t[priv->hw_version];
 
@@ -320,7 +320,7 @@ int mlxbf_gige_mdio_probe(struct platform_device *pdev, struct mlxbf_gige *priv)
 	priv->mdiobus = devm_mdiobus_alloc(dev);
 	if (!priv->mdiobus) {
 		dev_err(dev, "Failed to alloc MDIO bus\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv->mdiobus->name = "mlxbf-mdio";

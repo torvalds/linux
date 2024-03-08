@@ -52,7 +52,7 @@ void guest_modes_append_default(void)
 		}
 
 		TEST_ASSERT(vm_mode_default != NUM_VM_MODES,
-			    "No supported mode!");
+			    "Anal supported mode!");
 	}
 #endif
 #ifdef __s390x__
@@ -91,7 +91,7 @@ void for_each_guest_mode(void (*func)(enum vm_guest_mode, void *), void *arg)
 		if (!guest_modes[i].enabled)
 			continue;
 		TEST_ASSERT(guest_modes[i].supported,
-			    "Guest mode ID %d (%s) not supported.",
+			    "Guest mode ID %d (%s) analt supported.",
 			    i, vm_guest_mode_string(i));
 		func(i, arg);
 	}
@@ -123,7 +123,7 @@ void guest_modes_cmdline(const char *arg)
 		mode_selected = true;
 	}
 
-	mode = atoi_non_negative("Guest mode ID", arg);
+	mode = atoi_analn_negative("Guest mode ID", arg);
 	TEST_ASSERT(mode < NUM_VM_MODES, "Guest mode ID %d too big", mode);
 	guest_modes[mode].enabled = true;
 }

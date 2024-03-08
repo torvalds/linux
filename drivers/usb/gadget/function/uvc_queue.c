@@ -81,7 +81,7 @@ static int uvc_buffer_prepare(struct vb2_buffer *vb)
 	}
 
 	if (unlikely(queue->flags & UVC_QUEUE_DISCONNECTED))
-		return -ENODEV;
+		return -EANALDEV;
 
 	buf->state = UVC_BUF_STATE_QUEUED;
 	if (queue->use_sg) {
@@ -113,7 +113,7 @@ static void uvc_buffer_queue(struct vb2_buffer *vb)
 	} else {
 		/*
 		 * If the device is disconnected return the buffer to userspace
-		 * directly. The next QBUF call will fail with -ENODEV.
+		 * directly. The next QBUF call will fail with -EANALDEV.
 		 */
 		buf->state = UVC_BUF_STATE_ERROR;
 		vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
@@ -197,13 +197,13 @@ int uvcg_queue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf)
 }
 
 /*
- * Dequeue a video buffer. If nonblocking is false, block until a buffer is
+ * Dequeue a video buffer. If analnblocking is false, block until a buffer is
  * available.
  */
 int uvcg_dequeue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf,
-			int nonblocking)
+			int analnblocking)
 {
-	return vb2_dqbuf(&queue->queue, buf, nonblocking);
+	return vb2_dqbuf(&queue->queue, buf, analnblocking);
 }
 
 /*
@@ -227,7 +227,7 @@ int uvcg_queue_mmap(struct uvc_video_queue *queue, struct vm_area_struct *vma)
 /*
  * Get unmapped area.
  *
- * NO-MMU arch need this function to make mmap() work correctly.
+ * ANAL-MMU arch need this function to make mmap() work correctly.
  */
 unsigned long uvcg_queue_get_unmapped_area(struct uvc_video_queue *queue,
 					   unsigned long pgoff)
@@ -243,7 +243,7 @@ unsigned long uvcg_queue_get_unmapped_area(struct uvc_video_queue *queue,
  * wakes them up and removes them from the queue.
  *
  * If the disconnect parameter is set, further calls to uvc_queue_buffer will
- * fail with -ENODEV.
+ * fail with -EANALDEV.
  *
  * This function acquires the irq spinlock and can be called from interrupt
  * context.
@@ -266,7 +266,7 @@ void uvcg_queue_cancel(struct uvc_video_queue *queue, int disconnect)
 	/*
 	 * This must be protected by the irqlock spinlock to avoid race
 	 * conditions between uvc_queue_buffer and the disconnection event that
-	 * could result in an interruptible wait in uvc_dequeue_buffer. Do not
+	 * could result in an interruptible wait in uvc_dequeue_buffer. Do analt
 	 * blindly replace this logic by checking for the UVC_DEV_DISCONNECTED
 	 * state outside the queue code.
 	 */
@@ -338,7 +338,7 @@ void uvcg_complete_buffer(struct uvc_video_queue *queue,
 		return;
 	}
 
-	buf->buf.field = V4L2_FIELD_NONE;
+	buf->buf.field = V4L2_FIELD_ANALNE;
 	buf->buf.sequence = queue->sequence++;
 	buf->buf.vb2_buf.timestamp = ktime_get_ns();
 

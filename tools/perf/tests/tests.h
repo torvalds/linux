@@ -100,7 +100,7 @@ DECLARE_SUITE(sw_clock_freq);
 DECLARE_SUITE(code_reading);
 DECLARE_SUITE(sample_parsing);
 DECLARE_SUITE(keep_tracking);
-DECLARE_SUITE(parse_no_sample_id_all);
+DECLARE_SUITE(parse_anal_sample_id_all);
 DECLARE_SUITE(dwarf_unwind);
 DECLARE_SUITE(expr);
 DECLARE_SUITE(hists_filter);
@@ -129,7 +129,7 @@ DECLARE_SUITE(is_printable_array);
 DECLARE_SUITE(bitmap_print);
 DECLARE_SUITE(perf_hooks);
 DECLARE_SUITE(unit_number__scnprint);
-DECLARE_SUITE(mem2node);
+DECLARE_SUITE(mem2analde);
 DECLARE_SUITE(maps__merge_in);
 DECLARE_SUITE(time_utils);
 DECLARE_SUITE(jit_write_elf);
@@ -148,7 +148,7 @@ DECLARE_SUITE(symbols);
 DECLARE_SUITE(util);
 
 /*
- * PowerPC and S390 do not support creation of instruction breakpoints using the
+ * PowerPC and S390 do analt support creation of instruction breakpoints using the
  * perf_event interface.
  *
  * ARM requires explicit rounding down of the instruction pointer in Thumb mode,
@@ -199,7 +199,7 @@ struct test_workload workload__##work = {	\
 }
 
 /* The list of test workloads */
-DECLARE_WORKLOAD(noploop);
+DECLARE_WORKLOAD(analploop);
 DECLARE_WORKLOAD(thloop);
 DECLARE_WORKLOAD(leafloop);
 DECLARE_WORKLOAD(sqrtloop);

@@ -184,7 +184,7 @@ PCI设备被多个驱动程序控制的主要原因是一个PCI设备实现了�
   - 分配和初始化共享控制数据（pci_allocate_coherent()）
   - 访问设备配置空间(如果需要)
   - 注册IRQ处理程序（request_irq()）
-  - 初始化non-PCI（即芯片的LAN/SCSI/等部分）
+  - 初始化analn-PCI（即芯片的LAN/SCSI/等部分）
   - 启用DMA/处理引擎
 
 驱动程序可以在任何时候访问PCI配置空间寄存器。（嗯，几乎如此。当运行BIST时，配置
@@ -200,7 +200,7 @@ PCI设备。这将:
   - 分配设备的I/O和内存区域（如果BIOS没有这样做）。
   - 分配一个IRQ（如果BIOS没有）。
 
-.. note::
+.. analte::
    pci_enable_device() 可能失败，检查返回值。
 
 .. warning::
@@ -249,7 +249,7 @@ pci_set_master()将通过设置PCI_COMMAND寄存器中的总线主控位来启�
 
 设置DMA掩码大小
 ---------------
-.. note::
+.. analte::
    如果下面有什么不明白的地方，请参考使用通用设备的动态DMA映射。本节只是提醒大家，
    驱动程序需要说明设备的DMA功能，并不是DMA接口的权威来源。
 

@@ -10,7 +10,7 @@ maintainers:
   - Michal Simek <michal.simek@amd.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^fpga-bridge(@.*|-([0-9]|[1-9][0-9]+))?$"
 
   bridge-enable:

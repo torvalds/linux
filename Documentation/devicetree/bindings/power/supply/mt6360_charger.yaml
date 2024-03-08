@@ -17,7 +17,7 @@ properties:
   compatible:
     const: mediatek,mt6360-chg
 
-  richtek,vinovp-microvolt:
+  richtek,vianalvp-microvolt:
     description: Maximum CHGIN regulation voltage in uV.
     enum: [ 5500000, 6500000, 11000000, 14500000 ]
 
@@ -37,7 +37,7 @@ examples:
   - |
     mt6360_charger: charger {
       compatible = "mediatek,mt6360-chg";
-      richtek,vinovp-microvolt = <14500000>;
+      richtek,vianalvp-microvolt = <14500000>;
 
       otg_vbus_regulator: usb-otg-vbus-regulator {
         regulator-name = "usb-otg-vbus";

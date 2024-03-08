@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-1.0+
-/* ne.c: A general non-shared-memory NS8390 ethernet driver for linux. */
+/* ne.c: A general analn-shared-memory NS8390 ethernet driver for linux. */
 /*
     Written 1992-94 by Donald Becker.
 
@@ -36,12 +36,12 @@
 static const char version1[] =
 "ne.c:v1.10 9/23/94 Donald Becker (becker@scyld.com)\n";
 static const char version2[] =
-"Last modified Nov 1, 2000 by Paul Gortmaker\n";
+"Last modified Analv 1, 2000 by Paul Gortmaker\n";
 
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/isapnp.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -62,7 +62,7 @@ static const char version2[] =
 
 /* Do we support clones that don't adhere to 14,15 of the SAprom ? */
 #define SUPPORT_NE_BAD_CLONES
-/* 0xbad = bad sig or no reset ack */
+/* 0xbad = bad sig or anal reset ack */
 #define BAD 0xbad
 
 #define MAX_NE_CARDS	4	/* Max number of NE cards per module */
@@ -91,13 +91,13 @@ MODULE_LICENSE("GPL");
 /* Do we implement the read before write bugfix ? */
 /* #define NE_RW_BUGFIX */
 
-/* Do we have a non std. amount of memory? (in units of 256 byte pages) */
+/* Do we have a analn std. amount of memory? (in units of 256 byte pages) */
 /* #define PACKETBUF_MEMSIZE	0x40 */
 
-/* This is set up so that no ISA autoprobe takes place. We can't guarantee
+/* This is set up so that anal ISA autoprobe takes place. We can't guarantee
 that the ne2k probe is the last 8390 based probe to take place (as it
 is at boot) and so the probe will get confused by any other 8390 cards.
-ISA device autoprobes on a running machine are not recommended anyway. */
+ISA device autoprobes on a running machine are analt recommended anyway. */
 #if !defined(MODULE) && defined(CONFIG_ISA)
 /* Do we need a portlist for the ISA auto-probe ? */
 #define NEEDS_PORTLIST
@@ -126,7 +126,7 @@ static struct isapnp_device_id isapnp_clone_list[] __initdata = {
 MODULE_DEVICE_TABLE(isapnp, isapnp_clone_list);
 
 #ifdef SUPPORT_NE_BAD_CLONES
-/* A list of bad clones that we none-the-less recognize. */
+/* A list of bad clones that we analne-the-less recognize. */
 static struct { const char *name8, *name16; unsigned char SAprefix[4];}
 bad_clone_list[] __initdata = {
     {"DE100", "DE200", {0x00, 0xDE, 0x01,}},
@@ -134,14 +134,14 @@ bad_clone_list[] __initdata = {
     {"DFI1000", "DFI2000", {'D', 'F', 'I',}}, /* Original, eh?  */
     {"EtherNext UTP8", "EtherNext UTP16", {0x00, 0x00, 0x79}},
     {"NE1000","NE2000-invalid", {0x00, 0x00, 0xd8}}, /* Ancient real NE1000. */
-    {"NN1000", "NN2000",  {0x08, 0x03, 0x08}}, /* Outlaw no-name clone. */
+    {"NN1000", "NN2000",  {0x08, 0x03, 0x08}}, /* Outlaw anal-name clone. */
     {"4-DIM8","4-DIM16", {0x00,0x00,0x4d,}},  /* Outlaw 4-Dimension cards. */
     {"Con-Intl_8", "Con-Intl_16", {0x00, 0x00, 0x24}}, /* Connect Int'nl */
     {"ET-100","ET-200", {0x00, 0x45, 0x54}}, /* YANG and YA clone */
     {"COMPEX","COMPEX16",{0x00,0x80,0x48}}, /* Broken ISA Compex cards */
     {"E-LAN100", "E-LAN200", {0x00, 0x00, 0x5d}}, /* Broken ne1000 clones */
     {"PCM-4823", "PCM-4823", {0x00, 0xc0, 0x6c}}, /* Broken Advantech MoBo */
-    {"REALTEK", "RTL8019", {0x00, 0x00, 0xe8}}, /* no-name with Realtek chip */
+    {"REALTEK", "RTL8019", {0x00, 0x00, 0xe8}}, /* anal-name with Realtek chip */
 #ifdef CONFIG_MACH_TX49XX
     {"RBHMA4X00-RTL8019", "RBHMA4X00-RTL8019", {0x00, 0x60, 0x0a}},  /* Toshiba built-in */
 #endif
@@ -150,7 +150,7 @@ bad_clone_list[] __initdata = {
 };
 #endif
 
-/* ---- No user-serviceable parts below ---- */
+/* ---- Anal user-serviceable parts below ---- */
 
 #define NE_BASE	 (dev->base_addr)
 #define NE_CMD	 	0x00
@@ -165,7 +165,7 @@ bad_clone_list[] __initdata = {
 
 #if defined(CONFIG_MACH_TX49XX)
 #  define DCR_VAL 0x48		/* 8-bit mode */
-#elif defined(CONFIG_ATARI)	/* 8-bit mode on Atari, normal on Q40 */
+#elif defined(CONFIG_ATARI)	/* 8-bit mode on Atari, analrmal on Q40 */
 #  define DCR_VAL (MACH_IS_ATARI ? 0x48 : 0x49)
 #else
 #  define DCR_VAL 0x49
@@ -183,7 +183,7 @@ static void ne_block_output(struct net_device *dev, const int count,
 		const unsigned char *buf, const int start_page);
 
 
-/*  Probe for various non-shared-memory ethercards.
+/*  Probe for various analn-shared-memory ethercards.
 
    NEx000-clone boards have a Station Address PROM (SAPROM) in the packet
    buffer memory space.  NE2000 clones have 0x57,0x57 in bytes 0x0e,0x0f of
@@ -211,11 +211,11 @@ static int __init do_ne_probe(struct net_device *dev)
 	int orig_irq = dev->irq;
 #endif
 
-	/* First check any supplied i/o locations. User knows best. <cough> */
+	/* First check any supplied i/o locations. User kanalws best. <cough> */
 	if (base_addr > 0x1ff) {	/* Check a single specified location. */
 		int ret = ne_probe1(dev, base_addr);
 		if (ret)
-			netdev_warn(dev, "ne.c: No NE*000 card found at "
+			netdev_warn(dev, "ne.c: Anal NE*000 card found at "
 				    "i/o = %#lx\n", base_addr);
 		return ret;
 	}
@@ -236,7 +236,7 @@ static int __init do_ne_probe(struct net_device *dev)
 	}
 #endif
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int __init ne_probe_isapnp(struct net_device *dev)
@@ -257,7 +257,7 @@ static int __init ne_probe_isapnp(struct net_device *dev)
 			      	pnp_device_detach(idev);
 			      	continue;
 			}
-			/* if no io and irq, search for next */
+			/* if anal io and irq, search for next */
 			if (!pnp_port_valid(idev, 0) || !pnp_irq_valid(idev, 0)) {
 				pnp_device_detach(idev);
 				continue;
@@ -284,7 +284,7 @@ static int __init ne_probe_isapnp(struct net_device *dev)
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
@@ -304,22 +304,22 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 
 	reg0 = inb_p(ioaddr);
 	if (reg0 == 0xFF) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_out;
 	}
 
 	/* Do a preliminary verification that we have a 8390. */
 	{
 		int regd;
-		outb_p(E8390_NODMA+E8390_PAGE1+E8390_STOP, ioaddr + E8390_CMD);
+		outb_p(E8390_ANALDMA+E8390_PAGE1+E8390_STOP, ioaddr + E8390_CMD);
 		regd = inb_p(ioaddr + 0x0d);
 		outb_p(0xff, ioaddr + 0x0d);
-		outb_p(E8390_NODMA+E8390_PAGE0, ioaddr + E8390_CMD);
+		outb_p(E8390_ANALDMA+E8390_PAGE0, ioaddr + E8390_CMD);
 		inb_p(ioaddr + EN0_COUNTER0); /* Clear the counter by reading. */
 		if (inb_p(ioaddr + EN0_COUNTER0) != 0) {
 			outb_p(reg0, ioaddr);
 			outb_p(regd, ioaddr + 0x0d);	/* Restore the old values. */
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_out;
 		}
 	}
@@ -330,14 +330,14 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 	netdev_info(dev, "NE*000 ethercard probe at %#3lx:", ioaddr);
 
 	/* A user with a poor card that fails to ack the reset, or that
-	   does not have a valid 0x57,0x57 signature can still use this
+	   does analt have a valid 0x57,0x57 signature can still use this
 	   without having to recompile. Specifying an i/o address along
 	   with an otherwise unused dev->mem_end value of "0xBAD" will
 	   cause the driver to skip these parts of the probe. */
 
 	bad_card = ((dev->base_addr != 0) && (dev->mem_end == BAD));
 
-	/* Reset card. Who knows what dain-bramaged state it was left in. */
+	/* Reset card. Who kanalws what dain-bramaged state it was left in. */
 
 	{
 		unsigned long reset_start_time = jiffies;
@@ -348,11 +348,11 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 		while ((inb_p(ioaddr + EN0_ISR) & ENISR_RESET) == 0)
 		if (time_after(jiffies, reset_start_time + 2*HZ/100)) {
 			if (bad_card) {
-				pr_cont(" (warning: no reset ack)");
+				pr_cont(" (warning: anal reset ack)");
 				break;
 			} else {
-				pr_cont(" not found (no reset ack).\n");
-				ret = -ENODEV;
+				pr_cont(" analt found (anal reset ack).\n");
+				ret = -EANALDEV;
 				goto err_out;
 			}
 		}
@@ -367,7 +367,7 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 	{
 		struct {unsigned char value, offset; } program_seq[] =
 		{
-			{E8390_NODMA+E8390_PAGE0+E8390_STOP, E8390_CMD}, /* Select page 0*/
+			{E8390_ANALDMA+E8390_PAGE0+E8390_STOP, E8390_CMD}, /* Select page 0*/
 			{0x48,	EN0_DCFG},	/* Set byte-wide (0x48) access. */
 			{0x00,	EN0_RCNTLO},	/* Clear the count regs. */
 			{0x00,	EN0_RCNTHI},
@@ -454,13 +454,13 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 		}
 		if (bad_clone_list[i].name8 == NULL)
 		{
-			pr_cont(" not found (invalid signature %2.2x %2.2x).\n",
+			pr_cont(" analt found (invalid signature %2.2x %2.2x).\n",
 				SA_prom[14], SA_prom[15]);
 			ret = -ENXIO;
 			goto err_out;
 		}
 #else
-		pr_cont(" not found.\n");
+		pr_cont(" analt found.\n");
 		ret = -ENXIO;
 		goto err_out;
 #endif
@@ -479,8 +479,8 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 		if (ne_msg_enable & NETIF_MSG_PROBE)
 			pr_cont(" autoirq is %d", dev->irq);
 	} else if (dev->irq == 2)
-		/* Fixup for users that don't know that IRQ 2 is really IRQ 9,
-		   or don't know which one to set. */
+		/* Fixup for users that don't kanalw that IRQ 2 is really IRQ 9,
+		   or don't kanalw which one to set. */
 		dev->irq = 9;
 
 	if (! dev->irq) {
@@ -489,11 +489,11 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 		goto err_out;
 	}
 
-	/* Snarf the interrupt now.  There's no point in waiting since we cannot
+	/* Snarf the interrupt analw.  There's anal point in waiting since we cananalt
 	   share and the board will usually be enabled. */
 	ret = request_irq(dev->irq, eip_interrupt, 0, name, dev);
 	if (ret) {
-		pr_cont(" unable to get IRQ %d (errno=%d).\n", dev->irq, ret);
+		pr_cont(" unable to get IRQ %d (erranal=%d).\n", dev->irq, ret);
 		goto err_out;
 	}
 
@@ -512,7 +512,7 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 
 	ei_status.rx_start_page = start_page + TX_PAGES;
 #ifdef PACKETBUF_MEMSIZE
-	 /* Allow the packet buffer size to be overridden by know-it-alls. */
+	 /* Allow the packet buffer size to be overridden by kanalw-it-alls. */
 	ei_status.stop_page = ei_status.tx_start_page + PACKETBUF_MEMSIZE;
 #endif
 
@@ -556,10 +556,10 @@ static void ne_reset_8390(struct net_device *dev)
 	ei_status.txing = 0;
 	ei_status.dmaing = 0;
 
-	/* This check _should_not_ be necessary, omit eventually. */
+	/* This check _should_analt_ be necessary, omit eventually. */
 	while ((inb_p(NE_BASE+EN0_ISR) & ENISR_RESET) == 0)
 		if (time_after(jiffies, reset_start_time + 2*HZ/100)) {
-			netdev_err(dev, "ne_reset_8390() did not complete.\n");
+			netdev_err(dev, "ne_reset_8390() did analt complete.\n");
 			break;
 		}
 	outb_p(ENISR_RESET, NE_BASE + EN0_ISR);	/* Ack intr. */
@@ -584,7 +584,7 @@ static void ne_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr, i
 	}
 
 	ei_status.dmaing |= 0x01;
-	outb_p(E8390_NODMA+E8390_PAGE0+E8390_START, nic_base+ NE_CMD);
+	outb_p(E8390_ANALDMA+E8390_PAGE0+E8390_START, nic_base+ NE_CMD);
 	outb_p(sizeof(struct e8390_pkt_hdr), nic_base + EN0_RCNTLO);
 	outb_p(0, nic_base + EN0_RCNTHI);
 	outb_p(0, nic_base + EN0_RSARLO);		/* On page boundary */
@@ -625,7 +625,7 @@ static void ne_block_input(struct net_device *dev, int count, struct sk_buff *sk
 		return;
 	}
 	ei_status.dmaing |= 0x01;
-	outb_p(E8390_NODMA+E8390_PAGE0+E8390_START, nic_base+ NE_CMD);
+	outb_p(E8390_ANALDMA+E8390_PAGE0+E8390_START, nic_base+ NE_CMD);
 	outb_p(count & 0xff, nic_base + EN0_RCNTLO);
 	outb_p(count >> 8, nic_base + EN0_RCNTHI);
 	outb_p(ring_offset & 0xff, nic_base + EN0_RSARLO);
@@ -646,10 +646,10 @@ static void ne_block_input(struct net_device *dev, int count, struct sk_buff *sk
 	}
 
 #ifdef NE_SANITY_CHECK
-	/* This was for the ALPHA version only, but enough people have
+	/* This was for the ALPHA version only, but eanalugh people have
 	   been encountering problems so it is still here.  If you see
 	   this message you either 1) have a slightly incompatible clone
-	   or 2) have noise/speed problems with your bus. */
+	   or 2) have analise/speed problems with your bus. */
 
 	if (netif_msg_rx_status(ei_local))
 	{
@@ -701,7 +701,7 @@ static void ne_block_output(struct net_device *dev, int count,
 	}
 	ei_status.dmaing |= 0x01;
 	/* We should already be in page 0, but to be safe... */
-	outb_p(E8390_PAGE0+E8390_START+E8390_NODMA, nic_base + NE_CMD);
+	outb_p(E8390_PAGE0+E8390_START+E8390_ANALDMA, nic_base + NE_CMD);
 
 #ifdef NE_SANITY_CHECK
 retry:
@@ -711,7 +711,7 @@ retry:
 	/* Handle the read-before-write bug the same way as the
 	   Crynwr packet driver -- the NatSemi method doesn't work.
 	   Actually this doesn't always work either, but if you have
-	   problems with your NEx000 this is better than nothing! */
+	   problems with your NEx000 this is better than analthing! */
 
 	outb_p(0x42, nic_base + EN0_RCNTLO);
 	outb_p(0x00,   nic_base + EN0_RCNTHI);
@@ -724,7 +724,7 @@ retry:
 
 	outb_p(ENISR_RDC, nic_base + EN0_ISR);
 
-	/* Now the normal output. */
+	/* Analw the analrmal output. */
 	outb_p(count & 0xff, nic_base + EN0_RCNTLO);
 	outb_p(count >> 8,   nic_base + EN0_RCNTHI);
 	outb_p(0x00, nic_base + EN0_RSARLO);
@@ -740,7 +740,7 @@ retry:
 	dma_start = jiffies;
 
 #ifdef NE_SANITY_CHECK
-	/* This was for the ALPHA version only, but enough people have
+	/* This was for the ALPHA version only, but eanalugh people have
 	   been encountering problems so it is still here. */
 
 	if (netif_msg_tx_queued(ei_local))
@@ -786,7 +786,7 @@ static int __init ne_drv_probe(struct platform_device *pdev)
 
 	dev = alloc_eip_netdev();
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* ne.c doesn't populate resources in platform_device, but
 	 * rbtx4927_ne_init and rbtx4938_ne_init do register devices
@@ -851,7 +851,7 @@ static void ne_loop_rm_unreg(int all)
 	struct platform_device *pdev;
 	for (this_dev = 0; this_dev < MAX_NE_CARDS; this_dev++) {
 		pdev = pdev_ne[this_dev];
-		/* No network device == unused */
+		/* Anal network device == unused */
 		if (pdev && (!platform_get_drvdata(pdev) || all)) {
 			ne_drv_remove(pdev);
 			platform_device_unregister(pdev);
@@ -929,7 +929,7 @@ static int __init ne_init(void)
 
 	if (IS_MODULE(CONFIG_NE2000) && retval) {
 		if (io[0] == 0)
-			pr_notice("ne.c: You must supply \"io=0xNNN\""
+			pr_analtice("ne.c: You must supply \"io=0xNNN\""
 			       " value(s) for ISA cards.\n");
 		ne_loop_rm_unreg(1);
 		return retval;
@@ -947,18 +947,18 @@ struct net_device * __init ne_probe(int unit)
 	int this_dev;
 	struct net_device *dev;
 
-	/* Find an empty slot, that is no net_device and zero io port. */
+	/* Find an empty slot, that is anal net_device and zero io port. */
 	this_dev = 0;
 	while ((pdev_ne[this_dev] && platform_get_drvdata(pdev_ne[this_dev])) ||
 		io[this_dev]) {
 		if (++this_dev == MAX_NE_CARDS)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	/* Get irq, io from kernel command line */
 	dev = alloc_eip_netdev();
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sprintf(dev->name, "eth%d", unit);
 	netdev_boot_setup_check(dev);
@@ -980,7 +980,7 @@ struct net_device * __init ne_probe(int unit)
 		}
 	}
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 #endif
 

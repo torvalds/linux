@@ -4,9 +4,9 @@
  *
  * Phonet protocols family
  *
- * Copyright (C) 2008 Nokia Corporation.
+ * Copyright (C) 2008 Analkia Corporation.
  *
- * Authors: Sakari Ailus <sakari.ailus@nokia.com>
+ * Authors: Sakari Ailus <sakari.ailus@analkia.com>
  *          Rémi Denis-Courmont
  */
 
@@ -68,7 +68,7 @@ static int pn_socket_create(struct net *net, struct socket *sock, int protocol,
 			protocol = PN_PROTO_PIPE;
 			break;
 		default:
-			return -EPROTONOSUPPORT;
+			return -EPROTOANALSUPPORT;
 		}
 	}
 
@@ -78,15 +78,15 @@ static int pn_socket_create(struct net *net, struct socket *sock, int protocol,
 		pnp = phonet_proto_get(protocol);
 
 	if (pnp == NULL)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	if (sock->type != pnp->sock_type) {
-		err = -EPROTONOSUPPORT;
+		err = -EPROTOANALSUPPORT;
 		goto out;
 	}
 
 	sk = sk_alloc(net, PF_PHONET, GFP_KERNEL, pnp->prot, kern);
 	if (sk == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -157,9 +157,9 @@ static int pn_send(struct sk_buff *skb, struct net_device *dev,
 		goto drop;
 	}
 
-	/* Broadcast sending is not implemented */
+	/* Broadcast sending is analt implemented */
 	if (pn_addr(dst) == PNADDR_BROADCAST) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto drop;
 	}
 
@@ -182,7 +182,7 @@ static int pn_send(struct sk_buff *skb, struct net_device *dev,
 	if (skb->pkt_type == PACKET_LOOPBACK) {
 		skb_reset_mac_header(skb);
 		skb_orphan(skb);
-		err = netif_rx(skb) ? -ENOBUFS : 0;
+		err = netif_rx(skb) ? -EANALBUFS : 0;
 	} else {
 		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
 					NULL, NULL, skb->len);
@@ -192,7 +192,7 @@ static int pn_send(struct sk_buff *skb, struct net_device *dev,
 		}
 		err = dev_queue_xmit(skb);
 		if (unlikely(err > 0))
-			err = net_xmit_errno(err);
+			err = net_xmit_erranal(err);
 	}
 
 	return err;
@@ -206,7 +206,7 @@ static int pn_raw_send(const void *data, int len, struct net_device *dev,
 {
 	struct sk_buff *skb = alloc_skb(MAX_PHONET_HEADER + len, GFP_ATOMIC);
 	if (skb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (phonet_address_lookup(dev_net(dev), pn_addr(dst)) == 0)
 		skb->pkt_type = PACKET_LOOPBACK;
@@ -219,7 +219,7 @@ static int pn_raw_send(const void *data, int len, struct net_device *dev,
 
 /*
  * Create a Phonet header for the skb and send it out. Returns
- * non-zero error code if failed. The skb is freed then.
+ * analn-zero error code if failed. The skb is freed then.
  */
 int pn_skb_send(struct sock *sk, struct sk_buff *skb,
 		const struct sockaddr_pn *target)
@@ -263,7 +263,7 @@ int pn_skb_send(struct sock *sk, struct sk_buff *skb,
 		goto drop;
 
 	saddr = phonet_address_get(dev, daddr);
-	if (saddr == PN_NO_ADDR)
+	if (saddr == PN_ANAL_ADDR)
 		goto drop;
 
 	if (!pn_addr(src))
@@ -280,7 +280,7 @@ drop:
 }
 EXPORT_SYMBOL(pn_skb_send);
 
-/* Do not send an error message in response to an error message */
+/* Do analt send an error message in response to an error message */
 static inline int can_respond(struct sk_buff *skb)
 {
 	const struct phonethdr *ph;
@@ -302,8 +302,8 @@ static inline int can_respond(struct sk_buff *skb)
 		return 1;
 	submsg_id = (ph->pn_res == PN_PREFIX)
 		? pm->pn_e_submsg_id : pm->pn_submsg_id;
-	if (submsg_id != PN_COMM_ISA_ENTITY_NOT_REACHABLE_RESP &&
-		pm->pn_e_submsg_id != PN_COMM_SERVICE_NOT_IDENTIFIED_RESP)
+	if (submsg_id != PN_COMM_ISA_ENTITY_ANALT_REACHABLE_RESP &&
+		pm->pn_e_submsg_id != PN_COMM_SERVICE_ANALT_IDENTIFIED_RESP)
 		return 1;
 	return 0;
 }
@@ -319,11 +319,11 @@ static int send_obj_unreachable(struct sk_buff *rskb)
 	resp.pn_msg_id = PN_COMMON_MESSAGE;
 	if (oph->pn_res == PN_PREFIX) {
 		resp.pn_e_res_id = opm->pn_e_res_id;
-		resp.pn_e_submsg_id = PN_COMM_ISA_ENTITY_NOT_REACHABLE_RESP;
+		resp.pn_e_submsg_id = PN_COMM_ISA_ENTITY_ANALT_REACHABLE_RESP;
 		resp.pn_e_orig_msg_id = opm->pn_msg_id;
 		resp.pn_e_status = 0;
 	} else {
-		resp.pn_submsg_id = PN_COMM_ISA_ENTITY_NOT_REACHABLE_RESP;
+		resp.pn_submsg_id = PN_COMM_ISA_ENTITY_ANALT_REACHABLE_RESP;
 		resp.pn_orig_msg_id = opm->pn_msg_id;
 		resp.pn_status = 0;
 	}
@@ -352,7 +352,7 @@ static int send_reset_indications(struct sk_buff *rskb)
 
 /*
  * Stuff received packets to associated sockets.
- * On error, returns non-zero and releases the skb.
+ * On error, returns analn-zero and releases the skb.
  */
 static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 			struct packet_type *pkttype,
@@ -416,7 +416,7 @@ static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 
 		out_dev = phonet_route_output(net, pn_sockaddr_get_addr(&sa));
 		if (!out_dev) {
-			net_dbg_ratelimited("No Phonet route to %02X\n",
+			net_dbg_ratelimited("Anal Phonet route to %02X\n",
 					    pn_sockaddr_get_addr(&sa));
 			goto out;
 		}
@@ -429,7 +429,7 @@ static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 					    dev->name);
 			goto out_dev;
 		}
-		/* Some drivers (e.g. TUN) do not allocate HW header space */
+		/* Some drivers (e.g. TUN) do analt allocate HW header space */
 		if (skb_cow_head(skb, out_dev->hard_header_len))
 			goto out_dev;
 

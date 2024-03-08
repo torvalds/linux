@@ -5,8 +5,8 @@
 #include <linux/rbtree_types.h>
 #include <linux/types.h>
 
-struct timerqueue_node {
-	struct rb_node node;
+struct timerqueue_analde {
+	struct rb_analde analde;
 	ktime_t expires;
 };
 

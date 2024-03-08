@@ -18,7 +18,7 @@
 #define _PAGE_ACCESSED	0x080
 #define _PAGE_DIRTY	0x100
 /* If _PAGE_PRESENT is clear, we use these: */
-#define _PAGE_PROTNONE	0x010	/* if the user mapped it with PROT_NONE;
+#define _PAGE_PROTANALNE	0x010	/* if the user mapped it with PROT_ANALNE;
 				   pte_present gives true */
 
 /* We borrow bit 10 to store the exclusive marker in swap PTEs. */
@@ -58,7 +58,7 @@ extern unsigned long end_iomem;
 #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
 #define __PAGE_KERNEL_EXEC                                              \
 	 (_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED)
-#define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_ACCESSED)
+#define PAGE_ANALNE	__pgprot(_PAGE_PROTANALNE | _PAGE_ACCESSED)
 #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED)
 #define PAGE_COPY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED)
 #define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED)
@@ -80,7 +80,7 @@ extern unsigned long end_iomem;
 
 #define pte_clear(mm,addr,xp) pte_set_val(*(xp), (phys_t) 0, __pgprot(_PAGE_NEWPAGE))
 
-#define pmd_none(x)	(!((unsigned long)pmd_val(x) & ~_PAGE_NEWPAGE))
+#define pmd_analne(x)	(!((unsigned long)pmd_val(x) & ~_PAGE_NEWPAGE))
 #define	pmd_bad(x)	((pmd_val(x) & (~PAGE_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
 
 #define pmd_present(x)	(pmd_val(x) & _PAGE_PRESENT)
@@ -100,7 +100,7 @@ extern unsigned long end_iomem;
 
 #define pte_page(x) pfn_to_page(pte_pfn(x))
 
-#define pte_present(x)	pte_get_bits(x, (_PAGE_PRESENT | _PAGE_PROTNONE))
+#define pte_present(x)	pte_get_bits(x, (_PAGE_PRESENT | _PAGE_PROTANALNE))
 
 /*
  * =================================
@@ -108,30 +108,30 @@ extern unsigned long end_iomem;
  * =================================
  */
 
-static inline int pte_none(pte_t pte)
+static inline int pte_analne(pte_t pte)
 {
 	return pte_is_zero(pte);
 }
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if analt..
  */
 static inline int pte_read(pte_t pte)
 {
 	return((pte_get_bits(pte, _PAGE_USER)) &&
-	       !(pte_get_bits(pte, _PAGE_PROTNONE)));
+	       !(pte_get_bits(pte, _PAGE_PROTANALNE)));
 }
 
 static inline int pte_exec(pte_t pte){
 	return((pte_get_bits(pte, _PAGE_USER)) &&
-	       !(pte_get_bits(pte, _PAGE_PROTNONE)));
+	       !(pte_get_bits(pte, _PAGE_PROTANALNE)));
 }
 
 static inline int pte_write(pte_t pte)
 {
 	return((pte_get_bits(pte, _PAGE_RW)) &&
-	       !(pte_get_bits(pte, _PAGE_PROTNONE)));
+	       !(pte_get_bits(pte, _PAGE_PROTANALNE)));
 }
 
 static inline int pte_dirty(pte_t pte)
@@ -207,7 +207,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	return(pte);
 }
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	if (unlikely(pte_get_bits(pte,  _PAGE_RW)))
 		return pte;
@@ -234,7 +234,7 @@ static inline void set_pte(pte_t *pteptr, pte_t pteval)
 	pte_copy(*pteptr, pteval);
 
 	/* If it's a swap entry, it needs to be marked _PAGE_NEWPAGE so
-	 * fix_range knows to unmap it.  _PAGE_NEWPROT is specific to
+	 * fix_range kanalws to unmap it.  _PAGE_NEWPROT is specific to
 	 * mapped pages.
 	 */
 
@@ -290,7 +290,7 @@ extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs:
  *
@@ -298,7 +298,7 @@ extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  *   <--------------- offset ----------------> E < type -> 0 0 0 1 0
  *
- *   E is the exclusive marker that is not stored in swap entries.
+ *   E is the exclusive marker that is analt stored in swap entries.
  *   _PAGE_NEWPAGE (bit 1) is always set to 1 in set_pte().
  */
 #define __swp_type(x)			(((x).val >> 5) & 0x1f)

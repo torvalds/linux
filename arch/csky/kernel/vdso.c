@@ -37,7 +37,7 @@ static int __init vdso_init(void)
 		kcalloc(vdso_pages + 1, sizeof(struct page *), GFP_KERNEL);
 	if (unlikely(vdso_pagelist == NULL)) {
 		pr_err("vdso: pagelist allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < vdso_pages; i++) {

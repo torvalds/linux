@@ -103,7 +103,7 @@
  *   MD_SIZE_xxx are useful for representing the size of a SIMM or bank
  *   (SIMM pair).  They correspond to the values needed for the bit
  *   triplets (MMC_BANK_MASK) in the MD_MEMORY_CONFIG register for bank size.
- *   Bits not used by the MD are used by software.
+ *   Bits analt used by the MD are used by software.
  */
 
 #define MD_SIZE_EMPTY		0	/* Valid in MEMORY_CONFIG	    */
@@ -137,9 +137,9 @@
 #define MMC_ARB_MLSS_SHFT	30
 #define MMC_ARB_MLSS_MASK	(UINT64_CAST 1 << 30)
 #define MMC_ARB_MLSS		(UINT64_CAST 1 << 30)
-#define MMC_IGNORE_ECC_SHFT	29
-#define MMC_IGNORE_ECC_MASK	(UINT64_CAST 1 << 29)
-#define MMC_IGNORE_ECC		(UINT64_CAST 1 << 29)
+#define MMC_IGANALRE_ECC_SHFT	29
+#define MMC_IGANALRE_ECC_MASK	(UINT64_CAST 1 << 29)
+#define MMC_IGANALRE_ECC		(UINT64_CAST 1 << 29)
 #define MMC_DIR_PREMIUM_SHFT	28
 #define MMC_DIR_PREMIUM_MASK	(UINT64_CAST 1 << 28)
 #define MMC_DIR_PREMIUM		(UINT64_CAST 1 << 28)
@@ -152,7 +152,7 @@
 				 UINT64_CAST 0x07 << MMC_FPROM_WR_SHFT | \
 				 UINT64_CAST 0x1f << MMC_UCTLR_CYC_SHFT | \
 				 UINT64_CAST 0x0f << MMC_UCTLR_WR_SHFT | \
-				 MMC_IGNORE_ECC | MMC_DIR_PREMIUM | \
+				 MMC_IGANALRE_ECC | MMC_DIR_PREMIUM | \
 				 UINT64_CAST 0x0f << MMC_REPLY_GUAR_SHFT | \
 				 MMC_BANK_ALL_MASK)
 
@@ -207,13 +207,13 @@
 
 /* MD_SLOTID_USTAT bit definitions */
 
-#define MSU_CORECLK_TST_SHFT	7	/* You don't wanna know		    */
+#define MSU_CORECLK_TST_SHFT	7	/* You don't wanna kanalw		    */
 #define MSU_CORECLK_TST_MASK	(UINT64_CAST 1 << 7)
 #define MSU_CORECLK_TST		(UINT64_CAST 1 << 7)
-#define MSU_CORECLK_SHFT	6	/* You don't wanna know		    */
+#define MSU_CORECLK_SHFT	6	/* You don't wanna kanalw		    */
 #define MSU_CORECLK_MASK	(UINT64_CAST 1 << 6)
 #define MSU_CORECLK		(UINT64_CAST 1 << 6)
-#define MSU_NETSYNC_SHFT	5	/* You don't wanna know		    */
+#define MSU_NETSYNC_SHFT	5	/* You don't wanna kanalw		    */
 #define MSU_NETSYNC_MASK	(UINT64_CAST 1 << 5)
 #define MSU_NETSYNC		(UINT64_CAST 1 << 5)
 #define MSU_FPROMRDY_SHFT	4	/* Flash PROM ready bit		    */
@@ -253,8 +253,8 @@
 #define MD_MIG_CANDIDATE_OVERRUN_SHFT 29
 #define MD_MIG_CANDIDATE_INITIATOR_MASK (UINT64_CAST 0x7ff << 18)
 #define MD_MIG_CANDIDATE_INITIATOR_SHFT 18
-#define MD_MIG_CANDIDATE_NODEID_MASK (UINT64_CAST 0x1ff << 20)
-#define MD_MIG_CANDIDATE_NODEID_SHFT 20
+#define MD_MIG_CANDIDATE_ANALDEID_MASK (UINT64_CAST 0x1ff << 20)
+#define MD_MIG_CANDIDATE_ANALDEID_SHFT 20
 #define MD_MIG_CANDIDATE_ADDR_MASK (UINT64_CAST 0x3ffff)
 #define MD_MIG_CANDIDATE_ADDR_SHFT 14  /* The address starts at bit 14 */
 
@@ -281,7 +281,7 @@
 #define MD_DIR_BUSY_SHARED	(UINT64_CAST 0x3)	/* 011 */
 #define MD_DIR_BUSY_EXCL	(UINT64_CAST 0x4)	/* 100 */
 #define MD_DIR_WAIT		(UINT64_CAST 0x5)	/* 101 */
-#define MD_DIR_UNOWNED		(UINT64_CAST 0x7)	/* 111 */
+#define MD_DIR_UANALWNED		(UINT64_CAST 0x7)	/* 111 */
 
 /*
  * The MD_DIR_FORCE_ECC bit can be added directory entry write data
@@ -334,7 +334,7 @@
  * Directory initialization values
  */
 
-#define MD_PDIR_INIT_LO		(MD_DIR_UNOWNED << MD_PDIR_STATE_SHFT | \
+#define MD_PDIR_INIT_LO		(MD_DIR_UANALWNED << MD_PDIR_STATE_SHFT | \
 				 MD_PDIR_AX)
 #define MD_PDIR_INIT_HI		0
 #define MD_PDIR_INIT_PROT	(MD_PROT_RW << MD_PPROT_IO_SHFT | \
@@ -376,7 +376,7 @@
  * Directory initialization values
  */
 
-#define MD_SDIR_INIT_LO		(MD_DIR_UNOWNED << MD_SDIR_STATE_SHFT | \
+#define MD_SDIR_INIT_LO		(MD_DIR_UANALWNED << MD_SDIR_STATE_SHFT | \
 				 MD_SDIR_AX)
 #define MD_SDIR_INIT_HI		0
 #define MD_SDIR_INIT_PROT	(MD_PROT_RW << MD_SPROT_SHFT)
@@ -385,7 +385,7 @@
 
 #define MD_PROT_RW		(UINT64_CAST 0x6)
 #define MD_PROT_RO		(UINT64_CAST 0x3)
-#define MD_PROT_NO		(UINT64_CAST 0x0)
+#define MD_PROT_ANAL		(UINT64_CAST 0x0)
 #define MD_PROT_BAD		(UINT64_CAST 0x5)
 
 /* Premium SIMM protection entry shifts and masks. */
@@ -509,8 +509,8 @@
 
 #define MD_MIG_CANDIDATE_HWPFN(value) ((value) & MD_MIG_CANDIDATE_ADDR_MASK)
 
-#define MD_MIG_CANDIDATE_NODEID(value) ( \
-	((value) & MD_MIG_CANDIDATE_NODEID_MASK) >> MD_MIG_CANDIDATE_NODEID_SHFT)
+#define MD_MIG_CANDIDATE_ANALDEID(value) ( \
+	((value) & MD_MIG_CANDIDATE_ANALDEID_MASK) >> MD_MIG_CANDIDATE_ANALDEID_SHFT)
 
 #define MD_MIG_CANDIDATE_TYPE(value) ( \
 	((value) & MD_MIG_CANDIDATE_TYPE_MASK) >> MD_MIG_CANDIDATE_TYPE_SHFT)

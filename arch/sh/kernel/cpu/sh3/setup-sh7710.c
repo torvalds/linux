@@ -3,7 +3,7 @@
  * SH3 Setup code for SH7710, SH7712
  *
  *  Copyright (C) 2006 - 2009  Paul Mundt
- *  Copyright (C) 2007  Nobuhiro Iwamatsu
+ *  Copyright (C) 2007  Analbuhiro Iwamatsu
  */
 #include <linux/platform_device.h>
 #include <linux/init.h>

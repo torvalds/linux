@@ -138,23 +138,23 @@ static int audio_iio_aux_add_dapms(struct snd_soc_component *component,
 
 	input_name = kasprintf(GFP_KERNEL, "%s IN", chan->name);
 	if (!input_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	output_name = kasprintf(GFP_KERNEL, "%s OUT", chan->name);
 	if (!output_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_input_name;
 	}
 
 	pga_name = kasprintf(GFP_KERNEL, "%s PGA", chan->name);
 	if (!pga_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_output_name;
 	}
 
 	widgets[0] = SND_SOC_DAPM_INPUT(input_name);
 	widgets[1] = SND_SOC_DAPM_OUTPUT(output_name);
-	widgets[2] = SND_SOC_DAPM_PGA(pga_name, SND_SOC_NOPM, 0, 0, NULL, 0);
+	widgets[2] = SND_SOC_DAPM_PGA(pga_name, SND_SOC_ANALPM, 0, 0, NULL, 0);
 	ret = snd_soc_dapm_new_controls(dapm, widgets, 3);
 	if (ret)
 		goto out_free_pga_name;
@@ -167,7 +167,7 @@ static int audio_iio_aux_add_dapms(struct snd_soc_component *component,
 	routes[1].source = pga_name;
 	ret = snd_soc_dapm_add_routes(dapm, routes, 2);
 
-	/* Allocated names are no more needed (duplicated in ASoC internals) */
+	/* Allocated names are anal more needed (duplicated in ASoC internals) */
 
 out_free_pga_name:
 	kfree(pga_name);
@@ -191,13 +191,13 @@ static int audio_iio_aux_component_probe(struct snd_soc_component *component)
 		ret = iio_read_max_channel_raw(chan->iio_chan, &chan->max);
 		if (ret)
 			return dev_err_probe(component->dev, ret,
-					     "chan[%d] %s: Cannot get max raw value\n",
+					     "chan[%d] %s: Cananalt get max raw value\n",
 					     i, chan->name);
 
 		ret = iio_read_min_channel_raw(chan->iio_chan, &chan->min);
 		if (ret)
 			return dev_err_probe(component->dev, ret,
-					     "chan[%d] %s: Cannot get min raw value\n",
+					     "chan[%d] %s: Cananalt get min raw value\n",
 					     i, chan->name);
 
 		if (chan->min > chan->max) {
@@ -216,7 +216,7 @@ static int audio_iio_aux_component_probe(struct snd_soc_component *component)
 					    chan->is_invert_range ? chan->max : chan->min);
 		if (ret)
 			return dev_err_probe(component->dev, ret,
-					     "chan[%d] %s: Cannot set initial value\n",
+					     "chan[%d] %s: Cananalt set initial value\n",
 					     i, chan->name);
 
 		ret = audio_iio_aux_add_controls(component, chan);
@@ -256,7 +256,7 @@ static int audio_iio_aux_probe(struct platform_device *pdev)
 
 	iio_aux = devm_kzalloc(dev, struct_size(iio_aux, chans, count), GFP_KERNEL);
 	if (!iio_aux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iio_aux->dev = dev;
 
@@ -264,11 +264,11 @@ static int audio_iio_aux_probe(struct platform_device *pdev)
 
 	names = kcalloc(iio_aux->num_chans, sizeof(*names), GFP_KERNEL);
 	if (!names)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	invert_ranges = kcalloc(iio_aux->num_chans, sizeof(*invert_ranges), GFP_KERNEL);
 	if (!invert_ranges) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_names;
 	}
 

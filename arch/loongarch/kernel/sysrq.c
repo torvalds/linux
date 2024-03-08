@@ -2,7 +2,7 @@
 /*
  * LoongArch specific sysrq operations.
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/init.h>
 #include <linux/smp.h>

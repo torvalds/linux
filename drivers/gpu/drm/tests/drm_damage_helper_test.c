@@ -28,7 +28,7 @@ static int drm_damage_helper_init(struct kunit *test)
 	struct drm_damage_mock *mock;
 
 	mock = kunit_kzalloc(test, sizeof(*mock), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, mock);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, mock);
 
 	mock->fb.width = 2048;
 	mock->fb.height = 2048;
@@ -40,7 +40,7 @@ static int drm_damage_helper_init(struct kunit *test)
 	mock->old_state.plane = &mock->plane;
 	mock->state.plane = &mock->plane;
 
-	/* just enough so that drm_plane_enable_fb_damage_clips() works */
+	/* just eanalugh so that drm_plane_enable_fb_damage_clips() works */
 	mock->device.driver = &mock->driver;
 	mock->device.mode_config.prop_fb_damage_clips = &mock->prop;
 	mock->plane.dev = &mock->device;
@@ -99,7 +99,7 @@ static void check_damage_clip(struct kunit *test, struct drm_rect *r,
 	struct drm_plane_state state = mock->state;
 
 	/*
-	 * Round down x1/y1 and round up x2/y2. This is because damage is not in
+	 * Round down x1/y1 and round up x2/y2. This is because damage is analt in
 	 * 16.16 fixed point so to catch all pixels.
 	 */
 	int src_x1 = state.src.x1 >> 16;
@@ -108,15 +108,15 @@ static void check_damage_clip(struct kunit *test, struct drm_rect *r,
 	int src_y2 = (state.src.y2 >> 16) + !!(state.src.y2 & 0xFFFF);
 
 	if (x1 >= x2 || y1 >= y2)
-		KUNIT_FAIL(test, "Cannot have damage clip with no dimension.");
+		KUNIT_FAIL(test, "Cananalt have damage clip with anal dimension.");
 	if (x1 < src_x1 || y1 < src_y1 || x2 > src_x2 || y2 > src_y2)
-		KUNIT_FAIL(test, "Damage cannot be outside rounded plane src.");
+		KUNIT_FAIL(test, "Damage cananalt be outside rounded plane src.");
 	if (r->x1 != x1 || r->y1 != y1 || r->x2 != x2 || r->y2 != y2)
 		KUNIT_FAIL(test, "Damage = %d %d %d %d, want = %d %d %d %d",
 			   r->x1, r->y1, r->x2, r->y2, x1, y1, x2, y2);
 }
 
-static void drm_test_damage_iter_no_damage(struct kunit *test)
+static void drm_test_damage_iter_anal_damage(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -134,7 +134,7 @@ static void drm_test_damage_iter_no_damage(struct kunit *test)
 	check_damage_clip(test, &clip, 0, 0, 2048, 2048);
 }
 
-static void drm_test_damage_iter_no_damage_fractional_src(struct kunit *test)
+static void drm_test_damage_iter_anal_damage_fractional_src(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -155,7 +155,7 @@ static void drm_test_damage_iter_no_damage_fractional_src(struct kunit *test)
 	check_damage_clip(test, &clip, 3, 3, 1028, 772);
 }
 
-static void drm_test_damage_iter_no_damage_src_moved(struct kunit *test)
+static void drm_test_damage_iter_anal_damage_src_moved(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -174,7 +174,7 @@ static void drm_test_damage_iter_no_damage_src_moved(struct kunit *test)
 	check_damage_clip(test, &clip, 10, 10, 1034, 778);
 }
 
-static void drm_test_damage_iter_no_damage_fractional_src_moved(struct kunit *test)
+static void drm_test_damage_iter_anal_damage_fractional_src_moved(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -194,7 +194,7 @@ static void drm_test_damage_iter_no_damage_fractional_src_moved(struct kunit *te
 	check_damage_clip(test, &clip, 4, 4, 1029, 773);
 }
 
-static void drm_test_damage_iter_no_damage_not_visible(struct kunit *test)
+static void drm_test_damage_iter_anal_damage_analt_visible(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -209,10 +209,10 @@ static void drm_test_damage_iter_no_damage_not_visible(struct kunit *test)
 	drm_atomic_for_each_plane_damage(&iter, &clip)
 		num_hits++;
 
-	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have no damage.");
+	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have anal damage.");
 }
 
-static void drm_test_damage_iter_no_damage_no_crtc(struct kunit *test)
+static void drm_test_damage_iter_anal_damage_anal_crtc(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -227,10 +227,10 @@ static void drm_test_damage_iter_no_damage_no_crtc(struct kunit *test)
 	drm_atomic_for_each_plane_damage(&iter, &clip)
 		num_hits++;
 
-	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have no damage.");
+	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have anal damage.");
 }
 
-static void drm_test_damage_iter_no_damage_no_fb(struct kunit *test)
+static void drm_test_damage_iter_anal_damage_anal_fb(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -245,7 +245,7 @@ static void drm_test_damage_iter_no_damage_no_fb(struct kunit *test)
 	drm_atomic_for_each_plane_damage(&iter, &clip)
 		num_hits++;
 
-	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have no damage.");
+	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have anal damage.");
 }
 
 static void drm_test_damage_iter_simple_damage(struct kunit *test)
@@ -335,7 +335,7 @@ static void drm_test_damage_iter_single_damage_outside_src(struct kunit *test)
 	drm_atomic_for_each_plane_damage(&iter, &clip)
 		num_hits++;
 
-	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have no damage.");
+	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have anal damage.");
 }
 
 static void drm_test_damage_iter_single_damage_fractional_src(struct kunit *test)
@@ -412,7 +412,7 @@ static void drm_test_damage_iter_single_damage_outside_fractional_src(struct kun
 	drm_atomic_for_each_plane_damage(&iter, &clip)
 		num_hits++;
 
-	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have no damage.");
+	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should have anal damage.");
 }
 
 static void drm_test_damage_iter_single_damage_src_moved(struct kunit *test)
@@ -576,7 +576,7 @@ static void drm_test_damage_iter_damage_src_moved(struct kunit *test)
 	check_damage_clip(test, &clip, 3, 3, 1028, 772);
 }
 
-static void drm_test_damage_iter_damage_not_visible(struct kunit *test)
+static void drm_test_damage_iter_damage_analt_visible(struct kunit *test)
 {
 	struct drm_damage_mock *mock = test->priv;
 	struct drm_atomic_helper_damage_iter iter;
@@ -600,17 +600,17 @@ static void drm_test_damage_iter_damage_not_visible(struct kunit *test)
 	drm_atomic_for_each_plane_damage(&iter, &clip)
 		num_hits++;
 
-	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should not return any damage.");
+	KUNIT_EXPECT_EQ_MSG(test, num_hits, 0, "Should analt return any damage.");
 }
 
 static struct kunit_case drm_damage_helper_tests[] = {
-	KUNIT_CASE(drm_test_damage_iter_no_damage),
-	KUNIT_CASE(drm_test_damage_iter_no_damage_fractional_src),
-	KUNIT_CASE(drm_test_damage_iter_no_damage_src_moved),
-	KUNIT_CASE(drm_test_damage_iter_no_damage_fractional_src_moved),
-	KUNIT_CASE(drm_test_damage_iter_no_damage_not_visible),
-	KUNIT_CASE(drm_test_damage_iter_no_damage_no_crtc),
-	KUNIT_CASE(drm_test_damage_iter_no_damage_no_fb),
+	KUNIT_CASE(drm_test_damage_iter_anal_damage),
+	KUNIT_CASE(drm_test_damage_iter_anal_damage_fractional_src),
+	KUNIT_CASE(drm_test_damage_iter_anal_damage_src_moved),
+	KUNIT_CASE(drm_test_damage_iter_anal_damage_fractional_src_moved),
+	KUNIT_CASE(drm_test_damage_iter_anal_damage_analt_visible),
+	KUNIT_CASE(drm_test_damage_iter_anal_damage_anal_crtc),
+	KUNIT_CASE(drm_test_damage_iter_anal_damage_anal_fb),
 	KUNIT_CASE(drm_test_damage_iter_simple_damage),
 	KUNIT_CASE(drm_test_damage_iter_single_damage),
 	KUNIT_CASE(drm_test_damage_iter_single_damage_intersect_src),
@@ -624,7 +624,7 @@ static struct kunit_case drm_damage_helper_tests[] = {
 	KUNIT_CASE(drm_test_damage_iter_damage_one_intersect),
 	KUNIT_CASE(drm_test_damage_iter_damage_one_outside),
 	KUNIT_CASE(drm_test_damage_iter_damage_src_moved),
-	KUNIT_CASE(drm_test_damage_iter_damage_not_visible),
+	KUNIT_CASE(drm_test_damage_iter_damage_analt_visible),
 	{ }
 };
 

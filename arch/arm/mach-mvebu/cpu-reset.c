@@ -26,7 +26,7 @@ int mvebu_cpu_reset_deassert(int cpu)
 	u32 reg;
 
 	if (!cpu_reset_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (CPU_RESET_OFFSET(cpu) >= cpu_reset_size)
 		return -EINVAL;
@@ -38,13 +38,13 @@ int mvebu_cpu_reset_deassert(int cpu)
 	return 0;
 }
 
-static int mvebu_cpu_reset_map(struct device_node *np, int res_idx)
+static int mvebu_cpu_reset_map(struct device_analde *np, int res_idx)
 {
 	struct resource res;
 
 	if (of_address_to_resource(np, res_idx, &res)) {
 		pr_err("unable to get resource\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (!request_mem_region(res.start, resource_size(&res),
@@ -57,7 +57,7 @@ static int mvebu_cpu_reset_map(struct device_node *np, int res_idx)
 	if (!cpu_reset_base) {
 		pr_err("unable to map registers\n");
 		release_mem_region(res.start, resource_size(&res));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cpu_reset_size = resource_size(&res);
@@ -67,11 +67,11 @@ static int mvebu_cpu_reset_map(struct device_node *np, int res_idx)
 
 static int __init mvebu_cpu_reset_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int res_idx;
 	int ret;
 
-	np = of_find_compatible_node(NULL, NULL,
+	np = of_find_compatible_analde(NULL, NULL,
 				     "marvell,armada-370-cpu-reset");
 	if (np) {
 		res_idx = 0;
@@ -80,7 +80,7 @@ static int __init mvebu_cpu_reset_init(void)
 		 * This code is kept for backward compatibility with
 		 * old Device Trees.
 		 */
-		np = of_find_compatible_node(NULL, NULL,
+		np = of_find_compatible_analde(NULL, NULL,
 					     "marvell,armada-370-xp-pmsu");
 		if (np) {
 			pr_warn(FW_WARN "deprecated pmsu binding\n");
@@ -88,12 +88,12 @@ static int __init mvebu_cpu_reset_init(void)
 		}
 	}
 
-	/* No reset node found */
+	/* Anal reset analde found */
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = mvebu_cpu_reset_map(np, res_idx);
-	of_node_put(np);
+	of_analde_put(np);
 
 	return ret;
 }

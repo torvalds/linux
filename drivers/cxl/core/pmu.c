@@ -35,7 +35,7 @@ int devm_cxl_pmu_add(struct device *parent, struct cxl_pmu_regs *regs,
 
 	pmu = kzalloc(sizeof(*pmu), GFP_KERNEL);
 	if (!pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmu->assoc_id = assoc_id;
 	pmu->index = index;
@@ -43,7 +43,7 @@ int devm_cxl_pmu_add(struct device *parent, struct cxl_pmu_regs *regs,
 	pmu->base = regs->pmu;
 	dev = &pmu->dev;
 	device_initialize(dev);
-	device_set_pm_not_required(dev);
+	device_set_pm_analt_required(dev);
 	dev->parent = parent;
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_pmu_type;

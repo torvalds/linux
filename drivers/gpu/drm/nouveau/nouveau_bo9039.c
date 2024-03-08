@@ -9,13 +9,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -26,20 +26,20 @@
  *	    Ben Skeggs   <darktama@iinet.net.au>
  *	    Jeremy Kolb  <jkolb@brandeis.edu>
  */
-#include "nouveau_bo.h"
-#include "nouveau_dma.h"
-#include "nouveau_mem.h"
+#include "analuveau_bo.h"
+#include "analuveau_dma.h"
+#include "analuveau_mem.h"
 
 #include <nvif/push906f.h>
 
 #include <nvhw/class/cl9039.h>
 
 int
-nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
+nvc0_bo_move_m2mf(struct analuveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_resource *old_reg, struct ttm_resource *new_reg)
 {
 	struct nvif_push *push = chan->chan.push;
-	struct nouveau_mem *mem = nouveau_mem(old_reg);
+	struct analuveau_mem *mem = analuveau_mem(old_reg);
 	u64 src_offset = mem->vma[0].addr;
 	u64 dst_offset = mem->vma[1].addr;
 	u32 page_count = PFN_UP(new_reg->size);
@@ -72,7 +72,7 @@ nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 			  NVDEF(NV9039, LAUNCH_DMA, SRC_MEMORY_LAYOUT, PITCH) |
 			  NVDEF(NV9039, LAUNCH_DMA, DST_MEMORY_LAYOUT, PITCH) |
 			  NVDEF(NV9039, LAUNCH_DMA, COMPLETION_TYPE, FLUSH_DISABLE) |
-			  NVDEF(NV9039, LAUNCH_DMA, INTERRUPT_TYPE, NONE) |
+			  NVDEF(NV9039, LAUNCH_DMA, INTERRUPT_TYPE, ANALNE) |
 			  NVDEF(NV9039, LAUNCH_DMA, SEMAPHORE_STRUCT_SIZE, ONE_WORD));
 
 		page_count -= line_count;
@@ -84,7 +84,7 @@ nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 }
 
 int
-nvc0_bo_move_init(struct nouveau_channel *chan, u32 handle)
+nvc0_bo_move_init(struct analuveau_channel *chan, u32 handle)
 {
 	struct nvif_push *push = chan->chan.push;
 	int ret;

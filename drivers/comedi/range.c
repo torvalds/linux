@@ -29,8 +29,8 @@ const struct comedi_lrange range_4_20mA = { 1, {RANGE_mA(4, 20)} };
 EXPORT_SYMBOL_GPL(range_4_20mA);
 const struct comedi_lrange range_0_32mA = { 1, {RANGE_mA(0, 32)} };
 EXPORT_SYMBOL_GPL(range_0_32mA);
-const struct comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none} } };
-EXPORT_SYMBOL_GPL(range_unknown);
+const struct comedi_lrange range_unkanalwn = { 1, {{0, 1000000, UNIT_analne} } };
+EXPORT_SYMBOL_GPL(range_unkanalwn);
 
 /*
  * COMEDI_RANGEINFO ioctl
@@ -95,7 +95,7 @@ int do_rangeinfo_ioctl(struct comedi_device *dev,
  * reference type and some flags, all packed into an unsigned int.
  *
  * This checks that the channel number and range index are supported by
- * the comedi subdevice.  It does not check whether the analog reference
+ * the comedi subdevice.  It does analt check whether the analog reference
  * type and the flags are supported.  Drivers that care should check those
  * themselves.
  *

@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2020 TOSHIBA CORPORATION
  * Copyright (c) 2020 Toshiba Electronic Devices & Storage Corporation
- * Copyright (c) 2020 Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ * Copyright (c) 2020 Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>
  */
 
 #include <linux/init.h>

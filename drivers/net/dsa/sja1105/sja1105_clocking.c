@@ -404,9 +404,9 @@ static int sja1105_rgmii_cfg_pad_tx_config(struct sja1105_private *priv,
 
 	/* Payload */
 	pad_mii_tx.d32_os    = 3; /* TXD[3:2] output stage: */
-				  /*          high noise/high speed */
+				  /*          high analise/high speed */
 	pad_mii_tx.d10_os    = 3; /* TXD[1:0] output stage: */
-				  /*          high noise/high speed */
+				  /*          high analise/high speed */
 	pad_mii_tx.d32_ipud  = 2; /* TXD[3:2] input stage: */
 				  /*          plain input (default) */
 	pad_mii_tx.d10_ipud  = 2; /* TXD[1:0] input stage: */
@@ -433,23 +433,23 @@ static int sja1105_cfg_pad_rx_config(struct sja1105_private *priv, int port)
 
 	/* Payload */
 	pad_mii_rx.d32_ih    = 0; /* RXD[3:2] input stage hysteresis: */
-				  /*          non-Schmitt (default) */
+				  /*          analn-Schmitt (default) */
 	pad_mii_rx.d32_ipud  = 2; /* RXD[3:2] input weak pull-up/down */
 				  /*          plain input (default) */
 	pad_mii_rx.d10_ih    = 0; /* RXD[1:0] input stage hysteresis: */
-				  /*          non-Schmitt (default) */
+				  /*          analn-Schmitt (default) */
 	pad_mii_rx.d10_ipud  = 2; /* RXD[1:0] input weak pull-up/down */
 				  /*          plain input (default) */
 	pad_mii_rx.ctrl_ih   = 0; /* RX_DV/CRS_DV/RX_CTL and RX_ER */
 				  /* input stage hysteresis: */
-				  /* non-Schmitt (default) */
+				  /* analn-Schmitt (default) */
 	pad_mii_rx.ctrl_ipud = 3; /* RX_DV/CRS_DV/RX_CTL and RX_ER */
 				  /* input stage weak pull-up/down: */
 				  /* pull-down */
 	pad_mii_rx.clk_os    = 2; /* RX_CLK/RXC output stage: */
-				  /* medium noise/fast speed (default) */
+				  /* medium analise/fast speed (default) */
 	pad_mii_rx.clk_ih    = 0; /* RX_CLK/RXC input hysteresis: */
-				  /* non-Schmitt (default) */
+				  /* analn-Schmitt (default) */
 	pad_mii_rx.clk_ipud  = 2; /* RX_CLK/RXC input pull-up/down: */
 				  /* plain input (default) */
 	sja1105_cfg_pad_mii_packing(packed_buf, &pad_mii_rx, PACK);
@@ -487,7 +487,7 @@ sja1110_cfg_pad_mii_id_packing(void *buf, struct sja1105_cfg_pad_mii_id *cmd,
 	 * 2 = 50MHz
 	 * 3 = 125MHz
 	 * 4 = Automatically determined by port speed.
-	 * There's no point in defining a structure different than the one for
+	 * There's anal point in defining a structure different than the one for
 	 * SJA1105, so just hardcode the frequency range to automatic, just as
 	 * before.
 	 */
@@ -607,10 +607,10 @@ static int sja1105_rgmii_clocking_setup(struct sja1105_private *priv, int port,
 		/* 10Mbps, IDIV enabled, divide by 10 (2.5 MHz) */
 		rc = sja1105_cgu_idiv_config(priv, port, true, 10);
 	} else if (speed == priv->info->port_speed[SJA1105_SPEED_AUTO]) {
-		/* Skip CGU configuration if there is no speed available
-		 * (e.g. link is not established yet)
+		/* Skip CGU configuration if there is anal speed available
+		 * (e.g. link is analt established yet)
 		 */
-		dev_dbg(dev, "Speed not available, skipping CGU config\n");
+		dev_dbg(dev, "Speed analt available, skipping CGU config\n");
 		return 0;
 	} else {
 		rc = -EINVAL;
@@ -775,7 +775,7 @@ int sja1105_clocking_setup_port(struct sja1105_private *priv, int port)
 
 	/* RGMII etc */
 	phy_mode = mii->xmii_mode[port];
-	/* MAC or PHY, for applicable types (not RGMII) */
+	/* MAC or PHY, for applicable types (analt RGMII) */
 	role = mii->phy_mac[port];
 
 	switch (phy_mode) {
@@ -789,7 +789,7 @@ int sja1105_clocking_setup_port(struct sja1105_private *priv, int port)
 		rc = sja1105_rgmii_clocking_setup(priv, port, role);
 		break;
 	case XMII_MODE_SGMII:
-		/* Nothing to do in the CGU for SGMII */
+		/* Analthing to do in the CGU for SGMII */
 		rc = 0;
 		break;
 	default:

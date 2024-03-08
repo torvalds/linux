@@ -29,7 +29,7 @@ static struct perf_pmu **find_all_arm_spe_pmus(int *nr_spes, int *err)
 	arm_spe_pmus = zalloc(sizeof(struct perf_pmu *) * nr_cpus);
 	if (!arm_spe_pmus) {
 		pr_err("spes alloc failed\n");
-		*err = -ENOMEM;
+		*err = -EANALMEM;
 		return NULL;
 	}
 
@@ -37,7 +37,7 @@ static struct perf_pmu **find_all_arm_spe_pmus(int *nr_spes, int *err)
 		ret = sprintf(arm_spe_pmu_name, "%s%d", ARM_SPE_PMU_NAME, i);
 		if (ret < 0) {
 			pr_err("sprintf failed\n");
-			*err = -ENOMEM;
+			*err = -EANALMEM;
 			return NULL;
 		}
 
@@ -81,7 +81,7 @@ static struct perf_pmu **find_all_hisi_ptt_pmus(int *nr_ptts, int *err)
 	hisi_ptt_pmus = zalloc(sizeof(struct perf_pmu *) * (*nr_ptts));
 	if (!hisi_ptt_pmus) {
 		pr_err("hisi_ptt alloc failed\n");
-		*err = -ENOMEM;
+		*err = -EANALMEM;
 		goto out;
 	}
 
@@ -160,8 +160,8 @@ struct auxtrace_record
 		auxtrace_event_cnt++;
 
 	if (auxtrace_event_cnt > 1) {
-		pr_err("Concurrent AUX trace operation not currently supported\n");
-		*err = -EOPNOTSUPP;
+		pr_err("Concurrent AUX trace operation analt currently supported\n");
+		*err = -EOPANALTSUPP;
 		return NULL;
 	}
 

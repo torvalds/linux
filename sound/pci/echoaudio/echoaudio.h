@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
  ****************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliaanal Pochini <pochini@shiny.it>
 
  ****************************************************************************
 
@@ -72,11 +72,11 @@
 
 
    Obviously, the difference here is the box labeled "vmixer."  Vmixer is
-   short for "virtual output mixer."  For Mia, pipes are *not* hard-wired
+   short for "virtual output mixer."  For Mia, pipes are *analt* hard-wired
    to a single bus; the vmixer lets you mix any pipe to any bus in any
    combination.
 
-   Note, however, that the left-hand side of the diagram is unchanged.
+   Analte, however, that the left-hand side of the diagram is unchanged.
    Transport works exactly the same way - the difference is in the mixer stage.
 
 
@@ -115,7 +115,7 @@
    Digital mode switch
    ===================
 
-   Some cards (right now, Gina24, Layla24, and Mona) have a Digital Mode Switch
+   Some cards (right analw, Gina24, Layla24, and Mona) have a Digital Mode Switch
    or DMS.  Cards with a DMS can be set to one of three mutually exclusive
    digital modes: S/PDIF RCA, S/PDIF optical, or ADAT optical.
 
@@ -125,7 +125,7 @@
    either S/PDIF mode, the last 6 channels don't do anything - data sent
    out these channels is thrown away and you will always record zeros.
 
-   Note that with Gina24, Layla24, and Mona, sample rates above 50 kHz are
+   Analte that with Gina24, Layla24, and Mona, sample rates above 50 kHz are
    only available if you have the card configured for S/PDIF optical or S/PDIF
    RCA.
 
@@ -260,7 +260,7 @@
 /*
  * Digital modes for Mona, Layla24, and Gina24
  */
-#define DIGITAL_MODE_NONE			0xFF
+#define DIGITAL_MODE_ANALNE			0xFF
 #define DIGITAL_MODE_SPDIF_RCA			0
 #define DIGITAL_MODE_SPDIF_OPTICAL		1
 #define DIGITAL_MODE_ADAT			2
@@ -276,12 +276,12 @@
 #define ECHOCAPS_HAS_DIGITAL_MODE_SPDIF_CDROM	(1 << DIGITAL_MODE_SPDIF_CDROM)
 
 
-#define EXT_3GBOX_NC			0x01	/* 3G box not connected */
-#define EXT_3GBOX_NOT_SET		0x02	/* 3G box not detected yet */
+#define EXT_3GBOX_NC			0x01	/* 3G box analt connected */
+#define EXT_3GBOX_ANALT_SET		0x02	/* 3G box analt detected yet */
 
 
 #define ECHOGAIN_MUTED		(-128)	/* Minimum possible gain */
-#define ECHOGAIN_MINOUT		(-128)	/* Min output gain (dB) */
+#define ECHOGAIN_MIANALUT		(-128)	/* Min output gain (dB) */
 #define ECHOGAIN_MAXOUT		(6)	/* Max output gain (dB) */
 #define ECHOGAIN_MININP		(-50)	/* Min input gain (0.5 dB) */
 #define ECHOGAIN_MAXINP		(50)	/* Max input gain (0.5 dB) */
@@ -311,7 +311,7 @@ struct audiopipe {
 					 * buffer size
 					 */
 	short index;			/* Index of the first channel or <0
-					 * if hw is not configured yet
+					 * if hw is analt configured yet
 					 */
 	short interleave;
 	struct snd_dma_buffer sgpage;	/* Room for the scatter-gather list */
@@ -324,10 +324,10 @@ struct audiopipe {
 
 struct audioformat {
 	u8 interleave;			/* How the data is arranged in memory:
-					 * mono = 1, stereo = 2, ...
+					 * moanal = 1, stereo = 2, ...
 					 */
 	u8 bits_per_sample;		/* 8, 16, 24, 32 (24 bits left aligned) */
-	char mono_to_stereo;		/* Only used if interleave is 1 and
+	char moanal_to_stereo;		/* Only used if interleave is 1 and
 					 * if this is an output pipe.
 					 */
 	char data_are_bigendian;	/* 1 = big endian, 0 = little endian */
@@ -382,10 +382,10 @@ struct echoaudio {
 	char asic_loaded;		/* Set true when ASIC loaded */
 	char bad_board;			/* Set true if DSP won't load */
 	char professional_spdif;	/* 0 = consumer; 1 = professional */
-	char non_audio_spdif;		/* 3G - only */
+	char analn_audio_spdif;		/* 3G - only */
 	char digital_in_automute;	/* Gina24, Layla24, Mona - only */
 	char has_phantom_power;
-	char hasnt_input_nominal_level;	/* Gina3G */
+	char hasnt_input_analminal_level;	/* Gina3G */
 	char phantom_power;		/* Gina3G - only */
 	char has_midi;
 	char midi_input_enabled;
@@ -396,7 +396,7 @@ struct echoaudio {
 	char bx_digital_out, bx_analog_in, bx_digital_in, bx_num;
 #endif
 
-	char nominal_level[ECHO_MAXAUDIOPIPES];	/* True == -10dBV
+	char analminal_level[ECHO_MAXAUDIOPIPES];	/* True == -10dBV
 						 * False == +4dBu */
 	s8 input_gain[ECHO_MAXAUDIOINPUTS];	/* Input level -50..+50
 						 * unit is 0.5dB */
@@ -414,7 +414,7 @@ struct echoaudio {
 					 * Layla20 only */
 	u16 device_id, subdevice_id;
 	u16 *dsp_code;			/* Current DSP code loaded,
-					 * NULL if nothing loaded */
+					 * NULL if analthing loaded */
 	short dsp_code_to_load;		/* DSP code to load */
 	short asic_code;		/* Current ASIC code */
 	u32 comm_page_phys;			/* Physical address of the

@@ -111,10 +111,10 @@ struct skl_base_cfg {
 };
 
 struct skl_cpr_gtw_cfg {
-	u32 node_id;
+	u32 analde_id;
 	u32 dma_buffer_size;
 	u32 config_length;
-	/* not mandatory; required only for DMIC/I2S */
+	/* analt mandatory; required only for DMIC/I2S */
 	struct {
 		u32 gtw_attrs;
 		u32 data[];
@@ -122,7 +122,7 @@ struct skl_cpr_gtw_cfg {
 } __packed;
 
 struct skl_dma_control {
-	u32 node_id;
+	u32 analde_id;
 	u32 config_length;
 	u32 config_data[];
 } __packed;
@@ -183,30 +183,30 @@ struct skl_base_outfmt_cfg {
 enum skl_dma_type {
 	SKL_DMA_HDA_HOST_OUTPUT_CLASS = 0,
 	SKL_DMA_HDA_HOST_INPUT_CLASS = 1,
-	SKL_DMA_HDA_HOST_INOUT_CLASS = 2,
+	SKL_DMA_HDA_HOST_IANALUT_CLASS = 2,
 	SKL_DMA_HDA_LINK_OUTPUT_CLASS = 8,
 	SKL_DMA_HDA_LINK_INPUT_CLASS = 9,
-	SKL_DMA_HDA_LINK_INOUT_CLASS = 0xA,
+	SKL_DMA_HDA_LINK_IANALUT_CLASS = 0xA,
 	SKL_DMA_DMIC_LINK_INPUT_CLASS = 0xB,
 	SKL_DMA_I2S_LINK_OUTPUT_CLASS = 0xC,
 	SKL_DMA_I2S_LINK_INPUT_CLASS = 0xD,
 };
 
-union skl_ssp_dma_node {
+union skl_ssp_dma_analde {
 	u8 val;
 	struct {
 		u8 time_slot_index:4;
 		u8 i2s_instance:4;
-	} dma_node;
+	} dma_analde;
 };
 
-union skl_connector_node_id {
+union skl_connector_analde_id {
 	u32 val;
 	struct {
 		u32 vindex:8;
 		u32 dma_type:4;
 		u32 rsvd:20;
-	} node;
+	} analde;
 };
 
 struct skl_module_fmt {
@@ -278,7 +278,7 @@ enum skl_pipe_state {
 
 struct skl_pipe_module {
 	struct snd_soc_dapm_widget *w;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct skl_pipe_params {
@@ -336,9 +336,9 @@ enum skl_module_state {
 };
 
 enum d0i3_capability {
-	SKL_D0I3_NONE = 0,
+	SKL_D0I3_ANALNE = 0,
 	SKL_D0I3_STREAMING = 1,
-	SKL_D0I3_NON_STREAMING = 2,
+	SKL_D0I3_ANALN_STREAMING = 2,
 };
 
 struct skl_module_pin_fmt {
@@ -393,8 +393,8 @@ struct skl_module_cfg {
 	int fmt_idx;
 	int fmt_cfg_idx;
 	u8 domain;
-	bool homogenous_inputs;
-	bool homogenous_outputs;
+	bool homogeanalus_inputs;
+	bool homogeanalus_outputs;
 	struct skl_module_fmt in_fmt[MODULE_MAX_IN_PINS];
 	struct skl_module_fmt out_fmt[MODULE_MAX_OUT_PINS];
 	u8 max_in_queue;
@@ -436,13 +436,13 @@ struct skl_algo_data {
 
 struct skl_pipeline {
 	struct skl_pipe *pipe;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct skl_module_deferred_bind {
 	struct skl_module_cfg *src;
 	struct skl_module_cfg *dst;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct skl_mic_sel_config {
@@ -452,7 +452,7 @@ struct skl_mic_sel_config {
 } __packed;
 
 enum skl_channel {
-	SKL_CH_MONO = 1,
+	SKL_CH_MOANAL = 1,
 	SKL_CH_STEREO = 2,
 	SKL_CH_TRIO = 3,
 	SKL_CH_QUATRO = 4,
@@ -468,7 +468,7 @@ static inline struct skl_dev *get_skl_ctx(struct device *dev)
 int skl_tplg_be_update_params(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params);
 int skl_dsp_set_dma_control(struct skl_dev *skl, u32 *caps,
-			u32 caps_size, u32 node_id);
+			u32 caps_size, u32 analde_id);
 void skl_tplg_set_be_dmic_config(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params, int stream);
 int skl_tplg_init(struct snd_soc_component *component,

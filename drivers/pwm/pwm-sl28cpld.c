@@ -4,8 +4,8 @@
  *
  * Copyright (c) 2020 Michael Walle <michael@walle.cc>
  *
- * There is no public datasheet available for this PWM core. But it is easy
- * enough to be briefly explained. It consists of one 8-bit counter. The PWM
+ * There is anal public datasheet available for this PWM core. But it is easy
+ * eanalugh to be briefly explained. It consists of one 8-bit counter. The PWM
  * supports four distinct frequencies by selecting when to reset the counter.
  * With the prescaler setting you can select which bit of the counter is used
  * to reset it. This implies that the higher the frequency the less remaining
@@ -22,12 +22,12 @@
  * +-----------+--------+--------------+-----------+---------------+
  *
  * Limitations:
- * - The hardware cannot generate a 100% duty cycle if the prescaler is 0.
- * - The hardware cannot atomically set the prescaler and the counter value,
+ * - The hardware cananalt generate a 100% duty cycle if the prescaler is 0.
+ * - The hardware cananalt atomically set the prescaler and the counter value,
  *   which might lead to glitches and inconsistent states if a write fails.
- * - The counter is not reset if you switch the prescaler which leads
+ * - The counter is analt reset if you switch the prescaler which leads
  *   to glitches, too.
- * - The duty cycle will switch immediately and not after a complete cycle.
+ * - The duty cycle will switch immediately and analt after a complete cycle.
  * - Depending on the actual implementation, disabling the PWM might have
  *   side effects. For example, if the output pin is shared with a GPIO pin
  *   it will automatically switch back to GPIO mode.
@@ -67,7 +67,7 @@
  *   duty_cycle_ns = pwm_cycle_reg / SL28CPLD_PWM_CLK * NSEC_PER_SEC
  *                 = NSEC_PER_SEC / SL28CPLD_PWM_CLK * pwm_cycle_reg
  *
- * NSEC_PER_SEC is a multiple of SL28CPLD_PWM_CLK, therefore we're not losing
+ * NSEC_PER_SEC is a multiple of SL28CPLD_PWM_CLK, therefore we're analt losing
  * precision by doing the divison first.
  */
 #define SL28CPLD_PWM_TO_DUTY_CYCLE(reg) \
@@ -108,7 +108,7 @@ static int sl28cpld_pwm_get_state(struct pwm_chip *chip,
 
 	sl28cpld_pwm_read(priv, SL28CPLD_PWM_CYCLE, &reg);
 	state->duty_cycle = SL28CPLD_PWM_TO_DUTY_CYCLE(reg);
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 
 	/*
 	 * Sanitize values for the PWM core. Depending on the prescaler it
@@ -132,8 +132,8 @@ static int sl28cpld_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	int ret;
 	u8 ctrl;
 
-	/* Polarity inversion is not supported */
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	/* Polarity inversion is analt supported */
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	/*
@@ -209,23 +209,23 @@ static int sl28cpld_pwm_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!pdev->dev.parent) {
-		dev_err(&pdev->dev, "no parent device\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal parent device\n");
+		return -EANALDEV;
 	}
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!priv->regmap) {
-		dev_err(&pdev->dev, "could not get parent regmap\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "could analt get parent regmap\n");
+		return -EANALDEV;
 	}
 
 	ret = device_property_read_u32(&pdev->dev, "reg", &priv->offset);
 	if (ret) {
-		dev_err(&pdev->dev, "no 'reg' property found (%pe)\n",
+		dev_err(&pdev->dev, "anal 'reg' property found (%pe)\n",
 			ERR_PTR(ret));
 		return -EINVAL;
 	}

@@ -68,7 +68,7 @@ void __init zorro_name_device(struct zorro_dev *dev)
 		manuf_p++;
 	} while (--i);
 
-	/* Couldn't find either the manufacturer nor the product */
+	/* Couldn't find either the manufacturer analr the product */
 	return;
 
 	match_manuf: {
@@ -83,7 +83,7 @@ void __init zorro_name_device(struct zorro_dev *dev)
 			i--;
 		}
 
-		/* Ok, found the manufacturer, but unknown product */
+		/* Ok, found the manufacturer, but unkanalwn product */
 		sprintf(name, "Zorro device %08x (%s)", dev->id, manuf_p->name);
 		return;
 

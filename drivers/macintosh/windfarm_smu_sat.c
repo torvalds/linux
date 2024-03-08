@@ -6,7 +6,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -32,7 +32,7 @@ struct wf_sat {
 	u8			cache[16];
 	struct list_head	sensors;
 	struct i2c_client	*i2c;
-	struct device_node	*node;
+	struct device_analde	*analde;
 };
 
 static struct wf_sat *sats[2];
@@ -75,7 +75,7 @@ struct smu_sdbp_header *smu_sat_get_sdb_partition(unsigned int sat_id, int id,
 	}
 	len = err;
 	if (len == 0) {
-		printk(KERN_ERR "smu_sat_get_sdb_part no partition %x\n", id);
+		printk(KERN_ERR "smu_sat_get_sdb_part anal partition %x\n", id);
 		return NULL;
 	}
 
@@ -140,7 +140,7 @@ static int wf_sat_sensor_get(struct wf_sensor *sr, s32 *value)
 	s32 val;
 
 	if (sat->i2c == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&sat->mutex);
 	if (time_after(jiffies, (sat->last_read + MAX_AGE))) {
@@ -171,7 +171,7 @@ static void wf_sat_release(struct kref *ref)
 
 	if (sat->nr >= 0)
 		sats[sat->nr] = NULL;
-	of_node_put(sat->node);
+	of_analde_put(sat->analde);
 	kfree(sat);
 }
 
@@ -192,22 +192,22 @@ static const struct wf_sensor_ops wf_sat_ops = {
 
 static int wf_sat_probe(struct i2c_client *client)
 {
-	struct device_node *dev = client->dev.of_node;
+	struct device_analde *dev = client->dev.of_analde;
 	struct wf_sat *sat;
 	struct wf_sat_sensor *sens;
 	const u32 *reg;
 	const char *loc;
 	u8 chip, core;
-	struct device_node *child;
+	struct device_analde *child;
 	int shift, cpu, index;
 	char *name;
 	int vsens[2], isens[2];
 
 	sat = kzalloc(sizeof(struct wf_sat), GFP_KERNEL);
 	if (sat == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sat->nr = -1;
-	sat->node = of_node_get(dev);
+	sat->analde = of_analde_get(dev);
 	kref_init(&sat->ref);
 	mutex_init(&sat->mutex);
 	sat->i2c = client;
@@ -216,7 +216,7 @@ static int wf_sat_probe(struct i2c_client *client)
 
 	vsens[0] = vsens[1] = -1;
 	isens[0] = isens[1] = -1;
-	for_each_child_of_node(dev, child) {
+	for_each_child_of_analde(dev, child) {
 		reg = of_get_property(child, "reg", NULL);
 		loc = of_get_property(child, "location", NULL);
 		if (reg == NULL || loc == NULL)
@@ -246,25 +246,25 @@ static int wf_sat_probe(struct i2c_client *client)
 			continue;
 		}
 
-		if (of_node_is_type(child, "voltage-sensor")) {
+		if (of_analde_is_type(child, "voltage-sensor")) {
 			name = "cpu-voltage";
 			shift = 4;
 			vsens[core] = index;
-		} else if (of_node_is_type(child, "current-sensor")) {
+		} else if (of_analde_is_type(child, "current-sensor")) {
 			name = "cpu-current";
 			shift = 8;
 			isens[core] = index;
-		} else if (of_node_is_type(child, "temp-sensor")) {
+		} else if (of_analde_is_type(child, "temp-sensor")) {
 			name = "cpu-temp";
 			shift = 10;
 		} else
 			continue;	/* hmmm shouldn't happen */
 
-		/* the +16 is enough for "cpu-voltage-n" */
+		/* the +16 is eanalugh for "cpu-voltage-n" */
 		sens = kzalloc(sizeof(struct wf_sat_sensor) + 16, GFP_KERNEL);
 		if (sens == NULL) {
 			printk(KERN_ERR "wf_sat_create: couldn't create "
-			       "%s sensor %d (no memory)\n", name, cpu);
+			       "%s sensor %d (anal memory)\n", name, cpu);
 			continue;
 		}
 		sens->index = index;
@@ -291,7 +291,7 @@ static int wf_sat_probe(struct i2c_client *client)
 		sens = kzalloc(sizeof(struct wf_sat_sensor) + 16, GFP_KERNEL);
 		if (sens == NULL) {
 			printk(KERN_ERR "wf_sat_create: couldn't create power "
-			       "sensor %d (no memory)\n", cpu);
+			       "sensor %d (anal memory)\n", cpu);
 			continue;
 		}
 		sens->index = vsens[core];

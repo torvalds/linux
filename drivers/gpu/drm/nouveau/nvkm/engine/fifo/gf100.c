@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -269,7 +269,7 @@ gf100_engn_cxid(struct nvkm_engn *engn, bool *cgid)
 		return status.chid;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static bool
@@ -336,7 +336,7 @@ gf100_runq_intr(struct nvkm_runq *runq, struct nvkm_runl *null)
 		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d [%010llx %s] "
 				   "subc %d mthd %04x data %08x\n",
 			   runq->id, show, msg, chid, chan ? chan->inst->addr : 0,
-			   chan ? chan->name : "unknown", subc, mthd, data);
+			   chan ? chan->name : "unkanalwn", subc, mthd, data);
 
 		/*TODO: use proper procedure for clearing each exception / debug output */
 		if ((stat & 0xc67fe000) && chan)
@@ -437,9 +437,9 @@ gf100_runl = {
 };
 
 static void
-gf100_fifo_nonstall_allow(struct nvkm_event *event, int type, int index)
+gf100_fifo_analnstall_allow(struct nvkm_event *event, int type, int index)
 {
-	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), nonstall.event);
+	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), analnstall.event);
 	unsigned long flags;
 
 	spin_lock_irqsave(&fifo->lock, flags);
@@ -448,9 +448,9 @@ gf100_fifo_nonstall_allow(struct nvkm_event *event, int type, int index)
 }
 
 static void
-gf100_fifo_nonstall_block(struct nvkm_event *event, int type, int index)
+gf100_fifo_analnstall_block(struct nvkm_event *event, int type, int index)
 {
-	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), nonstall.event);
+	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), analnstall.event);
 	unsigned long flags;
 
 	spin_lock_irqsave(&fifo->lock, flags);
@@ -459,9 +459,9 @@ gf100_fifo_nonstall_block(struct nvkm_event *event, int type, int index)
 }
 
 const struct nvkm_event_func
-gf100_fifo_nonstall = {
-	.init = gf100_fifo_nonstall_allow,
-	.fini = gf100_fifo_nonstall_block,
+gf100_fifo_analnstall = {
+	.init = gf100_fifo_analnstall_allow,
+	.fini = gf100_fifo_analnstall_block,
 };
 
 static const struct nvkm_enum
@@ -483,11 +483,11 @@ gf100_fifo_mmu_fault_engine[] = {
 
 static const struct nvkm_enum
 gf100_fifo_mmu_fault_reason[] = {
-	{ 0x00, "PT_NOT_PRESENT" },
+	{ 0x00, "PT_ANALT_PRESENT" },
 	{ 0x01, "PT_TOO_SHORT" },
-	{ 0x02, "PAGE_NOT_PRESENT" },
+	{ 0x02, "PAGE_ANALT_PRESENT" },
 	{ 0x03, "VM_LIMIT_EXCEEDED" },
-	{ 0x04, "NO_CHANNEL" },
+	{ 0x04, "ANAL_CHANNEL" },
 	{ 0x05, "PAGE_SYSTEM_ONLY" },
 	{ 0x06, "PAGE_READ_ONLY" },
 	{ 0x0a, "COMPRESSED_SYSRAM" },
@@ -595,7 +595,7 @@ gf100_fifo_mmu_fault_recover(struct nvkm_fifo *fifo, struct nvkm_fault_data *inf
 		   info->engine, ee ? ee->name : engine ? engine->subdev.name : "",
 		   info->client, ct, ec ? ec->name : "",
 		   info->reason, er ? er->name : "",
-		   chan ? chan->id : -1, info->inst, chan ? chan->name : "unknown");
+		   chan ? chan->id : -1, info->inst, chan ? chan->name : "unkanalwn");
 
 	/* Handle host/engine faults. */
 	if (chan)
@@ -779,7 +779,7 @@ gf100_fifo_intr_engine_unit(struct nvkm_fifo *fifo, int engn)
 	for (unkn = 0; unkn < 8; unkn++) {
 		u32 ints = (intr >> (unkn * 0x04)) & inte;
 		if (ints & 0x1) {
-			nvkm_event_ntfy(&fifo->nonstall.event, 0, NVKM_FIFO_NONSTALL_EVENT);
+			nvkm_event_ntfy(&fifo->analnstall.event, 0, NVKM_FIFO_ANALNSTALL_EVENT);
 			ints &= ~1;
 		}
 		if (ints) {
@@ -953,7 +953,7 @@ gf100_fifo = {
 	.intr_mmu_fault_unit = gf100_fifo_intr_mmu_fault_unit,
 	.intr_ctxsw_timeout = gf100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gf100_fifo_mmu_fault,
-	.nonstall = &gf100_fifo_nonstall,
+	.analnstall = &gf100_fifo_analnstall,
 	.runl = &gf100_runl,
 	.runq = &gf100_runq,
 	.engn = &gf100_engn,

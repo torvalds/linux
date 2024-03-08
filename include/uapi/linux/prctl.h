@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _LINUX_PRCTL_H
 #define _LINUX_PRCTL_H
 
@@ -16,10 +16,10 @@
 /* Get/set unaligned access control bits (if meaningful) */
 #define PR_GET_UNALIGN	  5
 #define PR_SET_UNALIGN	  6
-# define PR_UNALIGN_NOPRINT	1	/* silently fix up unaligned user accesses */
+# define PR_UNALIGN_ANALPRINT	1	/* silently fix up unaligned user accesses */
 # define PR_UNALIGN_SIGBUS	2	/* generate SIGBUS on unaligned user access */
 
-/* Get/set whether or not to drop capabilities on setuid() away from
+/* Get/set whether or analt to drop capabilities on setuid() away from
  * uid 0 (as per security/commoncap.c) */
 #define PR_GET_KEEPCAPS   7
 #define PR_SET_KEEPCAPS   8
@@ -27,7 +27,7 @@
 /* Get/set floating-point emulation control bits (if meaningful) */
 #define PR_GET_FPEMU  9
 #define PR_SET_FPEMU 10
-# define PR_FPEMU_NOPRINT	1	/* silently emulate fp operations accesses */
+# define PR_FPEMU_ANALPRINT	1	/* silently emulate fp operations accesses */
 # define PR_FPEMU_SIGFPE	2	/* don't emulate fp operations, send SIGFPE instead */
 
 /* Get/set floating-point exception mode (if meaningful) */
@@ -40,7 +40,7 @@
 # define PR_FP_EXC_RES		0x080000	/* floating point inexact result */
 # define PR_FP_EXC_INV		0x100000	/* floating point invalid operation */
 # define PR_FP_EXC_DISABLED	0	/* FP exceptions disabled */
-# define PR_FP_EXC_NONRECOV	1	/* async non-recoverable exc. mode */
+# define PR_FP_EXC_ANALNRECOV	1	/* async analn-recoverable exc. mode */
 # define PR_FP_EXC_ASYNC	2	/* async recoverable exception mode */
 # define PR_FP_EXC_PRECISE	3	/* precise exception mode */
 
@@ -48,7 +48,7 @@
  * based process timing */
 #define PR_GET_TIMING   13
 #define PR_SET_TIMING   14
-# define PR_TIMING_STATISTICAL  0       /* Normal, traditional,
+# define PR_TIMING_STATISTICAL  0       /* Analrmal, traditional,
                                                    statistical process timing */
 # define PR_TIMING_TIMESTAMP    1       /* Accurate timestamp based
                                                    process timing */
@@ -82,7 +82,7 @@
 #define PR_SET_SECUREBITS 28
 
 /*
- * Get/set the timerslack as used by poll/select/nanosleep
+ * Get/set the timerslack as used by poll/select/naanalsleep
  * A value of 0 means "use default"
  */
 #define PR_SET_TIMERSLACK 29
@@ -150,7 +150,7 @@ struct prctl_mm_map {
 
 /*
  * Set specific pid that is allowed to ptrace the current task.
- * A value of 0 mean "no process".
+ * A value of 0 mean "anal process".
  */
 #define PR_SET_PTRACER 0x59616d61
 # define PR_SET_PTRACER_ANY ((unsigned long)-1)
@@ -159,8 +159,8 @@ struct prctl_mm_map {
 #define PR_GET_CHILD_SUBREAPER	37
 
 /*
- * If no_new_privs is set, then operations that grant new privileges (i.e.
- * execve) will either fail or not grant them.  This affects suid/sgid,
+ * If anal_new_privs is set, then operations that grant new privileges (i.e.
+ * execve) will either fail or analt grant them.  This affects suid/sgid,
  * file capabilities, and LSMs.
  *
  * Operations that merely manipulate or drop existing privileges (setresuid,
@@ -170,10 +170,10 @@ struct prctl_mm_map {
  * asking selinux for a specific new context (e.g. with runcon) will result
  * in execve returning -EPERM.
  *
- * See Documentation/userspace-api/no_new_privs.rst for more details.
+ * See Documentation/userspace-api/anal_new_privs.rst for more details.
  */
-#define PR_SET_NO_NEW_PRIVS	38
-#define PR_GET_NO_NEW_PRIVS	39
+#define PR_SET_ANAL_NEW_PRIVS	38
+#define PR_GET_ANAL_NEW_PRIVS	39
 
 #define PR_GET_TID_ADDRESS	40
 
@@ -181,7 +181,7 @@ struct prctl_mm_map {
 #define PR_GET_THP_DISABLE	42
 
 /*
- * No longer implemented, but left here to ensure the numbers stay reserved:
+ * Anal longer implemented, but left here to ensure the numbers stay reserved:
  */
 #define PR_MPX_ENABLE_MANAGEMENT  43
 #define PR_MPX_DISABLE_MANAGEMENT 44
@@ -215,12 +215,12 @@ struct prctl_mm_map {
 # define PR_SPEC_INDIRECT_BRANCH	1
 # define PR_SPEC_L1D_FLUSH		2
 /* Return and control values for PR_SET/GET_SPECULATION_CTRL */
-# define PR_SPEC_NOT_AFFECTED		0
+# define PR_SPEC_ANALT_AFFECTED		0
 # define PR_SPEC_PRCTL			(1UL << 0)
 # define PR_SPEC_ENABLE			(1UL << 1)
 # define PR_SPEC_DISABLE		(1UL << 2)
 # define PR_SPEC_FORCE_DISABLE		(1UL << 3)
-# define PR_SPEC_DISABLE_NOEXEC		(1UL << 4)
+# define PR_SPEC_DISABLE_ANALEXEC		(1UL << 4)
 
 /* Reset arm64 pointer authentication keys */
 #define PR_PAC_RESET_KEYS		54
@@ -235,7 +235,7 @@ struct prctl_mm_map {
 #define PR_GET_TAGGED_ADDR_CTRL		56
 # define PR_TAGGED_ADDR_ENABLE		(1UL << 0)
 /* MTE tag check fault modes */
-# define PR_MTE_TCF_NONE		0UL
+# define PR_MTE_TCF_ANALNE		0UL
 # define PR_MTE_TCF_SYNC		(1UL << 1)
 # define PR_MTE_TCF_ASYNC		(1UL << 2)
 # define PR_MTE_TCF_MASK		(PR_MTE_TCF_SYNC | PR_MTE_TCF_ASYNC)
@@ -284,12 +284,12 @@ struct prctl_mm_map {
 /* Memory deny write / execute */
 #define PR_SET_MDWE			65
 # define PR_MDWE_REFUSE_EXEC_GAIN	(1UL << 0)
-# define PR_MDWE_NO_INHERIT		(1UL << 1)
+# define PR_MDWE_ANAL_INHERIT		(1UL << 1)
 
 #define PR_GET_MDWE			66
 
 #define PR_SET_VMA		0x53564d41
-# define PR_SET_VMA_ANON_NAME		0
+# define PR_SET_VMA_AANALN_NAME		0
 
 #define PR_GET_AUXV			0x41555856
 

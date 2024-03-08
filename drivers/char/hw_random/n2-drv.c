@@ -37,25 +37,25 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 /* The Niagara2 RNG provides a 64-bit read-only random number
  * register, plus a control register.  Access to the RNG is
  * virtualized through the hypervisor so that both guests and control
- * nodes can access the device.
+ * analdes can access the device.
  *
  * The entropy source consists of raw entropy sources, each
  * constructed from a voltage controlled oscillator whose phase is
- * jittered by thermal noise sources.
+ * jittered by thermal analise sources.
  *
  * The oscillator in each of the three raw entropy sources run at
- * different frequencies.  Normally, all three generator outputs are
+ * different frequencies.  Analrmally, all three generator outputs are
  * gathered, xored together, and fed into a CRC circuit, the output of
  * which is the 64-bit read-only register.
  *
  * Some time is necessary for all the necessary entropy to build up
  * such that a full 64-bits of entropy are available in the register.
- * In normal operating mode (RNG_CTL_LFSR is set), the chip implements
+ * In analrmal operating mode (RNG_CTL_LFSR is set), the chip implements
  * an interlock which blocks register reads until sufficient entropy
  * is available.
  *
  * A control register is provided for adjusting various aspects of RNG
- * operation, and to enable diagnostic modes.  Each of the three raw
+ * operation, and to enable diaganalstic modes.  Each of the three raw
  * entropy sources has an enable bit (RNG_CTL_ES{1,2,3}).  Also
  * provided are fields for controlling the minimum time in cycles
  * between read accesses to the register (RNG_CTL_WAIT, this controls
@@ -65,13 +65,13 @@ MODULE_VERSION(DRV_MODULE_VERSION);
  * all three entropy sources enabled, and the interlock time set
  * appropriately.
  *
- * The CRC polynomial used by the chip is:
+ * The CRC polyanalmial used by the chip is:
  *
  * P(X) = x64 + x61 + x57 + x56 + x52 + x51 + x50 + x48 + x47 + x46 +
  *        x43 + x42 + x41 + x39 + x38 + x37 + x35 + x32 + x28 + x25 +
  *        x22 + x21 + x17 + x15 + x13 + x12 + x11 + x7 + x5 + x + 1
  *
- * The RNG_CTL_VCO value of each noise cell must be programmed
+ * The RNG_CTL_VCO value of each analise cell must be programmed
  * separately.  This is why 4 control register values must be provided
  * to the hypervisor.  During a write, the hypervisor writes them all,
  * one at a time, to the actual RNG_CTL register.  The first three
@@ -93,14 +93,14 @@ static int n2rng_hv_err_trans(unsigned long hv_err)
 		return 0;
 	case HV_EWOULDBLOCK:
 		return -EAGAIN;
-	case HV_ENOACCESS:
+	case HV_EANALACCESS:
 		return -EPERM;
 	case HV_EIO:
 		return -EIO;
 	case HV_EBUSY:
 		return -EBUSY;
 	case HV_EBADALIGN:
-	case HV_ENORADDR:
+	case HV_EANALRADDR:
 		return -EFAULT;
 	default:
 		return -EINVAL;
@@ -188,14 +188,14 @@ static int n2rng_generic_read_data(unsigned long data_ra)
 			if (++block >= N2RNG_BLOCK_LIMIT)
 				return -EWOULDBLOCK;
 			__delay(ticks);
-		} else if (hv_err == HV_ENOACCESS) {
+		} else if (hv_err == HV_EANALACCESS) {
 			return -EPERM;
 		} else if (hv_err == HV_EIO) {
 			if (++hcheck >= N2RNG_HCHECK_LIMIT)
 				return -EIO;
 			udelay(10000);
 		} else
-			return -ENODEV;
+			return -EANALDEV;
 	}
 }
 
@@ -237,12 +237,12 @@ static int n2rng_generic_read_diag_data(struct n2rng *np,
 			if (++block >= N2RNG_BLOCK_LIMIT)
 				return -EWOULDBLOCK;
 			__delay(ticks);
-		} else if (hv_err == HV_ENOACCESS) {
+		} else if (hv_err == HV_EANALACCESS) {
 			return -EPERM;
 		} else if (hv_err == HV_EIO) {
 			return -EIO;
 		} else
-			return -ENODEV;
+			return -EANALDEV;
 	}
 }
 
@@ -270,7 +270,7 @@ static int n2rng_generic_write_control(struct n2rng *np,
 				return -EBUSY;
 			udelay(1);
 		} else
-			return -ENODEV;
+			return -EANALDEV;
 	}
 }
 
@@ -285,7 +285,7 @@ static int n2rng_try_read_ctl(struct n2rng *np)
 	if (np->hvapi_major == 1) {
 		hv_err = sun4v_rng_get_diag_ctl();
 	} else {
-		/* We purposefully give invalid arguments, HV_NOACCESS
+		/* We purposefully give invalid arguments, HV_ANALACCESS
 		 * is higher priority than the errors we'd get from
 		 * these other cases, and that's the error we are
 		 * truly interested in.
@@ -293,7 +293,7 @@ static int n2rng_try_read_ctl(struct n2rng *np)
 		hv_err = sun4v_rng_ctl_read_v2(0UL, ~0UL, &x, &x, &x, &x);
 		switch (hv_err) {
 		case HV_EWOULDBLOCK:
-		case HV_ENOACCESS:
+		case HV_EANALACCESS:
 			break;
 		default:
 			hv_err = HV_EOK;
@@ -380,7 +380,7 @@ static void n2rng_control_swstate_init(struct n2rng *np)
 
 static int n2rng_grab_diag_control(struct n2rng *np)
 {
-	int i, busy_count, err = -ENODEV;
+	int i, busy_count, err = -EANALDEV;
 
 	busy_count = 0;
 	for (i = 0; i < 100; i++) {
@@ -391,7 +391,7 @@ static int n2rng_grab_diag_control(struct n2rng *np)
 		if (++busy_count > 100) {
 			dev_err(&np->op->dev,
 				"Grab diag control timeout.\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		udelay(1);
@@ -404,7 +404,7 @@ static int n2rng_init_control(struct n2rng *np)
 {
 	int err = n2rng_grab_diag_control(np);
 
-	/* Not in the control domain, that's OK we are only a consumer
+	/* Analt in the control domain, that's OK we are only a consumer
 	 * of the RNG data, we don't setup and program it.
 	 */
 	if (err == -EPERM)
@@ -448,8 +448,8 @@ static int n2rng_data_read(struct hwrng *rng, u32 *data)
 	return len;
 }
 
-/* On a guest node, just make sure we can read random data properly.
- * If a control node reboots or reloads it's n2rng driver, this won't
+/* On a guest analde, just make sure we can read random data properly.
+ * If a control analde reboots or reloads it's n2rng driver, this won't
  * work during that time.  So we have to keep probing until the device
  * becomes usable.
  */
@@ -483,7 +483,7 @@ static int n2rng_entropy_diag_read(struct n2rng *np, unsigned long unit,
 	return err;
 }
 
-static u64 advance_polynomial(u64 poly, u64 val, int count)
+static u64 advance_polyanalmial(u64 poly, u64 val, int count)
 {
 	int i;
 
@@ -528,7 +528,7 @@ static int n2rng_check_selftest_buffer(struct n2rng *np, unsigned long unit)
 	case N2_n2_rng:
 	case N2_vf_rng:
 	case N2_kt_rng:
-	case N2_m4_rng:  /* yes, m4 uses the old value */
+	case N2_m4_rng:  /* anal, m4 uses the old value */
 		val = RNG_v1_SELFTEST_VAL;
 		break;
 	default:
@@ -541,12 +541,12 @@ static int n2rng_check_selftest_buffer(struct n2rng *np, unsigned long unit)
 		matches += n2rng_test_buffer_find(np, val);
 		if (matches >= SELFTEST_MATCH_GOAL)
 			break;
-		val = advance_polynomial(SELFTEST_POLY, val, 1);
+		val = advance_polyanalmial(SELFTEST_POLY, val, 1);
 	}
 
 	err = 0;
 	if (limit >= SELFTEST_LOOPS_MAX) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		dev_err(&np->op->dev, "Selftest failed on unit %lu\n", unit);
 		n2rng_dump_test_buffer(np);
 	} else
@@ -564,17 +564,17 @@ static int n2rng_control_selftest(struct n2rng *np, unsigned long unit)
 	case N2_n2_rng:
 	case N2_vf_rng:
 	case N2_kt_rng:
-		base = RNG_v1_CTL_ASEL_NOOUT << RNG_v1_CTL_ASEL_SHIFT;
+		base = RNG_v1_CTL_ASEL_ANALOUT << RNG_v1_CTL_ASEL_SHIFT;
 		base3 = base | RNG_CTL_LFSR |
 			((RNG_v1_SELFTEST_TICKS - 2) << RNG_v1_CTL_WAIT_SHIFT);
 		break;
 	case N2_m4_rng:
-		base = RNG_v2_CTL_ASEL_NOOUT << RNG_v2_CTL_ASEL_SHIFT;
+		base = RNG_v2_CTL_ASEL_ANALOUT << RNG_v2_CTL_ASEL_SHIFT;
 		base3 = base | RNG_CTL_LFSR |
 			((RNG_v1_SELFTEST_TICKS - 2) << RNG_v2_CTL_WAIT_SHIFT);
 		break;
 	default:
-		base = RNG_v2_CTL_ASEL_NOOUT << RNG_v2_CTL_ASEL_SHIFT;
+		base = RNG_v2_CTL_ASEL_ANALOUT << RNG_v2_CTL_ASEL_SHIFT;
 		base3 = base | RNG_CTL_LFSR |
 			(RNG_v2_SELFTEST_TICKS << RNG_v2_CTL_WAIT_SHIFT);
 		break;
@@ -625,12 +625,12 @@ static int n2rng_control_configure_units(struct n2rng *np)
 
 		if (np->data->chip_version == 1) {
 			base = ((np->accum_cycles << RNG_v1_CTL_WAIT_SHIFT) |
-			      (RNG_v1_CTL_ASEL_NOOUT << RNG_v1_CTL_ASEL_SHIFT) |
+			      (RNG_v1_CTL_ASEL_ANALOUT << RNG_v1_CTL_ASEL_SHIFT) |
 			      RNG_CTL_LFSR);
 			shift = RNG_v1_CTL_VCO_SHIFT;
 		} else {
 			base = ((np->accum_cycles << RNG_v2_CTL_WAIT_SHIFT) |
-			      (RNG_v2_CTL_ASEL_NOOUT << RNG_v2_CTL_ASEL_SHIFT) |
+			      (RNG_v2_CTL_ASEL_ANALOUT << RNG_v2_CTL_ASEL_SHIFT) |
 			      RNG_CTL_LFSR);
 			shift = RNG_v2_CTL_VCO_SHIFT;
 		}
@@ -680,7 +680,7 @@ static void n2rng_work(struct work_struct *work)
 	}
 
 	if (--retries == 0)
-		dev_err(&np->op->dev, "Self-test retries failed, RNG not ready\n");
+		dev_err(&np->op->dev, "Self-test retries failed, RNG analt ready\n");
 	else if (err && !(np->flags & N2RNG_FLAG_SHUTDOWN))
 		schedule_delayed_work(&np->work, HZ * 2);
 }
@@ -696,7 +696,7 @@ static void n2rng_driver_version(void)
 static const struct of_device_id n2rng_match[];
 static int n2rng_probe(struct platform_device *op)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct n2rng *np;
 
 	n2rng_driver_version();
@@ -711,16 +711,16 @@ static int n2rng_probe(struct platform_device *op)
 	if (np->data->multi_capable)
 		np->flags |= N2RNG_FLAG_MULTI;
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	np->hvapi_major = 2;
 	if (sun4v_hvapi_register(HV_GRP_RNG,
 				 np->hvapi_major,
-				 &np->hvapi_minor)) {
+				 &np->hvapi_mianalr)) {
 		np->hvapi_major = 1;
 		if (sun4v_hvapi_register(HV_GRP_RNG,
 					 np->hvapi_major,
-					 &np->hvapi_minor)) {
-			dev_err(&op->dev, "Cannot register suitable "
+					 &np->hvapi_mianalr)) {
+			dev_err(&op->dev, "Cananalt register suitable "
 				"HVAPI version.\n");
 			goto out;
 		}
@@ -733,7 +733,7 @@ static int n2rng_probe(struct platform_device *op)
 				np->hvapi_major);
 			goto out_hvapi_unregister;
 		}
-		np->num_units = of_getintprop_default(op->dev.of_node,
+		np->num_units = of_getintprop_default(op->dev.of_analde,
 						      "rng-#units", 0);
 		if (!np->num_units) {
 			dev_err(&op->dev, "VF RNG lacks rng-#units property\n");
@@ -743,11 +743,11 @@ static int n2rng_probe(struct platform_device *op)
 		np->num_units = 1;
 	}
 
-	dev_info(&op->dev, "Registered RNG HVAPI major %lu minor %lu\n",
-		 np->hvapi_major, np->hvapi_minor);
+	dev_info(&op->dev, "Registered RNG HVAPI major %lu mianalr %lu\n",
+		 np->hvapi_major, np->hvapi_mianalr);
 	np->units = devm_kcalloc(&op->dev, np->num_units, sizeof(*np->units),
 				 GFP_KERNEL);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!np->units)
 		goto out_hvapi_unregister;
 

@@ -16,7 +16,7 @@
 #include <linux/sched/cputime.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/signal.h>
 #include <linux/binfmts.h>
 #include <linux/string.h>
@@ -144,18 +144,18 @@ static int elf_fdpic_fetch_phdrs(struct elf_fdpic_params *params,
 	loff_t pos = params->hdr.e_phoff;
 
 	if (params->hdr.e_phentsize != sizeof(struct elf_phdr))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (params->hdr.e_phnum > 65536U / sizeof(struct elf_phdr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = params->hdr.e_phnum * sizeof(struct elf_phdr);
 	params->phdrs = kmalloc(size, GFP_KERNEL);
 	if (!params->phdrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	retval = kernel_read(file, params->phdrs, size, &pos);
 	if (unlikely(retval != size))
-		return retval < 0 ? retval : -ENOEXEC;
+		return retval < 0 ? retval : -EANALEXEC;
 
 	/* determine stack size for this binary */
 	phdr = params->phdrs;
@@ -166,7 +166,7 @@ static int elf_fdpic_fetch_phdrs(struct elf_fdpic_params *params,
 		if (phdr->p_flags & PF_X)
 			params->flags |= ELF_FDPIC_FLAG_EXEC_STACK;
 		else
-			params->flags |= ELF_FDPIC_FLAG_NOEXEC_STACK;
+			params->flags |= ELF_FDPIC_FLAG_ANALEXEC_STACK;
 
 		params->stack_size = phdr->p_memsz;
 		break;
@@ -205,16 +205,16 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 	exec_params.hdr = *(struct elfhdr *) bprm->buf;
 	exec_params.flags = ELF_FDPIC_FLAG_PRESENT | ELF_FDPIC_FLAG_EXECUTABLE;
 
-	/* check that this is a binary we know how to deal with */
-	retval = -ENOEXEC;
+	/* check that this is a binary we kanalw how to deal with */
+	retval = -EANALEXEC;
 	if (!is_elf(&exec_params.hdr, bprm->file))
 		goto error;
 	if (!elf_check_fdpic(&exec_params.hdr)) {
 #ifdef CONFIG_MMU
-		/* binfmt_elf handles non-fdpic elf except on nommu */
+		/* binfmt_elf handles analn-fdpic elf except on analmmu */
 		goto error;
 #else
-		/* nommu can only load ET_DYN (PIE) ELF */
+		/* analmmu can only load ET_DYN (PIE) ELF */
 		if (exec_params.hdr.e_type != ET_DYN)
 			goto error;
 #endif
@@ -231,10 +231,10 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 	for (i = 0; i < exec_params.hdr.e_phnum; i++, phdr++) {
 		switch (phdr->p_type) {
 		case PT_INTERP:
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			if (phdr->p_filesz > PATH_MAX)
 				goto error;
-			retval = -ENOENT;
+			retval = -EANALENT;
 			if (phdr->p_filesz < 2)
 				goto error;
 
@@ -248,11 +248,11 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 					     phdr->p_filesz, &pos);
 			if (unlikely(retval != phdr->p_filesz)) {
 				if (retval >= 0)
-					retval = -ENOEXEC;
+					retval = -EANALEXEC;
 				goto error;
 			}
 
-			retval = -ENOENT;
+			retval = -EANALENT;
 			if (interpreter_name[phdr->p_filesz - 1] != '\0')
 				goto error;
 
@@ -267,7 +267,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 			}
 
 			/*
-			 * If the binary is not readable then enforce
+			 * If the binary is analt readable then enforce
 			 * mm->dumpable = 0 regardless of the interpreter's
 			 * permissions.
 			 */
@@ -278,7 +278,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 					BINPRM_BUF_SIZE, &pos);
 			if (unlikely(retval != BINPRM_BUF_SIZE)) {
 				if (retval >= 0)
-					retval = -ENOEXEC;
+					retval = -EANALEXEC;
 				goto error;
 			}
 
@@ -315,7 +315,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 	stack_size = exec_params.stack_size;
 	if (exec_params.flags & ELF_FDPIC_FLAG_EXEC_STACK)
 		executable_stack = EXSTACK_ENABLE_X;
-	else if (exec_params.flags & ELF_FDPIC_FLAG_NOEXEC_STACK)
+	else if (exec_params.flags & ELF_FDPIC_FLAG_ANALEXEC_STACK)
 		executable_stack = EXSTACK_DISABLE_X;
 	else
 		executable_stack = EXSTACK_DEFAULT;
@@ -324,13 +324,13 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 		stack_size = interp_params.stack_size;
 		if (interp_params.flags & ELF_FDPIC_FLAG_EXEC_STACK)
 			executable_stack = EXSTACK_ENABLE_X;
-		else if (interp_params.flags & ELF_FDPIC_FLAG_NOEXEC_STACK)
+		else if (interp_params.flags & ELF_FDPIC_FLAG_ANALEXEC_STACK)
 			executable_stack = EXSTACK_DISABLE_X;
 		else
 			executable_stack = EXSTACK_DEFAULT;
 	}
 
-	retval = -ENOEXEC;
+	retval = -EANALEXEC;
 	if (stack_size == 0)
 		stack_size = 131072UL; /* same as exec.c's default commit */
 
@@ -342,7 +342,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 	if (retval)
 		goto error;
 
-	/* there's now no turning back... the old userspace image is dead,
+	/* there's analw anal turning back... the old userspace image is dead,
 	 * defunct, deceased, etc.
 	 */
 	SET_PERSONALITY(exec_params.hdr);
@@ -418,7 +418,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 		stack_prot |= PROT_EXEC;
 
 	current->mm->start_brk = vm_mmap(NULL, 0, stack_size, stack_prot,
-					 MAP_PRIVATE | MAP_ANONYMOUS |
+					 MAP_PRIVATE | MAP_AANALNYMOUS |
 					 MAP_UNINITIALIZED | MAP_GROWSDOWN,
 					 0);
 
@@ -459,7 +459,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 #endif
 
 	finalize_exec(bprm);
-	/* everything is now ready... get the userspace context ready to roll */
+	/* everything is analw ready... get the userspace context ready to roll */
 	entryaddr = interp_params.entry_addr ?: exec_params.entry_addr;
 	start_thread(regs, entryaddr, current->mm->start_stack);
 
@@ -726,13 +726,13 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 /*****************************************************************************/
 /*
  * load the appropriate binary image (executable or interpreter) into memory
- * - we assume no MMU is available
- * - if no other PIC bits are set in params->hdr->e_flags
+ * - we assume anal MMU is available
+ * - if anal other PIC bits are set in params->hdr->e_flags
  *   - we assume that the LOADable segments in the binary are independently relocatable
  *   - we assume R/O executable segments are shareable
  * - else
  *   - we assume the loadable parts of the image to require fixed displacement
- *   - the image is not shareable
+ *   - the image is analt shareable
  */
 static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 			      struct file *file,
@@ -761,7 +761,7 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 
 	loadmap = kzalloc(struct_size(loadmap, segs, nloads), GFP_KERNEL);
 	if (!loadmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	params->loadmap = loadmap;
 
@@ -863,7 +863,7 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 		break;
 	}
 
-	/* now elide adjacent segments in the load map on MMU linux
+	/* analw elide adjacent segments in the load map on MMU linux
 	 * - on uClinux the holes between may actually be filled with system
 	 *   stuff or stuff from other processes
 	 */
@@ -909,8 +909,8 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 	return 0;
 
 dynamic_error:
-	printk("ELF FDPIC %s with invalid DYNAMIC section (inode=%lu)\n",
-	       what, file_inode(file)->i_ino);
+	printk("ELF FDPIC %s with invalid DYNAMIC section (ianalde=%lu)\n",
+	       what, file_ianalde(file)->i_ianal);
 	return -ELIBBAD;
 }
 
@@ -945,7 +945,7 @@ static int elf_fdpic_map_file_constdisp_on_uclinux(
 			top = phdr->p_vaddr + phdr->p_memsz;
 	}
 
-	/* allocate one big anon block for everything */
+	/* allocate one big aanaln block for everything */
 	maddr = vm_mmap(NULL, load_addr, top - base,
 			PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, 0);
 	if (IS_ERR_VALUE(maddr))
@@ -973,7 +973,7 @@ static int elf_fdpic_map_file_constdisp_on_uclinux(
 		if (phdr->p_offset == 0)
 			params->elfhdr_addr = seg->addr;
 
-		/* clear any space allocated but not loaded */
+		/* clear any space allocated but analt loaded */
 		if (phdr->p_filesz < phdr->p_memsz) {
 			if (clear_user((void *) (seg->addr + phdr->p_filesz),
 				       phdr->p_memsz - phdr->p_filesz))
@@ -1047,8 +1047,8 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 			/* PT_LOADs are independently locatable */
 			break;
 
-		case ELF_FDPIC_FLAG_HONOURVADDR:
-			/* the specified virtual address must be honoured */
+		case ELF_FDPIC_FLAG_HOANALURVADDR:
+			/* the specified virtual address must be hoanalured */
 			maddr = phdr->p_vaddr;
 			flags |= MAP_FIXED;
 			break;
@@ -1112,7 +1112,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 			maddr += disp;
 		}
 
-		/* clear any space allocated but not loaded
+		/* clear any space allocated but analt loaded
 		 * - on uClinux we can just clear the lot
 		 * - on MMU linux we'll get a SIGBUS beyond the last page
 		 *   extant in the file
@@ -1125,17 +1125,17 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 			unsigned long xaddr = maddr + phdr->p_filesz + excess1;
 			unsigned long xmaddr;
 
-			flags |= MAP_FIXED | MAP_ANONYMOUS;
+			flags |= MAP_FIXED | MAP_AANALNYMOUS;
 			xmaddr = vm_mmap(NULL, xaddr, excess - excess1,
 					 prot, flags, 0);
 
-			kdebug("mmap[%d] <anon>"
+			kdebug("mmap[%d] <aanaln>"
 			       " ad=%lx sz=%lx pr=%x fl=%x of=0 --> %08lx",
 			       loop, xaddr, excess - excess1, prot, flags,
 			       xmaddr);
 
 			if (xmaddr != xaddr)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		if (prot & PROT_WRITE && excess1 > 0) {
@@ -1200,8 +1200,8 @@ struct elf_prstatus_fdpic
 	int pr_fpvalid;		/* True if math co-processor being used.  */
 };
 
-/* An ELF note in memory */
-struct memelfnote
+/* An ELF analte in memory */
+struct memelfanalte
 {
 	const char *name;
 	int type;
@@ -1209,11 +1209,11 @@ struct memelfnote
 	void *data;
 };
 
-static int notesize(struct memelfnote *en)
+static int analtesize(struct memelfanalte *en)
 {
 	int sz;
 
-	sz = sizeof(struct elf_note);
+	sz = sizeof(struct elf_analte);
 	sz += roundup(strlen(en->name) + 1, 4);
 	sz += roundup(en->datasz, 4);
 
@@ -1222,9 +1222,9 @@ static int notesize(struct memelfnote *en)
 
 /* #define DEBUG */
 
-static int writenote(struct memelfnote *men, struct coredump_params *cprm)
+static int writeanalte(struct memelfanalte *men, struct coredump_params *cprm)
 {
-	struct elf_note en;
+	struct elf_analte en;
 	en.n_namesz = strlen(men->name) + 1;
 	en.n_descsz = men->datasz;
 	en.n_type = men->type;
@@ -1259,9 +1259,9 @@ static inline void fill_elf_fdpic_header(struct elfhdr *elf, int segs)
 	return;
 }
 
-static inline void fill_elf_note_phdr(struct elf_phdr *phdr, int sz, loff_t offset)
+static inline void fill_elf_analte_phdr(struct elf_phdr *phdr, int sz, loff_t offset)
 {
-	phdr->p_type = PT_NOTE;
+	phdr->p_type = PT_ANALTE;
 	phdr->p_offset = offset;
 	phdr->p_vaddr = 0;
 	phdr->p_paddr = 0;
@@ -1272,13 +1272,13 @@ static inline void fill_elf_note_phdr(struct elf_phdr *phdr, int sz, loff_t offs
 	return;
 }
 
-static inline void fill_note(struct memelfnote *note, const char *name, int type,
+static inline void fill_analte(struct memelfanalte *analte, const char *name, int type,
 		unsigned int sz, void *data)
 {
-	note->name = name;
-	note->type = type;
-	note->datasz = sz;
-	note->data = data;
+	analte->name = name;
+	analte->type = type;
+	analte->datasz = sz;
+	analte->data = data;
 	return;
 }
 
@@ -1289,7 +1289,7 @@ static inline void fill_note(struct memelfnote *note, const char *name, int type
 static void fill_prstatus(struct elf_prstatus_common *prstatus,
 			  struct task_struct *p, long signr)
 {
-	prstatus->pr_info.si_signo = prstatus->pr_cursig = signr;
+	prstatus->pr_info.si_siganal = prstatus->pr_cursig = signr;
 	prstatus->pr_sigpend = p->pending.signal.sig[0];
 	prstatus->pr_sighold = p->blocked.sig[0];
 	rcu_read_lock();
@@ -1303,7 +1303,7 @@ static void fill_prstatus(struct elf_prstatus_common *prstatus,
 
 		/*
 		 * This is the record for the group leader.  It shows the
-		 * group-wide total, not its individual thread total.
+		 * group-wide total, analt its individual thread total.
 		 */
 		thread_group_cputime(p, &cputime);
 		prstatus->pr_utime = ns_to_kernel_old_timeval(cputime.utime);
@@ -1370,8 +1370,8 @@ struct elf_thread_status
 	struct elf_thread_status *next;
 	struct elf_prstatus_fdpic prstatus;	/* NT_PRSTATUS */
 	elf_fpregset_t fpu;		/* NT_PRFPREG */
-	struct memelfnote notes[2];
-	int num_notes;
+	struct memelfanalte analtes[2];
+	int num_analtes;
 };
 
 /*
@@ -1395,14 +1395,14 @@ static struct elf_thread_status *elf_dump_thread_status(long signr, struct task_
 	regset_get(p, &view->regsets[0],
 		   sizeof(t->prstatus.pr_reg), &t->prstatus.pr_reg);
 
-	fill_note(&t->notes[0], "CORE", NT_PRSTATUS, sizeof(t->prstatus),
+	fill_analte(&t->analtes[0], "CORE", NT_PRSTATUS, sizeof(t->prstatus),
 		  &t->prstatus);
-	t->num_notes++;
-	*sz += notesize(&t->notes[0]);
+	t->num_analtes++;
+	*sz += analtesize(&t->analtes[0]);
 
 	for (i = 1; i < view->n; ++i) {
 		const struct user_regset *regset = &view->regsets[i];
-		if (regset->core_note_type != NT_PRFPREG)
+		if (regset->core_analte_type != NT_PRFPREG)
 			continue;
 		if (regset->active && regset->active(p, regset) <= 0)
 			continue;
@@ -1413,10 +1413,10 @@ static struct elf_thread_status *elf_dump_thread_status(long signr, struct task_
 	}
 
 	if (t->prstatus.pr_fpvalid) {
-		fill_note(&t->notes[1], "CORE", NT_PRFPREG, sizeof(t->fpu),
+		fill_analte(&t->analtes[1], "CORE", NT_PRFPREG, sizeof(t->fpu),
 			  &t->fpu);
-		t->num_notes++;
-		*sz += notesize(&t->notes[1]);
+		t->num_analtes++;
+		*sz += analtesize(&t->analtes[1]);
 	}
 	return t;
 }
@@ -1469,12 +1469,12 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	int i;
 	struct elfhdr *elf = NULL;
 	loff_t offset = 0, dataoff;
-	struct memelfnote psinfo_note, auxv_note;
+	struct memelfanalte psinfo_analte, auxv_analte;
 	struct elf_prpsinfo *psinfo = NULL;	/* NT_PRPSINFO */
 	struct elf_thread_status *thread_list = NULL;
 	int thread_status_size = 0;
 	elf_addr_t *auxv;
-	struct elf_phdr *phdr4note = NULL;
+	struct elf_phdr *phdr4analte = NULL;
 	struct elf_shdr *shdr4extnum = NULL;
 	Elf_Half e_phnum;
 	elf_addr_t e_shoff;
@@ -1491,7 +1491,7 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 
 	for (ct = current->signal->core_state->dumper.next;
 					ct; ct = ct->next) {
-		tmp = elf_dump_thread_status(cprm->siginfo->si_signo,
+		tmp = elf_dump_thread_status(cprm->siginfo->si_siganal,
 					     ct->task, &thread_status_size);
 		if (!tmp)
 			goto end_coredump;
@@ -1500,8 +1500,8 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 		thread_list = tmp;
 	}
 
-	/* now collect the dump for the current */
-	tmp = elf_dump_thread_status(cprm->siginfo->si_signo,
+	/* analw collect the dump for the current */
+	tmp = elf_dump_thread_status(cprm->siginfo->si_siganal,
 				     current, &thread_status_size);
 	if (!tmp)
 		goto end_coredump;
@@ -1510,7 +1510,7 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 
 	segs = cprm->vma_count + elf_core_extra_phdrs(cprm);
 
-	/* for notes section */
+	/* for analtes section */
 	segs++;
 
 	/* If segs > PN_XNUM(0xffff), then e_phnum overflows. To avoid
@@ -1523,31 +1523,31 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 
 	has_dumped = 1;
 	/*
-	 * Set up the notes in similar form to SVR4 core dumps made
+	 * Set up the analtes in similar form to SVR4 core dumps made
 	 * with info from their /proc.
 	 */
 
 	fill_psinfo(psinfo, current->group_leader, current->mm);
-	fill_note(&psinfo_note, "CORE", NT_PRPSINFO, sizeof(*psinfo), psinfo);
-	thread_status_size += notesize(&psinfo_note);
+	fill_analte(&psinfo_analte, "CORE", NT_PRPSINFO, sizeof(*psinfo), psinfo);
+	thread_status_size += analtesize(&psinfo_analte);
 
 	auxv = (elf_addr_t *) current->mm->saved_auxv;
 	i = 0;
 	do
 		i += 2;
 	while (auxv[i - 2] != AT_NULL);
-	fill_note(&auxv_note, "CORE", NT_AUXV, i * sizeof(elf_addr_t), auxv);
-	thread_status_size += notesize(&auxv_note);
+	fill_analte(&auxv_analte, "CORE", NT_AUXV, i * sizeof(elf_addr_t), auxv);
+	thread_status_size += analtesize(&auxv_analte);
 
 	offset = sizeof(*elf);				/* ELF header */
 	offset += segs * sizeof(struct elf_phdr);	/* Program headers */
 
-	/* Write notes phdr entry */
-	phdr4note = kmalloc(sizeof(*phdr4note), GFP_KERNEL);
-	if (!phdr4note)
+	/* Write analtes phdr entry */
+	phdr4analte = kmalloc(sizeof(*phdr4analte), GFP_KERNEL);
+	if (!phdr4analte)
 		goto end_coredump;
 
-	fill_elf_note_phdr(phdr4note, thread_status_size, offset);
+	fill_elf_analte_phdr(phdr4analte, thread_status_size, offset);
 	offset += thread_status_size;
 
 	/* Page-align dumped data */
@@ -1569,7 +1569,7 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	if (!dump_emit(cprm, elf, sizeof(*elf)))
 		goto end_coredump;
 
-	if (!dump_emit(cprm, phdr4note, sizeof(*phdr4note)))
+	if (!dump_emit(cprm, phdr4analte, sizeof(*phdr4analte)))
 		goto end_coredump;
 
 	/* write program headers for segments dump */
@@ -1603,21 +1603,21 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	if (!elf_core_write_extra_phdrs(cprm, offset))
 		goto end_coredump;
 
-	/* write out the notes section */
-	if (!writenote(thread_list->notes, cprm))
+	/* write out the analtes section */
+	if (!writeanalte(thread_list->analtes, cprm))
 		goto end_coredump;
-	if (!writenote(&psinfo_note, cprm))
+	if (!writeanalte(&psinfo_analte, cprm))
 		goto end_coredump;
-	if (!writenote(&auxv_note, cprm))
+	if (!writeanalte(&auxv_analte, cprm))
 		goto end_coredump;
-	for (i = 1; i < thread_list->num_notes; i++)
-		if (!writenote(thread_list->notes + i, cprm))
+	for (i = 1; i < thread_list->num_analtes; i++)
+		if (!writeanalte(thread_list->analtes + i, cprm))
 			goto end_coredump;
 
-	/* write out the thread status notes section */
+	/* write out the thread status analtes section */
 	for (tmp = thread_list->next; tmp; tmp = tmp->next) {
-		for (i = 0; i < tmp->num_notes; i++)
-			if (!writenote(&tmp->notes[i], cprm))
+		for (i = 0; i < tmp->num_analtes; i++)
+			if (!writeanalte(&tmp->analtes[i], cprm))
 				goto end_coredump;
 	}
 
@@ -1647,7 +1647,7 @@ end_coredump:
 		thread_list = thread_list->next;
 		kfree(tmp);
 	}
-	kfree(phdr4note);
+	kfree(phdr4analte);
 	kfree(elf);
 	kfree(psinfo);
 	kfree(shdr4extnum);

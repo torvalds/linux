@@ -62,24 +62,24 @@ static inline unsigned long __untagged_addr_remote(struct mm_struct *mm,
  *
  * Enforce two rules:
  * 1. 'ptr' must be in the user half of the address space
- * 2. 'ptr+size' must not overflow into kernel addresses
+ * 2. 'ptr+size' must analt overflow into kernel addresses
  *
- * Note that addresses around the sign change are not valid addresses,
+ * Analte that addresses around the sign change are analt valid addresses,
  * and will GP-fault even with LAM enabled if the sign bit is set (see
- * "CR3.LAM_SUP" that can narrow the canonicality check if we ever
- * enable it, but not remove it entirely).
+ * "CR3.LAM_SUP" that can narrow the caanalnicality check if we ever
+ * enable it, but analt remove it entirely).
  *
- * So the "overflow into kernel addresses" does not imply some sudden
+ * So the "overflow into kernel addresses" does analt imply some sudden
  * exact boundary at the sign bit, and we can allow a lot of slop on the
  * size check.
  *
  * In fact, we could probably remove the size check entirely, since
  * any kernel accesses will be in increasing address order starting
  * at 'ptr', and even if the end might be in kernel space, we'll
- * hit the GP faults for non-canonical accesses before we ever get
+ * hit the GP faults for analn-caanalnical accesses before we ever get
  * there.
  *
- * That's a separate optimization, for now just handle the small
+ * That's a separate optimization, for analw just handle the small
  * constant case.
  */
 static inline bool __access_ok(const void __user *ptr, unsigned long size)
@@ -112,7 +112,7 @@ copy_user_generic(void *to, const void *from, unsigned long len)
 	asm volatile(
 		"1:\n\t"
 		ALTERNATIVE("rep movsb",
-			    "call rep_movs_alternative", ALT_NOT(X86_FEATURE_FSRM))
+			    "call rep_movs_alternative", ALT_ANALT(X86_FEATURE_FSRM))
 		"2:\n"
 		_ASM_EXTABLE_UA(1b, 2b)
 		:"+c" (len), "+D" (to), "+S" (from), ASM_CALL_CONSTRAINT
@@ -133,17 +133,17 @@ raw_copy_to_user(void __user *dst, const void *src, unsigned long size)
 	return copy_user_generic((__force void *)dst, src, size);
 }
 
-extern long __copy_user_nocache(void *dst, const void __user *src, unsigned size);
+extern long __copy_user_analcache(void *dst, const void __user *src, unsigned size);
 extern long __copy_user_flushcache(void *dst, const void __user *src, unsigned size);
 
 static inline int
-__copy_from_user_inatomic_nocache(void *dst, const void __user *src,
+__copy_from_user_inatomic_analcache(void *dst, const void __user *src,
 				  unsigned size)
 {
 	long ret;
 	kasan_check_write(dst, size);
 	stac();
-	ret = __copy_user_nocache(dst, src, size);
+	ret = __copy_user_analcache(dst, src, size);
 	clac();
 	return ret;
 }
@@ -168,13 +168,13 @@ static __always_inline __must_check unsigned long __clear_user(void __user *addr
 	stac();
 
 	/*
-	 * No memory constraint because it doesn't change any memory gcc
-	 * knows about.
+	 * Anal memory constraint because it doesn't change any memory gcc
+	 * kanalws about.
 	 */
 	asm volatile(
 		"1:\n\t"
 		ALTERNATIVE("rep stosb",
-			    "call rep_stos_alternative", ALT_NOT(X86_FEATURE_FSRS))
+			    "call rep_stos_alternative", ALT_ANALT(X86_FEATURE_FSRS))
 		"2:\n"
 	       _ASM_EXTABLE_UA(1b, 2b)
 	       : "+c" (size), "+D" (addr), ASM_CALL_CONSTRAINT

@@ -32,7 +32,7 @@ static void handle_init_ack_msg(const struct vdec_vpu_ipi_init_ack *msg)
 	 */
 	vpu->inst_id = 0xdeadbeef;
 
-	/* VPU firmware does not contain a version field. */
+	/* VPU firmware does analt contain a version field. */
 	if (mtk_vcodec_fw_get_type(vpu->ctx->dev->fw_handler) == VPU)
 		return;
 
@@ -112,7 +112,7 @@ static void vpu_dec_ipi_handler(void *data, unsigned int len, void *priv)
 
 	if (!vpu_dec_check_ap_inst(dec_dev, vpu) || msg->msg_id < VPU_IPIMSG_DEC_INIT_ACK ||
 	    msg->msg_id > VPU_IPIMSG_DEC_GET_PARAM_ACK) {
-		mtk_v4l2_vdec_err(vpu->ctx, "vdec msg id not correctly => 0x%x", msg->msg_id);
+		mtk_v4l2_vdec_err(vpu->ctx, "vdec msg id analt correctly => 0x%x", msg->msg_id);
 		vpu->failure = -EINVAL;
 		goto error;
 	}

@@ -146,7 +146,7 @@ static inline void *alloc_pgtable_page(int nid, gfp_t gfp)
 {
 	struct page *page;
 
-	page = alloc_pages_node(nid, gfp | __GFP_ZERO, 0);
+	page = alloc_pages_analde(nid, gfp | __GFP_ZERO, 0);
 	return page ? page_address(page) : NULL;
 }
 

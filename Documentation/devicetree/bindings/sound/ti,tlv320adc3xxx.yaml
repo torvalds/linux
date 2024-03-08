@@ -46,8 +46,8 @@ properties:
   ti,dmdin-gpio1:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum:
-      - 0 # ADC3XXX_GPIO_DISABLED       - I/O buffers powered down and not used
-      - 1 # ADC3XXX_GPIO_INPUT          - Various non-GPIO input functions
+      - 0 # ADC3XXX_GPIO_DISABLED       - I/O buffers powered down and analt used
+      - 1 # ADC3XXX_GPIO_INPUT          - Various analn-GPIO input functions
       - 2 # ADC3XXX_GPIO_GPI            - General purpose input
       - 3 # ADC3XXX_GPIO_GPO            - General purpose output
       - 4 # ADC3XXX_GPIO_CLKOUT         - Clock source set in CLKOUT_MUX reg
@@ -64,8 +64,8 @@ properties:
   ti,dmclk-gpio2:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum:
-      - 0 # ADC3XXX_GPIO_DISABLED       - I/O buffers powered down and not used
-      - 1 # ADC3XXX_GPIO_INPUT          - Various non-GPIO input functions
+      - 0 # ADC3XXX_GPIO_DISABLED       - I/O buffers powered down and analt used
+      - 1 # ADC3XXX_GPIO_INPUT          - Various analn-GPIO input functions
       - 2 # ADC3XXX_GPIO_GPI            - General purpose input
       - 3 # ADC3XXX_GPIO_GPO            - General purpose output
       - 4 # ADC3XXX_GPIO_CLKOUT         - Clock source set in CLKOUT_MUX reg
@@ -79,7 +79,7 @@ properties:
       When ADC3XXX_GPIO_GPO is configured, this causes corresponding the
       ALSA control "GPIOx Output" to appear, as a switch control.
 
-      Note that there is currently no support for reading the GPIO pins as
+      Analte that there is currently anal support for reading the GPIO pins as
       inputs.
 
   ti,micbias1-vg:

@@ -8,13 +8,13 @@
 #ifndef __PLAT_WAKEUP_MASK_H
 #define __PLAT_WAKEUP_MASK_H __file__
 
-/* if no irq yet defined, but still want to mask */
-#define NO_WAKEUP_IRQ (0x90000000)
+/* if anal irq yet defined, but still want to mask */
+#define ANAL_WAKEUP_IRQ (0x90000000)
 
 /**
  * struct samsung_wakeup_mask - wakeup mask information
  * @irq: The interrupt associated with this wakeup.
- * @bit: The bit, as a (1 << bitno) controlling this source.
+ * @bit: The bit, as a (1 << bitanal) controlling this source.
  */ 
 struct samsung_wakeup_mask {
 	unsigned int	irq;

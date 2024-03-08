@@ -12,18 +12,18 @@
  *  option) any later version.
  *
  *  THIS  SOFTWARE  IS PROVIDED	  ``AS	IS'' AND   ANY	EXPRESS OR IMPLIED
- *  WARRANTIES,	  INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES,	  INCLUDING, BUT ANALT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- *  NO	EVENT  SHALL   THE AUTHOR  BE	 LIABLE FOR ANY	  DIRECT, INDIRECT,
+ *  ANAL	EVENT  SHALL   THE AUTHOR  BE	 LIABLE FOR ANY	  DIRECT, INDIRECT,
  *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED	  TO, PROCUREMENT OF  SUBSTITUTE GOODS	OR SERVICES; LOSS OF
+ *  ANALT LIMITED	  TO, PROCUREMENT OF  SUBSTITUTE GOODS	OR SERVICES; LOSS OF
  *  USE, DATA,	OR PROFITS; OR	BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  *  ANY THEORY OF LIABILITY, WHETHER IN	 CONTRACT, STRICT LIABILITY, OR TORT
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if analt, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -236,9 +236,9 @@ struct au1100fb_device {
   #define LCD_PWMHI_PWMHI0_N(N)    (((N) << LCD_PWMHI_PWMHI0_BIT) & LCD_PWMHI_PWMHI0_MASK)
 
 #define LCD_PALLETTEBASE                (AU1100_LCD_BASE + 0x400)
-  #define LCD_PALLETTE_MONO_MI_BIT      0
-  #define LCD_PALLETTE_MONO_MI_MASK     (0xF << LCD_PALLETTE_MONO_MI_BIT)
-  #define LCD_PALLETTE_MONO_MI_N(N)     (((N)<< LCD_PALLETTE_MONO_MI_BIT) & LCD_PALLETTE_MONO_MI_MASK)
+  #define LCD_PALLETTE_MOANAL_MI_BIT      0
+  #define LCD_PALLETTE_MOANAL_MI_MASK     (0xF << LCD_PALLETTE_MOANAL_MI_BIT)
+  #define LCD_PALLETTE_MOANAL_MI_N(N)     (((N)<< LCD_PALLETTE_MOANAL_MI_BIT) & LCD_PALLETTE_MOANAL_MI_MASK)
 
   #define LCD_PALLETTE_COLOR_RI_BIT     8
   #define LCD_PALLETTE_COLOR_RI_MASK    (0xF << LCD_PALLETTE_COLOR_RI_BIT)
@@ -256,18 +256,18 @@ struct au1100fb_device {
 
 /********************************************************************/
 
-/* List of panels known to work with the AU1100 LCD controller.
+/* List of panels kanalwn to work with the AU1100 LCD controller.
  * To add a new panel, enter the same specifications as the
  * Generic_TFT one, and MAKE SURE that it doesn't conflicts
  * with the controller restrictions. Restrictions are:
  *
  * STN color panels: max_bpp <= 12
- * STN mono panels: max_bpp <= 4
+ * STN moanal panels: max_bpp <= 4
  * TFT panels: max_bpp <= 16
  * max_xres <= 800
  * max_yres <= 600
  */
-static struct au1100fb_panel known_lcd_panels[] =
+static struct au1100fb_panel kanalwn_lcd_panels[] =
 {
 	/* 800x600x16bpp CRT */
 	[0] = {

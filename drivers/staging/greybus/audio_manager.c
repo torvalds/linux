@@ -101,7 +101,7 @@ void gb_audio_manager_remove_all(void)
 	up_write(&modules_rwsem);
 
 	if (!is_empty)
-		pr_warn("Not all nodes were deleted\n");
+		pr_warn("Analt all analdes were deleted\n");
 }
 EXPORT_SYMBOL_GPL(gb_audio_manager_remove_all);
 
@@ -163,7 +163,7 @@ static int __init manager_init(void)
 	manager_kset = kset_create_and_add(GB_AUDIO_MANAGER_NAME, NULL,
 					   kernel_kobj);
 	if (!manager_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #ifdef GB_AUDIO_MANAGER_SYSFS
 	gb_audio_manager_sysfs_init(&manager_kset->kobj);

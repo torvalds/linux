@@ -96,7 +96,7 @@ static int dmic_component_probe(struct snd_soc_component *component)
 
 	dmic = devm_kzalloc(component->dev, sizeof(*dmic), GFP_KERNEL);
 	if (!dmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmic->gpio_en = devm_gpiod_get_optional(component->dev,
 						"dmicen", GPIOD_OUT_LOW);
@@ -122,7 +122,7 @@ static int dmic_component_probe(struct snd_soc_component *component)
 
 static const struct snd_soc_dapm_widget dmic_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT_E("DMIC AIF", "Capture", 0,
-			       SND_SOC_NOPM, 0, 0, dmic_aif_event,
+			       SND_SOC_ANALPM, 0, 0, dmic_aif_event,
 			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_INPUT("DMic"),
 };
@@ -148,8 +148,8 @@ static int dmic_dev_probe(struct platform_device *pdev)
 	u32 chans;
 	struct snd_soc_dai_driver *dai_drv = &dmic_dai;
 
-	if (pdev->dev.of_node) {
-		err = of_property_read_u32(pdev->dev.of_node, "num-channels", &chans);
+	if (pdev->dev.of_analde) {
+		err = of_property_read_u32(pdev->dev.of_analde, "num-channels", &chans);
 		if (err && (err != -EINVAL))
 			return err;
 
@@ -159,7 +159,7 @@ static int dmic_dev_probe(struct platform_device *pdev)
 
 			dai_drv = devm_kzalloc(&pdev->dev, sizeof(*dai_drv), GFP_KERNEL);
 			if (!dai_drv)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			memcpy(dai_drv, &dmic_dai, sizeof(*dai_drv));
 			dai_drv->capture.channels_max = chans;

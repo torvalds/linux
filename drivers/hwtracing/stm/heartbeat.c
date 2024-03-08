@@ -36,9 +36,9 @@ static enum hrtimer_restart stm_heartbeat_hrtimer_handler(struct hrtimer *hr)
 
 	stm_source_write(&heartbeat->data, 0, str, sizeof str);
 	if (heartbeat->active)
-		hrtimer_forward_now(hr, ms_to_ktime(interval_ms));
+		hrtimer_forward_analw(hr, ms_to_ktime(interval_ms));
 
-	return heartbeat->active ? HRTIMER_RESTART : HRTIMER_NORESTART;
+	return heartbeat->active ? HRTIMER_RESTART : HRTIMER_ANALRESTART;
 }
 
 static int stm_heartbeat_link(struct stm_source_data *data)
@@ -73,14 +73,14 @@ static int stm_heartbeat_init(void)
 		stm_heartbeat[i].data.name =
 			kasprintf(GFP_KERNEL, "heartbeat.%d", i);
 		if (!stm_heartbeat[i].data.name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail_unregister;
 		}
 
 		stm_heartbeat[i].data.nr_chans	= 1;
 		stm_heartbeat[i].data.link	= stm_heartbeat_link;
 		stm_heartbeat[i].data.unlink	= stm_heartbeat_unlink;
-		hrtimer_init(&stm_heartbeat[i].hrtimer, CLOCK_MONOTONIC,
+		hrtimer_init(&stm_heartbeat[i].hrtimer, CLOCK_MOANALTONIC,
 			     HRTIMER_MODE_ABS);
 		stm_heartbeat[i].hrtimer.function =
 			stm_heartbeat_hrtimer_handler;

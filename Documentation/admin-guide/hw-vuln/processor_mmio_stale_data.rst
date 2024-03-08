@@ -6,9 +6,9 @@ Processor MMIO Stale Data Vulnerabilities are a class of memory-mapped I/O
 (MMIO) vulnerabilities that can expose data. The sequences of operations for
 exposing data range from simple to very complex. Because most of the
 vulnerabilities require the attacker to have access to MMIO, many environments
-are not affected. System environments using virtualization where MMIO access is
+are analt affected. System environments using virtualization where MMIO access is
 provided to untrusted guests may need mitigation. These vulnerabilities are
-not transient execution attacks. However, these vulnerabilities may propagate
+analt transient execution attacks. However, these vulnerabilities may propagate
 stale data into core fill buffers where the data can subsequently be inferred
 by an unmitigated transient execution attack. Mitigation for these
 vulnerabilities includes a combination of microcode update and software
@@ -19,27 +19,27 @@ those used to mitigate Special Register Buffer Data Sampling (SRBDS).
 Data Propagators
 ================
 Propagators are operations that result in stale data being copied or moved from
-one microarchitectural buffer or register to another. Processor MMIO Stale Data
+one microarchitectural buffer or register to aanalther. Processor MMIO Stale Data
 Vulnerabilities are operations that may result in stale data being directly
 read into an architectural, software-visible state or sampled from a buffer or
 register.
 
 Fill Buffer Stale Data Propagator (FBSDP)
 -----------------------------------------
-Stale data may propagate from fill buffers (FB) into the non-coherent portion
-of the uncore on some non-coherent writes. Fill buffer propagation by itself
-does not make stale data architecturally visible. Stale data must be propagated
+Stale data may propagate from fill buffers (FB) into the analn-coherent portion
+of the uncore on some analn-coherent writes. Fill buffer propagation by itself
+does analt make stale data architecturally visible. Stale data must be propagated
 to a location where it is subject to reading or sampling.
 
 Sideband Stale Data Propagator (SSDP)
 -------------------------------------
 The sideband stale data propagator (SSDP) is limited to the client (including
 Intel Xeon server E3) uncore implementation. The sideband response buffer is
-shared by all client cores. For non-coherent reads that go to sideband
+shared by all client cores. For analn-coherent reads that go to sideband
 destinations, the uncore logic returns 64 bytes of data to the core, including
 both requested data and unrequested stale data, from a transaction buffer and
 the sideband response buffer. As a result, stale data from the sideband
-response and transaction buffers may now reside in a core fill buffer.
+response and transaction buffers may analw reside in a core fill buffer.
 
 Primary Stale Data Propagator (PSDP)
 ------------------------------------
@@ -76,7 +76,7 @@ the client (including Intel Xeon server E3) uncore implementation.
 
 Affected Processors
 ===================
-Not all the CPUs are affected by all the variants. For instance, most
+Analt all the CPUs are affected by all the variants. For instance, most
 processors for the server market (excluding Intel Xeon E3 processors) are
 impacted by only Device Register Partial Write (DRPW).
 
@@ -105,7 +105,7 @@ Below is the list of affected Intel processors [#f1]_:
    ROCKETLAKE           06_A7H        1
    ===================  ============  =========
 
-If a CPU is in the affected processor list, but not affected by a variant, it
+If a CPU is in the affected processor list, but analt affected by a variant, it
 is indicated by new bits in MSR IA32_ARCH_CAPABILITIES. As described in a later
 section, mitigation largely remains the same for all the variants, i.e. to
 clear the CPU fill buffers via VERW instruction.
@@ -119,32 +119,32 @@ capability.
 
 MSR IA32_ARCH_CAPABILITIES
 --------------------------
-Bit 13 - SBDR_SSDP_NO - When set, processor is not affected by either the
+Bit 13 - SBDR_SSDP_ANAL - When set, processor is analt affected by either the
 	 Shared Buffers Data Read (SBDR) vulnerability or the sideband stale
 	 data propagator (SSDP).
-Bit 14 - FBSDP_NO - When set, processor is not affected by the Fill Buffer
+Bit 14 - FBSDP_ANAL - When set, processor is analt affected by the Fill Buffer
 	 Stale Data Propagator (FBSDP).
-Bit 15 - PSDP_NO - When set, processor is not affected by Primary Stale Data
+Bit 15 - PSDP_ANAL - When set, processor is analt affected by Primary Stale Data
 	 Propagator (PSDP).
 Bit 17 - FB_CLEAR - When set, VERW instruction will overwrite CPU fill buffer
-	 values as part of MD_CLEAR operations. Processors that do not
-	 enumerate MDS_NO (meaning they are affected by MDS) but that do
+	 values as part of MD_CLEAR operations. Processors that do analt
+	 enumerate MDS_ANAL (meaning they are affected by MDS) but that do
 	 enumerate support for both L1D_FLUSH and MD_CLEAR implicitly enumerate
 	 FB_CLEAR as part of their MD_CLEAR support.
 Bit 18 - FB_CLEAR_CTRL - Processor supports read and write to MSR
 	 IA32_MCU_OPT_CTRL[FB_CLEAR_DIS]. On such processors, the FB_CLEAR_DIS
-	 bit can be set to cause the VERW instruction to not perform the
-	 FB_CLEAR action. Not all processors that support FB_CLEAR will support
+	 bit can be set to cause the VERW instruction to analt perform the
+	 FB_CLEAR action. Analt all processors that support FB_CLEAR will support
 	 FB_CLEAR_CTRL.
 
 MSR IA32_MCU_OPT_CTRL
 ---------------------
-Bit 3 - FB_CLEAR_DIS - When set, VERW instruction does not perform the FB_CLEAR
+Bit 3 - FB_CLEAR_DIS - When set, VERW instruction does analt perform the FB_CLEAR
 action. This may be useful to reduce the performance impact of FB_CLEAR in
 cases where system software deems it warranted (for example, when performance
-is more critical, or the untrusted software has no MMIO access). Note that
-FB_CLEAR_DIS has no impact on enumeration (for example, it does not change
-FB_CLEAR or MD_CLEAR enumeration) and it may not be supported on all processors
+is more critical, or the untrusted software has anal MMIO access). Analte that
+FB_CLEAR_DIS has anal impact on enumeration (for example, it does analt change
+FB_CLEAR or MD_CLEAR enumeration) and it may analt be supported on all processors
 that enumerate FB_CLEAR.
 
 Mitigation
@@ -162,11 +162,11 @@ Kernel reuses the MDS function to invoke the buffer clearing:
 	mds_clear_cpu_buffers()
 
 On MDS affected CPUs, the kernel already invokes CPU buffer clear on
-kernel/userspace, hypervisor/guest and C-state (idle) transitions. No
+kernel/userspace, hypervisor/guest and C-state (idle) transitions. Anal
 additional mitigation is needed on such CPUs.
 
-For CPUs not affected by MDS or TAA, mitigation is needed only for the attacker
-with MMIO capability. Therefore, VERW is not required for kernel/userspace. For
+For CPUs analt affected by MDS or TAA, mitigation is needed only for the attacker
+with MMIO capability. Therefore, VERW is analt required for kernel/userspace. For
 virtualization case, VERW is only needed at VMENTER for a guest with MMIO
 capability.
 
@@ -174,7 +174,7 @@ Mitigation points
 -----------------
 Return to user space
 ^^^^^^^^^^^^^^^^^^^^
-Same mitigation as MDS when affected by MDS/TAA, otherwise no mitigation
+Same mitigation as MDS when affected by MDS/TAA, otherwise anal mitigation
 needed.
 
 C-State transition
@@ -186,9 +186,9 @@ clear CPU fill buffers.
 Guest entry point
 ^^^^^^^^^^^^^^^^^
 Same mitigation as MDS when processor is also affected by MDS/TAA, otherwise
-execute VERW at VMENTER only for MMIO capable guests. On CPUs not affected by
-MDS/TAA, guest without MMIO access cannot extract secrets using Processor MMIO
-Stale Data vulnerabilities, so there is no need to execute VERW for such guests.
+execute VERW at VMENTER only for MMIO capable guests. On CPUs analt affected by
+MDS/TAA, guest without MMIO access cananalt extract secrets using Processor MMIO
+Stale Data vulnerabilities, so there is anal need to execute VERW for such guests.
 
 Mitigation control on the kernel command line
 ---------------------------------------------
@@ -199,13 +199,13 @@ arguments for this option are:
   ==========  =================================================================
   full        If the CPU is vulnerable, enable mitigation; CPU buffer clearing
               on exit to userspace and when entering a VM. Idle transitions are
-              protected as well. It does not automatically disable SMT.
-  full,nosmt  Same as full, with SMT disabled on vulnerable CPUs. This is the
+              protected as well. It does analt automatically disable SMT.
+  full,analsmt  Same as full, with SMT disabled on vulnerable CPUs. This is the
               complete mitigation.
   off         Disables mitigation completely.
   ==========  =================================================================
 
-If the CPU is affected and mmio_stale_data=off is not supplied on the kernel
+If the CPU is affected and mmio_stale_data=off is analt supplied on the kernel
 command line, then the kernel selects the appropriate mitigation.
 
 Mitigation status information
@@ -220,30 +220,30 @@ The possible values in this file are:
 
   .. list-table::
 
-     * - 'Not affected'
-       - The processor is not vulnerable
+     * - 'Analt affected'
+       - The processor is analt vulnerable
      * - 'Vulnerable'
-       - The processor is vulnerable, but no mitigation enabled
-     * - 'Vulnerable: Clear CPU buffers attempted, no microcode'
-       - The processor is vulnerable but microcode is not updated. The
+       - The processor is vulnerable, but anal mitigation enabled
+     * - 'Vulnerable: Clear CPU buffers attempted, anal microcode'
+       - The processor is vulnerable but microcode is analt updated. The
          mitigation is enabled on a best effort basis.
 
          If the processor is vulnerable but the availability of the microcode
-         based mitigation mechanism is not advertised via CPUID, the kernel
+         based mitigation mechanism is analt advertised via CPUID, the kernel
          selects a best effort mitigation mode. This mode invokes the mitigation
          instructions without a guarantee that they clear the CPU buffers.
 
          This is done to address virtualization scenarios where the host has the
-         microcode update applied, but the hypervisor is not yet updated to
+         microcode update applied, but the hypervisor is analt yet updated to
          expose the CPUID to the guest. If the host has updated microcode the
          protection takes effect; otherwise a few CPU cycles are wasted
          pointlessly.
      * - 'Mitigation: Clear CPU buffers'
        - The processor is vulnerable and the CPU buffer clearing mitigation is
          enabled.
-     * - 'Unknown: No mitigations'
-       - The processor vulnerability status is unknown because it is
-	 out of Servicing period. Mitigation is not attempted.
+     * - 'Unkanalwn: Anal mitigations'
+       - The processor vulnerability status is unkanalwn because it is
+	 out of Servicing period. Mitigation is analt attempted.
 
 Definitions:
 ------------
@@ -252,7 +252,7 @@ Servicing period: The process of providing functional and security updates to
 Intel processors or platforms, utilizing the Intel Platform Update (IPU)
 process or other similar mechanisms.
 
-End of Servicing Updates (ESU): ESU is the date at which Intel will no
+End of Servicing Updates (ESU): ESU is the date at which Intel will anal
 longer provide Servicing, such as through IPU or other similar update
 processes. ESU dates will typically be aligned to end of quarter.
 
@@ -262,10 +262,10 @@ the above information:
   ========================  ===========================================
   'SMT vulnerable'          SMT is enabled
   'SMT disabled'            SMT is disabled
-  'SMT Host state unknown'  Kernel runs in a VM, Host SMT state unknown
+  'SMT Host state unkanalwn'  Kernel runs in a VM, Host SMT state unkanalwn
   ========================  ===========================================
 
 References
 ----------
 .. [#f1] Affected Processors
-   https://www.intel.com/content/www/us/en/developer/topic-technology/software-security-guidance/processors-affected-consolidated-product-cpu-model.html
+   https://www.intel.com/content/www/us/en/developer/topic-techanallogy/software-security-guidance/processors-affected-consolidated-product-cpu-model.html

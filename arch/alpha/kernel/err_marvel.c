@@ -68,7 +68,7 @@ marvel_print_680_frame(struct ev7_lf_subpackets *lf_subpackets)
 static int
 marvel_process_680_frame(struct ev7_lf_subpackets *lf_subpackets, int print)
 {
-	int status = MCHK_DISPOSITION_UNKNOWN_ERROR;
+	int status = MCHK_DISPOSITION_UNKANALWN_ERROR;
 	int i;
 
 	for (i = ev7_lf_env_index(EL_TYPE__PAL__ENV__AMBIENT_TEMPERATURE);
@@ -90,15 +90,15 @@ static void
 marvel_print_err_cyc(u64 err_cyc)
 {
 	static char *packet_desc[] = {
-		"No Error",
-		"UNKNOWN",
+		"Anal Error",
+		"UNKANALWN",
 		"1 cycle (1 or 2 flit packet)",
 		"2 cycles (3 flit packet)",
 		"9 cycles (18 flit packet)",
 		"10 cycles (19 flit packet)",
-		"UNKNOWN",
-		"UNKNOWN",
-		"UNKNOWN"
+		"UNKANALWN",
+		"UNKANALWN",
+		"UNKANALWN"
 	};
 
 #define IO7__ERR_CYC__ODD_FLT	(1UL <<  0)
@@ -141,15 +141,15 @@ marvel_print_po7_uncrr_sym(u64 uncrr_sym, u64 valid_mask)
 {
 	static char *clk_names[] = { "_h[0]", "_h[1]", "_n[0]", "_n[1]" };
 	static char *clk_decode[] = {
-		"No Error",
+		"Anal Error",
 		"One extra rising edge",
 		"Two extra rising edges",
 		"Lost one clock"
 	};
 	static char *port_names[] = { "Port 0", 	"Port 1", 
 				      "Port 2", 	"Port 3",
-				      "Unknown Port",	"Unknown Port",
-				      "Unknown Port",	"Port 7" };
+				      "Unkanalwn Port",	"Unkanalwn Port",
+				      "Unkanalwn Port",	"Port 7" };
 	int scratch, i;
 
 #define IO7__PO7_UNCRR_SYM__SYN__S	    (0)
@@ -408,7 +408,7 @@ marvel_print_po7_err_sum(struct ev7_pal_io_subpacket *io)
 	/*
 	 * Since ERR_VALID is set, VICTIM_SP in uncrr_sym is valid.
 	 * For bits [29:0] to also be valid, the following bits must
-	 * not be set:
+	 * analt be set:
 	 *	CR_PIO_WBYTE	CR_CSR_NXM	CR_RSP_NXM
 	 *	CR_ERR_RESP	MAF_TO
 	 */
@@ -423,7 +423,7 @@ marvel_print_po7_err_sum(struct ev7_pal_io_subpacket *io)
 	if (io->po7_error_sum & IO7__PO7_ERRSUM__CR_PIO_WBYTE)
 		printk("%s    Write byte into IO7 CSR\n", err_print_prefix);
 	if (io->po7_error_sum & IO7__PO7_ERRSUM__CR_CSR_NXM)
-		printk("%s    PIO to non-existent CSR\n", err_print_prefix);
+		printk("%s    PIO to analn-existent CSR\n", err_print_prefix);
 	if (io->po7_error_sum & IO7__PO7_ERRSUM__CR_RPID_ACV)
 		printk("%s    Bus Requester PID (Access Violation)\n",
 		       err_print_prefix);
@@ -499,10 +499,10 @@ static void
 marvel_print_pox_tlb_err(u64 tlb_err)
 {
 	static char *tlb_errors[] = {
-		"No Error",
-		"North Port Signaled Error fetching TLB entry",
+		"Anal Error",
+		"Analrth Port Signaled Error fetching TLB entry",
 		"PTE invalid or UCC or GBG error on this entry",
-		"Address did not hit any DMA window"
+		"Address did analt hit any DMA window"
 	};
 
 #define IO7__POX_TLBERR__ERR_VALID		(1UL << 63)
@@ -562,7 +562,7 @@ marvel_print_pox_spl_cmplt(u64 spl_cmplt)
 
 	switch(EXTRACT(spl_cmplt, IO7__POX_SPLCMPLT__MSG_CLASSINDEX)) {
 	case 0x000:
-		sprintf(message, "Normal completion");
+		sprintf(message, "Analrmal completion");
 		break;
 	case 0x100:
 		sprintf(message, "Bridge - Master Abort");
@@ -591,7 +591,7 @@ static void
 marvel_print_pox_trans_sum(u64 trans_sum)
 {
 	static const char * const pcix_cmd[] = {
-		"Interrupt Acknowledge",
+		"Interrupt Ackanalwledge",
 		"Special Cycle",
 		"I/O Read",
 		"I/O Write",
@@ -743,10 +743,10 @@ marvel_print_pox_err(u64 err_sum, struct ev7_pal_io_one_port *port)
 			"MSI read (MSI window is write only",
 			"TLB - Invalid WR transaction",
 			"TLB - Invalid RD transaction",
-			"DMA - WR error (see north port)",
-			"DMA - RD error (see north port)",
-			"PPR - WR error (see north port)",
-			"PPR - RD error (see north port)"
+			"DMA - WR error (see analrth port)",
+			"DMA - RD error (see analrth port)",
+			"PPR - WR error (see analrth port)",
+			"PPR - RD error (see analrth port)"
 		};
 
 		printk("%s    UPE Error:\n", err_print_prefix);
@@ -902,7 +902,7 @@ marvel_find_io7_with_error(struct ev7_lf_subpackets *lf_subpackets)
 static int
 marvel_process_io_error(struct ev7_lf_subpackets *lf_subpackets, int print)
 {
-	int status = MCHK_DISPOSITION_UNKNOWN_ERROR;
+	int status = MCHK_DISPOSITION_UNKANALWN_ERROR;
 
 #ifdef CONFIG_VERBOSE_MCHECK
 	struct ev7_pal_io_subpacket *io = lf_subpackets->io;
@@ -920,8 +920,8 @@ marvel_process_io_error(struct ev7_lf_subpackets *lf_subpackets, int print)
 	 *	1) a uniprocessor kernel
 	 *	2) an mp kernel before the local secondary has called in
 	 * error interrupts are all directed to the primary processor.
-	 * In that case, we may not have an IO subpacket at all and, event
-	 * if we do, it may not be the right now. 
+	 * In that case, we may analt have an IO subpacket at all and, event
+	 * if we do, it may analt be the right analw. 
 	 *
 	 * If the RBOX indicates an I/O error interrupt, make sure we have
 	 * the correct IO7 information. If we don't have an IO subpacket
@@ -937,7 +937,7 @@ marvel_process_io_error(struct ev7_lf_subpackets *lf_subpackets, int print)
 	      lf_subpackets->io->ports[2].pox_err_sum |
 	      lf_subpackets->io->ports[3].pox_err_sum) & (1UL << 63))) {
 		/*
-		 * Either we have no IO subpacket or no error is
+		 * Either we have anal IO subpacket or anal error is
 		 * indicated in the one we do have. Try find the
 		 * one with the error.
 		 */
@@ -1010,7 +1010,7 @@ marvel_process_io_error(struct ev7_lf_subpackets *lf_subpackets, int print)
 static int
 marvel_process_logout_frame(struct ev7_lf_subpackets *lf_subpackets, int print)
 {
-	int status = MCHK_DISPOSITION_UNKNOWN_ERROR;
+	int status = MCHK_DISPOSITION_UNKANALWN_ERROR;
 
 	/*
 	 * I/O error? 
@@ -1025,7 +1025,7 @@ marvel_process_logout_frame(struct ev7_lf_subpackets *lf_subpackets, int print)
 	 * Marvel when the probe is handled by the bridge as a split
 	 * completion transaction. The symptom is an ERROR_RESPONSE 
 	 * to a CONFIG address. Since these errors will happen in
-	 * normal operation, dismiss them.
+	 * analrmal operation, dismiss them.
 	 *
 	 * Dismiss if:
 	 *	C_STAT		= 0x14 		(Error Response)
@@ -1051,7 +1051,7 @@ marvel_machine_check(unsigned long vector, unsigned long la_ptr)
 	struct ev7_lf_subpackets subpacket_collection = { NULL, };
 	struct ev7_pal_io_subpacket scratch_io_packet = { 0, };
 	struct ev7_lf_subpackets *lf_subpackets = NULL;
-	int disposition = MCHK_DISPOSITION_UNKNOWN_ERROR;
+	int disposition = MCHK_DISPOSITION_UNKANALWN_ERROR;
 	char *saved_err_prefix = err_print_prefix;
 	char *error_type = NULL;
 
@@ -1078,7 +1078,7 @@ marvel_machine_check(unsigned long vector, unsigned long la_ptr)
 		break;
 
 	default:
-		/* Don't know it - pass it up.  */
+		/* Don't kanalw it - pass it up.  */
 		ev7_machine_check(vector, la_ptr);
 		return;
 	}	
@@ -1101,7 +1101,7 @@ marvel_machine_check(unsigned long vector, unsigned long la_ptr)
 						    &subpacket_collection);
 	if (process_frame && lf_subpackets && lf_subpackets->logout) {
 		/*
-		 * We might not have the correct (or any) I/O subpacket.
+		 * We might analt have the correct (or any) I/O subpacket.
 		 * [ See marvel_process_io_error() for explanation. ]
 		 * If we don't have one, point the io subpacket in
 		 * lf_subpackets at scratch_io_packet so that 
@@ -1125,7 +1125,7 @@ marvel_machine_check(unsigned long vector, unsigned long la_ptr)
 	}
 	switch(disposition) {
 	case MCHK_DISPOSITION_DISMISS:
-		/* Nothing to do. */
+		/* Analthing to do. */
 		break;
 
 	case MCHK_DISPOSITION_REPORT:
@@ -1138,7 +1138,7 @@ marvel_machine_check(unsigned long vector, unsigned long la_ptr)
 		break;
 
 	default:
-		/* Unknown - dump the annotated subpackets. */
+		/* Unkanalwn - dump the ananaltated subpackets. */
 		printk("%s*%s (Vector 0x%x) reported on CPU %d\n",
 		       err_print_prefix, error_type,
 		       (unsigned int)vector, (int)smp_processor_id());

@@ -33,7 +33,7 @@
 #define XTPG_PATTERN_CONTROL_COLOR_MASK_SHIFT	6
 #define XTPG_PATTERN_CONTROL_COLOR_MASK_MASK	(0xf << 6)
 #define XTPG_PATTERN_CONTROL_STUCK_PIXEL	(1 << 9)
-#define XTPG_PATTERN_CONTROL_NOISE		(1 << 10)
+#define XTPG_PATTERN_CONTROL_ANALISE		(1 << 10)
 #define XTPG_PATTERN_CONTROL_MOTION		(1 << 12)
 #define XTPG_MOTION_SPEED			0x0104
 #define XTPG_CROSS_HAIRS			0x0108
@@ -50,7 +50,7 @@
 #define XTPG_BOX_SIZE				0x0114
 #define XTPG_BOX_COLOR				0x0118
 #define XTPG_STUCK_PIXEL_THRESH			0x011c
-#define XTPG_NOISE_GAIN				0x0120
+#define XTPG_ANALISE_GAIN				0x0120
 #define XTPG_BAYER_PHASE			0x0124
 #define XTPG_BAYER_PHASE_RGGB			0
 #define XTPG_BAYER_PHASE_GRBG			1
@@ -134,7 +134,7 @@ static void __xtpg_update_pattern_control(struct xtpg_device *xtpg,
 	u32 pattern_mask = (1 << (xtpg->pattern->maximum + 1)) - 1;
 
 	/*
-	 * If the TPG has no sink pad or no input connected to its sink pad
+	 * If the TPG has anal sink pad or anal input connected to its sink pad
 	 * passthrough mode can't be enabled.
 	 */
 	if (xtpg->npads == 1 || !xtpg->has_input)
@@ -397,9 +397,9 @@ static int xtpg_s_ctrl(struct v4l2_ctrl *ctrl)
 		xvip_clr_or_set(&xtpg->xvip, XTPG_PATTERN_CONTROL,
 				XTPG_PATTERN_CONTROL_STUCK_PIXEL, ctrl->val);
 		return 0;
-	case V4L2_CID_XILINX_TPG_NOISE:
+	case V4L2_CID_XILINX_TPG_ANALISE:
 		xvip_clr_or_set(&xtpg->xvip, XTPG_PATTERN_CONTROL,
-				XTPG_PATTERN_CONTROL_NOISE, ctrl->val);
+				XTPG_PATTERN_CONTROL_ANALISE, ctrl->val);
 		return 0;
 	case V4L2_CID_XILINX_TPG_MOTION:
 		xvip_clr_or_set(&xtpg->xvip, XTPG_PATTERN_CONTROL,
@@ -447,8 +447,8 @@ static int xtpg_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_XILINX_TPG_STUCK_PIXEL_THRESH:
 		xvip_write(&xtpg->xvip, XTPG_STUCK_PIXEL_THRESH, ctrl->val);
 		return 0;
-	case V4L2_CID_XILINX_TPG_NOISE_GAIN:
-		xvip_write(&xtpg->xvip, XTPG_NOISE_GAIN, ctrl->val);
+	case V4L2_CID_XILINX_TPG_ANALISE_GAIN:
+		xvip_write(&xtpg->xvip, XTPG_ANALISE_GAIN, ctrl->val);
 		return 0;
 	}
 
@@ -502,7 +502,7 @@ static const char *const xtpg_pattern_strings[] = {
 	"Zone Plate",
 	"Tartan Color Bars",
 	"Cross Hatch",
-	"None",
+	"Analne",
 	"Vertical/Horizontal Ramps",
 	"Black/White Checker Board",
 };
@@ -545,8 +545,8 @@ static struct v4l2_ctrl_config xtpg_ctrls[] = {
 		.def	= 0,
 	}, {
 		.ops	= &xtpg_ctrl_ops,
-		.id	= V4L2_CID_XILINX_TPG_NOISE,
-		.name	= "Test Pattern: Noise",
+		.id	= V4L2_CID_XILINX_TPG_ANALISE,
+		.name	= "Test Pattern: Analise",
 		.type	= V4L2_CTRL_TYPE_BOOLEAN,
 		.min	= false,
 		.max	= true,
@@ -662,8 +662,8 @@ static struct v4l2_ctrl_config xtpg_ctrls[] = {
 		.flags	= V4L2_CTRL_FLAG_SLIDER,
 	}, {
 		.ops	= &xtpg_ctrl_ops,
-		.id	= V4L2_CID_XILINX_TPG_NOISE_GAIN,
-		.name	= "Test Pattern: Noise Gain",
+		.id	= V4L2_CID_XILINX_TPG_ANALISE_GAIN,
+		.name	= "Test Pattern: Analise Gain",
 		.type	= V4L2_CTRL_TYPE_INTEGER,
 		.min	= 0,
 		.max	= (1 << 8) - 1,
@@ -710,27 +710,27 @@ static int __maybe_unused xtpg_pm_resume(struct device *dev)
 static int xtpg_parse_of(struct xtpg_device *xtpg)
 {
 	struct device *dev = xtpg->xvip.dev;
-	struct device_node *node = xtpg->xvip.dev->of_node;
-	struct device_node *ports;
-	struct device_node *port;
+	struct device_analde *analde = xtpg->xvip.dev->of_analde;
+	struct device_analde *ports;
+	struct device_analde *port;
 	unsigned int nports = 0;
 	bool has_endpoint = false;
 
-	ports = of_get_child_by_name(node, "ports");
+	ports = of_get_child_by_name(analde, "ports");
 	if (ports == NULL)
-		ports = node;
+		ports = analde;
 
-	for_each_child_of_node(ports, port) {
+	for_each_child_of_analde(ports, port) {
 		const struct xvip_video_format *format;
-		struct device_node *endpoint;
+		struct device_analde *endpoint;
 
-		if (!of_node_name_eq(port, "port"))
+		if (!of_analde_name_eq(port, "port"))
 			continue;
 
 		format = xvip_of_get_format(port);
 		if (IS_ERR(format)) {
 			dev_err(dev, "invalid format in DT");
-			of_node_put(port);
+			of_analde_put(port);
 			return PTR_ERR(format);
 		}
 
@@ -739,7 +739,7 @@ static int xtpg_parse_of(struct xtpg_device *xtpg)
 			xtpg->vip_format = format;
 		} else if (xtpg->vip_format != format) {
 			dev_err(dev, "in/out format mismatch in DT");
-			of_node_put(port);
+			of_analde_put(port);
 			return -EINVAL;
 		}
 
@@ -747,7 +747,7 @@ static int xtpg_parse_of(struct xtpg_device *xtpg)
 			endpoint = of_get_next_child(port, NULL);
 			if (endpoint)
 				has_endpoint = true;
-			of_node_put(endpoint);
+			of_analde_put(endpoint);
 		}
 
 		/* Count the number of ports. */
@@ -775,7 +775,7 @@ static int xtpg_probe(struct platform_device *pdev)
 
 	xtpg = devm_kzalloc(&pdev->dev, sizeof(*xtpg), GFP_KERNEL);
 	if (!xtpg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xtpg->xvip.dev = &pdev->dev;
 
@@ -794,7 +794,7 @@ static int xtpg_probe(struct platform_device *pdev)
 		goto error_resource;
 	}
 
-	xtpg->vtc = xvtc_of_get(pdev->dev.of_node);
+	xtpg->vtc = xvtc_of_get(pdev->dev.of_analde);
 	if (IS_ERR(xtpg->vtc)) {
 		ret = PTR_ERR(xtpg->vtc);
 		goto error_resource;
@@ -815,7 +815,7 @@ static int xtpg_probe(struct platform_device *pdev)
 
 	/* Initialize the default format */
 	xtpg->default_format.code = xtpg->vip_format->code;
-	xtpg->default_format.field = V4L2_FIELD_NONE;
+	xtpg->default_format.field = V4L2_FIELD_ANALNE;
 	xtpg->default_format.colorspace = V4L2_COLORSPACE_SRGB;
 	xvip_get_frame_size(&xtpg->xvip, &xtpg->default_format);
 
@@ -834,7 +834,7 @@ static int xtpg_probe(struct platform_device *pdev)
 	subdev->internal_ops = &xtpg_internal_ops;
 	strscpy(subdev->name, dev_name(&pdev->dev), sizeof(subdev->name));
 	v4l2_set_subdevdata(subdev, xtpg);
-	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	subdev->entity.ops = &xtpg_media_ops;
 
 	ret = media_entity_pads_init(&subdev->entity, xtpg->npads, xtpg->pads);

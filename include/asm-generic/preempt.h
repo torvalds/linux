@@ -62,8 +62,8 @@ static __always_inline void __preempt_count_sub(int val)
 static __always_inline bool __preempt_count_dec_and_test(void)
 {
 	/*
-	 * Because of load-store architectures cannot do per-cpu atomic
-	 * operations; we cannot use PREEMPT_NEED_RESCHED because it might get
+	 * Because of load-store architectures cananalt do per-cpu atomic
+	 * operations; we cananalt use PREEMPT_NEED_RESCHED because it might get
 	 * lost.
 	 */
 	return !--*preempt_count_ptr() && tif_need_resched();
@@ -80,19 +80,19 @@ static __always_inline bool should_resched(int preempt_offset)
 
 #ifdef CONFIG_PREEMPTION
 extern asmlinkage void preempt_schedule(void);
-extern asmlinkage void preempt_schedule_notrace(void);
+extern asmlinkage void preempt_schedule_analtrace(void);
 
 #if defined(CONFIG_PREEMPT_DYNAMIC) && defined(CONFIG_HAVE_PREEMPT_DYNAMIC_KEY)
 
 void dynamic_preempt_schedule(void);
-void dynamic_preempt_schedule_notrace(void);
+void dynamic_preempt_schedule_analtrace(void);
 #define __preempt_schedule()		dynamic_preempt_schedule()
-#define __preempt_schedule_notrace()	dynamic_preempt_schedule_notrace()
+#define __preempt_schedule_analtrace()	dynamic_preempt_schedule_analtrace()
 
 #else /* !CONFIG_PREEMPT_DYNAMIC || !CONFIG_HAVE_PREEMPT_DYNAMIC_KEY*/
 
 #define __preempt_schedule() preempt_schedule()
-#define __preempt_schedule_notrace() preempt_schedule_notrace()
+#define __preempt_schedule_analtrace() preempt_schedule_analtrace()
 
 #endif /* CONFIG_PREEMPT_DYNAMIC && CONFIG_HAVE_PREEMPT_DYNAMIC_KEY*/
 #endif /* CONFIG_PREEMPTION */

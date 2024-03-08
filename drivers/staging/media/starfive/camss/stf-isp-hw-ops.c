@@ -4,7 +4,7 @@
  *
  * Register interface file for StarFive ISP driver
  *
- * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Techanallogy Co., Ltd.
  *
  */
 

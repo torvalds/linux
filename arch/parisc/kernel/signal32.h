@@ -22,7 +22,7 @@ struct compat_ucontext {
 /* ELF32 signal handling */
 
 /* In a deft move of uber-hackery, we decide to carry the top half of all
- * 64-bit registers in a non-portable, non-ABI, hidden structure.
+ * 64-bit registers in a analn-portable, analn-ABI, hidden structure.
  * Userspace can read the hidden structure if it *wants* but is never
  * guaranteed to be in the same place. In fact the uc_sigmask from the
  * ucontext_t structure may push the hidden register file downards

@@ -9,7 +9,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define UFS_MAX_GROUP_LOADED 8
-#define UFS_CGNO_EMPTY ((unsigned)-1)
+#define UFS_CGANAL_EMPTY ((unsigned)-1)
 
 struct ufs_sb_private_info;
 struct ufs_cg_private_info;
@@ -22,17 +22,17 @@ struct ufs_sb_info {
 	unsigned s_flags;
 	struct buffer_head ** s_ucg;
 	struct ufs_cg_private_info * s_ucpi[UFS_MAX_GROUP_LOADED];
-	unsigned s_cgno[UFS_MAX_GROUP_LOADED];
+	unsigned s_cganal[UFS_MAX_GROUP_LOADED];
 	unsigned short s_cg_loaded;
 	unsigned s_mount_opt;
 	struct super_block *sb;
-	int work_queued; /* non-zero if the delayed work is queued */
+	int work_queued; /* analn-zero if the delayed work is queued */
 	struct delayed_work sync_work; /* FS sync delayed work */
 	spinlock_t work_lock; /* protects sync_work and work_queued */
 	struct mutex s_lock;
 };
 
-struct ufs_inode_info {
+struct ufs_ianalde_info {
 	union {
 		__fs32	i_data[15];
 		__u8	i_symlink[2 * 4 * 15];
@@ -48,7 +48,7 @@ struct ufs_inode_info {
 	seqlock_t meta_lock;
 	struct mutex	truncate_mutex;
 	__u32   i_dir_start_lookup;
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 };
 
 /* mount options */
@@ -68,7 +68,7 @@ struct ufs_inode_info {
 #define UFS_MOUNT_UFSTYPE_SUNx86	0x00000400
 #define UFS_MOUNT_UFSTYPE_HP	        0x00000800
 #define UFS_MOUNT_UFSTYPE_UFS2		0x00001000
-#define UFS_MOUNT_UFSTYPE_SUNOS		0x00002000
+#define UFS_MOUNT_UFSTYPE_SUANALS		0x00002000
 
 #define ufs_clear_opt(o,opt)	o &= ~UFS_MOUNT_##opt
 #define ufs_set_opt(o,opt)	o |= UFS_MOUNT_##opt
@@ -88,9 +88,9 @@ struct ufs_inode_info {
 #endif
 
 /* balloc.c */
-extern void ufs_free_fragments (struct inode *, u64, unsigned);
-extern void ufs_free_blocks (struct inode *, u64, unsigned);
-extern u64 ufs_new_fragments(struct inode *, void *, u64, u64,
+extern void ufs_free_fragments (struct ianalde *, u64, unsigned);
+extern void ufs_free_blocks (struct ianalde *, u64, unsigned);
+extern u64 ufs_new_fragments(struct ianalde *, void *, u64, u64,
 			     unsigned, int *, struct page *);
 
 /* cylinder.c */
@@ -98,31 +98,31 @@ extern struct ufs_cg_private_info * ufs_load_cylinder (struct super_block *, uns
 extern void ufs_put_cylinder (struct super_block *, unsigned);
 
 /* dir.c */
-extern const struct inode_operations ufs_dir_inode_operations;
-extern int ufs_add_link (struct dentry *, struct inode *);
-extern ino_t ufs_inode_by_name(struct inode *, const struct qstr *);
-extern int ufs_make_empty(struct inode *, struct inode *);
-extern struct ufs_dir_entry *ufs_find_entry(struct inode *, const struct qstr *, struct page **);
-extern int ufs_delete_entry(struct inode *, struct ufs_dir_entry *, struct page *);
-extern int ufs_empty_dir (struct inode *);
-extern struct ufs_dir_entry *ufs_dotdot(struct inode *, struct page **);
-extern void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
-			 struct page *page, struct inode *inode, bool update_times);
+extern const struct ianalde_operations ufs_dir_ianalde_operations;
+extern int ufs_add_link (struct dentry *, struct ianalde *);
+extern ianal_t ufs_ianalde_by_name(struct ianalde *, const struct qstr *);
+extern int ufs_make_empty(struct ianalde *, struct ianalde *);
+extern struct ufs_dir_entry *ufs_find_entry(struct ianalde *, const struct qstr *, struct page **);
+extern int ufs_delete_entry(struct ianalde *, struct ufs_dir_entry *, struct page *);
+extern int ufs_empty_dir (struct ianalde *);
+extern struct ufs_dir_entry *ufs_dotdot(struct ianalde *, struct page **);
+extern void ufs_set_link(struct ianalde *dir, struct ufs_dir_entry *de,
+			 struct page *page, struct ianalde *ianalde, bool update_times);
 
 /* file.c */
-extern const struct inode_operations ufs_file_inode_operations;
+extern const struct ianalde_operations ufs_file_ianalde_operations;
 extern const struct file_operations ufs_file_operations;
 extern const struct address_space_operations ufs_aops;
 
 /* ialloc.c */
-extern void ufs_free_inode (struct inode *inode);
-extern struct inode * ufs_new_inode (struct inode *, umode_t);
+extern void ufs_free_ianalde (struct ianalde *ianalde);
+extern struct ianalde * ufs_new_ianalde (struct ianalde *, umode_t);
 
-/* inode.c */
-extern struct inode *ufs_iget(struct super_block *, unsigned long);
-extern int ufs_write_inode (struct inode *, struct writeback_control *);
-extern int ufs_sync_inode (struct inode *);
-extern void ufs_evict_inode (struct inode *);
+/* ianalde.c */
+extern struct ianalde *ufs_iget(struct super_block *, unsigned long);
+extern int ufs_write_ianalde (struct ianalde *, struct writeback_control *);
+extern int ufs_sync_ianalde (struct ianalde *);
+extern void ufs_evict_ianalde (struct ianalde *);
 extern int ufs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *attr);
 
@@ -143,9 +143,9 @@ static inline struct ufs_sb_info *UFS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-static inline struct ufs_inode_info *UFS_I(struct inode *inode)
+static inline struct ufs_ianalde_info *UFS_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct ufs_inode_info, vfs_inode);
+	return container_of(ianalde, struct ufs_ianalde_info, vfs_ianalde);
 }
 
 /*

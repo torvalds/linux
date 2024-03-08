@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Copyright (c) 2002 Petko Manolov (petkan@users.sourceforge.net)
+ *  Copyright (c) 2002 Petko Maanallov (petkan@users.sourceforge.net)
  */
 
 #include <linux/signal.h>
@@ -15,7 +15,7 @@
 
 /* Version Information */
 #define DRIVER_VERSION "v0.6.2 (2004/08/27)"
-#define DRIVER_AUTHOR "Petko Manolov <petkan@users.sourceforge.net>"
+#define DRIVER_AUTHOR "Petko Maanallov <petkan@users.sourceforge.net>"
 #define DRIVER_DESC "rtl8150 based usb-ethernet driver"
 
 #define	IDR			0x0120
@@ -154,14 +154,14 @@ static int get_registers(rtl8150_t * dev, u16 indx, u16 size, void *data)
 {
 	return usb_control_msg_recv(dev->udev, 0, RTL8150_REQ_GET_REGS,
 				    RTL8150_REQT_READ, indx, 0, data, size,
-				    1000, GFP_NOIO);
+				    1000, GFP_ANALIO);
 }
 
 static int set_registers(rtl8150_t * dev, u16 indx, u16 size, const void *data)
 {
 	return usb_control_msg_send(dev->udev, 0, RTL8150_REQ_SET_REGS,
 				    RTL8150_REQT_WRITE, indx, 0, data, size,
-				    1000, GFP_NOIO);
+				    1000, GFP_ANALIO);
 }
 
 static void async_set_reg_cb(struct urb *urb)
@@ -177,7 +177,7 @@ static void async_set_reg_cb(struct urb *urb)
 
 static int async_set_registers(rtl8150_t *dev, u16 indx, u16 size, u16 reg)
 {
-	int res = -ENOMEM;
+	int res = -EANALMEM;
 	struct urb *async_urb;
 	struct async_req *req;
 
@@ -200,7 +200,7 @@ static int async_set_registers(rtl8150_t *dev, u16 indx, u16 size, u16 reg)
 			     &req->rx_creg, size, async_set_reg_cb, req);
 	res = usb_submit_urb(async_urb, GFP_ATOMIC);
 	if (res) {
-		if (res == -ENODEV)
+		if (res == -EANALDEV)
 			netif_device_detach(dev->netdev);
 		dev_err(&dev->udev->dev, "%s failed with %d\n", __func__, res);
 	}
@@ -256,16 +256,16 @@ static int write_mii_word(rtl8150_t * dev, u8 phy, __u8 indx, u16 reg)
 
 static void set_ethernet_addr(rtl8150_t *dev)
 {
-	u8 node_id[ETH_ALEN];
+	u8 analde_id[ETH_ALEN];
 	int ret;
 
-	ret = get_registers(dev, IDR, sizeof(node_id), node_id);
+	ret = get_registers(dev, IDR, sizeof(analde_id), analde_id);
 
 	if (!ret) {
-		eth_hw_addr_set(dev->netdev, node_id);
+		eth_hw_addr_set(dev->netdev, analde_id);
 	} else {
 		eth_hw_addr_random(dev->netdev);
-		netdev_notice(dev->netdev, "Assigned a random MAC address: %pM\n",
+		netdev_analtice(dev->netdev, "Assigned a random MAC address: %pM\n",
 			      dev->netdev->dev_addr);
 	}
 }
@@ -389,7 +389,7 @@ static void read_bulk_callback(struct urb *urb)
 	switch (status) {
 	case 0:
 		break;
-	case -ENOENT:
+	case -EANALENT:
 		return;	/* the urb is in unlink state */
 	case -ETIME:
 		if (printk_ratelimit())
@@ -427,7 +427,7 @@ goon:
 	usb_fill_bulk_urb(dev->rx_urb, dev->udev, usb_rcvbulkpipe(dev->udev, 1),
 		      dev->rx_skb->data, RTL8150_MTU, read_bulk_callback, dev);
 	result = usb_submit_urb(dev->rx_urb, GFP_ATOMIC);
-	if (result == -ENODEV)
+	if (result == -EANALDEV)
 		netif_device_detach(dev->netdev);
 	else if (result) {
 		set_bit(RX_URB_FAIL, &dev->flags);
@@ -473,7 +473,7 @@ static void intr_callback(struct urb *urb)
 	case 0:			/* success */
 		break;
 	case -ECONNRESET:	/* unlink */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	/* -EPIPE:  should clear the halt */
@@ -508,7 +508,7 @@ static void intr_callback(struct urb *urb)
 
 resubmit:
 	res = usb_submit_urb (urb, GFP_ATOMIC);
-	if (res == -ENODEV)
+	if (res == -EANALDEV)
 		netif_device_detach(dev->netdev);
 	else if (res)
 		dev_err(&dev->udev->dev,
@@ -599,7 +599,7 @@ static void rx_fixup(struct tasklet_struct *t)
 		      dev->rx_skb->data, RTL8150_MTU, read_bulk_callback, dev);
 try_again:
 	status = usb_submit_urb(dev->rx_urb, GFP_ATOMIC);
-	if (status == -ENODEV) {
+	if (status == -EANALDEV) {
 		netif_device_detach(dev->netdev);
 	} else if (status) {
 		set_bit(RX_URB_FAIL, &dev->flags);
@@ -687,7 +687,7 @@ static netdev_tx_t rtl8150_start_xmit(struct sk_buff *skb,
 		      skb->data, count, write_bulk_callback, dev);
 	if ((res = usb_submit_urb(dev->tx_urb, GFP_ATOMIC))) {
 		/* Can we get/handle EPIPE here? */
-		if (res == -ENODEV)
+		if (res == -EANALDEV)
 			netif_device_detach(dev->netdev);
 		else {
 			dev_warn(&netdev->dev, "failed tx_urb %d\n", res);
@@ -724,14 +724,14 @@ static int rtl8150_open(struct net_device *netdev)
 	if (dev->rx_skb == NULL)
 		dev->rx_skb = pull_skb(dev);
 	if (!dev->rx_skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_registers(dev, IDR, 6, netdev->dev_addr);
 
 	usb_fill_bulk_urb(dev->rx_urb, dev->udev, usb_rcvbulkpipe(dev->udev, 1),
 		      dev->rx_skb->data, RTL8150_MTU, read_bulk_callback, dev);
 	if ((res = usb_submit_urb(dev->rx_urb, GFP_KERNEL))) {
-		if (res == -ENODEV)
+		if (res == -EANALDEV)
 			netif_device_detach(dev->netdev);
 		dev_warn(&netdev->dev, "rx_urb submit failed: %d\n", res);
 		return res;
@@ -740,7 +740,7 @@ static int rtl8150_open(struct net_device *netdev)
 		     dev->intr_buff, INTBUFSIZE, intr_callback,
 		     dev, dev->intr_interval);
 	if ((res = usb_submit_urb(dev->intr_urb, GFP_KERNEL))) {
-		if (res == -ENODEV)
+		if (res == -EANALDEV)
 			netif_device_detach(dev->netdev);
 		dev_warn(&netdev->dev, "intr_urb submit failed: %d\n", res);
 		usb_kill_urb(dev->rx_urb);
@@ -842,7 +842,7 @@ static int rtl8150_siocdevprivate(struct net_device *netdev, struct ifreq *rq,
 		write_mii_word(dev, dev->phy, (data[1] & 0x1f), data[2]);
 		break;
 	default:
-		res = -EOPNOTSUPP;
+		res = -EOPANALTSUPP;
 	}
 
 	return res;
@@ -869,14 +869,14 @@ static int rtl8150_probe(struct usb_interface *intf,
 
 	netdev = alloc_etherdev(sizeof(rtl8150_t));
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev = netdev_priv(netdev);
 
 	dev->intr_buff = kmalloc(INTBUFSIZE, GFP_KERNEL);
 	if (!dev->intr_buff) {
 		free_netdev(netdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tasklet_setup(&dev->tl, rx_fixup);

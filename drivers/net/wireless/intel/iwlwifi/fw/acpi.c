@@ -86,15 +86,15 @@ static int iwl_acpi_get_handle(struct device *dev, acpi_string method,
 	root_handle = ACPI_HANDLE(dev);
 	if (!root_handle) {
 		IWL_DEBUG_DEV_RADIO(dev,
-				    "ACPI: Could not retrieve root port handle\n");
-		return -ENOENT;
+				    "ACPI: Could analt retrieve root port handle\n");
+		return -EANALENT;
 	}
 
 	status = acpi_get_handle(root_handle, method, ret_handle);
 	if (ACPI_FAILURE(status)) {
 		IWL_DEBUG_DEV_RADIO(dev,
-				    "ACPI: %s method not found\n", method);
-		return -ENOENT;
+				    "ACPI: %s method analt found\n", method);
+		return -EANALENT;
 	}
 	return 0;
 }
@@ -108,15 +108,15 @@ static void *iwl_acpi_get_object(struct device *dev, acpi_string method)
 
 	ret = iwl_acpi_get_handle(dev, method, &handle);
 	if (ret)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
-	/* Call the method with no arguments */
+	/* Call the method with anal arguments */
 	status = acpi_evaluate_object(handle, NULL, NULL, &buf);
 	if (ACPI_FAILURE(status)) {
 		IWL_DEBUG_DEV_RADIO(dev,
 				    "ACPI: %s method invocation failed (status: 0x%x)\n",
 				    method, status);
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 	return buf.pointer;
 }
@@ -138,17 +138,17 @@ static void *iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
 		IWL_DEBUG_DEV_RADIO(dev,
 				    "ACPI: DSM method invocation failed (rev: %d, func:%d)\n",
 				    rev, func);
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 	return obj;
 }
 
 /*
- * Generic function to evaluate a DSM with no arguments
+ * Generic function to evaluate a DSM with anal arguments
  * and an integer return value,
  * (as an integer object or inside a buffer object),
  * verify and assign the value in the "value" parameter.
- * return 0 in success and the appropriate errno otherwise.
+ * return 0 in success and the appropriate erranal otherwise.
  */
 static int iwl_acpi_get_dsm_integer(struct device *dev, int rev, int func,
 				    const guid_t *guid, u64 *value,
@@ -162,7 +162,7 @@ static int iwl_acpi_get_dsm_integer(struct device *dev, int rev, int func,
 		IWL_DEBUG_DEV_RADIO(dev,
 				    "Failed to get  DSM object. func= %d\n",
 				    func);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (obj->type == ACPI_TYPE_INTEGER) {
@@ -185,7 +185,7 @@ static int iwl_acpi_get_dsm_integer(struct device *dev, int rev, int func,
 		*value = le64_to_cpu(le_value);
 	} else {
 		IWL_DEBUG_DEV_RADIO(dev,
-				    "ACPI: DSM method did not return a valid object, type=%d\n",
+				    "ACPI: DSM method did analt return a valid object, type=%d\n",
 				    obj->type);
 		ret = -EINVAL;
 		goto out;
@@ -200,7 +200,7 @@ out:
 }
 
 /*
- * Evaluate a DSM with no arguments and a u8 return value,
+ * Evaluate a DSM with anal arguments and a u8 return value,
  */
 int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
 			const guid_t *guid, u8 *value)
@@ -221,7 +221,7 @@ int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
 IWL_EXPORT_SYMBOL(iwl_acpi_get_dsm_u8);
 
 /*
- * Evaluate a DSM with no arguments and a u32 return value,
+ * Evaluate a DSM with anal arguments and a u32 return value,
  */
 int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
 			 const guid_t *guid, u32 *value)
@@ -254,7 +254,7 @@ iwl_acpi_get_wifi_pkg_range(struct device *dev,
 	/*
 	 * We need at least one entry in the wifi package that
 	 * describes the domain, and one more entry, otherwise there's
-	 * no point in reading it.
+	 * anal point in reading it.
 	 */
 	if (WARN_ON_ONCE(min_data_size < 2 || min_data_size > max_data_size))
 		return ERR_PTR(-EINVAL);
@@ -280,7 +280,7 @@ iwl_acpi_get_wifi_pkg_range(struct device *dev,
 
 		wifi_pkg = &data->package.elements[i];
 
-		/* skip entries that are not a package with the right size */
+		/* skip entries that are analt a package with the right size */
 		if (wifi_pkg->type != ACPI_TYPE_PACKAGE ||
 		    wifi_pkg->package.count < min_data_size ||
 		    wifi_pkg->package.count > max_data_size)
@@ -292,7 +292,7 @@ iwl_acpi_get_wifi_pkg_range(struct device *dev,
 			goto found;
 	}
 
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 
 found:
 	return wifi_pkg;
@@ -357,7 +357,7 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 	}
 
 	if (!enabled) {
-		IWL_DEBUG_RADIO(fwrt, "TAS not enabled\n");
+		IWL_DEBUG_RADIO(fwrt, "TAS analt enabled\n");
 		ret = 0;
 		goto out_free;
 	}
@@ -556,13 +556,13 @@ static int iwl_sar_fill_table(struct iwl_fw_runtime *fwrt,
 		/* profiles go from 1 to 4, so decrement to access the array */
 		prof = &fwrt->sar_profiles[profs[i] - 1];
 
-		/* if the profile is disabled, do nothing */
+		/* if the profile is disabled, do analthing */
 		if (!prof->enabled) {
 			IWL_DEBUG_RADIO(fwrt, "SAR profile %d is disabled.\n",
 					profs[i]);
 			/*
 			 * if one of the profiles is disabled, we
-			 * ignore all of them and return 1 to
+			 * iganalre all of them and return 1 to
 			 * differentiate disabled from other failures.
 			 */
 			return 1;
@@ -891,7 +891,7 @@ int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 	if (idx < ARRAY_SIZE(rev_data))
 		ret = PTR_ERR(wifi_pkg);
 	else
-		ret = -ENOENT;
+		ret = -EANALENT;
 	goto out_free;
 
 read_table:
@@ -954,13 +954,13 @@ IWL_EXPORT_SYMBOL(iwl_sar_get_wgds_table);
 bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 {
 	/*
-	 * The PER_CHAIN_LIMIT_OFFSET_CMD command is not supported on
+	 * The PER_CHAIN_LIMIT_OFFSET_CMD command is analt supported on
 	 * earlier firmware versions.  Unfortunately, we don't have a
 	 * TLV API flag to rely on, so rely on the major version which
 	 * is in the first byte of ucode_ver.  This was implemented
 	 * initially on version 38 and then backported to 17.  It was
 	 * also backported to 29, but only for 7265D devices.  The
-	 * intention was to have it in 36 as well, but not all 8000
+	 * intention was to have it in 36 as well, but analt all 8000
 	 * family got this feature enabled.  The 8000 family is the
 	 * only one using version 36, so skip this version entirely.
 	 */
@@ -980,10 +980,10 @@ int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 	int i, j;
 
 	if (!fwrt->geo_enabled)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (!iwl_sar_geo_support(fwrt))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for (i = 0; i < n_profiles; i++) {
 		for (j = 0; j < n_bands; j++) {
@@ -1059,7 +1059,7 @@ __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 					   DSM_FUNC_REGULATORY_CONFIG,
 					   &iwl_guid, &val);
 		/*
-		 * China 2022 enable if the BIOS object does not exist or
+		 * China 2022 enable if the BIOS object does analt exist or
 		 * if it is enabled in BIOS.
 		 */
 		if (ret < 0 || val & DSM_MASK_CHINA_22_REG)
@@ -1132,8 +1132,8 @@ read_table:
 	cmd_ver = iwl_fw_lookup_cmd_ver(fwrt->fw,
 					WIDE_ID(PHY_OPS_GROUP,
 						PER_PLATFORM_ANT_GAIN_CMD),
-					IWL_FW_CMD_VER_UNKNOWN);
-	if (cmd_ver == IWL_FW_CMD_VER_UNKNOWN) {
+					IWL_FW_CMD_VER_UNKANALWN);
+	if (cmd_ver == IWL_FW_CMD_VER_UNKANALWN) {
 		ret = -EINVAL;
 		goto out_free;
 	}
@@ -1192,20 +1192,20 @@ int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt, union iwl_ppag_table_cmd *c
 	/* many firmware images for JF lie about this */
 	if (CSR_HW_RFID_TYPE(fwrt->trans->hw_rf_id) ==
 	    CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_JF))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
         if (!fw_has_capa(&fwrt->fw->ucode_capa, IWL_UCODE_TLV_CAPA_SET_PPAG)) {
                 IWL_DEBUG_RADIO(fwrt,
-                                "PPAG capability not supported by FW, command not sent.\n");
+                                "PPAG capability analt supported by FW, command analt sent.\n");
                 return -EINVAL;
 	}
 
 	cmd_ver = iwl_fw_lookup_cmd_ver(fwrt->fw,
 					WIDE_ID(PHY_OPS_GROUP,
 						PER_PLATFORM_ANT_GAIN_CMD),
-					IWL_FW_CMD_VER_UNKNOWN);
+					IWL_FW_CMD_VER_UNKANALWN);
 	if (!fwrt->ppag_table_valid || (cmd_ver <= 3 && !fwrt->ppag_flags)) {
-		IWL_DEBUG_RADIO(fwrt, "PPAG not enabled, command not sent.\n");
+		IWL_DEBUG_RADIO(fwrt, "PPAG analt enabled, command analt sent.\n");
 		return -EINVAL;
 	}
 
@@ -1275,7 +1275,7 @@ bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt)
 
 	if (!dmi_check_system(dmi_ppag_approved_list)) {
 		IWL_DEBUG_RADIO(fwrt,
-			"System vendor '%s' is not in the approved list, disabling PPAG.\n",
+			"System vendor '%s' is analt in the approved list, disabling PPAG.\n",
 			dmi_get_system_info(DMI_SYS_VENDOR));
 			fwrt->ppag_flags = 0;
 			return false;

@@ -2,7 +2,7 @@
 /*
  * mux/driver.h - definitions for the multiplexer driver interface
  *
- * Copyright (C) 2017 Axentia Technologies AB
+ * Copyright (C) 2017 Axentia Techanallogies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
  */
@@ -30,7 +30,7 @@ struct mux_control_ops {
  * struct mux_control -	Represents a mux controller.
  * @lock:		Protects the mux controller state.
  * @chip:		The mux chip that is handling this mux controller.
- * @cached_state:	The current mux controller state, or -1 if none.
+ * @cached_state:	The current mux controller state, or -1 if analne.
  * @states:		The number of mux controller states.
  * @idle_state:		The mux controller state to use when inactive, or one
  *			of MUX_IDLE_AS_IS and MUX_IDLE_DISCONNECT.

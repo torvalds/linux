@@ -10,7 +10,7 @@
 
 struct mbt_grp_ctx {
 	struct buffer_head bitmap_bh;
-	/* desc and gd_bh are just the place holders for now */
+	/* desc and gd_bh are just the place holders for analw */
 	struct ext4_group_desc desc;
 	struct buffer_head gd_bh;
 };
@@ -93,7 +93,7 @@ static int mbt_grp_ctx_init(struct super_block *sb,
 {
 	grp_ctx->bitmap_bh.b_data = kzalloc(EXT4_BLOCK_SIZE(sb), GFP_KERNEL);
 	if (grp_ctx->bitmap_bh.b_data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -121,7 +121,7 @@ static int mbt_ctx_init(struct super_block *sb)
 	ctx->grp_ctx = kcalloc(ngroups, sizeof(struct mbt_grp_ctx),
 			       GFP_KERNEL);
 	if (ctx->grp_ctx == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ngroups; i++)
 		if (mbt_grp_ctx_init(sb, &ctx->grp_ctx[i]))
@@ -139,7 +139,7 @@ out:
 	while (i-- > 0)
 		mbt_grp_ctx_release(&ctx->grp_ctx[i]);
 	kfree(ctx->grp_ctx);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void mbt_ctx_release(struct super_block *sb)
@@ -153,12 +153,12 @@ static void mbt_ctx_release(struct super_block *sb)
 }
 
 static struct buffer_head *
-ext4_read_block_bitmap_nowait_stub(struct super_block *sb, ext4_group_t block_group,
-				   bool ignore_locked)
+ext4_read_block_bitmap_analwait_stub(struct super_block *sb, ext4_group_t block_group,
+				   bool iganalre_locked)
 {
 	struct mbt_grp_ctx *grp_ctx = MBT_GRP_CTX(sb, block_group);
 
-	/* paired with brelse from caller of ext4_read_block_bitmap_nowait */
+	/* paired with brelse from caller of ext4_read_block_bitmap_analwait */
 	get_bh(&grp_ctx->bitmap_bh);
 	return &grp_ctx->bitmap_bh;
 }
@@ -209,7 +209,7 @@ static int mbt_kunit_init(struct kunit *test)
 
 	sb = mbt_ext4_alloc_super_block();
 	if (sb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mbt_init_sb_layout(sb, layout);
 
@@ -221,8 +221,8 @@ static int mbt_kunit_init(struct kunit *test)
 
 	test->priv = sb;
 	kunit_activate_static_stub(test,
-				   ext4_read_block_bitmap_nowait,
-				   ext4_read_block_bitmap_nowait_stub);
+				   ext4_read_block_bitmap_analwait,
+				   ext4_read_block_bitmap_analwait_stub);
 	kunit_activate_static_stub(test,
 				   ext4_wait_block_bitmap,
 				   ext4_wait_block_bitmap_stub);
@@ -246,24 +246,24 @@ static void mbt_kunit_exit(struct kunit *test)
 static void test_new_blocks_simple(struct kunit *test)
 {
 	struct super_block *sb = (struct super_block *)test->priv;
-	struct inode inode = { .i_sb = sb, };
+	struct ianalde ianalde = { .i_sb = sb, };
 	struct ext4_allocation_request ar;
 	ext4_group_t i, goal_group = TEST_GOAL_GROUP;
 	int err = 0;
 	ext4_fsblk_t found;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
-	ar.inode = &inode;
+	ar.ianalde = &ianalde;
 
 	/* get block at goal */
-	ar.goal = ext4_group_first_block_no(sb, goal_group);
+	ar.goal = ext4_group_first_block_anal(sb, goal_group);
 	found = ext4_mb_new_blocks_simple(&ar, &err);
 	KUNIT_ASSERT_EQ_MSG(test, ar.goal, found,
 		"failed to alloc block at goal, expected %llu found %llu",
 		ar.goal, found);
 
 	/* get block after goal in goal group */
-	ar.goal = ext4_group_first_block_no(sb, goal_group);
+	ar.goal = ext4_group_first_block_anal(sb, goal_group);
 	found = ext4_mb_new_blocks_simple(&ar, &err);
 	KUNIT_ASSERT_EQ_MSG(test, ar.goal + EXT4_C2B(sbi, 1), found,
 		"failed to alloc block after goal in goal group, expected %llu found %llu",
@@ -271,30 +271,30 @@ static void test_new_blocks_simple(struct kunit *test)
 
 	/* get block after goal group */
 	mbt_ctx_mark_used(sb, goal_group, 0, EXT4_CLUSTERS_PER_GROUP(sb));
-	ar.goal = ext4_group_first_block_no(sb, goal_group);
+	ar.goal = ext4_group_first_block_anal(sb, goal_group);
 	found = ext4_mb_new_blocks_simple(&ar, &err);
 	KUNIT_ASSERT_EQ_MSG(test,
-		ext4_group_first_block_no(sb, goal_group + 1), found,
+		ext4_group_first_block_anal(sb, goal_group + 1), found,
 		"failed to alloc block after goal group, expected %llu found %llu",
-		ext4_group_first_block_no(sb, goal_group + 1), found);
+		ext4_group_first_block_anal(sb, goal_group + 1), found);
 
 	/* get block before goal group */
 	for (i = goal_group; i < ext4_get_groups_count(sb); i++)
 		mbt_ctx_mark_used(sb, i, 0, EXT4_CLUSTERS_PER_GROUP(sb));
-	ar.goal = ext4_group_first_block_no(sb, goal_group);
+	ar.goal = ext4_group_first_block_anal(sb, goal_group);
 	found = ext4_mb_new_blocks_simple(&ar, &err);
 	KUNIT_ASSERT_EQ_MSG(test,
-		ext4_group_first_block_no(sb, 0) + EXT4_C2B(sbi, 1), found,
+		ext4_group_first_block_anal(sb, 0) + EXT4_C2B(sbi, 1), found,
 		"failed to alloc block before goal group, expected %llu found %llu",
-		ext4_group_first_block_no(sb, 0 + EXT4_C2B(sbi, 1)), found);
+		ext4_group_first_block_anal(sb, 0 + EXT4_C2B(sbi, 1)), found);
 
-	/* no block available, fail to allocate block */
+	/* anal block available, fail to allocate block */
 	for (i = 0; i < ext4_get_groups_count(sb); i++)
 		mbt_ctx_mark_used(sb, i, 0, EXT4_CLUSTERS_PER_GROUP(sb));
-	ar.goal = ext4_group_first_block_no(sb, goal_group);
+	ar.goal = ext4_group_first_block_anal(sb, goal_group);
 	found = ext4_mb_new_blocks_simple(&ar, &err);
 	KUNIT_ASSERT_NE_MSG(test, err, 0,
-		"unexpectedly get block when no block is available");
+		"unexpectedly get block when anal block is available");
 }
 
 static const struct mbt_ext4_block_layout mbt_test_layouts[] = {

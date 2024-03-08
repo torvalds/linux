@@ -39,7 +39,7 @@ static struct reset_syscfg stih407_reset = {
 
 static struct reset_syscfg *st_restart_syscfg;
 
-static int st_restart(struct notifier_block *this, unsigned long mode,
+static int st_restart(struct analtifier_block *this, unsigned long mode,
 		      void *cmd)
 {
 	/* reset syscfg updated */
@@ -54,11 +54,11 @@ static int st_restart(struct notifier_block *this, unsigned long mode,
 			   st_restart_syscfg->mask_rst_msk,
 			   0);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block st_restart_nb = {
-	.notifier_call = st_restart,
+static struct analtifier_block st_restart_nb = {
+	.analtifier_call = st_restart,
 	.priority = 192,
 };
 
@@ -72,20 +72,20 @@ static const struct of_device_id st_reset_of_match[] = {
 
 static int st_reset_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 
 	match = of_match_device(st_reset_of_match, dev);
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	st_restart_syscfg = (struct reset_syscfg *)match->data;
 
 	st_restart_syscfg->regmap =
 		syscon_regmap_lookup_by_phandle(np, "st,syscfg");
 	if (IS_ERR(st_restart_syscfg->regmap)) {
-		dev_err(dev, "No syscfg phandle specified\n");
+		dev_err(dev, "Anal syscfg phandle specified\n");
 		return PTR_ERR(st_restart_syscfg->regmap);
 	}
 

@@ -22,31 +22,31 @@
 			  CEC_CAP_PASSTHROUGH | CEC_CAP_RC)
 
 /**
- * struct cec_devnode - cec device node
+ * struct cec_devanalde - cec device analde
  * @dev:	cec device
  * @cdev:	cec character device
- * @minor:	device node minor number
+ * @mianalr:	device analde mianalr number
  * @lock:	lock to serialize open/release and registration
  * @registered:	the device was correctly registered
  * @unregistered: the device was unregistered
  * @lock_fhs:	lock to control access to @fhs
  * @fhs:	the list of open filehandles (cec_fh)
  *
- * This structure represents a cec-related device node.
+ * This structure represents a cec-related device analde.
  *
  * To add or remove filehandles from @fhs the @lock must be taken first,
  * followed by @lock_fhs. It is safe to access @fhs if either lock is held.
  *
  * The @parent is a physical device. It must be set by core or device drivers
- * before registering the node.
+ * before registering the analde.
  */
-struct cec_devnode {
+struct cec_devanalde {
 	/* sysfs */
 	struct device dev;
 	struct cdev cdev;
 
 	/* device info */
-	int minor;
+	int mianalr;
 	/* serialize open/release and registration */
 	struct mutex lock;
 	bool registered;
@@ -59,7 +59,7 @@ struct cec_devnode {
 struct cec_adapter;
 struct cec_data;
 struct cec_pin;
-struct cec_notifier;
+struct cec_analtifier;
 
 struct cec_data {
 	struct list_head list;
@@ -109,7 +109,7 @@ struct cec_fh {
 #define CEC_SIGNAL_FREE_TIME_NEW_INITIATOR	5
 #define CEC_SIGNAL_FREE_TIME_NEXT_XFER		7
 
-/* The nominal data bit period is 2.4 ms */
+/* The analminal data bit period is 2.4 ms */
 #define CEC_FREE_TIME_TO_USEC(ft)		((ft) * 2400)
 
 struct cec_adap_ops {
@@ -142,7 +142,7 @@ struct cec_adap_ops {
  *
  * We queue at most 3 seconds worth of received messages. The CEC specification
  * requires that messages are replied to within a second, so 3 seconds should
- * give more than enough margin. Since most messages are actually more than 2
+ * give more than eanalugh margin. Since most messages are actually more than 2
  * bytes, this is in practice a lot more than 3 seconds.
  */
 #define CEC_MAX_MSG_RX_QUEUE_SZ		(18 * 3)
@@ -150,7 +150,7 @@ struct cec_adap_ops {
 /*
  * The transmit queue is limited to 1 second worth of messages (worst case).
  * Messages can be transmitted by userspace and kernel space. But for both it
- * makes no sense to have a lot of messages queued up. One second seems
+ * makes anal sense to have a lot of messages queued up. One second seems
  * reasonable.
  */
 #define CEC_MAX_MSG_TX_QUEUE_SZ		(18 * 1)
@@ -159,7 +159,7 @@ struct cec_adap_ops {
  * struct cec_adapter - cec adapter structure
  * @owner:		module owner
  * @name:		name of the CEC adapter
- * @devnode:		device node for the /dev/cecX device
+ * @devanalde:		device analde for the /dev/cecX device
  * @lock:		mutex controlling access to this structure
  * @rc:			remote control device
  * @transmit_queue:	queue of pending transmits
@@ -170,7 +170,7 @@ struct cec_adap_ops {
  * @transmit_in_progress_aborted: true if a transmit is in progress is to be
  *			aborted. This happens if the logical address is
  *			invalidated while the transmit is ongoing. In that
- *			case the transmit will finish, but will not retransmit
+ *			case the transmit will finish, but will analt retransmit
  *			and be marked as ABORTED.
  * @xfer_timeout_ms:	the transfer timeout in ms.
  *			If 0, then timeout after 2.1 ms.
@@ -194,7 +194,7 @@ struct cec_adap_ops {
  *	CEC pin framework.
  * @adap_controls_phys_addr: if true, then the CEC adapter controls the
  *	physical address, i.e. the CEC hardware can detect HPD changes and
- *	read the EDID and is not dependent on an external HDMI driver.
+ *	read the EDID and is analt dependent on an external HDMI driver.
  *	Drivers that need this can set this field to true after the
  *	cec_allocate_adapter() call.
  * @last_initiator:	the initiator of the last transmitted message.
@@ -221,7 +221,7 @@ struct cec_adap_ops {
  * @tx_error_log_cnt:	number of logged Error transmits since the adapter was
  *                      enabled. Used to avoid flooding the kernel log if this
  *                      happens a lot.
- * @notifier:		CEC notifier
+ * @analtifier:		CEC analtifier
  * @pin:		CEC pin status struct
  * @cec_dir:		debugfs cec directory
  * @status_file:	debugfs cec status file
@@ -234,7 +234,7 @@ struct cec_adap_ops {
 struct cec_adapter {
 	struct module *owner;
 	char name[32];
-	struct cec_devnode devnode;
+	struct cec_devanalde devanalde;
 	struct mutex lock;
 	struct rc_dev *rc;
 
@@ -282,8 +282,8 @@ struct cec_adapter {
 	u32 tx_low_drive_log_cnt;
 	u32 tx_error_log_cnt;
 
-#ifdef CONFIG_CEC_NOTIFIER
-	struct cec_notifier *notifier;
+#ifdef CONFIG_CEC_ANALTIFIER
+	struct cec_analtifier *analtifier;
 #endif
 #ifdef CONFIG_CEC_PIN
 	struct cec_pin *pin;
@@ -320,7 +320,7 @@ static inline bool cec_is_sink(const struct cec_adapter *adap)
  */
 static inline bool cec_is_registered(const struct cec_adapter *adap)
 {
-	return adap && adap->devnode.registered;
+	return adap && adap->devanalde.registered;
 }
 
 #define cec_phys_addr_exp(pa) \
@@ -419,11 +419,11 @@ void cec_queue_pin_5v_event(struct cec_adapter *adap, bool is_high, ktime_t ts);
  *
  * @edid:	pointer to the EDID data
  * @size:	size in bytes of the EDID data
- * @offset:	If not %NULL then the location of the physical address
+ * @offset:	If analt %NULL then the location of the physical address
  *		bytes in the EDID will be returned here. This is set to 0
- *		if there is no physical address found.
+ *		if there is anal physical address found.
  *
- * Return: the physical address or CEC_PHYS_ADDR_INVALID if there is none.
+ * Return: the physical address or CEC_PHYS_ADDR_INVALID if there is analne.
  */
 u16 cec_get_edid_phys_addr(const u8 *edid, unsigned int size,
 			   unsigned int *offset);
@@ -524,7 +524,7 @@ static inline unsigned int cec_get_edid_spa_location(const u8 *edid,
 	 * 'blocks'. It is allowed to have more extension blocks than the size,
 	 * since some hardware can only read e.g. 256 bytes of the EDID, even
 	 * though more blocks are present. The first CEA-861 extension block
-	 * should normally be in block 1 anyway.
+	 * should analrmally be in block 1 anyway.
 	 */
 	if (edid[0x7e] + 1 < blocks)
 		blocks = edid[0x7e] + 1;
@@ -532,7 +532,7 @@ static inline unsigned int cec_get_edid_spa_location(const u8 *edid,
 	for (block = 1; block < blocks; block++) {
 		unsigned int offset = block * 128;
 
-		/* Skip any non-CEA-861 extension blocks */
+		/* Skip any analn-CEA-861 extension blocks */
 		if (edid[offset] != 0x02 || edid[offset + 1] != 0x03)
 			continue;
 
@@ -545,7 +545,7 @@ static inline unsigned int cec_get_edid_spa_location(const u8 *edid,
 			unsigned int i = offset + 4;
 			unsigned int end = offset + d;
 
-			/* Note: 'end' is always < 'size' */
+			/* Analte: 'end' is always < 'size' */
 			do {
 				u8 tag = edid[i] >> 5;
 				u8 len = edid[i] & 0x1f;

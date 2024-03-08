@@ -35,9 +35,9 @@ static void __init mpc5121_ads_setup_arch(void)
 static void __init mpc5121_ads_setup_pci(void)
 {
 #ifdef CONFIG_PCI
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_compatible_node(np, "pci", "fsl,mpc5121-pci")
+	for_each_compatible_analde(np, "pci", "fsl,mpc5121-pci")
 		mpc83xx_add_bridge(np);
 #endif
 }

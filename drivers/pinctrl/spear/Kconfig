@@ -51,7 +51,7 @@ config PINCTRL_SPEAR_PLGPIO
 	depends on GPIOLIB && PINCTRL_SPEAR
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support PLGPIO controller on ST Microelectronics SPEAr
+	  Say anal here to support PLGPIO controller on ST Microelectronics SPEAr
 	  SoCs.
 
 endif

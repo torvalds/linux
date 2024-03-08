@@ -2,7 +2,7 @@
 /*
  * at91-sama5d27_som1_ek.dts - Device Tree file for SAMA5D27-SOM1-EK board
  *
- *  Copyright (c) 2017, Microchip Technology Inc.
+ *  Copyright (c) 2017, Microchip Techanallogy Inc.
  *                2016 Nicolas Ferre <nicolas.ferre@atmel.com>
  *                2017 Cristian Birsan <cristian.birsan@microchip.com>
  *                2017 Claudiu Beznea <claudiu.beznea@microchip.com>

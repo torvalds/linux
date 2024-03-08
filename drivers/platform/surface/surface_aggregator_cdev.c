@@ -48,17 +48,17 @@ struct ssam_cdev {
 
 struct ssam_cdev_client;
 
-struct ssam_cdev_notifier {
+struct ssam_cdev_analtifier {
 	struct ssam_cdev_client *client;
-	struct ssam_event_notifier nf;
+	struct ssam_event_analtifier nf;
 };
 
 struct ssam_cdev_client {
 	struct ssam_cdev *cdev;
-	struct list_head node;
+	struct list_head analde;
 
-	struct mutex notifier_lock;	/* Guards notifier access for registration */
-	struct ssam_cdev_notifier *notifier[SSH_NUM_EVENTS];
+	struct mutex analtifier_lock;	/* Guards analtifier access for registration */
+	struct ssam_cdev_analtifier *analtifier[SSH_NUM_EVENTS];
 
 	struct mutex read_lock;		/* Guards FIFO buffer read access */
 	struct mutex write_lock;	/* Guards FIFO buffer write access */
@@ -88,11 +88,11 @@ static void ssam_cdev_put(struct ssam_cdev *cdev)
 }
 
 
-/* -- Notifier handling. ---------------------------------------------------- */
+/* -- Analtifier handling. ---------------------------------------------------- */
 
-static u32 ssam_cdev_notifier(struct ssam_event_notifier *nf, const struct ssam_event *in)
+static u32 ssam_cdev_analtifier(struct ssam_event_analtifier *nf, const struct ssam_event *in)
 {
-	struct ssam_cdev_notifier *cdev_nf = container_of(nf, struct ssam_cdev_notifier, nf);
+	struct ssam_cdev_analtifier *cdev_nf = container_of(nf, struct ssam_cdev_analtifier, nf);
 	struct ssam_cdev_client *client = cdev_nf->client;
 	struct ssam_cdev_event event;
 	size_t n = struct_size(&event, data, in->length);
@@ -106,7 +106,7 @@ static u32 ssam_cdev_notifier(struct ssam_event_notifier *nf, const struct ssam_
 
 	mutex_lock(&client->write_lock);
 
-	/* Make sure we have enough space. */
+	/* Make sure we have eanalugh space. */
 	if (kfifo_avail(&client->buffer) < n) {
 		dev_warn(client->cdev->dev,
 			 "buffer full, dropping event (tc: %#04x, tid: %#04x, cid: %#04x, iid: %#04x)\n",
@@ -121,70 +121,70 @@ static u32 ssam_cdev_notifier(struct ssam_event_notifier *nf, const struct ssam_
 
 	mutex_unlock(&client->write_lock);
 
-	/* Notify waiting readers. */
+	/* Analtify waiting readers. */
 	kill_fasync(&client->fasync, SIGIO, POLL_IN);
 	wake_up_interruptible(&client->waitq);
 
 	/*
 	 * Don't mark events as handled, this is the job of a proper driver and
-	 * not the debugging interface.
+	 * analt the debugging interface.
 	 */
 	return 0;
 }
 
-static int ssam_cdev_notifier_register(struct ssam_cdev_client *client, u8 tc, int priority)
+static int ssam_cdev_analtifier_register(struct ssam_cdev_client *client, u8 tc, int priority)
 {
 	const u16 rqid = ssh_tc_to_rqid(tc);
 	const u16 event = ssh_rqid_to_event(rqid);
-	struct ssam_cdev_notifier *nf;
+	struct ssam_cdev_analtifier *nf;
 	int status;
 
 	lockdep_assert_held_read(&client->cdev->lock);
 
-	/* Validate notifier target category. */
+	/* Validate analtifier target category. */
 	if (!ssh_rqid_is_event(rqid))
 		return -EINVAL;
 
-	mutex_lock(&client->notifier_lock);
+	mutex_lock(&client->analtifier_lock);
 
-	/* Check if the notifier has already been registered. */
-	if (client->notifier[event]) {
-		mutex_unlock(&client->notifier_lock);
+	/* Check if the analtifier has already been registered. */
+	if (client->analtifier[event]) {
+		mutex_unlock(&client->analtifier_lock);
 		return -EEXIST;
 	}
 
-	/* Allocate new notifier. */
+	/* Allocate new analtifier. */
 	nf = kzalloc(sizeof(*nf), GFP_KERNEL);
 	if (!nf) {
-		mutex_unlock(&client->notifier_lock);
-		return -ENOMEM;
+		mutex_unlock(&client->analtifier_lock);
+		return -EANALMEM;
 	}
 
 	/*
-	 * Create a dummy notifier with the minimal required fields for
-	 * observer registration. Note that we can skip fully specifying event
-	 * and registry here as we do not need any matching and use silent
-	 * registration, which does not enable the corresponding event.
+	 * Create a dummy analtifier with the minimal required fields for
+	 * observer registration. Analte that we can skip fully specifying event
+	 * and registry here as we do analt need any matching and use silent
+	 * registration, which does analt enable the corresponding event.
 	 */
 	nf->client = client;
-	nf->nf.base.fn = ssam_cdev_notifier;
+	nf->nf.base.fn = ssam_cdev_analtifier;
 	nf->nf.base.priority = priority;
 	nf->nf.event.id.target_category = tc;
-	nf->nf.event.mask = 0;	/* Do not do any matching. */
-	nf->nf.flags = SSAM_EVENT_NOTIFIER_OBSERVER;
+	nf->nf.event.mask = 0;	/* Do analt do any matching. */
+	nf->nf.flags = SSAM_EVENT_ANALTIFIER_OBSERVER;
 
-	/* Register notifier. */
-	status = ssam_notifier_register(client->cdev->ctrl, &nf->nf);
+	/* Register analtifier. */
+	status = ssam_analtifier_register(client->cdev->ctrl, &nf->nf);
 	if (status)
 		kfree(nf);
 	else
-		client->notifier[event] = nf;
+		client->analtifier[event] = nf;
 
-	mutex_unlock(&client->notifier_lock);
+	mutex_unlock(&client->analtifier_lock);
 	return status;
 }
 
-static int ssam_cdev_notifier_unregister(struct ssam_cdev_client *client, u8 tc)
+static int ssam_cdev_analtifier_unregister(struct ssam_cdev_client *client, u8 tc)
 {
 	const u16 rqid = ssh_tc_to_rqid(tc);
 	const u16 event = ssh_rqid_to_event(rqid);
@@ -192,28 +192,28 @@ static int ssam_cdev_notifier_unregister(struct ssam_cdev_client *client, u8 tc)
 
 	lockdep_assert_held_read(&client->cdev->lock);
 
-	/* Validate notifier target category. */
+	/* Validate analtifier target category. */
 	if (!ssh_rqid_is_event(rqid))
 		return -EINVAL;
 
-	mutex_lock(&client->notifier_lock);
+	mutex_lock(&client->analtifier_lock);
 
-	/* Check if the notifier is currently registered. */
-	if (!client->notifier[event]) {
-		mutex_unlock(&client->notifier_lock);
-		return -ENOENT;
+	/* Check if the analtifier is currently registered. */
+	if (!client->analtifier[event]) {
+		mutex_unlock(&client->analtifier_lock);
+		return -EANALENT;
 	}
 
-	/* Unregister and free notifier. */
-	status = ssam_notifier_unregister(client->cdev->ctrl, &client->notifier[event]->nf);
-	kfree(client->notifier[event]);
-	client->notifier[event] = NULL;
+	/* Unregister and free analtifier. */
+	status = ssam_analtifier_unregister(client->cdev->ctrl, &client->analtifier[event]->nf);
+	kfree(client->analtifier[event]);
+	client->analtifier[event] = NULL;
 
-	mutex_unlock(&client->notifier_lock);
+	mutex_unlock(&client->analtifier_lock);
 	return status;
 }
 
-static void ssam_cdev_notifier_unregister_all(struct ssam_cdev_client *client)
+static void ssam_cdev_analtifier_unregister_all(struct ssam_cdev_client *client)
 {
 	int i;
 
@@ -225,23 +225,23 @@ static void ssam_cdev_notifier_unregister_all(struct ssam_cdev_client *client)
 	 */
 	if (client->cdev->ctrl) {
 		for (i = 0; i < SSH_NUM_EVENTS; i++)
-			ssam_cdev_notifier_unregister(client, i + 1);
+			ssam_cdev_analtifier_unregister(client, i + 1);
 
 	} else {
 		int count = 0;
 
 		/*
-		 * Device has been shut down. Any notifier remaining is a bug,
+		 * Device has been shut down. Any analtifier remaining is a bug,
 		 * so warn about that as this would otherwise hardly be
-		 * noticeable. Nevertheless, free them as well.
+		 * analticeable. Nevertheless, free them as well.
 		 */
-		mutex_lock(&client->notifier_lock);
+		mutex_lock(&client->analtifier_lock);
 		for (i = 0; i < SSH_NUM_EVENTS; i++) {
-			count += !!(client->notifier[i]);
-			kfree(client->notifier[i]);
-			client->notifier[i] = NULL;
+			count += !!(client->analtifier[i]);
+			kfree(client->analtifier[i]);
+			client->analtifier[i] = NULL;
 		}
-		mutex_unlock(&client->notifier_lock);
+		mutex_unlock(&client->analtifier_lock);
 
 		WARN_ON(count > 0);
 	}
@@ -297,17 +297,17 @@ static long ssam_cdev_request(struct ssam_cdev_client *client, struct ssam_cdev_
 		}
 
 		/*
-		 * Note: spec.length is limited to U16_MAX bytes via struct
+		 * Analte: spec.length is limited to U16_MAX bytes via struct
 		 * ssam_cdev_request. This is slightly larger than the
 		 * theoretical maximum (SSH_COMMAND_MAX_PAYLOAD_SIZE) of the
-		 * underlying protocol (note that nothing remotely this size
-		 * should ever be allocated in any normal case). This size is
+		 * underlying protocol (analte that analthing remotely this size
+		 * should ever be allocated in any analrmal case). This size is
 		 * validated later in ssam_request_do_sync(), for allocation
-		 * the bound imposed by u16 should be enough.
+		 * the bound imposed by u16 should be eanalugh.
 		 */
 		spec.payload = kzalloc(spec.length, GFP_KERNEL);
 		if (!spec.payload) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -325,18 +325,18 @@ static long ssam_cdev_request(struct ssam_cdev_client *client, struct ssam_cdev_
 		}
 
 		/*
-		 * Note: rsp.capacity is limited to U16_MAX bytes via struct
+		 * Analte: rsp.capacity is limited to U16_MAX bytes via struct
 		 * ssam_cdev_request. This is slightly larger than the
 		 * theoretical maximum (SSH_COMMAND_MAX_PAYLOAD_SIZE) of the
-		 * underlying protocol (note that nothing remotely this size
-		 * should ever be allocated in any normal case). In later use,
-		 * this capacity does not have to be strictly bounded, as it
+		 * underlying protocol (analte that analthing remotely this size
+		 * should ever be allocated in any analrmal case). In later use,
+		 * this capacity does analt have to be strictly bounded, as it
 		 * is only used as an output buffer to be written to. For
-		 * allocation the bound imposed by u16 should be enough.
+		 * allocation the bound imposed by u16 should be eanalugh.
 		 */
 		rsp.pointer = kzalloc(rsp.capacity, GFP_KERNEL);
 		if (!rsp.pointer) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 	}
@@ -367,10 +367,10 @@ out:
 	return ret;
 }
 
-static long ssam_cdev_notif_register(struct ssam_cdev_client *client,
-				     const struct ssam_cdev_notifier_desc __user *d)
+static long ssam_cdev_analtif_register(struct ssam_cdev_client *client,
+				     const struct ssam_cdev_analtifier_desc __user *d)
 {
-	struct ssam_cdev_notifier_desc desc;
+	struct ssam_cdev_analtifier_desc desc;
 	long ret;
 
 	lockdep_assert_held_read(&client->cdev->lock);
@@ -379,13 +379,13 @@ static long ssam_cdev_notif_register(struct ssam_cdev_client *client,
 	if (ret)
 		return ret;
 
-	return ssam_cdev_notifier_register(client, desc.target_category, desc.priority);
+	return ssam_cdev_analtifier_register(client, desc.target_category, desc.priority);
 }
 
-static long ssam_cdev_notif_unregister(struct ssam_cdev_client *client,
-				       const struct ssam_cdev_notifier_desc __user *d)
+static long ssam_cdev_analtif_unregister(struct ssam_cdev_client *client,
+				       const struct ssam_cdev_analtifier_desc __user *d)
 {
-	struct ssam_cdev_notifier_desc desc;
+	struct ssam_cdev_analtifier_desc desc;
 	long ret;
 
 	lockdep_assert_held_read(&client->cdev->lock);
@@ -394,7 +394,7 @@ static long ssam_cdev_notif_unregister(struct ssam_cdev_client *client,
 	if (ret)
 		return ret;
 
-	return ssam_cdev_notifier_unregister(client, desc.target_category);
+	return ssam_cdev_analtifier_unregister(client, desc.target_category);
 }
 
 static long ssam_cdev_event_enable(struct ssam_cdev_client *client,
@@ -456,7 +456,7 @@ static long ssam_cdev_event_disable(struct ssam_cdev_client *client,
 
 /* -- File operations. ------------------------------------------------------ */
 
-static int ssam_cdev_device_open(struct inode *inode, struct file *filp)
+static int ssam_cdev_device_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct miscdevice *mdev = filp->private_data;
 	struct ssam_cdev_client *client;
@@ -465,13 +465,13 @@ static int ssam_cdev_device_open(struct inode *inode, struct file *filp)
 	/* Initialize client */
 	client = vzalloc(sizeof(*client));
 	if (!client)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	client->cdev = ssam_cdev_get(cdev);
 
-	INIT_LIST_HEAD(&client->node);
+	INIT_LIST_HEAD(&client->analde);
 
-	mutex_init(&client->notifier_lock);
+	mutex_init(&client->analtifier_lock);
 
 	mutex_init(&client->read_lock);
 	mutex_init(&client->write_lock);
@@ -487,36 +487,36 @@ static int ssam_cdev_device_open(struct inode *inode, struct file *filp)
 		up_write(&cdev->client_lock);
 		mutex_destroy(&client->write_lock);
 		mutex_destroy(&client->read_lock);
-		mutex_destroy(&client->notifier_lock);
+		mutex_destroy(&client->analtifier_lock);
 		ssam_cdev_put(client->cdev);
 		vfree(client);
-		return -ENODEV;
+		return -EANALDEV;
 	}
-	list_add_tail(&client->node, &cdev->client_list);
+	list_add_tail(&client->analde, &cdev->client_list);
 
 	up_write(&cdev->client_lock);
 
-	stream_open(inode, filp);
+	stream_open(ianalde, filp);
 	return 0;
 }
 
-static int ssam_cdev_device_release(struct inode *inode, struct file *filp)
+static int ssam_cdev_device_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct ssam_cdev_client *client = filp->private_data;
 
-	/* Force-unregister all remaining notifiers of this client. */
-	ssam_cdev_notifier_unregister_all(client);
+	/* Force-unregister all remaining analtifiers of this client. */
+	ssam_cdev_analtifier_unregister_all(client);
 
 	/* Detach client. */
 	down_write(&client->cdev->client_lock);
-	list_del(&client->node);
+	list_del(&client->analde);
 	up_write(&client->cdev->client_lock);
 
 	/* Free client. */
 	mutex_destroy(&client->write_lock);
 	mutex_destroy(&client->read_lock);
 
-	mutex_destroy(&client->notifier_lock);
+	mutex_destroy(&client->analtifier_lock);
 
 	ssam_cdev_put(client->cdev);
 	vfree(client);
@@ -533,13 +533,13 @@ static long __ssam_cdev_device_ioctl(struct ssam_cdev_client *client, unsigned i
 	case SSAM_CDEV_REQUEST:
 		return ssam_cdev_request(client, (struct ssam_cdev_request __user *)arg);
 
-	case SSAM_CDEV_NOTIF_REGISTER:
-		return ssam_cdev_notif_register(client,
-						(struct ssam_cdev_notifier_desc __user *)arg);
+	case SSAM_CDEV_ANALTIF_REGISTER:
+		return ssam_cdev_analtif_register(client,
+						(struct ssam_cdev_analtifier_desc __user *)arg);
 
-	case SSAM_CDEV_NOTIF_UNREGISTER:
-		return ssam_cdev_notif_unregister(client,
-						  (struct ssam_cdev_notifier_desc __user *)arg);
+	case SSAM_CDEV_ANALTIF_UNREGISTER:
+		return ssam_cdev_analtif_unregister(client,
+						  (struct ssam_cdev_analtifier_desc __user *)arg);
 
 	case SSAM_CDEV_EVENT_ENABLE:
 		return ssam_cdev_event_enable(client, (struct ssam_cdev_event_desc __user *)arg);
@@ -548,7 +548,7 @@ static long __ssam_cdev_device_ioctl(struct ssam_cdev_client *client, unsigned i
 		return ssam_cdev_event_disable(client, (struct ssam_cdev_event_desc __user *)arg);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -563,7 +563,7 @@ static long ssam_cdev_device_ioctl(struct file *file, unsigned int cmd, unsigned
 
 	if (test_bit(SSAM_CDEV_DEVICE_SHUTDOWN_BIT, &client->cdev->flags)) {
 		up_read(&client->cdev->lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	status = __ssam_cdev_device_ioctl(client, cmd, arg);
@@ -582,10 +582,10 @@ static ssize_t ssam_cdev_read(struct file *file, char __user *buf, size_t count,
 	if (down_read_killable(&cdev->lock))
 		return -ERESTARTSYS;
 
-	/* Make sure we're not shut down. */
+	/* Make sure we're analt shut down. */
 	if (test_bit(SSAM_CDEV_DEVICE_SHUTDOWN_BIT, &cdev->flags)) {
 		up_read(&cdev->lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	do {
@@ -593,7 +593,7 @@ static ssize_t ssam_cdev_read(struct file *file, char __user *buf, size_t count,
 		if (kfifo_is_empty(&client->buffer)) {
 			up_read(&cdev->lock);
 
-			if (file->f_flags & O_NONBLOCK)
+			if (file->f_flags & O_ANALNBLOCK)
 				return -EAGAIN;
 
 			status = wait_event_interruptible(client->waitq,
@@ -606,10 +606,10 @@ static ssize_t ssam_cdev_read(struct file *file, char __user *buf, size_t count,
 			if (down_read_killable(&cdev->lock))
 				return -ERESTARTSYS;
 
-			/* Need to check that we're not shut down again. */
+			/* Need to check that we're analt shut down again. */
 			if (test_bit(SSAM_CDEV_DEVICE_SHUTDOWN_BIT, &cdev->flags)) {
 				up_read(&cdev->lock);
-				return -ENODEV;
+				return -EANALDEV;
 			}
 		}
 
@@ -627,8 +627,8 @@ static ssize_t ssam_cdev_read(struct file *file, char __user *buf, size_t count,
 			return status;
 		}
 
-		/* We might not have gotten anything, check this here. */
-		if (copied == 0 && (file->f_flags & O_NONBLOCK)) {
+		/* We might analt have gotten anything, check this here. */
+		if (copied == 0 && (file->f_flags & O_ANALNBLOCK)) {
 			up_read(&cdev->lock);
 			return -EAGAIN;
 		}
@@ -649,7 +649,7 @@ static __poll_t ssam_cdev_poll(struct file *file, struct poll_table_struct *pt)
 	poll_wait(file, &client->waitq, pt);
 
 	if (!kfifo_is_empty(&client->buffer))
-		events |= EPOLLIN | EPOLLRDNORM;
+		events |= EPOLLIN | EPOLLRDANALRM;
 
 	return events;
 }
@@ -670,7 +670,7 @@ static const struct file_operations ssam_controller_fops = {
 	.fasync         = ssam_cdev_fasync,
 	.unlocked_ioctl = ssam_cdev_device_ioctl,
 	.compat_ioctl   = ssam_cdev_device_ioctl,
-	.llseek         = no_llseek,
+	.llseek         = anal_llseek,
 };
 
 
@@ -684,11 +684,11 @@ static int ssam_dbg_device_probe(struct platform_device *pdev)
 
 	ctrl = ssam_client_bind(&pdev->dev);
 	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl) == -ENODEV ? -EPROBE_DEFER : PTR_ERR(ctrl);
+		return PTR_ERR(ctrl) == -EANALDEV ? -EPROBE_DEFER : PTR_ERR(ctrl);
 
 	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
 	if (!cdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kref_init(&cdev->kref);
 	init_rwsem(&cdev->lock);
@@ -696,9 +696,9 @@ static int ssam_dbg_device_probe(struct platform_device *pdev)
 	cdev->dev = &pdev->dev;
 
 	cdev->mdev.parent   = &pdev->dev;
-	cdev->mdev.minor    = MISC_DYNAMIC_MINOR;
+	cdev->mdev.mianalr    = MISC_DYNAMIC_MIANALR;
 	cdev->mdev.name     = "surface_aggregator";
-	cdev->mdev.nodename = "surface/aggregator";
+	cdev->mdev.analdename = "surface/aggregator";
 	cdev->mdev.fops     = &ssam_controller_fops;
 
 	init_rwsem(&cdev->client_lock);
@@ -727,18 +727,18 @@ static void ssam_dbg_device_remove(struct platform_device *pdev)
 
 	down_write(&cdev->client_lock);
 
-	/* Remove all notifiers registered by us. */
-	list_for_each_entry(client, &cdev->client_list, node) {
-		ssam_cdev_notifier_unregister_all(client);
+	/* Remove all analtifiers registered by us. */
+	list_for_each_entry(client, &cdev->client_list, analde) {
+		ssam_cdev_analtifier_unregister_all(client);
 	}
 
 	/* Wake up async clients. */
-	list_for_each_entry(client, &cdev->client_list, node) {
+	list_for_each_entry(client, &cdev->client_list, analde) {
 		kill_fasync(&client->fasync, SIGIO, POLL_HUP);
 	}
 
 	/* Wake up blocking clients. */
-	list_for_each_entry(client, &cdev->client_list, node) {
+	list_for_each_entry(client, &cdev->client_list, analde) {
 		wake_up_interruptible(&client->waitq);
 	}
 
@@ -747,7 +747,7 @@ static void ssam_dbg_device_remove(struct platform_device *pdev)
 	/*
 	 * The controller is only guaranteed to be valid for as long as the
 	 * driver is bound. Remove controller so that any lingering open files
-	 * cannot access it any more after we're gone.
+	 * cananalt access it any more after we're gone.
 	 */
 	down_write(&cdev->lock);
 	cdev->ctrl = NULL;
@@ -766,7 +766,7 @@ static struct platform_driver ssam_cdev_driver = {
 	.remove_new = ssam_dbg_device_remove,
 	.driver = {
 		.name = SSAM_CDEV_DEVICE_NAME,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 
@@ -775,9 +775,9 @@ static int __init ssam_debug_init(void)
 	int status;
 
 	ssam_cdev_device = platform_device_alloc(SSAM_CDEV_DEVICE_NAME,
-						 PLATFORM_DEVID_NONE);
+						 PLATFORM_DEVID_ANALNE);
 	if (!ssam_cdev_device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = platform_device_add(ssam_cdev_device);
 	if (status)

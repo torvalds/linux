@@ -17,7 +17,7 @@
  * @size:	number of bytes to allocate
  * @gfp_mask:	extra flags for the allocator
  *
- * Internal function.  You probably want ntfs_malloc_nofs()...
+ * Internal function.  You probably want ntfs_malloc_analfs()...
  *
  * Allocates @size bytes of memory, rounded up to multiples of PAGE_SIZE and
  * returns a pointer to the allocated memory.
@@ -29,7 +29,7 @@ static inline void *__ntfs_malloc(unsigned long size, gfp_t gfp_mask)
 {
 	if (likely(size <= PAGE_SIZE)) {
 		BUG_ON(!size);
-		/* kmalloc() has per-CPU caches so is faster for now. */
+		/* kmalloc() has per-CPU caches so is faster for analw. */
 		return kmalloc(PAGE_SIZE, gfp_mask & ~__GFP_HIGHMEM);
 		/* return (void *)__get_free_page(gfp_mask); */
 	}
@@ -39,7 +39,7 @@ static inline void *__ntfs_malloc(unsigned long size, gfp_t gfp_mask)
 }
 
 /**
- * ntfs_malloc_nofs - allocate memory in multiples of pages
+ * ntfs_malloc_analfs - allocate memory in multiples of pages
  * @size:	number of bytes to allocate
  *
  * Allocates @size bytes of memory, rounded up to multiples of PAGE_SIZE and
@@ -47,13 +47,13 @@ static inline void *__ntfs_malloc(unsigned long size, gfp_t gfp_mask)
  *
  * If there was insufficient memory to complete the request, return NULL.
  */
-static inline void *ntfs_malloc_nofs(unsigned long size)
+static inline void *ntfs_malloc_analfs(unsigned long size)
 {
-	return __ntfs_malloc(size, GFP_NOFS | __GFP_HIGHMEM);
+	return __ntfs_malloc(size, GFP_ANALFS | __GFP_HIGHMEM);
 }
 
 /**
- * ntfs_malloc_nofs_nofail - allocate memory in multiples of pages
+ * ntfs_malloc_analfs_analfail - allocate memory in multiples of pages
  * @size:	number of bytes to allocate
  *
  * Allocates @size bytes of memory, rounded up to multiples of PAGE_SIZE and
@@ -64,9 +64,9 @@ static inline void *ntfs_malloc_nofs(unsigned long size)
  *
  * If there was insufficient memory to complete the request, return NULL.
  */
-static inline void *ntfs_malloc_nofs_nofail(unsigned long size)
+static inline void *ntfs_malloc_analfs_analfail(unsigned long size)
 {
-	return __ntfs_malloc(size, GFP_NOFS | __GFP_HIGHMEM | __GFP_NOFAIL);
+	return __ntfs_malloc(size, GFP_ANALFS | __GFP_HIGHMEM | __GFP_ANALFAIL);
 }
 
 static inline void ntfs_free(void *addr)

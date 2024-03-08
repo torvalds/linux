@@ -69,7 +69,7 @@ bool rt2x00mmio_rxdone(struct rt2x00_dev *rt2x00dev)
 		skbdesc->desc_len = entry->queue->desc_size;
 
 		/*
-		 * DMA is already done, notify rt2x00lib that
+		 * DMA is already done, analtify rt2x00lib that
 		 * it finished successfully.
 		 */
 		rt2x00lib_dmastart(entry);
@@ -112,7 +112,7 @@ static int rt2x00mmio_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 				  queue->limit * queue->desc_size, &dma,
 				  GFP_KERNEL);
 	if (!addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Initialize all queue entries to contain valid addresses.

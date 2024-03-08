@@ -577,7 +577,7 @@ rdev_set_wiphy_params(struct cfg80211_registered_device *rdev, u32 changed)
 	int ret;
 
 	if (!rdev->ops->set_wiphy_params)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_rdev_set_wiphy_params(&rdev->wiphy, changed);
 	ret = rdev->ops->set_wiphy_params(&rdev->wiphy, changed);
@@ -764,14 +764,14 @@ static inline int rdev_tx_control_port(struct cfg80211_registered_device *rdev,
 				       struct net_device *dev,
 				       const void *buf, size_t len,
 				       const u8 *dest, __be16 proto,
-				       const bool noencrypt, int link,
+				       const bool analencrypt, int link,
 				       u64 *cookie)
 {
 	int ret;
 	trace_rdev_tx_control_port(&rdev->wiphy, dev, buf, len,
-				   dest, proto, noencrypt, link);
+				   dest, proto, analencrypt, link);
 	ret = rdev->ops->tx_control_port(&rdev->wiphy, dev, buf, len,
-					 dest, proto, noencrypt, link, cookie);
+					 dest, proto, analencrypt, link, cookie);
 	if (cookie)
 		trace_rdev_return_int_cookie(&rdev->wiphy, ret, *cookie);
 	else
@@ -949,12 +949,12 @@ static inline int rdev_probe_client(struct cfg80211_registered_device *rdev,
 	return ret;
 }
 
-static inline int rdev_set_noack_map(struct cfg80211_registered_device *rdev,
-				     struct net_device *dev, u16 noack_map)
+static inline int rdev_set_analack_map(struct cfg80211_registered_device *rdev,
+				     struct net_device *dev, u16 analack_map)
 {
 	int ret;
-	trace_rdev_set_noack_map(&rdev->wiphy, dev, noack_map);
-	ret = rdev->ops->set_noack_map(&rdev->wiphy, dev, noack_map);
+	trace_rdev_set_analack_map(&rdev->wiphy, dev, analack_map);
+	ret = rdev->ops->set_analack_map(&rdev->wiphy, dev, analack_map);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -1046,7 +1046,7 @@ rdev_nan_change_conf(struct cfg80211_registered_device *rdev,
 		ret = rdev->ops->nan_change_conf(&rdev->wiphy, wdev, conf,
 						 changes);
 	else
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -1113,7 +1113,7 @@ static inline int rdev_set_qos_map(struct cfg80211_registered_device *rdev,
 				   struct net_device *dev,
 				   struct cfg80211_qos_map *qos_map)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	if (rdev->ops->set_qos_map) {
 		trace_rdev_set_qos_map(&rdev->wiphy, dev, qos_map);
@@ -1144,7 +1144,7 @@ rdev_add_tx_ts(struct cfg80211_registered_device *rdev,
 	       struct net_device *dev, u8 tsid, const u8 *peer,
 	       u8 user_prio, u16 admitted_time)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	trace_rdev_add_tx_ts(&rdev->wiphy, dev, tsid, peer,
 			     user_prio, admitted_time);
@@ -1160,7 +1160,7 @@ static inline int
 rdev_del_tx_ts(struct cfg80211_registered_device *rdev,
 	       struct net_device *dev, u8 tsid, const u8 *peer)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	trace_rdev_del_tx_ts(&rdev->wiphy, dev, tsid, peer);
 	if (rdev->ops->del_tx_ts)
@@ -1200,7 +1200,7 @@ rdev_start_radar_detection(struct cfg80211_registered_device *rdev,
 			   struct cfg80211_chan_def *chandef,
 			   u32 cac_time_ms)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	trace_rdev_start_radar_detection(&rdev->wiphy, dev, chandef,
 					 cac_time_ms);
@@ -1226,7 +1226,7 @@ rdev_set_mcast_rate(struct cfg80211_registered_device *rdev,
 		    struct net_device *dev,
 		    int mcast_rate[NUM_NL80211_BANDS])
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	trace_rdev_set_mcast_rate(&rdev->wiphy, dev, mcast_rate);
 	if (rdev->ops->set_mcast_rate)
@@ -1239,7 +1239,7 @@ static inline int
 rdev_set_coalesce(struct cfg80211_registered_device *rdev,
 		  struct cfg80211_coalesce *coalesce)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	trace_rdev_set_coalesce(&rdev->wiphy, coalesce);
 	if (rdev->ops->set_coalesce)
@@ -1252,7 +1252,7 @@ static inline int rdev_set_pmk(struct cfg80211_registered_device *rdev,
 			       struct net_device *dev,
 			       struct cfg80211_pmk_conf *pmk_conf)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	trace_rdev_set_pmk(&rdev->wiphy, dev, pmk_conf);
 	if (rdev->ops->set_pmk)
@@ -1264,7 +1264,7 @@ static inline int rdev_set_pmk(struct cfg80211_registered_device *rdev,
 static inline int rdev_del_pmk(struct cfg80211_registered_device *rdev,
 			       struct net_device *dev, const u8 *aa)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	trace_rdev_del_pmk(&rdev->wiphy, dev, aa);
 	if (rdev->ops->del_pmk)
@@ -1278,7 +1278,7 @@ rdev_external_auth(struct cfg80211_registered_device *rdev,
 		   struct net_device *dev,
 		   struct cfg80211_external_auth_params *params)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	trace_rdev_external_auth(&rdev->wiphy, dev, params);
 	if (rdev->ops->external_auth)
@@ -1292,7 +1292,7 @@ rdev_get_ftm_responder_stats(struct cfg80211_registered_device *rdev,
 			     struct net_device *dev,
 			     struct cfg80211_ftm_responder_stats *ftm_stats)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	trace_rdev_get_ftm_responder_stats(&rdev->wiphy, dev, ftm_stats);
 	if (rdev->ops->get_ftm_responder_stats)
@@ -1307,7 +1307,7 @@ rdev_start_pmsr(struct cfg80211_registered_device *rdev,
 		struct wireless_dev *wdev,
 		struct cfg80211_pmsr_request *request)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	trace_rdev_start_pmsr(&rdev->wiphy, wdev, request->cookie);
 	if (rdev->ops->start_pmsr)
@@ -1331,7 +1331,7 @@ static inline int rdev_update_owe_info(struct cfg80211_registered_device *rdev,
 				       struct net_device *dev,
 				       struct cfg80211_update_owe_info *oweinfo)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	trace_rdev_update_owe_info(&rdev->wiphy, dev, oweinfo);
 	if (rdev->ops->update_owe_info)
@@ -1406,7 +1406,7 @@ static inline int
 rdev_set_fils_aad(struct cfg80211_registered_device *rdev,
 		  struct net_device *dev, struct cfg80211_fils_aad *fils_aad)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	trace_rdev_set_fils_aad(&rdev->wiphy, dev, fils_aad);
 	if (rdev->ops->set_fils_aad)
@@ -1424,7 +1424,7 @@ rdev_set_radar_background(struct cfg80211_registered_device *rdev,
 	int ret;
 
 	if (!rdev->ops->set_radar_background)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_rdev_set_radar_background(wiphy, chandef);
 	ret = rdev->ops->set_radar_background(wiphy, chandef);
@@ -1467,7 +1467,7 @@ rdev_add_link_station(struct cfg80211_registered_device *rdev,
 	int ret;
 
 	if (!rdev->ops->add_link_station)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_rdev_add_link_station(&rdev->wiphy, dev, params);
 	ret = rdev->ops->add_link_station(&rdev->wiphy, dev, params);
@@ -1483,7 +1483,7 @@ rdev_mod_link_station(struct cfg80211_registered_device *rdev,
 	int ret;
 
 	if (!rdev->ops->mod_link_station)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_rdev_mod_link_station(&rdev->wiphy, dev, params);
 	ret = rdev->ops->mod_link_station(&rdev->wiphy, dev, params);
@@ -1499,7 +1499,7 @@ rdev_del_link_station(struct cfg80211_registered_device *rdev,
 	int ret;
 
 	if (!rdev->ops->del_link_station)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_rdev_del_link_station(&rdev->wiphy, dev, params);
 	ret = rdev->ops->del_link_station(&rdev->wiphy, dev, params);
@@ -1516,7 +1516,7 @@ rdev_set_hw_timestamp(struct cfg80211_registered_device *rdev,
 	int ret;
 
 	if (!rdev->ops->set_hw_timestamp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_rdev_set_hw_timestamp(wiphy, dev, hwts);
 	ret = rdev->ops->set_hw_timestamp(wiphy, dev, hwts);
@@ -1534,7 +1534,7 @@ rdev_set_ttlm(struct cfg80211_registered_device *rdev,
 	int ret;
 
 	if (!rdev->ops->set_ttlm)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	trace_rdev_set_ttlm(wiphy, dev, params);
 	ret = rdev->ops->set_ttlm(wiphy, dev, params);

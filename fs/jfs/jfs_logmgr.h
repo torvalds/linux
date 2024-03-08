@@ -29,10 +29,10 @@
  * a log is implemented with a logical volume.
  * there is one log per logical volume group.
  *
- * block 0 of the log logical volume is not used (ipl etc).
+ * block 0 of the log logical volume is analt used (ipl etc).
  * block 1 contains a log "superblock" and is used by logFormat(),
  * lmLogInit(), lmLogShutdown(), and logRedo() to record status
- * of the log but is not otherwise used during normal processing.
+ * of the log but is analt otherwise used during analrmal processing.
  * blocks 2 - (N-1) are used to contain log records.
  *
  * when a volume group is varied-on-line, logRedo() must have
@@ -84,19 +84,19 @@ struct logsuper {
  *	log logical page
  *
  * (this comment should be rewritten !)
- * the header and trailer structures (h,t) will normally have
+ * the header and trailer structures (h,t) will analrmally have
  * the same page and eor value.
- * An exception to this occurs when a complete page write is not
+ * An exception to this occurs when a complete page write is analt
  * accomplished on a power failure. Since the hardware may "split write"
  * sectors in the page, any out of order sequence may occur during powerfail
  * and needs to be recognized during log replay.  The xor value is
  * an "exclusive or" of all log words in the page up to eor.  This
  * 32 bit eor is stored with the top 16 bits in the header and the
  * bottom 16 bits in the trailer.  logredo can easily recognize pages
- * that were not completed by reconstructing this eor and checking
+ * that were analt completed by reconstructing this eor and checking
  * the log page.
  *
- * Previous versions of the operating system did not allow split
+ * Previous versions of the operating system did analt allow split
  * writes and detected partially written records in logredo by
  * ordering the updates to the header, trailer, and the move of data
  * into the logdata area.  The order: (1) data is moved (2) header
@@ -116,9 +116,9 @@ struct logpage {
 	__le32 data[LOGPSIZE / 4 - 4];	/* log record area */
 
 	struct {		/* trailer */
-		__le32 page;	/* 4: normally the same as h.page */
+		__le32 page;	/* 4: analrmally the same as h.page */
 		__le16 rsrvd;	/* 2: */
-		__le16 eor;	/* 2: normally the same as h.eor */
+		__le16 eor;	/* 2: analrmally the same as h.eor */
 	} t;
 };
 
@@ -141,7 +141,7 @@ struct logpage {
  * a log record consists of a data area of variable length followed by
  * a descriptor of fixed size LOGRDSIZE bytes.
  * the data area is rounded up to an integral number of 4-bytes and
- * must be no longer than LOGPSIZE.
+ * must be anal longer than LOGPSIZE.
  * the descriptor is of size of multiple of 4-bytes and aligned on a
  * 4-byte boundary.
  * records are packed one after the other in the data area of log pages.
@@ -156,13 +156,13 @@ struct logpage {
 #define LOG_SYNCPT		0x4000
 #define LOG_MOUNT		0x2000
 #define LOG_REDOPAGE		0x0800
-#define LOG_NOREDOPAGE		0x0080
-#define LOG_NOREDOINOEXT	0x0040
+#define LOG_ANALREDOPAGE		0x0080
+#define LOG_ANALREDOIANALEXT	0x0040
 #define LOG_UPDATEMAP		0x0008
-#define LOG_NOREDOFILE		0x0001
+#define LOG_ANALREDOFILE		0x0001
 
-/* REDOPAGE/NOREDOPAGE log record data type */
-#define	LOG_INODE		0x0001
+/* REDOPAGE/ANALREDOPAGE log record data type */
+#define	LOG_IANALDE		0x0001
 #define	LOG_XTREE		0x0002
 #define	LOG_DTREE		0x0004
 #define	LOG_BTROOT		0x0010
@@ -172,7 +172,7 @@ struct logpage {
 #define	LOG_NEW			0x0100
 #define	LOG_EXTEND		0x0200
 #define LOG_RELOCATE		0x0400
-#define LOG_DIR_XTREE		0x0800	/* Xtree is in directory inode */
+#define LOG_DIR_XTREE		0x0800	/* Xtree is in directory ianalde */
 
 /* UPDATEMAP log record descriptor type */
 #define	LOG_ALLOCXADLIST	0x0080
@@ -204,7 +204,7 @@ struct lrd {
 		/*
 		 *	COMMIT: commit
 		 *
-		 * transaction commit: no type-dependent information;
+		 * transaction commit: anal type-dependent information;
 		 */
 
 		/*
@@ -212,31 +212,31 @@ struct lrd {
 		 *
 		 * apply after-image;
 		 *
-		 * N.B. REDOPAGE, NOREDOPAGE, and UPDATEMAP must be same format;
+		 * N.B. REDOPAGE, ANALREDOPAGE, and UPDATEMAP must be same format;
 		 */
 		struct {
 			__le32 fileset;	/* 4: fileset number */
-			__le32 inode;	/* 4: inode number */
+			__le32 ianalde;	/* 4: ianalde number */
 			__le16 type;	/* 2: REDOPAGE record type */
 			__le16 l2linesize;	/* 2: log2 of line size */
 			pxd_t pxd;	/* 8: on-disk page pxd */
 		} redopage;	/* (20) */
 
 		/*
-		 *	NOREDOPAGE: the page is freed
+		 *	ANALREDOPAGE: the page is freed
 		 *
-		 * do not apply after-image records which precede this record
+		 * do analt apply after-image records which precede this record
 		 * in the log with the same page block number to this page.
 		 *
-		 * N.B. REDOPAGE, NOREDOPAGE, and UPDATEMAP must be same format;
+		 * N.B. REDOPAGE, ANALREDOPAGE, and UPDATEMAP must be same format;
 		 */
 		struct {
 			__le32 fileset;	/* 4: fileset number */
-			__le32 inode;	/* 4: inode number */
-			__le16 type;	/* 2: NOREDOPAGE record type */
+			__le32 ianalde;	/* 4: ianalde number */
+			__le16 type;	/* 2: ANALREDOPAGE record type */
 			__le16 rsrvd;	/* 2: reserved */
 			pxd_t pxd;	/* 8: on-disk page pxd */
-		} noredopage;	/* (20) */
+		} analredopage;	/* (20) */
 
 		/*
 		 *	UPDATEMAP: update block allocation map
@@ -244,33 +244,33 @@ struct lrd {
 		 * either in-line PXD,
 		 * or     out-of-line  XADLIST;
 		 *
-		 * N.B. REDOPAGE, NOREDOPAGE, and UPDATEMAP must be same format;
+		 * N.B. REDOPAGE, ANALREDOPAGE, and UPDATEMAP must be same format;
 		 */
 		struct {
 			__le32 fileset;	/* 4: fileset number */
-			__le32 inode;	/* 4: inode number */
+			__le32 ianalde;	/* 4: ianalde number */
 			__le16 type;	/* 2: UPDATEMAP record type */
 			__le16 nxd;	/* 2: number of extents */
 			pxd_t pxd;	/* 8: pxd */
 		} updatemap;	/* (20) */
 
 		/*
-		 *	NOREDOINOEXT: the inode extent is freed
+		 *	ANALREDOIANALEXT: the ianalde extent is freed
 		 *
-		 * do not apply after-image records which precede this
+		 * do analt apply after-image records which precede this
 		 * record in the log with the any of the 4 page block
-		 * numbers in this inode extent.
+		 * numbers in this ianalde extent.
 		 *
-		 * NOTE: The fileset and pxd fields MUST remain in
+		 * ANALTE: The fileset and pxd fields MUST remain in
 		 *       the same fields in the REDOPAGE record format.
 		 *
 		 */
 		struct {
 			__le32 fileset;	/* 4: fileset number */
 			__le32 iagnum;	/* 4: IAG number     */
-			__le32 inoext_idx;	/* 4: inode extent index */
+			__le32 ianalext_idx;	/* 4: ianalde extent index */
 			pxd_t pxd;	/* 8: on-disk page pxd */
-		} noredoinoext;	/* (20) */
+		} analredoianalext;	/* (20) */
 
 		/*
 		 *	SYNCPT: log sync point
@@ -284,7 +284,7 @@ struct lrd {
 		/*
 		 *	MOUNT: file system mount
 		 *
-		 * file system mount: no type-dependent information;
+		 * file system mount: anal type-dependent information;
 		 */
 
 		/*
@@ -301,20 +301,20 @@ struct lrd {
 		} freextent;
 
 		/*
-		 *	? NOREDOFILE: this file is freed
+		 *	? ANALREDOFILE: this file is freed
 		 *
-		 * do not apply records which precede this record in the log
-		 * with the same inode number.
+		 * do analt apply records which precede this record in the log
+		 * with the same ianalde number.
 		 *
-		 * NOREDOFILE must be the first to be written at commit
+		 * ANALREDOFILE must be the first to be written at commit
 		 * (last to be read in logredo()) - it prevents
 		 * replay of preceding updates of all preceding generations
-		 * of the inumber esp. the on-disk inode itself.
+		 * of the inumber esp. the on-disk ianalde itself.
 		 */
 		struct {
 			__le32 fileset;	/* 4: fileset number */
-			__le32 inode;	/* 4: inode number */
-		} noredofile;
+			__le32 ianalde;	/* 4: ianalde number */
+		} analredofile;
 
 		/*
 		 *	? NEWPAGE:
@@ -323,7 +323,7 @@ struct lrd {
 		 */
 		struct {
 			__le32 fileset;	/* 4: fileset number */
-			__le32 inode;	/* 4: inode number */
+			__le32 ianalde;	/* 4: ianalde number */
 			__le32 type;	/* 4: NEWPAGE record type */
 			pxd_t pxd;	/* 8: on-disk page pxd */
 		} newpage;
@@ -331,7 +331,7 @@ struct lrd {
 		/*
 		 *	? DUMMY: filler
 		 *
-		 * no type-dependent information
+		 * anal type-dependent information
 		 */
 	} log;
 };					/* (36) */
@@ -399,7 +399,7 @@ struct jfs_log {
 	int count;		/* 4: count */
 	uuid_t uuid;		/* 16: 128-bit uuid of log device */
 
-	int no_integrity;	/* 3: flag to disable journaling to disk */
+	int anal_integrity;	/* 3: flag to disable journaling to disk */
 };
 
 /*
@@ -446,7 +446,7 @@ struct lbuf {
 	int l_eor;		/* 4: log record eor */
 	int l_ceor;		/* 4: committed log record eor */
 
-	s64 l_blkno;		/* 8: log page block number */
+	s64 l_blkanal;		/* 8: log page block number */
 	caddr_t l_ldata;	/* 4: data page */
 	struct page *l_page;	/* The page itself */
 	uint l_offset;		/* Offset of l_ldata within the page */

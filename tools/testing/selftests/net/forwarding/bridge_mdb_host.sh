@@ -26,7 +26,7 @@ h1_destroy()
 switch_create()
 {
 	# Enable multicast filtering
-	ip link add dev br0 type bridge mcast_snooping 1
+	ip link add dev br0 type bridge mcast_sanaloping 1
 
 	ip link set dev $swp1 master br0
 
@@ -75,7 +75,7 @@ do_mdb_add_del()
 	fi
 
 	bridge mdb show dev br0 | grep $group | grep -q $flag 2>/dev/null
-	check_err $? "$group not added with $flag flag"
+	check_err $? "$group analt added with $flag flag"
 
 	bridge mdb del dev br0 port br0 grp $group 2>/dev/null
 	check_err $? "Failed deleting $group from br0, port br0"

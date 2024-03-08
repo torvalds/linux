@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/if_vlan.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/u64_stats_sync.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/device.h>
@@ -35,14 +35,14 @@
 #include "hinic_dev.h"
 #include "hinic_tx.h"
 
-#define TX_IRQ_NO_PENDING               0
-#define TX_IRQ_NO_COALESC               0
-#define TX_IRQ_NO_LLI_TIMER             0
-#define TX_IRQ_NO_CREDIT                0
-#define TX_IRQ_NO_RESEND_TIMER          0
+#define TX_IRQ_ANAL_PENDING               0
+#define TX_IRQ_ANAL_COALESC               0
+#define TX_IRQ_ANAL_LLI_TIMER             0
+#define TX_IRQ_ANAL_CREDIT                0
+#define TX_IRQ_ANAL_RESEND_TIMER          0
 
-#define CI_UPDATE_NO_PENDING            0
-#define CI_UPDATE_NO_COALESC            0
+#define CI_UPDATE_ANAL_PENDING            0
+#define CI_UPDATE_ANAL_COALESC            0
 
 #define HW_CONS_IDX(sq)                 be16_to_cpu(*(u16 *)((sq)->hw_ci_addr))
 
@@ -206,7 +206,7 @@ static void get_inner_l3_l4_type(struct sk_buff *skb, union hinic_l3 *ip,
 
 	if (ip->v4->version == 4) {
 		*l3_type = (offload_type == TX_OFFLOAD_CSUM) ?
-			   IPV4_PKT_NO_CHKSUM_OFFLOAD :
+			   IPV4_PKT_ANAL_CHKSUM_OFFLOAD :
 			   IPV4_PKT_WITH_CHKSUM_OFFLOAD;
 		*l4_proto = ip->v4->protocol;
 	} else if (ip->v4->version == 6) {
@@ -220,7 +220,7 @@ static void get_inner_l3_l4_type(struct sk_buff *skb, union hinic_l3 *ip,
 			ipv6_skip_exthdr(skb, start, l4_proto, &frag_off);
 		}
 	} else {
-		*l3_type = L3TYPE_UNKNOWN;
+		*l3_type = L3TYPE_UNKANALWN;
 		*l4_proto = 0;
 	}
 }
@@ -284,7 +284,7 @@ static int offload_tso(struct hinic_sq_task *task, u32 *queue_info,
 		return 0;
 
 	if (skb_cow_head(skb, 0) < 0)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	if (skb->encapsulation) {
 		u32 gso_type = skb_shinfo(skb)->gso_type;
@@ -311,7 +311,7 @@ static int offload_tso(struct hinic_sq_task *task, u32 *queue_info,
 			l4.udp->check = ~csum_magic(&ip, IPPROTO_UDP);
 			tunnel_type = TUNNEL_UDP_CSUM;
 		} else if (gso_type & SKB_GSO_UDP_TUNNEL) {
-			tunnel_type = TUNNEL_UDP_NO_CSUM;
+			tunnel_type = TUNNEL_UDP_ANAL_CSUM;
 		}
 
 		l4_tunnel_len = skb_inner_network_offset(skb) -
@@ -356,7 +356,7 @@ static int offload_csum(struct hinic_sq_task *task, u32 *queue_info,
 	enum hinic_l4_offload_type l4_offload;
 	u32 offset, l4_len, network_hdr_len;
 	enum hinic_l3_offload_type l3_type;
-	u32 tunnel_type = NOT_TUNNEL;
+	u32 tunnel_type = ANALT_TUNNEL;
 	union hinic_l3 ip;
 	union hinic_l4 l4;
 	u8 l4_proto;
@@ -367,11 +367,11 @@ static int offload_csum(struct hinic_sq_task *task, u32 *queue_info,
 	if (skb->encapsulation) {
 		u32 l4_tunnel_len;
 
-		tunnel_type = TUNNEL_UDP_NO_CSUM;
+		tunnel_type = TUNNEL_UDP_ANAL_CSUM;
 		ip.hdr = skb_network_header(skb);
 
 		if (ip.v4->version == 4) {
-			l3_type = IPV4_PKT_NO_CHKSUM_OFFLOAD;
+			l3_type = IPV4_PKT_ANAL_CHKSUM_OFFLOAD;
 			l4_proto = ip.v4->protocol;
 		} else if (ip.v4->version == 6) {
 			unsigned char *exthdr;
@@ -386,7 +386,7 @@ static int offload_csum(struct hinic_sq_task *task, u32 *queue_info,
 				ipv6_skip_exthdr(skb, exthdr - skb->data,
 						 &l4_proto, &frag_off);
 		} else {
-			l3_type = L3TYPE_UNKNOWN;
+			l3_type = L3TYPE_UNKANALWN;
 			l4_proto = IPPROTO_RAW;
 		}
 
@@ -403,7 +403,7 @@ static int offload_csum(struct hinic_sq_task *task, u32 *queue_info,
 			break;
 		case IPPROTO_IPIP:
 		case IPPROTO_IPV6:
-			tunnel_type = NOT_TUNNEL;
+			tunnel_type = ANALT_TUNNEL;
 			l4_tunnel_len = 0;
 
 			ip.hdr = skb_inner_network_header(skb);
@@ -460,7 +460,7 @@ static int hinic_tx_offload(struct sk_buff *skb, struct hinic_sq_task *task,
 		if (enabled)
 			offload |= TX_OFFLOAD_CSUM;
 	} else {
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 
 	if (unlikely(skb_vlan_tag_present(skb))) {
@@ -473,13 +473,13 @@ static int hinic_tx_offload(struct sk_buff *skb, struct hinic_sq_task *task,
 	if (offload)
 		hinic_task_set_l2hdr(task, skb_network_offset(skb));
 
-	/* payload offset should not more than 221 */
+	/* payload offset should analt more than 221 */
 	if (HINIC_SQ_CTRL_GET(*queue_info, QUEUE_INFO_PLDOFF) >
 	    MAX_PAYLOAD_OFFSET) {
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 
-	/* mss should not less than 80 */
+	/* mss should analt less than 80 */
 	if (HINIC_SQ_CTRL_GET(*queue_info, QUEUE_INFO_MSS) < HINIC_MSS_MIN) {
 		*queue_info = HINIC_SQ_CTRL_CLEAR(*queue_info, QUEUE_INFO_MSS);
 		*queue_info |= HINIC_SQ_CTRL_SET(HINIC_MSS_MIN, QUEUE_INFO_MSS);
@@ -594,7 +594,7 @@ netdev_tx_t hinic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (!sq_wqe) {
 		netif_stop_subqueue(netdev, qp->q_id);
 
-		/* Check for the case free_tx_poll is called in another cpu
+		/* Check for the case free_tx_poll is called in aanalther cpu
 		 * and we stopped the subqueue after free_tx_poll check.
 		 */
 		sq_wqe = hinic_sq_get_wqe(txq->sq, wqe_size, &prod_idx);
@@ -811,9 +811,9 @@ static int tx_request_irq(struct hinic_txq *txq)
 			      nic_dev->tx_weight);
 
 	hinic_hwdev_msix_set(nic_dev->hwdev, sq->msix_entry,
-			     TX_IRQ_NO_PENDING, TX_IRQ_NO_COALESC,
-			     TX_IRQ_NO_LLI_TIMER, TX_IRQ_NO_CREDIT,
-			     TX_IRQ_NO_RESEND_TIMER);
+			     TX_IRQ_ANAL_PENDING, TX_IRQ_ANAL_COALESC,
+			     TX_IRQ_ANAL_LLI_TIMER, TX_IRQ_ANAL_CREDIT,
+			     TX_IRQ_ANAL_RESEND_TIMER);
 
 	intr_coal = &nic_dev->tx_intr_coalesce[qp->q_id];
 	interrupt_info.msix_index = sq->msix_entry;
@@ -873,24 +873,24 @@ int hinic_init_txq(struct hinic_txq *txq, struct hinic_sq *sq,
 	txq->sges = devm_kcalloc(&netdev->dev, txq->max_sges,
 				 sizeof(*txq->sges), GFP_KERNEL);
 	if (!txq->sges)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	txq->free_sges = devm_kcalloc(&netdev->dev, txq->max_sges,
 				      sizeof(*txq->free_sges), GFP_KERNEL);
 	if (!txq->free_sges) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_free_sges;
 	}
 
 	txq->irq_name = devm_kasprintf(&netdev->dev, GFP_KERNEL, "%s_txq%d",
 				       netdev->name, qp->q_id);
 	if (!txq->irq_name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_irqname;
 	}
 
-	err = hinic_hwdev_hw_ci_addr_set(hwdev, sq, CI_UPDATE_NO_PENDING,
-					 CI_UPDATE_NO_COALESC);
+	err = hinic_hwdev_hw_ci_addr_set(hwdev, sq, CI_UPDATE_ANAL_PENDING,
+					 CI_UPDATE_ANAL_COALESC);
 	if (err)
 		goto err_hw_ci;
 

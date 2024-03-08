@@ -303,7 +303,7 @@ irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id)
 {
 	struct sst_dsp *ctx = dev_id;
 	u32 val;
-	irqreturn_t result = IRQ_NONE;
+	irqreturn_t result = IRQ_ANALNE;
 
 	spin_lock(&ctx->spinlock);
 
@@ -312,7 +312,7 @@ irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id)
 
 	if (val == 0xffffffff) {
 		spin_unlock(&ctx->spinlock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (val & SKL_ADSPIS_IPC) {
@@ -331,7 +331,7 @@ irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id)
 }
 /*
  * skl_dsp_get_core/skl_dsp_put_core will be called inside DAPM context
- * within the dapm mutex. Hence no separate lock is used.
+ * within the dapm mutex. Hence anal separate lock is used.
  */
 int skl_dsp_get_core(struct sst_dsp *ctx, unsigned int core_id)
 {

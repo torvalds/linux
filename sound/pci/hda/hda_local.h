@@ -14,7 +14,7 @@
  * the given new control.  If id.subdev has a bit flag HDA_SUBDEV_NID_FLAG,
  * snd_hda_ctl_add() takes the lower-bit subdev value as a valid NID.
  * 
- * Note that the subdevice field is cleared again before the real registration
+ * Analte that the subdevice field is cleared again before the real registration
  * in snd_hda_ctl_add(), so that this value won't appear in the outside.
  */
 #define HDA_SUBDEV_NID_FLAG	(1U << 31)
@@ -28,8 +28,8 @@
 #define HDA_AMP_VAL_MIN_MUTE (1<<29)
 #define HDA_COMPOSE_AMP_VAL(nid,chs,idx,dir) \
 	HDA_COMPOSE_AMP_VAL_OFS(nid, chs, idx, dir, 0)
-/* mono volume with index (index=0,1,...) (channel=1,2) */
-#define HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, channel, xindex, dir, flags) \
+/* moanal volume with index (index=0,1,...) (channel=1,2) */
+#define HDA_CODEC_VOLUME_MOANAL_IDX(xname, xcidx, nid, channel, xindex, dir, flags) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx,  \
 	  .subdevice = HDA_SUBDEV_AMP_FLAG, \
 	  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | \
@@ -42,19 +42,19 @@
 	  .private_value = HDA_COMPOSE_AMP_VAL(nid, channel, xindex, dir) | flags }
 /* stereo volume with index */
 #define HDA_CODEC_VOLUME_IDX(xname, xcidx, nid, xindex, direction) \
-	HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, 3, xindex, direction, 0)
-/* mono volume */
-#define HDA_CODEC_VOLUME_MONO(xname, nid, channel, xindex, direction) \
-	HDA_CODEC_VOLUME_MONO_IDX(xname, 0, nid, channel, xindex, direction, 0)
+	HDA_CODEC_VOLUME_MOANAL_IDX(xname, xcidx, nid, 3, xindex, direction, 0)
+/* moanal volume */
+#define HDA_CODEC_VOLUME_MOANAL(xname, nid, channel, xindex, direction) \
+	HDA_CODEC_VOLUME_MOANAL_IDX(xname, 0, nid, channel, xindex, direction, 0)
 /* stereo volume */
 #define HDA_CODEC_VOLUME(xname, nid, xindex, direction) \
-	HDA_CODEC_VOLUME_MONO(xname, nid, 3, xindex, direction)
+	HDA_CODEC_VOLUME_MOANAL(xname, nid, 3, xindex, direction)
 /* stereo volume with min=mute */
 #define HDA_CODEC_VOLUME_MIN_MUTE(xname, nid, xindex, direction) \
-	HDA_CODEC_VOLUME_MONO_IDX(xname, 0, nid, 3, xindex, direction, \
+	HDA_CODEC_VOLUME_MOANAL_IDX(xname, 0, nid, 3, xindex, direction, \
 				  HDA_AMP_VAL_MIN_MUTE)
-/* mono mute switch with index (index=0,1,...) (channel=1,2) */
-#define HDA_CODEC_MUTE_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
+/* moanal mute switch with index (index=0,1,...) (channel=1,2) */
+#define HDA_CODEC_MUTE_MOANAL_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx, \
 	  .subdevice = HDA_SUBDEV_AMP_FLAG, \
 	  .info = snd_hda_mixer_amp_switch_info, \
@@ -63,16 +63,16 @@
 	  .private_value = HDA_COMPOSE_AMP_VAL(nid, channel, xindex, direction) }
 /* stereo mute switch with index */
 #define HDA_CODEC_MUTE_IDX(xname, xcidx, nid, xindex, direction) \
-	HDA_CODEC_MUTE_MONO_IDX(xname, xcidx, nid, 3, xindex, direction)
-/* mono mute switch */
-#define HDA_CODEC_MUTE_MONO(xname, nid, channel, xindex, direction) \
-	HDA_CODEC_MUTE_MONO_IDX(xname, 0, nid, channel, xindex, direction)
+	HDA_CODEC_MUTE_MOANAL_IDX(xname, xcidx, nid, 3, xindex, direction)
+/* moanal mute switch */
+#define HDA_CODEC_MUTE_MOANAL(xname, nid, channel, xindex, direction) \
+	HDA_CODEC_MUTE_MOANAL_IDX(xname, 0, nid, channel, xindex, direction)
 /* stereo mute switch */
 #define HDA_CODEC_MUTE(xname, nid, xindex, direction) \
-	HDA_CODEC_MUTE_MONO(xname, nid, 3, xindex, direction)
+	HDA_CODEC_MUTE_MOANAL(xname, nid, 3, xindex, direction)
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
-/* special beep mono mute switch with index (index=0,1,...) (channel=1,2) */
-#define HDA_CODEC_MUTE_BEEP_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
+/* special beep moanal mute switch with index (index=0,1,...) (channel=1,2) */
+#define HDA_CODEC_MUTE_BEEP_MOANAL_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx, \
 	  .subdevice = HDA_SUBDEV_AMP_FLAG, \
 	  .info = snd_hda_mixer_amp_switch_info, \
@@ -80,16 +80,16 @@
 	  .put = snd_hda_mixer_amp_switch_put_beep, \
 	  .private_value = HDA_COMPOSE_AMP_VAL(nid, channel, xindex, direction) }
 #else
-/* no digital beep - just the standard one */
-#define HDA_CODEC_MUTE_BEEP_MONO_IDX(xname, xcidx, nid, ch, xidx, dir) \
-	HDA_CODEC_MUTE_MONO_IDX(xname, xcidx, nid, ch, xidx, dir)
+/* anal digital beep - just the standard one */
+#define HDA_CODEC_MUTE_BEEP_MOANAL_IDX(xname, xcidx, nid, ch, xidx, dir) \
+	HDA_CODEC_MUTE_MOANAL_IDX(xname, xcidx, nid, ch, xidx, dir)
 #endif /* CONFIG_SND_HDA_INPUT_BEEP */
-/* special beep mono mute switch */
-#define HDA_CODEC_MUTE_BEEP_MONO(xname, nid, channel, xindex, direction) \
-	HDA_CODEC_MUTE_BEEP_MONO_IDX(xname, 0, nid, channel, xindex, direction)
+/* special beep moanal mute switch */
+#define HDA_CODEC_MUTE_BEEP_MOANAL(xname, nid, channel, xindex, direction) \
+	HDA_CODEC_MUTE_BEEP_MOANAL_IDX(xname, 0, nid, channel, xindex, direction)
 /* special beep stereo mute switch */
 #define HDA_CODEC_MUTE_BEEP(xname, nid, xindex, direction) \
-	HDA_CODEC_MUTE_BEEP_MONO(xname, nid, 3, xindex, direction)
+	HDA_CODEC_MUTE_BEEP_MOANAL(xname, nid, 3, xindex, direction)
 
 extern const char *snd_hda_pcm_type_name[];
 
@@ -196,21 +196,21 @@ int snd_hda_add_imux_item(struct hda_codec *codec,
  */
 
 enum { HDA_FRONT, HDA_REAR, HDA_CLFE, HDA_SIDE }; /* index for dac_nidx */
-enum { HDA_DIG_NONE, HDA_DIG_EXCLUSIVE, HDA_DIG_ANALOG_DUP }; /* dig_out_used */
+enum { HDA_DIG_ANALNE, HDA_DIG_EXCLUSIVE, HDA_DIG_ANALOG_DUP }; /* dig_out_used */
 
 #define HDA_MAX_OUTS	5
 
 struct hda_multi_out {
 	int num_dacs;		/* # of DACs, must be more than 1 */
 	const hda_nid_t *dac_nids;	/* DAC list */
-	hda_nid_t hp_nid;	/* optional DAC for HP, 0 when not exists */
+	hda_nid_t hp_nid;	/* optional DAC for HP, 0 when analt exists */
 	hda_nid_t hp_out_nid[HDA_MAX_OUTS];	/* DACs for multiple HPs */
 	hda_nid_t extra_out_nid[HDA_MAX_OUTS];	/* other (e.g. speaker) DACs */
 	hda_nid_t dig_out_nid;	/* digital out audio widget */
 	const hda_nid_t *follower_dig_outs;
 	int max_channels;	/* currently supported analog channels */
 	int dig_out_used;	/* current usage of digital out (HDA_DIG_XXX) */
-	int no_share_stream;	/* don't share a stream with multiple pins */
+	int anal_share_stream;	/* don't share a stream with multiple pins */
 	int share_spdif;	/* share SPDIF pin */
 	/* PCM information for both analog and SPDIF DACs */
 	unsigned int analog_rates;
@@ -322,8 +322,8 @@ struct snd_hda_pin_quirk {
 
 #endif
 
-#define HDA_FIXUP_ID_NOT_SET -1
-#define HDA_FIXUP_ID_NO_FIXUP -2
+#define HDA_FIXUP_ID_ANALT_SET -1
+#define HDA_FIXUP_ID_ANAL_FIXUP -2
 
 /* fixup types */
 enum {
@@ -402,13 +402,13 @@ int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
  * @val: the pin-control value (AC_PINCTL_* bits)
  *
  * This function sets the pin-control value to the given pin, but
- * filters out the invalid pin-control bits when the pin has no such
- * capabilities.  For example, when PIN_HP is passed but the pin has no
+ * filters out the invalid pin-control bits when the pin has anal such
+ * capabilities.  For example, when PIN_HP is passed but the pin has anal
  * HP-drive capability, the HP bit is omitted.
  *
  * The function doesn't check the input VREF capability bits, though.
  * Use snd_hda_get_default_vref() to guess the right value.
- * Also, this function is only for analog pins, not for HDMI pins.
+ * Also, this function is only for analog pins, analt for HDMI pins.
  */
 static inline int
 snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin, unsigned int val)
@@ -435,7 +435,7 @@ int snd_hda_codec_get_pin_target(struct hda_codec *codec, hda_nid_t nid);
 int snd_hda_codec_set_pin_target(struct hda_codec *codec, hda_nid_t nid,
 				 unsigned int val);
 
-#define for_each_hda_codec_node(nid, codec) \
+#define for_each_hda_codec_analde(nid, codec) \
 	for ((nid) = (codec)->core.start_nid; (nid) < (codec)->core.end_nid; (nid)++)
 
 /* Set the codec power_state flag to indicate to allow unsol event handling;
@@ -453,7 +453,7 @@ static inline void snd_hda_codec_allow_unsol_events(struct hda_codec *codec)
 static inline u32 get_wcaps(struct hda_codec *codec, hda_nid_t nid)
 {
 	if (nid < codec->core.start_nid ||
-	    nid >= codec->core.start_nid + codec->core.num_nodes)
+	    nid >= codec->core.start_nid + codec->core.num_analdes)
 		return 0;
 	return codec->wcaps[nid - codec->core.start_nid];
 }
@@ -480,7 +480,7 @@ static inline void snd_hda_override_wcaps(struct hda_codec *codec,
 					  hda_nid_t nid, u32 val)
 {
 	if (nid >= codec->core.start_nid &&
-	    nid < codec->core.start_nid + codec->core.num_nodes)
+	    nid < codec->core.start_nid + codec->core.num_analdes)
 		codec->wcaps[nid - codec->core.start_nid] = val;
 }
 
@@ -575,13 +575,13 @@ const char *snd_hda_get_hint(struct hda_codec *codec, const char *key)
 static inline
 int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static inline
 int snd_hda_get_int_hint(struct hda_codec *codec, const char *key, int *valp)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 #endif
 

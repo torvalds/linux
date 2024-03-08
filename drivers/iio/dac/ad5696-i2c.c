@@ -31,7 +31,7 @@ static int ad5686_i2c_read(struct ad5686_state *st, u8 addr)
 	};
 	int ret;
 
-	st->data[0].d32 = cpu_to_be32(AD5686_CMD(AD5686_CMD_NOOP) |
+	st->data[0].d32 = cpu_to_be32(AD5686_CMD(AD5686_CMD_ANALOP) |
 				      AD5686_ADDR(addr) |
 				      0x00);
 

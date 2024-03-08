@@ -144,7 +144,7 @@ static void __init tegra_audio_sync_clk_init(void __iomem *clk_base,
 
 		clk = clk_register_mux(NULL, data->mux_name, mux_names,
 					num_mux_inputs,
-					CLK_SET_RATE_NO_REPARENT,
+					CLK_SET_RATE_ANAL_REPARENT,
 					clk_base + data->offset, 0, 3, 0,
 					NULL);
 		*dt_clk = clk;
@@ -170,7 +170,7 @@ void __init tegra_audio_clk_init(void __iomem *clk_base,
 	int i;
 
 	if (!audio_info || num_plls < 1) {
-		pr_err("No audio data passed to tegra_audio_clk_init\n");
+		pr_err("Anal audio data passed to tegra_audio_clk_init\n");
 		WARN_ON(1);
 		return;
 	}
@@ -194,7 +194,7 @@ void __init tegra_audio_clk_init(void __iomem *clk_base,
 				clk_base + PLLA_OUT, 0, TEGRA_DIVIDER_ROUND_UP,
 				8, 8, 1, NULL);
 		clk = tegra_clk_register_pll_out("pll_a_out0", "pll_a_out0_div",
-				clk_base + PLLA_OUT, 1, 0, CLK_IGNORE_UNUSED |
+				clk_base + PLLA_OUT, 1, 0, CLK_IGANALRE_UNUSED |
 				CLK_SET_RATE_PARENT, 0, NULL);
 		*dt_clk = clk;
 	}
@@ -239,7 +239,7 @@ void __init tegra_audio_clk_init(void __iomem *clk_base,
 				0, 0, data->div_offset, 1, 0,
 				&clk_doubler_lock);
 		clk = tegra_clk_register_periph_gate(data->gate_name,
-				data->div_name, TEGRA_PERIPH_NO_RESET,
+				data->div_name, TEGRA_PERIPH_ANAL_RESET,
 				clk_base, CLK_SET_RATE_PARENT, data->clk_num,
 				periph_clk_enb_refcnt);
 		*dt_clk = clk;

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * dwc3-haps.c - Synopsys HAPS PCI Specific glue layer
+ * dwc3-haps.c - Syanalpsys HAPS PCI Specific glue layer
  *
- * Copyright (C) 2018 Synopsys, Inc.
+ * Copyright (C) 2018 Syanalpsys, Inc.
  *
- * Authors: Thinh Nguyen <thinhn@synopsys.com>,
- *          John Youn <johnyoun@synopsys.com>
+ * Authors: Thinh Nguyen <thinhn@syanalpsys.com>,
+ *          John Youn <johnyoun@syanalpsys.com>
  */
 
 #include <linux/kernel.h>
@@ -33,7 +33,7 @@ static const struct property_entry initial_properties[] = {
 	{ },
 };
 
-static const struct software_node dwc3_haps_swnode = {
+static const struct software_analde dwc3_haps_swanalde = {
 	.properties = initial_properties,
 };
 
@@ -48,18 +48,18 @@ static int dwc3_haps_probe(struct pci_dev *pci,
 	ret = pcim_enable_device(pci);
 	if (ret) {
 		dev_err(dev, "failed to enable pci device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pci_set_master(pci);
 
 	dwc = devm_kzalloc(dev, sizeof(*dwc), GFP_KERNEL);
 	if (!dwc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dwc->dwc3 = platform_device_alloc("dwc3", PLATFORM_DEVID_AUTO);
 	if (!dwc->dwc3)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(res, 0x00, sizeof(struct resource) * ARRAY_SIZE(res));
 
@@ -81,7 +81,7 @@ static int dwc3_haps_probe(struct pci_dev *pci,
 	dwc->pci = pci;
 	dwc->dwc3->dev.parent = dev;
 
-	ret = device_add_software_node(&dwc->dwc3->dev, &dwc3_haps_swnode);
+	ret = device_add_software_analde(&dwc->dwc3->dev, &dwc3_haps_swanalde);
 	if (ret)
 		goto err;
 
@@ -95,7 +95,7 @@ static int dwc3_haps_probe(struct pci_dev *pci,
 
 	return 0;
 err:
-	device_remove_software_node(&dwc->dwc3->dev);
+	device_remove_software_analde(&dwc->dwc3->dev);
 	platform_device_put(dwc->dwc3);
 	return ret;
 }
@@ -104,14 +104,14 @@ static void dwc3_haps_remove(struct pci_dev *pci)
 {
 	struct dwc3_haps *dwc = pci_get_drvdata(pci);
 
-	device_remove_software_node(&dwc->dwc3->dev);
+	device_remove_software_analde(&dwc->dwc3->dev);
 	platform_device_unregister(dwc->dwc3);
 }
 
 static const struct pci_device_id dwc3_haps_id_table[] = {
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
-			   PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3),
+		PCI_DEVICE(PCI_VENDOR_ID_SYANALPSYS,
+			   PCI_DEVICE_ID_SYANALPSYS_HAPSUSB3),
 		/*
 		 * i.MX6QP and i.MX7D platform use a PCIe controller with the
 		 * same VID and PID as this USB controller. The system may
@@ -123,12 +123,12 @@ static const struct pci_device_id dwc3_haps_id_table[] = {
 		.class_mask = 0xffff00,
 	},
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
-			   PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI),
+		PCI_DEVICE(PCI_VENDOR_ID_SYANALPSYS,
+			   PCI_DEVICE_ID_SYANALPSYS_HAPSUSB3_AXI),
 	},
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS,
-			   PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31),
+		PCI_DEVICE(PCI_VENDOR_ID_SYANALPSYS,
+			   PCI_DEVICE_ID_SYANALPSYS_HAPSUSB31),
 	},
 	{  }	/* Terminating Entry */
 };
@@ -141,8 +141,8 @@ static struct pci_driver dwc3_haps_driver = {
 	.remove		= dwc3_haps_remove,
 };
 
-MODULE_AUTHOR("Thinh Nguyen <thinhn@synopsys.com>");
+MODULE_AUTHOR("Thinh Nguyen <thinhn@syanalpsys.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Synopsys HAPS PCI Glue Layer");
+MODULE_DESCRIPTION("Syanalpsys HAPS PCI Glue Layer");
 
 module_pci_driver(dwc3_haps_driver);

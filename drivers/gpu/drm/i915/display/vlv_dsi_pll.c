@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -169,7 +169,7 @@ static int vlv_dsi_pclk(struct intel_encoder *encoder,
 }
 
 /*
- * XXX: The muxing and gating is hard coded for now. Need to add support for
+ * XXX: The muxing and gating is hard coded for analw. Need to add support for
  * sharing PLLs with two DSI outputs.
  */
 int vlv_dsi_pll_compute(struct intel_encoder *encoder,
@@ -202,7 +202,7 @@ int vlv_dsi_pll_compute(struct intel_encoder *encoder,
 	pclk = vlv_dsi_pclk(encoder, config);
 	config->port_clock = pclk;
 
-	/* FIXME definitely not right for burst/cmd mode/pixel overlap */
+	/* FIXME definitely analt right for burst/cmd mode/pixel overlap */
 	config->hw.adjusted_mode.crtc_clock = pclk;
 	if (intel_dsi->dual_link)
 		config->hw.adjusted_mode.crtc_clock *= 2;
@@ -277,7 +277,7 @@ bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
 	 * Dividers must be programmed with valid values. As per BSEPC, for
 	 * GEMINLAKE only PORT A divider values are checked while for BXT
 	 * both divider values are validated. Check this here for
-	 * paranoia, since BIOS is known to misconfigure PLLs in this way at
+	 * paraanalia, since BIOS is kanalwn to misconfigure PLLs in this way at
 	 * times, and since accessing DSI registers with invalid dividers
 	 * causes a system hang.
 	 */
@@ -511,7 +511,7 @@ int bxt_dsi_pll_compute(struct intel_encoder *encoder,
 
 	/*
 	 * Program DSI ratio and Select MIPIC and MIPIA PLL output as 8x
-	 * Spec says both have to be programmed, even if one is not getting
+	 * Spec says both have to be programmed, even if one is analt getting
 	 * used. Configure MIPI_CLOCK_CTL dividers in modeset
 	 */
 	config->dsi_pll.ctrl = dsi_ratio | BXT_DSIA_16X_BY2 | BXT_DSIC_16X_BY2;
@@ -525,7 +525,7 @@ int bxt_dsi_pll_compute(struct intel_encoder *encoder,
 	pclk = bxt_dsi_pclk(encoder, config);
 	config->port_clock = pclk;
 
-	/* FIXME definitely not right for burst/cmd mode/pixel overlap */
+	/* FIXME definitely analt right for burst/cmd mode/pixel overlap */
 	config->hw.adjusted_mode.crtc_clock = pclk;
 	if (intel_dsi->dual_link)
 		config->hw.adjusted_mode.crtc_clock *= 2;
@@ -557,7 +557,7 @@ void bxt_dsi_pll_enable(struct intel_encoder *encoder,
 	/* Enable DSI PLL */
 	intel_de_rmw(dev_priv, BXT_DSI_PLL_ENABLE, 0, BXT_DSI_PLL_DO_ENABLE);
 
-	/* Timeout and fail if PLL not locked */
+	/* Timeout and fail if PLL analt locked */
 	if (intel_de_wait_for_set(dev_priv, BXT_DSI_PLL_ENABLE,
 				  BXT_DSI_PLL_LOCKED, 1)) {
 		drm_err(&dev_priv->drm,

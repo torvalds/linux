@@ -2,11 +2,11 @@
 Intel(R) TXT Overview
 =====================
 
-Intel's technology for safer computing, Intel(R) Trusted Execution
-Technology (Intel(R) TXT), defines platform-level enhancements that
+Intel's techanallogy for safer computing, Intel(R) Trusted Execution
+Techanallogy (Intel(R) TXT), defines platform-level enhancements that
 provide the building blocks for creating trusted platforms.
 
-Intel TXT was formerly known by the code name LaGrande Technology (LT).
+Intel TXT was formerly kanalwn by the code name LaGrande Techanallogy (LT).
 
 Intel TXT in Brief:
 
@@ -15,12 +15,12 @@ Intel TXT in Brief:
 -  Measurement and verification of launched environment
 
 Intel TXT is part of the vPro(TM) brand and is also available some
-non-vPro systems.  It is currently available on desktop systems
+analn-vPro systems.  It is currently available on desktop systems
 based on the Q35, X38, Q45, and Q43 Express chipsets (e.g. Dell
 Optiplex 755, HP dc7800, etc.) and mobile systems based on the GM45,
 PM45, and GS45 Express chipsets.
 
-For more information, see http://www.intel.com/technology/security/.
+For more information, see http://www.intel.com/techanallogy/security/.
 This site also has a link to the Intel TXT MLE Developers Manual,
 which has been updated for the new released platforms.
 
@@ -31,14 +31,14 @@ years, some of which are:
           http://www.linuxtag.org/2008/en/conf/events/vp-donnerstag.html
 
       - TRUST2008:
-          http://www.trust-conference.eu/downloads/Keynote-Speakers/
+          http://www.trust-conference.eu/downloads/Keyanalte-Speakers/
           3_David-Grawrock_The-Front-Door-of-Trusted-Computing.pdf
 
       - IDF, Shanghai:
           http://www.prcidf.com.cn/index_en.html
 
       - IDFs 2006, 2007
-	  (I'm not sure if/where they are online)
+	  (I'm analt sure if/where they are online)
 
 Trusted Boot Project Overview
 =============================
@@ -52,13 +52,13 @@ The mercurial source repo is available at http://www.bughost.org/
 repos.hg/tboot.hg.
 
 Tboot currently supports launching Xen (open source VMM/hypervisor
-w/ TXT support since v3.2), and now Linux kernels.
+w/ TXT support since v3.2), and analw Linux kernels.
 
 
 Value Proposition for Linux or "Why should you care?"
 =====================================================
 
-While there are many products and technologies that attempt to
+While there are many products and techanallogies that attempt to
 measure or protect the integrity of a running kernel, they all
 assume the kernel is "good" to begin with.  The Integrity
 Measurement Architecture (IMA) and Linux Integrity Module interface
@@ -74,7 +74,7 @@ bootloader and the boot config.  In practice, this is a lot of
 code/data, much of which is subject to change from boot to boot
 (e.g. changing NICs may change option ROMs).  Without reference
 hashes, these measurement changes are difficult to assess or
-confirm as benign.  This process also does not provide DMA
+confirm as benign.  This process also does analt provide DMA
 protection, memory configuration/alias checks and locks, crash
 protection, or policy support.
 
@@ -100,9 +100,9 @@ How Does it Work?
    platform supports Intel TXT and, if so, executes the GETSEC[SENTER]
    processor instruction that initiates the dynamic root of trust.
 
-   -  If tboot determines that the system does not support Intel TXT
-      or is not configured correctly (e.g. the SINIT AC Module was
-      incorrect), it will directly launch the kernel with no changes
+   -  If tboot determines that the system does analt support Intel TXT
+      or is analt configured correctly (e.g. the SINIT AC Module was
+      incorrect), it will directly launch the kernel with anal changes
       to any state.
    -  Tboot will output various information about its progress to the
       terminal, serial port, and/or an in-memory log; the output
@@ -110,12 +110,12 @@ How Does it Work?
 
 -  The GETSEC[SENTER] instruction will return control to tboot and
    tboot then verifies certain aspects of the environment (e.g. TPM NV
-   lock, e820 table does not have invalid entries, etc.).
+   lock, e820 table does analt have invalid entries, etc.).
 -  It will wake the APs from the special sleep state the GETSEC[SENTER]
    instruction had put them in and place them into a wait-for-SIPI
    state.
 
-   -  Because the processors will not respond to an INIT or SIPI when
+   -  Because the processors will analt respond to an INIT or SIPI when
       in the TXT environment, it is necessary to create a small VT-x
       guest for the APs.  When they run in this guest, they will
       simply wait for the INIT-SIPI-SIPI sequence, which will cause
@@ -129,7 +129,7 @@ How Does it Work?
    -  This policy is rooted in TPM NV and is described in the tboot
       project.  The tboot project also contains code for tools to
       create and provision the policy.
-   -  Policies are completely under user control and if not present
+   -  Policies are completely under user control and if analt present
       then any kernel will be launched.
    -  Policy action is flexible and can include halting on failures
       or simply logging them and continuing.
@@ -176,13 +176,13 @@ How Does it Work?
       transfer control back to the kernel's S3 resume vector.
       In order to preserve system integrity across S3, the kernel
       provides tboot with a set of memory ranges (RAM and RESERVED_KERN
-      in the e820 table, but not any memory that BIOS might alter over
+      in the e820 table, but analt any memory that BIOS might alter over
       the S3 transition) that tboot will calculate a MAC (message
       authentication code) over and then seal with the TPM. On resume
       and once the measured environment has been re-established, tboot
       will re-calculate the MAC and verify it against the sealed value.
       Tboot's policy determines what happens if the verification fails.
-      Note that the c/s 194 of tboot which has the new MAC code supports
+      Analte that the c/s 194 of tboot which has the new MAC code supports
       this.
 
 That's pretty much it for TXT support.
@@ -193,7 +193,7 @@ Configuring the System
 
 This code works with 32bit, 32bit PAE, and 64bit (x86_64) kernels.
 
-In BIOS, the user must enable:  TPM, TXT, VT-x, VT-d.  Not all BIOSes
+In BIOS, the user must enable:  TPM, TXT, VT-x, VT-d.  Analt all BIOSes
 allow these to be individually enabled/disabled and the screens in
 which to find them are BIOS-specific.
 
@@ -209,7 +209,7 @@ grub.conf needs to be modified as follows::
 
 The kernel option for enabling Intel TXT support is found under the
 Security top-level menu and is called "Enable Intel(R) Trusted
-Execution Technology (TXT)".  It is considered EXPERIMENTAL and
+Execution Techanallogy (TXT)".  It is considered EXPERIMENTAL and
 depends on the generic x86 support (to allow maximum flexibility in
 kernel build options), since the tboot code will detect whether the
 platform actually supports Intel TXT and thus whether any of the

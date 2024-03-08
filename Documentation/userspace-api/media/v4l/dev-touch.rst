@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _touch:
 
@@ -8,7 +8,7 @@ Touch Devices
 
 Touch devices are accessed through character device special files named
 ``/dev/v4l-touch0`` to ``/dev/v4l-touch255`` with major number 81 and
-dynamically allocated minor numbers 0 to 255.
+dynamically allocated mianalr numbers 0 to 255.
 
 Overview
 ========
@@ -17,18 +17,18 @@ Sensors may be Optical, or Projected Capacitive touch (PCT).
 
 Processing is required to analyse the raw data and produce input events. In
 some systems, this may be performed on the ASIC and the raw data is purely a
-side-channel for diagnostics or tuning. In other systems, the ASIC is a simple
+side-channel for diaganalstics or tuning. In other systems, the ASIC is a simple
 analogue front end device which delivers touch data at high rate, and any touch
 processing must be done on the host.
 
 For capacitive touch sensing, the touchscreen is composed of an array of
 horizontal and vertical conductors (alternatively called rows/columns, X/Y
-lines, or tx/rx). Mutual Capacitance measured is at the nodes where the
+lines, or tx/rx). Mutual Capacitance measured is at the analdes where the
 conductors cross. Alternatively, Self Capacitance measures the signal from each
 column and row independently.
 
 A touch input may be determined by comparing the raw capacitance measurement to
-a no-touch reference (or "baseline") measurement:
+a anal-touch reference (or "baseline") measurement:
 
 Delta = Raw - Reference
 

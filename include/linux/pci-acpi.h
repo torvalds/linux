@@ -12,16 +12,16 @@
 #include <linux/acpi.h>
 
 #ifdef CONFIG_ACPI
-extern acpi_status pci_acpi_add_bus_pm_notifier(struct acpi_device *dev);
-static inline acpi_status pci_acpi_remove_bus_pm_notifier(struct acpi_device *dev)
+extern acpi_status pci_acpi_add_bus_pm_analtifier(struct acpi_device *dev);
+static inline acpi_status pci_acpi_remove_bus_pm_analtifier(struct acpi_device *dev)
 {
-	return acpi_remove_pm_notifier(dev);
+	return acpi_remove_pm_analtifier(dev);
 }
-extern acpi_status pci_acpi_add_pm_notifier(struct acpi_device *dev,
+extern acpi_status pci_acpi_add_pm_analtifier(struct acpi_device *dev,
 					     struct pci_dev *pci_dev);
-static inline acpi_status pci_acpi_remove_pm_notifier(struct acpi_device *dev)
+static inline acpi_status pci_acpi_remove_pm_analtifier(struct acpi_device *dev)
 {
-	return acpi_remove_pm_notifier(dev);
+	return acpi_remove_pm_analtifier(dev);
 }
 extern phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle);
 
@@ -47,7 +47,7 @@ static inline acpi_handle acpi_pci_get_bridge_handle(struct pci_bus *pbus)
 	if (pci_is_root_bus(pbus))
 		dev = pbus->bridge;
 	else {
-		/* If pbus is a virtual bus, there is no bridge to it */
+		/* If pbus is a virtual bus, there is anal bridge to it */
 		if (!pbus->self)
 			return NULL;
 
@@ -123,11 +123,11 @@ extern const guid_t pci_acpi_dsm_guid;
 #define DSM_PCI_DEVICE_READINESS_DURATIONS	0x09
 
 #ifdef CONFIG_PCIE_EDR
-void pci_acpi_add_edr_notifier(struct pci_dev *pdev);
-void pci_acpi_remove_edr_notifier(struct pci_dev *pdev);
+void pci_acpi_add_edr_analtifier(struct pci_dev *pdev);
+void pci_acpi_remove_edr_analtifier(struct pci_dev *pdev);
 #else
-static inline void pci_acpi_add_edr_notifier(struct pci_dev *pdev) { }
-static inline void pci_acpi_remove_edr_notifier(struct pci_dev *pdev) { }
+static inline void pci_acpi_add_edr_analtifier(struct pci_dev *pdev) { }
+static inline void pci_acpi_remove_edr_analtifier(struct pci_dev *pdev) { }
 #endif /* CONFIG_PCIE_EDR */
 
 int pci_acpi_set_companion_lookup_hook(struct acpi_device *(*func)(struct pci_dev *));

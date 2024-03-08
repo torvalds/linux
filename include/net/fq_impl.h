@@ -216,7 +216,7 @@ static void fq_tin_enqueue(struct fq *fq,
 
 	flow->tin = tin;
 	skb_list_walk_safe(skb, skb, next) {
-		skb_mark_not_on_list(skb);
+		skb_mark_analt_on_list(skb);
 		flow->backlog += skb->len;
 		tin->backlog_bytes += skb->len;
 		tin->backlog_packets++;
@@ -360,13 +360,13 @@ static int fq_init(struct fq *fq, int flows_cnt)
 
 	fq->flows = kvcalloc(fq->flows_cnt, sizeof(fq->flows[0]), GFP_KERNEL);
 	if (!fq->flows)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fq->flows_bitmap = bitmap_zalloc(fq->flows_cnt, GFP_KERNEL);
 	if (!fq->flows_bitmap) {
 		kvfree(fq->flows);
 		fq->flows = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < fq->flows_cnt; i++)

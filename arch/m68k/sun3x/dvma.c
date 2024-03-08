@@ -99,7 +99,7 @@ inline int dvma_map_cpu(unsigned long kaddr,
 		unsigned long end2;
 
 		if((pmd = pmd_alloc(&init_mm, pud, vaddr)) == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -113,7 +113,7 @@ inline int dvma_map_cpu(unsigned long kaddr,
 			unsigned long end3;
 
 			if((pte = pte_alloc_kernel(pmd, vaddr)) == NULL) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 

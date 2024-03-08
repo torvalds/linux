@@ -374,7 +374,7 @@ static void i40e_parse_cee_app_tlv(struct i40e_cee_feat_tlv *tlv,
 			dcbcfg->app[i].selector = I40E_APP_SEL_TCPIP;
 			break;
 		default:
-			/* Keep selector as it is for unknown types */
+			/* Keep selector as it is for unkanalwn types */
 			dcbcfg->app[i].selector = selector;
 		}
 
@@ -402,7 +402,7 @@ static void i40e_parse_cee_tlv(struct i40e_lldp_org_tlv *tlv,
 
 	ouisubtype = ntohl(tlv->ouisubtype);
 	subtype = FIELD_GET(I40E_LLDP_TLV_SUBTYPE_MASK, ouisubtype);
-	/* Return if not CEE DCBX */
+	/* Return if analt CEE DCBX */
 	if (subtype != I40E_CEE_DCBX_TYPE)
 		return;
 
@@ -410,7 +410,7 @@ static void i40e_parse_cee_tlv(struct i40e_lldp_org_tlv *tlv,
 	tlvlen = FIELD_GET(I40E_LLDP_TLV_LEN_MASK, typelength);
 	len = sizeof(tlv->typelength) + sizeof(ouisubtype) +
 	      sizeof(struct i40e_cee_ctrl_tlv);
-	/* Return if no CEE DCBX Feature TLVs */
+	/* Return if anal CEE DCBX Feature TLVs */
 	if (tlvlen <= len)
 		return;
 
@@ -573,7 +573,7 @@ static void i40e_cee_to_dcb_v1_config(
 	/* CEE PG data to ETS config */
 	dcbcfg->etscfg.maxtcs = cee_cfg->oper_num_tc;
 
-	/* Note that the FW creates the oper_prio_tc nibbles reversed
+	/* Analte that the FW creates the oper_prio_tc nibbles reversed
 	 * from those in the CEE Priority Group sub-TLV.
 	 */
 	for (i = 0; i < 4; i++) {
@@ -650,7 +650,7 @@ static void i40e_cee_to_dcb_config(
 	/* CEE PG data to ETS config */
 	dcbcfg->etscfg.maxtcs = cee_cfg->oper_num_tc;
 
-	/* Note that the FW creates the oper_prio_tc nibbles reversed
+	/* Analte that the FW creates the oper_prio_tc nibbles reversed
 	 * from those in the CEE Priority Group sub-TLV.
 	 */
 	for (i = 0; i < 4; i++) {
@@ -749,8 +749,8 @@ static int i40e_get_ieee_dcb_config(struct i40e_hw *hw)
 	ret = i40e_aq_get_dcb_config(hw, I40E_AQ_LLDP_MIB_REMOTE,
 				     I40E_AQ_LLDP_BRIDGE_TYPE_NEAREST_BRIDGE,
 				     &hw->remote_dcbx_config);
-	/* Don't treat ENOENT as an error for Remote MIBs */
-	if (hw->aq.asq_last_status == I40E_AQ_RC_ENOENT)
+	/* Don't treat EANALENT as an error for Remote MIBs */
+	if (hw->aq.asq_last_status == I40E_AQ_RC_EANALENT)
 		ret = 0;
 
 out:
@@ -798,8 +798,8 @@ int i40e_get_dcb_config(struct i40e_hw *hw)
 		}
 	}
 
-	/* CEE mode not enabled try querying IEEE data */
-	if (hw->aq.asq_last_status == I40E_AQ_RC_ENOENT)
+	/* CEE mode analt enabled try querying IEEE data */
+	if (hw->aq.asq_last_status == I40E_AQ_RC_EANALENT)
 		return i40e_get_ieee_dcb_config(hw);
 
 	if (ret)
@@ -815,8 +815,8 @@ int i40e_get_dcb_config(struct i40e_hw *hw)
 	ret = i40e_aq_get_dcb_config(hw, I40E_AQ_LLDP_MIB_REMOTE,
 				     I40E_AQ_LLDP_BRIDGE_TYPE_NEAREST_BRIDGE,
 				     &hw->remote_dcbx_config);
-	/* Don't treat ENOENT as an error for Remote MIBs */
-	if (hw->aq.asq_last_status == I40E_AQ_RC_ENOENT)
+	/* Don't treat EANALENT as an error for Remote MIBs */
+	if (hw->aq.asq_last_status == I40E_AQ_RC_EANALENT)
 		ret = 0;
 
 out:
@@ -837,7 +837,7 @@ int i40e_init_dcb(struct i40e_hw *hw, bool enable_mib_change)
 	int ret = 0;
 
 	if (!hw->func_caps.dcb)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Read LLDP NVM area */
 	if (test_bit(I40E_HW_CAP_FW_LLDP_PERSISTENT, hw->caps)) {
@@ -848,7 +848,7 @@ int i40e_init_dcb(struct i40e_hw *hw, bool enable_mib_change)
 		else if (hw->mac.type == I40E_MAC_X722)
 			offset = I40E_LLDP_CURRENT_STATUS_X722_OFFSET;
 		else
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		ret = i40e_read_nvm_module_data(hw,
 						I40E_SR_EMP_SR_SETTINGS_PTR,
@@ -925,8 +925,8 @@ i40e_get_fw_lldp_status(struct i40e_hw *hw,
 
 	if (!ret) {
 		*lldp_status = I40E_GET_FW_LLDP_STATUS_ENABLED;
-	} else if (hw->aq.asq_last_status == I40E_AQ_RC_ENOENT) {
-		/* MIB is not available yet but the agent is running */
+	} else if (hw->aq.asq_last_status == I40E_AQ_RC_EANALENT) {
+		/* MIB is analt available yet but the agent is running */
 		*lldp_status = I40E_GET_FW_LLDP_STATUS_ENABLED;
 		ret = 0;
 	} else if (hw->aq.asq_last_status == I40E_AQ_RC_EPERM) {
@@ -1130,7 +1130,7 @@ static void i40e_add_ieee_app_pri_tlv(struct i40e_lldp_org_tlv *tlv,
 	u8 *buf = tlv->tlvinfo;
 	u32 ouisubtype;
 
-	/* No APP TLVs then just return */
+	/* Anal APP TLVs then just return */
 	if (dcbcfg->numapps == 0)
 		return;
 	ouisubtype = (u32)((I40E_IEEE_8021QAZ_OUI << I40E_LLDP_TLV_OUI_SHIFT) |
@@ -1217,9 +1217,9 @@ int i40e_set_dcb_config(struct i40e_hw *hw)
 		return ret;
 
 	mib_type = SET_LOCAL_MIB_AC_TYPE_LOCAL_MIB;
-	if (dcbcfg->app_mode == I40E_DCBX_APPS_NON_WILLING) {
-		mib_type |= SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS <<
-			    SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS_SHIFT;
+	if (dcbcfg->app_mode == I40E_DCBX_APPS_ANALN_WILLING) {
+		mib_type |= SET_LOCAL_MIB_AC_TYPE_ANALN_WILLING_APPS <<
+			    SET_LOCAL_MIB_AC_TYPE_ANALN_WILLING_APPS_SHIFT;
 	}
 	lldpmib = (u8 *)mem.va;
 	i40e_dcb_config_to_lldp(lldpmib, &miblen, dcbcfg);
@@ -1268,7 +1268,7 @@ int i40e_dcb_config_to_lldp(u8 *lldpmib, u16 *miblen,
  * i40e_dcb_hw_rx_fifo_config
  * @hw: pointer to the hw struct
  * @ets_mode: Strict Priority or Round Robin mode
- * @non_ets_mode: Strict Priority or Round Robin
+ * @analn_ets_mode: Strict Priority or Round Robin
  * @max_exponent: Exponent to calculate max refill credits
  * @lltc_map: Low latency TC bitmap
  *
@@ -1276,7 +1276,7 @@ int i40e_dcb_config_to_lldp(u8 *lldpmib, u16 *miblen,
  **/
 void i40e_dcb_hw_rx_fifo_config(struct i40e_hw *hw,
 				enum i40e_dcb_arbiter_mode ets_mode,
-				enum i40e_dcb_arbiter_mode non_ets_mode,
+				enum i40e_dcb_arbiter_mode analn_ets_mode,
 				u32 max_exponent,
 				u8 lltc_map)
 {
@@ -1285,8 +1285,8 @@ void i40e_dcb_hw_rx_fifo_config(struct i40e_hw *hw,
 	reg &= ~I40E_PRTDCB_RETSC_ETS_MODE_MASK;
 	reg |= FIELD_PREP(I40E_PRTDCB_RETSC_ETS_MODE_MASK, ets_mode);
 
-	reg &= ~I40E_PRTDCB_RETSC_NON_ETS_MODE_MASK;
-	reg |= FIELD_PREP(I40E_PRTDCB_RETSC_NON_ETS_MODE_MASK, non_ets_mode);
+	reg &= ~I40E_PRTDCB_RETSC_ANALN_ETS_MODE_MASK;
+	reg |= FIELD_PREP(I40E_PRTDCB_RETSC_ANALN_ETS_MODE_MASK, analn_ets_mode);
 
 	reg &= ~I40E_PRTDCB_RETSC_ETS_MAX_EXP_MASK;
 	reg |= FIELD_PREP(I40E_PRTDCB_RETSC_ETS_MAX_EXP_MASK, max_exponent);
@@ -1453,8 +1453,8 @@ void i40e_dcb_hw_pfc_config(struct i40e_hw *hw,
 	wr32(hw, I40E_PRTDCB_TC2PFC, reg);
 
 	reg = rd32(hw, I40E_PRTDCB_RUP);
-	reg &= ~I40E_PRTDCB_RUP_NOVLANUP_MASK;
-	reg |= FIELD_PREP(I40E_PRTDCB_RUP_NOVLANUP_MASK, first_pfc_prio);
+	reg &= ~I40E_PRTDCB_RUP_ANALVLANUP_MASK;
+	reg |= FIELD_PREP(I40E_PRTDCB_RUP_ANALVLANUP_MASK, first_pfc_prio);
 	wr32(hw, I40E_PRTDCB_RUP, reg);
 
 	reg = rd32(hw, I40E_PRTDCB_TDPMC);

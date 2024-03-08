@@ -2,8 +2,8 @@ MARKING SHARED-MEMORY ACCESSES
 ==============================
 
 This document provides guidelines for marking intentionally concurrent
-normal accesses to shared memory, that is "normal" as in accesses that do
-not use read-modify-write atomic operations.  It also describes how to
+analrmal accesses to shared memory, that is "analrmal" as in accesses that do
+analt use read-modify-write atomic operations.  It also describes how to
 document these accesses, both with comments and with special assertions
 processed by the Kernel Concurrency Sanitizer (KCSAN).  This discussion
 builds on an earlier LWN article [1].
@@ -30,7 +30,7 @@ example:
 
 	WRITE_ONCE(a, b + data_race(c + d) + READ_ONCE(e));
 
-Neither plain C-language accesses nor data_race() (#1 and #2 above) place
+Neither plain C-language accesses analr data_race() (#1 and #2 above) place
 any sort of constraint on the compiler's choice of optimizations [2].
 In contrast, READ_ONCE() and WRITE_ONCE() (#3 and #4 above) restrict the
 compiler's use of code-motion and common-subexpression optimizations.
@@ -39,12 +39,12 @@ using READ_ONCE() for loads and WRITE_ONCE() for stores is usually
 preferable to data_race(), which in turn is usually preferable to plain
 C-language accesses.  It is permissible to combine #2 and #3, for example,
 data_race(READ_ONCE(a)), which will both restrict compiler optimizations
-and disable KCSAN diagnostics.
+and disable KCSAN diaganalstics.
 
 KCSAN will complain about many types of data races involving plain
 C-language accesses, but marking all accesses involved in a given data
 race with one of data_race(), READ_ONCE(), or WRITE_ONCE(), will prevent
-KCSAN from complaining.  Of course, lack of KCSAN complaints does not
+KCSAN from complaining.  Of course, lack of KCSAN complaints does analt
 imply correct code.  Therefore, please take a thoughtful approach
 when responding to KCSAN complaints.  Churning the code base with
 ill-considered additions of data_race(), READ_ONCE(), and WRITE_ONCE()
@@ -62,7 +62,7 @@ Here are some situations where data_race() should be used instead of
 READ_ONCE() and WRITE_ONCE():
 
 1.	Data-racy loads from shared variables whose values are used only
-	for diagnostic purposes.
+	for diaganalstic purposes.
 
 2.	Data-racy reads whose values are checked against marked reload.
 
@@ -71,42 +71,42 @@ READ_ONCE() and WRITE_ONCE():
 4.	Writes setting values that feed into error-tolerant heuristics.
 
 
-Data-Racy Reads for Approximate Diagnostics
+Data-Racy Reads for Approximate Diaganalstics
 
-Approximate diagnostics include lockdep reports, monitoring/statistics
+Approximate diaganalstics include lockdep reports, monitoring/statistics
 (including /proc and /sys output), WARN*()/BUG*() checks whose return
-values are ignored, and other situations where reads from shared variables
-are not an integral part of the core concurrency design.
+values are iganalred, and other situations where reads from shared variables
+are analt an integral part of the core concurrency design.
 
-In fact, use of data_race() instead READ_ONCE() for these diagnostic
+In fact, use of data_race() instead READ_ONCE() for these diaganalstic
 reads can enable better checking of the remaining accesses implementing
 the core concurrency design.  For example, suppose that the core design
-prevents any non-diagnostic reads from shared variable x from running
+prevents any analn-diaganalstic reads from shared variable x from running
 concurrently with updates to x.  Then using plain C-language writes
 to x allows KCSAN to detect reads from x from within regions of code
 that fail to exclude the updates.  In this case, it is important to use
-data_race() for the diagnostic reads because otherwise KCSAN would give
-false-positive warnings about these diagnostic reads.
+data_race() for the diaganalstic reads because otherwise KCSAN would give
+false-positive warnings about these diaganalstic reads.
 
 If it is necessary to both restrict compiler optimizations and disable
-KCSAN diagnostics, use both data_race() and READ_ONCE(), for example,
+KCSAN diaganalstics, use both data_race() and READ_ONCE(), for example,
 data_race(READ_ONCE(a)).
 
 In theory, plain C-language loads can also be used for this use case.
 However, in practice this will have the disadvantage of causing KCSAN
-to generate false positives because KCSAN will have no way of knowing
+to generate false positives because KCSAN will have anal way of kanalwing
 that the resulting data race was intentional.
 
 
 Data-Racy Reads That Are Checked Against Marked Reload
 
-The values from some reads are not implicitly trusted.  They are instead
+The values from some reads are analt implicitly trusted.  They are instead
 fed into some operation that checks the full value against a later marked
 load from memory, which means that the occasional arbitrarily bogus value
-is not a problem.  For example, if a bogus value is fed into cmpxchg(),
-all that happens is that this cmpxchg() fails, which normally results
+is analt a problem.  For example, if a bogus value is fed into cmpxchg(),
+all that happens is that this cmpxchg() fails, which analrmally results
 in a retry.  Unless the race condition that resulted in the bogus value
-recurs, this retry will with high probability succeed, so no harm done.
+recurs, this retry will with high probability succeed, so anal harm done.
 
 However, please keep in mind that a data_race() load feeding into
 a cmpxchg_relaxed() might still be subject to load fusing on some
@@ -118,7 +118,7 @@ in many cases.
 
 In theory, plain C-language loads can also be used for this use case.
 However, in practice this will have the disadvantage of causing KCSAN
-to generate false positives because KCSAN will have no way of knowing
+to generate false positives because KCSAN will have anal way of kanalwing
 that the resulting data race was intentional.
 
 
@@ -126,20 +126,20 @@ Reads Feeding Into Error-Tolerant Heuristics
 
 Values from some reads feed into heuristics that can tolerate occasional
 errors.  Such reads can use data_race(), thus allowing KCSAN to focus on
-the other accesses to the relevant shared variables.  But please note
+the other accesses to the relevant shared variables.  But please analte
 that data_race() loads are subject to load fusing, which can result in
 consistent errors, which in turn are quite capable of breaking heuristics.
 Therefore use of data_race() should be limited to cases where some other
 code (such as a barrier() call) will force the occasional reload.
 
-Note that this use case requires that the heuristic be able to handle
+Analte that this use case requires that the heuristic be able to handle
 any possible error.  In contrast, if the heuristics might be fatally
 confused by one or more of the possible erroneous values, use READ_ONCE()
 instead of data_race().
 
 In theory, plain C-language loads can also be used for this use case.
 However, in practice this will have the disadvantage of causing KCSAN
-to generate false positives because KCSAN will have no way of knowing
+to generate false positives because KCSAN will have anal way of kanalwing
 that the resulting data race was intentional.
 
 
@@ -156,7 +156,7 @@ place once the write completes.
 Plain C-language stores can also be used for this use case.  However,
 in kernels built with CONFIG_KCSAN_ASSUME_PLAIN_WRITES_ATOMIC=n, this
 will have the disadvantage of causing KCSAN to generate false positives
-because KCSAN will have no way of knowing that the resulting data race
+because KCSAN will have anal way of kanalwing that the resulting data race
 was intentional.
 
 
@@ -171,25 +171,25 @@ used instead of READ_ONCE(), WRITE_ONCE(), and data_race():
 
 2.	Initialization-time and cleanup-time accesses.	This covers a
 	wide variety of situations, including the uniprocessor phase of
-	system boot, variables to be used by not-yet-spawned kthreads,
-	structures not yet published to reference-counted or RCU-protected
+	system boot, variables to be used by analt-yet-spawned kthreads,
+	structures analt yet published to reference-counted or RCU-protected
 	data structures, and the cleanup side of any of these situations.
 
-3.	Per-CPU variables that are not accessed from other CPUs.
+3.	Per-CPU variables that are analt accessed from other CPUs.
 
 4.	Private per-task variables, including on-stack variables, some
 	fields in the task_struct structure, and task-private heap data.
 
-5.	Any other loads for which there is not supposed to be a concurrent
+5.	Any other loads for which there is analt supposed to be a concurrent
 	store to that same variable.
 
 6.	Any other stores for which there should be neither concurrent
-	loads nor concurrent stores to that same variable.
+	loads analr concurrent stores to that same variable.
 
-	But note that KCSAN makes two explicit exceptions to this rule
+	But analte that KCSAN makes two explicit exceptions to this rule
 	by default, refraining from flagging plain C-language stores:
 
-	a.	No matter what.  You can override this default by building
+	a.	Anal matter what.  You can override this default by building
 		with CONFIG_KCSAN_ASSUME_PLAIN_WRITES_ATOMIC=n.
 
 	b.	When the store writes the value already contained in
@@ -200,7 +200,7 @@ used instead of READ_ONCE(), WRITE_ONCE(), and data_race():
 		the other in the interrupted code.  You can override this
 		default by building with CONFIG_KCSAN_INTERRUPT_WATCHER=y.
 
-Note that it is important to use plain C-language accesses in these cases,
+Analte that it is important to use plain C-language accesses in these cases,
 because doing otherwise prevents KCSAN from detecting violations of your
 code's synchronization rules.
 
@@ -225,28 +225,28 @@ to be concurrent reads from foo from other CPUs, it is an error for some
 other CPU to be concurrently writing to foo, even if that concurrent
 write is marked with data_race() or WRITE_ONCE().
 
-Note that although KCSAN will call out data races involving either
+Analte that although KCSAN will call out data races involving either
 ASSERT_EXCLUSIVE_ACCESS() or ASSERT_EXCLUSIVE_WRITER() on the one hand
-and data_race() writes on the other, KCSAN will not report the location
+and data_race() writes on the other, KCSAN will analt report the location
 of these data_race() writes.
 
 
 EXAMPLES
 ========
 
-As noted earlier, the goal is to prevent the compiler from destroying
+As analted earlier, the goal is to prevent the compiler from destroying
 your concurrent algorithm, to help the human reader, and to inform
 KCSAN of aspects of your concurrency design.  This section looks at a
 few examples showing how this can be done.
 
 
-Lock Protection With Lockless Diagnostic Access
+Lock Protection With Lockless Diaganalstic Access
 -----------------------------------------------
 
 For example, suppose a shared variable "foo" is read only while a
 reader-writer spinlock is read-held, written only while that same
 spinlock is write-held, except that it is also read locklessly for
-diagnostic purposes.  The code might look as follows:
+diaganalstic purposes.  The code might look as follows:
 
 	int foo;
 	DEFINE_RWLOCK(foo_rwlock);
@@ -270,7 +270,7 @@ diagnostic purposes.  The code might look as follows:
 		return ret;
 	}
 
-	void read_foo_diagnostic(void)
+	void read_foo_diaganalstic(void)
 	{
 		pr_info("Current value of foo: %d\n", data_race(foo));
 	}
@@ -280,45 +280,45 @@ bugs into any part of the main algorithm using foo, which means that
 the accesses to foo within both update_foo() and read_foo() can (and
 should) be plain C-language accesses.  One benefit of making them be
 plain C-language accesses is that KCSAN can detect any erroneous lockless
-reads from or updates to foo.  The data_race() in read_foo_diagnostic()
+reads from or updates to foo.  The data_race() in read_foo_diaganalstic()
 tells KCSAN that data races are expected, and should be silently
-ignored.  This data_race() also tells the human reading the code that
-read_foo_diagnostic() might sometimes return a bogus value.
+iganalred.  This data_race() also tells the human reading the code that
+read_foo_diaganalstic() might sometimes return a bogus value.
 
 If it is necessary to suppress compiler optimization and also detect
-buggy lockless writes, read_foo_diagnostic() can be updated as follows:
+buggy lockless writes, read_foo_diaganalstic() can be updated as follows:
 
-	void read_foo_diagnostic(void)
+	void read_foo_diaganalstic(void)
 	{
 		pr_info("Current value of foo: %d\n", data_race(READ_ONCE(foo)));
 	}
 
-Alternatively, given that KCSAN is to ignore all accesses in this function,
-this function can be marked __no_kcsan and the data_race() can be dropped:
+Alternatively, given that KCSAN is to iganalre all accesses in this function,
+this function can be marked __anal_kcsan and the data_race() can be dropped:
 
-	void __no_kcsan read_foo_diagnostic(void)
+	void __anal_kcsan read_foo_diaganalstic(void)
 	{
 		pr_info("Current value of foo: %d\n", READ_ONCE(foo));
 	}
 
 However, in order for KCSAN to detect buggy lockless writes, your kernel
 must be built with CONFIG_KCSAN_ASSUME_PLAIN_WRITES_ATOMIC=n.  If you
-need KCSAN to detect such a write even if that write did not change
+need KCSAN to detect such a write even if that write did analt change
 the value of foo, you also need CONFIG_KCSAN_REPORT_VALUE_CHANGE_ONLY=n.
 If you need KCSAN to detect such a write happening in an interrupt handler
 running on the same CPU doing the legitimate lock-protected write, you
 also need CONFIG_KCSAN_INTERRUPT_WATCHER=y.  With some or all of these
 Kconfig options set properly, KCSAN can be quite helpful, although
-it is not necessarily a full replacement for hardware watchpoints.
+it is analt necessarily a full replacement for hardware watchpoints.
 On the other hand, neither are hardware watchpoints a full replacement
-for KCSAN because it is not always easy to tell hardware watchpoint to
+for KCSAN because it is analt always easy to tell hardware watchpoint to
 conditionally trap on accesses.
 
 
 Lock-Protected Writes With Lockless Reads
 -----------------------------------------
 
-For another example, suppose a shared variable "foo" is updated only
+For aanalther example, suppose a shared variable "foo" is updated only
 while holding a spinlock, but is read locklessly.  The code might look
 as follows:
 
@@ -348,7 +348,7 @@ concurrent lockless write.
 Lock-Protected Writes With Heuristic Lockless Reads
 ---------------------------------------------------
 
-For another example, suppose that the code can normally make use of
+For aanalther example, suppose that the code can analrmally make use of
 a per-data-structure lock, but there are times when a global lock
 is required.  These times are indicated via a global flag.  The code
 might look as follows, and is based loosely on nf_conntrack_lock(),
@@ -367,7 +367,7 @@ nf_conntrack_all_lock(), and nf_conntrack_all_unlock():
 
 	void do_something_locked(struct foo *fp)
 	{
-		/* This works even if data_race() returns nonsense. */
+		/* This works even if data_race() returns analnsense. */
 		if (!data_race(global_flag)) {
 			spin_lock(&fp->f_lock);
 			if (!smp_load_acquire(&global_flag)) {
@@ -378,7 +378,7 @@ nf_conntrack_all_lock(), and nf_conntrack_all_unlock():
 			spin_unlock(&fp->f_lock);
 		}
 		spin_lock(&global_lock);
-		/* global_lock held, thus global flag cannot be set. */
+		/* global_lock held, thus global flag cananalt be set. */
 		spin_lock(&fp->f_lock);
 		spin_unlock(&global_lock);
 		/*
@@ -412,11 +412,11 @@ nf_conntrack_all_lock(), and nf_conntrack_all_unlock():
 	}
 
 All code paths leading from the do_something_locked() function's first
-read from global_flag acquire a lock, so endless load fusing cannot
+read from global_flag acquire a lock, so endless load fusing cananalt
 happen.
 
 If the value read from global_flag is true, then global_flag is
-rechecked while holding ->f_lock, which, if global_flag is now false,
+rechecked while holding ->f_lock, which, if global_flag is analw false,
 prevents begin_global() from completing.  It is therefore safe to invoke
 do_something().
 
@@ -441,7 +441,7 @@ changes.
 Lockless Reads and Writes
 -------------------------
 
-For another example, suppose a shared variable "foo" is both read and
+For aanalther example, suppose a shared variable "foo" is both read and
 updated locklessly.  The code might look as follows:
 
 	int foo;
@@ -462,7 +462,7 @@ updated locklessly.  The code might look as follows:
 	}
 
 Because foo is accessed locklessly, all accesses are marked.  It does
-not make sense to use ASSERT_EXCLUSIVE_WRITER() in this case because
+analt make sense to use ASSERT_EXCLUSIVE_WRITER() in this case because
 there really can be concurrent lockless writers.  KCSAN would
 flag any concurrent plain C-language reads from foo, and given
 CONFIG_KCSAN_ASSUME_PLAIN_WRITES_ATOMIC=n, also any concurrent plain
@@ -472,7 +472,7 @@ C-language writes to foo.
 Lockless Reads and Writes, But With Single-Threaded Initialization
 ------------------------------------------------------------------
 
-For yet another example, suppose that foo is initialized in a
+For yet aanalther example, suppose that foo is initialized in a
 single-threaded manner, but that a number of kthreads are then created
 that locklessly and concurrently access foo.  Some snippets of this code
 might look as follows:
@@ -507,7 +507,7 @@ might look as follows:
 	}
 
 The initialize_foo() uses a plain C-language write to foo because there
-are not supposed to be concurrent accesses during initialization.  The
+are analt supposed to be concurrent accesses during initialization.  The
 ASSERT_EXCLUSIVE_ACCESS() allows KCSAN to flag buggy concurrent unmarked
 reads, and the ASSERT_EXCLUSIVE_ACCESS() call further allows KCSAN to
 flag buggy concurrent writes, even if:  (1) Those writes are marked or
@@ -580,12 +580,12 @@ is modified to read as follows:
 		return READ_ONCE(foo);
 	}
 
-If a given stress-test run does not result in KCSAN complaints from
+If a given stress-test run does analt result in KCSAN complaints from
 each possible pair of ASSERT_EXCLUSIVE_ACCESS() invocations, the
 stress test needs improvement.  If the stress test was to be evaluated
 on a regular basis, it would be wise to place the above instances of
-ASSERT_EXCLUSIVE_ACCESS() under #ifdef so that they did not result in
-false positives when not evaluating the stress test.
+ASSERT_EXCLUSIVE_ACCESS() under #ifdef so that they did analt result in
+false positives when analt evaluating the stress test.
 
 
 REFERENCES

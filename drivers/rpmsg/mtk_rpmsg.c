@@ -33,7 +33,7 @@ struct mtk_rpmsg_channel_info {
 };
 
 /**
- * struct rpmsg_ns_msg - dynamic name service announcement message
+ * struct rpmsg_ns_msg - dynamic name service ananaluncement message
  * @name: name of remote service that is published
  * @addr: address of remote service that is published
  *
@@ -175,14 +175,14 @@ static const struct rpmsg_device_ops mtk_rpmsg_device_ops = {
 	.create_ept = mtk_rpmsg_create_ept,
 };
 
-static struct device_node *
-mtk_rpmsg_match_device_subnode(struct device_node *node, const char *channel)
+static struct device_analde *
+mtk_rpmsg_match_device_subanalde(struct device_analde *analde, const char *channel)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	const char *name;
 	int ret;
 
-	for_each_available_child_of_node(node, child) {
+	for_each_available_child_of_analde(analde, child) {
 		ret = of_property_read_string(child, "mediatek,rpmsg-name", &name);
 		if (ret)
 			continue;
@@ -203,7 +203,7 @@ static int mtk_rpmsg_register_device(struct mtk_rpmsg_rproc_subdev *mtk_subdev,
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdev->mtk_subdev = mtk_subdev;
 
@@ -213,8 +213,8 @@ static int mtk_rpmsg_register_device(struct mtk_rpmsg_rproc_subdev *mtk_subdev,
 	rpdev->dst = info->dst;
 	strscpy(rpdev->id.name, info->name, RPMSG_NAME_SIZE);
 
-	rpdev->dev.of_node =
-		mtk_rpmsg_match_device_subnode(pdev->dev.of_node, info->name);
+	rpdev->dev.of_analde =
+		mtk_rpmsg_match_device_subanalde(pdev->dev.of_analde, info->name);
 	rpdev->dev.parent = &pdev->dev;
 	rpdev->dev.release = mtk_rpmsg_release_device;
 
@@ -254,7 +254,7 @@ static int mtk_rpmsg_create_device(struct mtk_rpmsg_rproc_subdev *mtk_subdev,
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strscpy(info->info.name, name, RPMSG_NAME_SIZE);
 	info->info.src = addr;
@@ -282,13 +282,13 @@ static int mtk_rpmsg_ns_cb(struct rpmsg_device *rpdev, void *data, int len,
 	}
 
 	/*
-	 * the name service ept does _not_ belong to a real rpmsg channel,
+	 * the name service ept does _analt_ belong to a real rpmsg channel,
 	 * and is handled by the rpmsg bus itself.
-	 * for sanity reasons, make sure a valid rpdev has _not_ sneaked
+	 * for sanity reasons, make sure a valid rpdev has _analt_ sneaked
 	 * in somehow.
 	 */
 	if (rpdev) {
-		dev_err(dev, "anomaly: ns ept has an rpdev handle\n");
+		dev_err(dev, "aanalmaly: ns ept has an rpdev handle\n");
 		return -EINVAL;
 	}
 
@@ -319,7 +319,7 @@ static int mtk_rpmsg_prepare(struct rproc_subdev *subdev)
 		if (!mtk_subdev->ns_ept) {
 			dev_err(&mtk_subdev->pdev->dev,
 				"failed to create name service endpoint\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 

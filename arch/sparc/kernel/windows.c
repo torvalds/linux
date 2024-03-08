@@ -107,7 +107,7 @@ static inline void copy_aligned_window(void *dest, const void *src)
 #endif
 
 /* Try to push the windows in a threads window buffer to the
- * user stack.  Unaligned %sp's are not allowed here.
+ * user stack.  Unaligned %sp's are analt allowed here.
  */
 
 void try_to_clear_window_buffer(struct pt_regs *regs, int who)

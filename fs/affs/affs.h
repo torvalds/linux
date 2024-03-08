@@ -39,12 +39,12 @@ struct affs_ext_key {
 };
 
 /*
- * affs fs inode data in memory
+ * affs fs ianalde data in memory
  */
-struct affs_inode_info {
+struct affs_ianalde_info {
 	atomic_t i_opencnt;
-	struct mutex i_link_lock;		/* Protects internal inode access. */
-	struct mutex i_ext_lock;		/* Protects internal inode access. */
+	struct mutex i_link_lock;		/* Protects internal ianalde access. */
+	struct mutex i_ext_lock;		/* Protects internal ianalde access. */
 #define i_hash_lock i_ext_lock
 	u32	 i_blkcnt;			/* block count */
 	u32	 i_extcnt;			/* extended block count */
@@ -59,13 +59,13 @@ struct affs_inode_info {
 	u32	 i_protect;			/* unused attribute bits */
 	u32	 i_lastalloc;			/* last allocated block */
 	int	 i_pa_cnt;			/* number of preallocated blocks */
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 };
 
-/* short cut to get to the affs specific inode data */
-static inline struct affs_inode_info *AFFS_I(struct inode *inode)
+/* short cut to get to the affs specific ianalde data */
+static inline struct affs_ianalde_info *AFFS_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct affs_inode_info, vfs_inode);
+	return container_of(ianalde, struct affs_ianalde_info, vfs_ianalde);
 }
 
 /*
@@ -102,7 +102,7 @@ struct affs_sb_info {
 	char s_volume[32];		/* Volume prefix for absolute symlinks. */
 	spinlock_t symlink_lock;	/* protects the previous two */
 	struct super_block *sb;		/* the VFS superblock object */
-	int work_queued;		/* non-zero delayed work is queued */
+	int work_queued;		/* analn-zero delayed work is queued */
 	struct delayed_work sb_work;	/* superblock flush delayed work */
 	spinlock_t work_lock;		/* protects sb_work and work_queued */
 	struct rcu_head rcu;
@@ -110,16 +110,16 @@ struct affs_sb_info {
 
 #define AFFS_MOUNT_SF_INTL		0x0001 /* International filesystem. */
 #define AFFS_MOUNT_SF_BM_VALID		0x0002 /* Bitmap is valid. */
-#define AFFS_MOUNT_SF_IMMUTABLE		0x0004 /* Protection bits cannot be changed */
-#define AFFS_MOUNT_SF_QUIET		0x0008 /* chmod errors will be not reported */
-#define AFFS_MOUNT_SF_SETUID		0x0010 /* Ignore Amiga uid */
-#define AFFS_MOUNT_SF_SETGID		0x0020 /* Ignore Amiga gid */
-#define AFFS_MOUNT_SF_SETMODE		0x0040 /* Ignore Amiga protection bits */
+#define AFFS_MOUNT_SF_IMMUTABLE		0x0004 /* Protection bits cananalt be changed */
+#define AFFS_MOUNT_SF_QUIET		0x0008 /* chmod errors will be analt reported */
+#define AFFS_MOUNT_SF_SETUID		0x0010 /* Iganalre Amiga uid */
+#define AFFS_MOUNT_SF_SETGID		0x0020 /* Iganalre Amiga gid */
+#define AFFS_MOUNT_SF_SETMODE		0x0040 /* Iganalre Amiga protection bits */
 #define AFFS_MOUNT_SF_MUFS		0x0100 /* Use MUFS uid/gid mapping */
 #define AFFS_MOUNT_SF_OFS		0x0200 /* Old filesystem */
 #define AFFS_MOUNT_SF_PREFIX		0x0400 /* Buffer for prefix is allocated */
 #define AFFS_MOUNT_SF_VERBOSE		0x0800 /* Talk about fs when mounting */
-#define AFFS_MOUNT_SF_NO_TRUNCATE	0x1000 /* Don't truncate filenames */
+#define AFFS_MOUNT_SF_ANAL_TRUNCATE	0x1000 /* Don't truncate filenames */
 
 #define affs_clear_opt(o, opt)    (o &= ~AFFS_MOUNT_##opt)
 #define affs_set_opt(o, opt)      (o |= AFFS_MOUNT_##opt)
@@ -135,30 +135,30 @@ void affs_mark_sb_dirty(struct super_block *sb);
 
 /* amigaffs.c */
 
-extern int	affs_insert_hash(struct inode *inode, struct buffer_head *bh);
-extern int	affs_remove_hash(struct inode *dir, struct buffer_head *rem_bh);
+extern int	affs_insert_hash(struct ianalde *ianalde, struct buffer_head *bh);
+extern int	affs_remove_hash(struct ianalde *dir, struct buffer_head *rem_bh);
 extern int	affs_remove_header(struct dentry *dentry);
 extern u32	affs_checksum_block(struct super_block *sb, struct buffer_head *bh);
 extern void	affs_fix_checksum(struct super_block *sb, struct buffer_head *bh);
 extern void	affs_secs_to_datestamp(time64_t secs, struct affs_date *ds);
 extern umode_t	affs_prot_to_mode(u32 prot);
-extern void	affs_mode_to_prot(struct inode *inode);
+extern void	affs_mode_to_prot(struct ianalde *ianalde);
 __printf(3, 4)
 extern void	affs_error(struct super_block *sb, const char *function,
 			   const char *fmt, ...);
 __printf(3, 4)
 extern void	affs_warning(struct super_block *sb, const char *function,
 			     const char *fmt, ...);
-extern bool	affs_nofilenametruncate(const struct dentry *dentry);
+extern bool	affs_analfilenametruncate(const struct dentry *dentry);
 extern int	affs_check_name(const unsigned char *name, int len,
-				bool notruncate);
+				bool analtruncate);
 extern int	affs_copy_name(unsigned char *bstr, struct dentry *dentry);
 
 /* bitmap. c */
 
 extern u32	affs_count_free_blocks(struct super_block *s);
 extern void	affs_free_block(struct super_block *sb, u32 block);
-extern u32	affs_alloc_block(struct inode *inode, u32 goal);
+extern u32	affs_alloc_block(struct ianalde *ianalde, u32 goal);
 extern int	affs_init_bitmap(struct super_block *sb, int *flags);
 extern void	affs_free_bitmap(struct super_block *sb);
 
@@ -166,51 +166,51 @@ extern void	affs_free_bitmap(struct super_block *sb);
 
 extern const struct export_operations affs_export_ops;
 extern int	affs_hash_name(struct super_block *sb, const u8 *name, unsigned int len);
-extern struct dentry *affs_lookup(struct inode *dir, struct dentry *dentry, unsigned int);
-extern int	affs_unlink(struct inode *dir, struct dentry *dentry);
-extern int	affs_create(struct mnt_idmap *idmap, struct inode *dir,
+extern struct dentry *affs_lookup(struct ianalde *dir, struct dentry *dentry, unsigned int);
+extern int	affs_unlink(struct ianalde *dir, struct dentry *dentry);
+extern int	affs_create(struct mnt_idmap *idmap, struct ianalde *dir,
 			struct dentry *dentry, umode_t mode, bool);
-extern int	affs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+extern int	affs_mkdir(struct mnt_idmap *idmap, struct ianalde *dir,
 			struct dentry *dentry, umode_t mode);
-extern int	affs_rmdir(struct inode *dir, struct dentry *dentry);
-extern int	affs_link(struct dentry *olddentry, struct inode *dir,
+extern int	affs_rmdir(struct ianalde *dir, struct dentry *dentry);
+extern int	affs_link(struct dentry *olddentry, struct ianalde *dir,
 			  struct dentry *dentry);
 extern int	affs_symlink(struct mnt_idmap *idmap,
-			struct inode *dir, struct dentry *dentry,
+			struct ianalde *dir, struct dentry *dentry,
 			const char *symname);
 extern int	affs_rename2(struct mnt_idmap *idmap,
-			struct inode *old_dir, struct dentry *old_dentry,
-			struct inode *new_dir, struct dentry *new_dentry,
+			struct ianalde *old_dir, struct dentry *old_dentry,
+			struct ianalde *new_dir, struct dentry *new_dentry,
 			unsigned int flags);
 
-/* inode.c */
+/* ianalde.c */
 
-extern struct inode		*affs_new_inode(struct inode *dir);
-extern int			 affs_notify_change(struct mnt_idmap *idmap,
+extern struct ianalde		*affs_new_ianalde(struct ianalde *dir);
+extern int			 affs_analtify_change(struct mnt_idmap *idmap,
 					struct dentry *dentry, struct iattr *attr);
-extern void			 affs_evict_inode(struct inode *inode);
-extern struct inode		*affs_iget(struct super_block *sb,
-					unsigned long ino);
-extern int			 affs_write_inode(struct inode *inode,
+extern void			 affs_evict_ianalde(struct ianalde *ianalde);
+extern struct ianalde		*affs_iget(struct super_block *sb,
+					unsigned long ianal);
+extern int			 affs_write_ianalde(struct ianalde *ianalde,
 					struct writeback_control *wbc);
-extern int			 affs_add_entry(struct inode *dir, struct inode *inode,
+extern int			 affs_add_entry(struct ianalde *dir, struct ianalde *ianalde,
 					struct dentry *dentry, s32 type);
 
 /* file.c */
 
-void		affs_free_prealloc(struct inode *inode);
-extern void	affs_truncate(struct inode *);
+void		affs_free_prealloc(struct ianalde *ianalde);
+extern void	affs_truncate(struct ianalde *);
 int		affs_file_fsync(struct file *, loff_t, loff_t, int);
 
 /* dir.c */
 
-extern void   affs_dir_truncate(struct inode *);
+extern void   affs_dir_truncate(struct ianalde *);
 
 /* jump tables */
 
-extern const struct inode_operations	 affs_file_inode_operations;
-extern const struct inode_operations	 affs_dir_inode_operations;
-extern const struct inode_operations   affs_symlink_inode_operations;
+extern const struct ianalde_operations	 affs_file_ianalde_operations;
+extern const struct ianalde_operations	 affs_dir_ianalde_operations;
+extern const struct ianalde_operations   affs_symlink_ianalde_operations;
 extern const struct file_operations	 affs_file_operations;
 extern const struct file_operations	 affs_file_operations_ofs;
 extern const struct file_operations	 affs_dir_operations;
@@ -298,32 +298,32 @@ affs_adjust_bitmapchecksum(struct buffer_head *bh, u32 val)
 }
 
 static inline void
-affs_lock_link(struct inode *inode)
+affs_lock_link(struct ianalde *ianalde)
 {
-	mutex_lock(&AFFS_I(inode)->i_link_lock);
+	mutex_lock(&AFFS_I(ianalde)->i_link_lock);
 }
 static inline void
-affs_unlock_link(struct inode *inode)
+affs_unlock_link(struct ianalde *ianalde)
 {
-	mutex_unlock(&AFFS_I(inode)->i_link_lock);
+	mutex_unlock(&AFFS_I(ianalde)->i_link_lock);
 }
 static inline void
-affs_lock_dir(struct inode *inode)
+affs_lock_dir(struct ianalde *ianalde)
 {
-	mutex_lock_nested(&AFFS_I(inode)->i_hash_lock, SINGLE_DEPTH_NESTING);
+	mutex_lock_nested(&AFFS_I(ianalde)->i_hash_lock, SINGLE_DEPTH_NESTING);
 }
 static inline void
-affs_unlock_dir(struct inode *inode)
+affs_unlock_dir(struct ianalde *ianalde)
 {
-	mutex_unlock(&AFFS_I(inode)->i_hash_lock);
+	mutex_unlock(&AFFS_I(ianalde)->i_hash_lock);
 }
 static inline void
-affs_lock_ext(struct inode *inode)
+affs_lock_ext(struct ianalde *ianalde)
 {
-	mutex_lock(&AFFS_I(inode)->i_ext_lock);
+	mutex_lock(&AFFS_I(ianalde)->i_ext_lock);
 }
 static inline void
-affs_unlock_ext(struct inode *inode)
+affs_unlock_ext(struct ianalde *ianalde)
 {
-	mutex_unlock(&AFFS_I(inode)->i_ext_lock);
+	mutex_unlock(&AFFS_I(ianalde)->i_ext_lock);
 }

@@ -2,7 +2,7 @@
 
 obj-$(CONFIG_ATA)		+= libata.o
 
-# non-SFF interface
+# analn-SFF interface
 obj-$(CONFIG_SATA_AHCI)		+= ahci.o libahci.o
 obj-$(CONFIG_SATA_ACARD_AHCI)	+= acard-ahci.o libahci.o
 obj-$(CONFIG_SATA_AHCI_SEATTLE)	+= ahci_seattle.o libahci.o libahci_platform.o

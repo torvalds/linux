@@ -68,7 +68,7 @@ Linux内核提供了很多实用的基本函数。
 
 include/asm-generic/bitops/instrumented-atomic.h
 
-include/asm-generic/bitops/instrumented-non-atomic.h
+include/asm-generic/bitops/instrumented-analn-atomic.h
 
 include/asm-generic/bitops/instrumented-lock.h
 
@@ -264,7 +264,7 @@ arch/x86/kernel/cpu/mtrr/mtrr.c
 
 security/security.c
 
-security/inode.c
+security/ianalde.c
 
 审计接口
 ========

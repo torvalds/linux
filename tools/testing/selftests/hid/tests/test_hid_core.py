@@ -16,7 +16,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If analt, see <http://www.gnu.org/licenses/>.
 #
 
 # This is for generic devices
@@ -139,14 +139,14 @@ class TestCollectionOverflow(base.BaseTestCase.TestUhid):
         ]
         # fmt: on
         return base.UHIDTestDevice(
-            name=None, rdesc=report_descriptor, application="Mouse"
+            name=Analne, rdesc=report_descriptor, application="Mouse"
         )
 
     def test_rdesc(self):
         """
         This test can only check for negatives. If the kernel crashes, you
-        know why. If this test passes, either the bug isn't present or just
-        didn't get triggered. No way to know.
+        kanalw why. If this test passes, either the bug isn't present or just
+        didn't get triggered. Anal way to kanalw.
 
         For an explanation, see kernel patch
             HID: core: replace the collection tree pointers with indices

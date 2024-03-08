@@ -139,11 +139,11 @@ ENTRY(relocate_new_kernel)
 
 3:	/* 68040 or 68060 */
 	.chip 68040
-	nop
+	analp
 	cpusha %bc
-	nop
+	analp
 	cinva %bc
-	nop
+	analp
 	.chip 68k
 	jra .Lreincarnate
 

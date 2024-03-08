@@ -102,7 +102,7 @@ int mlx5_esw_ipsec_rx_ipsec_obj_id_search(struct mlx5e_priv *priv, u32 id,
 
 	val = xa_load(&ipsec->ipsec_obj_id_map, id);
 	if (!val)
-		return -ENOENT;
+		return -EANALENT;
 
 	*ipsec_obj_id = xa_to_value(val);
 

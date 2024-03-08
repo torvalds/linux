@@ -4,7 +4,7 @@
  *
  * Driver for PowerPC 4xx on-chip ethernet controller, PHY support.
  * Borrowed from sungem_phy.c, though I only kept the generic MII
- * driver for now.
+ * driver for analw.
  *
  * This file should be shared with other drivers or eventually
  * merged as the "low level" part of miilib
@@ -522,7 +522,7 @@ int emac_mii_phy_probe(struct mii_phy *phy, int address)
 
 	/* Take PHY out of isolate mode and reset it. */
 	if (emac_mii_reset_phy(phy))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Read ID and find matching entry */
 	id = (phy_read(phy, MII_PHYSID1) << 16) | phy_read(phy, MII_PHYSID2);
@@ -531,7 +531,7 @@ int emac_mii_phy_probe(struct mii_phy *phy, int address)
 			break;
 	/* Should never be NULL (we have a generic entry), but... */
 	if (!def)
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy->def = def;
 

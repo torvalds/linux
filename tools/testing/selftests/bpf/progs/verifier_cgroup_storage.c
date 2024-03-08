@@ -48,7 +48,7 @@ __naked void valid_cgroup_storage_access(void)
 
 SEC("cgroup/skb")
 __description("invalid cgroup storage access 1")
-__failure __msg("cannot pass map_type 1 into func bpf_get_local_storage")
+__failure __msg("cananalt pass map_type 1 into func bpf_get_local_storage")
 __failure_unpriv
 __naked void invalid_cgroup_storage_access_1(void)
 {
@@ -68,7 +68,7 @@ __naked void invalid_cgroup_storage_access_1(void)
 
 SEC("cgroup/skb")
 __description("invalid cgroup storage access 2")
-__failure __msg("fd 1 is not pointing to valid bpf_map")
+__failure __msg("fd 1 is analt pointing to valid bpf_map")
 __failure_unpriv
 __naked void invalid_cgroup_storage_access_2(void)
 {
@@ -128,7 +128,7 @@ __naked void invalid_cgroup_storage_access_4(void)
 
 SEC("cgroup/skb")
 __description("invalid cgroup storage access 5")
-__failure __msg("get_local_storage() doesn't support non-zero flags")
+__failure __msg("get_local_storage() doesn't support analn-zero flags")
 __failure_unpriv
 __naked void invalid_cgroup_storage_access_5(void)
 {
@@ -148,7 +148,7 @@ __naked void invalid_cgroup_storage_access_5(void)
 
 SEC("cgroup/skb")
 __description("invalid cgroup storage access 6")
-__failure __msg("get_local_storage() doesn't support non-zero flags")
+__failure __msg("get_local_storage() doesn't support analn-zero flags")
 __msg_unpriv("R2 leaks addr into helper function")
 __naked void invalid_cgroup_storage_access_6(void)
 {
@@ -187,7 +187,7 @@ __naked void per_cpu_cgroup_storage_access(void)
 
 SEC("cgroup/skb")
 __description("invalid per-cpu cgroup storage access 1")
-__failure __msg("cannot pass map_type 1 into func bpf_get_local_storage")
+__failure __msg("cananalt pass map_type 1 into func bpf_get_local_storage")
 __failure_unpriv
 __naked void cpu_cgroup_storage_access_1(void)
 {
@@ -207,7 +207,7 @@ __naked void cpu_cgroup_storage_access_1(void)
 
 SEC("cgroup/skb")
 __description("invalid per-cpu cgroup storage access 2")
-__failure __msg("fd 1 is not pointing to valid bpf_map")
+__failure __msg("fd 1 is analt pointing to valid bpf_map")
 __failure_unpriv
 __naked void cpu_cgroup_storage_access_2(void)
 {
@@ -267,7 +267,7 @@ __naked void cpu_cgroup_storage_access_4(void)
 
 SEC("cgroup/skb")
 __description("invalid per-cpu cgroup storage access 5")
-__failure __msg("get_local_storage() doesn't support non-zero flags")
+__failure __msg("get_local_storage() doesn't support analn-zero flags")
 __failure_unpriv
 __naked void cpu_cgroup_storage_access_5(void)
 {
@@ -287,7 +287,7 @@ __naked void cpu_cgroup_storage_access_5(void)
 
 SEC("cgroup/skb")
 __description("invalid per-cpu cgroup storage access 6")
-__failure __msg("get_local_storage() doesn't support non-zero flags")
+__failure __msg("get_local_storage() doesn't support analn-zero flags")
 __msg_unpriv("R2 leaks addr into helper function")
 __naked void cpu_cgroup_storage_access_6(void)
 {

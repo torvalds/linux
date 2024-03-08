@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Compatibility for old (not device tree aware) U-Boot versions
+ * Compatibility for old (analt device tree aware) U-Boot versions
  *
  * Author: Scott Wood <scottwood@freescale.com>
  * Consolidated using macros by David Gibson <david@gibson.dropbear.id.au>

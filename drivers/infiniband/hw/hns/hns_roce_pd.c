@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -55,7 +55,7 @@ int hns_roce_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 			     GFP_KERNEL);
 	if (id < 0) {
 		ibdev_err(ib_dev, "failed to alloc pd, id = %d.\n", id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	pd->pdn = (unsigned long)id;
 
@@ -92,7 +92,7 @@ int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 			     GFP_KERNEL);
 	if (id < 0) {
 		ibdev_err(&hr_dev->ib_dev, "failed to alloc uar id(%d).\n", id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	uar->logic_idx = (unsigned long)id;
 
@@ -127,7 +127,7 @@ static int hns_roce_xrcd_alloc(struct hns_roce_dev *hr_dev, u32 *xrcdn)
 			     GFP_KERNEL);
 	if (id < 0) {
 		ibdev_err(&hr_dev->ib_dev, "failed to alloc xrcdn(%d).\n", id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	*xrcdn = (u32)id;
 
@@ -150,7 +150,7 @@ int hns_roce_alloc_xrcd(struct ib_xrcd *ib_xrcd, struct ib_udata *udata)
 	int ret;
 
 	if (!(hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_XRC)) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto err_out;
 	}
 

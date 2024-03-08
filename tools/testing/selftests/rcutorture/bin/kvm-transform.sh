@@ -15,7 +15,7 @@
 # The original qemu-cmd file is provided on standard input.
 # The transformed qemu-cmd file is on standard output.
 # The transformation assumes that the qemu command is confined to a
-# single line.  It also assumes no whitespace in filenames.
+# single line.  It also assumes anal whitespace in filenames.
 #
 # Copyright (C) 2020 Facebook, Inc.
 #

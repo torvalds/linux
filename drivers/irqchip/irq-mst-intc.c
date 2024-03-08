@@ -29,7 +29,7 @@ struct mst_intc_chip_data {
 	raw_spinlock_t	lock;
 	unsigned int	irq_start, nr_irqs;
 	void __iomem	*base;
-	bool		no_eoi;
+	bool		anal_eoi;
 #ifdef CONFIG_PM_SLEEP
 	struct list_head entry;
 	u16 saved_polarity_conf[DIV_ROUND_UP(MST_INTC_MAX_IRQS, 16)];
@@ -84,7 +84,7 @@ static void mst_intc_eoi_irq(struct irq_data *d)
 {
 	struct mst_intc_chip_data *cd = irq_data_get_irq_chip_data(d);
 
-	if (!cd->no_eoi)
+	if (!cd->anal_eoi)
 		mst_set_irq(d, INTC_EOI);
 
 	irq_chip_eoi_parent(d);
@@ -180,11 +180,11 @@ static int mst_intc_domain_translate(struct irq_domain *d,
 {
 	struct mst_intc_chip_data *cd = d->host_data;
 
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_analde(fwspec->fwanalde)) {
 		if (fwspec->param_count != 3)
 			return -EINVAL;
 
-		/* No PPI should point to this domain */
+		/* Anal PPI should point to this domain */
 		if (fwspec->param[0] != 0)
 			return -EINVAL;
 
@@ -207,11 +207,11 @@ static int mst_intc_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	struct irq_fwspec parent_fwspec, *fwspec = data;
 	struct mst_intc_chip_data *cd = domain->host_data;
 
-	/* Not GIC compliant */
+	/* Analt GIC compliant */
 	if (fwspec->param_count != 3)
 		return -EINVAL;
 
-	/* No PPI should point to this domain */
+	/* Anal PPI should point to this domain */
 	if (fwspec->param[0])
 		return -EINVAL;
 
@@ -222,7 +222,7 @@ static int mst_intc_domain_alloc(struct irq_domain *domain, unsigned int virq,
 					      domain->host_data);
 
 	parent_fwspec = *fwspec;
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwanalde = domain->parent->fwanalde;
 	parent_fwspec.param[1] = cd->irq_start + hwirq;
 
 	/*
@@ -242,8 +242,8 @@ static const struct irq_domain_ops mst_intc_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-static int __init mst_intc_of_init(struct device_node *dn,
-				   struct device_node *parent)
+static int __init mst_intc_of_init(struct device_analde *dn,
+				   struct device_analde *parent)
 {
 	struct irq_domain *domain, *domain_parent;
 	struct mst_intc_chip_data *cd;
@@ -251,7 +251,7 @@ static int __init mst_intc_of_init(struct device_node *dn,
 
 	domain_parent = irq_find_host(parent);
 	if (!domain_parent) {
-		pr_err("mst-intc: interrupt-parent not found\n");
+		pr_err("mst-intc: interrupt-parent analt found\n");
 		return -EINVAL;
 	}
 
@@ -261,15 +261,15 @@ static int __init mst_intc_of_init(struct device_node *dn,
 
 	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
 	if (!cd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cd->base = of_iomap(dn, 0);
 	if (!cd->base) {
 		kfree(cd);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	cd->no_eoi = of_property_read_bool(dn, "mstar,intc-no-eoi");
+	cd->anal_eoi = of_property_read_bool(dn, "mstar,intc-anal-eoi");
 	raw_spin_lock_init(&cd->lock);
 	cd->irq_start = irq_start;
 	cd->nr_irqs = irq_end - irq_start + 1;
@@ -278,7 +278,7 @@ static int __init mst_intc_of_init(struct device_node *dn,
 	if (!domain) {
 		iounmap(cd->base);
 		kfree(cd);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 #ifdef CONFIG_PM_SLEEP

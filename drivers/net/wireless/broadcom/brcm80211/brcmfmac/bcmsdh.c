@@ -19,7 +19,7 @@
 #include <linux/mmc/host.h>
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/acpi.h>
 #include <net/cfg80211.h>
@@ -70,7 +70,7 @@ static irqreturn_t brcmf_sdiod_oob_irqhandler(int irq, void *dev_id)
 	 * be cleared until dpc
 	 */
 	if (sdiodev->irq_en) {
-		disable_irq_nosync(irq);
+		disable_irq_analsync(irq);
 		sdiodev->irq_en = false;
 	}
 
@@ -199,7 +199,7 @@ void brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 void brcmf_sdiod_change_state(struct brcmf_sdio_dev *sdiodev,
 			      enum brcmf_sdiod_state state)
 {
-	if (sdiodev->state == BRCMF_SDIOD_NOMEDIUM ||
+	if (sdiodev->state == BRCMF_SDIOD_ANALMEDIUM ||
 	    state == sdiodev->state)
 		return;
 
@@ -303,11 +303,11 @@ static int brcmf_sdiod_skbuff_read(struct brcmf_sdio_dev *sdiodev,
 	default:
 		/* bail out as things are really fishy here */
 		WARN(1, "invalid sdio function number: %d\n", func->num);
-		err = -ENOMEDIUM;
+		err = -EANALMEDIUM;
 	}
 
-	if (err == -ENOMEDIUM)
-		brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_NOMEDIUM);
+	if (err == -EANALMEDIUM)
+		brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_ANALMEDIUM);
 
 	return err;
 }
@@ -325,8 +325,8 @@ static int brcmf_sdiod_skbuff_write(struct brcmf_sdio_dev *sdiodev,
 
 	err = sdio_memcpy_toio(func, addr, ((u8 *)(skb->data)), req_sz);
 
-	if (err == -ENOMEDIUM)
-		brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_NOMEDIUM);
+	if (err == -EANALMEDIUM)
+		brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_ANALMEDIUM);
 
 	return err;
 }
@@ -351,8 +351,8 @@ static int mmc_submit_one(struct mmc_data *md, struct mmc_request *mr,
 	mmc_wait_for_req(func->card->host, mr);
 
 	ret = mc->error ? mc->error : md->error;
-	if (ret == -ENOMEDIUM) {
-		brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_NOMEDIUM);
+	if (ret == -EANALMEDIUM) {
+		brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_ANALMEDIUM);
 	} else if (ret != 0) {
 		brcmf_err("CMD53 sg block %s failed %d\n",
 			  write ? "write" : "read", ret);
@@ -405,7 +405,7 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev,
 		while (req_sz > PAGE_SIZE) {
 			pkt_next = brcmu_pkt_buf_get_skb(PAGE_SIZE);
 			if (pkt_next == NULL) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto exit;
 			}
 			__skb_queue_tail(&local_list, pkt_next);
@@ -413,7 +413,7 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev,
 		}
 		pkt_next = brcmu_pkt_buf_get_skb(req_sz);
 		if (pkt_next == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto exit;
 		}
 		__skb_queue_tail(&local_list, pkt_next);
@@ -484,7 +484,7 @@ exit_queue_walk:
 		skb_queue_walk(pktlist, pkt_next) {
 			dst_offset = 0;
 
-			/* This is safe because we must have enough SKB data
+			/* This is safe because we must have eanalugh SKB data
 			 * in the local list to cover everything in pktlist.
 			 */
 			while (1) {
@@ -580,7 +580,7 @@ int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev,
 	else if (!sdiodev->sg_support) {
 		glom_skb = brcmu_pkt_buf_get_skb(totlen);
 		if (!glom_skb)
-			return -ENOMEM;
+			return -EANALMEM;
 		err = brcmf_sdiod_skbuff_read(sdiodev, sdiodev->func2, addr,
 					      glom_skb);
 		if (err)
@@ -791,7 +791,7 @@ static int brcmf_sdiod_freezer_attach(struct brcmf_sdio_dev *sdiodev)
 
 	sdiodev->freezer = kzalloc(sizeof(*sdiodev->freezer), GFP_KERNEL);
 	if (!sdiodev->freezer)
-		return -ENOMEM;
+		return -EANALMEM;
 	atomic_set(&sdiodev->freezer->thread_count, 0);
 	atomic_set(&sdiodev->freezer->freezing, 0);
 	init_waitqueue_head(&sdiodev->freezer->thread_freeze);
@@ -889,7 +889,7 @@ static void brcmf_sdiod_host_fixup(struct mmc_host *host)
 	/* runtime-pm powers off the device */
 	pm_runtime_forbid(host->parent);
 	/* avoid removal detection upon resume */
-	host->caps |= MMC_CAP_NONREMOVABLE;
+	host->caps |= MMC_CAP_ANALNREMOVABLE;
 }
 
 int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
@@ -948,7 +948,7 @@ int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
 	/* try to attach to the target device */
 	sdiodev->bus = brcmf_sdio_probe(sdiodev);
 	if (!sdiodev->bus) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 	brcmf_sdiod_host_fixup(sdiodev->func2->card->host);
@@ -1040,8 +1040,8 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	struct brcmf_bus *bus_if;
 
 	if (!id) {
-		dev_err(&func->dev, "Error no sdio_device_id passed for %x:%x\n", func->vendor, func->device);
-		return -ENODEV;
+		dev_err(&func->dev, "Error anal sdio_device_id passed for %x:%x\n", func->vendor, func->device);
+		return -EANALDEV;
 	}
 
 	brcmf_dbg(SDIO, "Enter\n");
@@ -1057,21 +1057,21 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	if (func->num == 1)
 		return 0;
 
-	/* Ignore anything but func 2 */
+	/* Iganalre anything but func 2 */
 	if (func->num != 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	bus_if = kzalloc(sizeof(struct brcmf_bus), GFP_KERNEL);
 	if (!bus_if)
-		return -ENOMEM;
+		return -EANALMEM;
 	sdiodev = kzalloc(sizeof(struct brcmf_sdio_dev), GFP_KERNEL);
 	if (!sdiodev) {
 		kfree(bus_if);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* store refs to functions used. mmc_card does
-	 * not hold the F0 function pointer.
+	 * analt hold the F0 function pointer.
 	 */
 	sdiodev->func1 = func->card->sdio_func[0];
 	sdiodev->func2 = func;
@@ -1146,7 +1146,7 @@ void brcmf_sdio_wowl_config(struct device *dev, bool enabled)
 
 	/* Power must be preserved to be able to support WOWL. */
 	if (!(pm_caps & MMC_PM_KEEP_POWER))
-		goto notsup;
+		goto analtsup;
 
 	if (sdiodev->settings->bus.sdio.oob_irq_supported ||
 	    pm_caps & MMC_PM_WAKE_SDIO_IRQ) {
@@ -1157,8 +1157,8 @@ void brcmf_sdio_wowl_config(struct device *dev, bool enabled)
 		return;
 	}
 
-notsup:
-	brcmf_dbg(SDIO, "WOWL not supported\n");
+analtsup:
+	brcmf_dbg(SDIO, "WOWL analt supported\n");
 }
 
 static int brcmf_ops_sdio_suspend(struct device *dev)

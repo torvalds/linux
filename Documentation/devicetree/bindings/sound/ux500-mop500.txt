@@ -1,11 +1,11 @@
 * MOP500 Audio Machine Driver
 
-This node is responsible for linking together all ux500 Audio Driver components.
+This analde is responsible for linking together all ux500 Audio Driver components.
 
 Required properties:
  - compatible              : "stericsson,snd-soc-mop500"
 
-Non-standard properties:
+Analn-standard properties:
  - stericsson,cpu-dai      : Phandle to the CPU-side DAI
  - stericsson,audio-codec  : Phandle to the Audio CODEC
  - stericsson,card-name    : Over-ride default card name

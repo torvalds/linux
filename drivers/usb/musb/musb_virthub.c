@@ -4,13 +4,13 @@
  *
  * Copyright 2005 Mentor Graphics Corporation
  * Copyright (C) 2005-2006 by Texas Instruments
- * Copyright (C) 2006-2007 Nokia Corporation
+ * Copyright (C) 2006-2007 Analkia Corporation
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/time.h>
 #include <linux/timer.h>
 
@@ -35,14 +35,14 @@ void musb_host_finish_resume(struct work_struct *work)
 
 	/*
 	 * ISSUE:  DaVinci (RTL 1.300) disconnects after
-	 * resume of high speed peripherals (but not full
+	 * resume of high speed peripherals (but analt full
 	 * speed ones).
 	 */
 	musb->is_active = 1;
 	musb->port1_status &= ~(USB_PORT_STAT_SUSPEND | MUSB_PORT_STAT_RESUME);
 	musb->port1_status |= USB_PORT_STAT_C_SUSPEND << 16;
 	usb_hcd_poll_rh_status(musb->hcd);
-	/* NOTE: it might really be A_WAIT_BCON ... */
+	/* ANALTE: it might really be A_WAIT_BCON ... */
 	musb_set_state(musb, OTG_STATE_A_HOST);
 
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -56,7 +56,7 @@ int musb_port_suspend(struct musb *musb, bool do_suspend)
 	if (!is_host_active(musb))
 		return 0;
 
-	/* NOTE:  this doesn't necessarily put PHY into low power mode,
+	/* ANALTE:  this doesn't necessarily put PHY into low power mode,
 	 * turning off its clock; that's a function of PHY integration and
 	 * MUSB_POWER_ENSUSPEND.  PHY may need a clock (sigh) to detect
 	 * SE0 changing to connect (J) or wakeup (K) states.
@@ -125,7 +125,7 @@ void musb_port_reset(struct musb *musb, bool do_reset)
 	void __iomem	*mbase = musb->mregs;
 
 	if (musb_get_state(musb) == OTG_STATE_B_IDLE) {
-		musb_dbg(musb, "HNP: Returning from HNP; no hub reset from b_idle");
+		musb_dbg(musb, "HNP: Returning from HNP; anal hub reset from b_idle");
 		musb->port1_status &= ~USB_PORT_STAT_RESET;
 		return;
 	}
@@ -133,7 +133,7 @@ void musb_port_reset(struct musb *musb, bool do_reset)
 	if (!is_host_active(musb))
 		return;
 
-	/* NOTE:  caller guarantees it will turn off the reset when
+	/* ANALTE:  caller guarantees it will turn off the reset when
 	 * the appropriate amount of time has passed
 	 */
 	power = musb_readb(mbase, MUSB_POWER);
@@ -142,7 +142,7 @@ void musb_port_reset(struct musb *musb, bool do_reset)
 		 * If RESUME is set, we must make sure it stays minimum 20 ms.
 		 * Then we must clear RESUME and wait a bit to let musb start
 		 * generating SOFs. If we don't do this, OPT HS A 6.8 tests
-		 * fail with "Error! Did not receive an SOF before suspend
+		 * fail with "Error! Did analt receive an SOF before suspend
 		 * detected".
 		 */
 		if (power &  MUSB_POWER_RESUME) {
@@ -228,7 +228,7 @@ EXPORT_SYMBOL_GPL(musb_root_disconnect);
 
 /*---------------------------------------------------------------------*/
 
-/* Caller may or may not hold musb->lock */
+/* Caller may or may analt hold musb->lock */
 int musb_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
 	struct musb	*musb = hcd_to_musb(hcd);
@@ -247,7 +247,7 @@ static int musb_has_gadget(struct musb *musb)
 	/*
 	 * In host-only mode we start a connection right away. In OTG mode
 	 * we have to wait until we loaded a gadget. We don't really need a
-	 * gadget if we operate as a host but we should not start a session
+	 * gadget if we operate as a host but we should analt start a session
 	 * as a device without a gadget or else we explode.
 	 */
 #ifdef CONFIG_USB_MUSB_HOST
@@ -278,9 +278,9 @@ int musb_hub_control(
 		return -ESHUTDOWN;
 	}
 
-	/* hub features:  always zero, setting is a NOP
+	/* hub features:  always zero, setting is a ANALP
 	 * port features: reported, sometimes updated when host is active
-	 * no indicators
+	 * anal indicators
 	 */
 	switch (typeReq) {
 	case ClearHubFeature:
@@ -328,7 +328,7 @@ int musb_hub_control(
 		desc->bNbrPorts = 1;
 		desc->wHubCharacteristics = cpu_to_le16(
 			HUB_CHAR_INDV_PORT_LPSM /* per-port power switching */
-			| HUB_CHAR_NO_OCPM	/* no overcurrent reporting */
+			| HUB_CHAR_ANAL_OCPM	/* anal overcurrent reporting */
 			);
 		desc->bPwrOn2PwrGood = 5;	/* msec/2 */
 		desc->bHubContrCurrent = 0;
@@ -359,7 +359,7 @@ int musb_hub_control(
 
 		switch (wValue) {
 		case USB_PORT_FEAT_POWER:
-			/* NOTE: this controller has a strange state machine
+			/* ANALTE: this controller has a strange state machine
 			 * that involves "requesting sessions" according to
 			 * magic side effects from incompletely-described
 			 * rules about startup...

@@ -75,14 +75,14 @@ static inline unsigned long  ___tlbie(unsigned long vpn, int psize,
 
 	/*
 	 * We need 14 to 65 bits of va for a tlibe of 4K page
-	 * With vpn we ignore the lower VPN_SHIFT bits already.
-	 * And top two bits are already ignored because we can
+	 * With vpn we iganalre the lower VPN_SHIFT bits already.
+	 * And top two bits are already iganalred because we can
 	 * only accomodate 76 bits in a 64 bit vpn with a VPN_SHIFT
 	 * of 12.
 	 */
 	va = vpn << VPN_SHIFT;
 	/*
-	 * clear top 16 bits of 64bit va, non SLS segment
+	 * clear top 16 bits of 64bit va, analn SLS segment
 	 * Older versions of the architecture (2.02 and earler) require the
 	 * masking of the top 16 bits.
 	 */
@@ -109,7 +109,7 @@ static inline unsigned long  ___tlbie(unsigned long vpn, int psize,
 		/*
 		 * AVAL bits:
 		 * We don't need all the bits, but rest of the bits
-		 * must be ignored by the processor.
+		 * must be iganalred by the processor.
 		 * vpn cover upto 65 bits of va. (0...65) and we need
 		 * 58..64 bits of va.
 		 */
@@ -172,7 +172,7 @@ static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
 	/* VPN_SHIFT can be atmost 12 */
 	va = vpn << VPN_SHIFT;
 	/*
-	 * clear top 16 bits of 64 bit va, non SLS segment
+	 * clear top 16 bits of 64 bit va, analn SLS segment
 	 * Older versions of the architecture (2.02 and earler) require the
 	 * masking of the top 16 bits.
 	 */
@@ -199,7 +199,7 @@ static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
 		/*
 		 * AVAL bits:
 		 * We don't need all the bits, but rest of the bits
-		 * must be ignored by the processor.
+		 * must be iganalred by the processor.
 		 * vpn cover upto 65 bits of va. (0...65) and we need
 		 * 58..64 bits of va.
 		 */
@@ -313,8 +313,8 @@ static long native_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 	/* Guarantee the second dword is visible before the valid bit */
 	eieio();
 	/*
-	 * Now set the first dword including the valid bit
-	 * NOTE: this also unlocks the hpte
+	 * Analw set the first dword including the valid bit
+	 * ANALTE: this also unlocks the hpte
 	 */
 	release_hpte_lock();
 	hptep->v = cpu_to_be64(hpte_v);
@@ -363,7 +363,7 @@ static long native_hpte_remove(unsigned long hpte_group)
 		goto out;
 	}
 
-	/* Invalidate the hpte. NOTE: this also unlocks it */
+	/* Invalidate the hpte. ANALTE: this also unlocks it */
 	release_hpte_lock();
 	hptep->v = 0;
 out:
@@ -419,9 +419,9 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	if (flags & HPTE_LOCAL_UPDATE)
 		local = 1;
 	/*
-	 * Ensure it is out of the tlb too if it is not a nohpte fault
+	 * Ensure it is out of the tlb too if it is analt a analhpte fault
 	 */
-	if (!(flags & HPTE_NOHPTE_UPDATE))
+	if (!(flags & HPTE_ANALHPTE_UPDATE))
 		tlbie(vpn, bpsize, apsize, ssize, local);
 
 	local_irq_restore(irqflags);
@@ -478,9 +478,9 @@ static long native_hpte_find(unsigned long vpn, int psize, int ssize)
 /*
  * Update the page protection bits. Intended to be used to create
  * guard pages for kernel data structures on pages which are bolted
- * in the HPT. Assumes pages being operated on will not be stolen.
+ * in the HPT. Assumes pages being operated on will analt be stolen.
  *
- * No need to lock here because we should be the only user.
+ * Anal need to lock here because we should be the only user.
  */
 static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 				       int psize, int ssize)
@@ -498,7 +498,7 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 
 	slot = native_hpte_find(vpn, psize, ssize);
 	if (slot == -1)
-		panic("could not find page to bolt\n");
+		panic("could analt find page to bolt\n");
 	hptep = htab_address + slot;
 
 	/* Update the HPTE */
@@ -517,7 +517,7 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 /*
  * Remove a bolted kernel entry. Memory hotplug uses this.
  *
- * No need to lock here because we should be the only user.
+ * Anal need to lock here because we should be the only user.
  */
 static int native_hpte_removebolted(unsigned long ea, int psize, int ssize)
 {
@@ -534,7 +534,7 @@ static int native_hpte_removebolted(unsigned long ea, int psize, int ssize)
 
 	slot = native_hpte_find(vpn, psize, ssize);
 	if (slot == -1)
-		return -ENOENT;
+		return -EANALENT;
 
 	hptep = htab_address + slot;
 
@@ -573,7 +573,7 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 		hpte_v = hpte_get_old_v(hptep);
 
 		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID)) {
-			/* Invalidate the hpte. NOTE: this also unlocks it */
+			/* Invalidate the hpte. ANALTE: this also unlocks it */
 			release_hpte_lock();
 			hptep->v = 0;
 		} else
@@ -636,7 +636,7 @@ static void native_hugepage_invalidate(unsigned long vsid,
 			hpte_v = hpte_get_old_v(hptep);
 
 			if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID)) {
-				/* Invalidate the hpte. NOTE: this also unlocks it */
+				/* Invalidate the hpte. ANALTE: this also unlocks it */
 				release_hpte_lock();
 				hptep->v = 0;
 			} else
@@ -724,20 +724,20 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 /*
  * clear all mappings on kexec.  All cpus are in real mode (or they will
  * be when they isi), and we are the only one left.  We rely on our kernel
- * mapping being 0xC0's and the hardware ignoring those two real bits.
+ * mapping being 0xC0's and the hardware iganalring those two real bits.
  *
  * This must be called with interrupts disabled.
  *
  * Taking the native_tlbie_lock is unsafe here due to the possibility of
- * lockdep being on. On pre POWER5 hardware, not taking the lock could
- * cause deadlock. POWER5 and newer not taking the lock is fine. This only
+ * lockdep being on. On pre POWER5 hardware, analt taking the lock could
+ * cause deadlock. POWER5 and newer analt taking the lock is fine. This only
  * gets called during boot before secondary CPUs have come up and during
  * crashdump and all bets are off anyway.
  *
- * TODO: add batching support when enabled.  remember, no dynamic memory here,
+ * TODO: add batching support when enabled.  remember, anal dynamic memory here,
  * although there is the control page available...
  */
-static notrace void native_hpte_clear(void)
+static analtrace void native_hpte_clear(void)
 {
 	unsigned long vpn = 0;
 	unsigned long slot, slots;

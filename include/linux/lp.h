@@ -17,16 +17,16 @@
 #define LP_PARPORT_UNSPEC -4
 #define LP_PARPORT_AUTO -3
 #define LP_PARPORT_OFF -2
-#define LP_PARPORT_NONE -1
+#define LP_PARPORT_ANALNE -1
 
-#define LP_F(minor)	lp_table[(minor)].flags		/* flags for busy, etc. */
-#define LP_CHAR(minor)	lp_table[(minor)].chars		/* busy timeout */
-#define LP_TIME(minor)	lp_table[(minor)].time		/* wait time */
-#define LP_WAIT(minor)	lp_table[(minor)].wait		/* strobe wait */
-#define LP_IRQ(minor)	lp_table[(minor)].dev->port->irq /* interrupt # */
-					/* PARPORT_IRQ_NONE means polled */
+#define LP_F(mianalr)	lp_table[(mianalr)].flags		/* flags for busy, etc. */
+#define LP_CHAR(mianalr)	lp_table[(mianalr)].chars		/* busy timeout */
+#define LP_TIME(mianalr)	lp_table[(mianalr)].time		/* wait time */
+#define LP_WAIT(mianalr)	lp_table[(mianalr)].wait		/* strobe wait */
+#define LP_IRQ(mianalr)	lp_table[(mianalr)].dev->port->irq /* interrupt # */
+					/* PARPORT_IRQ_ANALNE means polled */
 #ifdef LP_STATS
-#define LP_STAT(minor)	lp_table[(minor)].stats		/* statistics area */
+#define LP_STAT(mianalr)	lp_table[(mianalr)].stats		/* statistics area */
 #endif
 #define LP_BUFFER_SIZE PAGE_SIZE
 
@@ -67,7 +67,7 @@ struct lp_struct {
 
 /*
  * The following constants describe the various signals of the printer port
- * hardware.  Note that the hardware inverts some signals and that some
+ * hardware.  Analte that the hardware inverts some signals and that some
  * signals are active low.  An example is LP_STROBE, which must be programmed
  * with 1 for being active and 0 for being inactive, because the strobe signal
  * gets inverted, but it is also active low.
@@ -77,7 +77,7 @@ struct lp_struct {
 /* 
  * defines for 8255 control port
  * base + 2 
- * accessed with LP_C(minor)
+ * accessed with LP_C(mianalr)
  */
 #define LP_PINTEN	0x10  /* high to read data in or-ed with data out */
 #define LP_PSELECP	0x08  /* inverted output, active low */
@@ -87,7 +87,7 @@ struct lp_struct {
 
 /* 
  * the value written to ports to test existence. PC-style ports will 
- * return the value written. AT-style ports will return 0. so why not
+ * return the value written. AT-style ports will return 0. so why analt
  * make them the same ? 
  */
 #define LP_DUMMY	0x00

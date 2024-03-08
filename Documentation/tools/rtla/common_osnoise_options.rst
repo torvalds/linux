@@ -5,11 +5,11 @@
 
 **-p**, **--period** *us*
 
-        Set the *osnoise* tracer period in microseconds.
+        Set the *osanalise* tracer period in microseconds.
 
 **-r**, **--runtime** *us*
 
-        Set the *osnoise* tracer runtime in microseconds.
+        Set the *osanalise* tracer runtime in microseconds.
 
 **-s**, **--stop** *us*
 
@@ -23,5 +23,5 @@
 
 **-T**, **--threshold** *us*
 
-        Specify the minimum delta between two time reads to be considered noise.
+        Specify the minimum delta between two time reads to be considered analise.
         The default threshold is *5 us*.

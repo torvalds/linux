@@ -2,7 +2,7 @@
 /*
  * NCI based driver for Samsung S3FWRN5 NFC chip
  *
- * Copyright (C) 2015 Samsung Electrnoics
+ * Copyright (C) 2015 Samsung Electranalics
  * Robert Baldyga <r.baldyga@samsung.com>
  */
 
@@ -63,7 +63,7 @@ static int s3fwrn5_fw_prep_msg(struct s3fwrn5_fw_info *fw_info,
 
 	skb = alloc_skb(S3FWRN5_FW_HDR_SIZE + len, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, &hdr, S3FWRN5_FW_HDR_SIZE);
 	if (len)
@@ -373,7 +373,7 @@ int s3fwrn5_fw_setup(struct s3fwrn5_fw_info *fw_info)
 
 	ret = s3fwrn5_fw_get_base_addr(&bootinfo, &fw_info->base_addr);
 	if (ret < 0) {
-		dev_err(dev, "Unknown hardware version\n");
+		dev_err(dev, "Unkanalwn hardware version\n");
 		goto err;
 	}
 
@@ -421,7 +421,7 @@ int s3fwrn5_fw_download(struct s3fwrn5_fw_info *fw_info)
 
 	tfm = crypto_alloc_shash("sha1", 0, 0);
 	if (IS_ERR(tfm)) {
-		dev_err(dev, "Cannot allocate shash (code=%pe)\n", tfm);
+		dev_err(dev, "Cananalt allocate shash (code=%pe)\n", tfm);
 		return PTR_ERR(tfm);
 	}
 
@@ -429,7 +429,7 @@ int s3fwrn5_fw_download(struct s3fwrn5_fw_info *fw_info)
 
 	crypto_free_shash(tfm);
 	if (ret) {
-		dev_err(dev, "Cannot compute hash (code=%d)\n", ret);
+		dev_err(dev, "Cananalt compute hash (code=%d)\n", ret);
 		return ret;
 	}
 

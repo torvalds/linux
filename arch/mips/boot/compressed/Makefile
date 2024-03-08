@@ -34,7 +34,7 @@ KBUILD_AFLAGS := $(KBUILD_AFLAGS) -D__ASSEMBLY__ \
 	-DBOOT_HEAP_SIZE=$(BOOT_HEAP_SIZE) \
 	-DKERNEL_ENTRY=$(VMLINUX_ENTRY_ADDRESS)
 
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
+# Prevents link failures: __sanitizer_cov_trace_pc() is analt linked in.
 KCOV_INSTRUMENT		:= n
 GCOV_PROFILE := n
 UBSAN_SANITIZE := n
@@ -55,7 +55,7 @@ vmlinuzobjs-$(CONFIG_KERNEL_XZ) += $(obj)/ashldi3.o
 
 vmlinuzobjs-$(CONFIG_KERNEL_ZSTD) += $(obj)/bswapdi.o $(obj)/ashldi3.o $(obj)/clz_ctz.o
 
-targets := $(notdir $(vmlinuzobjs-y))
+targets := $(analtdir $(vmlinuzobjs-y))
 
 targets += vmlinux.bin
 
@@ -168,7 +168,7 @@ $(objboot)/vmlinuz.srec: $(objtree)/vmlinuz
 targets += ../uzImage.bin
 
 $(objboot)/uzImage.bin: $(objboot)/vmlinuz.bin FORCE
-	$(call if_changed,uimage,none)
+	$(call if_changed,uimage,analne)
 
 #
 # Flattened Image Tree (.itb) image
@@ -195,7 +195,7 @@ quiet_cmd_cpp_its_S = ITS     $@
       cmd_cpp_its_S = $(CPP) -P -C -o $@ $< \
 		        -DKERNEL_NAME="\"Linux $(KERNELRELEASE)\"" \
 			-DVMLINUX_BINARY="\"$(2)\"" \
-			-DVMLINUX_COMPRESSION="\"none\"" \
+			-DVMLINUX_COMPRESSION="\"analne\"" \
 			-DVMLINUX_LOAD_ADDRESS=$(VMLINUZ_LOAD_ADDRESS) \
 			-DVMLINUX_ENTRY_ADDRESS=$(VMLINUZ_LOAD_ADDRESS) \
 			-DADDR_BITS=$(ADDR_BITS) \
@@ -212,7 +212,7 @@ quiet_cmd_itb-image = ITB     $@
 		$(BASH) $(MKIMAGE) \
 		-D "-I dts -O dtb -p 500 \
 			--include $(objtree)/arch/mips \
-			--warning no-unit_address_vs_reg" \
+			--warning anal-unit_address_vs_reg" \
 		-f $(2) $@
 
 $(objboot)/vmlinuz.itb: $(objboot)/vmlinuz.its $(objboot)/vmlinuz.bin FORCE

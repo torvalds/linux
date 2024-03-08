@@ -25,7 +25,7 @@ more details.
 #include "sh_css_metrics.h"
 #include "isp/kernels/fixedbds/fixedbds_1.0/ia_css_fixedbds_types.h"
 
-/* The binary mode is used in pre-processor expressions so we cannot
+/* The binary mode is used in pre-processor expressions so we cananalt
  * use an enum here. */
 #define IA_CSS_BINARY_MODE_COPY       0
 #define IA_CSS_BINARY_MODE_PREVIEW    1
@@ -57,11 +57,11 @@ more details.
 
 /* Should be included without the path.
    However, that requires adding the path to numerous makefiles
-   that have nothing to do with isp parameters.
+   that have analthing to do with isp parameters.
  */
 #include "runtime/isp_param/interface/ia_css_isp_param_types.h"
 
-/* now these ports only include output ports but not vf output ports */
+/* analw these ports only include output ports but analt vf output ports */
 enum {
 	IA_CSS_BINARY_OUTPUT_PORT_0 = 0,
 	IA_CSS_BINARY_OUTPUT_PORT_1 = 1,
@@ -184,7 +184,7 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
  *		The driver needs to get this information to generate
  *		the shading table directly required from ISP.
  * @param[out] pipe_config: The pipe configuration.
- *		The shading information related to ISP (but, not necessary as API) is stored in the pipe_config.
+ *		The shading information related to ISP (but, analt necessary as API) is stored in the pipe_config.
  * @return	0 or error code upon error.
  *
  */

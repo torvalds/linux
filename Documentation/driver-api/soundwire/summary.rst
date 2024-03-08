@@ -52,7 +52,7 @@ two Slave devices. ::
                              +-------------+
 
 
-Terminology
+Termianallogy
 ===========
 
 The MIPI SoundWire specification uses the term 'device' to refer to a Master
@@ -77,7 +77,7 @@ Slave driver:
 Driver controlling the Slave device. MIPI-specified registers are controlled
 directly by the Bus (and transmitted through the Master driver/interface).
 Any implementation-defined Slave register is controlled by Slave driver. In
-practice, it is expected that the Slave driver relies on regmap and does not
+practice, it is expected that the Slave driver relies on regmap and does analt
 request direct register access.
 
 Programming interfaces (SoundWire Master interface Driver)
@@ -90,7 +90,7 @@ prefix commonly used by SoC designers and 3rd party vendors.
 Each of the SoundWire Master interfaces needs to be registered to the Bus.
 Bus implements API to read standard Master MIPI properties and also provides
 callback in Master ops for Master driver to implement its own functions that
-provides capabilities information. DT support is not implemented at this
+provides capabilities information. DT support is analt implemented at this
 time but should be trivial to add since capabilities are enabled with the
 ``device_property_`` API.
 
@@ -103,9 +103,9 @@ Following is the Bus API to register the SoundWire Bus:
 
 	int sdw_bus_master_add(struct sdw_bus *bus,
 				struct device *parent,
-				struct fwnode_handle)
+				struct fwanalde_handle)
 	{
-		sdw_master_device_add(bus, parent, fwnode);
+		sdw_master_device_add(bus, parent, fwanalde);
 
 		mutex_init(&bus->lock);
 		INIT_LIST_HEAD(&bus->slaves);
@@ -129,7 +129,7 @@ Synchronization Point (SSP). The "sdw_master_ops" structure abstracts the
 hardware details of the Master from the Bus.
 
 "sdw_master_port_ops" is used by Bus to setup the Port parameters of the
-Master interface Port. Master interface Port register map is not defined by
+Master interface Port. Master interface Port register map is analt defined by
 MIPI specification, so Bus calls the "sdw_master_port_ops" callback
 function to do Port operations like "Port Prepare", "Port Transport params
 set", "Port enable and disable". The implementation of the Master driver can
@@ -154,7 +154,7 @@ The information on Master/Slave dependencies is stored in platform data,
 board-file, ACPI or DT. The MIPI Software specification defines additional
 link_id parameters for controllers that have multiple Master interfaces. The
 dev_id registers are only unique in the scope of a link, and the link_id
-unique in the scope of a controller. Both dev_id and link_id are not
+unique in the scope of a controller. Both dev_id and link_id are analt
 necessarily unique at the system level but the parent/child information is
 used to avoid ambiguity.
 
@@ -180,7 +180,7 @@ used to avoid ambiguity.
 
 For capabilities, Bus implements API to read standard Slave MIPI properties
 and also provides callback in Slave ops for Slave driver to implement own
-function that provides capabilities information. Bus needs to know a set of
+function that provides capabilities information. Bus needs to kanalw a set of
 Slave capabilities to program Slave registers and to control the Bus
 reconfigurations.
 

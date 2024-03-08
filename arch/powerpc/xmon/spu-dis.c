@@ -8,7 +8,7 @@
  */
 
 #include <linux/string.h>
-#include "nonstdio.h"
+#include "analnstdio.h"
 #include "ansidecl.h"
 #include "spu.h"
 #include "dis-asm.h"
@@ -47,7 +47,7 @@ get_index_for_opcode (unsigned int insn)
   unsigned int opcode = insn >> (32-11);
 
   /* Init the table.  This assumes that element 0/opcode 0 (currently
-   * NOP) is always used */
+   * ANALP) is always used */
   if (spu_disassemble_table[0] == 0)
     init_spu_disassemble ();
 

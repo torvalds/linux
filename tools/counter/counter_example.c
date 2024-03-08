@@ -4,11 +4,11 @@
  * The userspace application opens /dev/counter0, configures the
  * COUNTER_EVENT_INDEX event channel 0 to gather Count 0 count and Count
  * 1 count, and prints out the data as it becomes available on the
- * character device node.
+ * character device analde.
  *
  * Copyright (C) 2021 William Breathitt Gray
  */
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/counter.h>
 #include <stdio.h>
@@ -56,7 +56,7 @@ int main(void)
 		ret = ioctl(fd, COUNTER_ADD_WATCH_IOCTL, watches + i);
 		if (ret == -1) {
 			fprintf(stderr, "Error adding watches[%d]: %s\n", i,
-				strerror(errno));
+				strerror(erranal));
 			return 1;
 		}
 	}

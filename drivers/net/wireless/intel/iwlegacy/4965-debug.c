@@ -46,13 +46,13 @@ il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 	char *buf;
 	int bufsz =
 	    sizeof(struct stats_rx_phy) * 40 +
-	    sizeof(struct stats_rx_non_phy) * 40 +
+	    sizeof(struct stats_rx_analn_phy) * 40 +
 	    sizeof(struct stats_rx_ht_phy) * 40 + 400;
 	ssize_t ret;
 	struct stats_rx_phy *ofdm, *accum_ofdm, *delta_ofdm, *max_ofdm;
 	struct stats_rx_phy *cck, *accum_cck, *delta_cck, *max_cck;
-	struct stats_rx_non_phy *general, *accum_general;
-	struct stats_rx_non_phy *delta_general, *max_general;
+	struct stats_rx_analn_phy *general, *accum_general;
+	struct stats_rx_analn_phy *delta_general, *max_general;
 	struct stats_rx_ht_phy *ht, *accum_ht, *delta_ht, *max_ht;
 
 	if (!il_is_alive(il))
@@ -60,14 +60,14 @@ il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
-		return -ENOMEM;
+		IL_ERR("Can analt allocate Buffer\n");
+		return -EANALMEM;
 	}
 
 	/*
 	 * the statistic information display here is based on
-	 * the last stats notification from uCode
-	 * might not reflect the current uCode activity
+	 * the last stats analtification from uCode
+	 * might analt reflect the current uCode activity
 	 */
 	ofdm = &il->_4965.stats.rx.ofdm;
 	cck = &il->_4965.stats.rx.cck;
@@ -283,11 +283,11 @@ il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 		      le32_to_cpu(general->bogus_ack), accum_general->bogus_ack,
 		      delta_general->bogus_ack, max_general->bogus_ack);
 	pos +=
-	    scnprintf(buf + pos, bufsz - pos, fmt_table, "non_bssid_frames:",
-		      le32_to_cpu(general->non_bssid_frames),
-		      accum_general->non_bssid_frames,
-		      delta_general->non_bssid_frames,
-		      max_general->non_bssid_frames);
+	    scnprintf(buf + pos, bufsz - pos, fmt_table, "analn_bssid_frames:",
+		      le32_to_cpu(general->analn_bssid_frames),
+		      accum_general->analn_bssid_frames,
+		      delta_general->analn_bssid_frames,
+		      max_general->analn_bssid_frames);
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, fmt_table, "filtered_frames:",
 		      le32_to_cpu(general->filtered_frames),
@@ -295,11 +295,11 @@ il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 		      delta_general->filtered_frames,
 		      max_general->filtered_frames);
 	pos +=
-	    scnprintf(buf + pos, bufsz - pos, fmt_table, "non_channel_beacons:",
-		      le32_to_cpu(general->non_channel_beacons),
-		      accum_general->non_channel_beacons,
-		      delta_general->non_channel_beacons,
-		      max_general->non_channel_beacons);
+	    scnprintf(buf + pos, bufsz - pos, fmt_table, "analn_channel_beacons:",
+		      le32_to_cpu(general->analn_channel_beacons),
+		      accum_general->analn_channel_beacons,
+		      delta_general->analn_channel_beacons,
+		      max_general->analn_channel_beacons);
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, fmt_table, "channel_beacons:",
 		      le32_to_cpu(general->channel_beacons),
@@ -465,13 +465,13 @@ il4965_ucode_tx_stats_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
-		return -ENOMEM;
+		IL_ERR("Can analt allocate Buffer\n");
+		return -EANALMEM;
 	}
 
 	/* the statistic information display here is based on
-	 * the last stats notification from uCode
-	 * might not reflect the current uCode activity
+	 * the last stats analtification from uCode
+	 * might analt reflect the current uCode activity
 	 */
 	tx = &il->_4965.stats.tx;
 	accum_tx = &il->_4965.accum_stats.tx;
@@ -572,11 +572,11 @@ il4965_ucode_tx_stats_read(struct file *file, char __user *user_buf,
 		      max_tx->agg.scd_query_agg_frame_cnt);
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, fmt_table,
-		      "agg scd_query_no_agg:",
-		      le32_to_cpu(tx->agg.scd_query_no_agg),
-		      accum_tx->agg.scd_query_no_agg,
-		      delta_tx->agg.scd_query_no_agg,
-		      max_tx->agg.scd_query_no_agg);
+		      "agg scd_query_anal_agg:",
+		      le32_to_cpu(tx->agg.scd_query_anal_agg),
+		      accum_tx->agg.scd_query_anal_agg,
+		      delta_tx->agg.scd_query_anal_agg,
+		      max_tx->agg.scd_query_anal_agg);
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, fmt_table, "agg scd_query_agg:",
 		      le32_to_cpu(tx->agg.scd_query_agg),
@@ -590,11 +590,11 @@ il4965_ucode_tx_stats_read(struct file *file, char __user *user_buf,
 		      delta_tx->agg.scd_query_mismatch,
 		      max_tx->agg.scd_query_mismatch);
 	pos +=
-	    scnprintf(buf + pos, bufsz - pos, fmt_table, "agg frame_not_ready:",
-		      le32_to_cpu(tx->agg.frame_not_ready),
-		      accum_tx->agg.frame_not_ready,
-		      delta_tx->agg.frame_not_ready,
-		      max_tx->agg.frame_not_ready);
+	    scnprintf(buf + pos, bufsz - pos, fmt_table, "agg frame_analt_ready:",
+		      le32_to_cpu(tx->agg.frame_analt_ready),
+		      accum_tx->agg.frame_analt_ready,
+		      delta_tx->agg.frame_analt_ready,
+		      max_tx->agg.frame_analt_ready);
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, fmt_table, "agg underrun:",
 		      le32_to_cpu(tx->agg.underrun), accum_tx->agg.underrun,
@@ -634,13 +634,13 @@ il4965_ucode_general_stats_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
-		IL_ERR("Can not allocate Buffer\n");
-		return -ENOMEM;
+		IL_ERR("Can analt allocate Buffer\n");
+		return -EANALMEM;
 	}
 
 	/* the statistic information display here is based on
-	 * the last stats notification from uCode
-	 * might not reflect the current uCode activity
+	 * the last stats analtification from uCode
+	 * might analt reflect the current uCode activity
 	 */
 	general = &il->_4965.stats.general.common;
 	dbg = &il->_4965.stats.general.common.dbg;

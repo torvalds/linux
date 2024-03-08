@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2020, Mellanox Technologies inc. All rights reserved. */
+/* Copyright (c) 2020, Mellaanalx Techanallogies inc. All rights reserved. */
 
 #ifndef __MLX5E_KTLS_UTILS_H__
 #define __MLX5E_KTLS_UTILS_H__
@@ -8,7 +8,7 @@
 #include "en.h"
 
 enum {
-	MLX5E_TLS_PROGRESS_PARAMS_AUTH_STATE_NO_OFFLOAD     = 0,
+	MLX5E_TLS_PROGRESS_PARAMS_AUTH_STATE_ANAL_OFFLOAD     = 0,
 	MLX5E_TLS_PROGRESS_PARAMS_AUTH_STATE_OFFLOAD        = 1,
 	MLX5E_TLS_PROGRESS_PARAMS_AUTH_STATE_AUTHENTICATION = 2,
 };

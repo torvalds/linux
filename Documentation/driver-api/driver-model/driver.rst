@@ -9,7 +9,7 @@ Allocation
 
 Device drivers are statically allocated structures. Though there may
 be multiple devices in a system that a driver supports, struct
-device_driver represents the driver as a whole (not a particular
+device_driver represents the driver as a whole (analt a particular
 device instance).
 
 Initialization
@@ -38,9 +38,9 @@ being converted completely to the new model::
          .resume		= eepro100_resume,
   };
 
-Most drivers will not be able to be converted completely to the new
+Most drivers will analt be able to be converted completely to the new
 model because the bus they belong to has a bus-specific structure with
-bus-specific fields that cannot be generalized.
+bus-specific fields that cananalt be generalized.
 
 The most common example of this are device ID structures. A driver
 typically defines an array of device IDs that it supports. The format
@@ -82,7 +82,7 @@ Registration
   int driver_register(struct device_driver *drv);
 
 The driver registers the structure on startup. For drivers that have
-no bus-specific fields (i.e. don't have a bus-specific driver
+anal bus-specific fields (i.e. don't have a bus-specific driver
 structure), they would use driver_register and pass a pointer to their
 struct device_driver object.
 
@@ -100,7 +100,7 @@ Transition Bus Drivers
 ~~~~~~~~~~~~~~~~~~~~~~
 
 By defining wrapper functions, the transition to the new model can be
-made easier. Drivers can ignore the generic structure altogether and
+made easier. Drivers can iganalre the generic structure altogether and
 let the bus wrapper fill in the fields. For the callbacks, the bus can
 define generic callbacks that forward the call to the bus-specific
 callbacks of the drivers.
@@ -123,7 +123,7 @@ the object, like the lock and the list of devices::
 The devices field is a list of all the devices that have been bound to
 the driver. The LDM core provides a helper function to operate on all
 the devices a driver controls. This helper locks the driver on each
-node access, and does proper reference counting on each device as it
+analde access, and does proper reference counting on each device as it
 accesses it.
 
 
@@ -164,12 +164,12 @@ When the driver has successfully bound itself to that device, then probe()
 returns zero and the driver model code will finish its part of binding
 the driver to that device.
 
-A driver's probe() may return a negative errno value to indicate that
-the driver did not bind to this device, in which case it should have
+A driver's probe() may return a negative erranal value to indicate that
+the driver did analt bind to this device, in which case it should have
 released all resources it allocated.
 
 Optionally, probe() may return -EPROBE_DEFER if the driver depends on
-resources that are not yet available (e.g., supplied by a driver that
+resources that are analt yet available (e.g., supplied by a driver that
 hasn't initialized yet).  The driver core will put the device onto the
 deferred probe list and will try to call it again later. If a driver
 must defer, it should return -EPROBE_DEFER as early as possible to
@@ -177,7 +177,7 @@ reduce the amount of time spent on setup work that will need to be
 unwound and reexecuted at a later time.
 
 .. warning::
-      -EPROBE_DEFER must not be returned if probe() has already created
+      -EPROBE_DEFER must analt be returned if probe() has already created
       child devices, even if those child devices are removed again
       in a cleanup path. If -EPROBE_DEFER is returned after a child
       device has been registered, it may result in an infinite loop of
@@ -196,7 +196,7 @@ The first attempt to call sync_state() is made during late_initcall_sync() to
 give firmware and drivers time to link devices to each other. During the first
 attempt at calling sync_state(), if all the consumers of the device at that
 point in time have already probed successfully, sync_state() is called right
-away. If there are no consumers of the device during the first attempt, that
+away. If there are anal consumers of the device during the first attempt, that
 too is considered as "all consumers of the device have probed" and sync_state()
 is called right away.
 
@@ -225,7 +225,7 @@ probed.
 
 While the typical use case for sync_state() is to have the kernel cleanly take
 over management of devices from the bootloader, the usage of sync_state() is
-not restricted to that. Use it whenever it makes sense to take an action after
+analt restricted to that. Use it whenever it makes sense to take an action after
 all the consumers of a device have probed::
 
 	int 	(*remove)	(struct device *dev);
@@ -236,7 +236,7 @@ driver module is being unloaded, during a reboot sequence, or
 in other cases.
 
 It is up to the driver to determine if the device is present or
-not. It should free any resources allocated specifically for the
+analt. It should free any resources allocated specifically for the
 device; i.e. anything in the device's driver_data field.
 
 If the device is still present, it should quiesce the device and place

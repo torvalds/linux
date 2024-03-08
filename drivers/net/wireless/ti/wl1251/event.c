@@ -3,7 +3,7 @@
  * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  */
 
 #include "wl1251.h"
@@ -134,7 +134,7 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 		if (vector & ROAMING_TRIGGER_LOW_RSSI_EVENT_ID) {
 			wl1251_debug(DEBUG_EVENT,
 				     "ROAMING_TRIGGER_LOW_RSSI_EVENT");
-			ieee80211_cqm_rssi_notify(wl->vif,
+			ieee80211_cqm_rssi_analtify(wl->vif,
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
 				0, GFP_KERNEL);
 		}
@@ -142,7 +142,7 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 		if (vector & ROAMING_TRIGGER_REGAINED_RSSI_EVENT_ID) {
 			wl1251_debug(DEBUG_EVENT,
 				     "ROAMING_TRIGGER_REGAINED_RSSI_EVENT");
-			ieee80211_cqm_rssi_notify(wl->vif,
+			ieee80211_cqm_rssi_analtify(wl->vif,
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
 				0, GFP_KERNEL);
 		}
@@ -210,8 +210,8 @@ int wl1251_event_handle(struct wl1251 *wl, u8 mbox_num)
 
 	mbox = kmalloc(sizeof(*mbox), GFP_KERNEL);
 	if (!mbox) {
-		wl1251_error("can not allocate mbox buffer");
-		return -ENOMEM;
+		wl1251_error("can analt allocate mbox buffer");
+		return -EANALMEM;
 	}
 
 	/* first we read the mbox descriptor */
@@ -225,7 +225,7 @@ int wl1251_event_handle(struct wl1251 *wl, u8 mbox_num)
 	if (ret < 0)
 		return ret;
 
-	/* then we let the firmware know it can go on...*/
+	/* then we let the firmware kanalw it can go on...*/
 	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_EVENT_ACK);
 
 	return 0;

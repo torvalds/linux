@@ -41,7 +41,7 @@ struct ps_device {
 	int battery_status;
 
 	const char *input_dev_name; /* Name of primary input device. */
-	uint8_t mac_address[6]; /* Note: stored in little endian order. */
+	uint8_t mac_address[6]; /* Analte: stored in little endian order. */
 	uint32_t hw_version;
 	uint32_t fw_version;
 
@@ -54,7 +54,7 @@ struct ps_calibration_data {
 	int abs_code;
 	short bias;
 	int sens_numer;
-	int sens_denom;
+	int sens_deanalm;
 };
 
 struct ps_led_info {
@@ -111,7 +111,7 @@ struct ps_led_info {
 #define DS_STATUS_CHARGING_SHIFT	4
 
 /* Feature version from DualSense Firmware Info report. */
-#define DS_FEATURE_VERSION(major, minor) ((major & 0xff) << 8 | (minor & 0xff))
+#define DS_FEATURE_VERSION(major, mianalr) ((major & 0xff) << 8 | (mianalr & 0xff))
 
 /*
  * Status of a DualSense touch point contact.
@@ -330,7 +330,7 @@ struct dualsense_output_report {
  * 0x3F - disabled
  */
 #define DS4_OUTPUT_HWCTL_BT_POLL_MASK	0x3F
-/* Default to 4ms poll interval, which is same as USB (not adjustable). */
+/* Default to 4ms poll interval, which is same as USB (analt adjustable). */
 #define DS4_BT_DEFAULT_POLL_INTERVAL_MS	4
 #define DS4_OUTPUT_HWCTL_CRC32		0x40
 #define DS4_OUTPUT_HWCTL_HID		0x80
@@ -506,12 +506,12 @@ struct dualshock4_output_report {
 
 /*
  * Common gamepad buttons across DualShock 3 / 4 and DualSense.
- * Note: for device with a touchpad, touchpad button is not included
+ * Analte: for device with a touchpad, touchpad button is analt included
  *        as it will be part of the touchpad device.
  */
 static const int ps_gamepad_buttons[] = {
 	BTN_WEST, /* Square */
-	BTN_NORTH, /* Triangle */
+	BTN_ANALRTH, /* Triangle */
 	BTN_EAST, /* Circle */
 	BTN_SOUTH, /* Cross */
 	BTN_TL, /* L1 */
@@ -592,7 +592,7 @@ static struct input_dev *ps_allocate_input_dev(struct hid_device *hdev, const ch
 
 	input_dev = devm_input_allocate_device(&hdev->dev);
 	if (!input_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	input_dev->id.bustype = hdev->bus;
 	input_dev->id.vendor = hdev->vendor;
@@ -604,7 +604,7 @@ static struct input_dev *ps_allocate_input_dev(struct hid_device *hdev, const ch
 		input_dev->name = devm_kasprintf(&hdev->dev, GFP_KERNEL, "%s %s", hdev->name,
 				name_suffix);
 		if (!input_dev->name)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	} else {
 		input_dev->name = hdev->name;
 	}
@@ -670,7 +670,7 @@ static int ps_device_register_battery(struct ps_device *dev)
 	dev->battery_desc.name = devm_kasprintf(&dev->hdev->dev, GFP_KERNEL,
 			"ps-controller-battery-%pMR", dev->mac_address);
 	if (!dev->battery_desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	battery = devm_power_supply_register(&dev->hdev->dev, &dev->battery_desc, &battery_cfg);
 	if (IS_ERR(battery)) {
@@ -783,13 +783,13 @@ static int ps_led_register(struct ps_device *ps_dev, struct led_classdev *led,
 		led->name = devm_kasprintf(&ps_dev->hdev->dev, GFP_KERNEL,
 				"%s:%s:%s", ps_dev->input_dev_name, led_info->color, led_info->name);
 	} else {
-		/* Backwards compatible mode for hid-sony, but not compliant with LED class spec. */
+		/* Backwards compatible mode for hid-sony, but analt compliant with LED class spec. */
 		led->name = devm_kasprintf(&ps_dev->hdev->dev, GFP_KERNEL,
 				"%s:%s", ps_dev->input_dev_name, led_info->color);
 	}
 
 	if (!led->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led->brightness = 0;
 	led->max_brightness = led_info->max_brightness;
@@ -819,7 +819,7 @@ static int ps_lightbar_register(struct ps_device *ps_dev, struct led_classdev_mc
 	mc_led_info = devm_kmalloc_array(&hdev->dev, 3, sizeof(*mc_led_info),
 					 GFP_KERNEL | __GFP_ZERO);
 	if (!mc_led_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mc_led_info[0].color_index = LED_COLOR_ID_RED;
 	mc_led_info[1].color_index = LED_COLOR_ID_GREEN;
@@ -832,14 +832,14 @@ static int ps_lightbar_register(struct ps_device *ps_dev, struct led_classdev_mc
 	led_cdev->name = devm_kasprintf(&hdev->dev, GFP_KERNEL, "%s:rgb:indicator",
 			ps_dev->input_dev_name);
 	if (!led_cdev->name)
-		return -ENOMEM;
+		return -EANALMEM;
 	led_cdev->brightness = 255;
 	led_cdev->max_brightness = 255;
 	led_cdev->brightness_set_blocking = brightness_set;
 
 	ret = devm_led_classdev_multicolor_register(&hdev->dev, lightbar_mc_dev);
 	if (ret < 0) {
-		hid_err(hdev, "Cannot register multicolor LED device\n");
+		hid_err(hdev, "Cananalt register multicolor LED device\n");
 		return ret;
 	}
 
@@ -960,7 +960,7 @@ static int dualsense_get_calibration_data(struct dualsense *ds)
 
 	buf = kzalloc(DS_FEATURE_REPORT_CALIBRATION_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ps_get_report(ds->base.hdev, DS_FEATURE_REPORT_CALIBRATION, buf,
 			DS_FEATURE_REPORT_CALIBRATION_SIZE, true);
@@ -988,77 +988,77 @@ static int dualsense_get_calibration_data(struct dualsense *ds)
 	acc_z_minus      = get_unaligned_le16(&buf[33]);
 
 	/*
-	 * Set gyroscope calibration and normalization parameters.
-	 * Data values will be normalized to 1/DS_GYRO_RES_PER_DEG_S degree/s.
+	 * Set gyroscope calibration and analrmalization parameters.
+	 * Data values will be analrmalized to 1/DS_GYRO_RES_PER_DEG_S degree/s.
 	 */
 	speed_2x = (gyro_speed_plus + gyro_speed_minus);
 	ds->gyro_calib_data[0].abs_code = ABS_RX;
 	ds->gyro_calib_data[0].bias = 0;
 	ds->gyro_calib_data[0].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
-	ds->gyro_calib_data[0].sens_denom = abs(gyro_pitch_plus - gyro_pitch_bias) +
+	ds->gyro_calib_data[0].sens_deanalm = abs(gyro_pitch_plus - gyro_pitch_bias) +
 			abs(gyro_pitch_minus - gyro_pitch_bias);
 
 	ds->gyro_calib_data[1].abs_code = ABS_RY;
 	ds->gyro_calib_data[1].bias = 0;
 	ds->gyro_calib_data[1].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
-	ds->gyro_calib_data[1].sens_denom = abs(gyro_yaw_plus - gyro_yaw_bias) +
+	ds->gyro_calib_data[1].sens_deanalm = abs(gyro_yaw_plus - gyro_yaw_bias) +
 			abs(gyro_yaw_minus - gyro_yaw_bias);
 
 	ds->gyro_calib_data[2].abs_code = ABS_RZ;
 	ds->gyro_calib_data[2].bias = 0;
 	ds->gyro_calib_data[2].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
-	ds->gyro_calib_data[2].sens_denom = abs(gyro_roll_plus - gyro_roll_bias) +
+	ds->gyro_calib_data[2].sens_deanalm = abs(gyro_roll_plus - gyro_roll_bias) +
 			abs(gyro_roll_minus - gyro_roll_bias);
 
 	/*
 	 * Sanity check gyro calibration data. This is needed to prevent crashes
-	 * during report handling of virtual, clone or broken devices not implementing
+	 * during report handling of virtual, clone or broken devices analt implementing
 	 * calibration data properly.
 	 */
 	for (i = 0; i < ARRAY_SIZE(ds->gyro_calib_data); i++) {
-		if (ds->gyro_calib_data[i].sens_denom == 0) {
+		if (ds->gyro_calib_data[i].sens_deanalm == 0) {
 			hid_warn(hdev, "Invalid gyro calibration data for axis (%d), disabling calibration.",
 					ds->gyro_calib_data[i].abs_code);
 			ds->gyro_calib_data[i].bias = 0;
 			ds->gyro_calib_data[i].sens_numer = DS_GYRO_RANGE;
-			ds->gyro_calib_data[i].sens_denom = S16_MAX;
+			ds->gyro_calib_data[i].sens_deanalm = S16_MAX;
 		}
 	}
 
 	/*
-	 * Set accelerometer calibration and normalization parameters.
-	 * Data values will be normalized to 1/DS_ACC_RES_PER_G g.
+	 * Set accelerometer calibration and analrmalization parameters.
+	 * Data values will be analrmalized to 1/DS_ACC_RES_PER_G g.
 	 */
 	range_2g = acc_x_plus - acc_x_minus;
 	ds->accel_calib_data[0].abs_code = ABS_X;
 	ds->accel_calib_data[0].bias = acc_x_plus - range_2g / 2;
 	ds->accel_calib_data[0].sens_numer = 2*DS_ACC_RES_PER_G;
-	ds->accel_calib_data[0].sens_denom = range_2g;
+	ds->accel_calib_data[0].sens_deanalm = range_2g;
 
 	range_2g = acc_y_plus - acc_y_minus;
 	ds->accel_calib_data[1].abs_code = ABS_Y;
 	ds->accel_calib_data[1].bias = acc_y_plus - range_2g / 2;
 	ds->accel_calib_data[1].sens_numer = 2*DS_ACC_RES_PER_G;
-	ds->accel_calib_data[1].sens_denom = range_2g;
+	ds->accel_calib_data[1].sens_deanalm = range_2g;
 
 	range_2g = acc_z_plus - acc_z_minus;
 	ds->accel_calib_data[2].abs_code = ABS_Z;
 	ds->accel_calib_data[2].bias = acc_z_plus - range_2g / 2;
 	ds->accel_calib_data[2].sens_numer = 2*DS_ACC_RES_PER_G;
-	ds->accel_calib_data[2].sens_denom = range_2g;
+	ds->accel_calib_data[2].sens_deanalm = range_2g;
 
 	/*
 	 * Sanity check accelerometer calibration data. This is needed to prevent crashes
-	 * during report handling of virtual, clone or broken devices not implementing calibration
+	 * during report handling of virtual, clone or broken devices analt implementing calibration
 	 * data properly.
 	 */
 	for (i = 0; i < ARRAY_SIZE(ds->accel_calib_data); i++) {
-		if (ds->accel_calib_data[i].sens_denom == 0) {
+		if (ds->accel_calib_data[i].sens_deanalm == 0) {
 			hid_warn(hdev, "Invalid accelerometer calibration data for axis (%d), disabling calibration.",
 					ds->accel_calib_data[i].abs_code);
 			ds->accel_calib_data[i].bias = 0;
 			ds->accel_calib_data[i].sens_numer = DS_ACC_RANGE;
-			ds->accel_calib_data[i].sens_denom = S16_MAX;
+			ds->accel_calib_data[i].sens_deanalm = S16_MAX;
 		}
 	}
 
@@ -1075,7 +1075,7 @@ static int dualsense_get_firmware_info(struct dualsense *ds)
 
 	buf = kzalloc(DS_FEATURE_REPORT_FIRMWARE_INFO_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ps_get_report(ds->base.hdev, DS_FEATURE_REPORT_FIRMWARE_INFO, buf,
 			DS_FEATURE_REPORT_FIRMWARE_INFO_SIZE, true);
@@ -1092,7 +1092,7 @@ static int dualsense_get_firmware_info(struct dualsense *ds)
 	 * controller over time with the same physical shell, but with different
 	 * PCBs and other internal changes. The update version (internal name) is
 	 * used as a means to detect what features are available and change behavior.
-	 * Note: the version is different between DualSense and DualSense Edge.
+	 * Analte: the version is different between DualSense and DualSense Edge.
 	 */
 	ds->update_version = get_unaligned_le16(&buf[44]);
 
@@ -1108,7 +1108,7 @@ static int dualsense_get_mac_address(struct dualsense *ds)
 
 	buf = kzalloc(DS_FEATURE_REPORT_PAIRING_INFO_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ps_get_report(ds->base.hdev, DS_FEATURE_REPORT_PAIRING_INFO, buf,
 			DS_FEATURE_REPORT_PAIRING_INFO_SIZE, true);
@@ -1185,7 +1185,7 @@ static void dualsense_init_output_report(struct dualsense *ds, struct dualsense_
 
 		/*
 		 * Highest 4-bit is a sequence number, which needs to be increased
-		 * every report. Lowest 4-bit is tag and can be zero for now.
+		 * every report. Lowest 4-bit is tag and can be zero for analw.
 		 */
 		bt->seq_tag = (ds->output_seq << 4) | 0x0;
 		if (++ds->output_seq == 16)
@@ -1358,7 +1358,7 @@ static int dualsense_parse_report(struct ps_device *ps_dev, struct hid_report *r
 	input_report_key(ds->gamepad, BTN_WEST,   ds_report->buttons[0] & DS_BUTTONS0_SQUARE);
 	input_report_key(ds->gamepad, BTN_SOUTH,  ds_report->buttons[0] & DS_BUTTONS0_CROSS);
 	input_report_key(ds->gamepad, BTN_EAST,   ds_report->buttons[0] & DS_BUTTONS0_CIRCLE);
-	input_report_key(ds->gamepad, BTN_NORTH,  ds_report->buttons[0] & DS_BUTTONS0_TRIANGLE);
+	input_report_key(ds->gamepad, BTN_ANALRTH,  ds_report->buttons[0] & DS_BUTTONS0_TRIANGLE);
 	input_report_key(ds->gamepad, BTN_TL,     ds_report->buttons[1] & DS_BUTTONS1_L1);
 	input_report_key(ds->gamepad, BTN_TR,     ds_report->buttons[1] & DS_BUTTONS1_R1);
 	input_report_key(ds->gamepad, BTN_TL2,    ds_report->buttons[1] & DS_BUTTONS1_L2);
@@ -1391,7 +1391,7 @@ static int dualsense_parse_report(struct ps_device *ps_dev, struct hid_report *r
 	for (i = 0; i < ARRAY_SIZE(ds_report->gyro); i++) {
 		int raw_data = (short)le16_to_cpu(ds_report->gyro[i]);
 		int calib_data = mult_frac(ds->gyro_calib_data[i].sens_numer,
-					   raw_data, ds->gyro_calib_data[i].sens_denom);
+					   raw_data, ds->gyro_calib_data[i].sens_deanalm);
 
 		input_report_abs(ds->sensors, ds->gyro_calib_data[i].abs_code, calib_data);
 	}
@@ -1401,7 +1401,7 @@ static int dualsense_parse_report(struct ps_device *ps_dev, struct hid_report *r
 		int raw_data = (short)le16_to_cpu(ds_report->accel[i]);
 		int calib_data = mult_frac(ds->accel_calib_data[i].sens_numer,
 					   raw_data - ds->accel_calib_data[i].bias,
-					   ds->accel_calib_data[i].sens_denom);
+					   ds->accel_calib_data[i].sens_deanalm);
 
 		input_report_abs(ds->sensors, ds->accel_calib_data[i].abs_code, calib_data);
 	}
@@ -1466,12 +1466,12 @@ static int dualsense_parse_report(struct ps_device *ps_dev, struct hid_report *r
 	case 0xa: /* voltage or temperature out of range */
 	case 0xb: /* temperature error */
 		battery_capacity = 0;
-		battery_status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		battery_status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 	case 0xf: /* charging error */
 	default:
 		battery_capacity = 0;
-		battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
+		battery_status = POWER_SUPPLY_STATUS_UNKANALWN;
 	}
 
 	spin_lock_irqsave(&ps_dev->lock, flags);
@@ -1520,14 +1520,14 @@ static int dualsense_reset_leds(struct dualsense *ds)
 
 	buf = kzalloc(sizeof(struct dualsense_output_report_bt), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dualsense_init_output_report(ds, &report, buf);
 	/*
 	 * On Bluetooth the DualSense outputs an animation on the lightbar
 	 * during startup and maintains a color afterwards. We need to explicitly
 	 * reconfigure the lightbar before we can do any programming later on.
-	 * In USB the lightbar is not on by default, but redoing the setup there
+	 * In USB the lightbar is analt on by default, but redoing the setup there
 	 * doesn't hurt.
 	 */
 	report.common->valid_flag2 = DS_OUTPUT_VALID_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE;
@@ -1597,7 +1597,7 @@ static struct ps_device *dualsense_create(struct hid_device *hdev)
 
 	ds = devm_kzalloc(&hdev->dev, sizeof(*ds), GFP_KERNEL);
 	if (!ds)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * Patch version to allow userspace to distinguish between
@@ -1609,7 +1609,7 @@ static struct ps_device *dualsense_create(struct hid_device *hdev)
 	ps_dev->hdev = hdev;
 	spin_lock_init(&ps_dev->lock);
 	ps_dev->battery_capacity = 100; /* initial value until parse_report. */
-	ps_dev->battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
+	ps_dev->battery_status = POWER_SUPPLY_STATUS_UNKANALWN;
 	ps_dev->parse_report = dualsense_parse_report;
 	ps_dev->remove = dualsense_remove;
 	INIT_WORK(&ds->output_worker, dualsense_output_worker);
@@ -1619,7 +1619,7 @@ static struct ps_device *dualsense_create(struct hid_device *hdev)
 	max_output_report_size = sizeof(struct dualsense_output_report_bt);
 	ds->output_report_dmabuf = devm_kzalloc(&hdev->dev, max_output_report_size, GFP_KERNEL);
 	if (!ds->output_report_dmabuf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = dualsense_get_mac_address(ds);
 	if (ret) {
@@ -1638,9 +1638,9 @@ static struct ps_device *dualsense_create(struct hid_device *hdev)
 	 * its new haptics hardware. It felt different from classic rumble users
 	 * were used to. Since then new firmwares were introduced to change behavior
 	 * and make this new 'v2' behavior default on PlayStation and other platforms.
-	 * The original DualSense requires a new enough firmware as bundled with PS5
+	 * The original DualSense requires a new eanalugh firmware as bundled with PS5
 	 * software released in 2021. DualSense edge supports it out of the box.
-	 * Both devices also support the old mode, but it is not really used.
+	 * Both devices also support the old mode, but it is analt really used.
 	 */
 	if (hdev->product == USB_DEVICE_ID_SONY_PS5_CONTROLLER) {
 		/* Feature version 2.21 introduced new vibration method. */
@@ -1779,9 +1779,9 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 
 		buf = kzalloc(DS4_FEATURE_REPORT_CALIBRATION_SIZE, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		/* We should normally receive the feature report data we asked
+		/* We should analrmally receive the feature report data we asked
 		 * for, but hidraw applications such as Steam can issue feature
 		 * reports as well. In particular for Dongle reconnects, Steam
 		 * and this function are competing resulting in often receiving
@@ -1806,7 +1806,7 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	} else { /* Bluetooth */
 		buf = kzalloc(DS4_FEATURE_REPORT_CALIBRATION_BT_SIZE, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = ps_get_report(hdev, DS4_FEATURE_REPORT_CALIBRATION_BT, buf,
 				DS4_FEATURE_REPORT_CALIBRATION_BT_SIZE, true);
@@ -1845,77 +1845,77 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	acc_z_minus      = get_unaligned_le16(&buf[33]);
 
 	/*
-	 * Set gyroscope calibration and normalization parameters.
-	 * Data values will be normalized to 1/DS4_GYRO_RES_PER_DEG_S degree/s.
+	 * Set gyroscope calibration and analrmalization parameters.
+	 * Data values will be analrmalized to 1/DS4_GYRO_RES_PER_DEG_S degree/s.
 	 */
 	speed_2x = (gyro_speed_plus + gyro_speed_minus);
 	ds4->gyro_calib_data[0].abs_code = ABS_RX;
 	ds4->gyro_calib_data[0].bias = 0;
 	ds4->gyro_calib_data[0].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
-	ds4->gyro_calib_data[0].sens_denom = abs(gyro_pitch_plus - gyro_pitch_bias) +
+	ds4->gyro_calib_data[0].sens_deanalm = abs(gyro_pitch_plus - gyro_pitch_bias) +
 			abs(gyro_pitch_minus - gyro_pitch_bias);
 
 	ds4->gyro_calib_data[1].abs_code = ABS_RY;
 	ds4->gyro_calib_data[1].bias = 0;
 	ds4->gyro_calib_data[1].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
-	ds4->gyro_calib_data[1].sens_denom = abs(gyro_yaw_plus - gyro_yaw_bias) +
+	ds4->gyro_calib_data[1].sens_deanalm = abs(gyro_yaw_plus - gyro_yaw_bias) +
 			abs(gyro_yaw_minus - gyro_yaw_bias);
 
 	ds4->gyro_calib_data[2].abs_code = ABS_RZ;
 	ds4->gyro_calib_data[2].bias = 0;
 	ds4->gyro_calib_data[2].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
-	ds4->gyro_calib_data[2].sens_denom = abs(gyro_roll_plus - gyro_roll_bias) +
+	ds4->gyro_calib_data[2].sens_deanalm = abs(gyro_roll_plus - gyro_roll_bias) +
 			abs(gyro_roll_minus - gyro_roll_bias);
 
 	/*
 	 * Sanity check gyro calibration data. This is needed to prevent crashes
-	 * during report handling of virtual, clone or broken devices not implementing
+	 * during report handling of virtual, clone or broken devices analt implementing
 	 * calibration data properly.
 	 */
 	for (i = 0; i < ARRAY_SIZE(ds4->gyro_calib_data); i++) {
-		if (ds4->gyro_calib_data[i].sens_denom == 0) {
+		if (ds4->gyro_calib_data[i].sens_deanalm == 0) {
 			hid_warn(hdev, "Invalid gyro calibration data for axis (%d), disabling calibration.",
 					ds4->gyro_calib_data[i].abs_code);
 			ds4->gyro_calib_data[i].bias = 0;
 			ds4->gyro_calib_data[i].sens_numer = DS4_GYRO_RANGE;
-			ds4->gyro_calib_data[i].sens_denom = S16_MAX;
+			ds4->gyro_calib_data[i].sens_deanalm = S16_MAX;
 		}
 	}
 
 	/*
-	 * Set accelerometer calibration and normalization parameters.
-	 * Data values will be normalized to 1/DS4_ACC_RES_PER_G g.
+	 * Set accelerometer calibration and analrmalization parameters.
+	 * Data values will be analrmalized to 1/DS4_ACC_RES_PER_G g.
 	 */
 	range_2g = acc_x_plus - acc_x_minus;
 	ds4->accel_calib_data[0].abs_code = ABS_X;
 	ds4->accel_calib_data[0].bias = acc_x_plus - range_2g / 2;
 	ds4->accel_calib_data[0].sens_numer = 2*DS4_ACC_RES_PER_G;
-	ds4->accel_calib_data[0].sens_denom = range_2g;
+	ds4->accel_calib_data[0].sens_deanalm = range_2g;
 
 	range_2g = acc_y_plus - acc_y_minus;
 	ds4->accel_calib_data[1].abs_code = ABS_Y;
 	ds4->accel_calib_data[1].bias = acc_y_plus - range_2g / 2;
 	ds4->accel_calib_data[1].sens_numer = 2*DS4_ACC_RES_PER_G;
-	ds4->accel_calib_data[1].sens_denom = range_2g;
+	ds4->accel_calib_data[1].sens_deanalm = range_2g;
 
 	range_2g = acc_z_plus - acc_z_minus;
 	ds4->accel_calib_data[2].abs_code = ABS_Z;
 	ds4->accel_calib_data[2].bias = acc_z_plus - range_2g / 2;
 	ds4->accel_calib_data[2].sens_numer = 2*DS4_ACC_RES_PER_G;
-	ds4->accel_calib_data[2].sens_denom = range_2g;
+	ds4->accel_calib_data[2].sens_deanalm = range_2g;
 
 	/*
 	 * Sanity check accelerometer calibration data. This is needed to prevent crashes
-	 * during report handling of virtual, clone or broken devices not implementing calibration
+	 * during report handling of virtual, clone or broken devices analt implementing calibration
 	 * data properly.
 	 */
 	for (i = 0; i < ARRAY_SIZE(ds4->accel_calib_data); i++) {
-		if (ds4->accel_calib_data[i].sens_denom == 0) {
+		if (ds4->accel_calib_data[i].sens_deanalm == 0) {
 			hid_warn(hdev, "Invalid accelerometer calibration data for axis (%d), disabling calibration.",
 					ds4->accel_calib_data[i].abs_code);
 			ds4->accel_calib_data[i].bias = 0;
 			ds4->accel_calib_data[i].sens_numer = DS4_ACC_RANGE;
-			ds4->accel_calib_data[i].sens_denom = S16_MAX;
+			ds4->accel_calib_data[i].sens_deanalm = S16_MAX;
 		}
 	}
 
@@ -1931,9 +1931,9 @@ static int dualshock4_get_firmware_info(struct dualshock4 *ds4)
 
 	buf = kzalloc(DS4_FEATURE_REPORT_FIRMWARE_INFO_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* Note USB and BT support the same feature report, but this report
+	/* Analte USB and BT support the same feature report, but this report
 	 * lacks CRC support, so must be disabled in ps_get_report.
 	 */
 	ret = ps_get_report(ds4->base.hdev, DS4_FEATURE_REPORT_FIRMWARE_INFO, buf,
@@ -1960,7 +1960,7 @@ static int dualshock4_get_mac_address(struct dualshock4 *ds4)
 	if (hdev->bus == BUS_USB) {
 		buf = kzalloc(DS4_FEATURE_REPORT_PAIRING_INFO_SIZE, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = ps_get_report(hdev, DS4_FEATURE_REPORT_PAIRING_INFO, buf,
 				DS4_FEATURE_REPORT_PAIRING_INFO_SIZE, false);
@@ -2152,7 +2152,7 @@ static void dualshock4_output_worker(struct work_struct *work)
 		uint32_t crc;
 		uint8_t seed = PS_OUTPUT_CRC32_SEED;
 
-		/* Hardware control flags need to set to let the device know
+		/* Hardware control flags need to set to let the device kanalw
 		 * there is HID data as well as CRC.
 		 */
 		report.bt->hw_control = DS4_OUTPUT_HWCTL_HID | DS4_OUTPUT_HWCTL_CRC32;
@@ -2230,7 +2230,7 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	input_report_key(ds4->gamepad, BTN_WEST,   ds4_report->buttons[0] & DS_BUTTONS0_SQUARE);
 	input_report_key(ds4->gamepad, BTN_SOUTH,  ds4_report->buttons[0] & DS_BUTTONS0_CROSS);
 	input_report_key(ds4->gamepad, BTN_EAST,   ds4_report->buttons[0] & DS_BUTTONS0_CIRCLE);
-	input_report_key(ds4->gamepad, BTN_NORTH,  ds4_report->buttons[0] & DS_BUTTONS0_TRIANGLE);
+	input_report_key(ds4->gamepad, BTN_ANALRTH,  ds4_report->buttons[0] & DS_BUTTONS0_TRIANGLE);
 	input_report_key(ds4->gamepad, BTN_TL,     ds4_report->buttons[1] & DS_BUTTONS1_L1);
 	input_report_key(ds4->gamepad, BTN_TR,     ds4_report->buttons[1] & DS_BUTTONS1_R1);
 	input_report_key(ds4->gamepad, BTN_TL2,    ds4_report->buttons[1] & DS_BUTTONS1_L2);
@@ -2246,7 +2246,7 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	for (i = 0; i < ARRAY_SIZE(ds4_report->gyro); i++) {
 		int raw_data = (short)le16_to_cpu(ds4_report->gyro[i]);
 		int calib_data = mult_frac(ds4->gyro_calib_data[i].sens_numer,
-					   raw_data, ds4->gyro_calib_data[i].sens_denom);
+					   raw_data, ds4->gyro_calib_data[i].sens_deanalm);
 
 		input_report_abs(ds4->sensors, ds4->gyro_calib_data[i].abs_code, calib_data);
 	}
@@ -2256,7 +2256,7 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 		int raw_data = (short)le16_to_cpu(ds4_report->accel[i]);
 		int calib_data = mult_frac(ds4->accel_calib_data[i].sens_numer,
 					   raw_data - ds4->accel_calib_data[i].bias,
-					   ds4->accel_calib_data[i].sens_denom);
+					   ds4->accel_calib_data[i].sens_deanalm);
 
 		input_report_abs(ds4->sensors, ds4->accel_calib_data[i].abs_code, calib_data);
 	}
@@ -2304,12 +2304,12 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 
 	/*
 	 * Interpretation of the battery_capacity data depends on the cable state.
-	 * When no cable is connected (bit4 is 0):
+	 * When anal cable is connected (bit4 is 0):
 	 * - 0:10: percentage in units of 10%.
 	 * When a cable is plugged in:
 	 * - 0-10: percentage in units of 10%.
 	 * - 11: battery is full
-	 * - 14: not charging due to Voltage or temperature error
+	 * - 14: analt charging due to Voltage or temperature error
 	 * - 15: charge error
 	 */
 	if (ds4_report->status[0] & DS4_STATUS0_CABLE_STATE) {
@@ -2331,7 +2331,7 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 			battery_status = POWER_SUPPLY_STATUS_FULL;
 		} else { /* 14, 15 and undefined values */
 			battery_capacity = 0;
-			battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
+			battery_status = POWER_SUPPLY_STATUS_UNKANALWN;
 		}
 	} else {
 		uint8_t battery_data = ds4_report->status[0] & DS4_STATUS0_BATTERY_CAPACITY;
@@ -2358,7 +2358,7 @@ static int dualshock4_dongle_parse_report(struct ps_device *ps_dev, struct hid_r
 	struct dualshock4 *ds4 = container_of(ps_dev, struct dualshock4, base);
 	bool connected = false;
 
-	/* The dongle reports data using the main USB report (0x1) no matter whether a controller
+	/* The dongle reports data using the main USB report (0x1) anal matter whether a controller
 	 * is connected with mostly zeros. The report does contain dongle status, which we use to
 	 * determine if a controller is connected and if so we forward to the regular DualShock4
 	 * parsing code.
@@ -2493,11 +2493,11 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 	/* The DualShock4 has an RGB lightbar, which the original hid-sony driver
 	 * exposed as a set of 4 LEDs for the 3 color channels and a global control.
 	 * Ideally this should have used the multi-color LED class, which didn't exist
-	 * yet. In addition the driver used a naming scheme not compliant with the LED
+	 * yet. In addition the driver used a naming scheme analt compliant with the LED
 	 * naming spec by using "<mac_address>:<color>", which contained many colons.
-	 * We use a more compliant by using "<device_name>:<color>" name now. Ideally
+	 * We use a more compliant by using "<device_name>:<color>" name analw. Ideally
 	 * would have been "<device_name>:<color>:indicator", but that would break
-	 * existing applications (e.g. Android). Nothing matches against MAC address.
+	 * existing applications (e.g. Android). Analthing matches against MAC address.
 	 */
 	static const struct ps_led_info lightbar_leds_info[] = {
 		{ NULL, "red", 255, dualshock4_led_get_brightness, dualshock4_led_set_brightness },
@@ -2509,7 +2509,7 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 
 	ds4 = devm_kzalloc(&hdev->dev, sizeof(*ds4), GFP_KERNEL);
 	if (!ds4)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * Patch version to allow userspace to distinguish between
@@ -2521,7 +2521,7 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 	ps_dev->hdev = hdev;
 	spin_lock_init(&ps_dev->lock);
 	ps_dev->battery_capacity = 100; /* initial value until parse_report. */
-	ps_dev->battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
+	ps_dev->battery_status = POWER_SUPPLY_STATUS_UNKANALWN;
 	ps_dev->parse_report = dualshock4_parse_report;
 	ps_dev->remove = dualshock4_remove;
 	INIT_WORK(&ds4->output_worker, dualshock4_output_worker);
@@ -2531,7 +2531,7 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 	max_output_report_size = sizeof(struct dualshock4_output_report_bt);
 	ds4->output_report_dmabuf = devm_kzalloc(&hdev->dev, max_output_report_size, GFP_KERNEL);
 	if (!ds4->output_report_dmabuf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER_DONGLE) {
 		ds4->dongle_state = DONGLE_DISCONNECTED;

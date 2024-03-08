@@ -16,7 +16,7 @@
 #include "pm8150l.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. Robotics RB5";
+	model = "Qualcomm Techanallogies, Inc. Robotics RB5";
 	compatible = "qcom,qrb5165-rb5", "qcom,sm8250";
 	qcom,msm-id = <455 0x20001>;
 	qcom,board-id = <11 3>;
@@ -856,7 +856,7 @@
 
 	lt9611_rst_pin: lt9611-rst-state {
 		pins = "gpio5";
-		function = "normal";
+		function = "analrmal";
 
 		output-high;
 		input-disable;
@@ -955,8 +955,8 @@
 	vqmmc-supply = <&vreg_l6c_2p96>;
 	cd-gpios = <&tlmm 77 GPIO_ACTIVE_LOW>;
 	bus-width = <4>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 };
 
 &sound {
@@ -1418,7 +1418,7 @@
 	status = "okay";
 };
 
-/* PINCTRL - additions to nodes defined in sm8250.dtsi */
+/* PINCTRL - additions to analdes defined in sm8250.dtsi */
 &qup_spi0_cs_gpio {
 	drive-strength = <6>;
 	bias-disable;

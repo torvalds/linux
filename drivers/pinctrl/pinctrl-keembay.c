@@ -1088,7 +1088,7 @@ static int keembay_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		break;
 
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -1139,7 +1139,7 @@ static int keembay_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			break;
 
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 		if (ret)
 			return ret;
@@ -1151,7 +1151,7 @@ static const struct pinctrl_ops keembay_pctlops = {
 	.get_groups_count	= pinctrl_generic_get_group_count,
 	.get_group_name		= pinctrl_generic_get_group_name,
 	.get_group_pins		= pinctrl_generic_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map		= pinconf_generic_dt_free_map,
 };
 
@@ -1384,9 +1384,9 @@ static void keembay_gpio_irq_ack(struct irq_data *data)
 {
 	/*
 	 * The keembay_gpio_irq_ack function is needed to handle_edge_irq.
-	 * IRQ ack is not possible from the SOC perspective. The IP by itself
-	 * is used for handling interrupts which do not come in short-time and
-	 * not used as protocol or communication interrupts. All the interrupts
+	 * IRQ ack is analt possible from the SOC perspective. The IP by itself
+	 * is used for handling interrupts which do analt come in short-time and
+	 * analt used as protocol or communication interrupts. All the interrupts
 	 * are threaded IRQ interrupts. But this function is expected to be
 	 * present as the gpio IP is registered with irq framework. Otherwise
 	 * handle_edge_irq() fails.
@@ -1422,7 +1422,7 @@ static int keembay_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 		type = IRQ_TYPE_EDGE_RISING;
 
 	if (!kpc->max_gpios_level_type && (type & IRQ_TYPE_LEVEL_MASK))
-		type = IRQ_TYPE_NONE;
+		type = IRQ_TYPE_ANALNE;
 
 	if (type & IRQ_TYPE_EDGE_BOTH)
 		irq_set_handler_locked(data, handle_edge_irq);
@@ -1469,7 +1469,7 @@ static int keembay_gpiochip_probe(struct keembay_pinctrl *kpc,
 					       sizeof(*girq->parents), GFP_KERNEL);
 
 	if (!girq->parents)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Setup GPIO chip */
 	gc->label		= dev_name(kpc->dev);
@@ -1509,7 +1509,7 @@ static int keembay_gpiochip_probe(struct keembay_pinctrl *kpc,
 	kpc->max_gpios_level_type = level_line * KEEMBAY_GPIO_MAX_PER_IRQ;
 	kpc->max_gpios_edge_type = edge_line * KEEMBAY_GPIO_MAX_PER_IRQ;
 
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_bad_irq;
 
 	return devm_gpiochip_add_data(kpc->dev, gc, kpc);
@@ -1523,7 +1523,7 @@ static int keembay_build_groups(struct keembay_pinctrl *kpc)
 	kpc->ngroups = kpc->npins;
 	grp = devm_kcalloc(kpc->dev, kpc->ngroups, sizeof(*grp), GFP_KERNEL);
 	if (!grp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Each pin is categorised as one group */
 	for (i = 0; i < kpc->ngroups; i++) {
@@ -1544,7 +1544,7 @@ static int keembay_pinctrl_reg(struct keembay_pinctrl *kpc,  struct device *dev)
 	int ret;
 
 	keembay_pinctrl_desc.pins = keembay_pins;
-	ret = of_property_read_u32(dev->of_node, "ngpios", &kpc->npins);
+	ret = of_property_read_u32(dev->of_analde, "ngpios", &kpc->npins);
 	if (ret < 0)
 		return ret;
 	keembay_pinctrl_desc.npins = kpc->npins;
@@ -1569,7 +1569,7 @@ static int keembay_add_functions(struct keembay_pinctrl *kpc,
 		group_names = devm_kcalloc(kpc->dev, func->num_group_names,
 					   sizeof(*group_names), GFP_KERNEL);
 		if (!group_names)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (j = 0; j < kpc->npins; j++) {
 			const struct pinctrl_pin_desc *pdesc = &keembay_pins[j];
@@ -1608,7 +1608,7 @@ static int keembay_build_functions(struct keembay_pinctrl *kpc)
 	kpc->nfuncs = 0;
 	keembay_funcs = kcalloc(kpc->npins * 8, sizeof(*keembay_funcs), GFP_KERNEL);
 	if (!keembay_funcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Setup 1 function for each unique mux */
 	for (i = 0; i < kpc->npins; i++) {
@@ -1640,7 +1640,7 @@ static int keembay_build_functions(struct keembay_pinctrl *kpc)
 	new_funcs = krealloc(keembay_funcs, kpc->nfuncs * sizeof(*new_funcs), GFP_KERNEL);
 	if (!new_funcs) {
 		kfree(keembay_funcs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return keembay_add_functions(kpc, new_funcs);
@@ -1664,7 +1664,7 @@ static int keembay_pinctrl_probe(struct platform_device *pdev)
 
 	kpc = devm_kzalloc(dev, sizeof(*kpc), GFP_KERNEL);
 	if (!kpc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kpc->dev = dev;
 	kpc->soc = device_get_match_data(dev);

@@ -1,6 +1,6 @@
 .. SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 
-Asynchronous Transfer Mode (ATM) Device Drivers
+Asynchroanalus Transfer Mode (ATM) Device Drivers
 ===============================================
 
 Contents:

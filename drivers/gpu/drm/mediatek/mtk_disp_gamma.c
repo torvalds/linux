@@ -101,17 +101,17 @@ static bool mtk_gamma_lut_is_descending(struct drm_color_lut *lut, u32 lut_size)
 /*
  * SoCs supporting 12-bits LUTs are using a new register layout that does
  * always support (by HW) both 12-bits and 10-bits LUT but, on those, we
- * ignore the support for 10-bits in this driver and always use 12-bits.
+ * iganalre the support for 10-bits in this driver and always use 12-bits.
  *
  * Summarizing:
  * - SoC HW support 9/10-bits LUT only
  *   - Old register layout
  *     - 10-bits LUT supported
- *     - 9-bits LUT not supported
+ *     - 9-bits LUT analt supported
  * - SoC HW support both 10/12bits LUT
  *   - New register layout
  *     - 12-bits LUT supported
- *     - 10-its LUT not supported
+ *     - 10-its LUT analt supported
  */
 void mtk_gamma_set(struct device *dev, struct drm_crtc_state *state)
 {
@@ -124,7 +124,7 @@ void mtk_gamma_set(struct device *dev, struct drm_crtc_state *state)
 	struct drm_color_lut *lut;
 	unsigned int i;
 
-	/* If there's no gamma lut there's nothing to do here. */
+	/* If there's anal gamma lut there's analthing to do here. */
 	if (!state->gamma_lut)
 		return;
 
@@ -261,7 +261,7 @@ static int mtk_disp_gamma_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk)) {

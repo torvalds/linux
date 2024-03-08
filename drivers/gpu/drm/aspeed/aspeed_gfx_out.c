@@ -10,7 +10,7 @@
 
 static int aspeed_gfx_get_modes(struct drm_connector *connector)
 {
-	return drm_add_modes_noedid(connector, 800, 600);
+	return drm_add_modes_analedid(connector, 800, 600);
 }
 
 static const struct
@@ -37,6 +37,6 @@ int aspeed_gfx_create_output(struct drm_device *drm)
 				 &aspeed_gfx_connector_helper_funcs);
 	ret = drm_connector_init(drm, &priv->connector,
 				 &aspeed_gfx_connector_funcs,
-				 DRM_MODE_CONNECTOR_Unknown);
+				 DRM_MODE_CONNECTOR_Unkanalwn);
 	return ret;
 }

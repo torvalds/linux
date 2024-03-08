@@ -11,54 +11,54 @@
 #include <linux/usb/of.h>
 
 /**
- * usb_of_get_device_node() - get a USB device node
+ * usb_of_get_device_analde() - get a USB device analde
  * @hub: hub to which device is connected
  * @port1: one-based index of port
  *
- * Look up the node of a USB device given its parent hub device and one-based
+ * Look up the analde of a USB device given its parent hub device and one-based
  * port number.
  *
- * Return: A pointer to the node with incremented refcount if found, or
+ * Return: A pointer to the analde with incremented refcount if found, or
  * %NULL otherwise.
  */
-struct device_node *usb_of_get_device_node(struct usb_device *hub, int port1)
+struct device_analde *usb_of_get_device_analde(struct usb_device *hub, int port1)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	u32 reg;
 
-	for_each_child_of_node(hub->dev.of_node, node) {
-		if (of_property_read_u32(node, "reg", &reg))
+	for_each_child_of_analde(hub->dev.of_analde, analde) {
+		if (of_property_read_u32(analde, "reg", &reg))
 			continue;
 
 		if (reg == port1)
-			return node;
+			return analde;
 	}
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(usb_of_get_device_node);
+EXPORT_SYMBOL_GPL(usb_of_get_device_analde);
 
 /**
- * usb_of_has_combined_node() - determine whether a device has a combined node
+ * usb_of_has_combined_analde() - determine whether a device has a combined analde
  * @udev: USB device
  *
- * Determine whether a USB device has a so called combined node which is
+ * Determine whether a USB device has a so called combined analde which is
  * shared with its sole interface. This is the case if and only if the device
- * has a node and its descriptors report the following:
+ * has a analde and its descriptors report the following:
  *
  *	1) bDeviceClass is 0 or 9, and
  *	2) bNumConfigurations is 1, and
  *	3) bNumInterfaces is 1.
  *
- * Return: True iff the device has a device node and its descriptors match the
- * criteria for a combined node.
+ * Return: True iff the device has a device analde and its descriptors match the
+ * criteria for a combined analde.
  */
-bool usb_of_has_combined_node(struct usb_device *udev)
+bool usb_of_has_combined_analde(struct usb_device *udev)
 {
 	struct usb_device_descriptor *ddesc = &udev->descriptor;
 	struct usb_config_descriptor *cdesc;
 
-	if (!udev->dev.of_node)
+	if (!udev->dev.of_analde)
 		return false;
 
 	switch (ddesc->bDeviceClass) {
@@ -73,34 +73,34 @@ bool usb_of_has_combined_node(struct usb_device *udev)
 
 	return false;
 }
-EXPORT_SYMBOL_GPL(usb_of_has_combined_node);
+EXPORT_SYMBOL_GPL(usb_of_has_combined_analde);
 
 /**
- * usb_of_get_interface_node() - get a USB interface node
+ * usb_of_get_interface_analde() - get a USB interface analde
  * @udev: USB device of interface
  * @config: configuration value
  * @ifnum: interface number
  *
- * Look up the node of a USB interface given its USB device, configuration
+ * Look up the analde of a USB interface given its USB device, configuration
  * value and interface number.
  *
- * Return: A pointer to the node with incremented refcount if found, or
+ * Return: A pointer to the analde with incremented refcount if found, or
  * %NULL otherwise.
  */
-struct device_node *
-usb_of_get_interface_node(struct usb_device *udev, u8 config, u8 ifnum)
+struct device_analde *
+usb_of_get_interface_analde(struct usb_device *udev, u8 config, u8 ifnum)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	u32 reg[2];
 
-	for_each_child_of_node(udev->dev.of_node, node) {
-		if (of_property_read_u32_array(node, "reg", reg, 2))
+	for_each_child_of_analde(udev->dev.of_analde, analde) {
+		if (of_property_read_u32_array(analde, "reg", reg, 2))
 			continue;
 
 		if (reg[0] == ifnum && reg[1] == config)
-			return node;
+			return analde;
 	}
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(usb_of_get_interface_node);
+EXPORT_SYMBOL_GPL(usb_of_get_interface_analde);

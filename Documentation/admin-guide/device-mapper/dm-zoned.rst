@@ -34,7 +34,7 @@ https://github.com/hgst/dm-zoned-tools
 Algorithm
 =========
 
-dm-zoned implements an on-disk buffering scheme to handle non-sequential
+dm-zoned implements an on-disk buffering scheme to handle analn-sequential
 write accesses to the sequential zones of a zoned block device.
 Conventional zones are used for caching as well as for storing internal
 metadata. It can also use a regular block device together with the zoned
@@ -46,7 +46,7 @@ just like conventional zones.
 The zones of the device(s) are separated into 2 types:
 
 1) Metadata zones: these are conventional zones used to store metadata.
-Metadata zones are not reported as usable capacity to the user.
+Metadata zones are analt reported as usable capacity to the user.
 
 2) Data zones: all remaining zones, the vast majority of which will be
 sequential zones used exclusively to store user data. The conventional
@@ -76,7 +76,7 @@ zone used to buffer random modification to the data zone.
 
 3) A set of blocks used to store bitmaps indicating the validity of
 blocks in the data zones follows the mapping table. A valid block is
-defined as a block that was written and not discarded. For a buffered
+defined as a block that was written and analt discarded. For a buffered
 data chunk, a block is always valid only in the data zone mapping the
 chunk or in the buffer zone of the chunk.
 
@@ -98,7 +98,7 @@ block device.
 Read operations are processed according to the block validity
 information provided by the bitmaps. Valid blocks are read either from
 the sequential zone mapping a chunk, or if the chunk is buffered, from
-the buffer zone assigned. If the accessed chunk has no mapping, or the
+the buffer zone assigned. If the accessed chunk has anal mapping, or the
 accessed blocks are invalid, the read buffer is zeroed and the read
 operation terminated.
 
@@ -122,11 +122,11 @@ secondary set and validated by updating the super block in the secondary
 set, a generation counter is used to indicate that this set contains the
 newest metadata. Once this operation completes, in place of metadata
 block updates can be done in the primary metadata set. This ensures that
-one of the set is always consistent (all modifications committed or none
+one of the set is always consistent (all modifications committed or analne
 at all). Flush operations are used as a commit point. Upon reception of
 a flush request, metadata modification activity is temporarily blocked
 (for both incoming BIO processing and reclaim process) and all dirty
-metadata blocks are staged and updated. Normal operation is then
+metadata blocks are staged and updated. Analrmal operation is then
 resumed. Flushing metadata thus only temporarily delays write and
 discard requests. Read requests can be processed concurrently while
 metadata flush is being executed.
@@ -134,7 +134,7 @@ metadata flush is being executed.
 If a regular device is used in conjunction with the zoned block device,
 a third set of metadata (without the zone bitmaps) is written to the
 start of the zoned block device. This metadata has a generation counter of
-'0' and will never be updated during normal operation; it just serves for
+'0' and will never be updated during analrmal operation; it just serves for
 identification purposes. The first and second copy of the metadata
 are located at the start of the regular block device.
 
@@ -181,7 +181,7 @@ of unmapped (ie free) random zones, <nr_rnd> the total number of zones,
 <nr_unmap_seq> the number of unmapped sequential zones, and <nr_seq> the
 total number of sequential zones.
 
-Normally the reclaim process will be started once there are less than 50
+Analrmally the reclaim process will be started once there are less than 50
 percent free random zones. In order to start the reclaim process manually
 even before reaching this threshold the 'dmsetup message' function can be
 used:

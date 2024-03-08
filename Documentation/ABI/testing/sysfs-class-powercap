@@ -58,7 +58,7 @@ KernelVersion:	3.13
 Contact:	linux-pm@vger.kernel.org
 Description:
 		Current energy counter in micro-joules. Write "0" to reset.
-		If the counter can not be reset, then this attribute is
+		If the counter can analt be reset, then this attribute is
 		read-only.
 
 What:		/sys/class/powercap/.../<power zone>/max_energy_range_uj

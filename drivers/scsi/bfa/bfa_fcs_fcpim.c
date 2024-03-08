@@ -159,7 +159,7 @@ bfa_fcs_itnim_sm_prli(struct bfa_fcs_itnim_s *itnim,
 				BFA_FCS_RETRY_TIMEOUT);
 		break;
 
-	case BFA_FCS_ITNIM_SM_RSP_NOT_SUPP:
+	case BFA_FCS_ITNIM_SM_RSP_ANALT_SUPP:
 		bfa_sm_set_state(itnim, bfa_fcs_itnim_sm_offline);
 		break;
 
@@ -373,7 +373,7 @@ bfa_fcs_itnim_sm_hcb_offline(struct bfa_fcs_itnim_s *itnim,
 
 /*
  * This state is set when a discovered rport is also in intiator mode.
- * This ITN is marked as no_op and is not active and will not be truned into
+ * This ITN is marked as anal_op and is analt active and will analt be truned into
  * online state.
  */
 static void
@@ -390,7 +390,7 @@ bfa_fcs_itnim_sm_initiator(struct bfa_fcs_itnim_s *itnim,
 		break;
 
 	/*
-	 * fcs_online is expected here for well known initiator ports
+	 * fcs_online is expected here for well kanalwn initiator ports
 	 */
 	case BFA_FCS_ITNIM_SM_FCS_ONLINE:
 		bfa_sm_send_event(itnim->rport, RPSM_EVENT_FC4_FCS_ONLINE);
@@ -418,7 +418,7 @@ bfa_fcs_itnim_aen_post(struct bfa_fcs_itnim_s *itnim,
 	struct bfad_s *bfad = (struct bfad_s *)itnim->fcs->bfad;
 	struct bfa_aen_entry_s	*aen_entry;
 
-	/* Don't post events for well known addresses */
+	/* Don't post events for well kanalwn addresses */
 	if (BFA_FCS_PID_IS_WKA(rport->pid))
 		return;
 
@@ -432,7 +432,7 @@ bfa_fcs_itnim_aen_post(struct bfa_fcs_itnim_s *itnim,
 	aen_entry->aen_data.itnim.lpwwn = bfa_fcs_lport_get_pwwn(rport->port);
 	aen_entry->aen_data.itnim.rpwwn = rport->pwwn;
 
-	/* Send the AEN notification */
+	/* Send the AEN analtification */
 	bfad_im_post_vendor_event(aen_entry, bfad, ++rport->fcs->fcs_aen_seq,
 				  BFA_AEN_CAT_ITNIM, event);
 }
@@ -502,7 +502,7 @@ bfa_fcs_itnim_prli_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 			bfa_trc(itnim->fcs, rsp_len);
 			/*
 			 * Check if this  r-port is also in Initiator mode.
-			 * If so, we need to set this ITN as a no-op.
+			 * If so, we need to set this ITN as a anal-op.
 			 */
 			if (prli_resp->parampage.servparams.initiator) {
 				bfa_trc(itnim->fcs, prli_resp->parampage.type);
@@ -535,8 +535,8 @@ bfa_fcs_itnim_prli_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 		bfa_trc(itnim->fcs, ls_rjt->reason_code_expl);
 
 		itnim->stats.prli_rsp_rjt++;
-		if (ls_rjt->reason_code == FC_LS_RJT_RSN_CMD_NOT_SUPP) {
-			bfa_sm_send_event(itnim, BFA_FCS_ITNIM_SM_RSP_NOT_SUPP);
+		if (ls_rjt->reason_code == FC_LS_RJT_RSN_CMD_ANALT_SUPP) {
+			bfa_sm_send_event(itnim, BFA_FCS_ITNIM_SM_RSP_ANALT_SUPP);
 			return;
 		}
 		bfa_sm_send_event(itnim, BFA_FCS_ITNIM_SM_RSP_ERROR);
@@ -625,7 +625,7 @@ bfa_fcs_itnim_delete(struct bfa_fcs_itnim_s *itnim)
 }
 
 /*
- * Notification from rport that PLOGI is complete to initiate FC-4 session.
+ * Analtification from rport that PLOGI is complete to initiate FC-4 session.
  */
 void
 bfa_fcs_itnim_brp_online(struct bfa_fcs_itnim_s *itnim)
@@ -647,7 +647,7 @@ bfa_fcs_itnim_rport_offline(struct bfa_fcs_itnim_s *itnim)
 }
 
 /*
- * Called by rport when remote port is known to be an initiator from
+ * Called by rport when remote port is kanalwn to be an initiator from
  * PRLI received.
  */
 void
@@ -671,7 +671,7 @@ bfa_fcs_itnim_get_online_state(struct bfa_fcs_itnim_s *itnim)
 		return BFA_STATUS_OK;
 
 	default:
-		return BFA_STATUS_NO_FCPIM_NEXUS;
+		return BFA_STATUS_ANAL_FCPIM_NEXUS;
 	}
 }
 
@@ -725,7 +725,7 @@ bfa_cb_itnim_tov(void *cb_arg)
 }
 
 /*
- *		BFA notification to FCS/driver for second level error recovery.
+ *		BFA analtification to FCS/driver for second level error recovery.
  *
  * Atleast one I/O request has timedout and target is unresponsive to
  * repeated abort requests. Second level error recovery should be initiated
@@ -763,7 +763,7 @@ bfa_fcs_itnim_attr_get(struct bfa_fcs_lport_s *port, wwn_t rpwwn,
 	itnim = bfa_fcs_itnim_lookup(port, rpwwn);
 
 	if (itnim == NULL)
-		return BFA_STATUS_NO_FCPIM_NEXUS;
+		return BFA_STATUS_ANAL_FCPIM_NEXUS;
 
 	attr->state	    = bfa_sm_to_state(itnim_sm_table, itnim->sm);
 	attr->retry	    = itnim->seq_rec;
@@ -784,7 +784,7 @@ bfa_fcs_itnim_stats_get(struct bfa_fcs_lport_s *port, wwn_t rpwwn,
 	itnim = bfa_fcs_itnim_lookup(port, rpwwn);
 
 	if (itnim == NULL)
-		return BFA_STATUS_NO_FCPIM_NEXUS;
+		return BFA_STATUS_ANAL_FCPIM_NEXUS;
 
 	memcpy(stats, &itnim->stats, sizeof(struct bfa_itnim_stats_s));
 
@@ -801,7 +801,7 @@ bfa_fcs_itnim_stats_clear(struct bfa_fcs_lport_s *port, wwn_t rpwwn)
 	itnim = bfa_fcs_itnim_lookup(port, rpwwn);
 
 	if (itnim == NULL)
-		return BFA_STATUS_NO_FCPIM_NEXUS;
+		return BFA_STATUS_ANAL_FCPIM_NEXUS;
 
 	memset(&itnim->stats, 0, sizeof(struct bfa_itnim_stats_s));
 	return BFA_STATUS_OK;

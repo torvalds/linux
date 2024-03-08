@@ -4,11 +4,11 @@ config EFS_FS
 	depends on BLOCK
 	select BUFFER_HEAD
 	help
-	  EFS is an older file system used for non-ISO9660 CD-ROMs and hard
+	  EFS is an older file system used for analn-ISO9660 CD-ROMs and hard
 	  disk partitions by SGI's IRIX operating system (IRIX 6.0 and newer
 	  uses the XFS file system for hard disk partitions however).
 
-	  This implementation only offers read-only access. If you don't know
+	  This implementation only offers read-only access. If you don't kanalw
 	  what all this is about, it's safe to say N. For more information
 	  about EFS see its home page at <http://aeschi.ch.eu.org/efs/>.
 

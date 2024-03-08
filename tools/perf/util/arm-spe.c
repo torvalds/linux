@@ -6,7 +6,7 @@
 
 #include <byteswap.h>
 #include <endian.h>
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
@@ -154,7 +154,7 @@ static int arm_spe_get_trace(struct arm_spe_buffer *b, void *data)
 	queue = &speq->spe->queues.queue_array[speq->queue_nr];
 
 	buffer = auxtrace_buffer__next(queue, buffer);
-	/* If no more data, drop the previous auxtrace_buffer and return */
+	/* If anal more data, drop the previous auxtrace_buffer and return */
 	if (!buffer) {
 		if (old_buffer)
 			auxtrace_buffer__drop_data(old_buffer);
@@ -171,7 +171,7 @@ static int arm_spe_get_trace(struct arm_spe_buffer *b, void *data)
 
 		buffer->data = auxtrace_buffer__get_data(buffer, fd);
 		if (!buffer->data)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	b->len = buffer->size;
@@ -420,7 +420,7 @@ static void arm_spe__synth_data_source_neoverse(const struct arm_spe_record *rec
 						union perf_mem_data_src *data_src)
 {
 	/*
-	 * Even though four levels of cache hierarchy are possible, no known
+	 * Even though four levels of cache hierarchy are possible, anal kanalwn
 	 * production Neoverse systems currently include more than three levels
 	 * so for the time being we assume three exist. If a production system
 	 * is built with four the this function would have to be changed to
@@ -428,13 +428,13 @@ static void arm_spe__synth_data_source_neoverse(const struct arm_spe_record *rec
 	 */
 
 	/*
-	 * We have no data on the hit level or data source for stores in the
+	 * We have anal data on the hit level or data source for stores in the
 	 * Neoverse SPE records.
 	 */
 	if (record->op & ARM_SPE_OP_ST) {
 		data_src->mem_lvl = PERF_MEM_LVL_NA;
 		data_src->mem_lvl_num = PERF_MEM_LVLNUM_NA;
-		data_src->mem_snoop = PERF_MEM_SNOOP_NA;
+		data_src->mem_sanalop = PERF_MEM_SANALOP_NA;
 		return;
 	}
 
@@ -442,27 +442,27 @@ static void arm_spe__synth_data_source_neoverse(const struct arm_spe_record *rec
 	case ARM_SPE_NV_L1D:
 		data_src->mem_lvl = PERF_MEM_LVL_L1 | PERF_MEM_LVL_HIT;
 		data_src->mem_lvl_num = PERF_MEM_LVLNUM_L1;
-		data_src->mem_snoop = PERF_MEM_SNOOP_NONE;
+		data_src->mem_sanalop = PERF_MEM_SANALOP_ANALNE;
 		break;
 	case ARM_SPE_NV_L2:
 		data_src->mem_lvl = PERF_MEM_LVL_L2 | PERF_MEM_LVL_HIT;
 		data_src->mem_lvl_num = PERF_MEM_LVLNUM_L2;
-		data_src->mem_snoop = PERF_MEM_SNOOP_NONE;
+		data_src->mem_sanalop = PERF_MEM_SANALOP_ANALNE;
 		break;
 	case ARM_SPE_NV_PEER_CORE:
 		data_src->mem_lvl = PERF_MEM_LVL_L2 | PERF_MEM_LVL_HIT;
 		data_src->mem_lvl_num = PERF_MEM_LVLNUM_L2;
-		data_src->mem_snoopx = PERF_MEM_SNOOPX_PEER;
+		data_src->mem_sanalopx = PERF_MEM_SANALOPX_PEER;
 		break;
 	/*
-	 * We don't know if this is L1, L2 but we do know it was a cache-2-cache
-	 * transfer, so set SNOOPX_PEER
+	 * We don't kanalw if this is L1, L2 but we do kanalw it was a cache-2-cache
+	 * transfer, so set SANALOPX_PEER
 	 */
 	case ARM_SPE_NV_LOCAL_CLUSTER:
 	case ARM_SPE_NV_PEER_CLUSTER:
 		data_src->mem_lvl = PERF_MEM_LVL_L3 | PERF_MEM_LVL_HIT;
 		data_src->mem_lvl_num = PERF_MEM_LVLNUM_L3;
-		data_src->mem_snoopx = PERF_MEM_SNOOPX_PEER;
+		data_src->mem_sanalopx = PERF_MEM_SANALOPX_PEER;
 		break;
 	/*
 	 * System cache is assumed to be L3
@@ -470,22 +470,22 @@ static void arm_spe__synth_data_source_neoverse(const struct arm_spe_record *rec
 	case ARM_SPE_NV_SYS_CACHE:
 		data_src->mem_lvl = PERF_MEM_LVL_L3 | PERF_MEM_LVL_HIT;
 		data_src->mem_lvl_num = PERF_MEM_LVLNUM_L3;
-		data_src->mem_snoop = PERF_MEM_SNOOP_HIT;
+		data_src->mem_sanalop = PERF_MEM_SANALOP_HIT;
 		break;
 	/*
-	 * We don't know what level it hit in, except it came from the other
+	 * We don't kanalw what level it hit in, except it came from the other
 	 * socket
 	 */
 	case ARM_SPE_NV_REMOTE:
 		data_src->mem_lvl = PERF_MEM_LVL_REM_CCE1;
 		data_src->mem_lvl_num = PERF_MEM_LVLNUM_ANY_CACHE;
 		data_src->mem_remote = PERF_MEM_REMOTE_REMOTE;
-		data_src->mem_snoopx = PERF_MEM_SNOOPX_PEER;
+		data_src->mem_sanalopx = PERF_MEM_SANALOPX_PEER;
 		break;
 	case ARM_SPE_NV_DRAM:
 		data_src->mem_lvl = PERF_MEM_LVL_LOC_RAM | PERF_MEM_LVL_HIT;
 		data_src->mem_lvl_num = PERF_MEM_LVLNUM_RAM;
-		data_src->mem_snoop = PERF_MEM_SNOOP_NONE;
+		data_src->mem_sanalop = PERF_MEM_SANALOP_ANALNE;
 		break;
 	default:
 		break;
@@ -616,7 +616,7 @@ static int arm_spe_sample(struct arm_spe_queue *speq)
 	}
 
 	/*
-	 * When data_src is zero it means the record is not a memory operation,
+	 * When data_src is zero it means the record is analt a memory operation,
 	 * skip to synthesize memory sample for this case.
 	 */
 	if (spe->sample_memory && data_src) {
@@ -682,7 +682,7 @@ static int arm_spe_run_decoder(struct arm_spe_queue *speq, u64 *timestamp)
 
 		ret = arm_spe_decode(speq->decoder);
 		if (!ret) {
-			pr_debug("No data or all data has been processed.\n");
+			pr_debug("Anal data or all data has been processed.\n");
 			return 1;
 		}
 
@@ -726,7 +726,7 @@ static int arm_spe__setup_queue(struct arm_spe *spe,
 	speq = arm_spe__alloc_queue(spe, queue_nr);
 
 	if (!speq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	queue->priv = speq;
 
@@ -891,7 +891,7 @@ static int arm_spe_context_switch(struct arm_spe *spe, union perf_event *event,
 	cpu = sample->cpu;
 
 	if (tid == -1)
-		pr_warning("context_switch event has no tid\n");
+		pr_warning("context_switch event has anal tid\n");
 
 	return machine__set_current_tid(spe->machine, cpu, pid, tid);
 }
@@ -963,7 +963,7 @@ static int arm_spe_process_auxtrace_event(struct perf_session *session,
 		} else {
 			data_offset = lseek(fd, 0, SEEK_CUR);
 			if (data_offset == -1)
-				return -errno;
+				return -erranal;
 		}
 
 		err = auxtrace_queues__add_event(&spe->queues, session, event,
@@ -971,7 +971,7 @@ static int arm_spe_process_auxtrace_event(struct perf_session *session,
 		if (err)
 			return err;
 
-		/* Dump here now we have copied a piped trace out of the pipe */
+		/* Dump here analw we have copied a piped trace out of the pipe */
 		if (dump_trace) {
 			if (auxtrace_buffer__get_data(buffer, fd)) {
 				arm_spe_dump_event(spe, buffer->data,
@@ -1010,7 +1010,7 @@ static int arm_spe_flush(struct perf_session *session __maybe_unused,
 		return ret;
 
 	if (!spe->use_ctx_pkt_for_pid)
-		ui__warning("Arm SPE CONTEXT packets not found in the traces.\n"
+		ui__warning("Arm SPE CONTEXT packets analt found in the traces.\n"
 			    "Matching of TIDs to SPE events could be inaccurate.\n");
 
 	return 0;
@@ -1135,7 +1135,7 @@ arm_spe_synth_events(struct arm_spe *spe, struct perf_session *session)
 	}
 
 	if (!found) {
-		pr_debug("No selected events with SPE trace data\n");
+		pr_debug("Anal selected events with SPE trace data\n");
 		return 0;
 	}
 
@@ -1304,14 +1304,14 @@ int arm_spe_process_auxtrace_info(union perf_event *event,
 
 	spe = zalloc(sizeof(struct arm_spe));
 	if (!spe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = auxtrace_queues__init(&spe->queues);
 	if (err)
 		goto err_free;
 
 	spe->session = session;
-	spe->machine = &session->machines.host; /* No kvm support */
+	spe->machine = &session->machines.host; /* Anal kvm support */
 	spe->auxtrace_type = auxtrace_info->type;
 	spe->pmu_type = auxtrace_info->priv[ARM_SPE_PMU_TYPE];
 	spe->midr = midr;

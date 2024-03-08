@@ -54,7 +54,7 @@ csum_and_copy_to_user(const void *src, void __user *dst, int len)
 }
 
 /**
- * csum_partial_copy_nocheck - Copy and checksum.
+ * csum_partial_copy_analcheck - Copy and checksum.
  * @src: source address
  * @dst: destination address
  * @len: number of bytes to be copied.
@@ -62,11 +62,11 @@ csum_and_copy_to_user(const void *src, void __user *dst, int len)
  * Returns an 32bit unfolded checksum of the buffer.
  */
 __wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len)
+csum_partial_copy_analcheck(const void *src, void *dst, int len)
 {
 	return csum_partial_copy_generic(src, dst, len);
 }
-EXPORT_SYMBOL(csum_partial_copy_nocheck);
+EXPORT_SYMBOL(csum_partial_copy_analcheck);
 
 __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 			const struct in6_addr *daddr,

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -209,7 +209,7 @@ u16 ath9k_hw_computetxtime(struct ath_hw *ah,
 		break;
 	default:
 		ath_err(ath9k_hw_common(ah),
-			"Unknown phy %u (rate ix %u)\n", phy, rateix);
+			"Unkanalwn phy %u (rate ix %u)\n", phy, rateix);
 		txTime = 0;
 		break;
 	}
@@ -242,7 +242,7 @@ void ath9k_hw_get_channel_centers(struct ath_hw *ah,
 
 	centers->ctl_center =
 		centers->synth_center - (extoff * HT40_CHANNEL_CENTER_SHIFT);
-	/* 25 MHz spacing is supported by hw but not on upper layers */
+	/* 25 MHz spacing is supported by hw but analt on upper layers */
 	centers->ext_center =
 		centers->synth_center + (extoff * HT40_CHANNEL_CENTER_SHIFT);
 }
@@ -397,7 +397,7 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 
 	ah->config.dma_beacon_response_time = 1;
 	ah->config.sw_beacon_response_time = 6;
-	ah->config.cwm_ignore_extcca = false;
+	ah->config.cwm_iganalre_extcca = false;
 	ah->config.analog_shiftreg = 1;
 
 	ah->config.rx_intr_mitigation = true;
@@ -415,18 +415,18 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 
 	/*
 	 * We need this for PCI devices only (Cardbus, PCI, miniPCI)
-	 * _and_ if on non-uniprocessor systems (Multiprocessor/HT).
+	 * _and_ if on analn-uniprocessor systems (Multiprocessor/HT).
 	 * This means we use it for all AR5416 devices, and the few
-	 * minor PCI AR9280 devices out there.
+	 * mianalr PCI AR9280 devices out there.
 	 *
-	 * Serialization is required because these devices do not handle
+	 * Serialization is required because these devices do analt handle
 	 * well the case of two concurrent reads/writes due to the latency
-	 * involved. During one read/write another read/write can be issued
-	 * on another CPU while the previous read/write may still be working
+	 * involved. During one read/write aanalther read/write can be issued
+	 * on aanalther CPU while the previous read/write may still be working
 	 * on our hardware, if we hit this case the hardware poops in a loop.
 	 * We prevent this by serializing reads and writes.
 	 *
-	 * This issue is not present on PCI-Express devices or pre-AR5416
+	 * This issue is analt present on PCI-Express devices or pre-AR5416
 	 * devices (legacy, 802.11abg).
 	 */
 	if (num_possible_cpus() > 1)
@@ -520,7 +520,7 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 
 	if (common->bus_ops->ath_bus_type != ATH_USB) {
 		if (!ath9k_hw_chip_test(ah))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	if (!AR_SREV_9300_20_OR_LATER(ah)) {
@@ -570,8 +570,8 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	int r = 0;
 
 	if (!ath9k_hw_read_revisions(ah)) {
-		ath_err(common, "Could not read hardware revisions");
-		return -EOPNOTSUPP;
+		ath_err(common, "Could analt read hardware revisions");
+		return -EOPANALTSUPP;
 	}
 
 	switch (ah->hw_version.macVersion) {
@@ -595,14 +595,14 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		break;
 	default:
 		ath_err(common,
-			"Mac Chip Rev 0x%02x.%x is not supported by this driver\n",
+			"Mac Chip Rev 0x%02x.%x is analt supported by this driver\n",
 			ah->hw_version.macVersion, ah->hw_version.macRev);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/*
 	 * Read back AR_WA(ah) into a permanent copy and set bits 14 and 17.
-	 * We need to do this to avoid RMW of this register. We cannot
+	 * We need to do this to avoid RMW of this register. We cananalt
 	 * read the reg when chip is asleep.
 	 */
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
@@ -692,9 +692,9 @@ int ath9k_hw_init(struct ath_hw *ah)
 	default:
 		if (common->bus_ops->ath_bus_type == ATH_USB)
 			break;
-		ath_err(common, "Hardware device ID 0x%04x not supported\n",
+		ath_err(common, "Hardware device ID 0x%04x analt supported\n",
 			ah->hw_version.devid);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = __ath9k_hw_init(ah);
@@ -718,10 +718,10 @@ static void ath9k_hw_init_qos(struct ath_hw *ah)
 	REG_WRITE(ah, AR_MIC_QOS_CONTROL, 0x100aa);
 	REG_WRITE(ah, AR_MIC_QOS_SELECT, 0x3210);
 
-	REG_WRITE(ah, AR_QOS_NO_ACK,
-		  SM(2, AR_QOS_NO_ACK_TWO_BIT) |
-		  SM(5, AR_QOS_NO_ACK_BIT_OFF) |
-		  SM(0, AR_QOS_NO_ACK_BYTE_OFF));
+	REG_WRITE(ah, AR_QOS_ANAL_ACK,
+		  SM(2, AR_QOS_ANAL_ACK_TWO_BIT) |
+		  SM(5, AR_QOS_ANAL_ACK_BIT_OFF) |
+		  SM(0, AR_QOS_ANAL_ACK_BYTE_OFF));
 
 	REG_WRITE(ah, AR_TXOP_X, AR_TXOP_X_VAL);
 	REG_WRITE(ah, AR_TXOP_0_3, 0xFFFFFFFF);
@@ -746,7 +746,7 @@ u32 ar9003_get_pll_sqsum_dvc(struct ath_hw *ah)
 		udelay(100);
 
 		if (WARN_ON_ONCE(i >= 100)) {
-			ath_err(common, "PLL4 measurement not done\n");
+			ath_err(common, "PLL4 measurement analt done\n");
 			break;
 		}
 
@@ -1197,7 +1197,7 @@ static inline void ath9k_hw_set_dma(struct ath_hw *ah)
 	ENABLE_REGWRITE_BUFFER(ah);
 
 	/*
-	 * set AHB_MODE not to do cacheline prefetches
+	 * set AHB_MODE analt to do cacheline prefetches
 	*/
 	if (!AR_SREV_9300_20_OR_LATER(ah))
 		REG_SET_BIT(ah, AR_AHB_MODE, AR_AHB_PREFETCH_RD_EN);
@@ -1471,7 +1471,7 @@ static bool ath9k_hw_set_reset_power_on(struct ath_hw *ah)
 			   AR_RTC_STATUS_M(ah),
 			   AR_RTC_STATUS_ON,
 			   AH_WAIT_TIMEOUT)) {
-		ath_dbg(ath9k_hw_common(ah), RESET, "RTC not waking up\n");
+		ath_dbg(ath9k_hw_common(ah), RESET, "RTC analt waking up\n");
 		return false;
 	}
 
@@ -1564,7 +1564,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	}
 
 	if (!ath9k_hw_rfbus_req(ah)) {
-		ath_err(common, "Could not kill baseband RX\n");
+		ath_err(common, "Could analt kill baseband RX\n");
 		return false;
 	}
 
@@ -1631,7 +1631,7 @@ void ath9k_hw_check_nav(struct ath_hw *ah)
 
 	val = REG_READ(ah, AR_NAV);
 	if (val != 0xdeadbeef && val > 0x7fff) {
-		ath_dbg(common, BSTUCK, "Abnormal NAV: 0x%x\n", val);
+		ath_dbg(common, BSTUCK, "Abanalrmal NAV: 0x%x\n", val);
 		REG_WRITE(ah, AR_NAV, 0);
 	}
 }
@@ -1695,7 +1695,7 @@ static void ath9k_hw_init_mfp(struct ath_hw *ah)
 		REG_CLR_BIT(ah, AR_PCU_MISC_MODE2,
 			    AR_PCU_MISC_MODE2_MGMT_CRYPTO_ENABLE);
 		REG_SET_BIT(ah, AR_PCU_MISC_MODE2,
-			    AR_PCU_MISC_MODE2_NO_CRYPTO_FOR_NON_DATA_PKT);
+			    AR_PCU_MISC_MODE2_ANAL_CRYPTO_FOR_ANALN_DATA_PKT);
 		ah->sw_mgmt_crypto_tx = true;
 		ah->sw_mgmt_crypto_rx = true;
 	} else {
@@ -1807,7 +1807,7 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 		goto fail;
 
 	/*
-	 * If cross-band fcc is not supoprted, bail out if channelFlags differ.
+	 * If cross-band fcc is analt supoprted, bail out if channelFlags differ.
 	 */
 	if (!(pCap->hw_caps & ATH9K_HW_CAP_FCC_BAND_SWITCH) &&
 	    ((chan->channelFlags ^ ah->curchan->channelFlags) & ~CHANNEL_HT))
@@ -1899,7 +1899,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	} else if (caldata) {
 		clear_bit(PAPRD_PACKET_SENT, &caldata->cal_flags);
 	}
-	ah->noise = ath9k_hw_getchan_noise(ah, chan, chan->noisefloor);
+	ah->analise = ath9k_hw_getchan_analise(ah, chan, chan->analisefloor);
 
 	if (fastcc) {
 		r = ath9k_hw_do_fastcc(ah, chan);
@@ -2091,7 +2091,7 @@ EXPORT_SYMBOL(ath9k_hw_reset);
 /******************************/
 
 /*
- * Notify Power Mgt is disabled in self-generated frames.
+ * Analtify Power Mgt is disabled in self-generated frames.
  * If requested, force chip to sleep.
  */
 static void ath9k_set_power_sleep(struct ath_hw *ah)
@@ -2131,9 +2131,9 @@ static void ath9k_set_power_sleep(struct ath_hw *ah)
 }
 
 /*
- * Notify Power Management is enabled in self-generating
+ * Analtify Power Management is enabled in self-generating
  * frames. If request, set power mode of chip to
- * auto/normal.  Duration in units of 128us (1/8 TU).
+ * auto/analrmal.  Duration in units of 128us (1/8 TU).
  */
 static void ath9k_set_power_network_sleep(struct ath_hw *ah)
 {
@@ -2259,7 +2259,7 @@ bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
 		ath9k_set_power_network_sleep(ah);
 		break;
 	default:
-		ath_err(common, "Unknown power mode %u\n", mode);
+		ath_err(common, "Unkanalwn power mode %u\n", mode);
 		return false;
 	}
 	ah->power_mode = mode;
@@ -2759,7 +2759,7 @@ static void ath9k_hw_gpio_cfg_wmac(struct ath_hw *ah, u32 gpio, bool out,
 	} else {
 		gpio_shift = gpio << 1;
 		gpio_set = out ?
-			AR_GPIO_OE_OUT_DRV_ALL : AR_GPIO_OE_OUT_DRV_NO;
+			AR_GPIO_OE_OUT_DRV_ALL : AR_GPIO_OE_OUT_DRV_ANAL;
 		REG_RMW(ah, AR_GPIO_OE_OUT(ah), gpio_set << gpio_shift,
 			AR_GPIO_OE_OUT_DRV << gpio_shift);
 
@@ -2957,7 +2957,7 @@ void ath9k_hw_apply_txpower(struct ath_hw *ah, struct ath9k_channel *chan,
 	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
 	struct ieee80211_channel *channel;
 	int chan_pwr, new_pwr;
-	u16 ctl = NO_CTL;
+	u16 ctl = ANAL_CTL;
 
 	if (!chan)
 		return;
@@ -3066,7 +3066,7 @@ void ath9k_hw_set11nmac2040(struct ath_hw *ah, struct ath9k_channel *chan)
 {
 	u32 macmode;
 
-	if (IS_CHAN_HT40(chan) && !ah->config.cwm_ignore_extcca)
+	if (IS_CHAN_HT40(chan) && !ah->config.cwm_iganalre_extcca)
 		macmode = AR_2040_JOINED_RX_CLEAR;
 	else
 		macmode = 0;
@@ -3330,7 +3330,7 @@ static struct {
 };
 
 /*
- * Return the MAC/BB name. "????" is returned if the MAC/BB is unknown.
+ * Return the MAC/BB name. "????" is returned if the MAC/BB is unkanalwn.
  */
 static const char *ath9k_hw_mac_bb_name(u32 mac_bb_version)
 {
@@ -3346,7 +3346,7 @@ static const char *ath9k_hw_mac_bb_name(u32 mac_bb_version)
 }
 
 /*
- * Return the RF name. "????" is returned if the RF is unknown.
+ * Return the RF name. "????" is returned if the RF is unkanalwn.
  * Used for devices with external radios.
  */
 static const char *ath9k_hw_rf_name(u16 rf_version)

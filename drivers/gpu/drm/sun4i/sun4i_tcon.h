@@ -105,10 +105,10 @@
 #define SUN4I_TCON0_LVDS_IF_CLK_SEL_MASK		BIT(20)
 #define SUN4I_TCON0_LVDS_IF_CLK_SEL_TCON0		(1 << 20)
 #define SUN4I_TCON0_LVDS_IF_CLK_POL_MASK		BIT(4)
-#define SUN4I_TCON0_LVDS_IF_CLK_POL_NORMAL		(1 << 4)
+#define SUN4I_TCON0_LVDS_IF_CLK_POL_ANALRMAL		(1 << 4)
 #define SUN4I_TCON0_LVDS_IF_CLK_POL_INV			(0 << 4)
 #define SUN4I_TCON0_LVDS_IF_DATA_POL_MASK		GENMASK(3, 0)
-#define SUN4I_TCON0_LVDS_IF_DATA_POL_NORMAL		(0xf)
+#define SUN4I_TCON0_LVDS_IF_DATA_POL_ANALRMAL		(0xf)
 #define SUN4I_TCON0_LVDS_IF_DATA_POL_INV		(0)
 
 #define SUN4I_TCON0_IO_POL_REG			0x88
@@ -155,8 +155,8 @@
 #define SUN4I_TCON1_BASIC5_V_SYNC(height)		(((height) - 1) & 0x3ff)
 
 #define SUN4I_TCON1_IO_POL_REG			0xf0
-/* there is no documentation about this bit */
-#define SUN4I_TCON1_IO_POL_UNKNOWN			BIT(26)
+/* there is anal documentation about this bit */
+#define SUN4I_TCON1_IO_POL_UNKANALWN			BIT(26)
 #define SUN4I_TCON1_IO_POL_HSYNC_POSITIVE		BIT(25)
 #define SUN4I_TCON1_IO_POL_VSYNC_POSITIVE		BIT(24)
 
@@ -236,8 +236,8 @@
 struct sun4i_tcon;
 
 struct sun4i_tcon_quirks {
-	bool	has_channel_0;	/* a83t does not have channel 0 on second TCON */
-	bool	has_channel_1;	/* a33 does not have channel 1 */
+	bool	has_channel_0;	/* a83t does analt have channel 0 on second TCON */
+	bool	has_channel_1;	/* a33 does analt have channel 1 */
 	bool	has_lvds_alt;	/* Does the LVDS clock have a parent other than the TCON clock? */
 	bool	needs_de_be_mux; /* sun6i needs mux to select backend */
 	bool    needs_edp_reset; /* a80 edp reset needed for tcon0 access */
@@ -288,8 +288,8 @@ struct sun4i_tcon {
 	struct list_head		list;
 };
 
-struct drm_bridge *sun4i_tcon_find_bridge(struct device_node *node);
-struct drm_panel *sun4i_tcon_find_panel(struct device_node *node);
+struct drm_bridge *sun4i_tcon_find_bridge(struct device_analde *analde);
+struct drm_panel *sun4i_tcon_find_panel(struct device_analde *analde);
 
 void sun4i_tcon_enable_vblank(struct sun4i_tcon *tcon, bool enable);
 void sun4i_tcon_mode_set(struct sun4i_tcon *tcon,

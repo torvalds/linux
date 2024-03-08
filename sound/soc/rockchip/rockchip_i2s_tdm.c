@@ -130,7 +130,7 @@ static void i2s_tdm_disable_unprepare_mclk(struct rk_i2s_tdm_dev *i2s_tdm)
  * This function attempts to enable all mclk clocks, but cleans up after
  * itself on failure. Guarantees to balance its calls.
  *
- * Returns success (0) or negative errno.
+ * Returns success (0) or negative erranal.
  */
 static int i2s_tdm_prepare_enable_mclk(struct rk_i2s_tdm_dev *i2s_tdm)
 {
@@ -228,17 +228,17 @@ static void rockchip_snd_xfer_sync_reset(struct rk_i2s_tdm_dev *i2s_tdm)
 	 *
 	 * In an ideal world, we could atomically assert both resets at the
 	 * same time, through an atomic bulk reset API. This API however does
-	 * not exist, so what the downstream vendor code used to do was
+	 * analt exist, so what the downstream vendor code used to do was
 	 * implement half a reset controller here and require the CRU to be
-	 * passed to the driver as a device tree node. Violating abstractions
+	 * passed to the driver as a device tree analde. Violating abstractions
 	 * like that is bad, especially when it influences something like the
-	 * bindings which are supposed to describe the hardware, not whatever
+	 * bindings which are supposed to describe the hardware, analt whatever
 	 * workarounds the driver needs, so it was dropped.
 	 *
 	 * In practice, asserting the resets one by one appears to work just
 	 * fine for playback. During duplex (playback + capture) operation,
 	 * this might become an issue, but that should be solved by the
-	 * implementation of the aforementioned API, not by shoving a reset
+	 * implementation of the aforementioned API, analt by shoving a reset
 	 * controller into an audio driver.
 	 */
 
@@ -426,19 +426,19 @@ static int rockchip_i2s_tdm_set_fmt(struct snd_soc_dai *cpu_dai,
 	mask = I2S_CKR_CKP_MASK | I2S_CKR_TLP_MASK | I2S_CKR_RLP_MASK;
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		val = I2S_CKR_CKP_NORMAL |
-		      I2S_CKR_TLP_NORMAL |
-		      I2S_CKR_RLP_NORMAL;
+		val = I2S_CKR_CKP_ANALRMAL |
+		      I2S_CKR_TLP_ANALRMAL |
+		      I2S_CKR_RLP_ANALRMAL;
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
-		val = I2S_CKR_CKP_NORMAL |
+		val = I2S_CKR_CKP_ANALRMAL |
 		      I2S_CKR_TLP_INVERTED |
 		      I2S_CKR_RLP_INVERTED;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
 		val = I2S_CKR_CKP_INVERTED |
-		      I2S_CKR_TLP_NORMAL |
-		      I2S_CKR_RLP_NORMAL;
+		      I2S_CKR_TLP_ANALRMAL |
+		      I2S_CKR_RLP_ANALRMAL;
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
 		val = I2S_CKR_CKP_INVERTED |
@@ -462,14 +462,14 @@ static int rockchip_i2s_tdm_set_fmt(struct snd_soc_dai *cpu_dai,
 		rxcr_val = I2S_RXCR_IBM_LSJM;
 		break;
 	case SND_SOC_DAIFMT_I2S:
-		txcr_val = I2S_TXCR_IBM_NORMAL;
-		rxcr_val = I2S_RXCR_IBM_NORMAL;
+		txcr_val = I2S_TXCR_IBM_ANALRMAL;
+		rxcr_val = I2S_RXCR_IBM_ANALRMAL;
 		break;
 	case SND_SOC_DAIFMT_DSP_A: /* PCM delay 1 mode */
 		txcr_val = I2S_TXCR_TFS_PCM | I2S_TXCR_PBM_MODE(1);
 		rxcr_val = I2S_RXCR_TFS_PCM | I2S_RXCR_PBM_MODE(1);
 		break;
-	case SND_SOC_DAIFMT_DSP_B: /* PCM no delay mode */
+	case SND_SOC_DAIFMT_DSP_B: /* PCM anal delay mode */
 		txcr_val = I2S_TXCR_TFS_PCM;
 		rxcr_val = I2S_RXCR_TFS_PCM;
 		break;
@@ -756,7 +756,7 @@ static int rockchip_i2s_io_multiplex(struct snd_pcm_substream *substream,
 
 	if (IS_ERR_OR_NULL(i2s_tdm->grf)) {
 		dev_err(i2s_tdm->dev,
-			"io multiplex not supported for this device\n");
+			"io multiplex analt supported for this device\n");
 		return -EINVAL;
 	}
 
@@ -1229,7 +1229,7 @@ static int common_soc_init(struct device *dev, u32 addr)
 
 	if (IS_ERR_OR_NULL(i2s_tdm->grf)) {
 		dev_err(i2s_tdm->dev,
-			"no grf present but non-txrx TRCM specified\n");
+			"anal grf present but analn-txrx TRCM specified\n");
 		return -EINVAL;
 	}
 
@@ -1334,9 +1334,9 @@ static int rockchip_i2s_tdm_init_dai(struct rk_i2s_tdm_dev *i2s_tdm)
 	u64 formats = (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE |
 		       SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE |
 		       SNDRV_PCM_FMTBIT_S32_LE);
-	struct device_node *node = i2s_tdm->dev->of_node;
+	struct device_analde *analde = i2s_tdm->dev->of_analde;
 
-	of_property_for_each_string(node, "dma-names", dma_names, dma_name) {
+	of_property_for_each_string(analde, "dma-names", dma_names, dma_name) {
 		if (!strcmp(dma_name, "tx"))
 			i2s_tdm->has_playback = true;
 		if (!strcmp(dma_name, "rx"))
@@ -1346,7 +1346,7 @@ static int rockchip_i2s_tdm_init_dai(struct rk_i2s_tdm_dev *i2s_tdm)
 	dai = devm_kmemdup(i2s_tdm->dev, &i2s_tdm_dai,
 			   sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (i2s_tdm->has_playback) {
 		dai->playback.stream_name  = "Playback";
@@ -1465,7 +1465,7 @@ static int rockchip_i2s_tdm_get_calibrate_mclks(struct rk_i2s_tdm_dev *i2s_tdm)
 		num_mclks++;
 
 	if (num_mclks < 4 && num_mclks != 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (num_mclks == 4)
 		i2s_tdm->mclk_calibrate = 1;
@@ -1474,7 +1474,7 @@ static int rockchip_i2s_tdm_get_calibrate_mclks(struct rk_i2s_tdm_dev *i2s_tdm)
 }
 
 static int rockchip_i2s_tdm_path_prepare(struct rk_i2s_tdm_dev *i2s_tdm,
-					 struct device_node *np,
+					 struct device_analde *np,
 					 bool is_rx_path)
 {
 	char *i2s_tx_path_prop = "rockchip,i2s-tx-route";
@@ -1493,7 +1493,7 @@ static int rockchip_i2s_tdm_path_prepare(struct rk_i2s_tdm_dev *i2s_tdm,
 
 	num = of_count_phandle_with_args(np, i2s_path_prop, NULL);
 	if (num < 0) {
-		if (num != -ENOENT) {
+		if (num != -EANALENT) {
 			dev_err(i2s_tdm->dev,
 				"Failed to read '%s' num: %d\n",
 				i2s_path_prop, num);
@@ -1528,20 +1528,20 @@ static int rockchip_i2s_tdm_path_prepare(struct rk_i2s_tdm_dev *i2s_tdm,
 }
 
 static int rockchip_i2s_tdm_tx_path_prepare(struct rk_i2s_tdm_dev *i2s_tdm,
-					    struct device_node *np)
+					    struct device_analde *np)
 {
 	return rockchip_i2s_tdm_path_prepare(i2s_tdm, np, 0);
 }
 
 static int rockchip_i2s_tdm_rx_path_prepare(struct rk_i2s_tdm_dev *i2s_tdm,
-					    struct device_node *np)
+					    struct device_analde *np)
 {
 	return rockchip_i2s_tdm_path_prepare(i2s_tdm, np, 1);
 }
 
 static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct rk_i2s_tdm_dev *i2s_tdm;
 	struct resource *res;
 	void __iomem *regs;
@@ -1549,7 +1549,7 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 	i2s_tdm = devm_kzalloc(&pdev->dev, sizeof(*i2s_tdm), GFP_KERNEL);
 	if (!i2s_tdm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2s_tdm->dev = &pdev->dev;
 
@@ -1558,9 +1558,9 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	i2s_tdm->frame_width = 64;
 
 	i2s_tdm->clk_trcm = TRCM_TXRX;
-	if (of_property_read_bool(node, "rockchip,trcm-sync-tx-only"))
+	if (of_property_read_bool(analde, "rockchip,trcm-sync-tx-only"))
 		i2s_tdm->clk_trcm = TRCM_TX;
-	if (of_property_read_bool(node, "rockchip,trcm-sync-rx-only")) {
+	if (of_property_read_bool(analde, "rockchip,trcm-sync-rx-only")) {
 		if (i2s_tdm->clk_trcm) {
 			dev_err(i2s_tdm->dev, "invalid trcm-sync configuration\n");
 			return -EINVAL;
@@ -1572,7 +1572,7 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	i2s_tdm->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
+	i2s_tdm->grf = syscon_regmap_lookup_by_phandle(analde, "rockchip,grf");
 	i2s_tdm->tx_reset = devm_reset_control_get_optional_exclusive(&pdev->dev,
 								      "tx-m");
 	if (IS_ERR(i2s_tdm->tx_reset)) {
@@ -1608,7 +1608,7 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	}
 
 	i2s_tdm->io_multiplex =
-		of_property_read_bool(node, "rockchip,io-multiplex");
+		of_property_read_bool(analde, "rockchip,io-multiplex");
 
 	ret = rockchip_i2s_tdm_get_calibrate_mclks(i2s_tdm);
 	if (ret)
@@ -1640,13 +1640,13 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		i2s_tdm->capture_dma_data.maxburst = 8;
 	}
 
-	ret = rockchip_i2s_tdm_tx_path_prepare(i2s_tdm, node);
+	ret = rockchip_i2s_tdm_tx_path_prepare(i2s_tdm, analde);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "I2S TX path prepare failed: %d\n", ret);
 		return ret;
 	}
 
-	ret = rockchip_i2s_tdm_rx_path_prepare(i2s_tdm, node);
+	ret = rockchip_i2s_tdm_rx_path_prepare(i2s_tdm, analde);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "I2S RX path prepare failed: %d\n", ret);
 		return ret;
@@ -1691,13 +1691,13 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 					      i2s_tdm->dai, 1);
 
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI\n");
+		dev_err(&pdev->dev, "Could analt register DAI\n");
 		goto err_suspend;
 	}
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM\n");
+		dev_err(&pdev->dev, "Could analt register PCM\n");
 		goto err_suspend;
 	}
 

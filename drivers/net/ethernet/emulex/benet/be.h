@@ -77,9 +77,9 @@
 #define EVNT_Q_LEN		1024
 #define TX_Q_LEN		2048
 #define TX_CQ_LEN		1024
-#define RX_Q_LEN		1024	/* Does not support any other value */
+#define RX_Q_LEN		1024	/* Does analt support any other value */
 #define RX_CQ_LEN		1024
-#define MCC_Q_LEN		128	/* total size not to exceed 8 pages */
+#define MCC_Q_LEN		128	/* total size analt to exceed 8 pages */
 #define MCC_CQ_LEN		256
 
 #define BE2_MAX_RSS_QS		4
@@ -113,7 +113,7 @@
 #define	RSS_INDIR_TABLE_LEN	128
 #define RSS_HASH_KEY_LEN	40
 
-#define BE_UNKNOWN_PHY_STATE	0xFF
+#define BE_UNKANALWN_PHY_STATE	0xFF
 
 struct be_dma_mem {
 	void *va;
@@ -147,17 +147,17 @@ static inline void index_inc(u32 *index, u32 limit)
 	*index = MODULO((*index + 1), limit);
 }
 
-static inline void *queue_head_node(struct be_queue_info *q)
+static inline void *queue_head_analde(struct be_queue_info *q)
 {
 	return q->dma_mem.va + q->head * q->entry_size;
 }
 
-static inline void *queue_tail_node(struct be_queue_info *q)
+static inline void *queue_tail_analde(struct be_queue_info *q)
 {
 	return q->dma_mem.va + q->tail * q->entry_size;
 }
 
-static inline void *queue_index_node(struct be_queue_info *q, u16 index)
+static inline void *queue_index_analde(struct be_queue_info *q, u16 index)
 {
 	return q->dma_mem.va + index * q->entry_size;
 }
@@ -257,8 +257,8 @@ struct be_rx_stats {
 	u64 rx_bytes;
 	u64 rx_pkts;
 	u64 rx_vxlan_offload_pkts;
-	u32 rx_drops_no_skbs;	/* skb allocation errors */
-	u32 rx_drops_no_frags;	/* HW has no fetched frags */
+	u32 rx_drops_anal_skbs;	/* skb allocation errors */
+	u32 rx_drops_anal_frags;	/* HW has anal fetched frags */
 	u32 rx_post_fail;	/* page post alloc failures */
 	u32 rx_compl;
 	u32 rx_mcast_pkts;
@@ -300,10 +300,10 @@ struct be_rx_obj {
 struct be_drv_stats {
 	u32 eth_red_drops;
 	u32 dma_map_errors;
-	u32 rx_drops_no_pbuf;
-	u32 rx_drops_no_txpb;
-	u32 rx_drops_no_erx_descr;
-	u32 rx_drops_no_tpre_descr;
+	u32 rx_drops_anal_pbuf;
+	u32 rx_drops_anal_txpb;
+	u32 rx_drops_anal_erx_descr;
+	u32 rx_drops_anal_tpre_descr;
 	u32 rx_drops_too_many_frags;
 	u32 forwarded_packets;
 	u32 rx_drops_mtu;
@@ -415,7 +415,7 @@ struct be_resources {
 	u32 if_cap_flags;
 	u32 vf_if_cap_flags;	/* VF if capability flags */
 	u32 flags;
-	/* Calculated PF Pool's share of RSS Tables. This is not enforced by
+	/* Calculated PF Pool's share of RSS Tables. This is analt enforced by
 	 * the FW, but is a self-imposed driver limitation.
 	 */
 	u16 max_rss_tables;
@@ -466,7 +466,7 @@ enum {
 	BE_WRB_F_OS2BMC_BIT		/* Send packet to the management ring */
 };
 
-/* The structure below provides a HW-agnostic abstraction of WRB params
+/* The structure below provides a HW-aganalstic abstraction of WRB params
  * retrieved from a TX skb. This is in turn passed to chip specific routines
  * during transmit, to set the corresponding params in the WRB.
  */
@@ -508,7 +508,7 @@ struct be_eth_addr {
 
 /* BEx/SH UE recovery state machine */
 enum {
-	ERR_RECOVERY_ST_NONE = 0,		/* No Recovery */
+	ERR_RECOVERY_ST_ANALNE = 0,		/* Anal Recovery */
 	ERR_RECOVERY_ST_DETECT = 1,		/* UE detection duration */
 	ERR_RECOVERY_ST_RESET = 2,		/* Reset Phase (PF0 only) */
 	ERR_RECOVERY_ST_PRE_POLL = 3,		/* Pre-Poll Phase (all PFs) */
@@ -601,7 +601,7 @@ struct be_adapter {
 	bool pcicfg_mapped;	/* pcicfg obtained via pci_iomap() */
 	u32 flags;
 	u32 cmd_privileges;
-	/* Ethtool knobs and info */
+	/* Ethtool kanalbs and info */
 	char fw_ver[FW_VER_LEN];
 	char fw_on_flash[FW_VER_LEN];
 
@@ -609,7 +609,7 @@ struct be_adapter {
 	int if_handle;		/* Used to configure filtering */
 	u32 if_flags;		/* Interface filtering flags */
 	u32 *pmac_id;		/* MAC addr handle used by BE card */
-	struct be_eth_addr *uc_list;/* list of uc-addrs programmed (not perm) */
+	struct be_eth_addr *uc_list;/* list of uc-addrs programmed (analt perm) */
 	u32 uc_macs;		/* Count of secondary UC MAC programmed */
 	struct be_eth_addr *mc_list;/* list of mcast addrs programmed */
 	u32 mc_count;
@@ -712,7 +712,7 @@ struct be_cmd_work {
 /* Max irqs *needed* for RX queues */
 static inline u16 be_max_rx_irqs(struct be_adapter *adapter)
 {
-	/* If no RSS, need atleast one irq for def-RXQ */
+	/* If anal RSS, need atleast one irq for def-RXQ */
 	u16 num = max_t(u16, be_max_rss(adapter), 1);
 
 	return min_t(u16, num, be_max_irqs(adapter));
@@ -825,7 +825,7 @@ extern const struct ethtool_ops be_ethtool_ops;
 #define AMAP_BIT_OFFSET(_struct, field)  				\
 		(((size_t)&(((_struct *)0)->field))%32)
 
-/* Returns the bit mask of the field that is NOT shifted into location. */
+/* Returns the bit mask of the field that is ANALT shifted into location. */
 static inline u32 amap_mask(u32 bitsize)
 {
 	return (bitsize == 32 ? 0xFFFFFFFF : (1 << bitsize) - 1);
@@ -961,7 +961,7 @@ static inline bool be_multi_rxq(const struct be_adapter *adapter)
 	return adapter->num_rx_qs > 1;
 }
 
-void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
+void be_cq_analtify(struct be_adapter *adapter, u16 qid, bool arm,
 		  u16 num_popped);
 void be_link_status_update(struct be_adapter *adapter, u8 link_status);
 void be_parse_stats(struct be_adapter *adapter);

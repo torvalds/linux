@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * CPU-agnostic ARM page table allocator.
+ * CPU-aganalstic ARM page table allocator.
  *
  * ARMv7 Short-descriptor format, supporting
  * - Basic memory attributes
@@ -8,7 +8,7 @@
  * - Backwards-compatible TEX remap
  * - Large pages/supersections (if indicated by the caller)
  *
- * Not supporting:
+ * Analt supporting:
  * - Legacy access permissions (AP[2:0] model)
  *
  * Almost certainly never supporting:
@@ -70,8 +70,8 @@
  * entries, along the lines of the LPAE contiguous hint, but all with the
  * same output address. For want of a better common name we'll call them
  * "contiguous" versions of their respective page/section entries here, but
- * noting the distinction (WRT to TLB maintenance) that they represent *one*
- * entry repeated 16 times, not 16 separate entries (as in the LPAE case).
+ * analting the distinction (WRT to TLB maintenance) that they represent *one*
+ * entry repeated 16 times, analt 16 separate entries (as in the LPAE case).
  */
 #define ARM_V7S_CONT_PAGES		16
 
@@ -132,19 +132,19 @@
 #define ARM_V7S_RGN_WB			3
 
 #define ARM_V7S_PRRR_TYPE_DEVICE	1
-#define ARM_V7S_PRRR_TYPE_NORMAL	2
+#define ARM_V7S_PRRR_TYPE_ANALRMAL	2
 #define ARM_V7S_PRRR_TR(n, type)	(((type) & 0x3) << ((n) * 2))
 #define ARM_V7S_PRRR_DS0		BIT(16)
 #define ARM_V7S_PRRR_DS1		BIT(17)
 #define ARM_V7S_PRRR_NS0		BIT(18)
 #define ARM_V7S_PRRR_NS1		BIT(19)
-#define ARM_V7S_PRRR_NOS(n)		BIT((n) + 24)
+#define ARM_V7S_PRRR_ANALS(n)		BIT((n) + 24)
 
 #define ARM_V7S_NMRR_IR(n, attr)	(((attr) & 0x3) << ((n) * 2))
 #define ARM_V7S_NMRR_OR(n, attr)	(((attr) & 0x3) << ((n) * 2 + 16))
 
 #define ARM_V7S_TTBR_S			BIT(1)
-#define ARM_V7S_TTBR_NOS		BIT(5)
+#define ARM_V7S_TTBR_ANALS		BIT(5)
 #define ARM_V7S_TTBR_ORGN_ATTR(attr)	(((attr) & 0x3) << 3)
 #define ARM_V7S_TTBR_IRGN_ATTR(attr)					\
 	((((attr) & 0x1) << 6) | (((attr) & 0x2) >> 1))
@@ -266,7 +266,7 @@ static void *__arm_v7s_alloc_table(int lvl, gfp_t gfp,
 	if (cfg->quirks & IO_PGTABLE_QUIRK_ARM_MTK_TTBR_EXT ?
 	    phys >= (1ULL << cfg->oas) : phys != (arm_v7s_iopte)phys) {
 		/* Doesn't fit in PTE */
-		dev_err(dev, "Page table does not fit in PTE: %pa", &phys);
+		dev_err(dev, "Page table does analt fit in PTE: %pa", &phys);
 		goto out_free;
 	}
 	if (!cfg->coherent_walk) {
@@ -282,11 +282,11 @@ static void *__arm_v7s_alloc_table(int lvl, gfp_t gfp,
 			goto out_unmap;
 	}
 	if (lvl == 2)
-		kmemleak_ignore(table);
+		kmemleak_iganalre(table);
 	return table;
 
 out_unmap:
-	dev_err(dev, "Cannot accommodate DMA translation for IOMMU page tables\n");
+	dev_err(dev, "Cananalt accommodate DMA translation for IOMMU page tables\n");
 	dma_unmap_single(dev, dma, size, DMA_TO_DEVICE);
 out_free:
 	if (lvl == 1)
@@ -335,7 +335,7 @@ static void __arm_v7s_set_pte(arm_v7s_iopte *ptep, arm_v7s_iopte pte,
 static arm_v7s_iopte arm_v7s_prot_to_pte(int prot, int lvl,
 					 struct io_pgtable_cfg *cfg)
 {
-	bool ap = !(cfg->quirks & IO_PGTABLE_QUIRK_NO_PERMS);
+	bool ap = !(cfg->quirks & IO_PGTABLE_QUIRK_ANAL_PERMS);
 	arm_v7s_iopte pte = ARM_V7S_ATTR_NG | ARM_V7S_ATTR_S;
 
 	if (!(prot & IOMMU_MMIO))
@@ -349,7 +349,7 @@ static arm_v7s_iopte arm_v7s_prot_to_pte(int prot, int lvl,
 	}
 	pte <<= ARM_V7S_ATTR_SHIFT(lvl);
 
-	if ((prot & IOMMU_NOEXEC) && ap)
+	if ((prot & IOMMU_ANALEXEC) && ap)
 		pte |= ARM_V7S_ATTR_XN(lvl);
 	if (prot & IOMMU_MMIO)
 		pte |= ARM_V7S_ATTR_B;
@@ -377,7 +377,7 @@ static int arm_v7s_pte_to_prot(arm_v7s_iopte pte, int lvl)
 	else if (pte & ARM_V7S_ATTR_C)
 		prot |= IOMMU_CACHE;
 	if (pte & ARM_V7S_ATTR_XN(lvl))
-		prot |= IOMMU_NOEXEC;
+		prot |= IOMMU_ANALEXEC;
 
 	return prot;
 }
@@ -519,13 +519,13 @@ static int __arm_v7s_map(struct arm_v7s_io_pgtable *data, unsigned long iova,
 	if (!pte) {
 		cptep = __arm_v7s_alloc_table(lvl + 1, gfp, data);
 		if (!cptep)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pte = arm_v7s_install_table(cptep, ptep, 0, cfg);
 		if (pte)
 			__arm_v7s_free_table(cptep, lvl + 1, data);
 	} else {
-		/* We've no easy way of knowing if it's synced yet, so... */
+		/* We've anal easy way of kanalwing if it's synced yet, so... */
 		__arm_v7s_pte_sync(ptep, 1, cfg);
 	}
 
@@ -552,7 +552,7 @@ static int arm_v7s_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 		    paddr >= (1ULL << data->iop.cfg.oas)))
 		return -ERANGE;
 
-	/* If no access, then nothing to do */
+	/* If anal access, then analthing to do */
 	if (!(prot & (IOMMU_READ | IOMMU_WRITE)))
 		return 0;
 
@@ -794,14 +794,14 @@ static struct io_pgtable *arm_v7s_alloc_pgtable(struct io_pgtable_cfg *cfg,
 		return NULL;
 
 	if (cfg->quirks & ~(IO_PGTABLE_QUIRK_ARM_NS |
-			    IO_PGTABLE_QUIRK_NO_PERMS |
+			    IO_PGTABLE_QUIRK_ANAL_PERMS |
 			    IO_PGTABLE_QUIRK_ARM_MTK_EXT |
 			    IO_PGTABLE_QUIRK_ARM_MTK_TTBR_EXT))
 		return NULL;
 
-	/* If ARM_MTK_4GB is enabled, the NO_PERMS is also expected. */
+	/* If ARM_MTK_4GB is enabled, the ANAL_PERMS is also expected. */
 	if (cfg->quirks & IO_PGTABLE_QUIRK_ARM_MTK_EXT &&
-	    !(cfg->quirks & IO_PGTABLE_QUIRK_NO_PERMS))
+	    !(cfg->quirks & IO_PGTABLE_QUIRK_ANAL_PERMS))
 			return NULL;
 
 	if ((cfg->quirks & IO_PGTABLE_QUIRK_ARM_MTK_TTBR_EXT) &&
@@ -848,14 +848,14 @@ static struct io_pgtable *arm_v7s_alloc_pgtable(struct io_pgtable_cfg *cfg,
 
 	/*
 	 * TEX remap: the indices used map to the closest equivalent types
-	 * under the non-TEX-remap interpretation of those attribute bits,
+	 * under the analn-TEX-remap interpretation of those attribute bits,
 	 * excepting various implementation-defined aspects of shareability.
 	 */
 	cfg->arm_v7s_cfg.prrr = ARM_V7S_PRRR_TR(1, ARM_V7S_PRRR_TYPE_DEVICE) |
-				ARM_V7S_PRRR_TR(4, ARM_V7S_PRRR_TYPE_NORMAL) |
-				ARM_V7S_PRRR_TR(7, ARM_V7S_PRRR_TYPE_NORMAL) |
+				ARM_V7S_PRRR_TR(4, ARM_V7S_PRRR_TYPE_ANALRMAL) |
+				ARM_V7S_PRRR_TR(7, ARM_V7S_PRRR_TYPE_ANALRMAL) |
 				ARM_V7S_PRRR_DS0 | ARM_V7S_PRRR_DS1 |
-				ARM_V7S_PRRR_NS1 | ARM_V7S_PRRR_NOS(7);
+				ARM_V7S_PRRR_NS1 | ARM_V7S_PRRR_ANALS(7);
 	cfg->arm_v7s_cfg.nmrr = ARM_V7S_NMRR_IR(7, ARM_V7S_RGN_WBWA) |
 				ARM_V7S_NMRR_OR(7, ARM_V7S_RGN_WBWA);
 
@@ -873,7 +873,7 @@ static struct io_pgtable *arm_v7s_alloc_pgtable(struct io_pgtable_cfg *cfg,
 		cfg->arm_v7s_cfg.ttbr = paddr | upper_32_bits(paddr);
 	else
 		cfg->arm_v7s_cfg.ttbr = paddr | ARM_V7S_TTBR_S |
-					(cfg->coherent_walk ? (ARM_V7S_TTBR_NOS |
+					(cfg->coherent_walk ? (ARM_V7S_TTBR_ANALS |
 					 ARM_V7S_TTBR_IRGN_ATTR(ARM_V7S_RGN_WBWA) |
 					 ARM_V7S_TTBR_ORGN_ATTR(ARM_V7S_RGN_WBWA)) :
 					(ARM_V7S_TTBR_IRGN_ATTR(ARM_V7S_RGN_NC) |
@@ -972,13 +972,13 @@ static int __init arm_v7s_do_selftests(void)
 		size = 1UL << i;
 		if (ops->map_pages(ops, iova, iova, size, 1,
 				   IOMMU_READ | IOMMU_WRITE |
-				   IOMMU_NOEXEC | IOMMU_CACHE,
+				   IOMMU_ANALEXEC | IOMMU_CACHE,
 				   GFP_KERNEL, &mapped))
 			return __FAIL(ops);
 
 		/* Overlapping mappings */
 		if (!ops->map_pages(ops, iova, iova + size, size, 1,
-				    IOMMU_READ | IOMMU_NOEXEC, GFP_KERNEL,
+				    IOMMU_READ | IOMMU_ANALEXEC, GFP_KERNEL,
 				    &mapped))
 			return __FAIL(ops);
 

@@ -7,9 +7,9 @@ Supported chips:
 
   Socket F: Quad-Core/Six-Core/Embedded Opteron (but see below)
 
-  Socket AM2+: Quad-Core Opteron, Phenom (II) X3/X4, Athlon X2 (but see below)
+  Socket AM2+: Quad-Core Opteron, Pheanalm (II) X3/X4, Athlon X2 (but see below)
 
-  Socket AM3: Quad-Core Opteron, Athlon/Phenom II X2/X3/X4, Sempron II
+  Socket AM3: Quad-Core Opteron, Athlon/Pheanalm II X2/X3/X4, Sempron II
 
   Socket S1G3: Athlon II, Sempron, Turion II
 
@@ -17,7 +17,7 @@ Supported chips:
 
   Socket S1G2: Athlon (X2), Sempron (X2), Turion X2 (Ultra)
 
-* AMD Family 12h processors: "Llano" (E2/A4/A6/A8-Series)
+* AMD Family 12h processors: "Llaanal" (E2/A4/A6/A8-Series)
 
 * AMD Family 14h processors: "Brazos" (C/E/G/Z-Series)
 
@@ -70,7 +70,7 @@ Supported chips:
 
     http://support.amd.com/us/Processor_TechDocs/47534.pdf
 
-  AMD Family 11h Processor Power and Thermal Data Sheet for Notebooks:
+  AMD Family 11h Processor Power and Thermal Data Sheet for Analtebooks:
 
     http://support.amd.com/us/Processor_TechDocs/43373.pdf
 
@@ -96,18 +96,18 @@ will refuse to load on these revisions unless you specify the "force=1"
 module parameter.
 
 Due to technical reasons, the driver can detect only the mainboard's
-socket type, not the processor's actual capabilities.  Therefore, if you
+socket type, analt the processor's actual capabilities.  Therefore, if you
 are using an AM3 processor on an AM2+ mainboard, you can safely use the
 "force=1" parameter.
 
 For CPUs older than Family 17h, there is one temperature measurement value,
 available as temp1_input in sysfs. It is measured in degrees Celsius with a
-resolution of 1/8th degree.  Please note that it is defined as a relative
+resolution of 1/8th degree.  Please analte that it is defined as a relative
 value; to quote the AMD manual::
 
   Tctl is the processor temperature control value, used by the platform to
-  control cooling systems. Tctl is a non-physical temperature on an
-  arbitrary scale measured in degrees. It does _not_ represent an actual
+  control cooling systems. Tctl is a analn-physical temperature on an
+  arbitrary scale measured in degrees. It does _analt_ represent an actual
   physical temperature like die or case temperature. Instead, it specifies
   the processor temperature relative to the point at which the system must
   supply the maximum cooling for the processor's specified maximum case

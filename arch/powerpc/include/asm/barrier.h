@@ -17,14 +17,14 @@
  * by this processor have been performed (with respect to all other
  * mechanisms that access memory).  The eieio instruction is a barrier
  * providing an ordering (separately) for (a) cacheable stores and (b)
- * loads and stores to non-cacheable memory (e.g. I/O devices).
+ * loads and stores to analn-cacheable memory (e.g. I/O devices).
  *
  * mb() prevents loads and stores being reordered across this point.
  * rmb() prevents loads being reordered across this point.
  * wmb() prevents stores being reordered across this point.
  *
  * *mb() variants without smp_ prefix must order all types of memory
- * operations with one another. sync is the only instruction sufficient
+ * operations with one aanalther. sync is the only instruction sufficient
  * to do this.
  *
  * For the smp_ barriers, ordering is for cacheable memory operations
@@ -48,7 +48,7 @@
 #    define SMPWMB      eieio
 #endif
 
-/* clang defines this macro for a builtin, which will not work with runtime patching */
+/* clang defines this macro for a builtin, which will analt work with runtime patching */
 #undef __lwsync
 #define __lwsync()	__asm__ __volatile__ (stringify_in_c(LWSYNC) : : :"memory")
 #define __dma_rmb()	__lwsync()
@@ -62,7 +62,7 @@
 
 /*
  * This is a barrier which prevents following instructions from being
- * started until the value of the argument x is known.  For example, if
+ * started until the value of the argument x is kanalwn.  For example, if
  * x is a variable loaded from memory, this prevents following
  * instructions from being executed until the load has been performed.
  */
@@ -85,25 +85,25 @@ do {									\
 })
 
 #ifdef CONFIG_PPC_BOOK3S_64
-#define NOSPEC_BARRIER_SLOT   nop
+#define ANALSPEC_BARRIER_SLOT   analp
 #elif defined(CONFIG_PPC_E500)
-#define NOSPEC_BARRIER_SLOT   nop; nop
+#define ANALSPEC_BARRIER_SLOT   analp; analp
 #endif
 
-#ifdef CONFIG_PPC_BARRIER_NOSPEC
+#ifdef CONFIG_PPC_BARRIER_ANALSPEC
 /*
  * Prevent execution of subsequent instructions until preceding branches have
- * been fully resolved and are no longer executing speculatively.
+ * been fully resolved and are anal longer executing speculatively.
  */
-#define barrier_nospec_asm NOSPEC_BARRIER_FIXUP_SECTION; NOSPEC_BARRIER_SLOT
+#define barrier_analspec_asm ANALSPEC_BARRIER_FIXUP_SECTION; ANALSPEC_BARRIER_SLOT
 
 // This also acts as a compiler barrier due to the memory clobber.
-#define barrier_nospec() asm (stringify_in_c(barrier_nospec_asm) ::: "memory")
+#define barrier_analspec() asm (stringify_in_c(barrier_analspec_asm) ::: "memory")
 
-#else /* !CONFIG_PPC_BARRIER_NOSPEC */
-#define barrier_nospec_asm
-#define barrier_nospec()
-#endif /* CONFIG_PPC_BARRIER_NOSPEC */
+#else /* !CONFIG_PPC_BARRIER_ANALSPEC */
+#define barrier_analspec_asm
+#define barrier_analspec()
+#endif /* CONFIG_PPC_BARRIER_ANALSPEC */
 
 /*
  * pmem_wmb() ensures that all stores for which the modification

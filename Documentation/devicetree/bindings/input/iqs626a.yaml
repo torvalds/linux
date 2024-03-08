@@ -40,10 +40,10 @@ properties:
     default: 0
     description: |
       Specifies the power mode during suspend as follows:
-      0: Automatic (same as normal runtime, i.e. suspend/resume disabled)
+      0: Automatic (same as analrmal runtime, i.e. suspend/resume disabled)
       1: Low power (all sensing at a reduced reporting rate)
       2: Ultra-low power (ULP channel proximity sensing)
-      3: Halt (no sensing)
+      3: Halt (anal sensing)
 
   azoteq,clk-div:
     type: boolean
@@ -86,7 +86,7 @@ properties:
     description: |
       Selects the channel or group of channels for which the GPIO3 pin
       represents touch state as follows:
-      0: None
+      0: Analne
       1: ULP channel
       2: Trackpad
       3: Trackpad
@@ -102,7 +102,7 @@ properties:
     description: |
       Specifies the event(s) that prompt the device to reseed (i.e. reset the
       long-term average) of an associated channel as follows:
-      0: None
+      0: Analne
       1: Proximity
       2: Proximity or touch
       3: Proximity, touch or deep touch
@@ -127,7 +127,7 @@ properties:
     minimum: 0
     maximum: 255
     default: 150
-    description: Specifies the report rate (in ms) during normal-power mode.
+    description: Specifies the report rate (in ms) during analrmal-power mode.
 
   azoteq,rate-lp-ms:
     minimum: 0
@@ -149,7 +149,7 @@ properties:
     default: 2560
     description:
       Specifies the length of time (in ms) to wait for an event before moving
-      from normal-power mode to low-power mode, or (if 'azoteq,ulp-enable' is
+      from analrmal-power mode to low-power mode, or (if 'azoteq,ulp-enable' is
       present) from low-power mode to ultra-low-power mode.
 
   azoteq,timeout-lta-ms:
@@ -256,7 +256,7 @@ patternProperties:
         default: 0
         description:
           Specifies the degree to which the channel's charge cycle time is to
-          be increased, with 0 representing no increase. The maximum value is
+          be increased, with 0 representing anal increase. The maximum value is
           limited to 4 in the case of the ULP channel, and the property is un-
           available entirely in the case of the Hall channel.
 
@@ -303,7 +303,7 @@ patternProperties:
         enum: [0, 1, 2, 3]
         default: 0
         description:
-          Specifies the raw count filter strength during normal-power mode (ULP
+          Specifies the raw count filter strength during analrmal-power mode (ULP
           and generic channels only).
 
       azoteq,filt-str-lp-cnt:
@@ -319,7 +319,7 @@ patternProperties:
         enum: [0, 1, 2, 3]
         default: 0
         description:
-          Specifies the long-term average filter strength during normal-power
+          Specifies the long-term average filter strength during analrmal-power
           mode (ULP and generic channels only).
 
       azoteq,filt-str-lp-lta:
@@ -433,7 +433,7 @@ patternProperties:
             - hall
         description:
           Specifies the associated channels for which the channel serves as a
-          reference channel. By default, no channels are selected. This prop-
+          reference channel. By default, anal channels are selected. This prop-
           erty is only available for the generic channels.
 
       azoteq,assoc-weight:
@@ -452,7 +452,7 @@ patternProperties:
         $ref: input.yaml#
         description:
           Represents a proximity, touch or deep-touch event reported by the
-          channel in response to a decrease in counts. Node names suffixed with
+          channel in response to a decrease in counts. Analde names suffixed with
           '-alt' instead correspond to an increase in counts.
 
           By default, the long-term average tracks an increase in counts such
@@ -465,7 +465,7 @@ patternProperties:
           vert the polarity of the states reported by the channel.
 
           Complementary events (e.g. event-touch and event-touch-alt) can both
-          be present and specify different key or switch codes, but not differ-
+          be present and specify different key or switch codes, but analt differ-
           ent thresholds or hysteresis (if applicable).
 
           Proximity events are unavailable in the case of the Hall channel, and
@@ -579,7 +579,7 @@ patternProperties:
         default: 0
         description:
           Specifies the degree to which the trackpad's charge cycle time is to
-          be increased, with 0 representing no increase.
+          be increased, with 0 representing anal increase.
 
       azoteq,proj-bias:
         $ref: /schemas/types.yaml#/definitions/uint32
@@ -644,7 +644,7 @@ patternProperties:
         enum: [0, 1, 2, 3]
         default: 0
         description:
-          Specifies the raw count filter strength during normal-power mode.
+          Specifies the raw count filter strength during analrmal-power mode.
 
       azoteq,filt-str-lp-cnt:
         $ref: /schemas/types.yaml#/definitions/uint32

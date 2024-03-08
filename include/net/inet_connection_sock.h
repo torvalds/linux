@@ -21,7 +21,7 @@
 #include <net/inet_sock.h>
 #include <net/request_sock.h>
 
-/* Cancel timers, when they are not required. */
+/* Cancel timers, when they are analt required. */
 #undef INET_CSK_CLEAR_TIMERS
 
 struct inet_bind_bucket;
@@ -56,10 +56,10 @@ struct inet_connection_sock_af_ops {
 /** inet_connection_sock - INET connection oriented sock
  *
  * @icsk_accept_queue:	   FIFO of established children
- * @icsk_bind_hash:	   Bind node
- * @icsk_bind2_hash:	   Bind node in the bhash2 table
+ * @icsk_bind_hash:	   Bind analde
+ * @icsk_bind2_hash:	   Bind analde in the bhash2 table
  * @icsk_timeout:	   Timeout
- * @icsk_retransmit_timer: Resend (no ack)
+ * @icsk_retransmit_timer: Resend (anal ack)
  * @icsk_rto:		   Retransmit timeout
  * @icsk_pmtu_cookie	   Last pmtu seen by socket
  * @icsk_ca_ops		   Pluggable congestion control hook
@@ -76,7 +76,7 @@ struct inet_connection_sock_af_ops {
  * @icsk_ext_hdr_len:	   Network protocol overhead (IP/IPv6 options)
  * @icsk_ack:		   Delayed ACK control data
  * @icsk_mtup;		   MTU probing control data
- * @icsk_probes_tstamp:    Probe timestamp (cleared by non-zero window ack)
+ * @icsk_probes_tstamp:    Probe timestamp (cleared by analn-zero window ack)
  * @icsk_user_timeout:	   TCP_USER_TIMEOUT value
  */
 struct inet_connection_sock {
@@ -166,8 +166,8 @@ enum inet_csk_ack_state_t {
 	ICSK_ACK_TIMER  = 2,
 	ICSK_ACK_PUSHED = 4,
 	ICSK_ACK_PUSHED2 = 8,
-	ICSK_ACK_NOW = 16,	/* Send the next ACK immediately (once) */
-	ICSK_ACK_NOMEM = 32,
+	ICSK_ACK_ANALW = 16,	/* Send the next ACK immediately (once) */
+	ICSK_ACK_ANALMEM = 32,
 };
 
 void inet_csk_init_xmit_timers(struct sock *sk,
@@ -210,7 +210,7 @@ static inline void inet_csk_clear_xmit_timer(struct sock *sk, const int what)
 		sk_stop_timer(sk, &icsk->icsk_delack_timer);
 #endif
 	} else {
-		pr_debug("inet_csk BUG: unknown timer value\n");
+		pr_debug("inet_csk BUG: unkanalwn timer value\n");
 	}
 }
 
@@ -239,7 +239,7 @@ static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
 		icsk->icsk_ack.timeout = jiffies + when;
 		sk_reset_timer(sk, &icsk->icsk_delack_timer, icsk->icsk_ack.timeout);
 	} else {
-		pr_debug("inet_csk BUG: unknown timer value\n");
+		pr_debug("inet_csk BUG: unkanalwn timer value\n");
 	}
 }
 
@@ -313,7 +313,7 @@ void inet_csk_prepare_forced_close(struct sock *sk);
 static inline __poll_t inet_csk_listen_poll(const struct sock *sk)
 {
 	return !reqsk_queue_empty(&inet_csk(sk)->icsk_accept_queue) ?
-			(EPOLLIN | EPOLLRDNORM) : 0;
+			(EPOLLIN | EPOLLRDANALRM) : 0;
 }
 
 int inet_csk_listen_start(struct sock *sk);

@@ -55,7 +55,7 @@ properties:
   memory-region:
     maxItems: 1
     description:
-      phandle to a node describing reserved memory (System RAM memory)
+      phandle to a analde describing reserved memory (System RAM memory)
       The M core can't access all the DDR memory space on some platform,
       So reserved a specific memory for dma buffer which M core can
       access.
@@ -63,7 +63,7 @@ properties:
 
   audio-codec:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: The phandle to a node of audio codec
+    description: The phandle to a analde of audio codec
 
   fsl,enable-lpa:
     $ref: /schemas/types.yaml#/definitions/flag

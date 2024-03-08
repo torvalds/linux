@@ -2,10 +2,10 @@
 /*
  * Microchip CoreSPI SPI controller driver
  *
- * Copyright (c) 2018-2022 Microchip Technology Inc. and its subsidiaries
+ * Copyright (c) 2018-2022 Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Daire McNamara <daire.mcnamara@microchip.com>
- * Author: Conor Dooley <conor.dooley@microchip.com>
+ * Author: Coanalr Dooley <coanalr.dooley@microchip.com>
  *
  */
 
@@ -41,7 +41,7 @@
 #define CONTROL_FRAMEURUN		BIT(27)
 #define CONTROL_CLKMODE			BIT(28)
 #define CONTROL_BIGFIFO			BIT(29)
-#define CONTROL_OENOFF			BIT(30)
+#define CONTROL_OEANALFF			BIT(30)
 #define CONTROL_RESET			BIT(31)
 
 #define CONTROL_MODE_MASK		GENMASK(3, 2)
@@ -182,7 +182,7 @@ static inline void mchp_corespi_set_xfer_size(struct mchp_corespi *spi, int len)
 
 	/*
 	 * Disable the SPI controller. Writes to transfer length have
-	 * no effect when the controller is enabled.
+	 * anal effect when the controller is enabled.
 	 */
 	mchp_corespi_disable(spi);
 
@@ -190,7 +190,7 @@ static inline void mchp_corespi_set_xfer_size(struct mchp_corespi *spi, int len)
 	 * The lower 16 bits of the frame count are stored in the control reg
 	 * for legacy reasons, but the upper 16 written to a different register:
 	 * FRAMESUP. While both the upper and lower bits can be *READ* from the
-	 * FRAMESUP register, writing to the lower 16 bits is a NOP
+	 * FRAMESUP register, writing to the lower 16 bits is a ANALP
 	 */
 	lenpart = len & 0xffff;
 
@@ -230,7 +230,7 @@ static inline void mchp_corespi_set_framesize(struct mchp_corespi *spi, int bt)
 
 	/*
 	 * Disable the SPI controller. Writes to the frame size have
-	 * no effect when the controller is enabled.
+	 * anal effect when the controller is enabled.
 	 */
 	mchp_corespi_disable(spi);
 
@@ -355,7 +355,7 @@ static inline void mchp_corespi_set_mode(struct mchp_corespi *spi, unsigned int 
 
 	/*
 	 * Disable the SPI controller. Writes to the frame size have
-	 * no effect when the controller is enabled.
+	 * anal effect when the controller is enabled.
 	 */
 	mchp_corespi_disable(spi);
 
@@ -376,9 +376,9 @@ static irqreturn_t mchp_corespi_interrupt(int irq, void *dev_id)
 	u32 intfield = mchp_corespi_read(spi, REG_MIS) & 0xf;
 	bool finalise = false;
 
-	/* Interrupt line may be shared and not for us at all */
+	/* Interrupt line may be shared and analt for us at all */
 	if (intfield == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (intfield & INT_TXDONE) {
 		mchp_corespi_write(spi, REG_INT_CLEAR, INT_TXDONE);
@@ -506,12 +506,12 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(&pdev->dev, sizeof(*spi));
 	if (!host)
-		return dev_err_probe(&pdev->dev, -ENOMEM,
+		return dev_err_probe(&pdev->dev, -EANALMEM,
 				     "unable to allocate host for SPI controller\n");
 
 	platform_set_drvdata(pdev, host);
 
-	if (of_property_read_u32(pdev->dev.of_node, "num-cs", &num_cs))
+	if (of_property_read_u32(pdev->dev.of_analde, "num-cs", &num_cs))
 		num_cs = MAX_CS;
 
 	host->num_chipselect = num_cs;
@@ -521,7 +521,7 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	host->transfer_one = mchp_corespi_transfer_one;
 	host->prepare_message = mchp_corespi_prepare_message;
 	host->set_cs = mchp_corespi_set_cs;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 
 	spi = spi_controller_get_devdata(host);
 
@@ -537,12 +537,12 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 			       IRQF_SHARED, dev_name(&pdev->dev), host);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret,
-				     "could not request irq\n");
+				     "could analt request irq\n");
 
 	spi->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(spi->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(spi->clk),
-				     "could not get clk\n");
+				     "could analt get clk\n");
 
 	mchp_corespi_init(host, spi);
 
@@ -593,5 +593,5 @@ static struct platform_driver mchp_corespi_driver = {
 module_platform_driver(mchp_corespi_driver);
 MODULE_DESCRIPTION("Microchip coreSPI SPI controller driver");
 MODULE_AUTHOR("Daire McNamara <daire.mcnamara@microchip.com>");
-MODULE_AUTHOR("Conor Dooley <conor.dooley@microchip.com>");
+MODULE_AUTHOR("Coanalr Dooley <coanalr.dooley@microchip.com>");
 MODULE_LICENSE("GPL");

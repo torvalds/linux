@@ -21,7 +21,7 @@
 
 #define NFCSIM_VERSION "0.2"
 
-#define NFCSIM_MODE_NONE	0
+#define NFCSIM_MODE_ANALNE	0
 #define NFCSIM_MODE_INITIATOR	1
 #define NFCSIM_MODE_TARGET	2
 
@@ -105,7 +105,7 @@ static void nfcsim_link_recv_cancel(struct nfcsim_link *link)
 {
 	mutex_lock(&link->lock);
 
-	link->mode = NFCSIM_MODE_NONE;
+	link->mode = NFCSIM_MODE_ANALNE;
 
 	mutex_unlock(&link->lock);
 
@@ -117,7 +117,7 @@ static void nfcsim_link_shutdown(struct nfcsim_link *link)
 	mutex_lock(&link->lock);
 
 	link->shutdown = 1;
-	link->mode = NFCSIM_MODE_NONE;
+	link->mode = NFCSIM_MODE_ANALNE;
 
 	mutex_unlock(&link->lock);
 
@@ -150,7 +150,7 @@ static struct sk_buff *nfcsim_link_recv_skb(struct nfcsim_link *link,
 	}
 
 	if (link->shutdown) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto done;
 	}
 
@@ -206,7 +206,7 @@ static int nfcsim_send(struct nfc_digital_dev *ddev, struct sk_buff *skb,
 
 	if (!dev->up) {
 		NFCSIM_ERR(dev, "Device is down\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev->recv_timeout = timeout;
@@ -351,14 +351,14 @@ static void nfcsim_debugfs_init_dev(struct nfcsim *dev)
 	int n;
 
 	if (!nfcsim_debugfs_root) {
-		NFCSIM_ERR(dev, "nfcsim debugfs not initialized\n");
+		NFCSIM_ERR(dev, "nfcsim debugfs analt initialized\n");
 		return;
 	}
 
 	idx = dev->nfc_digital_dev->nfc_dev->idx;
 	n = snprintf(devname, sizeof(devname), "nfc%d", idx);
 	if (n >= sizeof(devname)) {
-		NFCSIM_ERR(dev, "Could not compute dev name for dev %d\n", idx);
+		NFCSIM_ERR(dev, "Could analt compute dev name for dev %d\n", idx);
 		return;
 	}
 
@@ -375,7 +375,7 @@ static struct nfcsim *nfcsim_device_new(struct nfcsim_link *link_in,
 
 	dev = kzalloc(sizeof(struct nfcsim), GFP_KERNEL);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_DELAYED_WORK(&dev->send_work, nfcsim_send_wq);
 	INIT_WORK(&dev->recv_work, nfcsim_recv_wq);
@@ -387,7 +387,7 @@ static struct nfcsim *nfcsim_device_new(struct nfcsim_link *link_in,
 						    0, 0);
 	if (!dev->nfc_digital_dev) {
 		kfree(dev);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	nfc_digital_set_drvdata(dev->nfc_digital_dev, dev);
@@ -397,7 +397,7 @@ static struct nfcsim *nfcsim_device_new(struct nfcsim_link *link_in,
 
 	rc = nfc_digital_register_device(dev->nfc_digital_dev);
 	if (rc) {
-		pr_err("Could not register digital device (%d)\n", rc);
+		pr_err("Could analt register digital device (%d)\n", rc);
 		nfc_digital_free_device(dev->nfc_digital_dev);
 		kfree(dev);
 
@@ -436,7 +436,7 @@ static int __init nfcsim_init(void)
 	link0 = nfcsim_link_new();
 	link1 = nfcsim_link_new();
 	if (!link0 || !link1) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto exit_err;
 	}
 

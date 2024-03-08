@@ -19,7 +19,7 @@ struct ksmbd_tree_conn_status
 ksmbd_tree_conn_connect(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 			const char *share_name)
 {
-	struct ksmbd_tree_conn_status status = {-ENOENT, NULL};
+	struct ksmbd_tree_conn_status status = {-EANALENT, NULL};
 	struct ksmbd_tree_connect_response *resp = NULL;
 	struct ksmbd_share_config *sc;
 	struct ksmbd_tree_connect *tree_conn = NULL;
@@ -32,7 +32,7 @@ ksmbd_tree_conn_connect(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 
 	tree_conn = kzalloc(sizeof(struct ksmbd_tree_connect), GFP_KERNEL);
 	if (!tree_conn) {
-		status.ret = -ENOMEM;
+		status.ret = -EANALMEM;
 		goto out_error;
 	}
 
@@ -81,7 +81,7 @@ ksmbd_tree_conn_connect(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 	ret = xa_err(xa_store(&sess->tree_conns, tree_conn->id, tree_conn,
 			      GFP_KERNEL));
 	if (ret) {
-		status.ret = -ENOMEM;
+		status.ret = -EANALMEM;
 		goto out_error;
 	}
 	kvfree(resp);
@@ -138,7 +138,7 @@ struct ksmbd_tree_connect *ksmbd_tree_conn_lookup(struct ksmbd_session *sess,
 	if (tcon) {
 		if (tcon->t_state != TREE_CONNECTED)
 			tcon = NULL;
-		else if (!atomic_inc_not_zero(&tcon->refcount))
+		else if (!atomic_inc_analt_zero(&tcon->refcount))
 			tcon = NULL;
 	}
 	read_unlock(&sess->tree_conns_lock);
@@ -159,7 +159,7 @@ int ksmbd_tree_conn_session_logoff(struct ksmbd_session *sess)
 		write_lock(&sess->tree_conns_lock);
 		if (tc->t_state == TREE_DISCONNECTED) {
 			write_unlock(&sess->tree_conns_lock);
-			ret = -ENOENT;
+			ret = -EANALENT;
 			continue;
 		}
 		tc->t_state = TREE_DISCONNECTED;

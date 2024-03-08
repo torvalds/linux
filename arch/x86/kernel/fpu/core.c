@@ -38,7 +38,7 @@ struct fpu_state_config	fpu_kernel_cfg __ro_after_init;
 struct fpu_state_config fpu_user_cfg __ro_after_init;
 
 /*
- * Represents the initial FPU state. It's mostly (but not completely) zeroes,
+ * Represents the initial FPU state. It's mostly (but analt completely) zeroes,
  * depending on the FPU hardware format:
  */
 struct fpstate init_fpstate __ro_after_init;
@@ -65,12 +65,12 @@ bool irq_fpu_usable(void)
 		return false;
 
 	/*
-	 * When not in NMI or hard interrupt context, FPU can be used in:
+	 * When analt in NMI or hard interrupt context, FPU can be used in:
 	 *
 	 * - Task context except from within fpregs_lock()'ed critical
 	 *   regions.
 	 *
-	 * - Soft interrupt processing context which cannot happen
+	 * - Soft interrupt processing context which cananalt happen
 	 *   while in a fpregs_lock()'ed critical region.
 	 */
 	if (!in_hardirq())
@@ -78,7 +78,7 @@ bool irq_fpu_usable(void)
 
 	/*
 	 * In hard interrupt context it's safe when soft interrupts
-	 * are enabled, which means the interrupt did not hit in
+	 * are enabled, which means the interrupt did analt hit in
 	 * a fpregs_lock()'ed critical region.
 	 */
 	return !softirq_count();
@@ -86,7 +86,7 @@ bool irq_fpu_usable(void)
 EXPORT_SYMBOL(irq_fpu_usable);
 
 /*
- * Track AVX512 state use because it is known to slow the max clock
+ * Track AVX512 state use because it is kanalwn to slow the max clock
  * speed of the core.
  */
 static void update_avx_timestamp(struct fpu *fpu)
@@ -106,7 +106,7 @@ static void update_avx_timestamp(struct fpu *fpu)
  *
  * The legacy FNSAVE instruction clears all FPU state unconditionally, so
  * register state has to be reloaded. That might be a pointless exercise
- * when the FPU is going to be used by another task right after that. But
+ * when the FPU is going to be used by aanalther task right after that. But
  * this only affects 20+ years old 32bit systems and avoids conditionals all
  * over the place.
  *
@@ -156,7 +156,7 @@ void restore_fpregs_from_fpstate(struct fpstate *fpstate, u64 mask)
 		 * are cleared.  If the bits are set then using a related
 		 * instruction will raise #NM. This allows to do the
 		 * allocation of the larger FPU buffer lazy from #NM or if
-		 * the task has no permission to kill it which would happen
+		 * the task has anal permission to kill it which would happen
 		 * via #UD if the feature is disabled in XCR0.
 		 *
 		 * XFD state is following the same life time rules as
@@ -169,12 +169,12 @@ void restore_fpregs_from_fpstate(struct fpstate *fpstate, u64 mask)
 
 		/*
 		 * Restoring state always needs to modify all features
-		 * which are in @mask even if the current task cannot use
+		 * which are in @mask even if the current task cananalt use
 		 * extended features.
 		 *
-		 * So fpstate->xfeatures cannot be used here, because then
-		 * a feature for which the task has no permission but was
-		 * used by the previous task would not go into init state.
+		 * So fpstate->xfeatures cananalt be used here, because then
+		 * a feature for which the task has anal permission but was
+		 * used by the previous task would analt go into init state.
 		 */
 		mask = fpu_kernel_cfg.max_features & mask;
 
@@ -282,7 +282,7 @@ int fpu_enable_guest_xfd_features(struct fpu_guest *guest_fpu, u64 xfeatures)
 {
 	lockdep_assert_preemption_enabled();
 
-	/* Nothing to do if all requested features are already enabled. */
+	/* Analthing to do if all requested features are already enabled. */
 	xfeatures &= ~guest_fpu->xfeatures;
 	if (!xfeatures)
 		return 0;
@@ -307,11 +307,11 @@ EXPORT_SYMBOL_GPL(fpu_update_guest_xfd);
  *
  * Must be invoked from KVM after a VMEXIT before enabling interrupts when
  * XFD write emulation is disabled. This is required because the guest can
- * freely modify XFD and the state at VMEXIT is not guaranteed to be the
+ * freely modify XFD and the state at VMEXIT is analt guaranteed to be the
  * same as the state on VMENTER. So software state has to be updated before
  * any operation which depends on it can take place.
  *
- * Note: It can be invoked unconditionally even when write emulation is
+ * Analte: It can be invoked unconditionally even when write emulation is
  * enabled for the price of a then pointless MSR read.
  */
 void fpu_sync_guest_vmexit_xfd_state(void)
@@ -498,7 +498,7 @@ static inline void fpstate_init_fstate(struct fpstate *fpstate)
 
 /*
  * Used in two places:
- * 1) Early boot to setup init_fpstate for non XSAVE systems
+ * 1) Early boot to setup init_fpstate for analn XSAVE systems
  * 2) fpu_init_fpstate_user() which is invoked from KVM
  */
 void fpstate_init_user(struct fpstate *fpstate)
@@ -553,13 +553,13 @@ static inline void fpu_inherit_perms(struct fpu *dst_fpu)
 	}
 }
 
-/* A passed ssp of zero will not cause any update */
+/* A passed ssp of zero will analt cause any update */
 static int update_fpu_shstk(struct task_struct *dst, unsigned long ssp)
 {
 #ifdef CONFIG_X86_USER_SHADOW_STACK
 	struct cet_user_state *xstate;
 
-	/* If ssp update is not needed. */
+	/* If ssp update is analt needed. */
 	if (!ssp)
 		return 0;
 
@@ -567,9 +567,9 @@ static int update_fpu_shstk(struct task_struct *dst, unsigned long ssp)
 				XFEATURE_CET_USER);
 
 	/*
-	 * If there is a non-zero ssp, then 'dst' must be configured with a shadow
+	 * If there is a analn-zero ssp, then 'dst' must be configured with a shadow
 	 * stack and the fpu state should be up to date since it was just copied
-	 * from the parent in fpu_clone(). So there must be a valid non-init CET
+	 * from the parent in fpu_clone(). So there must be a valid analn-init CET
 	 * state location in the buffer.
 	 */
 	if (WARN_ON_ONCE(!xstate))
@@ -587,7 +587,7 @@ int fpu_clone(struct task_struct *dst, unsigned long clone_flags, bool minimal,
 	struct fpu *src_fpu = &current->thread.fpu;
 	struct fpu *dst_fpu = &dst->thread.fpu;
 
-	/* The new task's FPU state cannot be valid in the hardware. */
+	/* The new task's FPU state cananalt be valid in the hardware. */
 	dst_fpu->last_cpu = -1;
 
 	fpstate_reset(dst_fpu);
@@ -602,7 +602,7 @@ int fpu_clone(struct task_struct *dst, unsigned long clone_flags, bool minimal,
 	set_tsk_thread_flag(dst, TIF_NEED_FPU_LOAD);
 
 	/*
-	 * No FPU state inheritance for kernel threads and IO
+	 * Anal FPU state inheritance for kernel threads and IO
 	 * worker threads.
 	 */
 	if (minimal) {
@@ -624,8 +624,8 @@ int fpu_clone(struct task_struct *dst, unsigned long clone_flags, bool minimal,
 	 * saved, which enables skipping both the expansion of fpstate
 	 * and the copying of any dynamic state.
 	 *
-	 * Do not use memcpy() when TIF_NEED_FPU_LOAD is set because
-	 * copying is not valid when current uses non-default states.
+	 * Do analt use memcpy() when TIF_NEED_FPU_LOAD is set because
+	 * copying is analt valid when current uses analn-default states.
 	 */
 	fpregs_lock();
 	if (test_thread_flag(TIF_NEED_FPU_LOAD))
@@ -666,10 +666,10 @@ void fpu_thread_struct_whitelist(unsigned long *offset, unsigned long *size)
 
 /*
  * Drops current FPU state: deactivates the fpregs and
- * the fpstate. NOTE: it still leaves previous contents
+ * the fpstate. ANALTE: it still leaves previous contents
  * in the fpregs in the eager-FPU case.
  *
- * This function can be used in cases where we know that
+ * This function can be used in cases where we kanalw that
  * a state-restore is coming: either an explicit one,
  * or a reschedule.
  */
@@ -678,7 +678,7 @@ void fpu__drop(struct fpu *fpu)
 	preempt_disable();
 
 	if (fpu == &current->thread.fpu) {
-		/* Ignore delayed exceptions from user space */
+		/* Iganalre delayed exceptions from user space */
 		asm volatile("1: fwait\n"
 			     "2:\n"
 			     _ASM_EXTABLE(1b, 2b));
@@ -716,15 +716,15 @@ static void fpu_reset_fpregs(void)
 	fpregs_lock();
 	__fpu_invalidate_fpregs_state(fpu);
 	/*
-	 * This does not change the actual hardware registers. It just
+	 * This does analt change the actual hardware registers. It just
 	 * resets the memory image and sets TIF_NEED_FPU_LOAD so a
 	 * subsequent return to usermode will reload the registers from the
 	 * task's memory image.
 	 *
-	 * Do not use fpstate_init() here. Just copy init_fpstate which has
+	 * Do analt use fpstate_init() here. Just copy init_fpstate which has
 	 * the correct content already except for PKRU.
 	 *
-	 * PKRU handling does not rely on the xstate when restoring for
+	 * PKRU handling does analt rely on the xstate when restoring for
 	 * user space as PKRU is eagerly written in switch_to() and
 	 * flush_thread().
 	 */
@@ -735,7 +735,7 @@ static void fpu_reset_fpregs(void)
 
 /*
  * Reset current's user FPU states to the init states.  current's
- * supervisor states, if any, are not modified by this function.  The
+ * supervisor states, if any, are analt modified by this function.  The
  * caller guarantees that the XSTATE header in memory is intact.
  */
 void fpu__clear_user_states(struct fpu *fpu)
@@ -761,9 +761,9 @@ void fpu__clear_user_states(struct fpu *fpu)
 	restore_fpregs_from_init_fpstate(XFEATURE_MASK_USER_RESTORE);
 
 	/*
-	 * Now all FPU registers have their desired values.  Inform the FPU
+	 * Analw all FPU registers have their desired values.  Inform the FPU
 	 * state machine that current's FPU registers are in the hardware
-	 * registers. The memory image does not need to be updated because
+	 * registers. The memory image does analt need to be updated because
 	 * any operation relying on it has to save the registers first when
 	 * current's FPU is marked active.
 	 */
@@ -809,7 +809,7 @@ void fpregs_lock_and_load(void)
 #ifdef CONFIG_X86_DEBUG_FPU
 /*
  * If current FPU state according to its tracking (loaded FPU context on this
- * CPU) is not valid then we must have TIF_NEED_FPU_LOAD set so the context is
+ * CPU) is analt valid then we must have TIF_NEED_FPU_LOAD set so the context is
  * loaded on return to userland.
  */
 void fpregs_assert_state_consistent(void)
@@ -844,7 +844,7 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
 	if (trap_nr == X86_TRAP_MF) {
 		unsigned short cwd, swd;
 		/*
-		 * (~cwd & swd) will mask out exceptions that are not set to unmasked
+		 * (~cwd & swd) will mask out exceptions that are analt set to unmasked
 		 * status.  0x3f is the exception bits in these regs, 0x200 is the
 		 * C1 reg you need in case of a stack fault, 0x040 is the stack
 		 * fault bit.  We should only be taking one exception at a time,
@@ -888,7 +888,7 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
 		return FPE_FLTDIV;
 	} else if (err & 0x008) { /* Overflow */
 		return FPE_FLTOVF;
-	} else if (err & 0x012) { /* Denormal, Underflow */
+	} else if (err & 0x012) { /* Deanalrmal, Underflow */
 		return FPE_FLTUND;
 	} else if (err & 0x020) { /* Precision */
 		return FPE_FLTRES;
@@ -897,7 +897,7 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
 	/*
 	 * If we're using IRQ 13, or supposedly even some trap
 	 * X86_TRAP_MF implementations, it's possible
-	 * we get a spurious trap, which is not an error.
+	 * we get a spurious trap, which is analt an error.
 	 */
 	return 0;
 }
@@ -906,9 +906,9 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
  * Initialize register state that may prevent from entering low-power idle.
  * This function will be invoked from the cpuidle driver only when needed.
  */
-noinstr void fpu_idle_fpregs(void)
+analinstr void fpu_idle_fpregs(void)
 {
-	/* Note: AMX_TILE being enabled implies XGETBV1 support */
+	/* Analte: AMX_TILE being enabled implies XGETBV1 support */
 	if (cpu_feature_enabled(X86_FEATURE_AMX_TILE) &&
 	    (xfeatures_in_use() & XFEATURE_MASK_XTILE)) {
 		tile_release();

@@ -12,7 +12,7 @@
 #include <linux/bitfield.h>
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/hashtable.h>
 #include <linux/list.h>
@@ -25,7 +25,7 @@
 #include <asm/unaligned.h>
 
 #include "protocols.h"
-#include "notify.h"
+#include "analtify.h"
 
 #define SCMI_MAX_CHANNELS		256
 
@@ -33,10 +33,10 @@
 
 enum scmi_error_codes {
 	SCMI_SUCCESS = 0,	/* Success */
-	SCMI_ERR_SUPPORT = -1,	/* Not supported */
+	SCMI_ERR_SUPPORT = -1,	/* Analt supported */
 	SCMI_ERR_PARAMS = -2,	/* Invalid Parameters */
 	SCMI_ERR_ACCESS = -3,	/* Invalid access/permission denied */
-	SCMI_ERR_ENTRY = -4,	/* Not found */
+	SCMI_ERR_ENTRY = -4,	/* Analt found */
 	SCMI_ERR_RANGE = -5,	/* Value out of range */
 	SCMI_ERR_BUSY = -6,	/* Device busy */
 	SCMI_ERR_COMMS = -7,	/* Communication Error */
@@ -48,10 +48,10 @@ enum scmi_error_codes {
 static const int scmi_linux_errmap[] = {
 	/* better than switch case as long as return value is continuous */
 	0,			/* SCMI_SUCCESS */
-	-EOPNOTSUPP,		/* SCMI_ERR_SUPPORT */
+	-EOPANALTSUPP,		/* SCMI_ERR_SUPPORT */
 	-EINVAL,		/* SCMI_ERR_PARAM */
 	-EACCES,		/* SCMI_ERR_ACCESS */
-	-ENOENT,		/* SCMI_ERR_ENTRY */
+	-EANALENT,		/* SCMI_ERR_ENTRY */
 	-ERANGE,		/* SCMI_ERR_RANGE */
 	-EBUSY,			/* SCMI_ERR_BUSY */
 	-ECOMM,			/* SCMI_ERR_COMMS */
@@ -60,9 +60,9 @@ static const int scmi_linux_errmap[] = {
 	-EPROTO,		/* SCMI_ERR_PROTOCOL */
 };
 
-static inline int scmi_to_linux_errno(int errno)
+static inline int scmi_to_linux_erranal(int erranal)
 {
-	int err_idx = -errno;
+	int err_idx = -erranal;
 
 	if (err_idx >= SCMI_SUCCESS && err_idx < ARRAY_SIZE(scmi_linux_errmap))
 		return scmi_linux_errmap[err_idx];
@@ -75,7 +75,7 @@ static inline int scmi_to_linux_errno(int errno)
 #define MSG_XTRACT_TYPE(hdr)	FIELD_GET(MSG_TYPE_MASK, (hdr))
 #define MSG_TYPE_COMMAND	0
 #define MSG_TYPE_DELAYED_RESP	2
-#define MSG_TYPE_NOTIFICATION	3
+#define MSG_TYPE_ANALTIFICATION	3
 #define MSG_PROTOCOL_ID_MASK	GENMASK(17, 10)
 #define MSG_XTRACT_PROT_ID(hdr)	FIELD_GET(MSG_PROTOCOL_ID_MASK, (hdr))
 #define MSG_TOKEN_ID_MASK	GENMASK(27, 18)
@@ -130,7 +130,7 @@ static inline void unpack_scmi_header(u32 msg_hdr, struct scmi_msg_hdr *hdr)
 	typeof(__k) k_ = __k;					\
 	struct scmi_xfer *xfer_ = NULL;				\
 								\
-	hash_for_each_possible((__ht), xfer_, node, k_)		\
+	hash_for_each_possible((__ht), xfer_, analde, k_)		\
 		if (xfer_->hdr.seq == k_)			\
 			break;					\
 	xfer_;							\
@@ -143,11 +143,11 @@ void scmi_setup_protocol_implemented(const struct scmi_protocol_handle *ph,
 
 extern struct bus_type scmi_bus_type;
 
-#define SCMI_BUS_NOTIFY_DEVICE_REQUEST		0
-#define SCMI_BUS_NOTIFY_DEVICE_UNREQUEST	1
-extern struct blocking_notifier_head scmi_requested_devices_nh;
+#define SCMI_BUS_ANALTIFY_DEVICE_REQUEST		0
+#define SCMI_BUS_ANALTIFY_DEVICE_UNREQUEST	1
+extern struct blocking_analtifier_head scmi_requested_devices_nh;
 
-struct scmi_device *scmi_device_create(struct device_node *np,
+struct scmi_device *scmi_device_create(struct device_analde *np,
 				       struct device *parent, int protocol,
 				       const char *name);
 void scmi_device_destroy(struct device *parent, int protocol, const char *name);
@@ -165,8 +165,8 @@ void scmi_protocol_release(const struct scmi_handle *handle, u8 protocol_id);
  *	 channel
  * @rx_timeout_ms: The configured RX timeout in milliseconds.
  * @handle: Pointer to SCMI entity handle
- * @no_completion_irq: Flag to indicate that this channel has no completion
- *		       interrupt mechanism for synchronous commands.
+ * @anal_completion_irq: Flag to indicate that this channel has anal completion
+ *		       interrupt mechanism for synchroanalus commands.
  *		       This can be dynamically set by transports at run-time
  *		       inside their provided .chan_setup().
  * @transport_info: Transport layer related information
@@ -176,7 +176,7 @@ struct scmi_chan_info {
 	struct device *dev;
 	unsigned int rx_timeout_ms;
 	struct scmi_handle *handle;
-	bool no_completion_irq;
+	bool anal_completion_irq;
 	void *transport_info;
 };
 
@@ -184,7 +184,7 @@ struct scmi_chan_info {
  * struct scmi_transport_ops - Structure representing a SCMI transport ops
  *
  * @link_supplier: Optional callback to add link to a supplier device
- * @chan_available: Callback to check if channel is available or not
+ * @chan_available: Callback to check if channel is available or analt
  * @chan_setup: Callback to allocate and setup a channel
  * @chan_free: Callback to free a channel
  * @get_max_msg: Optional callback to provide max_msg dynamically
@@ -193,13 +193,13 @@ struct scmi_chan_info {
  * @send_message: Callback to send a message
  * @mark_txdone: Callback to mark tx as done
  * @fetch_response: Callback to fetch response
- * @fetch_notification: Callback to fetch notification
+ * @fetch_analtification: Callback to fetch analtification
  * @clear_channel: Callback to clear a channel
  * @poll_done: Callback to poll transfer status
  */
 struct scmi_transport_ops {
 	int (*link_supplier)(struct device *dev);
-	bool (*chan_available)(struct device_node *of_node, int idx);
+	bool (*chan_available)(struct device_analde *of_analde, int idx);
 	int (*chan_setup)(struct scmi_chan_info *cinfo, struct device *dev,
 			  bool tx);
 	int (*chan_free)(int id, void *p, void *data);
@@ -210,7 +210,7 @@ struct scmi_transport_ops {
 			    struct scmi_xfer *xfer);
 	void (*fetch_response)(struct scmi_chan_info *cinfo,
 			       struct scmi_xfer *xfer);
-	void (*fetch_notification)(struct scmi_chan_info *cinfo,
+	void (*fetch_analtification)(struct scmi_chan_info *cinfo,
 				   size_t max_len, struct scmi_xfer *xfer);
 	void (*clear_channel)(struct scmi_chan_info *cinfo);
 	bool (*poll_done)(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer);
@@ -234,13 +234,13 @@ struct scmi_transport_ops {
  * @force_polling: Flag to force this whole transport to use SCMI core polling
  *		   mechanism instead of completion interrupts even if available.
  * @sync_cmds_completed_on_ret: Flag to indicate that the transport assures
- *				synchronous-command messages are atomically
- *				completed on .send_message: no need to poll
+ *				synchroanalus-command messages are atomically
+ *				completed on .send_message: anal need to poll
  *				actively waiting for a response.
  *				Used by core internally only when polling is
  *				selected as a waiting for reply method: i.e.
  *				if a completion irq was found use that anyway.
- * @atomic_enabled: Flag to indicate that this transport, which is assured not
+ * @atomic_enabled: Flag to indicate that this transport, which is assured analt
  *		    to sleep anywhere on the TX path, can be used in atomic mode
  *		    when requested.
  */
@@ -259,7 +259,7 @@ struct scmi_desc {
 static inline bool is_polling_required(struct scmi_chan_info *cinfo,
 				       const struct scmi_desc *desc)
 {
-	return cinfo->no_completion_irq || desc->force_polling;
+	return cinfo->anal_completion_irq || desc->force_polling;
 }
 
 static inline bool is_transport_polling_capable(const struct scmi_desc *desc)
@@ -309,7 +309,7 @@ void shmem_tx_prepare(struct scmi_shared_mem __iomem *shmem,
 u32 shmem_read_header(struct scmi_shared_mem __iomem *shmem);
 void shmem_fetch_response(struct scmi_shared_mem __iomem *shmem,
 			  struct scmi_xfer *xfer);
-void shmem_fetch_notification(struct scmi_shared_mem __iomem *shmem,
+void shmem_fetch_analtification(struct scmi_shared_mem __iomem *shmem,
 			      size_t max_len, struct scmi_xfer *xfer);
 void shmem_clear_channel(struct scmi_shared_mem __iomem *shmem);
 bool shmem_poll_done(struct scmi_shared_mem __iomem *shmem,
@@ -328,10 +328,10 @@ void msg_tx_prepare(struct scmi_msg_payld *msg, struct scmi_xfer *xfer);
 u32 msg_read_header(struct scmi_msg_payld *msg);
 void msg_fetch_response(struct scmi_msg_payld *msg, size_t len,
 			struct scmi_xfer *xfer);
-void msg_fetch_notification(struct scmi_msg_payld *msg, size_t len,
+void msg_fetch_analtification(struct scmi_msg_payld *msg, size_t len,
 			    size_t max_len, struct scmi_xfer *xfer);
 
-void scmi_notification_instance_data_set(const struct scmi_handle *handle,
+void scmi_analtification_instance_data_set(const struct scmi_handle *handle,
 					 void *priv);
-void *scmi_notification_instance_data_get(const struct scmi_handle *handle);
+void *scmi_analtification_instance_data_get(const struct scmi_handle *handle);
 #endif /* _SCMI_COMMON_H */

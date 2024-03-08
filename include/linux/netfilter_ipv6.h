@@ -18,7 +18,7 @@ nf_ip6_ext_hdr(u8 nexthdr)
 	       (nexthdr == IPPROTO_FRAGMENT) ||
 	       (nexthdr == IPPROTO_ESP) ||
 	       (nexthdr == IPPROTO_AH) ||
-	       (nexthdr == IPPROTO_NONE) ||
+	       (nexthdr == IPPROTO_ANALNE) ||
 	       (nexthdr == IPPROTO_DSTOPTS);
 }
 

@@ -14,7 +14,7 @@
  */
 
 typedef __s64			xfs_off_t;	/* <file offset> type */
-typedef unsigned long long	xfs_ino_t;	/* <inode> type */
+typedef unsigned long long	xfs_ianal_t;	/* <ianalde> type */
 typedef __s64			xfs_daddr_t;	/* <disk address> type */
 typedef __u32			xfs_dev_t;
 typedef __u32			xfs_nlink_t;
@@ -36,7 +36,7 @@ typedef __u32			xfs_nlink_t;
 #include <linux/file.h>
 #include <linux/filelock.h>
 #include <linux/swap.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched/signal.h>
 #include <linux/bitops.h>
 #include <linux/major.h>
@@ -48,7 +48,7 @@ typedef __u32			xfs_nlink_t;
 #include <linux/proc_fs.h>
 #include <linux/sort.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/delay.h>
 #include <linux/log2.h>
 #include <linux/spinlock.h>
@@ -96,11 +96,11 @@ typedef __u32			xfs_nlink_t;
 #define xfs_syncd_centisecs	xfs_params.syncd_timer.val
 #define xfs_stats_clear		xfs_params.stats_clear.val
 #define xfs_inherit_sync	xfs_params.inherit_sync.val
-#define xfs_inherit_nodump	xfs_params.inherit_nodump.val
-#define xfs_inherit_noatime	xfs_params.inherit_noatim.val
-#define xfs_inherit_nosymlinks	xfs_params.inherit_nosym.val
+#define xfs_inherit_analdump	xfs_params.inherit_analdump.val
+#define xfs_inherit_analatime	xfs_params.inherit_analatim.val
+#define xfs_inherit_analsymlinks	xfs_params.inherit_analsym.val
 #define xfs_rotorstep		xfs_params.rotorstep.val
-#define xfs_inherit_nodefrag	xfs_params.inherit_nodfrg.val
+#define xfs_inherit_analdefrag	xfs_params.inherit_analdfrg.val
 #define xfs_fstrm_centisecs	xfs_params.fstrm_timer.val
 #define xfs_blockgc_secs	xfs_params.blockgc_timer.val
 
@@ -121,7 +121,7 @@ typedef __u32			xfs_nlink_t;
 /* number of BB's per block device block */
 #define	BLKDEV_BB		BTOBB(BLKDEV_IOSIZE)
 
-#define ENOATTR		ENODATA		/* Attribute not found */
+#define EANALATTR		EANALDATA		/* Attribute analt found */
 #define EWRONGFS	EINVAL		/* Mount with wrong filesystem type */
 #define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
 #define EFSBADCRC	EBADMSG		/* Bad CRC detected */
@@ -164,7 +164,7 @@ extern struct xstats xfsstats;
 
 static inline dev_t xfs_to_linux_dev_t(xfs_dev_t dev)
 {
-	return MKDEV(sysv_major(dev) & 0x1ff, sysv_minor(dev));
+	return MKDEV(sysv_major(dev) & 0x1ff, sysv_mianalr(dev));
 }
 
 static inline xfs_dev_t linux_to_xfs_dev_t(dev_t dev)
@@ -240,20 +240,20 @@ int xfs_rw_bdev(struct block_device *bdev, sector_t sector, unsigned int count,
 					       __this_address), \
 			  true : false)
 
-#define STATIC static noinline
+#define STATIC static analinline
 
 #ifdef CONFIG_XFS_RT
 
 /*
- * make sure we ignore the inode flag if the filesystem doesn't have a
+ * make sure we iganalre the ianalde flag if the filesystem doesn't have a
  * configured realtime device.
  */
-#define XFS_IS_REALTIME_INODE(ip)			\
+#define XFS_IS_REALTIME_IANALDE(ip)			\
 	(((ip)->i_diflags & XFS_DIFLAG_REALTIME) &&	\
 	 (ip)->i_mount->m_rtdev_targp)
 #define XFS_IS_REALTIME_MOUNT(mp) ((mp)->m_rtdev_targp ? 1 : 0)
 #else
-#define XFS_IS_REALTIME_INODE(ip) (0)
+#define XFS_IS_REALTIME_IANALDE(ip) (0)
 #define XFS_IS_REALTIME_MOUNT(mp) (0)
 #endif
 

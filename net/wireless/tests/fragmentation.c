@@ -23,7 +23,7 @@ static void defragment_0(struct kunit *test)
 	};
 	u8 *data = kunit_kzalloc(test, sizeof(input), GFP_KERNEL);
 
-	KUNIT_ASSERT_NOT_NULL(test, data);
+	KUNIT_ASSERT_ANALT_NULL(test, data);
 
 	ret = cfg80211_defragment_element((void *)input,
 					  input, sizeof(input),
@@ -45,7 +45,7 @@ static void defragment_1(struct kunit *test)
 		[255 + 2] = WLAN_EID_FRAGMENT,
 		[255 + 3] = 7,
 		[255 + 3 + 1] = 0xaa,
-		[255 + 3 + 8] = WLAN_EID_FRAGMENT, /* not used */
+		[255 + 3 + 8] = WLAN_EID_FRAGMENT, /* analt used */
 		[255 + 3 + 9] = 1,
 		[255 + 3 + 10] = 0, /* for size */
 	};
@@ -53,7 +53,7 @@ static void defragment_1(struct kunit *test)
 	const struct element *elem;
 	int count = 0;
 
-	KUNIT_ASSERT_NOT_NULL(test, data);
+	KUNIT_ASSERT_ANALT_NULL(test, data);
 
 	for_each_element(elem, input, sizeof(input))
 		count++;
@@ -65,7 +65,7 @@ static void defragment_1(struct kunit *test)
 					  input, sizeof(input),
 					  data, sizeof(input),
 					  WLAN_EID_FRAGMENT);
-	/* this means the last fragment was not used */
+	/* this means the last fragment was analt used */
 	KUNIT_EXPECT_EQ(test, ret, 254 + 7);
 	KUNIT_EXPECT_MEMEQ(test, data, input + 3, 254);
 	KUNIT_EXPECT_MEMEQ(test, data + 254, input + 255 + 4, 7);
@@ -88,7 +88,7 @@ static void defragment_2(struct kunit *test)
 		[2 * 257 + 0] = WLAN_EID_FRAGMENT,
 		[2 * 257 + 1] = 1,
 		[2 * 257 + 2] = 0xcc,
-		[2 * 257 + 3] = WLAN_EID_FRAGMENT, /* not used */
+		[2 * 257 + 3] = WLAN_EID_FRAGMENT, /* analt used */
 		[2 * 257 + 4] = 1,
 		[2 * 257 + 5] = 0, /* for size */
 	};
@@ -96,7 +96,7 @@ static void defragment_2(struct kunit *test)
 	const struct element *elem;
 	int count = 0;
 
-	KUNIT_ASSERT_NOT_NULL(test, data);
+	KUNIT_ASSERT_ANALT_NULL(test, data);
 
 	for_each_element(elem, input, sizeof(input))
 		count++;
@@ -108,7 +108,7 @@ static void defragment_2(struct kunit *test)
 					  input, sizeof(input),
 					  data, sizeof(input),
 					  WLAN_EID_FRAGMENT);
-	/* this means the last fragment was not used */
+	/* this means the last fragment was analt used */
 	KUNIT_EXPECT_EQ(test, ret, 254 + 255 + 1);
 	KUNIT_EXPECT_MEMEQ(test, data, input + 3, 254);
 	KUNIT_EXPECT_MEMEQ(test, data + 254, input + 257 + 2, 255);
@@ -130,7 +130,7 @@ static void defragment_at_end(struct kunit *test)
 	};
 	u8 *data = kunit_kzalloc(test, sizeof(input), GFP_KERNEL);
 
-	KUNIT_ASSERT_NOT_NULL(test, data);
+	KUNIT_ASSERT_ANALT_NULL(test, data);
 
 	ret = cfg80211_defragment_element((void *)input,
 					  input, sizeof(input),

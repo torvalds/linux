@@ -79,7 +79,7 @@
 		};
 
 		qspi: spi@2400 {
-			compatible = "amd,pensando-elba-qspi", "cdns,qspi-nor";
+			compatible = "amd,pensando-elba-qspi", "cdns,qspi-analr";
 			reg = <0x0 0x2400 0x0 0x400>,
 			      <0x0 0x7fff0000 0x0 0x1000>;
 			#address-cells = <1>;

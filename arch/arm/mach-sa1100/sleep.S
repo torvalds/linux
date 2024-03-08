@@ -13,7 +13,7 @@
  * 2001-08-29:	Nicolas Pitre	Simplified.
  *
  * 2002-05-27:	Nicolas Pitre	Revisited, more cleanup and simplification.
- *				Storage is on the stack now.
+ *				Storage is on the stack analw.
  */
 
 #include <linux/linkage.h>
@@ -133,7 +133,7 @@ sa1110_sdram_controller_fix:
 	@ Step 5 clear DRAM refresh control register
 	str	r11, [r6]
 
-	@ Wow, now the hardware suspend request pins can be used, that makes them functional for
+	@ Wow, analw the hardware suspend request pins can be used, that makes them functional for
 	@ about 7 ns out of the	entire time that the CPU is running!
 
 	@ Step 6 set force sleep bit in PMCR

@@ -20,7 +20,7 @@ struct hci_cmd_sync_work_entry {
 };
 
 struct adv_info;
-/* Function with sync suffix shall not be called with hdev->lock held as they
+/* Function with sync suffix shall analt be called with hdev->lock held as they
  * wait the command to complete and in the meantime an event could be received
  * which could attempt to acquire hdev->lock causing a deadlock.
  */

@@ -92,7 +92,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 			/* Allocate a full structure to avoid potentially running off the end. */
 			pwep = kzalloc(sizeof(*pwep), GFP_KERNEL);
 			if (!pwep) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto exit;
 			}
 
@@ -115,13 +115,13 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 		if (param->u.crypt.set_tx) {
 			if (rtw_set_802_11_add_wep(padapter, pwep) == (u8)_FAIL)
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 		} else {
 			/* don't update "psecuritypriv->dot11PrivacyAlgrthm" and */
 			/* psecuritypriv->dot11PrivacyKeyIndex =keyid", but can rtw_set_key to fw/cam */
 
 			if (wep_key_idx >= WEP_KEYS) {
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 				goto exit;
 			}
 
@@ -143,7 +143,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 				/* DEBUG_ERR(("Set wpa_set_encryption: Obtain Sta_info fail\n")); */
 			} else {
 				/* Jeff: don't disable ieee8021x_blocked while clearing key */
-				if (strcmp(param->u.crypt.alg, "none") != 0)
+				if (strcmp(param->u.crypt.alg, "analne") != 0)
 					psta->ieee8021x_blocked = false;
 
 				if ((padapter->securitypriv.ndisencryptstatus == Ndis802_11Encryption2Enabled) ||
@@ -182,8 +182,8 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 						/* save the IGTK key, length 16 bytes */
 						memcpy(padapter->securitypriv.dot11wBIPKey[param->u.crypt.idx].skey, param->u.crypt.key, (param->u.crypt.key_len > 16 ? 16 : param->u.crypt.key_len));
 						/*printk("IGTK key below:\n");
-						for (no = 0;no<16;no++)
-							printk(" %02x ", padapter->securitypriv.dot11wBIPKey[param->u.crypt.idx].skey[no]);
+						for (anal = 0;anal<16;anal++)
+							printk(" %02x ", padapter->securitypriv.dot11wBIPKey[param->u.crypt.idx].skey[anal]);
 						printk("\n");*/
 						padapter->securitypriv.dot11wBIPKeyid = param->u.crypt.idx;
 						padapter->securitypriv.binstallBIPkey = true;
@@ -196,7 +196,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 				/* DEBUG_ERR(("Set OID_802_11_ADD_KEY: bcmc stainfo is null\n")); */
 			} else {
 				/* Jeff: don't disable ieee8021x_blocked while clearing key */
-				if (strcmp(param->u.crypt.alg, "none") != 0)
+				if (strcmp(param->u.crypt.alg, "analne") != 0)
 					pbcmc_sta->ieee8021x_blocked = false;
 
 				if ((padapter->securitypriv.ndisencryptstatus == Ndis802_11Encryption2Enabled) ||
@@ -233,7 +233,7 @@ static int rtw_set_wpa_ie(struct adapter *padapter, char *pie, unsigned short ie
 	if (ielen) {
 		buf = rtw_zmalloc(ielen);
 		if (!buf) {
-			ret =  -ENOMEM;
+			ret =  -EANALMEM;
 			goto exit;
 		}
 
@@ -257,13 +257,13 @@ static int rtw_set_wpa_ie(struct adapter *padapter, char *pie, unsigned short ie
 		}
 
 		if (group_cipher == 0)
-			group_cipher = WPA_CIPHER_NONE;
+			group_cipher = WPA_CIPHER_ANALNE;
 		if (pairwise_cipher == 0)
-			pairwise_cipher = WPA_CIPHER_NONE;
+			pairwise_cipher = WPA_CIPHER_ANALNE;
 
 		switch (group_cipher) {
-		case WPA_CIPHER_NONE:
-			padapter->securitypriv.dot118021XGrpPrivacy = _NO_PRIVACY_;
+		case WPA_CIPHER_ANALNE:
+			padapter->securitypriv.dot118021XGrpPrivacy = _ANAL_PRIVACY_;
 			padapter->securitypriv.ndisencryptstatus = Ndis802_11EncryptionDisabled;
 			break;
 		case WPA_CIPHER_WEP40:
@@ -285,8 +285,8 @@ static int rtw_set_wpa_ie(struct adapter *padapter, char *pie, unsigned short ie
 		}
 
 		switch (pairwise_cipher) {
-		case WPA_CIPHER_NONE:
-			padapter->securitypriv.dot11PrivacyAlgrthm = _NO_PRIVACY_;
+		case WPA_CIPHER_ANALNE:
+			padapter->securitypriv.dot11PrivacyAlgrthm = _ANAL_PRIVACY_;
 			padapter->securitypriv.ndisencryptstatus = Ndis802_11EncryptionDisabled;
 			break;
 		case WPA_CIPHER_WEP40:
@@ -382,9 +382,9 @@ static int wpa_set_param(struct net_device *dev, u8 name, u32 value)
 		 *
 		 * wpa_supplicant calls set_wpa_enabled when the driver
 		 * is loaded and unloaded, regardless of if WPA is being
-		 * used.  No other calls are made which can be used to
-		 * determine if encryption will be used or not prior to
-		 * association being expected.  If encryption is not being
+		 * used.  Anal other calls are made which can be used to
+		 * determine if encryption will be used or analt prior to
+		 * association being expected.  If encryption is analt being
 		 * used, drop_unencrypted is set to false, else true -- we
 		 * can use this to determine if the CAP_PRIVACY_ON bit should
 		 * be set.
@@ -415,7 +415,7 @@ static int wpa_set_param(struct net_device *dev, u8 name, u32 value)
 		/*
 		spin_lock_irqsave(&ieee->wpax_suitlist_lock, flags);
 		ieee->wpax_type_set = 1;
-		ieee->wpax_type_notify = value;
+		ieee->wpax_type_analtify = value;
 		spin_unlock_irqrestore(&ieee->wpax_suitlist_lock, flags);
 		*/
 
@@ -423,7 +423,7 @@ static int wpa_set_param(struct net_device *dev, u8 name, u32 value)
 
 	default:
 
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 
 		break;
 	}
@@ -452,7 +452,7 @@ static int wpa_mlme(struct net_device *dev, u32 command, u32 reason)
 		break;
 
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -471,7 +471,7 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 
 	param = rtw_malloc(p->length);
 	if (!param)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(param, p->pointer, p->length)) {
 		kfree(param);
@@ -497,7 +497,7 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 		break;
 
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -548,13 +548,13 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 			goto exit;
 	}
 
-	if (strcmp(param->u.crypt.alg, "none") == 0 && !psta) {
+	if (strcmp(param->u.crypt.alg, "analne") == 0 && !psta) {
 		/* todo:clear default encryption keys */
 
 		psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
 		psecuritypriv->ndisencryptstatus = Ndis802_11EncryptionDisabled;
-		psecuritypriv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
-		psecuritypriv->dot118021XGrpPrivacy = _NO_PRIVACY_;
+		psecuritypriv->dot11PrivacyAlgrthm = _ANAL_PRIVACY_;
+		psecuritypriv->dot118021XGrpPrivacy = _ANAL_PRIVACY_;
 
 		goto exit;
 	}
@@ -642,7 +642,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 				memcpy(grpkey, param->u.crypt.key, (param->u.crypt.key_len > 16 ? 16 : param->u.crypt.key_len));
 			} else {
-				psecuritypriv->dot118021XGrpPrivacy = _NO_PRIVACY_;
+				psecuritypriv->dot118021XGrpPrivacy = _ANAL_PRIVACY_;
 			}
 
 			psecuritypriv->dot118021XGrpKeyid = param->u.crypt.idx;
@@ -685,7 +685,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 				} else if (strcmp(param->u.crypt.alg, "CCMP") == 0) {
 					psta->dot118021XPrivacy = _AES_;
 				} else {
-					psta->dot118021XPrivacy = _NO_PRIVACY_;
+					psta->dot118021XPrivacy = _ANAL_PRIVACY_;
 				}
 
 				rtw_ap_set_pairwise_key(padapter, psta);
@@ -716,7 +716,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 					memcpy(grpkey, param->u.crypt.key, (param->u.crypt.key_len > 16 ? 16 : param->u.crypt.key_len));
 				} else {
-					psecuritypriv->dot118021XGrpPrivacy = _NO_PRIVACY_;
+					psecuritypriv->dot118021XGrpPrivacy = _ANAL_PRIVACY_;
 				}
 
 				psecuritypriv->dot118021XGrpKeyid = param->u.crypt.idx;
@@ -758,7 +758,7 @@ static int rtw_set_beacon(struct net_device *dev, struct ieee_param *param, int 
 	if ((pstapriv->max_num_sta > NUM_STA) || (pstapriv->max_num_sta <= 0))
 		pstapriv->max_num_sta = NUM_STA;
 
-	if (rtw_check_beacon_data(padapter, pbuf,  (len - 12 - 2)) == _SUCCESS)/*  12 = param header, 2:no packed */
+	if (rtw_check_beacon_data(padapter, pbuf,  (len - 12 - 2)) == _SUCCESS)/*  12 = param header, 2:anal packed */
 		ret = 0;
 	else
 		ret = -EINVAL;
@@ -838,7 +838,7 @@ static int rtw_add_sta(struct net_device *dev, struct ieee_param *param)
 		update_sta_info_apmode(padapter, psta);
 
 	} else {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 
 	return ret;
@@ -907,19 +907,19 @@ static int rtw_ioctl_get_sta_data(struct net_device *dev, struct ieee_param *par
 		psta_data->flags = psta->flags;
 
 /*
-		nonerp_set : BIT(0)
-		no_short_slot_time_set : BIT(1)
-		no_short_preamble_set : BIT(2)
-		no_ht_gf_set : BIT(3)
-		no_ht_set : BIT(4)
+		analnerp_set : BIT(0)
+		anal_short_slot_time_set : BIT(1)
+		anal_short_preamble_set : BIT(2)
+		anal_ht_gf_set : BIT(3)
+		anal_ht_set : BIT(4)
 		ht_20mhz_set : BIT(5)
 */
 
-		psta_data->sta_set = ((psta->nonerp_set) |
-							 (psta->no_short_slot_time_set << 1) |
-							 (psta->no_short_preamble_set << 2) |
-							 (psta->no_ht_gf_set << 3) |
-							 (psta->no_ht_set << 4) |
+		psta_data->sta_set = ((psta->analnerp_set) |
+							 (psta->anal_short_slot_time_set << 1) |
+							 (psta->anal_short_preamble_set << 2) |
+							 (psta->anal_ht_gf_set << 3) |
+							 (psta->anal_ht_set << 4) |
 							 (psta->ht_20mhz_set << 5));
 
 		psta_data->tx_supp_rates_len =  psta->bssratelen;
@@ -990,7 +990,7 @@ static int rtw_set_wps_beacon(struct net_device *dev, struct ieee_param *param, 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) != true)
 		return -EINVAL;
 
-	ie_len = len - 12 - 2;/*  12 = param header, 2:no packed */
+	ie_len = len - 12 - 2;/*  12 = param header, 2:anal packed */
 
 	kfree(pmlmepriv->wps_beacon_ie);
 	pmlmepriv->wps_beacon_ie = NULL;
@@ -1021,7 +1021,7 @@ static int rtw_set_wps_probe_resp(struct net_device *dev, struct ieee_param *par
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) != true)
 		return -EINVAL;
 
-	ie_len = len - 12 - 2;/*  12 = param header, 2:no packed */
+	ie_len = len - 12 - 2;/*  12 = param header, 2:anal packed */
 
 	kfree(pmlmepriv->wps_probe_resp_ie);
 	pmlmepriv->wps_probe_resp_ie = NULL;
@@ -1048,7 +1048,7 @@ static int rtw_set_wps_assoc_resp(struct net_device *dev, struct ieee_param *par
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) != true)
 		return -EINVAL;
 
-	ie_len = len - 12 - 2;/*  12 = param header, 2:no packed */
+	ie_len = len - 12 - 2;/*  12 = param header, 2:anal packed */
 
 	kfree(pmlmepriv->wps_assoc_resp_ie);
 	pmlmepriv->wps_assoc_resp_ie = NULL;
@@ -1076,7 +1076,7 @@ static int rtw_set_hidden_ssid(struct net_device *dev, struct ieee_param *param,
 	u8 *ssid_ie;
 	char ssid[NDIS_802_11_LENGTH_SSID + 1];
 	signed int ssid_len;
-	u8 ignore_broadcast_ssid;
+	u8 iganalre_broadcast_ssid;
 
 	if (check_fwstate(mlmepriv, WIFI_AP_STATE) != true)
 		return -EPERM;
@@ -1084,9 +1084,9 @@ static int rtw_set_hidden_ssid(struct net_device *dev, struct ieee_param *param,
 	if (param->u.bcn_ie.reserved[0] != 0xea)
 		return -EINVAL;
 
-	mlmeinfo->hidden_ssid_mode = ignore_broadcast_ssid = param->u.bcn_ie.reserved[1];
+	mlmeinfo->hidden_ssid_mode = iganalre_broadcast_ssid = param->u.bcn_ie.reserved[1];
 
-	ie_len = len - 12 - 2;/*  12 = param header, 2:no packed */
+	ie_len = len - 12 - 2;/*  12 = param header, 2:anal packed */
 	ssid_ie = rtw_get_ie(param->u.bcn_ie.buf,  WLAN_EID_SSID, &ssid_len, ie_len);
 
 	if (ssid_ie && ssid_len > 0 && ssid_len <= NDIS_802_11_LENGTH_SSID) {
@@ -1161,7 +1161,7 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 	struct adapter *padapter = rtw_netdev_priv(dev);
 
 	/*
-	 * this function is expect to call in master mode, which allows no power saving
+	 * this function is expect to call in master mode, which allows anal power saving
 	 * so, we just check hw_init_completed
 	 */
 
@@ -1173,7 +1173,7 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 
 	param = rtw_malloc(p->length);
 	if (!param)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(param, p->pointer, p->length)) {
 		kfree(param);
@@ -1266,7 +1266,7 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 		break;
 
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1292,7 +1292,7 @@ int rtw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		ret = rtw_hostapd_ioctl(dev, &wrq->u.data);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 

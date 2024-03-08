@@ -254,7 +254,7 @@ enum evict_result {
 
 typedef enum evict_result (*le_predicate)(struct lru_entry *le, void *context);
 
-static struct lru_entry *lru_evict(struct lru *lru, le_predicate pred, void *context, bool no_sleep)
+static struct lru_entry *lru_evict(struct lru *lru, le_predicate pred, void *context, bool anal_sleep)
 {
 	unsigned long tested = 0;
 	struct list_head *h = lru->cursor;
@@ -295,7 +295,7 @@ static struct lru_entry *lru_evict(struct lru *lru, le_predicate pred, void *con
 
 		h = h->next;
 
-		if (!no_sleep)
+		if (!anal_sleep)
 			cond_resched();
 	}
 
@@ -325,7 +325,7 @@ enum data_mode {
 
 struct dm_buffer {
 	/* protected by the locks in dm_buffer_cache */
-	struct rb_node node;
+	struct rb_analde analde;
 
 	/* immutable, so don't need protecting */
 	sector_t block;
@@ -333,7 +333,7 @@ struct dm_buffer {
 	unsigned char data_mode;		/* DATA_MODE_* */
 
 	/*
-	 * These two fields are used in isolation, so do not need
+	 * These two fields are used in isolation, so do analt need
 	 * a surrounding lock.
 	 */
 	atomic_t hold_count;
@@ -371,15 +371,15 @@ struct dm_buffer {
  *  - maintains clean/dirty state along with lru
  *  - selecting buffers that match predicates
  *
- * It does *not* handle:
+ * It does *analt* handle:
  *  - allocation/freeing of buffers.
  *  - IO
  *  - Eviction or cache sizing.
  *
- * cache_get() and cache_put() are threadsafe, you do not need to
+ * cache_get() and cache_put() are threadsafe, you do analt need to
  * protect these calls with a surrounding mutex.  All the other
- * methods are not threadsafe; they do use locking primitives, but
- * only enough to ensure get/put are threadsafe.
+ * methods are analt threadsafe; they do use locking primitives, but
+ * only eanalugh to ensure get/put are threadsafe.
  */
 
 struct buffer_tree {
@@ -397,11 +397,11 @@ struct dm_buffer_cache {
 	 * on the locks.
 	 */
 	unsigned int num_locks;
-	bool no_sleep;
+	bool anal_sleep;
 	struct buffer_tree trees[];
 };
 
-static DEFINE_STATIC_KEY_FALSE(no_sleep_enabled);
+static DEFINE_STATIC_KEY_FALSE(anal_sleep_enabled);
 
 static inline unsigned int cache_index(sector_t block, unsigned int num_locks)
 {
@@ -410,7 +410,7 @@ static inline unsigned int cache_index(sector_t block, unsigned int num_locks)
 
 static inline void cache_read_lock(struct dm_buffer_cache *bc, sector_t block)
 {
-	if (static_branch_unlikely(&no_sleep_enabled) && bc->no_sleep)
+	if (static_branch_unlikely(&anal_sleep_enabled) && bc->anal_sleep)
 		read_lock_bh(&bc->trees[cache_index(block, bc->num_locks)].u.spinlock);
 	else
 		down_read(&bc->trees[cache_index(block, bc->num_locks)].u.lock);
@@ -418,7 +418,7 @@ static inline void cache_read_lock(struct dm_buffer_cache *bc, sector_t block)
 
 static inline void cache_read_unlock(struct dm_buffer_cache *bc, sector_t block)
 {
-	if (static_branch_unlikely(&no_sleep_enabled) && bc->no_sleep)
+	if (static_branch_unlikely(&anal_sleep_enabled) && bc->anal_sleep)
 		read_unlock_bh(&bc->trees[cache_index(block, bc->num_locks)].u.spinlock);
 	else
 		up_read(&bc->trees[cache_index(block, bc->num_locks)].u.lock);
@@ -426,7 +426,7 @@ static inline void cache_read_unlock(struct dm_buffer_cache *bc, sector_t block)
 
 static inline void cache_write_lock(struct dm_buffer_cache *bc, sector_t block)
 {
-	if (static_branch_unlikely(&no_sleep_enabled) && bc->no_sleep)
+	if (static_branch_unlikely(&anal_sleep_enabled) && bc->anal_sleep)
 		write_lock_bh(&bc->trees[cache_index(block, bc->num_locks)].u.spinlock);
 	else
 		down_write(&bc->trees[cache_index(block, bc->num_locks)].u.lock);
@@ -434,7 +434,7 @@ static inline void cache_write_lock(struct dm_buffer_cache *bc, sector_t block)
 
 static inline void cache_write_unlock(struct dm_buffer_cache *bc, sector_t block)
 {
-	if (static_branch_unlikely(&no_sleep_enabled) && bc->no_sleep)
+	if (static_branch_unlikely(&anal_sleep_enabled) && bc->anal_sleep)
 		write_unlock_bh(&bc->trees[cache_index(block, bc->num_locks)].u.spinlock);
 	else
 		up_write(&bc->trees[cache_index(block, bc->num_locks)].u.lock);
@@ -448,26 +448,26 @@ struct lock_history {
 	struct dm_buffer_cache *cache;
 	bool write;
 	unsigned int previous;
-	unsigned int no_previous;
+	unsigned int anal_previous;
 };
 
 static void lh_init(struct lock_history *lh, struct dm_buffer_cache *cache, bool write)
 {
 	lh->cache = cache;
 	lh->write = write;
-	lh->no_previous = cache->num_locks;
-	lh->previous = lh->no_previous;
+	lh->anal_previous = cache->num_locks;
+	lh->previous = lh->anal_previous;
 }
 
 static void __lh_lock(struct lock_history *lh, unsigned int index)
 {
 	if (lh->write) {
-		if (static_branch_unlikely(&no_sleep_enabled) && lh->cache->no_sleep)
+		if (static_branch_unlikely(&anal_sleep_enabled) && lh->cache->anal_sleep)
 			write_lock_bh(&lh->cache->trees[index].u.spinlock);
 		else
 			down_write(&lh->cache->trees[index].u.lock);
 	} else {
-		if (static_branch_unlikely(&no_sleep_enabled) && lh->cache->no_sleep)
+		if (static_branch_unlikely(&anal_sleep_enabled) && lh->cache->anal_sleep)
 			read_lock_bh(&lh->cache->trees[index].u.spinlock);
 		else
 			down_read(&lh->cache->trees[index].u.lock);
@@ -477,12 +477,12 @@ static void __lh_lock(struct lock_history *lh, unsigned int index)
 static void __lh_unlock(struct lock_history *lh, unsigned int index)
 {
 	if (lh->write) {
-		if (static_branch_unlikely(&no_sleep_enabled) && lh->cache->no_sleep)
+		if (static_branch_unlikely(&anal_sleep_enabled) && lh->cache->anal_sleep)
 			write_unlock_bh(&lh->cache->trees[index].u.spinlock);
 		else
 			up_write(&lh->cache->trees[index].u.lock);
 	} else {
-		if (static_branch_unlikely(&no_sleep_enabled) && lh->cache->no_sleep)
+		if (static_branch_unlikely(&anal_sleep_enabled) && lh->cache->anal_sleep)
 			read_unlock_bh(&lh->cache->trees[index].u.spinlock);
 		else
 			up_read(&lh->cache->trees[index].u.lock);
@@ -494,21 +494,21 @@ static void __lh_unlock(struct lock_history *lh, unsigned int index)
  */
 static void lh_exit(struct lock_history *lh)
 {
-	if (lh->previous != lh->no_previous) {
+	if (lh->previous != lh->anal_previous) {
 		__lh_unlock(lh, lh->previous);
-		lh->previous = lh->no_previous;
+		lh->previous = lh->anal_previous;
 	}
 }
 
 /*
- * Named 'next' because there is no corresponding
+ * Named 'next' because there is anal corresponding
  * 'up/unlock' call since it's done automatically.
  */
 static void lh_next(struct lock_history *lh, sector_t b)
 {
-	unsigned int index = cache_index(b, lh->no_previous); /* no_previous is num_locks */
+	unsigned int index = cache_index(b, lh->anal_previous); /* anal_previous is num_locks */
 
-	if (lh->previous != lh->no_previous) {
+	if (lh->previous != lh->anal_previous) {
 		if (lh->previous != index) {
 			__lh_unlock(lh, lh->previous);
 			__lh_lock(lh, index);
@@ -535,15 +535,15 @@ static struct dm_buffer *list_to_buffer(struct list_head *l)
 	return le_to_buffer(le);
 }
 
-static void cache_init(struct dm_buffer_cache *bc, unsigned int num_locks, bool no_sleep)
+static void cache_init(struct dm_buffer_cache *bc, unsigned int num_locks, bool anal_sleep)
 {
 	unsigned int i;
 
 	bc->num_locks = num_locks;
-	bc->no_sleep = no_sleep;
+	bc->anal_sleep = anal_sleep;
 
 	for (i = 0; i < bc->num_locks; i++) {
-		if (no_sleep)
+		if (anal_sleep)
 			rwlock_init(&bc->trees[i].u.spinlock);
 		else
 			init_rwsem(&bc->trees[i].u.lock);
@@ -568,7 +568,7 @@ static void cache_destroy(struct dm_buffer_cache *bc)
 /*--------------*/
 
 /*
- * not threadsafe, or racey depending how you look at it
+ * analt threadsafe, or racey depending how you look at it
  */
 static inline unsigned long cache_count(struct dm_buffer_cache *bc, int list_mode)
 {
@@ -591,11 +591,11 @@ static inline unsigned long cache_total(struct dm_buffer_cache *bc)
  */
 static struct dm_buffer *__cache_get(const struct rb_root *root, sector_t block)
 {
-	struct rb_node *n = root->rb_node;
+	struct rb_analde *n = root->rb_analde;
 	struct dm_buffer *b;
 
 	while (n) {
-		b = container_of(n, struct dm_buffer, node);
+		b = container_of(n, struct dm_buffer, analde);
 
 		if (b->block == block)
 			return b;
@@ -685,13 +685,13 @@ static struct dm_buffer *__cache_evict(struct dm_buffer_cache *bc, int list_mode
 	struct lru_entry *le;
 	struct dm_buffer *b;
 
-	le = lru_evict(&bc->lru[list_mode], __evict_pred, &w, bc->no_sleep);
+	le = lru_evict(&bc->lru[list_mode], __evict_pred, &w, bc->anal_sleep);
 	if (!le)
 		return NULL;
 
 	b = le_to_buffer(le);
 	/* __evict_pred will have locked the appropriate tree. */
-	rb_erase(&b->node, &bc->trees[cache_index(b->block, bc->num_locks)].root);
+	rb_erase(&b->analde, &bc->trees[cache_index(b->block, bc->num_locks)].root);
 
 	return b;
 }
@@ -712,7 +712,7 @@ static struct dm_buffer *cache_evict(struct dm_buffer_cache *bc, int list_mode,
 /*--------------*/
 
 /*
- * Mark a buffer as clean or dirty. Not threadsafe.
+ * Mark a buffer as clean or dirty. Analt threadsafe.
  */
 static void cache_mark(struct dm_buffer_cache *bc, struct dm_buffer *b, int list_mode)
 {
@@ -729,7 +729,7 @@ static void cache_mark(struct dm_buffer_cache *bc, struct dm_buffer *b, int list
 
 /*
  * Runs through the lru associated with 'old_mode', if the predicate matches then
- * it moves them to 'new_mode'.  Not threadsafe.
+ * it moves them to 'new_mode'.  Analt threadsafe.
  */
 static void __cache_mark_many(struct dm_buffer_cache *bc, int old_mode, int new_mode,
 			      b_predicate pred, void *context, struct lock_history *lh)
@@ -739,7 +739,7 @@ static void __cache_mark_many(struct dm_buffer_cache *bc, int old_mode, int new_
 	struct evict_wrapper w = {.lh = lh, .pred = pred, .context = context};
 
 	while (true) {
-		le = lru_evict(&bc->lru[old_mode], __evict_pred, &w, bc->no_sleep);
+		le = lru_evict(&bc->lru[old_mode], __evict_pred, &w, bc->anal_sleep);
 		if (!le)
 			break;
 
@@ -763,7 +763,7 @@ static void cache_mark_many(struct dm_buffer_cache *bc, int old_mode, int new_mo
 
 /*
  * Iterates through all clean or dirty entries calling a function for each
- * entry.  The callback may terminate the iteration early.  Not threadsafe.
+ * entry.  The callback may terminate the iteration early.  Analt threadsafe.
  */
 
 /*
@@ -819,31 +819,31 @@ static void cache_iterate(struct dm_buffer_cache *bc, int list_mode,
 
 /*
  * Passes ownership of the buffer to the cache. Returns false if the
- * buffer was already present (in which case ownership does not pass).
- * eg, a race with another thread.
+ * buffer was already present (in which case ownership does analt pass).
+ * eg, a race with aanalther thread.
  *
  * Holder count should be 1 on insertion.
  *
- * Not threadsafe.
+ * Analt threadsafe.
  */
 static bool __cache_insert(struct rb_root *root, struct dm_buffer *b)
 {
-	struct rb_node **new = &root->rb_node, *parent = NULL;
+	struct rb_analde **new = &root->rb_analde, *parent = NULL;
 	struct dm_buffer *found;
 
 	while (*new) {
-		found = container_of(*new, struct dm_buffer, node);
+		found = container_of(*new, struct dm_buffer, analde);
 
 		if (found->block == b->block)
 			return false;
 
 		parent = *new;
 		new = b->block < found->block ?
-			&found->node.rb_left : &found->node.rb_right;
+			&found->analde.rb_left : &found->analde.rb_right;
 	}
 
-	rb_link_node(&b->node, parent, new);
-	rb_insert_color(&b->node, root);
+	rb_link_analde(&b->analde, parent, new);
+	rb_insert_color(&b->analde, root);
 
 	return true;
 }
@@ -869,9 +869,9 @@ static bool cache_insert(struct dm_buffer_cache *bc, struct dm_buffer *b)
 
 /*
  * Removes buffer from cache, ownership of the buffer passes back to the caller.
- * Fails if the hold_count is not one (ie. the caller holds the only reference).
+ * Fails if the hold_count is analt one (ie. the caller holds the only reference).
  *
- * Not threadsafe.
+ * Analt threadsafe.
  */
 static bool cache_remove(struct dm_buffer_cache *bc, struct dm_buffer *b)
 {
@@ -883,7 +883,7 @@ static bool cache_remove(struct dm_buffer_cache *bc, struct dm_buffer *b)
 		r = false;
 	} else {
 		r = true;
-		rb_erase(&b->node, &bc->trees[cache_index(b->block, bc->num_locks)].root);
+		rb_erase(&b->analde, &bc->trees[cache_index(b->block, bc->num_locks)].root);
 		lru_remove(&bc->lru[b->list_mode], &b->lru);
 	}
 
@@ -898,12 +898,12 @@ typedef void (*b_release)(struct dm_buffer *);
 
 static struct dm_buffer *__find_next(struct rb_root *root, sector_t block)
 {
-	struct rb_node *n = root->rb_node;
+	struct rb_analde *n = root->rb_analde;
 	struct dm_buffer *b;
 	struct dm_buffer *best = NULL;
 
 	while (n) {
-		b = container_of(n, struct dm_buffer, node);
+		b = container_of(n, struct dm_buffer, analde);
 
 		if (b->block == block)
 			return b;
@@ -939,7 +939,7 @@ static void __remove_range(struct dm_buffer_cache *bc,
 			continue;
 
 		if (pred(b, NULL) == ER_EVICT) {
-			rb_erase(&b->node, root);
+			rb_erase(&b->analde, root);
 			lru_remove(&bc->lru[b->list_mode], &b->lru);
 			release(b);
 		}
@@ -952,7 +952,7 @@ static void cache_remove_range(struct dm_buffer_cache *bc,
 {
 	unsigned int i;
 
-	BUG_ON(bc->no_sleep);
+	BUG_ON(bc->anal_sleep);
 	for (i = 0; i < bc->num_locks; i++) {
 		down_write(&bc->trees[i].u.lock);
 		__remove_range(bc, &bc->trees[i].root, begin, end, pred, release);
@@ -964,16 +964,16 @@ static void cache_remove_range(struct dm_buffer_cache *bc,
 
 /*
  * Linking of buffers:
- *	All buffers are linked to buffer_cache with their node field.
+ *	All buffers are linked to buffer_cache with their analde field.
  *
- *	Clean buffers that are not being written (B_WRITING not set)
+ *	Clean buffers that are analt being written (B_WRITING analt set)
  *	are linked to lru[LIST_CLEAN] with their lru_list field.
  *
  *	Dirty and clean buffers that are being written are linked to
  *	lru[LIST_DIRTY] with their lru_list field. When the write
- *	finishes, the buffer cannot be relinked immediately (because we
+ *	finishes, the buffer cananalt be relinked immediately (because we
  *	are in an interrupt context and relinking requires process
- *	context), so some clean-not-writing buffers can be held on
+ *	context), so some clean-analt-writing buffers can be held on
  *	dirty_lru too.  They are later added to lru in the process
  *	context.
  */
@@ -982,7 +982,7 @@ struct dm_bufio_client {
 	unsigned int block_size;
 	s8 sectors_per_block_bits;
 
-	bool no_sleep;
+	bool anal_sleep;
 	struct mutex lock;
 	spinlock_t spinlock;
 
@@ -1023,7 +1023,7 @@ struct dm_bufio_client {
 
 static void dm_bufio_lock(struct dm_bufio_client *c)
 {
-	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
+	if (static_branch_unlikely(&anal_sleep_enabled) && c->anal_sleep)
 		spin_lock_bh(&c->spinlock);
 	else
 		mutex_lock_nested(&c->lock, dm_bufio_in_request());
@@ -1031,7 +1031,7 @@ static void dm_bufio_lock(struct dm_bufio_client *c)
 
 static void dm_bufio_unlock(struct dm_bufio_client *c)
 {
-	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
+	if (static_branch_unlikely(&anal_sleep_enabled) && c->anal_sleep)
 		spin_unlock_bh(&c->spinlock);
 	else
 		mutex_unlock(&c->lock);
@@ -1165,7 +1165,7 @@ static void __cache_size_refresh(void)
  *
  * __get_free_pages can randomly fail if the memory is fragmented.
  * __vmalloc won't randomly fail, but vmalloc space is limited (it may be
- * as low as 128M) so using it for caching is not appropriate.
+ * as low as 128M) so using it for caching is analt appropriate.
  *
  * If the allocation may fail we use __get_free_pages. Memory fragmentation
  * won't have a fatal effect here, but it just causes flushes of some other
@@ -1173,7 +1173,7 @@ static void __cache_size_refresh(void)
  * always fails (i.e. order > MAX_PAGE_ORDER).
  *
  * If the allocation shouldn't fail we use __vmalloc. This is only for the
- * initial reserve allocation, so there's no risk of wasting all vmalloc
+ * initial reserve allocation, so there's anal risk of wasting all vmalloc
  * space.
  */
 static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
@@ -1185,7 +1185,7 @@ static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
 	}
 
 	if (c->block_size <= KMALLOC_MAX_SIZE &&
-	    gfp_mask & __GFP_NORETRY) {
+	    gfp_mask & __GFP_ANALRETRY) {
 		*data_mode = DATA_MODE_GET_FREE_PAGES;
 		return (void *)__get_free_pages(gfp_mask,
 						c->sectors_per_block_bits - (PAGE_SHIFT - SECTOR_SHIFT));
@@ -1266,12 +1266,12 @@ static void free_buffer(struct dm_buffer *b)
  *
  * Bio interface is faster but it has some problems:
  *	the vector list is limited (increasing this limit increases
- *	memory-consumption per buffer, so it is not viable);
+ *	memory-consumption per buffer, so it is analt viable);
  *
- *	the memory must be direct-mapped, not vmalloced;
+ *	the memory must be direct-mapped, analt vmalloced;
  *
- * If the buffer is small enough (up to DM_BUFIO_INLINE_VECS pages) and
- * it is not vmalloced, try using the bio interface.
+ * If the buffer is small eanalugh (up to DM_BUFIO_INLINE_VECS pages) and
+ * it is analt vmalloced, try using the bio interface.
  *
  * If the buffer is big, if it is vmalloced or if the underlying device
  * rejects the bio because it is too large, use dm-io layer to do the I/O.
@@ -1297,8 +1297,8 @@ static void use_dmio(struct dm_buffer *b, enum req_op op, sector_t sector,
 	int r;
 	struct dm_io_request io_req = {
 		.bi_opf = op,
-		.notify.fn = dmio_complete,
-		.notify.context = b,
+		.analtify.fn = dmio_complete,
+		.analtify.context = b,
 		.client = b->c->dm_io,
 	};
 	struct dm_io_region region = {
@@ -1317,7 +1317,7 @@ static void use_dmio(struct dm_buffer *b, enum req_op op, sector_t sector,
 
 	r = dm_io(&io_req, 1, &region, NULL);
 	if (unlikely(r))
-		b->end_io(b, errno_to_blk_status(r));
+		b->end_io(b, erranal_to_blk_status(r));
 }
 
 static void bio_complete(struct bio *bio)
@@ -1337,7 +1337,7 @@ static void use_bio(struct dm_buffer *b, enum req_op op, sector_t sector,
 	char *ptr;
 	unsigned int len;
 
-	bio = bio_kmalloc(1, GFP_NOWAIT | __GFP_NORETRY | __GFP_NOWARN);
+	bio = bio_kmalloc(1, GFP_ANALWAIT | __GFP_ANALRETRY | __GFP_ANALWARN);
 	if (!bio) {
 		use_dmio(b, op, sector, n_sectors, offset);
 		return;
@@ -1422,7 +1422,7 @@ static void write_endio(struct dm_buffer *b, blk_status_t status)
 		struct dm_bufio_client *c = b->c;
 
 		(void)cmpxchg(&c->async_write_error, 0,
-				blk_status_to_errno(status));
+				blk_status_to_erranal(status));
 	}
 
 	BUG_ON(!test_bit(B_WRITING, &b->state));
@@ -1437,7 +1437,7 @@ static void write_endio(struct dm_buffer *b, blk_status_t status)
 /*
  * Initiate a write on a dirty buffer, but don't wait for it.
  *
- * - If the buffer is not dirty, exit.
+ * - If the buffer is analt dirty, exit.
  * - If there some previous write going on, wait for it to finish (we can't
  *   have two writes on the same buffer simultaneously).
  * - Submit our write and don't wait on it. We set B_WRITING indicating
@@ -1478,8 +1478,8 @@ static void __flush_write_list(struct list_head *write_list)
 
 /*
  * Wait until any activity on the buffer finishes.  Possibly write the
- * buffer if it is dirty.  When this function finishes, there is no I/O
- * running on the buffer and the buffer is not dirty.
+ * buffer if it is dirty.  When this function finishes, there is anal I/O
+ * running on the buffer and the buffer is analt dirty.
  */
 static void __make_buffer_clean(struct dm_buffer *b)
 {
@@ -1506,7 +1506,7 @@ static enum evict_result is_clean(struct dm_buffer *b, void *context)
 	if (WARN_ON_ONCE(b->list_mode != LIST_CLEAN))
 		return ER_DONT_EVICT;
 
-	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep &&
+	if (static_branch_unlikely(&anal_sleep_enabled) && c->anal_sleep &&
 	    unlikely(test_bit(B_READING, &b->state)))
 		return ER_DONT_EVICT;
 
@@ -1525,7 +1525,7 @@ static enum evict_result is_dirty(struct dm_buffer *b, void *context)
 }
 
 /*
- * Find some buffer that is not held by anybody, clean it, unlink it and
+ * Find some buffer that is analt held by anybody, clean it, unlink it and
  * return it.
  */
 static struct dm_buffer *__get_unclaimed_buffer(struct dm_bufio_client *c)
@@ -1539,7 +1539,7 @@ static struct dm_buffer *__get_unclaimed_buffer(struct dm_bufio_client *c)
 		return b;
 	}
 
-	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
+	if (static_branch_unlikely(&anal_sleep_enabled) && c->anal_sleep)
 		return NULL;
 
 	b = cache_evict(&c->cache, LIST_DIRTY, is_dirty, NULL);
@@ -1586,32 +1586,32 @@ enum new_flag {
 };
 
 /*
- * Allocate a new buffer. If the allocation is not possible, wait until
+ * Allocate a new buffer. If the allocation is analt possible, wait until
  * some other thread frees a buffer.
  *
  * May drop the lock and regain it.
  */
-static struct dm_buffer *__alloc_buffer_wait_no_callback(struct dm_bufio_client *c, enum new_flag nf)
+static struct dm_buffer *__alloc_buffer_wait_anal_callback(struct dm_bufio_client *c, enum new_flag nf)
 {
 	struct dm_buffer *b;
-	bool tried_noio_alloc = false;
+	bool tried_analio_alloc = false;
 
 	/*
 	 * dm-bufio is resistant to allocation failures (it just keeps
 	 * one buffer reserved in cases all the allocations fail).
-	 * So set flags to not try too hard:
-	 *	GFP_NOWAIT: don't wait; if we need to sleep we'll release our
+	 * So set flags to analt try too hard:
+	 *	GFP_ANALWAIT: don't wait; if we need to sleep we'll release our
 	 *		    mutex and wait ourselves.
-	 *	__GFP_NORETRY: don't retry and rather return failure
-	 *	__GFP_NOMEMALLOC: don't use emergency reserves
-	 *	__GFP_NOWARN: don't print a warning in case of failure
+	 *	__GFP_ANALRETRY: don't retry and rather return failure
+	 *	__GFP_ANALMEMALLOC: don't use emergency reserves
+	 *	__GFP_ANALWARN: don't print a warning in case of failure
 	 *
-	 * For debugging, if we set the cache size to 1, no new buffers will
+	 * For debugging, if we set the cache size to 1, anal new buffers will
 	 * be allocated.
 	 */
 	while (1) {
 		if (dm_bufio_cache_size_latch != 1) {
-			b = alloc_buffer(c, GFP_NOWAIT | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
+			b = alloc_buffer(c, GFP_ANALWAIT | __GFP_ANALRETRY | __GFP_ANALMEMALLOC | __GFP_ANALWARN);
 			if (b)
 				return b;
 		}
@@ -1619,13 +1619,13 @@ static struct dm_buffer *__alloc_buffer_wait_no_callback(struct dm_bufio_client 
 		if (nf == NF_PREFETCH)
 			return NULL;
 
-		if (dm_bufio_cache_size_latch != 1 && !tried_noio_alloc) {
+		if (dm_bufio_cache_size_latch != 1 && !tried_analio_alloc) {
 			dm_bufio_unlock(c);
-			b = alloc_buffer(c, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
+			b = alloc_buffer(c, GFP_ANALIO | __GFP_ANALRETRY | __GFP_ANALMEMALLOC | __GFP_ANALWARN);
 			dm_bufio_lock(c);
 			if (b)
 				return b;
-			tried_noio_alloc = true;
+			tried_analio_alloc = true;
 		}
 
 		if (!list_empty(&c->reserved_buffers)) {
@@ -1646,7 +1646,7 @@ static struct dm_buffer *__alloc_buffer_wait_no_callback(struct dm_bufio_client 
 
 static struct dm_buffer *__alloc_buffer_wait(struct dm_bufio_client *c, enum new_flag nf)
 {
-	struct dm_buffer *b = __alloc_buffer_wait_no_callback(c, nf);
+	struct dm_buffer *b = __alloc_buffer_wait_anal_callback(c, nf);
 
 	if (!b)
 		return NULL;
@@ -1673,7 +1673,7 @@ static void __free_buffer_wake(struct dm_buffer *b)
 	}
 
 	/*
-	 * We hold the bufio lock here, so no one can add entries to the
+	 * We hold the bufio lock here, so anal one can add entries to the
 	 * wait queue anyway.
 	 */
 	if (unlikely(waitqueue_active(&c->free_buffer_wait)))
@@ -1697,7 +1697,7 @@ static void __move_clean_buffers(struct dm_bufio_client *c)
 }
 
 struct write_context {
-	int no_wait;
+	int anal_wait;
 	struct list_head *write_list;
 };
 
@@ -1705,17 +1705,17 @@ static enum it_action write_one(struct dm_buffer *b, void *context)
 {
 	struct write_context *wc = context;
 
-	if (wc->no_wait && test_bit(B_WRITING, &b->state))
+	if (wc->anal_wait && test_bit(B_WRITING, &b->state))
 		return IT_COMPLETE;
 
 	__write_dirty_buffer(b, wc->write_list);
 	return IT_NEXT;
 }
 
-static void __write_dirty_buffers_async(struct dm_bufio_client *c, int no_wait,
+static void __write_dirty_buffers_async(struct dm_bufio_client *c, int anal_wait,
 					struct list_head *write_list)
 {
-	struct write_context wc = {.no_wait = no_wait, .write_list = write_list};
+	struct write_context wc = {.anal_wait = anal_wait, .write_list = write_list};
 
 	__move_clean_buffers(c);
 	cache_iterate(&c->cache, LIST_DIRTY, write_one, &wc);
@@ -1800,7 +1800,7 @@ static struct dm_buffer *__bufio_new(struct dm_bufio_client *c, sector_t block,
 
 	/*
 	 * We mustn't insert into the cache until the B_READING state
-	 * is set.  Otherwise another thread could get it and use
+	 * is set.  Otherwise aanalther thread could get it and use
 	 * it before it had been read.
 	 */
 	cache_insert(&c->cache, b);
@@ -1814,7 +1814,7 @@ found_buffer:
 	}
 
 	/*
-	 * Note: it is essential that we don't wait for the buffer to be
+	 * Analte: it is essential that we don't wait for the buffer to be
 	 * read if dm_bufio_get function is used. Both dm_bufio_get and
 	 * dm_bufio_prefetch can be used in the driver request routine.
 	 * If the user called both dm_bufio_prefetch and dm_bufio_get on
@@ -1862,7 +1862,7 @@ static void *new_read(struct dm_bufio_client *c, sector_t block,
 	*bp = NULL;
 
 	/*
-	 * Fast path, hopefully the block is already in the cache.  No need
+	 * Fast path, hopefully the block is already in the cache.  Anal need
 	 * to get the client lock for this.
 	 */
 	b = cache_get(&c->cache, block);
@@ -1873,7 +1873,7 @@ static void *new_read(struct dm_bufio_client *c, sector_t block,
 		}
 
 		/*
-		 * Note: it is essential that we don't wait for the buffer to be
+		 * Analte: it is essential that we don't wait for the buffer to be
 		 * read if dm_bufio_get function is used. Both dm_bufio_get and
 		 * dm_bufio_prefetch can be used in the driver request routine.
 		 * If the user called both dm_bufio_prefetch and dm_bufio_get on
@@ -1911,7 +1911,7 @@ static void *new_read(struct dm_bufio_client *c, sector_t block,
 		wait_on_bit_io(&b->state, B_READING, TASK_UNINTERRUPTIBLE);
 
 	if (b->read_error) {
-		int error = blk_status_to_errno(b->read_error);
+		int error = blk_status_to_erranal(b->read_error);
 
 		dm_bufio_release(b);
 
@@ -2009,8 +2009,8 @@ void dm_bufio_release(struct dm_buffer *b)
 	struct dm_bufio_client *c = b->c;
 
 	/*
-	 * If there were errors on the buffer, and the buffer is not
-	 * to be written, free the buffer. There is no point in caching
+	 * If there were errors on the buffer, and the buffer is analt
+	 * to be written, free the buffer. There is anal point in caching
 	 * invalid buffer.
 	 */
 	if ((b->read_error || b->write_error) &&
@@ -2081,7 +2081,7 @@ void dm_bufio_write_dirty_buffers_async(struct dm_bufio_client *c)
 EXPORT_SYMBOL_GPL(dm_bufio_write_dirty_buffers_async);
 
 /*
- * For performance, it is essential that the buffers are written asynchronously
+ * For performance, it is essential that the buffers are written asynchroanalusly
  * and simultaneously (so that the block layer can merge the writes) and then
  * waited upon.
  *
@@ -2218,7 +2218,7 @@ static bool forget_buffer(struct dm_bufio_client *c, sector_t block)
  * Free the given buffer.
  *
  * This is just a hint, if the buffer is in use or dirty, this function
- * does nothing.
+ * does analthing.
  */
 void dm_bufio_forget(struct dm_bufio_client *c, sector_t block)
 {
@@ -2324,7 +2324,7 @@ static void drop_buffers(struct dm_bufio_client *c)
 		return; /* should never happen */
 
 	/*
-	 * An optimization so that the buffers are not written one-by-one.
+	 * An optimization so that the buffers are analt written one-by-one.
 	 */
 	dm_bufio_write_dirty_buffers_async(c);
 
@@ -2447,7 +2447,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	char slab_name[27];
 
 	if (!block_size || block_size & ((1 << SECTOR_SHIFT) - 1)) {
-		DMERR("%s: block size not specified or is not multiple of 512b", __func__);
+		DMERR("%s: block size analt specified or is analt multiple of 512b", __func__);
 		r = -EINVAL;
 		goto bad_client;
 	}
@@ -2455,10 +2455,10 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	num_locks = dm_num_hash_locks();
 	c = kzalloc(sizeof(*c) + (num_locks * sizeof(struct buffer_tree)), GFP_KERNEL);
 	if (!c) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto bad_client;
 	}
-	cache_init(&c->cache, num_locks, (flags & DM_BUFIO_CLIENT_NO_SLEEP) != 0);
+	cache_init(&c->cache, num_locks, (flags & DM_BUFIO_CLIENT_ANAL_SLEEP) != 0);
 
 	c->bdev = bdev;
 	c->block_size = block_size;
@@ -2470,9 +2470,9 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	c->alloc_callback = alloc_callback;
 	c->write_callback = write_callback;
 
-	if (flags & DM_BUFIO_CLIENT_NO_SLEEP) {
-		c->no_sleep = true;
-		static_branch_inc(&no_sleep_enabled);
+	if (flags & DM_BUFIO_CLIENT_ANAL_SLEEP) {
+		c->anal_sleep = true;
+		static_branch_inc(&anal_sleep_enabled);
 	}
 
 	mutex_init(&c->lock);
@@ -2499,7 +2499,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 		c->slab_cache = kmem_cache_create(slab_name, block_size, align,
 						  SLAB_RECLAIM_ACCOUNT, NULL);
 		if (!c->slab_cache) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto bad;
 		}
 	}
@@ -2510,7 +2510,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	c->slab_buffer = kmem_cache_create(slab_name, sizeof(struct dm_buffer) + aux_size,
 					   0, SLAB_RECLAIM_ACCOUNT, NULL);
 	if (!c->slab_buffer) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto bad;
 	}
 
@@ -2518,7 +2518,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 		struct dm_buffer *b = alloc_buffer(c, GFP_KERNEL);
 
 		if (!b) {
-			r = -ENOMEM;
+			r = -EANALMEM;
 			goto bad;
 		}
 		__free_buffer_wake(b);
@@ -2528,9 +2528,9 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	atomic_long_set(&c->need_shrink, 0);
 
 	c->shrinker = shrinker_alloc(0, "dm-bufio:(%u:%u)",
-				     MAJOR(bdev->bd_dev), MINOR(bdev->bd_dev));
+				     MAJOR(bdev->bd_dev), MIANALR(bdev->bd_dev));
 	if (!c->shrinker) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto bad;
 	}
 
@@ -2562,8 +2562,8 @@ bad:
 	dm_io_client_destroy(c->dm_io);
 bad_dm_io:
 	mutex_destroy(&c->lock);
-	if (c->no_sleep)
-		static_branch_dec(&no_sleep_enabled);
+	if (c->anal_sleep)
+		static_branch_dec(&anal_sleep_enabled);
 	kfree(c);
 bad_client:
 	return ERR_PTR(r);
@@ -2572,7 +2572,7 @@ EXPORT_SYMBOL_GPL(dm_bufio_client_create);
 
 /*
  * Free the buffering interface.
- * It is required that there are no references on any buffers.
+ * It is required that there are anal references on any buffers.
  */
 void dm_bufio_client_destroy(struct dm_bufio_client *c)
 {
@@ -2612,8 +2612,8 @@ void dm_bufio_client_destroy(struct dm_bufio_client *c)
 	kmem_cache_destroy(c->slab_buffer);
 	dm_io_client_destroy(c->dm_io);
 	mutex_destroy(&c->lock);
-	if (c->no_sleep)
-		static_branch_dec(&no_sleep_enabled);
+	if (c->anal_sleep)
+		static_branch_dec(&anal_sleep_enabled);
 	kfree(c);
 }
 EXPORT_SYMBOL_GPL(dm_bufio_client_destroy);
@@ -2654,17 +2654,17 @@ struct evict_params {
 
 	/*
 	 * This gets updated with the largest last_accessed (ie. most
-	 * recently used) of the evicted buffers.  It will not be reinitialised
+	 * recently used) of the evicted buffers.  It will analt be reinitialised
 	 * by __evict_many(), so you can use it across multiple invocations.
 	 */
 	unsigned long last_accessed;
 };
 
 /*
- * We may not be able to evict this buffer if IO pending or the client
+ * We may analt be able to evict this buffer if IO pending or the client
  * is still using it.
  *
- * And if GFP_NOFS is used, we must not do any I/O because we hold
+ * And if GFP_ANALFS is used, we must analt do any I/O because we hold
  * dm_bufio_clients_lock and we would risk deadlock if the I/O gets
  * rerouted to different bufio client.
  */
@@ -2673,7 +2673,7 @@ static enum evict_result select_for_evict(struct dm_buffer *b, void *context)
 	struct evict_params *params = context;
 
 	if (!(params->gfp & __GFP_FS) ||
-	    (static_branch_unlikely(&no_sleep_enabled) && b->c->no_sleep)) {
+	    (static_branch_unlikely(&anal_sleep_enabled) && b->c->anal_sleep)) {
 		if (test_bit_acquire(B_READING, &b->state) ||
 		    test_bit(B_WRITING, &b->state) ||
 		    test_bit(B_DIRTY, &b->state))
@@ -2761,7 +2761,7 @@ static void work_fn(struct work_struct *w)
  * Global cleanup tries to evict the oldest buffers from across _all_
  * the clients.  It does this by repeatedly evicting a few buffers from
  * the client that holds the oldest buffer.  It's approximate, but hopefully
- * good enough.
+ * good eanalugh.
  */
 static struct dm_bufio_client *__pop_client(void)
 {
@@ -2801,7 +2801,7 @@ static unsigned long __evict_a_few(unsigned long nr_buffers)
 	struct evict_params params = {
 		.gfp = GFP_KERNEL,
 		.age_hz = 0,
-		/* set to jiffies in case there are no buffers in this client */
+		/* set to jiffies in case there are anal buffers in this client */
 		.last_accessed = jiffies
 	};
 
@@ -2894,7 +2894,7 @@ static int __init dm_bufio_init(void)
 
 	dm_bufio_wq = alloc_workqueue("dm_bufio_cache", WQ_MEM_RECLAIM, 0);
 	if (!dm_bufio_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_DELAYED_WORK(&dm_bufio_cleanup_old_work, work_fn);
 	INIT_WORK(&dm_bufio_replacement_work, do_global_cleanup);
@@ -2938,7 +2938,7 @@ static void __exit dm_bufio_exit(void)
 		bug = 1;
 	}
 
-	WARN_ON(bug); /* leaks are not worth crashing the system */
+	WARN_ON(bug); /* leaks are analt worth crashing the system */
 }
 
 module_init(dm_bufio_init)

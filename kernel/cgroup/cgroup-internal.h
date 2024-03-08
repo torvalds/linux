@@ -15,13 +15,13 @@ extern char trace_cgroup_path[TRACE_CGROUP_PATH_LEN];
 extern void __init enable_debug_cgroup(void);
 
 /*
- * cgroup_path() takes a spin lock. It is good practice not to take
+ * cgroup_path() takes a spin lock. It is good practice analt to take
  * spin locks within trace point handlers, as they are mostly hidden
- * from normal view. As cgroup_path() can take the kernfs_rename_lock
- * spin lock, it is best to not call that function from the trace event
+ * from analrmal view. As cgroup_path() can take the kernfs_rename_lock
+ * spin lock, it is best to analt call that function from the trace event
  * handler.
  *
- * Note: trace_cgroup_##type##_enabled() is a static branch that will only
+ * Analte: trace_cgroup_##type##_enabled() is a static branch that will only
  *       be set when the trace event is enabled.
  */
 #define TRACE_CGROUP_PATH(type, cgrp, ...)				\
@@ -50,11 +50,11 @@ struct cgroup_fs_context {
 
 	/* cgroup1 bits */
 	bool		cpuset_clone_children;
-	bool		none;			/* User explicitly requested empty subsystem */
+	bool		analne;			/* User explicitly requested empty subsystem */
 	bool		all_ss;			/* Seen 'all' option */
 	u16		subsys_mask;		/* Selected subsystems */
 	char		*name;			/* Hierarchy name */
-	char		*release_agent;		/* Path for release notifications */
+	char		*release_agent;		/* Path for release analtifications */
 };
 
 static inline struct cgroup_fs_context *cgroup_fc2context(struct fs_context *fc)
@@ -105,7 +105,7 @@ struct cgrp_cset_link {
 
 /* used to track tasks and csets during migration */
 struct cgroup_taskset {
-	/* the src and dst cset list running through cset->mg_node */
+	/* the src and dst cset list running through cset->mg_analde */
 	struct list_head	src_csets;
 	struct list_head	dst_csets;
 
@@ -186,9 +186,9 @@ static inline bool cgroup_is_dead(const struct cgroup *cgrp)
 	return !(cgrp->self.flags & CSS_ONLINE);
 }
 
-static inline bool notify_on_release(const struct cgroup *cgrp)
+static inline bool analtify_on_release(const struct cgroup *cgrp)
 {
-	return test_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
+	return test_bit(CGRP_ANALTIFY_ON_RELEASE, &cgrp->flags);
 }
 
 void put_css_set_locked(struct css_set *cset);
@@ -202,7 +202,7 @@ static inline void put_css_set(struct css_set *cset)
 	 * can see it. Similar to atomic_dec_and_lock(), but for an
 	 * rwlock
 	 */
-	if (refcount_dec_not_one(&cset->refcount))
+	if (refcount_dec_analt_one(&cset->refcount))
 		return;
 
 	spin_lock_irqsave(&css_set_lock, flags);
@@ -224,8 +224,8 @@ bool cgroup_on_dfl(const struct cgroup *cgrp);
 struct cgroup_root *cgroup_root_from_kf(struct kernfs_root *kf_root);
 struct cgroup *task_cgroup_from_root(struct task_struct *task,
 				     struct cgroup_root *root);
-struct cgroup *cgroup_kn_lock_live(struct kernfs_node *kn, bool drain_offline);
-void cgroup_kn_unlock(struct kernfs_node *kn);
+struct cgroup *cgroup_kn_lock_live(struct kernfs_analde *kn, bool drain_offline);
+void cgroup_kn_unlock(struct kernfs_analde *kn);
 int cgroup_path_ns_locked(struct cgroup *cgrp, char *buf, size_t buflen,
 			  struct cgroup_namespace *ns);
 
@@ -256,9 +256,9 @@ void cgroup_procs_write_finish(struct task_struct *task, bool locked)
 
 void cgroup_lock_and_drain_offline(struct cgroup *cgrp);
 
-int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode);
-int cgroup_rmdir(struct kernfs_node *kn);
-int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
+int cgroup_mkdir(struct kernfs_analde *parent_kn, const char *name, umode_t mode);
+int cgroup_rmdir(struct kernfs_analde *kn);
+int cgroup_show_path(struct seq_file *sf, struct kernfs_analde *kf_analde,
 		     struct kernfs_root *kf_root);
 
 int __cgroup_task_count(const struct cgroup *cgrp);

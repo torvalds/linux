@@ -65,7 +65,7 @@
 #define UHCLS		(0x0044) /* UHC Low Speed Threshold */
 
 #define UHCRHDA		(0x0048) /* UHC Root Hub Descriptor A */
-#define UHCRHDA_NOCP	(1 << 12)	/* No over current protection */
+#define UHCRHDA_ANALCP	(1 << 12)	/* Anal over current protection */
 #define UHCRHDA_OCPM	(1 << 11)	/* Over Current Protection Mode */
 #define UHCRHDA_POTPGT(x) \
 			(((x) & 0xff) << 24) /* Power On To Power Good Time */
@@ -126,7 +126,7 @@ struct pxa27x_ohci {
 #define to_pxa27x_ohci(hcd)	(struct pxa27x_ohci *)(hcd_to_ohci(hcd)->priv)
 
 /*
-  PMM_NPS_MODE -- PMM Non-power switching mode
+  PMM_NPS_MODE -- PMM Analn-power switching mode
       Ports are powered continuously.
 
   PMM_GLOBAL_MODE -- PMM global switching mode
@@ -156,7 +156,7 @@ static int pxa27x_ohci_select_pmm(struct pxa27x_ohci *pxa_ohci, int mode)
 		break;
 	default:
 		printk( KERN_ERR
-			"Invalid mode %d, set to non-power switch mode.\n",
+			"Invalid mode %d, set to analn-power switch mode.\n",
 			mode );
 
 		uhcrhda |= RH_A_NPS;
@@ -236,10 +236,10 @@ static inline void pxa27x_setup_hc(struct pxa27x_ohci *pxa_ohci,
 	if (inf->flags & POWER_SENSE_LOW)
 		uhchr |= UHCHR_PSPL;
 
-	if (inf->flags & NO_OC_PROTECTION)
-		uhcrhda |= UHCRHDA_NOCP;
+	if (inf->flags & ANAL_OC_PROTECTION)
+		uhcrhda |= UHCRHDA_ANALCP;
 	else
-		uhcrhda &= ~UHCRHDA_NOCP;
+		uhcrhda &= ~UHCRHDA_ANALCP;
 
 	if (inf->flags & OC_MODE_PERPORT)
 		uhcrhda |= UHCRHDA_OCPM;
@@ -333,7 +333,7 @@ MODULE_DEVICE_TABLE(of, pxa_ohci_dt_ids);
 
 static int ohci_pxa_of_init(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct pxaohci_platform_data *pdata;
 	u32 tmp;
 	int ret;
@@ -341,8 +341,8 @@ static int ohci_pxa_of_init(struct platform_device *pdev)
 	if (!np)
 		return 0;
 
-	/* Right now device-tree probed devices don't get dma_mask set.
-	 * Since shared usb code relies on it, set it here for now.
+	/* Right analw device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for analw.
 	 * Once we have dma capability bindings this can go away.
 	 */
 	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
@@ -351,7 +351,7 @@ static int ohci_pxa_of_init(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (of_property_read_bool(np, "marvell,enable-port1"))
 		pdata->flags |= ENABLE_PORT1;
@@ -363,8 +363,8 @@ static int ohci_pxa_of_init(struct platform_device *pdev)
 		pdata->flags |= POWER_SENSE_LOW;
 	if (of_property_read_bool(np, "marvell,power-control-low"))
 		pdata->flags |= POWER_CONTROL_LOW;
-	if (of_property_read_bool(np, "marvell,no-oc-protection"))
-		pdata->flags |= NO_OC_PROTECTION;
+	if (of_property_read_bool(np, "marvell,anal-oc-protection"))
+		pdata->flags |= ANAL_OC_PROTECTION;
 	if (of_property_read_bool(np, "marvell,oc-mode-perport"))
 		pdata->flags |= OC_MODE_PERPORT;
 	if (!of_property_read_u32(np, "marvell,power-on-delay", &tmp))
@@ -419,11 +419,11 @@ static int ohci_hcd_pxa27x_probe(struct platform_device *pdev)
 	inf = dev_get_platdata(&pdev->dev);
 
 	if (!inf)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		pr_err("no resource of IORESOURCE_IRQ");
+		pr_err("anal resource of IORESOURCE_IRQ");
 		return irq;
 	}
 
@@ -433,7 +433,7 @@ static int ohci_hcd_pxa27x_probe(struct platform_device *pdev)
 
 	hcd = usb_create_hcd(&ohci_pxa27x_hc_driver, &pdev->dev, "pxa27x");
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hcd->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(hcd->regs)) {
@@ -498,7 +498,7 @@ static int ohci_hcd_pxa27x_probe(struct platform_device *pdev)
  *
  * Reverses the effect of ohci_hcd_pxa27x_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread
- * context, normally "rmmod", "apmd", or something similar.
+ * context, analrmally "rmmod", "apmd", or something similar.
  */
 static void ohci_hcd_pxa27x_remove(struct platform_device *pdev)
 {
@@ -588,7 +588,7 @@ static const struct ohci_driver_overrides pxa27x_overrides __initconst = {
 static int __init ohci_pxa27x_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ohci_init_driver(&ohci_pxa27x_hc_driver, &pxa27x_overrides);
 	ohci_pxa27x_hc_driver.hub_control = pxa27x_ohci_hub_control;

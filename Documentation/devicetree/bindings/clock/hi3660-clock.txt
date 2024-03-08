@@ -25,7 +25,7 @@ Optional Properties:
 - mboxes: Phandle to the mailbox for sending message to MCU.
             (See: ../mailbox/hisilicon,hi3660-mailbox.txt for more info)
 
-Each clock is assigned an identifier and client nodes use this identifier
+Each clock is assigned an identifier and client analdes use this identifier
 to specify the clock which they consume.
 
 All these identifier could be found in <dt-bindings/clock/hi3660-clock.h>.

@@ -61,7 +61,7 @@ static struct {
 static struct lock_class_key nfnl_lockdep_keys[NFNL_SUBSYS_COUNT];
 
 static const char *const nfnl_lockdep_names[NFNL_SUBSYS_COUNT] = {
-	[NFNL_SUBSYS_NONE] = "nfnl_subsys_none",
+	[NFNL_SUBSYS_ANALNE] = "nfnl_subsys_analne",
 	[NFNL_SUBSYS_CTNETLINK] = "nfnl_subsys_ctnetlink",
 	[NFNL_SUBSYS_CTNETLINK_EXP] = "nfnl_subsys_ctnetlink_exp",
 	[NFNL_SUBSYS_QUEUE] = "nfnl_subsys_queue",
@@ -178,7 +178,7 @@ int nfnetlink_send(struct sk_buff *skb, struct net *net, u32 portid,
 {
 	struct nfnl_net *nfnlnet = nfnl_pernet(net);
 
-	return nlmsg_notify(nfnlnet->nfnl, skb, portid, group, echo, flags);
+	return nlmsg_analtify(nfnlnet->nfnl, skb, portid, group, echo, flags);
 }
 EXPORT_SYMBOL_GPL(nfnetlink_send);
 
@@ -197,7 +197,7 @@ int nfnetlink_unicast(struct sk_buff *skb, struct net *net, u32 portid)
 
 	err = nlmsg_unicast(nfnlnet->nfnl, skb, portid);
 	if (err == -EAGAIN)
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 
 	return err;
 }
@@ -269,7 +269,7 @@ replay:
 		/* Sanity-check NFNL_MAX_ATTR_COUNT */
 		if (ss->cb[cb_id].attr_count > NFNL_MAX_ATTR_COUNT) {
 			rcu_read_unlock();
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		err = nla_parse_deprecated(cda, ss->cb[cb_id].attr_count,
@@ -327,7 +327,7 @@ static int nfnl_err_add(struct list_head *list, struct nlmsghdr *nlh, int err,
 
 	nfnl_err = kmalloc(sizeof(struct nfnl_err), GFP_KERNEL);
 	if (nfnl_err == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nfnl_err->nlh = nlh;
 	nfnl_err->err = err;
@@ -387,7 +387,7 @@ replay:
 replay_abort:
 	skb = netlink_skb_clone(oskb, GFP_KERNEL);
 	if (!skb)
-		return netlink_ack(oskb, nlh, -ENOMEM, NULL);
+		return netlink_ack(oskb, nlh, -EANALMEM, NULL);
 
 	nfnl_lock(subsys_id);
 	ss = nfnl_dereference_protected(subsys_id);
@@ -401,20 +401,20 @@ replay_abort:
 #endif
 		{
 			nfnl_unlock(subsys_id);
-			netlink_ack(oskb, nlh, -EOPNOTSUPP, NULL);
+			netlink_ack(oskb, nlh, -EOPANALTSUPP, NULL);
 			return kfree_skb(skb);
 		}
 	}
 
 	if (!ss->valid_genid || !ss->commit || !ss->abort) {
 		nfnl_unlock(subsys_id);
-		netlink_ack(oskb, nlh, -EOPNOTSUPP, NULL);
+		netlink_ack(oskb, nlh, -EOPANALTSUPP, NULL);
 		return kfree_skb(skb);
 	}
 
 	if (!try_module_get(ss->owner)) {
 		nfnl_unlock(subsys_id);
-		netlink_ack(oskb, nlh, -EOPNOTSUPP, NULL);
+		netlink_ack(oskb, nlh, -EOPANALTSUPP, NULL);
 		return kfree_skb(skb);
 	}
 
@@ -505,7 +505,7 @@ replay_abort:
 
 			/* Sanity-check NFTA_MAX_ATTR */
 			if (ss->cb[cb_id].attr_count > NFNL_MAX_ATTR_COUNT) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto ack;
 			}
 
@@ -533,14 +533,14 @@ ack:
 			 * processed, this avoids that the same error is
 			 * reported several times when replaying the batch.
 			 */
-			if (err == -ENOMEM ||
+			if (err == -EANALMEM ||
 			    nfnl_err_add(&err_list, nlh, err, &extack) < 0) {
 				/* We failed to enqueue an error, reset the
 				 * list of errors and send OOM to userspace
 				 * pointing to the batch header.
 				 */
 				nfnl_err_reset(&err_list);
-				netlink_ack(oskb, nlmsg_hdr(oskb), -ENOMEM,
+				netlink_ack(oskb, nlmsg_hdr(oskb), -EANALMEM,
 					    NULL);
 				status |= NFNL_BATCH_FAILURE;
 				goto done;
@@ -571,14 +571,14 @@ done:
 			status |= NFNL_BATCH_REPLAY;
 			goto done;
 		} else if (err) {
-			ss->abort(net, oskb, NFNL_ABORT_NONE);
+			ss->abort(net, oskb, NFNL_ABORT_ANALNE);
 			netlink_ack(oskb, nlmsg_hdr(oskb), err, NULL);
 		}
 	} else {
 		enum nfnl_abort_action abort_action;
 
 		if (status & NFNL_BATCH_FAILURE)
-			abort_action = NFNL_ABORT_NONE;
+			abort_action = NFNL_ABORT_ANALNE;
 		else
 			abort_action = NFNL_ABORT_VALIDATE;
 
@@ -666,7 +666,7 @@ static void nfnetlink_bind_event(struct net *net, unsigned int group)
 	u8 v;
 
 	/* All NFNLGRP_CONNTRACK_* group bits fit into u8.
-	 * The other groups are not relevant and can be ignored.
+	 * The other groups are analt relevant and can be iganalred.
 	 */
 	if (group >= 8)
 		return;
@@ -702,7 +702,7 @@ static int nfnetlink_bind(struct net *net, int group)
 	const struct nfnetlink_subsystem *ss;
 	int type;
 
-	if (group <= NFNLGRP_NONE || group > NFNLGRP_MAX)
+	if (group <= NFNLGRP_ANALNE || group > NFNLGRP_MAX)
 		return 0;
 
 	type = nfnl_group2type[group];
@@ -711,7 +711,7 @@ static int nfnetlink_bind(struct net *net, int group)
 	ss = nfnetlink_get_subsys(type << 8);
 	rcu_read_unlock();
 	if (!ss)
-		request_module_nowait("nfnetlink-subsys-%d", type);
+		request_module_analwait("nfnetlink-subsys-%d", type);
 
 	nfnetlink_bind_event(net, group);
 	return 0;
@@ -722,7 +722,7 @@ static void nfnetlink_unbind(struct net *net, int group)
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 	int type, group_bit;
 
-	if (group <= NFNLGRP_NONE || group > NFNLGRP_MAX)
+	if (group <= NFNLGRP_ANALNE || group > NFNLGRP_MAX)
 		return;
 
 	type = nfnl_group2type[group];
@@ -767,7 +767,7 @@ static int __net_init nfnetlink_net_init(struct net *net)
 
 	nfnlnet->nfnl = netlink_kernel_create(net, NETLINK_NETFILTER, &cfg);
 	if (!nfnlnet->nfnl)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -794,8 +794,8 @@ static int __init nfnetlink_init(void)
 {
 	int i;
 
-	for (i = NFNLGRP_NONE + 1; i <= NFNLGRP_MAX; i++)
-		BUG_ON(nfnl_group2type[i] == NFNL_SUBSYS_NONE);
+	for (i = NFNLGRP_ANALNE + 1; i <= NFNLGRP_MAX; i++)
+		BUG_ON(nfnl_group2type[i] == NFNL_SUBSYS_ANALNE);
 
 	for (i=0; i<NFNL_SUBSYS_COUNT; i++)
 		__mutex_init(&table[i].mutex, nfnl_lockdep_names[i], &nfnl_lockdep_keys[i]);

@@ -77,18 +77,18 @@ static int rxrpc_preparse_xdr_rxkad(struct key_preparsed_payload *prep,
 	plen -= sizeof(*token);
 	token = kzalloc(sizeof(*token), GFP_KERNEL);
 	if (!token)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	token->kad = kzalloc(plen, GFP_KERNEL);
 	if (!token->kad) {
 		kfree(token);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	token->security_index	= RXRPC_SECURITY_RXKAD;
 	token->kad->ticket_len	= tktlen;
 	token->kad->vice_id	= ntohl(xdr[0]);
-	token->kad->kvno	= ntohl(xdr[1]);
+	token->kad->kvanal	= ntohl(xdr[1]);
 	token->kad->start	= ntohl(xdr[4]);
 	token->kad->expiry	= ntohl(xdr[5]);
 	token->kad->primary_flag = ntohl(xdr[6]);
@@ -98,7 +98,7 @@ static int rxrpc_preparse_xdr_rxkad(struct key_preparsed_payload *prep,
 	_debug("SCIX: %u", token->security_index);
 	_debug("TLEN: %u", token->kad->ticket_len);
 	_debug("EXPY: %x", token->kad->expiry);
-	_debug("KVNO: %u", token->kad->kvno);
+	_debug("KVANAL: %u", token->kad->kvanal);
 	_debug("PRIM: %u", token->kad->primary_flag);
 	_debug("SKEY: %02x%02x%02x%02x%02x%02x%02x%02x",
 	       token->kad->session_key[0], token->kad->session_key[1],
@@ -146,34 +146,34 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 	       prep->datalen);
 
 	if (datalen > AFSTOKEN_LENGTH_MAX)
-		goto not_xdr;
+		goto analt_xdr;
 
 	/* XDR is an array of __be32's */
 	if (datalen & 3)
-		goto not_xdr;
+		goto analt_xdr;
 
 	/* the flags should be 0 (the setpag bit must be handled by
 	 * userspace) */
 	if (ntohl(*xdr++) != 0)
-		goto not_xdr;
+		goto analt_xdr;
 	datalen -= 4;
 
 	/* check the cell name */
 	len = ntohl(*xdr++);
 	if (len < 1 || len > AFSTOKEN_CELL_MAX)
-		goto not_xdr;
+		goto analt_xdr;
 	datalen -= 4;
 	paddedlen = (len + 3) & ~3;
 	if (paddedlen > datalen)
-		goto not_xdr;
+		goto analt_xdr;
 
 	cp = (const char *) xdr;
 	for (loop = 0; loop < len; loop++)
 		if (!isprint(cp[loop]))
-			goto not_xdr;
+			goto analt_xdr;
 	for (; loop < paddedlen; loop++)
 		if (cp[loop])
-			goto not_xdr;
+			goto analt_xdr;
 	_debug("cellname: [%u/%u] '%*.*s'",
 	       len, paddedlen, len, len, (const char *) xdr);
 	datalen -= paddedlen;
@@ -181,26 +181,26 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 
 	/* get the token count */
 	if (datalen < 12)
-		goto not_xdr;
+		goto analt_xdr;
 	ntoken = ntohl(*xdr++);
 	datalen -= 4;
 	_debug("ntoken: %x", ntoken);
 	if (ntoken < 1 || ntoken > AFSTOKEN_MAX)
-		goto not_xdr;
+		goto analt_xdr;
 
 	/* check each token wrapper */
 	p = xdr;
 	loop = ntoken;
 	do {
 		if (datalen < 8)
-			goto not_xdr;
+			goto analt_xdr;
 		toklen = ntohl(*p++);
 		sec_ix = ntohl(*p);
 		datalen -= 4;
 		_debug("token: [%x/%zx] %x", toklen, datalen, sec_ix);
 		paddedlen = (toklen + 3) & ~3;
 		if (toklen < 20 || toklen > datalen || paddedlen > datalen)
-			goto not_xdr;
+			goto analt_xdr;
 		datalen -= paddedlen;
 		p += paddedlen >> 2;
 
@@ -208,12 +208,12 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 
 	_debug("remainder: %zu", datalen);
 	if (datalen != 0)
-		goto not_xdr;
+		goto analt_xdr;
 
 	/* okay: we're going to assume it's valid XDR format
-	 * - we ignore the cellname, relying on the key to be correctly named
+	 * - we iganalre the cellname, relying on the key to be correctly named
 	 */
-	ret = -EPROTONOSUPPORT;
+	ret = -EPROTOANALSUPPORT;
 	do {
 		toklen = ntohl(*xdr++);
 		token = xdr;
@@ -229,7 +229,7 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 			ret2 = rxrpc_preparse_xdr_rxkad(prep, datalen, token, toklen);
 			break;
 		default:
-			ret2 = -EPROTONOSUPPORT;
+			ret2 = -EPROTOANALSUPPORT;
 			break;
 		}
 
@@ -237,11 +237,11 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 		case 0:
 			ret = 0;
 			break;
-		case -EPROTONOSUPPORT:
+		case -EPROTOANALSUPPORT:
 			break;
-		case -ENOPKG:
+		case -EANALPKG:
 			if (ret != 0)
-				ret = -ENOPKG;
+				ret = -EANALPKG;
 			break;
 		default:
 			ret = ret2;
@@ -254,7 +254,7 @@ error:
 	_leave(" = %d", ret);
 	return ret;
 
-not_xdr:
+analt_xdr:
 	_leave(" = -EPROTO");
 	return -EPROTO;
 }
@@ -268,11 +268,11 @@ not_xdr:
  *	4	2	security index (type)
  *	6	2	ticket length
  *	8	4	key expiry time (time_t)
- *	12	4	kvno
+ *	12	4	kvanal
  *	16	8	session key
  *	24	[len]	ticket
  *
- * if no data is provided, then a no-security key is made
+ * if anal data is provided, then a anal-security key is made
  */
 static int rxrpc_preparse(struct key_preparsed_payload *prep)
 {
@@ -285,7 +285,7 @@ static int rxrpc_preparse(struct key_preparsed_payload *prep)
 
 	_enter("%zu", prep->datalen);
 
-	/* handle a no-security key */
+	/* handle a anal-security key */
 	if (!prep->data && prep->datalen == 0)
 		return 0;
 
@@ -322,7 +322,7 @@ static int rxrpc_preparse(struct key_preparsed_payload *prep)
 	_debug("SCIX: %u", v1->security_index);
 	_debug("TLEN: %u", v1->ticket_length);
 	_debug("EXPY: %x", v1->expiry);
-	_debug("KVNO: %u", v1->kvno);
+	_debug("KVANAL: %u", v1->kvanal);
 	_debug("SKEY: %02x%02x%02x%02x%02x%02x%02x%02x",
 	       v1->session_key[0], v1->session_key[1],
 	       v1->session_key[2], v1->session_key[3],
@@ -335,14 +335,14 @@ static int rxrpc_preparse(struct key_preparsed_payload *prep)
 		       v1->ticket[4], v1->ticket[5],
 		       v1->ticket[6], v1->ticket[7]);
 
-	ret = -EPROTONOSUPPORT;
+	ret = -EPROTOANALSUPPORT;
 	if (v1->security_index != RXRPC_SECURITY_RXKAD)
 		goto error;
 
 	plen = sizeof(*token->kad) + v1->ticket_length;
 	prep->quotalen = plen + sizeof(*token);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	token = kzalloc(sizeof(*token), GFP_KERNEL);
 	if (!token)
 		goto error;
@@ -353,7 +353,7 @@ static int rxrpc_preparse(struct key_preparsed_payload *prep)
 	token->security_index		= RXRPC_SECURITY_RXKAD;
 	token->kad->ticket_len		= v1->ticket_length;
 	token->kad->expiry		= v1->expiry;
-	token->kad->kvno		= v1->kvno;
+	token->kad->kvanal		= v1->kvanal;
 	memcpy(&token->kad->session_key, &v1->session_key, 8);
 	memcpy(&token->kad->ticket, v1->ticket, v1->ticket_length);
 
@@ -391,7 +391,7 @@ static void rxrpc_free_token_list(struct rxrpc_key_token *token)
 			kfree(token->kad);
 			break;
 		default:
-			pr_err("Unknown token type %x on rxrpc key\n",
+			pr_err("Unkanalwn token type %x on rxrpc key\n",
 			       token->security_index);
 			BUG();
 		}
@@ -478,7 +478,7 @@ int rxrpc_request_key(struct rxrpc_sock *rx, sockptr_t optval, int optlen)
 int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 			      const void *session_key,
 			      time64_t expiry,
-			      u32 kvno)
+			      u32 kvanal)
 {
 	const struct cred *cred = current_cred();
 	struct key *key;
@@ -493,10 +493,10 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 
 	key = key_alloc(&key_type_rxrpc, "x",
 			GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, cred, 0,
-			KEY_ALLOC_NOT_IN_QUOTA, NULL);
+			KEY_ALLOC_ANALT_IN_QUOTA, NULL);
 	if (IS_ERR(key)) {
-		_leave(" = -ENOMEM [alloc %ld]", PTR_ERR(key));
-		return -ENOMEM;
+		_leave(" = -EANALMEM [alloc %ld]", PTR_ERR(key));
+		return -EANALMEM;
 	}
 
 	_debug("key %d", key_serial(key));
@@ -505,7 +505,7 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 	data.v1.security_index = RXRPC_SECURITY_RXKAD;
 	data.v1.ticket_length = 0;
 	data.v1.expiry = rxrpc_time64_to_u32(expiry);
-	data.v1.kvno = 0;
+	data.v1.kvanal = 0;
 
 	memcpy(&data.v1.session_key, session_key, sizeof(data.v1.session_key));
 
@@ -520,8 +520,8 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 error:
 	key_revoke(key);
 	key_put(key);
-	_leave(" = -ENOMEM [ins %d]", ret);
-	return -ENOMEM;
+	_leave(" = -EANALMEM [ins %d]", ret);
+	return -EANALMEM;
 }
 EXPORT_SYMBOL(rxrpc_get_server_data_key);
 
@@ -529,7 +529,7 @@ EXPORT_SYMBOL(rxrpc_get_server_data_key);
  * rxrpc_get_null_key - Generate a null RxRPC key
  * @keyname: The name to give the key.
  *
- * Generate a null RxRPC key that can be used to indicate anonymous security is
+ * Generate a null RxRPC key that can be used to indicate aanalnymous security is
  * required for a particular domain.
  */
 struct key *rxrpc_get_null_key(const char *keyname)
@@ -540,7 +540,7 @@ struct key *rxrpc_get_null_key(const char *keyname)
 
 	key = key_alloc(&key_type_rxrpc, keyname,
 			GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, cred,
-			KEY_POS_SEARCH, KEY_ALLOC_NOT_IN_QUOTA, NULL);
+			KEY_POS_SEARCH, KEY_ALLOC_ANALT_IN_QUOTA, NULL);
 	if (IS_ERR(key))
 		return key;
 
@@ -570,9 +570,9 @@ static long rxrpc_read(const struct key *key,
 
 	_enter("");
 
-	/* we don't know what form we should return non-AFS keys in */
+	/* we don't kanalw what form we should return analn-AFS keys in */
 	if (memcmp(key->description, "afs@", 4) != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	cnlen = strlen(key->description + 4);
 
 #define RND(X) (((X) + 3) & ~3)
@@ -589,16 +589,16 @@ static long rxrpc_read(const struct key *key,
 
 		switch (token->security_index) {
 		case RXRPC_SECURITY_RXKAD:
-			toksize += 8 * 4;	/* viceid, kvno, key*2, begin,
+			toksize += 8 * 4;	/* viceid, kvanal, key*2, begin,
 						 * end, primary, tktlen */
-			if (!token->no_leak_key)
+			if (!token->anal_leak_key)
 				toksize += RND(token->kad->ticket_len);
 			break;
 
 		default: /* we have a ticket we can't encode */
 			pr_err("Unsupported key token type (%u)\n",
 			       token->security_index);
-			return -ENOPKG;
+			return -EANALPKG;
 		}
 
 		_debug("token[%u]: toksize=%u", ntoks, toksize);
@@ -663,12 +663,12 @@ static long rxrpc_read(const struct key *key,
 		switch (token->security_index) {
 		case RXRPC_SECURITY_RXKAD:
 			ENCODE(token->kad->vice_id);
-			ENCODE(token->kad->kvno);
+			ENCODE(token->kad->kvanal);
 			ENCODE_BYTES(8, token->kad->session_key);
 			ENCODE(token->kad->start);
 			ENCODE(token->kad->expiry);
 			ENCODE(token->kad->primary_flag);
-			if (token->no_leak_key)
+			if (token->anal_leak_key)
 				ENCODE(0);
 			else
 				ENCODE_DATA(token->kad->ticket_len, token->kad->ticket);
@@ -677,7 +677,7 @@ static long rxrpc_read(const struct key *key,
 		default:
 			pr_err("Unsupported key token type (%u)\n",
 			       token->security_index);
-			return -ENOPKG;
+			return -EANALPKG;
 		}
 
 		if (WARN_ON((unsigned long)xdr - (unsigned long)oldxdr !=

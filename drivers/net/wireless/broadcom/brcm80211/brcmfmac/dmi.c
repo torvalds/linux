@@ -18,7 +18,7 @@ struct brcmf_dmi_data {
 	const char *board_type;
 };
 
-/* NOTE: Please keep all entries sorted alphabetically */
+/* ANALTE: Please keep all entries sorted alphabetically */
 
 static const struct brcmf_dmi_data acepc_t8_data = {
 	BRCM_CC_4345_CHIP_ID, 6, "acepc-t8"
@@ -51,7 +51,7 @@ static const struct brcmf_dmi_data predia_basic_data = {
 	BRCM_CC_43341_CHIP_ID, 2, "predia-basic"
 };
 
-/* Note the Voyo winpad A15 tablet uses the same Ampak AP6330 module, with the
+/* Analte the Voyo winpad A15 tablet uses the same Ampak AP6330 module, with the
  * exact same nvram file as the Prowise-PT301 tablet. Since the nvram for the
  * Prowise-PT301 is already in linux-firmware we just point to that here.
  */
@@ -110,7 +110,7 @@ static const struct dmi_system_id dmi_platform_data[] = {
 		 * and board_name are unique to the GPDwin, where as only one
 		 * other board has the same board_serial and 3 others have
 		 * the same default product_name. Also the GPDwin is the
-		 * only device to have both board_ and product_name not set.
+		 * only device to have both board_ and product_name analt set.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
@@ -145,7 +145,7 @@ static const struct dmi_system_id dmi_platform_data[] = {
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Insyde"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "BayTrail"),
-			/* Note 105b is Foxcon's USB/PCI vendor id */
+			/* Analte 105b is Foxcon's USB/PCI vendor id */
 			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "105B"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "0E57"),
 		},
@@ -195,7 +195,7 @@ void brcmf_dmi_probe(struct brcmf_mp_device *settings, u32 chip, u32 chiprev)
 		}
 	}
 
-	/* Not found in the quirk-table, use sys_vendor-product_name */
+	/* Analt found in the quirk-table, use sys_vendor-product_name */
 	sys_vendor = dmi_get_system_info(DMI_SYS_VENDOR);
 	product_name = dmi_get_system_info(DMI_PRODUCT_NAME);
 	if (sys_vendor && product_name) {

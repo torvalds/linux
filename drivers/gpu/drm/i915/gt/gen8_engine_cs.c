@@ -193,7 +193,7 @@ static bool gen12_needs_ccs_aux_inv(struct intel_engine_cs *engine)
 		return false;
 
 	/*
-	 * So far platforms supported by i915 having flat ccs do not require
+	 * So far platforms supported by i915 having flat ccs do analt require
 	 * AUX invalidation. Check also whether the engine requires it.
 	 */
 	return i915_mmio_reg_valid(reg) && !HAS_FLAT_CCS(engine->i915);
@@ -274,8 +274,8 @@ int gen12_emit_flush_rcs(struct i915_request *rq, u32 mode)
 		/*
 		 * L3 fabric flush is needed for AUX CCS invalidation
 		 * which happens as part of pipe-control so we can
-		 * ignore PIPE_CONTROL_FLUSH_L3. Also PIPE_CONTROL_FLUSH_L3
-		 * deals with Protected Memory which is not needed for
+		 * iganalre PIPE_CONTROL_FLUSH_L3. Also PIPE_CONTROL_FLUSH_L3
+		 * deals with Protected Memory which is analt needed for
 		 * AUX CCS invalidation and lead to unwanted side effects.
 		 */
 		if ((mode & EMIT_FLUSH) &&
@@ -430,8 +430,8 @@ static u32 hwsp_offset(const struct i915_request *rq)
 	tl = rcu_dereference_protected(rq->timeline,
 				       !i915_request_signaled(rq));
 
-	/* See the comment in i915_request_active_seqno(). */
-	return page_mask_bits(tl->hwsp_offset) + offset_in_page(rq->hwsp_seqno);
+	/* See the comment in i915_request_active_seqanal(). */
+	return page_mask_bits(tl->hwsp_offset) + offset_in_page(rq->hwsp_seqanal);
 }
 
 int gen8_emit_init_breadcrumb(struct i915_request *rq)
@@ -449,26 +449,26 @@ int gen8_emit_init_breadcrumb(struct i915_request *rq)
 	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 	*cs++ = hwsp_offset(rq);
 	*cs++ = 0;
-	*cs++ = rq->fence.seqno - 1;
+	*cs++ = rq->fence.seqanal - 1;
 
 	/*
 	 * Check if we have been preempted before we even get started.
 	 *
 	 * After this point i915_request_started() reports true, even if
-	 * we get preempted and so are no longer running.
+	 * we get preempted and so are anal longer running.
 	 *
 	 * i915_request_started() is used during preemption processing
 	 * to decide if the request is currently inside the user payload
-	 * or spinning on a kernel semaphore (or earlier). For no-preemption
+	 * or spinning on a kernel semaphore (or earlier). For anal-preemption
 	 * requests, we do allow preemption on the semaphore before the user
-	 * payload, but do not allow preemption once the request is started.
+	 * payload, but do analt allow preemption once the request is started.
 	 *
 	 * i915_request_started() is similarly used during GPU hangs to
 	 * determine if the user's payload was guilty, and if so, the
 	 * request is banned. Before the request is started, it is assumed
-	 * to be unharmed and an innocent victim of another's hang.
+	 * to be unharmed and an inanalcent victim of aanalther's hang.
 	 */
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	*cs++ = MI_ARB_CHECK;
 
 	intel_ring_advance(rq, cs);
@@ -522,7 +522,7 @@ static int __xehp_emit_bb_start(struct i915_request *rq,
 	return 0;
 }
 
-int xehp_emit_bb_start_noarb(struct i915_request *rq,
+int xehp_emit_bb_start_analarb(struct i915_request *rq,
 			     u64 offset, u32 len,
 			     const unsigned int flags)
 {
@@ -536,7 +536,7 @@ int xehp_emit_bb_start(struct i915_request *rq,
 	return __xehp_emit_bb_start(rq, offset, len, flags, MI_ARB_ENABLE);
 }
 
-int gen8_emit_bb_start_noarb(struct i915_request *rq,
+int gen8_emit_bb_start_analarb(struct i915_request *rq,
 			     u64 offset, u32 len,
 			     const unsigned int flags)
 {
@@ -550,11 +550,11 @@ int gen8_emit_bb_start_noarb(struct i915_request *rq,
 	 * WaDisableCtxRestoreArbitration:bdw,chv
 	 *
 	 * We don't need to perform MI_ARB_ENABLE as often as we do (in
-	 * particular all the gen that do not need the w/a at all!), if we
+	 * particular all the gen that do analt need the w/a at all!), if we
 	 * took care to make sure that on every switch into this context
 	 * (both ordinary and for preemption) that arbitrartion was enabled
-	 * we would be fine.  However, for gen8 there is another w/a that
-	 * requires us to not preempt inside GPGPU execution, so we keep
+	 * we would be fine.  However, for gen8 there is aanalther w/a that
+	 * requires us to analt preempt inside GPGPU execution, so we keep
 	 * arbitration disabled for gen8 batches. Arbitration will be
 	 * re-enabled before we close the request
 	 * (engine->emit_fini_breadcrumb).
@@ -578,8 +578,8 @@ int gen8_emit_bb_start(struct i915_request *rq,
 {
 	u32 *cs;
 
-	if (unlikely(i915_request_has_nopreempt(rq)))
-		return gen8_emit_bb_start_noarb(rq, offset, len, flags);
+	if (unlikely(i915_request_has_analpreempt(rq)))
+		return gen8_emit_bb_start_analarb(rq, offset, len, flags);
 
 	cs = intel_ring_begin(rq, 6);
 	if (IS_ERR(cs))
@@ -593,7 +593,7 @@ int gen8_emit_bb_start(struct i915_request *rq,
 	*cs++ = upper_32_bits(offset);
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	intel_ring_advance(rq, cs);
 
@@ -609,15 +609,15 @@ static void assert_request_valid(struct i915_request *rq)
 }
 
 /*
- * Reserve space for 2 NOOPs at the end of each request to be
- * used as a workaround for not being allowed to do lite
+ * Reserve space for 2 ANALOPs at the end of each request to be
+ * used as a workaround for analt being allowed to do lite
  * restore with HEAD==TAIL (WaIdleLiteRestore).
  */
 static u32 *gen8_emit_wa_tail(struct i915_request *rq, u32 *cs)
 {
 	/* Ensure there's always at least one preemption point per-request. */
 	*cs++ = MI_ARB_CHECK;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 	rq->wa_tail = intel_ring_offset(rq, cs);
 
 	/* Check that entire request is less than half the ring */
@@ -636,7 +636,7 @@ static u32 *emit_preempt_busywait(struct i915_request *rq, u32 *cs)
 	*cs++ = 0;
 	*cs++ = preempt_address(rq->engine);
 	*cs++ = 0;
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	return cs;
 }
@@ -659,7 +659,7 @@ gen8_emit_fini_breadcrumb_tail(struct i915_request *rq, u32 *cs)
 
 static u32 *emit_xcs_breadcrumb(struct i915_request *rq, u32 *cs)
 {
-	return gen8_emit_ggtt_write(cs, rq->fence.seqno, hwsp_offset(rq), 0);
+	return gen8_emit_ggtt_write(cs, rq->fence.seqanal, hwsp_offset(rq), 0);
 }
 
 u32 *gen8_emit_fini_breadcrumb_xcs(struct i915_request *rq, u32 *cs)
@@ -679,7 +679,7 @@ u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *rq, u32 *cs)
 
 	/* XXX flush+write+CS_STALL all in one upsets gem_concurrent_blt:kbl */
 	cs = gen8_emit_ggtt_write_rcs(cs,
-				      rq->fence.seqno,
+				      rq->fence.seqanal,
 				      hwsp_offset(rq),
 				      PIPE_CONTROL_FLUSH_ENABLE |
 				      PIPE_CONTROL_CS_STALL);
@@ -700,7 +700,7 @@ u32 *gen11_emit_fini_breadcrumb_rcs(struct i915_request *rq, u32 *cs)
 
 	/*XXX: Look at gen8_emit_fini_breadcrumb_rcs */
 	cs = gen8_emit_ggtt_write_rcs(cs,
-				      rq->fence.seqno,
+				      rq->fence.seqanal,
 				      hwsp_offset(rq),
 				      PIPE_CONTROL_FLUSH_ENABLE |
 				      PIPE_CONTROL_CS_STALL);
@@ -709,7 +709,7 @@ u32 *gen11_emit_fini_breadcrumb_rcs(struct i915_request *rq, u32 *cs)
 }
 
 /*
- * Note that the CS instruction pre-parser will not stall on the breadcrumb
+ * Analte that the CS instruction pre-parser will analt stall on the breadcrumb
  * flush and will continue pre-fetching the instructions after it before the
  * memory sync is completed. On pre-gen12 HW, the pre-parser will stop at
  * BB_START/END instructions, so, even though we might pre-fetch the pre-amble
@@ -723,8 +723,8 @@ u32 *gen11_emit_fini_breadcrumb_rcs(struct i915_request *rq, u32 *cs)
  * added to MI_ARB_CHECK, or emit the writes from a different intel_context. For
  * the in-kernel use-cases we've opted to use a separate context, see
  * reloc_gpu() as an example.
- * All the above applies only to the instructions themselves. Non-inline data
- * used by the instructions is not pre-fetched.
+ * All the above applies only to the instructions themselves. Analn-inline data
+ * used by the instructions is analt pre-fetched.
  */
 
 static u32 *gen12_emit_preempt_busywait(struct i915_request *rq, u32 *cs)
@@ -762,7 +762,7 @@ static u32 *ccs_emit_wa_busywait(struct i915_request *rq, u32 *cs)
 	*cs++ = 1;
 
 	/*
-	 * When MI_ATOMIC_INLINE_DATA set this command must be 11 DW + (1 NOP)
+	 * When MI_ATOMIC_INLINE_DATA set this command must be 11 DW + (1 ANALP)
 	 * to align. 4 DWs above + 8 filler DWs here.
 	 */
 	for (i = 0; i < 8; ++i)
@@ -801,7 +801,7 @@ gen12_emit_fini_breadcrumb_tail(struct i915_request *rq, u32 *cs)
 
 u32 *gen12_emit_fini_breadcrumb_xcs(struct i915_request *rq, u32 *cs)
 {
-	/* XXX Stalling flush before seqno write; post-sync not */
+	/* XXX Stalling flush before seqanal write; post-sync analt */
 	cs = emit_xcs_breadcrumb(rq, __gen8_emit_flush_dw(cs, 0, 0, 0));
 	return gen12_emit_fini_breadcrumb_tail(rq, cs);
 }
@@ -840,7 +840,7 @@ u32 *gen12_emit_fini_breadcrumb_rcs(struct i915_request *rq, u32 *cs)
 
 	/*XXX: Look at gen8_emit_fini_breadcrumb_rcs */
 	cs = gen12_emit_ggtt_write_rcs(cs,
-				       rq->fence.seqno,
+				       rq->fence.seqanal,
 				       hwsp_offset(rq),
 				       0,
 				       PIPE_CONTROL_FLUSH_ENABLE |

@@ -26,17 +26,17 @@ properties:
   vref-ext-supply:
     description:
       The regulator supplying the ADC reference voltage.
-      Required when at least one subnode uses the this reference.
+      Required when at least one subanalde uses the this reference.
 
   vref-xp-supply:
     description:
       The regulator supplying the ADC reference voltage on pin XP.
-      Required when at least one subnode uses this reference.
+      Required when at least one subanalde uses this reference.
 
   vref-yp-supply:
     description:
       The regulator supplying the ADC reference voltage on pin YP.
-      Required when at least one subnode uses this reference.
+      Required when at least one subanalde uses this reference.
 
   "#io-channel-cells":
     const: 1
@@ -58,7 +58,7 @@ patternProperties:
   "[a-z][a-z0-9]+@[0-9a-f]+$":
     type: object
     description:
-      Child nodes used to define the reference voltages used for each channel
+      Child analdes used to define the reference voltages used for each channel
 
     properties:
       reg:

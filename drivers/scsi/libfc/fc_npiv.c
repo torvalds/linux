@@ -44,7 +44,7 @@ EXPORT_SYMBOL(libfc_vport_create);
  * @n_port: Top level N_Port which may have multiple NPIV VN_Ports
  * @port_id: Fabric ID to find a match for
  *
- * Returns: matching lport pointer or NULL if there is no match
+ * Returns: matching lport pointer or NULL if there is anal match
  */
 struct fc_lport *fc_vport_id_lookup(struct fc_lport *n_port, u32 port_id)
 {
@@ -77,7 +77,7 @@ EXPORT_SYMBOL(fc_vport_id_lookup);
  * as a different lock class.
  */
 enum libfc_lport_mutex_class {
-	LPORT_MUTEX_NORMAL = 0,
+	LPORT_MUTEX_ANALRMAL = 0,
 	LPORT_MUTEX_VN_PORT = 1,
 };
 
@@ -101,7 +101,7 @@ static void __fc_vport_setlink(struct fc_lport *n_port,
 			fc_vport_set_state(vport, FC_VPORT_INITIALIZING);
 			__fc_linkup(vn_port);
 		} else {
-			fc_vport_set_state(vport, FC_VPORT_NO_FABRIC_SUPP);
+			fc_vport_set_state(vport, FC_VPORT_ANAL_FABRIC_SUPP);
 			__fc_linkdown(vn_port);
 		}
 	} else {

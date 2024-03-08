@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos3250 based ARTIK5 module device tree source
+ * Samsung's Exyanals3250 based ARTIK5 module device tree source
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Device tree source file for Samsung's ARTIK5 module which is based on
- * Samsung Exynos3250 SoC.
+ * Samsung Exyanals3250 SoC.
  */
 
-#include "exynos3250.dtsi"
+#include "exyanals3250.dtsi"
 #include <dt-bindings/clock/samsung,s2mps11.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
-	compatible = "samsung,artik5", "samsung,exynos3250", "samsung,exynos3";
+	compatible = "samsung,artik5", "samsung,exyanals3250", "samsung,exyanals3";
 
 	aliases {
 		mmc0 = &mshc_0;
@@ -320,7 +320,7 @@
 };
 
 &mshc_0 {
-	non-removable;
+	analn-removable;
 	cap-mmc-highspeed;
 	card-detect-delay = <200>;
 	vmmc-supply = <&ldo12_reg>;
@@ -340,7 +340,7 @@
 	cap-sd-highspeed;
 	cap-sdio-irq;
 	disable-wp;
-	non-removable;
+	analn-removable;
 	keep-power-in-suspend;
 	fifo-depth = <0x40>;
 	vqmmc-supply = <&ldo11_reg>;
@@ -364,39 +364,39 @@
 &pinctrl_1 {
 	bten: bten-pins {
 		samsung,pins = "gpx1-7";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
-		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
-		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_DOWN>;
+		samsung,pin-con-pdn = <EXYANALS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYANALS_PIN_PULL_DOWN>;
 	};
 
 	wlanen: wlanen-pins {
 		samsung,pins = "gpx2-3";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV3>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS4_PIN_DRV_LV3>;
 		samsung,pin-val = <1>;
 	};
 
 	s2mps14_irq: s2mps14-irq-pins {
 		samsung,pins = "gpx3-5";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 
 	bthostwake: bthostwake-pins {
 		samsung,pins = "gpx3-6";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
-		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_INPUT>;
-		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_UP>;
+		samsung,pin-con-pdn = <EXYANALS_PIN_PDN_INPUT>;
+		samsung,pin-pud-pdn = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 
 	btwake: btwake-pins {
 		samsung,pins = "gpx3-7";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
-		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_OUT0>;
-		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_DOWN>;
+		samsung,pin-con-pdn = <EXYANALS_PIN_PDN_OUT0>;
+		samsung,pin-pud-pdn = <EXYANALS_PIN_PULL_DOWN>;
 	};
 };
 

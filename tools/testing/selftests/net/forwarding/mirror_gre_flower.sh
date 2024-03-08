@@ -8,7 +8,7 @@
 # interfaces on H1 and H2 have two addresses each. Flower match on one of the
 # addresses is configured with mirror action. It is expected that when pinging
 # this address, mirroring takes place, whereas when pinging the other one,
-# there's no mirroring.
+# there's anal mirroring.
 
 ALL_TESTS="
 	test_gretap
@@ -128,7 +128,7 @@ tcflags="skip_hw"
 test_all
 
 if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
+	echo "WARN: Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	test_all

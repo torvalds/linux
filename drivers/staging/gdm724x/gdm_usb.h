@@ -12,7 +12,7 @@
 #include "gdm_endian.h"
 #include "hci_packet.h"
 
-#define PM_NORMAL 0
+#define PM_ANALRMAL 0
 #define PM_SUSPEND 1
 #define AUTO_SUSPEND_TIMER 5000 /* ms */
 

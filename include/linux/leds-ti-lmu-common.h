@@ -38,10 +38,10 @@ int ti_lmu_common_set_brightness(struct ti_lmu_bank *lmu_bank, int brightness);
 int ti_lmu_common_set_ramp(struct ti_lmu_bank *lmu_bank);
 
 int ti_lmu_common_get_ramp_params(struct device *dev,
-				  struct fwnode_handle *child,
+				  struct fwanalde_handle *child,
 				  struct ti_lmu_bank *lmu_data);
 
-int ti_lmu_common_get_brt_res(struct device *dev, struct fwnode_handle *child,
+int ti_lmu_common_get_brt_res(struct device *dev, struct fwanalde_handle *child,
 			      struct ti_lmu_bank *lmu_data);
 
 #endif /* _TI_LMU_COMMON_H_ */

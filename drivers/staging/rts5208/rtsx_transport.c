@@ -21,9 +21,9 @@
 
 /*
  * Copy a buffer of length buflen to/from the srb's transfer buffer.
- * (Note: for scatter-gather transfers (srb->use_sg > 0), srb->request_buffer
- * points to a list of s-g entries and we ignore srb->request_bufflen.
- * For non-scatter-gather transfers, srb->request_buffer points to the
+ * (Analte: for scatter-gather transfers (srb->use_sg > 0), srb->request_buffer
+ * points to a list of s-g entries and we iganalre srb->request_bufflen.
+ * For analn-scatter-gather transfers, srb->request_buffer points to the
  * transfer buffer itself and srb->request_bufflen is the buffer's length.)
  * Update the *index and *offset variables so that the next copy will
  * pick up from where this one left off.
@@ -38,7 +38,7 @@ unsigned int rtsx_stor_access_xfer_buf(unsigned char *buffer,
 {
 	unsigned int cnt;
 
-	/* If not using scatter-gather, just transfer the data directly. */
+	/* If analt using scatter-gather, just transfer the data directly. */
 	if (scsi_sg_count(srb) == 0) {
 		unsigned char *sgbuffer;
 
@@ -173,7 +173,7 @@ void rtsx_invoke_transport(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 	/*
 	 * If we have a failure, we're going to do a REQUEST_SENSE
-	 * automatically.  Note that we differentiate between a command
+	 * automatically.  Analte that we differentiate between a command
 	 * "failure" and an "error" in the transport mechanism.
 	 */
 	if (result == TRANSPORT_FAILED) {
@@ -208,7 +208,7 @@ void rtsx_add_cmd(struct rtsx_chip *chip,
 	spin_unlock_irq(&chip->rtsx->reg_lock);
 }
 
-void rtsx_send_cmd_no_wait(struct rtsx_chip *chip)
+void rtsx_send_cmd_anal_wait(struct rtsx_chip *chip)
 {
 	u32 val = BIT(31);
 
@@ -241,7 +241,7 @@ int rtsx_send_cmd(struct rtsx_chip *chip, u8 card, int timeout)
 
 	/* set up data structures for the wakeup system */
 	rtsx->done = &trans_done;
-	rtsx->trans_result = TRANS_NOT_READY;
+	rtsx->trans_result = TRANS_ANALT_READY;
 	init_completion(&trans_done);
 	rtsx->trans_state = STATE_TRANS_CMD;
 
@@ -274,7 +274,7 @@ int rtsx_send_cmd(struct rtsx_chip *chip, u8 card, int timeout)
 
 finish_send_cmd:
 	rtsx->done = NULL;
-	rtsx->trans_state = STATE_TRANS_NONE;
+	rtsx->trans_state = STATE_TRANS_ANALNE;
 
 	if (err < 0)
 		rtsx_stop_cmd(chip, card);
@@ -349,7 +349,7 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 	rtsx->done = &trans_done;
 
 	rtsx->trans_state = STATE_TRANS_SG;
-	rtsx->trans_result = TRANS_NOT_READY;
+	rtsx->trans_result = TRANS_ANALT_READY;
 
 	spin_unlock_irq(&rtsx->reg_lock);
 
@@ -438,7 +438,7 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 
 	/* Wait for TRANS_OK_INT */
 	spin_lock_irq(&rtsx->reg_lock);
-	if (rtsx->trans_result == TRANS_NOT_READY) {
+	if (rtsx->trans_result == TRANS_ANALT_READY) {
 		init_completion(&trans_done);
 		spin_unlock_irq(&rtsx->reg_lock);
 		timeleft = wait_for_completion_interruptible_timeout(&trans_done,
@@ -465,7 +465,7 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 
 out:
 	rtsx->done = NULL;
-	rtsx->trans_state = STATE_TRANS_NONE;
+	rtsx->trans_state = STATE_TRANS_ANALNE;
 	dma_unmap_sg(&rtsx->pci->dev, sg, num_sg, dma_dir);
 
 	if (err < 0)
@@ -512,7 +512,7 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 	rtsx->done = &trans_done;
 
 	rtsx->trans_state = STATE_TRANS_SG;
-	rtsx->trans_result = TRANS_NOT_READY;
+	rtsx->trans_result = TRANS_ANALT_READY;
 
 	spin_unlock_irq(&rtsx->reg_lock);
 
@@ -585,7 +585,7 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 
 	/* Wait for TRANS_OK_INT */
 	spin_lock_irq(&rtsx->reg_lock);
-	if (rtsx->trans_result == TRANS_NOT_READY) {
+	if (rtsx->trans_result == TRANS_ANALT_READY) {
 		init_completion(&trans_done);
 		spin_unlock_irq(&rtsx->reg_lock);
 		timeleft = wait_for_completion_interruptible_timeout(&trans_done,
@@ -612,7 +612,7 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 
 out:
 	rtsx->done = NULL;
-	rtsx->trans_state = STATE_TRANS_NONE;
+	rtsx->trans_state = STATE_TRANS_ANALNE;
 	dma_unmap_sg(&rtsx->pci->dev, sg, num_sg, dma_dir);
 
 	if (err < 0)
@@ -645,7 +645,7 @@ static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf,
 
 	addr = dma_map_single(&rtsx->pci->dev, buf, len, dma_dir);
 	if (dma_mapping_error(&rtsx->pci->dev, addr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (card == SD_CARD)
 		rtsx->check_card_cd = SD_EXIST;
@@ -667,7 +667,7 @@ static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf,
 	init_completion(&trans_done);
 
 	rtsx->trans_state = STATE_TRANS_BUF;
-	rtsx->trans_result = TRANS_NOT_READY;
+	rtsx->trans_result = TRANS_ANALT_READY;
 
 	rtsx_writel(chip, RTSX_HDBAR, addr);
 	rtsx_writel(chip, RTSX_HDBCTLR, val);
@@ -696,7 +696,7 @@ static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf,
 
 out:
 	rtsx->done = NULL;
-	rtsx->trans_state = STATE_TRANS_NONE;
+	rtsx->trans_state = STATE_TRANS_ANALNE;
 	dma_unmap_single(&rtsx->pci->dev, addr, len, dma_dir);
 
 	if (err < 0)

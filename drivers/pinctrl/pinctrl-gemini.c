@@ -95,16 +95,16 @@ struct gemini_pin_group {
  * This register controls all Gemini pad/pin multiplexing
  *
  * It is a tricky register though:
- * - For the bits named *_ENABLE, once you DISABLE something, it simply cannot
+ * - For the bits named *_ENABLE, once you DISABLE something, it simply cananalt
  *   be brought back online, so it means permanent disablement of the
  *   corresponding pads.
- * - For the bits named *_DISABLE, once you enable something, it cannot be
+ * - For the bits named *_DISABLE, once you enable something, it cananalt be
  *   DISABLED again. So you select a flash configuration once, and then
  *   you are stuck with it.
  */
 #define GLOBAL_MISC_CTRL	0x30
 #define GEMINI_GMAC_IOSEL_MASK	GENMASK(28, 27)
-/* Not really used */
+/* Analt really used */
 #define GEMINI_GMAC_IOSEL_GMAC0_GMII	BIT(28)
 /* Activated with GMAC1 */
 #define GEMINI_GMAC_IOSEL_GMAC0_GMAC1_RGMII BIT(27)
@@ -187,7 +187,7 @@ static const struct pinctrl_pin_desc gemini_3512_pins[] = {
 	PINCTRL_PIN(34, "B17 PCI AD30"),
 	PINCTRL_PIN(35, "B18 PCI AD29"),
 	/* Row C */
-	PINCTRL_PIN(36, "C1 CIR RST N"), /* REALLY? CIR is not in 3512... */
+	PINCTRL_PIN(36, "C1 CIR RST N"), /* REALLY? CIR is analt in 3512... */
 	PINCTRL_PIN(37, "C2 XTALI"),
 	PINCTRL_PIN(38, "C3 PWR BTN"),
 	PINCTRL_PIN(39, "C4 RTC CLKO"),
@@ -609,7 +609,7 @@ static const unsigned int nflash_3512_pins[] = {
 	253, 254, 249, 250, 232, 233, 211, 193, 194
 };
 
-/* Parallel (NOR) flash pins, D[0-15], A[16-25], CE0, CE1, RB, WE, OE, ALE */
+/* Parallel (ANALR) flash pins, D[0-15], A[16-25], CE0, CE1, RB, WE, OE, ALE */
 static const unsigned int pflash_3512_pins[] = {
 	162, 163, 165, 166, 148, 199, 200, 201, 202, 216, 217, 218, 219, 220,
 	234, 235, 236, 237, 252, 253, 254, 251, 229, 232, 233, 211, 212, 213,
@@ -619,7 +619,7 @@ static const unsigned int pflash_3512_pins[] = {
 /*
  * The parallel flash can be set up in a 26-bit address bus mode exposing
  * A[0-15] (A[15] takes the place of ALE), but it has the
- * side effect of stealing pins from GMAC1 and TVC so these blocks cannot be
+ * side effect of stealing pins from GMAC1 and TVC so these blocks cananalt be
  * used at the same time.
  */
 static const unsigned int pflash_3512_pins_extended[] = {
@@ -810,7 +810,7 @@ static const struct gemini_pin_group gemini_3512_pin_groups[] = {
 		.name = "uartrxtxgrp",
 		.pins = uart_rxtx_3512_pins,
 		.num_pins = ARRAY_SIZE(uart_rxtx_3512_pins),
-		/* No conflicts except GPIO */
+		/* Anal conflicts except GPIO */
 	},
 	{
 		.name = "uartmodemgrp",
@@ -838,7 +838,7 @@ static const struct gemini_pin_group gemini_3512_pin_groups[] = {
 	},
 	/*
 	 * The construction is done such that it is possible to use a serial
-	 * flash together with a NAND or parallel (NOR) flash, but it is not
+	 * flash together with a NAND or parallel (ANALR) flash, but it is analt
 	 * possible to use NAND and parallel flash together. To use serial
 	 * flash with one of the two others, the muxbits need to be flipped
 	 * around before any access.
@@ -1558,7 +1558,7 @@ static const unsigned int nflash_3516_pins[] = {
 	302, 321, 337, 358, 295, 359, 339, 275, 298
 };
 
-/* Parallel (NOR) flash pins, D[0-15], A[16-25], CE0, CE1, RB, WE, OE, ALE */
+/* Parallel (ANALR) flash pins, D[0-15], A[16-25], CE0, CE1, RB, WE, OE, ALE */
 static const unsigned int pflash_3516_pins[] = {
 	221, 200, 222, 201, 220, 243, 260, 261, 224, 280, 262, 281, 264, 300,
 	263, 282, 301, 320, 283, 302, 321, 317, 379, 295, 359, 339, 297, 318,
@@ -1568,7 +1568,7 @@ static const unsigned int pflash_3516_pins[] = {
 /*
  * The parallel flash can be set up in a 26-bit address bus mode exposing
  * A[0-15] (A[15] takes the place of ALE), but it has the
- * side effect of stealing pins from GMAC1 and TVC so these blocks cannot be
+ * side effect of stealing pins from GMAC1 and TVC so these blocks cananalt be
  * used at the same time.
  */
 static const unsigned int pflash_3516_pins_extended[] = {
@@ -1760,7 +1760,7 @@ static const struct gemini_pin_group gemini_3516_pin_groups[] = {
 		.name = "uartrxtxgrp",
 		.pins = uart_rxtx_3516_pins,
 		.num_pins = ARRAY_SIZE(uart_rxtx_3516_pins),
-		/* No conflicts except GPIO */
+		/* Anal conflicts except GPIO */
 	},
 	{
 		.name = "uartmodemgrp",
@@ -1788,7 +1788,7 @@ static const struct gemini_pin_group gemini_3516_pin_groups[] = {
 	},
 	/*
 	 * The construction is done such that it is possible to use a serial
-	 * flash together with a NAND or parallel (NOR) flash, but it is not
+	 * flash together with a NAND or parallel (ANALR) flash, but it is analt
 	 * possible to use NAND and parallel flash together. To use serial
 	 * flash with one of the two others, the muxbits need to be flipped
 	 * around before any access.
@@ -2022,7 +2022,7 @@ static const struct pinctrl_ops gemini_pctrl_ops = {
 	.get_group_name = gemini_get_group_name,
 	.get_group_pins = gemini_get_group_pins,
 	.pin_dbg_show = gemini_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
@@ -2206,7 +2206,7 @@ static int gemini_pmx_set_mux(struct pinctrl_dev *pctldev,
 		grp = &gemini_3516_pin_groups[group];
 	else {
 		dev_err(pmx->dev, "invalid SoC type\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(pmx->dev,
@@ -2231,10 +2231,10 @@ static int gemini_pmx_set_mux(struct pinctrl_dev *pctldev,
 	for_each_set_bit(i, &tmp, PADS_MAXBIT) {
 		bool enabled = !(i > 3);
 
-		/* Did not go low though it should */
+		/* Did analt go low though it should */
 		if (after & BIT(i)) {
 			dev_err(pmx->dev,
-				"pin group %s could not be %s: "
+				"pin group %s could analt be %s: "
 				"probably a hardware limitation\n",
 				gemini_padgroups[i],
 				enabled ? "enabled" : "disabled");
@@ -2253,10 +2253,10 @@ static int gemini_pmx_set_mux(struct pinctrl_dev *pctldev,
 	for_each_set_bit(i, &tmp, PADS_MAXBIT) {
 		bool enabled = (i > 3);
 
-		/* Did not go high though it should */
+		/* Did analt go high though it should */
 		if (!(after & BIT(i))) {
 			dev_err(pmx->dev,
-				"pin group %s could not be %s: "
+				"pin group %s could analt be %s: "
 				"probably a hardware limitation\n",
 				gemini_padgroups[i],
 				enabled ? "enabled" : "disabled");
@@ -2388,14 +2388,14 @@ static int gemini_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	case PIN_CONFIG_SKEW_DELAY:
 		conf = gemini_get_pin_conf(pmx, pin);
 		if (!conf)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		regmap_read(pmx->map, conf->reg, &val);
 		val &= conf->mask;
 		val >>= (ffs(conf->mask) - 1);
 		*config = pinconf_to_config_packed(PIN_CONFIG_SKEW_DELAY, val);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -2423,7 +2423,7 @@ static int gemini_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			if (!conf) {
 				dev_err(pmx->dev,
 					"invalid pin for skew delay %d\n", pin);
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			}
 			arg <<= (ffs(conf->mask) - 1);
 			dev_dbg(pmx->dev,
@@ -2433,7 +2433,7 @@ static int gemini_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			break;
 		default:
 			dev_err(pmx->dev, "Invalid config param %04x\n", param);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -2460,7 +2460,7 @@ static int gemini_pinconf_group_set(struct pinctrl_dev *pctldev,
 	/* First figure out if this group supports configs */
 	if (!grp->driving_mask) {
 		dev_err(pmx->dev, "pin config group \"%s\" does "
-			"not support drive strength setting\n",
+			"analt support drive strength setting\n",
 			grp->name);
 		return -EINVAL;
 	}
@@ -2488,7 +2488,7 @@ static int gemini_pinconf_group_set(struct pinctrl_dev *pctldev,
 				dev_err(pmx->dev,
 					"invalid drive strength %d mA\n",
 					arg);
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			}
 			val <<= (ffs(grp->driving_mask) - 1);
 			regmap_update_bits(pmx->map, GLOBAL_IODRIVE,
@@ -2500,7 +2500,7 @@ static int gemini_pinconf_group_set(struct pinctrl_dev *pctldev,
 			break;
 		default:
 			dev_err(pmx->dev, "invalid config param %04x\n", param);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -2536,25 +2536,25 @@ static int gemini_pmx_probe(struct platform_device *pdev)
 	/* Create state holders etc for this driver */
 	pmx = devm_kzalloc(&pdev->dev, sizeof(*pmx), GFP_KERNEL);
 	if (!pmx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmx->dev = &pdev->dev;
 	parent = dev->parent;
 	if (!parent) {
-		dev_err(dev, "no parent to pin controller\n");
-		return -ENODEV;
+		dev_err(dev, "anal parent to pin controller\n");
+		return -EANALDEV;
 	}
-	map = syscon_node_to_regmap(parent->of_node);
+	map = syscon_analde_to_regmap(parent->of_analde);
 	if (IS_ERR(map)) {
-		dev_err(dev, "no syscon regmap\n");
+		dev_err(dev, "anal syscon regmap\n");
 		return PTR_ERR(map);
 	}
 	pmx->map = map;
 
-	/* Check that regmap works at first call, then no more */
+	/* Check that regmap works at first call, then anal more */
 	ret = regmap_read(map, GLOBAL_WORD_ID, &val);
 	if (ret) {
-		dev_err(dev, "cannot access regmap\n");
+		dev_err(dev, "cananalt access regmap\n");
 		return ret;
 	}
 	val >>= 8;
@@ -2574,8 +2574,8 @@ static int gemini_pmx_probe(struct platform_device *pdev)
 		gemini_pmx_desc.npins = ARRAY_SIZE(gemini_3516_pins);
 		dev_info(dev, "detected 3516 chip variant\n");
 	} else {
-		dev_err(dev, "unknown chip ID: %04x\n", val);
-		return -ENODEV;
+		dev_err(dev, "unkanalwn chip ID: %04x\n", val);
+		return -EANALDEV;
 	}
 
 	ret = regmap_read(map, GLOBAL_MISC_CTRL, &val);
@@ -2594,11 +2594,11 @@ static int gemini_pmx_probe(struct platform_device *pdev)
 	/* Check if flash pin is set */
 	regmap_read(map, GLOBAL_STATUS, &val);
 	pmx->flash_pin = !!(val & GLOBAL_STATUS_FLPIN);
-	dev_info(dev, "flash pin is %s\n", pmx->flash_pin ? "set" : "not set");
+	dev_info(dev, "flash pin is %s\n", pmx->flash_pin ? "set" : "analt set");
 
 	pmx->pctl = devm_pinctrl_register(dev, &gemini_pmx_desc, pmx);
 	if (IS_ERR(pmx->pctl)) {
-		dev_err(dev, "could not register pinmux driver\n");
+		dev_err(dev, "could analt register pinmux driver\n");
 		return PTR_ERR(pmx->pctl);
 	}
 

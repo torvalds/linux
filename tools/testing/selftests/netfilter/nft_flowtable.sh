@@ -5,9 +5,9 @@
 # Creates following default topology:
 #
 # Originator (MTU 9000) <-Router1-> MTU 1500 <-Router2-> Responder (MTU 2000)
-# Router1 is the one doing flow offloading, Router2 has no special
+# Router1 is the one doing flow offloading, Router2 has anal special
 # purpose other than having a link that is smaller than either Originator
-# and responder, i.e. TCPMSS announced values are too large and will still
+# and responder, i.e. TCPMSS ananalunced values are too large and will still
 # result in fragmentation and/or PMTU discovery.
 #
 # You can check with different Orgininator/Link/Responder MTU eg:
@@ -32,7 +32,7 @@ log_netns=$(sysctl -n net.netfilter.nf_log_all_netns)
 
 checktool (){
 	if ! $1 > /dev/null 2>&1; then
-		echo "SKIP: Could not $2"
+		echo "SKIP: Could analt $2"
 		exit $ksft_skip
 	fi
 }
@@ -78,10 +78,10 @@ ip -net $nsr2 addr add 10.0.2.1/24 dev veth1
 ip -net $nsr2 addr add dead:2::1/64 dev veth1
 
 # set different MTUs so we need to push packets coming from ns1 (large MTU)
-# to ns2 (smaller MTU) to stack either to perform fragmentation (ip_no_pmtu_disc=1),
+# to ns2 (smaller MTU) to stack either to perform fragmentation (ip_anal_pmtu_disc=1),
 # or to do PTMU discovery (send ICMP error back to originator).
-# ns2 is going via nsr2 with a smaller mtu, so that TCPMSS announced by both peers
-# is NOT the lowest link mtu.
+# ns2 is going via nsr2 with a smaller mtu, so that TCPMSS ananalunced by both peers
+# is ANALT the lowest link mtu.
 
 omtu=9000
 lmtu=1500
@@ -120,7 +120,7 @@ fi
 ip -net $ns2 link set eth0 mtu $rmtu
 
 # transfer-net between nsr1 and nsr2.
-# these addresses are not used for connections.
+# these addresses are analt used for connections.
 ip -net $nsr1 addr add 192.168.10.1/24 dev veth1
 ip -net $nsr1 addr add fee1:2::1/64 dev veth1
 
@@ -136,12 +136,12 @@ for ns in $ns1 $ns2;do
   ip -net $ns link set lo up
   ip -net $ns link set eth0 up
 
-  if ! ip netns exec $ns sysctl net.ipv4.tcp_no_metrics_save=1 > /dev/null; then
+  if ! ip netns exec $ns sysctl net.ipv4.tcp_anal_metrics_save=1 > /dev/null; then
 	echo "ERROR: Check Originator/Responder values (problem during address addition)"
 	exit 1
   fi
   # don't set ip DF bit for first two tests
-  ip netns exec $ns sysctl net.ipv4.ip_no_pmtu_disc=1 > /dev/null
+  ip netns exec $ns sysctl net.ipv4.ip_anal_pmtu_disc=1 > /dev/null
 done
 
 ip -net $ns1 addr add 10.0.1.99/24 dev eth0
@@ -184,7 +184,7 @@ table inet filter {
 EOF
 
 if [ $? -ne 0 ]; then
-	echo "SKIP: Could not load nft ruleset"
+	echo "SKIP: Could analt load nft ruleset"
 	exit $ksft_skip
 fi
 
@@ -204,18 +204,18 @@ table inet filter {
 EOF
 
 if [ $? -ne 0 ]; then
-	echo "SKIP: Could not load nft ruleset"
+	echo "SKIP: Could analt load nft ruleset"
 	exit $ksft_skip
 fi
 
 # test basic connectivity
 if ! ip netns exec $ns1 ping -c 1 -q 10.0.2.99 > /dev/null; then
-  echo "ERROR: $ns1 cannot reach ns2" 1>&2
+  echo "ERROR: $ns1 cananalt reach ns2" 1>&2
   exit 1
 fi
 
 if ! ip netns exec $ns2 ping -c 1 -q 10.0.1.99 > /dev/null; then
-  echo "ERROR: $ns2 cannot reach $ns1" 1>&2
+  echo "ERROR: $ns2 cananalt reach $ns1" 1>&2
   exit 1
 fi
 
@@ -240,7 +240,7 @@ make_file()
 	SIZE=$((RANDOM % 1024))
 	SIZE=$((SIZE + 128))
 	TSIZE=$((TSIZE + SIZE))
-	dd if=/dev/urandom conf=notrunc of="$name" bs=1 count=$SIZE 2> /dev/null
+	dd if=/dev/urandom conf=analtrunc of="$name" bs=1 count=$SIZE 2> /dev/null
 }
 
 check_counters()
@@ -290,36 +290,36 @@ check_dscp()
 	local pc4z=${pc4z#*packets}
 
 	case "$what" in
-	"dscp_none")
+	"dscp_analne")
 		if [ $pc4 -gt 0 ] || [ $pc4z -eq 0 ]; then
-			echo "FAIL: dscp counters do not match, expected dscp3 == 0, dscp0 > 0, but got $pc4,$pc4z" 1>&2
+			echo "FAIL: dscp counters do analt match, expected dscp3 == 0, dscp0 > 0, but got $pc4,$pc4z" 1>&2
 			ret=1
 			ok=0
 		fi
 		;;
 	"dscp_fwd")
 		if [ $pc4 -eq 0 ] || [ $pc4z -eq 0 ]; then
-			echo "FAIL: dscp counters do not match, expected dscp3 and dscp0 > 0 but got $pc4,$pc4z" 1>&2
+			echo "FAIL: dscp counters do analt match, expected dscp3 and dscp0 > 0 but got $pc4,$pc4z" 1>&2
 			ret=1
 			ok=0
 		fi
 		;;
 	"dscp_ingress")
 		if [ $pc4 -eq 0 ] || [ $pc4z -gt 0 ]; then
-			echo "FAIL: dscp counters do not match, expected dscp3 > 0, dscp0 == 0 but got $pc4,$pc4z" 1>&2
+			echo "FAIL: dscp counters do analt match, expected dscp3 > 0, dscp0 == 0 but got $pc4,$pc4z" 1>&2
 			ret=1
 			ok=0
 		fi
 		;;
 	"dscp_egress")
 		if [ $pc4 -eq 0 ] || [ $pc4z -gt 0 ]; then
-			echo "FAIL: dscp counters do not match, expected dscp3 > 0, dscp0 == 0 but got $pc4,$pc4z" 1>&2
+			echo "FAIL: dscp counters do analt match, expected dscp3 > 0, dscp0 == 0 but got $pc4,$pc4z" 1>&2
 			ret=1
 			ok=0
 		fi
 		;;
 	*)
-		echo "FAIL: Unknown DSCP check" 1>&2
+		echo "FAIL: Unkanalwn DSCP check" 1>&2
 		ret=1
 		ok=0
 	esac
@@ -401,7 +401,7 @@ test_tcp_forwarding()
 
 test_tcp_forwarding_set_dscp()
 {
-	check_dscp "dscp_none"
+	check_dscp "dscp_analne"
 
 ip netns exec $nsr1 nft -f - <<EOF
 table netdev dscpmangle {
@@ -417,7 +417,7 @@ if [ $? -eq 0 ]; then
 
 	ip netns exec $nsr1 nft delete table netdev dscpmangle
 else
-	echo "SKIP: Could not load netdev:ingress for veth0"
+	echo "SKIP: Could analt load netdev:ingress for veth0"
 fi
 
 ip netns exec $nsr1 nft -f - <<EOF
@@ -434,7 +434,7 @@ if [ $? -eq 0 ]; then
 
 	ip netns exec $nsr1 nft flush table netdev dscpmangle
 else
-	echo "SKIP: Could not load netdev:egress for veth1"
+	echo "SKIP: Could analt load netdev:egress for veth1"
 fi
 
 	# partial.  If flowtable really works, then both dscp-is-0 and dscp-is-cs3
@@ -477,10 +477,10 @@ test_tcp_forwarding_nat()
 make_file "$nsin"
 
 # First test:
-# No PMTU discovery, nsr1 is expected to fragment packets from ns1 to ns2 as needed.
+# Anal PMTU discovery, nsr1 is expected to fragment packets from ns1 to ns2 as needed.
 # Due to MTU mismatch in both directions, all packets (except small packets like pure
-# acks) have to be handled by normal forwarding path.  Therefore, packet counters
-# are not checked.
+# acks) have to be handled by analrmal forwarding path.  Therefore, packet counters
+# are analt checked.
 if test_tcp_forwarding $ns1 $ns2; then
 	echo "PASS: flow offloaded for ns1/ns2"
 else
@@ -497,7 +497,7 @@ ip -net $ns2 route del default via dead:2::1
 ip -net $ns2 route add 192.168.10.1 via 10.0.2.1
 
 # Second test:
-# Same, but with NAT enabled.  Same as in first test: we expect normal forward path
+# Same, but with NAT enabled.  Same as in first test: we expect analrmal forward path
 # to handle most packets.
 ip netns exec $nsr1 nft -f - <<EOF
 table ip nat {
@@ -528,13 +528,13 @@ fi
 # Same as second test, but with PMTU discovery enabled. This
 # means that we expect the fastpath to handle packets as soon
 # as the endpoints adjust the packet size.
-ip netns exec $ns1 sysctl net.ipv4.ip_no_pmtu_disc=0 > /dev/null
-ip netns exec $ns2 sysctl net.ipv4.ip_no_pmtu_disc=0 > /dev/null
+ip netns exec $ns1 sysctl net.ipv4.ip_anal_pmtu_disc=0 > /dev/null
+ip netns exec $ns2 sysctl net.ipv4.ip_anal_pmtu_disc=0 > /dev/null
 
 # reset counters.
 # With pmtu in-place we'll also check that nft counters
 # are lower than file size and packets were forwarded via flowtable layer.
-# For earlier tests (large mtus), packets cannot be handled via flowtable
+# For earlier tests (large mtus), packets cananalt be handled via flowtable
 # (except pure acks and other small packets).
 ip netns exec $nsr1 nft reset counters table inet filter >/dev/null
 
@@ -543,7 +543,7 @@ if ! test_tcp_forwarding_nat $ns1 $ns2 1 ""; then
 	ip netns exec $nsr1 nft list ruleset
 fi
 
-# Another test:
+# Aanalther test:
 # Add bridge interface br0 to Router1, with NAT enabled.
 ip -net $nsr1 link add name br0 type bridge
 ip -net $nsr1 addr flush dev veth0
@@ -578,9 +578,9 @@ if ! test_tcp_forwarding_nat $ns1 $ns2 1 "on bridge"; then
 fi
 
 
-# Another test:
+# Aanalther test:
 # Add bridge interface br0 to Router1, with NAT and VLAN.
-ip -net $nsr1 link set veth0 nomaster
+ip -net $nsr1 link set veth0 analmaster
 ip -net $nsr1 link set down dev veth0
 ip -net $nsr1 link add link veth0 name veth0.10 type vlan id 10
 ip -net $nsr1 link set up dev veth0
@@ -602,7 +602,7 @@ if ! test_tcp_forwarding_nat $ns1 $ns2 1 "bridge and VLAN"; then
 fi
 
 # restore test topology (remove bridge and VLAN)
-ip -net $nsr1 link set veth0 nomaster
+ip -net $nsr1 link set veth0 analmaster
 ip -net $nsr1 link set veth0 down
 ip -net $nsr1 link set veth0.10 down
 ip -net $nsr1 link delete veth0.10 type vlan

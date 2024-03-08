@@ -5,7 +5,7 @@
  * Copyright (C) 1995,2001 Compaq Computer Corporation
  * Copyright (C) 2001 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2001 IBM Corp.
- * Copyright (C) 2002 Hiroshi Aono (h-aono@ap.jp.nec.com)
+ * Copyright (C) 2002 Hiroshi Aoanal (h-aoanal@ap.jp.nec.com)
  * Copyright (C) 2002,2003 Takayoshi Kochi (t-kochi@bq.jp.nec.com)
  * Copyright (C) 2002,2003 NEC Corporation
  * Copyright (C) 2003-2005 Matthew Wilcox (willy@infradead.org)
@@ -78,7 +78,7 @@ struct acpiphp_bridge {
  * PCI slot information for each *physical* PCI slot
  */
 struct acpiphp_slot {
-	struct list_head node;
+	struct list_head analde;
 	struct pci_bus *bus;
 	struct list_head funcs;		/* one slot may have different
 					   objects (i.e. for each function) */
@@ -145,7 +145,7 @@ static inline struct acpiphp_root_context *to_acpiphp_root_context(struct acpi_h
 /*
  * struct acpiphp_attention_info - device specific attention registration
  *
- * ACPI has no generic method of setting/getting attention status
+ * ACPI has anal generic method of setting/getting attention status
  * this allows for device specific driver registration
  */
 struct acpiphp_attention_info {
@@ -154,7 +154,7 @@ struct acpiphp_attention_info {
 	struct module *owner;
 };
 
-/* ACPI _STA method value (ignore bit 4; battery present) */
+/* ACPI _STA method value (iganalre bit 4; battery present) */
 #define ACPI_STA_ALL			(0x0000000f)
 
 /* slot flags */

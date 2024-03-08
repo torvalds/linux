@@ -69,7 +69,7 @@ static int relacmp(const void *_x, const void *_y)
 }
 
 /* Get the potential trampolines size required of the init and
-   non-init sections */
+   analn-init sections */
 static unsigned long get_plt_size(const Elf32_Ehdr *hdr,
 				  const Elf32_Shdr *sechdrs,
 				  const char *secstrings,
@@ -81,8 +81,8 @@ static unsigned long get_plt_size(const Elf32_Ehdr *hdr,
 	/* Everything marked ALLOC (this includes the exported
            symbols) */
 	for (i = 1; i < hdr->e_shnum; i++) {
-		/* If it's called *.init*, and we're not init, we're
-                   not interested */
+		/* If it's called *.init*, and we're analt init, we're
+                   analt interested */
 		if ((strstr(secstrings + sechdrs[i].sh_name, ".init") != NULL)
 		    != is_init)
 			continue;
@@ -133,7 +133,7 @@ int module_frob_arch_sections(Elf32_Ehdr *hdr,
 	}
 	if (!me->arch.core_plt_section || !me->arch.init_plt_section) {
 		pr_err("Module doesn't contain .plt or .init.plt sections.\n");
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	/* Override their sizes */
@@ -211,7 +211,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 		/* This is where to make the change */
 		location = (void *)sechdrs[sechdrs[relsec].sh_info].sh_addr
 			+ rela[i].r_offset;
-		/* This is the symbol it is referring to.  Note that all
+		/* This is the symbol it is referring to.  Analte that all
 		   undefined symbols have been resolved.  */
 		sym = (Elf32_Sym *)sechdrs[symindex].sh_addr
 			+ ELF32_R_SYM(rela[i].r_info);
@@ -274,10 +274,10 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			break;
 
 		default:
-			pr_err("%s: unknown ADD relocation: %u\n",
+			pr_err("%s: unkanalwn ADD relocation: %u\n",
 			       module->name,
 			       ELF32_R_TYPE(rela[i].r_info));
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 	}
 
@@ -285,19 +285,19 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-notrace int module_trampoline_target(struct module *mod, unsigned long addr,
+analtrace int module_trampoline_target(struct module *mod, unsigned long addr,
 				     unsigned long *target)
 {
 	ppc_inst_t jmp[4];
 
 	/* Find where the trampoline jumps to */
-	if (copy_inst_from_kernel_nofault(jmp, (void *)addr))
+	if (copy_inst_from_kernel_analfault(jmp, (void *)addr))
 		return -EFAULT;
-	if (__copy_inst_from_kernel_nofault(jmp + 1, (void *)addr + 4))
+	if (__copy_inst_from_kernel_analfault(jmp + 1, (void *)addr + 4))
 		return -EFAULT;
-	if (__copy_inst_from_kernel_nofault(jmp + 2, (void *)addr + 8))
+	if (__copy_inst_from_kernel_analfault(jmp + 2, (void *)addr + 8))
 		return -EFAULT;
-	if (__copy_inst_from_kernel_nofault(jmp + 3, (void *)addr + 12))
+	if (__copy_inst_from_kernel_analfault(jmp + 3, (void *)addr + 12))
 		return -EFAULT;
 
 	/* verify that this is what we expect it to be */
@@ -325,14 +325,14 @@ int module_finalize_ftrace(struct module *module, const Elf_Shdr *sechdrs)
 					 (unsigned long)ftrace_caller,
 					 sechdrs, module);
 	if (!module->arch.tramp)
-		return -ENOENT;
+		return -EANALENT;
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 	module->arch.tramp_regs = do_plt_call(module->mem[MOD_TEXT].base,
 					      (unsigned long)ftrace_regs_caller,
 					      sechdrs, module);
 	if (!module->arch.tramp_regs)
-		return -ENOENT;
+		return -EANALENT;
 #endif
 
 	return 0;

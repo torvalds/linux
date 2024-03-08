@@ -14,7 +14,7 @@ config QNX6FS_FS
 	  To compile this file system support as a module, choose M here: the
 	  module will be called qnx6.
 
-	  If you don't know whether you need it, then you don't need it:
+	  If you don't kanalw whether you need it, then you don't need it:
 	  answer N.
 
 config QNX6FS_DEBUG
@@ -23,6 +23,6 @@ config QNX6FS_DEBUG
 	help
 	  Turns on extended debugging output.
 
-	  If you are not a developer working on the QNX6FS, you probably don't
+	  If you are analt a developer working on the QNX6FS, you probably don't
 	  want this:
 	  answer N.

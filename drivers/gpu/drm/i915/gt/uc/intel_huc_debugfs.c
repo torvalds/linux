@@ -15,7 +15,7 @@ static int huc_info_show(struct seq_file *m, void *data)
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	if (!intel_huc_is_supported(huc))
-		return -ENODEV;
+		return -EANALDEV;
 
 	intel_huc_load_status(huc, &p);
 

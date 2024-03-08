@@ -40,7 +40,7 @@ int rvt_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *srq_init_attr,
 	int ret;
 
 	if (srq_init_attr->srq_type != IB_SRQT_BASIC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (srq_init_attr->attr.max_sge == 0 ||
 	    srq_init_attr->attr.max_sge > dev->dparms.props.max_srq_sge ||
@@ -56,8 +56,8 @@ int rvt_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *srq_init_attr,
 	sz = sizeof(struct ib_sge) * srq->rq.max_sge +
 		sizeof(struct rvt_rwqe);
 	if (rvt_alloc_rq(&srq->rq, srq->rq.size * sz,
-			 dev->dparms.node, udata)) {
-		ret = -ENOMEM;
+			 dev->dparms.analde, udata)) {
+		ret = -EANALMEM;
 		goto bail_srq;
 	}
 
@@ -89,7 +89,7 @@ int rvt_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *srq_init_attr,
 	spin_lock(&dev->n_srqs_lock);
 	if (dev->n_srqs_allocated == dev->dparms.props.max_srq) {
 		spin_unlock(&dev->n_srqs_lock);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto bail_ip;
 	}
 
@@ -144,9 +144,9 @@ int rvt_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		sz = sizeof(struct rvt_rwqe) +
 			srq->rq.max_sge * sizeof(struct ib_sge);
 		size = attr->max_wr + 1;
-		if (rvt_alloc_rq(&tmp_rq, size * sz, dev->dparms.node,
+		if (rvt_alloc_rq(&tmp_rq, size * sz, dev->dparms.analde,
 				 udata))
-			return -ENOMEM;
+			return -EANALMEM;
 		/* Check that we can write the offset to mmap. */
 		if (udata && udata->inlen >= sizeof(__u64)) {
 			__u64 offset_addr;

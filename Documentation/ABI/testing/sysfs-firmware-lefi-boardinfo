@@ -27,9 +27,9 @@ Description:
 		Release Date            : 2020-04-14
 
 		By the way, using dmidecode command can get the similar info if there
-		exists SMBIOS in firmware, but the fact is that there is no SMBIOS on
-		some machines, we can see nothing when execute dmidecode, like this:
+		exists SMBIOS in firmware, but the fact is that there is anal SMBIOS on
+		some machines, we can see analthing when execute dmidecode, like this:
 
 		[root@linux loongson]# dmidecode
 		# dmidecode 2.12
-		# No SMBIOS nor DMI entry point found, sorry.
+		# Anal SMBIOS analr DMI entry point found, sorry.

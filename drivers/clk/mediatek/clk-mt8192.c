@@ -919,7 +919,7 @@ static const struct mtk_gate_regs peri_cg_regs = {
 };
 
 #define GATE_PERI(_id, _name, _parent, _shift)	\
-	GATE_MTK(_id, _name, _parent, &peri_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &peri_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate peri_clks[] = {
 	GATE_PERI(CLK_PERI_PERIAXI, "peri_periaxi", "axi_sel", 31),
@@ -932,7 +932,7 @@ static const struct mtk_gate_regs top_cg_regs = {
 };
 
 #define GATE_TOP(_id, _name, _parent, _shift)	\
-	GATE_MTK(_id, _name, _parent, &top_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &top_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate top_clks[] = {
 	GATE_TOP(CLK_TOP_SSUSB_TOP_REF, "ssusb_top_ref", "clk26m", 24),
@@ -963,15 +963,15 @@ static const struct mtk_clk_rst_desc clk_rst_desc = {
 	.rst_idx_map_nr = ARRAY_SIZE(infra_ao_idx_map),
 };
 
-/* Register mux notifier for MFG mux */
-static int clk_mt8192_reg_mfg_mux_notifier(struct device *dev, struct clk *clk)
+/* Register mux analtifier for MFG mux */
+static int clk_mt8192_reg_mfg_mux_analtifier(struct device *dev, struct clk *clk)
 {
 	struct mtk_mux_nb *mfg_mux_nb;
 	int i;
 
 	mfg_mux_nb = devm_kzalloc(dev, sizeof(*mfg_mux_nb), GFP_KERNEL);
 	if (!mfg_mux_nb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(top_mtk_muxes); i++)
 		if (top_mtk_muxes[i].id == CLK_TOP_MFG_PLL_SEL)
@@ -982,7 +982,7 @@ static int clk_mt8192_reg_mfg_mux_notifier(struct device *dev, struct clk *clk)
 	mfg_mux_nb->ops = top_mtk_muxes[i].ops;
 	mfg_mux_nb->bypass_index = 0; /* Bypass to 26M crystal */
 
-	return devm_mtk_clk_mux_notifier_register(dev, clk, mfg_mux_nb);
+	return devm_mtk_clk_mux_analtifier_register(dev, clk, mfg_mux_nb);
 }
 
 static const struct mtk_clk_desc infra_desc = {
@@ -1008,7 +1008,7 @@ static const struct mtk_clk_desc topck_desc = {
 	.clks = top_clks,
 	.num_clks = ARRAY_SIZE(top_clks),
 	.clk_lock = &mt8192_clk_lock,
-	.clk_notifier_func = clk_mt8192_reg_mfg_mux_notifier,
+	.clk_analtifier_func = clk_mt8192_reg_mfg_mux_analtifier,
 	.mfg_clk_idx = CLK_TOP_MFG_PLL_SEL,
 };
 

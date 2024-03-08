@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_TPC5_QM_REGS_H_
@@ -37,15 +37,15 @@
 
 #define mmTPC5_QM_GLBL_SECURE_PROPS_4                                0xF48020
 
-#define mmTPC5_QM_GLBL_NON_SECURE_PROPS_0                            0xF48024
+#define mmTPC5_QM_GLBL_ANALN_SECURE_PROPS_0                            0xF48024
 
-#define mmTPC5_QM_GLBL_NON_SECURE_PROPS_1                            0xF48028
+#define mmTPC5_QM_GLBL_ANALN_SECURE_PROPS_1                            0xF48028
 
-#define mmTPC5_QM_GLBL_NON_SECURE_PROPS_2                            0xF4802C
+#define mmTPC5_QM_GLBL_ANALN_SECURE_PROPS_2                            0xF4802C
 
-#define mmTPC5_QM_GLBL_NON_SECURE_PROPS_3                            0xF48030
+#define mmTPC5_QM_GLBL_ANALN_SECURE_PROPS_3                            0xF48030
 
-#define mmTPC5_QM_GLBL_NON_SECURE_PROPS_4                            0xF48034
+#define mmTPC5_QM_GLBL_ANALN_SECURE_PROPS_4                            0xF48034
 
 #define mmTPC5_QM_GLBL_STS0                                          0xF48038
 
@@ -709,7 +709,7 @@
 
 #define mmTPC5_QM_ARB_MSG_AWUSER_SEC_PROP                            0xF48B4C
 
-#define mmTPC5_QM_ARB_MSG_AWUSER_NON_SEC_PROP                        0xF48B50
+#define mmTPC5_QM_ARB_MSG_AWUSER_ANALN_SEC_PROP                        0xF48B50
 
 #define mmTPC5_QM_ARB_BASE_LO                                        0xF48B54
 

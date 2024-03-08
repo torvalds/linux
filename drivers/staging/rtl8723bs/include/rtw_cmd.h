@@ -42,9 +42,9 @@
 		struct completion terminate_cmdthread_comp;
 		struct __queue	cmd_queue;
 		u8 cmd_seq;
-		u8 *cmd_buf;	/* shall be non-paged, and 4 bytes aligned */
+		u8 *cmd_buf;	/* shall be analn-paged, and 4 bytes aligned */
 		u8 *cmd_allocated_buf;
-		u8 *rsp_buf;	/* shall be non-paged, and 4 bytes aligned */
+		u8 *rsp_buf;	/* shall be analn-paged, and 4 bytes aligned */
 		u8 *rsp_allocated_buf;
 		u32 cmd_issued_cnt;
 		u32 cmd_done_cnt;
@@ -63,14 +63,14 @@
 		#define C2H_QUEUE_MAX_LEN 10
 
 		atomic_t event_seq;
-		u8 *evt_buf;	/* shall be non-paged, and 4 bytes aligned */
+		u8 *evt_buf;	/* shall be analn-paged, and 4 bytes aligned */
 		u8 *evt_allocated_buf;
 		u32 evt_done_cnt;
 		u8 *c2h_mem;
 		u8 *allocated_c2h_mem;
 	};
 
-#define init_h2fwcmd_w_parm_no_rsp(pcmd, pparm, code) \
+#define init_h2fwcmd_w_parm_anal_rsp(pcmd, pparm, code) \
 do {\
 	INIT_LIST_HEAD(&pcmd->list);\
 	pcmd->cmdcode = code;\
@@ -80,7 +80,7 @@ do {\
 	pcmd->rspsz = 0;\
 } while (0)
 
-#define init_h2fwcmd_w_parm_no_parm_rsp(pcmd, code) \
+#define init_h2fwcmd_w_parm_anal_parm_rsp(pcmd, code) \
 do {\
 	INIT_LIST_HEAD(&pcmd->list);\
 	pcmd->cmdcode = code;\
@@ -117,10 +117,10 @@ int rtw_cmd_thread(void *context);
 extern void rtw_free_cmd_priv(struct cmd_priv *pcmdpriv);
 
 extern void rtw_free_evt_priv(struct evt_priv *pevtpriv);
-extern void rtw_evt_notify_isr(struct evt_priv *pevtpriv);
+extern void rtw_evt_analtify_isr(struct evt_priv *pevtpriv);
 
 enum {
-	NONE_WK_CID,
+	ANALNE_WK_CID,
 	DYNAMIC_CHK_WK_CID,
 	DM_CTRL_WK_CID,
 	PBC_POLLING_WK_CID,
@@ -133,8 +133,8 @@ enum {
 	INTEl_WIDI_WK_CID,
 	C2H_WK_CID,
 	RTP_TIMER_CFG_WK_CID,
-	RESET_SECURITYPRIV, /*  add for CONFIG_IEEE80211W, none 11w also can use */
-	FREE_ASSOC_RESOURCES, /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	RESET_SECURITYPRIV, /*  add for CONFIG_IEEE80211W, analne 11w also can use */
+	FREE_ASSOC_RESOURCES, /*  add for CONFIG_IEEE80211W, analne 11w also can use */
 	DM_IN_LPS_WK_CID,
 	DM_RA_MSK_WK_CID, /* add for STA update RAMask when bandwidth change. */
 	BEAMFORMING_WK_CID,
@@ -162,7 +162,7 @@ enum {
 /*
 Caller Mode: Infra, Ad-HoC
 
-Notes: To join a known BSS.
+Analtes: To join a kanalwn BSS.
 
 Command-Event Mode
 
@@ -171,7 +171,7 @@ Command-Event Mode
 /*
 Caller Mode: Infra, Ad-Hoc
 
-Notes: To join the specified bss
+Analtes: To join the specified bss
 
 Command Event Mode
 
@@ -183,7 +183,7 @@ struct joinbss_parm {
 /*
 Caller Mode: Infra, Ad-HoC(C)
 
-Notes: To disconnect the current associated BSS
+Analtes: To disconnect the current associated BSS
 
 Command Mode
 
@@ -195,7 +195,7 @@ struct disconnect_parm {
 /*
 Caller Mode: AP, Ad-HoC(M)
 
-Notes: To create a BSS
+Analtes: To create a BSS
 
 Command Mode
 */
@@ -206,7 +206,7 @@ struct createbss_parm {
 /*
 Caller Mode: AP, Ad-HoC, Infra
 
-Notes: To set the NIC mode of RTL8711
+Analtes: To set the NIC mode of RTL8711
 
 Command Mode
 
@@ -229,7 +229,7 @@ struct	setopmode_parm {
 /*
 Caller Mode: AP, Ad-HoC, Infra
 
-Notes: To ask RTL8711 performing site-survey
+Analtes: To ask RTL8711 performing site-survey
 
 Command-Event Mode
 
@@ -248,7 +248,7 @@ struct sitesurvey_parm {
 /*
 Caller Mode: Any
 
-Notes: To set the auth type of RTL8711. open/shared/802.1x
+Analtes: To set the auth type of RTL8711. open/shared/802.1x
 
 Command Mode
 
@@ -272,7 +272,7 @@ when 802.1x ==> keyid > 2 ==> unicast key
 
 */
 struct setkey_parm {
-	u8 algorithm;	/*  encryption algorithm, could be none, wep40, TKIP, CCMP, wep104 */
+	u8 algorithm;	/*  encryption algorithm, could be analne, wep40, TKIP, CCMP, wep104 */
 	u8 keyid;
 	u8 grpkey;		/*  1: this is the grpkey for 802.1x. 0: this is the unicast key for 802.1x */
 	u8 set_tx;		/*  1: main tx key for wep. 0: other key. */
@@ -337,7 +337,7 @@ struct del_assocsta_parm {
 /*
 Caller Mode: AP/Ad-HoC(M)
 
-Notes: To notify fw that given staid has changed its power state
+Analtes: To analtify fw that given staid has changed its power state
 
 Command Mode
 
@@ -351,7 +351,7 @@ struct setstapwrstate_parm {
 /*
 Caller Mode: Any
 
-Notes: To setup the basic rate of RTL8711
+Analtes: To setup the basic rate of RTL8711
 
 Command Mode
 
@@ -363,7 +363,7 @@ struct	setbasicrate_parm {
 /*
 Caller Mode: Any
 
-Notes: To read the current basic rate
+Analtes: To read the current basic rate
 
 Command-Rsp Mode
 
@@ -375,7 +375,7 @@ struct getbasicrate_parm {
 /*
 Caller Mode: Any
 
-Notes: To setup the data rate of RTL8711
+Analtes: To setup the data rate of RTL8711
 
 Command Mode
 
@@ -388,7 +388,7 @@ struct setdatarate_parm {
 /*
 Caller Mode: Any
 
-Notes: To read the current data rate
+Analtes: To read the current data rate
 
 Command-Rsp Mode
 
@@ -406,7 +406,7 @@ Ad-HoC(M): Like AP
 Ad-HoC(C): Like STA
 
 
-Notes: To set the phy capability of the NIC
+Analtes: To set the phy capability of the NIC
 
 Command Mode
 
@@ -424,7 +424,7 @@ struct	getphyinfo_parm {
 /*
 Caller Mode: Any
 
-Notes: To set the channel/modem/band
+Analtes: To set the channel/modem/band
 This command will be used when channel/modem/band is changed.
 
 Command Mode
@@ -438,7 +438,7 @@ struct	setphy_parm {
 /*
 Caller Mode: Any
 
-Notes: To get the current setting of channel/modem/band
+Analtes: To get the current setting of channel/modem/band
 
 Command-Rsp Mode
 
@@ -453,7 +453,7 @@ struct Tx_Beacon_param {
 };
 
 /*
-	Notes: This command is used for H2C/C2H loopback testing
+	Analtes: This command is used for H2C/C2H loopback testing
 
 	mac[0] == 0
 	==> CMD mode, return H2C_SUCCESS.
@@ -539,7 +539,7 @@ struct SetChannelPlan_param {
 
 /*H2C Handler index: 61 */
 struct SetChannelSwitch_param {
-	u8 new_ch_no;
+	u8 new_ch_anal;
 };
 
 /*H2C Handler index: 62 */
@@ -563,7 +563,7 @@ struct RunInThread_param {
 Result:
 0x00: success
 0x01: success, and check Response.
-0x02: cmd ignored due to duplicated sequcne number
+0x02: cmd iganalred due to duplicated sequcne number
 0x03: cmd dropped due to invalid cmd code
 0x04: reserved.
 
@@ -598,7 +598,7 @@ extern u8 rtw_setfwdig_cmd(struct adapter *padapter, u8 type);
 extern u8 rtw_setfwra_cmd(struct adapter *padapter, u8 type);
 
 extern u8 rtw_addbareq_cmd(struct adapter *padapter, u8 tid, u8 *addr);
-/*  add for CONFIG_IEEE80211W, none 11w also can use */
+/*  add for CONFIG_IEEE80211W, analne 11w also can use */
 extern u8 rtw_reset_securitypriv_cmd(struct adapter *padapter);
 extern u8 rtw_free_assoc_resources_cmd(struct adapter *padapter);
 extern u8 rtw_dynamic_chk_wk_cmd(struct adapter *adapter);

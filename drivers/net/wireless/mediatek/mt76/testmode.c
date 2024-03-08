@@ -124,7 +124,7 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
 
 	head = alloc_skb(head_len, GFP_KERNEL);
 	if (!head)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = __skb_put_zero(head, sizeof(*hdr));
 	hdr->frame_control = cpu_to_le16(fc);
@@ -137,8 +137,8 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
 
 	info = IEEE80211_SKB_CB(head);
 	info->flags = IEEE80211_TX_CTL_INJECTED |
-		      IEEE80211_TX_CTL_NO_ACK |
-		      IEEE80211_TX_CTL_NO_PS_BUFFER;
+		      IEEE80211_TX_CTL_ANAL_ACK |
+		      IEEE80211_TX_CTL_ANAL_PS_BUFFER;
 
 	info->hw_queue |= FIELD_PREP(MT_TX_HW_QUEUE_PHY, phy->band_idx);
 	frag_tail = &skb_shinfo(head)->frag_list;
@@ -156,7 +156,7 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
 		if (!frag) {
 			mt76_testmode_free_skb(phy);
 			dev_kfree_skb(head);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		get_random_bytes(__skb_put(frag, frag_len), frag_len);
@@ -372,7 +372,7 @@ int mt76_testmode_set_state(struct mt76_phy *phy, enum mt76_testmode_state state
 	if (state > MT76_TM_STATE_OFF &&
 	    (!test_bit(MT76_STATE_RUNNING, &phy->state) ||
 	     !(hw->conf.flags & IEEE80211_CONF_MONITOR)))
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (state != MT76_TM_STATE_IDLE &&
 	    td->state != MT76_TM_STATE_IDLE) {
@@ -416,7 +416,7 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	int i;
 
 	if (!dev->test_ops)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = nla_parse_deprecated(tb, MT76_TM_ATTR_MAX, data, len,
 				   mt76_tm_policy, NULL);
@@ -579,10 +579,10 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
 	int i;
 
 	if (!dev->test_ops)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (cb->args[2]++ > 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (data) {
 		err = nla_parse_deprecated(tb, MT76_TM_ATTR_MAX, data, len,

@@ -6,7 +6,7 @@
 config HAVE_PATA_PLATFORM
 	bool
 	help
-	  This is an internal configuration node for any machine that
+	  This is an internal configuration analde for any machine that
 	  uses pata-platform driver to enable the relevant driver in the
 	  configuration structure without having to submit endless patches
 	  to update the PATA_PLATFORM entry.
@@ -19,19 +19,19 @@ menuconfig ATA
 	select GLOB
 	help
 	  If you want to use an ATA hard disk, ATA tape drive, ATA CD-ROM or
-	  any other ATA device under Linux, say Y and make sure that you know
+	  any other ATA device under Linux, say Y and make sure that you kanalw
 	  the name of your ATA host adapter (the card inside your computer
 	  that "speaks" the ATA protocol, also called ATA controller),
 	  because you will be asked for it.
 
-	  NOTE: ATA enables basic SCSI support; *however*,
+	  ANALTE: ATA enables basic SCSI support; *however*,
 	  'SCSI disk support', 'SCSI tape support', or
 	  'SCSI CDROM support' may also be needed,
 	  depending on your hardware configuration.
 
 if ATA
 
-config ATA_NONSTANDARD
+config ATA_ANALNSTANDARD
        bool
 
 config SATA_HOST
@@ -79,7 +79,7 @@ config ATA_ACPI
 	  These objects may be related to performance, security,
 	  power management, or other areas.
 	  You can disable this at kernel boot time by using the
-	  option libata.noacpi=1
+	  option libata.analacpi=1
 
 config SATA_ZPODD
 	bool "SATA Zero Power Optical Disc Drive (ZPODD) support"
@@ -88,9 +88,9 @@ config SATA_ZPODD
 	  This option adds support for SATA Zero Power Optical Disc
 	  Drive (ZPODD). It requires both the ODD and the platform
 	  support, and if enabled, will automatically power on/off the
-	  ODD when certain condition is satisfied. This does not impact
+	  ODD when certain condition is satisfied. This does analt impact
 	  end user's experience of the ODD, only power is saved when
-	  the ODD is not in use (i.e. no disc inside).
+	  the ODD is analt in use (i.e. anal disc inside).
 
 	  If unsure, say N.
 
@@ -104,7 +104,7 @@ config SATA_PMP
 
 if HAS_DMA
 
-comment "Controllers with non-SFF native interface"
+comment "Controllers with analn-SFF native interface"
 
 config SATA_AHCI
 	tristate "AHCI SATA support"
@@ -124,7 +124,7 @@ config SATA_MOBILE_LPM_POLICY
 	  Select the Default SATA Link Power Management (LPM) policy to use
 	  for chipsets / "South Bridges" supporting low-power modes. Such
 	  chipsets are typically found on most laptops but desktops and
-	  servers now also widely use chipsets supporting low power modes.
+	  servers analw also widely use chipsets supporting low power modes.
 
 	  The value set has the following meanings:
 		0 => Keep firmware settings
@@ -133,8 +133,8 @@ config SATA_MOBILE_LPM_POLICY
 		3 => Medium power with Device Initiated PM enabled
 		4 => Minimum power
 
-	  Note "Minimum power" is known to cause issues, including disk
-	  corruption, with some disks and should not be used.
+	  Analte "Minimum power" is kanalwn to cause issues, including disk
+	  corruption, with some disks and should analt be used.
 
 config SATA_AHCI_PLATFORM
 	tristate "Platform AHCI SATA support"
@@ -177,11 +177,11 @@ config AHCI_DM816
 	  If unsure, say N.
 
 config AHCI_DWC
-	tristate "Synopsys DWC AHCI SATA support"
+	tristate "Syanalpsys DWC AHCI SATA support"
 	select SATA_HOST
 	select MFD_SYSCON if (MIPS_BAIKAL_T1 || COMPILE_TEST)
 	help
-	  This option enables support for the Synopsys DWC AHCI SATA
+	  This option enables support for the Syanalpsys DWC AHCI SATA
 	  controller implementation.
 
 	  If unsure, say N.
@@ -687,7 +687,7 @@ config PATA_EP93XX
 	  If unsure, say N.
 
 config PATA_FTIDE010
-	tristate "Faraday Technology FTIDE010 PATA support"
+	tristate "Faraday Techanallogy FTIDE010 PATA support"
 	depends on ARM || COMPILE_TEST
 	depends on SATA_GEMINI
 	help
@@ -746,7 +746,7 @@ config PATA_ICSIDE
 	select PATA_TIMINGS
 	help
 	  On Acorn systems, say Y here if you wish to use the ICS PATA
-	  interface card.  This is not required for ICS partition support.
+	  interface card.  This is analt required for ICS partition support.
 	  If you are unsure, say N to this.
 
 config PATA_IMX
@@ -976,8 +976,8 @@ config PATA_PXA
 	help
 	  This option enables support for harddrive attached to PXA CPU's bus.
 
-	  NOTE: This driver utilizes PXA DMA controller, in case your hardware
-	        is not capable of doing MWDMA, use pata_platform instead.
+	  ANALTE: This driver utilizes PXA DMA controller, in case your hardware
+	        is analt capable of doing MWDMA, use pata_platform instead.
 
 	  If unsure, say N.
 

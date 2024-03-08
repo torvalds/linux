@@ -375,7 +375,7 @@ static int intel_pt_get_ext(const unsigned char *buf, size_t len,
 		return intel_pt_get_tma(buf, len, packet);
 	case 0xC3: /* 3-byte header */
 		return intel_pt_get_3byte(buf, len, packet);
-	case 0x62: /* EXSTOP no IP */
+	case 0x62: /* EXSTOP anal IP */
 		return intel_pt_get_exstop(packet);
 	case 0xE2: /* EXSTOP with IP */
 		return intel_pt_get_exstop_ip(packet);
@@ -387,7 +387,7 @@ static int intel_pt_get_ext(const unsigned char *buf, size_t len,
 		return intel_pt_get_pwrx(buf, len, packet);
 	case 0x63: /* BBP */
 		return intel_pt_get_bbp(buf, len, packet);
-	case 0x33: /* BEP no IP */
+	case 0x33: /* BEP anal IP */
 		return intel_pt_get_bep(len, packet);
 	case 0xb3: /* BEP with IP */
 		return intel_pt_get_bep_ip(len, packet);
@@ -557,7 +557,7 @@ static int intel_pt_do_get_packet(const unsigned char *buf, size_t len,
 	byte = buf[0];
 
 	switch (ctx) {
-	case INTEL_PT_NO_CTX:
+	case INTEL_PT_ANAL_CTX:
 		break;
 	case INTEL_PT_BLK_4_CTX:
 		if ((byte & 0x7) == 4)
@@ -648,7 +648,7 @@ void intel_pt_upd_pkt_ctx(const struct intel_pt_pkt *packet,
 	case INTEL_PT_CFE:
 	case INTEL_PT_CFE_IP:
 	case INTEL_PT_EVD:
-		*ctx = INTEL_PT_NO_CTX;
+		*ctx = INTEL_PT_ANAL_CTX;
 		break;
 	case INTEL_PT_BBP:
 		if (packet->count)
@@ -720,7 +720,7 @@ int intel_pt_pkt_desc(const struct intel_pt_pkt *packet, char *buf,
 	case INTEL_PT_TIP:
 	case INTEL_PT_FUP:
 		if (!(packet->count))
-			return snprintf(buf, buf_len, "%s no ip", name);
+			return snprintf(buf, buf_len, "%s anal ip", name);
 		fallthrough;
 	case INTEL_PT_CYC:
 	case INTEL_PT_VMCS:

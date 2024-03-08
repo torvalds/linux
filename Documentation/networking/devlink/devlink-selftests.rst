@@ -21,7 +21,7 @@ The following is a list of tests that drivers may execute.
    * - Name
      - Description
    * - ``DEVLINK_SELFTEST_FLASH``
-     - Devices may have the firmware on non-volatile memory on the board, e.g.
+     - Devices may have the firmware on analn-volatile memory on the board, e.g.
        flash. This particular test helps to run a flash selftest on the device.
        Implementation of the test is left to the driver/firmware.
 

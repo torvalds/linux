@@ -8,7 +8,7 @@ Required properties:
 
 Optional properties:
 - ti,mode: should be "hdq": HDQ mode  "1w": one-wire mode.
-	   If not specified HDQ mode is implied.
+	   If analt specified HDQ mode is implied.
 
 Example:
 

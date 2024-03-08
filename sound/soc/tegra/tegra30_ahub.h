@@ -107,13 +107,13 @@
 #define TEGRA30_AUDIOCIF_CTRL_TRUNCATE_ROUND		(TEGRA30_AUDIOCIF_TRUNCATE_ROUND << TEGRA30_AUDIOCIF_CTRL_TRUNCATE_SHIFT)
 #define TEGRA30_AUDIOCIF_CTRL_TRUNCATE_CHOP		(TEGRA30_AUDIOCIF_TRUNCATE_CHOP  << TEGRA30_AUDIOCIF_CTRL_TRUNCATE_SHIFT)
 
-#define TEGRA30_AUDIOCIF_MONO_CONV_ZERO			0
-#define TEGRA30_AUDIOCIF_MONO_CONV_COPY			1
+#define TEGRA30_AUDIOCIF_MOANAL_CONV_ZERO			0
+#define TEGRA30_AUDIOCIF_MOANAL_CONV_COPY			1
 
-#define TEGRA30_AUDIOCIF_CTRL_MONO_CONV_SHIFT		0
-#define TEGRA30_AUDIOCIF_CTRL_MONO_CONV_MASK		(1                               << TEGRA30_AUDIOCIF_CTRL_MONO_CONV_SHIFT)
-#define TEGRA30_AUDIOCIF_CTRL_MONO_CONV_ZERO		(TEGRA30_AUDIOCIF_MONO_CONV_ZERO << TEGRA30_AUDIOCIF_CTRL_MONO_CONV_SHIFT)
-#define TEGRA30_AUDIOCIF_CTRL_MONO_CONV_COPY		(TEGRA30_AUDIOCIF_MONO_CONV_COPY << TEGRA30_AUDIOCIF_CTRL_MONO_CONV_SHIFT)
+#define TEGRA30_AUDIOCIF_CTRL_MOANAL_CONV_SHIFT		0
+#define TEGRA30_AUDIOCIF_CTRL_MOANAL_CONV_MASK		(1                               << TEGRA30_AUDIOCIF_CTRL_MOANAL_CONV_SHIFT)
+#define TEGRA30_AUDIOCIF_CTRL_MOANAL_CONV_ZERO		(TEGRA30_AUDIOCIF_MOANAL_CONV_ZERO << TEGRA30_AUDIOCIF_CTRL_MOANAL_CONV_SHIFT)
+#define TEGRA30_AUDIOCIF_CTRL_MOANAL_CONV_COPY		(TEGRA30_AUDIOCIF_MOANAL_CONV_COPY << TEGRA30_AUDIOCIF_CTRL_MOANAL_CONV_SHIFT)
 
 /* Registers within TEGRA30_AUDIO_CLUSTER_BASE */
 
@@ -399,7 +399,7 @@
 /* The fields in this register are 1 bit per entry in tegra30_ahub_txcif */
 
 /*
- * Terminology:
+ * Termianallogy:
  * AHUB: Audio Hub; a cross-bar switch between the audio devices: DMA FIFOs,
  *       I2S controllers, SPDIF controllers, and DAMs.
  * XBAR: The core cross-bar component of the AHUB.
@@ -411,8 +411,8 @@
  * Each TX CIF transmits data into the XBAR. Each RX CIF can receive audio
  * transmitted by a particular TX CIF.
  *
- * This driver is currently very simplistic; many HW features are not
- * exposed; DAMs are not supported, only 16-bit stereo audio is supported,
+ * This driver is currently very simplistic; many HW features are analt
+ * exposed; DAMs are analt supported, only 16-bit stereo audio is supported,
  * etc.
  */
 
@@ -482,7 +482,7 @@ struct tegra30_ahub_cif_conf {
 	unsigned int replicate;
 	unsigned int direction;
 	unsigned int truncate;
-	unsigned int mono_conv;
+	unsigned int moanal_conv;
 };
 
 void tegra30_ahub_set_cif(struct regmap *regmap, unsigned int reg,

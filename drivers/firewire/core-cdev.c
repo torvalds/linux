@@ -11,7 +11,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firewire.h>
 #include <linux/firewire-cdev.h>
 #include <linux/idr.h>
@@ -246,24 +246,24 @@ static inline u64 uptr_to_u64(void __user *ptr)
 }
 #endif /* CONFIG_COMPAT */
 
-static int fw_device_op_open(struct inode *inode, struct file *file)
+static int fw_device_op_open(struct ianalde *ianalde, struct file *file)
 {
 	struct fw_device *device;
 	struct client *client;
 
-	device = fw_device_get_by_devt(inode->i_rdev);
+	device = fw_device_get_by_devt(ianalde->i_rdev);
 	if (device == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fw_device_is_shutdown(device)) {
 		fw_device_put(device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (client == NULL) {
 		fw_device_put(device);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	client->device = device;
@@ -278,7 +278,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 
 	file->private_data = client;
 
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
 static void queue_event(struct client *client, struct event *event,
@@ -316,7 +316,7 @@ static int dequeue_event(struct client *client,
 
 	if (list_empty(&client->event_list) &&
 		       fw_device_is_shutdown(client->device))
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irq(&client->lock);
 	event = list_first_entry(&client->event_list, struct event, link);
@@ -358,11 +358,11 @@ static void fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 	event->closure	     = client->bus_reset_closure;
 	event->type          = FW_CDEV_EVENT_BUS_RESET;
 	event->generation    = client->device->generation;
-	event->node_id       = client->device->node_id;
-	event->local_node_id = card->local_node->node_id;
-	event->bm_node_id    = card->bm_node_id;
-	event->irm_node_id   = card->irm_node->node_id;
-	event->root_node_id  = card->root_node->node_id;
+	event->analde_id       = client->device->analde_id;
+	event->local_analde_id = card->local_analde->analde_id;
+	event->bm_analde_id    = card->bm_analde_id;
+	event->irm_analde_id   = card->irm_analde->analde_id;
+	event->root_analde_id  = card->root_analde->analde_id;
 
 	spin_unlock_irq(&card->lock);
 }
@@ -498,7 +498,7 @@ static int add_client_resource(struct client *client,
 		ret = -ECANCELED;
 	else
 		ret = idr_alloc(&client->resource_idr, resource, 0, 0,
-				GFP_NOWAIT);
+				GFP_ANALWAIT);
 	if (ret >= 0) {
 		resource->handle = ret;
 		client_get(client);
@@ -626,7 +626,7 @@ static int init_request(struct client *client,
 
 	e = kmalloc(sizeof(*e) + request->length, GFP_KERNEL);
 	if (e == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	e->client = client;
 
 	if (client->version < FW_CDEV_VERSION_EVENT_ASYNC_TSTAMP) {
@@ -685,7 +685,7 @@ static int ioctl_send_request(struct client *client, union ioctl_arg *arg)
 		return -EINVAL;
 	}
 
-	return init_request(client, &arg->send_request, client->device->node_id,
+	return init_request(client, &arg->send_request, client->device->analde_id,
 			    client->device->max_speed);
 }
 
@@ -759,8 +759,8 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 		req->type	= FW_CDEV_EVENT_REQUEST2;
 		req->tcode	= tcode;
 		req->offset	= offset;
-		req->source_node_id = source;
-		req->destination_node_id = destination;
+		req->source_analde_id = source;
+		req->destination_analde_id = destination;
 		req->card	= card->index;
 		req->generation	= generation;
 		req->length	= length;
@@ -773,8 +773,8 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 		req->type	= FW_CDEV_EVENT_REQUEST3;
 		req->tcode	= tcode;
 		req->offset	= offset;
-		req->source_node_id = source;
-		req->destination_node_id = destination;
+		req->source_analde_id = source;
+		req->destination_analde_id = destination;
 		req->card	= card->index;
 		req->generation	= generation;
 		req->length	= length;
@@ -819,7 +819,7 @@ static int ioctl_allocate(struct client *client, union ioctl_arg *arg)
 
 	r = kmalloc(sizeof(*r), GFP_KERNEL);
 	if (r == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	region.start = a->offset;
 	if (client->version < FW_CDEV_VERSION_ALLOCATE_REGION_END)
@@ -916,16 +916,16 @@ static int ioctl_add_descriptor(struct client *client, union ioctl_arg *arg)
 	struct descriptor_resource *r;
 	int ret;
 
-	/* Access policy: Allow this ioctl only on local nodes' device files. */
+	/* Access policy: Allow this ioctl only on local analdes' device files. */
 	if (!client->device->is_local)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (a->length > 256)
 		return -EINVAL;
 
 	r = kmalloc(sizeof(*r) + a->length * 4, GFP_KERNEL);
 	if (r == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(r->data, u64_to_uptr(a->data), a->length * 4)) {
 		ret = -EFAULT;
@@ -1134,13 +1134,13 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 		return -EINVAL;
 
 	/*
-	 * If the user passes a non-NULL data pointer, has mmap()'ed
+	 * If the user passes a analn-NULL data pointer, has mmap()'ed
 	 * the iso buffer, and the pointer points inside the buffer,
 	 * we setup the payload pointers accordingly.  Otherwise we
 	 * set them both to 0, which will still let packets with
-	 * payload_length == 0 through.  In other words, if no packets
-	 * use the indirect payload, the iso buffer need not be mapped
-	 * and the a->data pointer is ignored.
+	 * payload_length == 0 through.  In other words, if anal packets
+	 * use the indirect payload, the iso buffer need analt be mapped
+	 * and the a->data pointer is iganalred.
 	 */
 	payload = (unsigned long)a->data - client->vm_start;
 	buffer_end = client->buffer.page_count << PAGE_SHIFT;
@@ -1275,8 +1275,8 @@ static int ioctl_get_cycle_timer2(struct client *client, union ioctl_arg *arg)
 
 	switch (a->clk_id) {
 	case CLOCK_REALTIME:      ktime_get_real_ts64(&ts);	break;
-	case CLOCK_MONOTONIC:     ktime_get_ts64(&ts);		break;
-	case CLOCK_MONOTONIC_RAW: ktime_get_raw_ts64(&ts);	break;
+	case CLOCK_MOANALTONIC:     ktime_get_ts64(&ts);		break;
+	case CLOCK_MOANALTONIC_RAW: ktime_get_raw_ts64(&ts);	break;
 	default:
 		ret = -EINVAL;
 	}
@@ -1430,7 +1430,7 @@ static int init_iso_resource(struct client *client,
 	e1 = kmalloc(sizeof(*e1), GFP_KERNEL);
 	e2 = kmalloc(sizeof(*e2), GFP_KERNEL);
 	if (r == NULL || e1 == NULL || e2 == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -1499,7 +1499,7 @@ static int ioctl_deallocate_iso_resource_once(struct client *client,
 
 /*
  * Returns a speed code:  Maximum speed to or from this device,
- * limited by the device's link speed, the local node's link speed,
+ * limited by the device's link speed, the local analde's link speed,
  * and all PHY port speeds between the two links.
  */
 static int ioctl_get_speed(struct client *client, union ioctl_arg *arg)
@@ -1578,7 +1578,7 @@ static void outbound_phy_packet_callback(struct fw_packet *packet,
 	case ACK_TYPE_ERROR:
 		rcode = RCODE_TYPE_ERROR;
 		break;
-	// stale generation; cancelled; on certain controllers: no ack
+	// stale generation; cancelled; on certain controllers: anal ack
 	default:
 		rcode = status;
 		break;
@@ -1619,13 +1619,13 @@ static int ioctl_send_phy_packet(struct client *client, union ioctl_arg *arg)
 	struct fw_card *card = client->device->card;
 	struct outbound_phy_packet_event *e;
 
-	/* Access policy: Allow this ioctl only on local nodes' device files. */
+	/* Access policy: Allow this ioctl only on local analdes' device files. */
 	if (!client->device->is_local)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	e = kzalloc(sizeof(*e) + sizeof(a->data), GFP_KERNEL);
 	if (e == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	client_get(client);
 	e->client		= client;
@@ -1665,9 +1665,9 @@ static int ioctl_receive_phy_packets(struct client *client, union ioctl_arg *arg
 	struct fw_cdev_receive_phy_packets *a = &arg->receive_phy_packets;
 	struct fw_card *card = client->device->card;
 
-	/* Access policy: Allow this ioctl only on local nodes' device files. */
+	/* Access policy: Allow this ioctl only on local analdes' device files. */
 	if (!client->device->is_local)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	spin_lock_irq(&card->lock);
 
@@ -1755,12 +1755,12 @@ static int dispatch_ioctl(struct client *client,
 	int ret;
 
 	if (fw_device_is_shutdown(client->device))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (_IOC_TYPE(cmd) != '#' ||
 	    _IOC_NR(cmd) >= ARRAY_SIZE(ioctl_handlers) ||
 	    _IOC_SIZE(cmd) > sizeof(buffer))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	memset(&buffer, 0, sizeof(buffer));
 
@@ -1792,7 +1792,7 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 	int page_count, ret;
 
 	if (fw_device_is_shutdown(client->device))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* FIXME: We could support multiple buffers, but we don't. */
 	if (client->buffer.pages != NULL)
@@ -1866,7 +1866,7 @@ static int shutdown_resource(int id, void *p, void *data)
 	return 0;
 }
 
-static int fw_device_op_release(struct inode *inode, struct file *file)
+static int fw_device_op_release(struct ianalde *ianalde, struct file *file)
 {
 	struct client *client = file->private_data;
 	struct event *event, *next_event;
@@ -1913,14 +1913,14 @@ static __poll_t fw_device_op_poll(struct file *file, poll_table * pt)
 	if (fw_device_is_shutdown(client->device))
 		mask |= EPOLLHUP | EPOLLERR;
 	if (!list_empty(&client->event_list))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	return mask;
 }
 
 const struct file_operations fw_device_ops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.open		= fw_device_op_open,
 	.read		= fw_device_op_read,
 	.unlocked_ioctl	= fw_device_op_ioctl,

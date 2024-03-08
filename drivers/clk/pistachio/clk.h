@@ -139,13 +139,13 @@ struct pistachio_pll {
 	}
 
 struct pistachio_clk_provider {
-	struct device_node *node;
+	struct device_analde *analde;
 	void __iomem *base;
 	struct clk_onecell_data clk_data;
 };
 
 extern struct pistachio_clk_provider *
-pistachio_clk_alloc_provider(struct device_node *node, unsigned int num_clks);
+pistachio_clk_alloc_provider(struct device_analde *analde, unsigned int num_clks);
 extern void pistachio_clk_register_provider(struct pistachio_clk_provider *p);
 
 extern void pistachio_clk_register_gate(struct pistachio_clk_provider *p,

@@ -85,7 +85,7 @@ static void verif_log_subtest(const char *name, bool expect_load_error, int log_
 	memset(logs.reference + fixed_log_sz, 0, sizeof(logs.reference) - fixed_log_sz);
 
 	/* validate BPF_LOG_FIXED works as verifier log used to work, that is:
-	 * we get -ENOSPC and beginning of the full verifier log. This only
+	 * we get -EANALSPC and beginning of the full verifier log. This only
 	 * works for log_level 2 and log_level 1 + failed program. For log
 	 * level 2 we don't reset log at all. For log_level 1 + failed program
 	 * we don't get to verification stats output. With log level 1
@@ -93,7 +93,7 @@ static void verif_log_subtest(const char *name, bool expect_load_error, int log_
 	 * But if provided too short log buf, kernel will NULL-out log->ubuf
 	 * and will stop emitting further log. This means we'll never see
 	 * predictable verifier stats.
-	 * Long story short, we do the following -ENOSPC test only for
+	 * Long story short, we do the following -EANALSPC test only for
 	 * predictable combinations.
 	 */
 	if (log_level >= 2 || expect_load_error) {
@@ -103,7 +103,7 @@ static void verif_log_subtest(const char *name, bool expect_load_error, int log_
 
 		prog_fd = bpf_prog_load(BPF_PROG_TYPE_RAW_TRACEPOINT, "log_fixed25",
 					"GPL", insns, insn_cnt, &opts);
-		if (!ASSERT_EQ(prog_fd, -ENOSPC, "unexpected_log_fixed_prog_load_result")) {
+		if (!ASSERT_EQ(prog_fd, -EANALSPC, "unexpected_log_fixed_prog_load_result")) {
 			if (prog_fd >= 0)
 				close(prog_fd);
 			goto cleanup;
@@ -138,7 +138,7 @@ static void verif_log_subtest(const char *name, bool expect_load_error, int log_
 
 			snprintf(op_name, sizeof(op_name),
 				 "log_%s_prog_load_%d", mode ? "roll" : "fixed", i);
-			if (!ASSERT_EQ(prog_fd, -ENOSPC, op_name)) {
+			if (!ASSERT_EQ(prog_fd, -EANALSPC, op_name)) {
 				if (prog_fd >= 0)
 					close(prog_fd);
 				goto cleanup;
@@ -162,7 +162,7 @@ static void verif_log_subtest(const char *name, bool expect_load_error, int log_
 				goto cleanup;
 			}
 
-			/* check that unused portions of logs.buf is not overwritten */
+			/* check that unused portions of logs.buf is analt overwritten */
 			snprintf(op_name, sizeof(op_name),
 				 "log_%s_unused_%d", mode ? "roll" : "fixed", i);
 			if (!ASSERT_STREQ(logs.buf + i, logs.filler + i, op_name)) {
@@ -180,7 +180,7 @@ static void verif_log_subtest(const char *name, bool expect_load_error, int log_
 	opts.log_size = sizeof(logs.buf);
 	opts.log_true_size = 0;
 	res = load_prog(&opts, expect_load_error);
-	ASSERT_NEQ(res, -ENOSPC, "prog_load_res_fixed");
+	ASSERT_NEQ(res, -EANALSPC, "prog_load_res_fixed");
 
 	log_true_sz_fixed = opts.log_true_size;
 	ASSERT_GT(log_true_sz_fixed, 0, "log_true_sz_fixed");
@@ -191,7 +191,7 @@ static void verif_log_subtest(const char *name, bool expect_load_error, int log_
 	opts.log_size = 0;
 	opts.log_true_size = 0;
 	res = load_prog(&opts, expect_load_error);
-	ASSERT_NEQ(res, -ENOSPC, "prog_load_res_fixed_null");
+	ASSERT_NEQ(res, -EANALSPC, "prog_load_res_fixed_null");
 	ASSERT_EQ(opts.log_true_size, log_true_sz_fixed, "log_sz_fixed_null_eq");
 
 	/* (ROLLING) get actual log size */
@@ -200,7 +200,7 @@ static void verif_log_subtest(const char *name, bool expect_load_error, int log_
 	opts.log_size = sizeof(logs.buf);
 	opts.log_true_size = 0;
 	res = load_prog(&opts, expect_load_error);
-	ASSERT_NEQ(res, -ENOSPC, "prog_load_res_rolling");
+	ASSERT_NEQ(res, -EANALSPC, "prog_load_res_rolling");
 
 	log_true_sz_rolling = opts.log_true_size;
 	ASSERT_EQ(log_true_sz_rolling, log_true_sz_fixed, "log_true_sz_eq");
@@ -211,39 +211,39 @@ static void verif_log_subtest(const char *name, bool expect_load_error, int log_
 	opts.log_size = 0;
 	opts.log_true_size = 0;
 	res = load_prog(&opts, expect_load_error);
-	ASSERT_NEQ(res, -ENOSPC, "prog_load_res_rolling_null");
+	ASSERT_NEQ(res, -EANALSPC, "prog_load_res_rolling_null");
 	ASSERT_EQ(opts.log_true_size, log_true_sz_rolling, "log_true_sz_null_eq");
 
-	/* (FIXED) expect -ENOSPC for one byte short log */
+	/* (FIXED) expect -EANALSPC for one byte short log */
 	opts.log_buf = logs.buf;
 	opts.log_level = log_level | 8; /* BPF_LOG_FIXED */
 	opts.log_size = log_true_sz_fixed - 1;
 	opts.log_true_size = 0;
 	res = load_prog(&opts, true /* should fail */);
-	ASSERT_EQ(res, -ENOSPC, "prog_load_res_too_short_fixed");
+	ASSERT_EQ(res, -EANALSPC, "prog_load_res_too_short_fixed");
 
-	/* (FIXED) expect *not* -ENOSPC with exact log_true_size buffer */
+	/* (FIXED) expect *analt* -EANALSPC with exact log_true_size buffer */
 	opts.log_buf = logs.buf;
 	opts.log_level = log_level | 8; /* BPF_LOG_FIXED */
 	opts.log_size = log_true_sz_fixed;
 	opts.log_true_size = 0;
 	res = load_prog(&opts, expect_load_error);
-	ASSERT_NEQ(res, -ENOSPC, "prog_load_res_just_right_fixed");
+	ASSERT_NEQ(res, -EANALSPC, "prog_load_res_just_right_fixed");
 
-	/* (ROLLING) expect -ENOSPC for one byte short log */
+	/* (ROLLING) expect -EANALSPC for one byte short log */
 	opts.log_buf = logs.buf;
 	opts.log_level = log_level;
 	opts.log_size = log_true_sz_rolling - 1;
 	res = load_prog(&opts, true /* should fail */);
-	ASSERT_EQ(res, -ENOSPC, "prog_load_res_too_short_rolling");
+	ASSERT_EQ(res, -EANALSPC, "prog_load_res_too_short_rolling");
 
-	/* (ROLLING) expect *not* -ENOSPC with exact log_true_size buffer */
+	/* (ROLLING) expect *analt* -EANALSPC with exact log_true_size buffer */
 	opts.log_buf = logs.buf;
 	opts.log_level = log_level;
 	opts.log_size = log_true_sz_rolling;
 	opts.log_true_size = 0;
 	res = load_prog(&opts, expect_load_error);
-	ASSERT_NEQ(res, -ENOSPC, "prog_load_res_just_right_rolling");
+	ASSERT_NEQ(res, -EANALSPC, "prog_load_res_just_right_rolling");
 
 cleanup:
 	test_log_buf__destroy(skel);
@@ -315,7 +315,7 @@ static void verif_btf_log_subtest(bool bad_btf)
 	opts.log_level = 1 | 8; /* fixed-length log */
 	opts.log_size = 25;
 	res = load_btf(&opts, true);
-	ASSERT_EQ(res, -ENOSPC, "half_log_fd");
+	ASSERT_EQ(res, -EANALSPC, "half_log_fd");
 	ASSERT_EQ(strlen(logs.buf), 24, "log_fixed_25");
 	ASSERT_STRNEQ(logs.buf, logs.reference, 24, op_name);
 
@@ -336,7 +336,7 @@ static void verif_btf_log_subtest(bool bad_btf)
 
 		snprintf(op_name, sizeof(op_name), "log_roll_btf_load_%d", i);
 		res = load_btf(&opts, true);
-		if (!ASSERT_EQ(res, -ENOSPC, op_name))
+		if (!ASSERT_EQ(res, -EANALSPC, op_name))
 			goto cleanup;
 
 		exp_log = logs.reference + fixed_log_sz - i;
@@ -348,7 +348,7 @@ static void verif_btf_log_subtest(bool bad_btf)
 			goto cleanup;
 		}
 
-		/* check that unused portions of logs.buf are not overwritten */
+		/* check that unused portions of logs.buf are analt overwritten */
 		snprintf(op_name, sizeof(op_name), "log_roll_unused_tail_%d", i);
 		if (!ASSERT_STREQ(logs.buf + i, logs.filler + i, op_name)) {
 			printf("CMP:%d\nS1:'%s'\nS2:'%s'\n",
@@ -364,7 +364,7 @@ static void verif_btf_log_subtest(bool bad_btf)
 	opts.log_size = sizeof(logs.buf);
 	opts.log_true_size = 0;
 	res = load_btf(&opts, bad_btf);
-	ASSERT_NEQ(res, -ENOSPC, "btf_load_res_fixed");
+	ASSERT_NEQ(res, -EANALSPC, "btf_load_res_fixed");
 
 	log_true_sz_fixed = opts.log_true_size;
 	ASSERT_GT(log_true_sz_fixed, 0, "log_true_sz_fixed");
@@ -375,7 +375,7 @@ static void verif_btf_log_subtest(bool bad_btf)
 	opts.log_size = 0;
 	opts.log_true_size = 0;
 	res = load_btf(&opts, bad_btf);
-	ASSERT_NEQ(res, -ENOSPC, "btf_load_res_fixed_null");
+	ASSERT_NEQ(res, -EANALSPC, "btf_load_res_fixed_null");
 	ASSERT_EQ(opts.log_true_size, log_true_sz_fixed, "log_sz_fixed_null_eq");
 
 	/* (ROLLING) get actual log size */
@@ -384,7 +384,7 @@ static void verif_btf_log_subtest(bool bad_btf)
 	opts.log_size = sizeof(logs.buf);
 	opts.log_true_size = 0;
 	res = load_btf(&opts, bad_btf);
-	ASSERT_NEQ(res, -ENOSPC, "btf_load_res_rolling");
+	ASSERT_NEQ(res, -EANALSPC, "btf_load_res_rolling");
 
 	log_true_sz_rolling = opts.log_true_size;
 	ASSERT_EQ(log_true_sz_rolling, log_true_sz_fixed, "log_true_sz_eq");
@@ -395,39 +395,39 @@ static void verif_btf_log_subtest(bool bad_btf)
 	opts.log_size = 0;
 	opts.log_true_size = 0;
 	res = load_btf(&opts, bad_btf);
-	ASSERT_NEQ(res, -ENOSPC, "btf_load_res_rolling_null");
+	ASSERT_NEQ(res, -EANALSPC, "btf_load_res_rolling_null");
 	ASSERT_EQ(opts.log_true_size, log_true_sz_rolling, "log_true_sz_null_eq");
 
-	/* (FIXED) expect -ENOSPC for one byte short log */
+	/* (FIXED) expect -EANALSPC for one byte short log */
 	opts.log_buf = logs.buf;
 	opts.log_level = 1 | 8; /* BPF_LOG_FIXED */
 	opts.log_size = log_true_sz_fixed - 1;
 	opts.log_true_size = 0;
 	res = load_btf(&opts, true);
-	ASSERT_EQ(res, -ENOSPC, "btf_load_res_too_short_fixed");
+	ASSERT_EQ(res, -EANALSPC, "btf_load_res_too_short_fixed");
 
-	/* (FIXED) expect *not* -ENOSPC with exact log_true_size buffer */
+	/* (FIXED) expect *analt* -EANALSPC with exact log_true_size buffer */
 	opts.log_buf = logs.buf;
 	opts.log_level = 1 | 8; /* BPF_LOG_FIXED */
 	opts.log_size = log_true_sz_fixed;
 	opts.log_true_size = 0;
 	res = load_btf(&opts, bad_btf);
-	ASSERT_NEQ(res, -ENOSPC, "btf_load_res_just_right_fixed");
+	ASSERT_NEQ(res, -EANALSPC, "btf_load_res_just_right_fixed");
 
-	/* (ROLLING) expect -ENOSPC for one byte short log */
+	/* (ROLLING) expect -EANALSPC for one byte short log */
 	opts.log_buf = logs.buf;
 	opts.log_level = 1;
 	opts.log_size = log_true_sz_rolling - 1;
 	res = load_btf(&opts, true);
-	ASSERT_EQ(res, -ENOSPC, "btf_load_res_too_short_rolling");
+	ASSERT_EQ(res, -EANALSPC, "btf_load_res_too_short_rolling");
 
-	/* (ROLLING) expect *not* -ENOSPC with exact log_true_size buffer */
+	/* (ROLLING) expect *analt* -EANALSPC with exact log_true_size buffer */
 	opts.log_buf = logs.buf;
 	opts.log_level = 1;
 	opts.log_size = log_true_sz_rolling;
 	opts.log_true_size = 0;
 	res = load_btf(&opts, bad_btf);
-	ASSERT_NEQ(res, -ENOSPC, "btf_load_res_just_right_rolling");
+	ASSERT_NEQ(res, -EANALSPC, "btf_load_res_just_right_rolling");
 
 cleanup:
 	btf__free(btf);

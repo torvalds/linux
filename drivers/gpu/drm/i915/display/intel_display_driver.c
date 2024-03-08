@@ -3,7 +3,7 @@
  * Copyright © 2022-2023 Intel Corporation
  *
  * High level display driver entry points. This is a layer between top level
- * driver code and low level display functionality; no low level display code or
+ * driver code and low level display functionality; anal low level display code or
  * details here.
  */
 
@@ -199,12 +199,12 @@ void intel_display_driver_early_probe(struct drm_i915_private *i915)
 }
 
 /* part #1: call before irq install */
-int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
+int intel_display_driver_probe_analirq(struct drm_i915_private *i915)
 {
 	int ret;
 
 	if (i915_inject_probe_failure(i915))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (HAS_DISPLAY(i915)) {
 		ret = drm_vblank_init(&i915->drm,
@@ -277,7 +277,7 @@ cleanup_bios:
 }
 
 /* part #2: call after irq install, but before gem init */
-int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
+int intel_display_driver_probe_analgem(struct drm_i915_private *i915)
 {
 	struct drm_device *dev = &i915->drm;
 	enum pipe pipe;
@@ -328,7 +328,7 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 
 	drm_modeset_lock_all(dev);
 	intel_modeset_setup_hw_state(i915, dev->mode_config.acquire_ctx);
-	intel_acpi_assign_connector_fwnodes(i915);
+	intel_acpi_assign_connector_fwanaldes(i915);
 	drm_modeset_unlock_all(dev);
 
 	for_each_intel_crtc(dev, crtc) {
@@ -339,7 +339,7 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 
 	/*
 	 * Make sure hardware watermarks really match the state we read out.
-	 * Note that we need to do this after reconstructing the BIOS fb's
+	 * Analte that we need to do this after reconstructing the BIOS fb's
 	 * since the watermark calculation done here will use pstate->fb.
 	 */
 	if (!HAS_GMCH(i915))
@@ -359,7 +359,7 @@ int intel_display_driver_probe(struct drm_i915_private *i915)
 	/*
 	 * Force all active planes to recompute their states. So that on
 	 * mode_setcrtc after probe, all the intel_plane_state variables
-	 * are already calculated and there is no assert_plane warnings
+	 * are already calculated and there is anal assert_plane warnings
 	 * during bootup.
 	 */
 	ret = intel_initial_commit(&i915->drm);
@@ -401,13 +401,13 @@ void intel_display_driver_register(struct drm_i915_private *i915)
 	 * detection to work properly (leading to ghost connected
 	 * connector status), e.g. VGA on gm45.  Hence we can only set
 	 * up the initial fbdev config after hpd irqs are fully
-	 * enabled. We do it last so that the async config cannot run
+	 * enabled. We do it last so that the async config cananalt run
 	 * before the connectors are registered.
 	 */
 	intel_fbdev_initial_config_async(i915);
 
 	/*
-	 * We need to coordinate the hotplugs with the asynchronous
+	 * We need to coordinate the hotplugs with the asynchroanalus
 	 * fbdev configuration, for which we use the
 	 * fbdev->async_cookie.
 	 */
@@ -435,7 +435,7 @@ void intel_display_driver_remove(struct drm_i915_private *i915)
 }
 
 /* part #2: call after irq uninstall */
-void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
+void intel_display_driver_remove_analirq(struct drm_i915_private *i915)
 {
 	if (!HAS_DISPLAY(i915))
 		return;
@@ -452,7 +452,7 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 	intel_unregister_dsm_handler();
 
 	/* flush any delayed tasks or pending work */
-	flush_workqueue(i915->unordered_wq);
+	flush_workqueue(i915->uanalrdered_wq);
 
 	intel_hdcp_component_fini(i915);
 
@@ -469,7 +469,7 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 }
 
 /* part #3: call after gem init */
-void intel_display_driver_remove_nogem(struct drm_i915_private *i915)
+void intel_display_driver_remove_analgem(struct drm_i915_private *i915)
 {
 	intel_dmc_fini(i915);
 
@@ -501,7 +501,7 @@ void intel_display_driver_unregister(struct drm_i915_private *i915)
 }
 
 /*
- * turn all crtc's off, but do not adjust state
+ * turn all crtc's off, but do analt adjust state
  * This has to be paired with a call to intel_modeset_setup_hw_state.
  */
 int intel_display_driver_suspend(struct drm_i915_private *i915)
@@ -545,13 +545,13 @@ __intel_display_driver_resume(struct drm_i915_private *i915,
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		/*
 		 * Force recalculation even if we restore
-		 * current state. With fast modeset this may not result
+		 * current state. With fast modeset this may analt result
 		 * in a modeset when the state is compatible.
 		 */
 		crtc_state->mode_changed = true;
 	}
 
-	/* ignore any reset values/BIOS leftovers in the WM registers */
+	/* iganalre any reset values/BIOS leftovers in the WM registers */
 	if (!HAS_GMCH(i915))
 		to_intel_atomic_state(state)->skip_intermediate_wm = true;
 

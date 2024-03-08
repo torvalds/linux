@@ -45,7 +45,7 @@ Required property:
 	register.
 Optional property:
 - divisor-mask : shall be the mask for the divisor register. Defaults to 0x1f
-	if not specified.
+	if analt specified.
 
 
 For example:

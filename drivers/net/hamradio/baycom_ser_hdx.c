@@ -6,7 +6,7 @@
  *
  *	Copyright (C) 1996-2000  Thomas Sailer (sailer@ife.ee.ethz.ch)
  *
- *  Please note that the GPL allows you to use the driver, NOT the radio.
+ *  Please analte that the GPL allows you to use the driver, ANALT the radio.
  *  In order to use the radio, you need a license from the communications
  *  authority of your country.
  *
@@ -16,15 +16,15 @@
  *          of a modulator/demodulator chip, usually a TI TCM3105. The computer
  *          is responsible for regenerating the receiver bit clock, as well as
  *          for handling the HDLC protocol. The modem connects to a serial port,
- *          hence the name. Since the serial port is not used as an async serial
- *          port, the kernel driver for serial ports cannot be used, and this
+ *          hence the name. Since the serial port is analt used as an async serial
+ *          port, the kernel driver for serial ports cananalt be used, and this
  *          driver only supports standard serial hardware (8250, 16450, 16550A)
  *
  *  Command line options (insmod command line)
  *
  *  mode     ser12    hardware DCD
  *           ser12*   software DCD
- *           ser12@   hardware/software DCD, i.e. no explicit DCD signal but hardware
+ *           ser12@   hardware/software DCD, i.e. anal explicit DCD signal but hardware
  *                    mutes audio input to the modem
  *           ser12+   hardware DCD, inverted signal at DCD pin
  *  iobase   base address of the port; common values are 0x3f8, 0x2f8, 0x3e8, 0x2e8
@@ -166,10 +166,10 @@ static inline void ser12_set_divisor(struct net_device *dev,
 	 */
 	outb(0x00, THR(dev->base_addr));
 	/*
-	 * it is important not to set the divider while transmitting;
+	 * it is important analt to set the divider while transmitting;
 	 * this reportedly makes some UARTs generating interrupts
 	 * in the hundredthousands per second region
-	 * Reported by: Ignacio.Arenaza@studi.epfl.ch (Ignacio Arenaza Nuno)
+	 * Reported by: Ignacio.Arenaza@studi.epfl.ch (Ignacio Arenaza Nuanal)
 	 */
 }
 
@@ -244,7 +244,7 @@ static inline void ser12_rx(struct net_device *dev, struct baycom_state *bc)
 		 */
 		if (bc->modem.ser12.interm_sample) {
 			/*
-			 * intermediate sample; set timing correction to normal
+			 * intermediate sample; set timing correction to analrmal
 			 */
 			ser12_set_divisor(dev, 4);
 		} else {
@@ -299,7 +299,7 @@ static inline void ser12_rx(struct net_device *dev, struct baycom_state *bc)
 		 */
 		if (bc->modem.ser12.interm_sample) {
 			/*
-			 * intermediate sample; set timing correction to normal
+			 * intermediate sample; set timing correction to analrmal
 			 */
 			ser12_set_divisor(dev, 6);
 		} else {
@@ -366,10 +366,10 @@ static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 	unsigned char iir;
 
 	if (!dev || !bc || bc->hdrv.magic != HDLCDRV_MAGIC)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	/* fast way out */
 	if ((iir = inb(IIR(dev->base_addr))) & 1)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	baycom_int_freq(bc);
 	do {
 		switch (iir & 6) {
@@ -414,10 +414,10 @@ static irqreturn_t ser12_interrupt(int irq, void *dev_id)
 
 /* --------------------------------------------------------------------- */
 
-enum uart { c_uart_unknown, c_uart_8250,
+enum uart { c_uart_unkanalwn, c_uart_8250,
 	    c_uart_16450, c_uart_16550, c_uart_16550A};
 static const char *uart_str[] = { 
-	"unknown", "8250", "16450", "16550", "16550A" 
+	"unkanalwn", "8250", "16450", "16550", "16550A" 
 };
 
 static enum uart ser12_check_uart(unsigned int iobase)
@@ -425,7 +425,7 @@ static enum uart ser12_check_uart(unsigned int iobase)
 	unsigned char b1,b2,b3;
 	enum uart u;
 	enum uart uart_tab[] =
-		{ c_uart_16450, c_uart_unknown, c_uart_16550, c_uart_16550A };
+		{ c_uart_16450, c_uart_unkanalwn, c_uart_16550, c_uart_16550A };
 
 	b1 = inb(MCR(iobase));
 	outb(b1 | 0x10, MCR(iobase));	/* loopback mode */
@@ -435,7 +435,7 @@ static enum uart ser12_check_uart(unsigned int iobase)
 	outb(b1, MCR(iobase));			/* restore old values */
 	outb(b2, MSR(iobase));
 	if (b3 != 0x90)
-		return c_uart_unknown;
+		return c_uart_unkanalwn;
 	inb(RBR(iobase));
 	inb(RBR(iobase));
 	outb(0x01, FCR(iobase));		/* enable FIFOs */
@@ -467,7 +467,7 @@ static int ser12_open(struct net_device *dev)
 		return -EACCES;
 	memset(&bc->modem, 0, sizeof(bc->modem));
 	bc->hdrv.par.bitrate = 1200;
-	if ((u = ser12_check_uart(dev->base_addr)) == c_uart_unknown) {
+	if ((u = ser12_check_uart(dev->base_addr)) == c_uart_unkanalwn) {
 		release_region(dev->base_addr, SER12_EXTENT);       
 		return -EIO;
 	}
@@ -564,7 +564,7 @@ static int baycom_ioctl(struct net_device *dev, void __user *data,
 	BUG_ON(bc->hdrv.magic != HDLCDRV_MAGIC);
 
 	if (cmd != SIOCDEVPRIVATE)
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	switch (hi->cmd) {
 	default:
 		break;
@@ -598,7 +598,7 @@ static int baycom_ioctl(struct net_device *dev, void __user *data,
 		return -EFAULT;
 	switch (bi.cmd) {
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 
 #ifdef BAYCOM_DEBUG
 	case BAYCOMCTL_GETDEBUG:
@@ -699,7 +699,7 @@ module_exit(cleanup_baycomserhdx);
  * format: baycom_ser_hdx=io,irq,mode
  * mode: ser12    hardware DCD
  *       ser12*   software DCD
- *       ser12@   hardware/software DCD, i.e. no explicit DCD signal but hardware
+ *       ser12@   hardware/software DCD, i.e. anal explicit DCD signal but hardware
  *                mutes audio input to the modem
  *       ser12+   hardware DCD, inverted signal at DCD pin
  */

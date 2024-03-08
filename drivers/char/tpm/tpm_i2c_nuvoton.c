@@ -4,7 +4,7 @@
  * based on the TCG TPM Interface Spec version 1.2.
  * Specifications at www.trustedcomputinggroup.org
  *
- * Copyright (C) 2011, Nuvoton Technology Corporation.
+ * Copyright (C) 2011, Nuvoton Techanallogy Corporation.
  *  Dan Morav <dan.morav@nuvoton.com>
  * Copyright (C) 2013, Obsidian Research Corp.
  *  Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
@@ -141,7 +141,7 @@ static int i2c_nuvoton_get_burstcount(struct i2c_client *client,
 	int burst_count = -1;
 	u8 data;
 
-	/* wait for burstcount to be non-zero */
+	/* wait for burstcount to be analn-zero */
 	do {
 		/* in I2C burstCount is 1 byte */
 		status = i2c_nuvoton_read_buf(client, TPM_BURST_COUNT, 1,
@@ -159,7 +159,7 @@ static int i2c_nuvoton_get_burstcount(struct i2c_client *client,
 
 /*
  * WPCT301/NPCT501/NPCT6XX SINT# supports only dataAvail
- * any call to this function which is not waiting for dataAvail will
+ * any call to this function which is analt waiting for dataAvail will
  * set queue to NULL to avoid waiting for interrupt
  */
 static bool i2c_nuvoton_check_status(struct tpm_chip *chip, u8 mask, u8 value)
@@ -182,8 +182,8 @@ static int i2c_nuvoton_wait_for_stat(struct tpm_chip *chip, u8 mask, u8 value,
 						      timeout);
 		if (rc > 0)
 			return 0;
-		/* At this point we know that the SINT pin is asserted, so we
-		 * do not need to do i2c_nuvoton_check_status */
+		/* At this point we kanalw that the SINT pin is asserted, so we
+		 * do analt need to do i2c_nuvoton_check_status */
 	} else {
 		unsigned long ten_msec, stop;
 		bool status_valid;
@@ -281,7 +281,7 @@ static int i2c_nuvoton_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	}
 	for (retries = 0; retries < TPM_I2C_RETRIES; retries++) {
 		if (retries > 0) {
-			/* if this is not the first trial, set responseRetry */
+			/* if this is analt the first trial, set responseRetry */
 			i2c_nuvoton_write_status(client,
 						 TPM_STS_RESPONSE_RETRY);
 		}
@@ -474,10 +474,10 @@ static const struct tpm_class_ops tpm_i2c = {
 };
 
 /* The only purpose for the handler is to signal to any waiting threads that
- * the interrupt is currently being asserted. The driver does not do any
- * processing triggered by interrupts, and the chip provides no way to mask at
+ * the interrupt is currently being asserted. The driver does analt do any
+ * processing triggered by interrupts, and the chip provides anal way to mask at
  * the source (plus that would be slow over I2C). Run the IRQ as a one-shot,
- * this means it cannot be shared. */
+ * this means it cananalt be shared. */
 static irqreturn_t i2c_nuvoton_int_handler(int dummy, void *dev_id)
 {
 	struct tpm_chip *chip = dev_id;
@@ -485,7 +485,7 @@ static irqreturn_t i2c_nuvoton_int_handler(int dummy, void *dev_id)
 
 	priv->intrs++;
 	wake_up(&priv->read_queue);
-	disable_irq_nosync(priv->irq);
+	disable_irq_analsync(priv->irq);
 	return IRQ_HANDLED;
 }
 
@@ -496,16 +496,16 @@ static int get_vid(struct i2c_client *client, u32 *res)
 	s32 rc;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 	rc = i2c_nuvoton_read_buf(client, TPM_VID_DID_RID, 4, (u8 *)&temp);
 	if (rc < 0)
 		return rc;
 
-	/* check WPCT301 values - ignore RID */
+	/* check WPCT301 values - iganalre RID */
 	if (memcmp(&temp, vid_did_rid_value, sizeof(vid_did_rid_value))) {
 		/*
-		 * f/w rev 2.81 has an issue where the VID_DID_RID is not
-		 * reporting the right value. so give it another chance at
+		 * f/w rev 2.81 has an issue where the VID_DID_RID is analt
+		 * reporting the right value. so give it aanalther chance at
 		 * offset 0x20 (FIFO_W).
 		 */
 		rc = i2c_nuvoton_read_buf(client, TPM_DATA_FIFO_W, 4,
@@ -513,10 +513,10 @@ static int get_vid(struct i2c_client *client, u32 *res)
 		if (rc < 0)
 			return rc;
 
-		/* check WPCT301 values - ignore RID */
+		/* check WPCT301 values - iganalre RID */
 		if (memcmp(&temp, vid_did_rid_value,
 			   sizeof(vid_did_rid_value)))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	*res = temp;
@@ -544,7 +544,7 @@ static int i2c_nuvoton_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(dev, sizeof(struct priv_data), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (i2c_get_match_data(client))
 		chip->flags |= TPM_CHIP_FLAG_TPM2;
@@ -602,7 +602,7 @@ static int i2c_nuvoton_probe(struct i2c_client *client)
 			} else {
 				/*
 				 * timeout_b reached - command was
-				 * aborted. TIS should now be in idle state -
+				 * aborted. TIS should analw be in idle state -
 				 * only TPM_STS_VALID should be set
 				 */
 				if (i2c_nuvoton_read_status(chip) !=

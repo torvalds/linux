@@ -5,7 +5,7 @@
  * Copyright (C) 2004 Alex Aizman
  * Copyright (C) 2005 Mike Christie
  * Copyright (c) 2005, 2006 Voltaire, Inc. All rights reserved.
- * Copyright (c) 2013-2014 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2014 Mellaanalx Techanallogies. All rights reserved.
  * maintained by openib-general@openib.org
  *
  * This software is available to you under a choice of one of two
@@ -19,18 +19,18 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright analtice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright analtice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -38,7 +38,7 @@
  *
  * Credits:
  *	Christoph Hellwig
- *	FUJITA Tomonori
+ *	FUJITA Tomoanalri
  *	Arne Redlich
  *	Zhenyu Wang
  * Modified by:
@@ -132,7 +132,7 @@ static int iscsi_iser_set(const char *val, const struct kernel_param *kp)
  * @rx_data:      buffer containing receive data payload
  * @rx_data_len:  length of rx_data
  *
- * Notes: In case of data length errors or iscsi PDU completion failures
+ * Analtes: In case of data length errors or iscsi PDU completion failures
  *        this routine will signal iscsi layer of connection failure.
  */
 void iscsi_iser_recv(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
@@ -155,7 +155,7 @@ void iscsi_iser_recv(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			datalen, rx_data_len);
 
 	rc = iscsi_complete_pdu(conn, hdr, rx_data, rx_data_len);
-	if (rc && rc != ISCSI_ERR_NO_SCSI_CMD)
+	if (rc && rc != ISCSI_ERR_ANAL_SCSI_CMD)
 		goto error;
 
 	return;
@@ -186,7 +186,7 @@ static int iscsi_iser_pdu_alloc(struct iscsi_task *task, uint8_t opcode)
  * @task:       iscsi task
  * @tx_desc:    iser tx descriptor
  *
- * Notes:
+ * Analtes:
  * This routine may race with iser teardown flow for scsi
  * error handling TMFs. So for TMF we should acquire the
  * state mutex to avoid dereferencing the IB device which
@@ -201,12 +201,12 @@ int iser_initialize_task_headers(struct iscsi_task *task,
 	u64 dma_addr;
 
 	if (unlikely(iser_conn->state != ISER_CONN_UP))
-		return -ENODEV;
+		return -EANALDEV;
 
 	dma_addr = ib_dma_map_single(device->ib_device, (void *)tx_desc,
 				ISER_HEADERS_LEN, DMA_TO_DEVICE);
 	if (ib_dma_mapping_error(device->ib_device, dma_addr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx_desc->inv_wr.next = NULL;
 	tx_desc->reg_wr.wr.next = NULL;
@@ -227,7 +227,7 @@ int iser_initialize_task_headers(struct iscsi_task *task,
  *
  * Initialize the task for the scsi command or mgmt command.
  *
- * Return: Returns zero on success or -ENOMEM when failing
+ * Return: Returns zero on success or -EANALMEM when failing
  *         to init task headers (dma mapping error).
  */
 static int iscsi_iser_task_init(struct iscsi_task *task)
@@ -258,7 +258,7 @@ static int iscsi_iser_task_init(struct iscsi_task *task)
  * @conn: iscsi connection
  * @task: task management task
  *
- * Notes:
+ * Analtes:
  *	The function can return -EAGAIN in which case caller must
  *	call it again later, or recover. '0' return code means successful
  *	xmit.
@@ -273,11 +273,11 @@ static int iscsi_iser_mtask_xmit(struct iscsi_conn *conn,
 
 	error = iser_send_control(conn, task);
 
-	/* since iser xmits control with zero copy, tasks can not be recycled
+	/* since iser xmits control with zero copy, tasks can analt be recycled
 	 * right after sending them.
 	 * The recycling scheme is based on whether a response is expected
-	 * - if yes, the task is recycled at iscsi_complete_pdu
-	 * - if no,  the task is recycled at iser_snd_completion
+	 * - if anal, the task is recycled at iscsi_complete_pdu
+	 * - if anal,  the task is recycled at iser_snd_completion
 	 */
 	return error;
 }
@@ -357,7 +357,7 @@ static int iscsi_iser_task_xmit(struct iscsi_task *task)
  * iscsi_iser_cleanup_task() - cleanup an iscsi-iser task
  * @task: iscsi task
  *
- * Notes: In case the RDMA device is already NULL (might have
+ * Analtes: In case the RDMA device is already NULL (might have
  *        been removed in DEVICE_REMOVAL CM event it will bail-out
  *        without doing dma unmapping.
  */
@@ -378,7 +378,7 @@ static void iscsi_iser_cleanup_task(struct iscsi_task *task)
 		tx_desc->mapped = false;
 	}
 
-	/* mgmt tasks do not need special cleanup */
+	/* mgmt tasks do analt need special cleanup */
 	if (!task->sc)
 		return;
 
@@ -393,7 +393,7 @@ static void iscsi_iser_cleanup_task(struct iscsi_task *task)
  * @task:     iscsi task
  * @sector:   error sector if exsists (output)
  *
- * Return: zero if no data-integrity errors have occured
+ * Return: zero if anal data-integrity errors have occured
  *         0x1: data-integrity error occured in the guard-block
  *         0x2: data-integrity error occured in the reference tag
  *         0x3: data-integrity error occured in the application tag
@@ -431,7 +431,7 @@ iscsi_iser_conn_create(struct iscsi_cls_session *cls_session,
 
 	/*
 	 * due to issues with the login code re iser sematics
-	 * this not set in iscsi_conn_setup - FIXME
+	 * this analt set in iscsi_conn_setup - FIXME
 	 */
 	conn->max_recv_dlength = ISER_RECV_DATA_SEG_LEN;
 
@@ -447,7 +447,7 @@ iscsi_iser_conn_create(struct iscsi_cls_session *cls_session,
  *
  * Return: zero on success, $error if iscsi_conn_bind fails and
  *         -EINVAL in case end-point doesn't exists anymore or iser connection
- *         state is not UP (teardown already started).
+ *         state is analt UP (teardown already started).
  */
 static int iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 				struct iscsi_cls_conn *cls_conn,
@@ -502,7 +502,7 @@ out:
  * iscsi_iser_conn_start() - start iscsi-iser connection
  * @cls_conn: iscsi class connection
  *
- * Notes: Here iser intialize (or re-initialize) stop_completion as
+ * Analtes: Here iser intialize (or re-initialize) stop_completion as
  *        from this point iscsi must call conn_stop in session/connection
  *        teardown so iser transport must wait for it.
  */
@@ -523,7 +523,7 @@ static int iscsi_iser_conn_start(struct iscsi_cls_conn *cls_conn)
  * @cls_conn:  iscsi class connection
  * @flag:      indicate if recover or terminate (passed as is)
  *
- * Notes: Calling iscsi_conn_stop might theoretically race with
+ * Analtes: Calling iscsi_conn_stop might theoretically race with
  *        DEVICE_REMOVAL event and dereference a previously freed RDMA device
  *        handle, so we call it under iser the state lock to protect against
  *        this kind of race.
@@ -536,7 +536,7 @@ static void iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	iser_info("stopping iscsi_conn: %p, iser_conn: %p\n", conn, iser_conn);
 
 	/*
-	 * Userspace may have goofed up and not bound the connection or
+	 * Userspace may have goofed up and analt bound the connection or
 	 * might have only partially setup the connection.
 	 */
 	if (iser_conn) {
@@ -623,7 +623,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	shost->max_cmd_len = 16;
 
 	/*
-	 * older userspace tools (before 2.0-870) did not pass us
+	 * older userspace tools (before 2.0-870) did analt pass us
 	 * the leading conn's ep so this will be NULL;
 	 */
 	if (ep) {
@@ -703,28 +703,28 @@ static int iscsi_iser_set_param(struct iscsi_cls_conn *cls_conn,
 	case ISCSI_PARAM_HDRDGST_EN:
 		sscanf(buf, "%d", &value);
 		if (value) {
-			iser_err("DataDigest wasn't negotiated to None\n");
+			iser_err("DataDigest wasn't negotiated to Analne\n");
 			return -EPROTO;
 		}
 		break;
 	case ISCSI_PARAM_DATADGST_EN:
 		sscanf(buf, "%d", &value);
 		if (value) {
-			iser_err("DataDigest wasn't negotiated to None\n");
+			iser_err("DataDigest wasn't negotiated to Analne\n");
 			return -EPROTO;
 		}
 		break;
 	case ISCSI_PARAM_IFMARKER_EN:
 		sscanf(buf, "%d", &value);
 		if (value) {
-			iser_err("IFMarker wasn't negotiated to No\n");
+			iser_err("IFMarker wasn't negotiated to Anal\n");
 			return -EPROTO;
 		}
 		break;
 	case ISCSI_PARAM_OFMARKER_EN:
 		sscanf(buf, "%d", &value);
 		if (value) {
-			iser_err("OFMarker wasn't negotiated to No\n");
+			iser_err("OFMarker wasn't negotiated to Anal\n");
 			return -EPROTO;
 		}
 		break;
@@ -768,7 +768,7 @@ static int iscsi_iser_get_ep_param(struct iscsi_endpoint *ep,
 	case ISCSI_PARAM_CONN_PORT:
 	case ISCSI_PARAM_CONN_ADDRESS:
 		if (!iser_conn || !iser_conn->ib_conn.cma_id)
-			return -ENOTCONN;
+			return -EANALTCONN;
 
 		return iscsi_conn_get_addr_param((struct sockaddr_storage *)
 				&iser_conn->ib_conn.cma_id->route.addr.dst_addr,
@@ -776,14 +776,14 @@ static int iscsi_iser_get_ep_param(struct iscsi_endpoint *ep,
 	default:
 		break;
 	}
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 /**
  * iscsi_iser_ep_connect() - Initiate iSER connection establishment
  * @shost:          scsi_host
  * @dst_addr:       destination address
- * @non_blocking:   indicate if routine can block
+ * @analn_blocking:   indicate if routine can block
  *
  * Allocate an iscsi endpoint, an iser_conn structure and bind them.
  * After that start RDMA connection establishment via rdma_cm. We
@@ -796,7 +796,7 @@ static int iscsi_iser_get_ep_param(struct iscsi_endpoint *ep,
  */
 static struct iscsi_endpoint *iscsi_iser_ep_connect(struct Scsi_Host *shost,
 						    struct sockaddr *dst_addr,
-						    int non_blocking)
+						    int analn_blocking)
 {
 	int err;
 	struct iser_conn *iser_conn;
@@ -804,11 +804,11 @@ static struct iscsi_endpoint *iscsi_iser_ep_connect(struct Scsi_Host *shost,
 
 	ep = iscsi_create_endpoint(0);
 	if (!ep)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	iser_conn = kzalloc(sizeof(*iser_conn), GFP_KERNEL);
 	if (!iser_conn) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failure;
 	}
 
@@ -816,7 +816,7 @@ static struct iscsi_endpoint *iscsi_iser_ep_connect(struct Scsi_Host *shost,
 	iser_conn->ep = ep;
 	iser_conn_init(iser_conn);
 
-	err = iser_connect(iser_conn, NULL, dst_addr, non_blocking);
+	err = iser_connect(iser_conn, NULL, dst_addr, analn_blocking);
 	if (err)
 		goto failure;
 
@@ -869,7 +869,7 @@ static int iscsi_iser_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
  * iscsi_iser_ep_disconnect() - Initiate connection teardown process
  * @ep:    iscsi endpoint handle
  *
- * This routine is not blocked by iser and RDMA termination process
+ * This routine is analt blocked by iser and RDMA termination process
  * completion as we queue a deffered work for iser/RDMA destruction
  * and cleanup or actually call it immediately in case we didn't pass
  * iscsi conn bind/start stage, thus it is safe.
@@ -932,8 +932,8 @@ static umode_t iser_attr_is_visible(int param_type, int param)
 		case ISCSI_PARAM_IMM_DATA_EN:
 		case ISCSI_PARAM_FIRST_BURST:
 		case ISCSI_PARAM_MAX_BURST:
-		case ISCSI_PARAM_PDU_INORDER_EN:
-		case ISCSI_PARAM_DATASEQ_INORDER_EN:
+		case ISCSI_PARAM_PDU_IANALRDER_EN:
+		case ISCSI_PARAM_DATASEQ_IANALRDER_EN:
 		case ISCSI_PARAM_TARGET_NAME:
 		case ISCSI_PARAM_TPGT:
 		case ISCSI_PARAM_USERNAME:
@@ -1025,7 +1025,7 @@ static int __init iser_init(void)
 					  0, SLAB_HWCACHE_ALIGN,
 					  NULL);
 	if (ig.desc_cache == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* device init is called only after the first addr resolution */
 	mutex_init(&ig.device_list_mutex);
@@ -1036,7 +1036,7 @@ static int __init iser_init(void)
 	release_wq = alloc_workqueue("release workqueue", 0, 0);
 	if (!release_wq) {
 		iser_err("failed to allocate release workqueue\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_wq;
 	}
 

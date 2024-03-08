@@ -70,8 +70,8 @@ struct nv_sec2_acr_msg {
 
 struct nv_sec2_acr_bootstrap_falcon_cmd {
 	struct nv_sec2_acr_cmd cmd;
-#define NV_SEC2_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_YES                 0x00000000
-#define NV_SEC2_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_NO                  0x00000001
+#define NV_SEC2_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_ANAL                 0x00000000
+#define NV_SEC2_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_ANAL                  0x00000001
 	u32 flags;
 	u32 falcon_id;
 };
@@ -88,8 +88,8 @@ struct nv_sec2_acr_bootstrap_falcon_msg {
 
 struct nv_sec2_acr_bootstrap_falcon_cmd_v1 {
 	struct nv_sec2_acr_cmd cmd;
-#define NV_SEC2_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_YES                 0x00000000
-#define NV_SEC2_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_NO                  0x00000001
+#define NV_SEC2_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_ANAL                 0x00000000
+#define NV_SEC2_ACR_BOOTSTRAP_FALCON_FLAGS_RESET_ANAL                  0x00000001
 	u32 flags;
 	u32 falcon_id;
 	u32 unkn08;

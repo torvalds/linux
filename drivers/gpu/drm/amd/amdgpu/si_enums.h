@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -42,7 +42,7 @@
 #define ICON_DEGAMMA_MODE(x)           (((x) & 0x3) << 8)
 
 #define GRPH_ENDIAN_SWAP(x)            (((x) & 0x3) << 0)
-#define GRPH_ENDIAN_NONE               0
+#define GRPH_ENDIAN_ANALNE               0
 #define GRPH_ENDIAN_8IN16              1
 #define GRPH_ENDIAN_8IN32              2
 #define GRPH_ENDIAN_8IN64              3
@@ -78,7 +78,7 @@
 #define GRPH_FORMAT_ARGB565            1
 #define GRPH_FORMAT_ARGB4444           2
 #define GRPH_FORMAT_AI88               3
-#define GRPH_FORMAT_MONO16             4
+#define GRPH_FORMAT_MOANAL16             4
 #define GRPH_FORMAT_BGRA5551           5
 #define GRPH_FORMAT_ARGB8888           0
 #define GRPH_FORMAT_ARGB2101010        1
@@ -104,7 +104,7 @@
 
 #define CURSOR_EN                      (1 << 0)
 #define CURSOR_MODE(x)                 (((x) & 0x3) << 8)
-#define CURSOR_MONO                    0
+#define CURSOR_MOANAL                    0
 #define CURSOR_24_1                    1
 #define CURSOR_24_8_PRE_MULT           2
 #define CURSOR_24_8_UNPRE_MULT         3
@@ -169,7 +169,7 @@
                          (((op) & 0xFF) << 8) |                         \
                          ((n) & 0x3FFF) << 16)
 #define PACKET3_COMPUTE(op, n) (PACKET3(op, n) | 1 << 1)
-#define	PACKET3_NOP					0x10
+#define	PACKET3_ANALP					0x10
 #define	PACKET3_SET_BASE				0x11
 #define		PACKET3_BASE_INDEX(x)                  ((x) << 0)
 #define	PACKET3_CLEAR_STATE				0x12

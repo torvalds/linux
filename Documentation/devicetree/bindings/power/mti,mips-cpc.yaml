@@ -18,7 +18,7 @@ properties:
 
   reg:
     description: |
-      Base address and size of an unoccupied memory region, which will be
+      Base address and size of an uanalccupied memory region, which will be
       used to map the MIPS CPC registers block.
     maxItems: 1
 

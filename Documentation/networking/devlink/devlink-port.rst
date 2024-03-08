@@ -78,7 +78,7 @@ An example view of a system with two controllers::
     | server  |  | -------   ----/---- ---/----- ------- ---/--- ---/--- |
     | pci rc  |=== | pf0 |______/________/       | pf1 |___/_______/     |
     | connect |  | -------                       -------                 |
-    -----------  |     | controller_num=1 (no eswitch)                   |
+    -----------  |     | controller_num=1 (anal eswitch)                   |
                  ------|--------------------------------------------------
                  (internal wire)
                        |
@@ -176,16 +176,16 @@ device created for the PCI VF/SF.
 
 RoCE capability setup
 ---------------------
-Not all PCI VFs/SFs require RoCE capability.
+Analt all PCI VFs/SFs require RoCE capability.
 
 When RoCE capability is disabled, it saves system memory per PCI VF/SF.
 
-When user disables RoCE capability for a VF/SF, user application cannot send or
+When user disables RoCE capability for a VF/SF, user application cananalt send or
 receive any RoCE packets through this VF/SF and RoCE GID table for this PCI
 will be empty.
 
 When RoCE capability is disabled in the device using port function attribute,
-VF/SF driver cannot override it.
+VF/SF driver cananalt override it.
 
 - Get RoCE capability of the VF device::
 
@@ -206,7 +206,7 @@ VF/SF driver cannot override it.
 migratable capability setup
 ---------------------------
 Live migration is the process of transferring a live virtual machine
-from one physical host to another without disrupting its normal
+from one physical host to aanalther without disrupting its analrmal
 operation.
 
 User who want PCI VFs to be able to perform live migration need to
@@ -216,7 +216,7 @@ When user enables migratable capability for a VF, and the HV binds the VF to VFI
 with migration support, the user can migrate the VM with this VF from one HV to a
 different one.
 
-However, when migratable capability is enable, device will disable features which cannot
+However, when migratable capability is enable, device will disable features which cananalt
 be migrated. Thus migratable cap can impose limitations on a VF so let the user decide.
 
 Example of LM with migratable function configuration:
@@ -323,9 +323,9 @@ representor netdevice.
 
 (2) Configure
 -------------
-A subfunction devlink port is created but it is not active yet. That means the
+A subfunction devlink port is created but it is analt active yet. That means the
 entities are created on devlink side, the e-switch port representor is created,
-but the subfunction device itself is not created. A user might use e-switch port
+but the subfunction device itself is analt created. A user might use e-switch port
 representor to do settings, putting it into bridge, adding TC rules, etc. A user
 might as well configure the hardware address (such as MAC address) of the
 subfunction while subfunction is inactive.
@@ -349,11 +349,11 @@ This is done through rate objects, which can be one of the two types:
   have 1to1 mapping to its devlink port, in user space it is referred as
   ``pci/<bus_addr>/<port_index>``;
 
-``node``
-  Represents a group of rate objects (leafs and/or nodes); created/deleted by
-  request from the userspace; initially empty (no rate objects added). In
-  userspace it is referred as ``pci/<bus_addr>/<node_name>``, where
-  ``node_name`` can be any identifier, except decimal number, to avoid
+``analde``
+  Represents a group of rate objects (leafs and/or analdes); created/deleted by
+  request from the userspace; initially empty (anal rate objects added). In
+  userspace it is referred as ``pci/<bus_addr>/<analde_name>``, where
+  ``analde_name`` can be any identifier, except decimal number, to avoid
   collisions with leafs.
 
 API allows to configure following rate object's parameters:
@@ -367,46 +367,46 @@ API allows to configure following rate object's parameters:
 
 ``tx_priority``
   Allows for usage of strict priority arbiter among siblings. This
-  arbitration scheme attempts to schedule nodes based on their priority
-  as long as the nodes remain within their bandwidth limit. The higher the
-  priority the higher the probability that the node will get selected for
+  arbitration scheme attempts to schedule analdes based on their priority
+  as long as the analdes remain within their bandwidth limit. The higher the
+  priority the higher the probability that the analde will get selected for
   scheduling.
 
 ``tx_weight``
   Allows for usage of Weighted Fair Queuing arbitration scheme among
   siblings. This arbitration scheme can be used simultaneously with the
-  strict priority. As a node is configured with a higher rate it gets more
+  strict priority. As a analde is configured with a higher rate it gets more
   BW relative to its siblings. Values are relative like a percentage
-  points, they basically tell how much BW should node take relative to
+  points, they basically tell how much BW should analde take relative to
   its siblings.
 
 ``parent``
-  Parent node name. Parent node rate limits are considered as additional limits
-  to all node children limits. ``tx_max`` is an upper limit for children.
+  Parent analde name. Parent analde rate limits are considered as additional limits
+  to all analde children limits. ``tx_max`` is an upper limit for children.
   ``tx_share`` is a total bandwidth distributed among children.
 
 ``tx_priority`` and ``tx_weight`` can be used simultaneously. In that case
-nodes with the same priority form a WFQ subgroup in the sibling group
+analdes with the same priority form a WFQ subgroup in the sibling group
 and arbitration among them is based on assigned weights.
 
 Arbitration flow from the high level:
 
-#. Choose a node, or group of nodes with the highest priority that stays
-   within the BW limit and are not blocked. Use ``tx_priority`` as a
+#. Choose a analde, or group of analdes with the highest priority that stays
+   within the BW limit and are analt blocked. Use ``tx_priority`` as a
    parameter for this arbitration.
 
-#. If group of nodes have the same priority perform WFQ arbitration on
+#. If group of analdes have the same priority perform WFQ arbitration on
    that subgroup. Use ``tx_weight`` as a parameter for this arbitration.
 
-#. Select the winner node, and continue arbitration flow among its children,
-   until leaf node is reached, and the winner is established.
+#. Select the winner analde, and continue arbitration flow among its children,
+   until leaf analde is reached, and the winner is established.
 
-#. If all the nodes from the highest priority sub-group are satisfied, or
-   overused their assigned BW, move to the lower priority nodes.
+#. If all the analdes from the highest priority sub-group are satisfied, or
+   overused their assigned BW, move to the lower priority analdes.
 
 Driver implementations are allowed to support both or either rate object types
 and setting methods of their parameters. Additionally driver implementation
-may export nodes/leafs and their child-parent relationships.
+may export analdes/leafs and their child-parent relationships.
 
 Terms and Definitions
 =====================

@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -158,7 +158,7 @@ void dml_rq_dlg_get_rq_reg(dml_display_rq_regs_st			*rq_regs,
 	stored_swath_c_bytes = dml_get_det_stored_buffer_size_c_bytes(mode_lib, pipe_idx);
 	is_phantom_pipe		 = dml_get_is_phantom_pipe(mode_lib, pipe_idx);
 
-	// Note: detile_buf_plane1_addr is in unit of 1KB
+	// Analte: detile_buf_plane1_addr is in unit of 1KB
 	if (dual_plane) {
 		if (is_phantom_pipe) {
 			detile_buf_plane1_addr = (dml_uint_t)((1024.0*1024.0) / 2.0 / 1024.0); // half to chroma
@@ -190,7 +190,7 @@ void dml_rq_dlg_get_rq_reg(dml_display_rq_regs_st			*rq_regs,
 	dml_print("DML_DLG::%s: Calculation for pipe[%d] done\n", __func__, pipe_idx);
 }
 
-// Note: currently taken in as is.
+// Analte: currently taken in as is.
 // Nice to decouple code from hw register implement and extract code that are repeated for luma and chroma.
 
 
@@ -245,18 +245,18 @@ void dml_rq_dlg_get_dlg_reg(dml_display_dlg_regs_st		   *disp_dlg_regs,
 	dml_float_t refcyc_per_req_delivery_pre_cur0 = 0.;
 	dml_float_t refcyc_per_req_delivery_cur0 = 0.;
 
-	dml_float_t dst_y_per_pte_row_nom_l;
-	dml_float_t dst_y_per_pte_row_nom_c;
-	dml_float_t dst_y_per_meta_row_nom_l;
-	dml_float_t dst_y_per_meta_row_nom_c;
-	dml_float_t refcyc_per_pte_group_nom_l;
-	dml_float_t refcyc_per_pte_group_nom_c;
+	dml_float_t dst_y_per_pte_row_analm_l;
+	dml_float_t dst_y_per_pte_row_analm_c;
+	dml_float_t dst_y_per_meta_row_analm_l;
+	dml_float_t dst_y_per_meta_row_analm_c;
+	dml_float_t refcyc_per_pte_group_analm_l;
+	dml_float_t refcyc_per_pte_group_analm_c;
 	dml_float_t refcyc_per_pte_group_vblank_l;
 	dml_float_t refcyc_per_pte_group_vblank_c;
 	dml_float_t refcyc_per_pte_group_flip_l;
 	dml_float_t refcyc_per_pte_group_flip_c;
-	dml_float_t refcyc_per_meta_chunk_nom_l;
-	dml_float_t refcyc_per_meta_chunk_nom_c;
+	dml_float_t refcyc_per_meta_chunk_analm_l;
+	dml_float_t refcyc_per_meta_chunk_analm_c;
 	dml_float_t refcyc_per_meta_chunk_vblank_l;
 	dml_float_t refcyc_per_meta_chunk_vblank_c;
 	dml_float_t refcyc_per_meta_chunk_flip_l;
@@ -428,7 +428,7 @@ void dml_rq_dlg_get_dlg_reg(dml_display_dlg_regs_st		   *disp_dlg_regs,
 	dml_print("DML_DLG: %s: disp_dlg_regs->dst_y_per_row_flip	= 0x%x\n", __func__, disp_dlg_regs->dst_y_per_row_flip);
 
 	// hack for FPGA
-	/* NOTE: We dont have getenv defined in driver and it does not make any sense in the driver */
+	/* ANALTE: We dont have getenv defined in driver and it does analt make any sense in the driver */
 	/*char* fpga_env = getenv("FPGA_FPDIV");
 	if(fpga_env !=NULL)
 	{
@@ -444,37 +444,37 @@ void dml_rq_dlg_get_dlg_reg(dml_display_dlg_regs_st		   *disp_dlg_regs,
 	disp_dlg_regs->refcyc_per_vm_req_vblank			= (dml_uint_t)(dml_get_refcyc_per_vm_req_vblank_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz * dml_pow(2, 10));
 	disp_dlg_regs->refcyc_per_vm_req_flip			= (dml_uint_t)(dml_get_refcyc_per_vm_req_flip_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz * dml_pow(2, 10));
 
-	dst_y_per_pte_row_nom_l = dml_get_dst_y_per_pte_row_nom_l(mode_lib, pipe_idx);
-	dst_y_per_pte_row_nom_c = dml_get_dst_y_per_pte_row_nom_c(mode_lib, pipe_idx);
-	dst_y_per_meta_row_nom_l = dml_get_dst_y_per_meta_row_nom_l(mode_lib, pipe_idx);
-	dst_y_per_meta_row_nom_c = dml_get_dst_y_per_meta_row_nom_c(mode_lib, pipe_idx);
+	dst_y_per_pte_row_analm_l = dml_get_dst_y_per_pte_row_analm_l(mode_lib, pipe_idx);
+	dst_y_per_pte_row_analm_c = dml_get_dst_y_per_pte_row_analm_c(mode_lib, pipe_idx);
+	dst_y_per_meta_row_analm_l = dml_get_dst_y_per_meta_row_analm_l(mode_lib, pipe_idx);
+	dst_y_per_meta_row_analm_c = dml_get_dst_y_per_meta_row_analm_c(mode_lib, pipe_idx);
 
-	refcyc_per_pte_group_nom_l		= dml_get_refcyc_per_pte_group_nom_l_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
-	refcyc_per_pte_group_nom_c		= dml_get_refcyc_per_pte_group_nom_c_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
+	refcyc_per_pte_group_analm_l		= dml_get_refcyc_per_pte_group_analm_l_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
+	refcyc_per_pte_group_analm_c		= dml_get_refcyc_per_pte_group_analm_c_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
 	refcyc_per_pte_group_vblank_l	= dml_get_refcyc_per_pte_group_vblank_l_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
 	refcyc_per_pte_group_vblank_c	= dml_get_refcyc_per_pte_group_vblank_c_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
 	refcyc_per_pte_group_flip_l		= dml_get_refcyc_per_pte_group_flip_l_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
 	refcyc_per_pte_group_flip_c		= dml_get_refcyc_per_pte_group_flip_c_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
 
-	refcyc_per_meta_chunk_nom_l		= dml_get_refcyc_per_meta_chunk_nom_l_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
-	refcyc_per_meta_chunk_nom_c		= dml_get_refcyc_per_meta_chunk_nom_c_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
+	refcyc_per_meta_chunk_analm_l		= dml_get_refcyc_per_meta_chunk_analm_l_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
+	refcyc_per_meta_chunk_analm_c		= dml_get_refcyc_per_meta_chunk_analm_c_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
 	refcyc_per_meta_chunk_vblank_l	= dml_get_refcyc_per_meta_chunk_vblank_l_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
 	refcyc_per_meta_chunk_vblank_c	= dml_get_refcyc_per_meta_chunk_vblank_c_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
 	refcyc_per_meta_chunk_flip_l	= dml_get_refcyc_per_meta_chunk_flip_l_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
 	refcyc_per_meta_chunk_flip_c	= dml_get_refcyc_per_meta_chunk_flip_c_in_us(mode_lib, pipe_idx) * refclk_freq_in_mhz;
 
-	disp_dlg_regs->dst_y_per_pte_row_nom_l			= (dml_uint_t)(dst_y_per_pte_row_nom_l * dml_pow(2, 2));
-	disp_dlg_regs->dst_y_per_pte_row_nom_c			= (dml_uint_t)(dst_y_per_pte_row_nom_c * dml_pow(2, 2));
-	disp_dlg_regs->dst_y_per_meta_row_nom_l			= (dml_uint_t)(dst_y_per_meta_row_nom_l * dml_pow(2, 2));
-	disp_dlg_regs->dst_y_per_meta_row_nom_c			= (dml_uint_t)(dst_y_per_meta_row_nom_c * dml_pow(2, 2));
-	disp_dlg_regs->refcyc_per_pte_group_nom_l		= (dml_uint_t)(refcyc_per_pte_group_nom_l);
-	disp_dlg_regs->refcyc_per_pte_group_nom_c		= (dml_uint_t)(refcyc_per_pte_group_nom_c);
+	disp_dlg_regs->dst_y_per_pte_row_analm_l			= (dml_uint_t)(dst_y_per_pte_row_analm_l * dml_pow(2, 2));
+	disp_dlg_regs->dst_y_per_pte_row_analm_c			= (dml_uint_t)(dst_y_per_pte_row_analm_c * dml_pow(2, 2));
+	disp_dlg_regs->dst_y_per_meta_row_analm_l			= (dml_uint_t)(dst_y_per_meta_row_analm_l * dml_pow(2, 2));
+	disp_dlg_regs->dst_y_per_meta_row_analm_c			= (dml_uint_t)(dst_y_per_meta_row_analm_c * dml_pow(2, 2));
+	disp_dlg_regs->refcyc_per_pte_group_analm_l		= (dml_uint_t)(refcyc_per_pte_group_analm_l);
+	disp_dlg_regs->refcyc_per_pte_group_analm_c		= (dml_uint_t)(refcyc_per_pte_group_analm_c);
 	disp_dlg_regs->refcyc_per_pte_group_vblank_l	= (dml_uint_t)(refcyc_per_pte_group_vblank_l);
 	disp_dlg_regs->refcyc_per_pte_group_vblank_c	= (dml_uint_t)(refcyc_per_pte_group_vblank_c);
 	disp_dlg_regs->refcyc_per_pte_group_flip_l		= (dml_uint_t)(refcyc_per_pte_group_flip_l);
 	disp_dlg_regs->refcyc_per_pte_group_flip_c		= (dml_uint_t)(refcyc_per_pte_group_flip_c);
-	disp_dlg_regs->refcyc_per_meta_chunk_nom_l		= (dml_uint_t)(refcyc_per_meta_chunk_nom_l);
-	disp_dlg_regs->refcyc_per_meta_chunk_nom_c		= (dml_uint_t)(refcyc_per_meta_chunk_nom_c);
+	disp_dlg_regs->refcyc_per_meta_chunk_analm_l		= (dml_uint_t)(refcyc_per_meta_chunk_analm_l);
+	disp_dlg_regs->refcyc_per_meta_chunk_analm_c		= (dml_uint_t)(refcyc_per_meta_chunk_analm_c);
 	disp_dlg_regs->refcyc_per_meta_chunk_vblank_l	= (dml_uint_t)(refcyc_per_meta_chunk_vblank_l);
 	disp_dlg_regs->refcyc_per_meta_chunk_vblank_c	= (dml_uint_t)(refcyc_per_meta_chunk_vblank_c);
 	disp_dlg_regs->refcyc_per_meta_chunk_flip_l		= (dml_uint_t)(refcyc_per_meta_chunk_flip_l);
@@ -532,31 +532,31 @@ void dml_rq_dlg_get_dlg_reg(dml_display_dlg_regs_st		   *disp_dlg_regs,
 
 	ASSERT(disp_dlg_regs->dst_y_after_scaler < (dml_uint_t)8);
 	ASSERT(disp_dlg_regs->refcyc_x_after_scaler < (dml_uint_t)dml_pow(2, 13));
-	ASSERT(disp_dlg_regs->dst_y_per_pte_row_nom_l < (dml_uint_t)dml_pow(2, 17));
+	ASSERT(disp_dlg_regs->dst_y_per_pte_row_analm_l < (dml_uint_t)dml_pow(2, 17));
 	if (dual_plane) {
-		if (disp_dlg_regs->dst_y_per_pte_row_nom_c >= (dml_uint_t)dml_pow(2, 17)) { // FIXME what so special about chroma, can we just assert?
-			dml_print("DML_DLG: %s: Warning dst_y_per_pte_row_nom_c %u > register max U15.2 %u\n", __func__, disp_dlg_regs->dst_y_per_pte_row_nom_c, (dml_uint_t)dml_pow(2, 17) - 1);
+		if (disp_dlg_regs->dst_y_per_pte_row_analm_c >= (dml_uint_t)dml_pow(2, 17)) { // FIXME what so special about chroma, can we just assert?
+			dml_print("DML_DLG: %s: Warning dst_y_per_pte_row_analm_c %u > register max U15.2 %u\n", __func__, disp_dlg_regs->dst_y_per_pte_row_analm_c, (dml_uint_t)dml_pow(2, 17) - 1);
 		}
 	}
-	ASSERT(disp_dlg_regs->dst_y_per_meta_row_nom_l < (dml_uint_t)dml_pow(2, 17));
-	ASSERT(disp_dlg_regs->dst_y_per_meta_row_nom_c < (dml_uint_t)dml_pow(2, 17));
+	ASSERT(disp_dlg_regs->dst_y_per_meta_row_analm_l < (dml_uint_t)dml_pow(2, 17));
+	ASSERT(disp_dlg_regs->dst_y_per_meta_row_analm_c < (dml_uint_t)dml_pow(2, 17));
 
-	if (disp_dlg_regs->refcyc_per_pte_group_nom_l >= (dml_uint_t)dml_pow(2, 23))
-		disp_dlg_regs->refcyc_per_pte_group_nom_l = (dml_uint_t)(dml_pow(2, 23) - 1);
+	if (disp_dlg_regs->refcyc_per_pte_group_analm_l >= (dml_uint_t)dml_pow(2, 23))
+		disp_dlg_regs->refcyc_per_pte_group_analm_l = (dml_uint_t)(dml_pow(2, 23) - 1);
 	if (dual_plane) {
-		if (disp_dlg_regs->refcyc_per_pte_group_nom_c >= (dml_uint_t)dml_pow(2, 23))
-			disp_dlg_regs->refcyc_per_pte_group_nom_c = (dml_uint_t)(dml_pow(2, 23) - 1);
+		if (disp_dlg_regs->refcyc_per_pte_group_analm_c >= (dml_uint_t)dml_pow(2, 23))
+			disp_dlg_regs->refcyc_per_pte_group_analm_c = (dml_uint_t)(dml_pow(2, 23) - 1);
 	}
 	ASSERT(disp_dlg_regs->refcyc_per_pte_group_vblank_l < (dml_uint_t)dml_pow(2, 13));
 	if (dual_plane) {
 		ASSERT(disp_dlg_regs->refcyc_per_pte_group_vblank_c < (dml_uint_t)dml_pow(2, 13));
 	}
 
-	if (disp_dlg_regs->refcyc_per_meta_chunk_nom_l >= (dml_uint_t)dml_pow(2, 23))
-		disp_dlg_regs->refcyc_per_meta_chunk_nom_l = (dml_uint_t)(dml_pow(2, 23) - 1);
+	if (disp_dlg_regs->refcyc_per_meta_chunk_analm_l >= (dml_uint_t)dml_pow(2, 23))
+		disp_dlg_regs->refcyc_per_meta_chunk_analm_l = (dml_uint_t)(dml_pow(2, 23) - 1);
 	if (dual_plane) {
-		if (disp_dlg_regs->refcyc_per_meta_chunk_nom_c >= (dml_uint_t)dml_pow(2, 23))
-			disp_dlg_regs->refcyc_per_meta_chunk_nom_c = (dml_uint_t)(dml_pow(2, 23) - 1);
+		if (disp_dlg_regs->refcyc_per_meta_chunk_analm_c >= (dml_uint_t)dml_pow(2, 23))
+			disp_dlg_regs->refcyc_per_meta_chunk_analm_c = (dml_uint_t)(dml_pow(2, 23) - 1);
 	}
 	ASSERT(disp_dlg_regs->refcyc_per_meta_chunk_vblank_l	< (dml_uint_t)dml_pow(2, 13));
 	ASSERT(disp_dlg_regs->refcyc_per_meta_chunk_vblank_c	< (dml_uint_t)dml_pow(2, 13));

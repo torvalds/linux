@@ -19,8 +19,8 @@
 static int i2c_opal_translate_error(int rc)
 {
 	switch (rc) {
-	case OPAL_NO_MEM:
-		return -ENOMEM;
+	case OPAL_ANAL_MEM:
+		return -EANALMEM;
 	case OPAL_PARAMETER:
 		return -EINVAL;
 	case OPAL_I2C_ARBT_LOST:
@@ -200,10 +200,10 @@ static int i2c_opal_probe(struct platform_device *pdev)
 	u32			opal_id;
 	int			rc;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
-	rc = of_property_read_u32(pdev->dev.of_node, "ibm,opal-id", &opal_id);
+	rc = of_property_read_u32(pdev->dev.of_analde, "ibm,opal-id", &opal_id);
 	if (rc) {
 		dev_err(&pdev->dev, "Missing ibm,opal-id property !\n");
 		return -EIO;
@@ -211,14 +211,14 @@ static int i2c_opal_probe(struct platform_device *pdev)
 
 	adapter = devm_kzalloc(&pdev->dev, sizeof(*adapter), GFP_KERNEL);
 	if (!adapter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->algo = &i2c_opal_algo;
 	adapter->algo_data = (void *)(unsigned long)opal_id;
 	adapter->quirks = &i2c_opal_quirks;
 	adapter->dev.parent = &pdev->dev;
-	adapter->dev.of_node = of_node_get(pdev->dev.of_node);
-	pname = of_get_property(pdev->dev.of_node, "ibm,port-name", NULL);
+	adapter->dev.of_analde = of_analde_get(pdev->dev.of_analde);
+	pname = of_get_property(pdev->dev.of_analde, "ibm,port-name", NULL);
 	if (pname)
 		strscpy(adapter->name, pname, sizeof(adapter->name));
 	else
@@ -259,7 +259,7 @@ static struct platform_driver i2c_opal_driver = {
 static int __init i2c_opal_init(void)
 {
 	if (!firmware_has_feature(FW_FEATURE_OPAL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return platform_driver_register(&i2c_opal_driver);
 }

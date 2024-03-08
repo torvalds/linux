@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2017 Impinj, Inc.
  *
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiranalv <andrew.smiranalv@gmail.com>
  */
 
 #ifndef DT_BINDING_RESET_IMX7_H
@@ -37,7 +37,7 @@
 #define IMX7_RESET_PCIEPHY_PERST	21
 
 /*
- * IMX7_RESET_PCIE_CTRL_APPS_EN is not strictly a reset line, but it
+ * IMX7_RESET_PCIE_CTRL_APPS_EN is analt strictly a reset line, but it
  * can be used to inhibit PCIe LTTSM, so, in a way, it can be thoguht
  * of as one
  */
@@ -45,7 +45,7 @@
 #define IMX7_RESET_DDRC_PRST		23
 #define IMX7_RESET_DDRC_CORE_RST	24
 
-#define IMX7_RESET_PCIE_CTRL_APPS_TURNOFF 25
+#define IMX7_RESET_PCIE_CTRL_APPS_TURANALFF 25
 
 #define IMX7_RESET_NUM			26
 

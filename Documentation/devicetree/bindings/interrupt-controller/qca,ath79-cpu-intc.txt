@@ -8,7 +8,7 @@ Required Properties:
 
 - compatible: has to be "qca,<soctype>-cpu-intc", "qca,ar7100-cpu-intc"
   as fallback
-- interrupt-controller : Identifies the node as an interrupt controller
+- interrupt-controller : Identifies the analde as an interrupt controller
 - #interrupt-cells : Specifies the number of cells needed to encode interrupt
 		     source, should be 1 for intc
 
@@ -20,7 +20,7 @@ Optional Properties:
 - qca,ddr-wb-channel-interrupts: List of the interrupts needing a write
   buffer flush
 - qca,ddr-wb-channels: List of phandles to the write buffer channels for
-  each interrupt. If qca,ddr-wb-channel-interrupts is not present the interrupt
+  each interrupt. If qca,ddr-wb-channel-interrupts is analt present the interrupt
   default to the entry's index.
 
 Example:

@@ -22,8 +22,8 @@ struct channel_info {
 
 	int tsin_id;
 	bool invert_ts_clk;
-	bool serial_not_parallel;
-	bool async_not_sync;
+	bool serial_analt_parallel;
+	bool async_analt_sync;
 	int i2c;
 	int dvb_card;
 
@@ -135,14 +135,14 @@ struct c8sectpfei {
 #define C8SECTPFE_CHANNEL_OFFSET(x)	((x*0x40) + C8SECTPFE_INPUTBLK_OFFSET)
 
 #define C8SECTPFE_IB_IP_FMT_CFG(x)      (C8SECTPFE_CHANNEL_OFFSET(x) + 0x00)
-#define C8SECTPFE_IGNORE_ERR_AT_SOP     BIT(7)
-#define C8SECTPFE_IGNORE_ERR_IN_PKT     BIT(6)
-#define C8SECTPFE_IGNORE_ERR_IN_BYTE    BIT(5)
+#define C8SECTPFE_IGANALRE_ERR_AT_SOP     BIT(7)
+#define C8SECTPFE_IGANALRE_ERR_IN_PKT     BIT(6)
+#define C8SECTPFE_IGANALRE_ERR_IN_BYTE    BIT(5)
 #define C8SECTPFE_INVERT_TSCLK          BIT(4)
 #define C8SECTPFE_ALIGN_BYTE_SOP        BIT(3)
-#define C8SECTPFE_ASYNC_NOT_SYNC        BIT(2)
+#define C8SECTPFE_ASYNC_ANALT_SYNC        BIT(2)
 #define C8SECTPFE_BYTE_ENDIANNESS_MSB    BIT(1)
-#define C8SECTPFE_SERIAL_NOT_PARALLEL   BIT(0)
+#define C8SECTPFE_SERIAL_ANALT_PARALLEL   BIT(0)
 
 #define C8SECTPFE_IB_SYNCLCKDRP_CFG(x)   (C8SECTPFE_CHANNEL_OFFSET(x) + 0x04)
 #define C8SECTPFE_SYNC(x)                (x & 0xf)

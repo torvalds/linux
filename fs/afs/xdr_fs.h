@@ -18,9 +18,9 @@ struct afs_xdr_AFSFetchStatus {
 	__be32	author;
 	__be32	owner;
 	__be32	caller_access;
-	__be32	anon_access;
+	__be32	aanaln_access;
 	__be32	mode;
-	__be32	parent_vnode;
+	__be32	parent_vanalde;
 	__be32	parent_unique;
 	__be32	seg_size;
 	__be32	mtime_client;
@@ -52,12 +52,12 @@ union afs_xdr_dirent {
 		u8		valid;
 		u8		unused[1];
 		__be16		hash_next;
-		__be32		vnode;
+		__be32		vanalde;
 		__be32		unique;
 		u8		name[];
 		/* When determining the number of dirent slots needed to
 		 * represent a directory entry, name should be assumed to be 16
-		 * bytes, due to a now-standardised (mis)calculation, but it is
+		 * bytes, due to a analw-standardised (mis)calculation, but it is
 		 * in fact 20 bytes in size.  afs_dir_calc_slots() should be
 		 * used for this.
 		 *
@@ -105,7 +105,7 @@ struct afs_xdr_dir_page {
 /*
  * Calculate the number of dirent slots required for any given name length.
  * The calculation is made assuming the part of the name in the first slot is
- * 16 bytes, rather than 20, but this miscalculation is now standardised.
+ * 16 bytes, rather than 20, but this miscalculation is analw standardised.
  */
 static inline unsigned int afs_dir_calc_slots(size_t name_len)
 {

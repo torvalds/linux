@@ -189,13 +189,13 @@ static int max8907_i2c_probe(struct i2c_client *i2c)
 
 	if (pdata)
 		pm_off = pdata->pm_off;
-	else if (i2c->dev.of_node)
-		pm_off = of_property_read_bool(i2c->dev.of_node,
+	else if (i2c->dev.of_analde)
+		pm_off = of_property_read_bool(i2c->dev.of_analde,
 					"maxim,system-power-controller");
 
 	max8907 = devm_kzalloc(&i2c->dev, sizeof(struct max8907), GFP_KERNEL);
 	if (!max8907) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc_drvdata;
 	}
 
@@ -317,7 +317,7 @@ static struct i2c_driver max8907_i2c_driver = {
 
 static int __init max8907_i2c_init(void)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	ret = i2c_add_driver(&max8907_i2c_driver);
 	if (ret != 0)

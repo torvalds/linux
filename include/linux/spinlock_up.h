@@ -17,10 +17,10 @@
  * In the debug case, 1 means unlocked, 0 means locked. (the values
  * are inverted, to catch initialization bugs)
  *
- * No atomicity anywhere, we are on UP. However, we still need
- * the compiler barriers, because we do not want the compiler to
- * move potentially faulting instructions (notably user accesses)
- * into the locked sequence, resulting in non-atomic execution.
+ * Anal atomicity anywhere, we are on UP. However, we still need
+ * the compiler barriers, because we do analt want the compiler to
+ * move potentially faulting instructions (analtably user accesses)
+ * into the locked sequence, resulting in analn-atomic execution.
  */
 
 #ifdef CONFIG_DEBUG_SPINLOCK
@@ -49,7 +49,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 }
 
 /*
- * Read-write spinlocks. No debug version.
+ * Read-write spinlocks. Anal debug version.
  */
 #define arch_read_lock(lock)		do { barrier(); (void)(lock); } while (0)
 #define arch_write_lock(lock)		do { barrier(); (void)(lock); } while (0)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -109,7 +109,7 @@ static enum ib_wc_opcode get_umr_comp(struct mlx5_ib_wq *wq, int idx)
 		return IB_WC_REG_MR;
 
 	default:
-		pr_warn("unknown completion status\n");
+		pr_warn("unkanalwn completion status\n");
 		return 0;
 	}
 }
@@ -488,7 +488,7 @@ repoll:
 
 	qpn = ntohl(cqe64->sop_drop_qpn) & 0xffffff;
 	if (!*cur_qp || (qpn != (*cur_qp)->ibqp.qp_num)) {
-		/* We do not have to take the QP table lock here,
+		/* We do analt have to take the QP table lock here,
 		 * because CQs will be locked while QPs are removed
 		 * from the table.
 		 */
@@ -616,7 +616,7 @@ int mlx5_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 
 	spin_lock_irqsave(&cq->lock, flags);
 	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
-		/* make sure no soft wqe's are waiting */
+		/* make sure anal soft wqe's are waiting */
 		if (unlikely(!list_empty(&cq->wc_list)))
 			soft_polled = poll_soft_wc(cq, num_entries, wc, true);
 
@@ -641,7 +641,7 @@ out:
 	return soft_polled + npolled;
 }
 
-int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
+int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_analtify_flags flags)
 {
 	struct mlx5_core_dev *mdev = to_mdev(ibcq->device)->mdev;
 	struct mlx5_ib_cq *cq = to_mcq(ibcq);
@@ -650,8 +650,8 @@ int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	int ret = 0;
 
 	spin_lock_irqsave(&cq->lock, irq_flags);
-	if (cq->notify_flags != IB_CQ_NEXT_COMP)
-		cq->notify_flags = flags & IB_CQ_SOLICITED_MASK;
+	if (cq->analtify_flags != IB_CQ_NEXT_COMP)
+		cq->analtify_flags = flags & IB_CQ_SOLICITED_MASK;
 
 	if ((flags & IB_CQ_REPORT_MISSED_EVENTS) && !list_empty(&cq->wc_list))
 		ret = 1;
@@ -659,7 +659,7 @@ int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 
 	mlx5_cq_arm(&cq->mcq,
 		    (flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED ?
-		    MLX5_CQ_DB_REQ_NOT_SOL : MLX5_CQ_DB_REQ_NOT,
+		    MLX5_CQ_DB_REQ_ANALT_SOL : MLX5_CQ_DB_REQ_ANALT,
 		    uar_page, to_mcq(ibcq)->mcq.cons_index);
 
 	return ret;
@@ -675,10 +675,10 @@ static int alloc_cq_frag_buf(struct mlx5_ib_dev *dev,
 	u8 log_wq_sz     = ilog2(cqe_size);
 	int err;
 
-	err = mlx5_frag_buf_alloc_node(dev->mdev,
+	err = mlx5_frag_buf_alloc_analde(dev->mdev,
 				       nent * cqe_size,
 				       frag_buf,
-				       dev->mdev->priv.numa_node);
+				       dev->mdev->priv.numa_analde);
 	if (err)
 		return err;
 
@@ -706,7 +706,7 @@ static int mini_cqe_res_format_to_hw(struct mlx5_ib_dev *dev, u8 format)
 	case MLX5_IB_CQE_RES_FORMAT_CSUM_STRIDX:
 		if (MLX5_CAP_GEN(dev->mdev, mini_cqe_resp_stride_index))
 			return MLX5_CQE_RES_FORMAT_CSUM_STRIDX;
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	default:
 		return -EINVAL;
 	}
@@ -776,7 +776,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		 MLX5_FLD_SZ_BYTES(create_cq_in, pas[0]) * ncont;
 	*cqb = kvzalloc(*inlen, GFP_KERNEL);
 	if (!*cqb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_db;
 	}
 
@@ -804,8 +804,8 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		       MLX5_CAP_GEN(dev->mdev, cqe_compression_128)) ||
 		      (*cqe_size == 64  &&
 		       MLX5_CAP_GEN(dev->mdev, cqe_compression)))) {
-			err = -EOPNOTSUPP;
-			mlx5_ib_warn(dev, "CQE compression is not supported for size %d!\n",
+			err = -EOPANALTSUPP;
+			mlx5_ib_warn(dev, "CQE compression is analt supported for size %d!\n",
 				     *cqe_size);
 			goto err_cqb;
 		}
@@ -827,9 +827,9 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	if (ucmd.flags & MLX5_IB_CREATE_CQ_FLAGS_CQE_128B_PAD) {
 		if (*cqe_size != 128 ||
 		    !MLX5_CAP_GEN(dev->mdev, cqe_128_always)) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			mlx5_ib_warn(dev,
-				     "CQE padding is not supported for CQE size of %dB!\n",
+				     "CQE padding is analt supported for CQE size of %dB!\n",
 				     *cqe_size);
 			goto err_cqb;
 		}
@@ -903,7 +903,7 @@ static int create_cq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 		 cq->buf.frag_buf.npages;
 	*cqb = kvzalloc(*inlen, GFP_KERNEL);
 	if (!*cqb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_buf;
 	}
 
@@ -933,10 +933,10 @@ static void destroy_cq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq)
 	mlx5_db_free(dev->mdev, &cq->db);
 }
 
-static void notify_soft_wc_handler(struct work_struct *work)
+static void analtify_soft_wc_handler(struct work_struct *work)
 {
 	struct mlx5_ib_cq *cq = container_of(work, struct mlx5_ib_cq,
-					     notify_work);
+					     analtify_work);
 
 	cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 }
@@ -963,7 +963,7 @@ int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		return -EINVAL;
 
 	if (check_cq_create_flags(attr->flags))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	entries = roundup_pow_of_two(entries + 1);
 	if (entries > (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz)))
@@ -990,7 +990,7 @@ int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		if (err)
 			return err;
 
-		INIT_WORK(&cq->notify_work, notify_soft_wc_handler);
+		INIT_WORK(&cq->analtify_work, analtify_soft_wc_handler);
 	}
 
 	err = mlx5_comp_eqn_get(dev->mdev, vector, &eqn);
@@ -1008,7 +1008,7 @@ int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	MLX5_SET(cqc, cqc, uar_page, index);
 	MLX5_SET(cqc, cqc, c_eqn_or_apu_element, eqn);
 	MLX5_SET64(cqc, cqc, dbr_addr, cq->db.dma);
-	if (cq->create_flags & IB_UVERBS_CQ_FLAGS_IGNORE_OVERRUN)
+	if (cq->create_flags & IB_UVERBS_CQ_FLAGS_IGANALRE_OVERRUN)
 		MLX5_SET(cqc, cqc, oi, 1);
 
 	err = mlx5_core_create_cq(dev->mdev, &cq->mcq, cqb, inlen, out, sizeof(out));
@@ -1080,7 +1080,7 @@ void __mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 rsn, struct mlx5_ib_srq *srq)
 		return;
 
 	/* First we need to find the current producer index, so we
-	 * know where to start cleaning from.  It doesn't matter if HW
+	 * kanalw where to start cleaning from.  It doesn't matter if HW
 	 * adds new entries after this loop -- the QP we're worried
 	 * about is already in RESET, so the new entries won't come
 	 * from our QP and therefore don't need to be checked.
@@ -1089,7 +1089,7 @@ void __mlx5_ib_cq_clean(struct mlx5_ib_cq *cq, u32 rsn, struct mlx5_ib_srq *srq)
 		if (prod_index == cq->mcq.cons_index + cq->ibcq.cqe)
 			break;
 
-	/* Now sweep backwards through the CQ, removing CQ entries
+	/* Analw sweep backwards through the CQ, removing CQ entries
 	 * that match our QP by copying older entries on top of them.
 	 */
 	while ((int) --prod_index - (int) cq->mcq.cons_index >= 0) {
@@ -1136,7 +1136,7 @@ int mlx5_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 	int err;
 
 	if (!MLX5_CAP_GEN(dev->mdev, cq_moderation))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (cq_period > MLX5_MAX_CQ_PERIOD)
 		return -EINVAL;
@@ -1189,7 +1189,7 @@ static int resize_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 
 	cq->resize_buf = kzalloc(sizeof(*cq->resize_buf), GFP_KERNEL);
 	if (!cq->resize_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = alloc_cq_frag_buf(dev, cq->resize_buf, entries, cqe_size);
 	if (err)
@@ -1220,7 +1220,7 @@ static int copy_resize_cqes(struct mlx5_ib_cq *cq)
 	ssize = cq->buf.cqe_size;
 	dsize = cq->resize_buf->cqe_size;
 	if (ssize != dsize) {
-		mlx5_ib_warn(dev, "resize from different cqe size is not supported\n");
+		mlx5_ib_warn(dev, "resize from different cqe size is analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1252,7 +1252,7 @@ static int copy_resize_cqes(struct mlx5_ib_cq *cq)
 		if (scqe == start_cqe) {
 			pr_warn("resize CQ failed to get resize CQE, CQN 0x%x\n",
 				cq->mcq.cqn);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	++cq->mcq.cons_index;
@@ -1275,8 +1275,8 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	unsigned long flags;
 
 	if (!MLX5_CAP_GEN(dev->mdev, cq_resize)) {
-		pr_info("Firmware does not support resize CQ\n");
-		return -ENOSYS;
+		pr_info("Firmware does analt support resize CQ\n");
+		return -EANALSYS;
 	}
 
 	if (entries < 1 ||
@@ -1329,7 +1329,7 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ex_resize;
 	}
 
@@ -1428,15 +1428,15 @@ int mlx5_ib_generate_wc(struct ib_cq *ibcq, struct ib_wc *wc)
 
 	soft_wc = kmalloc(sizeof(*soft_wc), GFP_ATOMIC);
 	if (!soft_wc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soft_wc->wc = *wc;
 	spin_lock_irqsave(&cq->lock, flags);
 	list_add_tail(&soft_wc->list, &cq->wc_list);
-	if (cq->notify_flags == IB_CQ_NEXT_COMP ||
+	if (cq->analtify_flags == IB_CQ_NEXT_COMP ||
 	    wc->status != IB_WC_SUCCESS) {
-		cq->notify_flags = 0;
-		schedule_work(&cq->notify_work);
+		cq->analtify_flags = 0;
+		schedule_work(&cq->analtify_work);
 	}
 	spin_unlock_irqrestore(&cq->lock, flags);
 

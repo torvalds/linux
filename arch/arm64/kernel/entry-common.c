@@ -29,7 +29,7 @@
 
 /*
  * Handle IRQ/context state management when entering from kernel mode.
- * Before this function is called it is not safe to call regular kernel code,
+ * Before this function is called it is analt safe to call regular kernel code,
  * instrumentable code, or any code which may trigger an exception.
  *
  * This is intended to match the logic in irqentry_enter(), handling the kernel
@@ -53,7 +53,7 @@ static __always_inline void __enter_from_kernel_mode(struct pt_regs *regs)
 	trace_hardirqs_off_finish();
 }
 
-static void noinstr enter_from_kernel_mode(struct pt_regs *regs)
+static void analinstr enter_from_kernel_mode(struct pt_regs *regs)
 {
 	__enter_from_kernel_mode(regs);
 	mte_check_tfsr_entry();
@@ -62,7 +62,7 @@ static void noinstr enter_from_kernel_mode(struct pt_regs *regs)
 
 /*
  * Handle IRQ/context state management when exiting to kernel mode.
- * After this function returns it is not safe to call regular kernel code,
+ * After this function returns it is analt safe to call regular kernel code,
  * instrumentable code, or any code which may trigger an exception.
  *
  * This is intended to match the logic in irqentry_exit(), handling the kernel
@@ -88,7 +88,7 @@ static __always_inline void __exit_to_kernel_mode(struct pt_regs *regs)
 	}
 }
 
-static void noinstr exit_to_kernel_mode(struct pt_regs *regs)
+static void analinstr exit_to_kernel_mode(struct pt_regs *regs)
 {
 	mte_check_tfsr_exit();
 	__exit_to_kernel_mode(regs);
@@ -96,7 +96,7 @@ static void noinstr exit_to_kernel_mode(struct pt_regs *regs)
 
 /*
  * Handle IRQ/context state management when entering from user mode.
- * Before this function is called it is not safe to call regular kernel code,
+ * Before this function is called it is analt safe to call regular kernel code,
  * instrumentable code, or any code which may trigger an exception.
  */
 static __always_inline void __enter_from_user_mode(void)
@@ -115,7 +115,7 @@ static __always_inline void enter_from_user_mode(struct pt_regs *regs)
 
 /*
  * Handle IRQ/context state management when exiting to user mode.
- * After this function returns it is not safe to call regular kernel code,
+ * After this function returns it is analt safe to call regular kernel code,
  * instrumentable code, or any code which may trigger an exception.
  */
 static __always_inline void __exit_to_user_mode(void)
@@ -134,7 +134,7 @@ static __always_inline void exit_to_user_mode_prepare(struct pt_regs *regs)
 
 	flags = read_thread_flags();
 	if (unlikely(flags & _TIF_WORK_MASK))
-		do_notify_resume(regs, flags);
+		do_analtify_resume(regs, flags);
 
 	lockdep_sys_exit();
 }
@@ -146,17 +146,17 @@ static __always_inline void exit_to_user_mode(struct pt_regs *regs)
 	__exit_to_user_mode();
 }
 
-asmlinkage void noinstr asm_exit_to_user_mode(struct pt_regs *regs)
+asmlinkage void analinstr asm_exit_to_user_mode(struct pt_regs *regs)
 {
 	exit_to_user_mode(regs);
 }
 
 /*
  * Handle IRQ/context state management when entering an NMI from user/kernel
- * mode. Before this function is called it is not safe to call regular kernel
+ * mode. Before this function is called it is analt safe to call regular kernel
  * code, instrumentable code, or any code which may trigger an exception.
  */
-static void noinstr arm64_enter_nmi(struct pt_regs *regs)
+static void analinstr arm64_enter_nmi(struct pt_regs *regs)
 {
 	regs->lockdep_hardirqs = lockdep_hardirqs_enabled();
 
@@ -171,10 +171,10 @@ static void noinstr arm64_enter_nmi(struct pt_regs *regs)
 
 /*
  * Handle IRQ/context state management when exiting an NMI from user/kernel
- * mode. After this function returns it is not safe to call regular kernel
+ * mode. After this function returns it is analt safe to call regular kernel
  * code, instrumentable code, or any code which may trigger an exception.
  */
-static void noinstr arm64_exit_nmi(struct pt_regs *regs)
+static void analinstr arm64_exit_nmi(struct pt_regs *regs)
 {
 	bool restore = regs->lockdep_hardirqs;
 
@@ -193,10 +193,10 @@ static void noinstr arm64_exit_nmi(struct pt_regs *regs)
 
 /*
  * Handle IRQ/context state management when entering a debug exception from
- * kernel mode. Before this function is called it is not safe to call regular
+ * kernel mode. Before this function is called it is analt safe to call regular
  * kernel code, instrumentable code, or any code which may trigger an exception.
  */
-static void noinstr arm64_enter_el1_dbg(struct pt_regs *regs)
+static void analinstr arm64_enter_el1_dbg(struct pt_regs *regs)
 {
 	regs->lockdep_hardirqs = lockdep_hardirqs_enabled();
 
@@ -208,10 +208,10 @@ static void noinstr arm64_enter_el1_dbg(struct pt_regs *regs)
 
 /*
  * Handle IRQ/context state management when exiting a debug exception from
- * kernel mode. After this function returns it is not safe to call regular
+ * kernel mode. After this function returns it is analt safe to call regular
  * kernel code, instrumentable code, or any code which may trigger an exception.
  */
-static void noinstr arm64_exit_el1_dbg(struct pt_regs *regs)
+static void analinstr arm64_exit_el1_dbg(struct pt_regs *regs)
 {
 	bool restore = regs->lockdep_hardirqs;
 
@@ -239,8 +239,8 @@ static void __sched arm64_preempt_schedule_irq(void)
 		return;
 
 	/*
-	 * Note: thread_info::preempt_count includes both thread_info::count
-	 * and thread_info::need_resched, and is not equivalent to
+	 * Analte: thread_info::preempt_count includes both thread_info::count
+	 * and thread_info::need_resched, and is analt equivalent to
 	 * preempt_count().
 	 */
 	if (READ_ONCE(current_thread_info()->preempt_count) != 0)
@@ -249,7 +249,7 @@ static void __sched arm64_preempt_schedule_irq(void)
 	/*
 	 * DAIF.DA are cleared at the start of IRQ/FIQ handling, and when GIC
 	 * priority masking is used the GIC irqchip driver will clear DAIF.IF
-	 * using gic_arch_enable_irqs() for normal IRQs. If anything is set in
+	 * using gic_arch_enable_irqs() for analrmal IRQs. If anything is set in
 	 * DAIF we must have handled an NMI, so skip preemption.
 	 */
 	if (system_uses_irq_prio_masking() && read_sysreg(daif))
@@ -283,7 +283,7 @@ static void do_interrupt_handler(struct pt_regs *regs,
 extern void (*handle_arch_irq)(struct pt_regs *);
 extern void (*handle_arch_fiq)(struct pt_regs *);
 
-static void noinstr __panic_unhandled(struct pt_regs *regs, const char *vector,
+static void analinstr __panic_unhandled(struct pt_regs *regs, const char *vector,
 				      unsigned long esr)
 {
 	arm64_enter_nmi(regs);
@@ -299,7 +299,7 @@ static void noinstr __panic_unhandled(struct pt_regs *regs, const char *vector,
 }
 
 #define UNHANDLED(el, regsize, vector)							\
-asmlinkage void noinstr el##_##regsize##_##vector##_handler(struct pt_regs *regs)	\
+asmlinkage void analinstr el##_##regsize##_##vector##_handler(struct pt_regs *regs)	\
 {											\
 	const char *desc = #regsize "-bit " #el " " #vector;				\
 	__panic_unhandled(regs, desc, read_sysreg(esr_el1));				\
@@ -356,7 +356,7 @@ static bool cortex_a76_erratum_1463225_debug_handler(struct pt_regs *regs)
 #endif /* CONFIG_ARM64_ERRATUM_1463225 */
 
 /*
- * As per the ABI exit SME streaming mode and clear the SVE state not
+ * As per the ABI exit SME streaming mode and clear the SVE state analt
  * shared with FPSIMD on syscall entry.
  */
 static inline void fp_user_discard(void)
@@ -389,7 +389,7 @@ UNHANDLED(el1t, 64, irq)
 UNHANDLED(el1t, 64, fiq)
 UNHANDLED(el1t, 64, error)
 
-static void noinstr el1_abort(struct pt_regs *regs, unsigned long esr)
+static void analinstr el1_abort(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
@@ -400,7 +400,7 @@ static void noinstr el1_abort(struct pt_regs *regs, unsigned long esr)
 	exit_to_kernel_mode(regs);
 }
 
-static void noinstr el1_pc(struct pt_regs *regs, unsigned long esr)
+static void analinstr el1_pc(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
@@ -411,7 +411,7 @@ static void noinstr el1_pc(struct pt_regs *regs, unsigned long esr)
 	exit_to_kernel_mode(regs);
 }
 
-static void noinstr el1_undef(struct pt_regs *regs, unsigned long esr)
+static void analinstr el1_undef(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
@@ -420,7 +420,7 @@ static void noinstr el1_undef(struct pt_regs *regs, unsigned long esr)
 	exit_to_kernel_mode(regs);
 }
 
-static void noinstr el1_bti(struct pt_regs *regs, unsigned long esr)
+static void analinstr el1_bti(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
@@ -429,7 +429,7 @@ static void noinstr el1_bti(struct pt_regs *regs, unsigned long esr)
 	exit_to_kernel_mode(regs);
 }
 
-static void noinstr el1_dbg(struct pt_regs *regs, unsigned long esr)
+static void analinstr el1_dbg(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
@@ -439,7 +439,7 @@ static void noinstr el1_dbg(struct pt_regs *regs, unsigned long esr)
 	arm64_exit_el1_dbg(regs);
 }
 
-static void noinstr el1_fpac(struct pt_regs *regs, unsigned long esr)
+static void analinstr el1_fpac(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
@@ -448,7 +448,7 @@ static void noinstr el1_fpac(struct pt_regs *regs, unsigned long esr)
 	exit_to_kernel_mode(regs);
 }
 
-asmlinkage void noinstr el1h_64_sync_handler(struct pt_regs *regs)
+asmlinkage void analinstr el1h_64_sync_handler(struct pt_regs *regs)
 {
 	unsigned long esr = read_sysreg(esr_el1);
 
@@ -465,7 +465,7 @@ asmlinkage void noinstr el1h_64_sync_handler(struct pt_regs *regs)
 		el1_pc(regs, esr);
 		break;
 	case ESR_ELx_EC_SYS64:
-	case ESR_ELx_EC_UNKNOWN:
+	case ESR_ELx_EC_UNKANALWN:
 		el1_undef(regs, esr);
 		break;
 	case ESR_ELx_EC_BTI:
@@ -506,10 +506,10 @@ static __always_inline void __el1_irq(struct pt_regs *regs,
 
 	exit_to_kernel_mode(regs);
 }
-static void noinstr el1_interrupt(struct pt_regs *regs,
+static void analinstr el1_interrupt(struct pt_regs *regs,
 				  void (*handler)(struct pt_regs *))
 {
-	write_sysreg(DAIF_PROCCTX_NOIRQ, daif);
+	write_sysreg(DAIF_PROCCTX_ANALIRQ, daif);
 
 	if (IS_ENABLED(CONFIG_ARM64_PSEUDO_NMI) && !interrupts_enabled(regs))
 		__el1_pnmi(regs, handler);
@@ -517,17 +517,17 @@ static void noinstr el1_interrupt(struct pt_regs *regs,
 		__el1_irq(regs, handler);
 }
 
-asmlinkage void noinstr el1h_64_irq_handler(struct pt_regs *regs)
+asmlinkage void analinstr el1h_64_irq_handler(struct pt_regs *regs)
 {
 	el1_interrupt(regs, handle_arch_irq);
 }
 
-asmlinkage void noinstr el1h_64_fiq_handler(struct pt_regs *regs)
+asmlinkage void analinstr el1h_64_fiq_handler(struct pt_regs *regs)
 {
 	el1_interrupt(regs, handle_arch_fiq);
 }
 
-asmlinkage void noinstr el1h_64_error_handler(struct pt_regs *regs)
+asmlinkage void analinstr el1h_64_error_handler(struct pt_regs *regs)
 {
 	unsigned long esr = read_sysreg(esr_el1);
 
@@ -537,7 +537,7 @@ asmlinkage void noinstr el1h_64_error_handler(struct pt_regs *regs)
 	arm64_exit_nmi(regs);
 }
 
-static void noinstr el0_da(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_da(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
@@ -547,12 +547,12 @@ static void noinstr el0_da(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_ia(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_ia(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
 	/*
-	 * We've taken an instruction abort from userspace and not yet
+	 * We've taken an instruction abort from userspace and analt yet
 	 * re-enabled IRQs. If the address is a kernel address, apply
 	 * BP hardening prior to enabling IRQs and pre-emption.
 	 */
@@ -565,7 +565,7 @@ static void noinstr el0_ia(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_fpsimd_acc(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_fpsimd_acc(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
@@ -573,7 +573,7 @@ static void noinstr el0_fpsimd_acc(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_sve_acc(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_sve_acc(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
@@ -581,7 +581,7 @@ static void noinstr el0_sve_acc(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_sme_acc(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_sme_acc(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
@@ -589,7 +589,7 @@ static void noinstr el0_sme_acc(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_fpsimd_exc(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_fpsimd_exc(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
@@ -597,7 +597,7 @@ static void noinstr el0_fpsimd_exc(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_sys(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_sys(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
@@ -605,7 +605,7 @@ static void noinstr el0_sys(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_pc(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_pc(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
@@ -618,7 +618,7 @@ static void noinstr el0_pc(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_sp(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_sp(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
@@ -626,7 +626,7 @@ static void noinstr el0_sp(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_undef(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_undef(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
@@ -634,7 +634,7 @@ static void noinstr el0_undef(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_bti(struct pt_regs *regs)
+static void analinstr el0_bti(struct pt_regs *regs)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
@@ -642,7 +642,7 @@ static void noinstr el0_bti(struct pt_regs *regs)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_mops(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_mops(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
@@ -650,7 +650,7 @@ static void noinstr el0_mops(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_inv(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_inv(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
@@ -658,9 +658,9 @@ static void noinstr el0_inv(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_dbg(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_dbg(struct pt_regs *regs, unsigned long esr)
 {
-	/* Only watchpoints write FAR_EL1, otherwise its UNKNOWN */
+	/* Only watchpoints write FAR_EL1, otherwise its UNKANALWN */
 	unsigned long far = read_sysreg(far_el1);
 
 	enter_from_user_mode(regs);
@@ -669,7 +669,7 @@ static void noinstr el0_dbg(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_svc(struct pt_regs *regs)
+static void analinstr el0_svc(struct pt_regs *regs)
 {
 	enter_from_user_mode(regs);
 	cortex_a76_erratum_1463225_svc_handler();
@@ -679,7 +679,7 @@ static void noinstr el0_svc(struct pt_regs *regs)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_fpac(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_fpac(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
@@ -687,7 +687,7 @@ static void noinstr el0_fpac(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-asmlinkage void noinstr el0t_64_sync_handler(struct pt_regs *regs)
+asmlinkage void analinstr el0t_64_sync_handler(struct pt_regs *regs)
 {
 	unsigned long esr = read_sysreg(esr_el1);
 
@@ -723,7 +723,7 @@ asmlinkage void noinstr el0t_64_sync_handler(struct pt_regs *regs)
 	case ESR_ELx_EC_PC_ALIGN:
 		el0_pc(regs, esr);
 		break;
-	case ESR_ELx_EC_UNKNOWN:
+	case ESR_ELx_EC_UNKANALWN:
 		el0_undef(regs, esr);
 		break;
 	case ESR_ELx_EC_BTI:
@@ -746,12 +746,12 @@ asmlinkage void noinstr el0t_64_sync_handler(struct pt_regs *regs)
 	}
 }
 
-static void noinstr el0_interrupt(struct pt_regs *regs,
+static void analinstr el0_interrupt(struct pt_regs *regs,
 				  void (*handler)(struct pt_regs *))
 {
 	enter_from_user_mode(regs);
 
-	write_sysreg(DAIF_PROCCTX_NOIRQ, daif);
+	write_sysreg(DAIF_PROCCTX_ANALIRQ, daif);
 
 	if (regs->pc & BIT(55))
 		arm64_apply_bp_hardening();
@@ -763,27 +763,27 @@ static void noinstr el0_interrupt(struct pt_regs *regs,
 	exit_to_user_mode(regs);
 }
 
-static void noinstr __el0_irq_handler_common(struct pt_regs *regs)
+static void analinstr __el0_irq_handler_common(struct pt_regs *regs)
 {
 	el0_interrupt(regs, handle_arch_irq);
 }
 
-asmlinkage void noinstr el0t_64_irq_handler(struct pt_regs *regs)
+asmlinkage void analinstr el0t_64_irq_handler(struct pt_regs *regs)
 {
 	__el0_irq_handler_common(regs);
 }
 
-static void noinstr __el0_fiq_handler_common(struct pt_regs *regs)
+static void analinstr __el0_fiq_handler_common(struct pt_regs *regs)
 {
 	el0_interrupt(regs, handle_arch_fiq);
 }
 
-asmlinkage void noinstr el0t_64_fiq_handler(struct pt_regs *regs)
+asmlinkage void analinstr el0t_64_fiq_handler(struct pt_regs *regs)
 {
 	__el0_fiq_handler_common(regs);
 }
 
-static void noinstr __el0_error_handler_common(struct pt_regs *regs)
+static void analinstr __el0_error_handler_common(struct pt_regs *regs)
 {
 	unsigned long esr = read_sysreg(esr_el1);
 
@@ -796,13 +796,13 @@ static void noinstr __el0_error_handler_common(struct pt_regs *regs)
 	exit_to_user_mode(regs);
 }
 
-asmlinkage void noinstr el0t_64_error_handler(struct pt_regs *regs)
+asmlinkage void analinstr el0t_64_error_handler(struct pt_regs *regs)
 {
 	__el0_error_handler_common(regs);
 }
 
 #ifdef CONFIG_COMPAT
-static void noinstr el0_cp15(struct pt_regs *regs, unsigned long esr)
+static void analinstr el0_cp15(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
 	local_daif_restore(DAIF_PROCCTX);
@@ -810,7 +810,7 @@ static void noinstr el0_cp15(struct pt_regs *regs, unsigned long esr)
 	exit_to_user_mode(regs);
 }
 
-static void noinstr el0_svc_compat(struct pt_regs *regs)
+static void analinstr el0_svc_compat(struct pt_regs *regs)
 {
 	enter_from_user_mode(regs);
 	cortex_a76_erratum_1463225_svc_handler();
@@ -819,7 +819,7 @@ static void noinstr el0_svc_compat(struct pt_regs *regs)
 	exit_to_user_mode(regs);
 }
 
-asmlinkage void noinstr el0t_32_sync_handler(struct pt_regs *regs)
+asmlinkage void analinstr el0t_32_sync_handler(struct pt_regs *regs)
 {
 	unsigned long esr = read_sysreg(esr_el1);
 
@@ -842,7 +842,7 @@ asmlinkage void noinstr el0t_32_sync_handler(struct pt_regs *regs)
 	case ESR_ELx_EC_PC_ALIGN:
 		el0_pc(regs, esr);
 		break;
-	case ESR_ELx_EC_UNKNOWN:
+	case ESR_ELx_EC_UNKANALWN:
 	case ESR_ELx_EC_CP14_MR:
 	case ESR_ELx_EC_CP14_LS:
 	case ESR_ELx_EC_CP14_64:
@@ -863,17 +863,17 @@ asmlinkage void noinstr el0t_32_sync_handler(struct pt_regs *regs)
 	}
 }
 
-asmlinkage void noinstr el0t_32_irq_handler(struct pt_regs *regs)
+asmlinkage void analinstr el0t_32_irq_handler(struct pt_regs *regs)
 {
 	__el0_irq_handler_common(regs);
 }
 
-asmlinkage void noinstr el0t_32_fiq_handler(struct pt_regs *regs)
+asmlinkage void analinstr el0t_32_fiq_handler(struct pt_regs *regs)
 {
 	__el0_fiq_handler_common(regs);
 }
 
-asmlinkage void noinstr el0t_32_error_handler(struct pt_regs *regs)
+asmlinkage void analinstr el0t_32_error_handler(struct pt_regs *regs)
 {
 	__el0_error_handler_common(regs);
 }
@@ -885,7 +885,7 @@ UNHANDLED(el0t, 32, error)
 #endif /* CONFIG_COMPAT */
 
 #ifdef CONFIG_VMAP_STACK
-asmlinkage void noinstr __noreturn handle_bad_stack(struct pt_regs *regs)
+asmlinkage void analinstr __analreturn handle_bad_stack(struct pt_regs *regs)
 {
 	unsigned long esr = read_sysreg(esr_el1);
 	unsigned long far = read_sysreg(far_el1);
@@ -896,7 +896,7 @@ asmlinkage void noinstr __noreturn handle_bad_stack(struct pt_regs *regs)
 #endif /* CONFIG_VMAP_STACK */
 
 #ifdef CONFIG_ARM_SDE_INTERFACE
-asmlinkage noinstr unsigned long
+asmlinkage analinstr unsigned long
 __sdei_handler(struct pt_regs *regs, struct sdei_registered_event *arg)
 {
 	unsigned long ret;
@@ -908,7 +908,7 @@ __sdei_handler(struct pt_regs *regs, struct sdei_registered_event *arg)
 	 * The original SDEI spec (ARM DEN 0054A) can be read ambiguously as to
 	 * whether PSTATE bits are inherited unchanged or generated from
 	 * scratch, and the TF-A implementation always clears PAN and always
-	 * clears UAO. There are no other known implementations.
+	 * clears UAO. There are anal other kanalwn implementations.
 	 *
 	 * Subsequent revisions (ARM DEN 0054B) follow the usual rules for how
 	 * PSTATE is modified upon architectural exceptions, and so PAN is

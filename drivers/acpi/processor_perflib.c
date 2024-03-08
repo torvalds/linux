@@ -27,7 +27,7 @@
 static DEFINE_MUTEX(performance_mutex);
 
 /*
- * _PPC support is implemented as a CPUfreq policy notifier:
+ * _PPC support is implemented as a CPUfreq policy analtifier:
  * This means each time a CPUfreq driver registered also with
  * the ACPI core is asked to change the speed policy, the maximum
  * value is adjusted so that it is within the platform limit.
@@ -36,15 +36,15 @@ static DEFINE_MUTEX(performance_mutex);
  * policy is adjusted accordingly.
  */
 
-/* ignore_ppc:
- * -1 -> cpufreq low level drivers not initialized -> _PSS, etc. not called yet
- *       ignore _PPC
+/* iganalre_ppc:
+ * -1 -> cpufreq low level drivers analt initialized -> _PSS, etc. analt called yet
+ *       iganalre _PPC
  *  0 -> cpufreq low level drivers initialized -> consider _PPC values
- *  1 -> ignore _PPC totally -> forced by user through boot param
+ *  1 -> iganalre _PPC totally -> forced by user through boot param
  */
-static int ignore_ppc = -1;
-module_param(ignore_ppc, int, 0644);
-MODULE_PARM_DESC(ignore_ppc, "If the frequency of your machine gets wrongly" \
+static int iganalre_ppc = -1;
+module_param(iganalre_ppc, int, 0644);
+MODULE_PARM_DESC(iganalre_ppc, "If the frequency of your machine gets wrongly" \
 		 "limited by BIOS, this should help");
 
 static bool acpi_processor_ppc_in_use;
@@ -65,12 +65,12 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 	 * (e.g. 0 = states 0..n; 1 = states 1..n; etc.
 	 */
 	status = acpi_evaluate_integer(pr->handle, "_PPC", NULL, &ppc);
-	if (status != AE_NOT_FOUND) {
+	if (status != AE_ANALT_FOUND) {
 		acpi_processor_ppc_in_use = true;
 
 		if (ACPI_FAILURE(status)) {
 			acpi_evaluation_failure_warn(pr->handle, "_PPC", status);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -81,7 +81,7 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 		return 0;
 
 	pr_debug("CPU %d: _PPC is %d - frequency %s limited\n", pr->id,
-		 index, index ? "is" : "is not");
+		 index, index ? "is" : "is analt");
 
 	pr->performance_platform_limit = index;
 
@@ -90,7 +90,7 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 
 	/*
 	 * If _PPC returns 0, it means that all of the available states can be
-	 * used ("no limit").
+	 * used ("anal limit").
 	 */
 	if (index == 0)
 		qos_value = FREQ_QOS_MAX_DEFAULT_VALUE;
@@ -106,18 +106,18 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 	return 0;
 }
 
-#define ACPI_PROCESSOR_NOTIFY_PERFORMANCE	0x80
+#define ACPI_PROCESSOR_ANALTIFY_PERFORMANCE	0x80
 /*
- * acpi_processor_ppc_ost: Notify firmware the _PPC evaluation status
+ * acpi_processor_ppc_ost: Analtify firmware the _PPC evaluation status
  * @handle: ACPI processor handle
  * @status: the status code of _PPC evaluation
- *	0: success. OSPM is now using the performance state specified.
- *	1: failure. OSPM has not changed the number of P-states in use
+ *	0: success. OSPM is analw using the performance state specified.
+ *	1: failure. OSPM has analt changed the number of P-states in use
  */
 static void acpi_processor_ppc_ost(acpi_handle handle, int status)
 {
 	if (acpi_has_method(handle, "_OST"))
-		acpi_evaluate_ost(handle, ACPI_PROCESSOR_NOTIFY_PERFORMANCE,
+		acpi_evaluate_ost(handle, ACPI_PROCESSOR_ANALTIFY_PERFORMANCE,
 				  status, NULL);
 }
 
@@ -125,9 +125,9 @@ void acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag)
 {
 	int ret;
 
-	if (ignore_ppc || !pr->performance) {
+	if (iganalre_ppc || !pr->performance) {
 		/*
-		 * Only when it is notification event, the _OST object
+		 * Only when it is analtification event, the _OST object
 		 * will be evaluated. Otherwise it is skipped.
 		 */
 		if (event_flag)
@@ -137,7 +137,7 @@ void acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag)
 
 	ret = acpi_processor_get_platform_limit(pr);
 	/*
-	 * Only when it is notification event, the _OST object
+	 * Only when it is analtification event, the _OST object
 	 * will be evaluated. Otherwise it is skipped.
 	 */
 	if (event_flag) {
@@ -156,7 +156,7 @@ int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
 
 	pr = per_cpu(processors, cpu);
 	if (!pr || !pr->performance || !pr->performance->state_count)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*limit = pr->performance->states[pr->performance_platform_limit].
 		core_frequency * 1000;
@@ -164,10 +164,10 @@ int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
 }
 EXPORT_SYMBOL(acpi_processor_get_bios_limit);
 
-void acpi_processor_ignore_ppc_init(void)
+void acpi_processor_iganalre_ppc_init(void)
 {
-	if (ignore_ppc < 0)
-		ignore_ppc = 0;
+	if (iganalre_ppc < 0)
+		iganalre_ppc = 0;
 }
 
 void acpi_processor_ppc_init(struct cpufreq_policy *policy)
@@ -183,7 +183,7 @@ void acpi_processor_ppc_init(struct cpufreq_policy *policy)
 
 		/*
 		 * Reset performance_platform_limit in case there is a stale
-		 * value in it, so as to make it match the "no limit" QoS value
+		 * value in it, so as to make it match the "anal limit" QoS value
 		 * below.
 		 */
 		pr->performance_platform_limit = 0;
@@ -220,7 +220,7 @@ static int acpi_processor_get_performance_control(struct acpi_processor *pr)
 	status = acpi_evaluate_object(pr->handle, "_PCT", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		acpi_evaluation_failure_warn(pr->handle, "_PCT", status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pct = (union acpi_object *)buffer.pointer;
@@ -316,7 +316,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 	status = acpi_evaluate_object(pr->handle, "_PSS", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		acpi_evaluation_failure_warn(pr->handle, "_PSS", status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pss = buffer.pointer;
@@ -335,7 +335,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 			  sizeof(struct acpi_processor_px),
 			  GFP_KERNEL);
 	if (!pr->performance->states) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto end;
 	}
 
@@ -393,7 +393,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 
 	if (last_invalid == 0) {
 		pr_err(FW_BUG
-			   "No valid BIOS _PSS frequency found for processor %d\n", pr->id);
+			   "Anal valid BIOS _PSS frequency found for processor %d\n", pr->id);
 		result = -EFAULT;
 		kfree(pr->performance->states);
 		pr->performance->states = NULL;
@@ -418,7 +418,7 @@ int acpi_processor_get_performance_info(struct acpi_processor *pr)
 	if (!acpi_has_method(pr->handle, "_PCT")) {
 		acpi_handle_debug(pr->handle,
 				  "ACPI-based processor performance control unavailable\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	result = acpi_processor_get_performance_control(pr);
@@ -430,14 +430,14 @@ int acpi_processor_get_performance_info(struct acpi_processor *pr)
 		goto update_bios;
 
 	/* We need to call _PPC once when cpufreq starts */
-	if (ignore_ppc != 1)
+	if (iganalre_ppc != 1)
 		result = acpi_processor_get_platform_limit(pr);
 
 	return result;
 
 	/*
 	 * Having _PPC but missing frequencies (_PSS, _PCT) is a very good hint that
-	 * the BIOS is older than the CPU and does not know its frequencies
+	 * the BIOS is older than the CPU and does analt kanalw its frequencies
 	 */
  update_bios:
 #ifdef CONFIG_X86
@@ -472,7 +472,7 @@ int acpi_processor_pstate_control(void)
 	return -EIO;
 }
 
-int acpi_processor_notify_smm(struct module *calling_module)
+int acpi_processor_analtify_smm(struct module *calling_module)
 {
 	static int is_done;
 	int result = 0;
@@ -484,9 +484,9 @@ int acpi_processor_notify_smm(struct module *calling_module)
 		return -EINVAL;
 
 	/*
-	 * is_done is set to negative if an error occurs and to 1 if no error
-	 * occurrs, but SMM has been notified already. This avoids repeated
-	 * notification which might lead to unexpected results.
+	 * is_done is set to negative if an error occurs and to 1 if anal error
+	 * occurrs, but SMM has been analtified already. This avoids repeated
+	 * analtification which might lead to unexpected results.
 	 */
 	if (is_done != 0) {
 		if (is_done < 0)
@@ -500,7 +500,7 @@ int acpi_processor_notify_smm(struct module *calling_module)
 		if (result) {
 			is_done = result;
 		} else {
-			pr_debug("No SMI port or pstate_control\n");
+			pr_debug("Anal SMI port or pstate_control\n");
 			is_done = 1;
 		}
 		goto out_put;
@@ -518,7 +518,7 @@ out_put:
 	module_put(calling_module);
 	return result;
 }
-EXPORT_SYMBOL(acpi_processor_notify_smm);
+EXPORT_SYMBOL(acpi_processor_analtify_smm);
 
 int acpi_processor_get_psd(acpi_handle handle, struct acpi_psd_package *pdomain)
 {
@@ -531,7 +531,7 @@ int acpi_processor_get_psd(acpi_handle handle, struct acpi_psd_package *pdomain)
 
 	status = acpi_evaluate_object(handle, "_PSD", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	psd = buffer.pointer;
@@ -558,13 +558,13 @@ int acpi_processor_get_psd(acpi_handle handle, struct acpi_psd_package *pdomain)
 	}
 
 	if (pdomain->num_entries != ACPI_PSD_REV0_ENTRIES) {
-		pr_err("Unknown _PSD:num_entries\n");
+		pr_err("Unkanalwn _PSD:num_entries\n");
 		result = -EFAULT;
 		goto end;
 	}
 
 	if (pdomain->revision != ACPI_PSD_REV0_REVISION) {
-		pr_err("Unknown _PSD:revision\n");
+		pr_err("Unkanalwn _PSD:revision\n");
 		result = -EFAULT;
 		goto end;
 	}
@@ -595,12 +595,12 @@ int acpi_processor_preregister_performance(
 	struct acpi_psd_package *match_pdomain;
 
 	if (!zalloc_cpumask_var(&covered_cpus, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&performance_mutex);
 
 	/*
-	 * Check if another driver has already registered, and abort before
+	 * Check if aanalther driver has already registered, and abort before
 	 * changing pr->performance if it has. Check input data as well.
 	 */
 	for_each_possible_cpu(i) {
@@ -638,7 +638,7 @@ int acpi_processor_preregister_performance(
 		goto err_ret;
 
 	/*
-	 * Now that we have _PSD data from all CPUs, lets setup P-state
+	 * Analw that we have _PSD data from all CPUs, lets setup P-state
 	 * domain info.
 	 */
 	for_each_possible_cpu(i) {
@@ -717,11 +717,11 @@ err_ret:
 		if (!pr || !pr->performance)
 			continue;
 
-		/* Assume no coordination on any error parsing domain info */
+		/* Assume anal coordination on any error parsing domain info */
 		if (retval) {
 			cpumask_clear(pr->performance->shared_cpu_map);
 			cpumask_set_cpu(i, pr->performance->shared_cpu_map);
-			pr->performance->shared_type = CPUFREQ_SHARED_TYPE_NONE;
+			pr->performance->shared_type = CPUFREQ_SHARED_TYPE_ANALNE;
 		}
 		pr->performance = NULL; /* Will be set for real in register */
 	}
@@ -746,7 +746,7 @@ int acpi_processor_register_performance(struct acpi_processor_performance
 	pr = per_cpu(processors, cpu);
 	if (!pr) {
 		mutex_unlock(&performance_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (pr->performance) {

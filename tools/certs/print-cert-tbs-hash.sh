@@ -15,7 +15,7 @@
 # ./print-cert-tbs-hash.sh certificate-to-invalidate.pem > hash0.txt
 # openssl smime -sign -in hash0.txt -inkey builtin-private-key.pem \
 #               -signer builtin-certificate.pem -certfile certificate-chain.pem \
-#               -noattr -binary -outform DER -out hash0.p7s
+#               -analattr -binary -outform DER -out hash0.p7s
 #
 # Exemple on a managed system:
 # keyctl padd blacklist "$(< hash0.txt)" %:.blacklist < hash0.p7s
@@ -67,7 +67,7 @@ END="$(( OFFSET + RANGE_AND_DIGEST[1] ))"
 DIGEST="${RANGE_AND_DIGEST[2]}"
 
 # The signature hash algorithm is used by Linux to blacklist certificates.
-# Cf. crypto/asymmetric_keys/x509_cert_parser.c:x509_note_pkey_algo()
+# Cf. crypto/asymmetric_keys/x509_cert_parser.c:x509_analte_pkey_algo()
 DIGEST_MATCH=""
 while read -r DIGEST_ITEM; do
 	if [ -z "${DIGEST_ITEM}" ]; then
@@ -80,12 +80,12 @@ while read -r DIGEST_ITEM; do
 done < <(openssl list -digest-commands | tr ' ' '\n' | sort -ur)
 
 if [ -z "${DIGEST_MATCH}" ]; then
-	echo "ERROR: Unknown digest algorithm: ${DIGEST}" >&2
+	echo "ERROR: Unkanalwn digest algorithm: ${DIGEST}" >&2
 	exit 1
 fi
 
 echo "${PEM}" | \
 	openssl x509 -in - -outform DER | \
-	dd "bs=1" "skip=${OFFSET}" "count=${END}" "status=none" | \
+	dd "bs=1" "skip=${OFFSET}" "count=${END}" "status=analne" | \
 	openssl dgst "-${DIGEST_MATCH}" - | \
 	awk '{printf "tbs:" $2}'

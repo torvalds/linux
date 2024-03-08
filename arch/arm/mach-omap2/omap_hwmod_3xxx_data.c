@@ -2,7 +2,7 @@
 /*
  * omap_hwmod_3xxx_data.c - hardware modules present on the OMAP3xxx chips
  *
- * Copyright (C) 2009-2011 Nokia Corporation
+ * Copyright (C) 2009-2011 Analkia Corporation
  * Copyright (C) 2012 Texas Instruments, Inc.
  * Paul Walmsley
  *
@@ -48,35 +48,35 @@
 static struct omap_hwmod omap3xxx_l3_main_hwmod = {
 	.name		= "l3_main",
 	.class		= &l3_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* L4 CORE */
 static struct omap_hwmod omap3xxx_l4_core_hwmod = {
 	.name		= "l4_core",
 	.class		= &l4_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* L4 PER */
 static struct omap_hwmod omap3xxx_l4_per_hwmod = {
 	.name		= "l4_per",
 	.class		= &l4_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* L4 WKUP */
 static struct omap_hwmod omap3xxx_l4_wkup_hwmod = {
 	.name		= "l4_wkup",
 	.class		= &l4_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* L4 SEC */
 static struct omap_hwmod omap3xxx_l4_sec_hwmod = {
 	.name		= "l4_sec",
 	.class		= &l4_hwmod_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* MPU */
@@ -125,7 +125,7 @@ static struct omap_hwmod omap3xxx_debugss_hwmod = {
 	.class		= &omap3xxx_debugss_hwmod_class,
 	.clkdm_name	= "emu_clkdm",
 	.main_clk	= "emu_src_ck",
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* timer class */
@@ -137,7 +137,7 @@ static struct omap_hwmod_class_sysconfig omap3xxx_timer_sysc = {
 			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 			   SYSC_HAS_EMUFREE | SYSC_HAS_AUTOIDLE |
 			   SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -295,7 +295,7 @@ static struct omap_hwmod_class_sysconfig omap3xxx_wd_timer_sysc = {
 			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 			   SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
 			   SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields    = &omap_hwmod_sysc_type1,
 };
 
@@ -307,7 +307,7 @@ static struct omap_hwmod_class_sysconfig i2c_sysc = {
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 			   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields    = &omap_hwmod_sysc_type1,
 };
 
@@ -402,10 +402,10 @@ static struct omap_hwmod omap36xx_uart4_hwmod = {
 
 
 /*
- * XXX AM35xx UART4 cannot complete its softreset without uart1_fck or
+ * XXX AM35xx UART4 cananalt complete its softreset without uart1_fck or
  * uart2_fck being enabled.  So we add uart1_fck as an optional clock,
  * below, and set the HWMOD_CONTROL_OPT_CLKS_IN_RESET.  This really
- * should not be needed.  The functional clock structure of the AM35xx
+ * should analt be needed.  The functional clock structure of the AM35xx
  * UART4 is extremely unclear and opaque; it is unclear what the role
  * of uart1/2_fck is for the UART4.  Any clarification from either
  * empirical testing or the AM3505/3517 hardware designers would be
@@ -441,7 +441,7 @@ static struct omap_hwmod_class i2c_class = {
 static struct omap_hwmod_opt_clk dss_opt_clks[] = {
 	/*
 	 * The DSS HW needs all DSS clocks enabled during reset. The dss_core
-	 * driver does not use these clocks.
+	 * driver does analt use these clocks.
 	 */
 	{ .role = "sys_clk", .clk = "dss2_alwon_fck" },
 	{ .role = "tv_clk", .clk = "dss_tv_fck" },
@@ -461,7 +461,7 @@ static struct omap_hwmod omap3430es1_dss_core_hwmod = {
 	},
 	.opt_clks	= dss_opt_clks,
 	.opt_clks_cnt = ARRAY_SIZE(dss_opt_clks),
-	.flags		= HWMOD_NO_IDLEST | HWMOD_CONTROL_OPT_CLKS_IN_RESET,
+	.flags		= HWMOD_ANAL_IDLEST | HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 };
 
 static struct omap_hwmod omap3xxx_dss_core_hwmod = {
@@ -492,8 +492,8 @@ static struct omap_hwmod_class_sysconfig omap3_dispc_sysc = {
 	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_MIDLEMODE |
 			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
 			   SYSC_HAS_ENAWAKEUP),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART |
+			   MSTANDBY_FORCE | MSTANDBY_ANAL | MSTANDBY_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -511,7 +511,7 @@ static struct omap_hwmod omap3xxx_dss_dispc_hwmod = {
 			.module_offs = OMAP3430_DSS_MOD,
 		},
 	},
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 	.dev_attr	= &omap2_3_dss_dispc_dev_attr,
 };
 
@@ -527,7 +527,7 @@ static struct omap_hwmod_class_sysconfig omap3xxx_dsi_sysc = {
 	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
 			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SIDLEMODE |
 			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -552,7 +552,7 @@ static struct omap_hwmod omap3xxx_dss_dsi1_hwmod = {
 	},
 	.opt_clks	= dss_dsi1_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_dsi1_opt_clks),
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 static struct omap_hwmod_opt_clk dss_rfbi_opt_clks[] = {
@@ -570,7 +570,7 @@ static struct omap_hwmod omap3xxx_dss_rfbi_hwmod = {
 	},
 	.opt_clks	= dss_rfbi_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_rfbi_opt_clks),
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 static struct omap_hwmod_opt_clk dss_venc_opt_clks[] = {
@@ -589,7 +589,7 @@ static struct omap_hwmod omap3xxx_dss_venc_hwmod = {
 	},
 	.opt_clks	= dss_venc_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_venc_opt_clks),
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* I2C1 */
@@ -649,7 +649,7 @@ static struct omap_hwmod_class_sysconfig omap3xxx_gpio_sysc = {
 	.sysc_flags	= (SYSC_HAS_ENAWAKEUP | SYSC_HAS_SIDLEMODE |
 			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
 			   SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields    = &omap_hwmod_sysc_type1,
 };
 
@@ -792,11 +792,11 @@ static struct omap_hwmod omap3xxx_gpio6_hwmod = {
  */
 
 static struct omap_hwmod_class_sysconfig omap3xxx_mcbsp_sysc = {
-	.rev_offs	= -ENODEV,
+	.rev_offs	= -EANALDEV,
 	.sysc_offs	= 0x008c,
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_ENAWAKEUP |
 			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -898,7 +898,7 @@ static struct omap_hwmod omap3xxx_mcbsp5_hwmod = {
 
 /* 'mcbsp sidetone' class */
 static struct omap_hwmod_class_sysconfig omap3xxx_mcbsp_sidetone_sysc = {
-	.rev_offs	= -ENODEV,
+	.rev_offs	= -EANALDEV,
 	.sysc_offs	= 0x0010,
 	.sysc_flags	= SYSC_HAS_AUTOIDLE,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
@@ -914,7 +914,7 @@ static struct omap_hwmod omap3xxx_mcbsp2_sidetone_hwmod = {
 	.name		= "mcbsp2_sidetone",
 	.class		= &omap3xxx_mcbsp_sidetone_hwmod_class,
 	.main_clk	= "mcbsp2_ick",
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* mcbsp3_sidetone */
@@ -922,14 +922,14 @@ static struct omap_hwmod omap3xxx_mcbsp3_sidetone_hwmod = {
 	.name		= "mcbsp3_sidetone",
 	.class		= &omap3xxx_mcbsp_sidetone_hwmod_class,
 	.main_clk	= "mcbsp3_ick",
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* SR common */
 static struct omap_hwmod_class_sysconfig omap34xx_sr_sysc = {
-	.rev_offs	= -ENODEV,
+	.rev_offs	= -EANALDEV,
 	.sysc_offs	= 0x24,
-	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_NO_CACHE),
+	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_ANAL_CACHE),
 	.sysc_fields	= &omap34xx_sr_sysc_fields,
 };
 
@@ -939,11 +939,11 @@ static struct omap_hwmod_class omap34xx_smartreflex_hwmod_class = {
 };
 
 static struct omap_hwmod_class_sysconfig omap36xx_sr_sysc = {
-	.rev_offs	= -ENODEV,
+	.rev_offs	= -EANALDEV,
 	.sysc_offs	= 0x38,
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_ENAWAKEUP |
-			SYSC_NO_CACHE),
+			SYSC_ANAL_CACHE),
 	.sysc_fields	= &omap36xx_sr_sysc_fields,
 };
 
@@ -1034,7 +1034,7 @@ static struct omap_hwmod_class_sysconfig omap3xxx_mailbox_sysc = {
 	.syss_offs	= 0x014,
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 				SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -1058,7 +1058,7 @@ static struct omap_hwmod omap3xxx_mailbox_hwmod = {
 
 /*
  * 'mcspi' class
- * multichannel serial port interface (mcspi) / master/slave synchronous serial
+ * multichannel serial port interface (mcspi) / master/slave synchroanalus serial
  * bus
  */
 
@@ -1069,7 +1069,7 @@ static struct omap_hwmod_class_sysconfig omap34xx_mcspi_sysc = {
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 				SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 				SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields    = &omap_hwmod_sysc_type1,
 };
 
@@ -1142,7 +1142,7 @@ static struct omap_hwmod_class_sysconfig omap34xx_mmc_sysc = {
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 			   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields    = &omap_hwmod_sysc_type1,
 };
 
@@ -1281,8 +1281,8 @@ static struct omap_hwmod_class_sysconfig omap3xxx_usb_host_hs_sysc = {
 			   SYSC_HAS_SIDLEMODE | SYSC_HAS_ENAWAKEUP |
 			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
 			   SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART |
+			   MSTANDBY_FORCE | MSTANDBY_ANAL | MSTANDBY_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -1319,7 +1319,7 @@ static struct omap_hwmod omap3xxx_usb_host_hs_hwmod = {
 	 * - an USBHOST interrupt occurs before the module is able to answer
 	 *   idle_ack, typically a remote wakeup IRQ.
 	 * Then the USB HOST module will enter a deadlock situation where it
-	 * is no more accessible nor functional.
+	 * is anal more accessible analr functional.
 	 *
 	 * Workaround:
 	 * Don't use smart idle; use only force idle, hence HWMOD_SWSUP_SIDLE
@@ -1357,7 +1357,7 @@ static struct omap_hwmod_class_sysconfig omap3xxx_usb_tll_hs_sysc = {
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 			   SYSC_HAS_AUTOIDLE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -1430,7 +1430,7 @@ static struct omap_hwmod_class_sysconfig omap3xxx_gpmc_sysc = {
 	.syss_offs	= 0x0014,
 	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_SIDLEMODE |
 			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -1445,7 +1445,7 @@ static struct omap_hwmod omap3xxx_gpmc_hwmod = {
 	.clkdm_name	= "core_l3_clkdm",
 	.main_clk	= "gpmc_fck",
 	/* Skip reset for CONFIG_OMAP_GPMC_DEBUG for bootloader timings */
-	.flags		= HWMOD_NO_IDLEST | DEBUG_OMAP_GPMC_HWMOD_FLAGS,
+	.flags		= HWMOD_ANAL_IDLEST | DEBUG_OMAP_GPMC_HWMOD_FLAGS,
 };
 
 /*
@@ -1910,7 +1910,7 @@ static struct omap_hwmod_class_sysconfig mmu_sysc = {
 	.syss_offs	= 0x014,
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -1933,7 +1933,7 @@ static struct omap_hwmod omap3xxx_mmu_isp_hwmod = {
 	.name		= "mmu_isp",
 	.class		= &omap3xxx_mmu_hwmod_class,
 	.main_clk	= "cam_ick",
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* mmu iva */
@@ -1965,7 +1965,7 @@ static struct omap_hwmod omap3xxx_mmu_iva_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_IVA2_SHIFT,
 		},
 	},
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /* l4_per -> gpio4 */
@@ -2134,11 +2134,11 @@ static struct omap_hwmod_class am35xx_mdio_class = {
 static struct omap_hwmod am35xx_mdio_hwmod = {
 	.name		= "davinci_mdio",
 	.class		= &am35xx_mdio_class,
-	.flags		= HWMOD_NO_IDLEST,
+	.flags		= HWMOD_ANAL_IDLEST,
 };
 
 /*
- * XXX Should be connected to an IPSS hwmod, not the L3 directly;
+ * XXX Should be connected to an IPSS hwmod, analt the L3 directly;
  * but this will probably require some additional hwmod core support,
  * so is left as a future to-do item.
  */
@@ -2151,7 +2151,7 @@ static struct omap_hwmod_ocp_if am35xx_mdio__l3 = {
 
 /* l4_core -> davinci mdio  */
 /*
- * XXX Should be connected to an IPSS hwmod, not the L4_CORE directly;
+ * XXX Should be connected to an IPSS hwmod, analt the L4_CORE directly;
  * but this will probably require some additional hwmod core support,
  * so is left as a future to-do item.
  */
@@ -2170,16 +2170,16 @@ static struct omap_hwmod am35xx_emac_hwmod = {
 	.name		= "davinci_emac",
 	.class		= &am35xx_emac_class,
 	/*
-	 * According to Mark Greer, the MPU will not return from WFI
+	 * According to Mark Greer, the MPU will analt return from WFI
 	 * when the EMAC signals an interrupt.
 	 * https://lore.kernel.org/all/1336770778-23044-3-git-send-email-mgreer@animalcreek.com/
 	 */
-	.flags		= (HWMOD_NO_IDLEST | HWMOD_BLOCK_WFI),
+	.flags		= (HWMOD_ANAL_IDLEST | HWMOD_BLOCK_WFI),
 };
 
 /* l3_core -> davinci emac interface */
 /*
- * XXX Should be connected to an IPSS hwmod, not the L3 directly;
+ * XXX Should be connected to an IPSS hwmod, analt the L3 directly;
  * but this will probably require some additional hwmod core support,
  * so is left as a future to-do item.
  */
@@ -2192,7 +2192,7 @@ static struct omap_hwmod_ocp_if am35xx_emac__l3 = {
 
 /* l4_core -> davinci emac  */
 /*
- * XXX Should be connected to an IPSS hwmod, not the L4_CORE directly;
+ * XXX Should be connected to an IPSS hwmod, analt the L4_CORE directly;
  * but this will probably require some additional hwmod core support,
  * so is left as a future to-do item.
  */
@@ -2250,7 +2250,7 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__sham = {
 
 /*
  * 'ssi' class
- * synchronous serial interface (multichannel and full-duplex serial if)
+ * synchroanalus serial interface (multichannel and full-duplex serial if)
  */
 
 static struct omap_hwmod_class_sysconfig omap34xx_ssi_sysc = {
@@ -2259,7 +2259,7 @@ static struct omap_hwmod_class_sysconfig omap34xx_ssi_sysc = {
 	.syss_offs	= 0x0014,
 	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_MIDLEMODE |
 			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_ANAL | SIDLE_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -2348,7 +2348,7 @@ static struct omap_hwmod_ocp_if *omap36xx_sham_hwmod_ocp_ifs[] __initdata = {
 
 /*
  * Apparently the SHA/MD5 and AES accelerator IP blocks are
- * only present on some AM35xx chips, and no one knows which
+ * only present on some AM35xx chips, and anal one kanalws which
  * ones.
  * See https://lore.kernel.org/all/20130108203853.GB1876@animalcreek.com/
  * So if you need these IP blocks on an AM35xx, try uncommenting
@@ -2453,33 +2453,33 @@ static struct omap_hwmod_ocp_if *omap3xxx_dss_hwmod_ocp_ifs[] __initdata = {
 
 /**
  * omap3xxx_hwmod_is_hs_ip_block_usable - is a security IP block accessible?
- * @bus: struct device_node * for the top-level OMAP DT data
+ * @bus: struct device_analde * for the top-level OMAP DT data
  * @dev_name: device name used in the DT file
  *
  * Determine whether a "secure" IP block @dev_name is usable by Linux.
  * There doesn't appear to be a 100% reliable way to determine this,
- * so we rely on heuristics.  If @bus is null, meaning there's no DT
+ * so we rely on heuristics.  If @bus is null, meaning there's anal DT
  * data, then we only assume the IP block is accessible if the OMAP is
  * fused as a 'general-purpose' SoC.  If however DT data is present,
  * test to see if the IP block is described in the DT data and set to
  * 'status = "okay"'.  If so then we assume the ODM has configured the
  * OMAP firewalls to allow access to the IP block.
  *
- * Return: 0 if device named @dev_name is not likely to be accessible,
+ * Return: 0 if device named @dev_name is analt likely to be accessible,
  * or 1 if it is likely to be accessible.
  */
-static bool __init omap3xxx_hwmod_is_hs_ip_block_usable(struct device_node *bus,
+static bool __init omap3xxx_hwmod_is_hs_ip_block_usable(struct device_analde *bus,
 							const char *dev_name)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	bool available;
 
 	if (!bus)
 		return omap_type() == OMAP2_DEVICE_TYPE_GP;
 
-	node = of_get_child_by_name(bus, dev_name);
-	available = of_device_is_available(node);
-	of_node_put(node);
+	analde = of_get_child_by_name(bus, dev_name);
+	available = of_device_is_available(analde);
+	of_analde_put(analde);
 
 	return available;
 }
@@ -2488,7 +2488,7 @@ int __init omap3xxx_hwmod_init(void)
 {
 	int r;
 	struct omap_hwmod_ocp_if **h = NULL, **h_sham = NULL;
-	struct device_node *bus;
+	struct device_analde *bus;
 	unsigned int rev;
 
 	omap_hwmod_init();
@@ -2518,7 +2518,7 @@ int __init omap3xxx_hwmod_init(void)
 		h = omap36xx_hwmod_ocp_ifs;
 		h_sham = omap36xx_sham_hwmod_ocp_ifs;
 	} else {
-		WARN(1, "OMAP3 hwmod family init: unknown chip type\n");
+		WARN(1, "OMAP3 hwmod family init: unkanalwn chip type\n");
 		return -EINVAL;
 	}
 
@@ -2527,19 +2527,19 @@ int __init omap3xxx_hwmod_init(void)
 		return r;
 
 	/*
-	 * Register crypto hwmod links only if they are not disabled in DT.
+	 * Register crypto hwmod links only if they are analt disabled in DT.
 	 * If DT information is missing, enable them only for GP devices.
 	 */
 
-	bus = of_find_node_by_name(NULL, "ocp");
+	bus = of_find_analde_by_name(NULL, "ocp");
 
 	if (h_sham && omap3xxx_hwmod_is_hs_ip_block_usable(bus, "sham")) {
 		r = omap_hwmod_register_links(h_sham);
 		if (r < 0)
-			goto put_node;
+			goto put_analde;
 	}
 
-	of_node_put(bus);
+	of_analde_put(bus);
 
 	/*
 	 * Register hwmod links specific to certain ES levels of a
@@ -2589,7 +2589,7 @@ int __init omap3xxx_hwmod_init(void)
 
 	return r;
 
-put_node:
-	of_node_put(bus);
+put_analde:
+	of_analde_put(bus);
 	return r;
 }

@@ -3,7 +3,7 @@
 #define _GNU_SOURCE
 
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <string.h>
@@ -66,22 +66,22 @@ static void xerror(const char *fmt, ...)
 static const char *getxinfo_strerr(int err)
 {
 	if (err == EAI_SYSTEM)
-		return strerror(errno);
+		return strerror(erranal);
 
 	return gai_strerror(err);
 }
 
-static void xgetaddrinfo(const char *node, const char *service,
+static void xgetaddrinfo(const char *analde, const char *service,
 			 const struct addrinfo *hints,
 			 struct addrinfo **res)
 {
-	int err = getaddrinfo(node, service, hints, res);
+	int err = getaddrinfo(analde, service, hints, res);
 
 	if (err) {
 		const char *errstr = getxinfo_strerr(err);
 
 		fprintf(stderr, "Fatal: getaddrinfo(%s:%s): %s\n",
-			node ? node : "", service ? service : "", errstr);
+			analde ? analde : "", service ? service : "", errstr);
 		exit(1);
 	}
 }
@@ -124,7 +124,7 @@ static int sock_listen_mptcp(const char * const listenaddr,
 	freeaddrinfo(addr);
 
 	if (sock < 0)
-		xerror("could not create listen socket");
+		xerror("could analt create listen socket");
 
 	if (listen(sock, 20))
 		die_perror("listen");
@@ -157,7 +157,7 @@ static int sock_connect_mptcp(const char * const remoteaddr,
 	}
 
 	if (sock < 0)
-		xerror("could not create connect socket");
+		xerror("could analt create connect socket");
 
 	freeaddrinfo(addr);
 	return sock;
@@ -226,7 +226,7 @@ static void wait_for_ack(int fd, int timeout, size_t total)
 		/* wait for peer to ack rx of all data */
 		req.tv_sec = 0;
 		req.tv_nsec = 1 * 1000 * 1000ul; /* 1ms */
-		nanosleep(&req, NULL);
+		naanalsleep(&req, NULL);
 	}
 
 	xerror("still tx data queued after %u ms\n", timeout);
@@ -320,7 +320,7 @@ static void get_tcp_inq(struct msghdr *msgh, unsigned int *inqv)
 		}
 	}
 
-	xerror("could not find TCP_CM_INQ cmsg type");
+	xerror("could analt find TCP_CM_INQ cmsg type");
 }
 
 static void process_one_client(int fd, int unixfd)
@@ -366,7 +366,7 @@ static void process_one_client(int fd, int unixfd)
 
 		req.tv_sec = 0;
 		req.tv_nsec = 1000 * 1000ul;
-		nanosleep(&req, NULL);
+		naanalsleep(&req, NULL);
 	}
 
 	/* read one byte, expect cmsg to return expected - 1 */
@@ -478,7 +478,7 @@ static int server(int unixfd)
 		fd = sock_listen_mptcp("::1", "15432");
 		break;
 	default:
-		xerror("Unknown pf %d\n", pf);
+		xerror("Unkanalwn pf %d\n", pf);
 		break;
 	}
 
@@ -510,7 +510,7 @@ static int client(int unixfd)
 		fd = sock_connect_mptcp("::1", "15432", proto_tx);
 		break;
 	default:
-		xerror("Unknown pf %d\n", pf);
+		xerror("Unkanalwn pf %d\n", pf);
 	}
 
 	connect_one_server(fd, unixfd);

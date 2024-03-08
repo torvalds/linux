@@ -19,7 +19,7 @@
 
 static int  __init add_rtc(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct platform_device *pd;
 	struct resource res[2];
 	unsigned int num_res = 1;
@@ -27,27 +27,27 @@ static int  __init add_rtc(void)
 
 	memset(&res, 0, sizeof(res));
 
-	np = of_find_compatible_node(NULL, NULL, "pnpPNP,b00");
+	np = of_find_compatible_analde(NULL, NULL, "pnpPNP,b00");
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = of_address_to_resource(np, 0, &res[0]);
-	of_node_put(np);
+	of_analde_put(np);
 	if (ret)
 		return ret;
 
 	/*
 	 * RTC_PORT(x) is hardcoded in asm/mc146818rtc.h.  Verify that the
-	 * address provided by the device node matches.
+	 * address provided by the device analde matches.
 	 */
 	if (res[0].start != RTC_PORT(0))
 		return -EINVAL;
 
-	np = of_find_compatible_node(NULL, NULL, "chrp,iic");
+	np = of_find_compatible_analde(NULL, NULL, "chrp,iic");
 	if (!np)
-		np = of_find_compatible_node(NULL, NULL, "pnpPNP,000");
+		np = of_find_compatible_analde(NULL, NULL, "pnpPNP,000");
 	if (np) {
-		of_node_put(np);
+		of_analde_put(np);
 		/*
 		 * Use a fixed interrupt value of 8 since on PPC if we are
 		 * using this its off an i8259 which we ensure has interrupt

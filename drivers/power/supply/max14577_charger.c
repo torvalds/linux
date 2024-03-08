@@ -26,7 +26,7 @@ struct max14577_charger {
 static enum max14577_muic_charger_type maxim_get_charger_type(
 		enum maxim_device_type dev_type, u8 val) {
 	switch (val) {
-	case MAX14577_CHARGER_TYPE_NONE:
+	case MAX14577_CHARGER_TYPE_ANALNE:
 	case MAX14577_CHARGER_TYPE_USB:
 	case MAX14577_CHARGER_TYPE_DOWNSTREAM_PORT:
 	case MAX14577_CHARGER_TYPE_DEDICATED_CHG:
@@ -91,7 +91,7 @@ out:
 
 /*
  * Supported charge types:
- *  - POWER_SUPPLY_CHARGE_TYPE_NONE
+ *  - POWER_SUPPLY_CHARGE_TYPE_ANALNE
  *  - POWER_SUPPLY_CHARGE_TYPE_FAST
  */
 static int max14577_get_charge_type(struct max14577_charger *chg, int *val)
@@ -113,7 +113,7 @@ static int max14577_get_charge_type(struct max14577_charger *chg, int *val)
 	if (charging == POWER_SUPPLY_STATUS_CHARGING)
 		*val = POWER_SUPPLY_CHARGE_TYPE_FAST;
 	else
-		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		*val = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 
 	return 0;
 }
@@ -140,7 +140,7 @@ static int max14577_get_online(struct max14577_charger *chg, int *val)
 	case MAX77836_CHARGER_TYPE_SPECIAL_BIAS:
 		*val = 1;
 		break;
-	case MAX14577_CHARGER_TYPE_NONE:
+	case MAX14577_CHARGER_TYPE_ANALNE:
 	case MAX14577_CHARGER_TYPE_DOWNSTREAM_PORT:
 	case MAX14577_CHARGER_TYPE_RESERVED:
 	case MAX77836_CHARGER_TYPE_RESERVED:
@@ -184,7 +184,7 @@ static int max14577_get_battery_health(struct max14577_charger *chg, int *val)
 		goto out;
 	}
 
-	/* Not dead, not overvoltage */
+	/* Analt dead, analt overvoltage */
 	*val = POWER_SUPPLY_HEALTH_GOOD;
 
 out:
@@ -321,7 +321,7 @@ static int max14577_init_fast_charge(struct max14577_charger *chg,
 /*
  * Sets charger registers to proper and safe default values.
  * Some of these values are equal to defaults in MAX14577E
- * data sheet but there are minor differences.
+ * data sheet but there are mianalr differences.
  */
 static int max14577_charger_reg_init(struct max14577_charger *chg)
 {
@@ -401,7 +401,7 @@ static enum power_supply_property max14577_charger_props[] = {
 };
 
 static const char * const model_names[] = {
-	[MAXIM_DEVICE_TYPE_UNKNOWN]	= "MAX14577-like",
+	[MAXIM_DEVICE_TYPE_UNKANALWN]	= "MAX14577-like",
 	[MAXIM_DEVICE_TYPE_MAX14577]	= "MAX14577",
 	[MAXIM_DEVICE_TYPE_MAX77836]	= "MAX77836",
 };
@@ -457,41 +457,41 @@ static struct max14577_charger_platform_data *max14577_charger_dt_init(
 		struct platform_device *pdev)
 {
 	struct max14577_charger_platform_data *pdata;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int ret;
 
 	if (!np) {
-		dev_err(&pdev->dev, "No charger OF node\n");
+		dev_err(&pdev->dev, "Anal charger OF analde\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = of_property_read_u32(np, "maxim,constant-uvolt",
 			&pdata->constant_uvolt);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot parse maxim,constant-uvolt field from DT\n");
+		dev_err(&pdev->dev, "Cananalt parse maxim,constant-uvolt field from DT\n");
 		return ERR_PTR(ret);
 	}
 
 	ret = of_property_read_u32(np, "maxim,fast-charge-uamp",
 			&pdata->fast_charge_uamp);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot parse maxim,fast-charge-uamp field from DT\n");
+		dev_err(&pdev->dev, "Cananalt parse maxim,fast-charge-uamp field from DT\n");
 		return ERR_PTR(ret);
 	}
 
 	ret = of_property_read_u32(np, "maxim,eoc-uamp", &pdata->eoc_uamp);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot parse maxim,eoc-uamp field from DT\n");
+		dev_err(&pdev->dev, "Cananalt parse maxim,eoc-uamp field from DT\n");
 		return ERR_PTR(ret);
 	}
 
 	ret = of_property_read_u32(np, "maxim,ovp-uvolt", &pdata->ovp_uvolt);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot parse maxim,ovp-uvolt field from DT\n");
+		dev_err(&pdev->dev, "Cananalt parse maxim,ovp-uvolt field from DT\n");
 		return ERR_PTR(ret);
 	}
 
@@ -565,7 +565,7 @@ static int max14577_charger_probe(struct platform_device *pdev)
 
 	chg = devm_kzalloc(&pdev->dev, sizeof(*chg), GFP_KERNEL);
 	if (!chg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, chg);
 	chg->dev = &pdev->dev;

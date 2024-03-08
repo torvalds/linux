@@ -13,10 +13,10 @@
 #include <linux/ceph/ceph_hash.h>
 
 /*
- * Identify inodes by both their ino AND snapshot id (a u64).
+ * Identify ianaldes by both their ianal AND snapshot id (a u64).
  */
-struct ceph_vino {
-	u64 ino;
+struct ceph_vianal {
+	u64 ianal;
 	u64 snap;
 };
 

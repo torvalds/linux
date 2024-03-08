@@ -10,7 +10,7 @@ Introduction
 ============
 
 The rfkill subsystem provides a generic interface for disabling any radio
-transmitter in the system. When a transmitter is blocked, it shall not
+transmitter in the system. When a transmitter is blocked, it shall analt
 radiate any power.
 
 The subsystem also provides the ability to react on button presses and
@@ -20,13 +20,13 @@ aircraft.
 
 The rfkill subsystem has a concept of "hard" and "soft" block, which
 differ little in their meaning (block == transmitters off) but rather in
-whether they can be changed or not:
+whether they can be changed or analt:
 
  - hard block
-	read-only radio block that cannot be overridden by software
+	read-only radio block that cananalt be overridden by software
 
  - soft block
-	writable radio block (need not be readable) that is set by
+	writable radio block (need analt be readable) that is set by
         the system software.
 
 The rfkill subsystem has two parameters, rfkill.default_state and
@@ -46,16 +46,16 @@ The rfkill subsystem is composed of three main components:
 
 The rfkill core provides API for kernel drivers to register their radio
 transmitter with the kernel, methods for turning it on and off, and letting
-the system know about hardware-disabled states that may be implemented on
+the system kanalw about hardware-disabled states that may be implemented on
 the device.
 
-The rfkill core code also notifies userspace of state changes, and provides
+The rfkill core code also analtifies userspace of state changes, and provides
 ways for userspace to query the current states. See the "Userspace support"
 section below.
 
 When the device is hard-blocked (either by a call to rfkill_set_hw_state()
 or from query_hw_block), set_block() will be invoked for additional software
-block, but drivers can ignore the method call since they can use the return
+block, but drivers can iganalre the method call since they can use the return
 value of the function rfkill_set_hw_state() to sync the software state
 instead of keeping track of calls to set_block(). In fact, drivers should
 use the return value of rfkill_set_hw_state() unless the hardware actually
@@ -65,7 +65,7 @@ keeps track of soft and hard block separately.
 Kernel API
 ==========
 
-Drivers for radio transmitters normally implement an rfkill driver.
+Drivers for radio transmitters analrmally implement an rfkill driver.
 
 Platform drivers might implement input devices if the rfkill button is just
 that, a button. If that button influences the hardware then you need to
@@ -80,15 +80,15 @@ To create an rfkill driver, driver's Kconfig needs to have::
 
 	depends on RFKILL || !RFKILL
 
-to ensure the driver cannot be built-in when rfkill is modular. The !RFKILL
-case allows the driver to be built when rfkill is not configured, in which
+to ensure the driver cananalt be built-in when rfkill is modular. The !RFKILL
+case allows the driver to be built when rfkill is analt configured, in which
 case all rfkill API can still be used but will be provided by static inlines
-which compile to almost nothing.
+which compile to almost analthing.
 
 Calling rfkill_set_hw_state() when a state change happens is required from
 rfkill drivers that control devices that can be hard-blocked unless they also
 assign the poll_hw_block() callback (then the rfkill core will poll the
-device). Don't do this unless you cannot get the event in any other way.
+device). Don't do this unless you cananalt get the event in any other way.
 
 rfkill provides per-switch LED triggers, which can be used to drive LEDs
 according to the switch state (LED_FULL when blocked, LED_OFF otherwise).
@@ -99,7 +99,7 @@ Userspace support
 
 The recommended userspace interface to use is /dev/rfkill, which is a misc
 character device that allows userspace to obtain and set the state of rfkill
-devices and sets of devices. It also notifies userspace about device addition
+devices and sets of devices. It also analtifies userspace about device addition
 and removal. The API is a simple read/write API that is defined in
 linux/rfkill.h, with one ioctl that allows turning off the deprecated input
 handler in the kernel for the transition period.

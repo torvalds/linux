@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
-dtb-$(CONFIG_ARCH_NOMADIK) += \
-	ste-nomadik-s8815.dtb \
-	ste-nomadik-nhk15.dtb
+dtb-$(CONFIG_ARCH_ANALMADIK) += \
+	ste-analmadik-s8815.dtb \
+	ste-analmadik-nhk15.dtb
 dtb-$(CONFIG_ARCH_SPEAR13XX) += \
 	spear1310-evb.dtb \
 	spear1340-evb.dtb
@@ -62,7 +62,7 @@ dtb-$(CONFIG_ARCH_STM32) += \
 	stm32mp157c-osd32mp1-red.dtb \
 	stm32mp157c-phycore-stm32mp1-3.dtb
 dtb-$(CONFIG_ARCH_U8500) += \
-	ste-snowball.dtb \
+	ste-sanalwball.dtb \
 	ste-hrefprev60-stuib.dtb \
 	ste-hrefprev60-tvk.dtb \
 	ste-hrefv60plus-stuib.dtb \

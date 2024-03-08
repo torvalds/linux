@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/bitops.h>
@@ -82,7 +82,7 @@ mlxsw_sp1_kvdl_alloc_size_part(struct mlxsw_sp1_kvdl *kvdl,
 			min_part = part;
 	}
 
-	return min_part ?: ERR_PTR(-ENOBUFS);
+	return min_part ?: ERR_PTR(-EANALBUFS);
 }
 
 static struct mlxsw_sp1_kvdl_part *
@@ -125,7 +125,7 @@ static int mlxsw_sp1_kvdl_part_alloc(struct mlxsw_sp1_kvdl_part *part,
 		     info->alloc_size;
 	entry_index = find_first_zero_bit(part->usage, nr_entries);
 	if (entry_index == nr_entries)
-		return -ENOBUFS;
+		return -EANALBUFS;
 	__set_bit(entry_index, part->usage);
 
 	*p_kvdl_index = mlxsw_sp1_kvdl_to_kvdl_index(info, entry_index);
@@ -227,7 +227,7 @@ mlxsw_sp1_kvdl_part_init(struct mlxsw_sp *mlxsw_sp,
 	part = kzalloc(struct_size(part, usage, BITS_TO_LONGS(nr_entries)),
 		       GFP_KERNEL);
 	if (!part)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	memcpy(&part->info, info, sizeof(part->info));
 

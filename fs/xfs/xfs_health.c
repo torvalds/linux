@@ -10,14 +10,14 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_trace.h"
 #include "xfs_health.h"
 #include "xfs_ag.h"
 
 /*
  * Warn about metadata corruption that we detected but haven't fixed, and
- * make sure we're not sitting on anything that would get in the way of
+ * make sure we're analt sitting on anything that would get in the way of
  * recovery.
  */
 void
@@ -25,7 +25,7 @@ xfs_health_unmount(
 	struct xfs_mount	*mp)
 {
 	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		aganal;
 	unsigned int		sick = 0;
 	unsigned int		checked = 0;
 	bool			warn = false;
@@ -34,10 +34,10 @@ xfs_health_unmount(
 		return;
 
 	/* Measure AG corruption levels. */
-	for_each_perag(mp, agno, pag) {
+	for_each_perag(mp, aganal, pag) {
 		xfs_ag_measure_sickness(pag, &sick, &checked);
 		if (sick) {
-			trace_xfs_ag_unfixed_corruption(mp, agno, sick);
+			trace_xfs_ag_unfixed_corruption(mp, aganal, sick);
 			warn = true;
 		}
 	}
@@ -51,7 +51,7 @@ xfs_health_unmount(
 
 	/*
 	 * Measure fs corruption and keep the sample around for the warning.
-	 * See the note below for why we exempt FS_COUNTERS.
+	 * See the analte below for why we exempt FS_COUNTERS.
 	 */
 	xfs_fs_measure_sickness(mp, &sick, &checked);
 	if (sick & ~XFS_SICK_FS_COUNTERS) {
@@ -74,7 +74,7 @@ xfs_health_unmount(
 		 * recovery and recompute the summary counters.  In other
 		 * words, we leave a dirty log to get the counters fixed.
 		 *
-		 * Unfortunately, xfs_repair cannot recover dirty logs, so if
+		 * Unfortunately, xfs_repair cananalt recover dirty logs, so if
 		 * there were filesystem problems, FSCOUNTERS was flagged, and
 		 * the administrator takes our advice to run xfs_repair,
 		 * they'll have to zap the log before repairing structures.
@@ -180,7 +180,7 @@ xfs_ag_mark_sick(
 	unsigned int		mask)
 {
 	ASSERT(!(mask & ~XFS_SICK_AG_PRIMARY));
-	trace_xfs_ag_mark_sick(pag->pag_mount, pag->pag_agno, mask);
+	trace_xfs_ag_mark_sick(pag->pag_mount, pag->pag_aganal, mask);
 
 	spin_lock(&pag->pag_state_lock);
 	pag->pag_sick |= mask;
@@ -195,7 +195,7 @@ xfs_ag_mark_healthy(
 	unsigned int		mask)
 {
 	ASSERT(!(mask & ~XFS_SICK_AG_PRIMARY));
-	trace_xfs_ag_mark_healthy(pag->pag_mount, pag->pag_agno, mask);
+	trace_xfs_ag_mark_healthy(pag->pag_mount, pag->pag_aganal, mask);
 
 	spin_lock(&pag->pag_state_lock);
 	pag->pag_sick &= ~mask;
@@ -216,14 +216,14 @@ xfs_ag_measure_sickness(
 	spin_unlock(&pag->pag_state_lock);
 }
 
-/* Mark the unhealthy parts of an inode. */
+/* Mark the unhealthy parts of an ianalde. */
 void
-xfs_inode_mark_sick(
-	struct xfs_inode	*ip,
+xfs_ianalde_mark_sick(
+	struct xfs_ianalde	*ip,
 	unsigned int		mask)
 {
-	ASSERT(!(mask & ~(XFS_SICK_INO_PRIMARY | XFS_SICK_INO_ZAPPED)));
-	trace_xfs_inode_mark_sick(ip, mask);
+	ASSERT(!(mask & ~(XFS_SICK_IANAL_PRIMARY | XFS_SICK_IANAL_ZAPPED)));
+	trace_xfs_ianalde_mark_sick(ip, mask);
 
 	spin_lock(&ip->i_flags_lock);
 	ip->i_sick |= mask;
@@ -231,23 +231,23 @@ xfs_inode_mark_sick(
 	spin_unlock(&ip->i_flags_lock);
 
 	/*
-	 * Keep this inode around so we don't lose the sickness report.  Scrub
-	 * grabs inodes with DONTCACHE assuming that most inode are ok, which
-	 * is not the case here.
+	 * Keep this ianalde around so we don't lose the sickness report.  Scrub
+	 * grabs ianaldes with DONTCACHE assuming that most ianalde are ok, which
+	 * is analt the case here.
 	 */
 	spin_lock(&VFS_I(ip)->i_lock);
 	VFS_I(ip)->i_state &= ~I_DONTCACHE;
 	spin_unlock(&VFS_I(ip)->i_lock);
 }
 
-/* Mark parts of an inode healed. */
+/* Mark parts of an ianalde healed. */
 void
-xfs_inode_mark_healthy(
-	struct xfs_inode	*ip,
+xfs_ianalde_mark_healthy(
+	struct xfs_ianalde	*ip,
 	unsigned int		mask)
 {
-	ASSERT(!(mask & ~(XFS_SICK_INO_PRIMARY | XFS_SICK_INO_ZAPPED)));
-	trace_xfs_inode_mark_healthy(ip, mask);
+	ASSERT(!(mask & ~(XFS_SICK_IANAL_PRIMARY | XFS_SICK_IANAL_ZAPPED)));
+	trace_xfs_ianalde_mark_healthy(ip, mask);
 
 	spin_lock(&ip->i_flags_lock);
 	ip->i_sick &= ~mask;
@@ -255,10 +255,10 @@ xfs_inode_mark_healthy(
 	spin_unlock(&ip->i_flags_lock);
 }
 
-/* Sample which parts of an inode are unhealthy. */
+/* Sample which parts of an ianalde are unhealthy. */
 void
-xfs_inode_measure_sickness(
-	struct xfs_inode	*ip,
+xfs_ianalde_measure_sickness(
+	struct xfs_ianalde	*ip,
 	unsigned int		*sick,
 	unsigned int		*checked)
 {
@@ -329,10 +329,10 @@ static const struct ioctl_sick_map ag_map[] = {
 	{ XFS_SICK_AG_AGF,	XFS_AG_GEOM_SICK_AGF },
 	{ XFS_SICK_AG_AGFL,	XFS_AG_GEOM_SICK_AGFL },
 	{ XFS_SICK_AG_AGI,	XFS_AG_GEOM_SICK_AGI },
-	{ XFS_SICK_AG_BNOBT,	XFS_AG_GEOM_SICK_BNOBT },
+	{ XFS_SICK_AG_BANALBT,	XFS_AG_GEOM_SICK_BANALBT },
 	{ XFS_SICK_AG_CNTBT,	XFS_AG_GEOM_SICK_CNTBT },
-	{ XFS_SICK_AG_INOBT,	XFS_AG_GEOM_SICK_INOBT },
-	{ XFS_SICK_AG_FINOBT,	XFS_AG_GEOM_SICK_FINOBT },
+	{ XFS_SICK_AG_IANALBT,	XFS_AG_GEOM_SICK_IANALBT },
+	{ XFS_SICK_AG_FIANALBT,	XFS_AG_GEOM_SICK_FIANALBT },
 	{ XFS_SICK_AG_RMAPBT,	XFS_AG_GEOM_SICK_RMAPBT },
 	{ XFS_SICK_AG_REFCNTBT,	XFS_AG_GEOM_SICK_REFCNTBT },
 	{ 0, 0 },
@@ -360,26 +360,26 @@ xfs_ag_geom_health(
 	}
 }
 
-static const struct ioctl_sick_map ino_map[] = {
-	{ XFS_SICK_INO_CORE,	XFS_BS_SICK_INODE },
-	{ XFS_SICK_INO_BMBTD,	XFS_BS_SICK_BMBTD },
-	{ XFS_SICK_INO_BMBTA,	XFS_BS_SICK_BMBTA },
-	{ XFS_SICK_INO_BMBTC,	XFS_BS_SICK_BMBTC },
-	{ XFS_SICK_INO_DIR,	XFS_BS_SICK_DIR },
-	{ XFS_SICK_INO_XATTR,	XFS_BS_SICK_XATTR },
-	{ XFS_SICK_INO_SYMLINK,	XFS_BS_SICK_SYMLINK },
-	{ XFS_SICK_INO_PARENT,	XFS_BS_SICK_PARENT },
-	{ XFS_SICK_INO_BMBTD_ZAPPED,	XFS_BS_SICK_BMBTD },
-	{ XFS_SICK_INO_BMBTA_ZAPPED,	XFS_BS_SICK_BMBTA },
-	{ XFS_SICK_INO_DIR_ZAPPED,	XFS_BS_SICK_DIR },
-	{ XFS_SICK_INO_SYMLINK_ZAPPED,	XFS_BS_SICK_SYMLINK },
+static const struct ioctl_sick_map ianal_map[] = {
+	{ XFS_SICK_IANAL_CORE,	XFS_BS_SICK_IANALDE },
+	{ XFS_SICK_IANAL_BMBTD,	XFS_BS_SICK_BMBTD },
+	{ XFS_SICK_IANAL_BMBTA,	XFS_BS_SICK_BMBTA },
+	{ XFS_SICK_IANAL_BMBTC,	XFS_BS_SICK_BMBTC },
+	{ XFS_SICK_IANAL_DIR,	XFS_BS_SICK_DIR },
+	{ XFS_SICK_IANAL_XATTR,	XFS_BS_SICK_XATTR },
+	{ XFS_SICK_IANAL_SYMLINK,	XFS_BS_SICK_SYMLINK },
+	{ XFS_SICK_IANAL_PARENT,	XFS_BS_SICK_PARENT },
+	{ XFS_SICK_IANAL_BMBTD_ZAPPED,	XFS_BS_SICK_BMBTD },
+	{ XFS_SICK_IANAL_BMBTA_ZAPPED,	XFS_BS_SICK_BMBTA },
+	{ XFS_SICK_IANAL_DIR_ZAPPED,	XFS_BS_SICK_DIR },
+	{ XFS_SICK_IANAL_SYMLINK_ZAPPED,	XFS_BS_SICK_SYMLINK },
 	{ 0, 0 },
 };
 
 /* Fill out bulkstat health info. */
 void
 xfs_bulkstat_health(
-	struct xfs_inode		*ip,
+	struct xfs_ianalde		*ip,
 	struct xfs_bulkstat		*bs)
 {
 	const struct ioctl_sick_map	*m;
@@ -389,8 +389,8 @@ xfs_bulkstat_health(
 	bs->bs_sick = 0;
 	bs->bs_checked = 0;
 
-	xfs_inode_measure_sickness(ip, &sick, &checked);
-	for (m = ino_map; m->sick_mask; m++) {
+	xfs_ianalde_measure_sickness(ip, &sick, &checked);
+	for (m = ianal_map; m->sick_mask; m++) {
 		if (checked & m->sick_mask)
 			bs->bs_checked |= m->ioctl_mask;
 		if (sick & m->sick_mask)

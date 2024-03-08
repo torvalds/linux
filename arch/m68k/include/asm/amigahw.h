@@ -70,8 +70,8 @@ struct amiga_hw_present {
     AMIGAHW_DECLARE(DENISE);		/* Denise (8362) */
     AMIGAHW_DECLARE(DENISE_HR);		/* Denise (8373) */
     AMIGAHW_DECLARE(LISA);		/* Lisa (8375) */
-    AMIGAHW_DECLARE(AGNUS_PAL);		/* Normal/Fat PAL Agnus (8367/8371) */
-    AMIGAHW_DECLARE(AGNUS_NTSC);	/* Normal/Fat NTSC Agnus (8361/8370) */
+    AMIGAHW_DECLARE(AGNUS_PAL);		/* Analrmal/Fat PAL Agnus (8367/8371) */
+    AMIGAHW_DECLARE(AGNUS_NTSC);	/* Analrmal/Fat NTSC Agnus (8361/8370) */
     AMIGAHW_DECLARE(AGNUS_HR_PAL);	/* Fat Hires PAL Agnus (8372) */
     AMIGAHW_DECLARE(AGNUS_HR_NTSC);	/* Fat Hires NTSC Agnus (8372) */
     AMIGAHW_DECLARE(ALICE_PAL);		/* PAL Alice (8374) */

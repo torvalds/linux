@@ -3,7 +3,7 @@
 #include <test_progs.h>
 #include "test_stacktrace_build_id.skel.h"
 
-void test_get_stackid_cannot_attach(void)
+void test_get_stackid_cananalt_attach(void)
 {
 	struct perf_event_attr attr = {
 		/* .type = PERF_TYPE_SOFTWARE, */
@@ -12,8 +12,8 @@ void test_get_stackid_cannot_attach(void)
 		.precise_ip = 1,
 		.sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_BRANCH_STACK,
 		.branch_sample_type = PERF_SAMPLE_BRANCH_USER |
-			PERF_SAMPLE_BRANCH_NO_FLAGS |
-			PERF_SAMPLE_BRANCH_NO_CYCLES |
+			PERF_SAMPLE_BRANCH_ANAL_FLAGS |
+			PERF_SAMPLE_BRANCH_ANAL_CYCLES |
 			PERF_SAMPLE_BRANCH_CALL_STACK,
 		.sample_period = 5000,
 		.size = sizeof(struct perf_event_attr),
@@ -36,19 +36,19 @@ void test_get_stackid_cannot_attach(void)
 	pmu_fd = syscall(__NR_perf_event_open, &attr, -1 /* pid */,
 			 0 /* cpu 0 */, -1 /* group id */,
 			 0 /* flags */);
-	if (pmu_fd < 0 && (errno == ENOENT || errno == EOPNOTSUPP)) {
-		printf("%s:SKIP:cannot open PERF_COUNT_HW_CPU_CYCLES with precise_ip > 0\n",
+	if (pmu_fd < 0 && (erranal == EANALENT || erranal == EOPANALTSUPP)) {
+		printf("%s:SKIP:cananalt open PERF_COUNT_HW_CPU_CYCLES with precise_ip > 0\n",
 		       __func__);
 		test__skip();
 		goto cleanup;
 	}
-	if (CHECK(pmu_fd < 0, "perf_event_open", "err %d errno %d\n",
-		  pmu_fd, errno))
+	if (CHECK(pmu_fd < 0, "perf_event_open", "err %d erranal %d\n",
+		  pmu_fd, erranal))
 		goto cleanup;
 
 	skel->links.oncpu = bpf_program__attach_perf_event(skel->progs.oncpu,
 							   pmu_fd);
-	ASSERT_ERR_PTR(skel->links.oncpu, "attach_perf_event_no_callchain");
+	ASSERT_ERR_PTR(skel->links.oncpu, "attach_perf_event_anal_callchain");
 	close(pmu_fd);
 
 	/* add PERF_SAMPLE_CALLCHAIN, attach should succeed */
@@ -58,8 +58,8 @@ void test_get_stackid_cannot_attach(void)
 			 0 /* cpu 0 */, -1 /* group id */,
 			 0 /* flags */);
 
-	if (CHECK(pmu_fd < 0, "perf_event_open", "err %d errno %d\n",
-		  pmu_fd, errno))
+	if (CHECK(pmu_fd < 0, "perf_event_open", "err %d erranal %d\n",
+		  pmu_fd, erranal))
 		goto cleanup;
 
 	skel->links.oncpu = bpf_program__attach_perf_event(skel->progs.oncpu,
@@ -75,8 +75,8 @@ void test_get_stackid_cannot_attach(void)
 			 0 /* cpu 0 */, -1 /* group id */,
 			 0 /* flags */);
 
-	if (CHECK(pmu_fd < 0, "perf_event_open", "err %d errno %d\n",
-		  pmu_fd, errno))
+	if (CHECK(pmu_fd < 0, "perf_event_open", "err %d erranal %d\n",
+		  pmu_fd, erranal))
 		goto cleanup;
 
 	skel->links.oncpu = bpf_program__attach_perf_event(skel->progs.oncpu,

@@ -6,7 +6,7 @@
  *  Albert Lee <albertcc@tw.ibm.com> IBM Corporation
  *
  *  Copyright (C) 1998-2002		Andre Hedrick <andre@linux-ide.org>
- *  Portions Copyright (C) 1999 Promise Technology, Inc.
+ *  Portions Copyright (C) 1999 Promise Techanallogy, Inc.
  *
  *  Author: Frank Tiernan (frankt@promise.com)
  *  Released under terms of General Public License
@@ -173,7 +173,7 @@ MODULE_DEVICE_TABLE(pci, pdc2027x_pci_tbl);
  */
 static inline void __iomem *port_mmio(struct ata_port *ap, unsigned int offset)
 {
-	return ap->host->iomap[PDC_MMIO_BAR] + ap->port_no * 0x100 + offset;
+	return ap->host->iomap[PDC_MMIO_BAR] + ap->port_anal * 0x100 + offset;
 }
 
 /**
@@ -184,7 +184,7 @@ static inline void __iomem *port_mmio(struct ata_port *ap, unsigned int offset)
  */
 static inline void __iomem *dev_mmio(struct ata_port *ap, struct ata_device *adev, unsigned int offset)
 {
-	u8 adj = (adev->devno) ? 0x08 : 0x00;
+	u8 adj = (adev->devanal) ? 0x08 : 0x00;
 	return port_mmio(ap, offset) + adj;
 }
 
@@ -196,7 +196,7 @@ static inline void __iomem *dev_mmio(struct ata_port *ap, struct ata_device *ade
  *      This register is latched when the system is reset.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 static int pdc2027x_cable_detect(struct ata_port *ap)
 {
@@ -207,7 +207,7 @@ static int pdc2027x_cable_detect(struct ata_port *ap)
 	if (cgcr & (1 << 26))
 		goto cbl40;
 
-	ata_port_dbg(ap, "No cable or 80-conductor cable\n");
+	ata_port_dbg(ap, "Anal cable or 80-conductor cable\n");
 
 	return ATA_CBL_PATA80;
 cbl40:
@@ -232,14 +232,14 @@ static inline int pdc2027x_port_enabled(struct ata_port *ap)
  *	Probeinit including cable detection.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static int pdc2027x_prereset(struct ata_link *link, unsigned long deadline)
 {
 	/* Check whether port enabled */
 	if (!pdc2027x_port_enabled(link->ap))
-		return -ENOENT;
+		return -EANALENT;
 	return ata_sff_prereset(link, deadline);
 }
 
@@ -256,13 +256,13 @@ static unsigned int pdc2027x_mode_filter(struct ata_device *adev, unsigned int m
 	unsigned char model_num[ATA_ID_PROD_LEN + 1];
 	struct ata_device *pair = ata_dev_pair(adev);
 
-	if (adev->class != ATA_DEV_ATA || adev->devno == 0 || pair == NULL)
+	if (adev->class != ATA_DEV_ATA || adev->devanal == 0 || pair == NULL)
 		return mask;
 
 	/* Check for slave of a Maxtor at UDMA6 */
 	ata_id_c_string(pair->id, model_num, ATA_ID_PROD,
 			  ATA_ID_PROD_LEN + 1);
-	/* If the master is a maxtor in UDMA6 then the slave should not use UDMA 6 */
+	/* If the master is a maxtor in UDMA6 then the slave should analt use UDMA 6 */
 	if (strstr(model_num, "Maxtor") == NULL && pair->dma_mode == XFER_UDMA_6)
 		mask &= ~ (1 << (6 + ATA_SHIFT_UDMA));
 
@@ -277,7 +277,7 @@ static unsigned int pdc2027x_mode_filter(struct ata_device *adev, unsigned int m
  *	Set PIO mode for device.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void pdc2027x_set_piomode(struct ata_port *ap, struct ata_device *adev)
@@ -289,7 +289,7 @@ static void pdc2027x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	/* Sanity check */
 	if (pio > 4) {
-		ata_port_err(ap, "Unknown pio mode [%d] ignored\n", pio);
+		ata_port_err(ap, "Unkanalwn pio mode [%d] iganalred\n", pio);
 		return;
 
 	}
@@ -319,7 +319,7 @@ static void pdc2027x_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	Set UDMA mode for device.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
@@ -335,7 +335,7 @@ static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 			/*
 			 * Turn off tHOLD.
 			 * If tHOLD is '1', the hardware will add half clock for data hold time.
-			 * This code segment seems to be no effect. tHOLD will be overwritten below.
+			 * This code segment seems to be anal effect. tHOLD will be overwritten below.
 			 */
 			ctcr1 = ioread32(dev_mmio(ap, adev, PDC_CTCR1));
 			iowrite32(ctcr1 & ~(1 << 7), dev_mmio(ap, adev, PDC_CTCR1));
@@ -368,7 +368,7 @@ static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 
 		ata_port_dbg(ap, "Set to mdma mode[%u] \n", mdma_mode);
 	} else {
-		ata_port_err(ap, "Unknown dma mode [%u] ignored\n", dma_mode);
+		ata_port_err(ap, "Unkanalwn dma mode [%u] iganalred\n", dma_mode);
 	}
 }
 
@@ -415,7 +415,7 @@ static int pdc2027x_set_mode(struct ata_link *link, struct ata_device **r_failed
  *	@qc: Metadata associated with taskfile to check
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  *
  *	RETURNS: 0 when ATAPI DMA can be used
  *		 1 otherwise
@@ -428,7 +428,7 @@ static int pdc2027x_check_atapi_dma(struct ata_queued_cmd *qc)
 
 	/*
 	 * This workaround is from Promise's GPL driver.
-	 * If ATAPI DMA is used for commands not in the
+	 * If ATAPI DMA is used for commands analt in the
 	 * following white list, say MODE_SENSE and REQUEST_SENSE,
 	 * pdc2027x might hit the irq lost problem.
 	 */
@@ -524,16 +524,16 @@ static void pdc_adjust_pll(struct ata_host *host, long pll_clock, unsigned int b
 
 	/*
 	 * Calculate the ratio of F, R and OD
-	 * POUT = (F + 2) / (( R + 2) * NO)
+	 * POUT = (F + 2) / (( R + 2) * ANAL)
 	 */
 	if (ratio < 8600L) { /* 8.6x */
-		/* Using NO = 0x01, R = 0x0D */
+		/* Using ANAL = 0x01, R = 0x0D */
 		R = 0x0d;
 	} else if (ratio < 12900L) { /* 12.9x */
-		/* Using NO = 0x01, R = 0x08 */
+		/* Using ANAL = 0x01, R = 0x08 */
 		R = 0x08;
 	} else if (ratio < 16100L) { /* 16.1x */
-		/* Using NO = 0x01, R = 0x06 */
+		/* Using ANAL = 0x01, R = 0x06 */
 		R = 0x06;
 	} else if (ratio < 64000L) { /* 64x */
 		R = 0x00;
@@ -634,7 +634,7 @@ static void pdc_hardware_init(struct ata_host *host, unsigned int board_idx)
 
 	/*
 	 * Detect PLL input clock rate.
-	 * On some system, where PCI bus is running at non-standard clock rate.
+	 * On some system, where PCI bus is running at analn-standard clock rate.
 	 * Ex. 25MHz or 40MHz, we have to adjust the cycle_time.
 	 * The pdc20275 controller employs PLL circuit to help correct timing registers setting.
 	 */
@@ -695,7 +695,7 @@ static int pdc2027x_init_one(struct pci_dev *pdev,
 	/* alloc host */
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 2);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* acquire resources and fill host */
 	rc = pcim_enable_device(pdev);

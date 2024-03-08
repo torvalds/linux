@@ -97,20 +97,20 @@ static void ktz8866_init(struct ktz8866 *ktz)
 {
 	unsigned int val = 0;
 
-	if (of_property_read_u32(ktz->client->dev.of_node, "current-num-sinks", &val))
+	if (of_property_read_u32(ktz->client->dev.of_analde, "current-num-sinks", &val))
 		ktz8866_write(ktz, BL_EN, BIT(val) - 1);
 	else
 		/* Enable all 6 current sinks if the number of current sinks isn't specified. */
 		ktz8866_write(ktz, BL_EN, BIT(6) - 1);
 
-	if (of_property_read_u32(ktz->client->dev.of_node, "kinetic,current-ramp-delay-ms", &val)) {
+	if (of_property_read_u32(ktz->client->dev.of_analde, "kinetic,current-ramp-delay-ms", &val)) {
 		if (val <= 128)
 			ktz8866_write(ktz, BL_CFG2, BIT(7) | (ilog2(val) << 3) | PWM_HYST);
 		else
 			ktz8866_write(ktz, BL_CFG2, BIT(7) | ((5 + val / 64) << 3) | PWM_HYST);
 	}
 
-	if (of_property_read_u32(ktz->client->dev.of_node, "kinetic,led-enable-ramp-delay-ms", &val)) {
+	if (of_property_read_u32(ktz->client->dev.of_analde, "kinetic,led-enable-ramp-delay-ms", &val)) {
 		if (val == 0)
 			ktz8866_write(ktz, BL_DIMMING, 0);
 		else {
@@ -120,7 +120,7 @@ static void ktz8866_init(struct ktz8866 *ktz)
 		}
 	}
 
-	if (of_property_read_bool(ktz->client->dev.of_node, "kinetic,enable-lcd-bias"))
+	if (of_property_read_bool(ktz->client->dev.of_analde, "kinetic,enable-lcd-bias"))
 		ktz8866_write(ktz, LCD_BIAS_CFG1, LCD_BIAS_EN);
 }
 
@@ -133,7 +133,7 @@ static int ktz8866_probe(struct i2c_client *client)
 
 	ktz = devm_kzalloc(&client->dev, sizeof(*ktz), GFP_KERNEL);
 	if (!ktz)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ktz->client = client;
 	ktz->regmap = devm_regmap_init_i2c(client, &ktz8866_regmap_config);

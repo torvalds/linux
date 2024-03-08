@@ -21,7 +21,7 @@
 int mce_p5_enabled __read_mostly;
 
 /* Machine check handler for Pentium class Intel CPUs: */
-noinstr void pentium_machine_check(struct pt_regs *regs)
+analinstr void pentium_machine_check(struct pt_regs *regs)
 {
 	u32 loaddr, hi, lotype;
 
@@ -37,7 +37,7 @@ noinstr void pentium_machine_check(struct pt_regs *regs)
 			 smp_processor_id());
 	}
 
-	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_ANALW_UNRELIABLE);
 	instrumentation_end();
 }
 

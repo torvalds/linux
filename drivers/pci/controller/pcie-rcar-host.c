@@ -70,7 +70,7 @@ static int rcar_pcie_wakeup(struct device *pcie_dev, void __iomem *pcie_base)
 
 	/*
 	 * Test if the PCIe controller received PM_ENTER_L1 DLLP and
-	 * the PCIe controller is not in L1 link state. If true, apply
+	 * the PCIe controller is analt in L1 link state. If true, apply
 	 * fix, which will put the controller into L1 link state, from
 	 * which it can return to L0s/L0 on its own.
 	 */
@@ -186,7 +186,7 @@ static int rcar_pcie_config_access(struct rcar_pcie_host *host,
 	 */
 	if (pci_is_root_bus(bus)) {
 		if (dev != 0)
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 
 		if (access_type == RCAR_PCI_ACCESS_READ)
 			*data = rcar_pci_read_reg(pcie, PCICONF(index));
@@ -211,12 +211,12 @@ static int rcar_pcie_config_access(struct rcar_pcie_host *host,
 
 	/* Check for errors */
 	if (rcar_pci_read_reg(pcie, PCIEERRFR) & UNSUPPORTED_REQUEST)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	/* Check for master and target aborts */
 	if (rcar_read_conf(pcie, RCONF(PCI_STATUS)) &
 		(PCI_STATUS_REC_MASTER_ABORT | PCI_STATUS_REC_TARGET_ABORT))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (access_type == RCAR_PCI_ACCESS_READ)
 		ret = rcar_pci_read_reg_workaround(pcie, data, PCIECDR);
@@ -418,14 +418,14 @@ static void phy_write_reg(struct rcar_pcie *pcie,
 	rcar_pci_write_reg(pcie, data, H1_PCIEPHYDOUTR);
 	rcar_pci_write_reg(pcie, phyaddr, H1_PCIEPHYADRR);
 
-	/* Ignore errors as they will be dealt with if the data link is down */
+	/* Iganalre errors as they will be dealt with if the data link is down */
 	phy_wait_for_ack(pcie);
 
 	/* Clear command */
 	rcar_pci_write_reg(pcie, 0, H1_PCIEPHYDOUTR);
 	rcar_pci_write_reg(pcie, 0, H1_PCIEPHYADRR);
 
-	/* Ignore errors as they will be dealt with if the data link is down */
+	/* Iganalre errors as they will be dealt with if the data link is down */
 	phy_wait_for_ack(pcie);
 }
 
@@ -446,9 +446,9 @@ static int rcar_pcie_hw_init(struct rcar_pcie *pcie)
 	/*
 	 * Initial header for port config space is type 1, set the device
 	 * class to match. Hardware takes care of propagating the IDSETR
-	 * settings, so there is no need to bother with a quirk.
+	 * settings, so there is anal need to bother with a quirk.
 	 */
-	rcar_pci_write_reg(pcie, PCI_CLASS_BRIDGE_PCI_NORMAL << 8, IDSETR1);
+	rcar_pci_write_reg(pcie, PCI_CLASS_BRIDGE_PCI_ANALRMAL << 8, IDSETR1);
 
 	/*
 	 * Setup Secondary Bus Number & Subordinate Bus Number, even though
@@ -538,7 +538,7 @@ static int rcar_pcie_phy_init_gen2(struct rcar_pcie_host *host)
 	rcar_pci_write_reg(pcie, 0x00000006, GEN2_PCIEPHYCTRL);
 
 	rcar_pci_write_reg(pcie, 0x000f0054, GEN2_PCIEPHYADDR);
-	/* The following value is for DC connection, no termination resistor */
+	/* The following value is for DC connection, anal termination resistor */
 	rcar_pci_write_reg(pcie, 0x13802007, GEN2_PCIEPHYDATA);
 	rcar_pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
 	rcar_pci_write_reg(pcie, 0x00000006, GEN2_PCIEPHYCTRL);
@@ -573,7 +573,7 @@ static irqreturn_t rcar_pcie_msi_irq(int irq, void *data)
 
 	/* MSI & INTx share an interrupt - we only handle MSI here */
 	if (!reg)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	while (reg) {
 		unsigned int index = find_first_bit(&reg, 32);
@@ -581,7 +581,7 @@ static irqreturn_t rcar_pcie_msi_irq(int irq, void *data)
 
 		ret = generic_handle_domain_irq(msi->domain->parent, index);
 		if (ret) {
-			/* Unknown MSI, just clear it */
+			/* Unkanalwn MSI, just clear it */
 			dev_dbg(dev, "unexpected MSI\n");
 			rcar_pci_write_reg(pcie, BIT(index), PCIEMSIFR);
 		}
@@ -692,7 +692,7 @@ static int rcar_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	mutex_unlock(&msi->map_lock);
 
 	if (hwirq < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	for (i = 0; i < nr_irqs; i++)
 		irq_domain_set_info(domain, virq + i, hwirq + i,
@@ -729,22 +729,22 @@ static struct msi_domain_info rcar_msi_info = {
 static int rcar_allocate_domains(struct rcar_msi *msi)
 {
 	struct rcar_pcie *pcie = &msi_to_host(msi)->pcie;
-	struct fwnode_handle *fwnode = dev_fwnode(pcie->dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(pcie->dev);
 	struct irq_domain *parent;
 
-	parent = irq_domain_create_linear(fwnode, INT_PCI_MSI_NR,
+	parent = irq_domain_create_linear(fwanalde, INT_PCI_MSI_NR,
 					  &rcar_msi_domain_ops, msi);
 	if (!parent) {
 		dev_err(pcie->dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	irq_domain_update_bus_token(parent, DOMAIN_BUS_NEXUS);
 
-	msi->domain = pci_msi_create_irq_domain(fwnode, &rcar_msi_info, parent);
+	msi->domain = pci_msi_create_irq_domain(fwanalde, &rcar_msi_info, parent);
 	if (!msi->domain) {
 		dev_err(pcie->dev, "failed to create MSI domain\n");
 		irq_domain_remove(parent);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -769,7 +769,7 @@ static int rcar_pcie_enable_msi(struct rcar_pcie_host *host)
 	mutex_init(&msi->map_lock);
 	spin_lock_init(&msi->mask_lock);
 
-	err = of_address_to_resource(dev->of_node, 0, &res);
+	err = of_address_to_resource(dev->of_analde, 0, &res);
 	if (err)
 		return err;
 
@@ -777,9 +777,9 @@ static int rcar_pcie_enable_msi(struct rcar_pcie_host *host)
 	if (err)
 		return err;
 
-	/* Two irqs are for MSI, but they are also used for non-MSI irqs */
+	/* Two irqs are for MSI, but they are also used for analn-MSI irqs */
 	err = devm_request_irq(dev, msi->irq1, rcar_pcie_msi_irq,
-			       IRQF_SHARED | IRQF_NO_THREAD,
+			       IRQF_SHARED | IRQF_ANAL_THREAD,
 			       rcar_msi_bottom_chip.name, host);
 	if (err < 0) {
 		dev_err(dev, "failed to request IRQ: %d\n", err);
@@ -787,7 +787,7 @@ static int rcar_pcie_enable_msi(struct rcar_pcie_host *host)
 	}
 
 	err = devm_request_irq(dev, msi->irq2, rcar_pcie_msi_irq,
-			       IRQF_SHARED | IRQF_NO_THREAD,
+			       IRQF_SHARED | IRQF_ANAL_THREAD,
 			       rcar_msi_bottom_chip.name, host);
 	if (err < 0) {
 		dev_err(dev, "failed to request IRQ: %d\n", err);
@@ -835,7 +835,7 @@ static int rcar_pcie_get_resources(struct rcar_pcie_host *host)
 	if (IS_ERR(host->phy))
 		return PTR_ERR(host->phy);
 
-	err = of_address_to_resource(dev->of_node, 0, &res);
+	err = of_address_to_resource(dev->of_analde, 0, &res);
 	if (err)
 		return err;
 
@@ -845,22 +845,22 @@ static int rcar_pcie_get_resources(struct rcar_pcie_host *host)
 
 	host->bus_clk = devm_clk_get(dev, "pcie_bus");
 	if (IS_ERR(host->bus_clk)) {
-		dev_err(dev, "cannot get pcie bus clock\n");
+		dev_err(dev, "cananalt get pcie bus clock\n");
 		return PTR_ERR(host->bus_clk);
 	}
 
-	i = irq_of_parse_and_map(dev->of_node, 0);
+	i = irq_of_parse_and_map(dev->of_analde, 0);
 	if (!i) {
-		dev_err(dev, "cannot get platform resources for msi interrupt\n");
-		err = -ENOENT;
+		dev_err(dev, "cananalt get platform resources for msi interrupt\n");
+		err = -EANALENT;
 		goto err_irq1;
 	}
 	host->msi.irq1 = i;
 
-	i = irq_of_parse_and_map(dev->of_node, 1);
+	i = irq_of_parse_and_map(dev->of_analde, 1);
 	if (!i) {
-		dev_err(dev, "cannot get platform resources for msi interrupt\n");
-		err = -ENOENT;
+		dev_err(dev, "cananalt get platform resources for msi interrupt\n");
+		err = -EANALENT;
 		goto err_irq2;
 	}
 	host->msi.irq2 = i;
@@ -954,7 +954,7 @@ static const struct of_device_id rcar_pcie_of_match[] = {
 	{},
 };
 
-/* Design note 346 from Linear Technology says order is not important. */
+/* Design analte 346 from Linear Techanallogy says order is analt important. */
 static const char * const rcar_pcie_supplies[] = {
 	"vpcie1v5",
 	"vpcie3v3",
@@ -973,7 +973,7 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*host));
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host = pci_host_bridge_priv(bridge);
 	pcie = &host->pcie;
@@ -982,7 +982,7 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(rcar_pcie_supplies); i++) {
 		err = devm_regulator_get_enable_optional(dev, rcar_pcie_supplies[i]);
-		if (err < 0 && err != -ENODEV)
+		if (err < 0 && err != -EANALDEV)
 			return dev_err_probe(dev, err, "failed to enable regulator: %s\n",
 					     rcar_pcie_supplies[i]);
 	}
@@ -1017,10 +1017,10 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 	}
 
-	/* Failure to get a link might just be that no cards are inserted */
+	/* Failure to get a link might just be that anal cards are inserted */
 	if (rcar_pcie_hw_init(pcie)) {
 		dev_info(dev, "PCIe link down\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_phy_shutdown;
 	}
 
@@ -1078,7 +1078,7 @@ static int rcar_pcie_resume(struct device *dev)
 	if (err)
 		return 0;
 
-	/* Failure to get a link might just be that no cards are inserted */
+	/* Failure to get a link might just be that anal cards are inserted */
 	err = host->phy_init_fn(host);
 	if (err) {
 		dev_info(dev, "PCIe link down\n");
@@ -1093,7 +1093,7 @@ static int rcar_pcie_resume(struct device *dev)
 		struct resource res;
 		u32 val;
 
-		of_address_to_resource(dev->of_node, 0, &res);
+		of_address_to_resource(dev->of_analde, 0, &res);
 		rcar_pci_write_reg(pcie, upper_32_bits(res.start), PCIEMSIAUR);
 		rcar_pci_write_reg(pcie, lower_32_bits(res.start) | MSIFE, PCIEMSIALR);
 
@@ -1106,7 +1106,7 @@ static int rcar_pcie_resume(struct device *dev)
 	return 0;
 }
 
-static int rcar_pcie_resume_noirq(struct device *dev)
+static int rcar_pcie_resume_analirq(struct device *dev)
 {
 	struct rcar_pcie_host *host = dev_get_drvdata(dev);
 	struct rcar_pcie *pcie = &host->pcie;
@@ -1123,7 +1123,7 @@ static int rcar_pcie_resume_noirq(struct device *dev)
 
 static const struct dev_pm_ops rcar_pcie_pm_ops = {
 	SYSTEM_SLEEP_PM_OPS(NULL, rcar_pcie_resume)
-	.resume_noirq = rcar_pcie_resume_noirq,
+	.resume_analirq = rcar_pcie_resume_analirq,
 };
 
 static struct platform_driver rcar_pcie_driver = {
@@ -1153,10 +1153,10 @@ static const struct of_device_id rcar_pcie_abort_handler_of_match[] __initconst 
 
 static int __init rcar_pcie_init(void)
 {
-	if (of_find_matching_node(NULL, rcar_pcie_abort_handler_of_match)) {
+	if (of_find_matching_analde(NULL, rcar_pcie_abort_handler_of_match)) {
 #ifdef CONFIG_ARM_LPAE
 		hook_fault_code(17, rcar_pcie_aarch32_abort_handler, SIGBUS, 0,
-				"asynchronous external abort");
+				"asynchroanalus external abort");
 #else
 		hook_fault_code(22, rcar_pcie_aarch32_abort_handler, SIGBUS, 0,
 				"imprecise external abort");

@@ -42,12 +42,12 @@
 #define S1DREG_PANEL_TYPE		0x0030	/* Panel Type Register */
 #define S1DREG_MOD_RATE			0x0031	/* MOD Rate Register */
 #define S1DREG_LCD_DISP_HWIDTH		0x0032	/* LCD Horizontal Display Width Register: ((val)+1)*8)=pix/line */
-#define S1DREG_LCD_NDISP_HPER		0x0034	/* LCD Horizontal Non-Display Period Register: ((val)+1)*8)=NDpix/line */
+#define S1DREG_LCD_NDISP_HPER		0x0034	/* LCD Horizontal Analn-Display Period Register: ((val)+1)*8)=NDpix/line */
 #define S1DREG_TFT_FPLINE_START		0x0035	/* TFT FPLINE Start Position Register */
 #define S1DREG_TFT_FPLINE_PWIDTH	0x0036	/* TFT FPLINE Pulse Width Register. */
 #define S1DREG_LCD_DISP_VHEIGHT0	0x0038	/* LCD Vertical Display Height Register 0 */
 #define S1DREG_LCD_DISP_VHEIGHT1	0x0039	/* LCD Vertical Display Height Register 1 */
-#define S1DREG_LCD_NDISP_VPER		0x003A	/* LCD Vertical Non-Display Period Register: (val)+1=NDlines */
+#define S1DREG_LCD_NDISP_VPER		0x003A	/* LCD Vertical Analn-Display Period Register: (val)+1=NDlines */
 #define S1DREG_TFT_FPFRAME_START	0x003B	/* TFT FPFRAME Start Position Register */
 #define S1DREG_TFT_FPFRAME_PWIDTH	0x003C	/* TFT FPFRAME Pulse Width Register */
 #define S1DREG_LCD_DISP_MODE		0x0040	/* LCD Display Mode Register */
@@ -61,12 +61,12 @@
 #define S1DREG_LCD_DISP_FIFO_HTC	0x004A	/* LCD Display FIFO High Threshold Control Register */
 #define S1DREG_LCD_DISP_FIFO_LTC	0x004B	/* LCD Display FIFO Low Threshold Control Register */
 #define S1DREG_CRT_DISP_HWIDTH		0x0050	/* CRT/TV Horizontal Display Width Register: ((val)+1)*8)=pix/line */
-#define S1DREG_CRT_NDISP_HPER		0x0052	/* CRT/TV Horizontal Non-Display Period Register */
+#define S1DREG_CRT_NDISP_HPER		0x0052	/* CRT/TV Horizontal Analn-Display Period Register */
 #define S1DREG_CRT_HRTC_START		0x0053	/* CRT/TV HRTC Start Position Register */
 #define S1DREG_CRT_HRTC_PWIDTH		0x0054	/* CRT/TV HRTC Pulse Width Register */
 #define S1DREG_CRT_DISP_VHEIGHT0	0x0056	/* CRT/TV Vertical Display Height Register 0 */
 #define S1DREG_CRT_DISP_VHEIGHT1	0x0057	/* CRT/TV Vertical Display Height Register 1 */
-#define S1DREG_CRT_NDISP_VPER		0x0058	/* CRT/TV Vertical Non-Display Period Register */
+#define S1DREG_CRT_NDISP_VPER		0x0058	/* CRT/TV Vertical Analn-Display Period Register */
 #define S1DREG_CRT_VRTC_START		0x0059	/* CRT/TV VRTC Start Position Register */
 #define S1DREG_CRT_VRTC_PWIDTH		0x005A	/* CRT/TV VRTC Pulse Width Register */
 #define S1DREG_TV_OUT_CTL		0x005B	/* TV Output Control Register */
@@ -139,7 +139,7 @@
 #define BBLT_SOLID_FILL			0x0c
 
 
-/* Note: all above defines should go in separate header files
+/* Analte: all above defines should go in separate header files
    when implementing other S1D13xxx chip support. */
 
 struct s1d13xxxfb_regval {

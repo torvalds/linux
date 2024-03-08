@@ -2,7 +2,7 @@
 /* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  */
 
-/* Qualcomm Technologies, Inc. FSM9900 EMAC SGMII Controller driver.
+/* Qualcomm Techanallogies, Inc. FSM9900 EMAC SGMII Controller driver.
  */
 
 #include <linux/iopoll.h>
@@ -28,7 +28,7 @@
 #define EMAC_QSERDES_COM_DEC_START2		0x00a4
 #define EMAC_QSERDES_COM_PLL_CRCTRL		0x00ac
 #define EMAC_QSERDES_COM_RESET_SM		0x00bc
-#define EMAC_QSERDES_TX_BIST_MODE_LANENO	0x0100
+#define EMAC_QSERDES_TX_BIST_MODE_LANEANAL	0x0100
 #define EMAC_QSERDES_TX_TX_EMP_POST1_LVL	0x0108
 #define EMAC_QSERDES_TX_TX_DRV_LVL		0x010c
 #define EMAC_QSERDES_TX_LANE_MODE		0x0150
@@ -195,7 +195,7 @@ static const struct emac_reg_write cdr_setting[] = {
 };
 
 static const struct emac_reg_write tx_rx_setting[] = {
-	{EMAC_QSERDES_TX_BIST_MODE_LANENO, 0},
+	{EMAC_QSERDES_TX_BIST_MODE_LANEANAL, 0},
 	{EMAC_QSERDES_TX_TX_DRV_LVL, TX_DRV_LVL_MUX | TX_DRV_LVL(15)},
 	{EMAC_QSERDES_TX_TRAN_DRVR_EMP_EN, EMP_EN_MUX | EMP_EN},
 	{EMAC_QSERDES_TX_TX_EMP_POST1_LVL,

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* AF_VSOCK sock_diag(7) interface for querying open sockets */
 
 #ifndef _UAPI__VM_SOCKETS_DIAG_H__
@@ -12,7 +12,7 @@ struct vsock_diag_req {
 	__u8	sdiag_protocol;	/* must be 0 */
 	__u16	pad;		/* must be 0 */
 	__u32	vdiag_states;	/* query bitmap (e.g. 1 << TCP_LISTEN) */
-	__u32	vdiag_ino;	/* must be 0 (reserved) */
+	__u32	vdiag_ianal;	/* must be 0 (reserved) */
 	__u32	vdiag_show;	/* must be 0 (reserved) */
 	__u32	vdiag_cookie[2];
 };
@@ -27,7 +27,7 @@ struct vsock_diag_msg {
 	__u32   vdiag_src_port;
 	__u32   vdiag_dst_cid;
 	__u32   vdiag_dst_port;
-	__u32	vdiag_ino;
+	__u32	vdiag_ianal;
 	__u32	vdiag_cookie[2];
 };
 

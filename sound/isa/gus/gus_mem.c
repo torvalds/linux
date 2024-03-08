@@ -174,7 +174,7 @@ static int snd_gf1_mem_find(struct snd_gf1_mem * alloc,
 			return 0;
 		}
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 struct snd_gf1_mem_block *snd_gf1_mem_alloc(struct snd_gf1_mem * alloc, int owner,
@@ -243,12 +243,12 @@ int snd_gf1_mem_init(struct snd_gus_card * gus)
 		block.ptr = 0;
 		block.size = 1024;
 		if (!snd_gf1_mem_xalloc(alloc, &block, "InterWave LFOs"))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	block.ptr = gus->gf1.default_voice_address;
 	block.size = 4;
 	if (!snd_gf1_mem_xalloc(alloc, &block, "Voice default (NULL's)"))
-		return -ENOMEM;
+		return -EANALMEM;
 #ifdef CONFIG_SND_DEBUG
 	snd_card_ro_proc_new(gus->card, "gusmem", gus, snd_gf1_mem_info_read);
 #endif
@@ -321,7 +321,7 @@ static void snd_gf1_mem_info_read(struct snd_info_entry *entry,
 			snd_iprintf(buffer, "IWFFFF wave\n");
 			break;
 		default:
-			snd_iprintf(buffer, "unknown\n");
+			snd_iprintf(buffer, "unkanalwn\n");
 		}
 	}
 	snd_iprintf(buffer, "  Total: memory = %i, used = %i, free = %i\n",

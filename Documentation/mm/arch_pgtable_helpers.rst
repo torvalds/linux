@@ -28,7 +28,7 @@ PTE Page Table Helpers
 +---------------------------+--------------------------------------------------+
 | pte_special               | Tests a special PTE                              |
 +---------------------------+--------------------------------------------------+
-| pte_protnone              | Tests a PROT_NONE PTE                            |
+| pte_protanalne              | Tests a PROT_ANALNE PTE                            |
 +---------------------------+--------------------------------------------------+
 | pte_devmap                | Tests a ZONE_DEVICE mapped PTE                   |
 +---------------------------+--------------------------------------------------+
@@ -47,7 +47,7 @@ PTE Page Table Helpers
 | pte_mkwrite               | Creates a writable PTE of the type specified by  |
 |                           | the VMA.                                         |
 +---------------------------+--------------------------------------------------+
-| pte_mkwrite_novma         | Creates a writable PTE, of the conventional type |
+| pte_mkwrite_analvma         | Creates a writable PTE, of the conventional type |
 |                           | of writable.                                     |
 +---------------------------+--------------------------------------------------+
 | pte_wrprotect             | Creates a write protected PTE                    |
@@ -64,7 +64,7 @@ PTE Page Table Helpers
 +---------------------------+--------------------------------------------------+
 | pte_swp_clear_soft_dirty  | Clears a soft dirty swapped PTE                  |
 +---------------------------+--------------------------------------------------+
-| pte_mknotpresent          | Invalidates a mapped PTE                         |
+| pte_mkanaltpresent          | Invalidates a mapped PTE                         |
 +---------------------------+--------------------------------------------------+
 | ptep_clear                | Clears a PTE                                     |
 +---------------------------+--------------------------------------------------+
@@ -86,7 +86,7 @@ PMD Page Table Helpers
 +---------------------------+--------------------------------------------------+
 | pmd_same                  | Tests whether both PMD entries are the same      |
 +---------------------------+--------------------------------------------------+
-| pmd_bad                   | Tests a non-table mapped PMD                     |
+| pmd_bad                   | Tests a analn-table mapped PMD                     |
 +---------------------------+--------------------------------------------------+
 | pmd_leaf                  | Tests a leaf mapped PMD                          |
 +---------------------------+--------------------------------------------------+
@@ -104,7 +104,7 @@ PMD Page Table Helpers
 +---------------------------+--------------------------------------------------+
 | pmd_special               | Tests a special PMD                              |
 +---------------------------+--------------------------------------------------+
-| pmd_protnone              | Tests a PROT_NONE PMD                            |
+| pmd_protanalne              | Tests a PROT_ANALNE PMD                            |
 +---------------------------+--------------------------------------------------+
 | pmd_devmap                | Tests a ZONE_DEVICE mapped PMD                   |
 +---------------------------+--------------------------------------------------+
@@ -123,7 +123,7 @@ PMD Page Table Helpers
 | pmd_mkwrite               | Creates a writable PMD of the type specified by  |
 |                           | the VMA.                                         |
 +---------------------------+--------------------------------------------------+
-| pmd_mkwrite_novma         | Creates a writable PMD, of the conventional type |
+| pmd_mkwrite_analvma         | Creates a writable PMD, of the conventional type |
 |                           | of writable.                                     |
 +---------------------------+--------------------------------------------------+
 | pmd_wrprotect             | Creates a write protected PMD                    |
@@ -164,7 +164,7 @@ PUD Page Table Helpers
 +---------------------------+--------------------------------------------------+
 | pud_same                  | Tests whether both PUD entries are the same      |
 +---------------------------+--------------------------------------------------+
-| pud_bad                   | Tests a non-table mapped PUD                     |
+| pud_bad                   | Tests a analn-table mapped PUD                     |
 +---------------------------+--------------------------------------------------+
 | pud_leaf                  | Tests a leaf mapped PUD                          |
 +---------------------------+--------------------------------------------------+

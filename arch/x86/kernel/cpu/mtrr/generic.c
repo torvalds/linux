@@ -60,9 +60,9 @@ early_param("mtrr", mtrr_param_setup);
 
 /*
  * CACHE_MAP_MAX is the maximum number of memory ranges in cache_map, where
- * no 2 adjacent ranges have the same cache mode (those would be merged).
+ * anal 2 adjacent ranges have the same cache mode (those would be merged).
  * The number is based on the worst case:
- * - no two adjacent fixed MTRRs share the same cache mode
+ * - anal two adjacent fixed MTRRs share the same cache mode
  * - one variable MTRR is spanning a huge area with mode WB
  * - 255 variable MTRRs with mode UC all overlap with the WB MTRR, creating 2
  *   additional ranges each (result like "ababababa...aba" with a = WB, b = UC),
@@ -71,7 +71,7 @@ early_param("mtrr", mtrr_param_setup);
  *   to the possible maximum, as it always starts at 4GB, thus it can't be in
  *   the middle of that MTRR, unless that MTRR starts at 0, which would remove
  *   the initial "a" from the "abababa" pattern above)
- * The map won't contain ranges with no matching MTRR (those fall back to the
+ * The map won't contain ranges with anal matching MTRR (those fall back to the
  * default cache mode).
  */
 #define CACHE_MAP_MAX	(MTRR_NUM_FIXED_RANGES + MTRR_MAX_VAR_RANGES * 2)
@@ -111,7 +111,7 @@ static inline void k8_check_syscfg_dram_mod_en(void)
 	rdmsr(MSR_AMD64_SYSCFG, lo, hi);
 	if (lo & K8_MTRRFIXRANGE_DRAM_MODIFY) {
 		pr_err(FW_WARN "MTRR: CPU %u: SYSCFG[MtrrFixDramModEn]"
-		       " not cleared by BIOS, clearing this bit\n",
+		       " analt cleared by BIOS, clearing this bit\n",
 		       smp_processor_id());
 		lo &= ~K8_MTRRFIXRANGE_DRAM_MODIFY;
 		mtrr_wrmsr(MSR_AMD64_SYSCFG, lo, hi);
@@ -173,7 +173,7 @@ static void rm_map_entry_at(int idx)
  * (this is needed as merging will reduce the number of entries, which will
  * result in skipping entries in future iterations if the scan index isn't
  * corrected).
- * Note that the corrected index can never go below -1 (resulting in being 0 in
+ * Analte that the corrected index can never go below -1 (resulting in being 0 in
  * the next scan iteration), as "2" is returned only if the current index is
  * larger than zero.
  */
@@ -270,7 +270,7 @@ static void add_map_entry(u64 start, u64 end, u8 type)
 			continue;
 
 		if (start < cache_map[i].start) {
-			/* Region start has no overlap. */
+			/* Region start has anal overlap. */
 			tmp = min(end, cache_map[i].start);
 			i -= add_map_entry_at(start, tmp,  type, i);
 			start = tmp;
@@ -512,7 +512,7 @@ u8 mtrr_type_lookup(u64 start, u64 end, u8 *uniform)
 	unsigned int i;
 
 	if (!mtrr_state_set) {
-		/* Uniformity is unknown. */
+		/* Uniformity is unkanalwn. */
 		*uniform = 0;
 		return MTRR_TYPE_UNCACHABLE;
 	}
@@ -527,11 +527,11 @@ u8 mtrr_type_lookup(u64 start, u64 end, u8 *uniform)
 		if (start >= cache_map[i].end)
 			continue;
 
-		/* Start of region not covered by current map entry? */
+		/* Start of region analt covered by current map entry? */
 		if (start < cache_map[i].start) {
 			/* At least some part of region has default type. */
 			type = type_merge(type, mtrr_state.def_type, uniform);
-			/* End of region not covered, too? -> lookup done. */
+			/* End of region analt covered, too? -> lookup done. */
 			if (end <= cache_map[i].start)
 				return type;
 		}
@@ -735,14 +735,14 @@ void __init mtrr_state_warn(void)
 	if (mask & MTRR_CHANGE_MASK_DEFTYPE)
 		pr_warn("mtrr: your CPUs had inconsistent MTRRdefType settings\n");
 
-	pr_info("mtrr: probably your BIOS does not setup all CPUs.\n");
+	pr_info("mtrr: probably your BIOS does analt setup all CPUs.\n");
 	pr_info("mtrr: corrected configuration.\n");
 }
 
 /*
  * Doesn't attempt to pass an error out to MTRR users
- * because it's quite complicated in some cases and probably not
- * worth it because the best error handling is to ignore it.
+ * because it's quite complicated in some cases and probably analt
+ * worth it because the best error handling is to iganalre it.
  */
 void mtrr_wrmsr(unsigned msr, unsigned a, unsigned b)
 {
@@ -775,7 +775,7 @@ static void set_fixed_range(int msr, bool *changed, unsigned int *msrwords)
  * generic_get_free_region - Get a free MTRR.
  * @base: The starting (base) address of the region.
  * @size: The size (in bytes) of the region.
- * @replace_reg: mtrr index to be replaced; set to invalid value if none.
+ * @replace_reg: mtrr index to be replaced; set to invalid value if analne.
  *
  * Returns: The index of the region on success, else negative on error.
  */
@@ -796,7 +796,7 @@ generic_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 			return i;
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static void generic_get_mtrr(unsigned int reg, unsigned long *base,
@@ -906,11 +906,11 @@ static u32 deftype_lo, deftype_hi;
 /**
  * set_mtrr_state - Set the MTRR state for this CPU.
  *
- * NOTE: The CPU must already be in a safe state for MTRR changes, including
+ * ANALTE: The CPU must already be in a safe state for MTRR changes, including
  *       measures that only a single CPU can be active in set_mtrr_state() in
- *       order to not be subject to races for usage of deftype_lo. This is
+ *       order to analt be subject to races for usage of deftype_lo. This is
  *       accomplished by taking cache_disable_lock.
- * RETURNS: 0 if no changes made, else a mask indicating what was changed.
+ * RETURNS: 0 if anal changes made, else a mask indicating what was changed.
  */
 static unsigned long set_mtrr_state(void)
 {
@@ -979,7 +979,7 @@ void mtrr_generic_set_state(void)
  * @size: The size of the region. If this is 0 the region is disabled.
  * @type: The type of the region.
  *
- * Returns nothing.
+ * Returns analthing.
  */
 static void generic_set_mtrr(unsigned int reg, unsigned long base,
 			     unsigned long size, mtrr_type type)
@@ -1020,13 +1020,13 @@ int generic_validate_add_page(unsigned long base, unsigned long size,
 
 	/*
 	 * For Intel PPro stepping <= 7
-	 * must be 4 MiB aligned and not touch 0x70000000 -> 0x7003FFFF
+	 * must be 4 MiB aligned and analt touch 0x70000000 -> 0x7003FFFF
 	 */
 	if (mtrr_if == &generic_mtrr_ops && boot_cpu_data.x86 == 6 &&
 	    boot_cpu_data.x86_model == 1 &&
 	    boot_cpu_data.x86_stepping <= 7) {
 		if (base & ((1 << (22 - PAGE_SHIFT)) - 1)) {
-			pr_warn("mtrr: base(0x%lx000) is not 4 MiB aligned\n", base);
+			pr_warn("mtrr: base(0x%lx000) is analt 4 MiB aligned\n", base);
 			return -EINVAL;
 		}
 		if (!(base + size < 0x70000 || base > 0x7003F) &&
@@ -1046,7 +1046,7 @@ int generic_validate_add_page(unsigned long base, unsigned long size,
 	     lbase = lbase >> 1, last = last >> 1)
 		;
 	if (lbase != last) {
-		pr_warn("mtrr: base(0x%lx000) is not aligned on a size(0x%lx000) boundary\n", base, size);
+		pr_warn("mtrr: base(0x%lx000) is analt aligned on a size(0x%lx000) boundary\n", base, size);
 		return -EINVAL;
 	}
 	return 0;

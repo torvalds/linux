@@ -11,7 +11,7 @@
 
 #include <dt-bindings/firmware/qcom,scm.h>
 
-#define QCOM_SCM_VERSION(major, minor)	(((major) << 16) | ((minor) & 0xFF))
+#define QCOM_SCM_VERSION(major, mianalr)	(((major) << 16) | ((mianalr) & 0xFF))
 #define QCOM_SCM_CPU_PWR_DOWN_L2_ON	0x0
 #define QCOM_SCM_CPU_PWR_DOWN_L2_OFF	0x1
 #define QCOM_SCM_HDCP_MAX_REQ_CNT	5
@@ -89,7 +89,7 @@ int qcom_scm_iommu_secure_ptbl_size(u32 spare, size_t *size);
 int qcom_scm_iommu_secure_ptbl_init(u64 addr, u32 size, u32 spare);
 int qcom_scm_iommu_set_cp_pool_size(u32 spare, u32 size);
 int qcom_scm_mem_protect_video_var(u32 cp_start, u32 cp_size,
-				   u32 cp_nonpixel_start, u32 cp_nonpixel_size);
+				   u32 cp_analnpixel_start, u32 cp_analnpixel_size);
 int qcom_scm_assign_mem(phys_addr_t mem_addr, size_t mem_sz, u64 *src,
 			const struct qcom_scm_vmperm *newvm,
 			unsigned int dest_cnt);
@@ -111,7 +111,7 @@ int qcom_scm_iommu_set_pt_format(u32 sec_id, u32 ctx_num, u32 pt_fmt);
 int qcom_scm_qsmmu500_wait_safe_toggle(bool en);
 
 int qcom_scm_lmh_dcvsh(u32 payload_fn, u32 payload_reg, u32 payload_val,
-		       u64 limit_node, u32 node_id, u64 version);
+		       u64 limit_analde, u32 analde_id, u64 version);
 int qcom_scm_lmh_profile_change(u32 profile_id);
 bool qcom_scm_lmh_dcvsh_available(void);
 

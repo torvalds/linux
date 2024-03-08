@@ -32,7 +32,7 @@ enum mt753x_id {
 #define SYSC_REG_RSTCTRL		0x34
 #define  RESET_MCM			BIT(2)
 
-/* Registers to mac forward control for unknown frames */
+/* Registers to mac forward control for unkanalwn frames */
 #define MT7530_MFC			0x10
 #define  BC_FFP(x)			(((x) & 0xff) << 24)
 #define  BC_FFP_MASK			BC_FFP(~0)
@@ -219,7 +219,7 @@ enum mt7530_port_mode {
 	MT7530_PORT_MATRIX_MODE = PORT_VLAN(0),
 
 	/* Fallback Mode: Forward received frames with ingress ports that do
-	 * not belong to the VLAN member. Frames whose VID is not listed on
+	 * analt belong to the VLAN member. Frames whose VID is analt listed on
 	 * the VLAN table are forwarded by the PCR_MATRIX members.
 	 */
 	MT7530_PORT_FALLBACK_MODE = PORT_VLAN(1),
@@ -431,8 +431,8 @@ enum mt7531_mdio_st {
 #define  CLK_SKEW_OUT_MASK		GENMASK(9, 8)
 #define  CLK_SKEW_IN(x)			(((x) & 0x3) << 6)
 #define  CLK_SKEW_IN_MASK		GENMASK(7, 6)
-#define  RXCLK_NO_DELAY			BIT(5)
-#define  TXCLK_NO_REVERSE		BIT(4)
+#define  RXCLK_ANAL_DELAY			BIT(5)
+#define  TXCLK_ANAL_REVERSE		BIT(4)
 #define  GP_MODE(x)			(((x) & 0x3) << 1)
 #define  GP_MODE_MASK			GENMASK(2, 1)
 #define  GP_CLK_EN			BIT(0)
@@ -444,7 +444,7 @@ enum mt7531_gp_mode {
 };
 
 enum mt7531_clk_skew {
-	MT7531_CLK_SKEW_NO_CHG = 0,
+	MT7531_CLK_SKEW_ANAL_CHG = 0,
 	MT7531_CLK_SKEW_DLY_100PPS = 1,
 	MT7531_CLK_SKEW_DLY_200PPS = 2,
 	MT7531_CLK_SKEW_REVERSE = 3,
@@ -479,7 +479,7 @@ enum mt7531_clk_skew {
 
 /* Register for TOP signal control */
 #define MT7530_TOP_SIG_CTRL		0x7808
-#define  TOP_SIG_CTRL_NORMAL		(BIT(17) | BIT(16))
+#define  TOP_SIG_CTRL_ANALRMAL		(BIT(17) | BIT(16))
 
 #define MT7531_TOP_SIG_SR		0x780c
 #define  PAD_DUAL_SGMII_EN		BIT(1)
@@ -591,7 +591,7 @@ enum mt7531_clk_skew {
 
 /* Registers for core PLL access through mmd indirect */
 #define CORE_PLL_GROUP2			0x401
-#define  RG_SYSPLL_EN_NORMAL		BIT(15)
+#define  RG_SYSPLL_EN_ANALRMAL		BIT(15)
 #define  RG_SYSPLL_VODEN		BIT(14)
 #define  RG_SYSPLL_LF			BIT(13)
 #define  RG_SYSPLL_RST_DLY(x)		(((x) & 0x3) << 12)
@@ -663,12 +663,12 @@ struct mt7530_fdb {
 	u8 port_mask;
 	u8 aging;
 	u8 mac[6];
-	bool noarp;
+	bool analarp;
 };
 
 /* struct mt7530_port -	This is the main data structure for holding the state
  *			of the port.
- * @enable:	The status used for show port is enabled or not.
+ * @enable:	The status used for show port is enabled or analt.
  * @pm:		The matrix used to show all connections with the port.
  * @pvid:	The VLAN specified is to be considered a PVID at ingress.  Any
  *		untagged frames will be assigned to the related VLAN.

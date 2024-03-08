@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 #include <linux/debugfs.h>
 #include <linux/interconnect.h>
@@ -23,8 +23,8 @@ static DEFINE_MUTEX(debugfs_lock);
 static struct platform_device *pdev;
 static struct icc_path *cur_path;
 
-static char *src_node;
-static char *dst_node;
+static char *src_analde;
+static char *dst_analde;
 static u32 avg_bw;
 static u32 peak_bw;
 static u32 tag;
@@ -57,8 +57,8 @@ static int icc_get_set(void *data, u64 val)
 	mutex_lock(&debugfs_lock);
 
 	rcu_read_lock();
-	src = rcu_dereference(src_node);
-	dst = rcu_dereference(dst_node);
+	src = rcu_dereference(src_analde);
+	dst = rcu_dereference(dst_analde);
 
 	/*
 	 * If we've already looked up a path, then use the existing one instead
@@ -76,7 +76,7 @@ static int icc_get_set(void *data, u64 val)
 	rcu_read_unlock();
 
 	if (!src || !dst) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free;
 	}
 
@@ -88,7 +88,7 @@ static int icc_get_set(void *data, u64 val)
 
 	debugfs_path = kzalloc(sizeof(*debugfs_path), GFP_KERNEL);
 	if (!debugfs_path) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put;
 	}
 
@@ -136,7 +136,7 @@ int icc_debugfs_client_init(struct dentry *icc_dir)
 	struct dentry *client_dir;
 	int ret;
 
-	pdev = platform_device_alloc("icc-debugfs-client", PLATFORM_DEVID_NONE);
+	pdev = platform_device_alloc("icc-debugfs-client", PLATFORM_DEVID_ANALNE);
 
 	ret = platform_device_add(pdev);
 	if (ret) {
@@ -147,8 +147,8 @@ int icc_debugfs_client_init(struct dentry *icc_dir)
 
 	client_dir = debugfs_create_dir("test_client", icc_dir);
 
-	debugfs_create_str("src_node", 0600, client_dir, &src_node);
-	debugfs_create_str("dst_node", 0600, client_dir, &dst_node);
+	debugfs_create_str("src_analde", 0600, client_dir, &src_analde);
+	debugfs_create_str("dst_analde", 0600, client_dir, &dst_analde);
 	debugfs_create_file("get", 0200, client_dir, NULL, &icc_get_fops);
 	debugfs_create_u32("avg_bw", 0600, client_dir, &avg_bw);
 	debugfs_create_u32("peak_bw", 0600, client_dir, &peak_bw);

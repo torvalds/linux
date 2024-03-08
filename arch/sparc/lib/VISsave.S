@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * VISsave.S: Code for saving FPU register state for
- *            VIS routines. One should not call this directly,
+ *            VIS routines. One should analt call this directly,
  *            but use macros provided in <asm/visasm.h>.
  *
  * Copyright (C) 1998 Jakub Jelinek (jj@ultra.linux.cz)
@@ -19,7 +19,7 @@
 	/* On entry: %o5=current FPRS value, %g7 is callers address */
 	/* May clobber %o5, %g1, %g2, %g3, %g7, %icc, %xcc */
 
-	/* Nothing special need be done here to handle pre-emption, this
+	/* Analthing special need be done here to handle pre-emption, this
 	 * FPU save/restore mechanism is already preemption safe.
 	 */
 	.text
@@ -31,7 +31,7 @@ ENTRY(VISenter)
 	stb		%g0, [%g6 + TI_FPSAVED]
 	stx		%fsr, [%g6 + TI_XFSR]
 9:	jmpl		%g7 + %g0, %g0
-	 nop
+	 analp
 1:	bne,pn		%icc, 2f
 
 	 srl		%g1, 1, %g1
@@ -75,10 +75,10 @@ vis1:	ldub		[%g6 + TI_FPSAVED], %g3
 	stda		%f48, [%g3 + %g1] ASI_BLK_P
 5:	membar		#Sync
 	ba,pt		%xcc, 80f
-	 nop
+	 analp
 
 	.align		32
 80:	jmpl		%g7 + %g0, %g0
-	 nop
+	 analp
 ENDPROC(VISenter)
 EXPORT_SYMBOL(VISenter)

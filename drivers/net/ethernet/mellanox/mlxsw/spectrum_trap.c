@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/bitops.h>
 #include <linux/kernel.h>
@@ -66,7 +66,7 @@ static int mlxsw_sp_rx_listener(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 	struct mlxsw_sp_port_pcpu_stats *pcpu_stats;
 
 	if (unlikely(!mlxsw_sp_port)) {
-		dev_warn_ratelimited(mlxsw_sp->bus_info->dev, "Port %d: skb received for non-existent port\n",
+		dev_warn_ratelimited(mlxsw_sp->bus_info->dev, "Port %d: skb received for analn-existent port\n",
 				     local_port);
 		kfree_skb(skb);
 		return -EINVAL;
@@ -138,7 +138,7 @@ static void mlxsw_sp_rx_acl_drop_listener(struct sk_buff *skb, u16 local_port,
 	consume_skb(skb);
 }
 
-static int __mlxsw_sp_rx_no_mark_listener(struct sk_buff *skb, u16 local_port,
+static int __mlxsw_sp_rx_anal_mark_listener(struct sk_buff *skb, u16 local_port,
 					  void *trap_ctx)
 {
 	struct devlink_port *in_devlink_port;
@@ -164,12 +164,12 @@ static int __mlxsw_sp_rx_no_mark_listener(struct sk_buff *skb, u16 local_port,
 	return 0;
 }
 
-static void mlxsw_sp_rx_no_mark_listener(struct sk_buff *skb, u16 local_port,
+static void mlxsw_sp_rx_anal_mark_listener(struct sk_buff *skb, u16 local_port,
 					 void *trap_ctx)
 {
 	int err;
 
-	err = __mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+	err = __mlxsw_sp_rx_anal_mark_listener(skb, local_port, trap_ctx);
 	if (err)
 		return;
 
@@ -180,7 +180,7 @@ static void mlxsw_sp_rx_mark_listener(struct sk_buff *skb, u16 local_port,
 				      void *trap_ctx)
 {
 	skb->offload_fwd_mark = 1;
-	mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+	mlxsw_sp_rx_anal_mark_listener(skb, local_port, trap_ctx);
 }
 
 static void mlxsw_sp_rx_l3_mark_listener(struct sk_buff *skb, u16 local_port,
@@ -188,7 +188,7 @@ static void mlxsw_sp_rx_l3_mark_listener(struct sk_buff *skb, u16 local_port,
 {
 	skb->offload_l3_fwd_mark = 1;
 	skb->offload_fwd_mark = 1;
-	mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+	mlxsw_sp_rx_anal_mark_listener(skb, local_port, trap_ctx);
 }
 
 static void mlxsw_sp_rx_ptp_listener(struct sk_buff *skb, u16 local_port,
@@ -197,7 +197,7 @@ static void mlxsw_sp_rx_ptp_listener(struct sk_buff *skb, u16 local_port,
 	struct mlxsw_sp *mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
 	int err;
 
-	err = __mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+	err = __mlxsw_sp_rx_anal_mark_listener(skb, local_port, trap_ctx);
 	if (err)
 		return;
 
@@ -231,7 +231,7 @@ mlxsw_sp_sample_tx_port_get(struct mlxsw_sp *mlxsw_sp,
 }
 
 /* The latency units are determined according to MOGCR.mirror_latency_units. It
- * defaults to 64 nanoseconds.
+ * defaults to 64 naanalseconds.
  */
 #define MLXSW_SP_MIRROR_LATENCY_SHIFT	6
 
@@ -267,7 +267,7 @@ static void mlxsw_sp_rx_sample_listener(struct sk_buff *skb, u16 local_port,
 	struct psample_metadata md = {};
 	int err;
 
-	err = __mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+	err = __mlxsw_sp_rx_anal_mark_listener(skb, local_port, trap_ctx);
 	if (err)
 		return;
 
@@ -304,13 +304,13 @@ static void mlxsw_sp_rx_sample_tx_listener(struct sk_buff *skb, u16 local_port,
 	struct psample_metadata md = {};
 	int err;
 
-	/* Locally generated packets are not reported from the policy engine
-	 * trigger, so do not report them from the egress trigger as well.
+	/* Locally generated packets are analt reported from the policy engine
+	 * trigger, so do analt report them from the egress trigger as well.
 	 */
 	if (local_port == MLXSW_PORT_CPU_PORT)
 		goto out;
 
-	err = __mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+	err = __mlxsw_sp_rx_anal_mark_listener(skb, local_port, trap_ctx);
 	if (err)
 		return;
 
@@ -319,7 +319,7 @@ static void mlxsw_sp_rx_sample_tx_listener(struct sk_buff *skb, u16 local_port,
 		goto out;
 
 	/* Packet was sampled from Tx, so we need to retrieve the sample
-	 * parameters based on the Tx port and not the Rx port.
+	 * parameters based on the Tx port and analt the Rx port.
 	 */
 	mlxsw_sp_port_tx = mlxsw_sp_sample_tx_port_get(mlxsw_sp, rx_md_info);
 	if (!mlxsw_sp_port_tx)
@@ -355,7 +355,7 @@ static void mlxsw_sp_rx_sample_acl_listener(struct sk_buff *skb, u16 local_port,
 	struct psample_metadata md = {};
 	int err;
 
-	err = __mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+	err = __mlxsw_sp_rx_anal_mark_listener(skb, local_port, trap_ctx);
 	if (err)
 		return;
 
@@ -428,8 +428,8 @@ out:
 	MLXSW_RXL(mlxsw_sp_rx_mark_listener, _id,			      \
 		   _action, false, SP_##_group_id, SET_FW_DEFAULT)
 
-#define MLXSW_SP_RXL_NO_MARK(_id, _group_id, _action, _is_ctrl)		      \
-	MLXSW_RXL(mlxsw_sp_rx_no_mark_listener, _id, _action,		      \
+#define MLXSW_SP_RXL_ANAL_MARK(_id, _group_id, _action, _is_ctrl)		      \
+	MLXSW_RXL(mlxsw_sp_rx_anal_mark_listener, _id, _action,		      \
 		  _is_ctrl, SP_##_group_id, DISCARD)
 
 #define MLXSW_SP_RXL_MARK(_id, _group_id, _action, _is_ctrl)		      \
@@ -557,8 +557,8 @@ static const struct mlxsw_sp_trap_group_item mlxsw_sp_trap_group_items_arr[] = {
 		.priority = 5,
 	},
 	{
-		.group = DEVLINK_TRAP_GROUP_GENERIC(MC_SNOOPING, 5),
-		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_MC_SNOOPING,
+		.group = DEVLINK_TRAP_GROUP_GENERIC(MC_SANALOPING, 5),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_MC_SANALOPING,
 		.priority = 3,
 	},
 	{
@@ -684,9 +684,9 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_DROP(NON_IP_PACKET, L3_DROPS),
+		.trap = MLXSW_SP_TRAP_DROP(ANALN_IP_PACKET, L3_DROPS),
 		.listeners_arr = {
-			MLXSW_SP_RXL_DISCARD(ING_ROUTER_NON_IP_PACKET,
+			MLXSW_SP_RXL_DISCARD(ING_ROUTER_ANALN_IP_PACKET,
 					     L3_DISCARDS),
 		},
 	},
@@ -815,9 +815,9 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_DROP(NON_ROUTABLE, L3_DROPS),
+		.trap = MLXSW_SP_TRAP_DROP(ANALN_ROUTABLE, L3_DROPS),
 		.listeners_arr = {
-			MLXSW_SP_RXL_DISCARD(NON_ROUTABLE, L3_DISCARDS),
+			MLXSW_SP_RXL_DISCARD(ANALN_ROUTABLE, L3_DISCARDS),
 		},
 	},
 	{
@@ -859,13 +859,13 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 	{
 		.trap = MLXSW_SP_TRAP_CONTROL(STP, STP, TRAP),
 		.listeners_arr = {
-			MLXSW_SP_RXL_NO_MARK(STP, STP, TRAP_TO_CPU, true),
+			MLXSW_SP_RXL_ANAL_MARK(STP, STP, TRAP_TO_CPU, true),
 		},
 	},
 	{
 		.trap = MLXSW_SP_TRAP_CONTROL(LACP, LACP, TRAP),
 		.listeners_arr = {
-			MLXSW_SP_RXL_NO_MARK(LACP, LACP, TRAP_TO_CPU, true),
+			MLXSW_SP_RXL_ANAL_MARK(LACP, LACP, TRAP_TO_CPU, true),
 		},
 	},
 	{
@@ -876,73 +876,73 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_QUERY, MC_SNOOPING, MIRROR),
+		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_QUERY, MC_SANALOPING, MIRROR),
 		.listeners_arr = {
-			MLXSW_SP_RXL_MARK(IGMP_QUERY, MC_SNOOPING,
+			MLXSW_SP_RXL_MARK(IGMP_QUERY, MC_SANALOPING,
 					  MIRROR_TO_CPU, false),
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_V1_REPORT, MC_SNOOPING,
+		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_V1_REPORT, MC_SANALOPING,
 					      TRAP),
 		.listeners_arr = {
-			MLXSW_SP_RXL_NO_MARK(IGMP_V1_REPORT, MC_SNOOPING,
+			MLXSW_SP_RXL_ANAL_MARK(IGMP_V1_REPORT, MC_SANALOPING,
 					     TRAP_TO_CPU, false),
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_V2_REPORT, MC_SNOOPING,
+		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_V2_REPORT, MC_SANALOPING,
 					      TRAP),
 		.listeners_arr = {
-			MLXSW_SP_RXL_NO_MARK(IGMP_V2_REPORT, MC_SNOOPING,
+			MLXSW_SP_RXL_ANAL_MARK(IGMP_V2_REPORT, MC_SANALOPING,
 					     TRAP_TO_CPU, false),
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_V3_REPORT, MC_SNOOPING,
+		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_V3_REPORT, MC_SANALOPING,
 					      TRAP),
 		.listeners_arr = {
-			MLXSW_SP_RXL_NO_MARK(IGMP_V3_REPORT, MC_SNOOPING,
+			MLXSW_SP_RXL_ANAL_MARK(IGMP_V3_REPORT, MC_SANALOPING,
 					     TRAP_TO_CPU, false),
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_V2_LEAVE, MC_SNOOPING,
+		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_V2_LEAVE, MC_SANALOPING,
 					      TRAP),
 		.listeners_arr = {
-			MLXSW_SP_RXL_NO_MARK(IGMP_V2_LEAVE, MC_SNOOPING,
+			MLXSW_SP_RXL_ANAL_MARK(IGMP_V2_LEAVE, MC_SANALOPING,
 					     TRAP_TO_CPU, false),
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_CONTROL(MLD_QUERY, MC_SNOOPING, MIRROR),
+		.trap = MLXSW_SP_TRAP_CONTROL(MLD_QUERY, MC_SANALOPING, MIRROR),
 		.listeners_arr = {
 			MLXSW_SP_RXL_MARK(IPV6_MLDV12_LISTENER_QUERY,
-					  MC_SNOOPING, MIRROR_TO_CPU, false),
+					  MC_SANALOPING, MIRROR_TO_CPU, false),
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_CONTROL(MLD_V1_REPORT, MC_SNOOPING,
+		.trap = MLXSW_SP_TRAP_CONTROL(MLD_V1_REPORT, MC_SANALOPING,
 					      TRAP),
 		.listeners_arr = {
-			MLXSW_SP_RXL_NO_MARK(IPV6_MLDV1_LISTENER_REPORT,
-					     MC_SNOOPING, TRAP_TO_CPU, false),
+			MLXSW_SP_RXL_ANAL_MARK(IPV6_MLDV1_LISTENER_REPORT,
+					     MC_SANALOPING, TRAP_TO_CPU, false),
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_CONTROL(MLD_V2_REPORT, MC_SNOOPING,
+		.trap = MLXSW_SP_TRAP_CONTROL(MLD_V2_REPORT, MC_SANALOPING,
 					      TRAP),
 		.listeners_arr = {
-			MLXSW_SP_RXL_NO_MARK(IPV6_MLDV2_LISTENER_REPORT,
-					     MC_SNOOPING, TRAP_TO_CPU, false),
+			MLXSW_SP_RXL_ANAL_MARK(IPV6_MLDV2_LISTENER_REPORT,
+					     MC_SANALOPING, TRAP_TO_CPU, false),
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_CONTROL(MLD_V1_DONE, MC_SNOOPING,
+		.trap = MLXSW_SP_TRAP_CONTROL(MLD_V1_DONE, MC_SANALOPING,
 					      TRAP),
 		.listeners_arr = {
-			MLXSW_SP_RXL_NO_MARK(IPV6_MLDV1_LISTENER_DONE,
-					     MC_SNOOPING, TRAP_TO_CPU, false),
+			MLXSW_SP_RXL_ANAL_MARK(IPV6_MLDV1_LISTENER_DONE,
+					     MC_SANALOPING, TRAP_TO_CPU, false),
 		},
 	},
 	{
@@ -977,7 +977,7 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 		.trap = MLXSW_SP_TRAP_CONTROL(ARP_OVERLAY, NEIGH_DISCOVERY,
 					      TRAP),
 		.listeners_arr = {
-			MLXSW_SP_RXL_NO_MARK(NVE_DECAP_ARP, NEIGH_DISCOVERY,
+			MLXSW_SP_RXL_ANAL_MARK(NVE_DECAP_ARP, NEIGH_DISCOVERY,
 					     TRAP_TO_CPU, false),
 		},
 	},
@@ -1096,7 +1096,7 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 		},
 	},
 	{
-		/* IPV6_ROUTER_ALERT is defined in uAPI as 22, but it is not
+		/* IPV6_ROUTER_ALERT is defined in uAPI as 22, but it is analt
 		 * used in this file, so undefine it.
 		 */
 		#undef IPV6_ROUTER_ALERT
@@ -1108,9 +1108,9 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_DIP_ALL_NODES, IPV6, TRAP),
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_DIP_ALL_ANALDES, IPV6, TRAP),
 		.listeners_arr = {
-			MLXSW_SP_RXL_MARK(IPV6_ALL_NODES_LINK, IPV6,
+			MLXSW_SP_RXL_MARK(IPV6_ALL_ANALDES_LINK, IPV6,
 					  TRAP_TO_CPU, false),
 		},
 	},
@@ -1152,13 +1152,13 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 	{
 		.trap = MLXSW_SP_TRAP_CONTROL(PTP_GENERAL, PTP_GENERAL, TRAP),
 		.listeners_arr = {
-			MLXSW_SP_RXL_NO_MARK(PTP1, PTP1, TRAP_TO_CPU, false),
+			MLXSW_SP_RXL_ANAL_MARK(PTP1, PTP1, TRAP_TO_CPU, false),
 		},
 	},
 	{
 		.trap = MLXSW_SP_TRAP_CONTROL(FLOW_ACTION_TRAP, ACL_TRAP, TRAP),
 		.listeners_arr = {
-			MLXSW_SP_RXL_NO_MARK(ACL0, FLOW_LOGGING, TRAP_TO_CPU,
+			MLXSW_SP_RXL_ANAL_MARK(ACL0, FLOW_LOGGING, TRAP_TO_CPU,
 					     false),
 		},
 	},
@@ -1171,7 +1171,7 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 	{
 		.trap = MLXSW_SP_TRAP_CONTROL(EAPOL, EAPOL, TRAP),
 		.listeners_arr = {
-			MLXSW_SP_RXL_NO_MARK(EAPOL, EAPOL, TRAP_TO_CPU, true),
+			MLXSW_SP_RXL_ANAL_MARK(EAPOL, EAPOL, TRAP_TO_CPU, true),
 		},
 	},
 	{
@@ -1240,7 +1240,7 @@ static int mlxsw_sp_trap_cpu_policers_set(struct mlxsw_sp *mlxsw_sp)
 	 */
 	hw_id = find_first_zero_bit(trap->policers_usage, trap->max_policers);
 	if (WARN_ON(hw_id == trap->max_policers))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	__set_bit(hw_id, trap->policers_usage);
 	trap->thin_policer_hw_id = hw_id;
@@ -1272,12 +1272,12 @@ static int mlxsw_sp_trap_policer_items_arr_init(struct mlxsw_sp *mlxsw_sp)
 
 	if (arr_size > free_policers) {
 		dev_err(mlxsw_sp->bus_info->dev, "Exceeded number of supported packet trap policers\n");
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	trap->policer_items_arr = kcalloc(free_policers, elem_size, GFP_KERNEL);
 	if (!trap->policer_items_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trap->policers_count = free_policers;
 
@@ -1376,7 +1376,7 @@ static int mlxsw_sp_trap_group_items_arr_init(struct mlxsw_sp *mlxsw_sp)
 	groups_count = common_groups_count + spec_groups_count;
 	trap->group_items_arr = kcalloc(groups_count, elem_size, GFP_KERNEL);
 	if (!trap->group_items_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(trap->group_items_arr, mlxsw_sp_trap_group_items_arr,
 	       elem_size * common_groups_count);
@@ -1463,7 +1463,7 @@ static int mlxsw_sp_trap_items_arr_init(struct mlxsw_sp *mlxsw_sp)
 	traps_count = common_traps_count + spec_traps_count;
 	trap->trap_items_arr = kcalloc(traps_count, elem_size, GFP_KERNEL);
 	if (!trap->trap_items_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(trap->trap_items_arr, mlxsw_sp_trap_items_arr,
 	       elem_size * common_traps_count);
@@ -1626,8 +1626,8 @@ int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 		return -EINVAL;
 
 	if (trap_item->is_source) {
-		NL_SET_ERR_MSG_MOD(extack, "Changing the action of source traps is not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Changing the action of source traps is analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	for (i = 0; i < MLXSW_SP_TRAP_LISTENERS_MAX; i++) {
@@ -1672,8 +1672,8 @@ __mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 		return -EINVAL;
 
 	if (group_item->fixed_policer && policer_id != group->init_policer_id) {
-		NL_SET_ERR_MSG_MOD(extack, "Changing the policer binding of this group is not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "Changing the policer binding of this group is analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	if (policer_id) {
@@ -1722,7 +1722,7 @@ mlxsw_sp_trap_policer_item_init(struct mlxsw_sp *mlxsw_sp,
 	 */
 	hw_id = find_first_zero_bit(trap->policers_usage, trap->max_policers);
 	if (WARN_ON(hw_id == trap->max_policers))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	__set_bit(hw_id, trap->policers_usage);
 	policer_item->hw_id = hw_id;
@@ -1743,7 +1743,7 @@ static int mlxsw_sp_trap_policer_bs(u64 burst, u8 *p_burst_size,
 	int bs = fls64(burst) - 1;
 
 	if (burst != (BIT_ULL(bs))) {
-		NL_SET_ERR_MSG_MOD(extack, "Policer burst size is not power of two");
+		NL_SET_ERR_MSG_MOD(extack, "Policer burst size is analt power of two");
 		return -EINVAL;
 	}
 
@@ -1861,7 +1861,7 @@ int mlxsw_sp_trap_group_policer_hw_id_get(struct mlxsw_sp *mlxsw_sp, u16 id,
 
 	gr_item = mlxsw_sp_trap_group_item_lookup(mlxsw_sp, id);
 	if (!gr_item)
-		return -ENOENT;
+		return -EANALENT;
 
 	pol_id = gr_item->group.init_policer_id;
 	if (!pol_id) {
@@ -1871,7 +1871,7 @@ int mlxsw_sp_trap_group_policer_hw_id_get(struct mlxsw_sp *mlxsw_sp, u16 id,
 
 	pol_item = mlxsw_sp_trap_policer_item_lookup(mlxsw_sp, pol_id);
 	if (WARN_ON(!pol_item))
-		return -ENOENT;
+		return -EANALENT;
 
 	*p_enabled = true;
 	*p_hw_id = pol_item->hw_id;

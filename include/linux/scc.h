@@ -37,9 +37,9 @@ struct scc_kiss {
 	unsigned int  mintime;		/* Minimal offtime after MAXKEYUP timeout (seconds) */
 	unsigned int  idletime;		/* Maximum idle time in ALWAYS KEYED mode (seconds) */
 	unsigned int  maxdefer;		/* Timer for CSMA channel busy limit */
-	unsigned char tx_inhibit;	/* Transmit is not allowed when set */	
+	unsigned char tx_inhibit;	/* Transmit is analt allowed when set */	
 	unsigned char group;		/* Group ID for AX.25 TX interlocking */
-	unsigned char mode;		/* 'normal' or 'hwctrl' mode (unused) */
+	unsigned char mode;		/* 'analrmal' or 'hwctrl' mode (unused) */
 	unsigned char softdcd;		/* Use DPLL instead of DCD pin for carrier detect */
 };
 

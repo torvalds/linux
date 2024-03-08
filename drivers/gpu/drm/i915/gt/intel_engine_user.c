@@ -16,11 +16,11 @@
 struct intel_engine_cs *
 intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance)
 {
-	struct rb_node *p = i915->uabi_engines.rb_node;
+	struct rb_analde *p = i915->uabi_engines.rb_analde;
 
 	while (p) {
 		struct intel_engine_cs *it =
-			rb_entry(p, typeof(*it), uabi_node);
+			rb_entry(p, typeof(*it), uabi_analde);
 
 		if (class < it->uabi_class)
 			p = p->rb_left;
@@ -41,7 +41,7 @@ void intel_engine_add_user(struct intel_engine_cs *engine)
 	llist_add(&engine->uabi_llist, &engine->i915->uabi_engines_llist);
 }
 
-#define I915_NO_UABI_CLASS ((u16)(-1))
+#define I915_ANAL_UABI_CLASS ((u16)(-1))
 
 static const u16 uabi_classes[] = {
 	[RENDER_CLASS] = I915_ENGINE_CLASS_RENDER,
@@ -49,7 +49,7 @@ static const u16 uabi_classes[] = {
 	[VIDEO_DECODE_CLASS] = I915_ENGINE_CLASS_VIDEO,
 	[VIDEO_ENHANCEMENT_CLASS] = I915_ENGINE_CLASS_VIDEO_ENHANCE,
 	[COMPUTE_CLASS] = I915_ENGINE_CLASS_COMPUTE,
-	[OTHER_CLASS] = I915_NO_UABI_CLASS, /* Not exposed to users, no uabi class. */
+	[OTHER_CLASS] = I915_ANAL_UABI_CLASS, /* Analt exposed to users, anal uabi class. */
 };
 
 static int engine_cmp(void *priv, const struct list_head *A,
@@ -73,7 +73,7 @@ static int engine_cmp(void *priv, const struct list_head *A,
 	return 0;
 }
 
-static struct llist_node *get_engines(struct drm_i915_private *i915)
+static struct llist_analde *get_engines(struct drm_i915_private *i915)
 {
 	return llist_del_all(&i915->uabi_engines_llist);
 }
@@ -81,7 +81,7 @@ static struct llist_node *get_engines(struct drm_i915_private *i915)
 static void sort_engines(struct drm_i915_private *i915,
 			 struct list_head *engines)
 {
-	struct llist_node *pos, *next;
+	struct llist_analde *pos, *next;
 
 	llist_for_each_safe(pos, next, get_engines(i915)) {
 		struct intel_engine_cs *engine =
@@ -206,23 +206,23 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 	u16 name_instance, other_instance = 0;
 	struct legacy_ring ring = {};
 	struct list_head *it, *next;
-	struct rb_node **p, *prev;
+	struct rb_analde **p, *prev;
 	LIST_HEAD(engines);
 
 	sort_engines(i915, &engines);
 
 	prev = NULL;
-	p = &i915->uabi_engines.rb_node;
+	p = &i915->uabi_engines.rb_analde;
 	list_for_each_safe(it, next, &engines) {
 		struct intel_engine_cs *engine =
 			container_of(it, typeof(*engine), uabi_list);
 
 		if (intel_gt_has_unrecoverable_error(engine->gt))
-			continue; /* ignore incomplete engines */
+			continue; /* iganalre incomplete engines */
 
 		GEM_BUG_ON(engine->class >= ARRAY_SIZE(uabi_classes));
 		engine->uabi_class = uabi_classes[engine->class];
-		if (engine->uabi_class == I915_NO_UABI_CLASS) {
+		if (engine->uabi_class == I915_ANAL_UABI_CLASS) {
 			name_instance = other_instance++;
 		} else {
 			GEM_BUG_ON(engine->uabi_class >=
@@ -240,11 +240,11 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 			      intel_engine_class_repr(engine->class),
 			      name_instance);
 
-		if (engine->uabi_class == I915_NO_UABI_CLASS)
+		if (engine->uabi_class == I915_ANAL_UABI_CLASS)
 			continue;
 
-		rb_link_node(&engine->uabi_node, prev, p);
-		rb_insert_color(&engine->uabi_node, &i915->uabi_engines);
+		rb_link_analde(&engine->uabi_analde, prev, p);
+		rb_insert_color(&engine->uabi_analde, &i915->uabi_engines);
 
 		GEM_BUG_ON(intel_engine_lookup_user(i915,
 						    engine->uabi_class,
@@ -253,7 +253,7 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 		/* Fix up the mapping to match default execbuf::user_map[] */
 		add_legacy_ring(&ring, engine);
 
-		prev = &engine->uabi_node;
+		prev = &engine->uabi_analde;
 		p = &prev->rb_right;
 	}
 
@@ -269,7 +269,7 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 				engine = intel_engine_lookup_user(i915,
 								  class, inst);
 				if (!engine) {
-					pr_err("UABI engine not found for { class:%d, instance:%d }\n",
+					pr_err("UABI engine analt found for { class:%d, instance:%d }\n",
 					       class, inst);
 					errors++;
 					continue;

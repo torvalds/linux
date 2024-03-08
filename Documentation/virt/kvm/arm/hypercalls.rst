@@ -42,16 +42,16 @@ The following registers are defined:
 
   Accepted values are:
 
-    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_NOT_AVAIL:
-      KVM does not offer
+    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_ANALT_AVAIL:
+      KVM does analt offer
       firmware support for the workaround. The mitigation status for the
-      guest is unknown.
+      guest is unkanalwn.
     KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_AVAIL:
       The workaround HVC call is
       available to the guest and required for the mitigation.
-    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_NOT_REQUIRED:
+    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_ANALT_REQUIRED:
       The workaround HVC call
-      is available to the guest, but it is not needed on this VCPU.
+      is available to the guest, but it is analt needed on this VCPU.
 
 * KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2:
     Holds the state of the firmware support to mitigate CVE-2018-3639, as
@@ -60,19 +60,19 @@ The following registers are defined:
 
   Accepted values are:
 
-    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_AVAIL:
-      A workaround is not
-      available. KVM does not offer firmware support for the workaround.
-    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_UNKNOWN:
+    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ANALT_AVAIL:
+      A workaround is analt
+      available. KVM does analt offer firmware support for the workaround.
+    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_UNKANALWN:
       The workaround state is
-      unknown. KVM does not offer firmware support for the workaround.
+      unkanalwn. KVM does analt offer firmware support for the workaround.
     KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_AVAIL:
       The workaround is available,
       and can be disabled by a vCPU. If
       KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ENABLED is set, it is active for
       this vCPU.
-    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_REQUIRED:
-      The workaround is always active on this vCPU or it is not needed.
+    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ANALT_REQUIRED:
+      The workaround is always active on this vCPU or it is analt needed.
 
 
 Bitmap Feature Firmware Registers
@@ -91,7 +91,7 @@ desired bitmap back via SET_ONE_REG. The features for the registers that
 are untouched, probably because userspace isn't aware of them, will be
 exposed as is to the guest.
 
-Note that KVM will not allow the userspace to configure the registers
+Analte that KVM will analt allow the userspace to configure the registers
 anymore once any of the vCPUs has run at least once. Instead, it will
 return a -EBUSY.
 
@@ -130,7 +130,7 @@ The pseudo-firmware bitmap register are as follows:
 Errors:
 
     =======  =============================================================
-    -ENOENT   Unknown register accessed.
+    -EANALENT   Unkanalwn register accessed.
     -EBUSY    Attempt a 'write' to the register after the VM has started.
     -EINVAL   Invalid bitmap written to the register.
     =======  =============================================================

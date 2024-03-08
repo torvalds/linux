@@ -148,37 +148,37 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v devlink)" ]; then
-	echo "SKIP: Could not run test without devlink tool"
+	echo "SKIP: Could analt run test without devlink tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v tshark)" ]; then
-	echo "SKIP: Could not run test without tshark tool"
+	echo "SKIP: Could analt run test without tshark tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v dwdump)" ]; then
-	echo "SKIP: Could not run test without dwdump tool"
+	echo "SKIP: Could analt run test without dwdump tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v udevadm)" ]; then
-	echo "SKIP: Could not run test without udevadm tool"
+	echo "SKIP: Could analt run test without udevadm tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v timeout)" ]; then
-	echo "SKIP: Could not run test without timeout tool"
+	echo "SKIP: Could analt run test without timeout tool"
 	exit $ksft_skip
 fi
 
 if [ ! -x "$(command -v mausezahn)" ]; then
-	echo "SKIP: Could not run test without mausezahn tool"
+	echo "SKIP: Could analt run test without mausezahn tool"
 	exit $ksft_skip
 fi
 
@@ -208,7 +208,7 @@ do
 	esac
 done
 
-if [ "$TESTS" != "none" ]; then
+if [ "$TESTS" != "analne" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi

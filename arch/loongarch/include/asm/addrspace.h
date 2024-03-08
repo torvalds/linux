@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
  * Copyright (C) 1996, 99 Ralf Baechle
@@ -85,7 +85,7 @@ extern unsigned long vm_map_base;
 #define _ACAST64_
 #else
 #define _ACAST32_		(_ATYPE_)(_ATYPE32_)	/* widen if necessary */
-#define _ACAST64_		(_ATYPE64_)		/* do _not_ narrow */
+#define _ACAST64_		(_ATYPE64_)		/* do _analt_ narrow */
 #endif
 
 #ifdef CONFIG_32BIT

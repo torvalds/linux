@@ -80,10 +80,10 @@ DEBUGFS_SEQ_FILE_OPS(fault_stats);
 DEBUGFS_SEQ_FILE_OPEN(fault_stats);
 DEBUGFS_FILE_OPS(fault_stats);
 
-static int fault_opcodes_open(struct inode *inode, struct file *file)
+static int fault_opcodes_open(struct ianalde *ianalde, struct file *file)
 {
-	file->private_data = inode->i_private;
-	return nonseekable_open(inode, file);
+	file->private_data = ianalde->i_private;
+	return analnseekable_open(ianalde, file);
 }
 
 static ssize_t fault_opcodes_write(struct file *file, const char __user *buf,
@@ -97,7 +97,7 @@ static ssize_t fault_opcodes_write(struct file *file, const char __user *buf,
 
 	data = kcalloc(datalen, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	copy = min(len, datalen - 1);
 	if (copy_from_user(data, buf, copy)) {
 		ret = -EFAULT;
@@ -172,7 +172,7 @@ static ssize_t fault_opcodes_read(struct file *file, char __user *buf,
 
 	data = kcalloc(datalen, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = debugfs_file_get(file->f_path.dentry);
 	if (unlikely(ret))
 		goto free_data;
@@ -203,7 +203,7 @@ static const struct file_operations __fault_opcodes_fops = {
 	.open = fault_opcodes_open,
 	.read = fault_opcodes_read,
 	.write = fault_opcodes_write,
-	.llseek = no_llseek
+	.llseek = anal_llseek
 };
 
 void hfi1_fault_exit_debugfs(struct hfi1_ibdev *ibd)
@@ -221,7 +221,7 @@ int hfi1_fault_init_debugfs(struct hfi1_ibdev *ibd)
 
 	ibd->fault = kzalloc(sizeof(*ibd->fault), GFP_KERNEL);
 	if (!ibd->fault)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ibd->fault->attr.interval = 1;
 	ibd->fault->attr.require_end = ULONG_MAX;
@@ -242,7 +242,7 @@ int hfi1_fault_init_debugfs(struct hfi1_ibdev *ibd)
 	if (IS_ERR(fault_dir)) {
 		kfree(ibd->fault);
 		ibd->fault = NULL;
-		return -ENOENT;
+		return -EANALENT;
 	}
 	ibd->fault->dir = fault_dir;
 

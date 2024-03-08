@@ -17,8 +17,8 @@ void test_sk_storage_omem_uncharge(void)
 		return;
 	map_fd = bpf_map__fd(skel->maps.sk_storage);
 
-	/* A standalone socket not binding to addr:port,
-	 * so nentns is not needed.
+	/* A standalone socket analt binding to addr:port,
+	 * so nentns is analt needed.
 	 */
 	sk_fd = socket(AF_INET6, SOCK_STREAM, 0);
 	if (!ASSERT_GE(sk_fd, 0, "socket"))

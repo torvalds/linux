@@ -19,7 +19,7 @@ extern enum hash_algo ima_get_current_hash_algo(void);
 extern int ima_bprm_check(struct linux_binprm *bprm);
 extern int ima_file_check(struct file *file, int mask);
 extern void ima_post_create_tmpfile(struct mnt_idmap *idmap,
-				    struct inode *inode);
+				    struct ianalde *ianalde);
 extern void ima_file_free(struct file *file);
 extern int ima_file_mmap(struct file *file, unsigned long reqprot,
 			 unsigned long prot, unsigned long flags);
@@ -31,10 +31,10 @@ extern int ima_read_file(struct file *file, enum kernel_read_file_id id,
 			 bool contents);
 extern int ima_post_read_file(struct file *file, void *buf, loff_t size,
 			      enum kernel_read_file_id id);
-extern void ima_post_path_mknod(struct mnt_idmap *idmap,
+extern void ima_post_path_mkanald(struct mnt_idmap *idmap,
 				struct dentry *dentry);
 extern int ima_file_hash(struct file *file, char *buf, size_t buf_size);
-extern int ima_inode_hash(struct inode *inode, char *buf, size_t buf_size);
+extern int ima_ianalde_hash(struct ianalde *ianalde, char *buf, size_t buf_size);
 extern void ima_kexec_cmdline(int kernel_fd, const void *buf, int size);
 extern int ima_measure_critical_data(const char *event_label,
 				     const char *event_name,
@@ -68,7 +68,7 @@ static inline int ima_file_check(struct file *file, int mask)
 }
 
 static inline void ima_post_create_tmpfile(struct mnt_idmap *idmap,
-					   struct inode *inode)
+					   struct ianalde *ianalde)
 {
 }
 
@@ -113,7 +113,7 @@ static inline int ima_post_read_file(struct file *file, void *buf, loff_t size,
 	return 0;
 }
 
-static inline void ima_post_path_mknod(struct mnt_idmap *idmap,
+static inline void ima_post_path_mkanald(struct mnt_idmap *idmap,
 				       struct dentry *dentry)
 {
 	return;
@@ -121,12 +121,12 @@ static inline void ima_post_path_mknod(struct mnt_idmap *idmap,
 
 static inline int ima_file_hash(struct file *file, char *buf, size_t buf_size)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-static inline int ima_inode_hash(struct inode *inode, char *buf, size_t buf_size)
+static inline int ima_ianalde_hash(struct ianalde *ianalde, char *buf, size_t buf_size)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void ima_kexec_cmdline(int kernel_fd, const void *buf, int size) {}
@@ -137,7 +137,7 @@ static inline int ima_measure_critical_data(const char *event_label,
 					     bool hash, u8 *digest,
 					     size_t digest_len)
 {
-	return -ENOENT;
+	return -EANALENT;
 }
 
 #endif /* CONFIG_IMA */
@@ -185,33 +185,33 @@ static inline void ima_post_key_create_or_update(struct key *keyring,
 
 #ifdef CONFIG_IMA_APPRAISE
 extern bool is_ima_appraise_enabled(void);
-extern void ima_inode_post_setattr(struct mnt_idmap *idmap,
+extern void ima_ianalde_post_setattr(struct mnt_idmap *idmap,
 				   struct dentry *dentry);
-extern int ima_inode_setxattr(struct dentry *dentry, const char *xattr_name,
+extern int ima_ianalde_setxattr(struct dentry *dentry, const char *xattr_name,
 		       const void *xattr_value, size_t xattr_value_len);
-extern int ima_inode_set_acl(struct mnt_idmap *idmap,
+extern int ima_ianalde_set_acl(struct mnt_idmap *idmap,
 			     struct dentry *dentry, const char *acl_name,
 			     struct posix_acl *kacl);
-static inline int ima_inode_remove_acl(struct mnt_idmap *idmap,
+static inline int ima_ianalde_remove_acl(struct mnt_idmap *idmap,
 				       struct dentry *dentry,
 				       const char *acl_name)
 {
-	return ima_inode_set_acl(idmap, dentry, acl_name, NULL);
+	return ima_ianalde_set_acl(idmap, dentry, acl_name, NULL);
 }
-extern int ima_inode_removexattr(struct dentry *dentry, const char *xattr_name);
+extern int ima_ianalde_removexattr(struct dentry *dentry, const char *xattr_name);
 #else
 static inline bool is_ima_appraise_enabled(void)
 {
 	return 0;
 }
 
-static inline void ima_inode_post_setattr(struct mnt_idmap *idmap,
+static inline void ima_ianalde_post_setattr(struct mnt_idmap *idmap,
 					  struct dentry *dentry)
 {
 	return;
 }
 
-static inline int ima_inode_setxattr(struct dentry *dentry,
+static inline int ima_ianalde_setxattr(struct dentry *dentry,
 				     const char *xattr_name,
 				     const void *xattr_value,
 				     size_t xattr_value_len)
@@ -219,7 +219,7 @@ static inline int ima_inode_setxattr(struct dentry *dentry,
 	return 0;
 }
 
-static inline int ima_inode_set_acl(struct mnt_idmap *idmap,
+static inline int ima_ianalde_set_acl(struct mnt_idmap *idmap,
 				    struct dentry *dentry, const char *acl_name,
 				    struct posix_acl *kacl)
 {
@@ -227,13 +227,13 @@ static inline int ima_inode_set_acl(struct mnt_idmap *idmap,
 	return 0;
 }
 
-static inline int ima_inode_removexattr(struct dentry *dentry,
+static inline int ima_ianalde_removexattr(struct dentry *dentry,
 					const char *xattr_name)
 {
 	return 0;
 }
 
-static inline int ima_inode_remove_acl(struct mnt_idmap *idmap,
+static inline int ima_ianalde_remove_acl(struct mnt_idmap *idmap,
 				       struct dentry *dentry,
 				       const char *acl_name)
 {

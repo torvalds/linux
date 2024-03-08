@@ -3,7 +3,7 @@
  * linux/drivers/video/mmp/fb/mmpfb.h
  * Framebuffer driver for Marvell Display controller.
  *
- * Copyright (C) 2012 Marvell Technology Group Ltd.
+ * Copyright (C) 2012 Marvell Techanallogy Group Ltd.
  * Authors: Zhou Zhu <zzhu3@marvell.com>
  */
 

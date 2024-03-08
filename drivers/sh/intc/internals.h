@@ -100,7 +100,7 @@ static inline struct intc_desc_int *get_intc_desc(unsigned int irq)
  */
 static inline void activate_irq(int irq)
 {
-	irq_modify_status(irq, IRQ_NOREQUEST, IRQ_NOPROBE);
+	irq_modify_status(irq, IRQ_ANALREQUEST, IRQ_ANALPROBE);
 }
 
 static inline int intc_handle_int_cmp(const void *a, const void *b)
@@ -126,7 +126,7 @@ extern unsigned long
 				unsigned long, unsigned long),
 		      unsigned int irq);
 extern unsigned long
-(*intc_enable_noprio_fns[])(unsigned long addr, unsigned long handle,
+(*intc_enable_analprio_fns[])(unsigned long addr, unsigned long handle,
 		            unsigned long (*fn)(unsigned long,
 				unsigned long, unsigned long),
 			    unsigned int irq);

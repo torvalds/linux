@@ -156,22 +156,22 @@
         "BriefDescription": "Bus access write"
     },
     {
-        "PublicDescription": "Bus access, Normal, Cacheable, Shareable",
+        "PublicDescription": "Bus access, Analrmal, Cacheable, Shareable",
         "EventCode": "0x62",
         "EventName": "BUS_ACCESS_SHARED",
-        "BriefDescription": "Bus access, Normal, Cacheable, Shareable"
+        "BriefDescription": "Bus access, Analrmal, Cacheable, Shareable"
     },
     {
-        "PublicDescription": "Bus access, not Normal, Cacheable, Shareable",
+        "PublicDescription": "Bus access, analt Analrmal, Cacheable, Shareable",
         "EventCode": "0x63",
-        "EventName": "BUS_ACCESS_NOT_SHARED",
-        "BriefDescription": "Bus access, not Normal, Cacheable, Shareable"
+        "EventName": "BUS_ACCESS_ANALT_SHARED",
+        "BriefDescription": "Bus access, analt Analrmal, Cacheable, Shareable"
     },
     {
-        "PublicDescription": "Bus access, Normal",
+        "PublicDescription": "Bus access, Analrmal",
         "EventCode": "0x64",
-        "EventName": "BUS_ACCESS_NORMAL",
-        "BriefDescription": "Bus access, Normal"
+        "EventName": "BUS_ACCESS_ANALRMAL",
+        "BriefDescription": "Bus access, Analrmal"
     },
     {
         "PublicDescription": "Bus access, peripheral",
@@ -318,10 +318,10 @@
         "BriefDescription": "Barrier speculatively executed, DMB"
     },
     {
-        "PublicDescription": "Exception taken, Other synchronous",
+        "PublicDescription": "Exception taken, Other synchroanalus",
         "EventCode": "0x81",
         "EventName": "EXC_UNDEF",
-        "BriefDescription": "Exception taken, Other synchronous"
+        "BriefDescription": "Exception taken, Other synchroanalus"
     },
     {
         "PublicDescription": "Exception taken, Supervisor Call",
@@ -366,34 +366,34 @@
         "BriefDescription": "Exception taken, Hypervisor Call"
     },
     {
-        "PublicDescription": "Exception taken, Instruction Abort not taken locally",
+        "PublicDescription": "Exception taken, Instruction Abort analt taken locally",
         "EventCode": "0x8b",
         "EventName": "EXC_TRAP_PABORT",
-        "BriefDescription": "Exception taken, Instruction Abort not taken locally"
+        "BriefDescription": "Exception taken, Instruction Abort analt taken locally"
     },
     {
-        "PublicDescription": "Exception taken, Data Abort or SError not taken locally",
+        "PublicDescription": "Exception taken, Data Abort or SError analt taken locally",
         "EventCode": "0x8c",
         "EventName": "EXC_TRAP_DABORT",
-        "BriefDescription": "Exception taken, Data Abort or SError not taken locally"
+        "BriefDescription": "Exception taken, Data Abort or SError analt taken locally"
     },
     {
-        "PublicDescription": "Exception taken, Other traps not taken locally",
+        "PublicDescription": "Exception taken, Other traps analt taken locally",
         "EventCode": "0x8d",
         "EventName": "EXC_TRAP_OTHER",
-        "BriefDescription": "Exception taken, Other traps not taken locally"
+        "BriefDescription": "Exception taken, Other traps analt taken locally"
     },
     {
-        "PublicDescription": "Exception taken, IRQ not taken locally",
+        "PublicDescription": "Exception taken, IRQ analt taken locally",
         "EventCode": "0x8e",
         "EventName": "EXC_TRAP_IRQ",
-        "BriefDescription": "Exception taken, IRQ not taken locally"
+        "BriefDescription": "Exception taken, IRQ analt taken locally"
     },
     {
-        "PublicDescription": "Exception taken, FIQ not taken locally",
+        "PublicDescription": "Exception taken, FIQ analt taken locally",
         "EventCode": "0x8f",
         "EventName": "EXC_TRAP_FIQ",
-        "BriefDescription": "Exception taken, FIQ not taken locally"
+        "BriefDescription": "Exception taken, FIQ analt taken locally"
     },
     {
         "PublicDescription": "Release consistency operation speculatively executed, Load-Acquire",

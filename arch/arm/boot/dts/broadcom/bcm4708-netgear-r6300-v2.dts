@@ -79,7 +79,7 @@
 	};
 };
 
-&spi_nor {
+&spi_analr {
 	status = "okay";
 };
 

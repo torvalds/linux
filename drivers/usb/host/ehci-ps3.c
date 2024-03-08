@@ -89,7 +89,7 @@ static int ps3_ehci_probe(struct ps3_system_bus_device *dev)
 	static u64 dummy_mask;
 
 	if (usb_disabled()) {
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto fail_start;
 	}
 
@@ -140,7 +140,7 @@ static int ps3_ehci_probe(struct ps3_system_bus_device *dev)
 	if (!hcd) {
 		dev_dbg(&dev->core, "%s:%d: usb_create_hcd failed\n", __func__,
 			__LINE__);
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto fail_create_hcd;
 	}
 

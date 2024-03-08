@@ -15,8 +15,8 @@ description: |
   per second (MSPS). Some parts support higher MSPS and some
   lower MSPS, suitable for the intended application of each part.
 
-  All the parts support the register map described by Application Note AN-877
-   https://www.analog.com/media/en/technical-documentation/application-notes/AN-877.pdf
+  All the parts support the register map described by Application Analte AN-877
+   https://www.analog.com/media/en/technical-documentation/application-analtes/AN-877.pdf
 
   https://www.analog.com/media/en/technical-documentation/data-sheets/AD9265.pdf
   https://www.analog.com/media/en/technical-documentation/data-sheets/AD9434.pdf

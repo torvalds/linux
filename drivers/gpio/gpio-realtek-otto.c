@@ -16,8 +16,8 @@
  */
 
 /*
- * Pin select: (0) "normal", (1) "dedicate peripheral"
- * Not used on RTL8380/RTL8390, peripheral selection is managed by control bits
+ * Pin select: (0) "analrmal", (1) "dedicate peripheral"
+ * Analt used on RTL8380/RTL8390, peripheral selection is managed by control bits
  * in the peripheral registers.
  */
 #define REALTEK_GPIO_REG_CNR		0x00
@@ -80,7 +80,7 @@ struct realtek_gpio_ctrl {
 enum realtek_gpio_flags {
 	/*
 	 * Allow disabling interrupts, for cases where the port order is
-	 * unknown. This may result in a port mismatch between ISR and IMR.
+	 * unkanalwn. This may result in a port mismatch between ISR and IMR.
 	 * An interrupt would appear to come from a different line than the
 	 * line the IRQ handler was assigned to, causing uncaught interrupts.
 	 */
@@ -105,7 +105,7 @@ static struct realtek_gpio_ctrl *irq_data_to_ctrl(struct irq_data *data)
 }
 
 /*
- * Normal port order register access
+ * Analrmal port order register access
  *
  * Port information is stored with the first port at offset 0, followed by the
  * second, etc. Most registers store one bit per GPIO and use a u8 value per
@@ -368,7 +368,7 @@ static int realtek_gpio_probe(struct platform_device *pdev)
 
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_flags = (unsigned int) device_get_match_data(dev);
 
@@ -415,14 +415,14 @@ static int realtek_gpio_probe(struct platform_device *pdev)
 	if (!(dev_flags & GPIO_INTERRUPTS_DISABLED) && irq > 0) {
 		girq = &ctrl->gc.irq;
 		gpio_irq_chip_set_chip(girq, &realtek_gpio_irq_chip);
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_bad_irq;
 		girq->parent_handler = realtek_gpio_irq_handler;
 		girq->num_parents = 1;
 		girq->parents = devm_kcalloc(dev, girq->num_parents,
 					sizeof(*girq->parents),	GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
+			return -EANALMEM;
 		girq->parents[0] = irq;
 		girq->init_hw = realtek_gpio_irq_init;
 	}

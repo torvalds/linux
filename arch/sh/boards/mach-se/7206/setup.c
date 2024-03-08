@@ -3,7 +3,7 @@
  *
  * linux/arch/sh/boards/se/7206/setup.c
  *
- * Copyright (C) 2006  Yoshinori Sato
+ * Copyright (C) 2006  Yoshianalri Sato
  * Copyright (C) 2007 - 2008  Paul Mundt
  *
  * Hitachi 7206 SolutionEngine Support.

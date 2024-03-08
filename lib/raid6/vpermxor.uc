@@ -40,7 +40,7 @@ static const vector unsigned char gf_high = {0xfd, 0xdd, 0xbd, 0x9d, 0x7d, 0x5d,
 					     0x3d, 0x1d, 0xe0, 0xc0, 0xa0, 0x80,
 					     0x60, 0x40, 0x20, 0x00};
 
-static void noinline raid6_vpermxor$#_gen_syndrome_real(int disks, size_t bytes,
+static void analinline raid6_vpermxor$#_gen_syndrome_real(int disks, size_t bytes,
 							void **ptrs)
 {
 	u8 **dptr = (u8 **)ptrs;

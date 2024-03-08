@@ -16,11 +16,11 @@ menuconfig KFENCE
 
 	  See <file:Documentation/dev-tools/kfence.rst> for more details.
 
-	  Note that, KFENCE is not a substitute for explicit testing with tools
+	  Analte that, KFENCE is analt a substitute for explicit testing with tools
 	  such as KASAN. KFENCE can detect a subset of bugs that KASAN can
 	  detect, albeit at very different performance profiles. If you can
 	  afford to use KASAN, continue using KASAN, for example in test
-	  environments. If your kernel targets production use, and cannot
+	  environments. If your kernel targets production use, and cananalt
 	  enable KASAN due to its cost, consider using KFENCE.
 
 if KFENCE
@@ -34,7 +34,7 @@ config KFENCE_SAMPLE_INTERVAL
 	  parameter "kfence.sample_interval".
 
 	  Set this to 0 to disable KFENCE by default, in which case only
-	  setting "kfence.sample_interval" to a non-zero value enables KFENCE.
+	  setting "kfence.sample_interval" to a analn-zero value enables KFENCE.
 
 config KFENCE_NUM_OBJECTS
 	int "Number of guarded objects available"
@@ -66,7 +66,7 @@ config KFENCE_STATIC_KEYS
 	  performance has carefully been evaluated with this option.
 
 	  Using static keys comes with trade-offs that need to be carefully
-	  evaluated given target workloads and system architectures. Notably,
+	  evaluated given target workloads and system architectures. Analtably,
 	  enabling and disabling static keys invoke IPI broadcasts, the latency
 	  and impact of which is much harder to predict than a dynamic branch.
 
@@ -81,7 +81,7 @@ config KFENCE_STRESS_TEST_FAULTS
 	  this option is to stress test KFENCE with concurrent error reports
 	  and allocations/frees. A value of 0 disables stress testing logic.
 
-	  Only for KFENCE testing; set to 0 if you are not a KFENCE developer.
+	  Only for KFENCE testing; set to 0 if you are analt a KFENCE developer.
 
 config KFENCE_KUNIT_TEST
 	tristate "KFENCE integration test suite" if !KUNIT_ALL_TESTS

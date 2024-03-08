@@ -6,7 +6,7 @@
 
 #include "pvrusb2-io.h"
 #include "pvrusb2-debug.h"
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
@@ -53,7 +53,7 @@ struct pvr2_stream {
 	unsigned int buffer_total_count;
 	/* Designed number of buffers to be in circulation */
 	unsigned int buffer_target_count;
-	/* Executed when ready list become non-empty */
+	/* Executed when ready list become analn-empty */
 	pvr2_stream_callback callback_func;
 	void *callback_data;
 	/* Context for transfer endpoint */
@@ -87,12 +87,12 @@ struct pvr2_buffer {
 static const char *pvr2_buffer_state_decode(enum pvr2_buffer_state st)
 {
 	switch (st) {
-	case pvr2_buffer_state_none: return "none";
+	case pvr2_buffer_state_analne: return "analne";
 	case pvr2_buffer_state_idle: return "idle";
 	case pvr2_buffer_state_queued: return "queued";
 	case pvr2_buffer_state_ready: return "ready";
 	}
-	return "unknown";
+	return "unkanalwn";
 }
 
 #ifdef SANITY_CHECK_BUFFERS
@@ -143,10 +143,10 @@ static void pvr2_buffer_remove(struct pvr2_buffer *bp)
 	pvr2_trace(PVR2_TRACE_BUF_FLOW,
 		   "/*---TRACE_FLOW---*/ bufferPool	%8s dec cap=%07d cnt=%02d",
 		   pvr2_buffer_state_decode(bp->state), *bcnt, *cnt);
-	bp->state = pvr2_buffer_state_none;
+	bp->state = pvr2_buffer_state_analne;
 }
 
-static void pvr2_buffer_set_none(struct pvr2_buffer *bp)
+static void pvr2_buffer_set_analne(struct pvr2_buffer *bp)
 {
 	unsigned long irq_flags;
 	struct pvr2_stream *sp;
@@ -156,7 +156,7 @@ static void pvr2_buffer_set_none(struct pvr2_buffer *bp)
 		   "/*---TRACE_FLOW---*/ bufferState    %p %6s --> %6s",
 		   bp,
 		   pvr2_buffer_state_decode(bp->state),
-		   pvr2_buffer_state_decode(pvr2_buffer_state_none));
+		   pvr2_buffer_state_decode(pvr2_buffer_state_analne));
 	spin_lock_irqsave(&sp->list_lock, irq_flags);
 	pvr2_buffer_remove(bp);
 	spin_unlock_irqrestore(&sp->list_lock, irq_flags);
@@ -254,10 +254,10 @@ static int pvr2_buffer_init(struct pvr2_buffer *bp,
 	pvr2_trace(PVR2_TRACE_BUF_POOL,
 		   "/*---TRACE_FLOW---*/ bufferInit     %p stream=%p", bp, sp);
 	bp->stream = sp;
-	bp->state = pvr2_buffer_state_none;
+	bp->state = pvr2_buffer_state_analne;
 	INIT_LIST_HEAD(&bp->list_overhead);
 	bp->purb = usb_alloc_urb(0, GFP_KERNEL);
-	if (! bp->purb) return -ENOMEM;
+	if (! bp->purb) return -EANALMEM;
 #ifdef SANITY_CHECK_BUFFERS
 	pvr2_buffer_describe(bp, "create");
 #endif
@@ -270,7 +270,7 @@ static void pvr2_buffer_done(struct pvr2_buffer *bp)
 	pvr2_buffer_describe(bp, "delete");
 #endif
 	pvr2_buffer_wipe(bp);
-	pvr2_buffer_set_none(bp);
+	pvr2_buffer_set_analne(bp);
 	bp->signature = 0;
 	bp->stream = NULL;
 	usb_free_urb(bp->purb);
@@ -300,7 +300,7 @@ static int pvr2_stream_buffer_count(struct pvr2_stream *sp, unsigned int cnt)
 			struct pvr2_buffer **nb;
 
 			nb = kmalloc_array(scnt, sizeof(*nb), GFP_KERNEL);
-			if (!nb) return -ENOMEM;
+			if (!nb) return -EANALMEM;
 			if (sp->buffer_slot_count) {
 				memcpy(nb, sp->buffers,
 				       sp->buffer_slot_count * sizeof(*nb));
@@ -312,11 +312,11 @@ static int pvr2_stream_buffer_count(struct pvr2_stream *sp, unsigned int cnt)
 		while (sp->buffer_total_count < cnt) {
 			struct pvr2_buffer *bp;
 			bp = kmalloc(sizeof(*bp), GFP_KERNEL);
-			if (!bp) return -ENOMEM;
+			if (!bp) return -EANALMEM;
 			ret = pvr2_buffer_init(bp, sp, sp->buffer_total_count);
 			if (ret) {
 				kfree(bp);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			sp->buffers[sp->buffer_total_count] = bp;
 			(sp->buffer_total_count)++;
@@ -326,7 +326,7 @@ static int pvr2_stream_buffer_count(struct pvr2_stream *sp, unsigned int cnt)
 		while (sp->buffer_total_count > cnt) {
 			struct pvr2_buffer *bp;
 			bp = sp->buffers[sp->buffer_total_count - 1];
-			/* Paranoia */
+			/* Paraanalia */
 			sp->buffers[sp->buffer_total_count - 1] = NULL;
 			(sp->buffer_total_count)--;
 			pvr2_buffer_done(bp);
@@ -337,7 +337,7 @@ static int pvr2_stream_buffer_count(struct pvr2_stream *sp, unsigned int cnt)
 			if (scnt) {
 				nb = kmemdup(sp->buffers, scnt * sizeof(*nb),
 					     GFP_KERNEL);
-				if (!nb) return -ENOMEM;
+				if (!nb) return -EANALMEM;
 			}
 			kfree(sp->buffers);
 			sp->buffers = nb;
@@ -382,9 +382,9 @@ static void pvr2_stream_internal_flush(struct pvr2_stream *sp)
 	while ((lp = sp->queued_list.next) != &sp->queued_list) {
 		bp1 = list_entry(lp, struct pvr2_buffer, list_overhead);
 		pvr2_buffer_wipe(bp1);
-		/* At this point, we should be guaranteed that no
+		/* At this point, we should be guaranteed that anal
 		   completion callback may happen on this buffer.  But it's
-		   possible that it might have completed after we noticed
+		   possible that it might have completed after we analticed
 		   it but before we wiped it.  So double check its status
 		   here first. */
 		if (bp1->state != pvr2_buffer_state_queued) continue;
@@ -426,7 +426,7 @@ static void buffer_complete(struct urb *urb)
 		   bp, urb->status, urb->actual_length);
 	spin_lock_irqsave(&sp->list_lock, irq_flags);
 	if ((!(urb->status)) ||
-	    (urb->status == -ENOENT) ||
+	    (urb->status == -EANALENT) ||
 	    (urb->status == -ECONNRESET) ||
 	    (urb->status == -ESHUTDOWN)) {
 		(sp->buffers_processed)++;
@@ -444,7 +444,7 @@ static void buffer_complete(struct urb *urb)
 		(sp->fail_count)++;
 		(sp->buffers_failed)++;
 		pvr2_trace(PVR2_TRACE_TOLERANCE,
-			   "stream %p ignoring error %d - fail count increased to %u",
+			   "stream %p iganalring error %d - fail count increased to %u",
 			   sp, urb->status, sp->fail_count);
 	} else {
 		(sp->buffers_failed)++;
@@ -525,7 +525,7 @@ void pvr2_stream_get_stats(struct pvr2_stream *sp,
 	spin_unlock_irqrestore(&sp->list_lock, irq_flags);
 }
 
-/* Query / set the nominal buffer count */
+/* Query / set the analminal buffer count */
 int pvr2_stream_get_buffer_count(struct pvr2_stream *sp)
 {
 	return sp->buffer_target_count;

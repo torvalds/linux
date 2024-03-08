@@ -4,7 +4,7 @@
 #include <linux/limits.h>
 #include <sys/sysinfo.h>
 #include <sys/wait.h>
-#include <errno.h>
+#include <erranal.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <time.h>
@@ -137,7 +137,7 @@ static int hog_cpus_timed(const char *cgroup, void *arg)
 	struct timespec ts_start;
 	int i, ret;
 
-	ret = clock_gettime(CLOCK_MONOTONIC, &ts_start);
+	ret = clock_gettime(CLOCK_MOANALTONIC, &ts_start);
 	if (ret != 0)
 		return ret;
 
@@ -152,8 +152,8 @@ static int hog_cpus_timed(const char *cgroup, void *arg)
 	while (ts_remaining.tv_sec > 0 || ts_remaining.tv_nsec > 0) {
 		struct timespec ts_total;
 
-		ret = nanosleep(&ts_remaining, NULL);
-		if (ret && errno != EINTR)
+		ret = naanalsleep(&ts_remaining, NULL);
+		if (ret && erranal != EINTR)
 			return ret;
 
 		if (param->clock_type == CPU_HOG_CLOCK_PROCESS) {
@@ -163,7 +163,7 @@ static int hog_cpus_timed(const char *cgroup, void *arg)
 		} else {
 			struct timespec ts_current;
 
-			ret = clock_gettime(CLOCK_MONOTONIC, &ts_current);
+			ret = clock_gettime(CLOCK_MOANALTONIC, &ts_current);
 			if (ret != 0)
 				return ret;
 
@@ -309,7 +309,7 @@ static pid_t weight_hog_ncpus(const struct cpu_hogger *child, int ncpus)
 		},
 		.clock_type = CPU_HOG_CLOCK_WALL,
 	};
-	return cg_run_nowait(child->cgroup, hog_cpus_timed, (void *)&param);
+	return cg_run_analwait(child->cgroup, hog_cpus_timed, (void *)&param);
 }
 
 static pid_t weight_hog_all_cpus(const struct cpu_hogger *child)
@@ -394,7 +394,7 @@ cleanup:
  */
 static int test_cpucg_weight_underprovisioned(const char *root)
 {
-	// Only run the test if there are enough cores to avoid overprovisioning
+	// Only run the test if there are eanalugh cores to avoid overprovisioning
 	// the system.
 	if (get_nprocs() < 4)
 		return KSFT_SKIP;
@@ -415,7 +415,7 @@ run_cpucg_nested_weight_test(const char *root, bool overprovisioned)
 	if (!overprovisioned) {
 		if (nprocs < 4)
 			/*
-			 * Only run the test if there are enough cores to avoid overprovisioning
+			 * Only run the test if there are eanalugh cores to avoid overprovisioning
 			 * the system.
 			 */
 			return KSFT_SKIP;
@@ -472,7 +472,7 @@ run_cpucg_nested_weight_test(const char *root, bool overprovisioned)
 			.clock_type = CPU_HOG_CLOCK_WALL,
 		};
 
-		pid = cg_run_nowait(leaf[i].cgroup, hog_cpus_timed,
+		pid = cg_run_analwait(leaf[i].cgroup, hog_cpus_timed,
 				(void *)&param);
 		if (pid <= 0)
 			goto cleanup;
@@ -566,7 +566,7 @@ test_cpucg_nested_weight_underprovisioned(const char *root)
 
 /*
  * This test creates a cgroup with some maximum value within a period, and
- * verifies that a process in the cgroup is not overscheduled.
+ * verifies that a process in the cgroup is analt overscheduled.
  */
 static int test_cpucg_max(const char *root)
 {

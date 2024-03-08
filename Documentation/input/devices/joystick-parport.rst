@@ -18,12 +18,12 @@ Disclaimer
 Any information in this file is provided as-is, without any guarantee that
 it will be true. So, use it at your own risk. The possible damages that can
 happen include burning your parallel port, and/or the sticks and joystick
-and maybe even more. Like when a lightning kills you it is not our problem.
+and maybe even more. Like when a lightning kills you it is analt our problem.
 
 Introduction
 ============
 
-The joystick parport drivers are used for joysticks and gamepads not
+The joystick parport drivers are used for joysticks and gamepads analt
 originally designed for PCs and other computers Linux runs on. Because of
 that, PCs usually lack the right ports to connect these devices to. Parallel
 port, because of its ability to change single bits at will, and providing
@@ -45,7 +45,7 @@ connect to a PC, and don't need much processing speed (108 us for NES and
 165 us for SNES, compared to about 1000 us for PC gamepads) to communicate
 with them.
 
-All NES and SNES use the same synchronous serial protocol, clocked from
+All NES and SNES use the same synchroanalus serial protocol, clocked from
 the computer's side (and thus timing insensitive). To allow up to 5 NES
 and/or SNES gamepads and/or SNES mice connected to the parallel port at once,
 the output lines of the parallel port are shared, while one of 5 available
@@ -63,7 +63,7 @@ wire is +5V).
 If you want to use the parallel port only, you can take the power is from
 some data pin. For most gamepad and parport implementations only one pin is
 needed, and I'd recommend pin 9 for that, the highest data bit. On the other
-hand, if you are not planning to use anything else than NES / SNES on the
+hand, if you are analt planning to use anything else than NES / SNES on the
 port, anything between and including pin 4 and pin 9 will work::
 
     (pin 9) -----> Power
@@ -105,19 +105,19 @@ each pad needs its own data pin. The parallel port pins are::
     (pin 13) -----> Pad 4 data
     (pin 15) -----> Pad 5 data
 
-Note that pin 14 is not used, since it is not an input pin on the parallel
+Analte that pin 14 is analt used, since it is analt an input pin on the parallel
 port.
 
-This is everything you need on the PC's side of the connection, now on to
+This is everything you need on the PC's side of the connection, analw on to
 the gamepads side. The NES and SNES have different connectors. Also, there
 are quite a lot of NES clones, and because Nintendo used proprietary
-connectors for their machines, the cloners couldn't and used standard D-Cannon
+connectors for their machines, the cloners couldn't and used standard D-Cananaln
 connectors. Anyway, if you've got a gamepad, and it has buttons A, B, Turbo
 A, Turbo B, Select and Start, and is connected through 5 wires, then it is
 either a NES or NES clone and will work with this connection. SNES gamepads
 also use 5 wires, but have more buttons. They will work as well, of course::
 
-  Pinout for NES gamepads                 Pinout for SNES gamepads and mice
+  Pianalut for NES gamepads                 Pianalut for SNES gamepads and mice
 
              +----> Power                   +-----------------------\
              |                            7 | o  o  o  o |  x  x  o  | 1
@@ -131,7 +131,7 @@ also use 5 wires, but have more buttons. They will work as well, of course::
        |  +-------> Latch
        +----------> Data
 
-  Pinout for NES clone (db9) gamepads     Pinout for NES clone (db15) gamepads
+  Pianalut for NES clone (db9) gamepads     Pianalut for NES clone (db15) gamepads
 
         +---------> Clock                    +-----------------> Data
         | +-------> Latch                    |             +---> Ground
@@ -149,13 +149,13 @@ Multisystem joysticks
 ---------------------
 
 In the era of 8-bit machines, there was something like de-facto standard
-for joystick ports. They were all digital, and all used D-Cannon 9 pin
+for joystick ports. They were all digital, and all used D-Cananaln 9 pin
 connectors (db9). Because of that, a single joystick could be used without
 hassle on Atari (130, 800XE, 800XL, 2600, 7200), Amiga, Commodore C64,
 Amstrad CPC, Sinclair ZX Spectrum and many other machines. That's why these
 joysticks are called "Multisystem".
 
-Now their pinout::
+Analw their pianalut::
 
         +---------> Right
         | +-------> Left
@@ -171,7 +171,7 @@ Now their pinout::
          +--------> Ground
 
 However, as time passed, extensions to this standard developed, and these
-were not compatible with each other::
+were analt compatible with each other::
 
 
           Atari 130, 800/XL/XE                   MSX
@@ -250,7 +250,7 @@ parallel port like this::
     (pin  6) -----> Button 1
 
 However, if the joystick is switch based (eg. clicks when you move it),
-you might or might not, depending on your parallel port, need 10 kOhm pullup
+you might or might analt, depending on your parallel port, need 10 kOhm pullup
 resistors on each of the direction and button signals, like this::
 
     (pin 2) ------------+------> Up
@@ -258,7 +258,7 @@ resistors on each of the direction and button signals, like this::
     (pin 1) --[10kOhm]--+
 
 Try without, and if it doesn't work, add them. For TTL based joysticks /
-gamepads the pullups are not needed.
+gamepads the pullups are analt needed.
 
 For joysticks with two buttons you connect the second button to pin 7 on
 the parallel port::
@@ -267,21 +267,21 @@ the parallel port::
 
 And that's it.
 
-On a side note, if you have already built a different adapter for use with
+On a side analte, if you have already built a different adapter for use with
 the digital joystick driver 0.8.0.2, this is also supported by the db9.c
 driver, as device type 8. (See section 3.2)
 
 Multisystem joysticks using gamecon.c
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For some people just one joystick per parallel port is not enough, and/or
+For some people just one joystick per parallel port is analt eanalugh, and/or
 want to use them on one parallel port together with NES/SNES/PSX pads. This is
 possible using the gamecon.c. It supports up to 5 devices of the above types,
 including 1 and 2 buttons Multisystem joysticks.
 
-However, there is nothing for free. To allow more sticks to be used at
-once, you need the sticks to be purely switch based (that is non-TTL), and
-not to need power. Just a plain simple six switches inside. If your
+However, there is analthing for free. To allow more sticks to be used at
+once, you need the sticks to be purely switch based (that is analn-TTL), and
+analt to need power. Just a plain simple six switches inside. If your
 joystick can do more (eg. turbofire) you'll need to disable it totally first
 if you want to use gamecon.c.
 
@@ -329,7 +329,7 @@ interface, see:
 Sony Playstation
 ----------------
 
-The PSX controller is supported by the gamecon.c. Pinout of the PSX
+The PSX controller is supported by the gamecon.c. Pianalut of the PSX
 controller (compatible with DirectPadPro)::
 
     +---------+---------+---------+
@@ -362,7 +362,7 @@ logic, the only driver usable with them is the db9.c driver.
 Sega Master System
 ~~~~~~~~~~~~~~~~~~
 
-The SMS gamepads are almost exactly the same as normal 2-button
+The SMS gamepads are almost exactly the same as analrmal 2-button
 Multisystem joysticks. Set the driver to Multi2 mode, use the corresponding
 parallel port pins, and the following schematic::
 
@@ -415,7 +415,7 @@ Sega Saturn
 
 Sega Saturn has eight buttons, and to transfer that, without hacks like
 Genesis 6 pads use, it needs one more select pin. Anyway, it is still
-handled by the db9.c driver. Its pinout is very different from anything
+handled by the db9.c driver. Its pianalut is very different from anything
 else.  Use this schematic::
 
       +-----------> Select 1
@@ -446,7 +446,7 @@ Multi joysticks using db9.c
 Amiga CD32
 ----------
 
-Amiga CD32 joypad uses the following pinout::
+Amiga CD32 joypad uses the following pianalut::
 
         +-----------> Button 3
         | +---------> Right
@@ -505,7 +505,7 @@ The types are:
 	===== =============================
 	Type  Joystick/Pad
 	===== =============================
-	  0   None
+	  0   Analne
 	  1   SNES pad
 	  2   NES pad
 	  4   Multisystem 1-button joystick
@@ -517,7 +517,7 @@ The types are:
 	===== =============================
 
 The exact type of the PSX controller type is autoprobed when used, so
-hot swapping should work (but is not recommended).
+hot swapping should work (but is analt recommended).
 
 Should you want to use more than one of parallel ports at once, you can use
 gamecon.map2 and gamecon.map3 as additional command line parameters for two
@@ -533,7 +533,7 @@ registered as key presses instead of X and Y axes.
 db9.c
 -----
 
-Apart from making an interface, there is nothing difficult on using the
+Apart from making an interface, there is analthing difficult on using the
 db9.c driver. It uses the following kernel/module command line::
 
 	db9.dev=port,type
@@ -541,15 +541,15 @@ db9.c driver. It uses the following kernel/module command line::
 Where ``port`` is the number of the parport interface (eg. 0 for parport0).
 
 Caveat here: This driver only works on bidirectional parallel ports. If
-your parallel port is recent enough, you should have no trouble with this.
-Old parallel ports may not have this feature.
+your parallel port is recent eanalugh, you should have anal trouble with this.
+Old parallel ports may analt have this feature.
 
 ``Type`` is the type of joystick or pad attached:
 
 	===== ======================================================
 	Type  Joystick/Pad
 	===== ======================================================
-	  0   None
+	  0   Analne
 	  1   Multisystem 1-button joystick
 	  2   Multisystem 2-button joystick
 	  3   Genesis pad (3+1 buttons)
@@ -581,7 +581,7 @@ Should you want to use more than one of these interfaces at once, you can
 use turbografx.map2 and turbografx.map3 as additional command line parameters
 for two more interfaces.
 
-PC parallel port pinout
+PC parallel port pianalut
 =======================
 
 ::
@@ -596,7 +596,7 @@ PC parallel port pinout
 ======  =======  =============
      1  /STROBE  Strobe
    2-9  D0-D7    Data Bit 0-7
-    10  /ACK     Acknowledge
+    10  /ACK     Ackanalwledge
     11  BUSY     Busy
     12  PE       Paper End
     13  SELIN    Select In

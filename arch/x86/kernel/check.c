@@ -36,7 +36,7 @@ static __init int set_corruption_check(char *arg)
 	unsigned long val;
 
 	if (!arg) {
-		pr_err("memory_corruption_check config string not provided\n");
+		pr_err("memory_corruption_check config string analt provided\n");
 		return -EINVAL;
 	}
 
@@ -56,7 +56,7 @@ static __init int set_corruption_check_period(char *arg)
 	unsigned long val;
 
 	if (!arg) {
-		pr_err("memory_corruption_check_period config string not provided\n");
+		pr_err("memory_corruption_check_period config string analt provided\n");
 		return -EINVAL;
 	}
 
@@ -75,7 +75,7 @@ static __init int set_corruption_check_size(char *arg)
 	unsigned size;
 
 	if (!arg) {
-		pr_err("memory_corruption_check_size config string not provided\n");
+		pr_err("memory_corruption_check_size config string analt provided\n");
 		return -EINVAL;
 	}
 
@@ -112,7 +112,7 @@ void __init setup_bios_corruption_check(void)
 
 	corruption_check_size = round_up(corruption_check_size, PAGE_SIZE);
 
-	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end,
+	for_each_free_mem_range(i, NUMA_ANAL_ANALDE, MEMBLOCK_ANALNE, &start, &end,
 				NULL) {
 		start = clamp_t(phys_addr_t, round_up(start, PAGE_SIZE),
 				PAGE_SIZE, corruption_check_size);

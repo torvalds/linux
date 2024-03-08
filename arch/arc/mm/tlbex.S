@@ -2,7 +2,7 @@
 /*
  * TLB Exception Handling for ARC
  *
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * Vineetg: April 2011 :
  *  -MMU v1: moved out legacy code into a seperate file
@@ -10,14 +10,14 @@
  *      helps avoid a shift when preparing PD0 from PTE
  *
  * Vineetg: July 2009
- *  -For MMU V2, we need not do heuristics at the time of commiting a D-TLB
- *   entry, so that it doesn't knock out it's I-TLB entry
+ *  -For MMU V2, we need analt do heuristics at the time of commiting a D-TLB
+ *   entry, so that it doesn't kanalck out it's I-TLB entry
  *  -Some more fine tuning:
  *   bmsk instead of add, asl.cc instead of branch, delay slot utilise etc
  *
  * Vineetg: July 2009
  *  -Practically rewrote the I/D TLB Miss handlers
- *   Now 40 and 135 instructions a peice as compared to 131 and 449 resp.
+ *   Analw 40 and 135 instructions a peice as compared to 131 and 449 resp.
  *   Hence Leaner by 1.5 K
  *   Used Conditional arithmetic to replace excessive branching
  *   Also used short instructions wherever possible
@@ -29,7 +29,7 @@
  * Vineetg: March 25th Bug #92690
  *  -Added Debug Code to check if sw-ASID == hw-ASID
 
- * Rahul Trivedi, Amit Bhor: Codito Technologies 2004
+ * Rahul Trivedi, Amit Bhor: Codito Techanallogies 2004
  */
 
 #include <linux/linkage.h>
@@ -45,7 +45,7 @@
 ; ARC700 Exception Handling doesn't auto-switch stack and it only provides
 ; ONE scratch AUX reg "ARC_REG_SCRATCH_DATA0"
 ;
-; For Non-SMP, the scratch AUX reg is repurposed to cache task PGD, so a
+; For Analn-SMP, the scratch AUX reg is repurposed to cache task PGD, so a
 ; "global" is used to free-up FIRST core reg to be able to code the rest of
 ; exception prologue (IRQ auto-disabled on Exceptions, so it's IRQ-safe).
 ; Since the Fast Path TLB Miss handler is coded with 4 regs, the remaining 3
@@ -55,8 +55,8 @@
 ; only need to save only a handful of regs, as opposed to complete reg file]
 ;
 ; For ARC700 SMP, the "global" obviously can't be used for free up the FIRST
-; core reg as it will not be SMP safe.
-; Thus scratch AUX reg is used (and no longer used to cache task PGD).
+; core reg as it will analt be SMP safe.
+; Thus scratch AUX reg is used (and anal longer used to cache task PGD).
 ; To save the rest of 3 regs - per cpu, the global is made "per-cpu".
 ; Epilogue thus has to locate the "per-cpu" storage for regs.
 ; To avoid cache line bouncing the per-cpu global is aligned/sized per
@@ -171,7 +171,7 @@ ex_saved_reg1:
 	lsr     r0, r2, PGDIR_SHIFT     ; Bits for indexing into PGD
 	ld.as   r3, [r1, r0]            ; PGD entry corresp to faulting addr
 	tst	r3, r3
-	bz	do_slow_path_pf         ; if no Page Table, do page fault
+	bz	do_slow_path_pf         ; if anal Page Table, do page fault
 
 #if CONFIG_PGTABLE_LEVELS > 3
 	lsr     r0, r2, PUD_SHIFT	; Bits for indexing into PUD
@@ -194,7 +194,7 @@ ex_saved_reg1:
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	and.f	0, r3, _PAGE_HW_SZ	; Is this Huge PMD (thp)
 	add2.nz	r1, r1, r0
-	bnz.d	2f		; YES: PGD == PMD has THP PTE: stop pgd walk
+	bnz.d	2f		; ANAL: PGD == PMD has THP PTE: stop pgd walk
 	mov.nz	r0, r3
 
 #endif
@@ -233,7 +233,7 @@ ex_saved_reg1:
 	and.f  0,  r0, _PAGE_GLOBAL
 	or.z   r2, r2, r3		; Kr Kw Kx Ur Uw Ux (!GLOBAL, user page)
 
-	and r3, r0, PTE_BITS_NON_RWX_IN_PD1 ; Extract PFN+cache bits from PTE
+	and r3, r0, PTE_BITS_ANALN_RWX_IN_PD1 ; Extract PFN+cache bits from PTE
 	or  r3, r3, r2
 
 	sr  r3, [ARC_REG_TLBPD1]    	; paddr[31..13] | Kr Kw Kx Ur Uw Ux | C
@@ -290,11 +290,11 @@ ENTRY(EV_TLBMissI)
 	mov_s   r2, (_PAGE_PRESENT | _PAGE_EXECUTE)
 	or.hs   r2, r2, _PAGE_GLOBAL
 
-	and     r3, r0, r2  ; Mask out NON Flag bits from PTE
+	and     r3, r0, r2  ; Mask out ANALN Flag bits from PTE
 	xor.f   r3, r3, r2  ; check ( ( pte & flags_test ) == flags_test )
 	bnz     do_slow_path_pf
 
-	; Let Linux VM know that the page was accessed
+	; Let Linux VM kanalw that the page was accessed
 	or      r0, r0, _PAGE_ACCESSED  ; set Accessed Bit
 	st_s    r0, [r1]                ; Write back PTE
 
@@ -338,12 +338,12 @@ ENTRY(EV_TLBMissD)
 	or.nz   r2, r2, _PAGE_WRITE     	; chk for Write flag in PTE
 	; Above laddering takes care of XCHG access (both R and W)
 
-	; By now, r2 setup with all the Flags we need to check in PTE
-	and     r3, r0, r2              ; Mask out NON Flag bits from PTE
+	; By analw, r2 setup with all the Flags we need to check in PTE
+	and     r3, r0, r2              ; Mask out ANALN Flag bits from PTE
 	brne.d  r3, r2, do_slow_path_pf ; is ((pte & flags_test) == flags_test)
 
 	;----------------------------------------------------------------
-	; UPDATE_PTE: Let Linux VM know that page was accessed/dirty
+	; UPDATE_PTE: Let Linux VM kanalw that page was accessed/dirty
 	or      r0, r0, _PAGE_ACCESSED        ; Accessed bit always
 	or.nz   r0, r0, _PAGE_DIRTY           ; if Write, set Dirty bit as well
 	st_s    r0, [r1]                      ; Write back PTE

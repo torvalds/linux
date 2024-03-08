@@ -15,24 +15,24 @@ static void check_good_sample(struct test_perf_branches *skel)
 	int pbe_size = sizeof(struct perf_branch_entry);
 	int duration = 0;
 
-	if (CHECK(!skel->bss->valid, "output not valid",
-		 "no valid sample from prog"))
+	if (CHECK(!skel->bss->valid, "output analt valid",
+		 "anal valid sample from prog"))
 		return;
 
 	/*
 	 * It's hard to validate the contents of the branch entries b/c it
 	 * would require some kind of disassembler and also encoding the
 	 * valid jump instructions for supported architectures. So just check
-	 * the easy stuff for now.
+	 * the easy stuff for analw.
 	 */
 	CHECK(required_size <= 0, "read_branches_size", "err %d\n", required_size);
 	CHECK(written_stack < 0, "read_branches_stack", "err %d\n", written_stack);
 	CHECK(written_stack % pbe_size != 0, "read_branches_stack",
-	      "stack bytes written=%d not multiple of struct size=%d\n",
+	      "stack bytes written=%d analt multiple of struct size=%d\n",
 	      written_stack, pbe_size);
 	CHECK(written_global < 0, "read_branches_global", "err %d\n", written_global);
 	CHECK(written_global % pbe_size != 0, "read_branches_global",
-	      "global bytes written=%d not multiple of struct size=%d\n",
+	      "global bytes written=%d analt multiple of struct size=%d\n",
 	      written_global, pbe_size);
 	CHECK(written_global < written_stack, "read_branches_size",
 	      "written_global=%d < written_stack=%d\n", written_global, written_stack);
@@ -45,15 +45,15 @@ static void check_bad_sample(struct test_perf_branches *skel)
 	int written_stack = skel->bss->written_stack_out;
 	int duration = 0;
 
-	if (CHECK(!skel->bss->valid, "output not valid",
-		 "no valid sample from prog"))
+	if (CHECK(!skel->bss->valid, "output analt valid",
+		 "anal valid sample from prog"))
 		return;
 
-	CHECK((required_size != -EINVAL && required_size != -ENOENT),
+	CHECK((required_size != -EINVAL && required_size != -EANALENT),
 	      "read_branches_size", "err %d\n", required_size);
-	CHECK((written_stack != -EINVAL && written_stack != -ENOENT),
+	CHECK((written_stack != -EINVAL && written_stack != -EANALENT),
 	      "read_branches_stack", "written %d\n", written_stack);
-	CHECK((written_global != -EINVAL && written_global != -ENOENT),
+	CHECK((written_global != -EINVAL && written_global != -EANALENT),
 	      "read_branches_global", "written %d\n", written_global);
 }
 
@@ -120,14 +120,14 @@ static void test_perf_branches_hw(void)
 	 * so skip test in this case.
 	 */
 	if (pfd < 0) {
-		if (errno == ENOENT || errno == EOPNOTSUPP) {
-			printf("%s:SKIP:no PERF_SAMPLE_BRANCH_STACK\n",
+		if (erranal == EANALENT || erranal == EOPANALTSUPP) {
+			printf("%s:SKIP:anal PERF_SAMPLE_BRANCH_STACK\n",
 			       __func__);
 			test__skip();
 			return;
 		}
-		if (CHECK(pfd < 0, "perf_event_open", "err %d errno %d\n",
-			  pfd, errno))
+		if (CHECK(pfd < 0, "perf_event_open", "err %d erranal %d\n",
+			  pfd, erranal))
 			return;
 	}
 
@@ -140,7 +140,7 @@ static void test_perf_branches_hw(void)
  * Tests negative case -- run bpf_read_branch_records() on improperly configured
  * perf event.
  */
-static void test_perf_branches_no_hw(void)
+static void test_perf_branches_anal_hw(void)
 {
 	struct perf_event_attr attr = {0};
 	int duration = 0;
@@ -165,6 +165,6 @@ void test_perf_branches(void)
 {
 	if (test__start_subtest("perf_branches_hw"))
 		test_perf_branches_hw();
-	if (test__start_subtest("perf_branches_no_hw"))
-		test_perf_branches_no_hw();
+	if (test__start_subtest("perf_branches_anal_hw"))
+		test_perf_branches_anal_hw();
 }

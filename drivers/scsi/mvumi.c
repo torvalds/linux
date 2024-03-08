@@ -92,7 +92,7 @@ static int mvumi_map_pci_addr(struct pci_dev *dev, void **addr_array)
 				dev_err(&dev->dev, "failed to map Bar[%d]\n",
 									i);
 				mvumi_unmap_pci_addr(dev, addr_array);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		} else
 			addr_array[i] = NULL;
@@ -140,7 +140,7 @@ static struct mvumi_res *mvumi_alloc_mem_resource(struct mvumi_hba *mhba,
 		break;
 
 	default:
-		dev_err(&mhba->pdev->dev, "unknown resource type %d.\n", type);
+		dev_err(&mhba->pdev->dev, "unkanalwn resource type %d.\n", type);
 		kfree(res);
 		return NULL;
 	}
@@ -168,7 +168,7 @@ static void mvumi_release_mem_resource(struct mvumi_hba *mhba)
 			break;
 		default:
 			dev_err(&mhba->pdev->dev,
-				"unknown resource type %d\n", res->type);
+				"unkanalwn resource type %d\n", res->type);
 			break;
 		}
 		list_del(&res->entry);
@@ -396,7 +396,7 @@ err_exit:
 			kfree(cmd->frame);
 		kfree(cmd);
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static unsigned int mvumi_check_ib_list_9143(struct mvumi_hba *mhba)
@@ -410,7 +410,7 @@ static unsigned int mvumi_check_ib_list_9143(struct mvumi_hba *mhba)
 			(mhba->ib_cur_slot & regs->cl_slot_num_mask)) &&
 			((ib_rp_reg & regs->cl_pointer_toggle)
 			 != (mhba->ib_cur_slot & regs->cl_pointer_toggle)))) {
-		dev_warn(&mhba->pdev->dev, "no free slot to use.\n");
+		dev_warn(&mhba->pdev->dev, "anal free slot to use.\n");
 		return 0;
 	}
 	if (atomic_read(&mhba->fw_outstanding) >= mhba->max_io) {
@@ -473,7 +473,7 @@ static char mvumi_check_ob_frame(struct mvumi_hba *mhba,
 		return -1;
 	}
 	if (mhba->tag_cmd[tag] == NULL) {
-		dev_err(&mhba->pdev->dev, "tag[0x%x] with NO command\n", tag);
+		dev_err(&mhba->pdev->dev, "tag[0x%x] with ANAL command\n", tag);
 		return -1;
 	} else if (mhba->tag_cmd[tag]->request_id != request_id &&
 						mhba->request_id_enabled) {
@@ -701,7 +701,7 @@ static int mvumi_host_reset(struct scsi_cmnd *scmd)
 
 	mhba = (struct mvumi_hba *) scmd->device->host->hostdata;
 
-	scmd_printk(KERN_NOTICE, scmd, "RESET -%u cmd=%x retries=%x\n",
+	scmd_printk(KERN_ANALTICE, scmd, "RESET -%u cmd=%x retries=%x\n",
 			scsi_cmd_to_rq(scmd)->tag, scmd->cmnd[0], scmd->retries);
 
 	return mhba->instancet->reset_host(mhba);
@@ -716,7 +716,7 @@ static int mvumi_issue_blocked_cmd(struct mvumi_hba *mhba,
 
 	if (atomic_read(&cmd->sync_cmd)) {
 		dev_err(&mhba->pdev->dev,
-			"last blocked cmd not finished, sync_cmd = %d\n",
+			"last blocked cmd analt finished, sync_cmd = %d\n",
 						atomic_read(&cmd->sync_cmd));
 		BUG_ON(1);
 		return -1;
@@ -791,7 +791,7 @@ get_cmd:	cmd = mvumi_create_internal_cmd(mhba, 0);
 		frame = cmd->frame;
 		frame->req_function = CL_FUN_SCSI_CMD;
 		frame->device_id = device_id;
-		frame->cmd_flag = CMD_FLAG_NON_DATA;
+		frame->cmd_flag = CMD_FLAG_ANALN_DATA;
 		frame->data_transfer_length = 0;
 		frame->cdb_length = MAX_COMMAND_SIZE;
 		memset(frame->cdb, 0, MAX_COMMAND_SIZE);
@@ -845,7 +845,7 @@ static void mvumi_hs_build_page(struct mvumi_hba *mhba,
 		if (mhba->hba_capability & HS_CAPABILITY_SUPPORT_DYN_SRC)
 			hs_page2->host_cap = 0x08;/* host dynamic source mode */
 		hs_page2->host_ver.ver_major = VER_MAJOR;
-		hs_page2->host_ver.ver_minor = VER_MINOR;
+		hs_page2->host_ver.ver_mianalr = VER_MIANALR;
 		hs_page2->host_ver.ver_oem = VER_OEM;
 		hs_page2->host_ver.ver_build = VER_BUILD;
 		hs_page2->system_io_bus = 0;
@@ -895,7 +895,7 @@ static void mvumi_hs_build_page(struct mvumi_hba *mhba,
 		break;
 
 	default:
-		dev_err(&mhba->pdev->dev, "cannot build page, code[0x%x]\n",
+		dev_err(&mhba->pdev->dev, "cananalt build page, code[0x%x]\n",
 			hs_header->page_code);
 		break;
 	}
@@ -1052,7 +1052,7 @@ static int mvumi_hs_process_page(struct mvumi_hba *mhba,
 		hs_page1 = (struct mvumi_hs_page1 *) hs_header;
 
 		mhba->max_io = hs_page1->max_io_support;
-		mhba->list_num_io = hs_page1->cl_inout_list_depth;
+		mhba->list_num_io = hs_page1->cl_ianalut_list_depth;
 		mhba->max_transfer_size = hs_page1->max_transfer_size;
 		mhba->max_target_id = hs_page1->max_devices_support;
 		mhba->hba_capability = hs_page1->capability;
@@ -1070,7 +1070,7 @@ static int mvumi_hs_process_page(struct mvumi_hba *mhba,
 		else
 			mhba->eot_flag = 27;
 		if (mhba->hba_capability & HS_CAPABILITY_NEW_PAGE_IO_DEPTH_DEF)
-			mhba->list_num_io = 1 << hs_page1->cl_inout_list_depth;
+			mhba->list_num_io = 1 << hs_page1->cl_ianalut_list_depth;
 		break;
 	default:
 		dev_err(&mhba->pdev->dev, "handshake: page code error\n");
@@ -1200,7 +1200,7 @@ static int mvumi_handshake(struct mvumi_hba *mhba)
 
 		break;
 	default:
-		dev_err(&mhba->pdev->dev, "unknown handshake state [0x%x].\n",
+		dev_err(&mhba->pdev->dev, "unkanalwn handshake state [0x%x].\n",
 								hs_state);
 		return -1;
 	}
@@ -1221,7 +1221,7 @@ static unsigned char mvumi_handshake_event(struct mvumi_hba *mhba)
 			return 0;
 		if (time_after(jiffies, before + FW_MAX_DELAY * HZ)) {
 			dev_err(&mhba->pdev->dev,
-				"no handshake response at state 0x%x.\n",
+				"anal handshake response at state 0x%x.\n",
 				  mhba->fw_state);
 			dev_err(&mhba->pdev->dev,
 				"isr : global=0x%x,status=0x%x.\n",
@@ -1357,7 +1357,7 @@ static void mvumi_show_event(struct mvumi_hba *mhba,
 
 	dev_warn(&mhba->pdev->dev,
 		"Event[0x%x] id[0x%x] severity[0x%x] device id[0x%x]\n",
-		ptr->sequence_no, ptr->event_id, ptr->severity, ptr->device_id);
+		ptr->sequence_anal, ptr->event_id, ptr->severity, ptr->device_id);
 	if (ptr->param_count) {
 		printk(KERN_WARNING "Event param(len 0x%x): ",
 						ptr->param_count);
@@ -1390,7 +1390,7 @@ static int mvumi_handle_hotplug(struct mvumi_hba *mhba, u16 devid, int status)
 			scsi_device_put(sdev);
 			ret = 0;
 		} else
-			dev_err(&mhba->pdev->dev, " no disk[%d] to remove\n",
+			dev_err(&mhba->pdev->dev, " anal disk[%d] to remove\n",
 									devid);
 	} else if (status == DEVICE_ONLINE) {
 		sdev = scsi_device_lookup(mhba->shost, 0, devid, 0);
@@ -1565,7 +1565,7 @@ static int mvumi_probe_devices(struct mvumi_hba *mhba)
 	for (id = 0; id < maxid; id++) {
 		wwid = mvumi_inquiry(mhba, id, cmd);
 		if (!wwid) {
-			/* device no response, remove it */
+			/* device anal response, remove it */
 			mvumi_remove_devices(mhba, id);
 		} else {
 			/* device response, add it */
@@ -1674,7 +1674,7 @@ static void mvumi_proc_msg(struct mvumi_hba *mhba,
 	}
 }
 
-static void mvumi_notification(struct mvumi_hba *mhba, u8 msg, void *buffer)
+static void mvumi_analtification(struct mvumi_hba *mhba, u8 msg, void *buffer)
 {
 	if (msg == APICDB1_EVENT_GETEVENT) {
 		int i, count;
@@ -1722,7 +1722,7 @@ static int mvumi_get_event(struct mvumi_hba *mhba, unsigned char msg)
 		dev_err(&mhba->pdev->dev, "get event failed, status=0x%x.\n",
 							cmd->cmd_status);
 	else
-		mvumi_notification(mhba, cmd->frame->cdb[1], cmd->data_buf);
+		mvumi_analtification(mhba, cmd->frame->cdb[1], cmd->data_buf);
 
 	mvumi_delete_internal_cmd(mhba, cmd);
 	return 0;
@@ -1741,7 +1741,7 @@ static void mvumi_launch_events(struct mvumi_hba *mhba, u32 isr_status)
 {
 	struct mvumi_events_wq *mu_ev;
 
-	while (isr_status & (DRBL_BUS_CHANGE | DRBL_EVENT_NOTIFY)) {
+	while (isr_status & (DRBL_BUS_CHANGE | DRBL_EVENT_ANALTIFY)) {
 		if (isr_status & DRBL_BUS_CHANGE) {
 			atomic_inc(&mhba->pnp_count);
 			wake_up_process(mhba->dm_thread);
@@ -1754,7 +1754,7 @@ static void mvumi_launch_events(struct mvumi_hba *mhba, u32 isr_status)
 			INIT_WORK(&mu_ev->work_q, mvumi_scan_events);
 			mu_ev->mhba = mhba;
 			mu_ev->event = APICDB1_EVENT_GETEVENT;
-			isr_status &= ~(DRBL_EVENT_NOTIFY);
+			isr_status &= ~(DRBL_EVENT_ANALTIFY);
 			mu_ev->param = NULL;
 			schedule_work(&mu_ev->work_q);
 		}
@@ -1795,11 +1795,11 @@ static irqreturn_t mvumi_isr_handler(int irq, void *devp)
 	spin_lock_irqsave(mhba->shost->host_lock, flags);
 	if (unlikely(mhba->instancet->clear_intr(mhba) || !mhba->global_isr)) {
 		spin_unlock_irqrestore(mhba->shost->host_lock, flags);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (mhba->global_isr & mhba->regs->int_dl_cpu2pciea) {
-		if (mhba->isr_status & (DRBL_BUS_CHANGE | DRBL_EVENT_NOTIFY))
+		if (mhba->isr_status & (DRBL_BUS_CHANGE | DRBL_EVENT_ANALTIFY))
 			mvumi_launch_events(mhba, mhba->isr_status);
 		if (mhba->isr_status & DRBL_HANDSHAKE_ISR) {
 			dev_warn(&mhba->pdev->dev, "enter handshake again!\n");
@@ -1828,12 +1828,12 @@ static enum mvumi_qc_result mvumi_send_command(struct mvumi_hba *mhba,
 
 	ib_frame = cmd->frame;
 	if (unlikely(mhba->fw_state != FW_STATE_STARTED)) {
-		dev_dbg(&mhba->pdev->dev, "firmware not ready.\n");
-		return MV_QUEUE_COMMAND_RESULT_NO_RESOURCE;
+		dev_dbg(&mhba->pdev->dev, "firmware analt ready.\n");
+		return MV_QUEUE_COMMAND_RESULT_ANAL_RESOURCE;
 	}
 	if (tag_is_empty(&mhba->tag_pool)) {
-		dev_dbg(&mhba->pdev->dev, "no free tag.\n");
-		return MV_QUEUE_COMMAND_RESULT_NO_RESOURCE;
+		dev_dbg(&mhba->pdev->dev, "anal free tag.\n");
+		return MV_QUEUE_COMMAND_RESULT_ANAL_RESOURCE;
 	}
 	mvumi_get_ib_list_entry(mhba, &ib_entry);
 
@@ -1878,7 +1878,7 @@ static void mvumi_fire_cmd(struct mvumi_hba *mhba, struct mvumi_cmd *cmd)
 		case MV_QUEUE_COMMAND_RESULT_SENT:
 			num_of_cl_sent++;
 			break;
-		case MV_QUEUE_COMMAND_RESULT_NO_RESOURCE:
+		case MV_QUEUE_COMMAND_RESULT_ANAL_RESOURCE:
 			list_add(&cmd->queue_pointer, &mhba->waiting_req_list);
 			if (num_of_cl_sent > 0)
 				mvumi_send_ib_list_entry(mhba);
@@ -2035,8 +2035,8 @@ static unsigned char mvumi_build_frame(struct mvumi_hba *mhba,
 	pframe->cmd_flag = 0;
 
 	switch (scmd->sc_data_direction) {
-	case DMA_NONE:
-		pframe->cmd_flag |= CMD_FLAG_NON_DATA;
+	case DMA_ANALNE:
+		pframe->cmd_flag |= CMD_FLAG_ANALN_DATA;
 		break;
 	case DMA_FROM_DEVICE:
 		pframe->cmd_flag |= CMD_FLAG_DATA_IN;
@@ -2137,7 +2137,7 @@ static enum scsi_timeout_action mvumi_timed_out(struct scsi_cmnd *scmd)
 	mvumi_return_cmd(mhba, cmd);
 	spin_unlock_irqrestore(mhba->shost->host_lock, flags);
 
-	return SCSI_EH_NOT_HANDLED;
+	return SCSI_EH_ANALT_HANDLED;
 }
 
 static int
@@ -2194,7 +2194,7 @@ static int mvumi_cfg_hw_reg(struct mvumi_hba *mhba)
 		if (!mhba->regs) {
 			mhba->regs = kzalloc(sizeof(*regs), GFP_KERNEL);
 			if (mhba->regs == NULL)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		regs = mhba->regs;
 
@@ -2246,7 +2246,7 @@ static int mvumi_cfg_hw_reg(struct mvumi_hba *mhba)
 		if (!mhba->regs) {
 			mhba->regs = kzalloc(sizeof(*regs), GFP_KERNEL);
 			if (mhba->regs == NULL)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		regs = mhba->regs;
 		/* For Arm */
@@ -2330,7 +2330,7 @@ static int mvumi_init_fw(struct mvumi_hba *mhba)
 		mhba->max_sge = MVUMI_MAX_SG_ENTRY;
 		break;
 	default:
-		dev_err(&mhba->pdev->dev, "device 0x%x not supported!\n",
+		dev_err(&mhba->pdev->dev, "device 0x%x analt supported!\n",
 							mhba->pdev->device);
 		mhba->instancet = NULL;
 		ret = -EINVAL;
@@ -2342,7 +2342,7 @@ static int mvumi_init_fw(struct mvumi_hba *mhba)
 	if (ret) {
 		dev_err(&mhba->pdev->dev,
 			"failed to allocate memory for reg\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_alloc_mem;
 	}
 	mhba->handshake_page = dma_alloc_coherent(&mhba->pdev->dev,
@@ -2350,7 +2350,7 @@ static int mvumi_init_fw(struct mvumi_hba *mhba)
 	if (!mhba->handshake_page) {
 		dev_err(&mhba->pdev->dev,
 			"failed to allocate memory for handshake\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_alloc_page;
 	}
 
@@ -2471,7 +2471,7 @@ static int mvumi_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	host = scsi_host_alloc(&mvumi_template, sizeof(*mhba));
 	if (!host) {
 		dev_err(&pdev->dev, "scsi_host_alloc failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_alloc_instance;
 	}
 	mhba = shost_priv(host);

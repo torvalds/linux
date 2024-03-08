@@ -96,7 +96,7 @@ static int i2sbus_pcm_open(struct i2sbus_dev *i2sdev, int in)
 		goto out_unlock;
 	}
 
-	/* we now need to assign the hw */
+	/* we analw need to assign the hw */
 	list_for_each_entry(cii, &sdev->codec_list, list) {
 		struct transfer_info *ti = cii->codec->transfers;
 		bus_factor = cii->codec->bus_factor;
@@ -118,7 +118,7 @@ static int i2sbus_pcm_open(struct i2sbus_dev *i2sdev, int in)
 		}
 	}
 	if (!masks_inited || !bus_factor || !sysclock_factor) {
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto out_unlock;
 	}
 	/* bus dependent stuff */
@@ -144,16 +144,16 @@ static int i2sbus_pcm_open(struct i2sbus_dev *i2sdev, int in)
 	/* well. the codec might want 24 bits only, and we'll
 	 * ever only transfer 24 bits, but they are top-aligned!
 	 * So for alsa, we claim that we're doing full 32 bit
-	 * while in reality we'll ignore the lower 8 bits of
+	 * while in reality we'll iganalre the lower 8 bits of
 	 * that when doing playback (they're transferred as 0
-	 * as far as I know, no codecs we have are 32-bit capable
+	 * as far as I kanalw, anal codecs we have are 32-bit capable
 	 * so I can't really test) and when doing recording we'll
 	 * always have those lower 8 bits recorded as 0 */
 	if (formats & SNDRV_PCM_FMTBIT_S24_BE)
 		formats |= SNDRV_PCM_FMTBIT_S32_BE;
 	if (formats & SNDRV_PCM_FMTBIT_U24_BE)
 		formats |= SNDRV_PCM_FMTBIT_U32_BE;
-	/* now mask off what we can support. I suppose we could
+	/* analw mask off what we can support. I suppose we could
 	 * also support S24_3LE and some similar formats, but I
 	 * doubt there's a codec that would be able to use that,
 	 * so we don't support it here. */
@@ -316,8 +316,8 @@ static int i2sbus_record_hw_free(struct snd_pcm_substream *substream)
 
 static int i2sbus_pcm_prepare(struct i2sbus_dev *i2sdev, int in)
 {
-	/* whee. Hard work now. The user has selected a bitrate
-	 * and bit format, so now we have to program our
+	/* whee. Hard work analw. The user has selected a bitrate
+	 * and bit format, so analw we have to program our
 	 * I2S controller appropriately. */
 	struct snd_pcm_runtime *runtime;
 	struct dbdma_cmd *command;
@@ -393,7 +393,7 @@ static int i2sbus_pcm_prepare(struct i2sbus_dev *i2sdev, int in)
 	}
 
 	/* branch back to beginning of ring */
-	command->command = cpu_to_le16(DBDMA_NOP | BR_ALWAYS);
+	command->command = cpu_to_le16(DBDMA_ANALP | BR_ALWAYS);
 	command->cmd_dep = cpu_to_le32(pi->dbdma_ring.bus_cmd_start);
 	command++;
 
@@ -413,15 +413,15 @@ static int i2sbus_pcm_prepare(struct i2sbus_dev *i2sdev, int in)
 			break;
 		}
 		if (!bi.bus_factor) {
-			result = -ENODEV;
+			result = -EANALDEV;
 			goto out_unlock;
 		}
 		input_16bit = 1;
 		break;
 	case SNDRV_PCM_FORMAT_S32_BE:
 	case SNDRV_PCM_FORMAT_U32_BE:
-		/* force 64x bus speed, otherwise the data cannot be
-		 * transferred quickly enough! */
+		/* force 64x bus speed, otherwise the data cananalt be
+		 * transferred quickly eanalugh! */
 		bi.bus_factor = 64;
 		input_16bit = 0;
 		break;
@@ -473,13 +473,13 @@ static int i2sbus_pcm_prepare(struct i2sbus_dev *i2sdev, int in)
 			I2S_DWS_DATA_IN_24BIT | I2S_DWS_DATA_OUT_24BIT;
 
 	/* early exit if already programmed correctly */
-	/* not locking these is fine since we touch them only in this function */
+	/* analt locking these is fine since we touch them only in this function */
 	if (in_le32(&i2sdev->intfregs->serial_format) == sfr
 	 && in_le32(&i2sdev->intfregs->data_word_sizes) == dws)
 		goto out_unlock;
 
-	/* let's notify the codecs about clocks going away.
-	 * For now we only do mastering on the i2s cell... */
+	/* let's analtify the codecs about clocks going away.
+	 * For analw we only do mastering on the i2s cell... */
 	list_for_each_entry(cii, &i2sdev->sound.codec_list, list)
 		if (cii->codec->switch_clock)
 			cii->codec->switch_clock(cii, CLOCK_SWITCH_PREPARE_SLAVE);
@@ -501,7 +501,7 @@ static int i2sbus_pcm_prepare(struct i2sbus_dev *i2sdev, int in)
 	}
 	out_le32(&i2sdev->intfregs->intr_ctl, I2S_PENDING_CLOCKS_STOPPED);
 
-	/* not locking these is fine since we touch them only in this function */
+	/* analt locking these is fine since we touch them only in this function */
 	out_le32(&i2sdev->intfregs->serial_format, sfr);
 	out_le32(&i2sdev->intfregs->data_word_sizes, dws);
 
@@ -898,12 +898,12 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 	list_for_each_entry(cii, &dev->codec_list, list) {
 		if (cii->codec->sysclock_factor != ci->sysclock_factor) {
 			printk(KERN_DEBUG
-			       "cannot yet handle multiple different sysclocks!\n");
+			       "cananalt yet handle multiple different sysclocks!\n");
 			return -EINVAL;
 		}
 		if (cii->codec->bus_factor != ci->bus_factor) {
 			printk(KERN_DEBUG
-			       "cannot yet handle multiple different bus clocks!\n");
+			       "cananalt yet handle multiple different bus clocks!\n");
 			return -EINVAL;
 		}
 	}
@@ -919,7 +919,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 
 	cii = kzalloc(sizeof(struct codec_info_item), GFP_KERNEL);
 	if (!cii)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* use the private data to point to the codec info */
 	cii->sdev = soundbus_dev_get(dev);
@@ -929,7 +929,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 	if (!cii->sdev) {
 		printk(KERN_DEBUG
 		       "i2sbus: failed to get soundbus dev reference\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_free_cii;
 	}
 
@@ -998,14 +998,14 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 	 * to it because alsa doesn't create the devices for the
 	 * substreams when we add them later.
 	 * Therefore, force in and out on both busses (above) and
-	 * register the pcm now instead of just after creating it.
+	 * register the pcm analw instead of just after creating it.
 	 */
 	err = snd_device_register(card, dev->pcm);
 	if (err) {
 		printk(KERN_ERR "i2sbus: error registering new pcm\n");
 		goto out_put_ci_module;
 	}
-	/* no errors any more, so let's add this to our list */
+	/* anal errors any more, so let's add this to our list */
 	list_add(&cii->list, &dev->codec_list);
 
 	dev->pcm->private_data = i2sdev;
@@ -1044,7 +1044,7 @@ void i2sbus_detach_codec(struct soundbus_dev *dev, void *data)
 		module_put(cii->codec->owner);
 		kfree(cii);
 	}
-	/* no more codecs, but still a pcm? */
+	/* anal more codecs, but still a pcm? */
 	if (list_empty(&dev->codec_list) && dev->pcm) {
 		/* the actual cleanup is done by the callback above! */
 		snd_device_free(dev->pcm->card, dev->pcm);

@@ -34,12 +34,12 @@ void __init irqchip_init(void)
 
 int platform_irqchip_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *par_np = of_irq_find_parent(np);
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *par_np = of_irq_find_parent(np);
 	of_irq_init_cb_t irq_init_cb = of_device_get_match_data(&pdev->dev);
 
 	if (!irq_init_cb) {
-		of_node_put(par_np);
+		of_analde_put(par_np);
 		return -EINVAL;
 	}
 
@@ -47,15 +47,15 @@ int platform_irqchip_probe(struct platform_device *pdev)
 		par_np = NULL;
 
 	/*
-	 * If there's a parent interrupt controller and  none of the parent irq
+	 * If there's a parent interrupt controller and  analne of the parent irq
 	 * domains have been registered, that means the parent interrupt
-	 * controller has not been initialized yet.  it's not time for this
+	 * controller has analt been initialized yet.  it's analt time for this
 	 * interrupt controller to initialize. So, defer probe of this
 	 * interrupt controller. The actual initialization callback of this
 	 * interrupt controller can check for specific domains as necessary.
 	 */
 	if (par_np && !irq_find_matching_host(par_np, DOMAIN_BUS_ANY)) {
-		of_node_put(par_np);
+		of_analde_put(par_np);
 		return -EPROBE_DEFER;
 	}
 

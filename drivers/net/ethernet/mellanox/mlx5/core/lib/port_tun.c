@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/port.h>
@@ -16,7 +16,7 @@ static void mlx5_query_port_tun_entropy(struct mlx5_core_dev *mdev,
 					struct mlx5_port_tun_entropy_flags *entropy_flags)
 {
 	u32 out[MLX5_ST_SZ_DW(pcmr_reg)];
-	/* Default values for FW which do not support MLX5_REG_PCMR */
+	/* Default values for FW which do analt support MLX5_REG_PCMR */
 	entropy_flags->force_supported = false;
 	entropy_flags->calc_supported = false;
 	entropy_flags->gre_calc_supported = false;
@@ -112,14 +112,14 @@ static int mlx5_set_entropy(struct mlx5_tun_entropy *tun_entropy,
 			mlx5_core_warn(tun_entropy->mdev,
 				       "Unexpected entropy calc setting - expected %d",
 				       !entropy_flags.calc_enabled);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		/* GRE requires disabling entropy calculation. if there are
-		 * enabling entries (i.e VXLAN) we cannot turn it off for them,
+		 * enabling entries (i.e VXLAN) we cananalt turn it off for them,
 		 * thus fail.
 		 */
 		if (tun_entropy->num_enabling_entries)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		err = mlx5_set_port_tun_entropy_calc(tun_entropy->mdev, enable,
 						     entropy_flags.force_supported);
 		if (err)
@@ -137,13 +137,13 @@ static int mlx5_set_entropy(struct mlx5_tun_entropy *tun_entropy,
 }
 
 /* the function manages the refcount for enabling/disabling tunnel types.
- * the return value indicates if the inc is successful or not, depending on
+ * the return value indicates if the inc is successful or analt, depending on
  * entropy capabilities and configuration.
  */
 int mlx5_tun_entropy_refcount_inc(struct mlx5_tun_entropy *tun_entropy,
 				  int reformat_type)
 {
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	mutex_lock(&tun_entropy->lock);
 	if ((reformat_type == MLX5_REFORMAT_TYPE_L2_TO_VXLAN ||

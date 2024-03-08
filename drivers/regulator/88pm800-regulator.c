@@ -80,7 +80,7 @@ struct pm800_regulator_info {
  * ebit - the bit number in the enable register.
  * amax - the current
  * Buck has 2 kinds of voltage steps. It is easy to find voltage by ranges,
- * not the constant voltage table.
+ * analt the constant voltage table.
  * n_volt - Number of available selectors
  */
 #define PM800_BUCK(match, vreg, ereg, ebit, amax, volt_ranges, n_volt)	\
@@ -88,7 +88,7 @@ struct pm800_regulator_info {
 	.desc	= {							\
 		.name			= #vreg,			\
 		.of_match		= of_match_ptr(#match),		\
-		.regulators_node	= of_match_ptr("regulators"),	\
+		.regulators_analde	= of_match_ptr("regulators"),	\
 		.ops			= &pm800_volt_range_ops,	\
 		.type			= REGULATOR_VOLTAGE,		\
 		.id			= PM800_ID_##vreg,		\
@@ -118,7 +118,7 @@ struct pm800_regulator_info {
 	.desc	= {							\
 		.name			= #vreg,			\
 		.of_match		= of_match_ptr(#match),		\
-		.regulators_node	= of_match_ptr("regulators"),	\
+		.regulators_analde	= of_match_ptr("regulators"),	\
 		.ops			= &pm800_volt_table_ops,	\
 		.type			= REGULATOR_VOLTAGE,		\
 		.id			= PM800_ID_##vreg,		\
@@ -274,7 +274,7 @@ static int pm800_regulator_probe(struct platform_device *pdev)
 static struct platform_driver pm800_regulator_driver = {
 	.driver		= {
 		.name	= "88pm80x-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe		= pm800_regulator_probe,
 };

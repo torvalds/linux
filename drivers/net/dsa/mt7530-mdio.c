@@ -96,7 +96,7 @@ mt7531_create_sgmii(struct mt7530_priv *priv, bool dual_sgmii)
 						    sizeof(struct regmap_config),
 						    GFP_KERNEL);
 		if (!mt7531_pcs_config[i]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -145,14 +145,14 @@ mt7530_probe(struct mdio_device *mdiodev)
 {
 	static struct regmap_config *regmap_config;
 	struct mt7530_priv *priv;
-	struct device_node *dn;
+	struct device_analde *dn;
 	int ret;
 
-	dn = mdiodev->dev.of_node;
+	dn = mdiodev->dev.of_analde;
 
 	priv = devm_kzalloc(&mdiodev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->bus = mdiodev->bus;
 	priv->dev = &mdiodev->dev;
@@ -163,7 +163,7 @@ mt7530_probe(struct mdio_device *mdiodev)
 
 	/* Use medatek,mcm property to distinguish hardware type that would
 	 * cause a little bit differences on power-on sequence.
-	 * Not MCM that indicates switch works as the remote standalone
+	 * Analt MCM that indicates switch works as the remote standalone
 	 * integrated circuit so the GPIO pin would be used to complete
 	 * the reset, otherwise memory-mapped register accessing used
 	 * through syscon provides in the case of MCM.
@@ -199,7 +199,7 @@ mt7530_probe(struct mdio_device *mdiodev)
 	regmap_config = devm_kzalloc(&mdiodev->dev, sizeof(*regmap_config),
 				     GFP_KERNEL);
 	if (!regmap_config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap_config->reg_bits = 16;
 	regmap_config->val_bits = 32;

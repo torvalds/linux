@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -98,8 +98,8 @@ static int rxe_modify_device(struct ib_device *ibdev,
 	int err;
 
 	if (mask & ~(IB_DEVICE_MODIFY_SYS_IMAGE_GUID |
-		     IB_DEVICE_MODIFY_NODE_DESC)) {
-		err = -EOPNOTSUPP;
+		     IB_DEVICE_MODIFY_ANALDE_DESC)) {
+		err = -EOPANALTSUPP;
 		rxe_dbg_dev(rxe, "unsupported mask = 0x%x", mask);
 		goto err_out;
 	}
@@ -107,9 +107,9 @@ static int rxe_modify_device(struct ib_device *ibdev,
 	if (mask & IB_DEVICE_MODIFY_SYS_IMAGE_GUID)
 		rxe->attr.sys_image_guid = cpu_to_be64(attr->sys_image_guid);
 
-	if (mask & IB_DEVICE_MODIFY_NODE_DESC) {
-		memcpy(rxe->ib_dev.node_desc,
-		       attr->node_desc, sizeof(rxe->ib_dev.node_desc));
+	if (mask & IB_DEVICE_MODIFY_ANALDE_DESC) {
+		memcpy(rxe->ib_dev.analde_desc,
+		       attr->analde_desc, sizeof(rxe->ib_dev.analde_desc));
 	}
 
 	return 0;
@@ -134,7 +134,7 @@ static int rxe_modify_port(struct ib_device *ibdev, u32 port_num,
 
 	//TODO is shutdown useful
 	if (mask & ~(IB_PORT_RESET_QKEY_CNTR)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		rxe_dbg_dev(rxe, "unsupported mask = 0x%x", mask);
 		goto err_out;
 	}
@@ -383,8 +383,8 @@ static int rxe_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init,
 	}
 
 	if (init->srq_type != IB_SRQT_BASIC) {
-		err = -EOPNOTSUPP;
-		rxe_dbg_dev(rxe, "srq type = %d, not supported",
+		err = -EOPANALTSUPP;
+		rxe_dbg_dev(rxe, "srq type = %d, analt supported",
 				init->srq_type);
 		goto err_out;
 	}
@@ -553,7 +553,7 @@ static int rxe_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init,
 	}
 
 	if (init->create_flags) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		rxe_dbg_dev(rxe, "unsupported create_flags, err = %d", err);
 		goto err_out;
 	}
@@ -596,7 +596,7 @@ static int rxe_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	int err;
 
 	if (mask & ~IB_QP_ATTR_STANDARD_BITS) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		rxe_dbg_qp(qp, "unsupported mask = 0x%x, err = %d",
 			   mask, err);
 		goto err_out;
@@ -871,7 +871,7 @@ static int post_one_send(struct rxe_qp *qp, const struct ib_send_wr *ibwr)
 	full = queue_full(sq->queue, QUEUE_TYPE_FROM_ULP);
 	if (unlikely(full)) {
 		rxe_err_qp(qp, "send queue full");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	send_wqe = queue_producer_addr(sq->queue, QUEUE_TYPE_FROM_ULP);
@@ -929,7 +929,7 @@ static int rxe_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	if (unlikely(qp_state(qp) < IB_QPS_RTS)) {
 		spin_unlock_irqrestore(&qp->state_lock, flags);
 		*bad_wr = wr;
-		rxe_err_qp(qp, "qp not ready to send");
+		rxe_err_qp(qp, "qp analt ready to send");
 		return -EINVAL;
 	}
 	spin_unlock_irqrestore(&qp->state_lock, flags);
@@ -958,7 +958,7 @@ static int post_one_recv(struct rxe_rq *rq, const struct ib_recv_wr *ibwr)
 
 	full = queue_full(rq->queue, QUEUE_TYPE_FROM_ULP);
 	if (unlikely(full)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		rxe_dbg("queue full");
 		goto err_out;
 	}
@@ -1020,7 +1020,7 @@ static int rxe_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 	if (unlikely((qp_state(qp) < IB_QPS_INIT))) {
 		spin_unlock_irqrestore(&qp->state_lock, flags);
 		*bad_wr = wr;
-		rxe_dbg_qp(qp, "qp not ready to post recv");
+		rxe_dbg_qp(qp, "qp analt ready to post recv");
 		return -EINVAL;
 	}
 	spin_unlock_irqrestore(&qp->state_lock, flags);
@@ -1072,7 +1072,7 @@ static int rxe_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	}
 
 	if (attr->flags) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		rxe_dbg_dev(rxe, "bad attr->flags, err = %d", err);
 		goto err_out;
 	}
@@ -1173,7 +1173,7 @@ static int rxe_peek_cq(struct ib_cq *ibcq, int wc_cnt)
 	return (count > wc_cnt) ? wc_cnt : count;
 }
 
-static int rxe_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
+static int rxe_req_analtify_cq(struct ib_cq *ibcq, enum ib_cq_analtify_flags flags)
 {
 	struct rxe_cq *cq = to_rcq(ibcq);
 	int ret = 0;
@@ -1181,7 +1181,7 @@ static int rxe_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	unsigned long irq_flags;
 
 	spin_lock_irqsave(&cq->cq_lock, irq_flags);
-	cq->notify |= flags & IB_CQ_SOLICITED_MASK;
+	cq->analtify |= flags & IB_CQ_SOLICITED_MASK;
 	empty = queue_empty(cq->queue, QUEUE_TYPE_TO_ULP);
 
 	if ((flags & IB_CQ_REPORT_MISSED_EVENTS) && !empty)
@@ -1227,7 +1227,7 @@ static struct ib_mr *rxe_get_dma_mr(struct ib_pd *ibpd, int access)
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = rxe_add_to_pool(&rxe->mr_pool, mr);
 	if (err) {
@@ -1259,14 +1259,14 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd, u64 start,
 	int err, cleanup_err;
 
 	if (access & ~RXE_ACCESS_SUPPORTED_MR) {
-		rxe_err_pd(pd, "access = %#x not supported (%#x)", access,
+		rxe_err_pd(pd, "access = %#x analt supported (%#x)", access,
 				RXE_ACCESS_SUPPORTED_MR);
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = rxe_add_to_pool(&rxe->mr_pool, mr);
 	if (err) {
@@ -1306,12 +1306,12 @@ static struct ib_mr *rxe_rereg_user_mr(struct ib_mr *ibmr, int flags,
 	struct rxe_pd *old_pd = to_rpd(ibmr->pd);
 	struct rxe_pd *pd = to_rpd(ibpd);
 
-	/* for now only support the two easy cases:
+	/* for analw only support the two easy cases:
 	 * rereg_pd and rereg_access
 	 */
 	if (flags & ~RXE_MR_REREG_SUPPORTED) {
-		rxe_err_mr(mr, "flags = %#x not supported", flags);
-		return ERR_PTR(-EOPNOTSUPP);
+		rxe_err_mr(mr, "flags = %#x analt supported", flags);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	if (flags & IB_MR_REREG_PD) {
@@ -1322,8 +1322,8 @@ static struct ib_mr *rxe_rereg_user_mr(struct ib_mr *ibmr, int flags,
 
 	if (flags & IB_MR_REREG_ACCESS) {
 		if (access & ~RXE_ACCESS_SUPPORTED_MR) {
-			rxe_err_mr(mr, "access = %#x not supported", access);
-			return ERR_PTR(-EOPNOTSUPP);
+			rxe_err_mr(mr, "access = %#x analt supported", access);
+			return ERR_PTR(-EOPANALTSUPP);
 		}
 		mr->access = access;
 	}
@@ -1341,14 +1341,14 @@ static struct ib_mr *rxe_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 
 	if (mr_type != IB_MR_TYPE_MEM_REG) {
 		err = -EINVAL;
-		rxe_dbg_pd(pd, "mr type %d not supported, err = %d",
+		rxe_dbg_pd(pd, "mr type %d analt supported, err = %d",
 			   mr_type, err);
 		goto err_out;
 	}
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = rxe_add_to_pool(&rxe->mr_pool, mr);
 	if (err)
@@ -1482,7 +1482,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.query_qp = rxe_query_qp,
 	.query_srq = rxe_query_srq,
 	.reg_user_mr = rxe_reg_user_mr,
-	.req_notify_cq = rxe_req_notify_cq,
+	.req_analtify_cq = rxe_req_analtify_cq,
 	.rereg_user_mr = rxe_rereg_user_mr,
 	.resize_cq = rxe_resize_cq,
 
@@ -1500,17 +1500,17 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	int err;
 	struct ib_device *dev = &rxe->ib_dev;
 
-	strscpy(dev->node_desc, "rxe", sizeof(dev->node_desc));
+	strscpy(dev->analde_desc, "rxe", sizeof(dev->analde_desc));
 
-	dev->node_type = RDMA_NODE_IB_CA;
+	dev->analde_type = RDMA_ANALDE_IB_CA;
 	dev->phys_port_cnt = 1;
 	dev->num_comp_vectors = num_possible_cpus();
 	dev->local_dma_lkey = 0;
-	addrconf_addr_eui48((unsigned char *)&dev->node_guid,
+	addrconf_addr_eui48((unsigned char *)&dev->analde_guid,
 			    rxe->ndev->dev_addr);
 
 	dev->uverbs_cmd_mask |= BIT_ULL(IB_USER_VERBS_CMD_POST_SEND) |
-				BIT_ULL(IB_USER_VERBS_CMD_REQ_NOTIFY_CQ);
+				BIT_ULL(IB_USER_VERBS_CMD_REQ_ANALTIFY_CQ);
 
 	ib_set_device_ops(dev, &rxe_dev_ops);
 	err = ib_device_set_netdev(&rxe->ib_dev, rxe->ndev, 1);
@@ -1526,7 +1526,7 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 		rxe_dbg_dev(rxe, "failed with error %d\n", err);
 
 	/*
-	 * Note that rxe may be invalid at this point if another thread
+	 * Analte that rxe may be invalid at this point if aanalther thread
 	 * unregistered it.
 	 */
 	return err;

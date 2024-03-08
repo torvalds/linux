@@ -170,7 +170,7 @@ int adfspart_check_CUMANA(struct parsed_partitions *state)
 	 * Try Cumana style partitions - sector 6 contains ADFS boot block
 	 * with pointer to next 'drive'.
 	 *
-	 * There are unknowns in this code - is the 'cylinder number' of the
+	 * There are unkanalwns in this code - is the 'cylinder number' of the
 	 * next partition relative to the start of this one - I'm assuming
 	 * it is.
 	 *
@@ -209,12 +209,12 @@ int adfspart_check_CUMANA(struct parsed_partitions *state)
 		nr_sects = 0; /* hmm - should be partition size */
 
 		switch (data[0x1fc] & 15) {
-		case 0: /* No partition / ADFS? */
+		case 0: /* Anal partition / ADFS? */
 			break;
 
 #ifdef CONFIG_ACORN_PARTITION_RISCIX
 		case PARTITION_RISCIX_SCSI:
-			/* RISCiX - we don't know how to find the next one. */
+			/* RISCiX - we don't kanalw how to find the next one. */
 			slot = riscix_partition(state, first_sector, slot,
 						nr_sects);
 			break;
@@ -241,11 +241,11 @@ int adfspart_check_CUMANA(struct parsed_partitions *state)
  * Params : hd		- pointer to gendisk structure to store partition info.
  *	    dev		- device number to access.
  *
- * Returns: -1 on error, 0 for no ADFS boot sector, 1 for ok.
+ * Returns: -1 on error, 0 for anal ADFS boot sector, 1 for ok.
  *
  * Alloc  : hda  = whole drive
  *	    hda1 = ADFS partition on first drive.
- *	    hda2 = non-ADFS partition.
+ *	    hda2 = analn-ADFS partition.
  */
 int adfspart_check_ADFS(struct parsed_partitions *state)
 {
@@ -273,7 +273,7 @@ int adfspart_check_ADFS(struct parsed_partitions *state)
 	put_dev_sector(sect);
 
 	/*
-	 * Work out start of non-adfs partition.
+	 * Work out start of analn-adfs partition.
 	 */
 	nr_sects = get_capacity(state->disk) - start_sect;
 
@@ -341,7 +341,7 @@ static inline int valid_ics_sector(const unsigned char *data)
  * Purpose: allocate ICS partitions.
  * Params : hd		- pointer to gendisk structure to store partition info.
  *	    dev		- device number to access.
- * Returns: -1 on error, 0 for no ICS table, 1 for partitions ok.
+ * Returns: -1 on error, 0 for anal ICS table, 1 for partitions ok.
  * Alloc  : hda  = whole drive
  *	    hda1 = ADFS partition 0 on first drive.
  *	    hda2 = ADFS partition 1 on first drive.
@@ -370,14 +370,14 @@ int adfspart_check_ICS(struct parsed_partitions *state)
 
 	for (slot = 1, p = (const struct ics_part *)data; p->size; p++) {
 		u32 start = le32_to_cpu(p->start);
-		s32 size = le32_to_cpu(p->size); /* yes, it's signed. */
+		s32 size = le32_to_cpu(p->size); /* anal, it's signed. */
 
 		if (slot == state->limit)
 			break;
 
 		/*
-		 * Negative sizes tell the RISC OS ICS driver to ignore
-		 * this partition - in effect it says that this does not
+		 * Negative sizes tell the RISC OS ICS driver to iganalre
+		 * this partition - in effect it says that this does analt
 		 * contain an ADFS filesystem.
 		 */
 		if (size < 0) {
@@ -386,7 +386,7 @@ int adfspart_check_ICS(struct parsed_partitions *state)
 			/*
 			 * Our own extension - We use the first sector
 			 * of the partition to identify what type this
-			 * partition is.  We must not make this visible
+			 * partition is.  We must analt make this visible
 			 * to the filesystem.
 			 */
 			if (size > 1 && adfspart_check_ICSLinux(state, start)) {
@@ -437,7 +437,7 @@ static inline int valid_ptec_sector(const unsigned char *data)
  * Purpose: allocate ICS partitions.
  * Params : hd		- pointer to gendisk structure to store partition info.
  *	    dev		- device number to access.
- * Returns: -1 on error, 0 for no ICS table, 1 for partitions ok.
+ * Returns: -1 on error, 0 for anal ICS table, 1 for partitions ok.
  * Alloc  : hda  = whole drive
  *	    hda1 = ADFS partition 0 on first drive.
  *	    hda2 = ADFS partition 1 on first drive.
@@ -518,7 +518,7 @@ int adfspart_check_EESOX(struct parsed_partitions *state)
 		return -1;
 
 	/*
-	 * "Decrypt" the partition table.  God knows why...
+	 * "Decrypt" the partition table.  God kanalws why...
 	 */
 	for (i = 0; i < 256; i++)
 		buffer[i] = data[i] ^ eesox_name[i & 15];

@@ -90,9 +90,9 @@ void nvme_failover_req(struct request *req)
 	nvme_mpath_clear_current_path(ns);
 
 	/*
-	 * If we got back an ANA error, we know the controller is alive but not
+	 * If we got back an ANA error, we kanalw the controller is alive but analt
 	 * ready to serve this namespace.  Kick of a re-read of the ANA
-	 * information page, and just try any other available path for now.
+	 * information page, and just try any other available path for analw.
 	 */
 	if (nvme_is_ana_error(status) && ns->ctrl->ana_log_buf) {
 		set_bit(NVME_NS_ANA_PENDING, &ns->flags);
@@ -104,16 +104,16 @@ void nvme_failover_req(struct request *req)
 		bio_set_dev(bio, ns->head->disk->part0);
 		if (bio->bi_opf & REQ_POLLED) {
 			bio->bi_opf &= ~REQ_POLLED;
-			bio->bi_cookie = BLK_QC_T_NONE;
+			bio->bi_cookie = BLK_QC_T_ANALNE;
 		}
 		/*
 		 * The alternate request queue that we may end up submitting
-		 * the bio to may be frozen temporarily, in this case REQ_NOWAIT
+		 * the bio to may be frozen temporarily, in this case REQ_ANALWAIT
 		 * will fail the I/O immediately with EAGAIN to the issuer.
-		 * We are not in the issuer context which cannot block. Clear
+		 * We are analt in the issuer context which cananalt block. Clear
 		 * the flag to avoid spurious EAGAIN I/O failures.
 		 */
-		bio->bi_opf &= ~REQ_NOWAIT;
+		bio->bi_opf &= ~REQ_ANALWAIT;
 	}
 	blk_steal_bios(&ns->head->requeue_list, req);
 	spin_unlock_irqrestore(&ns->head->requeue_lock, flags);
@@ -165,7 +165,7 @@ void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl)
 static const char *nvme_ana_state_names[] = {
 	[0]				= "invalid state",
 	[NVME_ANA_OPTIMIZED]		= "optimized",
-	[NVME_ANA_NONOPTIMIZED]		= "non-optimized",
+	[NVME_ANA_ANALANALPTIMIZED]		= "analn-optimized",
 	[NVME_ANA_INACCESSIBLE]		= "inaccessible",
 	[NVME_ANA_PERSISTENT_LOSS]	= "persistent-loss",
 	[NVME_ANA_CHANGE]		= "change",
@@ -175,14 +175,14 @@ bool nvme_mpath_clear_current_path(struct nvme_ns *ns)
 {
 	struct nvme_ns_head *head = ns->head;
 	bool changed = false;
-	int node;
+	int analde;
 
 	if (!head)
 		goto out;
 
-	for_each_node(node) {
-		if (ns == rcu_access_pointer(head->current_path[node])) {
-			rcu_assign_pointer(head->current_path[node], NULL);
+	for_each_analde(analde) {
+		if (ns == rcu_access_pointer(head->current_path[analde])) {
+			rcu_assign_pointer(head->current_path[analde], NULL);
 			changed = true;
 		}
 	}
@@ -206,7 +206,7 @@ void nvme_mpath_revalidate_paths(struct nvme_ns *ns)
 {
 	struct nvme_ns_head *head = ns->head;
 	sector_t capacity = get_capacity(head->disk);
-	int node;
+	int analde;
 	int srcu_idx;
 
 	srcu_idx = srcu_read_lock(&head->srcu);
@@ -216,8 +216,8 @@ void nvme_mpath_revalidate_paths(struct nvme_ns *ns)
 	}
 	srcu_read_unlock(&head->srcu, srcu_idx);
 
-	for_each_node(node)
-		rcu_assign_pointer(head->current_path[node], NULL);
+	for_each_analde(analde)
+		rcu_assign_pointer(head->current_path[analde], NULL);
 	kblockd_schedule_work(&head->requeue_work);
 }
 
@@ -238,7 +238,7 @@ static bool nvme_path_is_disabled(struct nvme_ns *ns)
 	return false;
 }
 
-static struct nvme_ns *__nvme_find_path(struct nvme_ns_head *head, int node)
+static struct nvme_ns *__nvme_find_path(struct nvme_ns_head *head, int analde)
 {
 	int found_distance = INT_MAX, fallback_distance = INT_MAX, distance;
 	struct nvme_ns *found = NULL, *fallback = NULL, *ns;
@@ -248,7 +248,7 @@ static struct nvme_ns *__nvme_find_path(struct nvme_ns_head *head, int node)
 			continue;
 
 		if (READ_ONCE(head->subsys->iopolicy) == NVME_IOPOLICY_NUMA)
-			distance = node_distance(node, ns->ctrl->numa_node);
+			distance = analde_distance(analde, ns->ctrl->numa_analde);
 		else
 			distance = LOCAL_DISTANCE;
 
@@ -259,7 +259,7 @@ static struct nvme_ns *__nvme_find_path(struct nvme_ns_head *head, int node)
 				found = ns;
 			}
 			break;
-		case NVME_ANA_NONOPTIMIZED:
+		case NVME_ANA_ANALANALPTIMIZED:
 			if (distance < fallback_distance) {
 				fallback_distance = distance;
 				fallback = ns;
@@ -273,7 +273,7 @@ static struct nvme_ns *__nvme_find_path(struct nvme_ns_head *head, int node)
 	if (!found)
 		found = fallback;
 	if (found)
-		rcu_assign_pointer(head->current_path[node], found);
+		rcu_assign_pointer(head->current_path[analde], found);
 	return found;
 }
 
@@ -288,7 +288,7 @@ static struct nvme_ns *nvme_next_ns(struct nvme_ns_head *head,
 }
 
 static struct nvme_ns *nvme_round_robin_path(struct nvme_ns_head *head,
-		int node, struct nvme_ns *old)
+		int analde, struct nvme_ns *old)
 {
 	struct nvme_ns *ns, *found = NULL;
 
@@ -308,25 +308,25 @@ static struct nvme_ns *nvme_round_robin_path(struct nvme_ns_head *head,
 			found = ns;
 			goto out;
 		}
-		if (ns->ana_state == NVME_ANA_NONOPTIMIZED)
+		if (ns->ana_state == NVME_ANA_ANALANALPTIMIZED)
 			found = ns;
 	}
 
 	/*
 	 * The loop above skips the current path for round-robin semantics.
 	 * Fall back to the current path if either:
-	 *  - no other optimized path found and current is optimized,
-	 *  - no other usable path found and current is usable.
+	 *  - anal other optimized path found and current is optimized,
+	 *  - anal other usable path found and current is usable.
 	 */
 	if (!nvme_path_is_disabled(old) &&
 	    (old->ana_state == NVME_ANA_OPTIMIZED ||
-	     (!found && old->ana_state == NVME_ANA_NONOPTIMIZED)))
+	     (!found && old->ana_state == NVME_ANA_ANALANALPTIMIZED)))
 		return old;
 
 	if (!found)
 		return NULL;
 out:
-	rcu_assign_pointer(head->current_path[node], found);
+	rcu_assign_pointer(head->current_path[analde], found);
 	return found;
 }
 
@@ -338,17 +338,17 @@ static inline bool nvme_path_is_optimized(struct nvme_ns *ns)
 
 inline struct nvme_ns *nvme_find_path(struct nvme_ns_head *head)
 {
-	int node = numa_node_id();
+	int analde = numa_analde_id();
 	struct nvme_ns *ns;
 
-	ns = srcu_dereference(head->current_path[node], &head->srcu);
+	ns = srcu_dereference(head->current_path[analde], &head->srcu);
 	if (unlikely(!ns))
-		return __nvme_find_path(head, node);
+		return __nvme_find_path(head, analde);
 
 	if (READ_ONCE(head->subsys->iopolicy) == NVME_IOPOLICY_RR)
-		return nvme_round_robin_path(head, node, ns);
+		return nvme_round_robin_path(head, analde, ns);
 	if (unlikely(!nvme_path_is_optimized(ns)))
-		return __nvme_find_path(head, node);
+		return __nvme_find_path(head, analde);
 	return ns;
 }
 
@@ -395,15 +395,15 @@ static void nvme_ns_head_submit_bio(struct bio *bio)
 		bio->bi_opf |= REQ_NVME_MPATH;
 		trace_block_bio_remap(bio, disk_devt(ns->head->disk),
 				      bio->bi_iter.bi_sector);
-		submit_bio_noacct(bio);
+		submit_bio_analacct(bio);
 	} else if (nvme_available_path(head)) {
-		dev_warn_ratelimited(dev, "no usable path - requeuing I/O\n");
+		dev_warn_ratelimited(dev, "anal usable path - requeuing I/O\n");
 
 		spin_lock_irq(&head->requeue_lock);
 		bio_list_add(&head->requeue_list, bio);
 		spin_unlock_irq(&head->requeue_lock);
 	} else {
-		dev_warn_ratelimited(dev, "no available path - failing I/O\n");
+		dev_warn_ratelimited(dev, "anal available path - failing I/O\n");
 
 		bio_io_error(bio);
 	}
@@ -459,16 +459,16 @@ static inline struct nvme_ns_head *cdev_to_ns_head(struct cdev *cdev)
 	return container_of(cdev, struct nvme_ns_head, cdev);
 }
 
-static int nvme_ns_head_chr_open(struct inode *inode, struct file *file)
+static int nvme_ns_head_chr_open(struct ianalde *ianalde, struct file *file)
 {
-	if (!nvme_tryget_ns_head(cdev_to_ns_head(inode->i_cdev)))
+	if (!nvme_tryget_ns_head(cdev_to_ns_head(ianalde->i_cdev)))
 		return -ENXIO;
 	return 0;
 }
 
-static int nvme_ns_head_chr_release(struct inode *inode, struct file *file)
+static int nvme_ns_head_chr_release(struct ianalde *ianalde, struct file *file)
 {
-	nvme_put_ns_head(cdev_to_ns_head(inode->i_cdev));
+	nvme_put_ns_head(cdev_to_ns_head(ianalde->i_cdev));
 	return 0;
 }
 
@@ -510,7 +510,7 @@ static void nvme_requeue_work(struct work_struct *work)
 		next = bio->bi_next;
 		bio->bi_next = NULL;
 
-		submit_bio_noacct(bio);
+		submit_bio_analacct(bio);
 	}
 }
 
@@ -524,7 +524,7 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 	INIT_WORK(&head->requeue_work, nvme_requeue_work);
 
 	/*
-	 * Add a multipath node if the subsystems supports multiple controllers.
+	 * Add a multipath analde if the subsystems supports multiple controllers.
 	 * We also do this for private namespaces as the namespace sharing flag
 	 * could change after a rescan.
 	 */
@@ -532,22 +532,22 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 	    !nvme_is_unique_nsid(ctrl, head) || !multipath)
 		return 0;
 
-	head->disk = blk_alloc_disk(ctrl->numa_node);
+	head->disk = blk_alloc_disk(ctrl->numa_analde);
 	if (!head->disk)
-		return -ENOMEM;
+		return -EANALMEM;
 	head->disk->fops = &nvme_ns_head_ops;
 	head->disk->private_data = head;
 	sprintf(head->disk->disk_name, "nvme%dn%d",
 			ctrl->subsys->instance, head->instance);
 
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, head->disk->queue);
-	blk_queue_flag_set(QUEUE_FLAG_NOWAIT, head->disk->queue);
+	blk_queue_flag_set(QUEUE_FLAG_ANALNROT, head->disk->queue);
+	blk_queue_flag_set(QUEUE_FLAG_ANALWAIT, head->disk->queue);
 	blk_queue_flag_set(QUEUE_FLAG_IO_STAT, head->disk->queue);
 	/*
 	 * This assumes all controllers that refer to a namespace either
-	 * support poll queues or not.  That is not a strict guarantee,
+	 * support poll queues or analt.  That is analt a strict guarantee,
 	 * but if the assumption is wrong the effect is only suboptimal
-	 * performance but not correctness problem.
+	 * performance but analt correctness problem.
 	 */
 	if (ctrl->tagset->nr_maps > HCTX_TYPE_POLL &&
 	    ctrl->tagset->map[HCTX_TYPE_POLL].nr_queues)
@@ -590,11 +590,11 @@ static void nvme_mpath_set_live(struct nvme_ns *ns)
 
 	mutex_lock(&head->lock);
 	if (nvme_path_is_optimized(ns)) {
-		int node, srcu_idx;
+		int analde, srcu_idx;
 
 		srcu_idx = srcu_read_lock(&head->srcu);
-		for_each_node(node)
-			__nvme_find_path(head, node);
+		for_each_analde(analde)
+			__nvme_find_path(head, analde);
 		srcu_read_unlock(&head->srcu, srcu_idx);
 	}
 	mutex_unlock(&head->lock);
@@ -649,7 +649,7 @@ static int nvme_parse_ana_log(struct nvme_ctrl *ctrl, void *data,
 
 static inline bool nvme_state_is_live(enum nvme_ana_state state)
 {
-	return state == NVME_ANA_OPTIMIZED || state == NVME_ANA_NONOPTIMIZED;
+	return state == NVME_ANA_OPTIMIZED || state == NVME_ANA_ANALANALPTIMIZED;
 }
 
 static void nvme_update_ns_ana_state(struct nvme_ana_group_desc *desc,
@@ -660,8 +660,8 @@ static void nvme_update_ns_ana_state(struct nvme_ana_group_desc *desc,
 	clear_bit(NVME_NS_ANA_PENDING, &ns->flags);
 	/*
 	 * nvme_mpath_set_live() will trigger I/O to the multipath path device
-	 * and in turn to this path device.  However we cannot accept this I/O
-	 * if the controller is not live.  This may deadlock if called from
+	 * and in turn to this path device.  However we cananalt accept this I/O
+	 * if the controller is analt live.  This may deadlock if called from
 	 * nvme_mpath_init_identify() and the ctrl will never complete
 	 * initialization, preventing I/O from completing.  For this case we
 	 * will reprocess the ANA log page in nvme_mpath_update() once the
@@ -860,7 +860,7 @@ void nvme_mpath_add_disk(struct nvme_ns *ns, __le32 anagrpid)
 			/* found the group desc: update */
 			nvme_update_ns_ana_state(&desc, ns);
 		} else {
-			/* group desc not found: trigger a re-read */
+			/* group desc analt found: trigger a re-read */
 			set_bit(NVME_NS_ANA_PENDING, &ns->flags);
 			queue_work(nvme_wq, &ns->ctrl->ana_work);
 		}
@@ -944,7 +944,7 @@ int nvme_mpath_init_identify(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 		nvme_mpath_uninit(ctrl);
 		ctrl->ana_log_buf = kvmalloc(ana_log_size, GFP_KERNEL);
 		if (!ctrl->ana_log_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	ctrl->ana_log_size = ana_log_size;
 	error = nvme_read_ana_log(ctrl);

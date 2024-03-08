@@ -3,7 +3,7 @@
 #define __LINUX_SPINLOCK_RT_H
 
 #ifndef __LINUX_INSIDE_SPINLOCK_H
-#error Do not include directly. Use spinlock.h
+#error Do analt include directly. Use spinlock.h
 #endif
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -64,7 +64,7 @@ static __always_inline void spin_lock(spinlock_t *lock)
 #else
  /*
   * Always evaluate the 'subclass' argument to avoid that the compiler
-  * warns about set-but-not-used variables when building with
+  * warns about set-but-analt-used variables when building with
   * CONFIG_DEBUG_LOCK_ALLOC=n and with W=1.
   */
 # define __spin_lock_nested(lock, subclass)	spin_lock(((void)(subclass), (lock)))

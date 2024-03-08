@@ -25,10 +25,10 @@ size_t syscall_arg__scnprintf_statx_flags(char *bf, size_t size, struct syscall_
 		flags &= ~AT_##n; \
 	}
 
-	P_FLAG(SYMLINK_NOFOLLOW);
+	P_FLAG(SYMLINK_ANALFOLLOW);
 	P_FLAG(REMOVEDIR);
 	P_FLAG(SYMLINK_FOLLOW);
-	P_FLAG(NO_AUTOMOUNT);
+	P_FLAG(ANAL_AUTOMOUNT);
 	P_FLAG(EMPTY_PATH);
 	P_FLAG(STATX_FORCE_SYNC);
 	P_FLAG(STATX_DONT_SYNC);
@@ -61,7 +61,7 @@ size_t syscall_arg__scnprintf_statx_mask(char *bf, size_t size, struct syscall_a
 	P_FLAG(ATIME);
 	P_FLAG(MTIME);
 	P_FLAG(CTIME);
-	P_FLAG(INO);
+	P_FLAG(IANAL);
 	P_FLAG(SIZE);
 	P_FLAG(BLOCKS);
 	P_FLAG(BTIME);

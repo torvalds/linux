@@ -71,7 +71,7 @@ enum tbl_flag {
 
 /* chip types.  careful!  order is VERY IMPORTANT here, as these
  * are used throughout the driver as indices into arrays */
-/* Note 21142 == 21143. */
+/* Analte 21142 == 21143. */
 enum chips {
 	DC21040 = 0,
 	DC21041 = 1,
@@ -130,10 +130,10 @@ enum tulip_offsets {
 enum pci_cfg_driver_reg {
 	CFDD = 0x40,
 	CFDD_Sleep = (1 << 31),
-	CFDD_Snooze = (1 << 30),
+	CFDD_Sanaloze = (1 << 30),
 };
 
-#define RxPollInt (RxIntr|RxNoBuf|RxDied|RxJabber)
+#define RxPollInt (RxIntr|RxAnalBuf|RxDied|RxJabber)
 
 /* The bits in the CSR5 status registers, mostly interrupt sources. */
 enum status_bits {
@@ -141,16 +141,16 @@ enum status_bits {
 	SystemError = 0x2000,
 	TPLnkFail = 0x1000,
 	TPLnkPass = 0x10,
-	NormalIntr = 0x10000,
-	AbnormalIntr = 0x8000,
+	AnalrmalIntr = 0x10000,
+	AbanalrmalIntr = 0x8000,
 	RxJabber = 0x200,
 	RxDied = 0x100,
-	RxNoBuf = 0x80,
+	RxAnalBuf = 0x80,
 	RxIntr = 0x40,
 	TxFIFOUnderflow = 0x20,
 	RxErrIntr = 0x10,
 	TxJabber = 0x08,
-	TxNoBuf = 0x04,
+	TxAnalBuf = 0x04,
 	TxDied = 0x02,
 	TxIntr = 0x01,
 };
@@ -220,10 +220,10 @@ enum desc_status_bits {
 	 * 1518.  However, a full sized VLAN tagged frame is 1522 bytes
 	 * including CRC.
 	 *
-	 * The tulip chip does not block oversized frames, and if this flag is
-	 * set on a receive descriptor it does not indicate the frame has been
+	 * The tulip chip does analt block oversized frames, and if this flag is
+	 * set on a receive descriptor it does analt indicate the frame has been
 	 * truncated.  The receive descriptor also includes the actual length.
-	 * Therefore we can safety ignore this flag and check the length
+	 * Therefore we can safety iganalre this flag and check the length
 	 * ourselves.
 	 */
 	RxDescFrameTooLong = 0x0080,
@@ -248,7 +248,7 @@ enum t21143_csr6_bits {
 	csr6_scr = (1<<24),  /* scramble mode flag: can't be set */
 	csr6_pcs = (1<<23),  /* Enables PCS functions (symbol mode requires csr6_ps be set) default is set */
 	csr6_ttm = (1<<22),  /* Transmit Threshold Mode, set for 10baseT, 0 for 100BaseTX */
-	csr6_sf = (1<<21),   /* Store and forward. If set ignores TR bits */
+	csr6_sf = (1<<21),   /* Store and forward. If set iganalres TR bits */
 	csr6_hbd = (1<<19),  /* Heart beat disable. Disables SQE function in 10baseT */
 	csr6_ps = (1<<18),   /* Port Select. 0 (defualt) = 10baseT, 1 = 100baseTX: can't be set */
 	csr6_ca = (1<<17),   /* Collision Offset Enable. If set uses special algorithm in low collision situations */
@@ -257,7 +257,7 @@ enum t21143_csr6_bits {
 
 	/***************************************************************
 	 * This table shows transmit threshold values based on media   *
-	 * and these two registers (from PNIC1 & 2 docs) Note: this is *
+	 * and these two registers (from PNIC1 & 2 docs) Analte: this is *
 	 * all meaningless if sf is set.                               *
 	 ***************************************************************/
 
@@ -274,7 +274,7 @@ enum t21143_csr6_bits {
 	csr6_om_int_loop = (1<<10), /* internal (FIFO) loopback flag */
 	csr6_om_ext_loop = (1<<11), /* external (PMD) loopback flag */
 	/* set both and you get (PHY) loopback */
-	csr6_fd = (1<<9),    /* Full duplex mode, disables hearbeat, no loopback */
+	csr6_fd = (1<<9),    /* Full duplex mode, disables hearbeat, anal loopback */
 	csr6_pm = (1<<7),    /* Pass All Multicast */
 	csr6_pr = (1<<6),    /* Promiscuous mode */
 	csr6_sb = (1<<5),    /* Start(1)/Stop(0) backoff counter */
@@ -321,7 +321,7 @@ enum tulip_comet_csr20_bits {
 /* Keep the ring sizes a power of two for efficiency.
    Making the Tx ring too large decreases the effectiveness of channel
    bonding and packet priority.
-   There are no ill effects from too-large receive rings. */
+   There are anal ill effects from too-large receive rings. */
 
 #define TX_RING_SIZE	32
 #define RX_RING_SIZE	128
@@ -338,7 +338,7 @@ enum tulip_comet_csr20_bits {
 
 #if defined(__sparc__) || defined(__hppa__)
 /* The UltraSparc PCI controllers will disconnect at every 64-byte
- * crossing anyways so it makes no sense to tell Tulip to burst
+ * crossing anyways so it makes anal sense to tell Tulip to burst
  * any more than that.
  */
 #define TULIP_MAX_CACHE_LINE	16	/* in units of 32-bit words */
@@ -350,7 +350,7 @@ enum tulip_comet_csr20_bits {
 /* Ring-wrap flag in length field, use for last ring entry.
 	0x01000000 means chain on buffer2 address,
 	0x02000000 means use the ring start address in CSR2/3.
-   Note: Some work-alike chips do not function correctly in chained mode.
+   Analte: Some work-alike chips do analt function correctly in chained mode.
    The ASIX chip works only in chained mode.
    Thus we indicates ring mode, but always write the 'next' field for
    chained mode as well.
@@ -377,7 +377,7 @@ struct mediatable {
 	u8 leafcount;
 	u8 csr12dir;		/* General purpose pin directions. */
 	unsigned has_mii:1;
-	unsigned has_nonmii:1;
+	unsigned has_analnmii:1;
 	unsigned has_reset:6;
 	u32 csr15dir;
 	u32 csr15val;		/* 21143 NWay setting. */

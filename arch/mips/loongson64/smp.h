@@ -5,13 +5,13 @@
 /* for Loongson-3 smp support */
 extern unsigned long long smp_group[4];
 
-/* 4 groups(nodes) in maximum in numa case */
+/* 4 groups(analdes) in maximum in numa case */
 #define SMP_CORE_GROUP0_BASE	(smp_group[0])
 #define SMP_CORE_GROUP1_BASE	(smp_group[1])
 #define SMP_CORE_GROUP2_BASE	(smp_group[2])
 #define SMP_CORE_GROUP3_BASE	(smp_group[3])
 
-/* 4 cores in each group(node) */
+/* 4 cores in each group(analde) */
 #define SMP_CORE0_OFFSET  0x000
 #define SMP_CORE1_OFFSET  0x100
 #define SMP_CORE2_OFFSET  0x200

@@ -242,7 +242,7 @@ static void btc8821a1ant_auto_rate_fb_retry(struct btc_coexist *btcoexist,
 	if (force_exec ||
 	    (coex_dm->pre_arfr_type != coex_dm->cur_arfr_type)) {
 		switch (coex_dm->cur_arfr_type) {
-		case 0:	/* normal mode */
+		case 0:	/* analrmal mode */
 			btcoexist->btc_write_4byte(btcoexist, 0x430,
 						   coex_dm->backup_arfr_cnt1);
 			btcoexist->btc_write_4byte(btcoexist, 0x434,
@@ -280,7 +280,7 @@ static void btc8821a1ant_retry_limit(struct btc_coexist *btcoexist,
 	if (force_exec ||
 	    (coex_dm->pre_retry_limit_type != coex_dm->cur_retry_limit_type)) {
 		switch (coex_dm->cur_retry_limit_type) {
-		case 0:	/* normal mode */
+		case 0:	/* analrmal mode */
 			btcoexist->btc_write_2byte(btcoexist, 0x42a,
 						   coex_dm->backup_retry_limit);
 			break;
@@ -302,7 +302,7 @@ static void btc8821a1ant_ampdu_max_time(struct btc_coexist *btcoexist,
 	if (force_exec ||
 	    (coex_dm->pre_ampdu_time_type != coex_dm->cur_ampdu_time_type)) {
 		switch (coex_dm->cur_ampdu_time_type) {
-		case 0:	/* normal mode */
+		case 0:	/* analrmal mode */
 			btcoexist->btc_write_1byte(btcoexist, 0x456,
 						   coex_dm->backup_ampdu_max_time);
 			break;
@@ -323,7 +323,7 @@ static void btc8821a1ant_limited_tx(struct btc_coexist *btcoexist,
 				    u8 ampdu_time_type)
 {
 	switch (ra_mask_type) {
-	case 0:	/* normal mode */
+	case 0:	/* analrmal mode */
 		btc8821a1ant_update_ra_mask(btcoexist, force_exec, 0x0);
 		break;
 	case 1:	/* disable cck 1/2 */
@@ -354,7 +354,7 @@ static void btc8821a1ant_limited_rx(struct btc_coexist *btcoexist,
 	/* Rx Aggregation related setting */
 	btcoexist->btc_set(btcoexist,
 		 BTC_SET_BL_TO_REJ_AP_AGG_PKT, &reject_rx_agg);
-	/* decide BT control aggregation buf size or not */
+	/* decide BT control aggregation buf size or analt */
 	btcoexist->btc_set(btcoexist, BTC_SET_BL_BT_CTRL_AGG_SIZE,
 			   &bt_ctrl_rx_agg_size);
 	/* aggregation buf size, only work when BT control Rx agg size */
@@ -472,7 +472,7 @@ static u8 btc8821a1ant_action_algorithm(struct btc_coexist *btcoexist)
 
 	if (!bt_link_info->bt_link_exist) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], No BT link exists!!!\n");
+			"[BTCoex], Anal BT link exists!!!\n");
 		return algorithm;
 	}
 
@@ -653,7 +653,7 @@ static void btc8821a1ant_set_sw_penalty_tx_rate(struct btc_coexist *btcoexist,
 
 	if (low_penalty_ra) {
 		h2c_parameter[1] |= BIT0;
-		/* normal rate except MCS7/6/5, OFDM54/48/36 */
+		/* analrmal rate except MCS7/6/5, OFDM54/48/36 */
 		h2c_parameter[2] = 0x00;
 		h2c_parameter[3] = 0xf7; /* MCS7 or OFDM54 */
 		h2c_parameter[4] = 0xf8; /* MCS6 or OFDM48 */
@@ -777,7 +777,7 @@ static void btc8821a1ant_coex_table_with_type(struct btc_coexist *btcoexist,
 	}
 }
 
-static void btc8821a1ant_set_fw_ignore_wlan_act(struct btc_coexist *btcoexist,
+static void btc8821a1ant_set_fw_iganalre_wlan_act(struct btc_coexist *btcoexist,
 						bool enable)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -787,35 +787,35 @@ static void btc8821a1ant_set_fw_ignore_wlan_act(struct btc_coexist *btcoexist,
 		h2c_parameter[0] |= BIT0; /* function enable */
 
 	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-		"[BTCoex], set FW for BT Ignore Wlan_Act, FW write 0x63 = 0x%x\n",
+		"[BTCoex], set FW for BT Iganalre Wlan_Act, FW write 0x63 = 0x%x\n",
 		h2c_parameter[0]);
 
 	btcoexist->btc_fill_h2c(btcoexist, 0x63, 1, h2c_parameter);
 }
 
-static void btc8821a1ant_ignore_wlan_act(struct btc_coexist *btcoexist,
+static void btc8821a1ant_iganalre_wlan_act(struct btc_coexist *btcoexist,
 					 bool force_exec, bool enable)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 
 	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-		"[BTCoex], %s turn Ignore WlanAct %s\n",
+		"[BTCoex], %s turn Iganalre WlanAct %s\n",
 		(force_exec ? "force to" : ""), (enable ? "ON" : "OFF"));
-	coex_dm->cur_ignore_wlan_act = enable;
+	coex_dm->cur_iganalre_wlan_act = enable;
 
 	if (!force_exec) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], pre_ignore_wlan_act = %d, cur_ignore_wlan_act = %d!!\n",
-			coex_dm->pre_ignore_wlan_act,
-			 coex_dm->cur_ignore_wlan_act);
+			"[BTCoex], pre_iganalre_wlan_act = %d, cur_iganalre_wlan_act = %d!!\n",
+			coex_dm->pre_iganalre_wlan_act,
+			 coex_dm->cur_iganalre_wlan_act);
 
-		if (coex_dm->pre_ignore_wlan_act ==
-		    coex_dm->cur_ignore_wlan_act)
+		if (coex_dm->pre_iganalre_wlan_act ==
+		    coex_dm->cur_iganalre_wlan_act)
 			return;
 	}
-	btc8821a1ant_set_fw_ignore_wlan_act(btcoexist, enable);
+	btc8821a1ant_set_fw_iganalre_wlan_act(btcoexist, enable);
 
-	coex_dm->pre_ignore_wlan_act = coex_dm->cur_ignore_wlan_act;
+	coex_dm->pre_iganalre_wlan_act = coex_dm->cur_iganalre_wlan_act;
 }
 
 static void btc8821a1ant_set_fw_ps_tdma(struct btc_coexist *btcoexist, u8 byte1,
@@ -892,7 +892,7 @@ static void btc8821a1ant_lps_rpwm(struct btc_coexist *btcoexist,
 		if ((coex_dm->pre_lps == coex_dm->cur_lps) &&
 		    (coex_dm->pre_rpwm == coex_dm->cur_rpwm)) {
 			rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-				"[BTCoex], LPS-RPWM_Last = 0x%x, LPS-RPWM_Now = 0x%x!!\n",
+				"[BTCoex], LPS-RPWM_Last = 0x%x, LPS-RPWM_Analw = 0x%x!!\n",
 				coex_dm->pre_rpwm, coex_dm->cur_rpwm);
 
 			return;
@@ -912,7 +912,7 @@ static void btc8821a1ant_sw_mechanism(struct btc_coexist *btcoexist,
 	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 		"[BTCoex], SM[LpRA] = %d\n", low_penalty_ra);
 
-	btc8821a1ant_low_penalty_ra(btcoexist, NORMAL_EXEC, low_penalty_ra);
+	btc8821a1ant_low_penalty_ra(btcoexist, ANALRMAL_EXEC, low_penalty_ra);
 }
 
 static void btc8821a1ant_set_ant_path(struct btc_coexist *btcoexist,
@@ -942,7 +942,7 @@ static void btc8821a1ant_set_ant_path(struct btc_coexist *btcoexist,
 			btcoexist->btc_fill_h2c(btcoexist, 0x65, 2,
 						h2c_parameter);
 		} else {
-			/* tell firmware "no antenna inverse"
+			/* tell firmware "anal antenna inverse"
 			 * WRONG firmware antenna control code, need fw to fix
 			 */
 			h2c_parameter[0] = 0;
@@ -1177,7 +1177,7 @@ static void btc8821a1ant_ps_tdma(struct btc_coexist *btcoexist,
 						    0x3, 0x14, 0x50);
 			break;
 		case 40:
-			/* SoftAP only with no sta associated, BT disable, TDMA
+			/* SoftAP only with anal sta associated, BT disable, TDMA
 			 * mode for power saving
 			 *
 			 * here softap mode screen off will cost 70-80mA for
@@ -1252,18 +1252,18 @@ static bool btc8821a1ant_is_common_action(struct btc_coexist *btcoexist)
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_BUSY, &wifi_busy);
 
 	if (!wifi_connected &&
-	    BT_8821A_1ANT_BT_STATUS_NON_CONNECTED_IDLE ==
+	    BT_8821A_1ANT_BT_STATUS_ANALN_CONNECTED_IDLE ==
 	    coex_dm->bt_status) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], Wifi non connected-idle + BT non connected-idle!!\n");
+			"[BTCoex], Wifi analn connected-idle + BT analn connected-idle!!\n");
 		btc8821a1ant_sw_mechanism(btcoexist, false);
 
 		common = true;
 	} else if (wifi_connected &&
-		   (BT_8821A_1ANT_BT_STATUS_NON_CONNECTED_IDLE ==
+		   (BT_8821A_1ANT_BT_STATUS_ANALN_CONNECTED_IDLE ==
 		    coex_dm->bt_status)) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], Wifi connected + BT non connected-idle!!\n");
+			"[BTCoex], Wifi connected + BT analn connected-idle!!\n");
 		btc8821a1ant_sw_mechanism(btcoexist, false);
 
 		common = true;
@@ -1271,7 +1271,7 @@ static bool btc8821a1ant_is_common_action(struct btc_coexist *btcoexist)
 		   (BT_8821A_1ANT_BT_STATUS_CONNECTED_IDLE ==
 		    coex_dm->bt_status)) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], Wifi non connected-idle + BT connected-idle!!\n");
+			"[BTCoex], Wifi analn connected-idle + BT connected-idle!!\n");
 		btc8821a1ant_sw_mechanism(btcoexist, false);
 
 		common = true;
@@ -1287,7 +1287,7 @@ static bool btc8821a1ant_is_common_action(struct btc_coexist *btcoexist)
 		   (BT_8821A_1ANT_BT_STATUS_CONNECTED_IDLE !=
 		    coex_dm->bt_status)) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], Wifi non connected-idle + BT Busy!!\n");
+			"[BTCoex], Wifi analn connected-idle + BT Busy!!\n");
 		btc8821a1ant_sw_mechanism(btcoexist, false);
 
 		common = true;
@@ -1316,18 +1316,18 @@ static void btc8821a1ant_ps_tdma_check_for_pwr_save(struct btc_coexist *btcoex,
 	if (lps_mode) {
 		/* already under LPS state */
 		if (new_ps_state) {
-			/* keep state under LPS, do nothing */
+			/* keep state under LPS, do analthing */
 		} else {
 			/* will leave LPS state, turn off psTdma first */
-			btc8821a1ant_ps_tdma(btcoex, NORMAL_EXEC, false, 0);
+			btc8821a1ant_ps_tdma(btcoex, ANALRMAL_EXEC, false, 0);
 		}
 	} else {
-		/* NO PS state*/
+		/* ANAL PS state*/
 		if (new_ps_state) {
 			/* will enter LPS state, turn off psTdma first */
-			btc8821a1ant_ps_tdma(btcoex, NORMAL_EXEC, false, 0);
+			btc8821a1ant_ps_tdma(btcoex, ANALRMAL_EXEC, false, 0);
 		} else {
-			/* keep state under NO PS state, do nothing */
+			/* keep state under ANAL PS state, do analthing */
 		}
 	}
 }
@@ -1343,14 +1343,14 @@ static void btc8821a1ant_power_save_state(struct btc_coexist *btcoexist,
 		low_pwr_disable = false;
 		btcoexist->btc_set(btcoexist, BTC_SET_ACT_DISABLE_LOW_POWER,
 				   &low_pwr_disable);
-		btcoexist->btc_set(btcoexist, BTC_SET_ACT_NORMAL_LPS, NULL);
+		btcoexist->btc_set(btcoexist, BTC_SET_ACT_ANALRMAL_LPS, NULL);
 		break;
 	case BTC_PS_LPS_ON:
 		btc8821a1ant_ps_tdma_check_for_pwr_save(btcoexist,
 							true);
-		btc8821a1ant_lps_rpwm(btcoexist, NORMAL_EXEC, lps_val,
+		btc8821a1ant_lps_rpwm(btcoexist, ANALRMAL_EXEC, lps_val,
 				      rpwm_val);
-		/* when coex force to enter LPS, do not enter 32k low power */
+		/* when coex force to enter LPS, do analt enter 32k low power */
 		low_pwr_disable = true;
 		btcoexist->btc_set(btcoexist, BTC_SET_ACT_DISABLE_LOW_POWER,
 				   &low_pwr_disable);
@@ -1370,15 +1370,15 @@ static void btc8821a1ant_coex_under_5g(struct btc_coexist *btcoexist)
 {
 	btc8821a1ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE,
 				      0x0, 0x0);
-	btc8821a1ant_ignore_wlan_act(btcoexist, NORMAL_EXEC, true);
+	btc8821a1ant_iganalre_wlan_act(btcoexist, ANALRMAL_EXEC, true);
 
-	btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 10);
+	btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, false, 10);
 
-	btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 0);
+	btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 0);
 
-	btc8821a1ant_limited_tx(btcoexist, NORMAL_EXEC, 0, 0, 0, 0);
+	btc8821a1ant_limited_tx(btcoexist, ANALRMAL_EXEC, 0, 0, 0, 0);
 
-	btc8821a1ant_limited_rx(btcoexist, NORMAL_EXEC, false, false, 5);
+	btc8821a1ant_limited_rx(btcoexist, ANALRMAL_EXEC, false, false, 5);
 }
 
 /***********************************************
@@ -1444,7 +1444,7 @@ static void btc8821a1ant_action_hid_a2dp(struct btc_coexist *btcoexist)
 
 /***********************************************
  *
- *	Non-Software Coex Mechanism start
+ *	Analn-Software Coex Mechanism start
  *
  ***********************************************/
 static
@@ -1456,18 +1456,18 @@ void btc8821a1ant_action_wifi_multi_port(struct btc_coexist *btcoexist)
 	/* tdma and coex table */
 	if (coex_dm->bt_status == BT_8821A_1ANT_BT_STATUS_ACL_BUSY) {
 		if (bt_link_info->a2dp_exist) {
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 14);
+			btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 14);
 			btc8821a1ant_coex_table_with_type(btcoexist,
-							  NORMAL_EXEC, 1);
+							  ANALRMAL_EXEC, 1);
 		} else if (bt_link_info->a2dp_exist &&
 			   bt_link_info->pan_exist) {
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
+			btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, false, 8);
 			btc8821a1ant_coex_table_with_type(btcoexist,
-							  NORMAL_EXEC, 4);
+							  ANALRMAL_EXEC, 4);
 		} else {
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 20);
+			btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 20);
 			btc8821a1ant_coex_table_with_type(btcoexist,
-							  NORMAL_EXEC, 4);
+							  ANALRMAL_EXEC, 4);
 		}
 	} else if ((coex_dm->bt_status == BT_8821A_1ANT_BT_STATUS_SCO_BUSY) ||
 		   (BT_8821A_1ANT_BT_STATUS_ACL_SCO_BUSY ==
@@ -1475,13 +1475,13 @@ void btc8821a1ant_action_wifi_multi_port(struct btc_coexist *btcoexist)
 		btc8821a1ant_act_bt_sco_hid_only_busy(btcoexist,
 				BT_8821A_1ANT_WIFI_STATUS_CONNECTED_SCAN);
 	} else {
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 2);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, false, 8);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 2);
 	}
 }
 
 static
-void btc8821a1ant_action_wifi_not_connected_asso_auth(
+void btc8821a1ant_action_wifi_analt_connected_asso_auth(
 					struct btc_coexist *btcoexist)
 {
 	struct btc_bt_link_info *bt_link_info = &btcoexist->bt_link_info;
@@ -1491,21 +1491,21 @@ void btc8821a1ant_action_wifi_not_connected_asso_auth(
 
 	/* tdma and coex table */
 	if ((bt_link_info->sco_exist) || (bt_link_info->hid_exist)) {
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 14);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 14);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 1);
 	} else if ((bt_link_info->a2dp_exist) || (bt_link_info->pan_exist)) {
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 20);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 4);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 20);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 4);
 	} else {
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 2);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, false, 8);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 2);
 	}
 }
 
 
 static void btc8821a1ant_action_hs(struct btc_coexist *btcoexist)
 {
-	btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 5);
+	btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 5);
 	btc8821a1ant_coex_table_with_type(btcoexist, FORCE_EXEC, 2);
 }
 
@@ -1526,33 +1526,33 @@ static void btc8821a1ant_action_bt_inquiry(struct btc_coexist *btcoexist)
 	if (!wifi_connected && !coex_sta->wifi_is_high_pri_task) {
 		btc8821a1ant_power_save_state(btcoexist,
 					      BTC_PS_WIFI_NATIVE, 0x0, 0x0);
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 0);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, false, 8);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 0);
 	} else if ((bt_link_info->sco_exist) || (bt_link_info->a2dp_exist) ||
 		   (bt_link_info->hid_only)) {
 		/* SCO/HID-only busy */
 		btc8821a1ant_power_save_state(btcoexist,
 					      BTC_PS_WIFI_NATIVE, 0x0, 0x0);
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 32);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 4);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 32);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 4);
 	} else if ((bt_link_info->a2dp_exist) && (bt_link_info->hid_exist)) {
 		/* A2DP+HID busy */
 		btc8821a1ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE,
 					      0x0, 0x0);
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 14);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 14);
 
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 1);
 	} else if ((bt_link_info->pan_exist) || (wifi_busy)) {
 		btc8821a1ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE,
 					      0x0, 0x0);
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 20);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 20);
 
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 4);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 4);
 	} else {
 		btc8821a1ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE,
 					      0x0, 0x0);
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 7);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, false, 8);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 7);
 	}
 }
 
@@ -1560,9 +1560,9 @@ static void btc8821a1ant_act_bt_sco_hid_only_busy(struct btc_coexist *btcoexist,
 						  u8 wifi_status)
 {
 	/* tdma and coex table */
-	btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 5);
+	btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 5);
 
-	btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
+	btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 1);
 }
 
 static void btc8821a1ant_act_wifi_con_bt_acl_busy(struct btc_coexist *btcoexist,
@@ -1583,61 +1583,61 @@ static void btc8821a1ant_act_wifi_con_bt_acl_busy(struct btc_coexist *btcoexist,
 	} else if (bt_link_info->a2dp_only) {
 		/* A2DP */
 		if (wifi_status == BT_8821A_1ANT_WIFI_STATUS_CONNECTED_IDLE) {
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 32);
+			btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 32);
 			btc8821a1ant_coex_table_with_type(btcoexist,
-							  NORMAL_EXEC, 1);
+							  ANALRMAL_EXEC, 1);
 			coex_dm->auto_tdma_adjust = false;
 		} else if ((bt_rssi_state != BTC_RSSI_STATE_HIGH) &&
 			   (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 14);
+			btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 14);
 			btc8821a1ant_coex_table_with_type(btcoexist,
-							  NORMAL_EXEC, 1);
+							  ANALRMAL_EXEC, 1);
 		} else {
 			/* for low BT RSSI */
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 14);
+			btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 14);
 			btc8821a1ant_coex_table_with_type(btcoexist,
-							  NORMAL_EXEC, 1);
+							  ANALRMAL_EXEC, 1);
 			coex_dm->auto_tdma_adjust = false;
 		}
 	} else if (bt_link_info->hid_exist && bt_link_info->a2dp_exist) {
-		/* HID+A2DP (no need to consider BT RSSI) */
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC,
+		/* HID+A2DP (anal need to consider BT RSSI) */
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC,
 				     true, 14);
 		coex_dm->auto_tdma_adjust = false;
 
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 1);
 	} else if ((bt_link_info->pan_only) ||
 		(bt_link_info->hid_exist && bt_link_info->pan_exist)) {
 		/* PAN(OPP, FTP), HID+PAN(OPP, FTP) */
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 3);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 6);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 3);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 6);
 		coex_dm->auto_tdma_adjust = false;
 	} else if (((bt_link_info->a2dp_exist) && (bt_link_info->pan_exist)) ||
 		   (bt_link_info->hid_exist && bt_link_info->a2dp_exist &&
 		    bt_link_info->pan_exist)) {
 		/* A2DP+PAN(OPP, FTP), HID+A2DP+PAN(OPP, FTP) */
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 43);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 43);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 1);
 		coex_dm->auto_tdma_adjust = false;
 	} else {
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 11);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 11);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 1);
 		coex_dm->auto_tdma_adjust = false;
 	}
 }
 
 static
-void btc8821a1ant_action_wifi_not_connected(struct btc_coexist *btcoexist)
+void btc8821a1ant_action_wifi_analt_connected(struct btc_coexist *btcoexist)
 {
 	/* power save state */
 	btc8821a1ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE, 0x0, 0x0);
 
 	/* tdma and coex table */
-	btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
-	btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 0);
+	btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, false, 8);
+	btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 0);
 }
 
-static void btc8821a1ant_act_wifi_not_conn_scan(struct btc_coexist *btcoexist)
+static void btc8821a1ant_act_wifi_analt_conn_scan(struct btc_coexist *btcoexist)
 {
 	struct btc_bt_link_info *bt_link_info = &btcoexist->bt_link_info;
 
@@ -1646,18 +1646,18 @@ static void btc8821a1ant_act_wifi_not_conn_scan(struct btc_coexist *btcoexist)
 	/* tdma and coex table */
 	if (coex_dm->bt_status == BT_8821A_1ANT_BT_STATUS_ACL_BUSY) {
 		if (bt_link_info->a2dp_exist) {
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 14);
+			btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 14);
 			btc8821a1ant_coex_table_with_type(btcoexist,
-							  NORMAL_EXEC, 1);
+							  ANALRMAL_EXEC, 1);
 		} else if (bt_link_info->a2dp_exist &&
 			   bt_link_info->pan_exist) {
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 22);
+			btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 22);
 			btc8821a1ant_coex_table_with_type(btcoexist,
-							  NORMAL_EXEC, 4);
+							  ANALRMAL_EXEC, 4);
 		} else {
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 20);
+			btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 20);
 			btc8821a1ant_coex_table_with_type(btcoexist,
-							  NORMAL_EXEC, 4);
+							  ANALRMAL_EXEC, 4);
 		}
 	} else if ((coex_dm->bt_status == BT_8821A_1ANT_BT_STATUS_SCO_BUSY) ||
 		   (BT_8821A_1ANT_BT_STATUS_ACL_SCO_BUSY ==
@@ -1665,8 +1665,8 @@ static void btc8821a1ant_act_wifi_not_conn_scan(struct btc_coexist *btcoexist)
 		btc8821a1ant_act_bt_sco_hid_only_busy(btcoexist,
 				BT_8821A_1ANT_WIFI_STATUS_CONNECTED_SCAN);
 	} else {
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 2);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, false, 8);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 2);
 	}
 }
 
@@ -1682,13 +1682,13 @@ void btc8821a1ant_action_wifi_connected_scan(struct btc_coexist *btcoexist)
 	/* tdma and coex table */
 	if (BT_8821A_1ANT_BT_STATUS_ACL_BUSY == coex_dm->bt_status) {
 		if (bt_link_info->a2dp_exist) {
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 14);
+			btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 14);
 			btc8821a1ant_coex_table_with_type(btcoexist,
-							  NORMAL_EXEC, 1);
+							  ANALRMAL_EXEC, 1);
 		} else {
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 20);
+			btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 20);
 			btc8821a1ant_coex_table_with_type(btcoexist,
-							  NORMAL_EXEC, 4);
+							  ANALRMAL_EXEC, 4);
 		}
 	} else if ((coex_dm->bt_status == BT_8821A_1ANT_BT_STATUS_SCO_BUSY) ||
 		   (coex_dm->bt_status ==
@@ -1696,8 +1696,8 @@ void btc8821a1ant_action_wifi_connected_scan(struct btc_coexist *btcoexist)
 		btc8821a1ant_act_bt_sco_hid_only_busy(btcoexist,
 			BT_8821A_1ANT_WIFI_STATUS_CONNECTED_SCAN);
 	} else {
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 2);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, false, 8);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 2);
 	}
 }
 
@@ -1711,19 +1711,19 @@ static void btc8821a1ant_act_wifi_conn_sp_pkt(struct btc_coexist *btcoexist)
 	/* tdma and coex table */
 	if ((bt_link_info->sco_exist) || (bt_link_info->hid_exist) ||
 	    (bt_link_info->a2dp_exist)) {
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 32);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 4);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 32);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 4);
 	}
 
 	if ((bt_link_info->hid_exist) && (bt_link_info->a2dp_exist)) {
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 14);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 14);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 1);
 	} else if (bt_link_info->pan_exist) {
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 20);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 4);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, true, 20);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 4);
 	} else {
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 2);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, false, 8);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 2);
 	}
 }
 
@@ -1793,9 +1793,9 @@ static void btc8821a1ant_action_wifi_connected(struct btc_coexist *btcoexist)
 			btc8821a1ant_act_bt_sco_hid_only_busy(btcoexist,
 				BT_8821A_1ANT_WIFI_STATUS_CONNECTED_IDLE);
 		} else {
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
+			btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, false, 8);
 			btc8821a1ant_coex_table_with_type(btcoexist,
-							  NORMAL_EXEC, 2);
+							  ANALRMAL_EXEC, 2);
 		}
 	} else {
 		if (BT_8821A_1ANT_BT_STATUS_ACL_BUSY == coex_dm->bt_status) {
@@ -1808,9 +1808,9 @@ static void btc8821a1ant_action_wifi_connected(struct btc_coexist *btcoexist)
 			btc8821a1ant_act_bt_sco_hid_only_busy(btcoexist,
 				BT_8821A_1ANT_WIFI_STATUS_CONNECTED_BUSY);
 		} else {
-			btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 8);
+			btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, false, 8);
 			btc8821a1ant_coex_table_with_type(btcoexist,
-							  NORMAL_EXEC, 2);
+							  ANALRMAL_EXEC, 2);
 		}
 	}
 }
@@ -1942,24 +1942,24 @@ static void btc8821a1ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 	num_of_wifi_link = wifi_link_status >> 16;
 	if ((num_of_wifi_link >= 2) ||
 	    (wifi_link_status & WIFI_P2P_GO_CONNECTED)) {
-		btc8821a1ant_limited_tx(btcoexist, NORMAL_EXEC, 0, 0, 0, 0);
-		btc8821a1ant_limited_rx(btcoexist, NORMAL_EXEC, false,
+		btc8821a1ant_limited_tx(btcoexist, ANALRMAL_EXEC, 0, 0, 0, 0);
+		btc8821a1ant_limited_rx(btcoexist, ANALRMAL_EXEC, false,
 					bt_ctrl_agg_buf_size, agg_buf_size);
 		btc8821a1ant_action_wifi_multi_port(btcoexist);
 		return;
 	}
 
 	if (!bt_link_info->sco_exist && !bt_link_info->hid_exist) {
-		btc8821a1ant_limited_tx(btcoexist, NORMAL_EXEC, 0, 0, 0, 0);
+		btc8821a1ant_limited_tx(btcoexist, ANALRMAL_EXEC, 0, 0, 0, 0);
 	} else {
 		if (wifi_connected) {
 			btc8821a1ant_wifi_rssi_state(btcoexist, 1, 2,
 							     30, 0);
 			btc8821a1ant_limited_tx(btcoexist,
-						NORMAL_EXEC, 1, 1,
+						ANALRMAL_EXEC, 1, 1,
 						0, 1);
 		} else {
-			btc8821a1ant_limited_tx(btcoexist, NORMAL_EXEC,
+			btc8821a1ant_limited_tx(btcoexist, ANALRMAL_EXEC,
 						0, 0, 0, 0);
 		}
 	}
@@ -1974,7 +1974,7 @@ static void btc8821a1ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 		bt_ctrl_agg_buf_size = true;
 		agg_buf_size = 0x8;
 	}
-	btc8821a1ant_limited_rx(btcoexist, NORMAL_EXEC, false,
+	btc8821a1ant_limited_rx(btcoexist, ANALRMAL_EXEC, false,
 				bt_ctrl_agg_buf_size, agg_buf_size);
 
 	btc8821a1ant_run_sw_coex_mech(btcoexist);
@@ -1992,7 +1992,7 @@ static void btc8821a1ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 		bool scan = false, link = false, roam = false;
 
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], wifi is non connected-idle !!!\n");
+			"[BTCoex], wifi is analn connected-idle !!!\n");
 
 		btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_SCAN, &scan);
 		btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_LINK, &link);
@@ -2000,12 +2000,12 @@ static void btc8821a1ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 
 		if (scan || link || roam) {
 			if (scan)
-				btc8821a1ant_act_wifi_not_conn_scan(btcoexist);
+				btc8821a1ant_act_wifi_analt_conn_scan(btcoexist);
 			else
-				btc8821a1ant_action_wifi_not_connected_asso_auth(
+				btc8821a1ant_action_wifi_analt_connected_asso_auth(
 					btcoexist);
 		} else {
-			btc8821a1ant_action_wifi_not_connected(btcoexist);
+			btc8821a1ant_action_wifi_analt_connected(btcoexist);
 		}
 	} else {
 		/* wifi LPS/Busy */
@@ -2130,7 +2130,7 @@ void ex_btc8821a1ant_display_coex_info(struct btc_coexist *btcoexist,
 		   board_info->btdm_ant_pos);
 
 	seq_printf(m, "\n %-35s = %s / %d", "BT stack/ hci ext ver",
-		   ((stack_info->profile_notified) ? "Yes" : "No"),
+		   ((stack_info->profile_analtified) ? "Anal" : "Anal"),
 		   stack_info->hci_version);
 
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_BT_PATCH_VER,
@@ -2187,9 +2187,9 @@ void ex_btc8821a1ant_display_coex_info(struct btc_coexist *btcoexist,
 		   "BT [status/ rssi/ retryCnt]",
 		   ((coex_sta->bt_disabled) ? ("disabled") :
 		   ((coex_sta->c2h_bt_inquiry_page) ? ("inquiry/page scan") :
-		   ((BT_8821A_1ANT_BT_STATUS_NON_CONNECTED_IDLE ==
+		   ((BT_8821A_1ANT_BT_STATUS_ANALN_CONNECTED_IDLE ==
 		     coex_dm->bt_status) ?
-		   "non-connected idle" :
+		   "analn-connected idle" :
 		   ((BT_8821A_1ANT_BT_STATUS_CONNECTED_IDLE ==
 		     coex_dm->bt_status) ?
 		   "connected-idle" : "busy")))),
@@ -2234,8 +2234,8 @@ void ex_btc8821a1ant_display_coex_info(struct btc_coexist *btcoexist,
 
 		seq_printf(m, "\n %-35s = %s/ %s/ %d ",
 			   "DelBA/ BtCtrlAgg/ AggSize",
-			   (btcoexist->bt_info.reject_agg_pkt ? "Yes" : "No"),
-			   (btcoexist->bt_info.bt_ctrl_buf_size ? "Yes" : "No"),
+			   (btcoexist->bt_info.reject_agg_pkt ? "Anal" : "Anal"),
+			   (btcoexist->bt_info.bt_ctrl_buf_size ? "Anal" : "Anal"),
 			   btcoexist->bt_info.agg_buf_size);
 		seq_printf(m, "\n %-35s = 0x%x ", "Rate Mask",
 			   btcoexist->bt_info.ra_mask);
@@ -2256,7 +2256,7 @@ void ex_btc8821a1ant_display_coex_info(struct btc_coexist *btcoexist,
 			   coex_dm->error_condition);
 
 		seq_printf(m, "\n %-35s = %d ", "IgnWlanAct",
-			   coex_dm->cur_ignore_wlan_act);
+			   coex_dm->cur_iganalre_wlan_act);
 	}
 
 	/* Hw setting */
@@ -2334,7 +2334,7 @@ void ex_btc8821a1ant_display_coex_info(struct btc_coexist *btcoexist,
 	btcoexist->btc_disp_dbg_msg(btcoexist, BTC_DBG_DISP_COEX_STATISTICS, m);
 }
 
-void ex_btc8821a1ant_ips_notify(struct btc_coexist *btcoexist, u8 type)
+void ex_btc8821a1ant_ips_analtify(struct btc_coexist *btcoexist, u8 type)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	bool wifi_under_5g = false;
@@ -2351,17 +2351,17 @@ void ex_btc8821a1ant_ips_notify(struct btc_coexist *btcoexist, u8 type)
 
 	if (BTC_IPS_ENTER == type) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], IPS ENTER notify\n");
+			"[BTCoex], IPS ENTER analtify\n");
 		coex_sta->under_ips = true;
 		btc8821a1ant_set_ant_path(btcoexist,
 					  BTC_ANT_PATH_BT, false, true);
 		/* set PTA control */
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 0);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, false, 0);
 		btc8821a1ant_coex_table_with_type(btcoexist,
-						  NORMAL_EXEC, 0);
+						  ANALRMAL_EXEC, 0);
 	} else if (BTC_IPS_LEAVE == type) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], IPS LEAVE notify\n");
+			"[BTCoex], IPS LEAVE analtify\n");
 		coex_sta->under_ips = false;
 
 		btc8821a1ant_init_hw_config(btcoexist, false, false);
@@ -2370,7 +2370,7 @@ void ex_btc8821a1ant_ips_notify(struct btc_coexist *btcoexist, u8 type)
 	}
 }
 
-void ex_btc8821a1ant_lps_notify(struct btc_coexist *btcoexist, u8 type)
+void ex_btc8821a1ant_lps_analtify(struct btc_coexist *btcoexist, u8 type)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 
@@ -2379,16 +2379,16 @@ void ex_btc8821a1ant_lps_notify(struct btc_coexist *btcoexist, u8 type)
 
 	if (BTC_LPS_ENABLE == type) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], LPS ENABLE notify\n");
+			"[BTCoex], LPS ENABLE analtify\n");
 		coex_sta->under_lps = true;
 	} else if (BTC_LPS_DISABLE == type) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], LPS DISABLE notify\n");
+			"[BTCoex], LPS DISABLE analtify\n");
 		coex_sta->under_lps = false;
 	}
 }
 
-void ex_btc8821a1ant_scan_notify(struct btc_coexist *btcoexist, u8 type)
+void ex_btc8821a1ant_scan_analtify(struct btc_coexist *btcoexist, u8 type)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	bool wifi_connected = false, bt_hs_on = false;
@@ -2411,14 +2411,14 @@ void ex_btc8821a1ant_scan_notify(struct btc_coexist *btcoexist, u8 type)
 	if (type == BTC_SCAN_START) {
 		coex_sta->wifi_is_high_pri_task = true;
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], SCAN START notify\n");
+			"[BTCoex], SCAN START analtify\n");
 
-		/* Force antenna setup for no scan result issue */
+		/* Force antenna setup for anal scan result issue */
 		btc8821a1ant_ps_tdma(btcoexist, FORCE_EXEC, false, 8);
 	} else {
 		coex_sta->wifi_is_high_pri_task = false;
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], SCAN FINISH notify\n");
+			"[BTCoex], SCAN FINISH analtify\n");
 	}
 
 	if (coex_sta->bt_disabled)
@@ -2435,8 +2435,8 @@ void ex_btc8821a1ant_scan_notify(struct btc_coexist *btcoexist, u8 type)
 			   &wifi_link_status);
 	num_of_wifi_link = wifi_link_status >> 16;
 	if (num_of_wifi_link >= 2) {
-		btc8821a1ant_limited_tx(btcoexist, NORMAL_EXEC, 0, 0, 0, 0);
-		btc8821a1ant_limited_rx(btcoexist, NORMAL_EXEC, false,
+		btc8821a1ant_limited_tx(btcoexist, ANALRMAL_EXEC, 0, 0, 0, 0);
+		btc8821a1ant_limited_rx(btcoexist, ANALRMAL_EXEC, false,
 					bt_ctrl_agg_buf_size, agg_buf_size);
 		btc8821a1ant_action_wifi_multi_port(btcoexist);
 		return;
@@ -2452,27 +2452,27 @@ void ex_btc8821a1ant_scan_notify(struct btc_coexist *btcoexist, u8 type)
 
 	if (BTC_SCAN_START == type) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], SCAN START notify\n");
+			"[BTCoex], SCAN START analtify\n");
 		if (!wifi_connected) {
-			/* non-connected scan */
-			btc8821a1ant_act_wifi_not_conn_scan(btcoexist);
+			/* analn-connected scan */
+			btc8821a1ant_act_wifi_analt_conn_scan(btcoexist);
 		} else {
 			/* wifi is connected */
 			btc8821a1ant_action_wifi_connected_scan(btcoexist);
 		}
 	} else if (BTC_SCAN_FINISH == type) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], SCAN FINISH notify\n");
+			"[BTCoex], SCAN FINISH analtify\n");
 		if (!wifi_connected) {
-			/* non-connected scan */
-			btc8821a1ant_action_wifi_not_connected(btcoexist);
+			/* analn-connected scan */
+			btc8821a1ant_action_wifi_analt_connected(btcoexist);
 		} else {
 			btc8821a1ant_action_wifi_connected(btcoexist);
 		}
 	}
 }
 
-void ex_btc8821a1ant_connect_notify(struct btc_coexist *btcoexist, u8 type)
+void ex_btc8821a1ant_connect_analtify(struct btc_coexist *btcoexist, u8 type)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	bool wifi_connected = false, bt_hs_on = false;
@@ -2496,12 +2496,12 @@ void ex_btc8821a1ant_connect_notify(struct btc_coexist *btcoexist, u8 type)
 	if (type == BTC_ASSOCIATE_START) {
 		coex_sta->wifi_is_high_pri_task = true;
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], CONNECT START notify\n");
+			"[BTCoex], CONNECT START analtify\n");
 		coex_dm->arp_cnt = 0;
 	} else {
 		coex_sta->wifi_is_high_pri_task = false;
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], CONNECT FINISH notify\n");
+			"[BTCoex], CONNECT FINISH analtify\n");
 		coex_dm->arp_cnt = 0;
 	}
 
@@ -2509,8 +2509,8 @@ void ex_btc8821a1ant_connect_notify(struct btc_coexist *btcoexist, u8 type)
 			   &wifi_link_status);
 	num_of_wifi_link = wifi_link_status >> 16;
 	if (num_of_wifi_link >= 2) {
-		btc8821a1ant_limited_tx(btcoexist, NORMAL_EXEC, 0, 0, 0, 0);
-		btc8821a1ant_limited_rx(btcoexist, NORMAL_EXEC, false,
+		btc8821a1ant_limited_tx(btcoexist, ANALRMAL_EXEC, 0, 0, 0, 0);
+		btc8821a1ant_limited_rx(btcoexist, ANALRMAL_EXEC, false,
 					bt_ctrl_agg_buf_size, agg_buf_size);
 		btc8821a1ant_action_wifi_multi_port(btcoexist);
 		return;
@@ -2527,24 +2527,24 @@ void ex_btc8821a1ant_connect_notify(struct btc_coexist *btcoexist, u8 type)
 
 	if (BTC_ASSOCIATE_START == type) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], CONNECT START notify\n");
-		btc8821a1ant_act_wifi_not_conn_scan(btcoexist);
+			"[BTCoex], CONNECT START analtify\n");
+		btc8821a1ant_act_wifi_analt_conn_scan(btcoexist);
 	} else if (BTC_ASSOCIATE_FINISH == type) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], CONNECT FINISH notify\n");
+			"[BTCoex], CONNECT FINISH analtify\n");
 
 		btcoexist->btc_get(btcoexist,
 			 BTC_GET_BL_WIFI_CONNECTED, &wifi_connected);
 		if (!wifi_connected) {
-			/* non-connected scan */
-			btc8821a1ant_action_wifi_not_connected(btcoexist);
+			/* analn-connected scan */
+			btc8821a1ant_action_wifi_analt_connected(btcoexist);
 		} else {
 			btc8821a1ant_action_wifi_connected(btcoexist);
 		}
 	}
 }
 
-void ex_btc8821a1ant_media_status_notify(struct btc_coexist *btcoexist,
+void ex_btc8821a1ant_media_status_analtify(struct btc_coexist *btcoexist,
 					 u8 type)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -2566,10 +2566,10 @@ void ex_btc8821a1ant_media_status_notify(struct btc_coexist *btcoexist,
 
 	if (BTC_MEDIA_CONNECT == type) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], MEDIA connect notify\n");
+			"[BTCoex], MEDIA connect analtify\n");
 	} else {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], MEDIA disconnect notify\n");
+			"[BTCoex], MEDIA disconnect analtify\n");
 		coex_dm->arp_cnt = 0;
 	}
 
@@ -2601,7 +2601,7 @@ void ex_btc8821a1ant_media_status_notify(struct btc_coexist *btcoexist,
 	btcoexist->btc_fill_h2c(btcoexist, 0x66, 3, h2c_parameter);
 }
 
-void ex_btc8821a1ant_special_packet_notify(struct btc_coexist *btcoexist,
+void ex_btc8821a1ant_special_packet_analtify(struct btc_coexist *btcoexist,
 					   u8 type)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -2630,15 +2630,15 @@ void ex_btc8821a1ant_special_packet_notify(struct btc_coexist *btcoexist,
 
 		if (type == BTC_PACKET_ARP) {
 			rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-				"[BTCoex], specific Packet ARP notify\n");
+				"[BTCoex], specific Packet ARP analtify\n");
 		} else {
 			rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-				"[BTCoex], specific Packet DHCP or EAPOL notify\n");
+				"[BTCoex], specific Packet DHCP or EAPOL analtify\n");
 		}
 	} else {
 		coex_sta->wifi_is_high_pri_task = false;
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], specific Packet [Type = %d] notify\n",
+			"[BTCoex], specific Packet [Type = %d] analtify\n",
 			type);
 	}
 
@@ -2648,8 +2648,8 @@ void ex_btc8821a1ant_special_packet_notify(struct btc_coexist *btcoexist,
 			   &wifi_link_status);
 	num_of_wifi_link = wifi_link_status >> 16;
 	if (num_of_wifi_link >= 2) {
-		btc8821a1ant_limited_tx(btcoexist, NORMAL_EXEC, 0, 0, 0, 0);
-		btc8821a1ant_limited_rx(btcoexist, NORMAL_EXEC, false,
+		btc8821a1ant_limited_tx(btcoexist, ANALRMAL_EXEC, 0, 0, 0, 0);
+		btc8821a1ant_limited_rx(btcoexist, ANALRMAL_EXEC, false,
 					bt_ctrl_agg_buf_size, agg_buf_size);
 		btc8821a1ant_action_wifi_multi_port(btcoexist);
 		return;
@@ -2672,19 +2672,19 @@ void ex_btc8821a1ant_special_packet_notify(struct btc_coexist *btcoexist,
 				"[BTCoex], ARP Packet Count = %d\n",
 				coex_dm->arp_cnt);
 			if (coex_dm->arp_cnt >= 10)
-				/* if APR PKT > 10 after connect, do not go to
+				/* if APR PKT > 10 after connect, do analt go to
 				 * btc8821a1ant_act_wifi_conn_sp_pkt
 				 */
 				return;
 		}
 
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], special Packet(%d) notify\n", type);
+			"[BTCoex], special Packet(%d) analtify\n", type);
 		btc8821a1ant_act_wifi_conn_sp_pkt(btcoexist);
 	}
 }
 
-void ex_btc8821a1ant_bt_info_notify(struct btc_coexist *btcoexist,
+void ex_btc8821a1ant_bt_info_analtify(struct btc_coexist *btcoexist,
 				    u8 *tmp_buf, u8 length)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -2754,10 +2754,10 @@ void ex_btc8821a1ant_bt_info_notify(struct btc_coexist *btcoexist,
 			btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_CONNECTED,
 					   &wifi_connected);
 			if (wifi_connected) {
-				ex_btc8821a1ant_media_status_notify(btcoexist,
+				ex_btc8821a1ant_media_status_analtify(btcoexist,
 							       BTC_MEDIA_CONNECT);
 			} else {
-				ex_btc8821a1ant_media_status_notify(btcoexist,
+				ex_btc8821a1ant_media_status_analtify(btcoexist,
 							       BTC_MEDIA_DISCONNECT);
 			}
 		}
@@ -2766,8 +2766,8 @@ void ex_btc8821a1ant_bt_info_notify(struct btc_coexist *btcoexist,
 			if (!btcoexist->manual_control &&
 			    !btcoexist->stop_coex_dm) {
 				rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-					"[BTCoex], BT ext info bit3 check, set BT NOT to ignore Wlan active!!\n");
-				btc8821a1ant_ignore_wlan_act(btcoexist,
+					"[BTCoex], BT ext info bit3 check, set BT ANALT to iganalre Wlan active!!\n");
+				btc8821a1ant_iganalre_wlan_act(btcoexist,
 							     FORCE_EXEC,
 							     false);
 			}
@@ -2816,29 +2816,29 @@ void ex_btc8821a1ant_bt_info_notify(struct btc_coexist *btcoexist,
 	bt_info = bt_info & 0x1f;
 
 	if (!(bt_info & BT_INFO_8821A_1ANT_B_CONNECTION)) {
-		coex_dm->bt_status = BT_8821A_1ANT_BT_STATUS_NON_CONNECTED_IDLE;
+		coex_dm->bt_status = BT_8821A_1ANT_BT_STATUS_ANALN_CONNECTED_IDLE;
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], BtInfoNotify(), BT Non-Connected idle!!!\n");
+			"[BTCoex], BtInfoAnaltify(), BT Analn-Connected idle!!!\n");
 	} else if (bt_info == BT_INFO_8821A_1ANT_B_CONNECTION) {
-		/* connection exists but no busy */
+		/* connection exists but anal busy */
 		coex_dm->bt_status = BT_8821A_1ANT_BT_STATUS_CONNECTED_IDLE;
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], BtInfoNotify(), BT Connected-idle!!!\n");
+			"[BTCoex], BtInfoAnaltify(), BT Connected-idle!!!\n");
 	} else if ((bt_info&BT_INFO_8821A_1ANT_B_SCO_ESCO) ||
 		(bt_info & BT_INFO_8821A_1ANT_B_SCO_BUSY)) {
 		coex_dm->bt_status = BT_8821A_1ANT_BT_STATUS_SCO_BUSY;
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], BtInfoNotify(), BT SCO busy!!!\n");
+			"[BTCoex], BtInfoAnaltify(), BT SCO busy!!!\n");
 	} else if (bt_info & BT_INFO_8821A_1ANT_B_ACL_BUSY) {
 		if (BT_8821A_1ANT_BT_STATUS_ACL_BUSY != coex_dm->bt_status)
 			coex_dm->auto_tdma_adjust = false;
 		coex_dm->bt_status = BT_8821A_1ANT_BT_STATUS_ACL_BUSY;
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], BtInfoNotify(), BT ACL busy!!!\n");
+			"[BTCoex], BtInfoAnaltify(), BT ACL busy!!!\n");
 	} else {
 		coex_dm->bt_status = BT_8821A_1ANT_BT_STATUS_MAX;
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], BtInfoNotify(), BT Non-Defined state!!!\n");
+			"[BTCoex], BtInfoAnaltify(), BT Analn-Defined state!!!\n");
 	}
 
 	if ((BT_8821A_1ANT_BT_STATUS_ACL_BUSY == coex_dm->bt_status) ||
@@ -2853,13 +2853,13 @@ void ex_btc8821a1ant_bt_info_notify(struct btc_coexist *btcoexist,
 	btc8821a1ant_run_coexist_mechanism(btcoexist);
 }
 
-void ex_btc8821a1ant_halt_notify(struct btc_coexist *btcoexist)
+void ex_btc8821a1ant_halt_analtify(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	bool wifi_under_5g = false;
 
 	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-		"[BTCoex], Halt notify\n");
+		"[BTCoex], Halt analtify\n");
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_UNDER_5G, &wifi_under_5g);
 	if (wifi_under_5g) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
@@ -2872,15 +2872,15 @@ void ex_btc8821a1ant_halt_notify(struct btc_coexist *btcoexist)
 	btcoexist->stop_coex_dm = true;
 
 	btc8821a1ant_set_ant_path(btcoexist, BTC_ANT_PATH_BT, false, true);
-	btc8821a1ant_ignore_wlan_act(btcoexist, FORCE_EXEC, true);
+	btc8821a1ant_iganalre_wlan_act(btcoexist, FORCE_EXEC, true);
 
 	btc8821a1ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE, 0x0, 0x0);
 	btc8821a1ant_ps_tdma(btcoexist, FORCE_EXEC, false, 0);
 
-	ex_btc8821a1ant_media_status_notify(btcoexist, BTC_MEDIA_DISCONNECT);
+	ex_btc8821a1ant_media_status_analtify(btcoexist, BTC_MEDIA_DISCONNECT);
 }
 
-void ex_btc8821a1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state)
+void ex_btc8821a1ant_pnp_analtify(struct btc_coexist *btcoexist, u8 pnp_state)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	bool wifi_under_5g = false;
@@ -2894,11 +2894,11 @@ void ex_btc8821a1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state)
 	}
 
 	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-		"[BTCoex], Pnp notify\n");
+		"[BTCoex], Pnp analtify\n");
 
 	if (BTC_WIFI_PNP_SLEEP == pnp_state) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], Pnp notify to SLEEP\n");
+			"[BTCoex], Pnp analtify to SLEEP\n");
 		/* BT should clear UnderIPS/UnderLPS state to avoid mismatch
 		 * state after wakeup.
 		 */
@@ -2907,13 +2907,13 @@ void ex_btc8821a1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state)
 		btcoexist->stop_coex_dm = true;
 		btc8821a1ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE,
 					      0x0, 0x0);
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 0);
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 2);
+		btc8821a1ant_ps_tdma(btcoexist, ANALRMAL_EXEC, false, 0);
+		btc8821a1ant_coex_table_with_type(btcoexist, ANALRMAL_EXEC, 2);
 		btc8821a1ant_set_ant_path(btcoexist, BTC_ANT_PATH_BT, false,
 					  true);
 	} else if (BTC_WIFI_PNP_WAKE_UP == pnp_state) {
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			"[BTCoex], Pnp notify to WAKE UP\n");
+			"[BTCoex], Pnp analtify to WAKE UP\n");
 		btcoexist->stop_coex_dm = false;
 		btc8821a1ant_init_hw_config(btcoexist, false, false);
 		btc8821a1ant_init_coex_dm(btcoexist);
@@ -2943,7 +2943,7 @@ void ex_btc8821a1ant_periodical(struct btc_coexist *btcoexist)
 			board_info->btdm_ant_pos);
 		rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			"[BTCoex], BT stack/ hci ext ver = %s / %d\n",
-			stack_info->profile_notified ? "Yes" : "No",
+			stack_info->profile_analtified ? "Anal" : "Anal",
 			stack_info->hci_version);
 		btcoexist->btc_get(btcoexist, BTC_GET_U4_BT_PATCH_VER,
 				   &bt_patch_ver);

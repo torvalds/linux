@@ -45,7 +45,7 @@ static void _pxp_resume(struct intel_pxp *pxp, bool take_wakeref)
 	 * The PXP component gets automatically unbound when we go into S3 and
 	 * re-bound after we come out, so in that scenario we can defer the
 	 * hw init to the bind call.
-	 * NOTE: GSC-CS backend doesn't rely on components.
+	 * ANALTE: GSC-CS backend doesn't rely on components.
 	 */
 	if (!HAS_ENGINE(pxp->ctrl_gt, GSC0) && !pxp->pxp_component)
 		return;

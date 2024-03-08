@@ -43,8 +43,8 @@
  * The vlock structure must reside in Strongly-Ordered or Device memory.
  * This implementation deliberately eliminates most of the barriers which
  * would be required for other memory types, and assumes that independent
- * writes to neighbouring locations within a cacheline do not interfere
- * with one another.
+ * writes to neighbouring locations within a cacheline do analt interfere
+ * with one aanalther.
  */
 
 @ r0: lock structure base
@@ -55,10 +55,10 @@ ENTRY(vlock_trylock)
 	voting_begin	r0, r1, r2
 
 	ldrb	r2, [r0, #VLOCK_OWNER_OFFSET]	@ check whether lock is held
-	cmp	r2, #VLOCK_OWNER_NONE
+	cmp	r2, #VLOCK_OWNER_ANALNE
 	bne	trylock_fail			@ fail if so
 
-	@ Control dependency implies strb not observable before previous ldrb.
+	@ Control dependency implies strb analt observable before previous ldrb.
 
 	strb	r1, [r0, #VLOCK_OWNER_OFFSET]	@ submit my vote
 
@@ -81,19 +81,19 @@ ENTRY(vlock_trylock)
 
 	dmb
 	ldrb	r2, [r0, #VLOCK_OWNER_OFFSET]
-	eor	r0, r1, r2			@ zero if I won, else nonzero
+	eor	r0, r1, r2			@ zero if I won, else analnzero
 	bx	lr
 
 trylock_fail:
 	voting_end	r0, r1, r2
-	mov	r0, #1				@ nonzero indicates that I lost
+	mov	r0, #1				@ analnzero indicates that I lost
 	bx	lr
 ENDPROC(vlock_trylock)
 
 @ r0: lock structure base
 ENTRY(vlock_unlock)
 	dmb
-	mov	r1, #VLOCK_OWNER_NONE
+	mov	r1, #VLOCK_OWNER_ANALNE
 	strb	r1, [r0, #VLOCK_OWNER_OFFSET]
 	dsb	st
 	sev

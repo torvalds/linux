@@ -3,11 +3,11 @@
  * tw9910 Driver header
  *
  * Copyright (C) 2008 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  *
  * Based on ov772x.h
  *
- * Copyright (C) Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Copyright (C) Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  */
 
 #ifndef __TW9910_H__
@@ -19,7 +19,7 @@ enum tw9910_mpout_pin {
 	TW9910_MPO_HLOCK,
 	TW9910_MPO_SLOCK,
 	TW9910_MPO_VLOCK,
-	TW9910_MPO_MONO,
+	TW9910_MPO_MOANAL,
 	TW9910_MPO_DET50,
 	TW9910_MPO_FIELD,
 	TW9910_MPO_RTCO,

@@ -112,7 +112,7 @@
 	 * should be removed if the board has level shifter and
 	 * need to work in UHS mode
 	 */
-	no-1-8-v;
+	anal-1-8-v;
 	disable-wp;
 	xlnx,mio-bank = <1>;
 	clk-phase-sd-hs = <126>, <60>;

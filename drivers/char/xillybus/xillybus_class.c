@@ -36,8 +36,8 @@ struct xilly_unit {
 	struct cdev *cdev;
 	char name[UNITNAMELEN];
 	int major;
-	int lowest_minor;
-	int num_nodes;
+	int lowest_mianalr;
+	int num_analdes;
 };
 
 int xillybus_init_chrdev(struct device *dev,
@@ -45,7 +45,7 @@ int xillybus_init_chrdev(struct device *dev,
 			 struct module *owner,
 			 void *private_data,
 			 unsigned char *idt, unsigned int len,
-			 int num_nodes,
+			 int num_analdes,
 			 const char *prefix, bool enumerate)
 {
 	int rc;
@@ -60,7 +60,7 @@ int xillybus_init_chrdev(struct device *dev,
 	unit = kzalloc(sizeof(*unit), GFP_KERNEL);
 
 	if (!unit)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&unit_mutex);
 
@@ -79,41 +79,41 @@ int xillybus_init_chrdev(struct device *dev,
 			}
 	}
 
-	rc = alloc_chrdev_region(&mdev, 0, num_nodes, unit->name);
+	rc = alloc_chrdev_region(&mdev, 0, num_analdes, unit->name);
 
 	if (rc) {
-		dev_warn(dev, "Failed to obtain major/minors");
+		dev_warn(dev, "Failed to obtain major/mianalrs");
 		goto fail_obtain;
 	}
 
 	unit->major = MAJOR(mdev);
-	unit->lowest_minor = MINOR(mdev);
-	unit->num_nodes = num_nodes;
+	unit->lowest_mianalr = MIANALR(mdev);
+	unit->num_analdes = num_analdes;
 	unit->private_data = private_data;
 
 	unit->cdev = cdev_alloc();
 	if (!unit->cdev) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto unregister_chrdev;
 	}
 	unit->cdev->ops = fops;
 	unit->cdev->owner = owner;
 
-	rc = cdev_add(unit->cdev, MKDEV(unit->major, unit->lowest_minor),
-		      unit->num_nodes);
+	rc = cdev_add(unit->cdev, MKDEV(unit->major, unit->lowest_mianalr),
+		      unit->num_analdes);
 	if (rc) {
 		dev_err(dev, "Failed to add cdev.\n");
-		/* kobject_put() is normally done by cdev_del() */
+		/* kobject_put() is analrmally done by cdev_del() */
 		kobject_put(&unit->cdev->kobj);
 		goto unregister_chrdev;
 	}
 
-	for (i = 0; i < num_nodes; i++) {
+	for (i = 0; i < num_analdes; i++) {
 		namelen = strnlen(idt, len);
 
 		if (namelen == len) {
 			dev_err(dev, "IDT's list of names is too short. This is exceptionally weird, because its CRC is OK\n");
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			goto unroll_device_create;
 		}
 
@@ -126,27 +126,27 @@ int xillybus_init_chrdev(struct device *dev,
 		device = device_create(&xillybus_class,
 				       NULL,
 				       MKDEV(unit->major,
-					     i + unit->lowest_minor),
+					     i + unit->lowest_mianalr),
 				       NULL,
 				       "%s", devname);
 
 		if (IS_ERR(device)) {
 			dev_err(dev, "Failed to create %s device. Aborting.\n",
 				devname);
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			goto unroll_device_create;
 		}
 	}
 
 	if (len) {
 		dev_err(dev, "IDT's list of names is too long. This is exceptionally weird, because its CRC is OK\n");
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto unroll_device_create;
 	}
 
 	list_add_tail(&unit->list_entry, &unit_list);
 
-	dev_info(dev, "Created %d device files.\n", num_nodes);
+	dev_info(dev, "Created %d device files.\n", num_analdes);
 
 	mutex_unlock(&unit_mutex);
 
@@ -155,13 +155,13 @@ int xillybus_init_chrdev(struct device *dev,
 unroll_device_create:
 	for (i--; i >= 0; i--)
 		device_destroy(&xillybus_class, MKDEV(unit->major,
-						     i + unit->lowest_minor));
+						     i + unit->lowest_mianalr));
 
 	cdev_del(unit->cdev);
 
 unregister_chrdev:
-	unregister_chrdev_region(MKDEV(unit->major, unit->lowest_minor),
-				 unit->num_nodes);
+	unregister_chrdev_region(MKDEV(unit->major, unit->lowest_mianalr),
+				 unit->num_analdes);
 
 fail_obtain:
 	mutex_unlock(&unit_mutex);
@@ -175,7 +175,7 @@ EXPORT_SYMBOL(xillybus_init_chrdev);
 void xillybus_cleanup_chrdev(void *private_data,
 			     struct device *dev)
 {
-	int minor;
+	int mianalr;
 	struct xilly_unit *unit = NULL, *iter;
 
 	mutex_lock(&unit_mutex);
@@ -192,18 +192,18 @@ void xillybus_cleanup_chrdev(void *private_data,
 		return;
 	}
 
-	for (minor = unit->lowest_minor;
-	     minor < (unit->lowest_minor + unit->num_nodes);
-	     minor++)
-		device_destroy(&xillybus_class, MKDEV(unit->major, minor));
+	for (mianalr = unit->lowest_mianalr;
+	     mianalr < (unit->lowest_mianalr + unit->num_analdes);
+	     mianalr++)
+		device_destroy(&xillybus_class, MKDEV(unit->major, mianalr));
 
 	cdev_del(unit->cdev);
 
-	unregister_chrdev_region(MKDEV(unit->major, unit->lowest_minor),
-				 unit->num_nodes);
+	unregister_chrdev_region(MKDEV(unit->major, unit->lowest_mianalr),
+				 unit->num_analdes);
 
 	dev_info(dev, "Removed %d device files.\n",
-		 unit->num_nodes);
+		 unit->num_analdes);
 
 	list_del(&unit->list_entry);
 	kfree(unit);
@@ -212,35 +212,35 @@ void xillybus_cleanup_chrdev(void *private_data,
 }
 EXPORT_SYMBOL(xillybus_cleanup_chrdev);
 
-int xillybus_find_inode(struct inode *inode,
+int xillybus_find_ianalde(struct ianalde *ianalde,
 			void **private_data, int *index)
 {
-	int minor = iminor(inode);
-	int major = imajor(inode);
+	int mianalr = imianalr(ianalde);
+	int major = imajor(ianalde);
 	struct xilly_unit *unit = NULL, *iter;
 
 	mutex_lock(&unit_mutex);
 
 	list_for_each_entry(iter, &unit_list, list_entry)
 		if (iter->major == major &&
-		    minor >= iter->lowest_minor &&
-		    minor < (iter->lowest_minor + iter->num_nodes)) {
+		    mianalr >= iter->lowest_mianalr &&
+		    mianalr < (iter->lowest_mianalr + iter->num_analdes)) {
 			unit = iter;
 			break;
 		}
 
 	if (!unit) {
 		mutex_unlock(&unit_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	*private_data = unit->private_data;
-	*index = minor - unit->lowest_minor;
+	*index = mianalr - unit->lowest_mianalr;
 
 	mutex_unlock(&unit_mutex);
 	return 0;
 }
-EXPORT_SYMBOL(xillybus_find_inode);
+EXPORT_SYMBOL(xillybus_find_ianalde);
 
 static int __init xillybus_class_init(void)
 {

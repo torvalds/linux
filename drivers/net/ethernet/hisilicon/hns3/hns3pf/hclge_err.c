@@ -9,39 +9,39 @@ static const struct hclge_hw_error hclge_imp_tcm_ecc_int[] = {
 	{
 		.int_msk = BIT(1),
 		.msg = "imp_itcm0_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(3),
 		.msg = "imp_itcm1_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(5),
 		.msg = "imp_itcm2_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(7),
 		.msg = "imp_itcm3_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(9),
 		.msg = "imp_dtcm0_mem0_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(11),
 		.msg = "imp_dtcm0_mem1_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(13),
 		.msg = "imp_dtcm1_mem0_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(15),
 		.msg = "imp_dtcm1_mem1_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(17),
 		.msg = "imp_itcm4_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		/* sentinel */
 	}
@@ -51,67 +51,67 @@ static const struct hclge_hw_error hclge_cmdq_nic_mem_ecc_int[] = {
 	{
 		.int_msk = BIT(1),
 		.msg = "cmdq_nic_rx_depth_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(3),
 		.msg = "cmdq_nic_tx_depth_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(5),
 		.msg = "cmdq_nic_rx_tail_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(7),
 		.msg = "cmdq_nic_tx_tail_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(9),
 		.msg = "cmdq_nic_rx_head_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(11),
 		.msg = "cmdq_nic_tx_head_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(13),
 		.msg = "cmdq_nic_rx_addr_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(15),
 		.msg = "cmdq_nic_tx_addr_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(17),
 		.msg = "cmdq_rocee_rx_depth_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(19),
 		.msg = "cmdq_rocee_tx_depth_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(21),
 		.msg = "cmdq_rocee_rx_tail_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(23),
 		.msg = "cmdq_rocee_tx_tail_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(25),
 		.msg = "cmdq_rocee_rx_head_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(27),
 		.msg = "cmdq_rocee_tx_head_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(29),
 		.msg = "cmdq_rocee_rx_addr_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(31),
 		.msg = "cmdq_rocee_tx_addr_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		/* sentinel */
 	}
@@ -121,27 +121,27 @@ static const struct hclge_hw_error hclge_tqp_int_ecc_int[] = {
 	{
 		.int_msk = BIT(6),
 		.msg = "tqp_int_cfg_even_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(7),
 		.msg = "tqp_int_cfg_odd_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(8),
 		.msg = "tqp_int_ctrl_even_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(9),
 		.msg = "tqp_int_ctrl_odd_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(10),
 		.msg = "tx_que_scan_int_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(11),
 		.msg = "rx_que_scan_int_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		/* sentinel */
 	}
@@ -151,11 +151,11 @@ static const struct hclge_hw_error hclge_msix_sram_ecc_int[] = {
 	{
 		.int_msk = BIT(1),
 		.msg = "msix_nic_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(3),
 		.msg = "msix_rocee_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		/* sentinel */
 	}
@@ -209,13 +209,13 @@ static const struct hclge_hw_error hclge_ncsi_err_int[] = {
 	{
 		.int_msk = BIT(1),
 		.msg = "ncsi_tx_ecc_mbit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		/* sentinel */
 	}
 };
 
-static const struct hclge_hw_error hclge_ppp_mpf_abnormal_int_st1[] = {
+static const struct hclge_hw_error hclge_ppp_mpf_abanalrmal_int_st1[] = {
 	{
 		.int_msk = BIT(0),
 		.msg = "vf_vlan_ad_mem_ecc_mbit_err",
@@ -345,21 +345,21 @@ static const struct hclge_hw_error hclge_ppp_mpf_abnormal_int_st1[] = {
 	}
 };
 
-static const struct hclge_hw_error hclge_ppp_pf_abnormal_int[] = {
+static const struct hclge_hw_error hclge_ppp_pf_abanalrmal_int[] = {
 	{
 		.int_msk = BIT(0),
 		.msg = "tx_vlan_tag_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(1),
 		.msg = "rss_list_tc_unassigned_queue_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		/* sentinel */
 	}
 };
 
-static const struct hclge_hw_error hclge_ppp_mpf_abnormal_int_st3[] = {
+static const struct hclge_hw_error hclge_ppp_mpf_abanalrmal_int_st3[] = {
 	{
 		.int_msk = BIT(0),
 		.msg = "hfs_fifo_mem_ecc_mbit_err",
@@ -651,7 +651,7 @@ static const struct hclge_hw_error hclge_mac_afifo_tnl_int[] = {
 	{
 		.int_msk = BIT(0),
 		.msg = "egu_cge_afifo_ecc_1bit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(1),
 		.msg = "egu_cge_afifo_ecc_mbit_err",
@@ -659,7 +659,7 @@ static const struct hclge_hw_error hclge_mac_afifo_tnl_int[] = {
 	}, {
 		.int_msk = BIT(2),
 		.msg = "egu_lge_afifo_ecc_1bit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(3),
 		.msg = "egu_lge_afifo_ecc_mbit_err",
@@ -667,7 +667,7 @@ static const struct hclge_hw_error hclge_mac_afifo_tnl_int[] = {
 	}, {
 		.int_msk = BIT(4),
 		.msg = "cge_igu_afifo_ecc_1bit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(5),
 		.msg = "cge_igu_afifo_ecc_mbit_err",
@@ -675,7 +675,7 @@ static const struct hclge_hw_error hclge_mac_afifo_tnl_int[] = {
 	}, {
 		.int_msk = BIT(6),
 		.msg = "lge_igu_afifo_ecc_1bit_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(7),
 		.msg = "lge_igu_afifo_ecc_mbit_err",
@@ -709,7 +709,7 @@ static const struct hclge_hw_error hclge_mac_afifo_tnl_int[] = {
 	}
 };
 
-static const struct hclge_hw_error hclge_ppu_mpf_abnormal_int_st2[] = {
+static const struct hclge_hw_error hclge_ppu_mpf_abanalrmal_int_st2[] = {
 	{
 		.int_msk = BIT(13),
 		.msg = "rpu_rx_pkt_bit32_ecc_mbit_err",
@@ -777,11 +777,11 @@ static const struct hclge_hw_error hclge_ppu_mpf_abnormal_int_st2[] = {
 	}, {
 		.int_msk = BIT(29),
 		.msg = "rx_q_search_miss",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(30),
 		.msg = "ooo_ecc_err_detect",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(31),
 		.msg = "ooo_ecc_err_multpl",
@@ -791,7 +791,7 @@ static const struct hclge_hw_error hclge_ppu_mpf_abnormal_int_st2[] = {
 	}
 };
 
-static const struct hclge_hw_error hclge_ppu_mpf_abnormal_int_st3[] = {
+static const struct hclge_hw_error hclge_ppu_mpf_abanalrmal_int_st3[] = {
 	{
 		.int_msk = BIT(4),
 		.msg = "gro_bd_ecc_mbit_err",
@@ -813,19 +813,19 @@ static const struct hclge_hw_error hclge_ppu_mpf_abnormal_int_st3[] = {
 	}
 };
 
-static const struct hclge_hw_error hclge_ppu_pf_abnormal_int[] = {
+static const struct hclge_hw_error hclge_ppu_pf_abanalrmal_int[] = {
 	{
 		.int_msk = BIT(0),
-		.msg = "over_8bd_no_fe",
+		.msg = "over_8bd_anal_fe",
 		.reset_level = HNAE3_FUNC_RESET
 	}, {
 		.int_msk = BIT(1),
 		.msg = "tso_mss_cmp_min_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(2),
 		.msg = "tso_mss_cmp_max_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(3),
 		.msg = "tx_rd_fbd_poison",
@@ -837,7 +837,7 @@ static const struct hclge_hw_error hclge_ppu_pf_abnormal_int[] = {
 	}, {
 		.int_msk = BIT(5),
 		.msg = "buf_wait_timeout",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		/* sentinel */
 	}
@@ -847,11 +847,11 @@ static const struct hclge_hw_error hclge_ssu_com_err_int[] = {
 	{
 		.int_msk = BIT(0),
 		.msg = "buf_sum_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(1),
 		.msg = "ppp_mb_num_err",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(2),
 		.msg = "ppp_mbid_err",
@@ -1122,7 +1122,7 @@ static const struct hclge_hw_error hclge_ssu_port_based_pf_int[] = {
 	}, {
 		.int_msk = BIT(9),
 		.msg = "low_water_line_err_port",
-		.reset_level = HNAE3_NONE_RESET
+		.reset_level = HNAE3_ANALNE_RESET
 	}, {
 		.int_msk = BIT(10),
 		.msg = "hi_water_line_err_port",
@@ -1200,8 +1200,8 @@ static const struct hclge_hw_error hclge_rocee_qmm_ovf_err_int[] = {
 
 static const struct hclge_hw_module_id hclge_hw_module_id_st[] = {
 	{
-		.module_id = MODULE_NONE,
-		.msg = "MODULE_NONE"
+		.module_id = MODULE_ANALNE,
+		.msg = "MODULE_ANALNE"
 	}, {
 		.module_id = MODULE_BIOS_COMMON,
 		.msg = "MODULE_BIOS_COMMON"
@@ -1282,8 +1282,8 @@ static const struct hclge_hw_module_id hclge_hw_module_id_st[] = {
 
 static const struct hclge_hw_type_id hclge_hw_type_id_st[] = {
 	{
-		.type_id = NONE_ERROR,
-		.msg = "none_error"
+		.type_id = ANALNE_ERROR,
+		.msg = "analne_error"
 	}, {
 		.type_id = FIFO_ERROR,
 		.msg = "fifo_error"
@@ -1300,12 +1300,12 @@ static const struct hclge_hw_type_id hclge_hw_type_id_st[] = {
 		.type_id = TQP_INT_ECC_ERROR,
 		.msg = "tqp_int_ecc_error"
 	}, {
-		.type_id = PF_ABNORMAL_INT_ERROR,
-		.msg = "pf_abnormal_int_error",
+		.type_id = PF_ABANALRMAL_INT_ERROR,
+		.msg = "pf_abanalrmal_int_error",
 		.cause_by_vf = true
 	}, {
-		.type_id = MPF_ABNORMAL_INT_ERROR,
-		.msg = "mpf_abnormal_int_error",
+		.type_id = MPF_ABANALRMAL_INT_ERROR,
+		.msg = "mpf_abanalrmal_int_error",
 		.cause_by_vf = true
 	}, {
 		.type_id = COMMON_ERROR,
@@ -1329,8 +1329,8 @@ static const struct hclge_hw_type_id hclge_hw_type_id_st[] = {
 		.type_id = PTP_ERROR,
 		.msg = "ptp_error"
 	}, {
-		.type_id = ROCEE_NORMAL_ERR,
-		.msg = "rocee_normal_error"
+		.type_id = ROCEE_ANALRMAL_ERR,
+		.msg = "rocee_analrmal_error"
 	}, {
 		.type_id = ROCEE_OVF_ERR,
 		.msg = "rocee_ovf_error"
@@ -1349,7 +1349,7 @@ static void hclge_log_error(struct device *dev, char *reg,
 			dev_err(dev, "%s %s found [error status=0x%x]\n",
 				reg, err->msg, err_sts);
 			if (err->reset_level &&
-			    err->reset_level != HNAE3_NONE_RESET)
+			    err->reset_level != HNAE3_ANALNE_RESET)
 				set_bit(err->reset_level, reset_requests);
 		}
 		err++;
@@ -1641,40 +1641,40 @@ static int hclge_config_ppu_error_interrupts(struct hclge_dev *hdev, u32 cmd,
 		hclge_cmd_setup_basic_desc(&desc[1], cmd, false);
 		if (en) {
 			desc[0].data[0] =
-				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT0_EN);
+				cpu_to_le32(HCLGE_PPU_MPF_ABANALRMAL_INT0_EN);
 			desc[0].data[1] =
-				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT1_EN);
+				cpu_to_le32(HCLGE_PPU_MPF_ABANALRMAL_INT1_EN);
 			desc[1].data[3] =
-				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT3_EN);
+				cpu_to_le32(HCLGE_PPU_MPF_ABANALRMAL_INT3_EN);
 			desc[1].data[4] =
-				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT2_EN);
+				cpu_to_le32(HCLGE_PPU_MPF_ABANALRMAL_INT2_EN);
 		}
 
 		desc[1].data[0] =
-			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT0_EN_MASK);
+			cpu_to_le32(HCLGE_PPU_MPF_ABANALRMAL_INT0_EN_MASK);
 		desc[1].data[1] =
-			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT1_EN_MASK);
+			cpu_to_le32(HCLGE_PPU_MPF_ABANALRMAL_INT1_EN_MASK);
 		desc[1].data[2] =
-			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT2_EN_MASK);
+			cpu_to_le32(HCLGE_PPU_MPF_ABANALRMAL_INT2_EN_MASK);
 		desc[1].data[3] |=
-			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT3_EN_MASK);
+			cpu_to_le32(HCLGE_PPU_MPF_ABANALRMAL_INT3_EN_MASK);
 		desc_num = 2;
 	} else if (cmd == HCLGE_PPU_MPF_OTHER_INT_CMD) {
 		hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
 		if (en)
 			desc[0].data[0] =
-				cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT2_EN2);
+				cpu_to_le32(HCLGE_PPU_MPF_ABANALRMAL_INT2_EN2);
 
 		desc[0].data[2] =
-			cpu_to_le32(HCLGE_PPU_MPF_ABNORMAL_INT2_EN2_MASK);
+			cpu_to_le32(HCLGE_PPU_MPF_ABANALRMAL_INT2_EN2_MASK);
 	} else if (cmd == HCLGE_PPU_PF_OTHER_INT_CMD) {
 		hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
 		if (en)
 			desc[0].data[0] =
-				cpu_to_le32(HCLGE_PPU_PF_ABNORMAL_INT_EN);
+				cpu_to_le32(HCLGE_PPU_PF_ABANALRMAL_INT_EN);
 
 		desc[0].data[2] =
-			cpu_to_le32(HCLGE_PPU_PF_ABNORMAL_INT_EN_MASK);
+			cpu_to_le32(HCLGE_PPU_PF_ABANALRMAL_INT_EN_MASK);
 	} else {
 		dev_err(dev, "Invalid cmd to configure PPU error interrupts\n");
 		return -EINVAL;
@@ -1775,7 +1775,7 @@ static int hclge_config_ssu_hw_err_int(struct hclge_dev *hdev, bool en)
  * @hdev: pointer to struct hclge_dev
  * @is_ras: true for ras, false for msix
  * @mpf_bd_num: number of main PF interrupt buffer descriptors
- * @pf_bd_num: number of not main PF interrupt buffer descriptors
+ * @pf_bd_num: number of analt main PF interrupt buffer descriptors
  *
  * This function querys number of mpf and pf buffer descriptors.
  */
@@ -1905,14 +1905,14 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 	desc_data = (__le32 *)&desc[4];
 	status = le32_to_cpu(*(desc_data + 1));
 	if (status)
-		hclge_log_error(dev, "PPP_MPF_ABNORMAL_INT_ST1",
-				&hclge_ppp_mpf_abnormal_int_st1[0], status,
+		hclge_log_error(dev, "PPP_MPF_ABANALRMAL_INT_ST1",
+				&hclge_ppp_mpf_abanalrmal_int_st1[0], status,
 				&ae_dev->hw_err_reset_req);
 
 	status = le32_to_cpu(*(desc_data + 3)) & HCLGE_PPP_MPF_INT_ST3_MASK;
 	if (status)
-		hclge_log_error(dev, "PPP_MPF_ABNORMAL_INT_ST3",
-				&hclge_ppp_mpf_abnormal_int_st3[0], status,
+		hclge_log_error(dev, "PPP_MPF_ABANALRMAL_INT_ST3",
+				&hclge_ppp_mpf_abanalrmal_int_st3[0], status,
 				&ae_dev->hw_err_reset_req);
 
 	/* log PPU(RCB) errors */
@@ -1920,20 +1920,20 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 	status = le32_to_cpu(*(desc_data + 1));
 	if (status) {
 		dev_err(dev,
-			"PPU_MPF_ABNORMAL_INT_ST1 rpu_rx_pkt_ecc_mbit_err found\n");
+			"PPU_MPF_ABANALRMAL_INT_ST1 rpu_rx_pkt_ecc_mbit_err found\n");
 		set_bit(HNAE3_GLOBAL_RESET, &ae_dev->hw_err_reset_req);
 	}
 
 	status = le32_to_cpu(*(desc_data + 2));
 	if (status)
-		hclge_log_error(dev, "PPU_MPF_ABNORMAL_INT_ST2",
-				&hclge_ppu_mpf_abnormal_int_st2[0], status,
+		hclge_log_error(dev, "PPU_MPF_ABANALRMAL_INT_ST2",
+				&hclge_ppu_mpf_abanalrmal_int_st2[0], status,
 				&ae_dev->hw_err_reset_req);
 
 	status = le32_to_cpu(*(desc_data + 3)) & HCLGE_PPU_MPF_INT_ST3_MASK;
 	if (status)
-		hclge_log_error(dev, "PPU_MPF_ABNORMAL_INT_ST3",
-				&hclge_ppu_mpf_abnormal_int_st3[0], status,
+		hclge_log_error(dev, "PPU_MPF_ABANALRMAL_INT_ST3",
+				&hclge_ppu_mpf_abanalrmal_int_st3[0], status,
 				&ae_dev->hw_err_reset_req);
 
 	/* log TM(Traffic Manager) errors */
@@ -2033,8 +2033,8 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 	desc_data = (__le32 *)&desc[3];
 	status = le32_to_cpu(*desc_data) & HCLGE_PPU_PF_INT_RAS_MASK;
 	if (status) {
-		hclge_log_error(dev, "PPU_PF_ABNORMAL_INT_ST0",
-				&hclge_ppu_pf_abnormal_int[0], status,
+		hclge_log_error(dev, "PPU_PF_ABANALRMAL_INT_ST0",
+				&hclge_ppu_pf_abanalrmal_int[0], status,
 				&ae_dev->hw_err_reset_req);
 		hclge_report_hw_error(hdev, HNAE3_PPU_POISON_ERROR);
 	}
@@ -2062,7 +2062,7 @@ static int hclge_handle_all_ras_errors(struct hclge_dev *hdev)
 	bd_num = max_t(u32, mpf_bd_num, pf_bd_num);
 	desc = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* handle all main PF RAS errors */
 	ret = hclge_handle_mpf_ras_error(hdev, desc, mpf_bd_num);
@@ -2188,7 +2188,7 @@ static int hclge_log_rocee_ovf_error(struct hclge_dev *hdev)
 static enum hnae3_reset_type
 hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 {
-	enum hnae3_reset_type reset_type = HNAE3_NONE_RESET;
+	enum hnae3_reset_type reset_type = HNAE3_ANALNE_RESET;
 	struct device *dev = &hdev->pdev->dev;
 	struct hclge_desc desc[2];
 	unsigned int status;
@@ -2199,7 +2199,7 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 				    HCLGE_QUERY_CLEAR_ROCEE_RAS_INT, 0);
 	if (ret) {
 		dev_err(dev, "failed(%d) to query ROCEE RAS INT SRC\n", ret);
-		/* reset everything for now */
+		/* reset everything for analw */
 		return HNAE3_GLOBAL_RESET;
 	}
 
@@ -2233,7 +2233,7 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 		ret = hclge_log_rocee_ovf_error(hdev);
 		if (ret) {
 			dev_err(dev, "failed(%d) to process ovf error\n", ret);
-			/* reset everything for now */
+			/* reset everything for analw */
 			return HNAE3_GLOBAL_RESET;
 		}
 	}
@@ -2243,7 +2243,7 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], 1);
 	if (ret) {
 		dev_err(dev, "failed(%d) to clear ROCEE RAS error\n", ret);
-		/* reset everything for now */
+		/* reset everything for analw */
 		return HNAE3_GLOBAL_RESET;
 	}
 
@@ -2287,7 +2287,7 @@ static void hclge_handle_rocee_ras_error(struct hnae3_ae_dev *ae_dev)
 		return;
 
 	reset_type = hclge_log_and_clear_rocee_ras_error(hdev);
-	if (reset_type != HNAE3_NONE_RESET)
+	if (reset_type != HNAE3_ANALNE_RESET)
 		set_bit(reset_type, &ae_dev->hw_err_reset_req);
 }
 
@@ -2367,7 +2367,7 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 	if (!test_bit(HCLGE_STATE_SERVICE_INITED, &hdev->state)) {
 		dev_err(dev,
 			"Can't recover - RAS error reported during dev init\n");
-		return PCI_ERS_RESULT_NONE;
+		return PCI_ERS_RESULT_ANALNE;
 	}
 
 	status = hclge_read_dev(&hdev->hw, HCLGE_RAS_PF_OTHER_INT_STS_REG);
@@ -2377,18 +2377,18 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 	else
 		goto out;
 
-	/* Handling Non-fatal HNS RAS errors */
+	/* Handling Analn-fatal HNS RAS errors */
 	if (status & HCLGE_RAS_REG_NFE_MASK) {
 		dev_err(dev,
-			"HNS Non-Fatal RAS error(status=0x%x) identified\n",
+			"HNS Analn-Fatal RAS error(status=0x%x) identified\n",
 			status);
 		hclge_handle_all_ras_errors(hdev);
 	}
 
-	/* Handling Non-fatal Rocee RAS errors */
+	/* Handling Analn-fatal Rocee RAS errors */
 	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2 &&
 	    status & HCLGE_RAS_REG_ROCEE_ERR_MASK) {
-		dev_err(dev, "ROCEE Non-Fatal RAS error identified\n");
+		dev_err(dev, "ROCEE Analn-Fatal RAS error identified\n");
 		hclge_handle_rocee_ras_error(ae_dev);
 	}
 
@@ -2409,7 +2409,7 @@ static int hclge_clear_hw_msix_error(struct hclge_dev *hdev,
 	else
 		desc[0].opcode = cpu_to_le16(HCLGE_QUERY_CLEAR_ALL_PF_MSIX_INT);
 
-	desc[0].flag = cpu_to_le16(HCLGE_COMM_CMD_FLAG_NO_INTR |
+	desc[0].flag = cpu_to_le16(HCLGE_COMM_CMD_FLAG_ANAL_INTR |
 				   HCLGE_COMM_CMD_FLAG_IN);
 
 	return hclge_cmd_send(&hdev->hw, &desc[0], bd_num);
@@ -2437,8 +2437,8 @@ static int hclge_query_over_8bd_err_info(struct hclge_dev *hdev, u16 *vf_id,
 		return ret;
 
 	req = (struct hclge_query_ppu_pf_other_int_dfx_cmd *)desc.data;
-	*vf_id = le16_to_cpu(req->over_8bd_no_fe_vf_id);
-	*q_id = le16_to_cpu(req->over_8bd_no_fe_qid);
+	*vf_id = le16_to_cpu(req->over_8bd_anal_fe_vf_id);
+	*q_id = le16_to_cpu(req->over_8bd_anal_fe_qid);
 
 	return 0;
 }
@@ -2460,12 +2460,12 @@ static void hclge_handle_over_8bd_err(struct hclge_dev *hdev,
 
 	ret = hclge_query_over_8bd_err_info(hdev, &vf_id, &q_id);
 	if (ret) {
-		dev_err(dev, "fail(%d) to query over_8bd_no_fe info\n",
+		dev_err(dev, "fail(%d) to query over_8bd_anal_fe info\n",
 			ret);
 		return;
 	}
 
-	dev_err(dev, "PPU_PF_ABNORMAL_INT_ST over_8bd_no_fe found, vport(%u), queue_id(%u)\n",
+	dev_err(dev, "PPU_PF_ABANALRMAL_INT_ST over_8bd_anal_fe found, vport(%u), queue_id(%u)\n",
 		vf_id, q_id);
 
 	if (vf_id) {
@@ -2475,7 +2475,7 @@ static void hclge_handle_over_8bd_err(struct hclge_dev *hdev,
 		}
 
 		/* If we need to trigger other reset whose level is higher
-		 * than HNAE3_VF_FUNC_RESET, no need to trigger a VF reset
+		 * than HNAE3_VF_FUNC_RESET, anal need to trigger a VF reset
 		 * here.
 		 */
 		if (*reset_requests != 0)
@@ -2530,7 +2530,7 @@ static int hclge_handle_mpf_msix_error(struct hclge_dev *hdev,
 	status = le32_to_cpu(*(desc_data + 2)) &
 			HCLGE_PPU_MPF_INT_ST2_MSIX_MASK;
 	if (status)
-		dev_err(dev, "PPU_MPF_ABNORMAL_INT_ST2 rx_q_search_miss found [dfx status=0x%x\n]",
+		dev_err(dev, "PPU_MPF_ABANALRMAL_INT_ST2 rx_q_search_miss found [dfx status=0x%x\n]",
 			status);
 
 	/* clear all main PF MSIx errors */
@@ -2580,16 +2580,16 @@ static int hclge_handle_pf_msix_error(struct hclge_dev *hdev,
 	desc_data = (__le32 *)&desc[2];
 	status = le32_to_cpu(*desc_data);
 	if (status)
-		hclge_log_error(dev, "PPP_PF_ABNORMAL_INT_ST0",
-				&hclge_ppp_pf_abnormal_int[0],
+		hclge_log_error(dev, "PPP_PF_ABANALRMAL_INT_ST0",
+				&hclge_ppp_pf_abanalrmal_int[0],
 				status, reset_requests);
 
 	/* log PPU(RCB) PF errors */
 	desc_data = (__le32 *)&desc[3];
 	status = le32_to_cpu(*desc_data) & HCLGE_PPU_PF_INT_MSIX_MASK;
 	if (status)
-		hclge_log_error(dev, "PPU_PF_ABNORMAL_INT_ST",
-				&hclge_ppu_pf_abnormal_int[0],
+		hclge_log_error(dev, "PPU_PF_ABANALRMAL_INT_ST",
+				&hclge_ppu_pf_abanalrmal_int[0],
 				status, reset_requests);
 
 	status = le32_to_cpu(*desc_data) & HCLGE_PPU_PF_OVER_8BD_ERR_MASK;
@@ -2619,7 +2619,7 @@ static int hclge_handle_all_hw_msix_error(struct hclge_dev *hdev,
 	bd_num = max_t(u32, mpf_bd_num, pf_bd_num);
 	desc = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hclge_handle_mpf_msix_error(hdev, desc, mpf_bd_num,
 					  reset_requests);
@@ -2712,7 +2712,7 @@ void hclge_handle_all_hns_hw_errors(struct hnae3_ae_dev *ae_dev)
 
 	/* Clear HNS hw errors reported through msix  */
 	memset(&desc[0].data[0], 0xFF, mpf_bd_num * sizeof(struct hclge_desc) -
-	       HCLGE_DESC_NO_DATA_LEN);
+	       HCLGE_DESC_ANAL_DATA_LEN);
 	ret = hclge_clear_hw_msix_error(hdev, desc, true, mpf_bd_num);
 	if (ret) {
 		dev_err(dev, "fail(%d) to clear mpf msix int during init\n",
@@ -2721,7 +2721,7 @@ void hclge_handle_all_hns_hw_errors(struct hnae3_ae_dev *ae_dev)
 	}
 
 	memset(&desc[0].data[0], 0xFF, pf_bd_num * sizeof(struct hclge_desc) -
-	       HCLGE_DESC_NO_DATA_LEN);
+	       HCLGE_DESC_ANAL_DATA_LEN);
 	ret = hclge_clear_hw_msix_error(hdev, desc, false, pf_bd_num);
 	if (ret) {
 		dev_err(dev, "fail(%d) to clear pf msix int during init\n",
@@ -2729,7 +2729,7 @@ void hclge_handle_all_hns_hw_errors(struct hnae3_ae_dev *ae_dev)
 		goto msi_error;
 	}
 
-	/* Handle Non-fatal HNS RAS errors */
+	/* Handle Analn-fatal HNS RAS errors */
 	if (status & HCLGE_RAS_REG_NFE_MASK) {
 		dev_err(dev, "HNS hw error(RAS) identified during init\n");
 		hclge_handle_all_ras_errors(hdev);
@@ -2770,8 +2770,8 @@ hclge_handle_error_type_reg_log(struct device *dev,
 #define HCLGE_ERR_TYPE_IS_RAS_OFFSET 7
 
 	u8 mod_id, total_module, type_id, total_type, i, is_ras;
-	u8 index_module = MODULE_NONE;
-	u8 index_type = NONE_ERROR;
+	u8 index_module = MODULE_ANALNE;
+	u8 index_type = ANALNE_ERROR;
 	bool cause_by_vf = false;
 
 	mod_id = mod_info->mod_id;
@@ -2796,7 +2796,7 @@ hclge_handle_error_type_reg_log(struct device *dev,
 		}
 	}
 
-	if (index_module != MODULE_NONE && index_type != NONE_ERROR)
+	if (index_module != MODULE_ANALNE && index_type != ANALNE_ERROR)
 		dev_err(dev,
 			"found %s %s, is %s error.\n",
 			hclge_hw_module_id_st[index_module].msg,
@@ -2804,7 +2804,7 @@ hclge_handle_error_type_reg_log(struct device *dev,
 			is_ras ? "ras" : "msix");
 	else
 		dev_err(dev,
-			"unknown module[%u] or type[%u].\n", mod_id, type_id);
+			"unkanalwn module[%u] or type[%u].\n", mod_id, type_id);
 
 	dev_err(dev, "reg_value:\n");
 	for (i = 0; i < type_reg_info->reg_num; i++)
@@ -2827,7 +2827,7 @@ static void hclge_handle_error_module_log(struct hnae3_ae_dev *ae_dev,
 
 	sum_info = (struct hclge_sum_err_info *)&buf[offset++];
 	if (sum_info->reset_type &&
-	    sum_info->reset_type != HNAE3_NONE_RESET)
+	    sum_info->reset_type != HNAE3_ANALNE_RESET)
 		set_bit(sum_info->reset_type, &ae_dev->hw_err_reset_req);
 	mod_num = sum_info->mod_num;
 
@@ -2914,7 +2914,7 @@ int hclge_handle_error_info_log(struct hnae3_ae_dev *ae_dev)
 	desc_len = bd_num * sizeof(struct hclge_desc);
 	desc = kzalloc(desc_len, GFP_KERNEL);
 	if (!desc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -2922,18 +2922,18 @@ int hclge_handle_error_info_log(struct hnae3_ae_dev *ae_dev)
 	if (ret)
 		goto err_desc;
 
-	buf_len = bd_num * sizeof(struct hclge_desc) - HCLGE_DESC_NO_DATA_LEN;
+	buf_len = bd_num * sizeof(struct hclge_desc) - HCLGE_DESC_ANAL_DATA_LEN;
 	buf_size = buf_len / sizeof(u32);
 
 	desc_data = kzalloc(buf_len, GFP_KERNEL);
 	if (!desc_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_desc;
 	}
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_buf_alloc;
 	}
 

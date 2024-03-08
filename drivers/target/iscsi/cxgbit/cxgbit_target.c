@@ -106,7 +106,7 @@ static inline unsigned int cxgbit_sgl_len(unsigned int n)
  * @skb: the packet
  *
  * Returns the number of flits needed for the given offload packet.
- * These packets are already fully constructed and no additional headers
+ * These packets are already fully constructed and anal additional headers
  * will be added.
  */
 static unsigned int cxgbit_calc_tx_flits_ofld(const struct sk_buff *skb)
@@ -224,7 +224,7 @@ void cxgbit_push_tx_frames(struct cxgbit_sock *csk)
 			credits_needed += DIV_ROUND_UP(
 				sizeof(struct fw_ofld_tx_data_wr), 16);
 		/*
-		 * Assumes the initial credits is large enough to support
+		 * Assumes the initial credits is large eanalugh to support
 		 * fw_flowc_wr plus largest possible first payload
 		 */
 
@@ -350,7 +350,7 @@ cxgbit_map_skb(struct iscsit_cmd *cmd, struct sk_buff *skb, u32 data_offset,
 		nr_frags--;
 
 	/*
-	 * We know each entry in t_data_sg contains a page.
+	 * We kanalw each entry in t_data_sg contains a page.
 	 */
 	sg = &cmd->se_cmd.t_data_sg[data_offset / PAGE_SIZE];
 	page_off = (data_offset % PAGE_SIZE);
@@ -416,7 +416,7 @@ cxgbit_tx_datain_iso(struct cxgbit_sock *csk, struct iscsit_cmd *cmd,
 
 		skb = __cxgbit_alloc_skb(csk, 0, true);
 		if (unlikely(!skb))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memset(skb->data, 0, ISCSI_HDR_LEN);
 		cxgbit_skcb_flags(skb) |= SKCBF_TX_ISO;
@@ -472,7 +472,7 @@ cxgbit_tx_datain_iso(struct cxgbit_sock *csk, struct iscsit_cmd *cmd,
 		cmd->data_sn += num_pdu;
 	}
 
-	dr->dr_complete = DATAIN_COMPLETE_NORMAL;
+	dr->dr_complete = DATAIN_COMPLETE_ANALRMAL;
 
 	return 0;
 
@@ -489,7 +489,7 @@ cxgbit_tx_datain(struct cxgbit_sock *csk, struct iscsit_cmd *cmd,
 
 	skb = cxgbit_alloc_skb(csk, 0);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(skb->data, cmd->pdu, ISCSI_HDR_LEN);
 
@@ -530,7 +530,7 @@ cxgbit_xmit_datain_pdu(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 }
 
 static int
-cxgbit_xmit_nondatain_pdu(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
+cxgbit_xmit_analndatain_pdu(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 			  const void *data_buf, u32 data_buf_len)
 {
 	struct cxgbit_sock *csk = conn->context;
@@ -539,7 +539,7 @@ cxgbit_xmit_nondatain_pdu(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 
 	skb = cxgbit_alloc_skb(csk, data_buf_len + padding);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(skb->data, cmd->pdu, ISCSI_HDR_LEN);
 
@@ -566,7 +566,7 @@ cxgbit_xmit_pdu(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 	if (dr)
 		return cxgbit_xmit_datain_pdu(conn, cmd, dr, buf);
 	else
-		return cxgbit_xmit_nondatain_pdu(conn, cmd, buf, buf_len);
+		return cxgbit_xmit_analndatain_pdu(conn, cmd, buf, buf_len);
 }
 
 int cxgbit_validate_params(struct iscsit_conn *conn)
@@ -600,7 +600,7 @@ static int cxgbit_set_digest(struct cxgbit_sock *csk)
 
 	param = iscsi_find_param_from_key(HEADERDIGEST, conn->param_list);
 	if (!param) {
-		pr_err("param not found key %s\n", HEADERDIGEST);
+		pr_err("param analt found key %s\n", HEADERDIGEST);
 		return -1;
 	}
 
@@ -610,7 +610,7 @@ static int cxgbit_set_digest(struct cxgbit_sock *csk)
 	param = iscsi_find_param_from_key(DATADIGEST, conn->param_list);
 	if (!param) {
 		csk->submode = 0;
-		pr_err("param not found key %s\n", DATADIGEST);
+		pr_err("param analt found key %s\n", DATADIGEST);
 		return -1;
 	}
 
@@ -638,7 +638,7 @@ static int cxgbit_set_iso_npdu(struct cxgbit_sock *csk)
 		param = iscsi_find_param_from_key(MAXBURSTLENGTH,
 						  conn->param_list);
 		if (!param) {
-			pr_err("param not found key %s\n", MAXBURSTLENGTH);
+			pr_err("param analt found key %s\n", MAXBURSTLENGTH);
 			return -1;
 		}
 
@@ -666,7 +666,7 @@ static int cxgbit_set_iso_npdu(struct cxgbit_sock *csk)
 }
 
 /*
- * cxgbit_seq_pdu_inorder()
+ * cxgbit_seq_pdu_ianalrder()
  * @csk: pointer to cxgbit socket structure
  *
  * This function checks whether data sequence and data
@@ -674,32 +674,32 @@ static int cxgbit_set_iso_npdu(struct cxgbit_sock *csk)
  *
  * Return: returns -1 on error, 0 if data sequence and
  * data pdu are in order, 1 if data sequence or data pdu
- * is not in order.
+ * is analt in order.
  */
-static int cxgbit_seq_pdu_inorder(struct cxgbit_sock *csk)
+static int cxgbit_seq_pdu_ianalrder(struct cxgbit_sock *csk)
 {
 	struct iscsit_conn *conn = csk->conn;
 	struct iscsi_param *param;
 
 	if (conn->login->leading_connection) {
-		param = iscsi_find_param_from_key(DATASEQUENCEINORDER,
+		param = iscsi_find_param_from_key(DATASEQUENCEIANALRDER,
 						  conn->param_list);
 		if (!param) {
-			pr_err("param not found key %s\n", DATASEQUENCEINORDER);
+			pr_err("param analt found key %s\n", DATASEQUENCEIANALRDER);
 			return -1;
 		}
 
-		if (strcmp(param->value, YES))
+		if (strcmp(param->value, ANAL))
 			return 1;
 
-		param = iscsi_find_param_from_key(DATAPDUINORDER,
+		param = iscsi_find_param_from_key(DATAPDUIANALRDER,
 						  conn->param_list);
 		if (!param) {
-			pr_err("param not found key %s\n", DATAPDUINORDER);
+			pr_err("param analt found key %s\n", DATAPDUIANALRDER);
 			return -1;
 		}
 
-		if (strcmp(param->value, YES))
+		if (strcmp(param->value, ANAL))
 			return 1;
 
 	} else {
@@ -731,7 +731,7 @@ static int cxgbit_set_params(struct iscsit_conn *conn)
 		param = iscsi_find_param_from_key(ERRORRECOVERYLEVEL,
 						  conn->param_list);
 		if (!param) {
-			pr_err("param not found key %s\n", ERRORRECOVERYLEVEL);
+			pr_err("param analt found key %s\n", ERRORRECOVERYLEVEL);
 			return -1;
 		}
 		if (kstrtou8(param->value, 0, &erl) < 0)
@@ -743,7 +743,7 @@ static int cxgbit_set_params(struct iscsit_conn *conn)
 	if (!erl) {
 		int ret;
 
-		ret = cxgbit_seq_pdu_inorder(csk);
+		ret = cxgbit_seq_pdu_ianalrder(csk);
 		if (ret < 0) {
 			return -1;
 		} else if (ret > 0) {
@@ -781,7 +781,7 @@ cxgbit_put_login_tx(struct iscsit_conn *conn, struct iscsi_login *login,
 
 	skb = cxgbit_alloc_skb(csk, length + padding);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	skb_store_bits(skb, 0, login->rsp, ISCSI_HDR_LEN);
 	skb_store_bits(skb, ISCSI_HDR_LEN, login->rsp_buf, length);
 
@@ -846,7 +846,7 @@ static struct iscsit_cmd *cxgbit_allocate_cmd(struct cxgbit_sock *csk)
 	}
 
 	ccmd = iscsit_priv_cmd(cmd);
-	ccmd->ttinfo.tag = ppm->tformat.no_ddp_mask;
+	ccmd->ttinfo.tag = ppm->tformat.anal_ddp_mask;
 	ccmd->setup_ddp = true;
 
 	return cmd;
@@ -868,7 +868,7 @@ cxgbit_handle_immediate_data(struct iscsit_cmd *cmd, struct iscsi_scsi_req *hdr,
 			       " in ERL=0.\n");
 			iscsit_reject_cmd(cmd, ISCSI_REASON_DATA_DIGEST_ERROR,
 					  (unsigned char *)hdr);
-			return IMMEDIATE_DATA_CANNOT_RECOVER;
+			return IMMEDIATE_DATA_CANANALT_RECOVER;
 		}
 
 		iscsit_reject_cmd(cmd, ISCSI_REASON_DATA_DIGEST_ERROR,
@@ -876,7 +876,7 @@ cxgbit_handle_immediate_data(struct iscsit_cmd *cmd, struct iscsi_scsi_req *hdr,
 		return IMMEDIATE_DATA_ERL1_CRC_FAILURE;
 	}
 
-	if (cmd->se_cmd.se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC) {
+	if (cmd->se_cmd.se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_ANALALLOC) {
 		struct cxgbit_cmd *ccmd = iscsit_priv_cmd(cmd);
 		struct skb_shared_info *ssi = skb_shinfo(csk->skb);
 		skb_frag_t *dfrag = &ssi->frags[pdu_cb->dfrag_idx];
@@ -906,7 +906,7 @@ cxgbit_handle_immediate_data(struct iscsit_cmd *cmd, struct iscsi_scsi_req *hdr,
 		spin_unlock_bh(&cmd->istate_lock);
 	}
 
-	return IMMEDIATE_DATA_NORMAL_OPERATION;
+	return IMMEDIATE_DATA_ANALRMAL_OPERATION;
 }
 
 static int
@@ -914,9 +914,9 @@ cxgbit_get_immediate_data(struct iscsit_cmd *cmd, struct iscsi_scsi_req *hdr,
 			  bool dump_payload)
 {
 	struct iscsit_conn *conn = cmd->conn;
-	int cmdsn_ret = 0, immed_ret = IMMEDIATE_DATA_NORMAL_OPERATION;
+	int cmdsn_ret = 0, immed_ret = IMMEDIATE_DATA_ANALRMAL_OPERATION;
 	/*
-	 * Special case for Unsupported SAM WRITE Opcodes and ImmediateData=Yes.
+	 * Special case for Unsupported SAM WRITE Opcodes and ImmediateData=Anal.
 	 */
 	if (dump_payload)
 		goto after_immediate_data;
@@ -924,16 +924,16 @@ cxgbit_get_immediate_data(struct iscsit_cmd *cmd, struct iscsi_scsi_req *hdr,
 	immed_ret = cxgbit_handle_immediate_data(cmd, hdr,
 						 cmd->first_burst_len);
 after_immediate_data:
-	if (immed_ret == IMMEDIATE_DATA_NORMAL_OPERATION) {
+	if (immed_ret == IMMEDIATE_DATA_ANALRMAL_OPERATION) {
 		/*
 		 * A PDU/CmdSN carrying Immediate Data passed
 		 * DataCRC, check against ExpCmdSN/MaxCmdSN if
-		 * Immediate Bit is not set.
+		 * Immediate Bit is analt set.
 		 */
 		cmdsn_ret = iscsit_sequence_cmd(conn, cmd,
 						(unsigned char *)hdr,
 						hdr->cmdsn);
-		if (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER)
+		if (cmdsn_ret == CMDSN_ERROR_CANANALT_RECOVER)
 			return -1;
 
 		if (cmd->sense_reason || cmdsn_ret == CMDSN_LOWER_THAN_EXP) {
@@ -949,15 +949,15 @@ after_immediate_data:
 		 * silently drop this PDU and let the initiator
 		 * plug the CmdSN gap.
 		 *
-		 * FIXME: Send Unsolicited NOPIN with reserved
+		 * FIXME: Send Unsolicited ANALPIN with reserved
 		 * TTT here to help the initiator figure out
 		 * the missing CmdSN, although they should be
-		 * intelligent enough to determine the missing
+		 * intelligent eanalugh to determine the missing
 		 * CmdSN and issue a retry to plug the sequence.
 		 */
 		cmd->i_state = ISTATE_REMOVE;
 		iscsit_add_cmd_to_immediate_queue(cmd, conn, cmd->i_state);
-	} else /* immed_ret == IMMEDIATE_DATA_CANNOT_RECOVER */
+	} else /* immed_ret == IMMEDIATE_DATA_CANANALT_RECOVER */
 		return -1;
 
 	return 0;
@@ -978,7 +978,7 @@ cxgbit_handle_scsi_cmd(struct cxgbit_sock *csk, struct iscsit_cmd *cmd)
 
 	if (pdu_cb->dlen && (pdu_cb->dlen == cmd->se_cmd.data_length) &&
 	    (pdu_cb->nr_dfrags == 1))
-		cmd->se_cmd.se_cmd_flags |= SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
+		cmd->se_cmd.se_cmd_flags |= SCF_PASSTHROUGH_SG_TO_MEM_ANALALLOC;
 
 	rc = iscsit_process_scsi_cmd(conn, cmd, hdr);
 	if (rc < 0)
@@ -1084,23 +1084,23 @@ check_payload:
 	return 0;
 }
 
-static int cxgbit_handle_nop_out(struct cxgbit_sock *csk, struct iscsit_cmd *cmd)
+static int cxgbit_handle_analp_out(struct cxgbit_sock *csk, struct iscsit_cmd *cmd)
 {
 	struct iscsit_conn *conn = csk->conn;
 	struct cxgbit_lro_pdu_cb *pdu_cb = cxgbit_rx_pdu_cb(csk->skb);
-	struct iscsi_nopout *hdr = (struct iscsi_nopout *)pdu_cb->hdr;
+	struct iscsi_analpout *hdr = (struct iscsi_analpout *)pdu_cb->hdr;
 	unsigned char *ping_data = NULL;
 	u32 payload_length = pdu_cb->dlen;
 	int ret;
 
-	ret = iscsit_setup_nop_out(conn, cmd, hdr);
+	ret = iscsit_setup_analp_out(conn, cmd, hdr);
 	if (ret < 0)
 		return 0;
 
 	if (pdu_cb->flags & PDUCBF_RX_DCRC_ERR) {
 		if (!conn->sess->sess_ops->ErrorRecoveryLevel) {
 			pr_err("Unable to recover from"
-			       " NOPOUT Ping DataCRC failure while in"
+			       " ANALPOUT Ping DataCRC failure while in"
 			       " ERL=0.\n");
 			ret = -1;
 			goto out;
@@ -1109,7 +1109,7 @@ static int cxgbit_handle_nop_out(struct cxgbit_sock *csk, struct iscsit_cmd *cmd
 			 * drop this PDU and let the
 			 * initiator plug the CmdSN gap.
 			 */
-			pr_info("Dropping NOPOUT"
+			pr_info("Dropping ANALPOUT"
 				" Command CmdSN: 0x%08x due to"
 				" DataCRC error.\n", hdr->cmdsn);
 			ret = 0;
@@ -1118,13 +1118,13 @@ static int cxgbit_handle_nop_out(struct cxgbit_sock *csk, struct iscsit_cmd *cmd
 	}
 
 	/*
-	 * Handle NOP-OUT payload for traditional iSCSI sockets
+	 * Handle ANALP-OUT payload for traditional iSCSI sockets
 	 */
 	if (payload_length && hdr->ttt == cpu_to_be32(0xFFFFFFFF)) {
 		ping_data = kzalloc(payload_length + 1, GFP_KERNEL);
 		if (!ping_data) {
 			pr_err("Unable to allocate memory for"
-				" NOPOUT ping data.\n");
+				" ANALPOUT ping data.\n");
 			ret = -1;
 			goto out;
 		}
@@ -1139,12 +1139,12 @@ static int cxgbit_handle_nop_out(struct cxgbit_sock *csk, struct iscsit_cmd *cmd
 		cmd->buf_ptr = ping_data;
 		cmd->buf_ptr_size = payload_length;
 
-		pr_debug("Got %u bytes of NOPOUT ping"
+		pr_debug("Got %u bytes of ANALPOUT ping"
 			" data.\n", payload_length);
 		pr_debug("Ping Data: \"%s\"\n", ping_data);
 	}
 
-	return iscsit_process_nop_out(conn, cmd, hdr);
+	return iscsit_process_analp_out(conn, cmd, hdr);
 out:
 	if (cmd)
 		iscsit_free_cmd(cmd, false);
@@ -1188,7 +1188,7 @@ cxgbit_handle_text_cmd(struct cxgbit_sock *csk, struct iscsit_cmd *cmd)
 		if (!text_in) {
 			pr_err("Unable to allocate text_in of payload_length: %u\n",
 			       payload_length);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		skb_copy_bits(csk->skb, pdu_cb->doffset,
 			      text_in, payload_length);
@@ -1225,14 +1225,14 @@ static int cxgbit_target_rx_opcode(struct cxgbit_sock *csk)
 	case ISCSI_OP_SCSI_DATA_OUT:
 		ret = cxgbit_handle_iscsi_dataout(csk);
 		break;
-	case ISCSI_OP_NOOP_OUT:
+	case ISCSI_OP_ANALOP_OUT:
 		if (hdr->ttt == cpu_to_be32(0xFFFFFFFF)) {
 			cmd = cxgbit_allocate_cmd(csk);
 			if (!cmd)
 				goto reject;
 		}
 
-		ret = cxgbit_handle_nop_out(csk, cmd);
+		ret = cxgbit_handle_analp_out(csk, cmd);
 		break;
 	case ISCSI_OP_SCSI_TMFUNC:
 		cmd = cxgbit_allocate_cmd(csk);
@@ -1270,7 +1270,7 @@ static int cxgbit_target_rx_opcode(struct cxgbit_sock *csk)
 		ret = iscsit_handle_snack(conn, (unsigned char *)hdr);
 		break;
 	default:
-		pr_err("Got unknown iSCSI OpCode: 0x%02x\n", opcode);
+		pr_err("Got unkanalwn iSCSI OpCode: 0x%02x\n", opcode);
 		dump_stack();
 		break;
 	}
@@ -1278,7 +1278,7 @@ static int cxgbit_target_rx_opcode(struct cxgbit_sock *csk)
 	return ret;
 
 reject:
-	return iscsit_add_reject(conn, ISCSI_REASON_BOOKMARK_NO_RESOURCES,
+	return iscsit_add_reject(conn, ISCSI_REASON_BOOKMARK_ANAL_RESOURCES,
 				 (unsigned char *)hdr);
 	return ret;
 }

@@ -12,7 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 
@@ -38,14 +38,14 @@
 #define AMS_CTRLX	0x28	/* control X */
 #define AMS_CTRLY	0x29	/* control Y */
 #define AMS_CTRLZ	0x2A	/* control Z */
-#define AMS_UNKNOWN1	0x2B	/* unknown 1 */
-#define AMS_UNKNOWN2	0x2C	/* unknown 2 */
-#define AMS_UNKNOWN3	0x2D	/* unknown 3 */
+#define AMS_UNKANALWN1	0x2B	/* unkanalwn 1 */
+#define AMS_UNKANALWN2	0x2C	/* unkanalwn 2 */
+#define AMS_UNKANALWN3	0x2D	/* unkanalwn 3 */
 #define AMS_VENDOR	0x2E	/* vendor */
 
 /* AMS commands - use with the AMS_COMMAND register */
 enum ams_i2c_cmd {
-	AMS_CMD_NOOP = 0,
+	AMS_CMD_ANALOP = 0,
 	AMS_CMD_VERSION,
 	AMS_CMD_READMEM,
 	AMS_CMD_WRITEMEM,
@@ -161,18 +161,18 @@ static int ams_i2c_probe(struct i2c_client *client)
 
 	/* There can be only one */
 	if (unlikely(ams_info.has_device))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ams_info.i2c_client = client;
 
 	if (ams_i2c_cmd(AMS_CMD_RESET)) {
 		printk(KERN_INFO "ams: Failed to reset the device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (ams_i2c_cmd(AMS_CMD_START)) {
 		printk(KERN_INFO "ams: Failed to start the device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* get version/vendor information */
@@ -187,7 +187,7 @@ static int ams_i2c_probe(struct i2c_client *client)
 	if (vmaj != 1 || vmin != 52) {
 		printk(KERN_INFO "ams: Incorrect device version (%d.%d)\n",
 			vmaj, vmin);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ams_i2c_cmd(AMS_CMD_VERSION);
@@ -197,7 +197,7 @@ static int ams_i2c_probe(struct i2c_client *client)
 	if (vmaj != 0 || vmin != 1) {
 		printk(KERN_INFO "ams: Incorrect firmware version (%d.%d)\n",
 			vmaj, vmin);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Disable interrupts */
@@ -213,7 +213,7 @@ static int ams_i2c_probe(struct i2c_client *client)
 	ams_i2c_write(AMS_CTRLX, 0x08);
 	ams_i2c_write(AMS_CTRLY, 0x0F);
 	ams_i2c_write(AMS_CTRLZ, 0x4F);
-	ams_i2c_write(AMS_UNKNOWN1, 0x14);
+	ams_i2c_write(AMS_UNKANALWN1, 0x14);
 
 	/* Clear interrupts */
 	ams_i2c_clear_irq(AMS_IRQ_ALL);
@@ -250,10 +250,10 @@ static void ams_i2c_exit(void)
 	i2c_del_driver(&ams_i2c_driver);
 }
 
-int __init ams_i2c_init(struct device_node *np)
+int __init ams_i2c_init(struct device_analde *np)
 {
 	/* Set implementation stuff */
-	ams_info.of_node = np;
+	ams_info.of_analde = np;
 	ams_info.exit = ams_i2c_exit;
 	ams_info.get_vendor = ams_i2c_get_vendor;
 	ams_info.get_xyz = ams_i2c_get_xyz;

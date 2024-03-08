@@ -23,7 +23,7 @@
 /*
  * nand commands
  * The pins of the NAND chip are selected based on the address bits of the
- * "register" read and write. There are no special registers, but an
+ * "register" read and write. There are anal special registers, but an
  * address range and the lower address bits are used to activate the
  * correct line. For example when the bit (1 << 2) is set in the address
  * the ALE pin will be activated.
@@ -108,7 +108,7 @@ static void xway_cmd_ctrl(struct nand_chip *chip, int cmd, unsigned int ctrl)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 
-	if (cmd == NAND_CMD_NONE)
+	if (cmd == NAND_CMD_ANALNE)
 		return;
 
 	if (ctrl & NAND_CLE)
@@ -149,7 +149,7 @@ static void xway_write_buf(struct nand_chip *chip, const u_char *buf, int len)
 static int xway_attach_chip(struct nand_chip *chip)
 {
 	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
-	    chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+	    chip->ecc.algo == NAND_ECC_ALGO_UNKANALWN)
 		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	return 0;
@@ -174,13 +174,13 @@ static int xway_nand_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(struct xway_nand_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->nandaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->nandaddr))
 		return PTR_ERR(data->nandaddr);
 
-	nand_set_flash_node(&data->chip, pdev->dev.of_node);
+	nand_set_flash_analde(&data->chip, pdev->dev.of_analde);
 	mtd = nand_to_mtd(&data->chip);
 	mtd->dev.parent = &pdev->dev;
 
@@ -200,7 +200,7 @@ static int xway_nand_probe(struct platform_device *pdev)
 	nand_set_controller_data(&data->chip, data);
 
 	/* load our CS from the DT. Either we find a valid 1 or default to 0 */
-	err = of_property_read_u32(pdev->dev.of_node, "lantiq,cs", &cs);
+	err = of_property_read_u32(pdev->dev.of_analde, "lantiq,cs", &cs);
 	if (!err && cs == 1)
 		cs_flag = NAND_CON_IN_CS1 | NAND_CON_OUT_CS1;
 

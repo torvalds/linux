@@ -1,14 +1,14 @@
 /*
  * Driver for simple i2c audio chips.
  *
- * Copyright (c) 2000 Gerd Knorr
+ * Copyright (c) 2000 Gerd Kanalrr
  * based on code by:
  *   Eric Sandeen (eric_sandeen@bigfoot.com)
  *   Steve VanDeBogart (vandebo@uclink.berkeley.edu)
  *   Greg Alexander (galexand@acm.org)
  *
  * For the TDA9875 part:
- * Copyright (c) 2000 Guillaume Delvit based on Gerd Knorr source
+ * Copyright (c) 2000 Guillaume Delvit based on Gerd Kanalrr source
  * and Eric Sandeen
  *
  * Copyright(c) 2005-2008 Mauro Carvalho Chehab
@@ -28,7 +28,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
@@ -47,7 +47,7 @@ static int debug;	/* insmod parameter */
 module_param(debug, int, 0644);
 
 MODULE_DESCRIPTION("device driver for various i2c TV sound decoder / audiomux chips");
-MODULE_AUTHOR("Eric Sandeen, Steve VanDeBogart, Greg Alexander, Gerd Knorr");
+MODULE_AUTHOR("Eric Sandeen, Steve VanDeBogart, Greg Alexander, Gerd Kanalrr");
 MODULE_LICENSE("GPL");
 
 #define UNSET    (-1U)
@@ -172,7 +172,7 @@ static int chip_write(struct CHIPSTATE *chip, int subaddr, int val)
 	} else {
 		if (subaddr + 1 >= ARRAY_SIZE(chip->shadow.bytes)) {
 			v4l2_info(sd,
-				"Tried to access a non-existent register: %d\n",
+				"Tried to access a analn-existent register: %d\n",
 				subaddr);
 			return -EINVAL;
 		}
@@ -205,7 +205,7 @@ static int chip_write_masked(struct CHIPSTATE *chip,
 		} else {
 			if (subaddr + 1 >= ARRAY_SIZE(chip->shadow.bytes)) {
 				v4l2_info(sd,
-					"Tried to access a non-existent register: %d\n",
+					"Tried to access a analn-existent register: %d\n",
 					subaddr);
 				return -EINVAL;
 			}
@@ -280,7 +280,7 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
 
 	if (cmd->count + cmd->bytes[0] - 1 >= ARRAY_SIZE(chip->shadow.bytes)) {
 		v4l2_info(sd,
-			 "Tried to access a non-existent register range: %d to %d\n",
+			 "Tried to access a analn-existent register range: %d to %d\n",
 			 cmd->bytes[0] + 1, cmd->bytes[0] + cmd->count - 1);
 		return -EINVAL;
 	}
@@ -311,8 +311,8 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
 
 /* ---------------------------------------------------------------------- */
 /* kernel thread for doing i2c stuff asyncronly
- *   right now it is used only to check the audio mode (mono/stereo/whatever)
- *   some time after switching to another TV channel, then turn on stereo
+ *   right analw it is used only to check the audio mode (moanal/stereo/whatever)
+ *   some time after switching to aanalther TV channel, then turn on stereo
  *   if available, ...
  */
 
@@ -355,9 +355,9 @@ static int chip_thread(void *data)
 
 		chip->prevmode = mode;
 
-		selected = V4L2_TUNER_MODE_MONO;
+		selected = V4L2_TUNER_MODE_MOANAL;
 		switch (chip->audmode) {
-		case V4L2_TUNER_MODE_MONO:
+		case V4L2_TUNER_MODE_MOANAL:
 			if (mode & V4L2_TUNER_SUB_LANG1)
 				selected = V4L2_TUNER_MODE_LANG1;
 			break;
@@ -398,7 +398,7 @@ static int chip_thread(void *data)
 #define TDA9840_STADJ      0x03
 #define TDA9840_TEST       0x04
 
-#define TDA9840_MONO       0x10
+#define TDA9840_MOANAL       0x10
 #define TDA9840_STEREO     0x2a
 #define TDA9840_DUALA      0x12
 #define TDA9840_DUALB      0x1e
@@ -418,7 +418,7 @@ static int tda9840_getrxsubchans(struct CHIPSTATE *chip)
 	struct v4l2_subdev *sd = &chip->sd;
 	int val, mode;
 
-	mode = V4L2_TUNER_SUB_MONO;
+	mode = V4L2_TUNER_SUB_MOANAL;
 
 	val = chip_read(chip);
 	if (val < 0)
@@ -441,8 +441,8 @@ static void tda9840_setaudmode(struct CHIPSTATE *chip, int mode)
 	int t = chip->shadow.bytes[TDA9840_SW + 1] & ~0x7e;
 
 	switch (mode) {
-	case V4L2_TUNER_MODE_MONO:
-		t |= TDA9840_MONO;
+	case V4L2_TUNER_MODE_MOANAL:
+		t |= TDA9840_MOANAL;
 		break;
 	case V4L2_TUNER_MODE_STEREO:
 		t |= TDA9840_STEREO;
@@ -485,7 +485,7 @@ static int tda9840_checkit(struct CHIPSTATE *chip)
 #define TDA9855_VL	0x01 /* Volume, left */
 #define TDA9855_BA	0x02 /* Bass */
 #define TDA9855_TR	0x03 /* Treble */
-#define TDA9855_SW	0x04 /* Subwoofer - not connected on DTV2000 */
+#define TDA9855_SW	0x04 /* Subwoofer - analt connected on DTV2000 */
 
 /* subaddresses for TDA9850 */
 #define TDA9850_C4	0x04 /* Control 1 for TDA9850 */
@@ -521,7 +521,7 @@ static int tda9840_checkit(struct CHIPSTATE *chip)
  * in 3dB steps - mute is 0x0 */
 
 /* Unique to TDA9850: */
-/* lower 4 bits control stereo noise threshold, over which stereo turns off
+/* lower 4 bits control stereo analise threshold, over which stereo turns off
  * set to values of 0x00 through 0x0f for Ster1 through Ster16 */
 
 
@@ -538,16 +538,16 @@ static int tda9840_checkit(struct CHIPSTATE *chip)
 #define TDA9855_INT	0    /* Selects inputs LOR and LOL.  (internal) */
 
 /* Unique to TDA9850:  */
-/* lower 4 bits control SAP noise threshold, over which SAP turns off
+/* lower 4 bits control SAP analise threshold, over which SAP turns off
  * set to values of 0x00 through 0x0f for SAP1 through SAP16 */
 
 
 /* 0x06 - C6 - Control 2 in TDA9855, Control 3 in TDA9850 */
 /* Common to TDA9855 and TDA9850: */
-#define TDA985x_SAP	3<<6 /* Selects SAP output, mute if not received */
-#define TDA985x_MONOSAP	2<<6 /* Selects Mono on left, SAP on right */
-#define TDA985x_STEREO	1<<6 /* Selects Stereo output, mono if not received */
-#define TDA985x_MONO	0    /* Forces Mono output */
+#define TDA985x_SAP	3<<6 /* Selects SAP output, mute if analt received */
+#define TDA985x_MOANALSAP	2<<6 /* Selects Moanal on left, SAP on right */
+#define TDA985x_STEREO	1<<6 /* Selects Stereo output, moanal if analt received */
+#define TDA985x_MOANAL	0    /* Forces Moanal output */
 #define TDA985x_LMU	1<<3 /* Mute (LOR/LOL for 9855, OUTL/OUTR for 9850) */
 
 /* Unique to TDA9855: */
@@ -557,7 +557,7 @@ static int tda9840_checkit(struct CHIPSTATE *chip)
 #define TDA9855_PSEUDO	1    /* Pseudo Stereo */
 #define TDA9855_SPAT_30	2    /* Spatial Stereo, 30% anti-phase crosstalk */
 #define TDA9855_SPAT_50	3    /* Spatial Stereo, 52% anti-phase crosstalk */
-#define TDA9855_E_MONO	7    /* Forced mono - mono select elseware, so useless*/
+#define TDA9855_E_MOANAL	7    /* Forced moanal - moanal select elseware, so useless*/
 
 /* 0x07 - C7 - Control 3 in TDA9855, Control 4 in TDA9850 */
 /* Common to both TDA9855 and TDA9850: */
@@ -567,7 +567,7 @@ static int tda9840_checkit(struct CHIPSTATE *chip)
 /* 0x08, 0x09 - A1 and A2 (read/write) */
 /* Common to both TDA9855 and TDA9850: */
 /* lower 5 bites are wideband and spectral expander alignment
- * from 0x00 to 0x1f - nominal at 0x0f and 0x10 (read/write) */
+ * from 0x00 to 0x1f - analminal at 0x0f and 0x10 (read/write) */
 #define TDA985x_STP	1<<5 /* Stereo Pilot/detect (read-only) */
 #define TDA985x_SAPP	1<<6 /* SAP Pilot/detect (read-only) */
 #define TDA985x_STS	1<<7 /* Stereo trigger 1= <35mV 0= <30mV (write-only)*/
@@ -575,7 +575,7 @@ static int tda9840_checkit(struct CHIPSTATE *chip)
 /* 0x0a - A3 */
 /* Common to both TDA9855 and TDA9850: */
 /* lower 3 bits control timing current for alignment: -30% (0x0), -20% (0x1),
- * -10% (0x2), nominal (0x3), +10% (0x6), +20% (0x5), +30% (0x4) */
+ * -10% (0x2), analminal (0x3), +10% (0x6), +20% (0x5), +30% (0x4) */
 #define TDA985x_ADJ	1<<7 /* Stereo adjust on/off (wideband and spectral */
 
 static int tda9855_volume(int val) { return val/0x2e8+0x27; }
@@ -586,9 +586,9 @@ static int  tda985x_getrxsubchans(struct CHIPSTATE *chip)
 {
 	int mode, val;
 
-	/* Add mono mode regardless of SAP and stereo */
-	/* Allows forced mono */
-	mode = V4L2_TUNER_SUB_MONO;
+	/* Add moanal mode regardless of SAP and stereo */
+	/* Allows forced moanal */
+	mode = V4L2_TUNER_SUB_MOANAL;
 	val = chip_read(chip);
 	if (val < 0)
 		return mode;
@@ -606,8 +606,8 @@ static void tda985x_setaudmode(struct CHIPSTATE *chip, int mode)
 	int c6 = chip->shadow.bytes[TDA985x_C6+1] & 0x3f;
 
 	switch (mode) {
-	case V4L2_TUNER_MODE_MONO:
-		c6 |= TDA985x_MONO;
+	case V4L2_TUNER_MODE_MOANAL:
+		c6 |= TDA985x_MOANAL;
 		break;
 	case V4L2_TUNER_MODE_STEREO:
 	case V4L2_TUNER_MODE_LANG1:
@@ -617,7 +617,7 @@ static void tda985x_setaudmode(struct CHIPSTATE *chip, int mode)
 		c6 |= TDA985x_SAP;
 		break;
 	case V4L2_TUNER_MODE_LANG1_LANG2:
-		c6 |= TDA985x_MONOSAP;
+		c6 |= TDA985x_MOANALSAP;
 		break;
 	default:
 		update = 0;
@@ -642,16 +642,16 @@ static void tda985x_setaudmode(struct CHIPSTATE *chip, int mode)
  * B1, B0: Input source selection
  *  0,  0  internal
  *  1,  0  external stereo
- *  0,  1  external mono
+ *  0,  1  external moanal
  */
 #define TDA9873_INP_MASK    3
 #define TDA9873_INTERNAL    0
 #define TDA9873_EXT_STEREO  2
-#define TDA9873_EXT_MONO    1
+#define TDA9873_EXT_MOANAL    1
 
 /*    B3, B2: output signal select
  * B4    : transmission mode
- *  0, 0, 1   Mono
+ *  0, 0, 1   Moanal
  *  1, 0, 0   Stereo
  *  1, 1, 1   Stereo (reversed channel)
  *  0, 0, 0   Dual AB
@@ -661,7 +661,7 @@ static void tda985x_setaudmode(struct CHIPSTATE *chip, int mode)
  */
 
 #define TDA9873_TR_MASK     (7 << 2)
-#define TDA9873_TR_MONO     4
+#define TDA9873_TR_MOANAL     4
 #define TDA9873_TR_STEREO   1 << 4
 #define TDA9873_TR_REVERSE  ((1 << 3) | (1 << 2))
 #define TDA9873_TR_DUALA    1 << 2
@@ -669,12 +669,12 @@ static void tda985x_setaudmode(struct CHIPSTATE *chip, int mode)
 #define TDA9873_TR_DUALAB   0
 
 /* output level controls
- * B5:  output level switch (0 = reduced gain, 1 = normal gain)
+ * B5:  output level switch (0 = reduced gain, 1 = analrmal gain)
  * B6:  mute                (1 = muted)
  * B7:  auto-mute           (1 = auto-mute enabled)
  */
 
-#define TDA9873_GAIN_NORMAL 1 << 5
+#define TDA9873_GAIN_ANALRMAL 1 << 5
 #define TDA9873_MUTE        1 << 6
 #define TDA9873_AUTOMUTE    1 << 7
 
@@ -702,9 +702,9 @@ static void tda985x_setaudmode(struct CHIPSTATE *chip, int mode)
 #define TDA9873_DK3     4
 #define TDA9873_I       5
 
-/* C7 controls identification response time (1=fast/0=normal)
+/* C7 controls identification response time (1=fast/0=analrmal)
  */
-#define TDA9873_IDR_NORM 0
+#define TDA9873_IDR_ANALRM 0
 #define TDA9873_IDR_FAST 1 << 7
 
 
@@ -722,15 +722,15 @@ static void tda985x_setaudmode(struct CHIPSTATE *chip, int mode)
 /* E2: test port */
 #define TDA9873_TST_PORT 1 << 2
 
-/* E5..E3 control mono output channel (together with transmission mode bit B4)
+/* E5..E3 control moanal output channel (together with transmission mode bit B4)
  *
  * E5 E4 E3 B4     OUTM
- *  0  0  0  0     mono
+ *  0  0  0  0     moanal
  *  0  0  1  0     DUAL B
- *  0  1  0  1     mono (from stereo decoder)
+ *  0  1  0  1     moanal (from stereo decoder)
  */
-#define TDA9873_MOUT_MONO   0
-#define TDA9873_MOUT_FMONO  0
+#define TDA9873_MOUT_MOANAL   0
+#define TDA9873_MOUT_FMOANAL  0
 #define TDA9873_MOUT_DUALA  0
 #define TDA9873_MOUT_DUALB  1 << 3
 #define TDA9873_MOUT_ST     1 << 4
@@ -750,7 +750,7 @@ static int tda9873_getrxsubchans(struct CHIPSTATE *chip)
 	struct v4l2_subdev *sd = &chip->sd;
 	int val,mode;
 
-	mode = V4L2_TUNER_SUB_MONO;
+	mode = V4L2_TUNER_SUB_MOANAL;
 
 	val = chip_read(chip);
 	if (val < 0)
@@ -785,8 +785,8 @@ static void tda9873_setaudmode(struct CHIPSTATE *chip, int mode)
 		 sw_data);
 
 	switch (mode) {
-	case V4L2_TUNER_MODE_MONO:
-		sw_data |= TDA9873_TR_MONO;
+	case V4L2_TUNER_MODE_MOANAL:
+		sw_data |= TDA9873_TR_MOANAL;
 		break;
 	case V4L2_TUNER_MODE_STEREO:
 		sw_data |= TDA9873_TR_STEREO;
@@ -841,7 +841,7 @@ static int tda9873_checkit(struct CHIPSTATE *chip)
 #define TDA9874A_C1OLAR		0x0c	/* ch.1 output level adj. */
 #define TDA9874A_C2OLAR		0x0d	/* ch.2 output level adj. */
 #define TDA9874A_NCONR		0x0e	/* NICAM config */
-#define TDA9874A_NOLAR		0x0f	/* NICAM output level adj. */
+#define TDA9874A_ANALLAR		0x0f	/* NICAM output level adj. */
 #define TDA9874A_NLELR		0x10	/* NICAM lower error limit */
 #define TDA9874A_NUELR		0x11	/* NICAM upper error limit */
 #define TDA9874A_AMCONR		0x12	/* audio mute control */
@@ -850,7 +850,7 @@ static int tda9873_checkit(struct CHIPSTATE *chip)
 #define TDA9874A_DAICONR	0x15	/* digital audio interface config */
 #define TDA9874A_I2SOSR		0x16	/* I2S-bus output select */
 #define TDA9874A_I2SOLAR	0x17	/* I2S-bus output level adj. */
-#define TDA9874A_MDACOSR	0x18	/* mono DAC output select (tda9874a) */
+#define TDA9874A_MDACOSR	0x18	/* moanal DAC output select (tda9874a) */
 #define TDA9874A_ESP		0xFF	/* easy standard progr. (tda9874a) */
 
 /* Subaddresses for TDA9874H and TDA9874A (slave tx) */
@@ -888,7 +888,7 @@ module_param(tda9874a_STD, int, 0444);
  *  - carrier 2 freq. registers (3 bytes)
  *  - demudulator config register
  *  - FM de-emphasis register (slow identification mode)
- * Note: frequency registers must be written in single i2c transfer.
+ * Analte: frequency registers must be written in single i2c transfer.
  */
 static struct tda9874a_MODES {
 	char *name;
@@ -930,8 +930,8 @@ static int tda9874a_setup(struct CHIPSTATE *chip)
 	chip_write(chip, TDA9874A_C1OLAR, 0x00); /* 0 dB */
 	chip_write(chip, TDA9874A_C2OLAR, 0x00); /* 0 dB */
 	chip_write(chip, TDA9874A_NCONR, tda9874a_NCONR);
-	chip_write(chip, TDA9874A_NOLAR, 0x00); /* 0 dB */
-	/* Note: If signal quality is poor you may want to change NICAM */
+	chip_write(chip, TDA9874A_ANALLAR, 0x00); /* 0 dB */
+	/* Analte: If signal quality is poor you may want to change NICAM */
 	/* error limit registers (NLELR and NUELR) to some greater values. */
 	/* Then the sound would remain stereo, but won't be so clear. */
 	chip_write(chip, TDA9874A_NLELR, 0x14); /* default */
@@ -959,7 +959,7 @@ static int tda9874a_getrxsubchans(struct CHIPSTATE *chip)
 	int dsr,nsr,mode;
 	int necr; /* just for debugging */
 
-	mode = V4L2_TUNER_SUB_MONO;
+	mode = V4L2_TUNER_SUB_MOANAL;
 
 	dsr = chip_read2(chip, TDA9874A_DSR);
 	if (dsr < 0)
@@ -976,12 +976,12 @@ static int tda9874a_getrxsubchans(struct CHIPSTATE *chip)
 	chip->shadow.bytes[MAXREGS-1] = nsr;
 
 	if(tda9874a_mode) {
-		/* Note: DSR.RSSF and DSR.AMSTAT bits are also checked.
+		/* Analte: DSR.RSSF and DSR.AMSTAT bits are also checked.
 		 * If NICAM auto-muting is enabled, DSR.AMSTAT=1 indicates
 		 * that sound has (temporarily) switched from NICAM to
-		 * mono FM (or AM) on 1st sound carrier due to high NICAM bit
-		 * error count. So in fact there is no stereo in this case :-(
-		 * But changing the mode to V4L2_TUNER_MODE_MONO would switch
+		 * moanal FM (or AM) on 1st sound carrier due to high NICAM bit
+		 * error count. So in fact there is anal stereo in this case :-(
+		 * But changing the mode to V4L2_TUNER_MODE_MOANAL would switch
 		 * external 4052 multiplexer in audio_hook().
 		 */
 		if(nsr & 0x02) /* NSR.S/MB=1 */
@@ -1015,18 +1015,18 @@ static void tda9874a_setaudmode(struct CHIPSTATE *chip, int mode)
 		chip_write(chip, TDA9874A_NCONR, tda9874a_NCONR);
 	}
 
-	/* Note: TDA9874A supports automatic FM dematrixing (FMMR register)
+	/* Analte: TDA9874A supports automatic FM dematrixing (FMMR register)
 	 * and has auto-select function for audio output (AOSR register).
 	 * Old TDA9874H doesn't support these features.
-	 * TDA9874A also has additional mono output pin (OUTM), which
-	 * on same (all?) tv-cards is not used, anyway (as well as MONOIN).
+	 * TDA9874A also has additional moanal output pin (OUTM), which
+	 * on same (all?) tv-cards is analt used, anyway (as well as MOANALIN).
 	 */
 	if(tda9874a_dic == 0x11) {
 		int aosr = 0x80;
 		int mdacosr = (tda9874a_mode) ? 0x82:0x80;
 
 		switch(mode) {
-		case V4L2_TUNER_MODE_MONO:
+		case V4L2_TUNER_MODE_MOANAL:
 		case V4L2_TUNER_MODE_STEREO:
 			break;
 		case V4L2_TUNER_MODE_LANG1:
@@ -1055,8 +1055,8 @@ static void tda9874a_setaudmode(struct CHIPSTATE *chip, int mode)
 		int fmmr,aosr;
 
 		switch(mode) {
-		case V4L2_TUNER_MODE_MONO:
-			fmmr = 0x00; /* mono */
+		case V4L2_TUNER_MODE_MOANAL:
+			fmmr = 0x00; /* moanal */
 			aosr = 0x10; /* A/A */
 			break;
 		case V4L2_TUNER_MODE_STEREO:
@@ -1111,7 +1111,7 @@ static int tda9874a_checkit(struct CHIPSTATE *chip)
 		tda9874a_dic = dic;	/* remember device id. */
 		return 1;
 	}
-	return 0;	/* not found */
+	return 0;	/* analt found */
 }
 
 static int tda9874a_initialize(struct CHIPSTATE *chip)
@@ -1132,7 +1132,7 @@ static int tda9874a_initialize(struct CHIPSTATE *chip)
 	tda9874a_mode = (tda9874a_STD < 5) ? 0 : 1;
 
 	if(tda9874a_AMSEL == 0)
-		tda9874a_NCONR = 0x01; /* auto-mute: analog mono input */
+		tda9874a_NCONR = 0x01; /* auto-mute: analog moanal input */
 	else
 		tda9874a_NCONR = 0x05; /* auto-mute: 1st carrier FM or AM */
 
@@ -1156,10 +1156,10 @@ static int tda9874a_initialize(struct CHIPSTATE *chip)
 
 #define TDA9875_CH1V        0x0c  /*Channel 1 volume (mute)*/
 #define TDA9875_CH2V        0x0d  /*Channel 2 volume (mute)*/
-#define TDA9875_SC1         0x14  /*SCART 1 in (mono)*/
-#define TDA9875_SC2         0x15  /*SCART 2 in (mono)*/
+#define TDA9875_SC1         0x14  /*SCART 1 in (moanal)*/
+#define TDA9875_SC2         0x15  /*SCART 2 in (moanal)*/
 
-#define TDA9875_ADCIS       0x17  /*ADC input select (mono) 0b0110 000*/
+#define TDA9875_ADCIS       0x17  /*ADC input select (moanal) 0b0110 000*/
 #define TDA9875_AER         0x19  /*Audio effect (AVL+Pseudo) 0b0000 0110*/
 #define TDA9875_MCS         0x18  /*Main channel select (DAC) 0b0000100*/
 #define TDA9875_MVL         0x1a  /* Main volume gauche */
@@ -1185,7 +1185,7 @@ static int tda9874a_initialize(struct CHIPSTATE *chip)
 
 /* values */
 #define TDA9875_MUTE_ON	    0xff /* general mute */
-#define TDA9875_MUTE_OFF    0xcc /* general no mute */
+#define TDA9875_MUTE_OFF    0xcc /* general anal mute */
 
 static int tda9875_initialize(struct CHIPSTATE *chip)
 {
@@ -1206,8 +1206,8 @@ static int tda9875_initialize(struct CHIPSTATE *chip)
 	chip_write(chip, TDA9875_CH1V, 0x10);  /* Channel volume 1 mute*/
 	chip_write(chip, TDA9875_CH2V, 0x10);  /* Channel volume 2 mute */
 	chip_write(chip, TDA9875_DACOS, 0x02); /* sig DAC i/o(in:nicam)*/
-	chip_write(chip, TDA9875_ADCIS, 0x6f); /* sig ADC input(in:mono)*/
-	chip_write(chip, TDA9875_LOSR, 0x00);  /* line out (in:mono)*/
+	chip_write(chip, TDA9875_ADCIS, 0x6f); /* sig ADC input(in:moanal)*/
+	chip_write(chip, TDA9875_LOSR, 0x00);  /* line out (in:moanal)*/
 	chip_write(chip, TDA9875_AER, 0x00);   /*06 Effect (AVL+PSEUDO) */
 	chip_write(chip, TDA9875_MCS, 0x44);   /* Main ch select (DAC) */
 	chip_write(chip, TDA9875_MVL, 0x03);   /* Vol Main left 10dB */
@@ -1327,7 +1327,7 @@ static int tea6320_initialize(struct CHIPSTATE * chip)
 #define TDA8425_S1_STEREO_SPATIAL 0x18 /* spatial stereo */
 #define TDA8425_S1_STEREO_LINEAR  0x08 /* linear stereo */
 #define TDA8425_S1_STEREO_PSEUDO  0x10 /* pseudo stereo */
-#define TDA8425_S1_STEREO_MONO    0x00 /* forced mono */
+#define TDA8425_S1_STEREO_MOANAL    0x00 /* forced moanal */
 #define TDA8425_S1_ML      0x06        /* language selector */
 #define TDA8425_S1_ML_SOUND_A 0x02     /* sound a */
 #define TDA8425_S1_ML_SOUND_B 0x04     /* sound b */
@@ -1355,9 +1355,9 @@ static void tda8425_setaudmode(struct CHIPSTATE *chip, int mode)
 		s1 |= TDA8425_S1_ML_STEREO;
 		s1 |= TDA8425_S1_STEREO_LINEAR;
 		break;
-	case V4L2_TUNER_MODE_MONO:
+	case V4L2_TUNER_MODE_MOANAL:
 		s1 |= TDA8425_S1_ML_STEREO;
-		s1 |= TDA8425_S1_STEREO_MONO;
+		s1 |= TDA8425_S1_STEREO_MOANAL;
 		break;
 	case V4L2_TUNER_MODE_STEREO:
 		s1 |= TDA8425_S1_ML_STEREO;
@@ -1374,7 +1374,7 @@ static void tda8425_setaudmode(struct CHIPSTATE *chip, int mode)
 /* audio chip descriptions - defines+functions for pic16c54 (PV951)       */
 
 /* the registers of 16C54, I2C sub address. */
-#define PIC16C54_REG_KEY_CODE     0x01	       /* Not use. */
+#define PIC16C54_REG_KEY_CODE     0x01	       /* Analt use. */
 #define PIC16C54_REG_MISC         0x02
 
 /* bit definition of the RESET register, I2C data. */
@@ -1384,7 +1384,7 @@ static void tda8425_setaudmode(struct CHIPSTATE *chip, int mode)
 #define PIC16C54_MISC_MTS_SAP          0x04 /* bit 2 */
 #define PIC16C54_MISC_MTS_BOTH         0x08 /* bit 3 */
 #define PIC16C54_MISC_SND_MUTE         0x10 /* bit 4, Mute Audio(Line-in and Tuner) */
-#define PIC16C54_MISC_SND_NOTMUTE      0x20 /* bit 5 */
+#define PIC16C54_MISC_SND_ANALTMUTE      0x20 /* bit 5 */
 #define PIC16C54_MISC_SWITCH_TUNER     0x40 /* bit 6	, Switch to Line-in */
 #define PIC16C54_MISC_SWITCH_LINE      0x80 /* bit 7	, Switch to Tuner */
 
@@ -1395,9 +1395,9 @@ static void tda8425_setaudmode(struct CHIPSTATE *chip, int mode)
 #define TA8874Z_LED_STE	0x80
 #define TA8874Z_LED_BIL	0x40
 #define TA8874Z_LED_EXT	0x20
-#define TA8874Z_MONO_SET	0x10
+#define TA8874Z_MOANAL_SET	0x10
 #define TA8874Z_MUTE	0x08
-#define TA8874Z_F_MONO	0x04
+#define TA8874Z_F_MOANAL	0x04
 #define TA8874Z_MODE_SUB	0x02
 #define TA8874Z_MODE_MAIN	0x01
 
@@ -1413,7 +1413,7 @@ static void tda8425_setaudmode(struct CHIPSTATE *chip, int mode)
 
 /*
  *        B1 B0
- * mono    L  H
+ * moanal    L  H
  * stereo  L  L
  * BIL     H  L
  */
@@ -1421,7 +1421,7 @@ static int ta8874z_getrxsubchans(struct CHIPSTATE *chip)
 {
 	int val, mode;
 
-	mode = V4L2_TUNER_SUB_MONO;
+	mode = V4L2_TUNER_SUB_MOANAL;
 
 	val = chip_read(chip);
 	if (val < 0)
@@ -1439,7 +1439,7 @@ static int ta8874z_getrxsubchans(struct CHIPSTATE *chip)
 }
 
 static audiocmd ta8874z_stereo = { 2, {0, TA8874Z_SEPARATION_DEFAULT}};
-static audiocmd ta8874z_mono = {2, { TA8874Z_MONO_SET, TA8874Z_SEPARATION_DEFAULT}};
+static audiocmd ta8874z_moanal = {2, { TA8874Z_MOANAL_SET, TA8874Z_SEPARATION_DEFAULT}};
 static audiocmd ta8874z_main = {2, { 0, TA8874Z_SEPARATION_DEFAULT}};
 static audiocmd ta8874z_sub = {2, { TA8874Z_MODE_SUB, TA8874Z_SEPARATION_DEFAULT}};
 static audiocmd ta8874z_both = {2, { TA8874Z_MODE_MAIN | TA8874Z_MODE_SUB, TA8874Z_SEPARATION_DEFAULT}};
@@ -1453,8 +1453,8 @@ static void ta8874z_setaudmode(struct CHIPSTATE *chip, int mode)
 	v4l2_dbg(1, debug, sd, "ta8874z_setaudmode(): mode: 0x%02x\n", mode);
 
 	switch(mode){
-	case V4L2_TUNER_MODE_MONO:
-		t = &ta8874z_mono;
+	case V4L2_TUNER_MODE_MOANAL:
+		t = &ta8874z_moanal;
 		break;
 	case V4L2_TUNER_MODE_STEREO:
 		t = &ta8874z_stereo;
@@ -1532,7 +1532,7 @@ static struct CHIPDESC chiplist[] = {
 		.setaudmode = tda9840_setaudmode,
 
 		.init       = { 2, { TDA9840_TEST, TDA9840_TEST_INT1SN
-				/* ,TDA9840_SW, TDA9840_MONO */} }
+				/* ,TDA9840_SW, TDA9840_MOANAL */} }
 	},
 	{
 		.name       = "tda9873h",
@@ -1714,9 +1714,9 @@ static struct CHIPDESC chiplist[] = {
 		.flags      = CHIP_HAS_INPUTSEL,
 
 		.inputreg   = PIC16C54_REG_MISC,
-		.inputmap   = {PIC16C54_MISC_SND_NOTMUTE|PIC16C54_MISC_SWITCH_TUNER,
-			     PIC16C54_MISC_SND_NOTMUTE|PIC16C54_MISC_SWITCH_LINE,
-			     PIC16C54_MISC_SND_NOTMUTE|PIC16C54_MISC_SWITCH_LINE,
+		.inputmap   = {PIC16C54_MISC_SND_ANALTMUTE|PIC16C54_MISC_SWITCH_TUNER,
+			     PIC16C54_MISC_SND_ANALTMUTE|PIC16C54_MISC_SWITCH_LINE,
+			     PIC16C54_MISC_SND_ANALTMUTE|PIC16C54_MISC_SWITCH_LINE,
 			     PIC16C54_MISC_SND_MUTE},
 		.inputmute  = PIC16C54_MISC_SND_MUTE,
 	},
@@ -1732,7 +1732,7 @@ static struct CHIPDESC chiplist[] = {
 		.getrxsubchans = ta8874z_getrxsubchans,
 		.setaudmode = ta8874z_setaudmode,
 
-		.init       = {2, { TA8874Z_MONO_SET, TA8874Z_SEPARATION_DEFAULT}},
+		.init       = {2, { TA8874Z_MOANAL_SET, TA8874Z_SEPARATION_DEFAULT}},
 	},
 	{ .name = NULL } /* EOF */
 };
@@ -1821,7 +1821,7 @@ static int tvaudio_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 		return 0;
 
 	switch (vt->audmode) {
-	case V4L2_TUNER_MODE_MONO:
+	case V4L2_TUNER_MODE_MOANAL:
 	case V4L2_TUNER_MODE_STEREO:
 	case V4L2_TUNER_MODE_LANG1:
 	case V4L2_TUNER_MODE_LANG2:
@@ -1874,13 +1874,13 @@ static int tvaudio_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequen
 	/* For chips that provide getrxsubchans and setaudmode, and doesn't
 	   automatically follows the stereo carrier, a kthread is
 	   created to set the audio standard. In this case, when then
-	   the video channel is changed, tvaudio starts on MONO mode.
+	   the video channel is changed, tvaudio starts on MOANAL mode.
 	   After waiting for 2 seconds, the kernel thread is called,
 	   to follow whatever audio standard is pointed by the
 	   audio carrier.
 	 */
 	if (chip->thread) {
-		desc->setaudmode(chip, V4L2_TUNER_MODE_MONO);
+		desc->setaudmode(chip, V4L2_TUNER_MODE_MOANAL);
 		chip->prevmode = -1; /* reset previous mode */
 		mod_timer(&chip->wt, jiffies+msecs_to_jiffies(2000));
 	}
@@ -1943,7 +1943,7 @@ static int tvaudio_probe(struct i2c_client *client)
 
 	if (debug) {
 		printk(KERN_INFO "tvaudio: TV audio decoder + audio/video mux driver\n");
-		printk(KERN_INFO "tvaudio: known chips: ");
+		printk(KERN_INFO "tvaudio: kanalwn chips: ");
 		for (desc = chiplist; desc->name != NULL; desc++)
 			printk(KERN_CONT "%s%s",
 			       (desc == chiplist) ? "" : ", ", desc->name);
@@ -1952,7 +1952,7 @@ static int tvaudio_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &chip->sd;
 	v4l2_i2c_subdev_init(sd, client, &tvaudio_ops);
 
@@ -1969,7 +1969,7 @@ static int tvaudio_probe(struct i2c_client *client)
 		break;
 	}
 	if (desc->name == NULL) {
-		v4l2_dbg(1, debug, sd, "no matching chip description found\n");
+		v4l2_dbg(1, debug, sd, "anal matching chip description found\n");
 		return -EIO;
 	}
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", desc->name, client->addr<<1, client->adapter->name);

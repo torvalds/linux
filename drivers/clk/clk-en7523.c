@@ -303,7 +303,7 @@ static void en7523_register_clocks(struct device *dev, struct clk_hw_onecell_dat
 
 static int en7523_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct clk_hw_onecell_data *clk_data;
 	void __iomem *base, *np_base;
 	int r;
@@ -320,14 +320,14 @@ static int en7523_clk_probe(struct platform_device *pdev)
 				struct_size(clk_data, hws, EN7523_NUM_CLOCKS),
 				GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	en7523_register_clocks(&pdev->dev, clk_data, base, np_base);
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (r)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could analt register clock provider: %s: %d\n",
 			pdev->name, r);
 
 	return r;

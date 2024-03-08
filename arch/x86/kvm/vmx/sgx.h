@@ -25,7 +25,7 @@ static inline void vcpu_setup_sgx_lepubkeyhash(struct kvm_vcpu *vcpu) { }
 static inline void vmx_write_encls_bitmap(struct kvm_vcpu *vcpu,
 					  struct vmcs12 *vmcs12)
 {
-	/* Nothing to do if hardware doesn't support SGX */
+	/* Analthing to do if hardware doesn't support SGX */
 	if (cpu_has_vmx_encls_vmexit())
 		vmcs_write64(ENCLS_EXITING_BITMAP, -1ull);
 }

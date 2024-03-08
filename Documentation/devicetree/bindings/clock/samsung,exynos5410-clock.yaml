@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/clock/samsung,exynos5410-clock.yaml#
+$id: http://devicetree.org/schemas/clock/samsung,exyanals5410-clock.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos5410 SoC clock controller
+title: Samsung Exyanals5410 SoC clock controller
 
 maintainers:
   - Chanwoo Choi <cw00.choi@samsung.com>
@@ -18,13 +18,13 @@ description: |
     - "fin_pll" - PLL input clock from XXTI
 
   All available clocks are defined as preprocessor macros in
-  include/dt-bindings/clock/exynos5410.h header.
+  include/dt-bindings/clock/exyanals5410.h header.
 
 properties:
   compatible:
     oneOf:
       - enum:
-          - samsung,exynos5410-clock
+          - samsung,exyanals5410-clock
 
   clocks:
     description:
@@ -49,7 +49,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos5410.h>
+    #include <dt-bindings/clock/exyanals5410.h>
 
     fin_pll: osc-clock {
         compatible = "fixed-clock";
@@ -59,7 +59,7 @@ examples:
     };
 
     clock-controller@10010000 {
-        compatible = "samsung,exynos5410-clock";
+        compatible = "samsung,exyanals5410-clock";
         reg = <0x10010000 0x30000>;
         #clock-cells = <1>;
         clocks = <&fin_pll>;

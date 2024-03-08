@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <math.h>
 #include <sched.h>
@@ -56,7 +56,7 @@ static int init_namespaces(void)
 	if (fstat(child_ns, &st2))
 		return pr_perror("Unable to stat the timens");
 
-	if (st1.st_ino == st2.st_ino)
+	if (st1.st_ianal == st2.st_ianal)
 		return pr_err("The same child_ns after CLONE_NEWTIME");
 
 	if (_settime(CLOCK_BOOTTIME, TEN_DAYS_IN_SEC))
@@ -77,9 +77,9 @@ static int read_proc_uptime(struct timespec *uptime)
 	}
 
 	if (fscanf(proc, "%lu.%02lu", &up_sec, &up_nsec) != 2) {
-		if (errno) {
+		if (erranal) {
 			pr_perror("fscanf");
-			return -errno;
+			return -erranal;
 		}
 		pr_err("failed to parse /proc/uptime");
 		return -1;
@@ -108,10 +108,10 @@ static int read_proc_stat_btime(unsigned long long *boottime_sec)
 		fclose(proc);
 		return 0;
 	}
-	if (errno) {
+	if (erranal) {
 		pr_perror("fscanf");
 		fclose(proc);
-		return -errno;
+		return -erranal;
 	}
 	pr_err("failed to parse /proc/stat");
 	fclose(proc);

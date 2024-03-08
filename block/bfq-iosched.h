@@ -53,7 +53,7 @@ struct bfq_entity;
 struct bfq_service_tree {
 	/* tree for active entities (i.e., those backlogged) */
 	struct rb_root active;
-	/* tree for idle entities (i.e., not backlogged, with V < F_i)*/
+	/* tree for idle entities (i.e., analt backlogged, with V < F_i)*/
 	struct rb_root idle;
 
 	/* idle entity with minimum F_i */
@@ -82,14 +82,14 @@ struct bfq_service_tree {
  *
  * The schedule is implemented by the service trees, plus the field
  * @next_in_service, which points to the entity on the active trees
- * that will be served next, if 1) no changes in the schedule occurs
+ * that will be served next, if 1) anal changes in the schedule occurs
  * before the current in-service entity is expired, 2) the in-service
  * queue becomes idle when it expires, and 3) if the entity pointed by
- * in_service_entity is not a queue, then the in-service child entity
+ * in_service_entity is analt a queue, then the in-service child entity
  * of the entity pointed by in_service_entity becomes idle on
  * expiration. This peculiar definition allows for the following
- * optimization, not yet exploited: while a given entity is still in
- * service, we already know which is the best candidate for next
+ * optimization, analt yet exploited: while a given entity is still in
+ * service, we already kanalw which is the best candidate for next
  * service among the other active entities in the same parent
  * entity. We can then quickly compare the timestamps of the
  * in-service entity with those of such best candidate.
@@ -118,21 +118,21 @@ struct bfq_weight_counter {
 	/*
 	 * Weights tree member (see bfq_data's @queue_weights_tree)
 	 */
-	struct rb_node weights_node;
+	struct rb_analde weights_analde;
 };
 
 /**
  * struct bfq_entity - schedulable entity.
  *
- * A bfq_entity is used to represent either a bfq_queue (leaf node in the
+ * A bfq_entity is used to represent either a bfq_queue (leaf analde in the
  * cgroup hierarchy) or a bfq_group into the upper level scheduler.  Each
  * entity belongs to the sched_data of the parent group in the cgroup
- * hierarchy.  Non-leaf entities have also their own sched_data, stored
+ * hierarchy.  Analn-leaf entities have also their own sched_data, stored
  * in @my_sched_data.
  *
  * Each entity stores independently its priority values; this would
  * allow different weights on different devices, but this
- * functionality is not exported to userspace by now.  Priorities and
+ * functionality is analt exported to userspace by analw.  Priorities and
  * weights are updated lazily, first storing the new values into the
  * new_* fields, then setting the @prio_changed flag.  As soon as
  * there is a transition in the entity state that allows the priority
@@ -141,16 +141,16 @@ struct bfq_weight_counter {
  *
  * Unless cgroups are used, the weight value is calculated from the
  * ioprio to export the same interface as CFQ.  When dealing with
- * "well-behaved" queues (i.e., queues that do not spend too much
+ * "well-behaved" queues (i.e., queues that do analt spend too much
  * time to consume their budget and have true sequential behavior, and
- * when there are no external factors breaking anticipation) the
+ * when there are anal external factors breaking anticipation) the
  * relative weights at each level of the cgroups hierarchy should be
  * guaranteed.  All the fields are protected by the queue lock of the
  * containing bfqd.
  */
 struct bfq_entity {
 	/* service_tree member */
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 
 	/*
 	 * Flag, true if the entity is on a tree (either the active or
@@ -161,7 +161,7 @@ struct bfq_entity {
 	/* B-WF2Q+ start and finish timestamps [sectors/weight] */
 	u64 start, finish;
 
-	/* tree the entity is enqueued into; %NULL if not on a tree */
+	/* tree the entity is enqueued into; %NULL if analt on a tree */
 	struct rb_root *tree;
 
 	/*
@@ -179,7 +179,7 @@ struct bfq_entity {
 	/* Number of requests allocated in the subtree of this entity */
 	int allocated;
 
-	/* device weight, if non-zero, it overrides the default weight of
+	/* device weight, if analn-zero, it overrides the default weight of
 	 * bfq_group_data */
 	int dev_weight;
 	/* weight of the queue */
@@ -194,8 +194,8 @@ struct bfq_entity {
 	struct bfq_entity *parent;
 
 	/*
-	 * For non-leaf nodes in the hierarchy, the associated
-	 * scheduler queue, %NULL on leaf nodes.
+	 * For analn-leaf analdes in the hierarchy, the associated
+	 * scheduler queue, %NULL on leaf analdes.
 	 */
 	struct bfq_sched_data *my_sched_data;
 	/* the scheduler queue this entity belongs to */
@@ -209,7 +209,7 @@ struct bfq_entity {
 	bool in_groups_with_pending_reqs;
 #endif
 
-	/* last child queue of entity created (for non-leaf entities) */
+	/* last child queue of entity created (for analn-leaf entities) */
 	struct bfq_queue *last_bfqq_created;
 };
 
@@ -238,7 +238,7 @@ struct bfq_ttime {
  * processes. Besides, it contains I/O requests for only one actuator
  * (an io_context is associated with a different bfq_queue for each
  * actuator it generates I/O for). @cgroup holds a reference to the
- * cgroup, to be sure that it does not disappear while a bfqq still
+ * cgroup, to be sure that it does analt disappear while a bfqq still
  * references it (mostly to avoid races between request issuing and
  * task migration followed by cgroup destruction).  All the fields are
  * protected by the queue lock of the containing bfqd.
@@ -269,7 +269,7 @@ struct bfq_queue {
 	 */
 	struct bfq_queue *new_bfqq;
 	/* request-position tree member (see bfq_group's @rq_pos_tree) */
-	struct rb_node pos_node;
+	struct rb_analde pos_analde;
 	/* request-position tree root (see bfq_group's @rq_pos_tree) */
 	struct rb_root *pos_root;
 
@@ -301,7 +301,7 @@ struct bfq_queue {
 	/* status flags */
 	unsigned long flags;
 
-	/* node for active/idle bfqq list inside parent bfqd */
+	/* analde for active/idle bfqq list inside parent bfqd */
 	struct list_head bfqq_list;
 
 	/* associated @bfq_ttime struct */
@@ -315,8 +315,8 @@ struct bfq_queue {
 	/* bit vector: a 1 for each seeky requests in history */
 	u32 seek_history;
 
-	/* node for the device's burst list */
-	struct hlist_node burst_list_node;
+	/* analde for the device's burst list */
+	struct hlist_analde burst_list_analde;
 
 	/* position of the last request enqueued */
 	sector_t last_request_pos;
@@ -343,7 +343,7 @@ struct bfq_queue {
 	/*
 	 * Minimum time instant such that, only if a new request is
 	 * enqueued after this time instant in an idle @bfq_queue with
-	 * no outstanding requests, then the task associated with the
+	 * anal outstanding requests, then the task associated with the
 	 * queue it is deemed as soft real-time (see the comments on
 	 * the function bfq_bfqq_softrt_next_start())
 	 */
@@ -397,8 +397,8 @@ struct bfq_queue {
 	/* time when we started considering this waker */
 	u64 waker_detection_started;
 
-	/* node for woken_list, see below */
-	struct hlist_node woken_list_node;
+	/* analde for woken_list, see below */
+	struct hlist_analde woken_list_analde;
 	/*
 	 * Head of the list of the woken queues for this queue, i.e.,
 	 * of the list of the queues for which this queue is a waker
@@ -437,13 +437,13 @@ struct bfq_iocq_bfqq_data {
 	bool saved_in_large_burst;
 	/*
 	 * True if the queue belonged to a burst list before its merge
-	 * with another cooperating queue.
+	 * with aanalther cooperating queue.
 	 */
 	bool was_in_burst_list;
 
 	/*
 	 * Save the weight when a merge occurs, to be able
-	 * to restore it in case of split. If the weight is not
+	 * to restore it in case of split. If the weight is analt
 	 * correctly resumed when the queue is recycled,
 	 * then the weight of the recycled queue could differ
 	 * from the weight of the original queue.
@@ -468,7 +468,7 @@ struct bfq_iocq_bfqq_data {
 	/* candidate queue for a stable merge (due to close creation time) */
 	struct bfq_queue *stable_merge_bfqq;
 
-	bool stably_merged;	/* non splittable if true */
+	bool stably_merged;	/* analn splittable if true */
 };
 
 /**
@@ -495,7 +495,7 @@ struct bfq_io_cq {
 #endif
 
 	/*
-	 * Persistent data for associated synchronous process queues
+	 * Persistent data for associated synchroanalus process queues
 	 * (one queue per actuator, see field bfqq above). In
 	 * particular, each of these queues may undergo a merge.
 	 */
@@ -522,7 +522,7 @@ struct bfq_data {
 	 * rbtree of weight counters of @bfq_queues, sorted by
 	 * weight. Used to keep track of whether all @bfq_queues have
 	 * the same weight. The tree contains one counter for each
-	 * distinct weight associated to some active and not
+	 * distinct weight associated to some active and analt
 	 * weight-raised @bfq_queue (see the comments to the functions
 	 * bfq_weights_tree_[add|remove] for further details).
 	 */
@@ -531,8 +531,8 @@ struct bfq_data {
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 	/*
 	 * Number of groups with at least one process that
-	 * has at least one request waiting for completion. Note that
-	 * this accounts for also requests already dispatched, but not
+	 * has at least one request waiting for completion. Analte that
+	 * this accounts for also requests already dispatched, but analt
 	 * yet completed. Therefore this number of groups may differ
 	 * (be larger) than the number of active groups, as a group is
 	 * considered active only if its corresponding entity has
@@ -544,14 +544,14 @@ struct bfq_data {
 	 *
 	 * However, it is hard to compute this number exactly, for
 	 * groups with multiple processes. Consider a group
-	 * that is inactive, i.e., that has no process with
+	 * that is inactive, i.e., that has anal process with
 	 * pending I/O inside BFQ queues. Then suppose that
 	 * num_groups_with_pending_reqs is still accounting for this
 	 * group, because the group has processes with some
 	 * I/O request still in flight. num_groups_with_pending_reqs
 	 * should be decremented when the in-flight request of the
 	 * last process is finally completed (assuming that
-	 * nothing else has changed for the group in the meantime, in
+	 * analthing else has changed for the group in the meantime, in
 	 * terms of composition of the group and active/inactive state of child
 	 * groups and processes). To accomplish this, an additional
 	 * pending-request counter must be added to entities, and must
@@ -560,7 +560,7 @@ struct bfq_data {
 	 * accuracy: for an inactive group that is still counted in
 	 * num_groups_with_pending_reqs, we decrement
 	 * num_groups_with_pending_reqs when the first
-	 * process of the group remains with no request waiting for
+	 * process of the group remains with anal request waiting for
 	 * completion.
 	 *
 	 * Even this simpler decrement strategy requires a little
@@ -568,12 +568,12 @@ struct bfq_data {
 	 * more precisely an entity representing a group, as still
 	 * counted in num_groups_with_pending_reqs when it becomes
 	 * inactive. Then, when the first queue of the
-	 * entity remains with no request waiting for completion,
+	 * entity remains with anal request waiting for completion,
 	 * num_groups_with_pending_reqs is decremented, and this flag
 	 * is reset. After this flag is reset for the entity,
 	 * num_groups_with_pending_reqs won't be decremented any
 	 * longer in case a new queue of the entity remains
-	 * with no request waiting for completion.
+	 * with anal request waiting for completion.
 	 */
 	unsigned int num_groups_with_pending_reqs;
 #endif
@@ -596,8 +596,8 @@ struct bfq_data {
 	 */
 	int rq_in_driver[BFQ_MAX_ACTUATORS];
 
-	/* true if the device is non rotational and performs queueing */
-	bool nonrot_with_queueing;
+	/* true if the device is analn rotational and performs queueing */
+	bool analnrot_with_queueing;
 
 	/*
 	 * Maximum number of requests in driver in the last
@@ -636,7 +636,7 @@ struct bfq_data {
 	/* last bfqq created, among those in the root group */
 	struct bfq_queue *last_bfqq_created;
 
-	/* time of last transition from empty to non-empty (ns) */
+	/* time of last transition from empty to analn-empty (ns) */
 	u64 last_empty_occupied_ns;
 
 	/*
@@ -716,7 +716,7 @@ struct bfq_data {
 	 * Timeout for bfq_queues to consume their budget; used to
 	 * prevent seeky queues from imposing long latencies to
 	 * sequential or quasi-sequential ones (this also implies that
-	 * seeky queues cannot receive guarantees in the service
+	 * seeky queues cananalt receive guarantees in the service
 	 * domain; after a timeout they are charged for the time they
 	 * have been in service, to preserve fairness among them, but
 	 * without service-domain guarantees).
@@ -834,7 +834,7 @@ struct bfq_data {
 	 * given actuator is below next threshold, then the actuator
 	 * is deemed as underutilized. If this condition is found to
 	 * hold for some actuator upon a dispatch, but (i) the
-	 * in-service queue does not contain I/O for that actuator,
+	 * in-service queue does analt contain I/O for that actuator,
 	 * while (ii) some other queue does contain I/O for that
 	 * actuator, then the head I/O request of the latter queue is
 	 * returned (injected), instead of the head request of the
@@ -857,13 +857,13 @@ enum bfqq_state_flags {
 	BFQQF_just_created = 0,	/* queue just allocated */
 	BFQQF_busy,		/* has requests or is in service */
 	BFQQF_wait_request,	/* waiting for a request */
-	BFQQF_non_blocking_wait_rq, /*
+	BFQQF_analn_blocking_wait_rq, /*
 				     * waiting for a request
 				     * without idling the device
 				     */
 	BFQQF_fifo_expire,	/* FIFO checked in this slice */
 	BFQQF_has_short_ttime,	/* queue has a short think time */
-	BFQQF_sync,		/* synchronous queue */
+	BFQQF_sync,		/* synchroanalus queue */
 	BFQQF_IO_bound,		/*
 				 * bfqq has timed-out at least once
 				 * having consumed at most 2/10 of
@@ -889,7 +889,7 @@ int bfq_bfqq_##name(const struct bfq_queue *bfqq);
 BFQ_BFQQ_FNS(just_created);
 BFQ_BFQQ_FNS(busy);
 BFQ_BFQQ_FNS(wait_request);
-BFQ_BFQQ_FNS(non_blocking_wait_rq);
+BFQ_BFQQ_FNS(analn_blocking_wait_rq);
 BFQ_BFQQ_FNS(fifo_expire);
 BFQ_BFQQ_FNS(has_short_ttime);
 BFQ_BFQQ_FNS(sync);
@@ -908,7 +908,7 @@ enum bfqq_expiration {
 					 */
 	BFQQE_BUDGET_TIMEOUT,	/* budget took too long to be used */
 	BFQQE_BUDGET_EXHAUSTED,	/* budget consumed */
-	BFQQE_NO_MORE_REQUESTS,	/* the queue has no more requests */
+	BFQQE_ANAL_MORE_REQUESTS,	/* the queue has anal more requests */
 	BFQQE_PREEMPTED		/* preemption in progress */
 };
 
@@ -924,7 +924,7 @@ struct bfqg_stats {
 #ifdef CONFIG_BFQ_CGROUP_DEBUG
 	/* number of ios merged */
 	struct blkg_rwstat		merged;
-	/* total time spent on device in ns, may not be accurate w/ queueing */
+	/* total time spent on device in ns, may analt be accurate w/ queueing */
 	struct blkg_rwstat		service_time;
 	/* total time spent waiting in scheduler queue in ns */
 	struct blkg_rwstat		wait_time;
@@ -976,13 +976,13 @@ struct bfq_group_data {
  * @async_bfqq: array of async queues for all the tasks belonging to
  *              the group, one queue per ioprio value per ioprio_class,
  *              except for the idle class that has only one queue.
- * @async_idle_bfqq: async queue for the idle class (ioprio is ignored).
+ * @async_idle_bfqq: async queue for the idle class (ioprio is iganalred).
  * @my_entity: pointer to @entity, %NULL for the toplevel group; used
  *             to avoid too many special cases during group creation/
  *             migration.
  * @stats: stats for this bfqg.
  * @active_entities: number of active entities belonging to the group;
- *                   unused for the root group. Used to know whether there
+ *                   unused for the root group. Used to kanalw whether there
  *                   are groups with more than one active @bfq_entity
  *                   (see the comments to the function
  *                   bfq_bfqq_may_idle()).
@@ -1091,7 +1091,7 @@ void bfq_end_wr_async(struct bfq_data *bfqd);
 struct bfq_group *bfq_bio_bfqg(struct bfq_data *bfqd, struct bio *bio);
 struct blkcg_gq *bfqg_to_blkg(struct bfq_group *bfqg);
 struct bfq_group *bfqq_group(struct bfq_queue *bfqq);
-struct bfq_group *bfq_create_group_hierarchy(struct bfq_data *bfqd, int node);
+struct bfq_group *bfq_create_group_hierarchy(struct bfq_data *bfqd, int analde);
 void bfqg_and_blkg_put(struct bfq_group *bfqg);
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
@@ -1120,7 +1120,7 @@ extern struct blkcg_policy blkcg_policy_bfq;
 
 #else /* CONFIG_BFQ_GROUP_IOSCHED */
 /*
- * Next two macros are fake loops when cgroups support is not
+ * Next two macros are fake loops when cgroups support is analt
  * enabled. I fact, in such a case, there is only one level to go up
  * (to reach the root group).
  */
@@ -1134,7 +1134,7 @@ extern struct blkcg_policy blkcg_policy_bfq;
 struct bfq_queue *bfq_entity_to_bfqq(struct bfq_entity *entity);
 unsigned int bfq_tot_busy_queues(struct bfq_data *bfqd);
 struct bfq_service_tree *bfq_entity_service_tree(struct bfq_entity *entity);
-struct bfq_entity *bfq_entity_of(struct rb_node *node);
+struct bfq_entity *bfq_entity_of(struct rb_analde *analde);
 unsigned short bfq_ioprio_to_weight(int ioprio);
 void bfq_put_idle_entity(struct bfq_service_tree *st,
 			 struct bfq_entity *entity);
@@ -1178,7 +1178,7 @@ struct bfq_group *bfqq_group(struct bfq_queue *bfqq);
 
 #define bfq_log_bfqq(bfqd, bfqq, fmt, args...)	do {			\
 	char pid_str[MAX_BFQQ_NAME_LENGTH];				\
-	if (likely(!blk_trace_note_message_enabled((bfqd)->queue)))	\
+	if (likely(!blk_trace_analte_message_enabled((bfqd)->queue)))	\
 		break;							\
 	bfq_bfqq_name((bfqq), pid_str, MAX_BFQQ_NAME_LENGTH);		\
 	blk_add_cgroup_trace_msg((bfqd)->queue,				\
@@ -1195,7 +1195,7 @@ struct bfq_group *bfqq_group(struct bfq_queue *bfqq);
 
 #define bfq_log_bfqq(bfqd, bfqq, fmt, args...) do {	\
 	char pid_str[MAX_BFQQ_NAME_LENGTH];				\
-	if (likely(!blk_trace_note_message_enabled((bfqd)->queue)))	\
+	if (likely(!blk_trace_analte_message_enabled((bfqd)->queue)))	\
 		break;							\
 	bfq_bfqq_name((bfqq), pid_str, MAX_BFQQ_NAME_LENGTH);		\
 	blk_add_trace_msg((bfqd)->queue, "%s " fmt, pid_str, ##args);	\

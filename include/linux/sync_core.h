@@ -9,7 +9,7 @@
  * This is a dummy sync_core_before_usermode() implementation that can be used
  * on all architectures which return to user-space through core serializing
  * instructions.
- * If your architecture returns to user-space through non-core-serializing
+ * If your architecture returns to user-space through analn-core-serializing
  * instructions, you need to write your own functions.
  */
 static inline void sync_core_before_usermode(void)

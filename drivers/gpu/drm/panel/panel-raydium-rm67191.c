@@ -36,7 +36,7 @@ struct cmd_set_entry {
 };
 
 /*
- * There is no description in the Reference Manual about these commands.
+ * There is anal description in the Reference Manual about these commands.
  * We received them from vendor, so just use them as is.
  */
 static const struct cmd_set_entry manufacturer_cmd_set[] = {
@@ -444,7 +444,7 @@ static int rad_panel_get_modes(struct drm_panel *panel,
 		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			drm_mode_vrefresh(&default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -527,7 +527,7 @@ static int rad_init_regulators(struct rad_panel *rad)
 	rad->supplies = devm_kcalloc(dev, rad->num_supplies,
 				     sizeof(*rad->supplies), GFP_KERNEL);
 	if (!rad->supplies)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < rad->num_supplies; i++)
 		rad->supplies[i].supply = rad_supply_names[i];
@@ -538,7 +538,7 @@ static int rad_init_regulators(struct rad_panel *rad)
 static int rad_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct rad_panel *panel;
 	struct backlight_properties bl_props;
 	int ret;
@@ -546,7 +546,7 @@ static int rad_panel_probe(struct mipi_dsi_device *dsi)
 
 	panel = devm_kzalloc(&dsi->dev, sizeof(*panel), GFP_KERNEL);
 	if (!panel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, panel);
 
@@ -563,10 +563,10 @@ static int rad_panel_probe(struct mipi_dsi_device *dsi)
 			dsi->mode_flags |= MIPI_DSI_MODE_VIDEO_BURST;
 			break;
 		case 1:
-			/* non-burst mode with sync event */
+			/* analn-burst mode with sync event */
 			break;
 		case 2:
-			/* non-burst mode with sync pulse */
+			/* analn-burst mode with sync pulse */
 			dsi->mode_flags |= MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
 			break;
 		default:

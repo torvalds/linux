@@ -32,7 +32,7 @@ properties:
       - qcom,pms405-regulators
 
   qcom,saw-reg:
-    description: Reference to syscon node defining the SAW registers
+    description: Reference to syscon analde defining the SAW registers
     $ref: /schemas/types.yaml#/definitions/phandle
 
 patternProperties:
@@ -60,7 +60,7 @@ patternProperties:
           Bit mask specifying which hardware pins should be used to enable the
           regulator, if any.
           Supported bits are
-          0 = ignore all hardware enable signals
+          0 = iganalre all hardware enable signals
           BIT(0) = follow HW0_EN signal
           BIT(1) = follow HW1_EN signal
           BIT(2) = follow HW2_EN signal
@@ -74,7 +74,7 @@ patternProperties:
           Bit mask specifying which hardware pins should be used to force the
           regulator into high power mode, if any.
           Supported bits are
-          0 = ignore all hardware enable signals
+          0 = iganalre all hardware enable signals
           BIT(0) = follow HW0_EN signal
           BIT(1) = follow HW1_EN signal
           BIT(2) = follow HW2_EN signal
@@ -98,7 +98,7 @@ patternProperties:
         maximum: 3
 
       qcom,saw-slave:
-        description: SAW controlled gang slave. Will not be configured.
+        description: SAW controlled gang slave. Will analt be configured.
         type: boolean
 
       qcom,saw-leader:

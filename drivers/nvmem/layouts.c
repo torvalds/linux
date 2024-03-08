@@ -70,12 +70,12 @@ static void nvmem_layout_release_device(struct device *dev)
 {
 	struct nvmem_layout *layout = to_nvmem_layout_device(dev);
 
-	of_node_put(layout->dev.of_node);
+	of_analde_put(layout->dev.of_analde);
 	kfree(layout);
 }
 
 static int nvmem_layout_create_device(struct nvmem_device *nvmem,
-				      struct device_node *np)
+				      struct device_analde *np)
 {
 	struct nvmem_layout *layout;
 	struct device *dev;
@@ -83,7 +83,7 @@ static int nvmem_layout_create_device(struct nvmem_device *nvmem,
 
 	layout = kzalloc(sizeof(*layout), GFP_KERNEL);
 	if (!layout)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Create a bidirectional link */
 	layout->nvmem = nvmem;
@@ -97,9 +97,9 @@ static int nvmem_layout_create_device(struct nvmem_device *nvmem,
 	dev->release = nvmem_layout_release_device;
 	dev->coherent_dma_mask = DMA_BIT_MASK(32);
 	dev->dma_mask = &dev->coherent_dma_mask;
-	device_set_node(dev, of_fwnode_handle(of_node_get(np)));
+	device_set_analde(dev, of_fwanalde_handle(of_analde_get(np)));
 	of_device_make_bus_id(dev);
-	of_msi_configure(dev, dev->of_node);
+	of_msi_configure(dev, dev->of_analde);
 
 	ret = device_add(dev);
 	if (ret) {
@@ -116,24 +116,24 @@ static const struct of_device_id of_nvmem_layout_skip_table[] = {
 };
 
 static int nvmem_layout_bus_populate(struct nvmem_device *nvmem,
-				     struct device_node *layout_dn)
+				     struct device_analde *layout_dn)
 {
 	int ret;
 
 	/* Make sure it has a compatible property */
 	if (!of_get_property(layout_dn, "compatible", NULL)) {
-		pr_debug("%s() - skipping %pOF, no compatible prop\n",
+		pr_debug("%s() - skipping %pOF, anal compatible prop\n",
 			 __func__, layout_dn);
 		return 0;
 	}
 
-	/* Fixed layouts are parsed manually somewhere else for now */
-	if (of_match_node(of_nvmem_layout_skip_table, layout_dn)) {
-		pr_debug("%s() - skipping %pOF node\n", __func__, layout_dn);
+	/* Fixed layouts are parsed manually somewhere else for analw */
+	if (of_match_analde(of_nvmem_layout_skip_table, layout_dn)) {
+		pr_debug("%s() - skipping %pOF analde\n", __func__, layout_dn);
 		return 0;
 	}
 
-	if (of_node_check_flag(layout_dn, OF_POPULATED_BUS)) {
+	if (of_analde_check_flag(layout_dn, OF_POPULATED_BUS)) {
 		pr_debug("%s() - skipping %pOF, already populated\n",
 			 __func__, layout_dn);
 
@@ -145,24 +145,24 @@ static int nvmem_layout_bus_populate(struct nvmem_device *nvmem,
 	if (ret)
 		return ret;
 
-	of_node_set_flag(layout_dn, OF_POPULATED_BUS);
+	of_analde_set_flag(layout_dn, OF_POPULATED_BUS);
 
 	return 0;
 }
 
-struct device_node *of_nvmem_layout_get_container(struct nvmem_device *nvmem)
+struct device_analde *of_nvmem_layout_get_container(struct nvmem_device *nvmem)
 {
-	return of_get_child_by_name(nvmem->dev.of_node, "nvmem-layout");
+	return of_get_child_by_name(nvmem->dev.of_analde, "nvmem-layout");
 }
 EXPORT_SYMBOL_GPL(of_nvmem_layout_get_container);
 
 /*
- * Returns the number of devices populated, 0 if the operation was not relevant
+ * Returns the number of devices populated, 0 if the operation was analt relevant
  * for this nvmem device, an error code otherwise.
  */
 int nvmem_populate_layout(struct nvmem_device *nvmem)
 {
-	struct device_node *layout_dn;
+	struct device_analde *layout_dn;
 	int ret;
 
 	layout_dn = of_nvmem_layout_get_container(nvmem);
@@ -174,7 +174,7 @@ int nvmem_populate_layout(struct nvmem_device *nvmem)
 	ret = nvmem_layout_bus_populate(nvmem, layout_dn);
 	device_links_supplier_sync_state_resume();
 
-	of_node_put(layout_dn);
+	of_analde_put(layout_dn);
 	return ret;
 }
 
@@ -186,7 +186,7 @@ void nvmem_destroy_layout(struct nvmem_device *nvmem)
 		return;
 
 	dev = &nvmem->layout->dev;
-	of_node_clear_flag(dev->of_node, OF_POPULATED_BUS);
+	of_analde_clear_flag(dev->of_analde, OF_POPULATED_BUS);
 	device_unregister(dev);
 }
 

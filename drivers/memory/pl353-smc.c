@@ -42,13 +42,13 @@ static int __maybe_unused pl353_smc_resume(struct device *dev)
 
 	ret = clk_enable(pl353_smc->aclk);
 	if (ret) {
-		dev_err(dev, "Cannot enable axi domain clock.\n");
+		dev_err(dev, "Cananalt enable axi domain clock.\n");
 		return ret;
 	}
 
 	ret = clk_enable(pl353_smc->memclk);
 	if (ret) {
-		dev_err(dev, "Cannot enable memory clock.\n");
+		dev_err(dev, "Cananalt enable memory clock.\n");
 		clk_disable(pl353_smc->aclk);
 		return ret;
 	}
@@ -71,25 +71,25 @@ static const struct of_device_id pl353_smc_supported_children[] = {
 
 static int pl353_smc_probe(struct amba_device *adev, const struct amba_id *id)
 {
-	struct device_node *of_node = adev->dev.of_node;
+	struct device_analde *of_analde = adev->dev.of_analde;
 	const struct of_device_id *match = NULL;
 	struct pl353_smc_data *pl353_smc;
-	struct device_node *child;
+	struct device_analde *child;
 	int err;
 
 	pl353_smc = devm_kzalloc(&adev->dev, sizeof(*pl353_smc), GFP_KERNEL);
 	if (!pl353_smc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pl353_smc->aclk = devm_clk_get(&adev->dev, "apb_pclk");
 	if (IS_ERR(pl353_smc->aclk)) {
-		dev_err(&adev->dev, "aclk clock not found.\n");
+		dev_err(&adev->dev, "aclk clock analt found.\n");
 		return PTR_ERR(pl353_smc->aclk);
 	}
 
 	pl353_smc->memclk = devm_clk_get(&adev->dev, "memclk");
 	if (IS_ERR(pl353_smc->memclk)) {
-		dev_err(&adev->dev, "memclk clock not found.\n");
+		dev_err(&adev->dev, "memclk clock analt found.\n");
 		return PTR_ERR(pl353_smc->memclk);
 	}
 
@@ -108,22 +108,22 @@ static int pl353_smc_probe(struct amba_device *adev, const struct amba_id *id)
 	amba_set_drvdata(adev, pl353_smc);
 
 	/* Find compatible children. Only a single child is supported */
-	for_each_available_child_of_node(of_node, child) {
-		match = of_match_node(pl353_smc_supported_children, child);
+	for_each_available_child_of_analde(of_analde, child) {
+		match = of_match_analde(pl353_smc_supported_children, child);
 		if (!match) {
-			dev_warn(&adev->dev, "unsupported child node\n");
+			dev_warn(&adev->dev, "unsupported child analde\n");
 			continue;
 		}
 		break;
 	}
 	if (!match) {
-		err = -ENODEV;
-		dev_err(&adev->dev, "no matching children\n");
+		err = -EANALDEV;
+		dev_err(&adev->dev, "anal matching children\n");
 		goto disable_mem_clk;
 	}
 
 	of_platform_device_create(child, NULL, &adev->dev);
-	of_node_put(child);
+	of_analde_put(child);
 
 	return 0;
 

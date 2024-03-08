@@ -76,7 +76,7 @@ static int snd_ivtv_card_create(struct v4l2_device *v4l2_dev,
 {
 	*itvsc = kzalloc(sizeof(struct snd_ivtv_card), GFP_KERNEL);
 	if (*itvsc == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	(*itvsc)->v4l2_dev = v4l2_dev;
 	(*itvsc)->sc = sc;
@@ -117,10 +117,10 @@ static int snd_ivtv_init(struct v4l2_device *v4l2_dev)
 	/* Numbrs steps from "Writing an ALSA Driver" by Takashi Iwai */
 
 	/* (1) Check and increment the device index */
-	/* This is a no-op for us.  We'll use the itv->instance */
+	/* This is a anal-op for us.  We'll use the itv->instance */
 
 	/* (2) Create a card instance */
-	/* use first available id if not specified otherwise*/
+	/* use first available id if analt specified otherwise*/
 	idx = index[itv->instance] == -1 ? SNDRV_DEFAULT_IDX1 : index[itv->instance];
 	ret = snd_card_new(&itv->pdev->dev,
 			   idx,
@@ -153,7 +153,7 @@ static int snd_ivtv_init(struct v4l2_device *v4l2_dev)
 	/* FIXME - proc files */
 
 	/* (7) Set the driver data and return 0 */
-	/* We do this out of normal order for PCI drivers to avoid races */
+	/* We do this out of analrmal order for PCI drivers to avoid races */
 	itv->alsa = itvsc;
 
 	/* (6) Register the card instance */

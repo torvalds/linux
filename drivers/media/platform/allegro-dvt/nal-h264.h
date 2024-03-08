@@ -8,7 +8,7 @@
 #ifndef __NAL_H264_H__
 #define __NAL_H264_H__
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
@@ -81,8 +81,8 @@ struct nal_h264_vui_parameters {
 	unsigned int bitstream_restriction_flag;
 	struct {
 		unsigned int motion_vectors_over_pic_boundaries_flag;
-		unsigned int max_bytes_per_pic_denom;
-		unsigned int max_bits_per_mb_denom;
+		unsigned int max_bytes_per_pic_deanalm;
+		unsigned int max_bits_per_mb_deanalm;
 		unsigned int log2_max_mv_length_horizontal;
 		unsigned int log21_max_mv_length_vertical;
 		unsigned int max_num_reorder_frames;
@@ -121,7 +121,7 @@ struct nal_h264_sps {
 		unsigned int log2_max_pic_order_cnt_lsb_minus4;
 		struct {
 			unsigned int delta_pic_order_always_zero_flag;
-			int offset_for_non_ref_pic;
+			int offset_for_analn_ref_pic;
 			int offset_for_top_to_bottom_field;
 			unsigned int num_ref_frames_in_pic_order_cnt_cycle;
 			int offset_for_ref_frame[255];
@@ -345,7 +345,7 @@ static inline int nal_h264_transfer_characteristics(enum v4l2_colorspace colorsp
 		return 16;
 	case V4L2_XFER_FUNC_SRGB:
 	case V4L2_XFER_FUNC_OPRGB:
-	case V4L2_XFER_FUNC_NONE:
+	case V4L2_XFER_FUNC_ANALNE:
 	case V4L2_XFER_FUNC_DCI_P3:
 	case V4L2_XFER_FUNC_SMPTE240M:
 	default:

@@ -19,7 +19,7 @@
 
 #define pr_fmt(fmt) "hash-mmu: " fmt
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched/mm.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
@@ -89,7 +89,7 @@
 #define GB (1024L*MB)
 
 /*
- * Note:  pte   --> Linux PTE
+ * Analte:  pte   --> Linux PTE
  *        HPTE  --> PowerPC Hashed Page Table Entry
  *
  * Execution context:
@@ -129,7 +129,7 @@ struct mmu_hash_ops mmu_hash_ops;
 EXPORT_SYMBOL(mmu_hash_ops);
 
 /*
- * These are definitions of page sizes arrays to be used when none
+ * These are definitions of page sizes arrays to be used when analne
  * is provided by the firmware.
  */
 
@@ -224,8 +224,8 @@ static void tlbiel_all_isa300(unsigned int num_sets, unsigned int is)
 		tlbiel_hash_set_isa300(0, is, 0, 2, 0);
 
 	/*
-	 * Now invalidate the process table cache. UPRT=0 HPT modes (what
-	 * current hardware implements) do not use the process table, but
+	 * Analw invalidate the process table cache. UPRT=0 HPT modes (what
+	 * current hardware implements) do analt use the process table, but
 	 * add the flushes anyway.
 	 *
 	 * From ISA v3.0B p. 1078:
@@ -274,12 +274,12 @@ void hash__tlbiel_all(unsigned int action)
 }
 
 /*
- * 'R' and 'C' update notes:
- *  - Under pHyp or KVM, the updatepp path will not set C, thus it *will*
+ * 'R' and 'C' update analtes:
+ *  - Under pHyp or KVM, the updatepp path will analt set C, thus it *will*
  *     create writeable HPTEs without C set, because the hcall H_PROTECT
- *     that we use in that case will not update C
- *  - The above is however not a problem, because we also don't do that
- *     fancy "no flush" variant of eviction and we use H_REMOVE which will
+ *     that we use in that case will analt update C
+ *  - The above is however analt a problem, because we also don't do that
+ *     fancy "anal flush" variant of eviction and we use H_REMOVE which will
  *     do the right thing and thus we don't have the race I described earlier
  *
  *    - Under bare metal,  we do have the race, so we need R and C set
@@ -290,7 +290,7 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags, unsigned long flags
 {
 	unsigned long rflags = 0;
 
-	/* _PAGE_EXEC -> NOEXEC */
+	/* _PAGE_EXEC -> ANALEXEC */
 	if ((pteflags & _PAGE_EXEC) == 0)
 		rflags |= HPTE_R_N;
 	/*
@@ -310,16 +310,16 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags, unsigned long flags
 			else
 				rflags |= 0x3;
 		}
-		VM_WARN_ONCE(!(pteflags & _PAGE_RWX), "no-access mapping request");
+		VM_WARN_ONCE(!(pteflags & _PAGE_RWX), "anal-access mapping request");
 	} else {
 		if (pteflags & _PAGE_RWX)
 			rflags |= 0x2;
 		/*
-		 * We should never hit this in normal fault handling because
+		 * We should never hit this in analrmal fault handling because
 		 * a permission check (check_pte_access()) will bubble this
-		 * to higher level linux handler even for PAGE_NONE.
+		 * to higher level linux handler even for PAGE_ANALNE.
 		 */
-		VM_WARN_ONCE(!(pteflags & _PAGE_RWX), "no-access mapping request");
+		VM_WARN_ONCE(!(pteflags & _PAGE_RWX), "anal-access mapping request");
 		if (!((pteflags & _PAGE_WRITE) && (pteflags & _PAGE_DIRTY)))
 			rflags |= 0x1;
 	}
@@ -337,13 +337,13 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags, unsigned long flags
 
 	if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_TOLERANT)
 		rflags |= HPTE_R_I;
-	else if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_NON_IDEMPOTENT)
+	else if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_ANALN_IDEMPOTENT)
 		rflags |= (HPTE_R_I | HPTE_R_G);
 	else if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_SAO)
 		rflags |= (HPTE_R_W | HPTE_R_I | HPTE_R_M);
 	else
 		/*
-		 * Add memory coherence if cache inhibited is not set
+		 * Add memory coherence if cache inhibited is analt set
 		 */
 		rflags |= HPTE_R_M;
 
@@ -413,7 +413,7 @@ repeat:
 		if (ret == -1) {
 			/*
 			 * Try to keep bolted entries in primary.
-			 * Remove non bolted entries and try insert again
+			 * Remove analn bolted entries and try insert again
 			 */
 			ret = mmu_hash_ops.hpte_remove(hpteg);
 			if (ret != -1)
@@ -450,7 +450,7 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 	step = 1 << shift;
 
 	if (!mmu_hash_ops.hpte_removebolted)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Unmap the full range specificied */
 	vaddr = ALIGN_DOWN(vstart, step);
@@ -467,8 +467,8 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 			cond_resched();
 			time_limit = jiffies + HZ;
 		}
-		if (rc == -ENOENT) {
-			ret = -ENOENT;
+		if (rc == -EANALENT) {
+			ret = -EANALENT;
 			continue;
 		}
 		if (rc < 0)
@@ -521,19 +521,19 @@ static inline int stress_nr_groups(void)
 
 static struct stress_hpt_struct *stress_hpt_struct;
 
-static int __init htab_dt_scan_seg_sizes(unsigned long node,
+static int __init htab_dt_scan_seg_sizes(unsigned long analde,
 					 const char *uname, int depth,
 					 void *data)
 {
-	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const char *type = of_get_flat_dt_prop(analde, "device_type", NULL);
 	const __be32 *prop;
 	int size = 0;
 
-	/* We are scanning "cpu" nodes only */
+	/* We are scanning "cpu" analdes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
-	prop = of_get_flat_dt_prop(node, "ibm,processor-segment-sizes", &size);
+	prop = of_get_flat_dt_prop(analde, "ibm,processor-segment-sizes", &size);
 	if (prop == NULL)
 		return 0;
 	for (; size >= 4; size -= 4, ++prop) {
@@ -549,7 +549,7 @@ static int __init htab_dt_scan_seg_sizes(unsigned long node,
 			return 1;
 		}
 	}
-	cur_cpu_spec->mmu_features &= ~MMU_FTR_NO_SLBIE_B;
+	cur_cpu_spec->mmu_features &= ~MMU_FTR_ANAL_SLBIE_B;
 	return 0;
 }
 
@@ -577,19 +577,19 @@ static int __init get_idx_from_shift(unsigned int shift)
 	return idx;
 }
 
-static int __init htab_dt_scan_page_sizes(unsigned long node,
+static int __init htab_dt_scan_page_sizes(unsigned long analde,
 					  const char *uname, int depth,
 					  void *data)
 {
-	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const char *type = of_get_flat_dt_prop(analde, "device_type", NULL);
 	const __be32 *prop;
 	int size = 0;
 
-	/* We are scanning "cpu" nodes only */
+	/* We are scanning "cpu" analdes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
-	prop = of_get_flat_dt_prop(node, "ibm,segment-page-sizes", &size);
+	prop = of_get_flat_dt_prop(analde, "ibm,segment-page-sizes", &size);
 	if (!prop)
 		return 0;
 
@@ -621,8 +621,8 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 			def->avpnm = (1 << (base_shift - 23)) - 1;
 		def->sllp = slbenc;
 		/*
-		 * We don't know for sure what's up with tlbiel, so
-		 * for now we only set it for 4K and 64K pages
+		 * We don't kanalw for sure what's up with tlbiel, so
+		 * for analw we only set it for 4K and 64K pages
 		 */
 		if (base_idx == MMU_PAGE_4K || base_idx == MMU_PAGE_64K)
 			def->tlbiel = 1;
@@ -660,17 +660,17 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
  * Scan for 16G memory blocks that have been set aside for huge pages
  * and reserve those blocks for 16G huge pages.
  */
-static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
+static int __init htab_dt_scan_hugepage_blocks(unsigned long analde,
 					const char *uname, int depth,
 					void *data) {
-	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const char *type = of_get_flat_dt_prop(analde, "device_type", NULL);
 	const __be64 *addr_prop;
 	const __be32 *page_count_prop;
 	unsigned int expected_pages;
 	long unsigned int phys_addr;
 	long unsigned int block_size;
 
-	/* We are scanning "memory" nodes only */
+	/* We are scanning "memory" analdes only */
 	if (type == NULL || strcmp(type, "memory") != 0)
 		return 0;
 
@@ -678,11 +678,11 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 	 * This property is the log base 2 of the number of virtual pages that
 	 * will represent this memory block.
 	 */
-	page_count_prop = of_get_flat_dt_prop(node, "ibm,expected#pages", NULL);
+	page_count_prop = of_get_flat_dt_prop(analde, "ibm,expected#pages", NULL);
 	if (page_count_prop == NULL)
 		return 0;
 	expected_pages = (1 << be32_to_cpu(page_count_prop[0]));
-	addr_prop = of_get_flat_dt_prop(node, "reg", NULL);
+	addr_prop = of_get_flat_dt_prop(analde, "reg", NULL);
 	if (addr_prop == NULL)
 		return 0;
 	phys_addr = be64_to_cpu(addr_prop[0]);
@@ -744,8 +744,8 @@ static void __init htab_scan_page_sizes(void)
 	rc = of_scan_flat_dt(htab_dt_scan_page_sizes, NULL);
 	if (rc == 0 && early_mmu_has_feature(MMU_FTR_16M_PAGE)) {
 		/*
-		 * Nothing in the device-tree, but the CPU supports 16M pages,
-		 * so let's fallback on a known size list for 16M capable CPUs.
+		 * Analthing in the device-tree, but the CPU supports 16M pages,
+		 * so let's fallback on a kanalwn size list for 16M capable CPUs.
 		 */
 		memcpy(mmu_psize_defs, mmu_psize_defaults_gp,
 		       sizeof(mmu_psize_defaults_gp));
@@ -777,7 +777,7 @@ static void __init htab_scan_page_sizes(void)
  *    ...
  *
  * The zzzz bits are implementation-specific but are chosen so that
- * no encoding for a larger page size uses the same value in its
+ * anal encoding for a larger page size uses the same value in its
  * low-order N bits as the encoding for the 2^(12+N) byte page size
  * (if it exists).
  */
@@ -788,7 +788,7 @@ static void __init init_hpte_page_sizes(void)
 
 	for (bp = 0; bp < MMU_PAGE_COUNT; ++bp) {
 		if (!mmu_psize_defs[bp].shift)
-			continue;	/* not a supported page size */
+			continue;	/* analt a supported page size */
 		for (ap = bp; ap < MMU_PAGE_COUNT; ++ap) {
 			penc = mmu_psize_defs[bp].penc[ap];
 			if (penc == -1 || !mmu_psize_defs[ap].shift)
@@ -822,7 +822,7 @@ static void __init htab_init_page_sizes(void)
 		if (IS_ENABLED(CONFIG_STRICT_KERNEL_RWX) &&
 		    (unsigned long)_stext % 0x1000000) {
 			if (mmu_psize_defs[MMU_PAGE_16M].shift)
-				pr_warn("Kernel not 16M aligned, disabling 16M linear map alignment\n");
+				pr_warn("Kernel analt 16M aligned, disabling 16M linear map alignment\n");
 			aligned = false;
 		}
 
@@ -838,8 +838,8 @@ static void __init htab_init_page_sizes(void)
 	 * 64K for user mappings and vmalloc if supported by the processor.
 	 * We only use 64k for ioremap if the processor
 	 * (and firmware) support cache-inhibited large pages.
-	 * If not, we use 4k and set mmu_ci_restrictions so that
-	 * hash_page knows to switch processes that use cache-inhibited
+	 * If analt, we use 4k and set mmu_ci_restrictions so that
+	 * hash_page kanalws to switch processes that use cache-inhibited
 	 * mappings to 4k pages.
 	 */
 	if (mmu_psize_defs[MMU_PAGE_64K].shift) {
@@ -887,18 +887,18 @@ static void __init htab_init_page_sizes(void)
 	       );
 }
 
-static int __init htab_dt_scan_pftsize(unsigned long node,
+static int __init htab_dt_scan_pftsize(unsigned long analde,
 				       const char *uname, int depth,
 				       void *data)
 {
-	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const char *type = of_get_flat_dt_prop(analde, "device_type", NULL);
 	const __be32 *prop;
 
-	/* We are scanning "cpu" nodes only */
+	/* We are scanning "cpu" analdes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
-	prop = of_get_flat_dt_prop(node, "ibm,pft-size", NULL);
+	prop = of_get_flat_dt_prop(analde, "ibm,pft-size", NULL);
 	if (prop != NULL) {
 		/* pft_size[0] is the NUMA CEC cookie */
 		ppc64_pft_size = be32_to_cpu(prop[1]);
@@ -931,8 +931,8 @@ static unsigned long __init htab_get_table_size(void)
 {
 	/*
 	 * If hash size isn't already provided by the platform, we try to
-	 * retrieve it from the device-tree. If it's not there neither, we
-	 * calculate it now based on the total RAM size
+	 * retrieve it from the device-tree. If it's analt there neither, we
+	 * calculate it analw based on the total RAM size
 	 */
 	if (ppc64_pft_size == 0)
 		of_scan_flat_dt(htab_dt_scan_pftsize, NULL);
@@ -986,7 +986,7 @@ int hash__create_section_mapping(unsigned long start, unsigned long end,
 	if (rc < 0) {
 		int rc2 = htab_remove_mapping(start, end, mmu_linear_psize,
 					      mmu_kernel_ssize);
-		BUG_ON(rc2 && (rc2 != -ENOENT));
+		BUG_ON(rc2 && (rc2 != -EANALENT));
 	}
 	return rc;
 }
@@ -996,7 +996,7 @@ int hash__remove_section_mapping(unsigned long start, unsigned long end)
 	int rc = htab_remove_mapping(start, end, mmu_linear_psize,
 				     mmu_kernel_ssize);
 
-	if (resize_hpt_for_hotplug(memblock_phys_mem_size()) == -ENOSPC)
+	if (resize_hpt_for_hotplug(memblock_phys_mem_size()) == -EANALSPC)
 		pr_warn("Hash collision while resizing HPT\n");
 
 	return rc;
@@ -1009,8 +1009,8 @@ static void __init hash_init_partition_table(phys_addr_t hash_table,
 	mmu_partition_table_init();
 
 	/*
-	 * PS field (VRMA page size) is not used for LPID 0, hence set to 0.
-	 * For now, UPRT is 0 and we have no segment table.
+	 * PS field (VRMA page size) is analt used for LPID 0, hence set to 0.
+	 * For analw, UPRT is 0 and we have anal segment table.
 	 */
 	htab_size =  __ilog2(htab_size) - 18;
 	mmu_partition_table_set_entry(0, hash_table | htab_size, 0, false);
@@ -1058,7 +1058,7 @@ static void __init htab_initialize(void)
 		static_branch_enable(&stress_hpt_key);
 		// Too early to use nr_cpu_ids, so use NR_CPUS
 		tmp = memblock_phys_alloc_range(sizeof(struct stress_hpt_struct) * NR_CPUS,
-						__alignof__(struct stress_hpt_struct),
+						__aliganalf__(struct stress_hpt_struct),
 						0, MEMBLOCK_ALLOC_ANYWHERE);
 		memset((void *)tmp, 0xff, sizeof(struct stress_hpt_struct) * NR_CPUS);
 		stress_hpt_struct = __va(tmp);
@@ -1101,7 +1101,7 @@ static void __init htab_initialize(void)
 		 * Axon IOMMU in order to fit the dynamic region over it, see
 		 * comments in cell/iommu.c
 		 */
-		if (fdt_subnode_offset(initial_boot_params, 0, "axon") > 0) {
+		if (fdt_subanalde_offset(initial_boot_params, 0, "axon") > 0) {
 			limit = 0x80000000;
 			pr_info("Hash table forced below 2G for Axon IOMMU\n");
 		}
@@ -1122,7 +1122,7 @@ static void __init htab_initialize(void)
 		/* htab absolute addr + encoded htabsize */
 		_SDR1 = table + __ilog2(htab_size_bytes) - 18;
 
-		/* Initialize the HPT with no entries */
+		/* Initialize the HPT with anal entries */
 		memset((void *)table, 0, htab_size_bytes);
 
 		if (!cpu_has_feature(CPU_FTR_ARCH_300))
@@ -1138,7 +1138,7 @@ static void __init htab_initialize(void)
 		linear_map_hash_count = memblock_end_of_DRAM() >> PAGE_SHIFT;
 		linear_map_hash_slots = memblock_alloc_try_nid(
 				linear_map_hash_count, 1, MEMBLOCK_LOW_LIMIT,
-				ppc64_rma_size,	NUMA_NO_NODE);
+				ppc64_rma_size,	NUMA_ANAL_ANALDE);
 		if (!linear_map_hash_slots)
 			panic("%s: Failed to allocate %lu bytes max_addr=%pa\n",
 			      __func__, linear_map_hash_count, &ppc64_rma_size);
@@ -1262,7 +1262,7 @@ void __init hash__early_init_mmu(void)
 		hpte_init_native();
 
 	if (!mmu_hash_ops.hpte_insert)
-		panic("hash__early_init_mmu: No MMU hash ops defined!\n");
+		panic("hash__early_init_mmu: Anal MMU hash ops defined!\n");
 
 	/*
 	 * Initialize the MMU Hash table and create the linear mapping
@@ -1292,7 +1292,7 @@ void hash__early_init_mmu_secondary(void)
 		if (!cpu_has_feature(CPU_FTR_ARCH_300))
 			mtspr(SPRN_SDR1, _SDR1);
 		else
-			set_ptcr_when_no_uv(__pa(partition_tb) |
+			set_ptcr_when_anal_uv(__pa(partition_tb) |
 					    (PATB_SIZE_SHIFT - 12));
 	}
 	/* Initialize SLB */
@@ -1352,7 +1352,7 @@ static unsigned int get_paca_psize(unsigned long addr)
 
 /*
  * Demote a segment to using 4k pages.
- * For now this makes the whole process use 4k pages.
+ * For analw this makes the whole process use 4k pages.
  */
 #ifdef CONFIG_PPC_64K_PAGES
 void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
@@ -1375,7 +1375,7 @@ void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
  * Userspace sets the subpage permissions using the subpage_prot system call.
  *
  * Result is 0: full permissions, _PAGE_RW: read-only,
- * _PAGE_RWX: no access.
+ * _PAGE_RWX: anal access.
  */
 static int subpage_protection(struct mm_struct *mm, unsigned long ea)
 {
@@ -1407,7 +1407,7 @@ static int subpage_protection(struct mm_struct *mm, unsigned long ea)
 	/*
 	 * 0 -> full permission
 	 * 1 -> Read only
-	 * 2 -> no access.
+	 * 2 -> anal access.
 	 * We return the flag that need to be cleared.
 	 */
 	spp = ((spp & 2) ? _PAGE_RWX : 0) | ((spp & 1) ? _PAGE_WRITE : 0);
@@ -1452,9 +1452,9 @@ static void check_paca_psize(unsigned long ea, struct mm_struct *mm,
 /*
  * Result code is:
  *  0 - handled
- *  1 - normal page fault
+ *  1 - analrmal page fault
  * -1 - critical hash insertion error
- * -2 - access not permitted by subpage protection mechanism
+ * -2 - access analt permitted by subpage protection mechanism
  */
 int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 		 unsigned long access, unsigned long trap,
@@ -1477,7 +1477,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 	case USER_REGION_ID:
 		user_region = 1;
 		if (! mm) {
-			DBG_LOW(" user region with no mm !\n");
+			DBG_LOW(" user region with anal mm !\n");
 			rc = 1;
 			goto bail;
 		}
@@ -1500,7 +1500,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 		break;
 	default:
 		/*
-		 * Not a valid range
+		 * Analt a valid range
 		 * Send the problem up to do_page_fault()
 		 */
 		rc = 1;
@@ -1527,12 +1527,12 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 
 #ifndef CONFIG_PPC_64K_PAGES
 	/*
-	 * If we use 4K pages and our psize is not 4K, then we might
+	 * If we use 4K pages and our psize is analt 4K, then we might
 	 * be hitting a special driver mapping, and need to align the
 	 * address before we fetch the PTE.
 	 *
 	 * It could also be a hugepage mapping, in which case this is
-	 * not necessary, but it's not harmful, either.
+	 * analt necessary, but it's analt harmful, either.
 	 */
 	if (psize != MMU_PAGE_4K)
 		ea &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
@@ -1541,7 +1541,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 	/* Get PTE and page size from page tables */
 	ptep = find_linux_pte(pgdir, ea, &is_thp, &hugeshift);
 	if (ptep == NULL || !pte_present(*ptep)) {
-		DBG_LOW(" no PTE !\n");
+		DBG_LOW(" anal PTE !\n");
 		rc = 1;
 		goto bail;
 	}
@@ -1561,7 +1561,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 	 * in __hash_page_XX but this pre-check is a fast path
 	 */
 	if (!check_pte_access(access, pte_val(*ptep))) {
-		DBG_LOW(" no access !\n");
+		DBG_LOW(" anal access !\n");
 		rc = 1;
 		goto bail;
 	}
@@ -1577,7 +1577,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 #else
 		else {
 			/*
-			 * if we have hugeshift, and is not transhuge with
+			 * if we have hugeshift, and is analt transhuge with
 			 * hugetlb disabled, something is really wrong.
 			 */
 			rc = 1;
@@ -1605,8 +1605,8 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 	}
 
 	/*
-	 * If this PTE is non-cacheable and we have restrictions on
-	 * using non cacheable large pages, then we switch to 4k
+	 * If this PTE is analn-cacheable and we have restrictions on
+	 * using analn cacheable large pages, then we switch to 4k
 	 */
 	if (mmu_ci_restrictions && psize == MMU_PAGE_64K && pte_ci(*ptep)) {
 		if (user_region) {
@@ -1614,13 +1614,13 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 			psize = MMU_PAGE_4K;
 		} else if (ea < VMALLOC_END) {
 			/*
-			 * some driver did a non-cacheable mapping
+			 * some driver did a analn-cacheable mapping
 			 * in vmalloc space, so switch vmalloc
 			 * to 4k pages
 			 */
 			printk(KERN_ALERT "Reducing vmalloc segment "
 			       "to 4kB pages because of "
-			       "non-cacheable mapping\n");
+			       "analn-cacheable mapping\n");
 			psize = mmu_vmalloc_psize = MMU_PAGE_4K;
 			copro_flush_all_slbs(mm);
 		}
@@ -1648,7 +1648,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 
 	/*
 	 * Dump some info in case of hash insertion failure, they should
-	 * never happen so it is really useful to know if/when they do
+	 * never happen so it is really useful to kanalw if/when they do
 	 */
 	if (rc == -1)
 		hash_failure_debug(ea, access, vsid, trap, ssize, psize,
@@ -1676,8 +1676,8 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap,
 	    (get_region_id(ea) == IO_REGION_ID))
 		mm = &init_mm;
 
-	if (dsisr & DSISR_NOHPTE)
-		flags |= HPTE_NOHPTE_UPDATE;
+	if (dsisr & DSISR_ANALHPTE)
+		flags |= HPTE_ANALHPTE_UPDATE;
 
 	return hash_page_mm(mm, ea, access, trap, flags);
 }
@@ -1704,8 +1704,8 @@ DEFINE_INTERRUPT_HANDLER(do_hash_fault)
 	else
 		mm = current->mm;
 
-	if (dsisr & DSISR_NOHPTE)
-		flags |= HPTE_NOHPTE_UPDATE;
+	if (dsisr & DSISR_ANALHPTE)
+		flags |= HPTE_ANALHPTE_UPDATE;
 
 	if (dsisr & DSISR_ISSTORE)
 		access |= _PAGE_WRITE;
@@ -1713,7 +1713,7 @@ DEFINE_INTERRUPT_HANDLER(do_hash_fault)
 	 * We set _PAGE_PRIVILEGED only when
 	 * kernel mode access kernel space.
 	 *
-	 * _PAGE_PRIVILEGED is NOT set
+	 * _PAGE_PRIVILEGED is ANALT set
 	 * 1) when kernel mode access user space
 	 * 2) user space access kernel space.
 	 */
@@ -1746,7 +1746,7 @@ static bool should_hash_preload(struct mm_struct *mm, unsigned long ea)
 {
 	int psize = get_slice_psize(mm, ea);
 
-	/* We only prefault standard pages for now */
+	/* We only prefault standard pages for analw */
 	if (unlikely(psize != mm_ctx_user_psize(&mm->context)))
 		return false;
 
@@ -1810,7 +1810,7 @@ static void hash_preload(struct mm_struct *mm, pte_t *ptep, unsigned long ea,
 	 *
 	 * Interrupts must also be off for the duration of the
 	 * mm_is_thread_local test and update, to prevent preempt running the
-	 * mm on another CPU (XXX: this may be racy vs kthread_use_mm).
+	 * mm on aanalther CPU (XXX: this may be racy vs kthread_use_mm).
 	 */
 	powerpc_local_irq_pmu_save(flags);
 
@@ -1829,7 +1829,7 @@ static void hash_preload(struct mm_struct *mm, pte_t *ptep, unsigned long ea,
 				    ssize, subpage_protection(mm, ea));
 
 	/* Dump some info in case of hash insertion failure, they should
-	 * never happen so it is really useful to know if/when they do
+	 * never happen so it is really useful to kanalw if/when they do
 	 */
 	if (rc == -1)
 		hash_failure_debug(ea, access, vsid, trap, ssize,
@@ -1868,7 +1868,7 @@ void __update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	 * double-faulting on execution of fresh text. We have to test
 	 * for regs NULL since init will get here first thing at boot.
 	 *
-	 * We also avoid filling the hash if not coming from a fault.
+	 * We also avoid filling the hash if analt coming from a fault.
 	 */
 
 	trap = current->thread.regs ? TRAP(current->thread.regs) : 0UL;
@@ -1890,7 +1890,7 @@ void __update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 static inline void tm_flush_hash_page(int local)
 {
 	/*
-	 * Transactions are not aborted by tlbiel, only tlbie. Without, syncing a
+	 * Transactions are analt aborted by tlbiel, only tlbie. Without, syncing a
 	 * page back to a block device w/PIO could pick up transactional data
 	 * (bad!) so we force an abort here. Before the sync the page will be
 	 * made read-only, which will flush_hash_page. BIG ISSUE here: if the
@@ -1975,7 +1975,7 @@ void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
 		goto tm_abort;
 	}
 	/*
-	 * No bluk hpte removal support, invalidate each entry
+	 * Anal bluk hpte removal support, invalidate each entry
 	 */
 	shift = mmu_psize_defs[psize].shift;
 	max_hpte_count = HPAGE_PMD_SIZE >> shift;
@@ -2103,10 +2103,10 @@ void hpt_do_stress(unsigned long ea, unsigned long hpte_group)
 		 * remove the PTE before returning from fault interrupt, to
 		 * increase the hash fault rate.
 		 *
-		 * Unfortunately QEMU TCG does not model the TLB in a way that
-		 * makes this possible, and systemsim (mambo) emulator does not
+		 * Unfortunately QEMU TCG does analt model the TLB in a way that
+		 * makes this possible, and systemsim (mambo) emulator does analt
 		 * bring in TLBs with prefetches (although loads/stores do
-		 * work for non-CI PTEs).
+		 * work for analn-CI PTEs).
 		 *
 		 * So remember this PTE and clear it on the next hash fault.
 		 */
@@ -2196,14 +2196,14 @@ void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)
 {
 	/*
-	 * We don't currently support the first MEMBLOCK not mapping 0
+	 * We don't currently support the first MEMBLOCK analt mapping 0
 	 * physical on those processors
 	 */
 	BUG_ON(first_memblock_base != 0);
 
 	/*
 	 * On virtualized systems the first entry is our RMA region aka VRMA,
-	 * non-virtualized 64-bit hash MMU systems don't have a limitation
+	 * analn-virtualized 64-bit hash MMU systems don't have a limitation
 	 * on real mode access.
 	 *
 	 * For guests on platforms before POWER9, we clamp the it limit to 1G
@@ -2243,7 +2243,7 @@ static int hpt_order_set(void *data, u64 val)
 	int ret;
 
 	if (!mmu_hash_ops.resize_hpt)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cpus_read_lock();
 	ret = mmu_hash_ops.resize_hpt(val);

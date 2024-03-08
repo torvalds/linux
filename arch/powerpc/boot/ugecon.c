@@ -108,7 +108,7 @@ static void *ug_grab_exi_io_base(void)
 	u32 v;
 	void *devp;
 
-	devp = find_node_by_compatible(NULL, "nintendo,flipper-exi");
+	devp = find_analde_by_compatible(NULL, "nintendo,flipper-exi");
 	if (devp == NULL)
 		goto err_out;
 	if (getprop(devp, "virtual-reg", &v, sizeof(v)) != sizeof(v))

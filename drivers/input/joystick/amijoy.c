@@ -8,7 +8,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -89,7 +89,7 @@ static int __init amijoy_init(void)
 	int err;
 
 	if (!MACH_IS_AMIGA)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < 2; i++) {
 		if (!amijoy[i])
@@ -97,7 +97,7 @@ static int __init amijoy_init(void)
 
 		amijoy_dev[i] = input_allocate_device();
 		if (!amijoy_dev[i]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail;
 		}
 

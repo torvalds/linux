@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 
 /*
- * Copyright (C) 2018 Zodiac Inflight Innovations
+ * Copyright (C) 2018 Zodiac Inflight Inanalvations
  */
 
 /dts-v1/;
@@ -96,8 +96,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_dspi1>;
 	/*
-	 * Some CFU1s come with SPI-NOR chip DNPed, so we leave this
-	 * node disabled by default and rely on bootloader to enable
+	 * Some CFU1s come with SPI-ANALR chip DNPed, so we leave this
+	 * analde disabled by default and rely on bootloader to enable
 	 * it when appropriate.
 	 */
 	status = "disabled";
@@ -105,7 +105,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "m25p128", "jedec,spi-nor";
+		compatible = "m25p128", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 
@@ -128,11 +128,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc0>;
 	bus-width = <8>;
-	non-removable;
-	no-1-8-v;
+	analn-removable;
+	anal-1-8-v;
 	keep-power-in-suspend;
-	no-sdio;
-	no-sd;
+	anal-sdio;
+	anal-sd;
 	status = "okay";
 };
 
@@ -140,7 +140,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
-	no-sdio;
+	anal-sdio;
 	status = "okay";
 };
 

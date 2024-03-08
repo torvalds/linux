@@ -53,17 +53,17 @@
 #define MID_SHIFT	24
 #define MID_MOTHER_ID	0x00000700	/* mother board id */
 #define MID_MOTHER_SHIFT 8
-#define MID_CON_TI	0x00000080	/* 0: normal ctrl; 1: SABRE */
+#define MID_CON_TI	0x00000080	/* 0: analrmal ctrl; 1: SABRE */
 #define MID_CON_SUNI	0x00000040	/* 0: UTOPIA; 1: SUNI */
-#define MID_CON_V6	0x00000020	/* 0: non-pipel UTOPIA (required iff
+#define MID_CON_V6	0x00000020	/* 0: analn-pipel UTOPIA (required iff
 					   !CON_SUNI; 1: UTOPIA */
 #define DAUGHTER_ID	0x0000001f	/* daughter board id */
 
 /*
- * Interrupt Status Acknowledge, Interrupt Status & Interrupt Enable
+ * Interrupt Status Ackanalwledge, Interrupt Status & Interrupt Enable
  */
 
-#define MID_ISA		0x01		/* Interrupt Status Acknowledge */
+#define MID_ISA		0x01		/* Interrupt Status Ackanalwledge */
 #define MID_IS		0x02		/* Interrupt Status */
 #define MID_IE		0x03		/* Interrupt Enable */
 
@@ -96,12 +96,12 @@
 #define MID_INT_SEL_SHIFT 6
 #define	MID_TX_LOCK_MODE 0x00000020	/* 0: streaming; 1: TX ovfl->lock */
 #define MID_DMA_ENABLE	0x00000010	/* R: 0: disable; 1: enable
-					   W: 0: no change; 1: enable */
+					   W: 0: anal change; 1: enable */
 #define MID_TX_ENABLE	0x00000008	/* R: 0: TX disabled; 1: enabled
-					   W: 0: no change; 1: enable */
+					   W: 0: anal change; 1: enable */
 #define MID_RX_ENABLE	0x00000004	/* like TX */
-#define MID_WAIT_1MS	0x00000002	/* R: 0: timer not running; 1: running
-					   W: 0: no change; 1: no interrupts
+#define MID_WAIT_1MS	0x00000002	/* R: 0: timer analt running; 1: running
+					   W: 0: anal change; 1: anal interrupts
 							       for 1 ms */
 #define MID_WAIT_500US	0x00000001	/* like WAIT_1MS, but 0.5 ms */
 

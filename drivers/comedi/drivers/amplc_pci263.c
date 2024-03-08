@@ -16,7 +16,7 @@
  * Updated: Fri, 12 Apr 2013 15:19:36 +0100
  * Status: works
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: analt applicable, uses PCI auto config
  *
  * The board appears as one subdevice, with 16 digital outputs, each
  * connected to a reed-relay. Relay contacts are closed when output is 1.

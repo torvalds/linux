@@ -47,7 +47,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <10000000>;
 	};
@@ -76,5 +76,5 @@
 };
 
 &vcc5v0_host_en {
-	rockchip,pins = <3 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+	rockchip,pins = <3 RK_PD6 RK_FUNC_GPIO &pcfg_pull_analne>;
 };

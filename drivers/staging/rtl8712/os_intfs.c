@@ -60,14 +60,14 @@ static int radio_enable = 1;
 static int long_retry_lmt = 7;
 static int short_retry_lmt = 7;
 static int busy_thresh = 40;
-static int ack_policy = NORMAL_ACK;
+static int ack_policy = ANALRMAL_ACK;
 static int mp_mode;
 static int software_encrypt;
 static int software_decrypt;
 
 static int wmm_enable;/* default is set to disable the wmm.*/
 static int uapsd_enable;
-static int uapsd_max_sp = NO_LIMIT;
+static int uapsd_max_sp = ANAL_LIMIT;
 static int uapsd_acbk_en;
 static int uapsd_acbe_en;
 static int uapsd_acvi_en;
@@ -436,7 +436,7 @@ static int netdev_open(struct net_device *pnetdev)
 		enable_video_mode(padapter, cbw40_enable);
 	/* start driver mlme relation timer */
 	start_drv_timers(padapter);
-	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_NO_LINK);
+	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_ANAL_LINK);
 	mutex_unlock(&padapter->mutex_start);
 	return 0;
 netdev_open_error:

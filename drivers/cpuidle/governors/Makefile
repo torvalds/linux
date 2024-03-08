@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Makefile for cpuidle governors.
+# Makefile for cpuidle goveranalrs.
 #
 
 obj-$(CONFIG_CPU_IDLE_GOV_LADDER) += ladder.o

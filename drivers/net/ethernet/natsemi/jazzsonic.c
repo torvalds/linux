@@ -29,7 +29,7 @@
 #include <linux/in.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -61,11 +61,11 @@ do {									\
 } while (0)
 
 /*
- * We cannot use station (ethernet) address prefixes to detect the
+ * We cananalt use station (ethernet) address prefixes to detect the
  * sonic controller since these are board manufacturer depended.
- * So we check for known Silicon Revision IDs instead.
+ * So we check for kanalwn Silicon Revision IDs instead.
  */
-static unsigned short known_revisions[] =
+static unsigned short kanalwn_revisions[] =
 {
 	0x04,			/* Mips Magnum 4000 */
 	0xffff			/* end of list */
@@ -112,7 +112,7 @@ static int sonic_probe1(struct net_device *dev)
 	unsigned int silicon_revision;
 	unsigned int val;
 	struct sonic_local *lp = netdev_priv(dev);
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	int i;
 	unsigned char addr[ETH_ALEN];
 
@@ -120,18 +120,18 @@ static int sonic_probe1(struct net_device *dev)
 		return -EBUSY;
 
 	/*
-	 * get the Silicon Revision ID. If this is one of the known
+	 * get the Silicon Revision ID. If this is one of the kanalwn
 	 * one assume that we found a SONIC ethernet controller at
 	 * the expected location.
 	 */
 	silicon_revision = SONIC_READ(SONIC_SR);
 	i = 0;
-	while (known_revisions[i] != 0xffff &&
-	       known_revisions[i] != silicon_revision)
+	while (kanalwn_revisions[i] != 0xffff &&
+	       kanalwn_revisions[i] != silicon_revision)
 		i++;
 
-	if (known_revisions[i] == 0xffff) {
-		pr_info("SONIC ethernet controller not found (0x%4x)\n",
+	if (kanalwn_revisions[i] == 0xffff) {
+		pr_info("SONIC ethernet controller analt found (0x%4x)\n",
 			silicon_revision);
 		goto out;
 	}
@@ -173,7 +173,7 @@ out:
 
 /*
  * Probe for a SONIC ethernet controller on a Mips Jazz board.
- * Actually probing is superfluous but we're paranoid.
+ * Actually probing is superfluous but we're paraanalid.
  */
 static int jazz_sonic_probe(struct platform_device *pdev)
 {
@@ -184,11 +184,11 @@ static int jazz_sonic_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = alloc_etherdev(sizeof(struct sonic_local));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp = netdev_priv(dev);
 	lp->device = &pdev->dev;

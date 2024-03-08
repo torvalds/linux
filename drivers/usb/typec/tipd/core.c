@@ -111,7 +111,7 @@ struct tps6598x;
 
 struct tipd_data {
 	irq_handler_t irq_handler;
-	int (*register_port)(struct tps6598x *tps, struct fwnode_handle *node);
+	int (*register_port)(struct tps6598x *tps, struct fwanalde_handle *analde);
 	void (*trace_power_status)(u16 status);
 	void (*trace_status)(u32 status);
 	int (*apply_patch)(struct tps6598x *tps);
@@ -264,7 +264,7 @@ static void tps6598x_set_data_role(struct tps6598x *tps,
 		role_val = USB_ROLE_DEVICE;
 
 	if (!connected)
-		role_val = USB_ROLE_NONE;
+		role_val = USB_ROLE_ANALNE;
 
 	usb_role_switch_set_role(tps->role_sw, role_val);
 	typec_set_data_role(tps->port, role);
@@ -282,7 +282,7 @@ static int tps6598x_connect(struct tps6598x *tps, u32 status)
 	mode = TPS_POWER_STATUS_PWROPMODE(tps->pwr_status);
 
 	desc.usb_pd = mode == TYPEC_PWR_MODE_PD;
-	desc.accessory = TYPEC_ACCESSORY_NONE; /* XXX: handle accessories */
+	desc.accessory = TYPEC_ACCESSORY_ANALNE; /* XXX: handle accessories */
 	desc.identity = NULL;
 
 	if (desc.usb_pd) {
@@ -298,7 +298,7 @@ static int tps6598x_connect(struct tps6598x *tps, u32 status)
 	if (TPS_STATUS_TO_UPSIDE_DOWN(status))
 		typec_set_orientation(tps->port, TYPEC_ORIENTATION_REVERSE);
 	else
-		typec_set_orientation(tps->port, TYPEC_ORIENTATION_NORMAL);
+		typec_set_orientation(tps->port, TYPEC_ORIENTATION_ANALRMAL);
 	typec_set_mode(tps->port, TYPEC_STATE_USB);
 	tps6598x_set_data_role(tps, TPS_STATUS_TO_TYPEC_DATAROLE(status), true);
 
@@ -322,7 +322,7 @@ static void tps6598x_disconnect(struct tps6598x *tps, u32 status)
 	typec_set_pwr_opmode(tps->port, TYPEC_PWR_MODE_USB);
 	typec_set_pwr_role(tps->port, TPS_STATUS_TO_TYPEC_PORTROLE(status));
 	typec_set_vconn_role(tps->port, TPS_STATUS_TO_TYPEC_VCONN(status));
-	typec_set_orientation(tps->port, TYPEC_ORIENTATION_NONE);
+	typec_set_orientation(tps->port, TYPEC_ORIENTATION_ANALNE);
 	typec_set_mode(tps->port, TYPEC_STATE_SAFE);
 	tps6598x_set_data_role(tps, TPS_STATUS_TO_TYPEC_DATAROLE(status), false);
 
@@ -572,7 +572,7 @@ err_unlock:
 
 	if (event)
 		return IRQ_HANDLED;
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static bool tps6598x_has_role_changed(struct tps6598x *tps, u32 status)
@@ -631,7 +631,7 @@ err_unlock:
 
 	if (event[0] | event[1])
 		return IRQ_HANDLED;
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t tps6598x_interrupt(int irq, void *data)
@@ -679,7 +679,7 @@ err_unlock:
 
 	if (event1 | event2)
 		return IRQ_HANDLED;
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /* Time interval for Polling */
@@ -720,7 +720,7 @@ static int tps6598x_check_mode(struct tps6598x *tps)
 		break;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct regmap_config tps6598x_regmap_config = {
@@ -799,12 +799,12 @@ static int devm_tps6598_psy_register(struct tps6598x *tps)
 	char *psy_name;
 
 	psy_cfg.drv_data = tps;
-	psy_cfg.fwnode = dev_fwnode(tps->dev);
+	psy_cfg.fwanalde = dev_fwanalde(tps->dev);
 
 	psy_name = devm_kasprintf(tps->dev, GFP_KERNEL, "%s%s", tps6598x_psy_name_prefix,
 				  port_dev_name);
 	if (!psy_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps->psy_desc.name = psy_name;
 	tps->psy_desc.type = POWER_SUPPLY_TYPE_USB;
@@ -822,7 +822,7 @@ static int devm_tps6598_psy_register(struct tps6598x *tps)
 }
 
 static int
-tps6598x_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
+tps6598x_register_port(struct tps6598x *tps, struct fwanalde_handle *fwanalde)
 {
 	int ret;
 	u32 conf;
@@ -834,10 +834,10 @@ tps6598x_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 
 	typec_cap.revision = USB_TYPEC_REV_1_2;
 	typec_cap.pd_revision = 0x200;
-	typec_cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
+	typec_cap.prefer_role = TYPEC_ANAL_PREFERRED_ROLE;
 	typec_cap.driver_data = tps;
 	typec_cap.ops = &tps6598x_ops;
-	typec_cap.fwnode = fwnode;
+	typec_cap.fwanalde = fwanalde;
 
 	switch (TPS_SYSCONF_PORTINFO(conf)) {
 	case TPS_PORTINFO_SINK_ACCESSORY:
@@ -863,7 +863,7 @@ tps6598x_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 		typec_cap.data = TYPEC_PORT_DFP;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	tps->port = typec_register_port(tps->dev, &typec_cap);
@@ -978,7 +978,7 @@ static int tps25750_start_patch_burst_mode(struct tps6598x *tps)
 		u8 timeout;
 	} __packed bpms_data;
 	u32 addr;
-	struct device_node *np = tps->dev->of_node;
+	struct device_analde *np = tps->dev->of_analde;
 
 	ret = device_property_read_string(tps->dev, "firmware-name",
 					  &firmware_name);
@@ -1076,7 +1076,7 @@ static int tps25750_apply_patch(struct tps6598x *tps)
 	if (ret)
 		return ret;
 	/*
-	 * Nothing to be done if the configuration
+	 * Analthing to be done if the configuration
 	 * is being loaded from EERPOM
 	 */
 	if (status & TPS_BOOT_STATUS_I2C_EEPROM_PRESENT)
@@ -1234,7 +1234,7 @@ static int tps6598x_reset(struct tps6598x *tps)
 }
 
 static int
-tps25750_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
+tps25750_register_port(struct tps6598x *tps, struct fwanalde_handle *fwanalde)
 {
 	struct typec_capability typec_cap = { };
 	const char *data_role;
@@ -1245,15 +1245,15 @@ tps25750_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 	if (ret)
 		return ret;
 
-	ret = fwnode_property_read_string(fwnode, "data-role", &data_role);
+	ret = fwanalde_property_read_string(fwanalde, "data-role", &data_role);
 	if (ret) {
-		dev_err(tps->dev, "data-role not found: %d\n", ret);
+		dev_err(tps->dev, "data-role analt found: %d\n", ret);
 		return ret;
 	}
 
 	ret = typec_find_port_data_role(data_role);
 	if (ret < 0) {
-		dev_err(tps->dev, "unknown data-role: %s\n", data_role);
+		dev_err(tps->dev, "unkanalwn data-role: %s\n", data_role);
 		return ret;
 	}
 
@@ -1262,8 +1262,8 @@ tps25750_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 	typec_cap.pd_revision = 0x300;
 	typec_cap.driver_data = tps;
 	typec_cap.ops = &tps6598x_ops;
-	typec_cap.fwnode = fwnode;
-	typec_cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
+	typec_cap.fwanalde = fwanalde;
+	typec_cap.prefer_role = TYPEC_ANAL_PREFERRED_ROLE;
 
 	switch (TPS_PD_STATUS_PORT_TYPE(pd_status)) {
 	case TPS_PD_STATUS_PORT_TYPE_SINK_SOURCE:
@@ -1277,7 +1277,7 @@ tps25750_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 		typec_cap.type = TYPEC_PORT_SRC;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	tps->port = typec_register_port(tps->dev, &typec_cap);
@@ -1289,9 +1289,9 @@ tps25750_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 
 static int tps6598x_probe(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	struct tps6598x *tps;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	u32 status;
 	u32 vid;
 	int ret;
@@ -1299,7 +1299,7 @@ static int tps6598x_probe(struct i2c_client *client)
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&tps->lock);
 	tps->dev = &client->dev;
@@ -1318,11 +1318,11 @@ static int tps6598x_probe(struct i2c_client *client)
 	if (!device_is_compatible(tps->dev, "ti,tps25750")) {
 		ret = tps6598x_read32(tps, TPS_REG_VID, &vid);
 		if (ret < 0 || !vid)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	/*
-	 * Checking can the adapter handle SMBus protocol. If it can not, the
+	 * Checking can the adapter handle SMBus protocol. If it can analt, the
 	 * driver needs to take care of block reads separately.
 	 */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
@@ -1346,7 +1346,7 @@ static int tps6598x_probe(struct i2c_client *client)
 			TPS_REG_INT_PLUG_EVENT;
 	}
 
-	if (dev_fwnode(tps->dev))
+	if (dev_fwanalde(tps->dev))
 		tps->data = device_get_match_data(tps->dev);
 	else
 		tps->data = i2c_get_match_data(client);
@@ -1369,32 +1369,32 @@ static int tps6598x_probe(struct i2c_client *client)
 		goto err_reset_controller;
 
 	if (!tps6598x_read_status(tps, &status)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_clear_mask;
 	}
 
 	/*
-	 * This fwnode has a "compatible" property, but is never populated as a
+	 * This fwanalde has a "compatible" property, but is never populated as a
 	 * struct device. Instead we simply parse it to read the properties.
 	 * This breaks fw_devlink=on. To maintain backward compatibility
 	 * with existing DT files, we work around this by deleting any
-	 * fwnode_links to/from this fwnode.
+	 * fwanalde_links to/from this fwanalde.
 	 */
-	fwnode = device_get_named_child_node(&client->dev, "connector");
-	if (fwnode)
-		fw_devlink_purge_absent_suppliers(fwnode);
+	fwanalde = device_get_named_child_analde(&client->dev, "connector");
+	if (fwanalde)
+		fw_devlink_purge_absent_suppliers(fwanalde);
 
-	tps->role_sw = fwnode_usb_role_switch_get(fwnode);
+	tps->role_sw = fwanalde_usb_role_switch_get(fwanalde);
 	if (IS_ERR(tps->role_sw)) {
 		ret = PTR_ERR(tps->role_sw);
-		goto err_fwnode_put;
+		goto err_fwanalde_put;
 	}
 
 	ret = devm_tps6598_psy_register(tps);
 	if (ret)
 		goto err_role_put;
 
-	ret = tps->data->register_port(tps, fwnode);
+	ret = tps->data->register_port(tps, fwanalde);
 	if (ret)
 		goto err_role_put;
 
@@ -1425,7 +1425,7 @@ static int tps6598x_probe(struct i2c_client *client)
 		goto err_disconnect;
 
 	i2c_set_clientdata(client, tps);
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 
 	tps->wakeup = device_property_read_bool(tps->dev, "wakeup-source");
 	if (tps->wakeup && client->irq) {
@@ -1441,8 +1441,8 @@ err_unregister_port:
 	typec_unregister_port(tps->port);
 err_role_put:
 	usb_role_switch_put(tps->role_sw);
-err_fwnode_put:
-	fwnode_handle_put(fwnode);
+err_fwanalde_put:
+	fwanalde_handle_put(fwanalde);
 err_clear_mask:
 	tps6598x_write64(tps, TPS_REG_INT_MASK1, 0);
 err_reset_controller:

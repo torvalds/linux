@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -90,7 +90,7 @@ struct smu_hw_power_state {
 struct smu_power_state;
 
 enum smu_state_ui_label {
-	SMU_STATE_UI_LABEL_NONE,
+	SMU_STATE_UI_LABEL_ANALNE,
 	SMU_STATE_UI_LABEL_BATTERY,
 	SMU_STATE_UI_TABEL_MIDDLE_LOW,
 	SMU_STATE_UI_LABEL_BALLANCED,
@@ -269,8 +269,8 @@ struct smu_performance_level {
 	uint32_t memory_clock;
 	uint32_t vddc;
 	uint32_t vddci;
-	uint32_t non_local_mem_freq;
-	uint32_t non_local_mem_width;
+	uint32_t analn_local_mem_freq;
+	uint32_t analn_local_mem_width;
 };
 
 struct smu_clock_info {
@@ -582,7 +582,7 @@ struct smu_context {
 
 	/* data structures for wbrf feature support */
 	bool				wbrf_supported;
-	struct notifier_block		wbrf_notifier;
+	struct analtifier_block		wbrf_analtifier;
 	struct delayed_work		wbrf_delayed_work;
 };
 
@@ -609,7 +609,7 @@ struct pptable_funcs {
 	/**
 	 * @get_current_power_state: Get the current power state.
 	 *
-	 * Return: Current power state on success, negative errno on failure.
+	 * Return: Current power state on success, negative erranal on failure.
 	 */
 	enum amd_pm_state_type (*get_current_power_state)(struct smu_context *smu);
 
@@ -754,7 +754,7 @@ struct pptable_funcs {
 	int (*pre_display_config_changed)(struct smu_context *smu);
 
 	/**
-	 * @display_config_changed: Notify the SMU of the current display
+	 * @display_config_changed: Analtify the SMU of the current display
 	 *                          configuration.
 	 *
 	 * Allows SMU to properly track blanking periods for memory clock
@@ -765,13 +765,13 @@ struct pptable_funcs {
 	int (*apply_clocks_adjust_rules)(struct smu_context *smu);
 
 	/**
-	 * @notify_smc_display_config: Applies display requirements to the
+	 * @analtify_smc_display_config: Applies display requirements to the
 	 *                             current power state.
 	 *
 	 * Optimize deep sleep DCEFclk and mclk for the current display
 	 * configuration. Used in display component synchronization.
 	 */
-	int (*notify_smc_display_config)(struct smu_context *smu);
+	int (*analtify_smc_display_config)(struct smu_context *smu);
 
 	/**
 	 * @is_dpm_running: Check if DPM is running.
@@ -932,7 +932,7 @@ struct pptable_funcs {
 	/**
 	 * @check_fw_status: Check the SMU's firmware status.
 	 *
-	 * Return: Zero if check passes, negative errno on failure.
+	 * Return: Zero if check passes, negative erranal on failure.
 	 */
 	int (*check_fw_status)(struct smu_context *smu);
 
@@ -958,7 +958,7 @@ struct pptable_funcs {
 	 * @check_fw_version: Print driver and SMU interface versions to the
 	 *                    system log.
 	 *
-	 * Interface mismatch is not a critical failure.
+	 * Interface mismatch is analt a critical failure.
 	 */
 	int (*check_fw_version)(struct smu_context *smu);
 
@@ -991,10 +991,10 @@ struct pptable_funcs {
 	int (*set_tool_table_location)(struct smu_context *smu);
 
 	/**
-	 * @notify_memory_pool_location: Send the location of the memory pool to
+	 * @analtify_memory_pool_location: Send the location of the memory pool to
 	 *                               the SMU.
 	 */
-	int (*notify_memory_pool_location)(struct smu_context *smu);
+	int (*analtify_memory_pool_location)(struct smu_context *smu);
 
 	/**
 	 * @system_features_control: Enable/disable all SMU features.
@@ -1020,13 +1020,13 @@ struct pptable_funcs {
 			    uint32_t *read_arg);
 
 	/**
-	 * @init_display_count: Notify the SMU of the number of display
+	 * @init_display_count: Analtify the SMU of the number of display
 	 *                      components in current display configuration.
 	 */
 	int (*init_display_count)(struct smu_context *smu, uint32_t count);
 
 	/**
-	 * @set_allowed_mask: Notify the SMU of the features currently allowed
+	 * @set_allowed_mask: Analtify the SMU of the features currently allowed
 	 *                    by the driver.
 	 */
 	int (*set_allowed_mask)(struct smu_context *smu);
@@ -1053,9 +1053,9 @@ struct pptable_funcs {
 						   enum smu_feature_mask mask);
 
 	/**
-	 * @notify_display_change: General interface call to let SMU know about DC change
+	 * @analtify_display_change: General interface call to let SMU kanalw about DC change
 	 */
-	int (*notify_display_change)(struct smu_context *smu);
+	int (*analtify_display_change)(struct smu_context *smu);
 
 	/**
 	 * @set_power_limit: Set power limit in watts.
@@ -1116,7 +1116,7 @@ struct pptable_funcs {
 
 	/**
 	 * @set_xgmi_pstate: Set inter-chip global memory interconnect pstate.
-	 * &pstate: Pstate to set. D0 if Nonzero, D3 otherwise.
+	 * &pstate: Pstate to set. D0 if Analnzero, D3 otherwise.
 	 */
 	int (*set_xgmi_pstate)(struct smu_context *smu, uint32_t pstate);
 
@@ -1132,7 +1132,7 @@ struct pptable_funcs {
 	 * Return:
 	 * 0 - GFXOFF(default).
 	 * 1 - Transition out of GFX State.
-	 * 2 - Not in GFXOFF.
+	 * 2 - Analt in GFXOFF.
 	 * 3 - Transition into GFXOFF.
 	 */
 	uint32_t (*get_gfx_off_status)(struct smu_context *smu);
@@ -1218,7 +1218,7 @@ struct pptable_funcs {
 	/**
 	 * @mode2_reset: Perform mode2 reset.
 	 *
-	 * Mode2 reset generally does not reset as many IPs as mode1 reset. The
+	 * Mode2 reset generally does analt reset as many IPs as mode1 reset. The
 	 * IPs reset varies by asic.
 	 */
 	int (*mode2_reset)(struct smu_context *smu);
@@ -1238,7 +1238,7 @@ struct pptable_funcs {
 	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
 
 	/**
-	 * @set_power_source: Notify the SMU of the current power source.
+	 * @set_power_source: Analtify the SMU of the current power source.
 	 */
 	int (*set_power_source)(struct smu_context *smu, enum smu_power_src_type power_src);
 
@@ -1386,9 +1386,9 @@ struct pptable_funcs {
 	int (*dpm_set_umsch_mm_enable)(struct smu_context *smu, bool enable);
 
 	/**
-	 * @notify_rlc_state: Notify RLC power state to SMU.
+	 * @analtify_rlc_state: Analtify RLC power state to SMU.
 	 */
-	int (*notify_rlc_state)(struct smu_context *smu, bool en);
+	int (*analtify_rlc_state)(struct smu_context *smu, bool en);
 
 	/**
 	 * @is_asic_wbrf_supported: check whether PMFW supports the wbrf feature
@@ -1401,7 +1401,7 @@ struct pptable_funcs {
 	int (*enable_uclk_shadow)(struct smu_context *smu, bool enable);
 
 	/**
-	 * @set_wbrf_exclusion_ranges: notify SMU the wifi bands occupied
+	 * @set_wbrf_exclusion_ranges: analtify SMU the wifi bands occupied
 	 */
 	int (*set_wbrf_exclusion_ranges)(struct smu_context *smu,
 					struct freq_band_range *exclusion_ranges);
@@ -1508,7 +1508,7 @@ enum smu_baco_seq {
 	[profile] = {1, (workload)}
 
 /**
- * smu_memcpy_trailing - Copy the end of one structure into the middle of another
+ * smu_memcpy_trailing - Copy the end of one structure into the middle of aanalther
  *
  * @dst: Pointer to destination struct
  * @first_dst_member: The member name in @dst where the overwrite begins

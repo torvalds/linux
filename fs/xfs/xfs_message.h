@@ -25,8 +25,8 @@ void xfs_printk_level(const char *kern_level, const struct xfs_mount *mp,
 	xfs_printk_index_wrap(KERN_ERR, mp, fmt, ##__VA_ARGS__)
 #define xfs_warn(mp, fmt, ...) \
 	xfs_printk_index_wrap(KERN_WARNING, mp, fmt, ##__VA_ARGS__)
-#define xfs_notice(mp, fmt, ...) \
-	xfs_printk_index_wrap(KERN_NOTICE, mp, fmt, ##__VA_ARGS__)
+#define xfs_analtice(mp, fmt, ...) \
+	xfs_printk_index_wrap(KERN_ANALTICE, mp, fmt, ##__VA_ARGS__)
 #define xfs_info(mp, fmt, ...) \
 	xfs_printk_index_wrap(KERN_INFO, mp, fmt, ##__VA_ARGS__)
 #ifdef DEBUG
@@ -68,8 +68,8 @@ do {									\
 	xfs_printk_ratelimited(xfs_err, dev, fmt, ##__VA_ARGS__)
 #define xfs_warn_ratelimited(dev, fmt, ...)				\
 	xfs_printk_ratelimited(xfs_warn, dev, fmt, ##__VA_ARGS__)
-#define xfs_notice_ratelimited(dev, fmt, ...)				\
-	xfs_printk_ratelimited(xfs_notice, dev, fmt, ##__VA_ARGS__)
+#define xfs_analtice_ratelimited(dev, fmt, ...)				\
+	xfs_printk_ratelimited(xfs_analtice, dev, fmt, ##__VA_ARGS__)
 #define xfs_info_ratelimited(dev, fmt, ...)				\
 	xfs_printk_ratelimited(xfs_info, dev, fmt, ##__VA_ARGS__)
 #define xfs_debug_ratelimited(dev, fmt, ...)				\
@@ -83,8 +83,8 @@ do {									\
 
 #define xfs_warn_once(dev, fmt, ...)				\
 	xfs_printk_once(xfs_warn, dev, fmt, ##__VA_ARGS__)
-#define xfs_notice_once(dev, fmt, ...)				\
-	xfs_printk_once(xfs_notice, dev, fmt, ##__VA_ARGS__)
+#define xfs_analtice_once(dev, fmt, ...)				\
+	xfs_printk_once(xfs_analtice, dev, fmt, ##__VA_ARGS__)
 #define xfs_info_once(dev, fmt, ...)				\
 	xfs_printk_once(xfs_info, dev, fmt, ##__VA_ARGS__)
 

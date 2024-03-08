@@ -25,12 +25,12 @@ static irqreturn_t panfrost_gpu_irq_handler(int irq, void *data)
 	u32 fault_status, state;
 
 	if (test_bit(PANFROST_COMP_BIT_GPU, pfdev->is_suspended))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	fault_status = gpu_read(pfdev, GPU_FAULT_STATUS);
 	state = gpu_read(pfdev, GPU_INT_STAT);
 	if (!state)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (state & GPU_IRQ_MASK_ERROR) {
 		u64 address = (u64) gpu_read(pfdev, GPU_FAULT_ADDRESS_HI) << 32;
@@ -41,7 +41,7 @@ static irqreturn_t panfrost_gpu_irq_handler(int irq, void *data)
 			 address);
 
 		if (state & GPU_IRQ_MULTIPLE_FAULT)
-			dev_warn(pfdev->dev, "There were multiple GPU faults - some have not been reported\n");
+			dev_warn(pfdev->dev, "There were multiple GPU faults - some have analt been reported\n");
 
 		gpu_write(pfdev, GPU_INT_MASK, 0);
 	}
@@ -231,9 +231,9 @@ static const struct panfrost_model gpu_models[] = {
 		GPU_REV(g57, 0, 0)),
 
 	/* MediaTek MT8192 has a Mali-G57 with a different GPU ID from the
-	 * standard. Arm's driver does not appear to handle this model.
+	 * standard. Arm's driver does analt appear to handle this model.
 	 * ChromeOS has a hack downstream for it. Treat it as equivalent to
-	 * standard Mali-G57 for now.
+	 * standard Mali-G57 for analw.
 	 */
 	GPU_MODEL(g57, 0x9003,
 		GPU_REV(g57, 0, 0)),
@@ -241,8 +241,8 @@ static const struct panfrost_model gpu_models[] = {
 
 static void panfrost_gpu_init_features(struct panfrost_device *pfdev)
 {
-	u32 gpu_id, num_js, major, minor, status, rev;
-	const char *name = "unknown";
+	u32 gpu_id, num_js, major, mianalr, status, rev;
+	const char *name = "unkanalwn";
 	u64 hw_feat = 0;
 	u64 hw_issues = hw_issues_all;
 	const struct panfrost_model *model;
@@ -295,7 +295,7 @@ static void panfrost_gpu_init_features(struct panfrost_device *pfdev)
 		pfdev->features.id = 0x0600;
 
 	major = (pfdev->features.revision >> 12) & 0xf;
-	minor = (pfdev->features.revision >> 4) & 0xff;
+	mianalr = (pfdev->features.revision >> 4) & 0xff;
 	status = pfdev->features.revision & 0xf;
 	rev = pfdev->features.revision;
 
@@ -327,8 +327,8 @@ static void panfrost_gpu_init_features(struct panfrost_device *pfdev)
 	bitmap_from_u64(pfdev->features.hw_features, hw_feat);
 	bitmap_from_u64(pfdev->features.hw_issues, hw_issues);
 
-	dev_info(pfdev->dev, "mali-%s id 0x%x major 0x%x minor 0x%x status 0x%x",
-		 name, gpu_id, major, minor, status);
+	dev_info(pfdev->dev, "mali-%s id 0x%x major 0x%x mianalr 0x%x status 0x%x",
+		 name, gpu_id, major, mianalr, status);
 	dev_info(pfdev->dev, "features: %64pb, issues: %64pb",
 		 pfdev->features.hw_features,
 		 pfdev->features.hw_issues);
@@ -348,7 +348,7 @@ static void panfrost_gpu_init_features(struct panfrost_device *pfdev)
 
 void panfrost_cycle_counter_get(struct panfrost_device *pfdev)
 {
-	if (atomic_inc_not_zero(&pfdev->cycle_counter.use_count))
+	if (atomic_inc_analt_zero(&pfdev->cycle_counter.use_count))
 		return;
 
 	spin_lock(&pfdev->cycle_counter.lock);
@@ -388,7 +388,7 @@ static u64 panfrost_get_core_mask(struct panfrost_device *pfdev)
 		return U64_MAX;
 
 	/*
-	 * Only support one core group now.
+	 * Only support one core group analw.
 	 * ~(l2_present - 1) unsets all bits in l2_present except
 	 * the bottom bit. (l2_present - 2) has all the bits in
 	 * the first core group set. AND them together to generate

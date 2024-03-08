@@ -22,7 +22,7 @@ int es83xx_dsm(struct device *dev, int arg, int *value)
 
 	dhandle = ACPI_HANDLE(dev);
 	if (!dhandle)
-		return -ENOENT;
+		return -EANALENT;
 
 	obj = acpi_evaluate_dsm(dhandle, &es83xx_dsm_guid, ES83xx_DSM_REVID,
 				arg, NULL);
@@ -33,7 +33,7 @@ int es83xx_dsm(struct device *dev, int arg, int *value)
 	}
 
 	if (obj->type != ACPI_TYPE_INTEGER) {
-		dev_err(dev, "%s: object is not ACPI_TYPE_INTEGER\n", __func__);
+		dev_err(dev, "%s: object is analt ACPI_TYPE_INTEGER\n", __func__);
 		ret = -EINVAL;
 		goto err;
 	}

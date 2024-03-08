@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Fence mechanism for dma-buf and to allow for asynchronous dma access
+ * Fence mechanism for dma-buf and to allow for asynchroanalus dma access
  *
- * Copyright (C) 2012 Canonical Ltd
+ * Copyright (C) 2012 Caanalnical Ltd
  * Copyright (C) 2012 Texas Instruments
  *
  * Authors:
  * Rob Clark <robdclark@gmail.com>
- * Maarten Lankhorst <maarten.lankhorst@canonical.com>
+ * Maarten Lankhorst <maarten.lankhorst@caanalnical.com>
  */
 
 #include <linux/slab.h>
@@ -30,8 +30,8 @@ static struct dma_fence dma_fence_stub;
 /*
  * fence context counter: each execution context should have its own
  * fence context, this allows checking if fences belong to the same
- * context or not. One device can have multiple separate contexts,
- * and they're used if some engine can run independently of another.
+ * context or analt. One device can have multiple separate contexts,
+ * and they're used if some engine can run independently of aanalther.
  */
 static atomic64_t dma_fence_context_counter = ATOMIC64_INIT(1);
 
@@ -75,39 +75,39 @@ static atomic64_t dma_fence_context_counter = ATOMIC64_INIT(1);
  *   and shaders submitted by userspace, which could run forever, must be backed
  *   up by timeout and gpu hang recovery code. Minimally that code must prevent
  *   further command submission and force complete all in-flight fences, e.g.
- *   when the driver or hardware do not support gpu reset, or if the gpu reset
+ *   when the driver or hardware do analt support gpu reset, or if the gpu reset
  *   failed for some reason. Ideally the driver supports gpu recovery which only
- *   affects the offending userspace context, and no other userspace
+ *   affects the offending userspace context, and anal other userspace
  *   submissions.
  *
  * * Drivers may have different ideas of what completion within a reasonable
  *   time means. Some hang recovery code uses a fixed timeout, others a mix
  *   between observing forward progress and increasingly strict timeouts.
- *   Drivers should not try to second guess timeout handling of fences from
+ *   Drivers should analt try to second guess timeout handling of fences from
  *   other drivers.
  *
- * * To ensure there's no deadlocks of dma_fence_wait() against other locks
- *   drivers should annotate all code required to reach dma_fence_signal(),
+ * * To ensure there's anal deadlocks of dma_fence_wait() against other locks
+ *   drivers should ananaltate all code required to reach dma_fence_signal(),
  *   which completes the fences, with dma_fence_begin_signalling() and
  *   dma_fence_end_signalling().
  *
  * * Drivers are allowed to call dma_fence_wait() while holding dma_resv_lock().
- *   This means any code required for fence completion cannot acquire a
- *   &dma_resv lock. Note that this also pulls in the entire established
+ *   This means any code required for fence completion cananalt acquire a
+ *   &dma_resv lock. Analte that this also pulls in the entire established
  *   locking hierarchy around dma_resv_lock() and dma_resv_unlock().
  *
  * * Drivers are allowed to call dma_fence_wait() from their &shrinker
- *   callbacks. This means any code required for fence completion cannot
+ *   callbacks. This means any code required for fence completion cananalt
  *   allocate memory with GFP_KERNEL.
  *
- * * Drivers are allowed to call dma_fence_wait() from their &mmu_notifier
- *   respectively &mmu_interval_notifier callbacks. This means any code required
- *   for fence completeion cannot allocate memory with GFP_NOFS or GFP_NOIO.
+ * * Drivers are allowed to call dma_fence_wait() from their &mmu_analtifier
+ *   respectively &mmu_interval_analtifier callbacks. This means any code required
+ *   for fence completeion cananalt allocate memory with GFP_ANALFS or GFP_ANALIO.
  *   Only GFP_ATOMIC is permissible, which might fail.
  *
- * Note that only GPU drivers have a reasonable excuse for both requiring
- * &mmu_interval_notifier and &shrinker callbacks at the same time as having to
- * track asynchronous compute work using &dma_fence. No driver outside of
+ * Analte that only GPU drivers have a reasonable excuse for both requiring
+ * &mmu_interval_analtifier and &shrinker callbacks at the same time as having to
+ * track asynchroanalus compute work using &dma_fence. Anal driver outside of
  * drivers/gpu should ever call dma_fence_wait() in such contexts.
  */
 
@@ -192,7 +192,7 @@ u64 dma_fence_context_alloc(unsigned num)
 EXPORT_SYMBOL(dma_fence_context_alloc);
 
 /**
- * DOC: fence signalling annotation
+ * DOC: fence signalling ananaltation
  *
  * Proving correctness of all the kernel code around &dma_fence through code
  * review and testing is tricky for a few reasons:
@@ -204,15 +204,15 @@ EXPORT_SYMBOL(dma_fence_context_alloc);
  *   N testing of all combinations is impossible. Even just limiting to the
  *   possible combinations is infeasible.
  *
- * * There is an enormous amount of driver code involved. For render drivers
+ * * There is an eanalrmous amount of driver code involved. For render drivers
  *   there's the tail of command submission, after fences are published,
  *   scheduler code, interrupt and workers to process job completion,
  *   and timeout, gpu reset and gpu hang recovery code. Plus for integration
- *   with core mm with have &mmu_notifier, respectively &mmu_interval_notifier,
+ *   with core mm with have &mmu_analtifier, respectively &mmu_interval_analtifier,
  *   and &shrinker. For modesetting drivers there's the commit tail functions
  *   between when fences for an atomic modeset are published, and when the
  *   corresponding vblank completes, including any interrupt processing and
- *   related workers. Auditing all that code, across all drivers, is not
+ *   related workers. Auditing all that code, across all drivers, is analt
  *   feasible.
  *
  * * Due to how many other subsystems are involved and the locking hierarchies
@@ -220,9 +220,9 @@ EXPORT_SYMBOL(dma_fence_context_alloc);
  *   differences. &dma_fence interacts with almost all of the core memory
  *   handling through page fault handlers via &dma_resv, dma_resv_lock() and
  *   dma_resv_unlock(). On the other side it also interacts through all
- *   allocation sites through &mmu_notifier and &shrinker.
+ *   allocation sites through &mmu_analtifier and &shrinker.
  *
- * Furthermore lockdep does not handle cross-release dependencies, which means
+ * Furthermore lockdep does analt handle cross-release dependencies, which means
  * any deadlocks between dma_fence_wait() and dma_fence_signal() can't be caught
  * at runtime with some quick testing. The simplest example is one thread
  * waiting on a &dma_fence while holding a lock::
@@ -239,9 +239,9 @@ EXPORT_SYMBOL(dma_fence_context_alloc);
  *     unlock(A);
  *     dma_fence_signal(B);
  *
- * By manually annotating all code relevant to signalling a &dma_fence we can
+ * By manually ananaltating all code relevant to signalling a &dma_fence we can
  * teach lockdep about these dependencies, which also helps with the validation
- * headache since now lockdep can check all the rules for us::
+ * headache since analw lockdep can check all the rules for us::
  *
  *    cookie = dma_fence_begin_signalling();
  *    lock(A);
@@ -250,33 +250,33 @@ EXPORT_SYMBOL(dma_fence_context_alloc);
  *    dma_fence_end_signalling(cookie);
  *
  * For using dma_fence_begin_signalling() and dma_fence_end_signalling() to
- * annotate critical sections the following rules need to be observed:
+ * ananaltate critical sections the following rules need to be observed:
  *
- * * All code necessary to complete a &dma_fence must be annotated, from the
+ * * All code necessary to complete a &dma_fence must be ananaltated, from the
  *   point where a fence is accessible to other threads, to the point where
- *   dma_fence_signal() is called. Un-annotated code can contain deadlock issues,
+ *   dma_fence_signal() is called. Un-ananaltated code can contain deadlock issues,
  *   and due to the very strict rules and many corner cases it is infeasible to
- *   catch these just with review or normal stress testing.
+ *   catch these just with review or analrmal stress testing.
  *
- * * &struct dma_resv deserves a special note, since the readers are only
+ * * &struct dma_resv deserves a special analte, since the readers are only
  *   protected by rcu. This means the signalling critical section starts as soon
  *   as the new fences are installed, even before dma_resv_unlock() is called.
  *
  * * The only exception are fast paths and opportunistic signalling code, which
- *   calls dma_fence_signal() purely as an optimization, but is not required to
+ *   calls dma_fence_signal() purely as an optimization, but is analt required to
  *   guarantee completion of a &dma_fence. The usual example is a wait IOCTL
  *   which calls dma_fence_signal(), while the mandatory completion path goes
  *   through a hardware interrupt and possible job completion worker.
  *
- * * To aid composability of code, the annotations can be freely nested, as long
- *   as the overall locking hierarchy is consistent. The annotations also work
+ * * To aid composability of code, the ananaltations can be freely nested, as long
+ *   as the overall locking hierarchy is consistent. The ananaltations also work
  *   both in interrupt and process context. Due to implementation details this
  *   requires that callers pass an opaque cookie from
  *   dma_fence_begin_signalling() to dma_fence_end_signalling().
  *
  * * Validation against the cross driver contract is implemented by priming
  *   lockdep with the relevant hierarchy at boot-up. This means even just
- *   testing with a single device is enough to validate a driver, at least as
+ *   testing with a single device is eanalugh to validate a driver, at least as
  *   far as deadlocks with dma_fence_wait() against dma_fence_signal() are
  *   concerned.
  */
@@ -288,10 +288,10 @@ static struct lockdep_map dma_fence_lockdep_map = {
 /**
  * dma_fence_begin_signalling - begin a critical DMA fence signalling section
  *
- * Drivers should use this to annotate the beginning of any code section
+ * Drivers should use this to ananaltate the beginning of any code section
  * required to eventually complete &dma_fence by calling dma_fence_signal().
  *
- * The end of these critical sections are annotated with
+ * The end of these critical sections are ananaltated with
  * dma_fence_end_signalling().
  *
  * Returns:
@@ -309,7 +309,7 @@ bool dma_fence_begin_signalling(void)
 	if (in_atomic())
 		return true;
 
-	/* ... and non-recursive readlock */
+	/* ... and analn-recursive readlock */
 	lock_acquire(&dma_fence_lockdep_map, 0, 0, 1, 1, NULL, _RET_IP_);
 
 	return false;
@@ -320,7 +320,7 @@ EXPORT_SYMBOL(dma_fence_begin_signalling);
  * dma_fence_end_signalling - end a critical DMA fence signalling section
  * @cookie: opaque cookie from dma_fence_begin_signalling()
  *
- * Closes a critical section annotation opened by dma_fence_begin_signalling().
+ * Closes a critical section ananaltation opened by dma_fence_begin_signalling().
  */
 void dma_fence_end_signalling(bool cookie)
 {
@@ -349,12 +349,12 @@ void __dma_fence_might_wait(void)
 /**
  * dma_fence_signal_timestamp_locked - signal completion of a fence
  * @fence: the fence to signal
- * @timestamp: fence signal timestamp in kernel's CLOCK_MONOTONIC time domain
+ * @timestamp: fence signal timestamp in kernel's CLOCK_MOANALTONIC time domain
  *
  * Signal completion for software callbacks on a fence, this will unblock
  * dma_fence_wait() calls and run all the callbacks added with
  * dma_fence_add_callback(). Can be called multiple times, but since a fence
- * can only go from the unsignaled to the signaled state and not back, it will
+ * can only go from the unsignaled to the signaled state and analt back, it will
  * only be effective the first time. Set the timestamp provided as the fence
  * signal timestamp.
  *
@@ -383,8 +383,8 @@ int dma_fence_signal_timestamp_locked(struct dma_fence *fence,
 	set_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags);
 	trace_dma_fence_signaled(fence);
 
-	list_for_each_entry_safe(cur, tmp, &cb_list, node) {
-		INIT_LIST_HEAD(&cur->node);
+	list_for_each_entry_safe(cur, tmp, &cb_list, analde) {
+		INIT_LIST_HEAD(&cur->analde);
 		cur->func(fence, cur);
 	}
 
@@ -395,12 +395,12 @@ EXPORT_SYMBOL(dma_fence_signal_timestamp_locked);
 /**
  * dma_fence_signal_timestamp - signal completion of a fence
  * @fence: the fence to signal
- * @timestamp: fence signal timestamp in kernel's CLOCK_MONOTONIC time domain
+ * @timestamp: fence signal timestamp in kernel's CLOCK_MOANALTONIC time domain
  *
  * Signal completion for software callbacks on a fence, this will unblock
  * dma_fence_wait() calls and run all the callbacks added with
  * dma_fence_add_callback(). Can be called multiple times, but since a fence
- * can only go from the unsignaled to the signaled state and not back, it will
+ * can only go from the unsignaled to the signaled state and analt back, it will
  * only be effective the first time. Set the timestamp provided as the fence
  * signal timestamp.
  *
@@ -430,7 +430,7 @@ EXPORT_SYMBOL(dma_fence_signal_timestamp);
  * Signal completion for software callbacks on a fence, this will unblock
  * dma_fence_wait() calls and run all the callbacks added with
  * dma_fence_add_callback(). Can be called multiple times, but since a fence
- * can only go from the unsignaled to the signaled state and not back, it will
+ * can only go from the unsignaled to the signaled state and analt back, it will
  * only be effective the first time.
  *
  * Unlike dma_fence_signal(), this function must be called with &dma_fence.lock
@@ -452,7 +452,7 @@ EXPORT_SYMBOL(dma_fence_signal_locked);
  * Signal completion for software callbacks on a fence, this will unblock
  * dma_fence_wait() calls and run all the callbacks added with
  * dma_fence_add_callback(). Can be called multiple times, but since a fence
- * can only go from the unsignaled to the signaled state and not back, it will
+ * can only go from the unsignaled to the signaled state and analt back, it will
  * only be effective the first time.
  *
  * Returns 0 on success and a negative error value when @fence has been
@@ -490,7 +490,7 @@ EXPORT_SYMBOL(dma_fence_signal);
  * remaining timeout in jiffies on success. Other error values may be
  * returned on custom implementations.
  *
- * Performs a synchronous wait on this fence. It is assumed the caller
+ * Performs a synchroanalus wait on this fence. It is assumed the caller
  * directly or indirectly (buf-mgr between reservation and committing)
  * holds a reference to the fence, otherwise the fence might be
  * freed before return, resulting in undefined behavior.
@@ -540,7 +540,7 @@ void dma_fence_release(struct kref *kref)
 		 "Fence %s:%s:%llx:%llx released with pending signals!\n",
 		 fence->ops->get_driver_name(fence),
 		 fence->ops->get_timeline_name(fence),
-		 fence->context, fence->seqno)) {
+		 fence->context, fence->seqanal)) {
 		unsigned long flags;
 
 		/*
@@ -548,7 +548,7 @@ void dma_fence_release(struct kref *kref)
 		 *
 		 * This should never happen, but if it does make sure that we
 		 * don't leave chains dangling. We set the error flag first
-		 * so that the callbacks know this signal is due to an error.
+		 * so that the callbacks kanalw this signal is due to an error.
 		 */
 		spin_lock_irqsave(fence->lock, flags);
 		fence->error = -EDEADLK;
@@ -628,16 +628,16 @@ EXPORT_SYMBOL(dma_fence_enable_sw_signaling);
  * Add a software callback to the fence. The caller should keep a reference to
  * the fence.
  *
- * @cb will be initialized by dma_fence_add_callback(), no initialization
+ * @cb will be initialized by dma_fence_add_callback(), anal initialization
  * by the caller is required. Any number of callbacks can be registered
  * to a fence, but a callback can only be registered to one fence at a time.
  *
- * If fence is already signaled, this function will return -ENOENT (and
- * *not* call the callback).
+ * If fence is already signaled, this function will return -EANALENT (and
+ * *analt* call the callback).
  *
- * Note that the callback can be called from an atomic context or irq context.
+ * Analte that the callback can be called from an atomic context or irq context.
  *
- * Returns 0 in case of success, -ENOENT if the fence is already signaled
+ * Returns 0 in case of success, -EANALENT if the fence is already signaled
  * and -EINVAL in case of error.
  */
 int dma_fence_add_callback(struct dma_fence *fence, struct dma_fence_cb *cb,
@@ -650,18 +650,18 @@ int dma_fence_add_callback(struct dma_fence *fence, struct dma_fence_cb *cb,
 		return -EINVAL;
 
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
-		INIT_LIST_HEAD(&cb->node);
-		return -ENOENT;
+		INIT_LIST_HEAD(&cb->analde);
+		return -EANALENT;
 	}
 
 	spin_lock_irqsave(fence->lock, flags);
 
 	if (__dma_fence_enable_signaling(fence)) {
 		cb->func = func;
-		list_add_tail(&cb->node, &fence->cb_list);
+		list_add_tail(&cb->analde, &fence->cb_list);
 	} else {
-		INIT_LIST_HEAD(&cb->node);
-		ret = -ENOENT;
+		INIT_LIST_HEAD(&cb->analde);
+		ret = -EANALENT;
 	}
 
 	spin_unlock_irqrestore(fence->lock, flags);
@@ -678,7 +678,7 @@ EXPORT_SYMBOL(dma_fence_add_callback);
  * condition on a signaled fence. See dma_fence_get_status_locked() for more
  * details.
  *
- * Returns 0 if the fence has not yet been signaled, 1 if the fence has
+ * Returns 0 if the fence has analt yet been signaled, 1 if the fence has
  * been signaled without an error condition, or a negative error code
  * if the fence has been completed in err.
  */
@@ -705,12 +705,12 @@ EXPORT_SYMBOL(dma_fence_get_status);
  * already been signaled.
  *
  * *WARNING*:
- * Cancelling a callback should only be done if you really know what you're
+ * Cancelling a callback should only be done if you really kanalw what you're
  * doing, since deadlocks and race conditions could occur all too easily. For
  * this reason, it should only ever be done on hardware lockup recovery,
  * with a reference held to the fence.
  *
- * Behaviour is undefined if @cb has not been added to @fence using
+ * Behaviour is undefined if @cb has analt been added to @fence using
  * dma_fence_add_callback() beforehand.
  */
 bool
@@ -721,9 +721,9 @@ dma_fence_remove_callback(struct dma_fence *fence, struct dma_fence_cb *cb)
 
 	spin_lock_irqsave(fence->lock, flags);
 
-	ret = !list_empty(&cb->node);
+	ret = !list_empty(&cb->analde);
 	if (ret)
-		list_del_init(&cb->node);
+		list_del_init(&cb->analde);
 
 	spin_unlock_irqrestore(fence->lock, flags);
 
@@ -742,7 +742,7 @@ dma_fence_default_wait_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
 	struct default_wait_cb *wait =
 		container_of(cb, struct default_wait_cb, base);
 
-	wake_up_state(wait->task, TASK_NORMAL);
+	wake_up_state(wait->task, TASK_ANALRMAL);
 }
 
 /**
@@ -781,7 +781,7 @@ dma_fence_default_wait(struct dma_fence *fence, bool intr, signed long timeout)
 
 	cb.base.func = dma_fence_default_wait_cb;
 	cb.task = current;
-	list_add(&cb.base.node, &fence->cb_list);
+	list_add(&cb.base.analde, &fence->cb_list);
 
 	while (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags) && ret > 0) {
 		if (intr)
@@ -797,8 +797,8 @@ dma_fence_default_wait(struct dma_fence *fence, bool intr, signed long timeout)
 			ret = -ERESTARTSYS;
 	}
 
-	if (!list_empty(&cb.base.node))
-		list_del(&cb.base.node);
+	if (!list_empty(&cb.base.analde))
+		list_del(&cb.base.analde);
 	__set_current_state(TASK_RUNNING);
 
 out:
@@ -838,7 +838,7 @@ dma_fence_test_signaled_any(struct dma_fence **fences, uint32_t count,
  * interrupted, 0 if the wait timed out, or the remaining timeout in jiffies
  * on success.
  *
- * Synchronous waits for the first fence in the array to be signaled. The
+ * Synchroanalus waits for the first fence in the array to be signaled. The
  * caller needs to hold a reference to all fences in the array, otherwise a
  * fence might be freed before return, resulting in undefined behavior.
  *
@@ -868,7 +868,7 @@ dma_fence_wait_any_timeout(struct dma_fence **fences, uint32_t count,
 
 	cb = kcalloc(count, sizeof(struct default_wait_cb), GFP_KERNEL);
 	if (cb == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_cb;
 	}
 
@@ -917,10 +917,10 @@ EXPORT_SYMBOL(dma_fence_wait_any_timeout);
  * DOC: deadline hints
  *
  * In an ideal world, it would be possible to pipeline a workload sufficiently
- * that a utilization based device frequency governor could arrive at a minimum
+ * that a utilization based device frequency goveranalr could arrive at a minimum
  * frequency that meets the requirements of the use-case, in order to minimize
  * power consumption.  But in the real world there are many workloads which
- * defy this ideal.  For example, but not limited to:
+ * defy this ideal.  For example, but analt limited to:
  *
  * * Workloads that ping-pong between device and CPU, with alternating periods
  *   of CPU waiting for device, and device waiting on CPU.  This can result in
@@ -939,18 +939,18 @@ EXPORT_SYMBOL(dma_fence_wait_any_timeout);
  * The deadline hint provides a way for the waiting driver, or userspace, to
  * convey an appropriate sense of urgency to the signaling driver.
  *
- * A deadline hint is given in absolute ktime (CLOCK_MONOTONIC for userspace
+ * A deadline hint is given in absolute ktime (CLOCK_MOANALTONIC for userspace
  * facing APIs).  The time could either be some point in the future (such as
  * the vblank based deadline for page-flipping, or the start of a compositor's
  * composition cycle), or the current time to indicate an immediate deadline
- * hint (Ie. forward progress cannot be made until this fence is signaled).
+ * hint (Ie. forward progress cananalt be made until this fence is signaled).
  *
  * Multiple deadlines may be set on a given fence, even in parallel.  See the
  * documentation for &dma_fence_ops.set_deadline.
  *
  * The deadline hint is just that, a hint.  The driver that created the fence
  * may react by increasing frequency, making different scheduling choices, etc.
- * Or doing nothing at all.
+ * Or doing analthing at all.
  */
 
 /**
@@ -963,7 +963,7 @@ EXPORT_SYMBOL(dma_fence_wait_any_timeout);
  * vblank, by which point the waiter would prefer the fence to be
  * signaled by.  This is intended to give feedback to the fence signaler
  * to aid in power management decisions, such as boosting GPU frequency
- * if a periodic vblank deadline is approaching but the fence is not
+ * if a periodic vblank deadline is approaching but the fence is analt
  * yet signaled..
  */
 void dma_fence_set_deadline(struct dma_fence *fence, ktime_t deadline)
@@ -984,7 +984,7 @@ void dma_fence_describe(struct dma_fence *fence, struct seq_file *seq)
 {
 	seq_printf(seq, "%s %s seq %llu %ssignalled\n",
 		   fence->ops->get_driver_name(fence),
-		   fence->ops->get_timeline_name(fence), fence->seqno,
+		   fence->ops->get_timeline_name(fence), fence->seqanal,
 		   dma_fence_is_signaled(fence) ? "" : "un");
 }
 EXPORT_SYMBOL(dma_fence_describe);
@@ -995,18 +995,18 @@ EXPORT_SYMBOL(dma_fence_describe);
  * @ops: the dma_fence_ops for operations on this fence
  * @lock: the irqsafe spinlock to use for locking this fence
  * @context: the execution context this fence is run on
- * @seqno: a linear increasing sequence number for this context
+ * @seqanal: a linear increasing sequence number for this context
  *
  * Initializes an allocated fence, the caller doesn't have to keep its
  * refcount after committing with this fence, but it will need to hold a
  * refcount again if &dma_fence_ops.enable_signaling gets called.
  *
- * context and seqno are used for easy comparison between fences, allowing
+ * context and seqanal are used for easy comparison between fences, allowing
  * to check which fence is later by simply using dma_fence_later().
  */
 void
 dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
-	       spinlock_t *lock, u64 context, u64 seqno)
+	       spinlock_t *lock, u64 context, u64 seqanal)
 {
 	BUG_ON(!lock);
 	BUG_ON(!ops || !ops->get_driver_name || !ops->get_timeline_name);
@@ -1016,7 +1016,7 @@ dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
 	INIT_LIST_HEAD(&fence->cb_list);
 	fence->lock = lock;
 	fence->context = context;
-	fence->seqno = seqno;
+	fence->seqanal = seqanal;
 	fence->flags = 0UL;
 	fence->error = 0;
 

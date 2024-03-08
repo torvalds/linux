@@ -20,7 +20,7 @@
 #define INTERSIL_INT_DISABLE    0x00
 
 /* bit 5 */
-#define INTERSIL_MODE_NORMAL     0x00
+#define INTERSIL_MODE_ANALRMAL     0x00
 #define INTERSIL_MODE_TEST       0x20
 
 #define INTERSIL_HZ_100_MASK	 0x02

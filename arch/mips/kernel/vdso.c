@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techanallogies
  * Author: Alex Smith <alex.smith@imgtec.com>
  */
 
@@ -32,10 +32,10 @@ struct vdso_data *vdso_data = mips_vdso_data.data;
  * what we map and where within the area they are mapped is determined at
  * runtime.
  */
-static struct page *no_pages[] = { NULL };
+static struct page *anal_pages[] = { NULL };
 static struct vm_special_mapping vdso_vvar_mapping = {
 	.name = "[vvar]",
-	.pages = no_pages,
+	.pages = anal_pages,
 };
 
 static void __init init_vdso_image(struct mips_vdso_image *image)
@@ -122,7 +122,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	size = vvar_size + image->size;
 
 	/*
-	 * Find a region that's large enough for us to perform the
+	 * Find a region that's large eanalugh for us to perform the
 	 * colour-matching alignment below.
 	 */
 	if (cpu_has_dc_aliases)
@@ -162,7 +162,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		gic_pfn = PFN_DOWN(__pa(gic_base));
 
 		ret = io_remap_pfn_range(vma, base, gic_pfn, gic_size,
-					 pgprot_noncached(vma->vm_page_prot));
+					 pgprot_analncached(vma->vm_page_prot));
 		if (ret)
 			goto out;
 	}

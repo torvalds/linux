@@ -55,7 +55,7 @@ patternProperties:
             - description: size
         description:
           Boot partition use a different layout where the 4 bytes of spare
-          data are not protected by ECC. Use this to declare these special
+          data are analt protected by ECC. Use this to declare these special
           partitions by defining first the offset and then the size.
 
           It's in the form of <offset1 size1 offset2 size2 offset3 ...>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-analte */
 /*
  * Driver for Broadcom MPI3 Storage Controllers
  *
@@ -17,23 +17,23 @@
 
 #define MPI3MR_APP_DEFAULT_TIMEOUT		(60) /*seconds*/
 
-#define MPI3MR_BSG_ADPTYPE_UNKNOWN		0
+#define MPI3MR_BSG_ADPTYPE_UNKANALWN		0
 #define MPI3MR_BSG_ADPTYPE_AVGFAMILY		1
 
-#define MPI3MR_BSG_ADPSTATE_UNKNOWN		0
+#define MPI3MR_BSG_ADPSTATE_UNKANALWN		0
 #define MPI3MR_BSG_ADPSTATE_OPERATIONAL		1
 #define MPI3MR_BSG_ADPSTATE_FAULT		2
 #define MPI3MR_BSG_ADPSTATE_IN_RESET		3
 #define MPI3MR_BSG_ADPSTATE_UNRECOVERABLE	4
 
-#define MPI3MR_BSG_ADPRESET_UNKNOWN		0
+#define MPI3MR_BSG_ADPRESET_UNKANALWN		0
 #define MPI3MR_BSG_ADPRESET_SOFT		1
 #define MPI3MR_BSG_ADPRESET_DIAG_FAULT		2
 
 #define MPI3MR_BSG_LOGDATA_MAX_ENTRIES		400
 #define MPI3MR_BSG_LOGDATA_ENTRY_HEADER_SZ	4
 
-#define MPI3MR_DRVBSG_OPCODE_UNKNOWN		0
+#define MPI3MR_DRVBSG_OPCODE_UNKANALWN		0
 #define MPI3MR_DRVBSG_OPCODE_ADPINFO		1
 #define MPI3MR_DRVBSG_OPCODE_ADPRESET		2
 #define MPI3MR_DRVBSG_OPCODE_ALLTGTDEVINFO	4
@@ -47,7 +47,7 @@
 #define MPI3MR_DRVBSG_OPCODE_REFRESH_HDB_TRIGGERS	12
 
 
-#define MPI3MR_BSG_BUFTYPE_UNKNOWN		0
+#define MPI3MR_BSG_BUFTYPE_UNKANALWN		0
 #define MPI3MR_BSG_BUFTYPE_RAIDMGMT_CMD		1
 #define MPI3MR_BSG_BUFTYPE_RAIDMGMT_RESP	2
 #define MPI3MR_BSG_BUFTYPE_DATA_IN		3
@@ -56,22 +56,22 @@
 #define MPI3MR_BSG_BUFTYPE_ERR_RESPONSE		6
 #define MPI3MR_BSG_BUFTYPE_MPI_REQUEST		0xFE
 
-#define MPI3MR_BSG_MPI_REPLY_BUFTYPE_UNKNOWN	0
+#define MPI3MR_BSG_MPI_REPLY_BUFTYPE_UNKANALWN	0
 #define MPI3MR_BSG_MPI_REPLY_BUFTYPE_STATUS	1
 #define MPI3MR_BSG_MPI_REPLY_BUFTYPE_ADDRESS	2
 
-#define MPI3MR_HDB_BUFTYPE_UNKNOWN		0
+#define MPI3MR_HDB_BUFTYPE_UNKANALWN		0
 #define MPI3MR_HDB_BUFTYPE_TRACE		1
 #define MPI3MR_HDB_BUFTYPE_FIRMWARE		2
 #define MPI3MR_HDB_BUFTYPE_RESERVED		3
 
-#define MPI3MR_HDB_BUFSTATUS_UNKNOWN		0
-#define MPI3MR_HDB_BUFSTATUS_NOT_ALLOCATED	1
+#define MPI3MR_HDB_BUFSTATUS_UNKANALWN		0
+#define MPI3MR_HDB_BUFSTATUS_ANALT_ALLOCATED	1
 #define MPI3MR_HDB_BUFSTATUS_POSTED_UNPAUSED	2
 #define MPI3MR_HDB_BUFSTATUS_POSTED_PAUSED	3
 #define MPI3MR_HDB_BUFSTATUS_RELEASED		4
 
-#define MPI3MR_HDB_TRIGGER_TYPE_UNKNOWN		0
+#define MPI3MR_HDB_TRIGGER_TYPE_UNKANALWN		0
 #define MPI3MR_HDB_TRIGGER_TYPE_DIAGFAULT	1
 #define MPI3MR_HDB_TRIGGER_TYPE_ELEMENT		2
 #define MPI3MR_HDB_TRIGGER_TYPE_MASTER		3
@@ -291,7 +291,7 @@ struct mpi3mr_hdb_entry {
 /**
  * struct mpi3mr_bsg_in_hdb_status - This structure contains
  * return data for the BSG request to retrieve the number of host
- * diagnostic buffers supported by the driver and their current
+ * diaganalstic buffers supported by the driver and their current
  * status and additional status specific data if any in forms of
  * multiple hdb entries.
  *
@@ -310,7 +310,7 @@ struct mpi3mr_bsg_in_hdb_status {
 };
 
 /**
- * struct mpi3mr_bsg_out_repost_hdb - Repost host diagnostic
+ * struct mpi3mr_bsg_out_repost_hdb - Repost host diaganalstic
  * buffer request payload data to the driver.
  *
  * @buf_type: Buffer type
@@ -324,7 +324,7 @@ struct mpi3mr_bsg_out_repost_hdb {
 };
 
 /**
- * struct mpi3mr_bsg_out_upload_hdb - Upload host diagnostic
+ * struct mpi3mr_bsg_out_upload_hdb - Upload host diaganalstic
  * buffer request payload data to the driver.
  *
  * @buf_type: Buffer type
@@ -343,7 +343,7 @@ struct mpi3mr_bsg_out_upload_hdb {
 
 /**
  * struct mpi3mr_bsg_out_refresh_hdb_triggers - Refresh host
- * diagnostic buffer triggers request payload data to the driver.
+ * diaganalstic buffer triggers request payload data to the driver.
  *
  * @page_type: Page type
  * @rsvd1: Reserved
@@ -513,7 +513,7 @@ struct mpi3_scsi_task_mgmt_request {
 	__u8	lun[8];
 };
 
-#define MPI3_SCSITASKMGMT_MSGFLAGS_DO_NOT_SEND_TASK_IU      (0x08)
+#define MPI3_SCSITASKMGMT_MSGFLAGS_DO_ANALT_SEND_TASK_IU      (0x08)
 #define MPI3_SCSITASKMGMT_TASKTYPE_ABORT_TASK               (0x01)
 #define MPI3_SCSITASKMGMT_TASKTYPE_ABORT_TASK_SET           (0x02)
 #define MPI3_SCSITASKMGMT_TASKTYPE_TARGET_RESET             (0x03)
@@ -541,7 +541,7 @@ struct mpi3_scsi_task_mgmt_reply {
 
 #define MPI3_SCSITASKMGMT_RSPCODE_TM_COMPLETE                (0x00)
 #define MPI3_SCSITASKMGMT_RSPCODE_INVALID_FRAME              (0x02)
-#define MPI3_SCSITASKMGMT_RSPCODE_TM_FUNCTION_NOT_SUPPORTED  (0x04)
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_FUNCTION_ANALT_SUPPORTED  (0x04)
 #define MPI3_SCSITASKMGMT_RSPCODE_TM_FAILED                  (0x05)
 #define MPI3_SCSITASKMGMT_RSPCODE_TM_SUCCEEDED               (0x08)
 #define MPI3_SCSITASKMGMT_RSPCODE_TM_INVALID_LUN             (0x09)
@@ -550,7 +550,7 @@ struct mpi3_scsi_task_mgmt_reply {
 #define MPI3_SCSITASKMGMT_RSPCODE_TM_NVME_DENIED             (0x81)
 
 /* MPI3: PEL related definitions */
-#define MPI3_PEL_LOCALE_FLAGS_NON_BLOCKING_BOOT_EVENT   (0x0200)
+#define MPI3_PEL_LOCALE_FLAGS_ANALN_BLOCKING_BOOT_EVENT   (0x0200)
 #define MPI3_PEL_LOCALE_FLAGS_BLOCKING_BOOT_EVENT       (0x0100)
 #define MPI3_PEL_LOCALE_FLAGS_PCIE                      (0x0080)
 #define MPI3_PEL_LOCALE_FLAGS_CONFIGURATION             (0x0040)

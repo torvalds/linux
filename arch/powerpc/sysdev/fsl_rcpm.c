@@ -10,7 +10,7 @@
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/of_address.h>
 #include <linux/export.h>
 
@@ -97,7 +97,7 @@ static void rcpm_v1_cpu_enter_state(int cpu, int state)
 		setbits32(&rcpm_v1_regs->cnapcr, mask);
 		break;
 	default:
-		pr_warn("Unknown cpu PM state (%d)\n", state);
+		pr_warn("Unkanalwn cpu PM state (%d)\n", state);
 		break;
 	}
 }
@@ -122,7 +122,7 @@ static void rcpm_v2_cpu_enter_state(int cpu, int state)
 		setbits32(&rcpm_v2_regs->pcph30setr, mask);
 		break;
 	default:
-		pr_warn("Unknown cpu PM state (%d)\n", state);
+		pr_warn("Unkanalwn cpu PM state (%d)\n", state);
 	}
 }
 
@@ -174,7 +174,7 @@ static void rcpm_v1_cpu_exit_state(int cpu, int state)
 		clrbits32(&rcpm_v1_regs->cnapcr, mask);
 		break;
 	default:
-		pr_warn("Unknown cpu PM state (%d)\n", state);
+		pr_warn("Unkanalwn cpu PM state (%d)\n", state);
 		break;
 	}
 }
@@ -204,7 +204,7 @@ static void rcpm_v2_cpu_exit_state(int cpu, int state)
 		setbits32(&rcpm_v2_regs->pcph30clrr, mask);
 		break;
 	default:
-		pr_warn("Unknown cpu PM state (%d)\n", state);
+		pr_warn("Unkanalwn cpu PM state (%d)\n", state);
 	}
 }
 
@@ -233,7 +233,7 @@ static int rcpm_v1_plat_enter_state(int state)
 		}
 		break;
 	default:
-		pr_warn("Unknown platform PM state (%d)", state);
+		pr_warn("Unkanalwn platform PM state (%d)", state);
 		ret = -EINVAL;
 	}
 
@@ -264,7 +264,7 @@ static int rcpm_v2_plat_enter_state(int state)
 		}
 		break;
 	default:
-		pr_warn("Unknown platform PM state (%d)\n", state);
+		pr_warn("Unkanalwn platform PM state (%d)\n", state);
 		ret = -EINVAL;
 	}
 
@@ -355,19 +355,19 @@ static const struct of_device_id rcpm_matches[] = {
 
 int __init fsl_rcpm_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const struct of_device_id *match;
 	void __iomem *base;
 
-	np = of_find_matching_node_and_match(NULL, rcpm_matches, &match);
+	np = of_find_matching_analde_and_match(NULL, rcpm_matches, &match);
 	if (!np)
 		return 0;
 
 	base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!base) {
 		pr_err("of_iomap() error.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rcpm_v1_regs = base;

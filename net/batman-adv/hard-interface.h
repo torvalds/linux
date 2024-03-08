@@ -12,7 +12,7 @@
 #include <linux/compiler.h>
 #include <linux/kref.h>
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/rcupdate.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
@@ -22,10 +22,10 @@
  */
 enum batadv_hard_if_state {
 	/**
-	 * @BATADV_IF_NOT_IN_USE: interface is not used as slave interface of a
+	 * @BATADV_IF_ANALT_IN_USE: interface is analt used as slave interface of a
 	 * batman-adv soft interface
 	 */
-	BATADV_IF_NOT_IN_USE,
+	BATADV_IF_ANALT_IN_USE,
 
 	/**
 	 * @BATADV_IF_TO_BE_REMOVED: interface will be removed from soft
@@ -51,10 +51,10 @@ enum batadv_hard_if_bcast {
 	BATADV_HARDIF_BCAST_OK = 0,
 
 	/**
-	 * @BATADV_HARDIF_BCAST_NORECIPIENT: Broadcast not needed, there is no
+	 * @BATADV_HARDIF_BCAST_ANALRECIPIENT: Broadcast analt needed, there is anal
 	 *  recipient
 	 */
-	BATADV_HARDIF_BCAST_NORECIPIENT,
+	BATADV_HARDIF_BCAST_ANALRECIPIENT,
 
 	/**
 	 * @BATADV_HARDIF_BCAST_DUPFWD: There is just the neighbor we got it
@@ -66,7 +66,7 @@ enum batadv_hard_if_bcast {
 	BATADV_HARDIF_BCAST_DUPORIG,
 };
 
-extern struct notifier_block batadv_hard_if_notifier;
+extern struct analtifier_block batadv_hard_if_analtifier;
 
 struct net_device *batadv_get_real_netdev(struct net_device *net_device);
 bool batadv_is_cfg80211_hardif(struct batadv_hard_iface *hard_iface);
@@ -79,7 +79,7 @@ void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface);
 int batadv_hardif_min_mtu(struct net_device *soft_iface);
 void batadv_update_min_mtu(struct net_device *soft_iface);
 void batadv_hardif_release(struct kref *ref);
-int batadv_hardif_no_broadcast(struct batadv_hard_iface *if_outgoing,
+int batadv_hardif_anal_broadcast(struct batadv_hard_iface *if_outgoing,
 			       u8 *orig_addr, u8 *orig_neigh);
 
 /**

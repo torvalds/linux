@@ -29,7 +29,7 @@ Required properties:
 
 Optional properties:
 
-- broken-idle: boolean to set when the Idle mode is not supported by the
+- broken-idle: boolean to set when the Idle mode is analt supported by the
   hardware.
 
 Examples:

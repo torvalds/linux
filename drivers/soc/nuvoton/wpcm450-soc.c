@@ -64,19 +64,19 @@ static int __init wpcm450_soc_init(void)
 		return ret;
 
 	if (PDID_CHIP(pdid) != CHIP_WPCM450) {
-		pr_warn("Unknown chip ID in GCR.PDID: 0x%06x\n", PDID_CHIP(pdid));
-		return -ENODEV;
+		pr_warn("Unkanalwn chip ID in GCR.PDID: 0x%06x\n", PDID_CHIP(pdid));
+		return -EANALDEV;
 	}
 
 	revision = get_revision(PDID_REV(pdid));
 	if (!revision) {
-		pr_warn("Unknown chip revision in GCR.PDID: 0x%02x\n", PDID_REV(pdid));
-		return -ENODEV;
+		pr_warn("Unkanalwn chip revision in GCR.PDID: 0x%02x\n", PDID_REV(pdid));
+		return -EANALDEV;
 	}
 
 	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
 	if (!attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	attr->family = "Nuvoton NPCM";
 	attr->soc_id = "WPCM450";
@@ -84,7 +84,7 @@ static int __init wpcm450_soc_init(void)
 	soc = soc_device_register(attr);
 	if (IS_ERR(soc)) {
 		kfree(attr);
-		pr_warn("Could not register SoC device\n");
+		pr_warn("Could analt register SoC device\n");
 		return PTR_ERR(soc);
 	}
 

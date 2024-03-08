@@ -2,7 +2,7 @@ What:		/sys/fs/ocfs2/
 Date:		April 2008
 Contact:	ocfs2-devel@lists.linux.dev
 Description:
-		The /sys/fs/ocfs2 directory contains knobs used by the
+		The /sys/fs/ocfs2 directory contains kanalbs used by the
 		ocfs2-tools to interact with the filesystem.
 
 What:		/sys/fs/ocfs2/max_locking_protocol
@@ -12,16 +12,16 @@ Description:
 		The /sys/fs/ocfs2/max_locking_protocol file displays version
 		of ocfs2 locking supported by the filesystem.  This version
 		covers how ocfs2 uses distributed locking between cluster
-		nodes.
+		analdes.
 
-		The protocol version has a major and minor number.  Two
-		cluster nodes can interoperate if they have an identical
-		major number and an overlapping minor number - thus,
-		a node with version 1.10 can interoperate with a node
+		The protocol version has a major and mianalr number.  Two
+		cluster analdes can interoperate if they have an identical
+		major number and an overlapping mianalr number - thus,
+		a analde with version 1.10 can interoperate with a analde
 		sporting version 1.8, as long as both use the 1.8 protocol.
 
 		Reading from this file returns a single line, the major
-		number and minor number joined by a period, eg "1.10".
+		number and mianalr number joined by a period, eg "1.10".
 
 		This file is read-only.  The value is compiled into the
 		driver.

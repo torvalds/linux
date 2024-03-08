@@ -31,6 +31,6 @@
 &usdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };

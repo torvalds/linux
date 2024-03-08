@@ -24,7 +24,7 @@ enum {
  * @irq:        clockevent and clocksource interrupt resources
  * @cmp_off:    if set - it specifies the compare register used for clockevent
  *
- * Note: if the compare register is specified, the driver will use the bottom
+ * Analte: if the compare register is specified, the driver will use the bottom
  * clock half for both clocksource and clockevent and the compare register
  * to generate event irqs. The user must supply the correct compare register
  * interrupt number.

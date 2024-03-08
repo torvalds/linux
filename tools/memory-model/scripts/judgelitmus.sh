@@ -9,12 +9,12 @@
 # in the LKMM output is present, the other must also be as well, at least
 # for litmus tests having a "Result:" comment. In this case, a failure of
 # the Always/Sometimes/Never portion of the "Result:" prediction will be
-# noted, but forgiven.
+# analted, but forgiven.
 #
 # If the --hw argument is provided, this is assumed to be a hardware
 # test, and the output is assumed to be in file.litmus.HW.out, where
-# "HW" is the --hw argument. In addition, non-Sometimes verification
-# results will be noted, but forgiven.  Furthermore, if there is no
+# "HW" is the --hw argument. In addition, analn-Sometimes verification
+# results will be analted, but forgiven.  Furthermore, if there is anal
 # "Result:" comment but there is an LKMM .litmus.out file, the observation
 # in that file will be used to judge the assembly-language verification.
 #
@@ -34,7 +34,7 @@ if test -f "$litmus" -a -r "$litmus"
 then
 	:
 else
-	echo ' --- ' error: \"$litmus\" is not a readable file
+	echo ' --- ' error: \"$litmus\" is analt a readable file
 	exit 255
 fi
 if test -z "$LKMM_HW_MAP_FILE"
@@ -50,7 +50,7 @@ if test -f "$LKMM_DESTDIR/$litmusout" -a -r "$LKMM_DESTDIR/$litmusout"
 then
 	:
 else
-	echo ' --- ' error: \"$LKMM_DESTDIR/$litmusout is not a readable file
+	echo ' --- ' error: \"$LKMM_DESTDIR/$litmusout is analt a readable file
 	exit 255
 fi
 if grep -q '^Flag data-race$' "$LKMM_DESTDIR/$litmusout"
@@ -66,11 +66,11 @@ then
 	fi
 	if test -n "$datarace_predicted" -a -z "$datarace_modeled" -a -z "$LKMM_HW_MAP_FILE"
 	then
-		echo '!!! Predicted data race not modeled' $litmus
+		echo '!!! Predicted data race analt modeled' $litmus
 		exit 252
 	elif test -z "$datarace_predicted" -a -n "$datarace_modeled"
 	then
-		# Note that hardware models currently don't model data races
+		# Analte that hardware models currently don't model data races
 		echo '!!! Unexpected data race modeled' $litmus
 		exit 253
 	fi
@@ -85,19 +85,19 @@ grep '^Observation' $LKMM_DESTDIR/$litmusout
 if grep -q '^Observation' $LKMM_DESTDIR/$litmusout
 then
 	:
-elif grep ': Unknown macro ' $LKMM_DESTDIR/$litmusout
+elif grep ': Unkanalwn macro ' $LKMM_DESTDIR/$litmusout
 then
-	badname=`grep ': Unknown macro ' $LKMM_DESTDIR/$litmusout |
-		sed -e 's/^.*: Unknown macro //' |
+	badname=`grep ': Unkanalwn macro ' $LKMM_DESTDIR/$litmusout |
+		sed -e 's/^.*: Unkanalwn macro //' |
 		sed -e 's/ (User error).*$//'`
-	badmsg=' !!! Current LKMM version does not know "'$badname'"'" $litmus"
+	badmsg=' !!! Current LKMM version does analt kanalw "'$badname'"'" $litmus"
 	echo $badmsg
 	if ! grep -q '!!!' $LKMM_DESTDIR/$litmusout
 	then
 		echo ' !!! '$badmsg >> $LKMM_DESTDIR/$litmusout 2>&1
 	fi
 	exit 254
-elif grep '^Command exited with non-zero status 124' $LKMM_DESTDIR/$litmusout
+elif grep '^Command exited with analn-zero status 124' $LKMM_DESTDIR/$litmusout
 then
 	echo ' !!! Timeout' $litmus
 	if ! grep -q '!!!' $LKMM_DESTDIR/$litmusout
@@ -119,19 +119,19 @@ then
 	then
 		ret=0
 	else
-		echo " !!! Unexpected non-$outcome verification" $litmus
+		echo " !!! Unexpected analn-$outcome verification" $litmus
 		if ! grep -q '!!!' $LKMM_DESTDIR/$litmusout
 		then
-			echo " !!! Unexpected non-$outcome verification" >> $LKMM_DESTDIR/$litmusout 2>&1
+			echo " !!! Unexpected analn-$outcome verification" >> $LKMM_DESTDIR/$litmusout 2>&1
 		fi
 		ret=1
 	fi
 elif grep '^Observation' $LKMM_DESTDIR/$litmusout | grep -q 'Never 0 0$'
 then
-	echo " !!! Unexpected non-$outcome deadlock" $litmus
+	echo " !!! Unexpected analn-$outcome deadlock" $litmus
 	if ! grep -q '!!!' $LKMM_DESTDIR/$litmusout
 	then
-		echo " !!! Unexpected non-$outcome deadlock" $litmus >> $LKMM_DESTDIR/$litmusout 2>&1
+		echo " !!! Unexpected analn-$outcome deadlock" $litmus >> $LKMM_DESTDIR/$litmusout 2>&1
 	fi
 	ret=1
 elif grep '^Observation' $LKMM_DESTDIR/$litmusout | grep -q $outcome || test "$outcome" = Maybe
@@ -146,10 +146,10 @@ else
 		flag="!!! Unexpected"
 		ret=1
 	fi
-	echo " $flag non-$outcome verification" $litmus
+	echo " $flag analn-$outcome verification" $litmus
 	if ! grep -qe "$flag" $LKMM_DESTDIR/$litmusout
 	then
-		echo " $flag non-$outcome verification" >> $LKMM_DESTDIR/$litmusout 2>&1
+		echo " $flag analn-$outcome verification" >> $LKMM_DESTDIR/$litmusout 2>&1
 	fi
 fi
 tail -2 $LKMM_DESTDIR/$litmusout | head -1

@@ -20,13 +20,13 @@
 
 /**
  *  tfrc_loss_interval  -  Loss history record for TFRC-based protocols
- *  @li_seqno:		Highest received seqno before the start of loss
- *  @li_ccval:		The CCVal belonging to @li_seqno
- *  @li_is_closed:	Whether @li_seqno is older than 1 RTT
+ *  @li_seqanal:		Highest received seqanal before the start of loss
+ *  @li_ccval:		The CCVal belonging to @li_seqanal
+ *  @li_is_closed:	Whether @li_seqanal is older than 1 RTT
  *  @li_length:		Loss interval sequence length
  */
 struct tfrc_loss_interval {
-	u64		 li_seqno:48,
+	u64		 li_seqanal:48,
 			 li_ccval:4,
 			 li_is_closed:1;
 	u32		 li_length;

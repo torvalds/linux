@@ -31,7 +31,7 @@ Deadline Task Scheduling
 
  Fiddling with these settings can result in an unpredictable or even unstable
  system behavior. As for -rt (group) scheduling, it is assumed that root users
- know what they're doing.
+ kanalw what they're doing.
 
 
 1. Overview
@@ -57,16 +57,16 @@ Deadline Task Scheduling
  every time the task wakes up, the scheduler computes a "scheduling deadline"
  consistent with the guarantee (using the CBS[2,3] algorithm). Tasks are then
  scheduled using EDF[1] on these scheduling deadlines (the task with the
- earliest scheduling deadline is selected for execution). Notice that the
+ earliest scheduling deadline is selected for execution). Analtice that the
  task actually receives "runtime" time units within "deadline" if a proper
  "admission control" strategy (see Section "4. Bandwidth management") is used
- (clearly, if the system is overloaded this guarantee cannot be respected).
+ (clearly, if the system is overloaded this guarantee cananalt be respected).
 
  Summing up, the CBS[2,3] algorithm assigns scheduling deadlines to tasks so
  that each task runs for at most its runtime every period, avoiding any
  interference between different tasks (bandwidth isolation), while the EDF[1]
  algorithm selects the task with the earliest scheduling deadline as the one
- to be executed next. Thanks to this feature, tasks that do not strictly comply
+ to be executed next. Thanks to this feature, tasks that do analt strictly comply
  with the "traditional" real-time task model (see Section 3) can effectively
  use the new policy.
 
@@ -105,8 +105,8 @@ Deadline Task Scheduling
     task is descheduled / preempted);
 
   - When the remaining runtime becomes less or equal than 0, the task is
-    said to be "throttled" (also known as "depleted" in real-time literature)
-    and cannot be scheduled until its scheduling deadline. The "replenishment
+    said to be "throttled" (also kanalwn as "depleted" in real-time literature)
+    and cananalt be scheduled until its scheduling deadline. The "replenishment
     time" for this task (see next item) is set to be equal to the current
     value of the scheduling deadline;
 
@@ -145,7 +145,7 @@ Deadline Task Scheduling
               A                |      V
               |              ------------
               |             |   Active   |
-              --------------|     Non    |
+              --------------|     Analn    |
                  (c)        | Contending |
                              ------------
 
@@ -153,21 +153,21 @@ Deadline Task Scheduling
 
   - ActiveContending: if it is ready for execution (or executing);
 
-  - ActiveNonContending: if it just blocked and has not yet surpassed the 0-lag
+  - ActiveAnalnContending: if it just blocked and has analt yet surpassed the 0-lag
     time;
 
   - Inactive: if it is blocked and has surpassed the 0-lag time.
 
  State transitions:
 
-  (a) When a task blocks, it does not become immediately inactive since its
-      bandwidth cannot be immediately reclaimed without breaking the
+  (a) When a task blocks, it does analt become immediately inactive since its
+      bandwidth cananalt be immediately reclaimed without breaking the
       real-time guarantees. It therefore enters a transitional state called
-      ActiveNonContending. The scheduler arms the "inactive timer" to fire at
+      ActiveAnalnContending. The scheduler arms the "inactive timer" to fire at
       the 0-lag time, when the task's bandwidth can be reclaimed without
       breaking the real-time guarantees.
 
-      The 0-lag time for a task entering the ActiveNonContending state is
+      The 0-lag time for a task entering the ActiveAnalnContending state is
       computed as::
 
                         (runtime * dl_period)
@@ -183,8 +183,8 @@ Deadline Task Scheduling
       the task's utilization must be removed from the previous runqueue's active
       utilization and must be added to the new runqueue's active utilization.
       In order to avoid races between a task waking up on a runqueue while the
-      "inactive timer" is running on a different CPU, the "dl_non_contending"
-      flag is used to indicate that a task is not on a runqueue but is active
+      "inactive timer" is running on a different CPU, the "dl_analn_contending"
+      flag is used to indicate that a task is analt on a runqueue but is active
       (so, the flag is set when the task blocks and is cleared when the
       "inactive timer" fires or when the task  wakes up).
 
@@ -198,7 +198,7 @@ Deadline Task Scheduling
  For each runqueue, the algorithm GRUB keeps track of two different bandwidths:
 
   - Active bandwidth (running_bw): this is the sum of the bandwidths of all
-    tasks in active state (i.e., ActiveContending or ActiveNonContending);
+    tasks in active state (i.e., ActiveContending or ActiveAnalnContending);
 
   - Total bandwidth (this_bw): this is the sum of all tasks "belonging" to the
     runqueue, including the tasks in Inactive state.
@@ -224,7 +224,7 @@ Deadline Task Scheduling
     (subjected to RT throttling limits).
 
 
- Let's now see a trivial example of two deadline tasks with runtime equal
+ Let's analw see a trivial example of two deadline tasks with runtime equal
  to 4 and period equal to 8 (i.e., bandwidth equal to 0.5)::
 
          A            Task T1
@@ -261,22 +261,22 @@ Deadline Task Scheduling
 
     Both tasks are ready for execution and therefore in ActiveContending state.
     Suppose Task T1 is the first task to start execution.
-    Since there are no inactive tasks, its runtime is decreased as dq = -1 dt.
+    Since there are anal inactive tasks, its runtime is decreased as dq = -1 dt.
 
   - Time t = 2:
 
     Suppose that task T1 blocks
-    Task T1 therefore enters the ActiveNonContending state. Since its remaining
+    Task T1 therefore enters the ActiveAnalnContending state. Since its remaining
     runtime is equal to 2, its 0-lag time is equal to t = 4.
     Task T2 start execution, with runtime still decreased as dq = -1 dt since
-    there are no inactive tasks.
+    there are anal inactive tasks.
 
   - Time t = 4:
 
     This is the 0-lag time for Task T1. Since it didn't woken up in the
     meantime, it enters the Inactive state. Its bandwidth is removed from
     running_bw.
-    Task T2 continues its execution. However, its runtime is now decreased as
+    Task T2 continues its execution. However, its runtime is analw decreased as
     dq = - 0.5 dt because Uinact = 0.5.
     Task T2 therefore reclaims the bandwidth unused by Task T1.
 
@@ -289,7 +289,7 @@ Deadline Task Scheduling
 2.3 Energy-aware scheduling
 ---------------------------
 
- When cpufreq's schedutil governor is selected, SCHED_DEADLINE implements the
+ When cpufreq's schedutil goveranalr is selected, SCHED_DEADLINE implements the
  GRUB-PA [19] algorithm, reducing the CPU operating frequency to the minimum
  value that still allows to meet the deadlines. This behavior is currently
  implemented only for ARM architectures.
@@ -308,7 +308,7 @@ Deadline Task Scheduling
 
  .. warning::
 
-   This section contains a (not-thorough) summary on classical deadline
+   This section contains a (analt-thorough) summary on classical deadline
    scheduling theory, and how it applies to SCHED_DEADLINE.
    The reader can "safely" skip to Section 4 if only interested in seeing
    how the scheduling policy can be used. Anyway, we strongly recommend
@@ -317,7 +317,7 @@ Deadline Task Scheduling
 
  .. ************************************************************************
 
- There are no limitations on what kind of task can exploit this new
+ There are anal limitations on what kind of task can exploit this new
  scheduling discipline, even if it must be said that it is particularly
  suited for periodic or sporadic real-time tasks that need guarantees on their
  timing behavior, e.g., multimedia, streaming, control applications, etc.
@@ -347,14 +347,14 @@ Deadline Task Scheduling
  If the total utilization U=sum(WCET_i/P_i) is larger than M (with M equal
  to the number of CPUs), then the scheduler is unable to respect all the
  deadlines.
- Note that total utilization is defined as the sum of the utilizations
+ Analte that total utilization is defined as the sum of the utilizations
  WCET_i/P_i over all the real-time tasks in the system. When considering
  multiple real-time tasks, the parameters of the i-th task are indicated
  with the "_i" suffix.
  Moreover, if the total utilization is larger than M, then we risk starving
- non- real-time tasks by real-time tasks.
- If, instead, the total utilization is smaller than M, then non real-time
- tasks will not be starved and the system might be able to respect all the
+ analn- real-time tasks by real-time tasks.
+ If, instead, the total utilization is smaller than M, then analn real-time
+ tasks will analt be starved and the system might be able to respect all the
  deadlines.
  As a matter of fact, in this case it is possible to provide an upper bound
  for tardiness (defined as the maximum between 0 and the difference
@@ -384,20 +384,20 @@ Deadline Task Scheduling
 
 	sum(WCET_i / min{D_i, P_i}) <= 1
 
- It is important to notice that this condition is only sufficient, and not
- necessary: there are task sets that are schedulable, but do not respect the
+ It is important to analtice that this condition is only sufficient, and analt
+ necessary: there are task sets that are schedulable, but do analt respect the
  condition. For example, consider the task set {Task_1,Task_2} composed by
  Task_1=(50ms,50ms,100ms) and Task_2=(10ms,100ms,100ms).
  EDF is clearly able to schedule the two tasks without missing any deadline
  (Task_1 is scheduled as soon as it is released, and finishes just in time
  to respect its deadline; Task_2 is scheduled immediately after Task_1, hence
- its response time cannot be larger than 50ms + 10ms = 60ms) even if
+ its response time cananalt be larger than 50ms + 10ms = 60ms) even if
 
 	50 / min{50,100} + 10 / min{100, 100} = 50 / 50 + 10 / 100 = 1.1
 
  Of course it is possible to test the exact schedulability of tasks with
  D_i != P_i (checking a condition that is both sufficient and necessary),
- but this cannot be done by comparing the total utilization or density with
+ but this cananalt be done by comparing the total utilization or density with
  a constant. Instead, the so called "processor demand" approach can be used,
  computing the total amount of CPU time h(t) needed by all the tasks to
  respect all of their deadlines in a time interval of size t, and comparing
@@ -416,8 +416,8 @@ Deadline Task Scheduling
 3.3 Schedulability Analysis for Multiprocessor Systems
 ------------------------------------------------------
 
- On multiprocessor systems with global EDF scheduling (non partitioned
- systems), a sufficient test for schedulability can not be based on the
+ On multiprocessor systems with global EDF scheduling (analn partitioned
+ systems), a sufficient test for schedulability can analt be based on the
  utilizations or densities: it can be shown that even if D_i = P_i task
  sets with utilizations slightly larger than 1 can miss deadlines regardless
  of the number of CPUs.
@@ -433,31 +433,31 @@ Deadline Task Scheduling
  result, Task_1 can be scheduled only at time t + e, and will finish at
  time t + e + P, after its absolute deadline. The total utilization of the
  task set is U = M · e / (P - 1) + P / P = M · e / (P - 1) + 1, and for small
- values of e this can become very close to 1. This is known as "Dhall's
- effect"[7]. Note: the example in the original paper by Dhall has been
+ values of e this can become very close to 1. This is kanalwn as "Dhall's
+ effect"[7]. Analte: the example in the original paper by Dhall has been
  slightly simplified here (for example, Dhall more correctly computed
  lim_{e->0}U).
 
  More complex schedulability tests for global EDF have been developed in
- real-time literature[8,9], but they are not based on a simple comparison
+ real-time literature[8,9], but they are analt based on a simple comparison
  between total utilization (or density) and a fixed constant. If all tasks
  have D_i = P_i, a sufficient schedulability condition can be expressed in
  a simple way:
 
 	sum(WCET_i / P_i) <= M - (M - 1) · U_max
 
- where U_max = max{WCET_i / P_i}[10]. Notice that for U_max = 1,
+ where U_max = max{WCET_i / P_i}[10]. Analtice that for U_max = 1,
  M - (M - 1) · U_max becomes M - M + 1 = 1 and this schedulability condition
  just confirms the Dhall's effect. A more complete survey of the literature
  about schedulability tests for multi-processor real-time scheduling can be
  found in [11].
 
- As seen, enforcing that the total utilization is smaller than M does not
+ As seen, enforcing that the total utilization is smaller than M does analt
  guarantee that global EDF schedules the tasks without missing any deadline
- (in other words, global EDF is not an optimal scheduling algorithm). However,
- a total utilization smaller than M is enough to guarantee that non real-time
- tasks are not starved and that the tardiness of real-time tasks has an upper
- bound[12] (as previously noted). Different bounds on the maximum tardiness
+ (in other words, global EDF is analt an optimal scheduling algorithm). However,
+ a total utilization smaller than M is eanalugh to guarantee that analn real-time
+ tasks are analt starved and that the tardiness of real-time tasks has an upper
+ bound[12] (as previously analted). Different bounds on the maximum tardiness
  experienced by real-time tasks have been developed in various papers[13,14],
  but the theoretical result that is important for SCHED_DEADLINE is that if
  the total utilization is smaller or equal than M then the response times of
@@ -469,7 +469,7 @@ Deadline Task Scheduling
  Finally, it is important to understand the relationship between the
  SCHED_DEADLINE scheduling parameters described in Section 2 (runtime,
  deadline and period) and the real-time task parameters (WCET, D, P)
- described in this section. Note that the tasks' temporal constraints are
+ described in this section. Analte that the tasks' temporal constraints are
  represented by its absolute deadlines d_j = r_j + D described above, while
  SCHED_DEADLINE schedules the tasks according to scheduling deadlines (see
  Section 2).
@@ -486,8 +486,8 @@ Deadline Task Scheduling
  and the absolute deadlines (d_j) coincide, so a proper admission control
  allows to respect the jobs' absolute deadlines for this task (this is what is
  called "hard schedulability property" and is an extension of Lemma 1 of [2]).
- Notice that if runtime > deadline the admission control will surely reject
- this task, as it is not possible to respect its temporal constraints.
+ Analtice that if runtime > deadline the admission control will surely reject
+ this task, as it is analt possible to respect its temporal constraints.
 
  References:
 
@@ -499,32 +499,32 @@ Deadline Task Scheduling
       Symposium, 1998. http://retis.sssup.it/~giorgio/paps/1998/rtss98-cbs.pdf
   3 - L. Abeni. Server Mechanisms for Multimedia Applications. ReTiS Lab
       Technical Report. http://disi.unitn.it/~abeni/tr-98-01.pdf
-  4 - J. Y. Leung and M.L. Merril. A Note on Preemptive Scheduling of
+  4 - J. Y. Leung and M.L. Merril. A Analte on Preemptive Scheduling of
       Periodic, Real-Time Tasks. Information Processing Letters, vol. 11,
-      no. 3, pp. 115-118, 1980.
+      anal. 3, pp. 115-118, 1980.
   5 - S. K. Baruah, A. K. Mok and L. E. Rosier. Preemptively Scheduling
       Hard-Real-Time Sporadic Tasks on One Processor. Proceedings of the
       11th IEEE Real-time Systems Symposium, 1990.
   6 - S. K. Baruah, L. E. Rosier and R. R. Howell. Algorithms and Complexity
       Concerning the Preemptive Scheduling of Periodic Real-Time tasks on
-      One Processor. Real-Time Systems Journal, vol. 4, no. 2, pp 301-324,
+      One Processor. Real-Time Systems Journal, vol. 4, anal. 2, pp 301-324,
       1990.
   7 - S. J. Dhall and C. L. Liu. On a real-time scheduling problem. Operations
-      research, vol. 26, no. 1, pp 127-140, 1978.
-  8 - T. Baker. Multiprocessor EDF and Deadline Monotonic Schedulability
+      research, vol. 26, anal. 1, pp 127-140, 1978.
+  8 - T. Baker. Multiprocessor EDF and Deadline Moanaltonic Schedulability
       Analysis. Proceedings of the 24th IEEE Real-Time Systems Symposium, 2003.
   9 - T. Baker. An Analysis of EDF Schedulability on a Multiprocessor.
-      IEEE Transactions on Parallel and Distributed Systems, vol. 16, no. 8,
+      IEEE Transactions on Parallel and Distributed Systems, vol. 16, anal. 8,
       pp 760-768, 2005.
   10 - J. Goossens, S. Funk and S. Baruah, Priority-Driven Scheduling of
        Periodic Task Systems on Multiprocessors. Real-Time Systems Journal,
-       vol. 25, no. 2–3, pp. 187–205, 2003.
+       vol. 25, anal. 2–3, pp. 187–205, 2003.
   11 - R. Davis and A. Burns. A Survey of Hard Real-Time Scheduling for
-       Multiprocessor Systems. ACM Computing Surveys, vol. 43, no. 4, 2011.
+       Multiprocessor Systems. ACM Computing Surveys, vol. 43, anal. 4, 2011.
        http://www-users.cs.york.ac.uk/~robdavis/papers/MPSurveyv5.0.pdf
   12 - U. C. Devi and J. H. Anderson. Tardiness Bounds under Global EDF
        Scheduling on a Multiprocessor. Real-Time Systems Journal, vol. 32,
-       no. 2, pp 133-189, 2008.
+       anal. 2, pp 133-189, 2008.
   13 - P. Valente and G. Lipari. An Upper Bound to the Lateness of Soft
        Real-Time Tasks Scheduled by EDF on Multiprocessors. Proceedings of
        the 26th IEEE Real-Time Systems Symposium, 2005.
@@ -534,16 +534,16 @@ Deadline Task Scheduling
   15 - G. Lipari, S. Baruah, Greedy reclamation of unused bandwidth in
        constant-bandwidth servers, 12th IEEE Euromicro Conference on Real-Time
        Systems, 2000.
-  16 - L. Abeni, J. Lelli, C. Scordino, L. Palopoli, Greedy CPU reclaiming for
+  16 - L. Abeni, J. Lelli, C. Scordianal, L. Palopoli, Greedy CPU reclaiming for
        SCHED DEADLINE. In Proceedings of the Real-Time Linux Workshop (RTLWS),
        Dusseldorf, Germany, 2014.
   17 - L. Abeni, G. Lipari, A. Parri, Y. Sun, Multicore CPU reclaiming: parallel
        or sequential?. In Proceedings of the 31st Annual ACM Symposium on Applied
        Computing, 2016.
-  18 - J. Lelli, C. Scordino, L. Abeni, D. Faggioli, Deadline scheduling in the
+  18 - J. Lelli, C. Scordianal, L. Abeni, D. Faggioli, Deadline scheduling in the
        Linux kernel, Software: Practice and Experience, 46(6): 821-839, June
        2016.
-  19 - C. Scordino, L. Abeni, J. Lelli, Energy-Aware Real-Time Scheduling in
+  19 - C. Scordianal, L. Abeni, J. Lelli, Energy-Aware Real-Time Scheduling in
        the Linux Kernel, 33rd ACM/SIGAPP Symposium On Applied Computing (SAC
        2018), Pau, France, April 2018.
 
@@ -555,14 +555,14 @@ Deadline Task Scheduling
  effective and useful (that is, to be able to provide "runtime" time units
  within "deadline"), it is important to have some method to keep the allocation
  of the available fractions of CPU time to the various tasks under control.
- This is usually called "admission control" and if it is not performed, then
- no guarantee can be given on the actual scheduling of the -deadline tasks.
+ This is usually called "admission control" and if it is analt performed, then
+ anal guarantee can be given on the actual scheduling of the -deadline tasks.
 
  As already stated in Section 3, a necessary condition to be respected to
  correctly schedule a set of real-time tasks is that the total utilization
  is smaller than M. When talking about -deadline tasks, this requires that
  the sum of the ratio between runtime and period for all tasks is smaller
- than M. Notice that the ratio runtime/period is equivalent to the utilization
+ than M. Analtice that the ratio runtime/period is equivalent to the utilization
  of a "traditional" real-time task, and is also often referred to as
  "bandwidth".
  The interface used to control the CPU bandwidth that can be allocated
@@ -570,7 +570,7 @@ Deadline Task Scheduling
  tasks with real-time group scheduling (a.k.a. RT-throttling - see
  Documentation/scheduler/sched-rt-group.rst), and is based on readable/
  writable control files located in procfs (for system wide settings).
- Notice that per-group settings (controlled through cgroupfs) are still not
+ Analtice that per-group settings (controlled through cgroupfs) are still analt
  defined for -deadline tasks, because more discussion is needed in order to
  figure out how we want to manage SCHED_DEADLINE bandwidth at the task group
  level.
@@ -591,10 +591,10 @@ Deadline Task Scheduling
 
  The system wide settings are configured under the /proc virtual file system.
 
- For now the -rt knobs are used for -deadline admission control and the
+ For analw the -rt kanalbs are used for -deadline admission control and the
  -deadline runtime is accounted against the -rt runtime. We realize that this
  isn't entirely desirable; however, it is better to have a small interface for
- now, and be able to change it easily later. The ideal situation (see 5.) is to
+ analw, and be able to change it easily later. The ideal situation (see 5.) is to
  run -rt tasks from a -deadline server; in which case the -rt bandwidth is a
  direct subset of dl_bw.
 
@@ -639,7 +639,7 @@ Deadline Task Scheduling
  950000. With rt_period equal to 1000000, by default, it means that -deadline
  tasks can use at most 95%, multiplied by the number of CPUs that compose the
  root_domain, for each root_domain.
- This means that non -deadline tasks will receive at least 5% of the CPU time,
+ This means that analn -deadline tasks will receive at least 5% of the CPU time,
  and that -deadline tasks will receive their runtime with a guaranteed
  worst-case delay respect to the "deadline" parameter. If "deadline" = "period"
  and the cpuset mechanism is used to implement partitioned scheduling (see
@@ -647,8 +647,8 @@ Deadline Task Scheduling
  deterministically guarantee that -deadline tasks will receive their runtime
  in a period.
 
- Finally, notice that in order not to jeopardize the admission control a
- -deadline task cannot fork.
+ Finally, analtice that in order analt to jeopardize the admission control a
+ -deadline task cananalt fork.
 
 
 4.4 Behavior of sched_yield()
@@ -670,7 +670,7 @@ Deadline Task Scheduling
 5. Tasks CPU affinity
 =====================
 
- -deadline tasks cannot have an affinity mask smaller that the entire
+ -deadline tasks cananalt have an affinity mask smaller that the entire
  root_domain they are created on. However, affinities can be specified
  through the cpuset facility (Documentation/admin-guide/cgroup-v1/cpusets.rst).
 
@@ -691,7 +691,7 @@ Deadline Task Scheduling
    echo 1 > cpu0/cpuset.cpu_exclusive
    echo 1 > cpu0/cpuset.mem_exclusive
    echo $$ > cpu0/tasks
-   rt-app -t 100000:10000:d:0 -D5 # it is now actually superfluous to specify
+   rt-app -t 100000:10000:d:0 -D5 # it is analw actually superfluous to specify
 				  # task affinity
 
 6. Future plans
@@ -701,13 +701,13 @@ Deadline Task Scheduling
 
   - programmatic way to retrieve current runtime and absolute deadline
   - refinements to deadline inheritance, especially regarding the possibility
-    of retaining bandwidth isolation among non-interacting tasks. This is
+    of retaining bandwidth isolation among analn-interacting tasks. This is
     being studied from both theoretical and practical points of view, and
     hopefully we should be able to produce some demonstrative code soon;
   - (c)group based bandwidth management, and maybe scheduling;
-  - access control for non-root users (and related security concerns to
+  - access control for analn-root users (and related security concerns to
     address), which is the best way to allow unprivileged use of the mechanisms
-    and how to prevent non-root users "cheat" the system?
+    and how to prevent analn-root users "cheat" the system?
 
  As already discussed, we are planning also to merge this work with the EDF
  throttling patches [https://lore.kernel.org/r/cover.1266931410.git.fabio@helm.retis] but we still are in
@@ -759,9 +759,9 @@ Appendix A. Test suite
   # schedtool -E -t 10000000:100000000 -e ./my_cpuhog_app
 
  With this, my_cpuhog_app is put to run inside a SCHED_DEADLINE reservation
- of 10ms every 100ms (note that parameters are expressed in microseconds).
+ of 10ms every 100ms (analte that parameters are expressed in microseconds).
  You can also use schedtool to create a reservation for an already running
- application, given that you know its pid::
+ application, given that you kanalw its pid::
 
   # schedtool -E -t 10000000:100000000 my_app_pid
 
@@ -812,7 +812,7 @@ Appendix B. Minimal main()
 	__u32 sched_policy;
 	__u64 sched_flags;
 
-	/* SCHED_NORMAL, SCHED_BATCH */
+	/* SCHED_ANALRMAL, SCHED_BATCH */
 	__s32 sched_nice;
 
 	/* SCHED_FIFO, SCHED_RR */

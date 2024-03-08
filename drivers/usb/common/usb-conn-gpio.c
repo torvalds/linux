@@ -54,7 +54,7 @@ struct usb_conn_info {
  *  Role          |   ID  |  VBUS
  * ------------------------------------
  *  [1] DEVICE    |   H   |   H
- *  [2] NONE      |   H   |   L
+ *  [2] ANALNE      |   H   |   L
  *  [3] HOST      |   L   |   H
  *  [4] HOST      |   L   |   L
  *
@@ -82,7 +82,7 @@ static void usb_conn_detect_cable(struct work_struct *work)
 	else if (vbus)
 		role = USB_ROLE_DEVICE;
 	else
-		role = USB_ROLE_NONE;
+		role = USB_ROLE_ANALNE;
 
 	dev_dbg(info->dev, "role %s -> %s, gpios: id %d, vbus %d\n",
 		usb_role_string(info->last_role), usb_role_string(role), id, vbus);
@@ -157,7 +157,7 @@ static int usb_conn_psy_register(struct usb_conn_info *info)
 	struct device *dev = info->dev;
 	struct power_supply_desc *desc = &info->desc;
 	struct power_supply_config cfg = {
-		.of_node = dev->of_node,
+		.of_analde = dev->of_analde,
 	};
 
 	desc->name = "usb-charger";
@@ -182,7 +182,7 @@ static int usb_conn_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = dev;
 	info->id_gpiod = devm_gpiod_get_optional(dev, "id", GPIOD_IN);
@@ -195,7 +195,7 @@ static int usb_conn_probe(struct platform_device *pdev)
 
 	if (!info->id_gpiod && !info->vbus_gpiod) {
 		dev_err(dev, "failed to get gpios\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (info->id_gpiod)
@@ -208,7 +208,7 @@ static int usb_conn_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&info->dw_det, usb_conn_detect_cable);
 
 	info->vbus = devm_regulator_get_optional(dev, "vbus");
-	if (PTR_ERR(info->vbus) == -ENODEV)
+	if (PTR_ERR(info->vbus) == -EANALDEV)
 		info->vbus = NULL;
 
 	if (IS_ERR(info->vbus))

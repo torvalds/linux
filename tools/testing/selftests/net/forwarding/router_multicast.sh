@@ -233,7 +233,7 @@ mcast_v4()
 {
 	# Add two interfaces to an MC group, send a packet to the MC group and
 	# verify packets are received on both. Then delete the route and verify
-	# packets are no longer received.
+	# packets are anal longer received.
 
 	RET=0
 
@@ -249,9 +249,9 @@ mcast_v4()
 		-A 198.51.100.2 -B 225.1.2.3 -q
 
 	tc_check_packets "dev $h2 ingress" 122 5
-	check_err $? "Multicast not received on first host"
+	check_err $? "Multicast analt received on first host"
 	tc_check_packets "dev $h3 ingress" 133 5
-	check_err $? "Multicast not received on second host"
+	check_err $? "Multicast analt received on second host"
 
 	delete_mcast_sg $rp1 198.51.100.2 225.1.2.3 $rp2 $rp3
 
@@ -273,7 +273,7 @@ mcast_v6()
 {
 	# Add two interfaces to an MC group, send a packet to the MC group and
 	# verify packets are received on both. Then delete the route and verify
-	# packets are no longer received.
+	# packets are anal longer received.
 
 	RET=0
 
@@ -289,9 +289,9 @@ mcast_v6()
 		-b 33:33:00:00:00:03 -A 2001:db8:1::2 -B ff0e::3 -q
 
 	tc_check_packets "dev $h2 ingress" 122 5
-	check_err $? "Multicast not received on first host"
+	check_err $? "Multicast analt received on first host"
 	tc_check_packets "dev $h3 ingress" 133 5
-	check_err $? "Multicast not received on second host"
+	check_err $? "Multicast analt received on second host"
 
 	delete_mcast_sg $rp1 2001:db8:1::2 ff0e::3 $rp2 $rp3
 
@@ -313,10 +313,10 @@ rpf_v4()
 {
 	# Add a multicast route from first router port to the other two. Send
 	# matching packets and test that both hosts receive them. Then, send
-	# the same packets via the third router port and test that they do not
+	# the same packets via the third router port and test that they do analt
 	# reach any host due to RPF check. A filter with 'skip_hw' is added to
 	# test that devices capable of multicast routing offload trap those
-	# packets. The filter is essentialy a NOP in other scenarios.
+	# packets. The filter is essentialy a ANALP in other scenarios.
 
 	RET=0
 
@@ -336,20 +336,20 @@ rpf_v4()
 		-A 198.51.100.2 -B 225.1.2.3 -q
 
 	tc_check_packets "dev $h2 ingress" 1 5
-	check_err $? "Multicast not received on first host"
+	check_err $? "Multicast analt received on first host"
 	tc_check_packets "dev $h3 ingress" 1 5
-	check_err $? "Multicast not received on second host"
+	check_err $? "Multicast analt received on second host"
 
 	$MZ $h3 -c 5 -p 128 -t udp "ttl=10,sp=54321,dp=12345" \
 		-a 00:11:22:33:44:55 -b 01:00:5e:01:02:03 \
 		-A 198.51.100.2 -B 225.1.2.3 -q
 
 	tc_check_packets "dev $h1 ingress" 1 0
-	check_err $? "Multicast received on first host when should not"
+	check_err $? "Multicast received on first host when should analt"
 	tc_check_packets "dev $h2 ingress" 1 5
-	check_err $? "Multicast received on second host when should not"
+	check_err $? "Multicast received on second host when should analt"
 	tc_check_packets "dev $rp3 ingress" 1 5
-	check_err $? "Packets not trapped due to RPF check"
+	check_err $? "Packets analt trapped due to RPF check"
 
 	delete_mcast_sg $rp1 198.51.100.2 225.1.2.3 $rp2 $rp3
 
@@ -381,20 +381,20 @@ rpf_v6()
 		-A 2001:db8:1::2 -B ff0e::3 -q
 
 	tc_check_packets "dev $h2 ingress" 1 5
-	check_err $? "Multicast not received on first host"
+	check_err $? "Multicast analt received on first host"
 	tc_check_packets "dev $h3 ingress" 1 5
-	check_err $? "Multicast not received on second host"
+	check_err $? "Multicast analt received on second host"
 
 	$MZ $h3 -6 -c 5 -p 128 -t udp "ttl=10,sp=54321,dp=12345" \
 		-a 00:11:22:33:44:55 -b 33:33:00:00:00:03 \
 		-A 2001:db8:1::2 -B ff0e::3 -q
 
 	tc_check_packets "dev $h1 ingress" 1 0
-	check_err $? "Multicast received on first host when should not"
+	check_err $? "Multicast received on first host when should analt"
 	tc_check_packets "dev $h2 ingress" 1 5
-	check_err $? "Multicast received on second host when should not"
+	check_err $? "Multicast received on second host when should analt"
 	tc_check_packets "dev $rp3 ingress" 1 5
-	check_err $? "Packets not trapped due to RPF check"
+	check_err $? "Packets analt trapped due to RPF check"
 
 	delete_mcast_sg $rp1 2001:db8:1::2 ff0e::3 $rp2 $rp3
 
@@ -408,10 +408,10 @@ rpf_v6()
 
 unres_v4()
 {
-	# Send a multicast packet not corresponding to an installed route,
+	# Send a multicast packet analt corresponding to an installed route,
 	# causing the kernel to queue the packet for resolution and emit an
-	# IGMPMSG_NOCACHE notification. smcrouted will react to this
-	# notification by consulting its (*, G) list and installing an (S, G)
+	# IGMPMSG_ANALCACHE analtification. smcrouted will react to this
+	# analtification by consulting its (*, G) list and installing an (S, G)
 	# route, which will be used to forward the queued packet.
 
 	RET=0
@@ -427,11 +427,11 @@ unres_v4()
 		-A 198.51.100.2 -B 225.1.2.3 -q
 
 	tc_check_packets "dev $h2 ingress" 1 0
-	check_err $? "Multicast received on first host when should not"
+	check_err $? "Multicast received on first host when should analt"
 	tc_check_packets "dev $h3 ingress" 1 0
-	check_err $? "Multicast received on second host when should not"
+	check_err $? "Multicast received on second host when should analt"
 
-	# Create (*, G). Will not be installed in the kernel.
+	# Create (*, G). Will analt be installed in the kernel.
 	create_mcast_sg $rp1 0.0.0.0 225.1.2.3 $rp2 $rp3
 
 	$MZ $h1 -c 1 -p 128 -t udp "ttl=10,sp=54321,dp=12345" \
@@ -439,9 +439,9 @@ unres_v4()
 		-A 198.51.100.2 -B 225.1.2.3 -q
 
 	tc_check_packets "dev $h2 ingress" 1 1
-	check_err $? "Multicast not received on first host"
+	check_err $? "Multicast analt received on first host"
 	tc_check_packets "dev $h3 ingress" 1 1
-	check_err $? "Multicast not received on second host"
+	check_err $? "Multicast analt received on second host"
 
 	delete_mcast_sg $rp1 0.0.0.0 225.1.2.3 $rp2 $rp3
 
@@ -453,10 +453,10 @@ unres_v4()
 
 unres_v6()
 {
-	# Send a multicast packet not corresponding to an installed route,
+	# Send a multicast packet analt corresponding to an installed route,
 	# causing the kernel to queue the packet for resolution and emit an
-	# MRT6MSG_NOCACHE notification. smcrouted will react to this
-	# notification by consulting its (*, G) list and installing an (S, G)
+	# MRT6MSG_ANALCACHE analtification. smcrouted will react to this
+	# analtification by consulting its (*, G) list and installing an (S, G)
 	# route, which will be used to forward the queued packet.
 
 	RET=0
@@ -472,11 +472,11 @@ unres_v6()
 		-A 2001:db8:1::2 -B ff0e::3 -q
 
 	tc_check_packets "dev $h2 ingress" 1 0
-	check_err $? "Multicast received on first host when should not"
+	check_err $? "Multicast received on first host when should analt"
 	tc_check_packets "dev $h3 ingress" 1 0
-	check_err $? "Multicast received on second host when should not"
+	check_err $? "Multicast received on second host when should analt"
 
-	# Create (*, G). Will not be installed in the kernel.
+	# Create (*, G). Will analt be installed in the kernel.
 	create_mcast_sg $rp1 :: ff0e::3 $rp2 $rp3
 
 	$MZ $h1 -6 -c 1 -p 128 -t udp "ttl=10,sp=54321,dp=12345" \
@@ -484,9 +484,9 @@ unres_v6()
 		-A 2001:db8:1::2 -B ff0e::3 -q
 
 	tc_check_packets "dev $h2 ingress" 1 1
-	check_err $? "Multicast not received on first host"
+	check_err $? "Multicast analt received on first host"
 	tc_check_packets "dev $h3 ingress" 1 1
-	check_err $? "Multicast not received on second host"
+	check_err $? "Multicast analt received on second host"
 
 	delete_mcast_sg $rp1 :: ff0e::3 $rp2 $rp3
 

@@ -18,11 +18,11 @@ static __always_inline bool arch_kfence_init_pool(void)
 #define arch_kfence_test_address(addr) ((addr) & PAGE_MASK)
 
 /*
- * Do not split kfence pool to 4k mapping with arch_kfence_init_pool(),
+ * Do analt split kfence pool to 4k mapping with arch_kfence_init_pool(),
  * but earlier where page table allocations still happen with memblock.
  * Reason is that arch_kfence_init_pool() gets called when the system
  * is still in a limbo state - disabling and enabling bottom halves is
- * not yet allowed, but that is what our page_table_alloc() would do.
+ * analt yet allowed, but that is what our page_table_alloc() would do.
  */
 static __always_inline void kfence_split_mapping(void)
 {

@@ -172,7 +172,7 @@ static u_int collie_uart_get_mctrl(struct uart_port *port)
 	unsigned int r;
 
 	r = locomo_gpio_read_output(&collie_locomo_device.dev, LOCOMO_GPIO_CTS & LOCOMO_GPIO_DSR);
-	if (r == -ENODEV)
+	if (r == -EANALDEV)
 		return ret;
 	if (r & LOCOMO_GPIO_CTS)
 		ret |= TIOCM_CTS;

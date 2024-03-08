@@ -217,7 +217,7 @@ static int sc2731_regulator_probe(struct platform_device *pdev)
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!regmap) {
 		dev_err(&pdev->dev, "failed to get regmap.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = sc2731_regulator_unlock(regmap);
@@ -245,7 +245,7 @@ static int sc2731_regulator_probe(struct platform_device *pdev)
 static struct platform_driver sc2731_regulator_driver = {
 	.driver = {
 		.name = "sc27xx-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = sc2731_regulator_probe,
 };

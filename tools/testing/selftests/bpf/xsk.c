@@ -8,7 +8,7 @@
  * Author(s): Magnus Karlsson <magnus.karlsson@intel.com>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -172,23 +172,23 @@ static int xsk_create_umem_rings(struct xsk_umem *umem, int fd,
 			 &umem->config.fill_size,
 			 sizeof(umem->config.fill_size));
 	if (err)
-		return -errno;
+		return -erranal;
 
 	err = setsockopt(fd, SOL_XDP, XDP_UMEM_COMPLETION_RING,
 			 &umem->config.comp_size,
 			 sizeof(umem->config.comp_size));
 	if (err)
-		return -errno;
+		return -erranal;
 
 	err = xsk_get_mmap_offsets(fd, &off);
 	if (err)
-		return -errno;
+		return -erranal;
 
 	map = mmap(NULL, off.fr.desc + umem->config.fill_size * sizeof(__u64),
 		   PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, fd,
 		   XDP_UMEM_PGOFF_FILL_RING);
 	if (map == MAP_FAILED)
-		return -errno;
+		return -erranal;
 
 	fill->mask = umem->config.fill_size - 1;
 	fill->size = umem->config.fill_size;
@@ -202,7 +202,7 @@ static int xsk_create_umem_rings(struct xsk_umem *umem, int fd,
 		   PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, fd,
 		   XDP_UMEM_PGOFF_COMPLETION_RING);
 	if (map == MAP_FAILED) {
-		err = -errno;
+		err = -erranal;
 		goto out_mmap;
 	}
 
@@ -236,11 +236,11 @@ int xsk_umem__create(struct xsk_umem **umem_ptr, void *umem_area,
 
 	umem = calloc(1, sizeof(*umem));
 	if (!umem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	umem->fd = socket(AF_XDP, SOCK_RAW | SOCK_CLOEXEC, 0);
 	if (umem->fd < 0) {
-		err = -errno;
+		err = -erranal;
 		goto out_umem_alloc;
 	}
 
@@ -258,7 +258,7 @@ int xsk_umem__create(struct xsk_umem **umem_ptr, void *umem_area,
 
 	err = setsockopt(umem->fd, SOL_XDP, XDP_UMEM_REG, &mr, sizeof(mr));
 	if (err) {
-		err = -errno;
+		err = -erranal;
 		goto out_socket;
 	}
 
@@ -285,7 +285,7 @@ bool xsk_is_in_mode(u32 ifindex, int mode)
 
 	ret = bpf_xdp_query(ifindex, mode, &opts);
 	if (ret) {
-		printf("XDP mode query returned error %s\n", strerror(errno));
+		printf("XDP mode query returned error %s\n", strerror(erranal));
 		return false;
 	}
 
@@ -304,10 +304,10 @@ static int netlink_recvmsg(int sock, struct msghdr *mhdr, int flags)
 
 	do {
 		len = recvmsg(sock, mhdr, flags);
-	} while (len < 0 && (errno == EINTR || errno == EAGAIN));
+	} while (len < 0 && (erranal == EINTR || erranal == EAGAIN));
 
 	if (len < 0)
-		return -errno;
+		return -erranal;
 	return len;
 }
 
@@ -318,7 +318,7 @@ static int alloc_iov(struct iovec *iov, int len)
 
 	nbuf = realloc(iov->iov_base, len);
 	if (!nbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iov->iov_base = nbuf;
 	iov->iov_len = len;
@@ -415,7 +415,7 @@ int xsk_set_mtu(int ifindex, int mtu)
 	ret = send(fd, &req, req.nh.nlmsg_len, 0);
 	if (ret < 0) {
 		close(fd);
-		return errno;
+		return erranal;
 	}
 
 	ret = netlink_recv(fd);
@@ -559,7 +559,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 
 	xsk = calloc(1, sizeof(*xsk));
 	if (!xsk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = xsk_set_xdp_socket_config(&xsk->config, usr_config);
 	if (err)
@@ -568,7 +568,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 	if (umem->refcount++ > 0) {
 		xsk->fd = socket(AF_XDP, SOCK_RAW | SOCK_CLOEXEC, 0);
 		if (xsk->fd < 0) {
-			err = -errno;
+			err = -erranal;
 			goto out_xsk_alloc;
 		}
 	} else {
@@ -586,7 +586,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 
 		ctx = xsk_create_ctx(xsk, umem, ifindex, queue_id, fill, comp);
 		if (!ctx) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_socket;
 		}
 	}
@@ -597,7 +597,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 				 &xsk->config.rx_size,
 				 sizeof(xsk->config.rx_size));
 		if (err) {
-			err = -errno;
+			err = -erranal;
 			goto out_put_ctx;
 		}
 		if (xsk->fd == umem->fd)
@@ -608,7 +608,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 				 &xsk->config.tx_size,
 				 sizeof(xsk->config.tx_size));
 		if (err) {
-			err = -errno;
+			err = -erranal;
 			goto out_put_ctx;
 		}
 		if (xsk->fd == umem->fd)
@@ -617,7 +617,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 
 	err = xsk_get_mmap_offsets(xsk->fd, &off);
 	if (err) {
-		err = -errno;
+		err = -erranal;
 		goto out_put_ctx;
 	}
 
@@ -627,7 +627,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 			      PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE,
 			      xsk->fd, XDP_PGOFF_RX_RING);
 		if (rx_map == MAP_FAILED) {
-			err = -errno;
+			err = -erranal;
 			goto out_put_ctx;
 		}
 
@@ -648,7 +648,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 			      PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE,
 			      xsk->fd, XDP_PGOFF_TX_RING);
 		if (tx_map == MAP_FAILED) {
-			err = -errno;
+			err = -erranal;
 			goto out_mmap_rx;
 		}
 
@@ -678,7 +678,7 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 
 	err = bind(xsk->fd, (struct sockaddr *)&sxdp, sizeof(sxdp));
 	if (err) {
-		err = -errno;
+		err = -erranal;
 		goto out_mmap_tx;
 	}
 
@@ -772,7 +772,7 @@ void xsk_socket__delete(struct xsk_socket *xsk)
 	}
 
 	umem->refcount--;
-	/* Do not close an fd that also has an associated umem connected
+	/* Do analt close an fd that also has an associated umem connected
 	 * to it.
 	 */
 	if (xsk->fd != umem->fd)

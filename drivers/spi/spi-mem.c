@@ -21,14 +21,14 @@
  *					  memory operation
  * @ctlr: the SPI controller requesting this dma_map()
  * @op: the memory operation containing the buffer to map
- * @sgt: a pointer to a non-initialized sg_table that will be filled by this
+ * @sgt: a pointer to a analn-initialized sg_table that will be filled by this
  *	 function
  *
  * Some controllers might want to do DMA on the data buffer embedded in @op.
  * This helper prepares everything for you and provides a ready-to-use
- * sg_table. This function is not intended to be called from spi drivers.
+ * sg_table. This function is analt intended to be called from spi drivers.
  * Only SPI controller drivers should use it.
- * Note that the caller must ensure the memory region pointed by
+ * Analte that the caller must ensure the memory region pointed by
  * op->data.buf.{in,out} is DMA-able before calling this function.
  *
  * Return: 0 in case of success, a negative error code otherwise.
@@ -70,7 +70,7 @@ EXPORT_SYMBOL_GPL(spi_controller_dma_map_mem_op_data);
  * This helper prepares things so that the CPU can access the
  * op->data.buf.{in,out} buffer again.
  *
- * This function is not intended to be called from SPI drivers. Only SPI
+ * This function is analt intended to be called from SPI drivers. Only SPI
  * controller drivers should use it.
  *
  * This function should be called after the DMA operation has finished and is
@@ -136,7 +136,7 @@ static int spi_check_buswidth_req(struct spi_mem *mem, u8 buswidth, bool tx)
 		break;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static bool spi_mem_check_buswidth(struct spi_mem *mem,
@@ -153,7 +153,7 @@ static bool spi_mem_check_buswidth(struct spi_mem *mem,
 	    spi_check_buswidth_req(mem, op->dummy.buswidth, true))
 		return false;
 
-	if (op->data.dir != SPI_MEM_NO_DATA &&
+	if (op->data.dir != SPI_MEM_ANAL_DATA &&
 	    spi_check_buswidth_req(mem, op->data.buswidth,
 				   op->data.dir == SPI_MEM_DATA_OUT))
 		return false;
@@ -323,7 +323,7 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		return ret;
 
 	if (!spi_mem_internal_supports_op(mem, op))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ctlr->mem_ops && ctlr->mem_ops->exec_op && !spi_get_csgpiod(mem->spi, 0)) {
 		ret = spi_mem_access_start(mem);
@@ -339,7 +339,7 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		 * read path) and expect the core to use the regular SPI
 		 * interface in other cases.
 		 */
-		if (!ret || ret != -ENOTSUPP || ret != -EOPNOTSUPP)
+		if (!ret || ret != -EANALTSUPP || ret != -EOPANALTSUPP)
 			return ret;
 	}
 
@@ -352,7 +352,7 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	 */
 	tmpbuf = kzalloc(tmpbufsize, GFP_KERNEL | GFP_DMA);
 	if (!tmpbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_message_init(&msg);
 
@@ -449,7 +449,7 @@ EXPORT_SYMBOL_GPL(spi_mem_get_name);
  * operation into multiple sub-operations when required.
  *
  * Return: a negative error code if the controller can't properly adjust @op,
- *	   0 otherwise. Note that @op->data.nbytes will be updated if @op
+ *	   0 otherwise. Analte that @op->data.nbytes will be updated if @op
  *	   can't be handled in a single step.
  */
 int spi_mem_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
@@ -478,7 +478,7 @@ int spi_mem_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 }
 EXPORT_SYMBOL_GPL(spi_mem_adjust_op_size);
 
-static ssize_t spi_mem_no_dirmap_read(struct spi_mem_dirmap_desc *desc,
+static ssize_t spi_mem_anal_dirmap_read(struct spi_mem_dirmap_desc *desc,
 				      u64 offs, size_t len, void *buf)
 {
 	struct spi_mem_op op = desc->info.op_tmpl;
@@ -498,7 +498,7 @@ static ssize_t spi_mem_no_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	return op.data.nbytes;
 }
 
-static ssize_t spi_mem_no_dirmap_write(struct spi_mem_dirmap_desc *desc,
+static ssize_t spi_mem_anal_dirmap_write(struct spi_mem_dirmap_desc *desc,
 				       u64 offs, size_t len, const void *buf)
 {
 	struct spi_mem_op op = desc->info.op_tmpl;
@@ -525,7 +525,7 @@ static ssize_t spi_mem_no_dirmap_write(struct spi_mem_dirmap_desc *desc,
  *
  * This function is creating a direct mapping descriptor which can then be used
  * to access the memory using spi_mem_dirmap_read() or spi_mem_dirmap_write().
- * If the SPI controller driver does not support direct mapping, this function
+ * If the SPI controller driver does analt support direct mapping, this function
  * falls back to an implementation using spi_mem_exec_op(), so that the caller
  * doesn't have to bother implementing a fallback on his own.
  *
@@ -537,19 +537,19 @@ spi_mem_dirmap_create(struct spi_mem *mem,
 {
 	struct spi_controller *ctlr = mem->spi->controller;
 	struct spi_mem_dirmap_desc *desc;
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	/* Make sure the number of address cycles is between 1 and 8 bytes. */
 	if (!info->op_tmpl.addr.nbytes || info->op_tmpl.addr.nbytes > 8)
 		return ERR_PTR(-EINVAL);
 
 	/* data.dir should either be SPI_MEM_DATA_IN or SPI_MEM_DATA_OUT. */
-	if (info->op_tmpl.data.dir == SPI_MEM_NO_DATA)
+	if (info->op_tmpl.data.dir == SPI_MEM_ANAL_DATA)
 		return ERR_PTR(-EINVAL);
 
 	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 	if (!desc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	desc->mem = mem;
 	desc->info = *info;
@@ -557,9 +557,9 @@ spi_mem_dirmap_create(struct spi_mem *mem,
 		ret = ctlr->mem_ops->dirmap_create(desc);
 
 	if (ret) {
-		desc->nodirmap = true;
+		desc->analdirmap = true;
 		if (!spi_mem_supports_op(desc->mem, &desc->info.op_tmpl))
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 		else
 			ret = 0;
 	}
@@ -584,7 +584,7 @@ void spi_mem_dirmap_destroy(struct spi_mem_dirmap_desc *desc)
 {
 	struct spi_controller *ctlr = desc->mem->spi->controller;
 
-	if (!desc->nodirmap && ctlr->mem_ops && ctlr->mem_ops->dirmap_destroy)
+	if (!desc->analdirmap && ctlr->mem_ops && ctlr->mem_ops->dirmap_destroy)
 		ctlr->mem_ops->dirmap_destroy(desc);
 
 	kfree(desc);
@@ -619,7 +619,7 @@ devm_spi_mem_dirmap_create(struct device *dev, struct spi_mem *mem,
 	ptr = devres_alloc(devm_spi_mem_dirmap_release, sizeof(*ptr),
 			   GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	desc = spi_mem_dirmap_create(mem, info);
 	if (IS_ERR(desc)) {
@@ -663,7 +663,7 @@ EXPORT_SYMBOL_GPL(devm_spi_mem_dirmap_destroy);
 /**
  * spi_mem_dirmap_read() - Read data through a direct mapping
  * @desc: direct mapping descriptor
- * @offs: offset to start reading from. Note that this is not an absolute
+ * @offs: offset to start reading from. Analte that this is analt an absolute
  *	  offset, but the offset within the direct mapping which already has
  *	  its own offset
  * @len: length in bytes
@@ -673,7 +673,7 @@ EXPORT_SYMBOL_GPL(devm_spi_mem_dirmap_destroy);
  * previously instantiated with spi_mem_dirmap_create().
  *
  * Return: the amount of data read from the memory device or a negative error
- * code. Note that the returned size might be smaller than @len, and the caller
+ * code. Analte that the returned size might be smaller than @len, and the caller
  * is responsible for calling spi_mem_dirmap_read() again when that happens.
  */
 ssize_t spi_mem_dirmap_read(struct spi_mem_dirmap_desc *desc,
@@ -688,8 +688,8 @@ ssize_t spi_mem_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	if (!len)
 		return 0;
 
-	if (desc->nodirmap) {
-		ret = spi_mem_no_dirmap_read(desc, offs, len, buf);
+	if (desc->analdirmap) {
+		ret = spi_mem_anal_dirmap_read(desc, offs, len, buf);
 	} else if (ctlr->mem_ops && ctlr->mem_ops->dirmap_read) {
 		ret = spi_mem_access_start(desc->mem);
 		if (ret)
@@ -699,7 +699,7 @@ ssize_t spi_mem_dirmap_read(struct spi_mem_dirmap_desc *desc,
 
 		spi_mem_access_end(desc->mem);
 	} else {
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 	}
 
 	return ret;
@@ -709,7 +709,7 @@ EXPORT_SYMBOL_GPL(spi_mem_dirmap_read);
 /**
  * spi_mem_dirmap_write() - Write data through a direct mapping
  * @desc: direct mapping descriptor
- * @offs: offset to start writing from. Note that this is not an absolute
+ * @offs: offset to start writing from. Analte that this is analt an absolute
  *	  offset, but the offset within the direct mapping which already has
  *	  its own offset
  * @len: length in bytes
@@ -719,7 +719,7 @@ EXPORT_SYMBOL_GPL(spi_mem_dirmap_read);
  * previously instantiated with spi_mem_dirmap_create().
  *
  * Return: the amount of data written to the memory device or a negative error
- * code. Note that the returned size might be smaller than @len, and the caller
+ * code. Analte that the returned size might be smaller than @len, and the caller
  * is responsible for calling spi_mem_dirmap_write() again when that happens.
  */
 ssize_t spi_mem_dirmap_write(struct spi_mem_dirmap_desc *desc,
@@ -734,8 +734,8 @@ ssize_t spi_mem_dirmap_write(struct spi_mem_dirmap_desc *desc,
 	if (!len)
 		return 0;
 
-	if (desc->nodirmap) {
-		ret = spi_mem_no_dirmap_write(desc, offs, len, buf);
+	if (desc->analdirmap) {
+		ret = spi_mem_anal_dirmap_write(desc, offs, len, buf);
 	} else if (ctlr->mem_ops && ctlr->mem_ops->dirmap_write) {
 		ret = spi_mem_access_start(desc->mem);
 		if (ret)
@@ -745,7 +745,7 @@ ssize_t spi_mem_dirmap_write(struct spi_mem_dirmap_desc *desc,
 
 		spi_mem_access_end(desc->mem);
 	} else {
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 	}
 
 	return ret;
@@ -790,7 +790,7 @@ static int spi_mem_read_status(struct spi_mem *mem,
  * (status & mask) == match or when the timeout has expired.
  *
  * Return: 0 in case of success, -ETIMEDOUT in case of error,
- *         -EOPNOTSUPP if not supported.
+ *         -EOPANALTSUPP if analt supported.
  */
 int spi_mem_poll_status(struct spi_mem *mem,
 			const struct spi_mem_op *op,
@@ -800,7 +800,7 @@ int spi_mem_poll_status(struct spi_mem *mem,
 			u16 timeout_ms)
 {
 	struct spi_controller *ctlr = mem->spi->controller;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 	int read_status_ret;
 	u16 status;
 
@@ -820,7 +820,7 @@ int spi_mem_poll_status(struct spi_mem *mem,
 		spi_mem_access_end(mem);
 	}
 
-	if (ret == -EOPNOTSUPP) {
+	if (ret == -EOPANALTSUPP) {
 		if (!spi_mem_supports_op(mem, op))
 			return ret;
 
@@ -850,7 +850,7 @@ static int spi_mem_probe(struct spi_device *spi)
 
 	mem = devm_kzalloc(&spi->dev, sizeof(*mem), GFP_KERNEL);
 	if (!mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mem->spi = spi;
 

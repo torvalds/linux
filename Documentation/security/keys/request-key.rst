@@ -43,7 +43,7 @@ Or by userspace invoking the request_key system call::
 				 key_serial_t dest_keyring);
 
 The main difference between the access points is that the in-kernel interface
-does not need to link the key to a keyring to prevent it from being immediately
+does analt need to link the key to a keyring to prevent it from being immediately
 destroyed.  The kernel interface returns a pointer directly to the key, and
 it's up to the caller to destroy the key.
 
@@ -80,7 +80,7 @@ A request proceeds in the following manner:
 
   2) request_key() searches the process's subscribed keyrings to see if there's
      a suitable key there.  If there is, it returns the key.  If there isn't,
-     and callout_info is not set, an error is returned.  Otherwise the process
+     and callout_info is analt set, an error is returned.  Otherwise the process
      proceeds to the next step.
 
   3) request_key() sees that A doesn't have the desired key yet, so it creates
@@ -88,7 +88,7 @@ A request proceeds in the following manner:
 
       a) An uninstantiated key U of requested type and description.
 
-      b) An authorisation key V that refers to key U and notes that process A
+      b) An authorisation key V that refers to key U and analtes that process A
      	 is the context in which key U should be instantiated and secured, and
      	 from which associated key requests may be satisfied.
 
@@ -100,9 +100,9 @@ A request proceeds in the following manner:
   6) /sbin/request-key execs an appropriate program to perform the actual
      instantiation.
 
-  7) The program may want to access another key from A's context (say a
+  7) The program may want to access aanalther key from A's context (say a
      Kerberos TGT key).  It just requests the appropriate key, and the keyring
-     search notes that the session keyring has auth key V in its bottom level.
+     search analtes that the session keyring has auth key V in its bottom level.
 
      This will permit it to then search the keyrings of process A with the
      UID, GID, groups and security info of process A as if it was process A,
@@ -113,14 +113,14 @@ A request proceeds in the following manner:
      Kerberos server using the TGT) and then instantiates key U.
 
   9) Upon instantiating key U, auth key V is automatically revoked so that it
-     may not be used again.
+     may analt be used again.
 
   10) The program then exits 0 and request_key() deletes key V and returns key
       U to the caller.
 
 This also extends further.  If key W (step 7 above) didn't exist, key W would
-be created uninstantiated, another auth key (X) would be created (as per step
-3) and another copy of /sbin/request-key spawned (as per step 4); but the
+be created uninstantiated, aanalther auth key (X) would be created (as per step
+3) and aanalther copy of /sbin/request-key spawned (as per step 4); but the
 context specified by auth key X will still be process A, as it was in auth key
 V.
 
@@ -135,7 +135,7 @@ Negative Instantiation And Rejection
 Rather than instantiating a key, it is possible for the possessor of an
 authorisation key to negatively instantiate a key that's under construction.
 This is a short duration placeholder that causes any attempt at re-requesting
-the key while it exists to fail with error ENOKEY if negated or the specified
+the key while it exists to fail with error EANALKEY if negated or the specified
 error if rejected.
 
 This is provided to prevent excessive repeated spawning of /sbin/request-key
@@ -155,10 +155,10 @@ A search of any particular keyring proceeds in the following fashion:
      firstly calls key_permission(SEARCH) on the keyring it's starting with,
      if this denies permission, it doesn't search further.
 
-  2) It considers all the non-keyring keys within that keyring and, if any key
+  2) It considers all the analn-keyring keys within that keyring and, if any key
      matches the criteria specified, calls key_permission(SEARCH) on it to see
      if the key is allowed to be found.  If it is, that key is returned; if
-     not, the search continues, and the error code is retained if of higher
+     analt, the search continues, and the error code is retained if of higher
      priority than the one currently set.
 
   3) It then considers all the keyring-type keys in the keyring it's currently
@@ -197,11 +197,11 @@ per-task cache, displacing the previous key.  The cache is cleared on exit or
 just prior to resumption of userspace.
 
 Only if all these fail does the whole thing fail with the highest priority
-error.  Note that several errors may have come from LSM.
+error.  Analte that several errors may have come from LSM.
 
 The error priority is::
 
-	EKEYREVOKED > EKEYEXPIRED > ENOKEY
+	EKEYREVOKED > EKEYEXPIRED > EANALKEY
 
 EACCES/EPERM are only returned on a direct search of a specific keyring where
-the basal keyring does not grant Search permission.
+the basal keyring does analt grant Search permission.

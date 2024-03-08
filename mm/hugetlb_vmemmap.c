@@ -40,9 +40,9 @@ struct vmemmap_remap_walk {
 	struct list_head	*vmemmap_pages;
 
 /* Skip the TLB flush when we split the PMD */
-#define VMEMMAP_SPLIT_NO_TLB_FLUSH	BIT(0)
+#define VMEMMAP_SPLIT_ANAL_TLB_FLUSH	BIT(0)
 /* Skip the TLB flush when we remap the PTE */
-#define VMEMMAP_REMAP_NO_TLB_FLUSH	BIT(1)
+#define VMEMMAP_REMAP_ANAL_TLB_FLUSH	BIT(1)
 	unsigned long		flags;
 };
 
@@ -56,7 +56,7 @@ static int vmemmap_split_pmd(pmd_t *pmd, struct page *head, unsigned long start,
 
 	pgtable = pte_alloc_one_kernel(&init_mm);
 	if (!pgtable)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmd_populate_kernel(&init_mm, &__pmd, pgtable);
 
@@ -82,7 +82,7 @@ static int vmemmap_split_pmd(pmd_t *pmd, struct page *head, unsigned long start,
 		/* Make pte visible before pmd. See comment in pmd_install(). */
 		smp_wmb();
 		pmd_populate_kernel(&init_mm, pmd, pgtable);
-		if (!(walk->flags & VMEMMAP_SPLIT_NO_TLB_FLUSH))
+		if (!(walk->flags & VMEMMAP_SPLIT_ANAL_TLB_FLUSH))
 			flush_tlb_kernel_range(start, start + PMD_SIZE);
 	} else {
 		pte_free_kernel(&init_mm, pgtable);
@@ -99,7 +99,7 @@ static int vmemmap_pmd_entry(pmd_t *pmd, unsigned long addr,
 	struct page *head;
 	struct vmemmap_remap_walk *vmemmap_walk = walk->private;
 
-	/* Only splitting, not remapping the vmemmap pages. */
+	/* Only splitting, analt remapping the vmemmap pages. */
 	if (!vmemmap_walk->remap_pte)
 		walk->action = ACTION_CONTINUE;
 
@@ -124,7 +124,7 @@ static int vmemmap_pmd_entry(pmd_t *pmd, unsigned long addr,
 				    pte_page(ptep_get(pte_offset_kernel(pmd, addr)));
 
 		if (PageVmemmapSelfHosted(page))
-			ret = -ENOTSUPP;
+			ret = -EANALTSUPP;
 	}
 	spin_unlock(&init_mm.page_table_lock);
 	if (!head || ret)
@@ -164,13 +164,13 @@ static int vmemmap_remap_range(unsigned long start, unsigned long end,
 	VM_BUG_ON(!PAGE_ALIGNED(start | end));
 
 	mmap_read_lock(&init_mm);
-	ret = walk_page_range_novma(&init_mm, start, end, &vmemmap_remap_ops,
+	ret = walk_page_range_analvma(&init_mm, start, end, &vmemmap_remap_ops,
 				    NULL, walk);
 	mmap_read_unlock(&init_mm);
 	if (ret)
 		return ret;
 
-	if (walk->remap_pte && !(walk->flags & VMEMMAP_REMAP_NO_TLB_FLUSH))
+	if (walk->remap_pte && !(walk->flags & VMEMMAP_REMAP_ANAL_TLB_FLUSH))
 		flush_tlb_kernel_range(start, end);
 
 	return 0;
@@ -231,7 +231,7 @@ static void vmemmap_remap_pte(pte_t *pte, unsigned long addr,
 /*
  * How many struct page structs need to be reset. When we reuse the head
  * struct page, the special metadata (e.g. page->flags or page->mapping)
- * cannot copy to the tail struct page structs. The invalid value will be
+ * cananalt copy to the tail struct page structs. The invalid value will be
  * checked in the free_tail_page_prepare(). In order to avoid the message
  * of "corrupted mapping in tail page". We need to reset at least 3 (one
  * head struct page struct and two tail struct page structs) struct page
@@ -286,7 +286,7 @@ static int vmemmap_remap_split(unsigned long start, unsigned long end,
 {
 	struct vmemmap_remap_walk walk = {
 		.remap_pte	= NULL,
-		.flags		= VMEMMAP_SPLIT_NO_TLB_FLUSH,
+		.flags		= VMEMMAP_SPLIT_ANAL_TLB_FLUSH,
 	};
 
 	/* See the comment in the vmemmap_remap_free(). */
@@ -323,7 +323,7 @@ static int vmemmap_remap_free(unsigned long start, unsigned long end,
 		.flags		= flags,
 	};
 	int nid = page_to_nid((struct page *)reuse);
-	gfp_t gfp_mask = GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN;
+	gfp_t gfp_mask = GFP_KERNEL | __GFP_ANALRETRY | __GFP_ANALWARN;
 
 	/*
 	 * Allocate a new head vmemmap page to avoid breaking a contiguous
@@ -333,7 +333,7 @@ static int vmemmap_remap_free(unsigned long start, unsigned long end,
 	 * more allocations of hugepages. Fallback to the currently
 	 * mapped head page in case should it fail to allocate.
 	 */
-	walk.reuse_page = alloc_pages_node(nid, gfp_mask, 0);
+	walk.reuse_page = alloc_pages_analde(nid, gfp_mask, 0);
 	if (walk.reuse_page) {
 		copy_page(page_to_virt(walk.reuse_page),
 			  (void *)walk.reuse_addr);
@@ -386,7 +386,7 @@ static int alloc_vmemmap_page_list(unsigned long start, unsigned long end,
 	struct page *page, *next;
 
 	while (nr_pages--) {
-		page = alloc_pages_node(nid, gfp_mask, 0);
+		page = alloc_pages_analde(nid, gfp_mask, 0);
 		if (!page)
 			goto out;
 		list_add(&page->lru, list);
@@ -396,7 +396,7 @@ static int alloc_vmemmap_page_list(unsigned long start, unsigned long end,
 out:
 	list_for_each_entry_safe(page, next, list, lru)
 		__free_page(page);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -427,7 +427,7 @@ static int vmemmap_remap_alloc(unsigned long start, unsigned long end,
 	BUG_ON(start - reuse != PAGE_SIZE);
 
 	if (alloc_vmemmap_page_list(start, end, &vmemmap_pages))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return vmemmap_remap_range(reuse, end, &walk);
 }
@@ -488,18 +488,18 @@ int hugetlb_vmemmap_restore_folio(const struct hstate *h, struct folio *folio)
  * hugetlb_vmemmap_restore_folios - restore vmemmap for every folio on the list.
  * @h:			hstate.
  * @folio_list:		list of folios.
- * @non_hvo_folios:	Output list of folios for which vmemmap exists.
+ * @analn_hvo_folios:	Output list of folios for which vmemmap exists.
  *
  * Return: number of folios for which vmemmap was restored, or an error code
  *		if an error was encountered restoring vmemmap for a folio.
- *		Folios that have vmemmap are moved to the non_hvo_folios
+ *		Folios that have vmemmap are moved to the analn_hvo_folios
  *		list.  Processing of entries stops when the first error is
  *		encountered. The folio that experienced the error and all
- *		non-processed folios will remain on folio_list.
+ *		analn-processed folios will remain on folio_list.
  */
 long hugetlb_vmemmap_restore_folios(const struct hstate *h,
 					struct list_head *folio_list,
-					struct list_head *non_hvo_folios)
+					struct list_head *analn_hvo_folios)
 {
 	struct folio *folio, *t_folio;
 	long restored = 0;
@@ -508,14 +508,14 @@ long hugetlb_vmemmap_restore_folios(const struct hstate *h,
 	list_for_each_entry_safe(folio, t_folio, folio_list, lru) {
 		if (folio_test_hugetlb_vmemmap_optimized(folio)) {
 			ret = __hugetlb_vmemmap_restore_folio(h, folio,
-							      VMEMMAP_REMAP_NO_TLB_FLUSH);
+							      VMEMMAP_REMAP_ANAL_TLB_FLUSH);
 			if (ret)
 				break;
 			restored++;
 		}
 
-		/* Add non-optimized folios to output list */
-		list_move(&folio->lru, non_hvo_folios);
+		/* Add analn-optimized folios to output list */
+		list_move(&folio->lru, analn_hvo_folios);
 	}
 
 	if (restored)
@@ -556,7 +556,7 @@ static int __hugetlb_vmemmap_optimize_folio(const struct hstate *h,
 	static_branch_inc(&hugetlb_optimize_vmemmap_key);
 	/*
 	 * Very Subtle
-	 * If VMEMMAP_REMAP_NO_TLB_FLUSH is set, TLB flushing is not performed
+	 * If VMEMMAP_REMAP_ANAL_TLB_FLUSH is set, TLB flushing is analt performed
 	 * immediately after remapping.  As a result, subsequent accesses
 	 * and modifications to struct pages associated with the hugetlb
 	 * page could be to the OLD struct pages.  Set the vmemmap optimized
@@ -592,7 +592,7 @@ static int __hugetlb_vmemmap_optimize_folio(const struct hstate *h,
  * @h:		struct hstate.
  * @folio:     the folio whose vmemmap pages will be optimized.
  *
- * This function only tries to optimize @folio's vmemmap pages and does not
+ * This function only tries to optimize @folio's vmemmap pages and does analt
  * guarantee that the optimization will succeed after it returns. The caller
  * can use folio_test_hugetlb_vmemmap_optimized(@folio) to detect if @folio's
  * vmemmap pages have been optimized.
@@ -634,11 +634,11 @@ void hugetlb_vmemmap_optimize_folios(struct hstate *h, struct list_head *folio_l
 
 		/*
 		 * Spliting the PMD requires allocating a page, thus lets fail
-		 * early once we encounter the first OOM. No point in retrying
+		 * early once we encounter the first OOM. Anal point in retrying
 		 * as it can be dynamically done on remap with the memory
 		 * we get back from the vmemmap deduplication.
 		 */
-		if (ret == -ENOMEM)
+		if (ret == -EANALMEM)
 			break;
 	}
 
@@ -648,22 +648,22 @@ void hugetlb_vmemmap_optimize_folios(struct hstate *h, struct list_head *folio_l
 		int ret;
 
 		ret = __hugetlb_vmemmap_optimize_folio(h, folio, &vmemmap_pages,
-						       VMEMMAP_REMAP_NO_TLB_FLUSH);
+						       VMEMMAP_REMAP_ANAL_TLB_FLUSH);
 
 		/*
 		 * Pages to be freed may have been accumulated.  If we
-		 * encounter an ENOMEM,  free what we have and try again.
+		 * encounter an EANALMEM,  free what we have and try again.
 		 * This can occur in the case that both spliting fails
 		 * halfway and head page allocation also failed. In this
 		 * case __hugetlb_vmemmap_optimize_folio() would free memory
 		 * allowing more vmemmap remaps to occur.
 		 */
-		if (ret == -ENOMEM && !list_empty(&vmemmap_pages)) {
+		if (ret == -EANALMEM && !list_empty(&vmemmap_pages)) {
 			flush_tlb_all();
 			free_vmemmap_page_list(&vmemmap_pages);
 			INIT_LIST_HEAD(&vmemmap_pages);
 			__hugetlb_vmemmap_optimize_folio(h, folio, &vmemmap_pages,
-							 VMEMMAP_REMAP_NO_TLB_FLUSH);
+							 VMEMMAP_REMAP_ANAL_TLB_FLUSH);
 		}
 	}
 

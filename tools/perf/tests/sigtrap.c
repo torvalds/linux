@@ -5,7 +5,7 @@
  * Copyright (C) 2021, Google LLC.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <linux/hw_breakpoint.h>
@@ -46,7 +46,7 @@ static struct perf_event_attr make_event_attr(void)
 		.inherit	= 1, /* Children inherit events ... */
 		.inherit_thread = 1, /* ... but only cloned with CLONE_THREAD. */
 		.remove_on_exec = 1, /* Required by sigtrap. */
-		.sigtrap	= 1, /* Request synchronous SIGTRAP on event. */
+		.sigtrap	= 1, /* Request synchroanalus SIGTRAP on event. */
 		.sig_data	= TEST_SIG_DATA,
 		.exclude_kernel = 1, /* To allow */
 		.exclude_hv     = 1, /* running as !root */
@@ -139,7 +139,7 @@ static bool attr_has_sigtrap(void)
 		.config		= PERF_COUNT_SW_DUMMY,
 		.size		= sizeof(attr),
 		.remove_on_exec = 1, /* Required by sigtrap. */
-		.sigtrap	= 1, /* Request synchronous SIGTRAP on event. */
+		.sigtrap	= 1, /* Request synchroanalus SIGTRAP on event. */
 	};
 	int fd;
 	bool ret = false;
@@ -241,17 +241,17 @@ static int test__sigtrap(struct test_suite *test __maybe_unused, int subtest __m
 	int i, fd, ret = TEST_FAIL;
 
 	if (!BP_SIGNAL_IS_SUPPORTED) {
-		pr_debug("Test not supported on this architecture");
+		pr_debug("Test analt supported on this architecture");
 		return TEST_SKIP;
 	}
 
 	pthread_barrier_init(&barrier, NULL, NUM_THREADS + 1);
 
-	action.sa_flags = SA_SIGINFO | SA_NODEFER;
+	action.sa_flags = SA_SIGINFO | SA_ANALDEFER;
 	action.sa_sigaction = sigtrap_handler;
 	sigemptyset(&action.sa_mask);
 	if (sigaction(SIGTRAP, &action, &oldact)) {
-		pr_debug("FAILED sigaction(): %s\n", str_error_r(errno, sbuf, sizeof(sbuf)));
+		pr_debug("FAILED sigaction(): %s\n", str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out;
 	}
 
@@ -259,7 +259,7 @@ static int test__sigtrap(struct test_suite *test __maybe_unused, int subtest __m
 	if (fd < 0) {
 		if (attr_has_sigtrap()) {
 			pr_debug("FAILED sys_perf_event_open(): %s\n",
-				 str_error_r(errno, sbuf, sizeof(sbuf)));
+				 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		} else {
 			pr_debug("perf_event_attr doesn't have sigtrap\n");
 			ret = TEST_SKIP;
@@ -269,7 +269,7 @@ static int test__sigtrap(struct test_suite *test __maybe_unused, int subtest __m
 
 	for (i = 0; i < NUM_THREADS; i++) {
 		if (pthread_create(&threads[i], NULL, test_thread, &barrier)) {
-			pr_debug("FAILED pthread_create(): %s\n", str_error_r(errno, sbuf, sizeof(sbuf)));
+			pr_debug("FAILED pthread_create(): %s\n", str_error_r(erranal, sbuf, sizeof(sbuf)));
 			goto out_close_perf_event;
 		}
 	}

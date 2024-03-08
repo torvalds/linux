@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2021 ARM Limited
  *
- * Verify that using an instruction not supported in streaming mode
+ * Verify that using an instruction analt supported in streaming mode
  * traps when in streaming mode.
  */
 
@@ -41,13 +41,13 @@ int zt_regs_run(struct tdescr *td, siginfo_t *si, ucontext_t *uc)
 
 	head = get_header(head, ZT_MAGIC, GET_BUF_RESV_SIZE(context), &offset);
 	if (!head) {
-		fprintf(stderr, "No ZT context\n");
+		fprintf(stderr, "Anal ZT context\n");
 		return 1;
 	}
 
 	zt = (struct zt_context *)head;
 	if (zt->nregs == 0) {
-		fprintf(stderr, "Got context with no registers\n");
+		fprintf(stderr, "Got context with anal registers\n");
 		return 1;
 	}
 

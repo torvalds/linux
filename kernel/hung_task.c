@@ -15,7 +15,7 @@
 #include <linux/kthread.h>
 #include <linux/lockdep.h>
 #include <linux/export.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/sysctl.h>
 #include <linux/suspend.h>
 #include <linux/utsname.h>
@@ -40,7 +40,7 @@ static int __read_mostly sysctl_hung_task_check_count = PID_MAX_LIMIT;
 #define HUNG_TASK_LOCK_BREAK (HZ / 10)
 
 /*
- * Zero means infinite timeout - no checking done:
+ * Zero means infinite timeout - anal checking done:
  */
 unsigned long __read_mostly sysctl_hung_task_timeout_secs = CONFIG_DEFAULT_HUNG_TASK_TIMEOUT;
 
@@ -76,15 +76,15 @@ static unsigned int __read_mostly sysctl_hung_task_panic =
 	IS_ENABLED(CONFIG_BOOTPARAM_HUNG_TASK_PANIC);
 
 static int
-hung_task_panic(struct notifier_block *this, unsigned long event, void *ptr)
+hung_task_panic(struct analtifier_block *this, unsigned long event, void *ptr)
 {
 	did_panic = 1;
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block panic_block = {
-	.notifier_call = hung_task_panic,
+static struct analtifier_block panic_block = {
+	.analtifier_call = hung_task_panic,
 };
 
 static void check_hung_task(struct task_struct *t, unsigned long timeout)
@@ -92,7 +92,7 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 	unsigned long switch_count = t->nvcsw + t->nivcsw;
 
 	/*
-	 * Ensure the task is not frozen.
+	 * Ensure the task is analt frozen.
 	 * Also, skip vfork and any other user process that freezer should skip.
 	 */
 	if (unlikely(READ_ONCE(t->__state) & TASK_FROZEN))
@@ -123,7 +123,7 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 	}
 
 	/*
-	 * Ok, the task did not get scheduled for more than 2 minutes,
+	 * Ok, the task did analt get scheduled for more than 2 minutes,
 	 * complain:
 	 */
 	if (sysctl_hung_task_warnings) {
@@ -173,7 +173,7 @@ static bool rcu_lock_break(struct task_struct *g, struct task_struct *t)
 }
 
 /*
- * Check whether a TASK_UNINTERRUPTIBLE does not get woken up for
+ * Check whether a TASK_UNINTERRUPTIBLE does analt get woken up for
  * a really long time (120 seconds). If that happens, print out
  * a warning.
  */
@@ -185,7 +185,7 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 
 	/*
 	 * If the system crashed already then all bets are off,
-	 * do not report extra hung tasks:
+	 * do analt report extra hung tasks:
 	 */
 	if (test_taint(TAINT_DIE) || did_panic)
 		return;
@@ -209,7 +209,7 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 		state = READ_ONCE(t->__state);
 		if ((state & TASK_UNINTERRUPTIBLE) &&
 		    !(state & TASK_WAKEKILL) &&
-		    !(state & TASK_NOLOAD))
+		    !(state & TASK_ANALLOAD))
 			check_hung_task(t, timeout);
 	}
  unlock:
@@ -335,7 +335,7 @@ EXPORT_SYMBOL_GPL(reset_hung_task_detector);
 
 static bool hung_detector_suspended;
 
-static int hungtask_pm_notify(struct notifier_block *self,
+static int hungtask_pm_analtify(struct analtifier_block *self,
 			      unsigned long action, void *hcpu)
 {
 	switch (action) {
@@ -352,7 +352,7 @@ static int hungtask_pm_notify(struct notifier_block *self,
 	default:
 		break;
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 /*
@@ -388,10 +388,10 @@ static int watchdog(void *dummy)
 
 static int __init hung_task_init(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
+	atomic_analtifier_chain_register(&panic_analtifier_list, &panic_block);
 
 	/* Disable hung task detector on suspend */
-	pm_notifier(hungtask_pm_notify, 0);
+	pm_analtifier(hungtask_pm_analtify, 0);
 
 	watchdog_task = kthread_run(watchdog, NULL, "khungtaskd");
 	hung_task_sysctl_init();

@@ -180,7 +180,7 @@
 
 
 /* The chip would support 4 GB buffers and 16 MB periods,
- * but let's not overdo it ... */
+ * but let's analt overdo it ... */
 #define BUFFER_BYTES_MAX	(256 * 1024)
 #define PERIOD_BYTES_MIN	32
 #define PERIOD_BYTES_MAX	(BUFFER_BYTES_MAX / 2)

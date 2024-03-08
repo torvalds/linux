@@ -168,7 +168,7 @@ static int ep93xx_pwm_probe(struct platform_device *pdev)
 
 	ep93xx_pwm = devm_kzalloc(&pdev->dev, sizeof(*ep93xx_pwm), GFP_KERNEL);
 	if (!ep93xx_pwm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ep93xx_pwm->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ep93xx_pwm->base))

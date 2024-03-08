@@ -4,11 +4,11 @@ This file documents differences between the core properties in
 Documentation/devicetree/bindings/net/stmmac.txt
 and what is needed on STi platforms to program the stmmac glue logic.
 
-The device node has following properties.
+The device analde has following properties.
 
 Required properties:
  - compatible	: "st,stih407-dwmac"
- - st,syscon : Should be phandle/offset pair. The phandle to the syscon node which
+ - st,syscon : Should be phandle/offset pair. The phandle to the syscon analde which
    encompases the glue register, and the offset of the control register.
  - st,gmac_en: this is to enable the gmac into a dedicated sysctl control
    register available on STiH407 SoC.
@@ -22,7 +22,7 @@ Optional properties:
  - st,tx-retime-src: This specifies which clk is wired up to the mac for
    retimeing tx lines. This is totally board dependent and can take one of the
    possible values from "txclk", "clk_125" or "clkgen".
-   If not passed, the internal clock will be used by default.
+   If analt passed, the internal clock will be used by default.
  - sti-ethclk: this is the phy clock.
  - sti-clkconf: this is an extra sysconfig register, available in new SoCs,
    to program the clk retiming.
@@ -42,9 +42,9 @@ ethernet0: dwmac@9630000 {
 	resets = <&softreset STIH407_ETH1_SOFTRESET>;
 	reset-names = "stmmaceth";
 
-	interrupts = <GIC_SPI 98 IRQ_TYPE_NONE>,
-		     <GIC_SPI 99 IRQ_TYPE_NONE>,
-		     <GIC_SPI 100 IRQ_TYPE_NONE>;
+	interrupts = <GIC_SPI 98 IRQ_TYPE_ANALNE>,
+		     <GIC_SPI 99 IRQ_TYPE_ANALNE>,
+		     <GIC_SPI 100 IRQ_TYPE_ANALNE>;
 	interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 
 	snps,pbl = <32>;

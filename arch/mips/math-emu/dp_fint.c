@@ -34,7 +34,7 @@ union ieee754dp ieee754dp_fint(int x)
 		xm = x;
 	}
 
-	/* normalize - result can never be inexact or overflow */
+	/* analrmalize - result can never be inexact or overflow */
 	xe = DP_FBITS;
 	while ((xm >> DP_FBITS) == 0) {
 		xm <<= 1;

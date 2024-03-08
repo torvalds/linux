@@ -39,10 +39,10 @@
 #define GOODIX_RQST_RESET			0x03
 #define GOODIX_RQST_MAIN_CLOCK			0x04
 /*
- * Unknown request which gets send by the controller aprox.
+ * Unkanalwn request which gets send by the controller aprox.
  * every 34 seconds once it is up and running.
  */
-#define GOODIX_RQST_UNKNOWN			0x06
+#define GOODIX_RQST_UNKANALWN			0x06
 #define GOODIX_RQST_IDLE			0xFF
 
 #define GOODIX_REG_STATUS			0x8044
@@ -58,7 +58,7 @@
 #define GOODIX_MAX_KEYS				7
 
 enum goodix_irq_pin_access_method {
-	IRQ_PIN_ACCESS_NONE,
+	IRQ_PIN_ACCESS_ANALNE,
 	IRQ_PIN_ACCESS_GPIO,
 	IRQ_PIN_ACCESS_ACPI_GPIO,
 	IRQ_PIN_ACCESS_ACPI_METHOD,
@@ -111,7 +111,7 @@ int goodix_i2c_write(struct i2c_client *client, u16 reg, const u8 *buf, int len)
 int goodix_i2c_write_u8(struct i2c_client *client, u16 reg, u8 value);
 int goodix_send_cfg(struct goodix_ts_data *ts, const u8 *cfg, int len);
 int goodix_int_sync(struct goodix_ts_data *ts);
-int goodix_reset_no_int_sync(struct goodix_ts_data *ts);
+int goodix_reset_anal_int_sync(struct goodix_ts_data *ts);
 
 int goodix_firmware_check(struct goodix_ts_data *ts);
 bool goodix_handle_fw_request(struct goodix_ts_data *ts);

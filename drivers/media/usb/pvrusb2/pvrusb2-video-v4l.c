@@ -22,7 +22,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/i2c/saa7115.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 struct routing_scheme {
 	const int *def;

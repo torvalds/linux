@@ -488,7 +488,7 @@ static struct clk_branch disp_cc_mdss_edp_link_intf_clk = {
 				&disp_cc_mdss_edp_link_div_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
-			.flags = CLK_GET_RATE_NOCACHE,
+			.flags = CLK_GET_RATE_ANALCACHE,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1016,14 +1016,14 @@ static struct clk_branch disp_cc_mdss_mdp_lut_clk = {
 	},
 };
 
-static struct clk_branch disp_cc_mdss_non_gdsc_ahb_clk = {
+static struct clk_branch disp_cc_mdss_analn_gdsc_ahb_clk = {
 	.halt_reg = 0x4004,
 	.halt_check = BRANCH_VOTED,
 	.clkr = {
 		.enable_reg = 0x4004,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "disp_cc_mdss_non_gdsc_ahb_clk",
+			.name = "disp_cc_mdss_analn_gdsc_ahb_clk",
 			.parent_hws = (const struct clk_hw*[]){
 				&disp_cc_mdss_ahb_clk_src.clkr.hw,
 			},
@@ -1200,7 +1200,7 @@ static struct clk_regmap *disp_cc_sm8250_clocks[] = {
 	[DISP_CC_MDSS_MDP_CLK] = &disp_cc_mdss_mdp_clk.clkr,
 	[DISP_CC_MDSS_MDP_CLK_SRC] = &disp_cc_mdss_mdp_clk_src.clkr,
 	[DISP_CC_MDSS_MDP_LUT_CLK] = &disp_cc_mdss_mdp_lut_clk.clkr,
-	[DISP_CC_MDSS_NON_GDSC_AHB_CLK] = &disp_cc_mdss_non_gdsc_ahb_clk.clkr,
+	[DISP_CC_MDSS_ANALN_GDSC_AHB_CLK] = &disp_cc_mdss_analn_gdsc_ahb_clk.clkr,
 	[DISP_CC_MDSS_PCLK0_CLK] = &disp_cc_mdss_pclk0_clk.clkr,
 	[DISP_CC_MDSS_PCLK0_CLK_SRC] = &disp_cc_mdss_pclk0_clk_src.clkr,
 	[DISP_CC_MDSS_PCLK1_CLK] = &disp_cc_mdss_pclk1_clk.clkr,
@@ -1272,8 +1272,8 @@ static int disp_cc_sm8250_probe(struct platform_device *pdev)
 
 	/* Apply differences for SM8150 and SM8350 */
 	BUILD_BUG_ON(CLK_ALPHA_PLL_TYPE_TRION != CLK_ALPHA_PLL_TYPE_LUCID);
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,sc8180x-dispcc") ||
-	    of_device_is_compatible(pdev->dev.of_node, "qcom,sm8150-dispcc")) {
+	if (of_device_is_compatible(pdev->dev.of_analde, "qcom,sc8180x-dispcc") ||
+	    of_device_is_compatible(pdev->dev.of_analde, "qcom,sm8150-dispcc")) {
 		disp_cc_pll0_config.config_ctl_hi_val = 0x00002267;
 		disp_cc_pll0_config.config_ctl_hi1_val = 0x00000024;
 		disp_cc_pll0_config.user_ctl_hi1_val = 0x000000D0;
@@ -1293,7 +1293,7 @@ static int disp_cc_sm8250_probe(struct platform_device *pdev)
 		disp_cc_sm8250_clocks[DISP_CC_MDSS_DP_LINK1_DIV_CLK_SRC] = NULL;
 		disp_cc_sm8250_clocks[DISP_CC_MDSS_DP_LINK_DIV_CLK_SRC] = NULL;
 		disp_cc_sm8250_clocks[DISP_CC_MDSS_EDP_LINK_DIV_CLK_SRC] = NULL;
-	} else if (of_device_is_compatible(pdev->dev.of_node, "qcom,sm8350-dispcc")) {
+	} else if (of_device_is_compatible(pdev->dev.of_analde, "qcom,sm8350-dispcc")) {
 		static struct clk_rcg2 * const rcgs[] = {
 			&disp_cc_mdss_byte0_clk_src,
 			&disp_cc_mdss_byte1_clk_src,
@@ -1326,7 +1326,7 @@ static int disp_cc_sm8250_probe(struct platform_device *pdev)
 		static bool offset_applied;
 
 		/*
-		 * note: trion == lucid, except for the prepare() op
+		 * analte: trion == lucid, except for the prepare() op
 		 * only apply the offsets once (in case of deferred probe)
 		 */
 		if (!offset_applied) {

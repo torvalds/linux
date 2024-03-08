@@ -13,37 +13,37 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <asm/thread_notify.h>
+#include <asm/thread_analtify.h>
 #include <asm/cputype.h>
 
-static int iwmmxt_do(struct notifier_block *self, unsigned long cmd, void *t)
+static int iwmmxt_do(struct analtifier_block *self, unsigned long cmd, void *t)
 {
 	struct thread_info *thread = t;
 
 	switch (cmd) {
-	case THREAD_NOTIFY_FLUSH:
+	case THREAD_ANALTIFY_FLUSH:
 		/*
-		 * flush_thread() zeroes thread->fpstate, so no need
+		 * flush_thread() zeroes thread->fpstate, so anal need
 		 * to do anything here.
 		 *
 		 * FALLTHROUGH: Ensure we don't try to overwrite our newly
 		 * initialised state information on the first fault.
 		 */
 
-	case THREAD_NOTIFY_EXIT:
+	case THREAD_ANALTIFY_EXIT:
 		iwmmxt_task_release(thread);
 		break;
 
-	case THREAD_NOTIFY_SWITCH:
+	case THREAD_ANALTIFY_SWITCH:
 		iwmmxt_task_switch(thread);
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block __maybe_unused iwmmxt_notifier_block = {
-	.notifier_call	= iwmmxt_do,
+static struct analtifier_block __maybe_unused iwmmxt_analtifier_block = {
+	.analtifier_call	= iwmmxt_do,
 };
 
 
@@ -83,7 +83,7 @@ static int __init pj4_get_iwmmxt_version(void)
 	/* check if coprocessor 0 and 1 are available */
 	if ((pj4_cp_access_read() & 0xf) != 0xf) {
 		pj4_cp_access_write(cp_access);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* read iWMMXt coprocessor id register p1, c0 */
@@ -125,7 +125,7 @@ static int __init pj4_cp0_init(void)
 
 	pr_info("PJ4 iWMMXt v%d coprocessor enabled.\n", vers);
 	elf_hwcap |= HWCAP_IWMMXT;
-	thread_register_notifier(&iwmmxt_notifier_block);
+	thread_register_analtifier(&iwmmxt_analtifier_block);
 	register_iwmmxt_undef_handler();
 #endif
 

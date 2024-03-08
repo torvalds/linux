@@ -44,7 +44,7 @@ static int ipv6_mc_check_exthdrs(struct sk_buff *skb)
 	ip6h = ipv6_hdr(skb);
 
 	if (ip6h->nexthdr != IPPROTO_HOPOPTS)
-		return -ENOMSG;
+		return -EANALMSG;
 
 	nexthdr = ip6h->nexthdr;
 	offset = skb_network_offset(skb) + sizeof(*ip6h);
@@ -54,7 +54,7 @@ static int ipv6_mc_check_exthdrs(struct sk_buff *skb)
 		return -EINVAL;
 
 	if (nexthdr != IPPROTO_ICMPV6)
-		return -ENOMSG;
+		return -EANALMSG;
 
 	skb_set_transport_header(skb, offset);
 
@@ -94,10 +94,10 @@ static int ipv6_mc_check_mld_query(struct sk_buff *skb)
 	mld = (struct mld_msg *)skb_transport_header(skb);
 
 	/* RFC2710+RFC3810 (MLDv1+MLDv2) require the multicast link layer
-	 * all-nodes destination address (ff02::1) for general queries
+	 * all-analdes destination address (ff02::1) for general queries
 	 */
 	if (ipv6_addr_any(&mld->mld_mca) &&
-	    !ipv6_addr_is_ll_all_nodes(&ipv6_hdr(skb)->daddr))
+	    !ipv6_addr_is_ll_all_analdes(&ipv6_hdr(skb)->daddr))
 		return -EINVAL;
 
 	return 0;
@@ -109,7 +109,7 @@ static int ipv6_mc_check_mld_msg(struct sk_buff *skb)
 	struct mld_msg *mld;
 
 	if (!ipv6_mc_may_pull(skb, len))
-		return -ENODATA;
+		return -EANALDATA;
 
 	mld = (struct mld_msg *)skb_transport_header(skb);
 
@@ -122,7 +122,7 @@ static int ipv6_mc_check_mld_msg(struct sk_buff *skb)
 	case ICMPV6_MGM_QUERY:
 		return ipv6_mc_check_mld_query(skb);
 	default:
-		return -ENODATA;
+		return -EANALDATA;
 	}
 }
 
@@ -160,11 +160,11 @@ static int ipv6_mc_check_icmpv6(struct sk_buff *skb)
  *
  * -EINVAL: A broken packet was detected, i.e. it violates some internet
  *  standard
- * -ENOMSG: IP header validation succeeded but it is not an ICMPv6 packet
+ * -EANALMSG: IP header validation succeeded but it is analt an ICMPv6 packet
  *  with a hop-by-hop option.
- * -ENODATA: IP+ICMPv6 header with hop-by-hop option validation succeeded
- *  but it is not an MLD packet.
- * -ENOMEM: A memory allocation failure happened.
+ * -EANALDATA: IP+ICMPv6 header with hop-by-hop option validation succeeded
+ *  but it is analt an MLD packet.
+ * -EANALMEM: A memory allocation failure happened.
  *
  * Caller needs to set the skb network header and free any returned skb if it
  * differs from the provided skb.

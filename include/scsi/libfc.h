@@ -30,13 +30,13 @@
 /*
  * libfc error codes
  */
-#define	FC_NO_ERR	0	/* no error */
+#define	FC_ANAL_ERR	0	/* anal error */
 #define	FC_EX_TIMEOUT	1	/* Exchange timeout */
 #define	FC_EX_CLOSED	2	/* Exchange closed */
 #define FC_EX_ALLOC_ERR	3	/* Exchange allocation failed */
 #define FC_EX_XMIT_ERR	4	/* Exchange transmit failed */
 #define FC_EX_ELS_RJT	5	/* ELS rejected */
-#define FC_EX_INV_LOGIN	6	/* Login not completed */
+#define FC_EX_INV_LOGIN	6	/* Login analt completed */
 #define FC_EX_SEQ_ERR	6	/* Exchange sequence error */
 
 /**
@@ -75,7 +75,7 @@ enum fc_lport_state {
 };
 
 enum fc_disc_event {
-	DISC_EV_NONE = 0,
+	DISC_EV_ANALNE = 0,
 	DISC_EV_SUCCESS,
 	DISC_EV_FAILED
 };
@@ -107,7 +107,7 @@ enum fc_rport_state {
 /**
  * struct fc_disc_port - temporary discovery port to hold rport identifiers
  * @lp:         Fibre Channel host port instance
- * @peers:      Node for list management during discovery and RSCN processing
+ * @peers:      Analde for list management during discovery and RSCN processing
  * @rport_work: Work struct for starting the rport state machine
  * @port_id:    Port ID of the discovered port
  */
@@ -120,14 +120,14 @@ struct fc_disc_port {
 
 /**
  * enum fc_rport_event - Remote port events
- * @RPORT_EV_NONE:   No event
+ * @RPORT_EV_ANALNE:   Anal event
  * @RPORT_EV_READY:  Remote port is ready for use
- * @RPORT_EV_FAILED: State machine failed, remote port is not ready
+ * @RPORT_EV_FAILED: State machine failed, remote port is analt ready
  * @RPORT_EV_STOP:   Remote port has been stopped
  * @RPORT_EV_LOGO:   Remote port logout (LOGO) sent
  */
 enum fc_rport_event {
-	RPORT_EV_NONE = 0,
+	RPORT_EV_ANALNE = 0,
 	RPORT_EV_READY,
 	RPORT_EV_FAILED,
 	RPORT_EV_STOP,
@@ -425,7 +425,7 @@ struct fc_seq {
  * @destructor:   Called when destroying the exchange
  * @arg:          Passed as a void pointer to the resp() callback
  *
- * Locking notes: The ex_lock protects following items:
+ * Locking analtes: The ex_lock protects following items:
  *	state, esb_stat, f_ctl, seq.ssb_stat
  *	seq_id
  *	sequence allocation
@@ -514,8 +514,8 @@ struct libfc_function_template {
 
 	/*
 	 * Reset an exchange manager, completing all sequences and exchanges.
-	 * If s_id is non-zero, reset only exchanges originating from that FID.
-	 * If d_id is non-zero, reset only exchanges sending to that FID.
+	 * If s_id is analn-zero, reset only exchanges originating from that FID.
+	 * If d_id is analn-zero, reset only exchanges sending to that FID.
 	 *
 	 * STATUS: OPTIONAL
 	 */
@@ -525,16 +525,16 @@ struct libfc_function_template {
 	 * Set the local port FC_ID.
 	 *
 	 * This may be provided by the LLD to allow it to be
-	 * notified when the local port is assigned a FC-ID.
+	 * analtified when the local port is assigned a FC-ID.
 	 *
-	 * The frame, if non-NULL, is the incoming frame with the
+	 * The frame, if analn-NULL, is the incoming frame with the
 	 * FLOGI LS_ACC or FLOGI, and may contain the granted MAC
 	 * address for the LLD.  The frame pointer may be NULL if
-	 * no MAC is associated with this assignment (LOGO or PLOGI).
+	 * anal MAC is associated with this assignment (LOGO or PLOGI).
 	 *
-	 * If FC_ID is non-zero, r_a_tov and e_d_tov must be valid.
+	 * If FC_ID is analn-zero, r_a_tov and e_d_tov must be valid.
 	 *
-	 * Note: this is called with the local port mutex held.
+	 * Analte: this is called with the local port mutex held.
 	 *
 	 * STATUS: OPTIONAL
 	 */
@@ -613,8 +613,8 @@ struct libfc_function_template {
 /**
  * struct fc_disc - Discovery context
  * @retry_count:   Number of retries
- * @pending:       1 if discovery is pending, 0 if not
- * @requested:     1 if discovery has been requested, 0 if not
+ * @pending:       1 if discovery is pending, 0 if analt
+ * @requested:     1 if discovery has been requested, 0 if analt
  * @seq_count:     Number of sequences used for discovery
  * @buf_len:       Length of the discovery buffer
  * @disc_id:       Discovery ID
@@ -645,9 +645,9 @@ struct fc_disc {
 };
 
 /*
- * Local port notifier and events.
+ * Local port analtifier and events.
  */
-extern struct blocking_notifier_head fc_lport_notifier_head;
+extern struct blocking_analtifier_head fc_lport_analtifier_head;
 enum fc_lport_event {
 	FC_LPORT_EV_ADD,
 	FC_LPORT_EV_DEL,
@@ -666,7 +666,7 @@ enum fc_lport_event {
  * @vport:                 Parent vport if VN_Port
  * @tt:                    Libfc function template
  * @link_up:               Link state (1 = link up, 0 = link down)
- * @qfull:                 Queue state (1 queue is full, 0 queue is not full)
+ * @qfull:                 Queue state (1 queue is full, 0 queue is analt full)
  * @state:                 Identifies the state
  * @boot_time:             Timestamp indicating when the local port came online
  * @host_stats:            SCSI host statistics
@@ -674,7 +674,7 @@ enum fc_lport_event {
  * @retry_count:           Number of retries in the current state
  * @port_id:               FC Port ID
  * @wwpn:                  World Wide Port Name
- * @wwnn:                  World Wide Node Name
+ * @wwnn:                  World Wide Analde Name
  * @service_params:        Common service parameters
  * @e_d_tov:               Error detection timeout value
  * @r_a_tov:               Resource allocation timeout value
@@ -795,7 +795,7 @@ static inline int fc_lport_test_ready(struct fc_lport *lport)
 }
 
 /**
- * fc_set_wwnn() - Set the World Wide Node Name of a local port
+ * fc_set_wwnn() - Set the World Wide Analde Name of a local port
  * @lport: The local port whose WWNN is to be set
  * @wwnn:  The new WWNN
  */
@@ -835,7 +835,7 @@ static inline int fc_lport_init_stats(struct fc_lport *lport)
 {
 	lport->stats = alloc_percpu(struct fc_stats);
 	if (!lport->stats)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

@@ -96,7 +96,7 @@ static int get_sock_port(int fd)
 	case AF_INET6:
 		return ntohs(addr.v6.sin6_port);
 	default:
-		errno = EAFNOSUPPORT;
+		erranal = EAFANALSUPPORT;
 		return -1;
 	}
 }
@@ -194,19 +194,19 @@ TEST_F(ip_local_port_range, invalid_option_value)
 	val16 = 40000;
 	err = setsockopt(fd, SOL_IP, IP_LOCAL_PORT_RANGE, &val16, sizeof(val16));
 	EXPECT_TRUE(err) TH_LOG("expected setsockopt(IP_LOCAL_PORT_RANGE) to fail");
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 
 	/* Empty range: low port > high port */
 	val32 = pack_port_range(40222, 40111);
 	err = setsockopt(fd, SOL_IP, IP_LOCAL_PORT_RANGE, &val32, sizeof(val32));
 	EXPECT_TRUE(err) TH_LOG("expected setsockopt(IP_LOCAL_PORT_RANGE) to fail");
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 
 	/* Too many bytes */
 	val64 = pack_port_range(40333, 40444);
 	err = setsockopt(fd, SOL_IP, IP_LOCAL_PORT_RANGE, &val64, sizeof(val64));
 	EXPECT_TRUE(err) TH_LOG("expected setsockopt(IP_LOCAL_PORT_RANGE) to fail");
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erranal, EINVAL);
 
 	err = close(fd);
 	ASSERT_TRUE(!err) TH_LOG("close failed");
@@ -224,7 +224,7 @@ TEST_F(ip_local_port_range, port_range_out_of_netns_range)
 	const struct test *t;
 
 	for (t = tests; t < tests + ARRAY_SIZE(tests); t++) {
-		/* Bind a couple of sockets, not just one, to check
+		/* Bind a couple of sockets, analt just one, to check
 		 * that the range wasn't clamped to a single port from
 		 * the netns range. That is [40000, 40000] or [49999,
 		 * 49999], respectively for each test case.
@@ -247,7 +247,7 @@ TEST_F(ip_local_port_range, port_range_out_of_netns_range)
 			err = bind_to_loopback_any_port(fd);
 			ASSERT_TRUE(!err) TH_LOG("#%d: bind failed", i);
 
-			/* Check that socket port range outside of ephemeral range is ignored */
+			/* Check that socket port range outside of ephemeral range is iganalred */
 			port = get_sock_port(fd);
 			ASSERT_GE(port, 40000) TH_LOG("#%d: expected port within netns range", i);
 			ASSERT_LE(port, 49999) TH_LOG("#%d: expected port within netns range", i);
@@ -341,7 +341,7 @@ TEST_F(ip_local_port_range, exhaust_8_port_range)
 
 	err = bind_to_loopback_any_port(fd);
 	ASSERT_TRUE(err) TH_LOG("expected bind to fail");
-	ASSERT_EQ(errno, EADDRINUSE);
+	ASSERT_EQ(erranal, EADDRINUSE);
 
 	err = close(fd);
 	ASSERT_TRUE(!err) TH_LOG("close failed");
@@ -366,7 +366,7 @@ TEST_F(ip_local_port_range, late_bind)
 	__u16 port;
 
 	if (variant->so_protocol == IPPROTO_SCTP)
-		SKIP(return, "SCTP doesn't support IP_BIND_ADDRESS_NO_PORT");
+		SKIP(return, "SCTP doesn't support IP_BIND_ADDRESS_ANAL_PORT");
 
 	fd = socket(variant->so_domain, variant->so_type, 0);
 	ASSERT_GE(fd, 0) TH_LOG("socket failed");
@@ -375,8 +375,8 @@ TEST_F(ip_local_port_range, late_bind)
 	err = setsockopt(fd, SOL_IP, IP_LOCAL_PORT_RANGE, &range, sizeof(range));
 	ASSERT_TRUE(!err) TH_LOG("setsockopt(IP_LOCAL_PORT_RANGE) failed");
 
-	err = setsockopt(fd, SOL_IP, IP_BIND_ADDRESS_NO_PORT, &one, sizeof(one));
-	ASSERT_TRUE(!err) TH_LOG("setsockopt(IP_BIND_ADDRESS_NO_PORT) failed");
+	err = setsockopt(fd, SOL_IP, IP_BIND_ADDRESS_ANAL_PORT, &one, sizeof(one));
+	ASSERT_TRUE(!err) TH_LOG("setsockopt(IP_BIND_ADDRESS_ANAL_PORT) failed");
 
 	err = bind_to_loopback_any_port(fd);
 	ASSERT_TRUE(!err) TH_LOG("bind failed");

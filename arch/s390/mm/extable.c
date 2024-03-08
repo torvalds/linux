@@ -3,7 +3,7 @@
 #include <linux/bitfield.h>
 #include <linux/extable.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/panic.h>
 #include <asm/asm-extable.h>
 #include <asm/extable.h>

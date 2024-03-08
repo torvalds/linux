@@ -6,7 +6,7 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/platform_device.h>
@@ -17,7 +17,7 @@
 
 /*
  * The JTAG ID's of the supported FPGA's. The ID is 32bit wide
- * reversed as noted in the manual.
+ * reversed as analted in the manual.
  */
 #define ID_ECP3_17	0xc2088080
 #define ID_ECP3_35	0xc2048080
@@ -75,7 +75,7 @@ static void firmware_load(const struct firmware *fw, void *context)
 	u32 status;
 
 	if (fw == NULL) {
-		dev_err(&spi->dev, "Cannot load firmware, aborting\n");
+		dev_err(&spi->dev, "Cananalt load firmware, aborting\n");
 		goto out;
 	}
 
@@ -101,7 +101,7 @@ static void firmware_load(const struct firmware *fw, void *context)
 	}
 	if (i == ARRAY_SIZE(ecp3_dev)) {
 		dev_err(&spi->dev,
-			"Error: No supported FPGA detected (JEDEC_ID=%08x)!\n",
+			"Error: Anal supported FPGA detected (JEDEC_ID=%08x)!\n",
 			jedec_id);
 		goto out;
 	}
@@ -173,7 +173,7 @@ static void firmware_load(const struct firmware *fw, void *context)
 	if (status & FPGA_STATUS_DONE)
 		dev_info(&spi->dev, "FPGA successfully configured!\n");
 	else
-		dev_info(&spi->dev, "FPGA not configured (DONE not set)\n");
+		dev_info(&spi->dev, "FPGA analt configured (DONE analt set)\n");
 
 	/*
 	 * Don't forget to release the firmware again
@@ -193,12 +193,12 @@ static int lattice_ecp3_probe(struct spi_device *spi)
 	data = devm_kzalloc(&spi->dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		dev_err(&spi->dev, "Memory allocation for fpga_data failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	spi_set_drvdata(spi, data);
 
 	init_completion(&data->fw_loaded);
-	err = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
+	err = request_firmware_analwait(THIS_MODULE, FW_ACTION_UEVENT,
 				      FIRMWARE_NAME, &spi->dev,
 				      GFP_KERNEL, spi, firmware_load);
 	if (err) {

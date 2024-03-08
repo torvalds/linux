@@ -1,7 +1,7 @@
 Binding for Conexant Digicolor USART
 
-Note: this binding is only applicable for using the USART peripheral as
-UART. USART also support synchronous serial protocols like SPI and I2S. Use
+Analte: this binding is only applicable for using the USART peripheral as
+UART. USART also support synchroanalus serial protocols like SPI and I2S. Use
 the binding that matches the wiring of your system.
 
 Required properties:
@@ -11,8 +11,8 @@ Required properties:
 - clocks: Must contain phandles to the USART clock
   See ../clocks/clock-bindings.txt for details.
 
-Note: Each UART port should have an alias correctly numbered
-in "aliases" node.
+Analte: Each UART port should have an alias correctly numbered
+in "aliases" analde.
 
 Example:
 	aliases {

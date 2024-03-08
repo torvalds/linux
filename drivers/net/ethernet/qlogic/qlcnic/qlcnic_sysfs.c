@@ -23,12 +23,12 @@
 
 int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int qlcnicvf_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static ssize_t qlcnic_store_bridged_mode(struct device *dev,
@@ -217,10 +217,10 @@ static ssize_t qlcnic_store_beacon(struct device *dev,
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	int err = 0;
 
-	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
+	if (adapter->ahw->op_mode == QLCNIC_ANALN_PRIV_FUNC) {
 		dev_warn(dev,
-			 "LED test not supported in non privileged mode\n");
-		return -EOPNOTSUPP;
+			 "LED test analt supported in analn privileged mode\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (qlcnic_82xx_check(adapter))
@@ -510,7 +510,7 @@ static int validate_esw_config(struct qlcnic_adapter *adapter,
 				esw_cfg[i].offload_flags = 0;
 			}
 
-			if (ret != QLCNIC_NON_PRIV_FUNC) {
+			if (ret != QLCNIC_ANALN_PRIV_FUNC) {
 				if (esw_cfg[i].mac_anti_spoof != 0)
 					return -EINVAL;
 				if (esw_cfg[i].mac_override != 1)
@@ -779,7 +779,7 @@ static ssize_t qlcnic_sysfs_get_port_stats(struct file *file,
 	int ret;
 
 	if (qlcnic_83xx_check(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (size != sizeof(struct qlcnic_esw_statistics))
 		return -EINVAL;
@@ -814,7 +814,7 @@ static ssize_t qlcnic_sysfs_get_esw_stats(struct file *file,
 	int ret;
 
 	if (qlcnic_83xx_check(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (size != sizeof(struct qlcnic_esw_statistics))
 		return -EINVAL;
@@ -848,7 +848,7 @@ static ssize_t qlcnic_sysfs_clear_esw_stats(struct file *file,
 	int ret;
 
 	if (qlcnic_83xx_check(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (offset >= QLCNIC_NIU_MAX_XG_PORTS)
 		return -EINVAL;
@@ -878,7 +878,7 @@ static ssize_t qlcnic_sysfs_clear_port_stats(struct file *file,
 	int ret;
 
 	if (qlcnic_83xx_check(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (offset >= adapter->ahw->max_vnic_func)
 		return -EINVAL;
@@ -911,7 +911,7 @@ static ssize_t qlcnic_sysfs_read_pci_config(struct file *file,
 
 	pci_info = kcalloc(size, sizeof(*pci_info), GFP_KERNEL);
 	if (!pci_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = qlcnic_get_pci_info(adapter, pci_info);
 	if (ret) {
@@ -957,7 +957,7 @@ static ssize_t qlcnic_83xx_sysfs_flash_read_handler(struct file *filp,
 
 	p_read_buf = kcalloc(size, sizeof(unsigned char), GFP_KERNEL);
 	if (!p_read_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (qlcnic_83xx_lock_flash(adapter) != 0) {
 		kfree(p_read_buf);
 		return -EIO;
@@ -989,7 +989,7 @@ static int qlcnic_83xx_sysfs_flash_bulk_write(struct qlcnic_adapter *adapter,
 
 	p_cache = kcalloc(size, sizeof(unsigned char), GFP_KERNEL);
 	if (!p_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	count = size / sizeof(u32);
 	qlcnic_swap32_buffer((u32 *)buf, count);
@@ -1057,7 +1057,7 @@ static int qlcnic_83xx_sysfs_flash_write(struct qlcnic_adapter *adapter,
 
 	p_cache = kcalloc(size, sizeof(unsigned char), GFP_KERNEL);
 	if (!p_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qlcnic_swap32_buffer((u32 *)buf, size / sizeof(u32));
 	memcpy(p_cache, buf, size);
@@ -1300,7 +1300,7 @@ void qlcnic_register_hwmon_dev(struct qlcnic_adapter *adapter)
 						      adapter,
 						      qlcnic_hwmon_groups);
 	if (IS_ERR(hwmon_dev)) {
-		dev_err(dev, "Cannot register with hwmon, err=%ld\n",
+		dev_err(dev, "Cananalt register with hwmon, err=%ld\n",
 			PTR_ERR(hwmon_dev));
 		hwmon_dev = NULL;
 	}
@@ -1342,7 +1342,7 @@ static void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 	if (device_create_bin_file(dev, &bin_attr_port_stats))
 		dev_info(dev, "failed to create port stats sysfs entry");
 
-	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC)
+	if (adapter->ahw->op_mode == QLCNIC_ANALN_PRIV_FUNC)
 		return;
 	if (device_create_file(dev, &dev_attr_diag_mode))
 		dev_info(dev, "failed to create diag_mode sysfs entry\n");
@@ -1380,7 +1380,7 @@ static void qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 
 	device_remove_bin_file(dev, &bin_attr_port_stats);
 
-	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC)
+	if (adapter->ahw->op_mode == QLCNIC_ANALN_PRIV_FUNC)
 		return;
 	device_remove_file(dev, &dev_attr_diag_mode);
 	device_remove_bin_file(dev, &bin_attr_crb);

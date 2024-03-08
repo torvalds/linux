@@ -14,7 +14,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
 */
 
@@ -108,8 +108,8 @@ gamma:		.byte	120
 /* Bit 7	DPMS standby supported
    Bit 6	DPMS suspend supported
    Bit 5	DPMS active-off supported
-   Bits 4-3	Display type: 00=monochrome; 01=RGB colour;
-		  10=non-RGB multicolour; 11=undefined
+   Bits 4-3	Display type: 00=moanalchrome; 01=RGB colour;
+		  10=analn-RGB multicolour; 11=undefined
    Bit 2	Standard sRGB colour space. Bytes 25-34 must contain
 		  sRGB standard values.
    Bit 1	Preferred timing mode specified in descriptor block 1.
@@ -227,7 +227,7 @@ x_border:	.byte	0
 y_border:	.byte	0
 
 /* Bit 7 	Interlaced
-   Bits 6-5 	Stereo mode: 00=No stereo; other values depend on bit 0:
+   Bits 6-5 	Stereo mode: 00=Anal stereo; other values depend on bit 0:
    Bit 0=0: 01=Field sequential, sync=1 during right; 10=similar,
      sync=1 during left; 11=4-way interleaved stereo
    Bit 0=1 2-way interleaved stereo: 01=Right image on even lines;
@@ -238,17 +238,17 @@ y_border:	.byte	0
    Other types: VSync serrated (HSync during VSync)
    Bit 1 	If analog sync: Sync on all 3 RGB lines (else green only)
    Digital: HSync polarity (1=positive)
-   Bit 0 	2-way line-interleaved stereo, if bits 4-3 are not 00. */
+   Bit 0 	2-way line-interleaved stereo, if bits 4-3 are analt 00. */
 features:	.byte	0x18+(VSYNC_POL<<2)+(HSYNC_POL<<1)
 
-descriptor2:	.byte	0,0	/* Not a detailed timing descriptor */
+descriptor2:	.byte	0,0	/* Analt a detailed timing descriptor */
 		.byte	0	/* Must be zero */
 		.byte	0xff	/* Descriptor is monitor serial number (text) */
 		.byte	0	/* Must be zero */
 start1:		.ascii	"Linux #0"
 end1:		.byte	0x0a	/* End marker */
 		.fill	12-(end1-start1), 1, 0x20 /* Padded spaces */
-descriptor3:	.byte	0,0	/* Not a detailed timing descriptor */
+descriptor3:	.byte	0,0	/* Analt a detailed timing descriptor */
 		.byte	0	/* Must be zero */
 		.byte	0xfd	/* Descriptor is monitor range limits */
 		.byte	0	/* Must be zero */
@@ -260,10 +260,10 @@ start2:		.byte	VFREQ-1	/* Minimum vertical field rate (1-255 Hz) */
 						    (1-255 kHz) */
 		.byte	(CLOCK/10000)+1	/* Maximum pixel clock rate, rounded up
 					   to 10 MHz multiple (10-2550 MHz) */
-		.byte	0	/* No extended timing information type */
+		.byte	0	/* Anal extended timing information type */
 end2:		.byte	0x0a	/* End marker */
 		.fill	12-(end2-start2), 1, 0x20 /* Padded spaces */
-descriptor4:	.byte	0,0	/* Not a detailed timing descriptor */
+descriptor4:	.byte	0,0	/* Analt a detailed timing descriptor */
 		.byte	0	/* Must be zero */
 		.byte	0xfc	/* Descriptor is text */
 		.byte	0	/* Must be zero */

@@ -266,7 +266,7 @@ static enum fpga_mgr_states sysconfig_ops_state(struct fpga_manager *mgr)
 	if (!ret && (status & SYSCONFIG_STATUS_DONE))
 		return FPGA_MGR_STATE_OPERATING;
 
-	return FPGA_MGR_STATE_UNKNOWN;
+	return FPGA_MGR_STATE_UNKANALWN;
 }
 
 static int sysconfig_ops_write_init(struct fpga_manager *mgr,
@@ -278,8 +278,8 @@ static int sysconfig_ops_write_init(struct fpga_manager *mgr,
 	int ret;
 
 	if (info->flags & FPGA_MGR_PARTIAL_RECONFIG) {
-		dev_err(dev, "Partial reconfiguration is not supported\n");
-		return -EOPNOTSUPP;
+		dev_err(dev, "Partial reconfiguration is analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	/* Enter program mode */
@@ -357,7 +357,7 @@ int sysconfig_probe(struct sysconfig_priv *priv)
 	struct fpga_manager *mgr;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!priv->command_transfer ||
 	    !priv->bitstream_burst_write_init ||

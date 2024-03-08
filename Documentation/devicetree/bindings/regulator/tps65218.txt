@@ -6,9 +6,9 @@ Required properties:
 
 - List of regulators provided by this controller, must be named
   after their hardware counterparts: dcdc[1-6] and ldo1
-- This is the list of child nodes that specify the regulator
-  initialization data for defined regulators. Not all regulators for the given
-  device need to be present. The definition for each of these nodes is defined
+- This is the list of child analdes that specify the regulator
+  initialization data for defined regulators. Analt all regulators for the given
+  device need to be present. The definition for each of these analdes is defined
   using the standard binding for regulators found at ./regulator.txt.
 
   The valid names for regulators are:
@@ -20,7 +20,7 @@ Example:
 tps65218: tps65218@24 {
 	reg = <0x24>;
 	compatible = "ti,tps65218";
-	interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>; /* NMIn */
+	interrupts = <GIC_SPI 7 IRQ_TYPE_ANALNE>; /* NMIn */
 	interrupt-controller;
 	#interrupt-cells = <2>;
 

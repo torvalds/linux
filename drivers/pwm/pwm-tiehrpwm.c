@@ -65,11 +65,11 @@
 #define AQCTL_ZRO_FRCHIGH	BIT(1)
 #define AQCTL_ZRO_FRCTOGGLE	(BIT(1) | BIT(0))
 
-#define AQCTL_CHANA_POLNORMAL	(AQCTL_CAU_FRCLOW | AQCTL_PRD_FRCHIGH | \
+#define AQCTL_CHANA_POLANALRMAL	(AQCTL_CAU_FRCLOW | AQCTL_PRD_FRCHIGH | \
 				AQCTL_ZRO_FRCHIGH)
 #define AQCTL_CHANA_POLINVERSED	(AQCTL_CAU_FRCHIGH | AQCTL_PRD_FRCLOW | \
 				AQCTL_ZRO_FRCLOW)
-#define AQCTL_CHANB_POLNORMAL	(AQCTL_CBU_FRCLOW | AQCTL_PRD_FRCHIGH | \
+#define AQCTL_CHANB_POLANALRMAL	(AQCTL_CBU_FRCLOW | AQCTL_PRD_FRCHIGH | \
 				AQCTL_ZRO_FRCHIGH)
 #define AQCTL_CHANB_POLINVERSED	(AQCTL_CBU_FRCHIGH | AQCTL_PRD_FRCLOW | \
 				AQCTL_ZRO_FRCLOW)
@@ -196,7 +196,7 @@ static void configure_polarity(struct ehrpwm_pwm_chip *pc, int chan)
 		if (pc->polarity[chan] == PWM_POLARITY_INVERSED)
 			aqctl_val = AQCTL_CHANB_POLINVERSED;
 		else
-			aqctl_val = AQCTL_CHANB_POLNORMAL;
+			aqctl_val = AQCTL_CHANB_POLANALRMAL;
 	} else {
 		aqctl_reg = AQCTLA;
 		aqctl_mask = AQCTL_CAU_MASK;
@@ -204,7 +204,7 @@ static void configure_polarity(struct ehrpwm_pwm_chip *pc, int chan)
 		if (pc->polarity[chan] == PWM_POLARITY_INVERSED)
 			aqctl_val = AQCTL_CHANA_POLINVERSED;
 		else
-			aqctl_val = AQCTL_CHANA_POLNORMAL;
+			aqctl_val = AQCTL_CHANA_POLANALRMAL;
 	}
 
 	aqctl_mask |= AQCTL_PRD_MASK | AQCTL_ZRO_MASK;
@@ -250,7 +250,7 @@ static int ehrpwm_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		if (pc->period_cycles[i] &&
 				(pc->period_cycles[i] != period_cycles)) {
 			/*
-			 * Allow channel to reconfigure period if no other
+			 * Allow channel to reconfigure period if anal other
 			 * channels being configured.
 			 */
 			if (i == pwm->hwpwm)
@@ -448,14 +448,14 @@ MODULE_DEVICE_TABLE(of, ehrpwm_of_match);
 
 static int ehrpwm_pwm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct ehrpwm_pwm_chip *pc;
 	struct clk *clk;
 	int ret;
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(clk)) {

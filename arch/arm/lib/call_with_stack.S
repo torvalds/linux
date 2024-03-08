@@ -17,7 +17,7 @@
  * the new stack.
  *
  * The sequence below follows the APCS frame convention for frame pointer
- * unwinding, and implements the unwinder annotations needed by the EABI
+ * unwinding, and implements the unwinder ananaltations needed by the EABI
  * unwinder.
  */
 

@@ -25,7 +25,7 @@ static int mxs_sgtl5000_hw_params(struct snd_pcm_substream *substream,
 	u32 mclk;
 	int ret;
 
-	/* sgtl5000 does not support 512*rate when in 96000 fs */
+	/* sgtl5000 does analt support 512*rate when in 96000 fs */
 	switch (rate) {
 	case 96000:
 		mclk = 256 * rate;
@@ -109,32 +109,32 @@ static int mxs_sgtl5000_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mxs_sgtl5000;
 	int ret, i;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *saif_np[2], *codec_np;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *saif_np[2], *codec_np;
 
 	saif_np[0] = of_parse_phandle(np, "saif-controllers", 0);
 	saif_np[1] = of_parse_phandle(np, "saif-controllers", 1);
 	codec_np = of_parse_phandle(np, "audio-codec", 0);
 	if (!saif_np[0] || !saif_np[1] || !codec_np) {
 		dev_err(&pdev->dev, "phandle missing or invalid\n");
-		of_node_put(codec_np);
-		of_node_put(saif_np[0]);
-		of_node_put(saif_np[1]);
+		of_analde_put(codec_np);
+		of_analde_put(saif_np[0]);
+		of_analde_put(saif_np[1]);
 		return -EINVAL;
 	}
 
 	for (i = 0; i < 2; i++) {
 		mxs_sgtl5000_dai[i].codecs->name = NULL;
-		mxs_sgtl5000_dai[i].codecs->of_node = codec_np;
+		mxs_sgtl5000_dai[i].codecs->of_analde = codec_np;
 		mxs_sgtl5000_dai[i].cpus->dai_name = NULL;
-		mxs_sgtl5000_dai[i].cpus->of_node = saif_np[i];
+		mxs_sgtl5000_dai[i].cpus->of_analde = saif_np[i];
 		mxs_sgtl5000_dai[i].platforms->name = NULL;
-		mxs_sgtl5000_dai[i].platforms->of_node = saif_np[i];
+		mxs_sgtl5000_dai[i].platforms->of_analde = saif_np[i];
 	}
 
-	of_node_put(codec_np);
-	of_node_put(saif_np[0]);
-	of_node_put(saif_np[1]);
+	of_analde_put(codec_np);
+	of_analde_put(saif_np[0]);
+	of_analde_put(saif_np[1]);
 
 	/*
 	 * Set an init clock(11.28Mhz) for sgtl5000 initialization(i2c r/w).

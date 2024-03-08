@@ -48,7 +48,7 @@ static int parse_hdr_opt(const struct xdp_md *xdp, struct hdr_opt_state *state)
 	if (kind == TCPOPT_EOL)
 		return -1;
 
-	if (kind == TCPOPT_NOP) {
+	if (kind == TCPOPT_ANALP) {
 		state->hdr_bytes_remaining--;
 		state->byte_offset++;
 		return 0;

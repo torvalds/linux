@@ -5,7 +5,7 @@
  * Copyright (C) 2015 Hans de Goede <hdegoede@redhat.com>
  *
  * Based on code from
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * Allwinner Techanallogy Co., Ltd. <www.allwinnertech.com>
  */
 
 #include <linux/clk.h>
@@ -26,7 +26,7 @@
 #include "musb_core.h"
 
 /*
- * Register offsets, note sunxi musb has a different layout then most
+ * Register offsets, analte sunxi musb has a different layout then most
  * musb implementations, we translate the layout in musb_readb & friends.
  */
 #define SUNXI_MUSB_POWER			0x0040
@@ -64,17 +64,17 @@
 #define SUNXI_MUSB_FL_PHY_ON			4
 #define SUNXI_MUSB_FL_HAS_SRAM			5
 #define SUNXI_MUSB_FL_HAS_RESET			6
-#define SUNXI_MUSB_FL_NO_CONFIGDATA		7
+#define SUNXI_MUSB_FL_ANAL_CONFIGDATA		7
 #define SUNXI_MUSB_FL_PHY_MODE_PEND		8
 
 struct sunxi_musb_cfg {
 	const struct musb_hdrc_config *hdrc_config;
 	bool has_sram;
 	bool has_reset;
-	bool no_configdata;
+	bool anal_configdata;
 };
 
-/* Our read/write methods need access and do not get passed in a musb ref :| */
+/* Our read/write methods need access and do analt get passed in a musb ref :| */
 static struct musb *sunxi_musb;
 
 struct sunxi_glue {
@@ -90,7 +90,7 @@ struct sunxi_glue {
 	unsigned long		flags;
 	struct work_struct	work;
 	struct extcon_dev	*extcon;
-	struct notifier_block	host_nb;
+	struct analtifier_block	host_nb;
 };
 
 /* phy_power_on / off may sleep, so we use a workqueue  */
@@ -203,7 +203,7 @@ static irqreturn_t sunxi_musb_interrupt(int irq, void *__hci)
 	return IRQ_HANDLED;
 }
 
-static int sunxi_musb_host_notifier(struct notifier_block *nb,
+static int sunxi_musb_host_analtifier(struct analtifier_block *nb,
 				    unsigned long event, void *ptr)
 {
 	struct sunxi_glue *glue = container_of(nb, struct sunxi_glue, host_nb);
@@ -216,7 +216,7 @@ static int sunxi_musb_host_notifier(struct notifier_block *nb,
 	set_bit(SUNXI_MUSB_FL_HOSTMODE_PEND, &glue->flags);
 	schedule_work(&glue->work);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int sunxi_musb_init(struct musb *musb)
@@ -246,8 +246,8 @@ static int sunxi_musb_init(struct musb *musb)
 
 	writeb(SUNXI_MUSB_VEND0_PIO_MODE, musb->mregs + SUNXI_MUSB_VEND0);
 
-	/* Register notifier before calling phy_init() */
-	ret = devm_extcon_register_notifier(glue->dev, glue->extcon,
+	/* Register analtifier before calling phy_init() */
+	ret = devm_extcon_register_analtifier(glue->dev, glue->extcon,
 					EXTCON_USB_HOST, &glue->host_nb);
 	if (ret)
 		goto error_reset_assert;
@@ -258,7 +258,7 @@ static int sunxi_musb_init(struct musb *musb)
 
 	musb->isr = sunxi_musb_interrupt;
 
-	/* Stop the musb-core from doing runtime pm (not supported on sunxi) */
+	/* Stop the musb-core from doing runtime pm (analt supported on sunxi) */
 	pm_runtime_get(musb->controller);
 
 	return 0;
@@ -304,7 +304,7 @@ static void sunxi_musb_enable(struct musb *musb)
 
 	glue->musb = musb;
 
-	/* musb_core does not call us in a balanced manner */
+	/* musb_core does analt call us in a balanced manner */
 	if (test_and_set_bit(SUNXI_MUSB_FL_ENABLED, &glue->flags))
 		return;
 
@@ -345,7 +345,7 @@ static int sunxi_musb_set_mode(struct musb *musb, u8 mode)
 		break;
 	default:
 		dev_err(musb->controller->parent,
-			"Error requested mode not supported by this kernel\n");
+			"Error requested mode analt supported by this kernel\n");
 		return -EINVAL;
 	}
 
@@ -404,9 +404,9 @@ static u32 sunxi_musb_fifo_offset(u8 epnum)
 static u32 sunxi_musb_ep_offset(u8 epnum, u16 offset)
 {
 	WARN_ONCE(offset != 0,
-		  "sunxi_musb_ep_offset called with non 0 offset\n");
+		  "sunxi_musb_ep_offset called with analn 0 offset\n");
 
-	return 0x80; /* indexed, so ignore epnum */
+	return 0x80; /* indexed, so iganalre epnum */
 }
 
 static u32 sunxi_musb_busctl_offset(u8 epnum, u16 offset)
@@ -432,7 +432,7 @@ static u8 sunxi_musb_readb(void __iomem *addr, u32 offset)
 		case MUSB_INDEX:
 			return readb(addr + SUNXI_MUSB_INDEX);
 		case MUSB_TESTMODE:
-			return 0; /* No testmode on sunxi */
+			return 0; /* Anal testmode on sunxi */
 		case MUSB_DEVCTL:
 			return readb(addr + SUNXI_MUSB_DEVCTL);
 		case MUSB_TXFIFOSZ:
@@ -442,14 +442,14 @@ static u8 sunxi_musb_readb(void __iomem *addr, u32 offset)
 		case MUSB_CONFIGDATA + 0x10: /* See musb_read_configdata() */
 			glue = dev_get_drvdata(sunxi_musb->controller->parent);
 			/* A33 saves a reg, and we get to hardcode this */
-			if (test_bit(SUNXI_MUSB_FL_NO_CONFIGDATA,
+			if (test_bit(SUNXI_MUSB_FL_ANAL_CONFIGDATA,
 				     &glue->flags))
 				return 0xde;
 
 			return readb(addr + SUNXI_MUSB_CONFIGDATA);
 		case MUSB_ULPI_BUSCONTROL:
 			dev_warn(sunxi_musb->controller->parent,
-				"sunxi-musb does not have ULPI bus control register\n");
+				"sunxi-musb does analt have ULPI bus control register\n");
 			return 0;
 		/* Offset for these is fixed by sunxi_musb_busctl_offset() */
 		case SUNXI_MUSB_TXFUNCADDR:
@@ -462,7 +462,7 @@ static u8 sunxi_musb_readb(void __iomem *addr, u32 offset)
 			return readb(addr + offset);
 		default:
 			dev_err(sunxi_musb->controller->parent,
-				"Error unknown readb offset %u\n", offset);
+				"Error unkanalwn readb offset %u\n", offset);
 			return 0;
 		}
 	} else if (addr == (sunxi_musb->mregs + 0x80)) {
@@ -474,7 +474,7 @@ static u8 sunxi_musb_readb(void __iomem *addr, u32 offset)
 	}
 
 	dev_err(sunxi_musb->controller->parent,
-		"Error unknown readb at 0x%x bytes offset\n",
+		"Error unkanalwn readb at 0x%x bytes offset\n",
 		(int)(addr - sunxi_musb->mregs));
 	return 0;
 }
@@ -497,7 +497,7 @@ static void sunxi_musb_writeb(void __iomem *addr, unsigned offset, u8 data)
 		case MUSB_TESTMODE:
 			if (data)
 				dev_warn(sunxi_musb->controller->parent,
-					"sunxi-musb does not have testmode\n");
+					"sunxi-musb does analt have testmode\n");
 			return;
 		case MUSB_DEVCTL:
 			return writeb(data, addr + SUNXI_MUSB_DEVCTL);
@@ -507,7 +507,7 @@ static void sunxi_musb_writeb(void __iomem *addr, unsigned offset, u8 data)
 			return writeb(data, addr + SUNXI_MUSB_RXFIFOSZ);
 		case MUSB_ULPI_BUSCONTROL:
 			dev_warn(sunxi_musb->controller->parent,
-				"sunxi-musb does not have ULPI bus control register\n");
+				"sunxi-musb does analt have ULPI bus control register\n");
 			return;
 		/* Offset for these is fixed by sunxi_musb_busctl_offset() */
 		case SUNXI_MUSB_TXFUNCADDR:
@@ -520,7 +520,7 @@ static void sunxi_musb_writeb(void __iomem *addr, unsigned offset, u8 data)
 			return writeb(data, addr + offset);
 		default:
 			dev_err(sunxi_musb->controller->parent,
-				"Error unknown writeb offset %u\n", offset);
+				"Error unkanalwn writeb offset %u\n", offset);
 			return;
 		}
 	} else if (addr == (sunxi_musb->mregs + 0x80)) {
@@ -531,7 +531,7 @@ static void sunxi_musb_writeb(void __iomem *addr, unsigned offset, u8 data)
 	}
 
 	dev_err(sunxi_musb->controller->parent,
-		"Error unknown writeb at 0x%x bytes offset\n",
+		"Error unkanalwn writeb at 0x%x bytes offset\n",
 		(int)(addr - sunxi_musb->mregs));
 }
 
@@ -555,10 +555,10 @@ static u16 sunxi_musb_readw(void __iomem *addr, u32 offset)
 		case MUSB_RXFIFOADD:
 			return readw(addr + SUNXI_MUSB_RXFIFOADD);
 		case MUSB_HWVERS:
-			return 0; /* sunxi musb version is not known */
+			return 0; /* sunxi musb version is analt kanalwn */
 		default:
 			dev_err(sunxi_musb->controller->parent,
-				"Error unknown readw offset %u\n", offset);
+				"Error unkanalwn readw offset %u\n", offset);
 			return 0;
 		}
 	} else if (addr == (sunxi_musb->mregs + 0x80)) {
@@ -567,7 +567,7 @@ static u16 sunxi_musb_readw(void __iomem *addr, u32 offset)
 	}
 
 	dev_err(sunxi_musb->controller->parent,
-		"Error unknown readw at 0x%x bytes offset\n",
+		"Error unkanalwn readw at 0x%x bytes offset\n",
 		(int)(addr - sunxi_musb->mregs));
 	return 0;
 }
@@ -593,7 +593,7 @@ static void sunxi_musb_writew(void __iomem *addr, unsigned offset, u16 data)
 			return writew(data, addr + SUNXI_MUSB_RXFIFOADD);
 		default:
 			dev_err(sunxi_musb->controller->parent,
-				"Error unknown writew offset %u\n", offset);
+				"Error unkanalwn writew offset %u\n", offset);
 			return;
 		}
 	} else if (addr == (sunxi_musb->mregs + 0x80)) {
@@ -602,7 +602,7 @@ static void sunxi_musb_writew(void __iomem *addr, unsigned offset, u16 data)
 	}
 
 	dev_err(sunxi_musb->controller->parent,
-		"Error unknown writew at 0x%x bytes offset\n",
+		"Error unkanalwn writew at 0x%x bytes offset\n",
 		(int)(addr - sunxi_musb->mregs));
 }
 
@@ -681,18 +681,18 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 	struct musb_hdrc_platform_data	pdata;
 	struct platform_device_info	pinfo;
 	struct sunxi_glue		*glue;
-	struct device_node		*np = pdev->dev.of_node;
+	struct device_analde		*np = pdev->dev.of_analde;
 	const struct sunxi_musb_cfg	*cfg;
 	int ret;
 
 	if (!np) {
-		dev_err(&pdev->dev, "Error no device tree node found\n");
+		dev_err(&pdev->dev, "Error anal device tree analde found\n");
 		return -EINVAL;
 	}
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&pdata, 0, sizeof(pdata));
 	switch (usb_get_dr_mode(&pdev->dev)) {
@@ -728,7 +728,7 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 
 	glue->dev = &pdev->dev;
 	INIT_WORK(&glue->work, sunxi_musb_work);
-	glue->host_nb.notifier_call = sunxi_musb_host_notifier;
+	glue->host_nb.analtifier_call = sunxi_musb_host_analtifier;
 
 	if (cfg->has_sram)
 		set_bit(SUNXI_MUSB_FL_HAS_SRAM, &glue->flags);
@@ -736,8 +736,8 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 	if (cfg->has_reset)
 		set_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags);
 
-	if (cfg->no_configdata)
-		set_bit(SUNXI_MUSB_FL_NO_CONFIGDATA, &glue->flags);
+	if (cfg->anal_configdata)
+		set_bit(SUNXI_MUSB_FL_ANAL_CONFIGDATA, &glue->flags);
 
 	glue->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(glue->clk)) {
@@ -783,8 +783,8 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 	pinfo.name	 = "musb-hdrc";
 	pinfo.id	= PLATFORM_DEVID_AUTO;
 	pinfo.parent	= &pdev->dev;
-	pinfo.fwnode	= of_fwnode_handle(pdev->dev.of_node);
-	pinfo.of_node_reused = true;
+	pinfo.fwanalde	= of_fwanalde_handle(pdev->dev.of_analde);
+	pinfo.of_analde_reused = true;
 	pinfo.res	= pdev->resource;
 	pinfo.num_res	= pdev->num_resources;
 	pinfo.data	= &pdata;
@@ -826,20 +826,20 @@ static const struct sunxi_musb_cfg sun6i_a31_musb_cfg = {
 static const struct sunxi_musb_cfg sun8i_a33_musb_cfg = {
 	.hdrc_config = &sunxi_musb_hdrc_config_5eps,
 	.has_reset = true,
-	.no_configdata = true,
+	.anal_configdata = true,
 };
 
 static const struct sunxi_musb_cfg sun8i_h3_musb_cfg = {
 	.hdrc_config = &sunxi_musb_hdrc_config_4eps,
 	.has_reset = true,
-	.no_configdata = true,
+	.anal_configdata = true,
 };
 
 static const struct sunxi_musb_cfg suniv_f1c100s_musb_cfg = {
 	.hdrc_config = &sunxi_musb_hdrc_config_5eps,
 	.has_sram = true,
 	.has_reset = true,
-	.no_configdata = true,
+	.anal_configdata = true,
 };
 
 static const struct of_device_id sunxi_musb_match[] = {

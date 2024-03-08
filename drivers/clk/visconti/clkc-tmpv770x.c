@@ -5,7 +5,7 @@
  * Copyright (c) 2021 TOSHIBA CORPORATION
  * Copyright (c) 2021 Toshiba Electronic Devices & Storage Corporation
  *
- * Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ * Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>
  */
 
 #include <linux/clk-provider.h>
@@ -67,19 +67,19 @@ static const struct visconti_clk_gate_table pietherpll_clk_gate_tables[] = {
 static const struct visconti_clk_gate_table clk_gate_tables[] = {
 	{ TMPV770X_CLK_HOX, "hox",
 		clks_parent_data, ARRAY_SIZE(clks_parent_data),
-		CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0x4c, 0x14c, 0, 1,
+		CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED, 0x4c, 0x14c, 0, 1,
 		TMPV770X_RESET_HOX, },
 	{ TMPV770X_CLK_PCIE_MSTR, "pcie_mstr",
 		clks_parent_data, ARRAY_SIZE(clks_parent_data),
-		CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0x38, 0x138, 0, 1,
+		CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED, 0x38, 0x138, 0, 1,
 		TMPV770X_RESET_PCIE_MSTR, },
 	{ TMPV770X_CLK_PCIE_AUX, "pcie_aux",
 		clks_parent_data, ARRAY_SIZE(clks_parent_data),
-		CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0x38, 0x138, 1, 24,
+		CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED, 0x38, 0x138, 1, 24,
 		TMPV770X_RESET_PCIE_AUX, },
 	{ TMPV770X_CLK_PIINTC, "piintc",
 		clks_parent_data, ARRAY_SIZE(clks_parent_data),
-		CLK_IGNORE_UNUSED, 0x8, 0x108, 0, 2, //FIX!!
+		CLK_IGANALRE_UNUSED, 0x8, 0x108, 0, 2, //FIX!!
 		TMPV770X_RESET_PIINTC,},
 	{ TMPV770X_CLK_PIETHER_BUS, "piether_bus",
 		clks_parent_data, ARRAY_SIZE(clks_parent_data),
@@ -115,12 +115,12 @@ static const struct visconti_clk_gate_table clk_gate_tables[] = {
 		TMPV770X_RESET_PISPI6,},
 	{ TMPV770X_CLK_PIUART0, "piuart0",
 		clks_parent_data, ARRAY_SIZE(clks_parent_data),
-		//CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0x2c, 0x12c, 0, 4,
+		//CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED, 0x2c, 0x12c, 0, 4,
 		0, 0x2c, 0x12c, 0, 4,
 		TMPV770X_RESET_PIUART0,},
 	{ TMPV770X_CLK_PIUART1, "piuart1",
 		clks_parent_data, ARRAY_SIZE(clks_parent_data),
-		//CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0x2c, 0x12c, 1, 4,
+		//CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED, 0x2c, 0x12c, 1, 4,
 		0, 0x2c, 0x12c, 1, 4,
 		TMPV770X_RESET_PIUART1, },
 	{ TMPV770X_CLK_PIUART2, "piuart2",
@@ -176,7 +176,7 @@ static const struct visconti_clk_gate_table clk_gate_tables[] = {
 	{ TMPV770X_CLK_WRCK, "wrck",
 		clks_parent_data, ARRAY_SIZE(clks_parent_data),
 		0, 0x68, 0x168, 9, 32,
-		NO_RESET, },
+		ANAL_RESET, },
 	{ TMPV770X_CLK_PICKMON, "pickmon",
 		clks_parent_data, ARRAY_SIZE(clks_parent_data),
 		0, 0x10, 0x110, 8, 4,
@@ -224,13 +224,13 @@ static const struct visconti_reset_data clk_reset_data[] = {
 
 static int visconti_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct visconti_clk_provider *ctx;
 	struct device *dev = &pdev->dev;
 	struct regmap *regmap;
 	int ret, i;
 
-	regmap = syscon_node_to_regmap(np);
+	regmap = syscon_analde_to_regmap(np);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 

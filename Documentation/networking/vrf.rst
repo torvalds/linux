@@ -16,8 +16,8 @@ different default gateways.
 Processes can be "VRF aware" by binding a socket to the VRF device. Packets
 through the socket then use the routing table associated with the VRF
 device. An important feature of the VRF device implementation is that it
-impacts only Layer 3 and above so L2 tools (e.g., LLDP) are not affected
-(ie., they do not need to be run in each VRF). The design also allows
+impacts only Layer 3 and above so L2 tools (e.g., LLDP) are analt affected
+(ie., they do analt need to be run in each VRF). The design also allows
 the use of higher priority ip rules (Policy Based Routing, PBR) to take
 precedence over the VRF device rules directing specific traffic as desired.
 
@@ -52,8 +52,8 @@ and out of the VRF as a whole\ [1]_. Similarly, netfilter\ [2]_ and tc rules
 can be applied using the VRF device to specify rules that apply to the VRF
 domain as a whole.
 
-.. [1] Packets in the forwarded state do not flow through the device, so those
-       packets are not seen by tcpdump. Will revisit this limitation in a
+.. [1] Packets in the forwarded state do analt flow through the device, so those
+       packets are analt seen by tcpdump. Will revisit this limitation in a
        future release.
 
 .. [2] Iptables on ingress supports PREROUTING with skb->dev set to the real
@@ -118,11 +118,11 @@ VRF device::
 or to specify the output device using cmsg and IP_PKTINFO.
 
 By default the scope of the port bindings for unbound sockets is
-limited to the default VRF. That is, it will not be matched by packets
+limited to the default VRF. That is, it will analt be matched by packets
 arriving on interfaces enslaved to an l3mdev and processes may bind to
 the same port if they bind to an l3mdev.
 
-TCP & UDP services running in the default VRF context (ie., not bound
+TCP & UDP services running in the default VRF context (ie., analt bound
 to any VRF device) can work across all VRF domains by enabling the
 tcp_l3mdev_accept and udp_l3mdev_accept sysctl options::
 
@@ -133,11 +133,11 @@ These options are disabled by default so that a socket in a VRF is only
 selected for packets in that VRF. There is a similar option for RAW
 sockets, which is enabled by default for reasons of backwards compatibility.
 This is so as to specify the output device with cmsg and IP_PKTINFO, but
-using a socket not bound to the corresponding VRF. This allows e.g. older ping
+using a socket analt bound to the corresponding VRF. This allows e.g. older ping
 implementations to be run with specifying the device but without executing it
 in the VRF. This option can be disabled so that packets received in a VRF
 context are only handled by a raw socket bound to the VRF, and packets in the
-default VRF are only handled by a socket not bound to any VRF::
+default VRF are only handled by a socket analt bound to any VRF::
 
     sysctl -w net.ipv4.raw_l3mdev_accept=0
 
@@ -180,21 +180,21 @@ older form without it.
    To list VRFs that have been created::
 
        $ ip [-d] link show type vrf
-	 NOTE: The -d option is needed to show the table id
+	 ANALTE: The -d option is needed to show the table id
 
    For example::
 
        $ ip -d link show type vrf
-       11: mgmt: <NOARP,MASTER,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+       11: mgmt: <ANALARP,MASTER,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
 	   link/ether 72:b3:ba:91:e2:24 brd ff:ff:ff:ff:ff:ff promiscuity 0
 	   vrf table 1 addrgenmode eui64
-       12: red: <NOARP,MASTER,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+       12: red: <ANALARP,MASTER,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
 	   link/ether b6:6f:6e:f6:da:73 brd ff:ff:ff:ff:ff:ff promiscuity 0
 	   vrf table 10 addrgenmode eui64
-       13: blue: <NOARP,MASTER,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+       13: blue: <ANALARP,MASTER,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
 	   link/ether 36:62:e8:7d:bb:8c brd ff:ff:ff:ff:ff:ff promiscuity 0
 	   vrf table 66 addrgenmode eui64
-       14: green: <NOARP,MASTER,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+       14: green: <ANALARP,MASTER,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
 	   link/ether e6:28:b8:63:70:bb brd ff:ff:ff:ff:ff:ff promiscuity 0
 	   vrf table 81 addrgenmode eui64
 
@@ -202,10 +202,10 @@ older form without it.
    Or in brief output::
 
        $ ip -br link show type vrf
-       mgmt         UP             72:b3:ba:91:e2:24 <NOARP,MASTER,UP,LOWER_UP>
-       red          UP             b6:6f:6e:f6:da:73 <NOARP,MASTER,UP,LOWER_UP>
-       blue         UP             36:62:e8:7d:bb:8c <NOARP,MASTER,UP,LOWER_UP>
-       green        UP             e6:28:b8:63:70:bb <NOARP,MASTER,UP,LOWER_UP>
+       mgmt         UP             72:b3:ba:91:e2:24 <ANALARP,MASTER,UP,LOWER_UP>
+       red          UP             b6:6f:6e:f6:da:73 <ANALARP,MASTER,UP,LOWER_UP>
+       blue         UP             36:62:e8:7d:bb:8c <ANALARP,MASTER,UP,LOWER_UP>
+       green        UP             e6:28:b8:63:70:bb <ANALARP,MASTER,UP,LOWER_UP>
 
 
 3. Assign a Network Interface to a VRF
@@ -238,7 +238,7 @@ older form without it.
 	   link/ether 02:00:00:00:02:02 brd ff:ff:ff:ff:ff:ff
        4: eth2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast master red state UP mode DEFAULT group default qlen 1000
 	   link/ether 02:00:00:00:02:03 brd ff:ff:ff:ff:ff:ff
-       7: eth5: <BROADCAST,MULTICAST> mtu 1500 qdisc noop master red state DOWN mode DEFAULT group default qlen 1000
+       7: eth5: <BROADCAST,MULTICAST> mtu 1500 qdisc analop master red state DOWN mode DEFAULT group default qlen 1000
 	   link/ether 02:00:00:00:02:06 brd ff:ff:ff:ff:ff:ff
 
 
@@ -295,7 +295,7 @@ older form without it.
 	       valid_lft forever preferred_lft forever
 	    inet6 fe80::ff:fe00:203/64 scope link
 	       valid_lft forever preferred_lft forever
-	7: eth5: <BROADCAST,MULTICAST> mtu 1500 qdisc noop master red state DOWN group default qlen 1000
+	7: eth5: <BROADCAST,MULTICAST> mtu 1500 qdisc analop master red state DOWN group default qlen 1000
 	    link/ether 02:00:00:00:02:06 brd ff:ff:ff:ff:ff:ff
 
    Or in brief format::
@@ -328,16 +328,16 @@ older form without it.
 	broadcast 10.2.2.255 dev eth2  proto kernel  scope link  src 10.2.2.2
 
 	$ ip -6 route show vrf red
-	local 2002:1:: dev lo  proto none  metric 0  pref medium
-	local 2002:1::2 dev lo  proto none  metric 0  pref medium
+	local 2002:1:: dev lo  proto analne  metric 0  pref medium
+	local 2002:1::2 dev lo  proto analne  metric 0  pref medium
 	2002:1::/120 dev eth1  proto kernel  metric 256  pref medium
-	local 2002:2:: dev lo  proto none  metric 0  pref medium
-	local 2002:2::2 dev lo  proto none  metric 0  pref medium
+	local 2002:2:: dev lo  proto analne  metric 0  pref medium
+	local 2002:2::2 dev lo  proto analne  metric 0  pref medium
 	2002:2::/120 dev eth2  proto kernel  metric 256  pref medium
-	local fe80:: dev lo  proto none  metric 0  pref medium
-	local fe80:: dev lo  proto none  metric 0  pref medium
-	local fe80::ff:fe00:202 dev lo  proto none  metric 0  pref medium
-	local fe80::ff:fe00:203 dev lo  proto none  metric 0  pref medium
+	local fe80:: dev lo  proto analne  metric 0  pref medium
+	local fe80:: dev lo  proto analne  metric 0  pref medium
+	local fe80::ff:fe00:202 dev lo  proto analne  metric 0  pref medium
+	local fe80::ff:fe00:203 dev lo  proto analne  metric 0  pref medium
 	fe80::/64 dev eth1  proto kernel  metric 256  pref medium
 	fe80::/64 dev eth2  proto kernel  metric 256  pref medium
 	ff00::/8 dev red  metric 256  pref medium
@@ -367,14 +367,14 @@ older form without it.
    Network interfaces are removed from a VRF by breaking the enslavement to
    the VRF device::
 
-       $ ip link set dev NAME nomaster
+       $ ip link set dev NAME analmaster
 
    Connected routes are moved back to the default table and local entries are
    moved to the local table.
 
    For example::
 
-    $ ip link set dev eth0 nomaster
+    $ ip link set dev eth0 analmaster
 
 --------------------------------------------------------------------------------
 

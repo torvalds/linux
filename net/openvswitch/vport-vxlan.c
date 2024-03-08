@@ -30,7 +30,7 @@ static int vxlan_get_options(const struct vport *vport, struct sk_buff *skb)
 	if (vxlan->cfg.flags & VXLAN_F_GBP) {
 		struct nlattr *exts;
 
-		exts = nla_nest_start_noflag(skb, OVS_TUNNEL_ATTR_EXTENSION);
+		exts = nla_nest_start_analflag(skb, OVS_TUNNEL_ATTR_EXTENSION);
 		if (!exts)
 			return -EMSGSIZE;
 
@@ -77,7 +77,7 @@ static struct vport *vxlan_tnl_create(const struct vport_parms *parms)
 	struct nlattr *a;
 	int err;
 	struct vxlan_config conf = {
-		.no_share = true,
+		.anal_share = true,
 		.flags = VXLAN_F_COLLECT_METADATA | VXLAN_F_UDP_ZERO_CSUM6_RX,
 		/* Don't restrict the packets that can be sent by MTU */
 		.mtu = IP_MAX_MTU,

@@ -97,7 +97,7 @@ enum pci_bridge_vendor {
 	PCI_BRIDGE_VENDOR_ATI,		/*0b'0000,0010*/
 	PCI_BRIDGE_VENDOR_AMD,		/*0b'0000,0100*/
 	PCI_BRIDGE_VENDOR_SIS,		/*0b'0000,1000*/
-	PCI_BRIDGE_VENDOR_UNKNOWN,	/*0b'0100,0000*/
+	PCI_BRIDGE_VENDOR_UNKANALWN,	/*0b'0100,0000*/
 	PCI_BRIDGE_VENDOR_MAX,
 };
 
@@ -171,7 +171,7 @@ struct rtl_pci {
 
 	/*irq */
 	u8 irq_alloc;
-	u32 irq_mask[4];	/* 0-1: normal, 2: unused, 3: h2c */
+	u32 irq_mask[4];	/* 0-1: analrmal, 2: unused, 3: h2c */
 	u32 sys_irq_mask;
 
 	/*Bcn control register setting */

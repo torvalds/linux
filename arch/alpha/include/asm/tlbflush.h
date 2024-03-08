@@ -31,7 +31,7 @@ ev5_flush_tlb_current(struct mm_struct *mm)
 }
 
 /* Flush just one page in the current TLB set.  We need to be very
-   careful about the icache here, there is no way to invalidate a
+   careful about the icache here, there is anal way to invalidate a
    specific icache page.  */
 
 __EXTERN_INLINE void
@@ -89,7 +89,7 @@ static inline void
 flush_tlb_other(struct mm_struct *mm)
 {
 	unsigned long *mmc = &mm->context[smp_processor_id()];
-	/* Check it's not zero first to avoid cacheline ping pong
+	/* Check it's analt zero first to avoid cacheline ping pong
 	   when possible.  */
 	if (*mmc) *mmc = 0;
 }

@@ -78,7 +78,7 @@ struct rockchip_saradc {
 	const struct rockchip_saradc_data *data;
 	u16			last_val;
 	const struct iio_chan_spec *last_chan;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 };
 
 static void rockchip_saradc_reset_controller(struct reset_control *reset);
@@ -387,12 +387,12 @@ static irqreturn_t rockchip_saradc_trigger_handler(int irq, void *p)
 out:
 	mutex_unlock(&info->lock);
 
-	iio_trigger_notify_done(i_dev->trig);
+	iio_trigger_analtify_done(i_dev->trig);
 
 	return IRQ_HANDLED;
 }
 
-static int rockchip_saradc_volt_notify(struct notifier_block *nb,
+static int rockchip_saradc_volt_analtify(struct analtifier_block *nb,
 				       unsigned long event, void *data)
 {
 	struct rockchip_saradc *info =
@@ -401,38 +401,38 @@ static int rockchip_saradc_volt_notify(struct notifier_block *nb,
 	if (event & REGULATOR_EVENT_VOLTAGE_CHANGE)
 		info->uv_vref = (unsigned long)data;
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static void rockchip_saradc_regulator_unreg_notifier(void *data)
+static void rockchip_saradc_regulator_unreg_analtifier(void *data)
 {
 	struct rockchip_saradc *info = data;
 
-	regulator_unregister_notifier(info->vref, &info->nb);
+	regulator_unregister_analtifier(info->vref, &info->nb);
 }
 
 static int rockchip_saradc_probe(struct platform_device *pdev)
 {
 	const struct rockchip_saradc_data *match_data;
 	struct rockchip_saradc *info = NULL;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct iio_dev *indio_dev = NULL;
 	int ret;
 	int irq;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*info));
 	if (!indio_dev)
-		return dev_err_probe(&pdev->dev, -ENOMEM,
+		return dev_err_probe(&pdev->dev, -EANALMEM,
 				     "failed allocating iio device\n");
 
 	info = iio_priv(indio_dev);
 
 	match_data = of_device_get_match_data(&pdev->dev);
 	if (!match_data)
-		return dev_err_probe(&pdev->dev, -ENODEV,
+		return dev_err_probe(&pdev->dev, -EANALDEV,
 				     "failed to match device\n");
 
 	info->data = match_data;
@@ -454,11 +454,11 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 						       "saradc-apb");
 	if (IS_ERR(info->reset)) {
 		ret = PTR_ERR(info->reset);
-		if (ret != -ENOENT)
+		if (ret != -EANALENT)
 			return dev_err_probe(&pdev->dev, ret,
 					     "failed to get saradc-apb\n");
 
-		dev_dbg(&pdev->dev, "no reset control found\n");
+		dev_dbg(&pdev->dev, "anal reset control found\n");
 		info->reset = NULL;
 	}
 
@@ -533,13 +533,13 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	info->nb.notifier_call = rockchip_saradc_volt_notify;
-	ret = regulator_register_notifier(info->vref, &info->nb);
+	info->nb.analtifier_call = rockchip_saradc_volt_analtify;
+	ret = regulator_register_analtifier(info->vref, &info->nb);
 	if (ret)
 		return ret;
 
 	ret = devm_add_action_or_reset(&pdev->dev,
-				       rockchip_saradc_regulator_unreg_notifier,
+				       rockchip_saradc_regulator_unreg_analtifier,
 				       info);
 	if (ret)
 		return ret;

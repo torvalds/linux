@@ -75,10 +75,10 @@ static unsigned int check_pixel_format(struct drm_plane *plane, u32 format)
 	kmb = to_kmb(plane->dev);
 	init_disp_cfg = kmb->init_disp_cfg[plane_id];
 	/* Due to HW limitations, changing pixel format after initial
-	 * plane configuration is not supported.
+	 * plane configuration is analt supported.
 	 */
 	if (init_disp_cfg.format && init_disp_cfg.format != format) {
-		drm_dbg(&kmb->drm, "Cannot change format after initial plane configuration");
+		drm_dbg(&kmb->drm, "Cananalt change format after initial plane configuration");
 		return -EINVAL;
 	}
 	for (i = 0; i < plane->format_count; i++) {
@@ -119,12 +119,12 @@ static int kmb_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 
 	/* Due to HW limitations, changing plane height or width after
-	 * initial plane configuration is not supported.
+	 * initial plane configuration is analt supported.
 	 */
 	if ((init_disp_cfg.width && init_disp_cfg.height) &&
 	    (init_disp_cfg.width != fb->width ||
 	    init_disp_cfg.height != fb->height)) {
-		drm_dbg(&kmb->drm, "Cannot change plane height or width after initial configuration");
+		drm_dbg(&kmb->drm, "Cananalt change plane height or width after initial configuration");
 		return -EINVAL;
 	}
 	can_position = (plane->type == DRM_PLANE_TYPE_OVERLAY);
@@ -133,8 +133,8 @@ static int kmb_plane_atomic_check(struct drm_plane *plane,
 						   new_plane_state->crtc);
 	return drm_atomic_helper_check_plane_state(new_plane_state,
 						   crtc_state,
-						   DRM_PLANE_NO_SCALING,
-						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
+						   DRM_PLANE_ANAL_SCALING,
 						   can_position, true);
 }
 
@@ -314,7 +314,7 @@ static void kmb_plane_set_alpha(struct kmb_drm_private *kmb,
 
 	if (has_alpha) {
 		switch (pixel_blend_mode) {
-		case DRM_MODE_BLEND_PIXEL_NONE:
+		case DRM_MODE_BLEND_PIXEL_ANALNE:
 			break;
 		case DRM_MODE_BLEND_PREMULTI:
 			*val |= LCD_LAYER_ALPHA_EMBED | LCD_LAYER_ALPHA_PREMULT;
@@ -509,13 +509,13 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 	 */
 	kmb_set_bitmask_lcd(kmb, LCD_CONTROL, LCD_CTRL_PIPELINE_DMA);
 
-	/* FIXME no doc on how to set output format, these values are taken
+	/* FIXME anal doc on how to set output format, these values are taken
 	 * from the Myriadx tests
 	 */
 	out_format |= LCD_OUTF_FORMAT_RGB888;
 
 	/* Leave RGB order,conversion mode and clip mode to default */
-	/* do not interleave RGB channels for mipi Tx compatibility */
+	/* do analt interleave RGB channels for mipi Tx compatibility */
 	out_format |= LCD_OUTF_MIPI_RGB_MODE;
 	kmb_write_lcd(kmb, LCD_OUT_FORMAT_CFG, out_format);
 
@@ -576,7 +576,7 @@ struct kmb_plane *kmb_plane_init(struct drm_device *drm)
 	enum drm_plane_type plane_type;
 	const u32 *plane_formats;
 	int num_plane_formats;
-	unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+	unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_ANALNE) |
 				  BIT(DRM_MODE_BLEND_PREMULTI)   |
 				  BIT(DRM_MODE_BLEND_COVERAGE);
 
@@ -585,7 +585,7 @@ struct kmb_plane *kmb_plane_init(struct drm_device *drm)
 
 		if (!plane) {
 			drm_err(drm, "Failed to allocate plane\n");
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 
 		plane_type = (i == 0) ? DRM_PLANE_TYPE_PRIMARY :

@@ -55,17 +55,17 @@ static inline int ext2_acl_count(size_t size)
 #ifdef CONFIG_EXT2_FS_POSIX_ACL
 
 /* acl.c */
-extern struct posix_acl *ext2_get_acl(struct inode *inode, int type, bool rcu);
+extern struct posix_acl *ext2_get_acl(struct ianalde *ianalde, int type, bool rcu);
 extern int ext2_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 			struct posix_acl *acl, int type);
-extern int ext2_init_acl (struct inode *, struct inode *);
+extern int ext2_init_acl (struct ianalde *, struct ianalde *);
 
 #else
 #include <linux/sched.h>
 #define ext2_get_acl	NULL
 #define ext2_set_acl	NULL
 
-static inline int ext2_init_acl (struct inode *inode, struct inode *dir)
+static inline int ext2_init_acl (struct ianalde *ianalde, struct ianalde *dir)
 {
 	return 0;
 }

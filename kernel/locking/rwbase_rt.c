@@ -26,7 +26,7 @@
  *  2) Wake the writer waiting in down_write()/write_lock() #3
  *
  * down_read/read_lock()#3 has the consequence, that rw semaphores and rw
- * locks on RT are not writer fair, but writers, which should be avoided in
+ * locks on RT are analt writer fair, but writers, which should be avoided in
  * RT tasks (think mmap_sem), are subject to the rtmutex priority/DL
  * inheritance mechanism.
  *
@@ -34,16 +34,16 @@
  * active readers. A blocked writer would force all newly incoming readers
  * to block on the rtmutex, but the rtmutex would have to be proxy locked
  * for one reader after the other. We can't use multi-reader inheritance
- * because there is no way to support that with SCHED_DEADLINE.
+ * because there is anal way to support that with SCHED_DEADLINE.
  * Implementing the one by one reader boosting/handover mechanism is a
  * major surgery for a very dubious value.
  *
  * The risk of writer starvation is there, but the pathological use cases
- * which trigger it are not necessarily the typical RT workloads.
+ * which trigger it are analt necessarily the typical RT workloads.
  *
  * Fast-path orderings:
  * The lock/unlock of readers can run in fast paths: lock and unlock are only
- * atomic ops, and there is no inner lock to provide ACQUIRE and RELEASE
+ * atomic ops, and there is anal inner lock to provide ACQUIRE and RELEASE
  * semantics of rwbase_rt. Atomic ops should thus provide _acquire()
  * and _release() (or stronger).
  *

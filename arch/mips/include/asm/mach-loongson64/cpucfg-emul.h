@@ -14,7 +14,7 @@ void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c);
 
 static inline bool loongson3_cpucfg_emulation_enabled(struct cpuinfo_mips *c)
 {
-	/* All supported cores have non-zero LOONGSON_CFG1 data. */
+	/* All supported cores have analn-zero LOONGSON_CFG1 data. */
 	return c->loongson3_cpucfg_data[0] != 0;
 }
 
@@ -33,7 +33,7 @@ static inline u32 loongson3_cpucfg_read_synthesized(struct cpuinfo_mips *c,
 		/* CPUCFG selects 4 and 5 are related to the input clock
 		 * signal.
 		 *
-		 * Unimplemented for now.
+		 * Unimplemented for analw.
 		 */
 		return 0;
 	case LOONGSON_CFG6:
@@ -41,7 +41,7 @@ static inline u32 loongson3_cpucfg_read_synthesized(struct cpuinfo_mips *c,
 		return 0;
 	case LOONGSON_CFG7:
 		/* CPUCFG select 7 is for the virtualization extension.
-		 * We don't know if the two currently known features are
+		 * We don't kanalw if the two currently kanalwn features are
 		 * supported on older cores according to the public
 		 * documentation, so leave this at zero.
 		 */

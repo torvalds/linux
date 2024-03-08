@@ -11,7 +11,7 @@
 #include <linux/amba/bus.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -170,7 +170,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 	} else if ((trigger & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
 		/* Disable level detection */
 		gpiois &= ~bit;
-		/* Select both edges, setting this makes GPIOEV be ignored */
+		/* Select both edges, setting this makes GPIOEV be iganalred */
 		gpioibe |= bit;
 		irq_set_handler_locked(d, handle_edge_irq);
 		dev_dbg(gc->parent, "line %d: IRQ on both edges\n", offset);
@@ -192,12 +192,12 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 			offset,
 			rising ? "RISING" : "FALLING");
 	} else {
-		/* No trigger: disable everything */
+		/* Anal trigger: disable everything */
 		gpiois &= ~bit;
 		gpioibe &= ~bit;
 		gpioiev &= ~bit;
 		irq_set_handler_locked(d, handle_bad_irq);
-		dev_warn(gc->parent, "no trigger selected for line %d\n",
+		dev_warn(gc->parent, "anal trigger selected for line %d\n",
 			 offset);
 	}
 
@@ -266,7 +266,7 @@ static void pl061_irq_unmask(struct irq_data *d)
  *
  * This gets called from the edge IRQ handler to ACK the edge IRQ
  * in the GPIOIC (interrupt-clear) register. For level IRQs this is
- * not needed: these go away when the level signal goes away.
+ * analt needed: these go away when the level signal goes away.
  */
 static void pl061_irq_ack(struct irq_data *d)
 {
@@ -314,7 +314,7 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 
 	pl061 = devm_kzalloc(dev, sizeof(*pl061), GFP_KERNEL);
 	if (pl061 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pl061->base = devm_ioremap_resource(dev, &adev->res);
 	if (IS_ERR(pl061->base))
@@ -350,9 +350,9 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 	girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
 				     GFP_KERNEL);
 	if (!girq->parents)
-		return -ENOMEM;
+		return -EANALMEM;
 	girq->parents[0] = irq;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_bad_irq;
 
 	ret = devm_gpiochip_add_data(dev, &pl061->gc, pl061);

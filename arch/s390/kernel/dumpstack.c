@@ -30,12 +30,12 @@ const char *stack_type_name(enum stack_type type)
 		return "task";
 	case STACK_TYPE_IRQ:
 		return "irq";
-	case STACK_TYPE_NODAT:
-		return "nodat";
+	case STACK_TYPE_ANALDAT:
+		return "analdat";
 	case STACK_TYPE_RESTART:
 		return "restart";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 EXPORT_SYMBOL_GPL(stack_type_name);
@@ -66,11 +66,11 @@ static bool in_irq_stack(unsigned long sp, struct stack_info *info)
 	return in_stack(sp, info, STACK_TYPE_IRQ, stack);
 }
 
-static bool in_nodat_stack(unsigned long sp, struct stack_info *info)
+static bool in_analdat_stack(unsigned long sp, struct stack_info *info)
 {
-	unsigned long stack = S390_lowcore.nodat_stack - STACK_INIT_OFFSET;
+	unsigned long stack = S390_lowcore.analdat_stack - STACK_INIT_OFFSET;
 
-	return in_stack(sp, info, STACK_TYPE_NODAT, stack);
+	return in_stack(sp, info, STACK_TYPE_ANALDAT, stack);
 }
 
 static bool in_mcck_stack(unsigned long sp, struct stack_info *info)
@@ -91,38 +91,38 @@ int get_stack_info(unsigned long sp, struct task_struct *task,
 		   struct stack_info *info, unsigned long *visit_mask)
 {
 	if (!sp)
-		goto unknown;
+		goto unkanalwn;
 
 	/* Sanity check: ABI requires SP to be aligned 8 bytes. */
 	if (sp & 0x7)
-		goto unknown;
+		goto unkanalwn;
 
 	/* Check per-task stack */
 	if (in_task_stack(sp, task, info))
 		goto recursion_check;
 
 	if (task != current)
-		goto unknown;
+		goto unkanalwn;
 
 	/* Check per-cpu stacks */
 	if (!in_irq_stack(sp, info) &&
-	    !in_nodat_stack(sp, info) &&
+	    !in_analdat_stack(sp, info) &&
 	    !in_restart_stack(sp, info) &&
 	    !in_mcck_stack(sp, info))
-		goto unknown;
+		goto unkanalwn;
 
 recursion_check:
 	/*
 	 * Make sure we don't iterate through any given stack more than once.
 	 * If it comes up a second time then there's something wrong going on:
-	 * just break out and report an unknown stack type.
+	 * just break out and report an unkanalwn stack type.
 	 */
 	if (*visit_mask & (1UL << info->type))
-		goto unknown;
+		goto unkanalwn;
 	*visit_mask |= 1UL << info->type;
 	return 0;
-unknown:
-	info->type = STACK_TYPE_UNKNOWN;
+unkanalwn:
+	info->type = STACK_TYPE_UNKANALWN;
 	return -EINVAL;
 }
 
@@ -188,7 +188,7 @@ void show_regs(struct pt_regs *regs)
 
 static DEFINE_SPINLOCK(die_lock);
 
-void __noreturn die(struct pt_regs *regs, const char *str)
+void __analreturn die(struct pt_regs *regs, const char *str)
 {
 	static int die_counter;
 
@@ -209,11 +209,11 @@ void __noreturn die(struct pt_regs *regs, const char *str)
 	if (debug_pagealloc_enabled())
 		pr_cont("DEBUG_PAGEALLOC");
 	pr_cont("\n");
-	notify_die(DIE_OOPS, str, regs, 0, regs->int_code & 0xffff, SIGSEGV);
+	analtify_die(DIE_OOPS, str, regs, 0, regs->int_code & 0xffff, SIGSEGV);
 	print_modules();
 	show_regs(regs);
 	bust_spinlocks(0);
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 	spin_unlock_irq(&die_lock);
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");

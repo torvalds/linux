@@ -22,7 +22,7 @@
 #include "hda_generic.h"
 
 enum {
-	CX_HEADSET_NOPRESENT = 0,
+	CX_HEADSET_ANALPRESENT = 0,
 	CX_HEADSET_PARTPRESENT,
 	CX_HEADSET_ALLPRESENT,
 };
@@ -56,8 +56,8 @@ struct conexant_spec {
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
 /* additional beep mixers; private_value will be overwritten */
 static const struct snd_kcontrol_new cxt_beep_mixer[] = {
-	HDA_CODEC_VOLUME_MONO("Beep Playback Volume", 0, 1, 0, HDA_OUTPUT),
-	HDA_CODEC_MUTE_BEEP_MONO("Beep Playback Switch", 0, 1, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MOANAL("Beep Playback Volume", 0, 1, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_BEEP_MOANAL("Beep Playback Switch", 0, 1, 0, HDA_OUTPUT),
 };
 
 static int set_beep_amp(struct conexant_spec *spec, hda_nid_t nid,
@@ -72,7 +72,7 @@ static int set_beep_amp(struct conexant_spec *spec, hda_nid_t nid,
 		knew = snd_hda_gen_add_kctl(&spec->gen, NULL,
 					    &cxt_beep_mixer[i]);
 		if (!knew)
-			return -ENOMEM;
+			return -EANALMEM;
 		knew->private_value = beep_amp;
 	}
 	return 0;
@@ -83,7 +83,7 @@ static int cx_auto_parse_beep(struct hda_codec *codec)
 	struct conexant_spec *spec = codec->spec;
 	hda_nid_t nid;
 
-	for_each_hda_codec_node(nid, codec)
+	for_each_hda_codec_analde(nid, codec)
 		if (get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_BEEP)
 			return set_beep_amp(spec, nid, 0, HDA_OUTPUT);
 	return 0;
@@ -102,7 +102,7 @@ static void cx_auto_parse_eapd(struct hda_codec *codec)
 	struct conexant_spec *spec = codec->spec;
 	hda_nid_t nid;
 
-	for_each_hda_codec_node(nid, codec) {
+	for_each_hda_codec_analde(nid, codec) {
 		if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_PIN)
 			continue;
 		if (!(snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_EAPD))
@@ -112,7 +112,7 @@ static void cx_auto_parse_eapd(struct hda_codec *codec)
 			break;
 	}
 
-	/* NOTE: below is a wild guess; if we have more than two EAPDs,
+	/* ANALTE: below is a wild guess; if we have more than two EAPDs,
 	 * it's a new chip, where EAPDs are supposed to be associated to
 	 * pins, and we can control EAPD per pin.
 	 * OTOH, if only one or two EAPDs are found, it's an old chip,
@@ -212,7 +212,7 @@ static void cx_auto_shutdown(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
 
-	/* Turn the problematic codec into D3 to avoid spurious noises
+	/* Turn the problematic codec into D3 to avoid spurious analises
 	   from the internal speaker during (and after) reboot */
 	cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, false);
 }
@@ -255,8 +255,8 @@ static void cx_update_headset_mic_vref(struct hda_codec *codec, unsigned int res
 	unsigned int phone_present, mic_persent, phone_tag, mic_tag;
 	struct conexant_spec *spec = codec->spec;
 
-	/* In cx8070 and sn6140, the node 16 can only be config to headphone or disabled,
-	 * the node 19 can only be config to microphone or disabled.
+	/* In cx8070 and sn6140, the analde 16 can only be config to headphone or disabled,
+	 * the analde 19 can only be config to microphone or disabled.
 	 * Check hp&mic tag to process headset pulgin&plugout.
 	 */
 	phone_tag = snd_hda_codec_read(codec, 0x16, 0, AC_VERB_GET_UNSOLICITED_RESPONSE, 0x0);
@@ -265,11 +265,11 @@ static void cx_update_headset_mic_vref(struct hda_codec *codec, unsigned int res
 	    (mic_tag & (res >> AC_UNSOL_RES_TAG_SHIFT))) {
 		phone_present = snd_hda_codec_read(codec, 0x16, 0, AC_VERB_GET_PIN_SENSE, 0x0);
 		if (!(phone_present & AC_PINSENSE_PRESENCE)) {/* headphone plugout */
-			spec->headset_present_flag = CX_HEADSET_NOPRESENT;
+			spec->headset_present_flag = CX_HEADSET_ANALPRESENT;
 			snd_hda_codec_write(codec, 0x19, 0, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20);
 			return;
 		}
-		if (spec->headset_present_flag == CX_HEADSET_NOPRESENT) {
+		if (spec->headset_present_flag == CX_HEADSET_ANALPRESENT) {
 			spec->headset_present_flag = CX_HEADSET_PARTPRESENT;
 		} else if (spec->headset_present_flag == CX_HEADSET_PARTPRESENT) {
 			mic_persent = snd_hda_codec_read(codec, 0x19, 0,
@@ -318,13 +318,13 @@ static const struct hda_codec_ops cx_auto_patch_ops = {
  * pin fix-up
  */
 enum {
-	CXT_PINCFG_LENOVO_X200,
-	CXT_PINCFG_LENOVO_TP410,
+	CXT_PINCFG_LEANALVO_X200,
+	CXT_PINCFG_LEANALVO_TP410,
 	CXT_PINCFG_LEMOTE_A1004,
 	CXT_PINCFG_LEMOTE_A1205,
 	CXT_PINCFG_COMPAQ_CQ60,
 	CXT_FIXUP_STEREO_DMIC,
-	CXT_PINCFG_LENOVO_NOTEBOOK,
+	CXT_PINCFG_LEANALVO_ANALTEBOOK,
 	CXT_FIXUP_INC_MIC_BOOST,
 	CXT_FIXUP_HEADPHONE_MIC_PIN,
 	CXT_FIXUP_HEADPHONE_MIC,
@@ -343,7 +343,7 @@ enum {
 	CXT_FIXUP_MUTE_LED_GPIO,
 	CXT_FIXUP_HP_ZBOOK_MUTE_LED,
 	CXT_FIXUP_HEADSET_MIC,
-	CXT_FIXUP_HP_MIC_NO_PRESENCE,
+	CXT_FIXUP_HP_MIC_ANAL_PRESENCE,
 	CXT_PINCFG_SWS_JS201D,
 };
 
@@ -495,18 +495,18 @@ static void olpc_xo_update_mic_pins(struct hda_codec *codec)
 		 * started because the microphone LED comes on as soon as
 		 * these settings are put in place. if we did this before
 		 * recording, it would give the false indication that
-		 * recording is happening when it is not.
+		 * recording is happening when it is analt.
 		 */
 		update_mic_pin(codec, 0x1a, spec->recording ?
 			       snd_hda_codec_get_pin_target(codec, 0x1a) : 0);
 		update_mic_pin(codec, 0x1b, spec->recording ?
 			       snd_hda_codec_get_pin_target(codec, 0x1b) : 0);
-		/* enable normal mic path */
+		/* enable analrmal mic path */
 		path = snd_hda_get_path_from_idx(codec, cur_input);
 		if (path)
 			snd_hda_activate_path(codec, path, true, false);
 	} else {
-		/* disable normal mic path */
+		/* disable analrmal mic path */
 		path = snd_hda_get_path_from_idx(codec, cur_input);
 		if (path)
 			snd_hda_activate_path(codec, path, false, false);
@@ -629,7 +629,7 @@ static const struct snd_kcontrol_new olpc_xo_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "DC Mode Enable Switch",
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moanal_info,
 		.get = olpc_xo_dc_mode_get,
 		.put = olpc_xo_dc_mode_put,
 	},
@@ -814,7 +814,7 @@ static void cxt_fixup_hp_zbook_mute_led(struct hda_codec *codec,
 }
 
 /* ThinkPad X200 & co with cxt5051 */
-static const struct hda_pintbl cxt_pincfg_lenovo_x200[] = {
+static const struct hda_pintbl cxt_pincfg_leanalvo_x200[] = {
 	{ 0x16, 0x042140ff }, /* HP (seq# overridden) */
 	{ 0x17, 0x21a11000 }, /* dock-mic */
 	{ 0x19, 0x2121103f }, /* dock-HP */
@@ -823,7 +823,7 @@ static const struct hda_pintbl cxt_pincfg_lenovo_x200[] = {
 };
 
 /* ThinkPad 410/420/510/520, X201 & co with cxt5066 */
-static const struct hda_pintbl cxt_pincfg_lenovo_tp410[] = {
+static const struct hda_pintbl cxt_pincfg_leanalvo_tp410[] = {
 	{ 0x19, 0x042110ff }, /* HP (seq# overridden) */
 	{ 0x1a, 0x21a190f0 }, /* dock-mic */
 	{ 0x1c, 0x212140ff }, /* dock-HP */
@@ -834,11 +834,11 @@ static const struct hda_pintbl cxt_pincfg_lenovo_tp410[] = {
 static const struct hda_pintbl cxt_pincfg_lemote[] = {
 	{ 0x1a, 0x90a10020 }, /* Internal mic */
 	{ 0x1b, 0x03a11020 }, /* External mic */
-	{ 0x1d, 0x400101f0 }, /* Not used */
-	{ 0x1e, 0x40a701f0 }, /* Not used */
-	{ 0x20, 0x404501f0 }, /* Not used */
-	{ 0x22, 0x404401f0 }, /* Not used */
-	{ 0x23, 0x40a701f0 }, /* Not used */
+	{ 0x1d, 0x400101f0 }, /* Analt used */
+	{ 0x1e, 0x40a701f0 }, /* Analt used */
+	{ 0x20, 0x404501f0 }, /* Analt used */
+	{ 0x22, 0x404401f0 }, /* Analt used */
+	{ 0x23, 0x40a701f0 }, /* Analt used */
 	{}
 };
 
@@ -848,19 +848,19 @@ static const struct hda_pintbl cxt_pincfg_sws_js201d[] = {
 	{ 0x17, 0x91170110 }, /* SPK/Class_D */
 	{ 0x18, 0x95a70130 }, /* Internal mic */
 	{ 0x19, 0x03a11020 }, /* Headset Mic */
-	{ 0x1a, 0x40f001f0 }, /* Not used */
-	{ 0x21, 0x40f001f0 }, /* Not used */
+	{ 0x1a, 0x40f001f0 }, /* Analt used */
+	{ 0x21, 0x40f001f0 }, /* Analt used */
 	{}
 };
 
 static const struct hda_fixup cxt_fixups[] = {
-	[CXT_PINCFG_LENOVO_X200] = {
+	[CXT_PINCFG_LEANALVO_X200] = {
 		.type = HDA_FIXUP_PINS,
-		.v.pins = cxt_pincfg_lenovo_x200,
+		.v.pins = cxt_pincfg_leanalvo_x200,
 	},
-	[CXT_PINCFG_LENOVO_TP410] = {
+	[CXT_PINCFG_LEANALVO_TP410] = {
 		.type = HDA_FIXUP_PINS,
-		.v.pins = cxt_pincfg_lenovo_tp410,
+		.v.pins = cxt_pincfg_leanalvo_tp410,
 		.chained = true,
 		.chain_id = CXT_FIXUP_THINKPAD_ACPI,
 	},
@@ -887,7 +887,7 @@ static const struct hda_fixup cxt_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cxt_fixup_stereo_dmic,
 	},
-	[CXT_PINCFG_LENOVO_NOTEBOOK] = {
+	[CXT_PINCFG_LEANALVO_ANALTEBOOK] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = (const struct hda_pintbl[]) {
 			{ 0x1a, 0x05d71030 },
@@ -999,7 +999,7 @@ static const struct hda_fixup cxt_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cxt_fixup_headset_mic,
 	},
-	[CXT_FIXUP_HP_MIC_NO_PRESENCE] = {
+	[CXT_FIXUP_HP_MIC_ANAL_PRESENCE] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = (const struct hda_pintbl[]) {
 			{ 0x1a, 0x02a1113c },
@@ -1017,13 +1017,13 @@ static const struct hda_fixup cxt_fixups[] = {
 static const struct snd_pci_quirk cxt5045_fixups[] = {
 	SND_PCI_QUIRK(0x103c, 0x30d5, "HP 530", CXT_FIXUP_HP_530),
 	SND_PCI_QUIRK(0x1179, 0xff31, "Toshiba P105", CXT_FIXUP_TOSHIBA_P105),
-	/* HP, Packard Bell, Fujitsu-Siemens & Lenovo laptops have
+	/* HP, Packard Bell, Fujitsu-Siemens & Leanalvo laptops have
 	 * really bad sound over 0dB on NID 0x17.
 	 */
 	SND_PCI_QUIRK_VENDOR(0x103c, "HP", CXT_FIXUP_CAP_MIX_AMP),
 	SND_PCI_QUIRK_VENDOR(0x1631, "Packard Bell", CXT_FIXUP_CAP_MIX_AMP),
 	SND_PCI_QUIRK_VENDOR(0x1734, "Fujitsu", CXT_FIXUP_CAP_MIX_AMP),
-	SND_PCI_QUIRK_VENDOR(0x17aa, "Lenovo", CXT_FIXUP_CAP_MIX_AMP),
+	SND_PCI_QUIRK_VENDOR(0x17aa, "Leanalvo", CXT_FIXUP_CAP_MIX_AMP),
 	{}
 };
 
@@ -1048,12 +1048,12 @@ static const struct hda_model_fixup cxt5047_fixup_models[] = {
 
 static const struct snd_pci_quirk cxt5051_fixups[] = {
 	SND_PCI_QUIRK(0x103c, 0x360b, "Compaq CQ60", CXT_PINCFG_COMPAQ_CQ60),
-	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo X200", CXT_PINCFG_LENOVO_X200),
+	SND_PCI_QUIRK(0x17aa, 0x20f2, "Leanalvo X200", CXT_PINCFG_LEANALVO_X200),
 	{}
 };
 
 static const struct hda_model_fixup cxt5051_fixup_models[] = {
-	{ .id = CXT_PINCFG_LENOVO_X200, .name = "lenovo-x200" },
+	{ .id = CXT_PINCFG_LEANALVO_X200, .name = "leanalvo-x200" },
 	{}
 };
 
@@ -1069,9 +1069,9 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x103c, 0x8174, "HP Spectre x360", CXT_FIXUP_HP_SPECTRE),
 	SND_PCI_QUIRK(0x103c, 0x822e, "HP ProBook 440 G4", CXT_FIXUP_MUTE_LED_GPIO),
 	SND_PCI_QUIRK(0x103c, 0x828c, "HP EliteBook 840 G4", CXT_FIXUP_HP_DOCK),
-	SND_PCI_QUIRK(0x103c, 0x8299, "HP 800 G3 SFF", CXT_FIXUP_HP_MIC_NO_PRESENCE),
-	SND_PCI_QUIRK(0x103c, 0x829a, "HP 800 G3 DM", CXT_FIXUP_HP_MIC_NO_PRESENCE),
-	SND_PCI_QUIRK(0x103c, 0x82b4, "HP ProDesk 600 G3", CXT_FIXUP_HP_MIC_NO_PRESENCE),
+	SND_PCI_QUIRK(0x103c, 0x8299, "HP 800 G3 SFF", CXT_FIXUP_HP_MIC_ANAL_PRESENCE),
+	SND_PCI_QUIRK(0x103c, 0x829a, "HP 800 G3 DM", CXT_FIXUP_HP_MIC_ANAL_PRESENCE),
+	SND_PCI_QUIRK(0x103c, 0x82b4, "HP ProDesk 600 G3", CXT_FIXUP_HP_MIC_ANAL_PRESENCE),
 	SND_PCI_QUIRK(0x103c, 0x836e, "HP ProBook 455 G5", CXT_FIXUP_MUTE_LED_GPIO),
 	SND_PCI_QUIRK(0x103c, 0x837f, "HP ProBook 470 G5", CXT_FIXUP_MUTE_LED_GPIO),
 	SND_PCI_QUIRK(0x103c, 0x83b2, "HP EliteBook 840 G5", CXT_FIXUP_HP_DOCK),
@@ -1080,31 +1080,31 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x103c, 0x8402, "HP ProBook 645 G4", CXT_FIXUP_MUTE_LED_GPIO),
 	SND_PCI_QUIRK(0x103c, 0x8427, "HP ZBook Studio G5", CXT_FIXUP_HP_ZBOOK_MUTE_LED),
 	SND_PCI_QUIRK(0x103c, 0x844f, "HP ZBook Studio G5", CXT_FIXUP_HP_ZBOOK_MUTE_LED),
-	SND_PCI_QUIRK(0x103c, 0x8455, "HP Z2 G4", CXT_FIXUP_HP_MIC_NO_PRESENCE),
-	SND_PCI_QUIRK(0x103c, 0x8456, "HP Z2 G4 SFF", CXT_FIXUP_HP_MIC_NO_PRESENCE),
-	SND_PCI_QUIRK(0x103c, 0x8457, "HP Z2 G4 mini", CXT_FIXUP_HP_MIC_NO_PRESENCE),
-	SND_PCI_QUIRK(0x103c, 0x8458, "HP Z2 G4 mini premium", CXT_FIXUP_HP_MIC_NO_PRESENCE),
+	SND_PCI_QUIRK(0x103c, 0x8455, "HP Z2 G4", CXT_FIXUP_HP_MIC_ANAL_PRESENCE),
+	SND_PCI_QUIRK(0x103c, 0x8456, "HP Z2 G4 SFF", CXT_FIXUP_HP_MIC_ANAL_PRESENCE),
+	SND_PCI_QUIRK(0x103c, 0x8457, "HP Z2 G4 mini", CXT_FIXUP_HP_MIC_ANAL_PRESENCE),
+	SND_PCI_QUIRK(0x103c, 0x8458, "HP Z2 G4 mini premium", CXT_FIXUP_HP_MIC_ANAL_PRESENCE),
 	SND_PCI_QUIRK(0x1043, 0x138d, "Asus", CXT_FIXUP_HEADPHONE_MIC_PIN),
 	SND_PCI_QUIRK(0x14f1, 0x0265, "SWS JS201D", CXT_PINCFG_SWS_JS201D),
 	SND_PCI_QUIRK(0x152d, 0x0833, "OLPC XO-1.5", CXT_FIXUP_OLPC_XO),
-	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo T400", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x215e, "Lenovo T410", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x215f, "Lenovo T510", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x21ce, "Lenovo T420", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x21cf, "Lenovo T520", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x21d2, "Lenovo T420s", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x21da, "Lenovo X220", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x21db, "Lenovo X220-tablet", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo IdeaPad Z560", CXT_FIXUP_MUTE_LED_EAPD),
-	SND_PCI_QUIRK(0x17aa, 0x3905, "Lenovo G50-30", CXT_FIXUP_STEREO_DMIC),
-	SND_PCI_QUIRK(0x17aa, 0x390b, "Lenovo G50-80", CXT_FIXUP_STEREO_DMIC),
-	SND_PCI_QUIRK(0x17aa, 0x3975, "Lenovo U300s", CXT_FIXUP_STEREO_DMIC),
-	/* NOTE: we'd need to extend the quirk for 17aa:3977 as the same
-	 * PCI SSID is used on multiple Lenovo models
+	SND_PCI_QUIRK(0x17aa, 0x20f2, "Leanalvo T400", CXT_PINCFG_LEANALVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x215e, "Leanalvo T410", CXT_PINCFG_LEANALVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x215f, "Leanalvo T510", CXT_PINCFG_LEANALVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x21ce, "Leanalvo T420", CXT_PINCFG_LEANALVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x21cf, "Leanalvo T520", CXT_PINCFG_LEANALVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x21d2, "Leanalvo T420s", CXT_PINCFG_LEANALVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x21da, "Leanalvo X220", CXT_PINCFG_LEANALVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x21db, "Leanalvo X220-tablet", CXT_PINCFG_LEANALVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x38af, "Leanalvo IdeaPad Z560", CXT_FIXUP_MUTE_LED_EAPD),
+	SND_PCI_QUIRK(0x17aa, 0x3905, "Leanalvo G50-30", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x17aa, 0x390b, "Leanalvo G50-80", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x17aa, 0x3975, "Leanalvo U300s", CXT_FIXUP_STEREO_DMIC),
+	/* ANALTE: we'd need to extend the quirk for 17aa:3977 as the same
+	 * PCI SSID is used on multiple Leanalvo models
 	 */
-	SND_PCI_QUIRK(0x17aa, 0x3977, "Lenovo IdeaPad U310", CXT_FIXUP_STEREO_DMIC),
-	SND_PCI_QUIRK(0x17aa, 0x3978, "Lenovo G50-70", CXT_FIXUP_STEREO_DMIC),
-	SND_PCI_QUIRK(0x17aa, 0x397b, "Lenovo S205", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x17aa, 0x3977, "Leanalvo IdeaPad U310", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x17aa, 0x3978, "Leanalvo G50-70", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x17aa, 0x397b, "Leanalvo S205", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK_VENDOR(0x17aa, "Thinkpad", CXT_FIXUP_THINKPAD_ACPI),
 	SND_PCI_QUIRK(0x1c06, 0x2011, "Lemote A1004", CXT_PINCFG_LEMOTE_A1004),
 	SND_PCI_QUIRK(0x1c06, 0x2012, "Lemote A1205", CXT_PINCFG_LEMOTE_A1205),
@@ -1115,7 +1115,7 @@ static const struct hda_model_fixup cxt5066_fixup_models[] = {
 	{ .id = CXT_FIXUP_STEREO_DMIC, .name = "stereo-dmic" },
 	{ .id = CXT_FIXUP_GPIO1, .name = "gpio1" },
 	{ .id = CXT_FIXUP_HEADPHONE_MIC_PIN, .name = "headphone-mic-pin" },
-	{ .id = CXT_PINCFG_LENOVO_TP410, .name = "tp410" },
+	{ .id = CXT_PINCFG_LEANALVO_TP410, .name = "tp410" },
 	{ .id = CXT_FIXUP_THINKPAD_ACPI, .name = "thinkpad" },
 	{ .id = CXT_PINCFG_LEMOTE_A1004, .name = "lemote-a1004" },
 	{ .id = CXT_PINCFG_LEMOTE_A1205, .name = "lemote-a1205" },
@@ -1124,8 +1124,8 @@ static const struct hda_model_fixup cxt5066_fixup_models[] = {
 	{ .id = CXT_FIXUP_HP_DOCK, .name = "hp-dock" },
 	{ .id = CXT_FIXUP_MUTE_LED_GPIO, .name = "mute-led-gpio" },
 	{ .id = CXT_FIXUP_HP_ZBOOK_MUTE_LED, .name = "hp-zbook-mute-led" },
-	{ .id = CXT_FIXUP_HP_MIC_NO_PRESENCE, .name = "hp-mic-fix" },
-	{ .id = CXT_PINCFG_LENOVO_NOTEBOOK, .name = "lenovo-20149" },
+	{ .id = CXT_FIXUP_HP_MIC_ANAL_PRESENCE, .name = "hp-mic-fix" },
+	{ .id = CXT_PINCFG_LEANALVO_ANALTEBOOK, .name = "leanalvo-20149" },
 	{ .id = CXT_PINCFG_SWS_JS201D, .name = "sws-js201d" },
 	{}
 };
@@ -1157,7 +1157,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	snd_hda_gen_spec_init(&spec->gen);
 	codec->spec = spec;
 	codec->patch_ops = cx_auto_patch_ops;
@@ -1167,7 +1167,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	case 0x14f11f86:
 	case 0x14f11f87:
 		spec->is_cx8070_sn6140 = true;
-		spec->headset_present_flag = CX_HEADSET_NOPRESENT;
+		spec->headset_present_flag = CX_HEADSET_ANALPRESENT;
 		break;
 	}
 
@@ -1203,7 +1203,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 				   cxt5066_fixups, cxt_fixups);
 		break;
 	case 0x14f150f2:
-		codec->power_save_node = 1;
+		codec->power_save_analde = 1;
 		fallthrough;
 	default:
 		codec->pin_amp_workaround = 1;

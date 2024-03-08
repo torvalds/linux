@@ -38,7 +38,7 @@ where each of the "state*" files represents one performance state of the fan
 and contains a colon-separated list of 5 integer numbers (fields) with the
 following interpretation::
 
-  control_percent:trip_point_index:speed_rpm:noise_level_mdb:power_mw
+  control_percent:trip_point_index:speed_rpm:analise_level_mdb:power_mw
 
 * ``control_percent``: The percent value to be used to set the fan speed to a
   specific level using the _FSL object (0-100).
@@ -48,7 +48,7 @@ following interpretation::
 
 * ``speed_rpm``: Speed of the fan in rotations per minute.
 
-* ``noise_level_mdb``: Audible noise emitted by the fan in this state in
+* ``analise_level_mdb``: Audible analise emitted by the fan in this state in
   millidecibels.
 
 * ``power_mw``: Power draw of the fan in this state in milliwatts.
@@ -58,8 +58,8 @@ For example::
  $cat /sys/bus/acpi/devices/INT3404:00/state1
  25:0:3200:12500:1250
 
-When a given field is not populated or its value provided by the platform
-firmware is invalid, the "not-defined" string is shown instead of the value.
+When a given field is analt populated or its value provided by the platform
+firmware is invalid, the "analt-defined" string is shown instead of the value.
 
 ACPI Fan Fine Grain Control
 =============================
@@ -71,7 +71,7 @@ _FSL object. User can adjust fan speed using thermal sysfs cooling device.
 Here use can look at fan performance states for a reference speed (speed_rpm)
 and set it by changing cooling device cur_state. If the fine grain control
 is supported then user can also adjust to some other speeds which are
-not defined in the performance states.
+analt defined in the performance states.
 
 The support of fine grain control is presented via sysfs attribute
 "fine_grain_control". If fine grain control is present, this attribute

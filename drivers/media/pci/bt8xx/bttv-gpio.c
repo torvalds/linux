@@ -9,7 +9,7 @@
 
     Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
 			   & Marcus Metzler (mocm@thp.uni-koeln.de)
-    (c) 1999-2003 Gerd Knorr <kraxel@bytesex.org>
+    (c) 1999-2003 Gerd Kanalrr <kraxel@bytesex.org>
 
 
 */
@@ -43,7 +43,7 @@ static int bttv_sub_probe(struct device *dev)
 	struct bttv_sub_device *sdev = to_bttv_sub_dev(dev);
 	struct bttv_sub_driver *sub = to_bttv_sub_drv(dev->driver);
 
-	return sub->probe ? sub->probe(sdev) : -ENODEV;
+	return sub->probe ? sub->probe(sdev) : -EANALDEV;
 }
 
 static void bttv_sub_remove(struct device *dev)
@@ -75,7 +75,7 @@ int bttv_sub_add_device(struct bttv_core *core, char *name)
 
 	sub = kzalloc(sizeof(*sub),GFP_KERNEL);
 	if (NULL == sub)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sub->core        = core;
 	sub->dev.parent  = &core->pci->dev;
@@ -125,7 +125,7 @@ EXPORT_SYMBOL(bttv_sub_unregister);
 /* ----------------------------------------------------------------------- */
 /* external: gpio access functions                                         */
 
-void bttv_gpio_inout(struct bttv_core *core, u32 mask, u32 outbits)
+void bttv_gpio_ianalut(struct bttv_core *core, u32 mask, u32 outbits)
 {
 	struct bttv *btv = container_of(core, struct bttv, c);
 	unsigned long flags;

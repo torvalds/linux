@@ -59,7 +59,7 @@ static struct mpic *mpics;
 static struct mpic *mpic_primary;
 static DEFINE_RAW_SPINLOCK(mpic_lock);
 
-#ifdef CONFIG_PPC32	/* XXX for now */
+#ifdef CONFIG_PPC32	/* XXX for analw */
 #ifdef CONFIG_IRQ_ALL_CPUS
 #define distribute_irqs	(1)
 #else
@@ -264,10 +264,10 @@ static inline void _mpic_cpu_write(struct mpic *mpic, unsigned int reg, u32 valu
 	_mpic_write(mpic->reg_type, &mpic->cpuregs[cpu], reg, value);
 }
 
-static inline u32 _mpic_irq_read(struct mpic *mpic, unsigned int src_no, unsigned int reg)
+static inline u32 _mpic_irq_read(struct mpic *mpic, unsigned int src_anal, unsigned int reg)
 {
-	unsigned int	isu = src_no >> mpic->isu_shift;
-	unsigned int	idx = src_no & mpic->isu_mask;
+	unsigned int	isu = src_anal >> mpic->isu_shift;
+	unsigned int	idx = src_anal & mpic->isu_mask;
 	unsigned int	val;
 
 	val = _mpic_read(mpic->reg_type, &mpic->isus[isu],
@@ -275,23 +275,23 @@ static inline u32 _mpic_irq_read(struct mpic *mpic, unsigned int src_no, unsigne
 #ifdef CONFIG_MPIC_BROKEN_REGREAD
 	if (reg == 0)
 		val = (val & (MPIC_VECPRI_MASK | MPIC_VECPRI_ACTIVITY)) |
-			mpic->isu_reg0_shadow[src_no];
+			mpic->isu_reg0_shadow[src_anal];
 #endif
 	return val;
 }
 
-static inline void _mpic_irq_write(struct mpic *mpic, unsigned int src_no,
+static inline void _mpic_irq_write(struct mpic *mpic, unsigned int src_anal,
 				   unsigned int reg, u32 value)
 {
-	unsigned int	isu = src_no >> mpic->isu_shift;
-	unsigned int	idx = src_no & mpic->isu_mask;
+	unsigned int	isu = src_anal >> mpic->isu_shift;
+	unsigned int	idx = src_anal & mpic->isu_mask;
 
 	_mpic_write(mpic->reg_type, &mpic->isus[isu],
 		    reg + (idx * MPIC_INFO(IRQ_STRIDE)), value);
 
 #ifdef CONFIG_MPIC_BROKEN_REGREAD
 	if (reg == 0)
-		mpic->isu_reg0_shadow[src_no] =
+		mpic->isu_reg0_shadow[src_anal] =
 			value & ~(MPIC_VECPRI_MASK | MPIC_VECPRI_ACTIVITY);
 #endif
 }
@@ -325,8 +325,8 @@ static void _mpic_map_mmio(struct mpic *mpic, phys_addr_t phys_addr,
 static void _mpic_map_dcr(struct mpic *mpic, struct mpic_reg_bank *rb,
 			  unsigned int offset, unsigned int size)
 {
-	phys_addr_t phys_addr = dcr_resource_start(mpic->node, 0);
-	rb->dhost = dcr_map(mpic->node, phys_addr + offset, size);
+	phys_addr_t phys_addr = dcr_resource_start(mpic->analde, 0);
+	rb->dhost = dcr_map(mpic->analde, phys_addr + offset, size);
 	BUG_ON(!DCR_MAP_OK(rb->dhost));
 }
 
@@ -527,7 +527,7 @@ static void __init mpic_scan_ht_pic(struct mpic *mpic, u8 __iomem *devbase,
 		writel(tmp, base + 4);
 		mpic->fixups[irq].index = i;
 		mpic->fixups[irq].base = base;
-		/* Apple HT PIC has a non-standard way of doing EOIs */
+		/* Apple HT PIC has a analn-standard way of doing EOIs */
 		if ((vdid & 0xffff) == 0x106b)
 			mpic->fixups[irq].applebase = devbase + 0x60;
 		else
@@ -558,8 +558,8 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
 	cfgspace = ioremap(0xf2000000, 0x10000);
 	BUG_ON(cfgspace == NULL);
 
-	/* Now we scan all slots. We do a very quick scan, we read the header
-	 * type, vendor ID and device ID only, that's plenty enough
+	/* Analw we scan all slots. We do a very quick scan, we read the header
+	 * type, vendor ID and device ID only, that's plenty eanalugh
 	 */
 	for (devfn = 0; devfn < 0x100; devfn++) {
 		u8 __iomem *devbase = cfgspace + (devfn << 8);
@@ -569,7 +569,7 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
 
 		DBG("devfn %x, l: %x\n", devfn, l);
 
-		/* If no device, skip */
+		/* If anal device, skip */
 		if (l == 0xffffffff || l == 0x00000000 ||
 		    l == 0x0000ffff || l == 0xffff0000)
 			goto next;
@@ -716,7 +716,7 @@ void mpic_end_irq(struct irq_data *d)
 #endif
 	/* We always EOI on end_irq() even for edge interrupts since that
 	 * should only lower the priority, the MPIC should have properly
-	 * latched another edge interrupt coming in anyway
+	 * latched aanalther edge interrupt coming in anyway
 	 */
 
 	mpic_eoi(mpic);
@@ -765,7 +765,7 @@ static void mpic_end_ht_irq(struct irq_data *d)
 #endif
 	/* We always EOI on end_irq() even for edge interrupts since that
 	 * should only lower the priority, the MPIC should have properly
-	 * latched another edge interrupt coming in anyway
+	 * latched aanalther edge interrupt coming in anyway
 	 */
 
 	if (irqd_is_level_type(d))
@@ -847,7 +847,7 @@ int mpic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 
 static unsigned int mpic_type_to_vecpri(struct mpic *mpic, unsigned int type)
 {
-	/* Now convert sense value */
+	/* Analw convert sense value */
 	switch(type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_EDGE_RISING:
 		return MPIC_INFO(VECPRI_SENSE_EDGE) |
@@ -880,8 +880,8 @@ int mpic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 
 	vold = mpic_irq_read(src, MPIC_INFO(IRQ_VECTOR_PRI));
 
-	/* We don't support "none" type */
-	if (flow_type == IRQ_TYPE_NONE)
+	/* We don't support "analne" type */
+	if (flow_type == IRQ_TYPE_ANALNE)
 		flow_type = IRQ_TYPE_DEFAULT;
 
 	/* Default: read HW settings */
@@ -904,7 +904,7 @@ int mpic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 				     MPIC_INFO(VECPRI_POLARITY_NEGATIVE)))
 			flow_type = IRQ_TYPE_LEVEL_LOW;
 		else
-			WARN_ONCE(1, "mpic: unknown IRQ type %d\n", vold);
+			WARN_ONCE(1, "mpic: unkanalwn IRQ type %d\n", vold);
 	}
 
 	/* Apply to irq desc */
@@ -923,7 +923,7 @@ int mpic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 	if (vold != vnew)
 		mpic_irq_write(src, MPIC_INFO(IRQ_VECTOR_PRI), vnew);
 
-	return IRQ_SET_MASK_OK_NOCOPY;
+	return IRQ_SET_MASK_OK_ANALCOPY;
 }
 
 void mpic_set_vector(unsigned int virq, unsigned int vector)
@@ -991,12 +991,12 @@ static const struct irq_chip mpic_irq_ht_chip = {
 #endif /* CONFIG_MPIC_U3_HT_IRQS */
 
 
-static int mpic_host_match(struct irq_domain *h, struct device_node *node,
+static int mpic_host_match(struct irq_domain *h, struct device_analde *analde,
 			   enum irq_domain_bus_token bus_token)
 {
-	/* Exact match, unless mpic node is NULL */
-	struct device_node *of_node = irq_domain_get_of_node(h);
-	return of_node == NULL || of_node == node;
+	/* Exact match, unless mpic analde is NULL */
+	struct device_analde *of_analde = irq_domain_get_of_analde(h);
+	return of_analde == NULL || of_analde == analde;
 }
 
 static int mpic_host_map(struct irq_domain *h, unsigned int virq,
@@ -1069,7 +1069,7 @@ static int mpic_host_map(struct irq_domain *h, unsigned int virq,
 	 * initialized.  Otherwise, a per source lazy initialization
 	 * is done here.
 	 */
-	if (!mpic_is_ipi(mpic, hw) && (mpic->flags & MPIC_NO_RESET)) {
+	if (!mpic_is_ipi(mpic, hw) && (mpic->flags & MPIC_ANAL_RESET)) {
 		int cpu;
 
 		preempt_disable();
@@ -1084,7 +1084,7 @@ static int mpic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int mpic_host_xlate(struct irq_domain *h, struct device_node *ct,
+static int mpic_host_xlate(struct irq_domain *h, struct device_analde *ct,
 			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
@@ -1132,7 +1132,7 @@ static int mpic_host_xlate(struct irq_domain *h, struct device_node *ct,
 			*out_hwirq = mpic->timer_vecs[intspec[0]];
 			break;
 		default:
-			pr_debug("%s: unknown irq type %u\n",
+			pr_debug("%s: unkanalwn irq type %u\n",
 				 __func__, intspec[2]);
 			return -EINVAL;
 		}
@@ -1155,7 +1155,7 @@ static int mpic_host_xlate(struct irq_domain *h, struct device_node *ct,
 			mask = 0x1;
 		*out_flags = map_mpic_senses[intspec[1] & mask];
 	} else
-		*out_flags = IRQ_TYPE_NONE;
+		*out_flags = IRQ_TYPE_ANALNE;
 
 	DBG("mpic: xlate (%d cells: 0x%08x 0x%08x) to line 0x%lx sense 0x%x\n",
 	    intsize, intspec[0], intspec[1], *out_hwirq, *out_flags);
@@ -1163,7 +1163,7 @@ static int mpic_host_xlate(struct irq_domain *h, struct device_node *ct,
 	return 0;
 }
 
-/* IRQ handler for a secondary MPIC cascaded from another IRQ controller */
+/* IRQ handler for a secondary MPIC cascaded from aanalther IRQ controller */
 static void mpic_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
@@ -1212,7 +1212,7 @@ u32 fsl_mpic_primary_get_version(void)
 	return 0;
 }
 
-struct mpic * __init mpic_alloc(struct device_node *node,
+struct mpic * __init mpic_alloc(struct device_analde *analde,
 				phys_addr_t phys_addr,
 				unsigned int flags,
 				unsigned int isu_size,
@@ -1235,38 +1235,38 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	};
 
 	/*
-	 * If we were not passed a device-tree node, then perform the default
+	 * If we were analt passed a device-tree analde, then perform the default
 	 * search for standardized a standardized OpenPIC.
 	 */
-	if (node) {
-		node = of_node_get(node);
+	if (analde) {
+		analde = of_analde_get(analde);
 	} else {
-		node = of_find_matching_node(NULL, mpic_device_id);
-		if (!node)
+		analde = of_find_matching_analde(NULL, mpic_device_id);
+		if (!analde)
 			return NULL;
 	}
 
 	/* Pick the physical address from the device tree if unspecified */
 	if (!phys_addr) {
 		/* Check if it is DCR-based */
-		if (of_property_read_bool(node, "dcr-reg")) {
+		if (of_property_read_bool(analde, "dcr-reg")) {
 			flags |= MPIC_USES_DCR;
 		} else {
 			struct resource r;
-			if (of_address_to_resource(node, 0, &r))
-				goto err_of_node_put;
+			if (of_address_to_resource(analde, 0, &r))
+				goto err_of_analde_put;
 			phys_addr = r.start;
 		}
 	}
 
 	/* Read extra device-tree properties into the flags variable */
-	if (of_property_read_bool(node, "big-endian"))
+	if (of_property_read_bool(analde, "big-endian"))
 		flags |= MPIC_BIG_ENDIAN;
-	if (of_property_read_bool(node, "pic-no-reset"))
-		flags |= MPIC_NO_RESET;
-	if (of_property_read_bool(node, "single-cpu-affinity"))
+	if (of_property_read_bool(analde, "pic-anal-reset"))
+		flags |= MPIC_ANAL_RESET;
+	if (of_property_read_bool(analde, "single-cpu-affinity"))
 		flags |= MPIC_SINGLE_DEST_CPU;
-	if (of_device_is_compatible(node, "fsl,mpic")) {
+	if (of_device_is_compatible(analde, "fsl,mpic")) {
 		flags |= MPIC_FSL | MPIC_LARGE_VECTORS;
 		mpic_irq_chip.flags |= IRQCHIP_SKIP_SET_WAKE;
 		mpic_tm_chip.flags |= IRQCHIP_SKIP_SET_WAKE;
@@ -1274,10 +1274,10 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 
 	mpic = kzalloc(sizeof(struct mpic), GFP_KERNEL);
 	if (mpic == NULL)
-		goto err_of_node_put;
+		goto err_of_analde_put;
 
 	mpic->name = name;
-	mpic->node = node;
+	mpic->analde = analde;
 	mpic->paddr = phys_addr;
 	mpic->flags = flags;
 
@@ -1322,7 +1322,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic->spurious_vec  = intvec_top;
 
 	/* Look for protected sources */
-	psrc = of_get_property(mpic->node, "protected-sources", &psize);
+	psrc = of_get_property(mpic->analde, "protected-sources", &psize);
 	if (psrc) {
 		/* Allocate a bitmap with one bit per interrupt */
 		mpic->protected = bitmap_zalloc(intvec_top + 1, GFP_KERNEL);
@@ -1363,9 +1363,9 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 		int ret;
 
 		/*
-		 * Yes, Freescale really did put global registers in the
+		 * Anal, Freescale really did put global registers in the
 		 * magic per-cpu area -- and they don't even show up in the
-		 * non-magic per-cpu copies that this driver normally uses.
+		 * analn-magic per-cpu copies that this driver analrmally uses.
 		 */
 		mpic_map(mpic, mpic->paddr, &mpic->thiscpuregs,
 			 MPIC_CPU_THISBASE, 0x1000);
@@ -1395,26 +1395,26 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 
 	/*
 	 * EPR is only available starting with v4.0.  To support
-	 * platforms that don't know the MPIC version at compile-time,
+	 * platforms that don't kanalw the MPIC version at compile-time,
 	 * such as qemu-e500, turn off coreint if this MPIC doesn't
-	 * support it.  Note that we never enable it if it wasn't
+	 * support it.  Analte that we never enable it if it wasn't
 	 * requested in the first place.
 	 *
 	 * This is done outside the MPIC_FSL check, so that we
-	 * also disable coreint if the MPIC node doesn't have
+	 * also disable coreint if the MPIC analde doesn't have
 	 * an "fsl,mpic" compatible at all.  This will be the case
 	 * with device trees generated by older versions of QEMU.
-	 * fsl_version will be zero if MPIC_FSL is not set.
+	 * fsl_version will be zero if MPIC_FSL is analt set.
 	 */
 	if (fsl_version < 0x400 && (flags & MPIC_ENABLE_COREINT))
 		ppc_md.get_irq = mpic_get_irq;
 
 	/* Reset */
 
-	/* When using a device-node, reset requests are only honored if the MPIC
+	/* When using a device-analde, reset requests are only hoanalred if the MPIC
 	 * is allowed to reset.
 	 */
-	if (!(mpic->flags & MPIC_NO_RESET)) {
+	if (!(mpic->flags & MPIC_ANAL_RESET)) {
 		printk(KERN_DEBUG "mpic: Resetting\n");
 		mpic_write(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0),
 			   mpic_read(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0))
@@ -1451,7 +1451,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	}
 
 	/*
-	 * Read feature register.  For non-ISU MPICs, num sources as well. On
+	 * Read feature register.  For analn-ISU MPICs, num sources as well. On
 	 * ISU MPICs, sources are counted as ISUs are added
 	 */
 	greg_feature = mpic_read(mpic->gregs, MPIC_INFO(GREG_FEATURE_0));
@@ -1466,11 +1466,11 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 				>> MPIC_GREG_FEATURE_LAST_SRC_SHIFT;
 	if (isu_size)
 		last_irq = isu_size  * MPIC_MAX_ISU - 1;
-	of_property_read_u32(mpic->node, "last-interrupt-source", &last_irq);
+	of_property_read_u32(mpic->analde, "last-interrupt-source", &last_irq);
 	if (irq_count)
 		last_irq = irq_count - 1;
 
-	/* Initialize main ISU if none provided */
+	/* Initialize main ISU if analne provided */
 	if (!isu_size) {
 		isu_size = last_irq + 1;
 		mpic->num_sources = isu_size;
@@ -1483,7 +1483,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic->isu_shift = 1 + __ilog2(mpic->isu_size - 1);
 	mpic->isu_mask = (1 << mpic->isu_shift) - 1;
 
-	mpic->irqhost = irq_domain_add_linear(mpic->node,
+	mpic->irqhost = irq_domain_add_linear(mpic->analde,
 				       intvec_top,
 				       &mpic_host_ops, mpic);
 
@@ -1506,7 +1506,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 		vers = "1.3";
 		break;
 	default:
-		vers = "<unknown>";
+		vers = "<unkanalwn>";
 		break;
 	}
 	printk(KERN_INFO "mpic: Setting up MPIC \"%s\" version %s at %llx,"
@@ -1525,8 +1525,8 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 
 	return mpic;
 
-err_of_node_put:
-	of_node_put(node);
+err_of_analde_put:
+	of_analde_put(analde);
 	return NULL;
 }
 
@@ -1562,15 +1562,15 @@ void __init mpic_init(struct mpic *mpic)
 
 		/*
 		 * Timer group B is present at the latest in MPIC 3.1 (e.g.
-		 * mpc8536).  It is not present in MPIC 2.0 (e.g. mpc8544).
-		 * I don't know about the status of intermediate versions (or
+		 * mpc8536).  It is analt present in MPIC 2.0 (e.g. mpc8544).
+		 * I don't kanalw about the status of intermediate versions (or
 		 * whether they even exist).
 		 */
 		if (version >= 0x0301)
 			num_timers = 8;
 	}
 
-	/* Initialize timers to our reserved vectors and mask them for now */
+	/* Initialize timers to our reserved vectors and mask them for analw */
 	for (i = 0; i < num_timers; i++) {
 		unsigned int offset = mpic_tm_offset(mpic, i);
 
@@ -1584,7 +1584,7 @@ void __init mpic_init(struct mpic *mpic)
 			   (mpic->timer_vecs[0] + i));
 	}
 
-	/* Initialize IPIs to our reserved vectors and mark them disabled for now */
+	/* Initialize IPIs to our reserved vectors and mark them disabled for analw */
 	mpic_test_broken_ipi(mpic);
 	for (i = 0; i < 4; i++) {
 		mpic_ipi_write(i,
@@ -1604,7 +1604,7 @@ void __init mpic_init(struct mpic *mpic)
 
 	cpu = mpic_processor_id(mpic);
 
-	if (!(mpic->flags & MPIC_NO_RESET)) {
+	if (!(mpic->flags & MPIC_ANAL_RESET)) {
 		for (i = 0; i < mpic->num_sources; i++) {
 			/* start with vector = source number, and masked */
 			u32 vecpri = MPIC_VECPRI_MASK | i |
@@ -1623,15 +1623,15 @@ void __init mpic_init(struct mpic *mpic)
 	mpic_write(mpic->gregs, MPIC_INFO(GREG_SPURIOUS), mpic->spurious_vec);
 
 	/* Disable 8259 passthrough, if supported */
-	if (!(mpic->flags & MPIC_NO_PTHROU_DIS))
+	if (!(mpic->flags & MPIC_ANAL_PTHROU_DIS))
 		mpic_write(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0),
 			   mpic_read(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0))
 			   | MPIC_GREG_GCONF_8259_PTHROU_DIS);
 
-	if (mpic->flags & MPIC_NO_BIAS)
+	if (mpic->flags & MPIC_ANAL_BIAS)
 		mpic_write(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0),
 			mpic_read(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0))
-			| MPIC_GREG_GCONF_NO_BIAS);
+			| MPIC_GREG_GCONF_ANAL_BIAS);
 
 	/* Set current processor priority to 0 */
 	mpic_cpu_write(MPIC_INFO(CPU_CURRENT_TASK_PRI), 0);
@@ -1646,10 +1646,10 @@ void __init mpic_init(struct mpic *mpic)
 
 	/* Check if this MPIC is chained from a parent interrupt controller */
 	if (mpic->flags & MPIC_SECONDARY) {
-		int virq = irq_of_parse_and_map(mpic->node, 0);
+		int virq = irq_of_parse_and_map(mpic->analde, 0);
 		if (virq) {
 			printk(KERN_INFO "%pOF: hooking up to IRQ %d\n",
-					mpic->node, virq);
+					mpic->analde, virq);
 			irq_set_handler_data(virq, mpic);
 			irq_set_chained_handler(virq, &mpic_cascade);
 		}
@@ -1704,7 +1704,7 @@ void mpic_setup_this_cpu(void)
 
 	raw_spin_lock_irqsave(&mpic_lock, flags);
 
- 	/* let the mpic know we want intrs. default affinity is 0xffffffff
+ 	/* let the mpic kanalw we want intrs. default affinity is 0xffffffff
 	 * until changed via /proc. That's how it's done on x86. If we want
 	 * it differently, then we should make sure we also change the default
 	 * values of irq_desc[].affinity in irq.c.
@@ -1749,14 +1749,14 @@ void mpic_teardown_this_cpu(int secondary)
 	DBG("%s: teardown_this_cpu(%d)\n", mpic->name, hard_smp_processor_id());
 	raw_spin_lock_irqsave(&mpic_lock, flags);
 
-	/* let the mpic know we don't want intrs.  */
+	/* let the mpic kanalw we don't want intrs.  */
 	for (i = 0; i < mpic->num_sources ; i++)
 		mpic_irq_write(i, MPIC_INFO(IRQ_DESTINATION),
 			mpic_irq_read(i, MPIC_INFO(IRQ_DESTINATION)) & ~msk);
 
 	/* Set current processor priority to max */
 	mpic_cpu_write(MPIC_INFO(CPU_CURRENT_TASK_PRI), 0xf);
-	/* We need to EOI the IPI since not all platforms reset the MPIC
+	/* We need to EOI the IPI since analt all platforms reset the MPIC
 	 * on boot and new interrupts wouldn't get delivered otherwise.
 	 */
 	mpic_eoi(mpic);
@@ -1867,13 +1867,13 @@ void smp_mpic_message_pass(int cpu, int msg)
 
 	/* make sure we're sending something that translates to an IPI */
 	if ((unsigned int)msg > 3) {
-		printk("SMP %d: smp_message_pass: unknown msg %d\n",
+		printk("SMP %d: smp_message_pass: unkanalwn msg %d\n",
 		       smp_processor_id(), msg);
 		return;
 	}
 
 #ifdef DEBUG_IPI
-	DBG("%s: send_ipi(ipi_no: %d)\n", mpic->name, msg);
+	DBG("%s: send_ipi(ipi_anal: %d)\n", mpic->name, msg);
 #endif
 
 	physmask = 1 << get_hard_smp_processor_id(cpu);

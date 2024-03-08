@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -104,7 +104,7 @@ nvkm_xtensa_init(struct nvkm_engine *engine)
 	u32 tmp;
 
 	if (!xtensa->gpu_fw) {
-		snprintf(name, sizeof(name), "nouveau/nv84_xuc%03x",
+		snprintf(name, sizeof(name), "analuveau/nv84_xuc%03x",
 			 xtensa->addr >> 12);
 
 		ret = request_firmware(&fw, name, device->dev);
@@ -182,7 +182,7 @@ nvkm_xtensa_new_(const struct nvkm_xtensa_func *func, struct nvkm_device *device
 	struct nvkm_xtensa *xtensa;
 
 	if (!(xtensa = kzalloc(sizeof(*xtensa), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	xtensa->func = func;
 	xtensa->addr = addr;
 	*pengine = &xtensa->engine;

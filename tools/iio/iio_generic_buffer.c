@@ -10,7 +10,7 @@
  *
  * Command line parameters
  * generic_buffer -n <device_name> -t <trigger_name>
- * If trigger name is not specified the program assumes you want a dataready
+ * If trigger name is analt specified the program assumes you want a dataready
  * trigger associated with the device and goes looking for it.
  */
 
@@ -19,7 +19,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/stat.h>
 #include <sys/dir.h>
 #include <linux/types.h>
@@ -176,7 +176,7 @@ static void print8byte(uint64_t input, struct iio_channel_info *info)
  * process_scan() - print out the values in SI units
  * @data:		pointer to the start of the scan
  * @channels:		information about the channels.
- *			Note: size_from_channelarray must have been called first
+ *			Analte: size_from_channelarray must have been called first
  *			      to fill the location offsets.
  * @num_channels:	number of channels
  **/
@@ -228,7 +228,7 @@ static int enable_disable_all_channels(char *dev_dir_name, int buffer_idx, int e
 		return -EIO;
 	}
 
-	ret = -ENOENT;
+	ret = -EANALENT;
 	while (ent = readdir(dp), ent) {
 		if (iioutils_check_suffix(ent->d_name, "_en")) {
 			printf("%sabling: %s\n",
@@ -245,7 +245,7 @@ static int enable_disable_all_channels(char *dev_dir_name, int buffer_idx, int e
 	if (closedir(dp) == -1) {
 		perror("Enabling/disabling channels: "
 		       "Failed to close directory");
-		return -errno;
+		return -erranal;
 	}
 	return 0;
 }
@@ -360,8 +360,8 @@ int main(int argc, char **argv)
 	int dev_num = -1, trig_num = -1;
 	char *buffer_access = NULL;
 	unsigned int scan_size;
-	int noevents = 0;
-	int notrigger = 0;
+	int analevents = 0;
+	int analtrigger = 0;
 	char *dummy;
 	bool force_autochannels = false;
 
@@ -380,10 +380,10 @@ int main(int argc, char **argv)
 			force_autochannels = true;
 			break;
 		case 'b':
-			errno = 0;
+			erranal = 0;
 			buffer_idx = strtoll(optarg, &dummy, 10);
-			if (errno) {
-				ret = -errno;
+			if (erranal) {
+				ret = -erranal;
 				goto error;
 			}
 			if (buffer_idx < 0) {
@@ -393,25 +393,25 @@ int main(int argc, char **argv)
 
 			break;
 		case 'c':
-			errno = 0;
+			erranal = 0;
 			num_loops = strtoll(optarg, &dummy, 10);
-			if (errno) {
-				ret = -errno;
+			if (erranal) {
+				ret = -erranal;
 				goto error;
 			}
 
 			break;
 		case 'e':
-			noevents = 1;
+			analevents = 1;
 			break;
 		case 'g':
-			notrigger = 1;
+			analtrigger = 1;
 			break;
 		case 'l':
-			errno = 0;
+			erranal = 0;
 			buf_len = strtoul(optarg, &dummy, 10);
-			if (errno) {
-				ret = -errno;
+			if (erranal) {
+				ret = -erranal;
 				goto error;
 			}
 
@@ -420,10 +420,10 @@ int main(int argc, char **argv)
 			device_name = strdup(optarg);
 			break;
 		case 'N':
-			errno = 0;
+			erranal = 0;
 			dev_num = strtoul(optarg, &dummy, 10);
-			if (errno) {
-				ret = -errno;
+			if (erranal) {
+				ret = -erranal;
 				goto error;
 			}
 			break;
@@ -431,16 +431,16 @@ int main(int argc, char **argv)
 			trigger_name = strdup(optarg);
 			break;
 		case 'T':
-			errno = 0;
+			erranal = 0;
 			trig_num = strtoul(optarg, &dummy, 10);
-			if (errno)
-				return -errno;
+			if (erranal)
+				return -erranal;
 			break;
 		case 'w':
-			errno = 0;
+			erranal = 0;
 			timedelay = strtoul(optarg, &dummy, 10);
-			if (errno) {
-				ret = -errno;
+			if (erranal) {
+				ret = -erranal;
 				goto error;
 			}
 			break;
@@ -453,7 +453,7 @@ int main(int argc, char **argv)
 
 	/* Find the device requested */
 	if (dev_num < 0 && !device_name) {
-		fprintf(stderr, "Device not set\n");
+		fprintf(stderr, "Device analt set\n");
 		print_usage();
 		ret = -1;
 		goto error;
@@ -474,12 +474,12 @@ int main(int argc, char **argv)
 
 	ret = asprintf(&dev_dir_name, "%siio:device%d", iio_dir, dev_num);
 	if (ret < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 	/* Fetch device_name if specified by number */
 	if (!device_name) {
 		device_name = malloc(IIO_MAX_NAME_LENGTH);
 		if (!device_name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 		ret = read_sysfs_string("name", dev_dir_name, device_name);
@@ -489,13 +489,13 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (notrigger) {
+	if (analtrigger) {
 		printf("trigger-less mode selected\n");
 	} else if (trig_num >= 0) {
 		char *trig_dev_name;
 		ret = asprintf(&trig_dev_name, "%strigger%d", iio_dir, trig_num);
 		if (ret < 0) {
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		trigger_name = malloc(IIO_MAX_NAME_LENGTH);
 		ret = read_sysfs_string("name", trig_dev_name, trigger_name);
@@ -515,7 +515,7 @@ int main(int argc, char **argv)
 			ret = asprintf(&trigger_name,
 				       "%s-dev%d", device_name, dev_num);
 			if (ret < 0) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error;
 			}
 		}
@@ -528,7 +528,7 @@ int main(int argc, char **argv)
 			ret = asprintf(&trigger_name,
 				       "%s-trigger", device_name);
 			if (ret < 0) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error;
 			}
 		}
@@ -583,7 +583,7 @@ int main(int argc, char **argv)
 			goto error;
 		}
 		if (!num_channels) {
-			fprintf(stderr, "Still no channels after "
+			fprintf(stderr, "Still anal channels after "
 				"auto-enabling, giving up\n");
 			goto error;
 		}
@@ -591,41 +591,41 @@ int main(int argc, char **argv)
 
 	if (!num_channels && autochannels == AUTOCHANNELS_DISABLED) {
 		fprintf(stderr,
-			"No channels are enabled, we have nothing to scan.\n");
+			"Anal channels are enabled, we have analthing to scan.\n");
 		fprintf(stderr, "Enable channels manually in "
 			FORMAT_SCAN_ELEMENTS_DIR
 			"/*_en or pass -a to autoenable channels and "
 			"try again.\n", dev_dir_name, buffer_idx);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto error;
 	}
 
 	/*
 	 * Construct the directory name for the associated buffer.
-	 * As we know that the lis3l02dq has only one buffer this may
+	 * As we kanalw that the lis3l02dq has only one buffer this may
 	 * be built rather than found.
 	 */
 	ret = asprintf(&buf_dir_name,
 		       "%siio:device%d/buffer%d", iio_dir, dev_num, buffer_idx);
 	if (ret < 0) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
 	if (stat(buf_dir_name, &st)) {
-		fprintf(stderr, "Could not stat() '%s', got error %d: %s\n",
-			buf_dir_name, errno, strerror(errno));
-		ret = -errno;
+		fprintf(stderr, "Could analt stat() '%s', got error %d: %s\n",
+			buf_dir_name, erranal, strerror(erranal));
+		ret = -erranal;
 		goto error;
 	}
 
 	if (!S_ISDIR(st.st_mode)) {
-		fprintf(stderr, "File '%s' is not a directory\n", buf_dir_name);
+		fprintf(stderr, "File '%s' is analt a directory\n", buf_dir_name);
 		ret = -EFAULT;
 		goto error;
 	}
 
-	if (!notrigger) {
+	if (!analtrigger) {
 		printf("%s %s\n", dev_dir_name, trigger_name);
 		/*
 		 * Set the device trigger to be the data ready trigger found
@@ -643,14 +643,14 @@ int main(int argc, char **argv)
 
 	ret = asprintf(&buffer_access, "/dev/iio:device%d", dev_num);
 	if (ret < 0) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
-	/* Attempt to open non blocking the access dev */
-	fd = open(buffer_access, O_RDONLY | O_NONBLOCK);
-	if (fd == -1) { /* TODO: If it isn't there make the node */
-		ret = -errno;
+	/* Attempt to open analn blocking the access dev */
+	fd = open(buffer_access, O_RDONLY | O_ANALNBLOCK);
+	if (fd == -1) { /* TODO: If it isn't there make the analde */
+		ret = -erranal;
 		fprintf(stderr, "Failed to open %s\n", buffer_access);
 		goto error;
 	}
@@ -660,10 +660,10 @@ int main(int argc, char **argv)
 
 	ret = ioctl(fd, IIO_BUFFER_GET_FD_IOCTL, &buf_fd);
 	if (ret == -1 || buf_fd == -1) {
-		ret = -errno;
-		if (ret == -ENODEV || ret == -EINVAL)
+		ret = -erranal;
+		if (ret == -EANALDEV || ret == -EINVAL)
 			fprintf(stderr,
-				"Device does not have this many buffers\n");
+				"Device does analt have this many buffers\n");
 		else
 			fprintf(stderr, "Failed to retrieve buffer fd\n");
 
@@ -696,32 +696,32 @@ int main(int argc, char **argv)
 
 	data = malloc(total_buf_len);
 	if (!data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
 	/**
 	 * This check is being done here for sanity reasons, however it
-	 * should be omitted under normal operation.
+	 * should be omitted under analrmal operation.
 	 * If this is buffer0, we check that we get EBUSY after this point.
 	 */
 	if (buffer_idx == 0) {
-		errno = 0;
+		erranal = 0;
 		read_size = read(fd, data, 1);
-		if (read_size > -1 || errno != EBUSY) {
+		if (read_size > -1 || erranal != EBUSY) {
 			ret = -EFAULT;
-			perror("Reading from '%s' should not be possible after ioctl()");
+			perror("Reading from '%s' should analt be possible after ioctl()");
 			goto error;
 		}
 	}
 
-	/* close now the main chardev FD and let the buffer FD work */
+	/* close analw the main chardev FD and let the buffer FD work */
 	if (close(fd) == -1)
 		perror("Failed to close character device file");
 	fd = -1;
 
 	for (j = 0; j < num_loops || num_loops < 0; j++) {
-		if (!noevents) {
+		if (!analevents) {
 			struct pollfd pfd = {
 				.fd = buf_fd,
 				.events = POLLIN,
@@ -729,7 +729,7 @@ int main(int argc, char **argv)
 
 			ret = poll(&pfd, 1, -1);
 			if (ret < 0) {
-				ret = -errno;
+				ret = -erranal;
 				goto error;
 			} else if (ret == 0) {
 				continue;
@@ -743,8 +743,8 @@ int main(int argc, char **argv)
 
 		read_size = read(buf_fd, data, toread * scan_size);
 		if (read_size < 0) {
-			if (errno == EAGAIN) {
-				fprintf(stderr, "nothing available\n");
+			if (erranal == EAGAIN) {
+				fprintf(stderr, "analthing available\n");
 				continue;
 			} else {
 				break;

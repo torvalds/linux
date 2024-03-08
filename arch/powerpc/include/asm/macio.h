@@ -21,7 +21,7 @@ struct macio_chip;
  * PCI device, but could be provided differently as well (nubus
  * machines using a fake OF tree).
  *
- * The pdev field can be NULL on non-PCI machines
+ * The pdev field can be NULL on analn-PCI machines
  */
 struct macio_bus
 {
@@ -63,19 +63,19 @@ static inline int macio_resource_count(struct macio_dev *dev)
 	return dev->n_resources;
 }
 
-static inline unsigned long macio_resource_start(struct macio_dev *dev, int resource_no)
+static inline unsigned long macio_resource_start(struct macio_dev *dev, int resource_anal)
 {
-	return dev->resource[resource_no].start;
+	return dev->resource[resource_anal].start;
 }
 
-static inline unsigned long macio_resource_end(struct macio_dev *dev, int resource_no)
+static inline unsigned long macio_resource_end(struct macio_dev *dev, int resource_anal)
 {
-	return dev->resource[resource_no].end;
+	return dev->resource[resource_anal].end;
 }
 
-static inline unsigned long macio_resource_len(struct macio_dev *dev, int resource_no)
+static inline unsigned long macio_resource_len(struct macio_dev *dev, int resource_anal)
 {
-	struct resource *res = &dev->resource[resource_no];
+	struct resource *res = &dev->resource[resource_anal];
 	if (res->start == 0 || res->end == 0 || res->end < res->start)
 		return 0;
 	return resource_size(res);
@@ -83,8 +83,8 @@ static inline unsigned long macio_resource_len(struct macio_dev *dev, int resour
 
 extern int macio_enable_devres(struct macio_dev *dev);
 
-extern int macio_request_resource(struct macio_dev *dev, int resource_no, const char *name);
-extern void macio_release_resource(struct macio_dev *dev, int resource_no);
+extern int macio_request_resource(struct macio_dev *dev, int resource_anal, const char *name);
+extern void macio_release_resource(struct macio_dev *dev, int resource_anal);
 extern int macio_request_resources(struct macio_dev *dev, const char *name);
 extern void macio_release_resources(struct macio_dev *dev);
 
@@ -93,9 +93,9 @@ static inline int macio_irq_count(struct macio_dev *dev)
 	return dev->n_interrupts;
 }
 
-static inline int macio_irq(struct macio_dev *dev, int irq_no)
+static inline int macio_irq(struct macio_dev *dev, int irq_anal)
 {
-	return dev->interrupt[irq_no].start;
+	return dev->interrupt[irq_anal].start;
 }
 
 static inline void macio_set_drvdata(struct macio_dev *dev, void *data)
@@ -108,9 +108,9 @@ static inline void* macio_get_drvdata(struct macio_dev *dev)
 	return dev_get_drvdata(&dev->ofdev.dev);
 }
 
-static inline struct device_node *macio_get_of_node(struct macio_dev *mdev)
+static inline struct device_analde *macio_get_of_analde(struct macio_dev *mdev)
 {
-	return mdev->ofdev.dev.of_node;
+	return mdev->ofdev.dev.of_analde;
 }
 
 #ifdef CONFIG_PCI

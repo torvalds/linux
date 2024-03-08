@@ -4,7 +4,7 @@
  * MPEG Transport Stream (DVB) routines
  *
  * (c) 2004, 2005 Chris Pascoe <c.pascoe@itee.uq.edu.au>
- * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2004 Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]
  */
 
 #include "cx88.h"
@@ -50,7 +50,7 @@
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
-MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_AUTHOR("Gerd Kanalrr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(CX88_VERSION);
 
@@ -169,7 +169,7 @@ static int cx88_dvb_bus_ctrl(struct dvb_frontend *fe, int acquire)
 
 	fe_id = vb2_dvb_find_frontend(&dev->frontends, fe);
 	if (!fe_id) {
-		pr_err("%s() No frontend found\n", __func__);
+		pr_err("%s() Anal frontend found\n", __func__);
 		return -EINVAL;
 	}
 
@@ -294,7 +294,7 @@ static const struct mt352_config dvico_fusionhdtv_dual = {
 
 static const struct zl10353_config cx88_terratec_cinergy_ht_pci_mkii_config = {
 	.demod_address = (0x1e >> 1),
-	.no_tuner      = 1,
+	.anal_tuner      = 1,
 	.if2           = 45600,
 };
 
@@ -328,26 +328,26 @@ static int dntv_live_dvbt_pro_demod_init(struct dvb_frontend *fe)
 
 static const struct mt352_config dntv_live_dvbt_pro_config = {
 	.demod_address = 0x0f,
-	.no_tuner      = 1,
+	.anal_tuner      = 1,
 	.demod_init    = dntv_live_dvbt_pro_demod_init,
 };
 #endif
 
 static const struct zl10353_config dvico_fusionhdtv_hybrid = {
 	.demod_address = 0x0f,
-	.no_tuner      = 1,
+	.anal_tuner      = 1,
 };
 
 static const struct zl10353_config dvico_fusionhdtv_xc3028 = {
 	.demod_address = 0x0f,
 	.if2           = 45600,
-	.no_tuner      = 1,
+	.anal_tuner      = 1,
 };
 
 static const struct mt352_config dvico_fusionhdtv_mt352_xc3028 = {
 	.demod_address = 0x0f,
 	.if2 = 4560,
-	.no_tuner = 1,
+	.anal_tuner = 1,
 	.demod_init = dvico_fusionhdtv_demod_init,
 };
 
@@ -529,7 +529,7 @@ static const struct cx24123_config geniatech_dvbs_config = {
 	.set_ts_params = cx24123_set_ts_param,
 };
 
-static const struct cx24123_config hauppauge_novas_config = {
+static const struct cx24123_config hauppauge_analvas_config = {
 	.demod_address = 0x55,
 	.set_ts_params = cx24123_set_ts_param,
 };
@@ -547,16 +547,16 @@ static const struct s5h1409_config pinnacle_pctv_hd_800i_config = {
 	.qam_if	       = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
-	.mpeg_timing   = S5H1409_MPEGTIMING_NONCONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1409_MPEGTIMING_ANALNCONTINUOUS_ANALNINVERTING_CLOCK,
 };
 
-static const struct s5h1409_config dvico_hdtv5_pci_nano_config = {
+static const struct s5h1409_config dvico_hdtv5_pci_naanal_config = {
 	.demod_address = 0x32 >> 1,
 	.output_mode   = S5H1409_SERIAL_OUTPUT,
 	.gpio          = S5H1409_GPIO_OFF,
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
-	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK,
 };
 
 static const struct s5h1409_config kworld_atsc_120_config = {
@@ -565,7 +565,7 @@ static const struct s5h1409_config kworld_atsc_120_config = {
 	.gpio	       = S5H1409_GPIO_OFF,
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
-	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK,
 };
 
 static const struct xc5000_config pinnacle_pctv_hd_800i_tuner_config = {
@@ -575,20 +575,20 @@ static const struct xc5000_config pinnacle_pctv_hd_800i_tuner_config = {
 
 static const struct zl10353_config cx88_pinnacle_hybrid_pctv = {
 	.demod_address = (0x1e >> 1),
-	.no_tuner      = 1,
+	.anal_tuner      = 1,
 	.if2           = 45600,
 };
 
 static const struct zl10353_config cx88_geniatech_x8000_mt = {
 	.demod_address = (0x1e >> 1),
-	.no_tuner = 1,
+	.anal_tuner = 1,
 	.disable_i2c_gate_ctrl = 1,
 };
 
 static const struct s5h1411_config dvico_fusionhdtv7_config = {
 	.output_mode   = S5H1411_SERIAL_OUTPUT,
 	.gpio          = S5H1411_GPIO_ON,
-	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_ANALNINVERTING_CLOCK,
 	.qam_if        = S5H1411_IF_44000,
 	.vsb_if        = S5H1411_IF_44000,
 	.inversion     = S5H1411_INVERSION_OFF,
@@ -617,14 +617,14 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 		return -EINVAL;
 
 	if (!fe0->dvb.frontend) {
-		pr_err("dvb frontend not attached. Can't attach xc3028\n");
+		pr_err("dvb frontend analt attached. Can't attach xc3028\n");
 		return -EINVAL;
 	}
 
 	/*
-	 * Some xc3028 devices may be hidden by an I2C gate. This is known
+	 * Some xc3028 devices may be hidden by an I2C gate. This is kanalwn
 	 * to happen with some s5h1409-based devices.
-	 * Now that I2C gate is open, sets up xc3028 configuration
+	 * Analw that I2C gate is open, sets up xc3028 configuration
 	 */
 	cx88_setup_xc3028(dev->core, &ctl);
 
@@ -653,7 +653,7 @@ static int attach_xc4000(struct cx8802_dev *dev, struct xc4000_config *cfg)
 		return -EINVAL;
 
 	if (!fe0->dvb.frontend) {
-		pr_err("dvb frontend not attached. Can't attach xc4000\n");
+		pr_err("dvb frontend analt attached. Can't attach xc4000\n");
 		return -EINVAL;
 	}
 
@@ -786,7 +786,7 @@ static int cx8802_alloc_frontends(struct cx8802_dev *dev)
 	INIT_LIST_HEAD(&dev->frontends.felist);
 
 	if (!core->board.num_frontends)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("%s: allocating %d frontend(s)\n", __func__,
 		core->board.num_frontends);
@@ -795,7 +795,7 @@ static int cx8802_alloc_frontends(struct cx8802_dev *dev)
 		if (!fe) {
 			pr_err("%s() failed to alloc\n", __func__);
 			vb2_dvb_dealloc_frontends(&dev->frontends);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	return 0;
@@ -989,11 +989,11 @@ static int dvb_register(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
 	struct vb2_dvb_frontend *fe0, *fe1 = NULL;
-	int mfe_shared = 0; /* bus not shared by default */
+	int mfe_shared = 0; /* bus analt shared by default */
 	int res = -EINVAL;
 
 	if (core->i2c_rc != 0) {
-		pr_err("no i2c-bus available, cannot attach dvb drivers\n");
+		pr_err("anal i2c-bus available, cananalt attach dvb drivers\n");
 		goto frontend_detach;
 	}
 
@@ -1066,7 +1066,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->frontends.gate = 2;
 		/* DVB-S init */
 		fe0->dvb.frontend = dvb_attach(cx24123_attach,
-					       &hauppauge_novas_config,
+					       &hauppauge_analvas_config,
 					       &dev->core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(isl6421_attach,
@@ -1154,7 +1154,7 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(dvb_pll_attach, fe0->dvb.frontend,
-					0x61, NULL, DVB_PLL_UNKNOWN_1))
+					0x61, NULL, DVB_PLL_UNKANALWN_1))
 				goto frontend_detach;
 		}
 		break;
@@ -1195,8 +1195,8 @@ static int dvb_register(struct cx8802_dev *dev)
 						&core->i2c_adap);
 		/*
 		 * On this board, the demod provides the I2C bus pullup.
-		 * We must not permit gate_ctrl to be performed, or
-		 * the xc3028 cannot communicate on the bus.
+		 * We must analt permit gate_ctrl to be performed, or
+		 * the xc3028 cananalt communicate on the bus.
 		 */
 		if (fe0->dvb.frontend)
 			fe0->dvb.frontend->ops.i2c_gate_ctrl = NULL;
@@ -1309,10 +1309,10 @@ static int dvb_register(struct cx8802_dev *dev)
 				goto frontend_detach;
 		}
 		break;
-	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
-	case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
+	case CX88_BOARD_HAUPPAUGE_ANALVASPLUS_S1:
+	case CX88_BOARD_HAUPPAUGE_ANALVASE2_S1:
 		fe0->dvb.frontend = dvb_attach(cx24123_attach,
-					       &hauppauge_novas_config,
+					       &hauppauge_analvas_config,
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			bool override_tone;
@@ -1357,9 +1357,9 @@ static int dvb_register(struct cx8802_dev *dev)
 				goto frontend_detach;
 		}
 		break;
-	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
+	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NAANAL:
 		fe0->dvb.frontend = dvb_attach(s5h1409_attach,
-					       &dvico_hdtv5_pci_nano_config,
+					       &dvico_hdtv5_pci_naanal_config,
 					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			struct dvb_frontend *fe;
@@ -1379,7 +1379,7 @@ static int dvb_register(struct cx8802_dev *dev)
 				fe->ops.tuner_ops.set_config(fe, &ctl);
 		}
 		break;
-	case CX88_BOARD_NOTONLYTV_LV3H:
+	case CX88_BOARD_ANALTONLYTV_LV3H:
 	case CX88_BOARD_PINNACLE_HYBRID_PCTV:
 	case CX88_BOARD_WINFAST_DTV1800H:
 		fe0->dvb.frontend = dvb_attach(zl10353_attach,
@@ -1704,12 +1704,12 @@ static int cx8802_dvb_advise_acquire(struct cx8802_driver *drv)
 		break;
 
 	default:
-		err = -ENODEV;
+		err = -EANALDEV;
 	}
 	return err;
 }
 
-/* CX8802 MPEG -> mini driver - We no longer have the hardware */
+/* CX8802 MPEG -> mini driver - We anal longer have the hardware */
 static int cx8802_dvb_advise_release(struct cx8802_driver *drv)
 {
 	struct cx88_core *core = drv->core;
@@ -1719,13 +1719,13 @@ static int cx8802_dvb_advise_release(struct cx8802_driver *drv)
 
 	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
-		/* Do Nothing, leave the cx22702 on the bus. */
+		/* Do Analthing, leave the cx22702 on the bus. */
 		break;
 	case CX88_BOARD_HAUPPAUGE_HVR3000:
 	case CX88_BOARD_HAUPPAUGE_HVR4000:
 		break;
 	default:
-		err = -ENODEV;
+		err = -EANALDEV;
 	}
 	return err;
 }
@@ -1745,7 +1745,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 		core->pci_bus,
 		core->pci_slot);
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (!(core->board.mpeg & CX88_MPEG_DVB))
 		goto fail_core;
 
@@ -1769,7 +1769,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 		if (!fe) {
 			pr_err("%s() failed to get frontend(%d)\n",
 			       __func__, i);
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto fail_probe;
 		}
 		q = &fe->dvb.dvbq;
@@ -1781,7 +1781,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 		q->buf_struct_size = sizeof(struct cx88_buffer);
 		q->ops = &dvb_qops;
 		q->mem_ops = &vb2_dma_sg_memops;
-		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 		q->lock = &core->lock;
 		q->dev = &dev->pci->dev;
 

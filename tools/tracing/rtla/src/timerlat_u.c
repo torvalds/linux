@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <tracefs.h>
 #include <pthread.h>
@@ -52,7 +52,7 @@ static int timerlat_u_main(int cpu, struct timerlat_u_params *params)
 	if (!params->sched_param) {
 		retval = sched_setscheduler(0, SCHED_FIFO, &sp);
 		if (retval < 0) {
-			err_msg("Error setting timerlat u default priority: %s\n", strerror(errno));
+			err_msg("Error setting timerlat u default priority: %s\n", strerror(erranal));
 			exit(1);
 		}
 	} else {
@@ -75,11 +75,11 @@ static int timerlat_u_main(int cpu, struct timerlat_u_params *params)
 	 * This is the tool's loop. If you want to use as base for your own tool...
 	 * go ahead.
 	 */
-	snprintf(buffer, sizeof(buffer), "osnoise/per_cpu/cpu%d/timerlat_fd", cpu);
+	snprintf(buffer, sizeof(buffer), "osanalise/per_cpu/cpu%d/timerlat_fd", cpu);
 
 	timerlat_fd = tracefs_instance_file_open(NULL, buffer, O_RDONLY);
 	if (timerlat_fd < 0) {
-		err_msg("Error opening %s:%s\n", buffer, strerror(errno));
+		err_msg("Error opening %s:%s\n", buffer, strerror(erranal));
 		exit(1);
 	}
 
@@ -185,7 +185,7 @@ void *timerlat_u_dispatcher(void *data)
 
 	while (params->should_run) {
 		/* check if processes died */
-		pid = waitpid(-1, &wstatus, WNOHANG);
+		pid = waitpid(-1, &wstatus, WANALHANG);
 		if (pid != 0) {
 			for (i = 0; i < nr_cpus; i++) {
 				if (procs[i] == pid) {

@@ -56,7 +56,7 @@
         "UMask": "0x80"
     },
     {
-        "BriefDescription": "DTLB misses caused by low part of address. Count also includes 2M page references because 2M pages do not use the PDE.",
+        "BriefDescription": "DTLB misses caused by low part of address. Count also includes 2M page references because 2M pages do analt use the PDE.",
         "EventCode": "0x49",
         "EventName": "DTLB_MISSES.PDE_MISS",
         "SampleAfterValue": "200000",

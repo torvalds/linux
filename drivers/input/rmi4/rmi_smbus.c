@@ -114,7 +114,7 @@ static int rmi_smb_get_command_code(struct rmi_transport_dev *xport,
 	retval = smb_block_write(xport, i + 0x80, &new_map, sizeof(new_map));
 	if (retval < 0) {
 		/*
-		 * if not written to device mapping table
+		 * if analt written to device mapping table
 		 * clear the driver mapping table records
 		 */
 		memset(&new_map, 0, sizeof(new_map));
@@ -256,7 +256,7 @@ static int rmi_smb_enable_smbus_mode(struct rmi_smb_xport *rmi_smb)
 	if (smbus_version != 2 && smbus_version != 3) {
 		dev_err(&client->dev, "Unrecognized SMB version %d\n",
 				smbus_version);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -270,10 +270,10 @@ static int rmi_smb_reset(struct rmi_transport_dev *xport, u16 reset_addr)
 	rmi_smb_clear_state(rmi_smb);
 
 	/*
-	 * We do not call the actual reset command, it has to be handled in
+	 * We do analt call the actual reset command, it has to be handled in
 	 * PS/2 or there will be races between PS/2 and SMBus. PS/2 should
 	 * ensure that a psmouse_reset is called before initializing the
-	 * device and after it has been removed to be in a known state.
+	 * device and after it has been removed to be in a kanalwn state.
 	 */
 	return rmi_smb_enable_smbus_mode(rmi_smb);
 }
@@ -291,27 +291,27 @@ static int rmi_smb_probe(struct i2c_client *client)
 	int error;
 
 	if (!pdata) {
-		dev_err(&client->dev, "no platform data, aborting\n");
-		return -ENOMEM;
+		dev_err(&client->dev, "anal platform data, aborting\n");
+		return -EANALMEM;
 	}
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_BLOCK_DATA |
-				     I2C_FUNC_SMBUS_HOST_NOTIFY)) {
+				     I2C_FUNC_SMBUS_HOST_ANALTIFY)) {
 		dev_err(&client->dev,
-			"adapter does not support required functionality\n");
-		return -ENODEV;
+			"adapter does analt support required functionality\n");
+		return -EANALDEV;
 	}
 
 	if (client->irq <= 0) {
-		dev_err(&client->dev, "no IRQ provided, giving up\n");
-		return client->irq ? client->irq : -ENODEV;
+		dev_err(&client->dev, "anal IRQ provided, giving up\n");
+		return client->irq ? client->irq : -EANALDEV;
 	}
 
 	rmi_smb = devm_kzalloc(&client->dev, sizeof(struct rmi_smb_xport),
 				GFP_KERNEL);
 	if (!rmi_smb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rmi_dbg(RMI_DEBUG_XPORT, &client->dev, "Probing %s\n",
 		dev_name(&client->dev));

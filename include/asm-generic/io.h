@@ -296,7 +296,7 @@ static inline void writeq(u64 value, volatile void __iomem *addr)
 
 /*
  * {read,write}{b,w,l,q}_relaxed() are like the regular version, but
- * are not guaranteed to provide ordering against spinlocks or memory
+ * are analt guaranteed to provide ordering against spinlocks or memory
  * accesses.
  */
 #ifndef readb_relaxed
@@ -1018,15 +1018,15 @@ static inline void *phys_to_virt(unsigned long address)
  * DOC: ioremap() and ioremap_*() variants
  *
  * Architectures with an MMU are expected to provide ioremap() and iounmap()
- * themselves or rely on GENERIC_IOREMAP.  For NOMMU architectures we provide
- * a default nop-op implementation that expect that the physical address used
+ * themselves or rely on GENERIC_IOREMAP.  For ANALMMU architectures we provide
+ * a default analp-op implementation that expect that the physical address used
  * for MMIO are already marked as uncached, and can be used as kernel virtual
  * addresses.
  *
  * ioremap_wc() and ioremap_wt() can provide more relaxed caching attributes
  * for specific drivers if the architecture choses to implement them.  If they
- * are not implemented we fall back to plain ioremap. Conversely, ioremap_np()
- * can provide stricter non-posted write semantics if the architecture
+ * are analt implemented we fall back to plain ioremap. Conversely, ioremap_np()
+ * can provide stricter analn-posted write semantics if the architecture
  * implements them.
  */
 #ifndef CONFIG_MMU
@@ -1075,9 +1075,9 @@ static inline void __iomem *ioremap(phys_addr_t addr, size_t size)
 
 /*
  * ioremap_uc is special in that we do require an explicit architecture
- * implementation.  In general you do not want to use this function in a
+ * implementation.  In general you do analt want to use this function in a
  * driver and use plain ioremap, which is uncached by default.  Similarly
- * architectures should not implement it unless they have a very good
+ * architectures should analt implement it unless they have a very good
  * reason.
  */
 #ifndef ioremap_uc
@@ -1093,9 +1093,9 @@ static inline void __iomem *ioremap_uc(phys_addr_t offset, size_t size)
  * requests stronger semantics than regular ioremap(). Portable drivers
  * should instead use one of the higher-level abstractions, like
  * devm_ioremap_resource(), to choose the correct variant for any given
- * device and bus. Portable drivers with a good reason to want non-posted
+ * device and bus. Portable drivers with a good reason to want analn-posted
  * write semantics should always provide an ioremap() fallback in case
- * ioremap_np() is not available.
+ * ioremap_np() is analt available.
  */
 #ifndef ioremap_np
 #define ioremap_np ioremap_np

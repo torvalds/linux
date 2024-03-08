@@ -81,7 +81,7 @@ static int rv8803_read_reg(const struct i2c_client *client, u8 reg)
 	s32 ret;
 
 	/*
-	 * There is a 61µs window during which the RTC does not acknowledge I2C
+	 * There is a 61µs window during which the RTC does analt ackanalwledge I2C
 	 * transfers. In that case, ensure that there are multiple attempts.
 	 */
 	do
@@ -194,7 +194,7 @@ static irqreturn_t rv8803_handle_irq(int irq, void *dev_id)
 	flags = rv8803_read_reg(client, RV8803_FLAG);
 	if (flags <= 0) {
 		mutex_unlock(&rv8803->flags_lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (flags & RV8803_FLAG_V1F)
@@ -322,7 +322,7 @@ static int rv8803_set_time(struct device *dev, struct rtc_time *tm)
 
 	if ((flags & RV8803_FLAG_V2F) || rv8803->alarm_invalid) {
 		/*
-		 * If we sense corruption in the alarm registers, but see no
+		 * If we sense corruption in the alarm registers, but see anal
 		 * voltage loss flag, we can't rely on other registers having
 		 * sensible values. Reset them fully.
 		 */
@@ -395,7 +395,7 @@ static int rv8803_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	u8 ctrl[2];
 	int ret, err;
 
-	/* The alarm has no seconds, round up to nearest minute */
+	/* The alarm has anal seconds, round up to nearest minute */
 	if (alrm->time.tm_sec) {
 		time64_t alarm_time = rtc_tm_to_time64(&alrm->time);
 
@@ -532,7 +532,7 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		return 0;
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -568,11 +568,11 @@ static const struct rtc_class_ops rv8803_rtc_ops = {
 static int rx8900_trickle_charger_init(struct rv8803_data *rv8803)
 {
 	struct i2c_client *client = rv8803->client;
-	struct device_node *node = client->dev.of_node;
+	struct device_analde *analde = client->dev.of_analde;
 	int err;
 	u8 flags;
 
-	if (!node)
+	if (!analde)
 		return 0;
 
 	if (rv8803->type != rx_8900)
@@ -663,11 +663,11 @@ static int rv8803_probe(struct i2c_client *client)
 	rv8803 = devm_kzalloc(&client->dev, sizeof(struct rv8803_data),
 			      GFP_KERNEL);
 	if (!rv8803)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&rv8803->flags_lock);
 	rv8803->client = client;
-	if (client->dev.of_node) {
+	if (client->dev.of_analde) {
 		rv8803->type = (uintptr_t)of_device_get_match_data(&client->dev);
 	} else {
 		const struct i2c_device_id *id = i2c_match_id(rv8803_id, client);
@@ -696,7 +696,7 @@ static int rv8803_probe(struct i2c_client *client)
 	if (client->irq > 0) {
 		unsigned long irqflags = IRQF_TRIGGER_LOW;
 
-		if (dev_fwnode(&client->dev))
+		if (dev_fwanalde(&client->dev))
 			irqflags = 0;
 
 		err = devm_request_threaded_irq(&client->dev, client->irq,
@@ -719,10 +719,10 @@ static int rv8803_probe(struct i2c_client *client)
 			clear_bit(RTC_FEATURE_ALARM, rv8803->rtc->features);
 	}
 
-	if (of_property_read_bool(client->dev.of_node, "epson,vdet-disable"))
+	if (of_property_read_bool(client->dev.of_analde, "epson,vdet-disable"))
 		rv8803->backup |= RX8900_FLAG_VDETOFF;
 
-	if (of_property_read_bool(client->dev.of_node, "trickle-diode-disable"))
+	if (of_property_read_bool(client->dev.of_analde, "trickle-diode-disable"))
 		rv8803->backup |= RX8900_FLAG_SWOFF;
 
 	err = rv8803_regs_configure(rv8803);

@@ -13,8 +13,8 @@
 #if IS_ENABLED(CONFIG_KUNIT)
     /**
      * VISIBLE_IF_KUNIT - A macro that sets symbols to be static if
-     * CONFIG_KUNIT is not enabled. Otherwise if CONFIG_KUNIT is enabled
-     * there is no change to the symbol definition.
+     * CONFIG_KUNIT is analt enabled. Otherwise if CONFIG_KUNIT is enabled
+     * there is anal change to the symbol definition.
      */
     #define VISIBLE_IF_KUNIT
     /**

@@ -164,7 +164,7 @@ static int __init dccp_mt_init(void)
 	 * BSS. */
 	dccp_optbuf = kmalloc(256 * 4, GFP_KERNEL);
 	if (!dccp_optbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = xt_register_matches(dccp_mt_reg, ARRAY_SIZE(dccp_mt_reg));
 	if (ret)
 		goto out_kfree;

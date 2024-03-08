@@ -69,7 +69,7 @@ int amiga_partition(struct parsed_partitions *state)
 		*(__be32 *)(data+0xdc) = 0;
 		if (checksum_block((__be32 *)data,
 				be32_to_cpu(rdb->rdb_SummedLongs) & 0x7F)==0) {
-			pr_err("Trashed word at 0xd0 in block %llu ignored in checksum calculation\n",
+			pr_err("Trashed word at 0xd0 in block %llu iganalred in checksum calculation\n",
 			       blk);
 			break;
 		}
@@ -111,7 +111,7 @@ int amiga_partition(struct parsed_partitions *state)
 		if (checksum_block((__be32 *)pb, be32_to_cpu(pb->pb_SummedLongs) & 0x7F) != 0 )
 			continue;
 
-		/* RDB gives us more than enough rope to hang ourselves with,
+		/* RDB gives us more than eanalugh rope to hang ourselves with,
 		 * many times over (2^128 bytes if all fields max out).
 		 * Some careful checks are in order, so check for potential
 		 * overflows.
@@ -136,7 +136,7 @@ int amiga_partition(struct parsed_partitions *state)
 		}
 
 		/* RDB allows for variable logical block size -
-		 * normalize to 512 byte blocks and check result.
+		 * analrmalize to 512 byte blocks and check result.
 		 */
 
 		if (check_mul_overflow(cylblk, blksize, &cylblk)) {
@@ -146,7 +146,7 @@ int amiga_partition(struct parsed_partitions *state)
 		}
 
 		/* Calculate partition start and end. Limit of 32 bit on cylblk
-		 * guarantees no overflow occurs if LBD support is enabled.
+		 * guarantees anal overflow occurs if LBD support is enabled.
 		 */
 
 		lo_cyl = be32_to_cpu(pb->pb_Environment[LO_CYL]);

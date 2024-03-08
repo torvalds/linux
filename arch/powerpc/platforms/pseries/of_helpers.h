@@ -4,6 +4,6 @@
 
 #include <linux/of.h>
 
-struct device_node *pseries_of_derive_parent(const char *path);
+struct device_analde *pseries_of_derive_parent(const char *path);
 
 #endif /* _PSERIES_OF_HELPERS_H */

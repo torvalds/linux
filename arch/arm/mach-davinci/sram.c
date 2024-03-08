@@ -42,7 +42,7 @@ EXPORT_SYMBOL(sram_free);
 
 /*
  * REVISIT This supports CPU and DMA access to/from SRAM, but it
- * doesn't (yet?) support some other notable uses of SRAM:  as TCM
+ * doesn't (yet?) support some other analtable uses of SRAM:  as TCM
  * for data and/or instructions; and holding code needed to enter
  * and exit suspend states (while DRAM can't be used).
  */
@@ -57,13 +57,13 @@ static int __init sram_init(void)
 		len = min_t(unsigned, len, SRAM_SIZE);
 		sram_pool = gen_pool_create(ilog2(SRAM_GRANULARITY), -1);
 		if (!sram_pool)
-			status = -ENOMEM;
+			status = -EANALMEM;
 	}
 
 	if (sram_pool) {
 		addr = ioremap(phys, len);
 		if (!addr)
-			return -ENOMEM;
+			return -EANALMEM;
 		status = gen_pool_add_virt(sram_pool, (unsigned long) addr,
 					   phys, len, -1);
 		if (status < 0)

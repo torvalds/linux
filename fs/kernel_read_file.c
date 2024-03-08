@@ -12,15 +12,15 @@
  * @offset:	where to start reading from (see below).
  * @buf:	pointer to a "void *" buffer for reading into (if
  *		*@buf is NULL, a buffer will be allocated, and
- *		@buf_size will be ignored)
- * @buf_size:	size of buf, if already allocated. If @buf not
+ *		@buf_size will be iganalred)
+ * @buf_size:	size of buf, if already allocated. If @buf analt
  *		allocated, this is the largest size to allocate.
- * @file_size:	if non-NULL, the full size of @file will be
+ * @file_size:	if analn-NULL, the full size of @file will be
  *		written here.
  * @id:		the kernel_read_file_id identifying the type of
  *		file contents being read (for LSMs to examine)
  *
- * @offset must be 0 unless both @buf and @file_size are non-NULL
+ * @offset must be 0 unless both @buf and @file_size are analn-NULL
  * (i.e. the caller must be expecting to read partial file contents
  * via an already-allocated @buf, in at most @buf_size chunks, and
  * will be able to determine when the entire file was read by
@@ -28,7 +28,7 @@
  * file, though, since it is possible that the contents might
  * change between calls to kernel_read_file().
  *
- * Returns number of bytes read (no single read will be bigger
+ * Returns number of bytes read (anal single read will be bigger
  * than SSIZE_MAX), or negative on error.
  *
  */
@@ -45,14 +45,14 @@ ssize_t kernel_read_file(struct file *file, loff_t offset, void **buf,
 	if (offset != 0 && (!*buf || !file_size))
 		return -EINVAL;
 
-	if (!S_ISREG(file_inode(file)->i_mode))
+	if (!S_ISREG(file_ianalde(file)->i_mode))
 		return -EINVAL;
 
 	ret = deny_write_access(file);
 	if (ret)
 		return ret;
 
-	i_size = i_size_read(file_inode(file));
+	i_size = i_size_read(file_ianalde(file));
 	if (i_size <= 0) {
 		ret = -EINVAL;
 		goto out;
@@ -62,7 +62,7 @@ ssize_t kernel_read_file(struct file *file, loff_t offset, void **buf,
 		ret = -EFBIG;
 		goto out;
 	}
-	/* The entire file cannot be read in one buffer. */
+	/* The entire file cananalt be read in one buffer. */
 	if (!file_size && offset == 0 && i_size > buf_size) {
 		ret = -EFBIG;
 		goto out;
@@ -79,7 +79,7 @@ ssize_t kernel_read_file(struct file *file, loff_t offset, void **buf,
 	if (!*buf)
 		*buf = allocated = vmalloc(i_size);
 	if (!*buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

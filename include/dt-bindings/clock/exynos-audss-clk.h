@@ -4,24 +4,24 @@
  * clock controller.
  *
  * The constants defined in this header are being used in dts
- * and exynos audss driver.
+ * and exyanals audss driver.
  */
 
-#ifndef _DT_BINDINGS_CLK_EXYNOS_AUDSS_H
-#define _DT_BINDINGS_CLK_EXYNOS_AUDSS_H
+#ifndef _DT_BINDINGS_CLK_EXYANALS_AUDSS_H
+#define _DT_BINDINGS_CLK_EXYANALS_AUDSS_H
 
-#define EXYNOS_MOUT_AUDSS	0
-#define EXYNOS_MOUT_I2S	1
-#define EXYNOS_DOUT_SRP	2
-#define EXYNOS_DOUT_AUD_BUS	3
-#define EXYNOS_DOUT_I2S	4
-#define EXYNOS_SRP_CLK		5
-#define EXYNOS_I2S_BUS		6
-#define EXYNOS_SCLK_I2S	7
-#define EXYNOS_PCM_BUS		8
-#define EXYNOS_SCLK_PCM	9
-#define EXYNOS_ADMA		10
+#define EXYANALS_MOUT_AUDSS	0
+#define EXYANALS_MOUT_I2S	1
+#define EXYANALS_DOUT_SRP	2
+#define EXYANALS_DOUT_AUD_BUS	3
+#define EXYANALS_DOUT_I2S	4
+#define EXYANALS_SRP_CLK		5
+#define EXYANALS_I2S_BUS		6
+#define EXYANALS_SCLK_I2S	7
+#define EXYANALS_PCM_BUS		8
+#define EXYANALS_SCLK_PCM	9
+#define EXYANALS_ADMA		10
 
-#define EXYNOS_AUDSS_MAX_CLKS	11
+#define EXYANALS_AUDSS_MAX_CLKS	11
 
 #endif

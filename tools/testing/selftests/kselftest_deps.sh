@@ -93,7 +93,7 @@ pass_cnt=0
 targets=$(grep -E "^TARGETS +|^TARGETS =" Makefile | cut -d "=" -f2)
 
 # Initially, in LDLIBS related lines, the dep checker needs
-# to ignore lines containing the following strings:
+# to iganalre lines containing the following strings:
 filter="\$(VAR_LDLIBS)\|pkg-config\|PKG_CONFIG\|IOURING_EXTRA_LIBS"
 
 # Single test case

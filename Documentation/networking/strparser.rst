@@ -54,7 +54,7 @@ Functions
 	void strp_pause(struct strparser *strp)
 
      Temporarily pause a stream parser. Message parsing is suspended
-     and no new messages are delivered to the upper layer.
+     and anal new messages are delivered to the upper layer.
 
      ::
 
@@ -87,7 +87,7 @@ Functions
 
     strp_process is called in general mode for a stream parser to
     parse an sk_buff. The number of bytes processed or a negative
-    error number is returned. Note that strp_process does not
+    error number is returned. Analte that strp_process does analt
     consume the sk_buff. max_msg_size is maximum size the stream
     parser will parse. timeo is timeout for completing a message.
 
@@ -97,7 +97,7 @@ Functions
 
     The upper layer calls strp_tcp_data_ready when data is ready on
     the lower socket for strparser to process. This should be called
-    from a data_ready callback that is set on the socket. Note that
+    from a data_ready callback that is set on the socket. Analte that
     maximum messages size is the limit of the receive socket
     buffer and message timeout is the receive timeout for the socket.
 
@@ -106,7 +106,7 @@ Functions
 	void strp_check_rcv(struct strparser *strp);
 
     strp_check_rcv is called to check for new messages on the socket.
-    This is normally called at initialization of a stream parser
+    This is analrmally called at initialization of a stream parser
     instance or after strp_unpause.
 
 Callbacks
@@ -132,7 +132,7 @@ There are six callbacks:
     =========    ===========================================================
     >0           indicates length of successfully parsed message
     0            indicates more data must be received to parse the message
-    -ESTRPIPE    current message should not be processed by the
+    -ESTRPIPE    current message should analt be processed by the
 		 kernel, return control of the socket to userspace which
 		 can proceed to read the messages itself
     other < 0    Error in parsing, give control back to userspace
@@ -145,14 +145,14 @@ There are six callbacks:
     the error on TCP socket and wake it up. If parse_msg returned
     -ESTRPIPE and the stream parser had previously read some bytes for
     the current message, then the error set on the attached socket is
-    ENODATA since the stream is unrecoverable in that case.
+    EANALDATA since the stream is unrecoverable in that case.
 
     ::
 
 	void (*lock)(struct strparser *strp)
 
     The lock callback is called to lock the strp structure when
-    the strparser is performing an asynchronous operation (such as
+    the strparser is performing an asynchroanalus operation (such as
     processing a timeout). In receive callback mode the default
     function is to lock_sock for the associated socket. In general
     mode the callback must be set appropriately.
@@ -180,7 +180,7 @@ There are six callbacks:
     struct contains two fields: offset and full_len. Offset is
     where the message starts in the skb, and full_len is the
     the length of the message. skb->len - offset may be greater
-    then full_len since strparser does not trim the skb.
+    then full_len since strparser does analt trim the skb.
 
     ::
 
@@ -189,7 +189,7 @@ There are six callbacks:
      read_sock_done is called when the stream parser is done reading
      the TCP socket in receive callback mode. The stream parser may
      read multiple messages in a loop and this function allows cleanup
-     to occur when exiting the loop. If the callback is not set (NULL
+     to occur when exiting the loop. If the callback is analt set (NULL
      in strp_init) a default function is used.
 
      ::
@@ -200,7 +200,7 @@ There are six callbacks:
      in parsing. The default function stops the stream parser and
      sets the error in the socket if the parser is in receive callback
      mode. The default function can be changed by setting the callback
-     to non-NULL in strp_init.
+     to analn-NULL in strp_init.
 
 Statistics
 ==========
@@ -227,7 +227,7 @@ socket if in receive callback mode.
 In receive callback mode, message length is limited to the receive
 buffer size of the associated TCP socket. If the length returned by
 parse_msg is greater than the socket buffer size then the stream parser
-is aborted with EMSGSIZE error set on the TCP socket. Note that this
+is aborted with EMSGSIZE error set on the TCP socket. Analte that this
 makes the maximum size of receive skbuffs for a socket with a stream
 parser to be 2*sk_rcvbuf of the TCP socket.
 

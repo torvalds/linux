@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_G_FMT:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_SUBDEV_G_FMT - VIDIOC_SUBDEV_S_FMT - Get or set the data format on a subdev pad
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_SUBDEV_G_FMT
@@ -54,10 +54,10 @@ capabilities and configures the device. Upon return the struct
 format as would be returned by a ``VIDIOC_SUBDEV_G_FMT`` call.
 
 Applications can query the device capabilities by setting the ``which``
-to ``V4L2_SUBDEV_FORMAT_TRY``. When set, 'try' formats are not applied
+to ``V4L2_SUBDEV_FORMAT_TRY``. When set, 'try' formats are analt applied
 to the device by the driver, but are changed exactly as active formats
 and stored in the sub-device file handle. Two applications querying the
-same sub-device would thus not interact with each other.
+same sub-device would thus analt interact with each other.
 
 For instance, to try a format at the output pad of a sub-device,
 applications would first set the try format at the sub-device input with
@@ -66,17 +66,17 @@ default format at the output pad with the ``VIDIOC_SUBDEV_G_FMT`` ioctl,
 or set the desired output pad format with the ``VIDIOC_SUBDEV_S_FMT``
 ioctl and check the returned value.
 
-Try formats do not depend on active formats, but can depend on the
+Try formats do analt depend on active formats, but can depend on the
 current links configuration or sub-device controls value. For instance,
-a low-pass noise filter might crop pixels at the frame boundaries,
+a low-pass analise filter might crop pixels at the frame boundaries,
 modifying its output frame size.
 
-If the subdev device node has been registered in read-only mode, calls to
+If the subdev device analde has been registered in read-only mode, calls to
 ``VIDIOC_SUBDEV_S_FMT`` are only valid if the ``which`` field is set to
-``V4L2_SUBDEV_FORMAT_TRY``, otherwise an error is returned and the errno
+``V4L2_SUBDEV_FORMAT_TRY``, otherwise an error is returned and the erranal
 variable is set to ``-EPERM``.
 
-Drivers must not return an error solely because the requested format
+Drivers must analt return an error solely because the requested format
 doesn't match the device capabilities. They must instead modify the
 format to match what the hardware can provide. The modified format
 should be as close as possible to the original request.
@@ -129,18 +129,18 @@ should be as close as possible to the original request.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EBUSY
     The format can't be changed because the pad is currently busy. This
     can be caused, for instance, by an active video stream on the pad.
-    The ioctl must not be retried without performing another action to
+    The ioctl must analt be retried without performing aanalther action to
     fix the problem first. Only returned by ``VIDIOC_SUBDEV_S_FMT``
 
 EINVAL
-    The struct :c:type:`v4l2_subdev_format` ``pad`` references a non-existing
+    The struct :c:type:`v4l2_subdev_format` ``pad`` references a analn-existing
     pad, or the ``which`` field has an unsupported value.
 
 EPERM
@@ -149,6 +149,6 @@ EPERM
 
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

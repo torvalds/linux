@@ -1,7 +1,7 @@
 /*
  * Private header for the MPC52xx processor BestComm driver
  *
- * By private, we mean that driver should not use it directly. It's meant
+ * By private, we mean that driver should analt use it directly. It's meant
  * to be used by the BestComm engine driver itself and by the intermediate
  * layer between the core and the drivers.
  *
@@ -66,7 +66,7 @@ struct bcom_tdt {
  * This holds all info needed globaly to handle the engine
  */
 struct bcom_engine {
-	struct device_node		*ofnode;
+	struct device_analde		*ofanalde;
 	struct mpc52xx_sdma __iomem     *regs;
 	phys_addr_t                      regs_base;
 
@@ -98,7 +98,7 @@ struct bcom_task_header {
 };
 
 /* Descriptors structure & co */
-#define BCOM_DESC_NOP		0x000001f8
+#define BCOM_DESC_ANALP		0x000001f8
 #define BCOM_LCD_MASK		0x80000000
 #define BCOM_DRD_EXTENDED	0x40000000
 #define BCOM_DRD_INITIATOR_SHIFT	21
@@ -107,7 +107,7 @@ struct bcom_task_header {
 #define BCOM_PRAGMA_BIT_RSV		7	/* reserved pragma bit */
 #define BCOM_PRAGMA_BIT_PRECISE_INC	6	/* increment 0=when possible, */
 						/*           1=iter end */
-#define BCOM_PRAGMA_BIT_RST_ERROR_NO	5	/* don't reset errors on */
+#define BCOM_PRAGMA_BIT_RST_ERROR_ANAL	5	/* don't reset errors on */
 						/* task enable */
 #define BCOM_PRAGMA_BIT_PACK		4	/* pack data enable */
 #define BCOM_PRAGMA_BIT_INTEGER		3	/* data alignment */
@@ -118,12 +118,12 @@ struct bcom_task_header {
 
 	/* Looks like XLB speculative read generates XLB errors when a buffer
 	 * is at the end of the physical memory. i.e. when accessing the
-	 * lasts words, the engine tries to prefetch the next but there is no
+	 * lasts words, the engine tries to prefetch the next but there is anal
 	 * next ...
 	 */
 #define BCOM_STD_PRAGMA		((0 << BCOM_PRAGMA_BIT_RSV)		| \
 				 (0 << BCOM_PRAGMA_BIT_PRECISE_INC)	| \
-				 (0 << BCOM_PRAGMA_BIT_RST_ERROR_NO)	| \
+				 (0 << BCOM_PRAGMA_BIT_RST_ERROR_ANAL)	| \
 				 (0 << BCOM_PRAGMA_BIT_PACK)		| \
 				 (0 << BCOM_PRAGMA_BIT_INTEGER)		| \
 				 (0 << BCOM_PRAGMA_BIT_SPECREAD)	| \
@@ -132,7 +132,7 @@ struct bcom_task_header {
 
 #define BCOM_PCI_PRAGMA		((0 << BCOM_PRAGMA_BIT_RSV)		| \
 				 (0 << BCOM_PRAGMA_BIT_PRECISE_INC)	| \
-				 (0 << BCOM_PRAGMA_BIT_RST_ERROR_NO)	| \
+				 (0 << BCOM_PRAGMA_BIT_RST_ERROR_ANAL)	| \
 				 (0 << BCOM_PRAGMA_BIT_PACK)		| \
 				 (1 << BCOM_PRAGMA_BIT_INTEGER)		| \
 				 (0 << BCOM_PRAGMA_BIT_SPECREAD)	| \
@@ -245,9 +245,9 @@ extern void bcom_set_initiator(int task, int initiator);
  * bcom_disable_prefetch - Hook to disable bus prefetching
  *
  * ATA DMA and the original MPC5200 need this due to silicon bugs.  At the
- * moment disabling prefetch is a one-way street.  There is no mechanism
+ * moment disabling prefetch is a one-way street.  There is anal mechanism
  * in place to turn prefetch back on after it has been disabled.  There is
- * no reason it couldn't be done, it would just be more complex to implement.
+ * anal reason it couldn't be done, it would just be more complex to implement.
  */
 static inline void bcom_disable_prefetch(void)
 {
@@ -307,7 +307,7 @@ bcom_drd_is_extended(u32 desc)
 static inline int
 bcom_desc_is_drd(u32 desc)
 {
-	return !(desc & BCOM_LCD_MASK) && desc != BCOM_DESC_NOP;
+	return !(desc & BCOM_LCD_MASK) && desc != BCOM_DESC_ANALP;
 }
 
 static inline int

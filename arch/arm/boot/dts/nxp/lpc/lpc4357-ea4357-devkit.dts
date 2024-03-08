@@ -583,7 +583,7 @@
 	pinctrl-0 = <&spifi_pins>;
 
 	flash {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-cpol;
 		spi-cpha;
 		spi-rx-bus-width = <4>;

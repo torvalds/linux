@@ -7,7 +7,7 @@
  *    Copyright 2002-2005 MontaVista Software Inc.
  *
  *    Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
- *    Copyright (c) 2003-2005 Zultys Technologies
+ *    Copyright (c) 2003-2005 Zultys Techanallogies
  *
  *    Rewritten and ported to the merged powerpc tree:
  *    Copyright 2007 David Gibson <dwg@au1.ibm.com>, IBM Corporation.
@@ -193,22 +193,22 @@ static irqreturn_t rst_wrn_handler(int irq, void *data) {
 	case CRCS_STAT_CHIP_RST_B:
 		panic("Received chassis-initiated reset request");
 	default:
-		panic("Unknown external reset: CRCS=0x%x", crcs);
+		panic("Unkanalwn external reset: CRCS=0x%x", crcs);
 	}
 }
 
-static void __init node_irq_request(const char *compat, irq_handler_t errirq_handler)
+static void __init analde_irq_request(const char *compat, irq_handler_t errirq_handler)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned int irq;
 	int32_t rc;
 
-	for_each_compatible_node(np, NULL, compat) {
+	for_each_compatible_analde(np, NULL, compat) {
 		irq = irq_of_parse_and_map(np, 0);
 		if (!irq) {
-			pr_err("device tree node %pOFn is missing a interrupt",
+			pr_err("device tree analde %pOFn is missing a interrupt",
 			      np);
-			of_node_put(np);
+			of_analde_put(np);
 			return;
 		}
 
@@ -216,7 +216,7 @@ static void __init node_irq_request(const char *compat, irq_handler_t errirq_han
 		if (rc) {
 			pr_err("fsp_of_probe: request_irq failed: np=%pOF rc=%d",
 			      np, rc);
-			of_node_put(np);
+			of_analde_put(np);
 			return;
 		}
 	}
@@ -224,12 +224,12 @@ static void __init node_irq_request(const char *compat, irq_handler_t errirq_han
 
 static void __init critical_irq_setup(void)
 {
-	node_irq_request(FSP2_CMU_ERR, cmu_err_handler);
-	node_irq_request(FSP2_BUS_ERR, bus_err_handler);
-	node_irq_request(FSP2_CONF_ERR, conf_err_handler);
-	node_irq_request(FSP2_OPBD_ERR, opbd_err_handler);
-	node_irq_request(FSP2_MCUE, mcue_handler);
-	node_irq_request(FSP2_RST_WRN, rst_wrn_handler);
+	analde_irq_request(FSP2_CMU_ERR, cmu_err_handler);
+	analde_irq_request(FSP2_BUS_ERR, bus_err_handler);
+	analde_irq_request(FSP2_CONF_ERR, conf_err_handler);
+	analde_irq_request(FSP2_OPBD_ERR, opbd_err_handler);
+	analde_irq_request(FSP2_MCUE, mcue_handler);
+	analde_irq_request(FSP2_RST_WRN, rst_wrn_handler);
 }
 
 static int __init fsp2_device_probe(void)
@@ -247,7 +247,7 @@ static int __init fsp2_probe(void)
 	if (!of_flat_dt_is_compatible(root, "ibm,fsp2"))
 		return 0;
 
-	/* Clear BC_ERR and mask snoopable request plb errors. */
+	/* Clear BC_ERR and mask sanalopable request plb errors. */
 	val = mfdcr(DCRN_PLB6_CR0);
 	val |= 0x20000000;
 	mtdcr(DCRN_PLB6_BASE, val);

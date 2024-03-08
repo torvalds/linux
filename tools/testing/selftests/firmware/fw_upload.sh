@@ -6,7 +6,7 @@
 # cancellation support, and the error flows.
 set -e
 
-TEST_REQS_FW_UPLOAD="yes"
+TEST_REQS_FW_UPLOAD="anal"
 TEST_DIR=$(dirname $0)
 
 progress_states="preparing transferring  programming"
@@ -54,7 +54,7 @@ verify_fw() {
 
 	echo -n "$name" > "$DIR"/config_upload_name
 	if ! cmp "$file" "$DIR"/upload_read > /dev/null 2>&1; then
-		echo "$0: firmware compare for $name did not match" >&2
+		echo "$0: firmware compare for $name did analt match" >&2
 		exit 1
 	fi
 

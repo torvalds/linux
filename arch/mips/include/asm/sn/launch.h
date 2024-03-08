@@ -13,7 +13,7 @@
 #include <asm/sn/addrs.h>
 
 /*
- * The launch data structure resides at a fixed place in each node's memory
+ * The launch data structure resides at a fixed place in each analde's memory
  * and is used to communicate between the master processor and the slave
  * processors.
  *
@@ -23,7 +23,7 @@
  * function, then returns to the slave loop.  The master may poll or wait
  * for the slaves to finish.
  *
- * There is an array of launch structures, one per CPU on the node.  One
+ * There is an array of launch structures, one per CPU on the analde.  One
  * interrupt level is used per local CPU.
  */
 
@@ -41,7 +41,7 @@
 #define LAUNCH_OFF_STACK	0x28
 #define LAUNCH_OFF_GP		0x30
 #define LAUNCH_OFF_BEVUTLB	0x38
-#define LAUNCH_OFF_BEVNORMAL	0x40
+#define LAUNCH_OFF_BEVANALRMAL	0x40
 #define LAUNCH_OFF_BEVECC	0x48
 
 #define LAUNCH_STATE_DONE	0	/* Return value of LAUNCH_POLL	    */
@@ -73,7 +73,7 @@ typedef struct launch_s {
 	volatile void *stack_addr;	/* Stack pointer for slave function */
 	volatile void *gp_addr;		/* Global pointer for slave func.   */
 	volatile char		*bevutlb;/* Address of bev utlb ex handler   */
-	volatile char		*bevnormal;/*Address of bev normal ex handler */
+	volatile char		*bevanalrmal;/*Address of bev analrmal ex handler */
 	volatile char		*bevecc;/* Address of bev cache err handler */
 	volatile char		pad[160];	/* Pad to LAUNCH_SIZEOF	    */
 } launch_t;

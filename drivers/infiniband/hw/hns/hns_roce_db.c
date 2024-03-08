@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause) */
 /*
  * Copyright (c) 2017 Hisilicon Limited.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  */
 
 #include <rdma/ib_umem.h>
@@ -23,7 +23,7 @@ int hns_roce_db_map_user(struct hns_roce_ucontext *context, unsigned long virt,
 
 	page = kmalloc(sizeof(*page), GFP_KERNEL);
 	if (!page) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -102,7 +102,7 @@ static int hns_roce_alloc_db_from_pgdir(struct hns_roce_db_pgdir *pgdir,
 			goto found;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 
 found:
 	clear_bit(i, pgdir->bits[o]);
@@ -135,7 +135,7 @@ int hns_roce_alloc_db(struct hns_roce_dev *hr_dev, struct hns_roce_db *db,
 
 	pgdir = hns_roce_alloc_db_pgdir(hr_dev->dev);
 	if (!pgdir) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

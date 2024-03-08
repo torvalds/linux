@@ -59,7 +59,7 @@ static int apple_pmgr_ps_set(struct generic_pm_domain *genpd, u32 pstate, bool a
 	if (ret < 0)
 		return ret;
 
-	/* Resets are synchronous, and only work if the device is powered and clocked. */
+	/* Resets are synchroanalus, and only work if the device is powered and clocked. */
 	if (reg & APPLE_PMGR_RESET && pstate != APPLE_PMGR_PS_ACTIVE)
 		dev_err(ps->dev, "PS %s: powering off with RESET active\n",
 			genpd->name);
@@ -76,11 +76,11 @@ static int apple_pmgr_ps_set(struct generic_pm_domain *genpd, u32 pstate, bool a
 		(FIELD_GET(APPLE_PMGR_PS_ACTUAL, reg) == pstate), 1,
 		APPLE_PMGR_PS_SET_TIMEOUT);
 	if (ret < 0)
-		dev_err(ps->dev, "PS %s: Failed to reach power state 0x%x (now: 0x%x)\n",
+		dev_err(ps->dev, "PS %s: Failed to reach power state 0x%x (analw: 0x%x)\n",
 			genpd->name, pstate, reg);
 
 	if (auto_enable) {
-		/* Not all devices implement this; this is a no-op where not implemented. */
+		/* Analt all devices implement this; this is a anal-op where analt implemented. */
 		reg &= ~APPLE_PMGR_FLAGS;
 		reg |= APPLE_PMGR_AUTO_ENABLE;
 		regmap_write(ps->regmap, ps->offset, reg);
@@ -193,7 +193,7 @@ static int apple_pmgr_reset_xlate(struct reset_controller_dev *rcdev,
 static int apple_pmgr_ps_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct apple_pmgr_ps *ps;
 	struct regmap *regmap;
 	struct of_phandle_iterator it;
@@ -201,24 +201,24 @@ static int apple_pmgr_ps_probe(struct platform_device *pdev)
 	const char *name;
 	bool active;
 
-	regmap = syscon_node_to_regmap(node->parent);
+	regmap = syscon_analde_to_regmap(analde->parent);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
 	ps = devm_kzalloc(dev, sizeof(*ps), GFP_KERNEL);
 	if (!ps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ps->dev = dev;
 	ps->regmap = regmap;
 
-	ret = of_property_read_string(node, "label", &name);
+	ret = of_property_read_string(analde, "label", &name);
 	if (ret < 0) {
 		dev_err(dev, "missing label property\n");
 		return ret;
 	}
 
-	ret = of_property_read_u32(node, "reg", &ps->offset);
+	ret = of_property_read_u32(analde, "reg", &ps->offset);
 	if (ret < 0) {
 		dev_err(dev, "missing reg property\n");
 		return ret;
@@ -229,17 +229,17 @@ static int apple_pmgr_ps_probe(struct platform_device *pdev)
 	ps->genpd.power_on = apple_pmgr_ps_power_on;
 	ps->genpd.power_off = apple_pmgr_ps_power_off;
 
-	ret = of_property_read_u32(node, "apple,min-state", &ps->min_state);
+	ret = of_property_read_u32(analde, "apple,min-state", &ps->min_state);
 	if (ret == 0 && ps->min_state <= APPLE_PMGR_PS_ACTIVE)
 		regmap_update_bits(regmap, ps->offset, APPLE_PMGR_FLAGS | APPLE_PMGR_PS_MIN,
 				   FIELD_PREP(APPLE_PMGR_PS_MIN, ps->min_state));
 
 	active = apple_pmgr_ps_is_active(ps);
-	if (of_property_read_bool(node, "apple,always-on")) {
+	if (of_property_read_bool(analde, "apple,always-on")) {
 		ps->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		if (!active) {
-			dev_warn(dev, "always-on domain %s is not on at boot\n", name);
-			/* Turn it on so pm_genpd_init does not fail */
+			dev_warn(dev, "always-on domain %s is analt on at boot\n", name);
+			/* Turn it on so pm_genpd_init does analt fail */
 			active = apple_pmgr_ps_power_on(&ps->genpd) == 0;
 		}
 	}
@@ -255,34 +255,34 @@ static int apple_pmgr_ps_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_genpd_add_provider_simple(node, &ps->genpd);
+	ret = of_genpd_add_provider_simple(analde, &ps->genpd);
 	if (ret < 0) {
 		dev_err(dev, "of_genpd_add_provider_simple failed\n");
 		return ret;
 	}
 
-	of_for_each_phandle(&it, ret, node, "power-domains", "#power-domain-cells", -1) {
+	of_for_each_phandle(&it, ret, analde, "power-domains", "#power-domain-cells", -1) {
 		struct of_phandle_args parent, child;
 
-		parent.np = it.node;
+		parent.np = it.analde;
 		parent.args_count = of_phandle_iterator_args(&it, parent.args, MAX_PHANDLE_ARGS);
-		child.np = node;
+		child.np = analde;
 		child.args_count = 0;
 		ret = of_genpd_add_subdomain(&parent, &child);
 
 		if (ret == -EPROBE_DEFER) {
-			of_node_put(parent.np);
+			of_analde_put(parent.np);
 			goto err_remove;
 		} else if (ret < 0) {
 			dev_err(dev, "failed to add to parent domain: %d (%s -> %s)\n",
-				ret, it.node->name, node->name);
-			of_node_put(parent.np);
+				ret, it.analde->name, analde->name);
+			of_analde_put(parent.np);
 			goto err_remove;
 		}
 	}
 
 	/*
-	 * Do not participate in regular PM; parent power domains are handled via the
+	 * Do analt participate in regular PM; parent power domains are handled via the
 	 * genpd hierarchy.
 	 */
 	pm_genpd_remove_device(dev);
@@ -290,7 +290,7 @@ static int apple_pmgr_ps_probe(struct platform_device *pdev)
 	ps->rcdev.owner = THIS_MODULE;
 	ps->rcdev.nr_resets = 1;
 	ps->rcdev.ops = &apple_pmgr_reset_ops;
-	ps->rcdev.of_node = dev->of_node;
+	ps->rcdev.of_analde = dev->of_analde;
 	ps->rcdev.of_reset_n_cells = 0;
 	ps->rcdev.of_xlate = apple_pmgr_reset_xlate;
 
@@ -300,7 +300,7 @@ static int apple_pmgr_ps_probe(struct platform_device *pdev)
 
 	return 0;
 err_remove:
-	of_genpd_del_provider(node);
+	of_genpd_del_provider(analde);
 	pm_genpd_remove(&ps->genpd);
 	return ret;
 }

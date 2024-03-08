@@ -20,7 +20,7 @@
 #define  BM_SSP_CTRL0_RUN			(1 << 29)
 #define  BM_SSP_CTRL0_SDIO_IRQ_CHECK		(1 << 28)
 #define  BM_SSP_CTRL0_LOCK_CS			(1 << 27)
-#define  BM_SSP_CTRL0_IGNORE_CRC		(1 << 26)
+#define  BM_SSP_CTRL0_IGANALRE_CRC		(1 << 26)
 #define  BM_SSP_CTRL0_READ			(1 << 25)
 #define  BM_SSP_CTRL0_DATA_XFER			(1 << 24)
 #define  BP_SSP_CTRL0_BUS_WIDTH			22

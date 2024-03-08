@@ -23,7 +23,7 @@ config TEGRA_HOST1X_FIREWALL
 	bool "Enable HOST1X security firewall"
 	default y
 	help
-	  Say yes if kernel should protect command streams from tampering.
+	  Say anal if kernel should protect command streams from tampering.
 
 	  If unsure, choose Y.
 

@@ -26,7 +26,7 @@ struct serdes_ctrl {
 
 struct serdes_macro {
 	u8			idx;
-	/* Not used when in QSGMII or PCIe mode */
+	/* Analt used when in QSGMII or PCIe mode */
 	int			port;
 	struct serdes_ctrl	*ctrl;
 };
@@ -401,9 +401,9 @@ static int serdes_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 	unsigned int i;
 	int ret;
 
-	/* As of now only PHY_MODE_ETHERNET is supported */
+	/* As of analw only PHY_MODE_ETHERNET is supported */
 	if (mode != PHY_MODE_ETHERNET)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	for (i = 0; i < ARRAY_SIZE(ocelot_serdes_muxes); i++) {
 		if (macro->idx != ocelot_serdes_muxes[i].idx ||
@@ -428,8 +428,8 @@ static int serdes_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 					       macro->idx - (SERDES1G_MAX + 1),
 					       ocelot_serdes_muxes[i].submode);
 
-		/* PCIe not supported yet */
-		return -EOPNOTSUPP;
+		/* PCIe analt supported yet */
+		return -EOPANALTSUPP;
 	}
 
 	return -EINVAL;
@@ -466,7 +466,7 @@ static struct phy *serdes_simple_xlate(struct device *dev,
 		return ctrl->phys[i];
 	}
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static int serdes_phy_create(struct serdes_ctrl *ctrl, u8 idx, struct phy **phy)
@@ -479,7 +479,7 @@ static int serdes_phy_create(struct serdes_ctrl *ctrl, u8 idx, struct phy **phy)
 
 	macro = devm_kzalloc(ctrl->dev, sizeof(*macro), GFP_KERNEL);
 	if (!macro)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	macro->idx = idx;
 	macro->ctrl = ctrl;
@@ -500,10 +500,10 @@ static int serdes_probe(struct platform_device *pdev)
 
 	ctrl = devm_kzalloc(&pdev->dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrl->dev = &pdev->dev;
-	ctrl->regs = syscon_node_to_regmap(pdev->dev.parent->of_node);
+	ctrl->regs = syscon_analde_to_regmap(pdev->dev.parent->of_analde);
 	if (IS_ERR(ctrl->regs)) {
 		/* Fall back to using IORESOURCE_REG, if possible */
 		res = platform_get_resource(pdev, IORESOURCE_REG, 0);

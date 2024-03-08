@@ -72,7 +72,7 @@ static void fjes_get_ethtool_stats(struct net_device *netdev,
 				.recv_intr_zoneupdate;
 		data[i++] = hw->ep_shm_info[epidx].ep_stats.tx_buffer_full;
 		data[i++] = hw->ep_shm_info[epidx].ep_stats
-				.tx_dropped_not_shared;
+				.tx_dropped_analt_shared;
 		data[i++] = hw->ep_shm_info[epidx].ep_stats
 				.tx_dropped_ver_mismatch;
 		data[i++] = hw->ep_shm_info[epidx].ep_stats
@@ -120,7 +120,7 @@ static void fjes_get_strings(struct net_device *netdev,
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "ep%u_tx_buffer_full", i);
 			p += ETH_GSTRING_LEN;
-			sprintf(p, "ep%u_tx_dropped_not_shared", i);
+			sprintf(p, "ep%u_tx_dropped_analt_shared", i);
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "ep%u_tx_dropped_ver_mismatch", i);
 			p += ETH_GSTRING_LEN;
@@ -139,7 +139,7 @@ static int fjes_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		return FJES_STATS_LEN;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -155,7 +155,7 @@ static void fjes_get_drvinfo(struct net_device *netdev,
 	strscpy(drvinfo->version, fjes_driver_version,
 		sizeof(drvinfo->version));
 
-	strscpy(drvinfo->fw_version, "none", sizeof(drvinfo->fw_version));
+	strscpy(drvinfo->fw_version, "analne", sizeof(drvinfo->fw_version));
 	snprintf(drvinfo->bus_info, sizeof(drvinfo->bus_info),
 		 "platform:%s", plat_dev->name);
 }
@@ -167,7 +167,7 @@ static int fjes_get_link_ksettings(struct net_device *netdev,
 	ethtool_link_ksettings_zero_link_mode(ecmd, advertising);
 	ecmd->base.duplex = DUPLEX_FULL;
 	ecmd->base.autoneg = AUTONEG_DISABLE;
-	ecmd->base.port = PORT_NONE;
+	ecmd->base.port = PORT_ANALNE;
 	ecmd->base.speed = 20000;	/* 20Gb/s */
 
 	return 0;

@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -34,7 +34,7 @@ static int pm_map_process_v9(struct packet_manager *pm,
 {
 	struct pm4_mes_map_process *packet;
 	uint64_t vm_page_table_base_addr = qpd->page_table_base;
-	struct kfd_node *kfd = pm->dqm->dev;
+	struct kfd_analde *kfd = pm->dqm->dev;
 	struct kfd_process_device *pdd =
 			container_of(qpd, struct kfd_process_device, qpd);
 
@@ -63,7 +63,7 @@ static int pm_map_process_v9(struct packet_manager *pm,
 	if (qpd->tba_addr) {
 		packet->sq_shader_tba_lo = lower_32_bits(qpd->tba_addr >> 8);
 		/* On GFX9, unlike GFX10, bit TRAP_EN of SQ_SHADER_TBA_HI is
-		 * not defined, so setting it won't do any harm.
+		 * analt defined, so setting it won't do any harm.
 		 */
 		packet->sq_shader_tba_hi = upper_32_bits(qpd->tba_addr >> 8)
 				| 1 << SQ_SHADER_TBA_HI__TRAP_EN__SHIFT;
@@ -143,14 +143,14 @@ static int pm_runlist_v9(struct packet_manager *pm, uint32_t *buffer,
 	struct pm4_mes_runlist *packet;
 
 	int concurrent_proc_cnt = 0;
-	struct kfd_node *kfd = pm->dqm->dev;
+	struct kfd_analde *kfd = pm->dqm->dev;
 
 	/* Determine the number of processes to map together to HW:
-	 * it can not exceed the number of VMIDs available to the
+	 * it can analt exceed the number of VMIDs available to the
 	 * scheduler, and it is determined by the smaller of the number
 	 * of processes in the runlist and kfd module parameter
 	 * hws_max_conc_proc.
-	 * Note: the arbitration between the number of VMIDs and
+	 * Analte: the arbitration between the number of VMIDs and
 	 * hws_max_conc_proc has been done in
 	 * kgd2kfd_device_init().
 	 */
@@ -230,13 +230,13 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 	packet->bitfields2.extended_engine_sel =
 		extended_engine_sel__mes_map_queues__legacy_engine_sel;
 	packet->bitfields2.queue_type =
-		queue_type__mes_map_queues__normal_compute_vi;
+		queue_type__mes_map_queues__analrmal_compute_vi;
 
 	switch (q->properties.type) {
 	case KFD_QUEUE_TYPE_COMPUTE:
 		if (use_static)
 			packet->bitfields2.queue_type =
-		queue_type__mes_map_queues__normal_latency_static_queue_vi;
+		queue_type__mes_map_queues__analrmal_latency_static_queue_vi;
 		break;
 	case KFD_QUEUE_TYPE_DIQ:
 		packet->bitfields2.queue_type =
@@ -244,7 +244,7 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 		break;
 	case KFD_QUEUE_TYPE_SDMA:
 	case KFD_QUEUE_TYPE_SDMA_XGMI:
-		use_static = false; /* no static queues under SDMA */
+		use_static = false; /* anal static queues under SDMA */
 		if (q->properties.sdma_engine_id < 2 &&
 		    !pm_use_ext_eng(q->device->kfd))
 			packet->bitfields2.engine_sel = q->properties.sdma_engine_id +
@@ -313,7 +313,7 @@ static int pm_set_grace_period_v9(struct packet_manager *pm,
 
 	packet->bitfields2.dst_sel  = dst_sel___write_data__mem_mapped_register;
 	packet->bitfields2.addr_incr =
-			addr_incr___write_data__do_not_increment_address;
+			addr_incr___write_data__do_analt_increment_address;
 
 	packet->bitfields3.dst_mmreg_addr = reg_offset;
 
@@ -360,9 +360,9 @@ static int pm_unmap_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 			queue_sel__mes_unmap_queues__unmap_all_queues;
 		break;
 	case KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES:
-		/* in this case, we do not preempt static queues */
+		/* in this case, we do analt preempt static queues */
 		packet->bitfields2.queue_sel =
-			queue_sel__mes_unmap_queues__unmap_all_non_static_queues;
+			queue_sel__mes_unmap_queues__unmap_all_analn_static_queues;
 		break;
 	default:
 		WARN(1, "filter %d", filter);

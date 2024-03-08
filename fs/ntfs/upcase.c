@@ -54,7 +54,7 @@ ntfschar *generate_default_upcase(void)
 	int i, r;
 	ntfschar *uc;
 
-	uc = ntfs_malloc_nofs(default_upcase_len * sizeof(ntfschar));
+	uc = ntfs_malloc_analfs(default_upcase_len * sizeof(ntfschar));
 	if (!uc)
 		return uc;
 	memset(uc, 0, default_upcase_len * sizeof(ntfschar));

@@ -63,8 +63,8 @@ static void chsc_subchannel_irq(struct subchannel *sch)
 
 	/* Copy irb to provided request and set done. */
 	if (!request) {
-		CHSC_MSG(0, "Interrupt on sch 0.%x.%04x with no request\n",
-			 sch->schid.ssid, sch->schid.sch_no);
+		CHSC_MSG(0, "Interrupt on sch 0.%x.%04x with anal request\n",
+			 sch->schid.ssid, sch->schid.sch_anal);
 		return;
 	}
 	private->request = NULL;
@@ -80,16 +80,16 @@ static int chsc_subchannel_probe(struct subchannel *sch)
 	int ret;
 
 	CHSC_MSG(6, "Detected chsc subchannel 0.%x.%04x\n",
-		 sch->schid.ssid, sch->schid.sch_no);
+		 sch->schid.ssid, sch->schid.sch_anal);
 	sch->isc = CHSC_SCH_ISC;
 	private = kzalloc(sizeof(*private), GFP_KERNEL);
 	if (!private)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(&sch->dev, private);
 	ret = cio_enable_subchannel(sch, (u32)virt_to_phys(sch));
 	if (ret) {
 		CHSC_MSG(0, "Failed to enable 0.%x.%04x: %d\n",
-			 sch->schid.ssid, sch->schid.sch_no, ret);
+			 sch->schid.ssid, sch->schid.sch_anal, ret);
 		dev_set_drvdata(&sch->dev, NULL);
 		kfree(private);
 	}
@@ -148,7 +148,7 @@ static int __init chsc_init_dbfs(void)
 	return 0;
 out:
 	debug_unregister(chsc_debug_msg_id);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void chsc_remove_dbfs(void)
@@ -187,16 +187,16 @@ static struct subchannel *chsc_get_next_subchannel(struct subchannel *sch)
 }
 
 /**
- * chsc_async() - try to start a chsc request asynchronously
+ * chsc_async() - try to start a chsc request asynchroanalusly
  * @chsc_area: request to be started
  * @request: request structure to associate
  *
  * Tries to start a chsc request on one of the existing chsc subchannels.
  * Returns:
- *  %0 if the request was performed synchronously
+ *  %0 if the request was performed synchroanalusly
  *  %-EINPROGRESS if the request was successfully started
  *  %-EBUSY if all chsc subchannels are busy
- *  %-ENODEV if no chsc subchannels are available
+ *  %-EANALDEV if anal chsc subchannels are available
  * Context:
  *  interrupts disabled, chsc_lock held
  */
@@ -206,7 +206,7 @@ static int chsc_async(struct chsc_async_area *chsc_area,
 	int cc;
 	struct chsc_private *private;
 	struct subchannel *sch = NULL;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	char dbf[10];
 
 	chsc_area->header.key = PAGE_DEFAULT_KEY >> 4;
@@ -237,11 +237,11 @@ static int chsc_async(struct chsc_async_area *chsc_area,
 			ret = -EBUSY;
 			break;
 		default:
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		}
 		spin_unlock(&sch->lock);
 		CHSC_MSG(2, "chsc on 0.%x.%04x returned cc=%d\n",
-			 sch->schid.ssid, sch->schid.sch_no, cc);
+			 sch->schid.ssid, sch->schid.sch_anal, cc);
 		if (ret == -EINPROGRESS)
 			return -EINPROGRESS;
 		put_device(&sch->dev);
@@ -291,14 +291,14 @@ static int chsc_ioctl_start(void __user *user_area)
 	char dbf[10];
 
 	if (!css_general_characteristics.dynio)
-		/* It makes no sense to try. */
-		return -EOPNOTSUPP;
+		/* It makes anal sense to try. */
+		return -EOPANALTSUPP;
 	chsc_area = (void *)get_zeroed_page(GFP_DMA | GFP_KERNEL);
 	if (!chsc_area)
-		return -ENOMEM;
+		return -EANALMEM;
 	request = kzalloc(sizeof(*request), GFP_KERNEL);
 	if (!request) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 	init_completion(&request->completion);
@@ -338,12 +338,12 @@ static int chsc_ioctl_on_close_set(void __user *user_area)
 	}
 	on_close_request = kzalloc(sizeof(*on_close_request), GFP_KERNEL);
 	if (!on_close_request) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 	on_close_chsc_area = (void *)get_zeroed_page(GFP_DMA | GFP_KERNEL);
 	if (!on_close_chsc_area) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free_request;
 	}
 	if (copy_from_user(on_close_chsc_area, user_area, PAGE_SIZE)) {
@@ -373,7 +373,7 @@ static int chsc_ioctl_on_close_remove(void)
 
 	mutex_lock(&on_close_mutex);
 	if (!on_close_chsc_area) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out_unlock;
 	}
 	free_page((unsigned long)on_close_chsc_area);
@@ -395,7 +395,7 @@ static int chsc_ioctl_start_sync(void __user *user_area)
 
 	chsc_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!chsc_area)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (copy_from_user(chsc_area, user_area, PAGE_SIZE)) {
 		ret = -EFAULT;
 		goto out_free;
@@ -441,10 +441,10 @@ static int chsc_ioctl_info_channel_path(void __user *user_cd)
 
 	scpcd_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!scpcd_area)
-		return -ENOMEM;
+		return -EANALMEM;
 	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
 	if (!cd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 	if (copy_from_user(cd, user_cd, sizeof(*cd))) {
@@ -503,10 +503,10 @@ static int chsc_ioctl_info_cu(void __user *user_cd)
 
 	scucd_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!scucd_area)
-		return -ENOMEM;
+		return -EANALMEM;
 	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
 	if (!cd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 	if (copy_from_user(cd, user_cd, sizeof(*cd))) {
@@ -566,10 +566,10 @@ static int chsc_ioctl_info_sch_cu(void __user *user_cud)
 
 	sscud_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sscud_area)
-		return -ENOMEM;
+		return -EANALMEM;
 	cud = kzalloc(sizeof(*cud), GFP_KERNEL);
 	if (!cud) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 	if (copy_from_user(cud, user_cud, sizeof(*cud))) {
@@ -581,9 +581,9 @@ static int chsc_ioctl_info_sch_cu(void __user *user_cud)
 	sscud_area->m = cud->schid.m;
 	sscud_area->fmt1 = cud->fmt;
 	sscud_area->ssid = cud->schid.ssid;
-	sscud_area->first_sch = cud->schid.sch_no;
+	sscud_area->first_sch = cud->schid.sch_anal;
 	sscud_area->cssid = cud->schid.cssid;
-	sscud_area->last_sch = cud->schid.sch_no;
+	sscud_area->last_sch = cud->schid.sch_anal;
 
 	ccode = chsc(sscud_area);
 	if (ccode != 0) {
@@ -628,10 +628,10 @@ static int chsc_ioctl_conf_info(void __user *user_ci)
 
 	sci_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sci_area)
-		return -ENOMEM;
+		return -EANALMEM;
 	ci = kzalloc(sizeof(*ci), GFP_KERNEL);
 	if (!ci) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 	if (copy_from_user(ci, user_ci, sizeof(*ci))) {
@@ -699,10 +699,10 @@ static int chsc_ioctl_conf_comp_list(void __user *user_ccl)
 
 	sccl_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sccl_area)
-		return -ENOMEM;
+		return -EANALMEM;
 	ccl = kzalloc(sizeof(*ccl), GFP_KERNEL);
 	if (!ccl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 	if (copy_from_user(ccl, user_ccl, sizeof(*ccl))) {
@@ -759,7 +759,7 @@ static int chsc_ioctl_chpd(void __user *user_chpd)
 	chpd = kzalloc(sizeof(*chpd), GFP_KERNEL);
 	scpd_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!scpd_area || !chpd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 	if (copy_from_user(chpd, user_chpd, sizeof(*chpd))) {
@@ -799,10 +799,10 @@ static int chsc_ioctl_dcal(void __user *user_dcal)
 
 	sdcal_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sdcal_area)
-		return -ENOMEM;
+		return -EANALMEM;
 	dcal = kzalloc(sizeof(*dcal), GFP_KERNEL);
 	if (!dcal) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 	if (copy_from_user(dcal, user_dcal, sizeof(*dcal))) {
@@ -872,23 +872,23 @@ static long chsc_ioctl(struct file *filp, unsigned int cmd,
 		return chsc_ioctl_on_close_set(argp);
 	case CHSC_ON_CLOSE_REMOVE:
 		return chsc_ioctl_on_close_remove();
-	default: /* unknown ioctl number */
-		return -ENOIOCTLCMD;
+	default: /* unkanalwn ioctl number */
+		return -EANALIOCTLCMD;
 	}
 }
 
 static atomic_t chsc_ready_for_use = ATOMIC_INIT(1);
 
-static int chsc_open(struct inode *inode, struct file *file)
+static int chsc_open(struct ianalde *ianalde, struct file *file)
 {
 	if (!atomic_dec_and_test(&chsc_ready_for_use)) {
 		atomic_inc(&chsc_ready_for_use);
 		return -EBUSY;
 	}
-	return nonseekable_open(inode, file);
+	return analnseekable_open(ianalde, file);
 }
 
-static int chsc_release(struct inode *inode, struct file *filp)
+static int chsc_release(struct ianalde *ianalde, struct file *filp)
 {
 	char dbf[13];
 	int ret;
@@ -924,11 +924,11 @@ static const struct file_operations chsc_fops = {
 	.release = chsc_release,
 	.unlocked_ioctl = chsc_ioctl,
 	.compat_ioctl = chsc_ioctl,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static struct miscdevice chsc_misc_device = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "chsc",
 	.fops = &chsc_fops,
 };

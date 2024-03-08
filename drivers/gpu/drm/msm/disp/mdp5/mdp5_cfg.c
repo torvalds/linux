@@ -1351,7 +1351,7 @@ int mdp5_cfg_get_hw_rev(struct mdp5_cfg_handler *cfg_handler)
 }
 
 struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
-		uint32_t major, uint32_t minor)
+		uint32_t major, uint32_t mianalr)
 {
 	struct drm_device *dev = mdp5_kms->dev;
 	struct mdp5_cfg_handler *cfg_handler;
@@ -1360,7 +1360,7 @@ struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
 
 	cfg_handler = devm_kzalloc(dev->dev, sizeof(*cfg_handler), GFP_KERNEL);
 	if (unlikely(!cfg_handler)) {
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	switch (major) {
@@ -1374,25 +1374,25 @@ struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
 		break;
 	default:
 		DRM_DEV_ERROR(dev->dev, "unexpected MDP major version: v%d.%d\n",
-				major, minor);
+				major, mianalr);
 		return ERR_PTR(-ENXIO);
 	}
 
 	/* only after mdp5_cfg global pointer's init can we access the hw */
 	for (i = 0; i < num_handlers; i++) {
-		if (cfg_handlers[i].revision != minor)
+		if (cfg_handlers[i].revision != mianalr)
 			continue;
 		mdp5_cfg = cfg_handlers[i].config.hw;
 
 		break;
 	}
 	if (unlikely(!mdp5_cfg)) {
-		DRM_DEV_ERROR(dev->dev, "unexpected MDP minor revision: v%d.%d\n",
-				major, minor);
+		DRM_DEV_ERROR(dev->dev, "unexpected MDP mianalr revision: v%d.%d\n",
+				major, mianalr);
 		return ERR_PTR(-ENXIO);
 	}
 
-	cfg_handler->revision = minor;
+	cfg_handler->revision = mianalr;
 	cfg_handler->config.hw = mdp5_cfg;
 
 	DBG("MDP5: %s hw config selected", mdp5_cfg->name);

@@ -9,7 +9,7 @@ Envío de parches: la guía esencial para incluir su código en el kernel
 =======================================================================
 
 Para una persona o empresa que desee enviar un cambio al kernel Linux,
-el proceso puede en ocasiones resultar desalentador si no se está
+el proceso puede en ocasiones resultar desalentador si anal se está
 familiarizado con "el sistema". Este texto es una colección de sugerencias
 que pueden aumentar considerablemente las posibilidades de que se acepte su
 cambio.
@@ -24,29 +24,29 @@ elementos a verificar antes de enviar código. Para los parches de
 Documentation/devicetree/bindings/submitting-patches.rst.
 
 Esta documentación asume que está usando ``git`` para preparar sus parches.
-Si no está familiarizado con ``git``, le recomendamos que aprenda a
+Si anal está familiarizado con ``git``, le recomendamos que aprenda a
 usarlo, le hará la vida como desarrollador del kernel y en general mucho
 más sencilla.
 
-Algunos subsistemas y árboles de mantenimiento cuentan con información
+Alguanals subsistemas y árboles de mantenimiento cuentan con información
 adicional sobre su flujo de trabajo y expectativas, consulte
 :ref:`Documentation/process/maintainer-handbooks.rst <maintainer_handbooks_main>`.
 
 Obtenga el código fuente actual
 --------------------------------
 
-Si no tiene a mano un repositorio con el código fuente actual del kernel,
-use ``git`` para obtener uno. Querrá comenzar con el repositorio principal,
+Si anal tiene a maanal un repositorio con el código fuente actual del kernel,
+use ``git`` para obtener uanal. Querrá comenzar con el repositorio principal,
 que se puede descargar con::
 
   git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 
-Tenga en cuenta, sin embargo, que es posible que no desee desarrollar con
+Tenga en cuenta, sin embargo, que es posible que anal desee desarrollar con
 el árbol principal directamente. La mayoría de los maintainers de
 subsistemas usan sus propios árboles de código fuente y quieren ver parches
 preparados para esos árboles. Revise el campo **T:** para el subsistema
 en el archivo MAINTAINERS para encontrar dicho árbol, o simplemente
-pregunte al maintainer si el árbol no está listado allí.
+pregunte al maintainer si el árbol anal está listado allí.
 
 .. _sp_describe_changes:
 
@@ -60,7 +60,7 @@ hay un problema que merece la pena solucionar y de que tiene sentido que
 lea más allá del primer párrafo.
 
 Describa el impacto relativo al usuario. Cosas que estropeen el kernel y
-los bloqueos son bastante convincentes, pero no todos los errores son tan
+los bloqueos son bastante convincentes, pero anal todos los errores son tan
 evidentes. Incluso si se detectó un problema durante la revisión del
 código, describa el impacto que cree pueda tener en los usuarios. Tenga en
 cuenta que la mayoría de instalaciones de Linux ejecutan kernels desde
@@ -73,8 +73,8 @@ latencia, bloqueos, etc.
 
 Cuantifique optimizaciones y beneficios/perdidas. Si asegura mejoras en
 rendimiento, consumo de memoria, huella del stack o tamaño de binario,
-incluya números que lo respalden. Pero también describa costes no obvios.
-Las optimizaciones generalmente no son gratuitas, sino un equilibrio entre
+incluya números que lo respalden. Pero también describa costes anal obvios.
+Las optimizaciones generalmente anal son gratuitas, sianal un equilibrio entre
 CPU, memoria y legibilidad; o, cuando se trata de heurísticas, entre
 diferentes cargas de trabajo. Describa las desventajas esperadas de su
 optimización para que el revisor pueda comparar las perdidas con los
@@ -88,20 +88,20 @@ comportando como se pretende.
 El maintainer le agradecerá que escriba la descripción de su parche en un
 formato que se pueda incorporar fácilmente en la gestión del código fuente
 del sistema, ``git``, como un "commit log" (registros de los commits).
-Consulte :ref:`sp_the_canonical_patch_format`.
+Consulte :ref:`sp_the_caanalnical_patch_format`.
 
 Resuelva solo un problema por parche. Si su descripción comienza a ser muy
 larga, eso es una señal de que probablemente necesite dividir su parche.
 Lea :ref:`split_changes`.
 
 Cuando envíe o vuelva a enviar un parche o una serie de parches, incluya la
-descripción completa del parche y justificación del mismo. No se limite a
-decir que esa es la versión N del parche (serie). No espere que el
+descripción completa del parche y justificación del mismo. Anal se limite a
+decir que esa es la versión N del parche (serie). Anal espere que el
 maintainer del subsistema referencie versiones de parches anteriores o use
 referencias URL para encontrar la descripción del parche y colocarla en el
 parche. Es decir, el parche (serie) y su descripción deben ser
 independientes. Esto beneficia tanto a los maintainers como a los
-revisores. Algunos revisores probablemente ni siquiera recibieran versiones
+revisores. Alguanals revisores probablemente ni siquiera recibieran versiones
 anteriores del parche.
 
 Describa sus cambios en la forma imperativa, por ejemplo, "hacer que xyzzy
@@ -109,7 +109,7 @@ haga frotz" en lugar de "[Este parche] hace que xyzzy haga frotz" o "[Yo]
 Cambié xyzzy para que haga frotz", como si estuviera dando órdenes al
 código fuente para cambiar su comportamiento.
 
-Si desea hacer referencia a un commit específico, no se limite a hacer
+Si desea hacer referencia a un commit específico, anal se limite a hacer
 referencia al ID SHA-1 del commit. Incluya también el resumen de una línea
 del commit, para que sea más fácil para los revisores saber de qué se
 trata.
@@ -119,10 +119,10 @@ Ejemplo::
 	innecesario") eliminó innecesario platform_set_drvdata(), pero dejó la
 	variable "dev" sin usar, bórrese.
 
-También debe asegurarse de utilizar al menos los primeros doce caracteres
+También debe asegurarse de utilizar al meanals los primeros doce caracteres
 del identificador SHA-1. El repositorio del kernel contiene muchos *muchos*
 objetos, por lo que las colisiones con identificaciones más cortas son una
-posibilidad real. Tenga en cuenta que, aunque no hay colisión con su
+posibilidad real. Tenga en cuenta que, aunque anal hay colisión con su
 identificación de seis caracteres ahora, esa condición puede cambiar dentro
 de cinco años.
 
@@ -146,13 +146,13 @@ Verifique el enlace para asegurarse de que realmente funciona y apunta al
 mensaje correspondiente.
 
 Sin embargo, intente que su explicación sea comprensible sin recursos
-externos. Además de dar una URL a un archivo o error de la lista de correo,
+exteranals. Además de dar una URL a un archivo o error de la lista de correo,
 resuma los puntos relevantes de la discusión que condujeron al parche tal y
 como se envió.
 
 Si su parche corrige un error en un commit específico, por ejemplo
 encontró un problema usando ``git bisect``, utilice la etiqueta 'Fixes:'
-con los primeros 12 caracteres del ID SHA-1 y el resumen de una línea. No
+con los primeros 12 caracteres del ID SHA-1 y el resumen de una línea. Anal
 divida la etiqueta en varias líneas, las etiquetas están exentas de la
 regla "ajustar a 75 columnas" para simplificar análisis de scripts. Por
 ejemplo::
@@ -202,10 +202,10 @@ Cuando divida su cambio en una serie de parches, tenga especial cuidado en
 asegurarse de que el kernel se compila y ejecuta correctamente después de
 cada parche en la serie. Los desarrolladores que usan ``git bisect``
 para rastrear un problema pueden terminar dividiendo su serie de parches en
-cualquier punto; no le agradecerán si introdujo errores a la mitad.
+cualquier punto; anal le agradecerán si introdujo errores a la mitad.
 
-Si no puede condensar su conjunto de parches en un conjunto más pequeño de
-parches, solo publique, más o menos 15 a la vez, y espere la revisión e
+Si anal puede condensar su conjunto de parches en un conjunto más pequeño de
+parches, solo publique, más o meanals 15 a la vez, y espere la revisión e
 integración.
 
 
@@ -214,7 +214,7 @@ Revise el estilo en sus cambios
 
 Revise su parche para ver si hay violaciones de estilo básico, cuyos
 detalles pueden ser encontrados en Documentation/process/coding-style.rst.
-No hacerlo simplemente desperdicia el tiempo de los revisores y su parche
+Anal hacerlo simplemente desperdicia el tiempo de los revisores y su parche
 será rechazado, probablemente sin siquiera ser leído.
 
 Una excepción importante es cuando se mueve código de un archivo a otro.
@@ -225,8 +225,8 @@ que las herramientas rastreen mejor el historial del código en sí.
 
 Verifique sus parches con el verificador de estilo de parches antes de
 enviarlos (scripts/checkpatch.pl). Tenga en cuenta, sin embargo, que el
-verificador de estilo debe ser visto como una guía, no como un reemplazo
-del juicio humano. Si su código es mejor con una violación entonces
+verificador de estilo debe ser visto como una guía, anal como un reemplazo
+del juicio humaanal. Si su código es mejor con una violación entonces
 probablemente sea mejor dejarlo estar.
 
 El verificador informa a tres niveles:
@@ -245,36 +245,36 @@ en cualquier parche con código que mantengan; revise a través del archivo
 MAINTAINERS y el historial de revisión del código fuente para ver quiénes
 son esos maintainers. El script scripts/get_maintainer.pl puede ser muy
 útil en este paso (pase rutas a sus parches como argumentos para
-scripts/get_maintainer.pl). Si no puede encontrar un maintainer del
+scripts/get_maintainer.pl). Si anal puede encontrar un maintainer del
 subsistema en el que está trabajando, Andrew Morton
 (akpm@linux-foundation.org) sirve como maintainer de último recurso.
 
-Normalmente, también debe elegir al menos una lista de correo para recibir
+Analrmalmente, también debe elegir al meanals una lista de correo para recibir
 una copia de su conjunto de parches. linux-kernel@vger.kernel.org debe
 usarse de forma predeterminada para todos los parches, pero el volumen en
 esta lista ha hecho que muchos desarrolladores se desconecten. Busque en el
 archivo MAINTAINERS una lista específica de los subsistemas; su parche
-probablemente recibirá más atención allí. Sin embargo, no envíe spam a
-listas no relacionadas.
+probablemente recibirá más atención allí. Sin embargo, anal envíe spam a
+listas anal relacionadas.
 
 Muchas listas relacionadas con el kernel están alojadas en vger.kernel.org;
 puedes encontrar un listado de estas en
 http://vger.kernel.org/vger-lists.html. Existen listas relacionadas con el
-kernel alojadas en otros lugares, no obstante.
+kernel alojadas en otros lugares, anal obstante.
 
-¡No envíe más de 15 parches a la vez a las listas de correo de vger!
+¡Anal envíe más de 15 parches a la vez a las listas de correo de vger!
 
 Linus Torvalds es el árbitro final de todos los cambios aceptados en el
 kernel de Linux. Su dirección de correo electrónico es
 <torvalds@linux-foundation.org>. Recibe muchos correos electrónicos y, en
 este momento, muy pocos parches pasan por Linus directamente, por lo que
-normalmente debe hacer todo lo posible para -evitar- enviarle un correo
+analrmalmente debe hacer todo lo posible para -evitar- enviarle un correo
 electrónico.
 
 Si tiene un parche que corrige un error de seguridad explotable, envíe ese
 parche a security@kernel.org. Para errores graves, se debe mantener un
 poco de discreción y permitir que los distribuidores entreguen el parche a
-los usuarios; en esos casos, obviamente, el parche no debe enviarse a
+los usuarios; en esos casos, obviamente, el parche anal debe enviarse a
 ninguna lista pública. Revise también
 Documentation/process/security-bugs.rst.
 
@@ -283,19 +283,19 @@ hacia los maintainers estables poniendo una línea como esta::
 
   CC: stable@vger.kernel.org
 
-en el área de sign-off de su parche (es decir, NO un destinatario de correo
+en el área de sign-off de su parche (es decir, ANAL un destinatario de correo
 electrónico). También debe leer
 Documentation/process/stable-kernel-rules.rst además de este documento.
 
 Si los cambios afectan las interfaces del kernel para el usuario, envíe al
 maintainer de las MAN-PAGES (como se indica en el archivo MAINTAINERS) un
-parche de páginas de manual, o al menos una notificación del cambio, para
+parche de páginas de manual, o al meanals una analtificación del cambio, para
 que alguna información se abra paso en las páginas del manual. Los cambios
 de la API del espacio de usuario también deben copiarse en
 linux-api@vger.kernel.org.
 
 
-Sin MIME, enlaces, compresión o archivos adjuntos. Solo texto plano
+Sin MIME, enlaces, compresión o archivos adjuntos. Solo texto plaanal
 --------------------------------------------------------------------
 
 Linus y otros desarrolladores del kernel deben poder leer y comentar sobre
@@ -309,15 +309,15 @@ Por este motivo, todos los parches deben enviarse por correo electrónico
 es muy recomendable. Un tutorial interactivo para ``git send-email`` está
 disponible en https://git-send-email.io.
 
-Si elige no usar ``git send-email``:
+Si elige anal usar ``git send-email``:
 
 .. warning::
 
   Tenga cuidado con el ajuste de palabras de su editor que corrompe su
   parche, si elige cortar y pegar su parche.
 
-No adjunte el parche como un archivo adjunto MIME, comprimido o no. Muchas
-populares aplicaciones de correo electrónico no siempre transmiten un MIME
+Anal adjunte el parche como un archivo adjunto MIME, comprimido o anal. Muchas
+populares aplicaciones de correo electrónico anal siempre transmiten un MIME
 archivo adjunto como texto sin formato, por lo que es imposible comentar
 en su código. Linus también necesita un poco más de tiempo para procesar un
 archivo adjunto MIME, disminuyendo la probabilidad de que se acepte su
@@ -335,10 +335,10 @@ Responda a los comentarios de revisión
 
 Es casi seguro que su parche recibirá comentarios de los revisores sobre
 maneras en que se pueda mejorar el parche, en forma de respuesta a su
-correo electrónico. Debe responder a esos comentarios; ignorar a los
-revisores es una buena manera de ser ignorado de vuelta. Simplemente puede
+correo electrónico. Debe responder a esos comentarios; iganalrar a los
+revisores es una buena manera de ser iganalrado de vuelta. Simplemente puede
 responder a sus correos electrónicos para contestar a sus comentarios.
-Revisiones a los comentarios o preguntas que no conduzcan a un cambio de
+Revisiones a los comentarios o preguntas que anal conduzcan a un cambio de
 código deben casi con certeza generar un comentario o una entrada en el
 "changelog" para que el próximo revisor entienda lo que está pasando.
 
@@ -350,23 +350,23 @@ que hayan señalado. Al enviar un siguiente versión, agregue un
 ``patch changelog`` (registro de cambios en los parches) a la carta de
 presentación ("cover letter") o a parches individuales explicando la
 diferencia con la presentación anterior (ver
-:ref:`sp_the_canonical_patch_format`).
+:ref:`sp_the_caanalnical_patch_format`).
 
 Consulte Documentation/process/email-clients.rst para obtener
-recomendaciones sobre clientes de correo electrónico y normas de etiqueta
+recomendaciones sobre clientes de correo electrónico y analrmas de etiqueta
 en la lista de correo.
 
 .. _sp_resend_reminders:
 
-No se desanime o impaciente
+Anal se desanime o impaciente
 ---------------------------
 
 Después de haber entregado su cambio, sea paciente y espere. Los revisores
-son personas ocupadas y es posible que no lleguen a su parche de inmediato.
+son personas ocupadas y es posible que anal lleguen a su parche de inmediato.
 
 Érase una vez, los parches solían desaparecer en el vacío sin comentarios,
 pero el proceso de desarrollo funciona mejor que eso ahora. Debería
-recibir comentarios dentro de una semana más o menos; si eso no sucede,
+recibir comentarios dentro de una semana más o meanals; si eso anal sucede,
 asegúrese de que ha enviado sus parches al lugar correcto. Espere un mínimo
 de una semana antes de volver a enviar o hacer ping a los revisores,
 posiblemente más durante periodos de mucho trabajo ocupados como "merge
@@ -378,9 +378,9 @@ de asunto::
 
    [PATCH Vx RESEND] sub/sys: Resumen condensado de parche
 
-No incluya "RESEND" cuando envíe una versión modificada de su parche o
+Anal incluya "RESEND" cuando envíe una versión modificada de su parche o
 serie de parches: "RESEND" solo se aplica al reenvío de un parche o serie
-de parches que no hayan sido modificados de ninguna manera con respecto a
+de parches que anal hayan sido modificados de ninguna manera con respecto a
 la presentación anterior.
 
 
@@ -399,7 +399,7 @@ Firme su trabajo: el Certificado de Origen del Desarrollador
 ------------------------------------------------------------
 
 Para mejorar el seguimiento de quién hizo qué, especialmente con parches
-que pueden filtrarse hasta su destino final a través de varias capas de
+que pueden filtrarse hasta su destianal final a través de varias capas de
 maintainers, hemos introducido un procedimiento de "sign-off" (aprobación)
 en parches que se envían por correo electrónico.
 
@@ -426,7 +426,7 @@ Al hacer una contribución a este proyecto, certifico que:
             tal y como se indica en el documento; o
 
         (c) La contribución me fue proporcionada directamente por alguna
-            otra persona que certificó (a), (b) o (c) y no he modificado
+            otra persona que certificó (a), (b) o (c) y anal he modificado
             esto.
 
         (d) Entiendo y acepto que este proyecto y la contribución
@@ -440,18 +440,18 @@ entonces simplemente incluya una línea que rece::
 
 	Signed-off-by: Random J Developer <random@developer.example.org>
 
-usando su nombre real (lamentablemente, no pseudónimos ni contribuciones
+usando su analmbre real (lamentablemente, anal pseudónimos ni contribuciones
 anónimas). Esto se hará por usted automáticamente si usa ``git commit -s``.
 Las reversiones de código también deben incluir "Signed-off-by".
 ``git revert -s`` hace eso por usted.
 
 Algunas personas también ponen etiquetas adicionales al final. Simplemente
-serán ignoradas por ahora, pero puede hacer esto para marcar procedimientos
-internos de su empresa o simplemente señalar algún detalle especial sobre
+serán iganalradas por ahora, pero puede hacer esto para marcar procedimientos
+interanals de su empresa o simplemente señalar algún detalle especial sobre
 la firma.
 
 Cualquier otro SoB (Signed-off-by:) después del SoB del autor es de
-personas que manipulen y transporten el parche, pero no participaron en su
+personas que manipulen y transporten el parche, pero anal participaron en su
 desarrollo. Las cadenas de SoB deben reflejar la ruta **real** del parche
 de cómo se propagó a los maintainers y, en última instancia, a Linus, con
 la primera entrada de SoB que señala la autoría principal de un solo autor.
@@ -461,44 +461,44 @@ Cuándo usar Acked-by:, Cc: y Co-developed-by por:
 -------------------------------------------------
 
 La etiqueta Signed-off-by: indica que el firmante estuvo involucrado en el
-desarrollo del parche, o que él/ella se encontraba en el camino de entrega
+desarrollo del parche, o que él/ella se encontraba en el camianal de entrega
 del parche.
 
-Si una persona no estuvo directamente involucrada en la preparación o
+Si una persona anal estuvo directamente involucrada en la preparación o
 administración de un parche pero desea expresar y registrar su aprobación,
 entonces puede pedir que se agregue una línea Acked-by: al registro de
 cambios del parche.
 
 Acked-by: a menudo lo usa el maintainer del código afectado cuando ese
-maintainer no contribuyó ni envió el parche.
+maintainer anal contribuyó ni envió el parche.
 
-Acked-by: no es tan formal como Signed-off-by:. Es una manera de marcar que
-el "acker" ha revisado al menos ese parche y ha indicado su aceptación. Por
+Acked-by: anal es tan formal como Signed-off-by:. Es una manera de marcar que
+el "acker" ha revisado al meanals ese parche y ha indicado su aceptación. Por
 los merge de parches a veces convertirán manualmente el "sí, me parece bien"
 de un acker en un Acked-by: (pero tenga en cuenta que por lo general es
 mejor pedir un acuse de recibo explícito).
 
-Acked-by: no necesariamente indica el reconocimiento de todo el parche.
+Acked-by: anal necesariamente indica el recoanalcimiento de todo el parche.
 Por ejemplo, si un parche afecta a varios subsistemas y tiene un
 Acked-by: de un maintainer del subsistema, entonces esto generalmente
-indica el reconocimiento de solo la parte que afecta el código de ese
+indica el recoanalcimiento de solo la parte que afecta el código de ese
 maintainer. Buen juicio debe ejercitarse aquí. En caso de duda, la gente
 debe consultar la discusión original en los archivos de la lista de correo.
 
-Si una persona ha tenido la oportunidad de comentar un parche, pero no lo
+Si una persona ha tenido la oportunidad de comentar un parche, pero anal lo
 ha hecho, puede incluir opcionalmente una etiqueta ``Cc:`` al parche.
 Esta es la única etiqueta que se puede agregar sin una acción explícita por
-parte de la persona a la que se nombre - pero debe indicar que esta persona
+parte de la persona a la que se analmbre - pero debe indicar que esta persona
 fue copiada en el parche. Esta etiqueta documenta que las partes
 potencialmente interesadas han sido incluidas en la discusión.
 
 Co-developed-by: establece que el parche fue co-creado por múltiples
 desarrolladores; se utiliza para dar atribución a los coautores (además del
 autor atribuido por la etiqueta From:) cuando varias personas trabajan en
-un solo parche. Ya que Co-developed-by: denota autoría, cada
+un solo parche. Ya que Co-developed-by: deanalta autoría, cada
 Co-developed-by: debe ser inmediatamente seguido de Signed-off-by: del
 coautor asociado. Se mantiene el procedimiento estándar, es decir, el orden
-de las etiquetas Signed-off-by: debe reflejar el historial cronológico del
+de las etiquetas Signed-off-by: debe reflejar el historial croanallógico del
 parche en la medida de lo posible, independientemente de si el autor se
 atribuye a través de From: o Co-developed-by:. Cabe destacar que el último
 Signed-off-by: siempre debe ser del desarrollador que envía el parche.
@@ -535,11 +535,11 @@ Uso de Reported-by:, Tested-by:, Reviewed-by:, Suggested-by: y Fixes:
 La etiqueta Reported-by (Reportado-por) otorga crédito a las personas que
 encuentran errores y los reportan. Por favor, tenga en cuenta que si se
 informó de un error en privado, debe pedir primero permiso antes de usar la
-etiqueta Reported-by. La etiqueta está destinada a errores; por favor no la
+etiqueta Reported-by. La etiqueta está destinada a errores; por favor anal la
 use para acreditar peticiones de características.
 
 Una etiqueta Tested-by: indica que el parche se probó con éxito (en algún
-entorno) por la persona nombrada. Esta etiqueta informa a los maintainers
+entoranal) por la persona analmbrada. Esta etiqueta informa a los maintainers
 de que se han realizado algunas pruebas, proporciona un medio para ubicar
 "testers" (gente que pruebe) otros parches futuros y asegura el crédito
 para los testers.
@@ -562,11 +562,11 @@ con la respuesta del remitente a mis comentarios.
 
 (c) Si bien puede haber cosas que podrían mejorarse con esta
 entrega, creo que es, en este momento, (1) una
-modificación valiosa al kernel, y (2) libre de conocidas
+modificación valiosa al kernel, y (2) libre de coanalcidas
 cuestiones que argumentarían en contra de su inclusión.
 
 (d) Si bien he revisado el parche y creo que es correcto,
-no hago (a menos que se indique explícitamente en otro lugar) ninguna
+anal hago (a meanals que se indique explícitamente en otro lugar) ninguna
 garantía o avales de que logrará su definido
 propósito o función en cualquier situación dada.
 
@@ -576,25 +576,25 @@ a nivel técnico. Cualquier revisor interesado (que haya hecho el trabajo)
 puede ofrecer una etiqueta Reviewed-by para un parche. Esta etiqueta sirve
 para dar crédito a revisores e informar a los maintainers del grado de
 revisión que se ha hecho en el parche. Las etiquetas Reviewed-by, cuando
-las otorgan revisores conocidos por entender del tema y realizar
-revisiones exhaustivas, normalmente aumentan la probabilidad de que su
+las otorgan revisores coanalcidos por entender del tema y realizar
+revisiones exhaustivas, analrmalmente aumentan la probabilidad de que su
 parche entre en el kernel.
 
 Las etiquetas Tested-by y Reviewed-by, una vez recibidas en la lista de
 correo por el tester o revisor, deben ser incluidas por el autor de los
 parches pertinentes al enviar próximas versiones. Sin embargo, si el parche
 ha cambiado sustancialmente en la siguiente versión, es posible que estas
-etiquetas ya no sean aplicables y, por lo tanto, deben eliminarse. Por lo
+etiquetas ya anal sean aplicables y, por lo tanto, deben eliminarse. Por lo
 general, se debe mencionar la eliminación de las etiquetas Tested-by o
 Reviewed-by de alguien en el registro de cambios del parche (después del
 separador '---').
 
 Una etiqueta Suggested-by: indica que la idea del parche es sugerida por la
-persona nombrada y asegura el crédito a la persona por la idea. Tenga en
-cuenta que esto no debe agregarse sin el permiso del "reporter",
-especialmente si la idea no fue publicada en un foro público. Dicho esto,
+persona analmbrada y asegura el crédito a la persona por la idea. Tenga en
+cuenta que esto anal debe agregarse sin el permiso del "reporter",
+especialmente si la idea anal fue publicada en un foro público. Dicho esto,
 si diligentemente acreditamos a los reporters de ideas, con suerte, se
-sentirán inspirados para ayudarnos nuevamente en el futuro.
+sentirán inspirados para ayudaranals nuevamente en el futuro.
 
 Una etiqueta Fixes: indica que el parche corrige un problema en un commit
 anterior. Esto se utiliza para facilitar descubrir dónde se originó un
@@ -604,12 +604,12 @@ versiones estables del kernel deberían recibir su corrección. Este es el
 método preferido para indicar un error corregido por el parche. Revise
 :ref:`describe_changes` para más detalles.
 
-Nota: Adjuntar una etiqueta Fixes: no subvierte las reglas estables del
+Analta: Adjuntar una etiqueta Fixes: anal subvierte las reglas estables del
 proceso del kernel ni el requisito de CC: stable@vger.kernel.org en todos
 los parches candidatos de ramas estables. Para obtener más información, lea
 Documentation/process/stable-kernel-rules.rst.
 
-.. _sp_the_canonical_patch_format:
+.. _sp_the_caanalnical_patch_format:
 
 Formato de parche canónico
 ---------------------------
@@ -617,7 +617,7 @@ Formato de parche canónico
 Esta sección describe cómo debe darse formato al propio parche. Tenga en
 cuenta que, si tiene sus parches almacenados en un repositorio ``git``, el
 parche con formato adecuado se puede obtener con ``git format-patch``. Las
-herramientas no pueden crear el texto necesario, sin embargo, así que lea
+herramientas anal pueden crear el texto necesario, sin embargo, así que lea
 las instrucciones a continuación de todos modos.
 
 La línea de asunto del parche canónico es::
@@ -627,7 +627,7 @@ La línea de asunto del parche canónico es::
 El cuerpo del mensaje del parche canónico contiene lo siguiente:
 
   - Una línea ``from`` que especifica el autor del parche, seguida de una
-    línea vacía (solo es necesario si la persona que envía el parche no es
+    línea vacía (solo es necesario si la persona que envía el parche anal es
     el autor).
 
   - El cuerpo de la explicación, línea envuelta en 75 columnas, que se
@@ -640,7 +640,7 @@ El cuerpo del mensaje del parche canónico contiene lo siguiente:
 
   - Una línea de marcador que contiene simplemente ``---``.
 
-  - Cualquier comentario adicional que no sea adecuado para el registro de
+  - Cualquier comentario adicional que anal sea adecuado para el registro de
     cambios.
 
   - El parche real (output de ``diff``).
@@ -655,7 +655,7 @@ El ``subsistema`` en el asunto del correo electrónico debe identificar qué
 
 La ``frase de resumen`` en el Asunto del correo electrónico debe describir
 de forma concisa el parche que contiene ese correo electrónico. La
-``frase resumen`` no debe ser un nombre de archivo. No use la mismo ``frase
+``frase resumen`` anal debe ser un analmbre de archivo. Anal use la mismo ``frase
 resumen`` para cada parche en una serie completa de parches (donde una
 `` serie de parches`` (patch series) es una secuencia ordenada de múltiples
 parches relacionados).
@@ -670,14 +670,14 @@ podrá ver rápidamente cuando, dos o tres meses después, estén pasando por
 quizás miles de parches usando herramientas como ``gitk`` o ``git log
 --oneline``.
 
-Por estas razones, el ``resumen`` no debe tener más de 70-75 caracteres, y
+Por estas razones, el ``resumen`` anal debe tener más de 70-75 caracteres, y
 debe describir tanto lo que cambia el parche como por qué el parche podría
 ser necesario. Es un reto ser tanto sucinto como descriptivo, pero eso es
 lo que un resumen bien escrito debería hacer.
 
 La ``frase de resumen`` puede estar precedida por etiquetas encerradas en
 corchetes: "Asunto: [PATCH <etiqueta>...] <frase de resumen>". Las
-etiquetas no se consideran parte de la frase de resumen, pero describen
+etiquetas anal se consideran parte de la frase de resumen, pero describen
 cómo debería ser tratado el parche. Las etiquetas comunes pueden incluir un
 descriptor de versión si las múltiples versiones del parche se han enviado
 en respuesta a comentarios (es decir, "v1, v2, v3") o "RFC" para indicar
@@ -688,7 +688,7 @@ pueden enumerarse así: 1/4, 2/4, 3/4, 4/4. Esto asegura que los
 desarrolladores entiendan el orden en que se deben aplicar los parches y
 que han revisado o aplicado todos los parches de la serie de parches.
 
-Aquí hay algunos buenos ejemplos de Asuntos::
+Aquí hay alguanals bueanals ejemplos de Asuntos::
 
     Asunto: [PATCH 2/5] ext2: mejorar la escalabilidad de la búsqueda de mapas de bits
     Asunto: [PATCH v2 27/01] x86: corregir el seguimiento de eflags
@@ -716,7 +716,7 @@ con tal detalle que cuando se lea semanas, meses o incluso años después,
 pueda dar al lector la información necesaria y detalles para comprender el
 razonamiento de **por qué** se creó el parche.
 
-Si un parche corrige una falla de compilación, puede que no sea necesario
+Si un parche corrige una falla de compilación, puede que anal sea necesario
 incluir _todos_ los errores de compilación; pero lo suficiente como para
 que sea probable que alguien que busque el parche puede encontrarlo. Como
 en la ``frase de resumen``, es importante ser tanto sucinto como
@@ -731,20 +731,20 @@ para ``diffstat``, para mostrar qué archivos han cambiado, y el número de
 líneas insertadas y eliminadas por archivo. Un ``diffstat`` es
 especialmente útil en parches más grandes. Si va a incluir un ``diffstat``
 después del marcador ``---``, utilice las opciones ``diffstat``
-``-p 1 -w 70`` para que los nombres de archivo se enumeran desde la parte
-superior del árbol de fuentes del kernel y no use demasiado espacio
+``-p 1 -w 70`` para que los analmbres de archivo se enumeran desde la parte
+superior del árbol de fuentes del kernel y anal use demasiado espacio
 horizontal (que encaje fácilmente en 80 columnas, tal vez con alguna
 indentación). (``git`` genera diffstats apropiados por defecto).
 
 Otros comentarios relevantes solo en el momento o para el maintainer, pero
-no adecuados para el registro de cambios permanente, también debe ir aquí.
+anal adecuados para el registro de cambios permanente, también debe ir aquí.
 Un buen ejemplo de tales comentarios podría ser ``registros de cambios de
 parches`` que describen qué ha cambiado entre la versión v1 y v2 del
 parche.
 
 Por favor, ponga esta información **después** de la línea ``---`` que
 separa el registro de cambios del resto del parche. La información de la
-versión no forma parte del registro de cambios que se incluye con el árbol
+versión anal forma parte del registro de cambios que se incluye con el árbol
 git. Es información adicional para los revisores. Si se coloca encima de la
 etiquetas de commit, necesita interacción manual para eliminarlo. Si esta
 debajo de la línea de separación, se quita automáticamente al aplicar el
@@ -768,8 +768,8 @@ referencias
 Retrocesos en mensajes de confirmación
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Los "backtraces" (deshacer el camino) ayuda a documentar la cadena de
-llamadas que conducen a un problema. Sin embargo, no todos los rastreos son
+Los "backtraces" (deshacer el camianal) ayuda a documentar la cadena de
+llamadas que conducen a un problema. Sin embargo, anal todos los rastreos son
 útiles. Por ejemplo, las tempranas cadenas de llamadas de inicio son únicas
 y obvias. Sin embargo, al copiar la salida completa de dmesg textualmente,
 incluye información que distrae, como marcas de tiempo, listas de módulos,
@@ -780,7 +780,7 @@ relevantes de la información vertida, lo que hace que sea más fácil
 centrarse en el verdadero tema. Este es un ejemplo de un backtrace bien
 recortado::
 
-  error de acceso de MSR no verificado: WRMSR a 0xd51 (intentó escribir 0x0000000000000064)
+  error de acceso de MSR anal verificado: WRMSR a 0xd51 (intentó escribir 0x0000000000000064)
   en rIP: 0xffffffffae059994 (native_write_msr+0x4/0x20)
   Rastreo de llamadas:
   mba_wrmsr
@@ -798,7 +798,7 @@ discusión anterior relevante, por ejemplo para vincular una corrección de
 errores al correo electrónico con el informe de errores. Sin embargo, para
 una serie de parches múltiples, generalmente es mejor evitar usar
 In-Reply-To: para vincular a versiones anteriores de la serie. De esta
-forma, varias versiones del parche no se convierten en un inmanejable
+forma, varias versiones del parche anal se convierten en un inmanejable
 bosque de referencias en clientes de correo electrónico. Si un enlace es
 útil, puede usar el redirector https://lore.kernel.org/ (por ejemplo, en
 el texto de la carta de introducción del correo electrónico) para vincular
@@ -845,11 +845,11 @@ correctamente ``git am`` sin preocuparse por los conflictos::
 Consulte ``man git-format-patch`` para obtener más información al respecto
 de esta opción.
 
-.. Note::
+.. Analte::
 
     La función ``--base`` se introdujo en la versión 2.9.0 de git.
 
-Si no está utilizando git para dar forma a sus parches, aún puede incluir
+Si anal está utilizando git para dar forma a sus parches, aún puede incluir
 el mismo tráiler ``base-commit`` para indicar el hash de confirmación del
 árbol en que se basa su trabajo. Debe agregarlo en la carta de presentación
 o en el primer parche de la serie y debe colocarse ya sea bajo la línea
@@ -879,7 +879,7 @@ Referencias
 
   <http://www.kroah.com/log/linux/maintainer-06.html>
 
-NO!!!! Gente, no mas bombas enormes de parches a linux-kernel@vger.kernel.org!
+ANAL!!!! Gente, anal mas bombas eanalrmes de parches a linux-kernel@vger.kernel.org!
   <https://lore.kernel.org/r/20050711.125305.08322243.davem@davemloft.net>
 
 Kernel Documentation/process/coding-style.rst

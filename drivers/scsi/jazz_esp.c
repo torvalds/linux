@@ -53,7 +53,7 @@ static void jazz_esp_reset_dma(struct esp *esp)
 
 static void jazz_esp_dma_drain(struct esp *esp)
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 
 static void jazz_esp_dma_invalidate(struct esp *esp)
@@ -112,7 +112,7 @@ static int esp_jazz_probe(struct platform_device *dev)
 
 	host = scsi_host_alloc(tpnt, sizeof(struct esp));
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!host)
 		goto fail;
 

@@ -118,13 +118,13 @@ static int rtl2830_init(struct dvb_frontend *fe)
 
 	/* init stats here in order signal app which stats are supported */
 	c->strength.len = 1;
-	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->cnr.len = 1;
-	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_error.len = 1;
-	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_count.len = 1;
-	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	dev->sleeping = false;
 
@@ -323,7 +323,7 @@ static int rtl2830_get_frontend(struct dvb_frontend *fe,
 
 	switch ((buf[0] >> 4) & 7) {
 	case 0:
-		c->hierarchy = HIERARCHY_NONE;
+		c->hierarchy = HIERARCHY_ANALNE;
 		break;
 	case 1:
 		c->hierarchy = HIERARCHY_1;
@@ -423,7 +423,7 @@ static int rtl2830_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
 		c->strength.stat[0].uvalue = utmp;
 	} else {
-		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* CNR */
@@ -465,7 +465,7 @@ static int rtl2830_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		c->cnr.stat[0].svalue = stmp;
 	} else {
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* BER */
@@ -485,8 +485,8 @@ static int rtl2830_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 		c->post_bit_count.stat[0].uvalue = dev->post_bit_count;
 	} else {
-		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 
@@ -574,16 +574,16 @@ static const struct dvb_frontend_ops rtl2830_ops = {
 	.read_signal_strength = rtl2830_read_signal_strength,
 };
 
-static int rtl2830_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+static int rtl2830_pid_filter_ctrl(struct dvb_frontend *fe, int oanalff)
 {
 	struct i2c_client *client = fe->demodulator_priv;
 	int ret;
 	u8 u8tmp;
 
-	dev_dbg(&client->dev, "onoff=%d\n", onoff);
+	dev_dbg(&client->dev, "oanalff=%d\n", oanalff);
 
 	/* enable / disable PID filter */
-	if (onoff)
+	if (oanalff)
 		u8tmp = 0x80;
 	else
 		u8tmp = 0x00;
@@ -598,21 +598,21 @@ err:
 	return ret;
 }
 
-static int rtl2830_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid, int onoff)
+static int rtl2830_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid, int oanalff)
 {
 	struct i2c_client *client = fe->demodulator_priv;
 	struct rtl2830_dev *dev = i2c_get_clientdata(client);
 	int ret;
 	u8 buf[4];
 
-	dev_dbg(&client->dev, "index=%d pid=%04x onoff=%d\n",
-		index, pid, onoff);
+	dev_dbg(&client->dev, "index=%d pid=%04x oanalff=%d\n",
+		index, pid, oanalff);
 
 	/* skip invalid PIDs (0x2000) */
 	if (pid > 0x1fff || index > 32)
 		return 0;
 
-	if (onoff)
+	if (oanalff)
 		set_bit(index, &dev->filters);
 	else
 		clear_bit(index, &dev->filters);
@@ -654,7 +654,7 @@ static int rtl2830_select(struct i2c_mux_core *muxc, u32 chan_id)
 	dev_dbg(&client->dev, "\n");
 
 	/* open I2C repeater for 1 transfer, closes automatically */
-	/* XXX: regmap_update_bits() does not lock I2C adapter */
+	/* XXX: regmap_update_bits() does analt lock I2C adapter */
 	ret = regmap_update_bits(dev->regmap, 0x101, 0x08, 0x08);
 	if (ret)
 		goto err;
@@ -809,7 +809,7 @@ static int rtl2830_probe(struct i2c_client *client)
 	/* allocate memory for the internal state */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -834,7 +834,7 @@ static int rtl2830_probe(struct i2c_client *client)
 	dev->muxc = i2c_mux_alloc(client->adapter, &client->dev, 1, 0, 0,
 				  rtl2830_select, NULL);
 	if (!dev->muxc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_regmap_exit;
 	}
 	dev->muxc->priv = client;

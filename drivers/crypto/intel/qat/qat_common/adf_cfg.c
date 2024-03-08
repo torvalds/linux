@@ -70,7 +70,7 @@ int adf_cfg_dev_add(struct adf_accel_dev *accel_dev)
 
 	dev_cfg_data = kzalloc(sizeof(*dev_cfg_data), GFP_KERNEL);
 	if (!dev_cfg_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(&dev_cfg_data->sec_list);
 	init_rwsem(&dev_cfg_data->lock);
 	accel_dev->cfg = dev_cfg_data;
@@ -228,7 +228,7 @@ static int adf_cfg_key_val_get(struct adf_accel_dev *accel_dev,
 		memcpy(val, keyval->val, ADF_CFG_MAX_VAL_LEN_IN_BYTES);
 		return 0;
 	}
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 /**
@@ -262,7 +262,7 @@ int adf_cfg_add_key_value_param(struct adf_accel_dev *accel_dev,
 
 	key_val = kzalloc(sizeof(*key_val), GFP_KERNEL);
 	if (!key_val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&key_val->list);
 	strscpy(key_val->key, key, sizeof(key_val->key));
@@ -276,7 +276,7 @@ int adf_cfg_add_key_value_param(struct adf_accel_dev *accel_dev,
 		snprintf(key_val->val, ADF_CFG_MAX_VAL_LEN_IN_BYTES,
 			 "0x%lx", (unsigned long)val);
 	} else {
-		dev_err(&GET_DEV(accel_dev), "Unknown type given.\n");
+		dev_err(&GET_DEV(accel_dev), "Unkanalwn type given.\n");
 		kfree(key_val);
 		return -EINVAL;
 	}
@@ -327,7 +327,7 @@ int adf_cfg_section_add(struct adf_accel_dev *accel_dev, const char *name)
 
 	sec = kzalloc(sizeof(*sec), GFP_KERNEL);
 	if (!sec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strscpy(sec->name, name, sizeof(sec->name));
 	INIT_LIST_HEAD(&sec->param_head);

@@ -7,7 +7,7 @@
  */
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -19,10 +19,10 @@ struct syscon_reboot_context {
 	u32 offset;
 	u32 value;
 	u32 mask;
-	struct notifier_block restart_handler;
+	struct analtifier_block restart_handler;
 };
 
-static int syscon_restart_handle(struct notifier_block *this,
+static int syscon_restart_handle(struct analtifier_block *this,
 					unsigned long mode, void *cmd)
 {
 	struct syscon_reboot_context *ctx =
@@ -35,7 +35,7 @@ static int syscon_restart_handle(struct notifier_block *this,
 	mdelay(1000);
 
 	pr_emerg("Unable to restart system\n");
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int syscon_reboot_probe(struct platform_device *pdev)
@@ -48,23 +48,23 @@ static int syscon_reboot_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ctx->map = syscon_regmap_lookup_by_phandle(dev->of_node, "regmap");
+	ctx->map = syscon_regmap_lookup_by_phandle(dev->of_analde, "regmap");
 	if (IS_ERR(ctx->map)) {
-		ctx->map = syscon_node_to_regmap(dev->parent->of_node);
+		ctx->map = syscon_analde_to_regmap(dev->parent->of_analde);
 		if (IS_ERR(ctx->map))
 			return PTR_ERR(ctx->map);
 	}
 
-	if (of_property_read_s32(pdev->dev.of_node, "priority", &priority))
+	if (of_property_read_s32(pdev->dev.of_analde, "priority", &priority))
 		priority = 192;
 
-	if (of_property_read_u32(pdev->dev.of_node, "offset", &ctx->offset))
+	if (of_property_read_u32(pdev->dev.of_analde, "offset", &ctx->offset))
 		return -EINVAL;
 
-	value_err = of_property_read_u32(pdev->dev.of_node, "value", &ctx->value);
-	mask_err = of_property_read_u32(pdev->dev.of_node, "mask", &ctx->mask);
+	value_err = of_property_read_u32(pdev->dev.of_analde, "value", &ctx->value);
+	mask_err = of_property_read_u32(pdev->dev.of_analde, "mask", &ctx->mask);
 	if (value_err && mask_err) {
 		dev_err(dev, "unable to read 'value' and 'mask'");
 		return -EINVAL;
@@ -79,11 +79,11 @@ static int syscon_reboot_probe(struct platform_device *pdev)
 		ctx->mask = 0xFFFFFFFF;
 	}
 
-	ctx->restart_handler.notifier_call = syscon_restart_handle;
+	ctx->restart_handler.analtifier_call = syscon_restart_handle;
 	ctx->restart_handler.priority = priority;
 	err = register_restart_handler(&ctx->restart_handler);
 	if (err)
-		dev_err(dev, "can't register restart notifier (err=%d)\n", err);
+		dev_err(dev, "can't register restart analtifier (err=%d)\n", err);
 
 	return err;
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  Card-specific functions for the Siano SMS1xxx USB dongle
+ *  Card-specific functions for the Siaanal SMS1xxx USB dongle
  *
  *  Copyright (c) 2008 Michael Krufky <mkrufky@linuxtv.org>
  */
@@ -13,27 +13,27 @@
 #include <linux/usb.h>
 #include "smsir.h"
 
-#define SMS_BOARD_UNKNOWN 0
-#define SMS1XXX_BOARD_SIANO_STELLAR 1
-#define SMS1XXX_BOARD_SIANO_NOVA_A  2
-#define SMS1XXX_BOARD_SIANO_NOVA_B  3
-#define SMS1XXX_BOARD_SIANO_VEGA    4
+#define SMS_BOARD_UNKANALWN 0
+#define SMS1XXX_BOARD_SIAANAL_STELLAR 1
+#define SMS1XXX_BOARD_SIAANAL_ANALVA_A  2
+#define SMS1XXX_BOARD_SIAANAL_ANALVA_B  3
+#define SMS1XXX_BOARD_SIAANAL_VEGA    4
 #define SMS1XXX_BOARD_HAUPPAUGE_CATAMOUNT 5
 #define SMS1XXX_BOARD_HAUPPAUGE_OKEMO_A 6
 #define SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B 7
 #define SMS1XXX_BOARD_HAUPPAUGE_WINDHAM 8
 #define SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD 9
 #define SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2 10
-#define SMS1XXX_BOARD_SIANO_NICE	11
-#define SMS1XXX_BOARD_SIANO_VENICE	12
-#define SMS1XXX_BOARD_SIANO_STELLAR_ROM 13
+#define SMS1XXX_BOARD_SIAANAL_NICE	11
+#define SMS1XXX_BOARD_SIAANAL_VENICE	12
+#define SMS1XXX_BOARD_SIAANAL_STELLAR_ROM 13
 #define SMS1XXX_BOARD_ZTE_DVB_DATA_CARD	14
 #define SMS1XXX_BOARD_ONDA_MDTV_DATA_CARD 15
-#define SMS1XXX_BOARD_SIANO_MING	16
-#define SMS1XXX_BOARD_SIANO_PELE	17
-#define SMS1XXX_BOARD_SIANO_RIO		18
-#define SMS1XXX_BOARD_SIANO_DENVER_1530	19
-#define SMS1XXX_BOARD_SIANO_DENVER_2160 20
+#define SMS1XXX_BOARD_SIAANAL_MING	16
+#define SMS1XXX_BOARD_SIAANAL_PELE	17
+#define SMS1XXX_BOARD_SIAANAL_RIO		18
+#define SMS1XXX_BOARD_SIAANAL_DENVER_1530	19
+#define SMS1XXX_BOARD_SIAANAL_DENVER_2160 20
 #define SMS1XXX_BOARD_PCTV_77E		21
 
 struct sms_board_gpio_cfg {
@@ -119,8 +119,8 @@ int sms_board_setup(struct smscore_device_t *coredev);
 #define SMS_LED_LO  1
 #define SMS_LED_HI  2
 int sms_board_led_feedback(struct smscore_device_t *coredev, int led);
-int sms_board_power(struct smscore_device_t *coredev, int onoff);
-int sms_board_lna_control(struct smscore_device_t *coredev, int onoff);
+int sms_board_power(struct smscore_device_t *coredev, int oanalff);
+int sms_board_lna_control(struct smscore_device_t *coredev, int oanalff);
 
 extern int sms_board_load_modules(int id);
 

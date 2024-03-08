@@ -9,7 +9,7 @@
  */
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -756,7 +756,7 @@ static const struct pinctrl_ops lochnagar_pin_group_ops = {
 	.get_groups_count = lochnagar_get_groups_count,
 	.get_group_name = lochnagar_get_group_name,
 	.get_group_pins = lochnagar_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -827,7 +827,7 @@ static int lochnagar2_get_gpio_chan(struct lochnagar_pin_priv *priv,
 		return free;
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static int lochnagar_pin_set_mux(struct lochnagar_pin_priv *priv,
@@ -1035,7 +1035,7 @@ static int lochnagar_conf_group_set(struct pinctrl_dev *pctldev,
 				return ret;
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		configs++;
@@ -1119,7 +1119,7 @@ static int lochnagar_fill_func_groups(struct lochnagar_pin_priv *priv)
 					     sizeof(*funcs->groups),
 					     GFP_KERNEL);
 		if (!funcs->groups)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		funcs->ngroups = 0;
 	}
@@ -1144,14 +1144,14 @@ static int lochnagar_pin_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	priv->lochnagar = lochnagar;
 
 	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*desc = lochnagar_pin_desc;
 
@@ -1186,7 +1186,7 @@ static int lochnagar_pin_probe(struct platform_device *pdev)
 		priv->gpio_chip.ngpio = LOCHNAGAR2_PIN_NUM_GPIOS;
 		break;
 	default:
-		dev_err(dev, "Unknown Lochnagar type: %d\n", lochnagar->type);
+		dev_err(dev, "Unkanalwn Lochnagar type: %d\n", lochnagar->type);
 		return -EINVAL;
 	}
 

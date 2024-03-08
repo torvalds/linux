@@ -204,34 +204,34 @@ void init_cpu_timer(void);
 
 extern union tod_clock tod_clock_base;
 
-static __always_inline unsigned long __get_tod_clock_monotonic(void)
+static __always_inline unsigned long __get_tod_clock_moanaltonic(void)
 {
 	return get_tod_clock() - tod_clock_base.tod;
 }
 
 /**
- * get_clock_monotonic - returns current time in clock rate units
+ * get_clock_moanaltonic - returns current time in clock rate units
  *
  * The clock and tod_clock_base get changed via stop_machine.
  * Therefore preemption must be disabled, otherwise the returned
- * value is not guaranteed to be monotonic.
+ * value is analt guaranteed to be moanaltonic.
  */
-static inline unsigned long get_tod_clock_monotonic(void)
+static inline unsigned long get_tod_clock_moanaltonic(void)
 {
 	unsigned long tod;
 
-	preempt_disable_notrace();
-	tod = __get_tod_clock_monotonic();
-	preempt_enable_notrace();
+	preempt_disable_analtrace();
+	tod = __get_tod_clock_moanaltonic();
+	preempt_enable_analtrace();
 	return tod;
 }
 
 /**
- * tod_to_ns - convert a TOD format value to nanoseconds
+ * tod_to_ns - convert a TOD format value to naanalseconds
  * @todval: to be converted TOD format value
- * Returns: number of nanoseconds that correspond to the TOD format value
+ * Returns: number of naanalseconds that correspond to the TOD format value
  *
- * Converting a 64 Bit TOD format value to nanoseconds means that the value
+ * Converting a 64 Bit TOD format value to naanalseconds means that the value
  * must be divided by 4.096. In order to achieve that we multiply with 125
  * and divide by 512:
  *

@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -119,13 +119,13 @@ MODULE_PARM_DESC(dev_loss_tmo,
 		 " insulate transport layer errors. After this time has been"
 		 " exceeded the SCSI host is removed. Should be"
 		 " between 1 and " __stringify(SCSI_DEVICE_BLOCK_MAX_TIMEOUT)
-		 " if fast_io_fail_tmo has not been set. \"off\" means that"
+		 " if fast_io_fail_tmo has analt been set. \"off\" means that"
 		 " this functionality is disabled.");
 
 static bool srp_use_imm_data = true;
 module_param_named(use_imm_data, srp_use_imm_data, bool, 0644);
 MODULE_PARM_DESC(use_imm_data,
-		 "Whether or not to request permission to use immediate data during SRP login.");
+		 "Whether or analt to request permission to use immediate data during SRP login.");
 
 static unsigned int srp_max_imm_data = 8 * 1024;
 module_param_named(max_imm_data, srp_max_imm_data, uint, 0644);
@@ -275,7 +275,7 @@ static int srp_init_ib_qp(struct srp_target_port *target,
 
 	attr = kmalloc(sizeof *attr, GFP_KERNEL);
 	if (!attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ib_find_cached_pkey(target->srp_host->srp_dev->dev,
 				  target->srp_host->port,
@@ -346,7 +346,7 @@ static int srp_new_rdma_cm_id(struct srp_rdma_ch *ch)
 				&target->rdma_cm.dst.sa,
 				SRP_PATH_REC_TIMEOUT_MS);
 	if (ret) {
-		pr_err("No route available from %pISpsc to %pISpsc (%d)\n",
+		pr_err("Anal route available from %pISpsc to %pISpsc (%d)\n",
 		       &target->rdma_cm.src, &target->rdma_cm.dst, ret);
 		goto out;
 	}
@@ -416,7 +416,7 @@ static struct srp_fr_pool *srp_create_fr_pool(struct ib_device *device,
 
 	if (pool_size <= 0)
 		goto err;
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	pool = kzalloc(struct_size(pool, desc, pool_size), GFP_KERNEL);
 	if (!pool)
 		goto err;
@@ -434,7 +434,7 @@ static struct srp_fr_pool *srp_create_fr_pool(struct ib_device *device,
 		mr = ib_alloc_mr(pd, mr_type, max_page_list_len);
 		if (IS_ERR(mr)) {
 			ret = PTR_ERR(mr);
-			if (ret == -ENOMEM)
+			if (ret == -EANALMEM)
 				pr_info("%s: ib_alloc_mr() failed. Try to reduce max_cmd_per_lun, max_sect or ch_count\n",
 					dev_name(&device->dev));
 			goto destroy_pool;
@@ -479,7 +479,7 @@ static struct srp_fr_desc *srp_fr_pool_get(struct srp_fr_pool *pool)
  * @desc: Pointer to an array of fast registration descriptor pointers.
  * @n:    Number of descriptors to put back.
  *
- * Note: The caller must already have queued an invalidation request for
+ * Analte: The caller must already have queued an invalidation request for
  * desc->mr->rkey before calling this function.
  */
 static void srp_fr_pool_put(struct srp_fr_pool *pool, struct srp_fr_desc **desc,
@@ -534,7 +534,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 
 	init_attr = kzalloc(sizeof *init_attr, GFP_KERNEL);
 	if (!init_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* queue_size + 1 for ib_drain_rq() */
 	recv_cq = ib_alloc_cq(dev->dev, ch, target->queue_size + 1,
@@ -630,7 +630,7 @@ err:
 }
 
 /*
- * Note: this function may be called without srp_alloc_iu_bufs() having been
+ * Analte: this function may be called without srp_alloc_iu_bufs() having been
  * invoked. Hence the ch->[rt]x_ring checks.
  */
 static void srp_free_ch_ib(struct srp_target_port *target,
@@ -654,7 +654,7 @@ static void srp_free_ch_ib(struct srp_target_port *target,
 		}
 	}
 
-	/* If srp_new_cm_id() succeeded but srp_create_ch_ib() not, return. */
+	/* If srp_new_cm_id() succeeded but srp_create_ch_ib() analt, return. */
 	if (!ch->qp)
 		return;
 
@@ -807,7 +807,7 @@ static int srp_send_req(struct srp_rdma_ch *ch, uint32_t max_iu_len,
 
 	req = kzalloc(sizeof *req, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->ib_param.flow_control = 1;
 	req->ib_param.retry_count = target->tl_retry_count;
@@ -896,7 +896,7 @@ static int srp_send_req(struct srp_rdma_ch *ch, uint32_t max_iu_len,
 	/*
 	 * Topspin/Cisco SRP targets will reject our login unless we
 	 * zero out the first 8 bytes of our initiator port ID and set
-	 * the second 8 bytes to the local node GUID.
+	 * the second 8 bytes to the local analde GUID.
 	 */
 	if (srp_target_is_topspin(target)) {
 		shost_printk(KERN_DEBUG, target->scsi_host,
@@ -904,7 +904,7 @@ static int srp_send_req(struct srp_rdma_ch *ch, uint32_t max_iu_len,
 			     "activated for target GUID %016llx\n",
 			     be64_to_cpu(target->ioc_guid));
 		memset(ipi, 0, 8);
-		memcpy(ipi + 8, &target->srp_host->srp_dev->dev->node_guid, 8);
+		memcpy(ipi + 8, &target->srp_host->srp_dev->dev->analde_guid, 8);
 	}
 
 	if (target->using_rdma_cm)
@@ -985,7 +985,7 @@ static int srp_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
 	struct ib_device *ibdev = srp_dev->dev;
 	struct srp_request *req = scsi_cmd_priv(cmd);
 	dma_addr_t dma_addr;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (srp_dev->use_fast_reg) {
 		req->fr_list = kmalloc_array(target->mr_per_cmd, sizeof(void *),
@@ -1016,8 +1016,8 @@ out:
  * srp_del_scsi_host_attr() - Remove attributes defined in the host template.
  * @shost: SCSI host whose attributes to remove from sysfs.
  *
- * Note: Any attributes defined in the host template and that did not exist
- * before invocation of this function will be ignored.
+ * Analte: Any attributes defined in the host template and that did analt exist
+ * before invocation of this function will be iganalred.
  */
 static void srp_del_scsi_host_attr(struct Scsi_Host *shost)
 {
@@ -1149,7 +1149,7 @@ static int srp_connect_ch(struct srp_rdma_ch *ch, uint32_t max_iu_len,
 	}
 
 out:
-	return ret <= 0 ? ret : -ENODEV;
+	return ret <= 0 ? ret : -EANALDEV;
 }
 
 static void srp_inv_rkey_err_done(struct ib_cq *cq, struct ib_wc *wc)
@@ -1213,8 +1213,8 @@ static void srp_unmap_data(struct scsi_cmnd *scmnd,
  * srp_claim_req - Take ownership of the scmnd associated with a request.
  * @ch: SRP RDMA channel.
  * @req: SRP request.
- * @sdev: If not NULL, only take ownership for this SCSI device.
- * @scmnd: If NULL, take ownership of @req->scmnd. If not NULL, only take
+ * @sdev: If analt NULL, only take ownership for this SCSI device.
+ * @scmnd: If NULL, take ownership of @req->scmnd. If analt NULL, only take
  *         ownership of @req->scmnd if it equals @scmnd.
  *
  * Return value:
@@ -1321,9 +1321,9 @@ static uint32_t srp_max_it_iu_len(int cmd_sg_cnt, bool use_imm_data,
 
 /*
  * It is up to the caller to ensure that srp_rport_reconnect() calls are
- * serialized and that no concurrent srp_queuecommand(), srp_abort(),
+ * serialized and that anal concurrent srp_queuecommand(), srp_abort(),
  * srp_reset_device() or srp_reset_host() calls will occur while this function
- * is in progress. One way to realize that is not to call this function
+ * is in progress. One way to realize that is analt to call this function
  * directly but to call srp_reconnect_rport() instead since that last function
  * serializes calls of this function via rport->mutex and also blocks
  * srp_queuecommand() calls before invoking this function.
@@ -1341,10 +1341,10 @@ static int srp_rport_reconnect(struct srp_rport *rport)
 	srp_disconnect_target(target);
 
 	if (target->state == SRP_TARGET_SCANNING)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
-	 * Now get a new local CM ID so that we avoid confusing the target in
+	 * Analw get a new local CM ID so that we avoid confusing the target in
 	 * case things are really fouled up. Doing so also ensures that all CM
 	 * callbacks will have finished before a new QP is allocated.
 	 */
@@ -1362,7 +1362,7 @@ static int srp_rport_reconnect(struct srp_rport *rport)
 	for (i = 0; i < target->ch_count; i++) {
 		ch = &target->ch[i];
 		/*
-		 * Whether or not creating a new CM ID succeeded, create a new
+		 * Whether or analt creating a new CM ID succeeded, create a new
 		 * QP. This guarantees that all completion callback function
 		 * invocations have finished before request resetting starts.
 		 */
@@ -1415,7 +1415,7 @@ static void srp_reg_mr_err_done(struct ib_cq *cq, struct ib_wc *wc)
  * Map up to sg_nents elements of state->sg where *sg_offset_p is the offset
  * where to start in the first element. If sg_offset_p != NULL then
  * *sg_offset_p is updated to the offset in state->sg[retval] of the first
- * byte that has not yet been mapped.
+ * byte that has analt yet been mapped.
  */
 static int srp_map_finish_fr(struct srp_map_state *state,
 			     struct srp_request *req,
@@ -1433,7 +1433,7 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 		shost_printk(KERN_ERR, ch->target->scsi_host,
 			     PFX "Out of MRs (mr_per_cmd = %d)\n",
 			     ch->target->mr_per_cmd);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	WARN_ON_ONCE(!dev->use_fast_reg);
@@ -1451,7 +1451,7 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 
 	desc = srp_fr_pool_get(ch->fr_pool);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rkey = ib_inc_rkey(desc->mr->rkey);
 	ib_update_fast_reg_key(desc->mr, rkey);
@@ -1489,7 +1489,7 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 
 	err = ib_post_send(ch->qp, &wr.wr, NULL);
 	if (unlikely(err)) {
-		WARN_ON_ONCE(err == -ENOMEM);
+		WARN_ON_ONCE(err == -EANALMEM);
 		return err;
 	}
 
@@ -1543,7 +1543,7 @@ static int srp_map_sg_dma(struct srp_map_state *state, struct srp_rdma_ch *ch,
 /*
  * Register the indirect data buffer descriptor with the HCA.
  *
- * Note: since the indirect data buffer descriptor has been allocated with
+ * Analte: since the indirect data buffer descriptor has been allocated with
  * kmalloc() it is guaranteed that this buffer is a physically contiguous
  * memory buffer.
  */
@@ -1614,7 +1614,7 @@ static void srp_check_mapping(struct srp_map_state *state,
  * @req: SRP request
  *
  * Returns the length in bytes of the SRP_CMD IU or a negative value if
- * mapping failed. The size of any immediate data is not included in the
+ * mapping failed. The size of any immediate data is analt included in the
  * return value.
  */
 static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
@@ -1635,7 +1635,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 
 	req->cmd->num_sge = 1;
 
-	if (!scsi_sglist(scmnd) || scmnd->sc_data_direction == DMA_NONE)
+	if (!scsi_sglist(scmnd) || scmnd->sc_data_direction == DMA_ANALNE)
 		return sizeof(struct srp_cmd) + cmd->add_cdb_len;
 
 	if (scmnd->sc_data_direction != DMA_FROM_DEVICE &&
@@ -1727,9 +1727,9 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 			srp_check_mapping(&state, ch, req, scat, count);
 	}
 
-	/* We've mapped the request, now pull as much of the indirect
+	/* We've mapped the request, analw pull as much of the indirect
 	 * descriptor table as we can into the command buffer. If this
-	 * target is not using an external indirect table, we are
+	 * target is analt using an external indirect table, we are
 	 * guaranteed to fit into the command, as the SCSI layer won't
 	 * give us more S/G entries than we allow.
 	 */
@@ -1748,7 +1748,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 	if (unlikely(target->cmd_sg_cnt < state.ndesc &&
 						!target->allow_ext_sg)) {
 		shost_printk(KERN_ERR, target->scsi_host,
-			     "Could not fit S/G list into SRP_CMD\n");
+			     "Could analt fit S/G list into SRP_CMD\n");
 		ret = -EIO;
 		goto unmap;
 	}
@@ -1798,7 +1798,7 @@ map_complete:
 
 unmap:
 	srp_unmap_data(scmnd, ch, req);
-	if (ret == -ENOMEM && req->nmdesc >= target->mr_pool_size)
+	if (ret == -EANALMEM && req->nmdesc >= target->mr_pool_size)
 		ret = -E2BIG;
 	return ret;
 }
@@ -1820,9 +1820,9 @@ static void srp_put_tx_iu(struct srp_rdma_ch *ch, struct srp_iu *iu,
 
 /*
  * Must be called with ch->lock held to protect req_lim and free_tx.
- * If IU is not sent, it must be returned using srp_put_tx_iu().
+ * If IU is analt sent, it must be returned using srp_put_tx_iu().
  *
- * Note:
+ * Analte:
  * An upper limit for the number of allocated information units for each
  * request type is:
  * - SRP_IU_CMD: SRP_CMD_SQ_SIZE, since the SCSI mid-layer never queues
@@ -1845,7 +1845,7 @@ static struct srp_iu *__srp_get_tx_iu(struct srp_rdma_ch *ch,
 	if (list_empty(&ch->free_tx))
 		return NULL;
 
-	/* Initiator responses to target requests do not consume credits */
+	/* Initiator responses to target requests do analt consume credits */
 	if (iu_type != SRP_IU_RSP) {
 		if (ch->req_lim <= rsv) {
 			++target->zero_req_lim;
@@ -1861,7 +1861,7 @@ static struct srp_iu *__srp_get_tx_iu(struct srp_rdma_ch *ch,
 }
 
 /*
- * Note: if this function is called from inside ib_drain_sq() then it will
+ * Analte: if this function is called from inside ib_drain_sq() then it will
  * be called without ch->lock being held. If ib_drain_sq() dequeues a WQE
  * with status IB_WC_SUCCESS then that's a bug.
  */
@@ -2005,7 +2005,7 @@ static int srp_response_common(struct srp_rdma_ch *ch, s32 req_delta,
 
 	if (!iu) {
 		shost_printk(KERN_ERR, target->scsi_host, PFX
-			     "no IU available to send response\n");
+			     "anal IU available to send response\n");
 		return 1;
 	}
 
@@ -2049,7 +2049,7 @@ static void srp_process_aer_req(struct srp_rdma_ch *ch,
 	s32 delta = be32_to_cpu(req->req_lim_delta);
 
 	shost_printk(KERN_ERR, target->scsi_host, PFX
-		     "ignoring AER for LUN %llu\n", scsilun_to_int(&req->lun));
+		     "iganalring AER for LUN %llu\n", scsilun_to_int(&req->lun));
 
 	if (srp_response_common(ch, delta, &rsp, sizeof(rsp)))
 		shost_printk(KERN_ERR, target->scsi_host, PFX
@@ -2120,7 +2120,7 @@ static void srp_recv_done(struct ib_cq *cq, struct ib_wc *wc)
  * srp_tl_err_work() - handle a transport layer error
  * @work: Work structure embedded in an SRP target port.
  *
- * Note: This function may get invoked before the rport has been created,
+ * Analte: This function may get invoked before the rport has been created,
  * hence the target->rport test.
  */
 static void srp_tl_err_work(struct work_struct *work)
@@ -2202,12 +2202,12 @@ static int srp_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd)
 		shost_printk(KERN_ERR, target->scsi_host,
 			     PFX "Failed to map data (%d)\n", len);
 		/*
-		 * If we ran out of memory descriptors (-ENOMEM) because an
+		 * If we ran out of memory descriptors (-EANALMEM) because an
 		 * application is queuing many requests with more than
 		 * max_pages_per_mr sg-list elements, tell the SCSI mid-layer
 		 * to reduce queue depth temporarily.
 		 */
-		scmnd->result = len == -ENOMEM ?
+		scmnd->result = len == -EANALMEM ?
 			DID_OK << 16 | SAM_STAT_TASK_SET_FULL : DID_ERROR << 16;
 		goto err_iu;
 	}
@@ -2247,7 +2247,7 @@ err:
 }
 
 /*
- * Note: the resources allocated in this function are freed in
+ * Analte: the resources allocated in this function are freed in
  * srp_free_ch_ib().
  */
 static int srp_alloc_iu_bufs(struct srp_rdma_ch *ch)
@@ -2258,11 +2258,11 @@ static int srp_alloc_iu_bufs(struct srp_rdma_ch *ch)
 	ch->rx_ring = kcalloc(target->queue_size, sizeof(*ch->rx_ring),
 			      GFP_KERNEL);
 	if (!ch->rx_ring)
-		goto err_no_ring;
+		goto err_anal_ring;
 	ch->tx_ring = kcalloc(target->queue_size, sizeof(*ch->tx_ring),
 			      GFP_KERNEL);
 	if (!ch->tx_ring)
-		goto err_no_ring;
+		goto err_anal_ring;
 
 	for (i = 0; i < target->queue_size; ++i) {
 		ch->rx_ring[i] = srp_alloc_iu(target->srp_host,
@@ -2291,13 +2291,13 @@ err:
 	}
 
 
-err_no_ring:
+err_anal_ring:
 	kfree(ch->tx_ring);
 	ch->tx_ring = NULL;
 	kfree(ch->rx_ring);
 	ch->rx_ring = NULL;
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static uint32_t srp_compute_rq_tmo(struct ib_qp_attr *qp_attr, int attr_mask)
@@ -2317,7 +2317,7 @@ static uint32_t srp_compute_rq_tmo(struct ib_qp_attr *qp_attr, int attr_mask)
 	 * Set target->rq_tmo_jiffies to one second more than the largest time
 	 * it can take before an error completion is generated. See also
 	 * C9-140..142 in the IBTA spec for more information about how to
-	 * convert the QP Local ACK Timeout value to nanoseconds.
+	 * convert the QP Local ACK Timeout value to naanalseconds.
 	 */
 	T_tr_ns = 4096 * (1ULL << qp_attr->timeout);
 	max_compl_time_ms = qp_attr->retry_cnt * 4 * T_tr_ns;
@@ -2384,7 +2384,7 @@ static void srp_cm_rep_handler(struct ib_cm_id *cm_id,
 	}
 
 	if (!target->using_rdma_cm) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		qp_attr = kmalloc(sizeof(*qp_attr), GFP_KERNEL);
 		if (!qp_attr)
 			goto error;
@@ -2816,7 +2816,7 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 	shost_printk(KERN_ERR, target->scsi_host, "SRP reset_device called\n");
 
 	ch = &target->ch[0];
-	if (srp_send_tsk_mgmt(ch, SRP_TAG_NO_REQ, scmnd->device->lun,
+	if (srp_send_tsk_mgmt(ch, SRP_TAG_ANAL_REQ, scmnd->device->lun,
 			      SRP_TSK_LUN_RESET, &status))
 		return FAILED;
 	if (status)
@@ -2885,7 +2885,7 @@ static ssize_t service_id_show(struct device *dev,
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
 	if (target->using_rdma_cm)
-		return -ENOENT;
+		return -EANALENT;
 	return sysfs_emit(buf, "0x%016llx\n",
 			  be64_to_cpu(target->ib_cm.service_id));
 }
@@ -2898,7 +2898,7 @@ static ssize_t pkey_show(struct device *dev, struct device_attribute *attr,
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
 	if (target->using_rdma_cm)
-		return -ENOENT;
+		return -EANALENT;
 
 	return sysfs_emit(buf, "0x%04x\n", be16_to_cpu(target->ib_cm.pkey));
 }
@@ -2922,7 +2922,7 @@ static ssize_t dgid_show(struct device *dev, struct device_attribute *attr,
 	struct srp_rdma_ch *ch = &target->ch[0];
 
 	if (target->using_rdma_cm)
-		return -ENOENT;
+		return -EANALENT;
 
 	return sysfs_emit(buf, "%pI6\n", ch->ib_cm.path.dgid.raw);
 }
@@ -2935,7 +2935,7 @@ static ssize_t orig_dgid_show(struct device *dev, struct device_attribute *attr,
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
 	if (target->using_rdma_cm)
-		return -ENOENT;
+		return -EANALENT;
 
 	return sysfs_emit(buf, "%pI6\n", target->ib_cm.orig_dgid.raw);
 }
@@ -3101,7 +3101,7 @@ static int srp_sdev_count(struct Scsi_Host *host)
 /*
  * Return values:
  * < 0 upon failure. Caller is responsible for SRP target port cleanup.
- * 0 and target->state == SRP_TARGET_REMOVED if asynchronous target port
+ * 0 and target->state == SRP_TARGET_REMOVED if asynchroanalus target port
  *    removal has been scheduled.
  * 0 and target->state != SRP_TARGET_REMOVED upon success.
  */
@@ -3115,7 +3115,7 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 		be64_to_cpu(target->id_ext));
 
 	if (scsi_add_host(target->scsi_host, host->srp_dev->dev->dev.parent))
-		return -ENODEV;
+		return -EANALDEV;
 
 	memcpy(ids.port_id, &target->id_ext, 8);
 	memcpy(ids.port_id + 8, &target->ioc_guid, 8);
@@ -3282,7 +3282,7 @@ static const match_table_t srp_opt_tokens = {
  * @net:	   [in]  Network namespace.
  * @sa:		   [out] Address family, IP address and port number.
  * @addr_port_str: [in]  IP address and port number.
- * @has_port:	   [out] Whether or not @addr_port_str includes a port number.
+ * @has_port:	   [out] Whether or analt @addr_port_str includes a port number.
  *
  * Parse the following address formats:
  * - IPv4: <ip_address>:<port>, e.g. 1.2.3.4:5.
@@ -3296,7 +3296,7 @@ static int srp_parse_in(struct net *net, struct sockaddr_storage *sa,
 	int ret;
 
 	if (!addr)
-		return -ENOMEM;
+		return -EANALMEM;
 	port_str = strrchr(addr, ':');
 	if (port_str && strchr(port_str, ']'))
 		port_str = NULL;
@@ -3333,7 +3333,7 @@ static int srp_parse_options(struct net *net, const char *buf,
 
 	options = kstrdup(buf, GFP_KERNEL);
 	if (!options)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sep_opt = options;
 	while ((p = strsep(&sep_opt, ",\n")) != NULL) {
@@ -3347,7 +3347,7 @@ static int srp_parse_options(struct net *net, const char *buf,
 		case SRP_OPT_ID_EXT:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			ret = kstrtoull(p, 16, &ull);
@@ -3363,7 +3363,7 @@ static int srp_parse_options(struct net *net, const char *buf,
 		case SRP_OPT_IOC_GUID:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			ret = kstrtoull(p, 16, &ull);
@@ -3379,7 +3379,7 @@ static int srp_parse_options(struct net *net, const char *buf,
 		case SRP_OPT_DGID:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			if (strlen(p) != 32) {
@@ -3406,7 +3406,7 @@ static int srp_parse_options(struct net *net, const char *buf,
 		case SRP_OPT_SERVICE_ID:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			ret = kstrtoull(p, 16, &ull);
@@ -3422,7 +3422,7 @@ static int srp_parse_options(struct net *net, const char *buf,
 		case SRP_OPT_IP_SRC:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			ret = srp_parse_in(net, &target->rdma_cm.src.ss, p,
@@ -3439,7 +3439,7 @@ static int srp_parse_options(struct net *net, const char *buf,
 		case SRP_OPT_IP_DEST:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			ret = srp_parse_in(net, &target->rdma_cm.dst.ss, p,
@@ -3523,7 +3523,7 @@ static int srp_parse_options(struct net *net, const char *buf,
 			}
 			if (token != SRP_REV10_IB_IO_CLASS &&
 			    token != SRP_REV16A_IB_IO_CLASS) {
-				pr_warn("unknown IO class parameter value %x specified (use %x or %x).\n",
+				pr_warn("unkanalwn IO class parameter value %x specified (use %x or %x).\n",
 					token, SRP_REV10_IB_IO_CLASS,
 					SRP_REV16A_IB_IO_CLASS);
 				ret = -EINVAL;
@@ -3535,7 +3535,7 @@ static int srp_parse_options(struct net *net, const char *buf,
 		case SRP_OPT_INITIATOR_EXT:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			ret = kstrtoull(p, 16, &ull);
@@ -3651,7 +3651,7 @@ static int srp_parse_options(struct net *net, const char *buf,
 			break;
 
 		default:
-			pr_warn("unknown parameter or missing value '%s' in target creation request\n",
+			pr_warn("unkanalwn parameter or missing value '%s' in target creation request\n",
 				p);
 			ret = -EINVAL;
 			goto out;
@@ -3697,7 +3697,7 @@ static ssize_t add_target_store(struct device *dev,
 	target_host = scsi_host_alloc(&srp_template,
 				      sizeof (struct srp_target_port));
 	if (!target_host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	target_host->transportt  = ib_srp_transport_template;
 	target_host->max_channel = 0;
@@ -3757,7 +3757,7 @@ static ssize_t add_target_store(struct device *dev,
 
 	if (!srp_dev->has_fr && !target->allow_ext_sg &&
 	    target->cmd_sg_cnt < target->sg_tablesize) {
-		pr_warn("No MR pool and no external indirect descriptors, limiting sg_tablesize to cmd_sg_cnt\n");
+		pr_warn("Anal MR pool and anal external indirect descriptors, limiting sg_tablesize to cmd_sg_cnt\n");
 		target->sg_tablesize = target->cmd_sg_cnt;
 	}
 
@@ -3770,7 +3770,7 @@ static ssize_t add_target_store(struct device *dev,
 		if (!gaps_reg) {
 			/*
 			 * FR can only map one HCA page per entry. If the start
-			 * address is not aligned on a HCA page boundary two
+			 * address is analt aligned on a HCA page boundary two
 			 * entries will be used for the head and the tail
 			 * although these two entries combined contain at most
 			 * one HCA page of data. Hence the "+ 1" in the
@@ -3811,11 +3811,11 @@ static ssize_t add_target_store(struct device *dev,
 	if (ret)
 		goto out;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	if (target->ch_count == 0) {
 		target->ch_count =
 			min(ch_count ?:
-				max(4 * num_online_nodes(),
+				max(4 * num_online_analdes(),
 				    ibdev->num_comp_vectors),
 				num_online_cpus());
 	}
@@ -3899,8 +3899,8 @@ put:
 	scsi_host_put(target->scsi_host);
 	if (ret < 0) {
 		/*
-		 * If a call to srp_remove_target() has not been scheduled,
-		 * drop the network namespace reference now that was obtained
+		 * If a call to srp_remove_target() has analt been scheduled,
+		 * drop the network namespace reference analw that was obtained
 		 * earlier in this function.
 		 */
 		if (target->state != SRP_TARGET_REMOVED)
@@ -4009,7 +4009,7 @@ static int srp_add_one(struct ib_device *device)
 
 	srp_dev = kzalloc(sizeof(*srp_dev), GFP_KERNEL);
 	if (!srp_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Use the smallest page size supported by the HCA, down to a
@@ -4030,7 +4030,7 @@ static int srp_add_one(struct ib_device *device)
 	srp_dev->has_fr = (attr->device_cap_flags &
 			   IB_DEVICE_MEM_MGT_EXTENSIONS);
 	if (!never_register && !srp_dev->has_fr)
-		dev_warn(&device->dev, "FR is not supported\n");
+		dev_warn(&device->dev, "FR is analt supported\n");
 	else if (!never_register &&
 		 attr->max_mr_size >= 2 * srp_dev->mr_page_size)
 		srp_dev->use_fast_reg = srp_dev->has_fr;
@@ -4086,7 +4086,7 @@ static void srp_remove_one(struct ib_device *device, void *client_data)
 
 	list_for_each_entry_safe(host, tmp_host, &srp_dev->dev_list, list) {
 		/*
-		 * Remove the add_target sysfs entry so that no new target ports
+		 * Remove the add_target sysfs entry so that anal new target ports
 		 * can be created.
 		 */
 		device_del(&host->dev);
@@ -4168,11 +4168,11 @@ static int __init srp_init_module(void)
 
 	srp_remove_wq = create_workqueue("srp_remove");
 	if (!srp_remove_wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ib_srp_transport_template =
 		srp_attach_transport(&ib_srp_transport_functions);
 	if (!ib_srp_transport_template)

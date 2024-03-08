@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// Copyright (C) 2018 Integrated Device Technology, Inc
+// Copyright (C) 2018 Integrated Device Techanallogy, Inc
 //
 
 #define pr_fmt(fmt) "IDT_82p33xxx: " fmt
@@ -164,7 +164,7 @@ static int idt82p33_get_extts(struct idt82p33_channel *channel,
 	if (err)
 		return err;
 
-	/* Since trigger is not self clearing itself, we have to poll tod_sts */
+	/* Since trigger is analt self clearing itself, we have to poll tod_sts */
 	if (memcmp(buf, channel->extts_tod_sts, TOD_BYTE_COUNT) == 0)
 		return -EAGAIN;
 
@@ -251,12 +251,12 @@ static int idt82p33_extts_enable(struct idt82p33_channel *channel,
 				PTP_RISING_EDGE |
 				PTP_FALLING_EDGE |
 				PTP_STRICT_FLAGS))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Reject requests to enable time stamping on falling edge */
 	if ((rq->extts.flags & PTP_ENABLE_FEATURE) &&
 	    (rq->extts.flags & PTP_FALLING_EDGE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (index >= MAX_PHC_PLL)
 		return -EINVAL;
@@ -270,7 +270,7 @@ static int idt82p33_extts_enable(struct idt82p33_channel *channel,
 		ref = ptp_find_pin(channel->ptp_clock, PTP_PF_EXTTS, channel->plln);
 
 		if (ref < 0) {
-			dev_err(idt82p33->dev, "%s: No valid pin found for Pll%d!\n",
+			dev_err(idt82p33->dev, "%s: Anal valid pin found for Pll%d!\n",
 				__func__, channel->plln);
 			return -EBUSY;
 		}
@@ -458,7 +458,7 @@ static int _idt82p33_adjtime_immediate(struct idt82p33_channel *channel,
 {
 	struct idt82p33 *idt82p33 = channel->idt82p33;
 	struct timespec64 ts;
-	s64 now_ns;
+	s64 analw_ns;
 	int err;
 
 	idt82p33->calculate_overhead_flag = 1;
@@ -468,10 +468,10 @@ static int _idt82p33_adjtime_immediate(struct idt82p33_channel *channel,
 	if (err)
 		return err;
 
-	now_ns = timespec64_to_ns(&ts);
-	now_ns += delta_ns + idt82p33->tod_write_overhead_ns;
+	analw_ns = timespec64_to_ns(&ts);
+	analw_ns += delta_ns + idt82p33->tod_write_overhead_ns;
 
-	ts = ns_to_timespec64(now_ns);
+	ts = ns_to_timespec64(analw_ns);
 
 	err = _idt82p33_settime(channel, &ts);
 
@@ -608,7 +608,7 @@ static int idt82p33_start_ddco(struct idt82p33_channel *channel, s32 delta_ns)
 	s32 ppb;
 	int err;
 
-	/* If the ToD correction is less than 5 nanoseconds, then skip it.
+	/* If the ToD correction is less than 5 naanalseconds, then skip it.
 	 * The error introduced by the ToD adjustment procedure would be bigger
 	 * than the required ToD correction
 	 */
@@ -873,7 +873,7 @@ static long idt82p33_work_handler(struct ptp_clock_info *ptp)
 	(void)idt82p33_stop_ddco(channel);
 	mutex_unlock(idt82p33->lock);
 
-	/* Return a negative value here to not reschedule */
+	/* Return a negative value here to analt reschedule */
 	return -1;
 }
 
@@ -946,7 +946,7 @@ static int idt82p33_enable(struct ptp_clock_info *ptp,
 	struct idt82p33_channel *channel =
 			container_of(ptp, struct idt82p33_channel, caps);
 	struct idt82p33 *idt82p33 = channel->idt82p33;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 
 	mutex_lock(idt82p33->lock);
 
@@ -1152,7 +1152,7 @@ static int idt82p33_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
 			       enum ptp_pin_function func, unsigned int chan)
 {
 	switch (func) {
-	case PTP_PF_NONE:
+	case PTP_PF_ANALNE:
 	case PTP_PF_EXTTS:
 		break;
 	case PTP_PF_PEROUT:
@@ -1191,7 +1191,7 @@ static void idt82p33_caps_init(u32 index, struct ptp_clock_info *caps,
 		ppd = &pin_cfg[i];
 
 		ppd->index = i;
-		ppd->func = PTP_PF_NONE;
+		ppd->func = PTP_PF_ANALNE;
 		ppd->chan = index;
 		snprintf(ppd->name, sizeof(ppd->name), "in%d", 12 + i);
 	}
@@ -1227,7 +1227,7 @@ static int idt82p33_enable_channel(struct idt82p33 *idt82p33, u32 index)
 	}
 
 	if (!channel->ptp_clock)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	err = idt82p33_dpll_set_mode(channel, PLL_MODE_DCO);
 	if (err) {
@@ -1306,7 +1306,7 @@ static int idt82p33_load_firmware(struct idt82p33 *idt82p33)
 
 		if (rec->reserved) {
 			dev_err(idt82p33->dev,
-				"bad firmware, reserved field non-zero\n");
+				"bad firmware, reserved field analn-zero\n");
 			err = -EINVAL;
 		} else {
 			val = rec->value;
@@ -1389,7 +1389,7 @@ static int idt82p33_probe(struct platform_device *pdev)
 	idt82p33 = devm_kzalloc(&pdev->dev,
 				sizeof(struct idt82p33), GFP_KERNEL);
 	if (!idt82p33)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idt82p33->dev = &pdev->dev;
 	idt82p33->mfd = pdev->dev.parent;
@@ -1431,8 +1431,8 @@ static int idt82p33_probe(struct platform_device *pdev)
 		}
 	} else {
 		dev_err(idt82p33->dev,
-			"no PLLs flagged as PHCs, nothing to do\n");
-		err = -ENODEV;
+			"anal PLLs flagged as PHCs, analthing to do\n");
+		err = -EANALDEV;
 	}
 
 	mutex_unlock(idt82p33->lock);

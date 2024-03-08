@@ -3,7 +3,7 @@
  *
  * keymap imported from ir-keymaps.c
  *
- * Copyright (c) 2010 by Pavel Osnova <pvosnova@gmail.com>
+ * Copyright (c) 2010 by Pavel Osanalva <pvosanalva@gmail.com>
  */
 
 #include <media/rc-map.h>
@@ -67,7 +67,7 @@ static struct rc_map_list videomate_k100_map = {
 	.map = {
 		.scan     = videomate_k100,
 		.size     = ARRAY_SIZE(videomate_k100),
-		.rc_proto = RC_PROTO_UNKNOWN,     /* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,     /* Legacy IR type */
 		.name     = RC_MAP_VIDEOMATE_K100,
 	}
 };
@@ -86,5 +86,5 @@ module_init(init_rc_map_videomate_k100)
 module_exit(exit_rc_map_videomate_k100)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Pavel Osnova <pvosnova@gmail.com>");
+MODULE_AUTHOR("Pavel Osanalva <pvosanalva@gmail.com>");
 MODULE_DESCRIPTION("videomate-m1f remote controller keytable");

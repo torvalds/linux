@@ -264,7 +264,7 @@
  * R10 (0x0A) - DAC CTRL
  */
 #define WM8991_AIF_LRCLKRATE                    0x0400  /* AIF_LRCLKRATE */
-#define WM8991_DAC_MONO                         0x0200  /* DAC_MONO */
+#define WM8991_DAC_MOANAL                         0x0200  /* DAC_MOANAL */
 #define WM8991_DAC_SB_FILT                      0x0100  /* DAC_SB_FILT */
 #define WM8991_DAC_MUTERATE                     0x0080  /* DAC_MUTERATE */
 #define WM8991_DAC_MUTEMODE                     0x0040  /* DAC_MUTEMODE */

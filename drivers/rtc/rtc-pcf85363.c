@@ -12,7 +12,7 @@
 #include <linux/rtc.h>
 #include <linux/init.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/bcd.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
@@ -120,16 +120,16 @@ struct pcf85x63_config {
 	unsigned int num_nvram;
 };
 
-static int pcf85363_load_capacitance(struct pcf85363 *pcf85363, struct device_node *node)
+static int pcf85363_load_capacitance(struct pcf85363 *pcf85363, struct device_analde *analde)
 {
 	u32 load = 7000;
 	u8 value = 0;
 
-	of_property_read_u32(node, "quartz-load-femtofarads", &load);
+	of_property_read_u32(analde, "quartz-load-femtofarads", &load);
 
 	switch (load) {
 	default:
-		dev_warn(&pcf85363->rtc->dev, "Unknown quartz-load-femtofarads value: %d. Assuming 7000",
+		dev_warn(&pcf85363->rtc->dev, "Unkanalwn quartz-load-femtofarads value: %d. Assuming 7000",
 			 load);
 		fallthrough;
 	case 7000:
@@ -300,7 +300,7 @@ static irqreturn_t pcf85363_rtc_handle_irq(int irq, void *dev_id)
 
 	err = regmap_read(pcf85363->regmap, CTRL_FLAGS, &flags);
 	if (err)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (flags & FLAGS_A1F) {
 		rtc_update_irq(pcf85363->rtc, 1, RTC_IRQF | RTC_AF);
@@ -308,7 +308,7 @@ static irqreturn_t pcf85363_rtc_handle_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static const struct rtc_class_ops rtc_ops = {
@@ -410,7 +410,7 @@ static int pcf85363_probe(struct i2c_client *client)
 	pcf85363 = devm_kzalloc(&client->dev, sizeof(struct pcf85363),
 				GFP_KERNEL);
 	if (!pcf85363)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcf85363->regmap = devm_regmap_init_i2c(client, &config->regmap);
 	if (IS_ERR(pcf85363->regmap)) {
@@ -424,7 +424,7 @@ static int pcf85363_probe(struct i2c_client *client)
 	if (IS_ERR(pcf85363->rtc))
 		return PTR_ERR(pcf85363->rtc);
 
-	err = pcf85363_load_capacitance(pcf85363, client->dev.of_node);
+	err = pcf85363_load_capacitance(pcf85363, client->dev.of_analde);
 	if (err < 0)
 		dev_warn(&client->dev, "failed to set xtal load capacitance: %d",
 			 err);
@@ -444,7 +444,7 @@ static int pcf85363_probe(struct i2c_client *client)
 	if (client->irq > 0) {
 		unsigned long irqflags = IRQF_TRIGGER_LOW;
 
-		if (dev_fwnode(&client->dev))
+		if (dev_fwanalde(&client->dev))
 			irqflags = 0;
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						NULL, pcf85363_rtc_handle_irq,

@@ -233,7 +233,7 @@ enum drm_connector_status msm_hdmi_bridge_detect(
 	int retry = 20;
 
 	/*
-	 * some platforms may not have hpd gpio. Rely only on the status
+	 * some platforms may analt have hpd gpio. Rely only on the status
 	 * provided by REG_HDMI_HPD_INT_STATUS in this case.
 	 */
 	if (!hdmi->hpd_gpiod)

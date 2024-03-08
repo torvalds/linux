@@ -107,7 +107,7 @@
 #define REG_OCL_CFG13	0x3E0	/* RW OCL System Parameters */
 #define REG_GP_DRV	0x3E3	/* RW I/O pads Configuration and bg trim */
 #define REG_BM_CFG	0x3E6	/* RW Batt. Monitor Threshold Voltage setting */
-#define REG_SFD_15_4	0x3F4	/* RW Option to set non standard SFD */
+#define REG_SFD_15_4	0x3F4	/* RW Option to set analn standard SFD */
 #define REG_AFC_CFG	0x3F7	/* RW AFC mode and polarity */
 #define REG_AFC_KI_KP	0x3F8	/* RW AFC ki and kp */
 #define REG_AFC_RANGE	0x3F9	/* RW AFC range */
@@ -169,7 +169,7 @@
 #define CSMA_MAX_BE(x)	       ((x) & 0xF)
 #define CSMA_MIN_BE(x)	       (((x) & 0xF) << 4)
 
-#define CMD_SPI_NOP		0xFF /* No operation. Use for dummy writes */
+#define CMD_SPI_ANALP		0xFF /* Anal operation. Use for dummy writes */
 #define CMD_SPI_PKT_WR		0x10 /* Write telegram to the Packet RAM
 				      * starting from the TX packet base address
 				      * pointer tx_packet_base
@@ -222,7 +222,7 @@
 #define CMD_RC_RESET		0xC8 /* Resets the ADF7242 and puts it in
 				      * the sleep state
 				      */
-#define CMD_RC_PC_RESET_NO_WAIT (CMD_RC_PC_RESET | BIT(31))
+#define CMD_RC_PC_RESET_ANAL_WAIT (CMD_RC_PC_RESET | BIT(31))
 
 /* STATUS */
 
@@ -242,7 +242,7 @@
 #define SUCCESS			0
 #define SUCCESS_DATPEND		1
 #define FAILURE_CSMACA		2
-#define FAILURE_NOACK		3
+#define FAILURE_ANALACK		3
 #define AUTO_STATUS_MASK	0x3
 
 #define PRAM_PAGESIZE		256
@@ -413,12 +413,12 @@ static int adf7242_read_fbuf(struct adf7242_local *lp,
 	mutex_lock(&lp->bmux);
 	if (packet_read) {
 		buf[0] = CMD_SPI_PKT_RD;
-		buf[1] = CMD_SPI_NOP;
+		buf[1] = CMD_SPI_ANALP;
 		buf[2] = 0;	/* PHR */
 	} else {
 		buf[0] = CMD_SPI_PRAM_RD;
 		buf[1] = 0;
-		buf[2] = CMD_SPI_NOP;
+		buf[2] = CMD_SPI_ANALP;
 	}
 
 	status = spi_sync(lp->spi, &msg);
@@ -444,8 +444,8 @@ static int adf7242_read_reg(struct adf7242_local *lp, u16 addr, u8 *data)
 	mutex_lock(&lp->bmux);
 	lp->buf_read_tx[0] = CMD_SPI_MEM_RD(addr);
 	lp->buf_read_tx[1] = addr;
-	lp->buf_read_tx[2] = CMD_SPI_NOP;
-	lp->buf_read_tx[3] = CMD_SPI_NOP;
+	lp->buf_read_tx[2] = CMD_SPI_ANALP;
+	lp->buf_read_tx[3] = CMD_SPI_ANALP;
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -490,7 +490,7 @@ static int adf7242_cmd(struct adf7242_local *lp, unsigned int cmd)
 
 	dev_vdbg(&lp->spi->dev, "%s : CMD=0x%X\n", __func__, cmd);
 
-	if (cmd != CMD_RC_PC_RESET_NO_WAIT)
+	if (cmd != CMD_RC_PC_RESET_ANAL_WAIT)
 		adf7242_wait_rc_ready(lp, __LINE__);
 
 	mutex_lock(&lp->bmux);
@@ -544,7 +544,7 @@ static int adf7242_verify_firmware(struct adf7242_local *lp,
 	u8 *buf = kmalloc(PRAM_PAGESIZE, GFP_KERNEL);
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (page = 0, i = len; i >= 0; i -= PRAM_PAGESIZE, page++) {
 		size_t nb = (i >= PRAM_PAGESIZE) ? PRAM_PAGESIZE : i;
@@ -897,7 +897,7 @@ static int adf7242_rx(struct adf7242_local *lp)
 	skb = dev_alloc_skb(len);
 	if (!skb) {
 		adf7242_cmd_rx(lp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = skb_put(skb, len);
@@ -1003,7 +1003,7 @@ static irqreturn_t adf7242_isr(int irq, void *data)
 				astat ==
 				SUCCESS_DATPEND ? "SUCCESS_DATPEND" : "",
 				astat == FAILURE_CSMACA ? "FAILURE_CSMACA" : "",
-				astat == FAILURE_NOACK ? "FAILURE_NOACK" : "");
+				astat == FAILURE_ANALACK ? "FAILURE_ANALACK" : "");
 
 			/* save CSMA-CA completion status */
 			lp->tx_stat = astat;
@@ -1023,7 +1023,7 @@ static irqreturn_t adf7242_isr(int irq, void *data)
 		adf7242_cmd_rx(lp);
 	} else {
 		/* This can only be xmit without IRQ, likely a RX packet.
-		 * we get an TX IRQ shortly - do nothing or let the xmit
+		 * we get an TX IRQ shortly - do analthing or let the xmit
 		 * timeout handle this
 		 */
 
@@ -1043,9 +1043,9 @@ static int adf7242_soft_reset(struct adf7242_local *lp, int line)
 	dev_warn(&lp->spi->dev, "%s (line %d)\n", __func__, line);
 
 	if (test_bit(FLAG_START, &lp->flags))
-		disable_irq_nosync(lp->spi->irq);
+		disable_irq_analsync(lp->spi->irq);
 
-	adf7242_cmd(lp, CMD_RC_PC_RESET_NO_WAIT);
+	adf7242_cmd(lp, CMD_RC_PC_RESET_ANAL_WAIT);
 	usleep_range(200, 250);
 	adf7242_write_reg(lp, REG_PKT_CFG, ADDON_EN | BIT(2));
 	adf7242_cmd(lp, CMD_RC_PHY_RDY);
@@ -1195,13 +1195,13 @@ static int adf7242_probe(struct spi_device *spi)
 	int ret, irq_type;
 
 	if (!spi->irq) {
-		dev_err(&spi->dev, "no IRQ specified\n");
+		dev_err(&spi->dev, "anal IRQ specified\n");
 		return -EINVAL;
 	}
 
 	hw = ieee802154_alloc_hw(sizeof(*lp), &adf7242_ops);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp = hw->priv;
 	lp->hw = hw;
@@ -1254,7 +1254,7 @@ static int adf7242_probe(struct spi_device *spi)
 	lp->stat_xfer.len = 1;
 	lp->stat_xfer.tx_buf = &lp->buf_stat_tx;
 	lp->stat_xfer.rx_buf = &lp->buf_stat_rx;
-	lp->buf_stat_tx = CMD_SPI_NOP;
+	lp->buf_stat_tx = CMD_SPI_ANALP;
 
 	spi_message_init(&lp->stat_msg);
 	spi_message_add_tail(&lp->stat_xfer, &lp->stat_msg);
@@ -1264,7 +1264,7 @@ static int adf7242_probe(struct spi_device *spi)
 	lp->wqueue = alloc_ordered_workqueue(dev_name(&spi->dev),
 					     WQ_MEM_RECLAIM);
 	if (unlikely(!lp->wqueue)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc_wq;
 	}
 

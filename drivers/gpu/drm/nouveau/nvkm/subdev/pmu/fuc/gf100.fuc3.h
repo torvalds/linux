@@ -1732,7 +1732,7 @@ static uint32_t gf100_pmu_code[] = {
 	0x64b6084f,
 	0x025bb904,
 	0x0ef474bd,
-/* 0x0b31: i2c_recv_not_rd08 */
+/* 0x0b31: i2c_recv_analt_rd08 */
 	0x01d6b043,
 	0xf03d1bf4,
 	0x21f50057,
@@ -1749,7 +1749,7 @@ static uint32_t gf100_pmu_code[] = {
 	0x08c5c774,
 	0xf4091bf4,
 	0x0ef40232,
-/* 0x0b71: i2c_recv_not_wr08 */
+/* 0x0b71: i2c_recv_analt_wr08 */
 /* 0x0b71: i2c_recv_done */
 	0xf8cec703,
 	0x0a1c21f5,

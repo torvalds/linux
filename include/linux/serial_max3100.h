@@ -15,7 +15,7 @@
  * @crystal:             1 for 3.6864 Mhz, 0 for 1.8432
  * @max3100_hw_suspend:  MAX3100 has a shutdown pin. This is a hook
  *                       called on suspend and resume to activate it.
- * @poll_time:           poll time for CTS signal in ms, 0 disables (so no hw
+ * @poll_time:           poll time for CTS signal in ms, 0 disables (so anal hw
  *                       flow ctrl is possible but you have less CPU usage)
  *
  * You should use this structure in your machine description to specify

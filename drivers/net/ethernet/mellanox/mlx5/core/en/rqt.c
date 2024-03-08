@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2021, Mellanox Technologies inc. All rights reserved. */
+/* Copyright (c) 2021, Mellaanalx Techanallogies inc. All rights reserved. */
 
 #include "rqt.h"
 #include <linux/mlx5/transobj.h>
@@ -28,7 +28,7 @@ static int mlx5e_rqt_init(struct mlx5e_rqt *rqt, struct mlx5_core_dev *mdev,
 	inlen = MLX5_ST_SZ_BYTES(create_rqt_in) + sizeof(u32) * init_size;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rqtc = MLX5_ADDR_OF(create_rqt_in, in, rqt_context);
 
@@ -78,7 +78,7 @@ static int mlx5e_calc_indir_rqns(u32 *rss_rqns, u32 *rqns, unsigned int num_rqns
 
 		if (WARN_ON(ix >= num_rqns))
 			/* Could be a bug in the driver or in the kernel part of
-			 * ethtool: indir table refers to non-existent RQs.
+			 * ethtool: indir table refers to analn-existent RQs.
 			 */
 			return -EINVAL;
 		rss_rqns[i] = rqns[ix];
@@ -96,7 +96,7 @@ int mlx5e_rqt_init_indir(struct mlx5e_rqt *rqt, struct mlx5_core_dev *mdev,
 
 	rss_rqns = kvmalloc_array(indir->actual_table_size, sizeof(*rss_rqns), GFP_KERNEL);
 	if (!rss_rqns)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx5e_calc_indir_rqns(rss_rqns, rqns, num_rqns, hfunc, indir);
 	if (err)
@@ -137,7 +137,7 @@ static int mlx5e_rqt_redirect(struct mlx5e_rqt *rqt, u32 *rqns, unsigned int siz
 	inlen = MLX5_ST_SZ_BYTES(modify_rqt_in) + sizeof(u32) * size;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rqtc = MLX5_ADDR_OF(modify_rqt_in, in, ctx);
 
@@ -168,7 +168,7 @@ int mlx5e_rqt_redirect_indir(struct mlx5e_rqt *rqt, u32 *rqns, unsigned int num_
 
 	rss_rqns = kvmalloc_array(indir->actual_table_size, sizeof(*rss_rqns), GFP_KERNEL);
 	if (!rss_rqns)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx5e_calc_indir_rqns(rss_rqns, rqns, num_rqns, hfunc, indir);
 	if (err)

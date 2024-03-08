@@ -41,7 +41,7 @@ static u32 fixup_flags_legacy_fw(struct hl_device *hdev, enum hwmon_sensor_types
 		break;
 
 	case hwmon_pwm:
-		/* enable bit was here from day 1, so no need to adjust */
+		/* enable bit was here from day 1, so anal need to adjust */
 		flags = cpucp_flags;
 		break;
 
@@ -83,7 +83,7 @@ static u32 adjust_hwmon_flags(struct hl_device *hdev, enum hwmon_sensor_types ty
 					CPU_BOOT_DEV_STS0_MAP_HWMON_EN) ? true : false;
 
 	/* If f/w is using it's own enum, we need to check if the properties values are aligned.
-	 * If not, it means we need to adjust the values to the new format that is used in the
+	 * If analt, it means we need to adjust the values to the new format that is used in the
 	 * kernel since 5.6 (enum values were incremented by 1 by adding a new enable value).
 	 */
 	if (use_cpucp_enum) {
@@ -121,7 +121,7 @@ static u32 adjust_hwmon_flags(struct hl_device *hdev, enum hwmon_sensor_types ty
 			break;
 
 		case hwmon_pwm:
-			/* enable bit was here from day 1, so no need to adjust */
+			/* enable bit was here from day 1, so anal need to adjust */
 			flags = cpucp_flags;
 			break;
 
@@ -179,7 +179,7 @@ int hl_build_hwmon_channel_info(struct hl_device *hdev, struct cpucp_sensor *sen
 
 		curr_arr = kcalloc(num_sensors_for_type, sizeof(*curr_arr), GFP_KERNEL);
 		if (!curr_arr) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto sensors_type_err;
 		}
 
@@ -197,14 +197,14 @@ int hl_build_hwmon_channel_info(struct hl_device *hdev, struct cpucp_sensor *sen
 	channels_info = kcalloc(num_active_sensor_types + 1, sizeof(struct hwmon_channel_info *),
 				GFP_KERNEL);
 	if (!channels_info) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto channels_info_array_err;
 	}
 
 	for (i = 0 ; i < num_active_sensor_types ; i++) {
 		channels_info[i] = kzalloc(sizeof(*channels_info[i]), GFP_KERNEL);
 		if (!channels_info[i]) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto channel_info_err;
 		}
 	}
@@ -248,7 +248,7 @@ static int hl_read(struct device *dev, enum hwmon_sensor_types type,
 	int rc;
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	use_cpucp_enum = (hdev->asic_prop.fw_app_cpu_boot_dev_sts0 &
 					CPU_BOOT_DEV_STS0_MAP_HWMON_EN) ? true : false;
@@ -367,7 +367,7 @@ static int hl_read(struct device *dev, enum hwmon_sensor_types type,
 		if (use_cpucp_enum)
 			rc = hl_get_pwm_info(hdev, channel, cpucp_attr, val);
 		else
-			/* no need for fixup as pwm was aligned from day 1 */
+			/* anal need for fixup as pwm was aligned from day 1 */
 			rc = hl_get_pwm_info(hdev, channel, attr, val);
 		break;
 	case hwmon_power:
@@ -402,7 +402,7 @@ static int hl_write(struct device *dev, enum hwmon_sensor_types type,
 				CPU_BOOT_DEV_STS0_MAP_HWMON_EN) ? true : false;
 
 	if (!hl_device_operational(hdev, NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (type) {
 	case hwmon_temp:
@@ -437,7 +437,7 @@ static int hl_write(struct device *dev, enum hwmon_sensor_types type,
 		if (use_cpucp_enum)
 			hl_set_pwm_info(hdev, channel, cpucp_attr, val);
 		else
-			/* no need for fixup as pwm was aligned from day 1 */
+			/* anal need for fixup as pwm was aligned from day 1 */
 			hl_set_pwm_info(hdev, channel, attr, val);
 		break;
 	case hwmon_in:
@@ -894,7 +894,7 @@ int hl_hwmon_init(struct hl_device *hdev)
 
 		hdev->hwmon_initialized = true;
 	} else {
-		dev_info(hdev->dev, "no available sensors\n");
+		dev_info(hdev->dev, "anal available sensors\n");
 	}
 
 	return 0;

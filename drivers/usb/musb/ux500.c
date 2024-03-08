@@ -37,7 +37,7 @@ static void ux500_musb_set_vbus(struct musb *musb, int is_on)
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	/* HDRC controls CPEN, but beware current surges during device
 	 * connect.  They can trigger transient overcurrent conditions
-	 * that must be ignored.
+	 * that must be iganalred.
 	 */
 
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
@@ -69,7 +69,7 @@ static void ux500_musb_set_vbus(struct musb *musb, int is_on)
 	} else {
 		musb->is_active = 0;
 
-		/* NOTE: we're skipping A_WAIT_VFALL -> A_IDLE and jumping
+		/* ANALTE: we're skipping A_WAIT_VFALL -> A_IDLE and jumping
 		 * right to B_IDLE...
 		 */
 		devctl &= ~MUSB_DEVCTL_SESSION;
@@ -91,12 +91,12 @@ static void ux500_musb_set_vbus(struct musb *musb, int is_on)
 		musb_readb(musb->mregs, MUSB_DEVCTL));
 }
 
-static int musb_otg_notifications(struct notifier_block *nb,
+static int musb_otg_analtifications(struct analtifier_block *nb,
 		unsigned long event, void *unused)
 {
 	struct musb *musb = container_of(nb, struct musb, nb);
 
-	dev_dbg(musb->controller, "musb_otg_notifications %ld %s\n",
+	dev_dbg(musb->controller, "musb_otg_analtifications %ld %s\n",
 			event, usb_otg_state_string(musb->xceiv->otg->state));
 
 	switch (event) {
@@ -107,7 +107,7 @@ static int musb_otg_notifications(struct notifier_block *nb,
 	case UX500_MUSB_VBUS:
 		dev_dbg(musb->controller, "VBUS Connect\n");
 		break;
-	case UX500_MUSB_NONE:
+	case UX500_MUSB_ANALNE:
 		dev_dbg(musb->controller, "VBUS Disconnect\n");
 		if (is_host_active(musb))
 			ux500_musb_set_vbus(musb, 0);
@@ -116,15 +116,15 @@ static int musb_otg_notifications(struct notifier_block *nb,
 		break;
 	default:
 		dev_dbg(musb->controller, "ID float\n");
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static irqreturn_t ux500_musb_interrupt(int irq, void *__hci)
 {
 	unsigned long   flags;
-	irqreturn_t     retval = IRQ_NONE;
+	irqreturn_t     retval = IRQ_ANALNE;
 	struct musb     *musb = __hci;
 
 	spin_lock_irqsave(&musb->lock, flags);
@@ -147,14 +147,14 @@ static int ux500_musb_init(struct musb *musb)
 
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv)) {
-		pr_err("HS USB OTG: no transceiver configured\n");
+		pr_err("HS USB OTG: anal transceiver configured\n");
 		return -EPROBE_DEFER;
 	}
 
-	musb->nb.notifier_call = musb_otg_notifications;
-	status = usb_register_notifier(musb->xceiv, &musb->nb);
+	musb->nb.analtifier_call = musb_otg_analtifications;
+	status = usb_register_analtifier(musb->xceiv, &musb->nb);
 	if (status < 0) {
-		dev_dbg(musb->controller, "notification register failed\n");
+		dev_dbg(musb->controller, "analtification register failed\n");
 		return status;
 	}
 
@@ -165,7 +165,7 @@ static int ux500_musb_init(struct musb *musb)
 
 static int ux500_musb_exit(struct musb *musb)
 {
-	usb_unregister_notifier(musb->xceiv, &musb->nb);
+	usb_unregister_analtifier(musb->xceiv, &musb->nb);
 
 	usb_put_phy(musb->xceiv);
 
@@ -186,7 +186,7 @@ static const struct musb_platform_ops ux500_ops = {
 };
 
 static struct musb_hdrc_platform_data *
-ux500_of_probe(struct platform_device *pdev, struct device_node *np)
+ux500_of_probe(struct platform_device *pdev, struct device_analde *np)
 {
 	struct musb_hdrc_platform_data *pdata;
 	const char *mode;
@@ -198,7 +198,7 @@ ux500_of_probe(struct platform_device *pdev, struct device_node *np)
 
 	mode = of_get_property(np, "dr_mode", &strlen);
 	if (!mode) {
-		dev_err(&pdev->dev, "No 'dr_mode' property found\n");
+		dev_err(&pdev->dev, "Anal 'dr_mode' property found\n");
 		return NULL;
 	}
 
@@ -217,11 +217,11 @@ ux500_of_probe(struct platform_device *pdev, struct device_node *np)
 static int ux500_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = dev_get_platdata(&pdev->dev);
-	struct device_node		*np = pdev->dev.of_node;
+	struct device_analde		*np = pdev->dev.of_analde;
 	struct platform_device		*musb;
 	struct ux500_glue		*glue;
 	struct clk			*clk;
-	int				ret = -ENOMEM;
+	int				ret = -EANALMEM;
 
 	if (!pdata) {
 		if (np) {
@@ -231,7 +231,7 @@ static int ux500_probe(struct platform_device *pdev)
 
 			pdev->dev.platform_data = pdata;
 		} else {
-			dev_err(&pdev->dev, "no pdata or device tree found\n");
+			dev_err(&pdev->dev, "anal pdata or device tree found\n");
 			goto err0;
 		}
 	}
@@ -262,7 +262,7 @@ static int ux500_probe(struct platform_device *pdev)
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &pdev->dev.coherent_dma_mask;
 	musb->dev.coherent_dma_mask	= pdev->dev.coherent_dma_mask;
-	device_set_of_node_from_dev(&musb->dev, &pdev->dev);
+	device_set_of_analde_from_dev(&musb->dev, &pdev->dev);
 
 	glue->dev			= &pdev->dev;
 	glue->musb			= musb;

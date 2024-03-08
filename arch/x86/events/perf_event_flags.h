@@ -6,7 +6,7 @@ PERF_ARCH(PEBS_LDLAT,		0x00001) /* ld+ldlat data address sampling */
 PERF_ARCH(PEBS_ST,		0x00002) /* st data address sampling */
 PERF_ARCH(PEBS_ST_HSW,		0x00004) /* haswell style datala, store */
 PERF_ARCH(PEBS_LD_HSW,		0x00008) /* haswell style datala, load */
-PERF_ARCH(PEBS_NA_HSW,		0x00010) /* haswell style datala, unknown */
+PERF_ARCH(PEBS_NA_HSW,		0x00010) /* haswell style datala, unkanalwn */
 PERF_ARCH(EXCL,			0x00020) /* HT exclusivity on counter */
 PERF_ARCH(DYNAMIC,		0x00040) /* dynamic alloc'd constraint */
 			/*	0x00080	*/

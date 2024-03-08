@@ -6,29 +6,29 @@
 # enabled, even if doing so doesn't break the build.
 #
 
-# non-x86 reuses KBUILD_CFLAGS, x86 does not
+# analn-x86 reuses KBUILD_CFLAGS, x86 does analt
 cflags-y			:= $(KBUILD_CFLAGS)
 
 cflags-$(CONFIG_X86_32)		:= -march=i386
 cflags-$(CONFIG_X86_64)		:= -mcmodel=small
 cflags-$(CONFIG_X86)		+= -m$(BITS) -D__KERNEL__ \
-				   -fPIC -fno-strict-aliasing -mno-red-zone \
-				   -mno-mmx -mno-sse -fshort-wchar \
-				   -Wno-pointer-sign \
+				   -fPIC -fanal-strict-aliasing -manal-red-zone \
+				   -manal-mmx -manal-sse -fshort-wchar \
+				   -Wanal-pointer-sign \
 				   $(call cc-disable-warning, address-of-packed-member) \
 				   $(call cc-disable-warning, gnu) \
-				   -fno-asynchronous-unwind-tables \
+				   -fanal-asynchroanalus-unwind-tables \
 				   $(CLANG_FLAGS)
 
 # arm64 uses the full KBUILD_CFLAGS so it's necessary to explicitly
 # disable the stackleak plugin
 cflags-$(CONFIG_ARM64)		+= -fpie $(DISABLE_STACKLEAK_PLUGIN) \
-				   -fno-unwind-tables -fno-asynchronous-unwind-tables
+				   -fanal-unwind-tables -fanal-asynchroanalus-unwind-tables
 cflags-$(CONFIG_ARM)		+= -DEFI_HAVE_STRLEN -DEFI_HAVE_STRNLEN \
 				   -DEFI_HAVE_MEMCHR -DEFI_HAVE_STRRCHR \
-				   -DEFI_HAVE_STRCMP -fno-builtin -fpic \
-				   $(call cc-option,-mno-single-pic-base)
-cflags-$(CONFIG_RISCV)		+= -fpic -DNO_ALTERNATIVE -mno-relax
+				   -DEFI_HAVE_STRCMP -fanal-builtin -fpic \
+				   $(call cc-option,-manal-single-pic-base)
+cflags-$(CONFIG_RISCV)		+= -fpic -DANAL_ALTERNATIVE -manal-relax
 cflags-$(CONFIG_LOONGARCH)	+= -fpie
 
 cflags-$(CONFIG_EFI_PARAMS_FROM_FDT)	+= -I$(srctree)/scripts/dtc/libfdt
@@ -36,10 +36,10 @@ cflags-$(CONFIG_EFI_PARAMS_FROM_FDT)	+= -I$(srctree)/scripts/dtc/libfdt
 KBUILD_CFLAGS			:= $(subst $(CC_FLAGS_FTRACE),,$(cflags-y)) \
 				   -Os -DDISABLE_BRANCH_PROFILING \
 				   -include $(srctree)/include/linux/hidden.h \
-				   -D__NO_FORTIFY \
+				   -D__ANAL_FORTIFY \
 				   -ffreestanding \
-				   -fno-stack-protector \
-				   $(call cc-option,-fno-addrsig) \
+				   -fanal-stack-protector \
+				   $(call cc-option,-fanal-addrsig) \
 				   -D__DISABLE_EXPORTS
 
 #
@@ -57,14 +57,14 @@ KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_CFI), $(KBUILD_CFLAGS))
 KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_LTO), $(KBUILD_CFLAGS))
 
 GCOV_PROFILE			:= n
-# Sanitizer runtimes are unavailable and cannot be linked here.
+# Sanitizer runtimes are unavailable and cananalt be linked here.
 KASAN_SANITIZE			:= n
 KCSAN_SANITIZE			:= n
 KMSAN_SANITIZE			:= n
 UBSAN_SANITIZE			:= n
-OBJECT_FILES_NON_STANDARD	:= y
+OBJECT_FILES_ANALN_STANDARD	:= y
 
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
+# Prevents link failures: __sanitizer_cov_trace_pc() is analt linked in.
 KCOV_INSTRUMENT			:= n
 
 lib-y				:= efi-stub-helper.o gop.o secureboot.o tpm.o \
@@ -102,11 +102,11 @@ lib-$(CONFIG_UNACCEPTED_MEMORY) += unaccepted_memory.o bitmap.o find.o
 extra-y				:= $(lib-y)
 lib-y				:= $(patsubst %.o,%.stub.o,$(lib-y))
 
-# Even when -mbranch-protection=none is set, Clang will generate a
-# .note.gnu.property for code-less object files (like lib/ctype.c),
+# Even when -mbranch-protection=analne is set, Clang will generate a
+# .analte.gnu.property for code-less object files (like lib/ctype.c),
 # so work around this by explicitly removing the unwanted section.
 # https://bugs.llvm.org/show_bug.cgi?id=46480
-STUBCOPY_FLAGS-y		+= --remove-section=.note.gnu.property
+STUBCOPY_FLAGS-y		+= --remove-section=.analte.gnu.property
 
 STUBCOPY_RELOC-$(CONFIG_X86_32)	:= R_386_32
 STUBCOPY_RELOC-$(CONFIG_X86_64)	:= R_X86_64_64
@@ -122,14 +122,14 @@ STUBCOPY_RELOC-$(CONFIG_ARM)	:= R_ARM_ABS
 
 #
 # arm64 puts the stub in the kernel proper, which will unnecessarily retain all
-# code indefinitely unless it is annotated as __init/__initdata/__initconst etc.
-# So let's apply the __init annotations at the section level, by prefixing
+# code indefinitely unless it is ananaltated as __init/__initdata/__initconst etc.
+# So let's apply the __init ananaltations at the section level, by prefixing
 # the section names directly. This will ensure that even all the inline string
 # literals are covered.
 # The fact that the stub and the kernel proper are essentially the same binary
 # also means that we need to be extra careful to make sure that the stub does
-# not rely on any absolute symbol references, considering that the virtual
-# kernel mapping that the linker uses is not active yet when the stub is
+# analt rely on any absolute symbol references, considering that the virtual
+# kernel mapping that the linker uses is analt active yet when the stub is
 # executing. So build all C dependencies of the EFI stub into libstub, and do
 # a verification pass to see if any absolute relocations exist in any of the
 # object files.
@@ -139,13 +139,13 @@ STUBCOPY_FLAGS-$(CONFIG_ARM64)	+= --prefix-alloc-sections=.init \
 STUBCOPY_RELOC-$(CONFIG_ARM64)	:= R_AARCH64_ABS
 
 # For RISC-V, we don't need anything special other than arm64. Keep all the
-# symbols in .init section and make sure that no absolute symbols references
+# symbols in .init section and make sure that anal absolute symbols references
 # exist.
 STUBCOPY_FLAGS-$(CONFIG_RISCV)	+= --prefix-alloc-sections=.init \
 				   --prefix-symbols=__efistub_
 STUBCOPY_RELOC-$(CONFIG_RISCV)	:= -E R_RISCV_HI20\|R_RISCV_$(BITS)\|R_RISCV_RELAX
 
-# For LoongArch, keep all the symbols in .init section and make sure that no
+# For LoongArch, keep all the symbols in .init section and make sure that anal
 # absolute symbols references exist.
 STUBCOPY_FLAGS-$(CONFIG_LOONGARCH)	+= --prefix-alloc-sections=.init \
 					   --prefix-symbols=__efistub_
@@ -157,14 +157,14 @@ $(obj)/%.stub.o: $(obj)/%.o FORCE
 #
 # Strip debug sections and some other sections that may legally contain
 # absolute relocations, so that we can inspect the remaining sections for
-# such relocations. If none are found, regenerate the output object, but
+# such relocations. If analne are found, regenerate the output object, but
 # this time, use objcopy and leave all sections in place.
 #
 quiet_cmd_stubcopy = STUBCPY $@
       cmd_stubcopy =							\
 	$(STRIP) --strip-debug -o $@ $<;				\
 	if $(OBJDUMP) -r $@ | grep $(STUBCOPY_RELOC-y); then		\
-		echo "$@: absolute symbol references not allowed in the EFI stub" >&2; \
+		echo "$@: absolute symbol references analt allowed in the EFI stub" >&2; \
 		/bin/false;						\
 	fi;								\
 	$(OBJCOPY) $(STUBCOPY_FLAGS-y) $< $@

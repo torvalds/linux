@@ -16,7 +16,7 @@
 
 		interrupt-parent = <&tlmm>;
 		/*
-		 * This will get ignored because the interrupt type
+		 * This will get iganalred because the interrupt type
 		 * is set in rt5682.c.
 		 */
 		interrupts = <28 IRQ_TYPE_EDGE_BOTH>;

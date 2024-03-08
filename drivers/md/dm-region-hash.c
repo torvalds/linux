@@ -25,13 +25,13 @@
  *
  * The mirror splits itself up into discrete regions.  Each
  * region can be in one of three states: clean, dirty,
- * nosync.  There is no need to put clean regions in the hash.
+ * analsync.  There is anal need to put clean regions in the hash.
  *
  * In addition to being present in the hash table a region _may_
  * be present on one of three lists.
  *
- *   clean_regions: Regions on this list have no io pending to
- *   them, they are in sync, we are no longer interested in them,
+ *   clean_regions: Regions on this list have anal io pending to
+ *   them, they are in sync, we are anal longer interested in them,
  *   they are dull.  dm_rh_update_states() will remove them from the
  *   hash table.
  *
@@ -41,7 +41,7 @@
  *   recovery io with kcopyd.
  *
  *   recovered_regions: Regions that kcopyd has successfully
- *   recovered.  dm_rh_update_states() will now schedule any delayed
+ *   recovered.  dm_rh_update_states() will analw schedule any delayed
  *   io, up the recovery_count, and remove the region from the
  *   hash.
  *
@@ -73,7 +73,7 @@ struct dm_region_hash {
 	struct list_head *buckets;
 
 	/*
-	 * If there was a flush failure no regions can be marked clean.
+	 * If there was a flush failure anal regions can be marked clean.
 	 */
 	int flush_failure;
 
@@ -187,7 +187,7 @@ struct dm_region_hash *dm_region_hash_create(
 	rh = kzalloc(sizeof(*rh), GFP_KERNEL);
 	if (!rh) {
 		DMERR("unable to allocate region hash memory");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	rh->context = context;
@@ -210,7 +210,7 @@ struct dm_region_hash *dm_region_hash_create(
 	if (!rh->buckets) {
 		DMERR("unable to allocate region hash bucket memory");
 		kfree(rh);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	for (i = 0; i < nr_buckets; i++)
@@ -230,7 +230,7 @@ struct dm_region_hash *dm_region_hash_create(
 	if (ret) {
 		vfree(rh->buckets);
 		kfree(rh);
-		rh = ERR_PTR(-ENOMEM);
+		rh = ERR_PTR(-EANALMEM);
 	}
 
 	return rh;
@@ -294,10 +294,10 @@ static struct dm_region *__rh_alloc(struct dm_region_hash *rh, region_t region)
 
 	nreg = mempool_alloc(&rh->region_pool, GFP_ATOMIC);
 	if (unlikely(!nreg))
-		nreg = kmalloc(sizeof(*nreg), GFP_NOIO | __GFP_NOFAIL);
+		nreg = kmalloc(sizeof(*nreg), GFP_ANALIO | __GFP_ANALFAIL);
 
 	nreg->state = rh->log->type->in_sync(rh->log, region, 1) ?
-		      DM_RH_CLEAN : DM_RH_NOSYNC;
+		      DM_RH_CLEAN : DM_RH_ANALSYNC;
 	nreg->rh = rh;
 	nreg->key = region;
 	INIT_LIST_HEAD(&nreg->list);
@@ -358,9 +358,9 @@ int dm_rh_get_state(struct dm_region_hash *rh, region_t region, int may_block)
 
 	/*
 	 * Any error from the dirty log (eg. -EWOULDBLOCK) gets
-	 * taken as a DM_RH_NOSYNC
+	 * taken as a DM_RH_ANALSYNC
 	 */
-	return r == 1 ? DM_RH_CLEAN : DM_RH_NOSYNC;
+	return r == 1 ? DM_RH_CLEAN : DM_RH_ANALSYNC;
 }
 EXPORT_SYMBOL_GPL(dm_rh_get_state);
 
@@ -373,7 +373,7 @@ static void complete_resync_work(struct dm_region *reg, int success)
 	/*
 	 * Dispatch the bios before we call 'wake_up_all'.
 	 * This is important because if we are suspending,
-	 * we want to know that recovery is complete and
+	 * we want to kanalw that recovery is complete and
 	 * the work queue is flushed.  If we wake_up_all
 	 * before we dispatch_bios (queue bios and call wake()),
 	 * then we risk suspending before the work queue
@@ -385,17 +385,17 @@ static void complete_resync_work(struct dm_region *reg, int success)
 	up(&rh->recovery_count);
 }
 
-/* dm_rh_mark_nosync
+/* dm_rh_mark_analsync
  * @ms
  * @bio
  *
  * The bio was written on some mirror(s) but failed on other mirror(s).
  * We can successfully endio the bio but should avoid the region being
- * marked clean by setting the state DM_RH_NOSYNC.
+ * marked clean by setting the state DM_RH_ANALSYNC.
  *
- * This function is _not_ safe in interrupt context!
+ * This function is _analt_ safe in interrupt context!
  */
-void dm_rh_mark_nosync(struct dm_region_hash *rh, struct bio *bio)
+void dm_rh_mark_analsync(struct dm_region_hash *rh, struct bio *bio)
 {
 	unsigned long flags;
 	struct dm_dirty_log *log = rh->log;
@@ -426,19 +426,19 @@ void dm_rh_mark_nosync(struct dm_region_hash *rh, struct bio *bio)
 	/*
 	 * Possible cases:
 	 *   1) DM_RH_DIRTY
-	 *   2) DM_RH_NOSYNC: was dirty, other preceding writes failed
+	 *   2) DM_RH_ANALSYNC: was dirty, other preceding writes failed
 	 *   3) DM_RH_RECOVERING: flushing pending writes
-	 * Either case, the region should have not been connected to list.
+	 * Either case, the region should have analt been connected to list.
 	 */
 	recovering = (reg->state == DM_RH_RECOVERING);
-	reg->state = DM_RH_NOSYNC;
+	reg->state = DM_RH_ANALSYNC;
 	BUG_ON(!list_empty(&reg->list));
 	spin_unlock_irqrestore(&rh->region_lock, flags);
 
 	if (recovering)
 		complete_resync_work(reg, 0);
 }
-EXPORT_SYMBOL_GPL(dm_rh_mark_nosync);
+EXPORT_SYMBOL_GPL(dm_rh_mark_analsync);
 
 void dm_rh_update_states(struct dm_region_hash *rh, int errors_handled)
 {
@@ -480,7 +480,7 @@ void dm_rh_update_states(struct dm_region_hash *rh, int errors_handled)
 
 	/*
 	 * All the regions on the recovered and clean lists have
-	 * now been pulled out of the system, so no need to do
+	 * analw been pulled out of the system, so anal need to do
 	 * any more locking.
 	 */
 	list_for_each_entry_safe(reg, next, &recovered, list) {
@@ -551,24 +551,24 @@ void dm_rh_dec(struct dm_region_hash *rh, region_t region)
 	spin_lock_irqsave(&rh->region_lock, flags);
 	if (atomic_dec_and_test(&reg->pending)) {
 		/*
-		 * There is no pending I/O for this region.
+		 * There is anal pending I/O for this region.
 		 * We can move the region to corresponding list for next action.
-		 * At this point, the region is not yet connected to any list.
+		 * At this point, the region is analt yet connected to any list.
 		 *
-		 * If the state is DM_RH_NOSYNC, the region should be kept off
+		 * If the state is DM_RH_ANALSYNC, the region should be kept off
 		 * from clean list.
-		 * The hash entry for DM_RH_NOSYNC will remain in memory
+		 * The hash entry for DM_RH_ANALSYNC will remain in memory
 		 * until the region is recovered or the map is reloaded.
 		 */
 
-		/* do nothing for DM_RH_NOSYNC */
+		/* do analthing for DM_RH_ANALSYNC */
 		if (unlikely(rh->flush_failure)) {
 			/*
 			 * If a write flush failed some time ago, we
-			 * don't know whether or not this write made it
+			 * don't kanalw whether or analt this write made it
 			 * to the disk, so we must resync the device.
 			 */
-			reg->state = DM_RH_NOSYNC;
+			reg->state = DM_RH_ANALSYNC;
 		} else if (reg->state == DM_RH_RECOVERING) {
 			list_add_tail(&reg->list, &rh->quiesced_regions);
 		} else if (reg->state == DM_RH_DIRTY) {

@@ -55,7 +55,7 @@ static int __init swarm_pata_init(void)
 	struct resource *r;
 
 	if (!SIBYTE_HAVE_IDE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	base = ioremap(A_IO_EXT_BASE, 0x800);
 	offset = __raw_readq(base + R_IO_EXT_REG(R_IO_EXT_START_ADDR, IDE_CS));
@@ -132,7 +132,7 @@ static int __init sb1250_device_init(void)
 		ret = platform_add_devices(sb1250_devs, 4);
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		break;
 	}
 	return ret;

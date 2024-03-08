@@ -57,14 +57,14 @@
 
 #define FSL_DMA_SATR_SBPATMU			0x20000000
 #define FSL_DMA_SATR_STRANSINT_RIO		0x00c00000
-#define FSL_DMA_SATR_SREADTYPE_SNOOP_READ	0x00050000
+#define FSL_DMA_SATR_SREADTYPE_SANALOP_READ	0x00050000
 #define FSL_DMA_SATR_SREADTYPE_BP_IORH		0x00020000
 #define FSL_DMA_SATR_SREADTYPE_BP_NREAD		0x00040000
 #define FSL_DMA_SATR_SREADTYPE_BP_MREAD		0x00070000
 
 #define FSL_DMA_DATR_DBPATMU			0x20000000
 #define FSL_DMA_DATR_DTRANSINT_RIO		0x00c00000
-#define FSL_DMA_DATR_DWRITETYPE_SNOOP_WRITE	0x00050000
+#define FSL_DMA_DATR_DWRITETYPE_SANALOP_WRITE	0x00050000
 #define FSL_DMA_DATR_DWRITETYPE_BP_FLUSH	0x00010000
 
 #define FSL_DMA_EOL		((u64)0x1)
@@ -99,7 +99,7 @@ struct fsl_dma_ld_hw {
 
 struct fsl_desc_sw {
 	struct fsl_dma_ld_hw hw;
-	struct list_head node;
+	struct list_head analde;
 	struct list_head tx_list;
 	struct dma_async_tx_descriptor async_tx;
 } __attribute__((aligned(32)));
@@ -153,7 +153,7 @@ struct fsldma_chan {
 	struct fsldma_chan_regs __iomem *regs;
 	spinlock_t desc_lock;		/* Descriptor operation lock */
 	/*
-	 * Descriptors which are queued to run, but have not yet been
+	 * Descriptors which are queued to run, but have analt yet been
 	 * submitted to the hardware for execution
 	 */
 	struct list_head ld_pending;
@@ -188,7 +188,7 @@ struct fsldma_chan {
 };
 
 #define to_fsl_chan(chan) container_of(chan, struct fsldma_chan, common)
-#define to_fsl_desc(lh) container_of(lh, struct fsl_desc_sw, node)
+#define to_fsl_desc(lh) container_of(lh, struct fsl_desc_sw, analde)
 #define tx_to_fsl_desc(tx) container_of(tx, struct fsl_desc_sw, async_tx)
 
 #ifdef	CONFIG_PPC

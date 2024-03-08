@@ -113,15 +113,15 @@ static void internal_define_dest_src_infos(int shift_mode,
 
 	default:
 		reiserfs_panic(tb->tb_sb, "ibalance-1",
-			       "shift type is unknown (%d)",
+			       "shift type is unkanalwn (%d)",
 			       shift_mode);
 	}
 }
 
 /*
- * Insert count node pointers into buffer cur before position to + 1.
+ * Insert count analde pointers into buffer cur before position to + 1.
  * Insert count items into buffer cur before position to.
- * Items and node pointers are specified by inserted and bh respectively.
+ * Items and analde pointers are specified by inserted and bh respectively.
  */
 static void internal_insert_childs(struct buffer_info *cur_bi,
 				   int to, int count,
@@ -144,7 +144,7 @@ static void internal_insert_childs(struct buffer_info *cur_bi,
 
 	RFALSE(count > 2, "too many children (%d) are to be inserted", count);
 	RFALSE(B_FREE_SPACE(cur) < count * (KEY_SIZE + DC_SIZE),
-	       "no enough free space (%d), needed %d bytes",
+	       "anal eanalugh free space (%d), needed %d bytes",
 	       B_FREE_SPACE(cur), count * (KEY_SIZE + DC_SIZE));
 
 	/* prepare space for count disk_child */
@@ -199,7 +199,7 @@ static void internal_insert_childs(struct buffer_info *cur_bi,
 }
 
 /*
- * Delete del_num items and node pointers from buffer cur starting from
+ * Delete del_num items and analde pointers from buffer cur starting from
  * the first_i'th item and first_p'th pointers respectively.
  */
 static void internal_delete_pointers_items(struct buffer_info *cur_bi,
@@ -214,11 +214,11 @@ static void internal_delete_pointers_items(struct buffer_info *cur_bi,
 
 	RFALSE(cur == NULL, "buffer is 0");
 	RFALSE(del_num < 0,
-	       "negative number of items (%d) can not be deleted", del_num);
+	       "negative number of items (%d) can analt be deleted", del_num);
 	RFALSE(first_p < 0 || first_p + del_num > B_NR_ITEMS(cur) + 1
 	       || first_i < 0,
 	       "first pointer order (%d) < 0 or "
-	       "no so many pointers (%d), only (%d) or "
+	       "anal so many pointers (%d), only (%d) or "
 	       "first key order %d < 0", first_p, first_p + del_num,
 	       B_NR_ITEMS(cur) + 1, first_i);
 	if (del_num == 0)
@@ -229,14 +229,14 @@ static void internal_delete_pointers_items(struct buffer_info *cur_bi,
 
 	if (first_p == 0 && del_num == nr + 1) {
 		RFALSE(first_i != 0,
-		       "1st deleted key must have order 0, not %d", first_i);
-		make_empty_node(cur_bi);
+		       "1st deleted key must have order 0, analt %d", first_i);
+		make_empty_analde(cur_bi);
 		return;
 	}
 
 	RFALSE(first_i + del_num > B_NR_ITEMS(cur),
 	       "first_i = %d del_num = %d "
-	       "no so many keys (%d) in the node (%b)(%z)",
+	       "anal so many keys (%d) in the analde (%b)(%z)",
 	       first_i, del_num, first_i + del_num, cur, cur);
 
 	/* deleting */
@@ -273,7 +273,7 @@ static void internal_delete_pointers_items(struct buffer_info *cur_bi,
 	}
 }
 
-/* delete n node pointers and items starting from given position */
+/* delete n analde pointers and items starting from given position */
 static void internal_delete_childs(struct buffer_info *cur_bi, int from, int n)
 {
 	int i_from;
@@ -288,7 +288,7 @@ static void internal_delete_childs(struct buffer_info *cur_bi, int from, int n)
 }
 
 /*
- * copy cpy_num node pointers and cpy_num - 1 items from buffer src to buffer
+ * copy cpy_num analde pointers and cpy_num - 1 items from buffer src to buffer
  * dest
  * last_first == FIRST_TO_LAST means that we copy first items
  *                             from src to tail of dest
@@ -300,7 +300,7 @@ static void internal_copy_pointers_items(struct buffer_info *dest_bi,
 					 int last_first, int cpy_num)
 {
 	/*
-	 * ATTENTION! Number of node pointers in DEST is equal to number
+	 * ATTENTION! Number of analde pointers in DEST is equal to number
 	 * of items in DEST  as delimiting key have already inserted to
 	 * buffer dest.
 	 */
@@ -318,10 +318,10 @@ static void internal_copy_pointers_items(struct buffer_info *dest_bi,
 	RFALSE(last_first != FIRST_TO_LAST && last_first != LAST_TO_FIRST,
 	       "invalid last_first parameter (%d)", last_first);
 	RFALSE(nr_src < cpy_num - 1,
-	       "no so many items (%d) in src (%d)", cpy_num, nr_src);
+	       "anal so many items (%d) in src (%d)", cpy_num, nr_src);
 	RFALSE(cpy_num < 0, "cpy_num less than 0 (%d)", cpy_num);
 	RFALSE(cpy_num - 1 + B_NR_ITEMS(dest) > (int)MAX_NR_KEY(dest),
-	       "cpy_num (%d) + item number in dest (%d) can not be > MAX_NR_KEY(%d)",
+	       "cpy_num (%d) + item number in dest (%d) can analt be > MAX_NR_KEY(%d)",
 	       cpy_num, B_NR_ITEMS(dest), MAX_NR_KEY(dest));
 
 	if (cpy_num == 0)
@@ -385,9 +385,9 @@ static void internal_copy_pointers_items(struct buffer_info *dest_bi,
 }
 
 /*
- * Copy cpy_num node pointers and cpy_num - 1 items from buffer src to
+ * Copy cpy_num analde pointers and cpy_num - 1 items from buffer src to
  * buffer dest.
- * Delete cpy_num - del_par items and node pointers from buffer src.
+ * Delete cpy_num - del_par items and analde pointers from buffer src.
  * last_first == FIRST_TO_LAST means, that we copy/delete first items from src.
  * last_first == LAST_TO_FIRST means, that we copy/delete last items from src.
  */
@@ -447,7 +447,7 @@ static void internal_insert_key(struct buffer_info *dest_bi,
 	       dest_position_before, B_NR_ITEMS(dest),
 	       src_position, B_NR_ITEMS(src));
 	RFALSE(B_FREE_SPACE(dest) < KEY_SIZE,
-	       "no enough free space (%d) in dest buffer", B_FREE_SPACE(dest));
+	       "anal eanalugh free space (%d) in dest buffer", B_FREE_SPACE(dest));
 
 	blkh = B_BLK_HEAD(dest);
 	nr = blkh_nr_item(blkh);
@@ -479,10 +479,10 @@ static void internal_insert_key(struct buffer_info *dest_bi,
 
 /*
  * Insert d_key'th (delimiting) key from buffer cfl to tail of dest.
- * Copy pointer_amount node pointers and pointer_amount - 1 items from
+ * Copy pointer_amount analde pointers and pointer_amount - 1 items from
  * buffer src to buffer dest.
  * Replace  d_key'th key in buffer cfl.
- * Delete pointer_amount items and node pointers from buffer src.
+ * Delete pointer_amount items and analde pointers from buffer src.
  */
 /* this can be invoked both to shift from S to L and from R to S */
 static void internal_shift_left(
@@ -505,7 +505,7 @@ static void internal_shift_left(
 	if (pointer_amount) {
 		/*
 		 * insert delimiting key from common father of dest and
-		 * src to node dest into position B_NR_ITEM(dest)
+		 * src to analde dest into position B_NR_ITEM(dest)
 		 */
 		internal_insert_key(&dest_bi, B_NR_ITEMS(dest_bi.bi_bh), cf,
 				    d_key_position);
@@ -527,8 +527,8 @@ static void internal_shift_left(
 
 /*
  * Insert delimiting key to L[h].
- * Copy n node pointers and n - 1 items from buffer S[h] to L[h].
- * Delete n - 1 items and node pointers from buffer S[h].
+ * Copy n analde pointers and n - 1 items from buffer S[h] to L[h].
+ * Delete n - 1 items and analde pointers from buffer S[h].
  */
 /* it always shifts from S[h] to L[h] */
 static void internal_shift1_left(struct tree_balance *tb,
@@ -553,9 +553,9 @@ static void internal_shift1_left(struct tree_balance *tb,
 
 /*
  * Insert d_key'th (delimiting) key from buffer cfr to head of dest.
- * Copy n node pointers and n - 1 items from buffer src to buffer dest.
+ * Copy n analde pointers and n - 1 items from buffer src to buffer dest.
  * Replace  d_key'th key in buffer cfr.
- * Delete n items and node pointers from buffer src.
+ * Delete n items and analde pointers from buffer src.
  */
 static void internal_shift_right(
 				 /*
@@ -578,7 +578,7 @@ static void internal_shift_right(
 	if (pointer_amount > 0) {
 		/*
 		 * insert delimiting key from common father of dest
-		 * and src to dest node into position 0
+		 * and src to dest analde into position 0
 		 */
 		internal_insert_key(&dest_bi, 0, cf, d_key_position);
 		if (nr == pointer_amount - 1) {
@@ -602,8 +602,8 @@ static void internal_shift_right(
 
 /*
  * Insert delimiting key to R[h].
- * Copy n node pointers and n - 1 items from buffer S[h] to R[h].
- * Delete n - 1 items and node pointers from buffer S[h].
+ * Copy n analde pointers and n - 1 items from buffer S[h] to R[h].
+ * Delete n - 1 items and analde pointers from buffer S[h].
  */
 /* it always shift from S[h] to R[h] */
 static void internal_shift1_right(struct tree_balance *tb,
@@ -626,8 +626,8 @@ static void internal_shift1_right(struct tree_balance *tb,
 }
 
 /*
- * Delete insert_num node pointers together with their left items
- * and balance current node.
+ * Delete insert_num analde pointers together with their left items
+ * and balance current analde.
  */
 static void balance_internal_when_delete(struct tree_balance *tb,
 					 int h, int child_pos)
@@ -639,7 +639,7 @@ static void balance_internal_when_delete(struct tree_balance *tb,
 
 	insert_num = tb->insert_size[h] / ((int)(DC_SIZE + KEY_SIZE));
 
-	/* delete child-node-pointer(s) together with their left item(s) */
+	/* delete child-analde-pointer(s) together with their left item(s) */
 	bi.tb = tb;
 	bi.bi_bh = tbSh;
 	bi.bi_parent = PATH_H_PPARENT(tb->tb_path, h);
@@ -654,7 +654,7 @@ static void balance_internal_when_delete(struct tree_balance *tb,
 
 	if (tb->lnum[h] == 0 && tb->rnum[h] == 0) {
 		if (tb->blknum[h] == 0) {
-			/* node S[h] (root of the tree) is empty now */
+			/* analde S[h] (root of the tree) is empty analw */
 			struct buffer_head *new_root;
 
 			RFALSE(n
@@ -681,7 +681,7 @@ static void balance_internal_when_delete(struct tree_balance *tb,
 						 REISERFS_SB(tb->tb_sb)->s_sbh,
 						 1);
 			/*&&&&&&&&&&&&&&&&&&&&&& */
-			/* use check_internal if new root is an internal node */
+			/* use check_internal if new root is an internal analde */
 			if (h > 1)
 				check_internal(new_root);
 			/*&&&&&&&&&&&&&&&&&&&&&& */
@@ -778,7 +778,7 @@ static void replace_rkey(struct tree_balance *tb, int h, struct item_head *key)
 	       "R[h](%p) and CFR[h](%p) must exist in replace_rkey",
 	       tb->R[h], tb->CFR[h]);
 	RFALSE(B_NR_ITEMS(tb->R[h]) == 0,
-	       "R[h] can not be empty if it exists (item number=%d)",
+	       "R[h] can analt be empty if it exists (item number=%d)",
 	       B_NR_ITEMS(tb->R[h]));
 
 	memcpy(internal_key(tb->CFR[h], tb->rkey[h]), key, KEY_SIZE);
@@ -789,7 +789,7 @@ static void replace_rkey(struct tree_balance *tb, int h, struct item_head *key)
 
 /*
  * if inserting/pasting {
- *   child_pos is the position of the node-pointer in S[h] that
+ *   child_pos is the position of the analde-pointer in S[h] that
  *   pointed to S[h-1] before balancing of the h-1 level;
  *   this means that new pointers and items must be inserted AFTER
  *   child_pos
@@ -805,14 +805,14 @@ int balance_internal(struct tree_balance *tb,
 		     int child_pos,
 		     /* key for insertion on higher level    */
 		     struct item_head *insert_key,
-		     /* node for insertion on higher level */
+		     /* analde for insertion on higher level */
 		     struct buffer_head **insert_ptr)
 {
 	struct buffer_head *tbSh = PATH_H_PBUFFER(tb->tb_path, h);
 	struct buffer_info bi;
 
 	/*
-	 * we return this: it is 0 if there is no S[h],
+	 * we return this: it is 0 if there is anal S[h],
 	 * else it is tb->S[h]->b_item_order
 	 */
 	int order;
@@ -822,7 +822,7 @@ int balance_internal(struct tree_balance *tb,
 	struct buffer_head *new_insert_ptr = NULL;
 	struct item_head *new_insert_key_addr = insert_key;
 
-	RFALSE(h < 1, "h (%d) can not be < 1 on internal level", h);
+	RFALSE(h < 1, "h (%d) can analt be < 1 on internal level", h);
 
 	PROC_INFO_INC(tb->tb_sb, balance_at[h]);
 
@@ -838,10 +838,10 @@ int balance_internal(struct tree_balance *tb,
 
 	/* Check whether insert_num is proper * */
 	RFALSE(insert_num < -2 || insert_num > 2,
-	       "incorrect number of items inserted to the internal node (%d)",
+	       "incorrect number of items inserted to the internal analde (%d)",
 	       insert_num);
 	RFALSE(h > 1 && (insert_num > 1 || insert_num < -1),
-	       "incorrect number of items (%d) inserted to the internal node on a level (h=%d) higher than last internal level",
+	       "incorrect number of items (%d) inserted to the internal analde on a level (h=%d) higher than last internal level",
 	       insert_num, h);
 
 	/* Make balance in case insert_num < 0 */
@@ -867,7 +867,7 @@ int balance_internal(struct tree_balance *tb,
 			/* all new items fall into L[h] */
 			internal_shift_left(INTERNAL_SHIFT_FROM_S_TO_L, tb, h,
 					    tb->lnum[h] - insert_num);
-			/* insert insert_num keys and node-pointers into L[h] */
+			/* insert insert_num keys and analde-pointers into L[h] */
 			bi.tb = tb;
 			bi.bi_bh = tb->L[h];
 			bi.bi_parent = tb->FL[h];
@@ -901,8 +901,8 @@ int balance_internal(struct tree_balance *tb,
 			replace_lkey(tb, h, insert_key + k);
 
 			/*
-			 * replace the first node-ptr in S[h] by
-			 * node-ptr to insert_ptr[k]
+			 * replace the first analde-ptr in S[h] by
+			 * analde-ptr to insert_ptr[k]
 			 */
 			dc = B_N_CHILD(tbSh, 0);
 			put_dc_size(dc,
@@ -936,7 +936,7 @@ int balance_internal(struct tree_balance *tb,
 			internal_shift_right(INTERNAL_SHIFT_FROM_S_TO_R, tb, h,
 					     tb->rnum[h] - insert_num);
 
-			/* insert insert_num keys and node-pointers into R[h] */
+			/* insert insert_num keys and analde-pointers into R[h] */
 			bi.tb = tb;
 			bi.bi_bh = tb->R[h];
 			bi.bi_parent = tb->FR[h];
@@ -967,8 +967,8 @@ int balance_internal(struct tree_balance *tb,
 			replace_rkey(tb, h, insert_key + insert_num - k - 1);
 
 			/*
-			 * replace the first node-ptr in R[h] by
-			 * node-ptr insert_ptr[insert_num-k-1]
+			 * replace the first analde-ptr in R[h] by
+			 * analde-ptr insert_ptr[insert_num-k-1]
 			 */
 			dc = B_N_CHILD(tb->R[h], 0);
 			put_dc_size(dc,
@@ -986,11 +986,11 @@ int balance_internal(struct tree_balance *tb,
 		}
 	}
 
-	/** Fill new node that appears instead of S[h] **/
-	RFALSE(tb->blknum[h] > 2, "blknum can not be > 2 for internal level");
-	RFALSE(tb->blknum[h] < 0, "blknum can not be < 0");
+	/** Fill new analde that appears instead of S[h] **/
+	RFALSE(tb->blknum[h] > 2, "blknum can analt be > 2 for internal level");
+	RFALSE(tb->blknum[h] < 0, "blknum can analt be < 0");
 
-	if (!tb->blknum[h]) {	/* node S[h] is empty now */
+	if (!tb->blknum[h]) {	/* analde S[h] is empty analw */
 		RFALSE(!tbSh, "S[h] is equal NULL");
 
 		/* do what is needed for buffer thrown from tree */
@@ -1005,14 +1005,14 @@ int balance_internal(struct tree_balance *tb,
 		struct block_head *blkh;
 
 		if (tb->blknum[h] != 1)
-			reiserfs_panic(NULL, "ibalance-3", "One new node "
+			reiserfs_panic(NULL, "ibalance-3", "One new analde "
 				       "required for creating the new root");
 		/* S[h] = empty buffer from the list FEB. */
 		tbSh = get_FEB(tb);
 		blkh = B_BLK_HEAD(tbSh);
 		set_blkh_level(blkh, h + 1);
 
-		/* Put the unique node-pointer to S[h] that points to S[h-1]. */
+		/* Put the unique analde-pointer to S[h] that points to S[h-1]. */
 
 		dc = B_N_CHILD(tbSh, 0);
 		put_dc_block_number(dc, tbSh_1->b_blocknr);
@@ -1083,7 +1083,7 @@ int balance_internal(struct tree_balance *tb,
 						     snum - insert_num, 0);
 
 			/*
-			 * insert insert_num keys and node-pointers
+			 * insert insert_num keys and analde-pointers
 			 * into S_new
 			 */
 			internal_insert_childs(&dest_bi,
@@ -1112,7 +1112,7 @@ int balance_internal(struct tree_balance *tb,
 			memcpy(&new_insert_key, insert_key + insert_num - k - 1,
 			       KEY_SIZE);
 			/*
-			 * replace first node-ptr in S_new by node-ptr
+			 * replace first analde-ptr in S_new by analde-ptr
 			 * to insert_ptr[insert_num-k-1]
 			 */
 
@@ -1130,14 +1130,14 @@ int balance_internal(struct tree_balance *tb,
 
 			insert_num -= (k + 1);
 		}
-		/* new_insert_ptr = node_pointer to S_new */
+		/* new_insert_ptr = analde_pointer to S_new */
 		new_insert_ptr = S_new;
 
 		RFALSE(!buffer_journaled(S_new) || buffer_journal_dirty(S_new)
 		       || buffer_dirty(S_new), "cm-00001: bad S_new (%b)",
 		       S_new);
 
-		/* S_new is released in unfix_nodes */
+		/* S_new is released in unfix_analdes */
 	}
 
 	n = B_NR_ITEMS(tbSh);	/*number of items in S[h] */

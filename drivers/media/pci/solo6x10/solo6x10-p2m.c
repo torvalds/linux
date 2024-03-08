@@ -18,12 +18,12 @@
 static int multi_p2m;
 module_param(multi_p2m, uint, 0644);
 MODULE_PARM_DESC(multi_p2m,
-		 "Use multiple P2M DMA channels (default: no, 6010-only)");
+		 "Use multiple P2M DMA channels (default: anal, 6010-only)");
 
 static int desc_mode;
 module_param(desc_mode, uint, 0644);
 MODULE_PARM_DESC(desc_mode,
-		 "Allow use of descriptor mode DMA (default: no, 6010-only)");
+		 "Allow use of descriptor mode DMA (default: anal, 6010-only)");
 
 int solo_p2m_dma(struct solo_dev *solo_dev, int wr,
 		 void *sys_addr, u32 ext_addr, u32 size,
@@ -40,7 +40,7 @@ int solo_p2m_dma(struct solo_dev *solo_dev, int wr,
 	dma_addr = dma_map_single(&solo_dev->pdev->dev, sys_addr, size,
 				  wr ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	if (dma_mapping_error(&solo_dev->pdev->dev, dma_addr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = solo_p2m_dma_t(solo_dev, wr, dma_addr, ext_addr, size,
 			     repeat, ext_size);
@@ -111,8 +111,8 @@ int solo_p2m_dma_desc(struct solo_dev *solo_dev,
 
 	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(p2m_id), 0);
 
-	/* Don't write here for the no_desc_mode case, because config is 0.
-	 * We can't test no_desc_mode again, it might race. */
+	/* Don't write here for the anal_desc_mode case, because config is 0.
+	 * We can't test anal_desc_mode again, it might race. */
 	if (desc_cnt > 1 && solo_dev->type != SOLO_DEV_6110 && config)
 		solo_reg_write(solo_dev, SOLO_P2M_CONFIG(p2m_id), config);
 
@@ -151,7 +151,7 @@ int solo_p2m_dma_t(struct solo_dev *solo_dev, int wr,
 	solo_p2m_fill_desc(&desc[1], wr, dma_addr, ext_addr, size, repeat,
 			   ext_size);
 
-	/* No need for desc_dma since we know it is a single-shot */
+	/* Anal need for desc_dma since we kanalw it is a single-shot */
 	return solo_p2m_dma_desc(solo_dev, desc, 0, 1);
 }
 
@@ -308,7 +308,7 @@ int solo_p2m_init(struct solo_dev *solo_dev)
 
 	if (SOLO_SDRAM_END(solo_dev) > solo_dev->sdram_size) {
 		dev_err(&solo_dev->pdev->dev,
-			"SDRAM is not large enough (%u < %u)\n",
+			"SDRAM is analt large eanalugh (%u < %u)\n",
 			solo_dev->sdram_size, SOLO_SDRAM_END(solo_dev));
 		return -EIO;
 	}

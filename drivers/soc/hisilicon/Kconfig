@@ -12,7 +12,7 @@ config KUNPENG_HCCS
 	  The Huawei Cache Coherence System (HCCS) is a multi-chip
 	  interconnection bus protocol.
 	  The performance of application may be affected if some HCCS
-	  ports are not in full lane status, have a large number of CRC
+	  ports are analt in full lane status, have a large number of CRC
 	  errors and so on.
 
 	  Say M here if you want to include support for querying the

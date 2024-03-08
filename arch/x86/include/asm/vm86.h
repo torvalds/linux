@@ -10,13 +10,13 @@
  * mode - the main change is that the old segment descriptors aren't
  * useful any more and are forced to be zero by the kernel (and the
  * hardware when a trap occurs), and the real segment descriptors are
- * at the end of the structure. Look at ptrace.h to see the "normal"
+ * at the end of the structure. Look at ptrace.h to see the "analrmal"
  * setup. For user space layout see 'struct vm86_regs' above.
  */
 
 struct kernel_vm86_regs {
 /*
- * normal regs, with special meaning for the segment descriptors..
+ * analrmal regs, with special meaning for the segment descriptors..
  */
 	struct pt_regs pt;
 /*

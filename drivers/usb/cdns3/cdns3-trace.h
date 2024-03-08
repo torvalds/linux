@@ -206,8 +206,8 @@ DECLARE_EVENT_CLASS(cdns3_log_request,
 		__field(unsigned int, length)
 		__field(int, status)
 		__field(int, zero)
-		__field(int, short_not_ok)
-		__field(int, no_interrupt)
+		__field(int, short_analt_ok)
+		__field(int, anal_interrupt)
 		__field(int, start_trb)
 		__field(int, end_trb)
 		__field(int, flags)
@@ -221,8 +221,8 @@ DECLARE_EVENT_CLASS(cdns3_log_request,
 		__entry->length = req->request.length;
 		__entry->status = req->request.status;
 		__entry->zero = req->request.zero;
-		__entry->short_not_ok = req->request.short_not_ok;
-		__entry->no_interrupt = req->request.no_interrupt;
+		__entry->short_analt_ok = req->request.short_analt_ok;
+		__entry->anal_interrupt = req->request.anal_interrupt;
 		__entry->start_trb = req->start_trb;
 		__entry->end_trb = req->end_trb;
 		__entry->flags = req->flags;
@@ -233,8 +233,8 @@ DECLARE_EVENT_CLASS(cdns3_log_request,
 		__get_str(name), __entry->req, __entry->buf, __entry->actual,
 		__entry->length,
 		__entry->zero ? "Z" : "z",
-		__entry->short_not_ok ? "S" : "s",
-		__entry->no_interrupt ? "I" : "i",
+		__entry->short_analt_ok ? "S" : "s",
+		__entry->anal_interrupt ? "I" : "i",
 		__entry->status,
 		__entry->start_trb,
 		__entry->end_trb,
@@ -414,7 +414,7 @@ DECLARE_EVENT_CLASS(cdns3_log_trb,
 		__entry->control & TRB_FIFO_MODE ? "FIFO, " : "",
 		__entry->control & TRB_CHAIN ? "CHAIN, " : "",
 		__entry->control & TRB_IOC ? "IOC, " : "",
-		TRB_FIELD_TO_TYPE(__entry->control) == TRB_NORMAL ? "Normal" : "LINK",
+		TRB_FIELD_TO_TYPE(__entry->control) == TRB_ANALRMAL ? "Analrmal" : "LINK",
 		TRB_FIELD_TO_STREAMID(__entry->control),
 		__entry->last_stream_id
 	)
@@ -532,7 +532,7 @@ DECLARE_EVENT_CLASS(cdns3_log_request_handled,
 	TP_printk("Req: %p %s, DMA pos: %d, ep deq: %d, ep enq: %d,"
 		  " start trb: %d, end trb: %d",
 		__entry->priv_req,
-		__entry->handled ? "handled" : "not handled",
+		__entry->handled ? "handled" : "analt handled",
 		__entry->dma_position, __entry->dequeue_idx,
 		__entry->enqueue_idx, __entry->start_trb,
 		__entry->end_trb

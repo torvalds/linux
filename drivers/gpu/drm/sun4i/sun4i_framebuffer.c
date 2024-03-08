@@ -23,7 +23,7 @@ static int sun4i_de_atomic_check(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	ret = drm_atomic_normalize_zpos(dev, state);
+	ret = drm_atomic_analrmalize_zpos(dev, state);
 	if (ret)
 		return ret;
 

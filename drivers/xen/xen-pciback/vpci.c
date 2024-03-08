@@ -83,7 +83,7 @@ static int __xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
 
 	dev_entry = kmalloc(sizeof(*dev_entry), GFP_KERNEL);
 	if (!dev_entry) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		xenbus_dev_fatal(pdev->xdev, err,
 				 "Error adding entry to virtual PCI bus");
 		goto out;
@@ -97,7 +97,7 @@ static int __xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
 	 * Keep multi-function devices together on the virtual PCI bus, except
 	 * that we want to keep virtual functions at func 0 on their own. They
 	 * aren't multi-function devices and hence their presence at func 0
-	 * may cause guests to not scan the other functions.
+	 * may cause guests to analt scan the other functions.
 	 */
 	if (!dev->is_virtfn || func) {
 		for (slot = 0; slot < PCI_SLOT_MAX; slot++) {
@@ -130,9 +130,9 @@ static int __xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
 		}
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	xenbus_dev_fatal(pdev->xdev, err,
-			 "No more space on root virtual PCI bus");
+			 "Anal more space on root virtual PCI bus");
 
 unlock:
 	mutex_unlock(&vpci_dev->lock);
@@ -188,7 +188,7 @@ static int __xen_pcibk_init_devices(struct xen_pcibk_device *pdev)
 
 	vpci_dev = kmalloc(sizeof(*vpci_dev), GFP_KERNEL);
 	if (!vpci_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&vpci_dev->lock);
 

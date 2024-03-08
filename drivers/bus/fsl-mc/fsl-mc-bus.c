@@ -97,7 +97,7 @@ static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 		goto out;
 
 	/*
-	 * If the object is not 'plugged' don't match.
+	 * If the object is analt 'plugged' don't match.
 	 * Only exception is the root DPRC, which is a special case.
 	 */
 	if ((mc_dev->obj_desc.state & FSL_MC_OBJ_STATE_PLUGGED) == 0 &&
@@ -118,7 +118,7 @@ static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 	}
 
 out:
-	dev_dbg(dev, "%smatched\n", found ? "" : "not ");
+	dev_dbg(dev, "%smatched\n", found ? "" : "analt ");
 	return found;
 }
 
@@ -132,7 +132,7 @@ static int fsl_mc_bus_uevent(const struct device *dev, struct kobj_uevent_env *e
 	if (add_uevent_var(env, "MODALIAS=fsl-mc:v%08Xd%s",
 			   mc_dev->obj_desc.vendor,
 			   mc_dev->obj_desc.type))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -148,8 +148,8 @@ static int fsl_mc_dma_configure(struct device *dev)
 	while (dev_is_fsl_mc(dma_dev))
 		dma_dev = dma_dev->parent;
 
-	if (dev_of_node(dma_dev))
-		ret = of_dma_configure_id(dev, dma_dev->of_node, 0, &input_id);
+	if (dev_of_analde(dma_dev))
+		ret = of_dma_configure_id(dev, dma_dev->of_analde, 0, &input_id);
 	else
 		ret = acpi_dma_configure_id(dev, DEV_DMA_COHERENT, &input_id);
 
@@ -546,7 +546,7 @@ static int mc_get_version(struct fsl_mc_io *mc_io,
 	rsp_params = (struct dpmng_rsp_get_version *)cmd.params;
 	mc_ver_info->revision = le32_to_cpu(rsp_params->revision);
 	mc_ver_info->major = le32_to_cpu(rsp_params->version_major);
-	mc_ver_info->minor = le32_to_cpu(rsp_params->version_minor);
+	mc_ver_info->mianalr = le32_to_cpu(rsp_params->version_mianalr);
 
 	return 0;
 }
@@ -674,8 +674,8 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 		mc_region_type = DPRC_REGION_TYPE_QBMAN_PORTAL;
 	} else {
 		/*
-		 * This function should not have been called for this MC object
-		 * type, as this object type is not supposed to have MMIO
+		 * This function should analt have been called for this MC object
+		 * type, as this object type is analt supposed to have MMIO
 		 * regions
 		 */
 		return -EINVAL;
@@ -684,7 +684,7 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 	regions = kmalloc_array(obj_desc->region_count,
 				sizeof(regions[0]), GFP_KERNEL);
 	if (!regions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < obj_desc->region_count; i++) {
 		struct dprc_region_desc region_desc;
@@ -700,7 +700,7 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 			goto error_cleanup_regions;
 		}
 		/*
-		 * Older MC only returned region offset and no base address
+		 * Older MC only returned region offset and anal base address
 		 * If base address is in the region_desc use it otherwise
 		 * revert to old mechanism
 		 */
@@ -718,7 +718,7 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 			 * with child DPRC objects thus rendering them unusable.
 			 * This is particularly troublesome in ACPI boot
 			 * scenarios where the legacy way of extracting this
-			 * base address from the device tree does not apply.
+			 * base address from the device tree does analt apply.
 			 * Given that DPMCPs share the same base address,
 			 * workaround this by using the base address extracted
 			 * from the root DPRC container.
@@ -799,7 +799,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 		 */
 		mc_bus = kzalloc(sizeof(*mc_bus), GFP_KERNEL);
 		if (!mc_bus)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		mutex_init(&mc_bus->scan_mutex);
 		mc_dev = &mc_bus->mc_dev;
@@ -809,7 +809,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 		 */
 		mc_dev = kzalloc(sizeof(*mc_dev), GFP_KERNEL);
 		if (!mc_dev)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	mc_dev->obj_desc = *obj_desc;
@@ -820,8 +820,8 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 	mc_dev->dev.release = fsl_mc_device_release;
 	mc_dev->dev.type = fsl_mc_get_device_type(obj_desc->type);
 	if (!mc_dev->dev.type) {
-		error = -ENODEV;
-		dev_err(parent_dev, "unknown device type %s\n", obj_desc->type);
+		error = -EANALDEV;
+		dev_err(parent_dev, "unkanalwn device type %s\n", obj_desc->type);
 		goto error_cleanup_dev;
 	}
 	dev_set_name(&mc_dev->dev, "%s.%d", obj_desc->type, obj_desc->id);
@@ -838,7 +838,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 		 * portal, in case the child DPRC is already opened with
 		 * its own portal (e.g., the DPRC used by AIOP).
 		 *
-		 * NOTE: There cannot be more than one active open for a
+		 * ANALTE: There cananalt be more than one active open for a
 		 * given MC object, using the same MC portal.
 		 */
 		if (parent_mc_dev) {
@@ -863,7 +863,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 			goto error_cleanup_dev;
 	} else {
 		/*
-		 * A non-DPRC object has to be a child of a DPRC, use the
+		 * A analn-DPRC object has to be a child of a DPRC, use the
 		 * parent's ICID and interrupt domain.
 		 */
 		mc_dev->icid = parent_mc_dev->icid;
@@ -877,7 +877,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 	/*
 	 * Get MMIO regions for the device from the MC:
 	 *
-	 * NOTE: the root DPRC is a special case as its MMIO region is
+	 * ANALTE: the root DPRC is a special case as its MMIO region is
 	 * obtained from the device tree
 	 */
 	if (parent_mc_dev && obj_desc->region_count != 0) {
@@ -912,7 +912,7 @@ error_cleanup_dev:
 }
 EXPORT_SYMBOL_GPL(fsl_mc_device_add);
 
-static struct notifier_block fsl_mc_nb;
+static struct analtifier_block fsl_mc_nb;
 
 /**
  * fsl_mc_device_remove - Remove an fsl-mc device from being visible to
@@ -952,8 +952,8 @@ struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev,
 				  &endpoint1, &endpoint2,
 				  &state);
 
-	if (err == -ENOTCONN || state == -1)
-		return ERR_PTR(-ENOTCONN);
+	if (err == -EANALTCONN || state == -1)
+		return ERR_PTR(-EANALTCONN);
 
 	if (err < 0) {
 		dev_err(&mc_bus_dev->dev, "dprc_get_connection() = %d\n", err);
@@ -965,8 +965,8 @@ struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev,
 	endpoint = fsl_mc_device_lookup(&endpoint_desc, mc_bus_dev);
 
 	/*
-	 * We know that the device has an endpoint because we verified by
-	 * interrogating the firmware. This is the case when the device was not
+	 * We kanalw that the device has an endpoint because we verified by
+	 * interrogating the firmware. This is the case when the device was analt
 	 * yet discovered by the fsl-mc bus, thus the lookup returned NULL.
 	 * Force a rescan of the devices in this container and retry the lookup.
 	 */
@@ -985,7 +985,7 @@ struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev,
 	endpoint = fsl_mc_device_lookup(&endpoint_desc, mc_bus_dev);
 	/*
 	 * This means that the endpoint might reside in a different isolation
-	 * context (DPRC/container). Not much to do, so return a permssion
+	 * context (DPRC/container). Analt much to do, so return a permssion
 	 * error.
 	 */
 	if (!endpoint)
@@ -1004,12 +1004,12 @@ static int get_mc_addr_translation_ranges(struct device *dev,
 	struct of_range_parser parser;
 	struct of_range range;
 
-	of_range_parser_init(&parser, dev->of_node);
+	of_range_parser_init(&parser, dev->of_analde);
 	*num_ranges = of_range_count(&parser);
 	if (!*num_ranges) {
 		/*
 		 * Missing or empty ranges property ("ranges;") for the
-		 * 'fsl,qoriq-mc' node. In this case, identity mapping
+		 * 'fsl,qoriq-mc' analde. In this case, identity mapping
 		 * will be used.
 		 */
 		*ranges = NULL;
@@ -1020,7 +1020,7 @@ static int get_mc_addr_translation_ranges(struct device *dev,
 			       sizeof(struct fsl_mc_addr_translation_range),
 			       GFP_KERNEL);
 	if (!(*ranges))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = *ranges;
 	for_each_of_range(&parser, &range) {
@@ -1052,7 +1052,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 
 	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
 	if (!mc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, mc);
 
@@ -1064,7 +1064,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	}
 
 	if (mc->fsl_mc_regs) {
-		if (IS_ENABLED(CONFIG_ACPI) && !dev_of_node(&pdev->dev)) {
+		if (IS_ENABLED(CONFIG_ACPI) && !dev_of_analde(&pdev->dev)) {
 			mc_stream_id = readl(mc->fsl_mc_regs + FSL_MC_FAPR);
 			/*
 			 * HW ORs the PL and BMT bit, places the result in bit
@@ -1087,8 +1087,8 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 
 		/*
 		 * Some bootloaders pause the MC firmware before booting the
-		 * kernel so that MC will not cause faults as soon as the
-		 * SMMU probes due to the fact that there's no configuration
+		 * kernel so that MC will analt cause faults as soon as the
+		 * SMMU probes due to the fact that there's anal configuration
 		 * in place for MC.
 		 * At this point MC should have all its SMMU setup done so make
 		 * sure it is resumed.
@@ -1120,9 +1120,9 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "MC firmware version: %u.%u.%u\n",
-		 mc_version.major, mc_version.minor, mc_version.revision);
+		 mc_version.major, mc_version.mianalr, mc_version.revision);
 
-	if (dev_of_node(&pdev->dev)) {
+	if (dev_of_analde(&pdev->dev)) {
 		error = get_mc_addr_translation_ranges(&pdev->dev,
 						&mc->translation_ranges,
 						&mc->num_translation_ranges);
@@ -1140,7 +1140,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	memset(&obj_desc, 0, sizeof(struct fsl_mc_obj_desc));
 	error = dprc_get_api_version(mc_io, 0,
 				     &obj_desc.ver_major,
-				     &obj_desc.ver_minor);
+				     &obj_desc.ver_mianalr);
 	if (error < 0)
 		goto error_cleanup_mc_io;
 
@@ -1155,7 +1155,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 		goto error_cleanup_mc_io;
 
 	mc->root_mc_bus_dev = mc_bus_dev;
-	mc_bus_dev->dev.fwnode = pdev->dev.fwnode;
+	mc_bus_dev->dev.fwanalde = pdev->dev.fwanalde;
 	return 0;
 
 error_cleanup_mc_io:
@@ -1176,7 +1176,7 @@ static void fsl_mc_bus_remove(struct platform_device *pdev)
 	fsl_mc_device_remove(mc->root_mc_bus_dev);
 	fsl_destroy_mc_io(mc_io);
 
-	bus_unregister_notifier(&fsl_mc_bus_type, &fsl_mc_nb);
+	bus_unregister_analtifier(&fsl_mc_bus_type, &fsl_mc_nb);
 
 	if (mc->fsl_mc_regs) {
 		/*
@@ -1214,14 +1214,14 @@ static struct platform_driver fsl_mc_bus_driver = {
 	.shutdown = fsl_mc_bus_remove,
 };
 
-static int fsl_mc_bus_notifier(struct notifier_block *nb,
+static int fsl_mc_bus_analtifier(struct analtifier_block *nb,
 			       unsigned long action, void *data)
 {
 	struct device *dev = data;
 	struct resource *res;
 	void __iomem *fsl_mc_regs;
 
-	if (action != BUS_NOTIFY_ADD_DEVICE)
+	if (action != BUS_ANALTIFY_ADD_DEVICE)
 		return 0;
 
 	if (!of_match_device(fsl_mc_bus_match_table, dev) &&
@@ -1248,8 +1248,8 @@ static int fsl_mc_bus_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block fsl_mc_nb = {
-	.notifier_call = fsl_mc_bus_notifier,
+static struct analtifier_block fsl_mc_nb = {
+	.analtifier_call = fsl_mc_bus_analtifier,
 };
 
 static int __init fsl_mc_bus_driver_init(void)
@@ -1276,7 +1276,7 @@ static int __init fsl_mc_bus_driver_init(void)
 	if (error < 0)
 		goto error_cleanup_dprc_driver;
 
-	return bus_register_notifier(&platform_bus_type, &fsl_mc_nb);
+	return bus_register_analtifier(&platform_bus_type, &fsl_mc_nb);
 
 error_cleanup_dprc_driver:
 	dprc_driver_exit();

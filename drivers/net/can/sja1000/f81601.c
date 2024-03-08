@@ -102,7 +102,7 @@ static int f81601_pci_probe(struct pci_dev *pdev,
 
 	if (pcim_enable_device(pdev) < 0) {
 		dev_err(&pdev->dev, "Failed to enable PCI device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(&pdev->dev, "Detected card at slot #%i\n",
@@ -110,7 +110,7 @@ static int f81601_pci_probe(struct pci_dev *pdev,
 
 	card = devm_kzalloc(&pdev->dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->dev = pdev;
 	spin_lock_init(&card->lock);
@@ -136,7 +136,7 @@ static int f81601_pci_probe(struct pci_dev *pdev,
 	card->addr = pcim_iomap(pdev, 0, pci_resource_len(pdev, 0));
 
 	if (!card->addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(&pdev->dev, "%s: Failed to remap BAR\n", __func__);
 		goto failure_cleanup;
 	}
@@ -150,7 +150,7 @@ static int f81601_pci_probe(struct pci_dev *pdev,
 	for (i = 0; i < count; i++) {
 		dev = alloc_sja1000dev(0);
 		if (!dev) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto failure_cleanup;
 		}
 

@@ -43,7 +43,7 @@ void pnfs_generic_write_commit_done(struct rpc_task *task, void *data)
 {
 	struct nfs_commit_data *wdata = data;
 
-	/* Note this may cause RPC to be resent */
+	/* Analte this may cause RPC to be resent */
 	wdata->mds_ops->rpc_call_done(task, data);
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_write_commit_done);
@@ -72,7 +72,7 @@ pnfs_free_bucket_lseg(struct pnfs_commit_bucket *bucket)
 
 /* The generic layer is about to remove the req from the commit list.
  * If this will make the bucket empty, it will need to put the lseg reference.
- * Note this must be called holding nfsi->commit_mutex
+ * Analte this must be called holding nfsi->commit_mutex
  */
 void
 pnfs_generic_clear_request_commit(struct nfs_page *req,
@@ -188,18 +188,18 @@ pnfs_put_commit_array_locked(struct pnfs_commit_array *array)
 }
 
 static void
-pnfs_put_commit_array(struct pnfs_commit_array *array, struct inode *inode)
+pnfs_put_commit_array(struct pnfs_commit_array *array, struct ianalde *ianalde)
 {
-	if (refcount_dec_and_lock(&array->refcount, &inode->i_lock)) {
+	if (refcount_dec_and_lock(&array->refcount, &ianalde->i_lock)) {
 		pnfs_release_commit_array_locked(array);
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ianalde->i_lock);
 	}
 }
 
 static struct pnfs_commit_array *
 pnfs_get_commit_array(struct pnfs_commit_array *array)
 {
-	if (refcount_inc_not_zero(&array->refcount))
+	if (refcount_inc_analt_zero(&array->refcount))
 		return array;
 	return NULL;
 }
@@ -246,7 +246,7 @@ pnfs_bucket_scan_ds_commit_list(struct pnfs_commit_bucket *bucket,
 	struct list_head *dst = &bucket->committing;
 	int ret;
 
-	lockdep_assert_held(&NFS_I(cinfo->inode)->commit_mutex);
+	lockdep_assert_held(&NFS_I(cinfo->ianalde)->commit_mutex);
 	ret = nfs_scan_commit_list(src, dst, cinfo, max);
 	if (ret) {
 		cinfo->ds->nwritten -= ret;
@@ -288,7 +288,7 @@ int pnfs_generic_scan_commit_lists(struct nfs_commit_info *cinfo, int max)
 		cnt = pnfs_bucket_scan_array(cinfo, array->buckets,
 				array->nbuckets, max);
 		rcu_read_lock();
-		pnfs_put_commit_array(array, cinfo->inode);
+		pnfs_put_commit_array(array, cinfo->ianalde);
 		rv += cnt;
 		max -= cnt;
 		if (!max)
@@ -333,7 +333,7 @@ void pnfs_generic_recover_commit_reqs(struct list_head *dst,
 	struct pnfs_commit_array *array;
 	unsigned int nwritten;
 
-	lockdep_assert_held(&NFS_I(cinfo->inode)->commit_mutex);
+	lockdep_assert_held(&NFS_I(cinfo->ianalde)->commit_mutex);
 	rcu_read_lock();
 	list_for_each_entry_rcu(array, &fl_cinfo->commits, cinfo_list) {
 		if (!array->lseg || !pnfs_get_commit_array(array))
@@ -344,7 +344,7 @@ void pnfs_generic_recover_commit_reqs(struct list_head *dst,
 							   array->nbuckets,
 							   cinfo);
 		rcu_read_lock();
-		pnfs_put_commit_array(array, cinfo->inode);
+		pnfs_put_commit_array(array, cinfo->ianalde);
 		fl_cinfo->nwritten -= nwritten;
 	}
 	rcu_read_unlock();
@@ -376,7 +376,7 @@ pnfs_bucket_search_commit_reqs(struct pnfs_commit_bucket *buckets,
 
 /* pnfs_generic_search_commit_reqs - Search lists in @cinfo for the head request
  *				   for @folio
- * @cinfo - commit info for current inode
+ * @cinfo - commit info for current ianalde
  * @folio - page to search for matching head request
  *
  * Return: the head request if one is found, otherwise %NULL.
@@ -439,9 +439,9 @@ static void pnfs_generic_retry_commit(struct pnfs_commit_bucket *buckets,
 	for (bucket = buckets; idx < nbuckets; bucket++, idx++) {
 		if (list_empty(&bucket->committing))
 			continue;
-		mutex_lock(&NFS_I(cinfo->inode)->commit_mutex);
+		mutex_lock(&NFS_I(cinfo->ianalde)->commit_mutex);
 		freeme = pnfs_bucket_get_committing(&pages, bucket, cinfo);
-		mutex_unlock(&NFS_I(cinfo->inode)->commit_mutex);
+		mutex_unlock(&NFS_I(cinfo->ianalde)->commit_mutex);
 		nfs_retry_commit(&pages, freeme, cinfo, idx);
 		pnfs_put_lseg(freeme);
 	}
@@ -461,7 +461,7 @@ pnfs_bucket_alloc_ds_commits(struct list_head *list,
 	for (i = 0, bucket = buckets; i < nbuckets; i++, bucket++) {
 		if (list_empty(&bucket->committing))
 			continue;
-		mutex_lock(&NFS_I(cinfo->inode)->commit_mutex);
+		mutex_lock(&NFS_I(cinfo->ianalde)->commit_mutex);
 		if (!list_empty(&bucket->committing)) {
 			data = pnfs_bucket_fetch_commitdata(bucket, cinfo);
 			if (!data)
@@ -470,11 +470,11 @@ pnfs_bucket_alloc_ds_commits(struct list_head *list,
 			list_add_tail(&data->list, list);
 			nreq++;
 		}
-		mutex_unlock(&NFS_I(cinfo->inode)->commit_mutex);
+		mutex_unlock(&NFS_I(cinfo->ianalde)->commit_mutex);
 	}
 	return nreq;
 out_error:
-	mutex_unlock(&NFS_I(cinfo->inode)->commit_mutex);
+	mutex_unlock(&NFS_I(cinfo->ianalde)->commit_mutex);
 	/* Clean up on error */
 	pnfs_generic_retry_commit(buckets, nbuckets, cinfo, i);
 	return nreq;
@@ -496,7 +496,7 @@ pnfs_alloc_ds_commits_list(struct list_head *list,
 		ret += pnfs_bucket_alloc_ds_commits(list, array->buckets,
 				array->nbuckets, cinfo);
 		rcu_read_lock();
-		pnfs_put_commit_array(array, cinfo->inode);
+		pnfs_put_commit_array(array, cinfo->ianalde);
 	}
 	rcu_read_unlock();
 	return ret;
@@ -504,7 +504,7 @@ pnfs_alloc_ds_commits_list(struct list_head *list,
 
 /* This follows nfs_commit_list pretty closely */
 int
-pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
+pnfs_generic_commit_pagelist(struct ianalde *ianalde, struct list_head *mds_pages,
 			     int how, struct nfs_commit_info *cinfo,
 			     int (*initiate_commit)(struct nfs_commit_data *data,
 						    int how))
@@ -518,7 +518,7 @@ pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 		data = nfs_commitdata_alloc();
 		if (!data) {
 			nfs_retry_commit(mds_pages, NULL, cinfo, -1);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		data->ds_commit_index = -1;
 		list_splice_init(mds_pages, &data->pages);
@@ -534,10 +534,10 @@ pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 		list_del(&data->list);
 		if (data->ds_commit_index < 0) {
 			nfs_init_commit(data, NULL, NULL, cinfo);
-			nfs_initiate_commit(NFS_CLIENT(inode), data,
-					    NFS_PROTO(data->inode),
+			nfs_initiate_commit(NFS_CLIENT(ianalde), data,
+					    NFS_PROTO(data->ianalde),
 					    data->mds_ops, how,
-					    RPC_TASK_CRED_NOREF);
+					    RPC_TASK_CRED_ANALREF);
 		} else {
 			nfs_init_commit(data, NULL, data->lseg, cinfo);
 			initiate_commit(data, how);
@@ -632,10 +632,10 @@ _same_data_server_addrs_locked(const struct list_head *dsaddrs1,
 	struct sockaddr *sa1, *sa2;
 	bool match = false;
 
-	list_for_each_entry(da1, dsaddrs1, da_node) {
+	list_for_each_entry(da1, dsaddrs1, da_analde) {
 		sa1 = (struct sockaddr *)&da1->da_addr;
 		match = false;
-		list_for_each_entry(da2, dsaddrs2, da_node) {
+		list_for_each_entry(da2, dsaddrs2, da_analde) {
 			sa2 = (struct sockaddr *)&da2->da_addr;
 			match = same_sockaddr(sa1, sa2);
 			if (match)
@@ -655,7 +655,7 @@ _data_server_lookup_locked(const struct list_head *dsaddrs)
 {
 	struct nfs4_pnfs_ds *ds;
 
-	list_for_each_entry(ds, &nfs4_data_server_cache, ds_node)
+	list_for_each_entry(ds, &nfs4_data_server_cache, ds_analde)
 		if (_same_data_server_addrs_locked(&ds->ds_addrs, dsaddrs))
 			return ds;
 	return NULL;
@@ -665,7 +665,7 @@ static struct nfs4_pnfs_ds_addr *nfs4_pnfs_ds_addr_alloc(gfp_t gfp_flags)
 {
 	struct nfs4_pnfs_ds_addr *da = kzalloc(sizeof(*da), gfp_flags);
 	if (da)
-		INIT_LIST_HEAD(&da->da_node);
+		INIT_LIST_HEAD(&da->da_analde);
 	return da;
 }
 
@@ -689,8 +689,8 @@ static void destroy_ds(struct nfs4_pnfs_ds *ds)
 	while (!list_empty(&ds->ds_addrs)) {
 		da = list_first_entry(&ds->ds_addrs,
 				      struct nfs4_pnfs_ds_addr,
-				      da_node);
-		list_del_init(&da->da_node);
+				      da_analde);
+		list_del_init(&da->da_analde);
 		nfs4_pnfs_ds_addr_free(da);
 	}
 
@@ -702,7 +702,7 @@ void nfs4_pnfs_ds_put(struct nfs4_pnfs_ds *ds)
 {
 	if (refcount_dec_and_lock(&ds->ds_count,
 				&nfs4_ds_cache_lock)) {
-		list_del_init(&ds->ds_node);
+		list_del_init(&ds->ds_analde);
 		spin_unlock(&nfs4_ds_cache_lock);
 		destroy_ds(ds);
 	}
@@ -722,7 +722,7 @@ nfs4_pnfs_remotestr(struct list_head *dsaddrs, gfp_t gfp_flags)
 	char *p;
 
 	len = 3;        /* '{', '}' and eol */
-	list_for_each_entry(da, dsaddrs, da_node) {
+	list_for_each_entry(da, dsaddrs, da_analde) {
 		len += strlen(da->da_remotestr) + 1;    /* string plus comma */
 	}
 
@@ -733,7 +733,7 @@ nfs4_pnfs_remotestr(struct list_head *dsaddrs, gfp_t gfp_flags)
 	p = remotestr;
 	*(p++) = '{';
 	len--;
-	list_for_each_entry(da, dsaddrs, da_node) {
+	list_for_each_entry(da, dsaddrs, da_analde) {
 		size_t ll = strlen(da->da_remotestr);
 
 		if (ll > len)
@@ -769,7 +769,7 @@ nfs4_pnfs_ds_add(struct list_head *dsaddrs, gfp_t gfp_flags)
 	char *remotestr;
 
 	if (list_empty(dsaddrs)) {
-		dprintk("%s: no addresses defined\n", __func__);
+		dprintk("%s: anal addresses defined\n", __func__);
 		goto out;
 	}
 
@@ -787,9 +787,9 @@ nfs4_pnfs_ds_add(struct list_head *dsaddrs, gfp_t gfp_flags)
 		list_splice_init(dsaddrs, &ds->ds_addrs);
 		ds->ds_remotestr = remotestr;
 		refcount_set(&ds->ds_count, 1);
-		INIT_LIST_HEAD(&ds->ds_node);
+		INIT_LIST_HEAD(&ds->ds_analde);
 		ds->ds_clp = NULL;
-		list_add(&ds->ds_node, &nfs4_data_server_cache);
+		list_add(&ds->ds_analde, &nfs4_data_server_cache);
 		dprintk("%s add new data server %s\n", __func__,
 			ds->ds_remotestr);
 	} else {
@@ -858,9 +858,9 @@ static int _nfs4_pnfs_v3_ds_connect(struct nfs_server *mds_srv,
 	dprintk("--> %s DS %s\n", __func__, ds->ds_remotestr);
 
 	if (!load_v3_ds_connect())
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
-	list_for_each_entry(da, &ds->ds_addrs, da_node) {
+	list_for_each_entry(da, &ds->ds_addrs, da_analde) {
 		dprintk("%s: DS %s: trying address %s\n",
 			__func__, ds->ds_remotestr, da->da_remotestr);
 
@@ -910,7 +910,7 @@ static int _nfs4_pnfs_v4_ds_connect(struct nfs_server *mds_srv,
 				 struct nfs4_pnfs_ds *ds,
 				 unsigned int timeo,
 				 unsigned int retrans,
-				 u32 minor_version)
+				 u32 mianalr_version)
 {
 	struct nfs_client *clp = ERR_PTR(-EIO);
 	struct nfs4_pnfs_ds_addr *da;
@@ -918,7 +918,7 @@ static int _nfs4_pnfs_v4_ds_connect(struct nfs_server *mds_srv,
 
 	dprintk("--> %s DS %s\n", __func__, ds->ds_remotestr);
 
-	list_for_each_entry(da, &ds->ds_addrs, da_node) {
+	list_for_each_entry(da, &ds->ds_addrs, da_analde) {
 		dprintk("%s: DS %s: trying address %s\n",
 			__func__, ds->ds_remotestr, da->da_remotestr);
 
@@ -957,7 +957,7 @@ static int _nfs4_pnfs_v4_ds_connect(struct nfs_server *mds_srv,
 						&da->da_addr,
 						da->da_addrlen,
 						da->da_transport, timeo,
-						retrans, minor_version);
+						retrans, mianalr_version);
 			if (IS_ERR(clp))
 				continue;
 
@@ -987,11 +987,11 @@ out:
 /*
  * Create an rpc connection to the nfs4_pnfs_ds data server.
  * Currently only supports IPv4 and IPv6 addresses.
- * If connection fails, make devid unavailable and return a -errno.
+ * If connection fails, make devid unavailable and return a -erranal.
  */
 int nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
-			  struct nfs4_deviceid_node *devid, unsigned int timeo,
-			  unsigned int retrans, u32 version, u32 minor_version)
+			  struct nfs4_deviceid_analde *devid, unsigned int timeo,
+			  unsigned int retrans, u32 version, u32 mianalr_version)
 {
 	int err;
 
@@ -1000,7 +1000,7 @@ int nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
 		if (err || ds->ds_clp)
 			goto out;
 		if (nfs4_test_deviceid_unavailable(devid))
-			return -ENODEV;
+			return -EANALDEV;
 	} while (test_and_set_bit(NFS4DS_CONNECTING, &ds->ds_state) != 0);
 
 	if (ds->ds_clp)
@@ -1012,11 +1012,11 @@ int nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
 		break;
 	case 4:
 		err = _nfs4_pnfs_v4_ds_connect(mds_srv, ds, timeo, retrans,
-					       minor_version);
+					       mianalr_version);
 		break;
 	default:
 		dprintk("%s: unsupported DS version %d\n", __func__, version);
-		err = -EPROTONOSUPPORT;
+		err = -EPROTOANALSUPPORT;
 	}
 
 connect_done:
@@ -1122,7 +1122,7 @@ nfs4_decode_mp_ds_addr(struct net *net, struct xdr_stream *xdr, gfp_t gfp_flags)
 
 	da->da_transport = xprt_find_transport_ident(netid);
 	if (da->da_transport < 0) {
-		dprintk("%s: ERROR: unknown r_netid \"%s\"\n",
+		dprintk("%s: ERROR: unkanalwn r_netid \"%s\"\n",
 			__func__, netid);
 		goto out_free_da;
 	}
@@ -1164,14 +1164,14 @@ pnfs_layout_mark_request_commit(struct nfs_page *req,
 	struct pnfs_commit_array *array;
 	struct pnfs_commit_bucket *bucket;
 
-	mutex_lock(&NFS_I(cinfo->inode)->commit_mutex);
+	mutex_lock(&NFS_I(cinfo->ianalde)->commit_mutex);
 	array = pnfs_lookup_commit_array(cinfo->ds, lseg);
 	if (!array || !pnfs_is_valid_lseg(lseg))
 		goto out_resched;
 	bucket = &array->buckets[ds_commit_idx];
 	list = &bucket->written;
-	/* Non-empty buckets hold a reference on the lseg.  That ref
-	 * is normally transferred to the COMMIT call and released
+	/* Analn-empty buckets hold a reference on the lseg.  That ref
+	 * is analrmally transferred to the COMMIT call and released
 	 * there.  It could also be released if the last req is pulled
 	 * off due to a rewrite, in which case it will be done in
 	 * pnfs_common_clear_request_commit
@@ -1182,28 +1182,28 @@ pnfs_layout_mark_request_commit(struct nfs_page *req,
 	cinfo->ds->nwritten++;
 
 	nfs_request_add_commit_list_locked(req, list, cinfo);
-	mutex_unlock(&NFS_I(cinfo->inode)->commit_mutex);
+	mutex_unlock(&NFS_I(cinfo->ianalde)->commit_mutex);
 	nfs_folio_mark_unstable(nfs_page_to_folio(req), cinfo);
 	return;
 out_resched:
-	mutex_unlock(&NFS_I(cinfo->inode)->commit_mutex);
+	mutex_unlock(&NFS_I(cinfo->ianalde)->commit_mutex);
 	cinfo->completion_ops->resched_write(cinfo, req);
 }
 EXPORT_SYMBOL_GPL(pnfs_layout_mark_request_commit);
 
 int
-pnfs_nfs_generic_sync(struct inode *inode, bool datasync)
+pnfs_nfs_generic_sync(struct ianalde *ianalde, bool datasync)
 {
 	int ret;
 
-	if (!pnfs_layoutcommit_outstanding(inode))
+	if (!pnfs_layoutcommit_outstanding(ianalde))
 		return 0;
-	ret = nfs_commit_inode(inode, FLUSH_SYNC);
+	ret = nfs_commit_ianalde(ianalde, FLUSH_SYNC);
 	if (ret < 0)
 		return ret;
 	if (datasync)
 		return 0;
-	return pnfs_layoutcommit_inode(inode, true);
+	return pnfs_layoutcommit_ianalde(ianalde, true);
 }
 EXPORT_SYMBOL_GPL(pnfs_nfs_generic_sync);
 

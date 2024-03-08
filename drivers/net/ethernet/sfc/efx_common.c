@@ -39,7 +39,7 @@ MODULE_PARM_DESC(debug, "Bitmapped debugging message enable value");
 static unsigned int efx_monitor_interval = 1 * HZ;
 
 /* How often and how many times to poll for a reset while waiting for a
- * BIST that another function started to complete.
+ * BIST that aanalther function started to complete.
  */
 #define BIST_WAIT_DELAY_MS	100
 #define BIST_WAIT_DELAY_COUNT	100
@@ -71,7 +71,7 @@ static const char *const efx_reset_type_names[] = {
 /* Loopback mode names (see LOOPBACK_MODE()) */
 const unsigned int efx_loopback_mode_max = LOOPBACK_MAX;
 const char *const efx_loopback_mode_names[] = {
-	[LOOPBACK_NONE]		= "NONE",
+	[LOOPBACK_ANALNE]		= "ANALNE",
 	[LOOPBACK_DATA]		= "DATAPATH",
 	[LOOPBACK_GMAC]		= "GMAC",
 	[LOOPBACK_XGMII]	= "XGMII",
@@ -101,7 +101,7 @@ const char *const efx_loopback_mode_names[] = {
 };
 
 /* Reset workqueue. If any NIC has a hardware failure then a reset will be
- * queued onto this work queue. This is not a per-nic work queue, because
+ * queued onto this work queue. This is analt a per-nic work queue, because
  * efx_reset_work() acquires the rtnl lock, so resets are naturally serialised.
  */
 static struct workqueue_struct *reset_workqueue;
@@ -111,7 +111,7 @@ int efx_create_reset_workqueue(void)
 	reset_workqueue = create_singlethread_workqueue("sfc_reset");
 	if (!reset_workqueue) {
 		printk(KERN_ERR "Failed to create reset workqueue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -147,7 +147,7 @@ void efx_mac_reconfigure(struct efx_nic *efx, bool mtu_only)
 	}
 }
 
-/* Asynchronous work item for changing MAC promiscuity and multicast
+/* Asynchroanalus work item for changing MAC promiscuity and multicast
  * hash.  Avoid a drain/rx_ingress enable by reconfiguring the current
  * MAC directly.
  */
@@ -173,7 +173,7 @@ int efx_set_mac_address(struct net_device *net_dev, void *data)
 		netif_err(efx, drv, efx->net_dev,
 			  "invalid ethernet MAC address requested: %pM\n",
 			  new_addr);
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	}
 
 	/* save old address */
@@ -239,8 +239,8 @@ void efx_link_status_changed(struct efx_nic *efx)
 {
 	struct efx_link_state *link_state = &efx->link_state;
 
-	/* SFC Bug 5356: A net_dev notifier is registered, so we must ensure
-	 * that no events are triggered between unregister_netdev() and the
+	/* SFC Bug 5356: A net_dev analtifier is registered, so we must ensure
+	 * that anal events are triggered between unregister_netdev() and the
 	 * driver unloading. A more general condition is that NETDEV_CHANGE
 	 * can only be generated between NETDEV_UP and NETDEV_DOWN
 	 */
@@ -307,7 +307,7 @@ int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 	mutex_unlock(&efx->mac_lock);
 
 	efx_start_all(efx);
-	efx_device_attach_if_not_resetting(efx);
+	efx_device_attach_if_analt_resetting(efx);
 	return 0;
 }
 
@@ -404,7 +404,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 			  efx->rx_bufs_per_page, efx->rx_pages_per_batch);
 
 	/* Restore previously fixed features in hw_features and remove
-	 * features which are fixed now
+	 * features which are fixed analw
 	 */
 	efx->net_dev->hw_features |= efx->net_dev->features;
 	efx->net_dev->hw_features &= ~efx->fixed_features;
@@ -418,8 +418,8 @@ static void efx_start_datapath(struct efx_nic *efx)
 		efx->type->filter_update_rx_scatter(efx);
 
 	/* We must keep at least one descriptor in a TX ring empty.
-	 * We could avoid this when the queue size does not exactly
-	 * match the hardware ring size, but it's not that important.
+	 * We could avoid this when the queue size does analt exactly
+	 * match the hardware ring size, but it's analt that important.
 	 * Therefore we stop the queue when one more skb might fill
 	 * the ring completely.  We wake it when half way back to
 	 * empty.
@@ -452,7 +452,7 @@ static void efx_stop_datapath(struct efx_nic *efx)
  *
  **************************************************************************/
 
-/* Equivalent to efx_link_set_advertising with all-zeroes, except does not
+/* Equivalent to efx_link_set_advertising with all-zeroes, except does analt
  * force the Autoneg bit on.
  */
 void efx_link_clear_advertising(struct efx_nic *efx)
@@ -514,11 +514,11 @@ static void efx_stop_port(struct efx_nic *efx)
 	cancel_work_sync(&efx->mac_work);
 }
 
-/* If the interface is supposed to be running but is not, start
+/* If the interface is supposed to be running but is analt, start
  * the hardware and software data path, regular activity for the port
  * (MAC statistics, link polling, etc.) and schedule the port to be
  * reconfigured.  Interrupts must already be enabled.  This function
- * is safe to call multiple times, so long as the NIC is not disabled.
+ * is safe to call multiple times, so long as the NIC is analt disabled.
  * Requires the RTNL lock.
  */
 void efx_start_all(struct efx_nic *efx)
@@ -541,8 +541,8 @@ void efx_start_all(struct efx_nic *efx)
 
 	efx_selftest_async_start(efx);
 
-	/* Link state detection is normally event-driven; we have
-	 * to poll now because we could have missed a change
+	/* Link state detection is analrmally event-driven; we have
+	 * to poll analw because we could have missed a change
 	 */
 	mutex_lock(&efx->mac_lock);
 	if (efx_mcdi_phy_poll(efx))
@@ -573,7 +573,7 @@ void efx_stop_all(struct efx_nic *efx)
 
 	if (efx->type->update_stats) {
 		/* update stats before we go down so we can accurately count
-		 * rx_nodesc_drops
+		 * rx_analdesc_drops
 		 */
 		efx->type->pull_stats(efx);
 		spin_lock_bh(&efx->stats_lock);
@@ -595,7 +595,7 @@ void efx_stop_all(struct efx_nic *efx)
 	efx_stop_datapath(efx);
 }
 
-/* Context: process, dev_base_lock or RTNL held, non-blocking. */
+/* Context: process, dev_base_lock or RTNL held, analn-blocking. */
 void efx_net_stats(struct net_device *net_dev, struct rtnl_link_stats64 *stats)
 {
 	struct efx_nic *efx = efx_netdev_priv(net_dev);
@@ -607,7 +607,7 @@ void efx_net_stats(struct net_device *net_dev, struct rtnl_link_stats64 *stats)
 
 /* Push loopback/power/transmit disable settings to the PHY, and reconfigure
  * the MAC appropriately. All other PHY configuration changes are pushed
- * through phy_op->set_settings(), and pushed asynchronously to the MAC
+ * through phy_op->set_settings(), and pushed asynchroanalusly to the MAC
  * through efx_monitor().
  *
  * Callers must hold the mac_lock
@@ -667,23 +667,23 @@ static void efx_wait_for_bist_end(struct efx_nic *efx)
 		msleep(BIST_WAIT_DELAY_MS);
 	}
 
-	netif_err(efx, drv, efx->net_dev, "Warning: No MC reboot after BIST mode\n");
+	netif_err(efx, drv, efx->net_dev, "Warning: Anal MC reboot after BIST mode\n");
 out:
-	/* Either way unset the BIST flag. If we found no reboot we probably
+	/* Either way unset the BIST flag. If we found anal reboot we probably
 	 * won't recover, but we should try.
 	 */
 	efx->mc_bist_for_other_fn = false;
 }
 
 /* Try recovery mechanisms.
- * For now only EEH is supported.
+ * For analw only EEH is supported.
  * Returns 0 if the recovery mechanisms are unsuccessful.
- * Returns a non-zero value otherwise.
+ * Returns a analn-zero value otherwise.
  */
 int efx_try_recovery(struct efx_nic *efx)
 {
 #ifdef CONFIG_EEH
-	/* A PCI error can occur and not be seen by EEH because nothing
+	/* A PCI error can occur and analt be seen by EEH because analthing
 	 * happens on the PCI bus. In this case the driver may fail and
 	 * schedule a 'recover or reset', leading to this recovery handler.
 	 * Manually call the eeh failure check function.
@@ -734,7 +734,7 @@ void efx_watchdog(struct net_device *net_dev, unsigned int txqueue)
  * efx_reset_down() are released. A failure return code indicates
  * that we were unable to reinitialise the hardware, and the
  * driver should be disabled. If ok is false, then the rx and tx
- * engines are not restarted, pending a RESET_DISABLE.
+ * engines are analt restarted, pending a RESET_DISABLE.
  */
 int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 {
@@ -760,7 +760,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 		rc = efx_mcdi_port_reconfigure(efx);
 		if (rc && rc != -EPERM)
 			netif_err(efx, drv, efx->net_dev,
-				  "could not restore PHY settings\n");
+				  "could analt restore PHY settings\n");
 	}
 
 	rc = efx_enable_interrupts(efx);
@@ -769,10 +769,10 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 
 #ifdef CONFIG_SFC_SRIOV
 	rc = efx->type->vswitching_restore(efx);
-	if (rc) /* not fatal; the PF will still work fine */
+	if (rc) /* analt fatal; the PF will still work fine */
 		netif_warn(efx, probe, efx->net_dev,
 			   "failed to restore vswitching rc=%d;"
-			   " VFs may not function\n", rc);
+			   " VFs may analt function\n", rc);
 #endif
 
 	if (efx->type->rx_restore_rss_contexts)
@@ -800,7 +800,7 @@ fail:
 	return rc;
 }
 
-/* Reset the NIC using the specified method.  Note that the reset may
+/* Reset the NIC using the specified method.  Analte that the reset may
  * fail, in which case the card will be left in an unusable state.
  *
  * Caller must hold the rtnl_lock.
@@ -827,7 +827,7 @@ int efx_reset(struct efx_nic *efx, enum reset_type method)
 	}
 
 	/* Clear flags for the scopes we covered.  We assume the NIC and
-	 * driver are now quiescent so that there is no race here.
+	 * driver are analw quiescent so that there is anal race here.
 	 */
 	if (method < RESET_TYPE_MAX_METHOD)
 		efx->reset_pending &= -(1 << (method + 1));
@@ -860,12 +860,12 @@ out:
 		efx->state = STATE_DISABLED;
 	} else {
 		netif_dbg(efx, drv, efx->net_dev, "reset complete\n");
-		efx_device_attach_if_not_resetting(efx);
+		efx_device_attach_if_analt_resetting(efx);
 	}
 	return rc;
 }
 
-/* The worker thread exists so that code that cannot sleep can
+/* The worker thread exists so that code that cananalt sleep can
  * schedule a reset for later.
  */
 static void efx_reset_work(struct work_struct *data)
@@ -891,8 +891,8 @@ static void efx_reset_work(struct work_struct *data)
 	rtnl_lock();
 
 	/* We checked the state in efx_schedule_reset() but it may
-	 * have changed by now.  Now that we have the RTNL lock,
-	 * it cannot change again.
+	 * have changed by analw.  Analw that we have the RTNL lock,
+	 * it cananalt change again.
 	 */
 	if (efx_net_active(efx->state))
 		(void)efx_reset(efx, method);
@@ -936,13 +936,13 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	set_bit(method, &efx->reset_pending);
 	smp_mb(); /* ensure we change reset_pending before checking state */
 
-	/* If we're not READY then just leave the flags set as the cue
+	/* If we're analt READY then just leave the flags set as the cue
 	 * to abort probing or reschedule the reset later.
 	 */
 	if (!efx_net_active(READ_ONCE(efx->state)))
 		return;
 
-	/* efx_process_channel() will no longer read events once a
+	/* efx_process_channel() will anal longer read events once a
 	 * reset is scheduled. So switch back to poll'd MCDI completions.
 	 */
 	efx_mcdi_mode_poll(efx);
@@ -955,7 +955,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
  * Dummy NIC operations
  *
  * Can be used for some unimplemented operations
- * Needed so all function pointers are valid and do not have to be tested
+ * Needed so all function pointers are valid and do analt have to be tested
  * before use
  *
  **************************************************************************/
@@ -976,10 +976,10 @@ void efx_port_dummy_op_void(struct efx_nic *efx) {}
  */
 int efx_init_struct(struct efx_nic *efx, struct pci_dev *pci_dev)
 {
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	/* Initialise common structures */
-	INIT_LIST_HEAD(&efx->node);
+	INIT_LIST_HEAD(&efx->analde);
 	INIT_LIST_HEAD(&efx->secondary_list);
 	spin_lock_init(&efx->biu_lock);
 #ifdef CONFIG_SFC_MTD
@@ -1013,7 +1013,7 @@ int efx_init_struct(struct efx_nic *efx, struct pci_dev *pci_dev)
 #ifdef CONFIG_RFS_ACCEL
 	mutex_init(&efx->rps_mutex);
 	spin_lock_init(&efx->rps_hash_lock);
-	/* Failure to allocate is not fatal, but may degrade ARFS performance */
+	/* Failure to allocate is analt fatal, but may degrade ARFS performance */
 	efx->rps_hash_table = kcalloc(EFX_ARFS_HASH_TABLE_SIZE,
 				      sizeof(*efx->rps_hash_table), GFP_KERNEL);
 #endif
@@ -1037,7 +1037,7 @@ int efx_init_struct(struct efx_nic *efx, struct pci_dev *pci_dev)
 		 pci_name(pci_dev));
 	efx->workqueue = create_singlethread_workqueue(efx->workqueue_name);
 	if (!efx->workqueue) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail;
 	}
 
@@ -1084,7 +1084,7 @@ int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
 
 	rc = dma_set_mask_and_coherent(&pci_dev->dev, dma_mask);
 	if (rc) {
-		pci_err(efx->pci_dev, "could not find a suitable DMA mask\n");
+		pci_err(efx->pci_dev, "could analt find a suitable DMA mask\n");
 		goto fail2;
 	}
 	pci_dbg(efx->pci_dev, "using DMA mask %llx\n", (unsigned long long)dma_mask);
@@ -1092,9 +1092,9 @@ int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
 	efx->membase_phys = pci_resource_start(efx->pci_dev, bar);
 	if (!efx->membase_phys) {
 		pci_err(efx->pci_dev,
-			"ERROR: No BAR%d mapping from the BIOS. Try pci=realloc on the kernel command line\n",
+			"ERROR: Anal BAR%d mapping from the BIOS. Try pci=realloc on the kernel command line\n",
 			bar);
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto fail3;
 	}
 
@@ -1109,9 +1109,9 @@ int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
 	efx->membase = ioremap(efx->membase_phys, mem_map_size);
 	if (!efx->membase) {
 		pci_err(efx->pci_dev,
-			"could not map memory BAR[%d] at %llx+%x\n", bar,
+			"could analt map memory BAR[%d] at %llx+%x\n", bar,
 			(unsigned long long)efx->membase_phys, mem_map_size);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail4;
 	}
 	pci_dbg(efx->pci_dev,
@@ -1241,7 +1241,7 @@ static pci_ers_result_t efx_io_slot_reset(struct pci_dev *pdev)
 
 	if (pci_enable_device(pdev)) {
 		netif_err(efx, hw, efx->net_dev,
-			  "Cannot re-enable PCI device after reset.\n");
+			  "Cananalt re-enable PCI device after reset.\n");
 		status =  PCI_ERS_RESULT_DISCONNECT;
 	}
 
@@ -1277,7 +1277,7 @@ out:
  * reset the hardware when a pci error affecting the device is detected.
  * We leave both the link_reset and mmio_enabled callback unimplemented:
  * with our request for slot reset the mmio_enabled callback will never be
- * called, and the link_reset callback is not used by AER or EEH mechanisms.
+ * called, and the link_reset callback is analt used by AER or EEH mechanisms.
  */
 const struct pci_error_handlers efx_err_handlers = {
 	.error_detected = efx_io_error_detected,
@@ -1295,7 +1295,7 @@ static bool efx_can_encap_offloads(struct efx_nic *efx, struct sk_buff *skb)
 	u8 ipproto;
 
 	/* Does the NIC support encap offloads?
-	 * If not, we should never get here, because we shouldn't have
+	 * If analt, we should never get here, because we shouldn't have
 	 * advertised encap offload feature flags in the first place.
 	 */
 	if (WARN_ON_ONCE(!efx->type->udp_tnl_has_port))
@@ -1313,18 +1313,18 @@ static bool efx_can_encap_offloads(struct efx_nic *efx, struct sk_buff *skb)
 		ipproto = ipv6_hdr(skb)->nexthdr;
 		break;
 	default:
-		/* Not IP, so can't offload it */
+		/* Analt IP, so can't offload it */
 		return false;
 	}
 	switch (ipproto) {
 	case IPPROTO_GRE:
-		/* We support NVGRE but not IP over GRE or random gretaps.
+		/* We support NVGRE but analt IP over GRE or random gretaps.
 		 * Specifically, the NIC will accept GRE as encapsulated if
 		 * the inner protocol is Ethernet, but only handle it
 		 * correctly if the GRE header is 8 bytes long.  Moreover,
-		 * it will not update the Checksum or Sequence Number fields
+		 * it will analt update the Checksum or Sequence Number fields
 		 * if they are present.  (The Routing Present flag,
-		 * GRE_ROUTING, cannot be set else the header would be more
+		 * GRE_ROUTING, cananalt be set else the header would be more
 		 * than 8 bytes long; so we don't have to worry about it.)
 		 */
 		if (skb->inner_protocol_type != ENCAP_TYPE_ETHER)
@@ -1338,7 +1338,7 @@ static bool efx_can_encap_offloads(struct efx_nic *efx, struct sk_buff *skb)
 	case IPPROTO_UDP:
 		/* If the port is registered for a UDP tunnel, we assume the
 		 * packet is for that tunnel, and the NIC will handle it as
-		 * such.  If not, the NIC won't know what to do with it.
+		 * such.  If analt, the NIC won't kanalw what to do with it.
 		 */
 		dst_port = udp_hdr(skb)->dest;
 		return efx->type->udp_tnl_has_port(efx, dst_port);
@@ -1376,7 +1376,7 @@ int efx_get_phys_port_id(struct net_device *net_dev,
 	if (efx->type->get_phys_port_id)
 		return efx->type->get_phys_port_id(efx, ppid);
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 int efx_get_phys_port_name(struct net_device *net_dev, char *name, size_t len)

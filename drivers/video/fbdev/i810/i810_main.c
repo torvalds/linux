@@ -1,7 +1,7 @@
  /*-*- linux-c -*-
  *  linux/drivers/video/i810_main.c -- Intel 810 frame buffer device
  *
- *      Copyright (C) 2001 Antonino Daplas<adaplas@pol.net>
+ *      Copyright (C) 2001 Antonianal Daplas<adaplas@pol.net>
  *      All Rights Reserved
  *
  *      Contributors:
@@ -31,7 +31,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -68,10 +68,10 @@
  * So for chipsets with 64 MiB Aperture sizes, 32 MiB for v_offset is okay, allowing up to
  * 15 + 1 MiB of Framebuffer memory.  For 32 MiB Aperture sizes, a v_offset of 8 MiB should
  * work, allowing 7 + 1 MiB of Framebuffer memory.
- * Note, the size of the hole may change depending on how much memory you allocate to X,
+ * Analte, the size of the hole may change depending on how much memory you allocate to X,
  * and how the memory is split up between these surfaces.
  *
- * Note: Anytime the DepthBuffer or FrontBuffer is overlapped, X would still run but with
+ * Analte: Anytime the DepthBuffer or FrontBuffer is overlapped, X would still run but with
  * DRI disabled.  But if the Frontbuffer is overlapped, X will fail to load.
  *
  * Experiment with v_offset to find out which works best for you.
@@ -88,9 +88,9 @@ static int i810fb_suspend(struct pci_dev *dev, pm_message_t state);
 
 /* Chipset Specific Functions */
 static int i810fb_set_par    (struct fb_info *info);
-static int i810fb_getcolreg  (u8 regno, u8 *red, u8 *green, u8 *blue,
+static int i810fb_getcolreg  (u8 reganal, u8 *red, u8 *green, u8 *blue,
 			      u8 *transp, struct fb_info *info);
-static int i810fb_setcolreg  (unsigned regno, unsigned red, unsigned green, unsigned blue,
+static int i810fb_setcolreg  (unsigned reganal, unsigned red, unsigned green, unsigned blue,
 			      unsigned transp, struct fb_info *info);
 static int i810fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info);
 static int i810fb_blank      (int blank_mode, struct fb_info *info);
@@ -118,7 +118,7 @@ static const struct pci_device_id i810fb_pci_tbl[] = {
 	/* mvo: added i815 PCI-ID */
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82815_100,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 3 },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82815_NOAGP,
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82815_ANALAGP,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82815_CGC,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 5 },
@@ -438,19 +438,19 @@ static void i810_load_regs(struct i810fb_par *par)
 	i810_load_pitch(par);
 }
 
-static void i810_write_dac(u8 regno, u8 red, u8 green, u8 blue,
+static void i810_write_dac(u8 reganal, u8 red, u8 green, u8 blue,
 			  u8 __iomem *mmio)
 {
-	i810_writeb(CLUT_INDEX_WRITE, mmio, regno);
+	i810_writeb(CLUT_INDEX_WRITE, mmio, reganal);
 	i810_writeb(CLUT_DATA, mmio, red);
 	i810_writeb(CLUT_DATA, mmio, green);
 	i810_writeb(CLUT_DATA, mmio, blue);
 }
 
-static void i810_read_dac(u8 regno, u8 *red, u8 *green, u8 *blue,
+static void i810_read_dac(u8 reganal, u8 *red, u8 *green, u8 *blue,
 			  u8 __iomem *mmio)
 {
-	i810_writeb(CLUT_INDEX_READ, mmio, regno);
+	i810_writeb(CLUT_INDEX_READ, mmio, reganal);
 	*red = i810_readb(CLUT_DATA, mmio);
 	*green = i810_readb(CLUT_DATA, mmio);
 	*blue = i810_readb(CLUT_DATA, mmio);
@@ -1017,7 +1017,7 @@ static int i810_check_params(struct fb_var_screeninfo *var,
 				       "is out of range\n",
 				       vidmem, vxres, vyres,
 				       var->bits_per_pixel);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 	}
@@ -1108,7 +1108,7 @@ static int encode_fix(struct fb_fix_screeninfo *fix, struct fb_info *info)
 	case 16:
 	case 24:
 	case 32:
-		if (info->var.nonstd)
+		if (info->var.analnstd)
 			fix->visual = FB_VISUAL_DIRECTCOLOR;
 		else
 			fix->visual = FB_VISUAL_TRUECOLOR;
@@ -1173,7 +1173,7 @@ static void decode_var(const struct fb_var_screeninfo *var,
 		par->blit_bpp = 3 << 24;
 		break;
 	}
-	if (var->nonstd && var->bits_per_pixel != 8)
+	if (var->analnstd && var->bits_per_pixel != 8)
 		par->pixconf |= 1 << 27;
 
 	i810_calc_dclk(var->pixclock, &par->regs.M,
@@ -1186,7 +1186,7 @@ static void decode_var(const struct fb_var_screeninfo *var,
 
 /**
  * i810fb_getcolreg - gets red, green and blue values of the hardware DAC
- * @regno: DAC index
+ * @reganal: DAC index
  * @red: red
  * @green: green
  * @blue: blue
@@ -1194,10 +1194,10 @@ static void decode_var(const struct fb_var_screeninfo *var,
  * @info: pointer to fb_info
  *
  * DESCRIPTION:
- * Gets the red, green and blue values of the hardware DAC as pointed by @regno
+ * Gets the red, green and blue values of the hardware DAC as pointed by @reganal
  * and writes them to @red, @green and @blue respectively
  */
-static int i810fb_getcolreg(u8 regno, u8 *red, u8 *green, u8 *blue,
+static int i810fb_getcolreg(u8 reganal, u8 *red, u8 *green, u8 *blue,
 			    u8 *transp, struct fb_info *info)
 {
 	struct i810fb_par *par = info->par;
@@ -1205,8 +1205,8 @@ static int i810fb_getcolreg(u8 regno, u8 *red, u8 *green, u8 *blue,
 	u8 temp;
 
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
-		if ((info->var.green.length == 5 && regno > 31) ||
-		    (info->var.green.length == 6 && regno > 63))
+		if ((info->var.green.length == 5 && reganal > 31) ||
+		    (info->var.green.length == 6 && reganal > 63))
 			return 1;
 	}
 
@@ -1215,17 +1215,17 @@ static int i810fb_getcolreg(u8 regno, u8 *red, u8 *green, u8 *blue,
 
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR &&
 	    info->var.green.length == 5)
-		i810_read_dac(regno * 8, red, green, blue, mmio);
+		i810_read_dac(reganal * 8, red, green, blue, mmio);
 
 	else if (info->fix.visual == FB_VISUAL_DIRECTCOLOR &&
 		 info->var.green.length == 6) {
 		u8 tmp;
 
-		i810_read_dac(regno * 8, red, &tmp, blue, mmio);
-		i810_read_dac(regno * 4, &tmp, green, &tmp, mmio);
+		i810_read_dac(reganal * 8, red, &tmp, blue, mmio);
+		i810_read_dac(reganal * 4, &tmp, green, &tmp, mmio);
 	}
 	else
-		i810_read_dac(regno, red, green, blue, mmio);
+		i810_read_dac(reganal, red, green, blue, mmio);
 
     	*transp = 0;
 	i810_writeb(PIXCONF1, mmio, temp);
@@ -1279,7 +1279,7 @@ static int i810fb_release(struct fb_info *info, int user)
 }
 
 
-static int i810fb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int i810fb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			    unsigned blue, unsigned transp,
 			    struct fb_info *info)
 {
@@ -1288,11 +1288,11 @@ static int i810fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	u8 temp;
 	int i;
 
- 	if (regno > 255) return 1;
+ 	if (reganal > 255) return 1;
 
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
-		if ((info->var.green.length == 5 && regno > 31) ||
-		    (info->var.green.length == 6 && regno > 63))
+		if ((info->var.green.length == 5 && reganal > 31) ||
+		    (info->var.green.length == 6 && reganal > 63))
 			return 1;
 	}
 
@@ -1306,51 +1306,51 @@ static int i810fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR &&
 	    info->var.green.length == 5) {
 		for (i = 0; i < 8; i++)
-			i810_write_dac((u8) (regno * 8) + i, (u8) red,
+			i810_write_dac((u8) (reganal * 8) + i, (u8) red,
 				       (u8) green, (u8) blue, mmio);
 	} else if (info->fix.visual == FB_VISUAL_DIRECTCOLOR &&
 		 info->var.green.length == 6) {
 		u8 r, g, b;
 
-		if (regno < 32) {
+		if (reganal < 32) {
 			for (i = 0; i < 8; i++)
-				i810_write_dac((u8) (regno * 8) + i,
+				i810_write_dac((u8) (reganal * 8) + i,
 					       (u8) red, (u8) green,
 					       (u8) blue, mmio);
 		}
-		i810_read_dac((u8) (regno*4), &r, &g, &b, mmio);
+		i810_read_dac((u8) (reganal*4), &r, &g, &b, mmio);
 		for (i = 0; i < 4; i++)
-			i810_write_dac((u8) (regno*4) + i, r, (u8) green,
+			i810_write_dac((u8) (reganal*4) + i, r, (u8) green,
 				       b, mmio);
 	} else if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR) {
-		i810_write_dac((u8) regno, (u8) red, (u8) green,
+		i810_write_dac((u8) reganal, (u8) red, (u8) green,
 			       (u8) blue, mmio);
 	}
 
 	i810_writeb(PIXCONF1, mmio, temp);
 
-	if (regno < 16) {
+	if (reganal < 16) {
 		switch (info->var.bits_per_pixel) {
 		case 16:
 			if (info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
 				if (info->var.green.length == 5)
-					((u32 *)info->pseudo_palette)[regno] =
-						(regno << 10) | (regno << 5) |
-						regno;
+					((u32 *)info->pseudo_palette)[reganal] =
+						(reganal << 10) | (reganal << 5) |
+						reganal;
 				else
-					((u32 *)info->pseudo_palette)[regno] =
-						(regno << 11) | (regno << 5) |
-						regno;
+					((u32 *)info->pseudo_palette)[reganal] =
+						(reganal << 11) | (reganal << 5) |
+						reganal;
 			} else {
 				if (info->var.green.length == 5) {
 					/* RGB 555 */
-					((u32 *)info->pseudo_palette)[regno] =
+					((u32 *)info->pseudo_palette)[reganal] =
 						((red & 0xf800) >> 1) |
 						((green & 0xf800) >> 6) |
 						((blue & 0xf800) >> 11);
 				} else {
 					/* RGB 565 */
-					((u32 *)info->pseudo_palette)[regno] =
+					((u32 *)info->pseudo_palette)[reganal] =
 						(red & 0xf800) |
 						((green & 0xf800) >> 5) |
 						((blue & 0xf800) >> 11);
@@ -1360,11 +1360,11 @@ static int i810fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		case 24:	/* RGB 888 */
 		case 32:	/* RGBA 8888 */
 			if (info->fix.visual == FB_VISUAL_DIRECTCOLOR)
-				((u32 *)info->pseudo_palette)[regno] =
-					(regno << 16) | (regno << 8) |
-					regno;
+				((u32 *)info->pseudo_palette)[reganal] =
+					(reganal << 16) | (reganal << 8) |
+					reganal;
 			else
-				((u32 *)info->pseudo_palette)[regno] =
+				((u32 *)info->pseudo_palette)[reganal] =
 					((red & 0xff00) << 8) |
 					(green & 0xff00) |
 					((blue & 0xff00) >> 8);
@@ -1401,7 +1401,7 @@ static int i810fb_blank (int blank_mode, struct fb_info *info)
 		pwr |= 1;
 		scr_off = ON;
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		mode = POWERON;
 		pwr |= 1;
 		scr_off = OFF;
@@ -1460,11 +1460,11 @@ static int i810fb_check_var(struct fb_var_screeninfo *var,
 
 	if (IS_DVT) {
 		var->vmode &= ~FB_VMODE_MASK;
-		var->vmode |= FB_VMODE_NONINTERLACED;
+		var->vmode |= FB_VMODE_ANALNINTERLACED;
 	}
 	if (var->vmode & FB_VMODE_DOUBLE) {
 		var->vmode &= ~FB_VMODE_MASK;
-		var->vmode |= FB_VMODE_NONINTERLACED;
+		var->vmode |= FB_VMODE_ANALNINTERLACED;
 	}
 
 	i810_round_off(var);
@@ -1517,7 +1517,7 @@ static int i810fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		u8 *data = kmalloc(64 * 8, GFP_ATOMIC);
 
 		if (data == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		switch (cursor->rop) {
 		case ROP_XOR:
@@ -1623,7 +1623,7 @@ static int i810fb_resume(struct pci_dev *dev)
 			par->cursor_heap.offset);
 	i810fb_set_par(info);
 	fb_set_suspend (info, 0);
-	info->fbops->fb_blank(VESA_NO_BLANKING, info);
+	info->fbops->fb_blank(VESA_ANAL_BLANKING, info);
 fail:
 	console_unlock();
 	return 0;
@@ -1674,15 +1674,15 @@ static int i810_alloc_agp_mem(struct fb_info *info)
 	size = par->fb.size + par->iring.size;
 
 	if (!(bridge = agp_backend_acquire(par->dev))) {
-		printk("i810fb_alloc_fbmem: cannot acquire agpgart\n");
-		return -ENODEV;
+		printk("i810fb_alloc_fbmem: cananalt acquire agpgart\n");
+		return -EANALDEV;
 	}
 	if (!(par->i810_gtt.i810_fb_memory =
-	      agp_allocate_memory(bridge, size >> 12, AGP_NORMAL_MEMORY))) {
+	      agp_allocate_memory(bridge, size >> 12, AGP_ANALRMAL_MEMORY))) {
 		printk("i810fb_alloc_fbmem: can't allocate framebuffer "
 		       "memory\n");
 		agp_backend_release(bridge);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (agp_bind_memory(par->i810_gtt.i810_fb_memory,
 			    par->fb.offset)) {
@@ -1697,11 +1697,11 @@ static int i810_alloc_agp_mem(struct fb_info *info)
 		printk("i810fb_alloc_cursormem:  can't allocate "
 		       "cursor memory\n");
 		agp_backend_release(bridge);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (agp_bind_memory(par->i810_gtt.i810_cursor_memory,
 			    par->cursor_heap.offset)) {
-		printk("i810fb_alloc_cursormem: cannot bind cursor memory\n");
+		printk("i810fb_alloc_cursormem: cananalt bind cursor memory\n");
 		agp_backend_release(bridge);
 		return -EBUSY;
 	}
@@ -1803,7 +1803,7 @@ static void i810_init_defaults(struct i810fb_par *par, struct fb_info *info)
 	info->var.bits_per_pixel = bpp;
 
 	if (dcolor)
-		info->var.nonstd = 1;
+		info->var.analnstd = 1;
 
 	if (par->dev_flags & HAS_ACCELERATION)
 		info->var.accel_flags = 1;
@@ -1844,7 +1844,7 @@ static int i810_allocate_pci_resource(struct i810fb_par *par,
 	int err;
 
 	if ((err = pci_enable_device(par->dev))) {
-		printk("i810fb_init: cannot enable device\n");
+		printk("i810fb_init: cananalt enable device\n");
 		return err;
 	}
 	par->res_flags |= PCI_DEVICE_ENABLED;
@@ -1860,37 +1860,37 @@ static int i810_allocate_pci_resource(struct i810fb_par *par,
 	}
 	if (!par->aperture.size) {
 		printk("i810fb_init: device is disabled\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (!request_mem_region(par->aperture.physical,
 				par->aperture.size,
 				i810_pci_list[entry->driver_data])) {
-		printk("i810fb_init: cannot request framebuffer region\n");
-		return -ENODEV;
+		printk("i810fb_init: cananalt request framebuffer region\n");
+		return -EANALDEV;
 	}
 	par->res_flags |= FRAMEBUFFER_REQ;
 
 	par->aperture.virtual = ioremap_wc(par->aperture.physical,
 					   par->aperture.size);
 	if (!par->aperture.virtual) {
-		printk("i810fb_init: cannot remap framebuffer region\n");
-		return -ENODEV;
+		printk("i810fb_init: cananalt remap framebuffer region\n");
+		return -EANALDEV;
 	}
 
 	if (!request_mem_region(par->mmio_start_phys,
 				MMIO_SIZE,
 				i810_pci_list[entry->driver_data])) {
-		printk("i810fb_init: cannot request mmio region\n");
-		return -ENODEV;
+		printk("i810fb_init: cananalt request mmio region\n");
+		return -EANALDEV;
 	}
 	par->res_flags |= MMIO_REQ;
 
 	par->mmio_start_virtual = ioremap(par->mmio_start_phys,
 						  MMIO_SIZE);
 	if (!par->mmio_start_virtual) {
-		printk("i810fb_init: cannot remap mmio region\n");
-		return -ENODEV;
+		printk("i810fb_init: cananalt remap mmio region\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -2025,14 +2025,14 @@ static int i810fb_init_pci(struct pci_dev *dev,
 
 	info = framebuffer_alloc(sizeof(struct i810fb_par), &dev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	par = info->par;
 	par->dev = dev;
 
 	if (!(info->pixmap.addr = kzalloc(8*1024, GFP_KERNEL))) {
 		i810fb_release_resource(info, par);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	info->pixmap.size = 8*1024;
 	info->pixmap.buf_align = 8;
@@ -2072,7 +2072,7 @@ static int i810fb_init_pci(struct pci_dev *dev,
 
 	if (err < 0) {
     		i810fb_release_resource(info, par);
-		printk("i810fb_init: cannot register framebuffer device\n");
+		printk("i810fb_init: cananalt register framebuffer device\n");
     		return err;
     	}
 
@@ -2088,9 +2088,9 @@ static int i810fb_init_pci(struct pci_dev *dev,
       	       "I810FB: Video RAM   : %dK\n"
 	       "I810FB: Monitor     : H: %d-%d KHz V: %d-%d Hz\n"
 	       "I810FB: Mode        : %dx%d-%dbpp@%dHz\n",
-	       info->node,
+	       info->analde,
 	       i810_pci_list[entry->driver_data],
-	       VERSION_MAJOR, VERSION_MINOR, VERSION_TEENIE, BRANCH_VERSION,
+	       VERSION_MAJOR, VERSION_MIANALR, VERSION_TEENIE, BRANCH_VERSION,
 	       (int) par->fb.size>>10, info->monspecs.hfmin/1000,
 	       info->monspecs.hfmax/1000, info->monspecs.vfmin,
 	       info->monspecs.vfmax, info->var.xres,
@@ -2146,10 +2146,10 @@ static int i810fb_init(void)
 	char *option = NULL;
 
 	if (fb_modesetting_disabled("i810fb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fb_get_options("i810fb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	i810fb_setup(option);
 
 	return pci_register_driver(&i810fb_driver);
@@ -2165,7 +2165,7 @@ static int i810fb_init(void)
 static int i810fb_init(void)
 {
 	if (fb_modesetting_disabled("i810fb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	hsync1 *= 1000;
 	hsync2 *= 1000;
@@ -2214,7 +2214,7 @@ module_param(dcolor, bool, 0);
 MODULE_PARM_DESC(dcolor, "use DirectColor visuals"
 		 " (default = 0 = TrueColor)");
 module_param(ddc3, bool, 0);
-MODULE_PARM_DESC(ddc3, "Probe DDC bus 3 (default = 0 = no)");
+MODULE_PARM_DESC(ddc3, "Probe DDC bus 3 (default = 0 = anal)");
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "Specify initial video mode");
 

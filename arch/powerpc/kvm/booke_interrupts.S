@@ -17,7 +17,7 @@
 #define HOST_R1         0 /* Implied by stwu. */
 #define HOST_CALLEE_LR  4
 #define HOST_RUN        8
-/* r2 is special: it holds 'current', and it made nonvolatile in the
+/* r2 is special: it holds 'current', and it made analnvolatile in the
  * kernel with the -ffixed-r2 gcc option. */
 #define HOST_R2         12
 #define HOST_CR         16
@@ -224,12 +224,12 @@ _GLOBAL(kvmppc_resume_host)
 	mtspr	SPRN_PID, r3
 
 #ifdef CONFIG_PPC_85xx
-	/* we cheat and know that Linux doesn't use PID1 which is always 0 */
+	/* we cheat and kanalw that Linux doesn't use PID1 which is always 0 */
 	lis	r3, 0
 	mtspr	SPRN_PID1, r3
 #endif
 
-	/* Restore host IVPR before re-enabling interrupts. We cheat and know
+	/* Restore host IVPR before re-enabling interrupts. We cheat and kanalw
 	 * that Linux IVPR is always 0xc0000000. */
 	lis	r3, 0xc000
 	mtspr	SPRN_IVPR, r3
@@ -243,7 +243,7 @@ _GLOBAL(kvmppc_resume_host)
 
 	bctrl	/* kvmppc_handle_exit() */
 
-	/* Restore vcpu pointer and the nonvolatiles we used. */
+	/* Restore vcpu pointer and the analnvolatiles we used. */
 	mr	r4, r14
 	lwz	r14, VCPU_GPR(R14)(r4)
 
@@ -276,7 +276,7 @@ _GLOBAL(kvmppc_resume_host)
 	srawi	r3, r3, 2 /* Shift -ERR back down. */
 
 heavyweight_exit:
-	/* Not returning to guest. */
+	/* Analt returning to guest. */
 
 #ifdef CONFIG_SPE
 	/* save guest SPEFSCR and load host SPEFSCR */
@@ -286,8 +286,8 @@ heavyweight_exit:
 	mtspr	SPRN_SPEFSCR, r9
 #endif
 
-	/* We already saved guest volatile register state; now save the
-	 * non-volatiles. */
+	/* We already saved guest volatile register state; analw save the
+	 * analn-volatiles. */
 	stw	r15, VCPU_GPR(R15)(r4)
 	stw	r16, VCPU_GPR(R16)(r4)
 	stw	r17, VCPU_GPR(R17)(r4)
@@ -306,7 +306,7 @@ heavyweight_exit:
 	stw	r30, VCPU_GPR(R30)(r4)
 	stw	r31, VCPU_GPR(R31)(r4)
 
-	/* Load host non-volatile register state from host stack. */
+	/* Load host analn-volatile register state from host stack. */
 	lwz	r14, HOST_NV_GPR(R14)(r1)
 	lwz	r15, HOST_NV_GPR(R15)(r1)
 	lwz	r16, HOST_NV_GPR(R16)(r1)
@@ -350,7 +350,7 @@ _GLOBAL(__kvmppc_vcpu_run)
 	mfcr	r5
 	stw	r5, HOST_CR(r1)
 
-	/* Save host non-volatile register state to stack. */
+	/* Save host analn-volatile register state to stack. */
 	stw	r14, HOST_NV_GPR(R14)(r1)
 	stw	r15, HOST_NV_GPR(R15)(r1)
 	stw	r16, HOST_NV_GPR(R16)(r1)
@@ -370,7 +370,7 @@ _GLOBAL(__kvmppc_vcpu_run)
 	stw	r30, HOST_NV_GPR(R30)(r1)
 	stw	r31, HOST_NV_GPR(R31)(r1)
 
-	/* Load guest non-volatiles. */
+	/* Load guest analn-volatiles. */
 	lwz	r14, VCPU_GPR(R14)(r4)
 	lwz	r15, VCPU_GPR(R15)(r4)
 	lwz	r16, VCPU_GPR(R16)(r4)

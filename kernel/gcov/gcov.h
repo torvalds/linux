@@ -36,8 +36,8 @@ typedef long long gcov_type;
 #endif
 
 /* Opaque gcov_info. The gcov structures can change as for example in gcc 4.7 so
- * we cannot use full definition here and they need to be placed in gcc specific
- * implementation of gcov. This also means no direct access to the members in
+ * we cananalt use full definition here and they need to be placed in gcc specific
+ * implementation of gcov. This also means anal direct access to the members in
  * generic code and usage of the interface below.*/
 struct gcov_info;
 

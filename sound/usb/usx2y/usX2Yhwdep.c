@@ -107,7 +107,7 @@ static int snd_usx2y_hwdep_dsp_status(struct snd_hwdep *hw,
 		break;
 	}
 	if (id < 0)
-		return -ENODEV;
+		return -EANALDEV;
 	strcpy(info->id, type_ids[id]);
 	info->num_dsps = 2;		// 0: Prepad Data, 1: FPGA Code
 	if (us428->chip_status & USX2Y_STAT_CHIP_INIT)
@@ -241,7 +241,7 @@ int usx2y_hwdep_new(struct snd_card *card, struct usb_device *device)
 
 	us428->us428ctls_sharedmem = alloc_pages_exact(US428_SHAREDMEM_PAGES, GFP_KERNEL);
 	if (!us428->us428ctls_sharedmem)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(us428->us428ctls_sharedmem, -1, US428_SHAREDMEM_PAGES);
 	us428->us428ctls_sharedmem->ctl_snapshot_last = -2;
 

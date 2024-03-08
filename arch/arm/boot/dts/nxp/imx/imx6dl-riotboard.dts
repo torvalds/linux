@@ -222,7 +222,7 @@
 				regulator-always-on;
 			};
 
-			reg_5v_600mA: swbst {				/* not used */
+			reg_5v_600mA: swbst {				/* analt used */
 				regulator-min-microvolt = <5000000>;
 				regulator-max-microvolt = <5150000>;
 			};
@@ -238,7 +238,7 @@
 				regulator-always-on;
 			};
 
-			reg_vgen1_1v5: vgen1 {				/* not used */
+			reg_vgen1_1v5: vgen1 {				/* analt used */
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1550000>;
 			};
@@ -249,7 +249,7 @@
 				regulator-always-on;
 			};
 
-			reg_vgen3_2v8: vgen3 {				/* not used */
+			reg_vgen3_2v8: vgen3 {				/* analt used */
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 			};
@@ -384,7 +384,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	vmmc-supply = <&reg_3p3v>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

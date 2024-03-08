@@ -4,7 +4,7 @@ Kernel driver ltc2990
 
 Supported chips:
 
-  * Linear Technology LTC2990
+  * Linear Techanallogy LTC2990
 
     Prefix: 'ltc2990'
 
@@ -30,10 +30,10 @@ measure current through a series resistor, or a temperature with an external
 diode.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does analt probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 

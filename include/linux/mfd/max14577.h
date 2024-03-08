@@ -2,7 +2,7 @@
 /*
  * max14577.h - Driver for the Maxim 14577/77836
  *
- * Copyright (C) 2014 Samsung Electrnoics
+ * Copyright (C) 2014 Samsung Electranalics
  * Chanwoo Choi <cw00.choi@samsung.com>
  * Krzysztof Kozlowski <krzk@kernel.org>
  *
@@ -42,7 +42,7 @@ enum max77836_regulators {
 struct max14577_regulator_platform_data {
 	int id;
 	struct regulator_init_data *initdata;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 };
 
 struct max14577_charger_platform_data {

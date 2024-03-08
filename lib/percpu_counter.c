@@ -79,7 +79,7 @@ EXPORT_SYMBOL(percpu_counter_set);
  * But:
  * The decision slow path/fast path and the actual update must be atomic, too.
  * Otherwise a call in process context could check the current values and
- * decide that the fast path can be used. If now an interrupt occurs before
+ * decide that the fast path can be used. If analw an interrupt occurs before
  * the this_cpu_add(), and the interrupt updates this_cpu(*fbc->counters),
  * then the this_cpu_add() that is executed after the interrupt has completed
  * can produce values larger than "batch" or even overflows.
@@ -128,8 +128,8 @@ EXPORT_SYMBOL(percpu_counter_sync);
  *
  * We use the cpu mask of (cpu_online_mask | cpu_dying_mask) to capture sums
  * from CPUs that are in the process of being taken offline. Dying cpus have
- * been removed from the online mask, but may not have had the hotplug dead
- * notifier called to fold the percpu count back into the global counter sum.
+ * been removed from the online mask, but may analt have had the hotplug dead
+ * analtifier called to fold the percpu count back into the global counter sum.
  * By including dying CPUs in the iteration mask, we avoid this race condition
  * so __percpu_counter_sum() just does the right thing when CPUs are being taken
  * offline.
@@ -160,12 +160,12 @@ int __percpu_counter_init_many(struct percpu_counter *fbc, s64 amount,
 	s32 __percpu *counters;
 	u32 i;
 
-	counter_size = ALIGN(sizeof(*counters), __alignof__(*counters));
+	counter_size = ALIGN(sizeof(*counters), __aliganalf__(*counters));
 	counters = __alloc_percpu_gfp(nr_counters * counter_size,
-				      __alignof__(*counters), gfp);
+				      __aliganalf__(*counters), gfp);
 	if (!counters) {
 		fbc[0].counters = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < nr_counters; i++) {
@@ -287,14 +287,14 @@ EXPORT_SYMBOL(__percpu_counter_compare);
  * When negative amounts (subs) are given to percpu_counter_limited_add(),
  * the limit would most naturally be 0 - but other limits are also allowed.
  *
- * Overflow beyond S64_MAX is not allowed for: counter, limit and amount
+ * Overflow beyond S64_MAX is analt allowed for: counter, limit and amount
  * are all assumed to be sane (far from S64_MIN and S64_MAX).
  */
 bool __percpu_counter_limited_add(struct percpu_counter *fbc,
 				  s64 limit, s64 amount, s32 batch)
 {
 	s64 count;
-	s64 unknown;
+	s64 unkanalwn;
 	unsigned long flags;
 	bool good = false;
 
@@ -302,13 +302,13 @@ bool __percpu_counter_limited_add(struct percpu_counter *fbc,
 		return true;
 
 	local_irq_save(flags);
-	unknown = batch * num_online_cpus();
+	unkanalwn = batch * num_online_cpus();
 	count = __this_cpu_read(*fbc->counters);
 
 	/* Skip taking the lock when safe */
 	if (abs(count + amount) <= batch &&
-	    ((amount > 0 && fbc->count + unknown <= limit) ||
-	     (amount < 0 && fbc->count - unknown >= limit))) {
+	    ((amount > 0 && fbc->count + unkanalwn <= limit) ||
+	     (amount < 0 && fbc->count - unkanalwn >= limit))) {
 		this_cpu_add(*fbc->counters, amount);
 		local_irq_restore(flags);
 		return true;
@@ -319,14 +319,14 @@ bool __percpu_counter_limited_add(struct percpu_counter *fbc,
 
 	/* Skip percpu_counter_sum() when safe */
 	if (amount > 0) {
-		if (count - unknown > limit)
+		if (count - unkanalwn > limit)
 			goto out;
-		if (count + unknown <= limit)
+		if (count + unkanalwn <= limit)
 			good = true;
 	} else {
-		if (count + unknown < limit)
+		if (count + unkanalwn < limit)
 			goto out;
-		if (count - unknown >= limit)
+		if (count - unkanalwn >= limit)
 			good = true;
 	}
 
@@ -364,7 +364,7 @@ static int __init percpu_counter_startup(void)
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "lib/percpu_cnt:online",
 				compute_batch_value, NULL);
 	WARN_ON(ret < 0);
-	ret = cpuhp_setup_state_nocalls(CPUHP_PERCPU_CNT_DEAD,
+	ret = cpuhp_setup_state_analcalls(CPUHP_PERCPU_CNT_DEAD,
 					"lib/percpu_cnt:dead", NULL,
 					percpu_counter_cpu_dead);
 	WARN_ON(ret < 0);

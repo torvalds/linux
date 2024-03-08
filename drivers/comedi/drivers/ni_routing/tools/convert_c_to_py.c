@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 
 typedef uint8_t u8;
@@ -49,7 +49,7 @@ void family_write(const struct family_route_values *rv, FILE *fp)
 			;
 
 		if (src >= (NI_NAMES_BASE + NI_NUM_NAMES))
-			continue; /* no data here */
+			continue; /* anal data here */
 
 		fprintf(fp, "    %u : {\n", dest);
 		for (src = NI_NAMES_BASE; src < (NI_NAMES_BASE + NI_NUM_NAMES);

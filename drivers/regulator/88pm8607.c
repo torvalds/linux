@@ -233,7 +233,7 @@ static const struct regulator_ops pm8606_preg_ops = {
 	.desc	= {							\
 		.name	= "PREG",					\
 		.of_match = of_match_ptr("PREG"),			\
-		.regulators_node = of_match_ptr("regulators"),		\
+		.regulators_analde = of_match_ptr("regulators"),		\
 		.ops	= &pm8606_preg_ops,				\
 		.type	= REGULATOR_CURRENT,				\
 		.id	= PM8606_ID_PREG,				\
@@ -249,7 +249,7 @@ static const struct regulator_ops pm8606_preg_ops = {
 	.desc	= {							\
 		.name	= #vreg,					\
 		.of_match = of_match_ptr(#vreg),			\
-		.regulators_node = of_match_ptr("regulators"),		\
+		.regulators_analde = of_match_ptr("regulators"),		\
 		.ops	= &pm8607_regulator_ops,			\
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= PM8607_ID_##vreg,				\
@@ -272,7 +272,7 @@ static const struct regulator_ops pm8606_preg_ops = {
 	.desc	= {							\
 		.name	= "LDO" #_id,					\
 		.of_match = of_match_ptr("LDO" #_id),			\
-		.regulators_node = of_match_ptr("regulators"),		\
+		.regulators_analde = of_match_ptr("regulators"),		\
 		.ops	= &pm8607_regulator_ops,			\
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= PM8607_ID_LDO##_id,				\
@@ -336,7 +336,7 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 	} else {
-		/* There's no resource in 88PM8606 PREG regulator driver */
+		/* There's anal resource in 88PM8606 PREG regulator driver */
 		info = &pm8606_regulator_info[0];
 		/* i is used to check regulator ID */
 		i = -1;
@@ -383,7 +383,7 @@ MODULE_DEVICE_TABLE(platform, pm8607_regulator_driver_ids);
 static struct platform_driver pm8607_regulator_driver = {
 	.driver		= {
 		.name	= "88pm860x-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe		= pm8607_regulator_probe,
 	.id_table	= pm8607_regulator_driver_ids,

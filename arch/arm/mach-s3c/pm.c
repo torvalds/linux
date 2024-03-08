@@ -9,7 +9,7 @@
 
 #include <linux/init.h>
 #include <linux/suspend.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/serial_s3c.h>
@@ -44,7 +44,7 @@ int s3c_irqext_wake(struct irq_data *data, unsigned int state)
 	unsigned long bit = 1L << IRQ_EINT_BIT(data->irq);
 
 	if (!(s3c_irqwake_eintallow & bit))
-		return -ENOENT;
+		return -EANALENT;
 
 	printk(KERN_INFO "wake %s for irq %d\n",
 	       state ? "enabled" : "disabled", data->irq);
@@ -76,24 +76,24 @@ static int s3c_pm_enter(suspend_state_t state)
 	S3C_PMDBG("%s(%d)\n", __func__, state);
 
 	if (pm_cpu_prep == NULL || pm_cpu_sleep == NULL) {
-		printk(KERN_ERR "%s: error: no cpu sleep function\n", __func__);
+		printk(KERN_ERR "%s: error: anal cpu sleep function\n", __func__);
 		return -EINVAL;
 	}
 
 	/* check if we have anything to wake-up with... bad things seem
-	 * to happen if you suspend with no wakeup (system will often
+	 * to happen if you suspend with anal wakeup (system will often
 	 * require a full power-cycle)
 	*/
 
 	if (!of_have_populated_dt() &&
 	    !any_allowed(s3c_irqwake_intmask, s3c_irqwake_intallow) &&
 	    !any_allowed(s3c_irqwake_eintmask, s3c_irqwake_eintallow)) {
-		printk(KERN_ERR "%s: No wake-up sources!\n", __func__);
+		printk(KERN_ERR "%s: Anal wake-up sources!\n", __func__);
 		printk(KERN_ERR "%s: Aborting sleep\n", __func__);
 		return -EINVAL;
 	}
 
-	/* save all necessary core registers not covered by the drivers */
+	/* save all necessary core registers analt covered by the drivers */
 
 	if (!of_have_populated_dt()) {
 		samsung_pm_save_gpios();

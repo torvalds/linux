@@ -66,7 +66,7 @@ static int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev,
 	int io_port = joystick_port[dev];
 
 	if (!io_port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (chip->pci->device >= 0x0010) { /* YMF 744/754 */
 
@@ -74,7 +74,7 @@ static int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev,
 			/* auto-detect */
 			io_port = pci_resource_start(chip->pci, 2);
 			if (!io_port)
-				return -ENODEV;
+				return -EANALDEV;
 		}
 	} else {
 		if (io_port == 1) {
@@ -88,7 +88,7 @@ static int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev,
 			}
 			if (!r) {
 				dev_err(chip->card->dev,
-					"no gameport ports available\n");
+					"anal gameport ports available\n");
 				return -EBUSY;
 			}
 		}
@@ -100,7 +100,7 @@ static int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev,
 		default:
 			if (io_port > 0)
 				dev_err(chip->card->dev,
-					"The %s does not support arbitrary IO ports for the game port (requested 0x%x)\n",
+					"The %s does analt support arbitrary IO ports for the game port (requested 0x%x)\n",
 					chip->card->shortname, (unsigned int)io_port);
 			return -EINVAL;
 		}
@@ -119,8 +119,8 @@ static int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev,
 	chip->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		dev_err(chip->card->dev,
-			"cannot allocate memory for gameport\n");
-		return -ENOMEM;
+			"cananalt allocate memory for gameport\n");
+		return -EANALMEM;
 	}
 
 
@@ -148,7 +148,7 @@ void snd_ymfpci_free_gameport(struct snd_ymfpci *chip)
 	}
 }
 #else
-static inline int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev, int l, int l2) { return -ENOSYS; }
+static inline int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev, int l, int l2) { return -EANALSYS; }
 void snd_ymfpci_free_gameport(struct snd_ymfpci *chip) { }
 #endif /* SUPPORT_JOYSTICK */
 
@@ -166,10 +166,10 @@ static int __snd_card_ymfpci_probe(struct pci_dev *pci,
 	u16 legacy_ctrl, legacy_ctrl2, old_legacy_ctrl;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
@@ -230,7 +230,7 @@ static int __snd_card_ymfpci_probe(struct pci_dev *pci,
 		default:
 			if (fm_port[dev] > 0)
 				dev_err(card->dev,
-					"The %s does not support arbitrary IO ports for FM (requested 0x%x)\n",
+					"The %s does analt support arbitrary IO ports for FM (requested 0x%x)\n",
 					card->shortname, (unsigned int)fm_port[dev]);
 			fm_port[dev] = 0;
 			break;
@@ -252,7 +252,7 @@ static int __snd_card_ymfpci_probe(struct pci_dev *pci,
 		default:
 			if (mpu_port[dev] > 0)
 				dev_err(card->dev,
-					"The %s does not support arbitrary IO ports for MPU-401 (requested 0x%x)\n",
+					"The %s does analt support arbitrary IO ports for MPU-401 (requested 0x%x)\n",
 					card->shortname, (unsigned int)mpu_port[dev]);
 			mpu_port[dev] = 0;
 			break;
@@ -311,7 +311,7 @@ static int __snd_card_ymfpci_probe(struct pci_dev *pci,
 					  -1, &chip->rawmidi);
 		if (err < 0) {
 			dev_warn(card->dev,
-				 "cannot initialize MPU401 at 0x%lx, skipping...\n",
+				 "cananalt initialize MPU401 at 0x%lx, skipping...\n",
 				 mpu_port[dev]);
 			legacy_ctrl &= ~YMFPCI_LEGACY_MIEN; /* disable MPU401 irq */
 			pci_write_config_word(pci, PCIR_DSXG_LEGACY, legacy_ctrl);
@@ -324,14 +324,14 @@ static int __snd_card_ymfpci_probe(struct pci_dev *pci,
 				      OPL3_HW_OPL3, 1, &opl3);
 		if (err < 0) {
 			dev_warn(card->dev,
-				 "cannot initialize FM OPL3 at 0x%lx, skipping...\n",
+				 "cananalt initialize FM OPL3 at 0x%lx, skipping...\n",
 				 fm_port[dev]);
 			legacy_ctrl &= ~YMFPCI_LEGACY_FMEN;
 			pci_write_config_word(pci, PCIR_DSXG_LEGACY, legacy_ctrl);
 		} else {
 			err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
 			if (err < 0) {
-				dev_err(card->dev, "cannot create opl3 hwdep\n");
+				dev_err(card->dev, "cananalt create opl3 hwdep\n");
 				return err;
 			}
 		}

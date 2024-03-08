@@ -3,7 +3,7 @@
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{linux.intel,addtoit}.com)
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <termios.h>
 #include "chan_user.h"
@@ -51,7 +51,7 @@ static int tty_open(int input, int output, int primary, void *d,
 
 	fd = open(data->dev, mode);
 	if (fd < 0)
-		return -errno;
+		return -erranal;
 
 	if (data->raw) {
 		CATCH_EINTR(err = tcgetattr(fd, &data->tt));

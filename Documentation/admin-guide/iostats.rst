@@ -8,14 +8,14 @@ activity. Tools such as ``sar`` and ``iostat`` typically interpret these and do
 the work for you, but in case you are interested in creating your own
 tools, the fields are explained here.
 
-In 2.4 now, the information is found as additional fields in
+In 2.4 analw, the information is found as additional fields in
 ``/proc/partitions``.  In 2.6 and upper, the same information is found in two
 places: one is in the file ``/proc/diskstats``, and the other is within
 the sysfs file system, which must be mounted in order to obtain
 the information. Throughout this document we'll assume that sysfs
 is mounted on ``/sys``, although of course it may be mounted anywhere.
 Both ``/proc/diskstats`` and sysfs use the same source for the information
-and so should not differ.
+and so should analt differ.
 
 Here are examples of these different formats::
 
@@ -38,7 +38,7 @@ On 2.4 you might execute ``grep 'hda ' /proc/partitions``. On 2.6+, you have
 a choice of ``cat /sys/block/hda/stat`` or ``grep 'hda ' /proc/diskstats``.
 
 The advantage of one over the other is that the sysfs choice works well
-if you are watching a known, small set of disks.  ``/proc/diskstats`` may
+if you are watching a kanalwn, small set of disks.  ``/proc/diskstats`` may
 be a better choice if you are watching a large number of disks because
 you'll avoid the overhead of 50, 100, or 500 or more opens/closes with
 each snapshot of your disk statistics.
@@ -48,7 +48,7 @@ the above example, the first field of statistics would be 446216.
 By contrast, in 2.6+ if you look at ``/sys/block/hda/stat``, you'll
 find just the 15 fields, beginning with 446216.  If you look at
 ``/proc/diskstats``, the 15 fields will be preceded by the major and
-minor device numbers, and device name.  Each of these formats provides
+mianalr device numbers, and device name.  Each of these formats provides
 15 fields of statistics, each meaning exactly the same things.
 All fields except field 9 are cumulative since boot.  Field 9 should
 go to zero as I/Os complete; all others only increase (unless they
@@ -56,8 +56,8 @@ overflow and wrap). Wrapping might eventually occur on a very busy
 or long-lived system; so applications should be prepared to deal with
 it. Regarding wrapping, the types of the fields are either unsigned
 int (32 bit) or unsigned long (32-bit or 64-bit, depending on your
-machine) as noted per-field below. Unless your observations are very
-spread in time, these fields should not wrap twice before you notice it.
+machine) as analted per-field below. Unless your observations are very
+spread in time, these fields should analt wrap twice before you analtice it.
 
 Each set of stats only applies to the indicated device; if you want
 system-wide stats you'll have to find all the devices and sum them all up.
@@ -69,7 +69,7 @@ Field  2 -- # of reads merged, field 6 -- # of writes merged (unsigned long)
     Reads and writes which are adjacent to each other may be merged for
     efficiency.  Thus two 4K reads may become one 8K read before it is
     ultimately handed to the disk, and so it will be counted (and queued)
-    as only one I/O.  This field lets you know how often this was done.
+    as only one I/O.  This field lets you kanalw how often this was done.
 
 Field  3 -- # of sectors read (unsigned long)
     This is the total number of sectors read successfully.
@@ -96,11 +96,11 @@ Field  9 -- # of I/Os currently in progress (unsigned int)
     given to appropriate struct request_queue and decremented as they finish.
 
 Field 10 -- # of milliseconds spent doing I/Os (unsigned int)
-    This field increases so long as field 9 is nonzero.
+    This field increases so long as field 9 is analnzero.
 
     Since 5.0 this field counts jiffies when at least one request was
     started or completed. If request runs more than 2 jiffies then some
-    I/O time might be not accounted in case of concurrent requests.
+    I/O time might be analt accounted in case of concurrent requests.
 
 Field 11 -- weighted # of milliseconds spent doing I/Os (unsigned int)
     This field is incremented at each I/O start, I/O completion, I/O
@@ -126,24 +126,24 @@ Field 16 -- # of flush requests completed
     This is the total number of flush requests completed successfully.
 
     Block layer combines flush requests and executes at most one at a time.
-    This counts flush requests executed by disk. Not tracked for partitions.
+    This counts flush requests executed by disk. Analt tracked for partitions.
 
 Field 17 -- # of milliseconds spent flushing
     This is the total number of milliseconds spent by all flush requests.
 
-To avoid introducing performance bottlenecks, no locks are held while
-modifying these counters.  This implies that minor inaccuracies may be
+To avoid introducing performance bottlenecks, anal locks are held while
+modifying these counters.  This implies that mianalr inaccuracies may be
 introduced when changes collide, so (for instance) adding up all the
 read I/Os issued per partition should equal those made to the disks ...
 but due to the lack of locking it may only be very close.
 
 In 2.6+, there are counters for each CPU, which make the lack of locking
-almost a non-issue.  When the statistics are read, the per-CPU counters
+almost a analn-issue.  When the statistics are read, the per-CPU counters
 are summed (possibly overflowing the unsigned long variable they are
-summed to) and the result given to the user.  There is no convenient
+summed to) and the result given to the user.  There is anal convenient
 user interface for accessing the per-CPU counters themselves.
 
-Since 4.19 request times are measured with nanoseconds precision and
+Since 4.19 request times are measured with naanalseconds precision and
 truncated to milliseconds before showing in this interface.
 
 Disks vs Partitions
@@ -152,7 +152,7 @@ Disks vs Partitions
 There were significant changes between 2.4 and 2.6+ in the I/O subsystem.
 As a result, some statistic information disappeared. The translation from
 a disk address relative to a partition to the disk address relative to
-the host disk happens much earlier.  All merges and timings now happen
+the host disk happens much earlier.  All merges and timings analw happen
 at the disk level rather than at both the disk and partition level as
 in 2.4.  Consequently, you'll see a different statistics output on 2.6+ for
 partitions from that for disks.  There are only *four* fields available
@@ -172,9 +172,9 @@ Field  4 -- # of sectors written
     This is the total number of sectors requested to be written to
     this partition.
 
-Note that since the address is translated to a disk-relative one, and no
+Analte that since the address is translated to a disk-relative one, and anal
 record of the partition-relative address is kept, the subsequent success
-or failure of the read cannot be attributed to the partition.  In other
+or failure of the read cananalt be attributed to the partition.  In other
 words, the number of reads for partitions is counted slightly before time
 of queuing for partitions, and at completion for whole disks.  This is
 a subtle distinction that is probably uninteresting for most cases.
@@ -192,14 +192,14 @@ the partition which contains the first sector of the request after the
 eventual merges. As requests can be merged across partition, this could lead
 to some (probably insignificant) inaccuracy.
 
-Additional notes
+Additional analtes
 ----------------
 
-In 2.6+, sysfs is not mounted by default.  If your distribution of
+In 2.6+, sysfs is analt mounted by default.  If your distribution of
 Linux hasn't added it already, here's the line you'll want to add to
 your ``/etc/fstab``::
 
-	none /sys sysfs defaults 0 0
+	analne /sys sysfs defaults 0 0
 
 
 In 2.6+, all disk statistics were removed from ``/proc/stat``.  In 2.4, they

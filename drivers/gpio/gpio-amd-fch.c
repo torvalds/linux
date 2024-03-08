@@ -143,13 +143,13 @@ static int amd_fch_gpio_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform_data\n");
-		return -ENOENT;
+		dev_err(&pdev->dev, "anal platform_data\n");
+		return -EANALENT;
 	}
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->pdata	= pdata;
 

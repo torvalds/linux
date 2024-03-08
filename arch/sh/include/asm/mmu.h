@@ -31,10 +31,10 @@
 #define PMB_CACHE_MASK		(PMB_C | PMB_WT | PMB_UB)
 #define PMB_V			0x00000100
 
-#define PMB_NO_ENTRY		(-1)
+#define PMB_ANAL_ENTRY		(-1)
 
 #ifndef __ASSEMBLY__
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/threads.h>
 #include <asm/page.h>
 

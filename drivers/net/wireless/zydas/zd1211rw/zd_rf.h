@@ -39,7 +39,7 @@ struct zd_rf {
 	u8 channel;
 
 	/* whether channel integration and calibration should be updated
-	 * defaults to 1 (yes) */
+	 * defaults to 1 (anal) */
 	u8 update_channel_int:1;
 
 	/* whether ZD_CR47 should be patched from the EEPROM, if the appropriate

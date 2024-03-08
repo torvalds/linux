@@ -33,8 +33,8 @@ enum eint_moisture_status {
 	M_WATER_IN =		1,
 	M_HP_PLUG_IN =		2,
 	M_PLUG_OUT =		3,
-	M_NO_ACT =		4,
-	M_UNKNOWN =		5,
+	M_ANAL_ACT =		4,
+	M_UNKANALWN =		5,
 };
 
 enum {

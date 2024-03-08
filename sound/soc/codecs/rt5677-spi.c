@@ -84,7 +84,7 @@ static const struct snd_pcm_hardware rt5677_spi_pcm_hardware = {
 };
 
 static struct snd_soc_dai_driver rt5677_spi_dai = {
-	/* The DAI name "rt5677-dsp-cpu-dai" is not used. The actual DAI name
+	/* The DAI name "rt5677-dsp-cpu-dai" is analt used. The actual DAI name
 	 * registered with ASoC is the name of the device "spi-RT5677AA:00",
 	 * because we only have one DAI. See snd_soc_register_dais().
 	 */
@@ -310,17 +310,17 @@ static void rt5677_spi_copy_work(struct work_struct *work)
 	unsigned int delay;
 	int ret = 0;
 
-	/* Ensure runtime->dma_area buffer does not go away while copying. */
+	/* Ensure runtime->dma_area buffer does analt go away while copying. */
 	mutex_lock(&rt5677_dsp->dma_lock);
 	if (!rt5677_dsp->substream) {
-		dev_err(rt5677_dsp->dev, "No pcm substream\n");
+		dev_err(rt5677_dsp->dev, "Anal pcm substream\n");
 		goto done;
 	}
 
 	runtime = rt5677_dsp->substream->runtime;
 
 	if (rt5677_spi_mic_write_offset(&mic_write_offset)) {
-		dev_err(rt5677_dsp->dev, "No mic_write_offset\n");
+		dev_err(rt5677_dsp->dev, "Anal mic_write_offset\n");
 		goto done;
 	}
 
@@ -386,7 +386,7 @@ static int rt5677_spi_pcm_probe(struct snd_soc_component *component)
 	rt5677_dsp = devm_kzalloc(component->dev, sizeof(*rt5677_dsp),
 			GFP_KERNEL);
 	if (!rt5677_dsp)
-		return -ENOMEM;
+		return -EANALMEM;
 	rt5677_dsp->dev = &g_spi->dev;
 	mutex_init(&rt5677_dsp->dma_lock);
 	INIT_DELAYED_WORK(&rt5677_dsp->copy_work, rt5677_spi_copy_work);
@@ -417,7 +417,7 @@ static const struct snd_soc_component_driver rt5677_spi_dai_component = {
  * RT5677_SPI_READ/WRITE_32:	Transfer 4 bytes
  * RT5677_SPI_READ/WRITE_BURST:	Transfer any multiples of 8 bytes
  *
- * Note:
+ * Analte:
  * 16 Bit writes and reads are restricted to the address range
  * 0x18020000 ~ 0x18021000
  *
@@ -481,7 +481,7 @@ int rt5677_spi_read(u32 addr, void *rxbuf, size_t len)
 	u8 *cb = rxbuf;
 
 	if (!g_spi)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((addr & 3) || (len & 3)) {
 		dev_err(&g_spi->dev, "Bad read align 0x%x(%zu)\n", addr, len);
@@ -520,7 +520,7 @@ int rt5677_spi_read(u32 addr, void *rxbuf, size_t len)
 EXPORT_SYMBOL_GPL(rt5677_spi_read);
 
 /* Write DSP address space using SPI. addr has to be 4-byte aligned.
- * If len is not 4-byte aligned, then extra zeros are written at the end
+ * If len is analt 4-byte aligned, then extra zeros are written at the end
  * as padding.
  */
 int rt5677_spi_write(u32 addr, const void *txbuf, size_t len)
@@ -536,7 +536,7 @@ int rt5677_spi_write(u32 addr, const void *txbuf, size_t len)
 	const u8 *cb = txbuf;
 
 	if (!g_spi)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (addr & 3) {
 		dev_err(&g_spi->dev, "Bad write align 0x%x(%zu)\n", addr, len);

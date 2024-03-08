@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/elf.h>
@@ -18,7 +18,7 @@ Elf_Addr module_emit_got_entry(struct module *mod, Elf_Shdr *sechdrs, Elf_Addr v
 	if (got)
 		return (Elf_Addr)got;
 
-	/* There is no GOT entry for val yet, create a new one. */
+	/* There is anal GOT entry for val yet, create a new one. */
 	got = (struct got_entry *)sechdrs[got_sec->shndx].sh_addr;
 	got[i] = emit_got_entry(val);
 
@@ -48,7 +48,7 @@ Elf_Addr module_emit_plt_entry(struct module *mod, Elf_Shdr *sechdrs, Elf_Addr v
 
 	nr = plt_sec->num_entries;
 
-	/* There is no duplicate entry, create a new one */
+	/* There is anal duplicate entry, create a new one */
 	plt = (struct plt_entry *)sechdrs[plt_sec->shndx].sh_addr;
 	plt[nr] = emit_plt_entry(val);
 	plt_idx = (struct plt_idx_entry *)sechdrs[plt_idx_sec->shndx].sh_addr;
@@ -96,7 +96,7 @@ static void count_max_entries(Elf_Rela *relas, int num,
 				(*gots)++;
 			break;
 		default:
-			break; /* Do nothing. */
+			break; /* Do analthing. */
 		}
 	}
 }
@@ -123,15 +123,15 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 
 	if (!mod->arch.got.shndx) {
 		pr_err("%s: module GOT section(s) missing\n", mod->name);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 	if (!mod->arch.plt.shndx) {
 		pr_err("%s: module PLT section(s) missing\n", mod->name);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 	if (!mod->arch.plt_idx.shndx) {
 		pr_err("%s: module PLT.IDX section(s) missing\n", mod->name);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 
 	/* Calculate the maxinum number of entries */
@@ -143,7 +143,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 		if (sechdrs[i].sh_type != SHT_RELA)
 			continue;
 
-		/* ignore relocations that operate on non-exec sections */
+		/* iganalre relocations that operate on analn-exec sections */
 		if (!(dst_sec->sh_flags & SHF_EXECINSTR))
 			continue;
 
@@ -151,7 +151,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	}
 
 	got_sec = sechdrs + mod->arch.got.shndx;
-	got_sec->sh_type = SHT_NOBITS;
+	got_sec->sh_type = SHT_ANALBITS;
 	got_sec->sh_flags = SHF_ALLOC;
 	got_sec->sh_addralign = L1_CACHE_BYTES;
 	got_sec->sh_size = (num_gots + 1) * sizeof(struct got_entry);
@@ -159,7 +159,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	mod->arch.got.max_entries = num_gots;
 
 	plt_sec = sechdrs + mod->arch.plt.shndx;
-	plt_sec->sh_type = SHT_NOBITS;
+	plt_sec->sh_type = SHT_ANALBITS;
 	plt_sec->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
 	plt_sec->sh_addralign = L1_CACHE_BYTES;
 	plt_sec->sh_size = (num_plts + 1) * sizeof(struct plt_entry);
@@ -167,7 +167,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	mod->arch.plt.max_entries = num_plts;
 
 	plt_idx_sec = sechdrs + mod->arch.plt_idx.shndx;
-	plt_idx_sec->sh_type = SHT_NOBITS;
+	plt_idx_sec->sh_type = SHT_ANALBITS;
 	plt_idx_sec->sh_flags = SHF_ALLOC;
 	plt_idx_sec->sh_addralign = L1_CACHE_BYTES;
 	plt_idx_sec->sh_size = (num_plts + 1) * sizeof(struct plt_idx_entry);
@@ -175,9 +175,9 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	mod->arch.plt_idx.max_entries = num_plts;
 
 	if (tramp) {
-		tramp->sh_type = SHT_NOBITS;
+		tramp->sh_type = SHT_ANALBITS;
 		tramp->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
-		tramp->sh_addralign = __alignof__(struct plt_entry);
+		tramp->sh_addralign = __aliganalf__(struct plt_entry);
 		tramp->sh_size = NR_FTRACE_PLTS * sizeof(struct plt_entry);
 	}
 

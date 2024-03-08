@@ -75,7 +75,7 @@ int mISDN_dsp_element_register(struct mISDN_dsp_element *elem)
 
 	entry = kzalloc(sizeof(struct dsp_element_entry), GFP_ATOMIC);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&entry->list);
 	entry->elem = elem;
@@ -125,7 +125,7 @@ void mISDN_dsp_element_unregister(struct mISDN_dsp_element *elem)
 			device_unregister(&entry->dev);
 			return;
 		}
-	printk(KERN_ERR "%s: element %s not in list.\n", __func__, elem->name);
+	printk(KERN_ERR "%s: element %s analt in list.\n", __func__, elem->name);
 }
 EXPORT_SYMBOL(mISDN_dsp_element_unregister);
 
@@ -256,7 +256,7 @@ int dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg)
 		if (found)
 			found = 0;
 		else
-			printk(KERN_ERR "%s: element not found, skipping: "
+			printk(KERN_ERR "%s: element analt found, skipping: "
 			       "%s\n", __func__, name);
 	}
 

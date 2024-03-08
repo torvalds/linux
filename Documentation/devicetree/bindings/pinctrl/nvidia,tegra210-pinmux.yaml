@@ -129,7 +129,7 @@ examples:
             gen1_i2c_scl_pj1 {
                 nvidia,pins = "gen1_i2c_scl_pj1";
                 nvidia,function = "i2c1";
-                nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+                nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
                 nvidia,tristate = <TEGRA_PIN_DISABLE>;
                 nvidia,enable-input = <TEGRA_PIN_ENABLE>;
                 nvidia,open-drain = <TEGRA_PIN_ENABLE>;

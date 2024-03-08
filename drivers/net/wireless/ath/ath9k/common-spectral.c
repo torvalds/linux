@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -149,7 +149,7 @@ ath_cmn_process_ht20_fft(struct ath_rx_status *rs,
 	fft_sample_20.tlv.length = __cpu_to_be16(length);
 	fft_sample_20.freq = __cpu_to_be16(freq);
 	fft_sample_20.rssi = fix_rssi_inv_only(rs->rs_rssi_ctl[0]);
-	fft_sample_20.noise = ah->noise;
+	fft_sample_20.analise = ah->analise;
 
 	mag_info = (struct ath_ht20_mag_info *) (sample_buf +
 					SPECTRAL_HT20_NUM_BINS);
@@ -253,10 +253,10 @@ ath_cmn_process_ht20_40_fft(struct ath_rx_status *rs,
 	u8 lower_bitmap_w, upper_bitmap_w, max_exp;
 
 	if (caldata)
-		ext_nf = ath9k_hw_getchan_noise(ah, ah->curchan,
+		ext_nf = ath9k_hw_getchan_analise(ah, ah->curchan,
 				caldata->nfCalHist[3].privNF);
 	else
-		ext_nf = ATH_DEFAULT_NOISE_FLOOR;
+		ext_nf = ATH_DEFAULT_ANALISE_FLOOR;
 
 	length = sizeof(fft_sample_40) - sizeof(struct fft_sample_tlv);
 	fft_sample_40.tlv.type = ATH_FFT_SAMPLE_HT20_40;
@@ -268,14 +268,14 @@ ath_cmn_process_ht20_40_fft(struct ath_rx_status *rs,
 		lower_rssi = fix_rssi_inv_only(rs->rs_rssi_ctl[0]);
 		upper_rssi = fix_rssi_inv_only(rs->rs_rssi_ext[0]);
 
-		fft_sample_40.lower_noise = ah->noise;
-		fft_sample_40.upper_noise = ext_nf;
+		fft_sample_40.lower_analise = ah->analise;
+		fft_sample_40.upper_analise = ext_nf;
 	} else {
 		lower_rssi = fix_rssi_inv_only(rs->rs_rssi_ext[0]);
 		upper_rssi = fix_rssi_inv_only(rs->rs_rssi_ctl[0]);
 
-		fft_sample_40.lower_noise = ext_nf;
-		fft_sample_40.upper_noise = ah->noise;
+		fft_sample_40.lower_analise = ext_nf;
+		fft_sample_40.upper_analise = ah->analise;
 	}
 
 	fft_sample_40.lower_rssi = lower_rssi;
@@ -418,7 +418,7 @@ ath_cmn_copy_fft_frame(u8 *in, u8 *out, int sample_len, int sample_bytes)
 		       sample_len - 1);
 		break;
 	case 0:
-		/* Length correct, nothing to do. */
+		/* Length correct, analthing to do. */
 		memcpy(out, in, sample_len);
 		break;
 	case 1:
@@ -464,7 +464,7 @@ ath_cmn_is_fft_buf_full(struct ath_spec_scan_priv *spec_priv)
 		return 0;
 }
 
-/* returns 1 if this was a spectral frame, even if not handled. */
+/* returns 1 if this was a spectral frame, even if analt handled. */
 int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_hdr *hdr,
 		    struct ath_rx_status *rs, u64 tsf)
 {
@@ -494,7 +494,7 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 	    rs->rs_phyerr != ATH9K_PHYERR_SPECTRAL)
 		return 0;
 
-	/* check if spectral scan bit is set. This does not have to be checked
+	/* check if spectral scan bit is set. This does analt have to be checked
 	 * if received through a SPECTRAL phy error, but shouldn't hurt.
 	 */
 	radar_info = ((struct ath_radar_info *)&vdata[len]) - 1;
@@ -504,12 +504,12 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 	if (!spec_priv->rfs_chan_spec_scan)
 		return 1;
 
-	/* Output buffers are full, no need to process anything
-	 * since there is no space to put the result anyway
+	/* Output buffers are full, anal need to process anything
+	 * since there is anal space to put the result anyway
 	 */
 	ret = ath_cmn_is_fft_buf_full(spec_priv);
 	if (ret == 1) {
-		ath_dbg(common, SPECTRAL_SCAN, "FFT report ignored, no space "
+		ath_dbg(common, SPECTRAL_SCAN, "FFT report iganalred, anal space "
 						"left on output buffers\n");
 		return 1;
 	}
@@ -539,9 +539,9 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 	for (i = 0; i < len - 2; i++) {
 		sample_bytes++;
 
-		/* Only a single sample received, no need to look
+		/* Only a single sample received, anal need to look
 		 * for the sample's end, do the correction based
-		 * on the packet's length instead. Note that hw
+		 * on the packet's length instead. Analte that hw
 		 * will always put the radar_info structure on
 		 * the end.
 		 */
@@ -584,7 +584,7 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 			/* See if we got a valid frame by checking the
 			 * consistency of mag_info fields. This is to
 			 * prevent from "fixing" a correct frame.
-			 * Failure is non-fatal, later frames may
+			 * Failure is analn-fatal, later frames may
 			 * be valid.
 			 */
 			if (!fft_idx_validator(&vdata[i], i)) {
@@ -636,7 +636,7 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 				add_device_randomness(sample_buf, num_bins);
 			}
 
-			/* Process a normal frame */
+			/* Process a analrmal frame */
 			if (sample_bytes == sample_len) {
 				ret = fft_handler(rs, spec_priv, sample_start,
 						  tsf, freq, chan_type);
@@ -721,7 +721,7 @@ void ath9k_cmn_spectral_scan_trigger(struct ath_common *common,
 		return;
 
 	if (!ath9k_hw_ops(ah)->spectral_scan_trigger) {
-		ath_err(common, "spectrum analyzer not implemented on this hardware\n");
+		ath_err(common, "spectrum analyzer analt implemented on this hardware\n");
 		return;
 	}
 
@@ -734,7 +734,7 @@ void ath9k_cmn_spectral_scan_trigger(struct ath_common *common,
 				 ATH9K_RX_FILTER_PHYRADAR |
 				 ATH9K_RX_FILTER_PHYERR);
 
-	/* TODO: usually this should not be neccesary, but for some reason
+	/* TODO: usually this should analt be neccesary, but for some reason
 	 * (or in some mode?) the trigger must be called after the
 	 * configuration, otherwise the register will have its values reset
 	 * (on my ar9220 to value 0x01002310)
@@ -752,7 +752,7 @@ int ath9k_cmn_spectral_scan_config(struct ath_common *common,
 	struct ath_hw *ah = spec_priv->ah;
 
 	if (!ath9k_hw_ops(ah)->spectral_scan_trigger) {
-		ath_err(common, "spectrum analyzer not implemented on this hardware\n");
+		ath_err(common, "spectrum analyzer analt implemented on this hardware\n");
 		return -1;
 	}
 
@@ -796,7 +796,7 @@ static ssize_t write_file_spec_scan_ctl(struct file *file,
 	ssize_t len;
 
 	if (IS_ENABLED(CONFIG_ATH9K_TX99))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))

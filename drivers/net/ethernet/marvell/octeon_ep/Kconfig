@@ -12,7 +12,7 @@ config OCTEON_EP
 	  This driver supports networking functionality of Marvell's
 	  Octeon PCI Endpoint NIC.
 
-	  To know the list of devices supported by this driver, refer
+	  To kanalw the list of devices supported by this driver, refer
 	  documentation in
 	  <file:Documentation/networking/device_drivers/ethernet/marvell/octeon_ep.rst>.
 

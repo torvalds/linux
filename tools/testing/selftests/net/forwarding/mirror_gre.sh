@@ -6,7 +6,7 @@
 #
 # Test for "tc action mirred egress mirror" when the device to mirror to is a
 # gretap or ip6gretap netdevice. Expect that the packets come out encapsulated,
-# and another gretap / ip6gretap netdevice is then capable of decapsulating the
+# and aanalther gretap / ip6gretap netdevice is then capable of decapsulating the
 # traffic. Test that the payload is what is expected (ICMP ping request or
 # reply, depending on test).
 
@@ -151,7 +151,7 @@ tcflags="skip_hw"
 test_all
 
 if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
+	echo "WARN: Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	test_all

@@ -35,7 +35,7 @@
 		ranges;
 
 		event_log: tcg_event_log@b3d00000 {
-			no-map;
+			anal-map;
 			reg = <0xb3d00000 0x100000>;
 		};
 
@@ -51,13 +51,13 @@
 
 		/* LPC FW cycle bridge region requires natural alignment */
 		flash_memory: region@b4000000 {
-			no-map;
+			anal-map;
 			reg = <0xb4000000 0x04000000>; /* 64M */
 		};
 
 		/* VGA region is dictated by hardware strapping */
 		vga_memory: region@bf000000 {
-			no-map;
+			anal-map;
 			compatible = "shared-dma-pool";
 			reg = <0xbf000000 0x01000000>;  /* 16M */
 		};
@@ -557,7 +557,7 @@
 };
 
 &wdt1 {
-	aspeed,reset-type = "none";
+	aspeed,reset-type = "analne";
 	aspeed,external-signal;
 	aspeed,ext-push-pull;
 	aspeed,ext-active-high;

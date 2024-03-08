@@ -3,20 +3,20 @@
  *  Sample application for SMBIOS communication over WMI interface
  *  Performs the following:
  *  - Simple cmd_class/cmd_select lookup for TPM information
- *  - Simple query of known tokens and their values
+ *  - Simple query of kanalwn tokens and their values
  *  - Simple activation of a token
  *
  *  Copyright (C) 2017 Dell, Inc.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-/* if uapi header isn't installed, this might not yet exist */
+/* if uapi header isn't installed, this might analt yet exist */
 #ifndef __packed
 #define __packed __attribute__((packed))
 #endif
@@ -44,7 +44,7 @@ static int run_wmi_smbios_cmd(struct dell_wmi_smbios_buffer *buffer)
 	int fd;
 	int ret;
 
-	fd = open(ioctl_devfs, O_NONBLOCK);
+	fd = open(ioctl_devfs, O_ANALNBLOCK);
 	ret = ioctl(fd, DELL_WMI_SMBIOS_CMD, buffer);
 	close(fd);
 	return ret;
@@ -168,7 +168,7 @@ int main(void)
 	buffer = malloc(value);
 	if (buffer == NULL) {
 		printf("failed to alloc memory for ioctl\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	buffer->length = value;

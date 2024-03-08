@@ -64,7 +64,7 @@
 /* Pattern flags */
 #define PATFG                   0x00000000  /* foreground color */
 #define PATPATREG               0x00000040  /* pattern in pattern buffer (0x8300) */
-#define PATMONO                 0x00000080  /* mono pattern */
+#define PATMOANAL                 0x00000080  /* moanal pattern */
 
 /* blitting direction (300 series only) */
 #define X_INC                   0x00010000
@@ -73,8 +73,8 @@
 #define Y_DEC                   0x00000000
 
 /* Clipping flags */
-#define NOCLIP                  0x00000000
-#define NOMERGECLIP             0x04000000
+#define ANALCLIP                  0x00000000
+#define ANALMERGECLIP             0x04000000
 #define CLIPENABLE              0x00040000
 #define CLIPWITHOUTMERGE        0x04040000
 
@@ -87,7 +87,7 @@
 #define DSTVIDEO                0x02000000
 
 /* Subfunctions for Color/Enhanced Color Expansion (315 only) */
-#define COLOR_TO_MONO		0x00100000
+#define COLOR_TO_MOANAL		0x00100000
 #define AA_TEXT			0x00200000
 
 /* Some general registers for 315 series */
@@ -107,7 +107,7 @@
 #define PAT_BGCOLOR		0x8220
 #define SRC_FGCOLOR		0x8224
 #define SRC_BGCOLOR		0x8228
-#define MONO_MASK		0x822C
+#define MOANAL_MASK		0x822C
 #define LEFT_CLIP		0x8234
 #define TOP_CLIP		0x8236
 #define RIGHT_CLIP		0x8238
@@ -145,7 +145,7 @@
 	while((MMIO_IN16(ivideo->mmio_vbase, BR(16)+2) & 0xE000) != 0xE000){} \
   	CmdQueLen = MMIO_IN16(ivideo->mmio_vbase, 0x8240); \
   }
-/* (do three times, because 2D engine seems quite unsure about whether or not it's idle) */
+/* (do three times, because 2D engine seems quite unsure about whether or analt it's idle) */
 
 #define SiS300SetupSRCBase(base) \
 	if(CmdQueLen <= 0) SiS300Idle;\
@@ -223,7 +223,7 @@
 	MMIO_OUT32(ivideo->mmio_vbase, 0x8220, color); \
 	CmdQueLen -= 2;
 
-#define SiS300SetupMONOPAT(p0,p1) \
+#define SiS300SetupMOANALPAT(p0,p1) \
 	if(CmdQueLen <= 1) SiS300Idle;\
 	MMIO_OUT32(ivideo->mmio_vbase, BR(11), p0);\
 	MMIO_OUT32(ivideo->mmio_vbase, BR(12), p1);\
@@ -349,10 +349,10 @@
 	MMIO_OUT32(ivideo->mmio_vbase, TRANS_DST_KEY_LOW, color); \
 	CmdQueLen -= 2;
 
-#define SiS310SetupMONOPAT(p0,p1) \
+#define SiS310SetupMOANALPAT(p0,p1) \
 	if(CmdQueLen <= 1) SiS310Idle;\
-	MMIO_OUT32(ivideo->mmio_vbase, MONO_MASK, p0);\
-	MMIO_OUT32(ivideo->mmio_vbase, MONO_MASK+4, p1);\
+	MMIO_OUT32(ivideo->mmio_vbase, MOANAL_MASK, p0);\
+	MMIO_OUT32(ivideo->mmio_vbase, MOANAL_MASK+4, p1);\
 	CmdQueLen -= 2;
 
 #define SiS310SetupClipLT(left,top) \

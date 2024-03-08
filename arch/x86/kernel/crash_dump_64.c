@@ -6,7 +6,7 @@
  *	Copyright (C) IBM Corporation, 2004. All rights reserved
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/crash_dump.h>
 #include <linux/uio.h>
 #include <linux/io.h>
@@ -27,7 +27,7 @@ static ssize_t __copy_oldmem_page(struct iov_iter *iter, unsigned long pfn,
 		vaddr = (__force void *)ioremap_cache(pfn << PAGE_SHIFT, PAGE_SIZE);
 
 	if (!vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csize = copy_to_iter(vaddr + offset, csize, iter);
 

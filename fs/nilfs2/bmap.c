@@ -9,19 +9,19 @@
 
 #include <linux/fs.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include "nilfs.h"
 #include "bmap.h"
 #include "btree.h"
 #include "direct.h"
-#include "btnode.h"
+#include "btanalde.h"
 #include "mdt.h"
 #include "dat.h"
 #include "alloc.h"
 
-struct inode *nilfs_bmap_get_dat(const struct nilfs_bmap *bmap)
+struct ianalde *nilfs_bmap_get_dat(const struct nilfs_bmap *bmap)
 {
-	struct the_nilfs *nilfs = bmap->b_inode->i_sb->s_fs_info;
+	struct the_nilfs *nilfs = bmap->b_ianalde->i_sb->s_fs_info;
 
 	return nilfs->ns_dat;
 }
@@ -29,18 +29,18 @@ struct inode *nilfs_bmap_get_dat(const struct nilfs_bmap *bmap)
 static int nilfs_bmap_convert_error(struct nilfs_bmap *bmap,
 				     const char *fname, int err)
 {
-	struct inode *inode = bmap->b_inode;
+	struct ianalde *ianalde = bmap->b_ianalde;
 
 	if (err == -EINVAL) {
-		__nilfs_error(inode->i_sb, fname,
-			      "broken bmap (inode number=%lu)", inode->i_ino);
+		__nilfs_error(ianalde->i_sb, fname,
+			      "broken bmap (ianalde number=%lu)", ianalde->i_ianal);
 		err = -EIO;
 	}
 	return err;
 }
 
 /**
- * nilfs_bmap_lookup_at_level - find a data block or node block
+ * nilfs_bmap_lookup_at_level - find a data block or analde block
  * @bmap: bmap
  * @key: key
  * @level: level
@@ -55,9 +55,9 @@ static int nilfs_bmap_convert_error(struct nilfs_bmap *bmap,
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
- * %-ENOENT - A record associated with @key does not exist.
+ * %-EANALENT - A record associated with @key does analt exist.
  */
 int nilfs_bmap_lookup_at_level(struct nilfs_bmap *bmap, __u64 key, int level,
 			       __u64 *ptrp)
@@ -75,9 +75,9 @@ int nilfs_bmap_lookup_at_level(struct nilfs_bmap *bmap, __u64 key, int level,
 					  &blocknr);
 		if (!ret)
 			*ptrp = blocknr;
-		else if (ret == -ENOENT) {
+		else if (ret == -EANALENT) {
 			/*
-			 * If there was no valid entry in DAT for the block
+			 * If there was anal valid entry in DAT for the block
 			 * address obtained by b_ops->bop_lookup, then pass
 			 * internal code -EINVAL to nilfs_bmap_convert_error
 			 * to treat it as metadata corruption.
@@ -143,7 +143,7 @@ static int nilfs_bmap_do_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
  * %-EEXIST - A record associated with @key already exist.
  */
@@ -198,9 +198,9 @@ static int nilfs_bmap_do_delete(struct nilfs_bmap *bmap, __u64 key)
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
- * %-ENOENT - No valid entry was found
+ * %-EANALENT - Anal valid entry was found
  */
 int nilfs_bmap_seek_key(struct nilfs_bmap *bmap, __u64 start, __u64 *keyp)
 {
@@ -241,9 +241,9 @@ int nilfs_bmap_last_key(struct nilfs_bmap *bmap, __u64 *keyp)
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
- * %-ENOENT - A record associated with @key does not exist.
+ * %-EANALENT - A record associated with @key does analt exist.
  */
 int nilfs_bmap_delete(struct nilfs_bmap *bmap, __u64 key)
 {
@@ -263,7 +263,7 @@ static int nilfs_bmap_do_truncate(struct nilfs_bmap *bmap, __u64 key)
 
 	ret = bmap->b_ops->bop_last_key(bmap, &lastkey);
 	if (ret < 0) {
-		if (ret == -ENOENT)
+		if (ret == -EANALENT)
 			ret = 0;
 		return ret;
 	}
@@ -274,7 +274,7 @@ static int nilfs_bmap_do_truncate(struct nilfs_bmap *bmap, __u64 key)
 			return ret;
 		ret = bmap->b_ops->bop_last_key(bmap, &lastkey);
 		if (ret < 0) {
-			if (ret == -ENOENT)
+			if (ret == -EANALENT)
 				ret = 0;
 			return ret;
 		}
@@ -295,7 +295,7 @@ static int nilfs_bmap_do_truncate(struct nilfs_bmap *bmap, __u64 key)
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  */
 int nilfs_bmap_truncate(struct nilfs_bmap *bmap, __u64 key)
 {
@@ -335,7 +335,7 @@ void nilfs_bmap_clear(struct nilfs_bmap *bmap)
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  */
 int nilfs_bmap_propagate(struct nilfs_bmap *bmap, struct buffer_head *bh)
 {
@@ -377,7 +377,7 @@ void nilfs_bmap_lookup_dirty_buffers(struct nilfs_bmap *bmap,
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  */
 int nilfs_bmap_assign(struct nilfs_bmap *bmap,
 		      struct buffer_head **bh,
@@ -407,7 +407,7 @@ int nilfs_bmap_assign(struct nilfs_bmap *bmap,
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  */
 int nilfs_bmap_mark(struct nilfs_bmap *bmap, __u64 key, int level)
 {
@@ -454,7 +454,7 @@ __u64 nilfs_bmap_data_get_key(const struct nilfs_bmap *bmap,
 	__u64 key;
 
 	key = page_index(bh->b_page) << (PAGE_SHIFT -
-					 bmap->b_inode->i_blkbits);
+					 bmap->b_ianalde->i_blkbits);
 	for (pbh = page_buffers(bh->b_page); pbh != bh; pbh = pbh->b_this_page)
 		key++;
 
@@ -466,7 +466,7 @@ __u64 nilfs_bmap_find_target_seq(const struct nilfs_bmap *bmap, __u64 key)
 	__s64 diff;
 
 	diff = key - bmap->b_last_allocated_key;
-	if ((nilfs_bmap_keydiff_abs(diff) < NILFS_INODE_BMAP_SIZE) &&
+	if ((nilfs_bmap_keydiff_abs(diff) < NILFS_IANALDE_BMAP_SIZE) &&
 	    (bmap->b_last_allocated_ptr != NILFS_BMAP_INVALID_PTR) &&
 	    (bmap->b_last_allocated_ptr + diff > 0))
 		return bmap->b_last_allocated_ptr + diff;
@@ -477,12 +477,12 @@ __u64 nilfs_bmap_find_target_seq(const struct nilfs_bmap *bmap, __u64 key)
 #define NILFS_BMAP_GROUP_DIV	8
 __u64 nilfs_bmap_find_target_in_group(const struct nilfs_bmap *bmap)
 {
-	struct inode *dat = nilfs_bmap_get_dat(bmap);
+	struct ianalde *dat = nilfs_bmap_get_dat(bmap);
 	unsigned long entries_per_group = nilfs_palloc_entries_per_group(dat);
-	unsigned long group = bmap->b_inode->i_ino / entries_per_group;
+	unsigned long group = bmap->b_ianalde->i_ianal / entries_per_group;
 
 	return group * entries_per_group +
-		(bmap->b_inode->i_ino % NILFS_BMAP_GROUP_DIV) *
+		(bmap->b_ianalde->i_ianal % NILFS_BMAP_GROUP_DIV) *
 		(entries_per_group / NILFS_BMAP_GROUP_DIV);
 }
 
@@ -490,42 +490,42 @@ static struct lock_class_key nilfs_bmap_dat_lock_key;
 static struct lock_class_key nilfs_bmap_mdt_lock_key;
 
 /**
- * nilfs_bmap_read - read a bmap from an inode
+ * nilfs_bmap_read - read a bmap from an ianalde
  * @bmap: bmap
- * @raw_inode: on-disk inode
+ * @raw_ianalde: on-disk ianalde
  *
  * Description: nilfs_bmap_read() initializes the bmap @bmap.
  *
  * Return Value: On success, 0 is returned. On error, the following negative
  * error code is returned.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  */
-int nilfs_bmap_read(struct nilfs_bmap *bmap, struct nilfs_inode *raw_inode)
+int nilfs_bmap_read(struct nilfs_bmap *bmap, struct nilfs_ianalde *raw_ianalde)
 {
-	if (raw_inode == NULL)
+	if (raw_ianalde == NULL)
 		memset(bmap->b_u.u_data, 0, NILFS_BMAP_SIZE);
 	else
-		memcpy(bmap->b_u.u_data, raw_inode->i_bmap, NILFS_BMAP_SIZE);
+		memcpy(bmap->b_u.u_data, raw_ianalde->i_bmap, NILFS_BMAP_SIZE);
 
 	init_rwsem(&bmap->b_sem);
 	bmap->b_state = 0;
-	bmap->b_inode = &NILFS_BMAP_I(bmap)->vfs_inode;
-	switch (bmap->b_inode->i_ino) {
-	case NILFS_DAT_INO:
+	bmap->b_ianalde = &NILFS_BMAP_I(bmap)->vfs_ianalde;
+	switch (bmap->b_ianalde->i_ianal) {
+	case NILFS_DAT_IANAL:
 		bmap->b_ptr_type = NILFS_BMAP_PTR_P;
 		bmap->b_last_allocated_key = 0;
 		bmap->b_last_allocated_ptr = NILFS_BMAP_NEW_PTR_INIT;
 		lockdep_set_class(&bmap->b_sem, &nilfs_bmap_dat_lock_key);
 		break;
-	case NILFS_CPFILE_INO:
-	case NILFS_SUFILE_INO:
+	case NILFS_CPFILE_IANAL:
+	case NILFS_SUFILE_IANAL:
 		bmap->b_ptr_type = NILFS_BMAP_PTR_VS;
 		bmap->b_last_allocated_key = 0;
 		bmap->b_last_allocated_ptr = NILFS_BMAP_INVALID_PTR;
 		lockdep_set_class(&bmap->b_sem, &nilfs_bmap_mdt_lock_key);
 		break;
-	case NILFS_IFILE_INO:
+	case NILFS_IFILE_IANAL:
 		lockdep_set_class(&bmap->b_sem, &nilfs_bmap_mdt_lock_key);
 		fallthrough;
 	default:
@@ -540,18 +540,18 @@ int nilfs_bmap_read(struct nilfs_bmap *bmap, struct nilfs_inode *raw_inode)
 }
 
 /**
- * nilfs_bmap_write - write back a bmap to an inode
+ * nilfs_bmap_write - write back a bmap to an ianalde
  * @bmap: bmap
- * @raw_inode: on-disk inode
+ * @raw_ianalde: on-disk ianalde
  *
- * Description: nilfs_bmap_write() stores @bmap in @raw_inode.
+ * Description: nilfs_bmap_write() stores @bmap in @raw_ianalde.
  */
-void nilfs_bmap_write(struct nilfs_bmap *bmap, struct nilfs_inode *raw_inode)
+void nilfs_bmap_write(struct nilfs_bmap *bmap, struct nilfs_ianalde *raw_ianalde)
 {
 	down_write(&bmap->b_sem);
-	memcpy(raw_inode->i_bmap, bmap->b_u.u_data,
-	       NILFS_INODE_BMAP_SIZE * sizeof(__le64));
-	if (bmap->b_inode->i_ino == NILFS_DAT_INO)
+	memcpy(raw_ianalde->i_bmap, bmap->b_u.u_data,
+	       NILFS_IANALDE_BMAP_SIZE * sizeof(__le64));
+	if (bmap->b_ianalde->i_ianal == NILFS_DAT_IANAL)
 		bmap->b_last_allocated_ptr = NILFS_BMAP_NEW_PTR_INIT;
 
 	up_write(&bmap->b_sem);
@@ -561,7 +561,7 @@ void nilfs_bmap_init_gc(struct nilfs_bmap *bmap)
 {
 	memset(&bmap->b_u, 0, NILFS_BMAP_SIZE);
 	init_rwsem(&bmap->b_sem);
-	bmap->b_inode = &NILFS_BMAP_I(bmap)->vfs_inode;
+	bmap->b_ianalde = &NILFS_BMAP_I(bmap)->vfs_ianalde;
 	bmap->b_ptr_type = NILFS_BMAP_PTR_U;
 	bmap->b_last_allocated_key = 0;
 	bmap->b_last_allocated_ptr = NILFS_BMAP_INVALID_PTR;

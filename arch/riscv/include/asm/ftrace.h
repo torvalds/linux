@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2017 Andes Technology Corporation */
+/* Copyright (C) 2017 Andes Techanallogy Corporation */
 
 #ifndef _ASM_RISCV_FTRACE_H
 #define _ASM_RISCV_FTRACE_H
 
 /*
- * The graph frame test is not possible if CONFIG_FRAME_POINTER is not enabled.
+ * The graph frame test is analt possible if CONFIG_FRAME_POINTER is analt enabled.
  * Check arch/riscv/kernel/mcount.S for detail.
  */
 #if defined(CONFIG_FUNCTION_GRAPH_TRACER) && defined(CONFIG_FRAME_POINTER)
@@ -37,9 +37,9 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 }
 
 /*
- * Let's do like x86/arm64 and ignore the compat syscalls.
+ * Let's do like x86/arm64 and iganalre the compat syscalls.
  */
-#define ARCH_TRACE_IGNORE_COMPAT_SYSCALLS
+#define ARCH_TRACE_IGANALRE_COMPAT_SYSCALLS
 static inline bool arch_trace_is_compat_syscall(struct pt_regs *regs)
 {
 	return is_compat_task();
@@ -51,7 +51,7 @@ static inline bool arch_syscall_match_sym_name(const char *sym,
 {
 	/*
 	 * Since all syscall functions have __riscv_ prefix, we must skip it.
-	 * However, as we described above, we decided to ignore compat
+	 * However, as we described above, we decided to iganalre compat
 	 * syscalls, so we don't care about __riscv_compat_ prefix here.
 	 */
 	return !strcmp(sym + 8, name);
@@ -73,8 +73,8 @@ struct dyn_arch_ftrace {
  * 4: jalr   t0/ra, ?(t0/ra)
  *
  *<ftrace disable>:
- * 0: nop
- * 4: nop
+ * 0: analp
+ * 4: analp
  *
  * Dynamic ftrace generates probes to call sites, so we must deal with
  * both auipc and jalr at the same time.
@@ -90,7 +90,7 @@ struct dyn_arch_ftrace {
 #define AUIPC_RA		(0x00000097)
 #define JALR_T0			(0x000282e7)
 #define AUIPC_T0		(0x00000297)
-#define NOP4			(0x00000013)
+#define ANALP4			(0x00000013)
 
 #define to_jalr_t0(offset)						\
 	(((offset & JALR_OFFSET_MASK) << JALR_SHIFT) | JALR_T0)
@@ -131,8 +131,8 @@ do {									\
 
 #ifndef __ASSEMBLY__
 struct dyn_ftrace;
-int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);
-#define ftrace_init_nop ftrace_init_nop
+int ftrace_init_analp(struct module *mod, struct dyn_ftrace *rec);
+#define ftrace_init_analp ftrace_init_analp
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 struct ftrace_ops;

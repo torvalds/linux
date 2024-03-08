@@ -51,7 +51,7 @@ extern void rt_mutex_base_init(struct rt_mutex_base *rtb);
  *
  * @wait_lock:	spinlock to protect the structure
  * @waiters:	rbtree root to enqueue waiters in priority order;
- *              caches top-waiter (leftmost node).
+ *              caches top-waiter (leftmost analde).
  * @owner:	the mutex owner
  */
 struct rt_mutex {

@@ -7,7 +7,7 @@
  * under the terms of the GNU General Public License version 2, available
  * at http://www.gnu.org/licenses/gpl-2.0.html (the "GPL").
  *
- * Notwithstanding the above, under no circumstances may you combine this
+ * Analtwithstanding the above, under anal circumstances may you combine this
  * software in any way with any other Qlogic software provided under a
  * license other than the GPL, without Qlogic's express prior written
  * consent.
@@ -33,7 +33,7 @@
 #define BNX2X_FLOW_CTRL_TX		PORT_FEATURE_FLOW_CONTROL_TX
 #define BNX2X_FLOW_CTRL_RX		PORT_FEATURE_FLOW_CONTROL_RX
 #define BNX2X_FLOW_CTRL_BOTH		PORT_FEATURE_FLOW_CONTROL_BOTH
-#define BNX2X_FLOW_CTRL_NONE		PORT_FEATURE_FLOW_CONTROL_NONE
+#define BNX2X_FLOW_CTRL_ANALNE		PORT_FEATURE_FLOW_CONTROL_ANALNE
 
 #define NET_SERDES_IF_XFI		1
 #define NET_SERDES_IF_SFI		2
@@ -51,8 +51,8 @@
 #define SFP_EEPROM_VENDOR_NAME_SIZE		16
 #define SFP_EEPROM_VENDOR_OUI_ADDR		0x25
 #define SFP_EEPROM_VENDOR_OUI_SIZE		3
-#define SFP_EEPROM_PART_NO_ADDR			0x28
-#define SFP_EEPROM_PART_NO_SIZE			16
+#define SFP_EEPROM_PART_ANAL_ADDR			0x28
+#define SFP_EEPROM_PART_ANAL_SIZE			16
 #define SFP_EEPROM_REVISION_ADDR		0x38
 #define SFP_EEPROM_REVISION_SIZE		4
 #define SFP_EEPROM_SERIAL_ADDR			0x44
@@ -154,8 +154,8 @@ struct bnx2x_phy {
 	u8 addr;
 	u8 def_md_devad;
 	u16 flags;
-	/* No Over-Current detection */
-#define FLAGS_NOC			(1<<1)
+	/* Anal Over-Current detection */
+#define FLAGS_ANALC			(1<<1)
 	/* Fan failure detection required */
 #define FLAGS_FAN_FAILURE_DET_REQ	(1<<2)
 	/* Initialize first the XGXS and only then the phy itself */
@@ -163,7 +163,7 @@ struct bnx2x_phy {
 #define FLAGS_WC_DUAL_MODE		(1<<4)
 #define FLAGS_4_PORT_MODE		(1<<5)
 #define FLAGS_REARM_LATCH_SIGNAL	(1<<6)
-#define FLAGS_SFP_NOT_APPROVED		(1<<7)
+#define FLAGS_SFP_ANALT_APPROVED		(1<<7)
 #define FLAGS_MDC_MDIO_WA		(1<<8)
 #define FLAGS_DUMMY_READ		(1<<9)
 #define FLAGS_MDC_MDIO_WA_B0		(1<<10)
@@ -191,7 +191,7 @@ struct bnx2x_phy {
 #define	ETH_PHY_SFP_1G_FIBER	0x5
 #define	ETH_PHY_KR		0xf0
 #define	ETH_PHY_CX4		0xf1
-#define	ETH_PHY_NOT_PRESENT	0xff
+#define	ETH_PHY_ANALT_PRESENT	0xff
 
 	/* The address in which version is located*/
 	u32 ver_addr;
@@ -240,7 +240,7 @@ struct link_params {
 
 	/* Default / User Configuration */
 	u8 loopback_mode;
-#define LOOPBACK_NONE		0
+#define LOOPBACK_ANALNE		0
 #define LOOPBACK_EMAC		1
 #define LOOPBACK_BMAC		2
 #define LOOPBACK_XGXS		3
@@ -342,7 +342,7 @@ struct link_vars {
 #define PHY_SFP_TX_FAULT_FLAG		(1<<5)
 
 	u8 mac_type;
-#define MAC_TYPE_NONE		0
+#define MAC_TYPE_ANALNE		0
 #define MAC_TYPE_EMAC		1
 #define MAC_TYPE_BMAC		2
 #define MAC_TYPE_UMAC		3

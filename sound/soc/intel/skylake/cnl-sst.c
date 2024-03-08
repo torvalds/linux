@@ -285,7 +285,7 @@ static int cnl_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
 	return ret;
 }
 
-static unsigned int cnl_get_errno(struct sst_dsp *ctx)
+static unsigned int cnl_get_erranal(struct sst_dsp *ctx)
 {
 	return sst_dsp_shim_read(ctx, CNL_ADSP_ERROR_CODE);
 }
@@ -294,7 +294,7 @@ static const struct skl_dsp_fw_ops cnl_fw_ops = {
 	.set_state_D0 = cnl_set_dsp_D0,
 	.set_state_D3 = cnl_set_dsp_D3,
 	.load_fw = cnl_load_base_firmware,
-	.get_fw_errcode = cnl_get_errno,
+	.get_fw_errcode = cnl_get_erranal,
 };
 
 static struct sst_ops cnl_ops = {
@@ -304,10 +304,10 @@ static struct sst_ops cnl_ops = {
 	.free = cnl_dsp_free,
 };
 
-#define CNL_IPC_GLB_NOTIFY_RSP_SHIFT	29
-#define CNL_IPC_GLB_NOTIFY_RSP_MASK	0x1
-#define CNL_IPC_GLB_NOTIFY_RSP_TYPE(x)	(((x) >> CNL_IPC_GLB_NOTIFY_RSP_SHIFT) \
-					& CNL_IPC_GLB_NOTIFY_RSP_MASK)
+#define CNL_IPC_GLB_ANALTIFY_RSP_SHIFT	29
+#define CNL_IPC_GLB_ANALTIFY_RSP_MASK	0x1
+#define CNL_IPC_GLB_ANALTIFY_RSP_TYPE(x)	(((x) >> CNL_IPC_GLB_ANALTIFY_RSP_SHIFT) \
+					& CNL_IPC_GLB_ANALTIFY_RSP_MASK)
 
 static irqreturn_t cnl_dsp_irq_thread_handler(int irq, void *context)
 {
@@ -320,7 +320,7 @@ static irqreturn_t cnl_dsp_irq_thread_handler(int irq, void *context)
 
 	/* here we handle ipc interrupts only */
 	if (!(dsp->intr_status & CNL_ADSPIS_IPC))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	hipcida = sst_dsp_shim_read_unlocked(dsp, CNL_ADSP_REG_HIPCIDA);
 	hipctdr = sst_dsp_shim_read_unlocked(dsp, CNL_ADSP_REG_HIPCTDR);
@@ -351,12 +351,12 @@ static irqreturn_t cnl_dsp_irq_thread_handler(int irq, void *context)
 		dev_dbg(dsp->dev, "IPC irq: Firmware respond extension:%x",
 						header.extension);
 
-		if (CNL_IPC_GLB_NOTIFY_RSP_TYPE(header.primary)) {
+		if (CNL_IPC_GLB_ANALTIFY_RSP_TYPE(header.primary)) {
 			/* Handle Immediate reply from DSP Core */
 			skl_ipc_process_reply(ipc, header);
 		} else {
-			dev_dbg(dsp->dev, "IPC irq: Notification from firmware\n");
-			skl_ipc_process_notification(ipc, header);
+			dev_dbg(dsp->dev, "IPC irq: Analtification from firmware\n");
+			skl_ipc_process_analtification(ipc, header);
 		}
 		/* clear busy interrupt */
 		sst_dsp_shim_update_bits_forced(dsp, CNL_ADSP_REG_HIPCTDR,
@@ -369,7 +369,7 @@ static irqreturn_t cnl_dsp_irq_thread_handler(int irq, void *context)
 	}
 
 	if (ipc_irq == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	cnl_ipc_int_enable(dsp);
 
@@ -442,7 +442,7 @@ int cnl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 
 	ret = skl_sst_ctx_init(dev, irq, fw_name, dsp_ops, dsp, &cnl_dev);
 	if (ret < 0) {
-		dev_err(dev, "%s: no device\n", __func__);
+		dev_err(dev, "%s: anal device\n", __func__);
 		return ret;
 	}
 
@@ -505,4 +505,4 @@ void cnl_sst_dsp_cleanup(struct device *dev, struct skl_dev *skl)
 EXPORT_SYMBOL_GPL(cnl_sst_dsp_cleanup);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Intel Cannonlake IPC driver");
+MODULE_DESCRIPTION("Intel Cananalnlake IPC driver");

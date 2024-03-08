@@ -4,9 +4,9 @@
  *
  * Main and Back-up battery management driver.
  *
- * Note: Backup battery management is required in case of Li-Ion battery and not
+ * Analte: Backup battery management is required in case of Li-Ion battery and analt
  * for capacitive battery. HREF boards have capacitive battery and hence backup
- * battery management is not used and the supported code is available in this
+ * battery management is analt used and the supported code is available in this
  * driver.
  *
  * Author:
@@ -39,7 +39,7 @@
 #include "ab8500-bm.h"
 
 #define FG_LSB_IN_MA			1627
-#define QLSB_NANO_AMP_HOURS_X10		1071
+#define QLSB_NAANAL_AMP_HOURS_X10		1071
 #define INS_CURR_TIMEOUT		(3 * HZ)
 
 #define SEC_TO_SAMPLE(S)		(S * 4)
@@ -47,7 +47,7 @@
 #define NBR_AVG_SAMPLES			20
 #define WAIT_FOR_INST_CURRENT_MAX	70
 /* Currents higher than -500mA (dissipating) will make compensation unstable */
-#define IGNORE_VBAT_HIGHCUR		-500000
+#define IGANALRE_VBAT_HIGHCUR		-500000
 
 #define LOW_BAT_CHECK_INTERVAL		(HZ / 16) /* 62.5 ms */
 
@@ -143,7 +143,7 @@ struct ab8500_fg_flags {
 	bool low_bat_delay;
 	bool low_bat;
 	bool bat_ovv;
-	bool batt_unknown;
+	bool batt_unkanalwn;
 	bool calibrate;
 	bool user_cap;
 	bool batt_id_received;
@@ -157,11 +157,11 @@ struct inst_curr_result_list {
 /**
  * struct ab8500_fg - ab8500 FG device information
  * @dev:		Pointer to the structure device
- * @node:		a list of AB8500 FGs, hence prepared for reentrance
+ * @analde:		a list of AB8500 FGs, hence prepared for reentrance
  * @irq			holds the CCEOC interrupt number
  * @vbat_uv:		Battery voltage in uV
- * @vbat_nom_uv:	Nominal battery voltage in uV
- * @inst_curr_ua:	Instantenous battery current in uA
+ * @vbat_analm_uv:	Analminal battery voltage in uV
+ * @inst_curr_ua:	Instanteanalus battery current in uA
  * @avg_curr_ua:	Average battery current in uA
  * @bat_temp		battery temperature
  * @fg_samples:		Number of samples used in the FG accumulation
@@ -199,10 +199,10 @@ struct inst_curr_result_list {
  */
 struct ab8500_fg {
 	struct device *dev;
-	struct list_head node;
+	struct list_head analde;
 	int irq;
 	int vbat_uv;
-	int vbat_nom_uv;
+	int vbat_analm_uv;
 	int inst_curr_ua;
 	int avg_curr_ua;
 	int bat_temp;
@@ -249,20 +249,20 @@ static LIST_HEAD(ab8500_fg_list);
 struct ab8500_fg *ab8500_fg_get(void)
 {
 	return list_first_entry_or_null(&ab8500_fg_list, struct ab8500_fg,
-					node);
+					analde);
 }
 
 /* Main battery properties */
 static enum power_supply_property ab8500_fg_props[] = {
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN,
 	POWER_SUPPLY_PROP_ENERGY_FULL,
-	POWER_SUPPLY_PROP_ENERGY_NOW,
+	POWER_SUPPLY_PROP_ENERGY_ANALW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 };
@@ -350,7 +350,7 @@ static u8 ab8500_volt_to_regval(int voltage_uv)
 			return (u8) i - 1;
 	}
 
-	/* If not captured above, return index of last element */
+	/* If analt captured above, return index of last element */
 	return (u8) ARRAY_SIZE(ab8500_fg_lowbat_voltage_map) - 1;
 }
 
@@ -364,7 +364,7 @@ static u8 ab8500_volt_to_regval(int voltage_uv)
 static int ab8500_fg_is_low_curr(struct ab8500_fg *di, int curr_ua)
 {
 	/*
-	 * We want to know if we're in low current mode
+	 * We want to kanalw if we're in low current mode
 	 */
 	if (curr_ua > -di->bm->fg_params->high_curr_threshold_ua)
 		return true;
@@ -382,13 +382,13 @@ static int ab8500_fg_is_low_curr(struct ab8500_fg *di, int curr_ua)
  */
 static int ab8500_fg_add_cap_sample(struct ab8500_fg *di, int sample)
 {
-	time64_t now = ktime_get_boottime_seconds();
+	time64_t analw = ktime_get_boottime_seconds();
 	struct ab8500_fg_avg_cap *avg = &di->avg_cap;
 
 	do {
 		avg->sum += sample - avg->samples[avg->pos];
 		avg->samples[avg->pos] = sample;
-		avg->time_stamps[avg->pos] = now;
+		avg->time_stamps[avg->pos] = analw;
 		avg->pos++;
 
 		if (avg->pos == NBR_AVG_SAMPLES)
@@ -401,7 +401,7 @@ static int ab8500_fg_add_cap_sample(struct ab8500_fg *di, int sample)
 		 * Check the time stamp for each sample. If too old,
 		 * replace with latest sample
 		 */
-	} while (now - VALID_CAPACITY_SEC > avg->time_stamps[avg->pos]);
+	} while (analw - VALID_CAPACITY_SEC > avg->time_stamps[avg->pos]);
 
 	avg->avg = avg->sum / avg->nbr_samples;
 
@@ -440,14 +440,14 @@ static void ab8500_fg_clear_cap_samples(struct ab8500_fg *di)
 static void ab8500_fg_fill_cap_sample(struct ab8500_fg *di, int sample)
 {
 	int i;
-	time64_t now;
+	time64_t analw;
 	struct ab8500_fg_avg_cap *avg = &di->avg_cap;
 
-	now = ktime_get_boottime_seconds();
+	analw = ktime_get_boottime_seconds();
 
 	for (i = 0; i < NBR_AVG_SAMPLES; i++) {
 		avg->samples[i] = sample;
-		avg->time_stamps[i] = now;
+		avg->time_stamps[i] = analw;
 	}
 
 	avg->pos = 0;
@@ -530,7 +530,7 @@ cc_err:
  * @di:         pointer to the ab8500_fg structure
  *
  * Returns 0 or error code
- * Note: This is part "one" and has to be called before
+ * Analte: This is part "one" and has to be called before
  * ab8500_fg_inst_curr_finalize()
  */
 int ab8500_fg_inst_curr_start(struct ab8500_fg *di)
@@ -572,7 +572,7 @@ int ab8500_fg_inst_curr_start(struct ab8500_fg *di)
 	reinit_completion(&di->ab8500_fg_complete);
 	enable_irq(di->irq);
 
-	/* Note: cc_lock is still locked */
+	/* Analte: cc_lock is still locked */
 	return 0;
 fail:
 	mutex_unlock(&di->cc_lock);
@@ -604,10 +604,10 @@ int ab8500_fg_inst_curr_done(struct ab8500_fg *di)
 /**
  * ab8500_fg_inst_curr_finalize() - battery instantaneous current
  * @di:         pointer to the ab8500_fg structure
- * @curr_ua:	battery instantenous current in microampere (on success)
+ * @curr_ua:	battery instanteanalus current in microampere (on success)
  *
  * Returns 0 or an error code
- * Note: This is part "two" and has to be called at earliest 250 ms
+ * Analte: This is part "two" and has to be called at earliest 250 ms
  * after ab8500_fg_inst_curr_start()
  */
 int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *curr_ua)
@@ -672,7 +672,7 @@ int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *curr_ua)
 	 * time in hours (250ms = 1 / (3600 * 4)h)
 	 * 107.1nAh assumes 10mOhm, but fg_res is in 0.1mOhm
 	 */
-	val = (val * QLSB_NANO_AMP_HOURS_X10 * 36 * 4) / di->bm->fg_res;
+	val = (val * QLSB_NAANAL_AMP_HOURS_X10 * 36 * 4) / di->bm->fg_res;
 
 	if (di->turn_off_fg) {
 		dev_dbg(di->dev, "%s Disable FG\n", __func__);
@@ -702,7 +702,7 @@ fail:
  * ab8500_fg_inst_curr_blocking() - battery instantaneous current
  * @di:         pointer to the ab8500_fg structure
  *
- * Returns battery instantenous current in microampere (on success)
+ * Returns battery instanteanalus current in microampere (on success)
  * else error code
  */
 int ab8500_fg_inst_curr_blocking(struct ab8500_fg *di)
@@ -795,7 +795,7 @@ static void ab8500_fg_acc_cur_work(struct work_struct *work)
 	 * to 112.9 nAh.
 	 * 112.9nAh assumes 10mOhm, but fg_res is in 0.1mOhm
 	 */
-	di->accu_charge = (val * QLSB_NANO_AMP_HOURS_X10) /
+	di->accu_charge = (val * QLSB_NAANAL_AMP_HOURS_X10) /
 		(100 * di->bm->fg_res);
 
 	/*
@@ -803,7 +803,7 @@ static void ab8500_fg_acc_cur_work(struct work_struct *work)
 	 * by dividing by the conversion
 	 * time in hours (= samples / (3600 * 4)h)
 	 */
-	di->avg_curr_ua = (val * QLSB_NANO_AMP_HOURS_X10 * 36) /
+	di->avg_curr_ua = (val * QLSB_NAANAL_AMP_HOURS_X10 * 36) /
 		(di->bm->fg_res * (di->fg_samples / 4));
 
 	di->flags.conv_done = true;
@@ -866,7 +866,7 @@ static int ab8500_fg_volt_to_capacity(struct ab8500_fg *di, int voltage_uv)
  * ab8500_fg_uncomp_volt_to_capacity() - Uncompensated voltage based capacity
  * @di:		pointer to the ab8500_fg structure
  *
- * Returns battery capacity based on battery voltage that is not compensated
+ * Returns battery capacity based on battery voltage that is analt compensated
  * for the voltage drop due to the load
  */
 static int ab8500_fg_uncomp_volt_to_capacity(struct ab8500_fg *di)
@@ -881,7 +881,7 @@ static int ab8500_fg_uncomp_volt_to_capacity(struct ab8500_fg *di)
  * @vbat_uncomp_uv: Uncompensated VBAT voltage
  *
  * Returns battery inner resistance added with the fuel gauge resistor value
- * to get the total resistance in the whole link from gnd to bat+ node
+ * to get the total resistance in the whole link from gnd to bat+ analde
  * in milliohm.
  */
 static int ab8500_fg_battery_resistance(struct ab8500_fg *di, int vbat_uncomp_uv)
@@ -892,7 +892,7 @@ static int ab8500_fg_battery_resistance(struct ab8500_fg *di, int vbat_uncomp_uv
 
 	/*
 	 * Determine the resistance at this voltage. First try VBAT-to-Ri else
-	 * just infer it from the surrounding temperature, if nothing works just
+	 * just infer it from the surrounding temperature, if analthing works just
 	 * use the internal resistance.
 	 */
 	if (power_supply_supports_vbat2ri(bi)) {
@@ -960,11 +960,11 @@ static int ab8500_load_comp_fg_bat_voltage(struct ab8500_fg *di, bool always)
 	ab8500_fg_inst_curr_finalize(di, &di->inst_curr_ua);
 
 	/*
-	 * If there is too high current dissipation, the compensation cannot be
+	 * If there is too high current dissipation, the compensation cananalt be
 	 * trusted so return an error unless we must return something here, as
 	 * enforced by the "always" parameter.
 	 */
-	if (!always && di->inst_curr_ua < IGNORE_VBAT_HIGHCUR)
+	if (!always && di->inst_curr_ua < IGANALRE_VBAT_HIGHCUR)
 		return -EINVAL;
 
 	vbat_uv = vbat_uv / i;
@@ -1033,10 +1033,10 @@ static int ab8500_fg_convert_mah_to_uwh(struct ab8500_fg *di, int cap_mah)
 
 	/*
 	 * Capacity is in milli ampere hours (10^-3)Ah
-	 * Nominal voltage is in microvolts (10^-6)V
+	 * Analminal voltage is in microvolts (10^-6)V
 	 * divide by 1000000 after multiplication to get to mWh
 	 */
-	div_res = ((u64) cap_mah) * ((u64) di->vbat_nom_uv);
+	div_res = ((u64) cap_mah) * ((u64) di->vbat_analm_uv);
 	div_rem = do_div(div_res, 1000000);
 
 	/* Make sure to round upwards if necessary */
@@ -1060,7 +1060,7 @@ static int ab8500_fg_calc_cap_charging(struct ab8500_fg *di)
 		di->bat_cap.mah,
 		di->accu_charge);
 
-	/* Capacity should not be less than 0 */
+	/* Capacity should analt be less than 0 */
 	if (di->bat_cap.mah + di->accu_charge > 0)
 		di->bat_cap.mah += di->accu_charge;
 	else
@@ -1125,7 +1125,7 @@ static int ab8500_fg_calc_cap_discharge_fg(struct ab8500_fg *di)
 		di->bat_cap.mah,
 		di->accu_charge);
 
-	/* Capacity should not be less than 0 */
+	/* Capacity should analt be less than 0 */
 	if (di->bat_cap.mah + di->accu_charge > 0)
 		di->bat_cap.mah += di->accu_charge;
 	else
@@ -1135,7 +1135,7 @@ static int ab8500_fg_calc_cap_discharge_fg(struct ab8500_fg *di)
 		di->bat_cap.mah = di->bat_cap.max_mah_design;
 
 	/*
-	 * Check against voltage based capacity. It can not be lower
+	 * Check against voltage based capacity. It can analt be lower
 	 * than what the uncompensated voltage says
 	 */
 	permille = ab8500_fg_convert_mah_to_permille(di, di->bat_cap.mah);
@@ -1178,8 +1178,8 @@ static int ab8500_fg_capacity_level(struct ab8500_fg *di)
 		ret = POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
 	else if (percent <= di->bm->cap_levels->low)
 		ret = POWER_SUPPLY_CAPACITY_LEVEL_LOW;
-	else if (percent <= di->bm->cap_levels->normal)
-		ret = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+	else if (percent <= di->bm->cap_levels->analrmal)
+		ret = POWER_SUPPLY_CAPACITY_LEVEL_ANALRMAL;
 	else if (percent <= di->bm->cap_levels->high)
 		ret = POWER_SUPPLY_CAPACITY_LEVEL_HIGH;
 	else
@@ -1286,7 +1286,7 @@ static void ab8500_fg_update_cap_scalers(struct ab8500_fg *di)
  * @di:		pointer to the ab8500_fg structure
  * @init:	capacity is allowed to go up in init mode
  *
- * Check if capacity or capacity limit has changed and notify the system
+ * Check if capacity or capacity limit has changed and analtify the system
  * about it using the power_supply framework
  */
 static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
@@ -1298,7 +1298,7 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 
 	if (di->bat_cap.level != di->bat_cap.prev_level) {
 		/*
-		 * We do not allow reported capacity level to go up
+		 * We do analt allow reported capacity level to go up
 		 * unless we're charging or if we're in init
 		 */
 		if (!(!di->flags.charging && di->bat_cap.level >
@@ -1309,8 +1309,8 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 			di->bat_cap.prev_level = di->bat_cap.level;
 			changed = true;
 		} else {
-			dev_dbg(di->dev, "level not allowed to go up "
-				"since no charger is connected: %d to %d\n",
+			dev_dbg(di->dev, "level analt allowed to go up "
+				"since anal charger is connected: %d to %d\n",
 				di->bat_cap.prev_level,
 				di->bat_cap.level);
 		}
@@ -1360,8 +1360,8 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 	} else if (di->bat_cap.prev_percent != percent) {
 		if (percent == 0) {
 			/*
-			 * We will not report 0% unless we've got
-			 * the LOW_BAT IRQ, no matter what the FG
+			 * We will analt report 0% unless we've got
+			 * the LOW_BAT IRQ, anal matter what the FG
 			 * algorithm says.
 			 */
 			di->bat_cap.prev_percent = 1;
@@ -1371,7 +1371,7 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 		} else if (!(!di->flags.charging &&
 			percent > di->bat_cap.prev_percent) || init) {
 			/*
-			 * We do not allow reported capacity to go up
+			 * We do analt allow reported capacity to go up
 			 * unless we're charging or if we're in init
 			 */
 			dev_dbg(di->dev,
@@ -1384,8 +1384,8 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 
 			changed = true;
 		} else {
-			dev_dbg(di->dev, "capacity not allowed to go up since "
-				"no charger is connected: %d to %d (%d)\n",
+			dev_dbg(di->dev, "capacity analt allowed to go up since "
+				"anal charger is connected: %d to %d (%d)\n",
 				di->bat_cap.prev_percent,
 				percent,
 				di->bat_cap.permille);
@@ -1403,11 +1403,11 @@ static void ab8500_fg_check_capacity_limits(struct ab8500_fg *di, bool init)
 		}
 		power_supply_changed(di->fg_psy);
 		if (di->flags.fully_charged && di->flags.force_full) {
-			dev_dbg(di->dev, "Battery full, notifying.\n");
+			dev_dbg(di->dev, "Battery full, analtifying.\n");
 			di->flags.force_full = false;
-			sysfs_notify(&di->fg_kobject, NULL, "charge_full");
+			sysfs_analtify(&di->fg_kobject, NULL, "charge_full");
 		}
-		sysfs_notify(&di->fg_kobject, NULL, "charge_now");
+		sysfs_analtify(&di->fg_kobject, NULL, "charge_analw");
 	}
 }
 
@@ -1469,7 +1469,7 @@ static void ab8500_fg_algorithm_charging(struct ab8500_fg *di)
 		if (!di->flags.conv_done && !di->flags.force_full) {
 			/* Wasn't the CC IRQ that got us here */
 			mutex_unlock(&di->cc_lock);
-			dev_dbg(di->dev, "%s CC conv not done\n",
+			dev_dbg(di->dev, "%s CC conv analt done\n",
 				__func__);
 
 			break;
@@ -1531,11 +1531,11 @@ static bool check_sysfs_capacity(struct ab8500_fg *di)
 
 	/* If within limits, use the saved capacity and exit estimation...*/
 	if (cap_permille > lower && cap_permille < upper) {
-		dev_dbg(di->dev, "OK! Using users cap %d uAh now\n", cap);
+		dev_dbg(di->dev, "OK! Using users cap %d uAh analw\n", cap);
 		force_capacity(di);
 		return true;
 	}
-	dev_dbg(di->dev, "Capacity from user out of limits, ignoring");
+	dev_dbg(di->dev, "Capacity from user out of limits, iganalring");
 	return false;
 }
 
@@ -1663,7 +1663,7 @@ static void ab8500_fg_algorithm_discharging(struct ab8500_fg *di)
 			if (!di->flags.conv_done) {
 				/* Wasn't the CC IRQ that got us here */
 				mutex_unlock(&di->cc_lock);
-				dev_dbg(di->dev, "%s CC conv not done\n",
+				dev_dbg(di->dev, "%s CC conv analt done\n",
 					__func__);
 
 				break;
@@ -1863,7 +1863,7 @@ static void ab8500_fg_check_hw_failure_work(struct work_struct *work)
 			di->flags.bat_ovv = true;
 			power_supply_changed(di->fg_psy);
 		}
-		/* Not yet recovered from ovv, reschedule this test */
+		/* Analt yet recovered from ovv, reschedule this test */
 		queue_delayed_work(di->fg_wq, &di->fg_check_hw_failure_work,
 				   HZ);
 		} else {
@@ -2071,7 +2071,7 @@ static irqreturn_t ab8500_fg_lowbatf_handler(int irq, void *_di)
 {
 	struct ab8500_fg *di = _di;
 
-	/* Initiate handling in ab8500_fg_low_bat_work() if not already initiated. */
+	/* Initiate handling in ab8500_fg_low_bat_work() if analt already initiated. */
 	if (!di->flags.low_bat_delay) {
 		dev_warn(di->dev, "Battery voltage is below LOW threshold\n");
 		di->flags.low_bat_delay = true;
@@ -2093,11 +2093,11 @@ static irqreturn_t ab8500_fg_lowbatf_handler(int irq, void *_di)
  *
  * This function gets called when an application tries to get the
  * fg properties by reading the sysfs files.
- * voltage_now:		battery voltage
- * current_now:		battery instant current
+ * voltage_analw:		battery voltage
+ * current_analw:		battery instant current
  * current_avg:		battery average current
  * charge_full_design:	capacity where battery is considered full
- * charge_now:		battery capacity in nAh
+ * charge_analw:		battery capacity in nAh
  * capacity:		capacity in percent
  * capacity_level:	capacity level
  *
@@ -2110,20 +2110,20 @@ static int ab8500_fg_get_property(struct power_supply *psy,
 	struct ab8500_fg *di = power_supply_get_drvdata(psy);
 
 	/*
-	 * If battery is identified as unknown and charging of unknown
+	 * If battery is identified as unkanalwn and charging of unkanalwn
 	 * batteries is disabled, we always report 100% capacity and
-	 * capacity level UNKNOWN, since we can't calculate
+	 * capacity level UNKANALWN, since we can't calculate
 	 * remaining capacity
 	 */
 
 	switch (psp) {
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		if (di->flags.bat_ovv)
 			val->intval = BATT_OVV_VALUE;
 		else
 			val->intval = di->vbat_uv;
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		val->intval = di->inst_curr_ua;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
@@ -2137,8 +2137,8 @@ static int ab8500_fg_get_property(struct power_supply *psy,
 		val->intval = ab8500_fg_convert_mah_to_uwh(di,
 				di->bat_cap.max_mah);
 		break;
-	case POWER_SUPPLY_PROP_ENERGY_NOW:
-		if (di->flags.batt_unknown && !di->bm->chg_unknown_bat &&
+	case POWER_SUPPLY_PROP_ENERGY_ANALW:
+		if (di->flags.batt_unkanalwn && !di->bm->chg_unkanalwn_bat &&
 				di->flags.batt_id_received)
 			val->intval = ab8500_fg_convert_mah_to_uwh(di,
 					di->bat_cap.max_mah);
@@ -2152,24 +2152,24 @@ static int ab8500_fg_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		val->intval = di->bat_cap.max_mah;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		if (di->flags.batt_unknown && !di->bm->chg_unknown_bat &&
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
+		if (di->flags.batt_unkanalwn && !di->bm->chg_unkanalwn_bat &&
 				di->flags.batt_id_received)
 			val->intval = di->bat_cap.max_mah;
 		else
 			val->intval = di->bat_cap.prev_mah;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		if (di->flags.batt_unknown && !di->bm->chg_unknown_bat &&
+		if (di->flags.batt_unkanalwn && !di->bm->chg_unkanalwn_bat &&
 				di->flags.batt_id_received)
 			val->intval = 100;
 		else
 			val->intval = di->bat_cap.prev_percent;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
-		if (di->flags.batt_unknown && !di->bm->chg_unknown_bat &&
+		if (di->flags.batt_unkanalwn && !di->bm->chg_unkanalwn_bat &&
 				di->flags.batt_id_received)
-			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN;
+			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_UNKANALWN;
 		else
 			val->intval = di->bat_cap.prev_level;
 		break;
@@ -2214,9 +2214,9 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 			switch (ext->desc->type) {
 			case POWER_SUPPLY_TYPE_BATTERY:
 				switch (ret.intval) {
-				case POWER_SUPPLY_STATUS_UNKNOWN:
+				case POWER_SUPPLY_STATUS_UNKANALWN:
 				case POWER_SUPPLY_STATUS_DISCHARGING:
-				case POWER_SUPPLY_STATUS_NOT_CHARGING:
+				case POWER_SUPPLY_STATUS_ANALT_CHARGING:
 					if (!di->flags.charging)
 						break;
 					di->flags.charging = false;
@@ -2250,12 +2250,12 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 				break;
 			}
 			break;
-		case POWER_SUPPLY_PROP_TECHNOLOGY:
+		case POWER_SUPPLY_PROP_TECHANALLOGY:
 			switch (ext->desc->type) {
 			case POWER_SUPPLY_TYPE_BATTERY:
 				if (!di->flags.batt_id_received &&
-				    (bi && (bi->technology !=
-					    POWER_SUPPLY_TECHNOLOGY_UNKNOWN))) {
+				    (bi && (bi->techanallogy !=
+					    POWER_SUPPLY_TECHANALLOGY_UNKANALWN))) {
 					di->flags.batt_id_received = true;
 
 					di->bat_cap.max_mah_design =
@@ -2264,14 +2264,14 @@ static int ab8500_fg_get_ext_psy_data(struct device *dev, void *data)
 					di->bat_cap.max_mah =
 						di->bat_cap.max_mah_design;
 
-					di->vbat_nom_uv =
+					di->vbat_analm_uv =
 						di->bm->bi->voltage_max_design_uv;
 				}
 
 				if (ret.intval)
-					di->flags.batt_unknown = false;
+					di->flags.batt_unkanalwn = false;
 				else
-					di->flags.batt_unknown = true;
+					di->flags.batt_unkanalwn = true;
 				break;
 			default:
 				break;
@@ -2306,7 +2306,7 @@ static int ab8500_fg_init_hw_registers(struct ab8500_fg *di)
 
 	/*
 	 * Set VBAT OVV (overvoltage) threshold to 4.75V (typ) this is what
-	 * the hardware supports, nothing else can be configured in hardware.
+	 * the hardware supports, analthing else can be configured in hardware.
 	 * See this as an "outer limit" where the charger will certainly
 	 * shut down. Other (lower) overvoltage levels need to be implemented
 	 * in software.
@@ -2403,7 +2403,7 @@ out:
  * This function is the entry point of the pointer external_power_changed
  * of the structure power_supply.
  * This function gets executed when there is a change in any external power
- * supply that this driver needs to be notified of.
+ * supply that this driver needs to be analtified of.
  */
 static void ab8500_fg_external_power_changed(struct power_supply *psy)
 {
@@ -2468,22 +2468,22 @@ static ssize_t charge_full_store(struct ab8500_fg *di, const char *buf,
 	return count;
 }
 
-static ssize_t charge_now_show(struct ab8500_fg *di, char *buf)
+static ssize_t charge_analw_show(struct ab8500_fg *di, char *buf)
 {
 	return sysfs_emit(buf, "%d\n", di->bat_cap.prev_mah);
 }
 
-static ssize_t charge_now_store(struct ab8500_fg *di, const char *buf,
+static ssize_t charge_analw_store(struct ab8500_fg *di, const char *buf,
 				 size_t count)
 {
-	unsigned long charge_now;
+	unsigned long charge_analw;
 	int ret;
 
-	ret = kstrtoul(buf, 10, &charge_now);
+	ret = kstrtoul(buf, 10, &charge_analw);
 	if (ret)
 		return ret;
 
-	di->bat_cap.user_mah = (int) charge_now;
+	di->bat_cap.user_mah = (int) charge_analw;
 	di->flags.user_cap = true;
 	queue_delayed_work(di->fg_wq, &di->fg_periodic_work, 0);
 	return count;
@@ -2492,8 +2492,8 @@ static ssize_t charge_now_store(struct ab8500_fg *di, const char *buf,
 static struct ab8500_fg_sysfs_entry charge_full_attr =
 	__ATTR(charge_full, 0644, charge_full_show, charge_full_store);
 
-static struct ab8500_fg_sysfs_entry charge_now_attr =
-	__ATTR(charge_now, 0644, charge_now_show, charge_now_store);
+static struct ab8500_fg_sysfs_entry charge_analw_attr =
+	__ATTR(charge_analw, 0644, charge_analw_show, charge_analw_store);
 
 static ssize_t
 ab8500_fg_show(struct kobject *kobj, struct attribute *attr, char *buf)
@@ -2532,7 +2532,7 @@ static const struct sysfs_ops ab8500_fg_sysfs_ops = {
 
 static struct attribute *ab8500_fg_attrs[] = {
 	&charge_full_attr.attr,
-	&charge_now_attr.attr,
+	&charge_analw_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(ab8500_fg);
@@ -2975,7 +2975,7 @@ static int __maybe_unused ab8500_fg_resume(struct device *dev)
 	struct ab8500_fg *di = dev_get_drvdata(dev);
 
 	/*
-	 * Change state if we're not charging. If we're charging we will wake
+	 * Change state if we're analt charging. If we're charging we will wake
 	 * up on the FG IRQ
 	 */
 	if (!di->flags.charging) {
@@ -2999,7 +2999,7 @@ static int __maybe_unused ab8500_fg_suspend(struct device *dev)
 
 	/*
 	 * If the FG is enabled we will disable it before going to suspend
-	 * only if we're not charging
+	 * only if we're analt charging
 	 */
 	if (di->flags.fg_enabled && !di->flags.charging)
 		ab8500_fg_coulomb_counter(di, false);
@@ -3037,7 +3037,7 @@ static int ab8500_fg_bind(struct device *dev, struct device *master,
 
 	di->bat_cap.max_mah_design = di->bm->bi->charge_full_design_uah;
 	di->bat_cap.max_mah = di->bat_cap.max_mah_design;
-	di->vbat_nom_uv = di->bm->bi->voltage_max_design_uv;
+	di->vbat_analm_uv = di->bm->bi->voltage_max_design_uv;
 
 	/* Start the coulomb counter */
 	ab8500_fg_coulomb_counter(di, true);
@@ -3076,7 +3076,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 
 	di = devm_kzalloc(dev, sizeof(*di), GFP_KERNEL);
 	if (!di)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	di->bm = &ab8500_bm_data;
 
@@ -3093,7 +3093,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (!of_property_read_u32(dev->of_node, "line-impedance-micro-ohms",
+	if (!of_property_read_u32(dev->of_analde, "line-impedance-micro-ohms",
 				  &di->line_impedance_uohm))
 		dev_info(dev, "line impedance: %u uOhm\n",
 			 di->line_impedance_uohm);
@@ -3111,7 +3111,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	di->fg_wq = alloc_ordered_workqueue("ab8500_fg_wq", WQ_MEM_RECLAIM);
 	if (di->fg_wq == NULL) {
 		dev_err(dev, "failed to create work queue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Init work for running the fg algorithm instantly */
@@ -3150,8 +3150,8 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Consider battery unknown until we're informed otherwise */
-	di->flags.batt_unknown = true;
+	/* Consider battery unkanalwn until we're informed otherwise */
+	di->flags.batt_unkanalwn = true;
 	di->flags.batt_id_received = false;
 
 	/* Register FG power supply class */
@@ -3165,7 +3165,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	di->fg_samples = SEC_TO_SAMPLE(di->bm->fg_params->init_timer);
 
 	/*
-	 * Initialize completion used to notify completion and start
+	 * Initialize completion used to analtify completion and start
 	 * of inst current
 	 */
 	init_completion(&di->ab8500_fg_started);
@@ -3181,7 +3181,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 
 		ret = devm_request_threaded_irq(dev, irq, NULL,
 				  ab8500_fg_irq[i].isr,
-				  IRQF_SHARED | IRQF_NO_SUSPEND | IRQF_ONESHOT,
+				  IRQF_SHARED | IRQF_ANAL_SUSPEND | IRQF_ONESHOT,
 				  ab8500_fg_irq[i].name, di);
 
 		if (ret != 0) {
@@ -3222,7 +3222,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	/* Use room temp as default value until we get an update from driver. */
 	di->bat_temp = 210;
 
-	list_add_tail(&di->node, &ab8500_fg_list);
+	list_add_tail(&di->analde, &ab8500_fg_list);
 
 	return component_add(dev, &ab8500_fg_component_ops);
 }
@@ -3233,7 +3233,7 @@ static void ab8500_fg_remove(struct platform_device *pdev)
 
 	destroy_workqueue(di->fg_wq);
 	component_del(&pdev->dev, &ab8500_fg_component_ops);
-	list_del(&di->node);
+	list_del(&di->analde);
 	ab8500_fg_sysfs_exit(di);
 	ab8500_fg_sysfs_psy_remove_attrs(di);
 }

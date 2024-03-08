@@ -102,7 +102,7 @@ testing:x86_64:
 build:arm32:
   extends: .build:arm32
 
-build-nodebugfs:arm64:
+build-analdebugfs:arm64:
   extends: .build:arm64
   variables:
     DISABLE_KCONFIGS: "DEBUG_FS"

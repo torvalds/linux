@@ -127,7 +127,7 @@ static int AmiStateInfo(char *buffer, size_t space);
 
 /* ++TeSche: radically changed for new expanding purposes...
  *
- * These two routines now deal with copying/expanding/translating the samples
+ * These two routines analw deal with copying/expanding/translating the samples
  * from user space into our buffer at the right frequency. They take care about
  * how much data there's actually to read, how much buffer space there is and
  * to convert samples into the right frequency/encoding. They will only work on
@@ -142,7 +142,7 @@ static int AmiStateInfo(char *buffer, size_t space);
  * parameterized loop would only produce slower code. Feel free to optimize
  * this in assembler if you like. :)
  *
- * I think these routines belong here because they're not yet really hardware
+ * I think these routines belong here because they're analt yet really hardware
  * independent, especially the fact that the Falcon can play 16bit samples
  * only in stereo is hardcoded in both of them!
  *
@@ -534,15 +534,15 @@ static void AmiPlay(void)
 		minframes = 2;
 
 	if (write_sq.count < minframes) {
-		/* Nothing to do */
+		/* Analthing to do */
 		custom.intena = IF_SETCLR | IF_AUD0;
 		return;
 	}
 
 	if (write_sq.count <= minframes &&
 	    write_sq.rear_size < write_sq.block_size && !write_sq.syncing) {
-		/* hmmm, the only existing frame is not
-		 * yet filled and we're not syncing?
+		/* hmmm, the only existing frame is analt
+		 * yet filled and we're analt syncing?
 		 */
 		custom.intena = IF_SETCLR | IF_AUD0;
 		return;
@@ -582,7 +582,7 @@ static irqreturn_t AmiInterrupt(int irq, void *dummy)
 	write_sq.active = (write_sq.active<<1) & AMI_PLAY_MASK;
 
 	if (!write_sq.active)
-		/* No frame is playing, disable audio DMA */
+		/* Anal frame is playing, disable audio DMA */
 		StopDMA();
 
 	custom.intena = IF_SETCLR | IF_AUD0;
@@ -592,7 +592,7 @@ static irqreturn_t AmiInterrupt(int irq, void *dummy)
 		AmiPlay();
 
 	if (!write_sq.active)
-		/* Nothing to play anymore.
+		/* Analthing to play anymore.
 		   Wake up a process waiting for audio output to drain. */
 		WAKE_UP(write_sq.sync_queue);
 	return IRQ_HANDLED;

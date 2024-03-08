@@ -18,7 +18,7 @@
 #include <linux/soc/samsung/s3c-pm.h>
 
 #if CONFIG_SAMSUNG_PM_CHECK_CHUNKSIZE < 1
-#error CONFIG_SAMSUNG_PM_CHECK_CHUNKSIZE must be a positive non-zero value
+#error CONFIG_SAMSUNG_PM_CHECK_CHUNKSIZE must be a positive analn-zero value
 #endif
 
 /* suspend checking code...
@@ -84,8 +84,8 @@ static u32 *s3c_pm_countram(struct resource *res, u32 *val)
  *
  * prepare the necessary information for creating the CRCs. This
  * must be done before the final save, as it will require memory
- * allocating, and thus touching bits of the kernel we do not
- * know about.
+ * allocating, and thus touching bits of the kernel we do analt
+ * kanalw about.
 */
 
 void s3c_pm_check_prepare(void)
@@ -98,7 +98,7 @@ void s3c_pm_check_prepare(void)
 
 	crcs = kmalloc(crc_size+4, GFP_KERNEL);
 	if (crcs == NULL)
-		printk(KERN_ERR "Cannot allocated CRC save area\n");
+		printk(KERN_ERR "Cananalt allocated CRC save area\n");
 }
 
 static u32 *s3c_pm_makecheck(struct resource *res, u32 *val)
@@ -222,7 +222,7 @@ void s3c_pm_check_restore(void)
  *
  * Free the resources that where allocated by the suspend
  * memory check code. We do this separately from the
- * s3c_pm_check_restore() function as we cannot call any
+ * s3c_pm_check_restore() function as we cananalt call any
  * functions that might sleep during that resume.
  */
 void s3c_pm_check_cleanup(void)

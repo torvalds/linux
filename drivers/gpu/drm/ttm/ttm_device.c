@@ -11,12 +11,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -96,13 +96,13 @@ static int ttm_global_init(void)
 	ttm_tt_mgr_init(num_pages, num_dma32);
 
 	glob->dummy_read_page = alloc_page(__GFP_ZERO | GFP_DMA32 |
-					   __GFP_NOWARN);
+					   __GFP_ANALWARN);
 
-	/* Retry without GFP_DMA32 for platforms DMA32 is not available */
+	/* Retry without GFP_DMA32 for platforms DMA32 is analt available */
 	if (unlikely(glob->dummy_read_page == NULL)) {
 		glob->dummy_read_page = alloc_page(__GFP_ZERO);
 		if (unlikely(glob->dummy_read_page == NULL)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		pr_warn("Using GFP_DMA32 fallback for dummy_read_page\n");
@@ -214,7 +214,7 @@ int ttm_device_init(struct ttm_device *bdev, const struct ttm_device_funcs *func
 				   WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_UNBOUND, 16);
 	if (!bdev->wq) {
 		ttm_global_release();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bdev->funcs = funcs;
@@ -222,9 +222,9 @@ int ttm_device_init(struct ttm_device *bdev, const struct ttm_device_funcs *func
 	ttm_sys_man_init(bdev);
 
 	if (dev)
-		nid = dev_to_node(dev);
+		nid = dev_to_analde(dev);
 	else
-		nid = NUMA_NO_NODE;
+		nid = NUMA_ANAL_ANALDE;
 
 	ttm_pool_init(&bdev->pool, dev, nid, use_dma_alloc, use_dma32);
 

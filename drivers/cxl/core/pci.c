@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2021 Intel Corporation. All rights reserved. */
 #include <linux/units.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
@@ -96,7 +96,7 @@ int devm_cxl_port_enumerate_dports(struct cxl_port *port)
 	pci_walk_bus(bus, match_add_dports, &ctx);
 
 	if (ctx.count == 0)
-		return -ENODEV;
+		return -EANALDEV;
 	if (ctx.error)
 		return ctx.error;
 	return ctx.count;
@@ -330,7 +330,7 @@ int cxl_dvsec_rr_decode(struct device *dev, int d,
 	u16 cap, ctrl;
 
 	if (!d) {
-		dev_dbg(dev, "No DVSEC Capability\n");
+		dev_dbg(dev, "Anal DVSEC Capability\n");
 		return -ENXIO;
 	}
 
@@ -343,15 +343,15 @@ int cxl_dvsec_rr_decode(struct device *dev, int d,
 		return rc;
 
 	if (!(cap & CXL_DVSEC_MEM_CAPABLE)) {
-		dev_dbg(dev, "Not MEM Capable\n");
+		dev_dbg(dev, "Analt MEM Capable\n");
 		return -ENXIO;
 	}
 
 	/*
-	 * It is not allowed by spec for MEM.capable to be set and have 0 legacy
+	 * It is analt allowed by spec for MEM.capable to be set and have 0 legacy
 	 * HDM decoders (values > 2 are also undefined as of CXL 2.0). As this
 	 * driver is for a spec defined class code which must be CXL.mem
-	 * capable, there is no point in continuing to enable CXL.mem.
+	 * capable, there is anal point in continuing to enable CXL.mem.
 	 */
 	hdm_count = FIELD_GET(CXL_DVSEC_HDM_COUNT_MASK, cap);
 	if (!hdm_count || hdm_count > 2)
@@ -392,7 +392,7 @@ int cxl_dvsec_rr_decode(struct device *dev, int d,
 		if (!size) {
 			info->dvsec_range[i] = (struct range) {
 				.start = 0,
-				.end = CXL_RESOURCE_NONE,
+				.end = CXL_RESOURCE_ANALNE,
 			};
 			continue;
 		}
@@ -453,14 +453,14 @@ int cxl_hdm_decode_init(struct cxl_dev_state *cxlds, struct cxl_hdm *cxlhdm,
 	if (global_ctrl & CXL_HDM_DECODER_ENABLE || (!hdm && info->mem_enabled))
 		return devm_cxl_enable_mem(&port->dev, cxlds);
 	else if (!hdm)
-		return -ENODEV;
+		return -EANALDEV;
 
 	root = to_cxl_port(port->dev.parent);
 	while (!is_cxl_root(root) && is_cxl_port(root->dev.parent))
 		root = to_cxl_port(root->dev.parent);
 	if (!is_cxl_root(root)) {
 		dev_err(dev, "Failed to acquire root port for HDM enable\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0, allowed = 0; info->mem_enabled && i < info->ranges; i++) {
@@ -485,9 +485,9 @@ int cxl_hdm_decode_init(struct cxl_dev_state *cxlds, struct cxl_hdm *cxlhdm,
 	/*
 	 * Per CXL 2.0 Section 8.1.3.8.3 and 8.1.3.8.4 DVSEC CXL Range 1 Base
 	 * [High,Low] when HDM operation is enabled the range register values
-	 * are ignored by the device, but the spec also recommends matching the
-	 * DVSEC Range 1,2 to HDM Decoder Range 0,1. So, non-zero info->ranges
-	 * are expected even though Linux does not require or maintain that
+	 * are iganalred by the device, but the spec also recommends matching the
+	 * DVSEC Range 1,2 to HDM Decoder Range 0,1. So, analn-zero info->ranges
+	 * are expected even though Linux does analt require or maintain that
 	 * match. If at least one DVSEC range is enabled and allowed, skip HDM
 	 * Decoder Capability Enable.
 	 */
@@ -641,14 +641,14 @@ void read_cdat_data(struct cxl_port *port)
 	cdat_doe = pci_find_doe_mailbox(pdev, PCI_DVSEC_VENDOR_ID_CXL,
 					CXL_DOE_PROTOCOL_TABLE_ACCESS);
 	if (!cdat_doe) {
-		dev_dbg(dev, "No CDAT mailbox\n");
+		dev_dbg(dev, "Anal CDAT mailbox\n");
 		return;
 	}
 
 	port->cdat_available = true;
 
 	if (cxl_cdat_get_length(dev, cdat_doe, &cdat_length)) {
-		dev_dbg(dev, "No CDAT length\n");
+		dev_dbg(dev, "Anal CDAT length\n");
 		return;
 	}
 
@@ -782,7 +782,7 @@ static void cxl_dport_map_regs(struct cxl_dport *dport)
 	struct device *dev = dport->dport_dev;
 
 	if (!map->component_map.ras.valid)
-		dev_dbg(dev, "RAS registers not found\n");
+		dev_dbg(dev, "RAS registers analt found\n");
 	else if (cxl_map_component_regs(map, &dport->regs.component,
 					BIT(CXL_CM_CAP_CAP_ID_RAS)))
 		dev_dbg(dev, "Failed to map RAS capability.\n");
@@ -806,13 +806,13 @@ static void cxl_disable_rch_root_ints(struct cxl_dport *dport)
 	 * Disable RCH root port command interrupts.
 	 * CXL 3.0 12.2.1.1 - RCH Downstream Port-detected Errors
 	 *
-	 * This sequence may not be necessary. CXL spec states disabling
+	 * This sequence may analt be necessary. CXL spec states disabling
 	 * the root cmd register's interrupts is required. But, PCI spec
 	 * shows these are disabled by default on reset.
 	 */
 	if (bridge->native_aer) {
 		aer_cmd_mask = (PCI_ERR_ROOT_CMD_COR_EN |
-				PCI_ERR_ROOT_CMD_NONFATAL_EN |
+				PCI_ERR_ROOT_CMD_ANALNFATAL_EN |
 				PCI_ERR_ROOT_CMD_FATAL_EN);
 		aer_cmd = readl(aer_base + PCI_ERR_ROOT_COMMAND);
 		aer_cmd &= ~aer_cmd_mask;
@@ -877,7 +877,7 @@ static bool cxl_rch_get_aer_info(void __iomem *aer_base,
 	return true;
 }
 
-/* Get AER severity. Return false if there is no error. */
+/* Get AER severity. Return false if there is anal error. */
 static bool cxl_rch_get_aer_severity(struct aer_capability_regs *aer_regs,
 				     int *severity)
 {
@@ -885,7 +885,7 @@ static bool cxl_rch_get_aer_severity(struct aer_capability_regs *aer_regs,
 		if (aer_regs->uncor_status & PCI_ERR_ROOT_FATAL_RCV)
 			*severity = AER_FATAL;
 		else
-			*severity = AER_NONFATAL;
+			*severity = AER_ANALNFATAL;
 		return true;
 	}
 
@@ -979,7 +979,7 @@ pci_ers_result_t cxl_error_detected(struct pci_dev *pdev,
 
 
 	switch (state) {
-	case pci_channel_io_normal:
+	case pci_channel_io_analrmal:
 		if (ue) {
 			device_release_driver(dev);
 			return PCI_ERS_RESULT_NEED_RESET;
@@ -1012,7 +1012,7 @@ static int cxl_flit_size(struct pci_dev *pdev)
  * cxl_pci_get_latency - calculate the link latency for the PCIe link
  * @pdev: PCI device
  *
- * return: calculated latency or 0 for no latency
+ * return: calculated latency or 0 for anal latency
  *
  * CXL Memory Device SW Guide v1.0 2.11.4 Link latency calculation
  * Link latency = LinkPropagationLatency + FlitLatency + RetimerLatency

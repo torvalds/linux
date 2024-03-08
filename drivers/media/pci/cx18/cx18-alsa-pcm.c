@@ -55,7 +55,7 @@ static const struct snd_pcm_hardware snd_cx18_hw_capture = {
 	.periods_max = 98,		/* 12544, */
 };
 
-void cx18_alsa_announce_pcm_data(struct snd_cx18_card *cxsc, u8 *pcm_data,
+void cx18_alsa_ananalunce_pcm_data(struct snd_cx18_card *cxsc, u8 *pcm_data,
 				 size_t num_bytes)
 {
 	struct snd_pcm_substream *substream;
@@ -65,7 +65,7 @@ void cx18_alsa_announce_pcm_data(struct snd_cx18_card *cxsc, u8 *pcm_data,
 	int period_elapsed = 0;
 	int length;
 
-	dprintk("cx18 alsa announce ptr=%p data=%p num_bytes=%zu\n", cxsc,
+	dprintk("cx18 alsa ananalunce ptr=%p data=%p num_bytes=%zu\n", cxsc,
 		pcm_data, num_bytes);
 
 	substream = cxsc->capture_pcm_substream;
@@ -93,7 +93,7 @@ void cx18_alsa_announce_pcm_data(struct snd_cx18_card *cxsc, u8 *pcm_data,
 	}
 
 	if (runtime->dma_area == NULL) {
-		dprintk("dma area was NULL - ignoring\n");
+		dprintk("dma area was NULL - iganalring\n");
 		return;
 	}
 
@@ -151,14 +151,14 @@ static int snd_cx18_pcm_capture_open(struct snd_pcm_substream *substream)
 
 	/* See if the stream is available */
 	if (cx18_claim_stream(&item, item.type)) {
-		/* No, it's already in use */
+		/* Anal, it's already in use */
 		snd_cx18_unlock(cxsc);
 		return -EBUSY;
 	}
 
 	if (test_bit(CX18_F_S_STREAMOFF, &s->s_flags) ||
 	    test_and_set_bit(CX18_F_S_STREAMING, &s->s_flags)) {
-		/* We're already streaming.  No additional action required */
+		/* We're already streaming.  Anal additional action required */
 		snd_cx18_unlock(cxsc);
 		return 0;
 	}
@@ -169,9 +169,9 @@ static int snd_cx18_pcm_capture_open(struct snd_pcm_substream *substream)
 	cxsc->capture_pcm_substream = substream;
 	runtime->private_data = cx;
 
-	cx->pcm_announce_callback = cx18_alsa_announce_pcm_data;
+	cx->pcm_ananalunce_callback = cx18_alsa_ananalunce_pcm_data;
 
-	/* Not currently streaming, so start it up */
+	/* Analt currently streaming, so start it up */
 	set_bit(CX18_F_S_STREAMING, &s->s_flags);
 	ret = cx18_start_v4l2_encode_stream(s);
 	snd_cx18_unlock(cxsc);
@@ -194,7 +194,7 @@ static int snd_cx18_pcm_capture_close(struct snd_pcm_substream *substream)
 
 	cx18_release_stream(s);
 
-	cx->pcm_announce_callback = NULL;
+	cx->pcm_ananalunce_callback = NULL;
 	snd_cx18_unlock(cxsc);
 
 	return 0;

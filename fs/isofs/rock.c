@@ -17,7 +17,7 @@
  * These functions are designed to read the system areas of a directory record
  * and extract relevant information.  There are different functions provided
  * depending upon what information we need at the time.  One function fills
- * out an inode structure, a second one extracts a filename, a third one
+ * out an ianalde structure, a second one extracts a filename, a third one
  * returns a symbolic link name, and a fourth one returns the extent number
  * for the file.
  */
@@ -32,7 +32,7 @@ struct rock_state {
 	int cont_extent;
 	int cont_offset;
 	int cont_loops;
-	struct inode *inode;
+	struct ianalde *ianalde;
 };
 
 /*
@@ -40,18 +40,18 @@ struct rock_state {
  * use fields that is compatible with Rock Ridge.  Return zero on success.
  */
 
-static int check_sp(struct rock_ridge *rr, struct inode *inode)
+static int check_sp(struct rock_ridge *rr, struct ianalde *ianalde)
 {
 	if (rr->u.SP.magic[0] != 0xbe)
 		return -1;
 	if (rr->u.SP.magic[1] != 0xef)
 		return -1;
-	ISOFS_SB(inode->i_sb)->s_rock_offset = rr->u.SP.skip;
+	ISOFS_SB(ianalde->i_sb)->s_rock_offset = rr->u.SP.skip;
 	return 0;
 }
 
 static void setup_rock_ridge(struct iso_directory_record *de,
-			struct inode *inode, struct rock_state *rs)
+			struct ianalde *ianalde, struct rock_state *rs)
 {
 	rs->len = sizeof(struct iso_directory_record) + de->name_len[0];
 	if (rs->len & 1)
@@ -61,18 +61,18 @@ static void setup_rock_ridge(struct iso_directory_record *de,
 	if (rs->len < 0)
 		rs->len = 0;
 
-	if (ISOFS_SB(inode->i_sb)->s_rock_offset != -1) {
-		rs->len -= ISOFS_SB(inode->i_sb)->s_rock_offset;
-		rs->chr += ISOFS_SB(inode->i_sb)->s_rock_offset;
+	if (ISOFS_SB(ianalde->i_sb)->s_rock_offset != -1) {
+		rs->len -= ISOFS_SB(ianalde->i_sb)->s_rock_offset;
+		rs->chr += ISOFS_SB(ianalde->i_sb)->s_rock_offset;
 		if (rs->len < 0)
 			rs->len = 0;
 	}
 }
 
-static void init_rock_state(struct rock_state *rs, struct inode *inode)
+static void init_rock_state(struct rock_state *rs, struct ianalde *ianalde)
 {
 	memset(rs, 0, sizeof(*rs));
-	rs->inode = inode;
+	rs->ianalde = ianalde;
 }
 
 /* Maximum number of Rock Ridge continuation entries */
@@ -85,7 +85,7 @@ static void init_rock_state(struct rock_state *rs, struct inode *inode)
 static int rock_continue(struct rock_state *rs)
 {
 	int ret = 1;
-	int blocksize = 1 << rs->inode->i_blkbits;
+	int blocksize = 1 << rs->ianalde->i_blkbits;
 	const int min_de_size = offsetof(struct rock_ridge, u);
 
 	kfree(rs->buffer);
@@ -94,7 +94,7 @@ static int rock_continue(struct rock_state *rs)
 	if ((unsigned)rs->cont_offset > blocksize - min_de_size ||
 	    (unsigned)rs->cont_size > blocksize ||
 	    (unsigned)(rs->cont_offset + rs->cont_size) > blocksize) {
-		printk(KERN_NOTICE "rock: corrupted directory entry. "
+		printk(KERN_ANALTICE "rock: corrupted directory entry. "
 			"extent=%d, offset=%d, size=%d\n",
 			rs->cont_extent, rs->cont_offset, rs->cont_size);
 		ret = -EIO;
@@ -106,13 +106,13 @@ static int rock_continue(struct rock_state *rs)
 
 		rs->buffer = kmalloc(rs->cont_size, GFP_KERNEL);
 		if (!rs->buffer) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		ret = -EIO;
 		if (++rs->cont_loops >= RR_MAX_CE_ENTRIES)
 			goto out;
-		bh = sb_bread(rs->inode->i_sb, rs->cont_extent);
+		bh = sb_bread(rs->ianalde->i_sb, rs->cont_extent);
 		if (bh) {
 			memcpy(rs->buffer, bh->b_data + rs->cont_offset,
 					rs->cont_size);
@@ -183,9 +183,9 @@ static int rock_check_overflow(struct rock_state *rs, int sig)
 	}
 	len += offsetof(struct rock_ridge, u);
 	if (len > rs->len) {
-		printk(KERN_NOTICE "rock: directory entry would overflow "
+		printk(KERN_ANALTICE "rock: directory entry would overflow "
 				"storage\n");
-		printk(KERN_NOTICE "rock: sig=0x%02x, size=%d, remaining=%d\n",
+		printk(KERN_ANALTICE "rock: sig=0x%02x, size=%d, remaining=%d\n",
 				sig, len, rs->len);
 		return -EIO;
 	}
@@ -193,10 +193,10 @@ static int rock_check_overflow(struct rock_state *rs, int sig)
 }
 
 /*
- * return length of name field; 0: not found, -1: to be ignored
+ * return length of name field; 0: analt found, -1: to be iganalred
  */
 int get_rock_ridge_filename(struct iso_directory_record *de,
-			    char *retname, struct inode *inode)
+			    char *retname, struct ianalde *ianalde)
 {
 	struct rock_state rs;
 	struct rock_ridge *rr;
@@ -207,18 +207,18 @@ int get_rock_ridge_filename(struct iso_directory_record *de,
 	char *p;
 	int len;
 
-	if (!ISOFS_SB(inode->i_sb)->s_rock)
+	if (!ISOFS_SB(ianalde->i_sb)->s_rock)
 		return 0;
 	*retname = 0;
 
-	init_rock_state(&rs, inode);
-	setup_rock_ridge(de, inode, &rs);
+	init_rock_state(&rs, ianalde);
+	setup_rock_ridge(de, ianalde, &rs);
 repeat:
 
 	while (rs.len > 2) { /* There may be one byte for padding somewhere */
 		rr = (struct rock_ridge *)rs.chr;
 		/*
-		 * Ignore rock ridge info if rr->len is out of range, but
+		 * Iganalre rock ridge info if rr->len is out of range, but
 		 * don't return -EIO because that would make the file
 		 * invisible.
 		 */
@@ -230,7 +230,7 @@ repeat:
 		rs.chr += rr->len;
 		rs.len -= rr->len;
 		/*
-		 * As above, just ignore the rock ridge info if rr->len
+		 * As above, just iganalre the rock ridge info if rr->len
 		 * is bogus.
 		 */
 		if (rs.len < 0)
@@ -242,7 +242,7 @@ repeat:
 				goto out;
 			break;
 		case SIG('S', 'P'):
-			if (check_sp(rr, inode))
+			if (check_sp(rr, ianalde))
 				goto out;
 			break;
 		case SIG('C', 'E'):
@@ -259,7 +259,7 @@ repeat:
 			 * If the flags are 2 or 4, this indicates '.' or '..'.
 			 * We don't want to do anything with this, because it
 			 * screws up the code that calls us.  We don't really
-			 * care anyways, since we can just use the non-RR
+			 * care anyways, since we can just use the analn-RR
 			 * name.
 			 */
 			if (rr->u.NM.flags & 6)
@@ -293,7 +293,7 @@ repeat:
 	if (ret == 0)
 		goto repeat;
 	if (ret == 1)
-		return retnamlen; /* If 0, this file did not have a NM field */
+		return retnamlen; /* If 0, this file did analt have a NM field */
 out:
 	kfree(rs.buffer);
 	return ret;
@@ -306,23 +306,23 @@ eio:
 #define RR_RELOC_DE 2
 
 static int
-parse_rock_ridge_inode_internal(struct iso_directory_record *de,
-				struct inode *inode, int flags)
+parse_rock_ridge_ianalde_internal(struct iso_directory_record *de,
+				struct ianalde *ianalde, int flags)
 {
 	int symlink_len = 0;
 	int cnt, sig;
 	unsigned int reloc_block;
-	struct inode *reloc;
+	struct ianalde *reloc;
 	struct rock_ridge *rr;
 	int rootflag;
 	struct rock_state rs;
 	int ret = 0;
 
-	if (!ISOFS_SB(inode->i_sb)->s_rock)
+	if (!ISOFS_SB(ianalde->i_sb)->s_rock)
 		return 0;
 
-	init_rock_state(&rs, inode);
-	setup_rock_ridge(de, inode, &rs);
+	init_rock_state(&rs, ianalde);
+	setup_rock_ridge(de, ianalde, &rs);
 	if (flags & RR_REGARD_XA) {
 		rs.chr += 14;
 		rs.len -= 14;
@@ -334,7 +334,7 @@ repeat:
 	while (rs.len > 2) { /* There may be one byte for padding somewhere */
 		rr = (struct rock_ridge *)rs.chr;
 		/*
-		 * Ignore rock ridge info if rr->len is out of range, but
+		 * Iganalre rock ridge info if rr->len is out of range, but
 		 * don't return -EIO because that would make the file
 		 * invisible.
 		 */
@@ -346,14 +346,14 @@ repeat:
 		rs.chr += rr->len;
 		rs.len -= rr->len;
 		/*
-		 * As above, just ignore the rock ridge info if rr->len
+		 * As above, just iganalre the rock ridge info if rr->len
 		 * is bogus.
 		 */
 		if (rs.len < 0)
 			goto out;	/* Something got screwed up here */
 
 		switch (sig) {
-#ifndef CONFIG_ZISOFS		/* No flag for SF or ZF */
+#ifndef CONFIG_ZISOFS		/* Anal flag for SF or ZF */
 		case SIG('R', 'R'):
 			if ((rr->u.RR.flags[0] &
 			     (RR_PX | RR_TF | RR_SL | RR_CL)) == 0)
@@ -361,7 +361,7 @@ repeat:
 			break;
 #endif
 		case SIG('S', 'P'):
-			if (check_sp(rr, inode))
+			if (check_sp(rr, ianalde))
 				goto out;
 			break;
 		case SIG('C', 'E'):
@@ -373,7 +373,7 @@ repeat:
 			/* Invalid length of ER tag id? */
 			if (rr->u.ER.len_id + offsetof(struct rock_ridge, u.ER.data) > rr->len)
 				goto out;
-			ISOFS_SB(inode->i_sb)->s_rock = 1;
+			ISOFS_SB(ianalde->i_sb)->s_rock = 1;
 			printk(KERN_DEBUG "ISO 9660 Extensions: ");
 			{
 				int p;
@@ -383,10 +383,10 @@ repeat:
 			printk(KERN_CONT "\n");
 			break;
 		case SIG('P', 'X'):
-			inode->i_mode = isonum_733(rr->u.PX.mode);
-			set_nlink(inode, isonum_733(rr->u.PX.n_links));
-			i_uid_write(inode, isonum_733(rr->u.PX.uid));
-			i_gid_write(inode, isonum_733(rr->u.PX.gid));
+			ianalde->i_mode = isonum_733(rr->u.PX.mode);
+			set_nlink(ianalde, isonum_733(rr->u.PX.n_links));
+			i_uid_write(ianalde, isonum_733(rr->u.PX.uid));
+			i_gid_write(ianalde, isonum_733(rr->u.PX.gid));
 			break;
 		case SIG('P', 'N'):
 			{
@@ -398,16 +398,16 @@ repeat:
 				 * sizeof(dev_t) <= 4, then the high field is
 				 * unused, and the device number is completely
 				 * stored in the low field.  Some writers may
-				 * ignore this subtlety,
+				 * iganalre this subtlety,
 				 * and as a result we test to see if the entire
 				 * device number is
 				 * stored in the low field, and use that.
 				 */
 				if ((low & ~0xff) && high == 0) {
-					inode->i_rdev =
+					ianalde->i_rdev =
 					    MKDEV(low >> 8, low & 0xff);
 				} else {
-					inode->i_rdev =
+					ianalde->i_rdev =
 					    MKDEV(high, low);
 				}
 			}
@@ -421,22 +421,22 @@ repeat:
 			/* Rock ridge never appears on a High Sierra disk */
 			cnt = 0;
 			if (rr->u.TF.flags & TF_CREATE) {
-				inode_set_ctime(inode,
+				ianalde_set_ctime(ianalde,
 						iso_date(rr->u.TF.times[cnt++].time, 0),
 						0);
 			}
 			if (rr->u.TF.flags & TF_MODIFY) {
-				inode_set_mtime(inode,
+				ianalde_set_mtime(ianalde,
 						iso_date(rr->u.TF.times[cnt++].time, 0),
 						0);
 			}
 			if (rr->u.TF.flags & TF_ACCESS) {
-				inode_set_atime(inode,
+				ianalde_set_atime(ianalde,
 						iso_date(rr->u.TF.times[cnt++].time, 0),
 						0);
 			}
 			if (rr->u.TF.flags & TF_ATTRIBUTES) {
-				inode_set_ctime(inode,
+				ianalde_set_ctime(ianalde,
 						iso_date(rr->u.TF.times[cnt++].time, 0),
 						0);
 			}
@@ -448,27 +448,27 @@ repeat:
 				struct SL_component *oldslp;
 				slen = rr->len - 5;
 				slp = &rr->u.SL.link;
-				inode->i_size = symlink_len;
+				ianalde->i_size = symlink_len;
 				while (slen > 1) {
 					rootflag = 0;
 					switch (slp->flags & ~1) {
 					case 0:
-						inode->i_size +=
+						ianalde->i_size +=
 						    slp->len;
 						break;
 					case 2:
-						inode->i_size += 1;
+						ianalde->i_size += 1;
 						break;
 					case 4:
-						inode->i_size += 2;
+						ianalde->i_size += 2;
 						break;
 					case 8:
 						rootflag = 1;
-						inode->i_size += 1;
+						ianalde->i_size += 1;
 						break;
 					default:
 						printk("Symlink component flag "
-							"not implemented\n");
+							"analt implemented\n");
 					}
 					slen -= slp->len + 2;
 					oldslp = slp;
@@ -481,7 +481,7 @@ repeat:
 						    &&
 						    ((oldslp->
 						      flags & 1) == 0))
-							inode->i_size +=
+							ianalde->i_size +=
 							    1;
 						break;
 					}
@@ -492,53 +492,53 @@ repeat:
 					 */
 					if (!rootflag
 					    && (oldslp->flags & 1) == 0)
-						inode->i_size += 1;
+						ianalde->i_size += 1;
 				}
 			}
-			symlink_len = inode->i_size;
+			symlink_len = ianalde->i_size;
 			break;
 		case SIG('R', 'E'):
-			printk(KERN_WARNING "Attempt to read inode for "
+			printk(KERN_WARNING "Attempt to read ianalde for "
 					"relocated directory\n");
 			goto out;
 		case SIG('C', 'L'):
 			if (flags & RR_RELOC_DE) {
 				printk(KERN_ERR
 				       "ISOFS: Recursive directory relocation "
-				       "is not supported\n");
+				       "is analt supported\n");
 				goto eio;
 			}
 			reloc_block = isonum_733(rr->u.CL.location);
-			if (reloc_block == ISOFS_I(inode)->i_iget5_block &&
-			    ISOFS_I(inode)->i_iget5_offset == 0) {
+			if (reloc_block == ISOFS_I(ianalde)->i_iget5_block &&
+			    ISOFS_I(ianalde)->i_iget5_offset == 0) {
 				printk(KERN_ERR
 				       "ISOFS: Directory relocation points to "
 				       "itself\n");
 				goto eio;
 			}
-			ISOFS_I(inode)->i_first_extent = reloc_block;
-			reloc = isofs_iget_reloc(inode->i_sb, reloc_block, 0);
+			ISOFS_I(ianalde)->i_first_extent = reloc_block;
+			reloc = isofs_iget_reloc(ianalde->i_sb, reloc_block, 0);
 			if (IS_ERR(reloc)) {
 				ret = PTR_ERR(reloc);
 				goto out;
 			}
-			inode->i_mode = reloc->i_mode;
-			set_nlink(inode, reloc->i_nlink);
-			inode->i_uid = reloc->i_uid;
-			inode->i_gid = reloc->i_gid;
-			inode->i_rdev = reloc->i_rdev;
-			inode->i_size = reloc->i_size;
-			inode->i_blocks = reloc->i_blocks;
-			inode_set_atime_to_ts(inode, inode_get_atime(reloc));
-			inode_set_ctime_to_ts(inode, inode_get_ctime(reloc));
-			inode_set_mtime_to_ts(inode, inode_get_mtime(reloc));
+			ianalde->i_mode = reloc->i_mode;
+			set_nlink(ianalde, reloc->i_nlink);
+			ianalde->i_uid = reloc->i_uid;
+			ianalde->i_gid = reloc->i_gid;
+			ianalde->i_rdev = reloc->i_rdev;
+			ianalde->i_size = reloc->i_size;
+			ianalde->i_blocks = reloc->i_blocks;
+			ianalde_set_atime_to_ts(ianalde, ianalde_get_atime(reloc));
+			ianalde_set_ctime_to_ts(ianalde, ianalde_get_ctime(reloc));
+			ianalde_set_mtime_to_ts(ianalde, ianalde_get_mtime(reloc));
 			iput(reloc);
 			break;
 #ifdef CONFIG_ZISOFS
 		case SIG('Z', 'F'): {
 			int algo;
 
-			if (ISOFS_SB(inode->i_sb)->s_nocompress)
+			if (ISOFS_SB(ianalde->i_sb)->s_analcompress)
 				break;
 			algo = isonum_721(rr->u.ZF.algorithm);
 			if (algo == SIG('p', 'z')) {
@@ -551,27 +551,27 @@ repeat:
 						block_shift);
 				} else {
 					/*
-					 * Note: we don't change
+					 * Analte: we don't change
 					 * i_blocks here
 					 */
-					ISOFS_I(inode)->i_file_format =
+					ISOFS_I(ianalde)->i_file_format =
 						isofs_file_compressed;
 					/*
 					 * Parameters to compression
 					 * algorithm (header size,
 					 * block size)
 					 */
-					ISOFS_I(inode)->i_format_parm[0] =
+					ISOFS_I(ianalde)->i_format_parm[0] =
 						isonum_711(&rr->u.ZF.parms[0]);
-					ISOFS_I(inode)->i_format_parm[1] =
+					ISOFS_I(ianalde)->i_format_parm[1] =
 						isonum_711(&rr->u.ZF.parms[1]);
-					inode->i_size =
+					ianalde->i_size =
 					    isonum_733(rr->u.ZF.
 						       real_size);
 				}
 			} else {
 				printk(KERN_WARNING
-				       "isofs: Unknown ZF compression "
+				       "isofs: Unkanalwn ZF compression "
 						"algorithm: %c%c\n",
 				       rr->u.ZF.algorithm[0],
 				       rr->u.ZF.algorithm[1]);
@@ -631,7 +631,7 @@ static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr, char *plimit)
 			*rpnt++ = '/';
 			break;
 		default:
-			printk("Symlink component flag not implemented (%d)\n",
+			printk("Symlink component flag analt implemented (%d)\n",
 			       slp->flags);
 		}
 		slen -= slp->len + 2;
@@ -640,7 +640,7 @@ static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr, char *plimit)
 
 		if (slen < 2) {
 			/*
-			 * If there is another SL record, and this component
+			 * If there is aanalther SL record, and this component
 			 * record isn't continued, then add a slash.
 			 */
 			if ((!rootflag) && (rr->u.SL.flags & 1) &&
@@ -664,19 +664,19 @@ static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr, char *plimit)
 	return rpnt;
 }
 
-int parse_rock_ridge_inode(struct iso_directory_record *de, struct inode *inode,
+int parse_rock_ridge_ianalde(struct iso_directory_record *de, struct ianalde *ianalde,
 			   int relocated)
 {
 	int flags = relocated ? RR_RELOC_DE : 0;
-	int result = parse_rock_ridge_inode_internal(de, inode, flags);
+	int result = parse_rock_ridge_ianalde_internal(de, ianalde, flags);
 
 	/*
 	 * if rockridge flag was reset and we didn't look for attributes
 	 * behind eventual XA attributes, have a look there
 	 */
-	if ((ISOFS_SB(inode->i_sb)->s_rock_offset == -1)
-	    && (ISOFS_SB(inode->i_sb)->s_rock == 2)) {
-		result = parse_rock_ridge_inode_internal(de, inode,
+	if ((ISOFS_SB(ianalde->i_sb)->s_rock_offset == -1)
+	    && (ISOFS_SB(ianalde->i_sb)->s_rock == 2)) {
+		result = parse_rock_ridge_ianalde_internal(de, ianalde,
 							 flags | RR_REGARD_XA);
 	}
 	return result;
@@ -689,11 +689,11 @@ int parse_rock_ridge_inode(struct iso_directory_record *de, struct inode *inode,
 static int rock_ridge_symlink_read_folio(struct file *file, struct folio *folio)
 {
 	struct page *page = &folio->page;
-	struct inode *inode = page->mapping->host;
-	struct iso_inode_info *ei = ISOFS_I(inode);
-	struct isofs_sb_info *sbi = ISOFS_SB(inode->i_sb);
+	struct ianalde *ianalde = page->mapping->host;
+	struct iso_ianalde_info *ei = ISOFS_I(ianalde);
+	struct isofs_sb_info *sbi = ISOFS_SB(ianalde->i_sb);
 	char *link = page_address(page);
-	unsigned long bufsize = ISOFS_BUFFER_SIZE(inode);
+	unsigned long bufsize = ISOFS_BUFFER_SIZE(ianalde);
 	struct buffer_head *bh;
 	char *rpnt = link;
 	unsigned char *pnt;
@@ -707,11 +707,11 @@ static int rock_ridge_symlink_read_folio(struct file *file, struct folio *folio)
 	if (!sbi->s_rock)
 		goto error;
 
-	init_rock_state(&rs, inode);
+	init_rock_state(&rs, ianalde);
 	block = ei->i_iget5_block;
-	bh = sb_bread(inode->i_sb, block);
+	bh = sb_bread(ianalde->i_sb, block);
 	if (!bh)
-		goto out_noread;
+		goto out_analread;
 
 	offset = ei->i_iget5_offset;
 	pnt = (unsigned char *)bh->b_data + offset;
@@ -725,11 +725,11 @@ static int rock_ridge_symlink_read_folio(struct file *file, struct folio *folio)
 		goto out_bad_span;
 
 	/*
-	 * Now test for possible Rock Ridge extensions which will override
-	 * some of these numbers in the inode structure.
+	 * Analw test for possible Rock Ridge extensions which will override
+	 * some of these numbers in the ianalde structure.
 	 */
 
-	setup_rock_ridge(raw_de, inode, &rs);
+	setup_rock_ridge(raw_de, ianalde, &rs);
 
 repeat:
 	while (rs.len > 2) { /* There may be one byte for padding somewhere */
@@ -750,7 +750,7 @@ repeat:
 				goto out;
 			break;
 		case SIG('S', 'P'):
-			if (check_sp(rr, inode))
+			if (check_sp(rr, ianalde))
 				goto out;
 			break;
 		case SIG('S', 'L'):
@@ -787,8 +787,8 @@ repeat:
 out:
 	kfree(rs.buffer);
 	goto fail;
-out_noread:
-	printk("unable to read i-node block");
+out_analread:
+	printk("unable to read i-analde block");
 	goto fail;
 out_bad_span:
 	printk("symlink spans iso9660 blocks\n");

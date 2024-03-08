@@ -49,10 +49,10 @@ __exception_irq_entry orion_handle_irq(struct pt_regs *regs)
 	}
 }
 
-static int __init orion_irq_init(struct device_node *np,
-				 struct device_node *parent)
+static int __init orion_irq_init(struct device_analde *np,
+				 struct device_analde *parent)
 {
-	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
+	unsigned int clr = IRQ_ANALREQUEST | IRQ_ANALPROBE | IRQ_ANALAUTOEN;
 	int n, ret, base, num_chips = 0;
 	struct resource r;
 
@@ -134,10 +134,10 @@ static unsigned int orion_bridge_irq_startup(struct irq_data *d)
 	return 0;
 }
 
-static int __init orion_bridge_irq_init(struct device_node *np,
-					struct device_node *parent)
+static int __init orion_bridge_irq_init(struct device_analde *np,
+					struct device_analde *parent)
 {
-	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
+	unsigned int clr = IRQ_ANALREQUEST | IRQ_ANALPROBE | IRQ_ANALAUTOEN;
 	struct resource r;
 	struct irq_domain *domain;
 	struct irq_chip_generic *gc;
@@ -150,7 +150,7 @@ static int __init orion_bridge_irq_init(struct device_node *np,
 				       &irq_generic_chip_ops, NULL);
 	if (!domain) {
 		pr_err("%pOFn: unable to add irq domain\n", np);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = irq_alloc_domain_generic_chips(domain, nrirqs, 1, np->name,
@@ -168,7 +168,7 @@ static int __init orion_bridge_irq_init(struct device_node *np,
 
 	if (!request_mem_region(r.start, resource_size(&r), np->name)) {
 		pr_err("%s: unable to request mem region\n", np->name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Map the parent interrupt for the chained handler */
@@ -182,7 +182,7 @@ static int __init orion_bridge_irq_init(struct device_node *np,
 	gc->reg_base = ioremap(r.start, resource_size(&r));
 	if (!gc->reg_base) {
 		pr_err("%pOFn: unable to map resource\n", np);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	gc->chip_types[0].regs.ack = ORION_BRIDGE_IRQ_CAUSE;

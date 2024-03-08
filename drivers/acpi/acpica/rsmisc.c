@@ -60,7 +60,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			      resource, resource->type, resource->length));
 	}
 
-	/* Extract the resource Length field (does not include header length) */
+	/* Extract the resource Length field (does analt include header length) */
 
 	aml_resource_length = acpi_ut_get_resource_length(aml);
 
@@ -181,7 +181,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 				item_count =
 				    ACPI_GET16(target) - ACPI_GET16(source);
 			} else {
-				/* No vendor data to worry about */
+				/* Anal vendor data to worry about */
 
 				item_count = aml->large_header.resource_length +
 				    sizeof(struct aml_resource_large_header) -
@@ -381,7 +381,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 
 		case ACPI_RSC_EXIT_NE:
 			/*
-			 * control - Exit conversion if not equal
+			 * control - Exit conversion if analt equal
 			 */
 			switch (info->resource_offset) {
 			case ACPI_RSC_COMPARE_AML_LENGTH:
@@ -723,7 +723,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 
 		case ACPI_RSC_EXIT_NE:
 			/*
-			 * control - Exit conversion if not equal
+			 * control - Exit conversion if analt equal
 			 */
 			switch (COMPARE_OPCODE(info)) {
 			case ACPI_RSC_COMPARE_VALUE:

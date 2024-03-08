@@ -4,7 +4,7 @@
  *
  *  Based on drivers/tty/serial/8250/8250_pci.c,
  *
- *  Copyright (C) 2022 Microchip Technology Inc., All Rights Reserved.
+ *  Copyright (C) 2022 Microchip Techanallogy Inc., All Rights Reserved.
  */
 
 #include <linux/bitfield.h>
@@ -129,7 +129,7 @@ static const struct serial_rs485 pci1xxxx_rs485_supported = {
 	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND |
 		 SER_RS485_RTS_AFTER_SEND,
 	.delay_rts_after_send = 1,
-	/* Delay RTS before send is not supported */
+	/* Delay RTS before send is analt supported */
 };
 
 static int pci1xxxx_set_sys_lock(struct pci1xxxx_8250 *port)
@@ -209,8 +209,8 @@ static unsigned int pci1xxxx_get_divisor(struct uart_port *port,
 	unsigned int quot;
 
 	/*
-	 * Calculate baud rate sampling period in nanoseconds.
-	 * Fractional part x denotes x/255 parts of a nanosecond.
+	 * Calculate baud rate sampling period in naanalseconds.
+	 * Fractional part x deanaltes x/255 parts of a naanalsecond.
 	 */
 	quot = NSEC_PER_SEC / (baud * UART_BIT_SAMPLE_CNT);
 	*frac = (NSEC_PER_SEC - quot * baud * UART_BIT_SAMPLE_CNT) *
@@ -430,7 +430,7 @@ static int pci1xxxx_suspend(struct device *dev)
 	p = pci_ioremap_bar(pcidev, 0);
 	if (!p) {
 		dev_err(dev, "remapping of bar 0 memory failed");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = readl(p + UART_RESET_REG);
@@ -457,7 +457,7 @@ static int pci1xxxx_resume(struct device *dev)
 	p = pci_ioremap_bar(pcidev, 0);
 	if (!p) {
 		dev_err(dev, "remapping of bar 0 memory failed");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data = readl(p + UART_RESET_REG);
@@ -569,11 +569,11 @@ static int pci1xxxx_serial_probe(struct pci_dev *pdev,
 
 	priv = devm_kzalloc(dev, struct_size(priv, line, nr_ports), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->membase = pci_ioremap_bar(pdev, 0);
 	if (!priv->membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pci1xxxx_get_device_revision(priv);
 	if (ret)
@@ -601,7 +601,7 @@ static int pci1xxxx_serial_probe(struct pci_dev *pdev,
 		writeb(UART_PCI_CTRL_SET_MULTIPLE_MSI, priv->membase + UART_PCI_CTRL_REG);
 
 	for (i = 0; i < nr_ports; i++) {
-		priv->line[i] = -ENODEV;
+		priv->line[i] = -EANALDEV;
 
 		port_idx = pci1xxxx_logical_to_physical_port_translate(subsys_dev, i);
 
@@ -670,7 +670,7 @@ module_pci_driver(pci1xxxx_pci_driver);
 static_assert((ARRAY_SIZE(logical_to_physical_port_idx) == PCI_SUBDEVICE_ID_EFAR_PCI1XXXX_1p3 + 1));
 
 MODULE_IMPORT_NS(SERIAL_8250_PCI);
-MODULE_DESCRIPTION("Microchip Technology Inc. PCIe to UART module");
+MODULE_DESCRIPTION("Microchip Techanallogy Inc. PCIe to UART module");
 MODULE_AUTHOR("Kumaravel Thiagarajan <kumaravel.thiagarajan@microchip.com>");
 MODULE_AUTHOR("Tharun Kumar P <tharunkumar.pasumarthi@microchip.com>");
 MODULE_LICENSE("GPL");

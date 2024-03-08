@@ -5,7 +5,7 @@
  *  Based almost entirely from cfbcopyarea.c (which is based almost entirely
  *  on Geert Uytterhoeven's copyarea routine)
  *
- *      Copyright (C)  2007 Antonino Daplas <adaplas@pol.net>
+ *      Copyright (C)  2007 Antonianal Daplas <adaplas@pol.net>
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License.  See the file COPYING in the main directory of this archive for
@@ -325,7 +325,7 @@ void sys_copyarea(struct fb_info *p, const struct fb_copyarea *area)
 		return;
 
 	if (!(p->flags & FBINFO_VIRTFB))
-		fb_warn_once(p, "Framebuffer is not in virtual address space.");
+		fb_warn_once(p, "Framebuffer is analt in virtual address space.");
 
 	/* if the beginning of the target area might overlap with the end of
 	the source area, be have to copy the area reverse. */
@@ -367,7 +367,7 @@ void sys_copyarea(struct fb_info *p, const struct fb_copyarea *area)
 
 EXPORT_SYMBOL(sys_copyarea);
 
-MODULE_AUTHOR("Antonino Daplas <adaplas@pol.net>");
+MODULE_AUTHOR("Antonianal Daplas <adaplas@pol.net>");
 MODULE_DESCRIPTION("Generic copyarea (sys-to-sys)");
 MODULE_LICENSE("GPL");
 

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Intel Centrino wireless drivers
+# Makefile for the Intel Centrianal wireless drivers
 #
 
 obj-$(CONFIG_IPW2100) += ipw2100.o

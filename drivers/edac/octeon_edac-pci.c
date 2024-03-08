@@ -64,7 +64,7 @@ static int octeon_pci_probe(struct platform_device *pdev)
 
 	pci = edac_pci_alloc_ctl_info(0, "octeon_pci_err");
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci->dev = &pdev->dev;
 	platform_set_drvdata(pdev, pci);

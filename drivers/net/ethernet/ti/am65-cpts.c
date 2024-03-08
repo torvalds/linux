@@ -160,7 +160,7 @@ struct am65_cpts {
 	struct ptp_clock *ptp_clock;
 	int phc_index;
 	struct clk_hw *clk_mux_hw;
-	struct device_node *clk_mux_np;
+	struct device_analde *clk_mux_np;
 	struct clk *refclk;
 	u32 refclk_freq;
 	struct list_head events;
@@ -349,7 +349,7 @@ static int am65_cpts_fifo_read(struct am65_cpts *cpts)
 				event->timestamp);
 			break;
 		default:
-			dev_err(cpts->dev, "cpts: unknown event type\n");
+			dev_err(cpts->dev, "cpts: unkanalwn event type\n");
 			ret = -1;
 			goto out;
 		}
@@ -420,10 +420,10 @@ static int am65_cpts_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	}
 
 	/* base freq = 1GHz = 1 000 000 000
-	 * ppb_norm = ppb * base_freq / clock_freq;
-	 * ppm_norm = ppb_norm / 1000
-	 * adj_period = 1 000 000 / ppm_norm
-	 * adj_period = 1 000 000 000 / ppb_norm
+	 * ppb_analrm = ppb * base_freq / clock_freq;
+	 * ppm_analrm = ppb_analrm / 1000
+	 * adj_period = 1 000 000 / ppm_analrm
+	 * adj_period = 1 000 000 000 / ppb_analrm
 	 * adj_period = 1 000 000 000 / (ppb * base_freq / clock_freq)
 	 * adj_period = (1 000 000 000 * clock_freq) / (ppb * base_freq)
 	 * adj_period = clock_freq / ppb
@@ -742,7 +742,7 @@ static int am65_cpts_ptp_enable(struct ptp_clock_info *ptp,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static long am65_cpts_ts_work(struct ptp_clock_info *ptp);
@@ -778,7 +778,7 @@ static bool am65_cpts_match_tx_ts(struct am65_cpts *cpts,
 	skb_queue_splice_init(&cpts->txq, &txq_list);
 	spin_unlock_irqrestore(&cpts->txq.lock, flags);
 
-	/* no need to grab txq.lock as access is always done under cpts->lock */
+	/* anal need to grab txq.lock as access is always done under cpts->lock */
 	skb_queue_walk_safe(&txq_list, skb, tmp) {
 		struct skb_shared_hwtstamps ssh;
 		struct am65_cpts_skb_cb_data *skb_cb =
@@ -889,7 +889,7 @@ static int am65_skb_get_mtype_seqid(struct sk_buff *skb, u32 *mtype_seqid)
 	u8 msgtype;
 	u16 seqid;
 
-	if (ptp_class == PTP_CLASS_NONE)
+	if (ptp_class == PTP_CLASS_ANALNE)
 		return 0;
 
 	hdr = ptp_parse_header(skb, ptp_class);
@@ -971,11 +971,11 @@ static void cpts_free_clk_mux(void *data)
 
 	of_clk_del_provider(cpts->clk_mux_np);
 	clk_hw_unregister_mux(cpts->clk_mux_hw);
-	of_node_put(cpts->clk_mux_np);
+	of_analde_put(cpts->clk_mux_np);
 }
 
 static int cpts_of_mux_clk_setup(struct am65_cpts *cpts,
-				 struct device_node *node)
+				 struct device_analde *analde)
 {
 	unsigned int num_parents;
 	const char **parent_names;
@@ -983,7 +983,7 @@ static int cpts_of_mux_clk_setup(struct am65_cpts *cpts,
 	void __iomem *reg;
 	int ret = -EINVAL;
 
-	cpts->clk_mux_np = of_get_child_by_name(node, "refclk-mux");
+	cpts->clk_mux_np = of_get_child_by_name(analde, "refclk-mux");
 	if (!cpts->clk_mux_np)
 		return 0;
 
@@ -997,7 +997,7 @@ static int cpts_of_mux_clk_setup(struct am65_cpts *cpts,
 	parent_names = devm_kcalloc(cpts->dev, sizeof(char *), num_parents,
 				    GFP_KERNEL);
 	if (!parent_names) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto mux_fail;
 	}
 
@@ -1006,7 +1006,7 @@ static int cpts_of_mux_clk_setup(struct am65_cpts *cpts,
 	clk_mux_name = devm_kasprintf(cpts->dev, GFP_KERNEL, "%s.%pOFn",
 				      dev_name(cpts->dev), cpts->clk_mux_np);
 	if (!clk_mux_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto mux_fail;
 	}
 
@@ -1036,21 +1036,21 @@ static int cpts_of_mux_clk_setup(struct am65_cpts *cpts,
 clk_hw_register:
 	clk_hw_unregister_mux(cpts->clk_mux_hw);
 mux_fail:
-	of_node_put(cpts->clk_mux_np);
+	of_analde_put(cpts->clk_mux_np);
 	return ret;
 }
 
-static int am65_cpts_of_parse(struct am65_cpts *cpts, struct device_node *node)
+static int am65_cpts_of_parse(struct am65_cpts *cpts, struct device_analde *analde)
 {
 	u32 prop[2];
 
-	if (!of_property_read_u32(node, "ti,cpts-ext-ts-inputs", &prop[0]))
+	if (!of_property_read_u32(analde, "ti,cpts-ext-ts-inputs", &prop[0]))
 		cpts->ext_ts_inputs = prop[0];
 
-	if (!of_property_read_u32(node, "ti,cpts-periodic-outputs", &prop[0]))
+	if (!of_property_read_u32(analde, "ti,cpts-periodic-outputs", &prop[0]))
 		cpts->genf_num = prop[0];
 
-	if (!of_property_read_u32_array(node, "ti,pps", prop, 2)) {
+	if (!of_property_read_u32_array(analde, "ti,pps", prop, 2)) {
 		cpts->pps_present = true;
 
 		if (prop[0] > 7) {
@@ -1067,7 +1067,7 @@ static int am65_cpts_of_parse(struct am65_cpts *cpts, struct device_node *node)
 		}
 	}
 
-	return cpts_of_mux_clk_setup(cpts, node);
+	return cpts_of_mux_clk_setup(cpts, analde);
 }
 
 void am65_cpts_release(struct am65_cpts *cpts)
@@ -1079,26 +1079,26 @@ void am65_cpts_release(struct am65_cpts *cpts)
 EXPORT_SYMBOL_GPL(am65_cpts_release);
 
 struct am65_cpts *am65_cpts_create(struct device *dev, void __iomem *regs,
-				   struct device_node *node)
+				   struct device_analde *analde)
 {
 	struct am65_cpts *cpts;
 	int ret, i;
 
 	cpts = devm_kzalloc(dev, sizeof(*cpts), GFP_KERNEL);
 	if (!cpts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cpts->dev = dev;
 	cpts->reg = (struct am65_cpts_regs __iomem *)regs;
 
-	cpts->irq = of_irq_get_byname(node, "cpts");
+	cpts->irq = of_irq_get_byname(analde, "cpts");
 	if (cpts->irq <= 0) {
 		ret = cpts->irq ?: -ENXIO;
 		dev_err_probe(dev, ret, "Failed to get IRQ number\n");
 		return ERR_PTR(ret);
 	}
 
-	ret = am65_cpts_of_parse(cpts, node);
+	ret = am65_cpts_of_parse(cpts, analde);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -1111,7 +1111,7 @@ struct am65_cpts *am65_cpts_create(struct device *dev, void __iomem *regs,
 	for (i = 0; i < AM65_CPTS_MAX_EVENTS; i++)
 		list_add(&cpts->pool_data[i].list, &cpts->pool);
 
-	cpts->refclk = devm_get_clk_from_child(dev, node, "cpts");
+	cpts->refclk = devm_get_clk_from_child(dev, analde, "cpts");
 	if (IS_ERR(cpts->refclk)) {
 		ret = PTR_ERR(cpts->refclk);
 		dev_err_probe(dev, ret, "Failed to get refclk\n");
@@ -1151,7 +1151,7 @@ struct am65_cpts *am65_cpts_create(struct device *dev, void __iomem *regs,
 	if (IS_ERR_OR_NULL(cpts->ptp_clock)) {
 		dev_err(dev, "Failed to register ptp clk %ld\n",
 			PTR_ERR(cpts->ptp_clock));
-		ret = cpts->ptp_clock ? PTR_ERR(cpts->ptp_clock) : -ENODEV;
+		ret = cpts->ptp_clock ? PTR_ERR(cpts->ptp_clock) : -EANALDEV;
 		goto refclk_disable;
 	}
 	cpts->phc_index = ptp_clock_index(cpts->ptp_clock);
@@ -1246,7 +1246,7 @@ EXPORT_SYMBOL_GPL(am65_cpts_resume);
 
 static int am65_cpts_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct am65_cpts *cpts;
 	void __iomem *base;
@@ -1255,7 +1255,7 @@ static int am65_cpts_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	cpts = am65_cpts_create(dev, base, node);
+	cpts = am65_cpts_create(dev, base, analde);
 	return PTR_ERR_OR_ZERO(cpts);
 }
 

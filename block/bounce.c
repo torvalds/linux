@@ -70,7 +70,7 @@ __initcall(init_emergency_pool);
 
 /*
  * Simple bounce buffer support for highmem pages. Depending on the
- * queue gfp mask set, *to may or may not be a highmem page. kmap it
+ * queue gfp mask set, *to may or may analt be a highmem page. kmap it
  * always, it will do the Right Thing
  */
 static void copy_to_high_bio_irq(struct bio *to, struct bio *from)
@@ -158,14 +158,14 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 	 *    But the clone should succeed as long as the number of biovecs we
 	 *    actually need to allocate is fewer than BIO_MAX_VECS.
 	 *
-	 *  - Lastly, bi_vcnt should not be looked at or relied upon by code
-	 *    that does not own the bio - reason being drivers don't use it for
+	 *  - Lastly, bi_vcnt should analt be looked at or relied upon by code
+	 *    that does analt own the bio - reason being drivers don't use it for
 	 *    iterating over the biovec anymore, so expecting it to be kept up
 	 *    to date (i.e. for clones that share the parent biovec) is just
 	 *    asking for trouble and would force extra work.
 	 */
 	bio = bio_alloc_bioset(bio_src->bi_bdev, bio_segments(bio_src),
-			       bio_src->bi_opf, GFP_NOIO, &bounce_bio_set);
+			       bio_src->bi_opf, GFP_ANALIO, &bounce_bio_set);
 	if (bio_flagged(bio_src, BIO_REMAPPED))
 		bio_set_flag(bio, BIO_REMAPPED);
 	bio->bi_ioprio		= bio_src->bi_ioprio;
@@ -183,11 +183,11 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 		break;
 	}
 
-	if (bio_crypt_clone(bio, bio_src, GFP_NOIO) < 0)
+	if (bio_crypt_clone(bio, bio_src, GFP_ANALIO) < 0)
 		goto err_put;
 
 	if (bio_integrity(bio_src) &&
-	    bio_integrity_clone(bio, bio_src, GFP_NOIO) < 0)
+	    bio_integrity_clone(bio, bio_src, GFP_ANALIO) < 0)
 		goto err_put;
 
 	bio_clone_blkg_association(bio, bio_src);
@@ -219,16 +219,16 @@ struct bio *__blk_queue_bounce(struct bio *bio_orig, struct request_queue *q)
 		return bio_orig;
 
 	/*
-	 * Individual bvecs might not be logical block aligned. Round down
+	 * Individual bvecs might analt be logical block aligned. Round down
 	 * the split size so that each bio is properly block size aligned,
-	 * even if we do not use the full hardware limits.
+	 * even if we do analt use the full hardware limits.
 	 */
 	sectors = ALIGN_DOWN(bytes, queue_logical_block_size(q)) >>
 			SECTOR_SHIFT;
 	if (sectors < bio_sectors(bio_orig)) {
-		bio = bio_split(bio_orig, sectors, GFP_NOIO, &bounce_bio_split);
+		bio = bio_split(bio_orig, sectors, GFP_ANALIO, &bounce_bio_split);
 		bio_chain(bio, bio_orig);
-		submit_bio_noacct(bio_orig);
+		submit_bio_analacct(bio_orig);
 		bio_orig = bio;
 	}
 	bio = bounce_clone_bio(bio_orig);
@@ -244,7 +244,7 @@ struct bio *__blk_queue_bounce(struct bio *bio_orig, struct request_queue *q)
 		if (!PageHighMem(to->bv_page))
 			continue;
 
-		bounce_page = mempool_alloc(&page_pool, GFP_NOIO);
+		bounce_page = mempool_alloc(&page_pool, GFP_ANALIO);
 		inc_zone_page_state(bounce_page, NR_BOUNCE);
 
 		if (rw == WRITE) {

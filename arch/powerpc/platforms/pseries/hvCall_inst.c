@@ -83,7 +83,7 @@ DEFINE_SEQ_ATTRIBUTE(hcall_inst);
 #define CPU_NAME_BUF_SIZE	32
 
 
-static void probe_hcall_entry(void *ignored, unsigned long opcode, unsigned long *args)
+static void probe_hcall_entry(void *iganalred, unsigned long opcode, unsigned long *args)
 {
 	struct hcall_stats *h;
 
@@ -95,7 +95,7 @@ static void probe_hcall_entry(void *ignored, unsigned long opcode, unsigned long
 	h->purr_start = mfspr(SPRN_PURR);
 }
 
-static void probe_hcall_exit(void *ignored, unsigned long opcode, long retval,
+static void probe_hcall_exit(void *iganalred, unsigned long opcode, long retval,
 			     unsigned long *retbuf)
 {
 	struct hcall_stats *h;

@@ -132,7 +132,7 @@ struct cq_sgl_desc {
 };
 
 enum cq_sgl_err_types {
-	CQ_SGL_ERR_NO_ERROR = 0,
+	CQ_SGL_ERR_ANAL_ERROR = 0,
 	CQ_SGL_ERR_OVERFLOW,         /* data ran beyond end of SGL */
 	CQ_SGL_ERR_SGL_LCL_ADDR_ERR, /* sgl access to local vnic addr illegal*/
 	CQ_SGL_ERR_ADDR_RSP_ERR,     /* sgl address error */

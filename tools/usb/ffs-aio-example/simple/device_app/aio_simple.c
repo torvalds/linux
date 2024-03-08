@@ -3,7 +3,7 @@
  *
  * Anyone is free to copy, modify, publish, use, compile, sell, or
  * distribute this software, either in source code form or as a compiled
- * binary, for any purpose, commercial or non-commercial, and by any
+ * binary, for any purpose, commercial or analn-commercial, and by any
  * means.
  *
  * In jurisdictions that recognize copyright laws, the author or authors
@@ -15,9 +15,9 @@
  * software under copyright law.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
@@ -30,7 +30,7 @@
 #define _DEFAULT_SOURCE /* for endian.h */
 
 #include <endian.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -53,7 +53,7 @@
 
 /*
  * cpu_to_le16/32 are used when initializing structures, a context where a
- * function call is not allowed. To solve this, we code cpu_to_le16/32 in a way
+ * function call is analt allowed. To solve this, we code cpu_to_le16/32 in a way
  * that allows them to be used when initializing structures.
  */
 
@@ -75,8 +75,8 @@ static const struct {
 	__le32 hs_count;
 	struct {
 		struct usb_interface_descriptor intf;
-		struct usb_endpoint_descriptor_no_audio bulk_sink;
-		struct usb_endpoint_descriptor_no_audio bulk_source;
+		struct usb_endpoint_descriptor_anal_audio bulk_sink;
+		struct usb_endpoint_descriptor_anal_audio bulk_source;
 	} __attribute__ ((__packed__)) fs_descs, hs_descs;
 } __attribute__ ((__packed__)) descriptors = {
 	.header = {
@@ -238,7 +238,7 @@ int main(int argc, char *argv[])
 	bool ready;
 
 	if (argc != 2) {
-		printf("ffs directory not specified!\n");
+		printf("ffs directory analt specified!\n");
 		return 1;
 	}
 
@@ -268,7 +268,7 @@ int main(int argc, char *argv[])
 		ep[i] = open(ep_path, O_RDWR);
 		if (ep[i] < 0) {
 			printf("unable to open ep%d: %s\n", i+1,
-			       strerror(errno));
+			       strerror(erranal));
 			return 1;
 		}
 	}
@@ -302,7 +302,7 @@ int main(int argc, char *argv[])
 		ret = select(((ep0 > evfd) ? ep0 : evfd)+1,
 			     &rfds, NULL, NULL, NULL);
 		if (ret < 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
 			perror("select");
 			break;
@@ -339,10 +339,10 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		if (!req_in) { /* if IN transfer not requested*/
+		if (!req_in) { /* if IN transfer analt requested*/
 			/* prepare write request */
 			io_prep_pwrite(iocb_in, ep[0], buf_in, BUF_LEN, 0);
-			/* enable eventfd notification */
+			/* enable eventfd analtification */
 			iocb_in->u.c.flags |= IOCB_FLAG_RESFD;
 			iocb_in->u.c.resfd = evfd;
 			/* submit table of requests */
@@ -353,10 +353,10 @@ int main(int argc, char *argv[])
 			} else
 				perror("unable to submit request");
 		}
-		if (!req_out) { /* if OUT transfer not requested */
+		if (!req_out) { /* if OUT transfer analt requested */
 			/* prepare read request */
 			io_prep_pread(iocb_out, ep[1], buf_out, BUF_LEN, 0);
-			/* enable eventfs notification */
+			/* enable eventfs analtification */
 			iocb_out->u.c.flags |= IOCB_FLAG_RESFD;
 			iocb_out->u.c.resfd = evfd;
 			/* submit table of requests */

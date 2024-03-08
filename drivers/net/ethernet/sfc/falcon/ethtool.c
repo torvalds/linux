@@ -143,7 +143,7 @@ ef4_ethtool_set_link_ksettings(struct net_device *net_dev,
 	struct ef4_nic *efx = netdev_priv(net_dev);
 	int rc;
 
-	/* GMAC does not support 1000Mbps HD */
+	/* GMAC does analt support 1000Mbps HD */
 	if ((cmd->base.speed == SPEED_1000) &&
 	    (cmd->base.duplex != DUPLEX_FULL)) {
 		netif_dbg(efx, drv, efx->net_dev,
@@ -326,12 +326,12 @@ static int ef4_ethtool_fill_self_tests(struct ef4_nic *efx,
 		      "core", 0, "registers", NULL);
 
 	if (efx->phy_op->run_tests != NULL) {
-		EF4_BUG_ON_PARANOID(efx->phy_op->test_name == NULL);
+		EF4_BUG_ON_PARAANALID(efx->phy_op->test_name == NULL);
 
 		for (i = 0; true; ++i) {
 			const char *name;
 
-			EF4_BUG_ON_PARANOID(i >= EF4_MAX_PHY_TESTS);
+			EF4_BUG_ON_PARAANALID(i >= EF4_MAX_PHY_TESTS);
 			name = efx->phy_op->test_name(efx, i);
 			if (name == NULL)
 				break;
@@ -342,7 +342,7 @@ static int ef4_ethtool_fill_self_tests(struct ef4_nic *efx,
 	}
 
 	/* Loopback tests */
-	for (mode = LOOPBACK_NONE; mode <= LOOPBACK_TEST_MAX; mode++) {
+	for (mode = LOOPBACK_ANALNE; mode <= LOOPBACK_TEST_MAX; mode++) {
 		if (!(efx->loopback_modes & (1 << mode)))
 			continue;
 		n = ef4_fill_loopback_test(efx,
@@ -422,7 +422,7 @@ static void ef4_ethtool_get_strings(struct net_device *net_dev,
 		ef4_ethtool_fill_self_tests(efx, NULL, strings, NULL);
 		break;
 	default:
-		/* No other string sets */
+		/* Anal other string sets */
 		break;
 	}
 }
@@ -497,7 +497,7 @@ static void ef4_ethtool_self_test(struct net_device *net_dev,
 	struct ef4_nic *efx = netdev_priv(net_dev);
 	struct ef4_self_tests *ef4_tests;
 	bool already_up;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	ef4_tests = kzalloc(sizeof(*ef4_tests), GFP_KERNEL);
 	if (!ef4_tests)
@@ -556,23 +556,23 @@ static int ef4_ethtool_nway_reset(struct net_device *net_dev)
  * automatically changed too, but otherwise we fail if the two values
  * are requested to be different.
  *
- * The hardware does not support a limit on the number of completions
- * before an IRQ, so we do not use the max_frames fields.  We should
+ * The hardware does analt support a limit on the number of completions
+ * before an IRQ, so we do analt use the max_frames fields.  We should
  * report and require that max_frames == (usecs != 0), but this would
  * invalidate existing user documentation.
  *
- * The hardware does not have distinct settings for interrupt
+ * The hardware does analt have distinct settings for interrupt
  * moderation while the previous IRQ is being handled, so we should
- * not use the 'irq' fields.  However, an earlier developer
+ * analt use the 'irq' fields.  However, an earlier developer
  * misunderstood the meaning of the 'irq' fields and the driver did
- * not support the standard fields.  To avoid invalidating existing
+ * analt support the standard fields.  To avoid invalidating existing
  * user documentation, we report and accept changes through either the
  * standard or 'irq' fields.  If both are changed at the same time, we
  * prefer the standard field.
  *
  * We implement adaptive IRQ moderation, but use a different algorithm
  * from that assumed in the definition of struct ethtool_coalesce.
- * Therefore we do not use any of the adaptive moderation parameters
+ * Therefore we do analt use any of the adaptive moderation parameters
  * in it.
  */
 
@@ -667,7 +667,7 @@ ef4_ethtool_set_ringparam(struct net_device *net_dev,
 
 	if (ring->rx_pending < EF4_RXQ_MIN_ENT) {
 		netif_err(efx, drv, efx->net_dev,
-			  "RX queues cannot be smaller than %u\n",
+			  "RX queues cananalt be smaller than %u\n",
 			  EF4_RXQ_MIN_ENT);
 		return -EINVAL;
 	}
@@ -729,7 +729,7 @@ static int ef4_ethtool_set_pauseparam(struct net_device *net_dev,
 	}
 
 	/* Reconfigure the MAC. The PHY *may* generate a link state change event
-	 * if the user just changed the advertised capabilities, but there's no
+	 * if the user just changed the advertised capabilities, but there's anal
 	 * harm doing this twice */
 	ef4_mac_reconfigure(efx);
 
@@ -986,7 +986,7 @@ ef4_ethtool_get_rxnfc(struct net_device *net_dev,
 	case ETHTOOL_GRXCLSRLCNT:
 		info->data = ef4_filter_get_rx_id_limit(efx);
 		if (info->data == 0)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		info->data |= RX_CLS_LOC_SPECIAL;
 		info->rule_cnt =
 			ef4_filter_count_rx_used(efx, EF4_FILTER_PRI_MANUAL);
@@ -994,14 +994,14 @@ ef4_ethtool_get_rxnfc(struct net_device *net_dev,
 
 	case ETHTOOL_GRXCLSRULE:
 		if (ef4_filter_get_rx_id_limit(efx) == 0)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		return ef4_ethtool_get_class_rule(efx, &info->fs);
 
 	case ETHTOOL_GRXCLSRLALL: {
 		s32 rc;
 		info->data = ef4_filter_get_rx_id_limit(efx);
 		if (info->data == 0)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		rc = ef4_filter_get_rx_ids(efx, EF4_FILTER_PRI_MANUAL,
 					   rule_locs, info->rule_cnt);
 		if (rc < 0)
@@ -1011,7 +1011,7 @@ ef4_ethtool_get_rxnfc(struct net_device *net_dev,
 	}
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1233,7 +1233,7 @@ static int ef4_ethtool_set_rxnfc(struct net_device *net_dev,
 	struct ef4_nic *efx = netdev_priv(net_dev);
 
 	if (ef4_filter_get_rx_id_limit(efx) == 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (info->cmd) {
 	case ETHTOOL_SRXCLSRLINS:
@@ -1244,7 +1244,7 @@ static int ef4_ethtool_set_rxnfc(struct net_device *net_dev,
 						 info->fs.location);
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1275,11 +1275,11 @@ static int ef4_ethtool_set_rxfh(struct net_device *net_dev,
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
 
-	/* We do not allow change in unsupported parameters */
+	/* We do analt allow change in unsupported parameters */
 	if (rxfh->key ||
-	    (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	     rxfh->hfunc != ETH_RSS_HASH_TOP))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!rxfh->indir)
 		return 0;
 
@@ -1294,7 +1294,7 @@ static int ef4_ethtool_get_module_eeprom(struct net_device *net_dev,
 	int ret;
 
 	if (!efx->phy_op || !efx->phy_op->get_module_eeprom)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&efx->mac_lock);
 	ret = efx->phy_op->get_module_eeprom(efx, ee, data);
@@ -1310,7 +1310,7 @@ static int ef4_ethtool_get_module_info(struct net_device *net_dev,
 	int ret;
 
 	if (!efx->phy_op || !efx->phy_op->get_module_info)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&efx->mac_lock);
 	ret = efx->phy_op->get_module_info(efx, modinfo);

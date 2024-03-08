@@ -22,12 +22,12 @@ structures under devices/::
 	   - defunct/
 
 In this example, device 0815 is accessed via subchannel 0 in subchannel set 0,
-device 4711 via subchannel 1 in subchannel set 0, and subchannel 2 is a non-I/O
+device 4711 via subchannel 1 in subchannel set 0, and subchannel 2 is a analn-I/O
 subchannel. Device 1234 is accessed via subchannel 0 in subchannel set 1.
 
-The subchannel named 'defunct' does not represent any real subchannel on the
+The subchannel named 'defunct' does analt represent any real subchannel on the
 system; it is a pseudo subchannel where disconnected ccw devices are moved to
-if they are displaced by another ccw device becoming operational on their
+if they are displaced by aanalther ccw device becoming operational on their
 former subchannel. The ccw devices will be moved again to a proper subchannel
 if they become operational again on that subchannel.
 
@@ -43,13 +43,13 @@ devtype:
 	The device type / model, if applicable.
 
 availability:
-	      Can be 'good' or 'boxed'; 'no path' or 'no device' for
+	      Can be 'good' or 'boxed'; 'anal path' or 'anal device' for
 	      disconnected devices.
 
 online:
 	    An interface to set the device online and offline.
 	    In the special case of the device being disconnected (see the
-	    notify function under 1.2), piping 0 to online will forcibly delete
+	    analtify function under 1.2), piping 0 to online will forcibly delete
 	    the device.
 
 The device drivers can add entries to export per-device data and interfaces.
@@ -103,13 +103,13 @@ under include/asm/ccwdev.h::
 	int (*remove) (struct ccw_device *);
 	int (*set_online) (struct ccw_device *);
 	int (*set_offline) (struct ccw_device *);
-	int (*notify) (struct ccw_device *, int);
+	int (*analtify) (struct ccw_device *, int);
 	struct device_driver driver;
 	char *name;
   };
 
 The 'private' field contains data needed for internal i/o operation only, and
-is not available to the device driver.
+is analt available to the device driver.
 
 Each driver should declare in a MODULE_DEVICE_TABLE into which CU types/models
 and/or device types/models it is interested. This information can later be found
@@ -168,12 +168,12 @@ set_online:
 Parameters:
 		cdev
 			- the device to be activated. The common layer has
-			  verified that the device is not already online.
+			  verified that the device is analt already online.
 
 
 set_offline: This function is called by the common I/O layer when the device is
 	     de-activated via the 'online' attribute. The driver should shut
-	     down the device, but not de-allocate its private data.
+	     down the device, but analt de-allocate its private data.
 
 ::
 
@@ -185,28 +185,28 @@ Parameters:
 			   verified that the device is online.
 
 
-notify:
+analtify:
 	This function is called by the common I/O layer for some state changes
 	of the device.
 
 	Signalled to the driver are:
 
 	* In online state, device detached (CIO_GONE) or last path gone
-	  (CIO_NO_PATH). The driver must return !0 to keep the device; for
-	  return code 0, the device will be deleted as usual (also when no
-	  notify function is registered). If the driver wants to keep the
+	  (CIO_ANAL_PATH). The driver must return !0 to keep the device; for
+	  return code 0, the device will be deleted as usual (also when anal
+	  analtify function is registered). If the driver wants to keep the
 	  device, it is moved into disconnected state.
 	* In disconnected state, device operational again (CIO_OPER). The
 	  common I/O layer performs some sanity checks on device number and
 	  Device / CU to be reasonably sure if it is still the same device.
-	  If not, the old device is removed and a new one registered. By the
-	  return code of the notify function the device driver signals if it
+	  If analt, the old device is removed and a new one registered. By the
+	  return code of the analtify function the device driver signals if it
 	  wants the device back: !0 for keeping, 0 to make the device being
 	  removed and re-registered.
 
 ::
 
-  int (*notify) (struct ccw_device *, int);
+  int (*analtify) (struct ccw_device *, int);
 
 Parameters:
 		cdev
@@ -214,7 +214,7 @@ Parameters:
 
 		event
 			- the event that happened. This can be one of CIO_GONE,
-			  CIO_NO_PATH or CIO_OPER.
+			  CIO_ANAL_PATH or CIO_OPER.
 
 The handler field of the struct ccw_device is meant to be set to the interrupt
 handler for the device. In order to accommodate drivers which use several
@@ -248,15 +248,15 @@ devices, like lcs or ctc.
 
 The ccw driver provides a 'group' attribute. Piping bus ids of ccw devices to
 this attributes creates a ccwgroup device consisting of these ccw devices (if
-possible). This ccwgroup device can be set online or offline just like a normal
+possible). This ccwgroup device can be set online or offline just like a analrmal
 ccw device.
 
 Each ccwgroup device also provides an 'ungroup' attribute to destroy the device
 again (only when offline). This is a generic ccwgroup mechanism (the driver does
-not need to implement anything beyond normal removal routines).
+analt need to implement anything beyond analrmal removal routines).
 
 A ccw device which is a member of a ccwgroup device carries a pointer to the
-ccwgroup device in the driver_data of its device struct. This field must not be
+ccwgroup device in the driver_data of its device struct. This field must analt be
 touched by the driver - it should use the ccwgroup device's driver_data for its
 private data.
 
@@ -269,9 +269,9 @@ driver.
 -----------------
 
 Channel paths show up, like subchannels, under the channel subsystem root (css0)
-and are called 'chp0.<chpid>'. They have no driver and do not belong to any bus.
-Please note, that unlike /proc/chpids in 2.4, the channel path objects reflect
-only the logical state and not the physical state, since we cannot track the
+and are called 'chp0.<chpid>'. They have anal driver and do analt belong to any bus.
+Please analte, that unlike /proc/chpids in 2.4, the channel path objects reflect
+only the logical state and analt the physical state, since we cananalt track the
 latter consistently due to lacking machine support (we don't need to be aware
 of it anyway).
 
@@ -280,7 +280,7 @@ status
 	 Piping 'on' or 'off' sets the chpid logically online/offline.
 	 Piping 'on' to an online chpid triggers path reprobing for all devices
 	 the chpid connects to. This can be used to force the kernel to re-use
-	 a channel path the user knows to be online, but the machine hasn't
+	 a channel path the user kanalws to be online, but the machine hasn't
 	 created a machine check for.
 
 type

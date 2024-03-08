@@ -72,7 +72,7 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 		page = alloc_page(GFP_ATOMIC);
 
 		if (!page)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		len = PAGE_SIZE;
 		if (dlen < len)
@@ -94,13 +94,13 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int nexthdr;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct ip_comp_hdr *ipch;
 
 	if (skb_linearize_cow(skb))
 		goto out;
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	/* Remove ipcomp header and decompress original payload */
 	ipch = (void *)skb->data;
@@ -220,7 +220,7 @@ static void * __percpu *ipcomp_alloc_scratches(void)
 	for_each_possible_cpu(i) {
 		void *scratch;
 
-		scratch = vmalloc_node(IPCOMP_SCRATCH_SIZE, cpu_to_node(i));
+		scratch = vmalloc_analde(IPCOMP_SCRATCH_SIZE, cpu_to_analde(i));
 		if (!scratch)
 			return NULL;
 		*per_cpu_ptr(scratches, i) = scratch;
@@ -336,11 +336,11 @@ int ipcomp_init_state(struct xfrm_state *x, struct netlink_ext_ack *extack)
 	}
 
 	if (x->encap) {
-		NL_SET_ERR_MSG(extack, "IPComp is not compatible with encapsulation");
+		NL_SET_ERR_MSG(extack, "IPComp is analt compatible with encapsulation");
 		goto out;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ipcd = kzalloc(sizeof(*ipcd), GFP_KERNEL);
 	if (!ipcd)
 		goto out;

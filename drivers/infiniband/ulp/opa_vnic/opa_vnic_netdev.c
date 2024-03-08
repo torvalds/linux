@@ -22,21 +22,21 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation analr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -174,7 +174,7 @@ void opa_vnic_process_vema_config(struct opa_vnic_adapter *adapter)
 
 	/*
 	 * Build the flow table. Flow table is required when destination LID
-	 * is not available. Up to OPA_VNIC_FLOW_TBL_SIZE flows supported.
+	 * is analt available. Up to OPA_VNIC_FLOW_TBL_SIZE flows supported.
 	 * Each flow need a default port number to get its dlid from the
 	 * u_ucast_dlid array.
 	 */
@@ -329,17 +329,17 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 
 	netdev = ibdev->ops.alloc_rdma_netdev(ibdev, port_num,
 					      RDMA_NETDEV_OPA_VNIC,
-					      "veth%d", NET_NAME_UNKNOWN,
+					      "veth%d", NET_NAME_UNKANALWN,
 					      ether_setup);
 	if (!netdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	else if (IS_ERR(netdev))
 		return ERR_CAST(netdev);
 
 	rn = netdev_priv(netdev);
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto adapter_err;
 	}
 

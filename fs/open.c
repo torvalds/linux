@@ -9,7 +9,7 @@
 #include <linux/mm.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/namei.h>
@@ -30,7 +30,7 @@
 #include <linux/falloc.h>
 #include <linux/fs_struct.h>
 #include <linux/ima.h>
-#include <linux/dnotify.h>
+#include <linux/danaltify.h>
 #include <linux/compat.h>
 #include <linux/mnt_idmapping.h>
 #include <linux/filelock.h>
@@ -43,7 +43,7 @@ int do_truncate(struct mnt_idmap *idmap, struct dentry *dentry,
 	int ret;
 	struct iattr newattrs;
 
-	/* Not pretty: "inode->i_size" shouldn't really be signed. But it is. */
+	/* Analt pretty: "ianalde->i_size" shouldn't really be signed. But it is. */
 	if (length < 0)
 		return -EINVAL;
 
@@ -61,25 +61,25 @@ int do_truncate(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (ret)
 		newattrs.ia_valid |= ret | ATTR_FORCE;
 
-	inode_lock(dentry->d_inode);
-	/* Note any delegations or leases have already been broken: */
-	ret = notify_change(idmap, dentry, &newattrs, NULL);
-	inode_unlock(dentry->d_inode);
+	ianalde_lock(dentry->d_ianalde);
+	/* Analte any delegations or leases have already been broken: */
+	ret = analtify_change(idmap, dentry, &newattrs, NULL);
+	ianalde_unlock(dentry->d_ianalde);
 	return ret;
 }
 
 long vfs_truncate(const struct path *path, loff_t length)
 {
 	struct mnt_idmap *idmap;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	long error;
 
-	inode = path->dentry->d_inode;
+	ianalde = path->dentry->d_ianalde;
 
-	/* For directories it's -EISDIR, for other non-regulars - -EINVAL */
-	if (S_ISDIR(inode->i_mode))
+	/* For directories it's -EISDIR, for other analn-regulars - -EINVAL */
+	if (S_ISDIR(ianalde->i_mode))
 		return -EISDIR;
-	if (!S_ISREG(inode->i_mode))
+	if (!S_ISREG(ianalde->i_mode))
 		return -EINVAL;
 
 	error = mnt_want_write(path->mnt);
@@ -87,23 +87,23 @@ long vfs_truncate(const struct path *path, loff_t length)
 		goto out;
 
 	idmap = mnt_idmap(path->mnt);
-	error = inode_permission(idmap, inode, MAY_WRITE);
+	error = ianalde_permission(idmap, ianalde, MAY_WRITE);
 	if (error)
 		goto mnt_drop_write_and_out;
 
 	error = -EPERM;
-	if (IS_APPEND(inode))
+	if (IS_APPEND(ianalde))
 		goto mnt_drop_write_and_out;
 
-	error = get_write_access(inode);
+	error = get_write_access(ianalde);
 	if (error)
 		goto mnt_drop_write_and_out;
 
 	/*
-	 * Make sure that there are no leases.  get_write_access() protects
+	 * Make sure that there are anal leases.  get_write_access() protects
 	 * against the truncate racing with a lease-granting setlease().
 	 */
-	error = break_lease(inode, O_WRONLY);
+	error = break_lease(ianalde, O_WRONLY);
 	if (error)
 		goto put_write_and_out;
 
@@ -112,7 +112,7 @@ long vfs_truncate(const struct path *path, loff_t length)
 		error = do_truncate(idmap, path->dentry, length, 0, NULL);
 
 put_write_and_out:
-	put_write_access(inode);
+	put_write_access(ianalde);
 mnt_drop_write_and_out:
 	mnt_drop_write(path->mnt);
 out:
@@ -156,7 +156,7 @@ COMPAT_SYSCALL_DEFINE2(truncate, const char __user *, path, compat_off_t, length
 
 long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct dentry *dentry;
 	struct fd f;
 	int error;
@@ -174,26 +174,26 @@ long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 		small = 0;
 
 	dentry = f.file->f_path.dentry;
-	inode = dentry->d_inode;
+	ianalde = dentry->d_ianalde;
 	error = -EINVAL;
-	if (!S_ISREG(inode->i_mode) || !(f.file->f_mode & FMODE_WRITE))
+	if (!S_ISREG(ianalde->i_mode) || !(f.file->f_mode & FMODE_WRITE))
 		goto out_putf;
 
 	error = -EINVAL;
-	/* Cannot ftruncate over 2^31 bytes without large file support */
-	if (small && length > MAX_NON_LFS)
+	/* Cananalt ftruncate over 2^31 bytes without large file support */
+	if (small && length > MAX_ANALN_LFS)
 		goto out_putf;
 
 	error = -EPERM;
-	/* Check IS_APPEND on real upper inode */
-	if (IS_APPEND(file_inode(f.file)))
+	/* Check IS_APPEND on real upper ianalde */
+	if (IS_APPEND(file_ianalde(f.file)))
 		goto out_putf;
-	sb_start_write(inode->i_sb);
+	sb_start_write(ianalde->i_sb);
 	error = security_file_truncate(f.file);
 	if (!error)
 		error = do_truncate(file_mnt_idmap(f.file), dentry, length,
 				    ATTR_MTIME | ATTR_CTIME, f.file);
-	sb_end_write(inode->i_sb);
+	sb_end_write(ianalde->i_sb);
 out_putf:
 	fdput(f);
 out:
@@ -243,25 +243,25 @@ COMPAT_SYSCALL_DEFINE3(ftruncate64, unsigned int, fd,
 
 int vfs_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	long ret;
 
 	if (offset < 0 || len <= 0)
 		return -EINVAL;
 
-	/* Return error if mode is not supported */
+	/* Return error if mode is analt supported */
 	if (mode & ~FALLOC_FL_SUPPORTED_MASK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Punch hole and zero range are mutually exclusive */
 	if ((mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE)) ==
 	    (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Punch hole must have keep size set */
 	if ((mode & FALLOC_FL_PUNCH_HOLE) &&
 	    !(mode & FALLOC_FL_KEEP_SIZE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Collapse range should only be used exclusively. */
 	if ((mode & FALLOC_FL_COLLAPSE_RANGE) &&
@@ -284,16 +284,16 @@ int vfs_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	/*
 	 * We can only allow pure fallocate on append only files
 	 */
-	if ((mode & ~FALLOC_FL_KEEP_SIZE) && IS_APPEND(inode))
+	if ((mode & ~FALLOC_FL_KEEP_SIZE) && IS_APPEND(ianalde))
 		return -EPERM;
 
-	if (IS_IMMUTABLE(inode))
+	if (IS_IMMUTABLE(ianalde))
 		return -EPERM;
 
 	/*
-	 * We cannot allow any fallocate operation on an active swapfile
+	 * We cananalt allow any fallocate operation on an active swapfile
 	 */
-	if (IS_SWAPFILE(inode))
+	if (IS_SWAPFILE(ianalde))
 		return -ETXTBSY;
 
 	/*
@@ -304,38 +304,38 @@ int vfs_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	if (ret)
 		return ret;
 
-	ret = fsnotify_file_area_perm(file, MAY_WRITE, &offset, len);
+	ret = fsanaltify_file_area_perm(file, MAY_WRITE, &offset, len);
 	if (ret)
 		return ret;
 
-	if (S_ISFIFO(inode->i_mode))
+	if (S_ISFIFO(ianalde->i_mode))
 		return -ESPIPE;
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(ianalde->i_mode))
 		return -EISDIR;
 
-	if (!S_ISREG(inode->i_mode) && !S_ISBLK(inode->i_mode))
-		return -ENODEV;
+	if (!S_ISREG(ianalde->i_mode) && !S_ISBLK(ianalde->i_mode))
+		return -EANALDEV;
 
 	/* Check for wrap through zero too */
-	if (((offset + len) > inode->i_sb->s_maxbytes) || ((offset + len) < 0))
+	if (((offset + len) > ianalde->i_sb->s_maxbytes) || ((offset + len) < 0))
 		return -EFBIG;
 
 	if (!file->f_op->fallocate)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	file_start_write(file);
 	ret = file->f_op->fallocate(file, mode, offset, len);
 
 	/*
-	 * Create inotify and fanotify events.
+	 * Create ianaltify and faanaltify events.
 	 *
 	 * To keep the logic simple always create events if fallocate succeeds.
 	 * This implies that events are even created if the file size remains
 	 * unchanged, e.g. when using flag FALLOC_FL_KEEP_SIZE.
 	 */
 	if (ret == 0)
-		fsnotify_modify(file);
+		fsanaltify_modify(file);
 
 	file_end_write(file);
 	return ret;
@@ -369,7 +369,7 @@ COMPAT_SYSCALL_DEFINE6(fallocate, int, fd, int, mode, compat_arg_u64_dual(offset
 #endif
 
 /*
- * access() needs to use the real uid/gid, not the effective uid/gid.
+ * access() needs to use the real uid/gid, analt the effective uid/gid.
  * We do this by temporarily clearing all FS-related capabilities and
  * switching the fsuid/fsgid around to the real ones.
  *
@@ -388,7 +388,7 @@ static bool access_need_override_creds(int flags)
 	    !gid_eq(cred->fsgid, cred->gid))
 		return true;
 
-	if (!issecure(SECURE_NO_SETUID_FIXUP)) {
+	if (!issecure(SECURE_ANAL_SETUID_FIXUP)) {
 		kuid_t root_uid = make_kuid(cred->user_ns, 0);
 		if (!uid_eq(cred->uid, root_uid)) {
 			if (!cap_isclear(cred->cap_effective))
@@ -421,8 +421,8 @@ static const struct cred *access_override_creds(void)
 	override_cred->fsuid = override_cred->uid;
 	override_cred->fsgid = override_cred->gid;
 
-	if (!issecure(SECURE_NO_SETUID_FIXUP)) {
-		/* Clear the capabilities if we switch to a non-root user */
+	if (!issecure(SECURE_ANAL_SETUID_FIXUP)) {
+		/* Clear the capabilities if we switch to a analn-root user */
 		kuid_t root_uid = make_kuid(override_cred->user_ns, 0);
 		if (!uid_eq(override_cred->uid, root_uid))
 			cap_clear(override_cred->cap_effective);
@@ -433,23 +433,23 @@ static const struct cred *access_override_creds(void)
 
 	/*
 	 * The new set of credentials can *only* be used in
-	 * task-synchronous circumstances, and does not need
+	 * task-synchroanalus circumstances, and does analt need
 	 * RCU freeing, unless somebody then takes a separate
 	 * reference to it.
 	 *
-	 * NOTE! This is _only_ true because this credential
+	 * ANALTE! This is _only_ true because this credential
 	 * is used purely for override_creds() that installs
 	 * it as the subjective cred. Other threads will be
-	 * accessing ->real_cred, not the subjective cred.
+	 * accessing ->real_cred, analt the subjective cred.
 	 *
 	 * If somebody _does_ make a copy of this (using the
 	 * 'get_current_cred()' function), that will clear the
-	 * non_rcu field, because now that other user may be
-	 * expecting RCU freeing. But normal thread-synchronous
-	 * cred accesses will keep things non-racy to avoid RCU
+	 * analn_rcu field, because analw that other user may be
+	 * expecting RCU freeing. But analrmal thread-synchroanalus
+	 * cred accesses will keep things analn-racy to avoid RCU
 	 * freeing.
 	 */
-	override_cred->non_rcu = 1;
+	override_cred->analn_rcu = 1;
 
 	old_cred = override_creds(override_cred);
 
@@ -462,7 +462,7 @@ static const struct cred *access_override_creds(void)
 static long do_faccessat(int dfd, const char __user *filename, int mode, int flags)
 {
 	struct path path;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int res;
 	unsigned int lookup_flags = LOOKUP_FOLLOW;
 	const struct cred *old_cred = NULL;
@@ -470,10 +470,10 @@ static long do_faccessat(int dfd, const char __user *filename, int mode, int fla
 	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
 		return -EINVAL;
 
-	if (flags & ~(AT_EACCESS | AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH))
+	if (flags & ~(AT_EACCESS | AT_SYMLINK_ANALFOLLOW | AT_EMPTY_PATH))
 		return -EINVAL;
 
-	if (flags & AT_SYMLINK_NOFOLLOW)
+	if (flags & AT_SYMLINK_ANALFOLLOW)
 		lookup_flags &= ~LOOKUP_FOLLOW;
 	if (flags & AT_EMPTY_PATH)
 		lookup_flags |= LOOKUP_EMPTY;
@@ -481,7 +481,7 @@ static long do_faccessat(int dfd, const char __user *filename, int mode, int fla
 	if (access_need_override_creds(flags)) {
 		old_cred = access_override_creds();
 		if (!old_cred)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 retry:
@@ -489,30 +489,30 @@ retry:
 	if (res)
 		goto out;
 
-	inode = d_backing_inode(path.dentry);
+	ianalde = d_backing_ianalde(path.dentry);
 
-	if ((mode & MAY_EXEC) && S_ISREG(inode->i_mode)) {
+	if ((mode & MAY_EXEC) && S_ISREG(ianalde->i_mode)) {
 		/*
 		 * MAY_EXEC on regular files is denied if the fs is mounted
-		 * with the "noexec" flag.
+		 * with the "analexec" flag.
 		 */
 		res = -EACCES;
-		if (path_noexec(&path))
+		if (path_analexec(&path))
 			goto out_path_release;
 	}
 
-	res = inode_permission(mnt_idmap(path.mnt), inode, mode | MAY_ACCESS);
+	res = ianalde_permission(mnt_idmap(path.mnt), ianalde, mode | MAY_ACCESS);
 	/* SuS v2 requires we report a read only fs too */
-	if (res || !(mode & S_IWOTH) || special_file(inode->i_mode))
+	if (res || !(mode & S_IWOTH) || special_file(ianalde->i_mode))
 		goto out_path_release;
 	/*
 	 * This is a rare case where using __mnt_is_readonly()
 	 * is OK without a mnt_want/drop_write() pair.  Since
-	 * no actual write to the fs is performed here, we do
-	 * not need to telegraph to that to anyone.
+	 * anal actual write to the fs is performed here, we do
+	 * analt need to telegraph to that to anyone.
 	 *
 	 * By doing this, we accept that this access is
-	 * inherently racy and know that the fs may change
+	 * inherently racy and kanalw that the fs may change
 	 * state before we even see this result.
 	 */
 	if (__mnt_is_readonly(path.mnt))
@@ -582,7 +582,7 @@ SYSCALL_DEFINE1(fchdir, unsigned int, fd)
 	if (!f.file)
 		goto out;
 
-	error = -ENOTDIR;
+	error = -EANALTDIR;
 	if (!d_can_lookup(f.file->f_path.dentry))
 		goto out_putf;
 
@@ -630,8 +630,8 @@ out:
 
 int chmod_common(const struct path *path, umode_t mode)
 {
-	struct inode *inode = path->dentry->d_inode;
-	struct inode *delegated_inode = NULL;
+	struct ianalde *ianalde = path->dentry->d_ianalde;
+	struct ianalde *delegated_ianalde = NULL;
 	struct iattr newattrs;
 	int error;
 
@@ -639,18 +639,18 @@ int chmod_common(const struct path *path, umode_t mode)
 	if (error)
 		return error;
 retry_deleg:
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	error = security_path_chmod(path, mode);
 	if (error)
 		goto out_unlock;
-	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
+	newattrs.ia_mode = (mode & S_IALLUGO) | (ianalde->i_mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
-	error = notify_change(mnt_idmap(path->mnt), path->dentry,
-			      &newattrs, &delegated_inode);
+	error = analtify_change(mnt_idmap(path->mnt), path->dentry,
+			      &newattrs, &delegated_ianalde);
 out_unlock:
-	inode_unlock(inode);
-	if (delegated_inode) {
-		error = break_deleg_wait(&delegated_inode);
+	ianalde_unlock(ianalde);
+	if (delegated_ianalde) {
+		error = break_deleg_wait(&delegated_ianalde);
 		if (!error)
 			goto retry_deleg;
 	}
@@ -683,10 +683,10 @@ static int do_fchmodat(int dfd, const char __user *filename, umode_t mode,
 	int error;
 	unsigned int lookup_flags;
 
-	if (unlikely(flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)))
+	if (unlikely(flags & ~(AT_SYMLINK_ANALFOLLOW | AT_EMPTY_PATH)))
 		return -EINVAL;
 
-	lookup_flags = (flags & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
+	lookup_flags = (flags & AT_SYMLINK_ANALFOLLOW) ? 0 : LOOKUP_FOLLOW;
 	if (flags & AT_EMPTY_PATH)
 		lookup_flags |= LOOKUP_EMPTY;
 
@@ -724,7 +724,7 @@ SYSCALL_DEFINE2(chmod, const char __user *, filename, umode_t, mode)
  * Check whether @kuid is valid and if so generate and set vfsuid_t in
  * ia_vfsuid.
  *
- * Return: true if @kuid is valid, false if not.
+ * Return: true if @kuid is valid, false if analt.
  */
 static inline bool setattr_vfsuid(struct iattr *attr, kuid_t kuid)
 {
@@ -739,7 +739,7 @@ static inline bool setattr_vfsuid(struct iattr *attr, kuid_t kuid)
  * Check whether @kgid is valid and if so generate and set vfsgid_t in
  * ia_vfsgid.
  *
- * Return: true if @kgid is valid, false if not.
+ * Return: true if @kgid is valid, false if analt.
  */
 static inline bool setattr_vfsgid(struct iattr *attr, kgid_t kgid)
 {
@@ -754,8 +754,8 @@ int chown_common(const struct path *path, uid_t user, gid_t group)
 {
 	struct mnt_idmap *idmap;
 	struct user_namespace *fs_userns;
-	struct inode *inode = path->dentry->d_inode;
-	struct inode *delegated_inode = NULL;
+	struct ianalde *ianalde = path->dentry->d_ianalde;
+	struct ianalde *delegated_ianalde = NULL;
 	int error;
 	struct iattr newattrs;
 	kuid_t uid;
@@ -765,7 +765,7 @@ int chown_common(const struct path *path, uid_t user, gid_t group)
 	gid = make_kgid(current_user_ns(), group);
 
 	idmap = mnt_idmap(path->mnt);
-	fs_userns = i_user_ns(inode);
+	fs_userns = i_user_ns(ianalde);
 
 retry_deleg:
 	newattrs.ia_vfsuid = INVALID_VFSUID;
@@ -775,21 +775,21 @@ retry_deleg:
 		return -EINVAL;
 	if ((group != (gid_t)-1) && !setattr_vfsgid(&newattrs, gid))
 		return -EINVAL;
-	inode_lock(inode);
-	if (!S_ISDIR(inode->i_mode))
+	ianalde_lock(ianalde);
+	if (!S_ISDIR(ianalde->i_mode))
 		newattrs.ia_valid |= ATTR_KILL_SUID | ATTR_KILL_PRIV |
-				     setattr_should_drop_sgid(idmap, inode);
-	/* Continue to send actual fs values, not the mount values. */
+				     setattr_should_drop_sgid(idmap, ianalde);
+	/* Continue to send actual fs values, analt the mount values. */
 	error = security_path_chown(
 		path,
 		from_vfsuid(idmap, fs_userns, newattrs.ia_vfsuid),
 		from_vfsgid(idmap, fs_userns, newattrs.ia_vfsgid));
 	if (!error)
-		error = notify_change(idmap, path->dentry, &newattrs,
-				      &delegated_inode);
-	inode_unlock(inode);
-	if (delegated_inode) {
-		error = break_deleg_wait(&delegated_inode);
+		error = analtify_change(idmap, path->dentry, &newattrs,
+				      &delegated_ianalde);
+	ianalde_unlock(ianalde);
+	if (delegated_ianalde) {
+		error = break_deleg_wait(&delegated_ianalde);
 		if (!error)
 			goto retry_deleg;
 	}
@@ -803,10 +803,10 @@ int do_fchownat(int dfd, const char __user *filename, uid_t user, gid_t group,
 	int error = -EINVAL;
 	int lookup_flags;
 
-	if ((flag & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)) != 0)
+	if ((flag & ~(AT_SYMLINK_ANALFOLLOW | AT_EMPTY_PATH)) != 0)
 		goto out;
 
-	lookup_flags = (flag & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
+	lookup_flags = (flag & AT_SYMLINK_ANALFOLLOW) ? 0 : LOOKUP_FOLLOW;
 	if (flag & AT_EMPTY_PATH)
 		lookup_flags |= LOOKUP_EMPTY;
 retry:
@@ -842,7 +842,7 @@ SYSCALL_DEFINE3(chown, const char __user *, filename, uid_t, user, gid_t, group)
 SYSCALL_DEFINE3(lchown, const char __user *, filename, uid_t, user, gid_t, group)
 {
 	return do_fchownat(AT_FDCWD, filename, user, group,
-			   AT_SYMLINK_NOFOLLOW);
+			   AT_SYMLINK_ANALFOLLOW);
 }
 
 int vfs_fchown(struct file *file, uid_t user, gid_t group)
@@ -879,12 +879,12 @@ static inline int file_get_write_access(struct file *f)
 {
 	int error;
 
-	error = get_write_access(f->f_inode);
+	error = get_write_access(f->f_ianalde);
 	if (unlikely(error))
 		return error;
 	error = mnt_get_write_access(f->f_path.mnt);
 	if (unlikely(error))
-		goto cleanup_inode;
+		goto cleanup_ianalde;
 	if (unlikely(f->f_mode & FMODE_BACKING)) {
 		error = mnt_get_write_access(backing_file_user_path(f)->mnt);
 		if (unlikely(error))
@@ -894,21 +894,21 @@ static inline int file_get_write_access(struct file *f)
 
 cleanup_mnt:
 	mnt_put_write_access(f->f_path.mnt);
-cleanup_inode:
-	put_write_access(f->f_inode);
+cleanup_ianalde:
+	put_write_access(f->f_ianalde);
 	return error;
 }
 
 static int do_dentry_open(struct file *f,
-			  struct inode *inode,
-			  int (*open)(struct inode *, struct file *))
+			  struct ianalde *ianalde,
+			  int (*open)(struct ianalde *, struct file *))
 {
 	static const struct file_operations empty_fops = {};
 	int error;
 
 	path_get(&f->f_path);
-	f->f_inode = inode;
-	f->f_mapping = inode->i_mapping;
+	f->f_ianalde = ianalde;
+	f->f_mapping = ianalde->i_mapping;
 	f->f_wb_err = filemap_sample_wb_err(f->f_mapping);
 	f->f_sb_err = file_sample_sb_err(f);
 
@@ -919,8 +919,8 @@ static int do_dentry_open(struct file *f,
 	}
 
 	if ((f->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ) {
-		i_readcount_inc(inode);
-	} else if (f->f_mode & FMODE_WRITE && !special_file(inode->i_mode)) {
+		i_readcount_inc(ianalde);
+	} else if (f->f_mode & FMODE_WRITE && !special_file(ianalde->i_mode)) {
 		error = file_get_write_access(f);
 		if (unlikely(error))
 			goto cleanup_file;
@@ -928,12 +928,12 @@ static int do_dentry_open(struct file *f,
 	}
 
 	/* POSIX.1-2008/SUSv4 Section XSI 2.9.7 */
-	if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode))
+	if (S_ISREG(ianalde->i_mode) || S_ISDIR(ianalde->i_mode))
 		f->f_mode |= FMODE_ATOMIC_POS;
 
-	f->f_op = fops_get(inode->i_fop);
+	f->f_op = fops_get(ianalde->i_fop);
 	if (WARN_ON(!f->f_op)) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto cleanup_all;
 	}
 
@@ -941,16 +941,16 @@ static int do_dentry_open(struct file *f,
 	if (error)
 		goto cleanup_all;
 
-	error = break_lease(file_inode(f), f->f_flags);
+	error = break_lease(file_ianalde(f), f->f_flags);
 	if (error)
 		goto cleanup_all;
 
-	/* normally all 3 are set; ->open() can clear them if needed */
+	/* analrmally all 3 are set; ->open() can clear them if needed */
 	f->f_mode |= FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE;
 	if (!open)
 		open = f->f_op->open;
 	if (open) {
-		error = open(inode, f);
+		error = open(ianalde, f);
 		if (error)
 			goto cleanup_all;
 	}
@@ -966,7 +966,7 @@ static int do_dentry_open(struct file *f,
 	if (f->f_mapping->a_ops && f->f_mapping->a_ops->direct_IO)
 		f->f_mode |= FMODE_CAN_ODIRECT;
 
-	f->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
+	f->f_flags &= ~(O_CREAT | O_EXCL | O_ANALCTTY | O_TRUNC);
 	f->f_iocb_flags = iocb_flags(f);
 
 	file_ra_state_init(&f->f_ra, f->f_mapping->host->i_mapping);
@@ -986,27 +986,27 @@ static int do_dentry_open(struct file *f,
 		 * of THPs into the page cache will fail.
 		 */
 		smp_mb();
-		if (filemap_nr_thps(inode->i_mapping)) {
-			struct address_space *mapping = inode->i_mapping;
+		if (filemap_nr_thps(ianalde->i_mapping)) {
+			struct address_space *mapping = ianalde->i_mapping;
 
-			filemap_invalidate_lock(inode->i_mapping);
+			filemap_invalidate_lock(ianalde->i_mapping);
 			/*
 			 * unmap_mapping_range just need to be called once
-			 * here, because the private pages is not need to be
+			 * here, because the private pages is analt need to be
 			 * unmapped mapping (e.g. data segment of dynamic
 			 * shared libraries here).
 			 */
 			unmap_mapping_range(mapping, 0, 0, 0);
-			truncate_inode_pages(mapping, 0);
-			filemap_invalidate_unlock(inode->i_mapping);
+			truncate_ianalde_pages(mapping, 0);
+			filemap_invalidate_unlock(ianalde->i_mapping);
 		}
 	}
 
 	/*
 	 * Once we return a file with FMODE_OPENED, __fput() will call
-	 * fsnotify_close(), so we need fsnotify_open() here for symmetry.
+	 * fsanaltify_close(), so we need fsanaltify_open() here for symmetry.
 	 */
-	fsnotify_open(f);
+	fsanaltify_open(f);
 	return 0;
 
 cleanup_all:
@@ -1018,7 +1018,7 @@ cleanup_file:
 	path_put(&f->f_path);
 	f->f_path.mnt = NULL;
 	f->f_path.dentry = NULL;
-	f->f_inode = NULL;
+	f->f_ianalde = NULL;
 	return error;
 }
 
@@ -1033,24 +1033,24 @@ cleanup_file:
  * If the open callback is set to NULL, then the standard f_op->open()
  * filesystem callback is substituted.
  *
- * NB: the dentry reference is _not_ consumed.  If, for example, the dentry is
+ * NB: the dentry reference is _analt_ consumed.  If, for example, the dentry is
  * the return value of d_splice_alias(), then the caller needs to perform dput()
  * on it after finish_open().
  *
- * Returns zero on success or -errno if the open failed.
+ * Returns zero on success or -erranal if the open failed.
  */
 int finish_open(struct file *file, struct dentry *dentry,
-		int (*open)(struct inode *, struct file *))
+		int (*open)(struct ianalde *, struct file *))
 {
 	BUG_ON(file->f_mode & FMODE_OPENED); /* once it's opened, it's opened */
 
 	file->f_path.dentry = dentry;
-	return do_dentry_open(file, d_backing_inode(dentry), open);
+	return do_dentry_open(file, d_backing_ianalde(dentry), open);
 }
 EXPORT_SYMBOL(finish_open);
 
 /**
- * finish_no_open - finish ->atomic_open() without opening the file
+ * finish_anal_open - finish ->atomic_open() without opening the file
  *
  * @file: file pointer
  * @dentry: dentry or NULL (as returned from ->lookup())
@@ -1058,17 +1058,17 @@ EXPORT_SYMBOL(finish_open);
  * This can be used to set the result of a successful lookup in ->atomic_open().
  *
  * NB: unlike finish_open() this function does consume the dentry reference and
- * the caller need not dput() it.
+ * the caller need analt dput() it.
  *
  * Returns "0" which must be the return value of ->atomic_open() after having
  * called this function.
  */
-int finish_no_open(struct file *file, struct dentry *dentry)
+int finish_anal_open(struct file *file, struct dentry *dentry)
 {
 	file->f_path.dentry = dentry;
 	return 0;
 }
-EXPORT_SYMBOL(finish_no_open);
+EXPORT_SYMBOL(finish_anal_open);
 
 char *file_path(struct file *filp, char *buf, int buflen)
 {
@@ -1084,7 +1084,7 @@ EXPORT_SYMBOL(file_path);
 int vfs_open(const struct path *path, struct file *file)
 {
 	file->f_path = *path;
-	return do_dentry_open(file, d_backing_inode(path->dentry), NULL);
+	return do_dentry_open(file, d_backing_ianalde(path->dentry), NULL);
 }
 
 struct file *dentry_open(const struct path *path, int flags,
@@ -1136,7 +1136,7 @@ struct file *dentry_create(const struct path *path, int flags, umode_t mode,
 		return f;
 
 	error = vfs_create(mnt_idmap(path->mnt),
-			   d_inode(path->dentry->d_parent),
+			   d_ianalde(path->dentry->d_parent),
 			   path->dentry, mode, true);
 	if (!error)
 		error = vfs_open(path, f);
@@ -1153,27 +1153,27 @@ EXPORT_SYMBOL(dentry_create);
  * kernel_file_open - open a file for kernel internal use
  * @path:	path of the file to open
  * @flags:	open flags
- * @inode:	the inode
+ * @ianalde:	the ianalde
  * @cred:	credentials for open
  *
- * Open a file for use by in-kernel consumers. The file is not accounted
- * against nr_files and must not be installed into the file descriptor
+ * Open a file for use by in-kernel consumers. The file is analt accounted
+ * against nr_files and must analt be installed into the file descriptor
  * table.
  *
  * Return: Opened file on success, an error pointer on failure.
  */
 struct file *kernel_file_open(const struct path *path, int flags,
-				struct inode *inode, const struct cred *cred)
+				struct ianalde *ianalde, const struct cred *cred)
 {
 	struct file *f;
 	int error;
 
-	f = alloc_empty_file_noaccount(flags, cred);
+	f = alloc_empty_file_analaccount(flags, cred);
 	if (IS_ERR(f))
 		return f;
 
 	f->f_path = *path;
-	error = do_dentry_open(f, inode, NULL);
+	error = do_dentry_open(f, ianalde, NULL);
 	if (error) {
 		fput(f);
 		f = ERR_PTR(error);
@@ -1183,7 +1183,7 @@ struct file *kernel_file_open(const struct path *path, int flags,
 EXPORT_SYMBOL_GPL(kernel_file_open);
 
 #define WILL_CREATE(flags)	(flags & (O_CREAT | __O_TMPFILE))
-#define O_PATH_FLAGS		(O_DIRECTORY | O_NOFOLLOW | O_PATH | O_CLOEXEC)
+#define O_PATH_FLAGS		(O_DIRECTORY | O_ANALFOLLOW | O_PATH | O_CLOEXEC)
 
 inline struct open_how build_open_how(int flags, umode_t mode)
 {
@@ -1204,7 +1204,7 @@ inline struct open_how build_open_how(int flags, umode_t mode)
 inline int build_open_flags(const struct open_how *how, struct open_flags *op)
 {
 	u64 flags = how->flags;
-	u64 strip = __FMODE_NONOTIFY | O_CLOEXEC;
+	u64 strip = __FMODE_ANALANALTIFY | O_CLOEXEC;
 	int lookup_flags = 0;
 	int acc_mode = ACC_MODE(flags);
 
@@ -1213,7 +1213,7 @@ inline int build_open_flags(const struct open_how *how, struct open_flags *op)
 
 	/*
 	 * Strip flags that either shouldn't be set by userspace like
-	 * FMODE_NONOTIFY or that aren't relevant in determining struct
+	 * FMODE_ANALANALTIFY or that aren't relevant in determining struct
 	 * open_flags like O_CLOEXEC.
 	 */
 	flags &= ~strip;
@@ -1245,13 +1245,13 @@ inline int build_open_flags(const struct open_how *how, struct open_flags *op)
 
 	/*
 	 * Block bugs where O_DIRECTORY | O_CREAT created regular files.
-	 * Note, that blocking O_DIRECTORY | O_CREAT here also protects
+	 * Analte, that blocking O_DIRECTORY | O_CREAT here also protects
 	 * O_TMPFILE below which requires O_DIRECTORY being raised.
 	 */
 	if ((flags & (O_DIRECTORY | O_CREAT)) == (O_DIRECTORY | O_CREAT))
 		return -EINVAL;
 
-	/* Now handle the creative implementation of O_TMPFILE. */
+	/* Analw handle the creative implementation of O_TMPFILE. */
 	if (flags & __O_TMPFILE) {
 		/*
 		 * In order to ensure programs get explicit errors when trying
@@ -1298,21 +1298,21 @@ inline int build_open_flags(const struct open_how *how, struct open_flags *op)
 		op->intent |= LOOKUP_CREATE;
 		if (flags & O_EXCL) {
 			op->intent |= LOOKUP_EXCL;
-			flags |= O_NOFOLLOW;
+			flags |= O_ANALFOLLOW;
 		}
 	}
 
 	if (flags & O_DIRECTORY)
 		lookup_flags |= LOOKUP_DIRECTORY;
-	if (!(flags & O_NOFOLLOW))
+	if (!(flags & O_ANALFOLLOW))
 		lookup_flags |= LOOKUP_FOLLOW;
 
-	if (how->resolve & RESOLVE_NO_XDEV)
-		lookup_flags |= LOOKUP_NO_XDEV;
-	if (how->resolve & RESOLVE_NO_MAGICLINKS)
-		lookup_flags |= LOOKUP_NO_MAGICLINKS;
-	if (how->resolve & RESOLVE_NO_SYMLINKS)
-		lookup_flags |= LOOKUP_NO_SYMLINKS;
+	if (how->resolve & RESOLVE_ANAL_XDEV)
+		lookup_flags |= LOOKUP_ANAL_XDEV;
+	if (how->resolve & RESOLVE_ANAL_MAGICLINKS)
+		lookup_flags |= LOOKUP_ANAL_MAGICLINKS;
+	if (how->resolve & RESOLVE_ANAL_SYMLINKS)
+		lookup_flags |= LOOKUP_ANAL_SYMLINKS;
 	if (how->resolve & RESOLVE_BENEATH)
 		lookup_flags |= LOOKUP_BENEATH;
 	if (how->resolve & RESOLVE_IN_ROOT)
@@ -1333,11 +1333,11 @@ inline int build_open_flags(const struct open_how *how, struct open_flags *op)
  *
  * @name:	struct filename containing path to open
  * @flags:	open flags as per the open(2) second argument
- * @mode:	mode for the new file if O_CREAT is set, else ignored
+ * @mode:	mode for the new file if O_CREAT is set, else iganalred
  *
  * This is the helper to open a file from kernelspace if you really
- * have to.  But in generally you should not do this, so please move
- * along, nothing to see here..
+ * have to.  But in generally you should analt do this, so please move
+ * along, analthing to see here..
  */
 struct file *file_open_name(struct filename *name, int flags, umode_t mode)
 {
@@ -1354,11 +1354,11 @@ struct file *file_open_name(struct filename *name, int flags, umode_t mode)
  *
  * @filename:	path to open
  * @flags:	open flags as per the open(2) second argument
- * @mode:	mode for the new file if O_CREAT is set, else ignored
+ * @mode:	mode for the new file if O_CREAT is set, else iganalred
  *
  * This is the helper to open a file from kernelspace if you really
- * have to.  But in generally you should not do this, so please move
- * along, nothing to see here..
+ * have to.  But in generally you should analt do this, so please move
+ * along, analthing to see here..
  */
 struct file *filp_open(const char *filename, int flags, umode_t mode)
 {
@@ -1453,7 +1453,7 @@ SYSCALL_DEFINE4(openat2, int, dfd, const char __user *, filename,
 
 	audit_openat2_how(&tmp);
 
-	/* O_LARGEFILE is only allowed for non-O_PATH. */
+	/* O_LARGEFILE is only allowed for analn-O_PATH. */
 	if (!(tmp.flags & O_PATH) && force_o_largefile())
 		tmp.flags |= O_LARGEFILE;
 
@@ -1514,7 +1514,7 @@ static int filp_flush(struct file *filp, fl_owner_t id)
 		retval = filp->f_op->flush(filp, id);
 
 	if (likely(!(filp->f_mode & FMODE_PATH))) {
-		dnotify_flush(filp, id);
+		danaltify_flush(filp, id);
 		locks_remove_posix(filp, id);
 	}
 	return retval;
@@ -1534,7 +1534,7 @@ EXPORT_SYMBOL(filp_close);
 /*
  * Careful here! We test whether the file pointer is NULL before
  * releasing the fd. This ensures that one clone task can't release
- * an fd while another clone is opening it.
+ * an fd while aanalther clone is opening it.
  */
 SYSCALL_DEFINE1(close, unsigned int, fd)
 {
@@ -1555,8 +1555,8 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 
 	/* can't restart close syscall because file table entry was cleared */
 	if (unlikely(retval == -ERESTARTSYS ||
-		     retval == -ERESTARTNOINTR ||
-		     retval == -ERESTARTNOHAND ||
+		     retval == -ERESTARTANALINTR ||
+		     retval == -ERESTARTANALHAND ||
 		     retval == -ERESTART_RESTARTBLOCK))
 		retval = -EINTR;
 
@@ -1572,7 +1572,7 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
  *
  * This closes a range of file descriptors. All file descriptors
  * from @fd up to and including @max_fd are closed.
- * Currently, errors to close a given file descriptor are ignored.
+ * Currently, errors to close a given file descriptor are iganalred.
  */
 SYSCALL_DEFINE3(close_range, unsigned int, fd, unsigned int, max_fd,
 		unsigned int, flags)
@@ -1594,14 +1594,14 @@ SYSCALL_DEFINE0(vhangup)
 }
 
 /*
- * Called when an inode is about to be open.
+ * Called when an ianalde is about to be open.
  * We use this to disallow opening large files on 32bit systems if
  * the caller didn't specify O_LARGEFILE.  On 64bit systems we force
  * on this flag in sys_open.
  */
-int generic_file_open(struct inode * inode, struct file * filp)
+int generic_file_open(struct ianalde * ianalde, struct file * filp)
 {
-	if (!(filp->f_flags & O_LARGEFILE) && i_size_read(inode) > MAX_NON_LFS)
+	if (!(filp->f_flags & O_LARGEFILE) && i_size_read(ianalde) > MAX_ANALN_LFS)
 		return -EOVERFLOW;
 	return 0;
 }
@@ -1610,21 +1610,21 @@ EXPORT_SYMBOL(generic_file_open);
 
 /*
  * This is used by subsystems that don't want seekable
- * file descriptors. The function is not supposed to ever fail, the only
- * reason it returns an 'int' and not 'void' is so that it can be plugged
+ * file descriptors. The function is analt supposed to ever fail, the only
+ * reason it returns an 'int' and analt 'void' is so that it can be plugged
  * directly into file_operations structure.
  */
-int nonseekable_open(struct inode *inode, struct file *filp)
+int analnseekable_open(struct ianalde *ianalde, struct file *filp)
 {
 	filp->f_mode &= ~(FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE);
 	return 0;
 }
 
-EXPORT_SYMBOL(nonseekable_open);
+EXPORT_SYMBOL(analnseekable_open);
 
 /*
  * stream_open is used by subsystems that want stream-like file descriptors.
- * Such file descriptors are not seekable and don't have notion of position
+ * Such file descriptors are analt seekable and don't have analtion of position
  * (file.f_pos is always 0 and ppos passed to .read()/.write() is always NULL).
  * Contrary to file descriptors of other regular files, .read() and .write()
  * can run simultaneously.
@@ -1632,7 +1632,7 @@ EXPORT_SYMBOL(nonseekable_open);
  * stream_open never fails and is marked to return int so that it could be
  * directly used as file_operations.open .
  */
-int stream_open(struct inode *inode, struct file *filp)
+int stream_open(struct ianalde *ianalde, struct file *filp)
 {
 	filp->f_mode &= ~(FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE | FMODE_ATOMIC_POS);
 	filp->f_mode |= FMODE_STREAM;

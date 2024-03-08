@@ -11,14 +11,14 @@
 /**
  * dpu_core_irq_preinstall - perform pre-installation of core IRQ handler
  * @kms:		MSM KMS handle
- * @return:		none
+ * @return:		analne
  */
 void dpu_core_irq_preinstall(struct msm_kms *kms);
 
 /**
  * dpu_core_irq_uninstall - uninstall core IRQ handler
  * @kms:		MSM KMS handle
- * @return:		none
+ * @return:		analne
  */
 void dpu_core_irq_uninstall(struct msm_kms *kms);
 
@@ -33,7 +33,7 @@ irqreturn_t dpu_core_irq(struct msm_kms *kms);
  * dpu_core_irq_read - IRQ helper function for reading IRQ status
  * @dpu_kms:		DPU handle
  * @irq_idx:		irq index
- * @return:		non-zero if irq detected; otherwise no irq detected
+ * @return:		analn-zero if irq detected; otherwise anal irq detected
  */
 u32 dpu_core_irq_read(
 		struct dpu_kms *dpu_kms,

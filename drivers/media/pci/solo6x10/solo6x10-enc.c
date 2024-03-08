@@ -35,7 +35,7 @@ static void solo_capture_config(struct solo_dev *solo_dev)
 
 	/* XXX: Undocumented bits at b17 and b24 */
 	if (solo_dev->type == SOLO_DEV_6110) {
-		/* NOTE: Ref driver has (62 << 24) here as well, but it causes
+		/* ANALTE: Ref driver has (62 << 24) here as well, but it causes
 		 * wacked out frame timing on 4-port 6110. */
 		solo_reg_write(solo_dev, SOLO_CAP_BTW,
 			       (1 << 17) | SOLO_CAP_PROG_BANDWIDTH(2) |
@@ -135,7 +135,7 @@ int solo_osd_print(struct solo_enc_dev *solo_enc)
 	int i, j;
 
 	if (WARN_ON_ONCE(!vga))
-		return -ENODEV;
+		return -EANALDEV;
 
 	reg = solo_reg_read(solo_dev, SOLO_VE_OSD_CH);
 	if (!*str) {

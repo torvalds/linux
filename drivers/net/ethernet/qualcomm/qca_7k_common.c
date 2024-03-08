@@ -4,12 +4,12 @@
  *
  *   Permission to use, copy, modify, and/or distribute this software
  *   for any purpose with or without fee is hereby granted, provided
- *   that the above copyright notice and this permission notice appear
+ *   that the above copyright analtice and this permission analtice appear
  *   in all copies.
  *
  *   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
  *   WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- *   WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ *   WARRANTIES OF MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL
  *   THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
  *   CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  *   LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
@@ -65,10 +65,10 @@ EXPORT_SYMBOL_GPL(qcafrm_create_footer);
 /*   Gather received bytes and try to extract a full ethernet frame by
  *   following a simple state machine.
  *
- * Return:   QCAFRM_GATHER       No ethernet frame fully received yet.
- *           QCAFRM_NOHEAD       Header expected but not found.
+ * Return:   QCAFRM_GATHER       Anal ethernet frame fully received yet.
+ *           QCAFRM_ANALHEAD       Header expected but analt found.
  *           QCAFRM_INVLEN       Atheros frame length is invalid
- *           QCAFRM_NOTAIL       Footer expected but not found.
+ *           QCAFRM_ANALTAIL       Footer expected but analt found.
  *           > 0                 Number of byte in the fully received
  *                               Ethernet frame
  */
@@ -100,14 +100,14 @@ qcafrm_fsm_decode(struct qcafrm_handle *handle, u8 *buf, u16 buf_len, u8 recv_by
 	case QCAFRM_WAIT_AA3:
 	case QCAFRM_WAIT_AA4:
 		if (recv_byte != 0xAA) {
-			ret = QCAFRM_NOHEAD;
+			ret = QCAFRM_ANALHEAD;
 			handle->state = handle->init;
 		} else {
 			handle->state--;
 		}
 		break;
 		/* 2 bytes length. */
-		/* Borrow offset field to hold length for now. */
+		/* Borrow offset field to hold length for analw. */
 	case QCAFRM_WAIT_LEN_BYTE0:
 		handle->offset = recv_byte;
 		handle->state = QCAFRM_WAIT_LEN_BYTE1;
@@ -138,7 +138,7 @@ qcafrm_fsm_decode(struct qcafrm_handle *handle, u8 *buf, u16 buf_len, u8 recv_by
 		break;
 	case QCAFRM_WAIT_551:
 		if (recv_byte != 0x55) {
-			ret = QCAFRM_NOTAIL;
+			ret = QCAFRM_ANALTAIL;
 			handle->state = handle->init;
 		} else {
 			handle->state = QCAFRM_WAIT_552;
@@ -146,7 +146,7 @@ qcafrm_fsm_decode(struct qcafrm_handle *handle, u8 *buf, u16 buf_len, u8 recv_by
 		break;
 	case QCAFRM_WAIT_552:
 		if (recv_byte != 0x55) {
-			ret = QCAFRM_NOTAIL;
+			ret = QCAFRM_ANALTAIL;
 			handle->state = handle->init;
 		} else {
 			ret = handle->offset;

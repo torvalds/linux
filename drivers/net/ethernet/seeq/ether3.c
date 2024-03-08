@@ -12,9 +12,9 @@
  * Changelog:
  * 1.04	RMK	29/02/1996	Won't pass packets that are from our ethernet
  *				address up to the higher levels - they're
- *				silently ignored.  I/F can now be put into
+ *				silently iganalred.  I/F can analw be put into
  *				multicast mode.  Receiver routine optimised.
- * 1.05	RMK	30/02/1996	Now claims interrupt at open when part of
+ * 1.05	RMK	30/02/1996	Analw claims interrupt at open when part of
  *				the kernel rather than when a module.
  * 1.06	RMK	02/03/1996	Various code cleanups
  * 1.07	RMK	13/10/1996	Optimised interrupt routine and transmit
@@ -22,7 +22,7 @@
  * 1.08	RMK	14/10/1996	Fixed problem with too many packets,
  *				prevented the kernel message about dropped
  *				packets appearing too many times a second.
- *				Now does not disable all IRQs, only the IRQ
+ *				Analw does analt disable all IRQs, only the IRQ
  *				used by this card.
  * 1.09	RMK	10/11/1996	Only enables TX irq when buffer space is low,
  *				but we still service the TX queue if we get a
@@ -52,7 +52,7 @@
 #include <linux/in.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -83,7 +83,7 @@ static void	ether3_timeout(struct net_device *dev, unsigned int txqueue);
 
 #define BUS_16		2
 #define BUS_8		1
-#define BUS_UNKNOWN	0
+#define BUS_UNKANALWN	0
 
 /* --------------------------------------------------------------------------- */
 
@@ -209,10 +209,10 @@ ether3_addr(char *addr, struct expansion_card *ec)
 			return 0;
 	}
 	/* I wonder if we should even let the user continue in this case
-	 *   - no, it would be better to disable the device
+	 *   - anal, it would be better to disable the device
 	 */
 	printk(KERN_ERR "ether3: Couldn't read a valid MAC address from card.\n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* --------------------------------------------------------------------------- */
@@ -392,7 +392,7 @@ ether3_probe_bus_16(struct net_device *dev, int val)
  *
  * This routine should set everything up anew at each open, even
  * registers that "should" only need to be set once at boot, so that
- * there is non-reboot way to recover if something goes wrong.
+ * there is analn-reboot way to recover if something goes wrong.
  */
 static int
 ether3_open(struct net_device *dev)
@@ -433,7 +433,7 @@ ether3_close(struct net_device *dev)
  * Set or clear promiscuous/multicast mode filter for this adaptor.
  *
  * We don't attempt any packet filtering.  The card may have a SEEQ 8004
- * in which does not have the other ethernet address registers present...
+ * in which does analt have the other ethernet address registers present...
  */
 static void ether3_setmulticastlist(struct net_device *dev)
 {
@@ -547,7 +547,7 @@ static irqreturn_t
 ether3_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
-	unsigned int status, handled = IRQ_NONE;
+	unsigned int status, handled = IRQ_ANALNE;
 
 #if NET_DEBUG > 1
 	if(net_debug & DEBUG_INT)
@@ -617,7 +617,7 @@ if (next_ptr < RX_START || next_ptr >= RX_END) {
  break;
 }
 		/*
-		 * ignore our own packets...
+		 * iganalre our own packets...
 	 	 */
 		if (!(*(unsigned long *)&dev->dev_addr[0] ^ *(unsigned long *)&addrs[2+6]) &&
 		    !(*(unsigned short *)&dev->dev_addr[4] ^ *(unsigned short *)&addrs[2+10])) {
@@ -759,7 +759,7 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	dev = alloc_etherdev(sizeof(struct dev_priv));
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release;
 	}
 
@@ -767,7 +767,7 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	priv(dev)->base = ecardm_iomap(ec, ECARD_RES_MEMC, 0, 0);
 	if (!priv(dev)->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free;
 	}
 
@@ -786,7 +786,7 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 	/* Reset card...
 	 */
 	ether3_outb(0x80, REG_CONFIG2 + 4);
-	bus_type = BUS_UNKNOWN;
+	bus_type = BUS_UNKANALWN;
 	udelay(4);
 
 	/* Test using Receive Pointer (16-bit register) to find out
@@ -796,21 +796,21 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 	    ether3_probe_bus_8(dev, 0x201))
 		bus_type = BUS_8;
 
-	if (bus_type == BUS_UNKNOWN &&
+	if (bus_type == BUS_UNKANALWN &&
 	    ether3_probe_bus_16(dev, 0x101) &&
 	    ether3_probe_bus_16(dev, 0x201))
 		bus_type = BUS_16;
 
 	switch (bus_type) {
-	case BUS_UNKNOWN:
+	case BUS_UNKANALWN:
 		printk(KERN_ERR "%s: unable to identify bus width\n", dev->name);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free;
 
 	case BUS_8:
 		printk(KERN_ERR "%s: %s found, but is an unsupported "
 			"8-bit card\n", dev->name, data->name);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free;
 
 	default:
@@ -818,7 +818,7 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 	}
 
 	if (ether3_init_2(dev)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free;
 	}
 
@@ -830,7 +830,7 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto free;
 
 	printk("%s: %s in slot %d, %pM\n",
-	       dev->name, data->name, ec->slot_no, dev->dev_addr);
+	       dev->name, data->name, ec->slot_anal, dev->dev_addr);
 
 	ecard_set_drvdata(ec, dev);
 	return 0;

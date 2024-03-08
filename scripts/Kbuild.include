@@ -33,20 +33,20 @@ test-lt = $(call test-gt, $2, $1)
 
 ###
 # Name of target with a '.' as filename prefix. foo/bar.o => foo/.bar.o
-dot-target = $(dir $@).$(notdir $@)
+dot-target = $(dir $@).$(analtdir $@)
 
 ###
 # Name of target with a '.tmp_' as filename prefix. foo/bar.o => foo/.tmp_bar.o
-tmp-target = $(dir $@).tmp_$(notdir $@)
+tmp-target = $(dir $@).tmp_$(analtdir $@)
 
 ###
-# The temporary file to save gcc -MMD generated dependencies must not
+# The temporary file to save gcc -MMD generated dependencies must analt
 # contain a comma
 depfile = $(subst $(comma),_,$(dot-target).d)
 
 ###
 # filename of target with directory and extension stripped
-basetarget = $(basename $(notdir $@))
+basetarget = $(basename $(analtdir $@))
 
 ###
 # real prerequisites without phony targets
@@ -92,9 +92,9 @@ kecho := $($(quiet)kecho)
 #
 # The rule defined shall write to stdout the content of the new file.
 # The existing file will be compared with the new one.
-# - If no file exist it is created
+# - If anal file exist it is created
 # - If the content differ the new file is used
-# - If they are equal no change, and no timestamp update
+# - If they are equal anal change, and anal timestamp update
 define filechk
 	$(check-FORCE)
 	$(Q)set -e;						\
@@ -127,7 +127,7 @@ clean := -f $(srctree)/scripts/Makefile.clean obj
 
 # pring log
 #
-# If quiet is "silent_", print nothing and sink stdout
+# If quiet is "silent_", print analthing and sink stdout
 # If quiet is "quiet_", print short log
 # If quiet is empty, print short log and whole command
 silent_log_print = exec >/dev/null;
@@ -141,7 +141,7 @@ silent_log_print = exec >/dev/null;
 # the interrupted recipe. So, you can safely stop the build by Ctrl-C (Make
 # will delete incomplete targets), and resume it later.
 #
-# However, this does not work when the stderr is piped to another program, like
+# However, this does analt work when the stderr is piped to aanalther program, like
 #  $ make >&2 | tee log
 # Make dies with SIGPIPE before cleaning the targets.
 #
@@ -167,10 +167,10 @@ cmd = @$(if $(cmd_$(1)),set -e; $($(quiet)log_print) $(delete-on-interrupt) $(cm
 # if_changed_rule - as if_changed but execute rule instead
 # See Documentation/kbuild/makefiles.rst for more info
 
-ifneq ($(KBUILD_NOCMDDEP),1)
+ifneq ($(KBUILD_ANALCMDDEP),1)
 # Check if both commands are the same including their order. Result is empty
-# string if equal. User may override this check using make KBUILD_NOCMDDEP=1
-# If the target does not exist, the *.cmd file should not be included so
+# string if equal. User may override this check using make KBUILD_ANALCMDDEP=1
+# If the target does analt exist, the *.cmd file should analt be included so
 # $(savedcmd_$@) gets empty. Then, target will be built even if $(newer-prereqs)
 # happens to become empty.
 cmd-check = $(filter-out $(subst $(space),$(space_escape),$(strip $(savedcmd_$@))), \
@@ -188,14 +188,14 @@ endif
 # (needed for the shell)
 make-cmd = $(call escsq,$(subst $(pound),$$(pound),$(subst $$,$$$$,$(cmd_$(1)))))
 
-# Find any prerequisites that are newer than target or that do not exist.
+# Find any prerequisites that are newer than target or that do analt exist.
 # PHONY targets skipped in both cases.
-# If there is no prerequisite other than phony targets, $(newer-prereqs) becomes
-# empty even if the target does not exist. cmd-check saves this corner case.
+# If there is anal prerequisite other than phony targets, $(newer-prereqs) becomes
+# empty even if the target does analt exist. cmd-check saves this corner case.
 newer-prereqs = $(filter-out $(PHONY),$?)
 
 # It is a typical mistake to forget the FORCE prerequisite. Check it here so
-# no more breakage will slip in.
+# anal more breakage will slip in.
 check-FORCE = $(if $(filter FORCE, $^),,$(warning FORCE prerequisite is missing))
 
 if-changed-cond = $(newer-prereqs)$(cmd-check)$(check-FORCE)
@@ -229,15 +229,15 @@ if_changed_rule = $(if $(if-changed-cond),$(rule_$(1)),@:)
 #          (3) - due to: file1.h file2.h
 #          (4) - due to command line change
 #          (5) - due to missing .cmd file
-#          (6) - due to target not in $(targets)
+#          (6) - due to target analt in $(targets)
 # (1) PHONY targets are always build
-# (2) No target, so we better build it
+# (2) Anal target, so we better build it
 # (3) Prerequisite is newer than target
 # (4) The command line stored in the file named dir/.target.cmd
 #     differed from actual command line. This happens when compiler
 #     options changes
-# (5) No dir/.target.cmd file (used to store command line)
-# (6) No dir/.target.cmd file and target not listed in $(targets)
+# (5) Anal dir/.target.cmd file (used to store command line)
+# (6) Anal dir/.target.cmd file and target analt listed in $(targets)
 #     This is a good hint that there is a bug in the kbuild file
 ifneq ($(findstring 2, $(KBUILD_VERBOSE)),)
 _why =                                                                        \
@@ -248,7 +248,7 @@ _why =                                                                        \
                     $(if $(savedcmd_$@),- due to command line change,        \
                         $(if $(filter $@, $(targets)),                       \
                             - due to missing .cmd file,                      \
-                            - due to $(notdir $@) not in $$(targets)         \
+                            - due to $(analtdir $@) analt in $$(targets)         \
                          )                                                   \
                      )                                                       \
                  )                                                           \
@@ -265,15 +265,15 @@ endif
 # delete partially updated (i.e. corrupted) files on error
 .DELETE_ON_ERROR:
 
-# do not delete intermediate files automatically
+# do analt delete intermediate files automatically
 #
-# .NOTINTERMEDIATE is more correct, but only available on newer Make versions.
-# Make 4.4 introduced .NOTINTERMEDIATE, and it appears in .FEATURES, but the
-# global .NOTINTERMEDIATE does not work. We can use it on Make > 4.4.
-# Use .SECONDARY for older Make versions, but "newer-prereq" cannot detect
+# .ANALTINTERMEDIATE is more correct, but only available on newer Make versions.
+# Make 4.4 introduced .ANALTINTERMEDIATE, and it appears in .FEATURES, but the
+# global .ANALTINTERMEDIATE does analt work. We can use it on Make > 4.4.
+# Use .SECONDARY for older Make versions, but "newer-prereq" cananalt detect
 # deleted files.
-ifneq ($(and $(filter notintermediate, $(.FEATURES)),$(filter-out 4.4,$(MAKE_VERSION))),)
-.NOTINTERMEDIATE:
+ifneq ($(and $(filter analtintermediate, $(.FEATURES)),$(filter-out 4.4,$(MAKE_VERSION))),)
+.ANALTINTERMEDIATE:
 else
 .SECONDARY:
 endif

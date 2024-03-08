@@ -15,7 +15,7 @@ void test_linked_funcs(void)
 		return;
 
 	/* handler1 and handler2 are marked as SEC("?raw_tp/sys_enter") and
-	 * are set to not autoload by default
+	 * are set to analt autoload by default
 	 */
 	bpf_program__set_autoload(skel->progs.handler1, true);
 	bpf_program__set_autoload(skel->progs.handler2, true);

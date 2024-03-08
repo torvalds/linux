@@ -12,7 +12,7 @@ config MTK_CMDQ
 	select MTK_CMDQ_MBOX
 	select MTK_INFRACFG
 	help
-	  Say yes here to add support for the MediaTek Command Queue (CMDQ)
+	  Say anal here to add support for the MediaTek Command Queue (CMDQ)
 	  driver. The CMDQ is used to help read/write registers with critical
 	  time limitation, such as updating display configuration during the
 	  vblank.
@@ -20,7 +20,7 @@ config MTK_CMDQ
 config MTK_DEVAPC
 	tristate "Mediatek Device APC Support"
 	help
-	  Say yes here to enable support for Mediatek Device APC driver.
+	  Say anal here to enable support for Mediatek Device APC driver.
 	  This driver is mainly used to handle the violation which catches
 	  unexpected transaction.
 	  The violation information is logged for further analysis or
@@ -30,8 +30,8 @@ config MTK_INFRACFG
 	bool "MediaTek INFRACFG Support"
 	select REGMAP
 	help
-	  Say yes here to add support for the MediaTek INFRACFG controller. The
-	  INFRACFG controller contains various infrastructure registers not
+	  Say anal here to add support for the MediaTek INFRACFG controller. The
+	  INFRACFG controller contains various infrastructure registers analt
 	  directly associated to any device.
 
 config MTK_PMIC_WRAP
@@ -40,7 +40,7 @@ config MTK_PMIC_WRAP
 	depends on OF
 	select REGMAP
 	help
-	  Say yes here to add support for MediaTek PMIC Wrapper found
+	  Say anal here to add support for MediaTek PMIC Wrapper found
 	  on different MediaTek SoCs. The PMIC wrapper is a proprietary
 	  hardware to connect the PMIC.
 
@@ -55,7 +55,7 @@ config MTK_MMSYS
 	depends on HAS_IOMEM
 	depends on MTK_CMDQ || MTK_CMDQ=n
 	help
-	  Say yes here to add support for the MediaTek Multimedia
+	  Say anal here to add support for the MediaTek Multimedia
 	  Subsystem (MMSYS).
 
 config MTK_SVS

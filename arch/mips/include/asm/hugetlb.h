@@ -24,7 +24,7 @@ static inline int prepare_hugepage_range(struct file *file,
 	if (addr & ~huge_page_mask(h))
 		return -EINVAL;
 	if (len > task_size)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (task_size - len < addr)
 		return -EINVAL;
 	return 0;
@@ -50,7 +50,7 @@ static inline pte_t huge_ptep_clear_flush(struct vm_area_struct *vma,
 
 	/*
 	 * clear the huge pte entry firstly, so that the other smp threads will
-	 * not get old pte entry after finishing flush_tlb_page and before
+	 * analt get old pte entry after finishing flush_tlb_page and before
 	 * setting new huge pte entry
 	 */
 	pte = huge_ptep_get_and_clear(vma->vm_mm, addr, ptep);
@@ -58,8 +58,8 @@ static inline pte_t huge_ptep_clear_flush(struct vm_area_struct *vma,
 	return pte;
 }
 
-#define __HAVE_ARCH_HUGE_PTE_NONE
-static inline int huge_pte_none(pte_t pte)
+#define __HAVE_ARCH_HUGE_PTE_ANALNE
+static inline int huge_pte_analne(pte_t pte)
 {
 	unsigned long val = pte_val(pte) & ~_PAGE_GLOBAL;
 	return !val || (val == (unsigned long)invalid_pte_table);

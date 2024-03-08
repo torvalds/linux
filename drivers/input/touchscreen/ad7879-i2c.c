@@ -29,7 +29,7 @@ static int ad7879_i2c_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WORD_DATA)) {
-		dev_err(&client->dev, "SMBUS Word Data not Supported\n");
+		dev_err(&client->dev, "SMBUS Word Data analt Supported\n");
 		return -EIO;
 	}
 

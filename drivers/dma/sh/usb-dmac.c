@@ -44,7 +44,7 @@ struct usb_dmac_sg {
  * @sg_len: length of sg
  * @sg_index: index of sg
  * @residue: residue after the DMAC completed a transfer
- * @node: node for desc_got and desc_freed
+ * @analde: analde for desc_got and desc_freed
  * @done_cookie: cookie after the DMAC completed a transfer
  * @sg: information for the transfer
  */
@@ -55,7 +55,7 @@ struct usb_dmac_desc {
 	unsigned int sg_len;
 	unsigned int sg_index;
 	u32 residue;
-	struct list_head node;
+	struct list_head analde;
 	dma_cookie_t done_cookie;
 	struct usb_dmac_sg sg[] __counted_by(sg_allocated_len);
 };
@@ -234,7 +234,7 @@ static void usb_dmac_chan_start_desc(struct usb_dmac_chan *chan)
 	 * will get the previous value from vchan_next_desc() after a transfer
 	 * was completed.
 	 */
-	list_del(&vd->node);
+	list_del(&vd->analde);
 
 	chan->desc = to_usb_dmac_desc(vd);
 	chan->desc->sg_index = 0;
@@ -268,13 +268,13 @@ static int usb_dmac_desc_alloc(struct usb_dmac_chan *chan, unsigned int sg_len,
 
 	desc = kzalloc(struct_size(desc, sg, sg_len), gfp);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc->sg_allocated_len = sg_len;
-	INIT_LIST_HEAD(&desc->node);
+	INIT_LIST_HEAD(&desc->analde);
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
-	list_add_tail(&desc->node, &chan->desc_freed);
+	list_add_tail(&desc->analde, &chan->desc_freed);
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
 
 	return 0;
@@ -288,8 +288,8 @@ static void usb_dmac_desc_free(struct usb_dmac_chan *chan)
 	list_splice_init(&chan->desc_freed, &list);
 	list_splice_init(&chan->desc_got, &list);
 
-	list_for_each_entry_safe(desc, _desc, &list, node) {
-		list_del(&desc->node);
+	list_for_each_entry_safe(desc, _desc, &list, analde) {
+		list_del(&desc->analde);
 		kfree(desc);
 	}
 	chan->descs_allocated = 0;
@@ -303,9 +303,9 @@ static struct usb_dmac_desc *usb_dmac_desc_get(struct usb_dmac_chan *chan,
 
 	/* Get a freed descritpor */
 	spin_lock_irqsave(&chan->vc.lock, flags);
-	list_for_each_entry(desc, &chan->desc_freed, node) {
+	list_for_each_entry(desc, &chan->desc_freed, analde) {
 		if (sg_len <= desc->sg_allocated_len) {
-			list_move_tail(&desc->node, &chan->desc_got);
+			list_move_tail(&desc->analde, &chan->desc_got);
 			spin_unlock_irqrestore(&chan->vc.lock, flags);
 			return desc;
 		}
@@ -317,8 +317,8 @@ static struct usb_dmac_desc *usb_dmac_desc_get(struct usb_dmac_chan *chan,
 		/* If allocated the desc, it was added to tail of the list */
 		spin_lock_irqsave(&chan->vc.lock, flags);
 		desc = list_last_entry(&chan->desc_freed, struct usb_dmac_desc,
-				       node);
-		list_move_tail(&desc->node, &chan->desc_got);
+				       analde);
+		list_move_tail(&desc->analde, &chan->desc_got);
 		spin_unlock_irqrestore(&chan->vc.lock, flags);
 		return desc;
 	}
@@ -332,7 +332,7 @@ static void usb_dmac_desc_put(struct usb_dmac_chan *chan,
 	unsigned long flags;
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
-	list_move_tail(&desc->node, &chan->desc_freed);
+	list_move_tail(&desc->analde, &chan->desc_freed);
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
 }
 
@@ -428,7 +428,7 @@ usb_dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		return NULL;
 	}
 
-	desc = usb_dmac_desc_get(uchan, sg_len, GFP_NOWAIT);
+	desc = usb_dmac_desc_get(uchan, sg_len, GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 
@@ -456,8 +456,8 @@ static int usb_dmac_chan_terminate_all(struct dma_chan *chan)
 	if (uchan->desc)
 		uchan->desc = NULL;
 	list_splice_init(&uchan->desc_got, &list);
-	list_for_each_entry_safe(desc, _desc, &list, node)
-		list_move_tail(&desc->node, &uchan->desc_freed);
+	list_for_each_entry_safe(desc, _desc, &list, analde)
+		list_move_tail(&desc->analde, &uchan->desc_freed);
 	spin_unlock_irqrestore(&uchan->vc.lock, flags);
 	vchan_dma_desc_free_list(&uchan->vc, &head);
 
@@ -473,7 +473,7 @@ static unsigned int usb_dmac_get_current_residue(struct usb_dmac_chan *chan,
 	unsigned int residue = sg->size;
 
 	/*
-	 * We cannot use USB_DMATCR to calculate residue because USB_DMATCR
+	 * We cananalt use USB_DMATCR to calculate residue because USB_DMATCR
 	 * has unsuited value to calculate.
 	 */
 	if (desc->direction == DMA_DEV_TO_MEM)
@@ -490,7 +490,7 @@ static u32 usb_dmac_chan_get_residue_if_complete(struct usb_dmac_chan *chan,
 	struct usb_dmac_desc *desc;
 	u32 residue = 0;
 
-	list_for_each_entry_reverse(desc, &chan->desc_freed, node) {
+	list_for_each_entry_reverse(desc, &chan->desc_freed, analde) {
 		if (desc->done_cookie == cookie) {
 			residue = desc->residue;
 			break;
@@ -586,7 +586,7 @@ static void usb_dmac_isr_transfer_end(struct usb_dmac_chan *chan)
 		desc->residue = usb_dmac_get_current_residue(chan, desc,
 							desc->sg_index - 1);
 		desc->done_cookie = desc->vd.tx.cookie;
-		desc->vd.tx_result.result = DMA_TRANS_NOERROR;
+		desc->vd.tx_result.result = DMA_TRANS_ANALERROR;
 		desc->vd.tx_result.residue = desc->residue;
 		vchan_cookie_complete(&desc->vd);
 
@@ -598,7 +598,7 @@ static void usb_dmac_isr_transfer_end(struct usb_dmac_chan *chan)
 static irqreturn_t usb_dmac_isr_channel(int irq, void *dev)
 {
 	struct usb_dmac_chan *chan = dev;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 mask = 0;
 	u32 chcr;
 	bool xfer_end = false;
@@ -659,7 +659,7 @@ static struct dma_chan *usb_dmac_of_xlate(struct of_phandle_args *dma_spec,
 	dma_cap_set(DMA_SLAVE, mask);
 
 	chan = __dma_request_channel(&mask, usb_dmac_chan_filter, dma_spec,
-				     ofdma->of_node);
+				     ofdma->of_analde);
 	if (!chan)
 		return NULL;
 
@@ -694,7 +694,7 @@ static int usb_dmac_runtime_resume(struct device *dev)
 #endif /* CONFIG_PM */
 
 static const struct dev_pm_ops usb_dmac_pm = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				      pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(usb_dmac_runtime_suspend, usb_dmac_runtime_resume,
 			   NULL)
@@ -720,12 +720,12 @@ static int usb_dmac_chan_probe(struct usb_dmac *dmac,
 	scnprintf(pdev_irqname, sizeof(pdev_irqname), "ch%u", index);
 	uchan->irq = platform_get_irq_byname(pdev, pdev_irqname);
 	if (uchan->irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irqname = devm_kasprintf(dmac->dev, GFP_KERNEL, "%s:%u",
 				 dev_name(dmac->dev), index);
 	if (!irqname)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_request_irq(dmac->dev, uchan->irq, usb_dmac_isr_channel,
 			       IRQF_SHARED, irqname, uchan);
@@ -745,7 +745,7 @@ static int usb_dmac_chan_probe(struct usb_dmac *dmac,
 
 static int usb_dmac_parse_of(struct device *dev, struct usb_dmac *dmac)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	ret = of_property_read_u32(np, "dma-channels", &dmac->n_channels);
@@ -773,7 +773,7 @@ static int usb_dmac_probe(struct platform_device *pdev)
 
 	dmac = devm_kzalloc(&pdev->dev, sizeof(*dmac), GFP_KERNEL);
 	if (!dmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dmac->dev = &pdev->dev;
 	platform_set_drvdata(pdev, dmac);
@@ -785,7 +785,7 @@ static int usb_dmac_probe(struct platform_device *pdev)
 	dmac->channels = devm_kcalloc(&pdev->dev, dmac->n_channels,
 				      sizeof(*dmac->channels), GFP_KERNEL);
 	if (!dmac->channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Request resources. */
 	dmac->iomem = devm_platform_ioremap_resource(pdev, 0);
@@ -817,7 +817,7 @@ static int usb_dmac_probe(struct platform_device *pdev)
 	}
 
 	/* Register the DMAC as a DMA provider for DT. */
-	ret = of_dma_controller_register(pdev->dev.of_node, usb_dmac_of_xlate,
+	ret = of_dma_controller_register(pdev->dev.of_analde, usb_dmac_of_xlate,
 					 NULL);
 	if (ret < 0)
 		goto error;
@@ -852,7 +852,7 @@ static int usb_dmac_probe(struct platform_device *pdev)
 	return 0;
 
 error:
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 error_pm:
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -873,7 +873,7 @@ static void usb_dmac_remove(struct platform_device *pdev)
 
 	for (i = 0; i < dmac->n_channels; ++i)
 		usb_dmac_chan_remove(dmac, &dmac->channels[i]);
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&dmac->engine);
 
 	pm_runtime_disable(&pdev->dev);

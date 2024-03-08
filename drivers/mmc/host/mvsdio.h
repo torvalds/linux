@@ -42,11 +42,11 @@
 #define MVSD_BLK_GAP_CTRL			0x054
 #define MVSD_CLK_CTRL				0x058
 #define MVSD_SW_RESET				0x05c
-#define MVSD_NOR_INTR_STATUS			0x060
+#define MVSD_ANALR_INTR_STATUS			0x060
 #define MVSD_ERR_INTR_STATUS			0x064
-#define MVSD_NOR_STATUS_EN			0x068
+#define MVSD_ANALR_STATUS_EN			0x068
 #define MVSD_ERR_STATUS_EN			0x06c
-#define MVSD_NOR_INTR_EN			0x070
+#define MVSD_ANALR_INTR_EN			0x070
 #define MVSD_ERR_INTR_EN			0x074
 #define MVSD_AUTOCMD12_ERR_STATUS		0x078
 #define MVSD_CURR_BYTE_LEFT			0x07c
@@ -68,7 +68,7 @@
  * MVSD_CMD
  */
 
-#define MVSD_CMD_RSP_NONE			(0 << 0)
+#define MVSD_CMD_RSP_ANALNE			(0 << 0)
 #define MVSD_CMD_RSP_136			(1 << 0)
 #define MVSD_CMD_RSP_48				(2 << 0)
 #define MVSD_CMD_RSP_48BUSY			(3 << 0)
@@ -129,27 +129,27 @@
  * MVSD_SW_RESET
  */
 
-#define MVSD_SW_RESET_NOW			(1 << 8)
+#define MVSD_SW_RESET_ANALW			(1 << 8)
 
 
 /*
- * Normal interrupt status bits
+ * Analrmal interrupt status bits
  */
 
-#define MVSD_NOR_CMD_DONE			(1 << 0)
-#define MVSD_NOR_XFER_DONE			(1 << 1)
-#define MVSD_NOR_BLK_GAP_EVT			(1 << 2)
-#define MVSD_NOR_DMA_DONE			(1 << 3)
-#define MVSD_NOR_TX_AVAIL			(1 << 4)
-#define MVSD_NOR_RX_READY			(1 << 5)
-#define MVSD_NOR_CARD_INT			(1 << 8)
-#define MVSD_NOR_READ_WAIT_ON			(1 << 9)
-#define MVSD_NOR_RX_FIFO_8W			(1 << 10)
-#define MVSD_NOR_TX_FIFO_8W			(1 << 11)
-#define MVSD_NOR_SUSPEND_ON			(1 << 12)
-#define MVSD_NOR_AUTOCMD12_DONE			(1 << 13)
-#define MVSD_NOR_UNEXP_RSP			(1 << 14)
-#define MVSD_NOR_ERROR				(1 << 15)
+#define MVSD_ANALR_CMD_DONE			(1 << 0)
+#define MVSD_ANALR_XFER_DONE			(1 << 1)
+#define MVSD_ANALR_BLK_GAP_EVT			(1 << 2)
+#define MVSD_ANALR_DMA_DONE			(1 << 3)
+#define MVSD_ANALR_TX_AVAIL			(1 << 4)
+#define MVSD_ANALR_RX_READY			(1 << 5)
+#define MVSD_ANALR_CARD_INT			(1 << 8)
+#define MVSD_ANALR_READ_WAIT_ON			(1 << 9)
+#define MVSD_ANALR_RX_FIFO_8W			(1 << 10)
+#define MVSD_ANALR_TX_FIFO_8W			(1 << 11)
+#define MVSD_ANALR_SUSPEND_ON			(1 << 12)
+#define MVSD_ANALR_AUTOCMD12_DONE			(1 << 13)
+#define MVSD_ANALR_UNEXP_RSP			(1 << 14)
+#define MVSD_ANALR_ERROR				(1 << 15)
 
 
 /*
@@ -176,7 +176,7 @@
  * CMD12 error status bits
  */
 
-#define MVSD_AUTOCMD12_ERR_NOTEXE		(1 << 0)
+#define MVSD_AUTOCMD12_ERR_ANALTEXE		(1 << 0)
 #define MVSD_AUTOCMD12_ERR_TIMEOUT		(1 << 1)
 #define MVSD_AUTOCMD12_ERR_CRC			(1 << 2)
 #define MVSD_AUTOCMD12_ERR_ENDBIT		(1 << 3)

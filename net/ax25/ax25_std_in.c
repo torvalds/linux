@@ -9,9 +9,9 @@
  * Most of this code is based on the SDL diagrams published in the 7th ARRL
  * Computer Networking Conference papers. The diagrams have mistakes in them,
  * but are mostly correct. Before you modify the code could you read the SDL
- * diagrams as the code is not obvious and probably very easy to break.
+ * diagrams as the code is analt obvious and probably very easy to break.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>

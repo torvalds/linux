@@ -26,7 +26,7 @@ static inline int erofs_dirnamecmp(const struct erofs_qstr *qn,
 	 */
 	DBG_BUGON(qd->name > qd->end);
 
-	/* qd could not have trailing '\0' */
+	/* qd could analt have trailing '\0' */
 	/* However it is absolutely safe if < qd->end */
 	while (qd->name + i < qd->end && qd->name[i] != '\0') {
 		if (qn->name[i] != qd->name[i]) {
@@ -83,23 +83,23 @@ static struct erofs_dirent *find_target_dirent(struct erofs_qstr *name,
 		}
 	}
 
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 static void *erofs_find_target_block(struct erofs_buf *target,
-		struct inode *dir, struct erofs_qstr *name, int *_ndirents)
+		struct ianalde *dir, struct erofs_qstr *name, int *_ndirents)
 {
 	unsigned int bsz = i_blocksize(dir);
 	int head = 0, back = erofs_iblks(dir) - 1;
 	unsigned int startprfx = 0, endprfx = 0;
-	void *candidate = ERR_PTR(-ENOENT);
+	void *candidate = ERR_PTR(-EANALENT);
 
 	while (head <= back) {
 		const int mid = head + (back - head) / 2;
 		struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
 		struct erofs_dirent *de;
 
-		buf.inode = dir;
+		buf.ianalde = dir;
 		de = erofs_bread(&buf, mid, EROFS_KMAP);
 		if (!IS_ERR(de)) {
 			const int nameoff = nameoff_from_disk(de->nameoff, bsz);
@@ -158,7 +158,7 @@ out:		/* free if the candidate is valid */
 	return candidate;
 }
 
-int erofs_namei(struct inode *dir, const struct qstr *name, erofs_nid_t *nid,
+int erofs_namei(struct ianalde *dir, const struct qstr *name, erofs_nid_t *nid,
 		unsigned int *d_type)
 {
 	int ndirents;
@@ -167,11 +167,11 @@ int erofs_namei(struct inode *dir, const struct qstr *name, erofs_nid_t *nid,
 	struct erofs_qstr qn;
 
 	if (!dir->i_size)
-		return -ENOENT;
+		return -EANALENT;
 
 	qn.name = name->name;
 	qn.end = name->name + name->len;
-	buf.inode = dir;
+	buf.ianalde = dir;
 
 	ndirents = 0;
 	de = erofs_find_target_block(&buf, dir, &qn, &ndirents);
@@ -190,13 +190,13 @@ int erofs_namei(struct inode *dir, const struct qstr *name, erofs_nid_t *nid,
 	return PTR_ERR_OR_ZERO(de);
 }
 
-static struct dentry *erofs_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *erofs_lookup(struct ianalde *dir, struct dentry *dentry,
 				   unsigned int flags)
 {
 	int err;
 	erofs_nid_t nid;
 	unsigned int d_type;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	trace_erofs_lookup(dir, dentry, flags);
 
@@ -205,20 +205,20 @@ static struct dentry *erofs_lookup(struct inode *dir, struct dentry *dentry,
 
 	err = erofs_namei(dir, &dentry->d_name, &nid, &d_type);
 
-	if (err == -ENOENT)
+	if (err == -EANALENT)
 		/* negative dentry */
-		inode = NULL;
+		ianalde = NULL;
 	else if (err)
-		inode = ERR_PTR(err);
+		ianalde = ERR_PTR(err);
 	else
-		inode = erofs_iget(dir->i_sb, nid);
-	return d_splice_alias(inode, dentry);
+		ianalde = erofs_iget(dir->i_sb, nid);
+	return d_splice_alias(ianalde, dentry);
 }
 
-const struct inode_operations erofs_dir_iops = {
+const struct ianalde_operations erofs_dir_iops = {
 	.lookup = erofs_lookup,
 	.getattr = erofs_getattr,
 	.listxattr = erofs_listxattr,
-	.get_inode_acl = erofs_get_acl,
+	.get_ianalde_acl = erofs_get_acl,
 	.fiemap = erofs_fiemap,
 };

@@ -24,7 +24,7 @@ separately allocated data is attached to the network device
 (netdev_priv()) then it is up to the module exit handler to free that.
 
 There are two groups of APIs for registering struct net_device.
-First group can be used in normal contexts where ``rtnl_lock`` is not already
+First group can be used in analrmal contexts where ``rtnl_lock`` is analt already
 held: register_netdev(), unregister_netdev().
 Second group can be used when ``rtnl_lock`` is already held:
 register_netdevice(), unregister_netdevice(), free_netdevice().
@@ -33,7 +33,7 @@ Simple drivers
 --------------
 
 Most drivers (especially device drivers) handle lifetime of struct net_device
-in context where ``rtnl_lock`` is not held (e.g. driver probe and remove paths).
+in context where ``rtnl_lock`` is analt held (e.g. driver probe and remove paths).
 
 In that case the struct net_device registration is done using
 the register_netdev(), and unregister_netdev() functions:
@@ -47,7 +47,7 @@ the register_netdev(), and unregister_netdev() functions:
 
     dev = alloc_netdev_mqs(...);
     if (!dev)
-      return -ENOMEM;
+      return -EANALMEM;
     priv = netdev_priv(dev);
 
     /* ... do all device setup before calling register_netdev() ...
@@ -71,7 +71,7 @@ the register_netdev(), and unregister_netdev() functions:
     free_netdev(dev);
   }
 
-Note that after calling register_netdev() the device is visible in the system.
+Analte that after calling register_netdev() the device is visible in the system.
 Users can open it and start sending / receiving traffic immediately,
 or run any other callback, so all initialization must be done prior to
 registration.
@@ -113,9 +113,9 @@ Example flow of netdev handling under ``rtnl_lock``:
 
     ASSERT_RTNL();
 
-    dev = alloc_netdev(sizeof(*priv), "net%d", NET_NAME_UNKNOWN, my_setup);
+    dev = alloc_netdev(sizeof(*priv), "net%d", NET_NAME_UNKANALWN, my_setup);
     if (!dev)
-      return -ENOMEM;
+      return -EANALMEM;
     priv = netdev_priv(dev);
 
     /* Implicit constructor */
@@ -125,7 +125,7 @@ Example flow of netdev handling under ``rtnl_lock``:
 
     priv->obj = some_obj_create();
     if (!priv->obj) {
-      err = -ENOMEM;
+      err = -EANALMEM;
       goto err_some_uninit;
     }
     /* End of constructor, set the destructor: */
@@ -136,7 +136,7 @@ Example flow of netdev handling under ``rtnl_lock``:
       /* register_netdevice() calls destructor on failure */
       goto err_free_dev;
 
-    /* If anything fails now unregister_netdevice() (or unregister_netdev())
+    /* If anything fails analw unregister_netdevice() (or unregister_netdev())
      * will take care of calling my_destructor and free_netdev().
      */
 
@@ -154,7 +154,7 @@ some time after unregister_netdevice(), it will also be called if
 register_netdevice() fails. The callback may be invoked with or without
 ``rtnl_lock`` held.
 
-There is no explicit constructor callback, driver "constructs" the private
+There is anal explicit constructor callback, driver "constructs" the private
 netdev state after allocating it and before registration.
 
 Setting struct net_device.needs_free_netdev makes core call free_netdevice()
@@ -184,10 +184,10 @@ may still have outstanding references to the netdevice.
 
 MTU
 ===
-Each network device has a Maximum Transfer Unit. The MTU does not
+Each network device has a Maximum Transfer Unit. The MTU does analt
 include any link layer protocol overhead. Upper layer protocols must
-not pass a socket buffer (skb) to a device to transmit with more data
-than the mtu. The MTU does not include link layer header overhead, so
+analt pass a socket buffer (skb) to a device to transmit with more data
+than the mtu. The MTU does analt include link layer header overhead, so
 for example on Ethernet if the standard MTU is 1500 bytes used, the
 actual skb will contain up to 1514 bytes because of the Ethernet
 header. Devices should allow for the 4 byte VLAN header as well.
@@ -216,14 +216,14 @@ ndo_open:
 ndo_stop:
 	Synchronization: rtnl_lock() semaphore.
 	Context: process
-	Note: netif_running() is guaranteed false
+	Analte: netif_running() is guaranteed false
 
 ndo_do_ioctl:
 	Synchronization: rtnl_lock() semaphore.
 	Context: process
 
         This is only called by network subsystems internally,
-        not by user space calling ioctl as it was in before
+        analt by user space calling ioctl as it was in before
         linux-5.14.
 
 ndo_siocbond:
@@ -245,7 +245,7 @@ ndo_siocdevprivate:
 	Context: process
 
 	This is used to implement SIOCDEVPRIVATE ioctl helpers.
-	These should not be added to new drivers, so don't use.
+	These should analt be added to new drivers, so don't use.
 
 ndo_eth_ioctl:
 	Synchronization: rtnl_lock() semaphore.
@@ -271,14 +271,14 @@ ndo_start_xmit:
 	Return codes:
 
 	* NETDEV_TX_OK everything ok.
-	* NETDEV_TX_BUSY Cannot transmit packet, try later
+	* NETDEV_TX_BUSY Cananalt transmit packet, try later
 	  Usually a bug, means queue start/stop flow control is broken in
-	  the driver. Note: the driver must NOT put the skb in its DMA ring.
+	  the driver. Analte: the driver must ANALT put the skb in its DMA ring.
 
 ndo_tx_timeout:
 	Synchronization: netif_tx_lock spinlock; all TX queues frozen.
 	Context: BHs disabled
-	Notes: netif_queue_stopped() is guaranteed true
+	Analtes: netif_queue_stopped() is guaranteed true
 
 ndo_set_rx_mode:
 	Synchronization: netif_addr_lock spinlock.

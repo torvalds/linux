@@ -30,7 +30,7 @@ static void fdt_update_cell_size(void *fdt)
 static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 			       void *fdt, int new_fdt_size, char *cmdline_ptr)
 {
-	int node, num_rsv;
+	int analde, num_rsv;
 	int status;
 	u32 fdt_val32;
 	u64 fdt_val64;
@@ -38,7 +38,7 @@ static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 	/* Do some checks on provided FDT, if it exists: */
 	if (orig_fdt) {
 		if (fdt_check_header(orig_fdt)) {
-			efi_err("Device Tree header not valid!\n");
+			efi_err("Device Tree header analt valid!\n");
 			return EFI_LOAD_ERROR;
 		}
 		/*
@@ -58,7 +58,7 @@ static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 		if (status == 0) {
 			/*
 			 * Any failure from the following function is
-			 * non-critical:
+			 * analn-critical:
 			 */
 			fdt_update_cell_size(fdt);
 		}
@@ -75,58 +75,58 @@ static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 	while (num_rsv-- > 0)
 		fdt_del_mem_rsv(fdt, num_rsv);
 
-	node = fdt_subnode_offset(fdt, 0, "chosen");
-	if (node < 0) {
-		node = fdt_add_subnode(fdt, 0, "chosen");
-		if (node < 0) {
-			/* 'node' is an error code when negative: */
-			status = node;
+	analde = fdt_subanalde_offset(fdt, 0, "chosen");
+	if (analde < 0) {
+		analde = fdt_add_subanalde(fdt, 0, "chosen");
+		if (analde < 0) {
+			/* 'analde' is an error code when negative: */
+			status = analde;
 			goto fdt_set_fail;
 		}
 	}
 
 	if (cmdline_ptr != NULL && strlen(cmdline_ptr) > 0) {
-		status = fdt_setprop(fdt, node, "bootargs", cmdline_ptr,
+		status = fdt_setprop(fdt, analde, "bootargs", cmdline_ptr,
 				     strlen(cmdline_ptr) + 1);
 		if (status)
 			goto fdt_set_fail;
 	}
 
-	/* Add FDT entries for EFI runtime services in chosen node. */
-	node = fdt_subnode_offset(fdt, 0, "chosen");
+	/* Add FDT entries for EFI runtime services in chosen analde. */
+	analde = fdt_subanalde_offset(fdt, 0, "chosen");
 	fdt_val64 = cpu_to_fdt64((u64)(unsigned long)efi_system_table);
 
-	status = fdt_setprop_var(fdt, node, "linux,uefi-system-table", fdt_val64);
+	status = fdt_setprop_var(fdt, analde, "linux,uefi-system-table", fdt_val64);
 	if (status)
 		goto fdt_set_fail;
 
 	fdt_val64 = U64_MAX; /* placeholder */
 
-	status = fdt_setprop_var(fdt, node, "linux,uefi-mmap-start", fdt_val64);
+	status = fdt_setprop_var(fdt, analde, "linux,uefi-mmap-start", fdt_val64);
 	if (status)
 		goto fdt_set_fail;
 
 	fdt_val32 = U32_MAX; /* placeholder */
 
-	status = fdt_setprop_var(fdt, node, "linux,uefi-mmap-size", fdt_val32);
+	status = fdt_setprop_var(fdt, analde, "linux,uefi-mmap-size", fdt_val32);
 	if (status)
 		goto fdt_set_fail;
 
-	status = fdt_setprop_var(fdt, node, "linux,uefi-mmap-desc-size", fdt_val32);
+	status = fdt_setprop_var(fdt, analde, "linux,uefi-mmap-desc-size", fdt_val32);
 	if (status)
 		goto fdt_set_fail;
 
-	status = fdt_setprop_var(fdt, node, "linux,uefi-mmap-desc-ver", fdt_val32);
+	status = fdt_setprop_var(fdt, analde, "linux,uefi-mmap-desc-ver", fdt_val32);
 	if (status)
 		goto fdt_set_fail;
 
-	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && !efi_nokaslr) {
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && !efi_analkaslr) {
 		efi_status_t efi_status;
 
 		efi_status = efi_get_random_bytes(sizeof(fdt_val64),
 						  (u8 *)&fdt_val64);
 		if (efi_status == EFI_SUCCESS) {
-			status = fdt_setprop_var(fdt, node, "kaslr-seed", fdt_val64);
+			status = fdt_setprop_var(fdt, analde, "kaslr-seed", fdt_val64);
 			if (status)
 				goto fdt_set_fail;
 		}
@@ -138,7 +138,7 @@ static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 	return EFI_SUCCESS;
 
 fdt_set_fail:
-	if (status == -FDT_ERR_NOSPACE)
+	if (status == -FDT_ERR_ANALSPACE)
 		return EFI_BUFFER_TOO_SMALL;
 
 	return EFI_LOAD_ERROR;
@@ -146,35 +146,35 @@ fdt_set_fail:
 
 static efi_status_t update_fdt_memmap(void *fdt, struct efi_boot_memmap *map)
 {
-	int node = fdt_path_offset(fdt, "/chosen");
+	int analde = fdt_path_offset(fdt, "/chosen");
 	u64 fdt_val64;
 	u32 fdt_val32;
 	int err;
 
-	if (node < 0)
+	if (analde < 0)
 		return EFI_LOAD_ERROR;
 
 	fdt_val64 = cpu_to_fdt64((unsigned long)map->map);
 
-	err = fdt_setprop_inplace_var(fdt, node, "linux,uefi-mmap-start", fdt_val64);
+	err = fdt_setprop_inplace_var(fdt, analde, "linux,uefi-mmap-start", fdt_val64);
 	if (err)
 		return EFI_LOAD_ERROR;
 
 	fdt_val32 = cpu_to_fdt32(map->map_size);
 
-	err = fdt_setprop_inplace_var(fdt, node, "linux,uefi-mmap-size", fdt_val32);
+	err = fdt_setprop_inplace_var(fdt, analde, "linux,uefi-mmap-size", fdt_val32);
 	if (err)
 		return EFI_LOAD_ERROR;
 
 	fdt_val32 = cpu_to_fdt32(map->desc_size);
 
-	err = fdt_setprop_inplace_var(fdt, node, "linux,uefi-mmap-desc-size", fdt_val32);
+	err = fdt_setprop_inplace_var(fdt, analde, "linux,uefi-mmap-desc-size", fdt_val32);
 	if (err)
 		return EFI_LOAD_ERROR;
 
 	fdt_val32 = cpu_to_fdt32(map->desc_ver);
 
-	err = fdt_setprop_inplace_var(fdt, node, "linux,uefi-mmap-desc-ver", fdt_val32);
+	err = fdt_setprop_inplace_var(fdt, analde, "linux,uefi-mmap-desc-ver", fdt_val32);
 	if (err)
 		return EFI_LOAD_ERROR;
 
@@ -212,10 +212,10 @@ static efi_status_t exit_boot_func(struct efi_boot_memmap *map, void *priv)
 /*
  * Allocate memory for a new FDT, then add EFI and commandline related fields
  * to the FDT.  This routine increases the FDT allocation size until the
- * allocated memory is large enough.  EFI allocations are in EFI_PAGE_SIZE
+ * allocated memory is large eanalugh.  EFI allocations are in EFI_PAGE_SIZE
  * granules, which are fixed at 4K bytes, so in most cases the first allocation
  * should succeed.  EFI boot services are exited at the end of this function.
- * There must be no allocations between the get_memory_map() call and the
+ * There must be anal allocations between the get_memory_map() call and the
  * exit_boot_services() call, so the exiting of boot services is very tightly
  * tied to the creation of the FDT with the final memory map in it.
  */
@@ -232,7 +232,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 	unsigned long fdt_addr = 0;
 	unsigned long fdt_size = 0;
 
-	if (!efi_novamap) {
+	if (!efi_analvamap) {
 		status = efi_alloc_virtmap(&priv.runtime_map, &desc_size,
 					   &desc_ver);
 		if (status != EFI_SUCCESS) {
@@ -242,18 +242,18 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 	}
 
 	/*
-	 * Unauthenticated device tree data is a security hazard, so ignore
+	 * Unauthenticated device tree data is a security hazard, so iganalre
 	 * 'dtb=' unless UEFI Secure Boot is disabled.  We assume that secure
 	 * boot is enabled if we can't determine its state.
 	 */
 	if (!IS_ENABLED(CONFIG_EFI_ARMSTUB_DTB_LOADER) ||
 	    efi_get_secureboot() != efi_secureboot_mode_disabled) {
 		if (strstr(cmdline_ptr, "dtb="))
-			efi_err("Ignoring DTB from command line.\n");
+			efi_err("Iganalring DTB from command line.\n");
 	} else {
 		status = efi_load_dtb(image, &fdt_addr, &fdt_size);
 
-		if (status != EFI_SUCCESS && status != EFI_NOT_READY) {
+		if (status != EFI_SUCCESS && status != EFI_ANALT_READY) {
 			efi_err("Failed to load device tree!\n");
 			goto fail;
 		}
@@ -294,7 +294,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 	if (status == EFI_SUCCESS) {
 		efi_set_virtual_address_map_t *svam;
 
-		if (efi_novamap)
+		if (efi_analvamap)
 			return EFI_SUCCESS;
 
 		/* Install the new virtual address map */
@@ -303,9 +303,9 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 			      desc_ver, priv.runtime_map);
 
 		/*
-		 * We are beyond the point of no return here, so if the call to
+		 * We are beyond the point of anal return here, so if the call to
 		 * SetVirtualAddressMap() failed, we need to signal that to the
-		 * incoming kernel but proceed normally otherwise.
+		 * incoming kernel but proceed analrmally otherwise.
 		 */
 		if (status != EFI_SUCCESS) {
 			efi_memory_desc_t *p;
@@ -314,7 +314,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 			/*
 			 * Set the virtual address field of all
 			 * EFI_MEMORY_RUNTIME entries to U64_MAX. This will
-			 * signal the incoming kernel that no virtual
+			 * signal the incoming kernel that anal virtual
 			 * translation has been installed.
 			 */
 			for (l = 0; l < priv.boot_memmap->map_size;
@@ -358,7 +358,7 @@ efi_status_t efi_boot_kernel(void *handle, efi_loaded_image_t *image,
 		efi_handle_post_ebs_state();
 
 	efi_enter_kernel(kernel_addr, fdt_addr, fdt_totalsize((void *)fdt_addr));
-	/* not reached */
+	/* analt reached */
 }
 
 void *get_fdt(unsigned long *fdt_size)
@@ -371,7 +371,7 @@ void *get_fdt(unsigned long *fdt_size)
 		return NULL;
 
 	if (fdt_check_header(fdt) != 0) {
-		efi_err("Invalid header detected on UEFI supplied FDT, ignoring ...\n");
+		efi_err("Invalid header detected on UEFI supplied FDT, iganalring ...\n");
 		return NULL;
 	}
 	*fdt_size = fdt_totalsize(fdt);

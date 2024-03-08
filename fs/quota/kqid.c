@@ -6,7 +6,7 @@
 /**
  *	qid_eq - Test to see if to kquid values are the same
  *	@left: A qid value
- *	@right: Another quid value
+ *	@right: Aanalther quid value
  *
  *	Return true if the two qid values are equal and false otherwise.
  */
@@ -28,7 +28,7 @@ bool qid_eq(struct kqid left, struct kqid right)
 EXPORT_SYMBOL(qid_eq);
 
 /**
- *	qid_lt - Test to see if one qid value is less than another
+ *	qid_lt - Test to see if one qid value is less than aanalther
  *	@left: The possibly lesser qid value
  *	@right: The possibly greater qid value
  *
@@ -63,7 +63,7 @@ EXPORT_SYMBOL(qid_lt);
  *
  *	There is always a mapping into the initial user_namespace.
  *
- *	If @kqid has no mapping in @targ (qid_t)-1 is returned.
+ *	If @kqid has anal mapping in @targ (qid_t)-1 is returned.
  */
 qid_t from_kqid(struct user_namespace *targ, struct kqid kqid)
 {
@@ -93,9 +93,9 @@ EXPORT_SYMBOL(from_kqid);
  *	Unlike from_kqid from_kqid_munged never fails and always
  *	returns a valid projid.  This makes from_kqid_munged
  *	appropriate for use in places where failing to provide
- *	a qid_t is not a good option.
+ *	a qid_t is analt a good option.
  *
- *	If @kqid has no mapping in @targ the kqid.type specific
+ *	If @kqid has anal mapping in @targ the kqid.type specific
  *	overflow identifier is returned.
  */
 qid_t from_kqid_munged(struct user_namespace *targ, struct kqid kqid)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 // Copyright (C) 2020 Arm Ltd.
 // based on the H6 dtsi, which is:
-//   Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+//   Copyright (C) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/sun50i-h616-ccu.h>
@@ -64,7 +64,7 @@
 		 */
 		secmon@40000000 {
 			reg = <0x0 0x40000000 0x0 0x40000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -91,7 +91,7 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		arm,no-tick-in-suspend;
+		arm,anal-tick-in-suspend;
 		interrupts = <GIC_PPI 13
 			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
 			     <GIC_PPI 14
@@ -198,7 +198,7 @@
 				bias-pull-up;
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			mmc1_pins: mmc1-pins {
 				pins = "PG0", "PG1", "PG2", "PG3",
 				       "PG4", "PG5";
@@ -216,25 +216,25 @@
 				bias-pull-up;
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			spi0_pins: spi0-pins {
 				pins = "PC0", "PC2", "PC4";
 				function = "spi0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			spi0_cs0_pin: spi0-cs0-pin {
 				pins = "PC3";
 				function = "spi0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			spi1_pins: spi1-pins {
 				pins = "PH6", "PH7", "PH8";
 				function = "spi1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			spi1_cs0_pin: spi1-cs0-pin {
 				pins = "PH5";
 				function = "spi1";
@@ -245,13 +245,13 @@
 				function = "uart0";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart1_pins: uart1-pins {
 				pins = "PG6", "PG7";
 				function = "uart1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			uart1_rts_cts_pins: uart1-rts-cts-pins {
 				pins = "PG8", "PG9";
 				function = "uart1";
@@ -701,7 +701,7 @@
 			gpio-controller;
 			#gpio-cells = <3>;
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			r_i2c_pins: r-i2c-pins {
 				pins = "PL0", "PL1";
 				function = "s_i2c";

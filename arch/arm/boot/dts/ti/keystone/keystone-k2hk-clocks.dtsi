@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Keystone 2 Kepler/Hawking SoC clock nodes
+ * Keystone 2 Kepler/Hawking SoC clock analdes
  *
  * Copyright (C) 2013-2017 Texas Instruments Incorporated - http://www.ti.com/
  */

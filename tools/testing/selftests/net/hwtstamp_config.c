@@ -4,7 +4,7 @@
  * Author: Ben Hutchings
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,7 +56,7 @@ static const char *tx_types[] = {
 
 static const char *rx_filters[] = {
 #define RX_FILTER(name) [HWTSTAMP_FILTER_ ## name] = #name
-	RX_FILTER(NONE),
+	RX_FILTER(ANALNE),
 	RX_FILTER(ALL),
 	RX_FILTER(SOME),
 	RX_FILTER(PTP_V1_L4_EVENT),

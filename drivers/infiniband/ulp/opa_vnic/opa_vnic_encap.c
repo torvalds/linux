@@ -22,21 +22,21 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    analtice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation analr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -102,16 +102,16 @@ static inline void opa_vnic_make_header(u8 *hdr, u32 slid, u32 dlid, u16 len,
  */
 static void opa_vnic_free_mac_tbl(struct hlist_head *mactbl)
 {
-	struct opa_vnic_mac_tbl_node *node;
-	struct hlist_node *tmp;
+	struct opa_vnic_mac_tbl_analde *analde;
+	struct hlist_analde *tmp;
 	int bkt;
 
 	if (!mactbl)
 		return;
 
-	vnic_hash_for_each_safe(mactbl, bkt, tmp, node, hlist) {
-		hash_del(&node->hlist);
-		kfree(node);
+	vnic_hash_for_each_safe(mactbl, bkt, tmp, analde, hlist) {
+		hash_del(&analde->hlist);
+		kfree(analde);
 	}
 	kfree(mactbl);
 }
@@ -123,7 +123,7 @@ static struct hlist_head *opa_vnic_alloc_mac_tbl(void)
 
 	mactbl = kzalloc(size, GFP_KERNEL);
 	if (!mactbl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vnic_hash_init(mactbl);
 	return mactbl;
@@ -152,7 +152,7 @@ void opa_vnic_release_mac_tbl(struct opa_vnic_adapter *adapter)
 void opa_vnic_query_mac_tbl(struct opa_vnic_adapter *adapter,
 			    struct opa_veswport_mactable *tbl)
 {
-	struct opa_vnic_mac_tbl_node *node;
+	struct opa_vnic_mac_tbl_analde *analde;
 	struct hlist_head *mactbl;
 	int bkt;
 	u16 loffset, lnum_entries;
@@ -165,16 +165,16 @@ void opa_vnic_query_mac_tbl(struct opa_vnic_adapter *adapter,
 	loffset = be16_to_cpu(tbl->offset);
 	lnum_entries = be16_to_cpu(tbl->num_entries);
 
-	vnic_hash_for_each(mactbl, bkt, node, hlist) {
-		struct __opa_vnic_mactable_entry *nentry = &node->entry;
+	vnic_hash_for_each(mactbl, bkt, analde, hlist) {
+		struct __opa_vnic_mactable_entry *nentry = &analde->entry;
 		struct opa_veswport_mactable_entry *entry;
 
-		if ((node->index < loffset) ||
-		    (node->index >= (loffset + lnum_entries)))
+		if ((analde->index < loffset) ||
+		    (analde->index >= (loffset + lnum_entries)))
 			continue;
 
 		/* populate entry in the tbl corresponding to the index */
-		entry = &tbl->tbl_entries[node->index - loffset];
+		entry = &tbl->tbl_entries[analde->index - loffset];
 		memcpy(entry->mac_addr, nentry->mac_addr,
 		       ARRAY_SIZE(entry->mac_addr));
 		memcpy(entry->mac_addr_mask, nentry->mac_addr_mask,
@@ -204,7 +204,7 @@ get_mac_done:
 int opa_vnic_update_mac_tbl(struct opa_vnic_adapter *adapter,
 			    struct opa_veswport_mactable *tbl)
 {
-	struct opa_vnic_mac_tbl_node *node, *new_node;
+	struct opa_vnic_mac_tbl_analde *analde, *new_analde;
 	struct hlist_head *new_mactbl, *old_mactbl;
 	int i, bkt, rc = 0;
 	u8 key;
@@ -234,25 +234,25 @@ int opa_vnic_update_mac_tbl(struct opa_vnic_adapter *adapter,
 		      mac_addr[3], mac_addr[4], mac_addr[5],
 		      entry->dlid_sd);
 
-		/* if the entry is being removed, do not add it */
+		/* if the entry is being removed, do analt add it */
 		if (!memcmp(mac_addr, empty_mac, ARRAY_SIZE(empty_mac)))
 			continue;
 
-		node = kzalloc(sizeof(*node), GFP_KERNEL);
-		if (!node) {
-			rc = -ENOMEM;
+		analde = kzalloc(sizeof(*analde), GFP_KERNEL);
+		if (!analde) {
+			rc = -EANALMEM;
 			goto updt_done;
 		}
 
-		node->index = loffset + i;
-		nentry = &node->entry;
+		analde->index = loffset + i;
+		nentry = &analde->entry;
 		memcpy(nentry->mac_addr, entry->mac_addr,
 		       ARRAY_SIZE(nentry->mac_addr));
 		memcpy(nentry->mac_addr_mask, entry->mac_addr_mask,
 		       ARRAY_SIZE(nentry->mac_addr_mask));
 		nentry->dlid_sd = be32_to_cpu(entry->dlid_sd);
-		key = node->entry.mac_addr[OPA_VNIC_MAC_HASH_IDX];
-		vnic_hash_add(new_mactbl, &node->hlist, key);
+		key = analde->entry.mac_addr[OPA_VNIC_MAC_HASH_IDX];
+		vnic_hash_add(new_mactbl, &analde->hlist, key);
 	}
 
 	/* add other entries from current mac table to new mac table */
@@ -260,21 +260,21 @@ int opa_vnic_update_mac_tbl(struct opa_vnic_adapter *adapter,
 	if (!old_mactbl)
 		goto switch_tbl;
 
-	vnic_hash_for_each(old_mactbl, bkt, node, hlist) {
-		if ((node->index >= loffset) &&
-		    (node->index < (loffset + lnum_entries)))
+	vnic_hash_for_each(old_mactbl, bkt, analde, hlist) {
+		if ((analde->index >= loffset) &&
+		    (analde->index < (loffset + lnum_entries)))
 			continue;
 
-		new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
-		if (!new_node) {
-			rc = -ENOMEM;
+		new_analde = kzalloc(sizeof(*new_analde), GFP_KERNEL);
+		if (!new_analde) {
+			rc = -EANALMEM;
 			goto updt_done;
 		}
 
-		new_node->index = node->index;
-		memcpy(&new_node->entry, &node->entry, sizeof(node->entry));
-		key = new_node->entry.mac_addr[OPA_VNIC_MAC_HASH_IDX];
-		vnic_hash_add(new_mactbl, &new_node->hlist, key);
+		new_analde->index = analde->index;
+		memcpy(&new_analde->entry, &analde->entry, sizeof(analde->entry));
+		key = new_analde->entry.mac_addr[OPA_VNIC_MAC_HASH_IDX];
+		vnic_hash_add(new_mactbl, &new_analde->hlist, key);
 	}
 
 switch_tbl:
@@ -298,7 +298,7 @@ updt_done:
 static uint32_t opa_vnic_chk_mac_tbl(struct opa_vnic_adapter *adapter,
 				     struct ethhdr *mac_hdr)
 {
-	struct opa_vnic_mac_tbl_node *node;
+	struct opa_vnic_mac_tbl_analde *analde;
 	struct hlist_head *mactbl;
 	u32 dlid = 0;
 	u8 key;
@@ -309,17 +309,17 @@ static uint32_t opa_vnic_chk_mac_tbl(struct opa_vnic_adapter *adapter,
 		goto chk_done;
 
 	key = mac_hdr->h_dest[OPA_VNIC_MAC_HASH_IDX];
-	vnic_hash_for_each_possible(mactbl, node, hlist, key) {
-		struct __opa_vnic_mactable_entry *entry = &node->entry;
+	vnic_hash_for_each_possible(mactbl, analde, hlist, key) {
+		struct __opa_vnic_mactable_entry *entry = &analde->entry;
 
 		/* if related to source mac, skip */
 		if (unlikely(OPA_VNIC_DLID_SD_IS_SRC_MAC(entry->dlid_sd)))
 			continue;
 
-		if (!memcmp(node->entry.mac_addr, mac_hdr->h_dest,
-			    ARRAY_SIZE(node->entry.mac_addr))) {
+		if (!memcmp(analde->entry.mac_addr, mac_hdr->h_dest,
+			    ARRAY_SIZE(analde->entry.mac_addr))) {
 			/* mac address found */
-			dlid = OPA_VNIC_DLID_SD_GET_DLID(node->entry.dlid_sd);
+			dlid = OPA_VNIC_DLID_SD_GET_DLID(analde->entry.dlid_sd);
 			break;
 		}
 	}
@@ -376,9 +376,9 @@ static u8 opa_vnic_get_sc(struct __opa_veswport_info *info,
 			sc = info->vport.pcp_to_sc_uc[pcp];
 	} else {
 		if (is_multicast_ether_addr(mac_hdr->h_dest))
-			sc = info->vport.non_vlan_sc_mc;
+			sc = info->vport.analn_vlan_sc_mc;
 		else
-			sc = info->vport.non_vlan_sc_uc;
+			sc = info->vport.analn_vlan_sc_uc;
 	}
 
 	return sc;
@@ -399,9 +399,9 @@ u8 opa_vnic_get_vl(struct opa_vnic_adapter *adapter, struct sk_buff *skb)
 			vl = info->vport.pcp_to_vl_uc[pcp];
 	} else {
 		if (is_multicast_ether_addr(mac_hdr->h_dest))
-			vl = info->vport.non_vlan_vl_mc;
+			vl = info->vport.analn_vlan_vl_mc;
 		else
-			vl = info->vport.non_vlan_vl_uc;
+			vl = info->vport.analn_vlan_vl_uc;
 	}
 
 	return vl;

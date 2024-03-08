@@ -51,14 +51,14 @@ struct ssam_event {
  * enum ssam_request_flags - Flags for SAM requests.
  *
  * @SSAM_REQUEST_HAS_RESPONSE:
- *	Specifies that the request expects a response. If not set, the request
+ *	Specifies that the request expects a response. If analt set, the request
  *	will be directly completed after its underlying packet has been
  *	transmitted. If set, the request transport system waits for a response
  *	of the request.
  *
  * @SSAM_REQUEST_UNSEQUENCED:
  *	Specifies that the request should be transmitted via an unsequenced
- *	packet. If set, the request must not have a response, meaning that this
+ *	packet. If set, the request must analt have a response, meaning that this
  *	flag and the %SSAM_REQUEST_HAS_RESPONSE flag are mutually exclusive.
  */
 enum ssam_request_flags {
@@ -122,10 +122,10 @@ ssize_t ssam_request_write_data(struct ssam_span *buf,
 				const struct ssam_request *spec);
 
 
-/* -- Synchronous request interface. ---------------------------------------- */
+/* -- Synchroanalus request interface. ---------------------------------------- */
 
 /**
- * struct ssam_request_sync - Synchronous SAM request struct.
+ * struct ssam_request_sync - Synchroanalus SAM request struct.
  * @base:   Underlying SSH request.
  * @comp:   Completion used to signal full completion of the request. After the
  *          request has been submitted, this struct may only be modified or
@@ -152,12 +152,12 @@ int ssam_request_sync_init(struct ssam_request_sync *rqst,
 			   enum ssam_request_flags flags);
 
 /**
- * ssam_request_sync_set_data - Set message data of a synchronous request.
+ * ssam_request_sync_set_data - Set message data of a synchroanalus request.
  * @rqst: The request.
  * @ptr:  Pointer to the request message data.
  * @len:  Length of the request message data.
  *
- * Set the request message data of a synchronous request. The provided buffer
+ * Set the request message data of a synchroanalus request. The provided buffer
  * needs to live until the request has been completed.
  */
 static inline void ssam_request_sync_set_data(struct ssam_request_sync *rqst,
@@ -167,12 +167,12 @@ static inline void ssam_request_sync_set_data(struct ssam_request_sync *rqst,
 }
 
 /**
- * ssam_request_sync_set_resp - Set response buffer of a synchronous request.
+ * ssam_request_sync_set_resp - Set response buffer of a synchroanalus request.
  * @rqst: The request.
  * @resp: The response buffer.
  *
- * Sets the response buffer of a synchronous request. This buffer will store
- * the response of the request after it has been completed. May be %NULL if no
+ * Sets the response buffer of a synchroanalus request. This buffer will store
+ * the response of the request after it has been completed. May be %NULL if anal
  * response is expected.
  */
 static inline void ssam_request_sync_set_resp(struct ssam_request_sync *rqst,
@@ -185,16 +185,16 @@ int ssam_request_sync_submit(struct ssam_controller *ctrl,
 			     struct ssam_request_sync *rqst);
 
 /**
- * ssam_request_sync_wait - Wait for completion of a synchronous request.
+ * ssam_request_sync_wait - Wait for completion of a synchroanalus request.
  * @rqst: The request to wait for.
  *
- * Wait for completion and release of a synchronous request. After this
+ * Wait for completion and release of a synchroanalus request. After this
  * function terminates, the request is guaranteed to have left the transport
  * system. After successful submission of a request, this function must be
  * called before accessing the response of the request, freeing the request,
  * or freeing any of the buffers associated with the request.
  *
- * This function must not be called if the request has not been submitted yet
+ * This function must analt be called if the request has analt been submitted yet
  * and may lead to a deadlock/infinite wait if a subsequent request submission
  * fails in that case, due to the completion never triggering.
  *
@@ -217,19 +217,19 @@ int ssam_request_do_sync_with_buffer(struct ssam_controller *ctrl,
 				     struct ssam_span *buf);
 
 /**
- * ssam_request_do_sync_onstack - Execute a synchronous request on the stack.
+ * ssam_request_do_sync_onstack - Execute a synchroanalus request on the stack.
  * @ctrl: The controller via which the request is submitted.
  * @rqst: The request specification.
  * @rsp:  The response buffer.
  * @payload_len: The (maximum) request payload length.
  *
- * Allocates a synchronous request with specified payload length on the stack,
+ * Allocates a synchroanalus request with specified payload length on the stack,
  * fully initializes it via the provided request specification, submits it,
  * and finally waits for its completion before returning its status. This
  * helper macro essentially allocates the request message buffer on the stack
  * and then calls ssam_request_do_sync_with_buffer().
  *
- * Note: The @payload_len parameter specifies the maximum payload length, used
+ * Analte: The @payload_len parameter specifies the maximum payload length, used
  * for buffer allocation. The actual payload length may be smaller.
  *
  * Return: Returns the status of the request or any failure during setup, i.e.
@@ -332,13 +332,13 @@ struct ssam_request_spec_md {
 };
 
 /**
- * SSAM_DEFINE_SYNC_REQUEST_N() - Define synchronous SAM request function
- * with neither argument nor return value.
+ * SSAM_DEFINE_SYNC_REQUEST_N() - Define synchroanalus SAM request function
+ * with neither argument analr return value.
  * @name: Name of the generated function.
  * @spec: Specification (&struct ssam_request_spec) defining the request.
  *
- * Defines a function executing the synchronous SAM request specified by
- * @spec, with the request having neither argument nor return value. The
+ * Defines a function executing the synchroanalus SAM request specified by
+ * @spec, with the request having neither argument analr return value. The
  * generated function takes care of setting up the request struct and buffer
  * allocation, as well as execution of the request itself, returning once the
  * request has been fully completed. The required transport buffer will be
@@ -370,14 +370,14 @@ struct ssam_request_spec_md {
 	}
 
 /**
- * SSAM_DEFINE_SYNC_REQUEST_W() - Define synchronous SAM request function with
+ * SSAM_DEFINE_SYNC_REQUEST_W() - Define synchroanalus SAM request function with
  * argument.
  * @name:  Name of the generated function.
  * @atype: Type of the request's argument.
  * @spec:  Specification (&struct ssam_request_spec) defining the request.
  *
- * Defines a function executing the synchronous SAM request specified by
- * @spec, with the request taking an argument of type @atype and having no
+ * Defines a function executing the synchroanalus SAM request specified by
+ * @spec, with the request taking an argument of type @atype and having anal
  * return value. The generated function takes care of setting up the request
  * struct, buffer allocation, as well as execution of the request itself,
  * returning once the request has been fully completed. The required transport
@@ -411,14 +411,14 @@ struct ssam_request_spec_md {
 	}
 
 /**
- * SSAM_DEFINE_SYNC_REQUEST_R() - Define synchronous SAM request function with
+ * SSAM_DEFINE_SYNC_REQUEST_R() - Define synchroanalus SAM request function with
  * return value.
  * @name:  Name of the generated function.
  * @rtype: Type of the request's return value.
  * @spec:  Specification (&struct ssam_request_spec) defining the request.
  *
- * Defines a function executing the synchronous SAM request specified by
- * @spec, with the request taking no argument but having a return value of
+ * Defines a function executing the synchroanalus SAM request specified by
+ * @spec, with the request taking anal argument but having a return value of
  * type @rtype. The generated function takes care of setting up the request
  * and response structs, buffer allocation, as well as execution of the
  * request itself, returning once the request has been fully completed. The
@@ -470,14 +470,14 @@ struct ssam_request_spec_md {
 	}
 
 /**
- * SSAM_DEFINE_SYNC_REQUEST_WR() - Define synchronous SAM request function with
+ * SSAM_DEFINE_SYNC_REQUEST_WR() - Define synchroanalus SAM request function with
  * both argument and return value.
  * @name:  Name of the generated function.
  * @atype: Type of the request's argument.
  * @rtype: Type of the request's return value.
  * @spec:  Specification (&struct ssam_request_spec) defining the request.
  *
- * Defines a function executing the synchronous SAM request specified by @spec,
+ * Defines a function executing the synchroanalus SAM request specified by @spec,
  * with the request taking an argument of type @atype and having a return value
  * of type @rtype. The generated function takes care of setting up the request
  * and response structs, buffer allocation, as well as execution of the request
@@ -531,14 +531,14 @@ struct ssam_request_spec_md {
 	}
 
 /**
- * SSAM_DEFINE_SYNC_REQUEST_MD_N() - Define synchronous multi-device SAM
- * request function with neither argument nor return value.
+ * SSAM_DEFINE_SYNC_REQUEST_MD_N() - Define synchroanalus multi-device SAM
+ * request function with neither argument analr return value.
  * @name: Name of the generated function.
  * @spec: Specification (&struct ssam_request_spec_md) defining the request.
  *
- * Defines a function executing the synchronous SAM request specified by
- * @spec, with the request having neither argument nor return value. Device
- * specifying parameters are not hard-coded, but instead must be provided to
+ * Defines a function executing the synchroanalus SAM request specified by
+ * @spec, with the request having neither argument analr return value. Device
+ * specifying parameters are analt hard-coded, but instead must be provided to
  * the function. The generated function takes care of setting up the request
  * struct, buffer allocation, as well as execution of the request itself,
  * returning once the request has been fully completed. The required transport
@@ -571,15 +571,15 @@ struct ssam_request_spec_md {
 	}
 
 /**
- * SSAM_DEFINE_SYNC_REQUEST_MD_W() - Define synchronous multi-device SAM
+ * SSAM_DEFINE_SYNC_REQUEST_MD_W() - Define synchroanalus multi-device SAM
  * request function with argument.
  * @name:  Name of the generated function.
  * @atype: Type of the request's argument.
  * @spec:  Specification (&struct ssam_request_spec_md) defining the request.
  *
- * Defines a function executing the synchronous SAM request specified by
- * @spec, with the request taking an argument of type @atype and having no
- * return value. Device specifying parameters are not hard-coded, but instead
+ * Defines a function executing the synchroanalus SAM request specified by
+ * @spec, with the request taking an argument of type @atype and having anal
+ * return value. Device specifying parameters are analt hard-coded, but instead
  * must be provided to the function. The generated function takes care of
  * setting up the request struct, buffer allocation, as well as execution of
  * the request itself, returning once the request has been fully completed.
@@ -614,15 +614,15 @@ struct ssam_request_spec_md {
 	}
 
 /**
- * SSAM_DEFINE_SYNC_REQUEST_MD_R() - Define synchronous multi-device SAM
+ * SSAM_DEFINE_SYNC_REQUEST_MD_R() - Define synchroanalus multi-device SAM
  * request function with return value.
  * @name:  Name of the generated function.
  * @rtype: Type of the request's return value.
  * @spec:  Specification (&struct ssam_request_spec_md) defining the request.
  *
- * Defines a function executing the synchronous SAM request specified by
- * @spec, with the request taking no argument but having a return value of
- * type @rtype. Device specifying parameters are not hard-coded, but instead
+ * Defines a function executing the synchroanalus SAM request specified by
+ * @spec, with the request taking anal argument but having a return value of
+ * type @rtype. Device specifying parameters are analt hard-coded, but instead
  * must be provided to the function. The generated function takes care of
  * setting up the request and response structs, buffer allocation, as well as
  * execution of the request itself, returning once the request has been fully
@@ -675,16 +675,16 @@ struct ssam_request_spec_md {
 	}
 
 /**
- * SSAM_DEFINE_SYNC_REQUEST_MD_WR() - Define synchronous multi-device SAM
+ * SSAM_DEFINE_SYNC_REQUEST_MD_WR() - Define synchroanalus multi-device SAM
  * request function with both argument and return value.
  * @name:  Name of the generated function.
  * @atype: Type of the request's argument.
  * @rtype: Type of the request's return value.
  * @spec:  Specification (&struct ssam_request_spec_md) defining the request.
  *
- * Defines a function executing the synchronous SAM request specified by @spec,
+ * Defines a function executing the synchroanalus SAM request specified by @spec,
  * with the request taking an argument of type @atype and having a return value
- * of type @rtype. Device specifying parameters are not hard-coded, but instead
+ * of type @rtype. Device specifying parameters are analt hard-coded, but instead
  * must be provided to the function. The generated function takes care of
  * setting up the request and response structs, buffer allocation, as well as
  * execution of the request itself, returning once the request has been fully
@@ -739,96 +739,96 @@ struct ssam_request_spec_md {
 	}
 
 
-/* -- Event notifier/callbacks. --------------------------------------------- */
+/* -- Event analtifier/callbacks. --------------------------------------------- */
 
-#define SSAM_NOTIF_STATE_SHIFT		2
-#define SSAM_NOTIF_STATE_MASK		((1 << SSAM_NOTIF_STATE_SHIFT) - 1)
+#define SSAM_ANALTIF_STATE_SHIFT		2
+#define SSAM_ANALTIF_STATE_MASK		((1 << SSAM_ANALTIF_STATE_SHIFT) - 1)
 
 /**
- * enum ssam_notif_flags - Flags used in return values from SSAM notifier
+ * enum ssam_analtif_flags - Flags used in return values from SSAM analtifier
  * callback functions.
  *
- * @SSAM_NOTIF_HANDLED:
- *	Indicates that the notification has been handled. This flag should be
+ * @SSAM_ANALTIF_HANDLED:
+ *	Indicates that the analtification has been handled. This flag should be
  *	set by the handler if the handler can act/has acted upon the event
- *	provided to it. This flag should not be set if the handler is not a
+ *	provided to it. This flag should analt be set if the handler is analt a
  *	primary handler intended for the provided event.
  *
- *	If this flag has not been set by any handler after the notifier chain
+ *	If this flag has analt been set by any handler after the analtifier chain
  *	has been traversed, a warning will be emitted, stating that the event
- *	has not been handled.
+ *	has analt been handled.
  *
- * @SSAM_NOTIF_STOP:
- *	Indicates that the notifier traversal should stop. If this flag is
- *	returned from a notifier callback, notifier chain traversal will
- *	immediately stop and any remaining notifiers will not be called. This
- *	flag is automatically set when ssam_notifier_from_errno() is called
+ * @SSAM_ANALTIF_STOP:
+ *	Indicates that the analtifier traversal should stop. If this flag is
+ *	returned from a analtifier callback, analtifier chain traversal will
+ *	immediately stop and any remaining analtifiers will analt be called. This
+ *	flag is automatically set when ssam_analtifier_from_erranal() is called
  *	with a negative error value.
  */
-enum ssam_notif_flags {
-	SSAM_NOTIF_HANDLED = BIT(0),
-	SSAM_NOTIF_STOP    = BIT(1),
+enum ssam_analtif_flags {
+	SSAM_ANALTIF_HANDLED = BIT(0),
+	SSAM_ANALTIF_STOP    = BIT(1),
 };
 
-struct ssam_event_notifier;
+struct ssam_event_analtifier;
 
-typedef u32 (*ssam_notifier_fn_t)(struct ssam_event_notifier *nf,
+typedef u32 (*ssam_analtifier_fn_t)(struct ssam_event_analtifier *nf,
 				  const struct ssam_event *event);
 
 /**
- * struct ssam_notifier_block - Base notifier block for SSAM event
- * notifications.
- * @node:     The node for the list of notifiers.
- * @fn:       The callback function of this notifier. This function takes the
- *            respective notifier block and event as input and should return
- *            a notifier value, which can either be obtained from the flags
- *            provided in &enum ssam_notif_flags, converted from a standard
- *            error value via ssam_notifier_from_errno(), or a combination of
- *            both (e.g. ``ssam_notifier_from_errno(e) | SSAM_NOTIF_HANDLED``).
- * @priority: Priority value determining the order in which notifier callbacks
+ * struct ssam_analtifier_block - Base analtifier block for SSAM event
+ * analtifications.
+ * @analde:     The analde for the list of analtifiers.
+ * @fn:       The callback function of this analtifier. This function takes the
+ *            respective analtifier block and event as input and should return
+ *            a analtifier value, which can either be obtained from the flags
+ *            provided in &enum ssam_analtif_flags, converted from a standard
+ *            error value via ssam_analtifier_from_erranal(), or a combination of
+ *            both (e.g. ``ssam_analtifier_from_erranal(e) | SSAM_ANALTIF_HANDLED``).
+ * @priority: Priority value determining the order in which analtifier callbacks
  *            will be called. A higher value means higher priority, i.e. the
  *            associated callback will be executed earlier than other (lower
  *            priority) callbacks.
  */
-struct ssam_notifier_block {
-	struct list_head node;
-	ssam_notifier_fn_t fn;
+struct ssam_analtifier_block {
+	struct list_head analde;
+	ssam_analtifier_fn_t fn;
 	int priority;
 };
 
 /**
- * ssam_notifier_from_errno() - Convert standard error value to notifier
+ * ssam_analtifier_from_erranal() - Convert standard error value to analtifier
  * return code.
  * @err: The error code to convert, must be negative (in case of failure) or
  *       zero (in case of success).
  *
- * Return: Returns the notifier return value obtained by converting the
- * specified @err value. In case @err is negative, the %SSAM_NOTIF_STOP flag
- * will be set, causing notifier call chain traversal to abort.
+ * Return: Returns the analtifier return value obtained by converting the
+ * specified @err value. In case @err is negative, the %SSAM_ANALTIF_STOP flag
+ * will be set, causing analtifier call chain traversal to abort.
  */
-static inline u32 ssam_notifier_from_errno(int err)
+static inline u32 ssam_analtifier_from_erranal(int err)
 {
 	if (WARN_ON(err > 0) || err == 0)
 		return 0;
 	else
-		return ((-err) << SSAM_NOTIF_STATE_SHIFT) | SSAM_NOTIF_STOP;
+		return ((-err) << SSAM_ANALTIF_STATE_SHIFT) | SSAM_ANALTIF_STOP;
 }
 
 /**
- * ssam_notifier_to_errno() - Convert notifier return code to standard error
+ * ssam_analtifier_to_erranal() - Convert analtifier return code to standard error
  * value.
- * @ret: The notifier return value to convert.
+ * @ret: The analtifier return value to convert.
  *
  * Return: Returns the negative error value encoded in @ret or zero if @ret
  * indicates success.
  */
-static inline int ssam_notifier_to_errno(u32 ret)
+static inline int ssam_analtifier_to_erranal(u32 ret)
 {
-	return -(ret >> SSAM_NOTIF_STATE_SHIFT);
+	return -(ret >> SSAM_ANALTIF_STATE_SHIFT);
 }
 
 
-/* -- Event/notification registry. ------------------------------------------ */
+/* -- Event/analtification registry. ------------------------------------------ */
 
 /**
  * struct ssam_event_registry - Registry specification used for enabling events.
@@ -855,7 +855,7 @@ struct ssam_event_registry {
  * @instance:        Instance ID of the event source.
  *
  * This struct specifies the event to be enabled/disabled via an externally
- * provided registry. It does not specify the registry to be used itself, this
+ * provided registry. It does analt specify the registry to be used itself, this
  * is done via &struct ssam_event_registry.
  */
 struct ssam_event_id {
@@ -864,19 +864,19 @@ struct ssam_event_id {
 };
 
 /**
- * enum ssam_event_mask - Flags specifying how events are matched to notifiers.
+ * enum ssam_event_mask - Flags specifying how events are matched to analtifiers.
  *
- * @SSAM_EVENT_MASK_NONE:
- *	Run the callback for any event with matching target category. Do not
+ * @SSAM_EVENT_MASK_ANALNE:
+ *	Run the callback for any event with matching target category. Do analt
  *	do any additional filtering.
  *
  * @SSAM_EVENT_MASK_TARGET:
- *	In addition to filtering by target category, only execute the notifier
+ *	In addition to filtering by target category, only execute the analtifier
  *	callback for events with a target ID matching to the one of the
  *	registry used for enabling/disabling the event.
  *
  * @SSAM_EVENT_MASK_INSTANCE:
- *	In addition to filtering by target category, only execute the notifier
+ *	In addition to filtering by target category, only execute the analtifier
  *	callback for events with an instance ID matching to the instance ID
  *	used when enabling the event.
  *
@@ -887,7 +887,7 @@ enum ssam_event_mask {
 	SSAM_EVENT_MASK_TARGET   = BIT(0),
 	SSAM_EVENT_MASK_INSTANCE = BIT(1),
 
-	SSAM_EVENT_MASK_NONE = 0,
+	SSAM_EVENT_MASK_ANALNE = 0,
 	SSAM_EVENT_MASK_STRICT =
 		  SSAM_EVENT_MASK_TARGET
 		| SSAM_EVENT_MASK_INSTANCE,
@@ -921,31 +921,31 @@ enum ssam_event_mask {
 	SSAM_EVENT_REGISTRY(SSAM_SSH_TC_REG, tid, 0x01, 0x02)
 
 /**
- * enum ssam_event_notifier_flags - Flags for event notifiers.
- * @SSAM_EVENT_NOTIFIER_OBSERVER:
- *	The corresponding notifier acts as observer. Registering a notifier
- *	with this flag set will not attempt to enable any event. Equally,
- *	unregistering will not attempt to disable any event. Note that a
- *	notifier with this flag may not even correspond to a certain event at
- *	all, only to a specific event target category. Event matching will not
+ * enum ssam_event_analtifier_flags - Flags for event analtifiers.
+ * @SSAM_EVENT_ANALTIFIER_OBSERVER:
+ *	The corresponding analtifier acts as observer. Registering a analtifier
+ *	with this flag set will analt attempt to enable any event. Equally,
+ *	unregistering will analt attempt to disable any event. Analte that a
+ *	analtifier with this flag may analt even correspond to a certain event at
+ *	all, only to a specific event target category. Event matching will analt
  *	be influenced by this flag.
  */
-enum ssam_event_notifier_flags {
-	SSAM_EVENT_NOTIFIER_OBSERVER = BIT(0),
+enum ssam_event_analtifier_flags {
+	SSAM_EVENT_ANALTIFIER_OBSERVER = BIT(0),
 };
 
 /**
- * struct ssam_event_notifier - Notifier block for SSAM events.
- * @base:        The base notifier block with callback function and priority.
- * @event:       The event for which this block will receive notifications.
+ * struct ssam_event_analtifier - Analtifier block for SSAM events.
+ * @base:        The base analtifier block with callback function and priority.
+ * @event:       The event for which this block will receive analtifications.
  * @event.reg:   Registry via which the event will be enabled/disabled.
  * @event.id:    ID specifying the event.
- * @event.mask:  Flags determining how events are matched to the notifier.
+ * @event.mask:  Flags determining how events are matched to the analtifier.
  * @event.flags: Flags used for enabling the event.
- * @flags:       Notifier flags (see &enum ssam_event_notifier_flags).
+ * @flags:       Analtifier flags (see &enum ssam_event_analtifier_flags).
  */
-struct ssam_event_notifier {
-	struct ssam_notifier_block base;
+struct ssam_event_analtifier {
+	struct ssam_analtifier_block base;
 
 	struct {
 		struct ssam_event_registry reg;
@@ -957,30 +957,30 @@ struct ssam_event_notifier {
 	unsigned long flags;
 };
 
-int ssam_notifier_register(struct ssam_controller *ctrl,
-			   struct ssam_event_notifier *n);
+int ssam_analtifier_register(struct ssam_controller *ctrl,
+			   struct ssam_event_analtifier *n);
 
-int __ssam_notifier_unregister(struct ssam_controller *ctrl,
-			       struct ssam_event_notifier *n, bool disable);
+int __ssam_analtifier_unregister(struct ssam_controller *ctrl,
+			       struct ssam_event_analtifier *n, bool disable);
 
 /**
- * ssam_notifier_unregister() - Unregister an event notifier.
- * @ctrl:    The controller the notifier has been registered on.
- * @n:       The event notifier to unregister.
+ * ssam_analtifier_unregister() - Unregister an event analtifier.
+ * @ctrl:    The controller the analtifier has been registered on.
+ * @n:       The event analtifier to unregister.
  *
- * Unregister an event notifier. Decrement the usage counter of the associated
- * SAM event if the notifier is not marked as an observer. If the usage counter
+ * Unregister an event analtifier. Decrement the usage counter of the associated
+ * SAM event if the analtifier is analt marked as an observer. If the usage counter
  * reaches zero, the event will be disabled.
  *
- * Return: Returns zero on success, %-ENOENT if the given notifier block has
- * not been registered on the controller. If the given notifier block was the
+ * Return: Returns zero on success, %-EANALENT if the given analtifier block has
+ * analt been registered on the controller. If the given analtifier block was the
  * last one associated with its specific event, returns the status of the
  * event-disable EC-command.
  */
-static inline int ssam_notifier_unregister(struct ssam_controller *ctrl,
-					   struct ssam_event_notifier *n)
+static inline int ssam_analtifier_unregister(struct ssam_controller *ctrl,
+					   struct ssam_event_analtifier *n)
 {
-	return __ssam_notifier_unregister(ctrl, n, true);
+	return __ssam_analtifier_unregister(ctrl, n, true);
 }
 
 int ssam_controller_event_enable(struct ssam_controller *ctrl,

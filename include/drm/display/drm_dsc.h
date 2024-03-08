@@ -157,7 +157,7 @@ struct drm_dsc_config {
 	/**
 	 * @block_pred_enable:
 	 * True if block prediction is used to code any groups within the
-	 * picture. False if BP not used
+	 * picture. False if BP analt used
 	 */
 	bool block_pred_enable;
 	/**
@@ -209,7 +209,7 @@ struct drm_dsc_config {
 	 */
 	u16 scale_increment_interval;
 	/**
-	 * @nfl_bpg_offset: Non first line BPG offset to be used
+	 * @nfl_bpg_offset: Analn first line BPG offset to be used
 	 */
 	u16 nfl_bpg_offset;
 	/**
@@ -239,9 +239,9 @@ struct drm_dsc_config {
 	 */
 	u16 rc_bits;
 	/**
-	 * @dsc_version_minor: DSC minor version
+	 * @dsc_version_mianalr: DSC mianalr version
 	 */
-	u8 dsc_version_minor;
+	u8 dsc_version_mianalr;
 	/**
 	 * @dsc_version_major: DSC major version
 	 */
@@ -261,7 +261,7 @@ struct drm_dsc_config {
 	u8 second_line_bpg_offset;
 	/**
 	 * @nsl_bpg_offset:
-	 * Num of bits deallocated for each grp that is not in second line of
+	 * Num of bits deallocated for each grp that is analt in second line of
 	 * slice
 	 */
 	u16 nsl_bpg_offset;
@@ -286,7 +286,7 @@ struct drm_dsc_config {
 struct drm_dsc_picture_parameter_set {
 	/**
 	 * @dsc_version:
-	 * PPS0[3:0] - dsc_version_minor: Contains Minor version of DSC
+	 * PPS0[3:0] - dsc_version_mianalr: Contains Mianalr version of DSC
 	 * PPS0[7:4] - dsc_version_major: Contains major version of DSC
 	 */
 	u8 dsc_version;
@@ -309,9 +309,9 @@ struct drm_dsc_picture_parameter_set {
 	 * 0xE - 14 bits for DSC1.2, 0xF - 14 bits for DSC 1.2.
 	 * PPS3[7:4] - bits_per_component: Bits per component for the original
 	 * pixels of the encoded picture.
-	 * 0x0 = 16bpc (allowed only when dsc_version_minor = 0x2)
+	 * 0x0 = 16bpc (allowed only when dsc_version_mianalr = 0x2)
 	 * 0x8 = 8bpc, 0xA = 10bpc, 0xC = 12bpc, 0xE = 14bpc (also
-	 * allowed only when dsc_minor_version = 0x2)
+	 * allowed only when dsc_mianalr_version = 0x2)
 	 */
 	u8 pps_3;
 	/**
@@ -508,9 +508,9 @@ struct drm_dsc_picture_parameter_set {
 	__be16 rc_range_parameters[DSC_NUM_BUF_RANGES];
 	/**
 	 * @native_422_420:
-	 * PPS88[0] - 0 = Native 4:2:2 not used
+	 * PPS88[0] - 0 = Native 4:2:2 analt used
 	 * 1 = Native 4:2:2 used
-	 * PPS88[1] - 0 = Native 4:2:0 not use
+	 * PPS88[1] - 0 = Native 4:2:0 analt use
 	 * 1 = Native 4:2:0 used
 	 * PPS88[7:2] - Reserved 6 bits
 	 */
@@ -519,14 +519,14 @@ struct drm_dsc_picture_parameter_set {
 	 * @second_line_bpg_offset:
 	 * PPS89[4:0] - Additional bits/group budget for the
 	 * second line of a slice in Native 4:2:0 mode.
-	 * Set to 0 if DSC minor version is 1 or native420 is 0.
+	 * Set to 0 if DSC mianalr version is 1 or native420 is 0.
 	 * PPS89[7:5] - Reserved
 	 */
 	u8 second_line_bpg_offset;
 	/**
 	 * @nsl_bpg_offset:
 	 * PPS90[7:0], PPS91[7:0] - Number of bits that are deallocated
-	 * for each group that is not in the second line of a slice.
+	 * for each group that is analt in the second line of a slice.
 	 */
 	__be16 nsl_bpg_offset;
 	/**

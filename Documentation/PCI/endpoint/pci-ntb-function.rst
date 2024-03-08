@@ -6,7 +6,7 @@ PCI NTB Function
 
 :Author: Kishon Vijay Abraham I <kishon@ti.com>
 
-PCI Non-Transparent Bridges (NTB) allow two host systems to communicate
+PCI Analn-Transparent Bridges (NTB) allow two host systems to communicate
 with each other by exposing each host as a device to the other host.
 NTBs typically support the ability to generate interrupts on the remote
 machine, expose memory ranges as BARs, and perform DMA.  They also support
@@ -86,7 +86,7 @@ The format of Config Region is given below. All the fields here are 32 bits.
 	+------------------------+
 	|           SIZE         |
 	+------------------------+
-	|   NO OF MEMORY WINDOW  |
+	|   ANAL OF MEMORY WINDOW  |
 	+------------------------+
 	|  MEMORY WINDOW1 OFFSET |
 	+------------------------+
@@ -156,7 +156,7 @@ The format of Config Region is given below. All the fields here are 32 bits.
 	registers and the latter portion of the region is for memory window 1.
 	This register will specify the offset of the memory window 1.
 
-  NO OF MEMORY WINDOW:
+  ANAL OF MEMORY WINDOW:
 
 	Specifies the number of memory windows supported by the NTB device.
 
@@ -189,7 +189,7 @@ The format of Config Region is given below. All the fields here are 32 bits.
 	provides the same address for all the interrupts, all the regions
 	will be translated to the same address. If a host provides different
 	addresses, the regions will be translated to different addresses. This
-	will ensure there is no difference while raising the doorbell.
+	will ensure there is anal difference while raising the doorbell.
 
   DB DATA:
 
@@ -234,7 +234,7 @@ If one 32-bit BAR is allocated for each of these regions, the scheme would
 look like this:
 
 ======  ===============
-BAR NO  CONSTRUCTS USED
+BAR ANAL  CONSTRUCTS USED
 ======  ===============
 BAR0    Config Region
 BAR1    Self Scratchpad
@@ -244,19 +244,19 @@ BAR4    Memory Window 1
 BAR5    Memory Window 2
 ======  ===============
 
-However if we allocate a separate BAR for each of the regions, there would not
-be enough BARs for all the regions in a platform that supports only 64-bit
+However if we allocate a separate BAR for each of the regions, there would analt
+be eanalugh BARs for all the regions in a platform that supports only 64-bit
 BARs.
 
 In order to be supported by most of the platforms, the regions should be
 packed and mapped to BARs in a way that provides NTB functionality and
-also makes sure the host doesn't access any region that it is not supposed
+also makes sure the host doesn't access any region that it is analt supposed
 to.
 
 The following scheme is used in EPF NTB Function:
 
 ======  ===============================
-BAR NO  CONSTRUCTS USED
+BAR ANAL  CONSTRUCTS USED
 ======  ===============================
 BAR0    Config Region + Self Scratchpad
 BAR1    Peer Scratchpad

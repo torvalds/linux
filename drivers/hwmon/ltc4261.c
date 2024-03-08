@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for Linear Technology LTC4261 I2C Negative Voltage Hot Swap Controller
+ * Driver for Linear Techanallogy LTC4261 I2C Negative Voltage Hot Swap Controller
  *
  * Copyright (C) 2010 Ericsson AB.
  *
  * Derived from:
  *
- *  Driver for Linear Technology LTC4245 I2C Multiple Supply Hot Swap Controller
+ *  Driver for Linear Techanallogy LTC4245 I2C Multiple Supply Hot Swap Controller
  *  Copyright (C) 2008 Ira W. Snyder <iws@ovro.caltech.edu>
  *
  * Datasheet: http://cds.linear.com/docs/Datasheet/42612fb.pdf
@@ -160,7 +160,7 @@ static SENSOR_DEVICE_ATTR_RO(in2_input, ltc4261_value, LTC4261_ADIN2_H);
  * Voltage alarms. The chip has only one set of voltage alarm status bits,
  * triggered by input voltage alarms. In many designs, those alarms are
  * associated with the ADIN2 sensor, due to the proximity of the ADIN2 pin
- * to the OV pin. ADIN2 is, however, not available on all chip variants.
+ * to the OV pin. ADIN2 is, however, analt available on all chip variants.
  * To ensure that the alarm condition is reported to the user, report it
  * with both voltage sensors.
  */
@@ -198,16 +198,16 @@ static int ltc4261_probe(struct i2c_client *client)
 	struct device *hwmon_dev;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (i2c_smbus_read_byte_data(client, LTC4261_STATUS) < 0) {
 		dev_err(dev, "Failed to read status register\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);

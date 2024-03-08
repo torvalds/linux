@@ -7,9 +7,9 @@
  * Copyright (C) 1998 Jakub Jelinek   (jj@ultra.linux.cz)
  */
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
-/* NOTE: call as jump breaks return stack, we have to avoid that */
+/* ANALTE: call as jump breaks return stack, we have to avoid that */
 
 	.text
 
@@ -31,7 +31,7 @@ sys32_socketcall:	/* %o0=call, %o1=args */
 	sethi		%hi(__socketcall_table_begin), %g2
 	or		%g2, %lo(__socketcall_table_begin), %g2
 	jmpl		%g2 + %o0, %g0
-	 nop
+	 analp
 do_einval:
 	retl
 	 mov		-EINVAL, %o0
@@ -46,63 +46,63 @@ do_sys_socket: /* sys_socket(int, int, int) */
 2:	ldswa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(sys_socket), %g0
 3:	 ldswa		[%o1 + 0x4] %asi, %o1
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 do_sys_bind: /* sys_bind(int fd, struct sockaddr *, int) */
 4:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_bind), %g1
 5:	ldswa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(sys_bind), %g0
 6:	 lduwa		[%o1 + 0x4] %asi, %o1
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 do_sys_connect: /* sys_connect(int, struct sockaddr *, int) */
 7:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_connect), %g1
 8:	ldswa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(sys_connect), %g0
 9:	 lduwa		[%o1 + 0x4] %asi, %o1
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 do_sys_listen: /* sys_listen(int, int) */
 10:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_listen), %g1
 	jmpl		%g1 + %lo(sys_listen), %g0
 11:	 ldswa		[%o1 + 0x4] %asi, %o1
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
 do_sys_accept: /* sys_accept(int, struct sockaddr *, int *) */
 12:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_accept), %g1
 13:	lduwa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(sys_accept), %g0
 14:	 lduwa		[%o1 + 0x4] %asi, %o1
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 do_sys_getsockname: /* sys_getsockname(int, struct sockaddr *, int *) */
 15:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_getsockname), %g1
 16:	lduwa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(sys_getsockname), %g0
 17:	 lduwa		[%o1 + 0x4] %asi, %o1
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 do_sys_getpeername: /* sys_getpeername(int, struct sockaddr *, int *) */
 18:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_getpeername), %g1
 19:	lduwa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(sys_getpeername), %g0
 20:	 lduwa		[%o1 + 0x4] %asi, %o1
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 do_sys_socketpair: /* sys_socketpair(int, int, int, int *) */
 21:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_socketpair), %g1
@@ -110,8 +110,8 @@ do_sys_socketpair: /* sys_socketpair(int, int, int, int *) */
 23:	lduwa		[%o1 + 0xc] %asi, %o3
 	jmpl		%g1 + %lo(sys_socketpair), %g0
 24:	 ldswa		[%o1 + 0x4] %asi, %o1
-	nop
-	nop
+	analp
+	analp
 do_sys_send: /* sys_send(int, void *, size_t, unsigned int) */
 25:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_send), %g1
@@ -119,8 +119,8 @@ do_sys_send: /* sys_send(int, void *, size_t, unsigned int) */
 27:	lduwa		[%o1 + 0xc] %asi, %o3
 	jmpl		%g1 + %lo(sys_send), %g0
 28:	 lduwa		[%o1 + 0x4] %asi, %o1
-	nop
-	nop
+	analp
+	analp
 do_sys_recv: /* sys_recv(int, void *, size_t, unsigned int) */
 29:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_recv), %g1
@@ -128,8 +128,8 @@ do_sys_recv: /* sys_recv(int, void *, size_t, unsigned int) */
 31:	lduwa		[%o1 + 0xc] %asi, %o3
 	jmpl		%g1 + %lo(sys_recv), %g0
 32:	 lduwa		[%o1 + 0x4] %asi, %o1
-	nop
-	nop
+	analp
+	analp
 do_sys_sendto: /* sys_sendto(int, u32, compat_size_t, unsigned int, u32, int) */
 33:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_sendto), %g1
@@ -153,10 +153,10 @@ do_sys_shutdown: /* sys_shutdown(int, int) */
 	sethi		%hi(sys_shutdown), %g1
 	jmpl		%g1 + %lo(sys_shutdown), %g0
 46:	 ldswa		[%o1 + 0x4] %asi, %o1
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
 do_sys_setsockopt: /* sys_setsockopt(int, int, int, char *, int) */
 47:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_setsockopt), %g1
@@ -165,7 +165,7 @@ do_sys_setsockopt: /* sys_setsockopt(int, int, int, char *, int) */
 50:	ldswa		[%o1 + 0x10] %asi, %o4
 	jmpl		%g1 + %lo(sys_setsockopt), %g0
 51:	 ldswa		[%o1 + 0x4] %asi, %o1
-	nop
+	analp
 do_sys_getsockopt: /* sys_getsockopt(int, int, int, u32, u32) */
 52:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_getsockopt), %g1
@@ -174,25 +174,25 @@ do_sys_getsockopt: /* sys_getsockopt(int, int, int, u32, u32) */
 55:	lduwa		[%o1 + 0x10] %asi, %o4
 	jmpl		%g1 + %lo(sys_getsockopt), %g0
 56:	 ldswa		[%o1 + 0x4] %asi, %o1
-	nop
+	analp
 do_sys_sendmsg: /* compat_sys_sendmsg(int, struct compat_msghdr *, unsigned int) */
 57:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(compat_sys_sendmsg), %g1
 58:	lduwa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(compat_sys_sendmsg), %g0
 59:	 lduwa		[%o1 + 0x4] %asi, %o1
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 do_sys_recvmsg: /* compat_sys_recvmsg(int, struct compat_msghdr *, unsigned int) */
 60:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(compat_sys_recvmsg), %g1
 61:	lduwa		[%o1 + 0x8] %asi, %o2
 	jmpl		%g1 + %lo(compat_sys_recvmsg), %g0
 62:	 lduwa		[%o1 + 0x4] %asi, %o1
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 do_sys_accept4: /* sys_accept4(int, struct sockaddr *, int *, int) */
 63:	ldswa		[%o1 + 0x0] %asi, %o0
 	sethi		%hi(sys_accept4), %g1
@@ -200,8 +200,8 @@ do_sys_accept4: /* sys_accept4(int, struct sockaddr *, int *, int) */
 65:	ldswa		[%o1 + 0xc] %asi, %o3
 	jmpl		%g1 + %lo(sys_accept4), %g0
 66:	 lduwa		[%o1 + 0x4] %asi, %o1
-	nop
-	nop
+	analp
+	analp
 
 	.section	__ex_table,"a"
 	.align		4

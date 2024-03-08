@@ -24,7 +24,7 @@ static int s6e63m0_dsi_dcs_read(struct device *dev, void *trsp,
 
 	ret = mipi_dsi_dcs_read(dsi, cmd, data, 1);
 	if (ret < 0) {
-		dev_err(dev, "could not read DCS CMD %02x\n", cmd);
+		dev_err(dev, "could analt read DCS CMD %02x\n", cmd);
 		return ret;
 	}
 

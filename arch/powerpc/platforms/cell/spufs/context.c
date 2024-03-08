@@ -70,7 +70,7 @@ void destroy_spu_context(struct kref *kref)
 {
 	struct spu_context *ctx;
 	ctx = container_of(kref, struct spu_context, kref);
-	spu_context_nospu_trace(destroy_spu_context__enter, ctx);
+	spu_context_analspu_trace(destroy_spu_context__enter, ctx);
 	mutex_lock(&ctx->state_mutex);
 	spu_deactivate(ctx);
 	mutex_unlock(&ctx->state_mutex);
@@ -144,7 +144,7 @@ int spu_acquire_saved(struct spu_context *ctx)
 {
 	int ret;
 
-	spu_context_nospu_trace(spu_acquire_saved__enter, ctx);
+	spu_context_analspu_trace(spu_acquire_saved__enter, ctx);
 
 	ret = spu_acquire(ctx);
 	if (ret)

@@ -55,7 +55,7 @@ static void igorplugusb_irdata(struct igorplugusb *ir, unsigned len)
 	/*
 	 * If more than 36 pulses and spaces follow each other, the igorplugusb
 	 * overwrites its buffer from the beginning. The overflow value is the
-	 * last offset which was not overwritten. Everything from this offset
+	 * last offset which was analt overwritten. Everything from this offset
 	 * onwards occurred before everything until this offset.
 	 */
 	overflow = ir->buf_in[2];
@@ -108,7 +108,7 @@ static void igorplugusb_callback(struct urb *urb)
 		break;
 	case -EPROTO:
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	default:
@@ -144,25 +144,25 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	struct usb_endpoint_descriptor *ep;
 	struct igorplugusb *ir;
 	struct rc_dev *rc;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	udev = interface_to_usbdev(intf);
 	idesc = intf->cur_altsetting;
 
 	if (idesc->desc.bNumEndpoints != 1) {
 		dev_err(&intf->dev, "incorrect number of endpoints");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ep = &idesc->endpoint[0].desc;
 	if (!usb_endpoint_dir_in(ep) || !usb_endpoint_xfer_control(ep)) {
 		dev_err(&intf->dev, "endpoint incorrect");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ir = devm_kzalloc(&intf->dev, sizeof(*ir), GFP_KERNEL);
 	if (!ir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ir->dev = &intf->dev;
 
@@ -194,7 +194,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	usb_to_input_id(udev, &rc->input_id);
 	rc->dev.parent = &intf->dev;
 	/*
-	 * This device can only store 36 pulses + spaces, which is not enough
+	 * This device can only store 36 pulses + spaces, which is analt eanalugh
 	 * for the NEC protocol and many others.
 	 */
 	rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER &

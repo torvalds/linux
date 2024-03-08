@@ -2,7 +2,7 @@
 /*
  * Marvell Berlin SoC pinctrl driver.
  *
- * Copyright (C) 2014 Marvell Technology Group Ltd.
+ * Copyright (C) 2014 Marvell Techanallogy Group Ltd.
  *
  * Antoine Ténart <antoine.tenart@free-electrons.com>
  */
@@ -50,7 +50,7 @@ struct berlin_pinctrl_function {
 		.muxval = _muxval,			\
 	}
 
-#define BERLIN_PINCTRL_FUNCTION_UNKNOWN		{}
+#define BERLIN_PINCTRL_FUNCTION_UNKANALWN		{}
 
 int berlin_pinctrl_probe(struct platform_device *pdev,
 			 const struct berlin_pinctrl_desc *desc);

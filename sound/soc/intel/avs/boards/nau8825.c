@@ -30,7 +30,7 @@ avs_nau8825_clock_control(struct snd_soc_dapm_widget *w, struct snd_kcontrol *co
 
 	codec_dai = snd_soc_card_get_codec_dai(card, SKL_NUVOTON_CODEC_DAI);
 	if (!codec_dai) {
-		dev_err(card->dev, "Codec dai not found\n");
+		dev_err(card->dev, "Codec dai analt found\n");
 		return -EINVAL;
 	}
 
@@ -53,7 +53,7 @@ static const struct snd_kcontrol_new card_controls[] = {
 static const struct snd_soc_dapm_widget card_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0, avs_nau8825_clock_control,
+	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_ANALPM, 0, 0, avs_nau8825_clock_control,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
@@ -90,7 +90,7 @@ static int avs_nau8825_codec_init(struct snd_soc_pcm_runtime *runtime)
 
 	pins = devm_kmemdup(card->dev, card_headset_pins, sizeof(*pins) * num_pins, GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * 4 buttons here map to the google Reference headset.
@@ -130,7 +130,7 @@ avs_nau8825_be_fixup(struct snd_soc_pcm_runtime *runtime, struct snd_pcm_hw_para
 	channels->min = channels->max = 2;
 
 	/* set SSP to 24 bit */
-	snd_mask_none(fmt);
+	snd_mask_analne(fmt);
 	snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
 
 	return 0;
@@ -180,7 +180,7 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl = devm_kzalloc(dev, sizeof(*dl), GFP_KERNEL);
 	platform = devm_kzalloc(dev, sizeof(*platform), GFP_KERNEL);
 	if (!dl || !platform)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform->name = platform_name;
 
@@ -189,14 +189,14 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl->cpus = devm_kzalloc(dev, sizeof(*dl->cpus), GFP_KERNEL);
 	dl->codecs = devm_kzalloc(dev, sizeof(*dl->codecs), GFP_KERNEL);
 	if (!dl->name || !dl->cpus || !dl->codecs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dl->cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
 					    AVS_STRING_FMT("SSP", " Pin", ssp_port, tdm_slot));
 	dl->codecs->name = devm_kasprintf(dev, GFP_KERNEL, "i2c-10508825:00");
 	dl->codecs->dai_name = devm_kasprintf(dev, GFP_KERNEL, SKL_NUVOTON_CODEC_DAI);
 	if (!dl->cpus->dai_name || !dl->codecs->name || !dl->codecs->dai_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dl->num_cpus = 1;
 	dl->num_codecs = 1;
@@ -208,8 +208,8 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl->exit = avs_nau8825_codec_exit;
 	dl->be_hw_params_fixup = avs_nau8825_be_fixup;
 	dl->ops = &avs_nau8825_ops;
-	dl->nonatomic = 1;
-	dl->no_pcm = 1;
+	dl->analnatomic = 1;
+	dl->anal_pcm = 1;
 	dl->dpcm_capture = 1;
 	dl->dpcm_playback = 1;
 
@@ -232,7 +232,7 @@ static int avs_card_resume_post(struct snd_soc_card *card)
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 
 	if (!codec_dai) {
-		dev_err(card->dev, "Codec dai not found\n");
+		dev_err(card->dev, "Codec dai analt found\n");
 		return -EINVAL;
 	}
 
@@ -269,7 +269,7 @@ static int avs_nau8825_probe(struct platform_device *pdev)
 	jack = devm_kzalloc(dev, sizeof(*jack), GFP_KERNEL);
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!jack || !card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->name = "avs_nau8825";
 	card->dev = dev;

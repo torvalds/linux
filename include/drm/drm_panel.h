@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -25,13 +25,13 @@
 #define __DRM_PANEL_H__
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 
 struct backlight_device;
 struct dentry;
-struct device_node;
+struct device_analde;
 struct drm_connector;
 struct drm_device;
 struct drm_panel_follower;
@@ -59,16 +59,16 @@ enum drm_panel_orientation;
  * Before stopping video transmission from the display controller it can be
  * necessary to turn off the panel to avoid visual glitches. This is done in
  * the .disable() function. Analogously to .enable() this typically involves
- * turning off the backlight and waiting for some time to make sure no image
+ * turning off the backlight and waiting for some time to make sure anal image
  * is visible on the panel. It is then safe for the display controller to
  * cease transmission of video data.
  *
- * To save power when no video data is transmitted, a driver can power down
+ * To save power when anal video data is transmitted, a driver can power down
  * the panel. This is the job of the .unprepare() function.
  *
  * Backlight can be handled automatically if configured using
  * drm_panel_of_backlight() or drm_panel_dp_aux_backlight(). Then the driver
- * does not need to implement the functionality to enable/disable backlight.
+ * does analt need to implement the functionality to enable/disable backlight.
  */
 struct drm_panel_funcs {
 	/**
@@ -203,7 +203,7 @@ struct drm_panel {
 	 * to enable(), and to turn off backlight before the call to
 	 * disable().
 	 * backlight is set by drm_panel_of_backlight() or
-	 * drm_panel_dp_aux_backlight() and drivers shall not assign it.
+	 * drm_panel_dp_aux_backlight() and drivers shall analt assign it.
 	 */
 	struct backlight_device *backlight;
 
@@ -285,19 +285,19 @@ int drm_panel_disable(struct drm_panel *panel);
 int drm_panel_get_modes(struct drm_panel *panel, struct drm_connector *connector);
 
 #if defined(CONFIG_OF) && defined(CONFIG_DRM_PANEL)
-struct drm_panel *of_drm_find_panel(const struct device_node *np);
-int of_drm_get_panel_orientation(const struct device_node *np,
+struct drm_panel *of_drm_find_panel(const struct device_analde *np);
+int of_drm_get_panel_orientation(const struct device_analde *np,
 				 enum drm_panel_orientation *orientation);
 #else
-static inline struct drm_panel *of_drm_find_panel(const struct device_node *np)
+static inline struct drm_panel *of_drm_find_panel(const struct device_analde *np)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
-static inline int of_drm_get_panel_orientation(const struct device_node *np,
+static inline int of_drm_get_panel_orientation(const struct device_analde *np,
 					       enum drm_panel_orientation *orientation)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -317,14 +317,14 @@ static inline bool drm_is_panel_follower(struct device *dev)
 static inline int drm_panel_add_follower(struct device *follower_dev,
 					 struct drm_panel_follower *follower)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline void drm_panel_remove_follower(struct drm_panel_follower *follower) { }
 static inline int devm_drm_panel_add_follower(struct device *follower_dev,
 					      struct drm_panel_follower *follower)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

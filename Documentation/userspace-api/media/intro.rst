@@ -38,7 +38,7 @@ divided into five parts.
 
 5. The :ref:`fifth part <cec>` covers the CEC (Consumer Electronics Control) API.
 
-It should also be noted that a media device may also have audio components, like
+It should also be analted that a media device may also have audio components, like
 mixers, PCM capture, PCM playback, etc, which are controlled via ALSA API.  For
 additional information and for the latest development code, see:
 `https://linuxtv.org <https://linuxtv.org>`__.  For discussing improvements,

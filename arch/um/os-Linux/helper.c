@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sched.h>
 #include <linux/limits.h>
 #include <sys/socket.h>
@@ -31,7 +31,7 @@ static int helper_child(void *arg)
 
 	if (data->pre_exec != NULL)
 		(*data->pre_exec)(data->pre_data);
-	err = execvp_noalloc(data->buf, argv[0], argv);
+	err = execvp_analalloc(data->buf, argv[0], argv);
 
 	/* If the exec succeeds, we don't get here */
 	CATCH_EINTR(ret = write(data->fd, &err, sizeof(err)));
@@ -48,13 +48,13 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv)
 
 	stack = alloc_stack(0, __uml_cant_sleep());
 	if (stack == 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
 	if (ret < 0) {
-		ret = -errno;
-		printk(UM_KERN_ERR "run_helper : pipe failed, errno = %d\n",
-		       errno);
+		ret = -erranal;
+		printk(UM_KERN_ERR "run_helper : pipe failed, erranal = %d\n",
+		       erranal);
 		goto out_free;
 	}
 
@@ -74,9 +74,9 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv)
 					uml_kmalloc(PATH_MAX, UM_GFP_KERNEL);
 	pid = clone(helper_child, (void *) sp, CLONE_VM, &data);
 	if (pid < 0) {
-		ret = -errno;
-		printk(UM_KERN_ERR "run_helper : clone failed, errno = %d\n",
-		       errno);
+		ret = -erranal;
+		printk(UM_KERN_ERR "run_helper : clone failed, erranal = %d\n",
+		       erranal);
 		goto out_free2;
 	}
 
@@ -84,7 +84,7 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv)
 	fds[1] = -1;
 
 	/*
-	 * Read the errno value from the child, if the exec failed, or get 0 if
+	 * Read the erranal value from the child, if the exec failed, or get 0 if
 	 * the exec succeeded because the pipe fd was set as close-on-exec.
 	 */
 	n = read(fds[0], &ret, sizeof(ret));
@@ -92,7 +92,7 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv)
 		ret = pid;
 	} else {
 		if (n < 0) {
-			n = -errno;
+			n = -erranal;
 			printk(UM_KERN_ERR "run_helper : read on pipe failed, "
 			       "ret = %d\n", -n);
 			ret = n;
@@ -123,22 +123,22 @@ int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 
 	stack = alloc_stack(0, __uml_cant_sleep());
 	if (stack == 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sp = stack + UM_KERN_PAGE_SIZE;
 	pid = clone(proc, (void *) sp, flags, arg);
 	if (pid < 0) {
-		err = -errno;
+		err = -erranal;
 		printk(UM_KERN_ERR "run_helper_thread : clone failed, "
-		       "errno = %d\n", errno);
+		       "erranal = %d\n", erranal);
 		return err;
 	}
 	if (stack_out == NULL) {
 		CATCH_EINTR(pid = waitpid(pid, &status, __WALL));
 		if (pid < 0) {
-			err = -errno;
+			err = -erranal;
 			printk(UM_KERN_ERR "run_helper_thread - wait failed, "
-			       "errno = %d\n", errno);
+			       "erranal = %d\n", erranal);
 			pid = err;
 		}
 		if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0))
@@ -158,8 +158,8 @@ int helper_wait(int pid)
 	CATCH_EINTR(ret = waitpid(pid, &status, wflags));
 	if (ret < 0) {
 		printk(UM_KERN_ERR "helper_wait : waitpid process %d failed, "
-		       "errno = %d\n", pid, errno);
-		return -errno;
+		       "erranal = %d\n", pid, erranal);
+		return -erranal;
 	} else if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
 		printk(UM_KERN_ERR "helper_wait : process %d exited with "
 		       "status 0x%x\n", pid, status);

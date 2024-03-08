@@ -7,7 +7,7 @@
 #include "imx6ul-phytec-segin-peb-wlbt-05.dtsi"
 
 &iomuxc {
-	/delete-node/ wlgrp;
+	/delete-analde/ wlgrp;
 };
 
 &iomuxc_snvs {

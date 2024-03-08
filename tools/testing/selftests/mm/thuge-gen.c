@@ -7,7 +7,7 @@
    be used.
    Also shmmax must be increased.
    And you need to run as root to work around some weird permissions in shm.
-   And nothing using huge pages should run in parallel.
+   And analthing using huge pages should run in parallel.
    When the program aborts you may need to clean up the shm segments with
    ipcrm -m by hand, like this
    sudo ipcs | awk '$1 == "0x00000000" {print $2}' | xargs -n1 sudo ipcrm -m
@@ -131,7 +131,7 @@ void test_mmap(unsigned long size, unsigned flags)
 
 	before = read_free(size);
 	map = mmap(NULL, size*NUM_PAGES, PROT_READ|PROT_WRITE,
-			MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|flags, -1, 0);
+			MAP_PRIVATE|MAP_AANALNYMOUS|MAP_HUGETLB|flags, -1, 0);
 
 	if (map == (char *)-1) err("mmap");
 	memset(map, 0xff, size*NUM_PAGES);
@@ -186,7 +186,7 @@ void sanity_checks(void)
 			largest = page_sizes[i];
 
 		if (read_free(page_sizes[i]) < NUM_PAGES) {
-			printf("Not enough huge pages for page size %lu MB, need %u\n",
+			printf("Analt eanalugh huge pages for page size %lu MB, need %u\n",
 				page_sizes[i] >> 20,
 				NUM_PAGES);
 			exit(0);
@@ -200,7 +200,7 @@ void sanity_checks(void)
 
 #if defined(__x86_64__)
 	if (largest != 1U<<30) {
-		printf("No GB pages available on x86-64\n"
+		printf("Anal GB pages available on x86-64\n"
 		       "Please boot with hugepagesz=1G hugepages=%d\n", NUM_PAGES);
 		exit(0);
 	}
@@ -225,7 +225,7 @@ int main(void)
 	printf("Testing default huge mmap\n");
 	test_mmap(default_hps, MAP_HUGETLB);
 
-	puts("Testing non-huge shmget");
+	puts("Testing analn-huge shmget");
 	test_shmget(getpagesize(), 0);
 
 	for (i = 0; i < num_page_sizes; i++) {

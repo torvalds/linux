@@ -46,9 +46,9 @@
 #define ELCOM_PRODUCT_ID	0x5003
 #define ELCOM_PRODUCT_ID_UCSGT	0x5004
 
-#define ITEGNO_VENDOR_ID	0x0eba
-#define ITEGNO_PRODUCT_ID	0x1080
-#define ITEGNO_PRODUCT_ID_2080	0x2080
+#define ITEGANAL_VENDOR_ID	0x0eba
+#define ITEGANAL_PRODUCT_ID	0x1080
+#define ITEGANAL_PRODUCT_ID_2080	0x2080
 
 #define MA620_VENDOR_ID		0x0df7
 #define MA620_PRODUCT_ID	0x0620
@@ -81,11 +81,11 @@
 #define SYNTECH_VENDOR_ID	0x0745
 #define SYNTECH_PRODUCT_ID	0x0001
 
-/* Nokia CA-42 Cable */
-#define NOKIA_CA42_VENDOR_ID	0x078b
-#define NOKIA_CA42_PRODUCT_ID	0x1234
+/* Analkia CA-42 Cable */
+#define ANALKIA_CA42_VENDOR_ID	0x078b
+#define ANALKIA_CA42_PRODUCT_ID	0x1234
 
-/* CA-42 CLONE Cable www.ca-42.com chipset: Prolific Technology Inc */
+/* CA-42 CLONE Cable www.ca-42.com chipset: Prolific Techanallogy Inc */
 #define CA_42_CA42_VENDOR_ID	0x10b5
 #define CA_42_CA42_PRODUCT_ID	0xac70
 

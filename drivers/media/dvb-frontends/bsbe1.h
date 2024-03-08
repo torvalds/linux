@@ -17,14 +17,14 @@ static u8 alps_bsbe1_inittab[] = {
 	0x06, 0x00,   /* DAC output 0 */
 	0x08, 0x40,   /* DiSEqC off, LNB power on OP2/LOCK pin on */
 	0x09, 0x00,   /* FIFO */
-	0x0c, 0x51,   /* OP1/OP0 normal, val = 1 (LNB power on) */
+	0x0c, 0x51,   /* OP1/OP0 analrmal, val = 1 (LNB power on) */
 	0x0d, 0x82,   /* DC offset compensation = on, beta_agc1 = 2 */
 	0x0f, 0x92,   /* AGC1R */
 	0x10, 0x34,   /* AGC2O */
 	0x11, 0x84,   /* TLSR */
 	0x12, 0xb9,   /* CFD */
 	0x15, 0xc9,   /* lock detector threshold */
-	0x28, 0x00,   /* out imp: normal, type: parallel, FEC mode: QPSK */
+	0x28, 0x00,   /* out imp: analrmal, type: parallel, FEC mode: QPSK */
 	0x33, 0xfc,   /* RS control */
 	0x34, 0x93,   /* count viterbi bit errors per 2E18 bytes */
 	0xff, 0xff

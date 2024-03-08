@@ -42,9 +42,9 @@ struct mtk_base_memif_data {
 	int fs_reg;
 	int fs_shift;
 	int fs_maskbit;
-	int mono_reg;
-	int mono_shift;
-	int mono_invert;
+	int moanal_reg;
+	int moanal_shift;
+	int moanal_invert;
 	int quad_ch_reg;
 	int quad_ch_mask;
 	int quad_ch_shift;

@@ -87,7 +87,7 @@
 #  define CANCTRL_REQOP_LISTEN_ONLY 0x60
 #  define CANCTRL_REQOP_LOOPBACK    0x40
 #  define CANCTRL_REQOP_SLEEP	    0x20
-#  define CANCTRL_REQOP_NORMAL	    0x00
+#  define CANCTRL_REQOP_ANALRMAL	    0x00
 #  define CANCTRL_OSM		    0x08
 #  define CANCTRL_ABAT		    0x10
 #define TEC	      0x1c
@@ -282,10 +282,10 @@ static void mcp251x_clean(struct net_device *net)
 	priv->tx_busy = false;
 }
 
-/* Note about handling of error return of mcp251x_spi_trans: accessing
- * registers via SPI is not really different conceptually than using
- * normal I/O assembler instructions, although it's much more
- * complicated from a practical POV. So it's not advisable to always
+/* Analte about handling of error return of mcp251x_spi_trans: accessing
+ * registers via SPI is analt really different conceptually than using
+ * analrmal I/O assembler instructions, although it's much more
+ * complicated from a practical POV. So it's analt advisable to always
  * check the return value of this function. Imagine that every
  * read{b,l}, write{b,l} and friends would be bracketed in "if ( < 0)
  * error();", it would be a great mess (well there are some situation
@@ -444,7 +444,7 @@ static int mcp251x_gpio_request(struct gpio_chip *chip,
 	struct mcp251x_priv *priv = gpiochip_get_data(chip);
 	u8 val;
 
-	/* nothing to be done for inputs */
+	/* analthing to be done for inputs */
 	if (mcp251x_gpio_is_input(offset))
 		return 0;
 
@@ -465,7 +465,7 @@ static void mcp251x_gpio_free(struct gpio_chip *chip,
 	struct mcp251x_priv *priv = gpiochip_get_data(chip);
 	u8 val;
 
-	/* nothing to be done for inputs */
+	/* analthing to be done for inputs */
 	if (mcp251x_gpio_is_input(offset))
 		return;
 
@@ -701,7 +701,7 @@ static void mcp251x_hw_rx(struct spi_device *spi, int buf_idx)
 
 	skb = alloc_can_skb(priv->net, &frame);
 	if (!skb) {
-		dev_err(&spi->dev, "cannot allocate RX skb\n");
+		dev_err(&spi->dev, "cananalt allocate RX skb\n");
 		priv->net->stats.rx_dropped++;
 		return;
 	}
@@ -814,13 +814,13 @@ static int mcp251x_do_set_mode(struct net_device *net, enum can_mode mode)
 		queue_work(priv->wq, &priv->restart_work);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
 }
 
-static int mcp251x_set_normal_mode(struct spi_device *spi)
+static int mcp251x_set_analrmal_mode(struct spi_device *spi)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 	u8 value;
@@ -834,19 +834,19 @@ static int mcp251x_set_normal_mode(struct spi_device *spi)
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK) {
 		/* Put device into loopback mode */
 		mcp251x_write_reg(spi, CANCTRL, CANCTRL_REQOP_LOOPBACK);
-	} else if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY) {
+	} else if (priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY) {
 		/* Put device into listen-only mode */
 		mcp251x_write_reg(spi, CANCTRL, CANCTRL_REQOP_LISTEN_ONLY);
 	} else {
-		/* Put device into normal mode */
-		mcp251x_write_reg(spi, CANCTRL, CANCTRL_REQOP_NORMAL);
+		/* Put device into analrmal mode */
+		mcp251x_write_reg(spi, CANCTRL, CANCTRL_REQOP_ANALRMAL);
 
-		/* Wait for the device to enter normal mode */
+		/* Wait for the device to enter analrmal mode */
 		ret = mcp251x_read_stat_poll_timeout(spi, value, value == 0,
 						     MCP251X_OST_DELAY_MS * 1000,
 						     USEC_PER_SEC);
 		if (ret) {
-			dev_err(&spi->dev, "MCP251x didn't enter in normal mode\n");
+			dev_err(&spi->dev, "MCP251x didn't enter in analrmal mode\n");
 			return ret;
 		}
 	}
@@ -929,7 +929,7 @@ static int mcp251x_hw_probe(struct spi_device *spi)
 
 	/* Check for power up default value */
 	if ((ctrl & 0x17) != 0x07)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -985,7 +985,7 @@ static void mcp251x_error_skb(struct net_device *net, int can_id, int data1)
 		frame->data[1] = data1;
 		netif_rx(skb);
 	} else {
-		netdev_err(net, "cannot allocate error skb\n");
+		netdev_err(net, "cananalt allocate error skb\n");
 	}
 }
 
@@ -1033,11 +1033,11 @@ static void mcp251x_restart_work_handler(struct work_struct *ws)
 		}
 		priv->force_quit = 0;
 		if (priv->after_suspend & AFTER_SUSPEND_RESTART) {
-			mcp251x_set_normal_mode(spi);
+			mcp251x_set_analrmal_mode(spi);
 		} else if (priv->after_suspend & AFTER_SUSPEND_UP) {
 			netif_device_attach(net);
 			mcp251x_clean(net);
-			mcp251x_set_normal_mode(spi);
+			mcp251x_set_analrmal_mode(spi);
 			netif_wake_queue(net);
 		} else {
 			mcp251x_hw_sleep(spi);
@@ -1080,7 +1080,7 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 				mcp251x_write_bits(spi, CANINTF,
 						   CANINTF_RX0IF, 0x00);
 
-			/* check if buffer 1 is already known to be full, no need to re-read */
+			/* check if buffer 1 is already kanalwn to be full, anal need to re-read */
 			if (!(intf & CANINTF_RX1IF)) {
 				u8 intf1, eflag1;
 
@@ -1218,7 +1218,7 @@ static int mcp251x_open(struct net_device *net)
 	priv->tx_skb = NULL;
 	priv->tx_busy = false;
 
-	if (!dev_fwnode(&spi->dev))
+	if (!dev_fwanalde(&spi->dev))
 		flags = IRQF_TRIGGER_FALLING;
 
 	ret = request_threaded_irq(spi->irq, NULL, mcp251x_can_ist,
@@ -1235,7 +1235,7 @@ static int mcp251x_open(struct net_device *net)
 	ret = mcp251x_setup(net, spi);
 	if (ret)
 		goto out_free_irq;
-	ret = mcp251x_set_normal_mode(spi);
+	ret = mcp251x_set_analrmal_mode(spi);
 	if (ret)
 		goto out_free_irq;
 
@@ -1323,7 +1323,7 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	/* Allocate can/net device */
 	net = alloc_candev(sizeof(struct mcp251x_priv), TX_ECHO_SKB_MAX);
 	if (!net)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = clk_prepare_enable(clk);
 	if (ret)
@@ -1338,7 +1338,7 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	priv->can.do_set_mode = mcp251x_do_set_mode;
 	priv->can.clock.freq = freq / 2;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES |
-		CAN_CTRLMODE_LOOPBACK | CAN_CTRLMODE_LISTENONLY;
+		CAN_CTRLMODE_LOOPBACK | CAN_CTRLMODE_LISTEANALNLY;
 	if (match)
 		priv->model = (enum mcp251x_model)(uintptr_t)match;
 	else
@@ -1373,7 +1373,7 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	priv->wq = alloc_workqueue("mcp251x_wq", WQ_FREEZABLE | WQ_MEM_RECLAIM,
 				   0);
 	if (!priv->wq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_clk;
 	}
 	INIT_WORK(&priv->tx_work, mcp251x_tx_work_handler);
@@ -1385,24 +1385,24 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	priv->spi_tx_buf = devm_kzalloc(&spi->dev, SPI_TRANSFER_BUF_LEN,
 					GFP_KERNEL);
 	if (!priv->spi_tx_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_probe;
 	}
 
 	priv->spi_rx_buf = devm_kzalloc(&spi->dev, SPI_TRANSFER_BUF_LEN,
 					GFP_KERNEL);
 	if (!priv->spi_rx_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_probe;
 	}
 
 	SET_NETDEV_DEV(net, &spi->dev);
 
-	/* Here is OK to not lock the MCP, no one knows about it yet */
+	/* Here is OK to analt lock the MCP, anal one kanalws about it yet */
 	ret = mcp251x_hw_probe(spi);
 	if (ret) {
-		if (ret == -ENODEV)
-			dev_err(&spi->dev, "Cannot initialize MCP%x. Wrong wiring?\n",
+		if (ret == -EANALDEV)
+			dev_err(&spi->dev, "Cananalt initialize MCP%x. Wrong wiring?\n",
 				priv->model);
 		goto error_probe;
 	}
@@ -1463,8 +1463,8 @@ static int __maybe_unused mcp251x_can_suspend(struct device *dev)
 
 	priv->force_quit = 1;
 	disable_irq(spi->irq);
-	/* Note: at this point neither IST nor workqueues are running.
-	 * open/stop cannot be called anyway so locking is not needed
+	/* Analte: at this point neither IST analr workqueues are running.
+	 * open/stop cananalt be called anyway so locking is analt needed
 	 */
 	if (netif_running(net)) {
 		netif_device_detach(net);

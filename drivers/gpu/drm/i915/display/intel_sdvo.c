@@ -10,13 +10,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -442,11 +442,11 @@ static void intel_sdvo_debug_write(struct intel_sdvo *intel_sdvo, u8 cmd,
 static const char * const cmd_status_names[] = {
 	[SDVO_CMD_STATUS_POWER_ON] = "Power on",
 	[SDVO_CMD_STATUS_SUCCESS] = "Success",
-	[SDVO_CMD_STATUS_NOTSUPP] = "Not supported",
+	[SDVO_CMD_STATUS_ANALTSUPP] = "Analt supported",
 	[SDVO_CMD_STATUS_INVALID_ARG] = "Invalid arg",
 	[SDVO_CMD_STATUS_PENDING] = "Pending",
-	[SDVO_CMD_STATUS_TARGET_NOT_SPECIFIED] = "Target not specified",
-	[SDVO_CMD_STATUS_SCALING_NOT_SUPP] = "Scaling not supported",
+	[SDVO_CMD_STATUS_TARGET_ANALT_SPECIFIED] = "Target analt specified",
+	[SDVO_CMD_STATUS_SCALING_ANALT_SUPP] = "Scaling analt supported",
 };
 
 static const char *sdvo_cmd_status(u8 status)
@@ -553,7 +553,7 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 	 * Check 5 times in case the hardware failed to read the docs.
 	 *
 	 * Also beware that the first response by many devices is to
-	 * reply PENDING and stall for time. TVs are notorious for
+	 * reply PENDING and stall for time. TVs are analtorious for
 	 * requiring longer than specified to complete their replies.
 	 * Originally (in the DDX long ago), the delay was only ever 15ms
 	 * with an additional delay of 30ms applied for TVs added later after
@@ -567,7 +567,7 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 		goto log_fail;
 
 	while ((status == SDVO_CMD_STATUS_PENDING ||
-		status == SDVO_CMD_STATUS_TARGET_NOT_SPECIFIED) && --retry) {
+		status == SDVO_CMD_STATUS_TARGET_ANALT_SPECIFIED) && --retry) {
 		if (retry < 10)
 			msleep(15);
 		else
@@ -1594,7 +1594,7 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 	switch (crtc_state->pixel_multiplier) {
 	default:
 		drm_WARN(&dev_priv->drm, 1,
-			 "unknown pixel multiplier specified\n");
+			 "unkanalwn pixel multiplier specified\n");
 		fallthrough;
 	case 1: rate = SDVO_CLOCK_RATE_MULT_1X; break;
 	case 2: rate = SDVO_CLOCK_RATE_MULT_2X; break;
@@ -1659,7 +1659,7 @@ bool intel_sdvo_port_enabled(struct drm_i915_private *dev_priv,
 
 	val = intel_de_read(dev_priv, sdvo_reg);
 
-	/* asserts want to know the pipe even if the port is disabled */
+	/* asserts want to kanalw the pipe even if the port is disabled */
 	if (HAS_PCH_CPT(dev_priv))
 		*pipe = (val & SDVO_PIPE_SEL_MASK_CPT) >> SDVO_PIPE_SEL_SHIFT_CPT;
 	else if (IS_CHERRYVIEW(dev_priv))
@@ -1705,7 +1705,7 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	ret = intel_sdvo_get_input_timing(intel_sdvo, &dtd);
 	if (!ret) {
 		/*
-		 * Some sdvo encoders are not spec compliant and don't
+		 * Some sdvo encoders are analt spec compliant and don't
 		 * implement the mandatory get_timings function.
 		 */
 		drm_dbg(&dev_priv->drm, "failed to retrieve SDVO DTD\n");
@@ -1910,7 +1910,7 @@ static void intel_enable_sdvo(struct intel_atomic_state *state,
 	/*
 	 * Warn if the device reported failure to sync.
 	 *
-	 * A lot of SDVO devices fail to notify of sync, but it's
+	 * A lot of SDVO devices fail to analtify of sync, but it's
 	 * a given it the status is a success, we succeeded.
 	 */
 	if (success && !input1) {
@@ -1945,7 +1945,7 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 		return status;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
+		return MODE_ANAL_DBLESCAN;
 
 	if (clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
@@ -1986,7 +1986,7 @@ static bool intel_sdvo_get_capabilities(struct intel_sdvo *intel_sdvo, struct in
 		      "  device_id: %d\n"
 		      "  device_rev_id: %d\n"
 		      "  sdvo_version_major: %d\n"
-		      "  sdvo_version_minor: %d\n"
+		      "  sdvo_version_mianalr: %d\n"
 		      "  sdvo_num_inputs: %d\n"
 		      "  smooth_scaling: %d\n"
 		      "  sharp_scaling: %d\n"
@@ -1998,7 +1998,7 @@ static bool intel_sdvo_get_capabilities(struct intel_sdvo *intel_sdvo, struct in
 		      caps->device_id,
 		      caps->device_rev_id,
 		      caps->sdvo_version_major,
-		      caps->sdvo_version_minor,
+		      caps->sdvo_version_mianalr,
 		      caps->sdvo_num_inputs,
 		      caps->smooth_scaling,
 		      caps->sharp_scaling,
@@ -2030,7 +2030,7 @@ static u16 intel_sdvo_get_hotplug_support(struct intel_sdvo *intel_sdvo)
 		return 0;
 
 	/*
-	 * HW Erratum: SDVO Hotplug is broken on all i945G chips, there's noise
+	 * HW Erratum: SDVO Hotplug is broken on all i945G chips, there's analise
 	 * on the line.
 	 */
 	if (IS_I945G(dev_priv) || IS_I945GM(dev_priv))
@@ -2094,13 +2094,13 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 	drm_edid = intel_sdvo_get_edid(connector);
 
 	/*
-	 * When there is no edid and no monitor is connected with VGA
+	 * When there is anal edid and anal monitor is connected with VGA
 	 * port, try to use the CRT ddc to read the EDID for DVI-connector.
 	 */
 	if (!drm_edid)
 		drm_edid = intel_sdvo_get_analog_edid(connector);
 
-	status = connector_status_unknown;
+	status = connector_status_unkanalwn;
 	if (drm_edid) {
 		/* DDC bus is shared, match EDID to connector type */
 		if (drm_edid_is_digital(drm_edid))
@@ -2142,12 +2142,12 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 
 	if (!intel_sdvo_set_target_output(intel_sdvo,
 					  intel_sdvo_connector->output_flag))
-		return connector_status_unknown;
+		return connector_status_unkanalwn;
 
 	if (!intel_sdvo_get_value(intel_sdvo,
 				  SDVO_CMD_GET_ATTACHED_DISPLAYS,
 				  &response, 2))
-		return connector_status_unknown;
+		return connector_status_unkanalwn;
 
 	DRM_DEBUG_KMS("SDVO response %d %d [%x]\n",
 		      response & 0xff, response >> 8,
@@ -2217,7 +2217,7 @@ static int intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 
 /*
  * Set of SDVO TV modes.
- * Note!  This is in reply order (see loop in get_tv_modes).
+ * Analte!  This is in reply order (see loop in get_tv_modes).
  * XXX: all 60Hz refresh?
  */
 static const struct drm_display_mode sdvo_tv_modes[] = {
@@ -2429,11 +2429,11 @@ intel_sdvo_connector_atomic_set_property(struct drm_connector *connector,
 		}
 	} else if (property == intel_sdvo_connector->top ||
 		   property == intel_sdvo_connector->bottom)
-		/* Cannot set these independent from each other */
+		/* Cananalt set these independent from each other */
 		sdvo_state->tv.overscan_v = intel_sdvo_connector->max_vscan - val;
 	else if (property == intel_sdvo_connector->left ||
 		 property == intel_sdvo_connector->right)
-		/* Cannot set these independent from each other */
+		/* Cananalt set these independent from each other */
 		sdvo_state->tv.overscan_h = intel_sdvo_connector->max_hscan - val;
 	else if (property == intel_sdvo_connector->hpos)
 		sdvo_state->tv.hpos = val;
@@ -2577,7 +2577,7 @@ intel_sdvo_guess_ddc_bus(struct intel_sdvo *sdvo,
 	/* Count bits to find what number we are in the priority list. */
 	mask &= sdvo->caps.output_flags;
 	num_bits = hweight16(mask);
-	/* If more than 3 outputs, default to DDC bus 3 for now. */
+	/* If more than 3 outputs, default to DDC bus 3 for analw. */
 	if (num_bits > 3)
 		num_bits = 3;
 
@@ -2643,7 +2643,7 @@ intel_sdvo_select_i2c_bus(struct intel_sdvo *sdvo)
 	/*
 	 * With gmbus we should be able to drive sdvo i2c at 2MHz, but somehow
 	 * our code totally fails once we start using gmbus. Hence fall back to
-	 * bit banging for now.
+	 * bit banging for analw.
 	 */
 	intel_gmbus_force_bit(sdvo->i2c, true);
 }
@@ -2691,7 +2691,7 @@ intel_sdvo_get_slave_addr(struct intel_sdvo *sdvo)
 	}
 
 	/*
-	 * No SDVO device info is found for another DVO port,
+	 * Anal SDVO device info is found for aanalther DVO port,
 	 * so use mapping assumption we had before BIOS parsing.
 	 */
 	if (sdvo->base.port == PORT_B)
@@ -2956,7 +2956,7 @@ static u16 intel_sdvo_filter_output_flags(u16 flags)
 {
 	flags &= SDVO_OUTPUT_MASK;
 
-	/* SDVO requires XXX1 function may not exist unless it has XXX0 function.*/
+	/* SDVO requires XXX1 function may analt exist unless it has XXX0 function.*/
 	if (!(flags & SDVO_OUTPUT_TMDS0))
 		flags &= ~SDVO_OUTPUT_TMDS1;
 
@@ -2989,7 +2989,7 @@ intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo)
 	static const u16 probe_order[] = {
 		SDVO_OUTPUT_TMDS0,
 		SDVO_OUTPUT_TMDS1,
-		/* TV has no XXX1 function block */
+		/* TV has anal XXX1 function block */
 		SDVO_OUTPUT_SVID0,
 		SDVO_OUTPUT_CVBS0,
 		SDVO_OUTPUT_YPRPB0,
@@ -3004,7 +3004,7 @@ intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo)
 	flags = intel_sdvo_filter_output_flags(intel_sdvo->caps.output_flags);
 
 	if (flags == 0) {
-		DRM_DEBUG_KMS("%s: Unknown SDVO output type (0x%04x)\n",
+		DRM_DEBUG_KMS("%s: Unkanalwn SDVO output type (0x%04x)\n",
 			      SDVO_NAME(intel_sdvo), intel_sdvo->caps.output_flags);
 		return false;
 	}
@@ -3245,7 +3245,7 @@ static bool intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 				  SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS,
 				  &enhancements, sizeof(enhancements)) ||
 	    enhancements.response == 0) {
-		DRM_DEBUG_KMS("No enhancement is supported\n");
+		DRM_DEBUG_KMS("Anal enhancement is supported\n");
 		return true;
 	}
 
@@ -3349,7 +3349,7 @@ static bool assert_sdvo_port_valid(struct drm_i915_private *dev_priv,
 				   enum port port)
 {
 	return !drm_WARN(&dev_priv->drm, !is_sdvo_port_valid(dev_priv, port),
-			 "Platform does not support SDVO %c\n", port_name(port));
+			 "Platform does analt support SDVO %c\n", port_name(port));
 }
 
 bool intel_sdvo_init(struct drm_i915_private *dev_priv,
@@ -3390,7 +3390,7 @@ bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 
 		if (!intel_sdvo_read_byte(intel_sdvo, i, &byte)) {
 			drm_dbg_kms(&dev_priv->drm,
-				    "No SDVO device found on %s\n",
+				    "Anal SDVO device found on %s\n",
 				    SDVO_NAME(intel_sdvo));
 			goto err;
 		}
@@ -3435,7 +3435,7 @@ bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 	}
 
 	/*
-	 * Only enable the hotplug irq if we need it, to work around noisy
+	 * Only enable the hotplug irq if we need it, to work around analisy
 	 * hotplug lines.
 	 */
 	if (intel_sdvo->hotplug_active) {
@@ -3448,7 +3448,7 @@ bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 	/*
 	 * Cloning SDVO with anything is often impossible, since the SDVO
 	 * encoder can request a special input timing mode. And even if that's
-	 * not the case we have evidence that cloning a plain unscaled mode with
+	 * analt the case we have evidence that cloning a plain unscaled mode with
 	 * VGA doesn't really work. Furthermore the cloning flags are way too
 	 * simplistic anyway to express such constraints, so just give up on
 	 * cloning for SDVO encoders.

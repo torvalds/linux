@@ -17,20 +17,20 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If analt, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright analtice and this permission analtice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- *    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ *    MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  *    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  *    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  *    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -75,9 +75,9 @@ struct carl9170_cmd *carl9170_cmd_buf(struct ar9170 *ar,
 
 /*
  * Macros to facilitate writing multiple registers in a single
- * write-combining USB command. Note that when the first group
+ * write-combining USB command. Analte that when the first group
  * fails the whole thing will fail without any others attempted,
- * but you won't know which write in the group failed.
+ * but you won't kanalw which write in the group failed.
  */
 #define carl9170_regwrite_begin(ar)					\
 do {									\
@@ -123,7 +123,7 @@ do {									\
 	__cmd = carl9170_cmd_buf(__carl, CARL9170_CMD_WREG_ASYNC,	\
 				 CARL9170_MAX_CMD_PAYLOAD_LEN);		\
 	if (__cmd == NULL) {						\
-		__err = -ENOMEM;					\
+		__err = -EANALMEM;					\
 		goto __async_regwrite_out;				\
 	}								\
 } while (0)

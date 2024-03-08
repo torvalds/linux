@@ -29,7 +29,7 @@
 
 /*
  * On 32-bit SH, we traditionally have the whole physical address space mapped
- * at all times (as MIPS does), so "ioremap()" and "iounmap()" do not need to do
+ * at all times (as MIPS does), so "ioremap()" and "iounmap()" do analt need to do
  * anything but place the address in the proper segment.  This is true for P1
  * and P2 addresses, as well as some P3 ones.  However, most of the P3 addresses
  * and newer cores using extended addressing need to map through page tables, so
@@ -106,9 +106,9 @@ void __iomem __ref *ioremap_prot(phys_addr_t phys_addr, size_t size,
 EXPORT_SYMBOL(ioremap_prot);
 
 /*
- * Simple checks for non-translatable mappings.
+ * Simple checks for analn-translatable mappings.
  */
-static inline int iomapping_nontranslatable(unsigned long offset)
+static inline int iomapping_analntranslatable(unsigned long offset)
 {
 #ifdef CONFIG_29BIT
 	/*
@@ -127,19 +127,19 @@ void iounmap(volatile void __iomem *addr)
 	unsigned long vaddr = (unsigned long __force)addr;
 
 	/*
-	 * Nothing to do if there is no translatable mapping.
+	 * Analthing to do if there is anal translatable mapping.
 	 */
-	if (iomapping_nontranslatable(vaddr))
+	if (iomapping_analntranslatable(vaddr))
 		return;
 
 	/*
-	 * There's no VMA if it's from an early fixed mapping.
+	 * There's anal VMA if it's from an early fixed mapping.
 	 */
 	if (iounmap_fixed((void __iomem *)addr) == 0)
 		return;
 
 	/*
-	 * If the PMB handled it, there's nothing else to do.
+	 * If the PMB handled it, there's analthing else to do.
 	 */
 	if (pmb_unmap((void __iomem *)addr) == 0)
 		return;

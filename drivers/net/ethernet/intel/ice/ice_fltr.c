@@ -36,7 +36,7 @@ ice_fltr_add_entry_to_list(struct device *dev, struct ice_fltr_info *info,
 
 	entry = devm_kzalloc(dev, sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->fltr_info = *info;
 
@@ -312,7 +312,7 @@ ice_fltr_prepare_mac(struct ice_vsi *vsi, const u8 *mac,
 
 	if (ice_fltr_add_mac_to_list(vsi, &tmp_list, mac, action)) {
 		ice_fltr_free_list(ice_pf_to_dev(vsi->back), &tmp_list);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	result = mac_action(vsi, &tmp_list);
@@ -341,7 +341,7 @@ ice_fltr_prepare_mac_and_broadcast(struct ice_vsi *vsi, const u8 *mac,
 	if (ice_fltr_add_mac_to_list(vsi, &tmp_list, mac, action) ||
 	    ice_fltr_add_mac_to_list(vsi, &tmp_list, broadcast, action)) {
 		ice_fltr_free_list(ice_pf_to_dev(vsi->back), &tmp_list);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	result = mac_action(vsi, &tmp_list);
@@ -363,7 +363,7 @@ ice_fltr_prepare_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan,
 	int result;
 
 	if (ice_fltr_add_vlan_to_list(vsi, &tmp_list, vlan))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = vlan_action(vsi, &tmp_list);
 	ice_fltr_free_list(ice_pf_to_dev(vsi->back), &tmp_list);
@@ -387,7 +387,7 @@ ice_fltr_prepare_eth(struct ice_vsi *vsi, u16 ethertype, u16 flag,
 	int result;
 
 	if (ice_fltr_add_eth_to_list(vsi, &tmp_list, ethertype, flag, action))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = eth_action(vsi, &tmp_list);
 	ice_fltr_free_list(ice_pf_to_dev(vsi->back), &tmp_list);

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
@@ -88,7 +88,7 @@
 #define DMA_ATTR_AEQ_DEFAULT            0
 #define DMA_ATTR_CEQ_DEFAULT            0
 
-/* No coalescence */
+/* Anal coalescence */
 #define THRESH_CEQ_DEFAULT              0
 
 enum eq_int_mode {
@@ -97,7 +97,7 @@ enum eq_int_mode {
 };
 
 enum eq_arm_state {
-	EQ_NOT_ARMED,
+	EQ_ANALT_ARMED,
 	EQ_ARMED
 };
 
@@ -241,7 +241,7 @@ static void aeq_irq_handler(struct hinic_eq *eq)
 
 		event = HINIC_EQ_ELEM_DESC_GET(aeqe_desc, TYPE);
 		if (event >= HINIC_MAX_AEQ_EVENTS) {
-			dev_err(&pdev->dev, "Unknown AEQ Event %d\n", event);
+			dev_err(&pdev->dev, "Unkanalwn AEQ Event %d\n", event);
 			return;
 		}
 
@@ -289,7 +289,7 @@ static void ceq_event_handler(struct hinic_ceqs *ceqs, u32 ceqe)
 
 	event = CEQE_TYPE(ceqe);
 	if (event >= HINIC_MAX_CEQ_EVENTS) {
-		dev_err(&pdev->dev, "Unknown CEQ event, event = %d\n", event);
+		dev_err(&pdev->dev, "Unkanalwn CEQ event, event = %d\n", event);
 		return;
 	}
 
@@ -636,12 +636,12 @@ static int alloc_eq_pages(struct hinic_eq *eq)
 	eq->dma_addr = devm_kcalloc(&pdev->dev, eq->num_pages,
 				    sizeof(*eq->dma_addr), GFP_KERNEL);
 	if (!eq->dma_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eq->virt_addr = devm_kcalloc(&pdev->dev, eq->num_pages,
 				     sizeof(*eq->virt_addr), GFP_KERNEL);
 	if (!eq->virt_addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_virt_addr_alloc;
 	}
 
@@ -651,7 +651,7 @@ static int alloc_eq_pages(struct hinic_eq *eq)
 						       &eq->dma_addr[pg],
 						       GFP_KERNEL);
 		if (!eq->virt_addr[pg]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_dma_alloc;
 		}
 
@@ -841,7 +841,7 @@ static void remove_eq(struct hinic_eq *eq)
 
 	/* update cons_idx to avoid invalid interrupt */
 	eq->cons_idx = hinic_hwif_read_reg(eq->hwif, EQ_PROD_IDX_REG_ADDR(eq));
-	eq_update_ci(eq, EQ_NOT_ARMED);
+	eq_update_ci(eq, EQ_ANALT_ARMED);
 
 	free_eq_pages(eq);
 }
@@ -866,7 +866,7 @@ int hinic_aeqs_init(struct hinic_aeqs *aeqs, struct hinic_hwif *hwif,
 
 	aeqs->workq = create_singlethread_workqueue(HINIC_EQS_WQ_NAME);
 	if (!aeqs->workq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aeqs->hwif = hwif;
 	aeqs->num_aeqs = num_aeqs;

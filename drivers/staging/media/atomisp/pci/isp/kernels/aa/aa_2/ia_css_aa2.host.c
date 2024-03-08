@@ -15,7 +15,7 @@
 
 #include "ia_css_types.h"
 #include "sh_css_defs.h"
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 #include "ia_css_debug.h"
 #endif
 

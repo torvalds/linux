@@ -10,13 +10,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -101,9 +101,9 @@ static int drm_clients_info(struct seq_file *m, void *data)
 		task = pid_task(pid, PIDTYPE_TGID);
 		uid = task ? __task_cred(task)->euid : GLOBAL_ROOT_UID;
 		seq_printf(m, "%20s %5d %3d   %c    %c %5d %10u\n",
-			   task ? task->comm : "<unknown>",
+			   task ? task->comm : "<unkanalwn>",
 			   pid_vnr(pid),
-			   priv->minor->index,
+			   priv->mianalr->index,
 			   is_current_master ? 'y' : 'n',
 			   priv->authenticated ? 'y' : 'n',
 			   from_kuid_munged(seq_user_ns(m), uid),
@@ -148,26 +148,26 @@ static const struct drm_debugfs_info drm_debugfs_list[] = {
 #define DRM_DEBUGFS_ENTRIES ARRAY_SIZE(drm_debugfs_list)
 
 
-static int drm_debugfs_open(struct inode *inode, struct file *file)
+static int drm_debugfs_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drm_info_node *node = inode->i_private;
+	struct drm_info_analde *analde = ianalde->i_private;
 
-	if (!device_is_registered(node->minor->kdev))
-		return -ENODEV;
+	if (!device_is_registered(analde->mianalr->kdev))
+		return -EANALDEV;
 
-	return single_open(file, node->info_ent->show, node);
+	return single_open(file, analde->info_ent->show, analde);
 }
 
-static int drm_debugfs_entry_open(struct inode *inode, struct file *file)
+static int drm_debugfs_entry_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drm_debugfs_entry *entry = inode->i_private;
-	struct drm_debugfs_info *node = &entry->file;
-	struct drm_minor *minor = entry->dev->primary ?: entry->dev->accel;
+	struct drm_debugfs_entry *entry = ianalde->i_private;
+	struct drm_debugfs_info *analde = &entry->file;
+	struct drm_mianalr *mianalr = entry->dev->primary ?: entry->dev->accel;
 
-	if (!device_is_registered(minor->kdev))
-		return -ENODEV;
+	if (!device_is_registered(mianalr->kdev))
+		return -EANALDEV;
 
-	return single_open(file, node->show, entry);
+	return single_open(file, analde->show, entry);
 }
 
 static const struct file_operations drm_debugfs_entry_fops = {
@@ -196,19 +196,19 @@ static const struct file_operations drm_debugfs_fops = {
  * For each DRM GPU VA space drivers should call this function from their
  * &drm_info_list's show callback.
  *
- * Returns: 0 on success, -ENODEV if the &gpuvm is not initialized
+ * Returns: 0 on success, -EANALDEV if the &gpuvm is analt initialized
  */
 int drm_debugfs_gpuva_info(struct seq_file *m,
 			   struct drm_gpuvm *gpuvm)
 {
-	struct drm_gpuva *va, *kva = &gpuvm->kernel_alloc_node;
+	struct drm_gpuva *va, *kva = &gpuvm->kernel_alloc_analde;
 
 	if (!gpuvm->name)
-		return -ENODEV;
+		return -EANALDEV;
 
 	seq_printf(m, "DRM GPU VA space (%s) [0x%016llx;0x%016llx]\n",
 		   gpuvm->name, gpuvm->mm_start, gpuvm->mm_start + gpuvm->mm_range);
-	seq_printf(m, "Kernel reserved node [0x%016llx;0x%016llx]\n",
+	seq_printf(m, "Kernel reserved analde [0x%016llx;0x%016llx]\n",
 		   kva->va.addr, kva->va.addr + kva->va.range);
 	seq_puts(m, "\n");
 	seq_puts(m, " VAs | start              | range              | end                | object             | object offset\n");
@@ -228,21 +228,21 @@ EXPORT_SYMBOL(drm_debugfs_gpuva_info);
 
 /**
  * drm_debugfs_create_files - Initialize a given set of debugfs files for DRM
- * 			minor
+ * 			mianalr
  * @files: The array of files to create
  * @count: The number of files given
  * @root: DRI debugfs dir entry.
- * @minor: device minor number
+ * @mianalr: device mianalr number
  *
  * Create a given set of debugfs files represented by an array of
  * &struct drm_info_list in the given root directory. These files will be removed
  * automatically on drm_debugfs_dev_fini().
  */
 void drm_debugfs_create_files(const struct drm_info_list *files, int count,
-			      struct dentry *root, struct drm_minor *minor)
+			      struct dentry *root, struct drm_mianalr *mianalr)
 {
-	struct drm_device *dev = minor->dev;
-	struct drm_info_node *tmp;
+	struct drm_device *dev = mianalr->dev;
+	struct drm_info_analde *tmp;
 	int i;
 
 	for (i = 0; i < count; i++) {
@@ -255,7 +255,7 @@ void drm_debugfs_create_files(const struct drm_info_list *files, int count,
 		if (tmp == NULL)
 			continue;
 
-		tmp->minor = minor;
+		tmp->mianalr = mianalr;
 		tmp->dent = debugfs_create_file(files[i].name,
 						0444, root, tmp,
 						&drm_debugfs_fops);
@@ -265,7 +265,7 @@ void drm_debugfs_create_files(const struct drm_info_list *files, int count,
 EXPORT_SYMBOL(drm_debugfs_create_files);
 
 int drm_debugfs_remove_files(const struct drm_info_list *files, int count,
-			     struct dentry *root, struct drm_minor *minor)
+			     struct dentry *root, struct drm_mianalr *mianalr)
 {
 	int i;
 
@@ -275,7 +275,7 @@ int drm_debugfs_remove_files(const struct drm_info_list *files, int count,
 		if (!dent)
 			continue;
 
-		drmm_kfree(minor->dev, d_inode(dent)->i_private);
+		drmm_kfree(mianalr->dev, d_ianalde(dent)->i_private);
 		debugfs_remove(dent);
 	}
 	return 0;
@@ -318,29 +318,29 @@ void drm_debugfs_dev_register(struct drm_device *dev)
 		drm_atomic_debugfs_init(dev);
 }
 
-int drm_debugfs_register(struct drm_minor *minor, int minor_id,
+int drm_debugfs_register(struct drm_mianalr *mianalr, int mianalr_id,
 			 struct dentry *root)
 {
-	struct drm_device *dev = minor->dev;
+	struct drm_device *dev = mianalr->dev;
 	char name[64];
 
-	sprintf(name, "%d", minor_id);
-	minor->debugfs_symlink = debugfs_create_symlink(name, root,
+	sprintf(name, "%d", mianalr_id);
+	mianalr->debugfs_symlink = debugfs_create_symlink(name, root,
 							dev->unique);
 
 	/* TODO: Only for compatibility with drivers */
-	minor->debugfs_root = dev->debugfs_root;
+	mianalr->debugfs_root = dev->debugfs_root;
 
-	if (dev->driver->debugfs_init && dev->render != minor)
-		dev->driver->debugfs_init(minor);
+	if (dev->driver->debugfs_init && dev->render != mianalr)
+		dev->driver->debugfs_init(mianalr);
 
 	return 0;
 }
 
-void drm_debugfs_unregister(struct drm_minor *minor)
+void drm_debugfs_unregister(struct drm_mianalr *mianalr)
 {
-	debugfs_remove(minor->debugfs_symlink);
-	minor->debugfs_symlink = NULL;
+	debugfs_remove(mianalr->debugfs_symlink);
+	mianalr->debugfs_symlink = NULL;
 }
 
 /**
@@ -348,7 +348,7 @@ void drm_debugfs_unregister(struct drm_minor *minor)
  * @dev: drm device for the ioctl
  * @name: debugfs file name
  * @show: show callback
- * @data: driver-private data, should not be device-specific
+ * @data: driver-private data, should analt be device-specific
  *
  * Add a given file entry to the DRM device debugfs file list to be created on
  * drm_debugfs_init.
@@ -398,9 +398,9 @@ static int connector_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int connector_open(struct inode *inode, struct file *file)
+static int connector_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drm_connector *dev = inode->i_private;
+	struct drm_connector *dev = ianalde->i_private;
 
 	return single_open(file, connector_show, dev);
 }
@@ -439,9 +439,9 @@ static int edid_show(struct seq_file *m, void *data)
 	return drm_edid_override_show(m->private, m);
 }
 
-static int edid_open(struct inode *inode, struct file *file)
+static int edid_open(struct ianalde *ianalde, struct file *file)
 {
-	struct drm_connector *dev = inode->i_private;
+	struct drm_connector *dev = ianalde->i_private;
 
 	return single_open(file, edid_show, dev);
 }
@@ -477,7 +477,7 @@ static int vrr_range_show(struct seq_file *m, void *data)
 	struct drm_connector *connector = m->private;
 
 	if (connector->status != connector_status_connected)
-		return -ENODEV;
+		return -EANALDEV;
 
 	seq_printf(m, "Min: %u\n", connector->display_info.monitor_range.min_vfreq);
 	seq_printf(m, "Max: %u\n", connector->display_info.monitor_range.max_vfreq);
@@ -495,7 +495,7 @@ static int output_bpc_show(struct seq_file *m, void *data)
 	struct drm_connector *connector = m->private;
 
 	if (connector->status != connector_status_connected)
-		return -ENODEV;
+		return -EANALDEV;
 
 	seq_printf(m, "Maximum: %u\n", connector->display_info.bpc);
 
@@ -600,8 +600,8 @@ static int bridges_show(struct seq_file *m, void *data)
 			   bridge->type,
 			   drm_get_connector_type_name(bridge->type));
 #ifdef CONFIG_OF
-		if (bridge->of_node)
-			drm_printf(&p, "\tOF: %pOFfc\n", bridge->of_node);
+		if (bridge->of_analde)
+			drm_printf(&p, "\tOF: %pOFfc\n", bridge->of_analde);
 #endif
 		drm_printf(&p, "\tops: [0x%x]", bridge->ops);
 		if (bridge->ops & DRM_BRIDGE_OP_DETECT)
@@ -621,7 +621,7 @@ DEFINE_SHOW_ATTRIBUTE(bridges);
 
 void drm_debugfs_encoder_add(struct drm_encoder *encoder)
 {
-	struct drm_minor *minor = encoder->dev->primary;
+	struct drm_mianalr *mianalr = encoder->dev->primary;
 	struct dentry *root;
 	char *name;
 
@@ -629,7 +629,7 @@ void drm_debugfs_encoder_add(struct drm_encoder *encoder)
 	if (!name)
 		return;
 
-	root = debugfs_create_dir(name, minor->debugfs_root);
+	root = debugfs_create_dir(name, mianalr->debugfs_root);
 	kfree(name);
 
 	encoder->debugfs_entry = root;

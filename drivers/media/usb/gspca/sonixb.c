@@ -4,10 +4,10 @@
  *
  * Copyright (C) 2009-2011 Jean-François Moine <http://moinejf.free.fr>
  * Copyright (C) 2003 2004 Michel Xhaard mxhaard@magic.fr
- * Add Pas106 Stefano Mozzi (C) 2004
+ * Add Pas106 Stefaanal Mozzi (C) 2004
  */
 
-/* Some documentation on known sonixb registers:
+/* Some documentation on kanalwn sonixb registers:
 
 Reg	Use
 sn9c101 / sn9c102:
@@ -56,12 +56,12 @@ struct sd {
 	int header_read;
 	u8 header[12]; /* Header without sof marker */
 
-	unsigned char autogain_ignore_frames;
+	unsigned char autogain_iganalre_frames;
 	unsigned char frames_to_drop;
 
 	__u8 bridge;			/* Type of bridge */
 #define BRIDGE_101 0
-#define BRIDGE_102 0 /* We make no difference between 101 and 102 */
+#define BRIDGE_102 0 /* We make anal difference between 101 and 102 */
 #define BRIDGE_103 1
 
 	__u8 sensor;			/* Type of image sensor chip */
@@ -90,7 +90,7 @@ struct sensor_data {
 /* sensor_data flags */
 #define F_SIF		0x01	/* sif or vga */
 
-/* priv field of struct v4l2_pix_format flags (do not use low nibble!) */
+/* priv field of struct v4l2_pix_format flags (do analt use low nibble!) */
 #define MODE_RAW 0x10		/* raw bayer mode */
 #define MODE_REDUCED_SIF 0x20	/* vga mode (320x240 / 160x120) on sif cam */
 
@@ -112,59 +112,59 @@ struct sensor_data {
 
 /* We calculate the autogain at the end of the transfer of a frame, at this
    moment a frame with the old settings is being captured and transmitted. So
-   if we adjust the gain or exposure we must ignore at least the next frame for
+   if we adjust the gain or exposure we must iganalre at least the next frame for
    the new settings to come into effect before doing any other adjustments. */
-#define AUTOGAIN_IGNORE_FRAMES 1
+#define AUTOGAIN_IGANALRE_FRAMES 1
 
 static const struct v4l2_pix_format vga_mode[] = {
-	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2 | MODE_RAW},
-	{160, 120, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 5 / 4,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
-	{320, 240, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 5 / 4,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 5 / 4,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
 };
 static const struct v4l2_pix_format sif_mode[] = {
-	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1 | MODE_RAW | MODE_REDUCED_SIF},
-	{160, 120, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 5 / 4,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1 | MODE_REDUCED_SIF},
-	{176, 144, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1 | MODE_RAW},
-	{176, 144, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 5 / 4,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{320, 240, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 5 / 4,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0 | MODE_REDUCED_SIF},
-	{352, 288, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 5 / 4,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -206,14 +206,14 @@ static const __u8 initOv6650[] = {
 };
 static const __u8 ov6650_sensor_init[][8] = {
 	/* Bright, contrast, etc are set through SCBB interface.
-	 * AVCAP on win2 do not send any data on this controls. */
+	 * AVCAP on win2 do analt send any data on this controls. */
 	/* Anyway, some registers appears to alter bright and constrat */
 
 	/* Reset sensor */
 	{0xa0, 0x60, 0x12, 0x80, 0x00, 0x00, 0x00, 0x10},
 	/* Set clock register 0x11 low nibble is clock divider */
 	{0xd0, 0x60, 0x11, 0xc0, 0x1b, 0x18, 0xc1, 0x10},
-	/* Next some unknown stuff */
+	/* Next some unkanalwn stuff */
 	{0xb0, 0x60, 0x15, 0x00, 0x02, 0x18, 0xc1, 0x10},
 /*	{0xa0, 0x60, 0x1b, 0x01, 0x02, 0x18, 0xc1, 0x10},
 		 * THIS SET GREEN SCREEN
@@ -224,14 +224,14 @@ static const __u8 ov6650_sensor_init[][8] = {
 	{0xa0, 0x60, 0x30, 0x3d, 0x0a, 0xd8, 0xa4, 0x10},
 	/* Enable rgb brightness control */
 	{0xa0, 0x60, 0x61, 0x08, 0x00, 0x00, 0x00, 0x10},
-	/* HDG: Note windows uses the line below, which sets both register 0x60
+	/* HDG: Analte windows uses the line below, which sets both register 0x60
 	   and 0x61 I believe these registers of the ov6650 are identical as
 	   those of the ov7630, because if this is true the windows settings
 	   add a bit additional red gain and a lot additional blue gain, which
 	   matches my findings that the windows settings make blue much too
 	   blue and red a little too red.
 	{0xb0, 0x60, 0x60, 0x66, 0x68, 0xd8, 0xa4, 0x10}, */
-	/* Some more unknown stuff */
+	/* Some more unkanalwn stuff */
 	{0xa0, 0x60, 0x68, 0x04, 0x68, 0xd8, 0xa4, 0x10},
 	{0xd0, 0x60, 0x17, 0x24, 0xd6, 0x04, 0x94, 0x10}, /* Clipreg */
 };
@@ -273,16 +273,16 @@ static const __u8 initPas106[] = {
 };
 /* compression 0x86 mckinit1 0x2b */
 
-/* "Known" PAS106B registers:
+/* "Kanalwn" PAS106B registers:
   0x02 clock divider
   0x03 Variable framerate bits 4-11
   0x04 Var framerate bits 0-3, one must leave the 4 msb's at 0 !!
        The variable framerate control must never be set lower then 300,
        which sets the framerate at 90 / reg02, otherwise vsync is lost.
   0x05 Shutter Time Line Offset, this can be used as an exposure control:
-       0 = use full frame time, 255 = no exposure at all
-       Note this may never be larger then "var-framerate control" / 2 - 2.
-       When var-framerate control is < 514, no exposure is reached at the max
+       0 = use full frame time, 255 = anal exposure at all
+       Analte this may never be larger then "var-framerate control" / 2 - 2.
+       When var-framerate control is < 514, anal exposure is reached at the max
        allowed value for the framerate control value, rather then at 255.
   0x06 Shutter Time Pixel Offset, like reg05 this influences exposure, but
        only a very little bit, leave at 0xcd
@@ -345,7 +345,7 @@ static const __u8 initPas202[] = {
 	0x28, 0x1e, 0x20, 0x89, 0x20,
 };
 
-/* "Known" PAS202BCB registers:
+/* "Kanalwn" PAS202BCB registers:
   0x02 clock divider
   0x04 Variable framerate bits 6-11 (*)
   0x05 Var framerate  bits 0-5, one must leave the 2 msb's at 0 !!
@@ -354,9 +354,9 @@ static const __u8 initPas202[] = {
   0x09 Red Gain
   0x0b offset sign bit (bit0 1 > negative offset)
   0x0c offset
-  0x0e Unknown image is slightly brighter when bit 0 is 0, if reg0f is 0 too,
+  0x0e Unkanalwn image is slightly brighter when bit 0 is 0, if reg0f is 0 too,
        leave at 1 otherwise we get a jump in our exposure control
-  0x0f Exposure 0-255, 0 = use full frame time, 255 = no exposure at all
+  0x0f Exposure 0-255, 0 = use full frame time, 255 = anal exposure at all
   0x10 Master gain 0 - 31
   0x11 write 1 to apply changes
   (*) The variable framerate control must never be set lower then 500
@@ -396,10 +396,10 @@ static const __u8 tas5110c_sensor_init[][8] = {
 	{0x30, 0x11, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x10},
 	{0x30, 0x11, 0x02, 0x20, 0xa9, 0x00, 0x00, 0x10},
 };
-/* Known TAS5110D registers
+/* Kanalwn TAS5110D registers
  * reg02: gain, bit order reversed!! 0 == max gain, 255 == min gain
  * reg03: bit3: vflip, bit4: ~hflip, bit7: ~gainboost (~ == inverted)
- *        Note: writing reg03 seems to only work when written together with 02
+ *        Analte: writing reg03 seems to only work when written together with 02
  */
 static const __u8 tas5110d_sensor_init[][8] = {
 	{0xa0, 0x61, 0x9a, 0xca, 0x00, 0x00, 0x00, 0x17}, /* reset */
@@ -681,7 +681,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 	switch (sd->sensor) {
 	case SENSOR_HV7131D: {
-		/* Note the datasheet wrongly says line mode exposure uses reg
+		/* Analte the datasheet wrongly says line mode exposure uses reg
 		   0x26 and 0x27, testing has shown 0x25 + 0x26 */
 		__u8 i2c[] = {0xc0, 0x11, 0x25, 0x00, 0x00, 0x00, 0x00, 0x17};
 		u16 reg = gspca_dev->exposure->val;
@@ -694,7 +694,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	case SENSOR_TAS5110C:
 	case SENSOR_TAS5110D: {
 		/* register 19's high nibble contains the sn9c10x clock divider
-		   The high nibble configures the no fps according to the
+		   The high nibble configures the anal fps according to the
 		   formula: 60 / high_nibble. With a maximum of 30 fps */
 		u8 reg = gspca_dev->exposure->val;
 
@@ -712,7 +712,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		   possible to use less exposure then what the fps maximum
 		   allows by setting register 10. register 10 configures the
 		   actual exposure as quotient of the full exposure, with 0
-		   being no exposure at all (not very useful) and reg10_max
+		   being anal exposure at all (analt very useful) and reg10_max
 		   being max exposure possible at that framerate.
 
 		   The code maps our 0 - 510 ms exposure ctrl to these 2
@@ -729,7 +729,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		   the ov6645. The ov7630 datasheet says the max is 0x41. */
 		if (sd->sensor == SENSOR_OV6650) {
 			reg10_max = 0x4d;
-			i2c[4] = 0xc0; /* OV6650 needs non default vsync pol */
+			i2c[4] = 0xc0; /* OV6650 needs analn default vsync pol */
 		} else
 			reg10_max = 0x41;
 
@@ -741,7 +741,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 		/* In 640x480, if the reg11 has less than 4, the image is
 		   unstable (the bridge goes into a higher compression mode
-		   which we have not reverse engineered yet). */
+		   which we have analt reverse engineered yet). */
 		if (gspca_dev->pixfmt.width == 640 && reg11 < 4)
 			reg11 = 4;
 
@@ -854,11 +854,11 @@ static void setfreq(struct gspca_dev *gspca_dev)
 		/* Framerate adjust register for artificial light 50 hz flicker
 		   compensation, for the ov6650 this is identical to ov6630
 		   0x2b register, see ov6630 datasheet.
-		   0x4f / 0x8a -> (30 fps -> 25 fps), 0x00 -> no adjustment */
+		   0x4f / 0x8a -> (30 fps -> 25 fps), 0x00 -> anal adjustment */
 		__u8 i2c[] = {0xa0, 0x00, 0x2b, 0x00, 0x00, 0x00, 0x00, 0x10};
 		switch (sd->plfreq->val) {
 		default:
-/*		case 0:			 * no filter*/
+/*		case 0:			 * anal filter*/
 /*		case 2:			 * 60 hz */
 			i2c[3] = 0;
 			break;
@@ -881,8 +881,8 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	if (avg_lum == -1)
 		return;
 
-	if (sd->autogain_ignore_frames > 0) {
-		sd->autogain_ignore_frames--;
+	if (sd->autogain_iganalre_frames > 0) {
+		sd->autogain_iganalre_frames--;
 		return;
 	}
 
@@ -903,12 +903,12 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	if (gspca_dev->exposure->maximum < 500) {
 		if (gspca_coarse_grained_expo_autogain(gspca_dev, avg_lum,
 				desired_avg_lum, deadzone))
-			sd->autogain_ignore_frames = AUTOGAIN_IGNORE_FRAMES;
+			sd->autogain_iganalre_frames = AUTOGAIN_IGANALRE_FRAMES;
 	} else {
 		int gain_knee = (s32)gspca_dev->gain->maximum * 9 / 10;
 		if (gspca_expo_autogain(gspca_dev, avg_lum, desired_avg_lum,
 				deadzone, gain_knee, sd->exposure_knee))
-			sd->autogain_ignore_frames = AUTOGAIN_IGNORE_FRAMES;
+			sd->autogain_iganalre_frames = AUTOGAIN_IGANALRE_FRAMES;
 	}
 }
 
@@ -921,7 +921,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	reg_r(gspca_dev, 0x00);
 	if (gspca_dev->usb_buf[0] != 0x10)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* copy the webcam info from the device id */
 	sd->sensor = id->driver_info >> 8;
@@ -965,7 +965,7 @@ static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 		   take effect before doing autogain. */
 		gspca_dev->gain->val = gspca_dev->gain->default_value;
 		gspca_dev->exposure->val = gspca_dev->exposure->default_value;
-		sd->autogain_ignore_frames = AUTOGAIN_IGNORE_FRAMES;
+		sd->autogain_iganalre_frames = AUTOGAIN_IGANALRE_FRAMES;
 	}
 
 	if (!gspca_dev->streaming)
@@ -1040,7 +1040,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 		}
 	}
 
-	/* Exposure range is sensor dependent, and not all have exposure */
+	/* Exposure range is sensor dependent, and analt all have exposure */
 	switch (sd->sensor) {
 	case SENSOR_HV7131D:
 		gspca_dev->exposure = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
@@ -1074,7 +1074,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_POWER_LINE_FREQUENCY_DISABLED);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 
@@ -1110,15 +1110,15 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	/* Setup pixel numbers and auto exposure window */
 	if (sensor_data[sd->sensor].flags & F_SIF) {
-		regs[0x1a] = 0x14; /* HO_SIZE 640, makes no sense */
-		regs[0x1b] = 0x0a; /* VO_SIZE 320, makes no sense */
+		regs[0x1a] = 0x14; /* HO_SIZE 640, makes anal sense */
+		regs[0x1b] = 0x0a; /* VO_SIZE 320, makes anal sense */
 		regs[0x1c] = 0x02; /* AE H-start 64 */
 		regs[0x1d] = 0x02; /* AE V-start 64 */
 		regs[0x1e] = 0x09; /* AE H-end 288 */
 		regs[0x1f] = 0x07; /* AE V-end 224 */
 	} else {
-		regs[0x1a] = 0x1d; /* HO_SIZE 960, makes no sense */
-		regs[0x1b] = 0x10; /* VO_SIZE 512, makes no sense */
+		regs[0x1a] = 0x1d; /* HO_SIZE 960, makes anal sense */
+		regs[0x1b] = 0x10; /* VO_SIZE 512, makes anal sense */
 		regs[0x1c] = 0x05; /* AE H-start 160 */
 		regs[0x1d] = 0x03; /* AE V-start 96 */
 		regs[0x1e] = 0x0f; /* AE H-end 480 */
@@ -1134,7 +1134,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_TAS5130CXX:
 		/* FIXME / TESTME
-		   probably not mode specific at all most likely the upper
+		   probably analt mode specific at all most likely the upper
 		   nibble of 0x19 is exposure (clock divider) just as with
 		   the tas5110, we need someone to test this. */
 		regs[0x19] = mode ? 0x23 : 0x43;
@@ -1143,14 +1143,14 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		/* FIXME / TESTME for some reason with the 101/102 bridge the
 		   clock is set to 12 Mhz (reg1 == 0x04), rather then 24.
 		   Also the hstart needs to go from 1 to 2 when using a 103,
-		   which is likely related. This does not seem right. */
+		   which is likely related. This does analt seem right. */
 		if (sd->bridge == BRIDGE_103) {
 			regs[0x01] = 0x44; /* Select 24 Mhz clock */
 			regs[0x12] = 0x02; /* Set hstart to 2 */
 		}
 		break;
 	case SENSOR_PAS202:
-		/* For some unknown reason we need to increase hstart by 1 on
+		/* For some unkanalwn reason we need to increase hstart by 1 on
 		   the sn9c103, otherwise we get wrong colors (bayer shift). */
 		if (sd->bridge == BRIDGE_103)
 			regs[0x12] += 1;
@@ -1211,7 +1211,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* reset 0x17 SensorClk enable inv Clk 0x60 */
 				/*fixme: ov7630 [17]=68 8f (+20 if 102)*/
 	reg_w(gspca_dev, 0x17, &regs[0x17], 1);
-	/*MCKSIZE ->3 */	/*fixme: not ov7630*/
+	/*MCKSIZE ->3 */	/*fixme: analt ov7630*/
 	reg_w(gspca_dev, 0x19, &regs[0x19], 1);
 	/* AE_STRX AE_STRY AE_ENDX AE_ENDY */
 	reg_w(gspca_dev, 0x1c, &regs[0x1c], 4);
@@ -1229,7 +1229,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setfreq(gspca_dev);
 
 	sd->frames_to_drop = 0;
-	sd->autogain_ignore_frames = 0;
+	sd->autogain_iganalre_frames = 0;
 	gspca_dev->exp_too_high_cnt = 0;
 	gspca_dev->exp_too_low_cnt = 0;
 	atomic_set(&sd->avg_lum, -1);
@@ -1248,7 +1248,7 @@ static u8* find_sof(struct gspca_dev *gspca_dev, u8 *data, int len)
 
 	/* frames start with:
 	 *	ff ff 00 c4 c4 96	synchro
-	 *	00		(unknown)
+	 *	00		(unkanalwn)
 	 *	xx		(frame sequence / size / compression)
 	 *	(xx)		(idem - extra byte for sn9c103)
 	 *	ll mm		brightness sum inside auto exposure
@@ -1336,7 +1336,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 	if (cam->cam_mode[gspca_dev->curr_mode].priv & MODE_RAW) {
 		/* In raw mode we sometimes get some garbage after the frame
-		   ignore this */
+		   iganalre this */
 		int used;
 		int size = cam->cam_mode[gspca_dev->curr_mode].sizeimage;
 
@@ -1356,7 +1356,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		   as the frames directly after an exposure
 		   change have an unstable image. Sometimes lum
 		   *really* is 0 (cam used in low light with
-		   low exposure setting), so do not drop frames
+		   low exposure setting), so do analt drop frames
 		   if the previous lum was 0 too. */
 		if (lum == 0 && sd->prev_avg_lum != 0) {
 			lum = -1;

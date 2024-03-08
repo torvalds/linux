@@ -132,7 +132,7 @@ static __initconst const u64 zxd_hw_cache_event_ids
 		[C(RESULT_MISS)] = -1,
 	},
 },
-[C(NODE)] = {
+[C(ANALDE)] = {
 	[C(OP_READ)] = {
 		[C(RESULT_ACCESS)] = -1,
 		[C(RESULT_MISS)] = -1,
@@ -236,7 +236,7 @@ static __initconst const u64 zxe_hw_cache_event_ids
 		[C(RESULT_MISS)] = -1,
 	},
 },
-[C(NODE)] = {
+[C(ANALDE)] = {
 	[C(OP_READ)] = {
 		[C(RESULT_ACCESS)] = -1,
 		[C(RESULT_MISS)] = -1,
@@ -375,7 +375,7 @@ again:
 	inc_irq_stat(apic_perf_irqs);
 
 	/*
-	 * CondChgd bit 63 doesn't mean any overflow status. Ignore
+	 * CondChgd bit 63 doesn't mean any overflow status. Iganalre
 	 * and clear the bit.
 	 */
 	if (__test_and_clear_bit(63, (unsigned long *)&status)) {
@@ -494,7 +494,7 @@ static __init void zhaoxin_arch_events_quirk(void)
 {
 	int bit;
 
-	/* disable event that reported as not present by cpuid */
+	/* disable event that reported as analt present by cpuid */
 	for_each_set_bit(bit, x86_pmu.events_mask, ARRAY_SIZE(zx_arch_events_map)) {
 		zx_pmon_event_map[zx_arch_events_map[bit].id] = 0;
 		pr_warn("CPUID marked event: \'%s\' unavailable\n",
@@ -515,16 +515,16 @@ __init int zhaoxin_pmu_init(void)
 
 	/*
 	 * Check whether the Architectural PerfMon supports
-	 * hw_event or not.
+	 * hw_event or analt.
 	 */
 	cpuid(10, &eax.full, &ebx.full, &unused, &edx.full);
 
 	if (eax.split.mask_length < ARCH_PERFMON_EVENTS_COUNT - 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	version = eax.split.version_id;
 	if (version != 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	x86_pmu = zhaoxin_pmu;
 	pr_info("Version check pass!\n");
@@ -542,8 +542,8 @@ __init int zhaoxin_pmu_init(void)
 	switch (boot_cpu_data.x86) {
 	case 0x06:
 		/*
-		 * Support Zhaoxin CPU from ZXC series, exclude Nano series through FMS.
-		 * Nano FMS: Family=6, Model=F, Stepping=[0-A][C-D]
+		 * Support Zhaoxin CPU from ZXC series, exclude Naanal series through FMS.
+		 * Naanal FMS: Family=6, Model=F, Stepping=[0-A][C-D]
 		 * ZXC FMS: Family=6, Model=F, Stepping=E-F OR Family=6, Model=0x19, Stepping=0-3
 		 */
 		if ((boot_cpu_data.x86_model == 0x0f && boot_cpu_data.x86_stepping >= 0x0e) ||
@@ -563,7 +563,7 @@ __init int zhaoxin_pmu_init(void)
 			pr_cont("ZXC events, ");
 			break;
 		}
-		return -ENODEV;
+		return -EANALDEV;
 
 	case 0x07:
 		zx_pmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =
@@ -596,12 +596,12 @@ __init int zhaoxin_pmu_init(void)
 			pr_cont("ZXE events, ");
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		break;
 
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	x86_pmu.intel_ctrl = (1 << (x86_pmu.num_counters)) - 1;

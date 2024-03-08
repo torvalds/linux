@@ -83,7 +83,7 @@ Page Flags
 
 - 对于私有映射，预留映射挂在VMA结构体上。具体来说，就是vma->vm_private_data。这个保
   留映射是在创建映射（mmap(MAP_PRIVATE)）时创建的。
-- 对于共享映射，预留映射挂在inode上。具体来说，就是inode->i_mapping->private_data。
+- 对于共享映射，预留映射挂在ianalde上。具体来说，就是ianalde->i_mapping->private_data。
   由于共享映射总是由hugetlbfs文件系统中的文件支持，hugetlbfs代码确保每个节点包含一个预
   留映射。因此，预留映射在创建节点时被分配。
 
@@ -93,13 +93,13 @@ Page Flags
 当创建一个巨大的有页面支持的共享内存段（shmget(SHM_HUGETLB)）或通过mmap(MAP_HUGETLB)
 创建一个映射时，就会创建预留。这些操作会导致对函数hugetlb_reserve_pages()的调用::
 
-	int hugetlb_reserve_pages(struct inode *inode,
+	int hugetlb_reserve_pages(struct ianalde *ianalde,
 				  long from, long to,
 				  struct vm_area_struct *vma,
 				  vm_flags_t vm_flags)
 
-hugetlb_reserve_pages()做的第一件事是检查在调用shmget()或mmap()时是否指定了NORESERVE
-标志。如果指定了NORESERVE，那么这个函数立即返回，因为不需要预留。
+hugetlb_reserve_pages()做的第一件事是检查在调用shmget()或mmap()时是否指定了ANALRESERVE
+标志。如果指定了ANALRESERVE，那么这个函数立即返回，因为不需要预留。
 
 参数'from'和'to'是映射或基础文件的巨页索引。对于shmget()，'from'总是0，'to'对应于段/映射
 的长度。对于mmap()，offset参数可以用来指定进入底层文件的偏移量。在这种情况下，'from'和'to'
@@ -324,7 +324,7 @@ COW和预留
 
 在任何情况下，region_del()都会返回从预留映射中删除的页面数量。在非常罕见的情况下，region_del()
 会失败。这只能发生在打洞的情况下，即它必须分割一个现有的file_region条目，而不能分配一个新的
-结构体。在这种错误情况下，region_del()将返回-ENOMEM。这里的问题是，预留映射将显示对该页有
+结构体。在这种错误情况下，region_del()将返回-EANALMEM。这里的问题是，预留映射将显示对该页有
 预留。然而，子池和全局预留计数将不反映该预留。为了处理这种情况，调用函数hugetlb_fix_reserve_counts()
 来调整计数器，使其与不能被删除的预留映射条目相对应。
 
@@ -338,7 +338,7 @@ region_count()在解除私有巨页映射时被调用。在私有映射中，预
 
 有几个辅助函数可以查询和修改预留映射。这些函数只对特定的巨页的预留感兴趣，所以它们只是传入一个
 地址而不是一个范围。此外，它们还传入相关的VMA。从VMA中，可以确定映射的类型（私有或共享）和预留
-映射的位置（inode或VMA）。这些函数只是调用 “预留映射的修改” 一节中描述的基础函数。然而，
+映射的位置（ianalde或VMA）。这些函数只是调用 “预留映射的修改” 一节中描述的基础函数。然而，
 它们确实考虑到了私有和共享映射的预留映射条目的 “相反” 含义，并向调用者隐藏了这个细节::
 
 	long vma_needs_reservation(struct hstate *h,

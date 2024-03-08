@@ -25,7 +25,7 @@ On most hardware, the frontend drivers talk with the bridge driver using an
 I2C bus.
 
 .. [#f1] Some standards use TCP/IP for multiplexing data, like DVB-H (an
-   abandoned standard, not used anymore) and ATSC version 3.0 current
+   abandoned standard, analt used anymore) and ATSC version 3.0 current
    proposals. Currently, the DVB subsystem doesn't implement those standards.
 
 

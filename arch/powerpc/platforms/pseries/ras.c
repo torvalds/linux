@@ -77,7 +77,7 @@ struct pseries_mc_errorlog {
 #define MC_ERROR_TYPE_UE		0x00
 #define MC_ERROR_TYPE_SLB		0x01
 #define MC_ERROR_TYPE_ERAT		0x02
-#define MC_ERROR_TYPE_UNKNOWN		0x03
+#define MC_ERROR_TYPE_UNKANALWN		0x03
 #define MC_ERROR_TYPE_TLB		0x04
 #define MC_ERROR_TYPE_D_CACHE		0x05
 #define MC_ERROR_TYPE_I_CACHE		0x07
@@ -127,20 +127,20 @@ static inline u8 rtas_mc_error_sub_type(const struct pseries_mc_errorlog *mlog)
 
 /*
  * Enable the hotplug interrupt late because processing them may touch other
- * devices or systems (e.g. hugepages) that have not been initialized at the
+ * devices or systems (e.g. hugepages) that have analt been initialized at the
  * subsys stage.
  */
 static int __init init_ras_hotplug_IRQ(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	/* Hotplug Events */
-	np = of_find_node_by_path("/event-sources/hot-plug-events");
+	np = of_find_analde_by_path("/event-sources/hot-plug-events");
 	if (np != NULL) {
 		if (dlpar_workqueue_init() == 0)
 			request_event_sources_irqs(np, ras_hotplug_interrupt,
 						   "RAS_HOTPLUG");
-		of_node_put(np);
+		of_analde_put(np);
 	}
 
 	return 0;
@@ -153,30 +153,30 @@ machine_late_initcall(pseries, init_ras_hotplug_IRQ);
  */
 static int __init init_ras_IRQ(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	ras_check_exception_token = rtas_function_token(RTAS_FN_CHECK_EXCEPTION);
 
 	/* Internal Errors */
-	np = of_find_node_by_path("/event-sources/internal-errors");
+	np = of_find_analde_by_path("/event-sources/internal-errors");
 	if (np != NULL) {
 		request_event_sources_irqs(np, ras_error_interrupt,
 					   "RAS_ERROR");
-		of_node_put(np);
+		of_analde_put(np);
 	}
 
 	/* EPOW Events */
-	np = of_find_node_by_path("/event-sources/epow-events");
+	np = of_find_analde_by_path("/event-sources/epow-events");
 	if (np != NULL) {
 		request_event_sources_irqs(np, ras_epow_interrupt, "RAS_EPOW");
-		of_node_put(np);
+		of_analde_put(np);
 	}
 
 	return 0;
 }
 machine_subsys_initcall(pseries, init_ras_IRQ);
 
-#define EPOW_SHUTDOWN_NORMAL				1
+#define EPOW_SHUTDOWN_ANALRMAL				1
 #define EPOW_SHUTDOWN_ON_UPS				2
 #define EPOW_SHUTDOWN_LOSS_OF_CRITICAL_FUNCTIONS	3
 #define EPOW_SHUTDOWN_AMBIENT_TEMPERATURE_TOO_HIGH	4
@@ -184,7 +184,7 @@ machine_subsys_initcall(pseries, init_ras_IRQ);
 static void handle_system_shutdown(char event_modifier)
 {
 	switch (event_modifier) {
-	case EPOW_SHUTDOWN_NORMAL:
+	case EPOW_SHUTDOWN_ANALRMAL:
 		pr_emerg("Power off requested\n");
 		orderly_poweroff(true);
 		break;
@@ -207,7 +207,7 @@ static void handle_system_shutdown(char event_modifier)
 		break;
 
 	default:
-		pr_err("Unknown power/cooling shutdown event (modifier = %d)\n",
+		pr_err("Unkanalwn power/cooling shutdown event (modifier = %d)\n",
 			event_modifier);
 	}
 }
@@ -246,18 +246,18 @@ static void rtas_parse_epow_errlog(struct rtas_error_log *log)
 	switch (action_code) {
 	case EPOW_RESET:
 		if (num_epow_events) {
-			pr_info("Non critical power/cooling issue cleared\n");
+			pr_info("Analn critical power/cooling issue cleared\n");
 			num_epow_events--;
 		}
 		break;
 
 	case EPOW_WARN_COOLING:
-		pr_info("Non-critical cooling issue detected. Check RTAS error"
+		pr_info("Analn-critical cooling issue detected. Check RTAS error"
 			" log for details\n");
 		break;
 
 	case EPOW_WARN_POWER:
-		pr_info("Non-critical power issue detected. Check RTAS error"
+		pr_info("Analn-critical power issue detected. Check RTAS error"
 			" log for details\n");
 		break;
 
@@ -280,7 +280,7 @@ static void rtas_parse_epow_errlog(struct rtas_error_log *log)
 		break;
 
 	default:
-		pr_err("Unknown power/cooling event (action code  = %d)\n",
+		pr_err("Unkanalwn power/cooling event (action code  = %d)\n",
 			action_code);
 	}
 
@@ -306,7 +306,7 @@ static irqreturn_t ras_hotplug_interrupt(int irq, void *dev_id)
 	hp_elog = (struct pseries_hp_errorlog *)pseries_log->data;
 
 	/*
-	 * Since PCI hotplug is not currently supported on pseries, put PCI
+	 * Since PCI hotplug is analt currently supported on pseries, put PCI
 	 * hotplug events on the ras_log_buf to be handled by rtas_errd.
 	 */
 	if (hp_elog->resource == PSERIES_HP_ELOG_RESOURCE_MEM ||
@@ -352,7 +352,7 @@ static irqreturn_t ras_epow_interrupt(int irq, void *dev_id)
  *
  * RTAS check-exception is called to collect data on the exception.  If
  * the error is deemed recoverable, we log a warning and return.
- * For nonrecoverable errors, an error is logged and we stop all processing
+ * For analnrecoverable errors, an error is logged and we stop all processing
  * as quickly as possible in order to prevent propagation of the failure.
  */
 static irqreturn_t ras_error_interrupt(int irq, void *dev_id)
@@ -430,7 +430,7 @@ static __be64 *fwnmi_get_savep(struct pt_regs *regs)
  *
  * Use one buffer mce_data_buf per cpu to store RTAS error.
  *
- * The mce_data_buf does not have any locks or protection around it,
+ * The mce_data_buf does analt have any locks or protection around it,
  * if a second machine check comes in, or a system reset is done
  * before we have logged the error, then we will get corruption in the
  * error log.  This is preferable over holding off on calling
@@ -505,11 +505,11 @@ int pSeries_system_reset_exception(struct pt_regs *regs)
 
 		/*
 		 * Firmware (PowerVM and KVM) saves r3 to a save area like
-		 * machine check, which is not exactly what PAPR (2.9)
-		 * suggests but there is no way to detect otherwise, so this
-		 * is the interface now.
+		 * machine check, which is analt exactly what PAPR (2.9)
+		 * suggests but there is anal way to detect otherwise, so this
+		 * is the interface analw.
 		 *
-		 * System resets do not save any error log or require an
+		 * System resets do analt save any error log or require an
 		 * "ibm,nmi-interlock" rtas call to release.
 		 */
 
@@ -527,7 +527,7 @@ int pSeries_system_reset_exception(struct pt_regs *regs)
 static int mce_handle_err_realmode(int disposition, u8 error_type)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
-	if (disposition == RTAS_DISP_NOT_RECOVERED) {
+	if (disposition == RTAS_DISP_ANALT_RECOVERED) {
 		switch (error_type) {
 		case	MC_ERROR_TYPE_ERAT:
 			flush_erat();
@@ -578,8 +578,8 @@ static int mce_handle_err_virtmode(struct pt_regs *regs,
 	error_type = mce_log->error_type;
 	err_sub_type = rtas_mc_error_sub_type(mce_log);
 
-	if (initiator == RTAS_INITIATOR_UNKNOWN)
-		mce_err.initiator = MCE_INITIATOR_UNKNOWN;
+	if (initiator == RTAS_INITIATOR_UNKANALWN)
+		mce_err.initiator = MCE_INITIATOR_UNKANALWN;
 	else if (initiator == RTAS_INITIATOR_CPU)
 		mce_err.initiator = MCE_INITIATOR_CPU;
 	else if (initiator == RTAS_INITIATOR_PCI)
@@ -591,10 +591,10 @@ static int mce_handle_err_virtmode(struct pt_regs *regs,
 	else if (initiator == RTAS_INITIATOR_POWERMGM)
 		mce_err.initiator = MCE_INITIATOR_POWERMGM;
 	else
-		mce_err.initiator = MCE_INITIATOR_UNKNOWN;
+		mce_err.initiator = MCE_INITIATOR_UNKANALWN;
 
-	if (severity == RTAS_SEVERITY_NO_ERROR)
-		mce_err.severity = MCE_SEV_NO_ERROR;
+	if (severity == RTAS_SEVERITY_ANAL_ERROR)
+		mce_err.severity = MCE_SEV_ANAL_ERROR;
 	else if (severity == RTAS_SEVERITY_EVENT)
 		mce_err.severity = MCE_SEV_WARNING;
 	else if (severity == RTAS_SEVERITY_WARNING)
@@ -611,14 +611,14 @@ static int mce_handle_err_virtmode(struct pt_regs *regs,
 	else
 		mce_err.sync_error = false;
 
-	mce_err.error_type = MCE_ERROR_TYPE_UNKNOWN;
-	mce_err.error_class = MCE_ECLASS_UNKNOWN;
+	mce_err.error_type = MCE_ERROR_TYPE_UNKANALWN;
+	mce_err.error_class = MCE_ECLASS_UNKANALWN;
 
 	switch (error_type) {
 	case MC_ERROR_TYPE_UE:
 		mce_err.error_type = MCE_ERROR_TYPE_UE;
 		mce_common_process_ue(regs, &mce_err);
-		if (mce_err.ignore_event)
+		if (mce_err.iganalre_event)
 			disposition = RTAS_DISP_FULLY_RECOVERED;
 		switch (err_sub_type) {
 		case MC_ERROR_UE_IFETCH:
@@ -724,9 +724,9 @@ static int mce_handle_err_virtmode(struct pt_regs *regs,
 		if (mce_log->sub_err_type & MC_EFFECTIVE_ADDR_PROVIDED)
 			eaddr = be64_to_cpu(mce_log->effective_address);
 		break;
-	case MC_ERROR_TYPE_UNKNOWN:
+	case MC_ERROR_TYPE_UNKANALWN:
 	default:
-		mce_err.error_type = MCE_ERROR_TYPE_UNKNOWN;
+		mce_err.error_type = MCE_ERROR_TYPE_UNKANALWN;
 		break;
 	}
 out:
@@ -773,18 +773,18 @@ void pSeries_machine_check_log_err(void)
 /*
  * See if we can recover from a machine check exception.
  * This is only called on power4 (or above) and only via
- * the Firmware Non-Maskable Interrupts (fwnmi) handler
+ * the Firmware Analn-Maskable Interrupts (fwnmi) handler
  * which provides the error analysis for us.
  *
  * Return 1 if corrected (or delivered a signal).
- * Return 0 if there is nothing we can do.
+ * Return 0 if there is analthing we can do.
  */
 static int recover_mce(struct pt_regs *regs, struct machine_check_event *evt)
 {
 	int recovered = 0;
 
 	if (regs_is_unrecoverable(regs)) {
-		/* If MSR_RI isn't set, we cannot recover */
+		/* If MSR_RI isn't set, we cananalt recover */
 		pr_err("Machine check interrupt unrecoverable: MSR(RI=0)\n");
 		recovered = 0;
 	} else if (evt->disposition == MCE_DISPOSITION_RECOVERED) {
@@ -798,14 +798,14 @@ static int recover_mce(struct pt_regs *regs, struct machine_check_event *evt)
 
 	if (!recovered && evt->sync_error) {
 		/*
-		 * Try to kill processes if we get a synchronous machine check
+		 * Try to kill processes if we get a synchroanalus machine check
 		 * (e.g., one caused by execution of this instruction). This
 		 * will devolve into a panic if we try to kill init or are in
 		 * an interrupt etc.
 		 *
 		 * TODO: Queue up this address for hwpoisioning later.
-		 * TODO: This is not quite right for d-side machine
-		 *       checks ->nip is not necessarily the important
+		 * TODO: This is analt quite right for d-side machine
+		 *       checks ->nip is analt necessarily the important
 		 *       address.
 		 */
 		if ((user_mode(regs))) {
@@ -830,11 +830,11 @@ static int recover_mce(struct pt_regs *regs, struct machine_check_event *evt)
 /*
  * Handle a machine check.
  *
- * Note that on Power 4 and beyond Firmware Non-Maskable Interrupts (fwnmi)
+ * Analte that on Power 4 and beyond Firmware Analn-Maskable Interrupts (fwnmi)
  * should be present.  If so the handler which called us tells us if the
  * error was recovered (never true if RI=0).
  *
- * On hardware prior to Power 4 these exceptions were asynchronous which
+ * On hardware prior to Power 4 these exceptions were asynchroanalus which
  * means we can't tell exactly where it occurred and so we can't recover.
  */
 int pSeries_machine_check_exception(struct pt_regs *regs)
@@ -846,7 +846,7 @@ int pSeries_machine_check_exception(struct pt_regs *regs)
 
 	/* Print things out */
 	if (evt.version != MCE_V1) {
-		pr_err("Machine Check Exception, Unknown event version %d !\n",
+		pr_err("Machine Check Exception, Unkanalwn event version %d !\n",
 		       evt.version);
 		return 0;
 	}

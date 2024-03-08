@@ -41,7 +41,7 @@
 
 #define FANIN_MAX		12	/* Counted from 1 */
 #define VSEN_MAX		21	/* VSEN1..14, 3VDD, VBAT, V3VSB,
-					   LTD (not a voltage), VSEN17..19 */
+					   LTD (analt a voltage), VSEN17..19 */
 #define FANCTL_MAX		4	/* Counted from 1 */
 #define TCPU_MAX		8	/* Counted from 1 */
 #define TEMP_MAX		4	/* Counted from 1 */
@@ -116,12 +116,12 @@ module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in minutes. 1 <= timeout <= 255, default="
 			__MODULE_STRING(WATCHDOG_TIMEOUT) ".");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+			__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short analrmal_i2c[] = {
 	0x2d, 0x2e, I2C_CLIENT_END
 };
 
@@ -162,7 +162,7 @@ static inline void nct7904_bank_release(struct nct7904_data *data)
 	mutex_unlock(&data->bank_lock);
 }
 
-/* Read 1-byte register. Returns unsigned reg or -ERRNO on error. */
+/* Read 1-byte register. Returns unsigned reg or -ERRANAL on error. */
 static int nct7904_read_reg(struct nct7904_data *data,
 			    unsigned int bank, unsigned int reg)
 {
@@ -179,7 +179,7 @@ static int nct7904_read_reg(struct nct7904_data *data,
 
 /*
  * Read 2-byte register. Returns register in big-endian format or
- * -ERRNO on error.
+ * -ERRANAL on error.
  */
 static int nct7904_read_reg16(struct nct7904_data *data,
 			      unsigned int bank, unsigned int reg)
@@ -202,7 +202,7 @@ static int nct7904_read_reg16(struct nct7904_data *data,
 	return ret;
 }
 
-/* Write 1-byte register. Returns 0 or -ERRNO on error. */
+/* Write 1-byte register. Returns 0 or -ERRANAL on error. */
 static int nct7904_write_reg(struct nct7904_data *data,
 			     unsigned int bank, unsigned int reg, u8 val)
 {
@@ -265,7 +265,7 @@ static int nct7904_read_fan(struct device *dev, u32 attr, int channel,
 			data->fan_alarm[channel >> 3] ^= 1 << (channel & 0x07);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -291,7 +291,7 @@ static umode_t nct7904_fan_is_visible(const void *_data, u32 attr, int channel)
 }
 
 static u8 nct7904_chan_to_index[] = {
-	0,	/* Not used */
+	0,	/* Analt used */
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 	18, 19, 20, 16
 };
@@ -357,7 +357,7 @@ static int nct7904_read_in(struct device *dev, u32 attr, int channel,
 			data->vsen_alarm[index >> 3] ^= 1 << (index & 0x07);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -482,7 +482,7 @@ static int nct7904_read_temp(struct device *dev, u32 attr, int channel,
 		reg3 = DTS_T_CPU1_CH_REG;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (channel == 4)
@@ -557,7 +557,7 @@ static int nct7904_read_pwm(struct device *dev, u32 attr, int channel,
 		*val = ret ? 2 : 1;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -592,7 +592,7 @@ static int nct7904_write_temp(struct device *dev, u32 attr, int channel,
 		reg3 = DTS_T_CPU1_CH_REG;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (channel == 4)
 		ret = nct7904_write_reg(data, BANK_1, reg1, val);
@@ -629,7 +629,7 @@ static int nct7904_write_fan(struct device *dev, u32 attr, int channel,
 					FANIN1_LV_HL_REG + channel * 2, tmp);
 		return ret;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -688,7 +688,7 @@ static int nct7904_write_in(struct device *dev, u32 attr, int channel,
 					VSEN1_HV_HL_REG + index * 4, tmp);
 		return ret;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -713,7 +713,7 @@ static int nct7904_write_pwm(struct device *dev, u32 attr, int channel,
 					val == 2 ? data->fan_mode[channel] : 0);
 		return ret;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -741,7 +741,7 @@ static int nct7904_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return nct7904_read_temp(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -758,7 +758,7 @@ static int nct7904_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp:
 		return nct7904_write_temp(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -780,7 +780,7 @@ static umode_t nct7904_is_visible(const void *data,
 	}
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int nct7904_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
@@ -789,14 +789,14 @@ static int nct7904_detect(struct i2c_client *client,
 	if (!i2c_check_functionality(adapter,
 				     I2C_FUNC_SMBUS_READ_BYTE |
 				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Determine the chip type. */
 	if (i2c_smbus_read_byte_data(client, VENDOR_ID_REG) != NUVOTON_ID ||
 	    i2c_smbus_read_byte_data(client, CHIP_ID_REG) != NCT7904_ID ||
 	    (i2c_smbus_read_byte_data(client, DEVICE_ID_REG) & 0xf0) != 0x50 ||
 	    (i2c_smbus_read_byte_data(client, BANK_SEL_REG) & 0xf8) != 0x00)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, "nct7904", I2C_NAME_SIZE);
 
@@ -960,8 +960,8 @@ static int nct7904_wdt_set_timeout(struct watchdog_device *wdt,
 static int nct7904_wdt_ping(struct watchdog_device *wdt)
 {
 	/*
-	 * Note:
-	 * NCT7904 does not support refreshing WDT_TIMER_REG register when
+	 * Analte:
+	 * NCT7904 does analt support refreshing WDT_TIMER_REG register when
 	 * the watchdog is active. Please disable watchdog before feeding
 	 * the watchdog and enable it again.
 	 */
@@ -1020,7 +1020,7 @@ static int nct7904_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct nct7904_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->bank_lock);
@@ -1036,7 +1036,7 @@ static int nct7904_probe(struct i2c_client *client)
 	/*
 	 * VSEN attributes
 	 *
-	 * Note: voltage sensors overlap with external temperature
+	 * Analte: voltage sensors overlap with external temperature
 	 * sensors. So, if we ever decide to support the latter
 	 * we will have to adjust 'vsen_mask' accordingly.
 	 */
@@ -1152,7 +1152,7 @@ static int nct7904_probe(struct i2c_client *client)
 	data->wdt.parent = &client->dev;
 
 	watchdog_init_timeout(&data->wdt, timeout * 60, &client->dev);
-	watchdog_set_nowayout(&data->wdt, nowayout);
+	watchdog_set_analwayout(&data->wdt, analwayout);
 	watchdog_set_drvdata(&data->wdt, data);
 
 	watchdog_stop_on_unregister(&data->wdt);
@@ -1174,7 +1174,7 @@ static struct i2c_driver nct7904_driver = {
 	.probe = nct7904_probe,
 	.id_table = nct7904_id,
 	.detect = nct7904_detect,
-	.address_list = normal_i2c,
+	.address_list = analrmal_i2c,
 };
 
 module_i2c_driver(nct7904_driver);

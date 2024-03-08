@@ -6,7 +6,7 @@
 
 /*
  * Driver: usbdux
- * Description: University of Stirling USB DAQ & INCITE Technology Limited
+ * Description: University of Stirling USB DAQ & INCITE Techanallogy Limited
  * Devices: [ITL] USB-DUX (usbdux)
  * Author: Bernd Porr <mail@berndporr.me.uk>
  * Updated: 10 Oct 2014
@@ -16,7 +16,7 @@
  * 0=/CLK0, 1=UP/DOWN0, 2=RESET0, 4=/CLK1, 5=UP/DOWN1, 6=RESET1.
  * The sampling rate of the counter is approximately 500Hz.
  *
- * Note that under USB2.0 the length of the channel list determines
+ * Analte that under USB2.0 the length of the channel list determines
  * the max sampling rate. If you sample only one channel you get 8kHz
  * sampling rate. If you sample two channels you get 4kHz and so on.
  */
@@ -31,26 +31,26 @@
  *
  *
  * Revision history:
- * 0.94: D/A output should work now with any channel list combinations
+ * 0.94: D/A output should work analw with any channel list combinations
  * 0.95: .owner commented out for kernel vers below 2.4.19
  *       sanity checks in ai/ao_cmd
  * 0.96: trying to get it working with 2.6, moved all memory alloc to comedi's
  *       attach final USB IDs
  *       moved memory allocation completely to the corresponding comedi
- *       functions firmware upload is by fxload and no longer by comedi (due to
+ *       functions firmware upload is by fxload and anal longer by comedi (due to
  *       enumeration)
  * 0.97: USB IDs received, adjusted table
  * 0.98: SMP, locking, memory alloc: moved all usb memory alloc
  *       to the usb subsystem and moved all comedi related memory
  *       alloc to comedi.
  *       | kernel | registration | usbdux-usb | usbdux-comedi | comedi |
- * 0.99: USB 2.0: changed protocol to isochronous transfer
+ * 0.99: USB 2.0: changed protocol to isochroanalus transfer
  *                IRQ transfer is too buggy and too risky in 2.0
- *                for the high speed ISO transfer is now a working version
+ *                for the high speed ISO transfer is analw a working version
  *                available
  * 0.99b: Increased the iso transfer buffer for high sp.to 10 buffers. Some VIA
  *        chipsets miss out IRQs. Deeper buffering is needed.
- * 1.00: full USB 2.0 support for the A/D converter. Now: max 8kHz sampling
+ * 1.00: full USB 2.0 support for the A/D converter. Analw: max 8kHz sampling
  *       rate.
  *       Firmware vers 1.00 is needed for this.
  *       Two 16 bit up/down/reset counter with a sampling rate of 1kHz
@@ -58,7 +58,7 @@
  *       bulk transfers.
  * 1.1:  moved EP4 transfers to EP1 to make space for a PWM output on EP4
  * 1.2:  added PWM support via EP4
- * 2.0:  PWM seems to be stable and is not interfering with the other functions
+ * 2.0:  PWM seems to be stable and is analt interfering with the other functions
  * 2.1:  changed PWM API
  * 2.2:  added firmware kernel request to fix an udev problem
  * 2.3:  corrected a bug in bulk timeouts which were far too short
@@ -126,7 +126,7 @@
 #define SIZEOUTBUF		(8 * SIZEDAOUT)
 
 /*
- * Size of the buffer for the dux commands: just now max size is determined
+ * Size of the buffer for the dux commands: just analw max size is determined
  * by the analogue out + command byte + panic bytes...
  */
 #define SIZEOFDUXBUFFER		(8 * SIZEDAOUT + 2)
@@ -226,7 +226,7 @@ static int usbdux_ai_cancel(struct comedi_device *dev,
 {
 	struct usbdux_private *devpriv = dev->private;
 
-	/* prevent other CPUs from submitting new commands just now */
+	/* prevent other CPUs from submitting new commands just analw */
 	mutex_lock(&devpriv->mut);
 	/* unlink only if the urb really has been submitted */
 	usbdux_ai_stop(dev, devpriv->ai_cmd_running);
@@ -291,7 +291,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 	struct comedi_async *async = s->async;
 	struct usbdux_private *devpriv = dev->private;
 
-	/* exit if not running a command, do not resubmit urb */
+	/* exit if analt running a command, do analt resubmit urb */
 	if (!devpriv->ai_cmd_running)
 		return;
 
@@ -304,7 +304,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 
 	case -EILSEQ:
 		/*
-		 * error in the ISOchronous data
+		 * error in the ISOchroanalus data
 		 * we don't copy the data into the transfer buffer
 		 * and recycle the last data byte
 		 */
@@ -313,7 +313,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 		break;
 
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 	case -ECONNABORTED:
 		/* after an unlink command, unplug, ... etc */
@@ -323,14 +323,14 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 	default:
 		/* a real error */
 		dev_err(dev->class_dev,
-			"Non-zero urb status received in ai intr context: %d\n",
+			"Analn-zero urb status received in ai intr context: %d\n",
 			urb->status);
 		async->events |= COMEDI_CB_ERROR;
 		break;
 	}
 
 	/*
-	 * comedi_handle_events() cannot be used in this driver. The (*cancel)
+	 * comedi_handle_events() cananalt be used in this driver. The (*cancel)
 	 * operation would unlink the urb.
 	 */
 	if (async->events & COMEDI_CB_CANCEL_MASK)
@@ -354,7 +354,7 @@ static int usbdux_ao_cancel(struct comedi_device *dev,
 {
 	struct usbdux_private *devpriv = dev->private;
 
-	/* prevent other CPUs from submitting a command just now */
+	/* prevent other CPUs from submitting a command just analw */
 	mutex_lock(&devpriv->mut);
 	/* unlink only if it is really running */
 	usbdux_ao_stop(dev, devpriv->ao_cmd_running);
@@ -438,7 +438,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 	struct comedi_async *async = s->async;
 	struct usbdux_private *devpriv = dev->private;
 
-	/* exit if not running a command, do not resubmit urb */
+	/* exit if analt running a command, do analt resubmit urb */
 	if (!devpriv->ao_cmd_running)
 		return;
 
@@ -448,7 +448,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 		break;
 
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 	case -ECONNABORTED:
 		/* after an unlink command, unplug, ... etc */
@@ -458,14 +458,14 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 	default:
 		/* a real error */
 		dev_err(dev->class_dev,
-			"Non-zero urb status received in ao intr context: %d\n",
+			"Analn-zero urb status received in ao intr context: %d\n",
 			urb->status);
 		async->events |= COMEDI_CB_ERROR;
 		break;
 	}
 
 	/*
-	 * comedi_handle_events() cannot be used in this driver. The (*cancel)
+	 * comedi_handle_events() cananalt be used in this driver. The (*cancel)
 	 * operation would unlink the urb.
 	 */
 	if (async->events & COMEDI_CB_CANCEL_MASK)
@@ -511,11 +511,11 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_INT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -570,7 +570,7 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -621,7 +621,7 @@ static int receive_dux_commands(struct comedi_device *dev, unsigned int command)
 		if (le16_to_cpu(devpriv->insn_buf[0]) == command)
 			return ret;
 	}
-	/* command not received */
+	/* command analt received */
 	return -EFAULT;
 }
 
@@ -707,7 +707,7 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->ai_counter = devpriv->ai_timer;
 
-	if (cmd->start_src == TRIG_NOW) {
+	if (cmd->start_src == TRIG_ANALW) {
 		/* enable this acquisition operation */
 		devpriv->ai_cmd_running = 1;
 		ret = usbdux_submit_urbs(dev, devpriv->ai_urbs,
@@ -871,7 +871,7 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_INT);
 
 	if (0) {		/* (devpriv->high_speed) */
 		/* the sampling rate is set by the coversion rate */
@@ -893,12 +893,12 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 		 * all conversion events happen simultaneously with
 		 * a rate of 1kHz/n
 		 */
-		flags = TRIG_NOW;
+		flags = TRIG_ANALW;
 	}
 	err |= comedi_check_trigger_src(&cmd->convert_src, flags);
 
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -925,7 +925,7 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 						    1000000);
 	}
 
-	/* not used now, is for later use */
+	/* analt used analw, is for later use */
 	if (cmd->convert_src == TRIG_TIMER)
 		err |= comedi_check_trigger_arg_min(&cmd->convert_arg, 125000);
 
@@ -934,7 +934,7 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -955,7 +955,7 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		goto ao_cmd_exit;
 
 	/* we count in steps of 1ms (125us) */
-	/* 125us mode not used yet */
+	/* 125us mode analt used yet */
 	if (0) {		/* (devpriv->high_speed) */
 		/* 125us */
 		/* timing of the conversion itself: every 125 us */
@@ -972,7 +972,7 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->ao_counter = devpriv->ao_timer;
 
-	if (cmd->start_src == TRIG_NOW) {
+	if (cmd->start_src == TRIG_ANALW) {
 		/* enable this acquisition operation */
 		devpriv->ao_cmd_running = 1;
 		ret = usbdux_submit_urbs(dev, devpriv->ao_urbs,
@@ -1110,7 +1110,7 @@ static int usbdux_counter_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
-	/* nothing to do so far */
+	/* analthing to do so far */
 	return 2;
 }
 
@@ -1158,12 +1158,12 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 		break;
 
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 	case -ECONNABORTED:
 		/*
 		 * after an unlink command, unplug, ... etc
-		 * no unlink needed here. Already shutting down.
+		 * anal unlink needed here. Already shutting down.
 		 */
 		if (devpriv->pwm_cmd_running)
 			usbdux_pwm_stop(dev, 0);
@@ -1174,7 +1174,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 		/* a real error */
 		if (devpriv->pwm_cmd_running) {
 			dev_err(dev->class_dev,
-				"Non-zero urb status received in pwm intr context: %d\n",
+				"Analn-zero urb status received in pwm intr context: %d\n",
 				urb->status);
 			usbdux_pwm_stop(dev, 0);
 		}
@@ -1313,7 +1313,7 @@ static int usbdux_pwm_write(struct comedi_device *dev,
 
 	/*
 	 * The sign is set via a special INSN only, this gives us 8 bits
-	 * for normal operation, sign is 0 by default.
+	 * for analrmal operation, sign is 0 by default.
 	 */
 	usbdux_pwm_pattern(dev, s, chan, data[0], 0);
 
@@ -1331,8 +1331,8 @@ static int usbdux_pwm_config(struct comedi_device *dev,
 	switch (data[0]) {
 	case INSN_CONFIG_ARM:
 		/*
-		 * if not zero the PWM is limited to a certain time which is
-		 * not supported here
+		 * if analt zero the PWM is limited to a certain time which is
+		 * analt supported here
 		 */
 		if (data[1] != 0)
 			return -EINVAL;
@@ -1355,7 +1355,7 @@ static int usbdux_pwm_config(struct comedi_device *dev,
 		usbdux_pwm_pattern(dev, s, chan, data[1], (data[2] != 0));
 		return 0;
 	case INSN_CONFIG_PWM_GET_H_BRIDGE:
-		/* values are not kept in this driver, nothing to return here */
+		/* values are analt kept in this driver, analthing to return here */
 		return -EINVAL;
 	}
 	return -EINVAL;
@@ -1376,19 +1376,19 @@ static int usbdux_firmware_upload(struct comedi_device *dev,
 	if (size > USBDUX_FIRMWARE_MAX_LEN) {
 		dev_err(dev->class_dev,
 			"usbdux firmware binary it too large for FX2.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* we generate a local buffer for the firmware */
 	buf = kmemdup(data, size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* we need a malloc'ed buffer for usb_control_msg() */
 	tmp = kmalloc(1, GFP_KERNEL);
 	if (!tmp) {
 		kfree(buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* stop the current firmware on the device */
@@ -1400,7 +1400,7 @@ static int usbdux_firmware_upload(struct comedi_device *dev,
 			      tmp, 1,
 			      BULK_TIMEOUT);
 	if (ret < 0) {
-		dev_err(dev->class_dev, "can not stop firmware\n");
+		dev_err(dev->class_dev, "can analt stop firmware\n");
 		goto done;
 	}
 
@@ -1425,7 +1425,7 @@ static int usbdux_firmware_upload(struct comedi_device *dev,
 			      tmp, 1,
 			      BULK_TIMEOUT);
 	if (ret < 0)
-		dev_err(dev->class_dev, "can not start firmware\n");
+		dev_err(dev->class_dev, "can analt start firmware\n");
 
 done:
 	kfree(tmp);
@@ -1449,13 +1449,13 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 				   GFP_KERNEL);
 	if (!devpriv->dux_commands || !devpriv->in_buf || !devpriv->insn_buf ||
 	    !devpriv->ai_urbs || !devpriv->ao_urbs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < devpriv->n_ai_urbs; i++) {
 		/* one frame: 1ms */
 		urb = usb_alloc_urb(1, GFP_KERNEL);
 		if (!urb)
-			return -ENOMEM;
+			return -EANALMEM;
 		devpriv->ai_urbs[i] = urb;
 
 		urb->dev = usb;
@@ -1464,7 +1464,7 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = kzalloc(SIZEINBUF, GFP_KERNEL);
 		if (!urb->transfer_buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		urb->complete = usbduxsub_ai_isoc_irq;
 		urb->number_of_packets = 1;
@@ -1477,7 +1477,7 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 		/* one frame: 1ms */
 		urb = usb_alloc_urb(1, GFP_KERNEL);
 		if (!urb)
-			return -ENOMEM;
+			return -EANALMEM;
 		devpriv->ao_urbs[i] = urb;
 
 		urb->dev = usb;
@@ -1486,7 +1486,7 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
 		if (!urb->transfer_buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		urb->complete = usbduxsub_ao_isoc_irq;
 		urb->number_of_packets = 1;
@@ -1503,14 +1503,14 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 	if (devpriv->pwm_buf_sz) {
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb)
-			return -ENOMEM;
+			return -EANALMEM;
 		devpriv->pwm_urb = urb;
 
 		/* max bulk ep size in high speed */
 		urb->transfer_buffer = kzalloc(devpriv->pwm_buf_sz,
 					       GFP_KERNEL);
 		if (!urb->transfer_buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -1563,7 +1563,7 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&devpriv->mut);
 
@@ -1588,7 +1588,7 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 				3);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
-			"could not set alternate setting 3 in high speed\n");
+			"could analt set alternate setting 3 in high speed\n");
 		return ret;
 	}
 

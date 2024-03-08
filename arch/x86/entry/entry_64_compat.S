@@ -6,14 +6,14 @@
  */
 #include <asm/asm-offsets.h>
 #include <asm/current.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/ia32_unistd.h>
 #include <asm/thread_info.h>
 #include <asm/segment.h>
 #include <asm/irqflags.h>
 #include <asm/asm.h>
 #include <asm/smap.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <linux/linkage.h>
 #include <linux/err.h>
 
@@ -35,8 +35,8 @@
  *
  * SYSENTER loads SS, RSP, CS, and RIP from previously programmed MSRs.
  * IF and VM in RFLAGS are cleared (IOW: interrupts are off).
- * SYSENTER does not save anything on the stack,
- * and does not save old RIP (!!!), RSP, or RFLAGS.
+ * SYSENTER does analt save anything on the stack,
+ * and does analt save old RIP (!!!), RSP, or RFLAGS.
  *
  * Arguments:
  * eax  system call number
@@ -78,14 +78,14 @@ SYM_INNER_LABEL(entry_SYSENTER_compat_after_hwframe, SYM_L_GLOBAL)
 	/*
 	 * User tracing code (ptrace or signal handlers) might assume that
 	 * the saved RAX contains a 32-bit number when we're invoking a 32-bit
-	 * syscall.  Just in case the high bits are nonzero, zero-extend
+	 * syscall.  Just in case the high bits are analnzero, zero-extend
 	 * the syscall number.  (This could almost certainly be deleted
-	 * with no ill effects.)
+	 * with anal ill effects.)
 	 */
 	movl	%eax, %eax
 
 	pushq	%rax			/* pt_regs->orig_ax */
-	PUSH_AND_CLEAR_REGS rax=$-ENOSYS
+	PUSH_AND_CLEAR_REGS rax=$-EANALSYS
 	UNWIND_HINT_REGS
 
 	cld
@@ -101,7 +101,7 @@ SYM_INNER_LABEL(entry_SYSENTER_compat_after_hwframe, SYM_L_GLOBAL)
 	 * we don't get preempted with NT set.
 	 *
 	 * If TF is set, we will single-step all the way to here -- do_debug
-	 * will ignore all the traps.  (Yes, this is slow, but so is
+	 * will iganalre all the traps.  (Anal, this is slow, but so is
 	 * single-stepping in general.  This allows us to avoid having
 	 * a more complicated code to handle the case where a user program
 	 * forces us to single-step through the SYSENTER entry code.)
@@ -110,7 +110,7 @@ SYM_INNER_LABEL(entry_SYSENTER_compat_after_hwframe, SYM_L_GLOBAL)
 	 * out-of-line as an optimization: NT is unlikely to be set in the
 	 * majority of the cases and instead of polluting the I$ unnecessarily,
 	 * we're keeping that code behind a branch which will predict as
-	 * not-taken and therefore its instructions won't be fetched.
+	 * analt-taken and therefore its instructions won't be fetched.
 	 */
 	testl	$X86_EFLAGS_NT|X86_EFLAGS_AC|X86_EFLAGS_TF, EFLAGS(%rsp)
 	jnz	.Lsysenter_fix_flags
@@ -138,14 +138,14 @@ SYM_CODE_END(entry_SYSENTER_compat)
  * As evidence:
  *
  *  - The calling convention for SYSCALL has changed several times without
- *    anyone noticing.
+ *    anyone analticing.
  *
  *  - Prior to the in-kernel X86_BUG_SYSRET_SS_ATTRS fixup, anything
  *    user task that did SYSCALL without immediately reloading SS
  *    would randomly crash.
  *
- *  - Most programmers do not directly target AMD CPUs, and the 32-bit
- *    SYSCALL instruction does not exist on Intel CPUs.  Even on AMD
+ *  - Most programmers do analt directly target AMD CPUs, and the 32-bit
+ *    SYSCALL instruction does analt exist on Intel CPUs.  Even on AMD
  *    CPUs, Linux disables the SYSCALL instruction on 32-bit kernels
  *    because the SYSCALL instruction in legacy/native 32-bit mode (as
  *    opposed to compat mode) is sufficiently poorly designed as to be
@@ -153,21 +153,21 @@ SYM_CODE_END(entry_SYSENTER_compat)
  *
  * 32-bit SYSCALL saves RIP to RCX, clears RFLAGS.RF, then saves
  * RFLAGS to R11, then loads new SS, CS, and RIP from previously
- * programmed MSRs.  RFLAGS gets masked by a value from another MSR
- * (so CLD and CLAC are not needed).  SYSCALL does not save anything on
- * the stack and does not change RSP.
+ * programmed MSRs.  RFLAGS gets masked by a value from aanalther MSR
+ * (so CLD and CLAC are analt needed).  SYSCALL does analt save anything on
+ * the stack and does analt change RSP.
  *
- * Note: RFLAGS saving+masking-with-MSR happens only in Long mode
+ * Analte: RFLAGS saving+masking-with-MSR happens only in Long mode
  * (in legacy 32-bit mode, IF, RF and VM bits are cleared and that's it).
  * Don't get confused: RFLAGS saving+masking depends on Long Mode Active bit
- * (EFER.LMA=1), NOT on bitness of userspace where SYSCALL executes
- * or target CS descriptor's L bit (SYSCALL does not read segment descriptors).
+ * (EFER.LMA=1), ANALT on bitness of userspace where SYSCALL executes
+ * or target CS descriptor's L bit (SYSCALL does analt read segment descriptors).
  *
  * Arguments:
  * eax  system call number
  * ecx  return address
  * ebx  arg1
- * ebp  arg2	(note: not saved in the stack frame, should not be touched)
+ * ebp  arg2	(analte: analt saved in the stack frame, should analt be touched)
  * edx  arg3
  * esi  arg4
  * edi  arg5
@@ -190,7 +190,7 @@ SYM_CODE_START(entry_SYSCALL_compat)
 	movq	PER_CPU_VAR(pcpu_hot + X86_top_of_stack), %rsp
 
 SYM_INNER_LABEL(entry_SYSCALL_compat_safe_stack, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 
 	/* Construct struct pt_regs on stack */
 	pushq	$__USER_DS		/* pt_regs->ss */
@@ -201,7 +201,7 @@ SYM_INNER_LABEL(entry_SYSCALL_compat_safe_stack, SYM_L_GLOBAL)
 SYM_INNER_LABEL(entry_SYSCALL_compat_after_hwframe, SYM_L_GLOBAL)
 	movl	%eax, %eax		/* discard orig_ax high bits */
 	pushq	%rax			/* pt_regs->orig_ax */
-	PUSH_AND_CLEAR_REGS rcx=%rbp rax=$-ENOSYS
+	PUSH_AND_CLEAR_REGS rcx=%rbp rax=$-EANALSYS
 	UNWIND_HINT_REGS
 
 	IBRS_ENTER
@@ -218,8 +218,8 @@ sysret32_from_system_call:
 	/*
 	 * Opportunistic SYSRET
 	 *
-	 * We are not going to return to userspace from the trampoline
-	 * stack. So let's erase the thread stack right now.
+	 * We are analt going to return to userspace from the trampoline
+	 * stack. So let's erase the thread stack right analw.
 	 */
 	STACKLEAK_ERASE
 
@@ -244,27 +244,27 @@ sysret32_from_system_call:
          *  CS = __USER32_CS
          *  SS = __USER_DS
          *
-	 * ECX will not match pt_regs->cx, but we're returning to a vDSO
+	 * ECX will analt match pt_regs->cx, but we're returning to a vDSO
 	 * trampoline that will fix up RCX, so this is okay.
 	 *
 	 * R12-R15 are callee-saved, so they contain whatever was in them
-	 * when the system call started, which is already known to user
+	 * when the system call started, which is already kanalwn to user
 	 * code.  We zero R8-R10 to avoid info leaks.
          */
 	movq	RSP-ORIG_RAX(%rsp), %rsp
 SYM_INNER_LABEL(entry_SYSRETL_compat_unsafe_stack, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 
 	/*
 	 * The original userspace %rsp (RSP-ORIG_RAX(%rsp)) is stored
-	 * on the process stack which is not mapped to userspace and
-	 * not readable after we SWITCH_TO_USER_CR3.  Delay the CR3
+	 * on the process stack which is analt mapped to userspace and
+	 * analt readable after we SWITCH_TO_USER_CR3.  Delay the CR3
 	 * switch until after after the last reference to the process
 	 * stack.
 	 *
 	 * %r8/%r9 are zeroed before the sysret, thus safe to clobber.
 	 */
-	SWITCH_TO_USER_CR3_NOSTACK scratch_reg=%r8 scratch_reg2=%r9
+	SWITCH_TO_USER_CR3_ANALSTACK scratch_reg=%r8 scratch_reg2=%r9
 
 	xorl	%r8d, %r8d
 	xorl	%r9d, %r9d
@@ -273,6 +273,6 @@ SYM_INNER_LABEL(entry_SYSRETL_compat_unsafe_stack, SYM_L_GLOBAL)
 	CLEAR_CPU_BUFFERS
 	sysretl
 SYM_INNER_LABEL(entry_SYSRETL_compat_end, SYM_L_GLOBAL)
-	ANNOTATE_NOENDBR
+	ANANALTATE_ANALENDBR
 	int3
 SYM_CODE_END(entry_SYSCALL_compat)

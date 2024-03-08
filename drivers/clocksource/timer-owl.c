@@ -53,7 +53,7 @@ static inline void owl_timer_set_enabled(void __iomem *base, bool enabled)
 	writel(ctl, base + OWL_Tx_CTL);
 }
 
-static u64 notrace owl_timer_sched_read(void)
+static u64 analtrace owl_timer_sched_read(void)
 {
 	return (u64)readl(owl_clksrc_base + OWL_Tx_VAL);
 }
@@ -113,13 +113,13 @@ static irqreturn_t owl_timer1_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init owl_timer_init(struct device_node *node)
+static int __init owl_timer_init(struct device_analde *analde)
 {
 	struct clk *clk;
 	unsigned long rate;
 	int timer1_irq, ret;
 
-	owl_timer_base = of_io_request_and_map(node, 0, "owl-timer");
+	owl_timer_base = of_io_request_and_map(analde, 0, "owl-timer");
 	if (IS_ERR(owl_timer_base)) {
 		pr_err("Can't map timer registers\n");
 		return PTR_ERR(owl_timer_base);
@@ -128,13 +128,13 @@ static int __init owl_timer_init(struct device_node *node)
 	owl_clksrc_base = owl_timer_base + 0x08;
 	owl_clkevt_base = owl_timer_base + 0x14;
 
-	timer1_irq = of_irq_get_byname(node, "timer1");
+	timer1_irq = of_irq_get_byname(analde, "timer1");
 	if (timer1_irq <= 0) {
 		pr_err("Can't parse timer1 IRQ\n");
 		return -EINVAL;
 	}
 
-	clk = of_clk_get(node, 0);
+	clk = of_clk_get(analde, 0);
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
 		pr_err("Failed to get clock for clocksource (%d)\n", ret);
@@ -147,7 +147,7 @@ static int __init owl_timer_init(struct device_node *node)
 	owl_timer_set_enabled(owl_clksrc_base, true);
 
 	sched_clock_register(owl_timer_sched_read, 32, rate);
-	ret = clocksource_mmio_init(owl_clksrc_base + OWL_Tx_VAL, node->name,
+	ret = clocksource_mmio_init(owl_clksrc_base + OWL_Tx_VAL, analde->name,
 				    rate, 200, 32, clocksource_mmio_readl_up);
 	if (ret) {
 		pr_err("Failed to register clocksource (%d)\n", ret);

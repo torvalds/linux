@@ -56,7 +56,7 @@ struct dm9051_rxctrl {
 
 /**
  * struct dm9051_rxhdr - rx packet data header
- * @headbyte: lead byte equal to 0x01 notifies a valid packet
+ * @headbyte: lead byte equal to 0x01 analtifies a valid packet
  * @status: status bits for the received packet
  * @rxlen: packet length
  *
@@ -147,8 +147,8 @@ static int dm9051_dumpblk(struct board_info *db, u8 reg, size_t count)
 	unsigned int rb;
 	int ret;
 
-	/* no skb buffer,
-	 * both reg and &rb must be noinc,
+	/* anal skb buffer,
+	 * both reg and &rb must be analinc,
 	 * read once one byte via regmap_read
 	 */
 	do {
@@ -192,9 +192,9 @@ static int dm9051_write_mem(struct board_info *db, unsigned int reg, const void 
 {
 	int ret;
 
-	ret = regmap_noinc_write(db->regmap_dm, reg, buff, len);
+	ret = regmap_analinc_write(db->regmap_dm, reg, buff, len);
 	if (ret < 0)
-		netif_err(db, drv, db->ndev, "%s: error %d noinc writing regs %02x\n",
+		netif_err(db, drv, db->ndev, "%s: error %d analinc writing regs %02x\n",
 			  __func__, ret, reg);
 	return ret;
 }
@@ -204,9 +204,9 @@ static int dm9051_read_mem(struct board_info *db, unsigned int reg, void *buff,
 {
 	int ret;
 
-	ret = regmap_noinc_read(db->regmap_dm, reg, buff, len);
+	ret = regmap_analinc_read(db->regmap_dm, reg, buff, len);
 	if (ret < 0)
-		netif_err(db, drv, db->ndev, "%s: error %d noinc reading regs %02x\n",
+		netif_err(db, drv, db->ndev, "%s: error %d analinc reading regs %02x\n",
 			  __func__, ret, reg);
 	return ret;
 }
@@ -452,7 +452,7 @@ static int dm9051_mdio_write(struct mii_bus *bus, int addr, int regnum, u16 val)
 	if (addr == DM9051_PHY_ADDR)
 		return dm9051_phywrite(db, regnum, val);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void dm9051_reg_lock_mutex(void *dbcontext)
@@ -474,7 +474,7 @@ static struct regmap_config regconfigdm = {
 	.val_bits = 8,
 	.max_register = 0xff,
 	.reg_stride = 1,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.read_flag_mask = 0,
 	.write_flag_mask = DM_SPI_WR,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
@@ -487,7 +487,7 @@ static struct regmap_config regconfigdmbulk = {
 	.val_bits = 8,
 	.max_register = 0xff,
 	.reg_stride = 1,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.read_flag_mask = 0,
 	.write_flag_mask = DM_SPI_WR,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
@@ -527,7 +527,7 @@ static int dm9051_map_chipid(struct board_info *db)
 	wid = get_unaligned_le16(buff + 2);
 	if (wid != DM9051_ID) {
 		dev_err(dev, "chipid error as %04x !\n", wid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(dev, "chip %04x found\n", wid);
@@ -678,7 +678,7 @@ static int dm9051_all_start(struct board_info *db)
 	if (ret)
 		return ret;
 
-	/* dm9051 chip registers could not be accessed within 1 ms
+	/* dm9051 chip registers could analt be accessed within 1 ms
 	 * after GPR power on, delay 1 ms is essential
 	 */
 	msleep(1);
@@ -733,7 +733,7 @@ static int dm9051_all_restart(struct board_info *db)
 /* read packets from the fifo memory
  * return value,
  *  > 0 - read packet number, caller can repeat the rx operation
- *    0 - no error, caller need stop further rx operation
+ *    0 - anal error, caller need stop further rx operation
  *  -EBUSY - read data error, caller escape from rx operation
  */
 static int dm9051_loop_rx(struct board_info *db)
@@ -802,7 +802,7 @@ static int dm9051_loop_rx(struct board_info *db)
 
 		skb->protocol = eth_type_trans(skb, db->ndev);
 		if (db->ndev->features & NETIF_F_RXCSUM)
-			skb_checksum_none_assert(skb);
+			skb_checksum_analne_assert(skb);
 		netif_rx(skb);
 		db->ndev->stats.rx_bytes += rxlen;
 		db->ndev->stats.rx_packets++;
@@ -986,7 +986,7 @@ static int dm9051_open(struct net_device *ndev)
 /* Close network device
  * Called to close down a network device which has been active. Cancel any
  * work, shutdown the RX and TX process and then place the chip into a low
- * power state while it is not being used
+ * power state while it is analt being used
  */
 static int dm9051_stop(struct net_device *ndev)
 {
@@ -1111,7 +1111,7 @@ static int dm9051_mdio_register(struct board_info *db)
 
 	db->mdiobus = devm_mdiobus_alloc(&spi->dev);
 	if (!db->mdiobus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	db->mdiobus->priv = db;
 	db->mdiobus->read = dm9051_mdio_read;
@@ -1124,7 +1124,7 @@ static int dm9051_mdio_register(struct board_info *db)
 
 	ret = devm_mdiobus_register(&spi->dev, db->mdiobus);
 	if (ret)
-		dev_err(&spi->dev, "Could not register MDIO bus\n");
+		dev_err(&spi->dev, "Could analt register MDIO bus\n");
 
 	return ret;
 }
@@ -1170,7 +1170,7 @@ static int dm9051_probe(struct spi_device *spi)
 
 	ndev = devm_alloc_etherdev(dev, sizeof(struct board_info));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(ndev, dev);
 	dev_set_drvdata(dev, ndev);

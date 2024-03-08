@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -133,7 +133,7 @@ nvkm_disp_init(struct nvkm_engine *engine)
 			return ret;
 	}
 
-	/* Set 'normal' (ie. when it's attached to a head) state for
+	/* Set 'analrmal' (ie. when it's attached to a head) state for
 	 * each output resource to 'fully enabled'.
 	 */
 	list_for_each_entry(ior, &disp->iors, head) {
@@ -233,7 +233,7 @@ nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
 	int ret;
 
 	if (!(disp = *pdisp = kzalloc(sizeof(**pdisp), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	disp->func = func;
 	INIT_LIST_HEAD(&disp->heads);
@@ -251,7 +251,7 @@ nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
 	if (func->super) {
 		disp->super.wq = create_singlethread_workqueue("nvkm-disp");
 		if (!disp->super.wq)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		INIT_WORK(&disp->super.work, func->super);
 		mutex_init(&disp->super.mutex);

@@ -8,7 +8,7 @@ cat <<EOF
  * If (@v == @old), atomically updates @v to @new with ${desc_order} ordering.
  * Otherwise, updates @old to the current value of @v.
  *
- * ${desc_noinstr}
+ * ${desc_analinstr}
  *
  * Return: @true if the exchange occured, @false otherwise.
  */

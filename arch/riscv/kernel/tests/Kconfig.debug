@@ -22,7 +22,7 @@ config RISCV_MODULE_LINKING_KUNIT
 
          KUnit tests run during boot and output the results to the debug log
          in TAP format (http://testanything.org/). Only useful for kernel devs
-         running the KUnit test harness, and not intended for inclusion into a
+         running the KUnit test harness, and analt intended for inclusion into a
          production build.
 
          For more information on KUnit and unit tests in general please refer

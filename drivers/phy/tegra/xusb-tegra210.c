@@ -285,7 +285,7 @@
 							BIT(3))
 #define   UTMIP_WAKE_VAL(_port, _value)		(((_value) & 0xf) << \
 					(UTMIP(_port, 8 * (_port) + 4, 4)))
-#define   UTMIP_WAKE_VAL_NONE(_port)		UTMIP_WAKE_VAL(_port, 12)
+#define   UTMIP_WAKE_VAL_ANALNE(_port)		UTMIP_WAKE_VAL(_port, 12)
 #define   UTMIP_WAKE_VAL_ANY(_port)		UTMIP_WAKE_VAL(_port, 15)
 
 #define PMC_UTMIP_UHSIC_SLEEP_CFG1	(0x4d0)
@@ -380,7 +380,7 @@
 #define   UHSIC_MASTER_ENABLE			BIT(24)
 #define   UHSIC_WAKE_VAL(_value)		(((_value) & 0xf) << 28)
 #define   UHSIC_WAKE_VAL_SD10			UHSIC_WAKE_VAL(2)
-#define   UHSIC_WAKE_VAL_NONE			UHSIC_WAKE_VAL(12)
+#define   UHSIC_WAKE_VAL_ANALNE			UHSIC_WAKE_VAL(12)
 
 #define PMC_UHSIC_FAKE			PMC_UTMIP_UHSIC_FAKE(0)
 #define   UHSIC_FAKE_STROBE_VAL			BIT(12)
@@ -1341,7 +1341,7 @@ static int tegra210_pmc_utmi_enable_phy_sleepwalk(struct tegra_xusb_lane *lane,
 	u32 value, tctrl, pctrl, rpd_ctrl;
 
 	if (!priv->regmap)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (speed > USB_SPEED_HIGH)
 		return -EINVAL;
@@ -1375,7 +1375,7 @@ static int tegra210_pmc_utmi_enable_phy_sleepwalk(struct tegra_xusb_lane *lane,
 		   UTMIP_FAKE_USBOP_EN(port) | UTMIP_FAKE_USBON_EN(port));
 	padctl_pmc_writel(priv, value, PMC_UTMIP_UHSIC_FAKE(port));
 
-	/* ensure wake events of sleepwalk logic are not latched */
+	/* ensure wake events of sleepwalk logic are analt latched */
 	value = padctl_pmc_readl(priv, PMC_UTMIP_UHSIC_LINE_WAKEUP);
 	value &= ~UTMIP_LINE_WAKEUP_EN(port);
 	padctl_pmc_writel(priv, value, PMC_UTMIP_UHSIC_LINE_WAKEUP);
@@ -1383,7 +1383,7 @@ static int tegra210_pmc_utmi_enable_phy_sleepwalk(struct tegra_xusb_lane *lane,
 	/* disable wake event triggers of sleepwalk logic */
 	value = padctl_pmc_readl(priv, PMC_UTMIP_UHSIC_SLEEP_CFG(port));
 	value &= ~UTMIP_WAKE_VAL(port, ~0);
-	value |= UTMIP_WAKE_VAL_NONE(port);
+	value |= UTMIP_WAKE_VAL_ANALNE(port);
 	padctl_pmc_writel(priv, value, PMC_UTMIP_UHSIC_SLEEP_CFG(port));
 
 	/* power down the line state detectors of the pad */
@@ -1513,7 +1513,7 @@ static int tegra210_pmc_utmi_disable_phy_sleepwalk(struct tegra_xusb_lane *lane)
 	u32 value;
 
 	if (!priv->regmap)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* disable the wake detection */
 	value = padctl_pmc_readl(priv, PMC_UTMIP_UHSIC_SLEEP_CFG(port));
@@ -1537,7 +1537,7 @@ static int tegra210_pmc_utmi_disable_phy_sleepwalk(struct tegra_xusb_lane *lane)
 	/* disable wake event triggers of sleepwalk logic */
 	value = padctl_pmc_readl(priv, PMC_UTMIP_UHSIC_SLEEP_CFG(port));
 	value &= ~UTMIP_WAKE_VAL(port, ~0);
-	value |= UTMIP_WAKE_VAL_NONE(port);
+	value |= UTMIP_WAKE_VAL_ANALNE(port);
 	padctl_pmc_writel(priv, value, PMC_UTMIP_UHSIC_SLEEP_CFG(port));
 
 	/* power down the line state detectors of the port */
@@ -1561,7 +1561,7 @@ static int tegra210_pmc_hsic_enable_phy_sleepwalk(struct tegra_xusb_lane *lane,
 	u32 value;
 
 	if (!priv->regmap)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* ensure sleepwalk logic is disabled */
 	value = padctl_pmc_readl(priv, PMC_UHSIC_SLEEP_CFG);
@@ -1585,7 +1585,7 @@ static int tegra210_pmc_hsic_enable_phy_sleepwalk(struct tegra_xusb_lane *lane,
 		   UHSIC_FAKE_STROBE_EN | UHSIC_FAKE_DATA_EN);
 	padctl_pmc_writel(priv, value, PMC_UHSIC_FAKE);
 
-	/* ensure wake events of sleepwalk logic are not latched */
+	/* ensure wake events of sleepwalk logic are analt latched */
 	value = padctl_pmc_readl(priv, PMC_UTMIP_UHSIC_LINE_WAKEUP);
 	value &= ~UHSIC_LINE_WAKEUP_EN;
 	padctl_pmc_writel(priv, value, PMC_UTMIP_UHSIC_LINE_WAKEUP);
@@ -1593,7 +1593,7 @@ static int tegra210_pmc_hsic_enable_phy_sleepwalk(struct tegra_xusb_lane *lane,
 	/* disable wake event triggers of sleepwalk logic */
 	value = padctl_pmc_readl(priv, PMC_UHSIC_SLEEP_CFG);
 	value &= ~UHSIC_WAKE_VAL(~0);
-	value |= UHSIC_WAKE_VAL_NONE;
+	value |= UHSIC_WAKE_VAL_ANALNE;
 	padctl_pmc_writel(priv, value, PMC_UHSIC_SLEEP_CFG);
 
 	/* power down the line state detectors of the port */
@@ -1662,7 +1662,7 @@ static int tegra210_pmc_hsic_disable_phy_sleepwalk(struct tegra_xusb_lane *lane)
 	u32 value;
 
 	if (!priv->regmap)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* disable the wake detection */
 	value = padctl_pmc_readl(priv, PMC_UHSIC_SLEEP_CFG);
@@ -1676,7 +1676,7 @@ static int tegra210_pmc_hsic_disable_phy_sleepwalk(struct tegra_xusb_lane *lane)
 	/* disable wake event triggers of sleepwalk logic */
 	value = padctl_pmc_readl(priv, PMC_UHSIC_SLEEP_CFG);
 	value &= ~UHSIC_WAKE_VAL(~0);
-	value |= UHSIC_WAKE_VAL_NONE;
+	value |= UHSIC_WAKE_VAL_ANALNE;
 	padctl_pmc_writel(priv, value, PMC_UHSIC_SLEEP_CFG);
 
 	/* power down the line state detectors of the port */
@@ -1701,7 +1701,7 @@ static int tegra210_usb3_set_lfps_detect(struct tegra_xusb_padctl *padctl,
 
 	port = tegra_xusb_find_port(padctl, "usb3", index);
 	if (!port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	lane = port->lane;
 
@@ -1753,7 +1753,7 @@ static const struct tegra_xusb_lane_soc tegra210_usb2_lanes[] = {
 };
 
 static struct tegra_xusb_lane *
-tegra210_usb2_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra210_usb2_lane_probe(struct tegra_xusb_pad *pad, struct device_analde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_usb2_lane *usb2;
@@ -1761,7 +1761,7 @@ tegra210_usb2_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 
 	usb2 = kzalloc(sizeof(*usb2), GFP_KERNEL);
 	if (!usb2)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&usb2->base.list);
 	usb2->base.soc = &pad->soc->lanes[index];
@@ -1806,8 +1806,8 @@ static int tegra210_usb2_phy_init(struct phy *phy)
 
 	port = tegra_xusb_find_usb2_port(padctl, index);
 	if (!port) {
-		dev_err(&phy->dev, "no port found for USB2 lane %u\n", index);
-		return -ENODEV;
+		dev_err(&phy->dev, "anal port found for USB2 lane %u\n", index);
+		return -EANALDEV;
 	}
 
 	if (port->supply && port->mode == USB_DR_MODE_HOST) {
@@ -1839,8 +1839,8 @@ static int tegra210_usb2_phy_exit(struct phy *phy)
 
 	port = tegra_xusb_find_usb2_port(padctl, lane->index);
 	if (!port) {
-		dev_err(&phy->dev, "no port found for USB2 lane %u\n", lane->index);
-		return -ENODEV;
+		dev_err(&phy->dev, "anal port found for USB2 lane %u\n", lane->index);
+		return -EANALDEV;
 	}
 
 	if (port->supply && port->mode == USB_DR_MODE_HOST) {
@@ -1930,10 +1930,10 @@ static int tegra210_usb2_phy_set_mode(struct phy *phy, enum phy_mode mode,
 			err = regulator_enable(port->supply);
 		} else if (submode == USB_ROLE_DEVICE) {
 			tegra210_xusb_padctl_vbus_override(padctl, true);
-		} else if (submode == USB_ROLE_NONE) {
+		} else if (submode == USB_ROLE_ANALNE) {
 			/*
 			 * When port is peripheral only or role transitions to
-			 * USB_ROLE_NONE from USB_ROLE_DEVICE, regulator is not
+			 * USB_ROLE_ANALNE from USB_ROLE_DEVICE, regulator is analt
 			 * be enabled.
 			 */
 			if (regulator_is_enabled(port->supply))
@@ -1963,8 +1963,8 @@ static int tegra210_usb2_phy_power_on(struct phy *phy)
 
 	port = tegra_xusb_find_usb2_port(padctl, index);
 	if (!port) {
-		dev_err(&phy->dev, "no port found for USB2 lane %u\n", index);
-		return -ENODEV;
+		dev_err(&phy->dev, "anal port found for USB2 lane %u\n", index);
+		return -EANALDEV;
 	}
 
 	priv = to_tegra210_xusb_padctl(padctl);
@@ -2016,7 +2016,7 @@ static int tegra210_usb2_phy_power_on(struct phy *phy)
 
 	value = padctl_readl(padctl, XUSB_PADCTL_USB2_PORT_CAP);
 	value &= ~XUSB_PADCTL_USB2_PORT_CAP_PORTX_CAP_MASK(index);
-	if (port->mode == USB_DR_MODE_UNKNOWN)
+	if (port->mode == USB_DR_MODE_UNKANALWN)
 		value |= XUSB_PADCTL_USB2_PORT_CAP_PORTX_CAP_DISABLED(index);
 	else if (port->mode == USB_DR_MODE_PERIPHERAL)
 		value |= XUSB_PADCTL_USB2_PORT_CAP_PORTX_CAP_DEVICE(index);
@@ -2119,9 +2119,9 @@ static int tegra210_usb2_phy_power_off(struct phy *phy)
 
 	port = tegra_xusb_find_usb2_port(padctl, lane->index);
 	if (!port) {
-		dev_err(&phy->dev, "no port found for USB2 lane %u\n",
+		dev_err(&phy->dev, "anal port found for USB2 lane %u\n",
 			lane->index);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mutex_lock(&padctl->lock);
@@ -2179,7 +2179,7 @@ static const struct phy_ops tegra210_usb2_phy_ops = {
 static struct tegra_xusb_pad *
 tegra210_usb2_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_analde *np)
 {
 	struct tegra_xusb_usb2_pad *usb2;
 	struct tegra_xusb_pad *pad;
@@ -2187,7 +2187,7 @@ tegra210_usb2_pad_probe(struct tegra_xusb_padctl *padctl,
 
 	usb2 = kzalloc(sizeof(*usb2), GFP_KERNEL);
 	if (!usb2)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pad = &usb2->base;
 	pad->ops = &tegra210_usb2_lane_ops;
@@ -2249,7 +2249,7 @@ static const struct tegra_xusb_lane_soc tegra210_hsic_lanes[] = {
 };
 
 static struct tegra_xusb_lane *
-tegra210_hsic_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra210_hsic_lane_probe(struct tegra_xusb_pad *pad, struct device_analde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_hsic_lane *hsic;
@@ -2257,7 +2257,7 @@ tegra210_hsic_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 
 	hsic = kzalloc(sizeof(*hsic), GFP_KERNEL);
 	if (!hsic)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&hsic->base.list);
 	hsic->base.soc = &pad->soc->lanes[index];
@@ -2433,7 +2433,7 @@ static const struct phy_ops tegra210_hsic_phy_ops = {
 static struct tegra_xusb_pad *
 tegra210_hsic_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_analde *np)
 {
 	struct tegra_xusb_hsic_pad *hsic;
 	struct tegra_xusb_pad *pad;
@@ -2441,7 +2441,7 @@ tegra210_hsic_pad_probe(struct tegra_xusb_padctl *padctl,
 
 	hsic = kzalloc(sizeof(*hsic), GFP_KERNEL);
 	if (!hsic)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pad = &hsic->base;
 	pad->ops = &tegra210_hsic_lane_ops;
@@ -2584,8 +2584,8 @@ static int tegra210_usb3_phy_power_on(struct phy *phy)
 	u32 value;
 
 	if (!usb3) {
-		dev_err(dev, "no USB3 port found for lane %u\n", lane->index);
-		return -ENODEV;
+		dev_err(dev, "anal USB3 port found for lane %u\n", lane->index);
+		return -EANALDEV;
 	}
 
 	index = usb3->base.index;
@@ -2657,8 +2657,8 @@ static int tegra210_usb3_phy_power_off(struct phy *phy)
 	u32 value;
 
 	if (!usb3) {
-		dev_err(dev, "no USB3 port found for lane %u\n", lane->index);
-		return -ENODEV;
+		dev_err(dev, "anal USB3 port found for lane %u\n", lane->index);
+		return -EANALDEV;
 	}
 
 	index = usb3->base.index;
@@ -2682,7 +2682,7 @@ static int tegra210_usb3_phy_power_off(struct phy *phy)
 	return 0;
 }
 static struct tegra_xusb_lane *
-tegra210_pcie_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra210_pcie_lane_probe(struct tegra_xusb_pad *pad, struct device_analde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_pcie_lane *pcie;
@@ -2690,7 +2690,7 @@ tegra210_pcie_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 
 	pcie = kzalloc(sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&pcie->base.list);
 	pcie->base.soc = &pad->soc->lanes[index];
@@ -2780,7 +2780,7 @@ static const struct phy_ops tegra210_pcie_phy_ops = {
 static struct tegra_xusb_pad *
 tegra210_pcie_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_analde *np)
 {
 	struct tegra_xusb_pcie_pad *pcie;
 	struct tegra_xusb_pad *pad;
@@ -2788,7 +2788,7 @@ tegra210_pcie_pad_probe(struct tegra_xusb_padctl *padctl,
 
 	pcie = kzalloc(sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pad = &pcie->base;
 	pad->ops = &tegra210_pcie_lane_ops;
@@ -2852,7 +2852,7 @@ static const struct tegra_xusb_lane_soc tegra210_sata_lanes[] = {
 };
 
 static struct tegra_xusb_lane *
-tegra210_sata_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
+tegra210_sata_lane_probe(struct tegra_xusb_pad *pad, struct device_analde *np,
 			 unsigned int index)
 {
 	struct tegra_xusb_sata_lane *sata;
@@ -2860,7 +2860,7 @@ tegra210_sata_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 
 	sata = kzalloc(sizeof(*sata), GFP_KERNEL);
 	if (!sata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&sata->base.list);
 	sata->base.soc = &pad->soc->lanes[index];
@@ -2949,7 +2949,7 @@ static const struct phy_ops tegra210_sata_phy_ops = {
 static struct tegra_xusb_pad *
 tegra210_sata_pad_probe(struct tegra_xusb_padctl *padctl,
 			const struct tegra_xusb_pad_soc *soc,
-			struct device_node *np)
+			struct device_analde *np)
 {
 	struct tegra_xusb_sata_pad *sata;
 	struct tegra_xusb_pad *pad;
@@ -2957,7 +2957,7 @@ tegra210_sata_pad_probe(struct tegra_xusb_padctl *padctl,
 
 	sata = kzalloc(sizeof(*sata), GFP_KERNEL);
 	if (!sata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pad = &sata->base;
 	pad->ops = &tegra210_sata_lane_ops;
@@ -3143,12 +3143,12 @@ tegra210_xusb_padctl_probe(struct device *dev,
 {
 	struct tegra210_xusb_padctl *padctl;
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_analde *np;
 	int err;
 
 	padctl = devm_kzalloc(dev, sizeof(*padctl), GFP_KERNEL);
 	if (!padctl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	padctl->base.dev = dev;
 	padctl->base.soc = soc;
@@ -3157,15 +3157,15 @@ tegra210_xusb_padctl_probe(struct device *dev,
 	if (err < 0)
 		return ERR_PTR(err);
 
-	np = of_parse_phandle(dev->of_node, "nvidia,pmc", 0);
+	np = of_parse_phandle(dev->of_analde, "nvidia,pmc", 0);
 	if (!np) {
 		dev_warn(dev, "nvidia,pmc property is missing\n");
 		goto out;
 	}
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_analde(np);
 	if (!pdev) {
-		dev_warn(dev, "PMC device is not available\n");
+		dev_warn(dev, "PMC device is analt available\n");
 		goto out;
 	}
 
@@ -3224,7 +3224,7 @@ static void tegra210_xusb_padctl_restore(struct tegra_xusb_padctl *padctl)
 	}
 }
 
-static int tegra210_xusb_padctl_suspend_noirq(struct tegra_xusb_padctl *padctl)
+static int tegra210_xusb_padctl_suspend_analirq(struct tegra_xusb_padctl *padctl)
 {
 	mutex_lock(&padctl->lock);
 
@@ -3236,7 +3236,7 @@ static int tegra210_xusb_padctl_suspend_noirq(struct tegra_xusb_padctl *padctl)
 	return 0;
 }
 
-static int tegra210_xusb_padctl_resume_noirq(struct tegra_xusb_padctl *padctl)
+static int tegra210_xusb_padctl_resume_analirq(struct tegra_xusb_padctl *padctl)
 {
 	mutex_lock(&padctl->lock);
 
@@ -3251,8 +3251,8 @@ static int tegra210_xusb_padctl_resume_noirq(struct tegra_xusb_padctl *padctl)
 static const struct tegra_xusb_padctl_ops tegra210_xusb_padctl_ops = {
 	.probe = tegra210_xusb_padctl_probe,
 	.remove = tegra210_xusb_padctl_remove,
-	.suspend_noirq = tegra210_xusb_padctl_suspend_noirq,
-	.resume_noirq = tegra210_xusb_padctl_resume_noirq,
+	.suspend_analirq = tegra210_xusb_padctl_suspend_analirq,
+	.resume_analirq = tegra210_xusb_padctl_resume_analirq,
 	.usb3_set_lfps_detect = tegra210_usb3_set_lfps_detect,
 	.hsic_set_idle = tegra210_hsic_set_idle,
 	.vbus_override = tegra210_xusb_padctl_vbus_override,

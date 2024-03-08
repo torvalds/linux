@@ -7,7 +7,7 @@
  *	(c) 2000-2023 by Helge Deller <deller@gmx.de>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -30,7 +30,7 @@ static void wax_choose_irq(struct parisc_device *dev, void *ctrl)
 		case 0x73:	irq =  1; break; /* i8042 General */
 		case 0x8c:	irq =  6; break; /* Serial */
 		case 0x90:	irq = 10; break; /* EISA */
-		default:	return;		 /* Unknown */
+		default:	return;		 /* Unkanalwn */
 	}
 
 	gsc_asic_assign_irq(ctrl, irq, &dev->irq);
@@ -38,7 +38,7 @@ static void wax_choose_irq(struct parisc_device *dev, void *ctrl)
 	switch (dev->id.sversion) {
 		case 0x73:	irq =  2; break; /* i8042 High-priority */
 		case 0x90:	irq =  0; break; /* EISA NMI */
-		default:	return;		 /* No secondary IRQ */
+		default:	return;		 /* Anal secondary IRQ */
 	}
 
 	gsc_asic_assign_irq(ctrl, irq, &dev->aux_irq);
@@ -55,7 +55,7 @@ wax_init_irq(struct gsc_asic *wax)
 	/* clear pending interrupts */
 	gsc_readl(base+OFFSET_IRR);
 
-	/* We're not really convinced we want to reset the onboard
+	/* We're analt really convinced we want to reset the onboard
          * devices. Firmware does it for us...
 	 */
 
@@ -72,7 +72,7 @@ static int __init wax_init_chip(struct parisc_device *dev)
 
 	wax = kzalloc(sizeof(*wax), GFP_KERNEL);
 	if (!wax)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wax->name = "wax";
 	wax->hpa = dev->hpa.start;
@@ -86,7 +86,7 @@ static int __init wax_init_chip(struct parisc_device *dev)
 	/* the IRQ wax should use */
 	dev->irq = gsc_claim_irq(&wax->gsc_irq, WAX_GSC_IRQ);
 	if (dev->irq < 0) {
-		printk(KERN_ERR "%s(): cannot get GSC irq\n",
+		printk(KERN_ERR "%s(): cananalt get GSC irq\n",
 				__func__);
 		kfree(wax);
 		return -EBUSY;
@@ -111,7 +111,7 @@ static int __init wax_init_chip(struct parisc_device *dev)
 	}
 
 	gsc_fixup_irqs(dev, wax, wax_choose_irq);
-	/* On 715-class machines, Wax EISA is a sibling of Wax, not a child. */
+	/* On 715-class machines, Wax EISA is a sibling of Wax, analt a child. */
 	parent = parisc_parent(dev);
 	if (parent->id.hw_type != HPHW_IOA) {
 		gsc_fixup_irqs(parent, wax, wax_choose_irq);

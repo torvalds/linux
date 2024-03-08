@@ -142,7 +142,7 @@ int avc_audio_get_selector(struct fw_unit *unit, unsigned  int subunit_id,
 
 /*
  * AVC command extensions, AV/C Unit and Subunit, Revision 17
- * (Nov 2003, BridgeCo)
+ * (Analv 2003, BridgeCo)
  */
 #define	AVC_BRIDGECO_ADDR_BYTES	6
 enum avc_bridgeco_plug_dir {

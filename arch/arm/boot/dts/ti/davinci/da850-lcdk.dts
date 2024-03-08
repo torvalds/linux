@@ -363,12 +363,12 @@
 			/*
 			 * The OMAP-L132/L138 Bootloader doc SPRAB41E reads:
 			 * "To boot from NAND Flash, the AIS should be written
-			 * to NAND block 1 (NAND block 0 is not used by default)".
+			 * to NAND block 1 (NAND block 0 is analt used by default)".
 			 * The same doc mentions that for ROM "Silicon Revision 2.1",
 			 * "Updated NAND boot mode to offer boot from block 0 or block 1".
 			 * However the limitaion is left here by default for compatibility
 			 * with older silicon and because it needs new boot pin settings
-			 * not possible in stock LCDK.
+			 * analt possible in stock LCDK.
 			 */
 			partitions {
 				compatible = "fixed-partitions";

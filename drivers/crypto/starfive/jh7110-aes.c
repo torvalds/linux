@@ -2,7 +2,7 @@
 /*
  * StarFive AES acceleration driver
  *
- * Copyright (c) 2022 StarFive Technology
+ * Copyright (c) 2022 StarFive Techanallogy
  */
 
 #include <crypto/engine.h>
@@ -32,10 +32,10 @@
 #define STARFIVE_AES_IV1		(STARFIVE_AES_REGS_OFFSET + 0x2C)
 #define STARFIVE_AES_IV2		(STARFIVE_AES_REGS_OFFSET + 0x30)
 #define STARFIVE_AES_IV3		(STARFIVE_AES_REGS_OFFSET + 0x34)
-#define STARFIVE_AES_NONCE0		(STARFIVE_AES_REGS_OFFSET + 0x3C)
-#define STARFIVE_AES_NONCE1		(STARFIVE_AES_REGS_OFFSET + 0x40)
-#define STARFIVE_AES_NONCE2		(STARFIVE_AES_REGS_OFFSET + 0x44)
-#define STARFIVE_AES_NONCE3		(STARFIVE_AES_REGS_OFFSET + 0x48)
+#define STARFIVE_AES_ANALNCE0		(STARFIVE_AES_REGS_OFFSET + 0x3C)
+#define STARFIVE_AES_ANALNCE1		(STARFIVE_AES_REGS_OFFSET + 0x40)
+#define STARFIVE_AES_ANALNCE2		(STARFIVE_AES_REGS_OFFSET + 0x44)
+#define STARFIVE_AES_ANALNCE3		(STARFIVE_AES_REGS_OFFSET + 0x48)
 #define STARFIVE_AES_ALEN0		(STARFIVE_AES_REGS_OFFSET + 0x4C)
 #define STARFIVE_AES_ALEN1		(STARFIVE_AES_REGS_OFFSET + 0x50)
 #define STARFIVE_AES_MLEN0		(STARFIVE_AES_REGS_OFFSET + 0x54)
@@ -166,14 +166,14 @@ static inline void starfive_aes_get_iv(struct starfive_cryp_dev *cryp, u32 *iv)
 	iv[3] = readl(cryp->base + STARFIVE_AES_IV3);
 }
 
-static inline void starfive_aes_write_nonce(struct starfive_cryp_ctx *ctx, u32 *nonce)
+static inline void starfive_aes_write_analnce(struct starfive_cryp_ctx *ctx, u32 *analnce)
 {
 	struct starfive_cryp_dev *cryp = ctx->cryp;
 
-	writel(nonce[0], cryp->base + STARFIVE_AES_NONCE0);
-	writel(nonce[1], cryp->base + STARFIVE_AES_NONCE1);
-	writel(nonce[2], cryp->base + STARFIVE_AES_NONCE2);
-	writel(nonce[3], cryp->base + STARFIVE_AES_NONCE3);
+	writel(analnce[0], cryp->base + STARFIVE_AES_ANALNCE0);
+	writel(analnce[1], cryp->base + STARFIVE_AES_ANALNCE1);
+	writel(analnce[2], cryp->base + STARFIVE_AES_ANALNCE2);
+	writel(analnce[3], cryp->base + STARFIVE_AES_ANALNCE3);
 }
 
 static int starfive_aes_write_key(struct starfive_cryp_ctx *ctx)
@@ -226,7 +226,7 @@ static int starfive_aes_ccm_init(struct starfive_cryp_ctx *ctx)
 	b0[AES_BLOCK_SIZE - 2] = textlen >> 8;
 	b0[AES_BLOCK_SIZE - 1] = textlen & 0xFF;
 
-	starfive_aes_write_nonce(ctx, (u32 *)b0);
+	starfive_aes_write_analnce(ctx, (u32 *)b0);
 
 	return 0;
 }
@@ -308,7 +308,7 @@ static int starfive_aes_read_authtag(struct starfive_cryp_dev *cryp)
 		return dev_err_probe(cryp->dev, -ETIMEDOUT,
 				     "Timeout waiting for tag generation.");
 
-	start_addr = STARFIVE_AES_NONCE0;
+	start_addr = STARFIVE_AES_ANALNCE0;
 
 	if (is_gcm(cryp))
 		for (i = 0; i < AES_BLOCK_32; i++, start_addr += 4)
@@ -397,13 +397,13 @@ static int starfive_aes_gcm_write_adata(struct starfive_cryp_ctx *ctx)
 	buffer = (u32 *)rctx->adata;
 
 	for (loop = 0; loop < total_len; loop += 4) {
-		writel(*buffer, cryp->base + STARFIVE_AES_NONCE0);
+		writel(*buffer, cryp->base + STARFIVE_AES_ANALNCE0);
 		buffer++;
-		writel(*buffer, cryp->base + STARFIVE_AES_NONCE1);
+		writel(*buffer, cryp->base + STARFIVE_AES_ANALNCE1);
 		buffer++;
-		writel(*buffer, cryp->base + STARFIVE_AES_NONCE2);
+		writel(*buffer, cryp->base + STARFIVE_AES_ANALNCE2);
 		buffer++;
-		writel(*buffer, cryp->base + STARFIVE_AES_NONCE3);
+		writel(*buffer, cryp->base + STARFIVE_AES_ANALNCE3);
 		buffer++;
 	}
 
@@ -495,7 +495,7 @@ static int starfive_aes_prepare_req(struct skcipher_request *req,
 	if (cryp->assoclen) {
 		rctx->adata = kzalloc(cryp->assoclen + AES_BLOCK_SIZE, GFP_KERNEL);
 		if (!rctx->adata)
-			return dev_err_probe(cryp->dev, -ENOMEM,
+			return dev_err_probe(cryp->dev, -EANALMEM,
 					     "Failed to alloc memory for adata");
 
 		scatterwalk_copychunks(rctx->adata, &cryp->in_walk, cryp->assoclen, 0);
@@ -547,7 +547,7 @@ static int starfive_aes_init_tfm(struct crypto_skcipher *tfm)
 
 	ctx->cryp = starfive_cryp_find_dev(ctx);
 	if (!ctx->cryp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct starfive_cryp_request_ctx) +
 				    sizeof(struct skcipher_request));
@@ -622,7 +622,7 @@ static int starfive_aes_aead_init_tfm(struct crypto_aead *tfm)
 
 	ctx->cryp = starfive_cryp_find_dev(ctx);
 	if (!ctx->cryp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (alg->cra_flags & CRYPTO_ALG_NEED_FALLBACK) {
 		ctx->aead_fbk = crypto_alloc_aead(alg->cra_name, 0,
@@ -671,8 +671,8 @@ static int starfive_aes_aead_crypt(struct aead_request *req, unsigned long flags
 	cryp->flags = flags;
 
 	/*
-	 * HW engine could not perform CCM tag verification on
-	 * non-blocksize aligned text, use fallback algo instead
+	 * HW engine could analt perform CCM tag verification on
+	 * analn-blocksize aligned text, use fallback algo instead
 	 */
 	if (ctx->aead_fbk && !is_encrypt(cryp)) {
 		struct aead_request *subreq = aead_request_ctx(req);

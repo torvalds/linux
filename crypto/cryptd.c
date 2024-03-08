@@ -105,7 +105,7 @@ static int cryptd_init_queue(struct cryptd_queue *queue,
 
 	queue->cpu_queue = alloc_percpu(struct cryptd_cpu_queue);
 	if (!queue->cpu_queue)
-		return -ENOMEM;
+		return -EANALMEM;
 	for_each_possible_cpu(cpu) {
 		cpu_queue = per_cpu_ptr(queue->cpu_queue, cpu);
 		crypto_init_queue(&cpu_queue->queue, max_cpu_qlen);
@@ -140,7 +140,7 @@ static int cryptd_enqueue_request(struct cryptd_queue *queue,
 
 	refcnt = crypto_tfm_ctx(request->tfm);
 
-	if (err == -ENOSPC)
+	if (err == -EANALSPC)
 		goto out;
 
 	queue_work_on(smp_processor_id(), cryptd_wq, &cpu_queue->work);
@@ -201,7 +201,7 @@ static void cryptd_type_and_mask(struct crypto_attr_type *algt,
 	*type = algt->type & CRYPTO_ALG_INTERNAL;
 	*mask = algt->mask & CRYPTO_ALG_INTERNAL;
 
-	/* No point in cryptd wrapping an algorithm that's already async. */
+	/* Anal point in cryptd wrapping an algorithm that's already async. */
 	*mask |= CRYPTO_ALG_ASYNC;
 
 	*mask |= crypto_algt_inherited_mask(algt);
@@ -386,7 +386,7 @@ static int cryptd_create_skcipher(struct crypto_template *tmpl,
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx = skcipher_instance_ctx(inst);
 	ctx->queue = queue;
@@ -670,7 +670,7 @@ static int cryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx = ahash_instance_ctx(inst);
 	ctx->queue = queue;
@@ -879,7 +879,7 @@ static int cryptd_create_aead(struct crypto_template *tmpl,
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx = aead_instance_ctx(inst);
 	ctx->queue = queue;
@@ -1112,7 +1112,7 @@ static int __init cryptd_init(void)
 	cryptd_wq = alloc_workqueue("cryptd", WQ_MEM_RECLAIM | WQ_CPU_INTENSIVE,
 				    1);
 	if (!cryptd_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = cryptd_init_queue(&queue, cryptd_max_cpu_qlen);
 	if (err)

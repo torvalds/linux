@@ -12,7 +12,7 @@
  *		Pavel Kankovsky (for Linux 2.4.32)
  *
  * Pavel gave all rights to bugs to Vasiliy,
- * none of the bugs are Pavel's now.
+ * analne of the bugs are Pavel's analw.
  */
 
 #include <linux/uaccess.h>
@@ -21,7 +21,7 @@
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/in.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/timer.h>
 #include <linux/mm.h>
 #include <linux/inet.h>
@@ -112,7 +112,7 @@ next_port:
 		sk_for_each(sk2, hlist) {
 			isk2 = inet_sk(sk2);
 
-			/* BUG? Why is this reuse and not reuseaddr? ping.c
+			/* BUG? Why is this reuse and analt reuseaddr? ping.c
 			 * doesn't turn off SO_REUSEADDR, and it doesn't expect
 			 * that other ping processes can steal its packets.
 			 */
@@ -126,8 +126,8 @@ next_port:
 	pr_debug("found port/ident = %d\n", ident);
 	isk->inet_num = ident;
 	if (sk_unhashed(sk)) {
-		pr_debug("was not hashed\n");
-		sk_add_node_rcu(sk, hlist);
+		pr_debug("was analt hashed\n");
+		sk_add_analde_rcu(sk, hlist);
 		sock_set_flag(sk, SOCK_RCU_FREE);
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	}
@@ -143,7 +143,7 @@ EXPORT_SYMBOL_GPL(ping_get_port);
 int ping_hash(struct sock *sk)
 {
 	pr_debug("ping_hash(sk->port=%u)\n", inet_sk(sk)->inet_num);
-	BUG(); /* "Please do not press this button again." */
+	BUG(); /* "Please do analt press this button again." */
 
 	return 0;
 }
@@ -154,7 +154,7 @@ void ping_unhash(struct sock *sk)
 
 	pr_debug("ping_unhash(isk=%p,isk->num=%u)\n", isk, isk->inet_num);
 	spin_lock(&ping_table.lock);
-	if (sk_del_node_init_rcu(sk)) {
+	if (sk_del_analde_init_rcu(sk)) {
 		isk->inet_num = 0;
 		isk->inet_sport = 0;
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
@@ -320,7 +320,7 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 		if (addr->sin_family != AF_INET &&
 		    !(addr->sin_family == AF_UNSPEC &&
 		      addr->sin_addr.s_addr == htonl(INADDR_ANY)))
-			return -EAFNOSUPPORT;
+			return -EAFANALSUPPORT;
 
 		pr_debug("ping_check_bind_addr(sk=%p,addr=%pI4,port=%d)\n",
 			 sk, &addr->sin_addr.s_addr, ntohs(addr->sin_port));
@@ -334,8 +334,8 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 		if (chk_addr_ret == RTN_MULTICAST ||
 		    chk_addr_ret == RTN_BROADCAST ||
 		    (chk_addr_ret != RTN_LOCAL &&
-		     !inet_can_nonlocal_bind(net, isk)))
-			return -EADDRNOTAVAIL;
+		     !inet_can_analnlocal_bind(net, isk)))
+			return -EADDRANALTAVAIL;
 
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if (sk->sk_family == AF_INET6) {
@@ -347,7 +347,7 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 			return -EINVAL;
 
 		if (addr->sin6_family != AF_INET6)
-			return -EAFNOSUPPORT;
+			return -EAFANALSUPPORT;
 
 		pr_debug("ping_check_bind_addr(sk=%p,addr=%pI6c,port=%d)\n",
 			 sk, addr->sin6_addr.s6_addr, ntohs(addr->sin6_port));
@@ -364,7 +364,7 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 			dev = dev_get_by_index_rcu(net, addr->sin6_scope_id);
 			if (!dev) {
 				rcu_read_unlock();
-				return -ENODEV;
+				return -EANALDEV;
 			}
 		}
 
@@ -372,22 +372,22 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 			dev = dev_get_by_index_rcu(net, sk->sk_bound_dev_if);
 			if (!dev) {
 				rcu_read_unlock();
-				return -ENODEV;
+				return -EANALDEV;
 			}
 		}
 		has_addr = pingv6_ops.ipv6_chk_addr(net, &addr->sin6_addr, dev,
 						    scoped);
 		rcu_read_unlock();
 
-		if (!(ipv6_can_nonlocal_bind(net, isk) || has_addr ||
+		if (!(ipv6_can_analnlocal_bind(net, isk) || has_addr ||
 		      addr_type == IPV6_ADDR_ANY))
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 
 		if (scoped)
 			sk->sk_bound_dev_if = addr->sin6_scope_id;
 #endif
 	} else {
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	}
 	return 0;
 }
@@ -408,7 +408,7 @@ static void ping_set_saddr(struct sock *sk, struct sockaddr *saddr)
 }
 
 /*
- * We need our own bind because there are no privileged id's == local ports.
+ * We need our own bind because there are anal privileged id's == local ports.
  * Moreover, we don't allow binding to multi- and broadcast addresses.
  */
 
@@ -523,8 +523,8 @@ void ping_err(struct sk_buff *skb, int offset, u32 info)
 
 	sk = ping_lookup(net, skb, ntohs(icmph->un.echo.id));
 	if (!sk) {
-		pr_debug("no socket, dropping\n");
-		return;	/* No socket for error */
+		pr_debug("anal socket, dropping\n");
+		return;	/* Anal socket for error */
 	}
 	pr_debug("err on socket %p\n", sk);
 
@@ -539,8 +539,8 @@ void ping_err(struct sk_buff *skb, int offset, u32 info)
 			err = EHOSTUNREACH;
 			break;
 		case ICMP_SOURCE_QUENCH:
-			/* This is not a real error but ping wants to see it.
-			 * Report it with some fake errno.
+			/* This is analt a real error but ping wants to see it.
+			 * Report it with some fake erranal.
 			 */
 			err = EREMOTEIO;
 			break;
@@ -561,7 +561,7 @@ void ping_err(struct sk_buff *skb, int offset, u32 info)
 			err = EHOSTUNREACH;
 			if (code <= NR_ICMP_UNREACH) {
 				harderr = icmp_err_convert[code].fatal;
-				err = icmp_err_convert[code].errno;
+				err = icmp_err_convert[code].erranal;
 			}
 			break;
 		case ICMP_REDIRECT:
@@ -586,7 +586,7 @@ void ping_err(struct sk_buff *skb, int offset, u32 info)
 			goto out;
 	} else {
 		if (family == AF_INET) {
-			ip_icmp_error(sk, skb, err, 0 /* no remote port */,
+			ip_icmp_error(sk, skb, err, 0 /* anal remote port */,
 				      info, (u8 *)icmph);
 #if IS_ENABLED(CONFIG_IPV6)
 		} else if (family == AF_INET6) {
@@ -623,7 +623,7 @@ int ping_getfrag(void *from, char *to,
 	 */
 	if (pfh->family == AF_INET6) {
 		skb->csum = csum_block_add(skb->csum, pfh->wcheck, odd);
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 		pfh->wcheck = 0;
 	}
 #endif
@@ -643,7 +643,7 @@ static int ping_v4_push_pending_frames(struct sock *sk, struct pingfakehdr *pfh,
 		sizeof(struct icmphdr), pfh->wcheck);
 	pfh->icmph.checksum = csum_fold(pfh->wcheck);
 	memcpy(icmp_hdr(skb), &pfh->icmph, sizeof(struct icmphdr));
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 	return ip_push_pending_frames(sk, fl4);
 }
 
@@ -665,7 +665,7 @@ int ping_common_sendmsg(int family, struct msghdr *msg, size_t len,
 
 	/* Mirror BSD error message compatibility */
 	if (msg->msg_flags & MSG_OOB)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 *	Fetch the ICMP header provided by the userland.
@@ -724,14 +724,14 @@ static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		if (msg->msg_namelen < sizeof(*usin))
 			return -EINVAL;
 		if (usin->sin_family != AF_INET)
-			return -EAFNOSUPPORT;
+			return -EAFANALSUPPORT;
 		daddr = usin->sin_addr.s_addr;
-		/* no remote port */
+		/* anal remote port */
 	} else {
 		if (sk->sk_state != TCP_ESTABLISHED)
 			return -EDESTADDRREQ;
 		daddr = inet->inet_daddr;
-		/* no remote port */
+		/* anal remote port */
 	}
 
 	ipcm_init_sk(&ipc, inet);
@@ -792,7 +792,7 @@ static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		err = PTR_ERR(rt);
 		rt = NULL;
 		if (err == -ENETUNREACH)
-			IP_INC_STATS(net, IPSTATS_MIB_OUTNOROUTES);
+			IP_INC_STATS(net, IPSTATS_MIB_OUTANALROUTES);
 		goto out;
 	}
 
@@ -858,7 +858,7 @@ int ping_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags,
 
 	pr_debug("ping_recvmsg(sk=%p,sk->num=%u)\n", isk, isk->inet_num);
 
-	err = -EOPNOTSUPP;
+	err = -EOPANALTSUPP;
 	if (flags & MSG_OOB)
 		goto out;
 
@@ -950,7 +950,7 @@ static enum skb_drop_reason __ping_queue_rcv_skb(struct sock *sk,
 		pr_debug("ping_queue_rcv_skb -> failed\n");
 		return reason;
 	}
-	return SKB_NOT_DROPPED_YET;
+	return SKB_ANALT_DROPPED_YET;
 }
 
 int ping_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
@@ -966,7 +966,7 @@ EXPORT_SYMBOL_GPL(ping_queue_rcv_skb);
 
 enum skb_drop_reason ping_rcv(struct sk_buff *skb)
 {
-	enum skb_drop_reason reason = SKB_DROP_REASON_NO_SOCKET;
+	enum skb_drop_reason reason = SKB_DROP_REASON_ANAL_SOCKET;
 	struct sock *sk;
 	struct net *net = dev_net(skb->dev);
 	struct icmphdr *icmph = icmp_hdr(skb);
@@ -987,11 +987,11 @@ enum skb_drop_reason ping_rcv(struct sk_buff *skb)
 		if (skb2)
 			reason = __ping_queue_rcv_skb(sk, skb2);
 		else
-			reason = SKB_DROP_REASON_NOMEM;
+			reason = SKB_DROP_REASON_ANALMEM;
 	}
 
 	if (reason)
-		pr_debug("no socket, dropping\n");
+		pr_debug("anal socket, dropping\n");
 
 	return reason;
 }
@@ -1127,7 +1127,7 @@ static void ping_v4_format_sock(struct sock *sp, struct seq_file *f,
 		sk_rmem_alloc_get(sp),
 		0, 0L, 0,
 		from_kuid_munged(seq_user_ns(f), sock_i_uid(sp)),
-		0, sock_i_ino(sp),
+		0, sock_i_ianal(sp),
 		refcount_read(&sp->sk_refcnt), sp,
 		atomic_read(&sp->sk_drops));
 }
@@ -1138,7 +1138,7 @@ static int ping_v4_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, "  sl  local_address rem_address   st tx_queue "
 			   "rx_queue tr tm->when retrnsmt   uid  timeout "
-			   "inode ref pointer drops");
+			   "ianalde ref pointer drops");
 	else {
 		struct ping_iter_state *state = seq->private;
 
@@ -1159,7 +1159,7 @@ static int __net_init ping_v4_proc_init_net(struct net *net)
 {
 	if (!proc_create_net("icmp", 0444, net->proc_net, &ping_v4_seq_ops,
 			sizeof(struct ping_iter_state)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

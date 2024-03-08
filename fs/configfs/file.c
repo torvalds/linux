@@ -56,12 +56,12 @@ static inline struct configfs_fragment *to_frag(struct file *file)
 static int fill_read_buffer(struct file *file, struct configfs_buffer *buffer)
 {
 	struct configfs_fragment *frag = to_frag(file);
-	ssize_t count = -ENOENT;
+	ssize_t count = -EANALENT;
 
 	if (!buffer->page)
 		buffer->page = (char *) get_zeroed_page(GFP_KERNEL);
 	if (!buffer->page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	down_read(&frag->frag_sem);
 	if (!frag->frag_dead)
@@ -126,14 +126,14 @@ static ssize_t configfs_bin_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		if (!frag->frag_dead)
 			len = buffer->bin_attr->read(buffer->item, NULL, 0);
 		else
-			len = -ENOENT;
+			len = -EANALENT;
 		up_read(&frag->frag_sem);
 		if (len <= 0) {
 			retval = len;
 			goto out;
 		}
 
-		/* do not exceed the maximum value */
+		/* do analt exceed the maximum value */
 		if (buffer->cb_max_size && len > buffer->cb_max_size) {
 			retval = -EFBIG;
 			goto out;
@@ -141,7 +141,7 @@ static ssize_t configfs_bin_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 		buffer->bin_buffer = vmalloc(len);
 		if (buffer->bin_buffer == NULL) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto out;
 		}
 		buffer->bin_buffer_size = len;
@@ -152,7 +152,7 @@ static ssize_t configfs_bin_read_iter(struct kiocb *iocb, struct iov_iter *to)
 			len = buffer->bin_attr->read(buffer->item,
 						     buffer->bin_buffer, len);
 		else
-			len = -ENOENT;
+			len = -EANALENT;
 		up_read(&frag->frag_sem);
 		if (len < 0) {
 			retval = len;
@@ -186,7 +186,7 @@ static int fill_write_buffer(struct configfs_buffer *buffer,
 	if (!buffer->page)
 		buffer->page = (char *)__get_free_pages(GFP_KERNEL, 0);
 	if (!buffer->page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	copied = copy_from_iter(buffer->page, SIMPLE_ATTR_SIZE - 1, from);
 	buffer->needs_read_fill = 1;
@@ -200,7 +200,7 @@ static int
 flush_write_buffer(struct file *file, struct configfs_buffer *buffer, size_t count)
 {
 	struct configfs_fragment *frag = to_frag(file);
-	int res = -ENOENT;
+	int res = -EANALENT;
 
 	down_read(&frag->frag_sem);
 	if (!frag->frag_dead)
@@ -211,7 +211,7 @@ flush_write_buffer(struct file *file, struct configfs_buffer *buffer, size_t cou
 
 
 /*
- * There is no easy way for us to know if userspace is only doing a partial
+ * There is anal easy way for us to kanalw if userspace is only doing a partial
  * write, so we don't support them. We expect the entire buffer to come on the
  * first write.
  * Hint: if you're writing a value, first read the file, modify only the value
@@ -261,7 +261,7 @@ static ssize_t configfs_bin_write_iter(struct kiocb *iocb,
 
 		tbuf = vmalloc(end_offset);
 		if (tbuf == NULL) {
-			len = -ENOMEM;
+			len = -EANALMEM;
 			goto out;
 		}
 
@@ -287,7 +287,7 @@ out:
 	return len ? : -EFAULT;
 }
 
-static int __configfs_open_file(struct inode *inode, struct file *file, int type)
+static int __configfs_open_file(struct ianalde *ianalde, struct file *file, int type)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct configfs_fragment *frag = to_frag(file);
@@ -295,12 +295,12 @@ static int __configfs_open_file(struct inode *inode, struct file *file, int type
 	struct configfs_buffer *buffer;
 	int error;
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	buffer = kzalloc(sizeof(struct configfs_buffer), GFP_KERNEL);
 	if (!buffer)
 		goto out;
 
-	error = -ENOENT;
+	error = -EANALENT;
 	down_read(&frag->frag_sem);
 	if (unlikely(frag->frag_dead))
 		goto out_free_buffer;
@@ -323,7 +323,7 @@ static int __configfs_open_file(struct inode *inode, struct file *file, int type
 
 	buffer->owner = attr->ca_owner;
 	/* Grab the module reference for this attribute if we have one */
-	error = -ENODEV;
+	error = -EANALDEV;
 	if (!try_module_get(buffer->owner))
 		goto out_free_buffer;
 
@@ -334,11 +334,11 @@ static int __configfs_open_file(struct inode *inode, struct file *file, int type
 	buffer->ops = buffer->item->ci_type->ct_item_ops;
 
 	/* File needs write support.
-	 * The inode's perms must say it's ok,
+	 * The ianalde's perms must say it's ok,
 	 * and we must have a store method.
 	 */
 	if (file->f_mode & FMODE_WRITE) {
-		if (!(inode->i_mode & S_IWUGO))
+		if (!(ianalde->i_mode & S_IWUGO))
 			goto out_put_module;
 		if ((type & CONFIGFS_ITEM_ATTR) && !attr->store)
 			goto out_put_module;
@@ -347,11 +347,11 @@ static int __configfs_open_file(struct inode *inode, struct file *file, int type
 	}
 
 	/* File needs read support.
-	 * The inode's perms must say it's ok, and we there
+	 * The ianalde's perms must say it's ok, and we there
 	 * must be a show method for it.
 	 */
 	if (file->f_mode & FMODE_READ) {
-		if (!(inode->i_mode & S_IRUGO))
+		if (!(ianalde->i_mode & S_IRUGO))
 			goto out_put_module;
 		if ((type & CONFIGFS_ITEM_ATTR) && !attr->show)
 			goto out_put_module;
@@ -376,7 +376,7 @@ out:
 	return error;
 }
 
-static int configfs_release(struct inode *inode, struct file *filp)
+static int configfs_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct configfs_buffer *buffer = filp->private_data;
 
@@ -388,17 +388,17 @@ static int configfs_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int configfs_open_file(struct inode *inode, struct file *filp)
+static int configfs_open_file(struct ianalde *ianalde, struct file *filp)
 {
-	return __configfs_open_file(inode, filp, CONFIGFS_ITEM_ATTR);
+	return __configfs_open_file(ianalde, filp, CONFIGFS_ITEM_ATTR);
 }
 
-static int configfs_open_bin_file(struct inode *inode, struct file *filp)
+static int configfs_open_bin_file(struct ianalde *ianalde, struct file *filp)
 {
-	return __configfs_open_file(inode, filp, CONFIGFS_ITEM_BIN_ATTR);
+	return __configfs_open_file(ianalde, filp, CONFIGFS_ITEM_BIN_ATTR);
 }
 
-static int configfs_release_bin_file(struct inode *inode, struct file *file)
+static int configfs_release_bin_file(struct ianalde *ianalde, struct file *file)
 {
 	struct configfs_buffer *buffer = file->private_data;
 
@@ -407,7 +407,7 @@ static int configfs_release_bin_file(struct inode *inode, struct file *file)
 
 		down_read(&frag->frag_sem);
 		if (!frag->frag_dead) {
-			/* result of ->release() is ignored */
+			/* result of ->release() is iganalred */
 			buffer->bin_attr->write(buffer->item,
 					buffer->bin_buffer,
 					buffer->bin_buffer_size);
@@ -417,7 +417,7 @@ static int configfs_release_bin_file(struct inode *inode, struct file *file)
 
 	vfree(buffer->bin_buffer);
 
-	configfs_release(inode, file);
+	configfs_release(ianalde, file);
 	return 0;
 }
 
@@ -433,7 +433,7 @@ const struct file_operations configfs_file_operations = {
 const struct file_operations configfs_bin_file_operations = {
 	.read_iter	= configfs_bin_read_iter,
 	.write_iter	= configfs_bin_write_iter,
-	.llseek		= NULL,		/* bin file is not seekable */
+	.llseek		= NULL,		/* bin file is analt seekable */
 	.open		= configfs_open_bin_file,
 	.release	= configfs_release_bin_file,
 };
@@ -451,10 +451,10 @@ int configfs_create_file(struct config_item * item, const struct configfs_attrib
 	umode_t mode = (attr->ca_mode & S_IALLUGO) | S_IFREG;
 	int error = 0;
 
-	inode_lock_nested(d_inode(dir), I_MUTEX_NORMAL);
+	ianalde_lock_nested(d_ianalde(dir), I_MUTEX_ANALRMAL);
 	error = configfs_make_dirent(parent_sd, NULL, (void *) attr, mode,
 				     CONFIGFS_ITEM_ATTR, parent_sd->s_frag);
-	inode_unlock(d_inode(dir));
+	ianalde_unlock(d_ianalde(dir));
 
 	return error;
 }
@@ -473,10 +473,10 @@ int configfs_create_bin_file(struct config_item *item,
 	umode_t mode = (bin_attr->cb_attr.ca_mode & S_IALLUGO) | S_IFREG;
 	int error = 0;
 
-	inode_lock_nested(dir->d_inode, I_MUTEX_NORMAL);
+	ianalde_lock_nested(dir->d_ianalde, I_MUTEX_ANALRMAL);
 	error = configfs_make_dirent(parent_sd, NULL, (void *) bin_attr, mode,
 				     CONFIGFS_ITEM_BIN_ATTR, parent_sd->s_frag);
-	inode_unlock(dir->d_inode);
+	ianalde_unlock(dir->d_ianalde);
 
 	return error;
 }

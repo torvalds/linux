@@ -15,7 +15,7 @@ static int cudbg_get_compress_hdr(struct cudbg_buffer *pdbg_buff,
 {
 	if (pdbg_buff->offset + sizeof(struct cudbg_compress_hdr) >
 	    pdbg_buff->size)
-		return CUDBG_STATUS_NO_MEM;
+		return CUDBG_STATUS_ANAL_MEM;
 
 	pin_buff->data = (char *)pdbg_buff->data + pdbg_buff->offset;
 	pin_buff->offset = 0;

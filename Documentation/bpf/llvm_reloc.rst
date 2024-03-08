@@ -67,7 +67,7 @@ The following is the symbol table with ``llvm-readelf -s test.o``::
 
   Symbol table '.symtab' contains 8 entries:
      Num:    Value          Size Type    Bind   Vis       Ndx Name
-       0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT   UND
+       0: 0000000000000000     0 ANALTYPE  LOCAL  DEFAULT   UND
        1: 0000000000000000     0 FILE    LOCAL  DEFAULT   ABS test.c
        2: 0000000000000008     4 OBJECT  LOCAL  DEFAULT     4 l1
        3: 000000000000000c     4 OBJECT  LOCAL  DEFAULT     4 l2
@@ -85,7 +85,7 @@ value 4. The symbol value represents the offset from the start of ``.data``
 section where the initial value of the global variable ``g2`` is stored.
 
 The third and fourth relocations refer to static variables ``l1``
-and ``l2``. From the ``.rel.text`` section above, it is not clear
+and ``l2``. From the ``.rel.text`` section above, it is analt clear
 to which symbols they really refer as they both refer to
 symbol table entry 4, symbol ``sec``, which has ``STT_SECTION`` type
 and represents a section. So for a static variable or function,
@@ -97,7 +97,7 @@ and ``3`` for ``l1`` and ``l2``.
 
 In general, the ``A`` is 0 for global variables and functions,
 and is the section offset or some computation result based on
-section offset for static variables/functions. The non-section-offset
+section offset for static variables/functions. The analn-section-offset
 case refers to function calls. See below for more details.
 
 Different Relocation Types
@@ -107,30 +107,30 @@ Six relocation types are supported. The following is an overview and
 ``S`` represents the value of the symbol in the symbol table::
 
   Enum  ELF Reloc Type     Description      BitSize  Offset        Calculation
-  0     R_BPF_NONE         None
+  0     R_BPF_ANALNE         Analne
   1     R_BPF_64_64        ld_imm64 insn    32       r_offset + 4  S + A
-  2     R_BPF_64_ABS64     normal data      64       r_offset      S + A
-  3     R_BPF_64_ABS32     normal data      32       r_offset      S + A
-  4     R_BPF_64_NODYLD32  .BTF[.ext] data  32       r_offset      S + A
+  2     R_BPF_64_ABS64     analrmal data      64       r_offset      S + A
+  3     R_BPF_64_ABS32     analrmal data      32       r_offset      S + A
+  4     R_BPF_64_ANALDYLD32  .BTF[.ext] data  32       r_offset      S + A
   10    R_BPF_64_32        call insn        32       r_offset + 4  (S + A) / 8 - 1
 
 For example, ``R_BPF_64_64`` relocation type is used for ``ld_imm64`` instruction.
 The actual to-be-relocated data (0 or section offset)
 is stored at ``r_offset + 4`` and the read/write
 data bitsize is 32 (4 bytes). The relocation can be resolved with
-the symbol value plus implicit addend. Note that the ``BitSize`` is 32 which
+the symbol value plus implicit addend. Analte that the ``BitSize`` is 32 which
 means the section offset must be less than or equal to ``UINT32_MAX`` and this
 is enforced by LLVM BPF backend.
 
-In another case, ``R_BPF_64_ABS64`` relocation type is used for normal 64-bit data.
+In aanalther case, ``R_BPF_64_ABS64`` relocation type is used for analrmal 64-bit data.
 The actual to-be-relocated data is stored at ``r_offset`` and the read/write data
 bitsize is 64 (8 bytes). The relocation can be resolved with
 the symbol value plus implicit addend.
 
-Both ``R_BPF_64_ABS32`` and ``R_BPF_64_NODYLD32`` types are for 32-bit data.
-But ``R_BPF_64_NODYLD32`` specifically refers to relocations in ``.BTF`` and
+Both ``R_BPF_64_ABS32`` and ``R_BPF_64_ANALDYLD32`` types are for 32-bit data.
+But ``R_BPF_64_ANALDYLD32`` specifically refers to relocations in ``.BTF`` and
 ``.BTF.ext`` sections. For cases like bcc where llvm ``ExecutionEngine RuntimeDyld``
-is involved, ``R_BPF_64_NODYLD32`` types of relocations should not be resolved
+is involved, ``R_BPF_64_ANALDYLD32`` types of relocations should analt be resolved
 to actual function/variable address. Otherwise, ``.BTF`` and ``.BTF.ext``
 become unusable by bcc and kernel.
 
@@ -144,11 +144,11 @@ Examples
 Types ``R_BPF_64_64`` and ``R_BPF_64_32`` are used to resolve ``ld_imm64``
 and ``call`` instructions. For example::
 
-  __attribute__((noinline)) __attribute__((section("sec1")))
+  __attribute__((analinline)) __attribute__((section("sec1")))
   int gfunc(int a, int b) {
     return a * b;
   }
-  static __attribute__((noinline)) __attribute__((section("sec1")))
+  static __attribute__((analinline)) __attribute__((section("sec1")))
   int lfunc(int a, int b) {
     return a + b;
   }
@@ -230,16 +230,16 @@ With ``llvm-readelf`` output, we can see that dwarf sections have a bunch of
   0000000000000040  0000000400000003 R_BPF_64_ABS32         0000000000000000 .debug_str
   ......
 
-The .BTF/.BTF.ext sections has R_BPF_64_NODYLD32 relocations::
+The .BTF/.BTF.ext sections has R_BPF_64_ANALDYLD32 relocations::
 
   Relocation section '.rel.BTF' at offset 0x538 contains 1 entries:
       Offset             Info             Type               Symbol's Value  Symbol's Name
-  0000000000000084  0000000800000004 R_BPF_64_NODYLD32      0000000000000000 gbl
+  0000000000000084  0000000800000004 R_BPF_64_ANALDYLD32      0000000000000000 gbl
 
   Relocation section '.rel.BTF.ext' at offset 0x548 contains 2 entries:
       Offset             Info             Type               Symbol's Value  Symbol's Name
-  000000000000002c  0000000200000004 R_BPF_64_NODYLD32      0000000000000000 .text
-  0000000000000040  0000000200000004 R_BPF_64_NODYLD32      0000000000000000 .text
+  000000000000002c  0000000200000004 R_BPF_64_ANALDYLD32      0000000000000000 .text
+  0000000000000040  0000000200000004 R_BPF_64_ANALDYLD32      0000000000000000 .text
 
 .. _btf-co-re-relocations:
 
@@ -248,7 +248,7 @@ CO-RE Relocations
 =================
 
 From object file point of view CO-RE mechanism is implemented as a set
-of CO-RE specific relocation records. These relocation records are not
+of CO-RE specific relocation records. These relocation records are analt
 related to ELF relocations and are encoded in .BTF.ext section.
 See :ref:`Documentation/bpf/btf.rst <BTF_Ext_Section>` for more
 information on .BTF.ext structure.
@@ -261,7 +261,7 @@ Field to patch is selected basing on the instruction class:
 
 * For BPF_ALU, BPF_ALU64, BPF_LD `immediate` field is patched;
 * For BPF_LDX, BPF_STX, BPF_ST `offset` field is patched;
-* BPF_JMP, BPF_JMP32 instructions **should not** be patched.
+* BPF_JMP, BPF_JMP32 instructions **should analt** be patched.
 
 Relocation kinds
 ================
@@ -301,7 +301,7 @@ The complete list of relocation kinds is represented by the following enum:
 	BPF_CORE_TYPE_MATCHES      = 12, /* type match in target kernel */
  };
 
-Notes:
+Analtes:
 
 * ``BPF_CORE_FIELD_LSHIFT_U64`` and ``BPF_CORE_FIELD_RSHIFT_U64`` are
   supposed to be used to read bitfield values using the following
@@ -334,7 +334,7 @@ Notes:
 
   * for enums:
 
-    * local variants have to have a match in target by symbolic name (but not
+    * local variants have to have a match in target by symbolic name (but analt
       numeric value);
 
     * size has to match (but enum may match enum64 and vice versa);
@@ -396,8 +396,8 @@ Relocation record is encoded as the following structure:
     * Access to ``s[1].c[5]`` would be encoded as ``1:2:0:5``:
 
       * ``1``: second element of ``s``;
-      * ``2``: index of anonymous structure field in ``struct sample``;
-      * ``0``: index of field ``c`` in anonymous structure;
+      * ``2``: index of aanalnymous structure field in ``struct sample``;
+      * ``0``: index of field ``c`` in aanalnymous structure;
       * ``5``: access to array element #5.
 
   * for type-based relocations, string is expected to be just "0";
@@ -436,7 +436,7 @@ With the following BTF definitions:
         'b' type_id=3 bits_offset=32
         'c' type_id=4 bits_offset=64 bitfield_size=15
  [3] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED
- [4] INT 'unsigned int' size=4 bits_offset=0 nr_bits=32 encoding=(none)
+ [4] INT 'unsigned int' size=4 bits_offset=0 nr_bits=32 encoding=(analne)
  ...
  [16] ENUM 'bar' encoding=UNSIGNED size=4 vlen=2
         'U' val=0

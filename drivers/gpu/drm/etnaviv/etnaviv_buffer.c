@@ -235,8 +235,8 @@ void etnaviv_buffer_end(struct etnaviv_gpu *gpu)
 	struct etnaviv_cmdbuf *buffer = &gpu->buffer;
 	unsigned int waitlink_offset = buffer->user_size - 16;
 	u32 link_target, flush = 0;
-	bool has_blt = !!(gpu->identity.minor_features5 &
-			  chipMinorFeatures5_BLT_ENGINE);
+	bool has_blt = !!(gpu->identity.mianalr_features5 &
+			  chipMianalrFeatures5_BLT_ENGINE);
 
 	lockdep_assert_held(&gpu->lock);
 
@@ -349,8 +349,8 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
 	bool switch_mmu_context = gpu->mmu_context != mmu_context;
 	unsigned int new_flush_seq = READ_ONCE(gpu->mmu_context->flush_seq);
 	bool need_flush = switch_mmu_context || gpu->flush_seq != new_flush_seq;
-	bool has_blt = !!(gpu->identity.minor_features5 &
-			  chipMinorFeatures5_BLT_ENGINE);
+	bool has_blt = !!(gpu->identity.mianalr_features5 &
+			  chipMianalrFeatures5_BLT_ENGINE);
 
 	lockdep_assert_held(&gpu->lock);
 
@@ -424,7 +424,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
 						VIVS_MMUv2_PTA_CONFIG_INDEX(id));
 				}
 
-				if (gpu->sec_mode == ETNA_SEC_NONE)
+				if (gpu->sec_mode == ETNA_SEC_ANALNE)
 					flush |= etnaviv_iommuv2_get_mtlb_addr(gpu->mmu_context);
 
 				CMD_LOAD_STATE(buffer, VIVS_MMUv2_CONFIGURATION,
@@ -464,7 +464,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
 	/*
 	 * When the BLT engine is present we need 6 more dwords in the return
 	 * target: 3 enable/flush/disable + 4 enable/semaphore stall/disable,
-	 * but we don't need the normal TS flush state.
+	 * but we don't need the analrmal TS flush state.
 	 */
 	if (has_blt)
 		return_dwords += 6;

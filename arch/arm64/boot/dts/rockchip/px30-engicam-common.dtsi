@@ -69,7 +69,7 @@
 	cap-sd-highspeed;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	sd-uhs-sdr104;
 	status = "okay";
 

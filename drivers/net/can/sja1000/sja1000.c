@@ -11,28 +11,28 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Volkswagen nor the names of its contributors
+ * 3. Neither the name of Volkswagen analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this analtice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are analt restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -51,7 +51,7 @@
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
@@ -137,7 +137,7 @@ static void set_reset_mode(struct net_device *dev)
 	netdev_err(dev, "setting SJA1000 into reset mode failed!\n");
 }
 
-static void set_normal_mode(struct net_device *dev)
+static void set_analrmal_mode(struct net_device *dev)
 {
 	struct sja1000_priv *priv = netdev_priv(dev);
 	unsigned char status = priv->read_reg(priv, SJA1000_MOD);
@@ -157,8 +157,8 @@ static void set_normal_mode(struct net_device *dev)
 			return;
 		}
 
-		/* set chip to normal mode */
-		if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+		/* set chip to analrmal mode */
+		if (priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 			mod_reg_val |= MOD_LOM;
 		if (priv->can.ctrlmode & CAN_CTRLMODE_PRESUME_ACK)
 			mod_reg_val |= MOD_STM;
@@ -169,7 +169,7 @@ static void set_normal_mode(struct net_device *dev)
 		status = priv->read_reg(priv, SJA1000_MOD);
 	}
 
-	netdev_err(dev, "setting SJA1000 into normal mode failed!\n");
+	netdev_err(dev, "setting SJA1000 into analrmal mode failed!\n");
 }
 
 /*
@@ -184,7 +184,7 @@ static void chipset_init(struct net_device *dev)
 {
 	struct sja1000_priv *priv = netdev_priv(dev);
 
-	if (!(priv->flags & SJA1000_QUIRK_NO_CDR_REG))
+	if (!(priv->flags & SJA1000_QUIRK_ANAL_CDR_REG))
 		/* set clock divider and output control register */
 		priv->write_reg(priv, SJA1000_CDR, priv->cdr | CDR_PELICAN);
 
@@ -199,7 +199,7 @@ static void chipset_init(struct net_device *dev)
 	priv->write_reg(priv, SJA1000_ACCM2, 0xFF);
 	priv->write_reg(priv, SJA1000_ACCM3, 0xFF);
 
-	priv->write_reg(priv, SJA1000_OCR, priv->ocr | OCR_MODE_NORMAL);
+	priv->write_reg(priv, SJA1000_OCR, priv->ocr | OCR_MODE_ANALRMAL);
 }
 
 static void sja1000_start(struct net_device *dev)
@@ -211,7 +211,7 @@ static void sja1000_start(struct net_device *dev)
 		set_reset_mode(dev);
 
 	/* Initialize chip if uninitialized at this stage */
-	if (!(priv->flags & SJA1000_QUIRK_NO_CDR_REG ||
+	if (!(priv->flags & SJA1000_QUIRK_ANAL_CDR_REG ||
 	      priv->read_reg(priv, SJA1000_CDR) & CDR_PELICAN))
 		chipset_init(dev);
 
@@ -224,7 +224,7 @@ static void sja1000_start(struct net_device *dev)
 	priv->read_reg(priv, SJA1000_IR);
 
 	/* leave reset mode */
-	set_normal_mode(dev);
+	set_analrmal_mode(dev);
 }
 
 static int sja1000_set_mode(struct net_device *dev, enum can_mode mode)
@@ -237,7 +237,7 @@ static int sja1000_set_mode(struct net_device *dev, enum can_mode mode)
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -417,7 +417,7 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 
 	skb = alloc_can_err_skb(dev, &cf);
 	if (skb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	txerr = priv->read_reg(priv, SJA1000_TXERR);
 	rxerr = priv->read_reg(priv, SJA1000_RXERR);
@@ -583,7 +583,7 @@ irqreturn_t sja1000_interrupt(int irq, void *dev_id)
 	}
 out:
 	if (!ret)
-		ret = (n) ? IRQ_HANDLED : IRQ_NONE;
+		ret = (n) ? IRQ_HANDLED : IRQ_ANALNE;
 
 	if (priv->post_irq)
 		priv->post_irq(priv);
@@ -608,7 +608,7 @@ static int sja1000_open(struct net_device *dev)
 	if (err)
 		return err;
 
-	/* register interrupt handler, if not done by the device driver */
+	/* register interrupt handler, if analt done by the device driver */
 	if (!(priv->flags & SJA1000_CUSTOM_IRQ_HANDLER)) {
 		err = request_threaded_irq(dev->irq, sja1000_interrupt,
 					   sja1000_reset_interrupt,
@@ -660,7 +660,7 @@ struct net_device *alloc_sja1000dev(int sizeof_priv)
 	priv->can.do_set_mode = sja1000_set_mode;
 	priv->can.do_get_berr_counter = sja1000_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
-				       CAN_CTRLMODE_LISTENONLY |
+				       CAN_CTRLMODE_LISTEANALNLY |
 				       CAN_CTRLMODE_3_SAMPLES |
 				       CAN_CTRLMODE_ONE_SHOT |
 				       CAN_CTRLMODE_BERR_REPORTING |
@@ -696,7 +696,7 @@ static const struct ethtool_ops sja1000_ethtool_ops = {
 int register_sja1000dev(struct net_device *dev)
 {
 	if (!sja1000_probe_chip(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev->flags |= IFF_ECHO;	/* we support local echo */
 	dev->netdev_ops = &sja1000_netdev_ops;

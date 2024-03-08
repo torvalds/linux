@@ -5,7 +5,7 @@
  * Copyright (c) 2015-2020 Texas Instruments Inc.
  *
  * Authors:
- *	Benoit Parrot <bparrot@ti.com>
+ *	Beanalit Parrot <bparrot@ti.com>
  *	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  */
 
@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #include "cal.h"
@@ -112,7 +112,7 @@ static void cal_camerarx_enable(struct cal_camerarx *phy)
 	regmap_field_write(phy->fields[F_CAMMODE], 0);
 	/* Always enable all lanes at the phy control level */
 	regmap_field_write(phy->fields[F_LANEENABLE], (1 << num_lanes) - 1);
-	/* F_CSI_MODE is not present on every architecture */
+	/* F_CSI_MODE is analt present on every architecture */
 	if (phy->fields[F_CSI_MODE])
 		regmap_field_write(phy->fields[F_CSI_MODE], 1);
 	regmap_field_write(phy->fields[F_CTRLCLKEN], 1);
@@ -238,7 +238,7 @@ static void cal_camerarx_enable_irqs(struct cal_camerarx *phy)
 		CAL_CSI2_COMPLEXIO_IRQ_LANE_ERRORS_MASK |
 		CAL_CSI2_COMPLEXIO_IRQ_FIFO_OVR_MASK |
 		CAL_CSI2_COMPLEXIO_IRQ_SHORT_PACKET_MASK |
-		CAL_CSI2_COMPLEXIO_IRQ_ECC_NO_CORRECTION_MASK;
+		CAL_CSI2_COMPLEXIO_IRQ_ECC_ANAL_CORRECTION_MASK;
 	const u32 vc_err_mask =
 		CAL_CSI2_VC_IRQ_CS_IRQ_MASK(0) |
 		CAL_CSI2_VC_IRQ_CS_IRQ_MASK(1) |
@@ -301,7 +301,7 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 		return link_freq;
 
 	ret = v4l2_subdev_call(phy->source, core, s_power, 1);
-	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV) {
+	if (ret < 0 && ret != -EANALIOCTLCMD && ret != -EANALDEV) {
 		phy_err(phy, "power on failed in subdev\n");
 		return ret;
 	}
@@ -331,7 +331,7 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 	/*
 	 * 2. CSI PHY and link initialization sequence.
 	 *
-	 *    a. Deassert the CSI-2 PHY reset. Do not wait for reset completion
+	 *    a. Deassert the CSI-2 PHY reset. Do analt wait for reset completion
 	 *       at this point, as it requires the external source to send the
 	 *       CSI-2 HS clock.
 	 */
@@ -380,7 +380,7 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 	/*
 	 * c. Connect pull-down on CSI-2 PHY link (using pad control).
 	 *
-	 * This is not required on DRA71x, DRA72x, AM65x and DRA80xM. Not
+	 * This is analt required on DRA71x, DRA72x, AM65x and DRA80xM. Analt
 	 * implemented.
 	 */
 
@@ -391,7 +391,7 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 	cal_camerarx_power(phy, true);
 
 	/*
-	 * Start the source to enable the CSI-2 HS clock. We can now wait for
+	 * Start the source to enable the CSI-2 HS clock. We can analw wait for
 	 * CSI-2 PHY reset to complete.
 	 */
 	ret = v4l2_subdev_call(phy->source, video, s_stream, 1);
@@ -413,7 +413,7 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 	/*
 	 * g. Disable pull-down on CSI-2 PHY link (using pad control).
 	 *
-	 * This is not required on DRA71x, DRA72x, AM65x and DRA80xM. Not
+	 * This is analt required on DRA71x, DRA72x, AM65x and DRA80xM. Analt
 	 * implemented.
 	 */
 
@@ -454,7 +454,7 @@ static void cal_camerarx_stop(struct cal_camerarx *phy)
 		phy_err(phy, "stream off failed in subdev\n");
 
 	ret = v4l2_subdev_call(phy->source, core, s_power, 0);
-	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
+	if (ret < 0 && ret != -EANALIOCTLCMD && ret != -EANALDEV)
 		phy_err(phy, "power off failed in subdev\n");
 }
 
@@ -467,7 +467,7 @@ static void cal_camerarx_stop(struct cal_camerarx *phy)
  *   | 0x4845 B384 [28:27] = 0x2) mode. Common concerns include: high
  *   current draw on the module supply in active mode.
  *
- *   Errata does not apply when CSI-2 module is powered off
+ *   Errata does analt apply when CSI-2 module is powered off
  *   (0x4845 B304 | 0x4845 B384 [28:27] = 0x0).
  *
  * SW Workaround:
@@ -523,29 +523,29 @@ static int cal_camerarx_regmap_init(struct cal_dev *cal,
 
 static int cal_camerarx_parse_dt(struct cal_camerarx *phy)
 {
-	struct v4l2_fwnode_endpoint *endpoint = &phy->endpoint;
+	struct v4l2_fwanalde_endpoint *endpoint = &phy->endpoint;
 	char data_lanes[V4L2_MBUS_CSI2_MAX_DATA_LANES * 2];
-	struct device_node *ep_node;
+	struct device_analde *ep_analde;
 	unsigned int i;
 	int ret;
 
 	/*
-	 * Find the endpoint node for the port corresponding to the PHY
+	 * Find the endpoint analde for the port corresponding to the PHY
 	 * instance, and parse its CSI-2-related properties.
 	 */
-	ep_node = of_graph_get_endpoint_by_regs(phy->cal->dev->of_node,
+	ep_analde = of_graph_get_endpoint_by_regs(phy->cal->dev->of_analde,
 						phy->instance, 0);
-	if (!ep_node) {
+	if (!ep_analde) {
 		/*
-		 * The endpoint is not mandatory, not all PHY instances need to
+		 * The endpoint is analt mandatory, analt all PHY instances need to
 		 * be connected in DT.
 		 */
-		phy_dbg(3, phy, "Port has no endpoint\n");
+		phy_dbg(3, phy, "Port has anal endpoint\n");
 		return 0;
 	}
 
 	endpoint->bus_type = V4L2_MBUS_CSI2_DPHY;
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep_node), endpoint);
+	ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(ep_analde), endpoint);
 	if (ret < 0) {
 		phy_err(phy, "Failed to parse endpoint\n");
 		goto done;
@@ -573,19 +573,19 @@ static int cal_camerarx_parse_dt(struct cal_camerarx *phy)
 		endpoint->bus.mipi_csi2.flags);
 
 	/* Retrieve the connected device and store it for later use. */
-	phy->source_ep_node = of_graph_get_remote_endpoint(ep_node);
-	phy->source_node = of_graph_get_port_parent(phy->source_ep_node);
-	if (!phy->source_node) {
+	phy->source_ep_analde = of_graph_get_remote_endpoint(ep_analde);
+	phy->source_analde = of_graph_get_port_parent(phy->source_ep_analde);
+	if (!phy->source_analde) {
 		phy_dbg(3, phy, "Can't get remote parent\n");
-		of_node_put(phy->source_ep_node);
+		of_analde_put(phy->source_ep_analde);
 		ret = -EINVAL;
 		goto done;
 	}
 
-	phy_dbg(1, phy, "Found connected device %pOFn\n", phy->source_node);
+	phy_dbg(1, phy, "Found connected device %pOFn\n", phy->source_analde);
 
 done:
-	of_node_put(ep_node);
+	of_analde_put(ep_analde);
 	return ret;
 }
 
@@ -621,7 +621,7 @@ static int cal_camerarx_sd_enum_mbus_code(struct v4l2_subdev *sd,
 					  struct v4l2_subdev_state *state,
 					  struct v4l2_subdev_mbus_code_enum *code)
 {
-	/* No transcoding, source and sink codes must match. */
+	/* Anal transcoding, source and sink codes must match. */
 	if (cal_rx_pad_is_source(code->pad)) {
 		struct v4l2_mbus_framefmt *fmt;
 
@@ -650,7 +650,7 @@ static int cal_camerarx_sd_enum_frame_size(struct v4l2_subdev *sd,
 	if (fse->index > 0)
 		return -EINVAL;
 
-	/* No transcoding, source and sink formats must match. */
+	/* Anal transcoding, source and sink formats must match. */
 	if (cal_rx_pad_is_source(fse->pad)) {
 		struct v4l2_mbus_framefmt *fmt;
 
@@ -685,7 +685,7 @@ static int cal_camerarx_sd_set_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *fmt;
 	unsigned int bpp;
 
-	/* No transcoding, source and sink formats must match. */
+	/* Anal transcoding, source and sink formats must match. */
 	if (cal_rx_pad_is_source(format->pad))
 		return v4l2_subdev_get_fmt(sd, state, format);
 
@@ -707,7 +707,7 @@ static int cal_camerarx_sd_set_fmt(struct v4l2_subdev *sd,
 					CAL_MIN_HEIGHT_LINES,
 					CAL_MAX_HEIGHT_LINES);
 	format->format.code = fmtinfo->code;
-	format->format.field = V4L2_FIELD_NONE;
+	format->format.field = V4L2_FIELD_ANALNE;
 
 	/* Store the format and propagate it to the source pad. */
 
@@ -732,7 +732,7 @@ static int cal_camerarx_sd_init_state(struct v4l2_subdev *sd,
 			.width = 640,
 			.height = 480,
 			.code = MEDIA_BUS_FMT_UYVY8_1X16,
-			.field = V4L2_FIELD_NONE,
+			.field = V4L2_FIELD_ANALNE,
 			.colorspace = V4L2_COLORSPACE_SRGB,
 			.ycbcr_enc = V4L2_YCBCR_ENC_601,
 			.quantization = V4L2_QUANTIZATION_LIM_RANGE,
@@ -762,13 +762,13 @@ static int cal_camerarx_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 
 	if (remote_desc.type != V4L2_MBUS_FRAME_DESC_TYPE_CSI2) {
 		cal_err(phy->cal,
-			"Frame descriptor does not describe CSI-2 link");
+			"Frame descriptor does analt describe CSI-2 link");
 		return -EINVAL;
 	}
 
 	if (remote_desc.num_entries > 1)
 		cal_err(phy->cal,
-			"Multiple streams not supported in remote frame descriptor, using the first one\n");
+			"Multiple streams analt supported in remote frame descriptor, using the first one\n");
 
 	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_CSI2;
 	fd->num_entries = 1;
@@ -818,7 +818,7 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 
 	phy = devm_kzalloc(cal->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	phy->cal = cal;
 	phy->instance = instance;
@@ -851,7 +851,7 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 	v4l2_subdev_init(sd, &cal_camerarx_subdev_ops);
 	sd->internal_ops = &cal_camerarx_internal_ops;
 	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
-	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags = V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	snprintf(sd->name, sizeof(sd->name), "CAMERARX%u", instance);
 	sd->dev = cal->dev;
 
@@ -862,7 +862,7 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 	ret = media_entity_pads_init(&sd->entity, ARRAY_SIZE(phy->pads),
 				     phy->pads);
 	if (ret)
-		goto err_node_put;
+		goto err_analde_put;
 
 	ret = v4l2_subdev_init_finalize(sd);
 	if (ret)
@@ -878,9 +878,9 @@ err_free_state:
 	v4l2_subdev_cleanup(sd);
 err_entity_cleanup:
 	media_entity_cleanup(&phy->subdev.entity);
-err_node_put:
-	of_node_put(phy->source_ep_node);
-	of_node_put(phy->source_node);
+err_analde_put:
+	of_analde_put(phy->source_ep_analde);
+	of_analde_put(phy->source_analde);
 	return ERR_PTR(ret);
 }
 
@@ -892,6 +892,6 @@ void cal_camerarx_destroy(struct cal_camerarx *phy)
 	v4l2_device_unregister_subdev(&phy->subdev);
 	v4l2_subdev_cleanup(&phy->subdev);
 	media_entity_cleanup(&phy->subdev.entity);
-	of_node_put(phy->source_ep_node);
-	of_node_put(phy->source_node);
+	of_analde_put(phy->source_ep_analde);
+	of_analde_put(phy->source_analde);
 }

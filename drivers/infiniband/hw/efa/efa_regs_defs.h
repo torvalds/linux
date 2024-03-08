@@ -7,7 +7,7 @@
 #define _EFA_REGS_H_
 
 enum efa_regs_reset_reason_types {
-	EFA_REGS_RESET_NORMAL                       = 0,
+	EFA_REGS_RESET_ANALRMAL                       = 0,
 	/* Keep alive timeout */
 	EFA_REGS_RESET_KEEP_ALIVE_TO                = 1,
 	EFA_REGS_RESET_ADMIN_TO                     = 2,
@@ -45,12 +45,12 @@ enum efa_regs_reset_reason_types {
 #define EFA_REGS_EQ_DB_OFF                                  0x68
 
 /* version register */
-#define EFA_REGS_VERSION_MINOR_VERSION_MASK                 0xff
+#define EFA_REGS_VERSION_MIANALR_VERSION_MASK                 0xff
 #define EFA_REGS_VERSION_MAJOR_VERSION_MASK                 0xff00
 
 /* controller_version register */
-#define EFA_REGS_CONTROLLER_VERSION_SUBMINOR_VERSION_MASK   0xff
-#define EFA_REGS_CONTROLLER_VERSION_MINOR_VERSION_MASK      0xff00
+#define EFA_REGS_CONTROLLER_VERSION_SUBMIANALR_VERSION_MASK   0xff
+#define EFA_REGS_CONTROLLER_VERSION_MIANALR_VERSION_MASK      0xff00
 #define EFA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_MASK      0xff0000
 #define EFA_REGS_CONTROLLER_VERSION_IMPL_ID_MASK            0xff000000
 

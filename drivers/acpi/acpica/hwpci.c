@@ -75,7 +75,7 @@ acpi_hw_get_pci_device_info(struct acpi_pci_id *pci_id,
  *              Function number PCI ID subfields as appropriate for the
  *              current hardware and OS configuration.
  *
- * NOTE:        Created 08/2010. Replaces the previous OSL acpi_os_derive_pci_id
+ * ANALTE:        Created 08/2010. Replaces the previous OSL acpi_os_derive_pci_id
  *              interface since this feature is OS-independent. This module
  *              specifically avoids any use of recursion by building a local
  *              temporary device list.
@@ -144,7 +144,7 @@ acpi_hw_build_pci_list(acpi_handle root_pci_device,
 
 	/*
 	 * Ascend namespace branch until the root_pci_device is reached, building
-	 * a list of device nodes. Loop will exit when either the PCI device is
+	 * a list of device analdes. Loop will exit when either the PCI device is
 	 * found, or the root of the namespace is reached.
 	 */
 	*return_list_head = NULL;
@@ -171,7 +171,7 @@ acpi_hw_build_pci_list(acpi_handle root_pci_device,
 			/* Must delete the list before exit */
 
 			acpi_hw_delete_pci_list(*return_list_head);
-			return (AE_NO_MEMORY);
+			return (AE_ANAL_MEMORY);
 		}
 
 		/* Put new element at the head of the list */
@@ -253,7 +253,7 @@ acpi_hw_process_pci_list(struct acpi_pci_id *pci_id,
  * PARAMETERS:  list_head           - Device list created by
  *                                    acpi_hw_build_pci_list
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Free the entire PCI list.
  *
@@ -313,7 +313,7 @@ acpi_hw_get_pci_device_info(struct acpi_pci_id *pci_id,
 		return (AE_OK);
 	}
 
-	/* We need an _ADR. Ignore device if not present */
+	/* We need an _ADR. Iganalre device if analt present */
 
 	status = acpi_ut_evaluate_numeric_object(METHOD_NAME__ADR,
 						 pci_device, &return_value);

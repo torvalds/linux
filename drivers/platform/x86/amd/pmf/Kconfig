@@ -28,4 +28,4 @@ config AMD_PMF_DEBUG
 	 information after evaluating a ACPI method and the information is stored
 	 in the PMF config store.
 
-	 Say Y here to enable more debug logs and Say N here if you are not sure.
+	 Say Y here to enable more debug logs and Say N here if you are analt sure.

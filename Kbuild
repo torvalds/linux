@@ -48,7 +48,7 @@ missing-syscalls: scripts/checksyscalls.sh $(offsets-file)
 quiet_cmd_check_sha1 = CHKSHA1 $<
       cmd_check_sha1 = \
 	if ! command -v sha1sum >/dev/null; then \
-		echo "warning: cannot check the header due to sha1sum missing"; \
+		echo "warning: cananalt check the header due to sha1sum missing"; \
 		exit 0; \
 	fi; \
 	if [ "$$(sed -n '$$s:// ::p' $<)" != \

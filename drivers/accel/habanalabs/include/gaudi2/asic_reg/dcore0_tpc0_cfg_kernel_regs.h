@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DCORE0_TPC0_CFG_KERNEL_REGS_H_
@@ -16,7 +16,7 @@
 /*
  *****************************************
  *   DCORE0_TPC0_CFG_KERNEL
- *   (Prototype: TPC_NON_TENSOR_DESCRIPTOR)
+ *   (Prototype: TPC_ANALN_TENSOR_DESCRIPTOR)
  *****************************************
  */
 

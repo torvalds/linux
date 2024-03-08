@@ -43,11 +43,11 @@ do {									\
 	}								\
 } while (0)
 
-/* Use this to add nops to a buffer, then text_poke the whole buffer. */
-static void __init_or_module add_nops(union loongarch_instruction *insn, int count)
+/* Use this to add analps to a buffer, then text_poke the whole buffer. */
+static void __init_or_module add_analps(union loongarch_instruction *insn, int count)
 {
 	while (count--) {
-		insn->word = INSN_NOP;
+		insn->word = INSN_ANALP;
 		insn++;
 	}
 }
@@ -132,7 +132,7 @@ static int __init_or_module copy_alt_insns(union loongarch_instruction *buf,
 		buf[i].word = src[i].word;
 
 		if (is_pc_ins(&src[i])) {
-			pr_err("Not support pcrel instruction at present!");
+			pr_err("Analt support pcrel instruction at present!");
 			return -EINVAL;
 		}
 
@@ -149,8 +149,8 @@ static int __init_or_module copy_alt_insns(union loongarch_instruction *buf,
  * text_poke_early - Update instructions on a live kernel at boot time
  *
  * When you use this code to patch more than one byte of an instruction
- * you need to make sure that other CPUs cannot execute this code in parallel.
- * Also no thread must be currently preempted in the middle of these
+ * you need to make sure that other CPUs cananalt execute this code in parallel.
+ * Also anal thread must be currently preempted in the middle of these
  * instructions. And on the local CPU you need to be protected again NMI or MCE
  * handlers seeing an inconsistent instruction while you patch.
  */
@@ -177,7 +177,7 @@ static void *__init_or_module text_poke_early(union loongarch_instruction *insn,
  * Replace instructions with better alternatives for this CPU type. This runs
  * before SMP is initialized to avoid SMP problems with self modifying code.
  * This implies that asymmetric systems where APs have less capabilities than
- * the boot processor are not handled. Tough. Make sure you disable such
+ * the boot processor are analt handled. Tough. Make sure you disable such
  * features by hand.
  */
 void __init_or_module apply_alternatives(struct alt_instr *start, struct alt_instr *end)
@@ -211,7 +211,7 @@ void __init_or_module apply_alternatives(struct alt_instr *start, struct alt_ins
 		nr_repl = a->replacementlen / LOONGARCH_INSN_SIZE;
 
 		if (!cpu_has(a->feature)) {
-			DPRINTK("feat not exist: %d, old: (%px len: %d), repl: (%px, len: %d)",
+			DPRINTK("feat analt exist: %d, old: (%px len: %d), repl: (%px, len: %d)",
 				a->feature, instr, a->instrlen,
 				replacement, a->replacementlen);
 
@@ -229,7 +229,7 @@ void __init_or_module apply_alternatives(struct alt_instr *start, struct alt_ins
 		nr_insnbuf = nr_repl;
 
 		if (nr_instr > nr_repl) {
-			add_nops(insnbuf + nr_repl, nr_instr - nr_repl);
+			add_analps(insnbuf + nr_repl, nr_instr - nr_repl);
 			nr_insnbuf += nr_instr - nr_repl;
 		}
 		DUMP_WORDS(insnbuf, nr_insnbuf, "%px: final_insn: ", instr);

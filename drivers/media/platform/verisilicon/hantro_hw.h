@@ -481,7 +481,7 @@ hantro_h264_mv_size(unsigned int width, unsigned int height)
 	 *
 	 * The H264 decoder needs extra space on the output buffers
 	 * to store motion vectors. This is needed for reference
-	 * frames and only if the format is non-post-processed NV12.
+	 * frames and only if the format is analn-post-processed NV12.
 	 *
 	 * Memory layout is as follow:
 	 *

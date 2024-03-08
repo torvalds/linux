@@ -9,14 +9,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -24,13 +24,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -129,7 +129,7 @@ main(int argc, char *argv[])
 	TAILQ_INIT(&cs_tailq);
 	SLIST_INIT(&scope_stack);
 
-	/* Set Sentinal scope node */
+	/* Set Sentinal scope analde */
 	sentinal = scope_alloc();
 	sentinal->type = SCOPE_ROOT;
 	
@@ -159,7 +159,7 @@ main(int argc, char *argv[])
 				usage();
 			}
 #else
-			stop("-d: Assembler not built with debugging "
+			stop("-d: Assembler analt built with debugging "
 			     "information", EX_SOFTWARE);
 #endif
 			break;
@@ -175,12 +175,12 @@ main(int argc, char *argv[])
 			listfilename = optarg;
 			break;
 		case 'n':
-			/* Don't complain about the -nostdinc directrive */
+			/* Don't complain about the -analstdinc directrive */
 			if (strcmp(optarg, "ostdinc")) {
-				fprintf(stderr, "%s: Unknown option -%c%s\n",
+				fprintf(stderr, "%s: Unkanalwn option -%c%s\n",
 					appname, ch, optarg);
 				usage();
-				/* NOTREACHED */
+				/* ANALTREACHED */
 			}
 			break;
 		case 'o':
@@ -191,7 +191,7 @@ main(int argc, char *argv[])
 			ofilename = optarg;
 			break;
 		case 'p':
-			/* Create Register Diagnostic "printing" Functions */
+			/* Create Register Diaganalstic "printing" Functions */
 			if ((regdiagfile = fopen(optarg, "w")) == NULL) {
 				perror(optarg);
 				stop(NULL, EX_CANTCREAT);
@@ -247,16 +247,16 @@ main(int argc, char *argv[])
 		case '?':
 		default:
 			usage();
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
 	if (argc != 1) {
-		fprintf(stderr, "%s: No input file specified\n", appname);
+		fprintf(stderr, "%s: Anal input file specified\n", appname);
 		usage();
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 
 	if (regdiagfile != NULL
@@ -265,7 +265,7 @@ main(int argc, char *argv[])
 			"%s: The -p option requires the -r and -i options.\n",
 			appname);
 		usage();
-		/* NOTREACHED */
+		/* ANALTREACHED */
 	}
 	symtable_open();
 	inputfilename = *argv;
@@ -275,7 +275,7 @@ main(int argc, char *argv[])
 		if (SLIST_FIRST(&scope_stack) == NULL
 		 || SLIST_FIRST(&scope_stack)->type != SCOPE_ROOT) {
 			stop("Unterminated conditional expression", EX_DATAERR);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 
 		/* Process outmost scope */
@@ -300,7 +300,7 @@ main(int argc, char *argv[])
 	}
 
 	stop(NULL, 0);
-	/* NOTREACHED */
+	/* ANALTREACHED */
 	return (0);
 }
 
@@ -309,7 +309,7 @@ usage()
 {
 
 	(void)fprintf(stderr,
-"usage: %-16s [-nostdinc] [-I-] [-I directory] [-o output_file]\n"
+"usage: %-16s [-analstdinc] [-I-] [-I directory] [-o output_file]\n"
 "	[-r register_output_file [-p register_diag_file -i includefile]]\n"
 "	[-l program_list_file]\n"
 "	input_file\n", appname);
@@ -335,7 +335,7 @@ back_patch()
 					 "Undefined label %s",
 					 cur_instr->patch_label->name);
 				stop(buf, EX_DATAERR);
-				/* NOTREACHED */
+				/* ANALTREACHED */
 			}
 			f3_instr = &cur_instr->format.format3;
 			address = f3_instr->address;
@@ -351,13 +351,13 @@ output_code()
 	struct instruction *cur_instr;
 	patch_t *cur_patch;
 	critical_section_t *cs;
-	symbol_node_t *cur_node;
+	symbol_analde_t *cur_analde;
 	int instrcount;
 
 	instrcount = 0;
 	fprintf(ofile,
 "/*\n"
-" * DO NOT EDIT - This file is automatically generated\n"
+" * DO ANALT EDIT - This file is automatically generated\n"
 " *		 from the following source files:\n"
 " *\n"
 "%s */\n", versions);
@@ -385,7 +385,7 @@ output_code()
 	fprintf(ofile, "\n};\n\n");
 
 	if (patch_arg_list == NULL)
-		stop("Patch argument list not defined",
+		stop("Patch argument list analt defined",
 		     EX_DATAERR);
 
 	/*
@@ -394,9 +394,9 @@ output_code()
 	fprintf(ofile,
 "typedef int %spatch_func_t (%s);\n", prefix, patch_arg_list);
 
-	for (cur_node = SLIST_FIRST(&patch_functions);
-	     cur_node != NULL;
-	     cur_node = SLIST_NEXT(cur_node,links)) {
+	for (cur_analde = SLIST_FIRST(&patch_functions);
+	     cur_analde != NULL;
+	     cur_analde = SLIST_NEXT(cur_analde,links)) {
 		fprintf(ofile,
 "static %spatch_func_t %spatch%d_func;\n"
 "\n"
@@ -407,11 +407,11 @@ output_code()
 "}\n\n",
 			prefix,
 			prefix,
-			cur_node->symbol->info.condinfo->func_num,
+			cur_analde->symbol->info.condinfo->func_num,
 			prefix,
-			cur_node->symbol->info.condinfo->func_num,
+			cur_analde->symbol->info.condinfo->func_num,
 			patch_arg_list,
-			cur_node->symbol->name);
+			cur_analde->symbol->name);
 	}
 
 	fprintf(ofile,
@@ -493,13 +493,13 @@ emit_patch(scope_t *scope, int patch)
 	pinfo = &scope->patches[patch];
 
 	if (pinfo->skip_instr == 0)
-		/* No-Op patch */
+		/* Anal-Op patch */
 		return;
 
 	new_patch = (patch_t *)malloc(sizeof(*new_patch));
 
 	if (new_patch == NULL)
-		stop("Could not malloc patch structure", EX_OSERR);
+		stop("Could analt malloc patch structure", EX_OSERR);
 
 	memset(new_patch, 0, sizeof(*new_patch));
 
@@ -522,7 +522,7 @@ output_listing(char *ifilename)
 	FILE *ifile;
 	struct instruction *cur_instr;
 	patch_t *cur_patch;
-	symbol_node_t *cur_func;
+	symbol_analde_t *cur_func;
 	int *func_values;
 	int instrcount;
 	int instrptr;
@@ -552,7 +552,7 @@ output_listing(char *ifilename)
 		func_values = (int *)malloc(func_count * sizeof(int));
 
 		if (func_values == NULL)
-			stop("Could not malloc", EX_OSERR);
+			stop("Could analt malloc", EX_OSERR);
 		
 		func_values[0] = 0; /* FALSE func */
 		func_count--;
@@ -586,13 +586,13 @@ output_listing(char *ifilename)
 					break;
 				}
 			}
-			if (isatty(fileno(stdin)) == 0)
+			if (isatty(fileanal(stdin)) == 0)
 				putchar(input);
 		}
 		fprintf(stdout, "\nThanks!\n");
 	}
 
-	/* Now output the listing */
+	/* Analw output the listing */
 	cur_patch = STAILQ_FIRST(&patches);
 	for (cur_instr = STAILQ_FIRST(&seq_program);
 	     cur_instr != NULL;
@@ -690,7 +690,7 @@ stop(const char *string, int err_code)
 		fprintf(stderr, "%s: ", appname);
 		if (yyfilename != NULL) {
 			fprintf(stderr, "Stopped at file %s, line %d - ",
-				yyfilename, yylineno);
+				yyfilename, yylineanal);
 		}
 		fprintf(stderr, "%s\n", string);
 	}
@@ -738,7 +738,7 @@ seq_alloc()
 		stop("Unable to malloc instruction object", EX_SOFTWARE);
 	memset(new_instr, 0, sizeof(*new_instr));
 	STAILQ_INSERT_TAIL(&seq_program, new_instr, links);
-	new_instr->srcline = yylineno;
+	new_instr->srcline = yylineanal;
 	return new_instr;
 }
 
@@ -771,7 +771,7 @@ scope_alloc()
 		TAILQ_INSERT_TAIL(&SLIST_FIRST(&scope_stack)->inner_scope,
 				  new_scope, scope_links);
 	}
-	/* This patch is now the current scope */
+	/* This patch is analw the current scope */
 	SLIST_INSERT_HEAD(&scope_stack, new_scope, scope_stack_links);
 	return new_scope;
 }
@@ -780,8 +780,8 @@ void
 process_scope(scope_t *scope)
 {
 	/*
-	 * We are "leaving" this scope.  We should now have
-	 * enough information to process the lists of scopes
+	 * We are "leaving" this scope.  We should analw have
+	 * eanalugh information to process the lists of scopes
 	 * we encapsulate.
 	 */
 	scope_t *cur_scope;
@@ -835,7 +835,7 @@ process_scope(scope_t *scope)
 			break;
 		case SCOPE_ROOT:
 			stop("Unexpected scope type encountered", EX_SOFTWARE);
-			/* NOTREACHED */
+			/* ANALTREACHED */
 		}
 
 		cur_scope = TAILQ_PREV(cur_scope, scope_tailq, scope_links);

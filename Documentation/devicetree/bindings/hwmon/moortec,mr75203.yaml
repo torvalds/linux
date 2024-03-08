@@ -76,7 +76,7 @@ properties:
       connected to some input source.
       Maximum number of items - number of VMs.
       Maximum value of each item - number of channels.
-      Minimum value of each item - 0 (which means entire VM sensor is not used).
+      Minimum value of each item - 0 (which means entire VM sensor is analt used).
     $ref: /schemas/types.yaml#/definitions/uint8-array
 
   moortec,vm-pre-scaler-x2:
@@ -86,9 +86,9 @@ properties:
       The pre-scaler is used for input sources that exceed the VM input range.
       The driver uses this information to present to the user with the actual
       value of the voltage source.
-      For channels that are not listed, no pre-scaler is assumed.
+      For channels that are analt listed, anal pre-scaler is assumed.
       Maximum number of items - total number of channels in all VMs.
-      Each channel should not appear more than once.
+      Each channel should analt appear more than once.
     $ref: /schemas/types.yaml#/definitions/uint8-array
 
   moortec,ts-series:

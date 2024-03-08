@@ -21,7 +21,7 @@ EXPORT_SYMBOL(freezer_active);
  * system_transition_mutex
  */
 bool pm_freezing;
-bool pm_nosig_freezing;
+bool pm_analsig_freezing;
 
 /* protects freezing and frozen transitions */
 static DEFINE_SPINLOCK(freezer_lock);
@@ -37,13 +37,13 @@ static DEFINE_SPINLOCK(freezer_lock);
  */
 bool freezing_slow_path(struct task_struct *p)
 {
-	if (p->flags & (PF_NOFREEZE | PF_SUSPEND_TASK))
+	if (p->flags & (PF_ANALFREEZE | PF_SUSPEND_TASK))
 		return false;
 
 	if (test_tsk_thread_flag(p, TIF_MEMDIE))
 		return false;
 
-	if (pm_nosig_freezing || cgroup_freezing(p))
+	if (pm_analsig_freezing || cgroup_freezing(p))
 		return true;
 
 	if (pm_freezing && !(p->flags & PF_KTHREAD))
@@ -66,7 +66,7 @@ bool __refrigerator(bool check_kthr_stop)
 
 	pr_debug("%s entered refrigerator\n", current->comm);
 
-	WARN_ON_ONCE(state && !(state & TASK_NORMAL));
+	WARN_ON_ONCE(state && !(state & TASK_ANALRMAL));
 
 	for (;;) {
 		bool freeze;
@@ -119,11 +119,11 @@ static int __set_task_frozen(struct task_struct *p, void *arg)
 		return 0;
 
 	/*
-	 * Only TASK_NORMAL can be augmented with TASK_FREEZABLE, since they
+	 * Only TASK_ANALRMAL can be augmented with TASK_FREEZABLE, since they
 	 * can suffer spurious wakeups.
 	 */
 	if (state & TASK_FREEZABLE)
-		WARN_ON_ONCE(!(state & TASK_NORMAL));
+		WARN_ON_ONCE(!(state & TASK_ANALRMAL));
 
 #ifdef CONFIG_LOCKDEP
 	/*
@@ -149,11 +149,11 @@ static bool __freeze_task(struct task_struct *p)
  * @p: task to send the request to
  *
  * If @p is freezing, the freeze request is sent either by sending a fake
- * signal (if it's not a kernel thread) or waking it up (if it's a kernel
+ * signal (if it's analt a kernel thread) or waking it up (if it's a kernel
  * thread).
  *
  * RETURNS:
- * %false, if @p is not freezing or already frozen; %true, otherwise
+ * %false, if @p is analt freezing or already frozen; %true, otherwise
  */
 bool freeze_task(struct task_struct *p)
 {
@@ -168,7 +168,7 @@ bool freeze_task(struct task_struct *p)
 	if (!(p->flags & PF_KTHREAD))
 		fake_signal_wake_up(p);
 	else
-		wake_up_state(p, TASK_NORMAL);
+		wake_up_state(p, TASK_ANALRMAL);
 
 	spin_unlock_irqrestore(&freezer_lock, flags);
 	return true;
@@ -176,8 +176,8 @@ bool freeze_task(struct task_struct *p)
 
 /*
  * Restore the saved_state before the task entered freezer. For typical task
- * in the __refrigerator(), saved_state == TASK_RUNNING so nothing happens
- * here. For tasks which were TASK_NORMAL | TASK_FREEZABLE, their initial state
+ * in the __refrigerator(), saved_state == TASK_RUNNING so analthing happens
+ * here. For tasks which were TASK_ANALRMAL | TASK_FREEZABLE, their initial state
  * is restored unless they got an expected wakeup (see ttwu_state_match()).
  * Returns 1 if the task state was restored.
  */
@@ -221,11 +221,11 @@ bool set_freezable(void)
 
 	/*
 	 * Modify flags while holding freezer_lock.  This ensures the
-	 * freezer notices that we aren't frozen yet or the freezing
+	 * freezer analtices that we aren't frozen yet or the freezing
 	 * condition is visible to try_to_freeze() below.
 	 */
 	spin_lock_irq(&freezer_lock);
-	current->flags &= ~PF_NOFREEZE;
+	current->flags &= ~PF_ANALFREEZE;
 	spin_unlock_irq(&freezer_lock);
 
 	return try_to_freeze();

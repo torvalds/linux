@@ -41,7 +41,7 @@ static int __kvm_page_track_write_tracking_alloc(struct kvm_memory_slot *slot,
 		slot->arch.gfn_write_track = __vcalloc(npages, size,
 						       GFP_KERNEL_ACCOUNT);
 
-	return slot->arch.gfn_write_track ? 0 : -ENOMEM;
+	return slot->arch.gfn_write_track ? 0 : -EANALMEM;
 }
 
 int kvm_page_track_create_memslot(struct kvm *kvm,
@@ -138,84 +138,84 @@ bool kvm_gfn_is_write_tracked(struct kvm *kvm,
 #ifdef CONFIG_KVM_EXTERNAL_WRITE_TRACKING
 void kvm_page_track_cleanup(struct kvm *kvm)
 {
-	struct kvm_page_track_notifier_head *head;
+	struct kvm_page_track_analtifier_head *head;
 
-	head = &kvm->arch.track_notifier_head;
+	head = &kvm->arch.track_analtifier_head;
 	cleanup_srcu_struct(&head->track_srcu);
 }
 
 int kvm_page_track_init(struct kvm *kvm)
 {
-	struct kvm_page_track_notifier_head *head;
+	struct kvm_page_track_analtifier_head *head;
 
-	head = &kvm->arch.track_notifier_head;
-	INIT_HLIST_HEAD(&head->track_notifier_list);
+	head = &kvm->arch.track_analtifier_head;
+	INIT_HLIST_HEAD(&head->track_analtifier_list);
 	return init_srcu_struct(&head->track_srcu);
 }
 
 /*
- * register the notifier so that event interception for the tracked guest
+ * register the analtifier so that event interception for the tracked guest
  * pages can be received.
  */
-int kvm_page_track_register_notifier(struct kvm *kvm,
-				     struct kvm_page_track_notifier_node *n)
+int kvm_page_track_register_analtifier(struct kvm *kvm,
+				     struct kvm_page_track_analtifier_analde *n)
 {
-	struct kvm_page_track_notifier_head *head;
+	struct kvm_page_track_analtifier_head *head;
 
 	if (!kvm || kvm->mm != current->mm)
 		return -ESRCH;
 
 	kvm_get_kvm(kvm);
 
-	head = &kvm->arch.track_notifier_head;
+	head = &kvm->arch.track_analtifier_head;
 
 	write_lock(&kvm->mmu_lock);
-	hlist_add_head_rcu(&n->node, &head->track_notifier_list);
+	hlist_add_head_rcu(&n->analde, &head->track_analtifier_list);
 	write_unlock(&kvm->mmu_lock);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(kvm_page_track_register_notifier);
+EXPORT_SYMBOL_GPL(kvm_page_track_register_analtifier);
 
 /*
  * stop receiving the event interception. It is the opposed operation of
- * kvm_page_track_register_notifier().
+ * kvm_page_track_register_analtifier().
  */
-void kvm_page_track_unregister_notifier(struct kvm *kvm,
-					struct kvm_page_track_notifier_node *n)
+void kvm_page_track_unregister_analtifier(struct kvm *kvm,
+					struct kvm_page_track_analtifier_analde *n)
 {
-	struct kvm_page_track_notifier_head *head;
+	struct kvm_page_track_analtifier_head *head;
 
-	head = &kvm->arch.track_notifier_head;
+	head = &kvm->arch.track_analtifier_head;
 
 	write_lock(&kvm->mmu_lock);
-	hlist_del_rcu(&n->node);
+	hlist_del_rcu(&n->analde);
 	write_unlock(&kvm->mmu_lock);
 	synchronize_srcu(&head->track_srcu);
 
 	kvm_put_kvm(kvm);
 }
-EXPORT_SYMBOL_GPL(kvm_page_track_unregister_notifier);
+EXPORT_SYMBOL_GPL(kvm_page_track_unregister_analtifier);
 
 /*
- * Notify the node that write access is intercepted and write emulation is
+ * Analtify the analde that write access is intercepted and write emulation is
  * finished at this time.
  *
- * The node should figure out if the written page is the one that node is
+ * The analde should figure out if the written page is the one that analde is
  * interested in by itself.
  */
 void __kvm_page_track_write(struct kvm *kvm, gpa_t gpa, const u8 *new, int bytes)
 {
-	struct kvm_page_track_notifier_head *head;
-	struct kvm_page_track_notifier_node *n;
+	struct kvm_page_track_analtifier_head *head;
+	struct kvm_page_track_analtifier_analde *n;
 	int idx;
 
-	head = &kvm->arch.track_notifier_head;
+	head = &kvm->arch.track_analtifier_head;
 
-	if (hlist_empty(&head->track_notifier_list))
+	if (hlist_empty(&head->track_analtifier_list))
 		return;
 
 	idx = srcu_read_lock(&head->track_srcu);
-	hlist_for_each_entry_srcu(n, &head->track_notifier_list, node,
+	hlist_for_each_entry_srcu(n, &head->track_analtifier_list, analde,
 				  srcu_read_lock_held(&head->track_srcu))
 		if (n->track_write)
 			n->track_write(gpa, new, bytes, n);
@@ -223,22 +223,22 @@ void __kvm_page_track_write(struct kvm *kvm, gpa_t gpa, const u8 *new, int bytes
 }
 
 /*
- * Notify external page track nodes that a memory region is being removed from
+ * Analtify external page track analdes that a memory region is being removed from
  * the VM, e.g. so that users can free any associated metadata.
  */
 void kvm_page_track_delete_slot(struct kvm *kvm, struct kvm_memory_slot *slot)
 {
-	struct kvm_page_track_notifier_head *head;
-	struct kvm_page_track_notifier_node *n;
+	struct kvm_page_track_analtifier_head *head;
+	struct kvm_page_track_analtifier_analde *n;
 	int idx;
 
-	head = &kvm->arch.track_notifier_head;
+	head = &kvm->arch.track_analtifier_head;
 
-	if (hlist_empty(&head->track_notifier_list))
+	if (hlist_empty(&head->track_analtifier_list))
 		return;
 
 	idx = srcu_read_lock(&head->track_srcu);
-	hlist_for_each_entry_srcu(n, &head->track_notifier_list, node,
+	hlist_for_each_entry_srcu(n, &head->track_analtifier_list, analde,
 				  srcu_read_lock_held(&head->track_srcu))
 		if (n->track_remove_region)
 			n->track_remove_region(slot->base_gfn, slot->npages, n);

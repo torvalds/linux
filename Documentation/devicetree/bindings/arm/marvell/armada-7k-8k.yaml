@@ -10,7 +10,7 @@ maintainers:
   - Gregory CLEMENT <gregory.clement@bootlin.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -39,7 +39,7 @@ properties:
           - const: marvell,armada-ap806-quad
           - const: marvell,armada-ap806
 
-      - description: Armada CN9130 SoC with no external CP
+      - description: Armada CN9130 SoC with anal external CP
         items:
           - const: marvell,cn9130
           - const: marvell,armada-ap807-quad

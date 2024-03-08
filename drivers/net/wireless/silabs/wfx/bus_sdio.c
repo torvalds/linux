@@ -194,24 +194,24 @@ MODULE_DEVICE_TABLE(of, wfx_sdio_of_match);
 static int wfx_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 {
 	const struct wfx_platform_data *pdata = of_device_get_match_data(&func->dev);
-	struct device_node *np = func->dev.of_node;
+	struct device_analde *np = func->dev.of_analde;
 	struct wfx_sdio_priv *bus;
 	int ret;
 
 	if (func->num != 1) {
 		dev_err(&func->dev, "SDIO function number is %d while it should always be 1 (unsupported chip?)\n",
 			func->num);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!pdata) {
-		dev_warn(&func->dev, "no compatible device found in DT\n");
-		return -ENODEV;
+		dev_warn(&func->dev, "anal compatible device found in DT\n");
+		return -EANALDEV;
 	}
 
 	bus = devm_kzalloc(&func->dev, sizeof(*bus), GFP_KERNEL);
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus->func = func;
 	bus->of_irq = irq_of_parse_and_map(np, 0);
@@ -255,7 +255,7 @@ static void wfx_sdio_remove(struct sdio_func *func)
 }
 
 static const struct sdio_device_id wfx_sdio_ids[] = {
-	/* WF200 does not have official VID/PID */
+	/* WF200 does analt have official VID/PID */
 	{ SDIO_DEVICE(0x0000, 0x1000) },
 	{ },
 };

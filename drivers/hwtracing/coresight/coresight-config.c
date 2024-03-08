@@ -124,7 +124,7 @@ void cscfg_reset_feat(struct cscfg_feature_csdev *feat_csdev)
 			cscfg_init_reg_param(feat_csdev, reg_desc, reg_csdev);
 		else
 			/*
-			 * for normal values the union between val64 & val32 + mask32
+			 * for analrmal values the union between val64 & val32 + mask32
 			 * allows us to init using the 64 bit value
 			 */
 			reg_csdev->reg_desc.val64 = reg_desc->val64;
@@ -153,7 +153,7 @@ static int cscfg_update_presets(struct cscfg_config_csdev *config_csdev, int pre
 	 * feature parameters in the order they appear.
 	 * There should be precisely the same number of preset values as the
 	 * sum of number of parameters over all the features - but we will
-	 * ensure there is no overrun.
+	 * ensure there is anal overrun.
 	 */
 	nr_cfg_params = config_desc->nr_total_params;
 	preset_base = &config_desc->presets[(preset - 1) * nr_cfg_params];
@@ -185,7 +185,7 @@ static int cscfg_update_presets(struct cscfg_config_csdev *config_csdev, int pre
 }
 
 /*
- * if we are not using a preset, then need to update the feature params
+ * if we are analt using a preset, then need to update the feature params
  * with current values. This sets the register associated with the parameter
  * with the current value of that parameter.
  */

@@ -5,7 +5,7 @@
  */
 #include <stdbool.h>
 #include <os.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sched.h>
 #include <unistd.h>
 #include <kern_util.h>
@@ -34,7 +34,7 @@ int uml_rtc_start(bool timetravel)
 	} else {
 		uml_rtc_irq_fds[0] = timerfd_create(CLOCK_REALTIME, TFD_CLOEXEC);
 		if (uml_rtc_irq_fds[0] < 0) {
-			err = -errno;
+			err = -erranal;
 			goto fail;
 		}
 
@@ -62,7 +62,7 @@ int uml_rtc_enable_alarm(unsigned long long delta_seconds)
 	};
 
 	if (timerfd_settime(uml_rtc_irq_fds[0], 0, &it, NULL))
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -76,6 +76,6 @@ void uml_rtc_stop(bool timetravel)
 	if (timetravel)
 		os_close_file(uml_rtc_irq_fds[1]);
 	else
-		ignore_sigio_fd(uml_rtc_irq_fds[0]);
+		iganalre_sigio_fd(uml_rtc_irq_fds[0]);
 	os_close_file(uml_rtc_irq_fds[0]);
 }

@@ -267,7 +267,7 @@
 		     &gmac1m1_tx_bus2
 		     &gmac1m1_rx_bus2
 		     &gmac1m1_rgmii_clk
-		     &gmac1m1_clkinout
+		     &gmac1m1_clkianalut
 		     &gmac1m1_rgmii_bus>;
 	status = "okay";
 };
@@ -618,19 +618,19 @@
 &pinctrl {
 	cam {
 		vcc_cam_en: vcc_cam_en {
-			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	display {
 		vcc_mipi_en: vcc_mipi_en {
-			rockchip,pins = <3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	ethernet {
 		eth_phy_rst: eth_phy_rst {
-			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -642,17 +642,17 @@
 
 	leds {
 		led_user_en: led_user_en {
-			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	pcie {
 		pcie_enable_h: pcie-enable-h {
-			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		pcie_reset_h: pcie-reset-h {
-			rockchip,pins = <3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -665,19 +665,19 @@
 
 	usb {
 		vcc5v0_usb_host_en: vcc5v0_usb_host_en {
-			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 		vcc5v0_usb_hub_en: vcc5v0_usb_hub_en {
-			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 		vcc5v0_usb_otg_en: vcc5v0_usb_otg_en {
-			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	bt {
 		bt_enable: bt-enable {
-			rockchip,pins = <4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_host_wake: bt-host-wake {
@@ -685,13 +685,13 @@
 		};
 
 		bt_wake: bt-wake {
-			rockchip,pins = <4 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PB5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable: wifi-enable {
-			rockchip,pins = <3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -717,7 +717,7 @@
 &sdhci {
 	bus-width = <8>;
 	max-frequency = <200000000>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_bus8 &emmc_clk &emmc_cmd &emmc_datastrobe>;
 	vmmc-supply = <&vcc_3v3>;
@@ -745,7 +745,7 @@
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc2m0_bus4 &sdmmc2m0_cmd &sdmmc2m0_clk>;
 	sd-uhs-sdr12;

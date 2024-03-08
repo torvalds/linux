@@ -79,7 +79,7 @@ then:
     interrupts:
       items:
         - description: Error interrupt
-        - description: Normal operation interrupt
+        - description: Analrmal operation interrupt
         - description: Card detection interrupt
 else:
   if:
@@ -94,7 +94,7 @@ else:
       interrupts:
         items:
           - description: Error interrupt
-          - description: Normal operation interrupt
+          - description: Analrmal operation interrupt
   else:
     if:
       properties:

@@ -328,7 +328,7 @@ static int ci_cxd2099_attach(struct ddb_port *port, u32 bitrate)
 
 err:
 	dev_err(port->dev->dev, "CXD2099AR attach failed\n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int ddb_ci_attach(struct ddb_port *port, u32 bitrate)
@@ -339,7 +339,7 @@ int ddb_ci_attach(struct ddb_port *port, u32 bitrate)
 	case DDB_CI_EXTERNAL_SONY:
 		ret = ci_cxd2099_attach(port, bitrate);
 		if (ret)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	case DDB_CI_EXTERNAL_XO2:
 	case DDB_CI_EXTERNAL_XO2_B:
@@ -349,11 +349,11 @@ int ddb_ci_attach(struct ddb_port *port, u32 bitrate)
 		ci_attach(port);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!port->en)
-		return -ENODEV;
+		return -EANALDEV;
 	dvb_ca_en50221_init(port->dvb[0].adap, port->en, 0, 1);
 	return 0;
 }

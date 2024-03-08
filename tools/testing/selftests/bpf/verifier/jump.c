@@ -85,7 +85,7 @@
 	.errstr_unpriv = "R1 pointer comparison",
 	.result_unpriv = REJECT,
 	.result = ACCEPT,
-	.retval = -ENOENT,
+	.retval = -EANALENT,
 },
 {
 	"jump test 4",
@@ -327,7 +327,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "last insn is not an exit or jmp",
+	.errstr = "last insn is analt an exit or jmp",
 },
 {
 	"jump/call test 11",

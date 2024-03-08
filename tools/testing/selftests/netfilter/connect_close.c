@@ -42,7 +42,7 @@ static void do_connect(const struct sockaddr_in *dst)
 	int s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	if (s >= 0)
-		fcntl(s, F_SETFL, O_NONBLOCK);
+		fcntl(s, F_SETFL, O_ANALNBLOCK);
 
 	connect(s, (struct sockaddr *)dst, sizeof(*dst));
 	close(s);

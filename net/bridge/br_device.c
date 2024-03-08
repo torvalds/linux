@@ -122,7 +122,7 @@ static int br_dev_init(struct net_device *dev)
 
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = br_fdb_hash_init(br);
 	if (err) {
@@ -179,7 +179,7 @@ static int br_dev_open(struct net_device *dev)
 	br_multicast_open(br);
 
 	if (br_opt_get(br, BROPT_MULTICAST_ENABLED))
-		br_multicast_join_snoopers(br);
+		br_multicast_join_sanalopers(br);
 
 	return 0;
 }
@@ -202,7 +202,7 @@ static int br_dev_stop(struct net_device *dev)
 	br_multicast_stop(br);
 
 	if (br_opt_get(br, BROPT_MULTICAST_ENABLED))
-		br_multicast_leave_snoopers(br);
+		br_multicast_leave_sanalopers(br);
 
 	netif_stop_queue(dev);
 
@@ -232,10 +232,10 @@ static int br_set_mac_address(struct net_device *dev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	/* dev_set_mac_addr() can be called by a master device on bridge's
-	 * NETDEV_UNREGISTER, but since it's being destroyed do nothing
+	 * NETDEV_UNREGISTER, but since it's being destroyed do analthing
 	 */
 	if (dev->reg_state != NETREG_REGISTERED)
 		return -EBUSY;
@@ -264,9 +264,9 @@ static int br_get_link_ksettings(struct net_device *dev,
 	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_port *p;
 
-	cmd->base.duplex = DUPLEX_UNKNOWN;
+	cmd->base.duplex = DUPLEX_UNKANALWN;
 	cmd->base.port = PORT_OTHER;
-	cmd->base.speed = SPEED_UNKNOWN;
+	cmd->base.speed = SPEED_UNKANALWN;
 
 	list_for_each_entry(p, &br->port_list, list) {
 		struct ethtool_link_ksettings ecmd;
@@ -278,10 +278,10 @@ static int br_get_link_ksettings(struct net_device *dev,
 		if (__ethtool_get_link_ksettings(pdev, &ecmd))
 			continue;
 
-		if (ecmd.base.speed == (__u32)SPEED_UNKNOWN)
+		if (ecmd.base.speed == (__u32)SPEED_UNKANALWN)
 			continue;
 
-		if (cmd->base.speed == (__u32)SPEED_UNKNOWN ||
+		if (cmd->base.speed == (__u32)SPEED_UNKANALWN ||
 		    cmd->base.speed < ecmd.base.speed)
 			cmd->base.speed = ecmd.base.speed;
 	}
@@ -318,7 +318,7 @@ static int __br_netpoll_enable(struct net_bridge_port *p)
 
 	np = kzalloc(sizeof(*p->np), GFP_KERNEL);
 	if (!np)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = __netpoll_setup(np, p->dev);
 	if (err) {
@@ -422,7 +422,7 @@ static int br_fill_forward_path(struct net_device_path_ctx *ctx,
 	switch (path->bridge.vlan_mode) {
 	case DEV_PATH_BR_VLAN_TAG:
 		if (ctx->num_vlans >= ARRAY_SIZE(ctx->vlan))
-			return -ENOSPC;
+			return -EANALSPC;
 		ctx->vlan[ctx->num_vlans].id = path->bridge.vlan_id;
 		ctx->vlan[ctx->num_vlans].proto = path->bridge.vlan_proto;
 		ctx->num_vlans++;
@@ -496,7 +496,7 @@ void br_dev_setup(struct net_device *dev)
 	dev->needs_free_netdev = true;
 	dev->ethtool_ops = &br_ethtool_ops;
 	SET_NETDEV_DEVTYPE(dev, &br_type);
-	dev->priv_flags = IFF_EBRIDGE | IFF_NO_QUEUE;
+	dev->priv_flags = IFF_EBRIDGE | IFF_ANAL_QUEUE;
 
 	dev->features = COMMON_FEATURES | NETIF_F_LLTX | NETIF_F_NETNS_LOCAL |
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_STAG_TX;
@@ -522,7 +522,7 @@ void br_dev_setup(struct net_device *dev)
 
 	ether_addr_copy(br->group_addr, eth_stp_addr);
 
-	br->stp_enabled = BR_NO_STP;
+	br->stp_enabled = BR_ANAL_STP;
 	br->group_fwd_mask = BR_GROUPFWD_DEFAULT;
 	br->group_fwd_mask_required = BR_GROUPFWD_DEFAULT;
 

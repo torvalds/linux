@@ -59,7 +59,7 @@ void sun4d_cpu_pre_starting(void *arg)
 	cpu_leds[cpuid] = 0x6;
 	show_leds(cpuid);
 
-	/* Enable level15 interrupt, disable level14 interrupt for now */
+	/* Enable level15 interrupt, disable level14 interrupt for analw */
 	cc_set_imsk((cc_get_imsk() & ~0x8000) | 0x4000);
 }
 
@@ -88,7 +88,7 @@ void sun4d_cpu_pre_online(void *arg)
 	/* Fix idle thread fields. */
 	__asm__ __volatile__("ld [%0], %%g6\n\t"
 			     : : "r" (&current_set[cpuid])
-			     : "memory" /* paranoid */);
+			     : "memory" /* paraanalid */);
 
 	cpu_leds[cpuid] = 0x9;
 	show_leds(cpuid);
@@ -123,9 +123,9 @@ int smp4d_boot_one_cpu(int i, struct task_struct *idle)
 {
 	unsigned long *entry = &sun4d_cpu_startup;
 	int timeout;
-	int cpu_node;
+	int cpu_analde;
 
-	cpu_find_by_instance(i, &cpu_node, NULL);
+	cpu_find_by_instance(i, &cpu_analde, NULL);
 	current_set[i] = task_thread_info(idle);
 	/*
 	 * Initialize the contexts table
@@ -139,7 +139,7 @@ int smp4d_boot_one_cpu(int i, struct task_struct *idle)
 	/* whirrr, whirrr, whirrrrrrrrr... */
 	printk(KERN_INFO "Starting CPU %d at %p\n", i, entry);
 	local_ops->cache_all();
-	prom_startcpu(cpu_node,
+	prom_startcpu(cpu_analde,
 		      &smp_penguin_ctable, 0, (char *)entry);
 
 	printk(KERN_INFO "prom_startcpu returned :)\n");
@@ -153,7 +153,7 @@ int smp4d_boot_one_cpu(int i, struct task_struct *idle)
 
 	if (!(cpu_callin_map[i])) {
 		printk(KERN_ERR "Processor %d is stuck.\n", i);
-		return -ENODEV;
+		return -EANALDEV;
 
 	}
 	local_ops->cache_all();

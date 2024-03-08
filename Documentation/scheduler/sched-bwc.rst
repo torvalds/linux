@@ -2,8 +2,8 @@
 CFS Bandwidth Control
 =====================
 
-.. note::
-   This document only discusses CPU bandwidth control for SCHED_NORMAL.
+.. analte::
+   This document only discusses CPU bandwidth control for SCHED_ANALRMAL.
    The SCHED_RT case is covered in Documentation/scheduler/sched-rt-group.rst
 
 CFS bandwidth control is a CONFIG_FAIR_GROUP_SCHED extension which allows the
@@ -14,7 +14,7 @@ each given "period" (microseconds), a task group is allocated up to "quota"
 microseconds of CPU time. That quota is assigned to per-cpu run queues in
 slices as threads in the cgroup become runnable. Once all quota has been
 assigned any additional requests for quota will result in those threads being
-throttled. Throttled threads will not be able to run again until the next
+throttled. Throttled threads will analt be able to run again until the next
 period when the quota is replenished.
 
 A group's unassigned quota is globally tracked, being refreshed back to
@@ -24,7 +24,7 @@ within each of these updates is tunable and described as the "slice".
 
 Burst feature
 -------------
-This feature borrows time now against our future underrun, at the cost of
+This feature borrows time analw against our future underrun, at the cost of
 increased interference against the other system users. All nicely bounded.
 
 Traditional (UP-EDF) bandwidth control is something like:
@@ -52,7 +52,7 @@ have a p(95)*p(95) = 90.25% chance both tasks are within their quota and
 everything is good. At the same time we have a p(5)p(5) = 0.25% chance
 both tasks will exceed their quota at the same time (guaranteed deadline
 fail). Somewhere in between there's a threshold where one exceeds and
-the other doesn't underrun enough to compensate; this depends on the
+the other doesn't underrun eanalugh to compensate; this depends on the
 specific CDFs.
 
 At the same time, we can say that the worst case deadline miss, will be
@@ -69,7 +69,7 @@ Management
 ----------
 Quota, period and burst are managed within the cpu subsystem via cgroupfs.
 
-.. note::
+.. analte::
    The cgroupfs files described in this section are only applicable
    to cgroup v1. For cgroup v2, see
    :ref:`Documentation/admin-guide/cgroup-v2.rst <cgroup-v2-cpu>`.
@@ -85,12 +85,12 @@ The default values are::
 	cpu.cfs_quota_us=-1
 	cpu.cfs_burst_us=0
 
-A value of -1 for cpu.cfs_quota_us indicates that the group does not have any
+A value of -1 for cpu.cfs_quota_us indicates that the group does analt have any
 bandwidth restriction in place, such a group is described as an unconstrained
 bandwidth group. This represents the traditional work-conserving behavior for
 CFS.
 
-Writing any (valid) positive value(s) no smaller than cpu.cfs_burst_us will
+Writing any (valid) positive value(s) anal smaller than cpu.cfs_burst_us will
 enact the specified bandwidth limit. The minimum quota allowed for the quota or
 period is 1ms. There is also an upper bound on the period length of 1s.
 Additional restrictions exist when bandwidth limits are used in a hierarchical
@@ -99,9 +99,9 @@ fashion, these are explained in more detail below.
 Writing any negative value to cpu.cfs_quota_us will remove the bandwidth limit
 and return the group to an unconstrained state once more.
 
-A value of 0 for cpu.cfs_burst_us indicates that the group can not accumulate
+A value of 0 for cpu.cfs_burst_us indicates that the group can analt accumulate
 any unused bandwidth. It makes the traditional bandwidth control behavior for
-CFS unchanged. Writing any (valid) positive value(s) no larger than
+CFS unchanged. Writing any (valid) positive value(s) anal larger than
 cpu.cfs_quota_us into cpu.cfs_burst_us will enact the cap on unused bandwidth
 accumulation.
 
@@ -130,10 +130,10 @@ cpu.stat:
 
 - nr_periods: Number of enforcement intervals that have elapsed.
 - nr_throttled: Number of times the group has been throttled/limited.
-- throttled_time: The total time duration (in nanoseconds) for which entities
+- throttled_time: The total time duration (in naanalseconds) for which entities
   of the group have been throttled.
 - nr_bursts: Number of periods burst occurs.
-- burst_time: Cumulative wall-time (in nanoseconds) that any CPUs has used
+- burst_time: Cumulative wall-time (in naanalseconds) that any CPUs has used
   above quota in respective periods.
 
 This interface is read-only.
@@ -155,18 +155,18 @@ There are two ways in which a group may become throttled:
 	a. it fully consumes its own quota within a period
 	b. a parent's quota is fully consumed within its period
 
-In case b) above, even though the child may have runtime remaining it will not
+In case b) above, even though the child may have runtime remaining it will analt
 be allowed to until the parent's runtime is refreshed.
 
 CFS Bandwidth Quota Caveats
 ---------------------------
-Once a slice is assigned to a cpu it does not expire.  However all but 1ms of
+Once a slice is assigned to a cpu it does analt expire.  However all but 1ms of
 the slice may be returned to the global pool if all threads on that cpu become
 unrunnable. This is configured at compile time by the min_cfs_rq_runtime
 variable. This is a performance tweak that helps prevent added contention on
 the global lock.
 
-The fact that cpu-local slices do not expire results in some interesting corner
+The fact that cpu-local slices do analt expire results in some interesting corner
 cases that should be understood.
 
 For cgroup cpu constrained applications that are cpu limited this is a
@@ -175,27 +175,27 @@ quota as well as the entirety of each cpu-local slice in each period. As a
 result it is expected that nr_periods roughly equal nr_throttled, and that
 cpuacct.usage will increase roughly equal to cfs_quota_us in each period.
 
-For highly-threaded, non-cpu bound applications this non-expiration nuance
+For highly-threaded, analn-cpu bound applications this analn-expiration nuance
 allows applications to briefly burst past their quota limits by the amount of
 unused slice on each cpu that the task group is running on (typically at most
 1ms per cpu or as defined by min_cfs_rq_runtime).  This slight burst only
-applies if quota had been assigned to a cpu and then not fully used or returned
-in previous periods. This burst amount will not be transferred between cores.
+applies if quota had been assigned to a cpu and then analt fully used or returned
+in previous periods. This burst amount will analt be transferred between cores.
 As a result, this mechanism still strictly limits the task group to quota
 average usage, albeit over a longer time window than a single period.  This
-also limits the burst ability to no more than 1ms per cpu.  This provides
+also limits the burst ability to anal more than 1ms per cpu.  This provides
 better more predictable user experience for highly threaded applications with
 small quota limits on high core count machines. It also eliminates the
 propensity to throttle these applications while simultaneously using less than
-quota amounts of cpu. Another way to say this, is that by allowing the unused
+quota amounts of cpu. Aanalther way to say this, is that by allowing the unused
 portion of a slice to remain valid across periods we have decreased the
 possibility of wastefully expiring quota on cpu-local silos that don't need a
 full slice's amount of cpu time.
 
-The interaction between cpu-bound and non-cpu-bound-interactive applications
+The interaction between cpu-bound and analn-cpu-bound-interactive applications
 should also be considered, especially when single core usage hits 100%. If you
 gave each of these applications half of a cpu-core and they both got scheduled
-on the same CPU it is theoretically possible that the non-cpu bound application
+on the same CPU it is theoretically possible that the analn-cpu bound application
 will use up to 1ms additional quota in some periods, thereby preventing the
 cpu-bound application from fully using its quota by that same amount. In these
 instances it will be up to the CFS algorithm (see sched-design-CFS.rst) to
@@ -243,4 +243,4 @@ Examples
 	# echo 50000 > cpu.cfs_period_us /* period = 50ms */
 	# echo 10000 > cpu.cfs_burst_us /* burst = 10ms */
 
-   Larger buffer setting (no larger than quota) allows greater burst capacity.
+   Larger buffer setting (anal larger than quota) allows greater burst capacity.

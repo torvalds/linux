@@ -9,7 +9,7 @@ IOAM6 Sysfs variables
 =============================================
 
 ioam6_enabled - BOOL
-        Accept (= enabled) or ignore (= disabled) IPv6 IOAM options on ingress
+        Accept (= enabled) or iganalre (= disabled) IPv6 IOAM options on ingress
         for this interface.
 
         * 0 - disabled (default)

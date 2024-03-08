@@ -23,7 +23,7 @@
  * For STR and STM instructions, an ARM core may choose to use either
  * a +8 or a +12 displacement from the current instruction's address.
  * Whichever value is chosen for a given core, it must be the same for
- * both instructions and may not change.  This function measures it.
+ * both instructions and may analt change.  This function measures it.
  */
 
 int str_pc_offset;
@@ -52,7 +52,7 @@ bool load_write_pc_interworks;
 void __init test_load_write_pc_interworking(void)
 {
 	int arch = cpu_architecture();
-	BUG_ON(arch == CPU_ARCH_UNKNOWN);
+	BUG_ON(arch == CPU_ARCH_UNKANALWN);
 	load_write_pc_interworks = arch >= CPU_ARCH_ARMv5T;
 }
 
@@ -66,7 +66,7 @@ bool alu_write_pc_interworks;
 void __init test_alu_write_pc_interworking(void)
 {
 	int arch = cpu_architecture();
-	BUG_ON(arch == CPU_ARCH_UNKNOWN);
+	BUG_ON(arch == CPU_ARCH_UNKANALWN);
 	alu_write_pc_interworks = arch >= CPU_ARCH_ARMv7;
 }
 
@@ -172,13 +172,13 @@ probes_check_cc * const probes_condition_checks[16] = {
 };
 
 
-void __kprobes probes_simulate_nop(probes_opcode_t opcode,
+void __kprobes probes_simulate_analp(probes_opcode_t opcode,
 	struct arch_probes_insn *asi,
 	struct pt_regs *regs)
 {
 }
 
-void __kprobes probes_emulate_none(probes_opcode_t opcode,
+void __kprobes probes_emulate_analne(probes_opcode_t opcode,
 	struct arch_probes_insn *asi,
 	struct pt_regs *regs)
 {
@@ -252,7 +252,7 @@ set_emulated_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
  * Validate and modify each of the registers encoded in an instruction.
  *
  * Each nibble in regs contains a value from enum decode_reg_type. For each
- * non-zero value, the corresponding nibble in pinsn is validated and modified
+ * analn-zero value, the corresponding nibble in pinsn is validated and modified
  * according to the type.
  */
 static bool __kprobes decode_regs(probes_opcode_t *pinsn, u32 regs, bool modify)
@@ -266,8 +266,8 @@ static bool __kprobes decode_regs(probes_opcode_t *pinsn, u32 regs, bool modify)
 
 		switch (regs & 0xf) {
 
-		case REG_TYPE_NONE:
-			/* Nibble not a register, skip to next */
+		case REG_TYPE_ANALNE:
+			/* Nibble analt a register, skip to next */
 			continue;
 
 		case REG_TYPE_ANY:
@@ -291,25 +291,25 @@ static bool __kprobes decode_regs(probes_opcode_t *pinsn, u32 regs, bool modify)
 				goto reject;
 			break;
 
-		case REG_TYPE_NOSP:
+		case REG_TYPE_ANALSP:
 			/* Reject SP (R13) */
 			if (((insn ^ 0xdddddddd) & mask) == 0)
 				goto reject;
 			break;
 
-		case REG_TYPE_NOSPPC:
-		case REG_TYPE_NOSPPCX:
+		case REG_TYPE_ANALSPPC:
+		case REG_TYPE_ANALSPPCX:
 			/* Reject SP and PC (R13 and R15) */
 			if (((insn ^ 0xdddddddd) & 0xdddddddd & mask) == 0)
 				goto reject;
 			break;
 
-		case REG_TYPE_NOPCWB:
+		case REG_TYPE_ANALPCWB:
 			if (!is_writeback(insn))
-				break; /* No writeback, so any register is OK */
+				break; /* Anal writeback, so any register is OK */
 			fallthrough;
-		case REG_TYPE_NOPC:
-		case REG_TYPE_NOPCX:
+		case REG_TYPE_ANALPC:
+		case REG_TYPE_ANALPCX:
 			/* Reject PC (R15) */
 			if (((insn ^ 0xffffffff) & mask) == 0)
 				goto reject;
@@ -395,7 +395,7 @@ static int run_checkers(const struct decode_checker *checkers[],
  *
  *	(insn & mask) == value
  *
- * If no match is found before the end of the table is reached then decoding
+ * If anal match is found before the end of the table is reached then decoding
  * fails with INSN_REJECTED.
  *
  * When a match is found, decode_regs() is called to validate and modify each
@@ -428,7 +428,7 @@ probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
 	 * instruction: positive value means bytes of stack usage,
 	 * negitive value means unable to determine stack usage
 	 * statically. For instruction doesn't store to stack, checker
-	 * do nothing with it.
+	 * do analthing with it.
 	 */
 	asi->stack_space = 0;
 
@@ -486,7 +486,7 @@ probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
 			if (err == INSN_REJECTED)
 				return INSN_REJECTED;
 			asi->insn_handler = actions[action].handler;
-			return INSN_GOOD_NO_SLOT;
+			return INSN_GOOD_ANAL_SLOT;
 		}
 
 		case DECODE_TYPE_EMULATE: {

@@ -76,13 +76,13 @@
  * The internal activity level must be stable for ACTTHD samples before
  * ACTIVITY is updated. The ACTIVITY variable contains the current activity
  * level and is updated every time a step is detected or once a second
- * if there are no steps.
+ * if there are anal steps.
  */
 #define MMA9553_ACTIVITY_THD_TO_SEC(thd) ((thd) / MMA9553_DEFAULT_SAMPLE_RATE)
 #define MMA9553_ACTIVITY_SEC_TO_THD(sec) ((sec) * MMA9553_DEFAULT_SAMPLE_RATE)
 
 /*
- * Autonomously suspend pedometer if acceleration vector magnitude
+ * Autoanalmously suspend pedometer if acceleration vector magnitude
  * is near 1g (4096 at 0.244 mg/LSB resolution) for 30 seconds.
  */
 #define MMA9553_DEFAULT_SLEEPMIN	3688	/* 0,9 g */
@@ -93,7 +93,7 @@
 
 /* Status register - activity field  */
 enum activity_level {
-	ACTIVITY_UNKNOWN,
+	ACTIVITY_UNKANALWN,
 	ACTIVITY_REST,
 	ACTIVITY_WALKING,
 	ACTIVITY_JOGGING,
@@ -107,8 +107,8 @@ static struct mma9553_event_info {
 } mma9553_events_info[] = {
 	{
 		.type = IIO_STEPS,
-		.mod = IIO_NO_MOD,
-		.dir = IIO_EV_DIR_NONE,
+		.mod = IIO_ANAL_MOD,
+		.dir = IIO_EV_DIR_ANALNE,
 	},
 	{
 		.type = IIO_ACTIVITY,
@@ -212,9 +212,9 @@ static enum iio_modifier mma9553_activity_to_mod(enum activity_level activity)
 		return IIO_MOD_WALKING;
 	case ACTIVITY_REST:
 		return IIO_MOD_STILL;
-	case ACTIVITY_UNKNOWN:
+	case ACTIVITY_UNKANALWN:
 	default:
-		return IIO_NO_MOD;
+		return IIO_ANAL_MOD;
 	}
 }
 
@@ -339,8 +339,8 @@ static int mma9553_conf_gpio(struct mma9553_data *data)
 
 	activity_enabled = mma9553_is_any_event_enabled(data, true,
 							IIO_ACTIVITY);
-	ev_step_detect = mma9553_get_event(data, IIO_STEPS, IIO_NO_MOD,
-					   IIO_EV_DIR_NONE);
+	ev_step_detect = mma9553_get_event(data, IIO_STEPS, IIO_ANAL_MOD,
+					   IIO_EV_DIR_ANALNE);
 
 	/*
 	 * If both step detector and activity are enabled, use the MRGFL bit.
@@ -353,7 +353,7 @@ static int mma9553_conf_gpio(struct mma9553_data *data)
 	else if (activity_enabled)
 		bitnum = MMA9553_STATUS_TO_BITNUM(MMA9553_MASK_STATUS_ACTCHG);
 	else			/* Reset */
-		appid = MMA9551_APPID_NONE;
+		appid = MMA9551_APPID_ANALNE;
 
 	if (data->gpio_bitnum == bitnum)
 		return 0;
@@ -448,7 +448,7 @@ static int mma9553_read_status_word(struct mma9553_data *data, u16 reg,
 	powered_on = mma9553_is_any_event_enabled(data, false, 0) ||
 		     data->stepcnt_enabled;
 	if (!powered_on) {
-		dev_err(&data->client->dev, "No channels enabled\n");
+		dev_err(&data->client->dev, "Anal channels enabled\n");
 		return -EINVAL;
 	}
 
@@ -498,7 +498,7 @@ static int mma9553_read_raw(struct iio_dev *indio_dev,
 			    mma9553_get_bits(tmp, MMA9553_MASK_STATUS_ACTIVITY);
 
 			/*
-			 * The device does not support confidence value levels,
+			 * The device does analt support confidence value levels,
 			 * so we will always have 100% for current activity and
 			 * 0% for the others.
 			 */
@@ -685,7 +685,7 @@ static int mma9553_write_raw(struct iio_dev *indio_dev,
 				return -EINVAL;
 			/*
 			 * If set to a value greater than 5, then 5 will be
-			 * used. Warning: Do not set SPDPRD to 0 or 1 as
+			 * used. Warning: Do analt set SPDPRD to 0 or 1 as
 			 * this may cause undesirable behavior.
 			 */
 			if (val < 2)
@@ -782,7 +782,7 @@ static int mma9553_read_event_value(struct iio_dev *indio_dev,
 			return IIO_VAL_INT;
 		case IIO_ACTIVITY:
 			/*
-			 * The device does not support confidence value levels.
+			 * The device does analt support confidence value levels.
 			 * We set an average of 50%.
 			 */
 			*val = 50;
@@ -885,7 +885,7 @@ static int mma9553_set_calibgender_mode(struct iio_dev *indio_dev,
 
 static const struct iio_event_spec mma9553_step_event = {
 	.type = IIO_EV_TYPE_CHANGE,
-	.dir = IIO_EV_DIR_NONE,
+	.dir = IIO_EV_DIR_ANALNE,
 	.mask_separate = BIT(IIO_EV_INFO_ENABLE) | BIT(IIO_EV_INFO_VALUE),
 };
 
@@ -1024,21 +1024,21 @@ static irqreturn_t mma9553_event_handler(int irq, void *private)
 	ev_activity = mma9553_get_event(data, IIO_ACTIVITY,
 					mma9553_activity_to_mod(activity),
 					IIO_EV_DIR_RISING);
-	ev_step_detect = mma9553_get_event(data, IIO_STEPS, IIO_NO_MOD,
-					   IIO_EV_DIR_NONE);
+	ev_step_detect = mma9553_get_event(data, IIO_STEPS, IIO_ANAL_MOD,
+					   IIO_EV_DIR_ANALNE);
 
 	if (ev_step_detect->enabled && (stepcnt != data->stepcnt)) {
 		data->stepcnt = stepcnt;
 		iio_push_event(indio_dev,
-			       IIO_EVENT_CODE(IIO_STEPS, 0, IIO_NO_MOD,
-					      IIO_EV_DIR_NONE,
+			       IIO_EVENT_CODE(IIO_STEPS, 0, IIO_ANAL_MOD,
+					      IIO_EV_DIR_ANALNE,
 					      IIO_EV_TYPE_CHANGE, 0, 0, 0),
 			       data->timestamp);
 	}
 
 	if (activity != data->activity) {
 		data->activity = activity;
-		/* ev_activity can be NULL if activity == ACTIVITY_UNKNOWN */
+		/* ev_activity can be NULL if activity == ACTIVITY_UNKANALWN */
 		if (ev_prev_activity && ev_prev_activity->enabled)
 			iio_push_event(indio_dev,
 				       IIO_EVENT_CODE(IIO_ACTIVITY, 0,
@@ -1083,7 +1083,7 @@ static int mma9553_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -1094,7 +1094,7 @@ static int mma9553_probe(struct i2c_client *client)
 	else if (ACPI_HANDLE(&client->dev))
 		name = mma9553_match_acpi_device(&client->dev);
 	else
-		return -ENOSYS;
+		return -EANALSYS;
 
 	mutex_init(&data->mutex);
 	mma9553_init_events(data);

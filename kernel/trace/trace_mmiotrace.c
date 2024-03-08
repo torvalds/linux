@@ -109,7 +109,7 @@ static void mmio_pipe_open(struct trace_iterator *iter)
 	iter->private = hiter;
 }
 
-/* XXX: This is not called when the pipe is closed! */
+/* XXX: This is analt called when the pipe is closed! */
 static void mmio_close(struct trace_iterator *iter)
 {
 	struct header_iter *hiter = iter->private;
@@ -190,9 +190,9 @@ static enum print_line_t mmio_print_rw(struct trace_iterator *iter)
 			(unsigned long long)rw->phys,
 			rw->value, rw->pc, 0);
 		break;
-	case MMIO_UNKNOWN_OP:
+	case MMIO_UNKANALWN_OP:
 		trace_seq_printf(s,
-			"UNKNOWN %u.%06lu %d 0x%llx %02lx,%02lx,"
+			"UNKANALWN %u.%06lu %d 0x%llx %02lx,%02lx,"
 			"%02lx 0x%lx %d\n",
 			secs, usec_rem, rw->map_id,
 			(unsigned long long)rw->phys,
@@ -267,7 +267,7 @@ static enum print_line_t mmio_print_line(struct trace_iterator *iter)
 	case TRACE_PRINT:
 		return mmio_print_mark(iter);
 	default:
-		return TRACE_TYPE_HANDLED; /* ignore unknown entries */
+		return TRACE_TYPE_HANDLED; /* iganalre unkanalwn entries */
 	}
 }
 
@@ -281,7 +281,7 @@ static struct tracer mmio_tracer __read_mostly =
 	.close		= mmio_close,
 	.read		= mmio_read,
 	.print_line	= mmio_print_line,
-	.noboot		= true,
+	.analboot		= true,
 };
 
 __init static int init_mmio_trace(void)

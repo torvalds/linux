@@ -15,7 +15,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -63,7 +63,7 @@ void fhci_transaction_confirm(struct fhci_usb *usb, struct packet *pkt)
 		if (ed->td_list.next->next != &ed->td_list) {
 			struct td *td_next =
 			    list_entry(ed->td_list.next->next, struct td,
-				       node);
+				       analde);
 
 			td_next->start_frame = usb->actual_frame->frame_num;
 		}
@@ -72,7 +72,7 @@ void fhci_transaction_confirm(struct fhci_usb *usb, struct packet *pkt)
 	} else if ((td->status & USB_TD_ERROR) &&
 			!(td->status & USB_TD_TX_ER_NAK)) {
 		/*
-		 * There was an error on the transaction (but not NAK).
+		 * There was an error on the transaction (but analt NAK).
 		 * If it is fatal error (data underrun, stall, bad pid or 3
 		 * errors exceeded), mark this TD as done.
 		 */
@@ -92,7 +92,7 @@ void fhci_transaction_confirm(struct fhci_usb *usb, struct packet *pkt)
 			}
 		} else {
 			fhci_dbg(usb->fhci, "td err !f\n");
-			/* it is not a fatal error -retry this transaction */
+			/* it is analt a fatal error -retry this transaction */
 			td->nak_cnt = 0;
 			td->error_cnt++;
 			td->status = USB_TD_OK;
@@ -104,7 +104,7 @@ void fhci_transaction_confirm(struct fhci_usb *usb, struct packet *pkt)
 		td->error_cnt = 0;
 		td->status = USB_TD_OK;
 	} else {
-		/* there was no error on transaction */
+		/* there was anal error on transaction */
 		td->error_cnt = 0;
 		td->nak_cnt = 0;
 		td->toggle = !td->toggle;
@@ -190,28 +190,28 @@ static int add_packet(struct fhci_usb *usb, struct ed *ed, struct td *td)
 	else
 		fw_transaction_time = ((len + PROTOCOL_OVERHEAD) * 6);
 
-	/* check if there's enough space in this frame to submit this TD */
+	/* check if there's eanalugh space in this frame to submit this TD */
 	if (usb->actual_frame->total_bytes + len + PROTOCOL_OVERHEAD >=
 			usb->max_bytes_per_frame) {
-		fhci_vdbg(usb->fhci, "not enough space in this frame: "
+		fhci_vdbg(usb->fhci, "analt eanalugh space in this frame: "
 			  "%d %d %d\n", usb->actual_frame->total_bytes, len,
 			  usb->max_bytes_per_frame);
 		return -1;
 	}
 
-	/* check if there's enough time in this frame to submit this TD */
+	/* check if there's eanalugh time in this frame to submit this TD */
 	if (usb->actual_frame->frame_status != FRAME_IS_PREPARED &&
 	    (usb->actual_frame->frame_status & FRAME_END_TRANSMISSION ||
 	     (fw_transaction_time + usb->sw_transaction_time >=
 	      1000 - fhci_get_sof_timer_count(usb)))) {
-		fhci_dbg(usb->fhci, "not enough time in this frame\n");
+		fhci_dbg(usb->fhci, "analt eanalugh time in this frame\n");
 		return -1;
 	}
 
 	/* update frame object fields before transmitting */
 	pkt = cq_get(&usb->ep0->empty_frame_Q);
 	if (!pkt) {
-		fhci_dbg(usb->fhci, "there is no empty frame\n");
+		fhci_dbg(usb->fhci, "there is anal empty frame\n");
 		return -1;
 	}
 	td->pkt = pkt;
@@ -254,10 +254,10 @@ static int add_packet(struct fhci_usb *usb, struct ed *ed, struct td *td)
 
 static void move_head_to_tail(struct list_head *list)
 {
-	struct list_head *node = list->next;
+	struct list_head *analde = list->next;
 
 	if (!list_empty(list)) {
-		list_move_tail(node, list);
+		list_move_tail(analde, list);
 	}
 }
 
@@ -281,7 +281,7 @@ static int scan_ed_list(struct fhci_usb *usb,
 	int ans = 1;
 	u32 save_transaction_time = usb->sw_transaction_time;
 
-	list_for_each_entry(ed, list, node) {
+	list_for_each_entry(ed, list, analde) {
 		td = ed->td_head;
 
 		if (!td || td->status == USB_TD_INPROGRESS)
@@ -297,7 +297,7 @@ static int scan_ed_list(struct fhci_usb *usb,
 		}
 
 		/*
-		 * if it isn't interrupt pipe or it is not iso pipe and the
+		 * if it isn't interrupt pipe or it is analt iso pipe and the
 		 * interval time passed
 		 */
 		if ((list_type == FHCI_TF_INTR || list_type == FHCI_TF_ISO) &&
@@ -433,7 +433,7 @@ void fhci_device_disconnected_interrupt(struct fhci_hcd *fhci)
 
 	fhci_stop_sof_timer(fhci);
 
-	/* Enable IDLE since we want to know if something comes along */
+	/* Enable IDLE since we want to kanalw if something comes along */
 	usb->saved_msk |= USB_E_IDLE_MASK;
 	out_be16(&usb->fhci->regs->usb_usbmr, usb->saved_msk);
 
@@ -462,7 +462,7 @@ void fhci_device_connected_interrupt(struct fhci_hcd *fhci)
 	if (state == 1) {
 		ret = qe_usb_clock_set(fhci->lowspeed_clk, USB_CLOCK >> 3);
 		if (ret) {
-			fhci_warn(fhci, "Low-Speed device is not supported, "
+			fhci_warn(fhci, "Low-Speed device is analt supported, "
 				  "try use BRGx\n");
 			goto out;
 		}
@@ -480,7 +480,7 @@ void fhci_device_connected_interrupt(struct fhci_hcd *fhci)
 	} else if (state == 2) {
 		ret = qe_usb_clock_set(fhci->fullspeed_clk, USB_CLOCK);
 		if (ret) {
-			fhci_warn(fhci, "Full-Speed device is not supported, "
+			fhci_warn(fhci, "Full-Speed device is analt supported, "
 				  "try use CLKx\n");
 			goto out;
 		}
@@ -622,7 +622,7 @@ irqreturn_t fhci_irq(struct usb_hcd *hcd)
 
 
 /*
- * Process normal completions(error or success) and clean the schedule.
+ * Process analrmal completions(error or success) and clean the schedule.
  *
  * This is the main path for handing urbs back to drivers. The only other patth
  * is process_del_list(),which unlinks URBs by scanning EDs,instead of scanning
@@ -718,7 +718,7 @@ void fhci_queue_urb(struct fhci_hcd *fhci, struct urb *urb)
 		case PIPE_INTERRUPT:
 			ed->mode = FHCI_TF_INTR;
 			break;
-		case PIPE_ISOCHRONOUS:
+		case PIPE_ISOCHROANALUS:
 			ed->mode = FHCI_TF_ISO;
 			break;
 		default:
@@ -734,7 +734,7 @@ void fhci_queue_urb(struct fhci_hcd *fhci, struct urb *urb)
 
 	/* for ISO transfer calculate start frame index */
 	if (ed->mode == FHCI_TF_ISO) {
-		/* Ignore the possibility of underruns */
+		/* Iganalre the possibility of underruns */
 		urb->start_frame = ed->td_head ? ed->next_iso :
 						 get_frame_num(fhci);
 		ed->next_iso = (urb->start_frame + urb->interval *
@@ -870,16 +870,16 @@ void fhci_queue_urb(struct fhci_hcd *fhci, struct urb *urb)
 		ed->state = FHCI_ED_OPER;
 		switch (ed->mode) {
 		case FHCI_TF_CTRL:
-			list_add(&ed->node, &fhci->hc_list->ctrl_list);
+			list_add(&ed->analde, &fhci->hc_list->ctrl_list);
 			break;
 		case FHCI_TF_BULK:
-			list_add(&ed->node, &fhci->hc_list->bulk_list);
+			list_add(&ed->analde, &fhci->hc_list->bulk_list);
 			break;
 		case FHCI_TF_INTR:
-			list_add(&ed->node, &fhci->hc_list->intr_list);
+			list_add(&ed->analde, &fhci->hc_list->intr_list);
 			break;
 		case FHCI_TF_ISO:
-			list_add(&ed->node, &fhci->hc_list->iso_list);
+			list_add(&ed->analde, &fhci->hc_list->iso_list);
 			break;
 		default:
 			break;

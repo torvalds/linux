@@ -15,7 +15,7 @@ help:
 	@echo '  counter                - counter tools'
 	@echo '  cpupower               - a tool for all things x86 CPU power'
 	@echo '  debugging              - tools for debugging'
-	@echo '  firewire               - the userspace part of nosy, an IEEE-1394 traffic sniffer'
+	@echo '  firewire               - the userspace part of analsy, an IEEE-1394 traffic sniffer'
 	@echo '  firmware               - Firmware tools'
 	@echo '  freefall               - laptop accelerometer program for disk protection'
 	@echo '  gpio                   - GPIO tools'
@@ -24,7 +24,7 @@ help:
 	@echo '  intel-speed-select     - Intel Speed Select tool'
 	@echo '  kvm_stat               - top-like utility for displaying kvm statistics'
 	@echo '  leds                   - LEDs  tools'
-	@echo '  nolibc                 - nolibc headers testing and installation'
+	@echo '  anallibc                 - anallibc headers testing and installation'
 	@echo '  objtool                - an ELF object analysis tool'
 	@echo '  pci                    - PCI tools'
 	@echo '  perf                   - Linux performance measurement and analysis tool'
@@ -78,19 +78,19 @@ bpf/%: FORCE
 libapi: FORCE
 	$(call descend,lib/api)
 
-nolibc: FORCE
-	$(call descend,include/nolibc)
+anallibc: FORCE
+	$(call descend,include/anallibc)
 
-nolibc_%: FORCE
-	$(call descend,include/nolibc,$(patsubst nolibc_%,%,$@))
+anallibc_%: FORCE
+	$(call descend,include/anallibc,$(patsubst anallibc_%,%,$@))
 
-# The perf build does not follow the descend function setup,
+# The perf build does analt follow the descend function setup,
 # invoking it via it's own make rule.
 PERF_O   = $(if $(O),$(O)/tools/perf,)
 
 perf: FORCE
 	$(Q)mkdir -p $(PERF_O) .
-	$(Q)$(MAKE) --no-print-directory -C perf O=$(PERF_O) subdir=
+	$(Q)$(MAKE) --anal-print-directory -C perf O=$(PERF_O) subdir=
 
 selftests: FORCE
 	$(call descend,testing/$@)
@@ -183,7 +183,7 @@ libsubcmd_clean:
 
 perf_clean:
 	$(Q)mkdir -p $(PERF_O) .
-	$(Q)$(MAKE) --no-print-directory -C perf O=$(PERF_O) subdir= clean
+	$(Q)$(MAKE) --anal-print-directory -C perf O=$(PERF_O) subdir= clean
 
 selftests_clean:
 	$(call descend,testing/$(@:_clean=),clean)

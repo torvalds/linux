@@ -29,7 +29,7 @@
 #include "uncore-frequency-common.h"
 
 #define	UNCORE_MAJOR_VERSION		0
-#define	UNCORE_MINOR_VERSION		1
+#define	UNCORE_MIANALR_VERSION		1
 #define UNCORE_HEADER_INDEX		0
 #define UNCORE_FABRIC_CLUSTER_OFFSET	8
 
@@ -201,7 +201,7 @@ static int uncore_read_freq(struct uncore_data *data, unsigned int *freq)
 
 	cluster_info = container_of(data, struct tpmi_uncore_cluster_info, uncore_data);
 	if (cluster_info->root_domain)
-		return -ENODATA;
+		return -EANALDATA;
 
 	status = readq((u8 __iomem *)cluster_info->cluster_base + UNCORE_STATUS_INDEX);
 	*freq = FIELD_GET(UNCORE_GENMASK_CURRENT_RATIO, status) * UNCORE_FREQ_KHZ_MULTIPLIER;
@@ -245,11 +245,11 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 
 	ret = tpmi_get_feature_status(auxdev, TPMI_ID_UNCORE, &read_blocked, &write_blocked);
 	if (ret)
-		dev_info(&auxdev->dev, "Can't read feature status: ignoring blocked status\n");
+		dev_info(&auxdev->dev, "Can't read feature status: iganalring blocked status\n");
 
 	if (read_blocked) {
 		dev_info(&auxdev->dev, "Firmware has blocked reads, exiting\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Get number of power domains, which is equal to number of resources */
@@ -266,7 +266,7 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 	/* Allocate uncore instance per package */
 	tpmi_uncore = devm_kzalloc(&auxdev->dev, sizeof(*tpmi_uncore), GFP_KERNEL);
 	if (!tpmi_uncore) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_rem_common;
 	}
 
@@ -275,7 +275,7 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 					    sizeof(*tpmi_uncore->pd_info),
 					    GFP_KERNEL);
 	if (!tpmi_uncore->pd_info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_rem_common;
 	}
 
@@ -325,13 +325,13 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 		if (TPMI_MAJOR_VERSION(pd_info->ufs_header_ver) != UNCORE_MAJOR_VERSION) {
 			dev_err(&auxdev->dev, "Uncore: Unsupported major version:%lx\n",
 				TPMI_MAJOR_VERSION(pd_info->ufs_header_ver));
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto remove_clusters;
 		}
 
-		if (TPMI_MINOR_VERSION(pd_info->ufs_header_ver) != UNCORE_MINOR_VERSION)
-			dev_info(&auxdev->dev, "Uncore: Ignore: Unsupported minor version:%lx\n",
-				 TPMI_MINOR_VERSION(pd_info->ufs_header_ver));
+		if (TPMI_MIANALR_VERSION(pd_info->ufs_header_ver) != UNCORE_MIANALR_VERSION)
+			dev_info(&auxdev->dev, "Uncore: Iganalre: Unsupported mianalr version:%lx\n",
+				 TPMI_MIANALR_VERSION(pd_info->ufs_header_ver));
 
 		/* Get Cluster ID Mask */
 		cluster_mask = FIELD_GET(UNCORE_LOCAL_FABRIC_CLUSTER_ID_MASK, header);
@@ -347,7 +347,7 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 						      sizeof(struct tpmi_uncore_cluster_info),
 						      GFP_KERNEL);
 		if (!pd_info->cluster_infos) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto remove_clusters;
 		}
 		/*
@@ -370,7 +370,7 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 			cluster_info->cluster_base = pd_info->uncore_base + mask;
 
 			cluster_info->uncore_data.package_id = pkg;
-			/* There are no dies like Cascade Lake */
+			/* There are anal dies like Cascade Lake */
 			cluster_info->uncore_data.die_id = 0;
 			cluster_info->uncore_data.domain_id = i;
 			cluster_info->uncore_data.cluster_id = j;

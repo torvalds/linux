@@ -27,9 +27,9 @@ static char symbol[MAX_SYMBOL_LEN] = "kernel_clone";
 module_param_string(symbol, symbol, sizeof(symbol), 0644);
 MODULE_PARM_DESC(symbol, "Probed symbol(s), given by comma separated symbols or a wildcard pattern.");
 
-static char nosymbol[MAX_SYMBOL_LEN] = "";
-module_param_string(nosymbol, nosymbol, sizeof(nosymbol), 0644);
-MODULE_PARM_DESC(nosymbol, "Not-probed symbols, given by a wildcard pattern.");
+static char analsymbol[MAX_SYMBOL_LEN] = "";
+module_param_string(analsymbol, analsymbol, sizeof(analsymbol), 0644);
+MODULE_PARM_DESC(analsymbol, "Analt-probed symbols, given by a wildcard pattern.");
 
 static bool stackdump = true;
 module_param(stackdump, bool, 0644);
@@ -54,7 +54,7 @@ static int sample_entry_handler(struct fprobe *fp, unsigned long ip,
 {
 	if (use_trace)
 		/*
-		 * This is just an example, no kernel code should call
+		 * This is just an example, anal kernel code should call
 		 * trace_printk() except when actively debugging.
 		 */
 		trace_printk("Enter <%pS> ip = 0x%p\n", (void *)ip, (void *)ip);
@@ -74,7 +74,7 @@ static void sample_exit_handler(struct fprobe *fp, unsigned long ip,
 
 	if (use_trace)
 		/*
-		 * This is just an example, no kernel code should call
+		 * This is just an example, anal kernel code should call
 		 * trace_printk() except when actively debugging.
 		 */
 		trace_printk("Return from <%pS> ip = 0x%p to rip = 0x%p (%pS)\n",
@@ -99,7 +99,7 @@ static int __init fprobe_init(void)
 	if (strchr(symbol, '*')) {
 		/* filter based fprobe */
 		ret = register_fprobe(&sample_probe, symbol,
-				      nosymbol[0] == '\0' ? NULL : nosymbol);
+				      analsymbol[0] == '\0' ? NULL : analsymbol);
 		goto out;
 	} else if (!strchr(symbol, ',')) {
 		symbuf = symbol;
@@ -110,7 +110,7 @@ static int __init fprobe_init(void)
 	/* Comma separated symbols */
 	symbuf = kstrdup(symbol, GFP_KERNEL);
 	if (!symbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 	p = symbuf;
 	count = 1;
 	while ((p = strchr(++p, ',')) != NULL)
@@ -121,7 +121,7 @@ static int __init fprobe_init(void)
 	syms = kcalloc(count, sizeof(char *), GFP_KERNEL);
 	if (!syms) {
 		kfree(symbuf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	p = symbuf;

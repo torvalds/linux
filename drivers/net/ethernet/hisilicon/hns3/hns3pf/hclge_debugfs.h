@@ -306,7 +306,7 @@ static const struct hclge_dbg_dfx_message hclge_dbg_ssu_reg_2[] = {
 static const struct hclge_dbg_dfx_message hclge_dbg_igu_egu_reg[] = {
 	{true,	"prt_id"},
 	{true,	"IGU_RX_ERR_PKT"},
-	{true,	"IGU_RX_NO_SOF_PKT"},
+	{true,	"IGU_RX_ANAL_SOF_PKT"},
 	{true,	"EGU_TX_1588_SHORT_PKT"},
 	{true,	"EGU_TX_1588_PKT"},
 	{true,	"EGU_TX_ERR_PKT"},
@@ -360,8 +360,8 @@ static const struct hclge_dbg_dfx_message hclge_dbg_igu_egu_reg[] = {
 	{true,	"IGU_TX_KEY_NUM_L"},
 	{true,	"IGU_TX_KEY_NUM_H"},
 
-	{true,	"IGU_RX_NON_TUN_PKT_L"},
-	{true,	"IGU_RX_NON_TUN_PKT_H"},
+	{true,	"IGU_RX_ANALN_TUN_PKT_L"},
+	{true,	"IGU_RX_ANALN_TUN_PKT_H"},
 	{true,	"IGU_RX_TUN_PKT_L"},
 	{true,	"IGU_RX_TUN_PKT_H"},
 	{false,	"Reserved"},
@@ -503,7 +503,7 @@ static const struct hclge_dbg_dfx_message hclge_dbg_ppp_reg[] = {
 	{true,	"DROP_MNG_CNT"},
 	{true,	"DROP_FD_CNT"},
 
-	{true,	"DROP_NO_DST_CNT"},
+	{true,	"DROP_ANAL_DST_CNT"},
 	{true,	"DROP_MC_MBID_FULL_CNT"},
 	{true,	"DROP_SC_FILTERED"},
 	{true,	"PPP_MC_DROP_PKT_CNT"},
@@ -568,8 +568,8 @@ static const struct hclge_dbg_dfx_message hclge_dbg_ppp_reg[] = {
 
 	{true,	"PPP_MC_2PRT_PKT_CNT_L"},
 	{true,	"PPP_MC_2PRT_PKT_CNT_H"},
-	{true,	"NTSNOS_PKT_CNT_L"},
-	{true,	"NTSNOS_PKT_CNT_H"},
+	{true,	"NTSANALS_PKT_CNT_L"},
+	{true,	"NTSANALS_PKT_CNT_H"},
 	{true,	"NTUP_PKT_CNT_L"},
 	{true,	"NTUP_PKT_CNT_H"},
 
@@ -747,7 +747,7 @@ static const struct hclge_dbg_dfx_message hclge_dbg_tqp_reg[] = {
 #define HCLGE_DBG_DATA_STR_LEN			32
 #define HCLGE_DBG_TM_INFO_LEN			256
 
-#define HCLGE_BILLION_NANO_SECONDS	1000000000
+#define HCLGE_BILLION_NAANAL_SECONDS	1000000000
 
 struct hclge_dbg_item {
 	char name[HCLGE_DBG_ITEM_NAME_LEN];

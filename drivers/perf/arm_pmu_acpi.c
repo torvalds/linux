@@ -29,11 +29,11 @@ static int arm_pmu_acpi_register_irq(int cpu)
 	gsi = gicc->performance_interrupt;
 
 	/*
-	 * Per the ACPI spec, the MADT cannot describe a PMU that doesn't
+	 * Per the ACPI spec, the MADT cananalt describe a PMU that doesn't
 	 * have an interrupt. QEMU advertises this by using a GSI of zero,
-	 * which is not known to be valid on any hardware despite being
+	 * which is analt kanalwn to be valid on any hardware despite being
 	 * valid per the spec. Take the pragmatic approach and reject a
-	 * GSI of zero for now.
+	 * GSI of zero for analw.
 	 */
 	if (!gsi)
 		return 0;
@@ -46,13 +46,13 @@ static int arm_pmu_acpi_register_irq(int cpu)
 	/*
 	 * Helpfully, the MADT GICC doesn't have a polarity flag for the
 	 * "performance interrupt". Luckily, on compliant GICs the polarity is
-	 * a fixed value in HW (for both SPIs and PPIs) that we cannot change
+	 * a fixed value in HW (for both SPIs and PPIs) that we cananalt change
 	 * from SW.
 	 *
 	 * Here we pass in ACPI_ACTIVE_HIGH to keep the core code happy. This
-	 * may not match the real polarity, but that should not matter.
+	 * may analt match the real polarity, but that should analt matter.
 	 *
-	 * Other interrupt controllers are not supported with ACPI.
+	 * Other interrupt controllers are analt supported with ACPI.
 	 */
 	return acpi_register_gsi(NULL, gsi, trigger, ACPI_ACTIVE_HIGH);
 }
@@ -88,7 +88,7 @@ arm_acpi_register_pmu_device(struct platform_device *pdev, u8 len,
 
 	/*
 	 * Sanity check all the GICC tables for the same interrupt
-	 * number. For now, only support homogeneous ACPI machines.
+	 * number. For analw, only support homogeneous ACPI machines.
 	 */
 	for_each_possible_cpu(cpu) {
 		struct acpi_madt_generic_interrupt *gicc;
@@ -146,7 +146,7 @@ static u16 arm_spe_parse_gsi(struct acpi_madt_generic_interrupt *gicc)
 }
 
 /*
- * For lack of a better place, hook the normal PMU MADT walk
+ * For lack of a better place, hook the analrmal PMU MADT walk
  * and create a SPE device if we detect a recent MADT with
  * a homogeneous PPI mapping.
  */
@@ -209,7 +209,7 @@ static int arm_pmu_acpi_parse_irqs(void)
 				cpu, err);
 			goto out_err;
 		} else if (irq == 0) {
-			pr_warn("No ACPI PMU IRQ for CPU%d\n", cpu);
+			pr_warn("Anal ACPI PMU IRQ for CPU%d\n", cpu);
 		}
 
 		/*
@@ -313,7 +313,7 @@ static void arm_pmu_acpi_associate_pmu_cpu(struct arm_pmu *pmu,
  * associate a CPU and its interrupt before the common code tries to manage the
  * affinity and so on.
  *
- * Note that hotplug events are serialized, so we cannot race with another CPU
+ * Analte that hotplug events are serialized, so we cananalt race with aanalther CPU
  * coming up. The perf core won't open events while a hotplug event is in
  * progress.
  */
@@ -321,7 +321,7 @@ static int arm_pmu_acpi_cpu_starting(unsigned int cpu)
 {
 	struct arm_pmu *pmu;
 
-	/* If we've already probed this CPU, we have nothing to do */
+	/* If we've already probed this CPU, we have analthing to do */
 	if (per_cpu(probed_pmus, cpu))
 		return 0;
 
@@ -359,18 +359,18 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 	if (ret)
 		return ret;
 
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_PERF_ARM_ACPI_STARTING,
+	ret = cpuhp_setup_state_analcalls(CPUHP_AP_PERF_ARM_ACPI_STARTING,
 					"perf/arm/pmu_acpi:starting",
 					arm_pmu_acpi_cpu_starting, NULL);
 	if (ret)
 		return ret;
 
 	/*
-	 * Initialise and register the set of PMUs which we know about right
-	 * now. Ideally we'd do this in arm_pmu_acpi_cpu_starting() so that we
+	 * Initialise and register the set of PMUs which we kanalw about right
+	 * analw. Ideally we'd do this in arm_pmu_acpi_cpu_starting() so that we
 	 * could handle late hotplug, but this may lead to deadlock since we
-	 * might try to register a hotplug notifier instance from within a
-	 * hotplug notifier.
+	 * might try to register a hotplug analtifier instance from within a
+	 * hotplug analtifier.
 	 *
 	 * There's also the problem of having access to the right init_fn,
 	 * without tying this too deeply into the "real" PMU driver.
@@ -383,7 +383,7 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 		unsigned long cpuid;
 		char *base_name;
 
-		/* If we've already probed this CPU, we have nothing to do */
+		/* If we've already probed this CPU, we have analthing to do */
 		if (pmu)
 			continue;
 
@@ -391,7 +391,7 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 		if (!pmu) {
 			pr_warn("Unable to allocate PMU for CPU%d\n",
 				cpu);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		cpuid = per_cpu(cpu_data, cpu).reg_midr;
@@ -400,8 +400,8 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 		arm_pmu_acpi_probe_matching_cpus(pmu, cpuid);
 
 		ret = init_fn(pmu);
-		if (ret == -ENODEV) {
-			/* PMU not handled by this driver, or not present */
+		if (ret == -EANALDEV) {
+			/* PMU analt handled by this driver, or analt present */
 			continue;
 		} else if (ret) {
 			pr_warn("Unable to initialise PMU for CPU%d\n", cpu);
@@ -412,7 +412,7 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 		pmu->name = kasprintf(GFP_KERNEL, "%s_%d", base_name, pmu_idx++);
 		if (!pmu->name) {
 			pr_warn("Unable to allocate PMU name for CPU%d\n", cpu);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ret = armpmu_register(pmu);

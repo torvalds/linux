@@ -104,7 +104,7 @@ static int tpic2810_probe(struct i2c_client *client)
 
 	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->chip = template_chip;
 	gpio->chip.parent = &client->dev;

@@ -7,7 +7,7 @@
  *  adc161s626 - 16-bit ADC
  *
  * Copyright (C) 2016-2018
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Raanalstay <matt.raanalstay@konsulko.com>
  */
 
 #include <linux/module.h>
@@ -123,7 +123,7 @@ static irqreturn_t ti_adc_trigger_handler(int irq, void *private)
 					data->buffer,
 					iio_get_time_ns(indio_dev));
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -182,7 +182,7 @@ static int ti_adc_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	indio_dev->info = &ti_adc_info;
 	indio_dev->name = TI_ADC_DRV_NAME;
@@ -251,6 +251,6 @@ static struct spi_driver ti_adc_driver = {
 };
 module_spi_driver(ti_adc_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Raanalstay <matt.raanalstay@konsulko.com>");
 MODULE_DESCRIPTION("Texas Instruments ADC1x1S 1-channel differential ADC");
 MODULE_LICENSE("GPL");

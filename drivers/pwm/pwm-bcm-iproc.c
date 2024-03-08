@@ -83,7 +83,7 @@ static int iproc_pwmc_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		state->enabled = false;
 
 	if (value & BIT(IPROC_PWM_CTRL_POLARITY_SHIFT(pwm->hwpwm)))
-		state->polarity = PWM_POLARITY_NORMAL;
+		state->polarity = PWM_POLARITY_ANALRMAL;
 	else
 		state->polarity = PWM_POLARITY_INVERSED;
 
@@ -167,7 +167,7 @@ static int iproc_pwmc_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	/* set polarity */
 	value = readl(ip->base + IPROC_PWM_CTRL_OFFSET);
 
-	if (state->polarity == PWM_POLARITY_NORMAL)
+	if (state->polarity == PWM_POLARITY_ANALRMAL)
 		value |= 1 << IPROC_PWM_CTRL_POLARITY_SHIFT(pwm->hwpwm);
 	else
 		value &= ~(1 << IPROC_PWM_CTRL_POLARITY_SHIFT(pwm->hwpwm));
@@ -194,7 +194,7 @@ static int iproc_pwmc_probe(struct platform_device *pdev)
 
 	ip = devm_kzalloc(&pdev->dev, sizeof(*ip), GFP_KERNEL);
 	if (!ip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ip);
 
@@ -211,7 +211,7 @@ static int iproc_pwmc_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(ip->clk),
 				     "failed to get clock\n");
 
-	/* Set full drive and normal polarity for all channels */
+	/* Set full drive and analrmal polarity for all channels */
 	value = readl(ip->base + IPROC_PWM_CTRL_OFFSET);
 
 	for (i = 0; i < ip->chip.npwm; i++) {

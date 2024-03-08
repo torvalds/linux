@@ -61,7 +61,7 @@ unload_driver()
 
 run_smoke()
 {
-	echo "Running smoke test. Note, this test provides basic coverage."
+	echo "Running smoke test. Analte, this test provides basic coverage."
 
 	load_driver $1 $2
 	$(dirname "${BASH_SOURCE[0]}")/hmm-tests

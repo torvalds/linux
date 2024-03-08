@@ -61,29 +61,29 @@ int user_dlm_cluster_lock(struct user_lock_res *lockres,
 			  int lkm_flags);
 void user_dlm_cluster_unlock(struct user_lock_res *lockres,
 			     int level);
-void user_dlm_write_lvb(struct inode *inode,
+void user_dlm_write_lvb(struct ianalde *ianalde,
 			const char *val,
 			unsigned int len);
-bool user_dlm_read_lvb(struct inode *inode, char *val);
+bool user_dlm_read_lvb(struct ianalde *ianalde, char *val);
 struct ocfs2_cluster_connection *user_dlm_register(const struct qstr *name);
 void user_dlm_unregister(struct ocfs2_cluster_connection *conn);
 void user_dlm_set_locking_protocol(void);
 
-struct dlmfs_inode_private {
+struct dlmfs_ianalde_private {
 	struct ocfs2_cluster_connection	*ip_conn;
 
 	struct user_lock_res ip_lockres; /* unused for directories. */
-	struct inode         *ip_parent;
+	struct ianalde         *ip_parent;
 
-	struct inode         ip_vfs_inode;
+	struct ianalde         ip_vfs_ianalde;
 };
 
-static inline struct dlmfs_inode_private *
-DLMFS_I(struct inode *inode)
+static inline struct dlmfs_ianalde_private *
+DLMFS_I(struct ianalde *ianalde)
 {
-        return container_of(inode,
-			    struct dlmfs_inode_private,
-			    ip_vfs_inode);
+        return container_of(ianalde,
+			    struct dlmfs_ianalde_private,
+			    ip_vfs_ianalde);
 }
 
 struct dlmfs_filp_private {

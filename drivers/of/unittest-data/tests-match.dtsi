@@ -2,7 +2,7 @@
 
 / {
 	testcase-data {
-		match-node {
+		match-analde {
 			name0 { };
 			name1 { device_type = "type1"; };
 			a { name2 { device_type = "type1"; }; };

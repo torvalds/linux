@@ -41,7 +41,7 @@
     {
         "BriefDescription": "Counts the number of branch instructions retired that were near indirect CALL or near indirect JMP. (Precise Event)",
         "EventCode": "0xC4",
-        "EventName": "BR_INST_RETIRED.NON_RETURN_IND",
+        "EventName": "BR_INST_RETIRED.ANALN_RETURN_IND",
         "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xeb"
@@ -112,7 +112,7 @@
     {
         "BriefDescription": "Counts the number of mispredicted branch instructions retired that were near indirect CALL or near indirect JMP. (Precise Event)",
         "EventCode": "0xC5",
-        "EventName": "BR_MISP_RETIRED.NON_RETURN_IND",
+        "EventName": "BR_MISP_RETIRED.ANALN_RETURN_IND",
         "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xeb"
@@ -157,7 +157,7 @@
     {
         "BriefDescription": "Fixed Counter: Counts the number of unhalted core clock cycles",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
-        "PublicDescription": "This event counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter",
+        "PublicDescription": "This event counts the number of core cycles while the thread is analt in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Techanallogy or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was analt in the halt state. It is counted on a dedicated fixed counter",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -168,10 +168,10 @@
         "SampleAfterValue": "2000003"
     },
     {
-        "BriefDescription": "Cycles the number of core cycles when divider is busy.  Does not imply a stall waiting for the divider.",
+        "BriefDescription": "Cycles the number of core cycles when divider is busy.  Does analt imply a stall waiting for the divider.",
         "EventCode": "0xCD",
         "EventName": "CYCLES_DIV_BUSY.ALL",
-        "PublicDescription": "This event counts cycles when the divider is busy. More specifically cycles when the divide unit is unable to accept a new divide uop because it is busy processing a previously dispatched uop. The cycles will be counted irrespective of whether or not another divide uop is waiting to enter the divide unit (from the RS). This event counts integer divides, x87 divides, divss, divsd, sqrtss, sqrtsd event and does not count vector divides.",
+        "PublicDescription": "This event counts cycles when the divider is busy. More specifically cycles when the divide unit is unable to accept a new divide uop because it is busy processing a previously dispatched uop. The cycles will be counted irrespective of whether or analt aanalther divide uop is waiting to enter the divide unit (from the RS). This event counts integer divides, x87 divides, divss, divsd, sqrtss, sqrtsd event and does analt count vector divides.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -210,39 +210,39 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts the total number of core cycles when no micro-ops are allocated for any reason.",
+        "BriefDescription": "Counts the total number of core cycles when anal micro-ops are allocated for any reason.",
         "EventCode": "0xCA",
-        "EventName": "NO_ALLOC_CYCLES.ALL",
+        "EventName": "ANAL_ALLOC_CYCLES.ALL",
         "SampleAfterValue": "200003",
         "UMask": "0x7f"
     },
     {
-        "BriefDescription": "Counts the number of core cycles when no micro-ops are allocated and the alloc pipe is stalled waiting for a mispredicted branch to retire.",
+        "BriefDescription": "Counts the number of core cycles when anal micro-ops are allocated and the alloc pipe is stalled waiting for a mispredicted branch to retire.",
         "EventCode": "0xCA",
-        "EventName": "NO_ALLOC_CYCLES.MISPREDICTS",
-        "PublicDescription": "This event counts the number of core cycles when no uops are allocated and the alloc pipe is stalled waiting for a mispredicted branch to retire.",
+        "EventName": "ANAL_ALLOC_CYCLES.MISPREDICTS",
+        "PublicDescription": "This event counts the number of core cycles when anal uops are allocated and the alloc pipe is stalled waiting for a mispredicted branch to retire.",
         "SampleAfterValue": "200003",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Counts the number of core cycles when no micro-ops are allocated, the IQ is empty, and no other condition is blocking allocation.",
+        "BriefDescription": "Counts the number of core cycles when anal micro-ops are allocated, the IQ is empty, and anal other condition is blocking allocation.",
         "EventCode": "0xCA",
-        "EventName": "NO_ALLOC_CYCLES.NOT_DELIVERED",
-        "PublicDescription": "This event counts the number of core cycles when no uops are allocated, the instruction queue is empty and the alloc pipe is stalled waiting for instructions to be fetched.",
+        "EventName": "ANAL_ALLOC_CYCLES.ANALT_DELIVERED",
+        "PublicDescription": "This event counts the number of core cycles when anal uops are allocated, the instruction queue is empty and the alloc pipe is stalled waiting for instructions to be fetched.",
         "SampleAfterValue": "200003",
         "UMask": "0x90"
     },
     {
-        "BriefDescription": "Counts the number of core cycles when no micro-ops are allocated and a RATstall (caused by reservation station full) is asserted.",
+        "BriefDescription": "Counts the number of core cycles when anal micro-ops are allocated and a RATstall (caused by reservation station full) is asserted.",
         "EventCode": "0xCA",
-        "EventName": "NO_ALLOC_CYCLES.RAT_STALL",
+        "EventName": "ANAL_ALLOC_CYCLES.RAT_STALL",
         "SampleAfterValue": "200003",
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Counts the number of core cycles when no micro-ops are allocated and the ROB is full",
+        "BriefDescription": "Counts the number of core cycles when anal micro-ops are allocated and the ROB is full",
         "EventCode": "0xCA",
-        "EventName": "NO_ALLOC_CYCLES.ROB_FULL",
+        "EventName": "ANAL_ALLOC_CYCLES.ROB_FULL",
         "SampleAfterValue": "200003",
         "UMask": "0x1"
     },
@@ -261,9 +261,9 @@
         "UMask": "0x80"
     },
     {
-        "BriefDescription": "Counts the number of occurrences a retired load gets blocked because its address overlaps with a store whose data is not ready",
+        "BriefDescription": "Counts the number of occurrences a retired load gets blocked because its address overlaps with a store whose data is analt ready",
         "EventCode": "0x03",
-        "EventName": "RECYCLEQ.LD_BLOCK_STD_NOTREADY",
+        "EventName": "RECYCLEQ.LD_BLOCK_STD_ANALTREADY",
         "SampleAfterValue": "200003",
         "UMask": "0x2"
     },
@@ -283,12 +283,12 @@
         "EventCode": "0x03",
         "EventName": "RECYCLEQ.LD_SPLITS",
         "PEBS": "1",
-        "PublicDescription": "This event counts the number of retired loads which was pushed into the recycled queue that experienced cache line boundary splits (Precise event). Not that each split should be counted only once.",
+        "PublicDescription": "This event counts the number of retired loads which was pushed into the recycled queue that experienced cache line boundary splits (Precise event). Analt that each split should be counted only once.",
         "SampleAfterValue": "200003",
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "Counts all the retired locked loads. It does not include stores because we would double count if we count stores",
+        "BriefDescription": "Counts all the retired locked loads. It does analt include stores because we would double count if we count stores",
         "EventCode": "0x03",
         "EventName": "RECYCLEQ.LOCK",
         "SampleAfterValue": "200003",
@@ -305,7 +305,7 @@
         "BriefDescription": "Counts the number of occurrences a retired store that is a cache line split. Each split should be counted only once.",
         "EventCode": "0x03",
         "EventName": "RECYCLEQ.ST_SPLITS",
-        "PublicDescription": "This event counts the number of retired store that experienced a cache line boundary split(Precise Event). Note that each spilt should be counted only once.",
+        "PublicDescription": "This event counts the number of retired store that experienced a cache line boundary split(Precise Event). Analte that each spilt should be counted only once.",
         "SampleAfterValue": "200003",
         "UMask": "0x4"
     },

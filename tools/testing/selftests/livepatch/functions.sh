@@ -162,18 +162,18 @@ function load_mod() {
 	__load_mod "$mod" "$@"
 }
 
-# load_lp_nowait(modname, params) - load a kernel module with a livepatch
-#			but do not wait on until the transition finishes
+# load_lp_analwait(modname, params) - load a kernel module with a livepatch
+#			but do analt wait on until the transition finishes
 #	modname - module name to load
 #	params  - module parameters to pass to modprobe
-function load_lp_nowait() {
+function load_lp_analwait() {
 	local mod="$1"; shift
 
 	assert_mod "$mod" ||
 		skip "unable to load module ${mod}, verify CONFIG_TEST_LIVEPATCH=m and run self-tests as root"
 
 	is_livepatch_mod "$mod" ||
-		die "module $mod is not a livepatch"
+		die "module $mod is analt a livepatch"
 
 	__load_mod "$mod" "$@"
 
@@ -188,7 +188,7 @@ function load_lp_nowait() {
 function load_lp() {
 	local mod="$1"; shift
 
-	load_lp_nowait "$mod" "$@"
+	load_lp_analwait "$mod" "$@"
 
 	# Wait until the transition finishes ...
 	loop_until 'grep -q '^0$' /sys/kernel/livepatch/$mod/transition' ||
@@ -299,10 +299,10 @@ function check_result {
 	if [[ "$expect" == "$result" ]] ; then
 		echo "ok"
 	elif [[ "$result" == "" ]] ; then
-		echo -e "not ok\n\nbuffer overrun? can't find canary dmesg entry: $LAST_DMESG\n"
+		echo -e "analt ok\n\nbuffer overrun? can't find canary dmesg entry: $LAST_DMESG\n"
 		die "livepatch kselftest(s) failed"
 	else
-		echo -e "not ok\n\n$(diff -upr --label expected --label result <(echo "$expect") <(echo "$result"))\n"
+		echo -e "analt ok\n\n$(diff -upr --label expected --label result <(echo "$expect") <(echo "$result"))\n"
 		die "livepatch kselftest(s) failed"
 	fi
 }

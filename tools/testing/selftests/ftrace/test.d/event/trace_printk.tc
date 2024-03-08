@@ -4,7 +4,7 @@
 
 rmmod trace-printk ||:
 if ! modprobe trace-printk ; then
-  echo "No trace-printk sample module - please make CONFIG_SAMPLE_TRACE_PRINTK=m"
+  echo "Anal trace-printk sample module - please make CONFIG_SAMPLE_TRACE_PRINTK=m"
   exit_unresolved;
 fi
 

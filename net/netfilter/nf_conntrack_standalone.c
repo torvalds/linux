@@ -102,13 +102,13 @@ struct ct_iter_state {
 	struct hlist_nulls_head *hash;
 	unsigned int htable_size;
 	unsigned int bucket;
-	u_int64_t time_now;
+	u_int64_t time_analw;
 };
 
-static struct hlist_nulls_node *ct_get_first(struct seq_file *seq)
+static struct hlist_nulls_analde *ct_get_first(struct seq_file *seq)
 {
 	struct ct_iter_state *st = seq->private;
-	struct hlist_nulls_node *n;
+	struct hlist_nulls_analde *n;
 
 	for (st->bucket = 0;
 	     st->bucket < st->htable_size;
@@ -121,8 +121,8 @@ static struct hlist_nulls_node *ct_get_first(struct seq_file *seq)
 	return NULL;
 }
 
-static struct hlist_nulls_node *ct_get_next(struct seq_file *seq,
-				      struct hlist_nulls_node *head)
+static struct hlist_nulls_analde *ct_get_next(struct seq_file *seq,
+				      struct hlist_nulls_analde *head)
 {
 	struct ct_iter_state *st = seq->private;
 
@@ -138,9 +138,9 @@ static struct hlist_nulls_node *ct_get_next(struct seq_file *seq,
 	return head;
 }
 
-static struct hlist_nulls_node *ct_get_idx(struct seq_file *seq, loff_t pos)
+static struct hlist_nulls_analde *ct_get_idx(struct seq_file *seq, loff_t pos)
 {
-	struct hlist_nulls_node *head = ct_get_first(seq);
+	struct hlist_nulls_analde *head = ct_get_first(seq);
 
 	if (head)
 		while (pos && (head = ct_get_next(seq, head)))
@@ -153,7 +153,7 @@ static void *ct_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct ct_iter_state *st = seq->private;
 
-	st->time_now = ktime_get_real_ns();
+	st->time_analw = ktime_get_real_ns();
 	rcu_read_lock();
 
 	nf_conntrack_get_ht(&st->hash, &st->htable_size);
@@ -231,7 +231,7 @@ static void ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
 
 	tstamp = nf_conn_tstamp_find(ct);
 	if (tstamp) {
-		delta_time = st->time_now - tstamp->start;
+		delta_time = st->time_analw - tstamp->start;
 		if (delta_time > 0)
 			delta_time = div_s64(delta_time, NSEC_PER_SEC);
 		else
@@ -256,7 +256,7 @@ static const char* l3proto_name(u16 proto)
 	case AF_INET6: return "ipv6";
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 static const char* l4proto_name(u16 proto)
@@ -272,7 +272,7 @@ static const char* l4proto_name(u16 proto)
 	case IPPROTO_ICMPV6: return "icmpv6";
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 static void
@@ -301,7 +301,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	int ret = 0;
 
 	WARN_ON(!ct);
-	if (unlikely(!refcount_inc_not_zero(&ct->ct_general.use)))
+	if (unlikely(!refcount_inc_analt_zero(&ct->ct_general.use)))
 		return 0;
 
 	/* load ->status after refcount increase */
@@ -321,7 +321,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 
 	l4proto = nf_ct_l4proto_find(nf_ct_protonum(ct));
 
-	ret = -ENOSPC;
+	ret = -EANALSPC;
 	seq_printf(s, "%-8s %u %-8s %u ",
 		   l3proto_name(nf_ct_l3num(ct)), nf_ct_l3num(ct),
 		   l4proto_name(l4proto->l4proto), nf_ct_protonum(ct));
@@ -431,7 +431,7 @@ static int ct_cpu_seq_show(struct seq_file *seq, void *v)
 	unsigned int nr_conntracks;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_puts(seq, "entries  clashres found new invalid ignore delete chainlength insert insert_failed drop early_drop icmp_error  expect_new expect_create expect_delete search_restart\n");
+		seq_puts(seq, "entries  clashres found new invalid iganalre delete chainlength insert insert_failed drop early_drop icmp_error  expect_new expect_create expect_delete search_restart\n");
 		return 0;
 	}
 
@@ -493,7 +493,7 @@ static int nf_conntrack_standalone_init_proc(struct net *net)
 out_stat_nf_conntrack:
 	remove_proc_entry("nf_conntrack", net->proc_net);
 out_nf_conntrack:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void nf_conntrack_standalone_fini_proc(struct net *net)
@@ -539,7 +539,7 @@ nf_conntrack_hash_sysctl(struct ctl_table *table, int write,
 	if (ret < 0 || !write)
 		return ret;
 
-	/* update ret, we might not be able to satisfy request */
+	/* update ret, we might analt be able to satisfy request */
 	ret = nf_conntrack_hash_resize(nf_conntrack_htable_size_user);
 
 	/* update it to the actual value used by conntrack */
@@ -579,7 +579,7 @@ enum nf_ct_sysctl_index {
 #endif
 	NF_SYSCTL_CT_PROTO_TCP_LOOSE,
 	NF_SYSCTL_CT_PROTO_TCP_LIBERAL,
-	NF_SYSCTL_CT_PROTO_TCP_IGNORE_INVALID_RST,
+	NF_SYSCTL_CT_PROTO_TCP_IGANALRE_INVALID_RST,
 	NF_SYSCTL_CT_PROTO_TCP_MAX_RETRANS,
 	NF_SYSCTL_CT_PROTO_TIMEOUT_UDP,
 	NF_SYSCTL_CT_PROTO_TIMEOUT_UDP_STREAM,
@@ -757,7 +757,7 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_UNACK] = {
-		.procname	= "nf_conntrack_tcp_timeout_unacknowledged",
+		.procname	= "nf_conntrack_tcp_timeout_unackanalwledged",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
@@ -786,8 +786,8 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.extra1 	= SYSCTL_ZERO,
 		.extra2 	= SYSCTL_ONE,
 	},
-	[NF_SYSCTL_CT_PROTO_TCP_IGNORE_INVALID_RST] = {
-		.procname	= "nf_conntrack_tcp_ignore_invalid_rst",
+	[NF_SYSCTL_CT_PROTO_TCP_IGANALRE_INVALID_RST] = {
+		.procname	= "nf_conntrack_tcp_iganalre_invalid_rst",
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
 		.proc_handler	= proc_dou8vec_minmax,
@@ -997,7 +997,7 @@ static void nf_conntrack_standalone_init_tcp_sysctl(struct net *net,
 	XASSIGN(LOOSE, &tn->tcp_loose);
 	XASSIGN(LIBERAL, &tn->tcp_be_liberal);
 	XASSIGN(MAX_RETRANS, &tn->tcp_max_retrans);
-	XASSIGN(IGNORE_INVALID_RST, &tn->tcp_ignore_invalid_rst);
+	XASSIGN(IGANALRE_INVALID_RST, &tn->tcp_iganalre_invalid_rst);
 #undef XASSIGN
 
 #if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
@@ -1073,7 +1073,7 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 	table = kmemdup(nf_ct_sysctl_table, sizeof(nf_ct_sysctl_table),
 			GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	table[NF_SYSCTL_CT_COUNT].data = &cnet->count;
 	table[NF_SYSCTL_CT_CHECKSUM].data = &net->ct.sysctl_checksum;
@@ -1099,7 +1099,7 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 	nf_conntrack_standalone_init_dccp_sysctl(net, table);
 	nf_conntrack_standalone_init_gre_sysctl(net, table);
 
-	/* Don't allow non-init_net ns to alter global sysctls */
+	/* Don't allow analn-init_net ns to alter global sysctls */
 	if (!net_eq(&init_net, net)) {
 		table[NF_SYSCTL_CT_MAX].mode = 0444;
 		table[NF_SYSCTL_CT_EXPECT_MAX].mode = 0444;
@@ -1116,7 +1116,7 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 
 out_unregister_netfilter:
 	kfree(table);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void nf_conntrack_standalone_fini_sysctl(struct net *net)
@@ -1213,7 +1213,7 @@ static int __init nf_conntrack_standalone_init(void)
 		register_net_sysctl(&init_net, "net", nf_ct_netfilter_table);
 	if (!nf_ct_netfilter_header) {
 		pr_err("nf_conntrack: can't register to sysctl.\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_sysctl;
 	}
 

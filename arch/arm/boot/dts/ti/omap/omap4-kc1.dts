@@ -150,7 +150,7 @@
 	pinctrl-0 = <&mmc2_pins>;
 
 	vmmc-supply = <&vaux1>;
-	ti,non-removable;
+	ti,analn-removable;
 	bus-width = <8>;
 };
 

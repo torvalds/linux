@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
-#include <linux/mtd/spi-nor.h>
+#include <linux/mtd/spi-analr.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
 #include "spi-bcm-qspi.h"
@@ -146,8 +146,8 @@
 
 #define ADDR_4MB_MASK				GENMASK(22, 0)
 
-/* stop at end of transfer, no other reason */
-#define TRANS_STATUS_BREAK_NONE		0
+/* stop at end of transfer, anal other reason */
+#define TRANS_STATUS_BREAK_ANALNE		0
 /* stop at end of spi_message */
 #define TRANS_STATUS_BREAK_EOM			1
 /* stop at end of spi_transfer if delay */
@@ -155,7 +155,7 @@
 /* stop at end of spi_transfer if cs_change */
 #define TRANS_STATUS_BREAK_CS_CHANGE		4
 /* stop if we run out of bytes */
-#define TRANS_STATUS_BREAK_NO_BYTES		8
+#define TRANS_STATUS_BREAK_ANAL_BYTES		8
 
 /* events that make us stop filling TX slots */
 #define TRANS_STATUS_BREAK_TX (TRANS_STATUS_BREAK_EOM |		\
@@ -318,7 +318,7 @@ static int bcm_qspi_bspi_busy_poll(struct bcm_qspi *qspi)
 {
 	int i;
 
-	/* this should normally finish within 10us */
+	/* this should analrmally finish within 10us */
 	for (i = 0; i < 1000; i++) {
 		if (!(bcm_qspi_read(qspi, BSPI, BSPI_BUSY_STATUS) & 1))
 			return 0;
@@ -434,7 +434,7 @@ static int bcm_qspi_bspi_set_flex_mode(struct bcm_qspi *qspi,
 	switch (width) {
 	case SPI_NBITS_SINGLE:
 		if (addrlen == BSPI_ADDRLEN_3BYTES)
-			/* default mode, does not need flex_cmd */
+			/* default mode, does analt need flex_cmd */
 			flex_mode = 0;
 		break;
 	case SPI_NBITS_DUAL:
@@ -714,7 +714,7 @@ static int bcm_qspi_setup(struct spi_device *spi)
 	if (!xp) {
 		xp = kzalloc(sizeof(*xp), GFP_KERNEL);
 		if (!xp)
-			return -ENOMEM;
+			return -EANALMEM;
 		spi_set_ctldata(spi, xp);
 	}
 	xp->speed_hz = spi->max_speed_hz;
@@ -741,7 +741,7 @@ static bool bcm_qspi_mspi_transfer_is_last(struct bcm_qspi *qspi,
 static int update_qspi_trans_byte_count(struct bcm_qspi *qspi,
 					struct qspi_trans *qt, int flags)
 {
-	int ret = TRANS_STATUS_BREAK_NONE;
+	int ret = TRANS_STATUS_BREAK_ANALNE;
 
 	/* count the last transferred bytes */
 	if (qt->trans->bits_per_word <= 8)
@@ -766,7 +766,7 @@ static int update_qspi_trans_byte_count(struct bcm_qspi *qspi,
 		if (bcm_qspi_mspi_transfer_is_last(qspi, qt))
 			ret |= TRANS_STATUS_BREAK_EOM;
 		else
-			ret |= TRANS_STATUS_BREAK_NO_BYTES;
+			ret |= TRANS_STATUS_BREAK_ANAL_BYTES;
 
 		qt->trans = NULL;
 	}
@@ -874,7 +874,7 @@ static void read_from_hw(struct bcm_qspi *qspi, int slots)
 		}
 
 		update_qspi_trans_byte_count(qspi, &tp,
-					     TRANS_STATUS_BREAK_NONE);
+					     TRANS_STATUS_BREAK_ANALNE);
 	}
 
 	qspi->trans_pos = tp;
@@ -997,7 +997,7 @@ static int write_to_hw(struct bcm_qspi *qspi, struct spi_device *spi)
 	}
 
 	if (!slot) {
-		dev_err(&qspi->pdev->dev, "%s: no data to send?", __func__);
+		dev_err(&qspi->pdev->dev, "%s: anal data to send?", __func__);
 		goto done;
 	}
 
@@ -1169,7 +1169,7 @@ static int bcm_qspi_mspi_exec_mem_op(struct spi_device *spi,
 	t[0].len = op->addr.nbytes + op->dummy.nbytes + 1;
 	t[0].bits_per_word = spi->bits_per_word;
 	t[0].tx_nbits = op->cmd.buswidth;
-	/* lets mspi know that this is not last transfer */
+	/* lets mspi kanalw that this is analt last transfer */
 	qspi->trans_pos.mspi_last_trans = false;
 	ret = bcm_qspi_transfer_one(host, spi, &t[0]);
 
@@ -1199,7 +1199,7 @@ static int bcm_qspi_exec_mem_op(struct spi_mem *mem,
 
 	if (!op->data.nbytes || !op->addr.nbytes || op->addr.nbytes > 4 ||
 	    op->data.dir != SPI_MEM_DATA_IN)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	buf = op->data.buf.in;
 	addr = op->addr.val;
@@ -1219,9 +1219,9 @@ static int bcm_qspi_exec_mem_op(struct spi_mem *mem,
 			mspi_read = true;
 	}
 
-	/* non-aligned and very short transfers are handled by MSPI */
+	/* analn-aligned and very short transfers are handled by MSPI */
 	if (!IS_ALIGNED((uintptr_t)addr, 4) || !IS_ALIGNED((uintptr_t)buf, 4) ||
-	    len < 4 || op->cmd.opcode == SPINOR_OP_RDSFDP)
+	    len < 4 || op->cmd.opcode == SPIANALR_OP_RDSFDP)
 		mspi_read = true;
 
 	if (!has_bspi(qspi) || mspi_read)
@@ -1259,7 +1259,7 @@ static irqreturn_t bcm_qspi_mspi_l2_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t bcm_qspi_bspi_lr_l2_isr(int irq, void *dev_id)
@@ -1320,7 +1320,7 @@ static irqreturn_t bcm_qspi_l1_isr(int irq, void *dev_id)
 	struct bcm_qspi_dev_id *qspi_dev_id = dev_id;
 	struct bcm_qspi *qspi = qspi_dev_id->dev;
 	struct bcm_qspi_soc_intc *soc_intc = qspi->soc_intc;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (soc_intc) {
 		u32 status = soc_intc->bcm_qspi_get_int_status(soc_intc);
@@ -1442,7 +1442,7 @@ struct bcm_qspi_data {
 	bool	has_spcr3_sysclk;
 };
 
-static const struct bcm_qspi_data bcm_qspi_no_rev_data = {
+static const struct bcm_qspi_data bcm_qspi_anal_rev_data = {
 	.has_mspi_rev	= false,
 	.has_spcr3_sysclk = false,
 };
@@ -1465,7 +1465,7 @@ static const struct of_device_id bcm_qspi_of_match[] __maybe_unused = {
 	},
 	{
 		.compatible = "brcm,spi-bcm-qspi",
-		.data = &bcm_qspi_no_rev_data,
+		.data = &bcm_qspi_anal_rev_data,
 	},
 	{
 		.compatible = "brcm,spi-bcm7216-qspi",
@@ -1495,19 +1495,19 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	int num_irqs = ARRAY_SIZE(qspi_irq_tab);
 
 	/* We only support device-tree instantiation */
-	if (!dev->of_node)
-		return -ENODEV;
+	if (!dev->of_analde)
+		return -EANALDEV;
 
-	of_id = of_match_node(bcm_qspi_of_match, dev->of_node);
+	of_id = of_match_analde(bcm_qspi_of_match, dev->of_analde);
 	if (!of_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = of_id->data;
 
 	host = devm_spi_alloc_host(dev, sizeof(struct bcm_qspi));
 	if (!host) {
 		dev_err(dev, "error allocating spi_controller\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	qspi = spi_controller_get_devdata(host);
@@ -1529,13 +1529,13 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	host->transfer_one = bcm_qspi_transfer_one;
 	host->mem_ops = &bcm_qspi_mem_ops;
 	host->cleanup = bcm_qspi_cleanup;
-	host->dev.of_node = dev->of_node;
+	host->dev.of_analde = dev->of_analde;
 	host->num_chipselect = NUM_CHIPSELECT;
 	host->use_gpio_descriptors = true;
 
-	qspi->big_endian = of_device_is_big_endian(dev->of_node);
+	qspi->big_endian = of_device_is_big_endian(dev->of_analde);
 
-	if (!of_property_read_u32(dev->of_node, "num-cs", &val))
+	if (!of_property_read_u32(dev->of_analde, "num-cs", &val))
 		host->num_chipselect = val;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hif_mspi");
@@ -1569,7 +1569,7 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	qspi->dev_ids = kcalloc(num_irqs, sizeof(struct bcm_qspi_dev_id),
 				GFP_KERNEL);
 	if (!qspi->dev_ids)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Some SoCs integrate spi controller (e.g., its interrupt bits)
@@ -1595,7 +1595,7 @@ int bcm_qspi_probe(struct platform_device *pdev,
 
 	if (data->has_mspi_rev) {
 		rev = bcm_qspi_read(qspi, MSPI, MSPI_REV);
-		/* some older revs do not have a MSPI_REV register */
+		/* some older revs do analt have a MSPI_REV register */
 		if ((rev & 0xff) == 0xff)
 			rev = 0;
 	}
@@ -1629,7 +1629,7 @@ int bcm_qspi_probe(struct platform_device *pdev,
 					       name,
 					       &qspi->dev_ids[val]);
 			if (ret < 0) {
-				dev_err(&pdev->dev, "IRQ %s not found\n", name);
+				dev_err(&pdev->dev, "IRQ %s analt found\n", name);
 				goto qspi_unprepare_err;
 			}
 
@@ -1643,7 +1643,7 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	}
 
 	if (!num_ints) {
-		dev_err(&pdev->dev, "no IRQs registered, cannot init driver\n");
+		dev_err(&pdev->dev, "anal IRQs registered, cananalt init driver\n");
 		ret = -EINVAL;
 		goto qspi_unprepare_err;
 	}

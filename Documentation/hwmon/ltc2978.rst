@@ -3,7 +3,7 @@ Kernel driver ltc2978
 
 Supported chips:
 
-  * Linear Technology LTC2972
+  * Linear Techanallogy LTC2972
 
     Prefix: 'ltc2972'
 
@@ -11,7 +11,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltc2972.html
 
-  * Linear Technology LTC2974
+  * Linear Techanallogy LTC2974
 
     Prefix: 'ltc2974'
 
@@ -19,7 +19,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltc2974
 
-  * Linear Technology LTC2975
+  * Linear Techanallogy LTC2975
 
     Prefix: 'ltc2975'
 
@@ -27,7 +27,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltc2975
 
-  * Linear Technology LTC2977
+  * Linear Techanallogy LTC2977
 
     Prefix: 'ltc2977'
 
@@ -35,7 +35,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltc2977
 
-  * Linear Technology LTC2978, LTC2978A
+  * Linear Techanallogy LTC2978, LTC2978A
 
     Prefix: 'ltc2978'
 
@@ -45,7 +45,7 @@ Supported chips:
 
 	       https://www.analog.com/en/products/ltc2978a
 
-  * Linear Technology LTC2979
+  * Linear Techanallogy LTC2979
 
     Prefix: 'ltc2979'
 
@@ -53,7 +53,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltc2979
 
-  * Linear Technology LTC2980
+  * Linear Techanallogy LTC2980
 
     Prefix: 'ltc2980'
 
@@ -61,7 +61,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltc2980
 
-  * Linear Technology LTC3880
+  * Linear Techanallogy LTC3880
 
     Prefix: 'ltc3880'
 
@@ -69,7 +69,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltc3880
 
-  * Linear Technology LTC3882
+  * Linear Techanallogy LTC3882
 
     Prefix: 'ltc3882'
 
@@ -77,7 +77,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltc3882
 
-  * Linear Technology LTC3883
+  * Linear Techanallogy LTC3883
 
     Prefix: 'ltc3883'
 
@@ -85,7 +85,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltc3883
 
-  * Linear Technology LTC3884
+  * Linear Techanallogy LTC3884
 
     Prefix: 'ltc3884'
 
@@ -93,7 +93,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltc3884
 
-  * Linear Technology LTC3886
+  * Linear Techanallogy LTC3886
 
     Prefix: 'ltc3886'
 
@@ -101,7 +101,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltc3886
 
-  * Linear Technology LTC3887
+  * Linear Techanallogy LTC3887
 
     Prefix: 'ltc3887'
 
@@ -109,7 +109,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltc3887
 
-  * Linear Technology LTC3889
+  * Linear Techanallogy LTC3889
 
     Prefix: 'ltc3889'
 
@@ -117,7 +117,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltc3889
 
-  * Linear Technology LTC7880
+  * Linear Techanallogy LTC7880
 
     Prefix: 'ltc7880'
 
@@ -125,7 +125,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltc7880
 
-  * Linear Technology LTM2987
+  * Linear Techanallogy LTM2987
 
     Prefix: 'ltm2987'
 
@@ -133,7 +133,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltm2987
 
-  * Linear Technology LTM4644
+  * Linear Techanallogy LTM4644
 
     Prefix: 'ltm4644'
 
@@ -141,7 +141,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltm4644
 
-   * Linear Technology LTM4675
+   * Linear Techanallogy LTM4675
 
     Prefix: 'ltm4675'
 
@@ -149,7 +149,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltm4675
 
-  * Linear Technology LTM4676
+  * Linear Techanallogy LTM4676
 
     Prefix: 'ltm4676'
 
@@ -157,7 +157,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltm4676
 
-  * Linear Technology LTM4677
+  * Linear Techanallogy LTM4677
 
     Prefix: 'ltm4677'
 
@@ -165,7 +165,7 @@ Supported chips:
 
     Datasheet: https://www.analog.com/en/products/ltm4677
 
-  * Linear Technology LTM4678
+  * Linear Techanallogy LTM4678
 
     Prefix: 'ltm4678'
 
@@ -222,10 +222,10 @@ Description
 - LTM4686 is a dual 10A or single 20A uModule regulator.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does analt probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 Example: the following commands will load the driver for an LTC2978 at address
@@ -360,17 +360,17 @@ temp[N]_lowest		Lowest measured temperature.
 
 			- LTC2972, LTC2974, LTC2975, LTC2977, LTM2980, LTC2978,
 			  LTC2979, and LTM2987 only.
-			- Not supported for chip temperature sensor on LTC2974
+			- Analt supported for chip temperature sensor on LTC2974
 			  and LTC2975.
 
 temp[N]_highest		Highest measured temperature.
 
-			Not supported for chip temperature sensor on
+			Analt supported for chip temperature sensor on
 			LTC2974 and LTC2975.
 
 temp[N]_reset_history	Reset temperature history.
 
-			Not supported for chip temperature sensor on
+			Analt supported for chip temperature sensor on
 			LTC2974 and LTC2975.
 
 power1_label		"pin". LTC3883 and LTC3886 only.
@@ -381,8 +381,8 @@ power[N]_label		"pout[1-4]".
 
 			- LTC2972: N=1-2
 			- LTC2974, LTC2975: N=1-4
-			- LTC2977, LTC2979, LTC2980, LTM2987: Not supported
-			- LTC2978: Not supported
+			- LTC2977, LTC2979, LTC2980, LTM2987: Analt supported
+			- LTC2978: Analt supported
 			- LTC3880, LTC3882, LTC3884, LTC3886, LTC3887, LTC3889,
 			  LTM4664, LTM4675, LTM4676, LTM4677, LTM4678, LTM4680,
 			  LTM4700: N=1-2
@@ -414,8 +414,8 @@ curr[N]_label		"iout[1-4]".
 
 			- LTC2972: N-1-2
 			- LTC2974, LTC2975: N=1-4
-			- LTC2977, LTC2979, LTC2980, LTM2987: not supported
-			- LTC2978: not supported
+			- LTC2977, LTC2979, LTC2980, LTM2987: analt supported
+			- LTC2978: analt supported
 			- LTC3880, LTC3882, LTC3884, LTC3886, LTC3887, LTC3889,
 			  LTM4664, LTM4675, LTM4676, LTM4677, LTM4678, LTM4680,
 			  LTM4700: N=2-3

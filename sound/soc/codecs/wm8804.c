@@ -59,7 +59,7 @@ struct wm8804_priv {
 	struct device *dev;
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[WM8804_NUM_SUPPLIES];
-	struct notifier_block disable_nb[WM8804_NUM_SUPPLIES];
+	struct analtifier_block disable_nb[WM8804_NUM_SUPPLIES];
 	int mclk_div;
 
 	struct gpio_desc *reset;
@@ -74,12 +74,12 @@ static int wm8804_aif_event(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event);
 
 /*
- * We can't use the same notifier block for more than one supply and
- * there's no way I can see to get from a callback to the caller
+ * We can't use the same analtifier block for more than one supply and
+ * there's anal way I can see to get from a callback to the caller
  * except container_of().
  */
 #define WM8804_REGULATOR_EVENT(n) \
-static int wm8804_regulator_event_##n(struct notifier_block *nb, \
+static int wm8804_regulator_event_##n(struct analtifier_block *nb, \
 				      unsigned long event, void *data)    \
 { \
 	struct wm8804_priv *wm8804 = container_of(nb, struct wm8804_priv, \
@@ -108,11 +108,11 @@ SND_SOC_DAPM_INPUT("SPDIF In"),
 SND_SOC_DAPM_PGA("SPDIFTX", WM8804_PWRDN, 2, 1, NULL, 0),
 SND_SOC_DAPM_PGA("SPDIFRX", WM8804_PWRDN, 1, 1, NULL, 0),
 
-SND_SOC_DAPM_MUX("Tx Source", SND_SOC_NOPM, 6, 0, wm8804_tx_source_mux),
+SND_SOC_DAPM_MUX("Tx Source", SND_SOC_ANALPM, 6, 0, wm8804_tx_source_mux),
 
-SND_SOC_DAPM_AIF_OUT_E("AIFTX", NULL, 0, SND_SOC_NOPM, 0, 0, wm8804_aif_event,
+SND_SOC_DAPM_AIF_OUT_E("AIFTX", NULL, 0, SND_SOC_ANALPM, 0, 0, wm8804_aif_event,
 		       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_AIF_IN_E("AIFRX", NULL, 0, SND_SOC_NOPM, 0, 0, wm8804_aif_event,
+SND_SOC_DAPM_AIF_IN_E("AIFRX", NULL, 0, SND_SOC_ANALPM, 0, 0, wm8804_aif_event,
 		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
@@ -234,7 +234,7 @@ static int wm8804_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		format = 0x3;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown dai format\n");
+		dev_err(dai->dev, "Unkanalwn dai format\n");
 		return -EINVAL;
 	}
 
@@ -250,7 +250,7 @@ static int wm8804_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		master = 0;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown master/slave configuration\n");
+		dev_err(dai->dev, "Unkanalwn master/slave configuration\n");
 		return -EINVAL;
 	}
 
@@ -271,7 +271,7 @@ static int wm8804_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		lrp = 1;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown polarity configuration\n");
+		dev_err(dai->dev, "Unkanalwn polarity configuration\n");
 		return -EINVAL;
 	}
 
@@ -377,7 +377,7 @@ static int pll_factors(struct pll_div *pll_div, unsigned int target,
 	}
 
 	if (Ndiv < 5 || Ndiv > 13) {
-		pr_err("%s: WM8804 N value is not within the recommended range: %lu\n",
+		pr_err("%s: WM8804 N value is analt within the recommended range: %lu\n",
 		       __func__, Ndiv);
 		return -EINVAL;
 	}
@@ -457,7 +457,7 @@ static int wm8804_set_sysclk(struct snd_soc_dai *dai,
 				|| (freq >= 16280000 && freq <= 27000000))
 			snd_soc_component_update_bits(component, WM8804_PLL6, 0x80, 0x80);
 		else {
-			dev_err(dai->dev, "OSCCLOCK is not within the "
+			dev_err(dai->dev, "OSCCLOCK is analt within the "
 				"recommended range: %uHz\n", freq);
 			return -EINVAL;
 		}
@@ -472,7 +472,7 @@ static int wm8804_set_sysclk(struct snd_soc_dai *dai,
 		snd_soc_component_update_bits(component, WM8804_PLL6, 0x8, 0x8);
 		break;
 	default:
-		dev_err(dai->dev, "Unknown clock source: %d\n", clk_id);
+		dev_err(dai->dev, "Unkanalwn clock source: %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -496,7 +496,7 @@ static int wm8804_set_clkdiv(struct snd_soc_dai *dai,
 		wm8804->mclk_div = div;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown clock divider: %d\n", div_id);
+		dev_err(dai->dev, "Unkanalwn clock divider: %d\n", div_id);
 		return -EINVAL;
 	}
 	return 0;
@@ -568,7 +568,7 @@ int wm8804_probe(struct device *dev, struct regmap *regmap)
 
 	wm8804 = devm_kzalloc(dev, sizeof(*wm8804), GFP_KERNEL);
 	if (!wm8804)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, wm8804);
 
@@ -593,18 +593,18 @@ int wm8804_probe(struct device *dev, struct regmap *regmap)
 		return ret;
 	}
 
-	wm8804->disable_nb[0].notifier_call = wm8804_regulator_event_0;
-	wm8804->disable_nb[1].notifier_call = wm8804_regulator_event_1;
+	wm8804->disable_nb[0].analtifier_call = wm8804_regulator_event_0;
+	wm8804->disable_nb[1].analtifier_call = wm8804_regulator_event_1;
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); i++) {
 		struct regulator *regulator = wm8804->supplies[i].consumer;
 
-		ret = devm_regulator_register_notifier(regulator,
+		ret = devm_regulator_register_analtifier(regulator,
 						       &wm8804->disable_nb[i]);
 		if (ret != 0) {
 			dev_err(dev,
-				"Failed to register regulator notifier: %d\n",
+				"Failed to register regulator analtifier: %d\n",
 				ret);
 			return ret;
 		}

@@ -33,7 +33,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		bootargs = "iganalre_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -364,7 +364,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "spansion,s25fl512s", "jedec,spi-nor";
+		compatible = "spansion,s25fl512s", "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <30000000>;
 		spi-tx-bus-width = <4>;

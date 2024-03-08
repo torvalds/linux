@@ -16,7 +16,7 @@
  *
  * Return: True if @le is valid.
  */
-static inline bool al_is_valid_le(const struct ntfs_inode *ni,
+static inline bool al_is_valid_le(const struct ntfs_ianalde *ni,
 				  struct ATTR_LIST_ENTRY *le)
 {
 	if (!le || !ni->attr_list.le || !ni->attr_list.size)
@@ -26,7 +26,7 @@ static inline bool al_is_valid_le(const struct ntfs_inode *ni,
 	       ni->attr_list.size;
 }
 
-void al_destroy(struct ntfs_inode *ni)
+void al_destroy(struct ntfs_ianalde *ni)
 {
 	run_close(&ni->attr_list.run);
 	kvfree(ni->attr_list.le);
@@ -41,7 +41,7 @@ void al_destroy(struct ntfs_inode *ni)
  * This method makes sure that the ATTRIB list, if present,
  * has been properly set up.
  */
-int ntfs_load_attr_list(struct ntfs_inode *ni, struct ATTRIB *attr)
+int ntfs_load_attr_list(struct ntfs_ianalde *ni, struct ATTRIB *attr)
 {
 	int err;
 	size_t lsize;
@@ -50,12 +50,12 @@ int ntfs_load_attr_list(struct ntfs_inode *ni, struct ATTRIB *attr)
 	if (ni->attr_list.size)
 		return 0;
 
-	if (!attr->non_res) {
+	if (!attr->analn_res) {
 		lsize = le32_to_cpu(attr->res.data_size);
 		/* attr is resident: lsize < record_size (1K or 4K) */
 		le = kvmalloc(al_aligned(lsize), GFP_KERNEL);
 		if (!le) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		memcpy(le, resident_data(attr), lsize);
@@ -74,14 +74,14 @@ int ntfs_load_attr_list(struct ntfs_inode *ni, struct ATTRIB *attr)
 			goto out;
 		}
 
-		err = run_unpack_ex(&ni->attr_list.run, ni->mi.sbi, ni->mi.rno,
+		err = run_unpack_ex(&ni->attr_list.run, ni->mi.sbi, ni->mi.ranal,
 				    0, le64_to_cpu(attr->nres.evcn), 0,
 				    Add2Ptr(attr, run_off),
 				    le32_to_cpu(attr->size) - run_off);
 		if (err < 0)
 			goto out;
 
-		/* attr is nonresident.
+		/* attr is analnresident.
 		 * The worst case:
 		 * 1T (2^40) extremely fragmented file.
 		 * cluster = 4K (2^12) => 2^28 fragments
@@ -93,7 +93,7 @@ int ntfs_load_attr_list(struct ntfs_inode *ni, struct ATTRIB *attr)
 		 */
 		le = kvmalloc(al_aligned(lsize), GFP_KERNEL);
 		if (!le) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 
@@ -122,7 +122,7 @@ out:
  * * The next list le.
  * * If @le is NULL then return the first le.
  */
-struct ATTR_LIST_ENTRY *al_enumerate(struct ntfs_inode *ni,
+struct ATTR_LIST_ENTRY *al_enumerate(struct ntfs_ianalde *ni,
 				     struct ATTR_LIST_ENTRY *le)
 {
 	size_t off;
@@ -134,7 +134,7 @@ struct ATTR_LIST_ENTRY *al_enumerate(struct ntfs_inode *ni,
 	} else {
 		sz = le16_to_cpu(le->size);
 		if (sz < le_min_size) {
-			/* Impossible 'cause we should not return such le. */
+			/* Impossible 'cause we should analt return such le. */
 			return NULL;
 		}
 		le = Add2Ptr(le, sz);
@@ -163,9 +163,9 @@ struct ATTR_LIST_ENTRY *al_enumerate(struct ntfs_inode *ni,
  *
  * Find the first le in the list which matches type, name and VCN.
  *
- * Return: NULL if not found.
+ * Return: NULL if analt found.
  */
-struct ATTR_LIST_ENTRY *al_find_le(struct ntfs_inode *ni,
+struct ATTR_LIST_ENTRY *al_find_le(struct ntfs_ianalde *ni,
 				   struct ATTR_LIST_ENTRY *le,
 				   const struct ATTRIB *attr)
 {
@@ -180,9 +180,9 @@ struct ATTR_LIST_ENTRY *al_find_le(struct ntfs_inode *ni,
  *
  * Find the first le in the list which matches type, name and VCN.
  *
- * Return: NULL if not found.
+ * Return: NULL if analt found.
  */
-struct ATTR_LIST_ENTRY *al_find_ex(struct ntfs_inode *ni,
+struct ATTR_LIST_ENTRY *al_find_ex(struct ntfs_ianalde *ni,
 				   struct ATTR_LIST_ENTRY *le,
 				   enum ATTR_TYPE type, const __le16 *name,
 				   u8 name_len, const CLST *vcn)
@@ -239,7 +239,7 @@ struct ATTR_LIST_ENTRY *al_find_ex(struct ntfs_inode *ni,
  *
  * Find the first list entry which matches type, name and VCN.
  */
-static struct ATTR_LIST_ENTRY *al_find_le_to_insert(struct ntfs_inode *ni,
+static struct ATTR_LIST_ENTRY *al_find_le_to_insert(struct ntfs_ianalde *ni,
 						    enum ATTR_TYPE type,
 						    const __le16 *name,
 						    u8 name_len, CLST vcn)
@@ -283,7 +283,7 @@ static struct ATTR_LIST_ENTRY *al_find_le_to_insert(struct ntfs_inode *ni,
  *
  * Add an "attribute list entry" to the list.
  */
-int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
+int al_add_le(struct ntfs_ianalde *ni, enum ATTR_TYPE type, const __le16 *name,
 	      u8 name_len, CLST svcn, __le16 id, const struct MFT_REF *ref,
 	      struct ATTR_LIST_ENTRY **new_le)
 {
@@ -310,10 +310,10 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 	off = PtrOffset(al->le, le);
 
 	if (new_size > asize) {
-		void *ptr = kmalloc(new_asize, GFP_NOFS);
+		void *ptr = kmalloc(new_asize, GFP_ANALFS);
 
 		if (!ptr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(ptr, al->le, off);
 		memcpy(Add2Ptr(ptr, off + sz), le, old_size - off);
@@ -347,7 +347,7 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 
 	al->dirty = true;
 
-	if (attr && attr->non_res) {
+	if (attr && attr->analn_res) {
 		err = ntfs_sb_write_run(ni->mi.sbi, &al->run, 0, al->le,
 					al->size, 0);
 		if (err)
@@ -361,7 +361,7 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 /*
  * al_remove_le - Remove @le from attribute list.
  */
-bool al_remove_le(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le)
+bool al_remove_le(struct ntfs_ianalde *ni, struct ATTR_LIST_ENTRY *le)
 {
 	u16 size;
 	size_t off;
@@ -385,7 +385,7 @@ bool al_remove_le(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le)
 /*
  * al_delete_le - Delete first le from the list which matches its parameters.
  */
-bool al_delete_le(struct ntfs_inode *ni, enum ATTR_TYPE type, CLST vcn,
+bool al_delete_le(struct ntfs_ianalde *ni, enum ATTR_TYPE type, CLST vcn,
 		  const __le16 *name, u8 name_len, const struct MFT_REF *ref)
 {
 	u16 size;
@@ -435,7 +435,7 @@ next:
 	return true;
 }
 
-int al_update(struct ntfs_inode *ni, int sync)
+int al_update(struct ntfs_ianalde *ni, int sync)
 {
 	int err;
 	struct ATTRIB *attr;
@@ -453,7 +453,7 @@ int al_update(struct ntfs_inode *ni, int sync)
 	if (err)
 		goto out;
 
-	if (!attr->non_res) {
+	if (!attr->analn_res) {
 		memcpy(resident_data(attr), al->le, al->size);
 	} else {
 		err = ntfs_sb_write_run(ni->mi.sbi, &al->run, 0, al->le,

@@ -10,43 +10,43 @@
 #include <linux/dns_resolver.h>
 #include "internal.h"
 
-static atomic_t afs_autocell_ino;
+static atomic_t afs_autocell_ianal;
 
 /*
- * iget5() comparator for inode created by autocell operations
+ * iget5() comparator for ianalde created by autocell operations
  *
- * These pseudo inodes don't match anything.
+ * These pseudo ianaldes don't match anything.
  */
-static int afs_iget5_pseudo_test(struct inode *inode, void *opaque)
+static int afs_iget5_pseudo_test(struct ianalde *ianalde, void *opaque)
 {
 	return 0;
 }
 
 /*
- * iget5() inode initialiser
+ * iget5() ianalde initialiser
  */
-static int afs_iget5_pseudo_set(struct inode *inode, void *opaque)
+static int afs_iget5_pseudo_set(struct ianalde *ianalde, void *opaque)
 {
-	struct afs_super_info *as = AFS_FS_S(inode->i_sb);
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_super_info *as = AFS_FS_S(ianalde->i_sb);
+	struct afs_vanalde *vanalde = AFS_FS_I(ianalde);
 	struct afs_fid *fid = opaque;
 
-	vnode->volume		= as->volume;
-	vnode->fid		= *fid;
-	inode->i_ino		= fid->vnode;
-	inode->i_generation	= fid->unique;
+	vanalde->volume		= as->volume;
+	vanalde->fid		= *fid;
+	ianalde->i_ianal		= fid->vanalde;
+	ianalde->i_generation	= fid->unique;
 	return 0;
 }
 
 /*
- * Create an inode for a dynamic root directory or an autocell dynamic
+ * Create an ianalde for a dynamic root directory or an autocell dynamic
  * automount dir.
  */
-struct inode *afs_iget_pseudo_dir(struct super_block *sb, bool root)
+struct ianalde *afs_iget_pseudo_dir(struct super_block *sb, bool root)
 {
 	struct afs_super_info *as = AFS_FS_S(sb);
-	struct afs_vnode *vnode;
-	struct inode *inode;
+	struct afs_vanalde *vanalde;
+	struct ianalde *ianalde;
 	struct afs_fid fid = {};
 
 	_enter("");
@@ -54,54 +54,54 @@ struct inode *afs_iget_pseudo_dir(struct super_block *sb, bool root)
 	if (as->volume)
 		fid.vid = as->volume->vid;
 	if (root) {
-		fid.vnode = 1;
+		fid.vanalde = 1;
 		fid.unique = 1;
 	} else {
-		fid.vnode = atomic_inc_return(&afs_autocell_ino);
+		fid.vanalde = atomic_inc_return(&afs_autocell_ianal);
 		fid.unique = 0;
 	}
 
-	inode = iget5_locked(sb, fid.vnode,
+	ianalde = iget5_locked(sb, fid.vanalde,
 			     afs_iget5_pseudo_test, afs_iget5_pseudo_set, &fid);
-	if (!inode) {
-		_leave(" = -ENOMEM");
-		return ERR_PTR(-ENOMEM);
+	if (!ianalde) {
+		_leave(" = -EANALMEM");
+		return ERR_PTR(-EANALMEM);
 	}
 
-	_debug("GOT INODE %p { ino=%lu, vl=%llx, vn=%llx, u=%x }",
-	       inode, inode->i_ino, fid.vid, fid.vnode, fid.unique);
+	_debug("GOT IANALDE %p { ianal=%lu, vl=%llx, vn=%llx, u=%x }",
+	       ianalde, ianalde->i_ianal, fid.vid, fid.vanalde, fid.unique);
 
-	vnode = AFS_FS_I(inode);
+	vanalde = AFS_FS_I(ianalde);
 
-	/* there shouldn't be an existing inode */
-	BUG_ON(!(inode->i_state & I_NEW));
+	/* there shouldn't be an existing ianalde */
+	BUG_ON(!(ianalde->i_state & I_NEW));
 
-	netfs_inode_init(&vnode->netfs, NULL, false);
-	inode->i_size		= 0;
-	inode->i_mode		= S_IFDIR | S_IRUGO | S_IXUGO;
+	netfs_ianalde_init(&vanalde->netfs, NULL, false);
+	ianalde->i_size		= 0;
+	ianalde->i_mode		= S_IFDIR | S_IRUGO | S_IXUGO;
 	if (root) {
-		inode->i_op	= &afs_dynroot_inode_operations;
-		inode->i_fop	= &simple_dir_operations;
+		ianalde->i_op	= &afs_dynroot_ianalde_operations;
+		ianalde->i_fop	= &simple_dir_operations;
 	} else {
-		inode->i_op	= &afs_autocell_inode_operations;
+		ianalde->i_op	= &afs_autocell_ianalde_operations;
 	}
-	set_nlink(inode, 2);
-	inode->i_uid		= GLOBAL_ROOT_UID;
-	inode->i_gid		= GLOBAL_ROOT_GID;
-	simple_inode_init_ts(inode);
-	inode->i_blocks		= 0;
-	inode->i_generation	= 0;
+	set_nlink(ianalde, 2);
+	ianalde->i_uid		= GLOBAL_ROOT_UID;
+	ianalde->i_gid		= GLOBAL_ROOT_GID;
+	simple_ianalde_init_ts(ianalde);
+	ianalde->i_blocks		= 0;
+	ianalde->i_generation	= 0;
 
-	set_bit(AFS_VNODE_PSEUDODIR, &vnode->flags);
+	set_bit(AFS_VANALDE_PSEUDODIR, &vanalde->flags);
 	if (!root) {
-		set_bit(AFS_VNODE_MOUNTPOINT, &vnode->flags);
-		inode->i_flags |= S_AUTOMOUNT;
+		set_bit(AFS_VANALDE_MOUNTPOINT, &vanalde->flags);
+		ianalde->i_flags |= S_AUTOMOUNT;
 	}
 
-	inode->i_flags |= S_NOATIME;
-	unlock_new_inode(inode);
-	_leave(" = %p", inode);
-	return inode;
+	ianalde->i_flags |= S_ANALATIME;
+	unlock_new_ianalde(ianalde);
+	_leave(" = %p", ianalde);
+	return ianalde;
 }
 
 /*
@@ -133,8 +133,8 @@ static int afs_probe_cell_name(struct dentry *dentry)
 
 	ret = dns_query(net->net, "afsdb", name, len, "srv=1",
 			&result, NULL, false);
-	if (ret == -ENODATA || ret == -ENOKEY || ret == 0)
-		ret = -ENOENT;
+	if (ret == -EANALDATA || ret == -EANALKEY || ret == 0)
+		ret = -EANALENT;
 	if (ret > 0 && ret >= sizeof(struct dns_server_list_v1_header)) {
 		struct dns_server_list_v1_header *v1 = (void *)result;
 
@@ -143,7 +143,7 @@ static int afs_probe_cell_name(struct dentry *dentry)
 		    v1->hdr.version == 1 &&
 		    (v1->status != DNS_LOOKUP_GOOD &&
 		     v1->status != DNS_LOOKUP_GOOD_WITH_BAD))
-			return -ENOENT;
+			return -EANALENT;
 
 	}
 
@@ -155,34 +155,34 @@ static int afs_probe_cell_name(struct dentry *dentry)
  * Try to auto mount the mountpoint with pseudo directory, if the autocell
  * operation is setted.
  */
-struct inode *afs_try_auto_mntpt(struct dentry *dentry, struct inode *dir)
+struct ianalde *afs_try_auto_mntpt(struct dentry *dentry, struct ianalde *dir)
 {
-	struct afs_vnode *vnode = AFS_FS_I(dir);
-	struct inode *inode;
-	int ret = -ENOENT;
+	struct afs_vanalde *vanalde = AFS_FS_I(dir);
+	struct ianalde *ianalde;
+	int ret = -EANALENT;
 
 	_enter("%p{%pd}, {%llx:%llu}",
-	       dentry, dentry, vnode->fid.vid, vnode->fid.vnode);
+	       dentry, dentry, vanalde->fid.vid, vanalde->fid.vanalde);
 
-	if (!test_bit(AFS_VNODE_AUTOCELL, &vnode->flags))
+	if (!test_bit(AFS_VANALDE_AUTOCELL, &vanalde->flags))
 		goto out;
 
 	ret = afs_probe_cell_name(dentry);
 	if (ret < 0)
 		goto out;
 
-	inode = afs_iget_pseudo_dir(dir->i_sb, false);
-	if (IS_ERR(inode)) {
-		ret = PTR_ERR(inode);
+	ianalde = afs_iget_pseudo_dir(dir->i_sb, false);
+	if (IS_ERR(ianalde)) {
+		ret = PTR_ERR(ianalde);
 		goto out;
 	}
 
-	_leave("= %p", inode);
-	return inode;
+	_leave("= %p", ianalde);
+	return ianalde;
 
 out:
 	_leave("= %d", ret);
-	return ret == -ENOENT ? NULL : ERR_PTR(ret);
+	return ret == -EANALENT ? NULL : ERR_PTR(ret);
 }
 
 /*
@@ -198,9 +198,9 @@ static struct dentry *afs_lookup_atcell(struct dentry *dentry)
 	int len;
 
 	if (!net->ws_cell)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
-	ret = ERR_PTR(-ENOMEM);
+	ret = ERR_PTR(-EANALMEM);
 	name = kmalloc(AFS_MAXCELLNAME + 1, GFP_KERNEL);
 	if (!name)
 		goto out_p;
@@ -213,7 +213,7 @@ static struct dentry *afs_lookup_atcell(struct dentry *dentry)
 	}
 	up_read(&net->cells_lock);
 
-	ret = ERR_PTR(-ENOENT);
+	ret = ERR_PTR(-EANALENT);
 	if (!cell)
 		goto out_n;
 
@@ -232,15 +232,15 @@ out_p:
 /*
  * Look up an entry in a dynroot directory.
  */
-static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *afs_dynroot_lookup(struct ianalde *dir, struct dentry *dentry,
 					 unsigned int flags)
 {
 	_enter("%pd", dentry);
 
-	ASSERTCMP(d_inode(dentry), ==, NULL);
+	ASSERTCMP(d_ianalde(dentry), ==, NULL);
 
 	if (flags & LOOKUP_CREATE)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	if (dentry->d_name.len >= AFSNAMEMAX) {
 		_leave(" = -ENAMETOOLONG");
@@ -254,7 +254,7 @@ static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentr
 	return d_splice_alias(afs_try_auto_mntpt(dentry, dir), dentry);
 }
 
-const struct inode_operations afs_dynroot_inode_operations = {
+const struct ianalde_operations afs_dynroot_ianalde_operations = {
 	.lookup		= afs_dynroot_lookup,
 };
 
@@ -279,18 +279,18 @@ int afs_dynroot_mkdir(struct afs_net *net, struct afs_cell *cell)
 
 	/* Let the ->lookup op do the creation */
 	root = sb->s_root;
-	inode_lock(root->d_inode);
+	ianalde_lock(root->d_ianalde);
 	subdir = lookup_one_len(cell->name, root, cell->name_len);
 	if (IS_ERR(subdir)) {
 		ret = PTR_ERR(subdir);
 		goto unlock;
 	}
 
-	/* Note that we're retaining an extra ref on the dentry */
+	/* Analte that we're retaining an extra ref on the dentry */
 	subdir->d_fsdata = (void *)1UL;
 	ret = 0;
 unlock:
-	inode_unlock(root->d_inode);
+	ianalde_unlock(root->d_ianalde);
 	return ret;
 }
 
@@ -307,13 +307,13 @@ void afs_dynroot_rmdir(struct afs_net *net, struct afs_cell *cell)
 		return;
 
 	root = sb->s_root;
-	inode_lock(root->d_inode);
+	ianalde_lock(root->d_ianalde);
 
 	/* Don't want to trigger a lookup call, which will re-add the cell */
 	subdir = try_lookup_one_len(cell->name, root, cell->name_len);
 	if (IS_ERR_OR_NULL(subdir)) {
 		_debug("lookup %ld", PTR_ERR(subdir));
-		goto no_dentry;
+		goto anal_dentry;
 	}
 
 	_debug("rmdir %pd %u", subdir, d_count(subdir));
@@ -324,8 +324,8 @@ void afs_dynroot_rmdir(struct afs_net *net, struct afs_cell *cell)
 		dput(subdir);
 	}
 	dput(subdir);
-no_dentry:
-	inode_unlock(root->d_inode);
+anal_dentry:
+	ianalde_unlock(root->d_ianalde);
 	_leave("");
 }
 
@@ -373,8 +373,8 @@ void afs_dynroot_depopulate(struct super_block *sb)
 	mutex_unlock(&net->proc_cells_lock);
 
 	if (root) {
-		struct hlist_node *n;
-		inode_lock(root->d_inode);
+		struct hlist_analde *n;
+		ianalde_lock(root->d_ianalde);
 
 		/* Remove all the pins for dirs created for manually added cells */
 		hlist_for_each_entry_safe(subdir, n, &root->d_children, d_sib) {
@@ -384,6 +384,6 @@ void afs_dynroot_depopulate(struct super_block *sb)
 			}
 		}
 
-		inode_unlock(root->d_inode);
+		ianalde_unlock(root->d_ianalde);
 	}
 }

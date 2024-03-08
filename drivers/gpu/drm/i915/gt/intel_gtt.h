@@ -32,7 +32,7 @@
 #include "i915_params.h"
 #include "intel_memory_region.h"
 
-#define I915_GFP_ALLOW_FAIL (GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN)
+#define I915_GFP_ALLOW_FAIL (GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_ANALWARN)
 
 #if IS_ENABLED(CONFIG_DRM_I915_TRACE_GTT)
 #define GTT_TRACE(...) trace_printk(__VA_ARGS__)
@@ -40,7 +40,7 @@
 #define GTT_TRACE(...)
 #endif
 
-#define NALLOC 3 /* 1 normal, 1 for concurrent threads, 1 for preallocation */
+#define NALLOC 3 /* 1 analrmal, 1 for concurrent threads, 1 for preallocation */
 
 #define I915_GTT_PAGE_SIZE_4K	BIT_ULL(12)
 #define I915_GTT_PAGE_SIZE_64K	BIT_ULL(16)
@@ -53,9 +53,9 @@
 
 #define I915_GTT_MIN_ALIGNMENT I915_GTT_PAGE_SIZE
 
-#define I915_FENCE_REG_NONE -1
+#define I915_FENCE_REG_ANALNE -1
 #define I915_MAX_NUM_FENCES 32
-/* 32 fences + sign bit for FENCE_REG_NONE */
+/* 32 fences + sign bit for FENCE_REG_ANALNE */
 #define I915_MAX_NUM_FENCE_BITS 6
 
 typedef u32 gen6_pte_t;
@@ -85,7 +85,7 @@ typedef u64 gen8_pte_t;
 
 #define GEN7_PTE_CACHE_L3_LLC		(3 << 1)
 
-#define BYT_PTE_SNOOPED_BY_CPU_CACHES	REG_BIT(2)
+#define BYT_PTE_SANALOPED_BY_CPU_CACHES	REG_BIT(2)
 #define BYT_PTE_WRITEABLE		REG_BIT(1)
 
 #define MTL_PPGTT_PTE_PAT3	BIT_ULL(62)
@@ -123,7 +123,7 @@ typedef u64 gen8_pte_t;
  * GEN8 32b style address is defined as a 3 level page table:
  * 31:30 | 29:21 | 20:12 |  11:0
  * PDPE  |  PDE  |  PTE  | offset
- * The difference as compared to normal x86 3 level page table is the PDPEs are
+ * The difference as compared to analrmal x86 3 level page table is the PDPEs are
  * programmed via register.
  *
  * GEN8 48b style address is defined as a 4 level page table:
@@ -137,7 +137,7 @@ typedef u64 gen8_pte_t;
 #define PPAT_CACHED			_PAGE_PAT /* WB LLCeLLC */
 #define PPAT_DISPLAY_ELLC		_PAGE_PCD /* WT eLLC */
 
-#define CHV_PPAT_SNOOP			REG_BIT(6)
+#define CHV_PPAT_SANALOP			REG_BIT(6)
 #define GEN8_PPAT_AGE(x)		((x)<<4)
 #define GEN8_PPAT_LLCeLLC		(3<<2)
 #define GEN8_PPAT_LLCELLC		(2<<2)
@@ -220,8 +220,8 @@ struct i915_vm_pt_stash {
 	struct i915_page_table *pt[2];
 	/*
 	 * Optionally override the alignment/size of the physical page that
-	 * contains each PT. If not set defaults back to the usual
-	 * I915_GTT_PAGE_SIZE_4K. This does not influence the other paging
+	 * contains each PT. If analt set defaults back to the usual
+	 * I915_GTT_PAGE_SIZE_4K. This does analt influence the other paging
 	 * structures. MUST be a power-of-two. ONLY applicable on discrete
 	 * platforms.
 	 */
@@ -278,7 +278,7 @@ struct i915_address_space {
 	struct list_head bound_list;
 
 	/**
-	 * List of vmas not yet bound or evicted.
+	 * List of vmas analt yet bound or evicted.
 	 */
 	struct list_head unbound_list;
 
@@ -357,7 +357,7 @@ struct i915_address_space {
 
 /*
  * The Graphics Translation Table is the way in which GEN hardware translates a
- * Graphics Virtual Address into a Physical Address. In addition to the normal
+ * Graphics Virtual Address into a Physical Address. In addition to the analrmal
  * collateral associated with any va->pa translations GEN hardware also has a
  * portion of the GTT which can be mapped by the CPU and remain both coherent
  * and correct (in cases like swizzling). That region is referred to as GMADR in
@@ -399,8 +399,8 @@ struct i915_ggtt {
 	struct list_head userfault_list;
 
 	struct mutex error_mutex;
-	struct drm_mm_node error_capture;
-	struct drm_mm_node uc_fw;
+	struct drm_mm_analde error_capture;
+	struct drm_mm_analde uc_fw;
 
 	/** List of GTs mapping this GGTT */
 	struct list_head gt_list;
@@ -416,7 +416,7 @@ struct i915_ppgtt {
 #define i915_is_dpt(vm) ((vm)->is_dpt)
 #define i915_is_ggtt_or_dpt(vm) (i915_is_ggtt(vm) || i915_is_dpt(vm))
 
-bool intel_vm_no_concurrent_access_wa(struct drm_i915_private *i915);
+bool intel_vm_anal_concurrent_access_wa(struct drm_i915_private *i915);
 
 int __must_check
 i915_vm_lock_objects(struct i915_address_space *vm, struct i915_gem_ww_ctx *ww);
@@ -534,7 +534,7 @@ static inline u32 i915_pte_index(u64 address, unsigned int pde_shift)
 
 /*
  * Helper to counts the number of PTEs within the given length. This count
- * does not cross a page table boundary, so the max value would be
+ * does analt cross a page table boundary, so the max value would be
  * GEN6_PTES for GEN6, and GEN8_PTES for GEN8.
  */
 static inline u32 i915_pte_count(u64 addr, u64 length, unsigned int pde_shift)

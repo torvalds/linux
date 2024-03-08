@@ -25,7 +25,7 @@ int wl18xx_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap,
 
 	bitmap_conf = kzalloc(sizeof(*bitmap_conf), GFP_KERNEL);
 	if (!bitmap_conf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -56,7 +56,7 @@ int wl18xx_acx_set_checksum_state(struct wl1271 *wl)
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -82,7 +82,7 @@ int wl18xx_acx_clear_statistics(struct wl1271 *wl)
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -107,7 +107,7 @@ int wl18xx_acx_peer_ht_operation_mode(struct wl1271 *wl, u8 hlid, bool wide)
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -148,16 +148,16 @@ int wl18xx_acx_set_peer_cap(struct wl1271 *wl,
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	if (allow_ht_operation && ht_cap->ht_supported) {
-		/* no need to translate capabilities - use the spec values */
+		/* anal need to translate capabilities - use the spec values */
 		ht_capabilites = ht_cap->cap;
 
 		/*
-		 * this bit is not employed by the spec but only by FW to
+		 * this bit is analt employed by the spec but only by FW to
 		 * indicate peer HT support
 		 */
 		ht_capabilites |= WL12XX_HT_CAP_HT_OPERATION;
@@ -184,24 +184,24 @@ out:
 
 /*
  * When the host is suspended, we don't want to get any fast-link/PSM
- * notifications
+ * analtifications
  */
-int wl18xx_acx_interrupt_notify_config(struct wl1271 *wl,
+int wl18xx_acx_interrupt_analtify_config(struct wl1271 *wl,
 				       bool action)
 {
-	struct wl18xx_acx_interrupt_notify *acx;
+	struct wl18xx_acx_interrupt_analtify *acx;
 	int ret = 0;
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	acx->enable = action;
-	ret = wl1271_cmd_configure(wl, ACX_INTERRUPT_NOTIFY, acx, sizeof(*acx));
+	ret = wl1271_cmd_configure(wl, ACX_INTERRUPT_ANALTIFY, acx, sizeof(*acx));
 	if (ret < 0) {
-		wl1271_warning("acx interrupt notify setting failed: %d", ret);
+		wl1271_warning("acx interrupt analtify setting failed: %d", ret);
 		goto out;
 	}
 
@@ -212,7 +212,7 @@ out:
 
 /*
  * When the host is suspended, we can configure the FW to disable RX BA
- * notifications.
+ * analtifications.
  */
 int wl18xx_acx_rx_ba_filter(struct wl1271 *wl, bool action)
 {
@@ -221,7 +221,7 @@ int wl18xx_acx_rx_ba_filter(struct wl1271 *wl, bool action)
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -249,7 +249,7 @@ int wl18xx_acx_ap_sleep(struct wl1271 *wl)
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -279,7 +279,7 @@ int wl18xx_acx_dynamic_fw_traces(struct wl1271 *wl)
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -307,7 +307,7 @@ int wl18xx_acx_time_sync_cfg(struct wl1271 *wl)
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

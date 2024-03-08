@@ -103,8 +103,8 @@ struct mx25_tsadc {
 /* ADCQ_CFG (TICR, TCC0-7,GCC0-7) */
 #define MX25_ADCQ_CFG_SETTLING_TIME(x)	((x) << 24)
 #define MX25_ADCQ_CFG_IGS		(1 << 20)
-#define MX25_ADCQ_CFG_NOS_MASK		GENMASK(19, 16)
-#define MX25_ADCQ_CFG_NOS(x)		(((x) - 1) << 16)
+#define MX25_ADCQ_CFG_ANALS_MASK		GENMASK(19, 16)
+#define MX25_ADCQ_CFG_ANALS(x)		(((x) - 1) << 16)
 #define MX25_ADCQ_CFG_WIPER		(1 << 15)
 #define MX25_ADCQ_CFG_YNLR		(1 << 14)
 #define MX25_ADCQ_CFG_YPLL_HIGH		(0 << 12)

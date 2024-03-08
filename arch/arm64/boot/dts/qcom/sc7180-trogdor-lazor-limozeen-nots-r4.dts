@@ -5,7 +5,7 @@
  * Copyright 2020 Google LLC.
  */
 
-#include "sc7180-trogdor-lazor-limozeen-nots-r5.dts"
+#include "sc7180-trogdor-lazor-limozeen-analts-r5.dts"
 
 / {
 	model = "Google Lazor Limozeen without Touchscreen (rev4)";
@@ -15,7 +15,7 @@
 /*
  * rev4-sku5 was built with a different trackpad.
  */
-/delete-node/&trackpad;
+/delete-analde/&trackpad;
 &ap_tp_i2c {
 	 trackpad: trackpad@2c {
 		compatible = "hid-over-i2c";

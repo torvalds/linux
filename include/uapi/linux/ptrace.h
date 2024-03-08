@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_PTRACE_H
 #define _UAPI_LINUX_PTRACE_H
 /* ptrace.h */
@@ -33,10 +33,10 @@
 /*
  * Generic ptrace interface that exports the architecture specific regsets
  * using the corresponding NT_* types (which are also used in the core dump).
- * Please note that the NT_PRSTATUS note type in a core dump contains a full
+ * Please analte that the NT_PRSTATUS analte type in a core dump contains a full
  * 'struct elf_prstatus'. But the user_regset for NT_PRSTATUS contains just the
  * elf_gregset_t that is the pr_reg field of 'struct elf_prstatus'. For all the
- * other user_regset flavors, the user_regset layout and the ELF core dump note
+ * other user_regset flavors, the user_regset layout and the ELF core dump analte
  * payload are exactly the same layout.
  *
  * This interface usage is as follows:
@@ -74,7 +74,7 @@ struct seccomp_metadata {
 };
 
 #define PTRACE_GET_SYSCALL_INFO		0x420e
-#define PTRACE_SYSCALL_INFO_NONE	0
+#define PTRACE_SYSCALL_INFO_ANALNE	0
 #define PTRACE_SYSCALL_INFO_ENTRY	1
 #define PTRACE_SYSCALL_INFO_EXIT	2
 #define PTRACE_SYSCALL_INFO_SECCOMP	3
@@ -128,11 +128,11 @@ struct ptrace_rseq_configuration {
  *
  * If mode is PR_SYS_DISPATCH_ON, syscall dispatch will be enabled. If
  * PR_SYS_DISPATCH_OFF, syscall dispatch will be disabled and all other
- * parameters must be 0.  The value in *selector (if not null), also determines
+ * parameters must be 0.  The value in *selector (if analt null), also determines
  * whether syscall dispatch will occur.
  *
  * The Syscall User Dispatch Exclusion area described by offset/len is the
- * virtual address space from which syscalls will not produce a user
+ * virtual address space from which syscalls will analt produce a user
  * dispatch.
  */
 struct ptrace_sud_config {

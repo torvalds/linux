@@ -115,7 +115,7 @@ enum s2mps14_regulators {
 #define S2MPS14_BUCK4_START_SEL		0x40
 /*
  * Default ramp delay in uv/us. Datasheet says that ramp delay can be
- * controlled however it does not specify which register is used for that.
+ * controlled however it does analt specify which register is used for that.
  * Let's assume that default value will be set.
  */
 #define S2MPS14_BUCK_RAMP_DELAY		12500

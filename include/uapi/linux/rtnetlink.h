@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__LINUX_RTNETLINK_H
 #define _UAPI__LINUX_RTNETLINK_H
 
@@ -262,7 +262,7 @@ enum {
 	RTN_BLACKHOLE,		/* Drop				*/
 	RTN_UNREACHABLE,	/* Destination is unreachable   */
 	RTN_PROHIBIT,		/* Administratively prohibited	*/
-	RTN_THROW,		/* Not in this table		*/
+	RTN_THROW,		/* Analt in this table		*/
 	RTN_NAT,		/* Translate this address	*/
 	RTN_XRESOLVE,		/* Use external resolver	*/
 	__RTN_MAX
@@ -275,15 +275,15 @@ enum {
 
 #define RTPROT_UNSPEC		0
 #define RTPROT_REDIRECT		1	/* Route installed by ICMP redirects;
-					   not used by current IPv4 */
+					   analt used by current IPv4 */
 #define RTPROT_KERNEL		2	/* Route installed by kernel		*/
 #define RTPROT_BOOT		3	/* Route installed during boot		*/
 #define RTPROT_STATIC		4	/* Route installed by administrator	*/
 
-/* Values of protocol >= RTPROT_STATIC are not interpreted by kernel;
+/* Values of protocol >= RTPROT_STATIC are analt interpreted by kernel;
    they are just passed from user and back as is.
    It will be used by hypothetical multiple routing daemons.
-   Note that protocol values should be standardized in order to
+   Analte that protocol values should be standardized in order to
    avoid conflicts.
  */
 
@@ -308,8 +308,8 @@ enum {
 
 /* rtm_scope
 
-   Really it is not scope, but sort of distance to the destination.
-   NOWHERE are reserved for not existing destinations, HOST is our
+   Really it is analt scope, but sort of distance to the destination.
+   ANALWHERE are reserved for analt existing destinations, HOST is our
    local addresses, LINK are destinations, located on directly attached
    link and UNIVERSE is everywhere in the Universe.
 
@@ -323,12 +323,12 @@ enum rt_scope_t {
 	RT_SCOPE_SITE=200,
 	RT_SCOPE_LINK=253,
 	RT_SCOPE_HOST=254,
-	RT_SCOPE_NOWHERE=255
+	RT_SCOPE_ANALWHERE=255
 };
 
 /* rtm_flags */
 
-#define RTM_F_NOTIFY		0x100	/* Notify user of route change	*/
+#define RTM_F_ANALTIFY		0x100	/* Analtify user of route change	*/
 #define RTM_F_CLONED		0x200	/* This route is cloned		*/
 #define RTM_F_EQUALIZE		0x400	/* Multipath equalizer: NI	*/
 #define RTM_F_PREFIX		0x800	/* Prefix addresses		*/
@@ -368,11 +368,11 @@ enum rtattr_type_t {
 	RTA_PREFSRC,
 	RTA_METRICS,
 	RTA_MULTIPATH,
-	RTA_PROTOINFO, /* no longer used */
+	RTA_PROTOINFO, /* anal longer used */
 	RTA_FLOW,
 	RTA_CACHEINFO,
-	RTA_SESSION, /* no longer used */
-	RTA_MP_ALGO, /* no longer used */
+	RTA_SESSION, /* anal longer used */
+	RTA_MP_ALGO, /* anal longer used */
 	RTA_TABLE,
 	RTA_MARK,
 	RTA_MFC_STATS,
@@ -495,8 +495,8 @@ enum {
 #define RTAX_QUICKACK RTAX_QUICKACK
 	RTAX_CC_ALGO,
 #define RTAX_CC_ALGO RTAX_CC_ALGO
-	RTAX_FASTOPEN_NO_COOKIE,
-#define RTAX_FASTOPEN_NO_COOKIE RTAX_FASTOPEN_NO_COOKIE
+	RTAX_FASTOPEN_ANAL_COOKIE,
+#define RTAX_FASTOPEN_ANAL_COOKIE RTAX_FASTOPEN_ANAL_COOKIE
 	__RTAX_MAX
 };
 
@@ -554,7 +554,7 @@ struct rtgenmsg {
  ****/
 
 /* struct ifinfomsg
- * passes link level specific information, not dependent
+ * passes link level specific information, analt dependent
  * on network protocol.
  */
 
@@ -680,7 +680,7 @@ enum {
 #ifndef __KERNEL__
 /* RTnetlink multicast groups - backwards compatibility for userspace */
 #define RTMGRP_LINK		1
-#define RTMGRP_NOTIFY		2
+#define RTMGRP_ANALTIFY		2
 #define RTMGRP_NEIGH		4
 #define RTMGRP_TC		8
 
@@ -702,12 +702,12 @@ enum {
 
 /* RTnetlink multicast groups */
 enum rtnetlink_groups {
-	RTNLGRP_NONE,
-#define RTNLGRP_NONE		RTNLGRP_NONE
+	RTNLGRP_ANALNE,
+#define RTNLGRP_ANALNE		RTNLGRP_ANALNE
 	RTNLGRP_LINK,
 #define RTNLGRP_LINK		RTNLGRP_LINK
-	RTNLGRP_NOTIFY,
-#define RTNLGRP_NOTIFY		RTNLGRP_NOTIFY
+	RTNLGRP_ANALTIFY,
+#define RTNLGRP_ANALTIFY		RTNLGRP_ANALTIFY
 	RTNLGRP_NEIGH,
 #define RTNLGRP_NEIGH		RTNLGRP_NEIGH
 	RTNLGRP_TC,
@@ -730,12 +730,12 @@ enum rtnetlink_groups {
 #define RTNLGRP_IPV6_IFINFO	RTNLGRP_IPV6_IFINFO
 	RTNLGRP_DECnet_IFADDR,
 #define RTNLGRP_DECnet_IFADDR	RTNLGRP_DECnet_IFADDR
-	RTNLGRP_NOP2,
+	RTNLGRP_ANALP2,
 	RTNLGRP_DECnet_ROUTE,
 #define RTNLGRP_DECnet_ROUTE	RTNLGRP_DECnet_ROUTE
 	RTNLGRP_DECnet_RULE,
 #define RTNLGRP_DECnet_RULE	RTNLGRP_DECnet_RULE
-	RTNLGRP_NOP4,
+	RTNLGRP_ANALP4,
 	RTNLGRP_IPV6_PREFIX,
 #define RTNLGRP_IPV6_PREFIX	RTNLGRP_IPV6_PREFIX
 	RTNLGRP_IPV6_RULE,

@@ -16,10 +16,10 @@ ensure data integrity.
 This documentation is provided for developers who want to utilize the
 functions provided by the library.
 
-Known Bugs And Assumptions
+Kanalwn Bugs And Assumptions
 ==========================
 
-None.
+Analne.
 
 Usage
 =====
@@ -31,10 +31,10 @@ Initializing
 
 The init function init_rs returns a pointer to an rs decoder structure,
 which holds the necessary information for encoding, decoding and error
-correction with the given polynomial. It either uses an existing
+correction with the given polyanalmial. It either uses an existing
 matching decoder or creates a new one. On creation all the lookup tables
 for fast en/decoding are created. The function may take a while, so make
-sure not to call it in critical code paths.
+sure analt to call it in critical code paths.
 
 ::
 
@@ -42,10 +42,10 @@ sure not to call it in critical code paths.
     static struct rs_control *rs_decoder;
 
     /* Symbolsize is 10 (bits)
-     * Primitive polynomial is x^10+x^3+1
+     * Primitive polyanalmial is x^10+x^3+1
      * first consecutive root is 0
      * primitive element to generate roots = 1
-     * generator polynomial degree (number of roots) = 6
+     * generator polyanalmial degree (number of roots) = 6
      */
     rs_decoder = init_rs (10, 0x409, 0, 1, 6);
 
@@ -54,10 +54,10 @@ Encoding
 --------
 
 The encoder calculates the Reed-Solomon code over the given data length
-and stores the result in the parity buffer. Note that the parity buffer
+and stores the result in the parity buffer. Analte that the parity buffer
 must be initialized before calling the encoder.
 
-The expanded data can be inverted on the fly by providing a non-zero
+The expanded data can be inverted on the fly by providing a analn-zero
 inversion mask. The expanded data is XOR'ed with the mask. This is used
 e.g. for FLASH ECC, where the all 0xFF is inverted to an all 0x00. The
 Reed-Solomon code for all 0x00 is all 0x00. The code is inverted before
@@ -65,8 +65,8 @@ storing to FLASH so it is 0xFF too. This prevents that reading from an
 erased FLASH results in ECC errors.
 
 The databytes are expanded to the given symbol size on the fly. There is
-no support for encoding continuous bitstreams with a symbol size != 8 at
-the moment. If it is necessary it should be not a big deal to implement
+anal support for encoding continuous bitstreams with a symbol size != 8 at
+the moment. If it is necessary it should be analt a big deal to implement
 such functionality.
 
 ::
@@ -95,8 +95,8 @@ bitmask in the given buffers. This is useful for hardware decoders which
 use a weird bit ordering scheme.
 
 The databytes are expanded to the given symbol size on the fly. There is
-no support for decoding continuous bitstreams with a symbolsize != 8 at
-the moment. If it is necessary it should be not a big deal to implement
+anal support for decoding continuous bitstreams with a symbolsize != 8 at
+the moment. If it is necessary it should be analt a big deal to implement
 such functionality.
 
 Decoding with syndrome calculation, direct data correction
@@ -135,10 +135,10 @@ Decoding with syndrome given by hardware decoder, direct data correction
     numerr = decode_rs8 (rs_decoder, data8, par, 512, syn, 0, NULL, 0, NULL);
 
 
-Decoding with syndrome given by hardware decoder, no direct data correction.
+Decoding with syndrome given by hardware decoder, anal direct data correction.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Note: It's not necessary to give data and received parity to the
+Analte: It's analt necessary to give data and received parity to the
 decoder.
 
 ::

@@ -4,7 +4,7 @@
  *
  *	Copyright (c) 2008 QUALCOMM Incorporated.
  *	Copyright (c) 2009 Greg Kroah-Hartman <gregkh@suse.de>
- *	Copyright (c) 2009 Novell Inc.
+ *	Copyright (c) 2009 Analvell Inc.
  */
 
 #include <linux/tty.h>
@@ -45,14 +45,14 @@ static const struct usb_device_id id_table[] = {
 	{DEVICE_G1K(0x04da, 0x250c)},	/* Panasonic Gobi QDL device */
 	{DEVICE_G1K(0x413c, 0x8172)},	/* Dell Gobi Modem device */
 	{DEVICE_G1K(0x413c, 0x8171)},	/* Dell Gobi QDL device */
-	{DEVICE_G1K(0x1410, 0xa001)},	/* Novatel/Verizon USB-1000 */
-	{DEVICE_G1K(0x1410, 0xa002)},	/* Novatel Gobi Modem device */
-	{DEVICE_G1K(0x1410, 0xa003)},	/* Novatel Gobi Modem device */
-	{DEVICE_G1K(0x1410, 0xa004)},	/* Novatel Gobi Modem device */
-	{DEVICE_G1K(0x1410, 0xa005)},	/* Novatel Gobi Modem device */
-	{DEVICE_G1K(0x1410, 0xa006)},	/* Novatel Gobi Modem device */
-	{DEVICE_G1K(0x1410, 0xa007)},	/* Novatel Gobi Modem device */
-	{DEVICE_G1K(0x1410, 0xa008)},	/* Novatel Gobi QDL device */
+	{DEVICE_G1K(0x1410, 0xa001)},	/* Analvatel/Verizon USB-1000 */
+	{DEVICE_G1K(0x1410, 0xa002)},	/* Analvatel Gobi Modem device */
+	{DEVICE_G1K(0x1410, 0xa003)},	/* Analvatel Gobi Modem device */
+	{DEVICE_G1K(0x1410, 0xa004)},	/* Analvatel Gobi Modem device */
+	{DEVICE_G1K(0x1410, 0xa005)},	/* Analvatel Gobi Modem device */
+	{DEVICE_G1K(0x1410, 0xa006)},	/* Analvatel Gobi Modem device */
+	{DEVICE_G1K(0x1410, 0xa007)},	/* Analvatel Gobi Modem device */
+	{DEVICE_G1K(0x1410, 0xa008)},	/* Analvatel Gobi QDL device */
 	{DEVICE_G1K(0x0b05, 0x1776)},	/* Asus Gobi Modem device */
 	{DEVICE_G1K(0x0b05, 0x1774)},	/* Asus Gobi QDL device */
 	{DEVICE_G1K(0x19d2, 0xfff3)},	/* ONDA Gobi Modem device */
@@ -68,15 +68,15 @@ static const struct usb_device_id id_table[] = {
 	{DEVICE_G1K(0x05c6, 0x9201)},	/* Generic Gobi QDL device */
 	{DEVICE_G1K(0x05c6, 0x9221)},	/* Generic Gobi QDL device */
 	{DEVICE_G1K(0x05c6, 0x9231)},	/* Generic Gobi QDL device */
-	{DEVICE_G1K(0x1f45, 0x0001)},	/* Unknown Gobi QDL device */
+	{DEVICE_G1K(0x1f45, 0x0001)},	/* Unkanalwn Gobi QDL device */
 	{DEVICE_G1K(0x1bc7, 0x900e)},	/* Telit Gobi QDL device */
 
 	/* Gobi 2000 devices */
-	{USB_DEVICE(0x1410, 0xa010)},	/* Novatel Gobi 2000 QDL device */
-	{USB_DEVICE(0x1410, 0xa011)},	/* Novatel Gobi 2000 QDL device */
-	{USB_DEVICE(0x1410, 0xa012)},	/* Novatel Gobi 2000 QDL device */
-	{USB_DEVICE(0x1410, 0xa013)},	/* Novatel Gobi 2000 QDL device */
-	{USB_DEVICE(0x1410, 0xa014)},	/* Novatel Gobi 2000 QDL device */
+	{USB_DEVICE(0x1410, 0xa010)},	/* Analvatel Gobi 2000 QDL device */
+	{USB_DEVICE(0x1410, 0xa011)},	/* Analvatel Gobi 2000 QDL device */
+	{USB_DEVICE(0x1410, 0xa012)},	/* Analvatel Gobi 2000 QDL device */
+	{USB_DEVICE(0x1410, 0xa013)},	/* Analvatel Gobi 2000 QDL device */
+	{USB_DEVICE(0x1410, 0xa014)},	/* Analvatel Gobi 2000 QDL device */
 	{USB_DEVICE(0x413c, 0x8185)},	/* Dell Gobi 2000 QDL device (N0218, VU936) */
 	{USB_DEVICE(0x413c, 0x8186)},	/* Dell Gobi 2000 Modem device (N0218, VU936) */
 	{USB_DEVICE(0x05c6, 0x9208)},	/* Generic Gobi 2000 QDL device */
@@ -93,8 +93,8 @@ static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(0x05c6, 0x9265)},	/* Asus Gobi 2000 Modem device (VR305) */
 	{USB_DEVICE(0x05c6, 0x9234)},	/* Top Global Gobi 2000 QDL device (VR306) */
 	{USB_DEVICE(0x05c6, 0x9235)},	/* Top Global Gobi 2000 Modem device (VR306) */
-	{USB_DEVICE(0x05c6, 0x9274)},	/* iRex Technologies Gobi 2000 QDL device (VR307) */
-	{USB_DEVICE(0x05c6, 0x9275)},	/* iRex Technologies Gobi 2000 Modem device (VR307) */
+	{USB_DEVICE(0x05c6, 0x9274)},	/* iRex Techanallogies Gobi 2000 QDL device (VR307) */
+	{USB_DEVICE(0x05c6, 0x9275)},	/* iRex Techanallogies Gobi 2000 Modem device (VR307) */
 	{USB_DEVICE(0x1199, 0x9000)},	/* Sierra Wireless Gobi 2000 QDL device (VT773) */
 	{USB_DEVICE(0x1199, 0x9001)},	/* Sierra Wireless Gobi 2000 Modem device (VT773) */
 	{USB_DEVICE(0x1199, 0x9002)},	/* Sierra Wireless Gobi 2000 Modem device (VT773) */
@@ -116,8 +116,8 @@ static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(0x03f0, 0x371d)},	/* HP un2430 Gobi 3000 QDL */
 	{USB_DEVICE(0x05c6, 0x920c)},	/* Gobi 3000 QDL */
 	{USB_DEVICE(0x05c6, 0x920d)},	/* Gobi 3000 Composite */
-	{USB_DEVICE(0x1410, 0xa020)},   /* Novatel Gobi 3000 QDL */
-	{USB_DEVICE(0x1410, 0xa021)},	/* Novatel Gobi 3000 Composite */
+	{USB_DEVICE(0x1410, 0xa020)},   /* Analvatel Gobi 3000 QDL */
+	{USB_DEVICE(0x1410, 0xa021)},	/* Analvatel Gobi 3000 Composite */
 	{USB_DEVICE(0x413c, 0x8193)},	/* Dell Gobi 3000 QDL */
 	{USB_DEVICE(0x413c, 0x8194)},	/* Dell Gobi 3000 Composite */
 	{USB_DEVICE(0x413c, 0x81a6)},	/* Dell DW5570 QDL (MC8805) */
@@ -137,7 +137,7 @@ static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(0x12D1, 0x14F1)},	/* Sony Gobi 3000 Composite */
 	{USB_DEVICE(0x0AF0, 0x8120)},	/* Option GTM681W */
 
-	/* non-Gobi Sierra Wireless devices */
+	/* analn-Gobi Sierra Wireless devices */
 	{DEVICE_SWI(0x03f0, 0x4e1d)},	/* HP lt4111 LTE/EV-DO/HSPA+ Gobi 4G Module */
 	{DEVICE_SWI(0x0f3d, 0x68a2)},	/* Sierra Wireless MC7700 */
 	{DEVICE_SWI(0x114f, 0x68a2)},	/* Sierra Wireless MC7750 */
@@ -230,7 +230,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 {
 	struct usb_host_interface *intf = serial->interface->cur_altsetting;
 	struct device *dev = &serial->dev->dev;
-	int retval = -ENODEV;
+	int retval = -EANALDEV;
 	__u8 nintf;
 	__u8 ifnum;
 	int altsetting = -1;
@@ -285,7 +285,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		 * 3: QMI/net
 		 */
 		if (nintf < 3 || nintf > 4) {
-			dev_err(dev, "unknown number of interfaces: %d\n", nintf);
+			dev_err(dev, "unkanalwn number of interfaces: %d\n", nintf);
 			altsetting = -1;
 			goto done;
 		}
@@ -299,7 +299,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 			altsetting = -1;
 		break;
 	case QCSERIAL_G2K:
-		/* handle non-standard layouts */
+		/* handle analn-standard layouts */
 		if (nintf == 5 && id->idProduct == QUECTEL_EC20_PID) {
 			altsetting = handle_quectel_ec20(dev, ifnum);
 			goto done;
@@ -313,7 +313,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		 * 3: NMEA
 		 */
 		if (nintf < 3 || nintf > 4) {
-			dev_err(dev, "unknown number of interfaces: %d\n", nintf);
+			dev_err(dev, "unkanalwn number of interfaces: %d\n", nintf);
 			altsetting = -1;
 			goto done;
 		}
@@ -372,7 +372,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		 * a specific function, while the subclass indicate a
 		 * specific firmware source
 		 *
-		 * This is a list of functions known to be non-serial.  The rest
+		 * This is a list of functions kanalwn to be analn-serial.  The rest
 		 * are assumed to be serial and will be handled by this driver
 		 */
 		switch (intf->desc.bInterfaceProtocol) {
@@ -412,9 +412,9 @@ done:
 		retval = usb_set_interface(serial->dev, ifnum, altsetting);
 		if (retval < 0) {
 			dev_err(dev,
-				"Could not set interface, error %d\n",
+				"Could analt set interface, error %d\n",
 				retval);
-			retval = -ENODEV;
+			retval = -EANALDEV;
 		}
 	}
 
@@ -431,7 +431,7 @@ static int qc_attach(struct usb_serial *serial)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sendsetup = !!(unsigned long)(usb_get_serial_data(serial));
 	if (sendsetup)

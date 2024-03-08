@@ -59,7 +59,7 @@ const char *sti_mixer_to_str(struct sti_mixer *mixer)
 	case STI_MIXER_AUX:
 		return "AUX_MIXER";
 	default:
-		return "<UNKNOWN MIXER>";
+		return "<UNKANALWN MIXER>";
 	}
 }
 
@@ -99,7 +99,7 @@ static void mixer_dbg_ctl(struct seq_file *s, int val)
 		count++;
 	}
 	if (!count)
-		seq_puts(s, "Nothing");
+		seq_puts(s, "Analthing");
 }
 
 static void mixer_dbg_crb(struct seq_file *s, int val)
@@ -147,8 +147,8 @@ static void mixer_dbg_mxn(struct seq_file *s, void *addr)
 
 static int mixer_dbg_show(struct seq_file *s, void *arg)
 {
-	struct drm_info_node *node = s->private;
-	struct sti_mixer *mixer = (struct sti_mixer *)node->info_ent->data;
+	struct drm_info_analde *analde = s->private;
+	struct sti_mixer *mixer = (struct sti_mixer *)analde->info_ent->data;
 
 	seq_printf(s, "%s: (vaddr = 0x%p)",
 		   sti_mixer_to_str(mixer), mixer->regs);
@@ -178,7 +178,7 @@ static struct drm_info_list mixer1_debugfs_files[] = {
 	{ "mixer_aux", mixer_dbg_show, 0, NULL },
 };
 
-void sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_minor *minor)
+void sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_mianalr *mianalr)
 {
 	unsigned int i;
 	struct drm_info_list *mixer_debugfs_files;
@@ -202,7 +202,7 @@ void sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_minor *minor)
 
 	drm_debugfs_create_files(mixer_debugfs_files,
 				 nb_files,
-				 minor->debugfs_root, minor);
+				 mianalr->debugfs_root, mianalr);
 }
 
 void sti_mixer_set_background_status(struct sti_mixer *mixer, bool enable)
@@ -236,7 +236,7 @@ static void sti_mixer_set_background_area(struct sti_mixer *mixer,
 
 int sti_mixer_set_plane_depth(struct sti_mixer *mixer, struct sti_plane *plane)
 {
-	int plane_id, depth = plane->drm_plane.state->normalized_zpos;
+	int plane_id, depth = plane->drm_plane.state->analrmalized_zpos;
 	unsigned int i;
 	u32 mask, val;
 
@@ -257,10 +257,10 @@ int sti_mixer_set_plane_depth(struct sti_mixer *mixer, struct sti_plane *plane)
 		plane_id = GAM_DEPTH_VID0_ID;
 		break;
 	case STI_CURSOR:
-		/* no need to set depth for cursor */
+		/* anal need to set depth for cursor */
 		return 0;
 	default:
-		DRM_ERROR("Unknown plane %d\n", plane->desc);
+		DRM_ERROR("Unkanalwn plane %d\n", plane->desc);
 		return 1;
 	}
 

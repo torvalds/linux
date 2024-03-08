@@ -16,7 +16,7 @@
 /*
  * These have to be done with inline assembly: that way the bit-setting
  * is guaranteed to be atomic. All bit operations return 0 if the bit
- * was cleared before the operation and != 0 if it was not.
+ * was cleared before the operation and != 0 if it was analt.
  *
  * To get proper branch prediction for the main line, we must branch
  * forward to code at the end of this object's .text section, then
@@ -44,7 +44,7 @@ set_bit(unsigned long nr, volatile void * addr)
 }
 
 /*
- * WARNING: non atomic version.
+ * WARNING: analn atomic version.
  */
 static __always_inline void
 arch___set_bit(unsigned long nr, volatile unsigned long *addr)
@@ -80,7 +80,7 @@ clear_bit_unlock(unsigned long nr, volatile void * addr)
 }
 
 /*
- * WARNING: non atomic version.
+ * WARNING: analn atomic version.
  */
 static __always_inline void
 arch___clear_bit(unsigned long nr, volatile unsigned long *addr)
@@ -116,7 +116,7 @@ change_bit(unsigned long nr, volatile void * addr)
 }
 
 /*
- * WARNING: non atomic version.
+ * WARNING: analn atomic version.
  */
 static __always_inline void
 arch___change_bit(unsigned long nr, volatile unsigned long *addr)
@@ -184,7 +184,7 @@ test_and_set_bit_lock(unsigned long nr, volatile void *addr)
 }
 
 /*
- * WARNING: non atomic version.
+ * WARNING: analn atomic version.
  */
 static __always_inline bool
 arch___test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
@@ -228,7 +228,7 @@ test_and_clear_bit(unsigned long nr, volatile void * addr)
 }
 
 /*
- * WARNING: non atomic version.
+ * WARNING: analn atomic version.
  */
 static __always_inline bool
 arch___test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
@@ -270,7 +270,7 @@ test_and_change_bit(unsigned long nr, volatile void * addr)
 }
 
 /*
- * WARNING: non atomic version.
+ * WARNING: analn atomic version.
  */
 static __always_inline bool
 arch___test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
@@ -307,7 +307,7 @@ static inline bool xor_unlock_is_negative_byte(unsigned long mask,
 }
 
 /*
- * ffz = Find First Zero in word. Undefined if no zero exists,
+ * ffz = Find First Zero in word. Undefined if anal zero exists,
  * so code should check against ~0UL first..
  *
  * Do a binary search on the bits.  Due to the nature of large
@@ -346,7 +346,7 @@ static inline unsigned long ffz(unsigned long word)
 }
 
 /*
- * __ffs = Find First set bit in word.  Undefined if no set bit exists.
+ * __ffs = Find First set bit in word.  Undefined if anal set bit exists.
  */
 static inline unsigned long __ffs(unsigned long word)
 {
@@ -467,7 +467,7 @@ sched_find_first_bit(const unsigned long b[2])
 	return __ffs(tmp) + ofs;
 }
 
-#include <asm-generic/bitops/non-instrumented-non-atomic.h>
+#include <asm-generic/bitops/analn-instrumented-analn-atomic.h>
 
 #include <asm-generic/bitops/le.h>
 

@@ -19,34 +19,34 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission analtice:
+ *     The Syanalpsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syanalpsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syanalpsys
  *     and you.
  *
- *     The Software IS NOT an item of Licensed Software or Licensed Product
+ *     The Software IS ANALT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syanalpsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     ananaltated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright analtice and this permission analtice shall be included
  *     in all copies or substantial portions of the Software.
  *
- *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
- *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYANALPSYS SOLELY ON AN "AS IS"
+ *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
  *     TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN NO EVENT SHALL SYNOPSYS
+ *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN ANAL EVENT SHALL SYANALPSYS
  *     BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  *     INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -62,51 +62,51 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       analtice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Advanced Micro Devices, Inc. nor the
+ *     * Neither the name of Advanced Micro Devices, Inc. analr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission analtice:
+ *     The Syanalpsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syanalpsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syanalpsys
  *     and you.
  *
- *     The Software IS NOT an item of Licensed Software or Licensed Product
+ *     The Software IS ANALT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syanalpsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     ananaltated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright analtice and this permission analtice shall be included
  *     in all copies or substantial portions of the Software.
  *
- *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
- *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYANALPSYS SOLELY ON AN "AS IS"
+ *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
  *     TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN NO EVENT SHALL SYNOPSYS
+ *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN ANAL EVENT SHALL SYANALPSYS
  *     BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  *     INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -1139,7 +1139,7 @@
 #define IC_RAW_INTR_STAT_TX_EMPTY_WIDTH		1
 
 /* I2C Control register value */
-#define IC_TX_ABRT_7B_ADDR_NOACK		0x0001
+#define IC_TX_ABRT_7B_ADDR_ANALACK		0x0001
 #define IC_TX_ABRT_ARB_LOST			0x1000
 
 /* Descriptor/Packet entry bit positions and sizes */
@@ -1173,43 +1173,43 @@
 #define RX_PACKET_ATTRIBUTES_TNPCSUM_DONE_INDEX	9
 #define RX_PACKET_ATTRIBUTES_TNPCSUM_DONE_WIDTH	1
 
-#define RX_NORMAL_DESC0_OVT_INDEX		0
-#define RX_NORMAL_DESC0_OVT_WIDTH		16
-#define RX_NORMAL_DESC2_HL_INDEX		0
-#define RX_NORMAL_DESC2_HL_WIDTH		10
-#define RX_NORMAL_DESC2_TNP_INDEX		11
-#define RX_NORMAL_DESC2_TNP_WIDTH		1
-#define RX_NORMAL_DESC3_CDA_INDEX		27
-#define RX_NORMAL_DESC3_CDA_WIDTH		1
-#define RX_NORMAL_DESC3_CTXT_INDEX		30
-#define RX_NORMAL_DESC3_CTXT_WIDTH		1
-#define RX_NORMAL_DESC3_ES_INDEX		15
-#define RX_NORMAL_DESC3_ES_WIDTH		1
-#define RX_NORMAL_DESC3_ETLT_INDEX		16
-#define RX_NORMAL_DESC3_ETLT_WIDTH		4
-#define RX_NORMAL_DESC3_FD_INDEX		29
-#define RX_NORMAL_DESC3_FD_WIDTH		1
-#define RX_NORMAL_DESC3_INTE_INDEX		30
-#define RX_NORMAL_DESC3_INTE_WIDTH		1
-#define RX_NORMAL_DESC3_L34T_INDEX		20
-#define RX_NORMAL_DESC3_L34T_WIDTH		4
-#define RX_NORMAL_DESC3_LD_INDEX		28
-#define RX_NORMAL_DESC3_LD_WIDTH		1
-#define RX_NORMAL_DESC3_OWN_INDEX		31
-#define RX_NORMAL_DESC3_OWN_WIDTH		1
-#define RX_NORMAL_DESC3_PL_INDEX		0
-#define RX_NORMAL_DESC3_PL_WIDTH		14
-#define RX_NORMAL_DESC3_RSV_INDEX		26
-#define RX_NORMAL_DESC3_RSV_WIDTH		1
+#define RX_ANALRMAL_DESC0_OVT_INDEX		0
+#define RX_ANALRMAL_DESC0_OVT_WIDTH		16
+#define RX_ANALRMAL_DESC2_HL_INDEX		0
+#define RX_ANALRMAL_DESC2_HL_WIDTH		10
+#define RX_ANALRMAL_DESC2_TNP_INDEX		11
+#define RX_ANALRMAL_DESC2_TNP_WIDTH		1
+#define RX_ANALRMAL_DESC3_CDA_INDEX		27
+#define RX_ANALRMAL_DESC3_CDA_WIDTH		1
+#define RX_ANALRMAL_DESC3_CTXT_INDEX		30
+#define RX_ANALRMAL_DESC3_CTXT_WIDTH		1
+#define RX_ANALRMAL_DESC3_ES_INDEX		15
+#define RX_ANALRMAL_DESC3_ES_WIDTH		1
+#define RX_ANALRMAL_DESC3_ETLT_INDEX		16
+#define RX_ANALRMAL_DESC3_ETLT_WIDTH		4
+#define RX_ANALRMAL_DESC3_FD_INDEX		29
+#define RX_ANALRMAL_DESC3_FD_WIDTH		1
+#define RX_ANALRMAL_DESC3_INTE_INDEX		30
+#define RX_ANALRMAL_DESC3_INTE_WIDTH		1
+#define RX_ANALRMAL_DESC3_L34T_INDEX		20
+#define RX_ANALRMAL_DESC3_L34T_WIDTH		4
+#define RX_ANALRMAL_DESC3_LD_INDEX		28
+#define RX_ANALRMAL_DESC3_LD_WIDTH		1
+#define RX_ANALRMAL_DESC3_OWN_INDEX		31
+#define RX_ANALRMAL_DESC3_OWN_WIDTH		1
+#define RX_ANALRMAL_DESC3_PL_INDEX		0
+#define RX_ANALRMAL_DESC3_PL_WIDTH		14
+#define RX_ANALRMAL_DESC3_RSV_INDEX		26
+#define RX_ANALRMAL_DESC3_RSV_WIDTH		1
 
 #define RX_DESC3_L34T_IPV4_TCP			1
 #define RX_DESC3_L34T_IPV4_UDP			2
 #define RX_DESC3_L34T_IPV4_ICMP			3
-#define RX_DESC3_L34T_IPV4_UNKNOWN		7
+#define RX_DESC3_L34T_IPV4_UNKANALWN		7
 #define RX_DESC3_L34T_IPV6_TCP			9
 #define RX_DESC3_L34T_IPV6_UDP			10
 #define RX_DESC3_L34T_IPV6_ICMP			11
-#define RX_DESC3_L34T_IPV6_UNKNOWN		15
+#define RX_DESC3_L34T_IPV6_UNKANALWN		15
 
 #define RX_CONTEXT_DESC3_TSA_INDEX		4
 #define RX_CONTEXT_DESC3_TSA_WIDTH		1
@@ -1238,39 +1238,39 @@
 #define TX_CONTEXT_DESC3_VT_INDEX		0
 #define TX_CONTEXT_DESC3_VT_WIDTH		16
 
-#define TX_NORMAL_DESC2_HL_B1L_INDEX		0
-#define TX_NORMAL_DESC2_HL_B1L_WIDTH		14
-#define TX_NORMAL_DESC2_IC_INDEX		31
-#define TX_NORMAL_DESC2_IC_WIDTH		1
-#define TX_NORMAL_DESC2_TTSE_INDEX		30
-#define TX_NORMAL_DESC2_TTSE_WIDTH		1
-#define TX_NORMAL_DESC2_VTIR_INDEX		14
-#define TX_NORMAL_DESC2_VTIR_WIDTH		2
-#define TX_NORMAL_DESC3_CIC_INDEX		16
-#define TX_NORMAL_DESC3_CIC_WIDTH		2
-#define TX_NORMAL_DESC3_CPC_INDEX		26
-#define TX_NORMAL_DESC3_CPC_WIDTH		2
-#define TX_NORMAL_DESC3_CTXT_INDEX		30
-#define TX_NORMAL_DESC3_CTXT_WIDTH		1
-#define TX_NORMAL_DESC3_FD_INDEX		29
-#define TX_NORMAL_DESC3_FD_WIDTH		1
-#define TX_NORMAL_DESC3_FL_INDEX		0
-#define TX_NORMAL_DESC3_FL_WIDTH		15
-#define TX_NORMAL_DESC3_LD_INDEX		28
-#define TX_NORMAL_DESC3_LD_WIDTH		1
-#define TX_NORMAL_DESC3_OWN_INDEX		31
-#define TX_NORMAL_DESC3_OWN_WIDTH		1
-#define TX_NORMAL_DESC3_TCPHDRLEN_INDEX		19
-#define TX_NORMAL_DESC3_TCPHDRLEN_WIDTH		4
-#define TX_NORMAL_DESC3_TCPPL_INDEX		0
-#define TX_NORMAL_DESC3_TCPPL_WIDTH		18
-#define TX_NORMAL_DESC3_TSE_INDEX		18
-#define TX_NORMAL_DESC3_TSE_WIDTH		1
-#define TX_NORMAL_DESC3_VNP_INDEX		23
-#define TX_NORMAL_DESC3_VNP_WIDTH		3
+#define TX_ANALRMAL_DESC2_HL_B1L_INDEX		0
+#define TX_ANALRMAL_DESC2_HL_B1L_WIDTH		14
+#define TX_ANALRMAL_DESC2_IC_INDEX		31
+#define TX_ANALRMAL_DESC2_IC_WIDTH		1
+#define TX_ANALRMAL_DESC2_TTSE_INDEX		30
+#define TX_ANALRMAL_DESC2_TTSE_WIDTH		1
+#define TX_ANALRMAL_DESC2_VTIR_INDEX		14
+#define TX_ANALRMAL_DESC2_VTIR_WIDTH		2
+#define TX_ANALRMAL_DESC3_CIC_INDEX		16
+#define TX_ANALRMAL_DESC3_CIC_WIDTH		2
+#define TX_ANALRMAL_DESC3_CPC_INDEX		26
+#define TX_ANALRMAL_DESC3_CPC_WIDTH		2
+#define TX_ANALRMAL_DESC3_CTXT_INDEX		30
+#define TX_ANALRMAL_DESC3_CTXT_WIDTH		1
+#define TX_ANALRMAL_DESC3_FD_INDEX		29
+#define TX_ANALRMAL_DESC3_FD_WIDTH		1
+#define TX_ANALRMAL_DESC3_FL_INDEX		0
+#define TX_ANALRMAL_DESC3_FL_WIDTH		15
+#define TX_ANALRMAL_DESC3_LD_INDEX		28
+#define TX_ANALRMAL_DESC3_LD_WIDTH		1
+#define TX_ANALRMAL_DESC3_OWN_INDEX		31
+#define TX_ANALRMAL_DESC3_OWN_WIDTH		1
+#define TX_ANALRMAL_DESC3_TCPHDRLEN_INDEX		19
+#define TX_ANALRMAL_DESC3_TCPHDRLEN_WIDTH		4
+#define TX_ANALRMAL_DESC3_TCPPL_INDEX		0
+#define TX_ANALRMAL_DESC3_TCPPL_WIDTH		18
+#define TX_ANALRMAL_DESC3_TSE_INDEX		18
+#define TX_ANALRMAL_DESC3_TSE_WIDTH		1
+#define TX_ANALRMAL_DESC3_VNP_INDEX		23
+#define TX_ANALRMAL_DESC3_VNP_WIDTH		3
 
-#define TX_NORMAL_DESC2_VLAN_INSERT		0x2
-#define TX_NORMAL_DESC3_VXLAN_PACKET		0x3
+#define TX_ANALRMAL_DESC2_VLAN_INSERT		0x2
+#define TX_ANALRMAL_DESC3_VXLAN_PACKET		0x3
 
 /* MDIO undefined or vendor specific registers */
 #ifndef MDIO_PMA_10GBR_PMD_CTRL

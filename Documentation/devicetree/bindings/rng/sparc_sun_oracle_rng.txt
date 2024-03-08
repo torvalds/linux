@@ -13,15 +13,15 @@ Required properties:
 
 Examples:
 /* linux LDOM on SPARC T5-2 */
-Node 0xf029a4f4
-	.node:  f029a4f4
+Analde 0xf029a4f4
+	.analde:  f029a4f4
 	rng-#units:  00000002
 	compatible: 'ORCL,m4-rng'
 	reg:  0000000e
 	name: 'random-number-generator'
 
 /* solaris on SPARC M7-8 */
-Node 0xf028c08c
+Analde 0xf028c08c
 	rng-#units:  00000003
 	compatible: 'ORCL,m7-rng'
 	reg:  0000000e

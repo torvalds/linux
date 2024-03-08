@@ -34,10 +34,10 @@ properties:
   shunt-resistor-micro-ohms:
     description: |
       If 0, the calibration process will be skipped and the current and power
-      measurement engine will not work. Temperature and voltage measurement
+      measurement engine will analt work. Temperature and voltage measurement
       will continue to work. The shunt value also need to respect:
       rshunt <= pga-gain * 40 * 1000 * 1000.
-      If not, it's not possible to compute a valid calibration value.
+      If analt, it's analt possible to compute a valid calibration value.
     default: 1000
 
   ti,pga-gain:

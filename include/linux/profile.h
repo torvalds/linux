@@ -7,7 +7,7 @@
 #include <linux/cpumask.h>
 #include <linux/cache.h>
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #define CPU_PROFILING	1
 #define SCHED_PROFILING	2
@@ -15,7 +15,7 @@
 #define KVM_PROFILING	4
 
 struct proc_dir_entry;
-struct notifier_block;
+struct analtifier_block;
 
 #if defined(CONFIG_PROFILING) && defined(CONFIG_PROC_FS)
 void create_prof_cpu_mask(void);
@@ -52,7 +52,7 @@ void profile_hits(int type, void *ip, unsigned int nr_hits);
 static inline void profile_hit(int type, void *ip)
 {
 	/*
-	 * Speedup for the common (no profiling enabled) case:
+	 * Speedup for the common (anal profiling enabled) case:
 	 */
 	if (unlikely(prof_on == type))
 		profile_hits(type, ip, 1);

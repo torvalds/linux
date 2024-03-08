@@ -12,7 +12,7 @@ description:
   its clocks, before OS bringup.
 
 maintainers:
-  - Conor Dooley <conor@kernel.org>
+  - Coanalr Dooley <coanalr@kernel.org>
 
 properties:
   compatible:

@@ -16,7 +16,7 @@
 #include "mt8195-reg.h"
 
 #define MT8195_ETDM_MAX_CHANNELS 24
-#define MT8195_ETDM_NORMAL_MAX_BCK_RATE 24576000
+#define MT8195_ETDM_ANALRMAL_MAX_BCK_RATE 24576000
 #define ETDM_TO_DAI_ID(x) ((x) + MT8195_AFE_IO_ETDM_START)
 #define ENUM_TO_STR(x)	#x
 
@@ -58,7 +58,7 @@ enum {
 };
 
 enum {
-	COWORK_ETDM_NONE = 0,
+	COWORK_ETDM_ANALNE = 0,
 	COWORK_ETDM_IN1_M = 2,
 	COWORK_ETDM_IN1_S = 3,
 	COWORK_ETDM_IN2_M = 4,
@@ -78,7 +78,7 @@ enum {
 };
 
 enum {
-	ETDM_SYNC_NONE,
+	ETDM_SYNC_ANALNE,
 	ETDM_SYNC_FROM_IN1,
 	ETDM_SYNC_FROM_IN2,
 	ETDM_SYNC_FROM_OUT1,
@@ -275,7 +275,7 @@ static int is_cowork_mode(struct snd_soc_dai *dai)
 
 	etdm_data = afe_priv->dai_priv[dai->id];
 	return (etdm_data->cowork_slv_count > 0 ||
-		etdm_data->cowork_source_id != COWORK_ETDM_NONE);
+		etdm_data->cowork_source_id != COWORK_ETDM_ANALNE);
 }
 
 static int sync_to_dai_id(int source_sel)
@@ -309,7 +309,7 @@ static int get_etdm_cowork_master_id(struct snd_soc_dai *dai)
 	etdm_data = afe_priv->dai_priv[dai->id];
 	dai_id = etdm_data->cowork_source_id;
 
-	if (dai_id == COWORK_ETDM_NONE)
+	if (dai_id == COWORK_ETDM_ANALNE)
 		dai_id = dai->id;
 
 	return dai_id;
@@ -583,7 +583,7 @@ static int hdmitx_dptx_mux_map_value[] = {
 
 /* HDMI_OUT_MUX */
 static SOC_VALUE_ENUM_SINGLE_AUTODISABLE_DECL(hdmi_out_mux_map_enum,
-				SND_SOC_NOPM,
+				SND_SOC_ANALPM,
 				0,
 				1,
 				hdmitx_dptx_mux_map,
@@ -594,7 +594,7 @@ static const struct snd_kcontrol_new hdmi_out_mux_control =
 
 /* DPTX_OUT_MUX */
 static SOC_VALUE_ENUM_SINGLE_AUTODISABLE_DECL(dptx_out_mux_map_enum,
-				SND_SOC_NOPM,
+				SND_SOC_ANALPM,
 				0,
 				1,
 				hdmitx_dptx_mux_map,
@@ -802,210 +802,210 @@ static const struct snd_kcontrol_new mtk_dai_etdm_controls[] = {
 
 static const struct snd_soc_dapm_widget mtk_dai_etdm_widgets[] = {
 	/* eTDM_IN2 */
-	SND_SOC_DAPM_MIXER("I012", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I013", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I014", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I015", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I016", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I017", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I018", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I019", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I012", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I013", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I014", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I015", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I016", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I017", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I018", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I019", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* eTDM_IN1 */
-	SND_SOC_DAPM_MIXER("I072", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I073", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I074", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I075", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I076", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I077", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I078", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I079", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I080", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I081", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I082", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I083", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I084", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I085", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I086", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I087", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I088", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I089", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I090", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I091", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I092", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I093", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I094", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I095", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I072", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I073", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I074", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I075", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I076", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I077", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I078", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I079", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I080", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I081", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I082", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I083", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I084", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I085", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I086", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I087", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I088", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I089", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I090", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I091", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I092", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I093", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I094", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I095", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* eTDM_OUT2 */
-	SND_SOC_DAPM_MIXER("O048", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O048", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o048_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o048_mix)),
-	SND_SOC_DAPM_MIXER("O049", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O049", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o049_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o049_mix)),
-	SND_SOC_DAPM_MIXER("O050", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O050", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o050_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o050_mix)),
-	SND_SOC_DAPM_MIXER("O051", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O051", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o051_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o051_mix)),
-	SND_SOC_DAPM_MIXER("O052", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O052", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o052_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o052_mix)),
-	SND_SOC_DAPM_MIXER("O053", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O053", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o053_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o053_mix)),
-	SND_SOC_DAPM_MIXER("O054", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O054", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o054_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o054_mix)),
-	SND_SOC_DAPM_MIXER("O055", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O055", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o055_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o055_mix)),
-	SND_SOC_DAPM_MIXER("O056", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O056", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o056_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o056_mix)),
-	SND_SOC_DAPM_MIXER("O057", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O057", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o057_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o057_mix)),
-	SND_SOC_DAPM_MIXER("O058", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O058", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o058_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o058_mix)),
-	SND_SOC_DAPM_MIXER("O059", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O059", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o059_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o059_mix)),
-	SND_SOC_DAPM_MIXER("O060", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O060", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o060_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o060_mix)),
-	SND_SOC_DAPM_MIXER("O061", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O061", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o061_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o061_mix)),
-	SND_SOC_DAPM_MIXER("O062", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O062", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o062_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o062_mix)),
-	SND_SOC_DAPM_MIXER("O063", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O063", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o063_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o063_mix)),
-	SND_SOC_DAPM_MIXER("O064", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O064", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o064_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o064_mix)),
-	SND_SOC_DAPM_MIXER("O065", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O065", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o065_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o065_mix)),
-	SND_SOC_DAPM_MIXER("O066", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O066", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o066_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o066_mix)),
-	SND_SOC_DAPM_MIXER("O067", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O067", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o067_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o067_mix)),
-	SND_SOC_DAPM_MIXER("O068", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O068", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o068_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o068_mix)),
-	SND_SOC_DAPM_MIXER("O069", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O069", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o069_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o069_mix)),
-	SND_SOC_DAPM_MIXER("O070", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O070", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o070_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o070_mix)),
-	SND_SOC_DAPM_MIXER("O071", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O071", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o071_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o071_mix)),
 
 	/* eTDM_OUT1 */
-	SND_SOC_DAPM_MIXER("O072", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O072", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o072_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o072_mix)),
-	SND_SOC_DAPM_MIXER("O073", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O073", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o073_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o073_mix)),
-	SND_SOC_DAPM_MIXER("O074", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O074", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o074_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o074_mix)),
-	SND_SOC_DAPM_MIXER("O075", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O075", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o075_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o075_mix)),
-	SND_SOC_DAPM_MIXER("O076", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O076", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o076_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o076_mix)),
-	SND_SOC_DAPM_MIXER("O077", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O077", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o077_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o077_mix)),
-	SND_SOC_DAPM_MIXER("O078", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O078", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o078_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o078_mix)),
-	SND_SOC_DAPM_MIXER("O079", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O079", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o079_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o079_mix)),
-	SND_SOC_DAPM_MIXER("O080", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O080", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o080_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o080_mix)),
-	SND_SOC_DAPM_MIXER("O081", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O081", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o081_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o081_mix)),
-	SND_SOC_DAPM_MIXER("O082", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O082", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o082_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o082_mix)),
-	SND_SOC_DAPM_MIXER("O083", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O083", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o083_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o083_mix)),
-	SND_SOC_DAPM_MIXER("O084", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O084", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o084_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o084_mix)),
-	SND_SOC_DAPM_MIXER("O085", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O085", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o085_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o085_mix)),
-	SND_SOC_DAPM_MIXER("O086", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O086", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o086_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o086_mix)),
-	SND_SOC_DAPM_MIXER("O087", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O087", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o087_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o087_mix)),
-	SND_SOC_DAPM_MIXER("O088", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O088", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o088_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o088_mix)),
-	SND_SOC_DAPM_MIXER("O089", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O089", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o089_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o089_mix)),
-	SND_SOC_DAPM_MIXER("O090", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O090", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o090_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o090_mix)),
-	SND_SOC_DAPM_MIXER("O091", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O091", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o091_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o091_mix)),
-	SND_SOC_DAPM_MIXER("O092", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O092", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o092_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o092_mix)),
-	SND_SOC_DAPM_MIXER("O093", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O093", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o093_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o093_mix)),
-	SND_SOC_DAPM_MIXER("O094", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O094", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o094_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o094_mix)),
-	SND_SOC_DAPM_MIXER("O095", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("O095", SND_SOC_ANALPM, 0, 0,
 			   mtk_dai_etdm_o095_mix,
 			   ARRAY_SIZE(mtk_dai_etdm_o095_mix)),
 
 	/* eTDM_OUT3 */
-	SND_SOC_DAPM_MUX("HDMI_OUT_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_OUT_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_out_mux_control),
-	SND_SOC_DAPM_MUX("DPTX_OUT_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DPTX_OUT_MUX", SND_SOC_ANALPM, 0, 0,
 			 &dptx_out_mux_control),
 
-	SND_SOC_DAPM_MUX("HDMI_CH0_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH0_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch0_mux_control),
-	SND_SOC_DAPM_MUX("HDMI_CH1_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH1_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch1_mux_control),
-	SND_SOC_DAPM_MUX("HDMI_CH2_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH2_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch2_mux_control),
-	SND_SOC_DAPM_MUX("HDMI_CH3_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH3_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch3_mux_control),
-	SND_SOC_DAPM_MUX("HDMI_CH4_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH4_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch4_mux_control),
-	SND_SOC_DAPM_MUX("HDMI_CH5_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH5_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch5_mux_control),
-	SND_SOC_DAPM_MUX("HDMI_CH6_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH6_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch6_mux_control),
-	SND_SOC_DAPM_MUX("HDMI_CH7_MUX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("HDMI_CH7_MUX", SND_SOC_ANALPM, 0, 0,
 			 &hdmi_ch7_mux_control),
 
 	SND_SOC_DAPM_INPUT("ETDM_INPUT"),
@@ -1417,7 +1417,7 @@ static int mt8195_etdm_sync_mode_configure(struct mtk_base_afe *afe, int dai_id)
 		return -EINVAL;
 
 	etdm_data = afe_priv->dai_priv[dai_id];
-	if (etdm_data->cowork_source_id == COWORK_ETDM_NONE)
+	if (etdm_data->cowork_source_id == COWORK_ETDM_ANALNE)
 		return 0;
 
 	cowork_source_sel = etdm_cowork_slv_sel(etdm_data->cowork_source_id,
@@ -1715,7 +1715,7 @@ static int mtk_dai_etdm_in_configure(struct mtk_base_afe *afe,
 	if (ret < 0)
 		return ret;
 
-	if (etdm_data->cowork_source_id != COWORK_ETDM_NONE)
+	if (etdm_data->cowork_source_id != COWORK_ETDM_ANALNE)
 		slave_mode = true;
 
 	/* afifo */
@@ -1838,7 +1838,7 @@ static int mtk_dai_etdm_out_configure(struct mtk_base_afe *afe,
 	if (ret < 0)
 		return ret;
 
-	if (etdm_data->cowork_source_id != COWORK_ETDM_NONE)
+	if (etdm_data->cowork_source_id != COWORK_ETDM_ANALNE)
 		slave_mode = true;
 
 	/* con0 */
@@ -1985,7 +1985,7 @@ static int mtk_dai_etdm_configure(struct mtk_base_afe *afe,
 	if (ret < 0)
 		return ret;
 
-	if (etdm_data->cowork_source_id != COWORK_ETDM_NONE)
+	if (etdm_data->cowork_source_id != COWORK_ETDM_ANALNE)
 		slave_mode = true;
 
 	dev_dbg(afe->dev, "%s fmt %u data %u lrck %d-%u bck %d, clock %u slv %u\n",
@@ -1999,8 +1999,8 @@ static int mtk_dai_etdm_configure(struct mtk_base_afe *afe,
 			get_etdm_ch_fixup(channels) : 2;
 
 	bck = rate * etdm_channels * wlen;
-	if (bck > MT8195_ETDM_NORMAL_MAX_BCK_RATE) {
-		dev_info(afe->dev, "%s bck rate %u not support\n",
+	if (bck > MT8195_ETDM_ANALRMAL_MAX_BCK_RATE) {
+		dev_info(afe->dev, "%s bck rate %u analt support\n",
 			 __func__, bck);
 		return -EINVAL;
 	}
@@ -2018,7 +2018,7 @@ static int mtk_dai_etdm_configure(struct mtk_base_afe *afe,
 	mask |= ETDM_CON0_SLAVE_MODE;
 	if (slave_mode) {
 		if (dai_id == MT8195_AFE_IO_ETDM1_OUT &&
-		    etdm_data->cowork_source_id == COWORK_ETDM_NONE) {
+		    etdm_data->cowork_source_id == COWORK_ETDM_ANALNE) {
 			dev_info(afe->dev, "%s id %d only support master mode\n",
 				 __func__, dai_id);
 			return -EINVAL;
@@ -2174,7 +2174,7 @@ static int mtk_dai_etdm_cal_mclk(struct mtk_base_afe *afe, int freq, int dai_id)
 	}
 
 	if (apll_rate % freq != 0) {
-		dev_info(afe->dev, "APLL%d cannot generate freq Hz\n", apll);
+		dev_info(afe->dev, "APLL%d cananalt generate freq Hz\n", apll);
 		return -EINVAL;
 	}
 
@@ -2601,7 +2601,7 @@ static void mt8195_etdm_update_sync_info(struct mtk_base_afe *afe)
 
 	for (i = MT8195_AFE_IO_ETDM_START; i < MT8195_AFE_IO_ETDM_END; i++) {
 		etdm_data = afe_priv->dai_priv[i];
-		if (etdm_data->cowork_source_id != COWORK_ETDM_NONE) {
+		if (etdm_data->cowork_source_id != COWORK_ETDM_ANALNE) {
 			mst_dai_id = etdm_data->cowork_source_id;
 			if (!mt8195_afe_etdm_is_valid(mst_dai_id)) {
 				dev_err(afe->dev, "%s invalid dai id %d\n",
@@ -2609,7 +2609,7 @@ static void mt8195_etdm_update_sync_info(struct mtk_base_afe *afe)
 				return;
 			}
 			mst_data = afe_priv->dai_priv[mst_dai_id];
-			if (mst_data->cowork_source_id != COWORK_ETDM_NONE)
+			if (mst_data->cowork_source_id != COWORK_ETDM_ANALNE)
 				dev_info(afe->dev, "%s [%d] wrong sync source\n"
 					 , __func__, i);
 			mst_data->cowork_slv_id[mst_data->cowork_slv_count] = i;
@@ -2620,7 +2620,7 @@ static void mt8195_etdm_update_sync_info(struct mtk_base_afe *afe)
 
 static void mt8195_dai_etdm_parse_of(struct mtk_base_afe *afe)
 {
-	const struct device_node *of_node = afe->dev->of_node;
+	const struct device_analde *of_analde = afe->dev->of_analde;
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
 	struct mtk_dai_etdm_priv *etdm_data;
 	int i, j;
@@ -2660,7 +2660,7 @@ static void mt8195_dai_etdm_parse_of(struct mtk_base_afe *afe)
 				 __func__, ret);
 			return;
 		}
-		ret = of_property_read_u32(of_node, prop, &sel);
+		ret = of_property_read_u32(of_analde, prop, &sel);
 		if (ret == 0) {
 			etdm_data->mclk_dir = SND_SOC_CLOCK_OUT;
 			if (mtk_dai_etdm_cal_mclk(afe, sel, dai_id))
@@ -2676,7 +2676,7 @@ static void mt8195_dai_etdm_parse_of(struct mtk_base_afe *afe)
 				 __func__, ret);
 			return;
 		}
-		etdm_data->data_mode = of_property_read_bool(of_node, prop);
+		etdm_data->data_mode = of_property_read_bool(of_analde, prop);
 
 		ret = snprintf(prop, sizeof(prop),
 			       "mediatek,%s-cowork-source",
@@ -2686,19 +2686,19 @@ static void mt8195_dai_etdm_parse_of(struct mtk_base_afe *afe)
 				 __func__, ret);
 			return;
 		}
-		ret = of_property_read_u32(of_node, prop, &sel);
+		ret = of_property_read_u32(of_analde, prop, &sel);
 		if (ret == 0) {
 			if (sel >= MT8195_AFE_IO_ETDM_NUM) {
 				dev_info(afe->dev, "%s invalid id=%d\n",
 					 __func__, sel);
-				etdm_data->cowork_source_id = COWORK_ETDM_NONE;
+				etdm_data->cowork_source_id = COWORK_ETDM_ANALNE;
 			} else {
 				sync_id = of_afe_etdms[sel].sync_id;
 				etdm_data->cowork_source_id =
 					sync_to_dai_id(sync_id);
 			}
 		} else {
-			etdm_data->cowork_source_id = COWORK_ETDM_NONE;
+			etdm_data->cowork_source_id = COWORK_ETDM_ANALNE;
 		}
 	}
 
@@ -2715,7 +2715,7 @@ static void mt8195_dai_etdm_parse_of(struct mtk_base_afe *afe)
 				 __func__, ret);
 			return;
 		}
-		ret = of_property_read_variable_u8_array(of_node, prop,
+		ret = of_property_read_variable_u8_array(of_analde, prop,
 							 disable_chn,
 							 1, max_chn);
 		if (ret < 0)
@@ -2743,7 +2743,7 @@ static int init_etdm_priv_data(struct mtk_base_afe *afe)
 					 sizeof(struct mtk_dai_etdm_priv),
 					 GFP_KERNEL);
 		if (!etdm_priv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		afe_priv->dai_priv[i] = etdm_priv;
 	}
@@ -2761,7 +2761,7 @@ int mt8195_dai_etdm_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 

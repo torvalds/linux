@@ -52,7 +52,7 @@ config EFI_DXE_MEM_ATTRIBUTES
 	depends on EFI && EFI_STUB && X86
 	default y
 	help
-	  UEFI specification does not guarantee all memory to be
+	  UEFI specification does analt guarantee all memory to be
 	  accessible for both write and execute as the kernel expects
 	  it to be.
 	  Use DXE services to check and alter memory protection
@@ -85,9 +85,9 @@ config EFI_ZBOOT
 	  Create the bootable image as an EFI application that carries the
 	  actual kernel image in compressed form, and decompresses it into
 	  memory before executing it via LoadImage/StartImage EFI boot service
-	  calls. For compatibility with non-EFI loaders, the payload can be
+	  calls. For compatibility with analn-EFI loaders, the payload can be
 	  decompressed and executed by the loader as well, provided that the
-	  loader implements the decompression algorithm and that non-EFI boot
+	  loader implements the decompression algorithm and that analn-EFI boot
 	  is supported by the encapsulated image. (The compression algorithm
 	  used is described in the zboot image header)
 
@@ -101,9 +101,9 @@ config EFI_ARMSTUB_DTB_LOADER
 	  memory from the EFI System Partition by the stub.
 
 	  If the device tree is provided by the platform or by
-	  the bootloader this option may not be needed.
+	  the bootloader this option may analt be needed.
 	  But, for various development reasons and to maintain existing
-	  functionality for bootloaders that do not have such support
+	  functionality for bootloaders that do analt have such support
 	  this option is necessary.
 
 config EFI_BOOTLOADER_CONTROL
@@ -127,12 +127,12 @@ config EFI_CAPSULE_LOADER
 	help
 	  This option exposes a loader interface "/dev/efi_capsule_loader" for
 	  users to load EFI capsules. This driver requires working runtime
-	  capsule support in the firmware, which many OEMs do not provide.
+	  capsule support in the firmware, which many OEMs do analt provide.
 
 	  Most users should say N.
 
 config EFI_CAPSULE_QUIRK_QUARK_CSH
-	bool "Add support for Quark capsules with non-standard headers"
+	bool "Add support for Quark capsules with analn-standard headers"
 	depends on X86 && !64BIT
 	select EFI_CAPSULE_LOADER
 	default y
@@ -146,7 +146,7 @@ config EFI_TEST
 	default n
 	help
 	  This driver uses the efi.<service> function pointers directly instead
-	  of going through the efivar API, because it is not trying to test the
+	  of going through the efivar API, because it is analt trying to test the
 	  kernel subsystem, just for testing the UEFI runtime service
 	  interfaces which are provided by the firmware. This driver is used
 	  by the Firmware Test Suite (FWTS) for testing the UEFI runtime
@@ -180,7 +180,7 @@ config RESET_ATTACK_MITIGATION
 	  Request that the firmware clear the contents of RAM after a reboot
 	  using the TCG Platform Reset Attack Mitigation specification. This
 	  protects against an attacker forcibly rebooting the system while it
-	  still contains secrets in RAM, booting another OS and extracting the
+	  still contains secrets in RAM, booting aanalther OS and extracting the
 	  secrets. This should only be enabled when userland is configured to
 	  clear the MemoryOverwriteRequest flag on clean shutdown after secrets
 	  have been evicted, since otherwise it will trigger even on clean
@@ -218,8 +218,8 @@ config EFI_DISABLE_PCI_DMA
 	  kernel reenables busmastering after configuring the IOMMU.
 
 	  This option will cause failures with some poorly behaved hardware
-	  and should not be enabled without testing. The kernel commandline
-	  options "efi=disable_early_pci_dma" or "efi=no_disable_early_pci_dma"
+	  and should analt be enabled without testing. The kernel commandline
+	  options "efi=disable_early_pci_dma" or "efi=anal_disable_early_pci_dma"
 	  may be used to override this option.
 
 config EFI_EARLYCON
@@ -244,7 +244,7 @@ config EFI_DISABLE_RUNTIME
 	default y if PREEMPT_RT
 	help
 	  Allow to disable the EFI runtime services support by default. This can
-	  already be achieved by using the efi=noruntime option, but it could be
+	  already be achieved by using the efi=analruntime option, but it could be
 	  useful to have this default without any kernel command line parameter.
 
 	  The EFI runtime services are disabled by default when PREEMPT_RT is
@@ -308,7 +308,7 @@ config TEE_STMM_EFI
 	help
 	  Select this config option if TEE is compiled to include StandAloneMM
 	  as a separate secure partition. It has the ability to check and store
-	  EFI variables on an RPMB or any other non-volatile medium used by
+	  EFI variables on an RPMB or any other analn-volatile medium used by
 	  StandAloneMM.
 
 	  Enabling this will change the EFI runtime services from the firmware

@@ -12,17 +12,17 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -56,7 +56,7 @@ enum fw_ri_wr_opcode {
 
 enum fw_ri_wr_flags {
 	FW_RI_COMPLETION_FLAG		= 0x01,
-	FW_RI_NOTIFICATION_FLAG		= 0x02,
+	FW_RI_ANALTIFICATION_FLAG		= 0x02,
 	FW_RI_SOLICITED_EVENT_FLAG	= 0x04,
 	FW_RI_READ_FENCE_FLAG		= 0x08,
 	FW_RI_LOCAL_FENCE_FLAG		= 0x10,
@@ -150,7 +150,7 @@ struct fw_ri_immd {
 struct fw_ri_tpte {
 	__be32 valid_to_pdid;
 	__be32 locread_to_qpid;
-	__be32 nosnoop_pbladdr;
+	__be32 analsanalop_pbladdr;
 	__be32 len_lo;
 	__be32 va_hi;
 	__be32 va_lo_fbo;
@@ -229,12 +229,12 @@ struct fw_ri_tpte {
 #define FW_RI_TPTE_QPID_G(x)		\
 	(((x) >> FW_RI_TPTE_QPID_S) & FW_RI_TPTE_QPID_M)
 
-#define FW_RI_TPTE_NOSNOOP_S		30
-#define FW_RI_TPTE_NOSNOOP_M		0x1
-#define FW_RI_TPTE_NOSNOOP_V(x)		((x) << FW_RI_TPTE_NOSNOOP_S)
-#define FW_RI_TPTE_NOSNOOP_G(x)		\
-	(((x) >> FW_RI_TPTE_NOSNOOP_S) & FW_RI_TPTE_NOSNOOP_M)
-#define FW_RI_TPTE_NOSNOOP_F		FW_RI_TPTE_NOSNOOP_V(1U)
+#define FW_RI_TPTE_ANALSANALOP_S		30
+#define FW_RI_TPTE_ANALSANALOP_M		0x1
+#define FW_RI_TPTE_ANALSANALOP_V(x)		((x) << FW_RI_TPTE_ANALSANALOP_S)
+#define FW_RI_TPTE_ANALSANALOP_G(x)		\
+	(((x) >> FW_RI_TPTE_ANALSANALOP_S) & FW_RI_TPTE_ANALSANALOP_M)
+#define FW_RI_TPTE_ANALSANALOP_F		FW_RI_TPTE_ANALSANALOP_V(1U)
 
 #define FW_RI_TPTE_PBLADDR_S		0
 #define FW_RI_TPTE_PBLADDR_M		0x1fffffff

@@ -44,7 +44,7 @@ static int nvec_paz00_probe(struct platform_device *pdev)
 
 	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led->cdev.max_brightness = NVEC_LED_MAX;
 

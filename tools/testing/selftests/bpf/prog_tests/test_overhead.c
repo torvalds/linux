@@ -11,7 +11,7 @@ static __u64 time_get_ns(void)
 {
 	struct timespec ts;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts);
+	clock_gettime(CLOCK_MOANALTONIC, &ts);
 	return ts.tv_sec * 1000000000ull + ts.tv_nsec;
 }
 
@@ -22,13 +22,13 @@ static int test_task_rename(const char *prog)
 	__u64 start_time;
 
 	fd = open("/proc/self/comm", O_WRONLY|O_TRUNC);
-	if (CHECK(fd < 0, "open /proc", "err %d", errno))
+	if (CHECK(fd < 0, "open /proc", "err %d", erranal))
 		return -1;
 	start_time = time_get_ns();
 	for (i = 0; i < MAX_CNT; i++) {
 		err = write(fd, buf, sizeof(buf));
 		if (err < 0) {
-			CHECK(err < 0, "task rename", "err %d", errno);
+			CHECK(err < 0, "task rename", "err %d", erranal);
 			close(fd);
 			return -1;
 		}
@@ -78,23 +78,23 @@ void test_test_overhead(void)
 
 	kprobe_prog = bpf_object__find_program_by_name(obj, kprobe_name);
 	if (CHECK(!kprobe_prog, "find_probe",
-		  "prog '%s' not found\n", kprobe_name))
+		  "prog '%s' analt found\n", kprobe_name))
 		goto cleanup;
 	kretprobe_prog = bpf_object__find_program_by_name(obj, kretprobe_name);
 	if (CHECK(!kretprobe_prog, "find_probe",
-		  "prog '%s' not found\n", kretprobe_name))
+		  "prog '%s' analt found\n", kretprobe_name))
 		goto cleanup;
 	raw_tp_prog = bpf_object__find_program_by_name(obj, raw_tp_name);
 	if (CHECK(!raw_tp_prog, "find_probe",
-		  "prog '%s' not found\n", raw_tp_name))
+		  "prog '%s' analt found\n", raw_tp_name))
 		goto cleanup;
 	fentry_prog = bpf_object__find_program_by_name(obj, fentry_name);
 	if (CHECK(!fentry_prog, "find_probe",
-		  "prog '%s' not found\n", fentry_name))
+		  "prog '%s' analt found\n", fentry_name))
 		goto cleanup;
 	fexit_prog = bpf_object__find_program_by_name(obj, fexit_name);
 	if (CHECK(!fexit_prog, "find_probe",
-		  "prog '%s' not found\n", fexit_name))
+		  "prog '%s' analt found\n", fexit_name))
 		goto cleanup;
 	err = bpf_object__load(obj);
 	if (CHECK(err, "obj_load", "err %d\n", err))

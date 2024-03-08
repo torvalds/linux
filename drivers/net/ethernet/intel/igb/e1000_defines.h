@@ -59,7 +59,7 @@
 /* Interrupt delay cancellation */
 /* Driver loaded bit for FW */
 #define E1000_CTRL_EXT_DRV_LOAD       0x10000000
-/* Interrupt acknowledge Auto-mask */
+/* Interrupt ackanalwledge Auto-mask */
 /* Clear Interrupt timers after IMS clear */
 /* packet buffer parity error detection enabled */
 /* descriptor FIFO parity error detection enable */
@@ -84,7 +84,7 @@
 /* Receive Descriptor bit definitions */
 #define E1000_RXD_STAT_DD       0x01    /* Descriptor Done */
 #define E1000_RXD_STAT_EOP      0x02    /* End of Packet */
-#define E1000_RXD_STAT_IXSM     0x04    /* Ignore checksum */
+#define E1000_RXD_STAT_IXSM     0x04    /* Iganalre checksum */
 #define E1000_RXD_STAT_VP       0x08    /* IEEE VLAN Packet */
 #define E1000_RXD_STAT_UDPCS    0x10    /* UDP xsum calculated */
 #define E1000_RXD_STAT_TCPCS    0x20    /* TCP xsum calculated */
@@ -117,7 +117,7 @@
 /* Management Control */
 #define E1000_MANC_SMBUS_EN      0x00000001 /* SMBus Enabled - RO */
 #define E1000_MANC_ASF_EN        0x00000002 /* ASF Enabled - RO */
-#define E1000_MANC_EN_BMC2OS     0x10000000 /* OSBMC is Enabled or not */
+#define E1000_MANC_EN_BMC2OS     0x10000000 /* OSBMC is Enabled or analt */
 /* Enable Neighbor Discovery Filtering */
 #define E1000_MANC_RCV_TCO_EN    0x00020000 /* Receive TCO Packets Enabled */
 #define E1000_MANC_BLK_PHY_RST_ON_IDE   0x00040000 /* Block phy resets */
@@ -138,7 +138,7 @@
 #define E1000_RCTL_SZ_512         0x00020000    /* rx buffer size 512 */
 #define E1000_RCTL_SZ_256         0x00030000    /* rx buffer size 256 */
 #define E1000_RCTL_VFE            0x00040000    /* vlan filter enable */
-#define E1000_RCTL_CFIEN          0x00080000    /* canonical form enable */
+#define E1000_RCTL_CFIEN          0x00080000    /* caanalnical form enable */
 #define E1000_RCTL_DPF            0x00400000    /* Discard Pause Frames */
 #define E1000_RCTL_PMCF           0x00800000    /* pass MAC control frames */
 #define E1000_RCTL_SECRC          0x04000000    /* Strip Ethernet CRC */
@@ -180,7 +180,7 @@
 /* Device Control */
 #define E1000_CTRL_FD       0x00000001  /* Full duplex.0=half; 1=full */
 #define E1000_CTRL_GIO_MASTER_DISABLE 0x00000004 /*Blocks new Master requests */
-#define E1000_CTRL_LRST     0x00000008  /* Link reset. 0=normal,1=reset */
+#define E1000_CTRL_LRST     0x00000008  /* Link reset. 0=analrmal,1=reset */
 #define E1000_CTRL_ASDE     0x00000020  /* Auto-speed detect enable */
 #define E1000_CTRL_SLU      0x00000040  /* Set link up (Force Link) */
 #define E1000_CTRL_ILOS     0x00000080  /* Invert Loss-Of Signal */
@@ -237,7 +237,7 @@
 
 /* Device Status */
 #define E1000_STATUS_FD         0x00000001      /* Full duplex.0=half,1=full */
-#define E1000_STATUS_LU         0x00000002      /* Link up.0=no,1=link */
+#define E1000_STATUS_LU         0x00000002      /* Link up.0=anal,1=link */
 #define E1000_STATUS_FUNC_MASK  0x0000000C      /* PCI Function Mask */
 #define E1000_STATUS_FUNC_SHIFT 2
 #define E1000_STATUS_FUNC_1     0x00000004      /* Function 1 */
@@ -265,14 +265,14 @@
 #define ADVERTISE_10_FULL                 0x0002
 #define ADVERTISE_100_HALF                0x0004
 #define ADVERTISE_100_FULL                0x0008
-#define ADVERTISE_1000_HALF               0x0010 /* Not used, just FYI */
+#define ADVERTISE_1000_HALF               0x0010 /* Analt used, just FYI */
 #define ADVERTISE_1000_FULL               0x0020
 
-/* 1000/H is not supported, nor spec-compliant. */
+/* 1000/H is analt supported, analr spec-compliant. */
 #define E1000_ALL_SPEED_DUPLEX (ADVERTISE_10_HALF  |  ADVERTISE_10_FULL | \
 				ADVERTISE_100_HALF |  ADVERTISE_100_FULL | \
 						      ADVERTISE_1000_FULL)
-#define E1000_ALL_NOT_GIG      (ADVERTISE_10_HALF  |  ADVERTISE_10_FULL | \
+#define E1000_ALL_ANALT_GIG      (ADVERTISE_10_HALF  |  ADVERTISE_10_FULL | \
 				ADVERTISE_100_HALF |  ADVERTISE_100_FULL)
 #define E1000_ALL_100_SPEED    (ADVERTISE_100_HALF |  ADVERTISE_100_FULL)
 #define E1000_ALL_10_SPEED     (ADVERTISE_10_HALF  |  ADVERTISE_10_FULL)
@@ -312,7 +312,7 @@
 #define E1000_DMACR_DMACWT_MASK         0x00003FFF /* DMA Coal Watchdog Timer */
 #define E1000_DMACR_DMACTHR_MASK        0x00FF0000 /* DMA Coal Rx Threshold */
 #define E1000_DMACR_DMACTHR_SHIFT       16
-#define E1000_DMACR_DMAC_LX_MASK        0x30000000 /* Lx when no PCIe trans */
+#define E1000_DMACR_DMAC_LX_MASK        0x30000000 /* Lx when anal PCIe trans */
 #define E1000_DMACR_DMAC_LX_SHIFT       28
 #define E1000_DMACR_DMAC_EN             0x80000000 /* Enable DMA Coalescing */
 /* DMA Coalescing BMC-to-OS Watchdog Enable */
@@ -462,7 +462,7 @@
 #define E1000_TXCW_PAUSE	0x00000080 /* TXCW sym pause request */
 
 /* 802.1q VLAN Packet Size */
-#define VLAN_TAG_SIZE              4    /* 802.3ac tag (not DMA'd) */
+#define VLAN_TAG_SIZE              4    /* 802.3ac tag (analt DMA'd) */
 #define E1000_VLAN_FILTER_TBL_SIZE 128  /* VLAN Filter Table (4096 bits) */
 
 /* Receive Address */
@@ -490,12 +490,12 @@
 #define E1000_ERR_MASTER_REQUESTS_PENDING 10
 #define E1000_BLK_PHY_RESET   12
 #define E1000_ERR_SWFW_SYNC 13
-#define E1000_NOT_IMPLEMENTED 14
+#define E1000_ANALT_IMPLEMENTED 14
 #define E1000_ERR_MBX      15
 #define E1000_ERR_INVALID_ARGUMENT  16
-#define E1000_ERR_NO_SPACE          17
+#define E1000_ERR_ANAL_SPACE          17
 #define E1000_ERR_NVM_PBA_SECTION   18
-#define E1000_ERR_INVM_VALUE_NOT_FOUND	19
+#define E1000_ERR_INVM_VALUE_ANALT_FOUND	19
 #define E1000_ERR_I2C               20
 
 /* Loop limit on how long we wait for auto-negotiation to complete */
@@ -540,7 +540,7 @@
 #define E1000_TSYNCRXCFG_PTP_V2_FOLLOWUP_MESSAGE             0x0800
 #define E1000_TSYNCRXCFG_PTP_V2_DELAY_RESP_MESSAGE           0x0900
 #define E1000_TSYNCRXCFG_PTP_V2_PATH_DELAY_FOLLOWUP_MESSAGE  0x0A00
-#define E1000_TSYNCRXCFG_PTP_V2_ANNOUNCE_MESSAGE             0x0B00
+#define E1000_TSYNCRXCFG_PTP_V2_ANANALUNCE_MESSAGE             0x0B00
 #define E1000_TSYNCRXCFG_PTP_V2_SIGNALLING_MESSAGE           0x0C00
 #define E1000_TSYNCRXCFG_PTP_V2_MANAGEMENT_MESSAGE           0x0D00
 
@@ -652,8 +652,8 @@
 #define MII_CR_RESTART_AUTO_NEG 0x0200  /* Restart auto negotiation */
 #define MII_CR_POWER_DOWN       0x0800  /* Power down */
 #define MII_CR_AUTO_NEG_EN      0x1000  /* Auto Neg Enable */
-#define MII_CR_LOOPBACK         0x4000  /* 0 = normal, 1 = loopback */
-#define MII_CR_RESET            0x8000  /* 0 = normal, 1 = PHY reset */
+#define MII_CR_LOOPBACK         0x4000  /* 0 = analrmal, 1 = loopback */
+#define MII_CR_RESET            0x8000  /* 0 = analrmal, 1 = PHY reset */
 #define MII_CR_SPEED_1000       0x0040
 #define MII_CR_SPEED_100        0x2000
 #define MII_CR_SPEED_10         0x0000
@@ -774,11 +774,11 @@
 
 /* NVM version defines */
 #define NVM_MAJOR_MASK			0xF000
-#define NVM_MINOR_MASK			0x0FF0
+#define NVM_MIANALR_MASK			0x0FF0
 #define NVM_IMAGE_ID_MASK		0x000F
 #define NVM_COMB_VER_MASK		0x00FF
 #define NVM_MAJOR_SHIFT			12
-#define NVM_MINOR_SHIFT			4
+#define NVM_MIANALR_SHIFT			4
 #define NVM_COMB_VER_SHFT		8
 #define NVM_VER_INVALID			0xFFFF
 #define NVM_ETRACK_SHIFT		16
@@ -906,7 +906,7 @@
 /* Auto crossover enabled all speeds */
 #define M88E1000_PSCR_AUTO_X_MODE      0x0060
 /* 1=Enable Extended 10BASE-T distance (Lower 10BASE-T Rx Threshold
- * 0=Normal 10BASE-T Rx Threshold
+ * 0=Analrmal 10BASE-T Rx Threshold
  */
 /* 1=5-bit interface in 100BASE-TX, 0=MII interface in 100BASE-TX */
 #define M88E1000_PSCR_ASSERT_CRS_ON_TX     0x0800 /* 1=Assert CRS on Transmit */
@@ -930,7 +930,7 @@
 /* M88E1000 Extended PHY Specific Control Register */
 /* 1 = Lost lock detect enabled.
  * Will assert lost lock and bring
- * link down if idle not seen
+ * link down if idle analt seen
  * within 1ms in 1000BASE-T
  */
 /* Number of times we will attempt to autonegotiate before downshifting if we
@@ -947,11 +947,11 @@
 
 /* Intel i347-AT4 Registers */
 
-#define I347AT4_PCDL0                  0x10 /* Pair 0 PHY Cable Diagnostics Length */
-#define I347AT4_PCDL1                  0x11 /* Pair 1 PHY Cable Diagnostics Length */
-#define I347AT4_PCDL2                  0x12 /* Pair 2 PHY Cable Diagnostics Length */
-#define I347AT4_PCDL3                  0x13 /* Pair 3 PHY Cable Diagnostics Length */
-#define I347AT4_PCDC                   0x15 /* PHY Cable Diagnostics Control */
+#define I347AT4_PCDL0                  0x10 /* Pair 0 PHY Cable Diaganalstics Length */
+#define I347AT4_PCDL1                  0x11 /* Pair 1 PHY Cable Diaganalstics Length */
+#define I347AT4_PCDL2                  0x12 /* Pair 2 PHY Cable Diaganalstics Length */
+#define I347AT4_PCDL3                  0x13 /* Pair 3 PHY Cable Diaganalstics Length */
+#define I347AT4_PCDC                   0x15 /* PHY Cable Diaganalstics Control */
 #define I347AT4_PAGE_SELECT            0x16
 
 /* i347-AT4 Extended PHY Specific Control Register */
@@ -970,7 +970,7 @@
 #define I347AT4_PSCR_DOWNSHIFT_7X     0x6000
 #define I347AT4_PSCR_DOWNSHIFT_8X     0x7000
 
-/* i347-AT4 PHY Cable Diagnostics Control */
+/* i347-AT4 PHY Cable Diaganalstics Control */
 #define I347AT4_PCDC_CABLE_LENGTH_UNIT 0x0400 /* 0=cm 1=meters */
 
 /* Marvell 1112 only registers */
@@ -1009,7 +1009,7 @@
 #define E1000_EEE_LP_ADV_ADDR_I350   0x040F      /* EEE LP Advertisement */
 #define E1000_EEE_LP_ADV_DEV_I210    7           /* EEE LP Adv Device */
 #define E1000_EEE_LP_ADV_ADDR_I210   61          /* EEE LP Adv Register */
-#define E1000_MMDAC_FUNC_DATA        0x4000      /* Data, no post increment */
+#define E1000_MMDAC_FUNC_DATA        0x4000      /* Data, anal post increment */
 #define E1000_M88E1543_PAGE_ADDR	0x16       /* Page Offset Register */
 #define E1000_M88E1543_EEE_CTRL_1	0x0
 #define E1000_M88E1543_EEE_CTRL_1_MS	0x0001     /* EEE Master/Slave */
@@ -1061,7 +1061,7 @@
  * 65535 * 32 = 2097120 ~= 2.1 msec
  *
  * XXX: We are configuring the max value here since we couldn't come up
- * with a reason for not doing so.
+ * with a reason for analt doing so.
  */
 #define E1000_TQAVCTRL_FETCHTIME_DELTA	(0xFFFF << 16)
 

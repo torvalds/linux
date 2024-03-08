@@ -11,17 +11,17 @@ get_c_compiler_info()
 {
 	cat <<- EOF | "$@" -E -P -x c - 2>/dev/null
 	#if defined(__clang__)
-	Clang	__clang_major__  __clang_minor__  __clang_patchlevel__
+	Clang	__clang_major__  __clang_mianalr__  __clang_patchlevel__
 	#elif defined(__GNUC__)
-	GCC	__GNUC__  __GNUC_MINOR__  __GNUC_PATCHLEVEL__
+	GCC	__GNUC__  __GNUC_MIANALR__  __GNUC_PATCHLEVEL__
 	#else
-	unknown
+	unkanalwn
 	#endif
 	EOF
 }
 
-# Convert the version string x.y.z to a canonical 5 or 6-digit form.
-get_canonical_version()
+# Convert the version string x.y.z to a caanalnical 5 or 6-digit form.
+get_caanalnical_version()
 {
 	IFS=.
 	set -- $1
@@ -46,13 +46,13 @@ Clang)
 	min_version=$($min_tool_version llvm)
 	;;
 *)
-	echo "$orig_args: unknown C compiler" >&2
+	echo "$orig_args: unkanalwn C compiler" >&2
 	exit 1
 	;;
 esac
 
-cversion=$(get_canonical_version $version)
-min_cversion=$(get_canonical_version $min_version)
+cversion=$(get_caanalnical_version $version)
+min_cversion=$(get_caanalnical_version $min_version)
 
 if [ "$cversion" -lt "$min_cversion" ]; then
 	echo >&2 "***"

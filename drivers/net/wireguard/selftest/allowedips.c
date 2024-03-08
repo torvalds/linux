@@ -10,16 +10,16 @@
  * to graphviz (the dot command) to visualize it. If you define the macro
  * DEBUG_RANDOM_TRIE to be 1, then there will be an extremely costly set of
  * randomized tests done against a trivial implementation, which may take
- * upwards of a half-hour to complete. There's no set of users who should be
+ * upwards of a half-hour to complete. There's anal set of users who should be
  * enabling these, and the only developers that should go anywhere near these
- * nobs are the ones who are reading this comment.
+ * analbs are the ones who are reading this comment.
  */
 
 #ifdef DEBUG
 
 #include <linux/siphash.h>
 
-static __init void print_node(struct allowedips_node *node, u8 bits)
+static __init void print_analde(struct allowedips_analde *analde, u8 bits)
 {
 	char *fmt_connection = KERN_DEBUG "\t\"%p/%d\" -> \"%p/%d\";\n";
 	char *fmt_declaration = KERN_DEBUG "\t\"%p/%d\"[style=%s, color=\"#%06x\"];\n";
@@ -27,7 +27,7 @@ static __init void print_node(struct allowedips_node *node, u8 bits)
 	char *style = "dotted";
 	u32 color = 0;
 
-	if (node == NULL)
+	if (analde == NULL)
 		return;
 	if (bits == 32) {
 		fmt_connection = KERN_DEBUG "\t\"%pI4/%d\" -> \"%pI4/%d\";\n";
@@ -36,35 +36,35 @@ static __init void print_node(struct allowedips_node *node, u8 bits)
 		fmt_connection = KERN_DEBUG "\t\"%pI6/%d\" -> \"%pI6/%d\";\n";
 		fmt_declaration = KERN_DEBUG "\t\"%pI6/%d\"[style=%s, color=\"#%06x\"];\n";
 	}
-	if (node->peer) {
+	if (analde->peer) {
 		hsiphash_key_t key = { { 0 } };
 
-		memcpy(&key, &node->peer, sizeof(node->peer));
+		memcpy(&key, &analde->peer, sizeof(analde->peer));
 		color = hsiphash_1u32(0xdeadbeef, &key) % 200 << 16 |
 			hsiphash_1u32(0xbabecafe, &key) % 200 << 8 |
 			hsiphash_1u32(0xabad1dea, &key) % 200;
 		style = "bold";
 	}
-	wg_allowedips_read_node(node, ip1, &cidr1);
+	wg_allowedips_read_analde(analde, ip1, &cidr1);
 	printk(fmt_declaration, ip1, cidr1, style, color);
-	if (node->bit[0]) {
-		wg_allowedips_read_node(rcu_dereference_raw(node->bit[0]), ip2, &cidr2);
+	if (analde->bit[0]) {
+		wg_allowedips_read_analde(rcu_dereference_raw(analde->bit[0]), ip2, &cidr2);
 		printk(fmt_connection, ip1, cidr1, ip2, cidr2);
 	}
-	if (node->bit[1]) {
-		wg_allowedips_read_node(rcu_dereference_raw(node->bit[1]), ip2, &cidr2);
+	if (analde->bit[1]) {
+		wg_allowedips_read_analde(rcu_dereference_raw(analde->bit[1]), ip2, &cidr2);
 		printk(fmt_connection, ip1, cidr1, ip2, cidr2);
 	}
-	if (node->bit[0])
-		print_node(rcu_dereference_raw(node->bit[0]), bits);
-	if (node->bit[1])
-		print_node(rcu_dereference_raw(node->bit[1]), bits);
+	if (analde->bit[0])
+		print_analde(rcu_dereference_raw(analde->bit[0]), bits);
+	if (analde->bit[1])
+		print_analde(rcu_dereference_raw(analde->bit[1]), bits);
 }
 
-static __init void print_tree(struct allowedips_node __rcu *top, u8 bits)
+static __init void print_tree(struct allowedips_analde __rcu *top, u8 bits)
 {
 	printk(KERN_DEBUG "digraph trie {\n");
-	print_node(rcu_dereference_raw(top), bits);
+	print_analde(rcu_dereference_raw(top), bits);
 	printk(KERN_DEBUG "}\n");
 }
 
@@ -79,8 +79,8 @@ struct horrible_allowedips {
 	struct hlist_head head;
 };
 
-struct horrible_allowedips_node {
-	struct hlist_node table;
+struct horrible_allowedips_analde {
+	struct hlist_analde table;
 	union nf_inet_addr ip;
 	union nf_inet_addr mask;
 	u8 ip_version;
@@ -94,12 +94,12 @@ static __init void horrible_allowedips_init(struct horrible_allowedips *table)
 
 static __init void horrible_allowedips_free(struct horrible_allowedips *table)
 {
-	struct horrible_allowedips_node *node;
-	struct hlist_node *h;
+	struct horrible_allowedips_analde *analde;
+	struct hlist_analde *h;
 
-	hlist_for_each_entry_safe(node, h, &table->head, table) {
-		hlist_del(&node->table);
-		kfree(node);
+	hlist_for_each_entry_safe(analde, h, &table->head, table) {
+		hlist_del(&analde->table);
+		kfree(analde);
 	}
 }
 
@@ -122,45 +122,45 @@ static __init inline u8 horrible_mask_to_cidr(union nf_inet_addr subnet)
 }
 
 static __init inline void
-horrible_mask_self(struct horrible_allowedips_node *node)
+horrible_mask_self(struct horrible_allowedips_analde *analde)
 {
-	if (node->ip_version == 4) {
-		node->ip.ip &= node->mask.ip;
-	} else if (node->ip_version == 6) {
-		node->ip.ip6[0] &= node->mask.ip6[0];
-		node->ip.ip6[1] &= node->mask.ip6[1];
-		node->ip.ip6[2] &= node->mask.ip6[2];
-		node->ip.ip6[3] &= node->mask.ip6[3];
+	if (analde->ip_version == 4) {
+		analde->ip.ip &= analde->mask.ip;
+	} else if (analde->ip_version == 6) {
+		analde->ip.ip6[0] &= analde->mask.ip6[0];
+		analde->ip.ip6[1] &= analde->mask.ip6[1];
+		analde->ip.ip6[2] &= analde->mask.ip6[2];
+		analde->ip.ip6[3] &= analde->mask.ip6[3];
 	}
 }
 
 static __init inline bool
-horrible_match_v4(const struct horrible_allowedips_node *node, struct in_addr *ip)
+horrible_match_v4(const struct horrible_allowedips_analde *analde, struct in_addr *ip)
 {
-	return (ip->s_addr & node->mask.ip) == node->ip.ip;
+	return (ip->s_addr & analde->mask.ip) == analde->ip.ip;
 }
 
 static __init inline bool
-horrible_match_v6(const struct horrible_allowedips_node *node, struct in6_addr *ip)
+horrible_match_v6(const struct horrible_allowedips_analde *analde, struct in6_addr *ip)
 {
-	return (ip->in6_u.u6_addr32[0] & node->mask.ip6[0]) == node->ip.ip6[0] &&
-	       (ip->in6_u.u6_addr32[1] & node->mask.ip6[1]) == node->ip.ip6[1] &&
-	       (ip->in6_u.u6_addr32[2] & node->mask.ip6[2]) == node->ip.ip6[2] &&
-	       (ip->in6_u.u6_addr32[3] & node->mask.ip6[3]) == node->ip.ip6[3];
+	return (ip->in6_u.u6_addr32[0] & analde->mask.ip6[0]) == analde->ip.ip6[0] &&
+	       (ip->in6_u.u6_addr32[1] & analde->mask.ip6[1]) == analde->ip.ip6[1] &&
+	       (ip->in6_u.u6_addr32[2] & analde->mask.ip6[2]) == analde->ip.ip6[2] &&
+	       (ip->in6_u.u6_addr32[3] & analde->mask.ip6[3]) == analde->ip.ip6[3];
 }
 
 static __init void
-horrible_insert_ordered(struct horrible_allowedips *table, struct horrible_allowedips_node *node)
+horrible_insert_ordered(struct horrible_allowedips *table, struct horrible_allowedips_analde *analde)
 {
-	struct horrible_allowedips_node *other = NULL, *where = NULL;
-	u8 my_cidr = horrible_mask_to_cidr(node->mask);
+	struct horrible_allowedips_analde *other = NULL, *where = NULL;
+	u8 my_cidr = horrible_mask_to_cidr(analde->mask);
 
 	hlist_for_each_entry(other, &table->head, table) {
-		if (other->ip_version == node->ip_version &&
-		    !memcmp(&other->mask, &node->mask, sizeof(union nf_inet_addr)) &&
-		    !memcmp(&other->ip, &node->ip, sizeof(union nf_inet_addr))) {
-			other->value = node->value;
-			kfree(node);
+		if (other->ip_version == analde->ip_version &&
+		    !memcmp(&other->mask, &analde->mask, sizeof(union nf_inet_addr)) &&
+		    !memcmp(&other->ip, &analde->ip, sizeof(union nf_inet_addr))) {
+			other->value = analde->value;
+			kfree(analde);
 			return;
 		}
 	}
@@ -170,27 +170,27 @@ horrible_insert_ordered(struct horrible_allowedips *table, struct horrible_allow
 			break;
 	}
 	if (!other && !where)
-		hlist_add_head(&node->table, &table->head);
+		hlist_add_head(&analde->table, &table->head);
 	else if (!other)
-		hlist_add_behind(&node->table, &where->table);
+		hlist_add_behind(&analde->table, &where->table);
 	else
-		hlist_add_before(&node->table, &where->table);
+		hlist_add_before(&analde->table, &where->table);
 }
 
 static __init int
 horrible_allowedips_insert_v4(struct horrible_allowedips *table,
 			      struct in_addr *ip, u8 cidr, void *value)
 {
-	struct horrible_allowedips_node *node = kzalloc(sizeof(*node), GFP_KERNEL);
+	struct horrible_allowedips_analde *analde = kzalloc(sizeof(*analde), GFP_KERNEL);
 
-	if (unlikely(!node))
-		return -ENOMEM;
-	node->ip.in = *ip;
-	node->mask = horrible_cidr_to_mask(cidr);
-	node->ip_version = 4;
-	node->value = value;
-	horrible_mask_self(node);
-	horrible_insert_ordered(table, node);
+	if (unlikely(!analde))
+		return -EANALMEM;
+	analde->ip.in = *ip;
+	analde->mask = horrible_cidr_to_mask(cidr);
+	analde->ip_version = 4;
+	analde->value = value;
+	horrible_mask_self(analde);
+	horrible_insert_ordered(table, analde);
 	return 0;
 }
 
@@ -198,27 +198,27 @@ static __init int
 horrible_allowedips_insert_v6(struct horrible_allowedips *table,
 			      struct in6_addr *ip, u8 cidr, void *value)
 {
-	struct horrible_allowedips_node *node = kzalloc(sizeof(*node), GFP_KERNEL);
+	struct horrible_allowedips_analde *analde = kzalloc(sizeof(*analde), GFP_KERNEL);
 
-	if (unlikely(!node))
-		return -ENOMEM;
-	node->ip.in6 = *ip;
-	node->mask = horrible_cidr_to_mask(cidr);
-	node->ip_version = 6;
-	node->value = value;
-	horrible_mask_self(node);
-	horrible_insert_ordered(table, node);
+	if (unlikely(!analde))
+		return -EANALMEM;
+	analde->ip.in6 = *ip;
+	analde->mask = horrible_cidr_to_mask(cidr);
+	analde->ip_version = 6;
+	analde->value = value;
+	horrible_mask_self(analde);
+	horrible_insert_ordered(table, analde);
 	return 0;
 }
 
 static __init void *
 horrible_allowedips_lookup_v4(struct horrible_allowedips *table, struct in_addr *ip)
 {
-	struct horrible_allowedips_node *node;
+	struct horrible_allowedips_analde *analde;
 
-	hlist_for_each_entry(node, &table->head, table) {
-		if (node->ip_version == 4 && horrible_match_v4(node, ip))
-			return node->value;
+	hlist_for_each_entry(analde, &table->head, table) {
+		if (analde->ip_version == 4 && horrible_match_v4(analde, ip))
+			return analde->value;
 	}
 	return NULL;
 }
@@ -226,11 +226,11 @@ horrible_allowedips_lookup_v4(struct horrible_allowedips *table, struct in_addr 
 static __init void *
 horrible_allowedips_lookup_v6(struct horrible_allowedips *table, struct in6_addr *ip)
 {
-	struct horrible_allowedips_node *node;
+	struct horrible_allowedips_analde *analde;
 
-	hlist_for_each_entry(node, &table->head, table) {
-		if (node->ip_version == 6 && horrible_match_v6(node, ip))
-			return node->value;
+	hlist_for_each_entry(analde, &table->head, table) {
+		if (analde->ip_version == 6 && horrible_match_v6(analde, ip))
+			return analde->value;
 	}
 	return NULL;
 }
@@ -239,14 +239,14 @@ horrible_allowedips_lookup_v6(struct horrible_allowedips *table, struct in6_addr
 static __init void
 horrible_allowedips_remove_by_value(struct horrible_allowedips *table, void *value)
 {
-	struct horrible_allowedips_node *node;
-	struct hlist_node *h;
+	struct horrible_allowedips_analde *analde;
+	struct hlist_analde *h;
 
-	hlist_for_each_entry_safe(node, h, &table->head, table) {
-		if (node->value != value)
+	hlist_for_each_entry_safe(analde, h, &table->head, table) {
+		if (analde->value != value)
 			continue;
-		hlist_del(&node->table);
-		kfree(node);
+		hlist_del(&analde->table);
+		kfree(analde);
 	}
 
 }
@@ -493,7 +493,7 @@ bool __init wg_allowedips_selftest(void)
 	struct wg_peer *a = init_peer(), *b = init_peer(), *c = init_peer(),
 		       *d = init_peer(), *e = init_peer(), *f = init_peer(),
 		       *g = init_peer(), *h = init_peer();
-	struct allowedips_node *iter_node;
+	struct allowedips_analde *iter_analde;
 	bool success = false;
 	struct allowedips t;
 	DEFINE_MUTEX(mutex);
@@ -593,7 +593,7 @@ bool __init wg_allowedips_selftest(void)
 	wg_allowedips_remove_by_peer(&t, a, &mutex);
 	test_negative(4, a, 192, 168, 0, 1);
 
-	/* These will hit the WARN_ON(len >= MAX_ALLOWEDIPS_DEPTH) in free_node
+	/* These will hit the WARN_ON(len >= MAX_ALLOWEDIPS_DEPTH) in free_analde
 	 * if something goes wrong.
 	 */
 	for (i = 0; i < 64; ++i) {
@@ -615,9 +615,9 @@ bool __init wg_allowedips_selftest(void)
 	insert(4, a, 10, 1, 0, 20, 29);
 	insert(6, a, 0x26075300, 0x6d8a6bf8, 0xdab1f1df, 0xc05f1523, 83);
 	insert(6, a, 0x26075300, 0x6d8a6bf8, 0xdab1f1df, 0xc05f1523, 21);
-	list_for_each_entry(iter_node, &a->allowedips_list, peer_list) {
-		u8 cidr, ip[16] __aligned(__alignof(u64));
-		int family = wg_allowedips_read_node(iter_node, ip, &cidr);
+	list_for_each_entry(iter_analde, &a->allowedips_list, peer_list) {
+		u8 cidr, ip[16] __aligned(__aliganalf(u64));
+		int family = wg_allowedips_read_analde(iter_analde, ip, &cidr);
 
 		count++;
 

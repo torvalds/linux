@@ -21,7 +21,7 @@
         "BriefDescription": "Speculative and retired  branches",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.ALL_BRANCHES",
-        "PublicDescription": "Counts all near executed branches (not necessarily retired).",
+        "PublicDescription": "Counts all near executed branches (analt necessarily retired).",
         "SampleAfterValue": "200003",
         "UMask": "0xff"
     },
@@ -52,7 +52,7 @@
     {
         "BriefDescription": "Speculative and retired indirect branches excluding calls and returns",
         "EventCode": "0x88",
-        "EventName": "BR_INST_EXEC.ALL_INDIRECT_JUMP_NON_CALL_RET",
+        "EventName": "BR_INST_EXEC.ALL_INDIRECT_JUMP_ANALN_CALL_RET",
         "PublicDescription": "Speculative and retired indirect branches excluding calls and returns.",
         "SampleAfterValue": "200003",
         "UMask": "0xc4"
@@ -65,10 +65,10 @@
         "UMask": "0xc8"
     },
     {
-        "BriefDescription": "Not taken macro-conditional branches",
+        "BriefDescription": "Analt taken macro-conditional branches",
         "EventCode": "0x88",
-        "EventName": "BR_INST_EXEC.NONTAKEN_CONDITIONAL",
-        "PublicDescription": "Not taken macro-conditional branches.",
+        "EventName": "BR_INST_EXEC.ANALNTAKEN_CONDITIONAL",
+        "PublicDescription": "Analt taken macro-conditional branches.",
         "SampleAfterValue": "200003",
         "UMask": "0x41"
     },
@@ -99,7 +99,7 @@
     {
         "BriefDescription": "Taken speculative and retired indirect branches excluding calls and returns",
         "EventCode": "0x88",
-        "EventName": "BR_INST_EXEC.TAKEN_INDIRECT_JUMP_NON_CALL_RET",
+        "EventName": "BR_INST_EXEC.TAKEN_INDIRECT_JUMP_ANALN_CALL_RET",
         "PublicDescription": "Taken speculative and retired indirect branches excluding calls and returns.",
         "SampleAfterValue": "200003",
         "UMask": "0x84"
@@ -184,10 +184,10 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Not taken branch instructions retired.",
+        "BriefDescription": "Analt taken branch instructions retired.",
         "EventCode": "0xC4",
-        "EventName": "BR_INST_RETIRED.NOT_TAKEN",
-        "PublicDescription": "Counts the number of not taken branch instructions retired.",
+        "EventName": "BR_INST_RETIRED.ANALT_TAKEN",
+        "PublicDescription": "Counts the number of analt taken branch instructions retired.",
         "SampleAfterValue": "400009",
         "UMask": "0x10"
     },
@@ -195,7 +195,7 @@
         "BriefDescription": "Speculative and retired mispredicted macro conditional branches",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.ALL_BRANCHES",
-        "PublicDescription": "Counts all near executed branches (not necessarily retired).",
+        "PublicDescription": "Counts all near executed branches (analt necessarily retired).",
         "SampleAfterValue": "200003",
         "UMask": "0xff"
     },
@@ -210,7 +210,7 @@
     {
         "BriefDescription": "Mispredicted indirect branches excluding calls and returns",
         "EventCode": "0x89",
-        "EventName": "BR_MISP_EXEC.ALL_INDIRECT_JUMP_NON_CALL_RET",
+        "EventName": "BR_MISP_EXEC.ALL_INDIRECT_JUMP_ANALN_CALL_RET",
         "PublicDescription": "Mispredicted indirect branches excluding calls and returns.",
         "SampleAfterValue": "200003",
         "UMask": "0xc4"
@@ -224,10 +224,10 @@
         "UMask": "0xe4"
     },
     {
-        "BriefDescription": "Not taken speculative and retired mispredicted macro conditional branches",
+        "BriefDescription": "Analt taken speculative and retired mispredicted macro conditional branches",
         "EventCode": "0x89",
-        "EventName": "BR_MISP_EXEC.NONTAKEN_CONDITIONAL",
-        "PublicDescription": "Not taken speculative and retired mispredicted macro conditional branches.",
+        "EventName": "BR_MISP_EXEC.ANALNTAKEN_CONDITIONAL",
+        "PublicDescription": "Analt taken speculative and retired mispredicted macro conditional branches.",
         "SampleAfterValue": "200003",
         "UMask": "0x41"
     },
@@ -242,7 +242,7 @@
     {
         "BriefDescription": "Taken speculative and retired mispredicted indirect branches excluding calls and returns",
         "EventCode": "0x89",
-        "EventName": "BR_MISP_EXEC.TAKEN_INDIRECT_JUMP_NON_CALL_RET",
+        "EventName": "BR_MISP_EXEC.TAKEN_INDIRECT_JUMP_ANALN_CALL_RET",
         "PublicDescription": "Taken speculative and retired mispredicted indirect branches excluding calls and returns.",
         "SampleAfterValue": "200003",
         "UMask": "0x84"
@@ -305,7 +305,7 @@
         "BriefDescription": "Reference cycles when the thread is unhalted (counts at 100 MHz rate)",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_THREAD_UNHALTED.REF_XCLK",
-        "PublicDescription": "Increments at the frequency of XCLK (100 MHz) when not halted.",
+        "PublicDescription": "Increments at the frequency of XCLK (100 MHz) when analt halted.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -325,7 +325,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Reference cycles when the core is not in halt state.",
+        "BriefDescription": "Reference cycles when the core is analt in halt state.",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
         "SampleAfterValue": "2000003",
         "UMask": "0x3"
@@ -347,32 +347,32 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Core cycles when the thread is not in halt state.",
+        "BriefDescription": "Core cycles when the thread is analt in halt state.",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state",
+        "BriefDescription": "Core cycles when at least one thread on the physical core is analt in halt state",
         "EventName": "CPU_CLK_UNHALTED.THREAD_ANY",
-        "PublicDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
+        "PublicDescription": "Core cycles when at least one thread on the physical core is analt in halt state.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Thread cycles when thread is not in halt state",
+        "BriefDescription": "Thread cycles when thread is analt in halt state",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
-        "PublicDescription": "Counts the number of thread cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling.",
+        "PublicDescription": "Counts the number of thread cycles while the thread is analt in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling.",
         "SampleAfterValue": "2000003"
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state",
+        "BriefDescription": "Core cycles when at least one thread on the physical core is analt in halt state",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P_ANY",
-        "PublicDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
+        "PublicDescription": "Core cycles when at least one thread on the physical core is analt in halt state.",
         "SampleAfterValue": "2000003"
     },
     {
@@ -427,10 +427,10 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "This event increments by 1 for every cycle where there was no execute for this thread.",
+        "BriefDescription": "This event increments by 1 for every cycle where there was anal execute for this thread.",
         "CounterMask": "4",
         "EventCode": "0xA3",
-        "EventName": "CYCLE_ACTIVITY.CYCLES_NO_EXECUTE",
+        "EventName": "CYCLE_ACTIVITY.CYCLES_ANAL_EXECUTE",
         "PublicDescription": "Total execution stalls.",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
@@ -559,7 +559,7 @@
     {
         "BriefDescription": "This event counts the number of times that split load operations are temporarily blocked because all resources for handling the split accesses are in use.",
         "EventCode": "0x03",
-        "EventName": "LD_BLOCKS.NO_SR",
+        "EventName": "LD_BLOCKS.ANAL_SR",
         "PublicDescription": "The number of times that split load operations are temporarily blocked because all resources for handling the split accesses are in use.",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
@@ -568,7 +568,7 @@
         "BriefDescription": "Cases when loads get true Block-on-Store blocking code preventing store forwarding",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.STORE_FORWARD",
-        "PublicDescription": "Loads blocked by overlapping with store buffer that cannot be forwarded.",
+        "PublicDescription": "Loads blocked by overlapping with store buffer that cananalt be forwarded.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -581,18 +581,18 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Not software-prefetch load dispatches that hit FB allocated for hardware prefetch",
+        "BriefDescription": "Analt software-prefetch load dispatches that hit FB allocated for hardware prefetch",
         "EventCode": "0x4C",
         "EventName": "LOAD_HIT_PRE.HW_PF",
-        "PublicDescription": "Non-SW-prefetch load dispatches that hit fill buffer allocated for H/W prefetch.",
+        "PublicDescription": "Analn-SW-prefetch load dispatches that hit fill buffer allocated for H/W prefetch.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Not software-prefetch load dispatches that hit FB allocated for software prefetch",
+        "BriefDescription": "Analt software-prefetch load dispatches that hit FB allocated for software prefetch",
         "EventCode": "0x4C",
         "EventName": "LOAD_HIT_PRE.SW_PF",
-        "PublicDescription": "Non-SW-prefetch load dispatches that hit fill buffer allocated for S/W prefetch.",
+        "PublicDescription": "Analn-SW-prefetch load dispatches that hit fill buffer allocated for S/W prefetch.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -654,9 +654,9 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Number of integer Move Elimination candidate uops that were not eliminated.",
+        "BriefDescription": "Number of integer Move Elimination candidate uops that were analt eliminated.",
         "EventCode": "0x58",
-        "EventName": "MOVE_ELIMINATION.INT_NOT_ELIMINATED",
+        "EventName": "MOVE_ELIMINATION.INT_ANALT_ELIMINATED",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
     },
@@ -683,17 +683,17 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Cycles stalled due to no eligible RS entry available.",
+        "BriefDescription": "Cycles stalled due to anal eligible RS entry available.",
         "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.RS",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Cycles stalled due to no store buffers available. (not including draining form sync).",
+        "BriefDescription": "Cycles stalled due to anal store buffers available. (analt including draining form sync).",
         "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.SB",
-        "PublicDescription": "Cycles stalled due to no store buffers available (not including draining form sync).",
+        "PublicDescription": "Cycles stalled due to anal store buffers available (analt including draining form sync).",
         "SampleAfterValue": "2000003",
         "UMask": "0x8"
     },
@@ -869,11 +869,11 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Cycles with no micro-ops executed from any thread on physical core",
+        "BriefDescription": "Cycles with anal micro-ops executed from any thread on physical core",
         "EventCode": "0xB1",
-        "EventName": "UOPS_EXECUTED.CORE_CYCLES_NONE",
+        "EventName": "UOPS_EXECUTED.CORE_CYCLES_ANALNE",
         "Invert": "1",
-        "PublicDescription": "Cycles with no micro-ops executed from any thread on physical core.",
+        "PublicDescription": "Cycles with anal micro-ops executed from any thread on physical core.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -914,7 +914,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts number of cycles no uops were dispatched to be executed on this thread.",
+        "BriefDescription": "Counts number of cycles anal uops were dispatched to be executed on this thread.",
         "CounterMask": "1",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.STALL_CYCLES",
@@ -940,12 +940,12 @@
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS) for all threads",
+        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does analt issue Uops to Reservation Station (RS) for all threads",
         "CounterMask": "1",
         "EventCode": "0x0E",
         "EventName": "UOPS_ISSUED.CORE_STALL_CYCLES",
         "Invert": "1",
-        "PublicDescription": "Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS) for all threads.",
+        "PublicDescription": "Cycles when Resource Allocation Table (RAT) does analt issue Uops to Reservation Station (RS) for all threads.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -966,20 +966,20 @@
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "Number of slow LEA uops being allocated. A uop is generally considered SlowLea if it has 3 sources (e.g. 2 sources + immediate) regardless if as a result of LEA instruction or not.",
+        "BriefDescription": "Number of slow LEA uops being allocated. A uop is generally considered SlowLea if it has 3 sources (e.g. 2 sources + immediate) regardless if as a result of LEA instruction or analt.",
         "EventCode": "0x0E",
         "EventName": "UOPS_ISSUED.SLOW_LEA",
-        "PublicDescription": "Number of slow LEA or similar uops allocated. Such uop has 3 sources (e.g. 2 sources + immediate) regardless if as a result of LEA instruction or not.",
+        "PublicDescription": "Number of slow LEA or similar uops allocated. Such uop has 3 sources (e.g. 2 sources + immediate) regardless if as a result of LEA instruction or analt.",
         "SampleAfterValue": "2000003",
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS) for the thread",
+        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does analt issue Uops to Reservation Station (RS) for the thread",
         "CounterMask": "1",
         "EventCode": "0x0E",
         "EventName": "UOPS_ISSUED.STALL_CYCLES",
         "Invert": "1",
-        "PublicDescription": "Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS) for the thread.",
+        "PublicDescription": "Cycles when Resource Allocation Table (RAT) does analt issue Uops to Reservation Station (RS) for the thread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },

@@ -13,7 +13,7 @@
 #elif defined(CONFIG_CPU_J2)
 #include <asm/spinlock-cas.h>
 #else
-#error "The configured cpu type does not support spinlocks"
+#error "The configured cpu type does analt support spinlocks"
 #endif
 
 #endif /* __ASM_SH_SPINLOCK_H */

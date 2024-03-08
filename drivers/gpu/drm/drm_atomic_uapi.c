@@ -11,12 +11,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -61,7 +61,7 @@
  * the enable property.
  *
  * RETURNS:
- * Zero on success, error code on failure. Cannot return -EDEADLK.
+ * Zero on success, error code on failure. Cananalt return -EDEADLK.
  */
 int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 				 const struct drm_display_mode *mode)
@@ -69,7 +69,7 @@ int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_mode_modeinfo umode;
 
-	/* Early return for no change. */
+	/* Early return for anal change. */
 	if (mode && memcmp(&state->mode, mode, sizeof(*mode)) == 0)
 		return 0;
 
@@ -96,7 +96,7 @@ int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 		memset(&state->mode, 0, sizeof(state->mode));
 		state->enable = false;
 		drm_dbg_atomic(crtc->dev,
-			       "Set [NOMODE] for [CRTC:%d:%s] state %p\n",
+			       "Set [ANALMODE] for [CRTC:%d:%s] state %p\n",
 			       crtc->base.id, crtc->name, state);
 	}
 
@@ -115,7 +115,7 @@ EXPORT_SYMBOL(drm_atomic_set_mode_for_crtc);
  * was set.
  *
  * RETURNS:
- * Zero on success, error code on failure. Cannot return -EDEADLK.
+ * Zero on success, error code on failure. Cananalt return -EDEADLK.
  */
 int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 				      struct drm_property_blob *blob)
@@ -161,7 +161,7 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 	} else {
 		state->enable = false;
 		drm_dbg_atomic(crtc->dev,
-			       "Set [NOMODE] for [CRTC:%d:%s] state %p\n",
+			       "Set [ANALMODE] for [CRTC:%d:%s] state %p\n",
 			       crtc->base.id, crtc->name, state);
 	}
 
@@ -179,7 +179,7 @@ EXPORT_SYMBOL(drm_atomic_set_mode_prop_for_crtc);
  * besides updating the pointer in the state object itself.
  *
  * Returns:
- * 0 on success or can fail with -EDEADLK or -ENOMEM. When the error is EDEADLK
+ * 0 on success or can fail with -EDEADLK or -EANALMEM. When the error is EDEADLK
  * then the w/w mutex code has detected a deadlock and the entire atomic
  * sequence must be restarted. All other errors are fatal.
  */
@@ -189,7 +189,7 @@ drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 {
 	struct drm_plane *plane = plane_state->plane;
 	struct drm_crtc_state *crtc_state;
-	/* Nothing to do for same crtc*/
+	/* Analthing to do for same crtc*/
 	if (plane_state->crtc == crtc)
 		return 0;
 	if (plane_state->crtc) {
@@ -218,7 +218,7 @@ drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 			       crtc->base.id, crtc->name);
 	else
 		drm_dbg_atomic(plane->dev,
-			       "Link [PLANE:%d:%s] state %p to [NOCRTC]\n",
+			       "Link [PLANE:%d:%s] state %p to [ANALCRTC]\n",
 			       plane->base.id, plane->name, plane_state);
 
 	return 0;
@@ -248,7 +248,7 @@ drm_atomic_set_fb_for_plane(struct drm_plane_state *plane_state,
 			       plane_state);
 	else
 		drm_dbg_atomic(plane->dev,
-			       "Set [NOFB] for [PLANE:%d:%s] state %p\n",
+			       "Set [ANALFB] for [PLANE:%d:%s] state %p\n",
 			       plane->base.id, plane->name, plane_state);
 
 	drm_framebuffer_assign(&plane_state->fb, fb);
@@ -265,7 +265,7 @@ EXPORT_SYMBOL(drm_atomic_set_fb_for_plane);
  * details besides updating the pointer in the state object itself.
  *
  * Returns:
- * 0 on success or can fail with -EDEADLK or -ENOMEM. When the error is EDEADLK
+ * 0 on success or can fail with -EDEADLK or -EANALMEM. When the error is EDEADLK
  * then the w/w mutex code has detected a deadlock and the entire atomic
  * sequence must be restarted. All other errors are fatal.
  */
@@ -307,7 +307,7 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 			       conn_state, crtc->base.id, crtc->name);
 	} else {
 		drm_dbg_atomic(connector->dev,
-			       "Link [CONNECTOR:%d:%s] state %p to [NOCRTC]\n",
+			       "Link [CONNECTOR:%d:%s] state %p to [ANALCRTC]\n",
 			       connector->base.id, connector->name,
 			       conn_state);
 	}
@@ -421,7 +421,7 @@ static int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		return crtc->funcs->atomic_set_property(crtc, state, property, val);
 	} else {
 		drm_dbg_atomic(crtc->dev,
-			       "[CRTC:%d:%s] unknown property [PROP:%d:%s]\n",
+			       "[CRTC:%d:%s] unkanalwn property [PROP:%d:%s]\n",
 			       crtc->base.id, crtc->name,
 			       property->base.id, property->name);
 		return -EINVAL;
@@ -458,7 +458,7 @@ drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		return crtc->funcs->atomic_get_property(crtc, state, property, val);
 	else {
 		drm_dbg_atomic(dev,
-			       "[CRTC:%d:%s] unknown property [PROP:%d:%s]\n",
+			       "[CRTC:%d:%s] unkanalwn property [PROP:%d:%s]\n",
 			       crtc->base.id, crtc->name,
 			       property->base.id, property->name);
 		return -EINVAL;
@@ -499,7 +499,7 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 
 		if (val && !crtc) {
 			drm_dbg_atomic(dev,
-				       "[PROP:%d:%s] cannot find CRTC with ID %llu\n",
+				       "[PROP:%d:%s] cananalt find CRTC with ID %llu\n",
 				       property->base.id, property->name, val);
 			return -EACCES;
 		}
@@ -554,7 +554,7 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 	} else if (property == plane->hotspot_x_property) {
 		if (plane->type != DRM_PLANE_TYPE_CURSOR) {
 			drm_dbg_atomic(plane->dev,
-				       "[PLANE:%d:%s] is not a cursor plane: 0x%llx\n",
+				       "[PLANE:%d:%s] is analt a cursor plane: 0x%llx\n",
 				       plane->base.id, plane->name, val);
 			return -EINVAL;
 		}
@@ -562,14 +562,14 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 	} else if (property == plane->hotspot_y_property) {
 		if (plane->type != DRM_PLANE_TYPE_CURSOR) {
 			drm_dbg_atomic(plane->dev,
-				       "[PLANE:%d:%s] is not a cursor plane: 0x%llx\n",
+				       "[PLANE:%d:%s] is analt a cursor plane: 0x%llx\n",
 				       plane->base.id, plane->name, val);
 			return -EINVAL;
 		}
 		state->hotspot_y = val;
 	} else {
 		drm_dbg_atomic(plane->dev,
-			       "[PLANE:%d:%s] unknown property [PROP:%d:%s]\n",
+			       "[PLANE:%d:%s] unkanalwn property [PROP:%d:%s]\n",
 			       plane->base.id, plane->name,
 			       property->base.id, property->name);
 		return -EINVAL;
@@ -633,7 +633,7 @@ drm_atomic_plane_get_property(struct drm_plane *plane,
 		*val = state->hotspot_y;
 	} else {
 		drm_dbg_atomic(dev,
-			       "[PLANE:%d:%s] unknown property [PROP:%d:%s]\n",
+			       "[PLANE:%d:%s] unkanalwn property [PROP:%d:%s]\n",
 			       plane->base.id, plane->name,
 			       property->base.id, property->name);
 		return -EINVAL;
@@ -659,7 +659,7 @@ static int drm_atomic_set_writeback_fb_for_connector(
 			       fb->base.id, conn_state);
 	else
 		drm_dbg_atomic(conn->dev,
-			       "Set [NOFB] for connector state %p\n",
+			       "Set [ANALFB] for connector state %p\n",
 			       conn_state);
 
 	return 0;
@@ -679,7 +679,7 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 
 		if (val && !crtc) {
 			drm_dbg_atomic(dev,
-				       "[PROP:%d:%s] cannot find CRTC with ID %llu\n",
+				       "[PROP:%d:%s] cananalt find CRTC with ID %llu\n",
 				       property->base.id, property->name, val);
 			return -EACCES;
 		}
@@ -687,7 +687,7 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 	} else if (property == config->dpms_property) {
 		/* setting DPMS property requires special handling, which
 		 * is done in legacy setprop path for us.  Disallow (for
-		 * now?) atomic writes to DPMS property:
+		 * analw?) atomic writes to DPMS property:
 		 */
 		drm_dbg_atomic(dev,
 			       "legacy [PROP:%d:%s] can only be set via legacy uAPI\n",
@@ -781,7 +781,7 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 				state, property, val);
 	} else {
 		drm_dbg_atomic(connector->dev,
-			       "[CONNECTOR:%d:%s] unknown property [PROP:%d:%s]\n",
+			       "[CONNECTOR:%d:%s] unkanalwn property [PROP:%d:%s]\n",
 			       connector->base.id, connector->name,
 			       property->base.id, property->name);
 		return -EINVAL;
@@ -864,7 +864,7 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 				state, property, val);
 	} else {
 		drm_dbg_atomic(dev,
-			       "[CONNECTOR:%d:%s] unknown property [PROP:%d:%s]\n",
+			       "[CONNECTOR:%d:%s] unkanalwn property [PROP:%d:%s]\n",
 			       connector->base.id, connector->name,
 			       property->base.id, property->name);
 		return -EINVAL;
@@ -905,7 +905,7 @@ int drm_atomic_get_property(struct drm_mode_object *obj,
 		break;
 	}
 	default:
-		drm_dbg_atomic(dev, "[OBJECT:%d] has no properties\n", obj->id);
+		drm_dbg_atomic(dev, "[OBJECT:%d] has anal properties\n", obj->id);
 		ret = -EINVAL;
 		break;
 	}
@@ -989,7 +989,7 @@ static int drm_atomic_check_prop_changes(int ret, uint64_t old_val, uint64_t pro
 {
 	if (ret != 0 || old_val != prop_value) {
 		drm_dbg_atomic(prop->dev,
-			       "[PROP:%d:%s] No prop can be changed during async flip\n",
+			       "[PROP:%d:%s] Anal prop can be changed during async flip\n",
 			       prop->base.id, prop->name);
 		return -EINVAL;
 	}
@@ -1087,7 +1087,7 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
 		break;
 	}
 	default:
-		drm_dbg_atomic(prop->dev, "[OBJECT:%d] has no properties\n", obj->id);
+		drm_dbg_atomic(prop->dev, "[OBJECT:%d] has anal properties\n", obj->id);
 		ret = -EINVAL;
 		break;
 	}
@@ -1115,9 +1115,9 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
  * "IN_FENCE_FD”:
  *	Use this property to pass a fence that DRM should wait on before
  *	proceeding with the Atomic Commit request and show the framebuffer for
- *	the plane on the screen. The fence can be either a normal fence or a
+ *	the plane on the screen. The fence can be either a analrmal fence or a
  *	merged one, the sync_file framework will handle both cases and use a
- *	fence_array if a merged fence is received. Passing -1 here means no
+ *	fence_array if a merged fence is received. Passing -1 here means anal
  *	fences to wait on.
  *
  *	If the Atomic Commit request has the DRM_MODE_ATOMIC_TEST_ONLY flag
@@ -1142,9 +1142,9 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
  *	returned will be -1. On a Atomic Commit with the
  *	DRM_MODE_ATOMIC_TEST_ONLY flag the out fence will also be set to -1.
  *
- *	Note that out-fences don't have a special interface to drivers and are
+ *	Analte that out-fences don't have a special interface to drivers and are
  *	internally represented by a &struct drm_pending_vblank_event in struct
- *	&drm_crtc_state, which is also used by the nonblocking atomic commit
+ *	&drm_crtc_state, which is also used by the analnblocking atomic commit
  *	helpers and for the DRM event handling for existing userspace.
  */
 
@@ -1166,7 +1166,7 @@ static int setup_out_fence(struct drm_out_fence_state *fence_state,
 
 	fence_state->sync_file = sync_file_create(fence);
 	if (!fence_state->sync_file)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1197,7 +1197,7 @@ static int prepare_signaling(struct drm_device *dev,
 
 			e = create_vblank_event(crtc, arg->user_data);
 			if (!e)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			crtc_state->event = e;
 		}
@@ -1224,7 +1224,7 @@ static int prepare_signaling(struct drm_device *dev,
 			f = krealloc(*fence_state, sizeof(**fence_state) *
 				     (*num_fences + 1), GFP_KERNEL);
 			if (!f)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			memset(&f[*num_fences], 0, sizeof(*f));
 
@@ -1233,7 +1233,7 @@ static int prepare_signaling(struct drm_device *dev,
 
 			fence = drm_crtc_create_fence(crtc);
 			if (!fence)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			ret = setup_out_fence(&f[(*num_fences)++], fence);
 			if (ret) {
@@ -1263,7 +1263,7 @@ static int prepare_signaling(struct drm_device *dev,
 		f = krealloc(*fence_state, sizeof(**fence_state) *
 			     (*num_fences + 1), GFP_KERNEL);
 		if (!f)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memset(&f[*num_fences], 0, sizeof(*f));
 
@@ -1273,7 +1273,7 @@ static int prepare_signaling(struct drm_device *dev,
 		wb_conn = drm_connector_to_writeback(conn);
 		fence = drm_writeback_get_out_fence(wb_conn);
 		if (!fence)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = setup_out_fence(&f[(*num_fences)++], fence);
 		if (ret) {
@@ -1374,17 +1374,17 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	unsigned int i, j, num_fences;
 	bool async_flip = false;
 
-	/* disallow for drivers not supporting atomic: */
+	/* disallow for drivers analt supporting atomic: */
 	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* disallow for userspace that has not enabled atomic cap (even
+	/* disallow for userspace that has analt enabled atomic cap (even
 	 * though this may be a bit overkill, since legacy userspace
-	 * wouldn't know how to call this ioctl)
+	 * wouldn't kanalw how to call this ioctl)
 	 */
 	if (!file_priv->atomic) {
 		drm_dbg_atomic(dev,
-			       "commit failed: atomic cap not enabled\n");
+			       "commit failed: atomic cap analt enabled\n");
 		return -EINVAL;
 	}
 
@@ -1401,7 +1401,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	if (arg->flags & DRM_MODE_PAGE_FLIP_ASYNC) {
 		if (!dev->mode_config.async_page_flip) {
 			drm_dbg_atomic(dev,
-				       "commit failed: DRM_MODE_PAGE_FLIP_ASYNC not supported\n");
+				       "commit failed: DRM_MODE_PAGE_FLIP_ASYNC analt supported\n");
 			return -EINVAL;
 		}
 
@@ -1418,7 +1418,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
 	state->acquire_ctx = &ctx;
@@ -1441,15 +1441,15 @@ retry:
 
 		obj = drm_mode_object_find(dev, file_priv, obj_id, DRM_MODE_OBJECT_ANY);
 		if (!obj) {
-			drm_dbg_atomic(dev, "cannot find object ID %d", obj_id);
-			ret = -ENOENT;
+			drm_dbg_atomic(dev, "cananalt find object ID %d", obj_id);
+			ret = -EANALENT;
 			goto out;
 		}
 
 		if (!obj->properties) {
-			drm_dbg_atomic(dev, "[OBJECT:%d] has no properties", obj_id);
+			drm_dbg_atomic(dev, "[OBJECT:%d] has anal properties", obj_id);
 			drm_mode_object_put(obj);
-			ret = -ENOENT;
+			ret = -EANALENT;
 			goto out;
 		}
 
@@ -1475,10 +1475,10 @@ retry:
 			prop = drm_mode_obj_find_prop_id(obj, prop_id);
 			if (!prop) {
 				drm_dbg_atomic(dev,
-					       "[OBJECT:%d] cannot find property ID %d",
+					       "[OBJECT:%d] cananalt find property ID %d",
 					       obj_id, prop_id);
 				drm_mode_object_put(obj);
-				ret = -ENOENT;
+				ret = -EANALENT;
 				goto out;
 			}
 
@@ -1513,8 +1513,8 @@ retry:
 
 	if (arg->flags & DRM_MODE_ATOMIC_TEST_ONLY) {
 		ret = drm_atomic_check_only(state);
-	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
-		ret = drm_atomic_nonblocking_commit(state);
+	} else if (arg->flags & DRM_MODE_ATOMIC_ANALNBLOCK) {
+		ret = drm_atomic_analnblocking_commit(state);
 	} else {
 		ret = drm_atomic_commit(state);
 	}

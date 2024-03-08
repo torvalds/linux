@@ -25,7 +25,7 @@
 #define FLAG_IRQFIQ_MASK		0x3
 #define FLAG_IRQ_ENABLE			0x2
 #define FLAG_FIQ_ENABLE			0x1
-#define NO_FLAG				0x0
+#define ANAL_FLAG				0x0
 
 /* Maximum Secure memory storage size */
 #define OMAP_SECURE_RAM_STORAGE	(88 * SZ_1K)

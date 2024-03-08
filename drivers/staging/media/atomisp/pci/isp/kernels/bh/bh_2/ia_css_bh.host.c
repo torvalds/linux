@@ -29,7 +29,7 @@ ia_css_bh_hmem_decode(
 	int i;
 
 	/*
-	 * No weighted histogram, hence no grid definition
+	 * Anal weighted histogram, hence anal grid definition
 	 */
 	if (!hmem_buf)
 		return;

@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -261,7 +261,7 @@ int dml2_policy_build_synthetic_soc_states(struct dml2_policy_build_synthetic_so
 		}
 	}
 
-	// Remove duplicate states, note duplicate states are always neighbouring since table is sorted.
+	// Remove duplicate states, analte duplicate states are always neighbouring since table is sorted.
 	i = 0;
 	while (i < (int) p->out_states->num_states - 1) {
 		if (p->out_states->state_array[i].dcfclk_mhz == p->out_states->state_array[i + 1].dcfclk_mhz &&
@@ -275,7 +275,7 @@ int dml2_policy_build_synthetic_soc_states(struct dml2_policy_build_synthetic_so
 	return 0;
 }
 
-void build_unoptimized_policy_settings(enum dml_project_id project, struct dml_mode_eval_policy_st *policy)
+void build_uanalptimized_policy_settings(enum dml_project_id project, struct dml_mode_eval_policy_st *policy)
 {
 	for (int i = 0; i < __DML_NUM_PLANES__; i++) {
 		policy->MPCCombineUse[i] = dml_mpc_as_needed_for_voltage; // TOREVIEW: Is this still needed?  When is MPCC useful for pstate given CRB?
@@ -293,16 +293,16 @@ void build_unoptimized_policy_settings(enum dml_project_id project, struct dml_m
 	policy->FCLKChangeRequirementFinal = true; // TOREVIEW: What does this mean?
 	policy->USRRetrainingRequiredFinal = true;
 	policy->EnhancedPrefetchScheduleAccelerationFinal = true; // TOREVIEW: What does this mean?
-	policy->NomDETInKByteOverrideEnable = false;
-	policy->NomDETInKByteOverrideValue = 0;
-	policy->DCCProgrammingAssumesScanDirectionUnknownFinal = true;
+	policy->AnalmDETInKByteOverrideEnable = false;
+	policy->AnalmDETInKByteOverrideValue = 0;
+	policy->DCCProgrammingAssumesScanDirectionUnkanalwnFinal = true;
 	policy->SynchronizeTimingsFinal = true;
 	policy->SynchronizeDRRDisplaysForUCLKPStateChangeFinal = true;
-	policy->AssumeModeSupportAtMaxPwrStateEvenDRAMClockChangeNotSupported = true; // TOREVIEW: What does this mean?
-	policy->AssumeModeSupportAtMaxPwrStateEvenFClockChangeNotSupported = true; // TOREVIEW: What does this mean?
+	policy->AssumeModeSupportAtMaxPwrStateEvenDRAMClockChangeAnaltSupported = true; // TOREVIEW: What does this mean?
+	policy->AssumeModeSupportAtMaxPwrStateEvenFClockChangeAnaltSupported = true; // TOREVIEW: What does this mean?
 	if (project == dml_project_dcn35 ||
 		project == dml_project_dcn351) {
-		policy->DCCProgrammingAssumesScanDirectionUnknownFinal = false;
+		policy->DCCProgrammingAssumesScanDirectionUnkanalwnFinal = false;
 		policy->EnhancedPrefetchScheduleAccelerationFinal = 0;
 		policy->AllowForPStateChangeOrStutterInVBlankFinal = dml_prefetch_support_uclk_fclk_and_stutter_if_possible; /*new*/
 		policy->UseOnlyMaxPrefetchModes = 1;

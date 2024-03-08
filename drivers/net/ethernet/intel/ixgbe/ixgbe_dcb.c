@@ -11,7 +11,7 @@
  * ixgbe_ieee_credits - This calculates the ieee traffic class
  * credits from the configured bandwidth percentages. Credits
  * are the smallest unit programmable into the underlying
- * hardware. The IEEE 802.1Qaz specification do not use bandwidth
+ * hardware. The IEEE 802.1Qaz specification do analt use bandwidth
  * groups so this is much simplified from the CEE case.
  * @bw: bandwidth index by traffic class
  * @refill: refill credits index by traffic class
@@ -131,8 +131,8 @@ s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *hw,
 
 		/*
 		 * Adjustment based on rule checking, if the percentage
-		 * of a TC is too small, the maximum credit may not be
-		 * enough to send out a jumbo frame in data plane arbitration.
+		 * of a TC is too small, the maximum credit may analt be
+		 * eanalugh to send out a jumbo frame in data plane arbitration.
 		 */
 		if (credit_max < min_credit)
 			credit_max = min_credit;
@@ -141,7 +141,7 @@ s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *hw,
 			/*
 			 * Adjustment based on rule checking, if the
 			 * percentage of a TC is too small, the maximum
-			 * credit may not be enough to send out a TSO
+			 * credit may analt be eanalugh to send out a TSO
 			 * packet in descriptor plane arbitration.
 			 */
 			if ((hw->mac.type == ixgbe_mac_82598EB) &&
@@ -215,13 +215,13 @@ u8 ixgbe_dcb_get_tc_from_up(struct ixgbe_dcb_config *cfg, int direction, u8 up)
 	u8 prio_mask = BIT(up);
 	u8 tc = cfg->num_tcs.pg_tcs;
 
-	/* If tc is 0 then DCB is likely not enabled or supported */
+	/* If tc is 0 then DCB is likely analt enabled or supported */
 	if (!tc)
 		return 0;
 
 	/*
 	 * Test from maximum TC to 1 and report the first match we find.  If
-	 * we find no match we can assume that the TC is 0 since the TC must
+	 * we find anal match we can assume that the TC is 0 since the TC must
 	 * be set for all user priorities
 	 */
 	for (tc--; tc; tc--) {

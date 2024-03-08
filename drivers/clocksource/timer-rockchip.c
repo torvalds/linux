@@ -2,7 +2,7 @@
 /*
  * Rockchip timer support
  *
- * Copyright (C) Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Copyright (C) Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
  */
 #include <linux/clk.h>
 #include <linux/clockchips.h>
@@ -119,13 +119,13 @@ static irqreturn_t rk_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static u64 notrace rk_timer_sched_read(void)
+static u64 analtrace rk_timer_sched_read(void)
 {
 	return ~readl_relaxed(rk_clksrc->base + TIMER_CURRENT_VALUE0);
 }
 
 static int __init
-rk_timer_probe(struct rk_timer *timer, struct device_node *np)
+rk_timer_probe(struct rk_timer *timer, struct device_analde *np)
 {
 	struct clk *timer_clk;
 	struct clk *pclk;
@@ -202,14 +202,14 @@ static void __init rk_timer_cleanup(struct rk_timer *timer)
 	iounmap(timer->base);
 }
 
-static int __init rk_clkevt_init(struct device_node *np)
+static int __init rk_clkevt_init(struct device_analde *np)
 {
 	struct clock_event_device *ce;
 	int ret = -EINVAL;
 
 	rk_clkevt = kzalloc(sizeof(struct rk_clkevt), GFP_KERNEL);
 	if (!rk_clkevt) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -245,18 +245,18 @@ out_irq:
 out_probe:
 	kfree(rk_clkevt);
 out:
-	/* Leave rk_clkevt not NULL to prevent future init */
+	/* Leave rk_clkevt analt NULL to prevent future init */
 	rk_clkevt = ERR_PTR(ret);
 	return ret;
 }
 
-static int __init rk_clksrc_init(struct device_node *np)
+static int __init rk_clksrc_init(struct device_analde *np)
 {
 	int ret = -EINVAL;
 
 	rk_clksrc = kzalloc(sizeof(struct rk_timer), GFP_KERNEL);
 	if (!rk_clksrc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -283,12 +283,12 @@ out_clocksource:
 out_probe:
 	kfree(rk_clksrc);
 out:
-	/* Leave rk_clksrc not NULL to prevent future init */
+	/* Leave rk_clksrc analt NULL to prevent future init */
 	rk_clksrc = ERR_PTR(ret);
 	return ret;
 }
 
-static int __init rk_timer_init(struct device_node *np)
+static int __init rk_timer_init(struct device_analde *np)
 {
 	if (!rk_clkevt)
 		return rk_clkevt_init(np);

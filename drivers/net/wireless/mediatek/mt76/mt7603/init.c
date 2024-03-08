@@ -163,7 +163,7 @@ mt7603_mac_init(struct mt7603_dev *dev)
 	mt76_wr(dev, MT_AGG_CONTROL,
 		FIELD_PREP(MT_AGG_CONTROL_BAR_RATE, 0x4b) |
 		FIELD_PREP(MT_AGG_CONTROL_CFEND_RATE, 0x69) |
-		MT_AGG_CONTROL_NO_BA_AR_RULE);
+		MT_AGG_CONTROL_ANAL_BA_AR_RULE);
 
 	mt76_wr(dev, MT_AGG_RETRY_CONTROL,
 		FIELD_PREP(MT_AGG_RETRY_CONTROL_BAR_LIMIT, 1) |
@@ -421,7 +421,7 @@ static u32 mt7603_rmw(struct mt76_dev *mdev, u32 offset, u32 mask, u32 val)
 }
 
 static void
-mt7603_regd_notifier(struct wiphy *wiphy,
+mt7603_regd_analtifier(struct wiphy *wiphy,
 		     struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
@@ -500,7 +500,7 @@ int mt7603_register_device(struct mt7603_dev *dev)
 	bus_ops = devm_kmemdup(dev->mt76.dev, dev->bus_ops, sizeof(*bus_ops),
 			       GFP_KERNEL);
 	if (!bus_ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus_ops->rr = mt7603_rr;
 	bus_ops->wr = mt7603_wr;
@@ -535,7 +535,7 @@ int mt7603_register_device(struct mt7603_dev *dev)
 	wiphy->iface_combinations = if_comb;
 	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 
-	ieee80211_hw_set(hw, TX_STATUS_NO_AMPDU_LEN);
+	ieee80211_hw_set(hw, TX_STATUS_ANAL_AMPDU_LEN);
 	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
 	ieee80211_hw_set(hw, NEEDS_UNIQUE_STA_ADDR);
 
@@ -545,7 +545,7 @@ int mt7603_register_device(struct mt7603_dev *dev)
 		dev->mphy.leds.cdev.blink_set = mt7603_led_set_blink;
 	}
 
-	wiphy->reg_notifier = mt7603_regd_notifier;
+	wiphy->reg_analtifier = mt7603_regd_analtifier;
 
 	ret = mt76_register_device(&dev->mt76, true, mt76_rates,
 				   ARRAY_SIZE(mt76_rates));

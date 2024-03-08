@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_IF_LINK_H
 #define _UAPI_LINUX_IF_LINK_H
 
@@ -36,7 +36,7 @@ struct rtnl_link_stats {
 	__u32	rx_compressed;
 	__u32	tx_compressed;
 
-	__u32	rx_nohandler;
+	__u32	rx_analhandler;
 };
 
 /**
@@ -49,9 +49,9 @@ struct rtnl_link_stats {
  *
  * @tx_packets: Number of packets successfully transmitted.
  *   For hardware interfaces counts packets which host was able to successfully
- *   hand over to the device, which does not necessarily mean that packets
+ *   hand over to the device, which does analt necessarily mean that packets
  *   had been successfully transmitted out of the device, only that device
- *   acknowledged it copied them out of host memory.
+ *   ackanalwledged it copied them out of host memory.
  *
  * @rx_bytes: Number of good received bytes, corresponding to @rx_packets.
  *
@@ -65,18 +65,18 @@ struct rtnl_link_stats {
  *
  * @rx_errors: Total number of bad packets received on this network device.
  *   This counter must include events counted by @rx_length_errors,
- *   @rx_crc_errors, @rx_frame_errors and other errors not otherwise
+ *   @rx_crc_errors, @rx_frame_errors and other errors analt otherwise
  *   counted.
  *
  * @tx_errors: Total number of transmit problems.
  *   This counter must include events counter by @tx_aborted_errors,
  *   @tx_carrier_errors, @tx_fifo_errors, @tx_heartbeat_errors,
- *   @tx_window_errors and other errors not otherwise counted.
+ *   @tx_window_errors and other errors analt otherwise counted.
  *
- * @rx_dropped: Number of packets received but not processed,
+ * @rx_dropped: Number of packets received but analt processed,
  *   e.g. due to lack of resources or unsupported protocol.
  *   For hardware interfaces this counter may include packets discarded
- *   due to L2 address filtering but should not include packets dropped
+ *   due to L2 address filtering but should analt include packets dropped
  *   by the device due to buffer exhaustion which are counted separately in
  *   @rx_missed_errors (since procfs folds those two counters together).
  *
@@ -86,7 +86,7 @@ struct rtnl_link_stats {
  * @multicast: Multicast packets received.
  *   For hardware interfaces this statistic is commonly calculated
  *   at the device level (unlike @rx_packets) and therefore may include
- *   packets which did not reach the host.
+ *   packets which did analt reach the host.
  *
  *   For IEEE 802.3 devices this counter may be equivalent to:
  *
@@ -108,19 +108,19 @@ struct rtnl_link_stats {
  *
  *   Historically the count of overflow events. Such events may be
  *   reported in the receive descriptors or via interrupts, and may
- *   not correspond one-to-one with dropped packets.
+ *   analt correspond one-to-one with dropped packets.
  *
  *   The recommended interpretation for high speed interfaces is -
- *   number of packets dropped because they did not fit into buffers
+ *   number of packets dropped because they did analt fit into buffers
  *   provided by the host, e.g. packets larger than MTU or next buffer
- *   in the ring was not available for a scatter transfer.
+ *   in the ring was analt available for a scatter transfer.
  *
  *   Part of aggregate "frame" errors in `/proc/net/dev`.
  *
  *   This statistics was historically used interchangeably with
  *   @rx_fifo_errors.
  *
- *   This statistic corresponds to hardware events and is not commonly used
+ *   This statistic corresponds to hardware events and is analt commonly used
  *   on software devices.
  *
  * @rx_crc_errors: Number of packets received with a CRC error.
@@ -141,10 +141,10 @@ struct rtnl_link_stats {
  *
  *   Historically the count of overflow events. Those events may be
  *   reported in the receive descriptors or via interrupts, and may
- *   not correspond one-to-one with dropped packets.
+ *   analt correspond one-to-one with dropped packets.
  *
  *   This statistics was used interchangeably with @rx_over_errors.
- *   Not recommended for use in drivers for high speed interfaces.
+ *   Analt recommended for use in drivers for high speed interfaces.
  *
  *   This statistic is used on software devices, e.g. to count software
  *   packet queue overflow (can) or sequencing errors (GRE).
@@ -154,10 +154,10 @@ struct rtnl_link_stats {
  *
  *   Counts number of packets dropped by the device due to lack
  *   of buffer space. This usually indicates that the host interface
- *   is slower than the network interface, or host is not keeping up
+ *   is slower than the network interface, or host is analt keeping up
  *   with the receive packet rate.
  *
- *   This statistic corresponds to hardware events and is not used
+ *   This statistic corresponds to hardware events and is analt used
  *   on software devices.
  *
  * @tx_aborted_errors:
@@ -208,9 +208,9 @@ struct rtnl_link_stats {
  *   This counters is only meaningful for interfaces which support
  *   packet compression (e.g. CSLIP, PPP).
  *
- * @rx_nohandler: Number of packets received on the interface
+ * @rx_analhandler: Number of packets received on the interface
  *   but dropped by the networking stack because the device is
- *   not designated to receive packets (e.g. backup link in a bond).
+ *   analt designated to receive packets (e.g. backup link in a bond).
  *
  * @rx_otherhost_dropped: Number of packets dropped due to mismatch
  *   in destination MAC address.
@@ -245,7 +245,7 @@ struct rtnl_link_stats64 {
 	/* for cslip etc */
 	__u64	rx_compressed;
 	__u64	tx_compressed;
-	__u64	rx_nohandler;
+	__u64	rx_analhandler;
 
 	__u64	rx_otherhost_dropped;
 };
@@ -363,7 +363,7 @@ enum {
 	IFLA_PROTO_DOWN_REASON,
 
 	/* device (sysfs) name as parent, used instead
-	 * of IFLA_LINK where there's no parent netdev
+	 * of IFLA_LINK where there's anal parent netdev
 	 */
 	IFLA_PARENT_DEV_NAME,
 	IFLA_PARENT_DEV_BUS_NAME,
@@ -412,7 +412,7 @@ enum {
 
    The only change is:
    IFF_LOOPBACK, IFF_BROADCAST and IFF_POINTOPOINT are
-   more not changeable by user. They describe link media
+   more analt changeable by user. They describe link media
    characteristics and set by device driver.
 
    Comments:
@@ -420,8 +420,8 @@ enum {
    - If neither of these three flags are set;
      the interface is NBMA.
 
-   - IFF_MULTICAST does not mean anything special:
-   multicasts can be used on all not-NBMA links.
+   - IFF_MULTICAST does analt mean anything special:
+   multicasts can be used on all analt-NBMA links.
    IFF_MULTICAST means that this media uses special encapsulation
    for multicast frames. Apparently, all IFF_POINTOPOINT and
    IFF_BROADCAST devices are able to use multicasts too.
@@ -431,7 +431,7 @@ enum {
    For usual devices it is equal ifi_index.
    If it is a "virtual interface" (f.e. tunnel), ifi_link
    can point to real physical interface (f.e. for bandwidth calculations),
-   or maybe 0, what means, that real media is unknown (usual
+   or maybe 0, what means, that real media is unkanalwn (usual
    for IPIP tunnels, when route to endpoint is allowed to change)
  */
 
@@ -454,7 +454,7 @@ enum {
 
 enum in6_addr_gen_mode {
 	IN6_ADDR_GEN_MODE_EUI64,
-	IN6_ADDR_GEN_MODE_NONE,
+	IN6_ADDR_GEN_MODE_ANALNE,
 	IN6_ADDR_GEN_MODE_STABLE_PRIVACY,
 	IN6_ADDR_GEN_MODE_RANDOM,
 };
@@ -485,7 +485,7 @@ enum {
 	IFLA_BR_GROUP_ADDR,
 	IFLA_BR_FDB_FLUSH,
 	IFLA_BR_MCAST_ROUTER,
-	IFLA_BR_MCAST_SNOOPING,
+	IFLA_BR_MCAST_SANALOPING,
 	IFLA_BR_MCAST_QUERY_USE_IFADDR,
 	IFLA_BR_MCAST_QUERIER,
 	IFLA_BR_MCAST_HASH_ELASTICITY,
@@ -544,7 +544,7 @@ enum {
 	IFLA_BRPORT_DESIGNATED_PORT,
 	IFLA_BRPORT_DESIGNATED_COST,
 	IFLA_BRPORT_ID,
-	IFLA_BRPORT_NO,
+	IFLA_BRPORT_ANAL,
 	IFLA_BRPORT_TOPOLOGY_CHANGE_ACK,
 	IFLA_BRPORT_CONFIG_PENDING,
 	IFLA_BRPORT_MESSAGE_AGE_TIMER,
@@ -658,8 +658,8 @@ enum macvlan_macaddr_mode {
 	MACVLAN_MACADDR_SET,
 };
 
-#define MACVLAN_FLAG_NOPROMISC	1
-#define MACVLAN_FLAG_NODST	2 /* skip dst macvlan if matching src macvlan */
+#define MACVLAN_FLAG_ANALPROMISC	1
+#define MACVLAN_FLAG_ANALDST	2 /* skip dst macvlan if matching src macvlan */
 
 /* VRF section */
 enum {
@@ -846,7 +846,7 @@ enum {
 	IFLA_VXLAN_REMCSUM_TX,
 	IFLA_VXLAN_REMCSUM_RX,
 	IFLA_VXLAN_GBP,
-	IFLA_VXLAN_REMCSUM_NOPARTIAL,
+	IFLA_VXLAN_REMCSUM_ANALPARTIAL,
 	IFLA_VXLAN_COLLECT_METADATA,
 	IFLA_VXLAN_LABEL,
 	IFLA_VXLAN_GPE,
@@ -958,7 +958,7 @@ enum {
 	IFLA_BOND_FAIL_OVER_MAC,
 	IFLA_BOND_XMIT_HASH_POLICY,
 	IFLA_BOND_RESEND_IGMP,
-	IFLA_BOND_NUM_PEER_NOTIF,
+	IFLA_BOND_NUM_PEER_ANALTIF,
 	IFLA_BOND_ALL_SLAVES_ACTIVE,
 	IFLA_BOND_MIN_LINKS,
 	IFLA_BOND_LP_INTERVAL,
@@ -970,7 +970,7 @@ enum {
 	IFLA_BOND_AD_USER_PORT_KEY,
 	IFLA_BOND_AD_ACTOR_SYSTEM,
 	IFLA_BOND_TLB_DYNAMIC_LB,
-	IFLA_BOND_PEER_NOTIF_DELAY,
+	IFLA_BOND_PEER_ANALTIF_DELAY,
 	IFLA_BOND_AD_LACP_ACTIVE,
 	IFLA_BOND_MISSED_MAX,
 	IFLA_BOND_NS_IP6_TARGET,
@@ -1030,7 +1030,7 @@ enum {
 				 */
 	IFLA_VF_STATS,		/* network device statistics */
 	IFLA_VF_TRUST,		/* Trust VF */
-	IFLA_VF_IB_NODE_GUID,	/* VF Infiniband node GUID */
+	IFLA_VF_IB_ANALDE_GUID,	/* VF Infiniband analde GUID */
 	IFLA_VF_IB_PORT_GUID,	/* VF Infiniband port GUID */
 	IFLA_VF_VLAN_LIST,	/* nested list of vlans, option for QinQ */
 	IFLA_VF_BROADCAST,	/* VF broadcast */
@@ -1316,7 +1316,7 @@ enum {
 
 /* XDP section */
 
-#define XDP_FLAGS_UPDATE_IF_NOEXIST	(1U << 0)
+#define XDP_FLAGS_UPDATE_IF_ANALEXIST	(1U << 0)
 #define XDP_FLAGS_SKB_MODE		(1U << 1)
 #define XDP_FLAGS_DRV_MODE		(1U << 2)
 #define XDP_FLAGS_HW_MODE		(1U << 3)
@@ -1324,12 +1324,12 @@ enum {
 #define XDP_FLAGS_MODES			(XDP_FLAGS_SKB_MODE | \
 					 XDP_FLAGS_DRV_MODE | \
 					 XDP_FLAGS_HW_MODE)
-#define XDP_FLAGS_MASK			(XDP_FLAGS_UPDATE_IF_NOEXIST | \
+#define XDP_FLAGS_MASK			(XDP_FLAGS_UPDATE_IF_ANALEXIST | \
 					 XDP_FLAGS_MODES | XDP_FLAGS_REPLACE)
 
 /* These are stored into IFLA_XDP_ATTACHED on dump. */
 enum {
-	XDP_ATTACHED_NONE = 0,
+	XDP_ATTACHED_ANALNE = 0,
 	XDP_ATTACHED_DRV,
 	XDP_ATTACHED_SKB,
 	XDP_ATTACHED_HW,
@@ -1352,11 +1352,11 @@ enum {
 #define IFLA_XDP_MAX (__IFLA_XDP_MAX - 1)
 
 enum {
-	IFLA_EVENT_NONE,
+	IFLA_EVENT_ANALNE,
 	IFLA_EVENT_REBOOT,		/* internal reset / reboot */
 	IFLA_EVENT_FEATURES,		/* change in offload features */
 	IFLA_EVENT_BONDING_FAILOVER,	/* change in active slave */
-	IFLA_EVENT_NOTIFY_PEERS,	/* re-sent grat. arp/ndisc */
+	IFLA_EVENT_ANALTIFY_PEERS,	/* re-sent grat. arp/ndisc */
 	IFLA_EVENT_IGMP_RESEND,		/* re-sent IGMP JOIN */
 	IFLA_EVENT_BONDING_OPTIONS,	/* change in bonding options */
 };

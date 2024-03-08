@@ -48,7 +48,7 @@
 
 &esdhc {
 	/* eSDHC or eMMC: set by bootloader */
-	non-removable;
+	analn-removable;
 	disable-wp;
 	mmc-hs200-1_8v;
 	sd-uhs-sdr104;

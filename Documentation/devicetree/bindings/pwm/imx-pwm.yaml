@@ -16,7 +16,7 @@ properties:
   "#pwm-cells":
     description:
       The only third cell flag supported by this binding is
-      PWM_POLARITY_INVERTED. fsl,imx1-pwm does not support this flags.
+      PWM_POLARITY_INVERTED. fsl,imx1-pwm does analt support this flags.
     const: 3
 
   compatible:

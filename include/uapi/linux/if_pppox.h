@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /***************************************************************************
  * Linux PPP over X - Generic PPP transport layer sockets
  * Linux PPP over Ethernet (PPPoE) Socket Implementation (RFC 2516) 
@@ -58,7 +58,7 @@ struct pptp_addr {
  * Protocols supported by AF_PPPOX
  */
 #define PX_PROTO_OE    0 /* Currently just PPPoE */
-#define PX_PROTO_OL2TP 1 /* Now L2TP also */
+#define PX_PROTO_OL2TP 1 /* Analw L2TP also */
 #define PX_PROTO_PPTP  2
 #define PX_MAX_PROTO   3
 

@@ -8,7 +8,7 @@ in memory itself. These disks allow very fast I/O and compression provides
 good amounts of memory savings. Some of the usecases include /tmp storage,
 use as swap disks, various caches under /var and maybe many more :)
 
-Statistics for individual zram devices are exported through sysfs nodes at
+Statistics for individual zram devices are exported through sysfs analdes at
 /sys/block/zram<id>/
 
 Kconfig required:

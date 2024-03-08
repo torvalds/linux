@@ -14,7 +14,7 @@ static inline sector_t mb_to_sects(unsigned long mb)
 	return ((sector_t)mb * SZ_1M) >> SECTOR_SHIFT;
 }
 
-static inline unsigned int null_zone_no(struct nullb_device *dev, sector_t sect)
+static inline unsigned int null_zone_anal(struct nullb_device *dev, sector_t sect)
 {
 	return sect >> ilog2(dev->zone_size_sects);
 }
@@ -92,7 +92,7 @@ int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q)
 	dev->zones = kvmalloc_array(dev->nr_zones, sizeof(struct nullb_zone),
 				    GFP_KERNEL | __GFP_ZERO);
 	if (!dev->zones)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&dev->zone_res_lock);
 
@@ -118,7 +118,7 @@ int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q)
 		pr_info("zone_max_open limit disabled, limit >= zone count\n");
 	}
 	dev->need_zone_res_mgmt = dev->zone_max_active || dev->zone_max_open;
-	dev->imp_close_zone_no = dev->zone_nr_conv;
+	dev->imp_close_zone_anal = dev->zone_nr_conv;
 
 	for (i = 0; i <  dev->zone_nr_conv; i++) {
 		zone = &dev->zones[i];
@@ -129,7 +129,7 @@ int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q)
 		zone->capacity = zone->len;
 		zone->wp = zone->start + zone->len;
 		zone->type = BLK_ZONE_TYPE_CONVENTIONAL;
-		zone->cond = BLK_ZONE_COND_NOT_WP;
+		zone->cond = BLK_ZONE_COND_ANALT_WP;
 
 		sector += dev->zone_size_sects;
 	}
@@ -190,7 +190,7 @@ int null_report_zones(struct gendisk *disk, sector_t sector,
 	struct blk_zone blkz;
 	int error;
 
-	first_zone = null_zone_no(dev, sector);
+	first_zone = null_zone_anal(dev, sector);
 	if (first_zone >= dev->nr_zones)
 		return 0;
 
@@ -231,7 +231,7 @@ size_t null_zone_valid_read_len(struct nullb *nullb,
 				sector_t sector, unsigned int len)
 {
 	struct nullb_device *dev = nullb->dev;
-	struct nullb_zone *zone = &dev->zones[null_zone_no(dev, sector)];
+	struct nullb_zone *zone = &dev->zones[null_zone_anal(dev, sector)];
 	unsigned int nr_sectors = len >> SECTOR_SHIFT;
 
 	/* Read must be below the write pointer position */
@@ -250,7 +250,7 @@ static blk_status_t __null_close_zone(struct nullb_device *dev,
 {
 	switch (zone->cond) {
 	case BLK_ZONE_COND_CLOSED:
-		/* close operation on closed is not an error */
+		/* close operation on closed is analt an error */
 		return BLK_STS_OK;
 	case BLK_ZONE_COND_IMP_OPEN:
 		dev->nr_zones_imp_open--;
@@ -277,21 +277,21 @@ static blk_status_t __null_close_zone(struct nullb_device *dev,
 static void null_close_imp_open_zone(struct nullb_device *dev)
 {
 	struct nullb_zone *zone;
-	unsigned int zno, i;
+	unsigned int zanal, i;
 
-	zno = dev->imp_close_zone_no;
-	if (zno >= dev->nr_zones)
-		zno = dev->zone_nr_conv;
+	zanal = dev->imp_close_zone_anal;
+	if (zanal >= dev->nr_zones)
+		zanal = dev->zone_nr_conv;
 
 	for (i = dev->zone_nr_conv; i < dev->nr_zones; i++) {
-		zone = &dev->zones[zno];
-		zno++;
-		if (zno >= dev->nr_zones)
-			zno = dev->zone_nr_conv;
+		zone = &dev->zones[zanal];
+		zanal++;
+		if (zanal >= dev->nr_zones)
+			zanal = dev->zone_nr_conv;
 
 		if (zone->cond == BLK_ZONE_COND_IMP_OPEN) {
 			__null_close_zone(dev, zone);
-			dev->imp_close_zone_no = zno;
+			dev->imp_close_zone_anal = zanal;
 			return;
 		}
 	}
@@ -335,9 +335,9 @@ static blk_status_t null_check_open(struct nullb_device *dev)
  * while maintaining the max open zone (and max active zone) limit(s). It may close an
  * implicit open zone in order to make additional zone resources available.
  *
- * ZBC states that an implicit open zone shall be closed only if there is not
+ * ZBC states that an implicit open zone shall be closed only if there is analt
  * room within the open limit. However, with the addition of an active limit,
- * it is not certain that closing an implicit open zone will allow a new zone
+ * it is analt certain that closing an implicit open zone will allow a new zone
  * to be opened, since we might already be at the active limit capacity.
  */
 static blk_status_t null_check_zone_resources(struct nullb_device *dev,
@@ -364,11 +364,11 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 				    unsigned int nr_sectors, bool append)
 {
 	struct nullb_device *dev = cmd->nq->dev;
-	unsigned int zno = null_zone_no(dev, sector);
-	struct nullb_zone *zone = &dev->zones[zno];
+	unsigned int zanal = null_zone_anal(dev, sector);
+	struct nullb_zone *zone = &dev->zones[zanal];
 	blk_status_t ret;
 
-	trace_nullb_zone_op(cmd, zno, zone->cond);
+	trace_nullb_zone_op(cmd, zanal, zone->cond);
 
 	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL) {
 		if (append)
@@ -381,7 +381,7 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 	if (zone->cond == BLK_ZONE_COND_FULL ||
 	    zone->cond == BLK_ZONE_COND_READONLY ||
 	    zone->cond == BLK_ZONE_COND_OFFLINE) {
-		/* Cannot write to the zone */
+		/* Cananalt write to the zone */
 		ret = BLK_STS_IOERR;
 		goto unlock;
 	}
@@ -465,7 +465,7 @@ static blk_status_t null_open_zone(struct nullb_device *dev,
 
 	switch (zone->cond) {
 	case BLK_ZONE_COND_EXP_OPEN:
-		/* open operation on exp open is not an error */
+		/* open operation on exp open is analt an error */
 		goto unlock;
 	case BLK_ZONE_COND_EMPTY:
 		ret = null_check_zone_resources(dev, zone);
@@ -523,7 +523,7 @@ static blk_status_t null_finish_zone(struct nullb_device *dev,
 
 	switch (zone->cond) {
 	case BLK_ZONE_COND_FULL:
-		/* finish operation on full is not an error */
+		/* finish operation on full is analt an error */
 		goto unlock;
 	case BLK_ZONE_COND_EMPTY:
 		ret = null_check_zone_resources(dev, zone);
@@ -566,7 +566,7 @@ static blk_status_t null_reset_zone(struct nullb_device *dev,
 
 	switch (zone->cond) {
 	case BLK_ZONE_COND_EMPTY:
-		/* reset operation on empty is not an error */
+		/* reset operation on empty is analt an error */
 		null_unlock_zone_res(dev);
 		return BLK_STS_OK;
 	case BLK_ZONE_COND_IMP_OPEN:
@@ -600,7 +600,7 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_op op,
 				   sector_t sector)
 {
 	struct nullb_device *dev = cmd->nq->dev;
-	unsigned int zone_no;
+	unsigned int zone_anal;
 	struct nullb_zone *zone;
 	blk_status_t ret;
 	size_t i;
@@ -620,8 +620,8 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_op op,
 		return BLK_STS_OK;
 	}
 
-	zone_no = null_zone_no(dev, sector);
-	zone = &dev->zones[zone_no];
+	zone_anal = null_zone_anal(dev, sector);
+	zone = &dev->zones[zone_anal];
 
 	null_lock_zone(dev, zone);
 
@@ -645,12 +645,12 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_op op,
 		ret = null_finish_zone(dev, zone);
 		break;
 	default:
-		ret = BLK_STS_NOTSUPP;
+		ret = BLK_STS_ANALTSUPP;
 		break;
 	}
 
 	if (ret == BLK_STS_OK)
-		trace_nullb_zone_op(cmd, zone_no, zone->cond);
+		trace_nullb_zone_op(cmd, zone_anal, zone->cond);
 
 unlock:
 	null_unlock_zone(dev, zone);
@@ -678,7 +678,7 @@ blk_status_t null_process_zoned_cmd(struct nullb_cmd *cmd, enum req_op op,
 		return null_zone_mgmt(cmd, op, sector);
 	default:
 		dev = cmd->nq->dev;
-		zone = &dev->zones[null_zone_no(dev, sector)];
+		zone = &dev->zones[null_zone_anal(dev, sector)];
 		if (zone->cond == BLK_ZONE_COND_OFFLINE)
 			return BLK_STS_IOERR;
 
@@ -703,7 +703,7 @@ static void null_set_zone_cond(struct nullb_device *dev,
 
 	/*
 	 * If the read-only condition is requested again to zones already in
-	 * read-only condition, restore back normal empty condition. Do the same
+	 * read-only condition, restore back analrmal empty condition. Do the same
 	 * if the offline condition is requested for offline zones. Otherwise,
 	 * set the specified zone condition to the zones. Finish the zones
 	 * beforehand to free up zone resources.
@@ -732,16 +732,16 @@ ssize_t zone_cond_store(struct nullb_device *dev, const char *page,
 			size_t count, enum blk_zone_cond cond)
 {
 	unsigned long long sector;
-	unsigned int zone_no;
+	unsigned int zone_anal;
 	int ret;
 
 	if (!dev->zoned) {
-		pr_err("null_blk device is not zoned\n");
+		pr_err("null_blk device is analt zoned\n");
 		return -EINVAL;
 	}
 
 	if (!dev->zones) {
-		pr_err("null_blk device is not yet powered\n");
+		pr_err("null_blk device is analt yet powered\n");
 		return -EINVAL;
 	}
 
@@ -749,18 +749,18 @@ ssize_t zone_cond_store(struct nullb_device *dev, const char *page,
 	if (ret < 0)
 		return ret;
 
-	zone_no = null_zone_no(dev, sector);
-	if (zone_no >= dev->nr_zones) {
+	zone_anal = null_zone_anal(dev, sector);
+	if (zone_anal >= dev->nr_zones) {
 		pr_err("Sector out of range\n");
 		return -EINVAL;
 	}
 
-	if (dev->zones[zone_no].type == BLK_ZONE_TYPE_CONVENTIONAL) {
-		pr_err("Can not change condition of conventional zones\n");
+	if (dev->zones[zone_anal].type == BLK_ZONE_TYPE_CONVENTIONAL) {
+		pr_err("Can analt change condition of conventional zones\n");
 		return -EINVAL;
 	}
 
-	null_set_zone_cond(dev, &dev->zones[zone_no], cond);
+	null_set_zone_cond(dev, &dev->zones[zone_anal], cond);
 
 	return count;
 }

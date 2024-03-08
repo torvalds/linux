@@ -12,7 +12,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <assert.h>
 #include <sys/mman.h>
@@ -42,17 +42,17 @@ static __fsword_t get_fs_type(int fd)
 
 	do {
 		ret = fstatfs(fd, &fs);
-	} while (ret && errno == EINTR);
+	} while (ret && erranal == EINTR);
 
 	return ret ? 0 : fs.f_type;
 }
 
-static bool fs_is_unknown(__fsword_t fs_type)
+static bool fs_is_unkanalwn(__fsword_t fs_type)
 {
 	/*
 	 * We only support some filesystems in our tests when dealing with
 	 * R/W long-term pinning. For these filesystems, we can be fairly sure
-	 * whether they support it or not.
+	 * whether they support it or analt.
 	 */
 	switch (fs_type) {
 	case TMPFS_MAGIC:
@@ -68,7 +68,7 @@ static bool fs_is_unknown(__fsword_t fs_type)
 
 static bool fs_supports_writable_longterm_pinning(__fsword_t fs_type)
 {
-	assert(!fs_is_unknown(fs_type));
+	assert(!fs_is_unkanalwn(fs_type));
 	switch (fs_type) {
 	case TMPFS_MAGIC:
 	case HUGETLBFS_MAGIC:
@@ -136,12 +136,12 @@ static void do_test(int fd, size_t size, enum test_type type, bool shared)
 				type == TEST_TYPE_RW_FAST;
 
 		if (gup_fd < 0) {
-			ksft_test_result_skip("gup_test not available\n");
+			ksft_test_result_skip("gup_test analt available\n");
 			break;
 		}
 
-		if (rw && shared && fs_is_unknown(fs_type)) {
-			ksft_test_result_skip("Unknown filesystem\n");
+		if (rw && shared && fs_is_unkanalwn(fs_type)) {
+			ksft_test_result_skip("Unkanalwn filesystem\n");
 			return;
 		}
 		/*
@@ -157,10 +157,10 @@ static void do_test(int fd, size_t size, enum test_type type, bool shared)
 		args.flags = fast ? PIN_LONGTERM_TEST_FLAG_USE_FAST : 0;
 		args.flags |= rw ? PIN_LONGTERM_TEST_FLAG_USE_WRITE : 0;
 		ret = ioctl(gup_fd, PIN_LONGTERM_TEST_START, &args);
-		if (ret && errno == EINVAL) {
+		if (ret && erranal == EINVAL) {
 			ksft_test_result_skip("PIN_LONGTERM_TEST_START failed\n");
 			break;
-		} else if (ret && errno == EFAULT) {
+		} else if (ret && erranal == EFAULT) {
 			ksft_test_result(!should_work, "Should have failed\n");
 			break;
 		} else if (ret) {
@@ -185,8 +185,8 @@ static void do_test(int fd, size_t size, enum test_type type, bool shared)
 		struct iovec iov;
 
 		/* io_uring always pins pages writable. */
-		if (shared && fs_is_unknown(fs_type)) {
-			ksft_test_result_skip("Unknown filesystem\n");
+		if (shared && fs_is_unkanalwn(fs_type)) {
+			ksft_test_result_skip("Unkanalwn filesystem\n");
 			return;
 		}
 		should_work = !shared ||
@@ -206,8 +206,8 @@ static void do_test(int fd, size_t size, enum test_type type, bool shared)
 		iov.iov_len = size;
 		ret = io_uring_register_buffers(&ring, &iov, 1);
 		/* Only new kernels return EFAULT. */
-		if (ret && (errno == ENOSPC || errno == EOPNOTSUPP ||
-			    errno == EFAULT)) {
+		if (ret && (erranal == EANALSPC || erranal == EOPANALTSUPP ||
+			    erranal == EFAULT)) {
 			ksft_test_result(!should_work, "Should have failed\n");
 		} else if (ret) {
 			/*
@@ -262,9 +262,9 @@ static void run_with_tmpfile(test_fn fn, const char *desc)
 		return;
 	}
 
-	fd = fileno(file);
+	fd = fileanal(file);
 	if (fd < 0) {
-		ksft_test_result_fail("fileno() failed\n");
+		ksft_test_result_fail("fileanal() failed\n");
 		goto close;
 	}
 

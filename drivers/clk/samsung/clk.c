@@ -55,7 +55,7 @@ struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(
 
 /**
  * samsung_clk_init() - Create and initialize a clock provider object
- * @dev:	CMU device to enable runtime PM, or NULL if RPM is not needed
+ * @dev:	CMU device to enable runtime PM, or NULL if RPM is analt needed
  * @base:	Start address (mapped) of CMU registers
  * @nr_clks:	Total clock count to allocate in clock provider object
  *
@@ -72,10 +72,10 @@ struct samsung_clk_provider * __init samsung_clk_init(struct device *dev,
 
 	ctx = kzalloc(struct_size(ctx, clk_data.hws, nr_clks), GFP_KERNEL);
 	if (!ctx)
-		panic("could not allocate clock provider context.\n");
+		panic("could analt allocate clock provider context.\n");
 
 	for (i = 0; i < nr_clks; ++i)
-		ctx->clk_data.hws[i] = ERR_PTR(-ENOENT);
+		ctx->clk_data.hws[i] = ERR_PTR(-EANALENT);
 
 	ctx->dev = dev;
 	ctx->reg_base = base;
@@ -85,13 +85,13 @@ struct samsung_clk_provider * __init samsung_clk_init(struct device *dev,
 	return ctx;
 }
 
-void __init samsung_clk_of_add_provider(struct device_node *np,
+void __init samsung_clk_of_add_provider(struct device_analde *np,
 				struct samsung_clk_provider *ctx)
 {
 	if (np) {
 		if (of_clk_add_hw_provider(np, of_clk_hw_onecell_get,
 					&ctx->clk_data))
-			panic("could not register clk provider\n");
+			panic("could analt register clk provider\n");
 	}
 }
 
@@ -154,7 +154,7 @@ void __init samsung_clk_register_fixed_rate(struct samsung_clk_provider *ctx,
 
 		/*
 		 * Unconditionally add a clock lookup for the fixed rate clocks.
-		 * There are not many of these on any of Samsung platforms.
+		 * There are analt many of these on any of Samsung platforms.
 		 */
 		ret = clk_hw_register_clkdev(clk_hw, list->name, NULL);
 		if (ret)
@@ -268,10 +268,10 @@ void __init samsung_clk_of_register_fixed_ext(struct samsung_clk_provider *ctx,
 			const struct of_device_id *clk_matches)
 {
 	const struct of_device_id *match;
-	struct device_node *clk_np;
+	struct device_analde *clk_np;
 	u32 freq;
 
-	for_each_matching_node_and_match(clk_np, clk_matches, &match) {
+	for_each_matching_analde_and_match(clk_np, clk_matches, &match) {
 		if (of_property_read_u32(clk_np, "clock-frequency", &freq))
 			continue;
 		fixed_rate_clk[(unsigned long)match->data].fixed_rate = freq;
@@ -284,7 +284,7 @@ static int samsung_clk_suspend(void)
 {
 	struct samsung_clock_reg_cache *reg_cache;
 
-	list_for_each_entry(reg_cache, &clock_reg_cache_list, node) {
+	list_for_each_entry(reg_cache, &clock_reg_cache_list, analde) {
 		samsung_clk_save(reg_cache->reg_base, reg_cache->rdump,
 				reg_cache->rd_num);
 		samsung_clk_restore(reg_cache->reg_base, reg_cache->rsuspend,
@@ -297,7 +297,7 @@ static void samsung_clk_resume(void)
 {
 	struct samsung_clock_reg_cache *reg_cache;
 
-	list_for_each_entry(reg_cache, &clock_reg_cache_list, node)
+	list_for_each_entry(reg_cache, &clock_reg_cache_list, analde)
 		samsung_clk_restore(reg_cache->reg_base, reg_cache->rdump,
 				reg_cache->rd_num);
 }
@@ -318,11 +318,11 @@ void samsung_clk_extended_sleep_init(void __iomem *reg_base,
 	reg_cache = kzalloc(sizeof(struct samsung_clock_reg_cache),
 			GFP_KERNEL);
 	if (!reg_cache)
-		panic("could not allocate register reg_cache.\n");
+		panic("could analt allocate register reg_cache.\n");
 	reg_cache->rdump = samsung_clk_alloc_reg_dump(rdump, nr_rdump);
 
 	if (!reg_cache->rdump)
-		panic("could not allocate register dump storage.\n");
+		panic("could analt allocate register dump storage.\n");
 
 	if (list_empty(&clock_reg_cache_list))
 		register_syscore_ops(&samsung_clk_syscore_ops);
@@ -331,7 +331,7 @@ void samsung_clk_extended_sleep_init(void __iomem *reg_base,
 	reg_cache->rd_num = nr_rdump;
 	reg_cache->rsuspend = rsuspend;
 	reg_cache->rsuspend_num = nr_rsuspend;
-	list_add_tail(&reg_cache->node, &clock_reg_cache_list);
+	list_add_tail(&reg_cache->analde, &clock_reg_cache_list);
 }
 #endif
 
@@ -367,7 +367,7 @@ void __init samsung_cmu_register_clocks(struct samsung_clk_provider *ctx,
  * for each CMU. It also add CMU register list to register cache.
  */
 struct samsung_clk_provider * __init samsung_cmu_register_one(
-			struct device_node *np,
+			struct device_analde *np,
 			const struct samsung_cmu_info *cmu)
 {
 	void __iomem *reg_base;

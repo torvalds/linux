@@ -19,13 +19,13 @@ ENTRY(memmove)
 	bf	1f
 	mov.l	2f,r0
 	jmp	@r0
-	 nop
+	 analp
 	.balign 4
 2:	.long	memcpy
 1:
 	sub	r5,r4		! From here, r4 has the distance to r0
 	tst	r6,r6
-	bt/s	9f		! if n=0, do nothing
+	bt/s	9f		! if n=0, do analthing
 	 mov	r5,r0
 	add	r6,r5
 	mov	#12,r1
@@ -70,7 +70,7 @@ jmptable:
 	rts
 	 sub	r6,r0
 
-case_none:
+case_analne:
 	bra	8b
 	 add	#-1,r4
 
@@ -109,7 +109,7 @@ case0:
 
 case3:
 	!
-	!	GHIJ KLMN OPQR -->  ...G HIJK LMNO PQR.
+	!	GHIJ KLMN OPQR -->  ...G HIJK LMANAL PQR.
 	!
 	! First, align to long word boundary
 	mov	r0,r3
@@ -167,7 +167,7 @@ case3:
 
 case2:
 	!
-	!	GHIJ KLMN OPQR -->  ..GH IJKL MNOP QR..
+	!	GHIJ KLMN OPQR -->  ..GH IJKL MANALP QR..
 	!
 	! First, align to word boundary
 	tst	#1,r0
@@ -197,7 +197,7 @@ case2:
 
 case1:
 	!
-	!	GHIJ KLMN OPQR -->  .GHI JKLM NOPQ R...
+	!	GHIJ KLMN OPQR -->  .GHI JKLM ANALPQ R...
 	!
 	! First, align to long word boundary
 	mov	r0,r3

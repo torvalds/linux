@@ -28,7 +28,7 @@
 
 /*
  * Use pin GPIO names for consistency
- * NOTE: IDs are zero-indexed for coding convenience
+ * ANALTE: IDs are zero-indexed for coding convenience
  */
 static const struct pinctrl_pin_desc madera_pins[] = {
 	PINCTRL_PIN(0, "gpio1"),
@@ -78,7 +78,7 @@ static const struct pinctrl_pin_desc madera_pins[] = {
  * functions to pin groups and only those groups declared as supporting that
  * function. To make this work we must put each pin in its own dummy group so
  * that the functions can be described as applying to all pins.
- * Since these do not correspond to anything in the actual hardware - they are
+ * Since these do analt correspond to anything in the actual hardware - they are
  * merely an adaptation to pinctrl's view of the world - we use the same name
  * as the pin to avoid confusion when comparing with datasheet instructions
  */
@@ -423,7 +423,7 @@ static u16 madera_pin_make_drv_str(struct madera_pin_private *priv,
 		break;
 	}
 
-	dev_warn(priv->dev, "%u mA not a valid drive strength", milliamps);
+	dev_warn(priv->dev, "%u mA analt a valid drive strength", milliamps);
 
 	return 0;
 }
@@ -497,7 +497,7 @@ static void madera_pin_dbg_show_fn(struct madera_pin_private *priv,
 				return;
 			}
 		}
-		return;	/* ignore unknown function values */
+		return;	/* iganalre unkanalwn function values */
 	}
 
 	/* alt function */
@@ -568,7 +568,7 @@ static const struct pinctrl_ops madera_pin_group_ops = {
 	.get_group_name = madera_get_group_name,
 	.get_group_pins = madera_get_group_pins,
 #if IS_ENABLED(CONFIG_OF)
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 #endif
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -810,7 +810,7 @@ static int madera_pin_conf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			result = 1;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, result);
@@ -914,7 +914,7 @@ static int madera_pin_conf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			conf[1] &= ~MADERA_GP1_DIR;
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		++configs;
@@ -1007,11 +1007,11 @@ static int madera_pin_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
-	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
+	device_set_analde(&pdev->dev, dev_fwanalde(pdev->dev.parent));
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 	priv->madera = madera;
@@ -1046,7 +1046,7 @@ static int madera_pin_probe(struct platform_device *pdev)
 	}
 
 	if (!priv->chip)
-		return -ENODEV;
+		return -EANALDEV;
 
 	madera_pin_desc.npins = priv->chip->n_pins;
 

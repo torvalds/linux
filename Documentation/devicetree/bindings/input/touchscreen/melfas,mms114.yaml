@@ -13,7 +13,7 @@ allOf:
   - $ref: touchscreen.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^touchscreen(@.*)?$"
 
   compatible:

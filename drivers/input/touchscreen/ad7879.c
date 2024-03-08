@@ -6,8 +6,8 @@
  *
  * History:
  * Copyright (c) 2005 David Brownell
- * Copyright (c) 2006 Nokia Corporation
- * Various changes: Imre Deak <imre.deak@nokia.com>
+ * Copyright (c) 2006 Analkia Corporation
+ * Various changes: Imre Deak <imre.deak@analkia.com>
  *
  * Using code from:
  *  - corgi_ts.c
@@ -53,7 +53,7 @@
 /* Control REG 1 */
 #define AD7879_TMR(x)			((x & 0xFF) << 0)
 #define AD7879_ACQ(x)			((x & 0x3) << 8)
-#define AD7879_MODE_NOC			(0 << 10)	/* Do not convert */
+#define AD7879_MODE_ANALC			(0 << 10)	/* Do analt convert */
 #define AD7879_MODE_SCC			(1 << 10)	/* Single channel conversion */
 #define AD7879_MODE_SEQ0		(2 << 10)	/* Sequence 0 in Slave Mode */
 #define AD7879_MODE_SEQ1		(3 << 10)	/* Sequence 1 in Master Mode */
@@ -64,7 +64,7 @@
 #define AD7879_RESET			(1 << 4)
 #define AD7879_MFS(x)			((x & 0x3) << 5)
 #define AD7879_AVG(x)			((x & 0x3) << 7)
-#define	AD7879_SER			(1 << 9)	/* non-differential */
+#define	AD7879_SER			(1 << 9)	/* analn-differential */
 #define	AD7879_DFR			(0 << 9)	/* differential */
 #define AD7879_GPIOPOL			(1 << 10)
 #define AD7879_GPIODIR			(1 << 11)
@@ -180,7 +180,7 @@ static int ad7879_report(struct ad7879 *ts)
 	 * The samples processed here are already preprocessed by the AD7879.
 	 * The preprocessing function consists of a median and an averaging
 	 * filter.  The combination of these two techniques provides a robust
-	 * solution, discarding the spurious noise in the signal and keeping
+	 * solution, discarding the spurious analise in the signal and keeping
 	 * only the data of interest.  The size of both filters is
 	 * programmable. (dev.platform_data, see linux/platform_data/ad7879.h)
 	 * Other user-programmable conversion controls include variable
@@ -202,7 +202,7 @@ static int ad7879_report(struct ad7879 *ts)
 			return -EINVAL;
 
 		/*
-		 * Note that we delay reporting events by one sample.
+		 * Analte that we delay reporting events by one sample.
 		 * This is done to avoid reporting last sample of the
 		 * touch sequence, which may be incomplete if finger
 		 * leaves the surface before last reading is taken.
@@ -465,7 +465,7 @@ static int ad7879_gpio_add(struct ad7879 *ts)
 
 	mutex_init(&ts->mutex);
 
-	/* Do not create a chip unless flagged for it */
+	/* Do analt create a chip unless flagged for it */
 	if (!device_property_read_bool(ts->dev, "gpio-controller"))
 		return 0;
 
@@ -529,13 +529,13 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 	u16 revid;
 
 	if (irq <= 0) {
-		dev_err(dev, "No IRQ specified\n");
+		dev_err(dev, "Anal IRQ specified\n");
 		return -EINVAL;
 	}
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = ad7879_parse_dt(dev, ts);
 	if (err)
@@ -544,7 +544,7 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 	input_dev = devm_input_allocate_device(dev);
 	if (!input_dev) {
 		dev_err(dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ts->dev = dev;
@@ -572,7 +572,7 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 	input_set_capability(input_dev, EV_ABS, ABS_PRESSURE);
 	touchscreen_parse_properties(input_dev, false, NULL);
 	if (!input_abs_get_max(input_dev, ABS_PRESSURE)) {
-		dev_err(dev, "Touchscreen pressure is not specified\n");
+		dev_err(dev, "Touchscreen pressure is analt specified\n");
 		return -EINVAL;
 	}
 
@@ -588,7 +588,7 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 	if (input_dev->id.product != devid) {
 		dev_err(dev, "Failed to probe %s (%x vs %x)\n",
 			input_dev->name, devid, revid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ts->cmd_crtl3 = AD7879_YPLUS_BIT |

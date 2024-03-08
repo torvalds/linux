@@ -34,7 +34,7 @@ properties:
 
   qca,keep-pll-enabled:
     description: |
-      If set, keep the PLL enabled even if there is no link. Useful if you
+      If set, keep the PLL enabled even if there is anal link. Useful if you
       want to use the clock output without an ethernet link.
 
       Only supported on the AR8031.
@@ -43,7 +43,7 @@ properties:
   qca,disable-hibernation-mode:
     description: |
       Disable Atheros AR803X PHYs hibernation mode. If present, indicates
-      that the hardware of PHY will not enter power saving mode when the
+      that the hardware of PHY will analt enter power saving mode when the
       cable is disconnected. And the RX_CLK always keeps outputting a
       valid clock.
     type: boolean
@@ -80,7 +80,7 @@ properties:
   vddh-regulator:
     type: object
     description:
-      Dummy subnode to model the external connection of the PHY VDDH
+      Dummy subanalde to model the external connection of the PHY VDDH
       regulator to VDDIO.
     $ref: /schemas/regulator/regulator.yaml
     unevaluatedProperties: false

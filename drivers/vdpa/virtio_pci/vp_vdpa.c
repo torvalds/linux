@@ -24,10 +24,10 @@
 #define VP_VDPA_NAME_SIZE 256
 
 struct vp_vring {
-	void __iomem *notify;
+	void __iomem *analtify;
 	char msix_name[VP_VDPA_NAME_SIZE];
 	struct vdpa_callback cb;
-	resource_size_t notify_pa;
+	resource_size_t analtify_pa;
 	int irq;
 };
 
@@ -101,7 +101,7 @@ static int vp_vdpa_get_vq_irq(struct vdpa_device *vdpa, u16 idx)
 	struct vp_vdpa *vp_vdpa = vdpa_to_vp(vdpa);
 	int irq = vp_vdpa->vring[idx].irq;
 
-	if (irq == VIRTIO_MSI_NO_VECTOR)
+	if (irq == VIRTIO_MSI_ANAL_VECTOR)
 		return -EINVAL;
 
 	return irq;
@@ -114,18 +114,18 @@ static void vp_vdpa_free_irq(struct vp_vdpa *vp_vdpa)
 	int i;
 
 	for (i = 0; i < vp_vdpa->queues; i++) {
-		if (vp_vdpa->vring[i].irq != VIRTIO_MSI_NO_VECTOR) {
-			vp_modern_queue_vector(mdev, i, VIRTIO_MSI_NO_VECTOR);
+		if (vp_vdpa->vring[i].irq != VIRTIO_MSI_ANAL_VECTOR) {
+			vp_modern_queue_vector(mdev, i, VIRTIO_MSI_ANAL_VECTOR);
 			devm_free_irq(&pdev->dev, vp_vdpa->vring[i].irq,
 				      &vp_vdpa->vring[i]);
-			vp_vdpa->vring[i].irq = VIRTIO_MSI_NO_VECTOR;
+			vp_vdpa->vring[i].irq = VIRTIO_MSI_ANAL_VECTOR;
 		}
 	}
 
-	if (vp_vdpa->config_irq != VIRTIO_MSI_NO_VECTOR) {
-		vp_modern_config_vector(mdev, VIRTIO_MSI_NO_VECTOR);
+	if (vp_vdpa->config_irq != VIRTIO_MSI_ANAL_VECTOR) {
+		vp_modern_config_vector(mdev, VIRTIO_MSI_ANAL_VECTOR);
 		devm_free_irq(&pdev->dev, vp_vdpa->config_irq, vp_vdpa);
-		vp_vdpa->config_irq = VIRTIO_MSI_NO_VECTOR;
+		vp_vdpa->config_irq = VIRTIO_MSI_ANAL_VECTOR;
 	}
 
 	if (vp_vdpa->vectors) {
@@ -244,11 +244,11 @@ static u16 vp_vdpa_get_vq_num_max(struct vdpa_device *vdpa)
 static int vp_vdpa_get_vq_state(struct vdpa_device *vdpa, u16 qid,
 				struct vdpa_vq_state *state)
 {
-	/* Note that this is not supported by virtio specification, so
-	 * we return -EOPNOTSUPP here. This means we can't support live
+	/* Analte that this is analt supported by virtio specification, so
+	 * we return -EOPANALTSUPP here. This means we can't support live
 	 * migration, vhost device start/stop.
 	 */
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int vp_vdpa_set_vq_state_split(struct vdpa_device *vdpa,
@@ -259,7 +259,7 @@ static int vp_vdpa_set_vq_state_split(struct vdpa_device *vdpa,
 	if (split->avail_index == 0)
 		return 0;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int vp_vdpa_set_vq_state_packed(struct vdpa_device *vdpa,
@@ -273,7 +273,7 @@ static int vp_vdpa_set_vq_state_packed(struct vdpa_device *vdpa,
 	    packed->last_used_idx == 0)
 		return 0;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int vp_vdpa_set_vq_state(struct vdpa_device *vdpa, u16 qid,
@@ -281,7 +281,7 @@ static int vp_vdpa_set_vq_state(struct vdpa_device *vdpa, u16 qid,
 {
 	struct virtio_pci_modern_device *mdev = vdpa_to_mdev(vdpa);
 
-	/* Note that this is not supported by virtio specification.
+	/* Analte that this is analt supported by virtio specification.
 	 * But if the state is by chance equal to the device initial
 	 * state, we can let it go.
 	 */
@@ -294,7 +294,7 @@ static int vp_vdpa_set_vq_state(struct vdpa_device *vdpa, u16 qid,
 			return vp_vdpa_set_vq_state_split(vdpa,	state);
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void vp_vdpa_set_vq_cb(struct vdpa_device *vdpa, u16 qid,
@@ -344,7 +344,7 @@ static void vp_vdpa_kick_vq(struct vdpa_device *vdpa, u16 qid)
 {
 	struct vp_vdpa *vp_vdpa = vdpa_to_vp(vdpa);
 
-	vp_iowrite16(qid, vp_vdpa->vring[qid].notify);
+	vp_iowrite16(qid, vp_vdpa->vring[qid].analtify);
 }
 
 static u32 vp_vdpa_get_generation(struct vdpa_device *vdpa)
@@ -421,17 +421,17 @@ static void vp_vdpa_set_config_cb(struct vdpa_device *vdpa,
 	vp_vdpa->config_cb = *cb;
 }
 
-static struct vdpa_notification_area
-vp_vdpa_get_vq_notification(struct vdpa_device *vdpa, u16 qid)
+static struct vdpa_analtification_area
+vp_vdpa_get_vq_analtification(struct vdpa_device *vdpa, u16 qid)
 {
 	struct vp_vdpa *vp_vdpa = vdpa_to_vp(vdpa);
 	struct virtio_pci_modern_device *mdev = vp_vdpa_to_mdev(vp_vdpa);
-	struct vdpa_notification_area notify;
+	struct vdpa_analtification_area analtify;
 
-	notify.addr = vp_vdpa->vring[qid].notify_pa;
-	notify.size = mdev->notify_offset_multiplier;
+	analtify.addr = vp_vdpa->vring[qid].analtify_pa;
+	analtify.size = mdev->analtify_offset_multiplier;
 
-	return notify;
+	return analtify;
 }
 
 static const struct vdpa_config_ops vp_vdpa_ops = {
@@ -443,7 +443,7 @@ static const struct vdpa_config_ops vp_vdpa_ops = {
 	.reset		= vp_vdpa_reset,
 	.get_vq_num_max	= vp_vdpa_get_vq_num_max,
 	.get_vq_state	= vp_vdpa_get_vq_state,
-	.get_vq_notification = vp_vdpa_get_vq_notification,
+	.get_vq_analtification = vp_vdpa_get_vq_analtification,
 	.set_vq_state	= vp_vdpa_set_vq_state,
 	.set_vq_cb	= vp_vdpa_set_vq_cb,
 	.set_vq_ready	= vp_vdpa_set_vq_ready,
@@ -499,7 +499,7 @@ static int vp_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 		if (add_config->device_features & ~device_features) {
 			ret = -EINVAL;
 			dev_err(&pdev->dev, "Try to provision features "
-				"that are not supported by the device: "
+				"that are analt supported by the device: "
 				"device_features 0x%llx provisioned 0x%llx\n",
 				device_features, add_config->device_features);
 			goto err;
@@ -519,23 +519,23 @@ static int vp_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 				      sizeof(*vp_vdpa->vring),
 				      GFP_KERNEL);
 	if (!vp_vdpa->vring) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		dev_err(&pdev->dev, "Fail to allocate virtqueues\n");
 		goto err;
 	}
 
 	for (i = 0; i < vp_vdpa->queues; i++) {
-		vp_vdpa->vring[i].irq = VIRTIO_MSI_NO_VECTOR;
-		vp_vdpa->vring[i].notify =
-			vp_modern_map_vq_notify(mdev, i,
-						&vp_vdpa->vring[i].notify_pa);
-		if (!vp_vdpa->vring[i].notify) {
+		vp_vdpa->vring[i].irq = VIRTIO_MSI_ANAL_VECTOR;
+		vp_vdpa->vring[i].analtify =
+			vp_modern_map_vq_analtify(mdev, i,
+						&vp_vdpa->vring[i].analtify_pa);
+		if (!vp_vdpa->vring[i].analtify) {
 			ret = -EINVAL;
-			dev_warn(&pdev->dev, "Fail to map vq notify %d\n", i);
+			dev_warn(&pdev->dev, "Fail to map vq analtify %d\n", i);
 			goto err;
 		}
 	}
-	vp_vdpa->config_irq = VIRTIO_MSI_NO_VECTOR;
+	vp_vdpa->config_irq = VIRTIO_MSI_ANAL_VECTOR;
 
 	vp_vdpa->vdpa.mdev = &vp_vdpa_mgtdev->mgtdev;
 	ret = _vdpa_register_device(&vp_vdpa->vdpa, vp_vdpa->queues);
@@ -579,7 +579,7 @@ static int vp_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	vp_vdpa_mgtdev = kzalloc(sizeof(*vp_vdpa_mgtdev), GFP_KERNEL);
 	if (!vp_vdpa_mgtdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mgtdev = &vp_vdpa_mgtdev->mgtdev;
 	mgtdev->ops = &vp_vdpa_mdev_ops;
@@ -587,13 +587,13 @@ static int vp_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mdev = kzalloc(sizeof(struct virtio_pci_modern_device), GFP_KERNEL);
 	if (!mdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto mdev_err;
 	}
 
 	mdev_id = kzalloc(sizeof(struct virtio_device_id), GFP_KERNEL);
 	if (!mdev_id) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto mdev_id_err;
 	}
 

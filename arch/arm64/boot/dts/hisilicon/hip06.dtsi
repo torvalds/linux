@@ -333,9 +333,9 @@
 	 *  have a SMMU translation for MSI. In order to workaround this,
 	 *  ARM SMMUv3 driver requires a quirk to treat the MSI regions
 	 *  separately. Such a quirk is currently missing for DT based
-	 *  systems. Hence please make sure that the smmu pcie node on
+	 *  systems. Hence please make sure that the smmu pcie analde on
 	 *  hip06 is disabled as this will break the PCIe functionality
-	 *  when iommu-map entry is used along with the PCIe node.
+	 *  when iommu-map entry is used along with the PCIe analde.
 	 *  Refer:https://www.spinics.net/lists/arm-kernel/msg602812.html
 	 */
 	smmu0: iommu@a0040000 {

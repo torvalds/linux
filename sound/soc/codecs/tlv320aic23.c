@@ -7,7 +7,7 @@
  *
  * Based on sound/soc/codecs/wm8731.c by Richard Purdie
  *
- * Notes:
+ * Analtes:
  *  The AIC23 is a driver for a low power stereo audio
  *  codec tlv320aic23
  *
@@ -59,7 +59,7 @@ const struct regmap_config tlv320aic23_regmap = {
 EXPORT_SYMBOL(tlv320aic23_regmap);
 
 static const char *rec_src_text[] = { "Line", "Mic" };
-static const char *deemph_text[] = {"None", "32Khz", "44.1Khz", "48Khz"};
+static const char *deemph_text[] = {"Analne", "32Khz", "44.1Khz", "48Khz"};
 
 static SOC_ENUM_SINGLE_DECL(rec_src_enum,
 			    TLV320AIC23_ANLG, 2, rec_src_text);
@@ -137,7 +137,7 @@ static const struct snd_kcontrol_new tlv320aic23_output_mixer_controls[] = {
 static const struct snd_soc_dapm_widget tlv320aic23_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC", "Playback", TLV320AIC23_PWR, 3, 1),
 	SND_SOC_DAPM_ADC("ADC", "Capture", TLV320AIC23_PWR, 2, 1),
-	SND_SOC_DAPM_MUX("Capture Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Capture Source", SND_SOC_ANALPM, 0, 0,
 			 &tlv320aic23_rec_src_mux_controls),
 	SND_SOC_DAPM_MIXER("Output Mixer", TLV320AIC23_PWR, 4, 1,
 			   &tlv320aic23_output_mixer_controls[0],
@@ -198,7 +198,7 @@ struct aic23 {
  */
 
 /*
- * Normal BOSR 0-256/2 = 128, 1-384/2 = 192
+ * Analrmal BOSR 0-256/2 = 128, 1-384/2 = 192
  * USB BOSR 0-250/2 = 125, 1-272/2 = 136
  */
 static const int bosr_usb_divisor_table[] = {
@@ -207,9 +207,9 @@ static const int bosr_usb_divisor_table[] = {
 #define LOWER_GROUP ((1<<0) | (1<<1) | (1<<2) | (1<<3) | (1<<6) | (1<<7))
 #define UPPER_GROUP ((1<<8) | (1<<9) | (1<<10) | (1<<11)        | (1<<15))
 static const unsigned short sr_valid_mask[] = {
-	LOWER_GROUP|UPPER_GROUP,	/* Normal, bosr - 0*/
+	LOWER_GROUP|UPPER_GROUP,	/* Analrmal, bosr - 0*/
 	LOWER_GROUP,			/* Usb, bosr - 0*/
-	LOWER_GROUP|UPPER_GROUP,	/* Normal, bosr - 1*/
+	LOWER_GROUP|UPPER_GROUP,	/* Analrmal, bosr - 1*/
 	UPPER_GROUP,			/* Usb, bosr - 1*/
 };
 /*
@@ -514,7 +514,7 @@ static const struct snd_soc_dai_ops tlv320aic23_dai_ops = {
 	.mute_stream	= tlv320aic23_mute,
 	.set_fmt	= tlv320aic23_set_dai_fmt,
 	.set_sysclk	= tlv320aic23_set_dai_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver tlv320aic23_dai = {
@@ -597,7 +597,7 @@ int tlv320aic23_probe(struct device *dev, struct regmap *regmap)
 
 	aic23 = devm_kzalloc(dev, sizeof(struct aic23), GFP_KERNEL);
 	if (aic23 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aic23->regmap = regmap;
 

@@ -33,7 +33,7 @@ static const struct drm_driver dcss_kms_driver = {
 	.desc			= "i.MX8MQ Display Subsystem",
 	.date			= "20190917",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 	.patchlevel		= 0,
 };
 
@@ -51,7 +51,7 @@ static void dcss_kms_mode_config_init(struct dcss_kms_dev *kms)
 	config->min_height = 1;
 	config->max_width = 4096;
 	config->max_height = 4096;
-	config->normalize_zpos = true;
+	config->analrmalize_zpos = true;
 
 	config->funcs = &dcss_drm_mode_config_funcs;
 	config->helper_private = &dcss_mode_config_helpers;
@@ -70,28 +70,28 @@ static int dcss_kms_bridge_connector_init(struct dcss_kms_dev *kms)
 	struct drm_bridge *bridge;
 	int ret;
 
-	ret = drm_of_find_panel_or_bridge(ddev->dev->of_node, 0, 0,
+	ret = drm_of_find_panel_or_bridge(ddev->dev->of_analde, 0, 0,
 					  &panel, &bridge);
 	if (ret)
 		return ret;
 
 	if (!bridge) {
-		dev_err(ddev->dev, "No bridge found %d.\n", ret);
-		return -ENODEV;
+		dev_err(ddev->dev, "Anal bridge found %d.\n", ret);
+		return -EANALDEV;
 	}
 
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
 	ret = drm_encoder_init(&kms->base, encoder,
 			       &dcss_kms_simple_encoder_funcs,
-			       DRM_MODE_ENCODER_NONE, NULL);
+			       DRM_MODE_ENCODER_ANALNE, NULL);
 	if (ret) {
 		dev_err(ddev->dev, "Failed initializing encoder %d.\n", ret);
 		return ret;
 	}
 
 	ret = drm_bridge_attach(encoder, bridge, NULL,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret < 0)
 		return ret;
 

@@ -12,13 +12,13 @@
 int dvb_usb_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 	u16 rlen, int delay_ms)
 {
-	int actlen = 0, ret = -ENOMEM;
+	int actlen = 0, ret = -EANALMEM;
 
 	if (!d || wbuf == NULL || wlen == 0)
 		return -EINVAL;
 
 	if (d->props.generic_bulk_ctrl_endpoint == 0) {
-		err("endpoint for generic control not specified.");
+		err("endpoint for generic control analt specified.");
 		return -EINVAL;
 	}
 
@@ -37,7 +37,7 @@ int dvb_usb_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 	else
 		ret = actlen != wlen ? -1 : 0;
 
-	/* an answer is expected, and no error before */
+	/* an answer is expected, and anal error before */
 	if (!ret && rbuf && rlen) {
 		if (delay_ms)
 			msleep(delay_ms);

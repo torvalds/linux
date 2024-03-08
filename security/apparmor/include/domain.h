@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor security domain transition function definitions.
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2010 Caanalnical Ltd.
  */
 
 #include <linux/binfmts.h>
@@ -16,7 +16,7 @@
 #ifndef __AA_DOMAIN_H
 #define __AA_DOMAIN_H
 
-#define AA_CHANGE_NOFLAGS 0
+#define AA_CHANGE_ANALFLAGS 0
 #define AA_CHANGE_TEST 1
 #define AA_CHANGE_CHILD 2
 #define AA_CHANGE_ONEXEC  4

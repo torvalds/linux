@@ -155,7 +155,7 @@
   {
     "EventName": "ls_pref_instr_disp.store_prefetch_w",
     "EventCode": "0x4b",
-    "BriefDescription": "Software Prefetch Instructions (3DNow PREFETCHW instruction) Dispatched.",
+    "BriefDescription": "Software Prefetch Instructions (3DAnalw PREFETCHW instruction) Dispatched.",
     "UMask": "0x02"
   },
   {
@@ -167,18 +167,18 @@
   {
     "EventName": "ls_inef_sw_pref.mab_mch_cnt",
     "EventCode": "0x52",
-    "BriefDescription": "The number of software prefetches that did not fetch data outside of the processor core. Software PREFETCH instruction saw a match on an already-allocated miss request buffer.",
+    "BriefDescription": "The number of software prefetches that did analt fetch data outside of the processor core. Software PREFETCH instruction saw a match on an already-allocated miss request buffer.",
     "UMask": "0x02"
   },
   {
     "EventName": "ls_inef_sw_pref.data_pipe_sw_pf_dc_hit",
     "EventCode": "0x52",
-    "BriefDescription": "The number of software prefetches that did not fetch data outside of the processor core. Software PREFETCH instruction saw a DC hit.",
+    "BriefDescription": "The number of software prefetches that did analt fetch data outside of the processor core. Software PREFETCH instruction saw a DC hit.",
     "UMask": "0x01"
   },
   {
-    "EventName": "ls_not_halted_cyc",
+    "EventName": "ls_analt_halted_cyc",
     "EventCode": "0x76",
-    "BriefDescription": "Cycles not in Halt."
+    "BriefDescription": "Cycles analt in Halt."
   }
 ]

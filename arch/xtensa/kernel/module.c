@@ -67,7 +67,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 		value = sym->st_value + rela[i].r_addend;
 
 		switch (ELF32_R_TYPE(rela[i].r_info)) {
-		case R_XTENSA_NONE:
+		case R_XTENSA_ANALNE:
 		case R_XTENSA_DIFF8:
 		case R_XTENSA_DIFF16:
 		case R_XTENSA_DIFF32:
@@ -89,7 +89,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 					       "sym '%s'\n",
 					       mod->name, relsec, i,
 					       strtab + sym->st_name);
-					return -ENOEXEC;
+					return -EANALEXEC;
 				}
 				value = (signed int)value >> 2;
 #ifdef __XTENSA_EB__
@@ -113,7 +113,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 					       "sym '%s'\n",
 					       mod->name, relsec, i,
 					       strtab + sym->st_name);
-					return -ENOEXEC;
+					return -EANALEXEC;
 				}
 				value = (signed int)value >> 2;
 
@@ -126,14 +126,14 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 				location[2] = (value >> 8) & 0xff;
 #endif
 			}
-			/* FIXME: Ignore any other opcodes.  The Xtensa
+			/* FIXME: Iganalre any other opcodes.  The Xtensa
 			   assembler currently assumes that the linker will
 			   always do relaxation and so all PC-relative
 			   operands need relocations.  (The assembler also
 			   writes out the tentative PC-relative values,
-			   assuming no link-time relaxation, so it is usually
-			   safe to ignore the relocations.)  If the
-			   assembler's "--no-link-relax" flag can be made to
+			   assuming anal link-time relaxation, so it is usually
+			   safe to iganalre the relocations.)  If the
+			   assembler's "--anal-link-relax" flag can be made to
 			   work, and if all kernel modules can be assembled
 			   with that flag, then unexpected relocations could
 			   be detected here.  */
@@ -156,7 +156,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			pr_err("%s: unexpected FLIX relocation: %u\n",
 			       mod->name,
 			       ELF32_R_TYPE(rela[i].r_info));
-			return -ENOEXEC;
+			return -EANALEXEC;
 
 		case R_XTENSA_SLOT0_ALT:
 		case R_XTENSA_SLOT1_ALT:
@@ -176,13 +176,13 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			pr_err("%s: unexpected ALT relocation: %u\n",
 			       mod->name,
 			       ELF32_R_TYPE(rela[i].r_info));
-			return -ENOEXEC;
+			return -EANALEXEC;
 
 		default:
 			pr_err("%s: unexpected relocation: %u\n",
 			       mod->name,
 			       ELF32_R_TYPE(rela[i].r_info));
-			return -ENOEXEC;
+			return -EANALEXEC;
 		}
 	}
 	return 0;

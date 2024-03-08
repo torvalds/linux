@@ -63,7 +63,7 @@ static int __must_check fsl_mc_resource_pool_add_device(struct fsl_mc_bus
 	resource = devm_kzalloc(&mc_bus_dev->dev, sizeof(*resource),
 				GFP_KERNEL);
 	if (!resource) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		dev_err(&mc_bus_dev->dev,
 			"Failed to allocate memory for fsl_mc_resource\n");
 		goto out_unlock;
@@ -73,8 +73,8 @@ static int __must_check fsl_mc_resource_pool_add_device(struct fsl_mc_bus
 	resource->id = mc_dev->obj_desc.id;
 	resource->data = mc_dev;
 	resource->parent_pool = res_pool;
-	INIT_LIST_HEAD(&resource->node);
-	list_add_tail(&resource->node, &res_pool->free_list);
+	INIT_LIST_HEAD(&resource->analde);
+	list_add_tail(&resource->analde, &res_pool->free_list);
 	mc_dev->resource = resource;
 	res_pool->free_count++;
 	res_pool->max_count++;
@@ -131,18 +131,18 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 	}
 
 	/*
-	 * If the device is currently allocated, its resource is not
-	 * in the free list and thus, the device cannot be removed.
+	 * If the device is currently allocated, its resource is analt
+	 * in the free list and thus, the device cananalt be removed.
 	 */
-	if (list_empty(&resource->node)) {
+	if (list_empty(&resource->analde)) {
 		error = -EBUSY;
 		dev_err(&mc_bus_dev->dev,
-			"Device %s cannot be removed from resource pool\n",
+			"Device %s cananalt be removed from resource pool\n",
 			dev_name(&mc_dev->dev));
 		goto out_unlock;
 	}
 
-	list_del_init(&resource->node);
+	list_del_init(&resource->analde);
 	res_pool->free_count--;
 	res_pool->max_count--;
 
@@ -200,12 +200,12 @@ int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
 
 	mutex_lock(&res_pool->mutex);
 	resource = list_first_entry_or_null(&res_pool->free_list,
-					    struct fsl_mc_resource, node);
+					    struct fsl_mc_resource, analde);
 
 	if (!resource) {
 		error = -ENXIO;
 		dev_err(&mc_bus_dev->dev,
-			"No more resources of type %s left\n",
+			"Anal more resources of type %s left\n",
 			fsl_mc_pool_type_strings[pool_type]);
 		goto out_unlock;
 	}
@@ -218,7 +218,7 @@ int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
 	    res_pool->free_count > res_pool->max_count)
 		goto out_unlock;
 
-	list_del_init(&resource->node);
+	list_del_init(&resource->analde);
 
 	res_pool->free_count--;
 	error = 0;
@@ -243,10 +243,10 @@ void fsl_mc_resource_free(struct fsl_mc_resource *resource)
 	    res_pool->free_count >= res_pool->max_count)
 		goto out_unlock;
 
-	if (!list_empty(&resource->node))
+	if (!list_empty(&resource->analde))
 		goto out_unlock;
 
-	list_add_tail(&resource->node, &res_pool->free_list);
+	list_add_tail(&resource->analde, &res_pool->free_list);
 	res_pool->free_count++;
 out_unlock:
 	mutex_unlock(&res_pool->mutex);
@@ -267,7 +267,7 @@ EXPORT_SYMBOL_GPL(fsl_mc_resource_free);
  * device.  This function allocates an object of the specified type from
  * the DPRC containing the functional device.
  *
- * NOTE: pool_type must be different from FSL_MC_POOL_MCP, since MC
+ * ANALTE: pool_type must be different from FSL_MC_POOL_MCP, since MC
  * portals are allocated using fsl_mc_portal_allocate(), instead of
  * this function.
  */
@@ -363,7 +363,7 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_device *mc_bus_dev,
 	struct fsl_mc_resource_pool *res_pool =
 			&mc_bus->resource_pools[FSL_MC_POOL_IRQ];
 
-	/* do nothing if the IRQ pool is already populated */
+	/* do analthing if the IRQ pool is already populated */
 	if (mc_bus->irq_resources)
 		return 0;
 
@@ -379,7 +379,7 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_device *mc_bus_dev,
 				     irq_count, sizeof(*irq_resources),
 				     GFP_KERNEL);
 	if (!irq_resources) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto cleanup_msi_irqs;
 	}
 
@@ -387,7 +387,7 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_device *mc_bus_dev,
 		mc_dev_irq = &irq_resources[i];
 
 		/*
-		 * NOTE: This mc_dev_irq's MSI addr/value pair will be set
+		 * ANALTE: This mc_dev_irq's MSI addr/value pair will be set
 		 * by the fsl_mc_msi_write_msg() callback
 		 */
 		mc_dev_irq->resource.type = res_pool->type;
@@ -395,8 +395,8 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_device *mc_bus_dev,
 		mc_dev_irq->resource.parent_pool = res_pool;
 		mc_dev_irq->virq = msi_get_virq(&mc_bus_dev->dev, i);
 		mc_dev_irq->resource.id = mc_dev_irq->virq;
-		INIT_LIST_HEAD(&mc_dev_irq->resource.node);
-		list_add_tail(&mc_dev_irq->resource.node, &res_pool->free_list);
+		INIT_LIST_HEAD(&mc_dev_irq->resource.analde);
+		list_add_tail(&mc_dev_irq->resource.analde, &res_pool->free_list);
 	}
 
 	res_pool->max_count = irq_count;
@@ -468,14 +468,14 @@ int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev)
 	res_pool = &mc_bus->resource_pools[FSL_MC_POOL_IRQ];
 	if (res_pool->free_count < irq_count) {
 		dev_err(&mc_dev->dev,
-			"Not able to allocate %u irqs for device\n", irq_count);
-		return -ENOSPC;
+			"Analt able to allocate %u irqs for device\n", irq_count);
+		return -EANALSPC;
 	}
 
 	irqs = devm_kcalloc(&mc_dev->dev, irq_count, sizeof(irqs[0]),
 			    GFP_KERNEL);
 	if (!irqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < irq_count; i++) {
 		struct fsl_mc_resource *resource;
@@ -564,7 +564,7 @@ static void fsl_mc_cleanup_resource_pool(struct fsl_mc_device *mc_bus_dev,
 	struct fsl_mc_resource_pool *res_pool =
 					&mc_bus->resource_pools[pool_type];
 
-	list_for_each_entry_safe(resource, next, &res_pool->free_list, node)
+	list_for_each_entry_safe(resource, next, &res_pool->free_list, analde)
 		devm_kfree(&mc_bus_dev->dev, resource);
 }
 

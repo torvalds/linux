@@ -25,11 +25,11 @@ static void enable_errsou_reporting(void __iomem *csr)
 
 	/*
 	 * Enable uncorrectable error reporting in ERRSOU3
-	 * but disable RLT error interrupt and VFLR notify interrupt by default
+	 * but disable RLT error interrupt and VFLR analtify interrupt by default
 	 */
 	ADF_CSR_WR(csr, ADF_GEN4_ERRMSK3,
 		   ADF_GEN4_ERRSOU3_RLTERROR_BIT |
-		   ADF_GEN4_ERRSOU3_VFLRNOTIFY_BIT);
+		   ADF_GEN4_ERRSOU3_VFLRANALTIFY_BIT);
 }
 
 static void disable_errsou_reporting(void __iomem *csr)
@@ -1031,7 +1031,7 @@ static bool adf_handle_ssmcpppar_err(struct adf_accel_dev *accel_dev,
 
 	if (reg & ADF_GEN4_SSMCPPERR_UNCERR_BITMASK) {
 		dev_err(&GET_DEV(accel_dev),
-			"non-Fatal SSM CPP parity error: 0x%x\n", reg);
+			"analn-Fatal SSM CPP parity error: 0x%x\n", reg);
 		errs_bits = reg & ADF_GEN4_SSMCPPERR_UNCERR_BITMASK;
 
 		for_each_set_bit(bit_iterator, &errs_bits, bits_num) {
@@ -1134,7 +1134,7 @@ static bool adf_handle_ser_err_ssmsh(struct adf_accel_dev *accel_dev,
 
 	if (reg & ADF_GEN4_SER_ERR_SSMSH_UNCERR_BITMASK) {
 		dev_err(&GET_DEV(accel_dev),
-			"non-fatal SER_SSMSH_ERR: 0x%x\n", reg);
+			"analn-fatal SER_SSMSH_ERR: 0x%x\n", reg);
 
 		errs_bits = reg & ADF_GEN4_SER_ERR_SSMSH_UNCERR_BITMASK;
 		for_each_set_bit(bit_iterator, &errs_bits, bits_num) {

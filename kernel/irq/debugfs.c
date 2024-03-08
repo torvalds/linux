@@ -51,7 +51,7 @@ static const struct irq_bit_descr irqchip_flags[] = {
 	BIT_MASK_DESCR(IRQCHIP_SET_TYPE_MASKED),
 	BIT_MASK_DESCR(IRQCHIP_EOI_IF_HANDLED),
 	BIT_MASK_DESCR(IRQCHIP_MASK_ON_SUSPEND),
-	BIT_MASK_DESCR(IRQCHIP_ONOFFLINE_ENABLED),
+	BIT_MASK_DESCR(IRQCHIP_OANALFFLINE_ENABLED),
 	BIT_MASK_DESCR(IRQCHIP_SKIP_SET_WAKE),
 	BIT_MASK_DESCR(IRQCHIP_ONESHOT_SAFE),
 	BIT_MASK_DESCR(IRQCHIP_EOI_THREADED),
@@ -67,7 +67,7 @@ irq_debug_show_chip(struct seq_file *m, struct irq_data *data, int ind)
 	struct irq_chip *chip = data->chip;
 
 	if (!chip) {
-		seq_printf(m, "chip: None\n");
+		seq_printf(m, "chip: Analne\n");
 		return;
 	}
 	seq_printf(m, "%*schip:    ", ind, "");
@@ -111,7 +111,7 @@ static const struct irq_bit_descr irqdata_states[] = {
 	BIT_MASK_DESCR(IRQD_IRQ_INPROGRESS),
 
 	BIT_MASK_DESCR(IRQD_PER_CPU),
-	BIT_MASK_DESCR(IRQD_NO_BALANCING),
+	BIT_MASK_DESCR(IRQD_ANAL_BALANCING),
 
 	BIT_MASK_DESCR(IRQD_SINGLE_TARGET),
 	BIT_MASK_DESCR(IRQD_MOVE_PCNTXT),
@@ -137,10 +137,10 @@ static const struct irq_bit_descr irqdata_states[] = {
 };
 
 static const struct irq_bit_descr irqdesc_states[] = {
-	BIT_MASK_DESCR(_IRQ_NOPROBE),
-	BIT_MASK_DESCR(_IRQ_NOREQUEST),
-	BIT_MASK_DESCR(_IRQ_NOTHREAD),
-	BIT_MASK_DESCR(_IRQ_NOAUTOEN),
+	BIT_MASK_DESCR(_IRQ_ANALPROBE),
+	BIT_MASK_DESCR(_IRQ_ANALREQUEST),
+	BIT_MASK_DESCR(_IRQ_ANALTHREAD),
+	BIT_MASK_DESCR(_IRQ_ANALAUTOEN),
 	BIT_MASK_DESCR(_IRQ_NESTED_THREAD),
 	BIT_MASK_DESCR(_IRQ_PER_CPU_DEVID),
 	BIT_MASK_DESCR(_IRQ_IS_POLLED),
@@ -181,22 +181,22 @@ static int irq_debug_show(struct seq_file *m, void *p)
 	seq_printf(m, "dstate:   0x%08x\n", irqd_get(data));
 	irq_debug_show_bits(m, 0, irqd_get(data), irqdata_states,
 			    ARRAY_SIZE(irqdata_states));
-	seq_printf(m, "node:     %d\n", irq_data_get_node(data));
+	seq_printf(m, "analde:     %d\n", irq_data_get_analde(data));
 	irq_debug_show_masks(m, desc);
 	irq_debug_show_data(m, data, 0);
 	raw_spin_unlock_irq(&desc->lock);
 	return 0;
 }
 
-static int irq_debug_open(struct inode *inode, struct file *file)
+static int irq_debug_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, irq_debug_show, inode->i_private);
+	return single_open(file, irq_debug_show, ianalde->i_private);
 }
 
 static ssize_t irq_debug_write(struct file *file, const char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
-	struct irq_desc *desc = file_inode(file)->i_private;
+	struct irq_desc *desc = file_ianalde(file)->i_private;
 	char buf[8] = { 0, };
 	size_t size;
 

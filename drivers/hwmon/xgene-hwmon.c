@@ -240,14 +240,14 @@ static int xgene_hwmon_reg_map_rd(struct xgene_hwmon_dev *ctx, u32 addr,
 	 * Check if sensor data is valid.
 	 */
 	if (msg[1] & SENSOR_INVALID_DATA)
-		return -ENODATA;
+		return -EANALDATA;
 
 	*data = msg[1];
 
 	return rc;
 }
 
-static int xgene_hwmon_get_notification_msg(struct xgene_hwmon_dev *ctx,
+static int xgene_hwmon_get_analtification_msg(struct xgene_hwmon_dev *ctx,
 					    u32 *amsg)
 {
 	u32 msg[3];
@@ -412,7 +412,7 @@ static int xgene_hwmon_tpc_alarm(struct xgene_hwmon_dev *ctx,
 				 struct slimpro_resp_msg *amsg)
 {
 	ctx->temp_critical_alarm = !!amsg->param2;
-	sysfs_notify(&ctx->dev->kobj, NULL, "temp1_critical_alarm");
+	sysfs_analtify(&ctx->dev->kobj, NULL, "temp1_critical_alarm");
 
 	return 0;
 }
@@ -443,7 +443,7 @@ static void xgene_hwmon_evt_work(struct work_struct *work)
 		 * If Slimpro Mailbox, get message from specific FIFO
 		 */
 		if (!acpi_disabled) {
-			ret = xgene_hwmon_get_notification_msg(ctx,
+			ret = xgene_hwmon_get_analtification_msg(ctx,
 							       (u32 *)&amsg);
 			if (ret < 0)
 				continue;
@@ -461,7 +461,7 @@ static int xgene_hwmon_rx_ready(struct xgene_hwmon_dev *ctx, void *msg)
 		kfifo_in_spinlocked(&ctx->async_msg_fifo, msg,
 				    sizeof(struct slimpro_resp_msg),
 				    &ctx->kfifo_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -478,7 +478,7 @@ static void xgene_hwmon_rx_cb(struct mbox_client *cl, void *msg)
 	 * While the driver registers with the mailbox framework, an interrupt
 	 * can be pending before the probe function completes its
 	 * initialization. If such condition occurs, just queue up the message
-	 * as the driver is not ready for servicing the callback.
+	 * as the driver is analt ready for servicing the callback.
 	 */
 	if (xgene_hwmon_rx_ready(ctx, msg) < 0)
 		return;
@@ -530,7 +530,7 @@ static void xgene_hwmon_pcc_rx_cb(struct mbox_client *cl, void *msg)
 	 * While the driver registers with the mailbox framework, an interrupt
 	 * can be pending before the probe function completes its
 	 * initialization. If such condition occurs, just queue up the message
-	 * as the driver is not ready for servicing the callback.
+	 * as the driver is analt ready for servicing the callback.
 	 */
 	if (xgene_hwmon_rx_ready(ctx, &amsg) < 0)
 		return;
@@ -573,10 +573,10 @@ static void xgene_hwmon_pcc_rx_cb(struct mbox_client *cl, void *msg)
 	}
 
 	/*
-	 * Platform notifies interrupt to OSPM.
+	 * Platform analtifies interrupt to OSPM.
 	 * OPSM schedules a consumer command to get this information
 	 * in a workqueue. Platform must wait until OSPM has issued
-	 * a consumer command that serves this notification.
+	 * a consumer command that serves this analtification.
 	 */
 
 	/* Enqueue to the FIFO */
@@ -589,7 +589,7 @@ static void xgene_hwmon_pcc_rx_cb(struct mbox_client *cl, void *msg)
 static void xgene_hwmon_tx_done(struct mbox_client *cl, void *msg, int ret)
 {
 	if (ret) {
-		dev_dbg(cl->dev, "TX did not complete: CMD sent:%x, ret:%d\n",
+		dev_dbg(cl->dev, "TX did analt complete: CMD sent:%x, ret:%d\n",
 			*(u16 *)msg, ret);
 	} else {
 		dev_dbg(cl->dev, "TX completed. CMD sent:%x, ret:%d\n",
@@ -614,7 +614,7 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ctx);
@@ -627,7 +627,7 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 			 sizeof(struct slimpro_resp_msg) * ASYNC_MSG_FIFO_SIZE,
 			 GFP_KERNEL);
 	if (rc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&ctx->workq, xgene_hwmon_evt_work);
 
@@ -636,14 +636,14 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 	cl->tx_done = xgene_hwmon_tx_done;
 	cl->tx_block = false;
 	cl->tx_tout = MBOX_OP_TIMEOUTMS;
-	cl->knows_txdone = false;
+	cl->kanalws_txdone = false;
 	if (acpi_disabled) {
 		cl->rx_callback = xgene_hwmon_rx_cb;
 		ctx->mbox_chan = mbox_request_channel(cl, 0);
 		if (IS_ERR(ctx->mbox_chan)) {
 			dev_err(&pdev->dev,
 				"SLIMpro mailbox channel request failed\n");
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			goto out_mbox_free;
 		}
 	} else {
@@ -662,8 +662,8 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 
 		if (device_property_read_u32(&pdev->dev, "pcc-channel",
 					     &ctx->mbox_idx)) {
-			dev_err(&pdev->dev, "no pcc-channel property\n");
-			rc = -ENODEV;
+			dev_err(&pdev->dev, "anal pcc-channel property\n");
+			rc = -EANALDEV;
 			goto out_mbox_free;
 		}
 
@@ -672,7 +672,7 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		if (IS_ERR(pcc_chan)) {
 			dev_err(&pdev->dev,
 				"PPC channel request failed\n");
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			goto out_mbox_free;
 		}
 
@@ -680,8 +680,8 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		ctx->mbox_chan = pcc_chan->mchan;
 
 		if (!ctx->mbox_chan->mbox->txdone_irq) {
-			dev_err(&pdev->dev, "PCC IRQ not supported\n");
-			rc = -ENODEV;
+			dev_err(&pdev->dev, "PCC IRQ analt supported\n");
+			rc = -EANALDEV;
 			goto out;
 		}
 
@@ -702,21 +702,21 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 								   MEMREMAP_WB);
 		} else {
 			dev_err(&pdev->dev, "Failed to get PCC comm region\n");
-			rc = -ENODEV;
+			rc = -EANALDEV;
 			goto out;
 		}
 
 		if (!ctx->pcc_comm_addr) {
 			dev_err(&pdev->dev,
 				"Failed to ioremap PCC comm region\n");
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 
 		/*
-		 * pcc_chan->latency is just a Nominal value. In reality
+		 * pcc_chan->latency is just a Analminal value. In reality
 		 * the remote processor could be much slower to reply.
-		 * So add an arbitrary amount of wait on top of Nominal.
+		 * So add an arbitrary amount of wait on top of Analminal.
 		 */
 		ctx->usecs_lat = PCC_NUM_RETRIES * pcc_chan->latency;
 	}

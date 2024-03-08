@@ -180,7 +180,7 @@ SND_SOC_DAPM_OUTPUT("LHPOUT"),
 SND_SOC_DAPM_OUTPUT("ROUT"),
 SND_SOC_DAPM_OUTPUT("RHPOUT"),
 SND_SOC_DAPM_ADC("ADC", "HiFi Capture", WM8731_PWR, 2, 1),
-SND_SOC_DAPM_MUX("Input Mux", SND_SOC_NOPM, 0, 0, &wm8731_input_mux_controls),
+SND_SOC_DAPM_MUX("Input Mux", SND_SOC_ANALPM, 0, 0, &wm8731_input_mux_controls),
 SND_SOC_DAPM_PGA("Line Input", WM8731_PWR, 0, 1, NULL, 0),
 SND_SOC_DAPM_MICBIAS("Mic Bias", WM8731_PWR, 1, 1),
 SND_SOC_DAPM_INPUT("MICIN"),
@@ -528,7 +528,7 @@ static const struct snd_soc_dai_ops wm8731_dai_ops = {
 	.mute_stream	= wm8731_mute,
 	.set_sysclk	= wm8731_set_dai_sysclk,
 	.set_fmt	= wm8731_set_dai_fmt,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8731_dai = {
@@ -570,7 +570,7 @@ int wm8731_init(struct device *dev, struct wm8731_priv *wm8731)
 	wm8731->mclk = devm_clk_get(dev, "mclk");
 	if (IS_ERR(wm8731->mclk)) {
 		ret = PTR_ERR(wm8731->mclk);
-		if (ret == -ENOENT) {
+		if (ret == -EANALENT) {
 			wm8731->mclk = NULL;
 			dev_warn(dev, "Assuming static MCLK\n");
 		} else {

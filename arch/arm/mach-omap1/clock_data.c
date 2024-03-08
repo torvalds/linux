@@ -2,7 +2,7 @@
 /*
  *  linux/arch/arm/mach-omap1/clock_data.c
  *
- *  Copyright (C) 2004 - 2005, 2009-2010 Nokia Corporation
+ *  Copyright (C) 2004 - 2005, 2009-2010 Analkia Corporation
  *  Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
  *  Based on clocks.h by Tony Lindgren, Gordon McNutt and RidgeRun, Inc
  *
@@ -74,7 +74,7 @@
  */
 
 static struct omap1_clk ck_ref = {
-	.hw.init	= CLK_HW_INIT_NO_PARENT("ck_ref", &omap1_clk_rate_ops, 0),
+	.hw.init	= CLK_HW_INIT_ANAL_PARENT("ck_ref", &omap1_clk_rate_ops, 0),
 	.rate		= 12000000,
 };
 
@@ -84,11 +84,11 @@ static struct omap1_clk ck_dpll1 = {
 				       * force recursive refresh of rates of the clock
 				       * and its children when clk_get_rate() is called
 				       */
-				      CLK_GET_RATE_NOCACHE),
+				      CLK_GET_RATE_ANALCACHE),
 };
 
 /*
- * FIXME: This clock seems to be necessary but no-one has asked for its
+ * FIXME: This clock seems to be necessary but anal-one has asked for its
  * activation.  [ FIX: SoSSI, SSR ]
  */
 static struct arm_idlect1_clk ck_dpll1out = {
@@ -105,7 +105,7 @@ static struct arm_idlect1_clk ck_dpll1out = {
 static struct omap1_clk sossi_ck = {
 	.hw.init	= CLK_HW_INIT("ck_sossi", "ck_dpll1out", &omap1_clk_full_ops, 0),
 	.ops		= &clkops_generic,
-	.flags		= CLOCK_NO_IDLE_PARENT | ENABLE_REG_32BIT,
+	.flags		= CLOCK_ANAL_IDLE_PARENT | ENABLE_REG_32BIT,
 	.enable_reg	= OMAP1_IO_ADDRESS(MOD_CONF_CTRL_1),
 	.enable_bit	= CONF_MOD_SOSSI_CLK_EN_R,
 	.recalc		= &omap1_sossi_recalc,
@@ -138,7 +138,7 @@ static struct arm_idlect1_clk armper_ck = {
 };
 
 /*
- * FIXME: This clock seems to be necessary but no-one has asked for its
+ * FIXME: This clock seems to be necessary but anal-one has asked for its
  * activation.  [ GPIO code for 1510 ]
  */
 static struct omap1_clk arm_gpio_ck = {
@@ -187,7 +187,7 @@ static struct arm_idlect1_clk armwdt_ck = {
 
 static struct omap1_clk arminth_ck16xx = {
 	.hw.init	= CLK_HW_INIT("arminth_ck", "arm_ck", &omap1_clk_null_ops, 0),
-	/* Note: On 16xx the frequency can be divided by 2 by programming
+	/* Analte: On 16xx the frequency can be divided by 2 by programming
 	 * ARM_CKCTL:ARM_INTHCK_SEL(14) to 1
 	 *
 	 * 1510 version is in TC clocks.
@@ -252,19 +252,19 @@ static struct arm_idlect1_clk tc_ck = {
 
 static struct omap1_clk arminth_ck1510 = {
 	.hw.init	= CLK_HW_INIT("arminth_ck", "tc_ck", &omap1_clk_null_ops, 0),
-	/* Note: On 1510 the frequency follows TC_CK
+	/* Analte: On 1510 the frequency follows TC_CK
 	 *
 	 * 16xx version is in MPU clocks.
 	 */
 };
 
 static struct omap1_clk tipb_ck = {
-	/* No-idle controlled by "tc_ck" */
+	/* Anal-idle controlled by "tc_ck" */
 	.hw.init	= CLK_HW_INIT("tipb_ck", "tc_ck", &omap1_clk_null_ops, 0),
 };
 
 static struct omap1_clk l3_ocpi_ck = {
-	/* No-idle controlled by "tc_ck" */
+	/* Anal-idle controlled by "tc_ck" */
 	.hw.init	= CLK_HW_INIT("l3_ocpi_ck", "tc_ck", &omap1_clk_gate_ops, 0),
 	.ops		= &clkops_generic,
 	.enable_reg	= OMAP1_IO_ADDRESS(ARM_IDLECT3),
@@ -279,7 +279,7 @@ static struct omap1_clk tc1_ck = {
 };
 
 /*
- * FIXME: This clock seems to be necessary but no-one has asked for its
+ * FIXME: This clock seems to be necessary but anal-one has asked for its
  * activation.  [ pm.c (SRAM), CCP, Camera ]
  */
 
@@ -291,7 +291,7 @@ static struct omap1_clk tc2_ck = {
 };
 
 static struct omap1_clk dma_ck = {
-	/* No-idle controlled by "tc_ck" */
+	/* Anal-idle controlled by "tc_ck" */
 	.hw.init	= CLK_HW_INIT("dma_ck", "tc_ck", &omap1_clk_null_ops, 0),
 };
 
@@ -363,9 +363,9 @@ static struct arm_idlect1_clk lcd_ck_1510 = {
  * XXX does this need SYSC register handling?
  */
 static struct omap1_clk uart1_1510 = {
-	/* Direct from ULPD, no real parent */
+	/* Direct from ULPD, anal real parent */
 	.hw.init	= CLK_HW_INIT("uart1_ck", "armper_ck", &omap1_clk_full_ops, 0),
-	.flags		= ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
+	.flags		= ENABLE_REG_32BIT | CLOCK_ANAL_IDLE_PARENT,
 	.enable_reg	= OMAP1_IO_ADDRESS(MOD_CONF_CTRL_0),
 	.enable_bit	= CONF_MOD_UART1_CLK_MODE_R,
 	.round_rate	= &omap1_round_uart_rate,
@@ -377,15 +377,15 @@ static struct omap1_clk uart1_1510 = {
  * XXX The enable_bit here is misused - it simply switches between 12MHz
  * and 48MHz.  Reimplement with clk_mux.
  *
- * XXX SYSC register handling does not belong in the clock framework
+ * XXX SYSC register handling does analt belong in the clock framework
  */
 static struct uart_clk uart1_16xx = {
 	.clk	= {
 		.ops		= &clkops_uart_16xx,
-		/* Direct from ULPD, no real parent */
+		/* Direct from ULPD, anal real parent */
 		.hw.init	= CLK_HW_INIT("uart1_ck", "armper_ck", &omap1_clk_full_ops, 0),
 		.rate		= 48000000,
-		.flags		= ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
+		.flags		= ENABLE_REG_32BIT | CLOCK_ANAL_IDLE_PARENT,
 		.enable_reg	= OMAP1_IO_ADDRESS(MOD_CONF_CTRL_0),
 		.enable_bit	= CONF_MOD_UART1_CLK_MODE_R,
 	},
@@ -399,9 +399,9 @@ static struct uart_clk uart1_16xx = {
  * XXX does this need SYSC register handling?
  */
 static struct omap1_clk uart2_ck = {
-	/* Direct from ULPD, no real parent */
+	/* Direct from ULPD, anal real parent */
 	.hw.init	= CLK_HW_INIT("uart2_ck", "armper_ck", &omap1_clk_full_ops, 0),
-	.flags		= ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
+	.flags		= ENABLE_REG_32BIT | CLOCK_ANAL_IDLE_PARENT,
 	.enable_reg	= OMAP1_IO_ADDRESS(MOD_CONF_CTRL_0),
 	.enable_bit	= CONF_MOD_UART2_CLK_MODE_R,
 	.round_rate	= &omap1_round_uart_rate,
@@ -416,9 +416,9 @@ static struct omap1_clk uart2_ck = {
  * XXX does this need SYSC register handling?
  */
 static struct omap1_clk uart3_1510 = {
-	/* Direct from ULPD, no real parent */
+	/* Direct from ULPD, anal real parent */
 	.hw.init	= CLK_HW_INIT("uart3_ck", "armper_ck", &omap1_clk_full_ops, 0),
-	.flags		= ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
+	.flags		= ENABLE_REG_32BIT | CLOCK_ANAL_IDLE_PARENT,
 	.enable_reg	= OMAP1_IO_ADDRESS(MOD_CONF_CTRL_0),
 	.enable_bit	= CONF_MOD_UART3_CLK_MODE_R,
 	.round_rate	= &omap1_round_uart_rate,
@@ -430,15 +430,15 @@ static struct omap1_clk uart3_1510 = {
  * XXX The enable_bit here is misused - it simply switches between 12MHz
  * and 48MHz.  Reimplement with clk_mux.
  *
- * XXX SYSC register handling does not belong in the clock framework
+ * XXX SYSC register handling does analt belong in the clock framework
  */
 static struct uart_clk uart3_16xx = {
 	.clk	= {
 		.ops		= &clkops_uart_16xx,
-		/* Direct from ULPD, no real parent */
+		/* Direct from ULPD, anal real parent */
 		.hw.init	= CLK_HW_INIT("uart3_ck", "armper_ck", &omap1_clk_full_ops, 0),
 		.rate		= 48000000,
-		.flags		= ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
+		.flags		= ENABLE_REG_32BIT | CLOCK_ANAL_IDLE_PARENT,
 		.enable_reg	= OMAP1_IO_ADDRESS(MOD_CONF_CTRL_0),
 		.enable_bit	= CONF_MOD_UART3_CLK_MODE_R,
 	},
@@ -447,8 +447,8 @@ static struct uart_clk uart3_16xx = {
 
 static struct omap1_clk usb_clko = {	/* 6 MHz output on W4_USB_CLKO */
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent */
-	.hw.init	= CLK_HW_INIT_NO_PARENT("usb_clko", &omap1_clk_full_ops, 0),
+	/* Direct from ULPD, anal parent */
+	.hw.init	= CLK_HW_INIT_ANAL_PARENT("usb_clko", &omap1_clk_full_ops, 0),
 	.rate		= 6000000,
 	.flags		= ENABLE_REG_32BIT,
 	.enable_reg	= OMAP1_IO_ADDRESS(ULPD_CLOCK_CTRL),
@@ -457,8 +457,8 @@ static struct omap1_clk usb_clko = {	/* 6 MHz output on W4_USB_CLKO */
 
 static struct omap1_clk usb_hhc_ck1510 = {
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent */
-	.hw.init	= CLK_HW_INIT_NO_PARENT("usb_hhc_ck", &omap1_clk_full_ops, 0),
+	/* Direct from ULPD, anal parent */
+	.hw.init	= CLK_HW_INIT_ANAL_PARENT("usb_hhc_ck", &omap1_clk_full_ops, 0),
 	.rate		= 48000000, /* Actually 2 clocks, 12MHz and 48MHz */
 	.flags		= ENABLE_REG_32BIT,
 	.enable_reg	= OMAP1_IO_ADDRESS(MOD_CONF_CTRL_0),
@@ -467,10 +467,10 @@ static struct omap1_clk usb_hhc_ck1510 = {
 
 static struct omap1_clk usb_hhc_ck16xx = {
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent */
-	.hw.init	= CLK_HW_INIT_NO_PARENT("usb_hhc_ck", &omap1_clk_full_ops, 0),
+	/* Direct from ULPD, anal parent */
+	.hw.init	= CLK_HW_INIT_ANAL_PARENT("usb_hhc_ck", &omap1_clk_full_ops, 0),
 	.rate		= 48000000,
-	/* OTG_SYSCON_2.OTG_PADEN == 0 (not 1510-compatible) */
+	/* OTG_SYSCON_2.OTG_PADEN == 0 (analt 1510-compatible) */
 	.flags		= ENABLE_REG_32BIT,
 	.enable_reg	= OMAP1_IO_ADDRESS(OTG_BASE + 0x08), /* OTG_SYSCON_2 */
 	.enable_bit	= OTG_SYSCON_2_UHOST_EN_SHIFT
@@ -478,8 +478,8 @@ static struct omap1_clk usb_hhc_ck16xx = {
 
 static struct omap1_clk usb_dc_ck = {
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent */
-	.hw.init	= CLK_HW_INIT_NO_PARENT("usb_dc_ck", &omap1_clk_full_ops, 0),
+	/* Direct from ULPD, anal parent */
+	.hw.init	= CLK_HW_INIT_ANAL_PARENT("usb_dc_ck", &omap1_clk_full_ops, 0),
 	.rate		= 48000000,
 	.enable_reg	= OMAP1_IO_ADDRESS(SOFT_REQ_REG),
 	.enable_bit	= SOFT_USB_OTG_DPLL_REQ_SHIFT,
@@ -487,8 +487,8 @@ static struct omap1_clk usb_dc_ck = {
 
 static struct omap1_clk uart1_7xx = {
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent */
-	.hw.init	= CLK_HW_INIT_NO_PARENT("uart1_ck", &omap1_clk_full_ops, 0),
+	/* Direct from ULPD, anal parent */
+	.hw.init	= CLK_HW_INIT_ANAL_PARENT("uart1_ck", &omap1_clk_full_ops, 0),
 	.rate		= 12000000,
 	.enable_reg	= OMAP1_IO_ADDRESS(SOFT_REQ_REG),
 	.enable_bit	= 9,
@@ -496,8 +496,8 @@ static struct omap1_clk uart1_7xx = {
 
 static struct omap1_clk uart2_7xx = {
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent */
-	.hw.init	= CLK_HW_INIT_NO_PARENT("uart2_ck", &omap1_clk_full_ops, 0),
+	/* Direct from ULPD, anal parent */
+	.hw.init	= CLK_HW_INIT_ANAL_PARENT("uart2_ck", &omap1_clk_full_ops, 0),
 	.rate		= 12000000,
 	.enable_reg	= OMAP1_IO_ADDRESS(SOFT_REQ_REG),
 	.enable_bit	= 11,
@@ -505,8 +505,8 @@ static struct omap1_clk uart2_7xx = {
 
 static struct omap1_clk mclk_1510 = {
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent. May be enabled by ext hardware. */
-	.hw.init	= CLK_HW_INIT_NO_PARENT("mclk", &omap1_clk_full_ops, 0),
+	/* Direct from ULPD, anal parent. May be enabled by ext hardware. */
+	.hw.init	= CLK_HW_INIT_ANAL_PARENT("mclk", &omap1_clk_full_ops, 0),
 	.rate		= 12000000,
 	.enable_reg	= OMAP1_IO_ADDRESS(SOFT_REQ_REG),
 	.enable_bit	= SOFT_COM_MCKO_REQ_SHIFT,
@@ -514,8 +514,8 @@ static struct omap1_clk mclk_1510 = {
 
 static struct omap1_clk mclk_16xx = {
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent. May be enabled by ext hardware. */
-	.hw.init	= CLK_HW_INIT_NO_PARENT("mclk", &omap1_clk_full_ops, 0),
+	/* Direct from ULPD, anal parent. May be enabled by ext hardware. */
+	.hw.init	= CLK_HW_INIT_ANAL_PARENT("mclk", &omap1_clk_full_ops, 0),
 	.enable_reg	= OMAP1_IO_ADDRESS(COM_CLK_DIV_CTRL_SEL),
 	.enable_bit	= COM_ULPD_PLL_CLK_REQ,
 	.set_rate	= &omap1_set_ext_clk_rate,
@@ -524,15 +524,15 @@ static struct omap1_clk mclk_16xx = {
 };
 
 static struct omap1_clk bclk_1510 = {
-	/* Direct from ULPD, no parent. May be enabled by ext hardware. */
-	.hw.init	= CLK_HW_INIT_NO_PARENT("bclk", &omap1_clk_rate_ops, 0),
+	/* Direct from ULPD, anal parent. May be enabled by ext hardware. */
+	.hw.init	= CLK_HW_INIT_ANAL_PARENT("bclk", &omap1_clk_rate_ops, 0),
 	.rate		= 12000000,
 };
 
 static struct omap1_clk bclk_16xx = {
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent. May be enabled by ext hardware. */
-	.hw.init	= CLK_HW_INIT_NO_PARENT("bclk", &omap1_clk_full_ops, 0),
+	/* Direct from ULPD, anal parent. May be enabled by ext hardware. */
+	.hw.init	= CLK_HW_INIT_ANAL_PARENT("bclk", &omap1_clk_full_ops, 0),
 	.enable_reg	= OMAP1_IO_ADDRESS(SWD_CLK_DIV_CTRL_SEL),
 	.enable_bit	= SWD_ULPD_PLL_CLK_REQ,
 	.set_rate	= &omap1_set_ext_clk_rate,
@@ -545,7 +545,7 @@ static struct omap1_clk mmc1_ck = {
 	/* Functional clock is direct from ULPD, interface clock is ARMPER */
 	.hw.init	= CLK_HW_INIT("mmc1_ck", "armper_ck", &omap1_clk_full_ops, 0),
 	.rate		= 48000000,
-	.flags		= ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
+	.flags		= ENABLE_REG_32BIT | CLOCK_ANAL_IDLE_PARENT,
 	.enable_reg	= OMAP1_IO_ADDRESS(MOD_CONF_CTRL_0),
 	.enable_bit	= CONF_MOD_MMC_SD_CLK_REQ_R,
 };
@@ -559,7 +559,7 @@ static struct omap1_clk mmc2_ck = {
 	/* Functional clock is direct from ULPD, interface clock is ARMPER */
 	.hw.init	= CLK_HW_INIT("mmc2_ck", "armper_ck", &omap1_clk_full_ops, 0),
 	.rate		= 48000000,
-	.flags		= ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
+	.flags		= ENABLE_REG_32BIT | CLOCK_ANAL_IDLE_PARENT,
 	.enable_reg	= OMAP1_IO_ADDRESS(MOD_CONF_CTRL_0),
 	.enable_bit	= 20,
 };
@@ -569,7 +569,7 @@ static struct omap1_clk mmc3_ck = {
 	/* Functional clock is direct from ULPD, interface clock is ARMPER */
 	.hw.init	= CLK_HW_INIT("mmc3_ck", "armper_ck", &omap1_clk_full_ops, 0),
 	.rate		= 48000000,
-	.flags		= ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
+	.flags		= ENABLE_REG_32BIT | CLOCK_ANAL_IDLE_PARENT,
 	.enable_reg	= OMAP1_IO_ADDRESS(SOFT_REQ_REG),
 	.enable_bit	= SOFT_MMC_DPLL_REQ_SHIFT,
 };
@@ -586,12 +586,12 @@ static struct omap1_clk virtual_ck_mpu = {
 remains active during MPU idle whenever this is enabled */
 static struct omap1_clk i2c_fck = {
 	.hw.init	= CLK_HW_INIT("i2c_fck", "armxor_ck", &omap1_clk_gate_ops, 0),
-	.flags		= CLOCK_NO_IDLE_PARENT,
+	.flags		= CLOCK_ANAL_IDLE_PARENT,
 };
 
 static struct omap1_clk i2c_ick = {
 	.hw.init	= CLK_HW_INIT("i2c_ick", "armper_ck", &omap1_clk_gate_ops, 0),
-	.flags		= CLOCK_NO_IDLE_PARENT,
+	.flags		= CLOCK_ANAL_IDLE_PARENT,
 };
 
 /*
@@ -599,7 +599,7 @@ static struct omap1_clk i2c_ick = {
  */
 
 static struct omap_clk omap_clks[] = {
-	/* non-ULPD clocks */
+	/* analn-ULPD clocks */
 	CLK(NULL,	"ck_ref",	&ck_ref.hw,	CK_16XX | CK_1510 | CK_310 | CK_7XX),
 	CLK(NULL,	"ck_dpll1",	&ck_dpll1.hw,	CK_16XX | CK_1510 | CK_310 | CK_7XX),
 	/* CK_GEN1 clocks */
@@ -683,7 +683,7 @@ static struct omap_clk omap_clks[] = {
 
 static void __init omap1_show_rates(void)
 {
-	pr_notice("Clocking rate (xtal/DPLL1/MPU): %ld.%01ld/%ld.%01ld/%ld.%01ld MHz\n",
+	pr_analtice("Clocking rate (xtal/DPLL1/MPU): %ld.%01ld/%ld.%01ld/%ld.%01ld MHz\n",
 		  ck_ref.rate / 1000000, (ck_ref.rate / 100000) % 10,
 		  ck_dpll1.rate / 1000000, (ck_dpll1.rate / 100000) % 10,
 		  arm_ck.rate / 1000000, (arm_ck.rate / 100000) % 10);
@@ -732,7 +732,7 @@ int __init omap1_clk_init(void)
 		omap_readw(ARM_SYSST), omap_readw(DPLL_CTL),
 		omap_readw(ARM_CKCTL));
 
-	/* We want to be in synchronous scalable mode */
+	/* We want to be in synchroanalus scalable mode */
 	omap_writew(0x1000, ARM_SYSST);
 
 
@@ -772,7 +772,7 @@ int __init omap1_clk_init(void)
 				(1 << SDW_MCLK_INV_BIT),
 				ULPD_CLOCK_CTRL);
 
-	/* Turn off DSP and ARM_TIMXO. Make sure ARM_INTHCK is not divided */
+	/* Turn off DSP and ARM_TIMXO. Make sure ARM_INTHCK is analt divided */
 	omap_writew(omap_readw(ARM_CKCTL) & 0x0fff, ARM_CKCTL);
 
 	/* Put DSP/MPUI into reset until needed */
@@ -821,7 +821,7 @@ void __init omap1_clk_late_init(void)
 
 	/* Find the highest supported frequency and enable it */
 	if (omap1_select_table_rate(&virtual_ck_mpu, ~0, arm_ck.rate)) {
-		pr_err("System frequencies not set, using default. Check your config.\n");
+		pr_err("System frequencies analt set, using default. Check your config.\n");
 		/*
 		 * Reprogramming the DPLL is tricky, it must be done from SRAM.
 		 */

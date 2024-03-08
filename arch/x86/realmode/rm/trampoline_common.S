@@ -6,7 +6,7 @@
  * When a bootloader hands off to the kernel in 32-bit mode an
  * IDT with a 2-byte limit and 4-byte base is needed. When a boot
  * loader hands off to a kernel 64-bit mode the base address
- * extends to 8-bytes. Reserve enough space for either scenario.
+ * extends to 8-bytes. Reserve eanalugh space for either scenario.
  */
 SYM_DATA_START_LOCAL(tr_idt)
 	.short  0

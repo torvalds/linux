@@ -212,7 +212,7 @@ static int afs_insert_address_pref(struct afs_addr_preference_list **_preflist,
 	_enter("{%u/%u/%u},%u", preflist->ipv6_off, preflist->nr, preflist->max_prefs, index);
 
 	if (preflist->nr == 255)
-		return -ENOSPC;
+		return -EANALSPC;
 	if (preflist->nr >= preflist->max_prefs) {
 		max_prefs = preflist->max_prefs + 1;
 		size = struct_size(preflist, prefs, max_prefs);
@@ -220,7 +220,7 @@ static int afs_insert_address_pref(struct afs_addr_preference_list **_preflist,
 		max_prefs = min_t(size_t, (size - sizeof(*preflist)) / sizeof(*pref), 255);
 		preflist = kmalloc(size, GFP_KERNEL);
 		if (!preflist)
-			return -ENOMEM;
+			return -EANALMEM;
 		*preflist = **_preflist;
 		preflist->max_prefs = max_prefs;
 		*_preflist = preflist;
@@ -311,7 +311,7 @@ static int afs_delete_address_pref(struct afs_addr_preference_list **_preflist,
 	_enter("{%u/%u/%u},%u", preflist->ipv6_off, preflist->nr, preflist->max_prefs, index);
 
 	if (preflist->nr == 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (index < preflist->nr - 1)
 		memmove(preflist->prefs + index, preflist->prefs + index + 1,
@@ -370,7 +370,7 @@ static int afs_del_address_pref(struct afs_net *net, struct afs_addr_preference_
 		}
 	}
 
-	return -ENOANO;
+	return -EANALAANAL;
 }
 
 /*
@@ -385,11 +385,11 @@ int afs_proc_addr_prefs_write(struct file *file, char *buf, size_t size)
 	char *argv[5];
 	int ret, argc, max_prefs;
 
-	inode_lock(file_inode(file));
+	ianalde_lock(file_ianalde(file));
 
 	/* Allocate a candidate new list and initialise it from the old. */
 	old = rcu_dereference_protected(net->address_prefs,
-					lockdep_is_held(&file_inode(file)->i_rwsem));
+					lockdep_is_held(&file_ianalde(file)->i_rwsem));
 
 	if (old)
 		max_prefs = old->nr + 1;
@@ -400,7 +400,7 @@ int afs_proc_addr_prefs_write(struct file *file, char *buf, size_t size)
 	psize = roundup_pow_of_two(psize);
 	max_prefs = min_t(size_t, (psize - sizeof(*old)) / sizeof(old->prefs[0]), 255);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	preflist = kmalloc(struct_size(preflist, prefs, max_prefs), GFP_KERNEL);
 	if (!preflist)
 		goto done;
@@ -438,7 +438,7 @@ int afs_proc_addr_prefs_write(struct file *file, char *buf, size_t size)
 
 done:
 	kfree(preflist);
-	inode_unlock(file_inode(file));
+	ianalde_unlock(file_ianalde(file));
 	_leave(" = %d", ret);
 	return ret;
 

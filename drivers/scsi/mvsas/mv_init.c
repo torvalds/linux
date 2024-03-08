@@ -87,8 +87,8 @@ static void mvs_phy_init(struct mvs_info *mvi, int phy_id)
 	sas_phy->iproto = SAS_PROTOCOL_ALL;
 	sas_phy->tproto = 0;
 	sas_phy->role = PHY_ROLE_INITIATOR;
-	sas_phy->oob_mode = OOB_NOT_CONNECTED;
-	sas_phy->linkrate = SAS_LINK_RATE_UNKNOWN;
+	sas_phy->oob_mode = OOB_ANALT_CONNECTED;
+	sas_phy->linkrate = SAS_LINK_RATE_UNKANALWN;
 
 	sas_phy->id = phy_id;
 	sas_phy->sas_addr = &mvi->sas_addr[0];
@@ -188,7 +188,7 @@ static irqreturn_t mvs_interrupt(int irq, void *opaque)
 	mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[0];
 
 	if (unlikely(!mvi))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 #ifdef CONFIG_SCSI_MVSAS_TASKLET
 	MVS_CHIP_DISP->interrupt_disable(mvi);
 #endif
@@ -198,7 +198,7 @@ static irqreturn_t mvs_interrupt(int irq, void *opaque)
 	#ifdef CONFIG_SCSI_MVSAS_TASKLET
 		MVS_CHIP_DISP->interrupt_enable(mvi);
 	#endif
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 #ifdef CONFIG_SCSI_MVSAS_TASKLET
@@ -230,10 +230,10 @@ static int mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
 		INIT_LIST_HEAD(&mvi->port[i].list);
 	}
 	for (i = 0; i < MVS_MAX_DEVICES; i++) {
-		mvi->devices[i].taskfileset = MVS_ID_NOT_MAPPED;
+		mvi->devices[i].taskfileset = MVS_ID_ANALT_MAPPED;
 		mvi->devices[i].dev_type = SAS_PHY_UNUSED;
 		mvi->devices[i].device_id = i;
-		mvi->devices[i].dev_status = MVS_DEV_NORMAL;
+		mvi->devices[i].dev_status = MVS_DEV_ANALRMAL;
 	}
 
 	/*
@@ -511,7 +511,7 @@ static int mvs_pci_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	shost = scsi_host_alloc(&mvs_sht, sizeof(void *));
 	if (!shost) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out_regions;
 	}
 
@@ -520,14 +520,14 @@ static int mvs_pci_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 		kcalloc(1, sizeof(struct sas_ha_struct), GFP_KERNEL);
 	if (!SHOST_TO_SAS_HA(shost)) {
 		scsi_host_put(shost);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out_regions;
 	}
 
 	rc = mvs_prep_sas_ha_init(shost, chip);
 	if (rc) {
 		scsi_host_put(shost);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out_regions;
 	}
 
@@ -536,7 +536,7 @@ static int mvs_pci_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 	do {
 		mvi = mvs_pci_alloc(pdev, ent, shost, nhost);
 		if (!mvi) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err_out_regions;
 		}
 
@@ -574,7 +574,7 @@ static int mvs_pci_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = request_irq(pdev->irq, irq_handler, IRQF_SHARED,
 		DRV_NAME, SHOST_TO_SAS_HA(shost));
 	if (rc)
-		goto err_not_sas;
+		goto err_analt_sas;
 
 	MVS_CHIP_DISP->interrupt_enable(mvi);
 
@@ -582,7 +582,7 @@ static int mvs_pci_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
-err_not_sas:
+err_analt_sas:
 	sas_unregister_ha(SHOST_TO_SAS_HA(shost));
 err_out_shost:
 	scsi_remove_host(mvi->shost);
@@ -671,15 +671,15 @@ static struct pci_device_id mvs_pci_table[] = {
 	},
 	{ PCI_VDEVICE(MARVELL_EXT, 0x9485), chip_9485 }, /* Marvell 9480/9485 (any vendor/model) */
 	{ PCI_VDEVICE(OCZ, 0x1021), chip_9485}, /* OCZ RevoDrive3 */
-	{ PCI_VDEVICE(OCZ, 0x1022), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unknown) */
-	{ PCI_VDEVICE(OCZ, 0x1040), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unknown) */
-	{ PCI_VDEVICE(OCZ, 0x1041), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unknown) */
-	{ PCI_VDEVICE(OCZ, 0x1042), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unknown) */
-	{ PCI_VDEVICE(OCZ, 0x1043), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unknown) */
-	{ PCI_VDEVICE(OCZ, 0x1044), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unknown) */
-	{ PCI_VDEVICE(OCZ, 0x1080), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unknown) */
-	{ PCI_VDEVICE(OCZ, 0x1083), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unknown) */
-	{ PCI_VDEVICE(OCZ, 0x1084), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unknown) */
+	{ PCI_VDEVICE(OCZ, 0x1022), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unkanalwn) */
+	{ PCI_VDEVICE(OCZ, 0x1040), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unkanalwn) */
+	{ PCI_VDEVICE(OCZ, 0x1041), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unkanalwn) */
+	{ PCI_VDEVICE(OCZ, 0x1042), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unkanalwn) */
+	{ PCI_VDEVICE(OCZ, 0x1043), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unkanalwn) */
+	{ PCI_VDEVICE(OCZ, 0x1044), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unkanalwn) */
+	{ PCI_VDEVICE(OCZ, 0x1080), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unkanalwn) */
+	{ PCI_VDEVICE(OCZ, 0x1083), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unkanalwn) */
+	{ PCI_VDEVICE(OCZ, 0x1084), chip_9485}, /* OCZ RevoDrive3/zDriveR4 (exact model unkanalwn) */
 
 	{ }	/* terminate list */
 };
@@ -752,7 +752,7 @@ static int __init mvs_init(void)
 	int rc;
 	mvs_stt = sas_domain_attach_transport(&mvs_transport_ops);
 	if (!mvs_stt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = pci_register_driver(&mvs_pci_driver);
 	if (rc)

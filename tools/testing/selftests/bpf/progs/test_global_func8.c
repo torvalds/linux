@@ -5,7 +5,7 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-__noinline int foo(struct __sk_buff *skb)
+__analinline int foo(struct __sk_buff *skb)
 {
 	return bpf_get_prandom_u32();
 }

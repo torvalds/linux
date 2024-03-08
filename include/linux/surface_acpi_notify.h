@@ -1,17 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Interface for Surface ACPI Notify (SAN) driver.
+ * Interface for Surface ACPI Analtify (SAN) driver.
  *
- * Provides access to discrete GPU notifications sent from ACPI via the SAN
- * driver, which are not handled by this driver directly.
+ * Provides access to discrete GPU analtifications sent from ACPI via the SAN
+ * driver, which are analt handled by this driver directly.
  *
  * Copyright (C) 2019-2020 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
-#ifndef _LINUX_SURFACE_ACPI_NOTIFY_H
-#define _LINUX_SURFACE_ACPI_NOTIFY_H
+#ifndef _LINUX_SURFACE_ACPI_ANALTIFY_H
+#define _LINUX_SURFACE_ACPI_ANALTIFY_H
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/types.h>
 
 /**
@@ -33,7 +33,7 @@ struct san_dgpu_event {
 };
 
 int san_client_link(struct device *client);
-int san_dgpu_notifier_register(struct notifier_block *nb);
-int san_dgpu_notifier_unregister(struct notifier_block *nb);
+int san_dgpu_analtifier_register(struct analtifier_block *nb);
+int san_dgpu_analtifier_unregister(struct analtifier_block *nb);
 
-#endif /* _LINUX_SURFACE_ACPI_NOTIFY_H */
+#endif /* _LINUX_SURFACE_ACPI_ANALTIFY_H */

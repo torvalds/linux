@@ -104,7 +104,7 @@ static int ams_delta_set_audio_mode(struct snd_kcontrol *kcontrol,
 	unsigned short pins;
 	int pin, changed = 0;
 
-	/* Refuse any mode changes if we are not able to control the codec. */
+	/* Refuse any mode changes if we are analt able to control the codec. */
 	if (!cx20442_codec->card->pop_time)
 		return -EUNATCH;
 
@@ -252,7 +252,7 @@ static struct snd_soc_jack_pin ams_delta_hook_switch_pins[] = {
  */
 
 /* To actually apply any modem controlled configuration changes to the codec,
- * we must connect codec DAI pins to the modem for a moment.  Be careful not
+ * we must connect codec DAI pins to the modem for a moment.  Be careful analt
  * to interfere with our digital mute function that shares the same hardware. */
 static struct timer_list cx81801_timer;
 static bool cx81801_cmd_pending;
@@ -281,7 +281,7 @@ static int cx81801_open(struct tty_struct *tty)
 	int ret;
 
 	if (!cx20442_codec)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Pass the codec structure pointer for use by other ldisc callbacks,
@@ -380,7 +380,7 @@ static void cx81801_receive(struct tty_struct *tty, const u8 *cp, const u8 *fp,
 		spin_unlock_bh(&ams_delta_lock);
 
 		/* Apply config pulse by connecting the codec to the modem
-		 * if not already done */
+		 * if analt already done */
 		if (apply)
 			gpiod_set_value(gpiod_modem_codec, 1);
 		break;
@@ -406,7 +406,7 @@ static struct tty_ldisc_ops cx81801_ops = {
 
 
 /*
- * Even if not very useful, the sound card can still work without any of the
+ * Even if analt very useful, the sound card can still work without any of the
  * above functionality activated.  You can still control its audio input/output
  * constellation and speakerphone gain from userspace by issuing AT commands
  * over the modem port.
@@ -439,7 +439,7 @@ static int ams_delta_mute(struct snd_soc_dai *dai, int mute, int direction)
 /* Our codec DAI probably doesn't have its own .ops structure */
 static const struct snd_soc_dai_ops ams_delta_dai_ops = {
 	.mute_stream = ams_delta_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 /* Will be used if the codec ever has its own digital_mute function */
@@ -464,7 +464,7 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_dapm_context *dapm = &card->dapm;
 	int ret;
-	/* Codec is ready, now add/activate board specific controls */
+	/* Codec is ready, analw add/activate board specific controls */
 
 	/* Store a pointer to the codec structure for tty ldisc use */
 	cx20442_codec = snd_soc_rtd_to_codec(rtd, 0)->component;
@@ -494,7 +494,7 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 		return 0;
 	}
 
-	/* Set up digital mute if not provided by the codec */
+	/* Set up digital mute if analt provided by the codec */
 	if (!codec_dai->driver->ops) {
 		codec_dai->driver->ops = &ams_delta_dai_ops;
 	} else {

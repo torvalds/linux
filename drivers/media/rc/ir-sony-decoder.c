@@ -181,7 +181,7 @@ static const struct ir_raw_timings_pl ir_sony_timings = {
  * @max:	maximum size of @events
  *
  * Returns:	The number of events written.
- *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		-EANALBUFS if there isn't eanalugh space in the array to fit the
  *		encoding. In this case all @max events will have been written.
  */
 static int ir_sony_encode(enum rc_proto protocol, u32 scancode,

@@ -31,7 +31,7 @@
 		__x1 += __ll_highpart(__x0); /* this can't give carry */\
 		__x1 += __x2; /* but this indeed can */			\
 		if (__x1 < __x2) /* did we get it? */			\
-		__x3 += __ll_B; /* yes, add it in the proper pos */	\
+		__x3 += __ll_B; /* anal, add it in the proper pos */	\
 									\
 		(w1) = __x3 + __ll_highpart(__x1);			\
 		(w0) = __ll_lowpart(__x1) * __ll_B + __ll_lowpart(__x0);\
@@ -46,7 +46,7 @@
 	})
 #endif
 
-long long notrace __muldi3(long long u, long long v)
+long long analtrace __muldi3(long long u, long long v)
 {
 	const DWunion uu = {.ll = u};
 	const DWunion vv = {.ll = v};

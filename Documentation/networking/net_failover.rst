@@ -29,7 +29,7 @@ virtio-net accelerated datapath: STANDBY mode
 =============================================
 
 net_failover enables hypervisor controlled accelerated datapath to virtio-net
-enabled VMs in a transparent manner with no/minimal guest userspace changes.
+enabled VMs in a transparent manner with anal/minimal guest userspace changes.
 
 To support this, the hypervisor needs to enable VIRTIO_NET_F_STANDBY
 feature on the virtio-net interface and assign the same MAC address to both
@@ -48,7 +48,7 @@ Here is an example libvirt XML snippet that shows such configuration:
     <teaming type='persistent'/>
     <alias name='ua-backup0'/>
   </interface>
-  <interface type='hostdev' managed='yes'>
+  <interface type='hostdev' managed='anal'>
     <mac address='52:54:00:00:12:53'/>
     <source>
       <address type='pci' domain='0x0000' bus='0x42' slot='0x02' function='0x5'/>
@@ -61,7 +61,7 @@ interface and this acts as the 'persistent' device indicating that this
 interface will always be plugged in. This is specified by the 'teaming' tag with
 required attribute type having value 'persistent'. The link state for the
 virtio-net device is set to 'down' to ensure that the 'failover' netdev prefers
-the VF passthrough device for normal communication. The virtio-net device will
+the VF passthrough device for analrmal communication. The virtio-net device will
 be brought UP during live migration to allow uninterrupted communication.
 
 The second device definition is for the VF passthrough interface. Here the
@@ -73,7 +73,7 @@ Booting a VM with the above configuration will result in the following 3
 interfaces created in the VM:
 ::
 
-  4: ens10: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+  4: ens10: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc analqueue state UP group default qlen 1000
       link/ether 52:54:00:00:12:53 brd ff:ff:ff:ff:ff:ff
       inet 192.168.12.53/24 brd 192.168.12.255 scope global dynamic ens10
          valid_lft 42482sec preferred_lft 42482sec
@@ -87,8 +87,8 @@ interfaces created in the VM:
 Here, ens10 is the 'failover' master interface, ens10nsby is the slave 'standby'
 virtio-net interface, and ens11 is the slave 'primary' VF passthrough interface.
 
-One point to note here is that some user space network configuration daemons
-like systemd-networkd, ifupdown, etc, do not understand the 'net_failover'
+One point to analte here is that some user space network configuration daemons
+like systemd-networkd, ifupdown, etc, do analt understand the 'net_failover'
 device; and on the first boot, the VM might end up with both 'failover' device
 and VF acquiring IP addresses (either same or different) from the DHCP server.
 This will result in lack of connectivity to the VM. So some tweaks might be
@@ -105,8 +105,8 @@ Debian cloud images:
 
   +    if [ -d "/sys/class/net/${INTERFACE}/master" ]; then exit 0; fi
   +
-       if ifup --no-act "$INTERFACE" > /dev/null 2>&1; then
-           # interface is already known to ifupdown, no need to generate cfg
+       if ifup --anal-act "$INTERFACE" > /dev/null 2>&1; then
+           # interface is already kanalwn to ifupdown, anal need to generate cfg
            log "Skipping configuration generation for $INTERFACE"
 
 
@@ -118,14 +118,14 @@ with VMs that have direct attached SR-IOV VF devices by automatic failover to
 the paravirtual datapath when the VF is unplugged.
 
 Here is a sample script that shows the steps to initiate live migration from
-the source hypervisor. Note: It is assumed that the VM is connected to a
+the source hypervisor. Analte: It is assumed that the VM is connected to a
 software bridge 'br0' which has a single VF attached to it along with the vnet
-device to the VM. This is not the VF that was passthrough'd to the VM (seen in
+device to the VM. This is analt the VF that was passthrough'd to the VM (seen in
 the vf.xml file).
 ::
 
   # cat vf.xml
-  <interface type='hostdev' managed='yes'>
+  <interface type='hostdev' managed='anal'>
     <mac address='52:54:00:00:12:53'/>
     <source>
       <address type='pci' domain='0x0000' bus='0x42' slot='0x02' function='0x5'/>

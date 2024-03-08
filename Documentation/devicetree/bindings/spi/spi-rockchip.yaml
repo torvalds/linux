@@ -68,9 +68,9 @@ properties:
   rx-sample-delay-ns:
     default: 0
     description:
-      Nano seconds to delay after the SCLK edge before sampling Rx data
+      Naanal seconds to delay after the SCLK edge before sampling Rx data
       (may need to be fine tuned for high capacitance lines).
-      If not specified 0 will be used.
+      If analt specified 0 will be used.
 
   pinctrl-names:
     minItems: 1

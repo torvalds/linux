@@ -11,10 +11,10 @@
 #include <rdma/ib_verbs.h>
 
 /*
- * Define an ib_cq_notify value that is not valid so we know when CQ
- * notifications are armed.
+ * Define an ib_cq_analtify value that is analt valid so we kanalw when CQ
+ * analtifications are armed.
  */
-#define RVT_CQ_NONE      (IB_CQ_NEXT_COMP + 1)
+#define RVT_CQ_ANALNE      (IB_CQ_NEXT_COMP + 1)
 
 /*
  * Define read macro that apply smp_load_acquire memory barrier
@@ -47,7 +47,7 @@ struct rvt_cq {
 	struct ib_cq ibcq;
 	struct work_struct comptask;
 	spinlock_t lock; /* protect changes in this struct */
-	u8 notify;
+	u8 analtify;
 	u8 triggered;
 	u8 cq_full;
 	int comp_vector_cpu;

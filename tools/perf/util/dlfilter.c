@@ -246,7 +246,7 @@ static const __u8 *dlfilter__insn(void *ctx, __u32 *len)
 	return (__u8 *)d->sample->insn;
 }
 
-static const char *dlfilter__srcline(void *ctx, __u32 *line_no)
+static const char *dlfilter__srcline(void *ctx, __u32 *line_anal)
 {
 	struct dlfilter *d = (struct dlfilter *)ctx;
 	struct addr_location *al;
@@ -256,7 +256,7 @@ static const char *dlfilter__srcline(void *ctx, __u32 *line_no)
 	struct dso *dso;
 	u64 addr;
 
-	if (!d->ctx_valid || !line_no)
+	if (!d->ctx_valid || !line_anal)
 		return NULL;
 
 	al = get_al(d);
@@ -270,7 +270,7 @@ static const char *dlfilter__srcline(void *ctx, __u32 *line_no)
 	if (dso)
 		srcfile = get_srcline_split(dso, map__rip_2objdump(map, addr), &line);
 
-	*line_no = line;
+	*line_anal = line;
 	return srcfile;
 }
 
@@ -397,7 +397,7 @@ static void dlfilter__exit(struct dlfilter *d)
 
 static int dlfilter__open(struct dlfilter *d)
 {
-	d->handle = dlopen(d->file, RTLD_NOW);
+	d->handle = dlopen(d->file, RTLD_ANALW);
 	if (!d->handle) {
 		pr_err("dlopen failed for: '%s'\n", d->file);
 		return -1;
@@ -512,8 +512,8 @@ int dlfilter__do_filter_event(struct dlfilter *d,
 	d->d_addr_al   = &d_addr_al;
 
 	d_sample.size  = sizeof(d_sample);
-	d_ip_al.size   = 0; /* To indicate d_ip_al is not initialized */
-	d_addr_al.size = 0; /* To indicate d_addr_al is not initialized */
+	d_ip_al.size   = 0; /* To indicate d_ip_al is analt initialized */
+	d_addr_al.size = 0; /* To indicate d_addr_al is analt initialized */
 
 	ASSIGN(ip);
 	ASSIGN(pid);
@@ -585,7 +585,7 @@ bool get_filter_desc(const char *dirname, const char *name, char **desc,
 	const char *(*desc_fn)(const char **long_description);
 
 	snprintf(path, sizeof(path), "%s/%s", dirname, name);
-	handle = dlopen(path, RTLD_NOW);
+	handle = dlopen(path, RTLD_ANALW);
 	if (!handle || !(dlsym(handle, "filter_event") || dlsym(handle, "filter_event_early")))
 		return false;
 	desc_fn = dlsym(handle, "filter_description");

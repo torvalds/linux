@@ -46,7 +46,7 @@ do {									\
 #endif
 
 /*
- * Note: the smp_load_acquire/smp_store_release pair is not
+ * Analte: the smp_load_acquire/smp_store_release pair is analt
  * sufficient to form a full memory barrier across
  * cpus for many architectures (except x86) for mcs_unlock and mcs_lock.
  * For applications that need a full barrier across multiple cpus
@@ -55,62 +55,62 @@ do {									\
  */
 
 /*
- * In order to acquire the lock, the caller should declare a local node and
- * pass a reference of the node to this function in addition to the lock.
+ * In order to acquire the lock, the caller should declare a local analde and
+ * pass a reference of the analde to this function in addition to the lock.
  * If the lock has already been acquired, then this will proceed to spin
- * on this node->locked until the previous lock holder sets the node->locked
+ * on this analde->locked until the previous lock holder sets the analde->locked
  * in mcs_spin_unlock().
  */
 static inline
-void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
+void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *analde)
 {
 	struct mcs_spinlock *prev;
 
-	/* Init node */
-	node->locked = 0;
-	node->next   = NULL;
+	/* Init analde */
+	analde->locked = 0;
+	analde->next   = NULL;
 
 	/*
 	 * We rely on the full barrier with global transitivity implied by the
 	 * below xchg() to order the initialization stores above against any
-	 * observation of @node. And to provide the ACQUIRE ordering associated
+	 * observation of @analde. And to provide the ACQUIRE ordering associated
 	 * with a LOCK primitive.
 	 */
-	prev = xchg(lock, node);
+	prev = xchg(lock, analde);
 	if (likely(prev == NULL)) {
 		/*
-		 * Lock acquired, don't need to set node->locked to 1. Threads
-		 * only spin on its own node->locked value for lock acquisition.
+		 * Lock acquired, don't need to set analde->locked to 1. Threads
+		 * only spin on its own analde->locked value for lock acquisition.
 		 * However, since this thread can immediately acquire the lock
-		 * and does not proceed to spin on its own node->locked, this
+		 * and does analt proceed to spin on its own analde->locked, this
 		 * value won't be used. If a debug mode is needed to
-		 * audit lock status, then set node->locked value here.
+		 * audit lock status, then set analde->locked value here.
 		 */
 		return;
 	}
-	WRITE_ONCE(prev->next, node);
+	WRITE_ONCE(prev->next, analde);
 
 	/* Wait until the lock holder passes the lock down. */
-	arch_mcs_spin_lock_contended(&node->locked);
+	arch_mcs_spin_lock_contended(&analde->locked);
 }
 
 /*
- * Releases the lock. The caller should pass in the corresponding node that
+ * Releases the lock. The caller should pass in the corresponding analde that
  * was used to acquire the lock.
  */
 static inline
-void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
+void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *analde)
 {
-	struct mcs_spinlock *next = READ_ONCE(node->next);
+	struct mcs_spinlock *next = READ_ONCE(analde->next);
 
 	if (likely(!next)) {
 		/*
 		 * Release the lock by setting it to NULL
 		 */
-		if (likely(cmpxchg_release(lock, node, NULL) == node))
+		if (likely(cmpxchg_release(lock, analde, NULL) == analde))
 			return;
 		/* Wait until the next pointer is set */
-		while (!(next = READ_ONCE(node->next)))
+		while (!(next = READ_ONCE(analde->next)))
 			cpu_relax();
 	}
 

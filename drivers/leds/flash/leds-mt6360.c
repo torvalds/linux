@@ -25,8 +25,8 @@ enum {
 };
 
 #define MT6360_REG_RGBEN		0x380
-#define MT6360_REG_ISNK(_led_no)	(0x381 + (_led_no))
-#define MT6360_ISNK_ENMASK(_led_no)	BIT(7 - (_led_no))
+#define MT6360_REG_ISNK(_led_anal)	(0x381 + (_led_anal))
+#define MT6360_ISNK_ENMASK(_led_anal)	BIT(7 - (_led_anal))
 #define MT6360_ISNK_MASK		GENMASK(4, 0)
 #define MT6360_CHRINDSEL_MASK		BIT(3)
 
@@ -47,7 +47,7 @@ enum {
 #define MT6360_TORCHEN_MASK		BIT(3)
 #define MT6360_STROBEN_MASK		BIT(2)
 #define MT6360_FLCSEN_MASK(_id)		BIT(MT6360_LED_FLASH2 - _id)
-#define MT6360_FLEDCHGVINOVP_MASK	BIT(3)
+#define MT6360_FLEDCHGVIANALVP_MASK	BIT(3)
 #define MT6360_FLED1STRBTO_MASK		BIT(11)
 #define MT6360_FLED2STRBTO_MASK		BIT(10)
 #define MT6360_FLED1STRB_MASK		BIT(9)
@@ -79,7 +79,7 @@ struct mt6360_led {
 	};
 	struct v4l2_flash *v4l2_flash;
 	struct mt6360_priv *priv;
-	u32 led_no;
+	u32 led_anal;
 	enum led_default_state default_state;
 };
 
@@ -134,13 +134,13 @@ static int mt6360_isnk_brightness_set(struct led_classdev *lcdev,
 {
 	struct mt6360_led *led = container_of(lcdev, struct mt6360_led, isnk);
 	struct mt6360_priv *priv = led->priv;
-	u32 enable_mask = MT6360_ISNK_ENMASK(led->led_no);
-	u32 val = level ? MT6360_ISNK_ENMASK(led->led_no) : 0;
+	u32 enable_mask = MT6360_ISNK_ENMASK(led->led_anal);
+	u32 val = level ? MT6360_ISNK_ENMASK(led->led_anal) : 0;
 	int ret;
 
 	mutex_lock(&priv->lock);
 
-	ret = regmap_update_bits(priv->regmap, MT6360_REG_ISNK(led->led_no),
+	ret = regmap_update_bits(priv->regmap, MT6360_REG_ISNK(led->led_anal),
 				 MT6360_ISNK_MASK, level);
 	if (ret)
 		goto out;
@@ -159,8 +159,8 @@ static int mt6360_torch_brightness_set(struct led_classdev *lcdev,
 	struct mt6360_led *led =
 		container_of(lcdev, struct mt6360_led, flash.led_cdev);
 	struct mt6360_priv *priv = led->priv;
-	u32 enable_mask = MT6360_TORCHEN_MASK | MT6360_FLCSEN_MASK(led->led_no);
-	u32 val = level ? MT6360_FLCSEN_MASK(led->led_no) : 0;
+	u32 enable_mask = MT6360_TORCHEN_MASK | MT6360_FLCSEN_MASK(led->led_anal);
+	u32 val = level ? MT6360_FLCSEN_MASK(led->led_anal) : 0;
 	u32 prev = priv->fled_torch_used, curr;
 	int ret;
 
@@ -178,16 +178,16 @@ static int mt6360_torch_brightness_set(struct led_classdev *lcdev,
 	}
 
 	if (level)
-		curr = prev | BIT(led->led_no);
+		curr = prev | BIT(led->led_anal);
 	else
-		curr = prev & ~BIT(led->led_no);
+		curr = prev & ~BIT(led->led_anal);
 
 	if (curr)
 		val |= MT6360_TORCHEN_MASK;
 
 	if (level) {
 		ret = regmap_update_bits(priv->regmap,
-					 MT6360_REG_FLEDITOR(led->led_no),
+					 MT6360_REG_FLEDITOR(led->led_anal),
 					 MT6360_ITORCH_MASK, level - 1);
 		if (ret)
 			goto unlock;
@@ -227,7 +227,7 @@ static int _mt6360_flash_brightness_set(struct led_classdev_flash *fl_cdev,
 	u32 val = (brightness - s->min) / s->step;
 
 	return regmap_update_bits(priv->regmap,
-				  MT6360_REG_FLEDISTRB(led->led_no),
+				  MT6360_REG_FLEDISTRB(led->led_anal),
 				  MT6360_ISTROBE_MASK, val);
 }
 
@@ -238,8 +238,8 @@ static int mt6360_strobe_set(struct led_classdev_flash *fl_cdev, bool state)
 	struct mt6360_priv *priv = led->priv;
 	struct led_classdev *lcdev = &fl_cdev->led_cdev;
 	struct led_flash_setting *s = &fl_cdev->brightness;
-	u32 enable_mask = MT6360_STROBEN_MASK | MT6360_FLCSEN_MASK(led->led_no);
-	u32 val = state ? MT6360_FLCSEN_MASK(led->led_no) : 0;
+	u32 enable_mask = MT6360_STROBEN_MASK | MT6360_FLCSEN_MASK(led->led_anal);
+	u32 val = state ? MT6360_FLCSEN_MASK(led->led_anal) : 0;
 	u32 prev = priv->fled_strobe_used, curr;
 	int ret;
 
@@ -257,9 +257,9 @@ static int mt6360_strobe_set(struct led_classdev_flash *fl_cdev, bool state)
 	}
 
 	if (state)
-		curr = prev | BIT(led->led_no);
+		curr = prev | BIT(led->led_anal);
 	else
-		curr = prev & ~BIT(led->led_no);
+		curr = prev & ~BIT(led->led_anal);
 
 	if (curr)
 		val |= MT6360_STROBEN_MASK;
@@ -268,7 +268,7 @@ static int mt6360_strobe_set(struct led_classdev_flash *fl_cdev, bool state)
 				 val);
 	if (ret) {
 		dev_err(lcdev->dev, "[%d] control current source %d fail\n",
-			led->led_no, state);
+			led->led_anal, state);
 		goto unlock;
 	}
 
@@ -304,7 +304,7 @@ static int mt6360_strobe_get(struct led_classdev_flash *fl_cdev, bool *state)
 	struct mt6360_priv *priv = led->priv;
 
 	mutex_lock(&priv->lock);
-	*state = !!(priv->fled_strobe_used & BIT(led->led_no));
+	*state = !!(priv->fled_strobe_used & BIT(led->led_anal));
 	mutex_unlock(&priv->lock);
 
 	return 0;
@@ -347,7 +347,7 @@ static int mt6360_fault_get(struct led_classdev_flash *fl_cdev, u32 *fault)
 	if (ret)
 		goto unlock;
 
-	if (led->led_no == MT6360_LED_FLASH1) {
+	if (led->led_anal == MT6360_LED_FLASH1) {
 		strobe_timeout_mask = MT6360_FLED1STRBTO_MASK;
 		fled_short_mask = MT6360_FLED1SHORT_MASK;
 	} else {
@@ -355,7 +355,7 @@ static int mt6360_fault_get(struct led_classdev_flash *fl_cdev, u32 *fault)
 		fled_short_mask = MT6360_FLED2SHORT_MASK;
 	}
 
-	if (chg_stat & MT6360_FLEDCHGVINOVP_MASK)
+	if (chg_stat & MT6360_FLEDCHGVIANALVP_MASK)
 		rfault |= LED_FAULT_INPUT_VOLTAGE;
 
 	if (fled_stat & strobe_timeout_mask)
@@ -388,7 +388,7 @@ static int mt6360_isnk_init_default_state(struct mt6360_led *led)
 	u32 level;
 	int ret;
 
-	ret = regmap_read(priv->regmap, MT6360_REG_ISNK(led->led_no), &regval);
+	ret = regmap_read(priv->regmap, MT6360_REG_ISNK(led->led_anal), &regval);
 	if (ret)
 		return ret;
 	level = regval & MT6360_ISNK_MASK;
@@ -397,7 +397,7 @@ static int mt6360_isnk_init_default_state(struct mt6360_led *led)
 	if (ret)
 		return ret;
 
-	if (!(regval & MT6360_ISNK_ENMASK(led->led_no)))
+	if (!(regval & MT6360_ISNK_ENMASK(led->led_anal)))
 		level = LED_OFF;
 
 	switch (led->default_state) {
@@ -418,12 +418,12 @@ static int mt6360_flash_init_default_state(struct mt6360_led *led)
 {
 	struct led_classdev_flash *flash = &led->flash;
 	struct mt6360_priv *priv = led->priv;
-	u32 enable_mask = MT6360_TORCHEN_MASK | MT6360_FLCSEN_MASK(led->led_no);
+	u32 enable_mask = MT6360_TORCHEN_MASK | MT6360_FLCSEN_MASK(led->led_anal);
 	u32 level;
 	unsigned int regval;
 	int ret;
 
-	ret = regmap_read(priv->regmap, MT6360_REG_FLEDITOR(led->led_no),
+	ret = regmap_read(priv->regmap, MT6360_REG_FLEDITOR(led->led_anal),
 			  &regval);
 	if (ret)
 		return ret;
@@ -461,7 +461,7 @@ static int mt6360_flash_external_strobe_set(struct v4l2_flash *v4l2_flash,
 	struct led_classdev_flash *flash = v4l2_flash->fled_cdev;
 	struct mt6360_led *led = container_of(flash, struct mt6360_led, flash);
 	struct mt6360_priv *priv = led->priv;
-	u32 mask = MT6360_FLCSEN_MASK(led->led_no);
+	u32 mask = MT6360_FLCSEN_MASK(led->led_anal);
 	u32 val = enable ? mask : 0;
 	int ret;
 
@@ -472,9 +472,9 @@ static int mt6360_flash_external_strobe_set(struct v4l2_flash *v4l2_flash,
 		goto unlock;
 
 	if (enable)
-		priv->fled_strobe_used |= BIT(led->led_no);
+		priv->fled_strobe_used |= BIT(led->led_anal);
 	else
-		priv->fled_strobe_used &= ~BIT(led->led_no);
+		priv->fled_strobe_used &= ~BIT(led->led_anal);
 
 unlock:
 	mutex_unlock(&priv->lock);
@@ -520,8 +520,8 @@ static int mt6360_led_register(struct device *parent, struct mt6360_led *led,
 	struct v4l2_flash_config v4l2_config = {0};
 	int ret;
 
-	if ((led->led_no == MT6360_LED_ISNK1 ||
-	     led->led_no == MT6360_VIRTUAL_MULTICOLOR) &&
+	if ((led->led_anal == MT6360_LED_ISNK1 ||
+	     led->led_anal == MT6360_VIRTUAL_MULTICOLOR) &&
 	     (priv->leds_active & BIT(MT6360_LED_ISNK1))) {
 		/*
 		 * Change isink1 to SW control mode, disconnect it with
@@ -536,7 +536,7 @@ static int mt6360_led_register(struct device *parent, struct mt6360_led *led,
 		}
 	}
 
-	switch (led->led_no) {
+	switch (led->led_anal) {
 	case MT6360_VIRTUAL_MULTICOLOR:
 		ret = mt6360_mc_brightness_set(&led->mc.led_cdev, LED_OFF);
 		if (ret) {
@@ -556,7 +556,7 @@ static int mt6360_led_register(struct device *parent, struct mt6360_led *led,
 		ret = mt6360_isnk_init_default_state(led);
 		if (ret) {
 			dev_err(parent, "Failed to init %d isnk state\n",
-				led->led_no);
+				led->led_anal);
 			return ret;
 		}
 
@@ -564,7 +564,7 @@ static int mt6360_led_register(struct device *parent, struct mt6360_led *led,
 						     init_data);
 		if (ret) {
 			dev_err(parent, "Couldn't register isink %d\n",
-				led->led_no);
+				led->led_anal);
 			return ret;
 		}
 		break;
@@ -572,7 +572,7 @@ static int mt6360_led_register(struct device *parent, struct mt6360_led *led,
 		ret = mt6360_flash_init_default_state(led);
 		if (ret) {
 			dev_err(parent, "Failed to init %d flash state\n",
-				led->led_no);
+				led->led_anal);
 			return ret;
 		}
 
@@ -580,18 +580,18 @@ static int mt6360_led_register(struct device *parent, struct mt6360_led *led,
 							   init_data);
 		if (ret) {
 			dev_err(parent, "Couldn't register flash %d\n",
-				led->led_no);
+				led->led_anal);
 			return ret;
 		}
 
 		mt6360_init_v4l2_flash_config(led, &v4l2_config);
-		led->v4l2_flash = v4l2_flash_init(parent, init_data->fwnode,
+		led->v4l2_flash = v4l2_flash_init(parent, init_data->fwanalde,
 						  &led->flash,
 						  &v4l2_flash_ops,
 						  &v4l2_config);
 		if (IS_ERR(led->v4l2_flash)) {
 			dev_err(parent, "Failed to register %d v4l2 sd\n",
-				led->led_no);
+				led->led_anal);
 			return PTR_ERR(led->v4l2_flash);
 		}
 	}
@@ -615,32 +615,32 @@ static int mt6360_init_isnk_properties(struct mt6360_led *led,
 {
 	struct led_classdev *lcdev;
 	struct mt6360_priv *priv = led->priv;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	u32 step_uA = MT6360_ISNKRGB_STEPUA, max_uA = MT6360_ISNKRGB_MAXUA;
 	u32 val;
 	int num_color = 0, ret;
 
-	if (led->led_no == MT6360_VIRTUAL_MULTICOLOR) {
+	if (led->led_anal == MT6360_VIRTUAL_MULTICOLOR) {
 		struct mc_subled *sub_led;
 
 		sub_led = devm_kzalloc(priv->dev,
 			sizeof(*sub_led) * MULTICOLOR_NUM_CHANNELS, GFP_KERNEL);
 		if (!sub_led)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		fwnode_for_each_child_node(init_data->fwnode, child) {
+		fwanalde_for_each_child_analde(init_data->fwanalde, child) {
 			u32 reg, color;
 
-			ret = fwnode_property_read_u32(child, "reg", &reg);
+			ret = fwanalde_property_read_u32(child, "reg", &reg);
 			if (ret || reg > MT6360_LED_ISNK3 ||
 			    priv->leds_active & BIT(reg))
 				return -EINVAL;
 
-			ret = fwnode_property_read_u32(child, "color", &color);
+			ret = fwanalde_property_read_u32(child, "color", &color);
 			if (ret) {
 				dev_err(priv->dev,
-					"led %d, no color specified\n",
-					led->led_no);
+					"led %d, anal color specified\n",
+					led->led_anal);
 				return ret;
 			}
 
@@ -662,7 +662,7 @@ static int mt6360_init_isnk_properties(struct mt6360_led *led,
 		lcdev = &led->mc.led_cdev;
 		lcdev->brightness_set_blocking = mt6360_mc_brightness_set;
 	} else {
-		if (led->led_no == MT6360_LED_ISNKML) {
+		if (led->led_anal == MT6360_LED_ISNKML) {
 			step_uA = MT6360_ISNKML_STEPUA;
 			max_uA = MT6360_ISNKML_MAXUA;
 		}
@@ -671,18 +671,18 @@ static int mt6360_init_isnk_properties(struct mt6360_led *led,
 		lcdev->brightness_set_blocking = mt6360_isnk_brightness_set;
 	}
 
-	ret = fwnode_property_read_u32(init_data->fwnode, "led-max-microamp",
+	ret = fwanalde_property_read_u32(init_data->fwanalde, "led-max-microamp",
 				       &val);
 	if (ret) {
 		dev_warn(priv->dev,
-		     "Not specified led-max-microamp, config to the minimum\n");
+		     "Analt specified led-max-microamp, config to the minimum\n");
 		val = step_uA;
 	} else
 		val = clamp_align(val, 0, max_uA, step_uA);
 
 	lcdev->max_brightness = val / step_uA;
 
-	fwnode_property_read_string(init_data->fwnode, "linux,default-trigger",
+	fwanalde_property_read_string(init_data->fwanalde, "linux,default-trigger",
 				    &lcdev->default_trigger);
 
 	return 0;
@@ -698,11 +698,11 @@ static int mt6360_init_flash_properties(struct mt6360_led *led,
 	u32 val;
 	int ret;
 
-	ret = fwnode_property_read_u32(init_data->fwnode, "led-max-microamp",
+	ret = fwanalde_property_read_u32(init_data->fwanalde, "led-max-microamp",
 				       &val);
 	if (ret) {
 		dev_warn(priv->dev,
-		     "Not specified led-max-microamp, config to the minimum\n");
+		     "Analt specified led-max-microamp, config to the minimum\n");
 		val = MT6360_ITORCH_MINUA;
 	} else
 		val = clamp_align(val, MT6360_ITORCH_MINUA, MT6360_ITORCH_MAXUA,
@@ -713,11 +713,11 @@ static int mt6360_init_flash_properties(struct mt6360_led *led,
 	lcdev->brightness_set_blocking = mt6360_torch_brightness_set;
 	lcdev->flags |= LED_DEV_CAP_FLASH;
 
-	ret = fwnode_property_read_u32(init_data->fwnode, "flash-max-microamp",
+	ret = fwanalde_property_read_u32(init_data->fwanalde, "flash-max-microamp",
 				       &val);
 	if (ret) {
 		dev_warn(priv->dev,
-		   "Not specified flash-max-microamp, config to the minimum\n");
+		   "Analt specified flash-max-microamp, config to the minimum\n");
 		val = MT6360_ISTRB_MINUA;
 	} else
 		val = clamp_align(val, MT6360_ISTRB_MINUA, MT6360_ISTRB_MAXUA,
@@ -736,11 +736,11 @@ static int mt6360_init_flash_properties(struct mt6360_led *led,
 	if (ret)
 		return ret;
 
-	ret = fwnode_property_read_u32(init_data->fwnode,
+	ret = fwanalde_property_read_u32(init_data->fwanalde,
 				       "flash-max-timeout-us", &val);
 	if (ret) {
 		dev_warn(priv->dev,
-		 "Not specified flash-max-timeout-us, config to the minimum\n");
+		 "Analt specified flash-max-timeout-us, config to the minimum\n");
 		val = MT6360_STRBTO_MINUS;
 	} else
 		val = clamp_align(val, MT6360_STRBTO_MINUS, MT6360_STRBTO_MAXUS,
@@ -771,14 +771,14 @@ static void mt6360_v4l2_flash_release(struct mt6360_priv *priv)
 static int mt6360_led_probe(struct platform_device *pdev)
 {
 	struct mt6360_priv *priv;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	size_t count;
 	int i = 0, ret;
 
-	count = device_get_child_node_count(&pdev->dev);
+	count = device_get_child_analde_count(&pdev->dev);
 	if (!count || count > MT6360_MAX_LEDS) {
 		dev_err(&pdev->dev,
-			"No child node or node count over max led number %zu\n",
+			"Anal child analde or analde count over max led number %zu\n",
 			count);
 		return -EINVAL;
 	}
@@ -786,7 +786,7 @@ static int mt6360_led_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev,
 			    struct_size(priv, leds, count), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->leds_count = count;
 	priv->dev = &pdev->dev;
@@ -795,15 +795,15 @@ static int mt6360_led_probe(struct platform_device *pdev)
 	priv->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!priv->regmap) {
 		dev_err(&pdev->dev, "Failed to get parent regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	device_for_each_child_node(&pdev->dev, child) {
+	device_for_each_child_analde(&pdev->dev, child) {
 		struct mt6360_led *led = priv->leds + i;
-		struct led_init_data init_data = { .fwnode = child, };
+		struct led_init_data init_data = { .fwanalde = child, };
 		u32 reg, led_color;
 
-		ret = fwnode_property_read_u32(child, "color", &led_color);
+		ret = fwanalde_property_read_u32(child, "color", &led_color);
 		if (ret)
 			goto out_flash_release;
 
@@ -811,7 +811,7 @@ static int mt6360_led_probe(struct platform_device *pdev)
 		    led_color == LED_COLOR_ID_MULTI)
 			reg = MT6360_VIRTUAL_MULTICOLOR;
 		else {
-			ret = fwnode_property_read_u32(child, "reg", &reg);
+			ret = fwanalde_property_read_u32(child, "reg", &reg);
 			if (ret)
 				goto out_flash_release;
 
@@ -827,7 +827,7 @@ static int mt6360_led_probe(struct platform_device *pdev)
 		}
 		priv->leds_active |= BIT(reg);
 
-		led->led_no = reg;
+		led->led_anal = reg;
 		led->priv = priv;
 		led->default_state = led_init_default_state_get(child);
 

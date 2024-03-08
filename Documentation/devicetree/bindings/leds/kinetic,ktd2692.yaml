@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/leds/kinetic,ktd2692.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: KTD2692 Flash LED Driver from Kinetic Technologies
+title: KTD2692 Flash LED Driver from Kinetic Techanallogies
 
 maintainers:
   - Markuss Broks <markuss.broks@gmail.com>

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -55,15 +55,15 @@ static void set_hw_cap(struct pp_hwmgr *hwmgr, bool setIt, enum phm_platform_cap
 static int set_platform_caps(struct pp_hwmgr *hwmgr, uint32_t powerplay_caps)
 {
 	PP_ASSERT_WITH_CODE((~powerplay_caps & ____RETIRE16____),
-		"ATOM_PP_PLATFORM_CAP_ASPM_L1 is not supported!", continue);
+		"ATOM_PP_PLATFORM_CAP_ASPM_L1 is analt supported!", continue);
 	PP_ASSERT_WITH_CODE((~powerplay_caps & ____RETIRE64____),
-		"ATOM_PP_PLATFORM_CAP_GEMINIPRIMARY is not supported!", continue);
+		"ATOM_PP_PLATFORM_CAP_GEMINIPRIMARY is analt supported!", continue);
 	PP_ASSERT_WITH_CODE((~powerplay_caps & ____RETIRE512____),
-		"ATOM_PP_PLATFORM_CAP_SIDEPORTCONTROL is not supported!", continue);
+		"ATOM_PP_PLATFORM_CAP_SIDEPORTCONTROL is analt supported!", continue);
 	PP_ASSERT_WITH_CODE((~powerplay_caps & ____RETIRE1024____),
-		"ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1 is not supported!", continue);
+		"ATOM_PP_PLATFORM_CAP_TURANALFFPLL_ASPML1 is analt supported!", continue);
 	PP_ASSERT_WITH_CODE((~powerplay_caps & ____RETIRE2048____),
-		"ATOM_PP_PLATFORM_CAP_HTLINKCONTROL is not supported!", continue);
+		"ATOM_PP_PLATFORM_CAP_HTLINKCONTROL is analt supported!", continue);
 
 	set_hw_cap(
 			hwmgr,
@@ -167,7 +167,7 @@ static int get_vddc_lookup_table(
 
 	table = kzalloc(struct_size(table, entries, max_levels), GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	table->count = vddc_lookup_pp_tables->ucNumEntries;
 
@@ -205,7 +205,7 @@ static int get_platform_power_management_table(
 		(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
 	if (NULL == ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr->ppm_design
 		= atom_ppm_table->ucPpmDesign;
@@ -324,7 +324,7 @@ static int get_valid_clk(
 	table = kzalloc(struct_size(table, values, clk_volt_pp_table->count),
 			GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	table->count = (uint32_t)clk_volt_pp_table->count;
 
@@ -374,7 +374,7 @@ static int get_mclk_voltage_dependency_table(
 	mclk_table = kzalloc(struct_size(mclk_table, entries, mclk_dep_table->ucNumEntries),
 			     GFP_KERNEL);
 	if (!mclk_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mclk_table->count = (uint32_t)mclk_dep_table->ucNumEntries;
 
@@ -418,7 +418,7 @@ static int get_sclk_voltage_dependency_table(
 		sclk_table = kzalloc(struct_size(sclk_table, entries, tonga_table->ucNumEntries),
 				     GFP_KERNEL);
 		if (!sclk_table)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sclk_table->count = (uint32_t)tonga_table->ucNumEntries;
 
@@ -447,7 +447,7 @@ static int get_sclk_voltage_dependency_table(
 		sclk_table = kzalloc(struct_size(sclk_table, entries, polaris_table->ucNumEntries),
 				     GFP_KERNEL);
 		if (!sclk_table)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		sclk_table->count = (uint32_t)polaris_table->ucNumEntries;
 
@@ -495,7 +495,7 @@ static int get_pcie_table(
 						 atom_pcie_table->ucNumEntries),
 				     GFP_KERNEL);
 		if (!pcie_table)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/*
 		* Make sure the number of pcie entries are less than or equal to sclk dpm levels.
@@ -532,7 +532,7 @@ static int get_pcie_table(
 						 atom_pcie_table->ucNumEntries),
 				     GFP_KERNEL);
 		if (!pcie_table)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/*
 		* Make sure the number of pcie entries are less than or equal to sclk dpm levels.
@@ -577,13 +577,13 @@ static int get_cac_tdp_table(
 	tdp_table = kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == tdp_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmgr->dyn_state.cac_dtp_table = kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == hwmgr->dyn_state.cac_dtp_table) {
 		kfree(tdp_table);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (table->ucRevId < 3) {
@@ -727,7 +727,7 @@ static int get_mm_clock_voltage_table(
 	mm_table = kzalloc(struct_size(mm_table, entries, mm_dependency_table->ucNumEntries),
 			   GFP_KERNEL);
 	if (!mm_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mm_table->count = mm_dependency_table->ucNumEntries;
 
@@ -764,12 +764,12 @@ static int get_gpio_table(struct pp_hwmgr *hwmgr,
 	table_size = sizeof(struct phm_ppt_v1_gpio_table);
 	pp_gpio_table = kzalloc(table_size, GFP_KERNEL);
 	if (!pp_gpio_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pp_table_information->vdd_dep_on_sclk->count <
 			atom_gpio_table->ucVRHotTriggeredSclkDpmIndex)
 		PP_ASSERT_WITH_CODE(false,
-				"SCLK DPM index for VRHot cannot exceed the total sclk level count!",);
+				"SCLK DPM index for VRHot cananalt exceed the total sclk level count!",);
 	else
 		pp_gpio_table->vrhot_triggered_sclk_dpm_index =
 				atom_gpio_table->ucVRHotTriggeredSclkDpmIndex;
@@ -917,14 +917,14 @@ static int init_thermal_controller(
 		(((unsigned long)powerplay_table) +
 		le16_to_cpu(powerplay_table->usThermalControllerOffset));
 	PP_ASSERT_WITH_CODE((0 != powerplay_table->usThermalControllerOffset),
-		"Thermal controller table not set!", return -1);
+		"Thermal controller table analt set!", return -1);
 
 	hwmgr->thermal_controller.ucType = thermal_controller->ucType;
 	hwmgr->thermal_controller.ucI2cLine = thermal_controller->ucI2cLine;
 	hwmgr->thermal_controller.ucI2cAddress = thermal_controller->ucI2cAddress;
 
-	hwmgr->thermal_controller.fanInfo.bNoFan =
-		(0 != (thermal_controller->ucFanParameters & ATOM_TONGA_PP_FANPARAMETERS_NOFAN));
+	hwmgr->thermal_controller.fanInfo.bAnalFan =
+		(0 != (thermal_controller->ucFanParameters & ATOM_TONGA_PP_FANPARAMETERS_ANALFAN));
 
 	hwmgr->thermal_controller.fanInfo.ucTachometerPulsesPerRevolution =
 		thermal_controller->ucFanParameters &
@@ -937,7 +937,7 @@ static int init_thermal_controller(
 
 	set_hw_cap(
 			hwmgr,
-			ATOM_TONGA_PP_THERMALCONTROLLER_NONE != hwmgr->thermal_controller.ucType,
+			ATOM_TONGA_PP_THERMALCONTROLLER_ANALNE != hwmgr->thermal_controller.ucType,
 			PHM_PlatformCaps_ThermalController
 		  );
 
@@ -951,7 +951,7 @@ static int init_thermal_controller(
 		le16_to_cpu(powerplay_table->usFanTableOffset));
 
 	PP_ASSERT_WITH_CODE((0 != powerplay_table->usFanTableOffset),
-		"Fan table not set!", return -1);
+		"Fan table analt set!", return -1);
 	PP_ASSERT_WITH_CODE((0 < fan_table->ucRevId),
 		"Unsupported fan table format!", return -1);
 
@@ -1129,7 +1129,7 @@ static int check_powerplay_tables(
 		powerplay_table->sHeader.ucTableFormatRevision),
 		"Unsupported PPTable format!", return -1);
 	PP_ASSERT_WITH_CODE((0 != powerplay_table->usStateArrayOffset),
-		"State table is not set!", return -1);
+		"State table is analt set!", return -1);
 	PP_ASSERT_WITH_CODE((0 < powerplay_table->sHeader.usStructureSize),
 		"Invalid PowerPlay Table!", return -1);
 	PP_ASSERT_WITH_CODE((0 < state_arrays->ucNumEntries),
@@ -1146,7 +1146,7 @@ static int pp_tables_v1_0_initialize(struct pp_hwmgr *hwmgr)
 	hwmgr->pptable = kzalloc(sizeof(struct phm_ppt_v1_information), GFP_KERNEL);
 
 	PP_ASSERT_WITH_CODE((NULL != hwmgr->pptable),
-			    "Failed to allocate hwmgr->pptable!", return -ENOMEM);
+			    "Failed to allocate hwmgr->pptable!", return -EANALMEM);
 
 	powerplay_table = get_powerplay_table(hwmgr);
 
@@ -1363,7 +1363,7 @@ static int ppt_get_vce_state_table_entry_v1_0(struct pp_hwmgr *hwmgr, uint32_t i
  * @entry_index: The index of the entry to be extracted from the table.
  * @power_state: The address of the PowerState instance being created.
  * @call_back_func: The function to call into to fill power state
- * Return: -1 if the entry cannot be retrieved.
+ * Return: -1 if the entry cananalt be retrieved.
  */
 int get_powerplay_table_entry_v1_0(struct pp_hwmgr *hwmgr,
 		uint32_t entry_index, struct pp_power_state *power_state,

@@ -73,7 +73,7 @@ static int octeon_flash_probe(struct platform_device *pdev)
 	union cvmx_mio_boot_reg_cfgx region_cfg;
 	u32 cs;
 	int r;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
 	r = of_property_read_u32(np, "reg", &cs);
 	if (r)
@@ -100,7 +100,7 @@ static int octeon_flash_probe(struct platform_device *pdev)
 		/* 8-bit bus (0 + 1) or 16-bit bus (1 + 1) */
 		flash_map.bankwidth = region_cfg.s.width + 1;
 		flash_map.virt = ioremap(flash_map.phys, flash_map.size);
-		pr_notice("Bootbus flash: Setting flash for %luMB flash at "
+		pr_analtice("Bootbus flash: Setting flash for %luMB flash at "
 			  "0x%08llx\n", flash_map.size >> 20, flash_map.phys);
 		WARN_ON(!map_bankwidth_supported(flash_map.bankwidth));
 		flash_map.read = octeon_flash_map_read;

@@ -7,7 +7,7 @@ Supported chips:
 
     Prefix: 'hih6130'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the Honeywell website
 
@@ -39,7 +39,7 @@ temp1_input
 humidity1_input
 	humidity input
 
-Notes
+Analtes
 -----
 
-Command mode and alarms are not currently supported.
+Command mode and alarms are analt currently supported.

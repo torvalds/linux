@@ -153,18 +153,18 @@ Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
 Description:
 		Show write time of the last segment in seconds.
 
-What:		/sys/fs/nilfs2/<device>/segctor/last_nongc_write_time
+What:		/sys/fs/nilfs2/<device>/segctor/last_analngc_write_time
 Date:		April 2014
 Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
 Description:
-		Show write time of the last segment not for cleaner
+		Show write time of the last segment analt for cleaner
 		operation in human-readable format.
 
-What:		/sys/fs/nilfs2/<device>/segctor/last_nongc_write_time_secs
+What:		/sys/fs/nilfs2/<device>/segctor/last_analngc_write_time_secs
 Date:		April 2014
 Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
 Description:
-		Show write time of the last segment not for cleaner
+		Show write time of the last segment analt for cleaner
 		operation in seconds.
 
 What:		/sys/fs/nilfs2/<device>/segctor/dirty_data_blocks_count
@@ -249,11 +249,11 @@ Description:
 		Describe content of /sys/fs/nilfs2/<device>/mounted_snapshots
 		group.
 
-What:		/sys/fs/nilfs2/<device>/mounted_snapshots/<id>/inodes_count
+What:		/sys/fs/nilfs2/<device>/mounted_snapshots/<id>/ianaldes_count
 Date:		April 2014
 Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
 Description:
-		Show number of inodes for snapshot.
+		Show number of ianaldes for snapshot.
 
 What:		/sys/fs/nilfs2/<device>/mounted_snapshots/<id>/blocks_count
 Date:		April 2014

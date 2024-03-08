@@ -102,7 +102,7 @@ struct mt7615_rate_desc {
 };
 
 struct mt7615_wtbl_rate_desc {
-	struct list_head node;
+	struct list_head analde;
 
 	struct mt7615_rate_desc rate;
 	struct mt7615_sta *sta;
@@ -164,7 +164,7 @@ struct mt7615_phy {
 	u32 rxfilter;
 	u64 omac_mask;
 
-	u16 noise;
+	u16 analise;
 
 	bool scs_en;
 
@@ -314,7 +314,7 @@ enum mt7615_rdd_cmd {
 	RDD_DET_STOP,
 	RDD_CAC_START,
 	RDD_CAC_END,
-	RDD_NORMAL_START,
+	RDD_ANALRMAL_START,
 	RDD_DISABLE_DFS_CAL,
 	RDD_PULSE_DBG,
 	RDD_READ_PULSE,

@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <linux/capability.h>
 #include <linux/kernel.h>
@@ -145,7 +145,7 @@ static bool match_pat(char *file, const char **pat)
  *
  * The function returns:
  *    0 on success
- *   -1 on removal failure with errno set
+ *   -1 on removal failure with erranal set
  *   -2 on pattern failure
  */
 static int rm_rf_depth_pat(const char *path, int depth, const char **pat)
@@ -156,7 +156,7 @@ static int rm_rf_depth_pat(const char *path, int depth, const char **pat)
 	char namebuf[PATH_MAX];
 	struct stat statbuf;
 
-	/* Do not fail if there's no file. */
+	/* Do analt fail if there's anal file. */
 	ret = lstat(path, &statbuf);
 	if (ret)
 		return 0;
@@ -232,7 +232,7 @@ static bool kcore_dir_filter(const char *name __maybe_unused, struct dirent *d)
 static int rm_rf_kcore_dir(const char *path)
 {
 	struct strlist *kcore_dirs;
-	struct str_node *nd;
+	struct str_analde *nd;
 	int ret;
 
 	kcore_dirs = lsdir(path, kcore_dir_filter);
@@ -270,7 +270,7 @@ int rm_rf(const char *path)
 }
 
 /* A filter which removes dot files */
-bool lsdir_no_dot_filter(const char *name __maybe_unused, struct dirent *d)
+bool lsdir_anal_dot_filter(const char *name __maybe_unused, struct dirent *d)
 {
 	return d->d_name[0] != '.';
 }
@@ -289,7 +289,7 @@ struct strlist *lsdir(const char *name,
 
 	list = strlist__new(NULL, NULL);
 	if (!list) {
-		errno = ENOMEM;
+		erranal = EANALMEM;
 		goto out;
 	}
 
@@ -313,21 +313,21 @@ size_t hex_width(u64 v)
 	return n;
 }
 
-int perf_event_paranoid(void)
+int perf_event_paraanalid(void)
 {
 	int value;
 
-	if (sysctl__read_int("kernel/perf_event_paranoid", &value))
+	if (sysctl__read_int("kernel/perf_event_paraanalid", &value))
 		return INT_MAX;
 
 	return value;
 }
 
-bool perf_event_paranoid_check(int max_level)
+bool perf_event_paraanalid_check(int max_level)
 {
 	return perf_cap__capable(CAP_SYS_ADMIN) ||
 			perf_cap__capable(CAP_PERFMON) ||
-			perf_event_paranoid() <= max_level;
+			perf_event_paraanalid() <= max_level;
 }
 
 static int
@@ -345,7 +345,7 @@ fetch_ubuntu_kernel_version(unsigned int *puint)
 	vsig = fopen("/proc/version_signature", "r");
 	if (!vsig) {
 		pr_debug("Open /proc/version_signature failed: %s\n",
-			 strerror(errno));
+			 strerror(erranal));
 		return -1;
 	}
 
@@ -354,7 +354,7 @@ fetch_ubuntu_kernel_version(unsigned int *puint)
 	err = -1;
 	if (len <= 0) {
 		pr_debug("Reading from /proc/version_signature failed: %s\n",
-			 strerror(errno));
+			 strerror(erranal));
 		goto errout;
 	}
 
@@ -418,7 +418,7 @@ fetch_kernel_version(unsigned int *puint, char *str,
 int perf_tip(char **strp, const char *dirpath)
 {
 	struct strlist *tips;
-	struct str_node *node;
+	struct str_analde *analde;
 	struct strlist_config conf = {
 		.dirname = dirpath,
 		.file_only = true,
@@ -428,14 +428,14 @@ int perf_tip(char **strp, const char *dirpath)
 	*strp = NULL;
 	tips = strlist__new("tips.txt", &conf);
 	if (tips == NULL)
-		return -errno;
+		return -erranal;
 
 	if (strlist__nr_entries(tips) == 0)
 		goto out;
 
-	node = strlist__entry(tips, random() % strlist__nr_entries(tips));
-	if (asprintf(strp, "Tip: %s", node->s) < 0)
-		ret = -ENOMEM;
+	analde = strlist__entry(tips, random() % strlist__nr_entries(tips));
+	if (asprintf(strp, "Tip: %s", analde->s) < 0)
+		ret = -EANALMEM;
 
 out:
 	strlist__delete(tips);
@@ -457,7 +457,7 @@ void perf_debuginfod_setup(struct perf_debuginfod *di)
 {
 	/*
 	 * By default '!di->set' we clear DEBUGINFOD_URLS, so debuginfod
-	 * processing is not triggered, otherwise we set it to 'di->urls'
+	 * processing is analt triggered, otherwise we set it to 'di->urls'
 	 * value. If 'di->urls' is "system" we keep DEBUGINFOD_URLS value.
 	 */
 	if (!di->set)
@@ -469,7 +469,7 @@ void perf_debuginfod_setup(struct perf_debuginfod *di)
 
 #ifndef HAVE_DEBUGINFOD_SUPPORT
 	if (di->set)
-		pr_warning("WARNING: debuginfod support requested, but perf is not built with it\n");
+		pr_warning("WARNING: debuginfod support requested, but perf is analt built with it\n");
 #endif
 }
 
@@ -489,7 +489,7 @@ char *filename_with_chroot(int pid, const char *filename)
 	if (ret <= 0)
 		return NULL;
 
-	/* readlink(2) does not append a null byte to buf */
+	/* readlink(2) does analt append a null byte to buf */
 	buf[ret] = '\0';
 
 	if (!strcmp(buf, "/"))
@@ -505,7 +505,7 @@ char *filename_with_chroot(int pid, const char *filename)
 }
 
 /*
- * Reallocate an array *arr of size *arr_sz so that it is big enough to contain
+ * Reallocate an array *arr of size *arr_sz so that it is big eanalugh to contain
  * x elements of size msz, initializing new entries to *init_val or zero if
  * init_val is NULL
  */
@@ -519,13 +519,13 @@ int do_realloc_array_as_needed(void **arr, size_t *arr_sz, size_t x, size_t msz,
 		new_sz = msz >= 64 ? 1 : roundup(64, msz); /* Start with at least 64 bytes */
 	while (x >= new_sz) {
 		if (check_mul_overflow(new_sz, (size_t)2, &new_sz))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	if (new_sz == *arr_sz)
 		return 0;
 	new_arr = calloc(new_sz, msz);
 	if (!new_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (*arr_sz)
 		memcpy(new_arr, *arr, *arr_sz * msz);
 	if (init_val) {
@@ -547,7 +547,7 @@ int sched_getcpu(void)
 	if (!err)
 		return cpu;
 #else
-	errno = ENOSYS;
+	erranal = EANALSYS;
 #endif
 	return -1;
 }

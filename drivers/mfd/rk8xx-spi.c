@@ -26,8 +26,8 @@ static const struct regmap_range rk806_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table rk806_volatile_table = {
-	.yes_ranges = rk806_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(rk806_volatile_ranges),
+	.anal_ranges = rk806_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(rk806_volatile_ranges),
 };
 
 static const struct regmap_config rk806_regmap_config_spi = {

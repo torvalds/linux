@@ -65,9 +65,9 @@
 #define APPLE_M3_MBOX_IRQ_ENABLE 0x48
 #define APPLE_M3_MBOX_IRQ_ACK 0x4c
 #define APPLE_M3_MBOX_IRQ_A2I_EMPTY BIT(0)
-#define APPLE_M3_MBOX_IRQ_A2I_NOT_EMPTY BIT(1)
+#define APPLE_M3_MBOX_IRQ_A2I_ANALT_EMPTY BIT(1)
 #define APPLE_M3_MBOX_IRQ_I2A_EMPTY BIT(2)
-#define APPLE_M3_MBOX_IRQ_I2A_NOT_EMPTY BIT(3)
+#define APPLE_M3_MBOX_IRQ_I2A_ANALT_EMPTY BIT(3)
 
 #define APPLE_MBOX_MSG1_OUTCNT GENMASK(56, 52)
 #define APPLE_MBOX_MSG1_INCNT GENMASK(51, 48)
@@ -92,7 +92,7 @@ struct apple_mbox_hw {
 	bool has_irq_controls;
 	unsigned int irq_enable;
 	unsigned int irq_ack;
-	unsigned int irq_bit_recv_not_empty;
+	unsigned int irq_bit_recv_analt_empty;
 	unsigned int irq_bit_send_empty;
 };
 
@@ -124,8 +124,8 @@ int apple_mbox_send(struct apple_mbox *mbox, const struct apple_mbox_msg msg,
 		/*
 		 * The interrupt is level triggered and will keep firing as long as the
 		 * FIFO is empty. It will also keep firing if the FIFO was empty
-		 * at any point in the past until it has been acknowledged at the
-		 * mailbox level. By acknowledging it here we can ensure that we will
+		 * at any point in the past until it has been ackanalwledged at the
+		 * mailbox level. By ackanalwledging it here we can ensure that we will
 		 * only get the interrupt once the FIFO has been cleared again.
 		 * If the FIFO is already empty before the ack it will fire again
 		 * immediately after the ack.
@@ -165,14 +165,14 @@ static irqreturn_t apple_mbox_send_empty_irq(int irq, void *data)
 	struct apple_mbox *mbox = data;
 
 	/*
-	 * We don't need to acknowledge the interrupt at the mailbox level
+	 * We don't need to ackanalwledge the interrupt at the mailbox level
 	 * here even if supported by the hardware. It will keep firing but that
 	 * doesn't matter since it's disabled at the main interrupt controller.
-	 * apple_mbox_send will acknowledge it before enabling
+	 * apple_mbox_send will ackanalwledge it before enabling
 	 * it at the main controller again.
 	 */
 	spin_lock(&mbox->tx_lock);
-	disable_irq_nosync(mbox->irq_send_empty);
+	disable_irq_analsync(mbox->irq_send_empty);
 	complete(&mbox->tx_empty);
 	spin_unlock(&mbox->tx_lock);
 
@@ -198,15 +198,15 @@ static int apple_mbox_poll_locked(struct apple_mbox *mbox)
 	}
 
 	/*
-	 * The interrupt will keep firing even if there are no more messages
-	 * unless we also acknowledge it at the mailbox level here.
-	 * There's no race if a message comes in between the check in the while
+	 * The interrupt will keep firing even if there are anal more messages
+	 * unless we also ackanalwledge it at the mailbox level here.
+	 * There's anal race if a message comes in between the check in the while
 	 * loop above and the ack below: If a new messages arrives inbetween
 	 * those two the interrupt will just fire again immediately after the
 	 * ack since it's level triggered.
 	 */
 	if (mbox->hw->has_irq_controls) {
-		writel_relaxed(mbox->hw->irq_bit_recv_not_empty,
+		writel_relaxed(mbox->hw->irq_bit_recv_analt_empty,
 			       mbox->regs + mbox->hw->irq_ack);
 	}
 
@@ -257,12 +257,12 @@ int apple_mbox_start(struct apple_mbox *mbox)
 	 * the same.
 	 */
 	if (mbox->hw->has_irq_controls) {
-		writel_relaxed(mbox->hw->irq_bit_recv_not_empty |
+		writel_relaxed(mbox->hw->irq_bit_recv_analt_empty |
 				       mbox->hw->irq_bit_send_empty,
 			       mbox->regs + mbox->hw->irq_enable);
 	}
 
-	enable_irq(mbox->irq_recv_not_empty);
+	enable_irq(mbox->irq_recv_analt_empty);
 	mbox->active = true;
 	return 0;
 }
@@ -274,7 +274,7 @@ void apple_mbox_stop(struct apple_mbox *mbox)
 		return;
 
 	mbox->active = false;
-	disable_irq(mbox->irq_recv_not_empty);
+	disable_irq(mbox->irq_recv_analt_empty);
 	pm_runtime_mark_last_busy(mbox->dev);
 	pm_runtime_put_autosuspend(mbox->dev);
 }
@@ -287,13 +287,13 @@ struct apple_mbox *apple_mbox_get(struct device *dev, int index)
 	struct apple_mbox *mbox;
 	int ret;
 
-	ret = of_parse_phandle_with_args(dev->of_node, "mboxes", "#mbox-cells",
+	ret = of_parse_phandle_with_args(dev->of_analde, "mboxes", "#mbox-cells",
 					 index, &args);
 	if (ret || !args.np)
 		return ERR_PTR(ret);
 
-	pdev = of_find_device_by_node(args.np);
-	of_node_put(args.np);
+	pdev = of_find_device_by_analde(args.np);
+	of_analde_put(args.np);
 
 	if (!pdev)
 		return ERR_PTR(-EPROBE_DEFER);
@@ -303,7 +303,7 @@ struct apple_mbox *apple_mbox_get(struct device *dev, int index)
 		return ERR_PTR(-EPROBE_DEFER);
 
 	if (!device_link_add(dev, &pdev->dev, DL_FLAG_AUTOREMOVE_CONSUMER))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return mbox;
 }
@@ -313,7 +313,7 @@ struct apple_mbox *apple_mbox_get_byname(struct device *dev, const char *name)
 {
 	int index;
 
-	index = of_property_match_string(dev->of_node, "mbox-names", name);
+	index = of_property_match_string(dev->of_analde, "mbox-names", name);
 	if (index < 0)
 		return ERR_PTR(index);
 
@@ -330,7 +330,7 @@ static int apple_mbox_probe(struct platform_device *pdev)
 
 	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
 	if (!mbox)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mbox->dev = &pdev->dev;
 	mbox->hw = of_device_get_match_data(dev);
@@ -341,14 +341,14 @@ static int apple_mbox_probe(struct platform_device *pdev)
 	if (IS_ERR(mbox->regs))
 		return PTR_ERR(mbox->regs);
 
-	mbox->irq_recv_not_empty =
-		platform_get_irq_byname(pdev, "recv-not-empty");
-	if (mbox->irq_recv_not_empty < 0)
-		return -ENODEV;
+	mbox->irq_recv_analt_empty =
+		platform_get_irq_byname(pdev, "recv-analt-empty");
+	if (mbox->irq_recv_analt_empty < 0)
+		return -EANALDEV;
 
 	mbox->irq_send_empty = platform_get_irq_byname(pdev, "send-empty");
 	if (mbox->irq_send_empty < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_init(&mbox->rx_lock);
 	spin_lock_init(&mbox->tx_lock);
@@ -356,21 +356,21 @@ static int apple_mbox_probe(struct platform_device *pdev)
 
 	irqname = devm_kasprintf(dev, GFP_KERNEL, "%s-recv", dev_name(dev));
 	if (!irqname)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = devm_request_irq(dev, mbox->irq_recv_not_empty,
+	ret = devm_request_irq(dev, mbox->irq_recv_analt_empty,
 			       apple_mbox_recv_irq,
-			       IRQF_NO_AUTOEN | IRQF_NO_SUSPEND, irqname, mbox);
+			       IRQF_ANAL_AUTOEN | IRQF_ANAL_SUSPEND, irqname, mbox);
 	if (ret)
 		return ret;
 
 	irqname = devm_kasprintf(dev, GFP_KERNEL, "%s-send", dev_name(dev));
 	if (!irqname)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_request_irq(dev, mbox->irq_send_empty,
 			       apple_mbox_send_empty_irq,
-			       IRQF_NO_AUTOEN | IRQF_NO_SUSPEND, irqname, mbox);
+			       IRQF_ANAL_AUTOEN | IRQF_ANAL_SUSPEND, irqname, mbox);
 	if (ret)
 		return ret;
 
@@ -412,7 +412,7 @@ static const struct apple_mbox_hw apple_mbox_m3_hw = {
 	.has_irq_controls = true,
 	.irq_enable = APPLE_M3_MBOX_IRQ_ENABLE,
 	.irq_ack = APPLE_M3_MBOX_IRQ_ACK,
-	.irq_bit_recv_not_empty = APPLE_M3_MBOX_IRQ_I2A_NOT_EMPTY,
+	.irq_bit_recv_analt_empty = APPLE_M3_MBOX_IRQ_I2A_ANALT_EMPTY,
 	.irq_bit_send_empty = APPLE_M3_MBOX_IRQ_A2I_EMPTY,
 };
 

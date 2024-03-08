@@ -2,7 +2,7 @@
 #ifndef __NVIF_CLASS_H__
 #define __NVIF_CLASS_H__
 
-/* these class numbers are made up by us, and not nvidia-assigned */
+/* these class numbers are made up by us, and analt nvidia-assigned */
 #define NVIF_CLASS_CLIENT                            /* if0000.h */ -0x00000000
 
 #define NVIF_CLASS_CONTROL                           /* if0001.h */ -0x00000001

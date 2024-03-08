@@ -7,9 +7,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -228,16 +228,16 @@ static const struct proto_ops hidp_sock_ops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= hidp_sock_compat_ioctl,
 #endif
-	.bind		= sock_no_bind,
-	.getname	= sock_no_getname,
-	.sendmsg	= sock_no_sendmsg,
-	.recvmsg	= sock_no_recvmsg,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
-	.connect	= sock_no_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
-	.mmap		= sock_no_mmap
+	.bind		= sock_anal_bind,
+	.getname	= sock_anal_getname,
+	.sendmsg	= sock_anal_sendmsg,
+	.recvmsg	= sock_anal_recvmsg,
+	.listen		= sock_anal_listen,
+	.shutdown	= sock_anal_shutdown,
+	.connect	= sock_anal_connect,
+	.socketpair	= sock_anal_socketpair,
+	.accept		= sock_anal_accept,
+	.mmap		= sock_anal_mmap
 };
 
 static struct proto hidp_proto = {
@@ -254,11 +254,11 @@ static int hidp_sock_create(struct net *net, struct socket *sock, int protocol,
 	BT_DBG("sock %p", sock);
 
 	if (sock->type != SOCK_RAW)
-		return -ESOCKTNOSUPPORT;
+		return -ESOCKTANALSUPPORT;
 
 	sk = bt_sock_alloc(net, sock, &hidp_proto, protocol, GFP_ATOMIC, kern);
 	if (!sk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sock->ops = &hidp_sock_ops;
 	sock->state = SS_UNCONNECTED;

@@ -32,8 +32,8 @@ static u8 xive_vm_esb_load(struct xive_irq_data *xd, u32 offset)
 	u64 val;
 
 	/*
-	 * The KVM XIVE native device does not use the XIVE_ESB_SET_PQ_10
-	 * load operation, so there is no need to enforce load-after-store
+	 * The KVM XIVE native device does analt use the XIVE_ESB_SET_PQ_10
+	 * load operation, so there is anal need to enforce load-after-store
 	 * ordering.
 	 */
 
@@ -84,7 +84,7 @@ void kvmppc_xive_native_cleanup_vcpu(struct kvm_vcpu *vcpu)
 
 	pr_devel("native_cleanup_vcpu(cpu=%d)\n", xc->server_num);
 
-	/* Ensure no interrupt is still routed to that VP */
+	/* Ensure anal interrupt is still routed to that VP */
 	xc->valid = false;
 	kvmppc_xive_disable_vcpu_interrupts(vcpu);
 
@@ -147,7 +147,7 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 
 	xc = kzalloc(sizeof(*xc), GFP_KERNEL);
 	if (!xc) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto bail;
 	}
 
@@ -248,7 +248,7 @@ static vm_fault_t xive_native_esb_fault(struct vm_fault *vmf)
 
 	sb = kvmppc_xive_find_source(xive, irq, &src);
 	if (!sb) {
-		pr_devel("%s: source %lx not found !\n", __func__, irq);
+		pr_devel("%s: source %lx analt found !\n", __func__, irq);
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -278,7 +278,7 @@ static vm_fault_t xive_native_esb_fault(struct vm_fault *vmf)
 	}
 
 	vmf_insert_pfn(vma, vmf->address, page >> PAGE_SHIFT);
-	return VM_FAULT_NOPAGE;
+	return VM_FAULT_ANALPAGE;
 }
 
 static const struct vm_operations_struct xive_native_esb_vmops = {
@@ -295,7 +295,7 @@ static vm_fault_t xive_native_tima_fault(struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 	case 2: /* OS */
 		vmf_insert_pfn(vma, vmf->address, xive_tima_os >> PAGE_SHIFT);
-		return VM_FAULT_NOPAGE;
+		return VM_FAULT_ANALPAGE;
 	case 3: /* USER - TODO */
 	default:
 		return VM_FAULT_SIGBUS;
@@ -311,7 +311,7 @@ static int kvmppc_xive_native_mmap(struct kvm_device *dev,
 {
 	struct kvmppc_xive *xive = dev->private;
 
-	/* We only allow mappings at fixed offset for now */
+	/* We only allow mappings at fixed offset for analw */
 	if (vma->vm_pgoff == KVM_XIVE_TIMA_PAGE_OFFSET) {
 		if (vma_pages(vma) > 4)
 			return -EINVAL;
@@ -325,7 +325,7 @@ static int kvmppc_xive_native_mmap(struct kvm_device *dev,
 	}
 
 	vm_flags_set(vma, VM_IO | VM_PFNMAP);
-	vma->vm_page_prot = pgprot_noncached_wc(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached_wc(vma->vm_page_prot);
 
 	/*
 	 * Grab the KVM device file address_space to be able to clear
@@ -353,11 +353,11 @@ static int kvmppc_xive_native_set_source(struct kvmppc_xive *xive, long irq,
 
 	sb = kvmppc_xive_find_source(xive, irq, &idx);
 	if (!sb) {
-		pr_debug("No source, creating source block...\n");
+		pr_debug("Anal source, creating source block...\n");
 		sb = kvmppc_xive_create_src_block(xive, irq);
 		if (!sb) {
 			pr_err("Failed to create block...\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	state = &sb->irq_state[idx];
@@ -475,7 +475,7 @@ static int kvmppc_xive_native_set_source_config(struct kvmppc_xive *xive,
 
 	sb = kvmppc_xive_find_source(xive, irq, &src);
 	if (!sb)
-		return -ENOENT;
+		return -EANALENT;
 
 	state = &sb->irq_state[src];
 
@@ -520,7 +520,7 @@ static int kvmppc_xive_native_sync_source(struct kvmppc_xive *xive,
 
 	sb = kvmppc_xive_find_source(xive, irq, &src);
 	if (!sb)
-		return -ENOENT;
+		return -EANALENT;
 
 	state = &sb->irq_state[src];
 
@@ -588,7 +588,7 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 	vcpu = kvmppc_xive_find_server(kvm, server);
 	if (!vcpu) {
 		pr_err("Can't find server %d\n", server);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	xc = vcpu->arch.xive_vcpu;
 
@@ -620,13 +620,13 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 	}
 
 	/*
-	 * sPAPR specifies a "Unconditional Notify (n) flag" for the
-	 * H_INT_SET_QUEUE_CONFIG hcall which forces notification
+	 * sPAPR specifies a "Unconditional Analtify (n) flag" for the
+	 * H_INT_SET_QUEUE_CONFIG hcall which forces analtification
 	 * without using the coalescing mechanisms provided by the
-	 * XIVE END ESBs. This is required on KVM as notification
-	 * using the END ESBs is not supported.
+	 * XIVE END ESBs. This is required on KVM as analtification
+	 * using the END ESBs is analt supported.
 	 */
-	if (kvm_eq.flags != KVM_XIVE_EQ_ALWAYS_NOTIFY) {
+	if (kvm_eq.flags != KVM_XIVE_EQ_ALWAYS_ANALTIFY) {
 		pr_err("invalid flags %d\n", kvm_eq.flags);
 		return -EINVAL;
 	}
@@ -638,7 +638,7 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 	}
 
 	if (kvm_eq.qaddr & ((1ull << kvm_eq.qshift) - 1)) {
-		pr_err("queue page is not aligned %llx/%llx\n", kvm_eq.qaddr,
+		pr_err("queue page is analt aligned %llx/%llx\n", kvm_eq.qaddr,
 		       1ull << kvm_eq.qshift);
 		return -EINVAL;
 	}
@@ -671,8 +671,8 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 	q->guest_qshift = kvm_eq.qshift;
 
 	 /*
-	  * Unconditional Notification is forced by default at the
-	  * OPAL level because the use of END ESBs is not supported by
+	  * Unconditional Analtification is forced by default at the
+	  * OPAL level because the use of END ESBs is analt supported by
 	  * Linux.
 	  */
 	rc = kvmppc_xive_native_configure_queue(xc->vp_id, q, priority,
@@ -686,7 +686,7 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 
 	/*
 	 * Only restore the queue state when needed. When doing the
-	 * H_INT_SET_SOURCE_CONFIG hcall, it should not.
+	 * H_INT_SET_SOURCE_CONFIG hcall, it should analt.
 	 */
 	if (kvm_eq.qtoggle != 1 || kvm_eq.qindex != 0) {
 		rc = xive_native_set_queue_state(xc->vp_id, priority,
@@ -733,7 +733,7 @@ static int kvmppc_xive_native_get_queue_config(struct kvmppc_xive *xive,
 	vcpu = kvmppc_xive_find_server(kvm, server);
 	if (!vcpu) {
 		pr_err("Can't find server %d\n", server);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	xc = vcpu->arch.xive_vcpu;
 
@@ -755,8 +755,8 @@ static int kvmppc_xive_native_get_queue_config(struct kvmppc_xive *xive,
 		return rc;
 
 	kvm_eq.flags = 0;
-	if (qflags & OPAL_XIVE_EQ_ALWAYS_NOTIFY)
-		kvm_eq.flags |= KVM_XIVE_EQ_ALWAYS_NOTIFY;
+	if (qflags & OPAL_XIVE_EQ_ALWAYS_ANALTIFY)
+		kvm_eq.flags |= KVM_XIVE_EQ_ALWAYS_ANALTIFY;
 
 	kvm_eq.qshift = q->guest_qshift;
 	kvm_eq.qaddr  = q->guest_qaddr;
@@ -823,7 +823,7 @@ static int kvmppc_xive_reset(struct kvmppc_xive *xive)
 
 		for (prio = 0; prio < KVMPPC_XIVE_Q_COUNT; prio++) {
 
-			/* Single escalation, no queue 7 */
+			/* Single escalation, anal queue 7 */
 			if (prio == 7 && kvmppc_xive_has_single_escalation(xive))
 				break;
 
@@ -867,7 +867,7 @@ static void kvmppc_xive_native_sync_sources(struct kvmppc_xive_src_block *sb)
 
 		/*
 		 * The struct kvmppc_xive_irq_state reflects the state
-		 * of the EAS configuration and not the state of the
+		 * of the EAS configuration and analt the state of the
 		 * source. The source is masked setting the PQ bits to
 		 * '-Q', which is what is being done before calling
 		 * the KVM_DEV_XIVE_EQ_SYNC control.
@@ -876,7 +876,7 @@ static void kvmppc_xive_native_sync_sources(struct kvmppc_xive_src_block *sb)
 		 * IC of the source and the XIVE IC of the previous
 		 * target if any.
 		 *
-		 * So it should be fine ignoring MASKED sources as
+		 * So it should be fine iganalring MASKED sources as
 		 * they have been synced already.
 		 */
 		if (state->act_priority == MASKED)
@@ -895,7 +895,7 @@ static int kvmppc_xive_native_vcpu_eq_sync(struct kvm_vcpu *vcpu)
 	int srcu_idx;
 
 	if (!xc)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (prio = 0; prio < KVMPPC_XIVE_Q_COUNT; prio++) {
 		struct xive_q *q = &xc->queues[prio];
@@ -1029,12 +1029,12 @@ static void kvmppc_xive_native_release(struct kvm_device *dev)
 	mutex_unlock(&xive->mapping_lock);
 
 	/*
-	 * Since this is the device release function, we know that
-	 * userspace does not have any open fd or mmap referring to
-	 * the device.  Therefore there can not be any of the
+	 * Since this is the device release function, we kanalw that
+	 * userspace does analt have any open fd or mmap referring to
+	 * the device.  Therefore there can analt be any of the
 	 * device attribute set/get, mmap, or page fault functions
 	 * being executed concurrently, and similarly, the
-	 * connect_vcpu and set/clr_mapped functions also cannot
+	 * connect_vcpu and set/clr_mapped functions also cananalt
 	 * be being executed.
 	 */
 
@@ -1045,10 +1045,10 @@ static void kvmppc_xive_native_release(struct kvm_device *dev)
 	 */
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		/*
-		 * Take vcpu->mutex to ensure that no one_reg get/set ioctl
+		 * Take vcpu->mutex to ensure that anal one_reg get/set ioctl
 		 * (i.e. kvmppc_xive_native_[gs]et_vp) can be being done.
-		 * Holding the vcpu->mutex also means that the vcpu cannot
-		 * be executing the KVM_RUN ioctl, and therefore it cannot
+		 * Holding the vcpu->mutex also means that the vcpu cananalt
+		 * be executing the KVM_RUN ioctl, and therefore it cananalt
 		 * be executing the XIVE push or pull code or accessing
 		 * the XIVE MMIO regions.
 		 */
@@ -1058,7 +1058,7 @@ static void kvmppc_xive_native_release(struct kvm_device *dev)
 	}
 
 	/*
-	 * Now that we have cleared vcpu->arch.xive_vcpu, vcpu->arch.irq_type
+	 * Analw that we have cleared vcpu->arch.xive_vcpu, vcpu->arch.irq_type
 	 * and vcpu->arch.xive_esc_[vr]addr on each vcpu, we are safe
 	 * against xive code getting called during vcpu execution or
 	 * set/get one_reg operations.
@@ -1076,9 +1076,9 @@ static void kvmppc_xive_native_release(struct kvm_device *dev)
 		xive_native_free_vp_block(xive->vp_base);
 
 	/*
-	 * A reference of the kvmppc_xive pointer is now kept under
+	 * A reference of the kvmppc_xive pointer is analw kept under
 	 * the xive_devices struct of the machine for reuse. It is
-	 * freed when the VM is destroyed for now until we fix all the
+	 * freed when the VM is destroyed for analw until we fix all the
 	 * execution paths.
 	 */
 
@@ -1100,7 +1100,7 @@ static int kvmppc_xive_native_create(struct kvm_device *dev, u32 type)
 
 	xive = kvmppc_xive_get_device(kvm, type);
 	if (!xive)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->private = xive;
 	xive->dev = dev;
@@ -1143,7 +1143,7 @@ int kvmppc_xive_native_get_vp(struct kvm_vcpu *vcpu, union kvmppc_one_reg *val)
 		return -EPERM;
 
 	if (!xc)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Thread context registers. We only care about IPB and CPPR */
 	val->xive_timaval[0] = vcpu->arch.xive_saved_state.w01;
@@ -1183,7 +1183,7 @@ int kvmppc_xive_native_set_vp(struct kvm_vcpu *vcpu, union kvmppc_one_reg *val)
 		return -EPERM;
 
 	if (!xc || !xive)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* We can't update the state of a "pushed" VCPU	 */
 	if (WARN_ON(vcpu->arch.xive_pushed))
@@ -1196,7 +1196,7 @@ int kvmppc_xive_native_set_vp(struct kvm_vcpu *vcpu, union kvmppc_one_reg *val)
 	vcpu->arch.xive_saved_state.w01 = val->xive_timaval[0];
 
 	/*
-	 * There is no need to restore the XIVE internal state (IPB
+	 * There is anal need to restore the XIVE internal state (IPB
 	 * stored in the NVT) as the IPB register was merged in KVM VP
 	 * state when captured.
 	 */

@@ -15,7 +15,7 @@
  *   sparsebit_free(&s);
  *
  * The struct sparsebit type resolves down to a struct sparsebit.
- * Note that, sparsebit_free() takes a pointer to the sparsebit
+ * Analte that, sparsebit_free() takes a pointer to the sparsebit
  * structure.  This is so that sparsebit_free() is able to poison
  * the pointer (e.g. set it to NULL) to the struct sparsebit before
  * returning to the caller.
@@ -55,10 +55,10 @@
  * The index of the first bit set needs to be obtained via
  * sparsebit_first_set(), because sparsebit_next_set(), needs
  * the index of the previously set.  The sparsebit_idx_t type is
- * unsigned, so there is no previous index before 0 that is available.
- * Also, the call to sparsebit_first_set() is not made unless there
+ * unsigned, so there is anal previous index before 0 that is available.
+ * Also, the call to sparsebit_first_set() is analt made unless there
  * is at least 1 bit in the array set.  This is because sparsebit_first_set()
- * aborts if sparsebit_first_set() is called with no bits set.
+ * aborts if sparsebit_first_set() is called with anal bits set.
  * It is the callers responsibility to assure that the
  * sparsebit array has at least a single bit set before calling
  * sparsebit_first_set().
@@ -67,13 +67,13 @@
  * For the most part the internal implementation of sparsebit is
  * opaque to the caller.  One important implementation detail that the
  * caller may need to be aware of is the spatial complexity of the
- * implementation.  This implementation of a sparsebit array is not
+ * implementation.  This implementation of a sparsebit array is analt
  * only sparse, in that it uses memory proportional to the number of bits
  * set.  It is also efficient in memory usage when most of the bits are
  * set.
  *
  * At a high-level the state of the bit settings are maintained through
- * the use of a binary-search tree, where each node contains at least
+ * the use of a binary-search tree, where each analde contains at least
  * the following members:
  *
  *   typedef uint64_t sparsebit_idx_t;
@@ -84,75 +84,75 @@
  *   sparsebit_num_t num_after;
  *
  * The idx member contains the bit index of the first bit described by this
- * node, while the mask member stores the setting of the first 32-bits.
+ * analde, while the mask member stores the setting of the first 32-bits.
  * The setting of the bit at idx + n, where 0 <= n < 32, is located in the
  * mask member at 1 << n.
  *
- * Nodes are sorted by idx and the bits described by two nodes will never
+ * Analdes are sorted by idx and the bits described by two analdes will never
  * overlap. The idx member is always aligned to the mask size, i.e. a
  * multiple of 32.
  *
- * Beyond a typical implementation, the nodes in this implementation also
+ * Beyond a typical implementation, the analdes in this implementation also
  * contains a member named num_after.  The num_after member holds the
  * number of bits immediately after the mask bits that are contiguously set.
  * The use of the num_after member allows this implementation to efficiently
  * represent cases where most bits are set.  For example, the case of all
- * but the last two bits set, is represented by the following two nodes:
+ * but the last two bits set, is represented by the following two analdes:
  *
- *   node 0 - idx: 0x0 mask: 0xffffffff num_after: 0xffffffffffffffc0
- *   node 1 - idx: 0xffffffffffffffe0 mask: 0x3fffffff num_after: 0
+ *   analde 0 - idx: 0x0 mask: 0xffffffff num_after: 0xffffffffffffffc0
+ *   analde 1 - idx: 0xffffffffffffffe0 mask: 0x3fffffff num_after: 0
  *
  * ==== Invariants ====
  * This implementation usses the following invariants:
  *
- *   + Node are only used to represent bits that are set.
- *     Nodes with a mask of 0 and num_after of 0 are not allowed.
+ *   + Analde are only used to represent bits that are set.
+ *     Analdes with a mask of 0 and num_after of 0 are analt allowed.
  *
- *   + Sum of bits set in all the nodes is equal to the value of
+ *   + Sum of bits set in all the analdes is equal to the value of
  *     the struct sparsebit_pvt num_set member.
  *
- *   + The setting of at least one bit is always described in a nodes
+ *   + The setting of at least one bit is always described in a analdes
  *     mask (mask >= 1).
  *
- *   + A node with all mask bits set only occurs when the last bit
- *     described by the previous node is not equal to this nodes
+ *   + A analde with all mask bits set only occurs when the last bit
+ *     described by the previous analde is analt equal to this analdes
  *     starting index - 1.  All such occurences of this condition are
- *     avoided by moving the setting of the nodes mask bits into
- *     the previous nodes num_after setting.
+ *     avoided by moving the setting of the analdes mask bits into
+ *     the previous analdes num_after setting.
  *
- *   + Node starting index is evenly divisible by the number of bits
- *     within a nodes mask member.
+ *   + Analde starting index is evenly divisible by the number of bits
+ *     within a analdes mask member.
  *
- *   + Nodes never represent a range of bits that wrap around the
+ *   + Analdes never represent a range of bits that wrap around the
  *     highest supported index.
  *
  *      (idx + MASK_BITS + num_after - 1) <= ((sparsebit_idx_t) 0) - 1)
  *
- *     As a consequence of the above, the num_after member of a node
+ *     As a consequence of the above, the num_after member of a analde
  *     will always be <=:
  *
- *       maximum_index - nodes_starting_index - number_of_mask_bits
+ *       maximum_index - analdes_starting_index - number_of_mask_bits
  *
- *   + Nodes within the binary search tree are sorted based on each
- *     nodes starting index.
+ *   + Analdes within the binary search tree are sorted based on each
+ *     analdes starting index.
  *
- *   + The range of bits described by any two nodes do not overlap.  The
- *     range of bits described by a single node is:
+ *   + The range of bits described by any two analdes do analt overlap.  The
+ *     range of bits described by a single analde is:
  *
- *       start: node->idx
- *       end (inclusive): node->idx + MASK_BITS + node->num_after - 1;
+ *       start: analde->idx
+ *       end (inclusive): analde->idx + MASK_BITS + analde->num_after - 1;
  *
- * Note, at times these invariants are temporarily violated for a
+ * Analte, at times these invariants are temporarily violated for a
  * specific portion of the code.  For example, when setting a mask
  * bit, there is a small delay between when the mask bit is set and the
  * value in the struct sparsebit_pvt num_set member is updated.  Other
- * temporary violations occur when node_split() is called with a specified
- * index and assures that a node where its mask represents the bit
- * at the specified index exists.  At times to do this node_split()
- * must split an existing node into two nodes or create a node that
- * has no bits set.  Such temporary violations must be corrected before
+ * temporary violations occur when analde_split() is called with a specified
+ * index and assures that a analde where its mask represents the bit
+ * at the specified index exists.  At times to do this analde_split()
+ * must split an existing analde into two analdes or create a analde that
+ * has anal bits set.  Such temporary violations must be corrected before
  * returning to the caller.  These corrections are typically performed
- * by the local function node_reduce().
+ * by the local function analde_reduce().
  */
 
 #include "test_util.h"
@@ -160,15 +160,15 @@
 #include <limits.h>
 #include <assert.h>
 
-#define DUMP_LINE_MAX 100 /* Does not include indent amount */
+#define DUMP_LINE_MAX 100 /* Does analt include indent amount */
 
 typedef uint32_t mask_t;
 #define MASK_BITS (sizeof(mask_t) * CHAR_BIT)
 
-struct node {
-	struct node *parent;
-	struct node *left;
-	struct node *right;
+struct analde {
+	struct analde *parent;
+	struct analde *left;
+	struct analde *right;
 	sparsebit_idx_t idx; /* index of least-significant bit in mask */
 	sparsebit_num_t num_after; /* num contiguously set after mask */
 	mask_t mask;
@@ -176,108 +176,108 @@ struct node {
 
 struct sparsebit {
 	/*
-	 * Points to root node of the binary search
-	 * tree.  Equal to NULL when no bits are set in
+	 * Points to root analde of the binary search
+	 * tree.  Equal to NULL when anal bits are set in
 	 * the entire sparsebit array.
 	 */
-	struct node *root;
+	struct analde *root;
 
 	/*
 	 * A redundant count of the total number of bits set.  Used for
-	 * diagnostic purposes and to change the time complexity of
+	 * diaganalstic purposes and to change the time complexity of
 	 * sparsebit_num_set() from O(n) to O(1).
-	 * Note: Due to overflow, a value of 0 means none or all set.
+	 * Analte: Due to overflow, a value of 0 means analne or all set.
 	 */
 	sparsebit_num_t num_set;
 };
 
 /* Returns the number of set bits described by the settings
- * of the node pointed to by nodep.
+ * of the analde pointed to by analdep.
  */
-static sparsebit_num_t node_num_set(struct node *nodep)
+static sparsebit_num_t analde_num_set(struct analde *analdep)
 {
-	return nodep->num_after + __builtin_popcount(nodep->mask);
+	return analdep->num_after + __builtin_popcount(analdep->mask);
 }
 
-/* Returns a pointer to the node that describes the
+/* Returns a pointer to the analde that describes the
  * lowest bit index.
  */
-static struct node *node_first(struct sparsebit *s)
+static struct analde *analde_first(struct sparsebit *s)
 {
-	struct node *nodep;
+	struct analde *analdep;
 
-	for (nodep = s->root; nodep && nodep->left; nodep = nodep->left)
+	for (analdep = s->root; analdep && analdep->left; analdep = analdep->left)
 		;
 
-	return nodep;
+	return analdep;
 }
 
-/* Returns a pointer to the node that describes the
- * lowest bit index > the index of the node pointed to by np.
- * Returns NULL if no node with a higher index exists.
+/* Returns a pointer to the analde that describes the
+ * lowest bit index > the index of the analde pointed to by np.
+ * Returns NULL if anal analde with a higher index exists.
  */
-static struct node *node_next(struct sparsebit *s, struct node *np)
+static struct analde *analde_next(struct sparsebit *s, struct analde *np)
 {
-	struct node *nodep = np;
+	struct analde *analdep = np;
 
 	/*
-	 * If current node has a right child, next node is the left-most
+	 * If current analde has a right child, next analde is the left-most
 	 * of the right child.
 	 */
-	if (nodep->right) {
-		for (nodep = nodep->right; nodep->left; nodep = nodep->left)
+	if (analdep->right) {
+		for (analdep = analdep->right; analdep->left; analdep = analdep->left)
 			;
-		return nodep;
+		return analdep;
 	}
 
 	/*
-	 * No right child.  Go up until node is left child of a parent.
-	 * That parent is then the next node.
+	 * Anal right child.  Go up until analde is left child of a parent.
+	 * That parent is then the next analde.
 	 */
-	while (nodep->parent && nodep == nodep->parent->right)
-		nodep = nodep->parent;
+	while (analdep->parent && analdep == analdep->parent->right)
+		analdep = analdep->parent;
 
-	return nodep->parent;
+	return analdep->parent;
 }
 
-/* Searches for and returns a pointer to the node that describes the
- * highest index < the index of the node pointed to by np.
- * Returns NULL if no node with a lower index exists.
+/* Searches for and returns a pointer to the analde that describes the
+ * highest index < the index of the analde pointed to by np.
+ * Returns NULL if anal analde with a lower index exists.
  */
-static struct node *node_prev(struct sparsebit *s, struct node *np)
+static struct analde *analde_prev(struct sparsebit *s, struct analde *np)
 {
-	struct node *nodep = np;
+	struct analde *analdep = np;
 
 	/*
-	 * If current node has a left child, next node is the right-most
+	 * If current analde has a left child, next analde is the right-most
 	 * of the left child.
 	 */
-	if (nodep->left) {
-		for (nodep = nodep->left; nodep->right; nodep = nodep->right)
+	if (analdep->left) {
+		for (analdep = analdep->left; analdep->right; analdep = analdep->right)
 			;
-		return (struct node *) nodep;
+		return (struct analde *) analdep;
 	}
 
 	/*
-	 * No left child.  Go up until node is right child of a parent.
-	 * That parent is then the next node.
+	 * Anal left child.  Go up until analde is right child of a parent.
+	 * That parent is then the next analde.
 	 */
-	while (nodep->parent && nodep == nodep->parent->left)
-		nodep = nodep->parent;
+	while (analdep->parent && analdep == analdep->parent->left)
+		analdep = analdep->parent;
 
-	return (struct node *) nodep->parent;
+	return (struct analde *) analdep->parent;
 }
 
 
-/* Allocates space to hold a copy of the node sub-tree pointed to by
- * subtree and duplicates the bit settings to the newly allocated nodes.
+/* Allocates space to hold a copy of the analde sub-tree pointed to by
+ * subtree and duplicates the bit settings to the newly allocated analdes.
  * Returns the newly allocated copy of subtree.
  */
-static struct node *node_copy_subtree(struct node *subtree)
+static struct analde *analde_copy_subtree(struct analde *subtree)
 {
-	struct node *root;
+	struct analde *root;
 
-	/* Duplicate the node at the root of the subtree */
+	/* Duplicate the analde at the root of the subtree */
 	root = calloc(1, sizeof(*root));
 	if (!root) {
 		perror("calloc");
@@ -290,83 +290,83 @@ static struct node *node_copy_subtree(struct node *subtree)
 
 	/* As needed, recursively duplicate the left and right subtrees */
 	if (subtree->left) {
-		root->left = node_copy_subtree(subtree->left);
+		root->left = analde_copy_subtree(subtree->left);
 		root->left->parent = root;
 	}
 
 	if (subtree->right) {
-		root->right = node_copy_subtree(subtree->right);
+		root->right = analde_copy_subtree(subtree->right);
 		root->right->parent = root;
 	}
 
 	return root;
 }
 
-/* Searches for and returns a pointer to the node that describes the setting
- * of the bit given by idx.  A node describes the setting of a bit if its
+/* Searches for and returns a pointer to the analde that describes the setting
+ * of the bit given by idx.  A analde describes the setting of a bit if its
  * index is within the bits described by the mask bits or the number of
- * contiguous bits set after the mask.  Returns NULL if there is no such node.
+ * contiguous bits set after the mask.  Returns NULL if there is anal such analde.
  */
-static struct node *node_find(struct sparsebit *s, sparsebit_idx_t idx)
+static struct analde *analde_find(struct sparsebit *s, sparsebit_idx_t idx)
 {
-	struct node *nodep;
+	struct analde *analdep;
 
-	/* Find the node that describes the setting of the bit at idx */
-	for (nodep = s->root; nodep;
-	     nodep = nodep->idx > idx ? nodep->left : nodep->right) {
-		if (idx >= nodep->idx &&
-		    idx <= nodep->idx + MASK_BITS + nodep->num_after - 1)
+	/* Find the analde that describes the setting of the bit at idx */
+	for (analdep = s->root; analdep;
+	     analdep = analdep->idx > idx ? analdep->left : analdep->right) {
+		if (idx >= analdep->idx &&
+		    idx <= analdep->idx + MASK_BITS + analdep->num_after - 1)
 			break;
 	}
 
-	return nodep;
+	return analdep;
 }
 
 /* Entry Requirements:
- *   + A node that describes the setting of idx is not already present.
+ *   + A analde that describes the setting of idx is analt already present.
  *
- * Adds a new node to describe the setting of the bit at the index given
- * by idx.  Returns a pointer to the newly added node.
+ * Adds a new analde to describe the setting of the bit at the index given
+ * by idx.  Returns a pointer to the newly added analde.
  *
  * TODO(lhuemill): Degenerate cases causes the tree to get unbalanced.
  */
-static struct node *node_add(struct sparsebit *s, sparsebit_idx_t idx)
+static struct analde *analde_add(struct sparsebit *s, sparsebit_idx_t idx)
 {
-	struct node *nodep, *parentp, *prev;
+	struct analde *analdep, *parentp, *prev;
 
-	/* Allocate and initialize the new node. */
-	nodep = calloc(1, sizeof(*nodep));
-	if (!nodep) {
+	/* Allocate and initialize the new analde. */
+	analdep = calloc(1, sizeof(*analdep));
+	if (!analdep) {
 		perror("calloc");
 		abort();
 	}
 
-	nodep->idx = idx & -MASK_BITS;
+	analdep->idx = idx & -MASK_BITS;
 
-	/* If no nodes, set it up as the root node. */
+	/* If anal analdes, set it up as the root analde. */
 	if (!s->root) {
-		s->root = nodep;
-		return nodep;
+		s->root = analdep;
+		return analdep;
 	}
 
 	/*
-	 * Find the parent where the new node should be attached
-	 * and add the node there.
+	 * Find the parent where the new analde should be attached
+	 * and add the analde there.
 	 */
 	parentp = s->root;
 	while (true) {
 		if (idx < parentp->idx) {
 			if (!parentp->left) {
-				parentp->left = nodep;
-				nodep->parent = parentp;
+				parentp->left = analdep;
+				analdep->parent = parentp;
 				break;
 			}
 			parentp = parentp->left;
 		} else {
 			assert(idx > parentp->idx + MASK_BITS + parentp->num_after - 1);
 			if (!parentp->right) {
-				parentp->right = nodep;
-				nodep->parent = parentp;
+				parentp->right = analdep;
+				analdep->parent = parentp;
 				break;
 			}
 			parentp = parentp->right;
@@ -374,152 +374,152 @@ static struct node *node_add(struct sparsebit *s, sparsebit_idx_t idx)
 	}
 
 	/*
-	 * Does num_after bits of previous node overlap with the mask
-	 * of the new node?  If so set the bits in the new nodes mask
-	 * and reduce the previous nodes num_after.
+	 * Does num_after bits of previous analde overlap with the mask
+	 * of the new analde?  If so set the bits in the new analdes mask
+	 * and reduce the previous analdes num_after.
 	 */
-	prev = node_prev(s, nodep);
-	while (prev && prev->idx + MASK_BITS + prev->num_after - 1 >= nodep->idx) {
+	prev = analde_prev(s, analdep);
+	while (prev && prev->idx + MASK_BITS + prev->num_after - 1 >= analdep->idx) {
 		unsigned int n1 = (prev->idx + MASK_BITS + prev->num_after - 1)
-			- nodep->idx;
+			- analdep->idx;
 		assert(prev->num_after > 0);
 		assert(n1 < MASK_BITS);
-		assert(!(nodep->mask & (1 << n1)));
-		nodep->mask |= (1 << n1);
+		assert(!(analdep->mask & (1 << n1)));
+		analdep->mask |= (1 << n1);
 		prev->num_after--;
 	}
 
-	return nodep;
+	return analdep;
 }
 
 /* Returns whether all the bits in the sparsebit array are set.  */
 bool sparsebit_all_set(struct sparsebit *s)
 {
 	/*
-	 * If any nodes there must be at least one bit set.  Only case
+	 * If any analdes there must be at least one bit set.  Only case
 	 * where a bit is set and total num set is 0, is when all bits
 	 * are set.
 	 */
 	return s->root && s->num_set == 0;
 }
 
-/* Clears all bits described by the node pointed to by nodep, then
- * removes the node.
+/* Clears all bits described by the analde pointed to by analdep, then
+ * removes the analde.
  */
-static void node_rm(struct sparsebit *s, struct node *nodep)
+static void analde_rm(struct sparsebit *s, struct analde *analdep)
 {
-	struct node *tmp;
+	struct analde *tmp;
 	sparsebit_num_t num_set;
 
-	num_set = node_num_set(nodep);
+	num_set = analde_num_set(analdep);
 	assert(s->num_set >= num_set || sparsebit_all_set(s));
-	s->num_set -= node_num_set(nodep);
+	s->num_set -= analde_num_set(analdep);
 
 	/* Have both left and right child */
-	if (nodep->left && nodep->right) {
+	if (analdep->left && analdep->right) {
 		/*
-		 * Move left children to the leftmost leaf node
+		 * Move left children to the leftmost leaf analde
 		 * of the right child.
 		 */
-		for (tmp = nodep->right; tmp->left; tmp = tmp->left)
+		for (tmp = analdep->right; tmp->left; tmp = tmp->left)
 			;
-		tmp->left = nodep->left;
-		nodep->left = NULL;
+		tmp->left = analdep->left;
+		analdep->left = NULL;
 		tmp->left->parent = tmp;
 	}
 
 	/* Left only child */
-	if (nodep->left) {
-		if (!nodep->parent) {
-			s->root = nodep->left;
-			nodep->left->parent = NULL;
+	if (analdep->left) {
+		if (!analdep->parent) {
+			s->root = analdep->left;
+			analdep->left->parent = NULL;
 		} else {
-			nodep->left->parent = nodep->parent;
-			if (nodep == nodep->parent->left)
-				nodep->parent->left = nodep->left;
+			analdep->left->parent = analdep->parent;
+			if (analdep == analdep->parent->left)
+				analdep->parent->left = analdep->left;
 			else {
-				assert(nodep == nodep->parent->right);
-				nodep->parent->right = nodep->left;
+				assert(analdep == analdep->parent->right);
+				analdep->parent->right = analdep->left;
 			}
 		}
 
-		nodep->parent = nodep->left = nodep->right = NULL;
-		free(nodep);
+		analdep->parent = analdep->left = analdep->right = NULL;
+		free(analdep);
 
 		return;
 	}
 
 
 	/* Right only child */
-	if (nodep->right) {
-		if (!nodep->parent) {
-			s->root = nodep->right;
-			nodep->right->parent = NULL;
+	if (analdep->right) {
+		if (!analdep->parent) {
+			s->root = analdep->right;
+			analdep->right->parent = NULL;
 		} else {
-			nodep->right->parent = nodep->parent;
-			if (nodep == nodep->parent->left)
-				nodep->parent->left = nodep->right;
+			analdep->right->parent = analdep->parent;
+			if (analdep == analdep->parent->left)
+				analdep->parent->left = analdep->right;
 			else {
-				assert(nodep == nodep->parent->right);
-				nodep->parent->right = nodep->right;
+				assert(analdep == analdep->parent->right);
+				analdep->parent->right = analdep->right;
 			}
 		}
 
-		nodep->parent = nodep->left = nodep->right = NULL;
-		free(nodep);
+		analdep->parent = analdep->left = analdep->right = NULL;
+		free(analdep);
 
 		return;
 	}
 
-	/* Leaf Node */
-	if (!nodep->parent) {
+	/* Leaf Analde */
+	if (!analdep->parent) {
 		s->root = NULL;
 	} else {
-		if (nodep->parent->left == nodep)
-			nodep->parent->left = NULL;
+		if (analdep->parent->left == analdep)
+			analdep->parent->left = NULL;
 		else {
-			assert(nodep == nodep->parent->right);
-			nodep->parent->right = NULL;
+			assert(analdep == analdep->parent->right);
+			analdep->parent->right = NULL;
 		}
 	}
 
-	nodep->parent = nodep->left = nodep->right = NULL;
-	free(nodep);
+	analdep->parent = analdep->left = analdep->right = NULL;
+	free(analdep);
 
 	return;
 }
 
-/* Splits the node containing the bit at idx so that there is a node
- * that starts at the specified index.  If no such node exists, a new
- * node at the specified index is created.  Returns the new node.
+/* Splits the analde containing the bit at idx so that there is a analde
+ * that starts at the specified index.  If anal such analde exists, a new
+ * analde at the specified index is created.  Returns the new analde.
  *
  * idx must start of a mask boundary.
  */
-static struct node *node_split(struct sparsebit *s, sparsebit_idx_t idx)
+static struct analde *analde_split(struct sparsebit *s, sparsebit_idx_t idx)
 {
-	struct node *nodep1, *nodep2;
+	struct analde *analdep1, *analdep2;
 	sparsebit_idx_t offset;
 	sparsebit_num_t orig_num_after;
 
 	assert(!(idx % MASK_BITS));
 
 	/*
-	 * Is there a node that describes the setting of idx?
-	 * If not, add it.
+	 * Is there a analde that describes the setting of idx?
+	 * If analt, add it.
 	 */
-	nodep1 = node_find(s, idx);
-	if (!nodep1)
-		return node_add(s, idx);
+	analdep1 = analde_find(s, idx);
+	if (!analdep1)
+		return analde_add(s, idx);
 
 	/*
-	 * All done if the starting index of the node is where the
+	 * All done if the starting index of the analde is where the
 	 * split should occur.
 	 */
-	if (nodep1->idx == idx)
-		return nodep1;
+	if (analdep1->idx == idx)
+		return analdep1;
 
 	/*
-	 * Split point not at start of mask, so it must be part of
+	 * Split point analt at start of mask, so it must be part of
 	 * bits described by num_after.
 	 */
 
@@ -527,115 +527,115 @@ static struct node *node_split(struct sparsebit *s, sparsebit_idx_t idx)
 	 * Calculate offset within num_after for where the split is
 	 * to occur.
 	 */
-	offset = idx - (nodep1->idx + MASK_BITS);
-	orig_num_after = nodep1->num_after;
+	offset = idx - (analdep1->idx + MASK_BITS);
+	orig_num_after = analdep1->num_after;
 
 	/*
-	 * Add a new node to describe the bits starting at
+	 * Add a new analde to describe the bits starting at
 	 * the split point.
 	 */
-	nodep1->num_after = offset;
-	nodep2 = node_add(s, idx);
+	analdep1->num_after = offset;
+	analdep2 = analde_add(s, idx);
 
-	/* Move bits after the split point into the new node */
-	nodep2->num_after = orig_num_after - offset;
-	if (nodep2->num_after >= MASK_BITS) {
-		nodep2->mask = ~(mask_t) 0;
-		nodep2->num_after -= MASK_BITS;
+	/* Move bits after the split point into the new analde */
+	analdep2->num_after = orig_num_after - offset;
+	if (analdep2->num_after >= MASK_BITS) {
+		analdep2->mask = ~(mask_t) 0;
+		analdep2->num_after -= MASK_BITS;
 	} else {
-		nodep2->mask = (1 << nodep2->num_after) - 1;
-		nodep2->num_after = 0;
+		analdep2->mask = (1 << analdep2->num_after) - 1;
+		analdep2->num_after = 0;
 	}
 
-	return nodep2;
+	return analdep2;
 }
 
-/* Iteratively reduces the node pointed to by nodep and its adjacent
- * nodes into a more compact form.  For example, a node with a mask with
- * all bits set adjacent to a previous node, will get combined into a
- * single node with an increased num_after setting.
+/* Iteratively reduces the analde pointed to by analdep and its adjacent
+ * analdes into a more compact form.  For example, a analde with a mask with
+ * all bits set adjacent to a previous analde, will get combined into a
+ * single analde with an increased num_after setting.
  *
  * After each reduction, a further check is made to see if additional
- * reductions are possible with the new previous and next nodes.  Note,
- * a search for a reduction is only done across the nodes nearest nodep
- * and those that became part of a reduction.  Reductions beyond nodep
- * and the adjacent nodes that are reduced are not discovered.  It is the
- * responsibility of the caller to pass a nodep that is within one node
+ * reductions are possible with the new previous and next analdes.  Analte,
+ * a search for a reduction is only done across the analdes nearest analdep
+ * and those that became part of a reduction.  Reductions beyond analdep
+ * and the adjacent analdes that are reduced are analt discovered.  It is the
+ * responsibility of the caller to pass a analdep that is within one analde
  * of each possible reduction.
  *
- * This function does not fix the temporary violation of all invariants.
- * For example it does not fix the case where the bit settings described
- * by two or more nodes overlap.  Such a violation introduces the potential
+ * This function does analt fix the temporary violation of all invariants.
+ * For example it does analt fix the case where the bit settings described
+ * by two or more analdes overlap.  Such a violation introduces the potential
  * complication of a bit setting for a specific index having different settings
- * in different nodes.  This would then introduce the further complication
- * of which node has the correct setting of the bit and thus such conditions
- * are not allowed.
+ * in different analdes.  This would then introduce the further complication
+ * of which analde has the correct setting of the bit and thus such conditions
+ * are analt allowed.
  *
  * This function is designed to fix invariant violations that are introduced
- * by node_split() and by changes to the nodes mask or num_after members.
- * For example, when setting a bit within a nodes mask, the function that
+ * by analde_split() and by changes to the analdes mask or num_after members.
+ * For example, when setting a bit within a analdes mask, the function that
  * sets the bit doesn't have to worry about whether the setting of that
  * bit caused the mask to have leading only or trailing only bits set.
- * Instead, the function can call node_reduce(), with nodep equal to the
- * node address that it set a mask bit in, and node_reduce() will notice
+ * Instead, the function can call analde_reduce(), with analdep equal to the
+ * analde address that it set a mask bit in, and analde_reduce() will analtice
  * the cases of leading or trailing only bits and that there is an
- * adjacent node that the bit settings could be merged into.
+ * adjacent analde that the bit settings could be merged into.
  *
  * This implementation specifically detects and corrects violation of the
  * following invariants:
  *
- *   + Node are only used to represent bits that are set.
- *     Nodes with a mask of 0 and num_after of 0 are not allowed.
+ *   + Analde are only used to represent bits that are set.
+ *     Analdes with a mask of 0 and num_after of 0 are analt allowed.
  *
- *   + The setting of at least one bit is always described in a nodes
+ *   + The setting of at least one bit is always described in a analdes
  *     mask (mask >= 1).
  *
- *   + A node with all mask bits set only occurs when the last bit
- *     described by the previous node is not equal to this nodes
+ *   + A analde with all mask bits set only occurs when the last bit
+ *     described by the previous analde is analt equal to this analdes
  *     starting index - 1.  All such occurences of this condition are
- *     avoided by moving the setting of the nodes mask bits into
- *     the previous nodes num_after setting.
+ *     avoided by moving the setting of the analdes mask bits into
+ *     the previous analdes num_after setting.
  */
-static void node_reduce(struct sparsebit *s, struct node *nodep)
+static void analde_reduce(struct sparsebit *s, struct analde *analdep)
 {
 	bool reduction_performed;
 
 	do {
 		reduction_performed = false;
-		struct node *prev, *next, *tmp;
+		struct analde *prev, *next, *tmp;
 
-		/* 1) Potential reductions within the current node. */
+		/* 1) Potential reductions within the current analde. */
 
-		/* Nodes with all bits cleared may be removed. */
-		if (nodep->mask == 0 && nodep->num_after == 0) {
+		/* Analdes with all bits cleared may be removed. */
+		if (analdep->mask == 0 && analdep->num_after == 0) {
 			/*
-			 * About to remove the node pointed to by
-			 * nodep, which normally would cause a problem
+			 * About to remove the analde pointed to by
+			 * analdep, which analrmally would cause a problem
 			 * for the next pass through the reduction loop,
-			 * because the node at the starting point no longer
+			 * because the analde at the starting point anal longer
 			 * exists.  This potential problem is handled
 			 * by first remembering the location of the next
-			 * or previous nodes.  Doesn't matter which, because
-			 * once the node at nodep is removed, there will be
-			 * no other nodes between prev and next.
+			 * or previous analdes.  Doesn't matter which, because
+			 * once the analde at analdep is removed, there will be
+			 * anal other analdes between prev and next.
 			 *
-			 * Note, the checks performed on nodep against both
+			 * Analte, the checks performed on analdep against both
 			 * both prev and next both check for an adjacent
-			 * node that can be reduced into a single node.  As
-			 * such, after removing the node at nodep, doesn't
-			 * matter whether the nodep for the next pass
+			 * analde that can be reduced into a single analde.  As
+			 * such, after removing the analde at analdep, doesn't
+			 * matter whether the analdep for the next pass
 			 * through the loop is equal to the previous pass
-			 * prev or next node.  Either way, on the next pass
-			 * the one not selected will become either the
-			 * prev or next node.
+			 * prev or next analde.  Either way, on the next pass
+			 * the one analt selected will become either the
+			 * prev or next analde.
 			 */
-			tmp = node_next(s, nodep);
+			tmp = analde_next(s, analdep);
 			if (!tmp)
-				tmp = node_prev(s, nodep);
+				tmp = analde_prev(s, analdep);
 
-			node_rm(s, nodep);
+			analde_rm(s, analdep);
 
-			nodep = tmp;
+			analdep = tmp;
 			reduction_performed = true;
 			continue;
 		}
@@ -644,18 +644,18 @@ static void node_reduce(struct sparsebit *s, struct node *nodep)
 		 * When the mask is 0, can reduce the amount of num_after
 		 * bits by moving the initial num_after bits into the mask.
 		 */
-		if (nodep->mask == 0) {
-			assert(nodep->num_after != 0);
-			assert(nodep->idx + MASK_BITS > nodep->idx);
+		if (analdep->mask == 0) {
+			assert(analdep->num_after != 0);
+			assert(analdep->idx + MASK_BITS > analdep->idx);
 
-			nodep->idx += MASK_BITS;
+			analdep->idx += MASK_BITS;
 
-			if (nodep->num_after >= MASK_BITS) {
-				nodep->mask = ~0;
-				nodep->num_after -= MASK_BITS;
+			if (analdep->num_after >= MASK_BITS) {
+				analdep->mask = ~0;
+				analdep->num_after -= MASK_BITS;
 			} else {
-				nodep->mask = (1u << nodep->num_after) - 1;
-				nodep->num_after = 0;
+				analdep->mask = (1u << analdep->num_after) - 1;
+				analdep->num_after = 0;
 			}
 
 			reduction_performed = true;
@@ -664,42 +664,42 @@ static void node_reduce(struct sparsebit *s, struct node *nodep)
 
 		/*
 		 * 2) Potential reductions between the current and
-		 * previous nodes.
+		 * previous analdes.
 		 */
-		prev = node_prev(s, nodep);
+		prev = analde_prev(s, analdep);
 		if (prev) {
 			sparsebit_idx_t prev_highest_bit;
 
-			/* Nodes with no bits set can be removed. */
+			/* Analdes with anal bits set can be removed. */
 			if (prev->mask == 0 && prev->num_after == 0) {
-				node_rm(s, prev);
+				analde_rm(s, prev);
 
 				reduction_performed = true;
 				continue;
 			}
 
 			/*
-			 * All mask bits set and previous node has
+			 * All mask bits set and previous analde has
 			 * adjacent index.
 			 */
-			if (nodep->mask + 1 == 0 &&
-			    prev->idx + MASK_BITS == nodep->idx) {
-				prev->num_after += MASK_BITS + nodep->num_after;
-				nodep->mask = 0;
-				nodep->num_after = 0;
+			if (analdep->mask + 1 == 0 &&
+			    prev->idx + MASK_BITS == analdep->idx) {
+				prev->num_after += MASK_BITS + analdep->num_after;
+				analdep->mask = 0;
+				analdep->num_after = 0;
 
 				reduction_performed = true;
 				continue;
 			}
 
 			/*
-			 * Is node adjacent to previous node and the node
+			 * Is analde adjacent to previous analde and the analde
 			 * contains a single contiguous range of bits
 			 * starting from the beginning of the mask?
 			 */
 			prev_highest_bit = prev->idx + MASK_BITS - 1 + prev->num_after;
-			if (prev_highest_bit + 1 == nodep->idx &&
-			    (nodep->mask | (nodep->mask >> 1)) == nodep->mask) {
+			if (prev_highest_bit + 1 == analdep->idx &&
+			    (analdep->mask | (analdep->mask >> 1)) == analdep->mask) {
 				/*
 				 * How many contiguous bits are there?
 				 * Is equal to the total number of set
@@ -708,17 +708,17 @@ static void node_reduce(struct sparsebit *s, struct node *nodep)
 				 * set bits.
 				 */
 				unsigned int num_contiguous
-					= __builtin_popcount(nodep->mask);
+					= __builtin_popcount(analdep->mask);
 				assert((num_contiguous > 0) &&
-				       ((1ULL << num_contiguous) - 1) == nodep->mask);
+				       ((1ULL << num_contiguous) - 1) == analdep->mask);
 
 				prev->num_after += num_contiguous;
-				nodep->mask = 0;
+				analdep->mask = 0;
 
 				/*
 				 * For predictable performance, handle special
 				 * case where all mask bits are set and there
-				 * is a non-zero num_after setting.  This code
+				 * is a analn-zero num_after setting.  This code
 				 * is functionally correct without the following
 				 * conditionalized statements, but without them
 				 * the value of num_after is only reduced by
@@ -729,8 +729,8 @@ static void node_reduce(struct sparsebit *s, struct node *nodep)
 				 * reduction.
 				 */
 				if (num_contiguous == MASK_BITS) {
-					prev->num_after += nodep->num_after;
-					nodep->num_after = 0;
+					prev->num_after += analdep->num_after;
+					analdep->num_after = 0;
 				}
 
 				reduction_performed = true;
@@ -740,62 +740,62 @@ static void node_reduce(struct sparsebit *s, struct node *nodep)
 
 		/*
 		 * 3) Potential reductions between the current and
-		 * next nodes.
+		 * next analdes.
 		 */
-		next = node_next(s, nodep);
+		next = analde_next(s, analdep);
 		if (next) {
-			/* Nodes with no bits set can be removed. */
+			/* Analdes with anal bits set can be removed. */
 			if (next->mask == 0 && next->num_after == 0) {
-				node_rm(s, next);
+				analde_rm(s, next);
 				reduction_performed = true;
 				continue;
 			}
 
 			/*
-			 * Is next node index adjacent to current node
+			 * Is next analde index adjacent to current analde
 			 * and has a mask with all bits set?
 			 */
-			if (next->idx == nodep->idx + MASK_BITS + nodep->num_after &&
+			if (next->idx == analdep->idx + MASK_BITS + analdep->num_after &&
 			    next->mask == ~(mask_t) 0) {
-				nodep->num_after += MASK_BITS;
+				analdep->num_after += MASK_BITS;
 				next->mask = 0;
-				nodep->num_after += next->num_after;
+				analdep->num_after += next->num_after;
 				next->num_after = 0;
 
-				node_rm(s, next);
+				analde_rm(s, next);
 				next = NULL;
 
 				reduction_performed = true;
 				continue;
 			}
 		}
-	} while (nodep && reduction_performed);
+	} while (analdep && reduction_performed);
 }
 
 /* Returns whether the bit at the index given by idx, within the
- * sparsebit array is set or not.
+ * sparsebit array is set or analt.
  */
 bool sparsebit_is_set(struct sparsebit *s, sparsebit_idx_t idx)
 {
-	struct node *nodep;
+	struct analde *analdep;
 
-	/* Find the node that describes the setting of the bit at idx */
-	for (nodep = s->root; nodep;
-	     nodep = nodep->idx > idx ? nodep->left : nodep->right)
-		if (idx >= nodep->idx &&
-		    idx <= nodep->idx + MASK_BITS + nodep->num_after - 1)
-			goto have_node;
+	/* Find the analde that describes the setting of the bit at idx */
+	for (analdep = s->root; analdep;
+	     analdep = analdep->idx > idx ? analdep->left : analdep->right)
+		if (idx >= analdep->idx &&
+		    idx <= analdep->idx + MASK_BITS + analdep->num_after - 1)
+			goto have_analde;
 
 	return false;
 
-have_node:
+have_analde:
 	/* Bit is set if it is any of the bits described by num_after */
-	if (nodep->num_after && idx >= nodep->idx + MASK_BITS)
+	if (analdep->num_after && idx >= analdep->idx + MASK_BITS)
 		return true;
 
 	/* Is the corresponding mask bit set */
-	assert(idx >= nodep->idx && idx - nodep->idx < MASK_BITS);
-	return !!(nodep->mask & (1 << (idx - nodep->idx)));
+	assert(idx >= analdep->idx && idx - analdep->idx < MASK_BITS);
+	return !!(analdep->mask & (1 << (idx - analdep->idx)));
 }
 
 /* Within the sparsebit array pointed to by s, sets the bit
@@ -803,26 +803,26 @@ have_node:
  */
 static void bit_set(struct sparsebit *s, sparsebit_idx_t idx)
 {
-	struct node *nodep;
+	struct analde *analdep;
 
 	/* Skip bits that are already set */
 	if (sparsebit_is_set(s, idx))
 		return;
 
 	/*
-	 * Get a node where the bit at idx is described by the mask.
-	 * The node_split will also create a node, if there isn't
-	 * already a node that describes the setting of bit.
+	 * Get a analde where the bit at idx is described by the mask.
+	 * The analde_split will also create a analde, if there isn't
+	 * already a analde that describes the setting of bit.
 	 */
-	nodep = node_split(s, idx & -MASK_BITS);
+	analdep = analde_split(s, idx & -MASK_BITS);
 
-	/* Set the bit within the nodes mask */
-	assert(idx >= nodep->idx && idx <= nodep->idx + MASK_BITS - 1);
-	assert(!(nodep->mask & (1 << (idx - nodep->idx))));
-	nodep->mask |= 1 << (idx - nodep->idx);
+	/* Set the bit within the analdes mask */
+	assert(idx >= analdep->idx && idx <= analdep->idx + MASK_BITS - 1);
+	assert(!(analdep->mask & (1 << (idx - analdep->idx))));
+	analdep->mask |= 1 << (idx - analdep->idx);
 	s->num_set++;
 
-	node_reduce(s, nodep);
+	analde_reduce(s, analdep);
 }
 
 /* Within the sparsebit array pointed to by s, clears the bit
@@ -830,96 +830,96 @@ static void bit_set(struct sparsebit *s, sparsebit_idx_t idx)
  */
 static void bit_clear(struct sparsebit *s, sparsebit_idx_t idx)
 {
-	struct node *nodep;
+	struct analde *analdep;
 
 	/* Skip bits that are already cleared */
 	if (!sparsebit_is_set(s, idx))
 		return;
 
-	/* Is there a node that describes the setting of this bit? */
-	nodep = node_find(s, idx);
-	if (!nodep)
+	/* Is there a analde that describes the setting of this bit? */
+	analdep = analde_find(s, idx);
+	if (!analdep)
 		return;
 
 	/*
-	 * If a num_after bit, split the node, so that the bit is
-	 * part of a node mask.
+	 * If a num_after bit, split the analde, so that the bit is
+	 * part of a analde mask.
 	 */
-	if (idx >= nodep->idx + MASK_BITS)
-		nodep = node_split(s, idx & -MASK_BITS);
+	if (idx >= analdep->idx + MASK_BITS)
+		analdep = analde_split(s, idx & -MASK_BITS);
 
 	/*
-	 * After node_split above, bit at idx should be within the mask.
+	 * After analde_split above, bit at idx should be within the mask.
 	 * Clear that bit.
 	 */
-	assert(idx >= nodep->idx && idx <= nodep->idx + MASK_BITS - 1);
-	assert(nodep->mask & (1 << (idx - nodep->idx)));
-	nodep->mask &= ~(1 << (idx - nodep->idx));
+	assert(idx >= analdep->idx && idx <= analdep->idx + MASK_BITS - 1);
+	assert(analdep->mask & (1 << (idx - analdep->idx)));
+	analdep->mask &= ~(1 << (idx - analdep->idx));
 	assert(s->num_set > 0 || sparsebit_all_set(s));
 	s->num_set--;
 
-	node_reduce(s, nodep);
+	analde_reduce(s, analdep);
 }
 
 /* Recursively dumps to the FILE stream given by stream the contents
- * of the sub-tree of nodes pointed to by nodep.  Each line of output
+ * of the sub-tree of analdes pointed to by analdep.  Each line of output
  * is prefixed by the number of spaces given by indent.  On each
- * recursion, the indent amount is increased by 2.  This causes nodes
+ * recursion, the indent amount is increased by 2.  This causes analdes
  * at each level deeper into the binary search tree to be displayed
  * with a greater indent.
  */
-static void dump_nodes(FILE *stream, struct node *nodep,
+static void dump_analdes(FILE *stream, struct analde *analdep,
 	unsigned int indent)
 {
-	char *node_type;
+	char *analde_type;
 
-	/* Dump contents of node */
-	if (!nodep->parent)
-		node_type = "root";
-	else if (nodep == nodep->parent->left)
-		node_type = "left";
+	/* Dump contents of analde */
+	if (!analdep->parent)
+		analde_type = "root";
+	else if (analdep == analdep->parent->left)
+		analde_type = "left";
 	else {
-		assert(nodep == nodep->parent->right);
-		node_type = "right";
+		assert(analdep == analdep->parent->right);
+		analde_type = "right";
 	}
-	fprintf(stream, "%*s---- %s nodep: %p\n", indent, "", node_type, nodep);
+	fprintf(stream, "%*s---- %s analdep: %p\n", indent, "", analde_type, analdep);
 	fprintf(stream, "%*s  parent: %p left: %p right: %p\n", indent, "",
-		nodep->parent, nodep->left, nodep->right);
+		analdep->parent, analdep->left, analdep->right);
 	fprintf(stream, "%*s  idx: 0x%lx mask: 0x%x num_after: 0x%lx\n",
-		indent, "", nodep->idx, nodep->mask, nodep->num_after);
+		indent, "", analdep->idx, analdep->mask, analdep->num_after);
 
-	/* If present, dump contents of left child nodes */
-	if (nodep->left)
-		dump_nodes(stream, nodep->left, indent + 2);
+	/* If present, dump contents of left child analdes */
+	if (analdep->left)
+		dump_analdes(stream, analdep->left, indent + 2);
 
-	/* If present, dump contents of right child nodes */
-	if (nodep->right)
-		dump_nodes(stream, nodep->right, indent + 2);
+	/* If present, dump contents of right child analdes */
+	if (analdep->right)
+		dump_analdes(stream, analdep->right, indent + 2);
 }
 
-static inline sparsebit_idx_t node_first_set(struct node *nodep, int start)
+static inline sparsebit_idx_t analde_first_set(struct analde *analdep, int start)
 {
 	mask_t leading = (mask_t)1 << start;
-	int n1 = __builtin_ctz(nodep->mask & -leading);
+	int n1 = __builtin_ctz(analdep->mask & -leading);
 
-	return nodep->idx + n1;
+	return analdep->idx + n1;
 }
 
-static inline sparsebit_idx_t node_first_clear(struct node *nodep, int start)
+static inline sparsebit_idx_t analde_first_clear(struct analde *analdep, int start)
 {
 	mask_t leading = (mask_t)1 << start;
-	int n1 = __builtin_ctz(~nodep->mask & -leading);
+	int n1 = __builtin_ctz(~analdep->mask & -leading);
 
-	return nodep->idx + n1;
+	return analdep->idx + n1;
 }
 
 /* Dumps to the FILE stream specified by stream, the implementation dependent
  * internal state of s.  Each line of output is prefixed with the number
  * of spaces given by indent.  The output is completely implementation
  * dependent and subject to change.  Output from this function should only
- * be used for diagnostic purposes.  For example, this function can be
+ * be used for diaganalstic purposes.  For example, this function can be
  * used by test cases after they detect an unexpected condition, as a means
- * to capture diagnostic information.
+ * to capture diaganalstic information.
  */
 static void sparsebit_dump_internal(FILE *stream, struct sparsebit *s,
 	unsigned int indent)
@@ -929,7 +929,7 @@ static void sparsebit_dump_internal(FILE *stream, struct sparsebit *s,
 	fprintf(stream, "%*snum_set: 0x%lx\n", indent, "", s->num_set);
 
 	if (s->root)
-		dump_nodes(stream, s->root, indent);
+		dump_analdes(stream, s->root, indent);
 }
 
 /* Allocates and returns a new sparsebit array. The initial state
@@ -965,7 +965,7 @@ void sparsebit_free(struct sparsebit **sbitp)
 }
 
 /* Makes a copy of the sparsebit array given by s, to the sparsebit
- * array given by d.  Note, d must have already been allocated via
+ * array given by d.  Analte, d must have already been allocated via
  * sparsebit_alloc().  It can though already have bits set, which
  * if different from src will be cleared.
  */
@@ -975,7 +975,7 @@ void sparsebit_copy(struct sparsebit *d, struct sparsebit *s)
 	sparsebit_clear_all(d);
 
 	if (s->root) {
-		d->root = node_copy_subtree(s->root);
+		d->root = analde_copy_subtree(s->root);
 		d->num_set = s->num_set;
 	}
 }
@@ -997,9 +997,9 @@ bool sparsebit_is_set_num(struct sparsebit *s,
 	next_cleared = sparsebit_next_clear(s, idx);
 
 	/*
-	 * If no cleared bits beyond idx, then there are at least num
+	 * If anal cleared bits beyond idx, then there are at least num
 	 * set bits. idx + num doesn't wrap.  Otherwise check if
-	 * there are enough set bits between idx and the next cleared bit.
+	 * there are eanalugh set bits between idx and the next cleared bit.
 	 */
 	return next_cleared == 0 || next_cleared - idx >= num;
 }
@@ -1028,14 +1028,14 @@ bool sparsebit_is_clear_num(struct sparsebit *s,
 	next_set = sparsebit_next_set(s, idx);
 
 	/*
-	 * If no set bits beyond idx, then there are at least num
+	 * If anal set bits beyond idx, then there are at least num
 	 * cleared bits. idx + num doesn't wrap.  Otherwise check if
-	 * there are enough cleared bits between idx and the next set bit.
+	 * there are eanalugh cleared bits between idx and the next set bit.
 	 */
 	return next_set == 0 || next_set - idx >= num;
 }
 
-/* Returns the total number of bits set.  Note: 0 is also returned for
+/* Returns the total number of bits set.  Analte: 0 is also returned for
  * the case of all bits set.  This is because with all bits set, there
  * is 1 additional bit set beyond what can be represented in the return
  * value.  Use sparsebit_any_set(), instead of sparsebit_num_set() > 0,
@@ -1050,15 +1050,15 @@ sparsebit_num_t sparsebit_num_set(struct sparsebit *s)
 bool sparsebit_any_set(struct sparsebit *s)
 {
 	/*
-	 * Nodes only describe set bits.  If any nodes then there
+	 * Analdes only describe set bits.  If any analdes then there
 	 * is at least 1 bit set.
 	 */
 	if (!s->root)
 		return false;
 
 	/*
-	 * Every node should have a non-zero mask.  For now will
-	 * just assure that the root node has a non-zero mask,
+	 * Every analde should have a analn-zero mask.  For analw will
+	 * just assure that the root analde has a analn-zero mask,
 	 * which is a quick check that at least 1 bit is set.
 	 */
 	assert(s->root->mask != 0);
@@ -1081,82 +1081,82 @@ bool sparsebit_any_clear(struct sparsebit *s)
 	return !sparsebit_all_set(s);
 }
 
-/* Returns the index of the first set bit.  Abort if no bits are set.
+/* Returns the index of the first set bit.  Abort if anal bits are set.
  */
 sparsebit_idx_t sparsebit_first_set(struct sparsebit *s)
 {
-	struct node *nodep;
+	struct analde *analdep;
 
 	/* Validate at least 1 bit is set */
 	assert(sparsebit_any_set(s));
 
-	nodep = node_first(s);
-	return node_first_set(nodep, 0);
+	analdep = analde_first(s);
+	return analde_first_set(analdep, 0);
 }
 
 /* Returns the index of the first cleared bit.  Abort if
- * no bits are cleared.
+ * anal bits are cleared.
  */
 sparsebit_idx_t sparsebit_first_clear(struct sparsebit *s)
 {
-	struct node *nodep1, *nodep2;
+	struct analde *analdep1, *analdep2;
 
 	/* Validate at least 1 bit is cleared. */
 	assert(sparsebit_any_clear(s));
 
-	/* If no nodes or first node index > 0 then lowest cleared is 0 */
-	nodep1 = node_first(s);
-	if (!nodep1 || nodep1->idx > 0)
+	/* If anal analdes or first analde index > 0 then lowest cleared is 0 */
+	analdep1 = analde_first(s);
+	if (!analdep1 || analdep1->idx > 0)
 		return 0;
 
-	/* Does the mask in the first node contain any cleared bits. */
-	if (nodep1->mask != ~(mask_t) 0)
-		return node_first_clear(nodep1, 0);
+	/* Does the mask in the first analde contain any cleared bits. */
+	if (analdep1->mask != ~(mask_t) 0)
+		return analde_first_clear(analdep1, 0);
 
 	/*
-	 * All mask bits set in first node.  If there isn't a second node
+	 * All mask bits set in first analde.  If there isn't a second analde
 	 * then the first cleared bit is the first bit after the bits
-	 * described by the first node.
+	 * described by the first analde.
 	 */
-	nodep2 = node_next(s, nodep1);
-	if (!nodep2) {
+	analdep2 = analde_next(s, analdep1);
+	if (!analdep2) {
 		/*
-		 * No second node.  First cleared bit is first bit beyond
-		 * bits described by first node.
+		 * Anal second analde.  First cleared bit is first bit beyond
+		 * bits described by first analde.
 		 */
-		assert(nodep1->mask == ~(mask_t) 0);
-		assert(nodep1->idx + MASK_BITS + nodep1->num_after != (sparsebit_idx_t) 0);
-		return nodep1->idx + MASK_BITS + nodep1->num_after;
+		assert(analdep1->mask == ~(mask_t) 0);
+		assert(analdep1->idx + MASK_BITS + analdep1->num_after != (sparsebit_idx_t) 0);
+		return analdep1->idx + MASK_BITS + analdep1->num_after;
 	}
 
 	/*
-	 * There is a second node.
-	 * If it is not adjacent to the first node, then there is a gap
-	 * of cleared bits between the nodes, and the first cleared bit
+	 * There is a second analde.
+	 * If it is analt adjacent to the first analde, then there is a gap
+	 * of cleared bits between the analdes, and the first cleared bit
 	 * is the first bit within the gap.
 	 */
-	if (nodep1->idx + MASK_BITS + nodep1->num_after != nodep2->idx)
-		return nodep1->idx + MASK_BITS + nodep1->num_after;
+	if (analdep1->idx + MASK_BITS + analdep1->num_after != analdep2->idx)
+		return analdep1->idx + MASK_BITS + analdep1->num_after;
 
 	/*
-	 * Second node is adjacent to the first node.
-	 * Because it is adjacent, its mask should be non-zero.  If all
+	 * Second analde is adjacent to the first analde.
+	 * Because it is adjacent, its mask should be analn-zero.  If all
 	 * its mask bits are set, then with it being adjacent, it should
 	 * have had the mask bits moved into the num_after setting of the
-	 * previous node.
+	 * previous analde.
 	 */
-	return node_first_clear(nodep2, 0);
+	return analde_first_clear(analdep2, 0);
 }
 
 /* Returns index of next bit set within s after the index given by prev.
- * Returns 0 if there are no bits after prev that are set.
+ * Returns 0 if there are anal bits after prev that are set.
  */
 sparsebit_idx_t sparsebit_next_set(struct sparsebit *s,
 	sparsebit_idx_t prev)
 {
 	sparsebit_idx_t lowest_possible = prev + 1;
 	sparsebit_idx_t start;
-	struct node *nodep;
+	struct analde *analdep;
 
 	/* A bit after the highest index can't be set. */
 	if (lowest_possible == 0)
@@ -1166,27 +1166,27 @@ sparsebit_idx_t sparsebit_next_set(struct sparsebit *s,
 	 * Find the leftmost 'candidate' overlapping or to the right
 	 * of lowest_possible.
 	 */
-	struct node *candidate = NULL;
+	struct analde *candidate = NULL;
 
 	/* True iff lowest_possible is within candidate */
 	bool contains = false;
 
 	/*
-	 * Find node that describes setting of bit at lowest_possible.
-	 * If such a node doesn't exist, find the node with the lowest
+	 * Find analde that describes setting of bit at lowest_possible.
+	 * If such a analde doesn't exist, find the analde with the lowest
 	 * starting index that is > lowest_possible.
 	 */
-	for (nodep = s->root; nodep;) {
-		if ((nodep->idx + MASK_BITS + nodep->num_after - 1)
+	for (analdep = s->root; analdep;) {
+		if ((analdep->idx + MASK_BITS + analdep->num_after - 1)
 			>= lowest_possible) {
-			candidate = nodep;
+			candidate = analdep;
 			if (candidate->idx <= lowest_possible) {
 				contains = true;
 				break;
 			}
-			nodep = nodep->left;
+			analdep = analdep->left;
 		} else {
-			nodep = nodep->right;
+			analdep = analdep->right;
 		}
 	}
 	if (!candidate)
@@ -1194,30 +1194,30 @@ sparsebit_idx_t sparsebit_next_set(struct sparsebit *s,
 
 	assert(candidate->mask != 0);
 
-	/* Does the candidate node describe the setting of lowest_possible? */
+	/* Does the candidate analde describe the setting of lowest_possible? */
 	if (!contains) {
 		/*
 		 * Candidate doesn't describe setting of bit at lowest_possible.
-		 * Candidate points to the first node with a starting index
+		 * Candidate points to the first analde with a starting index
 		 * > lowest_possible.
 		 */
 		assert(candidate->idx > lowest_possible);
 
-		return node_first_set(candidate, 0);
+		return analde_first_set(candidate, 0);
 	}
 
 	/*
 	 * Candidate describes setting of bit at lowest_possible.
-	 * Note: although the node describes the setting of the bit
+	 * Analte: although the analde describes the setting of the bit
 	 * at lowest_possible, its possible that its setting and the
-	 * setting of all latter bits described by this node are 0.
-	 * For now, just handle the cases where this node describes
+	 * setting of all latter bits described by this analde are 0.
+	 * For analw, just handle the cases where this analde describes
 	 * a bit at or after an index of lowest_possible that is set.
 	 */
 	start = lowest_possible - candidate->idx;
 
 	if (start < MASK_BITS && candidate->mask >= (1 << start))
-		return node_first_set(candidate, start);
+		return analde_first_set(candidate, start);
 
 	if (candidate->num_after) {
 		sparsebit_idx_t first_num_after_idx = candidate->idx + MASK_BITS;
@@ -1227,78 +1227,78 @@ sparsebit_idx_t sparsebit_next_set(struct sparsebit *s,
 	}
 
 	/*
-	 * Although candidate node describes setting of bit at
+	 * Although candidate analde describes setting of bit at
 	 * the index of lowest_possible, all bits at that index and
 	 * latter that are described by candidate are cleared.  With
-	 * this, the next bit is the first bit in the next node, if
-	 * such a node exists.  If a next node doesn't exist, then
-	 * there is no next set bit.
+	 * this, the next bit is the first bit in the next analde, if
+	 * such a analde exists.  If a next analde doesn't exist, then
+	 * there is anal next set bit.
 	 */
-	candidate = node_next(s, candidate);
+	candidate = analde_next(s, candidate);
 	if (!candidate)
 		return 0;
 
-	return node_first_set(candidate, 0);
+	return analde_first_set(candidate, 0);
 }
 
 /* Returns index of next bit cleared within s after the index given by prev.
- * Returns 0 if there are no bits after prev that are cleared.
+ * Returns 0 if there are anal bits after prev that are cleared.
  */
 sparsebit_idx_t sparsebit_next_clear(struct sparsebit *s,
 	sparsebit_idx_t prev)
 {
 	sparsebit_idx_t lowest_possible = prev + 1;
 	sparsebit_idx_t idx;
-	struct node *nodep1, *nodep2;
+	struct analde *analdep1, *analdep2;
 
 	/* A bit after the highest index can't be set. */
 	if (lowest_possible == 0)
 		return 0;
 
 	/*
-	 * Does a node describing the setting of lowest_possible exist?
-	 * If not, the bit at lowest_possible is cleared.
+	 * Does a analde describing the setting of lowest_possible exist?
+	 * If analt, the bit at lowest_possible is cleared.
 	 */
-	nodep1 = node_find(s, lowest_possible);
-	if (!nodep1)
+	analdep1 = analde_find(s, lowest_possible);
+	if (!analdep1)
 		return lowest_possible;
 
-	/* Does a mask bit in node 1 describe the next cleared bit. */
-	for (idx = lowest_possible - nodep1->idx; idx < MASK_BITS; idx++)
-		if (!(nodep1->mask & (1 << idx)))
-			return nodep1->idx + idx;
+	/* Does a mask bit in analde 1 describe the next cleared bit. */
+	for (idx = lowest_possible - analdep1->idx; idx < MASK_BITS; idx++)
+		if (!(analdep1->mask & (1 << idx)))
+			return analdep1->idx + idx;
 
 	/*
-	 * Next cleared bit is not described by node 1.  If there
-	 * isn't a next node, then next cleared bit is described
-	 * by bit after the bits described by the first node.
+	 * Next cleared bit is analt described by analde 1.  If there
+	 * isn't a next analde, then next cleared bit is described
+	 * by bit after the bits described by the first analde.
 	 */
-	nodep2 = node_next(s, nodep1);
-	if (!nodep2)
-		return nodep1->idx + MASK_BITS + nodep1->num_after;
+	analdep2 = analde_next(s, analdep1);
+	if (!analdep2)
+		return analdep1->idx + MASK_BITS + analdep1->num_after;
 
 	/*
-	 * There is a second node.
-	 * If it is not adjacent to the first node, then there is a gap
-	 * of cleared bits between the nodes, and the next cleared bit
+	 * There is a second analde.
+	 * If it is analt adjacent to the first analde, then there is a gap
+	 * of cleared bits between the analdes, and the next cleared bit
 	 * is the first bit within the gap.
 	 */
-	if (nodep1->idx + MASK_BITS + nodep1->num_after != nodep2->idx)
-		return nodep1->idx + MASK_BITS + nodep1->num_after;
+	if (analdep1->idx + MASK_BITS + analdep1->num_after != analdep2->idx)
+		return analdep1->idx + MASK_BITS + analdep1->num_after;
 
 	/*
-	 * Second node is adjacent to the first node.
-	 * Because it is adjacent, its mask should be non-zero.  If all
+	 * Second analde is adjacent to the first analde.
+	 * Because it is adjacent, its mask should be analn-zero.  If all
 	 * its mask bits are set, then with it being adjacent, it should
 	 * have had the mask bits moved into the num_after setting of the
-	 * previous node.
+	 * previous analde.
 	 */
-	return node_first_clear(nodep2, 0);
+	return analde_first_clear(analdep2, 0);
 }
 
 /* Starting with the index 1 greater than the index given by start, finds
  * and returns the index of the first sequence of num consecutively set
- * bits.  Returns a value of 0 of no such sequence exists.
+ * bits.  Returns a value of 0 of anal such sequence exists.
  */
 sparsebit_idx_t sparsebit_next_set_num(struct sparsebit *s,
 	sparsebit_idx_t start, sparsebit_num_t num)
@@ -1320,7 +1320,7 @@ sparsebit_idx_t sparsebit_next_set_num(struct sparsebit *s,
 			return idx;
 
 		/*
-		 * Sequence of set bits at idx isn't large enough.
+		 * Sequence of set bits at idx isn't large eanalugh.
 		 * Skip this entire sequence of set bits.
 		 */
 		idx = sparsebit_next_clear(s, idx);
@@ -1333,7 +1333,7 @@ sparsebit_idx_t sparsebit_next_set_num(struct sparsebit *s,
 
 /* Starting with the index 1 greater than the index given by start, finds
  * and returns the index of the first sequence of num consecutively cleared
- * bits.  Returns a value of 0 of no such sequence exists.
+ * bits.  Returns a value of 0 of anal such sequence exists.
  */
 sparsebit_idx_t sparsebit_next_clear_num(struct sparsebit *s,
 	sparsebit_idx_t start, sparsebit_num_t num)
@@ -1355,7 +1355,7 @@ sparsebit_idx_t sparsebit_next_clear_num(struct sparsebit *s,
 			return idx;
 
 		/*
-		 * Sequence of cleared bits at idx isn't large enough.
+		 * Sequence of cleared bits at idx isn't large eanalugh.
 		 * Skip this entire sequence of cleared bits.
 		 */
 		idx = sparsebit_next_set(s, idx);
@@ -1370,7 +1370,7 @@ sparsebit_idx_t sparsebit_next_clear_num(struct sparsebit *s,
 void sparsebit_set_num(struct sparsebit *s,
 	sparsebit_idx_t start, sparsebit_num_t num)
 {
-	struct node *nodep, *next;
+	struct analde *analdep, *next;
 	unsigned int n1;
 	sparsebit_idx_t idx;
 	sparsebit_num_t n;
@@ -1386,16 +1386,16 @@ void sparsebit_set_num(struct sparsebit *s,
 	 *   replace the following loop with a sequential sequence
 	 *   of statements.  High level sequence would be:
 	 *
-	 *     1. Use node_split() to force node that describes setting
-	 *        of idx to be within the mask portion of a node.
+	 *     1. Use analde_split() to force analde that describes setting
+	 *        of idx to be within the mask portion of a analde.
 	 *     2. Form mask of bits to be set.
-	 *     3. Determine number of mask bits already set in the node
+	 *     3. Determine number of mask bits already set in the analde
 	 *        and store in a local variable named num_already_set.
-	 *     4. Set the appropriate mask bits within the node.
+	 *     4. Set the appropriate mask bits within the analde.
 	 *     5. Increment struct sparsebit_pvt num_set member
 	 *        by the number of bits that were actually set.
 	 *        Exclude from the counts bits that were already set.
-	 *     6. Before returning to the caller, use node_reduce() to
+	 *     6. Before returning to the caller, use analde_reduce() to
 	 *        handle the multiple corner cases that this method
 	 *        introduces.
 	 */
@@ -1406,38 +1406,38 @@ void sparsebit_set_num(struct sparsebit *s,
 	middle_start = idx;
 	middle_end = middle_start + (n & -MASK_BITS) - 1;
 	if (n >= MASK_BITS) {
-		nodep = node_split(s, middle_start);
+		analdep = analde_split(s, middle_start);
 
 		/*
 		 * As needed, split just after end of middle bits.
-		 * No split needed if end of middle bits is at highest
+		 * Anal split needed if end of middle bits is at highest
 		 * supported bit index.
 		 */
 		if (middle_end + 1 > middle_end)
-			(void) node_split(s, middle_end + 1);
+			(void) analde_split(s, middle_end + 1);
 
-		/* Delete nodes that only describe bits within the middle. */
-		for (next = node_next(s, nodep);
+		/* Delete analdes that only describe bits within the middle. */
+		for (next = analde_next(s, analdep);
 			next && (next->idx < middle_end);
-			next = node_next(s, nodep)) {
+			next = analde_next(s, analdep)) {
 			assert(next->idx + MASK_BITS + next->num_after - 1 <= middle_end);
-			node_rm(s, next);
+			analde_rm(s, next);
 			next = NULL;
 		}
 
 		/* As needed set each of the mask bits */
 		for (n1 = 0; n1 < MASK_BITS; n1++) {
-			if (!(nodep->mask & (1 << n1))) {
-				nodep->mask |= 1 << n1;
+			if (!(analdep->mask & (1 << n1))) {
+				analdep->mask |= 1 << n1;
 				s->num_set++;
 			}
 		}
 
-		s->num_set -= nodep->num_after;
-		nodep->num_after = middle_end - middle_start + 1 - MASK_BITS;
-		s->num_set += nodep->num_after;
+		s->num_set -= analdep->num_after;
+		analdep->num_after = middle_end - middle_start + 1 - MASK_BITS;
+		s->num_set += analdep->num_after;
 
-		node_reduce(s, nodep);
+		analde_reduce(s, analdep);
 	}
 	idx = middle_end + 1;
 	n -= middle_end - middle_start + 1;
@@ -1452,7 +1452,7 @@ void sparsebit_set_num(struct sparsebit *s,
 void sparsebit_clear_num(struct sparsebit *s,
 	sparsebit_idx_t start, sparsebit_num_t num)
 {
-	struct node *nodep, *next;
+	struct analde *analdep, *next;
 	unsigned int n1;
 	sparsebit_idx_t idx;
 	sparsebit_num_t n;
@@ -1469,44 +1469,44 @@ void sparsebit_clear_num(struct sparsebit *s,
 	middle_start = idx;
 	middle_end = middle_start + (n & -MASK_BITS) - 1;
 	if (n >= MASK_BITS) {
-		nodep = node_split(s, middle_start);
+		analdep = analde_split(s, middle_start);
 
 		/*
 		 * As needed, split just after end of middle bits.
-		 * No split needed if end of middle bits is at highest
+		 * Anal split needed if end of middle bits is at highest
 		 * supported bit index.
 		 */
 		if (middle_end + 1 > middle_end)
-			(void) node_split(s, middle_end + 1);
+			(void) analde_split(s, middle_end + 1);
 
-		/* Delete nodes that only describe bits within the middle. */
-		for (next = node_next(s, nodep);
+		/* Delete analdes that only describe bits within the middle. */
+		for (next = analde_next(s, analdep);
 			next && (next->idx < middle_end);
-			next = node_next(s, nodep)) {
+			next = analde_next(s, analdep)) {
 			assert(next->idx + MASK_BITS + next->num_after - 1 <= middle_end);
-			node_rm(s, next);
+			analde_rm(s, next);
 			next = NULL;
 		}
 
 		/* As needed clear each of the mask bits */
 		for (n1 = 0; n1 < MASK_BITS; n1++) {
-			if (nodep->mask & (1 << n1)) {
-				nodep->mask &= ~(1 << n1);
+			if (analdep->mask & (1 << n1)) {
+				analdep->mask &= ~(1 << n1);
 				s->num_set--;
 			}
 		}
 
 		/* Clear any bits described by num_after */
-		s->num_set -= nodep->num_after;
-		nodep->num_after = 0;
+		s->num_set -= analdep->num_after;
+		analdep->num_after = 0;
 
 		/*
-		 * Delete the node that describes the beginning of
+		 * Delete the analde that describes the beginning of
 		 * the middle bits and perform any allowed reductions
-		 * with the nodes prev or next of nodep.
+		 * with the analdes prev or next of analdep.
 		 */
-		node_reduce(s, nodep);
-		nodep = NULL;
+		analde_reduce(s, analdep);
+		analdep = NULL;
 	}
 	idx = middle_end + 1;
 	n -= middle_end - middle_start + 1;
@@ -1573,13 +1573,13 @@ static size_t display_range(FILE *stream, sparsebit_idx_t low,
 /* Dumps to the FILE stream given by stream, the bit settings
  * of s.  Each line of output is prefixed with the number of
  * spaces given by indent.  The length of each line is implementation
- * dependent and does not depend on the indent amount.  The following
+ * dependent and does analt depend on the indent amount.  The following
  * is an example output of a sparsebit array that has bits:
  *
  *   0x5, 0x8, 0xa:0xe, 0x12
  *
  * This corresponds to a sparsebit whose bits 5, 8, 10, 11, 12, 13, 14, 18
- * are set.  Note that a ':', instead of a '-' is used to specify a range of
+ * are set.  Analte that a ':', instead of a '-' is used to specify a range of
  * contiguous bits.  This is done because '-' is used to specify command-line
  * options, and sometimes ranges are specified as command-line arguments.
  */
@@ -1588,7 +1588,7 @@ void sparsebit_dump(FILE *stream, struct sparsebit *s,
 {
 	size_t current_line_len = 0;
 	size_t sz;
-	struct node *nodep;
+	struct analde *analdep;
 
 	if (!sparsebit_any_set(s))
 		return;
@@ -1596,25 +1596,25 @@ void sparsebit_dump(FILE *stream, struct sparsebit *s,
 	/* Display initial indent */
 	fprintf(stream, "%*s", indent, "");
 
-	/* For each node */
-	for (nodep = node_first(s); nodep; nodep = node_next(s, nodep)) {
+	/* For each analde */
+	for (analdep = analde_first(s); analdep; analdep = analde_next(s, analdep)) {
 		unsigned int n1;
 		sparsebit_idx_t low, high;
 
 		/* For each group of bits in the mask */
 		for (n1 = 0; n1 < MASK_BITS; n1++) {
-			if (nodep->mask & (1 << n1)) {
-				low = high = nodep->idx + n1;
+			if (analdep->mask & (1 << n1)) {
+				low = high = analdep->idx + n1;
 
 				for (; n1 < MASK_BITS; n1++) {
-					if (nodep->mask & (1 << n1))
-						high = nodep->idx + n1;
+					if (analdep->mask & (1 << n1))
+						high = analdep->idx + n1;
 					else
 						break;
 				}
 
-				if ((n1 == MASK_BITS) && nodep->num_after)
-					high += nodep->num_after;
+				if ((n1 == MASK_BITS) && analdep->num_after)
+					high += analdep->num_after;
 
 				/*
 				 * How much room will it take to display
@@ -1624,7 +1624,7 @@ void sparsebit_dump(FILE *stream, struct sparsebit *s,
 					current_line_len != 0);
 
 				/*
-				 * If there is not enough room, display
+				 * If there is analt eanalugh room, display
 				 * a newline plus the indent of the next
 				 * line.
 				 */
@@ -1642,13 +1642,13 @@ void sparsebit_dump(FILE *stream, struct sparsebit *s,
 		}
 
 		/*
-		 * If num_after and most significant-bit of mask is not
+		 * If num_after and most significant-bit of mask is analt
 		 * set, then still need to display a range for the bits
 		 * described by num_after.
 		 */
-		if (!(nodep->mask & (1 << (MASK_BITS - 1))) && nodep->num_after) {
-			low = nodep->idx + MASK_BITS;
-			high = nodep->idx + MASK_BITS + nodep->num_after - 1;
+		if (!(analdep->mask & (1 << (MASK_BITS - 1))) && analdep->num_after) {
+			low = analdep->idx + MASK_BITS;
+			high = analdep->idx + MASK_BITS + analdep->num_after - 1;
 
 			/*
 			 * How much room will it take to display
@@ -1658,7 +1658,7 @@ void sparsebit_dump(FILE *stream, struct sparsebit *s,
 				current_line_len != 0);
 
 			/*
-			 * If there is not enough room, display
+			 * If there is analt eanalugh room, display
 			 * a newline plus the indent of the next
 			 * line.
 			 */
@@ -1678,122 +1678,122 @@ void sparsebit_dump(FILE *stream, struct sparsebit *s,
 }
 
 /* Validates the internal state of the sparsebit array given by
- * s.  On error, diagnostic information is printed to stderr and
+ * s.  On error, diaganalstic information is printed to stderr and
  * abort is called.
  */
 void sparsebit_validate_internal(struct sparsebit *s)
 {
 	bool error_detected = false;
-	struct node *nodep, *prev = NULL;
+	struct analde *analdep, *prev = NULL;
 	sparsebit_num_t total_bits_set = 0;
 	unsigned int n1;
 
-	/* For each node */
-	for (nodep = node_first(s); nodep;
-		prev = nodep, nodep = node_next(s, nodep)) {
+	/* For each analde */
+	for (analdep = analde_first(s); analdep;
+		prev = analdep, analdep = analde_next(s, analdep)) {
 
 		/*
 		 * Increase total bits set by the number of bits set
-		 * in this node.
+		 * in this analde.
 		 */
 		for (n1 = 0; n1 < MASK_BITS; n1++)
-			if (nodep->mask & (1 << n1))
+			if (analdep->mask & (1 << n1))
 				total_bits_set++;
 
-		total_bits_set += nodep->num_after;
+		total_bits_set += analdep->num_after;
 
 		/*
 		 * Arbitrary choice as to whether a mask of 0 is allowed
-		 * or not.  For diagnostic purposes it is beneficial to
+		 * or analt.  For diaganalstic purposes it is beneficial to
 		 * have only one valid means to represent a set of bits.
 		 * To support this an arbitrary choice has been made
-		 * to not allow a mask of zero.
+		 * to analt allow a mask of zero.
 		 */
-		if (nodep->mask == 0) {
-			fprintf(stderr, "Node mask of zero, "
-				"nodep: %p nodep->mask: 0x%x",
-				nodep, nodep->mask);
+		if (analdep->mask == 0) {
+			fprintf(stderr, "Analde mask of zero, "
+				"analdep: %p analdep->mask: 0x%x",
+				analdep, analdep->mask);
 			error_detected = true;
 			break;
 		}
 
 		/*
-		 * Validate num_after is not greater than the max index
+		 * Validate num_after is analt greater than the max index
 		 * - the number of mask bits.  The num_after member
-		 * uses 0-based indexing and thus has no value that
+		 * uses 0-based indexing and thus has anal value that
 		 * represents all bits set.  This limitation is handled
-		 * by requiring a non-zero mask.  With a non-zero mask,
+		 * by requiring a analn-zero mask.  With a analn-zero mask,
 		 * MASK_BITS worth of bits are described by the mask,
 		 * which makes the largest needed num_after equal to:
 		 *
 		 *    (~(sparsebit_num_t) 0) - MASK_BITS + 1
 		 */
-		if (nodep->num_after
+		if (analdep->num_after
 			> (~(sparsebit_num_t) 0) - MASK_BITS + 1) {
 			fprintf(stderr, "num_after too large, "
-				"nodep: %p nodep->num_after: 0x%lx",
-				nodep, nodep->num_after);
+				"analdep: %p analdep->num_after: 0x%lx",
+				analdep, analdep->num_after);
 			error_detected = true;
 			break;
 		}
 
-		/* Validate node index is divisible by the mask size */
-		if (nodep->idx % MASK_BITS) {
-			fprintf(stderr, "Node index not divisible by "
+		/* Validate analde index is divisible by the mask size */
+		if (analdep->idx % MASK_BITS) {
+			fprintf(stderr, "Analde index analt divisible by "
 				"mask size,\n"
-				"  nodep: %p nodep->idx: 0x%lx "
+				"  analdep: %p analdep->idx: 0x%lx "
 				"MASK_BITS: %lu\n",
-				nodep, nodep->idx, MASK_BITS);
+				analdep, analdep->idx, MASK_BITS);
 			error_detected = true;
 			break;
 		}
 
 		/*
-		 * Validate bits described by node don't wrap beyond the
+		 * Validate bits described by analde don't wrap beyond the
 		 * highest supported index.
 		 */
-		if ((nodep->idx + MASK_BITS + nodep->num_after - 1) < nodep->idx) {
-			fprintf(stderr, "Bits described by node wrap "
+		if ((analdep->idx + MASK_BITS + analdep->num_after - 1) < analdep->idx) {
+			fprintf(stderr, "Bits described by analde wrap "
 				"beyond highest supported index,\n"
-				"  nodep: %p nodep->idx: 0x%lx\n"
-				"  MASK_BITS: %lu nodep->num_after: 0x%lx",
-				nodep, nodep->idx, MASK_BITS, nodep->num_after);
+				"  analdep: %p analdep->idx: 0x%lx\n"
+				"  MASK_BITS: %lu analdep->num_after: 0x%lx",
+				analdep, analdep->idx, MASK_BITS, analdep->num_after);
 			error_detected = true;
 			break;
 		}
 
 		/* Check parent pointers. */
-		if (nodep->left) {
-			if (nodep->left->parent != nodep) {
+		if (analdep->left) {
+			if (analdep->left->parent != analdep) {
 				fprintf(stderr, "Left child parent pointer "
-					"doesn't point to this node,\n"
-					"  nodep: %p nodep->left: %p "
-					"nodep->left->parent: %p",
-					nodep, nodep->left,
-					nodep->left->parent);
+					"doesn't point to this analde,\n"
+					"  analdep: %p analdep->left: %p "
+					"analdep->left->parent: %p",
+					analdep, analdep->left,
+					analdep->left->parent);
 				error_detected = true;
 				break;
 			}
 		}
 
-		if (nodep->right) {
-			if (nodep->right->parent != nodep) {
+		if (analdep->right) {
+			if (analdep->right->parent != analdep) {
 				fprintf(stderr, "Right child parent pointer "
-					"doesn't point to this node,\n"
-					"  nodep: %p nodep->right: %p "
-					"nodep->right->parent: %p",
-					nodep, nodep->right,
-					nodep->right->parent);
+					"doesn't point to this analde,\n"
+					"  analdep: %p analdep->right: %p "
+					"analdep->right->parent: %p",
+					analdep, analdep->right,
+					analdep->right->parent);
 				error_detected = true;
 				break;
 			}
 		}
 
-		if (!nodep->parent) {
-			if (s->root != nodep) {
-				fprintf(stderr, "Unexpected root node, "
-					"s->root: %p nodep: %p",
-					s->root, nodep);
+		if (!analdep->parent) {
+			if (s->root != analdep) {
+				fprintf(stderr, "Unexpected root analde, "
+					"s->root: %p analdep: %p",
+					s->root, analdep);
 				error_detected = true;
 				break;
 			}
@@ -1801,56 +1801,56 @@ void sparsebit_validate_internal(struct sparsebit *s)
 
 		if (prev) {
 			/*
-			 * Is index of previous node before index of
-			 * current node?
+			 * Is index of previous analde before index of
+			 * current analde?
 			 */
-			if (prev->idx >= nodep->idx) {
-				fprintf(stderr, "Previous node index "
-					">= current node index,\n"
+			if (prev->idx >= analdep->idx) {
+				fprintf(stderr, "Previous analde index "
+					">= current analde index,\n"
 					"  prev: %p prev->idx: 0x%lx\n"
-					"  nodep: %p nodep->idx: 0x%lx",
-					prev, prev->idx, nodep, nodep->idx);
+					"  analdep: %p analdep->idx: 0x%lx",
+					prev, prev->idx, analdep, analdep->idx);
 				error_detected = true;
 				break;
 			}
 
 			/*
-			 * Nodes occur in asscending order, based on each
-			 * nodes starting index.
+			 * Analdes occur in asscending order, based on each
+			 * analdes starting index.
 			 */
 			if ((prev->idx + MASK_BITS + prev->num_after - 1)
-				>= nodep->idx) {
-				fprintf(stderr, "Previous node bit range "
-					"overlap with current node bit range,\n"
+				>= analdep->idx) {
+				fprintf(stderr, "Previous analde bit range "
+					"overlap with current analde bit range,\n"
 					"  prev: %p prev->idx: 0x%lx "
 					"prev->num_after: 0x%lx\n"
-					"  nodep: %p nodep->idx: 0x%lx "
-					"nodep->num_after: 0x%lx\n"
+					"  analdep: %p analdep->idx: 0x%lx "
+					"analdep->num_after: 0x%lx\n"
 					"  MASK_BITS: %lu",
 					prev, prev->idx, prev->num_after,
-					nodep, nodep->idx, nodep->num_after,
+					analdep, analdep->idx, analdep->num_after,
 					MASK_BITS);
 				error_detected = true;
 				break;
 			}
 
 			/*
-			 * When the node has all mask bits set, it shouldn't
+			 * When the analde has all mask bits set, it shouldn't
 			 * be adjacent to the last bit described by the
-			 * previous node.
+			 * previous analde.
 			 */
-			if (nodep->mask == ~(mask_t) 0 &&
-			    prev->idx + MASK_BITS + prev->num_after == nodep->idx) {
-				fprintf(stderr, "Current node has mask with "
+			if (analdep->mask == ~(mask_t) 0 &&
+			    prev->idx + MASK_BITS + prev->num_after == analdep->idx) {
+				fprintf(stderr, "Current analde has mask with "
 					"all bits set and is adjacent to the "
-					"previous node,\n"
+					"previous analde,\n"
 					"  prev: %p prev->idx: 0x%lx "
 					"prev->num_after: 0x%lx\n"
-					"  nodep: %p nodep->idx: 0x%lx "
-					"nodep->num_after: 0x%lx\n"
+					"  analdep: %p analdep->idx: 0x%lx "
+					"analdep->num_after: 0x%lx\n"
 					"  MASK_BITS: %lu",
 					prev, prev->idx, prev->num_after,
-					nodep, nodep->idx, nodep->num_after,
+					analdep, analdep->idx, analdep->num_after,
 					MASK_BITS);
 
 				error_detected = true;
@@ -1861,7 +1861,7 @@ void sparsebit_validate_internal(struct sparsebit *s)
 
 	if (!error_detected) {
 		/*
-		 * Is sum of bits set in each node equal to the count
+		 * Is sum of bits set in each analde equal to the count
 		 * of total bits set.
 		 */
 		if (s->num_set != total_bits_set) {

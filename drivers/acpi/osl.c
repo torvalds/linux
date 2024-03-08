@@ -33,7 +33,7 @@
 
 #include <asm/io.h>
 #include <linux/uaccess.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #include "acpica/accommon.h"
 #include "internal.h"
@@ -64,7 +64,7 @@ static int (*__acpi_os_prepare_extended_sleep)(u8 sleep_state, u32 val_a,
 static acpi_osd_handler acpi_irq_handler;
 static void *acpi_irq_context;
 static struct workqueue_struct *kacpid_wq;
-static struct workqueue_struct *kacpi_notify_wq;
+static struct workqueue_struct *kacpi_analtify_wq;
 static struct workqueue_struct *kacpi_hotplug_wq;
 static bool acpi_os_initialized;
 unsigned int acpi_sci_irq = INVALID_ACPI_IRQ;
@@ -126,7 +126,7 @@ static int __init acpi_reserve_resources(void)
 	acpi_request_region(&acpi_gbl_FADT.xpm2_control_block, acpi_gbl_FADT.pm2_control_length,
 		"ACPI PM2_CNT_BLK");
 
-	/* Length of GPE blocks must be a non-negative multiple of 2 */
+	/* Length of GPE blocks must be a analn-negative multiple of 2 */
 
 	if (!(acpi_gbl_FADT.gpe0_block_length & 0x1))
 		acpi_request_region(&acpi_gbl_FADT.xgpe0_block,
@@ -211,7 +211,7 @@ acpi_physical_address __init acpi_os_get_root_pointer(void)
 			return efi.acpi20;
 		if (efi.acpi != EFI_INVALID_TABLE_ADDR)
 			return efi.acpi;
-		pr_err("System description tables not found\n");
+		pr_err("System description tables analt found\n");
 	} else if (IS_ENABLED(CONFIG_ACPI_LEGACY_TABLES_LOOKUP)) {
 		acpi_find_root_pointer(&pa);
 	}
@@ -314,10 +314,10 @@ static void acpi_unmap(acpi_physical_address pg_off, void __iomem *vaddr)
  *
  * Look up the given physical address range in the list of existing ACPI memory
  * mappings.  If found, get a reference to it and return a pointer to it (its
- * virtual address).  If not found, map it, add it to that list and return a
+ * virtual address).  If analt found, map it, add it to that list and return a
  * pointer to it.
  *
- * During early init (when acpi_permanent_mmap has not been set yet) this
+ * During early init (when acpi_permanent_mmap has analt been set yet) this
  * routine simply calls __acpi_map_table() to get the job done.
  */
 void __iomem __ref
@@ -329,7 +329,7 @@ void __iomem __ref
 	acpi_size pg_sz;
 
 	if (phys > ULONG_MAX) {
-		pr_err("Cannot map memory that high: 0x%llx\n", phys);
+		pr_err("Cananalt map memory that high: 0x%llx\n", phys);
 		return NULL;
 	}
 
@@ -407,12 +407,12 @@ static void acpi_os_drop_map_ref(struct acpi_ioremap *map)
  * @size: Size of the address range to drop a reference to.
  *
  * Look up the given virtual address range in the list of existing ACPI memory
- * mappings, drop a reference to it and if there are no more active references
+ * mappings, drop a reference to it and if there are anal more active references
  * to it, queue it up for later removal.
  *
- * During early init (when acpi_permanent_mmap has not been set yet) this
+ * During early init (when acpi_permanent_mmap has analt been set yet) this
  * routine simply calls __acpi_unmap_table() to get the job done.  Since
- * __acpi_unmap_table() is an __init function, the __ref annotation is needed
+ * __acpi_unmap_table() is an __init function, the __ref ananaltation is needed
  * here.
  */
 void __ref acpi_os_unmap_iomem(void __iomem *virt, acpi_size size)
@@ -548,8 +548,8 @@ static irqreturn_t acpi_irq(int irq, void *dev_id)
 		acpi_irq_handled++;
 		return IRQ_HANDLED;
 	} else {
-		acpi_irq_not_handled++;
-		return IRQ_NONE;
+		acpi_irq_analt_handled++;
+		return IRQ_ANALNE;
 	}
 }
 
@@ -563,7 +563,7 @@ acpi_os_install_interrupt_handler(u32 gsi, acpi_osd_handler handler,
 
 	/*
 	 * ACPI interrupts different from the SCI in our copy of the FADT are
-	 * not supported.
+	 * analt supported.
 	 */
 	if (gsi != acpi_gbl_FADT.sci_interrupt)
 		return AE_BAD_PARAMETER;
@@ -572,7 +572,7 @@ acpi_os_install_interrupt_handler(u32 gsi, acpi_osd_handler handler,
 		return AE_ALREADY_ACQUIRED;
 
 	if (acpi_gsi_to_irq(gsi, &irq) < 0) {
-		pr_err("SCI (ACPI GSI %d) not registered\n", gsi);
+		pr_err("SCI (ACPI GSI %d) analt registered\n", gsi);
 		return AE_OK;
 	}
 
@@ -582,7 +582,7 @@ acpi_os_install_interrupt_handler(u32 gsi, acpi_osd_handler handler,
 			         "acpi", acpi_irq)) {
 		pr_err("SCI (IRQ%d) allocation failed\n", irq);
 		acpi_irq_handler = NULL;
-		return AE_NOT_ACQUIRED;
+		return AE_ANALT_ACQUIRED;
 	}
 	acpi_sci_irq = irq;
 
@@ -625,11 +625,11 @@ void acpi_os_stall(u32 us)
 
 /*
  * Support ACPI 3.0 AML Timer operand. Returns a 64-bit free-running,
- * monotonically increasing timer with 100ns granularity. Do not use
+ * moanaltonically increasing timer with 100ns granularity. Do analt use
  * ktime_get() to implement this function because this function may get
- * called after timekeeping has been suspended. Note: calling this function
+ * called after timekeeping has been suspended. Analte: calling this function
  * after timekeeping has been suspended may lead to unexpected results
- * because when timekeeping is suspended the jiffies counter is not
+ * because when timekeeping is suspended the jiffies counter is analt
  * incremented. See also timekeeping_suspend().
  */
 u64 acpi_os_get_timer(void)
@@ -654,7 +654,7 @@ acpi_status acpi_os_read_port(acpi_io_address port, u32 *value, u32 width)
 	} else if (width <= 32) {
 		*value = inl(port);
 	} else {
-		pr_debug("%s: Access width %d not supported\n", __func__, width);
+		pr_debug("%s: Access width %d analt supported\n", __func__, width);
 		return AE_BAD_PARAMETER;
 	}
 
@@ -672,7 +672,7 @@ acpi_status acpi_os_write_port(acpi_io_address port, u32 value, u32 width)
 	} else if (width <= 32) {
 		outl(value, port);
 	} else {
-		pr_debug("%s: Access width %d not supported\n", __func__, width);
+		pr_debug("%s: Access width %d analt supported\n", __func__, width);
 		return AE_BAD_PARAMETER;
 	}
 
@@ -890,14 +890,14 @@ int acpi_debugger_create_thread(acpi_osd_exec_callback function, void *context)
 	struct module *owner;
 
 	if (!acpi_debugger_initialized)
-		return -ENODEV;
+		return -EANALDEV;
 	mutex_lock(&acpi_debugger.lock);
 	if (!acpi_debugger.ops) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_lock;
 	}
 	if (!try_module_get(acpi_debugger.owner)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_lock;
 	}
 	func = acpi_debugger.ops->create_thread;
@@ -920,14 +920,14 @@ ssize_t acpi_debugger_write_log(const char *msg)
 	struct module *owner;
 
 	if (!acpi_debugger_initialized)
-		return -ENODEV;
+		return -EANALDEV;
 	mutex_lock(&acpi_debugger.lock);
 	if (!acpi_debugger.ops) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_lock;
 	}
 	if (!try_module_get(acpi_debugger.owner)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_lock;
 	}
 	func = acpi_debugger.ops->write_log;
@@ -950,14 +950,14 @@ ssize_t acpi_debugger_read_cmd(char *buffer, size_t buffer_length)
 	struct module *owner;
 
 	if (!acpi_debugger_initialized)
-		return -ENODEV;
+		return -EANALDEV;
 	mutex_lock(&acpi_debugger.lock);
 	if (!acpi_debugger.ops) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_lock;
 	}
 	if (!try_module_get(acpi_debugger.owner)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_lock;
 	}
 	func = acpi_debugger.ops->read_cmd;
@@ -980,14 +980,14 @@ int acpi_debugger_wait_command_ready(void)
 	struct module *owner;
 
 	if (!acpi_debugger_initialized)
-		return -ENODEV;
+		return -EANALDEV;
 	mutex_lock(&acpi_debugger.lock);
 	if (!acpi_debugger.ops) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_lock;
 	}
 	if (!try_module_get(acpi_debugger.owner)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_lock;
 	}
 	func = acpi_debugger.ops->wait_command_ready;
@@ -1004,24 +1004,24 @@ err_lock:
 	return ret;
 }
 
-int acpi_debugger_notify_command_complete(void)
+int acpi_debugger_analtify_command_complete(void)
 {
 	int ret;
 	int (*func)(void);
 	struct module *owner;
 
 	if (!acpi_debugger_initialized)
-		return -ENODEV;
+		return -EANALDEV;
 	mutex_lock(&acpi_debugger.lock);
 	if (!acpi_debugger.ops) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_lock;
 	}
 	if (!try_module_get(acpi_debugger.owner)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_lock;
 	}
-	func = acpi_debugger.ops->notify_command_complete;
+	func = acpi_debugger.ops->analtify_command_complete;
 	owner = acpi_debugger.owner;
 	mutex_unlock(&acpi_debugger.lock);
 
@@ -1077,7 +1077,7 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	}
 
 	/*
-	 * Allocate/initialize DPC structure.  Note that this memory will be
+	 * Allocate/initialize DPC structure.  Analte that this memory will be
 	 * freed by the callee.  The kernel handles the work_struct list  in a
 	 * way that allows us to also free its memory inside the callee.
 	 * Because we may want to schedule several tasks with different
@@ -1087,7 +1087,7 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 
 	dpc = kzalloc(sizeof(struct acpi_os_dpc), GFP_ATOMIC);
 	if (!dpc)
-		return AE_NO_MEMORY;
+		return AE_ANAL_MEMORY;
 
 	dpc->function = function;
 	dpc->context = context;
@@ -1099,15 +1099,15 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	 * INIT_WORK() for each of them separately.
 	 */
 	switch (type) {
-	case OSL_NOTIFY_HANDLER:
-		ret = queue_work(kacpi_notify_wq, &dpc->work);
+	case OSL_ANALTIFY_HANDLER:
+		ret = queue_work(kacpi_analtify_wq, &dpc->work);
 		break;
 	case OSL_GPE_HANDLER:
 		/*
 		 * On some machines, a software-initiated SMI causes corruption
 		 * unless the SMI runs on CPU 0.  An SMI can be initiated by
 		 * any AML, but typically it's done in GPE-related methods that
-		 * are run via workqueues, so we can avoid the known corruption
+		 * are run via workqueues, so we can avoid the kanalwn corruption
 		 * cases by always queueing on CPU 0.
 		 */
 		ret = queue_work_on(0, kacpid_wq, &dpc->work);
@@ -1132,13 +1132,13 @@ EXPORT_SYMBOL(acpi_os_execute);
 void acpi_os_wait_events_complete(void)
 {
 	/*
-	 * Make sure the GPE handler or the fixed event handler is not used
-	 * on another CPU after removal.
+	 * Make sure the GPE handler or the fixed event handler is analt used
+	 * on aanalther CPU after removal.
 	 */
 	if (acpi_sci_irq_valid())
 		synchronize_hardirq(acpi_sci_irq);
 	flush_workqueue(kacpid_wq);
-	flush_workqueue(kacpi_notify_wq);
+	flush_workqueue(kacpi_analtify_wq);
 }
 EXPORT_SYMBOL(acpi_os_wait_events_complete);
 
@@ -1167,13 +1167,13 @@ acpi_status acpi_hotplug_schedule(struct acpi_device *adev, u32 src)
 
 	hpw = kmalloc(sizeof(*hpw), GFP_KERNEL);
 	if (!hpw)
-		return AE_NO_MEMORY;
+		return AE_ANAL_MEMORY;
 
 	INIT_WORK(&hpw->work, acpi_hotplug_work_fn);
 	hpw->adev = adev;
 	hpw->src = src;
 	/*
-	 * We can't run hotplug code in kacpid_wq/kacpid_notify_wq etc., because
+	 * We can't run hotplug code in kacpid_wq/kacpid_analtify_wq etc., because
 	 * the hotplug code may call driver .remove() functions, which may
 	 * invoke flush_scheduled_work()/acpi_os_wait_events_complete() to flush
 	 * these workqueues.
@@ -1197,7 +1197,7 @@ acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle *handle)
 
 	sem = acpi_os_allocate_zeroed(sizeof(struct semaphore));
 	if (!sem)
-		return AE_NO_MEMORY;
+		return AE_ANAL_MEMORY;
 
 	sema_init(sem, initial_units);
 
@@ -1212,7 +1212,7 @@ acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle *handle)
 /*
  * TODO: A better way to delete semaphores?  Linux doesn't have a
  * 'delete_semaphore()' function -- may result in an invalid
- * pointer dereference for non-synchronized consumers.	Should
+ * pointer dereference for analn-synchronized consumers.	Should
  * we at least check for blocked threads and signal/cancel them?
  */
 
@@ -1337,11 +1337,11 @@ acpi_status acpi_os_wait_command_ready(void)
 	return AE_OK;
 }
 
-acpi_status acpi_os_notify_command_complete(void)
+acpi_status acpi_os_analtify_command_complete(void)
 {
 	int ret;
 
-	ret = acpi_debugger_notify_command_complete();
+	ret = acpi_debugger_analtify_command_complete();
 	if (ret < 0)
 		return AE_ERROR;
 	return AE_OK;
@@ -1356,11 +1356,11 @@ acpi_status acpi_os_signal(u32 function, void *info)
 	case ACPI_SIGNAL_BREAKPOINT:
 		/*
 		 * AML Breakpoint
-		 * ACPI spec. says to treat it as a NOP unless
+		 * ACPI spec. says to treat it as a ANALP unless
 		 * you are debugging.  So if/when we integrate
 		 * AML debugger into the kernel debugger its
 		 * hook will go here.  But until then it is
-		 * not useful to print anything on breakpoints.
+		 * analt useful to print anything on breakpoints.
 		 */
 		break;
 	default:
@@ -1400,7 +1400,7 @@ __setup("acpi_os_name=", acpi_os_name_setup);
  * This feature is enabled by default.  It marks the AML control methods
  * that contain the opcodes to create named objects as "Serialized".
  */
-static int __init acpi_no_auto_serialize_setup(char *str)
+static int __init acpi_anal_auto_serialize_setup(char *str)
 {
 	acpi_gbl_auto_serialize_methods = FALSE;
 	pr_info("Auto-serialization disabled\n");
@@ -1408,7 +1408,7 @@ static int __init acpi_no_auto_serialize_setup(char *str)
 	return 1;
 }
 
-__setup("acpi_no_auto_serialize", acpi_no_auto_serialize_setup);
+__setup("acpi_anal_auto_serialize", acpi_anal_auto_serialize_setup);
 
 /* Check of resource interference between native drivers and ACPI
  * OperationRegions (SystemIO and System Memory only).
@@ -1417,18 +1417,18 @@ __setup("acpi_no_auto_serialize", acpi_no_auto_serialize_setup);
  * acpi_enforce_resources= can be set to:
  *
  *   - strict (default) (2)
- *     -> further driver trying to access the resources will not load
+ *     -> further driver trying to access the resources will analt load
  *   - lax              (1)
  *     -> further driver trying to access the resources will load, but you
  *     get a system message that something might go wrong...
  *
- *   - no               (0)
- *     -> ACPI Operation Region resources will not be registered
+ *   - anal               (0)
+ *     -> ACPI Operation Region resources will analt be registered
  *
  */
 #define ENFORCE_RESOURCES_STRICT 2
 #define ENFORCE_RESOURCES_LAX    1
-#define ENFORCE_RESOURCES_NO     0
+#define ENFORCE_RESOURCES_ANAL     0
 
 static unsigned int acpi_enforce_resources = ENFORCE_RESOURCES_STRICT;
 
@@ -1441,8 +1441,8 @@ static int __init acpi_enforce_resources_setup(char *str)
 		acpi_enforce_resources = ENFORCE_RESOURCES_STRICT;
 	else if (!strcmp("lax", str))
 		acpi_enforce_resources = ENFORCE_RESOURCES_LAX;
-	else if (!strcmp("no", str))
-		acpi_enforce_resources = ENFORCE_RESOURCES_NO;
+	else if (!strcmp("anal", str))
+		acpi_enforce_resources = ENFORCE_RESOURCES_ANAL;
 
 	return 1;
 }
@@ -1455,7 +1455,7 @@ int acpi_check_resource_conflict(const struct resource *res)
 {
 	acpi_adr_space_type space_id;
 
-	if (acpi_enforce_resources == ENFORCE_RESOURCES_NO)
+	if (acpi_enforce_resources == ENFORCE_RESOURCES_ANAL)
 		return 0;
 
 	if (res->flags & IORESOURCE_IO)
@@ -1474,7 +1474,7 @@ int acpi_check_resource_conflict(const struct resource *res)
 		return -EBUSY;
 
 	if (acpi_enforce_resources == ENFORCE_RESOURCES_LAX)
-		pr_notice("Resource conflict: System may be unstable or behave erratically\n");
+		pr_analtice("Resource conflict: System may be unstable or behave erratically\n");
 
 	return 0;
 }
@@ -1490,7 +1490,7 @@ int acpi_check_region(resource_size_t start, resource_size_t n,
 EXPORT_SYMBOL(acpi_check_region);
 
 /*
- * Let drivers know whether the resource checks are effective
+ * Let drivers kanalw whether the resource checks are effective
  */
 int acpi_resources_are_enforced(void)
 {
@@ -1523,7 +1523,7 @@ acpi_cpu_flags acpi_os_acquire_lock(acpi_spinlock lockp)
  * Release a spinlock. See above.
  */
 
-void acpi_os_release_lock(acpi_spinlock lockp, acpi_cpu_flags not_used)
+void acpi_os_release_lock(acpi_spinlock lockp, acpi_cpu_flags analt_used)
 	__releases(lockp)
 {
 	spin_unlock(lockp);
@@ -1537,7 +1537,7 @@ void acpi_os_release_lock(acpi_spinlock lockp, acpi_cpu_flags not_used)
  *
  * PARAMETERS:  name      - Ascii name for the cache
  *              size      - Size of each cached object
- *              depth     - Maximum depth of the cache (in objects) <ignored>
+ *              depth     - Maximum depth of the cache (in objects) <iganalred>
  *              cache     - Where the new cache object is returned
  *
  * RETURN:      status
@@ -1600,7 +1600,7 @@ acpi_status acpi_os_delete_cache(acpi_cache_t *cache)
  * PARAMETERS:  Cache       - Handle to cache object
  *              Object      - The object to be released
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Release an object to the specified cache.  If cache is full,
  *              the object is deleted.
@@ -1614,7 +1614,7 @@ acpi_status acpi_os_release_object(acpi_cache_t *cache, void *object)
 }
 #endif
 
-static int __init acpi_no_static_ssdt_setup(char *s)
+static int __init acpi_anal_static_ssdt_setup(char *s)
 {
 	acpi_gbl_disable_ssdt_table_install = TRUE;
 	pr_info("Static SSDT installation disabled\n");
@@ -1622,17 +1622,17 @@ static int __init acpi_no_static_ssdt_setup(char *s)
 	return 0;
 }
 
-early_param("acpi_no_static_ssdt", acpi_no_static_ssdt_setup);
+early_param("acpi_anal_static_ssdt", acpi_anal_static_ssdt_setup);
 
 static int __init acpi_disable_return_repair(char *s)
 {
-	pr_notice("Predefined validation mechanism disabled\n");
+	pr_analtice("Predefined validation mechanism disabled\n");
 	acpi_gbl_disable_auto_repair = TRUE;
 
 	return 1;
 }
 
-__setup("acpica_no_return_repair", acpi_disable_return_repair);
+__setup("acpica_anal_return_repair", acpi_disable_return_repair);
 
 acpi_status __init acpi_os_initialize(void)
 {
@@ -1663,10 +1663,10 @@ acpi_status __init acpi_os_initialize(void)
 acpi_status __init acpi_os_initialize1(void)
 {
 	kacpid_wq = alloc_workqueue("kacpid", 0, 1);
-	kacpi_notify_wq = alloc_workqueue("kacpi_notify", 0, 0);
+	kacpi_analtify_wq = alloc_workqueue("kacpi_analtify", 0, 0);
 	kacpi_hotplug_wq = alloc_ordered_workqueue("kacpi_hotplug", 0);
 	BUG_ON(!kacpid_wq);
-	BUG_ON(!kacpi_notify_wq);
+	BUG_ON(!kacpi_analtify_wq);
 	BUG_ON(!kacpi_hotplug_wq);
 	acpi_osi_init();
 	return AE_OK;
@@ -1691,7 +1691,7 @@ acpi_status acpi_os_terminate(void)
 		acpi_os_unmap_generic_address(&acpi_gbl_FADT.reset_register);
 
 	destroy_workqueue(kacpid_wq);
-	destroy_workqueue(kacpi_notify_wq);
+	destroy_workqueue(kacpi_analtify_wq);
 	destroy_workqueue(kacpi_hotplug_wq);
 
 	return AE_OK;

@@ -27,9 +27,9 @@ void dump_smb(void *, int);
 #define FYI 2
 extern int cifsFYI;
 #ifdef CONFIG_CIFS_DEBUG2
-#define NOISY 4
+#define ANALISY 4
 #else
-#define NOISY 0
+#define ANALISY 0
 #endif
 #define ONCE 8
 
@@ -46,12 +46,12 @@ extern int cifsFYI;
  *
  * Use cifs_dbg(VFS, ...) for things we always want logged, and the user to see
  *     cifs_info(...) slightly less important, admin can filter via loglevel > 6
- *     cifs_dbg(FYI, ...) minor debugging messages, off by default
+ *     cifs_dbg(FYI, ...) mianalr debugging messages, off by default
  *     trace_smb3_*  ftrace functions are preferred for complex debug messages
  *                 intended for developers or experienced admins, off by default
  */
 
-/* Information level messages, minor events */
+/* Information level messages, mianalr events */
 #define cifs_info_func(ratefunc, fmt, ...)				\
 	pr_info_ ## ratefunc(fmt, ##__VA_ARGS__)
 
@@ -66,7 +66,7 @@ do {									\
 				      __FILE__, ##__VA_ARGS__);		\
 	} else if ((type) & VFS) {					\
 		pr_err_ ## ratefunc("VFS: " fmt, ##__VA_ARGS__);	\
-	} else if ((type) & NOISY && (NOISY != 0)) {			\
+	} else if ((type) & ANALISY && (ANALISY != 0)) {			\
 		pr_debug_ ## ratefunc(fmt, ##__VA_ARGS__);		\
 	}								\
 } while (0)
@@ -89,7 +89,7 @@ do {									\
 	} else if ((type) & VFS) {					\
 		pr_err_ ## ratefunc("VFS: \\\\%s " fmt,			\
 				    server->hostname, ##__VA_ARGS__);	\
-	} else if ((type) & NOISY && (NOISY != 0)) {			\
+	} else if ((type) & ANALISY && (ANALISY != 0)) {			\
 		pr_debug_ ## ratefunc("\\\\%s " fmt,			\
 				      server->hostname, ##__VA_ARGS__);	\
 	}								\
@@ -115,7 +115,7 @@ do {									\
 				      __FILE__, tn, ##__VA_ARGS__);	\
 	} else if ((type) & VFS) {					\
 		pr_err_ ## ratefunc("VFS: %s " fmt, tn, ##__VA_ARGS__);	\
-	} else if ((type) & NOISY && (NOISY != 0)) {			\
+	} else if ((type) & ANALISY && (ANALISY != 0)) {			\
 		pr_debug_ ## ratefunc("%s " fmt, tn, ##__VA_ARGS__);	\
 	}								\
 } while (0)

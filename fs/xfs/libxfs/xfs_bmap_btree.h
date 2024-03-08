@@ -9,7 +9,7 @@
 struct xfs_btree_cur;
 struct xfs_btree_block;
 struct xfs_mount;
-struct xfs_inode;
+struct xfs_ianalde;
 struct xfs_trans;
 struct xbtree_ifakeroot;
 
@@ -59,7 +59,7 @@ struct xbtree_ifakeroot;
 		 ((index) - 1) * sizeof(xfs_bmdr_ptr_t)))
 
 /*
- * These are to be used when we know the size of the block and
+ * These are to be used when we kanalw the size of the block and
  * we don't have a cursor.
  */
 #define XFS_BMAP_BROOT_PTR_ADDR(mp, bb, i, sz) \
@@ -85,7 +85,7 @@ struct xbtree_ifakeroot;
 /*
  * Prototypes for xfs_bmap.c to call.
  */
-extern void xfs_bmdr_to_bmbt(struct xfs_inode *, xfs_bmdr_block_t *, int,
+extern void xfs_bmdr_to_bmbt(struct xfs_ianalde *, xfs_bmdr_block_t *, int,
 			struct xfs_btree_block *, int);
 
 void xfs_bmbt_disk_set_all(struct xfs_bmbt_rec *r, struct xfs_bmbt_irec *s);
@@ -101,14 +101,14 @@ extern int xfs_bmbt_get_maxrecs(struct xfs_btree_cur *, int level);
 extern int xfs_bmdr_maxrecs(int blocklen, int leaf);
 extern int xfs_bmbt_maxrecs(struct xfs_mount *, int blocklen, int leaf);
 
-extern int xfs_bmbt_change_owner(struct xfs_trans *tp, struct xfs_inode *ip,
-				 int whichfork, xfs_ino_t new_owner,
+extern int xfs_bmbt_change_owner(struct xfs_trans *tp, struct xfs_ianalde *ip,
+				 int whichfork, xfs_ianal_t new_owner,
 				 struct list_head *buffer_list);
 
 extern struct xfs_btree_cur *xfs_bmbt_init_cursor(struct xfs_mount *,
-		struct xfs_trans *, struct xfs_inode *, int);
+		struct xfs_trans *, struct xfs_ianalde *, int);
 struct xfs_btree_cur *xfs_bmbt_stage_cursor(struct xfs_mount *mp,
-		struct xfs_inode *ip, struct xbtree_ifakeroot *ifake);
+		struct xfs_ianalde *ip, struct xbtree_ifakeroot *ifake);
 void xfs_bmbt_commit_staged_btree(struct xfs_btree_cur *cur,
 		struct xfs_trans *tp, int whichfork);
 

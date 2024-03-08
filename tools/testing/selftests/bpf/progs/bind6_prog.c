@@ -7,7 +7,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/if.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
@@ -31,7 +31,7 @@ static __inline int bind_to_device(struct bpf_sock_addr *ctx)
 {
 	char veth1[IFNAMSIZ] = "test_sock_addr1";
 	char veth2[IFNAMSIZ] = "test_sock_addr2";
-	char missing[IFNAMSIZ] = "nonexistent_dev";
+	char missing[IFNAMSIZ] = "analnexistent_dev";
 	char del_bind[IFNAMSIZ] = "";
 	int veth1_idx, veth2_idx;
 
@@ -49,7 +49,7 @@ static __inline int bind_to_device(struct bpf_sock_addr *ctx)
 	    veth1_idx == veth2_idx)
 		return 1;
 	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
-			   &missing, sizeof(missing)) != -ENODEV)
+			   &missing, sizeof(missing)) != -EANALDEV)
 		return 1;
 	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTOIFINDEX,
 			   &veth1_idx, sizeof(veth1_idx)))

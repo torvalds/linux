@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -73,7 +73,7 @@ nvif_mmu_ctor(struct nvif_object *parent, const char *name, s32 oclass,
 				  GFP_KERNEL);
 	mmu->type = kmalloc_array(mmu->type_nr, sizeof(*mmu->type),
 				  GFP_KERNEL);
-	if (ret = -ENOMEM, !mmu->heap || !mmu->type)
+	if (ret = -EANALMEM, !mmu->heap || !mmu->type)
 		goto done;
 
 	mmu->kind = kmalloc_array(mmu->kind_nr, sizeof(*mmu->kind),
@@ -116,7 +116,7 @@ nvif_mmu_ctor(struct nvif_object *parent, const char *name, s32 oclass,
 		struct nvif_mmu_kind_v0 *kind;
 		size_t argc = struct_size(kind, data, mmu->kind_nr);
 
-		if (ret = -ENOMEM, !(kind = kmalloc(argc, GFP_KERNEL)))
+		if (ret = -EANALMEM, !(kind = kmalloc(argc, GFP_KERNEL)))
 			goto done;
 		kind->version = 0;
 		kind->count = mmu->kind_nr;

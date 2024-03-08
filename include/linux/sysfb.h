@@ -44,7 +44,7 @@ enum {
 	M_MBP_6_2,	/* MacBook Pro, 6,2th gen */
 	M_MBP_7_1,	/* MacBook Pro, 7,1th gen */
 	M_MBP_8_2,	/* MacBook Pro, 8,2nd gen */
-	M_UNKNOWN	/* placeholder */
+	M_UNKANALWN	/* placeholder */
 };
 
 struct efifb_dmi_info {
@@ -72,7 +72,7 @@ static inline void sysfb_disable(void)
 
 extern struct efifb_dmi_info efifb_dmi_list[];
 void sysfb_apply_efi_quirks(void);
-void sysfb_set_efifb_fwnode(struct platform_device *pd);
+void sysfb_set_efifb_fwanalde(struct platform_device *pd);
 
 #else /* CONFIG_EFI */
 
@@ -80,7 +80,7 @@ static inline void sysfb_apply_efi_quirks(void)
 {
 }
 
-static inline void sysfb_set_efifb_fwnode(struct platform_device *pd)
+static inline void sysfb_set_efifb_fwanalde(struct platform_device *pd)
 {
 }
 

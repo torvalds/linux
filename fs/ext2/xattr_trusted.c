@@ -17,21 +17,21 @@ ext2_xattr_trusted_list(struct dentry *dentry)
 
 static int
 ext2_xattr_trusted_get(const struct xattr_handler *handler,
-		       struct dentry *unused, struct inode *inode,
+		       struct dentry *unused, struct ianalde *ianalde,
 		       const char *name, void *buffer, size_t size)
 {
-	return ext2_xattr_get(inode, EXT2_XATTR_INDEX_TRUSTED, name,
+	return ext2_xattr_get(ianalde, EXT2_XATTR_INDEX_TRUSTED, name,
 			      buffer, size);
 }
 
 static int
 ext2_xattr_trusted_set(const struct xattr_handler *handler,
 		       struct mnt_idmap *idmap,
-		       struct dentry *unused, struct inode *inode,
+		       struct dentry *unused, struct ianalde *ianalde,
 		       const char *name, const void *value,
 		       size_t size, int flags)
 {
-	return ext2_xattr_set(inode, EXT2_XATTR_INDEX_TRUSTED, name,
+	return ext2_xattr_set(ianalde, EXT2_XATTR_INDEX_TRUSTED, name,
 			      value, size, flags);
 }
 

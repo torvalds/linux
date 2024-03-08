@@ -354,7 +354,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 				rt5514_spi_burst_read(RT5514_PLL3_CALIB_CTRL6 |
 					RT5514_DSP_MAPPING, buf, sizeof(buf));
 #else
-				dev_err(component->dev, "There is no SPI driver for"
+				dev_err(component->dev, "There is anal SPI driver for"
 					" loading the firmware\n");
 				memset(buf, 0, sizeof(buf));
 #endif
@@ -373,7 +373,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 				rt5514_spi_burst_write(0x4ff60000, fw->data,
 					((fw->size/8)+1)*8);
 #else
-				dev_err(component->dev, "There is no SPI driver for"
+				dev_err(component->dev, "There is anal SPI driver for"
 					" loading the firmware\n");
 #endif
 				release_firmware(fw);
@@ -386,7 +386,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 				rt5514_spi_burst_write(0x4ffc0000, fw->data,
 					((fw->size/8)+1)*8);
 #else
-				dev_err(component->dev, "There is no SPI driver for"
+				dev_err(component->dev, "There is anal SPI driver for"
 					" loading the firmware\n");
 #endif
 				release_firmware(fw);
@@ -430,7 +430,7 @@ static const struct snd_kcontrol_new rt5514_snd_controls[] = {
 	SOC_DOUBLE_R_TLV("ADC2 Capture Volume", RT5514_DOWNFILTER1_CTRL1,
 		RT5514_DOWNFILTER1_CTRL2, RT5514_AD_GAIN_SFT, 63, 0,
 		adc_vol_tlv),
-	SOC_SINGLE_EXT("DSP Voice Wake Up", SND_SOC_NOPM, 0, 1, 0,
+	SOC_SINGLE_EXT("DSP Voice Wake Up", SND_SOC_ANALPM, 0, 1, 0,
 		rt5514_dsp_voice_wake_up_get, rt5514_dsp_voice_wake_up_put),
 };
 
@@ -563,10 +563,10 @@ static const struct snd_soc_dapm_widget rt5514_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("AMICL"),
 	SND_SOC_DAPM_INPUT("AMICR"),
 
-	SND_SOC_DAPM_PGA("DMIC1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("DMIC2", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DMIC1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DMIC2", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_SUPPLY_S("DMIC CLK", 1, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY_S("DMIC CLK", 1, SND_SOC_ANALPM, 0, 0,
 		rt5514_set_dmic_clk, SND_SOC_DAPM_PRE_PMU),
 
 	SND_SOC_DAPM_SUPPLY("ADC CLK", RT5514_CLK_CTRL1,
@@ -590,7 +590,7 @@ static const struct snd_soc_dapm_widget rt5514_dapm_widgets[] = {
 		NULL, 0),
 	SND_SOC_DAPM_SUPPLY("VREF1", RT5514_PWR_ANA2, RT5514_POW_VREF1_BIT, 0,
 		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("ADC Power", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADC Power", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 
 	SND_SOC_DAPM_SUPPLY("LDO16L", RT5514_PWR_ANA2, RT5514_POWL_LDO16_BIT, 0,
@@ -603,7 +603,7 @@ static const struct snd_soc_dapm_widget rt5514_dapm_widgets[] = {
 		NULL, 0),
 	SND_SOC_DAPM_SUPPLY("ADCFEDL", RT5514_PWR_ANA2, RT5514_POW_ADCFEDL_BIT,
 		0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("ADCL Power", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADCL Power", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_SUPPLY("LDO16R", RT5514_PWR_ANA2, RT5514_POWR_LDO16_BIT, 0,
 		NULL, 0),
@@ -615,7 +615,7 @@ static const struct snd_soc_dapm_widget rt5514_dapm_widgets[] = {
 		NULL, 0),
 	SND_SOC_DAPM_SUPPLY("ADCFEDR", RT5514_PWR_ANA2, RT5514_POW_ADCFEDR_BIT,
 		0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("ADCR Power", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADCR Power", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_SUPPLY("PLL1 LDO ENABLE", RT5514_ANA_CTRL_PLL1_2,
 		RT5514_EN_LDO_PLL1_BIT, 0, NULL, 0),
@@ -629,9 +629,9 @@ static const struct snd_soc_dapm_widget rt5514_dapm_widgets[] = {
 		RT5514_CLK_AD1_ASRC_EN_BIT, 0, NULL, 0),
 
 	/* ADC Mux */
-	SND_SOC_DAPM_MUX("Stereo1 DMIC Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Stereo1 DMIC Mux", SND_SOC_ANALPM, 0, 0,
 				&rt5514_sto1_dmic_mux),
-	SND_SOC_DAPM_MUX("Stereo2 DMIC Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Stereo2 DMIC Mux", SND_SOC_ANALPM, 0, 0,
 				&rt5514_sto2_dmic_mux),
 
 	/* ADC Mixer */
@@ -640,13 +640,13 @@ static const struct snd_soc_dapm_widget rt5514_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("adc stereo2 filter", RT5514_CLK_CTRL1,
 		RT5514_CLK_AD1_EN_BIT, 0, NULL, 0),
 
-	SND_SOC_DAPM_MIXER("Sto1 ADC MIXL", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Sto1 ADC MIXL", SND_SOC_ANALPM, 0, 0,
 		rt5514_sto1_adc_l_mix, ARRAY_SIZE(rt5514_sto1_adc_l_mix)),
-	SND_SOC_DAPM_MIXER("Sto1 ADC MIXR", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Sto1 ADC MIXR", SND_SOC_ANALPM, 0, 0,
 		rt5514_sto1_adc_r_mix, ARRAY_SIZE(rt5514_sto1_adc_r_mix)),
-	SND_SOC_DAPM_MIXER("Sto2 ADC MIXL", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Sto2 ADC MIXL", SND_SOC_ANALPM, 0, 0,
 		rt5514_sto2_adc_l_mix, ARRAY_SIZE(rt5514_sto2_adc_l_mix)),
-	SND_SOC_DAPM_MIXER("Sto2 ADC MIXR", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Sto2 ADC MIXR", SND_SOC_ANALPM, 0, 0,
 		rt5514_sto2_adc_r_mix, ARRAY_SIZE(rt5514_sto2_adc_r_mix)),
 
 	SND_SOC_DAPM_ADC("Stereo1 ADC MIXL", NULL, RT5514_DOWNFILTER0_CTRL1,
@@ -659,11 +659,11 @@ static const struct snd_soc_dapm_widget rt5514_dapm_widgets[] = {
 		RT5514_AD_AD_MUTE_BIT, 1),
 
 	/* ADC PGA */
-	SND_SOC_DAPM_PGA("Stereo1 ADC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Stereo2 ADC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Stereo1 ADC MIX", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Stereo2 ADC MIX", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* Audio Interface */
-	SND_SOC_DAPM_AIF_OUT("AIF1TX", "AIF1 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF1TX", "AIF1 Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route rt5514_dapm_routes[] = {
@@ -929,7 +929,7 @@ static int rt5514_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown PLL source %d\n", source);
+		dev_err(component->dev, "Unkanalwn PLL source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -1070,7 +1070,7 @@ static int rt5514_set_bias_level(struct snd_soc_component *component,
 		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
 			/*
 			 * If the DSP is enabled in start of recording, the DSP
-			 * should be disabled, and sync back to normal recording
+			 * should be disabled, and sync back to analrmal recording
 			 * settings to make sure recording properly.
 			 */
 			if (rt5514->dsp_enabled) {
@@ -1181,7 +1181,7 @@ static const struct regmap_config rt5514_i2c_regmap = {
 
 	.readable_reg = rt5514_i2c_readable_register,
 
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static const struct regmap_config rt5514_regmap = {
@@ -1260,7 +1260,7 @@ static int rt5514_i2c_probe(struct i2c_client *i2c)
 	rt5514 = devm_kzalloc(&i2c->dev, sizeof(struct rt5514_priv),
 				GFP_KERNEL);
 	if (rt5514 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, rt5514);
 
@@ -1296,8 +1296,8 @@ static int rt5514_i2c_probe(struct i2c_client *i2c)
 		ret = regmap_read(rt5514->regmap, RT5514_VENDOR_ID2, &val);
 	if (ret || val != RT5514_DEVICE_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt5514\n", val);
-		return -ENODEV;
+			"Device with ID register %x is analt rt5514\n", val);
+		return -EANALDEV;
 	}
 
 	ret = regmap_multi_reg_write(rt5514->i2c_regmap, rt5514_i2c_patch,

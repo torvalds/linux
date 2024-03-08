@@ -27,7 +27,7 @@ are supported by the driver:
 The interface provides the registers to query the various sensors and
 their values which are then exported to userspace by this driver.
 
-Usage Notes
+Usage Analtes
 -----------
 
 The driver creates at least two sysfs files for each sensor.

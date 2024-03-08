@@ -15,7 +15,7 @@
 /*
  * Initialization rules: there are multiple stages to the vgic
  * initialization, both for the distributor and the CPU interfaces.  The basic
- * idea is that even though the VGIC is not functional or not requested from
+ * idea is that even though the VGIC is analt functional or analt requested from
  * user space, the critical path of the run loop can still call VGIC functions
  * that just won't do anything, without them having to check additional
  * initialization flags to ensure they don't look at uninitialized data
@@ -24,7 +24,7 @@
  * Distributor:
  *
  * - kvm_vgic_early_init(): initialization of static data that doesn't
- *   depend on any sizing information or emulation type. No allocation
+ *   depend on any sizing information or emulation type. Anal allocation
  *   is allowed there.
  *
  * - vgic_init(): allocation and initialization of the generic data
@@ -35,7 +35,7 @@
  * CPU Interface:
  *
  * - kvm_vgic_vcpu_init(): initialization of static data that
- *   doesn't depend on any sizing information or emulation type. No
+ *   doesn't depend on any sizing information or emulation type. Anal
  *   allocation is allowed there.
  */
 
@@ -64,7 +64,7 @@ void kvm_vgic_early_init(struct kvm *kvm)
  * kvm_vgic_create: triggered by the instantiation of the VGIC device by
  * user space, either through the legacy KVM_CREATE_IRQCHIP ioctl (v2 only)
  * or through the generic KVM_CREATE_DEVICE API ioctl.
- * irqchip_in_kernel() tells you if this function succeeded or not.
+ * irqchip_in_kernel() tells you if this function succeeded or analt.
  * @kvm: kvm struct pointer
  * @type: KVM_DEV_TYPE_ARM_VGIC_V[23]
  */
@@ -76,13 +76,13 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 
 	/*
 	 * This function is also called by the KVM_CREATE_IRQCHIP handler,
-	 * which had no chance yet to check the availability of the GICv2
+	 * which had anal chance yet to check the availability of the GICv2
 	 * emulation. So check this here again. KVM_CREATE_DEVICE does
 	 * the proper checks already.
 	 */
 	if (type == KVM_DEV_TYPE_ARM_VGIC_V2 &&
 		!kvm_vgic_global_state.can_emulate_gicv2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Must be held to avoid race with vCPU creation */
 	lockdep_assert_held(&kvm->lock);
@@ -145,12 +145,12 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 
 	dist->spis = kcalloc(nr_spis, sizeof(struct vgic_irq), GFP_KERNEL_ACCOUNT);
 	if (!dist->spis)
-		return  -ENOMEM;
+		return  -EANALMEM;
 
 	/*
-	 * In the following code we do not take the irq struct lock since
-	 * no other action on irq structs can happen while the VGIC is
-	 * not initialized yet:
+	 * In the following code we do analt take the irq struct lock since
+	 * anal other action on irq structs can happen while the VGIC is
+	 * analt initialized yet:
 	 * If someone wants to inject an interrupt or does a MMIO access, we
 	 * require prior initialization in case of a virtual GICv3 or trigger
 	 * initialization when using a virtual GICv2.
@@ -188,7 +188,7 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
  *
  * @vcpu: pointer to the VCPU being created and initialized
  *
- * Only do initialization, but do not actually enable the
+ * Only do initialization, but do analt actually enable the
  * VGIC CPU interface
  */
 int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
@@ -256,7 +256,7 @@ static void kvm_vgic_vcpu_enable(struct kvm_vcpu *vcpu)
  * - the number of spis
  * - the number of vcpus
  * The function is generally called when nr_spis has been explicitly set
- * by the guest through the KVM DEVICE API. If not nr_spis is set to 256.
+ * by the guest through the KVM DEVICE API. If analt nr_spis is set to 256.
  * vgic_initialized() returns true when this function has succeeded.
  */
 int vgic_init(struct kvm *kvm)
@@ -283,7 +283,7 @@ int vgic_init(struct kvm *kvm)
 	if (ret)
 		goto out;
 
-	/* Initialize groups on CPUs created before the VGIC type was known */
+	/* Initialize groups on CPUs created before the VGIC type was kanalwn */
 	kvm_for_each_vcpu(idx, vcpu, kvm) {
 		struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 
@@ -330,7 +330,7 @@ int vgic_init(struct kvm *kvm)
 
 	/*
 	 * If userspace didn't set the GIC implementation revision,
-	 * default to the latest and greatest. You know want it.
+	 * default to the latest and greatest. You kanalw want it.
 	 */
 	if (!dist->implementation_rev)
 		dist->implementation_rev = KVM_VGIC_IMP_REV_LATEST;
@@ -448,8 +448,8 @@ int vgic_lazy_init(struct kvm *kvm)
  * Map the MMIO regions depending on the VGIC model exposed to the guest
  * called on the first VCPU run.
  * Also map the virtual CPU interface into the VM.
- * v2 calls vgic_init() if not already done.
- * v3 and derivatives return an error if the VGIC is not initialized.
+ * v2 calls vgic_init() if analt already done.
+ * v3 and derivatives return an error if the VGIC is analt initialized.
  * vgic_ready() returns true if this function has succeeded.
  * @kvm: kvm struct pointer
  */
@@ -518,8 +518,8 @@ void kvm_vgic_cpu_down(void)
 static irqreturn_t vgic_maintenance_handler(int irq, void *data)
 {
 	/*
-	 * We cannot rely on the vgic maintenance interrupt to be
-	 * delivered synchronously. This means we can only use it to
+	 * We cananalt rely on the vgic maintenance interrupt to be
+	 * delivered synchroanalusly. This means we can only use it to
 	 * exit the VM, and we perform the handling of EOIed
 	 * interrupts on the exit path (see vgic_fold_lr_state).
 	 */
@@ -567,23 +567,23 @@ int kvm_vgic_hyp_init(void)
 	int ret;
 
 	if (!gic_kvm_info)
-		return -ENODEV;
+		return -EANALDEV;
 
-	has_mask = !gic_kvm_info->no_maint_irq_mask;
+	has_mask = !gic_kvm_info->anal_maint_irq_mask;
 
 	if (has_mask && !gic_kvm_info->maint_irq) {
-		kvm_err("No vgic maintenance irq\n");
+		kvm_err("Anal vgic maintenance irq\n");
 		return -ENXIO;
 	}
 
 	/*
-	 * If we get one of these oddball non-GICs, taint the kernel,
-	 * as we have no idea of how they *really* behave.
+	 * If we get one of these oddball analn-GICs, taint the kernel,
+	 * as we have anal idea of how they *really* behave.
 	 */
-	if (gic_kvm_info->no_hw_deactivation) {
-		kvm_info("Non-architectural vgic, tainting kernel\n");
+	if (gic_kvm_info->anal_hw_deactivation) {
+		kvm_info("Analn-architectural vgic, tainting kernel\n");
 		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
-		kvm_vgic_global_state.no_hw_deactivation = true;
+		kvm_vgic_global_state.anal_hw_deactivation = true;
 	}
 
 	switch (gic_kvm_info->type) {
@@ -598,7 +598,7 @@ int kvm_vgic_hyp_init(void)
 		}
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	kvm_vgic_global_state.maint_irq = gic_kvm_info->maint_irq;
@@ -616,7 +616,7 @@ int kvm_vgic_hyp_init(void)
 				 vgic_maintenance_handler,
 				 "vgic", kvm_get_running_vcpus());
 	if (ret) {
-		kvm_err("Cannot register interrupt %d\n",
+		kvm_err("Cananalt register interrupt %d\n",
 			kvm_vgic_global_state.maint_irq);
 		return ret;
 	}

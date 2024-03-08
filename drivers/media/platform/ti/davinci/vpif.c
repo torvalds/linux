@@ -441,7 +441,7 @@ static int vpif_probe(struct platform_device *pdev)
 {
 	static struct resource res_irq;
 	struct platform_device *pdev_capture, *pdev_display;
-	struct device_node *endpoint = NULL;
+	struct device_analde *endpoint = NULL;
 	struct vpif_data *data;
 	int ret;
 	int irq;
@@ -452,7 +452,7 @@ static int vpif_probe(struct platform_device *pdev)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, data);
 
@@ -460,16 +460,16 @@ static int vpif_probe(struct platform_device *pdev)
 	pm_runtime_get(&pdev->dev);
 
 	/*
-	 * If VPIF Node has endpoints, assume "new" DT support,
-	 * where capture and display drivers don't have DT nodes
+	 * If VPIF Analde has endpoints, assume "new" DT support,
+	 * where capture and display drivers don't have DT analdes
 	 * so their devices need to be registered manually here
 	 * for their legacy platform_drivers to work.
 	 */
-	endpoint = of_graph_get_next_endpoint(pdev->dev.of_node,
+	endpoint = of_graph_get_next_endpoint(pdev->dev.of_analde,
 					      endpoint);
 	if (!endpoint)
 		return 0;
-	of_node_put(endpoint);
+	of_analde_put(endpoint);
 
 	/*
 	 * For DT platforms, manually create platform_devices for
@@ -480,12 +480,12 @@ static int vpif_probe(struct platform_device *pdev)
 		ret = irq;
 		goto err_put_rpm;
 	}
-	res_irq = DEFINE_RES_IRQ_NAMED(irq, of_node_full_name(pdev->dev.of_node));
+	res_irq = DEFINE_RES_IRQ_NAMED(irq, of_analde_full_name(pdev->dev.of_analde));
 	res_irq.flags |= irq_get_trigger_type(irq);
 
 	pdev_capture = kzalloc(sizeof(*pdev_capture), GFP_KERNEL);
 	if (!pdev_capture) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_rpm;
 	}
 
@@ -504,7 +504,7 @@ static int vpif_probe(struct platform_device *pdev)
 
 	pdev_display = kzalloc(sizeof(*pdev_display), GFP_KERNEL);
 	if (!pdev_display) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_pdev_capture;
 	}
 

@@ -5,7 +5,7 @@ CORTINA is a registered trademark of Cortina Systems, Inc.
 
 The driver supports the Cortina Electronic Dispersion Compensation (EDC)
 devices, equipped with clock and data recovery (CDR) circuits. These
-devices make use of registers that are not compatible with Clause 45 or
+devices make use of registers that are analt compatible with Clause 45 or
 Clause 22, therefore they need to be described using the
 "ethernet-phy-id" compatible.
 

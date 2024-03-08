@@ -11,7 +11,7 @@
 #define MAX_BASE_ADDRESS	6
 
 #define VER_MAJOR		1
-#define VER_MINOR		1
+#define VER_MIANALR		1
 #define VER_OEM			0
 #define VER_BUILD		1500
 
@@ -28,7 +28,7 @@
 
 enum mvumi_qc_result {
 	MV_QUEUE_COMMAND_RESULT_SENT = 0,
-	MV_QUEUE_COMMAND_RESULT_NO_RESOURCE,
+	MV_QUEUE_COMMAND_RESULT_ANAL_RESOURCE,
 };
 
 struct mvumi_hw_regs {
@@ -101,15 +101,15 @@ enum {
 	DRBL_HANDSHAKE			= 1 << 0,
 	DRBL_SOFT_RESET			= 1 << 1,
 	DRBL_BUS_CHANGE			= 1 << 2,
-	DRBL_EVENT_NOTIFY		= 1 << 3,
+	DRBL_EVENT_ANALTIFY		= 1 << 3,
 	DRBL_MU_RESET			= 1 << 4,
 	DRBL_HANDSHAKE_ISR		= DRBL_HANDSHAKE,
 
 	/*
 	* Command flag is the flag for the CDB command itself
 	*/
-	/* 1-non data; 0-data command */
-	CMD_FLAG_NON_DATA		= 1 << 0,
+	/* 1-analn data; 0-data command */
+	CMD_FLAG_ANALN_DATA		= 1 << 0,
 	CMD_FLAG_DMA			= 1 << 1,
 	CMD_FLAG_PIO			= 1 << 2,
 	/* 1-host read data */
@@ -135,7 +135,7 @@ struct mvumi_hotplug_event {
 
 struct mvumi_driver_event {
 	u32	time_stamp;
-	u32	sequence_no;
+	u32	sequence_anal;
 	u32	event_id;
 	u8	severity;
 	u8	param_count;
@@ -285,7 +285,7 @@ struct mvumi_msg_frame {
 /*
  * the respond flag for data_payload of the out bound frame
  */
-#define CL_RSP_FLAG_NODATA		0x0
+#define CL_RSP_FLAG_ANALDATA		0x0
 #define CL_RSP_FLAG_SENSEDATA		0x1
 
 struct mvumi_rsp_frame {
@@ -304,7 +304,7 @@ struct mvumi_ob_data {
 
 struct version_info {
 	u32 ver_major;
-	u32 ver_minor;
+	u32 ver_mianalr;
 	u32 ver_oem;
 	u32 ver_build;
 };
@@ -416,7 +416,7 @@ struct mvumi_hs_page1 {
 	struct version_info fw_ver;
 	u8 cl_in_max_entry_size;
 	u8 cl_out_max_entry_size;
-	u8 cl_inout_list_depth;
+	u8 cl_ianalut_list_depth;
 	u8 total_pages;
 	u16 capability;
 	u16 reserved1;

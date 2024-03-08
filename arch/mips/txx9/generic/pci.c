@@ -75,7 +75,7 @@ int __init txx9_pci66_check(struct pci_controller *hose, int top_bus,
 			early_read_config_word(hose, top_bus, current_bus,
 					       pci_devfn, PCI_STATUS, &stat);
 			if (!(stat & PCI_STATUS_66MHZ)) {
-				pr_debug("PCI: %02x:%02x not 66MHz capable.\n",
+				pr_debug("PCI: %02x:%02x analt 66MHz capable.\n",
 					 current_bus, pci_devfn);
 				cap66 = 0;
 				break;
@@ -247,7 +247,7 @@ static irqreturn_t i8259_interrupt(int irq, void *dev_id)
 
 	isairq = i8259_irq();
 	if (unlikely(isairq <= I8259A_IRQ_BASE))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	generic_handle_irq(isairq);
 	return IRQ_HANDLED;
 }
@@ -318,13 +318,13 @@ static void quirk_slc90e66_ide(struct pci_dev *dev)
 	}
 	pci_read_config_byte(dev, 0x5c, &dat);
 	/*
-	 * !!! DO NOT REMOVE THIS COMMENT IT IS REQUIRED BY SMSC !!!
+	 * !!! DO ANALT REMOVE THIS COMMENT IT IS REQUIRED BY SMSC !!!
 	 *
 	 * This line of code is intended to provide the user with a work
-	 * around solution to the anomalies cited in SMSC's anomaly sheet
-	 * entitled, "SLC90E66 Functional Rev.J_0.1 Anomalies"".
+	 * around solution to the aanalmalies cited in SMSC's aanalmaly sheet
+	 * entitled, "SLC90E66 Functional Rev.J_0.1 Aanalmalies"".
 	 *
-	 * !!! DO NOT REMOVE THIS COMMENT IT IS REQUIRED BY SMSC !!!
+	 * !!! DO ANALT REMOVE THIS COMMENT IT IS REQUIRED BY SMSC !!!
 	 */
 	dat |= 0x01;
 	pci_write_config_byte(dev, 0x5c, dat);
@@ -335,7 +335,7 @@ static void quirk_slc90e66_ide(struct pci_dev *dev)
 
 static void tc35815_fixup(struct pci_dev *dev)
 {
-	/* This device may have PM registers but not they are not supported. */
+	/* This device may have PM registers but analt they are analt supported. */
 	if (dev->pm_cap) {
 		dev_info(&dev->dev, "PM disabled\n");
 		dev->pm_cap = 0;
@@ -406,8 +406,8 @@ char *__init txx9_pcibios_setup(char *str)
 		   (5V or 3.3V), JMB-PICMG-L2 (5V only), etc.) */
 		txx9_pci_option |= TXX9_PCI_OPT_PICMG;
 		return NULL;
-	} else if (!strcmp(str, "nopicmg")) {
-		/* non-PICMG compliant backplane (TOSHIBA
+	} else if (!strcmp(str, "analpicmg")) {
+		/* analn-PICMG compliant backplane (TOSHIBA
 		   RBHBK4100,RBHBK4200, Interface PCM-PCM05, etc.) */
 		txx9_pci_option &= ~TXX9_PCI_OPT_PICMG;
 		return NULL;
@@ -424,8 +424,8 @@ char *__init txx9_pcibios_setup(char *str)
 	} else if (!strncmp(str, "err=", 4)) {
 		if (!strcmp(str + 4, "panic"))
 			txx9_pci_err_action = TXX9_PCI_ERR_PANIC;
-		else if (!strcmp(str + 4, "ignore"))
-			txx9_pci_err_action = TXX9_PCI_ERR_IGNORE;
+		else if (!strcmp(str + 4, "iganalre"))
+			txx9_pci_err_action = TXX9_PCI_ERR_IGANALRE;
 		return NULL;
 	}
 

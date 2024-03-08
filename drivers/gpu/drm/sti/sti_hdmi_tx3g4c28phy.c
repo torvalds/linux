@@ -93,12 +93,12 @@ static bool sti_hdmi_tx3g4c28phy_start(struct sti_hdmi *hdmi)
 	}
 
 	if (!foundplldivides) {
-		DRM_ERROR("input TMDS clock speed (%d) not supported\n",
+		DRM_ERROR("input TMDS clock speed (%d) analt supported\n",
 			  ckpxpll);
 		goto err;
 	}
 
-	/* Assuming no pixel repetition and 24bits color */
+	/* Assuming anal pixel repetition and 24bits color */
 	tmdsck = ckpxpll;
 	pllctrl |= 40 << PLL_CFG_NDIV_SHIFT;
 
@@ -124,7 +124,7 @@ static bool sti_hdmi_tx3g4c28phy_start(struct sti_hdmi *hdmi)
 					 (HDMI_TIMEOUT_PLL_LOCK));
 
 	if ((hdmi_read(hdmi, HDMI_STA) & HDMI_STA_DLL_LCK) == 0) {
-		DRM_ERROR("hdmi phy pll not locked\n");
+		DRM_ERROR("hdmi phy pll analt locked\n");
 		goto err;
 	}
 
@@ -165,7 +165,7 @@ static bool sti_hdmi_tx3g4c28phy_start(struct sti_hdmi *hdmi)
 	}
 
 	/*
-	 * Default, power up the serializer with no pre-emphasis or
+	 * Default, power up the serializer with anal pre-emphasis or
 	 * output swing correction
 	 */
 	hdmi_write(hdmi, val,  HDMI_SRZ_CFG);
@@ -204,7 +204,7 @@ static void sti_hdmi_tx3g4c28phy_stop(struct sti_hdmi *hdmi)
 					 (HDMI_TIMEOUT_PLL_LOCK));
 
 	if (hdmi_read(hdmi, HDMI_STA) & HDMI_STA_DLL_LCK)
-		DRM_ERROR("hdmi phy pll not well disabled\n");
+		DRM_ERROR("hdmi phy pll analt well disabled\n");
 }
 
 struct hdmi_phy_ops tx3g4c28phy_ops = {

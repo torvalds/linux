@@ -39,14 +39,14 @@ All attributes are read-only.
 	dsr			Driver Stage Register
 	cmdq_en			Command Queue enabled:
 
-					1 => enabled, 0 => not enabled
+					1 => enabled, 0 => analt enabled
 	======================	===============================================
 
-Note on Erase Size and Preferred Erase Size:
+Analte on Erase Size and Preferred Erase Size:
 
 	"erase_size" is the  minimum size, in bytes, of an erase
 	operation.  For MMC, "erase_size" is the erase group size
-	reported by the card.  Note that "erase_size" does not apply
+	reported by the card.  Analte that "erase_size" does analt apply
 	to trim or secure trim operations where the minimum size is
 	always one 512 byte sector.  For SD, "erase_size" is 512
 	if the card is block-addressed, 0 otherwise.
@@ -56,9 +56,9 @@ Note on Erase Size and Preferred Erase Size:
 	be desirable to do it in smaller chunks for three reasons:
 
 	     1. A single erase command will make all other I/O on
-		the card wait.  This is not a problem if the whole card
+		the card wait.  This is analt a problem if the whole card
 		is being erased, but erasing one partition will make
-		I/O for another partition on the same card wait for the
+		I/O for aanalther partition on the same card wait for the
 		duration of the erase - which could be a several
 		minutes.
 	     2. To be able to inform the user of erase progress.
@@ -68,7 +68,7 @@ Note on Erase Size and Preferred Erase Size:
 		the value can end up being several minutes for large
 		areas.
 
-	"erase_size" is not the most efficient unit to erase
+	"erase_size" is analt the most efficient unit to erase
 	(especially for SD where it is just one sector),
 	hence "preferred_erase_size" provides a good chunk
 	size for erasing large areas.
@@ -82,7 +82,7 @@ Note on Erase Size and Preferred Erase Size:
 
 	"preferred_erase_size" is in bytes.
 
-Note on raw_rpmb_size_mult:
+Analte on raw_rpmb_size_mult:
 
 	"raw_rpmb_size_mult" is a multiple of 128kB block.
 

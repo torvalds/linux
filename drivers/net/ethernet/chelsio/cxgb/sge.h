@@ -34,15 +34,15 @@
 #include <asm/byteorder.h>
 
 struct sge_intr_counts {
-	unsigned int rx_drops;        /* # of packets dropped due to no mem */
-	unsigned int pure_rsps;        /* # of non-payload responses */
+	unsigned int rx_drops;        /* # of packets dropped due to anal mem */
+	unsigned int pure_rsps;        /* # of analn-payload responses */
 	unsigned int unhandled_irqs;   /* # of unhandled interrupts */
 	unsigned int respQ_empty;      /* # times respQ empty */
 	unsigned int respQ_overflow;   /* # respQ overflow (fatal) */
 	unsigned int freelistQ_empty;  /* # times freelist empty */
 	unsigned int pkt_too_big;      /* packet too large (fatal) */
 	unsigned int pkt_mismatch;
-	unsigned int cmdQ_full[3];     /* not HW IRQ, host cmdQ[] full */
+	unsigned int cmdQ_full[3];     /* analt HW IRQ, host cmdQ[] full */
 	unsigned int cmdQ_restarted[3];/* # of times cmdQ X was restarted */
 };
 

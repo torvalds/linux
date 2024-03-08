@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 Cambridge Silicon Radio Ltd.
  *
- * Notes:
+ * Analtes:
  *   - Only version 2 devices are supported.
  *   - Version 2 devices only support SDIO cards/devices (R2 response is
  *     unsupported).
@@ -112,7 +112,7 @@ struct ushc_data {
 
 #define DISCONNECTED    0
 #define INT_EN          1
-#define IGNORE_NEXT_INT 2
+#define IGANALRE_NEXT_INT 2
 
 static void data_callback(struct urb *urb);
 
@@ -138,7 +138,7 @@ static int ushc_hw_get_caps(struct ushc_data *ushc)
 
 	version = ushc->caps & USHC_GET_CAPS_VERSION_MASK;
 	if (version != 0x02) {
-		dev_err(&ushc->usb_dev->dev, "controller version %d is not supported\n", version);
+		dev_err(&ushc->usb_dev->dev, "controller version %d is analt supported\n", version);
 		return -EINVAL;
 	}
 
@@ -173,14 +173,14 @@ static void int_callback(struct urb *urb)
 	ushc->last_status = status;
 
 	/*
-	 * Ignore the card interrupt status on interrupt transfers that
+	 * Iganalre the card interrupt status on interrupt transfers that
 	 * were submitted while card interrupts where disabled.
 	 *
 	 * This avoid occasional spurious interrupts when enabling
 	 * interrupts immediately after clearing the source on the card.
 	 */
 
-	if (!test_and_clear_bit(IGNORE_NEXT_INT, &ushc->flags)
+	if (!test_and_clear_bit(IGANALRE_NEXT_INT, &ushc->flags)
 	    && test_bit(INT_EN, &ushc->flags)
 	    && status & USHC_INT_STATUS_SDIO_INT) {
 		mmc_signal_sdio_irq(ushc->mmc);
@@ -190,7 +190,7 @@ static void int_callback(struct urb *urb)
 		mmc_detect_change(ushc->mmc, msecs_to_jiffies(100));
 
 	if (!test_bit(INT_EN, &ushc->flags))
-		set_bit(IGNORE_NEXT_INT, &ushc->flags);
+		set_bit(IGANALRE_NEXT_INT, &ushc->flags);
 	usb_submit_urb(ushc->int_urb, GFP_ATOMIC);
 }
 
@@ -254,7 +254,7 @@ static void ushc_request(struct mmc_host *mmc, struct mmc_request *req)
 	spin_lock_irqsave(&ushc->lock, flags);
 
 	if (test_bit(DISCONNECTED, &ushc->flags)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -423,11 +423,11 @@ static int ushc_probe(struct usb_interface *intf, const struct usb_device_id *id
 	int ret;
 
 	if (intf->cur_altsetting->desc.bNumEndpoints < 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mmc = mmc_alloc_host(sizeof(struct ushc_data), &intf->dev);
 	if (mmc == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	ushc = mmc_priv(mmc);
 	usb_set_intfdata(intf, ushc);
 
@@ -461,12 +461,12 @@ static int ushc_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	ushc->int_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (ushc->int_urb == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	ushc->int_data = kzalloc(sizeof(struct ushc_int_data), GFP_KERNEL);
 	if (ushc->int_data == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	usb_fill_int_urb(ushc->int_urb, ushc->usb_dev,
@@ -478,12 +478,12 @@ static int ushc_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	ushc->cbw_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (ushc->cbw_urb == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	ushc->cbw = kzalloc(sizeof(struct ushc_cbw), GFP_KERNEL);
 	if (ushc->cbw == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	ushc->cbw->signature = USHC_CBW_SIGNATURE;
@@ -494,18 +494,18 @@ static int ushc_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	ushc->data_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (ushc->data_urb == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	ushc->csw_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (ushc->csw_urb == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	ushc->csw = kzalloc(sizeof(struct ushc_csw), GFP_KERNEL);
 	if (ushc->csw == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	usb_fill_bulk_urb(ushc->csw_urb, ushc->usb_dev, usb_rcvbulkpipe(usb_dev, 6),

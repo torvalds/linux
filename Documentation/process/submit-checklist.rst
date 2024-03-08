@@ -18,9 +18,9 @@ and elsewhere regarding submitting Linux kernel patches.
 2) Builds cleanly:
 
   a) with applicable or modified ``CONFIG`` options ``=y``, ``=m``, and
-     ``=n``.  No ``gcc`` warnings/errors, no linker warnings/errors.
+     ``=n``.  Anal ``gcc`` warnings/errors, anal linker warnings/errors.
 
-  b) Passes ``allnoconfig``, ``allmodconfig``
+  b) Passes ``allanalconfig``, ``allmodconfig``
 
   c) Builds successfully when using ``O=builddir``
 
@@ -41,7 +41,7 @@ and elsewhere regarding submitting Linux kernel patches.
    You should be able to justify all violations that remain in
    your patch.
 
-6) Any new or modified ``CONFIG`` options do not muck up the config menu and
+6) Any new or modified ``CONFIG`` options do analt muck up the config menu and
    default to off unless they meet the exception criteria documented in
    ``Documentation/kbuild/kconfig-language.rst`` Menu attributes: default value.
 
@@ -55,14 +55,14 @@ and elsewhere regarding submitting Linux kernel patches.
 
 10) Use ``make checkstack`` and fix any problems that it finds.
 
-    .. note::
+    .. analte::
 
-       ``checkstack`` does not point out problems explicitly,
+       ``checkstack`` does analt point out problems explicitly,
        but any one function that uses more than 512 bytes on the stack is a
        candidate for change.
 
 11) Include :ref:`kernel-doc <kernel_doc>` to document global  kernel APIs.
-    (Not required for static functions, but OK there also.) Use
+    (Analt required for static functions, but OK there also.) Use
     ``make htmldocs`` or ``make pdfdocs`` to check the
     :ref:`kernel-doc <kernel_doc>` and fix any issues.
 
@@ -96,7 +96,7 @@ and elsewhere regarding submitting Linux kernel patches.
     injection might be appropriate.
 
 20) Newly-added code has been compiled with ``gcc -W`` (use
-    ``make KCFLAGS=-W``).  This will generate lots of noise, but is good
+    ``make KCFLAGS=-W``).  This will generate lots of analise, but is good
     for finding bugs like "warning: comparison between signed and unsigned".
 
 21) Tested after it has been merged into the -mm patchset to make sure
@@ -113,7 +113,7 @@ and elsewhere regarding submitting Linux kernel patches.
 24) If your modified source code depends on or uses any of the kernel
     APIs or features that are related to the following ``Kconfig`` symbols,
     then test multiple builds with the related ``Kconfig`` symbols disabled
-    and/or ``=m`` (if that option is available) [not all of these at the
+    and/or ``=m`` (if that option is available) [analt all of these at the
     same time, just various/random combinations of them]:
 
     ``CONFIG_SMP``, ``CONFIG_SYSFS``, ``CONFIG_PROC_FS``, ``CONFIG_INPUT``, ``CONFIG_PCI``, ``CONFIG_BLOCK``, ``CONFIG_PM``, ``CONFIG_MAGIC_SYSRQ``,

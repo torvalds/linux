@@ -36,13 +36,13 @@
 
 		mfc_left: region@43000000 {
 			compatible = "shared-dma-pool";
-			no-map;
+			anal-map;
 			reg = <0x43000000 0x2000000>;
 		};
 
 		mfc_right: region@51000000 {
 			compatible = "shared-dma-pool";
-			no-map;
+			anal-map;
 			reg = <0x51000000 0x2000000>;
 		};
 	};
@@ -526,7 +526,7 @@
 
 		status = "disabled";
 
-		/* Yamaha yas529 magnetometer, no mainline binding */
+		/* Yamaha yas529 magnetometer, anal mainline binding */
 	};
 
 	vibrator: pwm-vibrator {
@@ -647,39 +647,39 @@
 	bt_reset: bt-reset-pins {
 		samsung,pins = "gpb-3";
 		samsung,pin-function = <S5PV210_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	wlan_bt_en: wlan-bt-en-pins {
 		samsung,pins = "gpb-5";
 		samsung,pin-function = <S5PV210_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-val = <1>;
 	};
 
 	codec_ldo: codec-ldo-pins {
 		samsung,pins = "gpf3-4";
 		samsung,pin-function = <S5PV210_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 	};
 
 	prox_i2c_pins: gp2a-i2c-pins {
 		samsung,pins = "gpg0-2", "gpg2-2";
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	wlan_gpio_rst: wlan-gpio-rst-pins {
 		samsung,pins = "gpg1-2";
 		samsung,pin-function = <S5PV210_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 	};
 
 	bt_wake: bt-wake-pins {
 		samsung,pins = "gpg3-4";
 		samsung,pin-function = <S5PV210_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 	};
 
 	gp2a_irq: gp2a-irq-pins {
@@ -692,7 +692,7 @@
 	pmic_dvs_pins: pmic-dvs-pins {
 		samsung,pins = "gph0-3", "gph0-4", "gph0-5";
 		samsung,pin-function = <S5PV210_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 		samsung,pin-val = <0>;
 	};
@@ -700,7 +700,7 @@
 	pmic_irq: pmic-irq-pins {
 		samsung,pins = "gph0-7";
 		samsung,pin-function = <S5PV210_PIN_FUNC_F>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
@@ -721,7 +721,7 @@
 	musb_irq: musq-irq-pins {
 		samsung,pins = "gph2-7";
 		samsung,pin-function = <S5PV210_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
@@ -735,62 +735,62 @@
 	wifi_wake: wifi-wake-pins {
 		samsung,pins = "gph3-5";
 		samsung,pin-function = <S5PV210_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 	};
 
 	magnetometer_i2c_pins: yas529-i2c-pins {
 		samsung,pins = "gpj0-0", "gpj0-1";
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	ts_irq: ts-irq-pins {
 		samsung,pins = "gpj0-5";
 		samsung,pin-function = <S5PV210_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	vibrator_ena: vibrator-ena-pins {
 		samsung,pins = "gpj1-1";
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	gp2a_power: gp2a-power-pins {
 		samsung,pins = "gpj1-4";
 		samsung,pin-function = <S5PV210_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	touchkey_i2c_pins: touchkey-i2c-pins {
 		samsung,pins = "gpj3-0", "gpj3-1";
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	touchkey_vdd_ena: touchkey-vdd-ena-pins {
 		samsung,pins = "gpj3-2";
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	musb_i2c_pins: musb-i2c-pins {
 		samsung,pins = "gpj3-4", "gpj3-5";
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	accel_i2c_pins: accel-i2c-pins {
 		samsung,pins = "gpj3-6", "gpj3-7";
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	pmic_i2c_pins: pmic-i2c-pins {
 		samsung,pins = "gpj4-0", "gpj4-3";
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
@@ -803,25 +803,25 @@
 
 	lcd_spi_pins: spi-lcd-pins {
 		samsung,pins = "mp01-1", "mp04-1", "mp04-3";
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	fg_i2c_pins: fg-i2c-pins {
 		samsung,pins = "mp05-0", "mp05-1";
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	sound_i2c_pins: sound-i2c-pins {
 		samsung,pins = "mp05-2", "mp05-3";
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	panel_rst: panel-rst-pins {
 		samsung,pins = "mp05-5";
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 };
@@ -848,7 +848,7 @@
 	keep-power-in-suspend;
 
 	mmc-pwrseq = <&wifi_pwrseq>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	assigned-clocks = <&clocks MOUT_MMC1>, <&clocks SCLK_MMC1>;

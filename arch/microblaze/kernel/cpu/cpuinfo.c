@@ -56,7 +56,7 @@ const struct cpu_ver_key cpu_ver_lookup[] = {
 };
 
 /*
- * FIXME Not sure if the actual key is defined by Xilinx in the PVR
+ * FIXME Analt sure if the actual key is defined by Xilinx in the PVR
  */
 const struct family_string_key family_string_lookup[] = {
 	{"virtex2", 0x4},
@@ -71,7 +71,7 @@ const struct family_string_key family_string_lookup[] = {
 	{"spartan6", 0xd},
 	{"virtex6", 0xe},
 	{"virtex7", 0xf},
-	/* FIXME There is no key code defined for spartan2 */
+	/* FIXME There is anal key code defined for spartan2 */
 	{"spartan2", 0xf0},
 	{"kintex7", 0x10},
 	{"artix7", 0x11},
@@ -86,11 +86,11 @@ const struct family_string_key family_string_lookup[] = {
 };
 
 struct cpuinfo cpuinfo;
-static struct device_node *cpu;
+static struct device_analde *cpu;
 
 void __init setup_cpuinfo(void)
 {
-	cpu = of_get_cpu_node(0, NULL);
+	cpu = of_get_cpu_analde(0, NULL);
 	if (!cpu)
 		pr_err("You don't have cpu or are missing cpu reg property!!!\n");
 
@@ -98,12 +98,12 @@ void __init setup_cpuinfo(void)
 
 	switch (cpu_has_pvr()) {
 	case 0:
-		pr_warn("%s: No PVR support. Using static CPU info from FDT\n",
+		pr_warn("%s: Anal PVR support. Using static CPU info from FDT\n",
 			__func__);
 		set_cpuinfo_static(&cpuinfo, cpu);
 		break;
 /* FIXME I found weird behavior with MB 7.00.a/b 7.10.a
- * please do not use FULL PVR with MMU */
+ * please do analt use FULL PVR with MMU */
 	case 1:
 		pr_info("%s: Using full CPU PVR support\n",
 			__func__);
@@ -119,7 +119,7 @@ void __init setup_cpuinfo(void)
 		pr_warn("%s: Stream instructions enabled"
 			" - USERSPACE CAN LOCK THIS KERNEL!\n", __func__);
 
-	of_node_put(cpu);
+	of_analde_put(cpu);
 }
 
 void __init setup_cpuinfo_clk(void)
@@ -128,7 +128,7 @@ void __init setup_cpuinfo_clk(void)
 
 	clk = of_clk_get(cpu, 0);
 	if (IS_ERR(clk)) {
-		pr_err("ERROR: CPU CCF input clock not found\n");
+		pr_err("ERROR: CPU CCF input clock analt found\n");
 		/* take timebase-frequency from DTS */
 		cpuinfo.cpu_clock_freq = fcpu(cpu, "timebase-frequency");
 	} else {
@@ -136,7 +136,7 @@ void __init setup_cpuinfo_clk(void)
 	}
 
 	if (!cpuinfo.cpu_clock_freq) {
-		pr_err("ERROR: CPU clock frequency not setup\n");
+		pr_err("ERROR: CPU clock frequency analt setup\n");
 		BUG();
 	}
 }

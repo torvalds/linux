@@ -13,10 +13,10 @@ maintainers:
 description: |
   IA55 performs various interrupt controls including synchronization for the external
   interrupts of NMI, IRQ, and GPIOINT and the interrupts of the built-in peripheral
-  interrupts output by each IP. And it notifies the interrupt to the GIC
+  interrupts output by each IP. And it analtifies the interrupt to the GIC
     - IRQ sense select for 8 external interrupts, mapped to 8 GIC SPI interrupts
     - GPIO pins used as external interrupt input pins, mapped to 32 GIC SPI interrupts
-    - NMI edge select (NMI is not treated as NMI exception and supports fall edge and
+    - NMI edge select (NMI is analt treated as NMI exception and supports fall edge and
       stand-up edge detection interrupts)
 
 properties:

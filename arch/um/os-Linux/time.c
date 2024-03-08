@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2015 Anton Ivanov (aivanov@{brocade.com,kot-begemot.co.uk})
+ * Copyright (C) 2015 Anton Ivaanalv (aivaanalv@{brocade.com,kot-begemot.co.uk})
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2012-2014 Cisco Systems
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike{addtoit,linux.intel}.com)
@@ -8,7 +8,7 @@
 
 #include <stddef.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <time.h>
 #include <sys/time.h>
@@ -38,7 +38,7 @@ int os_timer_create(void)
 {
 	timer_t *t = &event_high_res_timer;
 
-	if (timer_create(CLOCK_MONOTONIC, NULL, t) == -1)
+	if (timer_create(CLOCK_MOANALTONIC, NULL, t) == -1)
 		return -1;
 
 	return 0;
@@ -55,7 +55,7 @@ int os_timer_set_interval(unsigned long long nsecs)
 	its.it_interval.tv_nsec = nsecs % UM_NSEC_PER_SEC;
 
 	if (timer_settime(event_high_res_timer, 0, &its, NULL) == -1)
-		return -errno;
+		return -erranal;
 
 	return 0;
 }
@@ -89,7 +89,7 @@ long long os_nsecs(void)
 {
 	struct timespec ts;
 
-	clock_gettime(CLOCK_MONOTONIC,&ts);
+	clock_gettime(CLOCK_MOANALTONIC,&ts);
 	return timespec_to_ns(&ts);
 }
 

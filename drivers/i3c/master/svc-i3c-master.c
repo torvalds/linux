@@ -4,13 +4,13 @@
  *
  * Copyright (C) 2020 Silvaco
  * Author: Miquel RAYNAL <miquel.raynal@bootlin.com>
- * Based on a work from: Conor Culhane <conor.culhane@silvaco.com>
+ * Based on a work from: Coanalr Culhane <coanalr.culhane@silvaco.com>
  */
 
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i3c/master.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
@@ -36,7 +36,7 @@
 
 #define SVC_I3C_MCTRL        0x084
 #define   SVC_I3C_MCTRL_REQUEST_MASK GENMASK(2, 0)
-#define   SVC_I3C_MCTRL_REQUEST_NONE 0
+#define   SVC_I3C_MCTRL_REQUEST_ANALNE 0
 #define   SVC_I3C_MCTRL_REQUEST_START_ADDR 1
 #define   SVC_I3C_MCTRL_REQUEST_STOP 2
 #define   SVC_I3C_MCTRL_REQUEST_IBI_ACKNACK 3
@@ -69,14 +69,14 @@
 #define   SVC_I3C_MINT_MCTRLDONE BIT(9)
 #define   SVC_I3C_MINT_COMPLETE BIT(10)
 #define   SVC_I3C_MINT_RXPEND BIT(11)
-#define   SVC_I3C_MINT_TXNOTFULL BIT(12)
+#define   SVC_I3C_MINT_TXANALTFULL BIT(12)
 #define   SVC_I3C_MINT_IBIWON BIT(13)
 #define   SVC_I3C_MINT_ERRWARN BIT(15)
 #define   SVC_I3C_MSTATUS_SLVSTART(x) FIELD_GET(SVC_I3C_MINT_SLVSTART, (x))
 #define   SVC_I3C_MSTATUS_MCTRLDONE(x) FIELD_GET(SVC_I3C_MINT_MCTRLDONE, (x))
 #define   SVC_I3C_MSTATUS_COMPLETE(x) FIELD_GET(SVC_I3C_MINT_COMPLETE, (x))
 #define   SVC_I3C_MSTATUS_RXPEND(x) FIELD_GET(SVC_I3C_MINT_RXPEND, (x))
-#define   SVC_I3C_MSTATUS_TXNOTFULL(x) FIELD_GET(SVC_I3C_MINT_TXNOTFULL, (x))
+#define   SVC_I3C_MSTATUS_TXANALTFULL(x) FIELD_GET(SVC_I3C_MINT_TXANALTFULL, (x))
 #define   SVC_I3C_MSTATUS_IBIWON(x) FIELD_GET(SVC_I3C_MINT_IBIWON, (x))
 #define   SVC_I3C_MSTATUS_ERRWARN(x) FIELD_GET(SVC_I3C_MINT_ERRWARN, (x))
 #define   SVC_I3C_MSTATUS_IBIADDR(x) FIELD_GET(GENMASK(30, 24), (x))
@@ -86,7 +86,7 @@
 						       ((addr) & 0x3F) << ((slot) * 6))
 #define   SVC_I3C_IBIRULES_ADDRS 5
 #define   SVC_I3C_IBIRULES_MSB0 BIT(30)
-#define   SVC_I3C_IBIRULES_NOBYTE BIT(31)
+#define   SVC_I3C_IBIRULES_ANALBYTE BIT(31)
 #define   SVC_I3C_IBIRULES_MANDBYTE 0
 #define SVC_I3C_MINTSET      0x090
 #define SVC_I3C_MINTCLR      0x094
@@ -99,8 +99,8 @@
 #define   SVC_I3C_MDATACTRL_FLUSHTB BIT(0)
 #define   SVC_I3C_MDATACTRL_FLUSHRB BIT(1)
 #define   SVC_I3C_MDATACTRL_UNLOCK_TRIG BIT(3)
-#define   SVC_I3C_MDATACTRL_TXTRIG_FIFO_NOT_FULL GENMASK(5, 4)
-#define   SVC_I3C_MDATACTRL_RXTRIG_FIFO_NOT_EMPTY 0
+#define   SVC_I3C_MDATACTRL_TXTRIG_FIFO_ANALT_FULL GENMASK(5, 4)
+#define   SVC_I3C_MDATACTRL_RXTRIG_FIFO_ANALT_EMPTY 0
 #define   SVC_I3C_MDATACTRL_RXCOUNT(x) FIELD_GET(GENMASK(28, 24), (x))
 #define   SVC_I3C_MDATACTRL_TXFULL BIT(30)
 #define   SVC_I3C_MDATACTRL_RXEMPTY BIT(31)
@@ -143,7 +143,7 @@ struct svc_i3c_cmd {
 };
 
 struct svc_i3c_xfer {
-	struct list_head node;
+	struct list_head analde;
 	struct completion comp;
 	int ret;
 	unsigned int type;
@@ -240,7 +240,7 @@ static bool svc_i3c_master_error(struct svc_i3c_master *master)
 		merrwarn = readl(master->regs + SVC_I3C_MERRWARN);
 		writel(merrwarn, master->regs + SVC_I3C_MERRWARN);
 
-		/* Ignore timeout error */
+		/* Iganalre timeout error */
 		if (merrwarn & SVC_I3C_MERRWARN_TIMEOUT) {
 			dev_dbg(master->dev, "Warning condition: MSTATUS 0x%08x, MERRWARN 0x%08x\n",
 				mstatus, merrwarn);
@@ -291,8 +291,8 @@ static void svc_i3c_master_reset_fifo_trigger(struct svc_i3c_master *master)
 	reg = SVC_I3C_MDATACTRL_FLUSHTB |
 	      SVC_I3C_MDATACTRL_FLUSHRB |
 	      SVC_I3C_MDATACTRL_UNLOCK_TRIG |
-	      SVC_I3C_MDATACTRL_TXTRIG_FIFO_NOT_FULL |
-	      SVC_I3C_MDATACTRL_RXTRIG_FIFO_NOT_EMPTY;
+	      SVC_I3C_MDATACTRL_TXTRIG_FIFO_ANALT_FULL |
+	      SVC_I3C_MDATACTRL_RXTRIG_FIFO_ANALT_EMPTY;
 	writel(reg, master->regs + SVC_I3C_MDATACTRL);
 }
 
@@ -339,8 +339,8 @@ static void svc_i3c_master_emit_stop(struct svc_i3c_master *master)
 
 	/*
 	 * This delay is necessary after the emission of a stop, otherwise eg.
-	 * repeating IBIs do not get detected. There is a note in the manual
-	 * about it, stating that the stop condition might not be settled
+	 * repeating IBIs do analt get detected. There is a analte in the manual
+	 * about it, stating that the stop condition might analt be settled
 	 * correctly if a start condition follows too rapidly.
 	 */
 	udelay(1);
@@ -358,7 +358,7 @@ static int svc_i3c_master_handle_ibi(struct svc_i3c_master *master,
 
 	slot = i3c_generic_ibi_get_free_slot(data->ibi_pool);
 	if (!slot)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	slot->len = 0;
 	buf = slot->data;
@@ -415,7 +415,7 @@ static void svc_i3c_master_ibi_work(struct work_struct *work)
 	int ret;
 
 	mutex_lock(&master->lock);
-	/* Acknowledge the incoming interrupt with the AUTOIBI mechanism */
+	/* Ackanalwledge the incoming interrupt with the AUTOIBI mechanism */
 	writel(SVC_I3C_MCTRL_REQUEST_AUTO_IBI |
 	       SVC_I3C_MCTRL_IBIRESP_AUTO,
 	       master->regs + SVC_I3C_MCTRL);
@@ -476,7 +476,7 @@ static void svc_i3c_master_ibi_work(struct work_struct *work)
 		goto reenable_ibis;
 	}
 
-	/* Handle the non critical tasks */
+	/* Handle the analn critical tasks */
 	switch (ibitype) {
 	case SVC_I3C_MSTATUS_IBITYPE_IBI:
 		if (dev) {
@@ -506,14 +506,14 @@ static irqreturn_t svc_i3c_master_irq_handler(int irq, void *dev_id)
 	u32 active = readl(master->regs + SVC_I3C_MSTATUS);
 
 	if (!SVC_I3C_MSTATUS_SLVSTART(active))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Clear the interrupt status */
 	writel(SVC_I3C_MINT_SLVSTART, master->regs + SVC_I3C_MSTATUS);
 
 	svc_i3c_master_disable_interrupts(master);
 
-	/* Handle the interrupt in a non atomic context */
+	/* Handle the interrupt in a analn atomic context */
 	queue_work(master->base.wq, &master->ibi_work);
 
 	return IRQ_HANDLED;
@@ -532,7 +532,7 @@ static int svc_i3c_master_bus_init(struct i3c_master_controller *m)
 	ret = pm_runtime_resume_and_get(master->dev);
 	if (ret < 0) {
 		dev_err(master->dev,
-			"<%s> cannot resume i3c bus master, err: %d\n",
+			"<%s> cananalt resume i3c bus master, err: %d\n",
 			__func__, ret);
 		return ret;
 	}
@@ -572,7 +572,7 @@ static int svc_i3c_master_bus_init(struct i3c_master_controller *m)
 	case I3C_BUS_MODE_MIXED_LIMITED:
 		/*
 		 * Using I2C Fm+ mode, target is 1MHz/1000ns, the difference
-		 * between the high and low period does not really matter.
+		 * between the high and low period does analt really matter.
 		 */
 		i2cbaud = DIV_ROUND_UP(1000, od_low_period_ns) - 2;
 		odstop = 1;
@@ -629,7 +629,7 @@ static void svc_i3c_master_bus_cleanup(struct i3c_master_controller *m)
 
 	ret = pm_runtime_resume_and_get(master->dev);
 	if (ret < 0) {
-		dev_err(master->dev, "<%s> Cannot get runtime PM.\n", __func__);
+		dev_err(master->dev, "<%s> Cananalt get runtime PM.\n", __func__);
 		return;
 	}
 
@@ -647,7 +647,7 @@ static int svc_i3c_master_reserve_slot(struct svc_i3c_master *master)
 	unsigned int slot;
 
 	if (!(master->free_slots & GENMASK(SVC_I3C_MAX_DEVS - 1, 0)))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	slot = ffs(master->free_slots) - 1;
 
@@ -676,7 +676,7 @@ static int svc_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		svc_i3c_master_release_slot(master, slot);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data->ibi = -1;
@@ -729,7 +729,7 @@ static int svc_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		svc_i3c_master_release_slot(master, slot);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data->index = slot;
@@ -804,7 +804,7 @@ static int svc_i3c_master_do_daa_locked(struct svc_i3c_master *master,
 
 			/*
 			 * We only care about the 48-bit provisioned ID yet to
-			 * be sure a device does not nack an address twice.
+			 * be sure a device does analt nack an address twice.
 			 * Otherwise, we would just need to flush the RX FIFO.
 			 */
 			ret = svc_i3c_master_readb(master, data, 6);
@@ -814,7 +814,7 @@ static int svc_i3c_master_do_daa_locked(struct svc_i3c_master *master,
 			for (i = 0; i < 6; i++)
 				prov_id[dev_nb] |= (u64)(data[i]) << (8 * (5 - i));
 
-			/* We do not care about the BCR and DCR yet */
+			/* We do analt care about the BCR and DCR yet */
 			ret = svc_i3c_master_readb(master, data, 2);
 			if (ret)
 				return ret;
@@ -828,7 +828,7 @@ static int svc_i3c_master_do_daa_locked(struct svc_i3c_master *master,
 				 */
 				break;
 			} else if (SVC_I3C_MSTATUS_NACKED(reg)) {
-				/* No I3C devices attached */
+				/* Anal I3C devices attached */
 				if (dev_nb == 0)
 					break;
 
@@ -883,10 +883,10 @@ static int svc_i3c_master_do_daa_locked(struct svc_i3c_master *master,
 static int svc_i3c_update_ibirules(struct svc_i3c_master *master)
 {
 	struct i3c_dev_desc *dev;
-	u32 reg_mbyte = 0, reg_nobyte = SVC_I3C_IBIRULES_NOBYTE;
-	unsigned int mbyte_addr_ok = 0, mbyte_addr_ko = 0, nobyte_addr_ok = 0,
-		nobyte_addr_ko = 0;
-	bool list_mbyte = false, list_nobyte = false;
+	u32 reg_mbyte = 0, reg_analbyte = SVC_I3C_IBIRULES_ANALBYTE;
+	unsigned int mbyte_addr_ok = 0, mbyte_addr_ko = 0, analbyte_addr_ok = 0,
+		analbyte_addr_ko = 0;
+	bool list_mbyte = false, list_analbyte = false;
 
 	/* Create the IBIRULES register for both cases */
 	i3c_bus_for_each_i3cdev(&master->base.bus, dev) {
@@ -897,39 +897,39 @@ static int svc_i3c_update_ibirules(struct svc_i3c_master *master)
 			reg_mbyte |= SVC_I3C_IBIRULES_ADDR(mbyte_addr_ok,
 							   dev->info.dyn_addr);
 
-			/* IBI rules cannot be applied to devices with MSb=1 */
+			/* IBI rules cananalt be applied to devices with MSb=1 */
 			if (dev->info.dyn_addr & BIT(7))
 				mbyte_addr_ko++;
 			else
 				mbyte_addr_ok++;
 		} else {
-			reg_nobyte |= SVC_I3C_IBIRULES_ADDR(nobyte_addr_ok,
+			reg_analbyte |= SVC_I3C_IBIRULES_ADDR(analbyte_addr_ok,
 							    dev->info.dyn_addr);
 
-			/* IBI rules cannot be applied to devices with MSb=1 */
+			/* IBI rules cananalt be applied to devices with MSb=1 */
 			if (dev->info.dyn_addr & BIT(7))
-				nobyte_addr_ko++;
+				analbyte_addr_ko++;
 			else
-				nobyte_addr_ok++;
+				analbyte_addr_ok++;
 		}
 	}
 
-	/* Device list cannot be handled by hardware */
+	/* Device list cananalt be handled by hardware */
 	if (!mbyte_addr_ko && mbyte_addr_ok <= SVC_I3C_IBIRULES_ADDRS)
 		list_mbyte = true;
 
-	if (!nobyte_addr_ko && nobyte_addr_ok <= SVC_I3C_IBIRULES_ADDRS)
-		list_nobyte = true;
+	if (!analbyte_addr_ko && analbyte_addr_ok <= SVC_I3C_IBIRULES_ADDRS)
+		list_analbyte = true;
 
-	/* No list can be properly handled, return an error */
-	if (!list_mbyte && !list_nobyte)
+	/* Anal list can be properly handled, return an error */
+	if (!list_mbyte && !list_analbyte)
 		return -ERANGE;
 
 	/* Pick the first list that can be handled by hardware, randomly */
 	if (list_mbyte)
 		writel(reg_mbyte, master->regs + SVC_I3C_IBIRULES);
 	else
-		writel(reg_nobyte, master->regs + SVC_I3C_IBIRULES);
+		writel(reg_analbyte, master->regs + SVC_I3C_IBIRULES);
 
 	return 0;
 }
@@ -944,7 +944,7 @@ static int svc_i3c_master_do_daa(struct i3c_master_controller *m)
 
 	ret = pm_runtime_resume_and_get(master->dev);
 	if (ret < 0) {
-		dev_err(master->dev, "<%s> Cannot get runtime PM.\n", __func__);
+		dev_err(master->dev, "<%s> Cananalt get runtime PM.\n", __func__);
 		return ret;
 	}
 
@@ -967,7 +967,7 @@ static int svc_i3c_master_do_daa(struct i3c_master_controller *m)
 	/* Configure IBI auto-rules */
 	ret = svc_i3c_update_ibirules(master);
 	if (ret)
-		dev_err(master->dev, "Cannot handle such a list of devices");
+		dev_err(master->dev, "Cananalt handle such a list of devices");
 
 rpm_out:
 	pm_runtime_mark_last_busy(master->dev);
@@ -1071,7 +1071,7 @@ static int svc_i3c_master_xfer(struct svc_i3c_master *master,
 	 * According to I3C spec ver 1.1.1, 5.1.2.2.3 Consequence of Controller Starting a Frame
 	 * with I3C Target Address.
 	 *
-	 * The I3C Controller normally should start a Frame, the Address may be arbitrated, and so
+	 * The I3C Controller analrmally should start a Frame, the Address may be arbitrated, and so
 	 * the Controller shall monitor to see whether an In-Band Interrupt request, a Controller
 	 * Role Request (i.e., Secondary Controller requests to become the Active Controller), or
 	 * a Hot-Join Request has been made.
@@ -1128,7 +1128,7 @@ svc_i3c_master_alloc_xfer(struct svc_i3c_master *master, unsigned int ncmds)
 	if (!xfer)
 		return NULL;
 
-	INIT_LIST_HEAD(&xfer->node);
+	INIT_LIST_HEAD(&xfer->analde);
 	xfer->ncmds = ncmds;
 	xfer->ret = -ETIMEDOUT;
 
@@ -1146,7 +1146,7 @@ static void svc_i3c_master_dequeue_xfer_locked(struct svc_i3c_master *master,
 	if (master->xferqueue.cur == xfer)
 		master->xferqueue.cur = NULL;
 	else
-		list_del_init(&xfer->node);
+		list_del_init(&xfer->analde);
 }
 
 static void svc_i3c_master_dequeue_xfer(struct svc_i3c_master *master,
@@ -1193,9 +1193,9 @@ static void svc_i3c_master_start_xfer_locked(struct svc_i3c_master *master)
 
 	xfer = list_first_entry_or_null(&master->xferqueue.list,
 					struct svc_i3c_xfer,
-					node);
+					analde);
 	if (xfer)
-		list_del_init(&xfer->node);
+		list_del_init(&xfer->analde);
 
 	master->xferqueue.cur = xfer;
 	svc_i3c_master_start_xfer_locked(master);
@@ -1209,14 +1209,14 @@ static void svc_i3c_master_enqueue_xfer(struct svc_i3c_master *master,
 
 	ret = pm_runtime_resume_and_get(master->dev);
 	if (ret < 0) {
-		dev_err(master->dev, "<%s> Cannot get runtime PM.\n", __func__);
+		dev_err(master->dev, "<%s> Cananalt get runtime PM.\n", __func__);
 		return;
 	}
 
 	init_completion(&xfer->comp);
 	spin_lock_irqsave(&master->xferqueue.lock, flags);
 	if (master->xferqueue.cur) {
-		list_add_tail(&xfer->node, &master->xferqueue.list);
+		list_add_tail(&xfer->analde, &master->xferqueue.list);
 	} else {
 		master->xferqueue.cur = xfer;
 		svc_i3c_master_start_xfer_locked(master);
@@ -1231,7 +1231,7 @@ static bool
 svc_i3c_master_supports_ccc_cmd(struct i3c_master_controller *master,
 				const struct i3c_ccc_cmd *cmd)
 {
-	/* No software support for CCC commands targeting more than one slave */
+	/* Anal software support for CCC commands targeting more than one slave */
 	return (cmd->ndests == 1);
 }
 
@@ -1246,12 +1246,12 @@ static int svc_i3c_master_send_bdcast_ccc_cmd(struct svc_i3c_master *master,
 
 	xfer = svc_i3c_master_alloc_xfer(master, 1);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf = kmalloc(xfer_len, GFP_KERNEL);
 	if (!buf) {
 		svc_i3c_master_free_xfer(xfer);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	buf[0] = ccc->id;
@@ -1292,7 +1292,7 @@ static int svc_i3c_master_send_direct_ccc_cmd(struct svc_i3c_master *master,
 
 	xfer = svc_i3c_master_alloc_xfer(master, 2);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xfer->type = SVC_I3C_MCTRL_TYPE_I3C;
 
@@ -1361,7 +1361,7 @@ static int svc_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 
 	xfer = svc_i3c_master_alloc_xfer(master, nxfers);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xfer->type = SVC_I3C_MCTRL_TYPE_I3C;
 
@@ -1402,7 +1402,7 @@ static int svc_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 
 	xfer = svc_i3c_master_alloc_xfer(master, nxfers);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xfer->type = SVC_I3C_MCTRL_TYPE_I2C;
 
@@ -1465,7 +1465,7 @@ static int svc_i3c_master_request_ibi(struct i3c_dev_desc *dev,
 	i3c_generic_ibi_free_pool(data->ibi_pool);
 	data->ibi_pool = NULL;
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static void svc_i3c_master_free_ibi(struct i3c_dev_desc *dev)
@@ -1491,7 +1491,7 @@ static int svc_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 
 	ret = pm_runtime_resume_and_get(master->dev);
 	if (ret < 0) {
-		dev_err(master->dev, "<%s> Cannot get runtime PM.\n", __func__);
+		dev_err(master->dev, "<%s> Cananalt get runtime PM.\n", __func__);
 		return ret;
 	}
 
@@ -1526,7 +1526,7 @@ static int svc_i3c_master_enable_hotjoin(struct i3c_master_controller *m)
 
 	ret = pm_runtime_resume_and_get(master->dev);
 	if (ret < 0) {
-		dev_err(master->dev, "<%s> Cannot get runtime PM.\n", __func__);
+		dev_err(master->dev, "<%s> Cananalt get runtime PM.\n", __func__);
 		return ret;
 	}
 
@@ -1621,7 +1621,7 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 
 	master = devm_kzalloc(dev, sizeof(*master), GFP_KERNEL);
 	if (!master)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	master->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(master->regs))
@@ -1654,7 +1654,7 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 	mutex_init(&master->lock);
 
 	ret = devm_request_irq(dev, master->irq, svc_i3c_master_irq_handler,
-			       IRQF_NO_SUSPEND, "svc-i3c-irq", master);
+			       IRQF_ANAL_SUSPEND, "svc-i3c-irq", master);
 	if (ret)
 		goto err_disable_clks;
 
@@ -1669,7 +1669,7 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 					 sizeof(*master->ibi.slots),
 					 GFP_KERNEL);
 	if (!master->ibi.slots) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_disable_clks;
 	}
 
@@ -1677,7 +1677,7 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, SVC_I3C_PM_TIMEOUT_MS);
 	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
@@ -1696,7 +1696,7 @@ static int svc_i3c_master_probe(struct platform_device *pdev)
 
 rpm_disable:
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
@@ -1757,7 +1757,7 @@ static int __maybe_unused svc_i3c_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops svc_i3c_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				      pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(svc_i3c_runtime_suspend,
 			   svc_i3c_runtime_resume, NULL)
@@ -1780,7 +1780,7 @@ static struct platform_driver svc_i3c_master = {
 };
 module_platform_driver(svc_i3c_master);
 
-MODULE_AUTHOR("Conor Culhane <conor.culhane@silvaco.com>");
+MODULE_AUTHOR("Coanalr Culhane <coanalr.culhane@silvaco.com>");
 MODULE_AUTHOR("Miquel Raynal <miquel.raynal@bootlin.com>");
 MODULE_DESCRIPTION("Silvaco dual-role I3C master driver");
 MODULE_LICENSE("GPL v2");

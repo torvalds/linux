@@ -71,7 +71,7 @@ static inline bool perf_data__is_single_file(struct perf_data *data)
 static inline int perf_data__fd(struct perf_data *data)
 {
 	if (data->use_stdio)
-		return fileno(data->file.fptr);
+		return fileanal(data->file.fptr);
 
 	return data->file.fd;
 }

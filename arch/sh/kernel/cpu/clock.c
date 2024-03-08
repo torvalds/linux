@@ -6,7 +6,7 @@
  *
  * This clock framework is derived from the OMAP version by:
  *
- *	Copyright (C) 2004 - 2008 Nokia Corporation
+ *	Copyright (C) 2004 - 2008 Analkia Corporation
  *	Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
  *
  *  Modified for omap shared clock framework by Tony Lindgren <tony@atomide.com>

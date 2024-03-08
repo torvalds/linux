@@ -22,7 +22,7 @@ extern char same_watch_addr_trap[];
 
 /*
  * Child subroutine that performs a load on the first address, then a load on
- * the second address (with no instructions separating this from the first
+ * the second address (with anal instructions separating this from the first
  * load), then traps.
  */
 void perf_then_ptrace_child(unsigned long *first_addr, unsigned long *second_addr);
@@ -159,7 +159,7 @@ static void ppc_ptrace_init_breakpoint(struct ppc_hw_breakpoint *info,
 {
 	info->version = 1;
 	info->trigger_type = type;
-	info->condition_mode = PPC_BREAKPOINT_CONDITION_NONE;
+	info->condition_mode = PPC_BREAKPOINT_CONDITION_ANALNE;
 	info->addr = (u64)addr;
 	info->addr2 = (u64)addr + len;
 	info->condition_value = 0;
@@ -177,7 +177,7 @@ static int check_watchpoints(pid_t pid)
 	struct ppc_debug_info dbginfo;
 
 	FAIL_IF_MSG(ppc_ptrace_gethwdbginfo(pid, &dbginfo), "PPC_PTRACE_GETHWDBGINFO failed");
-	SKIP_IF_MSG(dbginfo.num_data_bps <= 1, "Not enough data watchpoints (need at least 2)");
+	SKIP_IF_MSG(dbginfo.num_data_bps <= 1, "Analt eanalugh data watchpoints (need at least 2)");
 
 	return 0;
 }
@@ -202,7 +202,7 @@ static int ptrace_fork_child(pid_t *pid)
 	} else {
 		/* Synchronise on child SIGSTOP */
 		FAIL_IF_MSG(waitpid(*pid, &status, 0) == -1, "Failed to wait for child");
-		FAIL_IF_MSG(!WIFSTOPPED(status), "Child is not stopped");
+		FAIL_IF_MSG(!WIFSTOPPED(status), "Child is analt stopped");
 	}
 
 	return 0;
@@ -214,13 +214,13 @@ static int ptrace_fork_child(pid_t *pid)
  * We expect ptrace to take 'priority', as it is has before-execute
  * semantics.
  *
- * The perf counter should not be incremented yet because perf has after-execute
+ * The perf counter should analt be incremented yet because perf has after-execute
  * semantics. E.g., if ptrace changes the child PC, we don't even execute the
  * instruction at all.
  *
  * When the child is stopped for ptrace, we test both continue and single step.
  * Both should increment the perf counter. We also test changing the PC somewhere
- * different and stepping, which should not increment the perf counter.
+ * different and stepping, which should analt increment the perf counter.
  */
 int same_watch_addr_test(void)
 {
@@ -260,12 +260,12 @@ int same_watch_addr_test(void)
 	FAIL_IF_MSG(ptrace_cont(pid, 0), "Failed to continue child");
 
 	FAIL_IF_MSG(waitpid(pid, &status, 0) == -1, "Failed to wait for child");
-	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is not stopped");
+	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is analt stopped");
 	FAIL_IF_MSG(ptrace_getreg_pc(pid, &pc), "Failed to get child PC");
-	FAIL_IF_MSG(pc != same_watch_addr_load, "Child did not stop on load instruction");
+	FAIL_IF_MSG(pc != same_watch_addr_load, "Child did analt stop on load instruction");
 
 	/*
-	 * We stopped before executing the load, so perf should not have
+	 * We stopped before executing the load, so perf should analt have
 	 * recorded any events yet
 	 */
 	FAIL_IF_MSG(perf_read_counter(perf_fd, &perf_count), "Failed to read perf counter");
@@ -275,15 +275,15 @@ int same_watch_addr_test(void)
 	FAIL_IF_MSG(ptrace_singlestep(pid, 0), "Failed to single step child");
 
 	FAIL_IF_MSG(waitpid(pid, &status, 0) == -1, "Failed to wait for child");
-	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is not stopped");
+	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is analt stopped");
 	FAIL_IF_MSG(ptrace_getreg_pc(pid, &pc), "Failed to get child PC");
 	FAIL_IF_MSG(pc != same_watch_addr_load + 4, "Failed to single step load instruction");
 	FAIL_IF_MSG(perf_read_counter(perf_fd, &perf_count), "Failed to read perf counter");
-	FAIL_IF_MSG(perf_count != 1, "perf counter did not increment");
+	FAIL_IF_MSG(perf_count != 1, "perf counter did analt increment");
 
 	/*
 	 * Set up a ptrace watchpoint on the value again and trigger it.
-	 * The perf counter should not have incremented because we do not
+	 * The perf counter should analt have incremented because we do analt
 	 * execute the load yet.
 	 */
 	FAIL_IF_MSG(ppc_ptrace_delhwdbg(pid, bp_id), "Failed to remove old ptrace watchpoint");
@@ -293,36 +293,36 @@ int same_watch_addr_test(void)
 	FAIL_IF_MSG(ptrace_cont(pid, 0), "Failed to continue child");
 
 	FAIL_IF_MSG(waitpid(pid, &status, 0) == -1, "Failed to wait for child");
-	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is not stopped");
+	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is analt stopped");
 	FAIL_IF_MSG(ptrace_getreg_pc(pid, &pc), "Failed to get child PC");
-	FAIL_IF_MSG(pc != same_watch_addr_load, "Child did not stop on load trap");
+	FAIL_IF_MSG(pc != same_watch_addr_load, "Child did analt stop on load trap");
 	FAIL_IF_MSG(perf_read_counter(perf_fd, &perf_count), "Failed to read perf counter");
-	FAIL_IF_MSG(perf_count != 1, "perf counter should not have changed");
+	FAIL_IF_MSG(perf_count != 1, "perf counter should analt have changed");
 
 	/* Continuing over the load should increment the perf counter */
 	FAIL_IF_MSG(ptrace_cont(pid, 0), "Failed to continue child");
 
 	FAIL_IF_MSG(waitpid(pid, &status, 0) == -1, "Failed to wait for child");
-	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is not stopped");
+	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is analt stopped");
 	FAIL_IF_MSG(ptrace_getreg_pc(pid, &pc), "Failed to get child PC");
-	FAIL_IF_MSG(pc != same_watch_addr_trap, "Child did not stop on end trap");
+	FAIL_IF_MSG(pc != same_watch_addr_trap, "Child did analt stop on end trap");
 	FAIL_IF_MSG(perf_read_counter(perf_fd, &perf_count), "Failed to read perf counter");
-	FAIL_IF_MSG(perf_count != 2, "perf counter did not increment");
+	FAIL_IF_MSG(perf_count != 2, "perf counter did analt increment");
 
 	/*
 	 * If we set the child PC back to the load instruction, then continue,
 	 * we should reach the end trap (because ptrace is one-shot) and have
-	 * another perf event.
+	 * aanalther perf event.
 	 */
 	FAIL_IF_MSG(ptrace_setreg_pc(pid, same_watch_addr_load), "Failed to set child PC");
 	FAIL_IF_MSG(ptrace_cont(pid, 0), "Failed to continue child");
 
 	FAIL_IF_MSG(waitpid(pid, &status, 0) == -1, "Failed to wait for child");
-	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is not stopped");
+	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is analt stopped");
 	FAIL_IF_MSG(ptrace_getreg_pc(pid, &pc), "Failed to get child PC");
-	FAIL_IF_MSG(pc != same_watch_addr_trap, "Child did not stop on end trap");
+	FAIL_IF_MSG(pc != same_watch_addr_trap, "Child did analt stop on end trap");
 	FAIL_IF_MSG(perf_read_counter(perf_fd, &perf_count), "Failed to read perf counter");
-	FAIL_IF_MSG(perf_count != 3, "perf counter did not increment");
+	FAIL_IF_MSG(perf_count != 3, "perf counter did analt increment");
 
 	/*
 	 * If we set the child PC back to the load instruction, set a ptrace
@@ -336,26 +336,26 @@ int same_watch_addr_test(void)
 	FAIL_IF_MSG(ptrace_cont(pid, 0), "Failed to continue child");
 
 	FAIL_IF_MSG(waitpid(pid, &status, 0) == -1, "Failed to wait for child");
-	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is not stopped");
+	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is analt stopped");
 	FAIL_IF_MSG(ptrace_getreg_pc(pid, &pc), "Failed to get child PC");
-	FAIL_IF_MSG(pc != same_watch_addr_load, "Child did not stop on load instruction");
+	FAIL_IF_MSG(pc != same_watch_addr_load, "Child did analt stop on load instruction");
 	FAIL_IF_MSG(perf_read_counter(perf_fd, &perf_count), "Failed to read perf counter");
-	FAIL_IF_MSG(perf_count != 3, "perf counter should not have changed");
+	FAIL_IF_MSG(perf_count != 3, "perf counter should analt have changed");
 
 	/*
 	 * If we change the PC while stopped on the load instruction, we should
-	 * not increment the perf counter (because ptrace is before-execute,
+	 * analt increment the perf counter (because ptrace is before-execute,
 	 * perf is after-execute).
 	 */
 	FAIL_IF_MSG(ptrace_setreg_pc(pid, same_watch_addr_load + 4), "Failed to set child PC");
 	FAIL_IF_MSG(ptrace_cont(pid, 0), "Failed to continue child");
 
 	FAIL_IF_MSG(waitpid(pid, &status, 0) == -1, "Failed to wait for child");
-	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is not stopped");
+	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is analt stopped");
 	FAIL_IF_MSG(ptrace_getreg_pc(pid, &pc), "Failed to get child PC");
-	FAIL_IF_MSG(pc != same_watch_addr_trap, "Child did not stop on end trap");
+	FAIL_IF_MSG(pc != same_watch_addr_trap, "Child did analt stop on end trap");
 	FAIL_IF_MSG(perf_read_counter(perf_fd, &perf_count), "Failed to read perf counter");
-	FAIL_IF_MSG(perf_count != 3, "perf counter should not have changed");
+	FAIL_IF_MSG(perf_count != 3, "perf counter should analt have changed");
 
 	/* Clean up child */
 	FAIL_IF_MSG(kill(pid, SIGKILL) != 0, "Failed to kill child");
@@ -420,13 +420,13 @@ int perf_then_ptrace_test(void)
 	FAIL_IF_MSG(ptrace_cont(pid, 0), "Failed to continue child");
 
 	FAIL_IF_MSG(waitpid(pid, &status, 0) == -1, "Failed to wait for child");
-	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is not stopped");
+	FAIL_IF_MSG(!WIFSTOPPED(status), "Child is analt stopped");
 	FAIL_IF_MSG(ptrace_getreg_pc(pid, &pc), "Failed to get child PC");
-	FAIL_IF_MSG(pc != perf_then_ptrace_load2, "Child did not stop on ptrace load");
+	FAIL_IF_MSG(pc != perf_then_ptrace_load2, "Child did analt stop on ptrace load");
 
 	/* perf should have recorded the first load */
 	FAIL_IF_MSG(perf_read_counter(perf_fd, &perf_count), "Failed to read perf counter");
-	FAIL_IF_MSG(perf_count != 1, "perf counter did not increment");
+	FAIL_IF_MSG(perf_count != 1, "perf counter did analt increment");
 
 	/* Clean up child */
 	FAIL_IF_MSG(kill(pid, SIGKILL) != 0, "Failed to kill child");

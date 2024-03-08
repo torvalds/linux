@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
 #include <linux/netlink.h>
@@ -47,7 +47,7 @@ struct bitmap_ip {
 	struct timer_list gc;	/* garbage collection */
 	struct ip_set *set;	/* attached to this ip_set */
 	unsigned char extensions[]	/* data extensions */
-		__aligned(__alignof__(u64));
+		__aligned(__aliganalf__(u64));
 };
 
 /* ADT structure for generic function args */
@@ -128,7 +128,7 @@ bitmap_ip_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 bitmap_ip_uadt(struct ip_set *set, struct nlattr *tb[],
-	       enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+	       enum ipset_adt adt, u32 *lineanal, u32 flags, bool retried)
 {
 	struct bitmap_ip *map = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -137,8 +137,8 @@ bitmap_ip_uadt(struct ip_set *set, struct nlattr *tb[],
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	int ret = 0;
 
-	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+	if (tb[IPSET_ATTR_LINEANAL])
+		*lineanal = nla_get_u32(tb[IPSET_ATTR_LINEANAL]);
 
 	if (unlikely(!tb[IPSET_ATTR_IP]))
 		return -IPSET_ERR_PROTOCOL;
@@ -220,7 +220,7 @@ init_map_ip(struct ip_set *set, struct bitmap_ip *map,
 	    u32 first_ip, u32 last_ip,
 	    u32 elements, u32 hosts, u8 netmask)
 {
-	map->members = bitmap_zalloc(elements, GFP_KERNEL | __GFP_NOWARN);
+	map->members = bitmap_zalloc(elements, GFP_KERNEL | __GFP_ANALWARN);
 	if (!map->members)
 		return false;
 	map->first_ip = first_ip;
@@ -228,7 +228,7 @@ init_map_ip(struct ip_set *set, struct bitmap_ip *map,
 	map->elements = elements;
 	map->hosts = hosts;
 	map->netmask = netmask;
-	set->timeout = IPSET_NO_TIMEOUT;
+	set->timeout = IPSET_ANAL_TIMEOUT;
 
 	map->set = set;
 	set->data = map;
@@ -320,14 +320,14 @@ bitmap_ip_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 	set->dsize = ip_set_elem_len(set, tb, 0, 0);
 	map = ip_set_alloc(sizeof(*map) + elements * set->dsize);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map->memsize = BITS_TO_LONGS(elements) * sizeof(unsigned long);
 	set->variant = &bitmap_ip;
 	if (!init_map_ip(set, map, first_ip, last_ip,
 			 elements, hosts, netmask)) {
 		ip_set_free(map);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	if (tb[IPSET_ATTR_TIMEOUT]) {
 		set->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
@@ -358,7 +358,7 @@ static struct ip_set_type bitmap_ip_type __read_mostly = {
 		[IPSET_ATTR_IP_TO]	= { .type = NLA_NESTED },
 		[IPSET_ATTR_CIDR]	= { .type = NLA_U8 },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
-		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
+		[IPSET_ATTR_LINEANAL]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
 		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING,

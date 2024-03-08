@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 #include <linux/bitfield.h>
 #include <linux/netdevice.h>
@@ -81,7 +81,7 @@ int nfp_flower_cmsg_portmod(struct nfp_repr *repr, bool carrier_ok,
 	skb = nfp_flower_cmsg_alloc(repr->app, sizeof(*msg),
 				    NFP_FLOWER_CMSG_TYPE_PORT_MOD, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg = nfp_flower_cmsg_get_data(skb);
 	msg->portnum = cpu_to_be32(repr->dst->u.port_info.port_id);
@@ -107,7 +107,7 @@ int nfp_flower_cmsg_portreify(struct nfp_repr *repr, bool exists)
 				    NFP_FLOWER_CMSG_TYPE_PORT_REIFY,
 				    GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg = nfp_flower_cmsg_get_data(skb);
 	msg->portnum = cpu_to_be32(repr->dst->u.port_info.port_id);
@@ -134,7 +134,7 @@ nfp_flower_process_mtu_ack(struct nfp_app *app, struct sk_buff *skb)
 	if (!app_priv->mtu_conf.requested_val ||
 	    app_priv->mtu_conf.portnum != be32_to_cpu(msg->portnum) ||
 	    be16_to_cpu(msg->mtu) != app_priv->mtu_conf.requested_val) {
-		/* Not an ack for requested MTU change. */
+		/* Analt an ack for requested MTU change. */
 		spin_unlock_bh(&app_priv->mtu_conf.lock);
 		return false;
 	}
@@ -162,7 +162,7 @@ nfp_flower_cmsg_portmod_rx(struct nfp_app *app, struct sk_buff *skb)
 	netdev = nfp_app_dev_get(app, be32_to_cpu(msg->portnum), NULL);
 	rcu_read_unlock();
 	if (!netdev) {
-		nfp_flower_cmsg_warn(app, "ctrl msg for unknown port 0x%08x\n",
+		nfp_flower_cmsg_warn(app, "ctrl msg for unkanalwn port 0x%08x\n",
 				     be32_to_cpu(msg->portnum));
 		rtnl_unlock();
 		return;
@@ -173,7 +173,7 @@ nfp_flower_cmsg_portmod_rx(struct nfp_app *app, struct sk_buff *skb)
 
 		netif_carrier_on(netdev);
 
-		/* An MTU of 0 from the firmware should be ignored */
+		/* An MTU of 0 from the firmware should be iganalred */
 		if (mtu)
 			dev_set_mtu(netdev, mtu);
 	} else {
@@ -195,7 +195,7 @@ nfp_flower_cmsg_portreify_rx(struct nfp_app *app, struct sk_buff *skb)
 	exists = !!nfp_app_dev_get(app, be32_to_cpu(msg->portnum), NULL);
 	rcu_read_unlock();
 	if (!exists) {
-		nfp_flower_cmsg_warn(app, "ctrl msg for unknown port 0x%08x\n",
+		nfp_flower_cmsg_warn(app, "ctrl msg for unkanalwn port 0x%08x\n",
 				     be32_to_cpu(msg->portnum));
 		return;
 	}
@@ -242,8 +242,8 @@ nfp_flower_cmsg_merge_hint_rx(struct nfp_app *app, struct sk_buff *skb)
 	}
 
 	err = nfp_flower_merge_offloaded_flows(app, sub_flows[0], sub_flows[1]);
-	/* Only warn on memory fail. Hint veto will not break functionality. */
-	if (err == -ENOMEM)
+	/* Only warn on memory fail. Hint veto will analt break functionality. */
+	if (err == -EANALMEM)
 		nfp_flower_cmsg_warn(app, "Flow merge memory fail.\n");
 
 err_mutex_unlock:
@@ -271,10 +271,10 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 			break;
 		}
 		goto err_default;
-	case NFP_FLOWER_CMSG_TYPE_NO_NEIGH:
+	case NFP_FLOWER_CMSG_TYPE_ANAL_NEIGH:
 		nfp_tunnel_request_route_v4(app, skb);
 		break;
-	case NFP_FLOWER_CMSG_TYPE_NO_NEIGH_V6:
+	case NFP_FLOWER_CMSG_TYPE_ANAL_NEIGH_V6:
 		nfp_tunnel_request_route_v6(app, skb);
 		break;
 	case NFP_FLOWER_CMSG_TYPE_ACTIVE_TUNS:
@@ -294,7 +294,7 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 		fallthrough;
 	default:
 err_default:
-		nfp_flower_cmsg_warn(app, "Cannot handle invalid repr control type %u\n",
+		nfp_flower_cmsg_warn(app, "Cananalt handle invalid repr control type %u\n",
 				     type);
 		goto out;
 	}
@@ -355,7 +355,7 @@ void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb)
 	cmsg_hdr = nfp_flower_cmsg_get_hdr(skb);
 
 	if (unlikely(cmsg_hdr->version != NFP_FLOWER_CMSG_VER1)) {
-		nfp_flower_cmsg_warn(app, "Cannot handle repr control version %u\n",
+		nfp_flower_cmsg_warn(app, "Cananalt handle repr control version %u\n",
 				     cmsg_hdr->version);
 		dev_kfree_skb_any(skb);
 		return;
@@ -371,7 +371,7 @@ void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb)
 		dev_consume_skb_any(skb);
 	} else if (cmsg_hdr->type == NFP_FLOWER_CMSG_TYPE_TUN_NEIGH ||
 		   cmsg_hdr->type == NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6) {
-		/* Acks from the NFP that the route is added - ignore. */
+		/* Acks from the NFP that the route is added - iganalre. */
 		dev_consume_skb_any(skb);
 	} else if (cmsg_hdr->type == NFP_FLOWER_CMSG_TYPE_PORT_REIFY) {
 		/* Handle REIFY acks outside wq to prevent RTNL conflict. */

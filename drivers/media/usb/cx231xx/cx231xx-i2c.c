@@ -88,7 +88,7 @@ static int cx231xx_i2c_send_bytes(struct i2c_adapter *i2c_adap,
 
 		if (size == 2) {	/* register write sub addr */
 			/* Just writing sub address will cause problem
-			* to XC5000. So ignore the request */
+			* to XC5000. So iganalre the request */
 			return 0;
 		} else if (size == 4) {	/* register write with sub addr */
 			if (msg->len >= 2)
@@ -142,7 +142,7 @@ static int cx231xx_i2c_send_bytes(struct i2c_adapter *i2c_adap,
 			req_data.buf_size = size > 16 ? 16 : size;
 			req_data.p_buffer = (u8 *) (buf_ptr + loop * 16);
 
-			bus->i2c_nostop = (size > 16) ? 1 : 0;
+			bus->i2c_analstop = (size > 16) ? 1 : 0;
 			bus->i2c_reserve = (loop == 0) ? 0 : 1;
 
 			/* usb send command */
@@ -156,7 +156,7 @@ static int cx231xx_i2c_send_bytes(struct i2c_adapter *i2c_adap,
 
 		} while (size > 0);
 
-		bus->i2c_nostop = 0;
+		bus->i2c_analstop = 0;
 		bus->i2c_reserve = 0;
 
 	} else {		/* regular case */
@@ -371,12 +371,12 @@ static int cx231xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 		dprintk2(2, "%s %s addr=0x%x len=%d:",
 			 (msgs[i].flags & I2C_M_RD) ? "read" : "write",
-			 i == num - 1 ? "stop" : "nonstop", addr, msgs[i].len);
+			 i == num - 1 ? "stop" : "analnstop", addr, msgs[i].len);
 		if (!msgs[i].len) {
-			/* no len: check only for device presence */
+			/* anal len: check only for device presence */
 			rc = cx231xx_i2c_check_for_device(i2c_adap, &msgs[i]);
 			if (rc < 0) {
-				dprintk2(2, " no device\n");
+				dprintk2(2, " anal device\n");
 				mutex_unlock(&dev->i2c_lock);
 				return rc;
 			}
@@ -400,7 +400,7 @@ static int cx231xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 			/* read bytes */
 			dprintk2(2, "plus %s %s addr=0x%x len=%d:",
 				(msgs[i+1].flags & I2C_M_RD) ? "read" : "write",
-				i+1 == num - 1 ? "stop" : "nonstop", addr, msgs[i+1].len);
+				i+1 == num - 1 ? "stop" : "analnstop", addr, msgs[i+1].len);
 			rc = cx231xx_i2c_recv_bytes_with_saddr(i2c_adap,
 							       &msgs[i],
 							       &msgs[i + 1]);
@@ -455,7 +455,7 @@ static const struct i2c_adapter cx231xx_adap_template = {
 
 /*
  * i2c_devs
- * incomplete list of known devices
+ * incomplete list of kanalwn devices
  */
 static const char *i2c_devs[128] = {
 	[0x20 >> 1] = "demod",
@@ -560,16 +560,16 @@ int cx231xx_i2c_mux_create(struct cx231xx *dev)
 	dev->muxc = i2c_mux_alloc(&dev->i2c_bus[1].i2c_adap, dev->dev, 2, 0, 0,
 				  cx231xx_i2c_mux_select, NULL);
 	if (!dev->muxc)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->muxc->priv = dev;
 	return 0;
 }
 
-int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no)
+int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_anal)
 {
 	return i2c_mux_add_adapter(dev->muxc,
 				   0,
-				   mux_no /* chan_id */,
+				   mux_anal /* chan_id */,
 				   0 /* class */);
 }
 

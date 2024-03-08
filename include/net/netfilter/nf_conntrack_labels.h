@@ -17,7 +17,7 @@ struct nf_conn_labels {
 	unsigned long bits[NF_CT_LABELS_MAX_SIZE / sizeof(long)];
 };
 
-/* Can't use nf_ct_ext_find(), flow dissector cannot use symbols
+/* Can't use nf_ct_ext_find(), flow dissector cananalt use symbols
  * exported by nf_conntrack module.
  */
 static inline struct nf_conn_labels *nf_ct_labels_find(const struct nf_conn *ct)

@@ -49,7 +49,7 @@ static inline bool kfence_protect_page(unsigned long addr, bool protect)
 	/*
 	 * We need to avoid IPIs, as we may get KFENCE allocations or faults
 	 * with interrupts disabled. Therefore, the below is best-effort, and
-	 * does not flush TLBs on all CPUs. We can tolerate some inaccuracy;
+	 * does analt flush TLBs on all CPUs. We can tolerate some inaccuracy;
 	 * lazy fault handling takes care of faults after the page is PRESENT.
 	 */
 

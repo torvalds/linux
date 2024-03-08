@@ -135,7 +135,7 @@ static int pasemi_i2c_xfer_msg(struct i2c_adapter *adapter,
 		for (i = 0; i < msg->len; i++) {
 			rd = RXFIFO_RD(smbus);
 			if (rd & MRXFIFO_EMPTY) {
-				err = -ENODATA;
+				err = -EANALDATA;
 				goto reset_out;
 			}
 			msg->buf[i] = rd & MRXFIFO_DATA_M;
@@ -286,7 +286,7 @@ static int pasemi_smb_xfer(struct i2c_adapter *adapter,
 	case I2C_SMBUS_BYTE_DATA:
 		rd = RXFIFO_RD(smbus);
 		if (rd & MRXFIFO_EMPTY) {
-			err = -ENODATA;
+			err = -EANALDATA;
 			goto reset_out;
 		}
 		data->byte = rd & MRXFIFO_DATA_M;
@@ -295,13 +295,13 @@ static int pasemi_smb_xfer(struct i2c_adapter *adapter,
 	case I2C_SMBUS_PROC_CALL:
 		rd = RXFIFO_RD(smbus);
 		if (rd & MRXFIFO_EMPTY) {
-			err = -ENODATA;
+			err = -EANALDATA;
 			goto reset_out;
 		}
 		data->word = rd & MRXFIFO_DATA_M;
 		rd = RXFIFO_RD(smbus);
 		if (rd & MRXFIFO_EMPTY) {
-			err = -ENODATA;
+			err = -EANALDATA;
 			goto reset_out;
 		}
 		data->word |= (rd & MRXFIFO_DATA_M) << 8;
@@ -312,7 +312,7 @@ static int pasemi_smb_xfer(struct i2c_adapter *adapter,
 		for (i = 1; i <= len; i ++) {
 			rd = RXFIFO_RD(smbus);
 			if (rd & MRXFIFO_EMPTY) {
-				err = -ENODATA;
+				err = -EANALDATA;
 				goto reset_out;
 			}
 			data->block[i] = rd & MRXFIFO_DATA_M;

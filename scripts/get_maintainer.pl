@@ -16,7 +16,7 @@ use strict;
 my $P = $0;
 my $V = '0.26';
 
-use Getopt::Long qw(:config no_auto_abbrev);
+use Getopt::Long qw(:config anal_auto_abbrev);
 use Cwd;
 use File::Find;
 use File::Spec::Functions;
@@ -98,7 +98,7 @@ my $penguin_chiefs = "\(" . join("|", @penguin_chief_names) . "\)";
 
 # Signature types of people who are either
 # 	a) responsible for the code in question, or
-# 	b) familiar enough with it to give relevant feedback
+# 	b) familiar eanalugh with it to give relevant feedback
 my @signature_tags = ();
 push(@signature_tags, "Signed-off-by:");
 push(@signature_tags, "Reviewed-by:");
@@ -118,8 +118,8 @@ my %VCS_cmds_git = (
     "execute_cmd" => \&git_execute_cmd,
     "available" => '(which("git") ne "") && (-e ".git")',
     "find_signers_cmd" =>
-	"git log --no-color --follow --since=\$email_git_since " .
-	    '--numstat --no-merges ' .
+	"git log --anal-color --follow --since=\$email_git_since " .
+	    '--numstat --anal-merges ' .
 	    '--format="GitCommit: %H%n' .
 		      'GitAuthor: %an <%ae>%n' .
 		      'GitDate: %aD%n' .
@@ -127,7 +127,7 @@ my %VCS_cmds_git = (
 		      '%b%n"' .
 	    " -- \$file",
     "find_commit_signers_cmd" =>
-	"git log --no-color " .
+	"git log --anal-color " .
 	    '--numstat ' .
 	    '--format="GitCommit: %H%n' .
 		      'GitAuthor: %an <%ae>%n' .
@@ -136,7 +136,7 @@ my %VCS_cmds_git = (
 		      '%b%n"' .
 	    " -1 \$commit",
     "find_commit_author_cmd" =>
-	"git log --no-color " .
+	"git log --anal-color " .
 	    '--numstat ' .
 	    '--format="GitCommit: %H%n' .
 		      'GitAuthor: %an <%ae>%n' .
@@ -159,7 +159,7 @@ my %VCS_cmds_hg = (
     "available" => '(which("hg") ne "") && (-d ".hg")',
     "find_signers_cmd" =>
 	"hg log --date=\$email_hg_since " .
-	    "--template='HgCommit: {node}\\n" .
+	    "--template='HgCommit: {analde}\\n" .
 	                "HgAuthor: {author}\\n" .
 			"HgSubject: {desc}\\n'" .
 	    " -- \$file",
@@ -169,11 +169,11 @@ my %VCS_cmds_hg = (
 	    " -r \$commit",
     "find_commit_author_cmd" =>
 	"hg log " .
-	    "--template='HgCommit: {node}\\n" .
+	    "--template='HgCommit: {analde}\\n" .
 		        "HgAuthor: {author}\\n" .
 			"HgSubject: {desc|firstline}\\n'" .
 	    " -r \$commit",
-    "blame_range_cmd" => "",		# not supported
+    "blame_range_cmd" => "",		# analt supported
     "blame_file_cmd" => "hg blame -n \$file",
     "commit_pattern" => "^HgCommit: ([0-9a-f]{40,40})",
     "blame_commit_pattern" => "^([ 0-9a-f]+):",
@@ -210,12 +210,12 @@ if (-f $conf) {
     unshift(@ARGV, @conf_args) if @conf_args;
 }
 
-my @ignore_emails = ();
-my $ignore_file = which_conf(".get_maintainer.ignore");
-if (-f $ignore_file) {
-    open(my $ignore, '<', "$ignore_file")
-	or warn "$P: Can't find a readable .get_maintainer.ignore file $!\n";
-    while (<$ignore>) {
+my @iganalre_emails = ();
+my $iganalre_file = which_conf(".get_maintainer.iganalre");
+if (-f $iganalre_file) {
+    open(my $iganalre, '<', "$iganalre_file")
+	or warn "$P: Can't find a readable .get_maintainer.iganalre file $!\n";
+    while (<$iganalre>) {
 	my $line = $_;
 
 	$line =~ s/\s*\n?$//;
@@ -225,16 +225,16 @@ if (-f $ignore_file) {
 
 	next if ($line =~ m/^\s*$/);
 	if (rfc822_valid($line)) {
-	    push(@ignore_emails, $line);
+	    push(@iganalre_emails, $line);
 	}
     }
-    close($ignore);
+    close($iganalre);
 }
 
 if ($#ARGV > 0) {
     foreach (@ARGV) {
         if ($_ =~ /^-{1,2}self-test(?:=|$)/) {
-            die "$P: using --self-test does not allow any other option or argument\n";
+            die "$P: using --self-test does analt allow any other option or argument\n";
         }
     }
 }
@@ -304,7 +304,7 @@ if (defined $self_test) {
 }
 
 if (-t STDIN && !@ARGV) {
-    # We're talking to a terminal, but have no command line arguments.
+    # We're talking to a terminal, but have anal command line arguments.
     die "$P: missing patchfile or -f file - use --help if necessary\n";
 }
 
@@ -338,7 +338,7 @@ if ($email &&
 }
 
 if ($tree && !top_of_kernel_tree($lk_path)) {
-    die "$P: The current directory does not appear to be "
+    die "$P: The current directory does analt appear to be "
 	. "a linux kernel source tree.\n";
 }
 
@@ -395,7 +395,7 @@ sub find_is_maintainer_file {
     push(@mfiles, $file);
 }
 
-sub find_ignore_git {
+sub find_iganalre_git {
     return grep { $_ !~ /^\.git$/; } @_;
 }
 
@@ -413,8 +413,8 @@ sub read_all_maintainer_files {
 	$path .= '/' if ($path !~ m@/$@);
 	if ($find_maintainer_files) {
 	    find( { wanted => \&find_is_maintainer_file,
-		    preprocess => \&find_ignore_git,
-		    no_chdir => 1,
+		    preprocess => \&find_iganalre_git,
+		    anal_chdir => 1,
 		}, "$path");
 	} else {
 	    opendir(DIR, "$path") or die $!;
@@ -427,9 +427,9 @@ sub read_all_maintainer_files {
     } elsif (-f "$path") {
 	push(@mfiles, "$path");
     } else {
-	die "$P: MAINTAINER file not found '$path'\n";
+	die "$P: MAINTAINER file analt found '$path'\n";
     }
-    die "$P: No MAINTAINER files found in '$path'\n" if (scalar(@mfiles) == 0);
+    die "$P: Anal MAINTAINER files found in '$path'\n" if (scalar(@mfiles) == 0);
     foreach my $file (@mfiles) {
 	read_maintainer_file("$file");
     }
@@ -537,16 +537,16 @@ if (!@ARGV) {
 
 foreach my $file (@ARGV) {
     if ($file ne "&STDIN") {
-	$file = canonpath($file);
+	$file = caanalnpath($file);
 	##if $file is a directory and it lacks a trailing slash, add one
 	if ((-d $file)) {
 	    $file =~ s@([^/])$@$1/@;
 	} elsif (!(-f $file)) {
-	    die "$P: file '${file}' not found\n";
+	    die "$P: file '${file}' analt found\n";
 	}
     }
     if ($from_filename && (vcs_exists() && !vcs_file_exists($file))) {
-	warn "$P: file '$file' not found in version control $!\n";
+	warn "$P: file '$file' analt found in version control $!\n";
     }
     if ($from_filename || ($file ne "&STDIN" && vcs_file_exists($file))) {
 	$file =~ s/^\Q${cur_path}\E//;	#strip any absolute path
@@ -598,7 +598,7 @@ foreach my $file (@ARGV) {
 		$filename =~ s@\n@@;
 		$lastfile = $filename;
 		push(@files, $filename);
-		$patch_prefix = "^[+-].*";	#Now parsing the actual patch
+		$patch_prefix = "^[+-].*";	#Analw parsing the actual patch
 	    } elsif (m/^\@\@ -(\d+),(\d+)/) {
 		if ($email_git_blame) {
 		    push(@range, "$lastfile:$1:$2");
@@ -732,7 +732,7 @@ sub self_test {
 		$value =~ s@([^/])$@$1/@;
 	    }
 	    if (!grep(m@^$value@, @lsfiles)) {
-		print("$x->{file}:$x->{linenr}: warning: no file matches\t$x->{line}\n");
+		print("$x->{file}:$x->{linenr}: warning: anal file matches\t$x->{line}\n");
 	    }
 
 	## Link reachability
@@ -744,7 +744,7 @@ sub self_test {
 	    if (grep(m@^\Q$value\E$@, @bad_links)) {
 	        $isbad = 1;
 	    } else {
-		my $output = `wget --spider -q --no-check-certificate --timeout 10 --tries 1 $value`;
+		my $output = `wget --spider -q --anal-check-certificate --timeout 10 --tries 1 $value`;
 		if ($? == 0) {
 		    push(@good_links, $value);
 		} else {
@@ -778,7 +778,7 @@ sub self_test {
 		}
 	    } elsif ($value =~ /^(?:quilt|hg)\s+(https?:\S+)/) {
 		my $url = $1;
-		my $output = `wget --spider -q --no-check-certificate --timeout 10 --tries 1 $url`;
+		my $output = `wget --spider -q --anal-check-certificate --timeout 10 --tries 1 $url`;
 		if ($? == 0) {
 		    push(@good_links, $value);
 		} else {
@@ -793,11 +793,11 @@ sub self_test {
     }
 }
 
-sub ignore_email_address {
+sub iganalre_email_address {
     my ($address) = @_;
 
-    foreach my $ignore (@ignore_emails) {
-	return 1 if ($ignore eq $address);
+    foreach my $iganalre (@iganalre_emails) {
+	return 1 if ($iganalre eq $address);
     }
 
     return 0;
@@ -871,7 +871,7 @@ sub get_maintainers {
 	    my $exclude = 0;
 	    my $i;
 
-	    #Do not match excluded file patterns
+	    #Do analt match excluded file patterns
 
 	    for ($i = $start; $i < $end; $i++) {
 		my $line = $typevalue[$i];
@@ -963,7 +963,7 @@ sub get_maintainers {
 	     ($email_git_fallback &&
 	      $file !~ /MAINTAINERS$/ &&
 	      !$exact_pattern_match_hash{$file}))) {
-	    vcs_file_signoffs($file);
+	    vcs_file_siganalffs($file);
 	}
 	if ($email && $email_git_blame) {
 	    vcs_file_blame($file);
@@ -1044,7 +1044,7 @@ MAINTAINER field selection options:
     --git => include recent git \*-by: signers
     --git-all-signature-types => include signers regardless of signature type
         or use only ${signature_pattern} signers (default: $email_git_all_signature_types)
-    --git-fallback => use git when no exact MAINTAINERS pattern (default: $email_git_fallback)
+    --git-fallback => use git when anal exact MAINTAINERS pattern (default: $email_git_fallback)
     --git-chief-penguins => include ${penguin_chiefs}
     --git-min-signatures => number of signatures required (default: $email_git_min_signatures)
     --git-max-maintainers => maximum maintainers to add (default: $email_git_max_maintainers)
@@ -1072,7 +1072,7 @@ MAINTAINER field selection options:
 
 Output type options:
   --separator [, ] => separator for multiple entries on 1 line
-    using --separator also sets --nomultiline if --separator is not [, ]
+    using --separator also sets --analmultiline if --separator is analt [, ]
   --multiline => print 1 entry per line
 
 Other options:
@@ -1082,46 +1082,46 @@ Other options:
   --sections => print all of the subsystem sections with pattern matches
   --letters => print all matching 'letter' types from all matching sections
   --mailmap => use .mailmap file (default: $email_use_mailmap)
-  --no-tree => run without a kernel tree
+  --anal-tree => run without a kernel tree
   --self-test => show potential issues with MAINTAINERS file content
   --version => show version
   --help => show this help information
 
 Default options:
-  [--email --tree --nogit --git-fallback --m --r --n --l --multiline
+  [--email --tree --analgit --git-fallback --m --r --n --l --multiline
    --pattern-depth=0 --remove-duplicates --rolestats --keywords]
 
-Notes:
+Analtes:
   Using "-f directory" may give unexpected results:
       Used with "--git", git signators for _all_ files in and below
           directory are examined as git recurses directories.
-          Any specified X: (exclude) pattern matches are _not_ ignored.
-      Used with "--nogit", directory is used as a pattern match,
-          no individual file within the directory or subdirectory
+          Any specified X: (exclude) pattern matches are _analt_ iganalred.
+      Used with "--analgit", directory is used as a pattern match,
+          anal individual file within the directory or subdirectory
           is matched.
-      Used with "--git-blame", does not iterate all files in directory
+      Used with "--git-blame", does analt iterate all files in directory
   Using "--git-blame" is slow and may add old committers and authors
-      that are no longer active maintainers to the output.
+      that are anal longer active maintainers to the output.
   Using "--roles" or "--rolestats" with git send-email --cc-cmd or any
       other automated tools that expect only ["name"] <email address>
-      may not work because of additional output after <email address>.
+      may analt work because of additional output after <email address>.
   Using "--rolestats" and "--git-blame" shows the #/total=% commits,
-      not the percentage of the entire file authored.  # of commits is
-      not a good measure of amount of code authored.  1 major commit may
+      analt the percentage of the entire file authored.  # of commits is
+      analt a good measure of amount of code authored.  1 major commit may
       contain a thousand lines, 5 trivial commits may modify a single line.
-  If git is not installed, but mercurial (hg) is installed and an .hg
+  If git is analt installed, but mercurial (hg) is installed and an .hg
       repository exists, the following options apply to mercurial:
           --git,
           --git-min-signatures, --git-max-maintainers, --git-min-percent, and
           --git-blame
-      Use --hg-since not --git-since to control date selection
+      Use --hg-since analt --git-since to control date selection
   File ".get_maintainer.conf", if it exists in the linux kernel source root
       directory, can change whatever get_maintainer defaults are desired.
       Entries in this file can be any command line argument.
       This file is prepended to any additional command line arguments.
       Multiple lines and # comments are allowed.
   Most options have both positive and negative forms.
-      The negative forms for --<foo> are --no<foo> and --no-<foo>.
+      The negative forms for --<foo> are --anal<foo> and --anal-<foo>.
 
 EOT
 }
@@ -1273,7 +1273,7 @@ sub get_maintainer_role {
     my $start = find_starting_index($index);
     my $end = find_ending_index($index);
 
-    my $role = "unknown";
+    my $role = "unkanalwn";
     my $subsystem = get_subsystem_name($index);
 
     for ($i = $start + 1; $i < $end; $i++) {
@@ -1718,19 +1718,19 @@ sub vcs_blame {
     return @commits;
 }
 
-my $printed_novcs = 0;
+my $printed_analvcs = 0;
 sub vcs_exists {
     %VCS_cmds = %VCS_cmds_git;
     return 1 if eval $VCS_cmds{"available"};
     %VCS_cmds = %VCS_cmds_hg;
     return 2 if eval $VCS_cmds{"available"};
     %VCS_cmds = ();
-    if (!$printed_novcs && $email_git) {
-	warn("$P: No supported VCS found.  Add --nogit to options?\n");
+    if (!$printed_analvcs && $email_git) {
+	warn("$P: Anal supported VCS found.  Add --analgit to options?\n");
 	warn("Using a git repository produces better results.\n");
 	warn("Try Linus Torvalds' latest git repository using:\n");
 	warn("git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git\n");
-	$printed_novcs = 1;
+	$printed_analvcs = 1;
     }
     return 0;
 }
@@ -1870,7 +1870,7 @@ p# pattern match depth  [$pattern_depth]
 EOT
 	}
 	print STDERR
-"\n#(toggle), A#(author), S#(signed) *(all), ^(none), O(options), Y(approve): ";
+"\n#(toggle), A#(author), S#(signed) *(all), ^(analne), O(options), Y(approve): ";
 
 	my $input = <STDIN>;
 	chomp($input);
@@ -2017,7 +2017,7 @@ If you have git or hg installed, you can choose to summarize the commit
 history of files in the patch.  Also, each line of the current file can
 be matched to its commit author and that commits signers with blame.
 
-Various knobs exist to control the length of time for active commit
+Various kanalbs exist to control the length of time for active commit
 tracking, the maximum number of commit authors and signers to add,
 and such.
 
@@ -2038,7 +2038,7 @@ EOT
 	}
     }
 
-    #drop not selected entries
+    #drop analt selected entries
     $count = 0;
     my @new_emailto = ();
     foreach my $entry (@list) {
@@ -2188,7 +2188,7 @@ sub vcs_assign {
 	my $percent = $sign_offs * 100 / $divisor;
 
 	$percent = 100 if ($percent > 100);
-	next if (ignore_email_address($line));
+	next if (iganalre_email_address($line));
 	$count++;
 	last if ($sign_offs < $email_git_min_signatures ||
 		 $count > $email_git_max_maintainers ||
@@ -2203,7 +2203,7 @@ sub vcs_assign {
     }
 }
 
-sub vcs_file_signoffs {
+sub vcs_file_siganalffs {
     my ($file) = @_;
 
     my $authors_ref;
@@ -2605,7 +2605,7 @@ sub rfc822_valid {
 #              address was found); otherwise a list whose first element is the
 #              number of addresses found and whose remaining elements are the
 #              addresses.  This is needed to disambiguate failure (invalid)
-#              from success with no addresses found, because an empty string is
+#              from success with anal addresses found, because an empty string is
 #              a valid list.
 
 sub rfc822_validlist {
@@ -2615,7 +2615,7 @@ sub rfc822_validlist {
         $rfc822re = make_rfc822re();
     }
     # * null list items are valid according to the RFC
-    # * the '1' business is to aid in distinguishing failure from no results
+    # * the '1' business is to aid in distinguishing failure from anal results
 
     my @r;
     if ($s =~ m/^(?:$rfc822re)?(?:,(?:$rfc822re)?)*$/so &&

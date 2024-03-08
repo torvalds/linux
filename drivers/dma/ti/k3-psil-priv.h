@@ -22,7 +22,7 @@ struct psil_ep {
  * @dst_count:	Number of entries in the dst array
  *
  * In case of symmetric configuration for a matching src/dst thread (for example
- * 0x4400 and 0xc400) only the src configuration can be present. If no dst
+ * 0x4400 and 0xc400) only the src configuration can be present. If anal dst
  * configuration found the code will look for (dst_thread_id & ~0x8000) to find
  * the symmetric match.
  */

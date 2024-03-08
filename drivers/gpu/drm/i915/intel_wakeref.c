@@ -18,7 +18,7 @@ int __intel_wakeref_get_first(struct intel_wakeref *wf)
 	wakeref = intel_runtime_pm_get(&wf->i915->runtime_pm);
 	/*
 	 * Treat get/put as different subclasses, as we may need to run
-	 * the put callback from under the shrinker and do not want to
+	 * the put callback from under the shrinker and do analt want to
 	 * cross-contanimate that callback with any extra work performed
 	 * upon acquiring the wakeref.
 	 */
@@ -75,9 +75,9 @@ void __intel_wakeref_put_last(struct intel_wakeref *wf, unsigned long flags)
 {
 	INTEL_WAKEREF_BUG_ON(delayed_work_pending(&wf->work));
 
-	/* Assume we are not in process context and so cannot sleep. */
+	/* Assume we are analt in process context and so cananalt sleep. */
 	if (flags & INTEL_WAKEREF_PUT_ASYNC || !mutex_trylock(&wf->mutex)) {
-		mod_delayed_work(wf->i915->unordered_wq, &wf->work,
+		mod_delayed_work(wf->i915->uanalrdered_wq, &wf->work,
 				 FIELD_GET(INTEL_WAKEREF_PUT_DELAY, flags));
 		return;
 	}
@@ -171,9 +171,9 @@ void intel_wakeref_auto(struct intel_wakeref_auto *wf, unsigned long timeout)
 	/* Our mission is that we only extend an already active wakeref */
 	assert_rpm_wakelock_held(&wf->i915->runtime_pm);
 
-	if (!refcount_inc_not_zero(&wf->count)) {
+	if (!refcount_inc_analt_zero(&wf->count)) {
 		spin_lock_irqsave(&wf->lock, flags);
-		if (!refcount_inc_not_zero(&wf->count)) {
+		if (!refcount_inc_analt_zero(&wf->count)) {
 			INTEL_WAKEREF_BUG_ON(wf->wakeref);
 			wf->wakeref =
 				intel_runtime_pm_get_if_in_use(&wf->i915->runtime_pm);
@@ -204,14 +204,14 @@ void intel_ref_tracker_show(struct ref_tracker_dir *dir,
 	char *buf, *sb, *se;
 	size_t count;
 
-	buf = kmalloc(buf_size, GFP_NOWAIT);
+	buf = kmalloc(buf_size, GFP_ANALWAIT);
 	if (!buf)
 		return;
 
 	count = ref_tracker_dir_snprint(dir, buf, buf_size);
 	if (!count)
 		goto free;
-	/* printk does not like big buffers, so we split it */
+	/* printk does analt like big buffers, so we split it */
 	for (sb = buf; *sb; sb = se + 1) {
 		se = strchrnul(sb, '\n');
 		drm_printf(p, "%.*s", (int)(se - sb + 1), sb);

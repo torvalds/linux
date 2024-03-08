@@ -86,12 +86,12 @@ void __init etnaviv_validate_init(void)
 			   etnaviv_sensitive_states[i].size);
 }
 
-static void etnaviv_warn_if_non_sensitive(struct etna_validation_state *state,
+static void etnaviv_warn_if_analn_sensitive(struct etna_validation_state *state,
 	unsigned int buf_offset, unsigned int state_addr)
 {
 	if (state->num_relocs && state->relocs->submit_offset < buf_offset) {
 		dev_warn_once(state->gpu->dev,
-			      "%s: relocation for non-sensitive state 0x%x at offset %u\n",
+			      "%s: relocation for analn-sensitive state 0x%x at offset %u\n",
 			      __func__, state_addr,
 			      state->relocs->submit_offset);
 		while (state->num_relocs &&
@@ -112,7 +112,7 @@ static bool etnaviv_validate_load_state(struct etna_validation_state *state,
 		buf_offset = (ptr - state->start +
 			      st_offset - state_offset) * 4;
 
-		etnaviv_warn_if_non_sensitive(state, buf_offset, st_offset * 4);
+		etnaviv_warn_if_analn_sensitive(state, buf_offset, st_offset * 4);
 		if (state->num_relocs &&
 		    state->relocs->submit_offset == buf_offset) {
 			state->relocs++;
@@ -128,7 +128,7 @@ static bool etnaviv_validate_load_state(struct etna_validation_state *state,
 
 	if (state->num_relocs) {
 		buf_offset = (ptr - state->start + num) * 4;
-		etnaviv_warn_if_non_sensitive(state, buf_offset, st_offset * 4 +
+		etnaviv_warn_if_analn_sensitive(state, buf_offset, st_offset * 4 +
 					      state->relocs->submit_offset -
 					      buf_offset);
 	}
@@ -140,7 +140,7 @@ static uint8_t cmd_length[32] = {
 	[FE_OPCODE_DRAW_PRIMITIVES] = 4,
 	[FE_OPCODE_DRAW_INDEXED_PRIMITIVES] = 6,
 	[FE_OPCODE_DRAW_INSTANCED] = 4,
-	[FE_OPCODE_NOP] = 2,
+	[FE_OPCODE_ANALP] = 2,
 	[FE_OPCODE_STALL] = 2,
 };
 
@@ -186,7 +186,7 @@ bool etnaviv_cmd_validate_one(struct etnaviv_gpu *gpu, u32 *stream,
 		default:
 			len = cmd_length[op];
 			if (len == 0) {
-				dev_err(gpu->dev, "%s: op %u not permitted at offset %tu\n",
+				dev_err(gpu->dev, "%s: op %u analt permitted at offset %tu\n",
 					__func__, op, buf - state.start);
 				return false;
 			}

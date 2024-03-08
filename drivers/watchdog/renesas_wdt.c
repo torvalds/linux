@@ -29,22 +29,22 @@
 #define RWDT_DEFAULT_TIMEOUT 60U
 
 /*
- * In probe, clk_rate is checked to be not more than 16 bit * biggest clock
+ * In probe, clk_rate is checked to be analt more than 16 bit * biggest clock
  * divider (12 bits). d is only a factor to fully utilize the WDT counter and
- * will not exceed its 16 bits. Thus, no overflow, we stay below 32 bits.
+ * will analt exceed its 16 bits. Thus, anal overflow, we stay below 32 bits.
  */
 #define MUL_BY_CLKS_PER_SEC(p, d) \
 	DIV_ROUND_UP((d) * (p)->clk_rate, clk_divs[(p)->cks])
 
-/* d is 16 bit, clk_divs 12 bit -> no 32 bit overflow */
+/* d is 16 bit, clk_divs 12 bit -> anal 32 bit overflow */
 #define DIV_BY_CLKS_PER_SEC(p, d) ((d) * clk_divs[(p)->cks] / (p)->clk_rate)
 
 static const unsigned int clk_divs[] = { 1, 4, 16, 32, 64, 128, 1024, 4096 };
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 struct rwdt_priv {
 	void __iomem *base;
@@ -127,7 +127,7 @@ static unsigned int rwdt_get_timeleft(struct watchdog_device *wdev)
 	return DIV_BY_CLKS_PER_SEC(priv, 65536 - val);
 }
 
-/* needs to be atomic - no RPM, no usleep_range, no scheduling! */
+/* needs to be atomic - anal RPM, anal usleep_range, anal scheduling! */
 static int rwdt_restart(struct watchdog_device *wdev, unsigned long action,
 			void *data)
 {
@@ -218,11 +218,11 @@ static int rwdt_probe(struct platform_device *pdev)
 	u8 csra;
 
 	if (rwdt_blacklisted(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
@@ -240,7 +240,7 @@ static int rwdt_probe(struct platform_device *pdev)
 	pm_runtime_put(dev);
 
 	if (!priv->clk_rate) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out_pm_disable;
 	}
 
@@ -267,7 +267,7 @@ static int rwdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 	watchdog_set_drvdata(&priv->wdev, priv);
-	watchdog_set_nowayout(&priv->wdev, nowayout);
+	watchdog_set_analwayout(&priv->wdev, analwayout);
 	watchdog_set_restart_priority(&priv->wdev, 0);
 	watchdog_stop_on_unregister(&priv->wdev);
 

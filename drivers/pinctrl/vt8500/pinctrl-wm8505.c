@@ -19,20 +19,20 @@
  * so they are exported in the 0..31 range which is what users
  * expect.
  *
- * Do not reorder these banks as it will change the pin numbering
+ * Do analt reorder these banks as it will change the pin numbering
  */
 static const struct wmt_pinctrl_bank_registers wm8505_banks[] = {
-	WMT_PINCTRL_BANK(0x64, 0x8C, 0xB4, 0xDC, NO_REG, NO_REG),	/* 0 */
-	WMT_PINCTRL_BANK(0x40, 0x68, 0x90, 0xB8, NO_REG, NO_REG),	/* 1 */
-	WMT_PINCTRL_BANK(0x44, 0x6C, 0x94, 0xBC, NO_REG, NO_REG),	/* 2 */
-	WMT_PINCTRL_BANK(0x48, 0x70, 0x98, 0xC0, NO_REG, NO_REG),	/* 3 */
-	WMT_PINCTRL_BANK(0x4C, 0x74, 0x9C, 0xC4, NO_REG, NO_REG),	/* 4 */
-	WMT_PINCTRL_BANK(0x50, 0x78, 0xA0, 0xC8, NO_REG, NO_REG),	/* 5 */
-	WMT_PINCTRL_BANK(0x54, 0x7C, 0xA4, 0xD0, NO_REG, NO_REG),	/* 6 */
-	WMT_PINCTRL_BANK(0x58, 0x80, 0xA8, 0xD4, NO_REG, NO_REG),	/* 7 */
-	WMT_PINCTRL_BANK(0x5C, 0x84, 0xAC, 0xD8, NO_REG, NO_REG),	/* 8 */
-	WMT_PINCTRL_BANK(0x60, 0x88, 0xB0, 0xDC, NO_REG, NO_REG),	/* 9 */
-	WMT_PINCTRL_BANK(0x500, 0x504, 0x508, 0x50C, NO_REG, NO_REG),	/* 10 */
+	WMT_PINCTRL_BANK(0x64, 0x8C, 0xB4, 0xDC, ANAL_REG, ANAL_REG),	/* 0 */
+	WMT_PINCTRL_BANK(0x40, 0x68, 0x90, 0xB8, ANAL_REG, ANAL_REG),	/* 1 */
+	WMT_PINCTRL_BANK(0x44, 0x6C, 0x94, 0xBC, ANAL_REG, ANAL_REG),	/* 2 */
+	WMT_PINCTRL_BANK(0x48, 0x70, 0x98, 0xC0, ANAL_REG, ANAL_REG),	/* 3 */
+	WMT_PINCTRL_BANK(0x4C, 0x74, 0x9C, 0xC4, ANAL_REG, ANAL_REG),	/* 4 */
+	WMT_PINCTRL_BANK(0x50, 0x78, 0xA0, 0xC8, ANAL_REG, ANAL_REG),	/* 5 */
+	WMT_PINCTRL_BANK(0x54, 0x7C, 0xA4, 0xD0, ANAL_REG, ANAL_REG),	/* 6 */
+	WMT_PINCTRL_BANK(0x58, 0x80, 0xA8, 0xD4, ANAL_REG, ANAL_REG),	/* 7 */
+	WMT_PINCTRL_BANK(0x5C, 0x84, 0xAC, 0xD8, ANAL_REG, ANAL_REG),	/* 8 */
+	WMT_PINCTRL_BANK(0x60, 0x88, 0xB0, 0xDC, ANAL_REG, ANAL_REG),	/* 9 */
+	WMT_PINCTRL_BANK(0x500, 0x504, 0x508, 0x50C, ANAL_REG, ANAL_REG),	/* 10 */
 };
 
 /* Please keep sorted by bank/bit */
@@ -95,47 +95,47 @@ static const struct wmt_pinctrl_bank_registers wm8505_banks[] = {
 #define WMT_PIN_VGAVSYNC	WMT_PIN(3, 3)
 #define WMT_PIN_VDHSYNC		WMT_PIN(3, 4)
 #define WMT_PIN_VDVSYNC		WMT_PIN(3, 5)
-#define WMT_PIN_NORD0		WMT_PIN(4, 0)
-#define WMT_PIN_NORD1		WMT_PIN(4, 1)
-#define WMT_PIN_NORD2		WMT_PIN(4, 2)
-#define WMT_PIN_NORD3		WMT_PIN(4, 3)
-#define WMT_PIN_NORD4		WMT_PIN(4, 4)
-#define WMT_PIN_NORD5		WMT_PIN(4, 5)
-#define WMT_PIN_NORD6		WMT_PIN(4, 6)
-#define WMT_PIN_NORD7		WMT_PIN(4, 7)
-#define WMT_PIN_NORD8		WMT_PIN(4, 8)
-#define WMT_PIN_NORD9		WMT_PIN(4, 9)
-#define WMT_PIN_NORD10		WMT_PIN(4, 10)
-#define WMT_PIN_NORD11		WMT_PIN(4, 11)
-#define WMT_PIN_NORD12		WMT_PIN(4, 12)
-#define WMT_PIN_NORD13		WMT_PIN(4, 13)
-#define WMT_PIN_NORD14		WMT_PIN(4, 14)
-#define WMT_PIN_NORD15		WMT_PIN(4, 15)
-#define WMT_PIN_NORA0		WMT_PIN(5, 0)
-#define WMT_PIN_NORA1		WMT_PIN(5, 1)
-#define WMT_PIN_NORA2		WMT_PIN(5, 2)
-#define WMT_PIN_NORA3		WMT_PIN(5, 3)
-#define WMT_PIN_NORA4		WMT_PIN(5, 4)
-#define WMT_PIN_NORA5		WMT_PIN(5, 5)
-#define WMT_PIN_NORA6		WMT_PIN(5, 6)
-#define WMT_PIN_NORA7		WMT_PIN(5, 7)
-#define WMT_PIN_NORA8		WMT_PIN(5, 8)
-#define WMT_PIN_NORA9		WMT_PIN(5, 9)
-#define WMT_PIN_NORA10		WMT_PIN(5, 10)
-#define WMT_PIN_NORA11		WMT_PIN(5, 11)
-#define WMT_PIN_NORA12		WMT_PIN(5, 12)
-#define WMT_PIN_NORA13		WMT_PIN(5, 13)
-#define WMT_PIN_NORA14		WMT_PIN(5, 14)
-#define WMT_PIN_NORA15		WMT_PIN(5, 15)
-#define WMT_PIN_NORA16		WMT_PIN(5, 16)
-#define WMT_PIN_NORA17		WMT_PIN(5, 17)
-#define WMT_PIN_NORA18		WMT_PIN(5, 18)
-#define WMT_PIN_NORA19		WMT_PIN(5, 19)
-#define WMT_PIN_NORA20		WMT_PIN(5, 20)
-#define WMT_PIN_NORA21		WMT_PIN(5, 21)
-#define WMT_PIN_NORA22		WMT_PIN(5, 22)
-#define WMT_PIN_NORA23		WMT_PIN(5, 23)
-#define WMT_PIN_NORA24		WMT_PIN(5, 24)
+#define WMT_PIN_ANALRD0		WMT_PIN(4, 0)
+#define WMT_PIN_ANALRD1		WMT_PIN(4, 1)
+#define WMT_PIN_ANALRD2		WMT_PIN(4, 2)
+#define WMT_PIN_ANALRD3		WMT_PIN(4, 3)
+#define WMT_PIN_ANALRD4		WMT_PIN(4, 4)
+#define WMT_PIN_ANALRD5		WMT_PIN(4, 5)
+#define WMT_PIN_ANALRD6		WMT_PIN(4, 6)
+#define WMT_PIN_ANALRD7		WMT_PIN(4, 7)
+#define WMT_PIN_ANALRD8		WMT_PIN(4, 8)
+#define WMT_PIN_ANALRD9		WMT_PIN(4, 9)
+#define WMT_PIN_ANALRD10		WMT_PIN(4, 10)
+#define WMT_PIN_ANALRD11		WMT_PIN(4, 11)
+#define WMT_PIN_ANALRD12		WMT_PIN(4, 12)
+#define WMT_PIN_ANALRD13		WMT_PIN(4, 13)
+#define WMT_PIN_ANALRD14		WMT_PIN(4, 14)
+#define WMT_PIN_ANALRD15		WMT_PIN(4, 15)
+#define WMT_PIN_ANALRA0		WMT_PIN(5, 0)
+#define WMT_PIN_ANALRA1		WMT_PIN(5, 1)
+#define WMT_PIN_ANALRA2		WMT_PIN(5, 2)
+#define WMT_PIN_ANALRA3		WMT_PIN(5, 3)
+#define WMT_PIN_ANALRA4		WMT_PIN(5, 4)
+#define WMT_PIN_ANALRA5		WMT_PIN(5, 5)
+#define WMT_PIN_ANALRA6		WMT_PIN(5, 6)
+#define WMT_PIN_ANALRA7		WMT_PIN(5, 7)
+#define WMT_PIN_ANALRA8		WMT_PIN(5, 8)
+#define WMT_PIN_ANALRA9		WMT_PIN(5, 9)
+#define WMT_PIN_ANALRA10		WMT_PIN(5, 10)
+#define WMT_PIN_ANALRA11		WMT_PIN(5, 11)
+#define WMT_PIN_ANALRA12		WMT_PIN(5, 12)
+#define WMT_PIN_ANALRA13		WMT_PIN(5, 13)
+#define WMT_PIN_ANALRA14		WMT_PIN(5, 14)
+#define WMT_PIN_ANALRA15		WMT_PIN(5, 15)
+#define WMT_PIN_ANALRA16		WMT_PIN(5, 16)
+#define WMT_PIN_ANALRA17		WMT_PIN(5, 17)
+#define WMT_PIN_ANALRA18		WMT_PIN(5, 18)
+#define WMT_PIN_ANALRA19		WMT_PIN(5, 19)
+#define WMT_PIN_ANALRA20		WMT_PIN(5, 20)
+#define WMT_PIN_ANALRA21		WMT_PIN(5, 21)
+#define WMT_PIN_ANALRA22		WMT_PIN(5, 22)
+#define WMT_PIN_ANALRA23		WMT_PIN(5, 23)
+#define WMT_PIN_ANALRA24		WMT_PIN(5, 24)
 #define WMT_PIN_AC97SDI		WMT_PIN(6, 0)
 #define WMT_PIN_AC97SYNC	WMT_PIN(6, 1)
 #define WMT_PIN_AC97SDO		WMT_PIN(6, 2)
@@ -241,47 +241,47 @@ static const struct pinctrl_pin_desc wm8505_pins[] = {
 	PINCTRL_PIN(WMT_PIN_VGAVSYNC, "vga_vsync"),
 	PINCTRL_PIN(WMT_PIN_VDHSYNC, "vd_hsync"),
 	PINCTRL_PIN(WMT_PIN_VDVSYNC, "vd_vsync"),
-	PINCTRL_PIN(WMT_PIN_NORD0, "nor_d0"),
-	PINCTRL_PIN(WMT_PIN_NORD1, "nor_d1"),
-	PINCTRL_PIN(WMT_PIN_NORD2, "nor_d2"),
-	PINCTRL_PIN(WMT_PIN_NORD3, "nor_d3"),
-	PINCTRL_PIN(WMT_PIN_NORD4, "nor_d4"),
-	PINCTRL_PIN(WMT_PIN_NORD5, "nor_d5"),
-	PINCTRL_PIN(WMT_PIN_NORD6, "nor_d6"),
-	PINCTRL_PIN(WMT_PIN_NORD7, "nor_d7"),
-	PINCTRL_PIN(WMT_PIN_NORD8, "nor_d8"),
-	PINCTRL_PIN(WMT_PIN_NORD9, "nor_d9"),
-	PINCTRL_PIN(WMT_PIN_NORD10, "nor_d10"),
-	PINCTRL_PIN(WMT_PIN_NORD11, "nor_d11"),
-	PINCTRL_PIN(WMT_PIN_NORD12, "nor_d12"),
-	PINCTRL_PIN(WMT_PIN_NORD13, "nor_d13"),
-	PINCTRL_PIN(WMT_PIN_NORD14, "nor_d14"),
-	PINCTRL_PIN(WMT_PIN_NORD15, "nor_d15"),
-	PINCTRL_PIN(WMT_PIN_NORA0, "nor_a0"),
-	PINCTRL_PIN(WMT_PIN_NORA1, "nor_a1"),
-	PINCTRL_PIN(WMT_PIN_NORA2, "nor_a2"),
-	PINCTRL_PIN(WMT_PIN_NORA3, "nor_a3"),
-	PINCTRL_PIN(WMT_PIN_NORA4, "nor_a4"),
-	PINCTRL_PIN(WMT_PIN_NORA5, "nor_a5"),
-	PINCTRL_PIN(WMT_PIN_NORA6, "nor_a6"),
-	PINCTRL_PIN(WMT_PIN_NORA7, "nor_a7"),
-	PINCTRL_PIN(WMT_PIN_NORA8, "nor_a8"),
-	PINCTRL_PIN(WMT_PIN_NORA9, "nor_a9"),
-	PINCTRL_PIN(WMT_PIN_NORA10, "nor_a10"),
-	PINCTRL_PIN(WMT_PIN_NORA11, "nor_a11"),
-	PINCTRL_PIN(WMT_PIN_NORA12, "nor_a12"),
-	PINCTRL_PIN(WMT_PIN_NORA13, "nor_a13"),
-	PINCTRL_PIN(WMT_PIN_NORA14, "nor_a14"),
-	PINCTRL_PIN(WMT_PIN_NORA15, "nor_a15"),
-	PINCTRL_PIN(WMT_PIN_NORA16, "nor_a16"),
-	PINCTRL_PIN(WMT_PIN_NORA17, "nor_a17"),
-	PINCTRL_PIN(WMT_PIN_NORA18, "nor_a18"),
-	PINCTRL_PIN(WMT_PIN_NORA19, "nor_a19"),
-	PINCTRL_PIN(WMT_PIN_NORA20, "nor_a20"),
-	PINCTRL_PIN(WMT_PIN_NORA21, "nor_a21"),
-	PINCTRL_PIN(WMT_PIN_NORA22, "nor_a22"),
-	PINCTRL_PIN(WMT_PIN_NORA23, "nor_a23"),
-	PINCTRL_PIN(WMT_PIN_NORA24, "nor_a24"),
+	PINCTRL_PIN(WMT_PIN_ANALRD0, "analr_d0"),
+	PINCTRL_PIN(WMT_PIN_ANALRD1, "analr_d1"),
+	PINCTRL_PIN(WMT_PIN_ANALRD2, "analr_d2"),
+	PINCTRL_PIN(WMT_PIN_ANALRD3, "analr_d3"),
+	PINCTRL_PIN(WMT_PIN_ANALRD4, "analr_d4"),
+	PINCTRL_PIN(WMT_PIN_ANALRD5, "analr_d5"),
+	PINCTRL_PIN(WMT_PIN_ANALRD6, "analr_d6"),
+	PINCTRL_PIN(WMT_PIN_ANALRD7, "analr_d7"),
+	PINCTRL_PIN(WMT_PIN_ANALRD8, "analr_d8"),
+	PINCTRL_PIN(WMT_PIN_ANALRD9, "analr_d9"),
+	PINCTRL_PIN(WMT_PIN_ANALRD10, "analr_d10"),
+	PINCTRL_PIN(WMT_PIN_ANALRD11, "analr_d11"),
+	PINCTRL_PIN(WMT_PIN_ANALRD12, "analr_d12"),
+	PINCTRL_PIN(WMT_PIN_ANALRD13, "analr_d13"),
+	PINCTRL_PIN(WMT_PIN_ANALRD14, "analr_d14"),
+	PINCTRL_PIN(WMT_PIN_ANALRD15, "analr_d15"),
+	PINCTRL_PIN(WMT_PIN_ANALRA0, "analr_a0"),
+	PINCTRL_PIN(WMT_PIN_ANALRA1, "analr_a1"),
+	PINCTRL_PIN(WMT_PIN_ANALRA2, "analr_a2"),
+	PINCTRL_PIN(WMT_PIN_ANALRA3, "analr_a3"),
+	PINCTRL_PIN(WMT_PIN_ANALRA4, "analr_a4"),
+	PINCTRL_PIN(WMT_PIN_ANALRA5, "analr_a5"),
+	PINCTRL_PIN(WMT_PIN_ANALRA6, "analr_a6"),
+	PINCTRL_PIN(WMT_PIN_ANALRA7, "analr_a7"),
+	PINCTRL_PIN(WMT_PIN_ANALRA8, "analr_a8"),
+	PINCTRL_PIN(WMT_PIN_ANALRA9, "analr_a9"),
+	PINCTRL_PIN(WMT_PIN_ANALRA10, "analr_a10"),
+	PINCTRL_PIN(WMT_PIN_ANALRA11, "analr_a11"),
+	PINCTRL_PIN(WMT_PIN_ANALRA12, "analr_a12"),
+	PINCTRL_PIN(WMT_PIN_ANALRA13, "analr_a13"),
+	PINCTRL_PIN(WMT_PIN_ANALRA14, "analr_a14"),
+	PINCTRL_PIN(WMT_PIN_ANALRA15, "analr_a15"),
+	PINCTRL_PIN(WMT_PIN_ANALRA16, "analr_a16"),
+	PINCTRL_PIN(WMT_PIN_ANALRA17, "analr_a17"),
+	PINCTRL_PIN(WMT_PIN_ANALRA18, "analr_a18"),
+	PINCTRL_PIN(WMT_PIN_ANALRA19, "analr_a19"),
+	PINCTRL_PIN(WMT_PIN_ANALRA20, "analr_a20"),
+	PINCTRL_PIN(WMT_PIN_ANALRA21, "analr_a21"),
+	PINCTRL_PIN(WMT_PIN_ANALRA22, "analr_a22"),
+	PINCTRL_PIN(WMT_PIN_ANALRA23, "analr_a23"),
+	PINCTRL_PIN(WMT_PIN_ANALRA24, "analr_a24"),
 	PINCTRL_PIN(WMT_PIN_AC97SDI, "ac97_sdi"),
 	PINCTRL_PIN(WMT_PIN_AC97SYNC, "ac97_sync"),
 	PINCTRL_PIN(WMT_PIN_AC97SDO, "ac97_sdo"),
@@ -389,47 +389,47 @@ static const char * const wm8505_groups[] = {
 	"vga_vsync",
 	"vd_hsync",
 	"vd_vsync",
-	"nor_d0",
-	"nor_d1",
-	"nor_d2",
-	"nor_d3",
-	"nor_d4",
-	"nor_d5",
-	"nor_d6",
-	"nor_d7",
-	"nor_d8",
-	"nor_d9",
-	"nor_d10",
-	"nor_d11",
-	"nor_d12",
-	"nor_d13",
-	"nor_d14",
-	"nor_d15",
-	"nor_a0",
-	"nor_a1",
-	"nor_a2",
-	"nor_a3",
-	"nor_a4",
-	"nor_a5",
-	"nor_a6",
-	"nor_a7",
-	"nor_a8",
-	"nor_a9",
-	"nor_a10",
-	"nor_a11",
-	"nor_a12",
-	"nor_a13",
-	"nor_a14",
-	"nor_a15",
-	"nor_a16",
-	"nor_a17",
-	"nor_a18",
-	"nor_a19",
-	"nor_a20",
-	"nor_a21",
-	"nor_a22",
-	"nor_a23",
-	"nor_a24",
+	"analr_d0",
+	"analr_d1",
+	"analr_d2",
+	"analr_d3",
+	"analr_d4",
+	"analr_d5",
+	"analr_d6",
+	"analr_d7",
+	"analr_d8",
+	"analr_d9",
+	"analr_d10",
+	"analr_d11",
+	"analr_d12",
+	"analr_d13",
+	"analr_d14",
+	"analr_d15",
+	"analr_a0",
+	"analr_a1",
+	"analr_a2",
+	"analr_a3",
+	"analr_a4",
+	"analr_a5",
+	"analr_a6",
+	"analr_a7",
+	"analr_a8",
+	"analr_a9",
+	"analr_a10",
+	"analr_a11",
+	"analr_a12",
+	"analr_a13",
+	"analr_a14",
+	"analr_a15",
+	"analr_a16",
+	"analr_a17",
+	"analr_a18",
+	"analr_a19",
+	"analr_a20",
+	"analr_a21",
+	"analr_a22",
+	"analr_a23",
+	"analr_a24",
 	"ac97_sdi",
 	"ac97_sync",
 	"ac97_sdo",
@@ -482,7 +482,7 @@ static int wm8505_pinctrl_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->banks = wm8505_banks;
 	data->nbanks = ARRAY_SIZE(wm8505_banks);

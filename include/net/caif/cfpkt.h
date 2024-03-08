@@ -104,7 +104,7 @@ int cfpkt_add_trail(struct cfpkt *pkt, const void *data, u16 len);
 
 /*
  * Pad trailer on packet.
- * Moves data pointer in packet, no content copied.
+ * Moves data pointer in packet, anal content copied.
  *
  * pkt Packet in which to pad trailer.
  * len Length of padding to add.
@@ -163,13 +163,13 @@ u16 cfpkt_getlen(struct cfpkt *pkt);
 int cfpkt_setlen(struct cfpkt *pkt, u16 len);
 
 /*
- * cfpkt_append - Appends a packet's data to another packet.
+ * cfpkt_append - Appends a packet's data to aanalther packet.
  * dstpkt:    Packet to append data into, WILL BE FREED BY THIS FUNCTION
  * addpkt:    Packet to be appended and automatically released,
  *            WILL BE FREED BY THIS FUNCTION.
  * expectlen: Packet's expected total length. This should be considered
  *            as a hint.
- * NB: Input packets will be destroyed after appending and cannot be used
+ * NB: Input packets will be destroyed after appending and cananalt be used
  * after calling this function.
  * @return    The new appended packet.
  */

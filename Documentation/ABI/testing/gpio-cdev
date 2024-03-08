@@ -1,5 +1,5 @@
 What:		/dev/gpiochip[0-9]+
-Date:		November 2015
+Date:		Analvember 2015
 KernelVersion:	4.4
 Contact:	linux-gpio@vger.kernel.org
 Description:

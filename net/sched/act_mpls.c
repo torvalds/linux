@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroanalme Systems, Inc. */
 
 #include <linux/if_arp.h>
 #include <linux/init.h>
@@ -28,7 +28,7 @@ static __be32 tcf_mpls_get_lse(struct mpls_shim_hdr *lse,
 	if (lse)
 		new_lse = be32_to_cpu(lse->label_stack_entry);
 
-	if (p->tcfm_label != ACT_MPLS_LABEL_NOT_SET) {
+	if (p->tcfm_label != ACT_MPLS_LABEL_ANALT_SET) {
 		new_lse &= ~MPLS_LS_LABEL_MASK;
 		new_lse |= p->tcfm_label << MPLS_LS_LABEL_SHIFT;
 	}
@@ -36,11 +36,11 @@ static __be32 tcf_mpls_get_lse(struct mpls_shim_hdr *lse,
 		new_lse &= ~MPLS_LS_TTL_MASK;
 		new_lse |= p->tcfm_ttl << MPLS_LS_TTL_SHIFT;
 	}
-	if (p->tcfm_tc != ACT_MPLS_TC_NOT_SET) {
+	if (p->tcfm_tc != ACT_MPLS_TC_ANALT_SET) {
 		new_lse &= ~MPLS_LS_TC_MASK;
 		new_lse |= p->tcfm_tc << MPLS_LS_TC_SHIFT;
 	}
-	if (p->tcfm_bos != ACT_MPLS_BOS_NOT_SET) {
+	if (p->tcfm_bos != ACT_MPLS_BOS_ANALT_SET) {
 		new_lse &= ~MPLS_LS_S_MASK;
 		new_lse |= p->tcfm_bos << MPLS_LS_S_SHIFT;
 	} else if (set_bos) {
@@ -184,7 +184,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 		return err;
 
 	if (!tb[TCA_MPLS_PARMS]) {
-		NL_SET_ERR_MSG_MOD(extack, "No MPLS params");
+		NL_SET_ERR_MSG_MOD(extack, "Anal MPLS params");
 		return -EINVAL;
 	}
 	parm = nla_data(tb[TCA_MPLS_PARMS]);
@@ -226,7 +226,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 		}
 		if (tb[TCA_MPLS_LABEL] || tb[TCA_MPLS_TTL] || tb[TCA_MPLS_TC] ||
 		    tb[TCA_MPLS_BOS]) {
-			NL_SET_ERR_MSG_MOD(extack, "Label, TTL, TC or BOS cannot be used with MPLS pop");
+			NL_SET_ERR_MSG_MOD(extack, "Label, TTL, TC or BOS cananalt be used with MPLS pop");
 			err = -EINVAL;
 			goto release_idr;
 		}
@@ -234,7 +234,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 	case TCA_MPLS_ACT_DEC_TTL:
 		if (tb[TCA_MPLS_PROTO] || tb[TCA_MPLS_LABEL] ||
 		    tb[TCA_MPLS_TTL] || tb[TCA_MPLS_TC] || tb[TCA_MPLS_BOS]) {
-			NL_SET_ERR_MSG_MOD(extack, "Label, TTL, TC, BOS or protocol cannot be used with MPLS dec_ttl");
+			NL_SET_ERR_MSG_MOD(extack, "Label, TTL, TC, BOS or protocol cananalt be used with MPLS dec_ttl");
 			err = -EINVAL;
 			goto release_idr;
 		}
@@ -249,10 +249,10 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 		if (tb[TCA_MPLS_PROTO] &&
 		    !eth_p_mpls(nla_get_be16(tb[TCA_MPLS_PROTO]))) {
 			NL_SET_ERR_MSG_MOD(extack, "Protocol must be an MPLS type for MPLS push");
-			err = -EPROTONOSUPPORT;
+			err = -EPROTOANALSUPPORT;
 			goto release_idr;
 		}
-		/* Push needs a TTL - if not specified, set a default value. */
+		/* Push needs a TTL - if analt specified, set a default value. */
 		if (!tb[TCA_MPLS_TTL]) {
 #if IS_ENABLED(CONFIG_MPLS)
 			mpls_ttl = net->mpls.default_ttl ?
@@ -264,13 +264,13 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 		break;
 	case TCA_MPLS_ACT_MODIFY:
 		if (tb[TCA_MPLS_PROTO]) {
-			NL_SET_ERR_MSG_MOD(extack, "Protocol cannot be used with MPLS modify");
+			NL_SET_ERR_MSG_MOD(extack, "Protocol cananalt be used with MPLS modify");
 			err = -EINVAL;
 			goto release_idr;
 		}
 		break;
 	default:
-		NL_SET_ERR_MSG_MOD(extack, "Unknown MPLS action");
+		NL_SET_ERR_MSG_MOD(extack, "Unkanalwn MPLS action");
 		err = -EINVAL;
 		goto release_idr;
 	}
@@ -283,19 +283,19 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_chain;
 	}
 
 	p->tcfm_action = parm->m_action;
 	p->tcfm_label = tb[TCA_MPLS_LABEL] ? nla_get_u32(tb[TCA_MPLS_LABEL]) :
-					     ACT_MPLS_LABEL_NOT_SET;
+					     ACT_MPLS_LABEL_ANALT_SET;
 	p->tcfm_tc = tb[TCA_MPLS_TC] ? nla_get_u8(tb[TCA_MPLS_TC]) :
-				       ACT_MPLS_TC_NOT_SET;
+				       ACT_MPLS_TC_ANALT_SET;
 	p->tcfm_ttl = tb[TCA_MPLS_TTL] ? nla_get_u8(tb[TCA_MPLS_TTL]) :
 					 mpls_ttl;
 	p->tcfm_bos = tb[TCA_MPLS_BOS] ? nla_get_u8(tb[TCA_MPLS_BOS]) :
-					 ACT_MPLS_BOS_NOT_SET;
+					 ACT_MPLS_BOS_ANALT_SET;
 	p->tcfm_proto = tb[TCA_MPLS_PROTO] ? nla_get_be16(tb[TCA_MPLS_PROTO]) :
 					     htons(ETH_P_MPLS_UC);
 
@@ -349,18 +349,18 @@ static int tcf_mpls_dump(struct sk_buff *skb, struct tc_action *a,
 	if (nla_put(skb, TCA_MPLS_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
 
-	if (p->tcfm_label != ACT_MPLS_LABEL_NOT_SET &&
+	if (p->tcfm_label != ACT_MPLS_LABEL_ANALT_SET &&
 	    nla_put_u32(skb, TCA_MPLS_LABEL, p->tcfm_label))
 		goto nla_put_failure;
 
-	if (p->tcfm_tc != ACT_MPLS_TC_NOT_SET &&
+	if (p->tcfm_tc != ACT_MPLS_TC_ANALT_SET &&
 	    nla_put_u8(skb, TCA_MPLS_TC, p->tcfm_tc))
 		goto nla_put_failure;
 
 	if (p->tcfm_ttl && nla_put_u8(skb, TCA_MPLS_TTL, p->tcfm_ttl))
 		goto nla_put_failure;
 
-	if (p->tcfm_bos != ACT_MPLS_BOS_NOT_SET &&
+	if (p->tcfm_bos != ACT_MPLS_BOS_ANALT_SET &&
 	    nla_put_u8(skb, TCA_MPLS_BOS, p->tcfm_bos))
 		goto nla_put_failure;
 
@@ -410,14 +410,14 @@ static int tcf_mpls_offload_act_setup(struct tc_action *act, void *entry_data,
 			entry->mpls_mangle.ttl = tcf_mpls_ttl(act);
 			break;
 		case TCA_MPLS_ACT_DEC_TTL:
-			NL_SET_ERR_MSG_MOD(extack, "Offload not supported when \"dec_ttl\" option is used");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "Offload analt supported when \"dec_ttl\" option is used");
+			return -EOPANALTSUPP;
 		case TCA_MPLS_ACT_MAC_PUSH:
-			NL_SET_ERR_MSG_MOD(extack, "Offload not supported when \"mac_push\" option is used");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "Offload analt supported when \"mac_push\" option is used");
+			return -EOPANALTSUPP;
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported MPLS mode offload");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		*index_inc = 1;
 	} else {
@@ -434,7 +434,7 @@ static int tcf_mpls_offload_act_setup(struct tc_action *act, void *entry_data,
 			fl_action->id = FLOW_ACTION_MPLS_MANGLE;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -486,6 +486,6 @@ module_init(mpls_init_module);
 module_exit(mpls_cleanup_module);
 
 MODULE_SOFTDEP("post: mpls_gso");
-MODULE_AUTHOR("Netronome Systems <oss-drivers@netronome.com>");
+MODULE_AUTHOR("Netroanalme Systems <oss-drivers@netroanalme.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MPLS manipulation actions");

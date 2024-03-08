@@ -26,29 +26,29 @@
  *
  * This function is used as a place to tell the user that the Xilinx USB host
  * controller does support LS devices. And in an HS only configuration, it
- * does not support FS devices either. It is hoped that this can help a
+ * does analt support FS devices either. It is hoped that this can help a
  * confused user.
  *
  * There are cases when the host controller fails to enable the port due to,
  * for example, insufficient power that can be supplied to the device from
- * the USB bus. In those cases, the messages printed here are not helpful.
+ * the USB bus. In those cases, the messages printed here are analt helpful.
  *
  * Return: Always return 0
  */
 static int ehci_xilinx_port_handed_over(struct usb_hcd *hcd, int portnum)
 {
-	dev_warn(hcd->self.controller, "port %d cannot be enabled\n", portnum);
+	dev_warn(hcd->self.controller, "port %d cananalt be enabled\n", portnum);
 	if (hcd->has_tt) {
 		dev_warn(hcd->self.controller,
 			"Maybe you have connected a low speed device?\n");
 
 		dev_warn(hcd->self.controller,
-			"We do not support low speed devices\n");
+			"We do analt support low speed devices\n");
 	} else {
 		dev_warn(hcd->self.controller,
-			"Maybe your device is not a high speed device?\n");
+			"Maybe your device is analt a high speed device?\n");
 		dev_warn(hcd->self.controller,
-			"The USB host controller does not support full speed nor low speed devices\n");
+			"The USB host controller does analt support full speed analr low speed devices\n");
 		dev_warn(hcd->self.controller,
 			"You can reconfigure the host controller to have full speed support\n");
 	}
@@ -117,7 +117,7 @@ static const struct hc_driver ehci_xilinx_of_hc_driver = {
  */
 static int ehci_hcd_xilinx_of_probe(struct platform_device *op)
 {
-	struct device_node *dn = op->dev.of_node;
+	struct device_analde *dn = op->dev.of_analde;
 	struct usb_hcd *hcd;
 	struct ehci_hcd	*ehci;
 	struct resource res;
@@ -126,7 +126,7 @@ static int ehci_hcd_xilinx_of_probe(struct platform_device *op)
 	int *value;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(&op->dev, "initializing XILINX-OF USB Controller\n");
 
@@ -137,7 +137,7 @@ static int ehci_hcd_xilinx_of_probe(struct platform_device *op)
 	hcd = usb_create_hcd(&ehci_xilinx_of_hc_driver, &op->dev,
 				"XILINX-OF USB");
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hcd->rsrc_start = res.start;
 	hcd->rsrc_len = resource_size(&res);

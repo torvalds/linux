@@ -100,7 +100,7 @@ bfa_hwcb_msix_dummy(struct bfa_s *bfa, int vec)
 }
 
 /*
- * No special setup required for crossbow -- vector assignments are implicit.
+ * Anal special setup required for crossbow -- vector assignments are implicit.
  */
 void
 bfa_hwcb_msix_init(struct bfa_s *bfa, int nvecs)
@@ -160,7 +160,7 @@ bfa_hwcb_msix_uninstall(struct bfa_s *bfa)
 }
 
 /*
- * No special enable/disable -- vector assignments are implicit.
+ * Anal special enable/disable -- vector assignments are implicit.
  */
 void
 bfa_hwcb_isr_mode_set(struct bfa_s *bfa, bfa_boolean_t msix)

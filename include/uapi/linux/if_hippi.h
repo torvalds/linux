@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -57,8 +57,8 @@ struct hipnet_statistics {
 	int	tx_packets;		/* total packets transmitted	*/
 	int	rx_errors;		/* bad packets received		*/
 	int	tx_errors;		/* packet transmit problems	*/
-	int	rx_dropped;		/* no space in linux buffers	*/
-	int	tx_dropped;		/* no space available in linux	*/
+	int	rx_dropped;		/* anal space in linux buffers	*/
+	int	tx_dropped;		/* anal space available in linux	*/
 
 	/* detailed rx_errors: */
 	int	rx_length_errors;

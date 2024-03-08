@@ -15,19 +15,19 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
 
-struct visionox_rm69299 {
+struct visioanalx_rm69299 {
 	struct drm_panel panel;
 	struct regulator_bulk_data supplies[2];
 	struct gpio_desc *reset_gpio;
 	struct mipi_dsi_device *dsi;
 };
 
-static inline struct visionox_rm69299 *panel_to_ctx(struct drm_panel *panel)
+static inline struct visioanalx_rm69299 *panel_to_ctx(struct drm_panel *panel)
 {
-	return container_of(panel, struct visionox_rm69299, panel);
+	return container_of(panel, struct visioanalx_rm69299, panel);
 }
 
-static int visionox_rm69299_power_on(struct visionox_rm69299 *ctx)
+static int visioanalx_rm69299_power_on(struct visioanalx_rm69299 *ctx)
 {
 	int ret;
 
@@ -36,7 +36,7 @@ static int visionox_rm69299_power_on(struct visionox_rm69299 *ctx)
 		return ret;
 
 	/*
-	 * Reset sequence of visionox panel requires the panel to be
+	 * Reset sequence of visioanalx panel requires the panel to be
 	 * out of reset for 10ms, followed by being held in reset
 	 * for 10ms and then out again
 	 */
@@ -50,16 +50,16 @@ static int visionox_rm69299_power_on(struct visionox_rm69299 *ctx)
 	return 0;
 }
 
-static int visionox_rm69299_power_off(struct visionox_rm69299 *ctx)
+static int visioanalx_rm69299_power_off(struct visioanalx_rm69299 *ctx)
 {
 	gpiod_set_value(ctx->reset_gpio, 0);
 
 	return regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 }
 
-static int visionox_rm69299_unprepare(struct drm_panel *panel)
+static int visioanalx_rm69299_unprepare(struct drm_panel *panel)
 {
-	struct visionox_rm69299 *ctx = panel_to_ctx(panel);
+	struct visioanalx_rm69299 *ctx = panel_to_ctx(panel);
 	int ret;
 
 	ctx->dsi->mode_flags = 0;
@@ -76,17 +76,17 @@ static int visionox_rm69299_unprepare(struct drm_panel *panel)
 		dev_err(ctx->panel.dev, "enter_sleep cmd failed ret = %d\n", ret);
 	}
 
-	ret = visionox_rm69299_power_off(ctx);
+	ret = visioanalx_rm69299_power_off(ctx);
 
 	return ret;
 }
 
-static int visionox_rm69299_prepare(struct drm_panel *panel)
+static int visioanalx_rm69299_prepare(struct drm_panel *panel)
 {
-	struct visionox_rm69299 *ctx = panel_to_ctx(panel);
+	struct visioanalx_rm69299 *ctx = panel_to_ctx(panel);
 	int ret;
 
-	ret = visionox_rm69299_power_on(ctx);
+	ret = visioanalx_rm69299_power_on(ctx);
 	if (ret < 0)
 		return ret;
 
@@ -140,7 +140,7 @@ power_off:
 	return ret;
 }
 
-static const struct drm_display_mode visionox_rm69299_1080x2248_60hz = {
+static const struct drm_display_mode visioanalx_rm69299_1080x2248_60hz = {
 	.name = "1080x2248",
 	.clock = 158695,
 	.hdisplay = 1080,
@@ -154,14 +154,14 @@ static const struct drm_display_mode visionox_rm69299_1080x2248_60hz = {
 	.flags = 0,
 };
 
-static int visionox_rm69299_get_modes(struct drm_panel *panel,
+static int visioanalx_rm69299_get_modes(struct drm_panel *panel,
 				      struct drm_connector *connector)
 {
-	struct visionox_rm69299 *ctx = panel_to_ctx(panel);
+	struct visioanalx_rm69299 *ctx = panel_to_ctx(panel);
 	struct drm_display_mode *mode;
 
 	mode = drm_mode_duplicate(connector->dev,
-				  &visionox_rm69299_1080x2248_60hz);
+				  &visioanalx_rm69299_1080x2248_60hz);
 	if (!mode) {
 		dev_err(ctx->panel.dev, "failed to create a new display mode\n");
 		return 0;
@@ -175,21 +175,21 @@ static int visionox_rm69299_get_modes(struct drm_panel *panel,
 	return 1;
 }
 
-static const struct drm_panel_funcs visionox_rm69299_drm_funcs = {
-	.unprepare = visionox_rm69299_unprepare,
-	.prepare = visionox_rm69299_prepare,
-	.get_modes = visionox_rm69299_get_modes,
+static const struct drm_panel_funcs visioanalx_rm69299_drm_funcs = {
+	.unprepare = visioanalx_rm69299_unprepare,
+	.prepare = visioanalx_rm69299_prepare,
+	.get_modes = visioanalx_rm69299_get_modes,
 };
 
-static int visionox_rm69299_probe(struct mipi_dsi_device *dsi)
+static int visioanalx_rm69299_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
-	struct visionox_rm69299 *ctx;
+	struct visioanalx_rm69299 *ctx;
 	int ret;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, ctx);
 
@@ -207,20 +207,20 @@ static int visionox_rm69299_probe(struct mipi_dsi_device *dsi)
 	ctx->reset_gpio = devm_gpiod_get(ctx->panel.dev,
 					 "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
-		dev_err(dev, "cannot get reset gpio %ld\n", PTR_ERR(ctx->reset_gpio));
+		dev_err(dev, "cananalt get reset gpio %ld\n", PTR_ERR(ctx->reset_gpio));
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
-	drm_panel_init(&ctx->panel, dev, &visionox_rm69299_drm_funcs,
+	drm_panel_init(&ctx->panel, dev, &visioanalx_rm69299_drm_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
 	ctx->panel.dev = dev;
-	ctx->panel.funcs = &visionox_rm69299_drm_funcs;
+	ctx->panel.funcs = &visioanalx_rm69299_drm_funcs;
 	drm_panel_add(&ctx->panel);
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_LPM |
-			  MIPI_DSI_CLOCK_NON_CONTINUOUS;
+			  MIPI_DSI_CLOCK_ANALN_CONTINUOUS;
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0) {
 		dev_err(dev, "dsi attach failed ret = %d\n", ret);
@@ -248,9 +248,9 @@ err_dsi_attach:
 	return ret;
 }
 
-static void visionox_rm69299_remove(struct mipi_dsi_device *dsi)
+static void visioanalx_rm69299_remove(struct mipi_dsi_device *dsi)
 {
-	struct visionox_rm69299 *ctx = mipi_dsi_get_drvdata(dsi);
+	struct visioanalx_rm69299 *ctx = mipi_dsi_get_drvdata(dsi);
 
 	mipi_dsi_detach(ctx->dsi);
 	mipi_dsi_device_unregister(ctx->dsi);
@@ -258,21 +258,21 @@ static void visionox_rm69299_remove(struct mipi_dsi_device *dsi)
 	drm_panel_remove(&ctx->panel);
 }
 
-static const struct of_device_id visionox_rm69299_of_match[] = {
-	{ .compatible = "visionox,rm69299-1080p-display", },
+static const struct of_device_id visioanalx_rm69299_of_match[] = {
+	{ .compatible = "visioanalx,rm69299-1080p-display", },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, visionox_rm69299_of_match);
+MODULE_DEVICE_TABLE(of, visioanalx_rm69299_of_match);
 
-static struct mipi_dsi_driver visionox_rm69299_driver = {
+static struct mipi_dsi_driver visioanalx_rm69299_driver = {
 	.driver = {
-		.name = "panel-visionox-rm69299",
-		.of_match_table = visionox_rm69299_of_match,
+		.name = "panel-visioanalx-rm69299",
+		.of_match_table = visioanalx_rm69299_of_match,
 	},
-	.probe = visionox_rm69299_probe,
-	.remove = visionox_rm69299_remove,
+	.probe = visioanalx_rm69299_probe,
+	.remove = visioanalx_rm69299_remove,
 };
-module_mipi_dsi_driver(visionox_rm69299_driver);
+module_mipi_dsi_driver(visioanalx_rm69299_driver);
 
-MODULE_DESCRIPTION("Visionox RM69299 DSI Panel Driver");
+MODULE_DESCRIPTION("Visioanalx RM69299 DSI Panel Driver");
 MODULE_LICENSE("GPL v2");

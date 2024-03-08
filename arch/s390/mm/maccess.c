@@ -9,7 +9,7 @@
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp.h>
 #include <linux/cpu.h>
 #include <linux/uio.h>
@@ -24,7 +24,7 @@ unsigned long __bootdata_preserved(__memcpy_real_area);
 pte_t *__bootdata_preserved(memcpy_real_ptep);
 static DEFINE_MUTEX(memcpy_real_mutex);
 
-static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t size)
+static analtrace long s390_kernel_write_odd(void *dst, const void *src, size_t size)
 {
 	unsigned long aligned, offset, count;
 	char tmp[8];
@@ -61,7 +61,7 @@ static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t siz
  */
 static DEFINE_SPINLOCK(s390_kernel_write_lock);
 
-notrace void *s390_kernel_write(void *dst, const void *src, size_t size)
+analtrace void *s390_kernel_write(void *dst, const void *src, size_t size)
 {
 	void *tmp = dst;
 	unsigned long flags;

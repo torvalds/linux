@@ -164,7 +164,7 @@ int devm_led_classdev_multicolor_register_ext(struct device *parent,
 	dr = devres_alloc(devm_led_classdev_multicolor_release,
 			  sizeof(*dr), GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = led_classdev_multicolor_register_ext(parent, mcled_cdev,
 						   init_data);

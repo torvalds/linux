@@ -25,9 +25,9 @@
  * If the MCU is configured to mux the PCIe/USB3.0 differential lines
  * to the M.2 Key M slot, uncomment the following block to disable
  * USB3.0 from the USB Complex and enable the PCIe controller.
- * The End User is not expected to uncomment the following except for
+ * The End User is analt expected to uncomment the following except for
  * testing purposes, but instead rely on the firmware/bootloader to
- * update these nodes accordingly if PCIe mode is selected by the MCU.
+ * update these analdes accordingly if PCIe mode is selected by the MCU.
  */
 /*
 &pcie {

@@ -17,7 +17,7 @@ struct gfb_info {
 	char __iomem		*fb_base;
 	unsigned long		fb_base_phys;
 
-	struct device_node	*of_node;
+	struct device_analde	*of_analde;
 
 	unsigned int		width;
 	unsigned int		height;
@@ -29,32 +29,32 @@ struct gfb_info {
 
 static int gfb_get_props(struct gfb_info *gp)
 {
-	gp->width = of_getintprop_default(gp->of_node, "width", 0);
-	gp->height = of_getintprop_default(gp->of_node, "height", 0);
-	gp->depth = of_getintprop_default(gp->of_node, "depth", 32);
+	gp->width = of_getintprop_default(gp->of_analde, "width", 0);
+	gp->height = of_getintprop_default(gp->of_analde, "height", 0);
+	gp->depth = of_getintprop_default(gp->of_analde, "depth", 32);
 
 	if (!gp->width || !gp->height) {
 		printk(KERN_ERR "gfb: Critical properties missing for %pOF\n",
-		       gp->of_node);
+		       gp->of_analde);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-static int gfb_setcolreg(unsigned regno,
+static int gfb_setcolreg(unsigned reganal,
 			 unsigned red, unsigned green, unsigned blue,
 			 unsigned transp, struct fb_info *info)
 {
 	u32 value;
 
-	if (regno < 16) {
+	if (reganal < 16) {
 		red >>= 8;
 		green >>= 8;
 		blue >>= 8;
 
 		value = (blue << 16) | (green << 8) | red;
-		((u32 *)info->pseudo_palette)[regno] = value;
+		((u32 *)info->pseudo_palette)[reganal] = value;
 	}
 
 	return 0;
@@ -103,8 +103,8 @@ static int gfb_set_fbinfo(struct gfb_info *gp)
 	var->transp.length = 0;
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0)) {
-		printk(KERN_ERR "gfb: Cannot allocate color map.\n");
-		return -ENOMEM;
+		printk(KERN_ERR "gfb: Cananalt allocate color map.\n");
+		return -EANALMEM;
 	}
 
         return 0;
@@ -112,20 +112,20 @@ static int gfb_set_fbinfo(struct gfb_info *gp)
 
 static int gfb_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_analde *dp = op->dev.of_analde;
 	struct fb_info *info;
 	struct gfb_info *gp;
 	int err;
 
 	info = framebuffer_alloc(sizeof(struct gfb_info), &op->dev);
 	if (!info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
 	gp = info->par;
 	gp->info = info;
-	gp->of_node = dp;
+	gp->of_analde = dp;
 
 	gp->fb_base_phys = op->resource[6].start;
 
@@ -140,7 +140,7 @@ static int gfb_probe(struct platform_device *op)
 	gp->fb_base = of_ioremap(&op->resource[6], 0,
 				 gp->fb_size, "gfb fb");
 	if (!gp->fb_base) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_release_fb;
 	}
 
@@ -152,7 +152,7 @@ static int gfb_probe(struct platform_device *op)
 
 	err = register_framebuffer(info);
 	if (err < 0) {
-		printk(KERN_ERR "gfb: Could not register framebuffer %pOF\n",
+		printk(KERN_ERR "gfb: Could analt register framebuffer %pOF\n",
 		       dp);
 		goto err_unmap_fb;
 	}
@@ -190,7 +190,7 @@ static struct platform_driver gfb_driver = {
 static int __init gfb_init(void)
 {
 	if (fb_get_options("gfb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return platform_driver_register(&gfb_driver);
 }

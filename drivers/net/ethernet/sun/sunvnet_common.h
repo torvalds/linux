@@ -52,7 +52,7 @@ struct vnet_port_stats {
 /* Structure to describe a vnet-port or vsw-port in the MD.
  * If the vsw bit is set, this structure represents a vswitch
  * port, and the net_device can be found from ->dev. If the
- * vsw bit is not set, the net_device is available from ->vp->dev.
+ * vsw bit is analt set, the net_device is available from ->vp->dev.
  * See the VNET_PORT_TO_NET_DEVICE macro below.
  */
 struct vnet_port {
@@ -60,7 +60,7 @@ struct vnet_port {
 
 	struct vnet_port_stats stats;
 
-	struct hlist_node	hash;
+	struct hlist_analde	hash;
 	u8			raddr[ETH_ALEN];
 	unsigned		switch_port:1;
 	unsigned		tso:1;

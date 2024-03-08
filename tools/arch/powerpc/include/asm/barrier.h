@@ -13,14 +13,14 @@
  * by this processor have been performed (with respect to all other
  * mechanisms that access memory).  The eieio instruction is a barrier
  * providing an ordering (separately) for (a) cacheable stores and (b)
- * loads and stores to non-cacheable memory (e.g. I/O devices).
+ * loads and stores to analn-cacheable memory (e.g. I/O devices).
  *
  * mb() prevents loads and stores being reordered across this point.
  * rmb() prevents loads being reordered across this point.
  * wmb() prevents stores being reordered across this point.
  *
  * *mb() variants without smp_ prefix must order all types of memory
- * operations with one another. sync is the only instruction sufficient
+ * operations with one aanalther. sync is the only instruction sufficient
  * to do this.
  */
 #define mb()   __asm__ __volatile__ ("sync" : : : "memory")

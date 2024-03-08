@@ -73,7 +73,7 @@ static void drm_exec_unlock_all(struct drm_exec *exec)
  *
  * Initialize the object and make sure that we can track locked objects.
  *
- * If nr is non-zero then it is used as the initial objects table size.
+ * If nr is analn-zero then it is used as the initial objects table size.
  * In either case, the table will grow (be re-allocated) on demand.
  */
 void drm_exec_init(struct drm_exec *exec, uint32_t flags, unsigned nr)
@@ -148,7 +148,7 @@ static int drm_exec_obj_locked(struct drm_exec *exec,
 		tmp = kvrealloc(exec->objects, size, size + PAGE_SIZE,
 				GFP_KERNEL);
 		if (!tmp)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		exec->objects = tmp;
 		exec->max_objects += PAGE_SIZE / sizeof(void *);
@@ -202,8 +202,8 @@ error_dropref:
  * Lock a GEM object for use and grab a reference to it.
  *
  * Returns: -EDEADLK if a contention is detected, -EALREADY when object is
- * already locked (can be suppressed by setting the DRM_EXEC_IGNORE_DUPLICATES
- * flag), -ENOMEM when memory allocation failed and zero for success.
+ * already locked (can be suppressed by setting the DRM_EXEC_IGANALRE_DUPLICATES
+ * flag), -EANALMEM when memory allocation failed and zero for success.
  */
 int drm_exec_lock_obj(struct drm_exec *exec, struct drm_gem_object *obj)
 {
@@ -231,7 +231,7 @@ int drm_exec_lock_obj(struct drm_exec *exec, struct drm_gem_object *obj)
 	}
 
 	if (unlikely(ret == -EALREADY) &&
-	    exec->flags & DRM_EXEC_IGNORE_DUPLICATES)
+	    exec->flags & DRM_EXEC_IGANALRE_DUPLICATES)
 		return 0;
 
 	if (unlikely(ret))
@@ -255,7 +255,7 @@ EXPORT_SYMBOL(drm_exec_lock_obj);
  * @obj: the GEM object to unlock
  *
  * Unlock the GEM object and remove it from the collection of locked objects.
- * Should only be used to unlock the most recently locked objects. It's not time
+ * Should only be used to unlock the most recently locked objects. It's analt time
  * efficient to unlock objects locked long ago.
  */
 void drm_exec_unlock_obj(struct drm_exec *exec, struct drm_gem_object *obj)
@@ -285,7 +285,7 @@ EXPORT_SYMBOL(drm_exec_unlock_obj);
  * Prepare a GEM object for use by locking it and reserving fence slots.
  *
  * Returns: -EDEADLK if a contention is detected, -EALREADY when object is
- * already locked, -ENOMEM when memory allocation failed and zero for success.
+ * already locked, -EANALMEM when memory allocation failed and zero for success.
  */
 int drm_exec_prepare_obj(struct drm_exec *exec, struct drm_gem_object *obj,
 			 unsigned int num_fences)
@@ -317,7 +317,7 @@ EXPORT_SYMBOL(drm_exec_prepare_obj);
  * Reserves @num_fences on each GEM object after locking it.
  *
  * Returns: -EDEADLOCK on contention, -EALREADY when object is already locked,
- * -ENOMEM when memory allocation failed and zero for success.
+ * -EANALMEM when memory allocation failed and zero for success.
  */
 int drm_exec_prepare_array(struct drm_exec *exec,
 			   struct drm_gem_object **objects,

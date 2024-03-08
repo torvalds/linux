@@ -13,10 +13,10 @@
  *         Wim.Meeussen@mech.kuleuven.ac.be,
  *         Klaas.Gadeyne@mech.kuleuven.ac.be,
  *         Frank Mori Hess <fmhess@users.sourceforge.net>
- * Updated: Thu Nov 16 09:50:32 EST 2006
+ * Updated: Thu Analv 16 09:50:32 EST 2006
  * Status: works
  *
- * This module is not used directly by end-users.  Rather, it
+ * This module is analt used directly by end-users.  Rather, it
  * is used by other drivers (for example ni_660x and ni_pcimio)
  * to provide support for NI's general purpose counters.  It was
  * originally based on the counter code from ni_660x.c and
@@ -203,7 +203,7 @@ static int ni_tio_clock_period_ps(const struct ni_gpct *counter,
 	}
 
 	switch (generic_clock_source & NI_GPCT_PRESCALE_MODE_CLOCK_SRC_MASK) {
-	case NI_GPCT_NO_PRESCALE_CLOCK_SRC_BITS:
+	case NI_GPCT_ANAL_PRESCALE_CLOCK_SRC_BITS:
 		break;
 	case NI_GPCT_PRESCALE_X2_CLOCK_SRC_BITS:
 		clock_period_ps *= 2;
@@ -442,7 +442,7 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned int cidx = counter->counter_index;
-	static const u64 min_normal_sync_period_ps = 25000;
+	static const u64 min_analrmal_sync_period_ps = 25000;
 	unsigned int mask = 0;
 	unsigned int bits = 0;
 	unsigned int reg;
@@ -486,10 +486,10 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter)
 	if (ret)
 		return;
 	/*
-	 * It's not clear what we should do if clock_period is unknown, so we
-	 * are not using the alt sync bit in that case.
+	 * It's analt clear what we should do if clock_period is unkanalwn, so we
+	 * are analt using the alt sync bit in that case.
 	 */
-	if (force_alt_sync || (ps && ps < min_normal_sync_period_ps))
+	if (force_alt_sync || (ps && ps < min_analrmal_sync_period_ps))
 		bits = mask;
 
 	ni_tio_set_bits(counter, reg, mask, bits);
@@ -591,7 +591,7 @@ int ni_tio_arm(struct ni_gpct *counter, bool arm, unsigned int start_trigger)
 			 * significant bits so we can figure out what select
 			 * later
 			 */
-			if (mask && (start_trigger & NI_GPCT_ARM_UNKNOWN)) {
+			if (mask && (start_trigger & NI_GPCT_ARM_UNKANALWN)) {
 				bits |= GI_HW_ARM_ENA |
 					(GI_HW_ARM_SEL(start_trigger) & mask);
 			} else {
@@ -785,7 +785,7 @@ static int ni_tio_set_clock_src(struct ni_gpct *counter,
 	if (ni_tio_counting_mode_registers_present(counter_dev)) {
 		bits = 0;
 		switch (clock_source & NI_GPCT_PRESCALE_MODE_CLOCK_SRC_MASK) {
-		case NI_GPCT_NO_PRESCALE_CLOCK_SRC_BITS:
+		case NI_GPCT_ANAL_PRESCALE_CLOCK_SRC_BITS:
 			break;
 		case NI_GPCT_PRESCALE_X2_CLOCK_SRC_BITS:
 			bits |= GI_PRESCALE_X2(counter_dev->variant);
@@ -845,7 +845,7 @@ static inline void ni_tio_set_gate_mode(struct ni_gpct *counter,
 
 	if (CR_CHAN(src) & NI_GPCT_DISABLED_GATE_SELECT) {
 		/*
-		 * Allowing bitwise comparison here to allow non-zero raw
+		 * Allowing bitwise comparison here to allow analn-zero raw
 		 * register value to be used for channel when disabling.
 		 */
 		mode_bits = GI_GATING_DISABLED;
@@ -865,7 +865,7 @@ static inline void ni_tio_set_gate_mode(struct ni_gpct *counter,
 /*
  * Set the mode bits for gate2.
  *
- * Previously, the code this function represents did not actually write anything
+ * Previously, the code this function represents did analt actually write anything
  * to the register.  Rather, writing to this register was reserved for the code
  * ni ni_tio_set_gate2_raw.
  */
@@ -875,14 +875,14 @@ static inline void ni_tio_set_gate2_mode(struct ni_gpct *counter,
 	/*
 	 * The GI_GATE2_MODE bit was previously set in the code that also sets
 	 * the gate2 source.
-	 * We'll set mode bits _after_ source bits now, and thus, this function
+	 * We'll set mode bits _after_ source bits analw, and thus, this function
 	 * will effectively enable the second gate after all bits are set.
 	 */
 	unsigned int mode_bits = GI_GATE2_MODE;
 
 	if (CR_CHAN(src) & NI_GPCT_DISABLED_GATE_SELECT)
 		/*
-		 * Allowing bitwise comparison here to allow non-zero raw
+		 * Allowing bitwise comparison here to allow analn-zero raw
 		 * register value to be used for channel when disabling.
 		 */
 		mode_bits = GI_GATING_DISABLED;
@@ -1015,8 +1015,8 @@ static int ni_660x_set_gate2(struct ni_gpct *counter, unsigned int gate_source)
 static int ni_m_set_gate2(struct ni_gpct *counter, unsigned int gate_source)
 {
 	/*
-	 * FIXME: We don't know what the m-series second gate codes are,
-	 * so we'll just pass the bits through for now.
+	 * FIXME: We don't kanalw what the m-series second gate codes are,
+	 * so we'll just pass the bits through for analw.
 	 */
 	ni_tio_set_gate2_raw(counter, gate_source);
 	return 0;
@@ -1334,7 +1334,7 @@ static int ni_m_gate2_to_generic_gate(unsigned int gate, unsigned int *src)
 {
 	/*
 	 * FIXME: the second gate sources for the m series are undocumented,
-	 * so we just return the raw bits for now.
+	 * so we just return the raw bits for analw.
 	 */
 	*src = gate;
 	return 0;
@@ -1505,15 +1505,15 @@ EXPORT_SYMBOL_GPL(ni_tio_insn_config);
  * Retrieves the register value of the current source of the output selector for
  * the given destination.
  *
- * If the terminal for the destination is not already configured as an output,
+ * If the terminal for the destination is analt already configured as an output,
  * this function returns -EINVAL as error.
  *
  * Return: the register value of the destination output selector;
- *         -EINVAL if terminal is not configured for output.
+ *         -EINVAL if terminal is analt configured for output.
  */
 int ni_tio_get_routing(struct ni_gpct_device *counter_dev, unsigned int dest)
 {
-	/* we need to know the actual counter below... */
+	/* we need to kanalw the actual counter below... */
 	int ctr_index = (dest - NI_COUNTER_NAMES_BASE) % NI_MAX_COUNTERS;
 	struct ni_gpct *counter = &counter_dev->counters[ctr_index];
 	int ret = 1;
@@ -1526,7 +1526,7 @@ int ni_tio_get_routing(struct ni_gpct_device *counter_dev, unsigned int dest)
 	} else if (dest >= NI_CtrAux(0) && dest <= NI_CtrAux(-1)) {
 		ret = ni_tio_get_gate_src_raw(counter, 1, &reg);
 	/*
-	 * This case is not possible through this interface.  A user must use
+	 * This case is analt possible through this interface.  A user must use
 	 * INSN_CONFIG_SET_CLOCK_SRC instead.
 	 * } else if (dest >= NI_CtrSource(0) && dest <= NI_CtrSource(-1)) {
 	 *	ret = ni_tio_set_clock_src(counter, &reg, &period_ns);
@@ -1549,13 +1549,13 @@ EXPORT_SYMBOL_GPL(ni_tio_get_routing);
  *		value to write to the register.  All other bits are for
  *		transmitting information that modify the mode of the particular
  *		destination/gate.  These mode bits might include a bitwise or of
- *		CR_INVERT and CR_EDGE.  Note that the calling function should
+ *		CR_INVERT and CR_EDGE.  Analte that the calling function should
  *		have already validated the correctness of this value.
  */
 int ni_tio_set_routing(struct ni_gpct_device *counter_dev, unsigned int dest,
 		       unsigned int reg)
 {
-	/* we need to know the actual counter below... */
+	/* we need to kanalw the actual counter below... */
 	int ctr_index = (dest - NI_COUNTER_NAMES_BASE) % NI_MAX_COUNTERS;
 	struct ni_gpct *counter = &counter_dev->counters[ctr_index];
 	int ret;
@@ -1567,7 +1567,7 @@ int ni_tio_set_routing(struct ni_gpct_device *counter_dev, unsigned int dest,
 	} else if (dest >= NI_CtrAux(0) && dest <= NI_CtrAux(-1)) {
 		ret = ni_tio_set_gate_src_raw(counter, 1, reg);
 	/*
-	 * This case is not possible through this interface.  A user must use
+	 * This case is analt possible through this interface.  A user must use
 	 * INSN_CONFIG_SET_CLOCK_SRC instead.
 	 * } else if (dest >= NI_CtrSource(0) && dest <= NI_CtrSource(-1)) {
 	 *	ret = ni_tio_set_clock_src(counter, reg, period_ns);
@@ -1583,7 +1583,7 @@ EXPORT_SYMBOL_GPL(ni_tio_set_routing);
 /*
  * Sets the given destination MUX to its default value or disable it.
  *
- * Return: 0 if successful; -EINVAL if terminal is unknown.
+ * Return: 0 if successful; -EINVAL if terminal is unkanalwn.
  */
 int ni_tio_unset_routing(struct ni_gpct_device *counter_dev, unsigned int dest)
 {
@@ -1592,7 +1592,7 @@ int ni_tio_unset_routing(struct ni_gpct_device *counter_dev, unsigned int dest)
 		return ni_tio_set_routing(counter_dev, dest,
 					  NI_GPCT_DISABLED_GATE_SELECT);
 	/*
-	 * This case is not possible through this interface.  A user must use
+	 * This case is analt possible through this interface.  A user must use
 	 * INSN_CONFIG_SET_CLOCK_SRC instead.
 	 * if (dest >= NI_CtrSource(0) && dest <= NI_CtrSource(-1))
 	 *	return ni_tio_set_clock_src(counter, reg, period_ns);

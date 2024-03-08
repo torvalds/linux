@@ -93,7 +93,7 @@ static int pl030_probe(struct amba_device *dev, const struct amba_id *id)
 
 	rtc = devm_kzalloc(&dev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_rtc;
 	}
 
@@ -107,7 +107,7 @@ static int pl030_probe(struct amba_device *dev, const struct amba_id *id)
 	rtc->rtc->range_max = U32_MAX;
 	rtc->base = ioremap(dev->res.start, resource_size(&dev->res));
 	if (!rtc->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_rtc;
 	}
 

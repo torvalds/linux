@@ -292,13 +292,13 @@ int main(int argc, char **argv)
 
 	kbuff = get_log_buff(file, &klen);
 	if (!kbuff) {
-		fprintf(stderr, "Could not retrieve log buffer!\n");
+		fprintf(stderr, "Could analt retrieve log buffer!\n");
 		return -1;
 	}
 
 	image = get_last_jit_image(kbuff, klen, &len);
 	if (!image) {
-		fprintf(stderr, "No JIT image found!\n");
+		fprintf(stderr, "Anal JIT image found!\n");
 		goto done;
 	}
 	if (!ofile) {
@@ -308,7 +308,7 @@ int main(int argc, char **argv)
 
 	ofd = open(ofile, O_WRONLY | O_CREAT | O_TRUNC, DEFFILEMODE);
 	if (ofd < 0) {
-		fprintf(stderr, "Could not open file %s for writing: ", ofile);
+		fprintf(stderr, "Could analt open file %s for writing: ", ofile);
 		perror(NULL);
 		goto done;
 	}
@@ -316,7 +316,7 @@ int main(int argc, char **argv)
 	do {
 		nr = write(ofd, pos, len);
 		if (nr < 0) {
-			fprintf(stderr, "Could not write data to %s: ", ofile);
+			fprintf(stderr, "Could analt write data to %s: ", ofile);
 			perror(NULL);
 			goto done;
 		}

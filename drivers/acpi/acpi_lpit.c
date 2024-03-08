@@ -51,7 +51,7 @@ static int lpit_read_residency_counter_us(u64 *counter, bool io_mem)
 		return 0;
 	}
 
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 static ssize_t low_power_idle_system_residency_us_show(struct device *dev,
@@ -100,7 +100,7 @@ static void lpit_update_residency(struct lpit_residency_info *info,
 {
 	struct device *dev_root = bus_get_dev_root(&cpu_subsys);
 
-	/* Silently fail, if cpuidle attribute group is not present */
+	/* Silently fail, if cpuidle attribute group is analt present */
 	if (!dev_root)
 		return;
 

@@ -27,7 +27,7 @@ static irqreturn_t j2_ipi_interrupt_handler(int irq, void *arg)
 	do messages = *pmsg;
 	while (cmpxchg(pmsg, messages, 0) != messages);
 
-	if (!messages) return IRQ_NONE;
+	if (!messages) return IRQ_ANALNE;
 
 	for (i=0; i<SMP_MSG_NR; i++)
 		if (messages & (1U<<i))
@@ -42,10 +42,10 @@ static void j2_smp_setup(void)
 
 static void j2_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned i, max = 1;
 
-	np = of_find_compatible_node(NULL, NULL, "jcore,ipi-controller");
+	np = of_find_compatible_analde(NULL, NULL, "jcore,ipi-controller");
 	if (!np)
 		goto out;
 
@@ -54,7 +54,7 @@ static void j2_prepare_cpus(unsigned int max_cpus)
 	if (!j2_ipi_irq || !j2_ipi_trigger)
 		goto out;
 
-	np = of_find_compatible_node(NULL, NULL, "jcore,cpuid-mmio");
+	np = of_find_compatible_analde(NULL, NULL, "jcore,cpuid-mmio");
 	if (!np)
 		goto out;
 
@@ -78,13 +78,13 @@ out:
 
 static void j2_start_cpu(unsigned int cpu, unsigned long entry_point)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 regs[2];
 	void __iomem *release, *initpc;
 
 	if (!cpu) return;
 
-	np = of_get_cpu_node(cpu, NULL);
+	np = of_get_cpu_analde(cpu, NULL);
 	if (!np) return;
 
 	if (of_property_read_u32_array(np, "cpu-release-addr", regs, 2)) return;

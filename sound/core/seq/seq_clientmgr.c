@@ -10,7 +10,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <sound/core.h>
-#include <sound/minors.h>
+#include <sound/mianalrs.h>
 #include <linux/kmod.h>
 
 #include <sound/seq_kernel.h>
@@ -41,7 +41,7 @@
  * 128..191: dynamically allocated client numbers for applications
  */
 
-/* number of kernel non-card clients */
+/* number of kernel analn-card clients */
 #define SNDRV_SEQ_GLOBAL_CLIENTS	16
 /* clients per cards, for static clients */
 #define SNDRV_SEQ_CLIENTS_PER_CARD	4
@@ -239,7 +239,7 @@ static struct snd_seq_client *seq_create_client1(int client_index, int poolsize)
 		kfree(client);
 		return NULL;
 	}
-	client->type = NO_CLIENT;
+	client->type = ANAL_CLIENT;
 	snd_use_lock_init(&client->use_lock);
 	rwlock_init(&client->ports_lock);
 	mutex_init(&client->ports_mutex);
@@ -269,7 +269,7 @@ static struct snd_seq_client *seq_create_client1(int client_index, int poolsize)
 	spin_unlock_irq(&clients_lock);
 	snd_seq_pool_delete(&client->pool);
 	kfree(client);
-	return NULL;	/* no free slot found or busy, return failure code */
+	return NULL;	/* anal free slot found or busy, return failure code */
 }
 
 
@@ -297,7 +297,7 @@ static void seq_free_client(struct snd_seq_client * client)
 {
 	mutex_lock(&register_mutex);
 	switch (client->type) {
-	case NO_CLIENT:
+	case ANAL_CLIENT:
 		pr_warn("ALSA: seq: Trying to free unused client %d\n",
 			client->number);
 		break;
@@ -321,14 +321,14 @@ static void seq_free_client(struct snd_seq_client * client)
 /* -------------------------------------------------------- */
 
 /* create a user client */
-static int snd_seq_open(struct inode *inode, struct file *file)
+static int snd_seq_open(struct ianalde *ianalde, struct file *file)
 {
 	int c, mode;			/* client id */
 	struct snd_seq_client *client;
 	struct snd_seq_user_client *user;
 	int err;
 
-	err = stream_open(inode, file);
+	err = stream_open(ianalde, file);
 	if (err < 0)
 		return err;
 
@@ -336,7 +336,7 @@ static int snd_seq_open(struct inode *inode, struct file *file)
 	client = seq_create_client1(-1, SNDRV_SEQ_DEFAULT_EVENTS);
 	if (!client) {
 		mutex_unlock(&register_mutex);
-		return -ENOMEM;	/* failure code */
+		return -EANALMEM;	/* failure code */
 	}
 
 	mode = snd_seq_file_flags(file);
@@ -356,7 +356,7 @@ static int snd_seq_open(struct inode *inode, struct file *file)
 			seq_free_client1(client);
 			kfree(client);
 			mutex_unlock(&register_mutex);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -379,7 +379,7 @@ static int snd_seq_open(struct inode *inode, struct file *file)
 }
 
 /* delete a user client */
-static int snd_seq_release(struct inode *inode, struct file *file)
+static int snd_seq_release(struct ianalde *ianalde, struct file *file)
 {
 	struct snd_seq_client *client = file->private_data;
 
@@ -410,8 +410,8 @@ static bool event_is_compatible(const struct snd_seq_client *client,
 /* handle client read() */
 /* possible error values:
  *	-ENXIO	invalid client or file open mode
- *	-ENOSPC	FIFO overflow (the flag is cleared after this error report)
- *	-EINVAL	no enough user-space buffer to write the whole event
+ *	-EANALSPC	FIFO overflow (the flag is cleared after this error report)
+ *	-EINVAL	anal eanalugh user-space buffer to write the whole event
  *	-EFAULT	seg. fault during copy to user space
  */
 static ssize_t snd_seq_read(struct file *file, char __user *buf, size_t count,
@@ -444,7 +444,7 @@ static ssize_t snd_seq_read(struct file *file, char __user *buf, size_t count,
 		/* buffer overflow is detected */
 		snd_seq_fifo_clear(fifo);
 		/* return error code */
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	cell = NULL;
@@ -458,10 +458,10 @@ static ssize_t snd_seq_read(struct file *file, char __user *buf, size_t count,
 
 	/* while data available in queue */
 	while (count >= aligned_size) {
-		int nonblock;
+		int analnblock;
 
-		nonblock = (file->f_flags & O_NONBLOCK) || result > 0;
-		err = snd_seq_fifo_cell_out(fifo, &cell, nonblock);
+		analnblock = (file->f_flags & O_ANALNBLOCK) || result > 0;
+		err = snd_seq_fifo_cell_out(fifo, &cell, analnblock);
 		if (err < 0)
 			break;
 		if (!event_is_compatible(client, &cell->event)) {
@@ -525,7 +525,7 @@ static int check_port_perm(struct snd_seq_client_port *port, unsigned int flags)
 
 /*
  * check if the destination client is available, and return the pointer
- * if filter is non-zero, client filter bitmap is tested.
+ * if filter is analn-zero, client filter bitmap is tested.
  */
 static struct snd_seq_client *get_event_dest_client(struct snd_seq_event *event,
 						    int filter)
@@ -536,15 +536,15 @@ static struct snd_seq_client *get_event_dest_client(struct snd_seq_event *event,
 	if (dest == NULL)
 		return NULL;
 	if (! dest->accept_input)
-		goto __not_avail;
+		goto __analt_avail;
 	if ((dest->filter & SNDRV_SEQ_FILTER_USE_EVENT) &&
 	    ! test_bit(event->type, dest->event_filter))
-		goto __not_avail;
+		goto __analt_avail;
 	if (filter && !(dest->filter & filter))
-		goto __not_avail;
+		goto __analt_avail;
 
 	return dest; /* ok - accessible */
-__not_avail:
+__analt_avail:
 	snd_seq_client_unlock(dest);
 	return NULL;
 }
@@ -558,7 +558,7 @@ __not_avail:
  * the original event is also variable length, the external data is
  * copied after the event record. 
  * If the receiver client is a kernel client, the original event is
- * quoted in SNDRV_SEQ_EVENT_KERNEL_ERROR, since this requires no extra
+ * quoted in SNDRV_SEQ_EVENT_KERNEL_ERROR, since this requires anal extra
  * kmalloc.
  */
 static int bounce_error_event(struct snd_seq_client *client,
@@ -571,7 +571,7 @@ static int bounce_error_event(struct snd_seq_client *client,
 	if (client == NULL ||
 	    ! (client->filter & SNDRV_SEQ_FILTER_BOUNCE) ||
 	    ! client->accept_input)
-		return 0; /* ignored */
+		return 0; /* iganalred */
 
 	/* set up quoted error */
 	memset(&bounce_ev, 0, sizeof(bounce_ev));
@@ -579,7 +579,7 @@ static int bounce_error_event(struct snd_seq_client *client,
 	bounce_ev.flags = SNDRV_SEQ_EVENT_LENGTH_FIXED;
 	bounce_ev.queue = SNDRV_SEQ_QUEUE_DIRECT;
 	bounce_ev.source.client = SNDRV_SEQ_CLIENT_SYSTEM;
-	bounce_ev.source.port = SNDRV_SEQ_PORT_SYSTEM_ANNOUNCE;
+	bounce_ev.source.port = SNDRV_SEQ_PORT_SYSTEM_ANANALUNCE;
 	bounce_ev.dest.client = client->number;
 	bounce_ev.dest.port = event->source.port;
 	bounce_ev.data.quote.origin = event->dest;
@@ -598,7 +598,7 @@ static int bounce_error_event(struct snd_seq_client *client,
 /*
  * rewrite the time-stamp of the event record with the curren time
  * of the given queue.
- * return non-zero if updated.
+ * return analn-zero if updated.
  */
 static int update_timestamp_of_queue(struct snd_seq_event *event,
 				     int queue, int real_time)
@@ -645,7 +645,7 @@ int __snd_seq_deliver_single_event(struct snd_seq_client *dest,
 
 /*
  * deliver an event to the specified destination.
- * if filter is non-zero, client filter bitmap is tested.
+ * if filter is analn-zero, client filter bitmap is tested.
  *
  *  RETURN VALUE: 0 : if succeeded
  *		 <0 : error
@@ -656,7 +656,7 @@ static int snd_seq_deliver_single_event(struct snd_seq_client *client,
 {
 	struct snd_seq_client *dest = NULL;
 	struct snd_seq_client_port *dest_port = NULL;
-	int result = -ENOENT;
+	int result = -EANALENT;
 	int direct;
 
 	direct = snd_seq_ev_is_direct(event);
@@ -679,7 +679,7 @@ static int snd_seq_deliver_single_event(struct snd_seq_client *client,
 					  dest_port->time_real);
 
 #if IS_ENABLED(CONFIG_SND_SEQ_UMP)
-	if (!(dest->filter & SNDRV_SEQ_FILTER_NO_CONVERT)) {
+	if (!(dest->filter & SNDRV_SEQ_FILTER_ANAL_CONVERT)) {
 		if (snd_seq_ev_is_ump(event)) {
 			result = snd_seq_deliver_from_ump(client, dest, dest_port,
 							  event, atomic, hop);
@@ -791,8 +791,8 @@ static int deliver_to_subscribers(struct snd_seq_client *client,
  * to multiple targets.
  *
  * RETURN VALUE: n > 0  : the number of delivered events.
- *               n == 0 : the event was not passed to any client.
- *               n < 0  : error - event was not processed.
+ *               n == 0 : the event was analt passed to any client.
+ *               n < 0  : error - event was analt processed.
  */
 static int snd_seq_deliver_event(struct snd_seq_client *client, struct snd_seq_event *event,
 				 int atomic, int hop)
@@ -827,8 +827,8 @@ static int snd_seq_deliver_event(struct snd_seq_client *client, struct snd_seq_e
  * The event cell shall be released or re-queued in this function.
  *
  * RETURN VALUE: n > 0  : the number of delivered events.
- *		 n == 0 : the event was not passed to any client.
- *		 n < 0  : error - event was not processed.
+ *		 n == 0 : the event was analt passed to any client.
+ *		 n < 0  : error - event was analt processed.
  */
 int snd_seq_dispatch_event(struct snd_seq_event_cell *cell, int atomic, int hop)
 {
@@ -845,48 +845,48 @@ int snd_seq_dispatch_event(struct snd_seq_event_cell *cell, int atomic, int hop)
 	}
 
 	if (!snd_seq_ev_is_ump(&cell->event) &&
-	    cell->event.type == SNDRV_SEQ_EVENT_NOTE) {
-		/* NOTE event:
-		 * the event cell is re-used as a NOTE-OFF event and
+	    cell->event.type == SNDRV_SEQ_EVENT_ANALTE) {
+		/* ANALTE event:
+		 * the event cell is re-used as a ANALTE-OFF event and
 		 * enqueued again.
 		 */
 		struct snd_seq_event tmpev, *ev;
 
-		/* reserve this event to enqueue note-off later */
+		/* reserve this event to enqueue analte-off later */
 		tmpev = cell->event;
-		tmpev.type = SNDRV_SEQ_EVENT_NOTEON;
+		tmpev.type = SNDRV_SEQ_EVENT_ANALTEON;
 		result = snd_seq_deliver_event(client, &tmpev, atomic, hop);
 
 		/*
-		 * This was originally a note event.  We now re-use the
-		 * cell for the note-off event.
+		 * This was originally a analte event.  We analw re-use the
+		 * cell for the analte-off event.
 		 */
 
 		ev = &cell->event;
-		ev->type = SNDRV_SEQ_EVENT_NOTEOFF;
+		ev->type = SNDRV_SEQ_EVENT_ANALTEOFF;
 		ev->flags |= SNDRV_SEQ_PRIORITY_HIGH;
 
 		/* add the duration time */
 		switch (ev->flags & SNDRV_SEQ_TIME_STAMP_MASK) {
 		case SNDRV_SEQ_TIME_STAMP_TICK:
-			cell->event.time.tick += ev->data.note.duration;
+			cell->event.time.tick += ev->data.analte.duration;
 			break;
 		case SNDRV_SEQ_TIME_STAMP_REAL:
 			/* unit for duration is ms */
-			ev->time.time.tv_nsec += 1000000 * (ev->data.note.duration % 1000);
-			ev->time.time.tv_sec += ev->data.note.duration / 1000 +
+			ev->time.time.tv_nsec += 1000000 * (ev->data.analte.duration % 1000);
+			ev->time.time.tv_sec += ev->data.analte.duration / 1000 +
 						ev->time.time.tv_nsec / 1000000000;
 			ev->time.time.tv_nsec %= 1000000000;
 			break;
 		}
-		ev->data.note.velocity = ev->data.note.off_velocity;
+		ev->data.analte.velocity = ev->data.analte.off_velocity;
 
-		/* Now queue this cell as the note off event */
+		/* Analw queue this cell as the analte off event */
 		if (snd_seq_enqueue_event(cell, atomic, hop) < 0)
 			snd_seq_cell_free(cell); /* release this cell */
 
 	} else {
-		/* Normal events:
+		/* Analrmal events:
 		 * event cell is freed after processing the event
 		 */
 
@@ -927,16 +927,16 @@ static int snd_seq_client_enqueue_event(struct snd_seq_client *client,
 	/* direct event processing without enqueued */
 	if (snd_seq_ev_is_direct(event)) {
 		if (!snd_seq_ev_is_ump(event) &&
-		    event->type == SNDRV_SEQ_EVENT_NOTE)
+		    event->type == SNDRV_SEQ_EVENT_ANALTE)
 			return -EINVAL; /* this event must be enqueued! */
 		return snd_seq_deliver_event(client, event, atomic, hop);
 	}
 
-	/* Not direct, normal queuing */
+	/* Analt direct, analrmal queuing */
 	if (snd_seq_queue_is_used(event->queue, client->number) <= 0)
 		return -EINVAL;  /* invalid queue */
 	if (! snd_seq_write_pool_allocated(client))
-		return -ENXIO; /* queue is not allocated */
+		return -ENXIO; /* queue is analt allocated */
 
 	/* allocate an event cell */
 	err = snd_seq_event_dup(client->pool, event, &cell, !blocking || atomic,
@@ -957,7 +957,7 @@ static int snd_seq_client_enqueue_event(struct snd_seq_client *client,
 
 /*
  * check validity of event type and data length.
- * return non-zero if invalid.
+ * return analn-zero if invalid.
  */
 static int check_event_type_and_length(struct snd_seq_event *ev)
 {
@@ -983,10 +983,10 @@ static int check_event_type_and_length(struct snd_seq_event *ev)
 /* handle write() */
 /* possible error values:
  *	-ENXIO	invalid client or file open mode
- *	-ENOMEM	malloc failed
+ *	-EANALMEM	malloc failed
  *	-EFAULT	seg. fault during copy from user space
  *	-EINVAL	invalid event
- *	-EAGAIN	no space in output pool
+ *	-EAGAIN	anal space in output pool
  *	-EINTR	interrupts while sleep
  *	-EMLINK	too many hops
  *	others	depends on return value from driver callback
@@ -1012,7 +1012,7 @@ static ssize_t snd_seq_write(struct file *file, const char __user *buf,
 
  repeat:
 	handled = 0;
-	/* allocate the pool now if the pool is not allocated yet */ 
+	/* allocate the pool analw if the pool is analt allocated yet */ 
 	mutex_lock(&client->ioctl_mutex);
 	if (client->pool->size > 0 && !snd_seq_write_pool_allocated(client)) {
 		err = snd_seq_pool_init(client->pool);
@@ -1055,7 +1055,7 @@ static ssize_t snd_seq_write(struct file *file, const char __user *buf,
 
 		/* check for special events */
 		if (!snd_seq_ev_is_ump(ev)) {
-			if (ev->type == SNDRV_SEQ_EVENT_NONE)
+			if (ev->type == SNDRV_SEQ_EVENT_ANALNE)
 				goto __skip_event;
 			else if (snd_seq_ev_is_reserved(ev)) {
 				err = -EINVAL;
@@ -1084,7 +1084,7 @@ static ssize_t snd_seq_write(struct file *file, const char __user *buf,
 
 		/* ok, enqueue it */
 		err = snd_seq_client_enqueue_event(client, ev, file,
-						   !(file->f_flags & O_NONBLOCK),
+						   !(file->f_flags & O_ANALNBLOCK),
 						   0, 0, &client->ioctl_mutex);
 		if (err < 0)
 			break;
@@ -1126,7 +1126,7 @@ static __poll_t snd_seq_poll(struct file *file, poll_table * wait)
 
 		/* check if data is available in the outqueue */
 		if (snd_seq_fifo_poll_wait(client->data.user.fifo, file, wait))
-			mask |= EPOLLIN | EPOLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDANALRM;
 	}
 
 	if (snd_seq_file_flags(file) & SNDRV_SEQ_LFLG_OUTPUT) {
@@ -1134,7 +1134,7 @@ static __poll_t snd_seq_poll(struct file *file, poll_table * wait)
 		/* check if data is available in the pool */
 		if (!snd_seq_write_pool_allocated(client) ||
 		    snd_seq_pool_poll_wait(client->pool, file, wait))
-			mask |= EPOLLOUT | EPOLLWRNORM;
+			mask |= EPOLLOUT | EPOLLWRANALRM;
 	}
 
 	return mask;
@@ -1193,7 +1193,7 @@ static int snd_seq_ioctl_running_mode(struct snd_seq_client *client, void  *arg)
 	/* requested client number */
 	cptr = snd_seq_client_use_ptr(info->client);
 	if (cptr == NULL)
-		return -ENOENT;		/* don't change !!! */
+		return -EANALENT;		/* don't change !!! */
 
 #ifdef SNDRV_BIG_ENDIAN
 	if (!info->big_endian) {
@@ -1255,7 +1255,7 @@ static int snd_seq_ioctl_get_client_info(struct snd_seq_client *client,
 	/* requested client number */
 	cptr = snd_seq_client_use_ptr(client_info->client);
 	if (cptr == NULL)
-		return -ENOENT;		/* don't change !!! */
+		return -EANALENT;		/* don't change !!! */
 
 	get_client_info(cptr, client_info);
 	snd_seq_client_unlock(cptr);
@@ -1270,10 +1270,10 @@ static int snd_seq_ioctl_set_client_info(struct snd_seq_client *client,
 {
 	struct snd_seq_client_info *client_info = arg;
 
-	/* it is not allowed to set the info fields for an another client */
+	/* it is analt allowed to set the info fields for an aanalther client */
 	if (client->number != client_info->client)
 		return -EPERM;
-	/* also client type must be set now */
+	/* also client type must be set analw */
 	if (client->type != client_info->type)
 		return -EINVAL;
 
@@ -1306,7 +1306,7 @@ static int snd_seq_ioctl_create_port(struct snd_seq_client *client, void *arg)
 	struct snd_seq_port_callback *callback;
 	int port_idx, err;
 
-	/* it is not allowed to create the port for an another client */
+	/* it is analt allowed to create the port for an aanalther client */
 	if (info->addr.client != client->number)
 		return -EPERM;
 	if (client->type == USER_CLIENT && info->kernel)
@@ -1319,7 +1319,7 @@ static int snd_seq_ioctl_create_port(struct snd_seq_client *client, void *arg)
 		port_idx = info->addr.port;
 	else
 		port_idx = -1;
-	if (port_idx >= SNDRV_SEQ_ADDRESS_UNKNOWN)
+	if (port_idx >= SNDRV_SEQ_ADDRESS_UNKANALWN)
 		return -EINVAL;
 	err = snd_seq_create_port(client, port_idx, &port);
 	if (err < 0)
@@ -1359,7 +1359,7 @@ static int snd_seq_ioctl_delete_port(struct snd_seq_client *client, void *arg)
 	struct snd_seq_port_info *info = arg;
 	int err;
 
-	/* it is not allowed to remove the port for an another client */
+	/* it is analt allowed to remove the port for an aanalther client */
 	if (info->addr.client != client->number)
 		return -EPERM;
 
@@ -1389,7 +1389,7 @@ static int snd_seq_ioctl_get_port_info(struct snd_seq_client *client, void *arg)
 	port = snd_seq_port_use_ptr(cptr, info->addr.port);
 	if (port == NULL) {
 		snd_seq_client_unlock(cptr);
-		return -ENOENT;			/* don't change */
+		return -EANALENT;			/* don't change */
 	}
 
 	/* get port info */
@@ -1434,15 +1434,15 @@ static int check_subscription_permission(struct snd_seq_client *client,
 	if (client->number != subs->sender.client &&
 	    client->number != subs->dest.client) {
 		/* connection by third client - check export permission */
-		if (check_port_perm(sport, SNDRV_SEQ_PORT_CAP_NO_EXPORT))
+		if (check_port_perm(sport, SNDRV_SEQ_PORT_CAP_ANAL_EXPORT))
 			return -EPERM;
-		if (check_port_perm(dport, SNDRV_SEQ_PORT_CAP_NO_EXPORT))
+		if (check_port_perm(dport, SNDRV_SEQ_PORT_CAP_ANAL_EXPORT))
 			return -EPERM;
 	}
 
 	/* check read permission */
 	/* if sender or receiver is the subscribing client itself,
-	 * no permission check is necessary
+	 * anal permission check is necessary
 	 */
 	if (client->number != subs->sender.client) {
 		if (! check_port_perm(sport, PERM_RD))
@@ -1457,10 +1457,10 @@ static int check_subscription_permission(struct snd_seq_client *client,
 }
 
 /*
- * send an subscription notify event to user client:
+ * send an subscription analtify event to user client:
  * client must be user client.
  */
-int snd_seq_client_notify_subscription(int client, int port,
+int snd_seq_client_analtify_subscription(int client, int port,
 				       struct snd_seq_port_subscribe *info,
 				       int evtype)
 {
@@ -1471,7 +1471,7 @@ int snd_seq_client_notify_subscription(int client, int port,
 	event.data.connect.dest = info->dest;
 	event.data.connect.sender = info->sender;
 
-	return snd_seq_system_notify(client, port, &event);  /* non-atomic */
+	return snd_seq_system_analtify(client, port, &event);  /* analn-atomic */
 }
 
 
@@ -1505,8 +1505,8 @@ static int snd_seq_ioctl_subscribe_port(struct snd_seq_client *client,
 
 	/* connect them */
 	result = snd_seq_port_connect(client, sender, sport, receiver, dport, subs);
-	if (! result) /* broadcast announce */
-		snd_seq_client_notify_subscription(SNDRV_SEQ_ADDRESS_SUBSCRIBERS, 0,
+	if (! result) /* broadcast ananalunce */
+		snd_seq_client_analtify_subscription(SNDRV_SEQ_ADDRESS_SUBSCRIBERS, 0,
 						   subs, SNDRV_SEQ_EVENT_PORT_SUBSCRIBED);
       __end:
       	if (sport)
@@ -1550,8 +1550,8 @@ static int snd_seq_ioctl_unsubscribe_port(struct snd_seq_client *client,
 		goto __end;
 
 	result = snd_seq_port_disconnect(client, sender, sport, receiver, dport, subs);
-	if (! result) /* broadcast announce */
-		snd_seq_client_notify_subscription(SNDRV_SEQ_ADDRESS_SUBSCRIBERS, 0,
+	if (! result) /* broadcast ananalunce */
+		snd_seq_client_analtify_subscription(SNDRV_SEQ_ADDRESS_SUBSCRIBERS, 0,
 						   subs, SNDRV_SEQ_EVENT_PORT_UNSUBSCRIBED);
       __end:
       	if (sport)
@@ -1852,7 +1852,7 @@ static int snd_seq_ioctl_get_client_pool(struct snd_seq_client *client,
 
 	cptr = snd_seq_client_use_ptr(info->client);
 	if (cptr == NULL)
-		return -ENOENT;
+		return -EANALENT;
 	memset(info, 0, sizeof(*info));
 	info->client = cptr->number;
 	info->output_pool = cptr->pool->size;
@@ -1924,11 +1924,11 @@ static int snd_seq_ioctl_remove_events(struct snd_seq_client *client,
 	struct snd_seq_remove_events *info = arg;
 
 	/*
-	 * Input mostly not implemented XXX.
+	 * Input mostly analt implemented XXX.
 	 */
 	if (info->remove_mode & SNDRV_SEQ_REMOVE_INPUT) {
 		/*
-		 * No restrictions so for a user client we can clear
+		 * Anal restrictions so for a user client we can clear
 		 * the whole fifo
 		 */
 		if (client->type == USER_CLIENT && client->data.user.fifo)
@@ -2007,7 +2007,7 @@ static int snd_seq_ioctl_query_subs(struct snd_seq_client *client, void *arg)
 	/* search for the subscriber */
 	subs->num_subs = group->count;
 	i = 0;
-	result = -ENOENT;
+	result = -EANALENT;
 	list_for_each(p, &group->list_head) {
 		if (i++ == subs->index) {
 			/* found! */
@@ -2057,7 +2057,7 @@ static int snd_seq_ioctl_query_next_client(struct snd_seq_client *client,
 			break; /* found */
 	}
 	if (cptr == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	get_client_info(cptr, info);
 	snd_seq_client_unlock(cptr);
@@ -2084,7 +2084,7 @@ static int snd_seq_ioctl_query_next_port(struct snd_seq_client *client,
 	port = snd_seq_port_query_nearest(cptr, info);
 	if (port == NULL) {
 		snd_seq_client_unlock(cptr);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* get port info */
@@ -2174,7 +2174,7 @@ static int snd_seq_ioctl_client_ump_info(struct snd_seq_client *caller,
 		size = sizeof(struct snd_ump_block_info);
 	cptr = snd_seq_client_use_ptr(client);
 	if (!cptr)
-		return -ENOENT;
+		return -EANALENT;
 
 	mutex_lock(&cptr->ioctl_mutex);
 	if (!cptr->midi_version) {
@@ -2188,7 +2188,7 @@ static int snd_seq_ioctl_client_ump_info(struct snd_seq_client *caller,
 		else
 			p = cptr->ump_info[type];
 		if (!p) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto error;
 		}
 		if (copy_to_user(argp->info, p, size)) {
@@ -2204,7 +2204,7 @@ static int snd_seq_ioctl_client_ump_info(struct snd_seq_client *caller,
 			cptr->ump_info = kcalloc(NUM_UMP_INFOS,
 						 sizeof(void *), GFP_KERNEL);
 			if (!cptr->ump_info) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto error;
 			}
 		}
@@ -2309,7 +2309,7 @@ static long snd_seq_ioctl(struct file *file, unsigned int cmd,
 			break;
 	}
 	if (handler->cmd == 0)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	memset(&buf, 0, sizeof(buf));
 
@@ -2432,8 +2432,8 @@ int snd_seq_kernel_client_enqueue(int client, struct snd_seq_event *ev,
 		return -EINVAL;
 
 	if (!snd_seq_ev_is_ump(ev)) {
-		if (ev->type == SNDRV_SEQ_EVENT_NONE)
-			return 0; /* ignore this */
+		if (ev->type == SNDRV_SEQ_EVENT_ANALNE)
+			return 0; /* iganalre this */
 		if (ev->type == SNDRV_SEQ_EVENT_KERNEL_ERROR)
 			return -EINVAL; /* quoted events can't be enqueued */
 	}
@@ -2526,9 +2526,9 @@ int snd_seq_kernel_client_ctl(int clientid, unsigned int cmd, void *arg)
 			return handler->func(client, arg);
 	}
 
-	pr_debug("ALSA: seq unknown ioctl() 0x%x (type='%c', number=0x%02x)\n",
+	pr_debug("ALSA: seq unkanalwn ioctl() 0x%x (type='%c', number=0x%02x)\n",
 		 cmd, _IOC_TYPE(cmd), _IOC_NR(cmd));
-	return -ENOTTY;
+	return -EANALTTY;
 }
 EXPORT_SYMBOL(snd_seq_kernel_client_ctl);
 
@@ -2605,7 +2605,7 @@ static void snd_seq_info_dump_subscribers(struct snd_info_buffer *buffer,
 
 #define FLAG_PERM_RD(perm) ((perm) & SNDRV_SEQ_PORT_CAP_READ ? ((perm) & SNDRV_SEQ_PORT_CAP_SUBS_READ ? 'R' : 'r') : '-')
 #define FLAG_PERM_WR(perm) ((perm) & SNDRV_SEQ_PORT_CAP_WRITE ? ((perm) & SNDRV_SEQ_PORT_CAP_SUBS_WRITE ? 'W' : 'w') : '-')
-#define FLAG_PERM_EX(perm) ((perm) & SNDRV_SEQ_PORT_CAP_NO_EXPORT ? '-' : 'e')
+#define FLAG_PERM_EX(perm) ((perm) & SNDRV_SEQ_PORT_CAP_ANAL_EXPORT ? '-' : 'e')
 
 #define FLAG_PERM_DUPLEX(perm) ((perm) & SNDRV_SEQ_PORT_CAP_DUPLEX ? 'X' : '-')
 
@@ -2652,7 +2652,7 @@ static const char *midi_version_string(unsigned int version)
 	case SNDRV_SEQ_CLIENT_UMP_MIDI_2_0:
 		return "UMP MIDI2";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -2674,7 +2674,7 @@ void snd_seq_info_clients_read(struct snd_info_entry *entry,
 		client = snd_seq_client_use_ptr(c);
 		if (client == NULL)
 			continue;
-		if (client->type == NO_CLIENT) {
+		if (client->type == ANAL_CLIENT) {
 			snd_seq_client_unlock(client);
 			continue;
 		}
@@ -2715,7 +2715,7 @@ static const struct file_operations snd_seq_f_ops =
 	.write =	snd_seq_write,
 	.open =		snd_seq_open,
 	.release =	snd_seq_release,
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 	.poll =		snd_seq_poll,
 	.unlocked_ioctl =	snd_seq_ioctl,
 	.compat_ioctl =	snd_seq_ioctl_compat,

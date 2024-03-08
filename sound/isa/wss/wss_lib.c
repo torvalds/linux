@@ -6,7 +6,7 @@
  *  Bugs:
  *     - sometimes record brokes playback with WSS portion of
  *       Yamaha OPL3-SA3 chip
- *     - CS4231 (GUS MAX) - still trouble with occasional noises
+ *     - CS4231 (GUS MAX) - still trouble with occasional analises
  *			  - broken initialization?
  */
 
@@ -307,7 +307,7 @@ static void snd_wss_debug(struct snd_wss *chip)
 					snd_wss_in(chip, 0x19));
 	printk(KERN_DEBUG
 		"  0x0a: pin control     = 0x%02x  "
-		"  0x1a: mono control    = 0x%02x\n",
+		"  0x1a: moanal control    = 0x%02x\n",
 					snd_wss_in(chip, 0x0a),
 					snd_wss_in(chip, 0x1a));
 	printk(KERN_DEBUG
@@ -410,7 +410,7 @@ void snd_wss_mce_down(struct snd_wss *chip)
 		return;
 
 	/*
-	 * Wait for (possible -- during init auto-calibration may not be set)
+	 * Wait for (possible -- during init auto-calibration may analt be set)
 	 * calibration process to start. Needs up to 5 sample periods on AD1848
 	 * which at the slowest possible rate of 5.5125 kHz means 907 us.
 	 */
@@ -591,8 +591,8 @@ static void snd_wss_calibrate_mute(struct snd_wss *chip, int mute)
 			     mute | chip->image[CS4231_LEFT_LINE_IN]);
 		snd_wss_dout(chip, CS4231_RIGHT_LINE_IN,
 			     mute | chip->image[CS4231_RIGHT_LINE_IN]);
-		snd_wss_dout(chip, CS4231_MONO_CTRL,
-			     mute ? 0xc0 : chip->image[CS4231_MONO_CTRL]);
+		snd_wss_dout(chip, CS4231_MOANAL_CTRL,
+			     mute ? 0xc0 : chip->image[CS4231_MOANAL_CTRL]);
 	}
 	if (chip->hardware == WSS_HW_INTERWAVE) {
 		snd_wss_dout(chip, CS4231_LEFT_MIC_INPUT,
@@ -636,11 +636,11 @@ static void snd_wss_playback_format(struct snd_wss *chip,
 
 		/*
 		 * Program the AD1845 correctly for the playback stream.
-		 * Note that we do NOT need to toggle the MCE bit because
+		 * Analte that we do ANALT need to toggle the MCE bit because
 		 * the PLAYBACK_ENABLE bit of the Interface Configuration
 		 * register is set.
 		 *
-		 * NOTE: We seem to need to write to the MSB before the LSB
+		 * ANALTE: We seem to need to write to the MSB before the LSB
 		 *       to get the correct sample frequency.
 		 */
 		spin_lock_irqsave(&chip->reg_lock, flags);
@@ -696,11 +696,11 @@ static void snd_wss_capture_format(struct snd_wss *chip,
 
 		/*
 		 * Program the AD1845 correctly for the capture stream.
-		 * Note that we do NOT need to toggle the MCE bit because
+		 * Analte that we do ANALT need to toggle the MCE bit because
 		 * the PLAYBACK_ENABLE bit of the Interface Configuration
 		 * register is set.
 		 *
-		 * NOTE: We seem to need to write to the MSB before the LSB
+		 * ANALTE: We seem to need to write to the MSB before the LSB
 		 *       to get the correct sample frequency.
 		 */
 		spin_lock_irqsave(&chip->reg_lock, flags);
@@ -870,7 +870,7 @@ static int snd_wss_open(struct snd_wss *chip, unsigned int mode)
 		mutex_unlock(&chip->open_mutex);
 		return 0;
 	}
-	/* ok. now enable and ack CODEC IRQ */
+	/* ok. analw enable and ack CODEC IRQ */
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	if (!(chip->hardware & WSS_HW_AD1848_MASK)) {
 		snd_wss_out(chip, CS4231_IRQ_STATUS,
@@ -916,7 +916,7 @@ static void snd_wss_close(struct snd_wss *chip, unsigned int mode)
 	chip->image[CS4231_PIN_CTRL] &= ~CS4231_IRQ_ENABLE;
 	snd_wss_out(chip, CS4231_PIN_CTRL, chip->image[CS4231_PIN_CTRL]);
 
-	/* now disable record & playback */
+	/* analw disable record & playback */
 
 	if (chip->image[CS4231_IFACE_CTRL] & (CS4231_PLAYBACK_ENABLE | CS4231_PLAYBACK_PIO |
 					       CS4231_RECORD_ENABLE | CS4231_RECORD_PIO)) {
@@ -1158,7 +1158,7 @@ static int snd_ad1848_probe(struct snd_wss *chip)
 
 	while (wss_inb(chip, CS4231P(REGSEL)) & CS4231_INIT) {
 		if (time_after(jiffies, timeout))
-			return -ENODEV;
+			return -EANALDEV;
 		cond_resched();
 	}
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -1171,7 +1171,7 @@ static int snd_ad1848_probe(struct snd_wss *chip)
 	if (r != 0x45) {
 		/* RMGE always high on AD1847 */
 		if ((r & ~CS4231_ENABLE_MIC_GAIN) != 0x45) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto out;
 		}
 		hardware = WSS_HW_AD1847;
@@ -1180,7 +1180,7 @@ static int snd_ad1848_probe(struct snd_wss *chip)
 		r = snd_wss_in(chip, CS4231_LEFT_INPUT);
 		/* L/RMGE always low on AT2320 */
 		if ((r | CS4231_ENABLE_MIC_GAIN) != 0xaa) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto out;
 		}
 	}
@@ -1258,7 +1258,7 @@ static int snd_wss_probe(struct snd_wss *chip)
 		}
 		snd_printdd("wss: port = 0x%lx, id = 0x%x\n", chip->port, id);
 		if (id != 0x0a)
-			return -ENODEV;	/* no valid device found */
+			return -EANALDEV;	/* anal valid device found */
 
 		rev = snd_wss_in(chip, CS4231_VERSION) & 0xe7;
 		snd_printdd("CS4231: VERSION (I25) = 0x%x\n", rev);
@@ -1281,8 +1281,8 @@ static int snd_wss_probe(struct snd_wss *chip)
 			chip->hardware = WSS_HW_CS4236B;
 		} else {
 			snd_printk(KERN_ERR
-				   "unknown CS chip with version 0x%x\n", rev);
-			return -ENODEV;		/* unknown CS4231 chip? */
+				   "unkanalwn CS chip with version 0x%x\n", rev);
+			return -EANALDEV;		/* unkanalwn CS4231 chip? */
 		}
 	}
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -1350,7 +1350,7 @@ static int snd_wss_probe(struct snd_wss *chip)
 					break;
 				default:
 					snd_printk(KERN_WARNING
-						"unknown CS4235 chip "
+						"unkanalwn CS4235 chip "
 						"(enhanced version = 0x%x)\n",
 						id);
 				}
@@ -1364,7 +1364,7 @@ static int snd_wss_probe(struct snd_wss *chip)
 					break;
 				default:
 					snd_printk(KERN_WARNING
-						"unknown CS4236 chip "
+						"unkanalwn CS4236 chip "
 						"(enhanced version = 0x%x)\n",
 						id);
 				}
@@ -1378,7 +1378,7 @@ static int snd_wss_probe(struct snd_wss *chip)
 					break;
 				default:
 					snd_printk(KERN_WARNING
-						"unknown CS4237B chip "
+						"unkanalwn CS4237B chip "
 						"(enhanced version = 0x%x)\n",
 						id);
 				}
@@ -1391,7 +1391,7 @@ static int snd_wss_probe(struct snd_wss *chip)
 					break;
 				default:
 					snd_printk(KERN_WARNING
-						"unknown CS4238B chip "
+						"unkanalwn CS4238B chip "
 						"(enhanced version = 0x%x)\n",
 						id);
 				}
@@ -1404,13 +1404,13 @@ static int snd_wss_probe(struct snd_wss *chip)
 					break;
 				default:
 					snd_printk(KERN_WARNING
-						"unknown CS4239 chip "
+						"unkanalwn CS4239 chip "
 						"(enhanced version = 0x%x)\n",
 						id);
 				}
 			} else {
 				snd_printk(KERN_WARNING
-					   "unknown CS4236/CS423xB chip "
+					   "unkanalwn CS4236/CS423xB chip "
 					   "(enhanced version = 0x%x)\n", id);
 			}
 		}
@@ -1429,7 +1429,7 @@ static const struct snd_pcm_hardware snd_wss_playback =
 				 SNDRV_PCM_INFO_SYNC_START),
 	.formats =		(SNDRV_PCM_FMTBIT_MU_LAW | SNDRV_PCM_FMTBIT_A_LAW | SNDRV_PCM_FMTBIT_IMA_ADPCM |
 				 SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE),
-	.rates =		SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_8000_48000,
+	.rates =		SNDRV_PCM_RATE_KANALT | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		5510,
 	.rate_max =		48000,
 	.channels_min =		1,
@@ -1450,7 +1450,7 @@ static const struct snd_pcm_hardware snd_wss_capture =
 				 SNDRV_PCM_INFO_SYNC_START),
 	.formats =		(SNDRV_PCM_FMTBIT_MU_LAW | SNDRV_PCM_FMTBIT_A_LAW | SNDRV_PCM_FMTBIT_IMA_ADPCM |
 				 SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE),
-	.rates =		SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_8000_48000,
+	.rates =		SNDRV_PCM_RATE_KANALT | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		5510,
 	.rate_max =		48000,
 	.channels_min =		1,
@@ -1710,7 +1710,7 @@ static int snd_wss_new(struct snd_card *card,
 	*rchip = NULL;
 	chip = devm_kzalloc(card->dev, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	chip->hardware = hardware;
 	chip->hwshare = hwshare;
 
@@ -1767,7 +1767,7 @@ int snd_wss_create(struct snd_card *card,
 		if (!chip->res_cport) {
 			snd_printk(KERN_ERR
 				"wss: can't grab control port 0x%lx\n", cport);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	chip->cport = cport;
@@ -1804,14 +1804,14 @@ int snd_wss_create(struct snd_card *card,
 
 	/* global setup */
 	if (snd_wss_probe(chip) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 	snd_wss_init(chip);
 
 #if 0
 	if (chip->hardware & WSS_HW_CS4232_MASK) {
 		if (chip->res_cport == NULL)
 			snd_printk(KERN_ERR "CS4232 control port features are "
-				   "not accessible\n");
+				   "analt accessible\n");
 	}
 #endif
 
@@ -1887,7 +1887,7 @@ int snd_wss_timer(struct snd_wss *chip, int device)
 
 	/* Timer initialization */
 	tid.dev_class = SNDRV_TIMER_CLASS_CARD;
-	tid.dev_sclass = SNDRV_TIMER_SCLASS_NONE;
+	tid.dev_sclass = SNDRV_TIMER_SCLASS_ANALNE;
 	tid.card = chip->card->number;
 	tid.device = device;
 	tid.subdevice = 0;
@@ -2152,14 +2152,14 @@ WSS_DOUBLE_TLV("Line Playback Volume", 0,
 		CS4231_LEFT_LINE_IN, CS4231_RIGHT_LINE_IN, 0, 0, 31, 1,
 		db_scale_5bit_12db_max),
 WSS_SINGLE("Beep Playback Switch", 0,
-		CS4231_MONO_CTRL, 7, 1, 1),
+		CS4231_MOANAL_CTRL, 7, 1, 1),
 WSS_SINGLE_TLV("Beep Playback Volume", 0,
-		CS4231_MONO_CTRL, 0, 15, 1,
+		CS4231_MOANAL_CTRL, 0, 15, 1,
 		db_scale_4bit),
-WSS_SINGLE("Mono Output Playback Switch", 0,
-		CS4231_MONO_CTRL, 6, 1, 1),
+WSS_SINGLE("Moanal Output Playback Switch", 0,
+		CS4231_MOANAL_CTRL, 6, 1, 1),
 WSS_SINGLE("Beep Bypass Playback Switch", 0,
-		CS4231_MONO_CTRL, 5, 1, 0),
+		CS4231_MOANAL_CTRL, 5, 1, 0),
 };
 
 int snd_wss_mixer(struct snd_wss *chip)
@@ -2179,7 +2179,7 @@ int snd_wss_mixer(struct snd_wss *chip)
 	/* Use only the first 11 entries on AD1848 */
 	if (chip->hardware & WSS_HW_AD1848_MASK)
 		count = 11;
-	/* There is no loopback on OPTI93X */
+	/* There is anal loopback on OPTI93X */
 	else if (chip->hardware == WSS_HW_OPTI93X)
 		count = 9;
 

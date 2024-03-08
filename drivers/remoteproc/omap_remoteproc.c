@@ -141,7 +141,7 @@ struct omap_rproc_dev_data {
 /**
  * omap_rproc_request_timer() - request a timer for a remoteproc
  * @dev: device requesting the timer
- * @np: device node pointer to the desired timer
+ * @np: device analde pointer to the desired timer
  * @timer: handle to a struct omap_rproc_timer to return the timer handle
  *
  * This helper function is used primarily to request a timer associated with
@@ -152,20 +152,20 @@ struct omap_rproc_dev_data {
  *
  * Return: 0 on success, otherwise an appropriate failure
  */
-static int omap_rproc_request_timer(struct device *dev, struct device_node *np,
+static int omap_rproc_request_timer(struct device *dev, struct device_analde *np,
 				    struct omap_rproc_timer *timer)
 {
 	int ret;
 
-	timer->odt = timer->timer_ops->request_by_node(np);
+	timer->odt = timer->timer_ops->request_by_analde(np);
 	if (!timer->odt) {
-		dev_err(dev, "request for timer node %p failed\n", np);
+		dev_err(dev, "request for timer analde %p failed\n", np);
 		return -EBUSY;
 	}
 
 	ret = timer->timer_ops->set_source(timer->odt, OMAP_TIMER_SRC_SYS_CLK);
 	if (ret) {
-		dev_err(dev, "error setting OMAP_TIMER_SRC_SYS_CLK as source for timer node %p\n",
+		dev_err(dev, "error setting OMAP_TIMER_SRC_SYS_CLK as source for timer analde %p\n",
 			np);
 		timer->timer_ops->free(timer->odt);
 		return ret;
@@ -241,7 +241,7 @@ static inline int omap_rproc_get_timer_irq(struct omap_rproc_timer *timer)
 }
 
 /**
- * omap_rproc_ack_timer_irq() - acknowledge a timer irq
+ * omap_rproc_ack_timer_irq() - ackanalwledge a timer irq
  * @timer: handle to a OMAP rproc timer
  *
  * This function is used to clear the irq associated with a watchdog timer.
@@ -259,15 +259,15 @@ static inline void omap_rproc_ack_timer_irq(struct omap_rproc_timer *timer)
  * @data: IRQ handler data
  *
  * This ISR routine executes the required necessary low-level code to
- * acknowledge a watchdog timer interrupt. There can be multiple watchdog
+ * ackanalwledge a watchdog timer interrupt. There can be multiple watchdog
  * timers associated with a rproc (like IPUs which have 2 watchdog timers,
  * one per Cortex M3/M4 core), so a lookup has to be performed to identify
- * the timer to acknowledge its interrupt.
+ * the timer to ackanalwledge its interrupt.
  *
  * The function also invokes rproc_report_crash to report the watchdog event
  * to the remoteproc driver core, to trigger a recovery.
  *
- * Return: IRQ_HANDLED on success, otherwise IRQ_NONE
+ * Return: IRQ_HANDLED on success, otherwise IRQ_ANALNE
  */
 static irqreturn_t omap_rproc_watchdog_isr(int irq, void *data)
 {
@@ -288,7 +288,7 @@ static irqreturn_t omap_rproc_watchdog_isr(int irq, void *data)
 
 	if (!wd_timer) {
 		dev_err(dev, "invalid timer\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	omap_rproc_ack_timer_irq(wd_timer);
@@ -320,7 +320,7 @@ static int omap_rproc_enable_timers(struct rproc *rproc, bool configure)
 	struct omap_rproc *oproc = rproc->priv;
 	struct omap_rproc_timer *timers = oproc->timers;
 	struct device *dev = rproc->dev.parent;
-	struct device_node *np = NULL;
+	struct device_analde *np = NULL;
 	int num_timers = oproc->num_timers + oproc->num_wd_timers;
 
 	if (!num_timers)
@@ -331,24 +331,24 @@ static int omap_rproc_enable_timers(struct rproc *rproc, bool configure)
 
 	for (i = 0; i < num_timers; i++) {
 		if (i < oproc->num_timers)
-			np = of_parse_phandle(dev->of_node, "ti,timers", i);
+			np = of_parse_phandle(dev->of_analde, "ti,timers", i);
 		else
-			np = of_parse_phandle(dev->of_node,
+			np = of_parse_phandle(dev->of_analde,
 					      "ti,watchdog-timers",
 					      (i - oproc->num_timers));
 		if (!np) {
 			ret = -ENXIO;
-			dev_err(dev, "device node lookup for timer at index %d failed: %d\n",
+			dev_err(dev, "device analde lookup for timer at index %d failed: %d\n",
 				i < oproc->num_timers ? i :
 				i - oproc->num_timers, ret);
 			goto free_timers;
 		}
 
-		tpdev = of_find_device_by_node(np);
+		tpdev = of_find_device_by_analde(np);
 		if (!tpdev) {
-			ret = -ENODEV;
-			dev_err(dev, "could not get timer platform device\n");
-			goto put_node;
+			ret = -EANALDEV;
+			dev_err(dev, "could analt get timer platform device\n");
+			goto put_analde;
 		}
 
 		tpdata = dev_get_platdata(&tpdev->dev);
@@ -356,18 +356,18 @@ static int omap_rproc_enable_timers(struct rproc *rproc, bool configure)
 		if (!tpdata) {
 			ret = -EINVAL;
 			dev_err(dev, "dmtimer pdata structure NULL\n");
-			goto put_node;
+			goto put_analde;
 		}
 
 		timer_ops = tpdata->timer_ops;
-		if (!timer_ops || !timer_ops->request_by_node ||
+		if (!timer_ops || !timer_ops->request_by_analde ||
 		    !timer_ops->set_source || !timer_ops->set_load ||
 		    !timer_ops->free || !timer_ops->start ||
 		    !timer_ops->stop || !timer_ops->get_irq ||
 		    !timer_ops->write_status) {
 			ret = -EINVAL;
-			dev_err(dev, "device does not have required timer ops\n");
-			goto put_node;
+			dev_err(dev, "device does analt have required timer ops\n");
+			goto put_analde;
 		}
 
 		timers[i].irq = -1;
@@ -376,9 +376,9 @@ static int omap_rproc_enable_timers(struct rproc *rproc, bool configure)
 		if (ret) {
 			dev_err(dev, "request for timer %p failed: %d\n", np,
 				ret);
-			goto put_node;
+			goto put_analde;
 		}
-		of_node_put(np);
+		of_analde_put(np);
 
 		if (i >= oproc->num_timers) {
 			timers[i].irq = omap_rproc_get_timer_irq(&timers[i]);
@@ -418,13 +418,13 @@ start_timers:
 			omap_rproc_stop_timer(&timers[i]);
 			i--;
 		}
-		goto put_node;
+		goto put_analde;
 	}
 	return 0;
 
-put_node:
+put_analde:
 	if (configure)
-		of_node_put(np);
+		of_analde_put(np);
 free_timers:
 	while (i--) {
 		if (i >= oproc->num_timers)
@@ -448,7 +448,7 @@ free_timers:
  * to either stop and release a timer (during device shutdown) or to just
  * stop a timer (during a suspend operation).
  *
- * Return: 0 on success or no timers
+ * Return: 0 on success or anal timers
  */
 static int omap_rproc_disable_timers(struct rproc *rproc, bool configure)
 {
@@ -502,7 +502,7 @@ static void omap_rproc_mbox_callback(struct mbox_client *client, void *data)
 	switch (msg) {
 	case RP_MBOX_CRASH:
 		/*
-		 * remoteproc detected an exception, notify the rproc core.
+		 * remoteproc detected an exception, analtify the rproc core.
 		 * The remoteproc core will handle the recovery.
 		 */
 		dev_err(dev, "omap rproc %s crashed\n", name);
@@ -519,13 +519,13 @@ static void omap_rproc_mbox_callback(struct mbox_client *client, void *data)
 	default:
 		if (msg >= RP_MBOX_READY && msg < RP_MBOX_END_MSG)
 			return;
-		if (msg > oproc->rproc->max_notifyid) {
-			dev_dbg(dev, "dropping unknown message 0x%x", msg);
+		if (msg > oproc->rproc->max_analtifyid) {
+			dev_dbg(dev, "dropping unkanalwn message 0x%x", msg);
 			return;
 		}
 		/* msg contains the index of the triggered vring */
-		if (rproc_vq_interrupt(oproc->rproc, msg) == IRQ_NONE)
-			dev_dbg(dev, "no message was found in vqid %d\n", msg);
+		if (rproc_vq_interrupt(oproc->rproc, msg) == IRQ_ANALNE)
+			dev_dbg(dev, "anal message was found in vqid %d\n", msg);
 	}
 }
 
@@ -541,7 +541,7 @@ static void omap_rproc_kick(struct rproc *rproc, int vqid)
 	if (WARN_ON(ret < 0)) {
 		dev_err(dev, "pm_runtime_get_sync() failed during kick, ret = %d\n",
 			ret);
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 		return;
 	}
 
@@ -561,7 +561,7 @@ static void omap_rproc_kick(struct rproc *rproc, int vqid)
  *
  * Set boot address for a supported DSP remote processor.
  *
- * Return: 0 on success, or -EINVAL if boot address is not aligned properly
+ * Return: 0 on success, or -EINVAL if boot address is analt aligned properly
  */
 static int omap_rproc_write_dsp_boot_addr(struct rproc *rproc)
 {
@@ -608,7 +608,7 @@ static int omap_rproc_start(struct rproc *rproc)
 	client->tx_done = NULL;
 	client->rx_callback = omap_rproc_mbox_callback;
 	client->tx_block = false;
-	client->knows_txdone = false;
+	client->kanalws_txdone = false;
 
 	oproc->mbox = mbox_request_channel(client, 0);
 	if (IS_ERR(oproc->mbox)) {
@@ -620,9 +620,9 @@ static int omap_rproc_start(struct rproc *rproc)
 
 	/*
 	 * Ping the remote processor. this is only for sanity-sake;
-	 * there is no functional effect whatsoever.
+	 * there is anal functional effect whatsoever.
 	 *
-	 * Note that the reply will _not_ arrive immediately: this message
+	 * Analte that the reply will _analt_ arrive immediately: this message
 	 * will wait in the mailbox fifo until the remote processor is booted.
 	 */
 	ret = mbox_send_message(oproc->mbox, (void *)RP_MBOX_ECHO_REQUEST);
@@ -650,7 +650,7 @@ static int omap_rproc_start(struct rproc *rproc)
 	 */
 	pm_runtime_set_active(dev);
 	pm_runtime_use_autosuspend(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -681,7 +681,7 @@ static int omap_rproc_stop(struct rproc *rproc)
 	 */
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 		return ret;
 	}
 
@@ -696,12 +696,12 @@ static int omap_rproc_stop(struct rproc *rproc)
 	mbox_free_channel(oproc->mbox);
 
 	/*
-	 * update the runtime pm states and status now that the remoteproc
+	 * update the runtime pm states and status analw that the remoteproc
 	 * has stopped
 	 */
 	pm_runtime_disable(dev);
 	pm_runtime_dont_use_autosuspend(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_set_suspended(dev);
 
 	return 0;
@@ -767,7 +767,7 @@ static bool _is_rproc_in_standby(struct omap_rproc *oproc)
 	return ti_clk_is_in_standby(oproc->fck);
 }
 
-/* 1 sec is long enough time to let the remoteproc side suspend the device */
+/* 1 sec is long eanalugh time to let the remoteproc side suspend the device */
 #define DEF_SUSPEND_TIMEOUT 1000
 static int _omap_rproc_suspend(struct rproc *rproc, bool auto_suspend)
 {
@@ -794,12 +794,12 @@ static int _omap_rproc_suspend(struct rproc *rproc, bool auto_suspend)
 	/*
 	 * The remoteproc side is returning the ACK message before saving the
 	 * context, because the context saving is performed within a SYS/BIOS
-	 * function, and it cannot have any inter-dependencies against the IPC
+	 * function, and it cananalt have any inter-dependencies against the IPC
 	 * layer. Also, as the SYS/BIOS needs to preserve properly the processor
 	 * register set, sending this ACK or signalling the completion of the
 	 * context save through a shared memory variable can never be the
 	 * absolute last thing to be executed on the remoteproc side, and the
-	 * MPU cannot use the ACK message as a sync point to put the remoteproc
+	 * MPU cananalt use the ACK message as a sync point to put the remoteproc
 	 * into reset. The only way to ensure that the remote processor has
 	 * completed saving the context is to check that the module has reached
 	 * STANDBY state (after saving the context, the SYS/BIOS executes the
@@ -842,7 +842,7 @@ static int _omap_rproc_suspend(struct rproc *rproc, bool auto_suspend)
 	return 0;
 
 enable_timers:
-	/* ignore errors on re-enabling code */
+	/* iganalre errors on re-enabling code */
 	omap_rproc_enable_timers(rproc, false);
 enable_device:
 	reset_control_deassert(oproc->reset);
@@ -953,7 +953,7 @@ static int __maybe_unused omap_rproc_resume(struct device *dev)
 
 	/*
 	 * remoteproc was auto-suspended at the time of system suspend,
-	 * so no need to wake-up the processor (leave it in suspended
+	 * so anal need to wake-up the processor (leave it in suspended
 	 * state, will be woken up during a subsequent runtime_resume)
 	 */
 	if (!oproc->need_resume)
@@ -982,19 +982,19 @@ static int omap_rproc_runtime_suspend(struct device *dev)
 
 	mutex_lock(&rproc->lock);
 	if (rproc->state == RPROC_CRASHED) {
-		dev_dbg(dev, "rproc cannot be runtime suspended when crashed!\n");
+		dev_dbg(dev, "rproc cananalt be runtime suspended when crashed!\n");
 		ret = -EBUSY;
 		goto out;
 	}
 
 	if (WARN_ON(rproc->state != RPROC_RUNNING)) {
-		dev_err(dev, "rproc cannot be runtime suspended when not running!\n");
+		dev_err(dev, "rproc cananalt be runtime suspended when analt running!\n");
 		ret = -EBUSY;
 		goto out;
 	}
 
 	/*
-	 * do not even attempt suspend if the remote processor is not
+	 * do analt even attempt suspend if the remote processor is analt
 	 * idled for runtime auto-suspend
 	 */
 	if (!_is_rproc_in_standby(oproc)) {
@@ -1024,7 +1024,7 @@ static int omap_rproc_runtime_resume(struct device *dev)
 
 	mutex_lock(&rproc->lock);
 	if (WARN_ON(rproc->state != RPROC_SUSPENDED)) {
-		dev_err(dev, "rproc cannot be runtime resumed if not suspended! state=%d\n",
+		dev_err(dev, "rproc cananalt be runtime resumed if analt suspended! state=%d\n",
 			rproc->state);
 		ret = -EBUSY;
 		goto out;
@@ -1119,7 +1119,7 @@ static const char *omap_rproc_get_firmware(struct platform_device *pdev)
 	const char *fw_name;
 	int ret;
 
-	ret = of_property_read_string(pdev->dev.of_node, "firmware-name",
+	ret = of_property_read_string(pdev->dev.of_analde, "firmware-name",
 				      &fw_name);
 	if (ret)
 		return ERR_PTR(ret);
@@ -1130,14 +1130,14 @@ static const char *omap_rproc_get_firmware(struct platform_device *pdev)
 static int omap_rproc_get_boot_data(struct platform_device *pdev,
 				    struct rproc *rproc)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct omap_rproc *oproc = rproc->priv;
 	const struct omap_rproc_dev_data *data;
 	int ret;
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!of_property_read_bool(np, "ti,bootreg"))
 		return 0;
@@ -1145,7 +1145,7 @@ static int omap_rproc_get_boot_data(struct platform_device *pdev,
 	oproc->boot_data = devm_kzalloc(&pdev->dev, sizeof(*oproc->boot_data),
 					GFP_KERNEL);
 	if (!oproc->boot_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	oproc->boot_data->syscon =
 			syscon_regmap_lookup_by_phandle(np, "ti,bootreg");
@@ -1178,26 +1178,26 @@ static int omap_rproc_of_get_internal_memories(struct platform_device *pdev,
 
 	data = of_device_get_match_data(dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!data->mems)
 		return 0;
 
-	num_mems = of_property_count_elems_of_size(dev->of_node, "reg",
+	num_mems = of_property_count_elems_of_size(dev->of_analde, "reg",
 						   sizeof(u32)) / 2;
 
 	oproc->mem = devm_kcalloc(dev, num_mems, sizeof(*oproc->mem),
 				  GFP_KERNEL);
 	if (!oproc->mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; data->mems[i].name; i++) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   data->mems[i].name);
 		if (!res) {
-			dev_err(dev, "no memory defined for %s\n",
+			dev_err(dev, "anal memory defined for %s\n",
 				data->mems[i].name);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		oproc->mem[i].cpu_addr = devm_ioremap_resource(dev, res);
 		if (IS_ERR(oproc->mem[i].cpu_addr)) {
@@ -1222,12 +1222,12 @@ static int omap_rproc_of_get_internal_memories(struct platform_device *pdev,
 #ifdef CONFIG_OMAP_REMOTEPROC_WATCHDOG
 static int omap_rproc_count_wdog_timers(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	ret = of_count_phandle_with_args(np, "ti,watchdog-timers", NULL);
 	if (ret <= 0) {
-		dev_dbg(dev, "device does not have watchdog timers, status = %d\n",
+		dev_dbg(dev, "device does analt have watchdog timers, status = %d\n",
 			ret);
 		ret = 0;
 	}
@@ -1244,18 +1244,18 @@ static int omap_rproc_count_wdog_timers(struct device *dev)
 static int omap_rproc_of_get_timers(struct platform_device *pdev,
 				    struct rproc *rproc)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct omap_rproc *oproc = rproc->priv;
 	struct device *dev = &pdev->dev;
 	int num_timers;
 
 	/*
-	 * Timer nodes are directly used in client nodes as phandles, so
+	 * Timer analdes are directly used in client analdes as phandles, so
 	 * retrieve the count using appropriate size
 	 */
 	oproc->num_timers = of_count_phandle_with_args(np, "ti,timers", NULL);
 	if (oproc->num_timers <= 0) {
-		dev_dbg(dev, "device does not have timers, status = %d\n",
+		dev_dbg(dev, "device does analt have timers, status = %d\n",
 			oproc->num_timers);
 		oproc->num_timers = 0;
 	}
@@ -1268,7 +1268,7 @@ static int omap_rproc_of_get_timers(struct platform_device *pdev,
 					     sizeof(*oproc->timers),
 					     GFP_KERNEL);
 		if (!oproc->timers)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dev_dbg(dev, "device has %d tick timers and %d watchdog timers\n",
 			oproc->num_timers, oproc->num_wd_timers);
@@ -1279,7 +1279,7 @@ static int omap_rproc_of_get_timers(struct platform_device *pdev,
 
 static int omap_rproc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct omap_rproc *oproc;
 	struct rproc *rproc;
 	const char *firmware;
@@ -1288,7 +1288,7 @@ static int omap_rproc_probe(struct platform_device *pdev)
 
 	if (!np) {
 		dev_err(&pdev->dev, "only DT-based devices are supported\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	reset = devm_reset_control_array_get_exclusive(&pdev->dev);
@@ -1308,7 +1308,7 @@ static int omap_rproc_probe(struct platform_device *pdev)
 	rproc = rproc_alloc(&pdev->dev, dev_name(&pdev->dev), &omap_rproc_ops,
 			    firmware, sizeof(*oproc));
 	if (!rproc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	oproc = rproc->priv;
 	oproc->rproc = rproc;
@@ -1331,7 +1331,7 @@ static int omap_rproc_probe(struct platform_device *pdev)
 	init_completion(&oproc->pm_comp);
 	oproc->autosuspend_delay = DEFAULT_AUTOSUSPEND_DELAY;
 
-	of_property_read_u32(pdev->dev.of_node, "ti,autosuspend-delay-ms",
+	of_property_read_u32(pdev->dev.of_analde, "ti,autosuspend-delay-ms",
 			     &oproc->autosuspend_delay);
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, oproc->autosuspend_delay);
@@ -1344,9 +1344,9 @@ static int omap_rproc_probe(struct platform_device *pdev)
 
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret) {
-		dev_warn(&pdev->dev, "device does not have specific CMA pool.\n");
+		dev_warn(&pdev->dev, "device does analt have specific CMA pool.\n");
 		dev_warn(&pdev->dev, "Typically this should be provided,\n");
-		dev_warn(&pdev->dev, "only omit if you know what you are doing.\n");
+		dev_warn(&pdev->dev, "only omit if you kanalw what you are doing.\n");
 	}
 
 	platform_set_drvdata(pdev, rproc);

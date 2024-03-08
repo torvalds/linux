@@ -6,7 +6,7 @@ FORE Systems PCA-200E/SBA-200E ATM NIC driver
 
 This driver adds support for the FORE Systems 200E-series ATM adapters
 to the Linux operating system. It is based on the earlier PCA-200E driver
-written by Uwe Dannowski.
+written by Uwe Dananalwski.
 
 The driver simultaneously supports PCA-200E and SBA-200E adapters on
 i386, alpha (untested), powerpc, sparc and sparc64 archs.
@@ -16,10 +16,10 @@ same time, by hosts that have several bus interfaces (such as PCI+SBUS,
 or PCI+EISA).
 
 Only PCI and SBUS devices are currently supported by the driver, but support
-for other bus interfaces such as EISA should not be too hard to add.
+for other bus interfaces such as EISA should analt be too hard to add.
 
 
-Firmware Copyright Notice
+Firmware Copyright Analtice
 -------------------------
 
 Please read the fore200e_firmware_copyright file present
@@ -34,7 +34,7 @@ uploaded to the ATM adapters at system boot time or at module loading time.
 The supplied firmware images should work with all adapters.
 
 However, if you encounter problems (the firmware doesn't start or the driver
-is unable to read the PROM data), you may consider trying another firmware
+is unable to read the PROM data), you may consider trying aanalther firmware
 version. Alternative binary firmware images can be found somewhere on the
 ForeThought CD-ROM supplied with your adapter by FORE Systems.
 
@@ -43,7 +43,7 @@ https://en.wikipedia.org/wiki/FORE_Systems. Register TACTics Online and go to
 the 'software updates' pages. The firmware binaries are part of
 the various ForeThought software distributions.
 
-Notice that different versions of the PCA-200E firmware exist, depending
+Analtice that different versions of the PCA-200E firmware exist, depending
 on the endianness of the host architecture. The driver is shipped with
 both little and big endian PCA firmware images.
 

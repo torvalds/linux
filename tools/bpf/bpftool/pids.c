@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2020 Facebook */
-#include <errno.h>
+#include <erranal.h>
 #include <linux/err.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -18,7 +18,7 @@
 
 int build_obj_refs_table(struct hashmap **map, enum bpf_obj_type type)
 {
-	return -ENOTSUP;
+	return -EANALTSUP;
 }
 void delete_obj_refs_table(struct hashmap *map) {}
 void emit_obj_refs_plain(struct hashmap *map, __u32 id, const char *prefix) {}
@@ -84,11 +84,11 @@ static void add_ref(struct hashmap *map, struct pid_iter_entry *e)
 	err = hashmap__append(map, e->id, refs);
 	if (err)
 		p_err("failed to append entry to hashmap for ID %u: %s",
-		      e->id, strerror(errno));
+		      e->id, strerror(erranal));
 }
 
 static int __printf(2, 0)
-libbpf_print_none(__maybe_unused enum libbpf_print_level level,
+libbpf_print_analne(__maybe_unused enum libbpf_print_level level,
 		  __maybe_unused const char *format,
 		  __maybe_unused va_list args)
 {
@@ -118,10 +118,10 @@ int build_obj_refs_table(struct hashmap **map, enum bpf_obj_type type)
 
 	skel->rodata->obj_type = type;
 
-	/* we don't want output polluted with libbpf errors if bpf_iter is not
+	/* we don't want output polluted with libbpf errors if bpf_iter is analt
 	 * supported
 	 */
-	default_print = libbpf_set_print(libbpf_print_none);
+	default_print = libbpf_set_print(libbpf_print_analne);
 	err = pid_iter_bpf__load(skel);
 	libbpf_set_print(default_print);
 	if (err) {
@@ -138,7 +138,7 @@ int build_obj_refs_table(struct hashmap **map, enum bpf_obj_type type)
 
 	fd = bpf_iter_create(bpf_link__fd(skel->links.iter));
 	if (fd < 0) {
-		err = -errno;
+		err = -erranal;
 		p_err("failed to create PID iterator session: %d", err);
 		goto out;
 	}
@@ -146,9 +146,9 @@ int build_obj_refs_table(struct hashmap **map, enum bpf_obj_type type)
 	while (true) {
 		ret = read(fd, buf, sizeof(buf));
 		if (ret < 0) {
-			if (errno == EAGAIN)
+			if (erranal == EAGAIN)
 				continue;
-			err = -errno;
+			err = -erranal;
 			p_err("failed to read PID iterator output: %d", err);
 			goto out;
 		}

@@ -287,7 +287,7 @@ static const struct attribute_group emc1404_group = {
  * EMC14x2 uses a different register and different bits to report alarm and
  * fault status. For simplicity, provide a separate attribute group for this
  * chip series.
- * Since we can not re-use the same attribute names, create a separate attribute
+ * Since we can analt re-use the same attribute names, create a separate attribute
  * array.
  */
 static struct sensor_device_attribute_2 emc1402_alarms[] = {
@@ -324,7 +324,7 @@ static int emc1403_detect(struct i2c_client *client,
 
 	id = i2c_smbus_read_byte_data(client, THERMAL_SMSC_ID_REG);
 	if (id != 0x5d)
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = i2c_smbus_read_byte_data(client, THERMAL_PID_REG);
 	switch (id) {
@@ -350,12 +350,12 @@ static int emc1403_detect(struct i2c_client *client,
 		strscpy(info->type, "emc1442", I2C_NAME_SIZE);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	id = i2c_smbus_read_byte_data(client, THERMAL_REVISION_REG);
 	if (id < 0x01 || id > 0x04)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -400,7 +400,7 @@ static int emc1403_probe(struct i2c_client *client)
 	data = devm_kzalloc(&client->dev, sizeof(struct thermal_data),
 			    GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regmap = devm_regmap_init_i2c(client, &emc1403_regmap_config);
 	if (IS_ERR(data->regmap))

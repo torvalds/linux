@@ -10,7 +10,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/gpio.h>
@@ -141,7 +141,7 @@ EXPORT_SYMBOL(mdiobus_is_registered_device);
 /**
  * mdiobus_alloc_size - allocate a mii_bus structure
  * @size: extra amount of memory to allocate for private storage.
- * If non-zero, then bus->priv is points to that memory.
+ * If analn-zero, then bus->priv is points to that memory.
  *
  * Description: called by a bus driver to allocate an mii_bus
  * structure to fill in.
@@ -191,11 +191,11 @@ static void mdiobus_release(struct device *d)
 	WARN(bus->state != MDIOBUS_RELEASED &&
 	     /* for compatibility with error handling in drivers */
 	     bus->state != MDIOBUS_ALLOCATED,
-	     "%s: not in RELEASED or ALLOCATED state\n",
+	     "%s: analt in RELEASED or ALLOCATED state\n",
 	     bus->id);
 
 	if (bus->state == MDIOBUS_RELEASED)
-		fwnode_handle_put(dev_fwnode(d));
+		fwanalde_handle_put(dev_fwanalde(d));
 
 	kfree(bus);
 }
@@ -415,7 +415,7 @@ static struct class mdio_bus_class = {
  * mdio_find_bus - Given the name of a mdiobus, find the mii_bus.
  * @mdio_name: The name of a mdiobus.
  *
- * Returns a reference to the mii_bus, or NULL if none found.  The
+ * Returns a reference to the mii_bus, or NULL if analne found.  The
  * embedded struct device will have its reference count incremented,
  * and this must be put_deviced'ed once the bus is finished with.
  */
@@ -430,33 +430,33 @@ EXPORT_SYMBOL(mdio_find_bus);
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
 /**
- * of_mdio_find_bus - Given an mii_bus node, find the mii_bus.
+ * of_mdio_find_bus - Given an mii_bus analde, find the mii_bus.
  * @mdio_bus_np: Pointer to the mii_bus.
  *
- * Returns a reference to the mii_bus, or NULL if none found.  The
+ * Returns a reference to the mii_bus, or NULL if analne found.  The
  * embedded struct device will have its reference count incremented,
  * and this must be put once the bus is finished with.
  *
- * Because the association of a device_node and mii_bus is made via
- * of_mdiobus_register(), the mii_bus cannot be found before it is
+ * Because the association of a device_analde and mii_bus is made via
+ * of_mdiobus_register(), the mii_bus cananalt be found before it is
  * registered with of_mdiobus_register().
  *
  */
-struct mii_bus *of_mdio_find_bus(struct device_node *mdio_bus_np)
+struct mii_bus *of_mdio_find_bus(struct device_analde *mdio_bus_np)
 {
 	struct device *d;
 
 	if (!mdio_bus_np)
 		return NULL;
 
-	d = class_find_device_by_of_node(&mdio_bus_class, mdio_bus_np);
+	d = class_find_device_by_of_analde(&mdio_bus_class, mdio_bus_np);
 	return d ? to_mii_bus(d) : NULL;
 }
 EXPORT_SYMBOL(of_mdio_find_bus);
 
-/* Walk the list of subnodes of a mdio bus and look for a node that
+/* Walk the list of subanaldes of a mdio bus and look for a analde that
  * matches the mdio device's address with its 'reg' property. If
- * found, set the of_node pointer for the mdio device. This allows
+ * found, set the of_analde pointer for the mdio device. This allows
  * auto-probed phy devices to be supplied with information passed in
  * via DT.
  */
@@ -464,12 +464,12 @@ static void of_mdiobus_link_mdiodev(struct mii_bus *bus,
 				    struct mdio_device *mdiodev)
 {
 	struct device *dev = &mdiodev->dev;
-	struct device_node *child;
+	struct device_analde *child;
 
-	if (dev->of_node || !bus->dev.of_node)
+	if (dev->of_analde || !bus->dev.of_analde)
 		return;
 
-	for_each_available_child_of_node(bus->dev.of_node, child) {
+	for_each_available_child_of_analde(bus->dev.of_analde, child) {
 		int addr;
 
 		addr = of_mdio_parse_addr(dev, child);
@@ -477,9 +477,9 @@ static void of_mdiobus_link_mdiodev(struct mii_bus *bus,
 			continue;
 
 		if (addr == mdiodev->addr) {
-			device_set_node(dev, of_fwnode_handle(child));
+			device_set_analde(dev, of_fwanalde_handle(child));
 			/* The refcount on "child" is passed to the mdio
-			 * device. Do _not_ use of_node_put(child) here.
+			 * device. Do _analt_ use of_analde_put(child) here.
 			 */
 			return;
 		}
@@ -508,7 +508,7 @@ static int mdiobus_create_device(struct mii_bus *bus,
 
 	mdiodev = mdio_device_create(bus, bi->mdio_addr);
 	if (IS_ERR(mdiodev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(mdiodev->modalias, bi->modalias,
 		sizeof(mdiodev->modalias));
@@ -524,7 +524,7 @@ static int mdiobus_create_device(struct mii_bus *bus,
 
 static struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr, bool c45)
 {
-	struct phy_device *phydev = ERR_PTR(-ENODEV);
+	struct phy_device *phydev = ERR_PTR(-EANALDEV);
 	int err;
 
 	phydev = get_phy_device(bus, addr, c45);
@@ -532,14 +532,14 @@ static struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr, bool c45)
 		return phydev;
 
 	/* For DT, see if the auto-probed phy has a corresponding child
-	 * in the bus node, and set the of_node pointer in this case.
+	 * in the bus analde, and set the of_analde pointer in this case.
 	 */
 	of_mdiobus_link_mdiodev(bus, &phydev->mdio);
 
 	err = phy_device_register(phydev);
 	if (err) {
 		phy_device_free(phydev);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	return phydev;
@@ -552,10 +552,10 @@ static struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr, bool c45)
  *
  * This function scans one address on the MDIO bus, looking for
  * devices which can be identified using a vendor/product ID in
- * registers 2 and 3. Not all MDIO devices have such registers, but
+ * registers 2 and 3. Analt all MDIO devices have such registers, but
  * PHY devices typically do. Hence this function assumes anything
  * found is a PHY, or can be treated as a PHY. Other MDIO devices,
- * such as switches, will probably not be found during the scan.
+ * such as switches, will probably analt be found during the scan.
  */
 struct phy_device *mdiobus_scan_c22(struct mii_bus *bus, int addr)
 {
@@ -570,10 +570,10 @@ EXPORT_SYMBOL(mdiobus_scan_c22);
  *
  * This function scans one address on the MDIO bus, looking for
  * devices which can be identified using a vendor/product ID in
- * registers 2 and 3. Not all MDIO devices have such registers, but
+ * registers 2 and 3. Analt all MDIO devices have such registers, but
  * PHY devices typically do. Hence this function assumes anything
  * found is a PHY, or can be treated as a PHY. Other MDIO devices,
- * such as switches, will probably not be found during the scan.
+ * such as switches, will probably analt be found during the scan.
  */
 static struct phy_device *mdiobus_scan_c45(struct mii_bus *bus, int addr)
 {
@@ -589,7 +589,7 @@ static int mdiobus_scan_bus_c22(struct mii_bus *bus)
 			struct phy_device *phydev;
 
 			phydev = mdiobus_scan_c22(bus, i);
-			if (IS_ERR(phydev) && (PTR_ERR(phydev) != -ENODEV))
+			if (IS_ERR(phydev) && (PTR_ERR(phydev) != -EANALDEV))
 				return PTR_ERR(phydev);
 		}
 	}
@@ -609,7 +609,7 @@ static int mdiobus_scan_bus_c45(struct mii_bus *bus)
 				continue;
 
 			phydev = mdiobus_scan_c45(bus, i);
-			if (IS_ERR(phydev) && (PTR_ERR(phydev) != -ENODEV))
+			if (IS_ERR(phydev) && (PTR_ERR(phydev) != -EANALDEV))
 				return PTR_ERR(phydev);
 		}
 	}
@@ -619,7 +619,7 @@ static int mdiobus_scan_bus_c45(struct mii_bus *bus)
 /* There are some C22 PHYs which do bad things when where is a C45
  * transaction on the bus, like accepting a read themselves, and
  * stomping over the true devices reply, to performing a write to
- * themselves which was intended for another device. Now that C22
+ * themselves which was intended for aanalther device. Analw that C22
  * devices have been found, see if any of them are bad for C45, and if we
  * should skip the C45 scan.
  */
@@ -650,8 +650,8 @@ static bool mdiobus_prevent_c45_scan(struct mii_bus *bus)
  * Description: Called by a bus driver to bring up all the PHYs
  *   on a given bus, and attach them to the bus. Drivers should use
  *   mdiobus_register() rather than __mdiobus_register() unless they
- *   need to pass a specific owner module. MDIO devices which are not
- *   PHYs will not be brought up by this function. They are expected
+ *   need to pass a specific owner module. MDIO devices which are analt
+ *   PHYs will analt be brought up by this function. They are expected
  *   to be explicitly listed in DT and instantiated by of_mdiobus_register().
  *
  * Returns 0 on success or < 0 on error.
@@ -674,13 +674,13 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 	if (!bus->read && !bus->read_c45)
 		return -EINVAL;
 
-	if (bus->parent && bus->parent->of_node)
-		bus->parent->of_node->fwnode.flags |=
-					FWNODE_FLAG_NEEDS_CHILD_BOUND_ON_ADD;
+	if (bus->parent && bus->parent->of_analde)
+		bus->parent->of_analde->fwanalde.flags |=
+					FWANALDE_FLAG_NEEDS_CHILD_BOUND_ON_ADD;
 
 	WARN(bus->state != MDIOBUS_ALLOCATED &&
 	     bus->state != MDIOBUS_UNREGISTERED,
-	     "%s: not in ALLOCATED or UNREGISTERED state\n", bus->id);
+	     "%s: analt in ALLOCATED or UNREGISTERED state\n", bus->id);
 
 	bus->owner = owner;
 	bus->dev.parent = bus->parent;
@@ -689,13 +689,13 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 	dev_set_name(&bus->dev, "%s", bus->id);
 
 	/* If the bus state is allocated, we're registering a fresh bus
-	 * that may have a fwnode associated with it. Grab a reference
-	 * to the fwnode. This will be dropped when the bus is released.
+	 * that may have a fwanalde associated with it. Grab a reference
+	 * to the fwanalde. This will be dropped when the bus is released.
 	 * If the bus was set to unregistered, it means that the bus was
 	 * previously registered, and we've already grabbed a reference.
 	 */
 	if (bus->state == MDIOBUS_ALLOCATED)
-		fwnode_handle_get(dev_fwnode(&bus->dev));
+		fwanalde_handle_get(dev_fwanalde(&bus->dev));
 
 	/* We need to set state to MDIOBUS_UNREGISTERED to correctly release
 	 * the device in mdiobus_free()
@@ -820,7 +820,7 @@ void mdiobus_free(struct mii_bus *bus)
 	}
 
 	WARN(bus->state != MDIOBUS_UNREGISTERED,
-	     "%s: not in UNREGISTERED state\n", bus->id);
+	     "%s: analt in UNREGISTERED state\n", bus->id);
 	bus->state = MDIOBUS_RELEASED;
 
 	put_device(&bus->dev);
@@ -855,7 +855,7 @@ out:
  *
  * Read a MDIO bus register. Caller must hold the mdio bus lock.
  *
- * NOTE: MUST NOT be called from interrupt context.
+ * ANALTE: MUST ANALT be called from interrupt context.
  */
 int __mdiobus_read(struct mii_bus *bus, int addr, u32 regnum)
 {
@@ -866,7 +866,7 @@ int __mdiobus_read(struct mii_bus *bus, int addr, u32 regnum)
 	if (bus->read)
 		retval = bus->read(bus, addr, regnum);
 	else
-		retval = -EOPNOTSUPP;
+		retval = -EOPANALTSUPP;
 
 	trace_mdio_access(bus, 1, addr, regnum, retval, retval);
 	mdiobus_stats_acct(&bus->stats[addr], true, retval);
@@ -884,7 +884,7 @@ EXPORT_SYMBOL(__mdiobus_read);
  *
  * Write a MDIO bus register. Caller must hold the mdio bus lock.
  *
- * NOTE: MUST NOT be called from interrupt context.
+ * ANALTE: MUST ANALT be called from interrupt context.
  */
 int __mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val)
 {
@@ -895,7 +895,7 @@ int __mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val)
 	if (bus->write)
 		err = bus->write(bus, addr, regnum, val);
 	else
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 
 	trace_mdio_access(bus, 0, addr, regnum, val, err);
 	mdiobus_stats_acct(&bus->stats[addr], false, err);
@@ -915,7 +915,7 @@ EXPORT_SYMBOL(__mdiobus_write);
  * Read, modify, and if any change, write the register value back to the
  * device. Any error returns a negative number.
  *
- * NOTE: MUST NOT be called from interrupt context.
+ * ANALTE: MUST ANALT be called from interrupt context.
  */
 int __mdiobus_modify_changed(struct mii_bus *bus, int addr, u32 regnum,
 			     u16 mask, u16 set)
@@ -945,7 +945,7 @@ EXPORT_SYMBOL_GPL(__mdiobus_modify_changed);
  *
  * Read a MDIO bus register. Caller must hold the mdio bus lock.
  *
- * NOTE: MUST NOT be called from interrupt context.
+ * ANALTE: MUST ANALT be called from interrupt context.
  */
 int __mdiobus_c45_read(struct mii_bus *bus, int addr, int devad, u32 regnum)
 {
@@ -956,7 +956,7 @@ int __mdiobus_c45_read(struct mii_bus *bus, int addr, int devad, u32 regnum)
 	if (bus->read_c45)
 		retval = bus->read_c45(bus, addr, devad, regnum);
 	else
-		retval = -EOPNOTSUPP;
+		retval = -EOPANALTSUPP;
 
 	trace_mdio_access(bus, 1, addr, regnum, retval, retval);
 	mdiobus_stats_acct(&bus->stats[addr], true, retval);
@@ -975,7 +975,7 @@ EXPORT_SYMBOL(__mdiobus_c45_read);
  *
  * Write a MDIO bus register. Caller must hold the mdio bus lock.
  *
- * NOTE: MUST NOT be called from interrupt context.
+ * ANALTE: MUST ANALT be called from interrupt context.
  */
 int __mdiobus_c45_write(struct mii_bus *bus, int addr, int devad, u32 regnum,
 			u16 val)
@@ -987,7 +987,7 @@ int __mdiobus_c45_write(struct mii_bus *bus, int addr, int devad, u32 regnum,
 	if (bus->write_c45)
 		err = bus->write_c45(bus, addr, devad, regnum, val);
 	else
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 
 	trace_mdio_access(bus, 0, addr, regnum, val, err);
 	mdiobus_stats_acct(&bus->stats[addr], false, err);
@@ -1008,7 +1008,7 @@ EXPORT_SYMBOL(__mdiobus_c45_write);
  * Read, modify, and if any change, write the register value back to the
  * device. Any error returns a negative number.
  *
- * NOTE: MUST NOT be called from interrupt context.
+ * ANALTE: MUST ANALT be called from interrupt context.
  */
 static int __mdiobus_c45_modify_changed(struct mii_bus *bus, int addr,
 					int devad, u32 regnum, u16 mask,
@@ -1038,7 +1038,7 @@ static int __mdiobus_c45_modify_changed(struct mii_bus *bus, int addr,
  * In case of nested MDIO bus access avoid lockdep false positives by
  * using mutex_lock_nested().
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
@@ -1060,7 +1060,7 @@ EXPORT_SYMBOL(mdiobus_read_nested);
  * @addr: the phy address
  * @regnum: register number to read
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
@@ -1083,7 +1083,7 @@ EXPORT_SYMBOL(mdiobus_read);
  * @devad: device address to read
  * @regnum: register number to read
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
@@ -1109,7 +1109,7 @@ EXPORT_SYMBOL(mdiobus_c45_read);
  * In case of nested MDIO bus access avoid lockdep false positives by
  * using mutex_lock_nested().
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
@@ -1136,7 +1136,7 @@ EXPORT_SYMBOL(mdiobus_c45_read_nested);
  * In case of nested MDIO bus access avoid lockdep false positives by
  * using mutex_lock_nested().
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
@@ -1159,7 +1159,7 @@ EXPORT_SYMBOL(mdiobus_write_nested);
  * @regnum: register number to write
  * @val: value to write to @regnum
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
@@ -1183,7 +1183,7 @@ EXPORT_SYMBOL(mdiobus_write);
  * @regnum: register number to write
  * @val: value to write to @regnum
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
@@ -1211,7 +1211,7 @@ EXPORT_SYMBOL(mdiobus_c45_write);
  * In case of nested MDIO bus access avoid lockdep false positives by
  * using mutex_lock_nested().
  *
- * NOTE: MUST NOT be called from interrupt context,
+ * ANALTE: MUST ANALT be called from interrupt context,
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
@@ -1374,7 +1374,7 @@ static int mdio_uevent(const struct device *dev, struct kobj_uevent_env *env)
 
 	/* Some devices have extra OF data and an OF-style MODALIAS */
 	rc = of_device_uevent_modalias(dev, env);
-	if (rc != -ENODEV)
+	if (rc != -EANALDEV)
 		return rc;
 
 	return 0;
@@ -1429,7 +1429,7 @@ void mdio_bus_exit(void)
 EXPORT_SYMBOL_GPL(mdio_bus_exit);
 #else
 module_init(mdio_bus_init);
-/* no module_exit, intentional */
+/* anal module_exit, intentional */
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MDIO bus/device layer");
 #endif

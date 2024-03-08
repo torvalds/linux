@@ -10,25 +10,25 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
-#include "nouveau_drv.h"
-#include "nouveau_reg.h"
-#include "nouveau_encoder.h"
-#include "nouveau_connector.h"
-#include "nouveau_crtc.h"
+#include "analuveau_drv.h"
+#include "analuveau_reg.h"
+#include "analuveau_encoder.h"
+#include "analuveau_connector.h"
+#include "analuveau_crtc.h"
 #include "hw.h"
 #include <drm/drm_modeset_helper_vtables.h>
 
@@ -52,7 +52,7 @@ static struct nvkm_i2c_bus_probe nv04_tv_encoder_info[] = {
 
 int nv04_tv_identify(struct drm_device *dev, int i2c_index)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nvkm_i2c_bus *bus = nvkm_i2c_bus_find(i2c, i2c_index);
 	if (bus) {
@@ -60,7 +60,7 @@ int nv04_tv_identify(struct drm_device *dev, int i2c_index)
 					  nv04_tv_encoder_info,
 					  NULL, NULL);
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 
@@ -74,8 +74,8 @@ int nv04_tv_identify(struct drm_device *dev, int i2c_index)
 static void nv04_tv_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_drm *drm = analuveau_drm(dev);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct nv04_mode_state *state = &nv04_display(dev)->mode_reg;
 	uint8_t crtc1A;
 
@@ -85,7 +85,7 @@ static void nv04_tv_dpms(struct drm_encoder *encoder, int mode)
 	state->pllsel &= ~(PLLSEL_TV_CRTC1_MASK | PLLSEL_TV_CRTC2_MASK);
 
 	if (mode == DRM_MODE_DPMS_ON) {
-		int head = nouveau_crtc(encoder->crtc)->index;
+		int head = analuveau_crtc(encoder->crtc)->index;
 		crtc1A = NVReadVgaCrtc(dev, head, NV_CIO_CRE_RPC1_INDEX);
 
 		state->pllsel |= head ? PLLSEL_TV_CRTC2_MASK :
@@ -124,7 +124,7 @@ static void nv04_tv_bind(struct drm_device *dev, int head, bool bind)
 static void nv04_tv_prepare(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
-	int head = nouveau_crtc(encoder->crtc)->index;
+	int head = analuveau_crtc(encoder->crtc)->index;
 	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 
 	helper->dpms(encoder, DRM_MODE_DPMS_OFF);
@@ -142,7 +142,7 @@ static void nv04_tv_mode_set(struct drm_encoder *encoder,
 			     struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
+	struct analuveau_crtc *nv_crtc = analuveau_crtc(encoder->crtc);
 	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
 
 	regp->tv_htotal = adjusted_mode->htotal;
@@ -163,10 +163,10 @@ static void nv04_tv_mode_set(struct drm_encoder *encoder,
 
 static void nv04_tv_commit(struct drm_encoder *encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
+	struct analuveau_drm *drm = analuveau_drm(dev);
+	struct analuveau_crtc *nv_crtc = analuveau_crtc(encoder->crtc);
 	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
@@ -182,7 +182,7 @@ static void nv04_tv_destroy(struct drm_encoder *encoder)
 	drm_encoder_cleanup(encoder);
 
 	kfree(encoder->helper_private);
-	kfree(nouveau_encoder(encoder));
+	kfree(analuveau_encoder(encoder));
 }
 
 static const struct drm_encoder_funcs nv04_tv_funcs = {
@@ -201,10 +201,10 @@ static const struct drm_encoder_helper_funcs nv04_tv_helper_funcs = {
 int
 nv04_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 {
-	struct nouveau_encoder *nv_encoder;
+	struct analuveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	struct drm_device *dev = connector->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nvkm_i2c_bus *bus = nvkm_i2c_bus_find(i2c, entry->i2c_index);
 	int type, ret;
@@ -217,7 +217,7 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 	/* Allocate the necessary memory */
 	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
 	if (!nv_encoder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize the common members */
 	encoder = to_drm_encoder(nv_encoder);

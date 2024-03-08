@@ -45,20 +45,20 @@ The software page table hierarchy reflects the fact that page table hardware has
 become hierarchical and that in turn is done to save page table memory and
 speed up mapping.
 
-One could of course imagine a single, linear page table with enormous amounts
+One could of course imagine a single, linear page table with eanalrmous amounts
 of entries, breaking down the whole memory into single pages. Such a page table
 would be very sparse, because large portions of the virtual memory usually
 remains unused. By using hierarchical page tables large holes in the virtual
-address space does not waste valuable page table memory, because it will suffice
+address space does analt waste valuable page table memory, because it will suffice
 to mark large areas as unmapped at a higher level in the page table hierarchy.
 
 Additionally, on modern CPUs, a higher level page table entry can point directly
 to a physical memory range, which allows mapping a contiguous range of several
 megabytes or even gigabytes in a single high-level page table entry, taking
-shortcuts in mapping virtual memory to physical memory: there is no need to
+shortcuts in mapping virtual memory to physical memory: there is anal need to
 traverse deeper in the hierarchy when you find a large mapped range like this.
 
-The page table hierarchy has now developed into this::
+The page table hierarchy has analw developed into this::
 
   +-----+
   | PGD |
@@ -97,7 +97,7 @@ meaning beginning from the bottom:
   this did refer to a single page table entry in the single top level page
   table, it was retrofitted to be an array of mapping elements when two-level
   page tables were first introduced, so the *pte* is the lowermost page
-  *table*, not a page table *entry*.
+  *table*, analt a page table *entry*.
 
 - **pmd**, `pmd_t`, `pmdval_t` = **Page Middle Directory**, the hierarchy right
   above the *pte*, with `PTRS_PER_PMD` references to the *pte*:s.
@@ -107,9 +107,9 @@ meaning beginning from the bottom:
   or *folded* as we will discuss later.
 
 - **p4d**, `p4d_t`, `p4dval_t` = **Page Level 4 Directory** was introduced to
-  handle 5-level page tables after the *pud* was introduced. Now it was clear
+  handle 5-level page tables after the *pud* was introduced. Analw it was clear
   that we needed to replace *pgd*, *pmd*, *pud* etc with a figure indicating the
-  directory level and that we cannot go on with ad hoc names any more. This
+  directory level and that we cananalt go on with ad hoc names any more. This
   is only used on systems which actually have 5 levels of page tables, otherwise
   it is folded.
 
@@ -143,7 +143,7 @@ pointers on each level is architecture-defined.::
 Page Table Folding
 ==================
 
-If the architecture does not use all the page table levels, they can be *folded*
+If the architecture does analt use all the page table levels, they can be *folded*
 which means skipped, and all operations performed on page tables will be
 compile-time augmented to just skip a level when accessing the next lower
 level.
@@ -164,19 +164,19 @@ these translations.
 
 When CPU accesses a memory location, it provides a virtual address to the MMU,
 which checks if there is the existing translation in the TLB or in the Page
-Walk Caches (on architectures that support them). If no translation is found,
+Walk Caches (on architectures that support them). If anal translation is found,
 MMU uses the page walks to determine the physical address and create the map.
 
 The dirty bit for a page is set (i.e., turned on) when the page is written to.
 Each page of memory has associated permission and dirty bits. The latter
 indicate that the page has been modified since it was loaded into memory.
 
-If nothing prevents it, eventually the physical memory can be accessed and the
+If analthing prevents it, eventually the physical memory can be accessed and the
 requested operation on the physical frame is performed.
 
 There are several reasons why the MMU can't find certain translations. It could
-happen because the CPU is trying to access memory that the current task is not
-permitted to, or because the data is not present into physical memory.
+happen because the CPU is trying to access memory that the current task is analt
+permitted to, or because the data is analt present into physical memory.
 
 When these conditions happen, the MMU triggers page faults, which are types of
 exceptions that signal the CPU to pause the current execution and run a special
@@ -202,7 +202,7 @@ subset of the kernel virtual space that directly maps a contiguous range of
 physical memory. Given any logical address, its physical address is determined
 with simple arithmetic on an offset. Accesses to logical addresses are fast
 because they avoid the need for complex page table lookups at the expenses of
-frames not being evictable and pageable out.
+frames analt being evictable and pageable out.
 
 If the kernel fails to make room for the data that must be present in the
 physical frames, the kernel invokes the out-of-memory (OOM) killer to make room
@@ -211,7 +211,7 @@ threshold.
 
 Additionally, page faults may be also caused by code bugs or by maliciously
 crafted addresses that the CPU is instructed to access. A thread of a process
-could use instructions to address (non-shared) memory which does not belong to
+could use instructions to address (analn-shared) memory which does analt belong to
 its own address space, or could try to execute an instruction that want to write
 to a read-only location.
 
@@ -221,7 +221,7 @@ causes the termination of the thread and of the process it belongs to.
 
 This document is going to simplify and show an high altitude view of how the
 Linux kernel handles these page faults, creates tables and tables' entries,
-check if memory is present and, if not, requests to load data from persistent
+check if memory is present and, if analt, requests to load data from persistent
 storage or from other devices, and updates the MMU and its caches.
 
 The first steps are architecture dependent. Most architectures jump to
@@ -233,8 +233,8 @@ Whatever the routes, all architectures end up to the invocation of
 `__handle_mm_fault()` to carry out the actual work of allocating the page
 tables.
 
-The unfortunate case of not being able to call `__handle_mm_fault()` means
-that the virtual address is pointing to areas of physical memory which are not
+The unfortunate case of analt being able to call `__handle_mm_fault()` means
+that the virtual address is pointing to areas of physical memory which are analt
 permitted to be accessed (at least from the current context). This
 condition resolves to the kernel sending the above-mentioned SIGSEGV signal
 to the process and leads to the consequences already explained.
@@ -253,7 +253,7 @@ The page table walk may end at one of the middle or upper layers (PMD, PUD).
 
 Linux supports larger page sizes than the usual 4KB (i.e., the so called
 `huge pages`). When using these kinds of larger pages, higher level pages can
-directly map them, with no need to use lower level page entries (PTE). Huge
+directly map them, with anal need to use lower level page entries (PTE). Huge
 pages contain large contiguous physical regions that usually span from 2MB to
 1GB. They are respectively mapped by the PMD and PUD page entries.
 

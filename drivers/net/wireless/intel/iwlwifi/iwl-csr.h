@@ -16,12 +16,12 @@
  *
  * Use iwl_write32() and iwl_read32() family to access these registers;
  * these provide simple PCI bus access, without waking up the MAC.
- * Do not use iwl_write_direct32() family for these registers;
- * no need to "grab nic access" via CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ.
- * The MAC (uCode processor, etc.) does not need to be powered up for accessing
+ * Do analt use iwl_write_direct32() family for these registers;
+ * anal need to "grab nic access" via CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ.
+ * The MAC (uCode processor, etc.) does analt need to be powered up for accessing
  * the CSR registers.
  *
- * NOTE:  Device does need to be awake in order to read this memory
+ * ANALTE:  Device does need to be awake in order to read this memory
  *        via CSR_EEPROM and CSR_OTP registers
  */
 #define CSR_BASE    (0x000)
@@ -36,7 +36,7 @@
 #define CSR_GP_CNTRL            (CSR_BASE+0x024)
 #define CSR_FUNC_SCRATCH        (CSR_BASE+0x02c) /* Scratch register - used for FW dbg */
 
-/* 2nd byte of CSR_INT_COALESCING, not accessible via iwl_write32()! */
+/* 2nd byte of CSR_INT_COALESCING, analt accessible via iwl_write32()! */
 #define CSR_INT_PERIODIC_REG	(CSR_BASE+0x005)
 
 /*
@@ -63,7 +63,7 @@
 /*
  * EEPROM and OTP (one-time-programmable) memory reads
  *
- * NOTE:  Device must be awake, initialized via apm_ops.init(),
+ * ANALTE:  Device must be awake, initialized via apm_ops.init(),
  *        in order to read.
  */
 #define CSR_EEPROM_REG          (CSR_BASE+0x02c)
@@ -94,12 +94,12 @@
 
 /* LTR control (since IWL_DEVICE_FAMILY_22000) */
 #define CSR_LTR_LONG_VAL_AD			(CSR_BASE + 0x0D4)
-#define CSR_LTR_LONG_VAL_AD_NO_SNOOP_REQ	0x80000000
-#define CSR_LTR_LONG_VAL_AD_NO_SNOOP_SCALE	0x1c000000
-#define CSR_LTR_LONG_VAL_AD_NO_SNOOP_VAL	0x03ff0000
-#define CSR_LTR_LONG_VAL_AD_SNOOP_REQ		0x00008000
-#define CSR_LTR_LONG_VAL_AD_SNOOP_SCALE		0x00001c00
-#define CSR_LTR_LONG_VAL_AD_SNOOP_VAL		0x000003ff
+#define CSR_LTR_LONG_VAL_AD_ANAL_SANALOP_REQ	0x80000000
+#define CSR_LTR_LONG_VAL_AD_ANAL_SANALOP_SCALE	0x1c000000
+#define CSR_LTR_LONG_VAL_AD_ANAL_SANALOP_VAL	0x03ff0000
+#define CSR_LTR_LONG_VAL_AD_SANALOP_REQ		0x00008000
+#define CSR_LTR_LONG_VAL_AD_SANALOP_SCALE		0x00001c00
+#define CSR_LTR_LONG_VAL_AD_SANALOP_VAL		0x000003ff
 #define CSR_LTR_LONG_VAL_AD_SCALE_USEC		2
 
 #define CSR_LTR_LAST_MSG			(CSR_BASE + 0x0DC)
@@ -181,7 +181,7 @@
 #define CSR_INT_PERIODIC_ENA			(0xFF) /* 255*32 usec ~ 8 msec*/
 
 /* interrupt flags in INTA, set by uCode or hardware (e.g. dma),
- * acknowledged (reset) by host writing "1" to flagged bits. */
+ * ackanalwledged (reset) by host writing "1" to flagged bits. */
 #define CSR_INT_BIT_FH_RX        (1 << 31) /* Rx DMA, cmd responses, FH_INT[17:16] */
 #define CSR_INT_BIT_HW_ERR       (1 << 29) /* DMA hardware error FH_INT[31] */
 #define CSR_INT_BIT_RX_PERIODIC	 (1 << 28) /* Rx periodic */
@@ -239,7 +239,7 @@
  *         Indicates state of (platform's) hardware RF-Kill switch
  * 26-24:  POWER_SAVE_TYPE
  *         Indicates current power-saving mode:
- *         000 -- No power saving
+ *         000 -- Anal power saving
  *         001 -- MAC power-down
  *         010 -- PHY (radio) power-down
  *         011 -- Error
@@ -249,11 +249,11 @@
  *         as forced high/low by device circuit board.
  *     4:  GOING_TO_SLEEP
  *         Indicates MAC is entering a power-saving sleep power-down.
- *         Not a good time to access device-internal resources.
+ *         Analt a good time to access device-internal resources.
  *     3:  MAC_ACCESS_REQ
  *         Host sets this to request and maintain MAC wakeup, to allow host
  *         access to device-internal resources.  Host must wait for
- *         MAC_CLOCK_READY (and !GOING_TO_SLEEP) before accessing non-CSR
+ *         MAC_CLOCK_READY (and !GOING_TO_SLEEP) before accessing analn-CSR
  *         device registers.
  *     2:  INIT_DONE
  *         Host sets this to put device into fully operational D0 power mode.
@@ -261,14 +261,14 @@
  *     0:  MAC_CLOCK_READY
  *         Indicates MAC (ucode processor, etc.) is powered up and can run.
  *         Internal resources are accessible.
- *         NOTE:  This does not indicate that the processor is actually running.
- *         NOTE:  This does not indicate that device has completed
+ *         ANALTE:  This does analt indicate that the processor is actually running.
+ *         ANALTE:  This does analt indicate that device has completed
  *                init or post-power-down restore of internal SRAM memory.
  *                Use CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP as indication that
- *                SRAM is restored and uCode is in normal operation mode.
- *                Later devices (5xxx/6xxx/1xxx) use non-volatile SRAM, and
- *                do not need to save/restore it.
- *         NOTE:  After device reset, this bit remains "0" until host sets
+ *                SRAM is restored and uCode is in analrmal operation mode.
+ *                Later devices (5xxx/6xxx/1xxx) use analn-volatile SRAM, and
+ *                do analt need to save/restore it.
+ *         ANALTE:  After device reset, this bit remains "0" until host sets
  *                INIT_DONE
  */
 #define CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY	     (0x00000001)
@@ -336,7 +336,7 @@ enum {
 #define CSR_HW_REV_TYPE_135		(0x0000120)
 #define CSR_HW_REV_TYPE_3160		(0x0000164)
 #define CSR_HW_REV_TYPE_7265D		(0x0000210)
-#define CSR_HW_REV_TYPE_NONE		(0x00001F0)
+#define CSR_HW_REV_TYPE_ANALNE		(0x00001F0)
 #define CSR_HW_REV_TYPE_QNJ		(0x0000360)
 #define CSR_HW_REV_TYPE_QNJ_B0		(0x0000361)
 #define CSR_HW_REV_TYPE_QU_B0		(0x0000331)
@@ -382,7 +382,7 @@ enum {
 
 /* GP REG */
 #define CSR_GP_REG_POWER_SAVE_STATUS_MSK            (0x03000000) /* bit 24/25 */
-#define CSR_GP_REG_NO_POWER_SAVE            (0x00000000)
+#define CSR_GP_REG_ANAL_POWER_SAVE            (0x00000000)
 #define CSR_GP_REG_MAC_POWER_SAVE           (0x01000000)
 #define CSR_GP_REG_PHY_POWER_SAVE           (0x02000000)
 #define CSR_GP_REG_POWER_SAVE_ERROR         (0x03000000)
@@ -401,23 +401,23 @@ enum {
  *         sending CARD_STATE command with "halt" bit set.
  *     3:  CT_KILL_EXIT
  *         Host sets this to request exit from CT_KILL state, i.e. host thinks
- *         device temperature is low enough to continue normal operation.
+ *         device temperature is low eanalugh to continue analrmal operation.
  *     2:  CMD_BLOCKED
  *         Host sets this during RF KILL power-down sequence (HW, SW, CT KILL)
  *         to release uCode to clear all Tx and command queues, enter
  *         unassociated mode, and power down.
- *         NOTE:  Some devices also use HBUS_TARG_MBX_C register for this bit.
+ *         ANALTE:  Some devices also use HBUS_TARG_MBX_C register for this bit.
  *     1:  SW_BIT_RFKILL
  *         Host sets this when issuing CARD_STATE command to request
  *         device sleep.
  *     0:  MAC_SLEEP
  *         uCode sets this when preparing a power-saving power-down.
  *         uCode resets this when power-up is complete and SRAM is sane.
- *         NOTE:  device saves internal SRAM data to host when powering down,
+ *         ANALTE:  device saves internal SRAM data to host when powering down,
  *                and must restore this data after powering back up.
  *                MAC_SLEEP is the best indication that restore is complete.
- *                Later devices (5xxx/6xxx/1xxx) use non-volatile SRAM, and
- *                do not need to save/restore it.
+ *                Later devices (5xxx/6xxx/1xxx) use analn-volatile SRAM, and
+ *                do analt need to save/restore it.
  */
 #define CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP             (0x00000001)
 #define CSR_UCODE_SW_BIT_RFKILL                     (0x00000002)
@@ -436,7 +436,7 @@ enum {
 #define CSR_GP_DRIVER_REG_BIT_RADIO_IQ_INVER	    (0x00000080)
 
 /* GIO Chicken Bits (PCI Express bus link power management) */
-#define CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX  (0x00800000)
+#define CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_ANAL_L0S_RX  (0x00800000)
 #define CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER  (0x20000000)
 
 /* LED */
@@ -464,7 +464,7 @@ enum {
  * HEEP_CTRL_WRD_PCIEX_DATA (0xF4) registers.
  *
  * Use iwl_write32()/iwl_read32() family to access these registers. The MAC HW
- * need not be powered up so no "grab inc access" is required.
+ * need analt be powered up so anal "grab inc access" is required.
  */
 
 /*
@@ -495,7 +495,7 @@ enum {
  * to make sure the MAC (uCode processor, etc.) is powered up for accessing
  * internal resources.
  *
- * Do not use iwl_write32()/iwl_read32() family to access these registers;
+ * Do analt use iwl_write32()/iwl_read32() family to access these registers;
  * these provide only simple PCI bus access, without waking up the MAC.
  */
 #define HBUS_BASE	(0x400)
@@ -635,7 +635,7 @@ enum msix_hw_int_causes {
 
 #define MSIX_MIN_INTERRUPT_VECTORS		2
 #define MSIX_AUTO_CLEAR_CAUSE			0
-#define MSIX_NON_AUTO_CLEAR_CAUSE		BIT(7)
+#define MSIX_ANALN_AUTO_CLEAR_CAUSE		BIT(7)
 
 /*****************************************************************************
  *                     HW address related registers                          *

@@ -30,7 +30,7 @@ extern int scsi_register_interface(struct class_interface *);
 #define scsi_unregister_interface(intf) \
 	class_interface_unregister(intf)
 
-/* make sure not to use it with passthrough commands */
+/* make sure analt to use it with passthrough commands */
 static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
 {
 	return to_scsi_driver(cmd->device->sdev_gendev.driver);

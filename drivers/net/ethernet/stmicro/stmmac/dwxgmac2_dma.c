@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
+ * Copyright (c) 2018 Syanalpsys, Inc. and/or its affiliates.
  * stmmac XGMAC support.
  */
 
@@ -347,7 +347,7 @@ static int dwxgmac2_dma_interrupt(struct stmmac_priv *priv,
 	else if (dir == DMA_DIR_TX)
 		intr_status &= XGMAC_DMA_STATUS_MSK_TX;
 
-	/* ABNORMAL interrupts */
+	/* ABANALRMAL interrupts */
 	if (unlikely(intr_status & XGMAC_AIS)) {
 		if (unlikely(intr_status & XGMAC_RBU)) {
 			x->rx_buf_unav_irq++;
@@ -363,17 +363,17 @@ static int dwxgmac2_dma_interrupt(struct stmmac_priv *priv,
 		}
 	}
 
-	/* TX/RX NORMAL interrupts */
+	/* TX/RX ANALRMAL interrupts */
 	if (likely(intr_status & XGMAC_NIS)) {
 		if (likely(intr_status & XGMAC_RI)) {
 			u64_stats_update_begin(&stats->syncp);
-			u64_stats_inc(&stats->rx_normal_irq_n[chan]);
+			u64_stats_inc(&stats->rx_analrmal_irq_n[chan]);
 			u64_stats_update_end(&stats->syncp);
 			ret |= handle_rx;
 		}
 		if (likely(intr_status & (XGMAC_TI | XGMAC_TBU))) {
 			u64_stats_update_begin(&stats->syncp);
-			u64_stats_inc(&stats->tx_normal_irq_n[chan]);
+			u64_stats_inc(&stats->tx_analrmal_irq_n[chan]);
 			u64_stats_update_end(&stats->syncp);
 			ret |= handle_tx;
 		}

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_JOB_H
 #define PVR_JOB_H
@@ -98,7 +98,7 @@ struct pvr_job {
  *
  * Returns:
  *  * The requested job on success, or
- *  * %NULL if no job pointer passed.
+ *  * %NULL if anal job pointer passed.
  */
 static __always_inline struct pvr_job *
 pvr_job_get(struct pvr_job *job)
@@ -147,9 +147,9 @@ pvr_job_get_pm_ref(struct pvr_job *job)
 	return err;
 }
 
-int pvr_job_wait_first_non_signaled_native_dep(struct pvr_job *job);
+int pvr_job_wait_first_analn_signaled_native_dep(struct pvr_job *job);
 
-bool pvr_job_non_native_deps_done(struct pvr_job *job);
+bool pvr_job_analn_native_deps_done(struct pvr_job *job);
 
 int pvr_job_fits_in_cccb(struct pvr_job *job, unsigned long native_dep_count);
 

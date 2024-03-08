@@ -317,7 +317,7 @@ static int jsa1212_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_i2c(client, &jsa1212_regmap_config);
 	if (IS_ERR(regmap)) {

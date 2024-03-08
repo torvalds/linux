@@ -278,7 +278,7 @@ inline void rtw_set_oper_ch(struct adapter *adapter, u8 ch)
 				cnt += scnprintf(msg+cnt, len-cnt, "C");
 			else
 				cnt += scnprintf(msg+cnt, len-cnt, "_");
-			if (iface->wdinfo.listen_channel == ch && !rtw_p2p_chk_state(&iface->wdinfo, P2P_STATE_NONE))
+			if (iface->wdinfo.listen_channel == ch && !rtw_p2p_chk_state(&iface->wdinfo, P2P_STATE_ANALNE))
 				cnt += scnprintf(msg+cnt, len-cnt, "L");
 			else
 				cnt += scnprintf(msg+cnt, len-cnt, "_");
@@ -628,7 +628,7 @@ s16 rtw_camid_alloc(struct adapter *adapter, struct sta_info *sta, u8 kid)
 
 		if (!sta) {
 			if (!(mlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)) {
-				/* bypass STA mode group key setting before connected(ex:WEP) because bssid is not ready */
+				/* bypass STA mode group key setting before connected(ex:WEP) because bssid is analt ready */
 				goto bitmap_handle;
 			}
 
@@ -654,12 +654,12 @@ s16 rtw_camid_alloc(struct adapter *adapter, struct sta_info *sta, u8 kid)
 		if (i == TOTAL_CAM_ENTRY) {
 			if (sta)
 				netdev_dbg(adapter->pnetdev,
-					   FUNC_ADPT_FMT " pairwise key with %pM id:%u no room\n",
+					   FUNC_ADPT_FMT " pairwise key with %pM id:%u anal room\n",
 					   FUNC_ADPT_ARG(adapter),
 					   MAC_ARG(sta->hwaddr), kid);
 			else
 				netdev_dbg(adapter->pnetdev,
-					   FUNC_ADPT_FMT " group key id:%u no room\n",
+					   FUNC_ADPT_FMT " group key id:%u anal room\n",
 					   FUNC_ADPT_ARG(adapter), kid);
 			rtw_warn_on(1);
 			goto bitmap_handle;
@@ -1219,7 +1219,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 			/* bcn_info_update */
 			cur_network->bcn_info.ht_cap_info = ht_cap_info;
 			cur_network->bcn_info.ht_info_infos_0 = ht_info_infos_0;
-			/* to do : need to check that whether modify related register of BB or not */
+			/* to do : need to check that whether modify related register of BB or analt */
 		}
 		/* goto _mismatch; */
 	}
@@ -1228,7 +1228,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 	p = rtw_get_ie(bssid->ies + _FIXED_IE_LENGTH_, WLAN_EID_DS_PARAMS, &len, bssid->ie_length - _FIXED_IE_LENGTH_);
 	if (p) {
 		bcn_channel = *(p + 2);
-	} else {/* In 5G, some ap do not have DSSET IE checking HT info for channel */
+	} else {/* In 5G, some ap do analt have DSSET IE checking HT info for channel */
 		rtw_get_ie(bssid->ies + _FIXED_IE_LENGTH_, WLAN_EID_HT_OPERATION,
 			   &len, bssid->ie_length - _FIXED_IE_LENGTH_);
 		if (pht_info)
@@ -1254,7 +1254,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 	if (memcmp(bssid->ssid.ssid, cur_network->network.ssid.ssid, 32) ||
 			bssid->ssid.ssid_length != cur_network->network.ssid.ssid_length)
 		if (bssid->ssid.ssid[0] != '\0' &&
-		    bssid->ssid.ssid_length != 0) /* not hidden ssid */
+		    bssid->ssid.ssid_length != 0) /* analt hidden ssid */
 			goto _mismatch;
 
 	/* check encryption info */
@@ -1504,7 +1504,7 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 		i += (pIE->length + 2);
 	}
 
-	return HT_IOT_PEER_UNKNOWN;
+	return HT_IOT_PEER_UNKANALWN;
 }
 
 void update_IOT_info(struct adapter *padapter)
@@ -1566,7 +1566,7 @@ void update_capinfo(struct adapter *Adapter, u16 updateCap)
 
 	if (updateCap & cIBSS) {
 		/* Filen: See 802.11-2007 p.91 */
-		pmlmeinfo->slotTime = NON_SHORT_SLOT_TIME;
+		pmlmeinfo->slotTime = ANALN_SHORT_SLOT_TIME;
 	} else {
 		/* Filen: See 802.11-2007 p.90 */
 		if (pmlmeext->cur_wireless_mode & (WIRELESS_11_24N)) {
@@ -1577,10 +1577,10 @@ void update_capinfo(struct adapter *Adapter, u16 updateCap)
 				pmlmeinfo->slotTime = SHORT_SLOT_TIME;
 			else
 				/*  Long Slot Time */
-				pmlmeinfo->slotTime = NON_SHORT_SLOT_TIME;
+				pmlmeinfo->slotTime = ANALN_SHORT_SLOT_TIME;
 		} else {
 			/* B Mode */
-			pmlmeinfo->slotTime = NON_SHORT_SLOT_TIME;
+			pmlmeinfo->slotTime = ANALN_SHORT_SLOT_TIME;
 		}
 	}
 

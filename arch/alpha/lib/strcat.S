@@ -23,7 +23,7 @@ strcat:
 	ldq_u   $1, 0($16)	# load first quadword (a0 may be misaligned)
 	lda     $2, -1
 	insqh   $2, $16, $2
-	andnot  $16, 7, $16
+	andanalt  $16, 7, $16
 	or      $2, $1, $1
 	cmpbge  $31, $1, $2	# bits set iff byte == 0
 	bne     $2, $found
@@ -46,7 +46,7 @@ $found:	negq    $2, $3		# clear all but least set bit
 	addq	$16, $5, $16
 	addq	$16, $3, $16
 
-	/* Now do the append.  */
+	/* Analw do the append.  */
 
 	mov	$26, $23
 	br	__stxcpy

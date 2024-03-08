@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright(c) 2016, Analogix Semiconductor.
- * Copyright(c) 2017, Icenowy Zheng <icenowy@aosc.io>
+ * Copyright(c) 2017, Iceanalwy Zheng <iceanalwy@aosc.io>
  *
  * Based on anx7808 driver obtained from chromeos with copyright:
  * Copyright(c) 2013, Google Inc.
@@ -115,7 +115,7 @@ static int anx6345_dp_link_training(struct anx6345 *anx6345)
 		break;
 
 	default:
-		DRM_DEBUG_KMS("DP bandwidth (%#02x) not supported\n", dp_bw);
+		DRM_DEBUG_KMS("DP bandwidth (%#02x) analt supported\n", dp_bw);
 		return -EINVAL;
 	}
 
@@ -249,7 +249,7 @@ static int anx6345_tx_initialization(struct anx6345 *anx6345)
 {
 	int err, i;
 
-	/* FIXME: colordepth is hardcoded for now */
+	/* FIXME: colordepth is hardcoded for analw */
 	err = regmap_write(anx6345->map[I2C_IDX_TXCOM], SP_VID_CTRL2_REG,
 			   SP_IN_BPC_6BIT << SP_IN_BPC_SHIFT);
 	if (err)
@@ -523,14 +523,14 @@ static int anx6345_bridge_attach(struct drm_bridge *bridge,
 	struct anx6345 *anx6345 = bridge_to_anx6345(bridge);
 	int err;
 
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
+	if (flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR) {
 		DRM_ERROR("Fix bridge driver to make connector optional!");
 		return -EINVAL;
 	}
 
 	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
-		return -ENODEV;
+		DRM_ERROR("Parent encoder object analt found");
+		return -EANALDEV;
 	}
 
 	/* Register aux channel */
@@ -590,7 +590,7 @@ anx6345_bridge_mode_valid(struct drm_bridge *bridge,
 			  const struct drm_display_mode *mode)
 {
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return MODE_NO_INTERLACE;
+		return MODE_ANAL_INTERLACE;
 
 	/* Max 1200p at 5.4 Ghz, one lane */
 	if (mode->clock > 154000)
@@ -654,7 +654,7 @@ static const struct regmap_config anx6345_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0xff,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static const u16 anx6345_chipid_list[] = {
@@ -685,7 +685,7 @@ static bool anx6345_get_chip_id(struct anx6345 *anx6345)
 		}
 	}
 
-	DRM_ERROR("ANX%x (ver. %d) not supported by this driver\n",
+	DRM_ERROR("ANX%x (ver. %d) analt supported by this driver\n",
 		  anx6345->chipid, version);
 
 	return false;
@@ -699,24 +699,24 @@ static int anx6345_i2c_probe(struct i2c_client *client)
 
 	anx6345 = devm_kzalloc(&client->dev, sizeof(*anx6345), GFP_KERNEL);
 	if (!anx6345)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&anx6345->lock);
 
-	anx6345->bridge.of_node = client->dev.of_node;
+	anx6345->bridge.of_analde = client->dev.of_analde;
 
 	anx6345->client = client;
 	i2c_set_clientdata(client, anx6345);
 
 	dev = &anx6345->client->dev;
 
-	err = drm_of_find_panel_or_bridge(client->dev.of_node, 1, 0,
+	err = drm_of_find_panel_or_bridge(client->dev.of_analde, 1, 0,
 					  &anx6345->panel, NULL);
 	if (err == -EPROBE_DEFER)
 		return err;
 
 	if (err)
-		DRM_DEBUG("No panel found\n");
+		DRM_DEBUG("Anal panel found\n");
 
 	/* 1.2V digital core power regulator  */
 	anx6345->dvdd12 = devm_regulator_get(dev, "dvdd12");
@@ -739,7 +739,7 @@ static int anx6345_i2c_probe(struct i2c_client *client)
 	/* GPIO for chip reset */
 	anx6345->gpiod_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(anx6345->gpiod_reset)) {
-		DRM_ERROR("Reset gpio not found\n");
+		DRM_ERROR("Reset gpio analt found\n");
 		return PTR_ERR(anx6345->gpiod_reset);
 	}
 
@@ -777,7 +777,7 @@ static int anx6345_i2c_probe(struct i2c_client *client)
 		return 0;
 	} else {
 		anx6345_poweroff(anx6345);
-		err = -ENODEV;
+		err = -EANALDEV;
 	}
 
 err_unregister_i2c:
@@ -822,5 +822,5 @@ static struct i2c_driver anx6345_driver = {
 module_i2c_driver(anx6345_driver);
 
 MODULE_DESCRIPTION("ANX6345 eDP Transmitter driver");
-MODULE_AUTHOR("Icenowy Zheng <icenowy@aosc.io>");
+MODULE_AUTHOR("Iceanalwy Zheng <iceanalwy@aosc.io>");
 MODULE_LICENSE("GPL v2");

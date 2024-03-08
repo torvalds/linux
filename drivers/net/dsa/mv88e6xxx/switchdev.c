@@ -3,7 +3,7 @@
  * switchdev.c
  *
  *	Authors:
- *	Hans J. Schultz		<netdev@kapio-technology.com>
+ *	Hans J. Schultz		<netdev@kapio-techanallogy.com>
  *
  */
 
@@ -45,7 +45,7 @@ static int mv88e6xxx_find_vid(struct mv88e6xxx_chip *chip, u16 fid, u16 *vid)
 	if (err == 1)
 		*vid = ctx.vid_found;
 	else
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -53,7 +53,7 @@ static int mv88e6xxx_find_vid(struct mv88e6xxx_chip *chip, u16 fid, u16 *vid)
 int mv88e6xxx_handle_miss_violation(struct mv88e6xxx_chip *chip, int port,
 				    struct mv88e6xxx_atu_entry *entry, u16 fid)
 {
-	struct switchdev_notifier_fdb_info info = {
+	struct switchdev_analtifier_fdb_info info = {
 		.addr = entry->mac,
 		.locked = true,
 	};
@@ -73,9 +73,9 @@ int mv88e6xxx_handle_miss_violation(struct mv88e6xxx_chip *chip, int port,
 	brport = dsa_port_to_bridge_port(dp);
 	if (!brport) {
 		rtnl_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
-	err = call_switchdev_notifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
+	err = call_switchdev_analtifiers(SWITCHDEV_FDB_ADD_TO_BRIDGE,
 				       brport, &info.info, NULL);
 	rtnl_unlock();
 

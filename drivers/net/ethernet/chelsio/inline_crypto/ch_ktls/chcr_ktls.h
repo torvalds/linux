@@ -43,7 +43,7 @@ struct chcr_ktls_info {
 	struct net_device *netdev;
 	struct completion completion;
 	u64 iv;
-	u64 record_no;
+	u64 record_anal;
 	int tid;
 	int atid;
 	int rx_qid;
@@ -52,10 +52,10 @@ struct chcr_ktls_info {
 	u32 prev_ack;
 	u32 salt_size;
 	u32 key_ctx_len;
-	u32 scmd0_seqno_numivs;
+	u32 scmd0_seqanal_numivs;
 	u32 scmd0_ivgen_hdrlen;
 	u32 tcp_start_seq_number;
-	u32 scmd0_short_seqno_numivs;
+	u32 scmd0_short_seqanal_numivs;
 	u32 scmd0_short_ivgen_hdrlen;
 	u16 prev_win;
 	u8 tx_chan;

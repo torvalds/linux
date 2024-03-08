@@ -15,14 +15,14 @@ int test_pid = 0;
 
 struct {
 	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, long);
 } map_a SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, long);
 } map_b SEC(".maps");
@@ -55,11 +55,11 @@ int BPF_PROG(on_update)
 
 	ptr = bpf_task_storage_get(&map_a, task, 0,
 				   BPF_LOCAL_STORAGE_GET_F_CREATE);
-	/* ptr will not be NULL when it is called from
+	/* ptr will analt be NULL when it is called from
 	 * the bpf_task_storage_get(&map_b,...F_CREATE) in
 	 * the BPF_PROG(on_enter) below.  It is because
 	 * the value can be found in map_a and the kernel
-	 * does not need to acquire any spin_lock.
+	 * does analt need to acquire any spin_lock.
 	 */
 	if (ptr) {
 		int err;

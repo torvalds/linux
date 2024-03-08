@@ -119,7 +119,7 @@ static inline void rcar_gen3_thermal_write(struct rcar_gen3_thermal_tsc *tsc,
  * BSP and sparsely documented and understood.
  *
  * Examining the linear formula and the formula used to calculate constants a
- * and b while knowing that the span for PTAT and THCODE values are between
+ * and b while kanalwing that the span for PTAT and THCODE values are between
  * 0x000 and 0xfff the largest integer possible is 0xfff * 0xfff == 0xffe001.
  * Integer also needs to be signed so that leaves 7 bits for binary
  * fixed point scaling.
@@ -133,7 +133,7 @@ static inline void rcar_gen3_thermal_write(struct rcar_gen3_thermal_tsc *tsc,
 
 #define RCAR3_THERMAL_GRAN 500 /* mili Celsius */
 
-/* no idea where these constants come from */
+/* anal idea where these constants come from */
 #define TJ_3 -41
 
 static void rcar_gen3_thermal_calc_coefs(struct rcar_gen3_thermal_priv *priv,
@@ -143,7 +143,7 @@ static void rcar_gen3_thermal_calc_coefs(struct rcar_gen3_thermal_priv *priv,
 	/* TODO: Find documentation and document constant calculation formula */
 
 	/*
-	 * Division is not scaled in BSP and if scaled it might overflow
+	 * Division is analt scaled in BSP and if scaled it might overflow
 	 * the dividend (4095 * 4095 << 14 > INT_MAX) so keep it unscaled
 	 */
 	tsc->tj_t = (FIXPT_INT((priv->ptat[1] - priv->ptat[2]) * (ths_tj_1 - TJ_3))
@@ -312,11 +312,11 @@ static bool rcar_gen3_thermal_read_fuses(struct rcar_gen3_thermal_priv *priv)
 	unsigned int i;
 	u32 thscp;
 
-	/* If fuses are not set, fallback to pseudo values. */
+	/* If fuses are analt set, fallback to pseudo values. */
 	thscp = rcar_gen3_thermal_read(priv->tscs[0], REG_GEN3_THSCP);
 	if (!priv->info->read_fuses ||
 	    (thscp & THSCP_COR_PARA_VLD) != THSCP_COR_PARA_VLD) {
-		/* Default THCODE values in case FUSEs are not set. */
+		/* Default THCODE values in case FUSEs are analt set. */
 		static const int thcodes[TSC_MAX_NUM][3] = {
 			{ 3397, 2800, 2221 },
 			{ 3393, 2795, 2216 },
@@ -463,7 +463,7 @@ static int rcar_gen3_thermal_request_irqs(struct rcar_gen3_thermal_priv *priv,
 		irqname = devm_kasprintf(dev, GFP_KERNEL, "%s:ch%d",
 					 dev_name(dev), i);
 		if (!irqname)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = devm_request_threaded_irq(dev, irq, NULL,
 						rcar_gen3_thermal_irq,
@@ -486,7 +486,7 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->ops = rcar_gen3_tz_of_ops;
 
@@ -508,7 +508,7 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 
 		tsc = devm_kzalloc(dev, sizeof(*tsc), GFP_KERNEL);
 		if (!tsc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error_unregister;
 		}
 
@@ -524,7 +524,7 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 	priv->num_tscs = i;
 
 	if (!rcar_gen3_thermal_read_fuses(priv))
-		dev_info(dev, "No calibration values fused, fallback to driver values\n");
+		dev_info(dev, "Anal calibration values fused, fallback to driver values\n");
 
 	for (i = 0; i < priv->num_tscs; i++) {
 		struct rcar_gen3_thermal_tsc *tsc = priv->tscs[i];
@@ -556,7 +556,7 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 	}
 
 	if (!priv->num_tscs) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error_unregister;
 	}
 

@@ -14,7 +14,7 @@
  * @nr_pins		Number of pins that is supported by the hardware (1-32)
  * @irq_base		If IRQ is supported by the hardware, this is the base
  *			number of IRQ:s. One IRQ per pin will be used. Set to
- *			-1 if IRQ:s is not supported.
+ *			-1 if IRQ:s is analt supported.
  */
 struct timbgpio_platform_data {
 	int gpio_base;

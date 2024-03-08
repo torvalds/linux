@@ -39,12 +39,12 @@ static __init pteval_t create_mapping_protection(efi_memory_desc_t *md)
 		static bool __initdata code_is_misaligned;
 
 		/*
-		 * Regions that are not aligned to the OS page size cannot be
+		 * Regions that are analt aligned to the OS page size cananalt be
 		 * mapped with strict permissions, as those might interfere
 		 * with the permissions that are needed by the adjacent
 		 * region's mapping. However, if we haven't encountered any
 		 * misaligned runtime code regions so far, we can safely use
-		 * non-executable permissions for non-code regions.
+		 * analn-executable permissions for analn-code regions.
 		 */
 		code_is_misaligned |= (type == EFI_RUNTIME_SERVICES_CODE);
 
@@ -78,7 +78,7 @@ int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 				   md->type == EFI_RUNTIME_SERVICES_DATA);
 
 	/*
-	 * If this region is not aligned to the page size used by the OS, the
+	 * If this region is analt aligned to the page size used by the OS, the
 	 * mapping will be rounded outwards, and may end up sharing a page
 	 * frame with an adjacent runtime memory region. Given that the page
 	 * table descriptor covering the shared page will be rewritten when the
@@ -132,7 +132,7 @@ int __init efi_set_mapping_permissions(struct mm_struct *mm,
 	 * guaranteed to be mapped down to pages. Since we are only called
 	 * for regions that have been mapped using efi_create_mapping() above
 	 * (and this is checked by the generic Memory Attributes table parsing
-	 * routines), there is no need to check that again here.
+	 * routines), there is anal need to check that again here.
 	 */
 	return apply_to_page_range(mm, md->virt_addr,
 				   md->num_pages << EFI_PAGE_SHIFT,
@@ -204,12 +204,12 @@ static int __init arm64_efi_rt_init(void)
 	if (!efi_enabled(EFI_RUNTIME_SERVICES))
 		return 0;
 
-	p = __vmalloc_node(THREAD_SIZE, THREAD_ALIGN, GFP_KERNEL,
-			   NUMA_NO_NODE, &&l);
+	p = __vmalloc_analde(THREAD_SIZE, THREAD_ALIGN, GFP_KERNEL,
+			   NUMA_ANAL_ANALDE, &&l);
 l:	if (!p) {
 		pr_warn("Failed to allocate EFI runtime stack\n");
 		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	efi_rt_stack_top = p + THREAD_SIZE;

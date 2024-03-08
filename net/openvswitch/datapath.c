@@ -72,17 +72,17 @@ static const struct genl_multicast_group ovs_dp_vport_multicast_group = {
 
 /* Check if need to build a reply message.
  * OVS userspace sets the NLM_F_ECHO flag if it needs the reply. */
-static bool ovs_must_notify(struct genl_family *family, struct genl_info *info,
+static bool ovs_must_analtify(struct genl_family *family, struct genl_info *info,
 			    unsigned int group)
 {
 	return info->nlhdr->nlmsg_flags & NLM_F_ECHO ||
 	       genl_has_listeners(family, genl_info_net(info), group);
 }
 
-static void ovs_notify(struct genl_family *family,
+static void ovs_analtify(struct genl_family *family,
 		       struct sk_buff *skb, struct genl_info *info)
 {
-	genl_notify(family, skb, info, 0, GFP_KERNEL);
+	genl_analtify(family, skb, info, 0, GFP_KERNEL);
 }
 
 /**
@@ -176,21 +176,21 @@ static void destroy_dp_rcu(struct rcu_head *rcu)
 }
 
 static struct hlist_head *vport_hash_bucket(const struct datapath *dp,
-					    u16 port_no)
+					    u16 port_anal)
 {
-	return &dp->ports[port_no & (DP_VPORT_HASH_BUCKETS - 1)];
+	return &dp->ports[port_anal & (DP_VPORT_HASH_BUCKETS - 1)];
 }
 
 /* Called with ovs_mutex or RCU read lock. */
-struct vport *ovs_lookup_vport(const struct datapath *dp, u16 port_no)
+struct vport *ovs_lookup_vport(const struct datapath *dp, u16 port_anal)
 {
 	struct vport *vport;
 	struct hlist_head *head;
 
-	head = vport_hash_bucket(dp, port_no);
-	hlist_for_each_entry_rcu(vport, head, dp_hash_node,
+	head = vport_hash_bucket(dp, port_anal);
+	hlist_for_each_entry_rcu(vport, head, dp_hash_analde,
 				 lockdep_ovsl_is_held()) {
-		if (vport->port_no == port_no)
+		if (vport->port_anal == port_anal)
 			return vport;
 	}
 	return NULL;
@@ -204,9 +204,9 @@ static struct vport *new_vport(const struct vport_parms *parms)
 	vport = ovs_vport_add(parms);
 	if (!IS_ERR(vport)) {
 		struct datapath *dp = parms->dp;
-		struct hlist_head *head = vport_hash_bucket(dp, vport->port_no);
+		struct hlist_head *head = vport_hash_bucket(dp, vport->port_anal);
 
-		hlist_add_head_rcu(&vport->dp_hash_node, head);
+		hlist_add_head_rcu(&vport->dp_hash_analde, head);
 	}
 	return vport;
 }
@@ -236,7 +236,7 @@ void ovs_dp_detach_port(struct vport *p)
 	ASSERT_OVSL();
 
 	/* First drop references to device. */
-	hlist_del_rcu(&p->dp_hash_node);
+	hlist_del_rcu(&p->dp_hash_analde);
 
 	/* Then destroy it. */
 	ovs_vport_del(p);
@@ -319,7 +319,7 @@ int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
 		trace_ovs_dp_upcall(dp, skb, key, upcall_info);
 
 	if (upcall_info->portid == 0) {
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 		goto err;
 	}
 
@@ -445,16 +445,16 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 
 	dp_ifindex = get_dpifindex(dp);
 	if (!dp_ifindex)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (skb_vlan_tag_present(skb)) {
 		nskb = skb_clone(skb, GFP_ATOMIC);
 		if (!nskb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		nskb = __vlan_hwaccel_push_inside(nskb);
 		if (!nskb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		skb = nskb;
 	}
@@ -471,7 +471,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 
 	/* Older versions of OVS user space enforce alignment of the last
 	 * Netlink attribute to NLA_ALIGNTO which would require extensive
-	 * padding logic. Only perform zerocopy if padding is not required.
+	 * padding logic. Only perform zerocopy if padding is analt required.
 	 */
 	if (dp->user_features & OVS_DP_F_UNALIGNED)
 		hlen = skb_zerocopy_headlen(skb);
@@ -482,7 +482,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 			      OVS_CB(skb)->acts_origlen);
 	user_skb = genlmsg_new(len, GFP_ATOMIC);
 	if (!user_skb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -504,7 +504,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 			  nla_data(upcall_info->userdata));
 
 	if (upcall_info->egress_tun_info) {
-		nla = nla_nest_start_noflag(user_skb,
+		nla = nla_nest_start_analflag(user_skb,
 					    OVS_PACKET_ATTR_EGRESS_TUN_KEY);
 		if (!nla) {
 			err = -EMSGSIZE;
@@ -519,7 +519,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	}
 
 	if (upcall_info->actions_len) {
-		nla = nla_nest_start_noflag(user_skb, OVS_PACKET_ATTR_ACTIONS);
+		nla = nla_nest_start_analflag(user_skb, OVS_PACKET_ATTR_ACTIONS);
 		if (!nla) {
 			err = -EMSGSIZE;
 			goto out;
@@ -536,14 +536,14 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	/* Add OVS_PACKET_ATTR_MRU */
 	if (upcall_info->mru &&
 	    nla_put_u16(user_skb, OVS_PACKET_ATTR_MRU, upcall_info->mru)) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto out;
 	}
 
 	/* Add OVS_PACKET_ATTR_LEN when packet is truncated */
 	if (cutlen > 0 &&
 	    nla_put_u32(user_skb, OVS_PACKET_ATTR_LEN, skb->len)) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto out;
 	}
 
@@ -556,14 +556,14 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 		hash |= OVS_PACKET_HASH_L4_BIT;
 
 	if (nla_put(user_skb, OVS_PACKET_ATTR_HASH, sizeof (u64), &hash)) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto out;
 	}
 
 	/* Only reserve room for attribute header, packet data is added
 	 * in skb_zerocopy() */
 	if (!(nla = nla_reserve(user_skb, OVS_PACKET_ATTR_PACKET, 0))) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto out;
 	}
 	nla->nla_len = nla_attr_size(skb->len - cutlen);
@@ -612,7 +612,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 
 	len = nla_len(a[OVS_PACKET_ATTR_PACKET]);
 	packet = __dev_alloc_skb(NET_IP_ALIGN + len, GFP_KERNEL);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!packet)
 		goto err;
 	skb_reserve(packet, NET_IP_ALIGN);
@@ -622,7 +622,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 	/* Set packet's mru */
 	if (a[OVS_PACKET_ATTR_MRU]) {
 		mru = nla_get_u16(a[OVS_PACKET_ATTR_MRU]);
-		packet->ignore_df = 1;
+		packet->iganalre_df = 1;
 	}
 	OVS_CB(packet)->mru = mru;
 
@@ -656,7 +656,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 
 	rcu_read_lock();
 	dp = get_dp_rcu(net, ovs_header->dp_ifindex);
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (!dp)
 		goto err_unlock;
 
@@ -845,7 +845,7 @@ static int ovs_flow_cmd_fill_actions(const struct sw_flow *flow,
 	 * This can only fail for dump operations because the skb is always
 	 * properly sized for single flows.
 	 */
-	start = nla_nest_start_noflag(skb, OVS_FLOW_ATTR_ACTIONS);
+	start = nla_nest_start_analflag(skb, OVS_FLOW_ATTR_ACTIONS);
 	if (start) {
 		const struct sw_flow_actions *sf_acts;
 
@@ -918,7 +918,7 @@ error:
 	return err;
 }
 
-/* May not be called with RCU read lock. */
+/* May analt be called with RCU read lock. */
 static struct sk_buff *ovs_flow_cmd_alloc_info(const struct sw_flow_actions *acts,
 					       const struct sw_flow_id *sfid,
 					       struct genl_info *info,
@@ -928,13 +928,13 @@ static struct sk_buff *ovs_flow_cmd_alloc_info(const struct sw_flow_actions *act
 	struct sk_buff *skb;
 	size_t len;
 
-	if (!always && !ovs_must_notify(&dp_flow_genl_family, info, 0))
+	if (!always && !ovs_must_analtify(&dp_flow_genl_family, info, 0))
 		return NULL;
 
 	len = ovs_flow_cmd_msg_size(acts, sfid, ufid_flags);
 	skb = genlmsg_new(len, GFP_KERNEL);
 	if (!skb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return skb;
 }
@@ -982,11 +982,11 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	/* Must have key and actions. */
 	error = -EINVAL;
 	if (!a[OVS_FLOW_ATTR_KEY]) {
-		OVS_NLERR(log, "Flow key attr not present in new flow.");
+		OVS_NLERR(log, "Flow key attr analt present in new flow.");
 		goto error;
 	}
 	if (!a[OVS_FLOW_ATTR_ACTIONS]) {
-		OVS_NLERR(log, "Flow actions attr not present in new flow.");
+		OVS_NLERR(log, "Flow actions attr analt present in new flow.");
 		goto error;
 	}
 
@@ -1002,7 +1002,7 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	/* Extract key. */
 	key = kzalloc(sizeof(*key), GFP_KERNEL);
 	if (!key) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err_kfree_flow;
 	}
 
@@ -1024,7 +1024,7 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	error = ovs_nla_copy_actions(net, a[OVS_FLOW_ATTR_ACTIONS],
 				     &new_flow->key, &acts, log);
 	if (error) {
-		OVS_NLERR(log, "Flow actions may not be safe on all matching packets.");
+		OVS_NLERR(log, "Flow actions may analt be safe on all matching packets.");
 		goto err_kfree_key;
 	}
 
@@ -1038,7 +1038,7 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	ovs_lock();
 	dp = get_dp(net, ovs_header->dp_ifindex);
 	if (unlikely(!dp)) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto err_unlock_ovs;
 	}
 
@@ -1070,7 +1070,7 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	} else {
 		struct sw_flow_actions *old_acts;
 
-		/* Bail out if we're not allowed to modify an existing flow.
+		/* Bail out if we're analt allowed to modify an existing flow.
 		 * We accept NLM_F_CREATE in place of the intended NLM_F_EXCL
 		 * because Generic Netlink treats the latter as a dump
 		 * request.  We also accept NLM_F_EXCL in case that bug ever
@@ -1091,7 +1091,7 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 			else /* UFID matches but key is different */
 				flow = NULL;
 			if (!flow) {
-				error = -ENOENT;
+				error = -EANALENT;
 				goto err_unlock_ovs;
 			}
 		}
@@ -1115,7 +1115,7 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (reply)
-		ovs_notify(&dp_flow_genl_family, reply, info);
+		ovs_analtify(&dp_flow_genl_family, reply, info);
 
 	kfree(key);
 	return 0;
@@ -1134,7 +1134,7 @@ error:
 }
 
 /* Factor out action copy to avoid "Wframe-larger-than=1024" warning. */
-static noinline_for_stack
+static analinline_for_stack
 struct sw_flow_actions *get_flow_actions(struct net *net,
 					 const struct nlattr *a,
 					 const struct sw_flow_key *key,
@@ -1149,7 +1149,7 @@ struct sw_flow_actions *get_flow_actions(struct net *net,
 	error = ovs_nla_copy_actions(net, a, &masked_key, &acts, log);
 	if (error) {
 		OVS_NLERR(log,
-			  "Actions may not be safe on all matching packets");
+			  "Actions may analt be safe on all matching packets");
 		return ERR_PTR(error);
 	}
 
@@ -1161,15 +1161,15 @@ struct sw_flow_actions *get_flow_actions(struct net *net,
  * used to get actions, we new a function to save some
  * stack space.
  *
- * If there are not key and action attrs, we return 0
- * directly. In the case, the caller will also not use the
+ * If there are analt key and action attrs, we return 0
+ * directly. In the case, the caller will also analt use the
  * match as before. If there is action attr, we try to get
  * actions and save them to *acts. Before returning from
  * the function, we reset the match->mask pointer. Because
- * we should not to return match object with dangling reference
+ * we should analt to return match object with dangling reference
  * to mask.
  * */
-static noinline_for_stack int
+static analinline_for_stack int
 ovs_nla_init_match_and_action(struct net *net,
 			      struct sw_flow_match *match,
 			      struct sw_flow_key *key,
@@ -1191,7 +1191,7 @@ ovs_nla_init_match_and_action(struct net *net,
 	if (a[OVS_FLOW_ATTR_ACTIONS]) {
 		if (!a[OVS_FLOW_ATTR_KEY]) {
 			OVS_NLERR(log,
-				  "Flow key attribute not present in set flow.");
+				  "Flow key attribute analt present in set flow.");
 			error = -EINVAL;
 			goto error;
 		}
@@ -1252,7 +1252,7 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	ovs_lock();
 	dp = get_dp(net, ovs_header->dp_ifindex);
 	if (unlikely(!dp)) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto err_unlock_ovs;
 	}
 	/* Check that the flow exists. */
@@ -1261,7 +1261,7 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	else
 		flow = ovs_flow_tbl_lookup_exact(&dp->table, &match);
 	if (unlikely(!flow)) {
-		error = -ENOENT;
+		error = -EANALENT;
 		goto err_unlock_ovs;
 	}
 
@@ -1280,7 +1280,7 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
 			BUG_ON(error < 0);
 		}
 	} else {
-		/* Could not alloc without acts before locking. */
+		/* Could analt alloc without acts before locking. */
 		reply = ovs_flow_cmd_build_info(flow, ovs_header->dp_ifindex,
 						info, OVS_FLOW_CMD_SET, false,
 						ufid_flags);
@@ -1297,7 +1297,7 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	ovs_unlock();
 
 	if (reply)
-		ovs_notify(&dp_flow_genl_family, reply, info);
+		ovs_analtify(&dp_flow_genl_family, reply, info);
 	if (old_acts)
 		ovs_nla_free_flow_actions_rcu(old_acts);
 
@@ -1344,7 +1344,7 @@ static int ovs_flow_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	ovs_lock();
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
 	if (!dp) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto unlock;
 	}
 
@@ -1353,7 +1353,7 @@ static int ovs_flow_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	else
 		flow = ovs_flow_tbl_lookup_exact(&dp->table, &match);
 	if (!flow) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto unlock;
 	}
 
@@ -1399,7 +1399,7 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	ovs_lock();
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
 	if (unlikely(!dp)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto unlock;
 	}
 
@@ -1413,7 +1413,7 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	else
 		flow = ovs_flow_tbl_lookup_exact(&dp->table, &match);
 	if (unlikely(!flow)) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto unlock;
 	}
 
@@ -1436,7 +1436,7 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 				goto out_free;
 			}
 
-			ovs_notify(&dp_flow_genl_family, reply, info);
+			ovs_analtify(&dp_flow_genl_family, reply, info);
 		} else {
 			netlink_set_err(sock_net(skb->sk)->genl_sock, 0, 0,
 					PTR_ERR(reply));
@@ -1470,7 +1470,7 @@ static int ovs_flow_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	dp = get_dp_rcu(sock_net(skb->sk), ovs_header->dp_ifindex);
 	if (!dp) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ti = rcu_dereference(dp->table.ti);
@@ -1632,9 +1632,9 @@ static struct datapath *lookup_datapath(struct net *net,
 		struct vport *vport;
 
 		vport = ovs_vport_locate(net, nla_data(a[OVS_DP_ATTR_NAME]));
-		dp = vport && vport->port_no == OVSP_LOCAL ? vport->dp : NULL;
+		dp = vport && vport->port_anal == OVSP_LOCAL ? vport->dp : NULL;
 	}
-	return dp ? dp : ERR_PTR(-ENODEV);
+	return dp ? dp : ERR_PTR(-EANALDEV);
 }
 
 static void ovs_dp_reset_user_features(struct sk_buff *skb,
@@ -1647,7 +1647,7 @@ static void ovs_dp_reset_user_features(struct sk_buff *skb,
 	if (IS_ERR(dp))
 		return;
 
-	pr_warn("%s: Dropping previously announced user features\n",
+	pr_warn("%s: Dropping previously ananalunced user features\n",
 		ovs_dp_name(dp));
 	dp->user_features = 0;
 }
@@ -1665,7 +1665,7 @@ static int ovs_dp_set_upcall_portids(struct datapath *dp,
 	dp_nlsk_pids = kmalloc(sizeof(*dp_nlsk_pids) + nla_len(ids),
 			       GFP_KERNEL);
 	if (!dp_nlsk_pids)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dp_nlsk_pids->n_pids = nla_len(ids) / sizeof(u32);
 	nla_memcpy(dp_nlsk_pids->pids, ids, nla_len(ids));
@@ -1691,7 +1691,7 @@ u32 ovs_dp_get_upcall_portid(const struct datapath *dp, uint32_t cpu_id)
 			/* If the number of netlink PIDs is mismatched with
 			 * the number of CPUs as seen by the kernel, log this
 			 * and send the upcall to an arbitrary socket (0) in
-			 * order to not drop packets
+			 * order to analt drop packets
 			 */
 			pr_info_ratelimited("cpu_id mismatch with handler threads");
 			return dp_nlsk_pids->pids[cpu_id %
@@ -1716,11 +1716,11 @@ static int ovs_dp_change(struct datapath *dp, struct nlattr *a[])
 				      OVS_DP_F_UNALIGNED |
 				      OVS_DP_F_TC_RECIRC_SHARING |
 				      OVS_DP_F_DISPATCH_UPCALL_PER_CPU))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 #if !IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
 		if (user_features & OVS_DP_F_TC_RECIRC_SHARING)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 #endif
 	}
 
@@ -1759,7 +1759,7 @@ static int ovs_dp_stats_init(struct datapath *dp)
 {
 	dp->stats_percpu = netdev_alloc_pcpu_stats(struct dp_stats_percpu);
 	if (!dp->stats_percpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1772,7 +1772,7 @@ static int ovs_dp_vport_init(struct datapath *dp)
 				  sizeof(struct hlist_head),
 				  GFP_KERNEL);
 	if (!dp->ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++)
 		INIT_HLIST_HEAD(&dp->ports[i]);
@@ -1796,9 +1796,9 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 
 	reply = ovs_dp_cmd_alloc_info();
 	if (!reply)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
 	if (dp == NULL)
 		goto err_destroy_reply;
@@ -1827,12 +1827,12 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	parms.type = OVS_VPORT_TYPE_INTERNAL;
 	parms.options = NULL;
 	parms.dp = dp;
-	parms.port_no = OVSP_LOCAL;
+	parms.port_anal = OVSP_LOCAL;
 	parms.upcall_portids = a[OVS_DP_ATTR_UPCALL_PID];
 	parms.desired_ifindex = a[OVS_DP_ATTR_IFINDEX]
 		? nla_get_s32(a[OVS_DP_ATTR_IFINDEX]) : 0;
 
-	/* So far only local changes have been made, now need the lock. */
+	/* So far only local changes have been made, analw need the lock. */
 	ovs_lock();
 
 	err = ovs_dp_change(dp, a);
@@ -1846,7 +1846,7 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 			err = -EEXIST;
 
 		if (err == -EEXIST) {
-			/* An outdated user space instance that does not understand
+			/* An outdated user space instance that does analt understand
 			 * the concept of user_features has attempted to create a new
 			 * datapath and is likely to reuse it. Drop all user features.
 			 */
@@ -1862,11 +1862,11 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	BUG_ON(err < 0);
 
 	ovs_net = net_generic(ovs_dp_get_net(dp), ovs_net_id);
-	list_add_tail_rcu(&dp->list_node, &ovs_net->dps);
+	list_add_tail_rcu(&dp->list_analde, &ovs_net->dps);
 
 	ovs_unlock();
 
-	ovs_notify(&dp_datapath_genl_family, reply, info);
+	ovs_analtify(&dp_datapath_genl_family, reply, info);
 	return 0;
 
 err_destroy_portids:
@@ -1899,14 +1899,14 @@ static void __dp_destroy(struct datapath *dp)
 
 	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
 		struct vport *vport;
-		struct hlist_node *n;
+		struct hlist_analde *n;
 
-		hlist_for_each_entry_safe(vport, n, &dp->ports[i], dp_hash_node)
-			if (vport->port_no != OVSP_LOCAL)
+		hlist_for_each_entry_safe(vport, n, &dp->ports[i], dp_hash_analde)
+			if (vport->port_anal != OVSP_LOCAL)
 				ovs_dp_detach_port(vport);
 	}
 
-	list_del_rcu(&dp->list_node);
+	list_del_rcu(&dp->list_analde);
 
 	/* OVSP_LOCAL is datapath internal port. We need to make sure that
 	 * all ports in datapath are destroyed first before freeing datapath.
@@ -1932,7 +1932,7 @@ static int ovs_dp_cmd_del(struct sk_buff *skb, struct genl_info *info)
 
 	reply = ovs_dp_cmd_alloc_info();
 	if (!reply)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ovs_lock();
 	dp = lookup_datapath(sock_net(skb->sk), genl_info_userhdr(info),
@@ -1948,7 +1948,7 @@ static int ovs_dp_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	__dp_destroy(dp);
 	ovs_unlock();
 
-	ovs_notify(&dp_datapath_genl_family, reply, info);
+	ovs_analtify(&dp_datapath_genl_family, reply, info);
 
 	return 0;
 
@@ -1966,7 +1966,7 @@ static int ovs_dp_cmd_set(struct sk_buff *skb, struct genl_info *info)
 
 	reply = ovs_dp_cmd_alloc_info();
 	if (!reply)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ovs_lock();
 	dp = lookup_datapath(sock_net(skb->sk), genl_info_userhdr(info),
@@ -1984,7 +1984,7 @@ static int ovs_dp_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	BUG_ON(err < 0);
 
 	ovs_unlock();
-	ovs_notify(&dp_datapath_genl_family, reply, info);
+	ovs_analtify(&dp_datapath_genl_family, reply, info);
 
 	return 0;
 
@@ -2002,7 +2002,7 @@ static int ovs_dp_cmd_get(struct sk_buff *skb, struct genl_info *info)
 
 	reply = ovs_dp_cmd_alloc_info();
 	if (!reply)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ovs_lock();
 	dp = lookup_datapath(sock_net(skb->sk), genl_info_userhdr(info),
@@ -2032,7 +2032,7 @@ static int ovs_dp_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	int i = 0;
 
 	ovs_lock();
-	list_for_each_entry(dp, &ovs_net->dps, list_node) {
+	list_for_each_entry(dp, &ovs_net->dps, list_analde) {
 		if (i >= skip &&
 		    ovs_dp_cmd_fill_info(dp, skb, NETLINK_CB(cb->skb).portid,
 					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
@@ -2112,7 +2112,7 @@ static int ovs_vport_cmd_fill_info(struct vport *vport, struct sk_buff *skb,
 
 	ovs_header->dp_ifindex = get_dpifindex(vport->dp);
 
-	if (nla_put_u32(skb, OVS_VPORT_ATTR_PORT_NO, vport->port_no) ||
+	if (nla_put_u32(skb, OVS_VPORT_ATTR_PORT_ANAL, vport->port_anal) ||
 	    nla_put_u32(skb, OVS_VPORT_ATTR_TYPE, vport->ops->type) ||
 	    nla_put_string(skb, OVS_VPORT_ATTR_NAME,
 			   ovs_vport_name(vport)) ||
@@ -2157,7 +2157,7 @@ static struct sk_buff *ovs_vport_cmd_alloc_info(void)
 	return nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 }
 
-/* Called with ovs_mutex, only via ovs_dp_notify_wq(). */
+/* Called with ovs_mutex, only via ovs_dp_analtify_wq(). */
 struct sk_buff *ovs_vport_cmd_build_info(struct vport *vport, struct net *net,
 					 u32 portid, u32 seq, u8 cmd)
 {
@@ -2166,7 +2166,7 @@ struct sk_buff *ovs_vport_cmd_build_info(struct vport *vport, struct net *net,
 
 	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!skb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	retval = ovs_vport_cmd_fill_info(vport, skb, net, portid, seq, 0, cmd,
 					 GFP_KERNEL);
@@ -2184,28 +2184,28 @@ static struct vport *lookup_vport(struct net *net,
 	struct vport *vport;
 
 	if (a[OVS_VPORT_ATTR_IFINDEX])
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	if (a[OVS_VPORT_ATTR_NAME]) {
 		vport = ovs_vport_locate(net, nla_data(a[OVS_VPORT_ATTR_NAME]));
 		if (!vport)
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 		if (ovs_header->dp_ifindex &&
 		    ovs_header->dp_ifindex != get_dpifindex(vport->dp))
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 		return vport;
-	} else if (a[OVS_VPORT_ATTR_PORT_NO]) {
-		u32 port_no = nla_get_u32(a[OVS_VPORT_ATTR_PORT_NO]);
+	} else if (a[OVS_VPORT_ATTR_PORT_ANAL]) {
+		u32 port_anal = nla_get_u32(a[OVS_VPORT_ATTR_PORT_ANAL]);
 
-		if (port_no >= DP_MAX_PORTS)
+		if (port_anal >= DP_MAX_PORTS)
 			return ERR_PTR(-EFBIG);
 
 		dp = get_dp(net, ovs_header->dp_ifindex);
 		if (!dp)
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 
-		vport = ovs_vport_ovsl_rcu(dp, port_no);
+		vport = ovs_vport_ovsl_rcu(dp, port_anal);
 		if (!vport)
-			return ERR_PTR(-ENODEV);
+			return ERR_PTR(-EANALDEV);
 		return vport;
 	} else
 		return ERR_PTR(-EINVAL);
@@ -2220,7 +2220,7 @@ static unsigned int ovs_get_max_headroom(struct datapath *dp)
 	int i;
 
 	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
-		hlist_for_each_entry_rcu(vport, &dp->ports[i], dp_hash_node,
+		hlist_for_each_entry_rcu(vport, &dp->ports[i], dp_hash_analde,
 					 lockdep_ovsl_is_held()) {
 			dev = vport->dev;
 			dev_headroom = netdev_get_fwd_headroom(dev);
@@ -2240,7 +2240,7 @@ static void ovs_update_headroom(struct datapath *dp, unsigned int new_headroom)
 
 	dp->max_headroom = new_headroom;
 	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
-		hlist_for_each_entry_rcu(vport, &dp->ports[i], dp_hash_node,
+		hlist_for_each_entry_rcu(vport, &dp->ports[i], dp_hash_analde,
 					 lockdep_ovsl_is_held())
 			netdev_set_rx_headroom(vport->dev, new_headroom);
 	}
@@ -2255,7 +2255,7 @@ static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	struct vport *vport;
 	struct datapath *dp;
 	unsigned int new_headroom;
-	u32 port_no;
+	u32 port_anal;
 	int err;
 
 	if (!a[OVS_VPORT_ATTR_NAME] || !a[OVS_VPORT_ATTR_TYPE] ||
@@ -2265,36 +2265,36 @@ static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	parms.type = nla_get_u32(a[OVS_VPORT_ATTR_TYPE]);
 
 	if (a[OVS_VPORT_ATTR_IFINDEX] && parms.type != OVS_VPORT_TYPE_INTERNAL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	port_no = a[OVS_VPORT_ATTR_PORT_NO]
-		? nla_get_u32(a[OVS_VPORT_ATTR_PORT_NO]) : 0;
-	if (port_no >= DP_MAX_PORTS)
+	port_anal = a[OVS_VPORT_ATTR_PORT_ANAL]
+		? nla_get_u32(a[OVS_VPORT_ATTR_PORT_ANAL]) : 0;
+	if (port_anal >= DP_MAX_PORTS)
 		return -EFBIG;
 
 	reply = ovs_vport_cmd_alloc_info();
 	if (!reply)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ovs_lock();
 restart:
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (!dp)
 		goto exit_unlock_free;
 
-	if (port_no) {
-		vport = ovs_vport_ovsl(dp, port_no);
+	if (port_anal) {
+		vport = ovs_vport_ovsl(dp, port_anal);
 		err = -EBUSY;
 		if (vport)
 			goto exit_unlock_free;
 	} else {
-		for (port_no = 1; ; port_no++) {
-			if (port_no >= DP_MAX_PORTS) {
+		for (port_anal = 1; ; port_anal++) {
+			if (port_anal >= DP_MAX_PORTS) {
 				err = -EFBIG;
 				goto exit_unlock_free;
 			}
-			vport = ovs_vport_ovsl(dp, port_no);
+			vport = ovs_vport_ovsl(dp, port_anal);
 			if (!vport)
 				break;
 		}
@@ -2303,7 +2303,7 @@ restart:
 	parms.name = nla_data(a[OVS_VPORT_ATTR_NAME]);
 	parms.options = a[OVS_VPORT_ATTR_OPTIONS];
 	parms.dp = dp;
-	parms.port_no = port_no;
+	parms.port_anal = port_anal;
 	parms.upcall_portids = a[OVS_VPORT_ATTR_UPCALL_PID];
 	parms.desired_ifindex = a[OVS_VPORT_ATTR_IFINDEX]
 		? nla_get_s32(a[OVS_VPORT_ATTR_IFINDEX]) : 0;
@@ -2330,7 +2330,7 @@ restart:
 	BUG_ON(err < 0);
 	ovs_unlock();
 
-	ovs_notify(&dp_vport_genl_family, reply, info);
+	ovs_analtify(&dp_vport_genl_family, reply, info);
 	return 0;
 
 exit_unlock_free:
@@ -2348,7 +2348,7 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 
 	reply = ovs_vport_cmd_alloc_info();
 	if (!reply)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ovs_lock();
 	vport = lookup_vport(sock_net(skb->sk), genl_info_userhdr(info), a);
@@ -2383,7 +2383,7 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	BUG_ON(err < 0);
 
 	ovs_unlock();
-	ovs_notify(&dp_vport_genl_family, reply, info);
+	ovs_analtify(&dp_vport_genl_family, reply, info);
 	return 0;
 
 exit_unlock_free:
@@ -2404,7 +2404,7 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
 
 	reply = ovs_vport_cmd_alloc_info();
 	if (!reply)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ovs_lock();
 	vport = lookup_vport(sock_net(skb->sk), genl_info_userhdr(info), a);
@@ -2412,7 +2412,7 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	if (IS_ERR(vport))
 		goto exit_unlock_free;
 
-	if (vport->port_no == OVSP_LOCAL) {
+	if (vport->port_anal == OVSP_LOCAL) {
 		err = -EINVAL;
 		goto exit_unlock_free;
 	}
@@ -2438,7 +2438,7 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	}
 	ovs_unlock();
 
-	ovs_notify(&dp_vport_genl_family, reply, info);
+	ovs_analtify(&dp_vport_genl_family, reply, info);
 	return 0;
 
 exit_unlock_free:
@@ -2457,7 +2457,7 @@ static int ovs_vport_cmd_get(struct sk_buff *skb, struct genl_info *info)
 
 	reply = ovs_vport_cmd_alloc_info();
 	if (!reply)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcu_read_lock();
 	vport = lookup_vport(sock_net(skb->sk), ovs_header, a);
@@ -2489,13 +2489,13 @@ static int ovs_vport_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	dp = get_dp_rcu(sock_net(skb->sk), ovs_header->dp_ifindex);
 	if (!dp) {
 		rcu_read_unlock();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	for (i = bucket; i < DP_VPORT_HASH_BUCKETS; i++) {
 		struct vport *vport;
 
 		j = 0;
-		hlist_for_each_entry_rcu(vport, &dp->ports[i], dp_hash_node) {
+		hlist_for_each_entry_rcu(vport, &dp->ports[i], dp_hash_analde) {
 			if (j >= skip &&
 			    ovs_vport_cmd_fill_info(vport, skb,
 						    sock_net(skb->sk),
@@ -2527,7 +2527,7 @@ static void ovs_dp_masks_rebalance(struct work_struct *work)
 
 	ovs_lock();
 
-	list_for_each_entry(dp, &ovs_net->dps, list_node)
+	list_for_each_entry(dp, &ovs_net->dps, list_analde)
 		ovs_flow_masks_rebalance(&dp->table);
 
 	ovs_unlock();
@@ -2539,7 +2539,7 @@ static void ovs_dp_masks_rebalance(struct work_struct *work)
 static const struct nla_policy vport_policy[OVS_VPORT_ATTR_MAX + 1] = {
 	[OVS_VPORT_ATTR_NAME] = { .type = NLA_NUL_STRING, .len = IFNAMSIZ - 1 },
 	[OVS_VPORT_ATTR_STATS] = { .len = sizeof(struct ovs_vport_stats) },
-	[OVS_VPORT_ATTR_PORT_NO] = { .type = NLA_U32 },
+	[OVS_VPORT_ATTR_PORT_ANAL] = { .type = NLA_U32 },
 	[OVS_VPORT_ATTR_TYPE] = { .type = NLA_U32 },
 	[OVS_VPORT_ATTR_UPCALL_PID] = { .type = NLA_UNSPEC },
 	[OVS_VPORT_ATTR_OPTIONS] = { .type = NLA_NESTED },
@@ -2632,7 +2632,7 @@ static int __net_init ovs_init_net(struct net *net)
 	int err;
 
 	INIT_LIST_HEAD(&ovs_net->dps);
-	INIT_WORK(&ovs_net->dp_notify_work, ovs_dp_notify_wq);
+	INIT_WORK(&ovs_net->dp_analtify_work, ovs_dp_analtify_wq);
 	INIT_DELAYED_WORK(&ovs_net->masks_rebalance, ovs_dp_masks_rebalance);
 
 	err = ovs_ct_init(net);
@@ -2650,13 +2650,13 @@ static void __net_exit list_vports_from_net(struct net *net, struct net *dnet,
 	struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
 	struct datapath *dp;
 
-	list_for_each_entry(dp, &ovs_net->dps, list_node) {
+	list_for_each_entry(dp, &ovs_net->dps, list_analde) {
 		int i;
 
 		for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
 			struct vport *vport;
 
-			hlist_for_each_entry(vport, &dp->ports[i], dp_hash_node) {
+			hlist_for_each_entry(vport, &dp->ports[i], dp_hash_analde) {
 				if (vport->ops->type != OVS_VPORT_TYPE_INTERNAL)
 					continue;
 
@@ -2679,7 +2679,7 @@ static void __net_exit ovs_exit_net(struct net *dnet)
 
 	ovs_ct_exit(dnet);
 
-	list_for_each_entry_safe(dp, dp_next, &ovs_net->dps, list_node)
+	list_for_each_entry_safe(dp, dp_next, &ovs_net->dps, list_analde)
 		__dp_destroy(dp);
 
 	down_read(&net_rwsem);
@@ -2696,7 +2696,7 @@ static void __net_exit ovs_exit_net(struct net *dnet)
 	ovs_unlock();
 
 	cancel_delayed_work_sync(&ovs_net->masks_rebalance);
-	cancel_work_sync(&ovs_net->dp_notify_work);
+	cancel_work_sync(&ovs_net->dp_analtify_work);
 }
 
 static struct pernet_operations ovs_net_ops = {
@@ -2746,13 +2746,13 @@ static int __init dp_init(void)
 	if (err)
 		goto error_vport_exit;
 
-	err = register_netdevice_notifier(&ovs_dp_device_notifier);
+	err = register_netdevice_analtifier(&ovs_dp_device_analtifier);
 	if (err)
 		goto error_netns_exit;
 
 	err = ovs_netdev_init();
 	if (err)
-		goto error_unreg_notifier;
+		goto error_unreg_analtifier;
 
 	err = dp_register_genl();
 	if (err < 0)
@@ -2765,8 +2765,8 @@ static int __init dp_init(void)
 
 error_unreg_netdev:
 	ovs_netdev_exit();
-error_unreg_notifier:
-	unregister_netdevice_notifier(&ovs_dp_device_notifier);
+error_unreg_analtifier:
+	unregister_netdevice_analtifier(&ovs_dp_device_analtifier);
 error_netns_exit:
 	unregister_pernet_device(&ovs_net_ops);
 error_vport_exit:
@@ -2785,7 +2785,7 @@ static void dp_cleanup(void)
 {
 	dp_unregister_genl(ARRAY_SIZE(dp_genl_families));
 	ovs_netdev_exit();
-	unregister_netdevice_notifier(&ovs_dp_device_notifier);
+	unregister_netdevice_analtifier(&ovs_dp_device_analtifier);
 	unregister_pernet_device(&ovs_net_ops);
 	drop_reasons_unregister_subsys(SKB_DROP_REASON_SUBSYS_OPENVSWITCH);
 	rcu_barrier();

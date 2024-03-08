@@ -38,21 +38,21 @@ static const struct of_device_id realview_syscon_match[] = {
 
 static void __init realview_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *scu_base;
 	struct regmap *map;
 	unsigned int ncores;
 	int i;
 
-	np = of_find_matching_node(NULL, realview_scu_match);
+	np = of_find_matching_analde(NULL, realview_scu_match);
 	if (!np) {
-		pr_err("PLATSMP: No SCU base address\n");
+		pr_err("PLATSMP: Anal SCU base address\n");
 		return;
 	}
 	scu_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!scu_base) {
-		pr_err("PLATSMP: No SCU remap\n");
+		pr_err("PLATSMP: Anal SCU remap\n");
 		return;
 	}
 
@@ -64,14 +64,14 @@ static void __init realview_smp_prepare_cpus(unsigned int max_cpus)
 	iounmap(scu_base);
 
 	/* The syscon contains the magic SMP start address registers */
-	np = of_find_matching_node(NULL, realview_syscon_match);
+	np = of_find_matching_analde(NULL, realview_syscon_match);
 	if (!np) {
-		pr_err("PLATSMP: No syscon match\n");
+		pr_err("PLATSMP: Anal syscon match\n");
 		return;
 	}
-	map = syscon_node_to_regmap(np);
+	map = syscon_analde_to_regmap(np);
 	if (IS_ERR(map)) {
-		pr_err("PLATSMP: No syscon regmap\n");
+		pr_err("PLATSMP: Anal syscon regmap\n");
 		return;
 	}
 	/* Put the boot address in this magic register */

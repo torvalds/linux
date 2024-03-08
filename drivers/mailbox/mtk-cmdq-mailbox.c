@@ -6,7 +6,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -180,7 +180,7 @@ static void cmdq_thread_disable(struct cmdq *cmdq, struct cmdq_thread *thread)
 	writel(CMDQ_THR_DISABLED, thread->base + CMDQ_THR_ENABLE_TASK);
 }
 
-/* notify GCE to re-fetch commands by setting GCE thread PC */
+/* analtify GCE to re-fetch commands by setting GCE thread PC */
 static void cmdq_thread_invalidate_fetched_data(struct cmdq_thread *thread)
 {
 	writel(readl(thread->base + CMDQ_THR_CURR_ADDR),
@@ -250,7 +250,7 @@ static void cmdq_thread_irq_handler(struct cmdq *cmdq,
 	writel(~irq_flag, thread->base + CMDQ_THR_IRQ_STATUS);
 
 	/*
-	 * When ISR call this function, another CPU core could run
+	 * When ISR call this function, aanalther CPU core could run
 	 * "release task" right before we acquire the spin lock, and thus
 	 * reset / disable this GCE thread, so we need to check the enable
 	 * bit of this GCE thread.
@@ -277,7 +277,7 @@ static void cmdq_thread_irq_handler(struct cmdq *cmdq,
 			cmdq_task_exec_done(task, 0);
 			kfree(task);
 		} else if (err) {
-			cmdq_task_exec_done(task, -ENOEXEC);
+			cmdq_task_exec_done(task, -EANALEXEC);
 			cmdq_task_handle_error(curr_task);
 			kfree(task);
 		}
@@ -298,7 +298,7 @@ static irqreturn_t cmdq_irq_handler(int irq, void *dev)
 
 	irq_status = readl(cmdq->base + CMDQ_CURR_IRQ_STATUS) & cmdq->irq_mask;
 	if (!(irq_status ^ cmdq->irq_mask))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for_each_clear_bit(bit, &irq_status, cmdq->pdata->thread_nr) {
 		struct cmdq_thread *thread = &cmdq->thread[bit];
@@ -389,7 +389,7 @@ static int cmdq_mbox_send_data(struct mbox_chan *chan, void *data)
 	unsigned long curr_pa, end_pa;
 	int ret;
 
-	/* Client should not flush new tasks if suspended. */
+	/* Client should analt flush new tasks if suspended. */
 	WARN_ON(cmdq->suspended);
 
 	ret = pm_runtime_get_sync(cmdq->mbox.dev);
@@ -399,7 +399,7 @@ static int cmdq_mbox_send_data(struct mbox_chan *chan, void *data)
 	task = kzalloc(sizeof(*task), GFP_ATOMIC);
 	if (!task) {
 		pm_runtime_put_autosuspend(cmdq->mbox.dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	task->cmdq = cmdq;
@@ -490,7 +490,7 @@ done:
 	/*
 	 * The thread->task_busy_list empty means thread already disable. The
 	 * cmdq_mbox_send_data() always reset thread which clear disable and
-	 * suspend statue when first pkt send to channel, so there is no need
+	 * suspend statue when first pkt send to channel, so there is anal need
 	 * to do any operation here, only unlock and leave.
 	 */
 	spin_unlock_irqrestore(&thread->chan->lock, flags);
@@ -583,15 +583,15 @@ static int cmdq_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct cmdq *cmdq;
 	int err, i;
-	struct device_node *phandle = dev->of_node;
-	struct device_node *node;
+	struct device_analde *phandle = dev->of_analde;
+	struct device_analde *analde;
 	int alias_id = 0;
 	static const char * const clk_name = "gce";
 	static const char * const clk_names[] = { "gce0", "gce1" };
 
 	cmdq = devm_kzalloc(dev, sizeof(*cmdq), GFP_KERNEL);
 	if (!cmdq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmdq->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cmdq->base))
@@ -613,13 +613,13 @@ static int cmdq_probe(struct platform_device *pdev)
 		dev, cmdq->base, cmdq->irq);
 
 	if (cmdq->pdata->gce_num > 1) {
-		for_each_child_of_node(phandle->parent, node) {
-			alias_id = of_alias_get_id(node, clk_name);
+		for_each_child_of_analde(phandle->parent, analde) {
+			alias_id = of_alias_get_id(analde, clk_name);
 			if (alias_id >= 0 && alias_id < cmdq->pdata->gce_num) {
 				cmdq->clocks[alias_id].id = clk_names[alias_id];
-				cmdq->clocks[alias_id].clk = of_clk_get(node, 0);
+				cmdq->clocks[alias_id].clk = of_clk_get(analde, 0);
 				if (IS_ERR(cmdq->clocks[alias_id].clk)) {
-					of_node_put(node);
+					of_analde_put(analde);
 					return dev_err_probe(dev,
 							     PTR_ERR(cmdq->clocks[alias_id].clk),
 							     "failed to get gce clk: %d\n",
@@ -640,7 +640,7 @@ static int cmdq_probe(struct platform_device *pdev)
 	cmdq->mbox.chans = devm_kcalloc(dev, cmdq->pdata->thread_nr,
 					sizeof(*cmdq->mbox.chans), GFP_KERNEL);
 	if (!cmdq->mbox.chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmdq->mbox.num_chans = cmdq->pdata->thread_nr;
 	cmdq->mbox.ops = &cmdq_mbox_chan_ops;
@@ -653,7 +653,7 @@ static int cmdq_probe(struct platform_device *pdev)
 	cmdq->thread = devm_kcalloc(dev, cmdq->pdata->thread_nr,
 					sizeof(*cmdq->thread), GFP_KERNEL);
 	if (!cmdq->thread)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < cmdq->pdata->thread_nr; i++) {
 		cmdq->thread[i].base = cmdq->base + CMDQ_THR_BASE +
@@ -681,7 +681,7 @@ static int cmdq_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	/* If Runtime PM is not available enable the clocks now. */
+	/* If Runtime PM is analt available enable the clocks analw. */
 	if (!IS_ENABLED(CONFIG_PM)) {
 		err = cmdq_runtime_resume(dev);
 		if (err)

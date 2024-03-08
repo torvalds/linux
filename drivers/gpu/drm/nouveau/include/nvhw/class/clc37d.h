@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -24,49 +24,49 @@
 #ifndef _clC37d_h_
 #define _clC37d_h_
 
-#define NV_DISP_NOTIFIER                                                             0x00000000
-#define NV_DISP_NOTIFIER_SIZEOF                                                      0x00000010
-#define NV_DISP_NOTIFIER__0                                                          0x00000000
-#define NV_DISP_NOTIFIER__0_PRESENT_COUNT                                            7:0
-#define NV_DISP_NOTIFIER__0_FIELD                                                    8:8
-#define NV_DISP_NOTIFIER__0_FLIP_TYPE                                                9:9
-#define NV_DISP_NOTIFIER__0_FLIP_TYPE_NON_TEARING                                    0x00000000
-#define NV_DISP_NOTIFIER__0_FLIP_TYPE_IMMEDIATE                                      0x00000001
-#define NV_DISP_NOTIFIER__0_R1                                                       15:10
-#define NV_DISP_NOTIFIER__0_R2                                                       23:16
-#define NV_DISP_NOTIFIER__0_R3                                                       29:24
-#define NV_DISP_NOTIFIER__0_STATUS                                                   31:30
-#define NV_DISP_NOTIFIER__0_STATUS_NOT_BEGUN                                         0x00000000
-#define NV_DISP_NOTIFIER__0_STATUS_BEGUN                                             0x00000001
-#define NV_DISP_NOTIFIER__0_STATUS_FINISHED                                          0x00000002
-#define NV_DISP_NOTIFIER__1                                                          0x00000001
-#define NV_DISP_NOTIFIER__1_R4                                                       31:0
-#define NV_DISP_NOTIFIER__2                                                          0x00000002
-#define NV_DISP_NOTIFIER__2_TIMESTAMP_LO                                             31:0
-#define NV_DISP_NOTIFIER__3                                                          0x00000003
-#define NV_DISP_NOTIFIER__3_TIMESTAMP_HI                                             31:0
+#define NV_DISP_ANALTIFIER                                                             0x00000000
+#define NV_DISP_ANALTIFIER_SIZEOF                                                      0x00000010
+#define NV_DISP_ANALTIFIER__0                                                          0x00000000
+#define NV_DISP_ANALTIFIER__0_PRESENT_COUNT                                            7:0
+#define NV_DISP_ANALTIFIER__0_FIELD                                                    8:8
+#define NV_DISP_ANALTIFIER__0_FLIP_TYPE                                                9:9
+#define NV_DISP_ANALTIFIER__0_FLIP_TYPE_ANALN_TEARING                                    0x00000000
+#define NV_DISP_ANALTIFIER__0_FLIP_TYPE_IMMEDIATE                                      0x00000001
+#define NV_DISP_ANALTIFIER__0_R1                                                       15:10
+#define NV_DISP_ANALTIFIER__0_R2                                                       23:16
+#define NV_DISP_ANALTIFIER__0_R3                                                       29:24
+#define NV_DISP_ANALTIFIER__0_STATUS                                                   31:30
+#define NV_DISP_ANALTIFIER__0_STATUS_ANALT_BEGUN                                         0x00000000
+#define NV_DISP_ANALTIFIER__0_STATUS_BEGUN                                             0x00000001
+#define NV_DISP_ANALTIFIER__0_STATUS_FINISHED                                          0x00000002
+#define NV_DISP_ANALTIFIER__1                                                          0x00000001
+#define NV_DISP_ANALTIFIER__1_R4                                                       31:0
+#define NV_DISP_ANALTIFIER__2                                                          0x00000002
+#define NV_DISP_ANALTIFIER__2_TIMESTAMP_LO                                             31:0
+#define NV_DISP_ANALTIFIER__3                                                          0x00000003
+#define NV_DISP_ANALTIFIER__3_TIMESTAMP_HI                                             31:0
 
 
 // class methods
 #define NVC37D_UPDATE                                                           (0x00000200)
 #define NVC37D_UPDATE_SPECIAL_HANDLING                                          21:20
-#define NVC37D_UPDATE_SPECIAL_HANDLING_NONE                                     (0x00000000)
+#define NVC37D_UPDATE_SPECIAL_HANDLING_ANALNE                                     (0x00000000)
 #define NVC37D_UPDATE_SPECIAL_HANDLING_INTERRUPT_RM                             (0x00000001)
 #define NVC37D_UPDATE_SPECIAL_HANDLING_MODE_SWITCH                              (0x00000002)
 #define NVC37D_UPDATE_SPECIAL_HANDLING_REASON                                   19:12
 #define NVC37D_UPDATE_INHIBIT_INTERRUPTS                                        24:24
 #define NVC37D_UPDATE_INHIBIT_INTERRUPTS_FALSE                                  (0x00000000)
 #define NVC37D_UPDATE_INHIBIT_INTERRUPTS_TRUE                                   (0x00000001)
-#define NVC37D_SET_CONTEXT_DMA_NOTIFIER                                         (0x00000208)
-#define NVC37D_SET_CONTEXT_DMA_NOTIFIER_HANDLE                                  31:0
-#define NVC37D_SET_NOTIFIER_CONTROL                                             (0x0000020C)
-#define NVC37D_SET_NOTIFIER_CONTROL_MODE                                        0:0
-#define NVC37D_SET_NOTIFIER_CONTROL_MODE_WRITE                                  (0x00000000)
-#define NVC37D_SET_NOTIFIER_CONTROL_MODE_WRITE_AWAKEN                           (0x00000001)
-#define NVC37D_SET_NOTIFIER_CONTROL_OFFSET                                      11:4
-#define NVC37D_SET_NOTIFIER_CONTROL_NOTIFY                                      12:12
-#define NVC37D_SET_NOTIFIER_CONTROL_NOTIFY_DISABLE                              (0x00000000)
-#define NVC37D_SET_NOTIFIER_CONTROL_NOTIFY_ENABLE                               (0x00000001)
+#define NVC37D_SET_CONTEXT_DMA_ANALTIFIER                                         (0x00000208)
+#define NVC37D_SET_CONTEXT_DMA_ANALTIFIER_HANDLE                                  31:0
+#define NVC37D_SET_ANALTIFIER_CONTROL                                             (0x0000020C)
+#define NVC37D_SET_ANALTIFIER_CONTROL_MODE                                        0:0
+#define NVC37D_SET_ANALTIFIER_CONTROL_MODE_WRITE                                  (0x00000000)
+#define NVC37D_SET_ANALTIFIER_CONTROL_MODE_WRITE_AWAKEN                           (0x00000001)
+#define NVC37D_SET_ANALTIFIER_CONTROL_OFFSET                                      11:4
+#define NVC37D_SET_ANALTIFIER_CONTROL_ANALTIFY                                      12:12
+#define NVC37D_SET_ANALTIFIER_CONTROL_ANALTIFY_DISABLE                              (0x00000000)
+#define NVC37D_SET_ANALTIFIER_CONTROL_ANALTIFY_ENABLE                               (0x00000001)
 #define NVC37D_SET_INTERLOCK_FLAGS                                              (0x00000218)
 #define NVC37D_SET_INTERLOCK_FLAGS_INTERLOCK_WITH_CURSOR(i)                     ((i)+0):((i)+0)
 #define NVC37D_SET_INTERLOCK_FLAGS_INTERLOCK_WITH_CURSOR__SIZE_1                8
@@ -203,7 +203,7 @@
 
 #define NVC37D_SOR_SET_CONTROL(a)                                               (0x00000300 + (a)*0x00000020)
 #define NVC37D_SOR_SET_CONTROL_OWNER_MASK                                       7:0
-#define NVC37D_SOR_SET_CONTROL_OWNER_MASK_NONE                                  (0x00000000)
+#define NVC37D_SOR_SET_CONTROL_OWNER_MASK_ANALNE                                  (0x00000000)
 #define NVC37D_SOR_SET_CONTROL_OWNER_MASK_HEAD0                                 (0x00000001)
 #define NVC37D_SOR_SET_CONTROL_OWNER_MASK_HEAD1                                 (0x00000002)
 #define NVC37D_SOR_SET_CONTROL_OWNER_MASK_HEAD2                                 (0x00000004)
@@ -241,7 +241,7 @@
 #define NVC37D_WINDOW_SET_CONTROL_OWNER_HEAD5                                   (0x00000005)
 #define NVC37D_WINDOW_SET_CONTROL_OWNER_HEAD6                                   (0x00000006)
 #define NVC37D_WINDOW_SET_CONTROL_OWNER_HEAD7                                   (0x00000007)
-#define NVC37D_WINDOW_SET_CONTROL_OWNER_NONE                                    (0x0000000F)
+#define NVC37D_WINDOW_SET_CONTROL_OWNER_ANALNE                                    (0x0000000F)
 #define NVC37D_WINDOW_SET_WINDOW_FORMAT_USAGE_BOUNDS(a)                         (0x00001004 + (a)*0x00000080)
 #define NVC37D_WINDOW_SET_WINDOW_FORMAT_USAGE_BOUNDS_RGB_PACKED1BPP             0:0
 #define NVC37D_WINDOW_SET_WINDOW_FORMAT_USAGE_BOUNDS_RGB_PACKED1BPP_FALSE       (0x00000000)
@@ -349,7 +349,7 @@
 #define NVC37D_WINDOW_SET_WINDOW_USAGE_BOUNDS(a)                                (0x00001010 + (a)*0x00000080)
 #define NVC37D_WINDOW_SET_WINDOW_USAGE_BOUNDS_MAX_PIXELS_FETCHED_PER_LINE       14:0
 #define NVC37D_WINDOW_SET_WINDOW_USAGE_BOUNDS_INPUT_LUT                         17:16
-#define NVC37D_WINDOW_SET_WINDOW_USAGE_BOUNDS_INPUT_LUT_USAGE_NONE              (0x00000000)
+#define NVC37D_WINDOW_SET_WINDOW_USAGE_BOUNDS_INPUT_LUT_USAGE_ANALNE              (0x00000000)
 #define NVC37D_WINDOW_SET_WINDOW_USAGE_BOUNDS_INPUT_LUT_USAGE_257               (0x00000001)
 #define NVC37D_WINDOW_SET_WINDOW_USAGE_BOUNDS_INPUT_LUT_USAGE_1025              (0x00000002)
 #define NVC37D_WINDOW_SET_WINDOW_USAGE_BOUNDS_INPUT_SCALER_TAPS                 22:20
@@ -384,7 +384,7 @@
 #define NVC37D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_CRC_MODE                        1:0
 #define NVC37D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_CRC_MODE_ACTIVE_RASTER          (0x00000000)
 #define NVC37D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_CRC_MODE_COMPLETE_RASTER        (0x00000001)
-#define NVC37D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_CRC_MODE_NON_ACTIVE_RASTER      (0x00000002)
+#define NVC37D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_CRC_MODE_ANALN_ACTIVE_RASTER      (0x00000002)
 #define NVC37D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_HSYNC_POLARITY                  2:2
 #define NVC37D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_HSYNC_POLARITY_POSITIVE_TRUE    (0x00000000)
 #define NVC37D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_HSYNC_POLARITY_NEGATIVE_TRUE    (0x00000001)
@@ -436,13 +436,13 @@
 #define NVC37D_HEAD_SET_PIXEL_CLOCK_FREQUENCY_MAX_ADJ1000DIV1001_TRUE           (0x00000001)
 #define NVC37D_HEAD_SET_HEAD_USAGE_BOUNDS(a)                                    (0x00002030 + (a)*0x00000400)
 #define NVC37D_HEAD_SET_HEAD_USAGE_BOUNDS_CURSOR                                2:0
-#define NVC37D_HEAD_SET_HEAD_USAGE_BOUNDS_CURSOR_USAGE_NONE                     (0x00000000)
+#define NVC37D_HEAD_SET_HEAD_USAGE_BOUNDS_CURSOR_USAGE_ANALNE                     (0x00000000)
 #define NVC37D_HEAD_SET_HEAD_USAGE_BOUNDS_CURSOR_USAGE_W32_H32                  (0x00000001)
 #define NVC37D_HEAD_SET_HEAD_USAGE_BOUNDS_CURSOR_USAGE_W64_H64                  (0x00000002)
 #define NVC37D_HEAD_SET_HEAD_USAGE_BOUNDS_CURSOR_USAGE_W128_H128                (0x00000003)
 #define NVC37D_HEAD_SET_HEAD_USAGE_BOUNDS_CURSOR_USAGE_W256_H256                (0x00000004)
 #define NVC37D_HEAD_SET_HEAD_USAGE_BOUNDS_OUTPUT_LUT                            5:4
-#define NVC37D_HEAD_SET_HEAD_USAGE_BOUNDS_OUTPUT_LUT_USAGE_NONE                 (0x00000000)
+#define NVC37D_HEAD_SET_HEAD_USAGE_BOUNDS_OUTPUT_LUT_USAGE_ANALNE                 (0x00000000)
 #define NVC37D_HEAD_SET_HEAD_USAGE_BOUNDS_OUTPUT_LUT_USAGE_257                  (0x00000001)
 #define NVC37D_HEAD_SET_HEAD_USAGE_BOUNDS_OUTPUT_LUT_USAGE_1025                 (0x00000002)
 #define NVC37D_HEAD_SET_HEAD_USAGE_BOUNDS_UPSCALING_ALLOWED                     8:8
@@ -485,7 +485,7 @@
 #define NVC37D_HEAD_SET_CONTROL_CURSOR_HOT_SPOT_X                               19:12
 #define NVC37D_HEAD_SET_CONTROL_CURSOR_HOT_SPOT_Y                               27:20
 #define NVC37D_HEAD_SET_CONTROL_CURSOR_DE_GAMMA                                 29:28
-#define NVC37D_HEAD_SET_CONTROL_CURSOR_DE_GAMMA_NONE                            (0x00000000)
+#define NVC37D_HEAD_SET_CONTROL_CURSOR_DE_GAMMA_ANALNE                            (0x00000000)
 #define NVC37D_HEAD_SET_CONTROL_CURSOR_DE_GAMMA_SRGB                            (0x00000001)
 #define NVC37D_HEAD_SET_CONTROL_CURSOR_DE_GAMMA_YUV8_10                         (0x00000002)
 #define NVC37D_HEAD_SET_CONTROL_CURSOR_DE_GAMMA_YUV12                           (0x00000003)
@@ -524,7 +524,7 @@
 #define NVC37D_HEAD_SET_CRC_CONTROL_EXPECT_BUFFER_COLLAPSE_FALSE                (0x00000000)
 #define NVC37D_HEAD_SET_CRC_CONTROL_EXPECT_BUFFER_COLLAPSE_TRUE                 (0x00000001)
 #define NVC37D_HEAD_SET_CRC_CONTROL_PRIMARY_CRC                                 19:12
-#define NVC37D_HEAD_SET_CRC_CONTROL_PRIMARY_CRC_NONE                            (0x00000000)
+#define NVC37D_HEAD_SET_CRC_CONTROL_PRIMARY_CRC_ANALNE                            (0x00000000)
 #define NVC37D_HEAD_SET_CRC_CONTROL_PRIMARY_CRC_SF                              (0x00000030)
 #define NVC37D_HEAD_SET_CRC_CONTROL_PRIMARY_CRC_SOR(i)                          (0x00000050 +(i))
 #define NVC37D_HEAD_SET_CRC_CONTROL_PRIMARY_CRC_SOR__SIZE_1                     8
@@ -543,7 +543,7 @@
 #define NVC37D_HEAD_SET_CRC_CONTROL_PRIMARY_CRC_PIOR2                           (0x00000062)
 #define NVC37D_HEAD_SET_CRC_CONTROL_PRIMARY_CRC_PIOR3                           (0x00000063)
 #define NVC37D_HEAD_SET_CRC_CONTROL_SECONDARY_CRC                               27:20
-#define NVC37D_HEAD_SET_CRC_CONTROL_SECONDARY_CRC_NONE                          (0x00000000)
+#define NVC37D_HEAD_SET_CRC_CONTROL_SECONDARY_CRC_ANALNE                          (0x00000000)
 #define NVC37D_HEAD_SET_CRC_CONTROL_SECONDARY_CRC_SF                            (0x00000030)
 #define NVC37D_HEAD_SET_CRC_CONTROL_SECONDARY_CRC_SOR(i)                        (0x00000050 +(i))
 #define NVC37D_HEAD_SET_CRC_CONTROL_SECONDARY_CRC_SOR__SIZE_1                   8
@@ -561,7 +561,7 @@
 #define NVC37D_HEAD_SET_CRC_CONTROL_SECONDARY_CRC_PIOR1                         (0x00000061)
 #define NVC37D_HEAD_SET_CRC_CONTROL_SECONDARY_CRC_PIOR2                         (0x00000062)
 #define NVC37D_HEAD_SET_CRC_CONTROL_SECONDARY_CRC_PIOR3                         (0x00000063)
-#define NVC37D_HEAD_SET_CRC_CONTROL_CRC_DURING_SNOOZE                           9:9
-#define NVC37D_HEAD_SET_CRC_CONTROL_CRC_DURING_SNOOZE_DISABLE                   (0x00000000)
-#define NVC37D_HEAD_SET_CRC_CONTROL_CRC_DURING_SNOOZE_ENABLE                    (0x00000001)
+#define NVC37D_HEAD_SET_CRC_CONTROL_CRC_DURING_SANALOZE                           9:9
+#define NVC37D_HEAD_SET_CRC_CONTROL_CRC_DURING_SANALOZE_DISABLE                   (0x00000000)
+#define NVC37D_HEAD_SET_CRC_CONTROL_CRC_DURING_SANALOZE_ENABLE                    (0x00000001)
 #endif // _clC37d_h

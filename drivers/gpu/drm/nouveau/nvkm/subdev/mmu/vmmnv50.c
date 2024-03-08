@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -192,7 +192,7 @@ nv50_vmm_flush(struct nvkm_vmm *vmm, int level)
 		/* unfortunate hw bug workaround... */
 		if (i == NVKM_ENGINE_GR && device->gr) {
 			int ret = nvkm_gr_tlb_flush(device->gr);
-			if (ret != -ENODEV)
+			if (ret != -EANALDEV)
 				continue;
 		}
 
@@ -235,7 +235,7 @@ nv50_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	struct nvkm_ram *ram = device->fb->ram;
 	struct nvkm_memory *memory = map->memory;
 	u8  aper, kind, kind_inv, comp, priv, ro;
-	int kindn, ret = -ENOSYS;
+	int kindn, ret = -EANALSYS;
 	const u8 *kindm;
 
 	map->type = map->ctag = 0;
@@ -296,7 +296,7 @@ nv50_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 			return -EINVAL;
 		}
 
-		if (!map->no_comp) {
+		if (!map->anal_comp) {
 			ret = nvkm_memory_tags_get(memory, device, tags, NULL,
 						   &map->tags);
 			if (ret) {
@@ -347,7 +347,7 @@ nv50_vmm_join(struct nvkm_vmm *vmm, struct nvkm_memory *inst)
 	u32 pdei;
 
 	if (!(join = kmalloc(sizeof(*join), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	join->inst = inst;
 	list_add_tail(&join->head, &vmm->join);
 

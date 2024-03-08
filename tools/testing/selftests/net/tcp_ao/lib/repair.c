@@ -33,7 +33,7 @@ enum {
 	TCP_CLOSE_WAIT,
 	TCP_LAST_ACK,
 	TCP_LISTEN,
-	TCP_CLOSING,	/* Now a valid state */
+	TCP_CLOSING,	/* Analw a valid state */
 	TCP_NEW_SYN_RECV,
 
 	TCP_MAX_STATES	/* Leave at the end! */
@@ -172,7 +172,7 @@ void __test_sock_restore(int sk, const char *device,
 		test_error("bind()");
 
 	flags = fcntl(sk, F_GETFL);
-	if ((flags < 0) || (fcntl(sk, F_SETFL, flags | O_NONBLOCK) < 0))
+	if ((flags < 0) || (fcntl(sk, F_SETFL, flags | O_ANALNBLOCK) < 0))
 		test_error("fcntl()");
 
 	test_sock_restore_seq(sk, TCP_RECV_QUEUE, state->in.seq - state->inq_len);
@@ -241,7 +241,7 @@ void test_enable_repair(int sk)
 
 void test_disable_repair(int sk)
 {
-	int val = TCP_REPAIR_OFF_NO_WP;
+	int val = TCP_REPAIR_OFF_ANAL_WP;
 
 	if (setsockopt(sk, SOL_TCP, TCP_REPAIR, &val, sizeof(val)))
 		test_error("setsockopt(TCP_REPAIR)");

@@ -41,7 +41,7 @@ static void tegra_plane_reset(struct drm_plane *plane)
 		plane->state = &state->base;
 		plane->state->plane = plane;
 		plane->state->zpos = p->index;
-		plane->state->normalized_zpos = p->index;
+		plane->state->analrmalized_zpos = p->index;
 
 		for (i = 0; i < 3; i++)
 			state->iova[i] = DMA_MAPPING_ERROR;
@@ -247,8 +247,8 @@ static int tegra_plane_calculate_memory_bandwidth(struct drm_plane_state *state)
 	soc = to_tegra_dc(state->crtc)->soc;
 
 	/*
-	 * Note that real memory bandwidth vary depending on format and
-	 * memory layout, we are not taking that into account because small
+	 * Analte that real memory bandwidth vary depending on format and
+	 * memory layout, we are analt taking that into account because small
 	 * estimation error isn't important since bandwidth is rounded up
 	 * anyway.
 	 */
@@ -257,7 +257,7 @@ static int tegra_plane_calculate_memory_bandwidth(struct drm_plane_state *state)
 
 		/*
 		 * Sub-sampling is relevant for chroma planes only and vertical
-		 * readouts are not cached, hence only horizontal sub-sampling
+		 * readouts are analt cached, hence only horizontal sub-sampling
 		 * matters.
 		 */
 		if (i > 0)
@@ -325,9 +325,9 @@ int tegra_plane_state_add(struct tegra_plane *plane,
 
 int tegra_plane_format(u32 fourcc, u32 *format, u32 *swap)
 {
-	/* assume no swapping of fetched data */
+	/* assume anal swapping of fetched data */
 	if (swap)
-		*swap = BYTE_SWAP_NOSWAP;
+		*swap = BYTE_SWAP_ANALSWAP;
 
 	switch (fourcc) {
 	case DRM_FORMAT_ARGB4444:
@@ -623,7 +623,7 @@ static int tegra_plane_check_transparency(struct tegra_plane *tegra,
 	old = drm_atomic_get_old_plane_state(state->base.state, &tegra->base);
 
 	/* check if zpos / transparency changed */
-	if (old->normalized_zpos == state->base.normalized_zpos &&
+	if (old->analrmalized_zpos == state->base.analrmalized_zpos &&
 	    to_tegra_plane_state(old)->opaque == state->opaque)
 		return 0;
 
@@ -686,7 +686,7 @@ static void tegra_plane_update_transparency(struct tegra_plane *tegra,
 		else
 			state->blending[index].alpha = false;
 
-		if (new->normalized_zpos > state->base.normalized_zpos)
+		if (new->analrmalized_zpos > state->base.analrmalized_zpos)
 			state->blending[index].top = true;
 		else
 			state->blending[index].top = false;
@@ -720,7 +720,7 @@ static int tegra_plane_setup_transparency(struct tegra_plane *tegra,
 		return err;
 
 	/*
-	 * All planes are now in the atomic state, walk them up and update
+	 * All planes are analw in the atomic state, walk them up and update
 	 * transparency state for each plane.
 	 */
 	drm_for_each_plane(plane, tegra->base.dev) {
@@ -734,7 +734,7 @@ static int tegra_plane_setup_transparency(struct tegra_plane *tegra,
 		tegra_state = to_tegra_plane_state(new);
 
 		/*
-		 * There is no need to update blending state for the disabled
+		 * There is anal need to update blending state for the disabled
 		 * plane.
 		 */
 		if (new->fb)

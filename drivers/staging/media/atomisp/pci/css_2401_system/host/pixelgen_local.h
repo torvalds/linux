@@ -26,9 +26,9 @@ struct pixelgen_ctrl_state_s {
 	hrt_data	syng_sid;
 	hrt_data	syng_free_run;
 	hrt_data	syng_pause;
-	hrt_data	syng_nof_frames;
-	hrt_data	syng_nof_pixels;
-	hrt_data	syng_nof_line;
+	hrt_data	syng_analf_frames;
+	hrt_data	syng_analf_pixels;
+	hrt_data	syng_analf_line;
 	hrt_data	syng_hblank_cyc;
 	hrt_data	syng_vblank_cyc;
 	hrt_data	syng_stat_hcnt;

@@ -37,7 +37,7 @@ struct bfa_cee {
 	enum bfa_status get_stats_status;
 	enum bfa_status reset_stats_status;
 	struct bfa_cee_cbfn cbfn;
-	struct bfa_ioc_notify ioc_notify;
+	struct bfa_ioc_analtify ioc_analtify;
 	struct bfa_cee_attr *attr;
 	struct bfa_cee_stats *stats;
 	struct bfa_dma attr_dma;

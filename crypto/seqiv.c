@@ -85,7 +85,7 @@ static int seqiv_aead_encrypt(struct aead_request *req)
 			       CRYPTO_TFM_REQ_MAY_SLEEP ? GFP_KERNEL :
 			       GFP_ATOMIC);
 		if (!info)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		compl = seqiv_aead_encrypt_complete;
 		data = req;

@@ -10,28 +10,28 @@ The following mount options are supported:
 
 iocharset=name
                 Character set to use for converting from Unicode to
-		ASCII.  The default is to do no conversion.  Use
+		ASCII.  The default is to do anal conversion.  Use
 		iocharset=utf8 for UTF-8 translations.  This requires
 		CONFIG_NLS_UTF8 to be set in the kernel .config file.
-		iocharset=none specifies the default behavior explicitly.
+		iocharset=analne specifies the default behavior explicitly.
 
 resize=value
                 Resize the volume to <value> blocks.  JFS only supports
-		growing a volume, not shrinking it.  This option is only
+		growing a volume, analt shrinking it.  This option is only
 		valid during a remount, when the volume is mounted
-		read-write.  The resize keyword with no value will grow
+		read-write.  The resize keyword with anal value will grow
 		the volume to the full size of the partition.
 
-nointegrity
-                Do not write to the journal.  The primary use of this option
+analintegrity
+                Do analt write to the journal.  The primary use of this option
 		is to allow for higher performance when restoring a volume
-		from backup media.  The integrity of the volume is not
-		guaranteed if the system abnormally abends.
+		from backup media.  The integrity of the volume is analt
+		guaranteed if the system abanalrmally abends.
 
 integrity(*)
                 Commit metadata changes to the journal.  Use this option to
-		remount a volume where the nointegrity option was
-		previously specified in order to restore normal behavior.
+		remount a volume where the analintegrity option was
+		previously specified in order to restore analrmal behavior.
 
 errors=continue
                         Keep going on a filesystem error.
@@ -49,15 +49,15 @@ umask=value
                 directories, the execute bit will be set if the corresponding
 		read bit is set.
 
-discard=minlen, discard/nodiscard(*)
+discard=minlen, discard/analdiscard(*)
                 This enables/disables the use of discard/TRIM commands.
 		The discard/TRIM commands are sent to the underlying
                 block device when blocks are freed. This is useful for SSD
                 devices and sparse/thinly-provisioned LUNs.  The FITRIM ioctl
-		command is also available together with the nodiscard option.
+		command is also available together with the analdiscard option.
 		The value of minlen specifies the minimum blockcount, when
 		a TRIM command to the block device is considered useful.
-		When no value is given to the discard option, it defaults to
+		When anal value is given to the discard option, it defaults to
 		64 blocks, which means 256KiB in JFS.
 		The minlen value of discard overrides the minlen value given
 		on an FITRIM ioctl().

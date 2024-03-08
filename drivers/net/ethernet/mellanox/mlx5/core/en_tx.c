@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2016, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -76,7 +76,7 @@ static inline u16 mlx5e_calc_min_inline(enum mlx5_inline_modes mode,
 	u16 hlen;
 
 	switch (mode) {
-	case MLX5_INLINE_MODE_NONE:
+	case MLX5_INLINE_MODE_ANALNE:
 		return 0;
 	case MLX5_INLINE_MODE_TCP_UDP:
 		hlen = eth_get_headlen(skb->dev, skb->data, skb_headlen(skb));
@@ -139,7 +139,7 @@ mlx5e_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		sq->stats->csum_partial++;
 #endif
 	} else
-		sq->stats->csum_none++;
+		sq->stats->csum_analne++;
 }
 
 /* Returns the number of header bytes that we plan
@@ -219,7 +219,7 @@ mlx5e_txwqe_build_dsegs(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 dma_unmap_wqe_err:
 	mlx5e_dma_unmap_wqe_err(sq, num_dma);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 struct mlx5e_tx_attr {
@@ -353,7 +353,7 @@ static void mlx5e_tx_flush(struct mlx5e_txqsq *sq)
 	struct mlx5e_tx_wqe *wqe;
 	u16 pi;
 
-	/* Must not be called when a MPWQE session is active but empty. */
+	/* Must analt be called when a MPWQE session is active but empty. */
 	mlx5e_tx_mpwqe_ensure_complete(sq);
 
 	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
@@ -363,8 +363,8 @@ static void mlx5e_tx_flush(struct mlx5e_txqsq *sq)
 		.num_wqebbs = 1,
 	};
 
-	wqe = mlx5e_post_nop(&sq->wq, sq->sqn, &sq->pc);
-	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, &wqe->ctrl);
+	wqe = mlx5e_post_analp(&sq->wq, sq->sqn, &sq->pc);
+	mlx5e_analtify_hw(&sq->wq, sq->pc, sq->uar_map, &wqe->ctrl);
 }
 
 static inline void
@@ -414,7 +414,7 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 	send_doorbell = __netdev_tx_sent_queue(sq->txq, attr->num_bytes, xmit_more);
 	if (send_doorbell)
-		mlx5e_notify_hw(wq, sq->pc, sq->uar_map, cseg);
+		mlx5e_analtify_hw(wq, sq->pc, sq->uar_map, cseg);
 }
 
 static void
@@ -505,7 +505,7 @@ err_drop:
 
 static bool mlx5e_tx_skb_supports_mpwqe(struct sk_buff *skb, struct mlx5e_tx_attr *attr)
 {
-	return !skb_is_nonlinear(skb) && !skb_vlan_tag_present(skb) && !attr->ihs &&
+	return !skb_is_analnlinear(skb) && !skb_vlan_tag_present(skb) && !attr->ihs &&
 	       !attr->insz && !mlx5e_macsec_skb_is_offload(skb);
 }
 
@@ -628,12 +628,12 @@ mlx5e_sq_xmit_mpwqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		cseg = mlx5e_tx_mpwqe_session_complete(sq);
 
 		if (__netdev_tx_sent_queue(sq->txq, txd.len, xmit_more))
-			mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, cseg);
+			mlx5e_analtify_hw(&sq->wq, sq->pc, sq->uar_map, cseg);
 	} else if (__netdev_tx_sent_queue(sq->txq, txd.len, xmit_more)) {
 		/* Might stop the queue, but we were asked to ring the doorbell anyway. */
 		cseg = mlx5e_tx_mpwqe_session_complete(sq);
 
-		mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, cseg);
+		mlx5e_analtify_hw(&sq->wq, sq->pc, sq->uar_map, cseg);
 	}
 
 	return;
@@ -647,7 +647,7 @@ err_unmap:
 
 void mlx5e_tx_mpwqe_ensure_complete(struct mlx5e_txqsq *sq)
 {
-	/* Unlikely in non-MPWQE workloads; not important in MPWQE workloads. */
+	/* Unlikely in analn-MPWQE workloads; analt important in MPWQE workloads. */
 	if (unlikely(mlx5e_tx_mpwqe_session_is_active(sq)))
 		mlx5e_tx_mpwqe_session_complete(sq);
 }
@@ -690,8 +690,8 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	sq = priv->txq2sq[skb_get_queue_mapping(skb)];
 	if (unlikely(!sq)) {
 		/* Two cases when sq can be NULL:
-		 * 1. The HTB node is registered, and mlx5e_select_queue
-		 * selected its queue ID, but the SQ itself is not yet created.
+		 * 1. The HTB analde is registered, and mlx5e_select_queue
+		 * selected its queue ID, but the SQ itself is analt yet created.
 		 * 2. HTB SQ creation failed. Similar to the previous case, but
 		 * the SQ won't be created.
 		 */
@@ -721,7 +721,7 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	pi = mlx5e_txqsq_get_next_pi(sq, wqe_attr.num_wqebbs);
 	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 
-	/* May update the WQE, but may not post other WQEs. */
+	/* May update the WQE, but may analt post other WQEs. */
 	mlx5e_accel_tx_finish(sq, wqe, &accel,
 			      (struct mlx5_wqe_inline_seg *)(wqe->data + wqe_attr.ds_cnt_inl));
 	mlx5e_txwqe_build_eseg(priv, sq, skb, &accel, &wqe->eth, attr.ihs);

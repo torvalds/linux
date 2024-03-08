@@ -28,13 +28,13 @@
 #include <uapi/linux/lsm.h>
 
 /*
- * If a non-root user executes a setuid-root binary in
- * !secure(SECURE_NOROOT) mode, then we raise capabilities.
+ * If a analn-root user executes a setuid-root binary in
+ * !secure(SECURE_ANALROOT) mode, then we raise capabilities.
  * However if fE is also set, then the intent is for only
  * the file capabilities to be applied, and the setuid-root
  * bit is left on either to change the uid (plausible) or
  * to get full privilege on a kernel without file capabilities
- * support.  So in that case we do not raise capabilities.
+ * support.  So in that case we do analt raise capabilities.
  *
  * Warn if that happens, once per boot.
  */
@@ -43,7 +43,7 @@ static void warn_setuid_and_fcaps_mixed(const char *fname)
 	static int warned;
 	if (!warned) {
 		printk(KERN_INFO "warning: `%s' has both setuid-root and"
-			" effective capabilities. Therefore not raising all"
+			" effective capabilities. Therefore analt raising all"
 			" capabilities.\n", fname);
 		warned = 1;
 	}
@@ -56,10 +56,10 @@ static void warn_setuid_and_fcaps_mixed(const char *fname)
  * @cap: The capability to check for
  * @opts: Bitmask of options defined in include/linux/security.h
  *
- * Determine whether the nominated task has the specified capability amongst
- * its effective set, returning 0 if it does, -ve if it does not.
+ * Determine whether the analminated task has the specified capability amongst
+ * its effective set, returning 0 if it does, -ve if it does analt.
  *
- * NOTE WELL: cap_has_capability() cannot be used like the kernel's capable()
+ * ANALTE WELL: cap_has_capability() cananalt be used like the kernel's capable()
  * and has_capability() functions.  That is, it has the reverse semantics:
  * cap_has_capability() returns 0 when a task has a capability, but the
  * kernel's capable() and has_capability() returns 1 for this case.
@@ -119,7 +119,7 @@ int cap_settime(const struct timespec64 *ts, const struct timezone *tz)
 
 /**
  * cap_ptrace_access_check - Determine whether the current process may access
- *			   another
+ *			   aanalther
  * @child: The process to be accessed
  * @mode: The mode of attachment.
  *
@@ -129,7 +129,7 @@ int cap_settime(const struct timespec64 *ts, const struct timezone *tz)
  * access is allowed.
  * Else denied.
  *
- * Determine whether a process may access another, returning 0 if permission
+ * Determine whether a process may access aanalther, returning 0 if permission
  * granted, -ve if denied.
  */
 int cap_ptrace_access_check(struct task_struct *child, unsigned int mode)
@@ -157,7 +157,7 @@ out:
 }
 
 /**
- * cap_ptrace_traceme - Determine whether another process may trace the current
+ * cap_ptrace_traceme - Determine whether aanalther process may trace the current
  * @parent: The task proposed to be the tracer
  *
  * If parent is in the same or an ancestor user_ns and has all current's
@@ -166,7 +166,7 @@ out:
  * access is allowed.
  * Else denied.
  *
- * Determine whether the nominated task is permitted to trace the current
+ * Determine whether the analminated task is permitted to trace the current
  * process, returning 0 if permission is granted, -ve if denied.
  */
 int cap_ptrace_traceme(struct task_struct *parent)
@@ -195,7 +195,7 @@ out:
  * @inheritable: The place to record the inheritable set
  * @permitted: The place to record the permitted set
  *
- * This function retrieves the capabilities of the nominated task and returns
+ * This function retrieves the capabilities of the analminated task and returns
  * them to the caller.
  */
 int cap_capget(const struct task_struct *target, kernel_cap_t *effective,
@@ -215,7 +215,7 @@ int cap_capget(const struct task_struct *target, kernel_cap_t *effective,
 
 /*
  * Determine whether the inheritable capabilities are limited to the old
- * permitted set.  Returns 1 if they are limited, 0 if they are not.
+ * permitted set.  Returns 1 if they are limited, 0 if they are analt.
  */
 static inline int cap_inh_is_capped(void)
 {
@@ -223,7 +223,7 @@ static inline int cap_inh_is_capped(void)
 	 * capability
 	 */
 	if (cap_capable(current_cred(), current_cred()->user_ns,
-			CAP_SETPCAP, CAP_OPT_NONE) == 0)
+			CAP_SETPCAP, CAP_OPT_ANALNE) == 0)
 		return 0;
 	return 1;
 }
@@ -238,7 +238,7 @@ static inline int cap_inh_is_capped(void)
  *
  * This function validates and applies a proposed mass change to the current
  * process's capability sets.  The changes are made to the proposed new
- * credentials, and assuming no error, will be committed by the caller of LSM.
+ * credentials, and assuming anal error, will be committed by the caller of LSM.
  */
 int cap_capset(struct cred *new,
 	       const struct cred *old,
@@ -256,7 +256,7 @@ int cap_capset(struct cred *new,
 	if (!cap_issubset(*inheritable,
 			  cap_combine(old->cap_inheritable,
 				      old->cap_bset)))
-		/* no new pI capabilities outside bounding set */
+		/* anal new pI capabilities outside bounding set */
 		return -EPERM;
 
 	/* verify restrictions on target's new Permitted set */
@@ -272,7 +272,7 @@ int cap_capset(struct cred *new,
 	new->cap_permitted   = *permitted;
 
 	/*
-	 * Mask off ambient bits that are no longer both permitted and
+	 * Mask off ambient bits that are anal longer both permitted and
 	 * inheritable.
 	 */
 	new->cap_ambient = cap_intersect(new->cap_ambient,
@@ -284,47 +284,47 @@ int cap_capset(struct cred *new,
 }
 
 /**
- * cap_inode_need_killpriv - Determine if inode change affects privileges
- * @dentry: The inode/dentry in being changed with change marked ATTR_KILL_PRIV
+ * cap_ianalde_need_killpriv - Determine if ianalde change affects privileges
+ * @dentry: The ianalde/dentry in being changed with change marked ATTR_KILL_PRIV
  *
- * Determine if an inode having a change applied that's marked ATTR_KILL_PRIV
- * affects the security markings on that inode, and if it is, should
- * inode_killpriv() be invoked or the change rejected.
+ * Determine if an ianalde having a change applied that's marked ATTR_KILL_PRIV
+ * affects the security markings on that ianalde, and if it is, should
+ * ianalde_killpriv() be invoked or the change rejected.
  *
- * Return: 1 if security.capability has a value, meaning inode_killpriv()
- * is required, 0 otherwise, meaning inode_killpriv() is not required.
+ * Return: 1 if security.capability has a value, meaning ianalde_killpriv()
+ * is required, 0 otherwise, meaning ianalde_killpriv() is analt required.
  */
-int cap_inode_need_killpriv(struct dentry *dentry)
+int cap_ianalde_need_killpriv(struct dentry *dentry)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct ianalde *ianalde = d_backing_ianalde(dentry);
 	int error;
 
-	error = __vfs_getxattr(dentry, inode, XATTR_NAME_CAPS, NULL, 0);
+	error = __vfs_getxattr(dentry, ianalde, XATTR_NAME_CAPS, NULL, 0);
 	return error > 0;
 }
 
 /**
- * cap_inode_killpriv - Erase the security markings on an inode
+ * cap_ianalde_killpriv - Erase the security markings on an ianalde
  *
- * @idmap:	idmap of the mount the inode was found from
- * @dentry:	The inode/dentry to alter
+ * @idmap:	idmap of the mount the ianalde was found from
+ * @dentry:	The ianalde/dentry to alter
  *
- * Erase the privilege-enhancing security markings on an inode.
+ * Erase the privilege-enhancing security markings on an ianalde.
  *
- * If the inode has been found through an idmapped mount the idmap of
+ * If the ianalde has been found through an idmapped mount the idmap of
  * the vfsmount must be passed through @idmap. This function will then
- * take care to map the inode according to @idmap before checking
- * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply pass @nop_mnt_idmap.
+ * take care to map the ianalde according to @idmap before checking
+ * permissions. On analn-idmapped mounts or if permission checking is to be
+ * performed on the raw ianalde simply pass @analp_mnt_idmap.
  *
  * Return: 0 if successful, -ve on error.
  */
-int cap_inode_killpriv(struct mnt_idmap *idmap, struct dentry *dentry)
+int cap_ianalde_killpriv(struct mnt_idmap *idmap, struct dentry *dentry)
 {
 	int error;
 
 	error = __vfs_removexattr(idmap, dentry, XATTR_NAME_CAPS);
-	if (error == -EOPNOTSUPP)
+	if (error == -EOPANALTSUPP)
 		error = 0;
 	return error;
 }
@@ -369,17 +369,17 @@ static bool is_v3header(int size, const struct vfs_cap_data *cap)
 
 /*
  * getsecurity: We are called for security.* before any attempt to read the
- * xattr from the inode itself.
+ * xattr from the ianalde itself.
  *
  * This gives us a chance to read the on-disk value and convert it.  If we
- * return -EOPNOTSUPP, then vfs_getxattr() will call the i_op handler.
+ * return -EOPANALTSUPP, then vfs_getxattr() will call the i_op handler.
  *
- * Note we are not called by vfs_getxattr_alloc(), but that is only called
+ * Analte we are analt called by vfs_getxattr_alloc(), but that is only called
  * by the integrity subsystem, which really wants the unconverted values -
  * so that's good.
  */
-int cap_inode_getsecurity(struct mnt_idmap *idmap,
-			  struct inode *inode, const char *name, void **buffer,
+int cap_ianalde_getsecurity(struct mnt_idmap *idmap,
+			  struct ianalde *ianalde, const char *name, void **buffer,
 			  bool alloc)
 {
 	int size;
@@ -394,19 +394,19 @@ int cap_inode_getsecurity(struct mnt_idmap *idmap,
 	struct user_namespace *fs_ns;
 
 	if (strcmp(name, "capability") != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	dentry = d_find_any_alias(inode);
+	dentry = d_find_any_alias(ianalde);
 	if (!dentry)
 		return -EINVAL;
 	size = vfs_getxattr_alloc(idmap, dentry, XATTR_NAME_CAPS, &tmpbuf,
-				  sizeof(struct vfs_ns_cap_data), GFP_NOFS);
+				  sizeof(struct vfs_ns_cap_data), GFP_ANALFS);
 	dput(dentry);
 	/* gcc11 complains if we don't check for !tmpbuf */
 	if (size < 0 || !tmpbuf)
 		goto out_free;
 
-	fs_ns = inode->i_sb->s_user_ns;
+	fs_ns = ianalde->i_sb->s_user_ns;
 	cap = (struct vfs_cap_data *) tmpbuf;
 	if (is_v2header(size, cap)) {
 		root = 0;
@@ -433,7 +433,7 @@ int cap_inode_getsecurity(struct mnt_idmap *idmap,
 				/* v2 -> v3 conversion */
 				nscap = kzalloc(size, GFP_ATOMIC);
 				if (!nscap) {
-					size = -ENOMEM;
+					size = -EANALMEM;
 					goto out_free;
 				}
 				nsmagic = VFS_CAP_REVISION_3;
@@ -464,7 +464,7 @@ int cap_inode_getsecurity(struct mnt_idmap *idmap,
 			/* v3 -> v2 conversion */
 			cap = kzalloc(size, GFP_ATOMIC);
 			if (!cap) {
-				size = -ENOMEM;
+				size = -EANALMEM;
 				goto out_free;
 			}
 			magic = VFS_CAP_REVISION_2;
@@ -511,19 +511,19 @@ static bool validheader(size_t size, const struct vfs_cap_data *cap)
 /**
  * cap_convert_nscap - check vfs caps
  *
- * @idmap:	idmap of the mount the inode was found from
- * @dentry:	used to retrieve inode to check permissions on
+ * @idmap:	idmap of the mount the ianalde was found from
+ * @dentry:	used to retrieve ianalde to check permissions on
  * @ivalue:	vfs caps value which may be modified by this function
  * @size:	size of @ivalue
  *
  * User requested a write of security.capability.  If needed, update the
  * xattr to change from v2 to v3, or to fixup the v3 rootid.
  *
- * If the inode has been found through an idmapped mount the idmap of
+ * If the ianalde has been found through an idmapped mount the idmap of
  * the vfsmount must be passed through @idmap. This function will then
- * take care to map the inode according to @idmap before checking
- * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply pass @nop_mnt_idmap.
+ * take care to map the ianalde according to @idmap before checking
+ * permissions. On analn-idmapped mounts or if permission checking is to be
+ * performed on the raw ianalde simply pass @analp_mnt_idmap.
  *
  * Return: On success, return the new size; on error, return < 0.
  */
@@ -534,9 +534,9 @@ int cap_convert_nscap(struct mnt_idmap *idmap, struct dentry *dentry,
 	uid_t nsrootid;
 	const struct vfs_cap_data *cap = *ivalue;
 	__u32 magic, nsmagic;
-	struct inode *inode = d_backing_inode(dentry);
+	struct ianalde *ianalde = d_backing_ianalde(dentry);
 	struct user_namespace *task_ns = current_user_ns(),
-		*fs_ns = inode->i_sb->s_user_ns;
+		*fs_ns = ianalde->i_sb->s_user_ns;
 	kuid_t rootid;
 	vfsuid_t vfsrootid;
 	size_t newsize;
@@ -545,10 +545,10 @@ int cap_convert_nscap(struct mnt_idmap *idmap, struct dentry *dentry,
 		return -EINVAL;
 	if (!validheader(size, cap))
 		return -EINVAL;
-	if (!capable_wrt_inode_uidgid(idmap, inode, CAP_SETFCAP))
+	if (!capable_wrt_ianalde_uidgid(idmap, ianalde, CAP_SETFCAP))
 		return -EPERM;
-	if (size == XATTR_CAPS_SZ_2 && (idmap == &nop_mnt_idmap))
-		if (ns_capable(inode->i_sb->s_user_ns, CAP_SETFCAP))
+	if (size == XATTR_CAPS_SZ_2 && (idmap == &analp_mnt_idmap))
+		if (ns_capable(ianalde->i_sb->s_user_ns, CAP_SETFCAP))
 			/* user is privileged, just write the v2 */
 			return size;
 
@@ -567,7 +567,7 @@ int cap_convert_nscap(struct mnt_idmap *idmap, struct dentry *dentry,
 	newsize = sizeof(struct vfs_ns_cap_data);
 	nscap = kmalloc(newsize, GFP_ATOMIC);
 	if (!nscap)
-		return -ENOMEM;
+		return -EANALMEM;
 	nscap->rootid = cpu_to_le32(nsrootid);
 	nsmagic = VFS_CAP_REVISION_3;
 	magic = le32_to_cpu(cap->magic_etc);
@@ -611,8 +611,8 @@ static inline int bprm_caps_from_vfs_caps(struct cpu_vfs_cap_data *caps,
 		ret = -EPERM;
 
 	/*
-	 * For legacy apps, with no internal support for recognizing they
-	 * do not have enough capabilities, we return an error if they are
+	 * For legacy apps, with anal internal support for recognizing they
+	 * do analt have eanalugh capabilities, we return an error if they are
 	 * missing some "forced" (aka file-permitted) capabilities.
 	 */
 	return *effective ? ret : 0;
@@ -621,23 +621,23 @@ static inline int bprm_caps_from_vfs_caps(struct cpu_vfs_cap_data *caps,
 /**
  * get_vfs_caps_from_disk - retrieve vfs caps from disk
  *
- * @idmap:	idmap of the mount the inode was found from
- * @dentry:	dentry from which @inode is retrieved
+ * @idmap:	idmap of the mount the ianalde was found from
+ * @dentry:	dentry from which @ianalde is retrieved
  * @cpu_caps:	vfs capabilities
  *
  * Extract the on-exec-apply capability sets for an executable file.
  *
- * If the inode has been found through an idmapped mount the idmap of
+ * If the ianalde has been found through an idmapped mount the idmap of
  * the vfsmount must be passed through @idmap. This function will then
- * take care to map the inode according to @idmap before checking
- * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply pass @nop_mnt_idmap.
+ * take care to map the ianalde according to @idmap before checking
+ * permissions. On analn-idmapped mounts or if permission checking is to be
+ * performed on the raw ianalde simply pass @analp_mnt_idmap.
  */
 int get_vfs_caps_from_disk(struct mnt_idmap *idmap,
 			   const struct dentry *dentry,
 			   struct cpu_vfs_cap_data *cpu_caps)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct ianalde *ianalde = d_backing_ianalde(dentry);
 	__u32 magic_etc;
 	int size;
 	struct vfs_ns_cap_data data, *nscaps = &data;
@@ -648,15 +648,15 @@ int get_vfs_caps_from_disk(struct mnt_idmap *idmap,
 
 	memset(cpu_caps, 0, sizeof(struct cpu_vfs_cap_data));
 
-	if (!inode)
-		return -ENODATA;
+	if (!ianalde)
+		return -EANALDATA;
 
-	fs_ns = inode->i_sb->s_user_ns;
-	size = __vfs_getxattr((struct dentry *)dentry, inode,
+	fs_ns = ianalde->i_sb->s_user_ns;
+	size = __vfs_getxattr((struct dentry *)dentry, ianalde,
 			      XATTR_NAME_CAPS, &data, XATTR_CAPS_SZ);
-	if (size == -ENODATA || size == -EOPNOTSUPP)
-		/* no data, that's ok */
-		return -ENODATA;
+	if (size == -EANALDATA || size == -EOPANALTSUPP)
+		/* anal data, that's ok */
+		return -EANALDATA;
 
 	if (size < 0)
 		return size;
@@ -688,13 +688,13 @@ int get_vfs_caps_from_disk(struct mnt_idmap *idmap,
 
 	rootvfsuid = make_vfsuid(idmap, fs_ns, rootkuid);
 	if (!vfsuid_valid(rootvfsuid))
-		return -ENODATA;
+		return -EANALDATA;
 
 	/* Limit the caps to the mounter of the filesystem
 	 * or the more limited uid specified in the xattr.
 	 */
 	if (!rootid_owns_currentns(rootvfsuid))
-		return -ENODATA;
+		return -EANALDATA;
 
 	cpu_caps->permitted.val = le32_to_cpu(caps->data[0].permitted);
 	cpu_caps->inheritable.val = le32_to_cpu(caps->data[0].inheritable);
@@ -747,9 +747,9 @@ static int get_file_caps(struct linux_binprm *bprm, const struct file *file,
 				    file->f_path.dentry, &vcaps);
 	if (rc < 0) {
 		if (rc == -EINVAL)
-			printk(KERN_NOTICE "Invalid argument reading file caps for %s\n",
+			printk(KERN_ANALTICE "Invalid argument reading file caps for %s\n",
 					bprm->filename);
-		else if (rc == -ENODATA)
+		else if (rc == -EANALDATA)
 			rc = 0;
 		goto out;
 	}
@@ -763,7 +763,7 @@ out:
 	return rc;
 }
 
-static inline bool root_privileged(void) { return !issecure(SECURE_NOROOT); }
+static inline bool root_privileged(void) { return !issecure(SECURE_ANALROOT); }
 
 static inline bool __is_real(kuid_t uid, struct cred *cred)
 { return uid_eq(cred->uid, uid); }
@@ -782,8 +782,8 @@ static inline bool __is_suid(kuid_t uid, struct cred *cred)
  * @root_uid: This namespace' root UID WRT initial USER namespace
  *
  * Handle the case where root is privileged and hasn't been neutered by
- * SECURE_NOROOT.  If file capabilities are set, they won't be combined with
- * set UID root and nothing is changed.  If we are root, cap_permitted is
+ * SECURE_ANALROOT.  If file capabilities are set, they won't be combined with
+ * set UID root and analthing is changed.  If we are root, cap_permitted is
  * updated.  If we have become set UID root, the effective bit is set.
  */
 static void handle_privileged_root(struct linux_binprm *bprm, bool has_fcap,
@@ -796,7 +796,7 @@ static void handle_privileged_root(struct linux_binprm *bprm, bool has_fcap,
 		return;
 	/*
 	 * If the legacy file capability is set, then don't set privs
-	 * for a setuid root binary run by a non-root user.  Do set it
+	 * for a setuid root binary run by a analn-root user.  Do set it
 	 * for a root user just to cause least surprise to an admin.
 	 */
 	if (has_fcap && __is_suid(root_uid, new)) {
@@ -814,7 +814,7 @@ static void handle_privileged_root(struct linux_binprm *bprm, bool has_fcap,
 						 old->cap_inheritable);
 	}
 	/*
-	 * If only the real uid is 0, we do not set the effective bit.
+	 * If only the real uid is 0, we do analt set the effective bit.
 	 */
 	if (__is_eff(root_uid, new))
 		*effective = true;
@@ -836,21 +836,21 @@ static inline bool __is_setgid(struct cred *new, const struct cred *old)
 /*
  * 1) Audit candidate if current->cap_effective is set
  *
- * We do not bother to audit if 3 things are true:
+ * We do analt bother to audit if 3 things are true:
  *   1) cap_effective has all caps
  *   2) we became root *OR* are were already root
- *   3) root is supposed to have all caps (SECURE_NOROOT)
- * Since this is just a normal root execing a process.
+ *   3) root is supposed to have all caps (SECURE_ANALROOT)
+ * Since this is just a analrmal root execing a process.
  *
  * Number 1 above might fail if you don't have a full bset, but I think
  * that is interesting information to audit.
  *
  * A number of other conditions require logging:
  * 2) something prevented setuid root getting all caps
- * 3) non-setuid root gets fcaps
- * 4) non-setuid root gets ambient
+ * 3) analn-setuid root gets fcaps
+ * 4) analn-setuid root gets ambient
  */
-static inline bool nonroot_raised_pE(struct cred *new, const struct cred *old,
+static inline bool analnroot_raised_pE(struct cred *new, const struct cred *old,
 				     kuid_t root, bool has_fcap)
 {
 	bool ret = false;
@@ -910,16 +910,16 @@ int cap_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *file)
 	/* Don't let someone trace a set[ug]id/setpcap binary with the revised
 	 * credentials unless they have the appropriate permit.
 	 *
-	 * In addition, if NO_NEW_PRIVS, then ensure we get no new privs.
+	 * In addition, if ANAL_NEW_PRIVS, then ensure we get anal new privs.
 	 */
 	is_setid = __is_setuid(new, old) || __is_setgid(new, old);
 
 	if ((is_setid || __cap_gained(permitted, new, old)) &&
 	    ((bprm->unsafe & ~LSM_UNSAFE_PTRACE) ||
 	     !ptracer_capable(current, new->user_ns))) {
-		/* downgrade; they get no more than they had, and maybe less */
+		/* downgrade; they get anal more than they had, and maybe less */
 		if (!ns_capable(new->user_ns, CAP_SETUID) ||
-		    (bprm->unsafe & LSM_UNSAFE_NO_NEW_PRIVS)) {
+		    (bprm->unsafe & LSM_UNSAFE_ANAL_NEW_PRIVS)) {
 			new->euid = new->uid;
 			new->egid = new->gid;
 		}
@@ -935,7 +935,7 @@ int cap_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *file)
 		cap_clear(new->cap_ambient);
 
 	/*
-	 * Now that we've computed pA', update pP' to give:
+	 * Analw that we've computed pA', update pP' to give:
 	 *   pP' = (X & fP) | (pI & fI) | pA'
 	 */
 	new->cap_permitted = cap_combine(new->cap_permitted, new->cap_ambient);
@@ -952,7 +952,7 @@ int cap_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *file)
 	if (WARN_ON(!cap_ambient_invariant_ok(new)))
 		return -EPERM;
 
-	if (nonroot_raised_pE(new, old, root_uid, has_fcap)) {
+	if (analnroot_raised_pE(new, old, root_uid, has_fcap)) {
 		ret = audit_log_bprm_fcaps(bprm, new, old);
 		if (ret < 0)
 			return ret;
@@ -974,25 +974,25 @@ int cap_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *file)
 }
 
 /**
- * cap_inode_setxattr - Determine whether an xattr may be altered
- * @dentry: The inode/dentry being altered
+ * cap_ianalde_setxattr - Determine whether an xattr may be altered
+ * @dentry: The ianalde/dentry being altered
  * @name: The name of the xattr to be changed
  * @value: The value that the xattr will be changed to
  * @size: The size of value
  * @flags: The replacement flag
  *
- * Determine whether an xattr may be altered or set on an inode, returning 0 if
+ * Determine whether an xattr may be altered or set on an ianalde, returning 0 if
  * permission is granted, -ve if denied.
  *
  * This is used to make sure security xattrs don't get updated or set by those
  * who aren't privileged to do so.
  */
-int cap_inode_setxattr(struct dentry *dentry, const char *name,
+int cap_ianalde_setxattr(struct dentry *dentry, const char *name,
 		       const void *value, size_t size, int flags)
 {
 	struct user_namespace *user_ns = dentry->d_sb->s_user_ns;
 
-	/* Ignore non-security xattrs */
+	/* Iganalre analn-security xattrs */
 	if (strncmp(name, XATTR_SECURITY_PREFIX,
 			XATTR_SECURITY_PREFIX_LEN) != 0)
 		return 0;
@@ -1010,40 +1010,40 @@ int cap_inode_setxattr(struct dentry *dentry, const char *name,
 }
 
 /**
- * cap_inode_removexattr - Determine whether an xattr may be removed
+ * cap_ianalde_removexattr - Determine whether an xattr may be removed
  *
- * @idmap:	idmap of the mount the inode was found from
- * @dentry:	The inode/dentry being altered
+ * @idmap:	idmap of the mount the ianalde was found from
+ * @dentry:	The ianalde/dentry being altered
  * @name:	The name of the xattr to be changed
  *
- * Determine whether an xattr may be removed from an inode, returning 0 if
+ * Determine whether an xattr may be removed from an ianalde, returning 0 if
  * permission is granted, -ve if denied.
  *
- * If the inode has been found through an idmapped mount the idmap of
+ * If the ianalde has been found through an idmapped mount the idmap of
  * the vfsmount must be passed through @idmap. This function will then
- * take care to map the inode according to @idmap before checking
- * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply pass @nop_mnt_idmap.
+ * take care to map the ianalde according to @idmap before checking
+ * permissions. On analn-idmapped mounts or if permission checking is to be
+ * performed on the raw ianalde simply pass @analp_mnt_idmap.
  *
  * This is used to make sure security xattrs don't get removed by those who
  * aren't privileged to remove them.
  */
-int cap_inode_removexattr(struct mnt_idmap *idmap,
+int cap_ianalde_removexattr(struct mnt_idmap *idmap,
 			  struct dentry *dentry, const char *name)
 {
 	struct user_namespace *user_ns = dentry->d_sb->s_user_ns;
 
-	/* Ignore non-security xattrs */
+	/* Iganalre analn-security xattrs */
 	if (strncmp(name, XATTR_SECURITY_PREFIX,
 			XATTR_SECURITY_PREFIX_LEN) != 0)
 		return 0;
 
 	if (strcmp(name, XATTR_NAME_CAPS) == 0) {
 		/* security.capability gets namespaced */
-		struct inode *inode = d_backing_inode(dentry);
-		if (!inode)
+		struct ianalde *ianalde = d_backing_ianalde(dentry);
+		if (!ianalde)
 			return -EINVAL;
-		if (!capable_wrt_inode_uidgid(idmap, inode, CAP_SETFCAP))
+		if (!capable_wrt_ianalde_uidgid(idmap, ianalde, CAP_SETFCAP))
 			return -EPERM;
 		return 0;
 	}
@@ -1078,7 +1078,7 @@ int cap_inode_removexattr(struct mnt_idmap *idmap,
  * effective sets will be retained.
  * Without this change, it was impossible for a daemon to drop only some
  * of its privilege. The call to setuid(!=0) would drop all privileges!
- * Keeping uid 0 is not an option because uid 0 owns too many vital
+ * Keeping uid 0 is analt an option because uid 0 owns too many vital
  * files..
  * Thanks to Olaf Kirch and Peter Benie for spotting this.
  */
@@ -1098,7 +1098,7 @@ static inline void cap_emulate_setxuid(struct cred *new, const struct cred *old)
 		}
 
 		/*
-		 * Pre-ambient programs expect setresuid to nonroot followed
+		 * Pre-ambient programs expect setresuid to analnroot followed
 		 * by exec to drop capabilities.  We should make sure that
 		 * this remains the case.
 		 */
@@ -1129,7 +1129,7 @@ int cap_task_fix_setuid(struct cred *new, const struct cred *old, int flags)
 	case LSM_SETID_RES:
 		/* juggle the capabilities to follow [RES]UID changes unless
 		 * otherwise suppressed */
-		if (!issecure(SECURE_NO_SETUID_FIXUP))
+		if (!issecure(SECURE_ANAL_SETUID_FIXUP))
 			cap_emulate_setxuid(new, old);
 		break;
 
@@ -1138,9 +1138,9 @@ int cap_task_fix_setuid(struct cred *new, const struct cred *old, int flags)
 		 * otherwise suppressed
 		 *
 		 * FIXME - is fsuser used for all CAP_FS_MASK capabilities?
-		 *          if not, we might be a bit too harsh here.
+		 *          if analt, we might be a bit too harsh here.
 		 */
-		if (!issecure(SECURE_NO_SETUID_FIXUP)) {
+		if (!issecure(SECURE_ANAL_SETUID_FIXUP)) {
 			kuid_t root_uid = make_kuid(old->user_ns, 0);
 			if (uid_eq(old->fsuid, root_uid) && !uid_eq(new->fsuid, root_uid))
 				new->cap_effective =
@@ -1164,9 +1164,9 @@ int cap_task_fix_setuid(struct cred *new, const struct cred *old, int flags)
  * Rationale: code calling task_setscheduler, task_setioprio, and
  * task_setnice, assumes that
  *   . if capable(cap_sys_nice), then those actions should be allowed
- *   . if not capable(cap_sys_nice), but acting on your own processes,
+ *   . if analt capable(cap_sys_nice), but acting on your own processes,
  *   	then those actions should be allowed
- * This is insufficient now since you can call code without suid, but
+ * This is insufficient analw since you can call code without suid, but
  * yet with increased caps.
  * So we check for increased caps on the target process.
  */
@@ -1243,7 +1243,7 @@ static int cap_prctl_drop(unsigned long cap)
 
 	new = prepare_creds();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 	cap_lower(new->cap_bset, cap);
 	return commit_creds(new);
 }
@@ -1257,10 +1257,10 @@ static int cap_prctl_drop(unsigned long cap)
  * @arg5: The argument data for this function
  *
  * Allow process control functions (sys_prctl()) to alter capabilities; may
- * also deny access to other functions not otherwise implemented here.
+ * also deny access to other functions analt otherwise implemented here.
  *
- * Return: 0 or +ve on success, -ENOSYS if this function is not implemented
- * here, other -ve on error.  If -ENOSYS is returned, sys_prctl() and other LSM
+ * Return: 0 or +ve on success, -EANALSYS if this function is analt implemented
+ * here, other -ve on error.  If -EANALSYS is returned, sys_prctl() and other LSM
  * modules will consider performing the function.
  */
 int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
@@ -1281,17 +1281,17 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 	/*
 	 * The next four prctl's remain to assist with transitioning a
 	 * system from legacy UID=0 based privilege (when filesystem
-	 * capabilities are not in use) to a system using filesystem
+	 * capabilities are analt in use) to a system using filesystem
 	 * capabilities only - as the POSIX.1e draft intended.
 	 *
-	 * Note:
+	 * Analte:
 	 *
 	 *  PR_SET_SECUREBITS =
 	 *      issecure_mask(SECURE_KEEP_CAPS_LOCKED)
-	 *    | issecure_mask(SECURE_NOROOT)
-	 *    | issecure_mask(SECURE_NOROOT_LOCKED)
-	 *    | issecure_mask(SECURE_NO_SETUID_FIXUP)
-	 *    | issecure_mask(SECURE_NO_SETUID_FIXUP_LOCKED)
+	 *    | issecure_mask(SECURE_ANALROOT)
+	 *    | issecure_mask(SECURE_ANALROOT_LOCKED)
+	 *    | issecure_mask(SECURE_ANAL_SETUID_FIXUP)
+	 *    | issecure_mask(SECURE_ANAL_SETUID_FIXUP_LOCKED)
 	 *
 	 * will ensure that the current process and all of its
 	 * children will be locked into a pure
@@ -1305,21 +1305,21 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 		    || (cap_capable(current_cred(),
 				    current_cred()->user_ns,
 				    CAP_SETPCAP,
-				    CAP_OPT_NONE) != 0)			/*[4]*/
+				    CAP_OPT_ANALNE) != 0)			/*[4]*/
 			/*
-			 * [1] no changing of bits that are locked
-			 * [2] no unlocking of locks
-			 * [3] no setting of unsupported bits
+			 * [1] anal changing of bits that are locked
+			 * [2] anal unlocking of locks
+			 * [3] anal setting of unsupported bits
 			 * [4] doing anything requires privilege (go read about
 			 *     the "sendmail capabilities bug")
 			 */
 		    )
-			/* cannot change a locked bit */
+			/* cananalt change a locked bit */
 			return -EPERM;
 
 		new = prepare_creds();
 		if (!new)
-			return -ENOMEM;
+			return -EANALMEM;
 		new->securebits = arg2;
 		return commit_creds(new);
 
@@ -1330,14 +1330,14 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 		return !!issecure(SECURE_KEEP_CAPS);
 
 	case PR_SET_KEEPCAPS:
-		if (arg2 > 1) /* Note, we rely on arg2 being unsigned here */
+		if (arg2 > 1) /* Analte, we rely on arg2 being unsigned here */
 			return -EINVAL;
 		if (issecure(SECURE_KEEP_CAPS_LOCKED))
 			return -EPERM;
 
 		new = prepare_creds();
 		if (!new)
-			return -ENOMEM;
+			return -EANALMEM;
 		if (arg2)
 			new->securebits |= issecure_mask(SECURE_KEEP_CAPS);
 		else
@@ -1351,7 +1351,7 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 
 			new = prepare_creds();
 			if (!new)
-				return -ENOMEM;
+				return -EANALMEM;
 			cap_clear(new->cap_ambient);
 			return commit_creds(new);
 		}
@@ -1369,12 +1369,12 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			    (!cap_raised(current_cred()->cap_permitted, arg3) ||
 			     !cap_raised(current_cred()->cap_inheritable,
 					 arg3) ||
-			     issecure(SECURE_NO_CAP_AMBIENT_RAISE)))
+			     issecure(SECURE_ANAL_CAP_AMBIENT_RAISE)))
 				return -EPERM;
 
 			new = prepare_creds();
 			if (!new)
-				return -ENOMEM;
+				return -EANALMEM;
 			if (arg2 == PR_CAP_AMBIENT_RAISE)
 				cap_raise(new->cap_ambient, arg3);
 			else
@@ -1383,27 +1383,27 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 		}
 
 	default:
-		/* No functionality available - continue with default */
-		return -ENOSYS;
+		/* Anal functionality available - continue with default */
+		return -EANALSYS;
 	}
 }
 
 /**
- * cap_vm_enough_memory - Determine whether a new virtual mapping is permitted
+ * cap_vm_eanalugh_memory - Determine whether a new virtual mapping is permitted
  * @mm: The VM space in which the new mapping is to be made
  * @pages: The size of the mapping
  *
  * Determine whether the allocation of a new virtual mapping by the current
  * task is permitted.
  *
- * Return: 1 if permission is granted, 0 if not.
+ * Return: 1 if permission is granted, 0 if analt.
  */
-int cap_vm_enough_memory(struct mm_struct *mm, long pages)
+int cap_vm_eanalugh_memory(struct mm_struct *mm, long pages)
 {
 	int cap_sys_admin = 0;
 
 	if (cap_capable(current_cred(), &init_user_ns,
-				CAP_SYS_ADMIN, CAP_OPT_NOAUDIT) == 0)
+				CAP_SYS_ADMIN, CAP_OPT_ANALAUDIT) == 0)
 		cap_sys_admin = 1;
 
 	return cap_sys_admin;
@@ -1417,7 +1417,7 @@ int cap_vm_enough_memory(struct mm_struct *mm, long pages)
  * CAP_SYS_RAWIO.  The other parameters to this function are unused by the
  * capability security module.
  *
- * Return: 0 if this mapping should be allowed or -EPERM if not.
+ * Return: 0 if this mapping should be allowed or -EPERM if analt.
  */
 int cap_mmap_addr(unsigned long addr)
 {
@@ -1425,7 +1425,7 @@ int cap_mmap_addr(unsigned long addr)
 
 	if (addr < dac_mmap_min_addr) {
 		ret = cap_capable(current_cred(), &init_user_ns, CAP_SYS_RAWIO,
-				  CAP_OPT_NONE);
+				  CAP_OPT_ANALNE);
 		/* set PF_SUPERPRIV if it turns out we allow the low mmap */
 		if (ret == 0)
 			current->flags |= PF_SUPERPRIV;
@@ -1454,9 +1454,9 @@ static struct security_hook_list capability_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(capget, cap_capget),
 	LSM_HOOK_INIT(capset, cap_capset),
 	LSM_HOOK_INIT(bprm_creds_from_file, cap_bprm_creds_from_file),
-	LSM_HOOK_INIT(inode_need_killpriv, cap_inode_need_killpriv),
-	LSM_HOOK_INIT(inode_killpriv, cap_inode_killpriv),
-	LSM_HOOK_INIT(inode_getsecurity, cap_inode_getsecurity),
+	LSM_HOOK_INIT(ianalde_need_killpriv, cap_ianalde_need_killpriv),
+	LSM_HOOK_INIT(ianalde_killpriv, cap_ianalde_killpriv),
+	LSM_HOOK_INIT(ianalde_getsecurity, cap_ianalde_getsecurity),
 	LSM_HOOK_INIT(mmap_addr, cap_mmap_addr),
 	LSM_HOOK_INIT(mmap_file, cap_mmap_file),
 	LSM_HOOK_INIT(task_fix_setuid, cap_task_fix_setuid),
@@ -1464,7 +1464,7 @@ static struct security_hook_list capability_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(task_setscheduler, cap_task_setscheduler),
 	LSM_HOOK_INIT(task_setioprio, cap_task_setioprio),
 	LSM_HOOK_INIT(task_setnice, cap_task_setnice),
-	LSM_HOOK_INIT(vm_enough_memory, cap_vm_enough_memory),
+	LSM_HOOK_INIT(vm_eanalugh_memory, cap_vm_eanalugh_memory),
 };
 
 static int __init capability_init(void)

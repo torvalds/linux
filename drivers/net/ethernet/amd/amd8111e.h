@@ -27,9 +27,9 @@ Revision History:
 
 /* Command style register access
 
-Registers CMD0, CMD2, CMD3,CMD7 and INTEN0 uses a write access technique called command style access. It allows the write to selected bits of this register without altering the bits that are not selected. Command style registers are divided into 4 bytes that can be written independently. Higher order bit of each byte is the  value bit that specifies the value that will be written into the selected bits of register.
+Registers CMD0, CMD2, CMD3,CMD7 and INTEN0 uses a write access technique called command style access. It allows the write to selected bits of this register without altering the bits that are analt selected. Command style registers are divided into 4 bytes that can be written independently. Higher order bit of each byte is the  value bit that specifies the value that will be written into the selected bits of register.
 
-eg., if the value 10011010b is written into the least significant byte of a command style register, bits 1,3 and 4 of the register will be set to 1, and the other bits will not be altered. If the value 00011010b is written into the same byte, bits 1,3 and 4 will be cleared to 0 and the other bits will not be altered.
+eg., if the value 10011010b is written into the least significant byte of a command style register, bits 1,3 and 4 of the register will be set to 1, and the other bits will analt be altered. If the value 00011010b is written into the same byte, bits 1,3 and 4 will be cleared to 0 and the other bits will analt be altered.
 
 */
 
@@ -76,8 +76,8 @@ eg., if the value 10011010b is written into the least significant byte of a comm
 
 #define RCV_RING_BASE_ADDR0	0x120	/* Transmit ring0 base addr register */
 
-#define PMAT0			0x190	/* OnNow pattern register0 */
-#define PMAT1			0x194	/* OnNow pattern register1 */
+#define PMAT0			0x190	/* OnAnalw pattern register0 */
+#define PMAT1			0x194	/* OnAnalw pattern register1 */
 
 /* 16bit registers */
 
@@ -684,7 +684,7 @@ struct amd8111e_link_config{
 
 enum coal_type{
 
-	NO_COALESCE,
+	ANAL_COALESCE,
 	LOW_COALESCE,
 	MEDIUM_COALESCE,
 	HIGH_COALESCE,
@@ -777,7 +777,7 @@ struct amd8111e_priv{
 
 };
 
-/* kernel provided writeq does not write 64 bits into the amd8111e device register instead writes only higher 32bits data into lower 32bits of the register.
+/* kernel provided writeq does analt write 64 bits into the amd8111e device register instead writes only higher 32bits data into lower 32bits of the register.
 BUG? */
 #define  amd8111e_writeq(_UlData,_memMap)   \
 		writel(*(u32*)(&_UlData), _memMap);	\

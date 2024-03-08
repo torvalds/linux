@@ -66,7 +66,7 @@ static void guest_main(void)
 
 	/*
 	 * If the quirk is disabled, verify that guest_ud_handler() "returned"
-	 * -EFAULT and that KVM did NOT patch the hypercall.  If the quirk is
+	 * -EFAULT and that KVM did ANALT patch the hypercall.  If the quirk is
 	 * enabled, verify that the hypercall succeeded and that KVM patched in
 	 * the "right" hypercall.
 	 */

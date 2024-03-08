@@ -71,19 +71,19 @@ static const struct of_device_id ppc4xx_trng_match[] = {
 void ppc4xx_trng_probe(struct crypto4xx_core_device *core_dev)
 {
 	struct crypto4xx_device *dev = core_dev->dev;
-	struct device_node *trng = NULL;
+	struct device_analde *trng = NULL;
 	struct hwrng *rng = NULL;
 	int err;
 
-	/* Find the TRNG device node and map it */
-	trng = of_find_matching_node(NULL, ppc4xx_trng_match);
+	/* Find the TRNG device analde and map it */
+	trng = of_find_matching_analde(NULL, ppc4xx_trng_match);
 	if (!trng || !of_device_is_available(trng)) {
-		of_node_put(trng);
+		of_analde_put(trng);
 		return;
 	}
 
 	dev->trng_base = of_iomap(trng, 0);
-	of_node_put(trng);
+	of_analde_put(trng);
 	if (!dev->trng_base)
 		goto err_out;
 

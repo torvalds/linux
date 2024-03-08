@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -188,7 +188,7 @@ qedr_iw_qp_event(void *context,
 	struct ib_qp *ibqp = &ep->qp->ibqp;
 	struct ib_event event;
 
-	DP_NOTICE(dev, "QP error received: %s\n", str);
+	DP_ANALTICE(dev, "QP error received: %s\n", str);
 
 	if (ibqp->event_handler) {
 		event.event = ib_event;
@@ -284,7 +284,7 @@ qedr_iw_passive_complete(void *context,
 	struct qedr_dev *dev = ep->dev;
 
 	/* We will only reach the following state if MPA_REJECT was called on
-	 * passive. In this case there will be no associated QP.
+	 * passive. In this case there will be anal associated QP.
 	 */
 	if ((params->status == -ECONNREFUSED) && (!ep->qp)) {
 		DP_DEBUG(dev, QEDR_MSG_IWARP,
@@ -383,10 +383,10 @@ qedr_iw_event_handler(void *context, struct qed_iwarp_cm_event_params *params)
 				 "QED_IWARP_EVENT_REMOTE_OPERATION_ERROR");
 		break;
 	case QED_IWARP_EVENT_TERMINATE_RECEIVED:
-		DP_NOTICE(dev, "Got terminate message\n");
+		DP_ANALTICE(dev, "Got terminate message\n");
 		break;
 	default:
-		DP_NOTICE(dev, "Unknown event received %d\n", params->event);
+		DP_ANALTICE(dev, "Unkanalwn event received %d\n", params->event);
 		break;
 	}
 	return 0;
@@ -561,7 +561,7 @@ int qedr_iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (!ep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ep->dev = dev;
 	kref_init(&ep->refcnt);
@@ -637,7 +637,7 @@ int qedr_iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	if (test_and_set_bit(QEDR_IWARP_CM_WAIT_FOR_CONNECT,
 			     &qp->iwarp_cm_flags)) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err; /* QP already being destroyed */
 	}
 
@@ -673,7 +673,7 @@ int qedr_iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 
 	listener = kzalloc(sizeof(*listener), GFP_KERNEL);
 	if (!listener)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	listener->dev = dev;
 	cm_id->add_ref(cm_id);

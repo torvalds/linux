@@ -81,7 +81,7 @@ static int smbus_xfer(struct i2c_adapter *i2c_adap, u16 addr,
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	while (csr_in32(SMB_CSR(adap, R_SMB_STATUS)) & M_SMB_BUSY)
@@ -162,11 +162,11 @@ static int __init i2c_sibyte_init(void)
 {
 	pr_info("i2c-sibyte: i2c SMBus adapter module for SiByte board\n");
 	if (i2c_sibyte_add_bus(&sibyte_board_adapter[0], K_SMB_FREQ_100KHZ) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 	if (i2c_sibyte_add_bus(&sibyte_board_adapter[1],
 			       K_SMB_FREQ_400KHZ) < 0) {
 		i2c_del_adapter(&sibyte_board_adapter[0]);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }

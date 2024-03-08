@@ -11,16 +11,16 @@
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
 
-int fuse_setxattr(struct inode *inode, const char *name, const void *value,
+int fuse_setxattr(struct ianalde *ianalde, const char *name, const void *value,
 		  size_t size, int flags, unsigned int extra_flags)
 {
-	struct fuse_mount *fm = get_fuse_mount(inode);
+	struct fuse_mount *fm = get_fuse_mount(ianalde);
 	FUSE_ARGS(args);
 	struct fuse_setxattr_in inarg;
 	int err;
 
-	if (fm->fc->no_setxattr)
-		return -EOPNOTSUPP;
+	if (fm->fc->anal_setxattr)
+		return -EOPANALTSUPP;
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.size = size;
@@ -28,7 +28,7 @@ int fuse_setxattr(struct inode *inode, const char *name, const void *value,
 	inarg.setxattr_flags = extra_flags;
 
 	args.opcode = FUSE_SETXATTR;
-	args.nodeid = get_node_id(inode);
+	args.analdeid = get_analde_id(ianalde);
 	args.in_numargs = 3;
 	args.in_args[0].size = fm->fc->setxattr_ext ?
 		sizeof(inarg) : FUSE_COMPAT_SETXATTR_IN_SIZE;
@@ -38,32 +38,32 @@ int fuse_setxattr(struct inode *inode, const char *name, const void *value,
 	args.in_args[2].size = size;
 	args.in_args[2].value = value;
 	err = fuse_simple_request(fm, &args);
-	if (err == -ENOSYS) {
-		fm->fc->no_setxattr = 1;
-		err = -EOPNOTSUPP;
+	if (err == -EANALSYS) {
+		fm->fc->anal_setxattr = 1;
+		err = -EOPANALTSUPP;
 	}
 	if (!err)
-		fuse_update_ctime(inode);
+		fuse_update_ctime(ianalde);
 
 	return err;
 }
 
-ssize_t fuse_getxattr(struct inode *inode, const char *name, void *value,
+ssize_t fuse_getxattr(struct ianalde *ianalde, const char *name, void *value,
 		      size_t size)
 {
-	struct fuse_mount *fm = get_fuse_mount(inode);
+	struct fuse_mount *fm = get_fuse_mount(ianalde);
 	FUSE_ARGS(args);
 	struct fuse_getxattr_in inarg;
 	struct fuse_getxattr_out outarg;
 	ssize_t ret;
 
-	if (fm->fc->no_getxattr)
-		return -EOPNOTSUPP;
+	if (fm->fc->anal_getxattr)
+		return -EOPANALTSUPP;
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.size = size;
 	args.opcode = FUSE_GETXATTR;
-	args.nodeid = get_node_id(inode);
+	args.analdeid = get_analde_id(ianalde);
 	args.in_numargs = 2;
 	args.in_args[0].size = sizeof(inarg);
 	args.in_args[0].value = &inarg;
@@ -82,9 +82,9 @@ ssize_t fuse_getxattr(struct inode *inode, const char *name, void *value,
 	ret = fuse_simple_request(fm, &args);
 	if (!ret && !size)
 		ret = min_t(ssize_t, outarg.size, XATTR_SIZE_MAX);
-	if (ret == -ENOSYS) {
-		fm->fc->no_getxattr = 1;
-		ret = -EOPNOTSUPP;
+	if (ret == -EANALSYS) {
+		fm->fc->anal_getxattr = 1;
+		ret = -EOPANALTSUPP;
 	}
 	return ret;
 }
@@ -108,26 +108,26 @@ static int fuse_verify_xattr_list(char *list, size_t size)
 
 ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size)
 {
-	struct inode *inode = d_inode(entry);
-	struct fuse_mount *fm = get_fuse_mount(inode);
+	struct ianalde *ianalde = d_ianalde(entry);
+	struct fuse_mount *fm = get_fuse_mount(ianalde);
 	FUSE_ARGS(args);
 	struct fuse_getxattr_in inarg;
 	struct fuse_getxattr_out outarg;
 	ssize_t ret;
 
-	if (fuse_is_bad(inode))
+	if (fuse_is_bad(ianalde))
 		return -EIO;
 
 	if (!fuse_allow_current_process(fm->fc))
 		return -EACCES;
 
-	if (fm->fc->no_listxattr)
-		return -EOPNOTSUPP;
+	if (fm->fc->anal_listxattr)
+		return -EOPANALTSUPP;
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.size = size;
 	args.opcode = FUSE_LISTXATTR;
-	args.nodeid = get_node_id(inode);
+	args.analdeid = get_analde_id(ianalde);
 	args.in_numargs = 1;
 	args.in_args[0].size = sizeof(inarg);
 	args.in_args[0].value = &inarg;
@@ -146,61 +146,61 @@ ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size)
 		ret = min_t(ssize_t, outarg.size, XATTR_LIST_MAX);
 	if (ret > 0 && size)
 		ret = fuse_verify_xattr_list(list, ret);
-	if (ret == -ENOSYS) {
-		fm->fc->no_listxattr = 1;
-		ret = -EOPNOTSUPP;
+	if (ret == -EANALSYS) {
+		fm->fc->anal_listxattr = 1;
+		ret = -EOPANALTSUPP;
 	}
 	return ret;
 }
 
-int fuse_removexattr(struct inode *inode, const char *name)
+int fuse_removexattr(struct ianalde *ianalde, const char *name)
 {
-	struct fuse_mount *fm = get_fuse_mount(inode);
+	struct fuse_mount *fm = get_fuse_mount(ianalde);
 	FUSE_ARGS(args);
 	int err;
 
-	if (fm->fc->no_removexattr)
-		return -EOPNOTSUPP;
+	if (fm->fc->anal_removexattr)
+		return -EOPANALTSUPP;
 
 	args.opcode = FUSE_REMOVEXATTR;
-	args.nodeid = get_node_id(inode);
+	args.analdeid = get_analde_id(ianalde);
 	args.in_numargs = 1;
 	args.in_args[0].size = strlen(name) + 1;
 	args.in_args[0].value = name;
 	err = fuse_simple_request(fm, &args);
-	if (err == -ENOSYS) {
-		fm->fc->no_removexattr = 1;
-		err = -EOPNOTSUPP;
+	if (err == -EANALSYS) {
+		fm->fc->anal_removexattr = 1;
+		err = -EOPANALTSUPP;
 	}
 	if (!err)
-		fuse_update_ctime(inode);
+		fuse_update_ctime(ianalde);
 
 	return err;
 }
 
 static int fuse_xattr_get(const struct xattr_handler *handler,
-			 struct dentry *dentry, struct inode *inode,
+			 struct dentry *dentry, struct ianalde *ianalde,
 			 const char *name, void *value, size_t size)
 {
-	if (fuse_is_bad(inode))
+	if (fuse_is_bad(ianalde))
 		return -EIO;
 
-	return fuse_getxattr(inode, name, value, size);
+	return fuse_getxattr(ianalde, name, value, size);
 }
 
 static int fuse_xattr_set(const struct xattr_handler *handler,
 			  struct mnt_idmap *idmap,
-			  struct dentry *dentry, struct inode *inode,
+			  struct dentry *dentry, struct ianalde *ianalde,
 			  const char *name, const void *value, size_t size,
 			  int flags)
 {
-	if (fuse_is_bad(inode))
+	if (fuse_is_bad(ianalde))
 		return -EIO;
 
 	if (!value)
-		return fuse_removexattr(inode, name);
+		return fuse_removexattr(ianalde, name);
 
-	return fuse_setxattr(inode, name, value, size, flags, 0);
+	return fuse_setxattr(ianalde, name, value, size, flags, 0);
 }
 
 static const struct xattr_handler fuse_xattr_handler = {

@@ -7,7 +7,7 @@
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/soc/qcom/qmi.h>
 
@@ -70,7 +70,7 @@ static int qmi_decode(const struct qmi_elem_info *ei_array, void *out_c_struct,
  * @level: Depth level of encoding/decoding to identify nested structures.
  *
  * This function is used while encoding optional elements. If the flag
- * corresponding to an optional element is not set, then encoding the
+ * corresponding to an optional element is analt set, then encoding the
  * optional element can be skipped. This function can be used to perform
  * that operation.
  *
@@ -111,7 +111,7 @@ static int qmi_calc_min_msg_len(const struct qmi_elem_info *ei_array,
 		return min_msg_len;
 
 	while (temp_ei->data_type != QMI_EOTI) {
-		/* Optional elements do not count in minimum length */
+		/* Optional elements do analt count in minimum length */
 		if (temp_ei->data_type == QMI_OPT_FLAG) {
 			temp_ei = skip_to_next_elem(temp_ei, level);
 			continue;
@@ -138,7 +138,7 @@ static int qmi_calc_min_msg_len(const struct qmi_elem_info *ei_array,
 		}
 
 		/*
-		 * Type & Length info. not prepended for elements in the
+		 * Type & Length info. analt prepended for elements in the
 		 * nested structure.
 		 */
 		if (level == 1)
@@ -192,7 +192,7 @@ static int qmi_encode_basic_elem(void *buf_dst, const void *buf_src,
  * function returns the number of bytes of encoded information.
  *
  * Return: The number of bytes of encoded information on success or negative
- * errno on error.
+ * erranal on error.
  */
 static int qmi_encode_struct_elem(const struct qmi_elem_info *ei_array,
 				  void *buf_dst, const void *buf_src,
@@ -231,7 +231,7 @@ static int qmi_encode_struct_elem(const struct qmi_elem_info *ei_array,
  * of encoded information.
  *
  * Return: The number of bytes of encoded information on success or negative
- * errno on error.
+ * erranal on error.
  */
 static int qmi_encode_string_elem(const struct qmi_elem_info *ei_array,
 				  void *buf_dst, const void *buf_src,
@@ -287,7 +287,7 @@ static int qmi_encode_string_elem(const struct qmi_elem_info *ei_array,
  *             within the main structure, being encoded.
  *
  * Return: The number of bytes of encoded information on success or negative
- * errno on error.
+ * erranal on error.
  */
 static int qmi_encode(const struct qmi_elem_info *ei_array, void *out_buf,
 		      const void *in_c_struct, u32 out_buf_len,
@@ -317,7 +317,7 @@ static int qmi_encode(const struct qmi_elem_info *ei_array, void *out_buf,
 		buf_src = in_c_struct + temp_ei->offset;
 		tlv_type = temp_ei->tlv_type;
 
-		if (temp_ei->array_type == NO_ARRAY) {
+		if (temp_ei->array_type == ANAL_ARRAY) {
 			data_len_value = 1;
 		} else if (temp_ei->array_type == STATIC_ARRAY) {
 			data_len_value = temp_ei->elem_len;
@@ -466,7 +466,7 @@ static int qmi_decode_basic_elem(void *buf_dst, const void *buf_src,
  * function returns the number of bytes of decoded information.
  *
  * Return: The total size of the decoded data elements on success, negative
- * errno on error.
+ * erranal on error.
  */
 static int qmi_decode_struct_elem(const struct qmi_elem_info *ei_array,
 				  void *buf_dst, const void *buf_src,
@@ -512,7 +512,7 @@ static int qmi_decode_struct_elem(const struct qmi_elem_info *ei_array,
  * decoded from the input buffer.
  *
  * Return: The total size of the decoded data elements on success, negative
- * errno on error.
+ * erranal on error.
  */
 static int qmi_decode_string_elem(const struct qmi_elem_info *ei_array,
 				  void *buf_dst, const void *buf_src,
@@ -588,7 +588,7 @@ static const struct qmi_elem_info *find_ei(const struct qmi_elem_info *ei_array,
  *             within the main structure, being decoded
  *
  * Return: The number of bytes of decoded information on success, negative
- * errno on error.
+ * erranal on error.
  */
 static int qmi_decode(const struct qmi_elem_info *ei_array, void *out_c_struct,
 		      const void *in_buf, u32 in_buf_len,
@@ -626,7 +626,7 @@ static int qmi_decode(const struct qmi_elem_info *ei_array, void *out_c_struct,
 			}
 		} else {
 			/*
-			 * No length information for elements in nested
+			 * Anal length information for elements in nested
 			 * structures. So use remaining decodable buffer space.
 			 */
 			tlv_len = in_buf_len - decoded_bytes;
@@ -651,7 +651,7 @@ static int qmi_decode(const struct qmi_elem_info *ei_array, void *out_c_struct,
 			UPDATE_DECODE_VARIABLES(buf_src, decoded_bytes, rc);
 		}
 
-		if (temp_ei->array_type == NO_ARRAY) {
+		if (temp_ei->array_type == ANAL_ARRAY) {
 			data_len_value = 1;
 		} else if (temp_ei->array_type == STATIC_ARRAY) {
 			data_len_value = temp_ei->elem_len;
@@ -733,7 +733,7 @@ void *qmi_encode_message(int type, unsigned int msg_id, size_t *len,
 
 	msg = kzalloc(sizeof(*hdr) + *len, GFP_KERNEL);
 	if (!msg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Encode message, if we have a message */
 	if (c_struct) {
@@ -764,7 +764,7 @@ EXPORT_SYMBOL_GPL(qmi_encode_message);
  * @c_struct:	Reference to structure to decode into
  *
  * Return: The number of bytes of decoded information on success, negative
- * errno on error.
+ * erranal on error.
  */
 int qmi_decode_message(const void *buf, size_t len,
 		       const struct qmi_elem_info *ei, void *c_struct)
@@ -786,7 +786,7 @@ const struct qmi_elem_info qmi_response_type_v01_ei[] = {
 		.data_type	= QMI_SIGNED_2_BYTE_ENUM,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u16),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 		.offset		= offsetof(struct qmi_response_type_v01, result),
 		.ei_array	= NULL,
@@ -795,7 +795,7 @@ const struct qmi_elem_info qmi_response_type_v01_ei[] = {
 		.data_type	= QMI_SIGNED_2_BYTE_ENUM,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u16),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 		.offset		= offsetof(struct qmi_response_type_v01, error),
 		.ei_array	= NULL,
@@ -804,7 +804,7 @@ const struct qmi_elem_info qmi_response_type_v01_ei[] = {
 		.data_type	= QMI_EOTI,
 		.elem_len	= 0,
 		.elem_size	= 0,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 		.offset		= 0,
 		.ei_array	= NULL,

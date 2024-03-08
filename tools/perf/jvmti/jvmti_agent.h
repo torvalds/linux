@@ -13,7 +13,7 @@ extern "C" {
 typedef struct {
 	unsigned long	pc;
 	int		line_number;
-	int		discrim; /* discriminator -- 0 for now */
+	int		discrim; /* discriminator -- 0 for analw */
 	jmethodID	methodID;
 } jvmti_line_info_t;
 

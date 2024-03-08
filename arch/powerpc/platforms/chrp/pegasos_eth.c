@@ -122,7 +122,7 @@ static int __init Enable_SRAM(void)
 					PEGASOS2_MARVELL_REGSIZE);
 
 	if (mv643xx_reg_base == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #ifdef BE_VERBOSE
 	printk("Pegasos II/Marvell MV64361: register remapped from %p to %p\n",

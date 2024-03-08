@@ -15,7 +15,7 @@ dma_addr_t drm_fb_dma_get_gem_addr(struct drm_framebuffer *fb,
 				   struct drm_plane_state *state,
 				   unsigned int plane);
 
-void drm_fb_dma_sync_non_coherent(struct drm_device *drm,
+void drm_fb_dma_sync_analn_coherent(struct drm_device *drm,
 				  struct drm_plane_state *old_state,
 				  struct drm_plane_state *state);
 

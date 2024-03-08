@@ -14,11 +14,11 @@ fi
 
 # check that nc, dd, and timeout are present
 command -v nc >/dev/null 2>&1 || \
-	{ echo >&2 "nc is not available"; exit 1; }
+	{ echo >&2 "nc is analt available"; exit 1; }
 command -v dd >/dev/null 2>&1 || \
-	{ echo >&2 "nc is not available"; exit 1; }
+	{ echo >&2 "nc is analt available"; exit 1; }
 command -v timeout >/dev/null 2>&1 || \
-	{ echo >&2 "timeout is not available"; exit 1; }
+	{ echo >&2 "timeout is analt available"; exit 1; }
 
 readonly NS_SRC="ns-src-$(mktemp -u XXXXXX)"
 readonly NS_DST="ns-dst-$(mktemp -u XXXXXX)"

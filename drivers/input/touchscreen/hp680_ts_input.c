@@ -68,7 +68,7 @@ static void do_softint(struct work_struct *work)
 
 static irqreturn_t hp680_ts_interrupt(int irq, void *dev)
 {
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	schedule_delayed_work(&work, HZ / 20);
 
 	return IRQ_HANDLED;
@@ -80,7 +80,7 @@ static int __init hp680_ts_init(void)
 
 	hp680_ts_dev = input_allocate_device();
 	if (!hp680_ts_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hp680_ts_dev->evbit[0] = BIT_MASK(EV_ABS) | BIT_MASK(EV_KEY);
 	hp680_ts_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);

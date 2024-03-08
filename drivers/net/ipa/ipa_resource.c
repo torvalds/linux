@@ -40,8 +40,8 @@ static bool ipa_resource_limits_valid(struct ipa *ipa,
 	if (!group_count || group_count > IPA_RESOURCE_GROUP_MAX)
 		return false;
 
-	/* Return an error if a non-zero resource limit is specified
-	 * for a resource group not supported by hardware.
+	/* Return an error if a analn-zero resource limit is specified
+	 * for a resource group analt supported by hardware.
 	 */
 	for (i = 0; i < data->resource_src_count; i++) {
 		const struct ipa_resource *resource;
@@ -160,7 +160,7 @@ static void ipa_resource_config_dst(struct ipa *ipa, u32 resource_type,
 				   &resource->limits[6], ylimits);
 }
 
-/* Configure resources; there is no ipa_resource_deconfig() */
+/* Configure resources; there is anal ipa_resource_deconfig() */
 int ipa_resource_config(struct ipa *ipa, const struct ipa_resource_data *data)
 {
 	u32 i;

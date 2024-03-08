@@ -59,7 +59,7 @@
 
 #if defined(CONFIG_PCI_XGENE) || (defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS))
 struct xgene_pcie {
-	struct device_node	*node;
+	struct device_analde	*analde;
 	struct device		*dev;
 	struct clk		*clk;
 	void __iomem		*csr_base;
@@ -172,11 +172,11 @@ static int xgene_pcie_config_read32(struct pci_bus *bus, unsigned int devfn,
 	/*
 	 * The v1 controller has a bug in its Configuration Request Retry
 	 * Status (CRS) logic: when CRS Software Visibility is enabled and
-	 * we read the Vendor and Device ID of a non-existent device, the
+	 * we read the Vendor and Device ID of a analn-existent device, the
 	 * controller fabricates return data of 0xFFFF0001 ("device exists
-	 * but is not ready") instead of 0xFFFFFFFF (PCI_ERROR_RESPONSE)
-	 * ("device does not exist").  This causes the PCI core to retry
-	 * the read until it times out.  Avoid this by not claiming to
+	 * but is analt ready") instead of 0xFFFFFFFF (PCI_ERROR_RESPONSE)
+	 * ("device does analt exist").  This causes the PCI core to retry
+	 * the read until it times out.  Avoid this by analt claiming to
 	 * support CRS SV.
 	 */
 	if (pci_is_root_bus(bus) && (port->version == XGENE_PCIE_IP_VER_1) &&
@@ -212,11 +212,11 @@ static int xgene_get_csr_resource(struct acpi_device *adev,
 	}
 
 	if (ret == 0) {
-		dev_err(dev, "no IO and memory resources present in _CRS\n");
+		dev_err(dev, "anal IO and memory resources present in _CRS\n");
 		return -EINVAL;
 	}
 
-	entry = list_first_entry(&list, struct resource_entry, node);
+	entry = list_first_entry(&list, struct resource_entry, analde);
 	*res = *entry->res;
 	acpi_dev_free_resource_list(&list);
 	return 0;
@@ -232,7 +232,7 @@ static int xgene_pcie_ecam_init(struct pci_config_window *cfg, u32 ipversion)
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = xgene_get_csr_resource(adev, &csr);
 	if (ret) {
@@ -328,8 +328,8 @@ static int xgene_pcie_init_port(struct xgene_pcie *port)
 
 	port->clk = clk_get(dev, NULL);
 	if (IS_ERR(port->clk)) {
-		dev_err(dev, "clock not available\n");
-		return -ENODEV;
+		dev_err(dev, "clock analt available\n");
+		return -EANALDEV;
 	}
 
 	rc = clk_prepare_enable(port->clk);
@@ -529,7 +529,7 @@ static void xgene_pcie_setup_ib_reg(struct xgene_pcie *port,
 
 static int xgene_pcie_parse_map_dma_ranges(struct xgene_pcie *port)
 {
-	struct device_node *np = port->node;
+	struct device_analde *np = port->analde;
 	struct of_pci_range range;
 	struct of_pci_range_parser parser;
 	struct device *dev = port->dev;
@@ -597,22 +597,22 @@ static struct pci_ops xgene_pcie_ops = {
 static int xgene_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node;
+	struct device_analde *dn = dev->of_analde;
 	struct xgene_pcie *port;
 	struct pci_host_bridge *bridge;
 	int ret;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*port));
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port = pci_host_bridge_priv(bridge);
 
-	port->node = of_node_get(dn);
+	port->analde = of_analde_get(dn);
 	port->dev = dev;
 
 	port->version = XGENE_PCIE_IP_VER_UNKN;
-	if (of_device_is_compatible(port->node, "apm,xgene-pcie"))
+	if (of_device_is_compatible(port->analde, "apm,xgene-pcie"))
 		port->version = XGENE_PCIE_IP_VER_1;
 
 	ret = xgene_pcie_map_reg(port, pdev);

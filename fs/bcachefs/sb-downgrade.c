@@ -22,7 +22,7 @@
 #define UPGRADE_TABLE()						\
 	x(backpointers,						\
 	  RECOVERY_PASS_ALL_FSCK)				\
-	x(inode_v3,						\
+	x(ianalde_v3,						\
 	  RECOVERY_PASS_ALL_FSCK)				\
 	x(unwritten_extents,					\
 	  RECOVERY_PASS_ALL_FSCK)				\
@@ -33,7 +33,7 @@
 	  RECOVERY_PASS_ALL_FSCK)				\
 	x(fragmentation_lru,					\
 	  RECOVERY_PASS_ALL_FSCK)				\
-	x(no_bps_in_alloc_keys,					\
+	x(anal_bps_in_alloc_keys,					\
 	  RECOVERY_PASS_ALL_FSCK)				\
 	x(snapshot_trees,					\
 	  RECOVERY_PASS_ALL_FSCK)				\
@@ -41,9 +41,9 @@
 	  BIT_ULL(BCH_RECOVERY_PASS_check_snapshots),		\
 	  BCH_FSCK_ERR_snapshot_bad_depth,			\
 	  BCH_FSCK_ERR_snapshot_bad_skiplist)			\
-	x(deleted_inodes,					\
-	  BIT_ULL(BCH_RECOVERY_PASS_check_inodes),		\
-	  BCH_FSCK_ERR_unlinked_inode_not_on_deleted_list)	\
+	x(deleted_ianaldes,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_ianaldes),		\
+	  BCH_FSCK_ERR_unlinked_ianalde_analt_on_deleted_list)	\
 	x(rebalance_work,					\
 	  BIT_ULL(BCH_RECOVERY_PASS_set_fs_needs_rebalance))
 
@@ -174,7 +174,7 @@ static void bch2_sb_downgrade_to_text(struct printbuf *out, struct bch_sb *sb,
 				prt_char(out, ',');
 			first = false;
 			unsigned e = le16_to_cpu(i->errors[j]);
-			prt_str(out, e < BCH_SB_ERR_MAX ? bch2_sb_error_strs[e] : "(unknown)");
+			prt_str(out, e < BCH_SB_ERR_MAX ? bch2_sb_error_strs[e] : "(unkanalwn)");
 		}
 		prt_newline(out);
 	}
@@ -223,7 +223,7 @@ int bch2_sb_downgrade_update(struct bch_fs *c)
 
 	d = bch2_sb_field_resize(&c->disk_sb, downgrade, sb_u64s);
 	if (!d) {
-		ret = -BCH_ERR_ENOSPC_sb_downgrade;
+		ret = -BCH_ERR_EANALSPC_sb_downgrade;
 		goto out;
 	}
 
@@ -234,7 +234,7 @@ out:
 	return ret;
 }
 
-void bch2_sb_set_downgrade(struct bch_fs *c, unsigned new_minor, unsigned old_minor)
+void bch2_sb_set_downgrade(struct bch_fs *c, unsigned new_mianalr, unsigned old_mianalr)
 {
 	struct bch_sb_field_downgrade *d = bch2_sb_field_get(c->disk_sb.sb, downgrade);
 	if (!d)
@@ -243,8 +243,8 @@ void bch2_sb_set_downgrade(struct bch_fs *c, unsigned new_minor, unsigned old_mi
 	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
 
 	for_each_downgrade_entry(d, i) {
-		unsigned minor = BCH_VERSION_MINOR(le16_to_cpu(i->version));
-		if (new_minor < minor && minor <= old_minor) {
+		unsigned mianalr = BCH_VERSION_MIANALR(le16_to_cpu(i->version));
+		if (new_mianalr < mianalr && mianalr <= old_mianalr) {
 			ext->recovery_passes_required[0] |= i->recovery_passes[0];
 			ext->recovery_passes_required[1] |= i->recovery_passes[1];
 

@@ -15,19 +15,19 @@
 
 #define HDMI_NV_PDISP_SOR_STATE1				0x02
 #define SOR_STATE_ASY_HEAD_OPMODE_AWAKE (2 << 0)
-#define SOR_STATE_ASY_ORMODE_NORMAL     (1 << 2)
+#define SOR_STATE_ASY_ORMODE_ANALRMAL     (1 << 2)
 #define SOR_STATE_ATTACHED              (1 << 3)
 
 #define HDMI_NV_PDISP_SOR_STATE2				0x03
-#define SOR_STATE_ASY_OWNER_NONE         (0 <<  0)
+#define SOR_STATE_ASY_OWNER_ANALNE         (0 <<  0)
 #define SOR_STATE_ASY_OWNER_HEAD0        (1 <<  0)
-#define SOR_STATE_ASY_SUBOWNER_NONE      (0 <<  4)
+#define SOR_STATE_ASY_SUBOWNER_ANALNE      (0 <<  4)
 #define SOR_STATE_ASY_SUBOWNER_SUBHEAD0  (1 <<  4)
 #define SOR_STATE_ASY_SUBOWNER_SUBHEAD1  (2 <<  4)
 #define SOR_STATE_ASY_SUBOWNER_BOTH      (3 <<  4)
 #define SOR_STATE_ASY_CRCMODE_ACTIVE     (0 <<  6)
 #define SOR_STATE_ASY_CRCMODE_COMPLETE   (1 <<  6)
-#define SOR_STATE_ASY_CRCMODE_NON_ACTIVE (2 <<  6)
+#define SOR_STATE_ASY_CRCMODE_ANALN_ACTIVE (2 <<  6)
 #define SOR_STATE_ASY_PROTOCOL_SINGLE_TMDS_A (1 << 8)
 #define SOR_STATE_ASY_PROTOCOL_CUSTOM        (15 << 8)
 #define SOR_STATE_ASY_HSYNCPOL_POS       (0 << 12)
@@ -151,10 +151,10 @@
 #define HDMI_NV_PDISP_HDMI_HDCPRIF_ROM_CTRL			0x53
 #define HDMI_NV_PDISP_SOR_CAP					0x54
 #define HDMI_NV_PDISP_SOR_PWR					0x55
-#define SOR_PWR_NORMAL_STATE_PD     (0 <<  0)
-#define SOR_PWR_NORMAL_STATE_PU     (1 <<  0)
-#define SOR_PWR_NORMAL_START_NORMAL (0 <<  1)
-#define SOR_PWR_NORMAL_START_ALT    (1 <<  1)
+#define SOR_PWR_ANALRMAL_STATE_PD     (0 <<  0)
+#define SOR_PWR_ANALRMAL_STATE_PU     (1 <<  0)
+#define SOR_PWR_ANALRMAL_START_ANALRMAL (0 <<  1)
+#define SOR_PWR_ANALRMAL_START_ALT    (1 <<  1)
 #define SOR_PWR_SAFE_STATE_PD       (0 << 16)
 #define SOR_PWR_SAFE_STATE_PU       (1 << 16)
 #define SOR_PWR_SETTING_NEW_DONE    (0 << 31)
@@ -397,7 +397,7 @@
 #define HDMI_NV_PDISP_AUDIO_N					0x8c
 #define AUDIO_N_VALUE(x)           (((x) & 0xfffff) << 0)
 #define AUDIO_N_RESETF             (1 << 20)
-#define AUDIO_N_GENERATE_NORMAL    (0 << 24)
+#define AUDIO_N_GENERATE_ANALRMAL    (0 << 24)
 #define AUDIO_N_GENERATE_ALTERNATE (1 << 24)
 
 #define HDMI_NV_PDISP_HDCPRIF_ROM_TIMING			0x94

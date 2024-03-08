@@ -103,11 +103,11 @@ struct pcm_vol {
 
 /* Structs */
 typedef struct {
-	//int this_08;          /* Still unknown */
+	//int this_08;          /* Still unkanalwn */
 	int fifo_enabled;	/* this_24 */
 	int fifo_status;	/* this_1c */
 	u32 dma_ctrl;		/* this_78 (ADB), this_7c (WT) */
-	int dma_unknown;	/* this_74 (ADB), this_78 (WT). WDM: +8 */
+	int dma_unkanalwn;	/* this_74 (ADB), this_78 (WT). WDM: +8 */
 	int cfg0;
 	int cfg1;
 
@@ -235,7 +235,7 @@ static int vortex_alsafmt_aspfmt(snd_pcm_format_t alsafmt, vortex_t *v);
 static void vortex_connect_default(vortex_t * vortex, int en);
 static int vortex_adb_allocroute(vortex_t * vortex, int dma, int nr_ch,
 				 int dir, int type, int subdev);
-static int vortex_adb_checkinout(vortex_t * vortex, int resmap[], int out,
+static int vortex_adb_checkianalut(vortex_t * vortex, int resmap[], int out,
 				 int restype);
 #ifndef CHIP_AU8810
 static int vortex_wt_allocroute(vortex_t * vortex, int dma, int nr_ch);

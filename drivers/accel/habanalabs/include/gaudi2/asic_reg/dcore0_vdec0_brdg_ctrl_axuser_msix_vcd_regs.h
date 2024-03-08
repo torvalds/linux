@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DCORE0_VDEC0_BRDG_CTRL_AXUSER_MSIX_VCD_REGS_H_
@@ -26,7 +26,7 @@
 
 #define mmDCORE0_VDEC0_BRDG_CTRL_AXUSER_MSIX_VCD_HB_STRONG_ORDER 0x41E3808
 
-#define mmDCORE0_VDEC0_BRDG_CTRL_AXUSER_MSIX_VCD_HB_NO_SNOOP 0x41E380C
+#define mmDCORE0_VDEC0_BRDG_CTRL_AXUSER_MSIX_VCD_HB_ANAL_SANALOP 0x41E380C
 
 #define mmDCORE0_VDEC0_BRDG_CTRL_AXUSER_MSIX_VCD_HB_WR_REDUCTION 0x41E3810
 

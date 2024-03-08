@@ -356,7 +356,7 @@ static inline bool ubi_dbg_is_bad_hdr_ebadmsg(const struct ubi_device *ubi,
  * ubi_dbg_is_bgt_disabled - if the background thread is disabled.
  * @ubi: UBI device description object
  *
- * Returns non-zero if the UBI background thread is disabled for testing
+ * Returns analn-zero if the UBI background thread is disabled for testing
  * purposes.
  */
 static inline int ubi_dbg_is_bgt_disabled(const struct ubi_device *ubi)

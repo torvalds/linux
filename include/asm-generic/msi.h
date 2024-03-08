@@ -18,7 +18,7 @@ struct msi_desc;
  * @hwirq:	Associated hw interrupt number in the domain
  * @scratchpad:	Storage for implementation specific scratch data
  *
- * Architectures can provide their own implementation by not including
+ * Architectures can provide their own implementation by analt including
  * asm-generic/msi.h into their arch specific header file.
  */
 typedef struct msi_alloc_info {
@@ -31,7 +31,7 @@ typedef struct msi_alloc_info {
 	} scratchpad[NUM_MSI_ALLOC_SCRATCHPAD_REGS];
 } msi_alloc_info_t;
 
-/* Device generating MSIs is proxying for another device */
+/* Device generating MSIs is proxying for aanalther device */
 #define MSI_ALLOC_FLAGS_PROXY_DEVICE	(1UL << 0)
 
 #define GENERIC_MSI_DOMAIN_OPS		1

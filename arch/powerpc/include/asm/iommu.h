@@ -37,7 +37,7 @@ extern int iommu_force_on;
 
 struct iommu_table_ops {
 	/*
-	 * When called with direction==DMA_NONE, it is equal to clear().
+	 * When called with direction==DMA_ANALNE, it is equal to clear().
 	 * uaddr is a linear map address.
 	 */
 	int (*set)(struct iommu_table *tbl,
@@ -51,7 +51,7 @@ struct iommu_table_ops {
 	 * returns old TCE and DMA direction mask.
 	 * @tce is a physical address.
 	 */
-	int (*xchg_no_kill)(struct iommu_table *tbl,
+	int (*xchg_anal_kill)(struct iommu_table *tbl,
 			long index,
 			unsigned long *hpa,
 			enum dma_data_direction *direction);
@@ -92,7 +92,7 @@ struct iommu_pool {
 } ____cacheline_aligned_in_smp;
 
 struct iommu_table {
-	unsigned long  it_busno;     /* Bus number this table belongs to */
+	unsigned long  it_busanal;     /* Bus number this table belongs to */
 	unsigned long  it_size;      /* Size of iommu table in entries */
 	unsigned long  it_indirect_levels;
 	unsigned long  it_level_size;
@@ -106,14 +106,14 @@ struct iommu_table {
 	unsigned long  nr_pools;
 	struct iommu_pool large_pool;
 	struct iommu_pool pools[IOMMU_NR_POOLS];
-	unsigned long *it_map;       /* A simple allocation bitmap for now */
+	unsigned long *it_map;       /* A simple allocation bitmap for analw */
 	unsigned long  it_page_shift;/* table iommu page size */
 	struct list_head it_group_list;/* List of iommu_table_group_link */
 	__be64 *it_userspace; /* userspace view of the table */
 	struct iommu_table_ops *it_ops;
 	struct kref    it_kref;
 	int it_nid;
-	unsigned long it_reserved_start; /* Start of not-DMA-able (MMIO) area */
+	unsigned long it_reserved_start; /* Start of analt-DMA-able (MMIO) area */
 	unsigned long it_reserved_end;
 };
 
@@ -211,7 +211,7 @@ extern int iommu_add_device(struct iommu_table_group *table_group,
 extern long iommu_tce_xchg(struct mm_struct *mm, struct iommu_table *tbl,
 		unsigned long entry, unsigned long *hpa,
 		enum dma_data_direction *direction);
-extern long iommu_tce_xchg_no_kill(struct mm_struct *mm,
+extern long iommu_tce_xchg_anal_kill(struct mm_struct *mm,
 		struct iommu_table *tbl,
 		unsigned long entry, unsigned long *hpa,
 		enum dma_data_direction *direction);
@@ -261,7 +261,7 @@ extern void ppc_iommu_unmap_sg(struct iommu_table *tbl,
 
 extern void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 				  size_t size, dma_addr_t *dma_handle,
-				  unsigned long mask, gfp_t flag, int node);
+				  unsigned long mask, gfp_t flag, int analde);
 extern void iommu_free_coherent(struct iommu_table *tbl, size_t size,
 				void *vaddr, dma_addr_t dma_handle);
 extern dma_addr_t iommu_map_page(struct device *dev, struct iommu_table *tbl,

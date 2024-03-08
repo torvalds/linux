@@ -29,13 +29,13 @@ static DEFINE_MUTEX(reg_lock);
 static int reg_refcount; /* Protected by reg_lock. */
 
 /*
- * Size of the buffer for memcg path names. Ignoring stack trace support,
+ * Size of the buffer for memcg path names. Iganalring stack trace support,
  * trace_events_hist.c uses MAX_FILTER_STR_VAL for this, so we also use it.
  */
 #define MEMCG_PATH_BUF_SIZE MAX_FILTER_STR_VAL
 
 /*
- * How many contexts our trace events might be called in: normal, softirq, irq,
+ * How many contexts our trace events might be called in: analrmal, softirq, irq,
  * and NMI.
  */
 #define CONTEXT_COUNT 4
@@ -113,7 +113,7 @@ out_fail:
 	--reg_refcount;
 
 	mutex_unlock(&reg_lock);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void trace_mmap_lock_unreg(void)
@@ -186,14 +186,14 @@ void trace_mmap_lock_unreg(void)
 #ifdef CONFIG_MEMCG
 /*
  * Write the given mm_struct's memcg path to a percpu buffer, and return a
- * pointer to it. If the path cannot be determined, or no buffer was available
+ * pointer to it. If the path cananalt be determined, or anal buffer was available
  * (because the trace event is being unregistered), NULL is returned.
  *
- * Note: buffers are allocated per-cpu to avoid locking, so preemption must be
+ * Analte: buffers are allocated per-cpu to avoid locking, so preemption must be
  * disabled by the caller before calling us, and re-enabled only after the
  * caller is done with the pointer.
  *
- * The caller must call put_memcg_path_buf() once the buffer is no longer
+ * The caller must call put_memcg_path_buf() once the buffer is anal longer
  * needed. This must be done while preemption is still disabled.
  */
 static const char *get_mm_memcg_path(struct mm_struct *mm)

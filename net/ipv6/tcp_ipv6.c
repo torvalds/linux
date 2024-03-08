@@ -21,7 +21,7 @@
 
 #include <linux/bottom_half.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -152,7 +152,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		return -EINVAL;
 
 	if (usin->sin6_family != AF_INET6)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	memset(&fl6, 0, sizeof(fl6));
 
@@ -392,12 +392,12 @@ static int tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (!sk) {
 		__ICMP6_INC_STATS(net, __in6_dev_get(skb->dev),
 				  ICMP6_MIB_INERRORS);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (sk->sk_state == TCP_TIME_WAIT) {
-		/* To increase the counter of ignored icmps for TCP-AO */
-		tcp_ao_ignore_icmp(sk, AF_INET6, type, code);
+		/* To increase the counter of iganalred icmps for TCP-AO */
+		tcp_ao_iganalre_icmp(sk, AF_INET6, type, code);
 		inet_twsk_put(inet_twsk(sk));
 		return 0;
 	}
@@ -408,7 +408,7 @@ static int tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		return 0;
 	}
 
-	if (tcp_ao_ignore_icmp(sk, AF_INET6, type, code)) {
+	if (tcp_ao_iganalre_icmp(sk, AF_INET6, type, code)) {
 		sock_put(sk);
 		return 0;
 	}
@@ -453,7 +453,7 @@ static int tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (type == ICMPV6_PKT_TOOBIG) {
 		u32 mtu = ntohl(info);
 
-		/* We are not interested in TCP_LISTEN and open_requests
+		/* We are analt interested in TCP_LISTEN and open_requests
 		 * (SYN-ACKs send out by Linux are always <576bytes so
 		 * they should go through unfragmented).
 		 */
@@ -505,7 +505,7 @@ static int tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		 * (see RFC 6069)
 		 */
 		if (!fastopen && type == ICMPV6_DEST_UNREACH &&
-		    code == ICMPV6_NOROUTE)
+		    code == ICMPV6_ANALROUTE)
 			tcp_ld_RTO_revert(sk, seq);
 	}
 
@@ -534,7 +534,7 @@ static int tcp_v6_send_synack(const struct sock *sk, struct dst_entry *dst,
 	struct ipv6_txoptions *opt;
 	struct flowi6 *fl6 = &fl->u.ip6;
 	struct sk_buff *skb;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	u8 tclass;
 
 	/* First, grab a route. */
@@ -645,8 +645,8 @@ static int tcp_v6_parse_md5_keys(struct sock *sk, int optname,
 			l3index = dev->ifindex;
 		rcu_read_unlock();
 
-		/* ok to reference set/not set outside of rcu;
-		 * right now device MUST be an L3 master
+		/* ok to reference set/analt set outside of rcu;
+		 * right analw device MUST be an L3 master
 		 */
 		if (!dev || !l3index)
 			return -EINVAL;
@@ -723,7 +723,7 @@ static int tcp_v6_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
 	struct tcp_sigpool hp;
 
 	if (tcp_sigpool_start(tcp_md5_sigpool_id, &hp))
-		goto clear_hash_nostart;
+		goto clear_hash_analstart;
 
 	if (crypto_ahash_init(hp.req))
 		goto clear_hash;
@@ -740,7 +740,7 @@ static int tcp_v6_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
 
 clear_hash:
 	tcp_sigpool_end(&hp);
-clear_hash_nostart:
+clear_hash_analstart:
 	memset(md5_hash, 0, 16);
 	return 1;
 }
@@ -764,7 +764,7 @@ static int tcp_v6_md5_hash_skb(char *md5_hash,
 	}
 
 	if (tcp_sigpool_start(tcp_md5_sigpool_id, &hp))
-		goto clear_hash_nostart;
+		goto clear_hash_analstart;
 
 	if (crypto_ahash_init(hp.req))
 		goto clear_hash;
@@ -784,7 +784,7 @@ static int tcp_v6_md5_hash_skb(char *md5_hash,
 
 clear_hash:
 	tcp_sigpool_end(&hp);
-clear_hash_nostart:
+clear_hash_analstart:
 	memset(md5_hash, 0, 16);
 	return 1;
 }
@@ -915,7 +915,7 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 	topt = (__be32 *)(t1 + 1);
 
 	if (tsecr) {
-		*topt++ = htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
+		*topt++ = htonl((TCPOPT_ANALP << 24) | (TCPOPT_ANALP << 16) |
 				(TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP);
 		*topt++ = htonl(tsval);
 		*topt++ = htonl(tsecr);
@@ -926,7 +926,7 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 
 #ifdef CONFIG_TCP_MD5SIG
 	if (tcp_key_is_md5(key)) {
-		*topt++ = htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
+		*topt++ = htonl((TCPOPT_ANALP << 24) | (TCPOPT_ANALP << 16) |
 				(TCPOPT_MD5SIG << 8) | TCPOLEN_MD5SIG);
 		tcp_v6_md5_hash_hdr((__u8 *)topt, key->md5_key,
 				    &ipv6_hdr(skb)->saddr,
@@ -1030,7 +1030,7 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 	if (th->rst)
 		return;
 
-	/* If sk not NULL, it means we did a successful lookup and incoming
+	/* If sk analt NULL, it means we did a successful lookup and incoming
 	 * route had to be correct. prequeue might have dropped our dst.
 	 */
 	if (!sk && !ipv6_unicast_destination(skb))
@@ -1062,9 +1062,9 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 		/*
 		 * active side is lost. Try to find listening socket through
 		 * source port, and then find md5 key through listening socket.
-		 * we are not loose security here:
+		 * we are analt loose security here:
 		 * Incoming packet is checked with md5 hash with finding key,
-		 * no RST generated if md5 hash doesn't match.
+		 * anal RST generated if md5 hash doesn't match.
 		 */
 		sk1 = inet6_lookup_listener(net, net->ipv4.tcp_death_row.hashinfo,
 					    NULL, 0, &ipv6h->saddr, th->source,
@@ -1159,7 +1159,7 @@ static void tcp_v6_timewait_ack(struct sock *sk, struct sk_buff *skb)
 
 	if (static_branch_unlikely(&tcp_ao_needed.key)) {
 
-		/* FIXME: the segment to-be-acked is not verified yet */
+		/* FIXME: the segment to-be-acked is analt verified yet */
 		ao_info = rcu_dereference(tcptw->ao_info);
 		if (ao_info) {
 			const struct tcp_ao_hdr *aoh;
@@ -1403,14 +1403,14 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 			newnp->flow_label = 0;
 
 		/*
-		 * No need to charge this sock to the relevant IPv6 refcnt debug socks count
-		 * here, tcp_create_openreq_child now does this for us, see the comment in
+		 * Anal need to charge this sock to the relevant IPv6 refcnt debug socks count
+		 * here, tcp_create_openreq_child analw does this for us, see the comment in
 		 * that function for the gory details. -acme
 		 */
 
 		/* It is tricky place. Until this moment IPv4 tcp
 		   worked with IPv6 icsk.icsk_af_ops.
-		   Sync it now.
+		   Sync it analw.
 		 */
 		tcp_sync_mss(newsk, inet_csk(newsk)->icsk_pmtu_cookie);
 
@@ -1430,11 +1430,11 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 
 	newsk = tcp_create_openreq_child(sk, req, skb);
 	if (!newsk)
-		goto out_nonewsk;
+		goto out_analnewsk;
 
 	/*
-	 * No need to charge this sock to the relevant IPv6 refcnt debug socks
-	 * count here, tcp_create_openreq_child now does this for us, see the
+	 * Anal need to charge this sock to the relevant IPv6 refcnt debug socks
+	 * count here, tcp_create_openreq_child analw does this for us, see the
 	 * comment in that function for the gory details. -acme
 	 */
 
@@ -1455,9 +1455,9 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 	newsk->sk_v6_rcv_saddr = ireq->ir_v6_loc_addr;
 	newsk->sk_bound_dev_if = ireq->ir_iif;
 
-	/* Now IPv6 options...
+	/* Analw IPv6 options...
 
-	   First: no IPv4 options.
+	   First: anal IPv4 options.
 	 */
 	newinet->inet_opt = NULL;
 	newnp->ipv6_mc_list = NULL;
@@ -1483,7 +1483,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 
 	/* Clone native IPv6 options from listening socket (if any)
 
-	   Yes, keeping reference count would be much more clever,
+	   Anal, keeping reference count would be much more clever,
 	   but we make one more one thing there: reattach optmem
 	   to newsk.
 	 */
@@ -1538,7 +1538,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 		tcp_done(newsk);
 		goto out;
 	}
-	*own_req = inet_ehash_nolisten(newsk, req_to_sk(req_unhash),
+	*own_req = inet_ehash_anallisten(newsk, req_to_sk(req_unhash),
 				       &found_dup_sk);
 	if (*own_req) {
 		tcp_move_syn(newtp, req);
@@ -1565,8 +1565,8 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 	return newsk;
 
 out_overflow:
-	__NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
-out_nonewsk:
+	__NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTEANALVERFLOWS);
+out_analnewsk:
 	dst_release(dst);
 out:
 	tcp_listendrop(sk);
@@ -1580,7 +1580,7 @@ INDIRECT_CALLABLE_DECLARE(struct dst_entry *ipv4_dst_check(struct dst_entry *,
  *
  * We have a potential double-lock case here, so even when
  * doing backlog processing we use the BH locking scheme.
- * This is because we cannot sleep with the original spinlock
+ * This is because we cananalt sleep with the original spinlock
  * held.
  */
 INDIRECT_CALLABLE_SCOPE
@@ -1595,7 +1595,7 @@ int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	   goes to IPv4 receive handler and backlogged.
 	   From backlog it always goes here. Kerboom...
 	   Fortunately, tcp_rcv_established and rcv_established
-	   handle them correctly, but it is not case with
+	   handle them correctly, but it is analt case with
 	   tcp_v6_hnd_req and tcp_v6_send_reset().   --ANK
 	 */
 
@@ -1609,13 +1609,13 @@ int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 
 	/* Do Stevens' IPV6_PKTOPTIONS.
 
-	   Yes, guys, it is the only place in our code, where we
-	   may make it not affecting IPv4.
+	   Anal, guys, it is the only place in our code, where we
+	   may make it analt affecting IPv4.
 	   The rest of code is protocol independent,
-	   and I do not like idea to uglify IPv4.
+	   and I do analt like idea to uglify IPv4.
 
 	   Actually, all the idea behind IPV6_PKTOPTIONS
-	   looks not very well thought. For now we latch
+	   looks analt very well thought. For analw we latch
 	   options, received in the last packet, enqueued
 	   by tcp. Feel free to propose better solution.
 					       --ANK (980728)
@@ -1623,7 +1623,7 @@ int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	if (np->rxopt.all)
 		opt_skb = skb_clone_and_charge_r(skb, sk);
 
-	reason = SKB_DROP_REASON_NOT_SPECIFIED;
+	reason = SKB_DROP_REASON_ANALT_SPECIFIED;
 	if (sk->sk_state == TCP_ESTABLISHED) { /* Fast path */
 		struct dst_entry *dst;
 
@@ -1692,7 +1692,7 @@ ipv6_pktoptions:
 
 	   1. skb was enqueued by tcp.
 	   2. skb is added to tail of read queue, rather than out of order.
-	   3. socket is not in passive state.
+	   3. socket is analt in passive state.
 	   4. Finally, it really contains options, which user wants to receive.
 	 */
 	tp = tcp_sk(sk);
@@ -1756,7 +1756,7 @@ INDIRECT_CALLABLE_SCOPE int tcp_v6_rcv(struct sk_buff *skb)
 	int ret;
 	struct net *net = dev_net(skb->dev);
 
-	drop_reason = SKB_DROP_REASON_NOT_SPECIFIED;
+	drop_reason = SKB_DROP_REASON_ANALT_SPECIFIED;
 	if (skb->pkt_type != PACKET_HOST)
 		goto discard_it;
 
@@ -1788,7 +1788,7 @@ lookup:
 				th->source, th->dest, inet6_iif(skb), sdif,
 				&refcounted);
 	if (!sk)
-		goto no_tcp_socket;
+		goto anal_tcp_socket;
 
 process:
 	if (sk->sk_state == TCP_TIME_WAIT)
@@ -1841,7 +1841,7 @@ process:
 		if (!nsk) {
 			reqsk_put(req);
 			if (req_stolen) {
-				/* Another cpu got exclusive access to req
+				/* Aanalther cpu got exclusive access to req
 				 * and created a full blown socket.
 				 * Try to feed this packet to this socket
 				 * instead of discarding it.
@@ -1918,8 +1918,8 @@ put_and_return:
 		sock_put(sk);
 	return ret ? -1 : 0;
 
-no_tcp_socket:
-	drop_reason = SKB_DROP_REASON_NO_SOCKET;
+anal_tcp_socket:
+	drop_reason = SKB_DROP_REASON_ANAL_SOCKET;
 	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb))
 		goto discard_it;
 
@@ -1937,7 +1937,7 @@ bad_packet:
 	}
 
 discard_it:
-	SKB_DR_OR(drop_reason, NOT_SPECIFIED);
+	SKB_DR_OR(drop_reason, ANALT_SPECIFIED);
 	kfree_skb_reason(skb, drop_reason);
 	return 0;
 
@@ -2016,7 +2016,7 @@ void tcp_v6_early_demux(struct sk_buff *skb)
 	if (th->doff < sizeof(struct tcphdr) / 4)
 		return;
 
-	/* Note : We use inet6_iif() here, not tcp_v6_iif() */
+	/* Analte : We use inet6_iif() here, analt tcp_v6_iif() */
 	sk = __inet6_lookup_established(net, net->ipv4.tcp_death_row.hashinfo,
 					&hdr->saddr, th->source,
 					&hdr->daddr, ntohs(th->dest),
@@ -2031,7 +2031,7 @@ void tcp_v6_early_demux(struct sk_buff *skb)
 				dst = dst_check(dst, sk->sk_rx_dst_cookie);
 			if (dst &&
 			    sk->sk_rx_dst_ifindex == skb->skb_iif)
-				skb_dst_set_noref(skb, dst);
+				skb_dst_set_analref(skb, dst);
 		}
 	}
 }
@@ -2112,8 +2112,8 @@ static const struct tcp_sock_af_ops tcp_sock_ipv6_mapped_specific = {
 };
 #endif
 
-/* NOTE: A lot of things set to zero explicitly by call to
- *       sk_alloc() so need not be done here.
+/* ANALTE: A lot of things set to zero explicitly by call to
+ *       sk_alloc() so need analt be done here.
  */
 static int tcp_v6_init_sock(struct sock *sk)
 {
@@ -2159,8 +2159,8 @@ static void get_openreq6(struct seq_file *seq,
 		   req->num_timeout,
 		   from_kuid_munged(seq_user_ns(seq),
 				    sock_i_uid(req->rsk_listener)),
-		   0,  /* non standard timer */
-		   0, /* open_requests have no inode */
+		   0,  /* analn standard timer */
+		   0, /* open_requests have anal ianalde */
 		   0, req);
 }
 
@@ -2224,7 +2224,7 @@ static void get_tcp6_sock(struct seq_file *seq, struct sock *sp, int i)
 		   icsk->icsk_retransmits,
 		   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sp)),
 		   icsk->icsk_probes_out,
-		   sock_i_ino(sp),
+		   sock_i_ianal(sp),
 		   refcount_read(&sp->sk_refcnt), sp,
 		   jiffies_to_clock_t(icsk->icsk_rto),
 		   jiffies_to_clock_t(icsk->icsk_ack.ato),
@@ -2272,7 +2272,7 @@ static int tcp6_seq_show(struct seq_file *seq, void *v)
 			 "local_address                         "
 			 "remote_address                        "
 			 "st tx_queue rx_queue tr tm->when retrnsmt"
-			 "   uid  timeout inode\n");
+			 "   uid  timeout ianalde\n");
 		goto out;
 	}
 	st = seq->private;
@@ -2302,7 +2302,7 @@ int __net_init tcp6_proc_init(struct net *net)
 {
 	if (!proc_create_net_data("tcp6", 0444, net->proc_net, &tcp6_seq_ops,
 			sizeof(struct tcp_iter_state), &tcp6_seq_afinfo))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -2360,7 +2360,7 @@ struct proto tcpv6_prot = {
 	.twsk_prot		= &tcp6_timewait_sock_ops,
 	.rsk_prot		= &tcp6_request_sock_ops,
 	.h.hashinfo		= NULL,
-	.no_autobind		= true,
+	.anal_autobind		= true,
 	.diag_destroy		= tcp_abort,
 };
 EXPORT_SYMBOL_GPL(tcpv6_prot);
@@ -2368,7 +2368,7 @@ EXPORT_SYMBOL_GPL(tcpv6_prot);
 static const struct inet6_protocol tcpv6_protocol = {
 	.handler	=	tcp_v6_rcv,
 	.err_handler	=	tcp_v6_err,
-	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
+	.flags		=	INET6_PROTO_ANALPOLICY|INET6_PROTO_FINAL,
 };
 
 static struct inet_protosw tcpv6_protosw = {

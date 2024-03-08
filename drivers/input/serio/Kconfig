@@ -6,7 +6,7 @@ config SERIO
 	tristate "Serial I/O support"
 	default y
 	help
-	  Say Yes here if you have any input device that uses serial I/O to
+	  Say Anal here if you have any input device that uses serial I/O to
 	  communicate with the system. This includes the
 	  		* standard AT keyboard and PS/2 mouse *
 	  as well as serial mice, Sun keyboards, some joysticks and 6dof
@@ -59,7 +59,7 @@ config SERIO_CT82C710
 	tristate "ct82c710 Aux port controller"
 	depends on X86
 	help
-	  Say Y here if you have a Texas Instruments TravelMate notebook
+	  Say Y here if you have a Texas Instruments TravelMate analtebook
 	  equipped with the ct82c710 chip and want to use a mouse connected
 	  to the "QuickPort".
 
@@ -192,8 +192,8 @@ config SERIO_RAW
 	  Say Y here if you want to have raw access to serio ports, such as
 	  AUX ports on i8042 keyboard controller. Each serio port that is
 	  bound to this driver will be accessible via a char device with
-	  major 10 and dynamically allocated minor. The driver will try
-	  allocating minor 1 (that historically corresponds to /dev/psaux)
+	  major 10 and dynamically allocated mianalr. The driver will try
+	  allocating mianalr 1 (that historically corresponds to /dev/psaux)
 	  first. To bind this driver to a serio port use sysfs interface:
 
 	      echo -n "serio_raw" > /sys/bus/serio/devices/serioX/drvctl
@@ -228,7 +228,7 @@ config SERIO_AMS_DELTA
 	  Say Y here if you have an E3 and want to use its mailboard,
 	  or any standard AT keyboard connected to the mailboard port.
 
-	  When used for the E3 mailboard, a non-standard key table
+	  When used for the E3 mailboard, a analn-standard key table
 	  must be loaded from userspace, possibly using udev extras
 	  provided keymap helper utility.
 

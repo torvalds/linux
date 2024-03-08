@@ -82,7 +82,7 @@ static int plpks_get_variable(const char *key, u64 key_len, u8 *data,
 	// null terminator at the end of the string
 	var.name = kcalloc(key_len - 1, sizeof(wchar_t), GFP_KERNEL);
 	if (!var.name)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = utf8s_to_utf16s(key, key_len - 1, UTF16_LITTLE_ENDIAN, (wchar_t *)var.name,
 			     key_len - 1);
 	if (rc < 0)
@@ -103,7 +103,7 @@ static int plpks_get_variable(const char *key, u64 key_len, u8 *data,
 
 err:
 	kfree(var.name);
-	if (rc && rc != -ENOENT) {
+	if (rc && rc != -EANALENT) {
 		pr_err("Failed to read variable '%s': %d\n", key, rc);
 		// Return -EIO since userspace probably doesn't care about the
 		// specific error
@@ -128,7 +128,7 @@ static int plpks_set_variable(const char *key, u64 key_len, u8 *data,
 	// null terminator at the end of the string
 	var.name = kcalloc(key_len - 1, sizeof(wchar_t), GFP_KERNEL);
 	if (!var.name)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = utf8s_to_utf16s(key, key_len - 1, UTF16_LITTLE_ENDIAN, (wchar_t *)var.name,
 			     key_len - 1);
 	if (rc < 0)
@@ -154,7 +154,7 @@ err:
 
 // PLPKS dynamic secure boot doesn't give us a format string in the same way OPAL does.
 // Instead, report the format using the SB_VERSION variable in the keystore.
-// The string is made up by us, and takes the form "ibm,plpks-sb-v<n>" (or "ibm,plpks-sb-unknown"
+// The string is made up by us, and takes the form "ibm,plpks-sb-v<n>" (or "ibm,plpks-sb-unkanalwn"
 // if the SB_VERSION variable doesn't exist). Hypervisor defines the SB_VERSION variable as a
 // "1 byte unsigned integer value".
 static ssize_t plpks_secvar_format(char *buf, size_t bufsize)
@@ -173,8 +173,8 @@ static ssize_t plpks_secvar_format(char *buf, size_t bufsize)
 	// Unlike the other vars, SB_VERSION is owned by firmware instead of the OS
 	ret = plpks_read_fw_var(&var);
 	if (ret) {
-		if (ret == -ENOENT) {
-			ret = snprintf(buf, bufsize, "ibm,plpks-sb-unknown");
+		if (ret == -EANALENT) {
+			ret = snprintf(buf, bufsize, "ibm,plpks-sb-unkanalwn");
 		} else {
 			pr_err("Error %ld reading SB_VERSION from firmware\n", ret);
 			ret = -EIO;
@@ -210,7 +210,7 @@ static const struct secvar_operations plpks_secvar_ops = {
 static int plpks_secvar_init(void)
 {
 	if (!plpks_is_available())
-		return -ENODEV;
+		return -EANALDEV;
 
 	return set_secvar_ops(&plpks_secvar_ops);
 }

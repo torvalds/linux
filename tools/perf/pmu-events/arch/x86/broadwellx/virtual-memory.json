@@ -9,7 +9,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Load operations that miss the first DTLB level but hit the second and do not cause page walks.",
+        "BriefDescription": "Load operations that miss the first DTLB level but hit the second and do analt cause page walks.",
         "EventCode": "0x08",
         "EventName": "DTLB_LOAD_MISSES.STLB_HIT",
         "SampleAfterValue": "2000003",
@@ -83,7 +83,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Store operations that miss the first TLB level but hit the second and do not cause page walks.",
+        "BriefDescription": "Store operations that miss the first TLB level but hit the second and do analt cause page walks.",
         "EventCode": "0x49",
         "EventName": "DTLB_STORE_MISSES.STLB_HIT",
         "SampleAfterValue": "100003",
@@ -173,7 +173,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Operations that miss the first ITLB level but hit the second and do not cause any page walks.",
+        "BriefDescription": "Operations that miss the first ITLB level but hit the second and do analt cause any page walks.",
         "EventCode": "0x85",
         "EventName": "ITLB_MISSES.STLB_HIT",
         "SampleAfterValue": "100003",

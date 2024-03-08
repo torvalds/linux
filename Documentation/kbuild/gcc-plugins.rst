@@ -36,19 +36,19 @@ Purpose
 =======
 
 GCC plugins are designed to provide a place to experiment with potential
-compiler features that are neither in GCC nor Clang upstream. Once
+compiler features that are neither in GCC analr Clang upstream. Once
 their utility is proven, the goal is to upstream the feature into GCC
 (and Clang), and then to finally remove them from the kernel once the
 feature is available in all supported versions of GCC.
 
-Specifically, new plugins should implement only features that have no
+Specifically, new plugins should implement only features that have anal
 upstream compiler support (in either GCC or Clang).
 
-When a feature exists in Clang but not GCC, effort should be made to
+When a feature exists in Clang but analt GCC, effort should be made to
 bring the feature to upstream GCC (rather than just as a kernel-specific
 GCC plugin), so the entire ecosystem can benefit from it.
 
-Similarly, even if a feature provided by a GCC plugin does *not* exist
+Similarly, even if a feature provided by a GCC plugin does *analt* exist
 in Clang, but the feature is proven to be useful, effort should be spent
 to upstream the feature to GCC (and Clang).
 
@@ -108,7 +108,7 @@ Run gcc (native or cross-compiler) to ensure plugin headers are detected::
 	gcc -print-file-name=plugin
 	CROSS_COMPILE=arm-linux-gnu- ${CROSS_COMPILE}gcc -print-file-name=plugin
 
-The word "plugin" means they are not detected::
+The word "plugin" means they are analt detected::
 
 	plugin
 
@@ -128,6 +128,6 @@ the cyclomatic complexity GCC plugin.
 ==============================
 
 The GCC plugins are in scripts/gcc-plugins/. You need to put plugin source files
-right under scripts/gcc-plugins/. Creating subdirectories is not supported.
+right under scripts/gcc-plugins/. Creating subdirectories is analt supported.
 It must be added to scripts/gcc-plugins/Makefile, scripts/Makefile.gcc-plugins
 and a relevant Kconfig file.

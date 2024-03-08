@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -75,22 +75,22 @@ struct ttm_object_device;
  * @shareable: Other ttm_object_files can access this object.
  *
  * @tfile: Pointer to ttm_object_file of the creator.
- * NULL if the object was not created by a user request.
+ * NULL if the object was analt created by a user request.
  * (kernel object).
  *
- * @refcount: Number of references to this object, not
+ * @refcount: Number of references to this object, analt
  * including the hash entry. A reference to a base object can
  * only be held by a ref object.
  *
  * @refcount_release: A function to be called when there are
- * no more references to this object. This function should
+ * anal more references to this object. This function should
  * destroy the object (or make sure destruction eventually happens),
  * and when it is called, the object has
  * already been taken out of the per-device hash. The parameter
  * "base" should be set to NULL by the function.
  *
  * @ref_obj_release: A function to be called when a reference object
- * with another ttm_ref_type than TTM_REF_USAGE is deleted.
+ * with aanalther ttm_ref_type than TTM_REF_USAGE is deleted.
  * This function may, for example, release a lock held by a user-space
  * process.
  *
@@ -118,7 +118,7 @@ struct ttm_base_object {
  * @size: Size of the dma_buf associated with this object
  * @real_type: Type of the underlying object. Needed since we're setting
  * the value of @base::object_type to ttm_prime_type
- * @dma_buf: Non ref-coutned pointer to a struct dma_buf created from this
+ * @dma_buf: Analn ref-coutned pointer to a struct dma_buf created from this
  * object.
  * @refcount_release: The underlying object's release method. Needed since
  * we set @base::refcount_release to our own release method.
@@ -226,7 +226,7 @@ extern int ttm_ref_object_add(struct ttm_object_file *tfile,
  * @ref_type: Ref type of the ref object to be dereferenced.
  *
  * Unreference a ref object with type @ref_type
- * on the base object identified by @key. If there are no duplicate
+ * on the base object identified by @key. If there are anal duplicate
  * references, the ref object will be destroyed and the base object
  * will be unreferenced.
  */
@@ -252,7 +252,7 @@ extern struct ttm_object_file *ttm_object_file_init(struct ttm_object_device
  *
  * Releases all data associated by a ttm_object_file.
  * Typically called from file_ops::release. The caller must
- * ensure that there are no concurrent users of tfile.
+ * ensure that there are anal concurrent users of tfile.
  */
 
 extern void ttm_object_file_release(struct ttm_object_file **p_tfile);
@@ -310,9 +310,9 @@ extern int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 	kfree_rcu(__obj, __prime.base.rhead)
 
 static inline int ttm_bo_wait(struct ttm_buffer_object *bo, bool intr,
-			      bool no_wait)
+			      bool anal_wait)
 {
-	struct ttm_operation_ctx ctx = { intr, no_wait };
+	struct ttm_operation_ctx ctx = { intr, anal_wait };
 
 	return ttm_bo_wait_ctx(bo, &ctx);
 }

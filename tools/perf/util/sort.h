@@ -15,7 +15,7 @@
 
 struct option;
 struct thread;
-struct annotated_data_type;
+struct ananaltated_data_type;
 
 extern regex_t parent_regex;
 extern const char *sort_order;
@@ -23,8 +23,8 @@ extern const char *field_order;
 extern const char default_parent_pattern[];
 extern const char *parent_pattern;
 extern const char *default_sort_order;
-extern regex_t ignore_callees_regex;
-extern int have_ignore_callees;
+extern regex_t iganalre_callees_regex;
+extern int have_iganalre_callees;
 extern enum sort_mode sort__mode;
 extern struct sort_entry sort_comm;
 extern struct sort_entry sort_dso;
@@ -56,7 +56,7 @@ struct he_stat {
 
 struct namespace_id {
 	u64			dev;
-	u64			ino;
+	u64			ianal;
 };
 
 struct hist_entry_diff {
@@ -90,10 +90,10 @@ struct hist_entry_ops {
  * @nr_rows - rows expanded in callchain, recalculated on folding/unfolding
  */
 struct hist_entry {
-	struct rb_node		rb_node_in;
-	struct rb_node		rb_node;
+	struct rb_analde		rb_analde_in;
+	struct rb_analde		rb_analde;
 	union {
-		struct list_head node;
+		struct list_head analde;
 		struct list_head head;
 	} pairs;
 	struct he_stat		stat;
@@ -137,7 +137,7 @@ struct hist_entry {
 			bool	init_have_children;
 			bool	unfolded;
 			bool	has_children;
-			bool	has_no_entry;
+			bool	has_anal_entry;
 		};
 	};
 	char			*srcline;
@@ -157,13 +157,13 @@ struct hist_entry {
 	struct perf_hpp_list	*hpp_list;
 	struct hist_entry	*parent_he;
 	struct hist_entry_ops	*ops;
-	struct annotated_data_type *mem_type;
+	struct ananaltated_data_type *mem_type;
 	union {
 		/* this is for hierarchical entry structure */
 		struct {
 			struct rb_root_cached	hroot_in;
 			struct rb_root_cached   hroot_out;
-		};				/* non-leaf entries */
+		};				/* analn-leaf entries */
 		struct rb_root	sorted_chain;	/* leaf entry has callchains */
 	};
 	struct callchain_root	callchain[0]; /* must be last member */
@@ -178,20 +178,20 @@ int hist_entry__sym_snprintf(struct hist_entry *he, char *bf, size_t size, unsig
 
 static inline bool hist_entry__has_pairs(struct hist_entry *he)
 {
-	return !list_empty(&he->pairs.node);
+	return !list_empty(&he->pairs.analde);
 }
 
 static inline struct hist_entry *hist_entry__next_pair(struct hist_entry *he)
 {
 	if (hist_entry__has_pairs(he))
-		return list_entry(he->pairs.node.next, struct hist_entry, pairs.node);
+		return list_entry(he->pairs.analde.next, struct hist_entry, pairs.analde);
 	return NULL;
 }
 
 static inline void hist_entry__add_pair(struct hist_entry *pair,
 					struct hist_entry *he)
 {
-	list_add_tail(&pair->pairs.node, &he->pairs.head);
+	list_add_tail(&pair->pairs.analde, &he->pairs.head);
 }
 
 static inline float hist_entry__get_percent_limit(struct hist_entry *he)
@@ -209,7 +209,7 @@ static inline float hist_entry__get_percent_limit(struct hist_entry *he)
 }
 
 enum sort_mode {
-	SORT_MODE__NORMAL,
+	SORT_MODE__ANALRMAL,
 	SORT_MODE__BRANCH,
 	SORT_MODE__MEMORY,
 	SORT_MODE__TOP,
@@ -247,8 +247,8 @@ enum sort_type {
 	SORT_LOCAL_RETIRE_LAT,
 	SORT_GLOBAL_RETIRE_LAT,
 	SORT_SIMD,
-	SORT_ANNOTATE_DATA_TYPE,
-	SORT_ANNOTATE_DATA_TYPE_OFFSET,
+	SORT_ANANALTATE_DATA_TYPE,
+	SORT_ANANALTATE_DATA_TYPE_OFFSET,
 	SORT_SYM_OFFSET,
 
 	/* branch stack specific sort keys */
@@ -274,7 +274,7 @@ enum sort_type {
 	SORT_MEM_LOCKED,
 	SORT_MEM_TLB,
 	SORT_MEM_LVL,
-	SORT_MEM_SNOOP,
+	SORT_MEM_SANALOP,
 	SORT_MEM_DCACHELINE,
 	SORT_MEM_IADDR_SYMBOL,
 	SORT_MEM_PHYS_DADDR,
@@ -320,7 +320,7 @@ void perf_hpp__set_elide(int idx, bool elide);
 
 char *sort_help(const char *prefix);
 
-int report_parse_ignore_callees_opt(const struct option *opt, const char *arg, int unset);
+int report_parse_iganalre_callees_opt(const struct option *opt, const char *arg, int unset);
 
 bool is_strict_order(const char *order);
 

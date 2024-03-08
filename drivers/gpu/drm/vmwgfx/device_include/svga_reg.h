@@ -10,13 +10,13 @@
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be
+ * The above copyright analtice and this permission analtice shall be
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -215,7 +215,7 @@ enum {
 };
 
 typedef enum SVGARegGuestDriverId {
-	SVGA_REG_GUEST_DRIVER_ID_UNKNOWN = 0,
+	SVGA_REG_GUEST_DRIVER_ID_UNKANALWN = 0,
 	SVGA_REG_GUEST_DRIVER_ID_WDDM = 1,
 	SVGA_REG_GUEST_DRIVER_ID_LINUX = 2,
 	SVGA_REG_GUEST_DRIVER_ID_MAX,
@@ -267,7 +267,7 @@ typedef enum {
 
 typedef enum {
 
-	SVGA_CB_STATUS_NONE = 0,
+	SVGA_CB_STATUS_ANALNE = 0,
 
 	SVGA_CB_STATUS_COMPLETED = 1,
 
@@ -285,8 +285,8 @@ typedef enum {
 } SVGACBStatus;
 
 typedef enum {
-	SVGA_CB_FLAG_NONE = 0,
-	SVGA_CB_FLAG_NO_IRQ = 1 << 0,
+	SVGA_CB_FLAG_ANALNE = 0,
+	SVGA_CB_FLAG_ANAL_IRQ = 1 << 0,
 	SVGA_CB_FLAG_DX_CONTEXT = 1 << 1,
 	SVGA_CB_FLAG_MOB = 1 << 2,
 } SVGACBFlags;
@@ -312,7 +312,7 @@ typedef struct {
 #pragma pack(pop)
 
 typedef enum {
-	SVGA_DC_CMD_NOP = 0,
+	SVGA_DC_CMD_ANALP = 0,
 	SVGA_DC_CMD_START_STOP_CONTEXT = 1,
 	SVGA_DC_CMD_PREEMPT = 2,
 	SVGA_DC_CMD_START_QUEUE = 3,
@@ -328,7 +328,7 @@ typedef struct SVGADCCmdStartStop {
 
 typedef struct SVGADCCmdPreempt {
 	SVGACBContext context;
-	uint32 ignoreIDZero;
+	uint32 iganalreIDZero;
 } SVGADCCmdPreempt;
 
 typedef struct SVGADCCmdStartQueue {
@@ -399,7 +399,7 @@ typedef struct {
 } SVGAUnsignedPoint;
 #pragma pack(pop)
 
-#define SVGA_CAP_NONE 0x00000000
+#define SVGA_CAP_ANALNE 0x00000000
 #define SVGA_CAP_RECT_COPY 0x00000002
 #define SVGA_CAP_CURSOR 0x00000020
 #define SVGA_CAP_CURSOR_BYPASS 0x00000040
@@ -422,17 +422,17 @@ typedef struct {
 #define SVGA_CAP_GBOBJECTS 0x08000000
 #define SVGA_CAP_DX 0x10000000
 #define SVGA_CAP_HP_CMD_QUEUE 0x20000000
-#define SVGA_CAP_NO_BB_RESTRICTION 0x40000000
+#define SVGA_CAP_ANAL_BB_RESTRICTION 0x40000000
 #define SVGA_CAP_CAP2_REGISTER 0x80000000
 
-#define SVGA_CAP2_NONE 0x00000000
+#define SVGA_CAP2_ANALNE 0x00000000
 #define SVGA_CAP2_GROW_OTABLE 0x00000001
 #define SVGA_CAP2_INTRA_SURFACE_COPY 0x00000002
 #define SVGA_CAP2_DX2 0x00000004
 #define SVGA_CAP2_GB_MEMSIZE_2 0x00000008
 #define SVGA_CAP2_SCREENDMA_REG 0x00000010
 #define SVGA_CAP2_OTABLE_PTDEPTH_2 0x00000020
-#define SVGA_CAP2_NON_MS_TO_MS_STRETCHBLT 0x00000040
+#define SVGA_CAP2_ANALN_MS_TO_MS_STRETCHBLT 0x00000040
 #define SVGA_CAP2_CURSOR_MOB 0x00000080
 #define SVGA_CAP2_MSHINT 0x00000100
 #define SVGA_CAP2_CB_MAX_SIZE_4MB 0x00000200
@@ -514,7 +514,7 @@ typedef struct SVGA3dFifoCapsRecordHeader {
 
 #define SVGA_FIFO_EXTENDED_MANDATORY_REGS (SVGA_FIFO_3D_CAPS_LAST + 1)
 
-#define SVGA_FIFO_CAP_NONE 0
+#define SVGA_FIFO_CAP_ANALNE 0
 #define SVGA_FIFO_CAP_FENCE (1 << 0)
 #define SVGA_FIFO_CAP_ACCELFRONT (1 << 1)
 #define SVGA_FIFO_CAP_PITCHLOCK (1 << 2)
@@ -528,14 +528,14 @@ typedef struct SVGA3dFifoCapsRecordHeader {
 #define SVGA_FIFO_CAP_SCREEN_OBJECT_2 (1 << 9)
 #define SVGA_FIFO_CAP_DEAD (1 << 10)
 
-#define SVGA_FIFO_FLAG_NONE 0
+#define SVGA_FIFO_FLAG_ANALNE 0
 #define SVGA_FIFO_FLAG_ACCELFRONT (1 << 0)
 #define SVGA_FIFO_FLAG_RESERVED (1 << 31)
 
-#define SVGA_FIFO_RESERVED_UNKNOWN 0xffffffff
+#define SVGA_FIFO_RESERVED_UNKANALWN 0xffffffff
 
 #define SVGA_SCREENDMA_REG_UNDEFINED 0
-#define SVGA_SCREENDMA_REG_NOT_PRESENT 1
+#define SVGA_SCREENDMA_REG_ANALT_PRESENT 1
 #define SVGA_SCREENDMA_REG_PRESENT 2
 #define SVGA_SCREENDMA_REG_MAX 3
 
@@ -648,14 +648,14 @@ typedef enum {
 	SVGA_CMD_DEFINE_GMRFB = 36,
 	SVGA_CMD_BLIT_GMRFB_TO_SCREEN = 37,
 	SVGA_CMD_BLIT_SCREEN_TO_GMRFB = 38,
-	SVGA_CMD_ANNOTATION_FILL = 39,
-	SVGA_CMD_ANNOTATION_COPY = 40,
+	SVGA_CMD_ANANALTATION_FILL = 39,
+	SVGA_CMD_ANANALTATION_COPY = 40,
 	SVGA_CMD_DEFINE_GMR2 = 41,
 	SVGA_CMD_REMAP_GMR2 = 42,
 	SVGA_CMD_DEAD = 43,
 	SVGA_CMD_DEAD_2 = 44,
-	SVGA_CMD_NOP = 45,
-	SVGA_CMD_NOP_ERROR = 46,
+	SVGA_CMD_ANALP = 45,
+	SVGA_CMD_ANALP_ERROR = 46,
 	SVGA_CMD_MAX
 } SVGAFifoCmdId;
 
@@ -831,14 +831,14 @@ typedef struct {
 #pragma pack(push, 1)
 typedef struct {
 	SVGAColorBGRX color;
-} SVGAFifoCmdAnnotationFill;
+} SVGAFifoCmdAnanaltationFill;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct {
 	SVGASignedPoint srcOrigin;
 	uint32 srcScreenId;
-} SVGAFifoCmdAnnotationCopy;
+} SVGAFifoCmdAnanaltationCopy;
 #pragma pack(pop)
 
 #pragma pack(push, 1)

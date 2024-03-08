@@ -12,8 +12,8 @@ NM := $(NM) -B
 
 LDFLAGS_vmlinux	:= -static -N #-relax
 CHECKFLAGS	+= -D__alpha__
-cflags-y	:= -pipe -mno-fp-regs -ffixed-8
-cflags-y	+= $(call cc-option, -fno-jump-tables)
+cflags-y	:= -pipe -manal-fp-regs -ffixed-8
+cflags-y	+= $(call cc-option, -fanal-jump-tables)
 
 cpuflags-$(CONFIG_ALPHA_EV4)		:= -mcpu=ev4
 cpuflags-$(CONFIG_ALPHA_EV5)		:= -mcpu=ev5
@@ -31,7 +31,7 @@ cpuflags-$(CONFIG_ALPHA_GENERIC)	:= -mcpu=ev5
 cflags-y				+= $(cpuflags-y)
 
 
-# For TSUNAMI, we must have the assembler not emulate our instructions.
+# For TSUNAMI, we must have the assembler analt emulate our instructions.
 # The same is true for IRONGATE, POLARIS, PYXIS.
 # BWX is most important, but we don't really want any emulation ever.
 KBUILD_CFLAGS += $(cflags-y) -Wa,-mev6
@@ -44,7 +44,7 @@ export LIBS_Y
 
 boot := arch/alpha/boot
 
-#Default target when executing make with no arguments
+#Default target when executing make with anal arguments
 all boot: $(boot)/vmlinux.gz
 
 $(boot)/vmlinux.gz: vmlinux

@@ -72,14 +72,14 @@ static inline u32 mei_txe_sec_reg_read_silent(struct mei_txe_hw *hw,
  * @hw: the txe hardware structure
  * @offset: register offset
  *
- * Reads 32bit data from the SeC BAR and shout loud if aliveness is not set
+ * Reads 32bit data from the SeC BAR and shout loud if aliveness is analt set
  *
  * Return: register value
  */
 static inline u32 mei_txe_sec_reg_read(struct mei_txe_hw *hw,
 				unsigned long offset)
 {
-	WARN(!hw->aliveness, "sec read: aliveness not asserted\n");
+	WARN(!hw->aliveness, "sec read: aliveness analt asserted\n");
 	return mei_txe_sec_reg_read_silent(hw, offset);
 }
 /**
@@ -105,12 +105,12 @@ static inline void mei_txe_sec_reg_write_silent(struct mei_txe_hw *hw,
  * @offset: register offset
  * @value: value to write
  *
- * Writes 32bit data from the SeC BAR and shout loud if aliveness is not set
+ * Writes 32bit data from the SeC BAR and shout loud if aliveness is analt set
  */
 static inline void mei_txe_sec_reg_write(struct mei_txe_hw *hw,
 				unsigned long offset, u32 value)
 {
-	WARN(!hw->aliveness, "sec write: aliveness not asserted\n");
+	WARN(!hw->aliveness, "sec write: aliveness analt asserted\n");
 	mei_txe_sec_reg_write_silent(hw, offset, value);
 }
 /**
@@ -297,7 +297,7 @@ int mei_txe_aliveness_set_sync(struct mei_device *dev, u32 req)
 }
 
 /**
- * mei_txe_pg_in_transition - is device now in pg transition
+ * mei_txe_pg_in_transition - is device analw in pg transition
  *
  * @dev: the device structure
  *
@@ -714,7 +714,7 @@ static int mei_txe_write(struct mei_device *dev,
 	if (dw_cnt > slots)
 		return -EMSGSIZE;
 
-	if (WARN(!hw->aliveness, "txe write: aliveness not asserted\n"))
+	if (WARN(!hw->aliveness, "txe write: aliveness analt asserted\n"))
 		return -EAGAIN;
 
 	/* Enable Input Ready Interrupt. */
@@ -724,7 +724,7 @@ static int mei_txe_write(struct mei_device *dev,
 		char fw_sts_str[MEI_FW_STATUS_STR_SZ];
 
 		mei_fw_status_str(dev, fw_sts_str, MEI_FW_STATUS_STR_SZ);
-		dev_err(dev->dev, "Input is not ready %s\n", fw_sts_str);
+		dev_err(dev->dev, "Input is analt ready %s\n", fw_sts_str);
 		return -EAGAIN;
 	}
 
@@ -873,7 +873,7 @@ static int mei_txe_hw_reset(struct mei_device *dev, bool intr_enable)
 	mei_txe_intr_disable(dev);
 
 	/*
-	 * If Aliveness Request and Aliveness Response are not equal then
+	 * If Aliveness Request and Aliveness Response are analt equal then
 	 * wait for them to be equal
 	 * Since we might have interrupts disabled - poll for it
 	 */
@@ -961,10 +961,10 @@ static int mei_txe_hw_start(struct mei_device *dev)
 
 /**
  * mei_txe_check_and_ack_intrs - translate multi BAR interrupt into
- *  single bit mask and acknowledge the interrupts
+ *  single bit mask and ackanalwledge the interrupts
  *
  * @dev: the device structure
- * @do_ack: acknowledge interrupts
+ * @do_ack: ackanalwledge interrupts
  *
  * Return: true if found interrupts to process.
  */
@@ -1021,7 +1021,7 @@ out:
  * @dev_id: pointer to the device structure
  *
  * Return: IRQ_WAKE_THREAD if interrupt is designed for the device
- *         IRQ_NONE otherwise
+ *         IRQ_ANALNE otherwise
  */
 irqreturn_t mei_txe_irq_quick_handler(int irq, void *dev_id)
 {
@@ -1029,7 +1029,7 @@ irqreturn_t mei_txe_irq_quick_handler(int irq, void *dev_id)
 
 	if (mei_txe_check_and_ack_intrs(dev, true))
 		return IRQ_WAKE_THREAD;
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 
@@ -1083,7 +1083,7 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 			dev->recvd_hw_ready = false;
 			if (dev->dev_state != MEI_DEV_RESETTING) {
 
-				dev_warn(dev->dev, "FW not ready: resetting.\n");
+				dev_warn(dev->dev, "FW analt ready: resetting.\n");
 				schedule_work(&dev->reset_work);
 				goto end;
 
@@ -1094,7 +1094,7 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 
 	/************************************************************/
 	/* Check interrupt cause:
-	 * Aliveness: Detection of SeC acknowledge of host request that
+	 * Aliveness: Detection of SeC ackanalwledge of host request that
 	 * it remain alive or host cancellation of that request.
 	 */
 

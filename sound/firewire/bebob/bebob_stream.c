@@ -10,7 +10,7 @@
 #define READY_TIMEOUT_MS	4000
 
 /*
- * NOTE;
+ * ANALTE;
  * For BeBoB streams, Both of input and output CMP connection are important.
  *
  * For most devices, each CMP connection starts to transmit/receive a
@@ -18,7 +18,7 @@
  * to start transmitting stream. An example is 'M-Audio Firewire 410'.
  */
 
-/* 128 is an arbitrary length but it seems to be enough */
+/* 128 is an arbitrary length but it seems to be eanalugh */
 #define FORMAT_MAXIMUM_LENGTH 128
 
 const unsigned int snd_bebob_rate_table[SND_BEBOB_STRM_FMT_ENTRIES] = {
@@ -33,7 +33,7 @@ const unsigned int snd_bebob_rate_table[SND_BEBOB_STRM_FMT_ENTRIES] = {
 
 /*
  * See: Table 51: Extended Stream Format Info ‘Sampling Frequency’
- * in Additional AVC commands (Nov 2003, BridgeCo)
+ * in Additional AVC commands (Analv 2003, BridgeCo)
  */
 static const unsigned int bridgeco_freq_table[] = {
 	[0] = 0x02,
@@ -170,7 +170,7 @@ int snd_bebob_stream_get_clock_src(struct snd_bebob *bebob,
 	}
 
 	/*
-	 * If there are no input plugs, all of fields are 0xff.
+	 * If there are anal input plugs, all of fields are 0xff.
 	 * Here check the first field. This field is used for direction.
 	 */
 	if (input[0] == 0xff) {
@@ -206,7 +206,7 @@ int snd_bebob_stream_get_clock_src(struct snd_bebob *bebob,
 			} else {
 				/*
 				 * This source comes from iPCR[1-29]. This
-				 * means that the synchronization stream is not
+				 * means that the synchronization stream is analt
 				 * the Audio/MIDI compound stream.
 				 */
 				*src = SND_BEBOB_CLOCK_TYPE_EXTERNAL;
@@ -225,7 +225,7 @@ int snd_bebob_stream_get_clock_src(struct snd_bebob *bebob,
 
 			if (type == AVC_BRIDGECO_PLUG_TYPE_DIG) {
 				/*
-				 * SPDIF/ADAT or sometimes (not always) word
+				 * SPDIF/ADAT or sometimes (analt always) word
 				 * clock.
 				 */
 				*src = SND_BEBOB_CLOCK_TYPE_EXTERNAL;
@@ -236,7 +236,7 @@ int snd_bebob_stream_get_clock_src(struct snd_bebob *bebob,
 				goto end;
 			} else if (type == AVC_BRIDGECO_PLUG_TYPE_ADDITION) {
 				/*
-				 * Not standard.
+				 * Analt standard.
 				 * Mostly, additional internal clock.
 				 */
 				*src = SND_BEBOB_CLOCK_TYPE_INTERNAL;
@@ -245,7 +245,7 @@ int snd_bebob_stream_get_clock_src(struct snd_bebob *bebob,
 		}
 	}
 
-	/* Not supported. */
+	/* Analt supported. */
 	err = -EIO;
 end:
 	return err;
@@ -261,12 +261,12 @@ static int map_data_channels(struct snd_bebob *bebob, struct amdtp_stream *s)
 	int err;
 
 	/*
-	 * The length of return value of this command cannot be expected. Here
+	 * The length of return value of this command cananalt be expected. Here
 	 * use the maximum length of FCP.
 	 */
 	buf = kzalloc(256, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (s == &bebob->tx_stream)
 		dir = AVC_BRIDGECO_PLUG_DIR_OUT;
@@ -305,9 +305,9 @@ static int map_data_channels(struct snd_bebob *bebob, struct amdtp_stream *s)
 				err);
 			goto end;
 		}
-		/* NoType */
+		/* AnalType */
 		if (type == 0xff) {
-			err = -ENOSYS;
+			err = -EANALSYS;
 			goto end;
 		}
 
@@ -334,7 +334,7 @@ static int map_data_channels(struct snd_bebob *bebob, struct amdtp_stream *s)
 			case 0x0a:
 				/* AMDTP_MAX_CHANNELS_FOR_MIDI is 1. */
 				if ((midi > 0) && (stm_pos != midi)) {
-					err = -ENOSYS;
+					err = -EANALSYS;
 					goto end;
 				}
 				amdtp_am824_set_midi_position(s, stm_pos);
@@ -354,7 +354,7 @@ static int map_data_channels(struct snd_bebob *bebob, struct amdtp_stream *s)
 			default:
 				location = pcm + sec_loc;
 				if (location >= AM824_MAX_CHANNELS_FOR_PCM) {
-					err = -ENOSYS;
+					err = -EANALSYS;
 					goto end;
 				}
 				amdtp_am824_set_pcm_position(s, location,
@@ -551,11 +551,11 @@ int snd_bebob_stream_reserve_duplex(struct snd_bebob *bebob, unsigned int rate,
 	if (bebob->substreams_counter == 0 || curr_rate != rate) {
 		unsigned int index;
 
-		// NOTE:
+		// ANALTE:
 		// If establishing connections at first, Yamaha GO46
 		// (and maybe Terratec X24) don't generate sound.
 		//
-		// For firmware customized by M-Audio, refer to next NOTE.
+		// For firmware customized by M-Audio, refer to next ANALTE.
 		err = bebob->spec->rate->set(bebob, rate);
 		if (err < 0) {
 			dev_err(&bebob->unit->device,
@@ -594,7 +594,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 {
 	int err;
 
-	// Need no substreams.
+	// Need anal substreams.
 	if (bebob->substreams_counter == 0)
 		return -EIO;
 
@@ -633,9 +633,9 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 		else
 			tx_init_skip_cycles = 16000;
 
-		// MEMO: Some devices start packet transmission long enough after establishment of
+		// MEMO: Some devices start packet transmission long eanalugh after establishment of
 		// CMP connection. In the early stage of packet streaming, any device transfers
-		// NODATA packets. After several hundred cycles, it begins to multiplex event into
+		// ANALDATA packets. After several hundred cycles, it begins to multiplex event into
 		// the packet with adequate value of syt field in CIP header. Some devices are
 		// strictly to generate any discontinuity in the sequence of tx packet when they
 		// receives inadequate sequence of value in syt field of CIP header. In the case,
@@ -645,9 +645,9 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 		if (err < 0)
 			goto error;
 
-		// NOTE:
+		// ANALTE:
 		// The firmware customized by M-Audio uses these commands to
-		// start transmitting stream. This is not usual way.
+		// start transmitting stream. This is analt usual way.
 		if (bebob->maudio_special_quirk) {
 			err = bebob->spec->rate->set(bebob, curr_rate);
 			if (err < 0) {
@@ -698,7 +698,7 @@ void snd_bebob_stream_destroy_duplex(struct snd_bebob *bebob)
 
 /*
  * See: Table 50: Extended Stream Format Info Format Hierarchy Level 2’
- * in Additional AVC commands (Nov 2003, BridgeCo)
+ * in Additional AVC commands (Analv 2003, BridgeCo)
  * Also 'Clause 12 AM824 sequence adaption layers' in IEC 61883-6:2005
  */
 static int
@@ -713,7 +713,7 @@ parse_stream_formation(u8 *buf, unsigned int len,
 	 *  Level 1:	AM824 Compound  (0x40)
 	 */
 	if ((buf[0] != 0x90) || (buf[1] != 0x40))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	/* check sampling rate */
 	for (i = 0; i < ARRAY_SIZE(bridgeco_freq_table); i++) {
@@ -721,7 +721,7 @@ parse_stream_formation(u8 *buf, unsigned int len,
 			break;
 	}
 	if (i == ARRAY_SIZE(bridgeco_freq_table))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	/* Avoid double count by different entries for the same rate. */
 	memset(&formation[i], 0, sizeof(struct snd_bebob_stream_formation));
@@ -760,13 +760,13 @@ parse_stream_formation(u8 *buf, unsigned int len,
 		/* Don't care */
 		case 0xff:
 		default:
-			return -ENOSYS;	/* not supported */
+			return -EANALSYS;	/* analt supported */
 		}
 	}
 
 	if (formation[i].pcm  > AM824_MAX_CHANNELS_FOR_PCM ||
 	    formation[i].midi > AM824_MAX_CHANNELS_FOR_MIDI)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return 0;
 }
@@ -792,14 +792,14 @@ static int fill_stream_formations(struct snd_bebob *bebob, u8 addr[AVC_BRIDGECO_
 
 	buf = kmalloc(FORMAT_MAXIMUM_LENGTH, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (eid = 0; eid < SND_BEBOB_STRM_FMT_ENTRIES; ++eid) {
 		avc_bridgeco_fill_unit_addr(addr, plug_dir, AVC_BRIDGECO_PLUG_UNIT_ISOC, plug_id);
 
 		len = FORMAT_MAXIMUM_LENGTH;
 		err = avc_bridgeco_get_plug_strm_fmt(bebob->unit, addr, buf, &len, eid);
-		// No entries remained.
+		// Anal entries remained.
 		if (err == -EINVAL && eid > 0) {
 			err = 0;
 			break;
@@ -925,7 +925,7 @@ int snd_bebob_stream_discover(struct snd_bebob *bebob)
 	 * output plug.
 	 */
 	if ((plugs[0] == 0) || (plugs[1] == 0)) {
-		err = -ENOSYS;
+		err = -EANALSYS;
 		goto end;
 	}
 

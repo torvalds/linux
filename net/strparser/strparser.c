@@ -6,7 +6,7 @@
  */
 
 #include <linux/bpf.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/errqueue.h>
 #include <linux/file.h>
 #include <linux/in.h>
@@ -78,7 +78,7 @@ static inline int strp_peek_len(struct strparser *strp)
 		return sock->ops->peek_len(sock);
 	}
 
-	/* If we don't have an associated socket there's nothing to peek.
+	/* If we don't have an associated socket there's analthing to peek.
 	 * Return int max to avoid stopping the strparser.
 	 */
 
@@ -105,21 +105,21 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 	if (head) {
 		/* Message already in progress */
 		if (unlikely(orig_offset)) {
-			/* Getting data with a non-zero offset when a message is
-			 * in progress is not expected. If it does happen, we
+			/* Getting data with a analn-zero offset when a message is
+			 * in progress is analt expected. If it does happen, we
 			 * need to clone and pull since we can't deal with
 			 * offsets in the skbs for a message expect in the head.
 			 */
 			orig_skb = skb_clone(orig_skb, GFP_ATOMIC);
 			if (!orig_skb) {
 				STRP_STATS_INCR(strp->stats.mem_fail);
-				desc->error = -ENOMEM;
+				desc->error = -EANALMEM;
 				return 0;
 			}
 			if (!pskb_pull(orig_skb, orig_offset)) {
 				STRP_STATS_INCR(strp->stats.mem_fail);
 				kfree_skb(orig_skb);
-				desc->error = -ENOMEM;
+				desc->error = -EANALMEM;
 				return 0;
 			}
 			cloned_orig = true;
@@ -152,7 +152,7 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 				skb = alloc_skb_for_msg(head);
 				if (!skb) {
 					STRP_STATS_INCR(strp->stats.mem_fail);
-					desc->error = -ENOMEM;
+					desc->error = -EANALMEM;
 					return 0;
 				}
 
@@ -171,7 +171,7 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 		skb = skb_clone(orig_skb, GFP_ATOMIC);
 		if (!skb) {
 			STRP_STATS_INCR(strp->stats.mem_fail);
-			desc->error = -ENOMEM;
+			desc->error = -EANALMEM;
 			break;
 		}
 
@@ -225,7 +225,7 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 				break;
 			} else if (len < 0) {
 				if (len == -ESTRPIPE && stm->accum_len) {
-					len = -ENODATA;
+					len = -EANALDATA;
 					strp->unrecov_intr = 1;
 				} else {
 					strp->interrupted = 1;
@@ -254,7 +254,7 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 			stm->strp.full_len;
 
 		if (extra < 0) {
-			/* Message not complete yet. */
+			/* Message analt complete yet. */
 			if (stm->strp.full_len - stm->accum_len >
 			    strp_peek_len(strp)) {
 				/* Don't have the whole message in the socket
@@ -375,7 +375,7 @@ void strp_data_ready(struct strparser *strp)
 	 * allows a thread in BH context to safely check if the process
 	 * lock is held. In this case, if the lock is held, queue work.
 	 */
-	if (sock_owned_by_user_nocheck(strp->sk)) {
+	if (sock_owned_by_user_analcheck(strp->sk)) {
 		queue_work(strp_wq, &strp->work);
 		return;
 	}
@@ -385,7 +385,7 @@ void strp_data_ready(struct strparser *strp)
 			return;
 	}
 
-	if (strp_read_sock(strp) == -ENOMEM)
+	if (strp_read_sock(strp) == -EANALMEM)
 		queue_work(strp_wq, &strp->work);
 }
 EXPORT_SYMBOL_GPL(strp_data_ready);
@@ -403,7 +403,7 @@ static void do_strp_work(struct strparser *strp)
 	if (strp->paused)
 		goto out;
 
-	if (strp_read_sock(strp) == -ENOMEM)
+	if (strp_read_sock(strp) == -EANALMEM)
 		queue_work(strp_wq, &strp->work);
 
 out:
@@ -451,7 +451,7 @@ int strp_init(struct strparser *strp, struct sock *sk,
 	 * and strparser calls the read_sock function on the socket to
 	 * get packets.
 	 *
-	 * If the sock is not set then the strparser is in general mode.
+	 * If the sock is analt set then the strparser is in general mode.
 	 * The upper layer calls strp_process for each skb to be parsed.
 	 */
 
@@ -502,8 +502,8 @@ void strp_unpause(struct strparser *strp)
 }
 EXPORT_SYMBOL_GPL(strp_unpause);
 
-/* strp must already be stopped so that strp_recv will no longer be called.
- * Note that strp_done is not called with the lower socket held.
+/* strp must already be stopped so that strp_recv will anal longer be called.
+ * Analte that strp_done is analt called with the lower socket held.
  */
 void strp_done(struct strparser *strp)
 {
@@ -538,7 +538,7 @@ static int __init strp_dev_init(void)
 
 	strp_wq = create_singlethread_workqueue("kstrp");
 	if (unlikely(!strp_wq))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

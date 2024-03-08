@@ -38,7 +38,7 @@ nwriters_stress
 nreaders_stress
 		  Number of kernel threads that will stress shared lock
 		  ownership (readers). The default is the same amount of writer
-		  locks. If the user did not specify nwriters_stress, then
+		  locks. If the user did analt specify nwriters_stress, then
 		  both readers and writers be the amount of online CPUs.
 
 torture_type
@@ -82,17 +82,17 @@ shutdown_secs
 		  zero, which disables test termination and system shutdown.
 		  This capability is useful for automated testing.
 
-onoff_interval
+oanalff_interval
 		  The number of seconds between each attempt to execute a
 		  randomly selected CPU-hotplug operation.  Defaults
 		  to zero, which disables CPU hotplugging.  In
 		  CONFIG_HOTPLUG_CPU=n kernels, locktorture will silently
 		  refuse to do any CPU-hotplug operations regardless of
-		  what value is specified for onoff_interval.
+		  what value is specified for oanalff_interval.
 
-onoff_holdoff
+oanalff_holdoff
 		  The number of seconds to wait until starting CPU-hotplug
-		  operations.  This would normally only be used when
+		  operations.  This would analrmally only be used when
 		  locktorture was built into the kernel and started
 		  automatically at boot time, in which case it is useful
 		  in order to avoid confusing boot-time code with CPUs
@@ -115,7 +115,7 @@ stutter
 shuffle_interval
 		  The number of seconds to keep the test threads affinitized
 		  to a particular subset of the CPUs, defaults to 3 seconds.
-		  Used in conjunction with test_no_idle_hz.
+		  Used in conjunction with test_anal_idle_hz.
 
 verbose
 		  Enable verbose debugging printing, via printk(). Enabled
@@ -164,6 +164,6 @@ One could of course create a more elaborate script that automatically
 checked for such errors.  The "rmmod" command forces a "SUCCESS",
 "FAILURE", or "RCU_HOTPLUG" indication to be printk()ed.  The first
 two are self-explanatory, while the last indicates that while there
-were no locking failures, CPU-hotplug problems were detected.
+were anal locking failures, CPU-hotplug problems were detected.
 
 Also see: Documentation/RCU/torture.rst

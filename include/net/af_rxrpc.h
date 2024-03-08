@@ -21,7 +21,7 @@ enum rxrpc_abort_reason;
 enum rxrpc_interruptibility {
 	RXRPC_INTERRUPTIBLE,	/* Call is interruptible */
 	RXRPC_PREINTERRUPTIBLE,	/* Call can be cancelled whilst waiting for a slot */
-	RXRPC_UNINTERRUPTIBLE,	/* Call should not be interruptible at all */
+	RXRPC_UNINTERRUPTIBLE,	/* Call should analt be interruptible at all */
 };
 
 /*
@@ -29,17 +29,17 @@ enum rxrpc_interruptibility {
  */
 extern atomic_t rxrpc_debug_id;
 
-typedef void (*rxrpc_notify_rx_t)(struct sock *, struct rxrpc_call *,
+typedef void (*rxrpc_analtify_rx_t)(struct sock *, struct rxrpc_call *,
 				  unsigned long);
-typedef void (*rxrpc_notify_end_tx_t)(struct sock *, struct rxrpc_call *,
+typedef void (*rxrpc_analtify_end_tx_t)(struct sock *, struct rxrpc_call *,
 				      unsigned long);
-typedef void (*rxrpc_notify_new_call_t)(struct sock *, struct rxrpc_call *,
+typedef void (*rxrpc_analtify_new_call_t)(struct sock *, struct rxrpc_call *,
 					unsigned long);
 typedef void (*rxrpc_discard_new_call_t)(struct rxrpc_call *, unsigned long);
 typedef void (*rxrpc_user_attach_call_t)(struct rxrpc_call *, unsigned long);
 
-void rxrpc_kernel_new_call_notification(struct socket *,
-					rxrpc_notify_new_call_t,
+void rxrpc_kernel_new_call_analtification(struct socket *,
+					rxrpc_analtify_new_call_t,
 					rxrpc_discard_new_call_t);
 struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   struct rxrpc_peer *peer,
@@ -48,14 +48,14 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   s64 tx_total_len,
 					   u32 hard_timeout,
 					   gfp_t gfp,
-					   rxrpc_notify_rx_t notify_rx,
+					   rxrpc_analtify_rx_t analtify_rx,
 					   u16 service_id,
 					   bool upgrade,
 					   enum rxrpc_interruptibility interruptibility,
 					   unsigned int debug_id);
 int rxrpc_kernel_send_data(struct socket *, struct rxrpc_call *,
 			   struct msghdr *, size_t,
-			   rxrpc_notify_end_tx_t);
+			   rxrpc_analtify_end_tx_t);
 int rxrpc_kernel_recv_data(struct socket *, struct rxrpc_call *,
 			   struct iov_iter *, size_t *, bool, u32 *, u16 *);
 bool rxrpc_kernel_abort_call(struct socket *, struct rxrpc_call *,
@@ -70,7 +70,7 @@ struct rxrpc_peer *rxrpc_kernel_get_call_peer(struct socket *sock, struct rxrpc_
 const struct sockaddr_rxrpc *rxrpc_kernel_remote_srx(const struct rxrpc_peer *peer);
 const struct sockaddr *rxrpc_kernel_remote_addr(const struct rxrpc_peer *peer);
 unsigned int rxrpc_kernel_get_srtt(const struct rxrpc_peer *);
-int rxrpc_kernel_charge_accept(struct socket *, rxrpc_notify_rx_t,
+int rxrpc_kernel_charge_accept(struct socket *, rxrpc_analtify_rx_t,
 			       rxrpc_user_attach_call_t, unsigned long, gfp_t,
 			       unsigned int);
 void rxrpc_kernel_set_tx_length(struct socket *, struct rxrpc_call *, s64);

@@ -170,7 +170,7 @@ int sun4i_dclk_create(struct device *dev, struct sun4i_tcon *tcon)
 	int ret;
 
 	parent_name = __clk_get_name(tcon->sclk0);
-	ret = of_property_read_string_index(dev->of_node,
+	ret = of_property_read_string_index(dev->of_analde,
 					    "clock-output-names", 0,
 					    &clk_name);
 	if (ret)
@@ -178,7 +178,7 @@ int sun4i_dclk_create(struct device *dev, struct sun4i_tcon *tcon)
 
 	dclk = devm_kzalloc(dev, sizeof(*dclk), GFP_KERNEL);
 	if (!dclk)
-		return -ENOMEM;
+		return -EANALMEM;
 	dclk->tcon = tcon;
 
 	init.name = clk_name;

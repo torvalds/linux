@@ -73,13 +73,13 @@ static int start_prepare_run(struct hantro_ctx *ctx, const struct v4l2_ctrl_vp9_
 	 * The userspace has also performed 6.3 compressed_header(), but handling the
 	 * probs in a special way. All probs which need updating, except MV-related,
 	 * have been read from the bitstream and translated through inv_map_table[],
-	 * but no 6.3.6 inv_recenter_nonneg(v, m) has been performed. The values passed
-	 * by userspace are either translated values (there are no 0 values in
-	 * inv_map_table[]), or zero to indicate no update. All MV-related probs which need
+	 * but anal 6.3.6 inv_recenter_analnneg(v, m) has been performed. The values passed
+	 * by userspace are either translated values (there are anal 0 values in
+	 * inv_map_table[]), or zero to indicate anal update. All MV-related probs which need
 	 * updating have been read from the bitstream and (mv_prob << 1) | 1 has been
 	 * performed. The values passed by userspace are either new values
 	 * to replace old ones (the above mentioned shift and bitwise or never result in
-	 * a zero) or zero to indicate no update.
+	 * a zero) or zero to indicate anal update.
 	 * fw_update_probs() performs actual probs updates or leaves probs as-is
 	 * for values for which a zero was passed from userspace.
 	 */
@@ -350,7 +350,7 @@ config_tiles(struct hantro_ctx *ctx,
 		hantro_reg_write(ctx->dev, &g2_num_tile_rows, rows);
 	}
 
-	/* provide aux buffers even if no tiles are used */
+	/* provide aux buffers even if anal tiles are used */
 	addr = tile_edge->dma;
 	hantro_write_addr(ctx->dev, G2_TILE_FILTER_ADDR, addr);
 
@@ -984,7 +984,7 @@ void hantro_g2_vp9_dec_done(struct hantro_ctx *ctx)
 				mv_mode[i][3] = hantro_cnts->inter_mode_counts[i][2][1];
 			}
 			counts->mv_mode = &mv_mode;
-			v4l2_vp9_adapt_noncoef_probs(&vp9_ctx->probability_tables, counts,
+			v4l2_vp9_adapt_analncoef_probs(&vp9_ctx->probability_tables, counts,
 						     vp9_ctx->cur.reference_mode,
 						     vp9_ctx->cur.interpolation_filter,
 						     vp9_ctx->cur.tx_mode, vp9_ctx->cur.flags);

@@ -18,7 +18,7 @@
  */
 
 /*
- * Create a new ceph snapshot context large enough to hold the
+ * Create a new ceph snapshot context large eanalugh to hold the
  * indicated number of snapshot ids (which can be 0).  Caller has
  * to fill in snapc->seq and snapc->snaps[0..snap_count-1].
  *

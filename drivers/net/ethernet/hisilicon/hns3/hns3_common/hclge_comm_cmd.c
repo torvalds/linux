@@ -41,7 +41,7 @@ void hclge_comm_cmd_init_regs(struct hclge_comm_hw *hw)
 
 void hclge_comm_cmd_reuse_desc(struct hclge_desc *desc, bool is_read)
 {
-	desc->flag = cpu_to_le16(HCLGE_COMM_CMD_FLAG_NO_INTR |
+	desc->flag = cpu_to_le16(HCLGE_COMM_CMD_FLAG_ANAL_INTR |
 				 HCLGE_COMM_CMD_FLAG_IN);
 	if (is_read)
 		desc->flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_WR);
@@ -66,7 +66,7 @@ void hclge_comm_cmd_setup_basic_desc(struct hclge_desc *desc,
 {
 	memset((void *)desc, 0, sizeof(struct hclge_desc));
 	desc->opcode = cpu_to_le16(opcode);
-	desc->flag = cpu_to_le16(HCLGE_COMM_CMD_FLAG_NO_INTR |
+	desc->flag = cpu_to_le16(HCLGE_COMM_CMD_FLAG_ANAL_INTR |
 				 HCLGE_COMM_CMD_FLAG_IN);
 
 	if (is_read)
@@ -118,7 +118,7 @@ static int hclge_comm_alloc_cmd_desc(struct hclge_comm_cmq_ring *ring)
 	ring->desc = dma_alloc_coherent(&ring->pdev->dev,
 					size, &ring->desc_dma_addr, GFP_KERNEL);
 	if (!ring->desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -383,15 +383,15 @@ static int hclge_comm_cmd_convert_err_code(u16 desc_ret)
 {
 	struct hclge_comm_errcode hclge_comm_cmd_errcode[] = {
 		{ HCLGE_COMM_CMD_EXEC_SUCCESS, 0 },
-		{ HCLGE_COMM_CMD_NO_AUTH, -EPERM },
-		{ HCLGE_COMM_CMD_NOT_SUPPORTED, -EOPNOTSUPP },
+		{ HCLGE_COMM_CMD_ANAL_AUTH, -EPERM },
+		{ HCLGE_COMM_CMD_ANALT_SUPPORTED, -EOPANALTSUPP },
 		{ HCLGE_COMM_CMD_QUEUE_FULL, -EXFULL },
-		{ HCLGE_COMM_CMD_NEXT_ERR, -ENOSR },
-		{ HCLGE_COMM_CMD_UNEXE_ERR, -ENOTBLK },
+		{ HCLGE_COMM_CMD_NEXT_ERR, -EANALSR },
+		{ HCLGE_COMM_CMD_UNEXE_ERR, -EANALTBLK },
 		{ HCLGE_COMM_CMD_PARA_ERR, -EINVAL },
 		{ HCLGE_COMM_CMD_RESULT_ERR, -ERANGE },
 		{ HCLGE_COMM_CMD_TIMEOUT, -ETIME },
-		{ HCLGE_COMM_CMD_HILINK_ERR, -ENOLINK },
+		{ HCLGE_COMM_CMD_HILINK_ERR, -EANALLINK },
 		{ HCLGE_COMM_CMD_QUEUE_ILLEGAL, -ENXIO },
 		{ HCLGE_COMM_CMD_INVALID, -EBADR },
 	};
@@ -400,7 +400,7 @@ static int hclge_comm_cmd_convert_err_code(u16 desc_ret)
 
 	for (i = 0; i < errcode_count; i++)
 		if (hclge_comm_cmd_errcode[i].imp_errcode == desc_ret)
-			return hclge_comm_cmd_errcode[i].common_errno;
+			return hclge_comm_cmd_errcode[i].common_erranal;
 
 	return -EIO;
 }
@@ -644,7 +644,7 @@ int hclge_comm_cmd_init(struct hnae3_ae_dev *ae_dev, struct hclge_comm_hw *hw,
 	ret = hclge_comm_firmware_compat_config(ae_dev, hw, true);
 	if (ret)
 		dev_warn(&ae_dev->pdev->dev,
-			 "Firmware compatible features not enabled(%d).\n",
+			 "Firmware compatible features analt enabled(%d).\n",
 			 ret);
 	return 0;
 

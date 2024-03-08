@@ -49,7 +49,7 @@ struct crypto_istat_rng {
  * @stat:	Statistics for rng algorithm
  * @seedsize:	The seed size required for a random number generator
  *		initialization defined with this variable. Some
- *		random number generators does not require a seed
+ *		random number generators does analt require a seed
  *		as the seeding is implemented internally without
  *		the need of support by the consumer. In this case,
  *		the seed size is set to zero.
@@ -100,7 +100,7 @@ void crypto_put_default_rng(void);
  * API invocation for that random number generator.
  *
  * For all random number generators, this call creates a new private copy of
- * the random number generator that does not share a state with other
+ * the random number generator that does analt share a state with other
  * instances. The only exception is the "krng" random number generator which
  * is a kernel crypto API use case for the get_random_bytes() function of the
  * /dev/random driver.
@@ -137,7 +137,7 @@ static inline struct rng_alg *crypto_rng_alg(struct crypto_rng *tfm)
  * crypto_free_rng() - zeroize and free RNG handle
  * @tfm: cipher handle to be freed
  *
- * If @tfm is a NULL or error pointer, this function does nothing.
+ * If @tfm is a NULL or error pointer, this function does analthing.
  */
 static inline void crypto_free_rng(struct crypto_rng *tfm)
 {
@@ -238,7 +238,7 @@ int crypto_rng_reset(struct crypto_rng *tfm, const u8 *seed,
  *
  * The function returns the seed size for the random number generator
  * referenced by the cipher handle. This value may be zero if the random
- * number generator does not implement or require a reseeding. For example,
+ * number generator does analt implement or require a reseeding. For example,
  * the SP800-90A DRBGs implement an automated reseeding after reaching a
  * pre-defined threshold.
  *

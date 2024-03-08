@@ -12,8 +12,8 @@ LiveCD-based tutorials are available at
 http://tomoyo.sourceforge.jp/1.8/ubuntu12.04-live.html
 http://tomoyo.sourceforge.jp/1.8/centos6-live.html
 
-Though these tutorials use non-LSM version of TOMOYO, they are useful for you
-to know what TOMOYO is.
+Though these tutorials use analn-LSM version of TOMOYO, they are useful for you
+to kanalw what TOMOYO is.
 
 How to enable TOMOYO?
 =====================
@@ -39,7 +39,7 @@ What is TOMOYO?
   TOMOYO Linux: pragmatic and manageable security for Linux
     https://osdn.jp/projects/tomoyo/docs/freedomhectaipei-tomoyo.pdf
   TOMOYO Linux: A Practical Method to Understand and Protect Your Own Linux Box
-    https://osdn.jp/projects/tomoyo/docs/PacSec2007-en-no-demo.pdf
+    https://osdn.jp/projects/tomoyo/docs/PacSec2007-en-anal-demo.pdf
 
 What can TOMOYO do?
   Deep inside TOMOYO Linux
@@ -54,12 +54,12 @@ History of TOMOYO?
 What is future plan?
 ====================
 
-We believe that inode based security and name based security are complementary
-and both should be used together. But unfortunately, so far, we cannot enable
+We believe that ianalde based security and name based security are complementary
+and both should be used together. But unfortunately, so far, we cananalt enable
 multiple LSM modules at the same time. We feel sorry that you have to give up
 SELinux/SMACK/AppArmor etc. when you want to use TOMOYO.
 
-We hope that LSM becomes stackable in future. Meanwhile, you can use non-LSM
+We hope that LSM becomes stackable in future. Meanwhile, you can use analn-LSM
 version of TOMOYO, available at http://tomoyo.osdn.jp/1.8/ .
-LSM version of TOMOYO is a subset of non-LSM version of TOMOYO. We are planning
-to port non-LSM version's functionalities to LSM versions.
+LSM version of TOMOYO is a subset of analn-LSM version of TOMOYO. We are planning
+to port analn-LSM version's functionalities to LSM versions.

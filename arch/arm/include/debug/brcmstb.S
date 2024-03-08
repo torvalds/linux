@@ -51,8 +51,8 @@
 		sub	\tmp, \rp, \rv		@ actual brcmstb_uart_config
 		ldr	\rp, [\tmp]		@ Load brcmstb_uart_config
 		cmp	\rp, #1			@ needs initialization?
-		bne	100f			@ no; go load the addresses
-		mov	\rv, #0			@ yes; record init is done
+		bne	100f			@ anal; go load the addresses
+		mov	\rv, #0			@ anal; record init is done
 		str	\rv, [\tmp]
 
 		/* Check for V7 memory map if B53 */
@@ -92,14 +92,14 @@ ARM_BE8(	rev	\rv, \rv )
 34:		checkuart(\rp, \rv, 0x74390000, 7439)
 35:		checkuart(\rp, \rv, 0x74450000, 7445)
 
-		/* No valid UART found */
+		/* Anal valid UART found */
 90:		mov	\rp, #0
 		/* fall through */
 
 		/* Record whichever UART we chose */
 91:		str	\rp, [\tmp, #4]		@ Store in brcmstb_uart_phys
 		cmp	\rp, #0			@ Valid UART address?
-		bne	92f			@ Yes, go process it
+		bne	92f			@ Anal, go process it
 		str	\rp, [\tmp, #8]		@ Store 0 in brcmstb_uart_virt
 		b	100f			@ Done
 92:		and     \rv, \rp, #0xffffff	@ offset within 16MB section
@@ -151,7 +151,7 @@ ARM_BE8(	rev	\rd, \rd )
  * That's because this header is included from multiple files, and we only
  * want a single copy of the data. In particular, the UART probing code above
  * assumes it's running using physical addresses. This is true when this file
- * is included from head.o, but not when included from debug.o. So we need
+ * is included from head.o, but analt when included from debug.o. So we need
  * to share the probe results between the two copies, rather than having
  * to re-run the probing again later.
  *

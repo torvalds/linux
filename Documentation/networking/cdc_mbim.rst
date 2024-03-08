@@ -15,7 +15,7 @@ devices, aka "3G/LTE modems".
 Command Line Parameters
 =======================
 
-The cdc_mbim driver has no parameters of its own.  But the probing
+The cdc_mbim driver has anal parameters of its own.  But the probing
 behaviour for NCM 1.0 backwards compatible MBIM functions (an
 "NCM/MBIM function" as defined in section 3.2 of [1]) is affected
 by a cdc_ncm driver parameter:
@@ -29,7 +29,7 @@ prefer_mbim
 This parameter sets the system policy for NCM/MBIM functions.  Such
 functions will be handled by either the cdc_ncm driver or the cdc_mbim
 driver depending on the prefer_mbim setting.  Setting prefer_mbim=N
-makes the cdc_mbim driver ignore these functions and lets the cdc_ncm
+makes the cdc_mbim driver iganalre these functions and lets the cdc_ncm
 driver handle them instead.
 
 The parameter is writable, and can be changed at any time. A manual
@@ -42,11 +42,11 @@ Basic usage
 
 MBIM functions are inactive when unmanaged. The cdc_mbim driver only
 provides a userspace interface to the MBIM control channel, and will
-not participate in the management of the function. This implies that a
+analt participate in the management of the function. This implies that a
 userspace MBIM management application always is required to enable a
 MBIM function.
 
-Such userspace applications includes, but are not limited to:
+Such userspace applications includes, but are analt limited to:
 
  - mbimcli (included with the libmbim [3] library), and
  - ModemManager [4]
@@ -74,7 +74,7 @@ The driver creates a two-way pipe to the MBIM function control channel
 using the cdc-wdm driver as a subdriver.  The userspace end of the
 control channel pipe is a /dev/cdc-wdmX character device.
 
-The cdc_mbim driver does not process or police messages on the control
+The cdc_mbim driver does analt process or police messages on the control
 channel.  The channel is fully delegated to the userspace management
 application.  It is therefore up to this application to ensure that it
 complies with all the control channel requirements in [1].
@@ -113,7 +113,7 @@ fragmentation and defragmentaion, as described in section 9.5 of [1].
 
 /dev/cdc-wdmX write()
 ---------------------
-The MBIM control messages from the management application *must not*
+The MBIM control messages from the management application *must analt*
 exceed the negotiated control message size.
 
 
@@ -182,7 +182,7 @@ described in section 10.5.1 of [1].
 
 The userspace management application is responsible for adding new
 VLAN links prior to establishing MBIM IP sessions where the SessionId
-is greater than 0. These links can be added by using the normal VLAN
+is greater than 0. These links can be added by using the analrmal VLAN
 kernel interfaces, either ioctl or netlink.
 
 For example, adding a link for a MBIM IP session with SessionId 3::
@@ -195,9 +195,9 @@ IP session 3.
 
 Device Service Streams (DSS)
 ----------------------------
-MBIM also allows up to 256 non-IP data streams to be multiplexed over
+MBIM also allows up to 256 analn-IP data streams to be multiplexed over
 the same shared USB data channel.  The cdc_mbim driver models these
-sessions as another set of 802.1q VLAN subdevices of the master wwanY
+sessions as aanalther set of 802.1q VLAN subdevices of the master wwanY
 device, mapping MBIM DSS session A to VLAN ID (256 + A) for all values
 of A.
 
@@ -206,7 +206,7 @@ structure described in section 10.5.29 of [1].
 
 The DSS VLAN subdevices are used as a practical interface between the
 shared MBIM data channel and a MBIM DSS aware userspace application.
-It is not intended to be presented as-is to an end user. The
+It is analt intended to be presented as-is to an end user. The
 assumption is that a userspace application initiating a DSS session
 also takes care of the necessary framing of the DSS data, presenting
 the stream to the end user in an appropriate way for the stream type.
@@ -217,7 +217,7 @@ arbitrary, with the following exceptions:
 
  - TX frames using an IP protocol (0x0800 or 0x86dd) will be dropped
  - RX frames will have the protocol field set to ETH_P_802_3 (but will
-   not be properly formatted 802.3 frames)
+   analt be properly formatted 802.3 frames)
  - RX frames will have the destination address set to the hardware
    address of the master device
 
@@ -237,7 +237,7 @@ service. Userspace applications supporting specific MBIM DSS services
 are expected to use the tools and programming interfaces required by
 that service.
 
-Note that adding VLAN links for DSS sessions is entirely optional.  A
+Analte that adding VLAN links for DSS sessions is entirely optional.  A
 management application may instead choose to bind a packet socket
 directly to the master network device, using the received VLAN tags to
 map frames to the correct DSS session and adding 18 byte VLAN ethernet
@@ -261,7 +261,7 @@ example::
 	BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, ETH_P_802_3, 0, 1),
 
 	BPF_STMT(BPF_RET|BPF_K, (u_int)-1),	/* accept */
-	BPF_STMT(BPF_RET|BPF_K, 0),		/* ignore */
+	BPF_STMT(BPF_RET|BPF_K, 0),		/* iganalre */
   };
 
 
@@ -273,11 +273,11 @@ driver.  It is initially mapped to untagged frames on the wwanY
 network device.
 
 This mapping implies a few restrictions on multiplexed IPS and DSS
-sessions, which may not always be practical:
+sessions, which may analt always be practical:
 
- - no IPS or DSS session can use a frame size greater than the MTU on
+ - anal IPS or DSS session can use a frame size greater than the MTU on
    IP session 0
- - no IPS or DSS session can be in the up state unless the network
+ - anal IPS or DSS session can be in the up state unless the network
    device representing IP session 0 also is up
 
 These problems can be avoided by optionally making the driver map IP
@@ -301,7 +301,7 @@ Summarizing the cdc_mbim driver mapping described above, we have this
 relationship between VLAN tags on the wwanY network device and MBIM
 sessions on the shared USB data channel::
 
-  VLAN ID       MBIM type   MBIM SessionID           Notes
+  VLAN ID       MBIM type   MBIM SessionID           Analtes
   ---------------------------------------------------------
   untagged      IPS         0                        a)
   1 - 255       IPS         1 - 255 <VLANID>
@@ -309,7 +309,7 @@ sessions on the shared USB data channel::
   512 - 4093                                         b)
   4094          IPS         0                        c)
 
-    a) if no VLAN ID 4094 link exists, else dropped
+    a) if anal VLAN ID 4094 link exists, else dropped
     b) unsupported VLAN range, unconditionally dropped
     c) if a VLAN ID 4094 link exists, else dropped
 
@@ -327,7 +327,7 @@ References
 
  2) USB Implementers Forum, Inc. - "Universal Serial Bus
     Communications Class Subclass Specifications for Network Control
-    Model Devices", Revision 1.0 (Errata 1), November 24, 2010
+    Model Devices", Revision 1.0 (Errata 1), Analvember 24, 2010
 
       - http://www.usb.org/developers/docs/devclass_docs/
 

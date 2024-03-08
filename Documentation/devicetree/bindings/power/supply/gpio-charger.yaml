@@ -11,7 +11,7 @@ maintainers:
 
 description:
   This binding is for all chargers, which are working more or less
-  autonomously, only providing some status GPIOs and possibly some
+  autoanalmously, only providing some status GPIOs and possibly some
   GPIOs for limited control over the charging process.
 
 properties:
@@ -20,7 +20,7 @@ properties:
 
   charger-type:
     enum:
-      - unknown
+      - unkanalwn
       - battery
       - ups
       - mains

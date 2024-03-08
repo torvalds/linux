@@ -69,7 +69,7 @@ int bch2_replicas_entry_validate(struct bch_replicas_entry_v1 *r,
 				 struct printbuf *err)
 {
 	if (!r->nr_devs) {
-		prt_printf(err, "no devices in entry ");
+		prt_printf(err, "anal devices in entry ");
 		goto bad;
 	}
 
@@ -361,7 +361,7 @@ out:
 	return ret;
 err:
 	bch_err(c, "error updating replicas table: memory allocation failure");
-	ret = -BCH_ERR_ENOMEM_replicas_table;
+	ret = -BCH_ERR_EANALMEM_replicas_table;
 	goto out;
 }
 
@@ -371,7 +371,7 @@ static unsigned reserve_journal_replicas(struct bch_fs *c,
 	struct bch_replicas_entry_v1 *e;
 	unsigned journal_res_u64s = 0;
 
-	/* nr_inodes: */
+	/* nr_ianaldes: */
 	journal_res_u64s +=
 		DIV_ROUND_UP(sizeof(struct jset_entry_usage), sizeof(u64));
 
@@ -391,7 +391,7 @@ static unsigned reserve_journal_replicas(struct bch_fs *c,
 	return journal_res_u64s;
 }
 
-noinline
+analinline
 static int bch2_mark_replicas_slowpath(struct bch_fs *c,
 				struct bch_replicas_entry_v1 *new_entry)
 {
@@ -409,7 +409,7 @@ static int bch2_mark_replicas_slowpath(struct bch_fs *c,
 	    !__replicas_has_entry(&c->replicas_gc, new_entry)) {
 		new_gc = cpu_replicas_add_entry(c, &c->replicas_gc, new_entry);
 		if (!new_gc.entries) {
-			ret = -BCH_ERR_ENOMEM_cpu_replicas;
+			ret = -BCH_ERR_EANALMEM_cpu_replicas;
 			goto err;
 		}
 	}
@@ -417,7 +417,7 @@ static int bch2_mark_replicas_slowpath(struct bch_fs *c,
 	if (!__replicas_has_entry(&c->replicas, new_entry)) {
 		new_r = cpu_replicas_add_entry(c, &c->replicas, new_entry);
 		if (!new_r.entries) {
-			ret = -BCH_ERR_ENOMEM_cpu_replicas;
+			ret = -BCH_ERR_EANALMEM_cpu_replicas;
 			goto err;
 		}
 
@@ -434,7 +434,7 @@ static int bch2_mark_replicas_slowpath(struct bch_fs *c,
 	    !new_gc.entries)
 		goto out;
 
-	/* allocations done, now commit: */
+	/* allocations done, analw commit: */
 
 	if (new_r.entries)
 		bch2_write_super(c);
@@ -479,7 +479,7 @@ int bch2_replicas_delta_list_mark(struct bch_fs *c,
 }
 
 /*
- * Old replicas_gc mechanism: only used for journal replicas entries now, should
+ * Old replicas_gc mechanism: only used for journal replicas entries analw, should
  * die at some point:
  */
 
@@ -534,7 +534,7 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 	if (!c->replicas_gc.entries) {
 		mutex_unlock(&c->sb_lock);
 		bch_err(c, "error allocating c->replicas_gc");
-		return -BCH_ERR_ENOMEM_replicas_gc;
+		return -BCH_ERR_EANALMEM_replicas_gc;
 	}
 
 	for_each_cpu_replicas_entry(&c->replicas, e)
@@ -569,7 +569,7 @@ retry:
 	new.entries	= kcalloc(nr, new.entry_size, GFP_KERNEL);
 	if (!new.entries) {
 		bch_err(c, "error allocating c->replicas_gc");
-		return -BCH_ERR_ENOMEM_replicas_gc;
+		return -BCH_ERR_EANALMEM_replicas_gc;
 	}
 
 	mutex_lock(&c->sb_lock);
@@ -625,7 +625,7 @@ int bch2_replicas_set_usage(struct bch_fs *c,
 
 		n = cpu_replicas_add_entry(c, &c->replicas, r);
 		if (!n.entries)
-			return -BCH_ERR_ENOMEM_cpu_replicas;
+			return -BCH_ERR_EANALMEM_cpu_replicas;
 
 		ret = replicas_table_update(c, &n);
 		if (ret)
@@ -659,7 +659,7 @@ __bch2_sb_replicas_to_cpu_replicas(struct bch_sb_field_replicas *sb_r,
 
 	cpu_r->entries = kcalloc(nr, entry_size, GFP_KERNEL);
 	if (!cpu_r->entries)
-		return -BCH_ERR_ENOMEM_cpu_replicas;
+		return -BCH_ERR_EANALMEM_cpu_replicas;
 
 	cpu_r->nr		= nr;
 	cpu_r->entry_size	= entry_size;
@@ -691,7 +691,7 @@ __bch2_sb_replicas_v0_to_cpu_replicas(struct bch_sb_field_replicas_v0 *sb_r,
 
 	cpu_r->entries = kcalloc(nr, entry_size, GFP_KERNEL);
 	if (!cpu_r->entries)
-		return -BCH_ERR_ENOMEM_cpu_replicas;
+		return -BCH_ERR_EANALMEM_cpu_replicas;
 
 	cpu_r->nr		= nr;
 	cpu_r->entry_size	= entry_size;
@@ -752,7 +752,7 @@ static int bch2_cpu_replicas_to_sb_replicas_v0(struct bch_fs *c,
 	sb_r = bch2_sb_field_resize(&c->disk_sb, replicas_v0,
 			DIV_ROUND_UP(bytes, sizeof(u64)));
 	if (!sb_r)
-		return -BCH_ERR_ENOSPC_sb_replicas;
+		return -BCH_ERR_EANALSPC_sb_replicas;
 
 	bch2_sb_field_delete(&c->disk_sb, BCH_SB_FIELD_replicas);
 	sb_r = bch2_sb_field_get(c->disk_sb.sb, replicas_v0);
@@ -797,7 +797,7 @@ static int bch2_cpu_replicas_to_sb_replicas(struct bch_fs *c,
 	sb_r = bch2_sb_field_resize(&c->disk_sb, replicas,
 			DIV_ROUND_UP(bytes, sizeof(u64)));
 	if (!sb_r)
-		return -BCH_ERR_ENOSPC_sb_replicas;
+		return -BCH_ERR_EANALSPC_sb_replicas;
 
 	bch2_sb_field_delete(&c->disk_sb, BCH_SB_FIELD_replicas_v0);
 	sb_r = bch2_sb_field_get(c->disk_sb.sb, replicas);
@@ -934,7 +934,7 @@ const struct bch_sb_field_ops bch_sb_field_ops_replicas_v0 = {
 
 /* Query replicas: */
 
-bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
+bool bch2_have_eanalugh_devs(struct bch_fs *c, struct bch_devs_mask devs,
 			   unsigned flags, bool print)
 {
 	struct bch_replicas_entry_v1 *e;

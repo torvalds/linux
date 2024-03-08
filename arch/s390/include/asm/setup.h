@@ -40,7 +40,7 @@
 
 /* Offsets to entry points in kernel/head.S  */
 
-#define STARTUP_NORMAL_OFFSET	0x10000
+#define STARTUP_ANALRMAL_OFFSET	0x10000
 #define STARTUP_KDUMP_OFFSET	0x10010
 
 #define LEGACY_COMMAND_LINE_SIZE	896
@@ -100,7 +100,7 @@ extern unsigned long mio_wb_bit_mask;
  * Console mode. Override with conmode=
  */
 extern unsigned int console_mode;
-extern unsigned int console_devno;
+extern unsigned int console_devanal;
 extern unsigned int console_irq;
 
 #define CONSOLE_IS_UNDEFINED	(console_mode == 0)

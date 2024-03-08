@@ -20,7 +20,7 @@
  *  09-28-01  01.02.02  Major rework for MPI v1.2 Integrated RAID changes.
  *  10-04-01  01.02.03  Added ActionData defines for
  *                      MPI_RAID_ACTION_DELETE_VOLUME action.
- *  11-01-01  01.02.04  Added define for MPI_RAID_ACTION_ADATA_DO_NOT_SYNC.
+ *  11-01-01  01.02.04  Added define for MPI_RAID_ACTION_ADATA_DO_ANALT_SYNC.
  *  03-14-02  01.02.05  Added define for MPI_RAID_ACTION_ADATA_LOW_LEVEL_INIT.
  *  05-07-02  01.02.06  Added define for MPI_RAID_ACTION_ACTIVATE_VOLUME,
  *                      MPI_RAID_ACTION_INACTIVATE_VOLUME, and
@@ -100,7 +100,7 @@ typedef struct _MSG_RAID_ACTION
 #define MPI_RAID_ACTION_SET_VOLUME_NAME             (0x16)
 
 /* ActionDataWord defines for use with MPI_RAID_ACTION_CREATE_VOLUME action */
-#define MPI_RAID_ACTION_ADATA_DO_NOT_SYNC           (0x00000001)
+#define MPI_RAID_ACTION_ADATA_DO_ANALT_SYNC           (0x00000001)
 #define MPI_RAID_ACTION_ADATA_LOW_LEVEL_INIT        (0x00000002)
 
 /* ActionDataWord defines for use with MPI_RAID_ACTION_DELETE_VOLUME action */

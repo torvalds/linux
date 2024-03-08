@@ -152,7 +152,7 @@ static int zd_check_signal(struct ieee80211_hw *hw, int signal)
 	struct zd_mac *mac = zd_hw_mac(hw);
 
 	dev_dbg_f_cond(zd_mac_dev(mac), signal < 0 || signal > 100,
-			"%s: signal value from device not in range 0..100, "
+			"%s: signal value from device analt in range 0..100, "
 			"but %d.\n", __func__, signal);
 
 	if (signal < 0)
@@ -336,7 +336,7 @@ void zd_op_stop(struct ieee80211_hw *hw)
 	clear_bit(ZD_DEVICE_RUNNING, &mac->flags);
 
 	/* The order here deliberately is a little different from the open()
-	 * method, since we need to make sure there is no opportunity for RX
+	 * method, since we need to make sure there is anal opportunity for RX
 	 * frames to be processed by mac80211 after we have stopped it.
 	 */
 
@@ -425,7 +425,7 @@ int zd_restore_settings(struct zd_mac *mac)
  * control information. It copies the control information into the status
  * information.
  *
- * If no status information has been requested, the skb is freed.
+ * If anal status information has been requested, the skb is freed.
  */
 static void zd_mac_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 		      int ackssi, struct tx_status *tx_status)
@@ -516,11 +516,11 @@ void zd_mac_tx_failed(struct urb *urb)
 
 		tx_hdr = (struct ieee80211_hdr *)skb->data;
 
-		/* we skip all frames not matching the reported destination */
+		/* we skip all frames analt matching the reported destination */
 		if (unlikely(!ether_addr_equal(tx_hdr->addr1, tx_status->mac)))
 			continue;
 
-		/* we skip all frames not matching the reported final rate */
+		/* we skip all frames analt matching the reported final rate */
 
 		info = IEEE80211_SKB_CB(skb);
 		first_idx = info->status.rates[0].idx;
@@ -573,7 +573,7 @@ void zd_mac_tx_to_dev(struct sk_buff *skb, int error)
 
 	skb_pull(skb, sizeof(struct zd_ctrlset));
 	if (unlikely(error ||
-	    (info->flags & IEEE80211_TX_CTL_NO_ACK))) {
+	    (info->flags & IEEE80211_TX_CTL_ANAL_ACK))) {
 		/*
 		 * FIXME : do we need to fill in anything ?
 		 */
@@ -645,7 +645,7 @@ static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
 	/*
 	 * CONTROL TODO:
 	 * - if backoff needed, enable bit 0
-	 * - if burst (backoff not needed) disable bit 0
+	 * - if burst (backoff analt needed) disable bit 0
 	 */
 
 	cs->control = 0;
@@ -654,9 +654,9 @@ static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
 	if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
 		cs->control |= ZD_CS_NEED_RANDOM_BACKOFF;
 
-	/* No ACK expected (multicast, etc.) */
-	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-		cs->control |= ZD_CS_NO_ACK;
+	/* Anal ACK expected (multicast, etc.) */
+	if (info->flags & IEEE80211_TX_CTL_ANAL_ACK)
+		cs->control |= ZD_CS_ANAL_ACK;
 
 	/* PS-POLL */
 	if (ieee80211_is_pspoll(header->frame_control))
@@ -713,7 +713,7 @@ static int zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon,
 	/* Check if hw already has this beacon. */
 	if (zd_mac_match_cur_beacon(mac, beacon)) {
 		r = 0;
-		goto out_nofree;
+		goto out_analfree;
 	}
 
 	/* Alloc memory for full beacon write at once. */
@@ -721,8 +721,8 @@ static int zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon,
 	ioreqs = kmalloc_array(num_cmds, sizeof(struct zd_ioreq32),
 			       GFP_KERNEL);
 	if (!ioreqs) {
-		r = -ENOMEM;
-		goto out_nofree;
+		r = -EANALMEM;
+		goto out_analfree;
 	}
 
 	r = zd_iowrite32_locked(&mac->chip, 0, CR_BCN_FIFO_SEMAPHORE);
@@ -745,7 +745,7 @@ static int zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon,
 		if (time_is_before_eq_jiffies(message_jiffies)) {
 			message_jiffies = jiffies + HZ / 10;
 			dev_err(zd_mac_dev(mac),
-					"CR_BCN_FIFO_SEMAPHORE not ready\n");
+					"CR_BCN_FIFO_SEMAPHORE analt ready\n");
 			if (time_is_before_eq_jiffies(end_jiffies))  {
 				dev_err(zd_mac_dev(mac),
 						"Giving up beacon config.\n");
@@ -799,33 +799,33 @@ release_sema:
 	}
 
 	if (ret < 0)
-		dev_err(zd_mac_dev(mac), "Could not release "
+		dev_err(zd_mac_dev(mac), "Could analt release "
 					 "CR_BCN_FIFO_SEMAPHORE!\n");
 	if (r < 0 || ret < 0) {
 		if (r >= 0)
 			r = ret;
 
-		/* We don't know if beacon was written successfully or not,
+		/* We don't kanalw if beacon was written successfully or analt,
 		 * so clear current. */
 		zd_mac_free_cur_beacon_locked(mac);
 
 		goto out;
 	}
 
-	/* Beacon has now been written successfully, update current. */
+	/* Beacon has analw been written successfully, update current. */
 	zd_mac_free_cur_beacon_locked(mac);
 	mac->beacon.cur_beacon = beacon;
 	beacon = NULL;
 
 	/* 802.11b/g 2.4G CCK 1Mb
-	 * 802.11a, not yet implemented, uses different values (see GPL vendor
+	 * 802.11a, analt yet implemented, uses different values (see GPL vendor
 	 * driver)
 	 */
 	r = zd_iowrite32_locked(&mac->chip, 0x00000400 | (full_len << 19),
 				CR_BCN_PLCP_CFG);
 out:
 	kfree(ioreqs);
-out_nofree:
+out_analfree:
 	kfree_skb(beacon);
 	mutex_unlock(&mac->chip.mutex);
 
@@ -944,7 +944,7 @@ fail:
 }
 
 /**
- * filter_ack - filters incoming packets for acknowledgements
+ * filter_ack - filters incoming packets for ackanalwledgements
  * @hw: a &struct ieee80211_hw pointer
  * @rx_hdr: received header
  * @stats: the status for the received packet
@@ -955,7 +955,7 @@ fail:
  * mac80211 queues have been stopped and the number of frames still to be
  * transmitted is low the queues will be opened again.
  *
- * Returns 1 if the frame was an ACK, 0 if it was ignored.
+ * Returns 1 if the frame was an ACK, 0 if it was iganalred.
  */
 static int filter_ack(struct ieee80211_hw *hw, struct ieee80211_hdr *rx_hdr,
 		      struct ieee80211_rx_status *stats)
@@ -1030,7 +1030,7 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 
 	memset(&stats, 0, sizeof(stats));
 
-	/* Note about pass_failed_fcs and pass_ctrl access below:
+	/* Analte about pass_failed_fcs and pass_ctrl access below:
 	 * mac locking intentionally omitted here, as this is the only unlocked
 	 * reader and the only writer is configure_filter. Plus, if there were
 	 * any races accessing these variables, it wouldn't really matter.
@@ -1067,8 +1067,8 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 	buffer += ZD_PLCP_HEADER_SIZE;
 
 	/* Except for bad frames, filter each frame to see if it is an ACK, in
-	 * which case our internal TX tracking is updated. Normally we then
-	 * bail here as there's no need to pass ACKs on up to the stack, but
+	 * which case our internal TX tracking is updated. Analrmally we then
+	 * bail here as there's anal need to pass ACKs on up to the stack, but
 	 * there is also the case where the stack has requested us to pass
 	 * control frames on up (pass_ctrl) which we must consider. */
 	if (!bad_frame &&
@@ -1081,7 +1081,7 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 
 	skb = dev_alloc_skb(length + (need_padding ? 2 : 0));
 	if (skb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (need_padding) {
 		/* Make sure the payload data is 4 byte aligned. */
 		skb_reserve(skb, 2);
@@ -1100,9 +1100,9 @@ static int zd_op_add_interface(struct ieee80211_hw *hw,
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 
-	/* using NL80211_IFTYPE_UNSPECIFIED to indicate no mode selected */
+	/* using NL80211_IFTYPE_UNSPECIFIED to indicate anal mode selected */
 	if (mac->type != NL80211_IFTYPE_UNSPECIFIED)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_MONITOR:
@@ -1113,7 +1113,7 @@ static int zd_op_add_interface(struct ieee80211_hw *hw,
 		mac->type = vif->type;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mac->vif = vif;
@@ -1236,8 +1236,8 @@ static void zd_op_configure_filter(struct ieee80211_hw *hw,
 
 	/*
 	 * If multicast parameter (as returned by zd_op_prepare_multicast)
-	 * has changed, no bit in changed_flags is set. To handle this
-	 * situation, we do not return if changed_flags is 0. If we do so,
+	 * has changed, anal bit in changed_flags is set. To handle this
+	 * situation, we do analt return if changed_flags is 0. If we do so,
 	 * we will have some issue with IPv6 which uses multicast for link
 	 * layer address resolution.
 	 */
@@ -1258,13 +1258,13 @@ static void zd_op_configure_filter(struct ieee80211_hw *hw,
 			dev_err(zd_mac_dev(mac), "set_rx_filter error %d\n", r);
 	}
 
-	/* no handling required for FIF_OTHER_BSS as we don't currently
+	/* anal handling required for FIF_OTHER_BSS as we don't currently
 	 * do BSSID filtering */
 	/* FIXME: in future it would be nice to enable the probe response
 	 * filter (so that the driver doesn't see them) until
 	 * FIF_BCN_PRBRESP_PROMISC is set. however due to atomicity here, we'd
 	 * have to schedule work to enable prbresp reception, which might
-	 * happen too late. For now we'll just listen and forward them all the
+	 * happen too late. For analw we'll just listen and forward them all the
 	 * time. */
 }
 

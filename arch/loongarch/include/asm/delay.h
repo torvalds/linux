@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_DELAY_H
 #define _ASM_DELAY_H
@@ -14,7 +14,7 @@ extern void __udelay(unsigned long us);
 #define ndelay(ns) __ndelay(ns)
 #define udelay(us) __udelay(us)
 
-/* make sure "usecs *= ..." in udelay do not overflow. */
+/* make sure "usecs *= ..." in udelay do analt overflow. */
 #if HZ >= 1000
 #define MAX_UDELAY_MS	1
 #elif HZ <= 200

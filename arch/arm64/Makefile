@@ -10,14 +10,14 @@
 #
 # Copyright (C) 1995-2001 by Russell King
 
-LDFLAGS_vmlinux	:=--no-undefined -X
+LDFLAGS_vmlinux	:=--anal-undefined -X
 
 ifeq ($(CONFIG_RELOCATABLE), y)
-# Pass --no-apply-dynamic-relocs to restore pre-binutils-2.27 behaviour
+# Pass --anal-apply-dynamic-relocs to restore pre-binutils-2.27 behaviour
 # for relative relocs, since this leads to better Image compression
 # with the relocation offsets always being zero.
-LDFLAGS_vmlinux		+= -shared -Bsymbolic -z notext \
-			$(call ld-option, --no-apply-dynamic-relocs)
+LDFLAGS_vmlinux		+= -shared -Bsymbolic -z analtext \
+			$(call ld-option, --anal-apply-dynamic-relocs)
 endif
 
 ifeq ($(CONFIG_ARM64_ERRATUM_843419),y)
@@ -46,11 +46,11 @@ KBUILD_AFLAGS	+= $(call cc-option,-mabi=lp64)
 
 # Avoid generating .eh_frame* sections.
 ifneq ($(CONFIG_UNWIND_TABLES),y)
-KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables -fno-unwind-tables
-KBUILD_AFLAGS	+= -fno-asynchronous-unwind-tables -fno-unwind-tables
+KBUILD_CFLAGS	+= -fanal-asynchroanalus-unwind-tables -fanal-unwind-tables
+KBUILD_AFLAGS	+= -fanal-asynchroanalus-unwind-tables -fanal-unwind-tables
 else
-KBUILD_CFLAGS	+= -fasynchronous-unwind-tables
-KBUILD_AFLAGS	+= -fasynchronous-unwind-tables
+KBUILD_CFLAGS	+= -fasynchroanalus-unwind-tables
+KBUILD_AFLAGS	+= -fasynchroanalus-unwind-tables
 endif
 
 ifeq ($(CONFIG_STACKPROTECTOR_PER_TASK),y)
@@ -69,21 +69,21 @@ else ifeq ($(CONFIG_ARM64_PTR_AUTH_KERNEL),y)
   ifeq ($(CONFIG_CC_HAS_BRANCH_PROT_PAC_RET),y)
     KBUILD_CFLAGS += -mbranch-protection=pac-ret
   else
-    KBUILD_CFLAGS += -msign-return-address=non-leaf
+    KBUILD_CFLAGS += -msign-return-address=analn-leaf
   endif
 else
-  KBUILD_CFLAGS += $(call cc-option,-mbranch-protection=none)
+  KBUILD_CFLAGS += $(call cc-option,-mbranch-protection=analne)
 endif
 
 # Tell the assembler to support instructions from the latest target
 # architecture.
 #
-# For non-integrated assemblers we'll pass this on the command line, and for
+# For analn-integrated assemblers we'll pass this on the command line, and for
 # integrated assemblers we'll define ARM64_ASM_ARCH and ARM64_ASM_PREAMBLE for
 # inline usage.
 #
-# We cannot pass the same arch flag to the compiler as this would allow it to
-# freely generate instructions which are not supported by earlier architecture
+# We cananalt pass the same arch flag to the compiler as this would allow it to
+# freely generate instructions which are analt supported by earlier architecture
 # versions, which would prevent a single kernel image from working on earlier
 # hardware.
 ifeq ($(CONFIG_AS_HAS_ARMV8_5), y)
@@ -108,20 +108,20 @@ endif
 ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
 KBUILD_CPPFLAGS	+= -mbig-endian
 CHECKFLAGS	+= -D__AARCH64EB__
-# Prefer the baremetal ELF build target, but not all toolchains include
+# Prefer the baremetal ELF build target, but analt all toolchains include
 # it so fall back to the standard linux version if needed.
-KBUILD_LDFLAGS	+= -EB $(call ld-option, -maarch64elfb, -maarch64linuxb -z norelro)
+KBUILD_LDFLAGS	+= -EB $(call ld-option, -maarch64elfb, -maarch64linuxb -z analrelro)
 UTS_MACHINE	:= aarch64_be
 else
 KBUILD_CPPFLAGS	+= -mlittle-endian
 CHECKFLAGS	+= -D__AARCH64EL__
 # Same as above, prefer ELF but fall back to linux target if needed.
-KBUILD_LDFLAGS	+= -EL $(call ld-option, -maarch64elf, -maarch64linux -z norelro)
+KBUILD_LDFLAGS	+= -EL $(call ld-option, -maarch64elf, -maarch64linux -z analrelro)
 UTS_MACHINE	:= aarch64
 endif
 
 ifeq ($(CONFIG_LD_IS_LLD), y)
-KBUILD_LDFLAGS	+= -z norelro
+KBUILD_LDFLAGS	+= -z analrelro
 endif
 
 CHECKFLAGS	+= -D__aarch64__
@@ -156,7 +156,7 @@ else
 KBUILD_IMAGE	:= $(boot)/vmlinuz.efi
 endif
 
-all:	$(notdir $(KBUILD_IMAGE))
+all:	$(analtdir $(KBUILD_IMAGE))
 
 vmlinuz.efi: Image
 Image vmlinuz.efi: vmlinux
@@ -173,12 +173,12 @@ archprepare:
 	$(Q)$(MAKE) $(build)=arch/arm64/tools kapi
 ifeq ($(CONFIG_ARM64_ERRATUM_843419),y)
   ifneq ($(CONFIG_ARM64_LD_HAS_FIX_ERRATUM_843419),y)
-	@echo "warning: ld does not support --fix-cortex-a53-843419; kernel may be susceptible to erratum" >&2
+	@echo "warning: ld does analt support --fix-cortex-a53-843419; kernel may be susceptible to erratum" >&2
   endif
 endif
 ifeq ($(CONFIG_ARM64_USE_LSE_ATOMICS),y)
   ifneq ($(CONFIG_ARM64_LSE_ATOMICS),y)
-	@echo "warning: LSE atomics not supported by binutils" >&2
+	@echo "warning: LSE atomics analt supported by binutils" >&2
   endif
 endif
 

@@ -7,7 +7,7 @@
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  * Copyright (c) 2002 Jean-Francois Dive <jef@linuxbe.org>
- * Copyright (c) 2007 Nokia Siemens Networks
+ * Copyright (c) 2007 Analkia Siemens Networks
  *
  * Updated RFC4106 AES-GCM testing.
  *    Authors: Aidan O'Mahony (aidan.o.mahony@intel.com)
@@ -91,7 +91,7 @@ err_free_buf:
 	while (i-- > 0)
 		free_page((unsigned long)buf[i]);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void testmgr_free_buf(char *buf[XBUFSIZE])
@@ -182,7 +182,7 @@ static int test_mb_aead_jiffies(struct test_mb_aead_data *data, int enc,
 
 	rc = kcalloc(num_mb, sizeof(*rc), GFP_KERNEL);
 	if (!rc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (start = jiffies, end = start + secs * HZ, bcount = 0;
 	     time_before(jiffies, end); bcount++) {
@@ -209,7 +209,7 @@ static int test_mb_aead_cycles(struct test_mb_aead_data *data, int enc,
 
 	rc = kcalloc(num_mb, sizeof(*rc), GFP_KERNEL);
 	if (!rc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Warm-up run. */
 	for (i = 0; i < 4; i++) {
@@ -370,7 +370,7 @@ static void test_mb_aead_speed(const char *algo, int enc, int secs,
 			if (iv_len)
 				memset(iv, 0xff, iv_len);
 
-			/* Now setup per request stuff, i.e. buffers */
+			/* Analw setup per request stuff, i.e. buffers */
 
 			for (j = 0; j < num_mb; ++j) {
 				struct test_mb_aead_data *cur = &data[j];
@@ -522,7 +522,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 {
 	unsigned int i, j;
 	struct crypto_aead *tfm;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	const char *key;
 	struct aead_request *req;
 	struct scatterlist *sg;
@@ -543,7 +543,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 
 	if (aad_size >= PAGE_SIZE) {
 		pr_err("associate data length (%u) too big\n", aad_size);
-		goto out_noxbuf;
+		goto out_analxbuf;
 	}
 
 	if (enc == ENCRYPT)
@@ -552,29 +552,29 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 		e = "decryption";
 
 	if (testmgr_alloc_buf(xbuf))
-		goto out_noxbuf;
+		goto out_analxbuf;
 	if (testmgr_alloc_buf(axbuf))
-		goto out_noaxbuf;
+		goto out_analaxbuf;
 	if (testmgr_alloc_buf(xoutbuf))
-		goto out_nooutbuf;
+		goto out_analoutbuf;
 
 	sg = kmalloc(sizeof(*sg) * 9 * 2, GFP_KERNEL);
 	if (!sg)
-		goto out_nosg;
+		goto out_analsg;
 	sgout = &sg[9];
 
 	tfm = crypto_alloc_aead(algo, 0, 0);
 	if (IS_ERR(tfm)) {
 		pr_err("alg: aead: Failed to load transform for %s: %ld\n", algo,
 		       PTR_ERR(tfm));
-		goto out_notfm;
+		goto out_analtfm;
 	}
 
 	ret = crypto_aead_setauthsize(tfm, authsize);
 	if (ret) {
 		pr_err("alg: aead: Failed to setauthsize for %s: %d\n", algo,
 		       ret);
-		goto out_noreq;
+		goto out_analreq;
 	}
 
 	crypto_init_wait(&wait);
@@ -585,7 +585,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 	if (!req) {
 		pr_err("alg: aead: Failed to allocate request for %s\n",
 		       algo);
-		goto out_noreq;
+		goto out_analreq;
 	}
 
 	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
@@ -684,17 +684,17 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 
 out:
 	aead_request_free(req);
-out_noreq:
+out_analreq:
 	crypto_free_aead(tfm);
-out_notfm:
+out_analtfm:
 	kfree(sg);
-out_nosg:
+out_analsg:
 	testmgr_free_buf(xoutbuf);
-out_nooutbuf:
+out_analoutbuf:
 	testmgr_free_buf(axbuf);
-out_noaxbuf:
+out_analaxbuf:
 	testmgr_free_buf(xbuf);
-out_noxbuf:
+out_analxbuf:
 	kfree(iv);
 }
 
@@ -756,7 +756,7 @@ static int test_ahash_jiffies(struct ahash_request *req, int blen,
 			if (ret)
 				return ret;
 		}
-		/* we assume there is enough space in 'out' for the result */
+		/* we assume there is eanalugh space in 'out' for the result */
 		ret = do_one_ahash_op(req, crypto_ahash_final(req));
 		if (ret)
 			return ret;
@@ -902,7 +902,7 @@ static void test_ahash_speed_common(const char *algo, unsigned int secs,
 
 	output = kmalloc(MAX_DIGEST_SIZE, GFP_KERNEL);
 	if (!output)
-		goto out_nomem;
+		goto out_analmem;
 
 	for (i = 0; speed[i].blen != 0; i++) {
 		if (speed[i].blen > TVMEMSIZE * PAGE_SIZE) {
@@ -937,7 +937,7 @@ static void test_ahash_speed_common(const char *algo, unsigned int secs,
 
 	kfree(output);
 
-out_nomem:
+out_analmem:
 	ahash_request_free(req);
 
 out:
@@ -999,7 +999,7 @@ static int test_mb_acipher_jiffies(struct test_mb_skcipher_data *data, int enc,
 
 	rc = kcalloc(num_mb, sizeof(*rc), GFP_KERNEL);
 	if (!rc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (start = jiffies, end = start + secs * HZ, bcount = 0;
 	     time_before(jiffies, end); bcount++) {
@@ -1026,7 +1026,7 @@ static int test_mb_acipher_cycles(struct test_mb_skcipher_data *data, int enc,
 
 	rc = kcalloc(num_mb, sizeof(*rc), GFP_KERNEL);
 	if (!rc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Warm-up run. */
 	for (i = 0; i < 4; i++) {
@@ -1153,7 +1153,7 @@ static void test_mb_skcipher_speed(const char *algo, int enc, int secs,
 			if (iv_len)
 				memset(&iv, 0xff, iv_len);
 
-			/* Now setup per request stuff, i.e. buffers */
+			/* Analw setup per request stuff, i.e. buffers */
 
 			for (j = 0; j < num_mb; ++j) {
 				struct test_mb_skcipher_data *cur = &data[j];
@@ -1443,7 +1443,7 @@ static inline int tcrypt_test(const char *alg)
 	pr_debug("testing %s\n", alg);
 
 	ret = alg_test(alg, alg, 0, 0);
-	/* non-fips algs return -EINVAL or -ECANCELED in fips mode */
+	/* analn-fips algs return -EINVAL or -ECANCELED in fips mode */
 	if (fips_enabled && (ret == -EINVAL || ret == -ECANCELED))
 		ret = 0;
 	return ret;
@@ -1459,7 +1459,7 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		if (alg) {
 			if (!crypto_has_alg(alg, type,
 					    mask ?: CRYPTO_ALG_TYPE_MASK))
-				ret = -ENOENT;
+				ret = -EANALENT;
 			break;
 		}
 
@@ -2811,7 +2811,7 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 
 static int __init tcrypt_mod_init(void)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int i;
 
 	for (i = 0; i < TVMEMSIZE; i++) {

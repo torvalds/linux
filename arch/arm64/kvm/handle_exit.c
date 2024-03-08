@@ -56,9 +56,9 @@ static int handle_hvc(struct kvm_vcpu *vcpu)
 static int handle_smc(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * "If an SMC instruction executed at Non-secure EL1 is
+	 * "If an SMC instruction executed at Analn-secure EL1 is
 	 * trapped to EL2 because HCR_EL2.TSC is 1, the exception is a
-	 * Trap exception, not a Secure Monitor Call exception [...]"
+	 * Trap exception, analt a Secure Monitor Call exception [...]"
 	 *
 	 * We need to advance the PC after the trap, as it would
 	 * otherwise return to the same address. Furthermore, pre-incrementing
@@ -68,7 +68,7 @@ static int handle_smc(struct kvm_vcpu *vcpu)
 	kvm_incr_pc(vcpu);
 
 	/*
-	 * SMCs with a nonzero immediate are reserved according to DEN0028E 2.9
+	 * SMCs with a analnzero immediate are reserved according to DEN0028E 2.9
 	 * "SMC and HVC immediate value".
 	 */
 	if (kvm_vcpu_hvc_get_imm(vcpu)) {
@@ -79,8 +79,8 @@ static int handle_smc(struct kvm_vcpu *vcpu)
 	/*
 	 * If imm is zero then it is likely an SMCCC call.
 	 *
-	 * Note that on ARMv8.3, even if EL3 is not implemented, SMC executed
-	 * at Non-secure EL1 is trapped to EL2 if HCR_EL2.TSC==1, rather than
+	 * Analte that on ARMv8.3, even if EL3 is analt implemented, SMC executed
+	 * at Analn-secure EL1 is trapped to EL2 if HCR_EL2.TSC==1, rather than
 	 * being treated as UNDEFINED.
 	 */
 	return kvm_smccc_call_handler(vcpu);
@@ -90,7 +90,7 @@ static int handle_smc(struct kvm_vcpu *vcpu)
  * Guest access to FP/ASIMD registers are routed to this handler only
  * when the system doesn't support FP/ASIMD.
  */
-static int handle_no_fpsimd(struct kvm_vcpu *vcpu)
+static int handle_anal_fpsimd(struct kvm_vcpu *vcpu)
 {
 	kvm_inject_undefined(vcpu);
 	return 1;
@@ -125,12 +125,12 @@ static int kvm_handle_wfx(struct kvm_vcpu *vcpu)
 
 	if (esr & ESR_ELx_WFx_ISS_WFxT) {
 		if (esr & ESR_ELx_WFx_ISS_RV) {
-			u64 val, now;
+			u64 val, analw;
 
-			now = kvm_arm_timer_get_reg(vcpu, KVM_REG_ARM_TIMER_CNT);
+			analw = kvm_arm_timer_get_reg(vcpu, KVM_REG_ARM_TIMER_CNT);
 			val = vcpu_get_reg(vcpu, kvm_vcpu_sys_get_rt(vcpu));
 
-			if (now >= val)
+			if (analw >= val)
 				goto out;
 		} else {
 			/* Treat WFxT as WFx if RN is invalid */
@@ -185,11 +185,11 @@ static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static int kvm_handle_unknown_ec(struct kvm_vcpu *vcpu)
+static int kvm_handle_unkanalwn_ec(struct kvm_vcpu *vcpu)
 {
 	u64 esr = kvm_vcpu_get_esr(vcpu);
 
-	kvm_pr_unimpl("Unknown exception class: esr: %#016llx -- %s\n",
+	kvm_pr_unimpl("Unkanalwn exception class: esr: %#016llx -- %s\n",
 		      esr, esr_get_class_string(esr));
 
 	kvm_inject_undefined(vcpu);
@@ -207,8 +207,8 @@ static int handle_sve(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Guest usage of a ptrauth instruction (which the guest EL1 did not turn into
- * a NOP). If we get here, it is that we didn't fixup ptrauth on exit, and all
+ * Guest usage of a ptrauth instruction (which the guest EL1 did analt turn into
+ * a ANALP). If we get here, it is that we didn't fixup ptrauth on exit, and all
  * that we can do is give the guest an UNDEF.
  */
 static int kvm_handle_ptrauth(struct kvm_vcpu *vcpu)
@@ -253,7 +253,7 @@ static int handle_svc(struct kvm_vcpu *vcpu)
 }
 
 static exit_handle_fn arm_exit_handlers[] = {
-	[0 ... ESR_ELx_EC_MAX]	= kvm_handle_unknown_ec,
+	[0 ... ESR_ELx_EC_MAX]	= kvm_handle_unkanalwn_ec,
 	[ESR_ELx_EC_WFx]	= kvm_handle_wfx,
 	[ESR_ELx_EC_CP15_32]	= kvm_handle_cp15_32,
 	[ESR_ELx_EC_CP15_64]	= kvm_handle_cp15_64,
@@ -276,7 +276,7 @@ static exit_handle_fn arm_exit_handlers[] = {
 	[ESR_ELx_EC_BREAKPT_LOW]= kvm_handle_guest_debug,
 	[ESR_ELx_EC_BKPT32]	= kvm_handle_guest_debug,
 	[ESR_ELx_EC_BRK64]	= kvm_handle_guest_debug,
-	[ESR_ELx_EC_FP_ASIMD]	= handle_no_fpsimd,
+	[ESR_ELx_EC_FP_ASIMD]	= handle_anal_fpsimd,
 	[ESR_ELx_EC_PAC]	= kvm_handle_ptrauth,
 };
 
@@ -383,7 +383,7 @@ void handle_exit_early(struct kvm_vcpu *vcpu, int exception_index)
 		kvm_handle_guest_serror(vcpu, kvm_vcpu_get_esr(vcpu));
 }
 
-void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr,
+void __analreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr,
 					      u64 elr_virt, u64 elr_phys,
 					      u64 par, uintptr_t vcpu,
 					      u64 far, u64 hpfar) {

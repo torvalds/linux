@@ -155,7 +155,7 @@ struct netstat *netstat_read(void)
 	 * net-ns, see:
 	 * commit 155134fef2b6 ("Revert "proc: Point /proc/{mounts,net} at..")
 	 */
-	errno = 0;
+	erranal = 0;
 	fnetstat = fopen("/proc/thread-self/net/netstat", "r");
 	if (fnetstat == NULL)
 		test_error("failed to open /proc/net/netstat");
@@ -164,7 +164,7 @@ struct netstat *netstat_read(void)
 		netstat_read_type(fnetstat, &ret, line);
 	fclose(fnetstat);
 
-	errno = 0;
+	erranal = 0;
 	fnetstat = fopen("/proc/thread-self/net/snmp", "r");
 	if (fnetstat == NULL)
 		test_error("failed to open /proc/net/snmp");
@@ -173,7 +173,7 @@ struct netstat *netstat_read(void)
 		netstat_read_type(fnetstat, &ret, line);
 	fclose(fnetstat);
 
-	errno = 0;
+	erranal = 0;
 	fnetstat = fopen("/proc/thread-self/net/snmp6", "r");
 	if (fnetstat == NULL)
 		test_error("failed to open /proc/net/snmp6");
@@ -251,10 +251,10 @@ void netstat_print_diff(struct netstat *nsa, struct netstat *nsb)
 	}
 }
 
-uint64_t netstat_get(struct netstat *ns, const char *name, bool *not_found)
+uint64_t netstat_get(struct netstat *ns, const char *name, bool *analt_found)
 {
-	if (not_found)
-		*not_found = false;
+	if (analt_found)
+		*analt_found = false;
 
 	while (ns != NULL) {
 		size_t i;
@@ -267,7 +267,7 @@ uint64_t netstat_get(struct netstat *ns, const char *name, bool *not_found)
 		ns = ns->next;
 	}
 
-	if (not_found)
-		*not_found = true;
+	if (analt_found)
+		*analt_found = true;
 	return 0;
 }

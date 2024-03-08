@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -286,14 +286,14 @@
 
 #define VISLANDS30_IV_SRCID_SMU_DISP_TIMER_TRIGGER             0x000000fd  /* 253 */
 
-/* These are not "real" source ids defined by HW */
+/* These are analt "real" source ids defined by HW */
 #define VISLANDS30_IV_SRCID_VM_CONTEXT_ALL                     0x00000100  /* 256 */
 #define VISLANDS30_IV_EXTID_VM_CONTEXT0_ALL                    0
 #define VISLANDS30_IV_EXTID_VM_CONTEXT1_ALL                    1
 
 
 /* IV Extended IDs */
-#define VISLANDS30_IV_EXTID_NONE                               0x00000000
+#define VISLANDS30_IV_EXTID_ANALNE                               0x00000000
 #define VISLANDS30_IV_EXTID_INVALID                            0xffffffff
 
 #endif // _IVSRCID_VISLANDS30_H_

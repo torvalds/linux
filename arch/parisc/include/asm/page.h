@@ -11,7 +11,7 @@
 #elif defined(CONFIG_PARISC_PAGE_SIZE_64KB)
 # define PAGE_SHIFT	16
 #else
-# error "unknown default kernel page size"
+# error "unkanalwn default kernel page size"
 #endif
 #define PAGE_SIZE	(_AC(1,UL) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE-1))
@@ -42,7 +42,7 @@ void copy_user_highpage(struct page *to, struct page *from, unsigned long vaddr,
 #ifdef STRICT_MM_TYPECHECKS
 typedef struct { unsigned long pte; } pte_t; /* either 32 or 64bit */
 
-/* NOTE: even on 64 bits, these entries are __u32 because we allocate
+/* ANALTE: even on 64 bits, these entries are __u32 because we allocate
  * the pmd and pgd in ZONE_DMA (i.e. under 4GB) */
 typedef struct { __u32 pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
@@ -50,7 +50,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #if CONFIG_PGTABLE_LEVELS == 3
 typedef struct { __u32 pmd; } pmd_t;
 #define __pmd(x)	((pmd_t) { (x) } )
-/* pXd_val() do not work as lvalues, so make sure we don't use them as such. */
+/* pXd_val() do analt work as lvalues, so make sure we don't use them as such. */
 #define pmd_val(x)	((x).pmd + 0)
 #endif
 

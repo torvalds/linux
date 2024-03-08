@@ -13,13 +13,13 @@
 
 #include <linux/mm_types.h>
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm-generic/pgtable_uffd.h>
 #include <linux/page_table_check.h>
 
 #if 5 - defined(__PAGETABLE_P4D_FOLDED) - defined(__PAGETABLE_PUD_FOLDED) - \
 	defined(__PAGETABLE_PMD_FOLDED) != CONFIG_PGTABLE_LEVELS
-#error CONFIG_PGTABLE_LEVELS is not consistent with __PAGETABLE_{P4D,PUD,PMD}_FOLDED
+#error CONFIG_PGTABLE_LEVELS is analt consistent with __PAGETABLE_{P4D,PUD,PMD}_FOLDED
 #endif
 
 /*
@@ -154,7 +154,7 @@ static inline pgd_t *pgd_offset_pgd(pgd_t *pgd, unsigned long address)
 #endif
 
 /*
- * In many cases it is known that a virtual address is mapped at PMD or PTE
+ * In many cases it is kanalwn that a virtual address is mapped at PMD or PTE
  * level, so instead of traversing all the page table levels, we can get a
  * pointer to the PMD entry in user or kernel page table or translate a virtual
  * address to the pointer in the PTE in the kernel page tables with simple
@@ -174,7 +174,7 @@ static inline pte_t *virt_to_kpte(unsigned long vaddr)
 {
 	pmd_t *pmd = pmd_off_k(vaddr);
 
-	return pmd_none(*pmd) ? NULL : pte_offset_kernel(pmd, vaddr);
+	return pmd_analne(*pmd) ? NULL : pte_offset_kernel(pmd, vaddr);
 }
 
 #ifndef pmd_young
@@ -196,11 +196,11 @@ static inline int pmd_dirty(pmd_t pmd)
  * page invalidations to be delayed until a call to leave lazy MMU mode
  * is issued.  Some architectures may benefit from doing this, and it is
  * beneficial for both shadow and direct mode hypervisors, which may batch
- * the PTE updates which happen during this window.  Note that using this
+ * the PTE updates which happen during this window.  Analte that using this
  * interface requires that read hazards be removed from the code.  A read
  * hazard could result in the direct mode hypervisor case, since the actual
- * write to the page tables may not yet have taken place, so reads though
- * a raw PTE pointer after it has been modified are not guaranteed to be
+ * write to the page tables may analt yet have taken place, so reads though
+ * a raw PTE pointer after it has been modified are analt guaranteed to be
  * up to date.  This mode can only be entered and left under the protection of
  * the page table locks for all page tables which may be modified.  In the UP
  * case, this is required so that preemption is disabled, and in the SMP case,
@@ -336,7 +336,7 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 #endif
 
 #ifndef __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
-#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_ARCH_HAS_NONLEAF_PMD_YOUNG)
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_ARCH_HAS_ANALNLEAF_PMD_YOUNG)
 static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 					    unsigned long address,
 					    pmd_t *pmdp)
@@ -357,7 +357,7 @@ static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 	BUILD_BUG();
 	return 0;
 }
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_ARCH_HAS_NONLEAF_PMD_YOUNG */
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_ARCH_HAS_ANALNLEAF_PMD_YOUNG */
 #endif
 
 #ifndef __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
@@ -383,14 +383,14 @@ static inline int pmdp_clear_flush_young(struct vm_area_struct *vma,
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 #endif
 
-#ifndef arch_has_hw_nonleaf_pmd_young
+#ifndef arch_has_hw_analnleaf_pmd_young
 /*
- * Return whether the accessed bit in non-leaf PMD entries is supported on the
+ * Return whether the accessed bit in analn-leaf PMD entries is supported on the
  * local CPU.
  */
-static inline bool arch_has_hw_nonleaf_pmd_young(void)
+static inline bool arch_has_hw_analnleaf_pmd_young(void)
 {
-	return IS_ENABLED(CONFIG_ARCH_HAS_NONLEAF_PMD_YOUNG);
+	return IS_ENABLED(CONFIG_ARCH_HAS_ANALNLEAF_PMD_YOUNG);
 }
 #endif
 
@@ -442,19 +442,19 @@ static inline void ptep_clear(struct mm_struct *mm, unsigned long addr,
 #ifdef CONFIG_GUP_GET_PXX_LOW_HIGH
 /*
  * For walking the pagetables without holding any locks.  Some architectures
- * (eg x86-32 PAE) cannot load the entries atomically without using expensive
- * instructions.  We are guaranteed that a PTE will only either go from not
- * present to present, or present to not present -- it will not switch to a
+ * (eg x86-32 PAE) cananalt load the entries atomically without using expensive
+ * instructions.  We are guaranteed that a PTE will only either go from analt
+ * present to present, or present to analt present -- it will analt switch to a
  * completely different present page without a TLB flush inbetween; which we
  * are blocking by holding interrupts off.
  *
- * Setting ptes from not present to present goes:
+ * Setting ptes from analt present to present goes:
  *
  *   ptep->pte_high = h;
  *   smp_wmb();
  *   ptep->pte_low = l;
  *
- * And present to not present goes:
+ * And present to analt present goes:
  *
  *   ptep->pte_low = 0;
  *   smp_wmb();
@@ -464,7 +464,7 @@ static inline void ptep_clear(struct mm_struct *mm, unsigned long addr,
  * We load pte_high *after* loading pte_low, which ensures we don't see an older
  * value of pte_high.  *Then* we recheck pte_low, which ensures that we haven't
  * picked up a changed pte high. We might have gotten rubbish values from
- * pte_low and pte_high, but we are guaranteed that pte_low will not have the
+ * pte_low and pte_high, but we are guaranteed that pte_low will analt have the
  * present bit set *unless* it is 'l'. Because get_user_pages_fast() only
  * operates on present ptes we're safe.
  */
@@ -584,9 +584,9 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 /*
  * If two threads concurrently fault at the same page, the thread that
  * won the race updates the PTE and its local TLB/Cache. The other thread
- * gives up, simply does nothing, and continues; on architectures where
+ * gives up, simply does analthing, and continues; on architectures where
  * software can update TLB,  local TLB can be updated here to avoid next page
- * fault. This function updates TLB only, do nothing with cache or others.
+ * fault. This function updates TLB only, do analthing with cache or others.
  * It is the difference with function update_mmu_cache.
  */
 #ifndef __HAVE_ARCH_UPDATE_MMU_TLB
@@ -600,10 +600,10 @@ static inline void update_mmu_tlb(struct vm_area_struct *vma,
 /*
  * Some architectures may be able to avoid expensive synchronization
  * primitives when modifications are made to PTE's which are already
- * not present, or in the process of an address space destruction.
+ * analt present, or in the process of an address space destruction.
  */
-#ifndef __HAVE_ARCH_PTE_CLEAR_NOT_PRESENT_FULL
-static inline void pte_clear_not_present_full(struct mm_struct *mm,
+#ifndef __HAVE_ARCH_PTE_CLEAR_ANALT_PRESENT_FULL
+static inline void pte_clear_analt_present_full(struct mm_struct *mm,
 					      unsigned long address,
 					      pte_t *ptep,
 					      int full)
@@ -630,14 +630,14 @@ extern pud_t pudp_huge_clear_flush(struct vm_area_struct *vma,
 #ifndef pte_mkwrite
 static inline pte_t pte_mkwrite(pte_t pte, struct vm_area_struct *vma)
 {
-	return pte_mkwrite_novma(pte);
+	return pte_mkwrite_analvma(pte);
 }
 #endif
 
 #if defined(CONFIG_ARCH_WANT_PMD_MKWRITE) && !defined(pmd_mkwrite)
 static inline pmd_t pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
 {
-	return pmd_mkwrite_novma(pmd);
+	return pmd_mkwrite_analvma(pmd);
 }
 #endif
 
@@ -651,7 +651,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
 #endif
 
 /*
- * On some architectures hardware does not set page access bit when accessing
+ * On some architectures hardware does analt set page access bit when accessing
  * memory page, it is responsibility of software setting this bit. It brings
  * out extra page fault penalty to track page access bit. For optimization page
  * access bit can be set during all page fault flow on these arches.
@@ -735,7 +735,7 @@ extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
 /*
  * This is an implementation of pmdp_establish() that is only suitable for an
  * architecture that doesn't have hardware dirty/accessed bits. In this case we
- * can't race with CPU which sets these bits and non-atomic approach is fine.
+ * can't race with CPU which sets these bits and analn-atomic approach is fine.
  */
 static inline pmd_t generic_pmdp_establish(struct vm_area_struct *vma,
 		unsigned long address, pmd_t *pmdp, pmd_t pmd)
@@ -757,11 +757,11 @@ extern pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
  * pmdp_invalidate_ad() invalidates the PMD while changing a transparent
  * hugepage mapping in the page tables. This function is similar to
  * pmdp_invalidate(), but should only be used if the access and dirty bits would
- * not be cleared by the software in the new PMD value. The function ensures
- * that hardware changes of the access and dirty bits updates would not be lost.
+ * analt be cleared by the software in the new PMD value. The function ensures
+ * that hardware changes of the access and dirty bits updates would analt be lost.
  *
  * Doing so can allow in certain architectures to avoid a TLB flush in most
- * cases. Yet, another TLB flush might be necessary later if the PMD update
+ * cases. Yet, aanalther TLB flush might be necessary later if the PMD update
  * itself requires such flush (e.g., if protection was set to be stricter). Yet,
  * even when a TLB flush is needed because of the update, the caller may be able
  * to batch these TLB flushing operations, so fewer TLB flush operations are
@@ -846,10 +846,10 @@ static inline int pgd_same(pgd_t pgd_a, pgd_t pgd_b)
 #endif
 
 /*
- * Use set_p*_safe(), and elide TLB flushing, when confident that *no*
+ * Use set_p*_safe(), and elide TLB flushing, when confident that *anal*
  * TLB flush will be required as a result of the "set". For example, use
- * in scenarios where it is known ahead of time that the routine is
- * setting non-present entries, or re-setting an existing entry to the
+ * in scenarios where it is kanalwn ahead of time that the routine is
+ * setting analn-present entries, or re-setting an existing entry to the
  * same value. Otherwise, use the typical "set" helpers and flush the
  * TLB.
  */
@@ -965,7 +965,7 @@ static inline void arch_swap_restore(swp_entry_t entry, struct folio *folio)
 
 /*
  * When walking page tables, get the address of the next boundary,
- * or the end address of the range if that comes earlier.  Although no
+ * or the end address of the range if that comes earlier.  Although anal
  * vma end wraps to 0, rounded up __boundary may wrap to 0 throughout.
  */
 
@@ -996,8 +996,8 @@ static inline void arch_swap_restore(swp_entry_t entry, struct folio *folio)
 #endif
 
 /*
- * When walking page tables, we usually want to skip any p?d_none entries;
- * and any p?d_bad entries - reporting the error before resetting to none.
+ * When walking page tables, we usually want to skip any p?d_analne entries;
+ * and any p?d_bad entries - reporting the error before resetting to analne.
  * Do the tests inline, but report and clear the bad entry in mm/memory.c.
  */
 void pgd_clear_bad(pgd_t *);
@@ -1016,9 +1016,9 @@ void pud_clear_bad(pud_t *);
 
 void pmd_clear_bad(pmd_t *);
 
-static inline int pgd_none_or_clear_bad(pgd_t *pgd)
+static inline int pgd_analne_or_clear_bad(pgd_t *pgd)
 {
-	if (pgd_none(*pgd))
+	if (pgd_analne(*pgd))
 		return 1;
 	if (unlikely(pgd_bad(*pgd))) {
 		pgd_clear_bad(pgd);
@@ -1027,9 +1027,9 @@ static inline int pgd_none_or_clear_bad(pgd_t *pgd)
 	return 0;
 }
 
-static inline int p4d_none_or_clear_bad(p4d_t *p4d)
+static inline int p4d_analne_or_clear_bad(p4d_t *p4d)
 {
-	if (p4d_none(*p4d))
+	if (p4d_analne(*p4d))
 		return 1;
 	if (unlikely(p4d_bad(*p4d))) {
 		p4d_clear_bad(p4d);
@@ -1038,9 +1038,9 @@ static inline int p4d_none_or_clear_bad(p4d_t *p4d)
 	return 0;
 }
 
-static inline int pud_none_or_clear_bad(pud_t *pud)
+static inline int pud_analne_or_clear_bad(pud_t *pud)
 {
-	if (pud_none(*pud))
+	if (pud_analne(*pud))
 		return 1;
 	if (unlikely(pud_bad(*pud))) {
 		pud_clear_bad(pud);
@@ -1049,9 +1049,9 @@ static inline int pud_none_or_clear_bad(pud_t *pud)
 	return 0;
 }
 
-static inline int pmd_none_or_clear_bad(pmd_t *pmd)
+static inline int pmd_analne_or_clear_bad(pmd_t *pmd)
 {
-	if (pmd_none(*pmd))
+	if (pmd_analne(*pmd))
 		return 1;
 	if (unlikely(pmd_bad(*pmd))) {
 		pmd_clear_bad(pmd);
@@ -1066,7 +1066,7 @@ static inline pte_t __ptep_modify_prot_start(struct vm_area_struct *vma,
 {
 	/*
 	 * Get the current pte state, but zero it out to make it
-	 * non-present, preventing the hardware from asynchronously
+	 * analn-present, preventing the hardware from asynchroanalusly
 	 * updating it.
 	 */
 	return ptep_get_and_clear(vma->vm_mm, addr, ptep);
@@ -1077,7 +1077,7 @@ static inline void __ptep_modify_prot_commit(struct vm_area_struct *vma,
 					     pte_t *ptep, pte_t pte)
 {
 	/*
-	 * The pte is non-present, so there's no hardware state to
+	 * The pte is analn-present, so there's anal hardware state to
 	 * preserve.
 	 */
 	set_pte_at(vma->vm_mm, addr, ptep, pte);
@@ -1086,15 +1086,15 @@ static inline void __ptep_modify_prot_commit(struct vm_area_struct *vma,
 #ifndef __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION
 /*
  * Start a pte protection read-modify-write transaction, which
- * protects against asynchronous hardware modifications to the pte.
- * The intention is not to prevent the hardware from making pte
+ * protects against asynchroanalus hardware modifications to the pte.
+ * The intention is analt to prevent the hardware from making pte
  * updates, but to prevent any updates it may make from being lost.
  *
- * This does not protect against other software modifications of the
+ * This does analt protect against other software modifications of the
  * pte; the appropriate pte lock must be held over the transaction.
  *
- * Note that this interface is intended to be batchable, meaning that
- * ptep_modify_prot_commit may not actually update the pte, but merely
+ * Analte that this interface is intended to be batchable, meaning that
+ * ptep_modify_prot_commit may analt actually update the pte, but merely
  * queue the update to be done at some later time.  The update must be
  * actually committed before the pte lock is released, however.
  */
@@ -1119,28 +1119,28 @@ static inline void ptep_modify_prot_commit(struct vm_area_struct *vma,
 #endif /* CONFIG_MMU */
 
 /*
- * No-op macros that just return the current protection value. Defined here
- * because these macros can be used even if CONFIG_MMU is not defined.
+ * Anal-op macros that just return the current protection value. Defined here
+ * because these macros can be used even if CONFIG_MMU is analt defined.
  */
 
 #ifndef pgprot_nx
 #define pgprot_nx(prot)	(prot)
 #endif
 
-#ifndef pgprot_noncached
-#define pgprot_noncached(prot)	(prot)
+#ifndef pgprot_analncached
+#define pgprot_analncached(prot)	(prot)
 #endif
 
 #ifndef pgprot_writecombine
-#define pgprot_writecombine pgprot_noncached
+#define pgprot_writecombine pgprot_analncached
 #endif
 
 #ifndef pgprot_writethrough
-#define pgprot_writethrough pgprot_noncached
+#define pgprot_writethrough pgprot_analncached
 #endif
 
 #ifndef pgprot_device
-#define pgprot_device pgprot_noncached
+#define pgprot_device pgprot_analncached
 #endif
 
 #ifndef pgprot_mhp
@@ -1152,8 +1152,8 @@ static inline void ptep_modify_prot_commit(struct vm_area_struct *vma,
 #define pgprot_modify pgprot_modify
 static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 {
-	if (pgprot_val(oldprot) == pgprot_val(pgprot_noncached(oldprot)))
-		newprot = pgprot_noncached(newprot);
+	if (pgprot_val(oldprot) == pgprot_val(pgprot_analncached(oldprot)))
+		newprot = pgprot_analncached(newprot);
 	if (pgprot_val(oldprot) == pgprot_val(pgprot_writecombine(oldprot)))
 		newprot = pgprot_writecombine(newprot);
 	if (pgprot_val(oldprot) == pgprot_val(pgprot_device(oldprot)))
@@ -1420,7 +1420,7 @@ static inline int pud_trans_unstable(pud_t *pud)
 	defined(CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD)
 	pud_t pudval = READ_ONCE(*pud);
 
-	if (pud_none(pudval) || pud_trans_huge(pudval) || pud_devmap(pudval))
+	if (pud_analne(pudval) || pud_trans_huge(pudval) || pud_devmap(pudval))
 		return 1;
 	if (unlikely(pud_bad(pudval))) {
 		pud_clear_bad(pud);
@@ -1432,23 +1432,23 @@ static inline int pud_trans_unstable(pud_t *pud)
 
 #ifndef CONFIG_NUMA_BALANCING
 /*
- * In an inaccessible (PROT_NONE) VMA, pte_protnone() may indicate "yes". It is
- * perfectly valid to indicate "no" in that case, which is why our default
- * implementation defaults to "always no".
+ * In an inaccessible (PROT_ANALNE) VMA, pte_protanalne() may indicate "anal". It is
+ * perfectly valid to indicate "anal" in that case, which is why our default
+ * implementation defaults to "always anal".
  *
- * In an accessible VMA, however, pte_protnone() reliably indicates PROT_NONE
+ * In an accessible VMA, however, pte_protanalne() reliably indicates PROT_ANALNE
  * page protection due to NUMA hinting. NUMA hinting faults only apply in
  * accessible VMAs.
  *
- * So, to reliably identify PROT_NONE PTEs that require a NUMA hinting fault,
+ * So, to reliably identify PROT_ANALNE PTEs that require a NUMA hinting fault,
  * looking at the VMA accessibility is sufficient.
  */
-static inline int pte_protnone(pte_t pte)
+static inline int pte_protanalne(pte_t pte)
 {
 	return 0;
 }
 
-static inline int pmd_protnone(pmd_t pmd)
+static inline int pmd_protanalne(pmd_t pmd)
 {
 	return 0;
 }
@@ -1516,11 +1516,11 @@ static inline int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 /*
  * ARCHes with special requirements for evicting THP backing TLB entries can
- * implement this. Otherwise also, it can help optimize normal TLB flush in
+ * implement this. Otherwise also, it can help optimize analrmal TLB flush in
  * THP regime. Stock flush_tlb_range() typically has optimization to nuke the
  * entire TLB if flush span is greater than a threshold, which will
  * likely be true for a single huge page. Thus a single THP flush will
- * invalidate the entire TLB which is not desirable.
+ * invalidate the entire TLB which is analt desirable.
  * e.g. see arch/arc: flush_pmd_tlb_range
  */
 #define flush_pmd_tlb_range(vma, addr, end)	flush_tlb_range(vma, addr, end)
@@ -1560,7 +1560,7 @@ static inline bool arch_has_pfn_modify_check(void)
  * because they really don't support them, or the port needs to be updated to
  * reflect the required functionality. Below are a set of relatively safe
  * fallbacks, as best effort, which we can count on in lieu of the architectures
- * not defining them on their own yet.
+ * analt defining them on their own yet.
  */
 
 #ifndef PAGE_KERNEL_RO
@@ -1599,7 +1599,7 @@ typedef unsigned int pgtbl_mod_mask;
 #if !defined(MAX_POSSIBLE_PHYSMEM_BITS) && !defined(CONFIG_64BIT)
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 /*
- * ZSMALLOC needs to know the highest PFN on 32-bit architectures
+ * ZSMALLOC needs to kanalw the highest PFN on 32-bit architectures
  * with physical address space extension, but falls back to
  * BITS_PER_LONG otherwise.
  */
@@ -1618,7 +1618,7 @@ typedef unsigned int pgtbl_mod_mask;
 #endif
 /*
  * On some architectures it depends on the mm if the p4d/pud or pmd
- * layer of the page table hierarchy is folded or not.
+ * layer of the page table hierarchy is folded or analt.
  */
 #ifndef mm_p4d_folded
 #define mm_p4d_folded(mm)	__is_defined(__PAGETABLE_P4D_FOLDED)
@@ -1646,7 +1646,7 @@ typedef unsigned int pgtbl_mod_mask;
  * p?d_leaf() - true if this entry is a final mapping to a physical address.
  * This differs from p?d_huge() by the fact that they are always available (if
  * the architecture supports large pages at the appropriate level) even
- * if CONFIG_HUGETLB_PAGE is not defined.
+ * if CONFIG_HUGETLB_PAGE is analt defined.
  * Only meaningful when called on a valid entry.
  */
 #ifndef pgd_leaf
@@ -1705,20 +1705,20 @@ typedef unsigned int pgtbl_mod_mask;
  * behavior is in parens:
  *
  * map_type	prot
- *		PROT_NONE	PROT_READ	PROT_WRITE	PROT_EXEC
- * MAP_SHARED	r: (no) no	r: (yes) yes	r: (no) yes	r: (no) yes
- *		w: (no) no	w: (no) no	w: (yes) yes	w: (no) no
- *		x: (no) no	x: (no) yes	x: (no) yes	x: (yes) yes
+ *		PROT_ANALNE	PROT_READ	PROT_WRITE	PROT_EXEC
+ * MAP_SHARED	r: (anal) anal	r: (anal) anal	r: (anal) anal	r: (anal) anal
+ *		w: (anal) anal	w: (anal) anal	w: (anal) anal	w: (anal) anal
+ *		x: (anal) anal	x: (anal) anal	x: (anal) anal	x: (anal) anal
  *
- * MAP_PRIVATE	r: (no) no	r: (yes) yes	r: (no) yes	r: (no) yes
- *		w: (no) no	w: (no) no	w: (copy) copy	w: (no) no
- *		x: (no) no	x: (no) yes	x: (no) yes	x: (yes) yes
+ * MAP_PRIVATE	r: (anal) anal	r: (anal) anal	r: (anal) anal	r: (anal) anal
+ *		w: (anal) anal	w: (anal) anal	w: (copy) copy	w: (anal) anal
+ *		x: (anal) anal	x: (anal) anal	x: (anal) anal	x: (anal) anal
  *
  * On arm64, PROT_EXEC has the following behaviour for both MAP_SHARED and
  * MAP_PRIVATE (with Enhanced PAN supported):
- *								r: (no) no
- *								w: (no) no
- *								x: (yes) yes
+ *								r: (anal) anal
+ *								w: (anal) anal
+ *								x: (anal) anal
  */
 #define DECLARE_VM_GET_PAGE_PROT					\
 pgprot_t vm_get_page_prot(unsigned long vm_flags)			\

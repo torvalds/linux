@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_SHM_H_
 #define _UAPI_LINUX_SHM_H_
 
 #include <linux/ipc.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm-generic/hugetlb_encode.h>
 #ifndef __KERNEL__
 #include <unistd.h>
@@ -14,7 +14,7 @@
  * modified by sysctl. The SHMMAX and SHMALL values have been chosen to
  * be as large possible without facilitating scenarios where userspace
  * causes overflows when adjusting the limits via operations of the form
- * "retrieve current limit; add X; update limit". It is therefore not
+ * "retrieve current limit; add X; update limit". It is therefore analt
  * advised to make SHMMAX and SHMALL any larger. These limits are
  * suitable for both 32 and 64-bit systems.
  */
@@ -33,7 +33,7 @@ struct shmid_ds {
 	__kernel_old_time_t	shm_ctime;	/* last change time */
 	__kernel_ipc_pid_t	shm_cpid;	/* pid of creator */
 	__kernel_ipc_pid_t	shm_lpid;	/* pid of last operator */
-	unsigned short		shm_nattch;	/* no. of current attaches */
+	unsigned short		shm_nattch;	/* anal. of current attaches */
 	unsigned short 		shm_unused;	/* compatibility */
 	void 			*shm_unused2;	/* ditto - used by DIPC */
 	void			*shm_unused3;	/* unused */
@@ -50,7 +50,7 @@ struct shmid_ds {
 #define SHM_W		0200	/* or S_IWUGO from <linux/stat.h> */
 /* Bits 9 & 10 are IPC_CREAT and IPC_EXCL */
 #define SHM_HUGETLB	04000	/* segment will use huge TLB pages */
-#define SHM_NORESERVE	010000	/* don't check for reservations */
+#define SHM_ANALRESERVE	010000	/* don't check for reservations */
 
 /*
  * Huge page size encoding when SHM_HUGETLB is specified, and a huge page

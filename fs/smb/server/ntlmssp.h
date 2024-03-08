@@ -28,7 +28,7 @@
 #define NtLmNegotiate     cpu_to_le32(1)
 #define NtLmChallenge     cpu_to_le32(2)
 #define NtLmAuthenticate  cpu_to_le32(3)
-#define UnknownMessage    cpu_to_le32(8)
+#define UnkanalwnMessage    cpu_to_le32(8)
 
 /* Negotiate Flags */
 #define NTLMSSP_NEGOTIATE_UNICODE         0x01 /* Text strings are unicode */
@@ -41,8 +41,8 @@
 #define NTLMSSP_NEGOTIATE_LM_KEY        0x0080 /* Use LM session key */
 /* defined reserved 8                   0x0100 */
 #define NTLMSSP_NEGOTIATE_NTLM          0x0200 /* NTLM authentication */
-#define NTLMSSP_NEGOTIATE_NT_ONLY       0x0400 /* Lanman not allowed */
-#define NTLMSSP_ANONYMOUS               0x0800
+#define NTLMSSP_NEGOTIATE_NT_ONLY       0x0400 /* Lanman analt allowed */
+#define NTLMSSP_AANALNYMOUS               0x0800
 #define NTLMSSP_NEGOTIATE_DOMAIN_SUPPLIED 0x1000 /* reserved6 */
 #define NTLMSSP_NEGOTIATE_WORKSTATION_SUPPLIED 0x2000
 #define NTLMSSP_NEGOTIATE_LOCAL_CALL    0x4000 /* client/server same machine */
@@ -50,14 +50,14 @@
 #define NTLMSSP_TARGET_TYPE_DOMAIN     0x10000
 #define NTLMSSP_TARGET_TYPE_SERVER     0x20000
 #define NTLMSSP_TARGET_TYPE_SHARE      0x40000
-#define NTLMSSP_NEGOTIATE_EXTENDED_SEC 0x80000 /* NB:not related to NTLMv2 pwd*/
+#define NTLMSSP_NEGOTIATE_EXTENDED_SEC 0x80000 /* NB:analt related to NTLMv2 pwd*/
 /* #define NTLMSSP_REQUEST_INIT_RESP     0x100000 */
 #define NTLMSSP_NEGOTIATE_IDENTIFY    0x100000
 #define NTLMSSP_REQUEST_ACCEPT_RESP   0x200000 /* reserved5 */
-#define NTLMSSP_REQUEST_NON_NT_KEY    0x400000
+#define NTLMSSP_REQUEST_ANALN_NT_KEY    0x400000
 #define NTLMSSP_NEGOTIATE_TARGET_INFO 0x800000
 /* #define reserved4                 0x1000000 */
-#define NTLMSSP_NEGOTIATE_VERSION    0x2000000 /* we do not set */
+#define NTLMSSP_NEGOTIATE_VERSION    0x2000000 /* we do analt set */
 /* #define reserved3                 0x4000000 */
 /* #define reserved2                 0x8000000 */
 /* #define reserved1                0x10000000 */
@@ -80,7 +80,7 @@ enum av_field_type {
 	NTLMSSP_AV_CHANNEL_BINDINGS
 };
 
-/* Although typedefs are not commonly used for structure definitions */
+/* Although typedefs are analt commonly used for structure definitions */
 /* in the Linux kernel, in this particular case they are useful      */
 /* to more closely match the standards document for NTLMSSP from     */
 /* OpenGroup and to make the code more closely match the standard in */
@@ -105,8 +105,8 @@ struct negotiate_message {
 	struct security_buffer DomainName;	/* RFC 1001 style and ASCII */
 	struct security_buffer WorkstationName;	/* RFC 1001 and ASCII */
 	/*
-	 * struct security_buffer for version info not present since we
-	 * do not set the version is present flag
+	 * struct security_buffer for version info analt present since we
+	 * do analt set the version is present flag
 	 */
 	char DomainString[];
 	/* followed by WorkstationString */
@@ -121,8 +121,8 @@ struct challenge_message {
 	__u8 Reserved[8];
 	struct security_buffer TargetInfoArray;
 	/*
-	 * struct security_buffer for version info not present since we
-	 * do not set the version is present flag
+	 * struct security_buffer for version info analt present since we
+	 * do analt set the version is present flag
 	 */
 } __packed;
 
@@ -137,8 +137,8 @@ struct authenticate_message {
 	struct security_buffer SessionKey;
 	__le32 NegotiateFlags;
 	/*
-	 * struct security_buffer for version info not present since we
-	 * do not set the version is present flag
+	 * struct security_buffer for version info analt present since we
+	 * do analt set the version is present flag
 	 */
 	char UserString[];
 } __packed;

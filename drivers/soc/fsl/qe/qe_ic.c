@@ -14,7 +14,7 @@
 #include <linux/of_address.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/irq.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
@@ -275,7 +275,7 @@ static void qe_ic_mask_irq(struct irq_data *d)
 	 * spurious interrupts will sometimes happen.  To be 100% sure
 	 * that the write has reached the device before interrupts are
 	 * enabled, the mask register would have to be read back; however,
-	 * this is not required for correctness, only to avoid wasting
+	 * this is analt required for correctness, only to avoid wasting
 	 * time on a large number of spurious interrupts.  In testing,
 	 * a sync reduced the observed spurious interrupts to zero.
 	 */
@@ -291,12 +291,12 @@ static struct irq_chip qe_ic_irq_chip = {
 	.irq_mask_ack = qe_ic_mask_irq,
 };
 
-static int qe_ic_host_match(struct irq_domain *h, struct device_node *node,
+static int qe_ic_host_match(struct irq_domain *h, struct device_analde *analde,
 			    enum irq_domain_bus_token bus_token)
 {
-	/* Exact match, unless qe_ic node is NULL */
-	struct device_node *of_node = irq_domain_get_of_node(h);
-	return of_node == NULL || of_node == node;
+	/* Exact match, unless qe_ic analde is NULL */
+	struct device_analde *of_analde = irq_domain_get_of_analde(h);
+	return of_analde == NULL || of_analde == analde;
 }
 
 static int qe_ic_host_map(struct irq_domain *h, unsigned int virq,
@@ -331,7 +331,7 @@ static const struct irq_domain_ops qe_ic_host_ops = {
 	.xlate = irq_domain_xlate_onetwocell,
 };
 
-/* Return an interrupt vector or 0 if no interrupt is pending. */
+/* Return an interrupt vector or 0 if anal interrupt is pending. */
 static unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic)
 {
 	int irq;
@@ -347,7 +347,7 @@ static unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic)
 	return irq_linear_revmap(qe_ic->irqhost, irq);
 }
 
-/* Return an interrupt vector or 0 if no interrupt is pending. */
+/* Return an interrupt vector or 0 if anal interrupt is pending. */
 static unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic)
 {
 	int irq;
@@ -412,22 +412,22 @@ static int qe_ic_init(struct platform_device *pdev)
 	void (*high_handler)(struct irq_desc *desc);
 	struct qe_ic *qe_ic;
 	struct resource *res;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(dev, "no memory resource defined\n");
-		return -ENODEV;
+		dev_err(dev, "anal memory resource defined\n");
+		return -EANALDEV;
 	}
 
 	qe_ic = devm_kzalloc(dev, sizeof(*qe_ic), GFP_KERNEL);
 	if (qe_ic == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qe_ic->regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (qe_ic->regs == NULL) {
 		dev_err(dev, "failed to ioremap() registers\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	qe_ic->hc_irq = qe_ic_irq_chip;
@@ -436,7 +436,7 @@ static int qe_ic_init(struct platform_device *pdev)
 	qe_ic->virq_low = platform_get_irq(pdev, 1);
 
 	if (qe_ic->virq_low <= 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (qe_ic->virq_high > 0 && qe_ic->virq_high != qe_ic->virq_low) {
 		low_handler = qe_ic_cascade_low;
@@ -446,11 +446,11 @@ static int qe_ic_init(struct platform_device *pdev)
 		high_handler = NULL;
 	}
 
-	qe_ic->irqhost = irq_domain_add_linear(node, NR_QE_IC_INTS,
+	qe_ic->irqhost = irq_domain_add_linear(analde, NR_QE_IC_INTS,
 					       &qe_ic_host_ops, qe_ic);
 	if (qe_ic->irqhost == NULL) {
 		dev_err(dev, "failed to add irq domain\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	qe_ic_write(qe_ic->regs, QEIC_CICR, 0);

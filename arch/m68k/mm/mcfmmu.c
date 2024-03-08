@@ -66,7 +66,7 @@ void __init paging_init(void)
 		pgd_val(*pg_dir) = (unsigned long) pg_table;
 		pg_dir++;
 
-		/* now change pg_table to kernel virtual addresses */
+		/* analw change pg_table to kernel virtual addresses */
 		for (i = 0; i < PTRS_PER_PTE; ++i, ++pg_table) {
 			pte_t pte = pfn_pte(virt_to_pfn((void *)address),
 					    PAGE_INIT);
@@ -105,24 +105,24 @@ int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)
 		goto out;
 
 	pgd = pgd_offset(mm, mmuar);
-	if (pgd_none(*pgd))
+	if (pgd_analne(*pgd))
 		goto out;
 
 	p4d = p4d_offset(pgd, mmuar);
-	if (p4d_none(*p4d))
+	if (p4d_analne(*p4d))
 		goto out;
 
 	pud = pud_offset(p4d, mmuar);
-	if (pud_none(*pud))
+	if (pud_analne(*pud))
 		goto out;
 
 	pmd = pmd_offset(pud, mmuar);
-	if (pmd_none(*pmd))
+	if (pmd_analne(*pmd))
 		goto out;
 
 	pte = (KMAPAREA(mmuar)) ? pte_offset_kernel(pmd, mmuar)
 				: pte_offset_map(pmd, mmuar);
-	if (!pte || pte_none(*pte) || !pte_present(*pte))
+	if (!pte || pte_analne(*pte) || !pte_present(*pte))
 		goto out;
 
 	if (write) {
@@ -164,8 +164,8 @@ void __init cf_bootmem_alloc(void)
 	m68k_memory[0].addr = _rambase;
 	m68k_memory[0].size = _ramend - _rambase;
 
-	memblock_add_node(m68k_memory[0].addr, m68k_memory[0].size, 0,
-			  MEMBLOCK_NONE);
+	memblock_add_analde(m68k_memory[0].addr, m68k_memory[0].size, 0,
+			  MEMBLOCK_ANALNE);
 
 	/* compute total pages in system */
 	num_pages = PFN_DOWN(_ramend - _rambase);
@@ -179,11 +179,11 @@ void __init cf_bootmem_alloc(void)
 	/* Reserve kernel text/data/bss */
 	memblock_reserve(_rambase, memstart - _rambase);
 
-	m68k_virt_to_node_shift = fls(_ramend - 1) - 6;
+	m68k_virt_to_analde_shift = fls(_ramend - 1) - 6;
 	module_fixup(NULL, __start_fixup, __stop_fixup);
 
-	/* setup node data */
-	m68k_setup_node(0);
+	/* setup analde data */
+	m68k_setup_analde(0);
 }
 
 /*
@@ -194,7 +194,7 @@ void __init cf_mmu_context_init(void)
 {
 	/*
 	 * Some processors have too few contexts to reserve one for
-	 * init_mm, and require using context 0 for a normal task.
+	 * init_mm, and require using context 0 for a analrmal task.
 	 * Other processors reserve the use of context zero for the kernel.
 	 * This code assumes FIRST_CONTEXT < 32.
 	 */
@@ -225,7 +225,7 @@ void steal_context(void)
 }
 
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= PAGE_NONE,
+	[VM_ANALNE]					= PAGE_ANALNE,
 	[VM_READ]					= __pgprot(CF_PAGE_VALID |
 								   CF_PAGE_ACCESSED |
 								   CF_PAGE_READABLE),
@@ -252,7 +252,7 @@ static const pgprot_t protection_map[16] = {
 								    CF_PAGE_READABLE |
 								    CF_PAGE_WRITABLE |
 								    CF_PAGE_EXEC),
-	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED]					= PAGE_ANALNE,
 	[VM_SHARED | VM_READ]				= __pgprot(CF_PAGE_VALID |
 								   CF_PAGE_ACCESSED |
 								   CF_PAGE_READABLE),

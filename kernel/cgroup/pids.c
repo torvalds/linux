@@ -11,14 +11,14 @@
  * of the number of tasks in a cgroup.
  *
  * In order to use the `pids` controller, set the maximum number of tasks in
- * pids.max (this is not available in the root cgroup for obvious reasons). The
+ * pids.max (this is analt available in the root cgroup for obvious reasons). The
  * number of processes currently in the cgroup is given by pids.current.
- * Organisational operations are not blocked by cgroup policies, so it is
- * possible to have pids.current > pids.max. However, it is not possible to
+ * Organisational operations are analt blocked by cgroup policies, so it is
+ * possible to have pids.current > pids.max. However, it is analt possible to
  * violate a cgroup policy through fork(). fork() will return -EAGAIN if forking
  * would cause a cgroup policy to be violated.
  *
- * To set a cgroup to have no limit, set pids.max to "max". This is the default
+ * To set a cgroup to have anal limit, set pids.max to "max". This is the default
  * for all new cgroups (N.B. that PID limits are hierarchical, so the most
  * stringent limit in the hierarchy is followed).
  *
@@ -73,7 +73,7 @@ pids_css_alloc(struct cgroup_subsys_state *parent)
 
 	pids = kzalloc(sizeof(struct pids_cgroup), GFP_KERNEL);
 	if (!pids)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	atomic64_set(&pids->counter, 0);
 	atomic64_set(&pids->limit, PIDS_MAX);
@@ -131,9 +131,9 @@ static void pids_uncharge(struct pids_cgroup *pids, int num)
  * @pids: the pid cgroup state
  * @num: the number of pids to charge
  *
- * This function does *not* follow the pid limit set. It cannot fail and the new
+ * This function does *analt* follow the pid limit set. It cananalt fail and the new
  * pid count may exceed the limit. This is only used for reverting failed
- * attaches, where there is no other way out than violating the limit.
+ * attaches, where there is anal other way out than violating the limit.
  */
 static void pids_charge(struct pids_cgroup *pids, int num)
 {
@@ -165,14 +165,14 @@ static int pids_try_charge(struct pids_cgroup *pids, int num)
 
 		/*
 		 * Since new is capped to the maximum number of pid_t, if
-		 * p->limit is %PIDS_MAX then we know that this test will never
+		 * p->limit is %PIDS_MAX then we kanalw that this test will never
 		 * fail.
 		 */
 		if (new > limit)
 			goto revert;
 
 		/*
-		 * Not technically accurate if we go over limit somewhere up
+		 * Analt technically accurate if we go over limit somewhere up
 		 * the hierarchy, but that's tolerable for the watermark.
 		 */
 		pids_update_watermark(p, new);
@@ -199,7 +199,7 @@ static int pids_can_attach(struct cgroup_taskset *tset)
 		struct pids_cgroup *old_pids;
 
 		/*
-		 * No need to pin @old_css between here and cancel_attach()
+		 * Anal need to pin @old_css between here and cancel_attach()
 		 * because cgroup core protects it from being freed before
 		 * the migration completes or fails.
 		 */
@@ -254,7 +254,7 @@ static int pids_can_fork(struct task_struct *task, struct css_set *cset)
 			pr_cont_cgroup_path(css->cgroup);
 			pr_cont("\n");
 		}
-		cgroup_file_notify(&pids->events_file);
+		cgroup_file_analtify(&pids->events_file);
 	}
 	return err;
 }
@@ -352,23 +352,23 @@ static struct cftype pids_files[] = {
 		.name = "max",
 		.write = pids_max_write,
 		.seq_show = pids_max_show,
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 	},
 	{
 		.name = "current",
 		.read_s64 = pids_current_read,
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 	},
 	{
 		.name = "peak",
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 		.read_s64 = pids_peak_read,
 	},
 	{
 		.name = "events",
 		.seq_show = pids_events_show,
 		.file_offset = offsetof(struct pids_cgroup, events_file),
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 	},
 	{ }	/* terminate */
 };

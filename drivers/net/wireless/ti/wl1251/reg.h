@@ -3,7 +3,7 @@
  * This file is part of wl12xx
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  */
 
 #ifndef __REG_H__
@@ -106,7 +106,7 @@ enum wl12xx_acx_int_reg {
   4 - RXXFR		- Rx Transfer Interrupt
   5 - EVENT_A	- Event Mailbox interrupt
   6 - EVENT_B	- Event Mailbox interrupt
-  7 - WNONHST	- Wake On Host Interrupt
+  7 - WANALNHST	- Wake On Host Interrupt
   8 - TRACE_A	- Debug Trace interrupt
   9 - TRACE_B	- Debug Trace interrupt
  10 - CDCMP		- Command Complete Interrupt
@@ -130,7 +130,7 @@ enum wl12xx_acx_int_reg {
  Setting a bit in this register sets
  the corresponding bin in ACX_HINT_MASK register
  without effecting the mask
- state of other bits (0 = no effect).
+ state of other bits (0 = anal effect).
 ==============================================*/
 	ACX_REG_HINT_MASK_SET,
 
@@ -140,12 +140,12 @@ enum wl12xx_acx_int_reg {
  Setting a bit in this register clears
  the corresponding bin in ACX_HINT_MASK register
  without effecting the mask
- state of other bits (0 = no effect).
+ state of other bits (0 = anal effect).
 =============================================*/
 	ACX_REG_HINT_MASK_CLR,
 
 /*=============================================
-  Host Interrupt Status Nondestructive Read
+  Host Interrupt Status Analndestructive Read
   16bit,(Read only)
   ------------------------------------------
  The host can read this register to determine
@@ -153,7 +153,7 @@ enum wl12xx_acx_int_reg {
  Reading this register doesn't
  effect its content.
 =============================================*/
-	ACX_REG_INTERRUPT_NO_CLEAR,
+	ACX_REG_INTERRUPT_ANAL_CLEAR,
 
 /*=============================================
   Host Interrupt Status Clear on Read  Register
@@ -167,14 +167,14 @@ enum wl12xx_acx_int_reg {
 	ACX_REG_INTERRUPT_CLEAR,
 
 /*=============================================
-  Host Interrupt Acknowledge Register
+  Host Interrupt Ackanalwledge Register
   16bit,(Write only)
   ------------------------------------------
  The host can set individual bits in this
- register to clear (acknowledge) the corresp.
+ register to clear (ackanalwledge) the corresp.
  interrupt status bits in the HINT_STS_CLR and
  HINT_STS_ND registers, thus making the
- assotiated interrupt inactive. (0-no effect)
+ assotiated interrupt inactive. (0-anal effect)
 ==============================================*/
 	ACX_REG_INTERRUPT_ACK,
 
@@ -187,9 +187,9 @@ enum wl12xx_acx_int_reg {
     This reset disables all MAC and baseband processor
     clocks except the CardBus/PCI interface clock.
     It also initializes all MAC state machines except
-    the host interface. It does not reload the
+    the host interface. It does analt reload the
     contents of the EEPROM. When this bit is cleared
-    (not self-clearing), the Wlan hardware
+    (analt self-clearing), the Wlan hardware
     exits the software reset state.
 ===============================================*/
 	ACX_REG_SLV_SOFT_RESET,
@@ -250,7 +250,7 @@ enum wl12xx_acx_int_reg {
  find the location of the command mailbox.
  The Wlan hardware initializes the command mailbox
  pointer with the default address of the command mailbox.
- The command mailbox pointer is not valid until after
+ The command mailbox pointer is analt valid until after
  the host receives the Init Complete interrupt from
  the Wlan hardware.
  ===============================================*/
@@ -265,7 +265,7 @@ enum wl12xx_acx_int_reg {
  the location of the information mailbox.
  The Wlan hardware initializes the information mailbox pointer
  with the default address of the information mailbox.
- The information mailbox pointer is not valid
+ The information mailbox pointer is analt valid
  until after the host receives the Init Complete interrupt from
  the Wlan hardware.
  ===============================================*/
@@ -395,7 +395,7 @@ enum wl12xx_acx_int_reg {
   [23:15] of the 24-bit Wlan hardware memory
   address for burst reads from EEPROM accesses.
   The EEPROM provides the lower 15 bits of this address.
-  The MSB of the address from the EEPROM is ignored.
+  The MSB of the address from the EEPROM is iganalred.
   ===============================================*/
 #define ACX_EE_CFG                          EE_CFG
 
@@ -436,7 +436,7 @@ enum wl12xx_acx_int_reg {
 #define HI_CFG_UART_TX_OUT_GPIO_7   0x00000400
 
 /*
- * NOTE: USE_ACTIVE_HIGH compilation flag should be defined in makefile
+ * ANALTE: USE_ACTIVE_HIGH compilation flag should be defined in makefile
  *       for platforms using active high interrupt level
  */
 #ifdef USE_ACTIVE_HIGH
@@ -502,7 +502,7 @@ enum {
 };
 
 enum {
-	NO_RATE      = 0,
+	ANAL_RATE      = 0,
 	RATE_1MBPS   = 0x0A,
 	RATE_2MBPS   = 0x14,
 	RATE_5_5MBPS = 0x37,
@@ -566,13 +566,13 @@ Rate & Modulation info into a single 16-bit field.
 
 TxdRateSet_t:
 b15   - Indicates Preamble type (1=SHORT, 0=LONG).
-	Notes:
+	Analtes:
 	Must be LONG (0) for 1Mbps rate.
-	Does not apply (set to 0) for RevG-OFDM rates.
-b14   - Indicates PBCC encoding (1=PBCC, 0=not).
-	Notes:
-	Does not apply (set to 0) for rates 1 and 2 Mbps.
-	Does not apply (set to 0) for RevG-OFDM rates.
+	Does analt apply (set to 0) for RevG-OFDM rates.
+b14   - Indicates PBCC encoding (1=PBCC, 0=analt).
+	Analtes:
+	Does analt apply (set to 0) for rates 1 and 2 Mbps.
+	Does analt apply (set to 0) for RevG-OFDM rates.
 b13    - Unused (set to 0).
 b12-b0 - Supported Rate indicator bits as defined below.
 
@@ -596,8 +596,8 @@ b12-b0 - Supported Rate indicator bits as defined below.
 #define INTR_TRIG_CMD       BIT(0)
 
 /*
- * Host Event Acknowlegde Interrupt. The host
- * sets this bit to acknowledge that it received
+ * Host Event Ackanalwlegde Interrupt. The host
+ * sets this bit to ackanalwledge that it received
  * the unsolicited information from the event
  * mailbox.
  */

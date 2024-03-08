@@ -5,25 +5,25 @@
  * Copyright 2019 Google LLC
  *
  * The Wilco Embedded Controller can create custom events that
- * are not handled as standard ACPI objects. These events can
+ * are analt handled as standard ACPI objects. These events can
  * contain information about changes in EC controlled features,
  * such as errors and events in the dock or display. For example,
  * an event is triggered if the dock is plugged into a display
  * incorrectly. These events are needed for telemetry and
- * diagnostics reasons, and for possibly alerting the user.
+ * diaganalstics reasons, and for possibly alerting the user.
 
- * These events are triggered by the EC with an ACPI Notify(0x90),
+ * These events are triggered by the EC with an ACPI Analtify(0x90),
  * and then the BIOS reads the event buffer from EC RAM via an
  * ACPI method. When the OS receives these events via ACPI,
  * it passes them along to this driver. The events are put into
  * a queue which can be read by a userspace daemon via a char device
  * that implements read() and poll(). The event queue acts as a
- * circular buffer of size 64, so if there are no userspace consumers
- * the kernel will not run out of memory. The char device will appear at
- * /dev/wilco_event{n}, where n is some small non-negative integer,
+ * circular buffer of size 64, so if there are anal userspace consumers
+ * the kernel will analt run out of memory. The char device will appear at
+ * /dev/wilco_event{n}, where n is some small analn-negative integer,
  * starting from 0. Standard ACPI events such as the battery getting
  * plugged/unplugged can also come through this path, but they are
- * dealt with via other paths, and are ignored here.
+ * dealt with via other paths, and are iganalred here.
 
  * To test, you can tail the binary data with
  * $ cat /dev/wilco_event0 | hexdump -ve '1/1 "%x\n"'
@@ -43,8 +43,8 @@
 #include <linux/uaccess.h>
 #include <linux/wait.h>
 
-/* ACPI Notify event code indicating event data is available. */
-#define EC_ACPI_NOTIFY_EVENT		0x90
+/* ACPI Analtify event code indicating event data is available. */
+#define EC_ACPI_ANALTIFY_EVENT		0x90
 /* ACPI Method to execute to retrieve event data buffer from the EC. */
 #define EC_ACPI_GET_EVENT		"QSET"
 /* Maximum number of words in event data returned by the EC. */
@@ -52,7 +52,7 @@
 #define EC_ACPI_MAX_EVENT_SIZE \
 	(sizeof(struct ec_event) + (EC_ACPI_MAX_EVENT_WORDS) * sizeof(u16))
 
-/* Node will appear in /dev/EVENT_DEV_NAME */
+/* Analde will appear in /dev/EVENT_DEV_NAME */
 #define EVENT_DEV_NAME		"wilco_event"
 #define EVENT_CLASS_NAME	EVENT_DEV_NAME
 #define DRV_NAME		EVENT_DEV_NAME
@@ -143,7 +143,7 @@ static struct ec_event *event_queue_pop(struct ec_event_queue *q)
 
 /*
  * If full, overwrite the oldest event and return it so the caller
- * can kfree it. If not full, return NULL.
+ * can kfree it. If analt full, return NULL.
  */
 static struct ec_event *event_queue_push(struct ec_event_queue *q,
 					 struct ec_event *ev)
@@ -172,18 +172,18 @@ static void event_queue_free(struct ec_event_queue *q)
  * struct event_device_data - Data for a Wilco EC device that responds to ACPI.
  * @events: Circular queue of EC events to be provided to userspace.
  * @queue_lock: Protect the queue from simultaneous read/writes.
- * @wq: Wait queue to notify processes when events are available or the
+ * @wq: Wait queue to analtify processes when events are available or the
  *	device has been removed.
  * @cdev: Char dev that userspace reads() and polls() from.
  * @dev: Device associated with the %cdev.
- * @exist: Has the device been not been removed? Once a device has been removed,
+ * @exist: Has the device been analt been removed? Once a device has been removed,
  *	   writes, reads, and new opens will fail.
  * @available: Guarantee only one client can open() file and read from queue.
  *
  * There will be one of these structs for each ACPI device registered. This data
  * is the queue of events received from ACPI that still need to be read from
  * userspace, the device and char device that userspace is using, a wait queue
- * used to notify different threads when something has changed, plus a flag
+ * used to analtify different threads when something has changed, plus a flag
  * on whether the ACPI device has been removed.
  */
 struct event_device_data {
@@ -227,7 +227,7 @@ static int enqueue_events(struct acpi_device *adev, const u8 *buf, u32 length)
 			return -EOVERFLOW;
 		}
 
-		/* Ensure event does not overflow the available buffer */
+		/* Ensure event does analt overflow the available buffer */
 		if ((offset + event_size) > length) {
 			dev_err(&adev->dev, "Event exceeds buffer: %zu > %d\n",
 				offset + event_size, length);
@@ -240,7 +240,7 @@ static int enqueue_events(struct acpi_device *adev, const u8 *buf, u32 length)
 		/* Copy event into the queue */
 		queue_event = kmemdup(event, event_size, GFP_KERNEL);
 		if (!queue_event)
-			return -ENOMEM;
+			return -EANALMEM;
 		spin_lock(&dev_data->queue_lock);
 		old_event = event_queue_push(dev_data->events, queue_event);
 		spin_unlock(&dev_data->queue_lock);
@@ -252,19 +252,19 @@ static int enqueue_events(struct acpi_device *adev, const u8 *buf, u32 length)
 }
 
 /**
- * event_device_notify() - Callback when EC generates an event over ACPI.
+ * event_device_analtify() - Callback when EC generates an event over ACPI.
  * @adev: The device that the event is coming from.
- * @value: Value passed to Notify() in ACPI.
+ * @value: Value passed to Analtify() in ACPI.
  *
  * This function will read the events from the device and enqueue them.
  */
-static void event_device_notify(struct acpi_device *adev, u32 value)
+static void event_device_analtify(struct acpi_device *adev, u32 value)
 {
 	struct acpi_buffer event_buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
 	acpi_status status;
 
-	if (value != EC_ACPI_NOTIFY_EVENT) {
+	if (value != EC_ACPI_ANALTIFY_EVENT) {
 		dev_err(&adev->dev, "Invalid event: 0x%08x\n", value);
 		return;
 	}
@@ -280,7 +280,7 @@ static void event_device_notify(struct acpi_device *adev, u32 value)
 
 	obj = (union acpi_object *)event_buffer.pointer;
 	if (!obj) {
-		dev_err(&adev->dev, "Nothing returned from %s()\n",
+		dev_err(&adev->dev, "Analthing returned from %s()\n",
 			EC_ACPI_GET_EVENT);
 		return;
 	}
@@ -301,20 +301,20 @@ static void event_device_notify(struct acpi_device *adev, u32 value)
 	kfree(obj);
 }
 
-static int event_open(struct inode *inode, struct file *filp)
+static int event_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct event_device_data *dev_data;
 
-	dev_data = container_of(inode->i_cdev, struct event_device_data, cdev);
+	dev_data = container_of(ianalde->i_cdev, struct event_device_data, cdev);
 	if (!dev_data->exist)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (atomic_cmpxchg(&dev_data->available, 1, 0) == 0)
 		return -EBUSY;
 
-	/* Increase refcount on device so dev_data is not freed */
+	/* Increase refcount on device so dev_data is analt freed */
 	get_device(&dev_data->dev);
-	stream_open(inode, filp);
+	stream_open(ianalde, filp);
 	filp->private_data = dev_data;
 
 	return 0;
@@ -329,7 +329,7 @@ static __poll_t event_poll(struct file *filp, poll_table *wait)
 	if (!dev_data->exist)
 		return EPOLLHUP;
 	if (!event_queue_empty(dev_data->events))
-		mask |= EPOLLIN | EPOLLRDNORM | EPOLLPRI;
+		mask |= EPOLLIN | EPOLLRDANALRM | EPOLLPRI;
 	return mask;
 }
 
@@ -342,9 +342,9 @@ static __poll_t event_poll(struct file *filp, poll_table *wait)
  *
  * Removes the first event from the queue, places it in the passed buffer.
  *
- * If there are no events in the queue, then one of two things happens,
- * depending on if the file was opened in nonblocking mode: If in nonblocking
- * mode, then return -EAGAIN to say there's no data. If in blocking mode, then
+ * If there are anal events in the queue, then one of two things happens,
+ * depending on if the file was opened in analnblocking mode: If in analnblocking
+ * mode, then return -EAGAIN to say there's anal data. If in blocking mode, then
  * block until an event is available.
  *
  * Return: Number of bytes placed in buffer, negative error code on failure.
@@ -364,7 +364,7 @@ static ssize_t event_read(struct file *filp, char __user *buf, size_t count,
 	spin_lock(&dev_data->queue_lock);
 	while (event_queue_empty(dev_data->events)) {
 		spin_unlock(&dev_data->queue_lock);
-		if (filp->f_flags & O_NONBLOCK)
+		if (filp->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
 		err = wait_event_interruptible(dev_data->wq,
@@ -375,7 +375,7 @@ static ssize_t event_read(struct file *filp, char __user *buf, size_t count,
 
 		/* Device was removed as we waited? */
 		if (!dev_data->exist)
-			return -ENODEV;
+			return -EANALDEV;
 		spin_lock(&dev_data->queue_lock);
 	}
 	event = event_queue_pop(dev_data->events);
@@ -388,7 +388,7 @@ static ssize_t event_read(struct file *filp, char __user *buf, size_t count,
 	return n_bytes_written;
 }
 
-static int event_release(struct inode *inode, struct file *filp)
+static int event_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct event_device_data *dev_data = filp->private_data;
 
@@ -403,7 +403,7 @@ static const struct file_operations event_fops = {
 	.poll  = event_poll,
 	.read = event_read,
 	.release = event_release,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.owner = THIS_MODULE,
 };
 
@@ -436,8 +436,8 @@ static void hangup_device(struct event_device_data *dev_data)
  * event_device_add() - Callback when creating a new device.
  * @adev: ACPI device that we will be receiving events from.
  *
- * This finds a free minor number for the device, allocates and initializes
- * some device data, and creates a new device and char dev node.
+ * This finds a free mianalr number for the device, allocates and initializes
+ * some device data, and creates a new device and char dev analde.
  *
  * The device data is freed in free_device_data(), which is called when
  * %dev_data->dev is release()ed. This happens after all references to
@@ -449,19 +449,19 @@ static void hangup_device(struct event_device_data *dev_data)
 static int event_device_add(struct acpi_device *adev)
 {
 	struct event_device_data *dev_data;
-	int error, minor;
+	int error, mianalr;
 
-	minor = ida_alloc_max(&event_ida, EVENT_MAX_DEV-1, GFP_KERNEL);
-	if (minor < 0) {
-		error = minor;
-		dev_err(&adev->dev, "Failed to find minor number: %d\n", error);
+	mianalr = ida_alloc_max(&event_ida, EVENT_MAX_DEV-1, GFP_KERNEL);
+	if (mianalr < 0) {
+		error = mianalr;
+		dev_err(&adev->dev, "Failed to find mianalr number: %d\n", error);
 		return error;
 	}
 
 	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data) {
-		error = -ENOMEM;
-		goto free_minor;
+		error = -EANALMEM;
+		goto free_mianalr;
 	}
 
 	/* Initialize the device data. */
@@ -469,8 +469,8 @@ static int event_device_add(struct acpi_device *adev)
 	dev_data->events = event_queue_new(queue_size);
 	if (!dev_data->events) {
 		kfree(dev_data);
-		error = -ENOMEM;
-		goto free_minor;
+		error = -EANALMEM;
+		goto free_mianalr;
 	}
 	spin_lock_init(&dev_data->queue_lock);
 	init_waitqueue_head(&dev_data->wq);
@@ -478,10 +478,10 @@ static int event_device_add(struct acpi_device *adev)
 	atomic_set(&dev_data->available, 1);
 
 	/* Initialize the device. */
-	dev_data->dev.devt = MKDEV(event_major, minor);
+	dev_data->dev.devt = MKDEV(event_major, mianalr);
 	dev_data->dev.class = &event_class;
 	dev_data->dev.release = free_device_data;
-	dev_set_name(&dev_data->dev, EVENT_DEV_NAME_FMT, minor);
+	dev_set_name(&dev_data->dev, EVENT_DEV_NAME_FMT, mianalr);
 	device_initialize(&dev_data->dev);
 
 	/* Initialize the character device, and add it to userspace. */
@@ -494,8 +494,8 @@ static int event_device_add(struct acpi_device *adev)
 
 free_dev_data:
 	hangup_device(dev_data);
-free_minor:
-	ida_free(&event_ida, minor);
+free_mianalr:
+	ida_free(&event_ida, mianalr);
 	return error;
 }
 
@@ -504,7 +504,7 @@ static void event_device_remove(struct acpi_device *adev)
 	struct event_device_data *dev_data = adev->driver_data;
 
 	cdev_device_del(&dev_data->cdev, &dev_data->dev);
-	ida_free(&event_ida, MINOR(dev_data->dev.devt));
+	ida_free(&event_ida, MIANALR(dev_data->dev.devt));
 	hangup_device(dev_data);
 }
 
@@ -520,7 +520,7 @@ static struct acpi_driver event_driver = {
 	.ids = event_acpi_ids,
 	.ops = {
 		.add = event_device_add,
-		.notify = event_device_notify,
+		.analtify = event_device_analtify,
 		.remove = event_device_remove,
 	},
 	.owner = THIS_MODULE,
@@ -537,7 +537,7 @@ static int __init event_module_init(void)
 		return ret;
 	}
 
-	/* Request device numbers, starting with minor=0. Save the major num. */
+	/* Request device numbers, starting with mianalr=0. Save the major num. */
 	ret = alloc_chrdev_region(&dev_num, 0, EVENT_MAX_DEV, EVENT_DEV_NAME);
 	if (ret) {
 		pr_err(DRV_NAME ": Failed allocating dev numbers: %d\n", ret);

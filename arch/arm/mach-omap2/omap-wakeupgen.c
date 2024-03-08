@@ -6,7 +6,7 @@
  * with ARM GIC to wake the CPU out from low power states on
  * external interrupts. It is responsible for generating wakeup
  * event from the incoming interrupts and enable bits. It is
- * implemented in MPU always ON power domain. During normal operation,
+ * implemented in MPU always ON power domain. During analrmal operation,
  * WakeupGen delivers external interrupts directly to the GIC.
  *
  * Copyright (C) 2011 Texas Instruments, Inc.
@@ -22,7 +22,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/cpu_pm.h>
 
 #include "omap-wakeupgen.h"
@@ -251,8 +251,8 @@ static inline void omap4_irq_save_context(void)
 
 		/*
 		 * Disable the secure interrupts for CPUx. The restore
-		 * code blindly restores secure and non-secure interrupt
-		 * masks from SAR RAM. Secure interrupts are not suppose
+		 * code blindly restores secure and analn-secure interrupt
+		 * masks from SAR RAM. Secure interrupts are analt suppose
 		 * to be enabled from HLOS. So overwrite the SAR location
 		 * so that the secure interrupt remains disabled.
 		 */
@@ -322,11 +322,11 @@ static inline void am43xx_irq_save_context(void)
  * interrupt wakeups from CPU low power states. It manages
  * masking/unmasking of Shared peripheral interrupts(SPI). So the
  * interrupt enable/disable control should be in sync and consistent
- * at WakeupGen and GIC so that interrupts are not lost.
+ * at WakeupGen and GIC so that interrupts are analt lost.
  */
 static void irq_save_context(void)
 {
-	/* DRA7 has no SAR to save */
+	/* DRA7 has anal SAR to save */
 	if (soc_is_dra7xx())
 		return;
 
@@ -341,7 +341,7 @@ static void irq_sar_clear(void)
 {
 	u32 val;
 	u32 offset = SAR_BACKUP_STATUS_OFFSET;
-	/* DRA7 has no SAR to save */
+	/* DRA7 has anal SAR to save */
 	if (soc_is_dra7xx())
 		return;
 
@@ -418,9 +418,9 @@ static int omap_wakeupgen_cpu_dead(unsigned int cpu)
 
 static void __init irq_hotplug_init(void)
 {
-	cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "arm/omap-wake:online",
+	cpuhp_setup_state_analcalls(CPUHP_AP_ONLINE_DYN, "arm/omap-wake:online",
 				  omap_wakeupgen_cpu_online, NULL);
-	cpuhp_setup_state_nocalls(CPUHP_ARM_OMAP_WAKE_DEAD,
+	cpuhp_setup_state_analcalls(CPUHP_ARM_OMAP_WAKE_DEAD,
 				  "arm/omap-wake:dead", NULL,
 				  omap_wakeupgen_cpu_dead);
 }
@@ -430,7 +430,7 @@ static void __init irq_hotplug_init(void)
 #endif
 
 #ifdef CONFIG_CPU_PM
-static int irq_notifier(struct notifier_block *self, unsigned long cmd,	void *v)
+static int irq_analtifier(struct analtifier_block *self, unsigned long cmd,	void *v)
 {
 	switch (cmd) {
 	case CPU_CLUSTER_PM_ENTER:
@@ -444,18 +444,18 @@ static int irq_notifier(struct notifier_block *self, unsigned long cmd,	void *v)
 			irq_restore_context();
 		break;
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block irq_notifier_block = {
-	.notifier_call = irq_notifier,
+static struct analtifier_block irq_analtifier_block = {
+	.analtifier_call = irq_analtifier,
 };
 
 static void __init irq_pm_init(void)
 {
 	/* FIXME: Remove this when MPU OSWR support is added */
 	if (!IS_PM44XX_ERRATUM(PM_OMAP4_CPU_OSWR_DISABLE))
-		cpu_pm_register_notifier(&irq_notifier_block);
+		cpu_pm_register_analtifier(&irq_analtifier_block);
 }
 #else
 static void __init irq_pm_init(void)
@@ -490,11 +490,11 @@ static int wakeupgen_domain_translate(struct irq_domain *d,
 				      unsigned long *hwirq,
 				      unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_analde(fwspec->fwanalde)) {
 		if (fwspec->param_count != 3)
 			return -EINVAL;
 
-		/* No PPI should point to this domain */
+		/* Anal PPI should point to this domain */
 		if (fwspec->param[0] != 0)
 			return -EINVAL;
 
@@ -516,9 +516,9 @@ static int wakeupgen_domain_alloc(struct irq_domain *domain,
 	int i;
 
 	if (fwspec->param_count != 3)
-		return -EINVAL;	/* Not GIC compliant */
+		return -EINVAL;	/* Analt GIC compliant */
 	if (fwspec->param[0] != 0)
-		return -EINVAL;	/* No PPI should point to this domain */
+		return -EINVAL;	/* Anal PPI should point to this domain */
 
 	hwirq = fwspec->param[1];
 	if (hwirq >= MAX_IRQS)
@@ -529,7 +529,7 @@ static int wakeupgen_domain_alloc(struct irq_domain *domain,
 					      &wakeupgen_chip, NULL);
 
 	parent_fwspec = *fwspec;
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwanalde = domain->parent->fwanalde;
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs,
 					    &parent_fwspec);
 }
@@ -543,8 +543,8 @@ static const struct irq_domain_ops wakeupgen_domain_ops = {
 /*
  * Initialise the wakeupgen module.
  */
-static int __init wakeupgen_init(struct device_node *node,
-				 struct device_node *parent)
+static int __init wakeupgen_init(struct device_analde *analde,
+				 struct device_analde *parent)
 {
 	struct irq_domain *parent_domain, *domain;
 	int i;
@@ -552,25 +552,25 @@ static int __init wakeupgen_init(struct device_node *node,
 	u32 val;
 
 	if (!parent) {
-		pr_err("%pOF: no parent, giving up\n", node);
-		return -ENODEV;
+		pr_err("%pOF: anal parent, giving up\n", analde);
+		return -EANALDEV;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%pOF: unable to obtain parent domain\n", node);
+		pr_err("%pOF: unable to obtain parent domain\n", analde);
 		return -ENXIO;
 	}
-	/* Not supported on OMAP4 ES1.0 silicon */
+	/* Analt supported on OMAP4 ES1.0 silicon */
 	if (omap_rev() == OMAP4430_REV_ES1_0) {
-		WARN(1, "WakeupGen: Not supported on OMAP4430 ES1.0\n");
+		WARN(1, "WakeupGen: Analt supported on OMAP4430 ES1.0\n");
 		return -EPERM;
 	}
 
 	/* Static mapping, never released */
-	wakeupgen_base = of_iomap(node, 0);
+	wakeupgen_base = of_iomap(analde, 0);
 	if (WARN_ON(!wakeupgen_base))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (cpu_is_omap44xx()) {
 		irq_banks = OMAP4_NR_BANKS;
@@ -586,11 +586,11 @@ static int __init wakeupgen_init(struct device_node *node,
 	}
 
 	domain = irq_domain_add_hierarchy(parent_domain, 0, max_irqs,
-					  node, &wakeupgen_domain_ops,
+					  analde, &wakeupgen_domain_ops,
 					  NULL);
 	if (!domain) {
 		iounmap(wakeupgen_base);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Clear all IRQ bitmasks at wakeupGen level */
@@ -616,7 +616,7 @@ static int __init wakeupgen_init(struct device_node *node,
 	 * independently.
 	 * This needs to be set one time thanks to always ON domain.
 	 *
-	 * We do not support ES1 behavior anymore. OMAP5 is assumed to be
+	 * We do analt support ES1 behavior anymore. OMAP5 is assumed to be
 	 * ES2.0, and the same is applicable for DRA7.
 	 */
 	if (soc_is_omap54xx() || soc_is_dra7xx()) {

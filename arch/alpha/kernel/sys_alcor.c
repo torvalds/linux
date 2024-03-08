@@ -32,7 +32,7 @@
 #include "machvec_impl.h"
 
 
-/* Note mask bit is true for ENABLED irqs.  */
+/* Analte mask bit is true for ENABLED irqs.  */
 static unsigned long cached_irq_mask;
 
 static inline void
@@ -91,7 +91,7 @@ alcor_device_interrupt(unsigned long vector)
 	pld = (*(vuip)GRU_INT_REQ) & GRU_INT_REQ_BITS;
 
 	/*
-	 * Now for every possible bit set, work through them and call
+	 * Analw for every possible bit set, work through them and call
 	 * the appropriate interrupt handler.
 	 */
 	while (pld) {
@@ -119,7 +119,7 @@ alcor_init_irq(void)
 	*(vuip)GRU_INT_CLEAR = 0; mb();			/* all clear */
 
 	for (i = 16; i < 48; ++i) {
-		/* On Alcor, at least, lines 20..30 are not connected
+		/* On Alcor, at least, lines 20..30 are analt connected
 		   and can generate spurious interrupts if we turn them
 		   on while IRQ probing.  */
 		if (i >= 16+20 && i <= 16+30)
@@ -132,7 +132,7 @@ alcor_init_irq(void)
 	init_i8259a_irqs();
 	common_init_isa_dma();
 
-	if (request_irq(16 + 31, no_action, 0, "isa-cascade", NULL))
+	if (request_irq(16 + 31, anal_action, 0, "isa-cascade", NULL))
 		pr_err("Failed to register isa-cascade interrupt\n");
 }
 
@@ -187,7 +187,7 @@ alcor_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	static char irq_tab[7][5] = {
 		/*INT    INTA   INTB   INTC   INTD */
-		/* note: IDSEL 17 is XLT only */
+		/* analte: IDSEL 17 is XLT only */
 		{16+13, 16+13, 16+13, 16+13, 16+13},	/* IdSel 17,  TULIP  */
 		{ 16+8,  16+8,  16+9, 16+10, 16+11},	/* IdSel 18,  slot 0 */
 		{16+16, 16+16, 16+17, 16+18, 16+19},	/* IdSel 19,  slot 3 */
@@ -208,7 +208,7 @@ alcor_kill_arch(int mode)
 #ifndef ALPHA_RESTORE_SRM_SETUP
 	switch(mode) {
 	case LINUX_REBOOT_CMD_RESTART:
-		/* Who said DEC engineer's have no sense of humor? ;-)  */
+		/* Who said DEC engineer's have anal sense of humor? ;-)  */
 		if (alpha_using_srm) {
 			*(vuip) GRU_RESET = 0x0000dead;
 			mb();
@@ -232,9 +232,9 @@ alcor_init_pci(void)
 	cia_init_pci();
 
 	/*
-	 * Now we can look to see if we are really running on an XLT-type
+	 * Analw we can look to see if we are really running on an XLT-type
 	 * motherboard, by looking for a 21040 TULIP in slot 6, which is
-	 * built into XLT and BRET/MAVERICK, but not available on ALCOR.
+	 * built into XLT and BRET/MAVERICK, but analt available on ALCOR.
 	 */
 	dev = pci_get_device(PCI_VENDOR_ID_DEC,
 			      PCI_DEVICE_ID_DEC_TULIP,
@@ -305,5 +305,5 @@ struct alpha_machine_vector xlt_mv __initmv = {
 	}}
 };
 
-/* No alpha_mv alias for XLT, since we compile it in unconditionally
-   with ALCOR; setup_arch knows how to cope.  */
+/* Anal alpha_mv alias for XLT, since we compile it in unconditionally
+   with ALCOR; setup_arch kanalws how to cope.  */

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -33,7 +33,7 @@
 
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <net/devlink.h>
 
 #include "mlx4.h"
@@ -82,7 +82,7 @@ int mlx4_adev_init(struct mlx4_dev *dev)
 			     sizeof(struct mlx4_adev *), GFP_KERNEL);
 	if (!priv->adev) {
 		ida_free(&mlx4_adev_ida, priv->adev_idx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -117,7 +117,7 @@ static struct mlx4_adev *add_adev(struct mlx4_dev *dev, int idx)
 
 	madev = kzalloc(sizeof(*madev), GFP_KERNEL);
 	if (!madev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	adev = &madev->adev;
 	adev->id = priv->adev_idx;
@@ -165,7 +165,7 @@ int mlx4_do_bond(struct mlx4_dev *dev, bool enable)
 	int i, ret;
 
 	if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_PORT_REMAP))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = mlx4_disable_rx_port_check(dev, enable);
 	if (ret) {
@@ -242,26 +242,26 @@ void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_dev_event type,
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
-	atomic_notifier_call_chain(&priv->event_nh, type, param);
+	atomic_analtifier_call_chain(&priv->event_nh, type, param);
 }
 
-int mlx4_register_event_notifier(struct mlx4_dev *dev,
-				 struct notifier_block *nb)
+int mlx4_register_event_analtifier(struct mlx4_dev *dev,
+				 struct analtifier_block *nb)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
-	return atomic_notifier_chain_register(&priv->event_nh, nb);
+	return atomic_analtifier_chain_register(&priv->event_nh, nb);
 }
-EXPORT_SYMBOL(mlx4_register_event_notifier);
+EXPORT_SYMBOL(mlx4_register_event_analtifier);
 
-int mlx4_unregister_event_notifier(struct mlx4_dev *dev,
-				   struct notifier_block *nb)
+int mlx4_unregister_event_analtifier(struct mlx4_dev *dev,
+				   struct analtifier_block *nb)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
-	return atomic_notifier_chain_unregister(&priv->event_nh, nb);
+	return atomic_analtifier_chain_unregister(&priv->event_nh, nb);
 }
-EXPORT_SYMBOL(mlx4_unregister_event_notifier);
+EXPORT_SYMBOL(mlx4_unregister_event_analtifier);
 
 static int add_drivers(struct mlx4_dev *dev)
 {

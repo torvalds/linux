@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/processor.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <asm/physmem_info.h>
 #include <asm/stacktrace.h>
@@ -302,7 +302,7 @@ unsigned long physmem_alloc_top_down(enum reserved_range_type type, unsigned lon
 
 	addr = __physmem_alloc_range(size, align, 0, physmem_alloc_pos, physmem_alloc_ranges,
 				     &ranges_left, true);
-	/* if not a consecutive allocation of the same type or first allocation */
+	/* if analt a consecutive allocation of the same type or first allocation */
 	if (range->start != addr + size) {
 		if (range->end) {
 			physmem_alloc_pos = __physmem_alloc_range(

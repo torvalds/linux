@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -34,7 +34,7 @@
  * values previously filled out by our driver and based on this information it
  * computes some of the DSC values.
  *
- * @note This calculation requires float point operation, most of it executes
+ * @analte This calculation requires float point operation, most of it executes
  * under kernel_fpu_{begin,end}.
  */
 void calc_rc_params(struct rc_params *rc, const struct drm_dsc_config *pps)
@@ -58,7 +58,7 @@ void calc_rc_params(struct rc_params *rc, const struct drm_dsc_config *pps)
 	DC_FP_START();
 	_do_calc_rc_params(rc, mode, bpc, drm_bpp, is_navite_422_or_420,
 			   slice_width, slice_height,
-			   pps->dsc_version_minor);
+			   pps->dsc_version_mianalr);
 	DC_FP_END();
 #endif
 }

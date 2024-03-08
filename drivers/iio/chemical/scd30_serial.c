@@ -6,7 +6,7 @@
  */
 #include <linux/crc16.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/iio/iio.h>
 #include <linux/jiffies.h>
 #include <linux/mod_devicetable.h>
@@ -152,7 +152,7 @@ static int scd30_serdev_command(struct scd30_state *state, enum scd30_cmd cmd, u
 		break;
 	case SCD30_SERDEV_READ:
 		if (rxbuf[2] != (rxsize - SCD30_SERDEV_RX_HEADER_SIZE - SCD30_SERDEV_CRC_SIZE)) {
-			dev_err(state->dev, "received data size does not match header\n");
+			dev_err(state->dev, "received data size does analt match header\n");
 			return -EIO;
 		}
 
@@ -167,7 +167,7 @@ static int scd30_serdev_command(struct scd30_state *state, enum scd30_cmd cmd, u
 		memcpy(rsp, rxbuf + SCD30_SERDEV_RX_HEADER_SIZE, rxsize);
 		break;
 	default:
-		dev_err(state->dev, "received unknown op code\n");
+		dev_err(state->dev, "received unkanalwn op code\n");
 		return -EIO;
 	}
 
@@ -221,7 +221,7 @@ static int scd30_serdev_probe(struct serdev_device *serdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&priv->meas_ready);
 	serdev_device_set_client_ops(serdev, &scd30_serdev_ops);
@@ -233,11 +233,11 @@ static int scd30_serdev_probe(struct serdev_device *serdev)
 	serdev_device_set_baudrate(serdev, 19200);
 	serdev_device_set_flow_control(serdev, false);
 
-	ret = serdev_device_set_parity(serdev, SERDEV_PARITY_NONE);
+	ret = serdev_device_set_parity(serdev, SERDEV_PARITY_ANALNE);
 	if (ret)
 		return ret;
 
-	irq = fwnode_irq_get(dev_fwnode(dev), 0);
+	irq = fwanalde_irq_get(dev_fwanalde(dev), 0);
 
 	return scd30_probe(dev, irq, KBUILD_MODNAME, priv, scd30_serdev_command);
 }

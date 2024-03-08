@@ -118,7 +118,7 @@
 #define DA9055_DIG_CTRL			0x99
 #define DA9055_ALC_CTRL2		0x9A
 #define DA9055_ALC_CTRL3		0x9B
-#define DA9055_ALC_NOISE		0x9C
+#define DA9055_ALC_ANALISE		0x9C
 #define DA9055_ALC_TARGET_MIN		0x9D
 #define DA9055_ALC_TARGET_MAX		0x9E
 #define DA9055_ALC_GAIN_LIMITS		0x9F
@@ -334,14 +334,14 @@ static SOC_ENUM_SINGLE_DECL(da9055_adc_vf_cutoff,
 
 /* Gain ramping rate value */
 static const char * const da9055_gain_ramping_txt[] = {
-	"nominal rate", "nominal rate * 4", "nominal rate * 8",
-	"nominal rate / 8"
+	"analminal rate", "analminal rate * 4", "analminal rate * 8",
+	"analminal rate / 8"
 };
 
 static SOC_ENUM_SINGLE_DECL(da9055_gain_ramping_rate,
 			    DA9055_GAIN_RAMP_CTRL, 0, da9055_gain_ramping_txt);
 
-/* DAC noise gate setup time value */
+/* DAC analise gate setup time value */
 static const char * const da9055_dac_ng_setup_time_txt[] = {
 	"256 samples", "512 samples", "1024 samples", "2048 samples"
 };
@@ -350,7 +350,7 @@ static SOC_ENUM_SINGLE_DECL(da9055_dac_ng_setup_time,
 			    DA9055_DAC_NG_SETUP_TIME, 0,
 			    da9055_dac_ng_setup_time_txt);
 
-/* DAC noise gate rampup rate value */
+/* DAC analise gate rampup rate value */
 static const char * const da9055_dac_ng_rampup_txt[] = {
 	"0.02 ms/dB", "0.16 ms/dB"
 };
@@ -359,7 +359,7 @@ static SOC_ENUM_SINGLE_DECL(da9055_dac_ng_rampup_rate,
 			    DA9055_DAC_NG_SETUP_TIME, 2,
 			    da9055_dac_ng_rampup_txt);
 
-/* DAC noise gate rampdown rate value */
+/* DAC analise gate rampdown rate value */
 static const char * const da9055_dac_ng_rampdown_txt[] = {
 	"0.64 ms/dB", "20.48 ms/dB"
 };
@@ -627,7 +627,7 @@ static const struct snd_kcontrol_new da9055_snd_controls[] = {
 	SOC_SINGLE("Lineout Gain Ramping Switch", DA9055_LINE_CTRL, 5, 1, 0),
 	SOC_ENUM("Gain Ramping Rate", da9055_gain_ramping_rate),
 
-	/* DAC Noise Gate controls */
+	/* DAC Analise Gate controls */
 	SOC_SINGLE("DAC NG Switch", DA9055_DAC_NG_CTRL, 7, 1, 0),
 	SOC_SINGLE("DAC NG ON Threshold", DA9055_DAC_NG_ON_THRESHOLD,
 		   0, 0x7, 0),
@@ -659,7 +659,7 @@ static const struct snd_kcontrol_new da9055_snd_controls[] = {
 		       0, 0x3f, 1, alc_threshold_tlv),
 	SOC_SINGLE_TLV("ALC Max Threshold Volume", DA9055_ALC_TARGET_MAX,
 		       0, 0x3f, 1, alc_threshold_tlv),
-	SOC_SINGLE_TLV("ALC Noise Threshold Volume", DA9055_ALC_NOISE,
+	SOC_SINGLE_TLV("ALC Analise Threshold Volume", DA9055_ALC_ANALISE,
 		       0, 0x3f, 1, alc_threshold_tlv),
 	SOC_SINGLE_TLV("ALC Max Gain Volume", DA9055_ALC_GAIN_LIMITS,
 		       4, 0xf, 0, alc_gain_tlv),
@@ -769,9 +769,9 @@ static const struct snd_soc_dapm_widget da9055_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("AUXR"),
 
 	/* MUXs for Mic PGA source selection */
-	SND_SOC_DAPM_MUX("Mic Left Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Mic Left Source", SND_SOC_ANALPM, 0, 0,
 			 &da9055_mic_l_mux_controls),
-	SND_SOC_DAPM_MUX("Mic Right Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Mic Right Source", SND_SOC_ANALPM, 0, 0,
 			 &da9055_mic_r_mux_controls),
 
 	/* Input PGAs */
@@ -787,10 +787,10 @@ static const struct snd_soc_dapm_widget da9055_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Charge Pump", DA9055_CP_CTRL, 7, 0, NULL, 0),
 
 	/* Input Mixers */
-	SND_SOC_DAPM_MIXER("In Mixer Left", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("In Mixer Left", SND_SOC_ANALPM, 0, 0,
 			   &da9055_dapm_mixinl_controls[0],
 			   ARRAY_SIZE(da9055_dapm_mixinl_controls)),
-	SND_SOC_DAPM_MIXER("In Mixer Right", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("In Mixer Right", SND_SOC_ANALPM, 0, 0,
 			   &da9055_dapm_mixinr_controls[0],
 			   ARRAY_SIZE(da9055_dapm_mixinr_controls)),
 
@@ -801,33 +801,33 @@ static const struct snd_soc_dapm_widget da9055_dapm_widgets[] = {
 	/* Output Side */
 
 	/* MUXs for DAC source selection */
-	SND_SOC_DAPM_MUX("DAC Left Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAC Left Source", SND_SOC_ANALPM, 0, 0,
 			 &da9055_dac_l_mux_controls),
-	SND_SOC_DAPM_MUX("DAC Right Source", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAC Right Source", SND_SOC_ANALPM, 0, 0,
 			 &da9055_dac_r_mux_controls),
 
 	/* AIF input */
-	SND_SOC_DAPM_AIF_IN("AIFIN Left", "Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("AIFIN Right", "Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIFIN Left", "Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIFIN Right", "Playback", 0, SND_SOC_ANALPM, 0, 0),
 
 	/* DACs */
 	SND_SOC_DAPM_DAC("DAC Left", "Playback", DA9055_DAC_L_CTRL, 7, 0),
 	SND_SOC_DAPM_DAC("DAC Right", "Playback", DA9055_DAC_R_CTRL, 7, 0),
 
 	/* Output Mixers */
-	SND_SOC_DAPM_MIXER("Out Mixer Left", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Out Mixer Left", SND_SOC_ANALPM, 0, 0,
 			   &da9055_dapm_mixoutl_controls[0],
 			   ARRAY_SIZE(da9055_dapm_mixoutl_controls)),
-	SND_SOC_DAPM_MIXER("Out Mixer Right", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Out Mixer Right", SND_SOC_ANALPM, 0, 0,
 			   &da9055_dapm_mixoutr_controls[0],
 			   ARRAY_SIZE(da9055_dapm_mixoutr_controls)),
 
 	/* Output Enable Switches */
-	SND_SOC_DAPM_SWITCH("Headphone Left Enable", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Headphone Left Enable", SND_SOC_ANALPM, 0, 0,
 			    &da9055_dapm_hp_l_control),
-	SND_SOC_DAPM_SWITCH("Headphone Right Enable", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Headphone Right Enable", SND_SOC_ANALPM, 0, 0,
 			    &da9055_dapm_hp_r_control),
-	SND_SOC_DAPM_SWITCH("Lineout Enable", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Lineout Enable", SND_SOC_ANALPM, 0, 0,
 			    &da9055_dapm_lineout_control),
 
 	/* Output PGAs */
@@ -1123,7 +1123,7 @@ static int da9055_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_component_write(component, DA9055_SR, fs);
 	} else {
 		/*
-		 * Non-PLL Mode
+		 * Analn-PLL Mode
 		 * When PLL is bypassed, chip assumes constant MCLK of
 		 * 12.288MHz and uses sample rate value to divide this MCLK
 		 * to derive its sys clk. As sys clk has to be 256 * Fs, we
@@ -1145,7 +1145,7 @@ static int da9055_hw_params(struct snd_pcm_substream *substream,
 					    DA9055_PLL_EN, DA9055_PLL_EN);
 		}
 	} else {
-		/* Non PLL Mode, disable PLL */
+		/* Analn PLL Mode, disable PLL */
 		snd_soc_component_update_bits(component, DA9055_PLL_CTRL, DA9055_PLL_EN, 0);
 	}
 
@@ -1259,7 +1259,7 @@ static int da9055_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		}
 		break;
 	default:
-		dev_err(codec_dai->dev, "Unknown clock source %d\n", clk_id);
+		dev_err(codec_dai->dev, "Unkanalwn clock source %d\n", clk_id);
 		return -EINVAL;
 	}
 }
@@ -1272,7 +1272,7 @@ static int da9055_set_dai_sysclk(struct snd_soc_dai *codec_dai,
  * @param fout		: FsDM value
  * @return int		: Zero for success, negative error code for error
  *
- * Note: Supported PLL input frequencies are 11.2896MHz, 12MHz, 12.288MHz,
+ * Analte: Supported PLL input frequencies are 11.2896MHz, 12MHz, 12.288MHz,
  *	 13MHz, 13.5MHz, 14.4MHz, 19.2MHz, 19.6MHz and 19.8MHz
  */
 static int da9055_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
@@ -1324,7 +1324,7 @@ static const struct snd_soc_dai_ops da9055_dai_ops = {
 	.set_sysclk	= da9055_set_dai_sysclk,
 	.set_pll	= da9055_set_dai_pll,
 	.mute_stream	= da9055_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver da9055_dai = {
@@ -1405,7 +1405,7 @@ static int da9055_probe(struct snd_soc_component *component)
 	 * There are two separate control bits for input and output mixers.
 	 * One to enable corresponding amplifier and other to enable its
 	 * output. As amplifier bits are related to power control, they are
-	 * being managed by DAPM while other (non power related) bits are
+	 * being managed by DAPM while other (analn power related) bits are
 	 * enabled here
 	 */
 	snd_soc_component_update_bits(component, DA9055_MIXIN_L_CTRL,
@@ -1480,7 +1480,7 @@ static int da9055_i2c_probe(struct i2c_client *i2c)
 	da9055 = devm_kzalloc(&i2c->dev, sizeof(struct da9055_priv),
 			      GFP_KERNEL);
 	if (!da9055)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pdata)
 		da9055->pdata = pdata;
@@ -1504,7 +1504,7 @@ static int da9055_i2c_probe(struct i2c_client *i2c)
 }
 
 /*
- * DO NOT change the device Ids. The naming is intentionally specific as both
+ * DO ANALT change the device Ids. The naming is intentionally specific as both
  * the CODEC and PMIC parts of this chip are instantiated separately as I2C
  * devices (both have configurable I2C addresses, and are to all intents and
  * purposes separate). As a result there are specific DA9055 Ids for CODEC

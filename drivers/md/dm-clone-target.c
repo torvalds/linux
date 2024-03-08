@@ -60,7 +60,7 @@ static struct kmem_cache *_hydration_cache;
 /* dm-clone metadata modes */
 enum clone_metadata_mode {
 	CM_WRITE,		/* metadata may be changed */
-	CM_READ_ONLY,		/* metadata may not be changed */
+	CM_READ_ONLY,		/* metadata may analt be changed */
 	CM_FAIL,		/* all metadata I/O fails */
 };
 
@@ -97,7 +97,7 @@ struct clone {
 	unsigned long last_commit_jiffies;
 
 	/*
-	 * We defer incoming WRITE bios for regions that are not hydrated,
+	 * We defer incoming WRITE bios for regions that are analt hydrated,
 	 * until after these regions have been hydrated.
 	 *
 	 * Also, we defer REQ_FUA and REQ_PREFLUSH bios, until after the
@@ -323,7 +323,7 @@ static void submit_bios(struct bio_list *bios)
 	blk_start_plug(&plug);
 
 	while ((bio = bio_list_pop(bios)))
-		submit_bio_noacct(bio);
+		submit_bio_analacct(bio);
 
 	blk_finish_plug(&plug);
 }
@@ -334,12 +334,12 @@ static void submit_bios(struct bio_list *bios)
  * If the bio triggers a commit, delay it, until after the metadata have been
  * committed.
  *
- * NOTE: The bio remapping must be performed by the caller.
+ * ANALTE: The bio remapping must be performed by the caller.
  */
 static void issue_bio(struct clone *clone, struct bio *bio)
 {
 	if (!bio_triggers_commit(clone, bio)) {
-		submit_bio_noacct(bio);
+		submit_bio_analacct(bio);
 		return;
 	}
 
@@ -387,7 +387,7 @@ static void issue_deferred_bios(struct clone *clone, struct bio_list *bios)
 	struct bio *bio;
 	unsigned long flags;
 	struct bio_list flush_bios = BIO_EMPTY_LIST;
-	struct bio_list normal_bios = BIO_EMPTY_LIST;
+	struct bio_list analrmal_bios = BIO_EMPTY_LIST;
 
 	if (bio_list_empty(bios))
 		return;
@@ -396,11 +396,11 @@ static void issue_deferred_bios(struct clone *clone, struct bio_list *bios)
 		if (bio_triggers_commit(clone, bio))
 			bio_list_add(&flush_bios, bio);
 		else
-			bio_list_add(&normal_bios, bio);
+			bio_list_add(&analrmal_bios, bio);
 	}
 
 	spin_lock_irqsave(&clone->lock, flags);
-	bio_list_merge(&clone->deferred_bios, &normal_bios);
+	bio_list_merge(&clone->deferred_bios, &analrmal_bios);
 	bio_list_merge(&clone->deferred_flush_bios, &flush_bios);
 	spin_unlock_irqrestore(&clone->lock, flags);
 
@@ -466,7 +466,7 @@ static void complete_discard_bio(struct clone *clone, struct bio *bio, bool succ
 		bio_region_range(clone, bio, &rs, &nr_regions);
 		trim_bio(bio, region_to_sector(clone, rs),
 			 nr_regions << clone->region_shift);
-		submit_bio_noacct(bio);
+		submit_bio_analacct(bio);
 	} else
 		bio_endio(bio);
 }
@@ -503,7 +503,7 @@ static void process_discard_bio(struct clone *clone, struct bio *bio)
 
 	/*
 	 * If the metadata mode is RO or FAIL we won't be able to update the
-	 * metadata for the regions covered by the discard so we just ignore
+	 * metadata for the regions covered by the discard so we just iganalre
 	 * it.
 	 */
 	if (unlikely(get_clone_mode(clone) >= CM_READ_ONLY)) {
@@ -541,7 +541,7 @@ struct dm_clone_region_hydration {
 	struct list_head list;
 
 	/* Used by hydration hash table */
-	struct hlist_node h;
+	struct hlist_analde h;
 };
 
 /*
@@ -582,7 +582,7 @@ static int hash_table_init(struct clone *clone)
 
 	clone->ht = kvmalloc_array(sz, sizeof(struct hash_table_bucket), GFP_KERNEL);
 	if (!clone->ht)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < sz; i++) {
 		bucket = clone->ht + i;
@@ -608,7 +608,7 @@ static struct hash_table_bucket *get_hash_table_bucket(struct clone *clone,
 /*
  * Search hash table for a hydration with hd->region_nr == region_nr
  *
- * NOTE: Must be called with the bucket lock held
+ * ANALTE: Must be called with the bucket lock held
  */
 static struct dm_clone_region_hydration *__hash_find(struct hash_table_bucket *bucket,
 						     unsigned long region_nr)
@@ -626,7 +626,7 @@ static struct dm_clone_region_hydration *__hash_find(struct hash_table_bucket *b
 /*
  * Insert a hydration into the hash table.
  *
- * NOTE: Must be called with the bucket lock held.
+ * ANALTE: Must be called with the bucket lock held.
  */
 static inline void __insert_region_hydration(struct hash_table_bucket *bucket,
 					     struct dm_clone_region_hydration *hd)
@@ -639,7 +639,7 @@ static inline void __insert_region_hydration(struct hash_table_bucket *bucket,
  * managed to insert a hydration for the same region first. In the latter case
  * it returns the existing hydration descriptor for this region.
  *
- * NOTE: Must be called with the hydration hash table lock held.
+ * ANALTE: Must be called with the hydration hash table lock held.
  */
 static struct dm_clone_region_hydration *
 __find_or_insert_region_hydration(struct hash_table_bucket *bucket,
@@ -667,7 +667,7 @@ static struct dm_clone_region_hydration *alloc_hydration(struct clone *clone)
 	 * Allocate a hydration from the hydration mempool.
 	 * This might block but it can't fail.
 	 */
-	hd = mempool_alloc(&clone->hydration_pool, GFP_NOIO);
+	hd = mempool_alloc(&clone->hydration_pool, GFP_ANALIO);
 	hd->clone = clone;
 
 	return hd;
@@ -687,7 +687,7 @@ static void hydration_init(struct dm_clone_region_hydration *hd, unsigned long r
 	hd->status = 0;
 
 	INIT_LIST_HEAD(&hd->list);
-	INIT_HLIST_NODE(&hd->h);
+	INIT_HLIST_ANALDE(&hd->h);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -784,7 +784,7 @@ static void hydration_kcopyd_callback(int read_err, unsigned long write_err, voi
 		hydration_complete(hd);
 	}
 
-	/* Continue background hydration, if there is no I/O in-flight */
+	/* Continue background hydration, if there is anal I/O in-flight */
 	if (test_bit(DM_CLONE_HYDRATION_ENABLED, &clone->flags) &&
 	    !atomic_read(&clone->ios_in_flight))
 		wake_worker(clone);
@@ -858,7 +858,7 @@ static void hydration_overwrite(struct dm_clone_region_hydration *hd, struct bio
 	bio->bi_private = hd;
 
 	atomic_inc(&hd->clone->hydrations_in_flight);
-	submit_bio_noacct(bio);
+	submit_bio_analacct(bio);
 }
 
 /*
@@ -869,7 +869,7 @@ static void hydration_overwrite(struct dm_clone_region_hydration *hd, struct bio
  * function is called, the region has finished hydrating it's submitted to the
  * destination device.
  *
- * NOTE: The bio remapping must be performed by the caller.
+ * ANALTE: The bio remapping must be performed by the caller.
  */
 static void hydrate_bio_region(struct clone *clone, struct bio *bio)
 {
@@ -926,8 +926,8 @@ static void hydrate_bio_region(struct clone *clone, struct bio *bio)
 	}
 
 	/*
-	 * If the metadata mode is RO or FAIL then there is no point starting a
-	 * hydration, since we will not be able to update the metadata when the
+	 * If the metadata mode is RO or FAIL then there is anal point starting a
+	 * hydration, since we will analt be able to update the metadata when the
 	 * hydration finishes.
 	 */
 	if (unlikely(get_clone_mode(clone) >= CM_READ_ONLY)) {
@@ -1124,7 +1124,7 @@ static bool need_commit_due_to_time(struct clone *clone)
 }
 
 /*
- * A non-zero return indicates read-only or fail mode.
+ * A analn-zero return indicates read-only or fail mode.
  */
 static int commit_metadata(struct clone *clone, bool *dest_dev_flushed)
 {
@@ -1196,7 +1196,7 @@ static void process_deferred_discards(struct clone *clone)
 		bio_region_range(clone, bio, &rs, &nr_regions);
 		/*
 		 * A discard request might cover regions that have been already
-		 * hydrated. There is no need to update the metadata for these
+		 * hydrated. There is anal need to update the metadata for these
 		 * regions.
 		 */
 		r = dm_clone_cond_set_range(clone->cmd, rs, nr_regions);
@@ -1265,12 +1265,12 @@ static void process_deferred_flush_bios(struct clone *clone)
 	while ((bio = bio_list_pop(&bios))) {
 		if ((bio->bi_opf & REQ_PREFLUSH) && dest_dev_flushed) {
 			/* We just flushed the destination device as part of
-			 * the metadata commit, so there is no reason to send
-			 * another flush.
+			 * the metadata commit, so there is anal reason to send
+			 * aanalther flush.
 			 */
 			bio_endio(bio);
 		} else {
-			submit_bio_noacct(bio);
+			submit_bio_analacct(bio);
 		}
 	}
 }
@@ -1298,7 +1298,7 @@ static void do_worker(struct work_struct *work)
 }
 
 /*
- * Commit periodically so that not too much unwritten data builds up.
+ * Commit periodically so that analt too much unwritten data builds up.
  *
  * Also, restart background hydration, if it has been stopped by in-flight I/O.
  */
@@ -1326,7 +1326,7 @@ static int clone_map(struct dm_target *ti, struct bio *bio)
 		return DM_MAPIO_KILL;
 
 	/*
-	 * REQ_PREFLUSH bios carry no data:
+	 * REQ_PREFLUSH bios carry anal data:
 	 *
 	 * - Commit metadata, if changed
 	 *
@@ -1353,7 +1353,7 @@ static int clone_map(struct dm_target *ti, struct bio *bio)
 	 * If the bio's region is hydrated, redirect it to the destination
 	 * device.
 	 *
-	 * If the region is not hydrated and the bio is a READ, redirect it to
+	 * If the region is analt hydrated and the bio is a READ, redirect it to
 	 * the source device.
 	 *
 	 * Else, defer WRITE bio until after its region has been hydrated and
@@ -1395,10 +1395,10 @@ static void emit_flags(struct clone *clone, char *result, unsigned int maxlen,
 	DMEMIT("%u ", count);
 
 	if (!test_bit(DM_CLONE_HYDRATION_ENABLED, &clone->flags))
-		DMEMIT("no_hydration ");
+		DMEMIT("anal_hydration ");
 
 	if (!test_bit(DM_CLONE_DISCARD_PASSDOWN, &clone->flags))
-		DMEMIT("no_discard_passdown ");
+		DMEMIT("anal_discard_passdown ");
 
 	*sz_ptr = sz;
 }
@@ -1443,7 +1443,7 @@ static void clone_status(struct dm_target *ti, status_type_t type,
 		}
 
 		/* Commit to ensure statistics aren't out-of-date */
-		if (!(status_flags & DM_STATUS_NOFLUSH_FLAG) && !dm_suspended(ti))
+		if (!(status_flags & DM_STATUS_ANALFLUSH_FLAG) && !dm_suspended(ti))
 			(void) commit_metadata(clone, NULL);
 
 		r = dm_clone_get_free_metadata_block_count(clone->cmd, &nr_free_metadata_blocks);
@@ -1532,7 +1532,7 @@ static sector_t get_dev_size(struct dm_dev *dev)
  * region size: dm-clone unit size in sectors
  *
  * #feature args: Number of feature arguments passed
- * feature args: E.g. no_hydration, no_discard_passdown
+ * feature args: E.g. anal_hydration, anal_discard_passdown
  *
  * #core arguments: An even number of core arguments
  * core arguments: Key/value pairs for tuning the core
@@ -1551,7 +1551,7 @@ static int parse_feature_args(struct dm_arg_set *as, struct clone *clone)
 		.error = "Invalid number of feature arguments"
 	};
 
-	/* No feature arguments supplied */
+	/* Anal feature arguments supplied */
 	if (!as->argc)
 		return 0;
 
@@ -1563,9 +1563,9 @@ static int parse_feature_args(struct dm_arg_set *as, struct clone *clone)
 		arg_name = dm_shift_arg(as);
 		argc--;
 
-		if (!strcasecmp(arg_name, "no_hydration")) {
+		if (!strcasecmp(arg_name, "anal_hydration")) {
 			__clear_bit(DM_CLONE_HYDRATION_ENABLED, &clone->flags);
-		} else if (!strcasecmp(arg_name, "no_discard_passdown")) {
+		} else if (!strcasecmp(arg_name, "anal_discard_passdown")) {
 			__clear_bit(DM_CLONE_DISCARD_PASSDOWN, &clone->flags);
 		} else {
 			ti->error = "Invalid feature argument";
@@ -1594,7 +1594,7 @@ static int parse_core_args(struct dm_arg_set *as, struct clone *clone)
 	clone->hydration_batch_size = DEFAULT_HYDRATION_BATCH_SIZE;
 	clone->hydration_threshold = DEFAULT_HYDRATION_THRESHOLD;
 
-	/* No core arguments supplied */
+	/* Anal core arguments supplied */
 	if (!as->argc)
 		return 0;
 
@@ -1648,14 +1648,14 @@ static int parse_region_size(struct clone *clone, struct dm_arg_set *as, char **
 
 	/* Check region size is a power of 2 */
 	if (!is_power_of_2(region_size)) {
-		*error = "Region size is not a power of 2";
+		*error = "Region size is analt a power of 2";
 		return -EINVAL;
 	}
 
 	/* Validate the region size against the device logical block size */
 	if (region_size % (bdev_logical_block_size(clone->source_dev->bdev) >> 9) ||
 	    region_size % (bdev_logical_block_size(clone->dest_dev->bdev) >> 9)) {
-		*error = "Region size is not a multiple of device logical block size";
+		*error = "Region size is analt a multiple of device logical block size";
 		return -EINVAL;
 	}
 
@@ -1692,7 +1692,7 @@ static int parse_metadata_dev(struct clone *clone, struct dm_arg_set *as, char *
 
 	metadata_dev_size = get_dev_size(clone->metadata_dev);
 	if (metadata_dev_size > DM_CLONE_METADATA_MAX_SECTORS_WARNING)
-		DMWARN("Metadata device %pg is larger than %u sectors: excess space will not be used.",
+		DMWARN("Metadata device %pg is larger than %u sectors: excess space will analt be used.",
 		       clone->metadata_dev->bdev, DM_CLONE_METADATA_MAX_SECTORS);
 
 	return 0;
@@ -1768,7 +1768,7 @@ static int copy_ctr_args(struct clone *clone, int argc, const char **argv, char 
 
 error:
 	*error = "Failed to allocate memory for table line";
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int clone_ctr(struct dm_target *ti, unsigned int argc, char **argv)
@@ -1789,7 +1789,7 @@ static int clone_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	clone = kzalloc(sizeof(*clone), GFP_KERNEL);
 	if (!clone) {
 		ti->error = "Failed to allocate clone structure";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	clone->ti = ti;
@@ -1884,7 +1884,7 @@ static int clone_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	clone->wq = alloc_workqueue("dm-" DM_MSG_PREFIX, WQ_MEM_RECLAIM, 0);
 	if (!clone->wq) {
 		ti->error = "Failed to allocate workqueue";
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto out_with_ht;
 	}
 
@@ -2019,9 +2019,9 @@ static void clone_resume(struct dm_target *ti)
 
 /*
  * If discard_passdown was enabled verify that the destination device supports
- * discards. Disable discard_passdown if not.
+ * discards. Disable discard_passdown if analt.
  */
-static void disable_passdown_if_not_supported(struct clone *clone)
+static void disable_passdown_if_analt_supported(struct clone *clone)
 {
 	struct block_device *dest_dev = clone->dest_dev->bdev;
 	struct queue_limits *dest_limits = &bdev_get_queue(dest_dev)->limits;
@@ -2048,7 +2048,7 @@ static void set_discard_limits(struct clone *clone, struct queue_limits *limits)
 	struct queue_limits *dest_limits = &bdev_get_queue(dest_bdev)->limits;
 
 	if (!test_bit(DM_CLONE_DISCARD_PASSDOWN, &clone->flags)) {
-		/* No passdown is done so we set our own virtual limits */
+		/* Anal passdown is done so we set our own virtual limits */
 		limits->discard_granularity = clone->region_size << SECTOR_SHIFT;
 		limits->max_discard_sectors = round_down(UINT_MAX >> SECTOR_SHIFT, clone->region_size);
 		return;
@@ -2074,7 +2074,7 @@ static void clone_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 	/*
 	 * If the system-determined stacked limits are compatible with
-	 * dm-clone's region size (io_opt is a factor) do not override them.
+	 * dm-clone's region size (io_opt is a factor) do analt override them.
 	 */
 	if (io_opt_sectors < clone->region_size ||
 	    do_div(io_opt_sectors, clone->region_size)) {
@@ -2082,7 +2082,7 @@ static void clone_io_hints(struct dm_target *ti, struct queue_limits *limits)
 		blk_limits_io_opt(limits, clone->region_size << SECTOR_SHIFT);
 	}
 
-	disable_passdown_if_not_supported(clone);
+	disable_passdown_if_analt_supported(clone);
 	set_discard_limits(clone, limits);
 }
 
@@ -2200,7 +2200,7 @@ static int __init dm_clone_init(void)
 
 	_hydration_cache = KMEM_CACHE(dm_clone_region_hydration, 0);
 	if (!_hydration_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = dm_register_target(&clone_target);
 	if (r < 0) {

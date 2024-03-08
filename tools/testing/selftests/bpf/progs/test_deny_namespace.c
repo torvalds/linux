@@ -2,7 +2,7 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/capability.h>
 
 typedef struct { unsigned long long val; } kernel_cap_t;

@@ -40,22 +40,22 @@ properties:
   sbs,poll-retry-count:
     description:
       The number of times to try looking for new status after an external
-      change notification.
+      change analtification.
     default: 0
     $ref: /schemas/types.yaml#/definitions/uint32
 
   sbs,battery-detect-gpios:
     description:
-      GPIO which signals battery detection. If this is not supplied, the bus
+      GPIO which signals battery detection. If this is analt supplied, the bus
       needs to be polled to detect the battery.
     maxItems: 1
 
   sbs,disable-charger-broadcasts:
     description:
       SBS batteries by default send broadcast messages to SBS compliant chargers to
-      configure max. charge current/voltage. If your hardware does not have an SBS
+      configure max. charge current/voltage. If your hardware does analt have an SBS
       compliant charger it should be disabled via this property to avoid blocking
-      the bus. Also some SBS battery fuel gauges are known to have a buggy multi-
+      the bus. Also some SBS battery fuel gauges are kanalwn to have a buggy multi-
       master implementation.
     type: boolean
 

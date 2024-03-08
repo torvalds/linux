@@ -123,7 +123,7 @@
 		};
 
 		/*
-		 * 38MiB, last MiB is for the BBT, not writable
+		 * 38MiB, last MiB is for the BBT, analt writable
 		 */
 		partition@5a00000 {
 			label = "syscfg";

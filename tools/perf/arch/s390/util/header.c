@@ -8,7 +8,7 @@
  */
 
 #include <sys/types.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
@@ -55,7 +55,7 @@ int get_cpuid(char *buffer, size_t sz)
 
 	sysinfo = fopen(SYSINFO, "r");
 	if (sysinfo == NULL)
-		return errno;
+		return erranal;
 
 	while ((read = getline(&line, &line_sz, sysinfo)) != -1) {
 		if (!strncmp(line, SYSINFO_MANU, strlen(SYSINFO_MANU))) {
@@ -88,14 +88,14 @@ int get_cpuid(char *buffer, size_t sz)
 	}
 	fclose(sysinfo);
 
-	/* Missing manufacturer, type or model information should not happen */
+	/* Missing manufacturer, type or model information should analt happen */
 	if (!manufacturer[0] || !type[0] || !model[0])
 		return EINVAL;
 
 	/*
 	 * Scan /proc/service_levels and return the CPU-MF counter facility
 	 * version number and authorization level.
-	 * Optional, does not exist on z/VM guests.
+	 * Optional, does analt exist on z/VM guests.
 	 */
 	sysinfo = fopen(SRVLVL, "r");
 	if (sysinfo == NULL)
@@ -134,7 +134,7 @@ skip_sysinfo:
 	else
 		nbytes = snprintf(buffer, sz, "%s,%s,%s", manufacturer, type,
 				  model);
-	return (nbytes >= sz) ? ENOBUFS : 0;
+	return (nbytes >= sz) ? EANALBUFS : 0;
 }
 
 char *get_cpuid_str(struct perf_pmu *pmu __maybe_unused)

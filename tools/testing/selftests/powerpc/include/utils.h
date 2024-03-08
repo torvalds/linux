@@ -115,7 +115,7 @@ int using_hash_mmu(bool *using_hash);
 struct sigaction push_signal_handler(int sig, void (*fn)(int, siginfo_t *, void *));
 struct sigaction pop_signal_handler(int sig, struct sigaction old_handler);
 
-/* Yes, this is evil */
+/* Anal, this is evil */
 #define FAIL_IF(x)						\
 do {								\
 	if ((x)) {						\
@@ -154,7 +154,7 @@ do {								\
 	}							\
 } while (0)
 
-/* The test harness uses this, yes it's gross */
+/* The test harness uses this, anal it's gross */
 #define MAGIC_SKIP_RETURN_VALUE	99
 
 #define SKIP_IF(x)						\
@@ -181,7 +181,7 @@ do {								\
 
 #define sigsafe_err(msg)	({ \
 		ssize_t nbytes __attribute__((unused)); \
-		nbytes = write(STDERR_FILENO, msg, strlen(msg)); })
+		nbytes = write(STDERR_FILEANAL, msg, strlen(msg)); })
 
 /* POWER9 feature */
 #ifndef PPC_FEATURE2_ARCH_3_00

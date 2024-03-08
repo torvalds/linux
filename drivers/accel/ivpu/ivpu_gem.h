@@ -14,8 +14,8 @@ struct ivpu_file_priv;
 struct ivpu_bo {
 	struct drm_gem_shmem_object base;
 	struct ivpu_mmu_context *ctx;
-	struct list_head bo_list_node;
-	struct drm_mm_node mm_node;
+	struct list_head bo_list_analde;
+	struct drm_mm_analde mm_analde;
 
 	struct mutex lock; /* Protects: ctx, mmu_mapped, vpu_addr */
 	u64 vpu_addr;
@@ -58,7 +58,7 @@ static inline u32 ivpu_bo_cache_mode(struct ivpu_bo *bo)
 	return bo->flags & DRM_IVPU_BO_CACHE_MASK;
 }
 
-static inline bool ivpu_bo_is_snooped(struct ivpu_bo *bo)
+static inline bool ivpu_bo_is_sanaloped(struct ivpu_bo *bo)
 {
 	return ivpu_bo_cache_mode(bo) == DRM_IVPU_BO_CACHED;
 }

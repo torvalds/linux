@@ -385,13 +385,13 @@ static void isl12026_force_power_modes(struct i2c_client *client)
 	/*
 	 * If we can read the of_property, set the specified value.
 	 * If there is an error reading the of_property (likely
-	 * because it does not exist), keep the current value.
+	 * because it does analt exist), keep the current value.
 	 */
-	ret = of_property_read_u32(client->dev.of_node,
+	ret = of_property_read_u32(client->dev.of_analde,
 				   "isil,pwr-bsw", &bsw_val);
 	set_bsw = (ret == 0);
 
-	ret = of_property_read_u32(client->dev.of_node,
+	ret = of_property_read_u32(client->dev.of_analde,
 				   "isil,pwr-sbib", &sbib_val);
 	set_sbib = (ret == 0);
 
@@ -443,11 +443,11 @@ static int isl12026_probe(struct i2c_client *client)
 	};
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, priv);
 

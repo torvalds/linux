@@ -62,7 +62,7 @@ def print_header(event_name, cpu, secs, nsecs, pid, comm):
 		(event_name, cpu, secs, nsecs, pid, comm),
 		end=' ')
 
-# print trace fields not included in handler args
+# print trace fields analt included in handler args
 def print_uncommon(context):
 	print("common_preempt_count=%d, common_flags=%s, "
 		"common_lock_depth=%d, " %
@@ -71,7 +71,7 @@ def print_uncommon(context):
 
 def print_unhandled():
 	keys = unhandled.keys()
-	if not keys:
+	if analt keys:
 		return
 
 	print("\nunhandled events:\n")

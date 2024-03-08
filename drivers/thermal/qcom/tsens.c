@@ -85,7 +85,7 @@ int tsens_read_calibration(struct tsens_priv *priv, int shift, u32 *p1, u32 *p2,
 		return ret;
 
 	ret = nvmem_cell_read_variable_le_u32(priv->dev, name, &mode);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		dev_warn(priv->dev, "Please migrate to separate nvmem cells for calibration data\n");
 	if (ret < 0)
 		return ret;
@@ -134,12 +134,12 @@ int tsens_read_calibration(struct tsens_priv *priv, int shift, u32 *p1, u32 *p2,
 			p1[i] = p1[i] + (base1 << shift);
 		break;
 	case TWO_PT_CALIB:
-	case TWO_PT_CALIB_NO_OFFSET:
+	case TWO_PT_CALIB_ANAL_OFFSET:
 		for (i = 0; i < priv->num_sensors; i++)
 			p2[i] = (p2[i] + base2) << shift;
 		fallthrough;
 	case ONE_PT_CALIB2:
-	case ONE_PT_CALIB2_NO_OFFSET:
+	case ONE_PT_CALIB2_ANAL_OFFSET:
 		for (i = 0; i < priv->num_sensors; i++)
 			p1[i] = (p1[i] + base1) << shift;
 		break;
@@ -151,7 +151,7 @@ int tsens_read_calibration(struct tsens_priv *priv, int shift, u32 *p1, u32 *p2,
 		}
 	}
 
-	/* Apply calibration offset workaround except for _NO_OFFSET modes */
+	/* Apply calibration offset workaround except for _ANAL_OFFSET modes */
 	switch (mode) {
 	case TWO_PT_CALIB:
 		for (i = 0; i < priv->num_sensors; i++)
@@ -214,7 +214,7 @@ int tsens_read_calibration_legacy(struct tsens_priv *priv,
 	mode = tsens_read_cell(&format->mode, 2, cdata0, cdata1);
 	invalid = tsens_read_cell(&format->invalid, 1, cdata0, cdata1);
 	if (invalid)
-		mode = NO_PT_CALIB;
+		mode = ANAL_PT_CALIB;
 	dev_dbg(priv->dev, "calibration mode is %d\n", mode);
 
 	base1 = tsens_read_cell(&format->base[0], format->base_len, cdata0, cdata1);
@@ -268,7 +268,7 @@ void compute_intercept_slope(struct tsens_priv *priv, u32 *p1,
 
 		if (!priv->sensor[i].slope)
 			priv->sensor[i].slope = SLOPE_DEFAULT;
-		if (mode == TWO_PT_CALIB || mode == TWO_PT_CALIB_NO_OFFSET) {
+		if (mode == TWO_PT_CALIB || mode == TWO_PT_CALIB_ANAL_OFFSET) {
 			/*
 			 * slope (m) = adc_code2 - adc_code1 (y2 - y1)/
 			 *	temp_120_degc - temp_30_degc (x2 - x1)
@@ -322,7 +322,7 @@ static inline int code_to_degc(u32 adc_code, const struct tsens_sensor *s)
  * This function handles temperature returned in ADC code or deciCelsius
  * depending on IP version.
  *
- * Return: Temperature in milliCelsius on success, a negative errno will
+ * Return: Temperature in milliCelsius on success, a negative erranal will
  * be returned in error cases
  */
 static int tsens_hw_to_mC(const struct tsens_sensor *s, int field)
@@ -387,7 +387,7 @@ static void tsens_set_interrupt_v1(struct tsens_priv *priv, u32 hw_id,
 		index = LOW_INT_CLEAR_0 + hw_id;
 		break;
 	case CRITICAL:
-		/* No critical interrupts before v2 */
+		/* Anal critical interrupts before v2 */
 		return;
 	}
 	regmap_field_write(priv->rf[index], enable ? 0 : 1);
@@ -458,8 +458,8 @@ static void tsens_set_interrupt(struct tsens_priv *priv, u32 hw_id,
  * @hw_id: Hardware ID aka. sensor number
  * @d: Pointer to irq state data
  *
- * Return: 0 if threshold was not violated, 1 if it was violated and negative
- * errno in case of errors
+ * Return: 0 if threshold was analt violated, 1 if it was violated and negative
+ * erranal in case of errors
  */
 static int tsens_threshold_violated(struct tsens_priv *priv, u32 hw_id,
 				    struct tsens_irq_data *d)
@@ -516,7 +516,7 @@ static int tsens_read_irq_state(struct tsens_priv *priv, u32 hw_id,
 
 		d->crit_thresh = tsens_hw_to_mC(s, CRIT_THRESH_0 + hw_id);
 	} else {
-		/* No mask register on older TSENS */
+		/* Anal mask register on older TSENS */
 		d->up_irq_mask = 0;
 		d->low_irq_mask = 0;
 		d->crit_irq_clear = 0;
@@ -837,7 +837,7 @@ static int dbg_version_show(struct seq_file *s, void *data)
 		ret = regmap_field_read(priv->rf[VER_MAJOR], &maj_ver);
 		if (ret)
 			return ret;
-		ret = regmap_field_read(priv->rf[VER_MINOR], &min_ver);
+		ret = regmap_field_read(priv->rf[VER_MIANALR], &min_ver);
 		if (ret)
 			return ret;
 		ret = regmap_field_read(priv->rf[VER_STEP], &step_ver);
@@ -889,11 +889,11 @@ int __init init_common(struct tsens_priv *priv)
 {
 	void __iomem *tm_base, *srot_base;
 	struct device *dev = priv->dev;
-	u32 ver_minor;
+	u32 ver_mianalr;
 	struct resource *res;
 	u32 enabled;
 	int ret, i, j;
-	struct platform_device *op = of_find_device_by_node(priv->dev->of_node);
+	struct platform_device *op = of_find_device_by_analde(priv->dev->of_analde);
 
 	if (!op)
 		return -EINVAL;
@@ -932,12 +932,12 @@ int __init init_common(struct tsens_priv *priv)
 		struct device *parent = priv->dev->parent;
 
 		if (parent)
-			priv->tm_map = syscon_node_to_regmap(parent->of_node);
+			priv->tm_map = syscon_analde_to_regmap(parent->of_analde);
 	}
 
 	if (IS_ERR_OR_NULL(priv->tm_map)) {
 		if (!priv->tm_map)
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		else
 			ret = PTR_ERR(priv->tm_map);
 		goto err_put_device;
@@ -956,7 +956,7 @@ int __init init_common(struct tsens_priv *priv)
 				goto err_put_device;
 			}
 		}
-		ret = regmap_field_read(priv->rf[VER_MINOR], &ver_minor);
+		ret = regmap_field_read(priv->rf[VER_MIANALR], &ver_mianalr);
 		if (ret)
 			goto err_put_device;
 	}
@@ -975,8 +975,8 @@ int __init init_common(struct tsens_priv *priv)
 	if (ret)
 		goto err_put_device;
 	if (!enabled) {
-		dev_err(dev, "%s: device not enabled\n", __func__);
-		ret = -ENODEV;
+		dev_err(dev, "%s: device analt enabled\n", __func__);
+		ret = -EANALDEV;
 		goto err_put_device;
 	}
 
@@ -1039,7 +1039,7 @@ int __init init_common(struct tsens_priv *priv)
 		}
 	}
 
-	if (tsens_version(priv) > VER_1_X &&  ver_minor > 2) {
+	if (tsens_version(priv) > VER_1_X &&  ver_mianalr > 2) {
 		/* Watchdog is present only on v2.3+ */
 		priv->feat->has_watchdog = 1;
 		for (i = WDOG_BARK_STATUS; i <= CC_MON_MASK; i++) {
@@ -1158,14 +1158,14 @@ static int tsens_register_irq(struct tsens_priv *priv, char *irqname,
 	struct platform_device *pdev;
 	int ret, irq;
 
-	pdev = of_find_device_by_node(priv->dev->of_node);
+	pdev = of_find_device_by_analde(priv->dev->of_analde);
 	if (!pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = platform_get_irq_byname(pdev, irqname);
 	if (irq < 0) {
 		ret = irq;
-		/* For old DTs with no IRQ defined */
+		/* For old DTs with anal IRQ defined */
 		if (irq == -ENXIO)
 			ret = 0;
 	} else {
@@ -1245,20 +1245,20 @@ static int tsens_probe(struct platform_device *pdev)
 {
 	int ret, i;
 	struct device *dev;
-	struct device_node *np;
+	struct device_analde *np;
 	struct tsens_priv *priv;
 	const struct tsens_plat_data *data;
 	const struct of_device_id *id;
 	u32 num_sensors;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		dev = &pdev->dev;
 	else
 		dev = pdev->dev.parent;
 
-	np = dev->of_node;
+	np = dev->of_analde;
 
-	id = of_match_node(tsens_table, np);
+	id = of_match_analde(tsens_table, np);
 	if (id)
 		data = id->data;
 	else
@@ -1278,7 +1278,7 @@ static int tsens_probe(struct platform_device *pdev)
 			     struct_size(priv, sensor, num_sensors),
 			     GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	priv->num_sensors = num_sensors;

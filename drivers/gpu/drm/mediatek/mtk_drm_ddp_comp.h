@@ -13,7 +13,7 @@
 #include <linux/soc/mediatek/mtk-mutex.h>
 
 struct device;
-struct device_node;
+struct device_analde;
 struct drm_crtc;
 struct drm_device;
 struct mtk_plane_state;
@@ -312,11 +312,11 @@ static inline void mtk_ddp_comp_encoder_index_set(struct mtk_ddp_comp *comp)
 		comp->encoder_index = (int)comp->funcs->encoder_index(comp->dev);
 }
 
-int mtk_ddp_comp_get_id(struct device_node *node,
+int mtk_ddp_comp_get_id(struct device_analde *analde,
 			enum mtk_ddp_comp_type comp_type);
 unsigned int mtk_drm_find_possible_crtc_by_comp(struct drm_device *drm,
 						struct device *dev);
-int mtk_ddp_comp_init(struct device_node *comp_node, struct mtk_ddp_comp *comp,
+int mtk_ddp_comp_init(struct device_analde *comp_analde, struct mtk_ddp_comp *comp,
 		      unsigned int comp_id);
 enum mtk_ddp_comp_type mtk_ddp_comp_get_type(unsigned int comp_id);
 void mtk_ddp_write(struct cmdq_pkt *cmdq_pkt, unsigned int value,

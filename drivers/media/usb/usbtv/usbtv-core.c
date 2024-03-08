@@ -6,20 +6,20 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may analt be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
  * GNU General Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -38,7 +38,7 @@
  * Thanks go to Jonathan Corbet for providing this quality documentation.
  * He is awesome.
  *
- * No physical hardware was harmed running Windows during the
+ * Anal physical hardware was harmed running Windows during the
  * reverse-engineering activity
  */
 
@@ -75,9 +75,9 @@ static int usbtv_probe(struct usb_interface *intf,
 
 	/* Checks that the device is what we think it is. */
 	if (intf->num_altsetting != 2)
-		return -ENODEV;
+		return -EANALDEV;
 	if (intf->altsetting[1].desc.bNumEndpoints != 4)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ep = &intf->altsetting[1].endpoint[0];
 
@@ -89,7 +89,7 @@ static int usbtv_probe(struct usb_interface *intf,
 	/* Device structure */
 	usbtv = kzalloc(sizeof(struct usbtv), GFP_KERNEL);
 	if (usbtv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	usbtv->dev = dev;
 	usbtv->udev = usb_get_dev(interface_to_usbdev(intf));
 
@@ -112,7 +112,7 @@ static int usbtv_probe(struct usb_interface *intf,
 	return 0;
 
 usbtv_audio_fail:
-	/* we must not free at this point */
+	/* we must analt free at this point */
 	v4l2_device_get(&usbtv->v4l2_dev);
 	/* this will undo the v4l2_device_get() */
 	usbtv_video_free(usbtv);

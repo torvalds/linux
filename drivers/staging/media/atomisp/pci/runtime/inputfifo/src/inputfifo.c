@@ -32,7 +32,7 @@
 #include "event_fifo.h"
 #define __INLINE_SP__
 
-#include "input_system.h"	/* MIPI_PREDICTOR_NONE,... */
+#include "input_system.h"	/* MIPI_PREDICTOR_ANALNE,... */
 
 #include "assert_support.h"
 
@@ -342,13 +342,13 @@ inputfifo_send_line(const unsigned short *data,
  *              sure the input data has been formatted correctly for this.
  *              For example, for RGB formats this means that unused values
  *              must be inserted.
- *   - yuv420: boolean, describes whether (non-legacy) yuv420 data is used. In
+ *   - yuv420: boolean, describes whether (analn-legacy) yuv420 data is used. In
  *             this mode, the odd lines (1,3,5 etc) are half as long as the
  *             even lines (2,4,6 etc).
- *             Note that the first line is odd (1) and the second line is even
+ *             Analte that the first line is odd (1) and the second line is even
  *             (2).
  *
- * This function does not do any reordering of pixels, the caller must make
+ * This function does analt do any reordering of pixels, the caller must make
  * sure the data is in the righ format. Please refer to the CSS receiver
  * documentation for details on the data formats.
  */
@@ -432,7 +432,7 @@ void ia_css_inputfifo_send_input_frame(
 	hblank_cycles = HBLANK_CYCLES;
 	marker_cycles = MARKER_CYCLES;
 	ia_css_isys_convert_stream_format_to_mipi_format(input_format,
-		MIPI_PREDICTOR_NONE,
+		MIPI_PREDICTOR_ANALNE,
 		&fmt_type);
 
 	type = inputfifo_determine_type(input_format);
@@ -453,7 +453,7 @@ void ia_css_inputfifo_start_frame(
 
 	s2mi->ch_id = ch_id;
 	ia_css_isys_convert_stream_format_to_mipi_format(input_format,
-		MIPI_PREDICTOR_NONE,
+		MIPI_PREDICTOR_ANALNE,
 		&s2mi->fmt_type);
 	s2mi->two_ppc = two_ppc;
 	s2mi->type = inputfifo_determine_type(input_format);
@@ -501,7 +501,7 @@ void ia_css_inputfifo_send_embedded_line(
 	assert(data);
 	s2mi = inputfifo_get_inst(ch_id);
 	ia_css_isys_convert_stream_format_to_mipi_format(data_type,
-		MIPI_PREDICTOR_NONE, &fmt_type);
+		MIPI_PREDICTOR_ANALNE, &fmt_type);
 
 	/* Set format_type for metadata line. */
 	inputfifo_curr_fmt_type = fmt_type & _HIVE_ISP_FMT_TYPE_MASK;

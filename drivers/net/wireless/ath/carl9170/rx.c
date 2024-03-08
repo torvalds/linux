@@ -17,20 +17,20 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If analt, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright analtice and this permission analtice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- *    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ *    MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  *    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  *    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  *    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -49,7 +49,7 @@
 static void carl9170_dbg_message(struct ar9170 *ar, const char *buf, u32 len)
 {
 	bool restart = false;
-	enum carl9170_restart_reasons reason = CARL9170_RR_NO_REASON;
+	enum carl9170_restart_reasons reason = CARL9170_RR_ANAL_REASON;
 
 	if (len > 3) {
 		if (memcmp(buf, CARL9170_ERR_MAGIC, 3) == 0) {
@@ -105,7 +105,7 @@ static int carl9170_check_sequence(struct ar9170 *ar, unsigned int seq)
 		ar->cmd_seq = seq;
 
 	/*
-	 * The sequence is strictly monotonic increasing and it never skips!
+	 * The sequence is strictly moanaltonic increasing and it never skips!
 	 *
 	 * Therefore we can safely assume that whenever we received an
 	 * unexpected sequence we have lost some valuable data.
@@ -130,8 +130,8 @@ static void carl9170_cmd_callback(struct ar9170 *ar, u32 len, void *buffer)
 {
 	/*
 	 * Some commands may have a variable response length
-	 * and we cannot predict the correct length in advance.
-	 * So we only check if we provided enough space for the data.
+	 * and we cananalt predict the correct length in advance.
+	 * So we only check if we provided eanalugh space for the data.
 	 */
 	if (unlikely(ar->readlen != (len - 4))) {
 		dev_warn(&ar->udev->dev, "received invalid command response:"
@@ -141,7 +141,7 @@ static void carl9170_cmd_callback(struct ar9170 *ar, u32 len, void *buffer)
 		print_hex_dump_bytes("carl9170 rsp:", DUMP_PREFIX_OFFSET,
 			buffer, len);
 		/*
-		 * Do not complete. The command times out,
+		 * Do analt complete. The command times out,
 		 * and we get a stack trace from there.
 		 */
 		carl9170_restart(ar, CARL9170_RR_INVALID_RSP);
@@ -176,7 +176,7 @@ void carl9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 				"sized event %x (%d, but should be %d).\n",
 			       cmd->hdr.cmd, cmd->hdr.len, len - 4);
 
-			print_hex_dump_bytes("dump:", DUMP_PREFIX_NONE,
+			print_hex_dump_bytes("dump:", DUMP_PREFIX_ANALNE,
 					     buf, len);
 		}
 
@@ -215,13 +215,13 @@ void carl9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 
 
 	case CARL9170_RSP_TXCOMP:
-		/* TX status notification */
+		/* TX status analtification */
 		carl9170_tx_process_status(ar, cmd);
 		break;
 
 	case CARL9170_RSP_BEACON_CONFIG:
 		/*
-		 * (IBSS) beacon send notification
+		 * (IBSS) beacon send analtification
 		 * bytes: 04 c2 XX YY B4 B3 B2 B1
 		 *
 		 * XX always 80
@@ -246,7 +246,7 @@ void carl9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 
 	case CARL9170_RSP_HEXDUMP:
 		wiphy_dbg(ar->hw->wiphy, "FW: HD %d\n", len - 4);
-		print_hex_dump_bytes("FW:", DUMP_PREFIX_NONE,
+		print_hex_dump_bytes("FW:", DUMP_PREFIX_ANALNE,
 				     (char *)buf + 4, len - 4);
 		break;
 
@@ -281,7 +281,7 @@ void carl9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 	default:
 		wiphy_err(ar->hw->wiphy, "FW: received unhandled event %x\n",
 			cmd->hdr.cmd);
-		print_hex_dump_bytes("dump:", DUMP_PREFIX_NONE, buf, len);
+		print_hex_dump_bytes("dump:", DUMP_PREFIX_ANALNE, buf, len);
 		break;
 	}
 }
@@ -321,7 +321,7 @@ static int carl9170_rx_mac_status(struct ar9170 *ar,
 
 	decrypt = ar9170_get_decrypt_type(mac);
 	if (!(decrypt & AR9170_RX_ENC_SOFTWARE) &&
-	    decrypt != AR9170_ENC_ALG_NONE) {
+	    decrypt != AR9170_ENC_ALG_ANALNE) {
 		if ((decrypt == AR9170_ENC_ALG_TKIP) &&
 		    (error & AR9170_RX_ERROR_MMIC))
 			status->flag |= RX_FLAG_MMIC_ERROR;
@@ -330,7 +330,7 @@ static int carl9170_rx_mac_status(struct ar9170 *ar,
 	}
 
 	if (error & AR9170_RX_ERROR_DECRYPT && !ar->sniffer_enabled)
-		return -ENODATA;
+		return -EANALDATA;
 
 	error &= ~(AR9170_RX_ERROR_MMIC |
 		   AR9170_RX_ERROR_FCS |
@@ -433,7 +433,7 @@ static int carl9170_rx_mac_status(struct ar9170 *ar,
 
 	default:
 		BUG();
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return 0;
@@ -456,7 +456,7 @@ static void carl9170_rx_phy_status(struct ar9170 *ar,
 			phy->rssi[i] = ((~phy->rssi[i] & 0x7f) + 1) & 0x7f;
 
 	/* TODO: we could do something with phy_errors */
-	status->signal = ar->noise[0] + phy->rssi_combined;
+	status->signal = ar->analise[0] + phy->rssi_combined;
 }
 
 static struct sk_buff *carl9170_rx_copy_data(u8 *buf, int len)
@@ -507,7 +507,7 @@ static u8 *carl9170_find_ie(u8 *data, unsigned int len, u8 ie)
 }
 
 /*
- * NOTE:
+ * ANALTE:
  *
  * The firmware is in charge of waking up the device just before
  * the AP is expected to transmit the next beacon.
@@ -624,14 +624,14 @@ static bool carl9170_ampdu_check(struct ar9170 *ar, u8 *buf, u8 ms,
 
 	if ((ms & AR9170_RX_STATUS_MPDU) == AR9170_RX_STATUS_MPDU_SINGLE) {
 		/*
-		 * This frame is not part of an aMPDU.
-		 * Therefore it is not subjected to any
+		 * This frame is analt part of an aMPDU.
+		 * Therefore it is analt subjected to any
 		 * of the following content restrictions.
 		 */
 		return true;
 	}
 
-	rx_status->flag |= RX_FLAG_AMPDU_DETAILS | RX_FLAG_AMPDU_LAST_KNOWN;
+	rx_status->flag |= RX_FLAG_AMPDU_DETAILS | RX_FLAG_AMPDU_LAST_KANALWN;
 	rx_status->ampdu_reference = ar->ampdu_ref;
 
 	/*
@@ -678,7 +678,7 @@ static int carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len,
 
 	skb = carl9170_rx_copy_data(buf, len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(IEEE80211_SKB_RXCB(skb), status, sizeof(*status));
 	ieee80211_rx(ar->hw, skb);
@@ -692,7 +692,7 @@ static int carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len,
  * submit to mac80211 the SKB directly. However, since
  * there may be multiple packets in one SKB in stream
  * mode, and we need to observe the proper ordering,
- * this is non-trivial.
+ * this is analn-trivial.
  */
 static void carl9170_rx_untie_data(struct ar9170 *ar, u8 *buf, int len)
 {
@@ -774,7 +774,7 @@ static void carl9170_rx_untie_data(struct ar9170 *ar, u8 *buf, int len)
 			if (!net_ratelimit())
 				return;
 
-			wiphy_err(ar->hw->wiphy, "rx stream does not start "
+			wiphy_err(ar->hw->wiphy, "rx stream does analt start "
 					"with a first_mpdu frame tag.\n");
 
 			goto drop;
@@ -812,7 +812,7 @@ static void carl9170_rx_untie_data(struct ar9170 *ar, u8 *buf, int len)
 	if (phy)
 		carl9170_rx_phy_status(ar, phy, &status);
 	else
-		status.flag |= RX_FLAG_NO_SIGNAL_VAL;
+		status.flag |= RX_FLAG_ANAL_SIGNAL_VAL;
 
 	if (carl9170_handle_mpdu(ar, buf, mpdu_len, &status))
 		goto drop;
@@ -896,7 +896,7 @@ static void carl9170_rx_stream(struct ar9170 *ar, void *buf, unsigned int len)
 			/* check if the frame can be repaired. */
 			if (!ar->rx_failover_missing) {
 
-				/* this is not "short read". */
+				/* this is analt "short read". */
 				if (net_ratelimit()) {
 					wiphy_err(ar->hw->wiphy,
 						"missing tag!\n");

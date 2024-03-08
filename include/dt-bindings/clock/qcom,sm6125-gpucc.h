@@ -14,7 +14,7 @@
 #define GPU_CC_CX_APB_CLK			3
 #define GPU_CC_CX_GFX3D_CLK			4
 #define GPU_CC_CX_GMU_CLK			5
-#define GPU_CC_CX_SNOC_DVM_CLK			6
+#define GPU_CC_CX_SANALC_DVM_CLK			6
 #define GPU_CC_CXO_AON_CLK			7
 #define GPU_CC_CXO_CLK				8
 #define GPU_CC_GMU_CLK_SRC			9

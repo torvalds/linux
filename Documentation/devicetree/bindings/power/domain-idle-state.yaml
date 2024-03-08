@@ -10,11 +10,11 @@ maintainers:
   - Ulf Hansson <ulf.hansson@linaro.org>
 
 description:
-  A domain idle state node represents the state parameters that will be used to
-  select the state when there are no active components in the PM domain.
+  A domain idle state analde represents the state parameters that will be used to
+  select the state when there are anal active components in the PM domain.
 
 properties:
-  $nodename:
+  $analdename:
     const: domain-idle-states
 
 patternProperties:
@@ -22,7 +22,7 @@ patternProperties:
     type: object
     additionalProperties: false
     description:
-      Each state node represents a domain idle state description.
+      Each state analde represents a domain idle state description.
 
     properties:
       compatible:
@@ -31,7 +31,7 @@ patternProperties:
       entry-latency-us:
         description:
           The worst case latency in microseconds required to enter the idle
-          state. Note that, the exit-latency-us duration may be guaranteed only
+          state. Analte that, the exit-latency-us duration may be guaranteed only
           after the entry-latency-us has passed.
 
       exit-latency-us:
@@ -50,8 +50,8 @@ patternProperties:
         description: |
           power_state parameter to pass to the ARM PSCI suspend call.
 
-          Device tree nodes that require usage of PSCI CPU_SUSPEND function
-          (i.e. idle states node with entry-method property is set to "psci")
+          Device tree analdes that require usage of PSCI CPU_SUSPEND function
+          (i.e. idle states analde with entry-method property is set to "psci")
           must specify this property.
 
     required:

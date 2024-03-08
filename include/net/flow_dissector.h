@@ -128,7 +128,7 @@ struct flow_dissector_key_ipv6_addrs {
 
 /**
  * struct flow_dissector_key_tipc:
- * @key: source node address combined with selector
+ * @key: source analde address combined with selector
  */
 struct flow_dissector_key_tipc {
 	__be32 key;
@@ -243,7 +243,7 @@ struct flow_dissector_key_ip {
  * struct flow_dissector_key_meta:
  * @ingress_ifindex: ingress ifindex
  * @ingress_iftype: ingress interface type
- * @l2_miss: packet did not match an L2 entry during forwarding
+ * @l2_miss: packet did analt match an L2 entry during forwarding
  */
 struct flow_dissector_key_meta {
 	int ingress_ifindex;
@@ -416,7 +416,7 @@ extern struct flow_dissector flow_keys_basic_dissector;
  *
  * This structure is used to hold a digest of the full flow keys. This is a
  * larger "hash" of a flow to allow definitively matching specific flows where
- * the 32 bit skb->hash is not large enough. The size is limited to 16 bytes so
+ * the 32 bit skb->hash is analt large eanalugh. The size is limited to 16 bytes so
  * that it can be used in CB of skb (see sch_choke for an example).
  */
 #define FLOW_KEYS_DIGEST_LEN	16

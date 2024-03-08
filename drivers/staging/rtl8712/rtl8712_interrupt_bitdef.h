@@ -11,7 +11,7 @@
 /*HISR*/
 #define	_CPUERR					BIT(29)
 #define	_ATIMEND				BIT(28)
-#define	_TXBCNOK				BIT(27)
+#define	_TXBCANALK				BIT(27)
 #define	_TXBCNERR				BIT(26)
 #define	_BCNDMAINT4				BIT(25)
 #define	_BCNDMAINT3				BIT(24)

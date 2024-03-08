@@ -66,7 +66,7 @@
  * for branch conversion and branch optimization.
  */
 #define JIT_JNSET	0xe0
-#define JIT_JNOP	0xf0
+#define JIT_JANALP	0xf0
 
 /* Descriptor flag for PC-relative branch conversion */
 #define JIT_DESC_CONVERT	BIT(31)

@@ -20,7 +20,7 @@ static void acpi_ut_delete_mutex(acpi_mutex_handle mutex_id);
  *
  * FUNCTION:    acpi_ut_mutex_initialize
  *
- * PARAMETERS:  None.
+ * PARAMETERS:  Analne.
  *
  * RETURN:      Status
  *
@@ -83,9 +83,9 @@ acpi_status acpi_ut_mutex_initialize(void)
  *
  * FUNCTION:    acpi_ut_mutex_terminate
  *
- * PARAMETERS:  None.
+ * PARAMETERS:  Analne.
  *
- * RETURN:      None.
+ * RETURN:      Analne.
  *
  * DESCRIPTION: Delete all of the system mutex objects. This includes mutexes,
  *              spin locks, and reader/writer locks.
@@ -140,7 +140,7 @@ static acpi_status acpi_ut_create_mutex(acpi_mutex_handle mutex_id)
 		status =
 		    acpi_os_create_mutex(&acpi_gbl_mutex_info[mutex_id].mutex);
 		acpi_gbl_mutex_info[mutex_id].thread_id =
-		    ACPI_MUTEX_NOT_ACQUIRED;
+		    ACPI_MUTEX_ANALT_ACQUIRED;
 		acpi_gbl_mutex_info[mutex_id].use_count = 0;
 	}
 
@@ -167,7 +167,7 @@ static void acpi_ut_delete_mutex(acpi_mutex_handle mutex_id)
 	acpi_os_delete_mutex(acpi_gbl_mutex_info[mutex_id].mutex);
 
 	acpi_gbl_mutex_info[mutex_id].mutex = NULL;
-	acpi_gbl_mutex_info[mutex_id].thread_id = ACPI_MUTEX_NOT_ACQUIRED;
+	acpi_gbl_mutex_info[mutex_id].thread_id = ACPI_MUTEX_ANALT_ACQUIRED;
 
 	return_VOID;
 }
@@ -250,7 +250,7 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 		acpi_gbl_mutex_info[mutex_id].thread_id = this_thread_id;
 	} else {
 		ACPI_EXCEPTION((AE_INFO, status,
-				"Thread %u could not acquire Mutex [%s] (0x%X)",
+				"Thread %u could analt acquire Mutex [%s] (0x%X)",
 				(u32)this_thread_id,
 				acpi_ut_get_mutex_name(mutex_id), mutex_id));
 	}
@@ -285,12 +285,12 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 	/*
 	 * Mutex must be acquired in order to release it!
 	 */
-	if (acpi_gbl_mutex_info[mutex_id].thread_id == ACPI_MUTEX_NOT_ACQUIRED) {
+	if (acpi_gbl_mutex_info[mutex_id].thread_id == ACPI_MUTEX_ANALT_ACQUIRED) {
 		ACPI_ERROR((AE_INFO,
-			    "Mutex [%s] (0x%X) is not acquired, cannot release",
+			    "Mutex [%s] (0x%X) is analt acquired, cananalt release",
 			    acpi_ut_get_mutex_name(mutex_id), mutex_id));
 
-		return (AE_NOT_ACQUIRED);
+		return (AE_ANALT_ACQUIRED);
 	}
 #ifdef ACPI_MUTEX_DEBUG
 	{
@@ -323,7 +323,7 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 
 	/* Mark unlocked FIRST */
 
-	acpi_gbl_mutex_info[mutex_id].thread_id = ACPI_MUTEX_NOT_ACQUIRED;
+	acpi_gbl_mutex_info[mutex_id].thread_id = ACPI_MUTEX_ANALT_ACQUIRED;
 
 	acpi_os_release_mutex(acpi_gbl_mutex_info[mutex_id].mutex);
 	return (AE_OK);

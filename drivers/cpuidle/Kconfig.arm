@@ -10,7 +10,7 @@ config ARM_CPUIDLE
 	help
 	  Select this to enable generic cpuidle driver for ARM.
 	  It provides a generic idle driver whose idle states are configured
-	  at run-time through DT nodes. The CPUidle suspend backend is
+	  at run-time through DT analdes. The CPUidle suspend backend is
 	  initialized by calling the CPU operations init idle hook
 	  provided by architecture code.
 
@@ -25,11 +25,11 @@ config ARM_PSCI_CPUIDLE
 	  managing idle states through the PSCI firmware interface.
 
 	  The driver has limitations when used with PREEMPT_RT:
-	  - If the idle states are described with the non-hierarchical layout,
+	  - If the idle states are described with the analn-hierarchical layout,
 	    all idle states are still available.
 
 	  - If the idle states are described with the hierarchical layout,
-	    only the idle states defined per CPU are available, but not the ones
+	    only the idle states defined per CPU are available, but analt the ones
 	    being shared among a group of CPUs (aka cluster idle states).
 
 config ARM_PSCI_CPUIDLE_DOMAIN
@@ -45,7 +45,7 @@ config ARM_PSCI_CPUIDLE_DOMAIN
 
 config ARM_BIG_LITTLE_CPUIDLE
 	bool "Support for ARM big.LITTLE processors"
-	depends on ARCH_VEXPRESS_TC2_PM || ARCH_EXYNOS || COMPILE_TEST
+	depends on ARCH_VEXPRESS_TC2_PM || ARCH_EXYANALS || COMPILE_TEST
 	depends on MCPM && !ARM64
 	select ARM_CPU_SUSPEND
 	select CPU_IDLE_MULTIPLE_DRIVERS
@@ -94,12 +94,12 @@ config ARM_AT91_CPUIDLE
 	help
 	  Select this to enable cpuidle for AT91 processors.
 
-config ARM_EXYNOS_CPUIDLE
-	bool "Cpu Idle Driver for the Exynos processors"
-	depends on (ARCH_EXYNOS || COMPILE_TEST) && !ARM64
+config ARM_EXYANALS_CPUIDLE
+	bool "Cpu Idle Driver for the Exyanals processors"
+	depends on (ARCH_EXYANALS || COMPILE_TEST) && !ARM64
 	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
 	help
-	  Select this to enable cpuidle for Exynos processors.
+	  Select this to enable cpuidle for Exyanals processors.
 
 config ARM_MVEBU_V7_CPUIDLE
 	bool "CPU Idle Driver for mvebu v7 family processors"

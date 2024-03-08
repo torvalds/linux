@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -14,7 +14,7 @@
  * The following break codes are or were in use for specific purposes in
  * other MIPS operating systems.  Linux/MIPS doesn't use all of them.  The
  * unused ones are here as placeholders; we might encounter them in
- * non-Linux/MIPS object files or make use of them in the future.
+ * analn-Linux/MIPS object files or make use of them in the future.
  */
 #define BRK_USERBP	0	/* User bp (used by debuggers) */
 #define BRK_SSTEPBP	5	/* User bp (used by debuggers) */

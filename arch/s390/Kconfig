@@ -35,7 +35,7 @@ config PGSTE
 config AUDIT_ARCH
 	def_bool y
 
-config NO_IOPORT_MAP
+config ANAL_IOPORT_MAP
 	def_bool y
 
 config PCI_QUIRKS
@@ -52,11 +52,11 @@ config KASAN_SHADOW_OFFSET
 config S390
 	def_bool y
 	#
-	# Note: keep this list sorted alphabetically
+	# Analte: keep this list sorted alphabetically
 	#
 	imply IMA_SECURE_AND_OR_TRUSTED_BOOT
 	select ALTERNATE_USER_ADDRESS_SPACE
-	select ARCH_32BIT_USTAT_F_TINODE
+	select ARCH_32BIT_USTAT_F_TIANALDE
 	select ARCH_BINFMT_ELF_STATE
 	select ARCH_CORRECT_STACKTRACE_ON_KRETPROBE
 	select ARCH_ENABLE_MEMORY_HOTPLUG if SPARSEMEM
@@ -122,8 +122,8 @@ config S390
 	select ARCH_SUPPORTS_PER_VMA_LOCK
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF
-	select ARCH_USE_SYM_ANNOTATIONS
-	select ARCH_WANTS_NO_INSTR
+	select ARCH_USE_SYM_ANANALTATIONS
+	select ARCH_WANTS_ANAL_INSTR
 	select ARCH_WANT_DEFAULT_BPF_JIT
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_WANT_KERNEL_PMD_MKWRITE
@@ -198,7 +198,7 @@ config S390
 	select HAVE_MEMBLOCK_PHYS_MAP
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
-	select HAVE_NOP_MCOUNT
+	select HAVE_ANALP_MCOUNT
 	select HAVE_PCI
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
@@ -217,7 +217,7 @@ config S390
 	select IOMMU_HELPER		if PCI
 	select IOMMU_SUPPORT		if PCI
 	select MMU_GATHER_MERGE_VMAS
-	select MMU_GATHER_NO_GATHER
+	select MMU_GATHER_ANAL_GATHER
 	select MMU_GATHER_RCU_TABLE_FREE
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE	if PCI
@@ -237,7 +237,7 @@ config S390
 	select USER_STACKTRACE_SUPPORT
 	select VIRT_CPU_ACCOUNTING
 	select ZONE_DMA
-	# Note: keep the above list sorted alphabetically
+	# Analte: keep the above list sorted alphabetically
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
@@ -315,7 +315,7 @@ config MARCH_Z196
 	help
 	  Select this to enable optimizations for IBM zEnterprise 114 and 196
 	  (2818 and 2817 series). The kernel will be slightly faster but will
-	  not work on older machines.
+	  analt work on older machines.
 
 config MARCH_ZEC12
 	bool "IBM zBC12 and zEC12"
@@ -323,7 +323,7 @@ config MARCH_ZEC12
 	depends on $(cc-option,-march=zEC12)
 	help
 	  Select this to enable optimizations for IBM zBC12 and zEC12 (2828 and
-	  2827 series). The kernel will be slightly faster but will not work on
+	  2827 series). The kernel will be slightly faster but will analt work on
 	  older machines.
 
 config MARCH_Z13
@@ -332,7 +332,7 @@ config MARCH_Z13
 	depends on $(cc-option,-march=z13)
 	help
 	  Select this to enable optimizations for IBM z13s and z13 (2965 and
-	  2964 series). The kernel will be slightly faster but will not work on
+	  2964 series). The kernel will be slightly faster but will analt work on
 	  older machines.
 
 config MARCH_Z14
@@ -341,7 +341,7 @@ config MARCH_Z14
 	depends on $(cc-option,-march=z14)
 	help
 	  Select this to enable optimizations for IBM z14 ZR1 and z14 (3907
-	  and 3906 series). The kernel will be slightly faster but will not
+	  and 3906 series). The kernel will be slightly faster but will analt
 	  work on older machines.
 
 config MARCH_Z15
@@ -350,7 +350,7 @@ config MARCH_Z15
 	depends on $(cc-option,-march=z15)
 	help
 	  Select this to enable optimizations for IBM z15 (8562
-	  and 8561 series). The kernel will be slightly faster but will not
+	  and 8561 series). The kernel will be slightly faster but will analt
 	  work on older machines.
 
 config MARCH_Z16
@@ -391,7 +391,7 @@ choice
 	  Cause the compiler to tune (-mtune) the generated code for a machine.
 	  This will make the code run faster on the selected machine but
 	  somewhat slower on other machines.
-	  This option only changes how the compiler emits instructions, not the
+	  This option only changes how the compiler emits instructions, analt the
 	  selection of instructions itself, so the resulting kernel will run on
 	  all other machines.
 
@@ -484,7 +484,7 @@ config NUMA
 
 	  This option adds NUMA support to the kernel.
 
-config NODES_SHIFT
+config ANALDES_SHIFT
 	int
 	depends on NUMA
 	default "1"
@@ -518,7 +518,7 @@ config CERT_STORE
 	  These certificates will be made available via the keyring named
 	  'cert_store'.
 
-config KERNEL_NOBP
+config KERNEL_ANALBP
 	def_bool n
 	prompt "Enable modified branch prediction for the kernel by default"
 	help
@@ -527,11 +527,11 @@ config KERNEL_NOBP
 	  The modified branch prediction mode improves the behaviour in
 	  regard to speculative execution.
 
-	  With the option enabled the kernel parameter "nobp=0" or "nospec"
-	  can be used to run the kernel in the normal branch prediction mode.
+	  With the option enabled the kernel parameter "analbp=0" or "analspec"
+	  can be used to run the kernel in the analrmal branch prediction mode.
 
 	  With the option disabled the modified branch prediction mode is
-	  enabled with the "nobp=1" kernel parameter.
+	  enabled with the "analbp=1" kernel parameter.
 
 	  If unsure, say N.
 
@@ -587,8 +587,8 @@ config RELOCATABLE
 	  bootup process.
 	  The relocations make the kernel image about 15% larger (compressed
 	  10%), but are discarded at runtime.
-	  Note: this option exists only for documentation purposes, please do
-	  not remove it.
+	  Analte: this option exists only for documentation purposes, please do
+	  analt remove it.
 
 config RANDOMIZE_BASE
 	bool "Randomize the address of the kernel image (KASLR)"
@@ -597,7 +597,7 @@ config RANDOMIZE_BASE
 	  In support of Kernel Address Space Layout Randomization (KASLR),
 	  this randomizes the address at which the kernel image is loaded,
 	  as a security feature that deters exploit attempts relying on
-	  knowledge of the location of kernel internals.
+	  kanalwledge of the location of kernel internals.
 
 endmenu
 
@@ -686,7 +686,7 @@ config CHSC_SCH
 	  is usually present on LPAR only.
 	  The driver creates a device /dev/chsc, which may be used to
 	  obtain I/O configuration information about the machine and
-	  to issue asynchronous chsc commands (DANGEROUS).
+	  to issue asynchroanalus chsc commands (DANGEROUS).
 	  You will usually only want to use this interface on a special
 	  LPAR designated for system management.
 
@@ -765,9 +765,9 @@ config PFAULT
 	help
 	  Select this option, if you want to use PFAULT pseudo page fault
 	  handling under VM. If running native or in LPAR, this option
-	  has no effect. If your VM does not support PFAULT, PAGEEX
+	  has anal effect. If your VM does analt support PFAULT, PAGEEX
 	  pseudo page fault handling will be used.
-	  Note that VM 4.2 supports PFAULT but has a bug in its
+	  Analte that VM 4.2 supports PFAULT but has a bug in its
 	  implementation that causes some problems.
 	  Everybody who wants to run Linux under VM != VM4.2 should select
 	  this option.
@@ -847,7 +847,7 @@ config APPLDATA_NET_SUM
 	depends on APPLDATA_BASE && NET
 	help
 	  This provides network related data to the Linux - VM Monitor Stream,
-	  currently there is only a total sum of network I/O statistics, no
+	  currently there is only a total sum of network I/O statistics, anal
 	  per-interface data.
 	  Writing 1 or 0 to /proc/appldata/net_sum creates(1) or removes(0) a z/VM
 	  APPLDATA monitor record, i.e. enables or disables monitoring this record
@@ -872,7 +872,7 @@ config S390_HYPFS_FS
 	help
 	  This is a virtual file system intended to provide accounting
 	  information in an s390 hypervisor environment. This file system
-	  is deprecated and should not be used.
+	  is deprecated and should analt be used.
 
 	  Say N if you are unsure.
 
@@ -905,7 +905,7 @@ config S390_UNWIND_SELFTEST
 	prompt "Test unwind functions"
 	help
 	  This option enables s390 specific stack unwinder testing kernel
-	  module. This option is not useful for distributions or general
+	  module. This option is analt useful for distributions or general
 	  kernels, but only for kernel developers working on architecture code.
 
 	  Say N if you are unsure.
@@ -917,7 +917,7 @@ config S390_KPROBES_SANITY_TEST
 	depends on KUNIT
 	help
 	  This option enables an s390 specific kprobes test module. This option
-	  is not useful for distributions or general kernels, but only for kernel
+	  is analt useful for distributions or general kernels, but only for kernel
 	  developers working on architecture code.
 
 	  Say N if you are unsure.
@@ -930,7 +930,7 @@ config S390_MODULES_SANITY_TEST
 	select S390_MODULES_SANITY_TEST_HELPERS
 	help
 	  This option enables an s390 specific modules test. This option is
-	  not useful for distributions or general kernels, but only for
+	  analt useful for distributions or general kernels, but only for
 	  kernel developers working on architecture code.
 
 	  Say N if you are unsure.

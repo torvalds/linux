@@ -36,7 +36,7 @@ void des3_ede_decrypt(const struct des3_ede_ctx *dctx, u8 *dst, const u8 *src);
  * @key: buffer containing the input key
  * @len: size of the buffer contents
  *
- * Returns 0 on success, -EINVAL if the input key is rejected and -ENOKEY if
+ * Returns 0 on success, -EINVAL if the input key is rejected and -EANALKEY if
  * the key is accepted but has been found to be weak.
  */
 int des_expand_key(struct des_ctx *ctx, const u8 *key, unsigned int keylen);
@@ -47,8 +47,8 @@ int des_expand_key(struct des_ctx *ctx, const u8 *key, unsigned int keylen);
  * @key: buffer containing the input key
  * @len: size of the buffer contents
  *
- * Returns 0 on success, -EINVAL if the input key is rejected and -ENOKEY if
- * the key is accepted but has been found to be weak. Note that weak keys will
+ * Returns 0 on success, -EINVAL if the input key is rejected and -EANALKEY if
+ * the key is accepted but has been found to be weak. Analte that weak keys will
  * be rejected (and -EINVAL will be returned) when running in FIPS mode.
  */
 int des3_ede_expand_key(struct des3_ede_ctx *ctx, const u8 *key,

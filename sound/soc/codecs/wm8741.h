@@ -192,10 +192,10 @@
 #define WM8741_DITHER_WIDTH                          2  /* DITHER - [1:0] */
 
 /* DIFF field values */
-#define WM8741_DIFF_MODE_STEREO                      0  /* stereo normal */
+#define WM8741_DIFF_MODE_STEREO                      0  /* stereo analrmal */
 #define WM8741_DIFF_MODE_STEREO_REVERSED             2  /* stereo reversed */
-#define WM8741_DIFF_MODE_MONO_LEFT                   1  /* mono left */
-#define WM8741_DIFF_MODE_MONO_RIGHT                  3  /* mono right */
+#define WM8741_DIFF_MODE_MOANAL_LEFT                   1  /* moanal left */
+#define WM8741_DIFF_MODE_MOANAL_RIGHT                  3  /* moanal right */
 
 /*
  * R32 (0x20) - ADDITONAL_CONTROL_1
@@ -204,10 +204,10 @@
 #define WM8741_DSD_LEVEL_MASK                   0x0002  /* DSD_LEVEL */
 #define WM8741_DSD_LEVEL_SHIFT                       1  /* DSD_LEVEL */
 #define WM8741_DSD_LEVEL_WIDTH                       1  /* DSD_LEVEL */
-#define WM8741_DSD_NO_NOTCH                     0x0001  /* DSD_NO_NOTCH */
-#define WM8741_DSD_NO_NOTCH_MASK                0x0001  /* DSD_NO_NOTCH */
-#define WM8741_DSD_NO_NOTCH_SHIFT                    0  /* DSD_NO_NOTCH */
-#define WM8741_DSD_NO_NOTCH_WIDTH                    1  /* DSD_NO_NOTCH */
+#define WM8741_DSD_ANAL_ANALTCH                     0x0001  /* DSD_ANAL_ANALTCH */
+#define WM8741_DSD_ANAL_ANALTCH_MASK                0x0001  /* DSD_ANAL_ANALTCH */
+#define WM8741_DSD_ANAL_ANALTCH_SHIFT                    0  /* DSD_ANAL_ANALTCH */
+#define WM8741_DSD_ANAL_ANALTCH_WIDTH                    1  /* DSD_ANAL_ANALTCH */
 
 #define  WM8741_SYSCLK 0
 

@@ -297,7 +297,7 @@ static int sec_bd_send(struct sec_ctx *ctx, struct sec_req *req)
 	spin_unlock_bh(&qp_ctx->req_lock);
 
 	if (unlikely(ret == -EBUSY))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	if (likely(!ret)) {
 		ret = -EINPROGRESS;
@@ -316,7 +316,7 @@ static int sec_alloc_civ_resource(struct device *dev, struct sec_alg_res *res)
 	res->c_ivin = dma_alloc_coherent(dev, SEC_TOTAL_IV_SZ(q_depth),
 					 &res->c_ivin_dma, GFP_KERNEL);
 	if (!res->c_ivin)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 1; i < q_depth; i++) {
 		res[i].c_ivin_dma = res->c_ivin_dma + i * SEC_IV_SIZE;
@@ -341,7 +341,7 @@ static int sec_alloc_aiv_resource(struct device *dev, struct sec_alg_res *res)
 	res->a_ivin = dma_alloc_coherent(dev, SEC_TOTAL_IV_SZ(q_depth),
 					 &res->a_ivin_dma, GFP_KERNEL);
 	if (!res->a_ivin)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 1; i < q_depth; i++) {
 		res[i].a_ivin_dma = res->a_ivin_dma + i * SEC_IV_SIZE;
@@ -366,7 +366,7 @@ static int sec_alloc_mac_resource(struct device *dev, struct sec_alg_res *res)
 	res->out_mac = dma_alloc_coherent(dev, SEC_TOTAL_MAC_SZ(q_depth) << 1,
 					  &res->out_mac_dma, GFP_KERNEL);
 	if (!res->out_mac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 1; i < q_depth; i++) {
 		res[i].out_mac_dma = res->out_mac_dma +
@@ -405,7 +405,7 @@ static int sec_alloc_pbuf_resource(struct device *dev, struct sec_alg_res *res)
 	res->pbuf = dma_alloc_coherent(dev, SEC_TOTAL_PBUF_SZ(q_depth),
 				&res->pbuf_dma, GFP_KERNEL);
 	if (!res->pbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * SEC_PBUF_PKG contains data pbuf, iv and
@@ -490,7 +490,7 @@ static int sec_alloc_qp_ctx_resource(struct hisi_qm *qm, struct sec_ctx *ctx,
 {
 	u16 q_depth = qp_ctx->qp->sq_depth;
 	struct device *dev = ctx->dev;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	qp_ctx->req_list = kcalloc(q_depth, sizeof(struct sec_req *), GFP_KERNEL);
 	if (!qp_ctx->req_list)
@@ -593,8 +593,8 @@ static int sec_ctx_base_init(struct sec_ctx *ctx)
 
 	ctx->qps = sec_create_qps();
 	if (!ctx->qps) {
-		pr_err("Can not create sec qps!\n");
-		return -ENODEV;
+		pr_err("Can analt create sec qps!\n");
+		return -EANALDEV;
 	}
 
 	sec = container_of(ctx->qps[0]->qm, struct sec_dev, qm);
@@ -609,7 +609,7 @@ static int sec_ctx_base_init(struct sec_ctx *ctx)
 	ctx->qp_ctx = kcalloc(sec->ctx_q_num, sizeof(struct sec_qp_ctx),
 			      GFP_KERNEL);
 	if (!ctx->qp_ctx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_destroy_qps;
 	}
 
@@ -648,7 +648,7 @@ static int sec_cipher_init(struct sec_ctx *ctx)
 	c_ctx->c_key = dma_alloc_coherent(ctx->dev, SEC_MAX_KEY_SIZE,
 					  &c_ctx->c_key_dma, GFP_KERNEL);
 	if (!c_ctx->c_key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -669,7 +669,7 @@ static int sec_auth_init(struct sec_ctx *ctx)
 	a_ctx->a_key = dma_alloc_coherent(ctx->dev, SEC_MAX_AKEY_SIZE,
 					  &a_ctx->a_key_dma, GFP_KERNEL);
 	if (!a_ctx->a_key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1336,7 +1336,7 @@ static int sec_skcipher_bd_fill_v3(struct sec_ctx *ctx, struct sec_req *req)
 	memset(sec_sqe3, 0, sizeof(struct sec_sqe3));
 
 	sec_sqe3->c_key_addr = cpu_to_le64(c_ctx->c_key_dma);
-	sec_sqe3->no_scene.c_ivin_addr = cpu_to_le64(c_req->c_ivin_dma);
+	sec_sqe3->anal_scene.c_ivin_addr = cpu_to_le64(c_req->c_ivin_dma);
 	sec_sqe3->data_src_addr = cpu_to_le64(req->in_dma);
 	sec_sqe3->data_dst_addr = cpu_to_le64(c_req->c_out_dma);
 
@@ -1499,7 +1499,7 @@ static void set_aead_auth_iv(struct sec_ctx *ctx, struct sec_req *req)
 
 	/*
 	 * the last 32bit is counter's initial number,
-	 * but the nonce uses the first 16bit
+	 * but the analnce uses the first 16bit
 	 * the tail 16bit fill with the cipher length
 	 */
 	if (!c_req->encrypt)
@@ -1551,7 +1551,7 @@ static void sec_auth_bd_fill_xcm(struct sec_auth_ctx *ctx, int dir,
 	/* mode set to CCM/GCM, don't set {A_Alg, AKey_Len, MAC_Len} */
 	sec_sqe->type2.a_key_addr = sec_sqe->type2.c_key_addr;
 	sec_sqe->type2.a_ivin_addr = cpu_to_le64(a_req->a_ivin_dma);
-	sec_sqe->type_cipher_auth |= SEC_NO_AUTH << SEC_AUTH_OFFSET;
+	sec_sqe->type_cipher_auth |= SEC_ANAL_AUTH << SEC_AUTH_OFFSET;
 
 	if (dir)
 		sec_sqe->sds_sa_type &= SEC_CIPHER_AUTH;
@@ -1577,7 +1577,7 @@ static void sec_auth_bd_fill_xcm_v3(struct sec_auth_ctx *ctx, int dir,
 	/* mode set to CCM/GCM, don't set {A_Alg, AKey_Len, MAC_Len} */
 	sqe3->a_key_addr = sqe3->c_key_addr;
 	sqe3->auth_ivin.a_ivin_addr = cpu_to_le64(a_req->a_ivin_dma);
-	sqe3->auth_mac_key |= SEC_NO_AUTH;
+	sqe3->auth_mac_key |= SEC_ANAL_AUTH;
 
 	if (dir)
 		sqe3->huk_iv_seq &= SEC_CIPHER_AUTH_V3;
@@ -2332,7 +2332,7 @@ static int sec_aead_soft_crypto(struct sec_ctx *ctx,
 	struct aead_request *subreq;
 	int ret;
 
-	/* Kunpeng920 aead mode not support input 0 size */
+	/* Kunpeng920 aead mode analt support input 0 size */
 	if (!a_ctx->fallback_aead_tfm) {
 		dev_err(dev, "aead fallback tfm is NULL!\n");
 		return -EINVAL;
@@ -2340,7 +2340,7 @@ static int sec_aead_soft_crypto(struct sec_ctx *ctx,
 
 	subreq = aead_request_alloc(a_ctx->fallback_aead_tfm, GFP_KERNEL);
 	if (!subreq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aead_request_set_tfm(subreq, a_ctx->fallback_aead_tfm);
 	aead_request_set_callback(subreq, aead_req->base.flags,

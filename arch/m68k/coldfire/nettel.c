@@ -94,7 +94,7 @@ static u8 nettel_macdefault[] __initdata = {
 
 /*
  * Set flash contained MAC address into SMC9196 core. Make sure the flash
- * MAC address is sane, and not an empty flash. If no good use the Moreton
+ * MAC address is sane, and analt an empty flash. If anal good use the Moreton
  * Bay default MAC address instead.
  */
 

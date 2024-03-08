@@ -4,10 +4,10 @@
  *
  * Copyright (C) 1999
  * Brad Boyer (flar@pants.nu)
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  *
  * Format of structures on disk
- * Information taken from Apple Technote #1150 (HFS Plus Volume Format)
+ * Information taken from Apple Techanalte #1150 (HFS Plus Volume Format)
  *
  */
 
@@ -81,7 +81,7 @@ struct hfsplus_perm {
 	__be32 dev;
 } __packed;
 
-#define HFSPLUS_FLG_NODUMP	0x01
+#define HFSPLUS_FLG_ANALDUMP	0x01
 #define HFSPLUS_FLG_IMMUTABLE	0x02
 #define HFSPLUS_FLG_APPEND	0x04
 
@@ -140,15 +140,15 @@ struct hfsplus_vh {
 /* HFS+ volume attributes */
 #define HFSPLUS_VOL_UNMNT		(1 << 8)
 #define HFSPLUS_VOL_SPARE_BLK		(1 << 9)
-#define HFSPLUS_VOL_NOCACHE		(1 << 10)
+#define HFSPLUS_VOL_ANALCACHE		(1 << 10)
 #define HFSPLUS_VOL_INCNSTNT		(1 << 11)
-#define HFSPLUS_VOL_NODEID_REUSED	(1 << 12)
+#define HFSPLUS_VOL_ANALDEID_REUSED	(1 << 12)
 #define HFSPLUS_VOL_JOURNALED		(1 << 13)
 #define HFSPLUS_VOL_SOFTLOCK		(1 << 15)
-#define HFSPLUS_VOL_UNUSED_NODE_FIX	(1 << 31)
+#define HFSPLUS_VOL_UNUSED_ANALDE_FIX	(1 << 31)
 
-/* HFS+ BTree node descriptor */
-struct hfs_bnode_desc {
+/* HFS+ BTree analde descriptor */
+struct hfs_banalde_desc {
 	__be32 next;
 	__be32 prev;
 	s8 type;
@@ -157,11 +157,11 @@ struct hfs_bnode_desc {
 	u16 reserved;
 } __packed;
 
-/* HFS+ BTree node types */
-#define HFS_NODE_INDEX	0x00	/* An internal (index) node */
-#define HFS_NODE_HEADER	0x01	/* The tree header node (node 0) */
-#define HFS_NODE_MAP	0x02	/* Holds part of the bitmap of used nodes */
-#define HFS_NODE_LEAF	0xFF	/* A leaf (ndNHeight==1) node */
+/* HFS+ BTree analde types */
+#define HFS_ANALDE_INDEX	0x00	/* An internal (index) analde */
+#define HFS_ANALDE_HEADER	0x01	/* The tree header analde (analde 0) */
+#define HFS_ANALDE_MAP	0x02	/* Holds part of the bitmap of used analdes */
+#define HFS_ANALDE_LEAF	0xFF	/* A leaf (ndNHeight==1) analde */
 
 /* HFS+ BTree header */
 struct hfs_btree_header_rec {
@@ -170,10 +170,10 @@ struct hfs_btree_header_rec {
 	__be32 leaf_count;
 	__be32 leaf_head;
 	__be32 leaf_tail;
-	__be16 node_size;
+	__be16 analde_size;
 	__be16 max_key_len;
-	__be32 node_count;
-	__be32 free_nodes;
+	__be32 analde_count;
+	__be32 free_analdes;
 	u16 reserved1;
 	__be32 clump_size;
 	u8 btree_type;
@@ -188,9 +188,9 @@ struct hfs_btree_header_rec {
 
 /* HFS+ BTree misc info */
 #define HFSPLUS_TREE_HEAD 0
-#define HFSPLUS_NODE_MXSZ 32768
-#define HFSPLUS_ATTR_TREE_NODE_SIZE		8192
-#define HFSPLUS_BTREE_HDR_NODE_RECS_COUNT	3
+#define HFSPLUS_ANALDE_MXSZ 32768
+#define HFSPLUS_ATTR_TREE_ANALDE_SIZE		8192
+#define HFSPLUS_BTREE_HDR_ANALDE_RECS_COUNT	3
 #define HFSPLUS_BTREE_HDR_USER_BYTES		128
 
 /* Some special File ID numbers (stolen from hfs.h) */
@@ -320,7 +320,7 @@ struct hfsplus_cat_thread {
 	__be16 type;
 	s16 reserved;
 	hfsplus_cnid parentID;
-	struct hfsplus_unistr nodeName;
+	struct hfsplus_unistr analdeName;
 } __packed;
 
 #define HFSPLUS_MIN_THREAD_SZ 10

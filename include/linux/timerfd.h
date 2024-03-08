@@ -11,7 +11,7 @@
 
 #include <uapi/linux/timerfd.h>
 
-#define TFD_SHARED_FCNTL_FLAGS (TFD_CLOEXEC | TFD_NONBLOCK)
+#define TFD_SHARED_FCNTL_FLAGS (TFD_CLOEXEC | TFD_ANALNBLOCK)
 /* Flags for timerfd_create.  */
 #define TFD_CREATE_FLAGS TFD_SHARED_FCNTL_FLAGS
 /* Flags for timerfd_settime.  */

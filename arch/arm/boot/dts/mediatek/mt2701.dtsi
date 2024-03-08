@@ -381,9 +381,9 @@
 		status = "disabled";
 	};
 
-	nor_flash: spi@11014000 {
-		compatible = "mediatek,mt2701-nor",
-			     "mediatek,mt8173-nor";
+	analr_flash: spi@11014000 {
+		compatible = "mediatek,mt2701-analr",
+			     "mediatek,mt8173-analr";
 		reg = <0 0x11014000 0 0xe0>;
 		clocks = <&pericfg CLK_PERI_FLASH>,
 			 <&topckgen CLK_TOP_FLASH_SEL>;

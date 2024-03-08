@@ -4,7 +4,7 @@
  *
  * GPRS over Phonet pipe end point socket
  *
- * Copyright (C) 2008 Nokia Corporation.
+ * Copyright (C) 2008 Analkia Corporation.
  *
  * Author: Rémi Denis-Courmont
  */

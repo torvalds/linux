@@ -25,7 +25,7 @@
 #define DRIVER_DESC	"Spreadtrum SoCs' DRM Driver"
 #define DRIVER_DATE	"20200201"
 #define DRIVER_MAJOR	1
-#define DRIVER_MINOR	0
+#define DRIVER_MIANALR	0
 
 static const struct drm_mode_config_helper_funcs sprd_drm_mode_config_helper = {
 	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
@@ -61,7 +61,7 @@ static struct drm_driver sprd_drm_drv = {
 	.desc			= DRIVER_DESC,
 	.date			= DRIVER_DATE,
 	.major			= DRIVER_MAJOR,
-	.minor			= DRIVER_MINOR,
+	.mianalr			= DRIVER_MIANALR,
 };
 
 static int sprd_drm_bind(struct device *dev)
@@ -148,7 +148,7 @@ static void sprd_drm_shutdown(struct platform_device *pdev)
 	struct drm_device *drm = platform_get_drvdata(pdev);
 
 	if (!drm) {
-		dev_warn(&pdev->dev, "drm device is not available, no shutdown\n");
+		dev_warn(&pdev->dev, "drm device is analt available, anal shutdown\n");
 		return;
 	}
 
@@ -180,7 +180,7 @@ static struct platform_driver *sprd_drm_drivers[]  = {
 static int __init sprd_drm_init(void)
 {
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	return platform_register_drivers(sprd_drm_drivers,
 					ARRAY_SIZE(sprd_drm_drivers));

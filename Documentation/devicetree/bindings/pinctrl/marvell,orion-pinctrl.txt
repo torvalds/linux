@@ -14,7 +14,7 @@ Required properties:
   final MPP register, separated from the previous one.
 
 Available mpp pins/groups and functions:
-Note: brackets (x) are not part of the mpp name for marvell,function and given
+Analte: brackets (x) are analt part of the mpp name for marvell,function and given
 only for more detailed description in this document.
 
 * Marvell Orion 88f5181l

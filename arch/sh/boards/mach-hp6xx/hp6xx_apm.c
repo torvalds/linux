@@ -53,7 +53,7 @@ static void hp6x0_apm_get_power_status(struct apm_power_info *info)
 
 	pgdr = __raw_readb(PGDR);
 	if (pgdr & PGDR_MAIN_BATTERY_OUT) {
-		info->battery_status	= APM_BATTERY_STATUS_NOT_PRESENT;
+		info->battery_status	= APM_BATTERY_STATUS_ANALT_PRESENT;
 		info->battery_flag	= 0x80;
 	} else if (charging < 8) {
 		info->battery_status	= APM_BATTERY_STATUS_CHARGING;

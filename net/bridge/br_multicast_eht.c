@@ -44,19 +44,19 @@ static struct net_bridge_group_eht_host *
 br_multicast_eht_host_lookup(struct net_bridge_port_group *pg,
 			     union net_bridge_eht_addr *h_addr)
 {
-	struct rb_node *node = pg->eht_host_tree.rb_node;
+	struct rb_analde *analde = pg->eht_host_tree.rb_analde;
 
-	while (node) {
+	while (analde) {
 		struct net_bridge_group_eht_host *this;
 		int result;
 
-		this = rb_entry(node, struct net_bridge_group_eht_host,
-				rb_node);
+		this = rb_entry(analde, struct net_bridge_group_eht_host,
+				rb_analde);
 		result = memcmp(h_addr, &this->h_addr, sizeof(*h_addr));
 		if (result < 0)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (result > 0)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return this;
 	}
@@ -80,19 +80,19 @@ static struct net_bridge_group_eht_set_entry *
 br_multicast_eht_set_entry_lookup(struct net_bridge_group_eht_set *eht_set,
 				  union net_bridge_eht_addr *h_addr)
 {
-	struct rb_node *node = eht_set->entry_tree.rb_node;
+	struct rb_analde *analde = eht_set->entry_tree.rb_analde;
 
-	while (node) {
+	while (analde) {
 		struct net_bridge_group_eht_set_entry *this;
 		int result;
 
-		this = rb_entry(node, struct net_bridge_group_eht_set_entry,
-				rb_node);
+		this = rb_entry(analde, struct net_bridge_group_eht_set_entry,
+				rb_analde);
 		result = memcmp(h_addr, &this->h_addr, sizeof(*h_addr));
 		if (result < 0)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (result > 0)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return this;
 	}
@@ -104,19 +104,19 @@ static struct net_bridge_group_eht_set *
 br_multicast_eht_set_lookup(struct net_bridge_port_group *pg,
 			    union net_bridge_eht_addr *src_addr)
 {
-	struct rb_node *node = pg->eht_set_tree.rb_node;
+	struct rb_analde *analde = pg->eht_set_tree.rb_analde;
 
-	while (node) {
+	while (analde) {
 		struct net_bridge_group_eht_set *this;
 		int result;
 
-		this = rb_entry(node, struct net_bridge_group_eht_set,
-				rb_node);
+		this = rb_entry(analde, struct net_bridge_group_eht_set,
+				rb_analde);
 		result = memcmp(src_addr, &this->src_addr, sizeof(*src_addr));
 		if (result < 0)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (result > 0)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
 			return this;
 	}
@@ -130,8 +130,8 @@ static void __eht_destroy_host(struct net_bridge_group_eht_host *eht_host)
 
 	br_multicast_eht_hosts_dec(eht_host->pg);
 
-	rb_erase(&eht_host->rb_node, &eht_host->pg->eht_host_tree);
-	RB_CLEAR_NODE(&eht_host->rb_node);
+	rb_erase(&eht_host->rb_analde, &eht_host->pg->eht_host_tree);
+	RB_CLEAR_ANALDE(&eht_host->rb_analde);
 	kfree(eht_host);
 }
 
@@ -140,7 +140,7 @@ static void br_multicast_destroy_eht_set_entry(struct net_bridge_mcast_gc *gc)
 	struct net_bridge_group_eht_set_entry *set_h;
 
 	set_h = container_of(gc, struct net_bridge_group_eht_set_entry, mcast_gc);
-	WARN_ON(!RB_EMPTY_NODE(&set_h->rb_node));
+	WARN_ON(!RB_EMPTY_ANALDE(&set_h->rb_analde));
 
 	timer_shutdown_sync(&set_h->timer);
 	kfree(set_h);
@@ -151,7 +151,7 @@ static void br_multicast_destroy_eht_set(struct net_bridge_mcast_gc *gc)
 	struct net_bridge_group_eht_set *eht_set;
 
 	eht_set = container_of(gc, struct net_bridge_group_eht_set, mcast_gc);
-	WARN_ON(!RB_EMPTY_NODE(&eht_set->rb_node));
+	WARN_ON(!RB_EMPTY_ANALDE(&eht_set->rb_analde));
 	WARN_ON(!RB_EMPTY_ROOT(&eht_set->entry_tree));
 
 	timer_shutdown_sync(&eht_set->timer);
@@ -163,13 +163,13 @@ static void __eht_del_set_entry(struct net_bridge_group_eht_set_entry *set_h)
 	struct net_bridge_group_eht_host *eht_host = set_h->h_parent;
 	union net_bridge_eht_addr zero_addr;
 
-	rb_erase(&set_h->rb_node, &set_h->eht_set->entry_tree);
-	RB_CLEAR_NODE(&set_h->rb_node);
+	rb_erase(&set_h->rb_analde, &set_h->eht_set->entry_tree);
+	RB_CLEAR_ANALDE(&set_h->rb_analde);
 	hlist_del_init(&set_h->host_list);
 	memset(&zero_addr, 0, sizeof(zero_addr));
 	if (memcmp(&set_h->h_addr, &zero_addr, sizeof(zero_addr)))
 		eht_host->num_entries--;
-	hlist_add_head(&set_h->mcast_gc.gc_node, &set_h->br->mcast_gc_list);
+	hlist_add_head(&set_h->mcast_gc.gc_analde, &set_h->br->mcast_gc_list);
 	queue_work(system_long_wq, &set_h->br->mcast_gc_work);
 
 	if (hlist_empty(&eht_host->set_entries))
@@ -179,28 +179,28 @@ static void __eht_del_set_entry(struct net_bridge_group_eht_set_entry *set_h)
 static void br_multicast_del_eht_set(struct net_bridge_group_eht_set *eht_set)
 {
 	struct net_bridge_group_eht_set_entry *set_h;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
-	while ((node = rb_first(&eht_set->entry_tree))) {
-		set_h = rb_entry(node, struct net_bridge_group_eht_set_entry,
-				 rb_node);
+	while ((analde = rb_first(&eht_set->entry_tree))) {
+		set_h = rb_entry(analde, struct net_bridge_group_eht_set_entry,
+				 rb_analde);
 		__eht_del_set_entry(set_h);
 	}
 
-	rb_erase(&eht_set->rb_node, &eht_set->pg->eht_set_tree);
-	RB_CLEAR_NODE(&eht_set->rb_node);
-	hlist_add_head(&eht_set->mcast_gc.gc_node, &eht_set->br->mcast_gc_list);
+	rb_erase(&eht_set->rb_analde, &eht_set->pg->eht_set_tree);
+	RB_CLEAR_ANALDE(&eht_set->rb_analde);
+	hlist_add_head(&eht_set->mcast_gc.gc_analde, &eht_set->br->mcast_gc_list);
 	queue_work(system_long_wq, &eht_set->br->mcast_gc_work);
 }
 
 void br_multicast_eht_clean_sets(struct net_bridge_port_group *pg)
 {
 	struct net_bridge_group_eht_set *eht_set;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
-	while ((node = rb_first(&pg->eht_set_tree))) {
-		eht_set = rb_entry(node, struct net_bridge_group_eht_set,
-				   rb_node);
+	while ((analde = rb_first(&pg->eht_set_tree))) {
+		eht_set = rb_entry(analde, struct net_bridge_group_eht_set,
+				   rb_analde);
 		br_multicast_del_eht_set(eht_set);
 	}
 }
@@ -211,7 +211,7 @@ static void br_multicast_eht_set_entry_expired(struct timer_list *t)
 	struct net_bridge *br = set_h->br;
 
 	spin_lock(&br->multicast_lock);
-	if (RB_EMPTY_NODE(&set_h->rb_node) || timer_pending(&set_h->timer))
+	if (RB_EMPTY_ANALDE(&set_h->rb_analde) || timer_pending(&set_h->timer))
 		goto out;
 
 	br_multicast_del_eht_set_entry(set_h->eht_set->pg,
@@ -228,7 +228,7 @@ static void br_multicast_eht_set_expired(struct timer_list *t)
 	struct net_bridge *br = eht_set->br;
 
 	spin_lock(&br->multicast_lock);
-	if (RB_EMPTY_NODE(&eht_set->rb_node) || timer_pending(&eht_set->timer))
+	if (RB_EMPTY_ANALDE(&eht_set->rb_analde) || timer_pending(&eht_set->timer))
 		goto out;
 
 	br_multicast_del_eht_set(eht_set);
@@ -241,7 +241,7 @@ __eht_lookup_create_host(struct net_bridge_port_group *pg,
 			 union net_bridge_eht_addr *h_addr,
 			 unsigned char filter_mode)
 {
-	struct rb_node **link = &pg->eht_host_tree.rb_node, *parent = NULL;
+	struct rb_analde **link = &pg->eht_host_tree.rb_analde, *parent = NULL;
 	struct net_bridge_group_eht_host *eht_host;
 
 	while (*link) {
@@ -249,7 +249,7 @@ __eht_lookup_create_host(struct net_bridge_port_group *pg,
 		int result;
 
 		this = rb_entry(*link, struct net_bridge_group_eht_host,
-				rb_node);
+				rb_analde);
 		result = memcmp(h_addr, &this->h_addr, sizeof(*h_addr));
 		parent = *link;
 		if (result < 0)
@@ -272,8 +272,8 @@ __eht_lookup_create_host(struct net_bridge_port_group *pg,
 	eht_host->pg = pg;
 	eht_host->filter_mode = filter_mode;
 
-	rb_link_node(&eht_host->rb_node, parent, link);
-	rb_insert_color(&eht_host->rb_node, &pg->eht_host_tree);
+	rb_link_analde(&eht_host->rb_analde, parent, link);
+	rb_insert_color(&eht_host->rb_analde, &pg->eht_host_tree);
 
 	br_multicast_eht_hosts_inc(pg);
 
@@ -286,7 +286,7 @@ __eht_lookup_create_set_entry(struct net_bridge *br,
 			      struct net_bridge_group_eht_host *eht_host,
 			      bool allow_zero_src)
 {
-	struct rb_node **link = &eht_set->entry_tree.rb_node, *parent = NULL;
+	struct rb_analde **link = &eht_set->entry_tree.rb_analde, *parent = NULL;
 	struct net_bridge_group_eht_set_entry *set_h;
 
 	while (*link) {
@@ -294,7 +294,7 @@ __eht_lookup_create_set_entry(struct net_bridge *br,
 		int result;
 
 		this = rb_entry(*link, struct net_bridge_group_eht_set_entry,
-				rb_node);
+				rb_analde);
 		result = memcmp(&eht_host->h_addr, &this->h_addr,
 				sizeof(union net_bridge_eht_addr));
 		parent = *link;
@@ -323,9 +323,9 @@ __eht_lookup_create_set_entry(struct net_bridge *br,
 	timer_setup(&set_h->timer, br_multicast_eht_set_entry_expired, 0);
 
 	hlist_add_head(&set_h->host_list, &eht_host->set_entries);
-	rb_link_node(&set_h->rb_node, parent, link);
-	rb_insert_color(&set_h->rb_node, &eht_set->entry_tree);
-	/* we must not count the auto-created zero entry otherwise we won't be
+	rb_link_analde(&set_h->rb_analde, parent, link);
+	rb_insert_color(&set_h->rb_analde, &eht_set->entry_tree);
+	/* we must analt count the auto-created zero entry otherwise we won't be
 	 * able to track the full list of PG_SRC_ENT_LIMIT entries
 	 */
 	if (!allow_zero_src)
@@ -338,7 +338,7 @@ static struct net_bridge_group_eht_set *
 __eht_lookup_create_set(struct net_bridge_port_group *pg,
 			union net_bridge_eht_addr *src_addr)
 {
-	struct rb_node **link = &pg->eht_set_tree.rb_node, *parent = NULL;
+	struct rb_analde **link = &pg->eht_set_tree.rb_analde, *parent = NULL;
 	struct net_bridge_group_eht_set *eht_set;
 
 	while (*link) {
@@ -346,7 +346,7 @@ __eht_lookup_create_set(struct net_bridge_port_group *pg,
 		int result;
 
 		this = rb_entry(*link, struct net_bridge_group_eht_set,
-				rb_node);
+				rb_analde);
 		result = memcmp(src_addr, &this->src_addr, sizeof(*src_addr));
 		parent = *link;
 		if (result < 0)
@@ -368,8 +368,8 @@ __eht_lookup_create_set(struct net_bridge_port_group *pg,
 	eht_set->entry_tree = RB_ROOT;
 	timer_setup(&eht_set->timer, br_multicast_eht_set_expired, 0);
 
-	rb_link_node(&eht_set->rb_node, parent, link);
-	rb_insert_color(&eht_set->rb_node, &pg->eht_set_tree);
+	rb_link_analde(&eht_set->rb_analde, parent, link);
+	rb_insert_color(&eht_set->rb_analde, &pg->eht_set_tree);
 
 	return eht_set;
 }
@@ -489,7 +489,7 @@ static void br_multicast_del_eht_host(struct net_bridge_port_group *pg,
 {
 	struct net_bridge_group_eht_set_entry *set_h;
 	struct net_bridge_group_eht_host *eht_host;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 
 	eht_host = br_multicast_eht_host_lookup(pg, h_addr);
 	if (!eht_host)
@@ -625,9 +625,9 @@ static bool __eht_inc_exc(const struct net_bridge_mcast *brmctx,
 	if (flush_entries) {
 		struct net_bridge_group_eht_set *eht_set;
 		struct net_bridge_group_src *src_ent;
-		struct hlist_node *tmp;
+		struct hlist_analde *tmp;
 
-		hlist_for_each_entry_safe(src_ent, tmp, &pg->src_list, node) {
+		hlist_for_each_entry_safe(src_ent, tmp, &pg->src_list, analde) {
 			br_multicast_ip_src_to_eht_addr(&src_ent->addr,
 							&eht_src_addr);
 			if (!br_multicast_eht_set_lookup(pg, &eht_src_addr)) {
@@ -642,7 +642,7 @@ static bool __eht_inc_exc(const struct net_bridge_mcast *brmctx,
 			 *           sends BLOCK Z after LMQT but host A's EHT
 			 *           entries still exist (unless lowered to LMQT
 			 *           so they can timeout with the S,Gs)
-			 * => we wait another LMQT, when we can just delete the
+			 * => we wait aanalther LMQT, when we can just delete the
 			 *    group immediately
 			 */
 			if (!(src_ent->flags & BR_SGRP_F_SEND) ||

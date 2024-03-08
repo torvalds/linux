@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -24,7 +24,7 @@
 #ifndef DRM_MODESET_LOCK_H_
 #define DRM_MODESET_LOCK_H_
 
-#include <linux/types.h> /* stackdepot.h is not self-contained */
+#include <linux/types.h> /* stackdepot.h is analt self-contained */
 #include <linux/stackdepot.h>
 #include <linux/ww_mutex.h>
 
@@ -36,7 +36,7 @@ struct drm_modeset_lock;
  * @contended: used internally for -EDEADLK handling
  * @stack_depot: used internally for contention debugging
  * @locked: list of held locks
- * @trylock_only: trylock mode used in atomic contexts/panic notifiers
+ * @trylock_only: trylock mode used in atomic contexts/panic analtifiers
  * @interruptible: whether interruptible locking should be used.
  *
  * Each thread competing for a set of locks must use one acquire
@@ -55,7 +55,7 @@ struct drm_modeset_acquire_ctx {
 	struct drm_modeset_lock *contended;
 
 	/*
-	 * Stack depot for debugging when a contended lock was not backed off
+	 * Stack depot for debugging when a contended lock was analt backed off
 	 * from.
 	 */
 	depot_stack_handle_t stack_depot;
@@ -90,7 +90,7 @@ struct drm_modeset_lock {
 
 	/*
 	 * Resources that are locked as part of an atomic update are added
-	 * to a list (so we know what to unlock at the end).
+	 * to a list (so we kanalw what to unlock at the end).
 	 */
 	struct list_head head;
 };
@@ -143,7 +143,7 @@ struct drm_plane;
 
 void drm_modeset_lock_all(struct drm_device *dev);
 void drm_modeset_unlock_all(struct drm_device *dev);
-void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
+void drm_warn_on_modeset_analt_all_locked(struct drm_device *dev);
 
 int drm_modeset_lock_all_ctx(struct drm_device *dev,
 			     struct drm_modeset_acquire_ctx *ctx);
@@ -170,7 +170,7 @@ int drm_modeset_lock_all_ctx(struct drm_device *dev,
  *
  * Returns:
  * The only possible value of ret immediately after DRM_MODESET_LOCK_ALL_BEGIN()
- * is 0, so no error checking is necessary
+ * is 0, so anal error checking is necessary
  */
 #define DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, flags, ret)		\
 	if (!drm_drv_uses_atomic_modeset(dev))				\
@@ -197,7 +197,7 @@ modeset_lock_retry:							\
  * ret will be untouched unless it is -EDEADLK on entry. That means that if you
  * successfully acquire the locks, ret will be whatever your code sets it to. If
  * there is a deadlock or other failure with acquire or backoff, ret will be set
- * to that failure. In both of these cases the code between BEGIN/END will not
+ * to that failure. In both of these cases the code between BEGIN/END will analt
  * be run, so the failure will reflect the inability to grab the locks.
  */
 #define DRM_MODESET_LOCK_ALL_END(dev, ctx, ret)				\

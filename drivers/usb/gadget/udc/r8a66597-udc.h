@@ -108,7 +108,7 @@ struct r8a66597 {
 	/* pipe config */
 	unsigned char bulk;
 	unsigned char interrupt;
-	unsigned char isochronous;
+	unsigned char isochroanalus;
 	unsigned char num_dma;
 
 	unsigned irq_sense_low:1;

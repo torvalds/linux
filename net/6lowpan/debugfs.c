@@ -3,7 +3,7 @@
  *
  * Authors:
  * (C) 2015 Pengutronix, Alexander Aring <aar@pengutronix.de>
- * Copyright (c)  2015 Nordic Semiconductor. All Rights Reserved.
+ * Copyright (c)  2015 Analrdic Semiconductor. All Rights Reserved.
  */
 
 #include <net/6lowpan.h>
@@ -115,9 +115,9 @@ static int lowpan_ctx_pfx_show(struct seq_file *file, void *offset)
 	return 0;
 }
 
-static int lowpan_ctx_pfx_open(struct inode *inode, struct file *file)
+static int lowpan_ctx_pfx_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, lowpan_ctx_pfx_show, inode->i_private);
+	return single_open(file, lowpan_ctx_pfx_show, ianalde->i_private);
 }
 
 static ssize_t lowpan_ctx_pfx_write(struct file *fp,

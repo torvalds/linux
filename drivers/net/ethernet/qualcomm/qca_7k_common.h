@@ -4,12 +4,12 @@
  *
  *   Permission to use, copy, modify, and/or distribute this software
  *   for any purpose with or without fee is hereby granted, provided
- *   that the above copyright notice and this permission notice appear
+ *   that the above copyright analtice and this permission analtice appear
  *   in all copies.
  *
  *   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
  *   WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- *   WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
+ *   WARRANTIES OF MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL
  *   THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
  *   CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
  *   LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
@@ -31,11 +31,11 @@
 /* Frame is currently being received */
 #define QCAFRM_GATHER 0
 
-/*  No header byte while expecting it */
-#define QCAFRM_NOHEAD (QCAFRM_ERR_BASE - 1)
+/*  Anal header byte while expecting it */
+#define QCAFRM_ANALHEAD (QCAFRM_ERR_BASE - 1)
 
-/* No tailer byte while expecting it */
-#define QCAFRM_NOTAIL (QCAFRM_ERR_BASE - 2)
+/* Anal tailer byte while expecting it */
+#define QCAFRM_ANALTAIL (QCAFRM_ERR_BASE - 2)
 
 /* Frame length is invalid */
 #define QCAFRM_INVLEN (QCAFRM_ERR_BASE - 3)
@@ -131,10 +131,10 @@ static inline void qcafrm_fsm_init_uart(struct qcafrm_handle *handle)
 /*   Gather received bytes and try to extract a full Ethernet frame
  *   by following a simple state machine.
  *
- * Return:   QCAFRM_GATHER       No Ethernet frame fully received yet.
- *           QCAFRM_NOHEAD       Header expected but not found.
+ * Return:   QCAFRM_GATHER       Anal Ethernet frame fully received yet.
+ *           QCAFRM_ANALHEAD       Header expected but analt found.
  *           QCAFRM_INVLEN       QCA7K frame length is invalid
- *           QCAFRM_NOTAIL       Footer expected but not found.
+ *           QCAFRM_ANALTAIL       Footer expected but analt found.
  *           > 0                 Number of byte in the fully received
  *                               Ethernet frame
  */

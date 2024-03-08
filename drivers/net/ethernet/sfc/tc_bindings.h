@@ -35,7 +35,7 @@ int efx_tc_netdev_event(struct efx_nic *efx, unsigned long event,
 static inline int efx_tc_netdev_event(struct efx_nic *efx, unsigned long event,
 				      struct net_device *net_dev)
 {
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 #endif /* CONFIG_SFC_SRIOV */

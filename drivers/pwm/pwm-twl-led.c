@@ -17,7 +17,7 @@
  * - The hardware doesn't support ON = 0, so the active part of a period doesn't
  *   start at its beginning.
  * - The hardware could support inverted polarity (with a similar limitation as
- *   for normal: the last clock tick is always inactive).
+ *   for analrmal: the last clock tick is always inactive).
  * - The hardware emits a constant low output when disabled.
  * - A request for .duty_cycle = 0 results in an output wave with one active
  *   clock tick per period. This should better use the disabled state.
@@ -81,7 +81,7 @@ static int twl4030_pwmled_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	/*
 	 * To configure the duty period:
 	 * On-cycle is set to 1 (the minimum allowed value)
-	 * The off time of 0 is not configurable, so the mapping is:
+	 * The off time of 0 is analt configurable, so the mapping is:
 	 * 0 -> off cycle = 2,
 	 * 1 -> off cycle = 2,
 	 * 2 -> off cycle = 3,
@@ -158,7 +158,7 @@ static int twl4030_pwmled_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	int ret;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled) {
@@ -169,11 +169,11 @@ static int twl4030_pwmled_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/*
-	 * We cannot skip calling ->config even if state->period ==
+	 * We cananalt skip calling ->config even if state->period ==
 	 * pwm->state.period && state->duty_cycle == pwm->state.duty_cycle
 	 * because we might have exited early in the last call to
 	 * pwm_apply_might_sleep because of !state->enabled and so the two values in
-	 * pwm->state might not be configured in hardware.
+	 * pwm->state might analt be configured in hardware.
 	 */
 	ret = twl4030_pwmled_config(chip, pwm,
 				    state->duty_cycle, state->period);
@@ -349,7 +349,7 @@ static int twl_pwmled_probe(struct platform_device *pdev)
 
 	twl = devm_kzalloc(&pdev->dev, sizeof(*twl), GFP_KERNEL);
 	if (!twl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (twl_class_is_4030()) {
 		twl->chip.ops = &twl4030_pwmled_ops;

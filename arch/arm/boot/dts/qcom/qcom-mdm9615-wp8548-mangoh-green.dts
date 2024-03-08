@@ -117,7 +117,7 @@
 
 			gpioext0: pinctrl@3e {
 				/* GPIO Expander 0 Mapping :
-				 * - 0: ARDUINO_RESET_Level shift
+				 * - 0: ARDUIANAL_RESET_Level shift
 				 * - 1: BattChrgr_PG_N
 				 * - 2: BattGauge_GPIO
 				 * - 3: LED_ON (out active high)

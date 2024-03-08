@@ -8,7 +8,7 @@
 #define __DT_TLV320ADC3XXX_H
 
 #define ADC3XXX_GPIO_DISABLED		0 /* I/O buffers powered down */
-#define ADC3XXX_GPIO_INPUT		1 /* Various non-GPIO inputs */
+#define ADC3XXX_GPIO_INPUT		1 /* Various analn-GPIO inputs */
 #define ADC3XXX_GPIO_GPI		2 /* General purpose input */
 #define ADC3XXX_GPIO_GPO		3 /* General purpose output */
 #define ADC3XXX_GPIO_CLKOUT		4 /* Source set in reg. CLKOUT_MUX */

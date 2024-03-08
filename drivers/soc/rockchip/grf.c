@@ -169,26 +169,26 @@ static int __init rockchip_grf_init(void)
 {
 	const struct rockchip_grf_info *grf_info;
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_analde *np;
 	struct regmap *grf;
 	int ret, i;
 
-	np = of_find_matching_node_and_match(NULL, rockchip_grf_dt_match,
+	np = of_find_matching_analde_and_match(NULL, rockchip_grf_dt_match,
 					     &match);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!match || !match->data) {
 		pr_err("%s: missing grf data\n", __func__);
-		of_node_put(np);
+		of_analde_put(np);
 		return -EINVAL;
 	}
 
 	grf_info = match->data;
 
-	grf = syscon_node_to_regmap(np);
-	of_node_put(np);
+	grf = syscon_analde_to_regmap(np);
+	of_analde_put(np);
 	if (IS_ERR(grf)) {
-		pr_err("%s: could not get grf syscon\n", __func__);
+		pr_err("%s: could analt get grf syscon\n", __func__);
 		return PTR_ERR(grf);
 	}
 

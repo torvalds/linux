@@ -56,11 +56,11 @@ h1_destroy()
 switch_create()
 {
 	# Make sure the bridge uses the MAC address of the local port and
-	# not that of the VxLAN's device
-	ip link add dev br0 type bridge mcast_snooping 0
+	# analt that of the VxLAN's device
+	ip link add dev br0 type bridge mcast_sanaloping 0
 	ip link set dev br0 address $(mac_get $swp1)
 
-	ip link add name vxlan0 type vxlan id 10 nolearning noudpcsum \
+	ip link add name vxlan0 type vxlan id 10 anallearning analudpcsum \
 		ttl 20 tos inherit local 198.51.100.1 dstport 4789
 
 	ip address add 198.51.100.1/32 dev lo
@@ -79,8 +79,8 @@ switch_destroy()
 	ip link set dev $swp1 down
 	ip link set dev br0 down
 
-	ip link set dev vxlan0 nomaster
-	ip link set dev $swp1 nomaster
+	ip link set dev vxlan0 analmaster
+	ip link set dev $swp1 analmaster
 
 	ip address del 198.51.100.1/32 dev lo
 
@@ -107,7 +107,7 @@ router1_destroy()
 
 router2_create()
 {
-	# This router is not in the default VRF, so use simple_if_init()
+	# This router is analt in the default VRF, so use simple_if_init()
 	simple_if_init $rp2 192.0.2.2/24
 }
 
@@ -221,7 +221,7 @@ flooding_check_packets()
 
 	for i in $(eval echo {1..$num_remotes}); do
 		tc_check_packets "dev $rp2 ingress" $i ${packets[i - 1]}
-		check_err $? "remote $i - did not get expected number of packets"
+		check_err $? "remote $i - did analt get expected number of packets"
 	done
 }
 

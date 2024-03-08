@@ -246,7 +246,7 @@
 	/*
 	 * eDP PHY/clk don't sync reliably at anything other than 24 MHz. Only
 	 * set this here, because rk3399-gru.dtsi ensures we can generate this
-	 * off GPLL=600MHz, whereas some other RK3399 boards may not.
+	 * off GPLL=600MHz, whereas some other RK3399 boards may analt.
 	 */
 	assigned-clocks = <&cru PCLK_EDP>;
 	assigned-clock-rates = <24000000>;
@@ -467,7 +467,7 @@ ap_i2c_tp: &i2c5 {
 	i2c-scl-rising-time-ns = <300>;
 
 	/*
-	 * Note strange pullup enable.  Apparently this avoids leakage but
+	 * Analte strange pullup enable.  Apparently this avoids leakage but
 	 * still allows us to get nice 4.7K pullups for high speed i2c
 	 * transfers.  Basically we want the pullup on whenever the ap is
 	 * alive, so the "en" pin just gets set to output high.
@@ -553,7 +553,7 @@ ap_i2c_tp: &i2c5 {
 	discrete-regulators {
 		pp1500_en: pp1500-en {
 			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO
-					 &pcfg_pull_none>;
+					 &pcfg_pull_analne>;
 		};
 
 		pp1800_audio_en: pp1800-audio-en {
@@ -563,12 +563,12 @@ ap_i2c_tp: &i2c5 {
 
 		pp3000_en: pp3000-en {
 			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO
-					 &pcfg_pull_none>;
+					 &pcfg_pull_analne>;
 		};
 
 		pp3300_disp_en: pp3300-disp-en {
 			rockchip,pins = <4 RK_PD3 RK_FUNC_GPIO
-					 &pcfg_pull_none>;
+					 &pcfg_pull_analne>;
 		};
 
 		wlan_module_pd_l: wlan-module-pd-l {
@@ -580,11 +580,11 @@ ap_i2c_tp: &i2c5 {
 
 &wifi {
 	wifi_perst_l: wifi-perst-l {
-		rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+		rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_analne>;
 	};
 
 	wlan_host_wake_l: wlan-host-wake-l {
-		/* Kevin has an external pull up, but Bob does not */
-		rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		/* Kevin has an external pull up, but Bob does analt */
+		rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_analne>;
 	};
 };

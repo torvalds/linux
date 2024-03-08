@@ -129,25 +129,25 @@ static void __init ath79_misc_intc_domain_init(
 }
 
 static int __init ath79_misc_intc_of_init(
-	struct device_node *node, struct device_node *parent)
+	struct device_analde *analde, struct device_analde *parent)
 {
 	struct irq_domain *domain;
 	void __iomem *base;
 	int irq;
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(analde, 0);
 	if (!irq) {
 		pr_err("Failed to get MISC IRQ\n");
 		return -EINVAL;
 	}
 
-	base = of_iomap(node, 0);
+	base = of_iomap(analde, 0);
 	if (!base) {
 		pr_err("Failed to get MISC IRQ registers\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	domain = irq_domain_add_linear(node, ATH79_MISC_IRQ_COUNT,
+	domain = irq_domain_add_linear(analde, ATH79_MISC_IRQ_COUNT,
 				&misc_irq_domain_ops, base);
 	if (!domain) {
 		pr_err("Failed to add MISC irqdomain\n");
@@ -159,20 +159,20 @@ static int __init ath79_misc_intc_of_init(
 }
 
 static int __init ar7100_misc_intc_of_init(
-	struct device_node *node, struct device_node *parent)
+	struct device_analde *analde, struct device_analde *parent)
 {
 	ath79_misc_irq_chip.irq_mask_ack = ar71xx_misc_irq_mask;
-	return ath79_misc_intc_of_init(node, parent);
+	return ath79_misc_intc_of_init(analde, parent);
 }
 
 IRQCHIP_DECLARE(ar7100_misc_intc, "qca,ar7100-misc-intc",
 		ar7100_misc_intc_of_init);
 
 static int __init ar7240_misc_intc_of_init(
-	struct device_node *node, struct device_node *parent)
+	struct device_analde *analde, struct device_analde *parent)
 {
 	ath79_misc_irq_chip.irq_ack = ar724x_misc_irq_ack;
-	return ath79_misc_intc_of_init(node, parent);
+	return ath79_misc_intc_of_init(analde, parent);
 }
 
 IRQCHIP_DECLARE(ar7240_misc_intc, "qca,ar7240-misc-intc",

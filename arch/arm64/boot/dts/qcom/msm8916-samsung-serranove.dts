@@ -13,20 +13,20 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 /*
- * NOTE: The original firmware from Samsung can only boot ARM32 kernels.
- * Unfortunately, the firmware is signed and cannot be replaced easily.
- * There seems to be no way to boot ARM64 kernels on this device at the moment,
+ * ANALTE: The original firmware from Samsung can only boot ARM32 kernels.
+ * Unfortunately, the firmware is signed and cananalt be replaced easily.
+ * There seems to be anal way to boot ARM64 kernels on this device at the moment,
  * even though the hardware would support it.
  *
  * However, it is possible to use this device tree by compiling an ARM32 kernel
  * instead. For clarity and build testing this device tree is maintained next
  * to the other MSM8916 device trees. However, it is actually used through
- *   arch/arm/boot/dts/qcom-msm8916-samsung-serranove.dts
+ *   arch/arm/boot/dts/qcom-msm8916-samsung-serraanalve.dts
  */
 
 / {
 	model = "Samsung Galaxy S4 Mini Value Edition";
-	compatible = "samsung,serranove", "qcom,msm8916";
+	compatible = "samsung,serraanalve", "qcom,msm8916";
 	chassis-type = "handset";
 
 	aliases {
@@ -43,7 +43,7 @@
 		/* Additional memory used by Samsung firmware modifications */
 		tz-apps@85500000 {
 			reg = <0x0 0x85500000 0x0 0xb00000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -340,12 +340,12 @@
 
 &sdhc_2 {
 	status = "okay";
-	non-removable;
+	analn-removable;
 
 	/*
 	 * FIXME: Disable UHS-I modes since tuning fails with:
 	 *
-	 * sdhci_msm 7864900.sdhci: mmc1: No tuning point found
+	 * sdhci_msm 7864900.sdhci: mmc1: Anal tuning point found
 	 * mmc1: tuning execution failed: -5
 	 * mmc1: error -5 whilst initialising SD card
 	 *
@@ -353,7 +353,7 @@
 	 * a hardware limitation. However, probing a card using DDR50 works
 	 * (without tuning), so maybe only tuning is broken?
 	 */
-	no-1-8-v;
+	anal-1-8-v;
 };
 
 &sound {

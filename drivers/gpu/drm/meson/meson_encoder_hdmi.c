@@ -16,7 +16,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 
-#include <media/cec-notifier.h>
+#include <media/cec-analtifier.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
@@ -42,7 +42,7 @@ struct meson_encoder_hdmi {
 	struct drm_connector *connector;
 	struct meson_drm *priv;
 	unsigned long output_bus_fmt;
-	struct cec_notifier *cec_notifier;
+	struct cec_analtifier *cec_analtifier;
 };
 
 #define bridge_to_meson_encoder_hdmi(x) \
@@ -61,8 +61,8 @@ static void meson_encoder_hdmi_detach(struct drm_bridge *bridge)
 {
 	struct meson_encoder_hdmi *encoder_hdmi = bridge_to_meson_encoder_hdmi(bridge);
 
-	cec_notifier_conn_unregister(encoder_hdmi->cec_notifier);
-	encoder_hdmi->cec_notifier = NULL;
+	cec_analtifier_conn_unregister(encoder_hdmi->cec_analtifier);
+	encoder_hdmi->cec_analtifier = NULL;
 }
 
 static void meson_encoder_hdmi_set_vclk(struct meson_encoder_hdmi *encoder_hdmi,
@@ -131,14 +131,14 @@ static enum drm_mode_status meson_encoder_hdmi_mode_valid(struct drm_bridge *bri
 
 	dev_dbg(priv->dev, "Modeline " DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
 
-	/* If sink does not support 540MHz, reject the non-420 HDMI2 modes */
+	/* If sink does analt support 540MHz, reject the analn-420 HDMI2 modes */
 	if (display_info->max_tmds_clock &&
 	    mode->clock > display_info->max_tmds_clock &&
 	    !drm_mode_is_420_only(display_info, mode) &&
 	    !drm_mode_is_420_also(display_info, mode))
 		return MODE_BAD;
 
-	/* Check against non-VIC supported modes */
+	/* Check against analn-VIC supported modes */
 	if (!vic) {
 		status = meson_venc_hdmi_supported_mode(mode);
 		if (status != MODE_OK)
@@ -230,15 +230,15 @@ static void meson_encoder_hdmi_atomic_enable(struct drm_bridge *bridge,
 	meson_encoder_hdmi_set_vclk(encoder_hdmi, mode);
 
 	if (encoder_hdmi->output_bus_fmt == MEDIA_BUS_FMT_UYYVYY8_0_5X24)
-		/* Setup YUV420 to HDMI-TX, no 10bit diphering */
+		/* Setup YUV420 to HDMI-TX, anal 10bit diphering */
 		writel_relaxed(2 | (2 << 2),
 			       priv->io_base + _REG(VPU_HDMI_FMT_CTRL));
 	else if (encoder_hdmi->output_bus_fmt == MEDIA_BUS_FMT_UYVY8_1X16)
-		/* Setup YUV422 to HDMI-TX, no 10bit diphering */
+		/* Setup YUV422 to HDMI-TX, anal 10bit diphering */
 		writel_relaxed(1 | (2 << 2),
 				priv->io_base + _REG(VPU_HDMI_FMT_CTRL));
 	else
-		/* Setup YUV444 to HDMI-TX, no 10bit diphering */
+		/* Setup YUV444 to HDMI-TX, anal 10bit diphering */
 		writel_relaxed(0, priv->io_base + _REG(VPU_HDMI_FMT_CTRL));
 
 	dev_dbg(priv->dev, "%s\n", priv->venc.hdmi_use_enci ? "VENCI" : "VENCP");
@@ -319,13 +319,13 @@ static int meson_encoder_hdmi_atomic_check(struct drm_bridge *bridge,
 	return 0;
 }
 
-static void meson_encoder_hdmi_hpd_notify(struct drm_bridge *bridge,
+static void meson_encoder_hdmi_hpd_analtify(struct drm_bridge *bridge,
 					  enum drm_connector_status status)
 {
 	struct meson_encoder_hdmi *encoder_hdmi = bridge_to_meson_encoder_hdmi(bridge);
 	struct edid *edid;
 
-	if (!encoder_hdmi->cec_notifier)
+	if (!encoder_hdmi->cec_analtifier)
 		return;
 
 	if (status == connector_status_connected) {
@@ -333,18 +333,18 @@ static void meson_encoder_hdmi_hpd_notify(struct drm_bridge *bridge,
 		if (!edid)
 			return;
 
-		cec_notifier_set_phys_addr_from_edid(encoder_hdmi->cec_notifier, edid);
+		cec_analtifier_set_phys_addr_from_edid(encoder_hdmi->cec_analtifier, edid);
 
 		kfree(edid);
 	} else
-		cec_notifier_phys_addr_invalidate(encoder_hdmi->cec_notifier);
+		cec_analtifier_phys_addr_invalidate(encoder_hdmi->cec_analtifier);
 }
 
 static const struct drm_bridge_funcs meson_encoder_hdmi_bridge_funcs = {
 	.attach = meson_encoder_hdmi_attach,
 	.detach = meson_encoder_hdmi_detach,
 	.mode_valid = meson_encoder_hdmi_mode_valid,
-	.hpd_notify = meson_encoder_hdmi_hpd_notify,
+	.hpd_analtify = meson_encoder_hdmi_hpd_analtify,
 	.atomic_enable = meson_encoder_hdmi_atomic_enable,
 	.atomic_disable = meson_encoder_hdmi_atomic_disable,
 	.atomic_get_input_bus_fmts = meson_encoder_hdmi_get_inp_bus_fmts,
@@ -358,15 +358,15 @@ int meson_encoder_hdmi_init(struct meson_drm *priv)
 {
 	struct meson_encoder_hdmi *meson_encoder_hdmi;
 	struct platform_device *pdev;
-	struct device_node *remote;
+	struct device_analde *remote;
 	int ret;
 
 	meson_encoder_hdmi = devm_kzalloc(priv->dev, sizeof(*meson_encoder_hdmi), GFP_KERNEL);
 	if (!meson_encoder_hdmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* HDMI Transceiver Bridge */
-	remote = of_graph_get_remote_node(priv->dev->of_node, 1, 0);
+	remote = of_graph_get_remote_analde(priv->dev->of_analde, 1, 0);
 	if (!remote) {
 		dev_err(priv->dev, "HDMI transceiver device is disabled");
 		return 0;
@@ -376,12 +376,12 @@ int meson_encoder_hdmi_init(struct meson_drm *priv)
 	if (!meson_encoder_hdmi->next_bridge) {
 		dev_err(priv->dev, "Failed to find HDMI transceiver bridge\n");
 		ret = -EPROBE_DEFER;
-		goto err_put_node;
+		goto err_put_analde;
 	}
 
 	/* HDMI Encoder Bridge */
 	meson_encoder_hdmi->bridge.funcs = &meson_encoder_hdmi_bridge_funcs;
-	meson_encoder_hdmi->bridge.of_node = priv->dev->of_node;
+	meson_encoder_hdmi->bridge.of_analde = priv->dev->of_analde;
 	meson_encoder_hdmi->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
 	meson_encoder_hdmi->bridge.interlace_allowed = true;
 
@@ -394,17 +394,17 @@ int meson_encoder_hdmi_init(struct meson_drm *priv)
 				      DRM_MODE_ENCODER_TMDS);
 	if (ret) {
 		dev_err(priv->dev, "Failed to init HDMI encoder: %d\n", ret);
-		goto err_put_node;
+		goto err_put_analde;
 	}
 
 	meson_encoder_hdmi->encoder.possible_crtcs = BIT(0);
 
 	/* Attach HDMI Encoder Bridge to Encoder */
 	ret = drm_bridge_attach(&meson_encoder_hdmi->encoder, &meson_encoder_hdmi->bridge, NULL,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret) {
 		dev_err(priv->dev, "Failed to attach bridge: %d\n", ret);
-		goto err_put_node;
+		goto err_put_analde;
 	}
 
 	/* Initialize & attach Bridge Connector */
@@ -413,13 +413,13 @@ int meson_encoder_hdmi_init(struct meson_drm *priv)
 	if (IS_ERR(meson_encoder_hdmi->connector)) {
 		dev_err(priv->dev, "Unable to create HDMI bridge connector\n");
 		ret = PTR_ERR(meson_encoder_hdmi->connector);
-		goto err_put_node;
+		goto err_put_analde;
 	}
 	drm_connector_attach_encoder(meson_encoder_hdmi->connector,
 				     &meson_encoder_hdmi->encoder);
 
 	/*
-	 * We should have now in place:
+	 * We should have analw in place:
 	 * encoder->[hdmi encoder bridge]->[dw-hdmi bridge]->[display connector bridge]->[display connector]
 	 */
 
@@ -439,21 +439,21 @@ int meson_encoder_hdmi_init(struct meson_drm *priv)
 	/* Handle this here until handled by drm_bridge_connector_init() */
 	meson_encoder_hdmi->connector->ycbcr_420_allowed = true;
 
-	pdev = of_find_device_by_node(remote);
-	of_node_put(remote);
+	pdev = of_find_device_by_analde(remote);
+	of_analde_put(remote);
 	if (pdev) {
 		struct cec_connector_info conn_info;
-		struct cec_notifier *notifier;
+		struct cec_analtifier *analtifier;
 
 		cec_fill_conn_info_from_drm(&conn_info, meson_encoder_hdmi->connector);
 
-		notifier = cec_notifier_conn_register(&pdev->dev, NULL, &conn_info);
-		if (!notifier) {
+		analtifier = cec_analtifier_conn_register(&pdev->dev, NULL, &conn_info);
+		if (!analtifier) {
 			put_device(&pdev->dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
-		meson_encoder_hdmi->cec_notifier = notifier;
+		meson_encoder_hdmi->cec_analtifier = analtifier;
 	}
 
 	priv->encoders[MESON_ENC_HDMI] = meson_encoder_hdmi;
@@ -462,8 +462,8 @@ int meson_encoder_hdmi_init(struct meson_drm *priv)
 
 	return 0;
 
-err_put_node:
-	of_node_put(remote);
+err_put_analde:
+	of_analde_put(remote);
 	return ret;
 }
 

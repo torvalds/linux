@@ -15,7 +15,7 @@
 /*
  * medusa_enable_bluefield_output()
  *
- * Enable the generation of blue filed output if no video
+ * Enable the generation of blue filed output if anal video
  *
  */
 static void medusa_enable_bluefield_output(struct cx25821_dev *dev, int channel,
@@ -144,7 +144,7 @@ static int medusa_initialize_ntsc(struct cx25821_dev *dev)
 		ret_val = cx25821_i2c_write(&dev->i2c_bus[0],
 				DFE_CTRL1 + (0x200 * i), value);
 
-		/* Enable the generation of blue field output if no video */
+		/* Enable the generation of blue field output if anal video */
 		medusa_enable_bluefield_output(dev, i, 1);
 	}
 
@@ -172,7 +172,7 @@ static int medusa_initialize_ntsc(struct cx25821_dev *dev)
 		ret_val = cx25821_i2c_write(&dev->i2c_bus[0],
 				DENC_A_REG_3 + (0x100 * i), value);
 
-		/* set NTSC vblank, no phase alternation, 7.5 IRE pedestal */
+		/* set NTSC vblank, anal phase alternation, 7.5 IRE pedestal */
 		value = cx25821_i2c_read(&dev->i2c_bus[0],
 				DENC_A_REG_4 + (0x100 * i), &tmp);
 		value &= 0x00FCFFFF;
@@ -314,7 +314,7 @@ static int medusa_initialize_pal(struct cx25821_dev *dev)
 
 		medusa_PALCombInit(dev, i);
 
-		/* Enable the generation of blue field output if no video */
+		/* Enable the generation of blue field output if anal video */
 		medusa_enable_bluefield_output(dev, i, 1);
 	}
 
@@ -385,7 +385,7 @@ int medusa_set_videostandard(struct cx25821_dev *dev)
 	int status = 0;
 	u32 value = 0, tmp = 0;
 
-	if (dev->tvnorm & V4L2_STD_PAL_BG || dev->tvnorm & V4L2_STD_PAL_DK)
+	if (dev->tvanalrm & V4L2_STD_PAL_BG || dev->tvanalrm & V4L2_STD_PAL_DK)
 		status = medusa_initialize_pal(dev);
 	else
 		status = medusa_initialize_ntsc(dev);
@@ -470,7 +470,7 @@ static void medusa_set_decoderduration(struct cx25821_dev *dev, int decoder,
 	u32 tmp = 0;
 	u32 disp_cnt_reg = DISP_AB_CNT;
 
-	/* no support */
+	/* anal support */
 	if (decoder < VDEC_A || decoder > VDEC_H) {
 		return;
 	}
@@ -511,7 +511,7 @@ static int mapM(int srcMin, int srcMax, int srcVal, int dstMin, int dstMax,
 		int *dstVal)
 {
 	int numerator;
-	int denominator;
+	int deanalminator;
 	int quotient;
 
 	if ((srcMin == srcMax) || (srcVal < srcMin) || (srcVal > srcMax))
@@ -524,10 +524,10 @@ static int mapM(int srcMin, int srcMax, int srcVal, int dstMin, int dstMax,
 	 * operator to find the remainder and increment if necessary.
 	 */
 	numerator = (srcVal - srcMin) * (dstMax - dstMin);
-	denominator = srcMax - srcMin;
-	quotient = numerator / denominator;
+	deanalminator = srcMax - srcMin;
+	quotient = numerator / deanalminator;
 
-	if (2 * (numerator % denominator) >= denominator)
+	if (2 * (numerator % deanalminator) >= deanalminator)
 		quotient++;
 
 	*dstVal = quotient + dstMin;
@@ -670,8 +670,8 @@ int medusa_video_init(struct cx25821_dev *dev)
 	/*
 	 * FIXME: due to a coding bug the duration was always 0. It's
 	 * likely that it really should be something else, but due to the
-	 * lack of documentation I have no idea what it should be. For
-	 * now just fill in 0 as the duration.
+	 * lack of documentation I have anal idea what it should be. For
+	 * analw just fill in 0 as the duration.
 	 */
 	for (i = 0; i < dev->_max_num_decoders; i++)
 		medusa_set_decoderduration(dev, i, 0);
@@ -707,8 +707,8 @@ int medusa_video_init(struct cx25821_dev *dev)
 	value &= 0xFEF0FE00;
 	if (dev->_max_num_decoders == MAX_DECODERS) {
 		/*
-		 * Note: The octal board does not support control pins(bit16-19)
-		 * These bits are ignored in the octal board.
+		 * Analte: The octal board does analt support control pins(bit16-19)
+		 * These bits are iganalred in the octal board.
 		 *
 		 * disable VDEC A-C port, default to Mobilygen Interface
 		 */

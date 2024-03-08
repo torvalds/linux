@@ -12,7 +12,7 @@
 
 static void fat_checksum_test(struct kunit *test)
 {
-	/* With no extension. */
+	/* With anal extension. */
 	KUNIT_EXPECT_EQ(test, fat_checksum("VMLINUX    "), (u8)44);
 	/* With 3-letter extension. */
 	KUNIT_EXPECT_EQ(test, fat_checksum("README  TXT"), (u8)115);
@@ -79,7 +79,7 @@ static struct fat_timestamp_testcase time_test_cases[] = {
 		.time_offset = 0,
 	},
 	{
-		.name = "Year 2100 not leap year (2100-03-01 00:00:00)",
+		.name = "Year 2100 analt leap year (2100-03-01 00:00:00)",
 		.ts = {.tv_sec = 4107542400LL, .tv_nsec = 0L},
 		.time = cpu_to_le16(0),
 		.date = cpu_to_le16(61537),
@@ -149,7 +149,7 @@ static void fat_time_fat2unix_test(struct kunit *test)
 	KUNIT_EXPECT_EQ_MSG(test,
 			    testcase->ts.tv_nsec,
 			    ts.tv_nsec,
-			    "Timestamp mismatch (nanoseconds)\n");
+			    "Timestamp mismatch (naanalseconds)\n");
 }
 
 static void fat_time_unix2fat_test(struct kunit *test)

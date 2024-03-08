@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 
-#define MESON_CANVAS_WRAP_NONE	0x00
+#define MESON_CANVAS_WRAP_ANALNE	0x00
 #define MESON_CANVAS_WRAP_X	0x01
 #define MESON_CANVAS_WRAP_Y	0x02
 

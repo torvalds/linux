@@ -176,13 +176,13 @@
 &pinctrl {
 	lcd {
 		lcd_en: lcd-en  {
-			rockchip,pins = <7 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	wifi {
 		wifi_pwr: wifi-pwr {
-			rockchip,pins = <7 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

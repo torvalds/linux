@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2020, Mellanox Technologies inc.  All rights reserved. */
+/* Copyright (c) 2020, Mellaanalx Techanallogies inc.  All rights reserved. */
 
 #ifndef __MLX5_FW_RESET_H
 #define __MLX5_FW_RESET_H

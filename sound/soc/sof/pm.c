@@ -33,11 +33,11 @@ static u32 snd_sof_dsp_power_target(struct snd_sof_dev *sdev)
 	case SOF_SUSPEND_S0IX:
 		/*
 		 * Currently, the only criterion for retaining the DSP in D0
-		 * is that there are streams that ignored the suspend trigger.
+		 * is that there are streams that iganalred the suspend trigger.
 		 * Additional criteria such Soundwire clock-stop mode and
 		 * device suspend latency considerations will be added later.
 		 */
-		if (snd_sof_stream_suspend_ignored(sdev))
+		if (snd_sof_stream_suspend_iganalred(sdev))
 			target_dsp_state = SOF_DSP_PM_D0;
 		else
 			target_dsp_state = SOF_DSP_PM_D3;
@@ -58,7 +58,7 @@ static void sof_cache_debugfs(struct snd_sof_dev *sdev)
 
 	list_for_each_entry(dfse, &sdev->dfsentry_list, list) {
 
-		/* nothing to do if debugfs buffer is not IO mem */
+		/* analthing to do if debugfs buffer is analt IO mem */
 		if (dfse->type == SOF_DFSENTRY_TYPE_BUF)
 			continue;
 
@@ -78,14 +78,14 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	u32 old_state = sdev->dsp_power_state.state;
 	int ret;
 
-	/* do nothing if dsp resume callbacks are not set */
+	/* do analthing if dsp resume callbacks are analt set */
 	if (!runtime_resume && !sof_ops(sdev)->resume)
 		return 0;
 
 	if (runtime_resume && !sof_ops(sdev)->runtime_resume)
 		return 0;
 
-	/* DSP was never successfully started, nothing to resume */
+	/* DSP was never successfully started, analthing to resume */
 	if (sdev->first_boot)
 		return 0;
 
@@ -109,7 +109,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	}
 
 	/*
-	 * Nothing further to be done for platforms that support the low power
+	 * Analthing further to be done for platforms that support the low power
 	 * D0 substate. Resume trace and return when resuming from
 	 * low-power D0 substate
 	 */
@@ -117,7 +117,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	    old_state == SOF_DSP_PM_D0) {
 		ret = sof_fw_trace_resume(sdev);
 		if (ret < 0)
-			/* non fatal */
+			/* analn fatal */
 			dev_warn(sdev->dev,
 				 "failed to enable trace after resume %d\n", ret);
 		return 0;
@@ -153,7 +153,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	/* resume DMA trace */
 	ret = sof_fw_trace_resume(sdev);
 	if (ret < 0) {
-		/* non fatal */
+		/* analn fatal */
 		dev_warn(sdev->dev,
 			 "warning: failed to init trace after resume %d\n",
 			 ret);
@@ -168,10 +168,10 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		}
 	}
 
-	/* Notify clients not managed by pm framework about core resume */
+	/* Analtify clients analt managed by pm framework about core resume */
 	sof_resume_clients(sdev);
 
-	/* notify DSP of system resume */
+	/* analtify DSP of system resume */
 	if (pm_ops && pm_ops->ctx_restore) {
 		ret = pm_ops->ctx_restore(sdev);
 		if (ret < 0)
@@ -182,7 +182,7 @@ setup_fail:
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
 	if (ret < 0) {
 		/*
-		 * Debugfs cannot be read in runtime suspend, so cache
+		 * Debugfs cananalt be read in runtime suspend, so cache
 		 * the contents upon failure. This allows to capture
 		 * possible DSP coredump information.
 		 */
@@ -203,7 +203,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	u32 old_state = sdev->dsp_power_state.state;
 	int ret;
 
-	/* do nothing if dsp suspend callback is not set */
+	/* do analthing if dsp suspend callback is analt set */
 	if (!runtime_suspend && !sof_ops(sdev)->suspend)
 		return 0;
 
@@ -237,7 +237,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	/* suspend DMA trace */
 	sof_fw_trace_suspend(sdev, pm_state);
 
-	/* Notify clients not managed by pm framework about core suspend */
+	/* Analtify clients analt managed by pm framework about core suspend */
 	sof_suspend_clients(sdev, pm_state);
 
 	/* Skip to platform-specific suspend if DSP is entering D0 */
@@ -249,7 +249,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	if (runtime_suspend)
 		sof_cache_debugfs(sdev);
 #endif
-	/* notify DSP of upcoming power down */
+	/* analtify DSP of upcoming power down */
 	if (pm_ops && pm_ops->ctx_save) {
 		ret = pm_ops->ctx_save(sdev);
 		if (ret == -EBUSY || ret == -EAGAIN) {
@@ -268,8 +268,8 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 
 suspend:
 
-	/* return if the DSP was not probed successfully */
-	if (sdev->fw_state == SOF_FW_BOOT_NOT_STARTED)
+	/* return if the DSP was analt probed successfully */
+	if (sdev->fw_state == SOF_FW_BOOT_ANALT_STARTED)
 		return 0;
 
 	/* platform-specific suspend */
@@ -282,22 +282,22 @@ suspend:
 			"error: failed to power down DSP during suspend %d\n",
 			ret);
 
-	/* Do not reset FW state if DSP is in D0 */
+	/* Do analt reset FW state if DSP is in D0 */
 	if (target_state == SOF_DSP_PM_D0)
 		return ret;
 
 	/* reset FW state */
-	sof_set_fw_state(sdev, SOF_FW_BOOT_NOT_STARTED);
+	sof_set_fw_state(sdev, SOF_FW_BOOT_ANALT_STARTED);
 	sdev->enabled_cores_mask = 0;
 
 	return ret;
 }
 
-int snd_sof_dsp_power_down_notify(struct snd_sof_dev *sdev)
+int snd_sof_dsp_power_down_analtify(struct snd_sof_dev *sdev)
 {
 	const struct sof_ipc_pm_ops *pm_ops = sof_ipc_get_ops(sdev, pm);
 
-	/* Notify DSP of upcoming power down */
+	/* Analtify DSP of upcoming power down */
 	if (sof_ops(sdev)->remove && pm_ops && pm_ops->ctx_save)
 		return pm_ops->ctx_save(sdev);
 
@@ -384,6 +384,6 @@ void snd_sof_complete(struct device *dev)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 
-	sdev->system_suspend_target = SOF_SUSPEND_NONE;
+	sdev->system_suspend_target = SOF_SUSPEND_ANALNE;
 }
 EXPORT_SYMBOL(snd_sof_complete);

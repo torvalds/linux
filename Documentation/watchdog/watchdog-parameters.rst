@@ -18,7 +18,7 @@ watchdog core:
 	Maximum time, in seconds, for which the watchdog framework will take
 	care of pinging a running hardware watchdog until userspace opens the
 	corresponding /dev/watchdogN device. A value of 0 means an infinite
-	timeout. Setting this to a non-zero value can be useful to ensure that
+	timeout. Setting this to a analn-zero value can be useful to ensure that
 	either userspace comes up properly, or the board gets reset and allows
 	fallback logic in the bootloader to try something else.
 
@@ -29,8 +29,8 @@ acquirewdt:
 	Acquire WDT 'stop' io port (default 0x43)
     wdt_start:
 	Acquire WDT 'start' io port (default 0x443)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -42,8 +42,8 @@ advantechwdt:
 	Advantech WDT 'start' io port (default 0x443)
     timeout:
 	Watchdog timeout in seconds. 1<= timeout <=63, default=60.
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -51,8 +51,8 @@ advantechwdt:
 alim1535_wdt:
     timeout:
 	Watchdog timeout in seconds. (0 < timeout < 18000, default=60
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -62,9 +62,9 @@ alim7101_wdt:
 	Watchdog timeout in seconds. (1<=timeout<=3600, default=30
     use_gpio:
 	Use the gpio watchdog (required by old cobalt boards).
-	default=0/off/no
-    nowayout:
-	Watchdog cannot be stopped once started
+	default=0/off/anal
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -72,7 +72,7 @@ alim7101_wdt:
 ar7_wdt:
     margin:
 	Watchdog margin in seconds (default=60)
-    nowayout:
+    analwayout:
 	Disable watchdog shutdown on close
 	(default=kernel config parameter)
 
@@ -81,7 +81,7 @@ ar7_wdt:
 armada_37xx_wdt:
     timeout:
 	Watchdog timeout in seconds. (default=120)
-    nowayout:
+    analwayout:
 	Disable watchdog shutdown on close
 	(default=kernel config parameter)
 
@@ -90,8 +90,8 @@ armada_37xx_wdt:
 at91rm9200_wdt:
     wdt_time:
 	Watchdog time in seconds. (default=5)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -99,8 +99,8 @@ at91rm9200_wdt:
 at91sam9_wdt:
     heartbeat:
 	Watchdog heartbeats in seconds. (default = 15)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -108,8 +108,8 @@ at91sam9_wdt:
 bcm47xx_wdt:
     wdt_time:
 	Watchdog time in seconds. (default=30)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -124,7 +124,7 @@ cpu5wdt:
     port:
 	base address of watchdog card, default is 0x91
     verbose:
-	be verbose, default is 0 (no)
+	be verbose, default is 0 (anal)
     ticks:
 	count down ticks, default is 10000
 
@@ -143,8 +143,8 @@ cpwd:
 da9052wdt:
     timeout:
 	Watchdog timeout in seconds. 2<= timeout <=131, default=2.048s
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -158,22 +158,22 @@ davinci_wdt:
 ebc-c384_wdt:
     timeout:
 	Watchdog timeout in seconds. (1<=timeout<=15300, default=60)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 
 -------------------------------------------------
 
 ep93xx_wdt:
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
     timeout:
 	Watchdog timeout in seconds. (1<=timeout<=3600, default=TBD)
 
 -------------------------------------------------
 
 eurotechwdt:
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
     io:
 	Eurotech WDT io port (default=0x3f0)
@@ -185,8 +185,8 @@ eurotechwdt:
 -------------------------------------------------
 
 gef_wdt:
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -194,8 +194,8 @@ gef_wdt:
 geodewdt:
     timeout:
 	Watchdog timeout in seconds. 1<= timeout <=131, default=60.
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -203,8 +203,8 @@ geodewdt:
 i6300esb:
     heartbeat:
 	Watchdog heartbeat in seconds. (1<heartbeat<2046, default=30)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -213,15 +213,15 @@ iTCO_wdt:
     heartbeat:
 	Watchdog heartbeat in seconds.
 	(2<heartbeat<39 (TCO v1) or 613 (TCO v2), default=30)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
 
 iTCO_vendor_support:
     vendorsupport:
-	iTCO vendor specific support mode, default=0 (none),
+	iTCO vendor specific support mode, default=0 (analne),
 	1=SuperMicro Pent3, 2=SuperMicro Pent4+, 911=Broken SMI BIOS
 
 -------------------------------------------------
@@ -229,15 +229,15 @@ iTCO_vendor_support:
 ib700wdt:
     timeout:
 	Watchdog timeout in seconds. 0<= timeout <=30, default=30.
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
 
 ibmasr:
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -245,22 +245,22 @@ ibmasr:
 imx2_wdt:
     timeout:
 	Watchdog timeout in seconds (default 60 s)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
 
 indydog:
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
 
 iop_wdt:
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -268,16 +268,16 @@ iop_wdt:
 it8712f_wdt:
     margin:
 	Watchdog margin in seconds (default 60)
-    nowayout:
+    analwayout:
 	Disable watchdog shutdown on close
 	(default=kernel config parameter)
 
 -------------------------------------------------
 
 it87_wdt:
-    nogameport:
+    analgameport:
 	Forbid the activation of game port, default=0
-    nocir:
+    analcir:
 	Forbid the use of CIR (workaround for some buggy setups); set to 1 if
 system resets despite watchdog daemon running, default=0
     exclusive:
@@ -285,9 +285,9 @@ system resets despite watchdog daemon running, default=0
     timeout:
 	Watchdog timeout in seconds, default=60
     testmode:
-	Watchdog test mode (1 = no reboot), default=0
-    nowayout:
-	Watchdog cannot be stopped once started
+	Watchdog test mode (1 = anal reboot), default=0
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -295,15 +295,15 @@ system resets despite watchdog daemon running, default=0
 ixp4xx_wdt:
     heartbeat:
 	Watchdog heartbeat in seconds (default 60s)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
 
 machzwd:
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
     action:
 	after watchdog resets, generate:
@@ -314,18 +314,18 @@ machzwd:
 max63xx_wdt:
     heartbeat:
 	Watchdog heartbeat period in seconds from 1 to 60, default 60
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
-    nodelay:
+    analdelay:
 	Force selection of a timeout setting without initial delay
 	(max6373/74 only, default=0)
 
 -------------------------------------------------
 
 mixcomwd:
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -335,15 +335,15 @@ mpc8xxx_wdt:
 	Watchdog timeout in ticks. (0<timeout<65536, default=65535)
     reset:
 	Watchdog Interrupt/Reset Mode. 0 = interrupt, 1 = reset
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
 
 mv64x60_wdt:
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -351,8 +351,8 @@ mv64x60_wdt:
 ni903x_wdt:
     timeout:
 	Initial watchdog timeout in seconds (0<timeout<516, default=60)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -360,8 +360,8 @@ ni903x_wdt:
 nic7018_wdt:
     timeout:
 	Initial watchdog timeout in seconds (0<timeout<464, default=80)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -371,8 +371,8 @@ omap_wdt:
 	initial watchdog timeout (in seconds)
     early_enable:
 	Watchdog is started on module insertion (default=0
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -380,8 +380,8 @@ omap_wdt:
 orion_wdt:
     heartbeat:
 	Initial watchdog heartbeat in seconds
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -391,8 +391,8 @@ pc87413_wdt:
 	pc87413 WDT I/O port (default: io).
     timeout:
 	Watchdog timeout in minutes (default=timeout).
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -400,8 +400,8 @@ pc87413_wdt:
 pika_wdt:
     heartbeat:
 	Watchdog heartbeats in seconds. (default = 15)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -409,7 +409,7 @@ pika_wdt:
 pnx4008_wdt:
     heartbeat:
 	Watchdog heartbeat period in seconds from 1 to 60, default 19
-    nowayout:
+    analwayout:
 	Set to 1 to keep watchdog running after device release
 
 -------------------------------------------------
@@ -417,8 +417,8 @@ pnx4008_wdt:
 pnx833x_wdt:
     timeout:
 	Watchdog timeout in Mhz. (68Mhz clock), default=2040000000 (30 seconds)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
     start_enabled:
 	Watchdog is started on module insertion (default=1)
@@ -431,8 +431,8 @@ pseries-wdt:
 	2 (dump and restart). (default=1)
     timeout:
 	Initial watchdog timeout in seconds. (default=60)
-    nowayout:
-	Watchdog cannot be stopped once started.
+    analwayout:
+	Watchdog cananalt be stopped once started.
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -440,8 +440,8 @@ pseries-wdt:
 rc32434_wdt:
     timeout:
 	Watchdog timeout value, in seconds (default=20)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -457,11 +457,11 @@ s3c2410_wdt:
 	Watchdog tmr_margin in seconds. (default=15)
     tmr_atboot:
 	Watchdog is started at boot time if set to 1, default=0
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
-    soft_noboot:
-	Watchdog action, set to 1 to ignore reboots, 0 to reboot
+    soft_analboot:
+	Watchdog action, set to 1 to iganalre reboots, 0 to reboot
     debug:
 	Watchdog debug, set to >1 for debug, (default 0)
 
@@ -486,8 +486,8 @@ sbc60xxwdt:
 	SBC60xx WDT 'start' io port (default 0x443)
     timeout:
 	Watchdog timeout in seconds. (1<=timeout<=3600, default=30)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -495,7 +495,7 @@ sbc60xxwdt:
 sbc7240_wdt:
     timeout:
 	Watchdog timeout in seconds. (1<=timeout<=255, default=30)
-    nowayout:
+    analwayout:
 	Disable watchdog when closing device file
 
 -------------------------------------------------
@@ -503,15 +503,15 @@ sbc7240_wdt:
 sbc8360:
     timeout:
 	Index into timeout table (0-63) (default=27 (60s))
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
 
 sbc_epx_c3:
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -519,8 +519,8 @@ sbc_epx_c3:
 sbc_fitpc2_wdt:
     margin:
 	Watchdog margin in seconds (default 60s)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 
 -------------------------------------------------
 
@@ -529,9 +529,9 @@ sbsa_gwdt:
 	Watchdog timeout in seconds. (default 10s)
     action:
 	Watchdog action at the first stage timeout,
-	set to 0 to ignore, 1 to panic. (default=0)
-    nowayout:
-	Watchdog cannot be stopped once started
+	set to 0 to iganalre, 1 to panic. (default=0)
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -543,8 +543,8 @@ sc1200wdt:
 	io port
     timeout:
 	range is 0-255 minutes, default is 1
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -552,8 +552,8 @@ sc1200wdt:
 sc520_wdt:
     timeout:
 	Watchdog timeout in seconds. (1 <= timeout <= 3600, default=30)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -565,8 +565,8 @@ sch311x_wdt:
 	Should a ThermTrip trigger the reset generator
     timeout:
 	Watchdog timeout in seconds. 1<= timeout <=15300, default=60
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -574,7 +574,7 @@ sch311x_wdt:
 scx200_wdt:
     margin:
 	Watchdog margin in seconds
-    nowayout:
+    analwayout:
 	Disable watchdog shutdown on close
 
 -------------------------------------------------
@@ -585,8 +585,8 @@ shwdt:
 	to 0x7 (5.25ms). (default=7)
     heartbeat:
 	Watchdog heartbeat in seconds. (1 <= heartbeat <= 3600, default=30
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -594,8 +594,8 @@ shwdt:
 smsc37b787_wdt:
     timeout:
 	range is 1-255 units, default is 60
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -604,11 +604,11 @@ softdog:
     soft_margin:
 	Watchdog soft_margin in seconds.
 	(0 < soft_margin < 65536, default=60)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
-    soft_noboot:
-	Softdog action, set to 1 to ignore reboots, 0 to reboot
+    soft_analboot:
+	Softdog action, set to 1 to iganalre reboots, 0 to reboot
 	(default=0)
 
 -------------------------------------------------
@@ -622,8 +622,8 @@ stmp3xxx_wdt:
 tegra_wdt:
     heartbeat:
 	Watchdog heartbeats in seconds. (default = 120)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -631,14 +631,14 @@ tegra_wdt:
 ts72xx_wdt:
     timeout:
 	Watchdog timeout in seconds. (1 <= timeout <= 8, default=8)
-    nowayout:
+    analwayout:
 	Disable watchdog shutdown on close
 
 -------------------------------------------------
 
 twl4030_wdt:
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -646,8 +646,8 @@ twl4030_wdt:
 txx9wdt:
     timeout:
 	Watchdog timeout in seconds. (0<timeout<N, default=60)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -656,8 +656,8 @@ uniphier_wdt:
     timeout:
 	Watchdog timeout in power of two seconds.
 	(1 <= timeout <= 128, default=64)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -667,8 +667,8 @@ w83627hf_wdt:
 	w83627hf/thf WDT io port (default 0x2E)
     timeout:
 	Watchdog timeout in seconds. 1 <= timeout <= 255, default=60.
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -676,8 +676,8 @@ w83627hf_wdt:
 w83877f_wdt:
     timeout:
 	Watchdog timeout in seconds. (1<=timeout<=3600, default=30)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -686,9 +686,9 @@ w83977f_wdt:
     timeout:
 	Watchdog timeout in seconds (15..7635), default=45)
     testmode:
-	Watchdog testmode (1 = no reboot), default=0
-    nowayout:
-	Watchdog cannot be stopped once started
+	Watchdog testmode (1 = anal reboot), default=0
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -696,8 +696,8 @@ w83977f_wdt:
 wafer5823wdt:
     timeout:
 	Watchdog timeout in seconds. 1 <= timeout <= 255, default=60.
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -712,23 +712,23 @@ wdt977:
     timeout:
 	Watchdog timeout in seconds (60..15300, default=60)
     testmode:
-	Watchdog testmode (1 = no reboot), default=0
-    nowayout:
-	Watchdog cannot be stopped once started
+	Watchdog testmode (1 = anal reboot), default=0
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
 
 wm831x_wdt:
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
 
 wm8350_wdt:
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started
 	(default=kernel config parameter)
 
 -------------------------------------------------
@@ -736,5 +736,5 @@ wm8350_wdt:
 sun4v_wdt:
     timeout_ms:
 	Watchdog timeout in milliseconds 1..180000, default=60000)
-    nowayout:
-	Watchdog cannot be stopped once started
+    analwayout:
+	Watchdog cananalt be stopped once started

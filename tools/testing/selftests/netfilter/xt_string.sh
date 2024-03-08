@@ -112,7 +112,7 @@ fi
 zerorules
 send $((1600 - $patlen + 1))
 if [ $(countrule -c 1) -ne 0 ]; then
-	echo "FAIL: no rules should match pattern extending largest --to"
+	echo "FAIL: anal rules should match pattern extending largest --to"
 	showrules
 	((rc--))
 fi
@@ -120,7 +120,7 @@ fi
 zerorules
 send 1600
 if [ $(countrule -c 1) -ne 0 ]; then
-	echo "FAIL: no rule should match pattern past largest --to"
+	echo "FAIL: anal rule should match pattern past largest --to"
 	showrules
 	((rc--))
 fi

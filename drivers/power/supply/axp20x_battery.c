@@ -5,7 +5,7 @@
  *	Quentin Schulz <quentin.schulz@free-electrons.com>
  *
  * This driver is based on a previous upstreaming attempt by:
- *	Bruno Prémont <bonbons@linux-vserver.org>
+ *	Bruanal Prémont <bonbons@linux-vserver.org>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License. See the file "COPYING" in the main directory of this
@@ -230,7 +230,7 @@ static int axp20x_battery_get_prop(struct power_supply *psy,
 		if ((val1 & AXP209_FG_PERCENT) == 100)
 			val->intval = POWER_SUPPLY_STATUS_FULL;
 		else
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 
 	case POWER_SUPPLY_PROP_HEALTH:
@@ -258,7 +258,7 @@ static int axp20x_battery_get_prop(struct power_supply *psy,
 		val->intval = axp20x_batt->max_ccc;
 		break;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		ret = regmap_read(axp20x_batt->regmap, AXP20X_PWR_INPUT_STATUS,
 				  &reg);
 		if (ret)
@@ -278,7 +278,7 @@ static int axp20x_battery_get_prop(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_CAPACITY:
-		/* When no battery is present, return capacity is 100% */
+		/* When anal battery is present, return capacity is 100% */
 		ret = regmap_read(axp20x_batt->regmap, AXP20X_PWR_OP_MODE,
 				  &reg);
 		if (ret)
@@ -315,7 +315,7 @@ static int axp20x_battery_get_prop(struct power_supply *psy,
 		val->intval = 2600000 + 100000 * (reg & AXP20X_V_OFF_MASK);
 		break;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = iio_read_channel_processed(axp20x_batt->batt_v,
 						 &val->intval);
 		if (ret)
@@ -420,7 +420,7 @@ static int axp20x_set_max_constant_charge_current(struct axp20x_batt_ps *axp,
 
 	if (charge_current > axp->max_ccc)
 		dev_warn(axp->dev,
-			 "Setting max constant charge current higher than previously defined. Note that increasing the constant charge current may damage your battery.\n");
+			 "Setting max constant charge current higher than previously defined. Analte that increasing the constant charge current may damage your battery.\n");
 	else
 		lower_max = true;
 
@@ -474,7 +474,7 @@ static int axp20x_battery_set_prop(struct power_supply *psy,
 				AXP20X_CHRG_CTRL1_ENABLE, AXP20X_CHRG_CTRL1_ENABLE);
 
 		case POWER_SUPPLY_STATUS_DISCHARGING:
-		case POWER_SUPPLY_STATUS_NOT_CHARGING:
+		case POWER_SUPPLY_STATUS_ANALT_CHARGING:
 			return regmap_update_bits(axp20x_batt->regmap, AXP20X_CHRG_CTRL1,
 				AXP20X_CHRG_CTRL1_ENABLE, 0);
 		}
@@ -488,8 +488,8 @@ static enum power_supply_property axp20x_battery_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -562,19 +562,19 @@ static int axp20x_power_probe(struct platform_device *pdev)
 	struct power_supply_battery_info *info;
 	struct device *dev = &pdev->dev;
 
-	if (!of_device_is_available(pdev->dev.of_node))
-		return -ENODEV;
+	if (!of_device_is_available(pdev->dev.of_analde))
+		return -EANALDEV;
 
 	axp20x_batt = devm_kzalloc(&pdev->dev, sizeof(*axp20x_batt),
 				   GFP_KERNEL);
 	if (!axp20x_batt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	axp20x_batt->dev = &pdev->dev;
 
 	axp20x_batt->batt_v = devm_iio_channel_get(&pdev->dev, "batt_v");
 	if (IS_ERR(axp20x_batt->batt_v)) {
-		if (PTR_ERR(axp20x_batt->batt_v) == -ENODEV)
+		if (PTR_ERR(axp20x_batt->batt_v) == -EANALDEV)
 			return -EPROBE_DEFER;
 		return PTR_ERR(axp20x_batt->batt_v);
 	}
@@ -582,7 +582,7 @@ static int axp20x_power_probe(struct platform_device *pdev)
 	axp20x_batt->batt_chrg_i = devm_iio_channel_get(&pdev->dev,
 							"batt_chrg_i");
 	if (IS_ERR(axp20x_batt->batt_chrg_i)) {
-		if (PTR_ERR(axp20x_batt->batt_chrg_i) == -ENODEV)
+		if (PTR_ERR(axp20x_batt->batt_chrg_i) == -EANALDEV)
 			return -EPROBE_DEFER;
 		return PTR_ERR(axp20x_batt->batt_chrg_i);
 	}
@@ -590,7 +590,7 @@ static int axp20x_power_probe(struct platform_device *pdev)
 	axp20x_batt->batt_dischrg_i = devm_iio_channel_get(&pdev->dev,
 							   "batt_dischrg_i");
 	if (IS_ERR(axp20x_batt->batt_dischrg_i)) {
-		if (PTR_ERR(axp20x_batt->batt_dischrg_i) == -ENODEV)
+		if (PTR_ERR(axp20x_batt->batt_dischrg_i) == -EANALDEV)
 			return -EPROBE_DEFER;
 		return PTR_ERR(axp20x_batt->batt_dischrg_i);
 	}
@@ -599,7 +599,7 @@ static int axp20x_power_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, axp20x_batt);
 
 	psy_cfg.drv_data = axp20x_batt;
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.of_analde = pdev->dev.of_analde;
 
 	axp20x_batt->data = (struct axp_data *)of_device_get_match_data(dev);
 

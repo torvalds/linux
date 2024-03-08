@@ -207,11 +207,11 @@ static int cy8ctma140_probe(struct i2c_client *client)
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->dev = dev;
 	ts->client = client;
@@ -223,7 +223,7 @@ static int cy8ctma140_probe(struct i2c_client *client)
 	input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	/*
 	 * This sets up event max/min capabilities and fuzz.
-	 * Some DT properties are compulsory so we do not need
+	 * Some DT properties are compulsory so we do analt need
 	 * to provide defaults for X/Y max or pressure max.
 	 *
 	 * We just initialize a very simple MT touchscreen here,

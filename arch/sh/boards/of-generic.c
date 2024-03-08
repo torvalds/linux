@@ -53,7 +53,7 @@ const struct of_cpu_method __cpu_method_of_table_sentinel
 
 static void sh_of_smp_probe(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const char *method = NULL;
 	const struct of_cpu_method *m = __cpu_method_of_table;
 
@@ -61,7 +61,7 @@ static void sh_of_smp_probe(void)
 
 	init_cpu_possible(cpumask_of(0));
 
-	for_each_of_cpu_node(np) {
+	for_each_of_cpu_analde(np) {
 		u64 id = of_get_cpu_hwid(np, 0);
 
 		if (id < NR_CPUS) {
@@ -74,9 +74,9 @@ static void sh_of_smp_probe(void)
 		}
 	}
 	if (!method) {
-		np = of_find_node_by_name(NULL, "cpus");
+		np = of_find_analde_by_name(NULL, "cpus");
 		of_property_read_string(np, "enable-method", &method);
-		of_node_put(np);
+		of_analde_put(np);
 	}
 
 	pr_info("CPU enable method: %s\n", method);
@@ -98,11 +98,11 @@ static void sh_of_smp_probe(void)
 
 #endif
 
-static void noop(void)
+static void analop(void)
 {
 }
 
-static int noopi(void)
+static int analopi(void)
 {
 	return 0;
 }
@@ -115,13 +115,13 @@ static void __init sh_of_mem_reserve(void)
 
 static void __init sh_of_setup(char **cmdline_p)
 {
-	struct device_node *root;
+	struct device_analde *root;
 
-	sh_mv.mv_name = "Unknown SH model";
-	root = of_find_node_by_path("/");
+	sh_mv.mv_name = "Unkanalwn SH model";
+	root = of_find_analde_by_path("/");
 	if (root) {
 		of_property_read_string(root, "model", &sh_mv.mv_name);
-		of_node_put(root);
+		of_analde_put(root);
 	}
 
 	sh_of_smp_probe();
@@ -129,7 +129,7 @@ static void __init sh_of_setup(char **cmdline_p)
 
 static int sh_of_irq_demux(int irq)
 {
-	/* FIXME: eventually this should not be used at all;
+	/* FIXME: eventually this should analt be used at all;
 	 * the interrupt controller should set_handle_irq(). */
 	return irq;
 }
@@ -156,8 +156,8 @@ static struct sh_machine_vector __initmv sh_of_generic_mv = {
 	.mv_irq_demux	= sh_of_irq_demux,
 	.mv_init_irq	= sh_of_init_irq,
 	.mv_clk_init	= sh_of_clk_init,
-	.mv_mode_pins	= noopi,
-	.mv_mem_init	= noop,
+	.mv_mode_pins	= analopi,
+	.mv_mem_init	= analop,
 	.mv_mem_reserve	= sh_of_mem_reserve,
 };
 

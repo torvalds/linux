@@ -106,7 +106,7 @@ static PyObject *perf_sample_insn(PyObject *obj, PyObject *args)
 		script_fetch_insn(c->sample, c->al->thread, machine);
 	}
 	if (!c->sample->insn_len)
-		Py_RETURN_NONE; /* N.B. This is a return statement */
+		Py_RETURN_ANALNE; /* N.B. This is a return statement */
 
 	return _PyBytes_FromStringAndSize(c->sample->insn, c->sample->insn_len);
 }
@@ -225,7 +225,7 @@ PyMODINIT_FUNC PyInit_perf_trace_context(void)
 
 	mod = PyModule_Create(&moduledef);
 	/* Add perf_script_context to the module so it can be imported */
-	PyObject_SetAttrString(mod, "perf_script_context", Py_None);
+	PyObject_SetAttrString(mod, "perf_script_context", Py_Analne);
 
 	return mod;
 }

@@ -13,7 +13,7 @@
  *	Mike Bernson <mike@mlb.org>
  *	Gerard v.d. Horst
  *	Leon van Stuivenberg <l.vanstuivenberg@chello.nl>
- *	Gernot Ziegler <gz@lysator.liu.se>
+ *	Geranalt Ziegler <gz@lysator.liu.se>
  *
  * Version History:
  * V1.0 Ryan Drake	   Initial version by Ryan Drake
@@ -23,7 +23,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
@@ -185,7 +185,7 @@ struct adjust {
 
 struct ks0127 {
 	struct v4l2_subdev sd;
-	v4l2_std_id	norm;
+	v4l2_std_id	analrm;
 	u8		regs[256];
 };
 
@@ -279,7 +279,7 @@ static void init_reg_defaults(void)
 	table[KS_CMDE]     = 0x00;  /* Command Register E */
 	table[KS_VSDEL]    = 0x00;  /* VS Delay Control */
 	/* Command Register F, update -immediately- */
-	/* (there might come no vsync)*/
+	/* (there might come anal vsync)*/
 	table[KS_CMDF]     = 0x02;
 }
 
@@ -289,9 +289,9 @@ static void init_reg_defaults(void)
  * An explanation from kayork@mail.utexas.edu:
  *
  * During I2C reads, the KS0127 only samples for a stop condition
- * during the place where the acknowledge bit should be. Any standard
- * I2C implementation (correctly) throws in another clock transition
- * at the 9th bit, and the KS0127 will not recognize the stop condition
+ * during the place where the ackanalwledge bit should be. Any standard
+ * I2C implementation (correctly) throws in aanalther clock transition
+ * at the 9th bit, and the KS0127 will analt recognize the stop condition
  * and will continue to clock out data.
  *
  * So we have to do the read ourself.  Big deal.
@@ -311,7 +311,7 @@ static u8 ks0127_read(struct v4l2_subdev *sd, u8 reg)
 		},
 		{
 			.addr = client->addr,
-			.flags = I2C_M_RD | I2C_M_NO_RD_ACK,
+			.flags = I2C_M_RD | I2C_M_ANAL_RD_ACK,
 			.len = sizeof(val),
 			.buf = &val
 		}
@@ -362,7 +362,7 @@ static void ks0127_init(struct v4l2_subdev *sd)
 	v4l2_dbg(1, debug, sd, "reset\n");
 	msleep(1);
 
-	/* initialize all registers to known values */
+	/* initialize all registers to kanalwn values */
 	/* (except STAT, 0x21, 0x22, TEST and 0x38,0x39) */
 
 	for (i = 1; i < 33; i++)
@@ -393,7 +393,7 @@ static void ks0127_init(struct v4l2_subdev *sd)
 		break;
 
 	default:
-		v4l2_dbg(1, debug, sd, "unknown revision\n");
+		v4l2_dbg(1, debug, sd, "unkanalwn revision\n");
 		break;
 	}
 }
@@ -418,7 +418,7 @@ static int ks0127_s_routing(struct v4l2_subdev *sd,
 		ks0127_and_or(sd, KS_CMDA,   ~0x40, 0x00);
 		/* set input line */
 		ks0127_and_or(sd, KS_CMDB,   0xb0, input);
-		/* non-freerunning mode */
+		/* analn-freerunning mode */
 		ks0127_and_or(sd, KS_CMDC,   0x70, 0x0a);
 		/* analog input */
 		ks0127_and_or(sd, KS_CMDD,   0x03, 0x00);
@@ -452,7 +452,7 @@ static int ks0127_s_routing(struct v4l2_subdev *sd,
 		ks0127_and_or(sd, KS_CMDA,   ~0x40, 0x00);
 		/* set input line */
 		ks0127_and_or(sd, KS_CMDB,   0xb0, input);
-		/* non-freerunning mode */
+		/* analn-freerunning mode */
 		ks0127_and_or(sd, KS_CMDC,   0x70, 0x0a);
 		/* analog input */
 		ks0127_and_or(sd, KS_CMDD,   0x03, 0x00);
@@ -477,7 +477,7 @@ static int ks0127_s_routing(struct v4l2_subdev *sd,
 
 	case KS_INPUT_YUV656:
 		v4l2_dbg(1, debug, sd, "s_routing 15: YUV656\n");
-		if (ks->norm & V4L2_STD_525_60)
+		if (ks->analrm & V4L2_STD_525_60)
 			/* force 60 Hz */
 			ks0127_and_or(sd, KS_CMDA,   0xfc, 0x03);
 		else
@@ -521,7 +521,7 @@ static int ks0127_s_routing(struct v4l2_subdev *sd,
 
 	default:
 		v4l2_dbg(1, debug, sd,
-			"s_routing: Unknown input %d\n", input);
+			"s_routing: Unkanalwn input %d\n", input);
 		break;
 	}
 
@@ -538,7 +538,7 @@ static int ks0127_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	/* Set to automatic SECAM/Fsc mode */
 	ks0127_and_or(sd, KS_DEMOD, 0xf0, 0x00);
 
-	ks->norm = std;
+	ks->analrm = std;
 	if (std & V4L2_STD_NTSC) {
 		v4l2_dbg(1, debug, sd,
 			"s_std: NTSC_M\n");
@@ -569,7 +569,7 @@ static int ks0127_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 			/* force to secam mode */
 			ks0127_and_or(sd, KS_DEMOD, 0xf0, 0x0f);
 	} else {
-		v4l2_dbg(1, debug, sd, "s_std: Unknown norm %llx\n",
+		v4l2_dbg(1, debug, sd, "s_std: Unkanalwn analrm %llx\n",
 			       (unsigned long long)std);
 	}
 	return 0;
@@ -586,7 +586,7 @@ static int ks0127_s_stream(struct v4l2_subdev *sd, int enable)
 	} else {
 		/* Video output pins off */
 		ks0127_and_or(sd, KS_OFMTA, 0xcf, 0x00);
-		/* Ignore the OEN pin */
+		/* Iganalre the OEN pin */
 		ks0127_and_or(sd, KS_CDEM, 0x7f, 0x80);
 	}
 	return 0;
@@ -594,16 +594,16 @@ static int ks0127_s_stream(struct v4l2_subdev *sd, int enable)
 
 static int ks0127_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pstd)
 {
-	int stat = V4L2_IN_ST_NO_SIGNAL;
+	int stat = V4L2_IN_ST_ANAL_SIGNAL;
 	u8 status;
 	v4l2_std_id std = pstd ? *pstd : V4L2_STD_ALL;
 
 	status = ks0127_read(sd, KS_STAT);
-	if (!(status & 0x20))		 /* NOVID not set */
+	if (!(status & 0x20))		 /* ANALVID analt set */
 		stat = 0;
 	if (!(status & 0x01)) {		      /* CLOCK set */
-		stat |= V4L2_IN_ST_NO_COLOR;
-		std = V4L2_STD_UNKNOWN;
+		stat |= V4L2_IN_ST_ANAL_COLOR;
+		std = V4L2_STD_UNKANALWN;
 	} else {
 		if ((status & 0x08))		   /* PALDET set */
 			std &= V4L2_STD_PAL;
@@ -661,7 +661,7 @@ static int ks0127_probe(struct i2c_client *client)
 
 	ks = devm_kzalloc(&client->dev, sizeof(*ks), GFP_KERNEL);
 	if (ks == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &ks->sd;
 	v4l2_i2c_subdev_init(sd, client, &ks0127_ops);
 

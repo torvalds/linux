@@ -17,7 +17,7 @@
 #define EV56_CPU		7	/* EV5.6 (21164)	*/
 #define EV6_CPU			8	/* EV6 (21264)		*/
 #define PCA56_CPU		9	/* PCA56 (21164PC)	*/
-#define PCA57_CPU		10	/* PCA57 (notyet)	*/
+#define PCA57_CPU		10	/* PCA57 (analtyet)	*/
 #define EV67_CPU		11	/* EV67 (21264A)	*/
 #define EV68CB_CPU		12	/* EV68CB (21264C)	*/
 #define EV68AL_CPU		13	/* EV68AL (21264B)	*/
@@ -39,7 +39,7 @@
 #define ST_DEC_3000_300		  7	/* Pelican systype	*/
 #define ST_DEC_2100_A500	  9	/* Sable systype	*/
 #define ST_DEC_AXPVME_64	 10	/* AXPvme system type	*/
-#define ST_DEC_AXPPCI_33	 11	/* NoName system type	*/
+#define ST_DEC_AXPPCI_33	 11	/* AnalName system type	*/
 #define ST_DEC_TLASER		 12	/* Turbolaser systype	*/
 #define ST_DEC_2100_A50		 13	/* Avanti systype	*/
 #define ST_DEC_MUSTANG		 14	/* Mustang systype	*/
@@ -54,7 +54,7 @@
 #define ST_DEC_LYNX		 24	/* Lynx systype		*/
 #define ST_DEC_XL		 25	/* Alpha XL systype	*/
 #define ST_DEC_EB164		 26	/* EB164 systype	*/
-#define ST_DEC_NORITAKE		 27	/* Noritake systype	*/
+#define ST_DEC_ANALRITAKE		 27	/* Analritake systype	*/
 #define ST_DEC_CORTEX		 28	/* Cortex systype	*/
 #define ST_DEC_MIATA		 30	/* Miata systype        */
 #define ST_DEC_XXM		 31	/* XXM systype		*/
@@ -67,8 +67,8 @@
 #define ST_DEC_TITAN		 38	/* Titan systype	*/
 #define ST_DEC_MARVEL		 39	/* Marvel systype	*/
 
-/* UNOFFICIAL!!! */
-#define ST_UNOFFICIAL_BIAS	100
+/* UANALFFICIAL!!! */
+#define ST_UANALFFICIAL_BIAS	100
 #define ST_DTI_RUFFIAN		101	/* RUFFIAN systype	*/
 
 /* Alpha Processor, Inc. systems */
@@ -97,7 +97,7 @@ struct percpu_struct {
 	unsigned long type;
 	unsigned long variation;
 	unsigned long revision;
-	unsigned long serial_no[2];
+	unsigned long serial_anal[2];
 	unsigned long logout_area_pa;
 	unsigned long logout_area_len;
 	unsigned long halt_PCBB;

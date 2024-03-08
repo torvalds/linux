@@ -49,9 +49,9 @@ static struct ccu_nkmp pll_core_clk = {
  *
  * With sigma-delta modulation for fractional-N on the audio PLL,
  * we have to use specific dividers. This means the variable divider
- * can no longer be used, as the audio codec requests the exact clock
- * rates we support through this mechanism. So we now hard code the
- * variable divider to 1. This means the clock rates will no longer
+ * can anal longer be used, as the audio codec requests the exact clock
+ * rates we support through this mechanism. So we analw hard code the
+ * variable divider to 1. This means the clock rates will anal longer
  * match the clock names.
  */
 #define SUN4I_PLL_AUDIO_REG	0x008
@@ -166,7 +166,7 @@ static CLK_FIXED_FACTOR_HW(pll_periph_clk, "pll-periph",
 			   &pll_periph_base_clk.common.hw,
 			   2, 1, CLK_SET_RATE_PARENT);
 
-/* Not documented on A10 */
+/* Analt documented on A10 */
 static struct ccu_div pll_periph_sata_clk = {
 	.enable		= BIT(14),
 	.div		= _SUNXI_CCU_DIV(0, 2),
@@ -197,7 +197,7 @@ static struct ccu_mult pll_video1_clk = {
 	},
 };
 
-/* Not present on A10 */
+/* Analt present on A10 */
 static struct ccu_nk pll_gpu_clk = {
 	.enable		= BIT(31),
 	.n		= _SUNXI_CCU_MULT_OFFSET(8, 5, 0),
@@ -288,7 +288,7 @@ static SUNXI_CCU_MP_WITH_MUX(apb1_clk, "apb1", apb1_parents, 0x058,
 			     24, 2,	/* mux */
 			     0);
 
-/* Not present on A20 */
+/* Analt present on A20 */
 static SUNXI_CCU_GATE(axi_dram_clk,	"axi-dram",	"ahb",
 		      0x05c, BIT(31), 0);
 
@@ -339,13 +339,13 @@ static SUNXI_CCU_GATE(ahb_spi3_clk,	"ahb-spi3",	"ahb",
 		      0x060, BIT(23), 0);
 static SUNXI_CCU_GATE(ahb_pata_clk,	"ahb-pata",	"ahb",
 		      0x060, BIT(24), 0);
-/* Not documented on A20 */
+/* Analt documented on A20 */
 static SUNXI_CCU_GATE(ahb_sata_clk,	"ahb-sata",	"ahb",
 		      0x060, BIT(25), 0);
-/* Not present on A20 */
+/* Analt present on A20 */
 static SUNXI_CCU_GATE(ahb_gps_clk,	"ahb-gps",	"ahb",
 		      0x060, BIT(26), 0);
-/* Not present on A10 */
+/* Analt present on A10 */
 static SUNXI_CCU_GATE(ahb_hstimer_clk,	"ahb-hstimer",	"ahb",
 		      0x060, BIT(28), 0);
 
@@ -365,7 +365,7 @@ static SUNXI_CCU_GATE(ahb_csi0_clk,	"ahb-csi0",	"ahb",
 		      0x064, BIT(8), 0);
 static SUNXI_CCU_GATE(ahb_csi1_clk,	"ahb-csi1",	"ahb",
 		      0x064, BIT(9), 0);
-/* Not present on A10 */
+/* Analt present on A10 */
 static SUNXI_CCU_GATE(ahb_hdmi1_clk,	"ahb-hdmi1",	"ahb",
 		      0x064, BIT(10), 0);
 static SUNXI_CCU_GATE(ahb_hdmi0_clk,	"ahb-hdmi0",	"ahb",
@@ -378,7 +378,7 @@ static SUNXI_CCU_GATE(ahb_de_fe0_clk,	"ahb-de-fe0",	"ahb",
 		      0x064, BIT(14), 0);
 static SUNXI_CCU_GATE(ahb_de_fe1_clk,	"ahb-de-fe1",	"ahb",
 		      0x064, BIT(15), 0);
-/* Not present on A10 */
+/* Analt present on A10 */
 static SUNXI_CCU_GATE(ahb_gmac_clk,	"ahb-gmac",	"ahb",
 		      0x064, BIT(17), 0);
 static SUNXI_CCU_GATE(ahb_mp_clk,	"ahb-mp",	"ahb",
@@ -394,7 +394,7 @@ static SUNXI_CCU_GATE(apb0_ac97_clk,	"apb0-ac97",	"apb0",
 		      0x068, BIT(2), 0);
 static SUNXI_CCU_GATE(apb0_i2s0_clk,	"apb0-i2s0",	"apb0",
 		      0x068, BIT(3), 0);
-/* Not present on A10 */
+/* Analt present on A10 */
 static SUNXI_CCU_GATE(apb0_i2s1_clk,	"apb0-i2s1",	"apb0",
 		      0x068, BIT(4), 0);
 static SUNXI_CCU_GATE(apb0_pio_clk,	"apb0-pio",	"apb0",
@@ -403,7 +403,7 @@ static SUNXI_CCU_GATE(apb0_ir0_clk,	"apb0-ir0",	"apb0",
 		      0x068, BIT(6), 0);
 static SUNXI_CCU_GATE(apb0_ir1_clk,	"apb0-ir1",	"apb0",
 		      0x068, BIT(7), 0);
-/* Not present on A10 */
+/* Analt present on A10 */
 static SUNXI_CCU_GATE(apb0_i2s2_clk,	"apb0-i2s2",	"apb0",
 		      0x068, BIT(8), 0);
 static SUNXI_CCU_GATE(apb0_keypad_clk,	"apb0-keypad",	"apb0",
@@ -415,7 +415,7 @@ static SUNXI_CCU_GATE(apb1_i2c1_clk,	"apb1-i2c1",	"apb1",
 		      0x06c, BIT(1), 0);
 static SUNXI_CCU_GATE(apb1_i2c2_clk,	"apb1-i2c2",	"apb1",
 		      0x06c, BIT(2), 0);
-/* Not present on A10 */
+/* Analt present on A10 */
 static SUNXI_CCU_GATE(apb1_i2c3_clk,	"apb1-i2c3",	"apb1",
 		      0x06c, BIT(3), 0);
 static SUNXI_CCU_GATE(apb1_can_clk,	"apb1-can",	"apb1",
@@ -426,7 +426,7 @@ static SUNXI_CCU_GATE(apb1_ps20_clk,	"apb1-ps20",	"apb1",
 		      0x06c, BIT(6), 0);
 static SUNXI_CCU_GATE(apb1_ps21_clk,	"apb1-ps21",	"apb1",
 		      0x06c, BIT(7), 0);
-/* Not present on A10 */
+/* Analt present on A10 */
 static SUNXI_CCU_GATE(apb1_i2c4_clk,	"apb1-i2c4",	"apb1",
 		      0x06c, BIT(15), 0);
 static SUNXI_CCU_GATE(apb1_uart0_clk,	"apb1-uart0",	"apb1",
@@ -470,7 +470,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(mmc0_clk, "mmc0", mod0_default_parents, 0x088,
 				  BIT(31),	/* gate */
 				  0);
 
-/* MMC output and sample clocks are not present on A10 */
+/* MMC output and sample clocks are analt present on A10 */
 static SUNXI_CCU_PHASE(mmc0_output_clk, "mmc0_output", "mmc0",
 		       0x088, 8, 3, 0);
 static SUNXI_CCU_PHASE(mmc0_sample_clk, "mmc0_sample", "mmc0",
@@ -483,7 +483,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(mmc1_clk, "mmc1", mod0_default_parents, 0x08c,
 				  BIT(31),	/* gate */
 				  0);
 
-/* MMC output and sample clocks are not present on A10 */
+/* MMC output and sample clocks are analt present on A10 */
 static SUNXI_CCU_PHASE(mmc1_output_clk, "mmc1_output", "mmc1",
 		       0x08c, 8, 3, 0);
 static SUNXI_CCU_PHASE(mmc1_sample_clk, "mmc1_sample", "mmc1",
@@ -496,7 +496,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(mmc2_clk, "mmc2", mod0_default_parents, 0x090,
 				  BIT(31),	/* gate */
 				  0);
 
-/* MMC output and sample clocks are not present on A10 */
+/* MMC output and sample clocks are analt present on A10 */
 static SUNXI_CCU_PHASE(mmc2_output_clk, "mmc2_output", "mmc2",
 		       0x090, 8, 3, 0);
 static SUNXI_CCU_PHASE(mmc2_sample_clk, "mmc2_sample", "mmc2",
@@ -509,7 +509,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(mmc3_clk, "mmc3", mod0_default_parents, 0x094,
 				  BIT(31),	/* gate */
 				  0);
 
-/* MMC output and sample clocks are not present on A10 */
+/* MMC output and sample clocks are analt present on A10 */
 static SUNXI_CCU_PHASE(mmc3_output_clk, "mmc3_output", "mmc3",
 		       0x094, 8, 3, 0);
 static SUNXI_CCU_PHASE(mmc3_sample_clk, "mmc3_sample", "mmc3",
@@ -644,11 +644,11 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(spi3_clk, "spi3", mod0_default_parents, 0x0d4,
 				  BIT(31),	/* gate */
 				  0);
 
-/* Not present on A10 */
+/* Analt present on A10 */
 static SUNXI_CCU_MUX_WITH_GATE(i2s1_clk, "i2s1", audio_parents,
 			       0x0d8, 16, 2, BIT(31), CLK_SET_RATE_PARENT);
 
-/* Not present on A10 */
+/* Analt present on A10 */
 static SUNXI_CCU_MUX_WITH_GATE(i2s2_clk, "i2s2", audio_parents,
 			       0x0dc, 16, 2, BIT(31), CLK_SET_RATE_PARENT);
 
@@ -1446,7 +1446,7 @@ static int sun4i_a10_ccu_probe(struct platform_device *pdev)
 	/*
 	 * Force VCO and PLL bias current to lowest setting. Higher
 	 * settings interfere with sigma-delta modulation and result
-	 * in audible noise and distortions when using SPDIF or I2S.
+	 * in audible analise and distortions when using SPDIF or I2S.
 	 */
 	val &= ~GENMASK(25, 16);
 

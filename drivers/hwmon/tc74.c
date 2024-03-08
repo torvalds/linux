@@ -6,7 +6,7 @@
  *
  * Based on ad7414.c:
  *	Copyright 2006 Stefan Roese, DENX Software Engineering
- *	Copyright 2008 Sean MacLennan, PIKA Technologies
+ *	Copyright 2008 Sean MacLennan, PIKA Techanallogies
  *	Copyright 2008 Frank Edelhaeuser, Spansion Inc.
  */
 
@@ -56,7 +56,7 @@ static int tc74_update_device(struct device *dev)
 		}
 
 		if (!(value & BIT(6))) {
-			/* not ready yet */
+			/* analt ready yet */
 
 			ret = -EAGAIN;
 			goto ret_unlock;
@@ -111,11 +111,11 @@ static int tc74_probe(struct i2c_client *client)
 	s32 conf;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	data = devm_kzalloc(dev, sizeof(struct tc74_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->lock);
@@ -131,7 +131,7 @@ static int tc74_probe(struct i2c_client *client)
 	if (conf & 0x3f) {
 		dev_err(dev, "invalid config register value\n");
 
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (conf & BIT(7)) {

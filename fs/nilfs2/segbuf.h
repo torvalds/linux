@@ -24,7 +24,7 @@
  * @sumbytes: Byte count of segment summary
  * @nfileblk: Total number of file blocks
  * @seg_seq: Segment sequence number
- * @cno: Checkpoint number
+ * @canal: Checkpoint number
  * @ctime: Creation time
  * @next: Block number of the next full segment
  */
@@ -36,7 +36,7 @@ struct nilfs_segsum_info {
 	unsigned long		sumbytes;
 	unsigned long		nfileblk;
 	u64			seg_seq;
-	__u64			cno;
+	__u64			canal;
 	time64_t		ctime;
 	sector_t		next;
 };

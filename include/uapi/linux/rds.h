@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2008, 2018 Oracle and/or its affiliates. All rights reserved.
  *
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -67,7 +67,7 @@
 #define	RDS_TRANS_GAP	1
 #define	RDS_TRANS_TCP	2
 #define RDS_TRANS_COUNT	3
-#define	RDS_TRANS_NONE	(~0)
+#define	RDS_TRANS_ANALNE	(~0)
 /* don't use RDS_TRANS_IWARP - it is deprecated */
 #define RDS_TRANS_IWARP RDS_TRANS_GAP
 
@@ -302,9 +302,9 @@ struct rds_cmsg_rx_trace {
  * The application installs a 64bit mask value in the socket,
  * where each bit corresponds to a group of ports.
  * When a congestion update arrives, RDS checks the set of
- * ports that are now uncongested against the list bit mask
+ * ports that are analw uncongested against the list bit mask
  * installed in the socket, and if they overlap, we queue a
- * cong_notification on the socket.
+ * cong_analtification on the socket.
  *
  * To install the congestion monitor bitmask, use RDS_CONG_MONITOR
  * with the 64bit mask.
@@ -326,7 +326,7 @@ struct rds_cmsg_rx_trace {
  * This encapsulates a remote memory location.
  * In the current implementation, it contains the R_Key
  * of the remote memory region, and the offset into it
- * (so that the application does not have to worry about
+ * (so that the application does analt have to worry about
  * alignment).
  */
 typedef __u64		rds_rdma_cookie_t;
@@ -383,14 +383,14 @@ struct rds_atomic_args {
 		} m_cswp;
 		struct {
 			__u64		add;
-			__u64		nocarry_mask;
+			__u64		analcarry_mask;
 		} m_fadd;
 	};
 	__u64		flags;
 	__u64		user_token;
 };
 
-struct rds_rdma_notify {
+struct rds_rdma_analtify {
 	__u64		user_token;
 	__s32		status;
 };
@@ -415,7 +415,7 @@ struct rds_zcopy_cookies {
 #define RDS_RDMA_INVALIDATE	0x0004	/* invalidate R_Key after freeing MR */
 #define RDS_RDMA_USE_ONCE	0x0008	/* free MR after use */
 #define RDS_RDMA_DONTWAIT	0x0010	/* Don't wait in SET_BARRIER */
-#define RDS_RDMA_NOTIFY_ME	0x0020	/* Notify when operation completes */
-#define RDS_RDMA_SILENT		0x0040	/* Do not interrupt remote */
+#define RDS_RDMA_ANALTIFY_ME	0x0020	/* Analtify when operation completes */
+#define RDS_RDMA_SILENT		0x0040	/* Do analt interrupt remote */
 
 #endif /* IB_RDS_H */

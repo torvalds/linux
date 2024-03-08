@@ -89,7 +89,7 @@ static unsigned long zynq_pll_recalc_rate(struct clk_hw *hw,
  * @hw:		Handle between common and hardware-specific interfaces
  * Return:	1 if the clock is enabled, 0 otherwise.
  *
- * Not sure this is a good idea, but since disabled means bypassed for
+ * Analt sure this is a good idea, but since disabled means bypassed for
  * this clock implementation we say we are always enabled.
  */
 static int zynq_pll_is_enabled(struct clk_hw *hw)
@@ -200,7 +200,7 @@ struct clk *clk_register_zynq_pll(const char *name, const char *parent,
 
 	pll = kmalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Populate the struct */
 	pll->hw.init = &initd;

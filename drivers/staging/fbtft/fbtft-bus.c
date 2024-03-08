@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/spi/spi.h>
 #include "fbtft.h"
@@ -86,8 +86,8 @@ void fbtft_write_reg8_bus9(struct fbtft_par *par, int len, ...)
 		return;
 
 	if (par->spi && (par->spi->bits_per_word == 8)) {
-		/* we're emulating 9-bit, pad start of buffer with no-ops
-		 * (assuming here that zero is a no-op)
+		/* we're emulating 9-bit, pad start of buffer with anal-ops
+		 * (assuming here that zero is a anal-op)
 		 */
 		pad = (len % 4) ? 4 - (len % 4) : 0;
 		for (i = 0; i < pad; i++)
@@ -137,7 +137,7 @@ int fbtft_write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 
 	gpiod_set_value(par->gpio.dc, 1);
 
-	/* non buffered write */
+	/* analn buffered write */
 	if (!par->txbuf.buf)
 		return par->fbtftops.write(par, vmem16, len);
 
@@ -222,7 +222,7 @@ EXPORT_SYMBOL(fbtft_write_vmem16_bus9);
 
 int fbtft_write_vmem8_bus8(struct fbtft_par *par, size_t offset, size_t len)
 {
-	dev_err(par->info->device, "%s: function not implemented\n", __func__);
+	dev_err(par->info->device, "%s: function analt implemented\n", __func__);
 	return -1;
 }
 EXPORT_SYMBOL(fbtft_write_vmem8_bus8);
@@ -237,7 +237,7 @@ int fbtft_write_vmem16_bus16(struct fbtft_par *par, size_t offset, size_t len)
 
 	vmem16 = (u16 *)(par->info->screen_buffer + offset);
 
-	/* no need for buffered write with 16-bit bus */
+	/* anal need for buffered write with 16-bit bus */
 	return fbtft_write_buf_dc(par, vmem16, len, 1);
 }
 EXPORT_SYMBOL(fbtft_write_vmem16_bus16);

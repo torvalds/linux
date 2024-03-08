@@ -8,7 +8,7 @@ title:
   Microchip PolarFire SoC (MPFS) can controller
 
 maintainers:
-  - Conor Dooley <conor.dooley@microchip.com>
+  - Coanalr Dooley <coanalr.dooley@microchip.com>
 
 allOf:
   - $ref: can-controller.yaml#

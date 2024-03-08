@@ -57,7 +57,7 @@ MODULE_DEVICE_TABLE(of, st_press_of_match);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id st_press_acpi_match[] = {
-	{"SNO9210", LPS22HB},
+	{"SANAL9210", LPS22HB},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, st_press_acpi_match);
@@ -87,14 +87,14 @@ static int st_press_i2c_probe(struct i2c_client *client)
 
 	settings = st_press_get_settings(client->name);
 	if (!settings) {
-		dev_err(&client->dev, "device name %s not recognized.\n",
+		dev_err(&client->dev, "device name %s analt recognized.\n",
 			client->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*press_data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	press_data = iio_priv(indio_dev);
 	press_data->sensor_settings = (struct st_sensor_settings *)settings;

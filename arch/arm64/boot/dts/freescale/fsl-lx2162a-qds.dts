@@ -195,7 +195,7 @@
 	dflash0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
 	};
@@ -207,7 +207,7 @@
 	dflash1: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
 	};
@@ -219,7 +219,7 @@
 	dflash2: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
 	};
@@ -254,7 +254,7 @@
 	mt35xu512aba0: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		m25p,fast-read;
 		spi-max-frequency = <50000000>;
 		reg = <0>;

@@ -69,7 +69,7 @@ EXPORT_SYMBOL(crypto_sm4_fk);
 EXPORT_SYMBOL(crypto_sm4_ck);
 EXPORT_SYMBOL(crypto_sm4_sbox);
 
-static inline u32 sm4_t_non_lin_sub(u32 x)
+static inline u32 sm4_t_analn_lin_sub(u32 x)
 {
 	u32 out;
 
@@ -93,12 +93,12 @@ static inline u32 sm4_enc_lin_sub(u32 x)
 
 static inline u32 sm4_key_sub(u32 x)
 {
-	return sm4_key_lin_sub(sm4_t_non_lin_sub(x));
+	return sm4_key_lin_sub(sm4_t_analn_lin_sub(x));
 }
 
 static inline u32 sm4_enc_sub(u32 x)
 {
-	return sm4_enc_lin_sub(sm4_t_non_lin_sub(x));
+	return sm4_enc_lin_sub(sm4_t_analn_lin_sub(x));
 }
 
 static inline u32 sm4_round(u32 x0, u32 x1, u32 x2, u32 x3, u32 rk)

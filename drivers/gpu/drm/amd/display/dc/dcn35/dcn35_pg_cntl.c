@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -49,7 +49,7 @@ static bool pg_cntl35_dsc_pg_status(struct pg_cntl *pg_cntl, unsigned int dsc_in
 	struct dcn_pg_cntl *pg_cntl_dcn = TO_DCN_PG_CNTL(pg_cntl);
 	uint32_t pwr_status = 0;
 
-	if (pg_cntl->ctx->dc->debug.ignore_pg)
+	if (pg_cntl->ctx->dc->debug.iganalre_pg)
 		return true;
 
 	switch (dsc_inst) {
@@ -86,7 +86,7 @@ void pg_cntl35_dsc_pg_control(struct pg_cntl *pg_cntl, unsigned int dsc_inst, bo
 		pg_cntl->ctx->dc->res_pool->dccg->funcs->enable_dsc(
 				pg_cntl->ctx->dc->res_pool->dccg, dsc_inst);
 
-	if (pg_cntl->ctx->dc->debug.ignore_pg ||
+	if (pg_cntl->ctx->dc->debug.iganalre_pg ||
 		pg_cntl->ctx->dc->debug.disable_dsc_power_gate ||
 		pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
@@ -190,7 +190,7 @@ void pg_cntl35_hubp_dpp_pg_control(struct pg_cntl *pg_cntl, unsigned int hubp_dp
 	uint32_t org_ip_request_cntl;
 	bool block_enabled;
 
-	if (pg_cntl->ctx->dc->debug.ignore_pg ||
+	if (pg_cntl->ctx->dc->debug.iganalre_pg ||
 		pg_cntl->ctx->dc->debug.disable_hubp_power_gate ||
 		pg_cntl->ctx->dc->debug.disable_dpp_power_gate ||
 		pg_cntl->ctx->dc->idle_optimizations_allowed)
@@ -264,7 +264,7 @@ void pg_cntl35_hpo_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	uint32_t power_forceon;
 	bool block_enabled;
 
-	if (pg_cntl->ctx->dc->debug.ignore_pg ||
+	if (pg_cntl->ctx->dc->debug.iganalre_pg ||
 		pg_cntl->ctx->dc->debug.disable_hpo_power_gate ||
 		pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
@@ -312,7 +312,7 @@ void pg_cntl35_io_clk_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	uint32_t power_forceon;
 	bool block_enabled;
 
-	if (pg_cntl->ctx->dc->debug.ignore_pg ||
+	if (pg_cntl->ctx->dc->debug.iganalre_pg ||
 		pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
 
@@ -394,7 +394,7 @@ void pg_cntl35_plane_otg_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	bool all_mpcc_disabled = true, all_opp_disabled = true;
 	bool all_optc_disabled = true, all_stream_disabled = true;
 
-	if (pg_cntl->ctx->dc->debug.ignore_pg ||
+	if (pg_cntl->ctx->dc->debug.iganalre_pg ||
 		pg_cntl->ctx->dc->debug.disable_optc_power_gate ||
 		pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;

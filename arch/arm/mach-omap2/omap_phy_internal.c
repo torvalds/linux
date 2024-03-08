@@ -27,7 +27,7 @@
  * omap4430_phy_power_down: disable MUSB PHY during early init
  *
  * OMAP4 MUSB PHY module is enabled by default on reset, but this will
- * prevent core retention if not disabled by SW. USB driver will
+ * prevent core retention if analt disabled by SW. USB driver will
  * later on enable this, once and if the driver needs it.
  */
 static int __init omap4430_phy_power_down(void)
@@ -40,7 +40,7 @@ static int __init omap4430_phy_power_down(void)
 	ctrl_base = ioremap(OMAP443X_SCM_BASE, SZ_1K);
 	if (!ctrl_base) {
 		pr_err("control module ioremap failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Power down the phy */

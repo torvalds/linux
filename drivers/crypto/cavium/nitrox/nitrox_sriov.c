@@ -80,8 +80,8 @@ static inline int vf_mode_to_nr_queues(enum vf_mode mode)
 
 static void nitrox_pf_cleanup(struct nitrox_device *ndev)
 {
-	 /* PF has no queues in SR-IOV mode */
-	atomic_set(&ndev->state, __NDEV_NOT_READY);
+	 /* PF has anal queues in SR-IOV mode */
+	atomic_set(&ndev->state, __NDEV_ANALT_READY);
 	/* unregister crypto algorithms */
 	nitrox_crypto_unregister();
 

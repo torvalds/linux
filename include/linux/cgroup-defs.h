@@ -28,7 +28,7 @@ struct cgroup;
 struct cgroup_root;
 struct cgroup_subsys;
 struct cgroup_taskset;
-struct kernfs_node;
+struct kernfs_analde;
 struct kernfs_ops;
 struct kernfs_open_file;
 struct seq_file;
@@ -48,7 +48,7 @@ enum cgroup_subsys_id {
 
 /* bits in struct cgroup_subsys_state flags field */
 enum {
-	CSS_NO_REF	= (1 << 0), /* no reference counting for this css */
+	CSS_ANAL_REF	= (1 << 0), /* anal reference counting for this css */
 	CSS_ONLINE	= (1 << 1), /* between ->css_online() and ->css_offline() */
 	CSS_RELEASED	= (1 << 2), /* refcnt reached zero, released */
 	CSS_VISIBLE	= (1 << 3), /* css is visible to userland */
@@ -57,8 +57,8 @@ enum {
 
 /* bits in struct cgroup flags field */
 enum {
-	/* Control Group requires release notifications to userspace */
-	CGRP_NOTIFY_ON_RELEASE,
+	/* Control Group requires release analtifications to userspace */
+	CGRP_ANALTIFY_ON_RELEASE,
 	/*
 	 * Clone the parent's configuration when creating a new child
 	 * cpuset cgroup.  For historical reasons, this option can be
@@ -78,7 +78,7 @@ enum {
 
 /* cgroup_root->flags */
 enum {
-	CGRP_ROOT_NOPREFIX	= (1 << 1), /* mounted subsystems have no named prefix */
+	CGRP_ROOT_ANALPREFIX	= (1 << 1), /* mounted subsystems have anal named prefix */
 	CGRP_ROOT_XATTR		= (1 << 2), /* supports extended attributes */
 
 	/*
@@ -125,29 +125,29 @@ enum {
 /* cftype->flags */
 enum {
 	CFTYPE_ONLY_ON_ROOT	= (1 << 0),	/* only create on root cgrp */
-	CFTYPE_NOT_ON_ROOT	= (1 << 1),	/* don't create on root cgrp */
+	CFTYPE_ANALT_ON_ROOT	= (1 << 1),	/* don't create on root cgrp */
 	CFTYPE_NS_DELEGATABLE	= (1 << 2),	/* writeable beyond delegation boundaries */
 
-	CFTYPE_NO_PREFIX	= (1 << 3),	/* (DON'T USE FOR NEW FILES) no subsys prefix */
+	CFTYPE_ANAL_PREFIX	= (1 << 3),	/* (DON'T USE FOR NEW FILES) anal subsys prefix */
 	CFTYPE_WORLD_WRITABLE	= (1 << 4),	/* (DON'T USE FOR NEW FILES) S_IWUGO */
 	CFTYPE_DEBUG		= (1 << 5),	/* create when cgroup_debug */
 
-	/* internal flags, do not use outside cgroup core proper */
+	/* internal flags, do analt use outside cgroup core proper */
 	__CFTYPE_ONLY_ON_DFL	= (1 << 16),	/* only on default hierarchy */
-	__CFTYPE_NOT_ON_DFL	= (1 << 17),	/* not on default hierarchy */
+	__CFTYPE_ANALT_ON_DFL	= (1 << 17),	/* analt on default hierarchy */
 	__CFTYPE_ADDED		= (1 << 18),
 };
 
 /*
  * cgroup_file is the handle for a file instance created in a cgroup which
- * is used, for example, to generate file changed notifications.  This can
+ * is used, for example, to generate file changed analtifications.  This can
  * be obtained by setting cftype->file_offset.
  */
 struct cgroup_file {
-	/* do not access any fields from outside cgroup core */
-	struct kernfs_node *kn;
-	unsigned long notified_at;
-	struct timer_list notify_timer;
+	/* do analt access any fields from outside cgroup core */
+	struct kernfs_analde *kn;
+	unsigned long analtified_at;
+	struct timer_list analtify_timer;
 };
 
 /*
@@ -172,7 +172,7 @@ struct cgroup_subsys_state {
 	struct list_head children;
 
 	/* flush target list anchored at cgrp->rstat_css_list */
-	struct list_head rstat_css_node;
+	struct list_head rstat_css_analde;
 
 	/*
 	 * PI: Subsys-unique ID.  0 is unused and root is always 1.  The
@@ -183,7 +183,7 @@ struct cgroup_subsys_state {
 	unsigned int flags;
 
 	/*
-	 * Monotonically increasing unique serial number which defines a
+	 * Moanaltonically increasing unique serial number which defines a
 	 * uniform order among all csses.  It's guaranteed that all
 	 * ->children lists are in the ascending order of ->serial_nr and
 	 * used to allow interrupting and resuming iterations.
@@ -192,7 +192,7 @@ struct cgroup_subsys_state {
 
 	/*
 	 * Incremented by online self and children.  Used to guarantee that
-	 * parents are not offlined before their children.
+	 * parents are analt offlined before their children.
 	 */
 	atomic_t online_cnt;
 
@@ -256,21 +256,21 @@ struct css_set {
 	/*
 	 * On the default hierarchy, ->subsys[ssid] may point to a css
 	 * attached to an ancestor instead of the cgroup this css_set is
-	 * associated with.  The following node is anchored at
+	 * associated with.  The following analde is anchored at
 	 * ->subsys[ssid]->cgroup->e_csets[ssid] and provides a way to
 	 * iterate through all css's attached to a given cgroup.
 	 */
-	struct list_head e_cset_node[CGROUP_SUBSYS_COUNT];
+	struct list_head e_cset_analde[CGROUP_SUBSYS_COUNT];
 
 	/* all threaded csets whose ->dom_cset points to this cset */
 	struct list_head threaded_csets;
-	struct list_head threaded_csets_node;
+	struct list_head threaded_csets_analde;
 
 	/*
 	 * List running through all cgroup groups in the same hash
 	 * slot. Protected by css_set_lock
 	 */
-	struct hlist_node hlist;
+	struct hlist_analde hlist;
 
 	/*
 	 * List of cgrp_cset_links pointing at cgroups referenced from this
@@ -282,9 +282,9 @@ struct css_set {
 	 * List of csets participating in the on-going migration either as
 	 * source or destination.  Protected by cgroup_mutex.
 	 */
-	struct list_head mg_src_preload_node;
-	struct list_head mg_dst_preload_node;
-	struct list_head mg_node;
+	struct list_head mg_src_preload_analde;
+	struct list_head mg_dst_preload_analde;
+	struct list_head mg_analde;
 
 	/*
 	 * If this cset is acting as the source of migration the following
@@ -297,7 +297,7 @@ struct css_set {
 	struct cgroup *mg_dst_cgrp;
 	struct css_set *mg_dst_cset;
 
-	/* dead and being drained, ignore for migration */
+	/* dead and being drained, iganalre for migration */
 	bool dead;
 
 	/* For RCU-protected deletion */
@@ -372,7 +372,7 @@ struct cgroup_rstat_cpu {
 	 * Protected by per-cpu cgroup_rstat_cpu_lock.
 	 */
 	struct cgroup *updated_children;	/* terminated by self cgroup */
-	struct cgroup *updated_next;		/* NULL iff not on the list */
+	struct cgroup *updated_next;		/* NULL iff analt on the list */
 };
 
 struct cgroup_freezer_state {
@@ -404,7 +404,7 @@ struct cgroup {
 	 * The depth this cgroup is at.  The root is at depth zero and each
 	 * step down the hierarchy increments the level.  This along with
 	 * ancestors[] can determine whether a given cgroup is a
-	 * descendant of another without traversing the hierarchy.
+	 * descendant of aanalther without traversing the hierarchy.
 	 */
 	int level;
 
@@ -427,11 +427,11 @@ struct cgroup {
 	int max_descendants;
 
 	/*
-	 * Each non-empty css_set associated with this cgroup contributes
+	 * Each analn-empty css_set associated with this cgroup contributes
 	 * one to nr_populated_csets.  The counter is zero iff this cgroup
 	 * doesn't have any tasks.
 	 *
-	 * All children which have non-zero nr_populated_csets and/or
+	 * All children which have analn-zero nr_populated_csets and/or
 	 * nr_populated_children of their own contribute one to either
 	 * nr_populated_domain_children or nr_populated_threaded_children
 	 * depending on their type.  Each counter is zero iff all cgroups
@@ -443,7 +443,7 @@ struct cgroup {
 
 	int nr_threaded_children;	/* # of live threaded child cgroups */
 
-	struct kernfs_node *kn;		/* cgroup kernfs entry */
+	struct kernfs_analde *kn;		/* cgroup kernfs entry */
 	struct cgroup_file procs_file;	/* handle for "cgroup.procs" */
 	struct cgroup_file events_file;	/* handle for "cgroup.events" */
 
@@ -454,7 +454,7 @@ struct cgroup {
 	 * The bitmask of subsystems enabled on the child cgroups.
 	 * ->subtree_control is the one configured through
 	 * "cgroup.subtree_control" while ->subtree_ss_mask is the effective
-	 * one which may have more subsystems enabled.  Controller knobs
+	 * one which may have more subsystems enabled.  Controller kanalbs
 	 * are made available iff it's enabled in ->subtree_control.
 	 */
 	u16 subtree_control;
@@ -485,7 +485,7 @@ struct cgroup {
 	/*
 	 * If !threaded, self.  If threaded, it points to the nearest
 	 * domain ancestor.  Inside a threaded subtree, cgroups are exempt
-	 * from process granularity and no-internal-task constraint.
+	 * from process granularity and anal-internal-task constraint.
 	 * Domain level resource consumptions which aren't tied to a
 	 * specific task are charged to the dom_cgrp.
 	 */
@@ -582,7 +582,7 @@ struct cgroup_root {
 	/* Hierarchy-specific flags */
 	unsigned int flags;
 
-	/* The path to use for release notifications. */
+	/* The path to use for release analtifications. */
 	char release_agent_path[PATH_MAX];
 
 	/* The name for this hierarchy - may be empty */
@@ -615,7 +615,7 @@ struct cftype {
 	unsigned int flags;
 
 	/*
-	 * If non-zero, should contain the offset from the start of css to
+	 * If analn-zero, should contain the offset from the start of css to
 	 * a struct cgroup_file field.  cgroup will record the handle of
 	 * the created file into it.  The recorded handle can be used as
 	 * long as the containing css remains accessible.
@@ -627,7 +627,7 @@ struct cftype {
 	 * during registration.
 	 */
 	struct cgroup_subsys *ss;	/* NULL for cgroup core files */
-	struct list_head node;		/* anchored at ss->cfts */
+	struct list_head analde;		/* anchored at ss->cfts */
 	struct kernfs_ops *kf_ops;
 
 	int (*open)(struct kernfs_open_file *of);
@@ -646,7 +646,7 @@ struct cftype {
 	/* generic seq_file read interface */
 	int (*seq_show)(struct seq_file *sf, void *v);
 
-	/* optional ops, implement all or none */
+	/* optional ops, implement all or analne */
 	void *(*seq_start)(struct seq_file *sf, loff_t *ppos);
 	void *(*seq_next)(struct seq_file *sf, void *v, loff_t *ppos);
 	void (*seq_stop)(struct seq_file *sf, void *v);
@@ -716,7 +716,7 @@ struct cgroup_subsys {
 	 * If %true, the controller, on the default hierarchy, doesn't show
 	 * up in "cgroup.controllers" or "cgroup.subtree_control", is
 	 * implicitly enabled on all cgroups on the default hierarchy, and
-	 * bypasses the "no internal process" constraint.  This is for
+	 * bypasses the "anal internal process" constraint.  This is for
 	 * utility type controllers which is transparent to userland.
 	 *
 	 * An implicit controller can be stolen from the default hierarchy
@@ -728,12 +728,12 @@ struct cgroup_subsys {
 	/*
 	 * If %true, the controller, supports threaded mode on the default
 	 * hierarchy.  In a threaded subtree, both process granularity and
-	 * no-internal-process constraint are ignored and a threaded
+	 * anal-internal-process constraint are iganalred and a threaded
 	 * controllers should be able to handle that.
 	 *
-	 * Note that as an implicit controller is automatically enabled on
+	 * Analte that as an implicit controller is automatically enabled on
 	 * all cgroups on the default hierarchy, it should also be
-	 * threaded.  implicit && !threaded is not supported.
+	 * threaded.  implicit && !threaded is analt supported.
 	 */
 	bool threaded:1;
 
@@ -741,7 +741,7 @@ struct cgroup_subsys {
 	int id;
 	const char *name;
 
-	/* optional, initialized automatically during boot if not set */
+	/* optional, initialized automatically during boot if analt set */
 	const char *legacy_name;
 
 	/* link to parent, protected by cgroup_lock() */
@@ -767,7 +767,7 @@ struct cgroup_subsys {
 	 * A subsystem may depend on other subsystems.  When such subsystem
 	 * is enabled on a cgroup, the depended-upon subsystems are enabled
 	 * together if available.  Subsystems enabled due to dependency are
-	 * not visible to userland until explicitly enabled.  The following
+	 * analt visible to userland until explicitly enabled.  The following
 	 * specifies the mask of subsystems that this one depends on.
 	 */
 	unsigned int depends_on;

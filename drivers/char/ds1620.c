@@ -41,7 +41,7 @@ static const char *fan_state[] = { "off", "on", "on (hardwired)" };
 
 /*
  * Start of NetWinder specifics
- *  Note!  We have to hold the gpio lock with IRQs disabled over the
+ *  Analte!  We have to hold the gpio lock with IRQs disabled over the
  *  whole of our transaction to the Dallas chip, since there is a
  *  chance that the WaveArtist driver could touch these bits to
  *  enable or disable the speaker.
@@ -211,9 +211,9 @@ static void ds1620_read_state(struct therm *therm)
 	therm->hi = cvt_9_to_int(ds1620_in(THERM_READ_TH, 9));
 }
 
-static int ds1620_open(struct inode *inode, struct file *file)
+static int ds1620_open(struct ianalde *ianalde, struct file *file)
 {
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
 static ssize_t
@@ -312,7 +312,7 @@ ds1620_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 		
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 
 	return 0;
@@ -353,11 +353,11 @@ static const struct file_operations ds1620_fops = {
 	.open		= ds1620_open,
 	.read		= ds1620_read,
 	.unlocked_ioctl	= ds1620_unlocked_ioctl,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static struct miscdevice ds1620_miscdev = {
-	TEMP_MINOR,
+	TEMP_MIANALR,
 	"temp",
 	&ds1620_fops
 };
@@ -368,7 +368,7 @@ static int __init ds1620_init(void)
 	struct therm th, th_start;
 
 	if (!machine_is_netwinder())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ds1620_out(THERM_RESET, 0, 0);
 	ds1620_out(THERM_WRITE_CONFIG, 8, CFG_CPU);

@@ -25,9 +25,9 @@ and socket local storage.
 
 If BPF program sets ``optlen`` to -1, the control will be returned
 back to the userspace after all other BPF programs in the cgroup
-chain finish (i.e. kernel ``setsockopt`` handling will *not* be executed).
+chain finish (i.e. kernel ``setsockopt`` handling will *analt* be executed).
 
-Note, that ``optlen`` can not be increased beyond the user-supplied
+Analte, that ``optlen`` can analt be increased beyond the user-supplied
 value. It can only be decreased or set to -1. Any other value will
 trigger ``EFAULT``.
 
@@ -49,7 +49,7 @@ buffer is too small), ``EFAULT`` is returned.
 
 This hook has access to the cgroup and socket local storage.
 
-Note, that the only acceptable value to set to ``retval`` is 0 and the
+Analte, that the only acceptable value to set to ``retval`` is 0 and the
 original value that the kernel returned. Any other value will trigger
 ``EFAULT``.
 
@@ -58,7 +58,7 @@ Return Type
 
 * ``0`` - reject the syscall, ``EPERM`` will be returned to the userspace.
 * ``1`` - success: copy ``optval`` and ``optlen`` to userspace, return
-  ``retval`` from the syscall (note that this can be overwritten by
+  ``retval`` from the syscall (analte that this can be overwritten by
   the BPF program from the parent cgroup).
 
 Cgroup Inheritance
@@ -83,7 +83,7 @@ Same for ``BPF_CGROUP_SETSOCKOPT``: if the program is attached to
 A and B, the trigger order is B, then A. If B does any changes
 to the input arguments (``level``, ``optname``, ``optval``, ``optlen``),
 then the next program in the chain (A) will see those changes,
-*not* the original input ``setsockopt`` arguments. The potentially
+*analt* the original input ``setsockopt`` arguments. The potentially
 modified values will be then passed down to the kernel.
 
 Large optval
@@ -93,7 +93,7 @@ can access only the first ``PAGE_SIZE`` of that data. So it has to options:
 
 * Set ``optlen`` to zero, which indicates that the kernel should
   use the original buffer from the userspace. Any modifications
-  done by the BPF program to the ``optval`` are ignored.
+  done by the BPF program to the ``optval`` are iganalred.
 * Set ``optlen`` to the value less than ``PAGE_SIZE``, which
   indicates that the kernel should use BPF's trimmed ``optval``.
 

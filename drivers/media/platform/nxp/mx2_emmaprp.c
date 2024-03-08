@@ -5,7 +5,7 @@
  * eMMa-PrP is a piece of HW that allows fetching buffers
  * from one memory location and do several operations on
  * them such as scaling or format conversion giving, as a result
- * a new processed buffer in another memory location.
+ * a new processed buffer in aanalther memory location.
  *
  * Based on mem2mem_testdev.c by Pawel Osciak.
  *
@@ -408,7 +408,7 @@ static int enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 		return 0;
 	}
 
-	/* Format not found */
+	/* Format analt found */
 	return -EINVAL;
 }
 
@@ -437,7 +437,7 @@ static int vidioc_g_fmt(struct emmaprp_ctx *ctx, struct v4l2_format *f)
 
 	f->fmt.pix.width	= q_data->width;
 	f->fmt.pix.height	= q_data->height;
-	f->fmt.pix.field	= V4L2_FIELD_NONE;
+	f->fmt.pix.field	= V4L2_FIELD_ANALNE;
 	f->fmt.pix.pixelformat	= q_data->fmt->fourcc;
 	if (f->fmt.pix.pixelformat == V4L2_PIX_FMT_YUV420)
 		f->fmt.pix.bytesperline = q_data->width * 3 / 2;
@@ -470,8 +470,8 @@ static int vidioc_try_fmt(struct v4l2_format *f)
 
 	field = f->fmt.pix.field;
 	if (field == V4L2_FIELD_ANY)
-		field = V4L2_FIELD_NONE;
-	else if (V4L2_FIELD_NONE != field)
+		field = V4L2_FIELD_ANALNE;
+	else if (V4L2_FIELD_ANALNE != field)
 		return -EINVAL;
 
 	/* V4L2 specification suggests the driver corrects the format struct
@@ -655,7 +655,7 @@ static int emmaprp_buf_prepare(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
 		dprintk(ctx->dev,
-			"%s data will not fit into plane(%lu < %lu)\n",
+			"%s data will analt fit into plane(%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0),
 			(long)q_data->sizeimage);
 		return -EINVAL;
@@ -724,7 +724,7 @@ static int emmaprp_open(struct file *file)
 
 	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
 	file->private_data = &ctx->fh;
@@ -789,7 +789,7 @@ static const struct video_device emmaprp_videodev = {
 	.name		= MEM2MEM_NAME,
 	.fops		= &emmaprp_fops,
 	.ioctl_ops	= &emmaprp_ioctl_ops,
-	.minor		= -1,
+	.mianalr		= -1,
 	.release	= video_device_release,
 	.vfl_dir	= VFL_DIR_M2M,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
@@ -808,7 +808,7 @@ static int emmaprp_probe(struct platform_device *pdev)
 
 	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
 	if (!pcdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&pcdev->irqlock);
 
@@ -834,7 +834,7 @@ static int emmaprp_probe(struct platform_device *pdev)
 	vfd = video_device_alloc();
 	if (!vfd) {
 		v4l2_err(&pcdev->v4l2_dev, "Failed to allocate video device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unreg_dev;
 	}
 

@@ -21,7 +21,7 @@ struct comedi_device;
 /*
  * Subdevice types.
  */
-enum dio200_sdtype { sd_none, sd_intr, sd_8255, sd_8254, sd_timer };
+enum dio200_sdtype { sd_analne, sd_intr, sd_8255, sd_8254, sd_timer };
 
 #define DIO200_MAX_SUBDEVS	8
 #define DIO200_MAX_ISNS		6

@@ -16,27 +16,27 @@
 		ranges;
 
 		npu_binary@84000000 {
-			no-map;
+			anal-map;
 			reg = <0x84000000 0xA00000>;
 		};
 
 		npu_flag@84B0000 {
-			no-map;
+			anal-map;
 			reg = <0x84B00000 0x100000>;
 		};
 
 		npu_pkt@85000000 {
-			no-map;
+			anal-map;
 			reg = <0x85000000 0x1A00000>;
 		};
 
 		npu_phyaddr@86B00000 {
-			no-map;
+			anal-map;
 			reg = <0x86B00000 0x100000>;
 		};
 
 		npu_rxdesc@86D00000 {
-			no-map;
+			anal-map;
 			reg = <0x86D00000 0x100000>;
 		};
 	};

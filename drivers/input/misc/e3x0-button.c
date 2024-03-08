@@ -74,7 +74,7 @@ static int e3x0_button_probe(struct platform_device *pdev)
 
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = "NI Ettus Research USRP E3x0 Button Driver";
 	input->phys = "e3x0_button/input0";

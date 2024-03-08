@@ -15,10 +15,10 @@
 #define	XD_DELAY_WRITE
 
 /* Error Codes */
-#define	XD_NO_ERROR			0x00
-#define	XD_NO_MEMORY			0x80
+#define	XD_ANAL_ERROR			0x00
+#define	XD_ANAL_MEMORY			0x80
 #define	XD_PRG_ERROR			0x40
-#define	XD_NO_CARD			0x20
+#define	XD_ANAL_CARD			0x20
 #define	XD_READ_FAIL			0x10
 #define	XD_ERASE_FAIL			0x08
 #define	XD_WRITE_FAIL			0x04
@@ -53,7 +53,7 @@
 #define XD_EXTRA_SIZE			0x10
 #define XD_2K_EXTRA_SIZE		0x40
 
-#define	NOT_WRITE_PROTECTED		0x80
+#define	ANALT_WRITE_PROTECTED		0x80
 #define	READY_STATE			0x40
 #define	PROGRAM_ERROR			0x01
 #define	PROGRAM_ERROR_N_1		0x02
@@ -80,21 +80,21 @@
 #define	VENDOR_BLOCK			0xEFFF
 #define	CIS_BLOCK			0xDFFF
 
-#define	BLK_NOT_FOUND			0xFFFFFFFF
+#define	BLK_ANALT_FOUND			0xFFFFFFFF
 
-#define	NO_NEW_BLK			0xFFFFFFFF
+#define	ANAL_NEW_BLK			0xFFFFFFFF
 
 #define	PAGE_CORRECTABLE		0x0
-#define	PAGE_NOTCORRECTABLE		0x1
+#define	PAGE_ANALTCORRECTABLE		0x1
 
-#define	NO_OFFSET			0x0
+#define	ANAL_OFFSET			0x0
 #define	WITH_OFFSET			0x1
 
 #define	SECT_PER_PAGE			4
 #define	XD_ADDR_MODE_2C			XD_ADDR_MODE_2A
 
 #define ZONE0_BAD_BLOCK			23
-#define NOT_ZONE0_BAD_BLOCK		24
+#define ANALT_ZONE0_BAD_BLOCK		24
 
 #define	XD_RW_ADDR			0x01
 #define	XD_ERASE_ADDR			0x02

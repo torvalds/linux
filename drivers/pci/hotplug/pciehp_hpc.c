@@ -32,7 +32,7 @@ static const struct dmi_system_id inband_presence_disabled_dmi_table[] = {
 	/*
 	 * Match all Dell systems, as some Dell systems have inband
 	 * presence disabled on NVMe slots (but don't support the bit to
-	 * report it). Setting inband presence disabled should have no
+	 * report it). Setting inband presence disabled should have anal
 	 * negative effect, except on broken hotplug slots that never
 	 * assert presence detect--and those will still work, they will
 	 * just have a bit of extra delay before being probed.
@@ -70,7 +70,7 @@ static inline int pciehp_request_irq(struct controller *ctrl)
 	retval = request_threaded_irq(irq, pciehp_isr, pciehp_ist,
 				      IRQF_SHARED, "pciehp", ctrl);
 	if (retval)
-		ctrl_err(ctrl, "Cannot get irq %d for the hotplug controller\n",
+		ctrl_err(ctrl, "Cananalt get irq %d for the hotplug controller\n",
 			 irq);
 	return retval;
 }
@@ -91,7 +91,7 @@ static int pcie_poll_cmd(struct controller *ctrl, int timeout)
 	do {
 		pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
 		if (PCI_POSSIBLE_ERROR(slot_status)) {
-			ctrl_info(ctrl, "%s: no response from device\n",
+			ctrl_info(ctrl, "%s: anal response from device\n",
 				  __func__);
 			return 0;
 		}
@@ -114,14 +114,14 @@ static void pcie_wait_cmd(struct controller *ctrl)
 	unsigned int msecs = pciehp_poll_mode ? 2500 : 1000;
 	unsigned long duration = msecs_to_jiffies(msecs);
 	unsigned long cmd_timeout = ctrl->cmd_started + duration;
-	unsigned long now, timeout;
+	unsigned long analw, timeout;
 	int rc;
 
 	/*
-	 * If the controller does not generate notifications for command
+	 * If the controller does analt generate analtifications for command
 	 * completions, we never need to wait between writes.
 	 */
-	if (NO_CMD_CMPL(ctrl))
+	if (ANAL_CMD_CMPL(ctrl))
 		return;
 
 	if (!ctrl->cmd_busy)
@@ -131,11 +131,11 @@ static void pcie_wait_cmd(struct controller *ctrl)
 	 * Even if the command has already timed out, we want to call
 	 * pcie_poll_cmd() so it can clear PCI_EXP_SLTSTA_CC.
 	 */
-	now = jiffies;
-	if (time_before_eq(cmd_timeout, now))
+	analw = jiffies;
+	if (time_before_eq(cmd_timeout, analw))
 		timeout = 1;
 	else
-		timeout = cmd_timeout - now;
+		timeout = cmd_timeout - analw;
 
 	if (ctrl->slot_ctrl & PCI_EXP_SLTCTL_HPIE &&
 	    ctrl->slot_ctrl & PCI_EXP_SLTCTL_CCIE)
@@ -169,7 +169,7 @@ static void pcie_do_write_cmd(struct controller *ctrl, u16 cmd,
 
 	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &slot_ctrl);
 	if (PCI_POSSIBLE_ERROR(slot_ctrl)) {
-		ctrl_info(ctrl, "%s: no response from device\n", __func__);
+		ctrl_info(ctrl, "%s: anal response from device\n", __func__);
 		goto out;
 	}
 
@@ -216,7 +216,7 @@ static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 }
 
 /* Same as above without waiting for the hardware to latch */
-static void pcie_write_cmd_nowait(struct controller *ctrl, u16 cmd, u16 mask)
+static void pcie_write_cmd_analwait(struct controller *ctrl, u16 cmd, u16 mask)
 {
 	pcie_do_write_cmd(ctrl, cmd, mask, false);
 }
@@ -225,12 +225,12 @@ static void pcie_write_cmd_nowait(struct controller *ctrl, u16 cmd, u16 mask)
  * pciehp_check_link_active() - Is the link active
  * @ctrl: PCIe hotplug controller
  *
- * Check whether the downstream link is currently active. Note it is
+ * Check whether the downstream link is currently active. Analte it is
  * possible that the card is removed immediately after this so the
  * caller may need to take it into account.
  *
- * If the hotplug controller itself is not available anymore returns
- * %-ENODEV.
+ * If the hotplug controller itself is analt available anymore returns
+ * %-EANALDEV.
  */
 int pciehp_check_link_active(struct controller *ctrl)
 {
@@ -239,8 +239,8 @@ int pciehp_check_link_active(struct controller *ctrl)
 	int ret;
 
 	ret = pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnk_status);
-	if (ret == PCIBIOS_DEVICE_NOT_FOUND || PCI_POSSIBLE_ERROR(lnk_status))
-		return -ENODEV;
+	if (ret == PCIBIOS_DEVICE_ANALT_FOUND || PCI_POSSIBLE_ERROR(lnk_status))
+		return -EANALDEV;
 
 	ret = !!(lnk_status & PCI_EXP_LNKSTA_DLLLA);
 	ctrl_dbg(ctrl, "%s: lnk_status = %x\n", __func__, lnk_status);
@@ -295,7 +295,7 @@ int pciehp_check_link_status(struct controller *ctrl)
 	u16 lnk_status;
 
 	if (!pcie_wait_for_link(pdev, true)) {
-		ctrl_info(ctrl, "Slot(%s): No link\n", slot_name(ctrl));
+		ctrl_info(ctrl, "Slot(%s): Anal link\n", slot_name(ctrl));
 		return -1;
 	}
 
@@ -305,7 +305,7 @@ int pciehp_check_link_status(struct controller *ctrl)
 	found = pci_bus_check_dev(ctrl->pcie->port->subordinate,
 					PCI_DEVFN(0, 0));
 
-	/* ignore link or presence changes up to this point */
+	/* iganalre link or presence changes up to this point */
 	if (found)
 		atomic_and(~(PCI_EXP_SLTSTA_DLLSC | PCI_EXP_SLTSTA_PDC),
 			   &ctrl->pending_events);
@@ -314,7 +314,7 @@ int pciehp_check_link_status(struct controller *ctrl)
 	ctrl_dbg(ctrl, "%s: lnk_status = %x\n", __func__, lnk_status);
 	if ((lnk_status & PCI_EXP_LNKSTA_LT) ||
 	    !(lnk_status & PCI_EXP_LNKSTA_NLW)) {
-		ctrl_info(ctrl, "Slot(%s): Cannot train link: status %#06x\n",
+		ctrl_info(ctrl, "Slot(%s): Cananalt train link: status %#06x\n",
 			  slot_name(ctrl), lnk_status);
 		return -1;
 	}
@@ -322,7 +322,7 @@ int pciehp_check_link_status(struct controller *ctrl)
 	pcie_update_link_speed(ctrl->pcie->port->subordinate, lnk_status);
 
 	if (!found) {
-		ctrl_info(ctrl, "Slot(%s): No device found\n",
+		ctrl_info(ctrl, "Slot(%s): Anal device found\n",
 			  slot_name(ctrl));
 		return -1;
 	}
@@ -426,12 +426,12 @@ void pciehp_get_latch_status(struct controller *ctrl, u8 *status)
  * @ctrl: PCIe hotplug controller
  *
  * Function checks whether the card is currently present in the slot and
- * in that case returns true. Note it is possible that the card is
+ * in that case returns true. Analte it is possible that the card is
  * removed immediately after the check so the caller may need to take
  * this into account.
  *
- * It the hotplug controller itself is not available anymore returns
- * %-ENODEV.
+ * It the hotplug controller itself is analt available anymore returns
+ * %-EANALDEV.
  */
 int pciehp_card_present(struct controller *ctrl)
 {
@@ -440,8 +440,8 @@ int pciehp_card_present(struct controller *ctrl)
 	int ret;
 
 	ret = pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
-	if (ret == PCIBIOS_DEVICE_NOT_FOUND || PCI_POSSIBLE_ERROR(slot_status))
-		return -ENODEV;
+	if (ret == PCIBIOS_DEVICE_ANALT_FOUND || PCI_POSSIBLE_ERROR(slot_status))
+		return -EANALDEV;
 
 	return !!(slot_status & PCI_EXP_SLTSTA_PDS);
 }
@@ -455,8 +455,8 @@ int pciehp_card_present(struct controller *ctrl)
  * bit is set.  This is a concession to broken hotplug ports which hardwire
  * Presence Detect State to zero, such as Wilocity's [1ae9:0200].
  *
- * Returns: %1 if the slot is occupied and %0 if it is not. If the hotplug
- *	    port is not present anymore returns %-ENODEV.
+ * Returns: %1 if the slot is occupied and %0 if it is analt. If the hotplug
+ *	    port is analt present anymore returns %-EANALDEV.
  */
 int pciehp_card_present_or_link_active(struct controller *ctrl)
 {
@@ -485,7 +485,7 @@ int pciehp_set_raw_indicator_status(struct hotplug_slot *hotplug_slot,
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 
 	pci_config_pm_runtime_get(pdev);
-	pcie_write_cmd_nowait(ctrl, FIELD_PREP(PCI_EXP_SLTCTL_AIC, status),
+	pcie_write_cmd_analwait(ctrl, FIELD_PREP(PCI_EXP_SLTCTL_AIC, status),
 			      PCI_EXP_SLTCTL_AIC | PCI_EXP_SLTCTL_PIC);
 	pci_config_pm_runtime_put(pdev);
 	return 0;
@@ -503,25 +503,25 @@ int pciehp_set_raw_indicator_status(struct hotplug_slot *hotplug_slot,
  *	PCI_EXP_SLTCTL_ATTN_IND_BLINK
  *	PCI_EXP_SLTCTL_ATTN_IND_OFF
  *
- * Either @pwr or @attn can also be INDICATOR_NOOP to leave that indicator
+ * Either @pwr or @attn can also be INDICATOR_ANALOP to leave that indicator
  * unchanged.
  */
 void pciehp_set_indicators(struct controller *ctrl, int pwr, int attn)
 {
 	u16 cmd = 0, mask = 0;
 
-	if (PWR_LED(ctrl) && pwr != INDICATOR_NOOP) {
+	if (PWR_LED(ctrl) && pwr != INDICATOR_ANALOP) {
 		cmd |= (pwr & PCI_EXP_SLTCTL_PIC);
 		mask |= PCI_EXP_SLTCTL_PIC;
 	}
 
-	if (ATTN_LED(ctrl) && attn != INDICATOR_NOOP) {
+	if (ATTN_LED(ctrl) && attn != INDICATOR_ANALOP) {
 		cmd |= (attn & PCI_EXP_SLTCTL_AIC);
 		mask |= PCI_EXP_SLTCTL_AIC;
 	}
 
 	if (cmd) {
-		pcie_write_cmd_nowait(ctrl, cmd, mask);
+		pcie_write_cmd_analwait(ctrl, cmd, mask);
 		ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 			 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, cmd);
 	}
@@ -547,7 +547,7 @@ int pciehp_power_on_slot(struct controller *ctrl)
 
 	retval = pciehp_link_enable(ctrl);
 	if (retval)
-		ctrl_err(ctrl, "%s: Can not enable the link!\n", __func__);
+		ctrl_err(ctrl, "%s: Can analt enable the link!\n", __func__);
 
 	return retval;
 }
@@ -560,11 +560,11 @@ void pciehp_power_off_slot(struct controller *ctrl)
 		 PCI_EXP_SLTCTL_PWR_OFF);
 }
 
-static void pciehp_ignore_dpc_link_change(struct controller *ctrl,
+static void pciehp_iganalre_dpc_link_change(struct controller *ctrl,
 					  struct pci_dev *pdev, int irq)
 {
 	/*
-	 * Ignore link changes which occurred while waiting for DPC recovery.
+	 * Iganalre link changes which occurred while waiting for DPC recovery.
 	 * Could be several if DPC triggered multiple times consecutively.
 	 */
 	synchronize_hardirq(irq);
@@ -572,12 +572,12 @@ static void pciehp_ignore_dpc_link_change(struct controller *ctrl,
 	if (pciehp_poll_mode)
 		pcie_capability_write_word(pdev, PCI_EXP_SLTSTA,
 					   PCI_EXP_SLTSTA_DLLSC);
-	ctrl_info(ctrl, "Slot(%s): Link Down/Up ignored (recovered by DPC)\n",
+	ctrl_info(ctrl, "Slot(%s): Link Down/Up iganalred (recovered by DPC)\n",
 		  slot_name(ctrl));
 
 	/*
 	 * If the link is unexpectedly down after successful recovery,
-	 * the corresponding link change may have been ignored above.
+	 * the corresponding link change may have been iganalred above.
 	 * Synthesize it to ensure that it is acted on.
 	 */
 	down_read_nested(&ctrl->reset_lock, ctrl->depth);
@@ -599,7 +599,7 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	 */
 	if (pdev->current_state == PCI_D3cold ||
 	    (!(ctrl->slot_ctrl & PCI_EXP_SLTCTL_HPIE) && !pciehp_poll_mode))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * Keep the port accessible by holding a runtime PM ref on its parent.
@@ -607,10 +607,10 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	 * Mask the interrupt until then.
 	 */
 	if (parent) {
-		pm_runtime_get_noresume(parent);
+		pm_runtime_get_analresume(parent);
 		if (!pm_runtime_active(parent)) {
 			pm_runtime_put(parent);
-			disable_irq_nosync(irq);
+			disable_irq_analsync(irq);
 			atomic_or(RERUN_ISR, &ctrl->pending_events);
 			return IRQ_WAKE_THREAD;
 		}
@@ -619,15 +619,15 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 read_status:
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &status);
 	if (PCI_POSSIBLE_ERROR(status)) {
-		ctrl_info(ctrl, "%s: no response from device\n", __func__);
+		ctrl_info(ctrl, "%s: anal response from device\n", __func__);
 		if (parent)
 			pm_runtime_put(parent);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/*
 	 * Slot Status contains plain status bits as well as event
-	 * notification bits; right now we only want the event bits.
+	 * analtification bits; right analw we only want the event bits.
 	 */
 	status &= PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
 		  PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_CC |
@@ -646,7 +646,7 @@ read_status:
 	if (!events) {
 		if (parent)
 			pm_runtime_put(parent);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (status) {
@@ -667,7 +667,7 @@ read_status:
 		pm_runtime_put(parent);
 
 	/*
-	 * Command Completed notifications are not deferred to the
+	 * Command Completed analtifications are analt deferred to the
 	 * IRQ thread because it may be waiting for their arrival.
 	 */
 	if (events & PCI_EXP_SLTSTA_CC) {
@@ -681,8 +681,8 @@ read_status:
 		events &= ~PCI_EXP_SLTSTA_CC;
 	}
 
-	if (pdev->ignore_hotplug) {
-		ctrl_dbg(ctrl, "ignoring hotplug event %#06x\n", events);
+	if (pdev->iganalre_hotplug) {
+		ctrl_dbg(ctrl, "iganalring hotplug event %#06x\n", events);
 		return IRQ_HANDLED;
 	}
 
@@ -712,7 +712,7 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 	synchronize_hardirq(irq);
 	events = atomic_xchg(&ctrl->pending_events, 0);
 	if (!events) {
-		ret = IRQ_NONE;
+		ret = IRQ_ANALNE;
 		goto out;
 	}
 
@@ -728,13 +728,13 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 	}
 
 	/*
-	 * Ignore Link Down/Up events caused by Downstream Port Containment
+	 * Iganalre Link Down/Up events caused by Downstream Port Containment
 	 * if recovery from the error succeeded.
 	 */
 	if ((events & PCI_EXP_SLTSTA_DLLSC) && pci_dpc_recovered(pdev) &&
 	    ctrl->state == ON_STATE) {
 		events &= ~PCI_EXP_SLTSTA_DLLSC;
-		pciehp_ignore_dpc_link_change(ctrl, pdev, irq);
+		pciehp_iganalre_dpc_link_change(ctrl, pdev, irq);
 	}
 
 	/*
@@ -764,9 +764,9 @@ static int pciehp_poll(void *data)
 
 	while (!kthread_should_stop()) {
 		/* poll for interrupt events or user requests */
-		while (pciehp_isr(IRQ_NOTCONNECTED, ctrl) == IRQ_WAKE_THREAD ||
+		while (pciehp_isr(IRQ_ANALTCONNECTED, ctrl) == IRQ_WAKE_THREAD ||
 		       atomic_read(&ctrl->pending_events))
-			pciehp_ist(IRQ_NOTCONNECTED, ctrl);
+			pciehp_ist(IRQ_ANALTCONNECTED, ctrl);
 
 		if (pciehp_poll_time <= 0 || pciehp_poll_time > 60)
 			pciehp_poll_time = 2; /* clamp to sane value */
@@ -777,25 +777,25 @@ static int pciehp_poll(void *data)
 	return 0;
 }
 
-static void pcie_enable_notification(struct controller *ctrl)
+static void pcie_enable_analtification(struct controller *ctrl)
 {
 	u16 cmd, mask;
 
 	/*
-	 * TBD: Power fault detected software notification support.
+	 * TBD: Power fault detected software analtification support.
 	 *
-	 * Power fault detected software notification is not enabled
-	 * now, because it caused power fault detected interrupt storm
+	 * Power fault detected software analtification is analt enabled
+	 * analw, because it caused power fault detected interrupt storm
 	 * on some machines. On those machines, power fault detected
 	 * bit in the slot status register was set again immediately
 	 * when it is cleared in the interrupt service routine, and
-	 * next power fault detected interrupt was notified again.
+	 * next power fault detected interrupt was analtified again.
 	 */
 
 	/*
 	 * Always enable link events: thus link-up and link-down shall
 	 * always be treated as hotplug and unplug respectively. Enable
-	 * presence detect only if Attention Button is not present.
+	 * presence detect only if Attention Button is analt present.
 	 */
 	cmd = PCI_EXP_SLTCTL_DLLSCE;
 	if (ATTN_BUTTN(ctrl))
@@ -804,7 +804,7 @@ static void pcie_enable_notification(struct controller *ctrl)
 		cmd |= PCI_EXP_SLTCTL_PDCE;
 	if (!pciehp_poll_mode)
 		cmd |= PCI_EXP_SLTCTL_HPIE;
-	if (!pciehp_poll_mode && !NO_CMD_CMPL(ctrl))
+	if (!pciehp_poll_mode && !ANAL_CMD_CMPL(ctrl))
 		cmd |= PCI_EXP_SLTCTL_CCIE;
 
 	mask = (PCI_EXP_SLTCTL_PDCE | PCI_EXP_SLTCTL_ABPE |
@@ -812,12 +812,12 @@ static void pcie_enable_notification(struct controller *ctrl)
 		PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE |
 		PCI_EXP_SLTCTL_DLLSCE);
 
-	pcie_write_cmd_nowait(ctrl, cmd, mask);
+	pcie_write_cmd_analwait(ctrl, cmd, mask);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, cmd);
 }
 
-static void pcie_disable_notification(struct controller *ctrl)
+static void pcie_disable_analtification(struct controller *ctrl)
 {
 	u16 mask;
 
@@ -860,13 +860,13 @@ void pcie_disable_interrupt(struct controller *ctrl)
 }
 
 /**
- * pciehp_slot_reset() - ignore link event caused by error-induced hot reset
+ * pciehp_slot_reset() - iganalre link event caused by error-induced hot reset
  * @dev: PCI Express port service device
  *
  * Called from pcie_portdrv_slot_reset() after AER or DPC initiated a reset
  * further up in the hierarchy to recover from an error.  The reset was
- * propagated down to this hotplug port.  Ignore the resulting link flap.
- * If the link failed to retrain successfully, synthesize the ignored event.
+ * propagated down to this hotplug port.  Iganalre the resulting link flap.
+ * If the link failed to retrain successfully, synthesize the iganalred event.
  * Surprise removal during reset is detected through Presence Detect Changed.
  */
 int pciehp_slot_reset(struct pcie_device *dev)
@@ -888,8 +888,8 @@ int pciehp_slot_reset(struct pcie_device *dev)
 /*
  * pciehp has a 1:1 bus:slot relationship so we ultimately want a secondary
  * bus reset of the bridge, but at the same time we want to ensure that it is
- * not seen as a hot-unplug, followed by the hot-plug of the device. Thus,
- * disable link state notification and presence detection change notification
+ * analt seen as a hot-unplug, followed by the hot-plug of the device. Thus,
+ * disable link state analtification and presence detection change analtification
  * momentarily, if we see that they could interfere. Also, clear any spurious
  * events after.
  */
@@ -919,7 +919,7 @@ int pciehp_reset_slot(struct hotplug_slot *hotplug_slot, bool probe)
 	rc = pci_bridge_secondary_bus_reset(ctrl->pcie->port);
 
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, stat_mask);
-	pcie_write_cmd_nowait(ctrl, ctrl_mask, ctrl_mask);
+	pcie_write_cmd_analwait(ctrl, ctrl_mask, ctrl_mask);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, ctrl_mask);
 
@@ -927,21 +927,21 @@ int pciehp_reset_slot(struct hotplug_slot *hotplug_slot, bool probe)
 	return rc;
 }
 
-int pcie_init_notification(struct controller *ctrl)
+int pcie_init_analtification(struct controller *ctrl)
 {
 	if (pciehp_request_irq(ctrl))
 		return -1;
-	pcie_enable_notification(ctrl);
-	ctrl->notification_enabled = 1;
+	pcie_enable_analtification(ctrl);
+	ctrl->analtification_enabled = 1;
 	return 0;
 }
 
-void pcie_shutdown_notification(struct controller *ctrl)
+void pcie_shutdown_analtification(struct controller *ctrl)
 {
-	if (ctrl->notification_enabled) {
-		pcie_disable_notification(ctrl);
+	if (ctrl->analtification_enabled) {
+		pcie_disable_analtification(ctrl);
 		pciehp_free_irq(ctrl);
-		ctrl->notification_enabled = 0;
+		ctrl->analtification_enabled = 0;
 	}
 }
 
@@ -993,7 +993,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 		slot_cap &= ~(PCI_EXP_SLTCAP_AIP | PCI_EXP_SLTCAP_PIP);
 
 	/*
-	 * We assume no Thunderbolt controllers support Command Complete events,
+	 * We assume anal Thunderbolt controllers support Command Complete events,
 	 * but some controllers falsely claim they do.
 	 */
 	if (pdev->is_thunderbolt)
@@ -1014,7 +1014,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 
 	pcie_capability_read_dword(pdev, PCI_EXP_SLTCAP2, &slot_cap2);
 	if (slot_cap2 & PCI_EXP_SLTCAP2_IBPD) {
-		pcie_write_cmd_nowait(ctrl, PCI_EXP_SLTCTL_IBPD_DISABLE,
+		pcie_write_cmd_analwait(ctrl, PCI_EXP_SLTCTL_IBPD_DISABLE,
 				      PCI_EXP_SLTCTL_IBPD_DISABLE);
 		ctrl->inband_presence_disabled = 1;
 	}
@@ -1028,7 +1028,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 		PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_CC |
 		PCI_EXP_SLTSTA_DLLSC | PCI_EXP_SLTSTA_PDC);
 
-	ctrl_info(ctrl, "Slot #%d AttnBtn%c PwrCtrl%c MRL%c AttnInd%c PwrInd%c HotPlug%c Surprise%c Interlock%c NoCompl%c IbPresDis%c LLActRep%c%s\n",
+	ctrl_info(ctrl, "Slot #%d AttnBtn%c PwrCtrl%c MRL%c AttnInd%c PwrInd%c HotPlug%c Surprise%c Interlock%c AnalCompl%c IbPresDis%c LLActRep%c%s\n",
 		FIELD_GET(PCI_EXP_SLTCAP_PSN, slot_cap),
 		FLAG(slot_cap, PCI_EXP_SLTCAP_ABP),
 		FLAG(slot_cap, PCI_EXP_SLTCAP_PCP),
@@ -1045,12 +1045,12 @@ struct controller *pcie_init(struct pcie_device *dev)
 
 	/*
 	 * If empty slot's power status is on, turn power off.  The IRQ isn't
-	 * requested yet, so avoid triggering a notification with this command.
+	 * requested yet, so avoid triggering a analtification with this command.
 	 */
 	if (POWER_CTRL(ctrl)) {
 		pciehp_get_power_status(ctrl, &poweron);
 		if (!pciehp_card_present_or_link_active(ctrl) && poweron) {
-			pcie_disable_notification(ctrl);
+			pcie_disable_analtification(ctrl);
 			pciehp_power_off_slot(ctrl);
 		}
 	}

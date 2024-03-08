@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _libv4l-introduction:
@@ -70,7 +70,7 @@ libv4l1
 
 This library offers functions that can be used to quickly make v4l1
 applications work with v4l2 devices. These functions work exactly like
-the normal open/close/etc, except that libv4l1 does full emulation of
+the analrmal open/close/etc, except that libv4l1 does full emulation of
 the v4l1 api on top of v4l2 drivers, in case of v4l1 drivers it will
 just pass calls through.
 
@@ -157,12 +157,12 @@ Those functions provide additional control:
 
    This function takes a value of 0 - 65535, and then scales that range to the
    actual range of the given v4l control id, and then if the cid exists and is
-   not locked sets the cid to the scaled value.
+   analt locked sets the cid to the scaled value.
 
 .. c:function:: int v4l2_get_control(int fd, int cid)
 
    This function returns a value of 0 - 65535, scaled to from the actual range
-   of the given v4l control id. when the cid does not exist, could not be
+   of the given v4l control id. when the cid does analt exist, could analt be
    accessed for some reason, or some error occurred 0 is returned.
 
 v4l1compat.so wrapper library

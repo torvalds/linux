@@ -78,7 +78,7 @@
 			   &CLUSTER_SLEEP_0>;
 };
 
-/delete-node/ &domain_idle_states;
+/delete-analde/ &domain_idle_states;
 
 &idle_states {
 	CLUSTER_SLEEP_0: cluster-sleep-0 {
@@ -92,15 +92,15 @@
 	};
 };
 
-/delete-node/ &CPU_PD0;
-/delete-node/ &CPU_PD1;
-/delete-node/ &CPU_PD2;
-/delete-node/ &CPU_PD3;
-/delete-node/ &CPU_PD4;
-/delete-node/ &CPU_PD5;
-/delete-node/ &CPU_PD6;
-/delete-node/ &CPU_PD7;
-/delete-node/ &CLUSTER_PD;
+/delete-analde/ &CPU_PD0;
+/delete-analde/ &CPU_PD1;
+/delete-analde/ &CPU_PD2;
+/delete-analde/ &CPU_PD3;
+/delete-analde/ &CPU_PD4;
+/delete-analde/ &CPU_PD5;
+/delete-analde/ &CPU_PD6;
+/delete-analde/ &CPU_PD7;
+/delete-analde/ &CLUSTER_PD;
 
 &apps_rsc {
 	/delete-property/ power-domains;

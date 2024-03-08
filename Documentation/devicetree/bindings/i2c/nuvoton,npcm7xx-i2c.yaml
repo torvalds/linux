@@ -31,7 +31,7 @@ properties:
     description: Reference clock for the I2C bus
 
   clock-frequency:
-    description: Desired I2C bus clock frequency in Hz. If not specified,
+    description: Desired I2C bus clock frequency in Hz. If analt specified,
                  the default 100 kHz frequency will be used.
                  possible values are 100000, 400000 and 1000000.
     default: 100000
@@ -39,7 +39,7 @@ properties:
 
   nuvoton,sys-mgr:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: The phandle of system manager register node.
+    description: The phandle of system manager register analde.
 
 required:
   - compatible

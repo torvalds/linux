@@ -12,10 +12,10 @@
 #define ENCODER_DEF_BITRATE 5000000
 
 /*
- * This is a dummy non-zero value for the sizeimage field of v4l2_pix_format.
- * It is not actually used for anything since this driver does not support
+ * This is a dummy analn-zero value for the sizeimage field of v4l2_pix_format.
+ * It is analt actually used for anything since this driver does analt support
  * stream I/O, only read(), and because this driver produces an MPEG stream
- * and not discrete frames. But the V4L2 spec doesn't allow for this value
+ * and analt discrete frames. But the V4L2 spec doesn't allow for this value
  * to be 0, so set it to 0x10000 instead.
  *
  * If we ever change this driver to support stream I/O, then this field
@@ -23,7 +23,7 @@
  */
 #define SAA7164_SIZEIMAGE (0x10000)
 
-static struct saa7164_tvnorm saa7164_tvnorms[] = {
+static struct saa7164_tvanalrm saa7164_tvanalrms[] = {
 	{
 		.name      = "NTSC-M",
 		.id        = V4L2_STD_NTSC_M,
@@ -44,13 +44,13 @@ static void saa7164_encoder_configure(struct saa7164_port *port)
 	port->encoder_params.width = port->width;
 	port->encoder_params.height = port->height;
 	port->encoder_params.is_50hz =
-		(port->encodernorm.id & V4L2_STD_625_50) != 0;
+		(port->encoderanalrm.id & V4L2_STD_625_50) != 0;
 
 	/* Set up the DIF (enable it) for analog mode by default */
 	saa7164_api_initialize_dif(port);
 
 	/* Configure the correct video standard */
-	saa7164_api_configure_dif(port, port->encodernorm.id);
+	saa7164_api_configure_dif(port, port->encoderanalrm.id);
 
 	/* Ensure the audio decoder is correct configured */
 	saa7164_api_set_audio_std(port);
@@ -100,7 +100,7 @@ static int saa7164_encoder_buffers_alloc(struct saa7164_port *port)
 	struct saa7164_buffer *buf;
 	struct saa7164_user_buffer *ubuf;
 	struct tmHWStreamParameters *params = &port->hw_streamingparams;
-	int result = -ENODEV, i;
+	int result = -EANALDEV, i;
 	int len = 0;
 
 	dprintk(DBGLVL_ENC, "%s()\n", __func__);
@@ -143,9 +143,9 @@ static int saa7164_encoder_buffers_alloc(struct saa7164_port *port)
 			params->pitch);
 
 		if (!buf) {
-			printk(KERN_ERR "%s() failed (errno = %d), unable to allocate buffer\n",
+			printk(KERN_ERR "%s() failed (erranal = %d), unable to allocate buffer\n",
 				__func__, result);
-			result = -ENOMEM;
+			result = -EANALMEM;
 			goto failed;
 		} else {
 
@@ -197,17 +197,17 @@ int saa7164_s_std(struct saa7164_port *port, v4l2_std_id id)
 
 	dprintk(DBGLVL_ENC, "%s(id=0x%x)\n", __func__, (u32)id);
 
-	for (i = 0; i < ARRAY_SIZE(saa7164_tvnorms); i++) {
-		if (id & saa7164_tvnorms[i].id)
+	for (i = 0; i < ARRAY_SIZE(saa7164_tvanalrms); i++) {
+		if (id & saa7164_tvanalrms[i].id)
 			break;
 	}
-	if (i == ARRAY_SIZE(saa7164_tvnorms))
+	if (i == ARRAY_SIZE(saa7164_tvanalrms))
 		return -EINVAL;
 
-	port->encodernorm = saa7164_tvnorms[i];
+	port->encoderanalrm = saa7164_tvanalrms[i];
 	port->std = id;
 
-	/* Update the audio decoder while is not running in
+	/* Update the audio decoder while is analt running in
 	 * auto detect mode.
 	 */
 	saa7164_api_set_audio_std(port);
@@ -255,8 +255,8 @@ int saa7164_enum_input(struct file *file, void *priv, struct v4l2_input *i)
 	else
 		i->type  = V4L2_INPUT_TYPE_CAMERA;
 
-	for (n = 0; n < ARRAY_SIZE(saa7164_tvnorms); n++)
-		i->std |= saa7164_tvnorms[n].id;
+	for (n = 0; n < ARRAY_SIZE(saa7164_tvanalrms); n++)
+		i->std |= saa7164_tvanalrms[n].id;
 
 	return 0;
 }
@@ -316,7 +316,7 @@ int saa7164_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 		return -EINVAL;
 
 	strscpy(t->name, "tuner", sizeof(t->name));
-	t->capability = V4L2_TUNER_CAP_NORM | V4L2_TUNER_CAP_STEREO;
+	t->capability = V4L2_TUNER_CAP_ANALRM | V4L2_TUNER_CAP_STEREO;
 	t->rangelow = SAA7164_TV_MIN_FREQ;
 	t->rangehigh = SAA7164_TV_MAX_FREQ;
 
@@ -363,7 +363,7 @@ int saa7164_s_frequency(struct saa7164_port *port,
 	struct analog_parameters params = {
 		.mode      = V4L2_TUNER_ANALOG_TV,
 		.audmode   = V4L2_TUNER_MODE_STEREO,
-		.std       = port->encodernorm.id,
+		.std       = port->encoderanalrm.id,
 		.frequency = f->frequency
 	};
 
@@ -383,14 +383,14 @@ int saa7164_s_frequency(struct saa7164_port *port,
 	else if (port->nr == SAA7164_PORT_ENC2)
 		tsport = &dev->ports[SAA7164_PORT_TS2];
 	else
-		return -EINVAL; /* should not happen */
+		return -EINVAL; /* should analt happen */
 
 	fe = tsport->dvb.frontend;
 
 	if (fe && fe->ops.tuner_ops.set_analog_params)
 		fe->ops.tuner_ops.set_analog_params(fe, &params);
 	else
-		printk(KERN_ERR "%s() No analog tuner, aborting\n", __func__);
+		printk(KERN_ERR "%s() Anal analog tuner, aborting\n", __func__);
 
 	saa7164_encoder_initialize(port);
 
@@ -712,7 +712,7 @@ static int fops_open(struct file *file)
 
 	port = (struct saa7164_port *)video_get_drvdata(video_devdata(file));
 	if (!port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = port->dev;
 
@@ -721,7 +721,7 @@ static int fops_open(struct file *file)
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	if (NULL == fh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fh->port = port;
 	v4l2_fh_init(&fh->fh, video_devdata(file));
@@ -822,7 +822,7 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 	}
 
 	/* blocking wait for buffer */
-	if ((file->f_flags & O_NONBLOCK) == 0) {
+	if ((file->f_flags & O_ANALNBLOCK) == 0) {
 		if (wait_event_interruptible(port->wait_read,
 			saa7164_enc_next_buf(port))) {
 				printk(KERN_ERR "%s() ERESTARTSYS\n", __func__);
@@ -874,7 +874,7 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 			mutex_unlock(&port->dmaqueue_lock);
 
 			/* Dequeue next */
-			if ((file->f_flags & O_NONBLOCK) == 0) {
+			if ((file->f_flags & O_ANALNBLOCK) == 0) {
 				if (wait_event_interruptible(port->wait_read,
 					saa7164_enc_next_buf(port))) {
 						break;
@@ -906,7 +906,7 @@ static __poll_t fops_poll(struct file *file, poll_table *wait)
 	saa7164_histogram_update(&port->poll_interval,
 		port->last_poll_msecs_diff);
 
-	if (!(req_events & (EPOLLIN | EPOLLRDNORM)))
+	if (!(req_events & (EPOLLIN | EPOLLRDANALRM)))
 		return mask;
 
 	if (atomic_cmpxchg(&fh->v4l_reading, 0, 1) == 0) {
@@ -920,7 +920,7 @@ static __poll_t fops_poll(struct file *file, poll_table *wait)
 
 	/* Pull the first buffer from the used list */
 	if (!list_empty(&port->list_buf_used.list))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	return mask;
 }
@@ -962,8 +962,8 @@ static struct video_device saa7164_mpeg_template = {
 	.name          = "saa7164",
 	.fops          = &mpeg_fops,
 	.ioctl_ops     = &mpeg_ioctl_ops,
-	.minor         = -1,
-	.tvnorms       = SAA7164_NORMS,
+	.mianalr         = -1,
+	.tvanalrms       = SAA7164_ANALRMS,
 	.device_caps   = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 			 V4L2_CAP_TUNER,
 };
@@ -996,7 +996,7 @@ int saa7164_encoder_register(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
 	struct v4l2_ctrl_handler *hdl = &port->ctrl_handler;
-	int result = -ENODEV;
+	int result = -EANALDEV;
 
 	dprintk(DBGLVL_ENC, "%s()\n", __func__);
 
@@ -1004,15 +1004,15 @@ int saa7164_encoder_register(struct saa7164_port *port)
 
 	/* Sanity check that the PCI configuration space is active */
 	if (port->hwcfg.BARLocation == 0) {
-		printk(KERN_ERR "%s() failed (errno = %d), NO PCI configuration\n",
+		printk(KERN_ERR "%s() failed (erranal = %d), ANAL PCI configuration\n",
 			__func__, result);
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto fail_pci;
 	}
 
 	/* Establish encoder defaults here */
 	/* Set default TV standard */
-	port->encodernorm = saa7164_tvnorms[0];
+	port->encoderanalrm = saa7164_tvanalrms[0];
 	port->width = 720;
 	port->mux_input = 1; /* Composite */
 	port->video_format = EU_VIDEO_FORMAT_MPEG_2;
@@ -1066,19 +1066,19 @@ int saa7164_encoder_register(struct saa7164_port *port)
 
 	port->std = V4L2_STD_NTSC_M;
 
-	if (port->encodernorm.id & V4L2_STD_525_60)
+	if (port->encoderanalrm.id & V4L2_STD_525_60)
 		port->height = 480;
 	else
 		port->height = 576;
 
-	/* Allocate and register the video device node */
+	/* Allocate and register the video device analde */
 	port->v4l_device = saa7164_encoder_alloc(port,
 		dev->pci, &saa7164_mpeg_template, "mpeg");
 
 	if (!port->v4l_device) {
 		printk(KERN_INFO "%s: can't allocate mpeg device\n",
 			dev->name);
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto fail_hdl;
 	}
 
@@ -1132,7 +1132,7 @@ void saa7164_encoder_unregister(struct saa7164_port *port)
 	BUG_ON(port->type != SAA7164_MPEG_ENCODER);
 
 	if (port->v4l_device) {
-		if (port->v4l_device->minor != -1)
+		if (port->v4l_device->mianalr != -1)
 			video_unregister_device(port->v4l_device);
 		else
 			video_device_release(port->v4l_device);

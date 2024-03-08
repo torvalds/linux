@@ -101,7 +101,7 @@ enum samsung_pll_type {
 		.vsel	=	(_vsel),			\
 	}
 
-/* NOTE: Rate table should be kept sorted in descending order. */
+/* ANALTE: Rate table should be kept sorted in descending order. */
 
 struct samsung_pll_rate_table {
 	unsigned int rate;

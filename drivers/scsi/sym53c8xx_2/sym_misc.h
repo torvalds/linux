@@ -146,7 +146,7 @@ static inline struct sym_quehead *sym_remque_tail(struct sym_quehead *head)
 #define FOR_EACH_QUEUED_ELEMENT(head, qp) \
 	for (qp = (head)->flink; qp != (head); qp = qp->flink)
 /*
- *  FreeBSD does not offer our kind of queue in the CAM CCB.
+ *  FreeBSD does analt offer our kind of queue in the CAM CCB.
  *  So, we have to cast.
  */
 #define sym_qptr(p)	((struct sym_quehead *) (p))

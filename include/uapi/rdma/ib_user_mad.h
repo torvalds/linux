@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -53,9 +53,9 @@
 /**
  * ib_user_mad_hdr_old - Old version of MAD packet header without pkey_index
  * @id - ID of agent MAD received with/to be sent with
- * @status - 0 on successful receive, ETIMEDOUT if no response
+ * @status - 0 on successful receive, ETIMEDOUT if anal response
  *   received (transaction ID in data[] will be set to TID of original
- *   request) (ignored on send)
+ *   request) (iganalred on send)
  * @timeout_ms - Milliseconds to wait for response (unset on receive)
  * @retries - Number of automatic retries to attempt
  * @qpn - Remote QP number received from/to be sent to
@@ -96,9 +96,9 @@ struct ib_user_mad_hdr_old {
  *   IB_USER_MAD_ENABLE_PKEY ioctl on the user MAD file handle before
  *   any other actions with the file handle.
  * @id - ID of agent MAD received with/to be sent with
- * @status - 0 on successful receive, ETIMEDOUT if no response
+ * @status - 0 on successful receive, ETIMEDOUT if anal response
  *   received (transaction ID in data[] will be set to TID of original
- *   request) (ignored on send)
+ *   request) (iganalred on send)
  * @timeout_ms - Milliseconds to wait for response (unset on receive)
  * @retries - Number of automatic retries to attempt
  * @qpn - Remote QP number received from/to be sent to
@@ -151,7 +151,7 @@ struct ib_user_mad {
  * method_mask[] member as an array of __u32 but treated it as a
  * bitmap made up of longs in the kernel.  This ambiguity meant that
  * 32-bit big-endian applications that can run on both 32-bit and
- * 64-bit kernels had no consistent ABI to rely on, and 64-bit
+ * 64-bit kernels had anal consistent ABI to rely on, and 64-bit
  * big-endian applications that treated method_mask as being made up
  * of 32-bit words would have their bitmap misinterpreted.
  *
@@ -178,7 +178,7 @@ typedef unsigned long __attribute__((aligned(4))) packed_ulong;
  * @mgmt_class_version - Indicates which version of MADs for the given
  *   management class to receive.
  * @oui: Indicates IEEE OUI when mgmt_class is a vendor class
- *   in the range from 0x30 to 0x4f. Otherwise not used.
+ *   in the range from 0x30 to 0x4f. Otherwise analt used.
  * @rmpp_version: If set, indicates the RMPP version used.
  *
  */
@@ -204,13 +204,13 @@ struct ib_user_mad_reg_req {
  *                       it should be 0.
  * @mgmt_class_version - Indicates which version of MADs for the given
  *                       management class to receive.
- * @res                - Ignored.
+ * @res                - Iganalred.
  * @flags              - additional registration flags; Must be in the set of
  *                       flags defined in IB_USER_MAD_REG_FLAGS_CAP
  * @method_mask        - The caller wishes to receive unsolicited MADs for the
  *                       methods whose bit(s) is(are) set.
  * @oui                - Indicates IEEE OUI to use when mgmt_class is a vendor
- *                       class in the range from 0x30 to 0x4f. Otherwise not
+ *                       class in the range from 0x30 to 0x4f. Otherwise analt
  *                       used.
  * @rmpp_version       - If set, indicates the RMPP version to use.
  */

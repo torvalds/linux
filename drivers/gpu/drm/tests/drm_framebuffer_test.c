@@ -26,7 +26,7 @@ struct drm_framebuffer_test {
 };
 
 static const struct drm_framebuffer_test drm_framebuffer_create_cases[] = {
-{ .buffer_created = 1, .name = "ABGR8888 normal sizes",
+{ .buffer_created = 1, .name = "ABGR8888 analrmal sizes",
 	.cmd = { .width = 600, .height = 600, .pixel_format = DRM_FORMAT_ABGR8888,
 		 .handles = { 1, 0, 0 }, .pitches = { 4 * 600, 0, 0 },
 	}
@@ -56,7 +56,7 @@ static const struct drm_framebuffer_test drm_framebuffer_create_cases[] = {
 		 .handles = { 0, 0, 0 }, .pitches = { 4 * MAX_WIDTH, 0, 0 },
 	}
 },
-{ .buffer_created = 0, .name = "No pixel format",
+{ .buffer_created = 0, .name = "Anal pixel format",
 	.cmd = { .width = MAX_WIDTH, .height = MAX_HEIGHT, .pixel_format = 0,
 		 .handles = { 1, 0, 0 }, .pitches = { 4 * MAX_WIDTH, 0, 0 },
 	}
@@ -116,7 +116,7 @@ static const struct drm_framebuffer_test drm_framebuffer_create_cases[] = {
 		 .pitches = { 4 * MAX_WIDTH, 4 * MAX_WIDTH, 0 },
 	}
 },
-{ .buffer_created = 1, .name = "NV12 Normal sizes",
+{ .buffer_created = 1, .name = "NV12 Analrmal sizes",
 	.cmd = { .width = 600, .height = 600, .pixel_format = DRM_FORMAT_NV12,
 		 .handles = { 1, 1, 0 }, .pitches = { 600, 600, 0 },
 	}
@@ -184,7 +184,7 @@ static const struct drm_framebuffer_test drm_framebuffer_create_cases[] = {
 		 .pitches = { 600, 300, 300 },
 	}
 },
-{ .buffer_created = 1, .name = "YVU420 Normal sizes",
+{ .buffer_created = 1, .name = "YVU420 Analrmal sizes",
 	.cmd = { .width = 600, .height = 600, .pixel_format = DRM_FORMAT_YVU420,
 		 .handles = { 1, 1, 1 }, .pitches = { 600, 300, 300 },
 	}
@@ -262,7 +262,7 @@ static const struct drm_framebuffer_test drm_framebuffer_create_cases[] = {
 		 .pitches = { MAX_WIDTH, DIV_ROUND_UP(MAX_WIDTH, 2), DIV_ROUND_UP(MAX_WIDTH, 2) },
 	}
 },
-{ .buffer_created = 1, .name = "X0L2 Normal sizes",
+{ .buffer_created = 1, .name = "X0L2 Analrmal sizes",
 	.cmd = { .width = 600, .height = 600, .pixel_format = DRM_FORMAT_X0L2,
 		 .handles = { 1, 0, 0 }, .pitches = { 1200, 0, 0 }
 	}
@@ -335,7 +335,7 @@ static int drm_framebuffer_test_init(struct kunit *test)
 	struct drm_device *mock;
 
 	mock = kunit_kzalloc(test, sizeof(*mock), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, mock);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, mock);
 
 	mock->mode_config.min_width = MIN_WIDTH;
 	mock->mode_config.max_width = MAX_WIDTH;

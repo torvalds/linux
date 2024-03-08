@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ip.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -52,7 +52,7 @@ static int ila_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 					true);
 
 	if (rt->rt6i_flags & (RTF_GATEWAY | RTF_CACHE)) {
-		/* Already have a next hop address in route, no need for
+		/* Already have a next hop address in route, anal need for
 		 * dest cache route.
 		 */
 		return orig_dst->lwtstate->orig_output(net, sk, skb);
@@ -138,7 +138,7 @@ static int ila_build_state(struct net *net, struct nlattr *nla,
 	struct ila_addr *iaddr;
 	u8 ident_type = ILA_ATYPE_USE_FORMAT;
 	u8 hook_type = ILA_HOOK_ROUTE_OUTPUT;
-	u8 csum_mode = ILA_CSUM_NO_ACTION;
+	u8 csum_mode = ILA_CSUM_ANAL_ACTION;
 	bool lwt_output = true;
 	u8 eff_ident_type;
 	int ret;
@@ -185,8 +185,8 @@ static int ila_build_state(struct net *net, struct nlattr *nla,
 	case ILA_ATYPE_VIRT_V4:
 	case ILA_ATYPE_VIRT_UNI_V6:
 	case ILA_ATYPE_VIRT_MULTI_V6:
-	case ILA_ATYPE_NONLOCAL_ADDR:
-		/* These ILA formats are not supported yet. */
+	case ILA_ATYPE_ANALNLOCAL_ADDR:
+		/* These ILA formats are analt supported yet. */
 	default:
 		return -EINVAL;
 	}
@@ -218,7 +218,7 @@ static int ila_build_state(struct net *net, struct nlattr *nla,
 
 	newts = lwtunnel_state_alloc(sizeof(*ilwt));
 	if (!newts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ilwt = ila_lwt_lwtunnel(newts);
 	ret = dst_cache_init(&ilwt->dst_cache, GFP_ATOMIC);
@@ -236,7 +236,7 @@ static int ila_build_state(struct net *net, struct nlattr *nla,
 	p->locator.v64 = (__force __be64)nla_get_u64(tb[ILA_ATTR_LOCATOR]);
 
 	/* Precompute checksum difference for translation since we
-	 * know both the old locator and the new one.
+	 * kanalw both the old locator and the new one.
 	 */
 	p->locator_match = iaddr->loc;
 

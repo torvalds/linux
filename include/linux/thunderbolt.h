@@ -2,7 +2,7 @@
 /*
  * Thunderbolt service API
  *
- * Copyright (C) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2014 Andreas Analever <andreas.analever@gmail.com>
  * Copyright (C) 2017, Intel Corporation
  * Authors: Michael Jamet <michael.jamet@intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
@@ -24,7 +24,7 @@ enum tb_cfg_pkg_type {
 	TB_CFG_PKG_READ = 1,
 	TB_CFG_PKG_WRITE = 2,
 	TB_CFG_PKG_ERROR = 3,
-	TB_CFG_PKG_NOTIFY_ACK = 4,
+	TB_CFG_PKG_ANALTIFY_ACK = 4,
 	TB_CFG_PKG_EVENT = 5,
 	TB_CFG_PKG_XDOMAIN_REQ = 6,
 	TB_CFG_PKG_XDOMAIN_RESP = 7,
@@ -38,23 +38,23 @@ enum tb_cfg_pkg_type {
 
 /**
  * enum tb_security_level - Thunderbolt security level
- * @TB_SECURITY_NONE: No security, legacy mode
+ * @TB_SECURITY_ANALNE: Anal security, legacy mode
  * @TB_SECURITY_USER: User approval required at minimum
  * @TB_SECURITY_SECURE: One time saved key required at minimum
  * @TB_SECURITY_DPONLY: Only tunnel Display port (and USB)
  * @TB_SECURITY_USBONLY: Only tunnel USB controller of the connected
  *			 Thunderbolt dock (and Display Port). All PCIe
  *			 links downstream of the dock are removed.
- * @TB_SECURITY_NOPCIE: For USB4 systems this level is used when the
+ * @TB_SECURITY_ANALPCIE: For USB4 systems this level is used when the
  *			PCIe tunneling is disabled from the BIOS.
  */
 enum tb_security_level {
-	TB_SECURITY_NONE,
+	TB_SECURITY_ANALNE,
 	TB_SECURITY_USER,
 	TB_SECURITY_SECURE,
 	TB_SECURITY_DPONLY,
 	TB_SECURITY_USBONLY,
-	TB_SECURITY_NOPCIE,
+	TB_SECURITY_ANALPCIE,
 };
 
 /**
@@ -110,7 +110,7 @@ struct tb_property_dir {
 };
 
 enum tb_property_type {
-	TB_PROPERTY_TYPE_UNKNOWN = 0x00,
+	TB_PROPERTY_TYPE_UNKANALWN = 0x00,
 	TB_PROPERTY_TYPE_DIRECTORY = 0x44,
 	TB_PROPERTY_TYPE_DATA = 0x64,
 	TB_PROPERTY_TYPE_TEXT = 0x74,
@@ -197,13 +197,13 @@ enum tb_link_width {
  * @local_max_hopid: Maximum input HopID of this host
  * @remote_max_hopid: Maximum input HopID of the remote host
  * @lock: Lock to serialize access to the following fields of this structure
- * @vendor_name: Name of the vendor (or %NULL if not known)
- * @device_name: Name of the device (or %NULL if not known)
+ * @vendor_name: Name of the vendor (or %NULL if analt kanalwn)
+ * @device_name: Name of the device (or %NULL if analt kanalwn)
  * @link_speed: Speed of the link in Gb/s
  * @link_width: Width of the downstream facing link
  * @link_usb4: Downstream link is USB4
  * @is_unplugged: The XDomain is unplugged
- * @needs_uuid: If the XDomain does not have @remote_uuid it will be
+ * @needs_uuid: If the XDomain does analt have @remote_uuid it will be
  *		queried first
  * @service_ids: Used to generate IDs for the services
  * @in_hopids: Input HopIDs for DMA tunneling
@@ -216,10 +216,10 @@ enum tb_link_width {
  * @state: Next XDomain discovery state to run
  * @state_work: Work used to run the next state
  * @state_retries: Number of retries remain for the state
- * @properties_changed_work: Work used to notify the remote domain that
+ * @properties_changed_work: Work used to analtify the remote domain that
  *			     our properties have changed
  * @properties_changed_retries: Number of times left to send properties
- *				changed notification
+ *				changed analtification
  * @bonding_possible: True if lane bonding is possible on local side
  * @target_link_width: Target link width from the remote host
  * @link: Root switch link the remote domain is connected (ICM only)
@@ -230,8 +230,8 @@ enum tb_link_width {
  * &struct tb_service objects.
  *
  * Service drivers may access this structure if they need to enumerate
- * non-standard properties but they need hold @lock when doing so
- * because properties can be changed asynchronously in response to
+ * analn-standard properties but they need hold @lock when doing so
+ * because properties can be changed asynchroanalusly in response to
  * changes in the remote domain.
  */
 struct tb_xdomain {
@@ -354,14 +354,14 @@ int tb_xdomain_request(struct tb_xdomain *xd, const void *request,
  * @uuid: XDomain messages with this UUID are dispatched to this handler
  * @callback: Callback called with the XDomain message. Returning %1
  *	      here tells the XDomain core that the message was handled
- *	      by this handler and should not be forwared to other
+ *	      by this handler and should analt be forwared to other
  *	      handlers.
  * @data: Data passed with the callback
  * @list: Handlers are linked using this
  *
  * Thunderbolt services can hook into incoming XDomain requests by
  * registering protocol handler. Only limitation is that the XDomain
- * discovery protocol UUID cannot be registered since it is handled by
+ * discovery protocol UUID cananalt be registered since it is handled by
  * the core XDomain code.
  *
  * The @callback must check that the message is really directed to the
@@ -483,7 +483,7 @@ static inline struct tb_xdomain *tb_service_parent(struct tb_service *svc)
  * @going_away: The host controller device is about to disappear so when
  *		this flag is set, avoid touching the hardware anymore.
  * @iommu_dma_protection: An IOMMU will isolate external-facing ports.
- * @interrupt_work: Work scheduled to handle ring interrupt when no
+ * @interrupt_work: Work scheduled to handle ring interrupt when anal
  *		    MSI-X is used.
  * @hop_count: Number of rings (end point hops) supported by NHI.
  * @quirks: NHI specific quirks if any
@@ -554,7 +554,7 @@ struct tb_ring {
 };
 
 /* Leave ring interrupt enabled on suspend */
-#define RING_FLAG_NO_SUSPEND	BIT(0)
+#define RING_FLAG_ANAL_SUSPEND	BIT(0)
 /* Configure the ring to be in frame mode */
 #define RING_FLAG_FRAME		BIT(1)
 /* Enable end-to-end flow control */
@@ -565,7 +565,7 @@ typedef void (*ring_cb)(struct tb_ring *, struct ring_frame *, bool canceled);
 
 /**
  * enum ring_desc_flags - Flags for DMA ring descriptor
- * %RING_DESC_ISOCH: Enable isonchronous DMA (Tx only)
+ * %RING_DESC_ISOCH: Enable isonchroanalus DMA (Tx only)
  * %RING_DESC_CRC_ERROR: In frame mode CRC check failed for the frame (Rx only)
  * %RING_DESC_COMPLETED: Descriptor completed (set by NHI)
  * %RING_DESC_POSTED: Always set this

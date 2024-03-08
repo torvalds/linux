@@ -31,8 +31,8 @@ properties:
       - description: Fatal interrupt
       - description: Ready interrupt
       - description: Handover interrupt
-      - description: Stop acknowledge interrupt
-      - description: Shutdown acknowledge interrupt
+      - description: Stop ackanalwledge interrupt
+      - description: Shutdown ackanalwledge interrupt
 
   interrupt-names:
     minItems: 5
@@ -66,14 +66,14 @@ properties:
   smd-edge:
     $ref: /schemas/remoteproc/qcom,smd-edge.yaml#
     description:
-      Qualcomm Shared Memory subnode which represents communication edge,
+      Qualcomm Shared Memory subanalde which represents communication edge,
       channels and devices related to the ADSP.
     unevaluatedProperties: false
 
   glink-edge:
     $ref: /schemas/remoteproc/qcom,glink-edge.yaml#
     description:
-      Qualcomm G-Link subnode which represents communication edge, channels
+      Qualcomm G-Link subanalde which represents communication edge, channels
       and devices related to the ADSP.
     unevaluatedProperties: false
 

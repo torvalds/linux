@@ -54,12 +54,12 @@ properties:
 
       The format should be as follows:
       <gpr req_gpr>
-      gpr is the phandle to general purpose register node.
+      gpr is the phandle to general purpose register analde.
       req_gpr is the gpr register offset of RX_ENABLE for the mipi phy.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: The 'gpr' is the phandle to general purpose register node.
+          - description: The 'gpr' is the phandle to general purpose register analde.
           - description: The 'req_gpr' is the gpr register offset containing
                         CSI2_1_RX_ENABLE or CSI2_2_RX_ENABLE respectively.
             maximum: 0xff
@@ -78,7 +78,7 @@ properties:
         $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
         description:
-          Input port node, single endpoint describing the CSI-2 transmitter.
+          Input port analde, single endpoint describing the CSI-2 transmitter.
 
         properties:
           endpoint:
@@ -100,7 +100,7 @@ properties:
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Output port node
+          Output port analde
 
     required:
       - port@0
@@ -143,7 +143,7 @@ examples:
                  <&src IMX8MQ_RESET_MIPI_CSI1_PHY_REF_RESET>,
                  <&src IMX8MQ_RESET_MIPI_CSI1_ESC_RESET>;
         fsl,mipi-phy-gpr = <&iomuxc_gpr 0x88>;
-        interconnects = <&noc IMX8MQ_ICM_CSI1 &noc IMX8MQ_ICS_DRAM>;
+        interconnects = <&analc IMX8MQ_ICM_CSI1 &analc IMX8MQ_ICS_DRAM>;
         interconnect-names = "dram";
 
         ports {

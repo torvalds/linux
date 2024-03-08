@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015 Mellaanalx Techanallogies. All rights reserved.
  */
 
 #ifndef _LINUX_NVME_RDMA_H
@@ -18,7 +18,7 @@ enum nvme_rdma_cm_status {
 	NVME_RDMA_CM_INVALID_QID	= 0x03,
 	NVME_RDMA_CM_INVALID_HSQSIZE	= 0x04,
 	NVME_RDMA_CM_INVALID_HRQSIZE	= 0x05,
-	NVME_RDMA_CM_NO_RSC		= 0x06,
+	NVME_RDMA_CM_ANAL_RSC		= 0x06,
 	NVME_RDMA_CM_INVALID_IRD	= 0x07,
 	NVME_RDMA_CM_INVALID_ORD	= 0x08,
 };
@@ -36,8 +36,8 @@ static inline const char *nvme_rdma_cm_msg(enum nvme_rdma_cm_status status)
 		return "invalid host SQ size";
 	case NVME_RDMA_CM_INVALID_HRQSIZE:
 		return "invalid host RQ size";
-	case NVME_RDMA_CM_NO_RSC:
-		return "resource not found";
+	case NVME_RDMA_CM_ANAL_RSC:
+		return "resource analt found";
 	case NVME_RDMA_CM_INVALID_IRD:
 		return "invalid IRD";
 	case NVME_RDMA_CM_INVALID_ORD:

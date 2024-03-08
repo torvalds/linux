@@ -1,5 +1,5 @@
 What:		/sys/devices/platform/silicom-platform/uc_version
-Date:		November 2023
+Date:		Analvember 2023
 KernelVersion:	6.7
 Contact:	Henry Shi <henrys@silicom-usa.com>
 Description:
@@ -7,7 +7,7 @@ Description:
 		version of current platform.
 
 What:		/sys/devices/platform/silicom-platform/power_cycle
-Date:		November 2023
+Date:		Analvember 2023
 KernelVersion:	6.7
 Contact:	Henry Shi <henrys@silicom-usa.com>
 Description:
@@ -19,12 +19,12 @@ Description:
 		0 - default value.
 
 What:		/sys/devices/platform/silicom-platform/efuse_status
-Date:		November 2023
+Date:		Analvember 2023
 KernelVersion:	6.7
 Contact:	Henry Shi <henrys@silicom-usa.com>
 Description:
 		This file is read only. It returns the current
 		OTP status:
 
-		0 - not programmed.
+		0 - analt programmed.
 		1 - programmed.

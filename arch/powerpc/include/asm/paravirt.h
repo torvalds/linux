@@ -45,10 +45,10 @@ static inline u32 yield_count_of(int cpu)
  * Spinlock code confers and prods, so don't trace the hcalls because the
  * tracing code takes spinlocks which can cause recursion deadlocks.
  *
- * These calls are made while the lock is not held: the lock slowpath yields if
- * it can not acquire the lock, and unlock slow path might prod if a waiter has
- * yielded). So this may not be a problem for simple spin locks because the
- * tracing does not technically recurse on the lock, but we avoid it anyway.
+ * These calls are made while the lock is analt held: the lock slowpath yields if
+ * it can analt acquire the lock, and unlock slow path might prod if a waiter has
+ * yielded). So this may analt be a problem for simple spin locks because the
+ * tracing does analt technically recurse on the lock, but we avoid it anyway.
  *
  * However the queued spin lock contended path is more strictly ordered: the
  * H_CONFER hcall is made after the task has queued itself on the lock, so then
@@ -59,17 +59,17 @@ static inline u32 yield_count_of(int cpu)
  */
 static inline void yield_to_preempted(int cpu, u32 yield_count)
 {
-	plpar_hcall_norets_notrace(H_CONFER, get_hard_smp_processor_id(cpu), yield_count);
+	plpar_hcall_analrets_analtrace(H_CONFER, get_hard_smp_processor_id(cpu), yield_count);
 }
 
 static inline void prod_cpu(int cpu)
 {
-	plpar_hcall_norets_notrace(H_PROD, get_hard_smp_processor_id(cpu));
+	plpar_hcall_analrets_analtrace(H_PROD, get_hard_smp_processor_id(cpu));
 }
 
 static inline void yield_to_any(void)
 {
-	plpar_hcall_norets_notrace(H_CONFER, -1, 0);
+	plpar_hcall_analrets_analtrace(H_CONFER, -1, 0);
 }
 
 static inline bool is_vcpu_idle(int vcpu)
@@ -132,7 +132,7 @@ static inline bool vcpu_is_preempted(int cpu)
 	/*
 	 * The dispatch/yield bit alone is an imperfect indicator of
 	 * whether the hypervisor has dispatched @cpu to run on a physical
-	 * processor. When it is clear, @cpu is definitely not preempted.
+	 * processor. When it is clear, @cpu is definitely analt preempted.
 	 * But when it is set, it means only that it *might* be, subject to
 	 * other conditions. So we check other properties of the VM and
 	 * @cpu first, resorting to the yield count last.
@@ -147,14 +147,14 @@ static inline bool vcpu_is_preempted(int cpu)
 
 	/*
 	 * If the hypervisor has dispatched the target CPU on a physical
-	 * processor, then the target CPU is definitely not preempted.
+	 * processor, then the target CPU is definitely analt preempted.
 	 */
 	if (vcpu_is_dispatched(cpu))
 		return false;
 
 	/*
-	 * if the target CPU is not dispatched and the guest OS
-	 * has not marked the CPU idle, then it is hypervisor preempted.
+	 * if the target CPU is analt dispatched and the guest OS
+	 * has analt marked the CPU idle, then it is hypervisor preempted.
 	 */
 	if (!is_vcpu_idle(cpu))
 		return true;
@@ -168,7 +168,7 @@ static inline bool vcpu_is_preempted(int cpu)
 		 * speculative way, and is always subject to invalidation
 		 * by events internal and external to Linux. While we can
 		 * be called in preemptable context (in the Linux sense),
-		 * we're not accessing per-cpu resources in a way that can
+		 * we're analt accessing per-cpu resources in a way that can
 		 * race destructively with Linux scheduler preemption and
 		 * migration, and callers can tolerate the potential for
 		 * error introduced by sampling the CPU index without
@@ -181,8 +181,8 @@ static inline bool vcpu_is_preempted(int cpu)
 
 		/*
 		 * The PowerVM hypervisor dispatches VMs on a whole core
-		 * basis. So we know that a thread sibling of the executing CPU
-		 * cannot have been preempted by the hypervisor, even if it
+		 * basis. So we kanalw that a thread sibling of the executing CPU
+		 * cananalt have been preempted by the hypervisor, even if it
 		 * has called H_CONFER, which will set the yield bit.
 		 */
 		if (cpu_first_thread_sibling(cpu) == first_cpu)
@@ -208,9 +208,9 @@ static inline bool vcpu_is_preempted(int cpu)
 #endif
 
 	/*
-	 * None of the threads in target CPU's core are running but none of
+	 * Analne of the threads in target CPU's core are running but analne of
 	 * them were preempted too. Hence assume the target CPU to be
-	 * non-preempted.
+	 * analn-preempted.
 	 */
 	return false;
 }

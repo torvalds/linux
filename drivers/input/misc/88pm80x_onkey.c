@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
@@ -49,7 +49,7 @@ static irqreturn_t pm80x_onkey_handler(int irq, void *data)
 	ret = regmap_read(info->map, PM800_STATUS_1, &val);
 	if (ret < 0) {
 		dev_err(info->idev->dev.parent, "failed to read status: %d\n", ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	val &= PM800_ONKEY_STS1;
 
@@ -71,7 +71,7 @@ static int pm80x_onkey_probe(struct platform_device *pdev)
 
 	info = kzalloc(sizeof(struct pm80x_onkey_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->pm80x = chip;
 
@@ -83,7 +83,7 @@ static int pm80x_onkey_probe(struct platform_device *pdev)
 
 	info->map = info->pm80x->regmap;
 	if (!info->map) {
-		dev_err(&pdev->dev, "no regmap!\n");
+		dev_err(&pdev->dev, "anal regmap!\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -91,7 +91,7 @@ static int pm80x_onkey_probe(struct platform_device *pdev)
 	info->idev = input_allocate_device();
 	if (!info->idev) {
 		dev_err(&pdev->dev, "Failed to allocate input dev\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 

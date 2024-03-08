@@ -12,10 +12,10 @@ char _license[] SEC("license") = "GPL";
 #define VM_MAYSHARE	0x00000080
 
 /* Copied from kdev_t.h */
-#define MINORBITS	20
-#define MINORMASK	((1U << MINORBITS) - 1)
-#define MAJOR(dev)	((unsigned int) ((dev) >> MINORBITS))
-#define MINOR(dev)	((unsigned int) ((dev) & MINORMASK))
+#define MIANALRBITS	20
+#define MIANALRMASK	((1U << MIANALRBITS) - 1)
+#define MAJOR(dev)	((unsigned int) ((dev) >> MIANALRBITS))
+#define MIANALR(dev)	((unsigned int) ((dev) & MIANALRMASK))
 
 #define D_PATH_BUF_SIZE 1024
 char d_path_buf[D_PATH_BUF_SIZE] = {};
@@ -47,13 +47,13 @@ SEC("iter/task_vma") int proc_maps(struct bpf_iter__task_vma *ctx)
 	BPF_SEQ_PRINTF(seq, "%08llx-%08llx %s ", vma->vm_start, vma->vm_end, perm_str);
 
 	if (file) {
-		__u32 dev = file->f_inode->i_sb->s_dev;
+		__u32 dev = file->f_ianalde->i_sb->s_dev;
 
 		bpf_d_path(&file->f_path, d_path_buf, D_PATH_BUF_SIZE);
 
 		BPF_SEQ_PRINTF(seq, "%08llx ", vma->vm_pgoff << 12);
-		BPF_SEQ_PRINTF(seq, "%02x:%02x %u", MAJOR(dev), MINOR(dev),
-			       file->f_inode->i_ino);
+		BPF_SEQ_PRINTF(seq, "%02x:%02x %u", MAJOR(dev), MIANALR(dev),
+			       file->f_ianalde->i_ianal);
 		BPF_SEQ_PRINTF(seq, "\t%s\n", d_path_buf);
 	} else {
 		BPF_SEQ_PRINTF(seq, "%08llx 00:00 0\n", 0ULL);

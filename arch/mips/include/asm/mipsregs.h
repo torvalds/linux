@@ -7,7 +7,7 @@
  * Copyright (C) 2000 Silicon Graphics, Inc.
  * Modified for further R[236]000 support by Paul M. Antoine, 1996.
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000, 07 MIPS Technologies, Inc.
+ * Copyright (C) 2000, 07 MIPS Techanallogies, Inc.
  * Copyright (C) 2003, 2004  Maciej W. Rozycki
  */
 #ifndef _ASM_MIPSREGS_H
@@ -84,8 +84,8 @@
 #define CP0_WATCHHI $19
 #define CP0_XCONTEXT $20
 #define CP0_FRAMEMASK $21
-#define CP0_DIAGNOSTIC $22
-#define CP0_DIAGNOSTIC1 $22, 1
+#define CP0_DIAGANALSTIC $22
+#define CP0_DIAGANALSTIC1 $22, 1
 #define CP0_DEBUG $23
 #define CP0_DEPC $24
 #define CP0_PERFORMANCE $25
@@ -98,7 +98,7 @@
 
 /*
  * R4640/R4650 cp0 register names.  These registers are listed
- * here only for completeness; without MMU these CPUs are not usable
+ * here only for completeness; without MMU these CPUs are analt usable
  * by Linux.  A future ELKS port might take make Linux run on them
  * though ...
  */
@@ -473,10 +473,10 @@
  * Bits in the coprocessor 0 config register.
  */
 /* Generic bits.  */
-#define CONF_CM_CACHABLE_NO_WA		0
+#define CONF_CM_CACHABLE_ANAL_WA		0
 #define CONF_CM_CACHABLE_WA		1
 #define CONF_CM_UNCACHED		2
-#define CONF_CM_CACHABLE_NONCOHERENT	3
+#define CONF_CM_CACHABLE_ANALNCOHERENT	3
 #define CONF_CM_CACHABLE_CE		4
 #define CONF_CM_CACHABLE_COW		5
 #define CONF_CM_CACHABLE_CUW		6
@@ -728,7 +728,7 @@
 /* Ingenic Config7 bits */
 #define MIPS_CONF7_BTB_LOOP_EN	(_ULCAST_(1) << 4)
 
-/* Config7 Bits specific to MIPS Technologies. */
+/* Config7 Bits specific to MIPS Techanallogies. */
 
 /* Performance counters implemented Per TC */
 #define MTI_CONF7_PTC		(_ULCAST_(1) << 19)
@@ -1025,7 +1025,7 @@
 #define TX39_CONF_DRSIZE_MASK	0x00000003
 
 /*
- * Interesting Bits in the R10K CP0 Branch Diagnostic Register
+ * Interesting Bits in the R10K CP0 Branch Diaganalstic Register
  */
 /* Disable Branch Target Address Cache */
 #define R10K_DIAG_D_BTAC	(_ULCAST_(1) << 27)
@@ -1134,7 +1134,7 @@
 #define FPU_CSR_COND_S	23					/* $fcc0 */
 #define FPU_CSR_COND	(_ULCAST_(1) << FPU_CSR_COND_S)
 
-#define FPU_CSR_FS_S	24		/* flush denormalised results to 0 */
+#define FPU_CSR_FS_S	24		/* flush deanalrmalised results to 0 */
 #define FPU_CSR_FS	(_ULCAST_(1) << FPU_CSR_FS_S)
 
 #define FPU_CSR_CONDX_S	25					/* $fcc[7:1] */
@@ -1264,7 +1264,7 @@ static inline int mm_insn_16bit(u16 insn)
  * registers are chosen by the compiler in $n form, allowing us to avoid using
  * fixed register numbers.
  *
- * It also allows newer instructions (not implemented by the assembler) to be
+ * It also allows newer instructions (analt implemented by the assembler) to be
  * transparently implemented using assembler macros, instead of needing separate
  * cases depending on toolchain support.
  *
@@ -1354,7 +1354,7 @@ static inline void tlbinvf(void)
 {
 	__asm__ __volatile__(
 		".set push\n\t"
-		".set noreorder\n\t"
+		".set analreorder\n\t"
 		"# tlbinvf\n\t"
 		_ASM_INSN_IF_MIPS(0x42000004)
 		_ASM_INSN32_IF_MM(0x0000537c)
@@ -1366,7 +1366,7 @@ static inline void tlbinvf(void)
  * Functions to access the R10000 performance counters.	 These are basically
  * mfc0 and mtc0 instructions from and to coprocessor register with a 5-bit
  * performance counter number encoded into bits 1 ... 5 of the instruction.
- * Only performance counters 0 to 1 actually exist, so for a non-R10000 aware
+ * Only performance counters 0 to 1 actually exist, so for a analn-R10000 aware
  * disassembler these will look like an access to sel 0 or 1.
  */
 #define read_r10k_perf_cntr(counter)				\
@@ -1534,7 +1534,7 @@ do {									\
 
 /*
  * These versions are only needed for systems with more than 38 bits of
- * physical address space running the 32-bit kernel.  That's none atm :-)
+ * physical address space running the 32-bit kernel.  That's analne atm :-)
  */
 #define __read_64bit_c0_split(source, sel, vol)				\
 ({									\
@@ -1829,7 +1829,7 @@ do {									\
 #define read_c0_diag()		__read_32bit_c0_register($22, 0)
 #define write_c0_diag(val)	__write_32bit_c0_register($22, 0, val)
 
-/* R10K CP0 Branch Diagnostic register is 64bits wide */
+/* R10K CP0 Branch Diaganalstic register is 64bits wide */
 #define read_c0_r10k_diag()	__read_64bit_c0_register($22, 0)
 #define write_c0_r10k_diag(val)	__write_64bit_c0_register($22, 0, val)
 
@@ -1979,7 +1979,7 @@ do {									\
 #define write_c0_cvmvmconfig(val) __write_64bit_c0_register($16, 7, val)
 
 /*
- * The cacheerr registers are not standardized.	 On OCTEON, they are
+ * The cacheerr registers are analt standardized.	 On OCTEON, they are
  * 64 bits wide.
  */
 #define read_octeon_c0_icacheerr()	__read_64bit_c0_register($27, 0)
@@ -2632,7 +2632,7 @@ do {									\
 									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
-	"	.set	noat					\n"	\
+	"	.set	analat					\n"	\
 	"	# rddsp $1, %x1					\n"	\
 	_ASM_INSN_IF_MIPS(0x7c000cb8 | (%x1 << 16))			\
 	_ASM_INSN32_IF_MM(0x0020067c | (%x1 << 14))			\
@@ -2647,7 +2647,7 @@ do {									\
 do {									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
-	"	.set	noat					\n"	\
+	"	.set	analat					\n"	\
 	"	move	$1, %0					\n"	\
 	"	# wrdsp $1, %x1					\n"	\
 	_ASM_INSN_IF_MIPS(0x7c2004f8 | (%x1 << 11))			\
@@ -2663,7 +2663,7 @@ do {									\
 									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
-	"	.set	noat					\n"	\
+	"	.set	analat					\n"	\
 	_ASM_INSN_IF_MIPS(0x00000810 | %X1)				\
 	_ASM_INSN32_IF_MM(0x0001007c | %x1)				\
 	"	move	%0, $1					\n"	\
@@ -2677,7 +2677,7 @@ do {									\
 do {									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
-	"	.set	noat					\n"	\
+	"	.set	analat					\n"	\
 	"	move	$1, %0					\n"	\
 	_ASM_INSN_IF_MIPS(0x00200011 | %X1)				\
 	_ASM_INSN32_IF_MM(0x0001207c | %x1)				\
@@ -2734,7 +2734,7 @@ do {									\
 static inline void tlb_probe(void)
 {
 	__asm__ __volatile__(
-		".set noreorder\n\t"
+		".set analreorder\n\t"
 		"tlbp\n\t"
 		".set reorder");
 }
@@ -2746,8 +2746,8 @@ static inline void tlb_read(void)
 
 	__asm__ __volatile__(
 	"	.set	push					\n"
-	"	.set	noreorder				\n"
-	"	.set	noat					\n"
+	"	.set	analreorder				\n"
+	"	.set	analat					\n"
 	"	.set	mips32r2				\n"
 	"	.word	0x41610001		# dvpe $1	\n"
 	"	move	%0, $1					\n"
@@ -2759,7 +2759,7 @@ static inline void tlb_read(void)
 #endif
 
 	__asm__ __volatile__(
-		".set noreorder\n\t"
+		".set analreorder\n\t"
 		"tlbr\n\t"
 		".set reorder");
 
@@ -2767,8 +2767,8 @@ static inline void tlb_read(void)
 	if ((res & _ULCAST_(1)))
 		__asm__ __volatile__(
 		"	.set	push				\n"
-		"	.set	noreorder			\n"
-		"	.set	noat				\n"
+		"	.set	analreorder			\n"
+		"	.set	analat				\n"
 		"	.set	mips32r2			\n"
 		"	.word	0x41600021	# evpe		\n"
 		"	ehb					\n"
@@ -2779,7 +2779,7 @@ static inline void tlb_read(void)
 static inline void tlb_write_indexed(void)
 {
 	__asm__ __volatile__(
-		".set noreorder\n\t"
+		".set analreorder\n\t"
 		"tlbwi\n\t"
 		".set reorder");
 }
@@ -2787,7 +2787,7 @@ static inline void tlb_write_indexed(void)
 static inline void tlb_write_random(void)
 {
 	__asm__ __volatile__(
-		".set noreorder\n\t"
+		".set analreorder\n\t"
 		"tlbwr\n\t"
 		".set reorder");
 }
@@ -2801,7 +2801,7 @@ static inline void guest_tlb_probe(void)
 {
 	__asm__ __volatile__(
 		".set push\n\t"
-		".set noreorder\n\t"
+		".set analreorder\n\t"
 		__tlbgp()
 		".set pop");
 }
@@ -2810,7 +2810,7 @@ static inline void guest_tlb_read(void)
 {
 	__asm__ __volatile__(
 		".set push\n\t"
-		".set noreorder\n\t"
+		".set analreorder\n\t"
 		__tlbgr()
 		".set pop");
 }
@@ -2819,7 +2819,7 @@ static inline void guest_tlb_write_indexed(void)
 {
 	__asm__ __volatile__(
 		".set push\n\t"
-		".set noreorder\n\t"
+		".set analreorder\n\t"
 		__tlbgwi()
 		".set pop");
 }
@@ -2828,7 +2828,7 @@ static inline void guest_tlb_write_random(void)
 {
 	__asm__ __volatile__(
 		".set push\n\t"
-		".set noreorder\n\t"
+		".set analreorder\n\t"
 		__tlbgwr()
 		".set pop");
 }
@@ -2840,7 +2840,7 @@ static inline void guest_tlbinvf(void)
 {
 	__asm__ __volatile__(
 		".set push\n\t"
-		".set noreorder\n\t"
+		".set analreorder\n\t"
 		__tlbginvf()
 		".set pop");
 }
@@ -2928,7 +2928,7 @@ __BUILD_SET_GC0(config1)
 
 /*
  * Return low 10 bits of ebase.
- * Note that under KVM (MIPSVZ) this returns vcpu id.
+ * Analte that under KVM (MIPSVZ) this returns vcpu id.
  */
 static inline unsigned int get_ebase_cpunum(void)
 {

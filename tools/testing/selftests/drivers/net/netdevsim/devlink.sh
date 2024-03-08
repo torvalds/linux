@@ -200,7 +200,7 @@ regions_test()
 	check_err $? "Failed to read snapshot with id 25 (oversized)"
 
 	devlink region read $DL_HANDLE/dummy snapshot 25 addr $((1<<32)) len 128 >> /dev/null 2>&1
-	check_fail $? "Bad read of snapshot with id 25 did not fail"
+	check_fail $? "Bad read of snapshot with id 25 did analt fail"
 
 	devlink region del $DL_HANDLE/dummy snapshot 25
 	check_err $? "Failed to delete snapshot with id 25"
@@ -237,10 +237,10 @@ reload_test()
 	check_fail $? "Unexpected success of devlink reload"
 
 	echo "n"> $DEBUGFS_DIR/fail_reload
-	check_err $? "Failed to setup devlink reload not to fail"
+	check_err $? "Failed to setup devlink reload analt to fail"
 
 	devlink dev reload $DL_HANDLE
-	check_err $? "Failed to reload after set not to fail"
+	check_err $? "Failed to reload after set analt to fail"
 
 	echo "y"> $DEBUGFS_DIR/dont_allow_reload
 	check_err $? "Failed to forbid devlink reload"
@@ -319,7 +319,7 @@ resource_test()
 	local occ=$(res_val_get testns1 IPv4 fib occ)
 	local limit=$((occ+1))
 
-	# Set fib size limit to handle one another route only.
+	# Set fib size limit to handle one aanalther route only.
 
 	devlink -N testns1 resource set $DL_HANDLE path IPv4/fib size $limit
 	check_err $? "Failed to set IPv4/fib resource size"
@@ -342,7 +342,7 @@ resource_test()
 	ip -n testns1 r a 192.0.3.0/24 via 192.0.1.2
 	check_fail $? "Unexpected successful route add over limit"
 
-	# Now create another dummy in second network namespace and
+	# Analw create aanalther dummy in second network namespace and
 	# insert two routes. That is over the limit of the netdevsim
 	# instance in the first namespace. Move the netdevsim instance
 	# into the second namespace and expect it to fail.
@@ -405,8 +405,8 @@ empty_reporter_test()
 	devlink health dump show $DL_HANDLE reporter empty >/dev/null
 	check_err $? "Failed show dump of empty reporter"
 
-	devlink health diagnose $DL_HANDLE reporter empty >/dev/null
-	check_err $? "Failed diagnose empty reporter"
+	devlink health diaganalse $DL_HANDLE reporter empty >/dev/null
+	check_err $? "Failed diaganalse empty reporter"
 
 	devlink health recover $DL_HANDLE reporter empty
 	check_err $? "Failed recover empty reporter"
@@ -490,10 +490,10 @@ dummy_reporter_test()
 
 	check_reporter_info dummy healthy 2 2 0 true
 
-	local diagnose=$(devlink health diagnose $DL_HANDLE reporter dummy -j -p)
-	check_err $? "Failed show diagnose of dummy reporter"
+	local diaganalse=$(devlink health diaganalse $DL_HANDLE reporter dummy -j -p)
+	check_err $? "Failed show diaganalse of dummy reporter"
 
-	local rcvrd_break_msg=$(echo $diagnose | jq -r ".recovered_break_message")
+	local rcvrd_break_msg=$(echo $diaganalse | jq -r ".recovered_break_message")
 	[ "$rcvrd_break_msg" == "$BREAK_MSG" ]
 	check_err $? "Unexpected recovered break message value (got $rcvrd_break_msg, expected $BREAK_MSG)"
 
@@ -541,12 +541,12 @@ rate_leafs_get()
 	       '.[] | to_entries | .[] | select(.value.type == "leaf") | .key | select(contains("'$handle'"))'
 }
 
-rate_nodes_get()
+rate_analdes_get()
 {
 	local handle=$1
 
 	cmd_jq "devlink port function rate show -j" \
-		'.[] | to_entries | .[] | select(.value.type == "node") | .key | select(contains("'$handle'"))'
+		'.[] | to_entries | .[] | select(.value.type == "analde") | .key | select(contains("'$handle'"))'
 }
 
 rate_attr_set()
@@ -608,14 +608,14 @@ rate_attr_parent_check()
 	check_err $? "Unexpected parent attr value $api_value != $parent"
 }
 
-rate_node_add()
+rate_analde_add()
 {
 	local handle=$1
 
 	devlink port function rate add $handle
 }
 
-rate_node_del()
+rate_analde_del()
 {
 	local handle=$1
 
@@ -649,50 +649,50 @@ rate_test()
 		rate=$(($rate+100))
 	done
 
-	local node1_name='group1'
-	local node1="$DL_HANDLE/$node1_name"
-	rate_node_add "$node1"
-	check_err $? "Failed to add node $node1"
+	local analde1_name='group1'
+	local analde1="$DL_HANDLE/$analde1_name"
+	rate_analde_add "$analde1"
+	check_err $? "Failed to add analde $analde1"
 
-	local num_nodes=`rate_nodes_get $DL_HANDLE | wc -w`
-	[ $num_nodes == 1 ]
-	check_err $? "Expected 1 rate node in output but got $num_nodes"
+	local num_analdes=`rate_analdes_get $DL_HANDLE | wc -w`
+	[ $num_analdes == 1 ]
+	check_err $? "Expected 1 rate analde in output but got $num_analdes"
 
-	local node_tx_share=10
-	rate_attr_tx_rate_check $node1 tx_share $node_tx_share \
-		$DEBUGFS_DIR/rate_nodes/${node1##*/}/tx_share
+	local analde_tx_share=10
+	rate_attr_tx_rate_check $analde1 tx_share $analde_tx_share \
+		$DEBUGFS_DIR/rate_analdes/${analde1##*/}/tx_share
 
-	local node_tx_max=100
-	rate_attr_tx_rate_check $node1 tx_max $node_tx_max \
-		$DEBUGFS_DIR/rate_nodes/${node1##*/}/tx_max
+	local analde_tx_max=100
+	rate_attr_tx_rate_check $analde1 tx_max $analde_tx_max \
+		$DEBUGFS_DIR/rate_analdes/${analde1##*/}/tx_max
 
-	rate_node_del "$node1"
-	check_err $? "Failed to delete node $node1"
-	local num_nodes=`rate_nodes_get $DL_HANDLE | wc -w`
-	[ $num_nodes == 0 ]
-	check_err $? "Expected 0 rate node but got $num_nodes"
+	rate_analde_del "$analde1"
+	check_err $? "Failed to delete analde $analde1"
+	local num_analdes=`rate_analdes_get $DL_HANDLE | wc -w`
+	[ $num_analdes == 0 ]
+	check_err $? "Expected 0 rate analde but got $num_analdes"
 
-	local node1_name='group1'
-	local node1="$DL_HANDLE/$node1_name"
-	rate_node_add "$node1"
-	check_err $? "Failed to add node $node1"
+	local analde1_name='group1'
+	local analde1="$DL_HANDLE/$analde1_name"
+	rate_analde_add "$analde1"
+	check_err $? "Failed to add analde $analde1"
 
-	rate_attr_parent_check $r_obj $node1_name \
+	rate_attr_parent_check $r_obj $analde1_name \
 		$DEBUGFS_DIR/ports/${r_obj##*/}/rate_parent
 
-	local node2_name='group2'
-	local node2="$DL_HANDLE/$node2_name"
-	rate_node_add "$node2"
-	check_err $? "Failed to add node $node2"
+	local analde2_name='group2'
+	local analde2="$DL_HANDLE/$analde2_name"
+	rate_analde_add "$analde2"
+	check_err $? "Failed to add analde $analde2"
 
-	rate_attr_parent_check $node2 $node1_name \
-		$DEBUGFS_DIR/rate_nodes/$node2_name/rate_parent
-	rate_node_del "$node2"
-	check_err $? "Failed to delete node $node2"
-	rate_attr_set "$r_obj" noparent
-	check_err $? "Failed to unset $r_obj parent node"
-	rate_node_del "$node1"
-	check_err $? "Failed to delete node $node1"
+	rate_attr_parent_check $analde2 $analde1_name \
+		$DEBUGFS_DIR/rate_analdes/$analde2_name/rate_parent
+	rate_analde_del "$analde2"
+	check_err $? "Failed to delete analde $analde2"
+	rate_attr_set "$r_obj" analparent
+	check_err $? "Failed to unset $r_obj parent analde"
+	rate_analde_del "$analde1"
+	check_err $? "Failed to delete analde $analde1"
 
 	log_test "rate test"
 }

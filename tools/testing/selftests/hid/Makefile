@@ -28,7 +28,7 @@ LDLIBS += -lelf -lz -lrt -lpthread
 
 # Silence some warnings when compiled with clang
 ifneq ($(LLVM),)
-CFLAGS += -Wno-unused-command-line-argument
+CFLAGS += -Wanal-unused-command-line-argument
 endif
 
 # Order correspond to 'make run_tests' order
@@ -44,8 +44,8 @@ Q =
 msg =
 else
 Q = @
-msg = @printf '  %-8s%s %s%s\n' "$(1)" "$(if $(2), [$(2)])" "$(notdir $(3))" "$(if $(4), $(4))";
-MAKEFLAGS += --no-print-directory
+msg = @printf '  %-8s%s %s%s\n' "$(1)" "$(if $(2), [$(2)])" "$(analtdir $(3))" "$(if $(4), $(4))";
+MAKEFLAGS += --anal-print-directory
 submake_extras := feature_display=0
 endif
 
@@ -87,16 +87,16 @@ VMLINUX_BTF_PATHS ?= $(if $(O),$(O)/vmlinux)				\
 		     /boot/vmlinux-$(shell uname -r)
 VMLINUX_BTF ?= $(abspath $(firstword $(wildcard $(VMLINUX_BTF_PATHS))))
 ifeq ($(VMLINUX_BTF),)
-$(error Cannot find a vmlinux for VMLINUX_BTF at any of "$(VMLINUX_BTF_PATHS)")
+$(error Cananalt find a vmlinux for VMLINUX_BTF at any of "$(VMLINUX_BTF_PATHS)")
 endif
 
 # Define simple and short `make test_progs`, `make test_sysctl`, etc targets
 # to build individual tests.
-# NOTE: Semicolon at the end is critical to override lib.mk's default static
+# ANALTE: Semicolon at the end is critical to override lib.mk's default static
 # rule for binaries.
-$(notdir $(TEST_GEN_PROGS)): %: $(OUTPUT)/% ;
+$(analtdir $(TEST_GEN_PROGS)): %: $(OUTPUT)/% ;
 
-# sort removes libbpf duplicates when not cross-building
+# sort removes libbpf duplicates when analt cross-building
 MAKE_DIRS := $(sort $(BUILD_DIR)/libbpf $(HOST_BUILD_DIR)/libbpf		\
 	       $(HOST_BUILD_DIR)/bpftool $(HOST_BUILD_DIR)/resolve_btfids	\
 	       $(INCLUDE_DIR))
@@ -186,7 +186,7 @@ BPF_CFLAGS = -g -Werror -D__TARGET_ARCH_$(SRCARCH) $(MENDIAN) 		\
 	     -I$(INCLUDE_DIR)
 
 CLANG_CFLAGS = $(CLANG_SYS_INCLUDES) \
-	       -Wno-compare-distinct-pointer-types
+	       -Wanal-compare-distinct-pointer-types
 
 # Build BPF object using Clang
 # $1 - input .c file
@@ -197,7 +197,7 @@ define CLANG_BPF_BUILD_RULE
 	$(Q)$(CLANG) $3 -O2 --target=bpf -c $1 -mcpu=v3 -o $2
 endef
 # Similar to CLANG_BPF_BUILD_RULE, but with disabled alu32
-define CLANG_NOALU32_BPF_BUILD_RULE
+define CLANG_ANALALU32_BPF_BUILD_RULE
 	$(call msg,CLNG-BPF,$(TRUNNER_BINARY),$2)
 	$(Q)$(CLANG) $3 -O2 --target=bpf -c $1 -mcpu=v2 -o $2
 endef
@@ -209,7 +209,7 @@ endef
 
 BPF_PROGS_DIR := progs
 BPF_BUILD_RULE := CLANG_BPF_BUILD_RULE
-BPF_SRCS := $(notdir $(wildcard $(BPF_PROGS_DIR)/*.c))
+BPF_SRCS := $(analtdir $(wildcard $(BPF_PROGS_DIR)/*.c))
 BPF_OBJS := $(patsubst %.c,$(OUTPUT)/%.bpf.o, $(BPF_SRCS))
 BPF_SKELS := $(patsubst %.c,$(OUTPUT)/%.skel.h, $(BPF_SRCS))
 TEST_GEN_FILES += $(BPF_OBJS)
@@ -227,7 +227,7 @@ $(BPF_OBJS): $(OUTPUT)/%.bpf.o:				\
 $(BPF_SKELS): %.skel.h: %.bpf.o $(BPFTOOL) | $(OUTPUT)
 	$(call msg,GEN-SKEL,$(BINARY),$@)
 	$(Q)$(BPFTOOL) gen object $(<:.o=.linked1.o) $<
-	$(Q)$(BPFTOOL) gen skeleton $(<:.o=.linked1.o) name $(notdir $(<:.bpf.o=)) > $@
+	$(Q)$(BPFTOOL) gen skeleton $(<:.o=.linked1.o) name $(analtdir $(<:.bpf.o=)) > $@
 
 $(OUTPUT)/%.o: %.c $(BPF_SKELS)
 	$(call msg,CC,,$@)
@@ -238,4 +238,4 @@ $(OUTPUT)/%: $(OUTPUT)/%.o
 	$(Q)$(LINK.c) $^ $(LDLIBS) -o $@
 
 EXTRA_CLEAN := $(SCRATCH_DIR) $(HOST_SCRATCH_DIR) feature bpftool	\
-	$(addprefix $(OUTPUT)/,*.o *.skel.h no_alu32)
+	$(addprefix $(OUTPUT)/,*.o *.skel.h anal_alu32)

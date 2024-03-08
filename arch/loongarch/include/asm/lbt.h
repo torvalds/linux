@@ -2,7 +2,7 @@
 /*
  * Author: Qi Hu <huqi@loongson.cn>
  *         Huacai Chen <chenhuacai@loongson.cn>
- * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
  */
 #ifndef _ASM_LBT_H
 #define _ASM_LBT_H

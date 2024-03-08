@@ -34,7 +34,7 @@
 #define IMX_MU_SECO_TX_TOUT (msecs_to_jiffies(3000))
 #define IMX_MU_SECO_RX_TOUT (msecs_to_jiffies(3000))
 
-/* Please not change TX & RX */
+/* Please analt change TX & RX */
 enum imx_mu_chan_type {
 	IMX_MU_TYPE_TX		= 0, /* Tx */
 	IMX_MU_TYPE_RX		= 1, /* Rx */
@@ -513,15 +513,15 @@ static irqreturn_t imx_mu_isr(int irq, void *p)
 			(ctrl & IMX_MU_xCR_GIEn(priv->dcfg->type, cp->idx));
 		break;
 	case IMX_MU_TYPE_RST:
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	default:
 		dev_warn_ratelimited(priv->dev, "Unhandled channel type %d\n",
 				     cp->type);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!val)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if ((val == IMX_MU_xSR_TEn(priv->dcfg->type, cp->idx)) &&
 	    (cp->type == IMX_MU_TYPE_TX)) {
@@ -534,8 +534,8 @@ static irqreturn_t imx_mu_isr(int irq, void *p)
 		   (cp->type == IMX_MU_TYPE_RXDB)) {
 		priv->dcfg->rxdb(priv, cp);
 	} else {
-		dev_warn_ratelimited(priv->dev, "Not handled interrupt\n");
-		return IRQ_NONE;
+		dev_warn_ratelimited(priv->dev, "Analt handled interrupt\n");
+		return IRQ_ANALNE;
 	}
 
 	if (priv->suspend)
@@ -570,9 +570,9 @@ static int imx_mu_startup(struct mbox_chan *chan)
 		return 0;
 	}
 
-	/* IPC MU should be with IRQF_NO_SUSPEND set */
+	/* IPC MU should be with IRQF_ANAL_SUSPEND set */
 	if (!priv->dev->pm_domain)
-		irq_flag |= IRQF_NO_SUSPEND;
+		irq_flag |= IRQF_ANAL_SUSPEND;
 
 	if (!(priv->dcfg->type & IMX_MU_V2_IRQ))
 		irq_flag |= IRQF_SHARED;
@@ -675,7 +675,7 @@ static struct mbox_chan *imx_mu_specific_xlate(struct mbox_controller *mbox,
 	}
 
 	if (chan >= mbox->num_chans) {
-		dev_err(mbox->dev, "Not supported channel number: %d. (type: %d, idx: %d)\n", chan, type, idx);
+		dev_err(mbox->dev, "Analt supported channel number: %d. (type: %d, idx: %d)\n", chan, type, idx);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -704,7 +704,7 @@ static struct mbox_chan * imx_mu_xlate(struct mbox_controller *mbox,
 
 	chan = type * 4 + idx;
 	if (chan >= mbox->num_chans) {
-		dev_err(mbox->dev, "Not supported channel number: %d. (type: %d, idx: %d)\n", chan, type, idx);
+		dev_err(mbox->dev, "Analt supported channel number: %d. (type: %d, idx: %d)\n", chan, type, idx);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -805,7 +805,7 @@ static void imx_mu_init_seco(struct imx_mu_priv *priv)
 static int imx_mu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct imx_mu_priv *priv;
 	const struct imx_mu_dcfg *dcfg;
 	int i, ret;
@@ -813,7 +813,7 @@ static int imx_mu_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 
@@ -848,11 +848,11 @@ static int imx_mu_probe(struct platform_device *pdev)
 
 	priv->msg = devm_kzalloc(dev, size, GFP_KERNEL);
 	if (!priv->msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		if (PTR_ERR(priv->clk) != -ENOENT)
+		if (PTR_ERR(priv->clk) != -EANALENT)
 			return PTR_ERR(priv->clk);
 
 		priv->clk = NULL;
@@ -1000,7 +1000,7 @@ static const struct of_device_id imx_mu_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, imx_mu_dt_ids);
 
-static int __maybe_unused imx_mu_suspend_noirq(struct device *dev)
+static int __maybe_unused imx_mu_suspend_analirq(struct device *dev)
 {
 	struct imx_mu_priv *priv = dev_get_drvdata(dev);
 	int i;
@@ -1015,14 +1015,14 @@ static int __maybe_unused imx_mu_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused imx_mu_resume_noirq(struct device *dev)
+static int __maybe_unused imx_mu_resume_analirq(struct device *dev)
 {
 	struct imx_mu_priv *priv = dev_get_drvdata(dev);
 	int i;
 
 	/*
 	 * ONLY restore MU when context lost, the TIE could
-	 * be set during noirq resume as there is MU data
+	 * be set during analirq resume as there is MU data
 	 * communication going on, and restore the saved
 	 * value will overwrite the TIE and cause MU data
 	 * send failed, may lead to system freeze. This issue
@@ -1060,8 +1060,8 @@ static int __maybe_unused imx_mu_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops imx_mu_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(imx_mu_suspend_noirq,
-				      imx_mu_resume_noirq)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(imx_mu_suspend_analirq,
+				      imx_mu_resume_analirq)
 	SET_RUNTIME_PM_OPS(imx_mu_runtime_suspend,
 			   imx_mu_runtime_resume, NULL)
 };

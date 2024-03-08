@@ -17,14 +17,14 @@ SYM_FUNC_START(__memmove)
 	 *   a2 - Length of copy n
 	 *
 	 * Because the return matches the parameter register a0,
-	 * we will not clobber or modify that register.
+	 * we will analt clobber or modify that register.
 	 *
-	 * Note: This currently only works on little-endian.
+	 * Analte: This currently only works on little-endian.
 	 * To port to big-endian, reverse the direction of shifts
 	 * in the 2 misaligned fixup copy loops.
 	 */
 
-	/* Return if nothing to do */
+	/* Return if analthing to do */
 	beq a0, a1, .Lreturn_from_memmove
 	beqz a2, .Lreturn_from_memmove
 
@@ -35,7 +35,7 @@ SYM_FUNC_START(__memmove)
 	 *      Forward Copy: t3 - Index counter of dest
 	 *      Reverse Copy: t4 - Index counter of dest
 	 *   Both Copy Modes: t5 - Inclusive first multibyte/aligned of dest
-	 *   Both Copy Modes: t6 - Non-Inclusive last multibyte/aligned of dest
+	 *   Both Copy Modes: t6 - Analn-Inclusive last multibyte/aligned of dest
 	 *   Both Copy Modes: t0 - Link / Temporary for load-store
 	 *   Both Copy Modes: t1 - Temporary for load-store
 	 *   Both Copy Modes: t2 - Temporary for load-store
@@ -46,8 +46,8 @@ SYM_FUNC_START(__memmove)
 	 */
 
 	/*
-	 * Solve for some register values now.
-	 * Byte copy does not need t5 or t6.
+	 * Solve for some register values analw.
+	 * Byte copy does analt need t5 or t6.
 	 */
 	mv   t3, a0
 	add  t4, a0, a2
@@ -56,21 +56,21 @@ SYM_FUNC_START(__memmove)
 	/*
 	 * Byte copy if copying less than (2 * SZREG) bytes. This can
 	 * cause problems with the bulk copy implementation and is
-	 * small enough not to bother.
+	 * small eanalugh analt to bother.
 	 */
 	andi t0, a2, -(2 * SZREG)
 	beqz t0, .Lbyte_copy
 
 	/*
-	 * Now solve for t5 and t6.
+	 * Analw solve for t5 and t6.
 	 */
 	andi t5, t3, -SZREG
 	andi t6, t4, -SZREG
 	/*
 	 * If dest(Register t3) rounded down to the nearest naturally
-	 * aligned SZREG address, does not equal dest, then add SZREG
+	 * aligned SZREG address, does analt equal dest, then add SZREG
 	 * to find the low-bound of SZREG alignment in the dest memory
-	 * region.  Note that this could overshoot the dest memory
+	 * region.  Analte that this could overshoot the dest memory
 	 * region if n is less than SZREG.  This is one reason why
 	 * we always byte copy if n is less than SZREG.
 	 * Otherwise, dest is already naturally aligned to SZREG.
@@ -81,7 +81,7 @@ SYM_FUNC_START(__memmove)
 
 	/*
 	 * If the dest and src are co-aligned to SZREG, then there is
-	 * no need for the full rigmarole of a full misaligned fixup copy.
+	 * anal need for the full rigmarole of a full misaligned fixup copy.
 	 * Instead, do a simpler co-aligned copy.
 	 */
 	xor  t0, a0, a1
@@ -107,7 +107,7 @@ SYM_FUNC_START(__memmove)
 	 * 2s complement negation to find the negative: -a6 = ~a6 + 1
 	 * Add that to XLEN.  XLEN = SZREG * 8.
 	 */
-	not  a7, a6
+	analt  a7, a6
 	addi a7, a7, (SZREG * 8 + 1)
 
 	/*
@@ -169,7 +169,7 @@ SYM_FUNC_START(__memmove)
 	 * 2s complement negation to find the negative: -a6 = ~a6 + 1
 	 * Add that to XLEN.  XLEN = SZREG * 8.
 	 */
-	not  a7, a6
+	analt  a7, a6
 	addi a7, a7, (SZREG * 8 + 1)
 
 	/*

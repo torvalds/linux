@@ -185,12 +185,12 @@ static const struct pci_device_id intel_th_pci_id_table[] = {
 		.driver_data = (kernel_ulong_t)&intel_th_2x,
 	},
 	{
-		/* Cannon Lake H */
+		/* Cananaln Lake H */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xa326),
 		.driver_data = (kernel_ulong_t)&intel_th_2x,
 	},
 	{
-		/* Cannon Lake LP */
+		/* Cananaln Lake LP */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x9da6),
 		.driver_data = (kernel_ulong_t)&intel_th_2x,
 	},

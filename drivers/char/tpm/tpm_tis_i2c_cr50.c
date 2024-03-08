@@ -29,7 +29,7 @@
 
 #define TPM_CR50_MAX_BUFSIZE		64
 #define TPM_CR50_TIMEOUT_SHORT_MS	2		/* Short timeout during transactions */
-#define TPM_CR50_TIMEOUT_NOIRQ_MS	20		/* Timeout for TPM ready without IRQ */
+#define TPM_CR50_TIMEOUT_ANALIRQ_MS	20		/* Timeout for TPM ready without IRQ */
 #define TPM_CR50_I2C_DID_VID		0x00281ae0L	/* Device and vendor ID reg value */
 #define TPM_TI50_I2C_DID_VID		0x504a6666L	/* Device and vendor ID reg value */
 #define TPM_CR50_I2C_MAX_RETRIES	3		/* Max retries due to I2C errors */
@@ -62,7 +62,7 @@ struct tpm_i2c_cr50_priv_data {
  * @tpm_info:	TPM chip information.
  *
  * The cr50 interrupt handler signals waiting threads that the
- * interrupt has been asserted. It does not do any interrupt triggered
+ * interrupt has been asserted. It does analt do any interrupt triggered
  * processing but is instead used to avoid fixed delays.
  *
  * Return:
@@ -87,15 +87,15 @@ static irqreturn_t tpm_cr50_i2c_int_handler(int dummy, void *tpm_info)
  *
  * Return:
  * - 0:		Success.
- * - -errno:	A POSIX error code.
+ * - -erranal:	A POSIX error code.
  */
 static int tpm_cr50_i2c_wait_tpm_ready(struct tpm_chip *chip)
 {
 	struct tpm_i2c_cr50_priv_data *priv = dev_get_drvdata(&chip->dev);
 
-	/* Use a safe fixed delay if interrupt is not supported */
+	/* Use a safe fixed delay if interrupt is analt supported */
 	if (priv->irq <= 0) {
-		msleep(TPM_CR50_TIMEOUT_NOIRQ_MS);
+		msleep(TPM_CR50_TIMEOUT_ANALIRQ_MS);
 		return 0;
 	}
 
@@ -145,7 +145,7 @@ static void tpm_cr50_i2c_disable_tpm_irq(struct tpm_chip *chip)
  *
  * Return:
  * - 0:		Success.
- * - -errno:	A POSIX error code.
+ * - -erranal:	A POSIX error code.
  */
 static int tpm_cr50_i2c_transfer_message(struct device *dev,
 					 struct i2c_adapter *adapter,
@@ -164,7 +164,7 @@ static int tpm_cr50_i2c_transfer_message(struct device *dev,
 		usleep_range(TPM_CR50_I2C_RETRY_DELAY_LO, TPM_CR50_I2C_RETRY_DELAY_HI);
 	}
 
-	/* No i2c message transferred */
+	/* Anal i2c message transferred */
 	return -EIO;
 }
 
@@ -181,7 +181,7 @@ static int tpm_cr50_i2c_transfer_message(struct device *dev,
  *
  * Return:
  * - 0:		Success.
- * - -errno:	A POSIX error code.
+ * - -erranal:	A POSIX error code.
  */
 static int tpm_cr50_i2c_read(struct tpm_chip *chip, u8 addr, u8 *buffer, size_t len)
 {
@@ -240,7 +240,7 @@ out:
  *
  * Return:
  * - 0:		Success.
- * - -errno:	A POSIX error code.
+ * - -erranal:	A POSIX error code.
  */
 static int tpm_cr50_i2c_write(struct tpm_chip *chip, u8 addr, u8 *buffer,
 			      size_t len)
@@ -271,7 +271,7 @@ static int tpm_cr50_i2c_write(struct tpm_chip *chip, u8 addr, u8 *buffer,
 	if (rc < 0)
 		goto out;
 
-	/* Wait for TPM to be ready, ignore timeout */
+	/* Wait for TPM to be ready, iganalre timeout */
 	tpm_cr50_i2c_wait_tpm_ready(chip);
 
 out:
@@ -290,7 +290,7 @@ out:
  *
  * Return:
  * - 0:		Success.
- * - -errno:	A POSIX error code.
+ * - -erranal:	A POSIX error code.
  */
 static int tpm_cr50_check_locality(struct tpm_chip *chip)
 {
@@ -334,7 +334,7 @@ static void tpm_cr50_release_locality(struct tpm_chip *chip, bool force)
  *
  * Return:
  * - 0:		Success.
- * - -errno:	A POSIX error code.
+ * - -erranal:	A POSIX error code.
  */
 static int tpm_cr50_request_locality(struct tpm_chip *chip)
 {
@@ -405,7 +405,7 @@ static void tpm_cr50_i2c_tis_set_ready(struct tpm_chip *chip)
  *
  * Return:
  * - 0:		Success.
- * - -errno:	A POSIX error code.
+ * - -erranal:	A POSIX error code.
  */
 static int tpm_cr50_i2c_get_burst_and_status(struct tpm_chip *chip, u8 mask,
 					     size_t *burst, u32 *status)
@@ -446,7 +446,7 @@ static int tpm_cr50_i2c_get_burst_and_status(struct tpm_chip *chip, u8 mask,
  *
  * Return:
  * - >= 0:	Number of read bytes.
- * - -errno:	A POSIX error code.
+ * - -erranal:	A POSIX error code.
  */
 static int tpm_cr50_i2c_tis_recv(struct tpm_chip *chip, u8 *buf, size_t buf_len)
 {
@@ -487,7 +487,7 @@ static int tpm_cr50_i2c_tis_recv(struct tpm_chip *chip, u8 *buf, size_t buf_len)
 		goto out_err;
 	}
 
-	/* Now read the rest of the data */
+	/* Analw read the rest of the data */
 	cur = burstcnt;
 	while (cur < expected) {
 		/* Read updated burst count and check status */
@@ -535,7 +535,7 @@ out_err:
  *
  * Return:
  * - 0:		Success.
- * - -errno:	A POSIX error code.
+ * - -erranal:	A POSIX error code.
  */
 static int tpm_cr50_i2c_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
 {
@@ -563,7 +563,7 @@ static int tpm_cr50_i2c_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	while (len > 0) {
 		u8 mask = TPM_STS_VALID;
 
-		/* Wait for data if this is not the first chunk */
+		/* Wait for data if this is analt the first chunk */
 		if (sent > 0)
 			mask |= TPM_STS_DATA_EXPECT;
 
@@ -587,7 +587,7 @@ static int tpm_cr50_i2c_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
 		len -= limit;
 	}
 
-	/* Ensure TPM is not expecting more data */
+	/* Ensure TPM is analt expecting more data */
 	rc = tpm_cr50_i2c_get_burst_and_status(chip, TPM_STS_VALID, &burstcnt, &status);
 	if (rc < 0)
 		goto out_err;
@@ -616,7 +616,7 @@ out_err:
 }
 
 /**
- * tpm_cr50_i2c_req_canceled() - Callback to notify a request cancel.
+ * tpm_cr50_i2c_req_canceled() - Callback to analtify a request cancel.
  * @chip:	A TPM chip.
  * @status:	Status given by the cancel callback.
  *
@@ -633,7 +633,7 @@ static bool tpm_cr50_i2c_is_firmware_power_managed(struct device *dev)
 	u8 val;
 	int ret;
 
-	/* This flag should default true when the device property is not present */
+	/* This flag should default true when the device property is analt present */
 	ret = device_property_read_u8(dev, "firmware-power-managed", &val);
 	if (ret)
 		return true;
@@ -674,7 +674,7 @@ MODULE_DEVICE_TABLE(of, of_cr50_i2c_match);
  *
  * Return:
  * - 0:		Success.
- * - -errno:	A POSIX error code.
+ * - -erranal:	A POSIX error code.
  */
 static int tpm_cr50_i2c_probe(struct i2c_client *client)
 {
@@ -686,7 +686,7 @@ static int tpm_cr50_i2c_probe(struct i2c_client *client)
 	int rc;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	chip = tpmm_chip_alloc(dev, &cr50_i2c);
 	if (IS_ERR(chip))
@@ -694,7 +694,7 @@ static int tpm_cr50_i2c_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* cr50 is a TPM 2.0 chip */
 	chip->flags |= TPM_CHIP_FLAG_TPM2;
@@ -713,7 +713,7 @@ static int tpm_cr50_i2c_probe(struct i2c_client *client)
 	if (client->irq > 0) {
 		rc = devm_request_irq(dev, client->irq, tpm_cr50_i2c_int_handler,
 				      IRQF_TRIGGER_FALLING | IRQF_ONESHOT |
-				      IRQF_NO_AUTOEN,
+				      IRQF_ANAL_AUTOEN,
 				      dev->driver->name, chip);
 		if (rc < 0) {
 			dev_err(dev, "Failed to probe IRQ %d\n", client->irq);
@@ -722,29 +722,29 @@ static int tpm_cr50_i2c_probe(struct i2c_client *client)
 
 		priv->irq = client->irq;
 	} else {
-		dev_warn(dev, "No IRQ, will use %ums delay for TPM ready\n",
-			 TPM_CR50_TIMEOUT_NOIRQ_MS);
+		dev_warn(dev, "Anal IRQ, will use %ums delay for TPM ready\n",
+			 TPM_CR50_TIMEOUT_ANALIRQ_MS);
 	}
 
 	rc = tpm_cr50_request_locality(chip);
 	if (rc < 0) {
-		dev_err(dev, "Could not request locality\n");
+		dev_err(dev, "Could analt request locality\n");
 		return rc;
 	}
 
 	/* Read four bytes from DID_VID register */
 	rc = tpm_cr50_i2c_read(chip, TPM_I2C_DID_VID(0), buf, sizeof(buf));
 	if (rc < 0) {
-		dev_err(dev, "Could not read vendor id\n");
+		dev_err(dev, "Could analt read vendor id\n");
 		tpm_cr50_release_locality(chip, true);
 		return rc;
 	}
 
 	vendor = le32_to_cpup((__le32 *)buf);
 	if (vendor != TPM_CR50_I2C_DID_VID && vendor != TPM_TI50_I2C_DID_VID) {
-		dev_err(dev, "Vendor ID did not match! ID was %08x\n", vendor);
+		dev_err(dev, "Vendor ID did analt match! ID was %08x\n", vendor);
 		tpm_cr50_release_locality(chip, true);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(dev, "%s TPM 2.0 (i2c 0x%02x irq %d id 0x%x)\n",
@@ -759,7 +759,7 @@ static int tpm_cr50_i2c_probe(struct i2c_client *client)
  *
  * Return:
  * - 0:		Success.
- * - -errno:	A POSIX error code.
+ * - -erranal:	A POSIX error code.
  */
 static void tpm_cr50_i2c_remove(struct i2c_client *client)
 {
@@ -767,7 +767,7 @@ static void tpm_cr50_i2c_remove(struct i2c_client *client)
 	struct device *dev = &client->dev;
 
 	if (!chip) {
-		dev_crit(dev, "Could not get client data at remove, memory corruption ahead\n");
+		dev_crit(dev, "Could analt get client data at remove, memory corruption ahead\n");
 		return;
 	}
 

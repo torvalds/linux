@@ -5,14 +5,14 @@
  *
  * Copyright (C) 1995, 1996, 1997, 1999, 2001 by Ralf Baechle
  * Copyright (C) 1999 by Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  * Copyright (C) 2002  Maciej W. Rozycki
  *
  * Some useful macros for MIPS assembler code
  *
- * Some of the routines below contain useless nops that will be optimized
- * away by gas in -O mode. These nops are however required to fill delay
- * slots in noreorder mode.
+ * Some of the routines below contain useless analps that will be optimized
+ * away by gas in -O mode. These analps are however required to fill delay
+ * slots in analreorder mode.
  */
 #ifndef __ASM_ASM_H
 #define __ASM_ASM_H
@@ -23,9 +23,9 @@
 
 #ifndef __VDSO__
 /*
- * Emit CFI data in .debug_frame sections, not .eh_frame sections.
+ * Emit CFI data in .debug_frame sections, analt .eh_frame sections.
  * We don't do DWARF unwinding at runtime, so only the offline DWARF
- * information is useful to anyone. Note we should change this if we
+ * information is useful to anyone. Analte we should change this if we
  * ever decide to enable DWARF unwinding at runtime.
  */
 #define CFI_SECTIONS	.cfi_sections .debug_frame
@@ -327,12 +327,12 @@ symbol		=	value
 #define MTC0		dmtc0
 #endif
 
-#define SSNOP		sll zero, zero, 1
+#define SSANALP		sll zero, zero, 1
 
 /*
  * Using a branch-likely instruction to check the result of an sc instruction
  * works around a bug present in R10000 CPUs prior to revision 3.0 that could
- * cause ll-sc sequences to execute non-atomically.
+ * cause ll-sc sequences to execute analn-atomically.
  */
 #ifdef CONFIG_WAR_R10000_LLSC
 # define SC_BEQZ	beqzl

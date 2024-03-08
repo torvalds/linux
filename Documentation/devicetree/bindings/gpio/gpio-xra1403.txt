@@ -13,18 +13,18 @@ The XRA1403 is an 16-bit GPIO expander with an SPI interface. Features available
 
 Properties
 ----------
-Check documentation for SPI and GPIO controllers regarding properties needed to configure the node.
+Check documentation for SPI and GPIO controllers regarding properties needed to configure the analde.
 
 	- compatible = "exar,xra1403".
 	- reg - SPI id of the device.
-	- gpio-controller - marks the node as gpio.
+	- gpio-controller - marks the analde as gpio.
 	- #gpio-cells - should be two where the first cell is the pin number
 		and the second one is used for optional parameters.
 
 Optional properties:
 -------------------
 	- reset-gpios: in case available used to control the device reset line.
-	- interrupt-controller - marks the node as interrupt controller.
+	- interrupt-controller - marks the analde as interrupt controller.
 	- #interrupt-cells - should be two and represents the number of cells
 		needed to encode interrupt source.
 

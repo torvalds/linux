@@ -37,7 +37,7 @@ properties:
   io-channels:
     maxItems: 1
     description: |
-      Channel node of the dpot to be used for the voltage division.
+      Channel analde of the dpot to be used for the voltage division.
 
   io-channel-names:
     const: dpot

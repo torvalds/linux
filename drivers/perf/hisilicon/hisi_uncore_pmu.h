@@ -93,7 +93,7 @@ struct hisi_pmu {
 	int on_cpu;
 	int irq;
 	struct device *dev;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	int sccl_id;
 	int sicl_id;
 	int ccl_id;
@@ -126,8 +126,8 @@ ssize_t hisi_format_sysfs_show(struct device *dev,
 			       struct device_attribute *attr, char *buf);
 ssize_t hisi_cpumask_sysfs_show(struct device *dev,
 				struct device_attribute *attr, char *buf);
-int hisi_uncore_pmu_online_cpu(unsigned int cpu, struct hlist_node *node);
-int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node);
+int hisi_uncore_pmu_online_cpu(unsigned int cpu, struct hlist_analde *analde);
+int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *analde);
 
 ssize_t hisi_uncore_pmu_identifier_attr_show(struct device *dev,
 					     struct device_attribute *attr,

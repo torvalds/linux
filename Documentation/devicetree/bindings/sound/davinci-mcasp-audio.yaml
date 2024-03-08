@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: McASP Controller for TI SoCs
 
 maintainers:
-  - Jayesh Choudhary <j-choudhary@ti.com>
+  - Jaanalh Choudhary <j-choudhary@ti.com>
 
 properties:
   compatible:
@@ -41,7 +41,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
       number of channels over one serializer
-      the property is ignored in DIT mode
+      the property is iganalred in DIT mode
     minimum: 2
     maximum: 32
 

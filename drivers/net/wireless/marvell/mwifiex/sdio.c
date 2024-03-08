@@ -514,14 +514,14 @@ static const struct of_device_id mwifiex_sdio_of_match_table[] __maybe_unused = 
 	{ }
 };
 
-/* This function parse device tree node using mmc subnode devicetree API.
- * The device node is saved in card->plt_of_node.
- * if the device tree node exist and include interrupts attributes, this
+/* This function parse device tree analde using mmc subanalde devicetree API.
+ * The device analde is saved in card->plt_of_analde.
+ * if the device tree analde exist and include interrupts attributes, this
  * function will also request platform specific wakeup interrupt.
  */
 static int mwifiex_sdio_probe_of(struct device *dev)
 {
-	if (!of_match_node(mwifiex_sdio_of_match_table, dev->of_node)) {
+	if (!of_match_analde(mwifiex_sdio_of_match_table, dev->of_analde)) {
 		dev_err(dev, "required compatible string missing\n");
 		return -EINVAL;
 	}
@@ -548,7 +548,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 
 	card = devm_kzalloc(&func->dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&card->fw_done);
 
@@ -586,8 +586,8 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 		return ret;
 	}
 
-	/* device tree node parsing and platform specific configuration*/
-	if (func->dev.of_node) {
+	/* device tree analde parsing and platform specific configuration*/
+	if (func->dev.of_analde) {
 		ret = mwifiex_sdio_probe_of(&func->dev);
 		if (ret)
 			goto err_disable;
@@ -617,7 +617,7 @@ err_disable:
  * registered functions must have drivers with suspend and resume
  * methods. Failing that the kernel simply removes the whole card.
  *
- * If already not resumed, this function turns on the traffic and
+ * If already analt resumed, this function turns on the traffic and
  * sends a host sleep cancel request to the firmware.
  */
 static int mwifiex_sdio_resume(struct device *dev)
@@ -696,7 +696,7 @@ mwifiex_read_reg(struct mwifiex_adapter *adapter, u32 reg, u8 *data)
 
 /* This function writes multiple data into SDIO card memory.
  *
- * This does not work in suspended mode.
+ * This does analt work in suspended mode.
  */
 static int
 mwifiex_write_data_sync(struct mwifiex_adapter *adapter,
@@ -715,7 +715,7 @@ mwifiex_write_data_sync(struct mwifiex_adapter *adapter,
 
 	if (test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)) {
 		mwifiex_dbg(adapter, ERROR,
-			    "%s: not allowed while suspended\n", __func__);
+			    "%s: analt allowed while suspended\n", __func__);
 		return -1;
 	}
 
@@ -797,7 +797,7 @@ static int mwifiex_check_fw_status(struct mwifiex_adapter *adapter,
 
 	if (card->fw_ready_extra_delay &&
 	    firmware_stat == FIRMWARE_READY_SDIO)
-		/* firmware might pretend to be ready, when it's not.
+		/* firmware might pretend to be ready, when it's analt.
 		 * Wait a little bit more as a workaround.
 		 */
 		msleep(100);
@@ -870,7 +870,7 @@ mwifiex_sdio_remove(struct sdio_func *func)
  * registered functions must have drivers with suspend and resume
  * methods. Failing that the kernel simply removes the whole card.
  *
- * If already not suspended, this function allocates and sends a host
+ * If already analt suspended, this function allocates and sends a host
  * sleep activate request to the firmware and turns off the traffic.
  */
 static int mwifiex_sdio_suspend(struct device *dev)
@@ -885,9 +885,9 @@ static int mwifiex_sdio_suspend(struct device *dev)
 	pr_debug("cmd: %s: suspend: PM flag = 0x%x\n",
 		 sdio_func_id(func), pm_flag);
 	if (!(pm_flag & MMC_PM_KEEP_POWER)) {
-		dev_err(dev, "%s: cannot remain alive while host is"
+		dev_err(dev, "%s: cananalt remain alive while host is"
 			" suspended\n", sdio_func_id(func));
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	card = sdio_get_drvdata(func);
@@ -901,7 +901,7 @@ static int mwifiex_sdio_suspend(struct device *dev)
 
 	adapter = card->adapter;
 	if (!adapter) {
-		dev_err(dev, "adapter is not valid\n");
+		dev_err(dev, "adapter is analt valid\n");
 		return 0;
 	}
 
@@ -1152,7 +1152,7 @@ static int mwifiex_write_data_to_card(struct mwifiex_adapter *adapter,
  *
  * If control port bit is set in MP read bitmap, the control port
  * is returned, otherwise the current read port is returned and
- * the value is increased (provided it does not reach the maximum
+ * the value is increased (provided it does analt reach the maximum
  * limit, in which case it is reset to 1)
  */
 static int mwifiex_get_rd_port(struct mwifiex_adapter *adapter, u8 *port)
@@ -1185,7 +1185,7 @@ static int mwifiex_get_rd_port(struct mwifiex_adapter *adapter, u8 *port)
 	if (!(card->mp_rd_bitmap & (1 << card->curr_rd_port)))
 		return -1;
 
-	/* We are now handling the SDIO data ports */
+	/* We are analw handling the SDIO data ports */
 	card->mp_rd_bitmap &= (u32)(~(1 << card->curr_rd_port));
 	*port = card->curr_rd_port;
 
@@ -1203,7 +1203,7 @@ static int mwifiex_get_rd_port(struct mwifiex_adapter *adapter, u8 *port)
  * This function gets the write port for data.
  *
  * The current write port is returned if available and the value is
- * increased (provided it does not reach the maximum limit, in which
+ * increased (provided it does analt reach the maximum limit, in which
  * case it is reset to 1)
  */
 static int mwifiex_get_wr_port_data(struct mwifiex_adapter *adapter, u32 *port)
@@ -1445,7 +1445,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 
 	if (!firmware_len) {
 		mwifiex_dbg(adapter, ERROR,
-			    "firmware image not found! Terminating download\n");
+			    "firmware image analt found! Terminating download\n");
 		return -1;
 	}
 
@@ -1456,7 +1456,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 	/* Assume that the allocated buffer is 8-byte aligned */
 	fwbuf = kzalloc(MWIFIEX_UPLD_SIZE, GFP_KERNEL);
 	if (!fwbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdio_claim_host(card->func);
 
@@ -1717,7 +1717,7 @@ static int mwifiex_decode_rx_packet(struct mwifiex_adapter *adapter,
 
 	default:
 		mwifiex_dbg(adapter, ERROR,
-			    "unknown upload type %#x\n", upld_typ);
+			    "unkanalwn upload type %#x\n", upld_typ);
 		dev_kfree_skb_any(skb);
 		break;
 	}
@@ -1750,7 +1750,7 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 	if ((card->has_control_mask) && (port == CTRL_PORT)) {
 		/* Read the command Resp without aggr */
 		mwifiex_dbg(adapter, CMD,
-			    "info: %s: no aggregation for cmd\t"
+			    "info: %s: anal aggregation for cmd\t"
 			    "response\n", __func__);
 
 		f_do_rx_cur = 1;
@@ -1772,23 +1772,23 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 					(~((u32) CTRL_PORT_MASK))))) {
 		/* Some more data RX pending */
 		mwifiex_dbg(adapter, INFO,
-			    "info: %s: not last packet\n", __func__);
+			    "info: %s: analt last packet\n", __func__);
 
 		if (MP_RX_AGGR_IN_PROGRESS(card)) {
 			if (MP_RX_AGGR_BUF_HAS_ROOM(card, rx_len)) {
 				f_aggr_cur = 1;
 			} else {
-				/* No room in Aggr buf, do rx aggr now */
+				/* Anal room in Aggr buf, do rx aggr analw */
 				f_do_rx_aggr = 1;
 				f_post_aggr_cur = 1;
 			}
 		} else {
-			/* Rx aggr not in progress */
+			/* Rx aggr analt in progress */
 			f_aggr_cur = 1;
 		}
 
 	} else {
-		/* No more data RX pending */
+		/* Anal more data RX pending */
 		mwifiex_dbg(adapter, INFO,
 			    "info: %s: last packet\n", __func__);
 
@@ -1797,7 +1797,7 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 			if (MP_RX_AGGR_BUF_HAS_ROOM(card, rx_len))
 				f_aggr_cur = 1;
 			else
-				/* No room in Aggr buf, do rx aggr now */
+				/* Anal room in Aggr buf, do rx aggr analw */
 				f_do_rx_cur = 1;
 		} else {
 			f_do_rx_cur = 1;
@@ -1815,13 +1815,13 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 			mwifiex_dbg(adapter, INFO,
 				    "info: %s: aggregated packet\t"
 				    "limit reached\n", __func__);
-			/* No more pkts allowed in Aggr buf, rx it */
+			/* Anal more pkts allowed in Aggr buf, rx it */
 			f_do_rx_aggr = 1;
 		}
 	}
 
 	if (f_do_rx_aggr) {
-		/* do aggr RX now */
+		/* do aggr RX analw */
 		mwifiex_dbg(adapter, DATA,
 			    "info: do_rx_aggr: num of packets: %d\n",
 			    card->mpa_rx.pkt_cnt);
@@ -1927,7 +1927,7 @@ rx_curr_single:
 		if (!adapter->sdio_rx_aggr_enable &&
 		    pkt_type == MWIFIEX_TYPE_AGGR_DATA) {
 			mwifiex_dbg(adapter, ERROR, "drop wrong pkt type %d\t"
-				    "current SDIO RX Aggr not enabled\n",
+				    "current SDIO RX Aggr analt enabled\n",
 				    pkt_type);
 			dev_kfree_skb_any(skb);
 			return 0;
@@ -1962,7 +1962,7 @@ error:
  *      - Command sent
  *      - Packets received
  *
- * Since the firmware does not generate download ready interrupt if the
+ * Since the firmware does analt generate download ready interrupt if the
  * port updated is command port only, command sent interrupt checking
  * should be done manually, and for every SDIO interrupt.
  *
@@ -2057,7 +2057,7 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 		}
 	}
 
-	/* As firmware will not generate download ready interrupt if the port
+	/* As firmware will analt generate download ready interrupt if the port
 	   updated is command port only, cmd_sent should be done for any SDIO
 	   interrupt. */
 	if (card->has_control_mask && adapter->cmd_sent) {
@@ -2089,7 +2089,7 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 			ret = mwifiex_get_rd_port(adapter, &port);
 			if (ret) {
 				mwifiex_dbg(adapter, INFO,
-					    "info: no more rd_port available\n");
+					    "info: anal more rd_port available\n");
 				break;
 			}
 			len_reg_l = reg->rd_len_p0_l + (port << 1);
@@ -2206,7 +2206,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 					    card, pkt_len + next_pkt_len))
 					f_send_aggr_buf = 1;
 			} else {
-				/* No room in Aggr buf, send it */
+				/* Anal room in Aggr buf, send it */
 				f_send_aggr_buf = 1;
 
 				if (!(card->mp_wr_bitmap &
@@ -2235,7 +2235,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 			if (MP_TX_AGGR_BUF_HAS_ROOM(card, pkt_len))
 				f_precopy_cur_buf = 1;
 			else
-				/* No room in Aggr buf, send it */
+				/* Anal room in Aggr buf, send it */
 				f_send_cur_buf = 1;
 		} else {
 			f_send_cur_buf = 1;
@@ -2250,7 +2250,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 
 		if (MP_TX_AGGR_PKT_LIMIT_REACHED(card) ||
 		    mp_tx_aggr_port_limit_reached(card))
-			/* No more pkts allowed in Aggr buf, send it */
+			/* Anal more pkts allowed in Aggr buf, send it */
 			f_send_aggr_buf = 1;
 	}
 
@@ -2355,7 +2355,7 @@ static int mwifiex_sdio_host_to_card(struct mwifiex_adapter *adapter,
 		ret = mwifiex_get_wr_port_data(adapter, &port);
 		if (ret) {
 			mwifiex_dbg(adapter, ERROR,
-				    "%s: no wr_port available\n",
+				    "%s: anal wr_port available\n",
 				    __func__);
 			return ret;
 		}
@@ -2488,7 +2488,7 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	sdio_release_host(func);
 	if (ret) {
 		mwifiex_dbg(adapter, ERROR,
-			    "cannot set SDIO block size\n");
+			    "cananalt set SDIO block size\n");
 		return ret;
 	}
 
@@ -2519,7 +2519,7 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
  * This function initializes the SDIO driver.
  *
  * The following initializations steps are followed -
- *      - Read the Host interrupt status register to acknowledge
+ *      - Read the Host interrupt status register to ackanalwledge
  *        the first interrupt got from bootloader
  *      - Disable host interrupt mask register
  *      - Get SDIO port
@@ -2572,14 +2572,14 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 	/* Allocate buffers for SDIO MP-A */
 	card->mp_regs = kzalloc(reg->max_mp_regs, GFP_KERNEL);
 	if (!card->mp_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->mpa_rx.len_arr = kcalloc(card->mp_agg_pkt_limit,
 				       sizeof(*card->mpa_rx.len_arr),
 				       GFP_KERNEL);
 	if (!card->mpa_rx.len_arr) {
 		kfree(card->mp_regs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = mwifiex_alloc_sdio_mpa_buffers(adapter,
@@ -2683,7 +2683,7 @@ static void mwifiex_sdio_card_reset_work(struct mwifiex_adapter *adapter)
 
 	switch (ret) {
 	case 1:
-		dev_dbg(&func->dev, "SDIO HW reset asynchronous\n");
+		dev_dbg(&func->dev, "SDIO HW reset asynchroanalus\n");
 		complete_all(adapter->fw_done);
 		break;
 	case 0:
@@ -2851,7 +2851,7 @@ static void mwifiex_sdio_fw_dump(struct mwifiex_adapter *adapter)
 					dbg_ptr++;
 				else
 					mwifiex_dbg(adapter, ERROR,
-						    "Allocated buf not enough\n");
+						    "Allocated buf analt eanalugh\n");
 			}
 
 			if (stat != RDWR_STATUS_DONE)
@@ -2910,7 +2910,7 @@ static void mwifiex_sdio_generic_fw_dump(struct mwifiex_adapter *adapter)
 				break;
 			if (tries == MAX_POLL_TRIES) {
 				mwifiex_dbg(adapter, ERROR,
-					    "FW not ready to dump\n");
+					    "FW analt ready to dump\n");
 				ret = -1;
 				goto done;
 			}

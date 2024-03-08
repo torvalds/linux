@@ -15,18 +15,18 @@
 #include <linux/slab.h>
 #include "tpm-dev.h"
 
-static int tpm_open(struct inode *inode, struct file *file)
+static int tpm_open(struct ianalde *ianalde, struct file *file)
 {
 	struct tpm_chip *chip;
 	struct file_priv *priv;
 
-	chip = container_of(inode->i_cdev, struct tpm_chip, cdev);
+	chip = container_of(ianalde->i_cdev, struct tpm_chip, cdev);
 
 	/* It's assured that the chip will be opened just once,
 	 * by the check of is_open variable, which is protected
 	 * by driver_lock. */
 	if (test_and_set_bit(0, &chip->is_open)) {
-		dev_dbg(&chip->dev, "Another process owns this TPM\n");
+		dev_dbg(&chip->dev, "Aanalther process owns this TPM\n");
 		return -EBUSY;
 	}
 
@@ -40,13 +40,13 @@ static int tpm_open(struct inode *inode, struct file *file)
 
  out:
 	clear_bit(0, &chip->is_open);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
  * Called on file close
  */
-static int tpm_release(struct inode *inode, struct file *file)
+static int tpm_release(struct ianalde *ianalde, struct file *file)
 {
 	struct file_priv *priv = file->private_data;
 
@@ -59,7 +59,7 @@ static int tpm_release(struct inode *inode, struct file *file)
 
 const struct file_operations tpm_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.open = tpm_open,
 	.read = tpm_common_read,
 	.write = tpm_common_write,

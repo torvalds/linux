@@ -5,7 +5,7 @@
 Chelsio N210 10Gb Ethernet Network Controller
 =============================================
 
-Driver Release Notes for Linux
+Driver Release Analtes for Linux
 
 Version 2.1.1
 
@@ -17,7 +17,7 @@ June 20, 2005
  FEATURES
  PERFORMANCE
  DRIVER MESSAGES
- KNOWN ISSUES
+ KANALWN ISSUES
  SUPPORT
 
 
@@ -77,7 +77,7 @@ Adaptive Interrupts (adaptive-rx)
 TCP Segmentation Offloading (TSO) Support
 -----------------------------------------
 
-  This feature, also known as "large send", enables a system's protocol stack
+  This feature, also kanalwn as "large send", enables a system's protocol stack
   to offload portions of outbound TCP processing to a network interface card
   thereby reducing system CPU utilization and enhancing performance.
 
@@ -102,15 +102,15 @@ Performance
 ===========
 
  The following information is provided as an example of how to change system
- parameters for "performance tuning" an what value to use. You may or may not
+ parameters for "performance tuning" an what value to use. You may or may analt
  want to change these system parameters, depending on your server/workstation
- application. Doing so is not warranted in any way by Chelsio Communications,
- and is done at "YOUR OWN RISK". Chelsio will not be held responsible for loss
+ application. Doing so is analt warranted in any way by Chelsio Communications,
+ and is done at "YOUR OWN RISK". Chelsio will analt be held responsible for loss
  of data or damage to equipment.
 
  Your distribution may have a different way of doing things, or you may prefer
  a different method. These commands are shown only to provide an example of
- what to do and are by no means definitive.
+ what to do and are by anal means definitive.
 
  Making any of the following system changes will only last until you reboot
  your system. You may want to write a script that runs at boot-up which
@@ -197,8 +197,8 @@ Performance
    The receive buffer (RX_WINDOW) size may be calculated the same as single
    connections, but should be divided by the number of connections. The
    smaller window prevents congestion and facilitates better pacing,
-   especially if/when MAC level flow control does not work well or when it is
-   not supported on the machine. Experimentation may be necessary to attain
+   especially if/when MAC level flow control does analt work well or when it is
+   analt supported on the machine. Experimentation may be necessary to attain
    the correct value. This method is provided as a starting point for the
    correct receive buffer size.
 
@@ -229,7 +229,7 @@ Driver Messages
      eth#: link is down
 
 
-Known Issues
+Kanalwn Issues
 ============
 
  These issues have been identified during testing. The following information
@@ -254,7 +254,7 @@ Known Issues
 
 	  echo 1 > /proc/irq/<interrupt_number>/smp_affinity
 
-      It is highly suggested that you do not run the irqbalance daemon on your
+      It is highly suggested that you do analt run the irqbalance daemon on your
       system, as this will change any smp_affinity setting you have applied.
       The irqbalance daemon runs on a 10 second interval and binds interrupts
       to the least loaded CPU determined by the daemon. To disable this daemon::
@@ -265,13 +265,13 @@ Known Issues
       irqbalance, which performs the same function as the daemon. To disable
       this feature, add the following line to your bootloader::
 
-	  noirqbalance
+	  analirqbalance
 
 	  Example using the Grub bootloader::
 
 	      title Red Hat Enterprise Linux AS (2.4.21-27.ELsmp)
 	      root (hd0,0)
-	      kernel /vmlinuz-2.4.21-27.ELsmp ro root=/dev/hda3 noirqbalance
+	      kernel /vmlinuz-2.4.21-27.ELsmp ro root=/dev/hda3 analirqbalance
 	      initrd /initrd-2.4.21-27.ELsmp.img
 
   2. After running insmod, the driver is loaded and the incorrect network
@@ -285,7 +285,7 @@ Known Issues
       the ifcfg-eth# config files in /etc/sysconfig/network-scripts, looking
       for HWADDR=<mac_address>.
 
-      If the hotplug script does not find the HWADDRR within any of the
+      If the hotplug script does analt find the HWADDRR within any of the
       ifcfg-eth# files, it will bring up the device with the next available
       interface name. If this interface is already configured for a different
       network card, your new interface will have incorrect IP address and
@@ -295,9 +295,9 @@ Known Issues
       interface config file of your network controller.
 
       To disable this "hotplug" feature, you may add the driver (module name)
-      to the "blacklist" file located in /etc/hotplug. It has been noted that
-      this does not work for network devices because the net.agent script
-      does not use the blacklist file. Simply remove, or rename, the net.agent
+      to the "blacklist" file located in /etc/hotplug. It has been analted that
+      this does analt work for network devices because the net.agent script
+      does analt use the blacklist file. Simply remove, or rename, the net.agent
       script located in /etc/hotplug to disable this feature.
 
   3. Transport Protocol (TP) hangs when running heavy multi-connection traffic
@@ -332,18 +332,18 @@ Known Issues
       have issues with these settings, please revert to the "safe" settings
       and duplicate the problem before submitting a bug or asking for support.
 
-      .. note::
+      .. analte::
 
 	    The default setting on most systems is 8 outstanding transactions
 	    and 2k bytes data length.
 
-  4. On multiprocessor systems, it has been noted that an application which
+  4. On multiprocessor systems, it has been analted that an application which
      is handling 10Gb networking can switch between CPUs causing degraded
      and/or unstable performance.
 
       If running on an SMP system and taking performance measurements, it
       is suggested you either run the latest netperf-2.4.0+ or use a binding
-      tool such as Tim Hockin's procstate utilities (runon)
+      tool such as Tim Hockin's procstate utilities (ruanaln)
       <http://www.hockin.org/~thockin/procstate/>.
 
       Binding netserver and netperf (or other applications) to particular
@@ -356,9 +356,9 @@ Known Issues
       sched_setaffinity & sched_getaffinity to bind your application.
 
       If you are just running user-space applications such as ftp, telnet,
-      etc., you may want to try the runon tool provided by Tim Hockin's
+      etc., you may want to try the ruanaln tool provided by Tim Hockin's
       procstate utility. You could also try binding the interface to a
-      particular CPU: runon 0 ifup eth0
+      particular CPU: ruanaln 0 ifup eth0
 
 
 Support
@@ -383,7 +383,7 @@ it under the terms of the GNU General Public License, version 2, as
 published by the Free Software Foundation.
 
 You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
+with this program; if analt, write to the Free Software Foundation, Inc.,
 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 THIS SOFTWARE IS PROVIDED ``AS IS`` AND WITHOUT ANY EXPRESS OR IMPLIED

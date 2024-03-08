@@ -118,7 +118,7 @@ at91_clk_register_system(struct regmap *regmap, const char *name,
 
 	sys = kzalloc(sizeof(*sys), GFP_KERNEL);
 	if (!sys)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &system_ops;

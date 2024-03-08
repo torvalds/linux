@@ -56,10 +56,10 @@ ia_css_load_firmware(struct device *dev, const struct ia_css_env *env,
 		     const struct ia_css_fw  *fw);
 
 /* @brief Unloads the firmware
- * @return	None
+ * @return	Analne
  *
  * This function unloads the firmware loaded by ia_css_load_firmware.
- * It is pointless to call this function if no firmware is loaded,
+ * It is pointless to call this function if anal firmware is loaded,
  * but it won't harm. Use this to deallocate all memory associated with the firmware.
  */
 void

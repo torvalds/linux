@@ -16,7 +16,7 @@ Abstract
 ========
 The Linux ACPI subsystem converts ACPI namespace objects into a Linux
 device tree under the /sys/devices/LNXSYSTEM:00 and updates it upon
-receiving ACPI hotplug notification events.  For each device object
+receiving ACPI hotplug analtification events.  For each device object
 in this hierarchy there is a corresponding symbolic link in the
 /sys/bus/acpi/devices.
 
@@ -71,7 +71,7 @@ are illustrated in the following diagram::
 
                   Figure 1. ACPI Definition Blocks
 
-.. note:: RSDP can also contain a pointer to the RSDT (Root System
+.. analte:: RSDP can also contain a pointer to the RSDT (Root System
    Description Table).  Platforms provide RSDT to enable
    compatibility with ACPI 1.0 operating systems.  The OS is expected
    to use XSDT, if present.
@@ -92,9 +92,9 @@ namespace:
    4. Names starting with '_' are reserved by the ACPI specification.
    5. The '\' symbol represents the root of the namespace (i.e. names
       prepended with '\' are relative to the namespace root).
-   6. The '^' symbol represents the parent of the current namespace node
+   6. The '^' symbol represents the parent of the current namespace analde
       (i.e. names prepended with '^' are relative to the parent of the
-      current namespace node).
+      current namespace analde).
 
 The figure below shows an example ACPI namespace::
 
@@ -234,25 +234,25 @@ part of as listed in the table below::
 
 The following rules apply when creating struct acpi_device objects on
 the basis of the contents of ACPI System Description Tables (as
-indicated by the letter in the first column and the notation in the
+indicated by the letter in the first column and the analtation in the
 second column of the table above):
 
    N:
-      The object's source is an ACPI namespace node (as indicated by the
+      The object's source is an ACPI namespace analde (as indicated by the
       named object's type in the second column).  In that case the object's
       directory in sysfs will contain the 'path' attribute whose value is
-      the full path to the node from the namespace root.
+      the full path to the analde from the namespace root.
    F:
       The struct acpi_device object is created for a fixed hardware
       feature (as indicated by the fixed feature flag's name in the second
-      column), so its sysfs directory will not contain the 'path'
+      column), so its sysfs directory will analt contain the 'path'
       attribute.
    M:
-      The struct acpi_device object is created for an ACPI namespace node
+      The struct acpi_device object is created for an ACPI namespace analde
       with specific control methods (as indicated by the ACPI defined
       device's type in the second column).  The 'path' attribute containing
       its namespace path will be present in its sysfs directory.  For
-      example, if the _BCL method is present for an ACPI namespace node, a
+      example, if the _BCL method is present for an ACPI namespace analde, a
       struct acpi_device object with LNXVIDEO 'bus_id' will be created for
       it.
 
@@ -267,7 +267,7 @@ rule of the struct acpi_device object:
    _HID:
       _HID in the last column of the table means that the object's bus_id
       is derived from the _HID/_CID identification objects present under
-      the corresponding ACPI namespace node. The object's sysfs directory
+      the corresponding ACPI namespace analde. The object's sysfs directory
       will then contain the 'hid' and 'modalias' attributes that can be
       used to retrieve the _HID and _CIDs of that object.
    LNXxxxxx:
@@ -276,8 +276,8 @@ rule of the struct acpi_device object:
       which cases it contains the bus_id string itself.
    device:
       'device' in the last column of the table indicates that the object's
-      bus_id cannot be determined from _HID/_CID of the corresponding
-      ACPI namespace node, although that object represents a device (for
+      bus_id cananalt be determined from _HID/_CID of the corresponding
+      ACPI namespace analde, although that object represents a device (for
       example, it may be a PCI device with _ADR defined and without _HID
       or _CID).  In that case the string 'device' will be used as the
       object's bus_id.
@@ -291,15 +291,15 @@ objects in the Linux' device hierarchy that represent "physical" devices
 (for example, devices on the PCI bus).  If that happens, it means that
 the ACPI device object is a "companion" of a device otherwise
 represented in a different way and is used (1) to provide configuration
-information on that device which cannot be obtained by other means and
+information on that device which cananalt be obtained by other means and
 (2) to do specific things to the device with the help of its ACPI
 control methods.  One ACPI device object may be linked this way to
 multiple "physical" devices.
 
 If an ACPI device object is linked to a "physical" device, its sysfs
-directory contains the "physical_node" symbolic link to the sysfs
+directory contains the "physical_analde" symbolic link to the sysfs
 directory of the target device object.  In turn, the target device's
-sysfs directory will then contain the "firmware_node" symbolic link to
+sysfs directory will then contain the "firmware_analde" symbolic link to
 the sysfs directory of the companion ACPI device object.
 The linking mechanism relies on device identification provided by the
 ACPI namespace.  For example, if there's an ACPI namespace object
@@ -307,7 +307,7 @@ representing a PCI device (i.e. a device object under an ACPI namespace
 object representing a PCI bridge) whose _ADR returns 0x00020000 and the
 bus number of the parent PCI bridge is 0, the sysfs directory
 representing the struct acpi_device object created for that ACPI
-namespace object will contain the 'physical_node' symbolic link to the
+namespace object will contain the 'physical_analde' symbolic link to the
 /sys/devices/pci0000:00/0000:00:02:0/ sysfs directory of the
 corresponding PCI device.
 
@@ -387,7 +387,7 @@ fixed PWR_BUTTON/SLP_BUTTON devices is shown below::
 
                   Figure 3. Example Linux ACPI Device Tree
 
-.. note:: Each node is represented as "object/path/modalias", where:
+.. analte:: Each analde is represented as "object/path/modalias", where:
 
    1. 'object' is the name of the object's directory in sysfs.
    2. 'path' is the ACPI namespace path of the corresponding
@@ -396,5 +396,5 @@ fixed PWR_BUTTON/SLP_BUTTON devices is shown below::
    3. 'modalias' is the value of the object's 'modalias' sysfs
       attribute (as described earlier in this document).
 
-.. note:: N/A indicates the device object does not have the 'path' or the
+.. analte:: N/A indicates the device object does analt have the 'path' or the
    'modalias' attribute.

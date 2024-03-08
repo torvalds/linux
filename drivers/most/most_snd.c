@@ -2,7 +2,7 @@
 /*
  * sound.c - Sound component for Mostcore
  *
- * Copyright (C) 2015 Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015 Microchip Techanallogy Germany II GmbH & Co. KG
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -35,7 +35,7 @@ static struct most_component comp;
  * @id: channel index
  * @period_pos: current period position (ring buffer)
  * @buffer_pos: current buffer position (ring buffer)
- * @is_stream_running: identifies whether a stream is running or not
+ * @is_stream_running: identifies whether a stream is running or analt
  * @opened: set when the stream is opened
  * @playback_task: playback thread
  * @playback_waitq: waitq used by playback thread
@@ -538,13 +538,13 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 		if (adpt->iface != iface)
 			continue;
 		if (adpt->registered)
-			return -ENOSPC;
+			return -EANALSPC;
 		adpt->pcm_dev_idx++;
 		goto skip_adpt_alloc;
 	}
 	adpt = kzalloc(sizeof(*adpt), GFP_KERNEL);
 	if (!adpt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adpt->iface = iface;
 	INIT_LIST_HEAD(&adpt->dev_list);
@@ -576,7 +576,7 @@ skip_adpt_alloc:
 	}
 	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
 	if (!channel) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_adpt;
 	}
 	channel->card = adpt->card;
@@ -617,7 +617,7 @@ static int audio_create_sound_card(void)
 		if (!adpt->registered)
 			goto adpt_alloc;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 adpt_alloc:
 	ret = snd_card_register(adpt->card);
 	if (ret < 0) {

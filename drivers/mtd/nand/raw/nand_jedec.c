@@ -36,7 +36,7 @@ int nand_jedec_detect(struct nand_chip *chip)
 
 	memorg = nanddev_get_memorg(&chip->base);
 
-	/* Try JEDEC for unknown chip or LP */
+	/* Try JEDEC for unkanalwn chip or LP */
 	ret = nand_readid_op(chip, 0x40, id, sizeof(id));
 	if (ret || strncmp(id, "JEDEC", sizeof(id)))
 		return 0;
@@ -44,7 +44,7 @@ int nand_jedec_detect(struct nand_chip *chip)
 	/* JEDEC chip: allocate a buffer to hold its parameter page */
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!nand_has_exec_op(chip) || chip->controller->supported_op.data_only_read)
 		use_datain = true;
@@ -70,7 +70,7 @@ int nand_jedec_detect(struct nand_chip *chip)
 	}
 
 	if (i == JEDEC_PARAM_PAGES) {
-		pr_err("Could not find valid JEDEC parameter page; aborting\n");
+		pr_err("Could analt find valid JEDEC parameter page; aborting\n");
 		goto free_jedec_param_page;
 	}
 
@@ -90,7 +90,7 @@ int nand_jedec_detect(struct nand_chip *chip)
 	sanitize_string(p->model, sizeof(p->model));
 	chip->parameters.model = kstrdup(p->model, GFP_KERNEL);
 	if (!chip->parameters.model) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_jedec_param_page;
 	}
 

@@ -6,7 +6,7 @@
 #include <linux/module.h>
 
 //
-// Note that this remote has a stick which its own IR protocol,
+// Analte that this remote has a stick which its own IR protocol,
 // with 16 directions. This is supported by the imon_rsc BPF decoder
 // in v4l-utils.
 //

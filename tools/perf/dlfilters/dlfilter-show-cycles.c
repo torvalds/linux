@@ -134,7 +134,7 @@ int filter_event(void *data, const struct perf_dlfilter_sample *sample, void *ct
 const char *filter_description(const char **long_description)
 {
 	static char *long_desc = "Cycle counts are accumulated per CPU (or "
-		"per thread if CPU is not recorded) from IPC information, and "
+		"per thread if CPU is analt recorded) from IPC information, and "
 		"printed together with the change since the last print, at the "
 		"start of each line. Separate counts are kept for branches, "
 		"instructions or other events.";

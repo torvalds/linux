@@ -179,7 +179,7 @@ static unsigned char myrs_get_ctlr_info(struct myrs_hba *cs)
 	mbox->ctlr_info.id = MYRS_DCMD_TAG;
 	mbox->ctlr_info.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->ctlr_info.control.dma_ctrl_to_host = true;
-	mbox->ctlr_info.control.no_autosense = true;
+	mbox->ctlr_info.control.anal_autosense = true;
 	mbox->ctlr_info.dma_size = sizeof(struct myrs_ctlr_info);
 	mbox->ctlr_info.ctlr_num = 0;
 	mbox->ctlr_info.ioctl_opcode = MYRS_IOCTL_GET_CTLR_INFO;
@@ -238,7 +238,7 @@ static unsigned char myrs_get_ldev_info(struct myrs_hba *cs,
 	mbox->ldev_info.id = MYRS_DCMD_TAG;
 	mbox->ldev_info.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->ldev_info.control.dma_ctrl_to_host = true;
-	mbox->ldev_info.control.no_autosense = true;
+	mbox->ldev_info.control.anal_autosense = true;
 	mbox->ldev_info.dma_size = sizeof(struct myrs_ldev_info);
 	mbox->ldev_info.ldev.ldev_num = ldev_num;
 	mbox->ldev_info.ioctl_opcode = MYRS_IOCTL_GET_LDEV_INFO_VALID;
@@ -263,7 +263,7 @@ static unsigned char myrs_get_ldev_info(struct myrs_hba *cs,
 
 			name = myrs_devstate_name(new->dev_state);
 			shost_printk(KERN_INFO, cs->host,
-				     "Logical Drive %d is now %s\n",
+				     "Logical Drive %d is analw %s\n",
 				     ldev_num, name ? name : "Invalid");
 		}
 		if ((new->soft_errs != old->soft_errs) ||
@@ -324,7 +324,7 @@ static unsigned char myrs_get_pdev_info(struct myrs_hba *cs,
 	mbox->pdev_info.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->pdev_info.id = MYRS_DCMD_TAG;
 	mbox->pdev_info.control.dma_ctrl_to_host = true;
-	mbox->pdev_info.control.no_autosense = true;
+	mbox->pdev_info.control.anal_autosense = true;
 	mbox->pdev_info.dma_size = sizeof(struct myrs_pdev_info);
 	mbox->pdev_info.pdev.lun = lun;
 	mbox->pdev_info.pdev.target = target;
@@ -359,7 +359,7 @@ static unsigned char myrs_dev_op(struct myrs_hba *cs,
 	mbox->dev_op.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->dev_op.id = MYRS_DCMD_TAG;
 	mbox->dev_op.control.dma_ctrl_to_host = true;
-	mbox->dev_op.control.no_autosense = true;
+	mbox->dev_op.control.anal_autosense = true;
 	mbox->dev_op.ioctl_opcode = opcode;
 	mbox->dev_op.opdev = opdev;
 	myrs_exec_cmd(cs, cmd_blk);
@@ -395,7 +395,7 @@ static unsigned char myrs_translate_pdev(struct myrs_hba *cs,
 	mbox = &cmd_blk->mbox;
 	mbox->pdev_info.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->pdev_info.control.dma_ctrl_to_host = true;
-	mbox->pdev_info.control.no_autosense = true;
+	mbox->pdev_info.control.anal_autosense = true;
 	mbox->pdev_info.dma_size = sizeof(struct myrs_devmap);
 	mbox->pdev_info.pdev.target = target;
 	mbox->pdev_info.pdev.channel = channel;
@@ -462,7 +462,7 @@ static unsigned char myrs_get_fwstatus(struct myrs_hba *cs)
 	mbox->common.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->common.id = MYRS_MCMD_TAG;
 	mbox->common.control.dma_ctrl_to_host = true;
-	mbox->common.control.no_autosense = true;
+	mbox->common.control.anal_autosense = true;
 	mbox->common.dma_size = sizeof(struct myrs_fwstat);
 	mbox->common.ioctl_opcode = MYRS_IOCTL_GET_HEALTH_STATUS;
 	sgl = &mbox->common.dma_addr;
@@ -550,7 +550,7 @@ static bool myrs_enable_mmio_mbox(struct myrs_hba *cs,
 	memset(mbox, 0, sizeof(union myrs_cmd_mbox));
 	mbox->set_mbox.id = 1;
 	mbox->set_mbox.opcode = MYRS_CMD_OP_IOCTL;
-	mbox->set_mbox.control.no_autosense = true;
+	mbox->set_mbox.control.anal_autosense = true;
 	mbox->set_mbox.first_cmd_mbox_size_kb =
 		(MYRS_MAX_CMD_MBOX * sizeof(union myrs_cmd_mbox)) >> 10;
 	mbox->set_mbox.first_stat_mbox_size_kb =
@@ -593,7 +593,7 @@ static int myrs_get_config(struct myrs_hba *cs)
 	if (status != MYRS_STATUS_SUCCESS) {
 		shost_printk(KERN_ERR, shost,
 			     "Failed to get controller information\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Initialize the Controller Model Name and Full Model Name fields. */
@@ -609,17 +609,17 @@ static int myrs_get_config(struct myrs_hba *cs)
 	strcat(cs->model_name, model);
 	/* Initialize the Controller Firmware Version field. */
 	sprintf(fw_version, "%d.%02d-%02d",
-		info->fw_major_version, info->fw_minor_version,
+		info->fw_major_version, info->fw_mianalr_version,
 		info->fw_turn_number);
 	if (info->fw_major_version == 6 &&
-	    info->fw_minor_version == 0 &&
+	    info->fw_mianalr_version == 0 &&
 	    info->fw_turn_number < 1) {
 		shost_printk(KERN_WARNING, shost,
-			"FIRMWARE VERSION %s DOES NOT PROVIDE THE CONTROLLER\n"
+			"FIRMWARE VERSION %s DOES ANALT PROVIDE THE CONTROLLER\n"
 			"STATUS MONITORING FUNCTIONALITY NEEDED BY THIS DRIVER.\n"
 			"PLEASE UPGRADE TO VERSION 6.00-01 OR ABOVE.\n",
 			fw_version);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* Initialize the Controller Channels and Targets. */
 	shost->max_channel = info->physchan_present + info->virtchan_present;
@@ -693,7 +693,7 @@ static struct {
 	{ 0x0006, "P Manual Rebuild Started" },
 	{ 0x0007, "P Rebuild Completed" },
 	{ 0x0008, "P Rebuild Cancelled" },
-	{ 0x0009, "P Rebuild Failed for Unknown Reasons" },
+	{ 0x0009, "P Rebuild Failed for Unkanalwn Reasons" },
 	{ 0x000A, "P Rebuild Failed due to New Physical Device" },
 	{ 0x000B, "P Rebuild Failed due to Logical Drive Failure" },
 	{ 0x000C, "S Offline" },
@@ -720,7 +720,7 @@ static struct {
 	{ 0x0021, "P Failed because Write Recovery Failed" },
 	{ 0x0022, "P Failed because SCSI Bus Reset Failed" },
 	{ 0x0023, "P Failed because of Double Check Condition" },
-	{ 0x0024, "P Failed because Device Cannot Be Accessed" },
+	{ 0x0024, "P Failed because Device Cananalt Be Accessed" },
 	{ 0x0025, "P Failed because of Gross Error on SCSI Processor" },
 	{ 0x0026, "P Failed because of Bad Tag from Device" },
 	{ 0x0027, "P Failed because of Command Timeout" },
@@ -729,9 +729,9 @@ static struct {
 	{ 0x002A, "P Failed because Host Set Device to Failed State" },
 	{ 0x002B, "P Failed because of Selection Timeout" },
 	{ 0x002C, "P Failed because of SCSI Bus Phase Error" },
-	{ 0x002D, "P Failed because Device Returned Unknown Status" },
-	{ 0x002E, "P Failed because Device Not Ready" },
-	{ 0x002F, "P Failed because Device Not Found at Startup" },
+	{ 0x002D, "P Failed because Device Returned Unkanalwn Status" },
+	{ 0x002E, "P Failed because Device Analt Ready" },
+	{ 0x002F, "P Failed because Device Analt Found at Startup" },
 	{ 0x0030, "P Failed because COD Write Operation Failed" },
 	{ 0x0031, "P Failed because BDT Write Operation Failed" },
 	{ 0x0039, "P Missing at Startup" },
@@ -752,7 +752,7 @@ static struct {
 	{ 0x008A, "M Manual Rebuild Started" },
 	{ 0x008B, "M Rebuild Completed" },
 	{ 0x008C, "M Rebuild Cancelled" },
-	{ 0x008D, "M Rebuild Failed for Unknown Reasons" },
+	{ 0x008D, "M Rebuild Failed for Unkanalwn Reasons" },
 	{ 0x008E, "M Rebuild Failed due to New Physical Device" },
 	{ 0x008F, "M Rebuild Failed due to Logical Drive Failure" },
 	{ 0x0090, "M Initialization Started" },
@@ -776,14 +776,14 @@ static struct {
 	/* Fault Management Events (0x0100 - 0x017F) */
 	{ 0x0140, "E Fan %d Failed" },
 	{ 0x0141, "E Fan %d OK" },
-	{ 0x0142, "E Fan %d Not Present" },
+	{ 0x0142, "E Fan %d Analt Present" },
 	{ 0x0143, "E Power Supply %d Failed" },
 	{ 0x0144, "E Power Supply %d OK" },
-	{ 0x0145, "E Power Supply %d Not Present" },
+	{ 0x0145, "E Power Supply %d Analt Present" },
 	{ 0x0146, "E Temperature Sensor %d Temperature Exceeds Safe Limit" },
 	{ 0x0147, "E Temperature Sensor %d Temperature Exceeds Working Limit" },
-	{ 0x0148, "E Temperature Sensor %d Temperature Normal" },
-	{ 0x0149, "E Temperature Sensor %d Not Present" },
+	{ 0x0148, "E Temperature Sensor %d Temperature Analrmal" },
+	{ 0x0149, "E Temperature Sensor %d Analt Present" },
 	{ 0x014A, "E Enclosure Management Unit %d Access Critical" },
 	{ 0x014B, "E Enclosure Management Unit %d Access OK" },
 	{ 0x014C, "E Enclosure Management Unit %d Access Offline" },
@@ -820,7 +820,7 @@ static void myrs_log_event(struct myrs_hba *cs, struct myrs_event *ev)
 	unsigned char cmd_specific[4];
 
 	if (ev->ev_code == 0x1C) {
-		if (!scsi_normalize_sense(ev->sense_data, 40, &sshdr)) {
+		if (!scsi_analrmalize_sense(ev->sense_data, 40, &sshdr)) {
 			memset(&sshdr, 0x0, sizeof(sshdr));
 			memset(sense_info, 0x0, sizeof(sense_info));
 			memset(cmd_specific, 0x0, sizeof(cmd_specific));
@@ -842,7 +842,7 @@ static void myrs_log_event(struct myrs_hba *cs, struct myrs_event *ev)
 	ev_msg = &myrs_ev_list[ev_idx].ev_msg[2];
 	if (ev_code == 0) {
 		shost_printk(KERN_WARNING, shost,
-			     "Unknown Controller Event Code %04X\n",
+			     "Unkanalwn Controller Event Code %04X\n",
 			     ev->ev_code);
 		return;
 	}
@@ -889,8 +889,8 @@ static void myrs_log_event(struct myrs_hba *cs, struct myrs_event *ev)
 		cs->needs_update = true;
 		break;
 	case 'S':
-		if (sshdr.sense_key == NO_SENSE ||
-		    (sshdr.sense_key == NOT_READY &&
+		if (sshdr.sense_key == ANAL_SENSE ||
+		    (sshdr.sense_key == ANALT_READY &&
 		     sshdr.asc == 0x04 && (sshdr.ascq == 0x01 ||
 					    sshdr.ascq == 0x02)))
 			break;
@@ -922,7 +922,7 @@ static void myrs_log_event(struct myrs_hba *cs, struct myrs_event *ev)
 		break;
 	default:
 		shost_printk(KERN_INFO, shost,
-			     "event %d: Unknown Event Code %04X\n",
+			     "event %d: Unkanalwn Event Code %04X\n",
 			     ev->ev_seq, ev->ev_code);
 		break;
 	}
@@ -939,7 +939,7 @@ static ssize_t raid_state_show(struct device *dev,
 	int ret;
 
 	if (!sdev->hostdata)
-		return snprintf(buf, 16, "Unknown\n");
+		return snprintf(buf, 16, "Unkanalwn\n");
 
 	if (sdev->channel >= cs->ctlr_info->physchan_present) {
 		struct myrs_ldev_info *ldev_info = sdev->hostdata;
@@ -1021,7 +1021,7 @@ static ssize_t raid_state_store(struct device *dev,
 	mbox->common.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->common.id = MYRS_DCMD_TAG;
 	mbox->common.control.dma_ctrl_to_host = true;
-	mbox->common.control.no_autosense = true;
+	mbox->common.control.anal_autosense = true;
 	mbox->set_devstate.ioctl_opcode = MYRS_IOCTL_SET_DEVICE_STATE;
 	mbox->set_devstate.state = new_state;
 	mbox->set_devstate.ldev.ldev_num = ldev_num;
@@ -1058,7 +1058,7 @@ static ssize_t raid_level_show(struct device *dev,
 	const char *name = NULL;
 
 	if (!sdev->hostdata)
-		return snprintf(buf, 16, "Unknown\n");
+		return snprintf(buf, 16, "Unkanalwn\n");
 
 	if (sdev->channel >= cs->ctlr_info->physchan_present) {
 		struct myrs_ldev_info *ldev_info;
@@ -1086,7 +1086,7 @@ static ssize_t rebuild_show(struct device *dev,
 	unsigned char status;
 
 	if (sdev->channel < cs->ctlr_info->physchan_present)
-		return snprintf(buf, 32, "physical device - not rebuilding\n");
+		return snprintf(buf, 32, "physical device - analt rebuilding\n");
 
 	ldev_info = sdev->hostdata;
 	ldev_num = ldev_info->ldev_num;
@@ -1102,7 +1102,7 @@ static ssize_t rebuild_show(struct device *dev,
 				(size_t)ldev_info->rbld_lba,
 				(size_t)ldev_info->cfg_devsize);
 	} else
-		return snprintf(buf, 32, "not rebuilding\n");
+		return snprintf(buf, 32, "analt rebuilding\n");
 }
 
 static ssize_t rebuild_store(struct device *dev,
@@ -1139,12 +1139,12 @@ static ssize_t rebuild_store(struct device *dev,
 
 	if (rebuild && ldev_info->rbld_active) {
 		sdev_printk(KERN_INFO, sdev,
-			    "Rebuild Not Initiated; already in progress\n");
+			    "Rebuild Analt Initiated; already in progress\n");
 		return -EALREADY;
 	}
 	if (!rebuild && !ldev_info->rbld_active) {
 		sdev_printk(KERN_INFO, sdev,
-			    "Rebuild Not Cancelled; no rebuild in progress\n");
+			    "Rebuild Analt Cancelled; anal rebuild in progress\n");
 		return count;
 	}
 
@@ -1155,7 +1155,7 @@ static ssize_t rebuild_store(struct device *dev,
 	mbox->common.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->common.id = MYRS_DCMD_TAG;
 	mbox->common.control.dma_ctrl_to_host = true;
-	mbox->common.control.no_autosense = true;
+	mbox->common.control.anal_autosense = true;
 	if (rebuild) {
 		mbox->ldev_info.ldev.ldev_num = ldev_num;
 		mbox->ldev_info.ioctl_opcode = MYRS_IOCTL_RBLD_DEVICE_START;
@@ -1168,7 +1168,7 @@ static ssize_t rebuild_store(struct device *dev,
 	mutex_unlock(&cs->dcmd_mutex);
 	if (status) {
 		sdev_printk(KERN_INFO, sdev,
-			    "Rebuild Not %s, status 0x%02x\n",
+			    "Rebuild Analt %s, status 0x%02x\n",
 			    rebuild ? "Initiated" : "Cancelled", status);
 		ret = -EIO;
 	} else {
@@ -1190,7 +1190,7 @@ static ssize_t consistency_check_show(struct device *dev,
 	unsigned short ldev_num;
 
 	if (sdev->channel < cs->ctlr_info->physchan_present)
-		return snprintf(buf, 32, "physical device - not checking\n");
+		return snprintf(buf, 32, "physical device - analt checking\n");
 
 	ldev_info = sdev->hostdata;
 	if (!ldev_info)
@@ -1202,7 +1202,7 @@ static ssize_t consistency_check_show(struct device *dev,
 				(size_t)ldev_info->cc_lba,
 				(size_t)ldev_info->cfg_devsize);
 	else
-		return snprintf(buf, 32, "not checking\n");
+		return snprintf(buf, 32, "analt checking\n");
 }
 
 static ssize_t consistency_check_store(struct device *dev,
@@ -1238,14 +1238,14 @@ static ssize_t consistency_check_store(struct device *dev,
 	}
 	if (check && ldev_info->cc_active) {
 		sdev_printk(KERN_INFO, sdev,
-			    "Consistency Check Not Initiated; "
+			    "Consistency Check Analt Initiated; "
 			    "already in progress\n");
 		return -EALREADY;
 	}
 	if (!check && !ldev_info->cc_active) {
 		sdev_printk(KERN_INFO, sdev,
-			    "Consistency Check Not Cancelled; "
-			    "check not in progress\n");
+			    "Consistency Check Analt Cancelled; "
+			    "check analt in progress\n");
 		return count;
 	}
 
@@ -1256,7 +1256,7 @@ static ssize_t consistency_check_store(struct device *dev,
 	mbox->common.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->common.id = MYRS_DCMD_TAG;
 	mbox->common.control.dma_ctrl_to_host = true;
-	mbox->common.control.no_autosense = true;
+	mbox->common.control.anal_autosense = true;
 	if (check) {
 		mbox->cc.ldev.ldev_num = ldev_num;
 		mbox->cc.ioctl_opcode = MYRS_IOCTL_CC_START;
@@ -1271,7 +1271,7 @@ static ssize_t consistency_check_store(struct device *dev,
 	mutex_unlock(&cs->dcmd_mutex);
 	if (status != MYRS_STATUS_SUCCESS) {
 		sdev_printk(KERN_INFO, sdev,
-			    "Consistency Check Not %s, status 0x%02x\n",
+			    "Consistency Check Analt %s, status 0x%02x\n",
 			    check ? "Initiated" : "Cancelled", status);
 		ret = -EIO;
 	} else {
@@ -1313,7 +1313,7 @@ static ssize_t ctlr_num_show(struct device *dev,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct myrs_hba *cs = shost_priv(shost);
 
-	return snprintf(buf, 20, "%d\n", cs->host->host_no);
+	return snprintf(buf, 20, "%d\n", cs->host->host_anal);
 }
 static DEVICE_ATTR_RO(ctlr_num);
 
@@ -1325,7 +1325,7 @@ static struct myrs_cpu_type_tbl {
 	{ MYRS_CPUTYPE_i960RD, "i960RD" },
 	{ MYRS_CPUTYPE_i960RN, "i960RN" },
 	{ MYRS_CPUTYPE_i960RP, "i960RP" },
-	{ MYRS_CPUTYPE_NorthBay, "NorthBay" },
+	{ MYRS_CPUTYPE_AnalrthBay, "AnalrthBay" },
 	{ MYRS_CPUTYPE_StrongArm, "StrongARM" },
 	{ MYRS_CPUTYPE_i960RM, "i960RM" },
 };
@@ -1420,7 +1420,7 @@ static ssize_t firmware_show(struct device *dev,
 
 	return snprintf(buf, 16, "%d.%02d-%02d\n",
 			cs->ctlr_info->fw_major_version,
-			cs->ctlr_info->fw_minor_version,
+			cs->ctlr_info->fw_mianalr_version,
 			cs->ctlr_info->fw_turn_number);
 }
 static DEVICE_ATTR_RO(firmware);
@@ -1441,14 +1441,14 @@ static ssize_t discovery_store(struct device *dev,
 	mbox->common.opcode = MYRS_CMD_OP_IOCTL;
 	mbox->common.id = MYRS_DCMD_TAG;
 	mbox->common.control.dma_ctrl_to_host = true;
-	mbox->common.control.no_autosense = true;
+	mbox->common.control.anal_autosense = true;
 	mbox->common.ioctl_opcode = MYRS_IOCTL_START_DISCOVERY;
 	myrs_exec_cmd(cs, cmd_blk);
 	status = cmd_blk->status;
 	mutex_unlock(&cs->dcmd_mutex);
 	if (status != MYRS_STATUS_SUCCESS) {
 		shost_printk(KERN_INFO, shost,
-			     "Discovery Not Initiated, status %02X\n",
+			     "Discovery Analt Initiated, status %02X\n",
 			     status);
 		return -EINVAL;
 	}
@@ -1596,7 +1596,7 @@ static int myrs_queuecommand(struct Scsi_Host *shost,
 	int nsge;
 
 	if (!scmd->device->hostdata) {
-		scmd->result = (DID_NO_CONNECT << 16);
+		scmd->result = (DID_ANAL_CONNECT << 16);
 		scsi_done(scmd);
 		return 0;
 	}
@@ -1713,7 +1713,7 @@ static int myrs_queuecommand(struct Scsi_Host *shost,
 		memcpy(cmd_blk->dcdb, scmd->cmnd, scmd->cmd_len);
 		hw_sge = &mbox->SCSI_255.dma_addr;
 	}
-	if (scmd->sc_data_direction == DMA_NONE)
+	if (scmd->sc_data_direction == DMA_ANALNE)
 		goto submit;
 	nsge = scsi_dma_map(scmd);
 	if (nsge == 1) {
@@ -1805,7 +1805,7 @@ static int myrs_slave_alloc(struct scsi_device *sdev)
 
 		ldev_info = kzalloc(sizeof(*ldev_info), GFP_KERNEL);
 		if (!ldev_info)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		status = myrs_get_ldev_info(cs, ldev_num, ldev_info);
 		if (status != MYRS_STATUS_SUCCESS) {
@@ -1848,7 +1848,7 @@ static int myrs_slave_alloc(struct scsi_device *sdev)
 				level = RAID_LEVEL_JBOD;
 				break;
 			default:
-				level = RAID_LEVEL_UNKNOWN;
+				level = RAID_LEVEL_UNKANALWN;
 				break;
 			}
 			raid_set_level(myrs_raid_template,
@@ -1867,7 +1867,7 @@ static int myrs_slave_alloc(struct scsi_device *sdev)
 
 		pdev_info = kzalloc(sizeof(*pdev_info), GFP_KERNEL);
 		if (!pdev_info)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		status = myrs_get_pdev_info(cs, sdev->channel,
 					    sdev->id, sdev->lun,
@@ -1894,7 +1894,7 @@ static int myrs_slave_configure(struct scsi_device *sdev)
 		/* Skip HBA device */
 		if (sdev->type == TYPE_RAID)
 			return -ENXIO;
-		sdev->no_uld_attach = 1;
+		sdev->anal_uld_attach = 1;
 		return 0;
 	}
 	if (sdev->lun != 0)
@@ -2001,10 +2001,10 @@ myrs_get_state(struct device *dev)
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct myrs_hba *cs = shost_priv(sdev->host);
 	struct myrs_ldev_info *ldev_info = sdev->hostdata;
-	enum raid_state state = RAID_STATE_UNKNOWN;
+	enum raid_state state = RAID_STATE_UNKANALWN;
 
 	if (sdev->channel < cs->ctlr_info->physchan_present || !ldev_info)
-		state = RAID_STATE_UNKNOWN;
+		state = RAID_STATE_UNKANALWN;
 	else {
 		switch (ldev_info->dev_state) {
 		case MYRS_DEVICE_ONLINE:
@@ -2019,7 +2019,7 @@ myrs_get_state(struct device *dev)
 			break;
 		case MYRS_DEVICE_UNCONFIGURED:
 		case MYRS_DEVICE_INVALID_STATE:
-			state = RAID_STATE_UNKNOWN;
+			state = RAID_STATE_UNKANALWN;
 			break;
 		default:
 			state = RAID_STATE_OFFLINE;
@@ -2080,8 +2080,8 @@ static void myrs_handle_scsi(struct myrs_hba *cs, struct myrs_cmdblk *cmd_blk,
 	}
 	if (cmd_blk->residual)
 		scsi_set_resid(scmd, cmd_blk->residual);
-	if (status == MYRS_STATUS_DEVICE_NON_RESPONSIVE ||
-	    status == MYRS_STATUS_DEVICE_NON_RESPONSIVE2)
+	if (status == MYRS_STATUS_DEVICE_ANALN_RESPONSIVE ||
+	    status == MYRS_STATUS_DEVICE_ANALN_RESPONSIVE2)
 		scmd->result = (DID_BAD_TARGET << 16);
 	else
 		scmd->result = (DID_OK << 16) | status;
@@ -2207,7 +2207,7 @@ static bool myrs_create_mempools(struct pci_dev *pdev, struct myrs_hba *cs)
 	}
 
 	snprintf(cs->work_q_name, sizeof(cs->work_q_name),
-		 "myrs_wq_%d", shost->host_no);
+		 "myrs_wq_%d", shost->host_anal);
 	cs->work_q = create_singlethread_workqueue(cs->work_q_name);
 	if (!cs->work_q) {
 		dma_pool_destroy(cs->dcdb_pool);
@@ -2348,39 +2348,39 @@ static bool myrs_err_status(struct myrs_hba *cs, unsigned char status,
 	switch (status) {
 	case 0x00:
 		dev_info(&pdev->dev,
-			 "Physical Device %d:%d Not Responding\n",
+			 "Physical Device %d:%d Analt Responding\n",
 			 parm1, parm0);
 		break;
 	case 0x08:
-		dev_notice(&pdev->dev, "Spinning Up Drives\n");
+		dev_analtice(&pdev->dev, "Spinning Up Drives\n");
 		break;
 	case 0x30:
-		dev_notice(&pdev->dev, "Configuration Checksum Error\n");
+		dev_analtice(&pdev->dev, "Configuration Checksum Error\n");
 		break;
 	case 0x60:
-		dev_notice(&pdev->dev, "Mirror Race Recovery Failed\n");
+		dev_analtice(&pdev->dev, "Mirror Race Recovery Failed\n");
 		break;
 	case 0x70:
-		dev_notice(&pdev->dev, "Mirror Race Recovery In Progress\n");
+		dev_analtice(&pdev->dev, "Mirror Race Recovery In Progress\n");
 		break;
 	case 0x90:
-		dev_notice(&pdev->dev, "Physical Device %d:%d COD Mismatch\n",
+		dev_analtice(&pdev->dev, "Physical Device %d:%d COD Mismatch\n",
 			   parm1, parm0);
 		break;
 	case 0xA0:
-		dev_notice(&pdev->dev, "Logical Drive Installation Aborted\n");
+		dev_analtice(&pdev->dev, "Logical Drive Installation Aborted\n");
 		break;
 	case 0xB0:
-		dev_notice(&pdev->dev, "Mirror Race On A Critical Logical Drive\n");
+		dev_analtice(&pdev->dev, "Mirror Race On A Critical Logical Drive\n");
 		break;
 	case 0xD0:
-		dev_notice(&pdev->dev, "New Controller Configuration Found\n");
+		dev_analtice(&pdev->dev, "New Controller Configuration Found\n");
 		break;
 	case 0xF0:
 		dev_err(&pdev->dev, "Fatal Memory Parity Error\n");
 		return true;
 	default:
-		dev_err(&pdev->dev, "Unknown Initialization Error %02X\n",
+		dev_err(&pdev->dev, "Unkanalwn Initialization Error %02X\n",
 			status);
 		return true;
 	}
@@ -2997,7 +2997,7 @@ static int DAC960_LP_hw_init(struct pci_dev *pdev,
 		dev_err(&pdev->dev,
 			"Unable to Enable Memory Mailbox Interface\n");
 		DAC960_LP_reset_ctrl(base);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	DAC960_LP_enable_intr(base);
 	cs->write_cmd_mbox = DAC960_LP_write_cmd_mbox;
@@ -3073,7 +3073,7 @@ myrs_probe(struct pci_dev *dev, const struct pci_device_id *entry)
 
 	cs = myrs_detect(dev, entry);
 	if (!cs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = myrs_get_config(cs);
 	if (ret < 0) {
@@ -3082,7 +3082,7 @@ myrs_probe(struct pci_dev *dev, const struct pci_device_id *entry)
 	}
 
 	if (!myrs_create_mempools(dev, cs)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed;
 	}
 
@@ -3107,7 +3107,7 @@ static void myrs_remove(struct pci_dev *pdev)
 	if (cs == NULL)
 		return;
 
-	shost_printk(KERN_NOTICE, cs->host, "Flushing Cache...");
+	shost_printk(KERN_ANALTICE, cs->host, "Flushing Cache...");
 	myrs_flush_cache(cs);
 	myrs_destroy_mempools(cs);
 	myrs_cleanup(cs);
@@ -3145,7 +3145,7 @@ static int __init myrs_init_module(void)
 
 	myrs_raid_template = raid_class_attach(&myrs_raid_functions);
 	if (!myrs_raid_template)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = pci_register_driver(&myrs_pci_driver);
 	if (ret)

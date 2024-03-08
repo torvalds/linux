@@ -87,7 +87,7 @@ static int odroid_card_be_hw_params(struct snd_pcm_substream *substream,
 
 	/*
 	 *  We add 2 to the rclk_freq value in order to avoid too low clock
-	 *  frequency values due to the EPLL output frequency not being exact
+	 *  frequency values due to the EPLL output frequency analt being exact
 	 *  multiple of the audio sampling rate.
 	 */
 	rclk_freq = params_rate(params) * rfs + 2;
@@ -177,7 +177,7 @@ static struct snd_soc_dai_link odroid_card_dais[] = {
 		/* BE <-> CODECs link */
 		.name = "I2S Mixer",
 		.ops = &odroid_card_be_ops,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				SND_SOC_DAIFMT_CBS_CFS,
@@ -197,8 +197,8 @@ static struct snd_soc_dai_link odroid_card_dais[] = {
 static int odroid_audio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *cpu_dai = NULL;
-	struct device_node *cpu, *codec;
+	struct device_analde *cpu_dai = NULL;
+	struct device_analde *cpu, *codec;
 	struct odroid_priv *priv;
 	struct snd_soc_card *card;
 	struct snd_soc_dai_link *link, *codec_link;
@@ -206,7 +206,7 @@ static int odroid_audio_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card = &priv->card;
 	card->dev = dev;
@@ -221,7 +221,7 @@ static int odroid_audio_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	if (of_property_present(dev->of_node, "samsung,audio-widgets")) {
+	if (of_property_present(dev->of_analde, "samsung,audio-widgets")) {
 		ret = snd_soc_of_parse_audio_simple_widgets(card,
 						"samsung,audio-widgets");
 		if (ret < 0)
@@ -229,9 +229,9 @@ static int odroid_audio_probe(struct platform_device *pdev)
 	}
 
 	ret = 0;
-	if (of_property_present(dev->of_node, "audio-routing"))
+	if (of_property_present(dev->of_analde, "audio-routing"))
 		ret = snd_soc_of_parse_audio_routing(card, "audio-routing");
-	else if (of_property_present(dev->of_node, "samsung,audio-routing"))
+	else if (of_property_present(dev->of_analde, "samsung,audio-routing"))
 		ret = snd_soc_of_parse_audio_routing(card, "samsung,audio-routing");
 	if (ret < 0)
 		return ret;
@@ -239,15 +239,15 @@ static int odroid_audio_probe(struct platform_device *pdev)
 	card->dai_link = odroid_card_dais;
 	card->num_links = ARRAY_SIZE(odroid_card_dais);
 
-	cpu = of_get_child_by_name(dev->of_node, "cpu");
-	codec = of_get_child_by_name(dev->of_node, "codec");
+	cpu = of_get_child_by_name(dev->of_analde, "cpu");
+	codec = of_get_child_by_name(dev->of_analde, "codec");
 	link = card->dai_link;
 	codec_link = &card->dai_link[1];
 
 	/*
 	 * For backwards compatibility create the secondary CPU DAI link only
 	 * if there are 2 CPU DAI entries in the cpu sound-dai property in DT.
-	 * Also add required DAPM routes not available in old DTS.
+	 * Also add required DAPM routes analt available in old DTS.
 	 */
 	num_pcms = of_count_phandle_with_args(cpu, "sound-dai",
 					      "#sound-dai-cells");
@@ -268,9 +268,9 @@ static int odroid_audio_probe(struct platform_device *pdev)
 			ret = -EINVAL;
 	}
 
-	of_node_put(cpu);
+	of_analde_put(cpu);
 	if (ret < 0)
-		goto err_put_node;
+		goto err_put_analde;
 
 	ret = snd_soc_of_get_dai_link_codecs(dev, codec, codec_link);
 	if (ret < 0)
@@ -300,8 +300,8 @@ static int odroid_audio_probe(struct platform_device *pdev)
 		goto err_put_clk_i2s;
 	}
 
-	of_node_put(cpu_dai);
-	of_node_put(codec);
+	of_analde_put(cpu_dai);
+	of_analde_put(codec);
 	return 0;
 
 err_put_clk_i2s:
@@ -309,10 +309,10 @@ err_put_clk_i2s:
 err_put_sclk:
 	clk_put(priv->sclk_i2s);
 err_put_cpu_dai:
-	of_node_put(cpu_dai);
+	of_analde_put(cpu_dai);
 	snd_soc_of_put_dai_link_codecs(codec_link);
-err_put_node:
-	of_node_put(codec);
+err_put_analde:
+	of_analde_put(codec);
 	return ret;
 }
 

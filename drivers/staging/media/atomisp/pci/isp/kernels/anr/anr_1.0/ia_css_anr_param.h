@@ -18,7 +18,7 @@
 
 #include "type_support.h"
 
-/* ANR (Advanced Noise Reduction) */
+/* ANR (Advanced Analise Reduction) */
 struct sh_css_isp_anr_params {
 	s32 threshold;
 };

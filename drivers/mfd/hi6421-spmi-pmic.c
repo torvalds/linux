@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2013 Linaro Ltd.
  * Copyright (c) 2011 Hisilicon.
- * Copyright (c) 2020-2021 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2020-2021 Huawei Techanallogies Co., Ltd.
  */
 
 #include <linux/mfd/core.h>
@@ -38,7 +38,7 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *sdev)
 
 	dev_set_drvdata(&sdev->dev, regmap);
 
-	ret = devm_mfd_add_devices(&sdev->dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(&sdev->dev, PLATFORM_DEVID_ANALNE,
 				   hi6421v600_devs, ARRAY_SIZE(hi6421v600_devs),
 				   NULL, 0, NULL);
 	if (ret < 0)

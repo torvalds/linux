@@ -4,7 +4,7 @@
  *
  * V4L2 events.
  *
- * Copyright (C) 2009--2010 Nokia Corporation.
+ * Copyright (C) 2009--2010 Analkia Corporation.
  *
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  */
@@ -23,7 +23,7 @@ struct video_device;
 
 /**
  * struct v4l2_kevent - Internal kernel event struct.
- * @list:	List node for the v4l2_fh->available list.
+ * @list:	List analde for the v4l2_fh->available list.
  * @sev:	Pointer to parent v4l2_subscribed_event.
  * @event:	The event itself.
  * @ts:		The timestamp of the event.
@@ -54,12 +54,12 @@ struct v4l2_subscribed_event_ops {
  * struct v4l2_subscribed_event - Internal struct representing a subscribed
  *		event.
  *
- * @list:	List node for the v4l2_fh->subscribed list.
+ * @list:	List analde for the v4l2_fh->subscribed list.
  * @type:	Event type.
  * @id:	Associated object ID (e.g. control ID). 0 if there isn't any.
  * @flags:	Copy of v4l2_event_subscription->flags.
  * @fh:	Filehandle that subscribed to this event.
- * @node:	List node that hooks into the object's event list
+ * @analde:	List analde that hooks into the object's event list
  *		(if there is one).
  * @ops:	v4l2_subscribed_event_ops
  * @elems:	The number of elements in the events array.
@@ -73,7 +73,7 @@ struct v4l2_subscribed_event {
 	u32			id;
 	u32			flags;
 	struct v4l2_fh		*fh;
-	struct list_head	node;
+	struct list_head	analde;
 	const struct v4l2_subscribed_event_ops *ops;
 	unsigned int		elems;
 	unsigned int		first;
@@ -86,10 +86,10 @@ struct v4l2_subscribed_event {
  *
  * @fh: pointer to struct v4l2_fh
  * @event: pointer to struct v4l2_event
- * @nonblocking: if not zero, waits for an event to arrive
+ * @analnblocking: if analt zero, waits for an event to arrive
  */
 int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
-		       int nonblocking);
+		       int analnblocking);
 
 /**
  * v4l2_event_queue - Queue events to video device.
@@ -99,7 +99,7 @@ int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
  *
  * The event will be queued for all &struct v4l2_fh file handlers.
  *
- * .. note::
+ * .. analte::
  *    The driver's only responsibility is to fill in the type and the data
  *    fields. The other fields will be filled in by V4L2.
  */
@@ -114,7 +114,7 @@ void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev);
  *
  * The event will be queued only for the specified &struct v4l2_fh file handler.
  *
- * .. note::
+ * .. analte::
  *    The driver's only responsibility is to fill in the type and the data
  *    fields. The other fields will be filled in by V4L2.
  */
@@ -146,7 +146,7 @@ int v4l2_event_pending(struct v4l2_fh *fh);
  * @elems: size of the events queue
  * @ops: pointer to &v4l2_subscribed_event_ops
  *
- * .. note::
+ * .. analte::
  *
  *    if @elems is zero, the framework will fill in a default value,
  *    with is currently 1 element.
@@ -177,7 +177,7 @@ void v4l2_event_unsubscribe_all(struct v4l2_fh *fh);
  * @fh: pointer to &struct v4l2_fh
  * @sub: pointer to &struct v4l2_event_subscription
  *
- * .. note::
+ * .. analte::
  *
  *	This function should be used for the &struct v4l2_subdev_core_ops
  *	%unsubscribe_event field.

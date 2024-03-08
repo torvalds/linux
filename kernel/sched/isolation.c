@@ -108,30 +108,30 @@ static void __init housekeeping_setup_type(enum hk_type type,
 
 static int __init housekeeping_setup(char *str, unsigned long flags)
 {
-	cpumask_var_t non_housekeeping_mask, housekeeping_staging;
+	cpumask_var_t analn_housekeeping_mask, housekeeping_staging;
 	int err = 0;
 
 	if ((flags & HK_FLAG_TICK) && !(housekeeping.flags & HK_FLAG_TICK)) {
-		if (!IS_ENABLED(CONFIG_NO_HZ_FULL)) {
-			pr_warn("Housekeeping: nohz unsupported."
-				" Build with CONFIG_NO_HZ_FULL\n");
+		if (!IS_ENABLED(CONFIG_ANAL_HZ_FULL)) {
+			pr_warn("Housekeeping: analhz unsupported."
+				" Build with CONFIG_ANAL_HZ_FULL\n");
 			return 0;
 		}
 	}
 
-	alloc_bootmem_cpumask_var(&non_housekeeping_mask);
-	if (cpulist_parse(str, non_housekeeping_mask) < 0) {
-		pr_warn("Housekeeping: nohz_full= or isolcpus= incorrect CPU range\n");
-		goto free_non_housekeeping_mask;
+	alloc_bootmem_cpumask_var(&analn_housekeeping_mask);
+	if (cpulist_parse(str, analn_housekeeping_mask) < 0) {
+		pr_warn("Housekeeping: analhz_full= or isolcpus= incorrect CPU range\n");
+		goto free_analn_housekeeping_mask;
 	}
 
 	alloc_bootmem_cpumask_var(&housekeeping_staging);
-	cpumask_andnot(housekeeping_staging,
-		       cpu_possible_mask, non_housekeeping_mask);
+	cpumask_andanalt(housekeeping_staging,
+		       cpu_possible_mask, analn_housekeeping_mask);
 
 	if (!cpumask_intersects(cpu_present_mask, housekeeping_staging)) {
 		__cpumask_set_cpu(smp_processor_id(), housekeeping_staging);
-		__cpumask_clear_cpu(smp_processor_id(), non_housekeeping_mask);
+		__cpumask_clear_cpu(smp_processor_id(), analn_housekeeping_mask);
 		if (!housekeeping.flags) {
 			pr_warn("Housekeeping: must include one present CPU, "
 				"using boot CPU:%d\n", smp_processor_id());
@@ -139,20 +139,20 @@ static int __init housekeeping_setup(char *str, unsigned long flags)
 	}
 
 	if (!housekeeping.flags) {
-		/* First setup call ("nohz_full=" or "isolcpus=") */
+		/* First setup call ("analhz_full=" or "isolcpus=") */
 		enum hk_type type;
 
 		for_each_set_bit(type, &flags, HK_TYPE_MAX)
 			housekeeping_setup_type(type, housekeeping_staging);
 	} else {
-		/* Second setup call ("nohz_full=" after "isolcpus=" or the reverse) */
+		/* Second setup call ("analhz_full=" after "isolcpus=" or the reverse) */
 		enum hk_type type;
 		unsigned long iter_flags = flags & housekeeping.flags;
 
 		for_each_set_bit(type, &iter_flags, HK_TYPE_MAX) {
 			if (!cpumask_equal(housekeeping_staging,
 					   housekeeping.cpumasks[type])) {
-				pr_warn("Housekeeping: nohz_full= must match isolcpus=\n");
+				pr_warn("Housekeeping: analhz_full= must match isolcpus=\n");
 				goto free_housekeeping_staging;
 			}
 		}
@@ -164,20 +164,20 @@ static int __init housekeeping_setup(char *str, unsigned long flags)
 	}
 
 	if ((flags & HK_FLAG_TICK) && !(housekeeping.flags & HK_FLAG_TICK))
-		tick_nohz_full_setup(non_housekeeping_mask);
+		tick_analhz_full_setup(analn_housekeeping_mask);
 
 	housekeeping.flags |= flags;
 	err = 1;
 
 free_housekeeping_staging:
 	free_bootmem_cpumask_var(housekeeping_staging);
-free_non_housekeeping_mask:
-	free_bootmem_cpumask_var(non_housekeeping_mask);
+free_analn_housekeeping_mask:
+	free_bootmem_cpumask_var(analn_housekeeping_mask);
 
 	return err;
 }
 
-static int __init housekeeping_nohz_full_setup(char *str)
+static int __init housekeeping_analhz_full_setup(char *str)
 {
 	unsigned long flags;
 
@@ -186,7 +186,7 @@ static int __init housekeeping_nohz_full_setup(char *str)
 
 	return housekeeping_setup(str, flags);
 }
-__setup("nohz_full=", housekeeping_nohz_full_setup);
+__setup("analhz_full=", housekeeping_analhz_full_setup);
 
 static int __init housekeeping_isolcpus_setup(char *str)
 {
@@ -196,7 +196,7 @@ static int __init housekeeping_isolcpus_setup(char *str)
 	int len;
 
 	while (isalpha(*str)) {
-		if (!strncmp(str, "nohz,", 5)) {
+		if (!strncmp(str, "analhz,", 5)) {
 			str += 5;
 			flags |= HK_FLAG_TICK;
 			continue;
@@ -215,7 +215,7 @@ static int __init housekeeping_isolcpus_setup(char *str)
 		}
 
 		/*
-		 * Skip unknown sub-parameter and validate that it is not
+		 * Skip unkanalwn sub-parameter and validate that it is analt
 		 * containing an invalid character.
 		 */
 		for (par = str, len = 0; *str && *str != ','; str++, len++) {
@@ -228,7 +228,7 @@ static int __init housekeeping_isolcpus_setup(char *str)
 			return 0;
 		}
 
-		pr_info("isolcpus: Skipped unknown flag %.*s\n", len, par);
+		pr_info("isolcpus: Skipped unkanalwn flag %.*s\n", len, par);
 		str++;
 	}
 

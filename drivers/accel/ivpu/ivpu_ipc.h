@@ -13,7 +13,7 @@
 
 struct ivpu_bo;
 
-/* VPU FW boot notification */
+/* VPU FW boot analtification */
 #define IVPU_IPC_CHAN_BOOT_MSG		0x3ff
 #define IVPU_IPC_BOOT_MSG_DATA_ADDR	0x424f4f54
 
@@ -29,16 +29,16 @@ struct ivpu_bo;
  * @data_addr: The VPU address of the payload (JSM message)
  * @data_size: The size of the payload.
  * @channel: The channel used.
- * @src_node: The Node ID of the sender.
- * @dst_node: The Node ID of the intended receiver.
+ * @src_analde: The Analde ID of the sender.
+ * @dst_analde: The Analde ID of the intended receiver.
  * @status: IPC buffer usage status
  */
 struct ivpu_ipc_hdr {
 	u32 data_addr;
 	u32 data_size;
 	u16 channel;
-	u8 src_node;
-	u8 dst_node;
+	u8 src_analde;
+	u8 dst_analde;
 	u8 status;
 } __packed __aligned(IVPU_IPC_ALIGNMENT);
 

@@ -1,7 +1,7 @@
 Device tree bindings for TI's ADS7843, ADS7845, ADS7846, ADS7873, TSC2046
 SPI driven touch screen controllers.
 
-The node for this driver must be a child node of a SPI controller, hence
+The analde for this driver must be a child analde of a SPI controller, hence
 all mandatory properties described in
 
 	Documentation/devicetree/bindings/spi/spi-bus.txt
@@ -18,9 +18,9 @@ Additional required properties:
 					"ti,ads7846"
 					"ti,ads7873"
 
-	interrupts		An interrupt node describing the IRQ line the chip's
+	interrupts		An interrupt analde describing the IRQ line the chip's
 				!PENIRQ pin is connected to.
-	vcc-supply		A regulator node for the supply voltage.
+	vcc-supply		A regulator analde for the supply voltage.
 
 
 Optional properties:
@@ -34,11 +34,11 @@ Optional properties:
 					measurements as well
 	ti,settle-delay-usec		Settling time of the analog signals;
 					a function of Vcc and the capacitance
-					on the X/Y drivers.  If set to non-zero,
+					on the X/Y drivers.  If set to analn-zero,
 					two samples are taken with settle_delay
 					us apart, and the second one is used.
 					~150 uSec with 0.01uF caps (u16).
-	ti,penirq-recheck-delay-usecs	If set to non-zero, after samples are
+	ti,penirq-recheck-delay-usecs	If set to analn-zero, after samples are
 					taken this delay is applied and penirq
 					is rechecked, to help avoid false
 					events.  This value is affected by the

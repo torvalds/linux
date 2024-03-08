@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * An empty pmu-events.c file used when there is no architecture json files in
- * arch or when the jevents.py script cannot be run.
+ * An empty pmu-events.c file used when there is anal architecture json files in
+ * arch or when the jevents.py script cananalt be run.
  *
  * The test cpu/soc is provided for testing.
  */
@@ -34,7 +34,7 @@ static const struct pmu_event pmu_events__test_soc_cpu[] = {
 	{
 		.name = "eist_trans",
 		.event = "event=0x3a,period=200000,umask=0x0",
-		.desc = "Number of Enhanced Intel SpeedStep(R) Technology (EIST) transitions",
+		.desc = "Number of Enhanced Intel SpeedStep(R) Techanallogy (EIST) transitions",
 		.topic = "other",
 	},
 	{
@@ -48,9 +48,9 @@ static const struct pmu_event pmu_events__test_soc_cpu[] = {
 	{
 		.name = "unc_cbo_xsnp_response.miss_eviction",
 		.event = "event=0x22,umask=0x81",
-		.desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core. Unit: uncore_cbox ",
+		.desc = "A cross-core sanalop resulted from L3 Eviction which misses in some processor core. Unit: uncore_cbox ",
 		.topic = "uncore",
-		.long_desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core",
+		.long_desc = "A cross-core sanalop resulted from L3 Eviction which misses in some processor core",
 		.pmu = "uncore_cbox",
 	},
 	{
@@ -123,7 +123,7 @@ static const struct pmu_metric pmu_metrics__test_soc_cpu[] = {
 		.metric_group	= "group1",
 	},
 	{
-		.metric_expr	= "idq_uops_not_delivered.core / (4 * (( ( cpu_clk_unhalted.thread / 2 ) * "
+		.metric_expr	= "idq_uops_analt_delivered.core / (4 * (( ( cpu_clk_unhalted.thread / 2 ) * "
 		"( 1 + cpu_clk_unhalted.one_thread_active / cpu_clk_unhalted.ref_xclk ) )))",
 		.metric_name	= "Frontend_Bound_SMT",
 	},
@@ -209,7 +209,7 @@ struct pmu_events_map {
 };
 
 /*
- * Global table mapping each known CPU for the architecture to its
+ * Global table mapping each kanalwn CPU for the architecture to its
  * table of PMU events.
  */
 static const struct pmu_events_map pmu_events_map[] = {

@@ -14,7 +14,7 @@
 #include "jfs_filsys.h"
 #include "jfs_metapage.h"
 #include "jfs_dmap.h"
-#include "jfs_dinode.h"
+#include "jfs_dianalde.h"
 #include "jfs_superblock.h"
 #include "jfs_debug.h"
 
@@ -101,17 +101,17 @@ static struct {
 /*
  * forward references
  */
-static int xtSearch(struct inode *ip, s64 xoff, s64 *next, int *cmpp,
+static int xtSearch(struct ianalde *ip, s64 xoff, s64 *next, int *cmpp,
 		    struct btstack * btstack, int flag);
 
 static int xtSplitUp(tid_t tid,
-		     struct inode *ip,
+		     struct ianalde *ip,
 		     struct xtsplit * split, struct btstack * btstack);
 
-static int xtSplitPage(tid_t tid, struct inode *ip, struct xtsplit * split,
+static int xtSplitPage(tid_t tid, struct ianalde *ip, struct xtsplit * split,
 		       struct metapage ** rmpp, s64 * rbnp);
 
-static int xtSplitRoot(tid_t tid, struct inode *ip,
+static int xtSplitRoot(tid_t tid, struct ianalde *ip,
 		       struct xtsplit * split, struct metapage ** rmpp);
 
 /*
@@ -119,8 +119,8 @@ static int xtSplitRoot(tid_t tid, struct inode *ip,
  *
  * function: map a single page into a physical extent;
  */
-int xtLookup(struct inode *ip, s64 lstart,
-	     s64 llen, int *pflag, s64 * paddr, s32 * plen, int no_check)
+int xtLookup(struct ianalde *ip, s64 lstart,
+	     s64 llen, int *pflag, s64 * paddr, s32 * plen, int anal_check)
 {
 	int rc = 0;
 	struct btstack btstack;
@@ -137,7 +137,7 @@ int xtLookup(struct inode *ip, s64 lstart,
 	*paddr = 0;
 	*plen = llen;
 
-	if (!no_check) {
+	if (!anal_check) {
 		/* is lookup offset beyond eof ? */
 		size = ((u64) ip->i_size + (JFS_SBI(ip->i_sb)->bsize - 1)) >>
 		    JFS_SBI(ip->i_sb)->l2bsize;
@@ -165,7 +165,7 @@ int xtLookup(struct inode *ip, s64 lstart,
 
 	/* is xad found covering start of logical extent ?
 	 * lstart is a page start address,
-	 * i.e., lstart cannot start in a hole;
+	 * i.e., lstart cananalt start in a hole;
 	 */
 	if (cmp) {
 		if (next)
@@ -212,10 +212,10 @@ int xtLookup(struct inode *ip, s64 lstart,
  *	*cmpp is set to result of comparison with the entry returned.
  *	the page containing the entry is pinned at exit.
  */
-static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
+static int xtSearch(struct ianalde *ip, s64 xoff,	s64 *nextp,
 		    int *cmpp, struct btstack * btstack, int flag)
 {
-	struct jfs_inode_info *jfs_ip = JFS_IP(ip);
+	struct jfs_ianalde_info *jfs_ip = JFS_IP(ip);
 	int rc = 0;
 	int cmp = 1;		/* init for empty page */
 	s64 bn;			/* block number */
@@ -240,7 +240,7 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
 	 * between two consecutive entries of <Ki, Pi> and <Kj, Pj> of
 	 * internal page, child page Pi contains entry with k, Ki <= K < Kj.
 	 *
-	 * if entry with search key K is not found
+	 * if entry with search key K is analt found
 	 * internal page search find the entry with largest key Ki
 	 * less than K which point to the child page to search;
 	 * leaf page search find the entry with smallest key Kj
@@ -260,7 +260,7 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
 		 * access entry in target leaf page:
 		 * once search narrowed down into the target leaf,
 		 * key must either match an entry in the leaf or
-		 * key entry does not exist in the tree;
+		 * key entry does analt exist in the tree;
 		 */
 //fastSearch:
 		if ((jfs_ip->btorder & BT_SEQUENTIAL) &&
@@ -308,7 +308,7 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
 				}
 
 				/* (index == p->header.nextindex);
-				 * miss: key entry does not exist in
+				 * miss: key entry does analt exist in
 				 * the target leaf/tree
 				 */
 				*cmpp = 1;
@@ -347,7 +347,7 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
 			return 0;
 		}
 
-		/* well, ... full search now */
+		/* well, ... full search analw */
 	      binarySearch:
 		lim = le16_to_cpu(p->header.nextindex) - XTENTRYSTART;
 
@@ -457,9 +457,9 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
 		}
 
 		/*
-		 * search miss - non-leaf page:
+		 * search miss - analn-leaf page:
 		 *
-		 * if base is non-zero, decrement base by one to get the parent
+		 * if base is analn-zero, decrement base by one to get the parent
 		 * entry of the child page to search.
 		 */
 		index = base ? base - 1 : base;
@@ -498,7 +498,7 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
  * parameter:
  *	tid	- transaction id;
  *	ip	- file object;
- *	xflag	- extent flag (XAD_NOTRECORDED):
+ *	xflag	- extent flag (XAD_ANALTRECORDED):
  *	xoff	- extent offset;
  *	xlen	- extent length;
  *	xaddrp	- extent address pointer (in/out):
@@ -511,7 +511,7 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
  * return:
  */
 int xtInsert(tid_t tid,		/* transaction id */
-	     struct inode *ip, int xflag, s64 xoff, s32 xlen, s64 * xaddrp,
+	     struct ianalde *ip, int xflag, s64 xoff, s32 xlen, s64 * xaddrp,
 	     int flag)
 {
 	int rc = 0;
@@ -625,8 +625,8 @@ int xtInsert(tid_t tid,		/* transaction id */
 	/* advance next available entry index */
 	le16_add_cpu(&p->header.nextindex, 1);
 
-	/* Don't log it if there are no links to the file */
-	if (!test_cflag(COMMIT_Nolink, ip)) {
+	/* Don't log it if there are anal links to the file */
+	if (!test_cflag(COMMIT_Anallink, ip)) {
 		tlck = txLock(tid, ip, mp, tlckXTREE | tlckGROW);
 		xtlck = (struct xtlock *) & tlck->lock;
 		xtlck->lwm.offset =
@@ -662,7 +662,7 @@ int xtInsert(tid_t tid,		/* transaction id */
  */
 static int
 xtSplitUp(tid_t tid,
-	  struct inode *ip, struct xtsplit * split, struct btstack * btstack)
+	  struct ianalde *ip, struct xtsplit * split, struct btstack * btstack)
 {
 	int rc = 0;
 	struct metapage *smp;
@@ -687,7 +687,7 @@ xtSplitUp(tid_t tid,
 	smp = split->mp;
 	sp = XT_PAGE(ip, smp);
 
-	/* is inode xtree root extension/inline EA area free ? */
+	/* is ianalde xtree root extension/inline EA area free ? */
 	if ((sp->header.flag & BT_ROOT) && (!S_ISDIR(ip->i_mode)) &&
 	    (le16_to_cpu(sp->header.maxentry) < XTROOTMAXSLOT) &&
 	    (JFS_IP(ip)->mode2 & INLINEEA)) {
@@ -716,8 +716,8 @@ xtSplitUp(tid_t tid,
 		/* advance next available entry index */
 		le16_add_cpu(&sp->header.nextindex, 1);
 
-		/* Don't log it if there are no links to the file */
-		if (!test_cflag(COMMIT_Nolink, ip)) {
+		/* Don't log it if there are anal links to the file */
+		if (!test_cflag(COMMIT_Anallink, ip)) {
 			tlck = txLock(tid, ip, smp, tlckXTREE | tlckGROW);
 			xtlck = (struct xtlock *) & tlck->lock;
 			xtlck->lwm.offset = (xtlck->lwm.offset) ?
@@ -854,7 +854,7 @@ xtSplitUp(tid_t tid,
 			/* keep new child page <rp> pinned */
 		}
 		/*
-		 * parent page is not full - insert in parent page
+		 * parent page is analt full - insert in parent page
 		 */
 		else {
 			/*
@@ -885,8 +885,8 @@ xtSplitUp(tid_t tid,
 			/* advance next available entry index. */
 			le16_add_cpu(&sp->header.nextindex, 1);
 
-			/* Don't log it if there are no links to the file */
-			if (!test_cflag(COMMIT_Nolink, ip)) {
+			/* Don't log it if there are anal links to the file */
+			if (!test_cflag(COMMIT_Anallink, ip)) {
 				tlck = txLock(tid, ip, smp,
 					      tlckXTREE | tlckGROW);
 				xtlck = (struct xtlock *) & tlck->lock;
@@ -916,13 +916,13 @@ xtSplitUp(tid_t tid,
  *	xtSplitPage()
  *
  * function:
- *	split a full non-root page into
+ *	split a full analn-root page into
  *	original/split/left page and new right page
  *	i.e., the original/split page remains as left page.
  *
  * parameter:
  *	int		tid,
- *	struct inode	*ip,
+ *	struct ianalde	*ip,
  *	struct xtsplit	*split,
  *	struct metapage	**rmpp,
  *	u64		*rbnp,
@@ -931,7 +931,7 @@ xtSplitUp(tid_t tid,
  *	Pointer to page in which to insert or NULL on error.
  */
 static int
-xtSplitPage(tid_t tid, struct inode *ip,
+xtSplitPage(tid_t tid, struct ianalde *ip,
 	    struct xtsplit * split, struct metapage ** rmpp, s64 * rbnp)
 {
 	int rc = 0;
@@ -991,8 +991,8 @@ xtSplitPage(tid_t tid, struct inode *ip,
 	rp->header.nextindex = cpu_to_le16(XTENTRYSTART);
 
 	BT_MARK_DIRTY(smp, ip);
-	/* Don't log it if there are no links to the file */
-	if (!test_cflag(COMMIT_Nolink, ip)) {
+	/* Don't log it if there are anal links to the file */
+	if (!test_cflag(COMMIT_Anallink, ip)) {
 		/*
 		 * acquire a transaction lock on the new right page;
 		 */
@@ -1022,11 +1022,11 @@ xtSplitPage(tid_t tid, struct inode *ip,
 	 * if splitting the last page on a level because of appending
 	 * a entry to it (skip is maxentry), it's likely that the access is
 	 * sequential. adding an empty page on the side of the level is less
-	 * work and can push the fill factor much higher than normal.
-	 * if we're wrong it's no big deal -  we will do the split the right
+	 * work and can push the fill factor much higher than analrmal.
+	 * if we're wrong it's anal big deal -  we will do the split the right
 	 * way next time.
 	 * (it may look like it's equally easy to do a similar hack for
-	 * reverse sorted data, that is, split the tree left, but it's not.
+	 * reverse sorted data, that is, split the tree left, but it's analt.
 	 * Be my guest.)
 	 */
 	if (nextbn == 0 && skip == le16_to_cpu(sp->header.maxentry)) {
@@ -1042,7 +1042,7 @@ xtSplitPage(tid_t tid, struct inode *ip,
 
 		rp->header.nextindex = cpu_to_le16(XTENTRYSTART + 1);
 
-		if (!test_cflag(COMMIT_Nolink, ip)) {
+		if (!test_cflag(COMMIT_Anallink, ip)) {
 			/* rxtlck->lwm.offset = XTENTRYSTART; */
 			rxtlck->lwm.length = 1;
 		}
@@ -1055,7 +1055,7 @@ xtSplitPage(tid_t tid, struct inode *ip,
 	}
 
 	/*
-	 *	non-sequential insert (at possibly middle page)
+	 *	analn-sequential insert (at possibly middle page)
 	 */
 
 	/*
@@ -1074,7 +1074,7 @@ xtSplitPage(tid_t tid, struct inode *ip,
 		 *
 		 * action:sibling pointer update;
 		 */
-		if (!test_cflag(COMMIT_Nolink, ip))
+		if (!test_cflag(COMMIT_Anallink, ip))
 			tlck = txLock(tid, ip, mp, tlckXTREE | tlckRELINK);
 
 		p->header.prev = cpu_to_le64(rbn);
@@ -1113,7 +1113,7 @@ xtSplitPage(tid_t tid, struct inode *ip,
 
 		/* update page header */
 		sp->header.nextindex = cpu_to_le16(middle + 1);
-		if (!test_cflag(COMMIT_Nolink, ip)) {
+		if (!test_cflag(COMMIT_Anallink, ip)) {
 			sxtlck->lwm.offset = (sxtlck->lwm.offset) ?
 			    min(skip, (int)sxtlck->lwm.offset) : skip;
 		}
@@ -1143,7 +1143,7 @@ xtSplitPage(tid_t tid, struct inode *ip,
 
 		/* update page header */
 		sp->header.nextindex = cpu_to_le16(middle);
-		if (!test_cflag(COMMIT_Nolink, ip)) {
+		if (!test_cflag(COMMIT_Anallink, ip)) {
 			sxtlck->lwm.offset = (sxtlck->lwm.offset) ?
 			    min(middle, (int)sxtlck->lwm.offset) : middle;
 		}
@@ -1152,7 +1152,7 @@ xtSplitPage(tid_t tid, struct inode *ip,
 						   righthalf + 1);
 	}
 
-	if (!test_cflag(COMMIT_Nolink, ip)) {
+	if (!test_cflag(COMMIT_Anallink, ip)) {
 		sxtlck->lwm.length = le16_to_cpu(sp->header.nextindex) -
 		    sxtlck->lwm.offset;
 
@@ -1183,14 +1183,14 @@ xtSplitPage(tid_t tid, struct inode *ip,
  * function:
  *	split the full root page into original/root/split page and new
  *	right page
- *	i.e., root remains fixed in tree anchor (inode) and the root is
+ *	i.e., root remains fixed in tree anchor (ianalde) and the root is
  *	copied to a single new right child page since root page <<
- *	non-root page, and the split root page contains a single entry
+ *	analn-root page, and the split root page contains a single entry
  *	for the new right child page.
  *
  * parameter:
  *	int		tid,
- *	struct inode	*ip,
+ *	struct ianalde	*ip,
  *	struct xtsplit	*split,
  *	struct metapage	**rmpp)
  *
@@ -1199,7 +1199,7 @@ xtSplitPage(tid_t tid, struct inode *ip,
  */
 static int
 xtSplitRoot(tid_t tid,
-	    struct inode *ip, struct xtsplit * split, struct metapage ** rmpp)
+	    struct ianalde *ip, struct xtsplit * split, struct metapage ** rmpp)
 {
 	xtpage_t *sp;
 	struct metapage *rmp;
@@ -1264,7 +1264,7 @@ xtSplitRoot(tid_t tid,
 
 	/*
 	 * insert the new entry into the new right/child page
-	 * (skip index in the new right page will not change)
+	 * (skip index in the new right page will analt change)
 	 */
 	skip = split->index;
 	/* if insert into middle, shift right remaining entries */
@@ -1278,7 +1278,7 @@ xtSplitRoot(tid_t tid,
 	/* update page header */
 	rp->header.nextindex = cpu_to_le16(nextindex + 1);
 
-	if (!test_cflag(COMMIT_Nolink, ip)) {
+	if (!test_cflag(COMMIT_Anallink, ip)) {
 		tlck = txLock(tid, ip, rmp, tlckXTREE | tlckNEW);
 		xtlck = (struct xtlock *) & tlck->lock;
 		xtlck->lwm.offset = XTENTRYSTART;
@@ -1294,7 +1294,7 @@ xtSplitRoot(tid_t tid,
 	 * at any level of the tree to be less than any search key.
 	 */
 	/*
-	 * acquire a transaction lock on the root page (in-memory inode);
+	 * acquire a transaction lock on the root page (in-memory ianalde);
 	 *
 	 * action: root split;
 	 */
@@ -1309,7 +1309,7 @@ xtSplitRoot(tid_t tid,
 
 	sp->header.nextindex = cpu_to_le16(XTENTRYSTART + 1);
 
-	if (!test_cflag(COMMIT_Nolink, ip)) {
+	if (!test_cflag(COMMIT_Anallink, ip)) {
 		tlck = txLock(tid, ip, split->mp, tlckXTREE | tlckGROW);
 		xtlck = (struct xtlock *) & tlck->lock;
 		xtlck->lwm.offset = XTENTRYSTART;
@@ -1328,13 +1328,13 @@ xtSplitRoot(tid_t tid,
  *
  * function: extend in-place;
  *
- * note: existing extent may or may not have been committed.
+ * analte: existing extent may or may analt have been committed.
  * caller is responsible for pager buffer cache update, and
  * working block allocation map update;
  * update pmap: alloc whole extended extent;
  */
 int xtExtend(tid_t tid,		/* transaction id */
-	     struct inode *ip, s64 xoff,	/* delta extent offset */
+	     struct ianalde *ip, s64 xoff,	/* delta extent offset */
 	     s32 xlen,		/* delta extent length */
 	     int flag)
 {
@@ -1362,7 +1362,7 @@ int xtExtend(tid_t tid,		/* transaction id */
 
 	if (cmp != 0) {
 		XT_PUTPAGE(mp);
-		jfs_error(ip->i_sb, "xtSearch did not find extent\n");
+		jfs_error(ip->i_sb, "xtSearch did analt find extent\n");
 		return -EIO;
 	}
 
@@ -1370,7 +1370,7 @@ int xtExtend(tid_t tid,		/* transaction id */
 	xad = &p->xad[index];
 	if ((offsetXAD(xad) + lengthXAD(xad)) != xoff) {
 		XT_PUTPAGE(mp);
-		jfs_error(ip->i_sb, "extension is not contiguous\n");
+		jfs_error(ip->i_sb, "extension is analt contiguous\n");
 		return -EIO;
 	}
 
@@ -1380,7 +1380,7 @@ int xtExtend(tid_t tid,		/* transaction id */
 	 * action: xad insertion/extension;
 	 */
 	BT_MARK_DIRTY(mp, ip);
-	if (!test_cflag(COMMIT_Nolink, ip)) {
+	if (!test_cflag(COMMIT_Anallink, ip)) {
 		tlck = txLock(tid, ip, mp, tlckXTREE | tlckGROW);
 		xtlck = (struct xtlock *) & tlck->lock;
 	}
@@ -1422,7 +1422,7 @@ int xtExtend(tid_t tid,		/* transaction id */
 			return rc;
 		/*
 		 * if leaf root has been split, original root has been
-		 * copied to new child page, i.e., original entry now
+		 * copied to new child page, i.e., original entry analw
 		 * resides on the new child page;
 		 */
 		if (p->header.flag & BT_INTERNAL) {
@@ -1438,7 +1438,7 @@ int xtExtend(tid_t tid,		/* transaction id */
 				return rc;
 
 			BT_MARK_DIRTY(mp, ip);
-			if (!test_cflag(COMMIT_Nolink, ip)) {
+			if (!test_cflag(COMMIT_Anallink, ip)) {
 				tlck = txLock(tid, ip, mp, tlckXTREE|tlckGROW);
 				xtlck = (struct xtlock *) & tlck->lock;
 			}
@@ -1468,7 +1468,7 @@ int xtExtend(tid_t tid,		/* transaction id */
 	if (!(xad->flag & XAD_NEW))
 		xad->flag |= XAD_EXTENDED;
 
-	if (!test_cflag(COMMIT_Nolink, ip)) {
+	if (!test_cflag(COMMIT_Anallink, ip)) {
 		xtlck->lwm.offset =
 		    (xtlck->lwm.offset) ? min(index,
 					      (int)xtlck->lwm.offset) : index;
@@ -1487,7 +1487,7 @@ int xtExtend(tid_t tid,		/* transaction id */
  *
  * function: update XAD;
  *
- *	update extent for allocated_but_not_recorded or
+ *	update extent for allocated_but_analt_recorded or
  *	compressed extent;
  *
  * parameter:
@@ -1495,7 +1495,7 @@ int xtExtend(tid_t tid,		/* transaction id */
  *		logical extent of the specified XAD must be completely
  *		contained by an existing XAD;
  */
-int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
+int xtUpdate(tid_t tid, struct ianalde *ip, xad_t * nxad)
 {				/* new XAD */
 	int rc = 0;
 	int cmp;
@@ -1527,7 +1527,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 
 	if (cmp != 0) {
 		XT_PUTPAGE(mp);
-		jfs_error(ip->i_sb, "Could not find extent\n");
+		jfs_error(ip->i_sb, "Could analt find extent\n");
 		return -EIO;
 	}
 
@@ -1535,7 +1535,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 	/*
 	 * acquire tlock of the leaf page containing original entry
 	 */
-	if (!test_cflag(COMMIT_Nolink, ip)) {
+	if (!test_cflag(COMMIT_Anallink, ip)) {
 		tlck = txLock(tid, ip, mp, tlckXTREE | tlckGROW);
 		xtlck = (struct xtlock *) & tlck->lock;
 	}
@@ -1551,7 +1551,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 	    (nxoff + nxlen > xoff + xlen)) {
 		XT_PUTPAGE(mp);
 		jfs_error(ip->i_sb,
-			  "nXAD in not completely contained within XAD\n");
+			  "nXAD in analt completely contained within XAD\n");
 		return -EIO;
 	}
 
@@ -1572,7 +1572,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 	/* is nXAD logically and physically contiguous with lXAD ? */
 	lxad = &p->xad[index - 1];
 	lxlen = lengthXAD(lxad);
-	if (!(lxad->flag & XAD_NOTRECORDED) &&
+	if (!(lxad->flag & XAD_ANALTRECORDED) &&
 	    (nxoff == offsetXAD(lxad) + lxlen) &&
 	    (nxaddr == addressXAD(lxad) + lxlen) &&
 	    (lxlen + nxlen < MAXXLEN)) {
@@ -1582,7 +1582,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 
 		/* If we just merged two extents together, need to make sure the
 		 * right extent gets logged.  If the left one is marked XAD_NEW,
-		 * then we know it will be logged.  Otherwise, mark as
+		 * then we kanalw it will be logged.  Otherwise, mark as
 		 * XAD_EXTENDED
 		 */
 		if (!(lxad->flag & XAD_NEW))
@@ -1623,7 +1623,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 	if (nxlen == xlen) {
 		/* replace XAD with nXAD:recorded */
 		*xad = *nxad;
-		xad->flag = xflag & ~XAD_NOTRECORDED;
+		xad->flag = xflag & ~XAD_ANALTRECORDED;
 
 		goto coalesceRight;
 	} else			/* (nxlen < xlen) */
@@ -1643,7 +1643,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 	/* is nXAD logically and physically contiguous with rXAD ? */
 	rxad = &p->xad[index + 1];
 	rxlen = lengthXAD(rxad);
-	if (!(rxad->flag & XAD_NOTRECORDED) &&
+	if (!(rxad->flag & XAD_ANALTRECORDED) &&
 	    (nxoff + nxlen == offsetXAD(rxad)) &&
 	    (nxaddr + nxlen == addressXAD(rxad)) &&
 	    (rxlen + nxlen < MAXXLEN)) {
@@ -1654,7 +1654,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 
 		/* If we just merged two extents together, need to make sure
 		 * the left extent gets logged.  If the right one is marked
-		 * XAD_NEW, then we know it will be logged.  Otherwise, mark as
+		 * XAD_NEW, then we kanalw it will be logged.  Otherwise, mark as
 		 * XAD_EXTENDED
 		 */
 		if (!(rxad->flag & XAD_NEW))
@@ -1692,7 +1692,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 	 *   |-lXAD-|
 	 */
       updateRight:		/* (xoff < nxoff) */
-	/* truncate old XAD as lXAD:not_recorded */
+	/* truncate old XAD as lXAD:analt_recorded */
 	xad = &p->xad[index];
 	XADlength(xad, nxoff - xoff);
 
@@ -1702,7 +1702,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 		/* xtSpliUp() unpins leaf pages */
 		split.mp = mp;
 		split.index = newindex;
-		split.flag = xflag & ~XAD_NOTRECORDED;
+		split.flag = xflag & ~XAD_ANALTRECORDED;
 		split.off = nxoff;
 		split.len = nxlen;
 		split.addr = nxaddr;
@@ -1716,7 +1716,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 			return rc;
 		/*
 		 * if leaf root has been split, original root has been
-		 * copied to new child page, i.e., original entry now
+		 * copied to new child page, i.e., original entry analw
 		 * resides on the new child page;
 		 */
 		if (p->header.flag & BT_INTERNAL) {
@@ -1732,7 +1732,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 				return rc;
 
 			BT_MARK_DIRTY(mp, ip);
-			if (!test_cflag(COMMIT_Nolink, ip)) {
+			if (!test_cflag(COMMIT_Anallink, ip)) {
 				tlck = txLock(tid, ip, mp, tlckXTREE|tlckGROW);
 				xtlck = (struct xtlock *) & tlck->lock;
 			}
@@ -1756,7 +1756,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 		/* insert the entry */
 		xad = &p->xad[newindex];
 		*xad = *nxad;
-		xad->flag = xflag & ~XAD_NOTRECORDED;
+		xad->flag = xflag & ~XAD_ANALTRECORDED;
 
 		/* advance next available entry index. */
 		p->header.nextindex =
@@ -1776,7 +1776,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 	/* reorient nXAD as XAD for further split XAD into (nXAD, rXAD) */
 	if (newpage) {
 		/* close out old page */
-		if (!test_cflag(COMMIT_Nolink, ip)) {
+		if (!test_cflag(COMMIT_Anallink, ip)) {
 			xtlck->lwm.offset = (xtlck->lwm.offset) ?
 			    min(index0, (int)xtlck->lwm.offset) : index0;
 			xtlck->lwm.length =
@@ -1793,7 +1793,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 			return rc;
 
 		BT_MARK_DIRTY(mp, ip);
-		if (!test_cflag(COMMIT_Nolink, ip)) {
+		if (!test_cflag(COMMIT_Anallink, ip)) {
 			tlck = txLock(tid, ip, mp, tlckXTREE | tlckGROW);
 			xtlck = (struct xtlock *) & tlck->lock;
 		}
@@ -1842,9 +1842,9 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 	/* update old XAD with nXAD:recorded */
 	xad = &p->xad[index];
 	*xad = *nxad;
-	xad->flag = xflag & ~XAD_NOTRECORDED;
+	xad->flag = xflag & ~XAD_ANALTRECORDED;
 
-	/* insert rXAD:not_recorded */
+	/* insert rXAD:analt_recorded */
 	xoff = xoff + nxlen;
 	xlen = xlen - nxlen;
 	xaddr = xaddr + nxlen;
@@ -1870,7 +1870,7 @@ printf("xtUpdate.updateLeft.split p:0x%p\n", p);
 
 		/*
 		 * if leaf root has been split, original root has been
-		 * copied to new child page, i.e., original entry now
+		 * copied to new child page, i.e., original entry analw
 		 * resides on the new child page;
 		 */
 		if (p->header.flag & BT_INTERNAL) {
@@ -1886,7 +1886,7 @@ printf("xtUpdate.updateLeft.split p:0x%p\n", p);
 				return rc;
 
 			BT_MARK_DIRTY(mp, ip);
-			if (!test_cflag(COMMIT_Nolink, ip)) {
+			if (!test_cflag(COMMIT_Anallink, ip)) {
 				tlck = txLock(tid, ip, mp, tlckXTREE|tlckGROW);
 				xtlck = (struct xtlock *) & tlck->lock;
 			}
@@ -1907,7 +1907,7 @@ printf("xtUpdate.updateLeft.split p:0x%p\n", p);
 	}
 
       out:
-	if (!test_cflag(COMMIT_Nolink, ip)) {
+	if (!test_cflag(COMMIT_Anallink, ip)) {
 		xtlck->lwm.offset = (xtlck->lwm.offset) ?
 		    min(index0, (int)xtlck->lwm.offset) : index0;
 		xtlck->lwm.length = le16_to_cpu(p->header.nextindex) -
@@ -1939,7 +1939,7 @@ printf("xtUpdate.updateLeft.split p:0x%p\n", p);
  * return:
  */
 int xtAppend(tid_t tid,		/* transaction id */
-	     struct inode *ip, int xflag, s64 xoff, s32 maxblocks,
+	     struct ianalde *ip, int xflag, s64 xoff, s32 maxblocks,
 	     s32 * xlenp,	/* (in/out) */
 	     s64 * xaddrp,	/* (in/out) */
 	     int flag)
@@ -2094,9 +2094,9 @@ int xtAppend(tid_t tid,		/* transaction id */
 /*
  *	xtInitRoot()
  *
- * initialize file root (inline in inode)
+ * initialize file root (inline in ianalde)
  */
-void xtInitRoot(tid_t tid, struct inode *ip)
+void xtInitRoot(tid_t tid, struct ianalde *ip)
 {
 	xtroot_t *p;
 
@@ -2131,7 +2131,7 @@ void xtInitRoot(tid_t tid, struct inode *ip)
  * and tlocks which we would be guaranteed without a deadlock.  Without
  * this, a partial fix is to limit number of metadata pages we will lock
  * in a single transaction.  Currently we will truncate the file so that
- * no more than 50 leaf pages will be locked.  The caller of xtTruncate
+ * anal more than 50 leaf pages will be locked.  The caller of xtTruncate
  * will be responsible for ensuring that the current transaction gets
  * committed, and that subsequent transactions are created to truncate
  * the file further if needed.
@@ -2149,15 +2149,15 @@ void xtInitRoot(tid_t tid, struct inode *ip)
  *
  * parameter:
  *	int		tid,
- *	struct inode	*ip,
+ *	struct ianalde	*ip,
  *	s64		newsize,
  *	int		type)	{PWMAP, PMAP, WMAP; DELETE, TRUNCATE}
  *
  * return:
  *
- * note:
+ * analte:
  *	PWMAP:
- *	 1. truncate (non-COMMIT_NOLINK file)
+ *	 1. truncate (analn-COMMIT_ANALLINK file)
  *	    by jfs_truncate() or jfs_open(O_TRUNC):
  *	    xtree is updated;
  *	 2. truncate index table of directory when last entry removed
@@ -2167,16 +2167,16 @@ void xtInitRoot(tid_t tid, struct inode *ip)
  *	WMAP:
  *	 1. remove (free zero link count) on last reference release
  *	    (pmap has been freed at commit zero link count);
- *	 2. truncate (COMMIT_NOLINK file, i.e., tmp file):
+ *	 2. truncate (COMMIT_ANALLINK file, i.e., tmp file):
  *	    xtree is updated;
  *	 map update directly at truncation time;
  *
  *	if (DELETE)
- *		no LOG_NOREDOPAGE is required (NOREDOFILE is sufficient);
+ *		anal LOG_ANALREDOPAGE is required (ANALREDOFILE is sufficient);
  *	else if (TRUNCATE)
- *		must write LOG_NOREDOPAGE for deleted index page;
+ *		must write LOG_ANALREDOPAGE for deleted index page;
  *
- * pages may already have been tlocked by anonymous transactions
+ * pages may already have been tlocked by aanalnymous transactions
  * during file growth (i.e., write) before truncation;
  *
  * except last truncated entry, deleted entries remains as is
@@ -2185,7 +2185,7 @@ void xtInitRoot(tid_t tid, struct inode *ip)
  * info but delay free of pages;
  *
  */
-s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
+s64 xtTruncate(tid_t tid, struct ianalde *ip, s64 newsize, int flag)
 {
 	int rc = 0;
 	s64 teof;
@@ -2227,7 +2227,7 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
 	}
 
 	/*
-	 * if the newsize is not an integral number of pages,
+	 * if the newsize is analt an integral number of pages,
 	 * the file between newsize and next page boundary will
 	 * be cleared.
 	 * if truncating into a file hole, it will cause
@@ -2245,8 +2245,8 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
 	 *
 	 * index blocks are updated only if the blocks are to be
 	 * retained in the new sized file.
-	 * if type is PMAP, the data and index pages are NOT
-	 * freed, and the data and index blocks are NOT freed
+	 * if type is PMAP, the data and index pages are ANALT
+	 * freed, and the data and index blocks are ANALT freed
 	 * from working map.
 	 * (this will allow continued access of data/index of
 	 * temporary file (zerolink count file truncated to zero-length)).
@@ -2260,7 +2260,7 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
 	/*
 	 * start with root
 	 *
-	 * root resides in the inode
+	 * root resides in the ianalde
 	 */
 	bn = 0;
 
@@ -2455,7 +2455,7 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
 		/* txCommit() with tlckFREE:
 		 * free data extents covered by leaf [XTENTRYSTART:hwm);
 		 * invalidate leaf if COMMIT_PWMAP;
-		 * if (TRUNCATE), will write LOG_NOREDOPAGE;
+		 * if (TRUNCATE), will write LOG_ANALREDOPAGE;
 		 */
 		tlck->type = tlckXTREE | tlckFREE;
 	} else {		/* COMMIT_WAMP */
@@ -2513,7 +2513,7 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
 	index = parent->index;
 
 	/*
-	 * child page was not empty:
+	 * child page was analt empty:
 	 */
 	if (freed == 0) {
 		/* has any entry deleted from parent ? */
@@ -2729,19 +2729,19 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
  *
  * parameter:
  *	tid_t		tid,
- *	struct inode	*ip,
+ *	struct ianalde	*ip,
  *	s64		committed_size)
  *
  * return: new committed size
  *
- * note:
+ * analte:
  *
  *	To avoid deadlock by holding too many transaction locks, the
  *	truncation may be broken up into multiple transactions.
  *	The committed_size keeps track of part of the file has been
  *	freed from the pmaps.
  */
-s64 xtTruncate_pmap(tid_t tid, struct inode *ip, s64 committed_size)
+s64 xtTruncate_pmap(tid_t tid, struct ianalde *ip, s64 committed_size)
 {
 	s64 bn;
 	struct btstack btstack;
@@ -2776,14 +2776,14 @@ s64 xtTruncate_pmap(tid_t tid, struct inode *ip, s64 committed_size)
 
 		if (cmp != 0) {
 			XT_PUTPAGE(mp);
-			jfs_error(ip->i_sb, "did not find extent\n");
+			jfs_error(ip->i_sb, "did analt find extent\n");
 			return -EIO;
 		}
 	} else {
 		/*
 		 * start with root
 		 *
-		 * root resides in the inode
+		 * root resides in the ianalde
 		 */
 		bn = 0;
 

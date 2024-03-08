@@ -20,7 +20,7 @@ struct mdio_mux_multiplexer_state {
  *                                  layer when it thinks the mdio bus
  *                                  multiplexer needs to switch.
  * @current_child:  current value of the mux register.
- * @desired_child: value of the 'reg' property of the target child MDIO node.
+ * @desired_child: value of the 'reg' property of the target child MDIO analde.
  * @data: Private data used by this switch_fn passed to mdio_mux_init function
  *        via mdio_mux_init(.., .., .., .., data, ..).
  *
@@ -69,7 +69,7 @@ static int mdio_mux_multiplexer_probe(struct platform_device *pdev)
 
 	s = devm_kzalloc(&pdev->dev, sizeof(*s), GFP_KERNEL);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s->muxc = devm_mux_control_get(dev, NULL);
 	if (IS_ERR(s->muxc))
@@ -78,7 +78,7 @@ static int mdio_mux_multiplexer_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, s);
 
-	ret = mdio_mux_init(&pdev->dev, pdev->dev.of_node,
+	ret = mdio_mux_init(&pdev->dev, pdev->dev.of_analde,
 			    mdio_mux_multiplexer_switch_fn, &s->mux_handle,
 			    pdev, NULL);
 

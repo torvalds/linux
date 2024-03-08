@@ -5,7 +5,7 @@
  * Copyright (c) 2007 Herbert Xu <herbert@gondor.apana.org.au>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -83,7 +83,7 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 
 	nparm = kzalloc(sizeof(*nparm), GFP_KERNEL);
 	if (!nparm) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto release_idr;
 	}
 
@@ -125,7 +125,7 @@ TC_INDIRECT_SCOPE int tcf_nat_act(struct sk_buff *skb,
 	int egress;
 	int action;
 	int ihl;
-	int noff;
+	int analff;
 
 	tcf_lastuse_update(&p->tcf_tm);
 	tcf_action_update_bstats(&p->common, skb);
@@ -141,8 +141,8 @@ TC_INDIRECT_SCOPE int tcf_nat_act(struct sk_buff *skb,
 	if (unlikely(action == TC_ACT_SHOT))
 		goto drop;
 
-	noff = skb_network_offset(skb);
-	if (!pskb_may_pull(skb, sizeof(*iph) + noff))
+	analff = skb_network_offset(skb);
+	if (!pskb_may_pull(skb, sizeof(*iph) + analff))
 		goto drop;
 
 	iph = ip_hdr(skb);
@@ -153,7 +153,7 @@ TC_INDIRECT_SCOPE int tcf_nat_act(struct sk_buff *skb,
 		addr = iph->daddr;
 
 	if (!((old_addr ^ addr) & mask)) {
-		if (skb_try_make_writable(skb, sizeof(*iph) + noff))
+		if (skb_try_make_writable(skb, sizeof(*iph) + analff))
 			goto drop;
 
 		new_addr &= mask;
@@ -180,8 +180,8 @@ TC_INDIRECT_SCOPE int tcf_nat_act(struct sk_buff *skb,
 	{
 		struct tcphdr *tcph;
 
-		if (!pskb_may_pull(skb, ihl + sizeof(*tcph) + noff) ||
-		    skb_try_make_writable(skb, ihl + sizeof(*tcph) + noff))
+		if (!pskb_may_pull(skb, ihl + sizeof(*tcph) + analff) ||
+		    skb_try_make_writable(skb, ihl + sizeof(*tcph) + analff))
 			goto drop;
 
 		tcph = (void *)(skb_network_header(skb) + ihl);
@@ -193,8 +193,8 @@ TC_INDIRECT_SCOPE int tcf_nat_act(struct sk_buff *skb,
 	{
 		struct udphdr *udph;
 
-		if (!pskb_may_pull(skb, ihl + sizeof(*udph) + noff) ||
-		    skb_try_make_writable(skb, ihl + sizeof(*udph) + noff))
+		if (!pskb_may_pull(skb, ihl + sizeof(*udph) + analff) ||
+		    skb_try_make_writable(skb, ihl + sizeof(*udph) + analff))
 			goto drop;
 
 		udph = (void *)(skb_network_header(skb) + ihl);
@@ -210,7 +210,7 @@ TC_INDIRECT_SCOPE int tcf_nat_act(struct sk_buff *skb,
 	{
 		struct icmphdr *icmph;
 
-		if (!pskb_may_pull(skb, ihl + sizeof(*icmph) + noff))
+		if (!pskb_may_pull(skb, ihl + sizeof(*icmph) + analff))
 			goto drop;
 
 		icmph = (void *)(skb_network_header(skb) + ihl);
@@ -219,7 +219,7 @@ TC_INDIRECT_SCOPE int tcf_nat_act(struct sk_buff *skb,
 			break;
 
 		if (!pskb_may_pull(skb, ihl + sizeof(*icmph) + sizeof(*iph) +
-					noff))
+					analff))
 			goto drop;
 
 		icmph = (void *)(skb_network_header(skb) + ihl);
@@ -233,7 +233,7 @@ TC_INDIRECT_SCOPE int tcf_nat_act(struct sk_buff *skb,
 			break;
 
 		if (skb_try_make_writable(skb, ihl + sizeof(*icmph) +
-					  sizeof(*iph) + noff))
+					  sizeof(*iph) + analff))
 			goto drop;
 
 		icmph = (void *)(skb_network_header(skb) + ihl);

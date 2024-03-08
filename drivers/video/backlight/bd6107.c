@@ -24,8 +24,8 @@
 #define BD6107_REGVSET_REG1VSET_2_85V		(1 << 2)
 #define BD6107_REGVSET_REG1VSET_2_80V		(0 << 2)
 #define BD6107_LEDCNT1				0x03
-#define BD6107_LEDCNT1_LEDONOFF2		(1 << 1)
-#define BD6107_LEDCNT1_LEDONOFF1		(1 << 0)
+#define BD6107_LEDCNT1_LEDOANALFF2		(1 << 1)
+#define BD6107_LEDCNT1_LEDOANALFF1		(1 << 0)
 #define BD6107_PORTSEL				0x04
 #define BD6107_PORTSEL_LEDM(n)			(1 << (n))
 #define BD6107_RGB1CNT1				0x05
@@ -88,7 +88,7 @@ static int bd6107_backlight_update_status(struct backlight_device *backlight)
 		bd6107_write(bd, BD6107_PORTSEL, BD6107_PORTSEL_LEDM(2) |
 			     BD6107_PORTSEL_LEDM(1) | BD6107_PORTSEL_LEDM(0));
 		bd6107_write(bd, BD6107_MAINCNT1, brightness);
-		bd6107_write(bd, BD6107_LEDCNT1, BD6107_LEDCNT1_LEDONOFF1);
+		bd6107_write(bd, BD6107_LEDCNT1, BD6107_LEDCNT1_LEDOANALFF1);
 	} else {
 		/* Assert the reset line (gpiolib will handle active low) */
 		gpiod_set_value(bd->reset, 1);
@@ -122,7 +122,7 @@ static int bd6107_probe(struct i2c_client *client)
 	int ret;
 
 	if (pdata == NULL) {
-		dev_err(&client->dev, "No platform data\n");
+		dev_err(&client->dev, "Anal platform data\n");
 		return -EINVAL;
 	}
 
@@ -135,7 +135,7 @@ static int bd6107_probe(struct i2c_client *client)
 
 	bd = devm_kzalloc(&client->dev, sizeof(*bd), GFP_KERNEL);
 	if (!bd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bd->client = client;
 	bd->pdata = pdata;

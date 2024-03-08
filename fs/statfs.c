@@ -17,28 +17,28 @@ static int flags_by_mnt(int mnt_flags)
 
 	if (mnt_flags & MNT_READONLY)
 		flags |= ST_RDONLY;
-	if (mnt_flags & MNT_NOSUID)
-		flags |= ST_NOSUID;
-	if (mnt_flags & MNT_NODEV)
-		flags |= ST_NODEV;
-	if (mnt_flags & MNT_NOEXEC)
-		flags |= ST_NOEXEC;
-	if (mnt_flags & MNT_NOATIME)
-		flags |= ST_NOATIME;
-	if (mnt_flags & MNT_NODIRATIME)
-		flags |= ST_NODIRATIME;
+	if (mnt_flags & MNT_ANALSUID)
+		flags |= ST_ANALSUID;
+	if (mnt_flags & MNT_ANALDEV)
+		flags |= ST_ANALDEV;
+	if (mnt_flags & MNT_ANALEXEC)
+		flags |= ST_ANALEXEC;
+	if (mnt_flags & MNT_ANALATIME)
+		flags |= ST_ANALATIME;
+	if (mnt_flags & MNT_ANALDIRATIME)
+		flags |= ST_ANALDIRATIME;
 	if (mnt_flags & MNT_RELATIME)
 		flags |= ST_RELATIME;
-	if (mnt_flags & MNT_NOSYMFOLLOW)
-		flags |= ST_NOSYMFOLLOW;
+	if (mnt_flags & MNT_ANALSYMFOLLOW)
+		flags |= ST_ANALSYMFOLLOW;
 	return flags;
 }
 
 static int flags_by_sb(int s_flags)
 {
 	int flags = 0;
-	if (s_flags & SB_SYNCHRONOUS)
-		flags |= ST_SYNCHRONOUS;
+	if (s_flags & SB_SYNCHROANALUS)
+		flags |= ST_SYNCHROANALUS;
 	if (s_flags & SB_MANDLOCK)
 		flags |= ST_MANDLOCK;
 	if (s_flags & SB_RDONLY)
@@ -57,7 +57,7 @@ static int statfs_by_dentry(struct dentry *dentry, struct kstatfs *buf)
 	int retval;
 
 	if (!dentry->d_sb->s_op->statfs)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	memset(buf, 0, sizeof(*buf));
 	retval = security_sb_statfs(dentry);
@@ -255,10 +255,10 @@ SYSCALL_DEFINE2(ustat, unsigned, dev, struct ustat __user *, ubuf)
 
 	memset(&tmp,0,sizeof(struct ustat));
 	tmp.f_tfree = sbuf.f_bfree;
-	if (IS_ENABLED(CONFIG_ARCH_32BIT_USTAT_F_TINODE))
-		tmp.f_tinode = min_t(u64, sbuf.f_ffree, UINT_MAX);
+	if (IS_ENABLED(CONFIG_ARCH_32BIT_USTAT_F_TIANALDE))
+		tmp.f_tianalde = min_t(u64, sbuf.f_ffree, UINT_MAX);
 	else
-		tmp.f_tinode = sbuf.f_ffree;
+		tmp.f_tianalde = sbuf.f_ffree;
 
 	return copy_to_user(ubuf, &tmp, sizeof(struct ustat)) ? -EFAULT : 0;
 }
@@ -398,7 +398,7 @@ COMPAT_SYSCALL_DEFINE2(ustat, unsigned, dev, struct compat_ustat __user *, u)
 
 	memset(&tmp, 0, sizeof(struct compat_ustat));
 	tmp.f_tfree = sbuf.f_bfree;
-	tmp.f_tinode = sbuf.f_ffree;
+	tmp.f_tianalde = sbuf.f_ffree;
 	if (copy_to_user(u, &tmp, sizeof(struct compat_ustat)))
 		return -EFAULT;
 	return 0;

@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 
 #include <linux/mmc/host.h>
@@ -132,7 +132,7 @@ static int btsdio_rx_packet(struct btsdio_data *data)
 		 * return with the expectation that the next time
 		 * we're called we'll have more memory.
 		 */
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb_put(skb, len - 4);
@@ -287,8 +287,8 @@ static int btsdio_probe(struct sdio_func *func,
 		tuple = tuple->next;
 	}
 
-	/* Broadcom devices soldered onto the PCB (non-removable) use an
-	 * UART connection for Bluetooth, ignore the BT SDIO interface.
+	/* Broadcom devices soldered onto the PCB (analn-removable) use an
+	 * UART connection for Bluetooth, iganalre the BT SDIO interface.
 	 */
 	if (func->vendor == SDIO_VENDOR_ID_BROADCOM &&
 	    !mmc_card_is_removable(func->card->host)) {
@@ -298,13 +298,13 @@ static int btsdio_probe(struct sdio_func *func,
 		case SDIO_DEVICE_ID_BROADCOM_4345:
 		case SDIO_DEVICE_ID_BROADCOM_43455:
 		case SDIO_DEVICE_ID_BROADCOM_4356:
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
 	data = devm_kzalloc(&func->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->func = func;
 
@@ -314,7 +314,7 @@ static int btsdio_probe(struct sdio_func *func,
 
 	hdev = hci_alloc_dev();
 	if (!hdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdev->bus = HCI_SDIO;
 	hci_set_drvdata(hdev, data);

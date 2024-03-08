@@ -120,7 +120,7 @@ static int snet_wait_for_dpu_completion(struct snet_ctrl_regs __iomem *ctrl_regs
  *
  * Steps:
  *
- * (1) Verify that the DPU is not in the middle of another operation by
+ * (1) Verify that the DPU is analt in the middle of aanalther operation by
  *     reading the in_process and error bits in the control register.
  * (2) Write the request opcode and the VQ idx in the opcode register
  *     and write the buffer size in the control register.
@@ -142,7 +142,7 @@ static int snet_ctrl_read_from_dpu(struct snet *snet, u16 opcode, u16 vq_idx, vo
 
 	/* Supported for config 2+ */
 	if (!SNET_CFG_VER(snet, 2))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!IS_ALIGNED(buf_size, 4))
 		return -EINVAL;
@@ -256,7 +256,7 @@ static int snet_send_ctrl_msg(struct snet *snet, u16 opcode, u16 vq_idx)
 	u32 val;
 	int ret;
 
-	/* If config version is not 2+, use the old mechanism */
+	/* If config version is analt 2+, use the old mechanism */
 	if (!SNET_CFG_VER(snet, 2))
 		return snet_send_ctrl_msg_old(snet, opcode);
 

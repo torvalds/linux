@@ -5,7 +5,7 @@ cat <<EOF
  *
  * If (@v > 0), atomically updates @v to (@v - 1) with ${desc_order} ordering.
  *
- * ${desc_noinstr}
+ * ${desc_analinstr}
  *
  * Return: The old value of (@v - 1), regardless of whether @v was updated.
  */

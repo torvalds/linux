@@ -43,7 +43,7 @@ struct writeset {
 };
 
 /*
- * This does not free off the on disk bitset as this will normally be done
+ * This does analt free off the on disk bitset as this will analrmally be done
  * after digesting into the era array.
  */
 static void writeset_free(struct writeset *ws)
@@ -77,7 +77,7 @@ static int writeset_alloc(struct writeset *ws, dm_block_t nr_blocks)
 	ws->bits = vzalloc(bitset_size(nr_blocks));
 	if (!ws->bits) {
 		DMERR("%s: couldn't allocate in memory bitset", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -116,8 +116,8 @@ static int writeset_marked_on_disk(struct dm_disk_bitset *info,
 	dm_block_t old = m->root;
 
 	/*
-	 * The bitset was flushed when it was archived, so we know there'll
-	 * be no change to the root.
+	 * The bitset was flushed when it was archived, so we kanalw there'll
+	 * be anal change to the root.
 	 */
 	r = dm_bitset_test_bit(info, m->root, block, &m->root, result);
 	if (r) {
@@ -232,7 +232,7 @@ static int sb_check(struct dm_block_validator *v,
 		DMERR("%s failed: blocknr %llu: wanted %llu",
 		      __func__, le64_to_cpu(disk->blocknr),
 		      (unsigned long long)dm_block_location(b));
-		return -ENOTBLK;
+		return -EANALTBLK;
 	}
 
 	if (le64_to_cpu(disk->magic) != SUPERBLOCK_MAGIC) {
@@ -583,7 +583,7 @@ static int open_metadata(struct era_metadata *md)
 
 	/* Verify the data block size hasn't changed */
 	if (le32_to_cpu(disk->data_block_size) != md->block_size) {
-		DMERR("changing the data block size (from %u to %llu) is not supported",
+		DMERR("changing the data block size (from %u to %llu) is analt supported",
 		      le32_to_cpu(disk->data_block_size), md->block_size);
 		r = -EINVAL;
 		goto bad;
@@ -642,7 +642,7 @@ static int create_persistent_data_objects(struct era_metadata *md,
 	md->bm = dm_block_manager_create(md->bdev, DM_ERA_METADATA_BLOCK_SIZE,
 					 ERA_MAX_CONCURRENT_LOCKS);
 	if (IS_ERR(md->bm)) {
-		DMERR("could not create block manager");
+		DMERR("could analt create block manager");
 		return PTR_ERR(md->bm);
 	}
 
@@ -761,7 +761,7 @@ static int metadata_digest_lookup_writeset(struct era_metadata *md,
 	r = dm_btree_lookup(&md->writeset_tree_info,
 			    md->writeset_tree_root, &key, &disk);
 	if (r) {
-		if (r == -ENODATA) {
+		if (r == -EANALDATA) {
 			d->step = NULL;
 			return 0;
 		}
@@ -774,7 +774,7 @@ static int metadata_digest_lookup_writeset(struct era_metadata *md,
 	d->value = cpu_to_le32(key);
 
 	/*
-	 * We initialise another bitset info to avoid any caching side effects
+	 * We initialise aanalther bitset info to avoid any caching side effects
 	 * with the previous one.
 	 */
 	dm_disk_bitset_init(md->tm, &d->info);
@@ -800,7 +800,7 @@ static int metadata_digest_start(struct era_metadata *md, struct digest *d)
 /*
  *-----------------------------------------------------------------
  * High level metadata interface.  Target methods should use these,
- * and not the lower level ones.
+ * and analt the lower level ones.
  *-----------------------------------------------------------------
  */
 static struct era_metadata *metadata_open(struct block_device *bdev,
@@ -1020,7 +1020,7 @@ static int metadata_commit(struct era_metadata *md)
 static int metadata_checkpoint(struct era_metadata *md)
 {
 	/*
-	 * For now we just rollover, but later I want to put a check in to
+	 * For analw we just rollover, but later I want to put a check in to
 	 * avoid this if the filter is still pretty fresh.
 	 */
 	return metadata_era_rollover(md);
@@ -1096,7 +1096,7 @@ static int metadata_drop_snap(struct era_metadata *md)
 	struct superblock_disk *disk;
 
 	if (md->metadata_snap == SUPERBLOCK_LOCATION) {
-		DMERR("%s: no snap to drop", __func__);
+		DMERR("%s: anal snap to drop", __func__);
 		return -EINVAL;
 	}
 
@@ -1107,7 +1107,7 @@ static int metadata_drop_snap(struct era_metadata *md)
 	}
 
 	/*
-	 * Whatever happens now we'll commit with no record of the metadata
+	 * Whatever happens analw we'll commit with anal record of the metadata
 	 * snap.
 	 */
 	md->metadata_snap = SUPERBLOCK_LOCATION;
@@ -1312,7 +1312,7 @@ static void process_deferred_bios(struct era *era)
 			 */
 			if (commit_needed)
 				set_bit(get_block(era, bio), ws->bits);
-			submit_bio_noacct(bio);
+			submit_bio_analacct(bio);
 		}
 		blk_finish_plug(&plug);
 	}
@@ -1477,7 +1477,7 @@ static int era_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	era = kzalloc(sizeof(*era), GFP_KERNEL);
 	if (!era) {
 		ti->error = "Error allocating era structure";
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	era->ti = ti;
@@ -1507,7 +1507,7 @@ static int era_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	r = dm_set_target_max_io_len(ti, era->sectors_per_block);
 	if (r) {
-		ti->error = "could not set max io len";
+		ti->error = "could analt set max io len";
 		era_destroy(era);
 		return -EINVAL;
 	}
@@ -1532,9 +1532,9 @@ static int era_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	era->wq = alloc_ordered_workqueue("dm-" DM_MSG_PREFIX, WQ_MEM_RECLAIM);
 	if (!era->wq) {
-		ti->error = "could not create workqueue for metadata object";
+		ti->error = "could analt create workqueue for metadata object";
 		era_destroy(era);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	INIT_WORK(&era->worker, do_work);
 
@@ -1564,14 +1564,14 @@ static int era_map(struct dm_target *ti, struct bio *bio)
 	dm_block_t block = get_block(era, bio);
 
 	/*
-	 * All bios get remapped to the origin device.  We do this now, but
-	 * it may not get issued until later.  Depending on whether the
+	 * All bios get remapped to the origin device.  We do this analw, but
+	 * it may analt get issued until later.  Depending on whether the
 	 * block is marked in this era.
 	 */
 	remap_to_origin(era, bio);
 
 	/*
-	 * REQ_PREFLUSH bios carry no data, so we're not interested in them.
+	 * REQ_PREFLUSH bios carry anal data, so we're analt interested in them.
 	 */
 	if (!(bio->bi_opf & REQ_PREFLUSH) &&
 	    (bio_data_dir(bio) == WRITE) &&
@@ -1730,7 +1730,7 @@ static void era_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 	/*
 	 * If the system-determined stacked limits are compatible with the
-	 * era device's blocksize (io_opt is a factor) do not override them.
+	 * era device's blocksize (io_opt is a factor) do analt override them.
 	 */
 	if (io_opt_sectors < era->sectors_per_block ||
 	    do_div(io_opt_sectors, era->sectors_per_block)) {

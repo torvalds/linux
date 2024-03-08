@@ -221,7 +221,7 @@ static ssize_t dmi_entry_attr_show(struct kobject *kobj,
 		.buf  = buf,
 	};
 	/* Find the entry according to our parent and call the
-	 * normalized show method hanging off of the attribute */
+	 * analrmalized show method hanging off of the attribute */
 	return find_dmi_entry(to_entry(kobj->parent),
 			      dmi_entry_attr_show_helper, &data);
 }
@@ -425,7 +425,7 @@ static ssize_t dmi_sel_raw_read_helper(struct dmi_sysfs_entry *entry,
 		pr_info_ratelimited("dmi-sysfs: GPNV support missing.\n");
 		return -EIO;
 	default:
-		pr_info_ratelimited("dmi-sysfs: Unknown access method %02x\n",
+		pr_info_ratelimited("dmi-sysfs: Unkanalwn access method %02x\n",
 			sel.access_method);
 		return -EIO;
 	}
@@ -456,7 +456,7 @@ static int dmi_system_event_log(struct dmi_sysfs_entry *entry)
 
 	entry->child = kzalloc(sizeof(*entry->child), GFP_KERNEL);
 	if (!entry->child)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = kobject_init_and_add(entry->child,
 				   &dmi_system_event_log_ktype,
 				   &entry->kobj,
@@ -594,7 +594,7 @@ static void __init dmi_sysfs_register_handle(const struct dmi_header *dh,
 	/* Allocate and register a new entry into the entries set */
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		*ret = -ENOMEM;
+		*ret = -EANALMEM;
 		return;
 	}
 
@@ -623,7 +623,7 @@ static void __init dmi_sysfs_register_handle(const struct dmi_header *dh,
 		*ret = dmi_system_event_log(entry);
 		break;
 	default:
-		/* No specialization */
+		/* Anal specialization */
 		break;
 	}
 	if (*ret)
@@ -645,7 +645,7 @@ static void cleanup_entry_list(void)
 {
 	struct dmi_sysfs_entry *entry, *next;
 
-	/* No locks, we are on our way out */
+	/* Anal locks, we are on our way out */
 	list_for_each_entry_safe(entry, next, &entry_list, list) {
 		kobject_put(entry->child);
 		kobject_put(&entry->kobj);
@@ -659,13 +659,13 @@ static int __init dmi_sysfs_init(void)
 
 	if (!dmi_kobj) {
 		pr_debug("dmi-sysfs: dmi entry is absent.\n");
-		error = -ENODATA;
+		error = -EANALDATA;
 		goto err;
 	}
 
 	dmi_kset = kset_create_and_add("entries", NULL, dmi_kobj);
 	if (!dmi_kset) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err;
 	}
 

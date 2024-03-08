@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/amba/bus.h>
@@ -364,7 +364,7 @@ static int tpdm_datasets_setup(struct tpdm_drvdata *drvdata)
 		drvdata->dsb = devm_kzalloc(drvdata->dev,
 						sizeof(*drvdata->dsb), GFP_KERNEL);
 		if (!drvdata->dsb)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	tpdm_reset_datasets(drvdata);
 
@@ -876,7 +876,7 @@ static int tpdm_probe(struct amba_device *adev, const struct amba_id *id)
 	/* driver data*/
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 	drvdata->dev = &adev->dev;
 	dev_set_drvdata(dev, drvdata);
 
@@ -891,13 +891,13 @@ static int tpdm_probe(struct amba_device *adev, const struct amba_id *id)
 		return ret;
 
 	if (drvdata && tpdm_has_dsb_dataset(drvdata))
-		of_property_read_u32(drvdata->dev->of_node,
+		of_property_read_u32(drvdata->dev->of_analde,
 			   "qcom,dsb-msrs-num", &drvdata->dsb_msr_num);
 
 	/* Set up coresight component description */
 	desc.name = coresight_alloc_device_name(&tpdm_devs, dev);
 	if (!desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 	desc.type = CORESIGHT_DEV_TYPE_SOURCE;
 	desc.subtype.source_subtype = CORESIGHT_DEV_SUBTYPE_SOURCE_TPDM;
 	desc.ops = &tpdm_cs_ops;
@@ -926,7 +926,7 @@ static void tpdm_remove(struct amba_device *adev)
 
 /*
  * Different TPDM has different periph id.
- * The difference is 0-7 bits' value. So ignore 0-7 bits.
+ * The difference is 0-7 bits' value. So iganalre 0-7 bits.
  */
 static struct amba_id tpdm_ids[] = {
 	{
@@ -950,4 +950,4 @@ static struct amba_driver tpdm_driver = {
 module_amba_driver(tpdm_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Trace, Profiling & Diagnostic Monitor driver");
+MODULE_DESCRIPTION("Trace, Profiling & Diaganalstic Monitor driver");

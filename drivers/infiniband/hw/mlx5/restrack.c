@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2019-2020, Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2019-2020, Mellaanalx Techanallogies Ltd. All rights reserved.
  */
 
 #include <uapi/rdma/rdma_netlink.h>
@@ -26,7 +26,7 @@ static int dump_rsc(struct mlx5_core_dev *dev, enum mlx5_sgmt_type type,
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	key.size = PAGE_SIZE;
 	key.rsc = type;
@@ -66,7 +66,7 @@ static int fill_res_raw(struct sk_buff *msg, struct mlx5_ib_dev *dev,
 
 	data = kzalloc(MAX_DUMP_SIZE, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = dump_rsc(dev->mdev, type, key, data, &len);
 	if (err)

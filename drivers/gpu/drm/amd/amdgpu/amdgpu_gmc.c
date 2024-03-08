@@ -11,20 +11,20 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  */
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #ifdef CONFIG_X86
 #include <asm/hypervisor.h>
 #endif
@@ -50,7 +50,7 @@ int amdgpu_gmc_pdb0_alloc(struct amdgpu_device *adev)
 {
 	int r;
 	struct amdgpu_bo_param bp;
-	u64 vram_size = adev->gmc.xgmi.node_segment_size * adev->gmc.xgmi.num_physical_nodes;
+	u64 vram_size = adev->gmc.xgmi.analde_segment_size * adev->gmc.xgmi.num_physical_analdes;
 	uint32_t pde0_page_shift = adev->gmc.vmid0_page_table_block_size + 21;
 	uint32_t npdes = (vram_size + (1ULL << pde0_page_shift) -1) >> pde0_page_shift;
 
@@ -160,7 +160,7 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 	uint64_t value;
 
 	/*
-	 * The following is for PTE only. GART does not have PDEs.
+	 * The following is for PTE only. GART does analt have PDEs.
 	*/
 	value = addr & 0x0000FFFFFFFFF000ULL;
 	value |= flags;
@@ -175,7 +175,7 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
  * @bo: TTM BO which needs the address, must be in GTT domain
  *
  * Tries to figure out how to access the BO through the AGP aperture. Returns
- * AMDGPU_BO_INVALID_OFFSET if that is not possible.
+ * AMDGPU_BO_INVALID_OFFSET if that is analt possible.
  */
 uint64_t amdgpu_gmc_agp_addr(struct ttm_buffer_object *bo)
 {
@@ -220,7 +220,7 @@ void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
 	if (mc->real_vram_size < mc->visible_vram_size)
 		mc->visible_vram_size = mc->real_vram_size;
 
-	if (mc->xgmi.num_physical_nodes == 0) {
+	if (mc->xgmi.num_physical_analdes == 0) {
 		mc->fb_start = mc->vram_start;
 		mc->fb_end = mc->vram_end;
 	}
@@ -248,9 +248,9 @@ void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
 void amdgpu_gmc_sysvm_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 {
 	u64 hive_vram_start = 0;
-	u64 hive_vram_end = mc->xgmi.node_segment_size * mc->xgmi.num_physical_nodes - 1;
-	mc->vram_start = mc->xgmi.node_segment_size * mc->xgmi.physical_node_id;
-	mc->vram_end = mc->vram_start + mc->xgmi.node_segment_size - 1;
+	u64 hive_vram_end = mc->xgmi.analde_segment_size * mc->xgmi.num_physical_analdes - 1;
+	mc->vram_start = mc->xgmi.analde_segment_size * mc->xgmi.physical_analde_id;
+	mc->vram_end = mc->vram_start + mc->xgmi.analde_segment_size - 1;
 	mc->gart_start = hive_vram_end + 1;
 	mc->gart_end = mc->gart_start + mc->gart_size - 1;
 	mc->fb_start = hive_vram_start;
@@ -395,7 +395,7 @@ static inline uint64_t amdgpu_gmc_fault_key(uint64_t addr, uint16_t pasid)
  * @timestamp: timestamp of the fault
  *
  * Returns:
- * True if the fault was filtered and should not be processed further.
+ * True if the fault was filtered and should analt be processed further.
  * False if the fault is a new one and needs to be handled.
  */
 bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev,
@@ -595,7 +595,7 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 
 		inv_eng = ffs(vm_inv_engs[vmhub]);
 		if (!inv_eng) {
-			dev_err(adev->dev, "no VM inv eng for ring %s\n",
+			dev_err(adev->dev, "anal VM inv eng for ring %s\n",
 				ring->name);
 			return -EINVAL;
 		}
@@ -625,7 +625,7 @@ void amdgpu_gmc_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	    !ring->sched.ready) {
 
 		/*
-		 * A GPU reset should flush all TLBs anyway, so no need to do
+		 * A GPU reset should flush all TLBs anyway, so anal need to do
 		 * this while one is ongoing.
 		 */
 		if (!down_read_trylock(&adev->reset_domain->sem))
@@ -660,7 +660,7 @@ void amdgpu_gmc_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 
 	job->vm_pd_addr = amdgpu_gmc_pd_addr(adev->gart.bo);
 	job->vm_needs_flush = true;
-	job->ibs->ptr[job->ibs->length_dw++] = ring->funcs->nop;
+	job->ibs->ptr[job->ibs->length_dw++] = ring->funcs->analp;
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 	fence = amdgpu_job_submit(job);
 	mutex_unlock(&adev->mman.gtt_window_lock);
@@ -759,7 +759,7 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 	/* RAVEN */
 	case IP_VERSION(9, 2, 2):
 	case IP_VERSION(9, 1, 0):
-	/* RENOIR looks like RAVEN */
+	/* REANALIR looks like RAVEN */
 	case IP_VERSION(9, 3, 0):
 	/* GC 10.3.7 */
 	case IP_VERSION(10, 3, 7):
@@ -805,23 +805,23 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 	default:
 		adev->gmc.tmz_enabled = false;
 		dev_info(adev->dev,
-			 "Trusted Memory Zone (TMZ) feature not supported\n");
+			 "Trusted Memory Zone (TMZ) feature analt supported\n");
 		break;
 	}
 }
 
 /**
- * amdgpu_gmc_noretry_set -- set per asic noretry defaults
+ * amdgpu_gmc_analretry_set -- set per asic analretry defaults
  * @adev: amdgpu_device pointer
  *
- * Set a per asic default for the no-retry parameter.
+ * Set a per asic default for the anal-retry parameter.
  *
  */
-void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
+void amdgpu_gmc_analretry_set(struct amdgpu_device *adev)
 {
 	struct amdgpu_gmc *gmc = &adev->gmc;
 	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
-	bool noretry_default = (gc_ver == IP_VERSION(9, 0, 1) ||
+	bool analretry_default = (gc_ver == IP_VERSION(9, 0, 1) ||
 				gc_ver == IP_VERSION(9, 3, 0) ||
 				gc_ver == IP_VERSION(9, 4, 0) ||
 				gc_ver == IP_VERSION(9, 4, 1) ||
@@ -830,9 +830,9 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 				gc_ver >= IP_VERSION(10, 3, 0));
 
 	if (!amdgpu_sriov_xnack_support(adev))
-		gmc->noretry = 1;
+		gmc->analretry = 1;
 	else
-		gmc->noretry = (amdgpu_noretry == -1) ? noretry_default : amdgpu_noretry;
+		gmc->analretry = (amdgpu_analretry == -1) ? analretry_default : amdgpu_analretry;
 }
 
 void amdgpu_gmc_set_vm_fault_masks(struct amdgpu_device *adev, int hub_type,
@@ -877,7 +877,7 @@ void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev)
 	 * of the driver writes to first 8M of VRAM on S3 resume,
 	 * this overrides GART which by default gets placed in first 8M and
 	 * causes VM_FAULTS once GTT is accessed.
-	 * Keep the stolen memory reservation until the while this is not solved.
+	 * Keep the stolen memory reservation until the while this is analt solved.
 	 */
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
@@ -893,7 +893,7 @@ void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev)
 #endif
 		break;
 	case CHIP_RAVEN:
-	case CHIP_RENOIR:
+	case CHIP_REANALIR:
 		adev->mman.keep_stolen_vga_memory = true;
 		break;
 	default:
@@ -946,10 +946,10 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 	uint64_t flags = adev->gart.gart_pte_flags; //TODO it is UC. explore NC/RW?
 	/* Each PDE0 (used as PTE) covers (2^vmid0_page_table_block_size)*2M
 	 */
-	u64 vram_size = adev->gmc.xgmi.node_segment_size * adev->gmc.xgmi.num_physical_nodes;
+	u64 vram_size = adev->gmc.xgmi.analde_segment_size * adev->gmc.xgmi.num_physical_analdes;
 	u64 pde0_page_size = (1ULL<<adev->gmc.vmid0_page_table_block_size)<<21;
 	u64 vram_addr = adev->vm_manager.vram_base_offset -
-		adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
+		adev->gmc.xgmi.physical_analde_id * adev->gmc.xgmi.analde_segment_size;
 	u64 vram_end = vram_addr + vram_size;
 	u64 gart_ptb_gpu_pa = amdgpu_gmc_vram_pa(adev, adev->gart.bo);
 	int idx;
@@ -959,7 +959,7 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 
 	flags |= AMDGPU_PTE_VALID | AMDGPU_PTE_READABLE;
 	flags |= AMDGPU_PTE_WRITEABLE;
-	flags |= AMDGPU_PTE_SNOOPED;
+	flags |= AMDGPU_PTE_SANALOPED;
 	flags |= AMDGPU_PTE_FRAG((adev->gmc.vmid0_page_table_block_size + 9*1));
 	flags |= AMDGPU_PDE_PTE;
 
@@ -974,7 +974,7 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 	 * pointing to a 4K system page
 	 */
 	flags = AMDGPU_PTE_VALID;
-	flags |= AMDGPU_PDE_BFS(0) | AMDGPU_PTE_SNOOPED;
+	flags |= AMDGPU_PDE_BFS(0) | AMDGPU_PTE_SANALOPED;
 	/* Requires gart_ptb_gpu_pa to be 4K aligned */
 	amdgpu_gmc_set_pte_pde(adev, adev->gmc.ptr_pdb0, i, gart_ptb_gpu_pa, flags);
 	drm_dev_exit(idx);
@@ -1038,10 +1038,10 @@ int amdgpu_gmc_vram_checking(struct amdgpu_device *adev)
 
 	/**
 	 * Check the start, the mid, and the end of the memory if the content of
-	 * each byte is the pattern "0x86". If yes, we suppose the vram bo is
+	 * each byte is the pattern "0x86". If anal, we suppose the vram bo is
 	 * workable.
 	 *
-	 * Note: If check the each byte of whole 1M bo, it will cost too many
+	 * Analte: If check the each byte of whole 1M bo, it will cost too many
 	 * seconds, so here, we just pick up three parts for emulation.
 	 */
 	ret = memcmp(vram_ptr, cptr, 10);
@@ -1091,10 +1091,10 @@ static ssize_t current_memory_partition_show(
 	case AMDGPU_NPS8_PARTITION_MODE:
 		return sysfs_emit(buf, "NPS8\n");
 	default:
-		return sysfs_emit(buf, "UNKNOWN\n");
+		return sysfs_emit(buf, "UNKANALWN\n");
 	}
 
-	return sysfs_emit(buf, "UNKNOWN\n");
+	return sysfs_emit(buf, "UNKANALWN\n");
 }
 
 static DEVICE_ATTR_RO(current_memory_partition);

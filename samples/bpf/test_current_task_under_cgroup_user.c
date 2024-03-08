@@ -96,7 +96,7 @@ int main(int argc, char **argv)
 	bpf_map_lookup_elem(map_fd[1], &idx, &remote_pid);
 
 	if (local_pid == remote_pid) {
-		fprintf(stderr, "BPF cgroup negative test did not work\n");
+		fprintf(stderr, "BPF cgroup negative test did analt work\n");
 		goto err;
 	}
 

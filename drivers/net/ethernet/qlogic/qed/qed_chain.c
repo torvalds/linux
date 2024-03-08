@@ -188,7 +188,7 @@ qed_chain_alloc_sanity_check(struct qed_dev *cdev,
 		return -EINVAL;
 	}
 
-	DP_NOTICE(cdev,
+	DP_ANALTICE(cdev,
 		  "The actual chain size (0x%llx) is larger than the maximal possible value\n",
 		  chain_size);
 
@@ -207,7 +207,7 @@ static int qed_chain_alloc_next_ptr(struct qed_dev *cdev,
 		virt = dma_alloc_coherent(dev, chain->page_size, &phys,
 					  GFP_KERNEL);
 		if (!virt)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (i == 0) {
 			qed_chain_init_mem(chain, virt, phys);
@@ -238,7 +238,7 @@ static int qed_chain_alloc_single(struct qed_dev *cdev,
 	virt = dma_alloc_coherent(&cdev->pdev->dev, chain->page_size,
 				  &phys, GFP_KERNEL);
 	if (!virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qed_chain_init_mem(chain, virt, phys);
 	qed_chain_reset(chain);
@@ -264,7 +264,7 @@ static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *chain)
 
 	addr_tbl = vzalloc(size);
 	if (!addr_tbl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chain->pbl.pp_addr_tbl = addr_tbl;
 
@@ -279,7 +279,7 @@ static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *chain)
 
 	pbl_virt = dma_alloc_coherent(dev, size, &pbl_phys, GFP_KERNEL);
 	if (!pbl_virt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chain->pbl_sp.table_virt = pbl_virt;
 	chain->pbl_sp.table_phys = pbl_phys;
@@ -290,7 +290,7 @@ alloc_pages:
 		virt = dma_alloc_coherent(dev, chain->page_size, &phys,
 					  GFP_KERNEL);
 		if (!virt)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (i == 0) {
 			qed_chain_init_mem(chain, virt, phys);
@@ -315,7 +315,7 @@ alloc_pages:
  * @chain: Chain to be processed.
  * @params: Chain initialization parameters.
  *
- * Return: 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative erranal otherwise.
  */
 int qed_chain_alloc(struct qed_dev *cdev, struct qed_chain *chain,
 		    struct qed_chain_init_params *params)
@@ -336,9 +336,9 @@ int qed_chain_alloc(struct qed_dev *cdev, struct qed_chain *chain,
 
 	rc = qed_chain_alloc_sanity_check(cdev, params, page_cnt);
 	if (rc) {
-		DP_NOTICE(cdev,
-			  "Cannot allocate a chain with the given arguments:\n");
-		DP_NOTICE(cdev,
+		DP_ANALTICE(cdev,
+			  "Cananalt allocate a chain with the given arguments:\n");
+		DP_ANALTICE(cdev,
 			  "[use_mode %d, mode %d, cnt_type %d, num_elems %d, elem_size %zu, page_size %u]\n",
 			  params->intended_use, params->mode, params->cnt_type,
 			  params->num_elems, params->elem_size,

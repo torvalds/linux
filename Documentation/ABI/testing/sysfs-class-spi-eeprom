@@ -3,9 +3,9 @@ Date:		June 2021
 KernelVersion:	5.14
 Contact:	Jiri Prchal <jiri.prchal@aksignal.cz>
 Description:
-	Contains the FRAM binary data. Same as EEPROM, just another file
+	Contains the FRAM binary data. Same as EEPROM, just aanalther file
 	name to indicate that it employs ferroelectric process.
-	It performs write operations at bus speed - no write delays.
+	It performs write operations at bus speed - anal write delays.
 
 What:		/sys/class/spi_master/spi<bus>/spi<bus>.<dev>/sernum
 Date:		May 2021

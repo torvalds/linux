@@ -283,7 +283,7 @@
 
 		ranges = <0x0 0x0 0xfe000000 0x02000000>;
 
-		nor@0,0 {
+		analr@0,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "cfi-flash";

@@ -117,7 +117,7 @@ struct xgene_pmu_ops {
 
 struct xgene_pmu {
 	struct device *dev;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	int version;
 	void __iomem *pcppmu_csr;
 	u32 mcb_active_mask;
@@ -291,7 +291,7 @@ static struct attribute *l3c_pmu_events_attrs[] = {
 	XGENE_PMU_EVENT_ATTR(read-hit,				0x02),
 	XGENE_PMU_EVENT_ATTR(read-miss,				0x03),
 	XGENE_PMU_EVENT_ATTR(write-need-replacement,		0x06),
-	XGENE_PMU_EVENT_ATTR(write-not-need-replacement,	0x07),
+	XGENE_PMU_EVENT_ATTR(write-analt-need-replacement,	0x07),
 	XGENE_PMU_EVENT_ATTR(tq-full,				0x08),
 	XGENE_PMU_EVENT_ATTR(ackq-full,				0x09),
 	XGENE_PMU_EVENT_ATTR(wdb-full,				0x0a),
@@ -347,7 +347,7 @@ static struct attribute *mc_pmu_events_attrs[] = {
 	XGENE_PMU_EVENT_ATTR(wr-wra-cmd-sent,			0x0d),
 	XGENE_PMU_EVENT_ATTR(in-rd-collision,			0x0e),
 	XGENE_PMU_EVENT_ATTR(in-wr-collision,			0x0f),
-	XGENE_PMU_EVENT_ATTR(collision-queue-not-empty,		0x10),
+	XGENE_PMU_EVENT_ATTR(collision-queue-analt-empty,		0x10),
 	XGENE_PMU_EVENT_ATTR(collision-queue-full,		0x11),
 	XGENE_PMU_EVENT_ATTR(mcu-request,			0x12),
 	XGENE_PMU_EVENT_ATTR(mcu-rd-request,			0x13),
@@ -389,7 +389,7 @@ static struct attribute *l3c_pmu_v3_events_attrs[] = {
 	XGENE_PMU_EVENT_ATTR(read-miss,				0x02),
 	XGENE_PMU_EVENT_ATTR(index-flush-eviction,		0x03),
 	XGENE_PMU_EVENT_ATTR(write-caused-replacement,		0x04),
-	XGENE_PMU_EVENT_ATTR(write-not-caused-replacement,	0x05),
+	XGENE_PMU_EVENT_ATTR(write-analt-caused-replacement,	0x05),
 	XGENE_PMU_EVENT_ATTR(clean-eviction,			0x06),
 	XGENE_PMU_EVENT_ATTR(dirty-eviction,			0x07),
 	XGENE_PMU_EVENT_ATTR(read,				0x08),
@@ -442,25 +442,25 @@ static struct attribute *iob_fast_pmu_v3_events_attrs[] = {
 	XGENE_PMU_EVENT_ATTR(pa-rd-shared-req-issued,		0x10),
 	XGENE_PMU_EVENT_ATTR(pa-rd-exclusive-req-issued,	0x11),
 	XGENE_PMU_EVENT_ATTR(pa-wr-invalidate-req-issued-stashable, 0x12),
-	XGENE_PMU_EVENT_ATTR(pa-wr-invalidate-req-issued-nonstashable, 0x13),
+	XGENE_PMU_EVENT_ATTR(pa-wr-invalidate-req-issued-analnstashable, 0x13),
 	XGENE_PMU_EVENT_ATTR(pa-wr-back-req-issued-stashable,	0x14),
-	XGENE_PMU_EVENT_ATTR(pa-wr-back-req-issued-nonstashable, 0x15),
+	XGENE_PMU_EVENT_ATTR(pa-wr-back-req-issued-analnstashable, 0x15),
 	XGENE_PMU_EVENT_ATTR(pa-ptl-wr-req,			0x16),
 	XGENE_PMU_EVENT_ATTR(pa-ptl-rd-req,			0x17),
 	XGENE_PMU_EVENT_ATTR(pa-wr-back-clean-data,		0x18),
 	XGENE_PMU_EVENT_ATTR(pa-wr-back-cancelled-on-SS,	0x1b),
 	XGENE_PMU_EVENT_ATTR(pa-barrier-occurrence,		0x1c),
 	XGENE_PMU_EVENT_ATTR(pa-barrier-cycles,			0x1d),
-	XGENE_PMU_EVENT_ATTR(pa-total-cp-snoops,		0x20),
-	XGENE_PMU_EVENT_ATTR(pa-rd-shared-snoop,		0x21),
-	XGENE_PMU_EVENT_ATTR(pa-rd-shared-snoop-hit,		0x22),
-	XGENE_PMU_EVENT_ATTR(pa-rd-exclusive-snoop,		0x23),
-	XGENE_PMU_EVENT_ATTR(pa-rd-exclusive-snoop-hit,		0x24),
-	XGENE_PMU_EVENT_ATTR(pa-rd-wr-invalid-snoop,		0x25),
-	XGENE_PMU_EVENT_ATTR(pa-rd-wr-invalid-snoop-hit,	0x26),
+	XGENE_PMU_EVENT_ATTR(pa-total-cp-sanalops,		0x20),
+	XGENE_PMU_EVENT_ATTR(pa-rd-shared-sanalop,		0x21),
+	XGENE_PMU_EVENT_ATTR(pa-rd-shared-sanalop-hit,		0x22),
+	XGENE_PMU_EVENT_ATTR(pa-rd-exclusive-sanalop,		0x23),
+	XGENE_PMU_EVENT_ATTR(pa-rd-exclusive-sanalop-hit,		0x24),
+	XGENE_PMU_EVENT_ATTR(pa-rd-wr-invalid-sanalop,		0x25),
+	XGENE_PMU_EVENT_ATTR(pa-rd-wr-invalid-sanalop-hit,	0x26),
 	XGENE_PMU_EVENT_ATTR(pa-req-buffer-full,		0x28),
 	XGENE_PMU_EVENT_ATTR(cswlf-outbound-req-fifo-full,	0x29),
-	XGENE_PMU_EVENT_ATTR(cswlf-inbound-snoop-fifo-backpressure, 0x2a),
+	XGENE_PMU_EVENT_ATTR(cswlf-inbound-sanalop-fifo-backpressure, 0x2a),
 	XGENE_PMU_EVENT_ATTR(cswlf-outbound-lack-fifo-full,	0x2b),
 	XGENE_PMU_EVENT_ATTR(cswlf-inbound-gack-fifo-backpressure, 0x2c),
 	XGENE_PMU_EVENT_ATTR(cswlf-outbound-data-fifo-full,	0x2d),
@@ -495,7 +495,7 @@ static struct attribute *mcb_pmu_v3_events_attrs[] = {
 	XGENE_PMU_EVENT_ATTR(rd-req-sent-to-spec-mcu-2,		0x09),
 	XGENE_PMU_EVENT_ATTR(glbl-ack-recv-for-rd-sent-to-spec-mcu, 0x0a),
 	XGENE_PMU_EVENT_ATTR(glbl-ack-go-recv-for-rd-sent-to-spec-mcu, 0x0b),
-	XGENE_PMU_EVENT_ATTR(glbl-ack-nogo-recv-for-rd-sent-to-spec-mcu, 0x0c),
+	XGENE_PMU_EVENT_ATTR(glbl-ack-analgo-recv-for-rd-sent-to-spec-mcu, 0x0c),
 	XGENE_PMU_EVENT_ATTR(glbl-ack-go-recv-any-rd-req,	0x0d),
 	XGENE_PMU_EVENT_ATTR(glbl-ack-go-recv-any-rd-req-2,	0x0e),
 	XGENE_PMU_EVENT_ATTR(wr-req-sent-to-mcu,		0x0f),
@@ -694,7 +694,7 @@ static int get_next_avail_cntr(struct xgene_pmu_dev *pmu_dev)
 	cntr = find_first_zero_bit(pmu_dev->cntr_assign_mask,
 				pmu_dev->max_counters);
 	if (cntr == pmu_dev->max_counters)
-		return -ENOSPC;
+		return -EANALSPC;
 	set_bit(cntr, pmu_dev->cntr_assign_mask);
 
 	return cntr;
@@ -890,12 +890,12 @@ static int xgene_perf_event_init(struct perf_event *event)
 
 	/* Test the event attr type check for PMU enumeration */
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * SOC PMU counters are shared across all cores.
-	 * Therefore, it does not support per-process mode.
-	 * Also, it does not support event sampling mode.
+	 * Therefore, it does analt support per-process mode.
+	 * Also, it does analt support event sampling mode.
 	 */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
 		return -EINVAL;
@@ -923,7 +923,7 @@ static int xgene_perf_event_init(struct perf_event *event)
 	hw->config_base = event->attr.config1;
 
 	/*
-	 * We must NOT create groups containing mixed PMUs, although software
+	 * We must ANALT create groups containing mixed PMUs, although software
 	 * events are acceptable
 	 */
 	if (event->group_leader->pmu != event->pmu &&
@@ -972,7 +972,7 @@ static void xgene_perf_event_set_period(struct perf_event *event)
 	/*
 	 * For 32 bit counter, it has a period of 2^32. To account for the
 	 * possibility of extreme interrupt latency we program for a period of
-	 * half that. Hopefully, we can handle the interrupt before another 2^31
+	 * half that. Hopefully, we can handle the interrupt before aanalther 2^31
 	 * events occur and the counter overtakes its previous value.
 	 * For 64 bit counter, we don't expect it overflow.
 	 */
@@ -1112,7 +1112,7 @@ static int xgene_init_perf(struct xgene_pmu_dev *pmu_dev, char *name)
 		.start		= xgene_perf_start,
 		.stop		= xgene_perf_stop,
 		.read		= xgene_perf_read,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 	};
 
 	/* Hardware counter init */
@@ -1130,7 +1130,7 @@ xgene_pmu_dev_add(struct xgene_pmu *xgene_pmu, struct xgene_pmu_dev_ctx *ctx)
 
 	pmu = devm_kzalloc(dev, sizeof(*pmu), GFP_KERNEL);
 	if (!pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 	pmu->parent = xgene_pmu;
 	pmu->inf = &ctx->inf;
 	ctx->pmu_dev = pmu;
@@ -1138,7 +1138,7 @@ xgene_pmu_dev_add(struct xgene_pmu *xgene_pmu, struct xgene_pmu_dev_ctx *ctx)
 	switch (pmu->inf->type) {
 	case PMU_TYPE_L3C:
 		if (!(xgene_pmu->l3c_active_mask & pmu->inf->enable_mask))
-			return -ENODEV;
+			return -EANALDEV;
 		if (xgene_pmu->version == PCP_PMU_V3)
 			pmu->attr_groups = l3c_pmu_v3_attr_groups;
 		else
@@ -1156,7 +1156,7 @@ xgene_pmu_dev_add(struct xgene_pmu *xgene_pmu, struct xgene_pmu_dev_ctx *ctx)
 		break;
 	case PMU_TYPE_MCB:
 		if (!(xgene_pmu->mcb_active_mask & pmu->inf->enable_mask))
-			return -ENODEV;
+			return -EANALDEV;
 		if (xgene_pmu->version == PCP_PMU_V3)
 			pmu->attr_groups = mcb_pmu_v3_attr_groups;
 		else
@@ -1164,7 +1164,7 @@ xgene_pmu_dev_add(struct xgene_pmu *xgene_pmu, struct xgene_pmu_dev_ctx *ctx)
 		break;
 	case PMU_TYPE_MC:
 		if (!(xgene_pmu->mc_active_mask & pmu->inf->enable_mask))
-			return -ENODEV;
+			return -EANALDEV;
 		if (xgene_pmu->version == PCP_PMU_V3)
 			pmu->attr_groups = mc_pmu_v3_attr_groups;
 		else
@@ -1176,7 +1176,7 @@ xgene_pmu_dev_add(struct xgene_pmu *xgene_pmu, struct xgene_pmu_dev_ctx *ctx)
 
 	if (xgene_init_perf(pmu, ctx->name)) {
 		dev_err(dev, "%s PMU: Failed to init perf driver\n", ctx->name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(dev, "%s PMU registered\n", ctx->name);
@@ -1213,7 +1213,7 @@ static void _xgene_pmu_isr(int irq, struct xgene_pmu_dev *pmu_dev)
 		struct perf_event *event = pmu_dev->pmu_counter_event[idx];
 		int overflowed = pmovsr & BIT(idx);
 
-		/* Ignore if we don't have an event. */
+		/* Iganalre if we don't have an event. */
 		if (!event || !overflowed)
 			continue;
 		xgene_perf_event_update(event);
@@ -1368,7 +1368,7 @@ static int fdt_pmu_probe_active_mcb_mcu_l3c(struct xgene_pmu *xgene_pmu,
 					    struct platform_device *pdev)
 {
 	struct regmap *csw_map, *mcba_map, *mcbb_map;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	unsigned int reg;
 
 	csw_map = syscon_regmap_lookup_by_phandle(np, "regmap-csw");
@@ -1442,7 +1442,7 @@ static char *xgene_pmu_dev_name(struct device *dev, u32 type, int id)
 	case PMU_TYPE_MC:
 		return devm_kasprintf(dev, GFP_KERNEL, "mc%d", id);
 	default:
-		return devm_kasprintf(dev, GFP_KERNEL, "unknown");
+		return devm_kasprintf(dev, GFP_KERNEL, "unkanalwn");
 	}
 }
 
@@ -1469,11 +1469,11 @@ xgene_pmu_dev_ctx *acpi_get_pmu_hw_inf(struct xgene_pmu *xgene_pmu,
 	INIT_LIST_HEAD(&resource_list);
 	rc = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
 	if (rc <= 0) {
-		dev_err(dev, "PMU type %d: No resources found\n", type);
+		dev_err(dev, "PMU type %d: Anal resources found\n", type);
 		return NULL;
 	}
 
-	list_for_each_entry(rentry, &resource_list, node) {
+	list_for_each_entry(rentry, &resource_list, analde) {
 		if (resource_type(rentry->res) == IORESOURCE_MEM) {
 			res = *rentry->res;
 			rentry = NULL;
@@ -1483,7 +1483,7 @@ xgene_pmu_dev_ctx *acpi_get_pmu_hw_inf(struct xgene_pmu *xgene_pmu,
 	acpi_dev_free_resource_list(&resource_list);
 
 	if (rentry) {
-		dev_err(dev, "PMU type %d: No memory resource found\n", type);
+		dev_err(dev, "PMU type %d: Anal memory resource found\n", type);
 		return NULL;
 	}
 
@@ -1493,7 +1493,7 @@ xgene_pmu_dev_ctx *acpi_get_pmu_hw_inf(struct xgene_pmu *xgene_pmu,
 		return NULL;
 	}
 
-	/* A PMU device node without enable-bit-index is always enabled */
+	/* A PMU device analde without enable-bit-index is always enabled */
 	rc = acpi_dev_get_property(adev, "enable-bit-index",
 				   ACPI_TYPE_INTEGER, &obj);
 	if (rc < 0)
@@ -1604,7 +1604,7 @@ static int acpi_pmu_probe_pmu_dev(struct xgene_pmu *xgene_pmu,
 				     acpi_pmu_dev_add, NULL, xgene_pmu, NULL);
 	if (ACPI_FAILURE(status)) {
 		dev_err(dev, "failed to probe PMU devices\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1619,7 +1619,7 @@ static int acpi_pmu_probe_pmu_dev(struct xgene_pmu *xgene_pmu,
 
 static struct
 xgene_pmu_dev_ctx *fdt_get_pmu_hw_inf(struct xgene_pmu *xgene_pmu,
-				      struct device_node *np, u32 type)
+				      struct device_analde *np, u32 type)
 {
 	struct device *dev = xgene_pmu->dev;
 	struct xgene_pmu_dev_ctx *ctx;
@@ -1633,7 +1633,7 @@ xgene_pmu_dev_ctx *fdt_get_pmu_hw_inf(struct xgene_pmu *xgene_pmu,
 		return NULL;
 
 	if (of_address_to_resource(np, 0, &res) < 0) {
-		dev_err(dev, "PMU type %d: No resource address found\n", type);
+		dev_err(dev, "PMU type %d: Anal resource address found\n", type);
 		return NULL;
 	}
 
@@ -1643,7 +1643,7 @@ xgene_pmu_dev_ctx *fdt_get_pmu_hw_inf(struct xgene_pmu *xgene_pmu,
 		return NULL;
 	}
 
-	/* A PMU device node without enable-bit-index is always enabled */
+	/* A PMU device analde without enable-bit-index is always enabled */
 	if (of_property_read_u32(np, "enable-bit-index", &enable_bit))
 		enable_bit = 0;
 
@@ -1665,9 +1665,9 @@ static int fdt_pmu_probe_pmu_dev(struct xgene_pmu *xgene_pmu,
 				 struct platform_device *pdev)
 {
 	struct xgene_pmu_dev_ctx *ctx;
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_child_of_node(pdev->dev.of_node, np) {
+	for_each_child_of_analde(pdev->dev.of_analde, np) {
 		if (!of_device_is_available(np))
 			continue;
 
@@ -1785,10 +1785,10 @@ static const struct acpi_device_id xgene_pmu_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, xgene_pmu_acpi_match);
 #endif
 
-static int xgene_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
+static int xgene_pmu_online_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct xgene_pmu *xgene_pmu = hlist_entry_safe(node, struct xgene_pmu,
-						       node);
+	struct xgene_pmu *xgene_pmu = hlist_entry_safe(analde, struct xgene_pmu,
+						       analde);
 
 	if (cpumask_empty(&xgene_pmu->cpu))
 		cpumask_set_cpu(cpu, &xgene_pmu->cpu);
@@ -1799,10 +1799,10 @@ static int xgene_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int xgene_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int xgene_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct xgene_pmu *xgene_pmu = hlist_entry_safe(node, struct xgene_pmu,
-						       node);
+	struct xgene_pmu *xgene_pmu = hlist_entry_safe(analde, struct xgene_pmu,
+						       analde);
 	struct xgene_pmu_dev_ctx *ctx;
 	unsigned int target;
 
@@ -1849,13 +1849,13 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 
 	xgene_pmu = devm_kzalloc(&pdev->dev, sizeof(*xgene_pmu), GFP_KERNEL);
 	if (!xgene_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 	xgene_pmu->dev = &pdev->dev;
 	platform_set_drvdata(pdev, xgene_pmu);
 
 	dev_data = device_get_match_data(&pdev->dev);
 	if (!dev_data)
-		return -ENODEV;
+		return -EANALDEV;
 	version = dev_data->id;
 
 	if (version == PCP_PMU_V3)
@@ -1882,10 +1882,10 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	rc = devm_request_irq(&pdev->dev, irq, xgene_pmu_isr,
-				IRQF_NOBALANCING | IRQF_NO_THREAD,
+				IRQF_ANALBALANCING | IRQF_ANAL_THREAD,
 				dev_name(&pdev->dev), xgene_pmu);
 	if (rc) {
-		dev_err(&pdev->dev, "Could not request IRQ %d\n", irq);
+		dev_err(&pdev->dev, "Could analt request IRQ %d\n", irq);
 		return rc;
 	}
 
@@ -1896,14 +1896,14 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 	/* Check for active MCBs and MCUs */
 	rc = xgene_pmu_probe_active_mcb_mcu_l3c(xgene_pmu, pdev);
 	if (rc) {
-		dev_warn(&pdev->dev, "Unknown MCB/MCU active status\n");
+		dev_warn(&pdev->dev, "Unkanalwn MCB/MCU active status\n");
 		xgene_pmu->mcb_active_mask = 0x1;
 		xgene_pmu->mc_active_mask = 0x1;
 	}
 
 	/* Add this instance to the list used by the hotplug callback */
 	rc = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_APM_XGENE_ONLINE,
-				      &xgene_pmu->node);
+				      &xgene_pmu->analde);
 	if (rc) {
 		dev_err(&pdev->dev, "Error %d registering hotplug", rc);
 		return rc;
@@ -1912,7 +1912,7 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 	/* Walk through the tree for all PMU perf devices */
 	rc = xgene_pmu_probe_pmu_dev(xgene_pmu, pdev);
 	if (rc) {
-		dev_err(&pdev->dev, "No PMU perf devices found!\n");
+		dev_err(&pdev->dev, "Anal PMU perf devices found!\n");
 		goto out_unregister;
 	}
 
@@ -1923,7 +1923,7 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 
 out_unregister:
 	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_APM_XGENE_ONLINE,
-				    &xgene_pmu->node);
+				    &xgene_pmu->analde);
 	return rc;
 }
 
@@ -1946,7 +1946,7 @@ static int xgene_pmu_remove(struct platform_device *pdev)
 	xgene_pmu_dev_cleanup(xgene_pmu, &xgene_pmu->mcbpmus);
 	xgene_pmu_dev_cleanup(xgene_pmu, &xgene_pmu->mcpmus);
 	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_APM_XGENE_ONLINE,
-				    &xgene_pmu->node);
+				    &xgene_pmu->analde);
 
 	return 0;
 }

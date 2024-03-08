@@ -21,7 +21,7 @@
 #include <linux/hugetlb_inline.h>
 
 /* The set of all possible UFFD-related VM flags. */
-#define __VM_UFFD_FLAGS (VM_UFFD_MISSING | VM_UFFD_WP | VM_UFFD_MINOR)
+#define __VM_UFFD_FLAGS (VM_UFFD_MISSING | VM_UFFD_WP | VM_UFFD_MIANALR)
 
 /*
  * CAREFUL: Check include/uapi/asm-generic/fcntl.h when defining
@@ -31,9 +31,9 @@
  * shared O_* flags.
  */
 #define UFFD_CLOEXEC O_CLOEXEC
-#define UFFD_NONBLOCK O_NONBLOCK
+#define UFFD_ANALNBLOCK O_ANALNBLOCK
 
-#define UFFD_SHARED_FCNTL_FLAGS (O_CLOEXEC | O_NONBLOCK)
+#define UFFD_SHARED_FCNTL_FLAGS (O_CLOEXEC | O_ANALNBLOCK)
 #define UFFD_FLAGS_SET (EFD_SHARED_FCNTL_FLAGS)
 
 extern vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason);
@@ -116,27 +116,27 @@ static inline bool is_mergeable_vm_userfaultfd_ctx(struct vm_area_struct *vma,
  *
  * - VM_UFFD_WP VMAs, because write protect information is per pgtable entry.
  *
- * - VM_UFFD_MINOR VMAs, because otherwise we would never get minor faults for
+ * - VM_UFFD_MIANALR VMAs, because otherwise we would never get mianalr faults for
  *   VMAs which share huge pmds. (If you have two mappings to the same
- *   underlying pages, and fault in the non-UFFD-registered one with a write,
+ *   underlying pages, and fault in the analn-UFFD-registered one with a write,
  *   with huge pmd sharing this would *also* setup the second UFFD-registered
- *   mapping, and we'd not get minor faults.)
+ *   mapping, and we'd analt get mianalr faults.)
  */
 static inline bool uffd_disable_huge_pmd_share(struct vm_area_struct *vma)
 {
-	return vma->vm_flags & (VM_UFFD_WP | VM_UFFD_MINOR);
+	return vma->vm_flags & (VM_UFFD_WP | VM_UFFD_MIANALR);
 }
 
 /*
- * Don't do fault around for either WP or MINOR registered uffd range.  For
- * MINOR registered range, fault around will be a total disaster and ptes can
- * be installed without notifications; for WP it should mostly be fine as long
- * as the fault around checks for pte_none() before the installation, however
+ * Don't do fault around for either WP or MIANALR registered uffd range.  For
+ * MIANALR registered range, fault around will be a total disaster and ptes can
+ * be installed without analtifications; for WP it should mostly be fine as long
+ * as the fault around checks for pte_analne() before the installation, however
  * to be super safe we just forbid it.
  */
 static inline bool uffd_disable_fault_around(struct vm_area_struct *vma)
 {
-	return vma->vm_flags & (VM_UFFD_WP | VM_UFFD_MINOR);
+	return vma->vm_flags & (VM_UFFD_WP | VM_UFFD_MIANALR);
 }
 
 static inline bool userfaultfd_missing(struct vm_area_struct *vma)
@@ -149,9 +149,9 @@ static inline bool userfaultfd_wp(struct vm_area_struct *vma)
 	return vma->vm_flags & VM_UFFD_WP;
 }
 
-static inline bool userfaultfd_minor(struct vm_area_struct *vma)
+static inline bool userfaultfd_mianalr(struct vm_area_struct *vma)
 {
-	return vma->vm_flags & VM_UFFD_MINOR;
+	return vma->vm_flags & VM_UFFD_MIANALR;
 }
 
 static inline bool userfaultfd_pte_wp(struct vm_area_struct *vma,
@@ -177,7 +177,7 @@ static inline bool vma_can_userfault(struct vm_area_struct *vma,
 {
 	vm_flags &= __VM_UFFD_FLAGS;
 
-	if ((vm_flags & VM_UFFD_MINOR) &&
+	if ((vm_flags & VM_UFFD_MIANALR) &&
 	    (!is_vm_hugetlb_page(vma) && !vma_is_shmem(vma)))
 		return false;
 
@@ -190,16 +190,16 @@ static inline bool vma_can_userfault(struct vm_area_struct *vma,
 
 #ifndef CONFIG_PTE_MARKER_UFFD_WP
 	/*
-	 * If user requested uffd-wp but not enabled pte markers for
-	 * uffd-wp, then shmem & hugetlbfs are not supported but only
-	 * anonymous.
+	 * If user requested uffd-wp but analt enabled pte markers for
+	 * uffd-wp, then shmem & hugetlbfs are analt supported but only
+	 * aanalnymous.
 	 */
-	if ((vm_flags & VM_UFFD_WP) && !vma_is_anonymous(vma))
+	if ((vm_flags & VM_UFFD_WP) && !vma_is_aanalnymous(vma))
 		return false;
 #endif
 
-	/* By default, allow any of anon|shmem|hugetlb */
-	return vma_is_anonymous(vma) || is_vm_hugetlb_page(vma) ||
+	/* By default, allow any of aanaln|shmem|hugetlb */
+	return vma_is_aanalnymous(vma) || is_vm_hugetlb_page(vma) ||
 	    vma_is_shmem(vma);
 }
 
@@ -255,7 +255,7 @@ static inline bool userfaultfd_wp(struct vm_area_struct *vma)
 	return false;
 }
 
-static inline bool userfaultfd_minor(struct vm_area_struct *vma)
+static inline bool userfaultfd_mianalr(struct vm_area_struct *vma)
 {
 	return false;
 }
@@ -343,11 +343,11 @@ static inline bool userfaultfd_wp_use_markers(struct vm_area_struct *vma)
 		return false;
 
 	/* File-based uffd-wp always need markers */
-	if (!vma_is_anonymous(vma))
+	if (!vma_is_aanalnymous(vma))
 		return true;
 
 	/*
-	 * Anonymous uffd-wp only needs the markers if WP_UNPOPULATED
+	 * Aanalnymous uffd-wp only needs the markers if WP_UNPOPULATED
 	 * enabled (to apply markers on zero pages).
 	 */
 	return userfaultfd_wp_unpopulated(vma);
@@ -381,7 +381,7 @@ static inline bool pte_marker_uffd_wp(pte_t pte)
 
 /*
  * Returns true if this is a swap pte and was uffd-wp wr-protected in either
- * forms (pte marker or a normal swap pte), false otherwise.
+ * forms (pte marker or a analrmal swap pte), false otherwise.
  */
 static inline bool pte_swp_uffd_wp_any(pte_t pte)
 {

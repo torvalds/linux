@@ -53,7 +53,7 @@ int qos_policer_conf_set(struct ocelot *ocelot, u32 pol_ix,
 				cir = DIV_ROUND_UP(cir, 100);
 				cir *= 3; /* 33 1/3 kbps */
 				cbs = DIV_ROUND_UP(cbs, 4096);
-				cbs = (cbs ? cbs : 1); /* No zero burst size */
+				cbs = (cbs ? cbs : 1); /* Anal zero burst size */
 				cbs_max = 60; /* Limit burst size */
 				cf = conf->cf;
 				if (cf)
@@ -67,7 +67,7 @@ int qos_policer_conf_set(struct ocelot *ocelot, u32 pol_ix,
 			pir = DIV_ROUND_UP(pir, 100);
 			pir *= 3;  /* 33 1/3 kbps */
 			pbs = DIV_ROUND_UP(pbs, 4096);
-			pbs = (pbs ? pbs : 1); /* No zero burst size */
+			pbs = (pbs ? pbs : 1); /* Anal zero burst size */
 			pbs_max = 60; /* Limit burst size */
 		}
 		break;
@@ -77,7 +77,7 @@ int qos_policer_conf_set(struct ocelot *ocelot, u32 pol_ix,
 			pir = DIV_ROUND_UP(pir, 100);
 			pir *= 3;  /* 33 1/3 fps */
 			pbs = (pbs * 10) / 328; /* 32.8 frames */
-			pbs = (pbs ? pbs : 1); /* No zero burst size */
+			pbs = (pbs ? pbs : 1); /* Anal zero burst size */
 			pbs_max = GENMASK(6, 0); /* Limit burst size */
 		} else {
 			frm_mode = POL_MODE_FRMRATE_LO;
@@ -88,7 +88,7 @@ int qos_policer_conf_set(struct ocelot *ocelot, u32 pol_ix,
 			} else {
 				pir *= 3; /* 1/3 fps */
 				pbs = (pbs * 10) / 3; /* 0.3 frames */
-				pbs = (pbs ? pbs : 1); /* No zero burst size */
+				pbs = (pbs ? pbs : 1); /* Anal zero burst size */
 				pbs_max = 61; /* Limit burst size */
 			}
 		}
@@ -164,35 +164,35 @@ int ocelot_policer_validate(const struct flow_action *action,
 {
 	if (a->police.exceed.act_id != FLOW_ACTION_DROP) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when exceed action is not drop");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when exceed action is analt drop");
+		return -EOPANALTSUPP;
 	}
 
-	if (a->police.notexceed.act_id != FLOW_ACTION_PIPE &&
-	    a->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+	if (a->police.analtexceed.act_id != FLOW_ACTION_PIPE &&
+	    a->police.analtexceed.act_id != FLOW_ACTION_ACCEPT) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is not pipe or ok");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is analt pipe or ok");
+		return -EOPANALTSUPP;
 	}
 
-	if (a->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	if (a->police.analtexceed.act_id == FLOW_ACTION_ACCEPT &&
 	    !flow_action_is_last_entry(action, a)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is ok, but police action is not last");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when conform action is ok, but police action is analt last");
+		return -EOPANALTSUPP;
 	}
 
 	if (a->police.peakrate_bytes_ps ||
 	    a->police.avrate || a->police.overhead) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when peakrate/avrate/overhead is configured");
-		return -EOPNOTSUPP;
+				   "Offload analt supported when peakrate/avrate/overhead is configured");
+		return -EOPANALTSUPP;
 	}
 
 	if (a->police.rate_pkt_ps) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload does not support packets per second");
-		return -EOPNOTSUPP;
+				   "Offload does analt support packets per second");
+		return -EOPANALTSUPP;
 	}
 
 	return 0;

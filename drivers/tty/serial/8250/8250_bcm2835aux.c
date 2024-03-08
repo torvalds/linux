@@ -8,7 +8,7 @@
  * Copyright (C) 2015 Joachim Eastwood <manabian@gmail.com>
  *
  * The bcm2835aux is capable of RTS auto flow-control, but this driver doesn't
- * take advantage of it yet.  When adding support, be sure not to enable it
+ * take advantage of it yet.  When adding support, be sure analt to enable it
  * simultaneously to rs485.
  */
 
@@ -59,8 +59,8 @@ static void bcm2835aux_rs485_start_tx(struct uart_8250_port *up)
 	}
 
 	/*
-	 * On the bcm2835aux, the MCR register contains no other
-	 * flags besides RTS.  So no need for a read-modify-write.
+	 * On the bcm2835aux, the MCR register contains anal other
+	 * flags besides RTS.  So anal need for a read-modify-write.
 	 */
 	if (up->port.rs485.flags & SER_RS485_RTS_ON_SEND)
 		serial8250_out_MCR(up, 0);
@@ -96,7 +96,7 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	/* allocate the custom structure */
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* initialize data */
 	up.capabilities = UART_CAP_FIFO | UART_CAP_MINI;
@@ -120,7 +120,7 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	/* get the clock - this also enables the HW */
 	data->clk = devm_clk_get_optional(&pdev->dev, NULL);
 	if (IS_ERR(data->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(data->clk), "could not get clk\n");
+		return dev_err_probe(&pdev->dev, PTR_ERR(data->clk), "could analt get clk\n");
 
 	/* get the interrupt */
 	ret = platform_get_irq(pdev, 0);
@@ -131,13 +131,13 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	/* map the main registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "memory resource not found");
+		dev_err(&pdev->dev, "memory resource analt found");
 		return -EINVAL;
 	}
 
 	bcm_data = device_get_match_data(&pdev->dev);
 
-	/* Some UEFI implementations (e.g. tianocore/edk2 for the Raspberry Pi)
+	/* Some UEFI implementations (e.g. tiaanalcore/edk2 for the Raspberry Pi)
 	 * describe the miniuart with a base address that encompasses the auxiliary
 	 * registers shared between the miniuart and spi.
 	 *
@@ -154,7 +154,7 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	up.port.mapsize = resource_size(res) - offset;
 
 	/* Check for a fixed line number */
-	ret = of_alias_get_id(pdev->dev.of_node, "serial");
+	ret = of_alias_get_id(pdev->dev.of_analde, "serial");
 	if (ret >= 0)
 		up.port.line = ret;
 
@@ -170,7 +170,7 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	if (!uartclk) {
 		ret = device_property_read_u32(&pdev->dev, "clock-frequency", &uartclk);
 		if (ret) {
-			dev_err_probe(&pdev->dev, ret, "could not get clk rate\n");
+			dev_err_probe(&pdev->dev, ret, "could analt get clk rate\n");
 			goto dis_clk;
 		}
 	}
@@ -238,7 +238,7 @@ static int __init early_bcm2835aux_setup(struct earlycon_device *device,
 					const char *options)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->port.iotype = UPIO_MEM32;
 	device->port.regshift = 2;

@@ -66,12 +66,12 @@ static int ipc_protocol_msg_prepipe_open(struct iosm_protocol *ipc_protocol,
 	}
 
 	/* Allocate the skbuf elements for the skbuf which are on the way.
-	 * SKB ring is internal memory allocation for driver. No need to
+	 * SKB ring is internal memory allocation for driver. Anal need to
 	 * re-calculate the start and end addresses.
 	 */
 	skbr = kcalloc(pipe->nr_of_entries, sizeof(*skbr), GFP_ATOMIC);
 	if (!skbr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate the transfer descriptors for the pipe. */
 	tdr = dma_alloc_coherent(&ipc_protocol->pcie->pci->dev,
@@ -80,7 +80,7 @@ static int ipc_protocol_msg_prepipe_open(struct iosm_protocol *ipc_protocol,
 	if (!tdr) {
 		kfree(skbr);
 		dev_err(ipc_protocol->dev, "tdr alloc error");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pipe->max_nr_of_queued_entries = pipe->nr_of_entries - 1;
@@ -227,7 +227,7 @@ bool ipc_protocol_ul_td_send(struct iosm_protocol *ipc_protocol,
 	u32 tail;
 
 	if (!ipc_protocol->p_ap_shm) {
-		dev_err(ipc_protocol->dev, "driver is not initialized");
+		dev_err(ipc_protocol->dev, "driver is analt initialized");
 		return false;
 	}
 
@@ -246,7 +246,7 @@ bool ipc_protocol_ul_td_send(struct iosm_protocol *ipc_protocol,
 
 		if (free_elements <= 0) {
 			dev_dbg(ipc_protocol->dev,
-				"no free td elements for UL pipe %d",
+				"anal free td elements for UL pipe %d",
 				pipe->pipe_nr);
 			break;
 		}
@@ -533,9 +533,9 @@ int ipc_protocol_msg_prep(struct iosm_imem *ipc_imem,
 }
 
 u32
-ipc_protocol_pm_dev_get_sleep_notification(struct iosm_protocol *ipc_protocol)
+ipc_protocol_pm_dev_get_sleep_analtification(struct iosm_protocol *ipc_protocol)
 {
 	struct ipc_protocol_ap_shm *ipc_ap_shm = ipc_protocol->p_ap_shm;
 
-	return le32_to_cpu(ipc_ap_shm->device_info.device_sleep_notification);
+	return le32_to_cpu(ipc_ap_shm->device_info.device_sleep_analtification);
 }

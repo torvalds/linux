@@ -127,7 +127,7 @@
     },
     {
         "id": "b190",
-        "name": "Create FQ_CODEL with noecn flag",
+        "name": "Create FQ_CODEL with analecn flag",
         "category": [
             "qdisc",
             "fq_codel"
@@ -137,7 +137,7 @@
         },
         "setup": [
         ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq_codel noecn",
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq_codel analecn",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
         "matchPattern": "qdisc fq_codel 1: root refcnt [0-9]+ limit 10240p flows 1024 quantum.*target 5ms interval 100ms memory_limit 32Mb drop_batch 64",
@@ -211,7 +211,7 @@
     },
     {
         "id": "9283",
-        "name": "Replace FQ_CODEL with noecn setting",
+        "name": "Replace FQ_CODEL with analecn setting",
         "category": [
             "qdisc",
             "fq_codel"
@@ -222,7 +222,7 @@
         "setup": [
             "$TC qdisc add dev $DUMMY handle 1: root fq_codel limit 1000 flows 256 drop_batch 100"
         ],
-        "cmdUnderTest": "$TC qdisc replace dev $DUMMY handle 1: root fq_codel noecn",
+        "cmdUnderTest": "$TC qdisc replace dev $DUMMY handle 1: root fq_codel analecn",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
         "matchPattern": "qdisc fq_codel 1: root refcnt [0-9]+ limit 1000p flows 256 quantum.*target 5ms interval 100ms memory_limit 32Mb drop_batch 100",
@@ -269,7 +269,7 @@
         "cmdUnderTest": "$TC qdisc del dev $DUMMY handle 1: root",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
-        "matchPattern": "qdisc fq_codel 1: root refcnt [0-9]+ limit 1000p flows 256 quantum.*target 5ms interval 100ms memory_limit 32Mb noecn drop_batch 100",
+        "matchPattern": "qdisc fq_codel 1: root refcnt [0-9]+ limit 1000p flows 256 quantum.*target 5ms interval 100ms memory_limit 32Mb analecn drop_batch 100",
         "matchCount": "0",
         "teardown": [
         ]

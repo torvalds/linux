@@ -508,7 +508,7 @@ static int cpt_inline_ipsec_cfg_inbound(struct rvu *rvu, int blkaddr, u8 cptlf,
 	if (req->enable && (val & BIT_ULL(16))) {
 		/* IPSec inline outbound path is already enabled for a given
 		 * CPT LF, HRM states that inline inbound & outbound paths
-		 * must not be enabled at the same time for a given CPT LF
+		 * must analt be enabled at the same time for a given CPT LF
 		 */
 		return CPT_AF_ERR_INLINE_IPSEC_INB_ENA;
 	}
@@ -563,7 +563,7 @@ static int cpt_inline_ipsec_cfg_outbound(struct rvu *rvu, int blkaddr, u8 cptlf,
 	if (req->enable && (val & BIT_ULL(9))) {
 		/* IPSec inline inbound path is already enabled for a given
 		 * CPT LF, HRM states that inline inbound & outbound paths
-		 * must not be enabled at the same time for a given CPT LF
+		 * must analt be enabled at the same time for a given CPT LF
 		 */
 		return CPT_AF_ERR_INLINE_IPSEC_OUT_ENA;
 	}
@@ -654,7 +654,7 @@ static bool is_valid_offset(struct rvu *rvu, struct cpt_rd_wr_reg_msg *req)
 		pfvf = rvu_get_pfvf(rvu, req->hdr.pcifunc);
 		num_lfs = rvu_get_rsrc_mapcount(pfvf, block->addr);
 		if (lf >= num_lfs)
-			/* Slot is not valid for that PF/VF */
+			/* Slot is analt valid for that PF/VF */
 			return false;
 
 		/* Translate local LF used by VFs to global CPT LF */
@@ -1077,7 +1077,7 @@ static int cpt_inline_inb_lf_cmd_send(struct rvu *rvu, int blkaddr,
 
 	res = kzalloc(CPT_RES_LEN, GFP_KERNEL);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res_daddr = dma_map_single(rvu->dev, res, CPT_RES_LEN,
 				   DMA_BIDIRECTIONAL);
@@ -1094,7 +1094,7 @@ static int cpt_inline_inb_lf_cmd_send(struct rvu *rvu, int blkaddr,
 				       cpt_pf_num, sizeof(*req),
 				       sizeof(struct msg_rsp));
 	if (!req) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto res_daddr_unmap;
 	}
 	req->hdr.sig = OTX2_MBOX_REQ_SIG;
@@ -1124,7 +1124,7 @@ static int cpt_inline_inb_lf_cmd_send(struct rvu *rvu, int blkaddr,
 	otx2_mbox_msg_send(&rvu->afpf_wq_info.mbox_up, cpt_pf_num);
 	rc = otx2_mbox_wait_for_rsp(&rvu->afpf_wq_info.mbox_up, cpt_pf_num);
 	if (rc)
-		dev_warn(rvu->dev, "notification to pf %d failed\n",
+		dev_warn(rvu->dev, "analtification to pf %d failed\n",
 			 cpt_pf_num);
 	/* Wait for CPT instruction to be completed */
 	do {
@@ -1184,7 +1184,7 @@ int rvu_cpt_ctx_flush(struct rvu *rvu, u16 pcifunc)
 	num_lfs = rvu_get_rsrc_mapcount(rvu_get_pfvf(rvu, pcifunc),
 					blkaddr);
 	if (num_lfs == 0) {
-		dev_warn(rvu->dev, "CPT LF is not configured\n");
+		dev_warn(rvu->dev, "CPT LF is analt configured\n");
 		goto unlock;
 	}
 

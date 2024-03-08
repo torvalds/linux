@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Synopsys DesignWare Multimedia Card Interface Platform driver
+ * Syanalpsys DesignWare Multimedia Card Interface Platform driver
  *
  * Copyright (C) 2012, Samsung Electronics Co., Ltd.
  */

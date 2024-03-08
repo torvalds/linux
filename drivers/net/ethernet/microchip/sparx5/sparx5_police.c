@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2023 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2023 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include "sparx5_main_regs.h"

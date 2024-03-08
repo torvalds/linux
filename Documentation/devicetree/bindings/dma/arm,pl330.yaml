@@ -7,13 +7,13 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: ARM PrimeCell PL330 DMA Controller
 
 maintainers:
-  - Vinod Koul <vkoul@kernel.org>
+  - Vianald Koul <vkoul@kernel.org>
 
 description:
   The ARM PrimeCell PL330 DMA controller can move blocks of memory contents
   between memory and peripherals or memory to memory.
 
-# We need a select here so we don't match all nodes with 'arm,primecell'
+# We need a select here so we don't match all analdes with 'arm,primecell'
 select:
   properties:
     compatible:
@@ -45,7 +45,7 @@ properties:
     const: 1
     description: Contains the DMA request number for the consumer
 
-  arm,pl330-broken-no-flushp:
+  arm,pl330-broken-anal-flushp:
     type: boolean
     description: quirk for avoiding to execute DMAFLUSHP
 

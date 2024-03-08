@@ -92,7 +92,7 @@ static int imx_scu_gpio_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = imx_scu_get_handle(&priv->handle);
 	if (ret)

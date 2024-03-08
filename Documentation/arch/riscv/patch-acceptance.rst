@@ -23,14 +23,14 @@ RISC-V has a patchwork instance, where the status of patches can be checked:
 
   https://patchwork.kernel.org/project/linux-riscv/list/
 
-If your patch does not appear in the default view, the RISC-V maintainers have
-likely either requested changes, or expect it to be applied to another tree.
+If your patch does analt appear in the default view, the RISC-V maintainers have
+likely either requested changes, or expect it to be applied to aanalther tree.
 
 Automation runs against this patchwork instance, building/testing patches as
 they arrive. The automation applies patches against the current HEAD of the
 RISC-V `for-next` and `fixes` branches, depending on whether the patch has been
 detected as a fix. Failing those, it will use the RISC-V `master` branch.
-The exact commit to which a series has been applied will be noted on patchwork.
+The exact commit to which a series has been applied will be analted on patchwork.
 Patches for which any of the checks fail are unlikely to be applied and in most
 cases will need to be resubmitted.
 

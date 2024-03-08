@@ -69,7 +69,7 @@ static const struct ieee80211_iface_combination mt76x02_if_comb[] = {
 		.max_interfaces = 8,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
-		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_ANALHT) |
 				       BIT(NL80211_CHAN_WIDTH_20) |
 				       BIT(NL80211_CHAN_WIDTH_40) |
 				       BIT(NL80211_CHAN_WIDTH_80),
@@ -160,7 +160,7 @@ int mt76x02_init_device(struct mt76x02_dev *dev)
 
 		mt76x02_dfs_init_detector(dev);
 
-		wiphy->reg_notifier = mt76x02_regd_notifier;
+		wiphy->reg_analtifier = mt76x02_regd_analtifier;
 		wiphy->iface_combinations = mt76x02_if_comb;
 		wiphy->n_iface_combinations = ARRAY_SIZE(mt76x02_if_comb);
 
@@ -247,7 +247,7 @@ int mt76x02_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT76x02_N_WCIDS);
 	if (idx < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	msta->vif = mvif;
 	msta->wcid.sta = 1;
@@ -313,7 +313,7 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	/*
 	 * Client mode typically only has one configurable BSSID register,
 	 * which is used for bssidx=0. This is linked to the MAC address.
-	 * Since mac80211 allows changing interface types, and we cannot
+	 * Since mac80211 allows changing interface types, and we cananalt
 	 * force the use of the primary MAC address for a station mode
 	 * interface, we need some other way of configuring a per-interface
 	 * remote BSSID.
@@ -321,7 +321,7 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	 * used for AP mode and bssidx 8-15 for client mode.
 	 * We shift the station interface bss index by 8 to force the
 	 * hardware to recognize the BSSID.
-	 * The resulting bssidx mismatch for unicast frames is ignored by hw.
+	 * The resulting bssidx mismatch for unicast frames is iganalred by hw.
 	 */
 	if (vif->type == NL80211_IFTYPE_STATION)
 		idx += 8;
@@ -423,11 +423,11 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_CCMP:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/*
-	 * The hardware does not support per-STA RX GTK, fall back
+	 * The hardware does analt support per-STA RX GTK, fall back
 	 * to software mode for these.
 	 */
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||
@@ -435,7 +435,7 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	    (key->cipher == WLAN_CIPHER_SUITE_TKIP ||
 	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
 	 * In USB AP mode, broadcast/multicast frames are setup in beacon
@@ -445,11 +445,11 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (mt76_is_usb(&dev->mt76) &&
 	    vif->type == NL80211_IFTYPE_AP &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* MT76x0 GTK offloading does not work with more than one VIF */
+	/* MT76x0 GTK offloading does analt work with more than one VIF */
 	if (is_mt76x0(dev) && !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	msta = sta ? (struct mt76x02_sta *)sta->drv_priv : NULL;
 	wcid = msta ? &msta->wcid : &mvif->group_wcid;

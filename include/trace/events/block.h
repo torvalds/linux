@@ -32,7 +32,7 @@ DECLARE_EVENT_CLASS(block_buffer,
 	),
 
 	TP_printk("%d,%d sector=%llu size=%zu",
-		MAJOR(__entry->dev), MINOR(__entry->dev),
+		MAJOR(__entry->dev), MIANALR(__entry->dev),
 		(unsigned long long)__entry->sector, __entry->size
 	)
 );
@@ -69,7 +69,7 @@ DEFINE_EVENT(block_buffer, block_dirty_buffer,
  * @rq: block IO operation request
  *
  * The block operation request @rq is being placed back into queue
- * @q.  For some reason the request was not completed and needs to be
+ * @q.  For some reason the request was analt completed and needs to be
  * put back in the queue.
  */
 TRACE_EVENT(block_rq_requeue,
@@ -96,7 +96,7 @@ TRACE_EVENT(block_rq_requeue,
 	),
 
 	TP_printk("%d,%d %s (%s) %llu + %u [%d]",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->dev), MIANALR(__entry->dev),
 		  __entry->rwbs, __get_str(cmd),
 		  (unsigned long long)__entry->sector,
 		  __entry->nr_sector, 0)
@@ -121,14 +121,14 @@ DECLARE_EVENT_CLASS(block_rq_completion,
 		__entry->dev	   = rq->q->disk ? disk_devt(rq->q->disk) : 0;
 		__entry->sector    = blk_rq_pos(rq);
 		__entry->nr_sector = nr_bytes >> 9;
-		__entry->error     = blk_status_to_errno(error);
+		__entry->error     = blk_status_to_erranal(error);
 
 		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags);
 		__get_str(cmd)[0] = '\0';
 	),
 
 	TP_printk("%d,%d %s (%s) %llu + %u [%d]",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->dev), MIANALR(__entry->dev),
 		  __entry->rwbs, __get_str(cmd),
 		  (unsigned long long)__entry->sector,
 		  __entry->nr_sector, __entry->error)
@@ -142,8 +142,8 @@ DECLARE_EVENT_CLASS(block_rq_completion,
  *
  * The block_rq_complete tracepoint event indicates that some portion
  * of operation request has been completed by the device driver.  If
- * the @rq->bio is %NULL, then there is absolutely no additional work to
- * do for the request. If @rq->bio is non-NULL then there is
+ * the @rq->bio is %NULL, then there is absolutely anal additional work to
+ * do for the request. If @rq->bio is analn-NULL then there is
  * additional work required to complete the request.
  */
 DEFINE_EVENT(block_rq_completion, block_rq_complete,
@@ -197,7 +197,7 @@ DECLARE_EVENT_CLASS(block_rq,
 	),
 
 	TP_printk("%d,%d %s %u (%s) %llu + %u [%s]",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->dev), MIANALR(__entry->dev),
 		  __entry->rwbs, __entry->bytes, __get_str(cmd),
 		  (unsigned long long)__entry->sector,
 		  __entry->nr_sector, __entry->comm)
@@ -234,10 +234,10 @@ DEFINE_EVENT(block_rq, block_rq_issue,
 );
 
 /**
- * block_rq_merge - merge request with another one in the elevator
+ * block_rq_merge - merge request with aanalther one in the elevator
  * @rq: block IO operation request
  *
- * Called when block operation request @rq from queue @q is merged to another
+ * Called when block operation request @rq from queue @q is merged to aanalther
  * request queued in the elevator.
  */
 DEFINE_EVENT(block_rq, block_rq_merge,
@@ -278,7 +278,7 @@ DEFINE_EVENT(block_rq, block_io_done,
  * @q: queue holding the block operation
  * @bio: block operation completed
  *
- * This tracepoint indicates there is no further work to do on this
+ * This tracepoint indicates there is anal further work to do on this
  * block IO operation @bio.
  */
 TRACE_EVENT(block_bio_complete,
@@ -299,12 +299,12 @@ TRACE_EVENT(block_bio_complete,
 		__entry->dev		= bio_dev(bio);
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->nr_sector	= bio_sectors(bio);
-		__entry->error		= blk_status_to_errno(bio->bi_status);
+		__entry->error		= blk_status_to_erranal(bio->bi_status);
 		blk_fill_rwbs(__entry->rwbs, bio->bi_opf);
 	),
 
 	TP_printk("%d,%d %s %llu + %u [%d]",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
+		  MAJOR(__entry->dev), MIANALR(__entry->dev), __entry->rwbs,
 		  (unsigned long long)__entry->sector,
 		  __entry->nr_sector, __entry->error)
 );
@@ -332,7 +332,7 @@ DECLARE_EVENT_CLASS(block_bio,
 	),
 
 	TP_printk("%d,%d %s %llu + %u [%s]",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
+		  MAJOR(__entry->dev), MIANALR(__entry->dev), __entry->rwbs,
 		  (unsigned long long)__entry->sector,
 		  __entry->nr_sector, __entry->comm)
 );
@@ -400,7 +400,7 @@ DEFINE_EVENT(block_bio, block_getrq,
  * block_plug - keep operations requests in request queue
  * @q: request queue to plug
  *
- * Plug the request queue @q.  Do not allow block operation requests
+ * Plug the request queue @q.  Do analt allow block operation requests
  * to be sent to the device driver. Instead, accumulate requests in
  * the queue to improve throughput performance of the block device.
  */
@@ -489,7 +489,7 @@ TRACE_EVENT(block_split,
 	),
 
 	TP_printk("%d,%d %s %llu / %llu [%s]",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
+		  MAJOR(__entry->dev), MIANALR(__entry->dev), __entry->rwbs,
 		  (unsigned long long)__entry->sector,
 		  (unsigned long long)__entry->new_sector,
 		  __entry->comm)
@@ -529,10 +529,10 @@ TRACE_EVENT(block_bio_remap,
 	),
 
 	TP_printk("%d,%d %s %llu + %u <- (%d,%d) %llu",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
+		  MAJOR(__entry->dev), MIANALR(__entry->dev), __entry->rwbs,
 		  (unsigned long long)__entry->sector,
 		  __entry->nr_sector,
-		  MAJOR(__entry->old_dev), MINOR(__entry->old_dev),
+		  MAJOR(__entry->old_dev), MIANALR(__entry->old_dev),
 		  (unsigned long long)__entry->old_sector)
 );
 
@@ -573,10 +573,10 @@ TRACE_EVENT(block_rq_remap,
 	),
 
 	TP_printk("%d,%d %s %llu + %u <- (%d,%d) %llu %u",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
+		  MAJOR(__entry->dev), MIANALR(__entry->dev), __entry->rwbs,
 		  (unsigned long long)__entry->sector,
 		  __entry->nr_sector,
-		  MAJOR(__entry->old_dev), MINOR(__entry->old_dev),
+		  MAJOR(__entry->old_dev), MIANALR(__entry->old_dev),
 		  (unsigned long long)__entry->old_sector, __entry->nr_bios)
 );
 

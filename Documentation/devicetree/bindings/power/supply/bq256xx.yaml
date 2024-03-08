@@ -60,7 +60,7 @@ properties:
 
   monitored-battery:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: phandle to the battery node being monitored
+    description: phandle to the battery analde being monitored
 
   interrupts:
     maxItems: 1
@@ -68,9 +68,9 @@ properties:
       Interrupt sends an active low, 256 μs pulse to host to report the charger
       device status and faults.
 
-  ti,no-thermistor:
+  ti,anal-thermistor:
     type: boolean
-    description: Indicates that no thermistor is connected to the TS pin
+    description: Indicates that anal thermistor is connected to the TS pin
 
 required:
   - compatible
@@ -89,7 +89,7 @@ allOf:
               - ti,bq25601d
     then:
       properties:
-        ti,no-thermistor: false
+        ti,anal-thermistor: false
 
 additionalProperties: false
 

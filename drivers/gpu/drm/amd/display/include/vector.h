@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -45,7 +45,7 @@ struct vector *dal_vector_create(
 	uint32_t capacity,
 	uint32_t struct_size);
 
-/* 'initial_value' is optional. If initial_value not supplied,
+/* 'initial_value' is optional. If initial_value analt supplied,
  * each "structure" in the vector will contain zeros by default. */
 struct vector *dal_vector_presized_create(
 	struct dc_context *ctx,
@@ -66,7 +66,7 @@ uint32_t dal_vector_get_count(
  * reallocate container if necessary
  * then shell items at right and insert
  * return if the container modified
- * do not check that index belongs to container
+ * do analt check that index belongs to container
  * since the function is private and index is going to be calculated
  * either with by function or as get_count+1 */
 bool dal_vector_insert_at(
@@ -126,7 +126,7 @@ void dal_vector_clear(struct vector *vector);
 	return dal_vector_append(vector, item); \
 }
 
-/* Note: "type_t" is the ONLY token accepted by "checkpatch.pl" and by
+/* Analte: "type_t" is the ONLY token accepted by "checkpatch.pl" and by
  * "checkcommit" as *return type*.
  * For uniformity reasons "type_t" is used for all type-safe macro
  * definitions here. */

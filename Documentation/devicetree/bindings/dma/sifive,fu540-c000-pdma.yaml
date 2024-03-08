@@ -37,7 +37,7 @@ properties:
       Supported compatible strings are -
       "sifive,fu540-c000-pdma" for the SiFive PDMA v0 as integrated onto the
       SiFive FU540 chip resp and "sifive,pdma0" for the SiFive PDMA v0 IP block
-      with no chip integration tweaks.
+      with anal chip integration tweaks.
 
   reg:
     maxItems: 1

@@ -18,7 +18,7 @@
  * may_use_simd - whether it is allowable at this time to issue SIMD
  *                instructions or access the SIMD register file
  *
- * Callers must not assume that the result remains true beyond the next
+ * Callers must analt assume that the result remains true beyond the next
  * preempt_enable() or return from softirq context.
  */
 static __must_check inline bool may_use_simd(void)

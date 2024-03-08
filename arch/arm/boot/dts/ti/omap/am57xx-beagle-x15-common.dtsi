@@ -436,8 +436,8 @@
 };
 
 &gpio7_target {
-	ti,no-reset-on-init;
-	ti,no-idle-on-init;
+	ti,anal-reset-on-init;
+	ti,anal-idle-on-init;
 };
 
 &cpu0 {
@@ -485,7 +485,7 @@
 
 	bus-width = <4>;
 	cd-gpios = <&gpio6 27 GPIO_ACTIVE_LOW>; /* gpio 219 */
-	no-1-8-v;
+	anal-1-8-v;
 };
 
 &mmc2 {
@@ -497,8 +497,8 @@
 	vmmc-supply = <&vdd_3v3>;
 	vqmmc-supply = <&vdd_3v3>;
 	bus-width = <8>;
-	non-removable;
-	no-1-8-v;
+	analn-removable;
+	anal-1-8-v;
 };
 
 &sata {
@@ -544,7 +544,7 @@
 &cpu_cooling_maps {
 	map1 {
 		trip = <&cpu_alert1>;
-		cooling-device = <&gpio_fan THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		cooling-device = <&gpio_fan THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 	};
 };
 
@@ -574,7 +574,7 @@
 			map0 {
 				trip = <&board_alert0>;
 				cooling-device =
-				  <&gpio_fan THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				  <&gpio_fan THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 			};
 		};
        };

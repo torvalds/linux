@@ -54,7 +54,7 @@ static void ceph_put_super(struct super_block *s)
 
 static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(d_inode(dentry));
+	struct ceph_fs_client *fsc = ceph_ianalde_to_fs_client(d_ianalde(dentry));
 	struct ceph_mon_client *monc = &fsc->client->monc;
 	struct ceph_statfs st;
 	int i, err;
@@ -64,7 +64,7 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (fsc->mdsc->mdsmap->m_num_data_pg_pools == 1) {
 		data_pool = fsc->mdsc->mdsmap->m_data_pg_pools[0];
 	} else {
-		data_pool = CEPH_NOPOOL;
+		data_pool = CEPH_ANALPOOL;
 	}
 
 	err = ceph_monc_do_statfs(monc, data_pool, &st);
@@ -82,10 +82,10 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	/*
 	 * By default use root quota for stats; fallback to overall filesystem
-	 * usage if using 'noquotadf' mount option or if the root dir doesn't
+	 * usage if using 'analquotadf' mount option or if the root dir doesn't
 	 * have max_bytes quota set.
 	 */
-	if (ceph_test_mount_opt(fsc, NOQUOTADF) ||
+	if (ceph_test_mount_opt(fsc, ANALQUOTADF) ||
 	    !ceph_quota_update_statfs(fsc, buf)) {
 		buf->f_blocks = le64_to_cpu(st.kb) >> (CEPH_BLOCK_SHIFT-10);
 		buf->f_bfree = le64_to_cpu(st.kb_avail) >> (CEPH_BLOCK_SHIFT-10);
@@ -93,8 +93,8 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 	}
 
 	/*
-	 * NOTE: for the time being, we make bsize == frsize to humor
-	 * not-yet-ancient versions of glibc that are broken.
+	 * ANALTE: for the time being, we make bsize == frsize to humor
+	 * analt-yet-ancient versions of glibc that are broken.
 	 * Someday, we will probably want to report a real block
 	 * size...  whatever that may mean for a network file system!
 	 */
@@ -124,9 +124,9 @@ static int ceph_sync_fs(struct super_block *sb, int wait)
 	struct ceph_client *cl = fsc->client;
 
 	if (!wait) {
-		doutc(cl, "(non-blocking)\n");
+		doutc(cl, "(analn-blocking)\n");
 		ceph_flush_dirty_caps(fsc->mdsc);
-		doutc(cl, "(non-blocking) done\n");
+		doutc(cl, "(analn-blocking) done\n");
 		return 0;
 	}
 
@@ -162,7 +162,7 @@ enum {
 	Opt_rbytes,
 	Opt_asyncreaddir,
 	Opt_dcache,
-	Opt_ino32,
+	Opt_ianal32,
 	Opt_fscache,
 	Opt_poolperm,
 	Opt_require_active_mds,
@@ -175,48 +175,48 @@ enum {
 };
 
 enum ceph_recover_session_mode {
-	ceph_recover_session_no,
+	ceph_recover_session_anal,
 	ceph_recover_session_clean
 };
 
 static const struct constant_table ceph_param_recover[] = {
-	{ "no",		ceph_recover_session_no },
+	{ "anal",		ceph_recover_session_anal },
 	{ "clean",	ceph_recover_session_clean },
 	{}
 };
 
 static const struct fs_parameter_spec ceph_mount_parameters[] = {
-	fsparam_flag_no ("acl",				Opt_acl),
-	fsparam_flag_no ("asyncreaddir",		Opt_asyncreaddir),
+	fsparam_flag_anal ("acl",				Opt_acl),
+	fsparam_flag_anal ("asyncreaddir",		Opt_asyncreaddir),
 	fsparam_s32	("caps_max",			Opt_caps_max),
 	fsparam_u32	("caps_wanted_delay_max",	Opt_caps_wanted_delay_max),
 	fsparam_u32	("caps_wanted_delay_min",	Opt_caps_wanted_delay_min),
 	fsparam_u32	("write_congestion_kb",		Opt_congestion_kb),
-	fsparam_flag_no ("copyfrom",			Opt_copyfrom),
-	fsparam_flag_no ("dcache",			Opt_dcache),
-	fsparam_flag_no ("dirstat",			Opt_dirstat),
-	fsparam_flag_no	("fsc",				Opt_fscache), // fsc|nofsc
+	fsparam_flag_anal ("copyfrom",			Opt_copyfrom),
+	fsparam_flag_anal ("dcache",			Opt_dcache),
+	fsparam_flag_anal ("dirstat",			Opt_dirstat),
+	fsparam_flag_anal	("fsc",				Opt_fscache), // fsc|analfsc
 	fsparam_string	("fsc",				Opt_fscache), // fsc=...
-	fsparam_flag_no ("ino32",			Opt_ino32),
+	fsparam_flag_anal ("ianal32",			Opt_ianal32),
 	fsparam_string	("mds_namespace",		Opt_mds_namespace),
 	fsparam_string	("mon_addr",			Opt_mon_addr),
-	fsparam_flag_no ("poolperm",			Opt_poolperm),
-	fsparam_flag_no ("quotadf",			Opt_quotadf),
+	fsparam_flag_anal ("poolperm",			Opt_poolperm),
+	fsparam_flag_anal ("quotadf",			Opt_quotadf),
 	fsparam_u32	("rasize",			Opt_rasize),
-	fsparam_flag_no ("rbytes",			Opt_rbytes),
+	fsparam_flag_anal ("rbytes",			Opt_rbytes),
 	fsparam_u32	("readdir_max_bytes",		Opt_readdir_max_bytes),
 	fsparam_u32	("readdir_max_entries",		Opt_readdir_max_entries),
 	fsparam_enum	("recover_session",		Opt_recover_session, ceph_param_recover),
-	fsparam_flag_no ("require_active_mds",		Opt_require_active_mds),
+	fsparam_flag_anal ("require_active_mds",		Opt_require_active_mds),
 	fsparam_u32	("rsize",			Opt_rsize),
 	fsparam_string	("snapdirname",			Opt_snapdirname),
 	fsparam_string	("source",			Opt_source),
 	fsparam_flag	("test_dummy_encryption",	Opt_test_dummy_encryption),
 	fsparam_string	("test_dummy_encryption",	Opt_test_dummy_encryption),
 	fsparam_u32	("wsize",			Opt_wsize),
-	fsparam_flag_no	("wsync",			Opt_wsync),
-	fsparam_flag_no	("pagecache",			Opt_pagecache),
-	fsparam_flag_no	("sparseread",			Opt_sparseread),
+	fsparam_flag_anal	("wsync",			Opt_wsync),
+	fsparam_flag_anal	("pagecache",			Opt_pagecache),
+	fsparam_flag_anal	("sparseread",			Opt_sparseread),
 	{}
 };
 
@@ -231,7 +231,7 @@ struct ceph_parse_opts_ctx {
  *
  * E.g. "//dir1////dir2///" --> "/dir1/dir2", "///" --> "/".
  */
-static void canonicalize_path(char *path)
+static void caanalnicalize_path(char *path)
 {
 	int i, j = 0;
 
@@ -312,7 +312,7 @@ static int ceph_parse_new_source(const char *dev_name, const char *dev_name_end,
 	kfree(fsopt->mds_namespace);
 	fsopt->mds_namespace = kstrndup(fs_name_start, len, GFP_KERNEL);
 	if (!fsopt->mds_namespace)
-		return -ENOMEM;
+		return -EANALMEM;
 	dout("file system (mds namespace) '%s'\n", fsopt->mds_namespace);
 
 	fsopt->new_dev_syntax = true;
@@ -357,9 +357,9 @@ static int ceph_parse_source(struct fs_parameter *param, struct fs_context *fc)
 		kfree(fsopt->server_path);
 		fsopt->server_path = kstrdup(dev_name_end, GFP_KERNEL);
 		if (!fsopt->server_path)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		canonicalize_path(fsopt->server_path);
+		caanalnicalize_path(fsopt->server_path);
 	} else {
 		dev_name_end = dev_name + strlen(dev_name);
 	}
@@ -412,7 +412,7 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 	int token, ret;
 
 	ret = ceph_parse_param(param, pctx->copts, fc->log.log);
-	if (ret != -ENOPARAM)
+	if (ret != -EANALPARAM)
 		return ret;
 
 	token = fs_parse(fc, ceph_mount_parameters, param, &result);
@@ -435,7 +435,7 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 		break;
 	case Opt_recover_session:
 		mode = result.uint_32;
-		if (mode == ceph_recover_session_no)
+		if (mode == ceph_recover_session_anal)
 			fsopt->flags &= ~CEPH_MOUNT_OPT_CLEANRECOVER;
 		else if (mode == ceph_recover_session_clean)
 			fsopt->flags |= CEPH_MOUNT_OPT_CLEANRECOVER;
@@ -507,9 +507,9 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 		break;
 	case Opt_asyncreaddir:
 		if (!result.negated)
-			fsopt->flags &= ~CEPH_MOUNT_OPT_NOASYNCREADDIR;
+			fsopt->flags &= ~CEPH_MOUNT_OPT_ANALASYNCREADDIR;
 		else
-			fsopt->flags |= CEPH_MOUNT_OPT_NOASYNCREADDIR;
+			fsopt->flags |= CEPH_MOUNT_OPT_ANALASYNCREADDIR;
 		break;
 	case Opt_dcache:
 		if (!result.negated)
@@ -517,11 +517,11 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 		else
 			fsopt->flags &= ~CEPH_MOUNT_OPT_DCACHE;
 		break;
-	case Opt_ino32:
+	case Opt_ianal32:
 		if (!result.negated)
-			fsopt->flags |= CEPH_MOUNT_OPT_INO32;
+			fsopt->flags |= CEPH_MOUNT_OPT_IANAL32;
 		else
-			fsopt->flags &= ~CEPH_MOUNT_OPT_INO32;
+			fsopt->flags &= ~CEPH_MOUNT_OPT_IANAL32;
 		break;
 
 	case Opt_fscache:
@@ -541,9 +541,9 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 #endif
 	case Opt_poolperm:
 		if (!result.negated)
-			fsopt->flags &= ~CEPH_MOUNT_OPT_NOPOOLPERM;
+			fsopt->flags &= ~CEPH_MOUNT_OPT_ANALPOOLPERM;
 		else
-			fsopt->flags |= CEPH_MOUNT_OPT_NOPOOLPERM;
+			fsopt->flags |= CEPH_MOUNT_OPT_ANALPOOLPERM;
 		break;
 	case Opt_require_active_mds:
 		if (!result.negated)
@@ -553,15 +553,15 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 		break;
 	case Opt_quotadf:
 		if (!result.negated)
-			fsopt->flags &= ~CEPH_MOUNT_OPT_NOQUOTADF;
+			fsopt->flags &= ~CEPH_MOUNT_OPT_ANALQUOTADF;
 		else
-			fsopt->flags |= CEPH_MOUNT_OPT_NOQUOTADF;
+			fsopt->flags |= CEPH_MOUNT_OPT_ANALQUOTADF;
 		break;
 	case Opt_copyfrom:
 		if (!result.negated)
-			fsopt->flags &= ~CEPH_MOUNT_OPT_NOCOPYFROM;
+			fsopt->flags &= ~CEPH_MOUNT_OPT_ANALCOPYFROM;
 		else
-			fsopt->flags |= CEPH_MOUNT_OPT_NOCOPYFROM;
+			fsopt->flags |= CEPH_MOUNT_OPT_ANALCOPYFROM;
 		break;
 	case Opt_acl:
 		if (!result.negated) {
@@ -582,9 +582,9 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 		break;
 	case Opt_pagecache:
 		if (result.negated)
-			fsopt->flags |= CEPH_MOUNT_OPT_NOPAGECACHE;
+			fsopt->flags |= CEPH_MOUNT_OPT_ANALPAGECACHE;
 		else
-			fsopt->flags &= ~CEPH_MOUNT_OPT_NOPAGECACHE;
+			fsopt->flags &= ~CEPH_MOUNT_OPT_ANALPAGECACHE;
 		break;
 	case Opt_sparseread:
 		if (result.negated)
@@ -606,7 +606,7 @@ static int ceph_parse_mount_param(struct fs_context *fc,
 		}
 #else
 		warnfc(fc,
-		       "FS encryption not supported: test_dummy_encryption mount option ignored");
+		       "FS encryption analt supported: test_dummy_encryption mount option iganalred");
 #endif
 		break;
 	default:
@@ -700,7 +700,7 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 	if (ret)
 		return ret;
 
-	/* retract our comma if no client options */
+	/* retract our comma if anal client options */
 	if (m->count == pos)
 		m->count--;
 
@@ -708,28 +708,28 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",dirstat");
 	if ((fsopt->flags & CEPH_MOUNT_OPT_RBYTES))
 		seq_puts(m, ",rbytes");
-	if (fsopt->flags & CEPH_MOUNT_OPT_NOASYNCREADDIR)
-		seq_puts(m, ",noasyncreaddir");
+	if (fsopt->flags & CEPH_MOUNT_OPT_ANALASYNCREADDIR)
+		seq_puts(m, ",analasyncreaddir");
 	if ((fsopt->flags & CEPH_MOUNT_OPT_DCACHE) == 0)
-		seq_puts(m, ",nodcache");
-	if (fsopt->flags & CEPH_MOUNT_OPT_INO32)
-		seq_puts(m, ",ino32");
+		seq_puts(m, ",analdcache");
+	if (fsopt->flags & CEPH_MOUNT_OPT_IANAL32)
+		seq_puts(m, ",ianal32");
 	if (fsopt->flags & CEPH_MOUNT_OPT_FSCACHE) {
 		seq_show_option(m, "fsc", fsopt->fscache_uniq);
 	}
-	if (fsopt->flags & CEPH_MOUNT_OPT_NOPOOLPERM)
-		seq_puts(m, ",nopoolperm");
-	if (fsopt->flags & CEPH_MOUNT_OPT_NOQUOTADF)
-		seq_puts(m, ",noquotadf");
+	if (fsopt->flags & CEPH_MOUNT_OPT_ANALPOOLPERM)
+		seq_puts(m, ",analpoolperm");
+	if (fsopt->flags & CEPH_MOUNT_OPT_ANALQUOTADF)
+		seq_puts(m, ",analquotadf");
 
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	if (root->d_sb->s_flags & SB_POSIXACL)
 		seq_puts(m, ",acl");
 	else
-		seq_puts(m, ",noacl");
+		seq_puts(m, ",analacl");
 #endif
 
-	if ((fsopt->flags & CEPH_MOUNT_OPT_NOCOPYFROM) == 0)
+	if ((fsopt->flags & CEPH_MOUNT_OPT_ANALCOPYFROM) == 0)
 		seq_puts(m, ",copyfrom");
 
 	/* dump mds_namespace when old device syntax is in use */
@@ -744,8 +744,8 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 
 	if (!(fsopt->flags & CEPH_MOUNT_OPT_ASYNC_DIROPS))
 		seq_puts(m, ",wsync");
-	if (fsopt->flags & CEPH_MOUNT_OPT_NOPAGECACHE)
-		seq_puts(m, ",nopagecache");
+	if (fsopt->flags & CEPH_MOUNT_OPT_ANALPAGECACHE)
+		seq_puts(m, ",analpagecache");
 	if (fsopt->flags & CEPH_MOUNT_OPT_SPARSEREAD)
 		seq_puts(m, ",sparseread");
 
@@ -801,7 +801,7 @@ static int extra_mon_dispatch(struct ceph_client *client, struct ceph_msg *msg)
 /*
  * create a new fs client
  *
- * Success or not, this function consumes @fsopt and @opt.
+ * Success or analt, this function consumes @fsopt and @opt.
  */
 static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 					struct ceph_options *opt)
@@ -811,7 +811,7 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 
 	fsc = kzalloc(sizeof(*fsc), GFP_KERNEL);
 	if (!fsc) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail;
 	}
 
@@ -820,7 +820,7 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 		err = PTR_ERR(fsc->client);
 		goto fail;
 	}
-	opt = NULL; /* fsc->client now owns this */
+	opt = NULL; /* fsc->client analw owns this */
 
 	fsc->client->extra_mon_dispatch = extra_mon_dispatch;
 	ceph_set_opt(fsc->client, ABORT_ON_FULL);
@@ -843,17 +843,17 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 	atomic_long_set(&fsc->writeback_count, 0);
 	fsc->write_congested = false;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	/*
 	 * The number of concurrent works can be high but they don't need
 	 * to be processed in parallel, limit concurrency.
 	 */
-	fsc->inode_wq = alloc_workqueue("ceph-inode", WQ_UNBOUND, 0);
-	if (!fsc->inode_wq)
+	fsc->ianalde_wq = alloc_workqueue("ceph-ianalde", WQ_UNBOUND, 0);
+	if (!fsc->ianalde_wq)
 		goto fail_client;
 	fsc->cap_wq = alloc_workqueue("ceph-cap", 0, 1);
 	if (!fsc->cap_wq)
-		goto fail_inode_wq;
+		goto fail_ianalde_wq;
 
 	hash_init(fsc->async_unlink_conflict);
 	spin_lock_init(&fsc->async_unlink_conflict_lock);
@@ -864,8 +864,8 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 
 	return fsc;
 
-fail_inode_wq:
-	destroy_workqueue(fsc->inode_wq);
+fail_ianalde_wq:
+	destroy_workqueue(fsc->ianalde_wq);
 fail_client:
 	ceph_destroy_client(fsc->client);
 fail:
@@ -878,7 +878,7 @@ fail:
 
 static void flush_fs_workqueues(struct ceph_fs_client *fsc)
 {
-	flush_workqueue(fsc->inode_wq);
+	flush_workqueue(fsc->ianalde_wq);
 	flush_workqueue(fsc->cap_wq);
 }
 
@@ -891,7 +891,7 @@ static void destroy_fs_client(struct ceph_fs_client *fsc)
 	spin_unlock(&ceph_fsc_lock);
 
 	ceph_mdsc_destroy(fsc);
-	destroy_workqueue(fsc->inode_wq);
+	destroy_workqueue(fsc->ianalde_wq);
 	destroy_workqueue(fsc->cap_wq);
 
 	destroy_mount_options(fsc->mount_options);
@@ -905,7 +905,7 @@ static void destroy_fs_client(struct ceph_fs_client *fsc)
 /*
  * caches
  */
-struct kmem_cache *ceph_inode_cachep;
+struct kmem_cache *ceph_ianalde_cachep;
 struct kmem_cache *ceph_cap_cachep;
 struct kmem_cache *ceph_cap_snap_cachep;
 struct kmem_cache *ceph_cap_flush_cachep;
@@ -915,23 +915,23 @@ struct kmem_cache *ceph_dir_file_cachep;
 struct kmem_cache *ceph_mds_request_cachep;
 mempool_t *ceph_wb_pagevec_pool;
 
-static void ceph_inode_init_once(void *foo)
+static void ceph_ianalde_init_once(void *foo)
 {
-	struct ceph_inode_info *ci = foo;
-	inode_init_once(&ci->netfs.inode);
+	struct ceph_ianalde_info *ci = foo;
+	ianalde_init_once(&ci->netfs.ianalde);
 }
 
 static int __init init_caches(void)
 {
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
-	ceph_inode_cachep = kmem_cache_create("ceph_inode_info",
-				      sizeof(struct ceph_inode_info),
-				      __alignof__(struct ceph_inode_info),
+	ceph_ianalde_cachep = kmem_cache_create("ceph_ianalde_info",
+				      sizeof(struct ceph_ianalde_info),
+				      __aliganalf__(struct ceph_ianalde_info),
 				      SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
-				      SLAB_ACCOUNT, ceph_inode_init_once);
-	if (!ceph_inode_cachep)
-		return -ENOMEM;
+				      SLAB_ACCOUNT, ceph_ianalde_init_once);
+	if (!ceph_ianalde_cachep)
+		return -EANALMEM;
 
 	ceph_cap_cachep = KMEM_CACHE(ceph_cap, SLAB_MEM_SPREAD);
 	if (!ceph_cap_cachep)
@@ -982,19 +982,19 @@ bad_cap_flush:
 bad_cap_snap:
 	kmem_cache_destroy(ceph_cap_cachep);
 bad_cap:
-	kmem_cache_destroy(ceph_inode_cachep);
+	kmem_cache_destroy(ceph_ianalde_cachep);
 	return error;
 }
 
 static void destroy_caches(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
 
-	kmem_cache_destroy(ceph_inode_cachep);
+	kmem_cache_destroy(ceph_ianalde_cachep);
 	kmem_cache_destroy(ceph_cap_cachep);
 	kmem_cache_destroy(ceph_cap_snap_cachep);
 	kmem_cache_destroy(ceph_cap_flush_cachep);
@@ -1028,11 +1028,11 @@ void ceph_umount_begin(struct super_block *sb)
 }
 
 static const struct super_operations ceph_super_ops = {
-	.alloc_inode	= ceph_alloc_inode,
-	.free_inode	= ceph_free_inode,
-	.write_inode    = ceph_write_inode,
-	.drop_inode	= generic_delete_inode,
-	.evict_inode	= ceph_evict_inode,
+	.alloc_ianalde	= ceph_alloc_ianalde,
+	.free_ianalde	= ceph_free_ianalde,
+	.write_ianalde    = ceph_write_ianalde,
+	.drop_ianalde	= generic_delete_ianalde,
+	.evict_ianalde	= ceph_evict_ianalde,
 	.sync_fs        = ceph_sync_fs,
 	.put_super	= ceph_put_super,
 	.show_options   = ceph_show_options,
@@ -1041,7 +1041,7 @@ static const struct super_operations ceph_super_ops = {
 };
 
 /*
- * Bootstrap mount by opening the root directory.  Note the mount
+ * Bootstrap mount by opening the root directory.  Analte the mount
  * @started time from caller, and time out if this takes too long.
  */
 static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
@@ -1059,26 +1059,26 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, USE_ANY_MDS);
 	if (IS_ERR(req))
 		return ERR_CAST(req);
-	req->r_path1 = kstrdup(path, GFP_NOFS);
+	req->r_path1 = kstrdup(path, GFP_ANALFS);
 	if (!req->r_path1) {
-		root = ERR_PTR(-ENOMEM);
+		root = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
-	req->r_ino1.ino = CEPH_INO_ROOT;
-	req->r_ino1.snap = CEPH_NOSNAP;
+	req->r_ianal1.ianal = CEPH_IANAL_ROOT;
+	req->r_ianal1.snap = CEPH_ANALSNAP;
 	req->r_started = started;
 	req->r_timeout = fsc->client->options->mount_timeout;
-	req->r_args.getattr.mask = cpu_to_le32(CEPH_STAT_CAP_INODE);
+	req->r_args.getattr.mask = cpu_to_le32(CEPH_STAT_CAP_IANALDE);
 	req->r_num_caps = 2;
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
 	if (err == 0) {
-		struct inode *inode = req->r_target_inode;
-		req->r_target_inode = NULL;
+		struct ianalde *ianalde = req->r_target_ianalde;
+		req->r_target_ianalde = NULL;
 		doutc(cl, "success\n");
-		root = d_make_root(inode);
+		root = d_make_root(ianalde);
 		if (!root) {
-			root = ERR_PTR(-ENOMEM);
+			root = ERR_PTR(-EANALMEM);
 			goto out;
 		}
 		doutc(cl, "success, root dentry is %p\n", root);
@@ -1100,7 +1100,7 @@ static int ceph_apply_test_dummy_encryption(struct super_block *sb,
 	if (!fscrypt_is_dummy_policy_set(&fsopt->dummy_enc_policy))
 		return 0;
 
-	/* No changing encryption context on remount. */
+	/* Anal changing encryption context on remount. */
 	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE &&
 	    !fscrypt_is_dummy_policy_set(&fsc->fsc_dummy_enc_policy)) {
 		if (fscrypt_dummy_policies_equal(&fsopt->dummy_enc_policy,
@@ -1142,7 +1142,7 @@ static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc,
 {
 	struct ceph_client *cl = fsc->client;
 	int err;
-	unsigned long started = jiffies;  /* note the start time */
+	unsigned long started = jiffies;  /* analte the start time */
 	struct dentry *root;
 
 	doutc(cl, "mount start %p\n", fsc);
@@ -1214,11 +1214,11 @@ static int ceph_set_super(struct super_block *s, struct fs_context *fc)
 	s->s_time_gran = 1;
 	s->s_time_min = 0;
 	s->s_time_max = U32_MAX;
-	s->s_flags |= SB_NODIRATIME | SB_NOATIME;
+	s->s_flags |= SB_ANALDIRATIME | SB_ANALATIME;
 
 	ceph_fscrypt_set_ops(s);
 
-	ret = set_anon_super_fc(s, fc);
+	ret = set_aanaln_super_fc(s, fc);
 	if (ret != 0)
 		fsc->sb = NULL;
 	return ret;
@@ -1252,7 +1252,7 @@ static int ceph_compare_super(struct super_block *sb, struct fs_context *fc)
 	}
 
 	if (fsc->blocklisted && !ceph_test_mount_opt(fsc, CLEANRECOVER)) {
-		doutc(cl, "client is blocklisted (and CLEANRECOVER is not set)\n");
+		doutc(cl, "client is blocklisted (and CLEANRECOVER is analt set)\n");
 		return 0;
 	}
 
@@ -1301,11 +1301,11 @@ static int ceph_get_tree(struct fs_context *fc)
 	dout("ceph_get_tree\n");
 
 	if (!fc->source)
-		return invalfc(fc, "No source");
+		return invalfc(fc, "Anal source");
 	if (fsopt->new_dev_syntax && !fsopt->mon_addr)
-		return invalfc(fc, "No monitor address");
+		return invalfc(fc, "Anal monitor address");
 
-	/* create client (which we may/may not use) */
+	/* create client (which we may/may analt use) */
 	fsc = create_fs_client(pctx->opts, pctx->copts);
 	pctx->opts = NULL;
 	pctx->copts = NULL;
@@ -1318,7 +1318,7 @@ static int ceph_get_tree(struct fs_context *fc)
 	if (err < 0)
 		goto out;
 
-	if (ceph_test_opt(fsc->client, NOSHARE))
+	if (ceph_test_opt(fsc->client, ANALSHARE))
 		compare_super = NULL;
 
 	fc->s_fs_info = fsc;
@@ -1346,14 +1346,14 @@ static int ceph_get_tree(struct fs_context *fc)
 		goto out_splat;
 	}
 
-	doutc(fsc->client, "root %p inode %p ino %llx.%llx\n", res,
-		    d_inode(res), ceph_vinop(d_inode(res)));
+	doutc(fsc->client, "root %p ianalde %p ianal %llx.%llx\n", res,
+		    d_ianalde(res), ceph_vianalp(d_ianalde(res)));
 	fc->root = fsc->sb->s_root;
 	return 0;
 
 out_splat:
 	if (!ceph_mdsmap_is_cluster_available(fsc->mdsc->mdsmap)) {
-		pr_info("No mds server is up or the cluster is laggy\n");
+		pr_info("Anal mds server is up or the cluster is laggy\n");
 		err = -EHOSTUNREACH;
 	}
 
@@ -1405,8 +1405,8 @@ static int ceph_reconfigure_fc(struct fs_context *fc)
 		kfree(fsc->mount_options->mon_addr);
 		fsc->mount_options->mon_addr = fsopt->mon_addr;
 		fsopt->mon_addr = NULL;
-		pr_notice_client(fsc->client,
-			"monitor addresses recorded, but not used for reconnection");
+		pr_analtice_client(fsc->client,
+			"monitor addresses recorded, but analt used for reconnection");
 	}
 
 	sync_filesystem(sb);
@@ -1430,15 +1430,15 @@ static int ceph_init_fs_context(struct fs_context *fc)
 
 	pctx = kzalloc(sizeof(*pctx), GFP_KERNEL);
 	if (!pctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctx->copts = ceph_alloc_options();
 	if (!pctx->copts)
-		goto nomem;
+		goto analmem;
 
 	pctx->opts = kzalloc(sizeof(*pctx->opts), GFP_KERNEL);
 	if (!pctx->opts)
-		goto nomem;
+		goto analmem;
 
 	fsopt = pctx->opts;
 	fsopt->flags = CEPH_MOUNT_OPT_DEFAULT;
@@ -1448,7 +1448,7 @@ static int ceph_init_fs_context(struct fs_context *fc)
 	fsopt->rasize = CEPH_RASIZE_DEFAULT;
 	fsopt->snapdir_name = kstrdup(CEPH_SNAPDIRNAME_DEFAULT, GFP_KERNEL);
 	if (!fsopt->snapdir_name)
-		goto nomem;
+		goto analmem;
 
 	fsopt->caps_wanted_delay_min = CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT;
 	fsopt->caps_wanted_delay_max = CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT;
@@ -1464,11 +1464,11 @@ static int ceph_init_fs_context(struct fs_context *fc)
 	fc->ops = &ceph_context_ops;
 	return 0;
 
-nomem:
+analmem:
 	destroy_mount_options(pctx->opts);
 	ceph_destroy_options(pctx->copts);
 	kfree(pctx);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -1536,18 +1536,18 @@ static void ceph_kill_sb(struct super_block *s)
 	flush_fs_workqueues(fsc);
 
 	/*
-	 * Though the kill_anon_super() will finally trigger the
+	 * Though the kill_aanaln_super() will finally trigger the
 	 * sync_filesystem() anyway, we still need to do it here and
 	 * then bump the stage of shutdown. This will allow us to
-	 * drop any further message, which will increase the inodes'
-	 * i_count reference counters but makes no sense any more,
+	 * drop any further message, which will increase the ianaldes'
+	 * i_count reference counters but makes anal sense any more,
 	 * from MDSs.
 	 *
-	 * Without this when evicting the inodes it may fail in the
-	 * kill_anon_super(), which will trigger a warning when
+	 * Without this when evicting the ianaldes it may fail in the
+	 * kill_aanaln_super(), which will trigger a warning when
 	 * destroying the fscrypt keyring and then possibly trigger
 	 * a further crash in ceph module when the iput() tries to
-	 * evict the inodes later.
+	 * evict the ianaldes later.
 	 */
 	sync_filesystem(s);
 
@@ -1567,7 +1567,7 @@ static void ceph_kill_sb(struct super_block *s)
 	}
 
 	mdsc->stopping = CEPH_MDSC_STOPPING_FLUSHED;
-	kill_anon_super(s);
+	kill_aanaln_super(s);
 
 	fsc->client->extra_mon_dispatch = NULL;
 	ceph_fs_debugfs_cleanup(fsc);
@@ -1596,7 +1596,7 @@ int ceph_force_reconnect(struct super_block *sb)
 
 	/* Make sure all page caches get invalidated.
 	 * see remove_session_caps_cb() */
-	flush_workqueue(fsc->inode_wq);
+	flush_workqueue(fsc->ianalde_wq);
 
 	/* In case that we were blocklisted. This also reset
 	 * all mon/osd connections */
@@ -1608,8 +1608,8 @@ int ceph_force_reconnect(struct super_block *sb)
 	fsc->mount_state = CEPH_MOUNT_MOUNTED;
 
 	if (sb->s_root) {
-		err = __ceph_do_getattr(d_inode(sb->s_root), NULL,
-					CEPH_STAT_CAP_INODE, true);
+		err = __ceph_do_getattr(d_ianalde(sb->s_root), NULL,
+					CEPH_STAT_CAP_IANALDE, true);
 	}
 	return err;
 }

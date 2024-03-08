@@ -53,7 +53,7 @@ int intel_start_bus(struct sdw_intel *sdw)
 
 	ret = sdw_cdns_enable_interrupt(cdns, true);
 	if (ret < 0) {
-		dev_err(dev, "%s: cannot enable interrupts: %d\n", __func__, ret);
+		dev_err(dev, "%s: cananalt enable interrupts: %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -77,7 +77,7 @@ int intel_start_bus_after_reset(struct sdw_intel *sdw)
 	 * case if one or more masters remain active. In this condition,
 	 * all the masters are powered on for they are in the same power
 	 * domain. Master can preserve its context for clock stop0, so
-	 * there is no need to clear slave status and reset bus.
+	 * there is anal need to clear slave status and reset bus.
 	 */
 	clock_stop0 = sdw_cdns_is_clock_stop(&sdw->cdns);
 
@@ -106,7 +106,7 @@ int intel_start_bus_after_reset(struct sdw_intel *sdw)
 	} else {
 		ret = sdw_cdns_enable_interrupt(cdns, true);
 		if (ret < 0) {
-			dev_err(dev, "cannot enable interrupts during resume\n");
+			dev_err(dev, "cananalt enable interrupts during resume\n");
 			return ret;
 		}
 	}
@@ -144,7 +144,7 @@ int intel_start_bus_after_reset(struct sdw_intel *sdw)
 
 		ret = sdw_cdns_enable_interrupt(cdns, true);
 		if (ret < 0) {
-			dev_err(dev, "cannot enable interrupts during resume\n");
+			dev_err(dev, "cananalt enable interrupts during resume\n");
 			return ret;
 		}
 
@@ -161,7 +161,7 @@ void intel_check_clock_stop(struct sdw_intel *sdw)
 
 	clock_stop0 = sdw_cdns_is_clock_stop(&sdw->cdns);
 	if (!clock_stop0)
-		dev_err(dev, "%s: invalid configuration, clock was not stopped\n", __func__);
+		dev_err(dev, "%s: invalid configuration, clock was analt stopped\n", __func__);
 }
 
 int intel_start_bus_after_clock_stop(struct sdw_intel *sdw)
@@ -178,7 +178,7 @@ int intel_start_bus_after_clock_stop(struct sdw_intel *sdw)
 
 	ret = sdw_cdns_enable_interrupt(cdns, true);
 	if (ret < 0) {
-		dev_err(dev, "%s: cannot enable interrupts: %d\n", __func__, ret);
+		dev_err(dev, "%s: cananalt enable interrupts: %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -197,14 +197,14 @@ int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
 	if (clock_stop) {
 		ret = sdw_cdns_clock_stop(cdns, true);
 		if (ret < 0)
-			dev_err(dev, "%s: cannot stop clock: %d\n", __func__, ret);
+			dev_err(dev, "%s: cananalt stop clock: %d\n", __func__, ret);
 		else
 			wake_enable = true;
 	}
 
 	ret = sdw_cdns_enable_interrupt(cdns, false);
 	if (ret < 0) {
-		dev_err(dev, "%s: cannot disable interrupts: %d\n", __func__, ret);
+		dev_err(dev, "%s: cananalt disable interrupts: %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -253,7 +253,7 @@ int intel_post_bank_switch(struct sdw_intel *sdw)
 	 * post_bank_switch() ops is called from the bus in loop for
 	 * all the Masters in the steam with the expectation that
 	 * we trigger the bankswitch for the only first Master in the list
-	 * and do nothing for the other Masters
+	 * and do analthing for the other Masters
 	 *
 	 * So, set the SYNCGO bit only if CMDSYNC bit is set for any Master.
 	 */

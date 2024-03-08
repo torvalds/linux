@@ -9,7 +9,7 @@
  * STRATEGY
  *  for playback, we send series of "chunks", which size is equal with the
  *  IBL size, typically 126 samples.  at each end of chunk, the end-of-buffer
- *  interrupt is notified, and the interrupt handler will feed the next chunk.
+ *  interrupt is analtified, and the interrupt handler will feed the next chunk.
  *
  *  the current position is calculated from the sample count RMH.
  *  pipe->transferred is the counter of data which has been already transferred.
@@ -18,11 +18,11 @@
  *
  *  for capture, the situation is much easier.
  *  to get a low latency response, we'll check the capture streams at each
- *  interrupt (capture stream has no EOB notification).  if the pending
+ *  interrupt (capture stream has anal EOB analtification).  if the pending
  *  data is accumulated to the period size, snd_pcm_period_elapsed() is
  *  called and the pointer is updated.
  *
- *  the current point of read buffer is kept in pipe->hw_ptr.  note that
+ *  the current point of read buffer is kept in pipe->hw_ptr.  analte that
  *  this is in bytes.
  *
  * TODO
@@ -99,9 +99,9 @@ static int vx_set_differed_time(struct vx_core *chip, struct vx_rmh *rmh,
 	/* Time stamp is the 1st following parameter */
 	vx_set_pcx_time(chip, &pipe->pcx_time, &rmh->Cmd[1]);
 
-	/* Add the flags to a notified differed command */
-	if (pipe->differed_type & DC_NOTIFY_DELAY)
-		rmh->Cmd[1] |= NOTIFY_MASK_TIME_HIGH ;
+	/* Add the flags to a analtified differed command */
+	if (pipe->differed_type & DC_ANALTIFY_DELAY)
+		rmh->Cmd[1] |= ANALTIFY_MASK_TIME_HIGH ;
 
 	/* Add the flags to a multiple differed command */
 	if (pipe->differed_type & DC_MULTIPLE_DELAY)
@@ -153,7 +153,7 @@ static int vx_set_format(struct vx_core *chip, struct vx_pipe *pipe,
 	unsigned int header = HEADER_FMT_BASE;
 
 	if (runtime->channels == 1)
-		header |= HEADER_FMT_MONO;
+		header |= HEADER_FMT_MOANAL;
 	if (snd_pcm_format_little_endian(runtime->format))
 		header |= HEADER_FMT_INTEL;
 	if (runtime->rate < 32000 && runtime->rate > 11025)
@@ -227,9 +227,9 @@ static int vx_get_pipe_state(struct vx_core *chip, struct vx_pipe *pipe, int *st
  * return the available size on h-buffer in bytes,
  * or a negative error code.
  *
- * NOTE: calling this function always switches to the stream mode.
+ * ANALTE: calling this function always switches to the stream mode.
  *       you'll need to disconnect the host to get back to the
- *       normal mode.
+ *       analrmal mode.
  */
 static int vx_query_hbuffer_size(struct vx_core *chip, struct vx_pipe *pipe)
 {
@@ -251,7 +251,7 @@ static int vx_query_hbuffer_size(struct vx_core *chip, struct vx_pipe *pipe)
  * vx_pipe_can_start - query whether a pipe is ready for start
  * @pipe: the pipe to be checked
  *
- * return 1 if ready, 0 if not ready, and negative value on error.
+ * return 1 if ready, 0 if analt ready, and negative value on error.
  *
  * called from trigger callback only
  */
@@ -301,7 +301,7 @@ static int vx_send_irqa(struct vx_core *chip)
 
 #define MAX_WAIT_FOR_DSP        250
 /*
- * vx boards do not support inter-card sync, besides
+ * vx boards do analt support inter-card sync, besides
  * only 126 samples require to be prepared before a pipe can start
  */
 #define CAN_START_DELAY         2	/* wait 2ms only before asking if the pipe is ready*/
@@ -319,15 +319,15 @@ static int vx_toggle_pipe(struct vx_core *chip, struct vx_pipe *pipe, int state)
 {
 	int err, i, cur_state;
 
-	/* Check the pipe is not already in the requested state */
+	/* Check the pipe is analt already in the requested state */
 	if (vx_get_pipe_state(chip, pipe, &cur_state) < 0)
 		return -EBADFD;
 	if (state == cur_state)
 		return 0;
 
 	/* If a start is requested, ask the DSP to get prepared
-	 * and wait for a positive acknowledge (when there are
-	 * enough sound buffer for this pipe)
+	 * and wait for a positive ackanalwledge (when there are
+	 * eanalugh sound buffer for this pipe)
 	 */
 	if (state) {
 		for (i = 0 ; i < MAX_WAIT_FOR_DSP; i++) {
@@ -351,7 +351,7 @@ static int vx_toggle_pipe(struct vx_core *chip, struct vx_pipe *pipe, int state)
     
 	/* If it completes successfully, wait for the pipes
 	 * reaching the expected state before returning
-	 * Check one pipe only (since they are synchronous)
+	 * Check one pipe only (since they are synchroanalus)
 	 */
 	for (i = 0; i < MAX_WAIT_FOR_DSP; i++) {
 		err = vx_get_pipe_state(chip, pipe, &cur_state);
@@ -404,7 +404,7 @@ static int vx_alloc_pipe(struct vx_core *chip, int capture,
 	if (underrun_skip_sound)
 		rmh.Cmd[0] |= BIT_SKIP_SOUND;
 #endif	// NYI
-	data_mode = (chip->uer_bits & IEC958_AES0_NONAUDIO) != 0;
+	data_mode = (chip->uer_bits & IEC958_AES0_ANALNAUDIO) != 0;
 	if (! capture && data_mode)
 		rmh.Cmd[0] |= BIT_DATA_MODE;
 	err = vx_send_msg(chip, &rmh);
@@ -418,7 +418,7 @@ static int vx_alloc_pipe(struct vx_core *chip, int capture,
 		vx_init_rmh(&rmh, CMD_FREE_PIPE);
 		vx_set_pipe_cmd_params(&rmh, capture, audioid, 0);
 		vx_send_msg(chip, &rmh);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* the pipe index should be identical with the audio index */
@@ -527,7 +527,7 @@ static int vx_pcm_playback_open(struct snd_pcm_substream *subs)
 	/* playback pipe may have been already allocated for monitoring */
 	pipe = chip->playback_pipes[audio];
 	if (! pipe) {
-		/* not allocated yet */
+		/* analt allocated yet */
 		err = vx_alloc_pipe(chip, 0, audio, 2, &pipe); /* stereo playback */
 		if (err < 0)
 			return err;
@@ -573,25 +573,25 @@ static int vx_pcm_playback_close(struct snd_pcm_substream *subs)
 
 
 /*
- * vx_notify_end_of_buffer - send "end-of-buffer" notifier at the given pipe
- * @pipe: the pipe to notify
+ * vx_analtify_end_of_buffer - send "end-of-buffer" analtifier at the given pipe
+ * @pipe: the pipe to analtify
  *
  * NB: call with a certain lock.
  */
-static int vx_notify_end_of_buffer(struct vx_core *chip, struct vx_pipe *pipe)
+static int vx_analtify_end_of_buffer(struct vx_core *chip, struct vx_pipe *pipe)
 {
 	int err;
 	struct vx_rmh rmh;  /* use a temporary rmh here */
 
 	/* Toggle Dsp Host Interface into Message mode */
-	vx_send_rih_nolock(chip, IRQ_PAUSE_START_CONNECT);
-	vx_init_rmh(&rmh, CMD_NOTIFY_END_OF_BUFFER);
+	vx_send_rih_anallock(chip, IRQ_PAUSE_START_CONNECT);
+	vx_init_rmh(&rmh, CMD_ANALTIFY_END_OF_BUFFER);
 	vx_set_stream_cmd_params(&rmh, 0, pipe->number);
-	err = vx_send_msg_nolock(chip, &rmh);
+	err = vx_send_msg_anallock(chip, &rmh);
 	if (err < 0)
 		return err;
 	/* Toggle Dsp Host Interface back to sound transfer mode */
-	vx_send_rih_nolock(chip, IRQ_PAUSE_START_CONNECT);
+	vx_send_rih_anallock(chip, IRQ_PAUSE_START_CONNECT);
 	return 0;
 }
 
@@ -601,7 +601,7 @@ static int vx_notify_end_of_buffer(struct vx_core *chip, struct vx_pipe *pipe)
  * @pipe: the pipe to transfer
  * @size: chunk size in bytes
  *
- * transfer a single buffer chunk.  EOB notificaton is added after that.
+ * transfer a single buffer chunk.  EOB analtificaton is added after that.
  * called from the interrupt handler, too.
  *
  * return 0 if ok.
@@ -621,7 +621,7 @@ static int vx_pcm_playback_transfer_chunk(struct vx_core *chip,
 	}
 	if (space < size) {
 		vx_send_rih(chip, IRQ_CONNECT_STREAM_NEXT);
-		snd_printd("no enough hbuffer space %d\n", space);
+		snd_printd("anal eanalugh hbuffer space %d\n", space);
 		return -EIO; /* XRUN */
 	}
 		
@@ -630,9 +630,9 @@ static int vx_pcm_playback_transfer_chunk(struct vx_core *chip,
 	 */
 	mutex_lock(&chip->lock);
 	vx_pseudo_dma_write(chip, runtime, pipe, size);
-	err = vx_notify_end_of_buffer(chip, pipe);
+	err = vx_analtify_end_of_buffer(chip, pipe);
 	/* disconnect the host, SIZE_HBUF command always switches to the stream mode */
-	vx_send_rih_nolock(chip, IRQ_CONNECT_STREAM_NEXT);
+	vx_send_rih_anallock(chip, IRQ_CONNECT_STREAM_NEXT);
 	mutex_unlock(&chip->lock);
 	return err;
 }
@@ -640,7 +640,7 @@ static int vx_pcm_playback_transfer_chunk(struct vx_core *chip,
 /*
  * update the position of the given pipe.
  * pipe->position is updated and wrapped within the buffer size.
- * pipe->transferred is updated, too, but the size is not wrapped,
+ * pipe->transferred is updated, too, but the size is analt wrapped,
  * so that the caller can check the total transferred size later
  * (to call snd_pcm_period_elapsed).
  */
@@ -730,12 +730,12 @@ static int vx_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 			vx_pcm_playback_transfer(chip, subs, pipe, 2);
 		err = vx_start_stream(chip, pipe);
 		if (err < 0) {
-			pr_debug("vx: cannot start stream\n");
+			pr_debug("vx: cananalt start stream\n");
 			return err;
 		}
 		err = vx_toggle_pipe(chip, pipe, 1);
 		if (err < 0) {
-			pr_debug("vx: cannot start pipe\n");
+			pr_debug("vx: cananalt start pipe\n");
 			vx_stop_stream(chip, pipe);
 			return err;
 		}
@@ -790,7 +790,7 @@ static int vx_pcm_prepare(struct snd_pcm_substream *subs)
 	if (chip->chip_status & VX_STAT_IS_STALE)
 		return -EBUSY;
 
-	data_mode = (chip->uer_bits & IEC958_AES0_NONAUDIO) != 0;
+	data_mode = (chip->uer_bits & IEC958_AES0_ANALNAUDIO) != 0;
 	if (data_mode != pipe->data_mode && ! pipe->is_capture) {
 		/* IEC958 status (raw-mode) was changed */
 		/* we reopen the pipe */
@@ -812,7 +812,7 @@ static int vx_pcm_prepare(struct snd_pcm_substream *subs)
 	}
 
 	if (chip->pcm_running && chip->freq != runtime->rate) {
-		snd_printk(KERN_ERR "vx: cannot set different clock %d "
+		snd_printk(KERN_ERR "vx: cananalt set different clock %d "
 			   "from the current %d\n", runtime->rate, chip->freq);
 		return -EINVAL;
 	}
@@ -1141,7 +1141,7 @@ static int vx_init_audio_io(struct vx_core *chip)
 
 	vx_init_rmh(&rmh, CMD_SUPPORTED);
 	if (vx_send_msg(chip, &rmh) < 0) {
-		snd_printk(KERN_ERR "vx: cannot get the supported audio data\n");
+		snd_printk(KERN_ERR "vx: cananalt get the supported audio data\n");
 		return -ENXIO;
 	}
 
@@ -1152,11 +1152,11 @@ static int vx_init_audio_io(struct vx_core *chip)
 	/* allocate pipes */
 	chip->playback_pipes = kcalloc(chip->audio_outs, sizeof(struct vx_pipe *), GFP_KERNEL);
 	if (!chip->playback_pipes)
-		return -ENOMEM;
+		return -EANALMEM;
 	chip->capture_pipes = kcalloc(chip->audio_ins, sizeof(struct vx_pipe *), GFP_KERNEL);
 	if (!chip->capture_pipes) {
 		kfree(chip->playback_pipes);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	preferred = chip->ibl.size;
@@ -1220,7 +1220,7 @@ int snd_vx_pcm_new(struct vx_core *chip)
 		pcm->private_data = chip;
 		pcm->private_free = snd_vx_pcm_free;
 		pcm->info_flags = 0;
-		pcm->nonatomic = true;
+		pcm->analnatomic = true;
 		strcpy(pcm->name, chip->card->shortname);
 		chip->pcm[i] = pcm;
 	}

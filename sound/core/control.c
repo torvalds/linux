@@ -15,7 +15,7 @@
 #include <linux/math64.h>
 #include <linux/sched/signal.h>
 #include <sound/core.h>
-#include <sound/minors.h>
+#include <sound/mianalrs.h>
 #include <sound/info.h>
 #include <sound/control.h>
 
@@ -42,25 +42,25 @@ static struct snd_ctl_layer_ops *snd_ctl_layer;
 static int snd_ctl_remove_locked(struct snd_card *card,
 				 struct snd_kcontrol *kcontrol);
 
-static int snd_ctl_open(struct inode *inode, struct file *file)
+static int snd_ctl_open(struct ianalde *ianalde, struct file *file)
 {
 	unsigned long flags;
 	struct snd_card *card;
 	struct snd_ctl_file *ctl;
 	int i, err;
 
-	err = stream_open(inode, file);
+	err = stream_open(ianalde, file);
 	if (err < 0)
 		return err;
 
-	card = snd_lookup_minor_data(iminor(inode), SNDRV_DEVICE_TYPE_CONTROL);
+	card = snd_lookup_mianalr_data(imianalr(ianalde), SNDRV_DEVICE_TYPE_CONTROL);
 	if (!card) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto __error1;
 	}
 	err = snd_card_file_add(card, file);
 	if (err < 0) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto __error1;
 	}
 	if (!try_module_get(card->module)) {
@@ -69,7 +69,7 @@ static int snd_ctl_open(struct inode *inode, struct file *file)
 	}
 	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
 	if (ctl == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto __error;
 	}
 	INIT_LIST_HEAD(&ctl->events);
@@ -110,7 +110,7 @@ static void snd_ctl_empty_read_queue(struct snd_ctl_file * ctl)
 	spin_unlock_irqrestore(&ctl->read_lock, flags);
 }
 
-static int snd_ctl_release(struct inode *inode, struct file *file)
+static int snd_ctl_release(struct ianalde *ianalde, struct file *file)
 {
 	unsigned long flags;
 	struct snd_card *card;
@@ -140,16 +140,16 @@ static int snd_ctl_release(struct inode *inode, struct file *file)
 }
 
 /**
- * snd_ctl_notify - Send notification to user-space for a control change
- * @card: the card to send notification
+ * snd_ctl_analtify - Send analtification to user-space for a control change
+ * @card: the card to send analtification
  * @mask: the event mask, SNDRV_CTL_EVENT_*
- * @id: the ctl element id to send notification
+ * @id: the ctl element id to send analtification
  *
  * This function adds an event record with the given id and mask, appends
- * to the list and wakes up the user-space for notification.  This can be
+ * to the list and wakes up the user-space for analtification.  This can be
  * called in the atomic context.
  */
-void snd_ctl_notify(struct snd_card *card, unsigned int mask,
+void snd_ctl_analtify(struct snd_card *card, unsigned int mask,
 		    struct snd_ctl_elem_id *id)
 {
 	unsigned long flags;
@@ -180,7 +180,7 @@ void snd_ctl_notify(struct snd_card *card, unsigned int mask,
 			ev->mask = mask;
 			list_add_tail(&ev->list, &ctl->events);
 		} else {
-			dev_err(card->dev, "No memory available to allocate event\n");
+			dev_err(card->dev, "Anal memory available to allocate event\n");
 		}
 	_found:
 		wake_up(&ctl->change_sleep);
@@ -189,19 +189,19 @@ void snd_ctl_notify(struct snd_card *card, unsigned int mask,
 	}
 	read_unlock_irqrestore(&card->ctl_files_rwlock, flags);
 }
-EXPORT_SYMBOL(snd_ctl_notify);
+EXPORT_SYMBOL(snd_ctl_analtify);
 
 /**
- * snd_ctl_notify_one - Send notification to user-space for a control change
- * @card: the card to send notification
+ * snd_ctl_analtify_one - Send analtification to user-space for a control change
+ * @card: the card to send analtification
  * @mask: the event mask, SNDRV_CTL_EVENT_*
  * @kctl: the pointer with the control instance
  * @ioff: the additional offset to the control index
  *
- * This function calls snd_ctl_notify() and does additional jobs
+ * This function calls snd_ctl_analtify() and does additional jobs
  * like LED state changes.
  */
-void snd_ctl_notify_one(struct snd_card *card, unsigned int mask,
+void snd_ctl_analtify_one(struct snd_card *card, unsigned int mask,
 			struct snd_kcontrol *kctl, unsigned int ioff)
 {
 	struct snd_ctl_elem_id id = kctl->id;
@@ -209,13 +209,13 @@ void snd_ctl_notify_one(struct snd_card *card, unsigned int mask,
 
 	id.index += ioff;
 	id.numid += ioff;
-	snd_ctl_notify(card, mask, &id);
+	snd_ctl_analtify(card, mask, &id);
 	down_read(&snd_ctl_layer_rwsem);
 	for (lops = snd_ctl_layer; lops; lops = lops->next)
-		lops->lnotify(card, mask, kctl, ioff);
+		lops->lanaltify(card, mask, kctl, ioff);
 	up_read(&snd_ctl_layer_rwsem);
 }
-EXPORT_SYMBOL(snd_ctl_notify_one);
+EXPORT_SYMBOL(snd_ctl_analtify_one);
 
 /**
  * snd_ctl_new - create a new control instance with some elements
@@ -240,7 +240,7 @@ static int snd_ctl_new(struct snd_kcontrol **kctl, unsigned int count,
 
 	*kctl = kzalloc(struct_size(*kctl, vd, count), GFP_KERNEL);
 	if (!*kctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (idx = 0; idx < count; idx++) {
 		(*kctl)->vd[idx].access = access;
@@ -340,7 +340,7 @@ static bool snd_ctl_remove_numid_conflict(struct snd_card *card,
 {
 	struct snd_kcontrol *kctl;
 
-	/* Make sure that the ids assigned to the control do not wrap around */
+	/* Make sure that the ids assigned to the control do analt wrap around */
 	if (card->last_numid >= UINT_MAX - count)
 		card->last_numid = 0;
 
@@ -362,7 +362,7 @@ static int snd_ctl_find_hole(struct snd_card *card, unsigned int count)
 		if (--iter == 0) {
 			/* this situation is very unlikely */
 			dev_err(card->dev, "unable to allocate new control numid\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	return 0;
@@ -416,7 +416,7 @@ static void add_hash_entries(struct snd_card *card,
 		id.index = kcontrol->id.index + i;
 		if (xa_insert(&card->ctl_hash, get_ctl_id_hash(&id),
 			      kcontrol, GFP_KERNEL)) {
-			/* skip hash for this entry, noting we had collision */
+			/* skip hash for this entry, analting we had collision */
 			card->ctl_hash_collision = true;
 			dev_dbg(card->dev, "ctl_hash collision %d:%s:%d\n",
 				id.iface, id.name, id.index);
@@ -494,7 +494,7 @@ static int __snd_ctl_add_replace(struct snd_card *card,
 	}
 
 	if (snd_ctl_find_hole(card, kcontrol->count) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add_tail(&kcontrol->list, &card->controls);
 	card->controls_count += kcontrol->count;
@@ -504,7 +504,7 @@ static int __snd_ctl_add_replace(struct snd_card *card,
 	add_hash_entries(card, kcontrol);
 
 	for (idx = 0; idx < kcontrol->count; idx++)
-		snd_ctl_notify_one(card, SNDRV_CTL_EVENT_MASK_ADD, kcontrol, idx);
+		snd_ctl_analtify_one(card, SNDRV_CTL_EVENT_MASK_ADD, kcontrol, idx);
 
 	return 0;
 }
@@ -541,7 +541,7 @@ static int snd_ctl_add_replace(struct snd_card *card,
  * snd_ctl_new1() to the given card. Assigns also an unique
  * numid used for fast search.
  *
- * It frees automatically the control which cannot be added.
+ * It frees automatically the control which cananalt be added.
  *
  * Return: Zero if successful, or a negative error code on failure.
  *
@@ -556,13 +556,13 @@ EXPORT_SYMBOL(snd_ctl_add);
  * snd_ctl_replace - replace the control instance of the card
  * @card: the card instance
  * @kcontrol: the control instance to replace
- * @add_on_replace: add the control if not already added
+ * @add_on_replace: add the control if analt already added
  *
- * Replaces the given control.  If the given control does not exist
+ * Replaces the given control.  If the given control does analt exist
  * and the add_on_replace flag is set, the control is added.  If the
  * control exists, it is destroyed first.
  *
- * It frees automatically the control which cannot be added or replaced.
+ * It frees automatically the control which cananalt be added or replaced.
  *
  * Return: Zero if successful, or a negative error code on failure.
  */
@@ -591,7 +591,7 @@ static int __snd_ctl_remove(struct snd_card *card,
 
 	card->controls_count -= kcontrol->count;
 	for (idx = 0; idx < kcontrol->count; idx++)
-		snd_ctl_notify_one(card, SNDRV_CTL_EVENT_MASK_REMOVE, kcontrol, idx);
+		snd_ctl_analtify_one(card, SNDRV_CTL_EVENT_MASK_REMOVE, kcontrol, idx);
 	snd_ctl_free_one(kcontrol);
 	return 0;
 }
@@ -612,7 +612,7 @@ static inline int snd_ctl_remove_locked(struct snd_card *card,
  *
  * Return: 0 if successful, or a negative error code on failure.
  *
- * Note that this function takes card->controls_rwsem lock internally.
+ * Analte that this function takes card->controls_rwsem lock internally.
  */
 int snd_ctl_remove(struct snd_card *card, struct snd_kcontrol *kcontrol)
 {
@@ -644,7 +644,7 @@ int snd_ctl_remove_id(struct snd_card *card, struct snd_ctl_elem_id *id)
 	kctl = snd_ctl_find_id_locked(card, id);
 	if (kctl == NULL) {
 		up_write(&card->controls_rwsem);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	ret = snd_ctl_remove_locked(card, kctl);
 	up_write(&card->controls_rwsem);
@@ -672,7 +672,7 @@ static int snd_ctl_remove_user_ctl(struct snd_ctl_file * file,
 	down_write(&card->controls_rwsem);
 	kctl = snd_ctl_find_id_locked(card, id);
 	if (kctl == NULL) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto error;
 	}
 	if (!(kctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_USER)) {
@@ -694,10 +694,10 @@ error:
  * snd_ctl_activate_id - activate/inactivate the control of the given id
  * @card: the card instance
  * @id: the control id to activate/inactivate
- * @active: non-zero to activate
+ * @active: analn-zero to activate
  *
  * Finds the control instance with the given id, and activate or
- * inactivate the control together with notification, if changed.
+ * inactivate the control together with analtification, if changed.
  * The given ID data is filled with full information.
  *
  * Return: 0 if unchanged, 1 if changed, or a negative error code on failure.
@@ -713,7 +713,7 @@ int snd_ctl_activate_id(struct snd_card *card, struct snd_ctl_elem_id *id,
 	down_write(&card->controls_rwsem);
 	kctl = snd_ctl_find_id_locked(card, id);
 	if (kctl == NULL) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto unlock;
 	}
 	index_offset = snd_ctl_get_ioff(kctl, id);
@@ -730,7 +730,7 @@ int snd_ctl_activate_id(struct snd_card *card, struct snd_ctl_elem_id *id,
 	}
 	snd_ctl_build_ioff(id, kctl, index_offset);
 	downgrade_write(&card->controls_rwsem);
-	snd_ctl_notify_one(card, SNDRV_CTL_EVENT_MASK_INFO, kctl, index_offset);
+	snd_ctl_analtify_one(card, SNDRV_CTL_EVENT_MASK_INFO, kctl, index_offset);
 	up_read(&card->controls_rwsem);
 	return 1;
 
@@ -752,7 +752,7 @@ EXPORT_SYMBOL_GPL(snd_ctl_activate_id);
  * The function tries to keep the already assigned numid while replacing
  * the rest.
  *
- * Note that this function should be used only in the card initialization
+ * Analte that this function should be used only in the card initialization
  * phase.  Calling after the card instantiation may cause issues with
  * user-space expecting persistent numids.
  *
@@ -768,7 +768,7 @@ int snd_ctl_rename_id(struct snd_card *card, struct snd_ctl_elem_id *src_id,
 	kctl = snd_ctl_find_id_locked(card, src_id);
 	if (kctl == NULL) {
 		up_write(&card->controls_rwsem);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	saved_numid = kctl->id.numid;
 	remove_hash_entries(card, kctl);
@@ -788,7 +788,7 @@ EXPORT_SYMBOL(snd_ctl_rename_id);
  *
  * Renames the specified control on the card to the new name.
  *
- * Note that this function takes card->controls_rwsem lock internally.
+ * Analte that this function takes card->controls_rwsem lock internally.
  */
 void snd_ctl_rename(struct snd_card *card, struct snd_kcontrol *kctl,
 		    const char *name)
@@ -829,7 +829,7 @@ snd_ctl_find_numid_slow(struct snd_card *card, unsigned int numid)
  * The caller must down card->controls_rwsem before calling this function
  * (if the race condition can happen).
  *
- * Return: The pointer of the instance if found, or %NULL if not.
+ * Return: The pointer of the instance if found, or %NULL if analt.
  */
 struct snd_kcontrol *
 snd_ctl_find_numid_locked(struct snd_card *card, unsigned int numid)
@@ -852,9 +852,9 @@ EXPORT_SYMBOL(snd_ctl_find_numid_locked);
  *
  * Finds the control instance with the given number-id from the card.
  *
- * Return: The pointer of the instance if found, or %NULL if not.
+ * Return: The pointer of the instance if found, or %NULL if analt.
  *
- * Note that this function takes card->controls_rwsem lock internally.
+ * Analte that this function takes card->controls_rwsem lock internally.
  */
 struct snd_kcontrol *snd_ctl_find_numid(struct snd_card *card,
 					unsigned int numid)
@@ -878,7 +878,7 @@ EXPORT_SYMBOL(snd_ctl_find_numid);
  * The caller must down card->controls_rwsem before calling this function
  * (if the race condition can happen).
  *
- * Return: The pointer of the instance if found, or %NULL if not.
+ * Return: The pointer of the instance if found, or %NULL if analt.
  */
 struct snd_kcontrol *snd_ctl_find_id_locked(struct snd_card *card,
 					    const struct snd_ctl_elem_id *id)
@@ -897,7 +897,7 @@ struct snd_kcontrol *snd_ctl_find_id_locked(struct snd_card *card,
 	if (!card->ctl_hash_collision)
 		return NULL; /* we can rely on only hash table */
 #endif
-	/* no matching in hash table - try all as the last resort */
+	/* anal matching in hash table - try all as the last resort */
 	list_for_each_entry(kctl, &card->controls, list)
 		if (elem_id_matches(kctl, id))
 			return kctl;
@@ -913,9 +913,9 @@ EXPORT_SYMBOL(snd_ctl_find_id_locked);
  *
  * Finds the control instance with the given id from the card.
  *
- * Return: The pointer of the instance if found, or %NULL if not.
+ * Return: The pointer of the instance if found, or %NULL if analt.
  *
- * Note that this function takes card->controls_rwsem lock internally.
+ * Analte that this function takes card->controls_rwsem lock internally.
  */
 struct snd_kcontrol *snd_ctl_find_id(struct snd_card *card,
 				     const struct snd_ctl_elem_id *id)
@@ -936,7 +936,7 @@ static int snd_ctl_card_info(struct snd_card *card, struct snd_ctl_file * ctl,
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (! info)
-		return -ENOMEM;
+		return -EANALMEM;
 	down_read(&snd_ioctl_rwsem);
 	info->card = card->number;
 	strscpy(info->id, card->id, sizeof(info->id));
@@ -1243,7 +1243,7 @@ static int snd_ctl_elem_info(struct snd_ctl_file *ctl,
 	down_read(&card->controls_rwsem);
 	kctl = snd_ctl_find_id_locked(card, &info->id);
 	if (kctl == NULL)
-		result = -ENOENT;
+		result = -EANALENT;
 	else
 		result = __snd_ctl_elem_info(card, kctl, info, ctl);
 	up_read(&card->controls_rwsem);
@@ -1282,7 +1282,7 @@ static int snd_ctl_elem_read(struct snd_card *card,
 	down_read(&card->controls_rwsem);
 	kctl = snd_ctl_find_id_locked(card, &control->id);
 	if (kctl == NULL) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto unlock;
 	}
 
@@ -1360,7 +1360,7 @@ static int snd_ctl_elem_write(struct snd_card *card, struct snd_ctl_file *file,
 	kctl = snd_ctl_find_id_locked(card, &control->id);
 	if (kctl == NULL) {
 		up_write(&card->controls_rwsem);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	index_offset = snd_ctl_get_ioff(kctl, &control->id);
@@ -1394,7 +1394,7 @@ static int snd_ctl_elem_write(struct snd_card *card, struct snd_ctl_file *file,
 
 	if (result > 0) {
 		downgrade_write(&card->controls_rwsem);
-		snd_ctl_notify_one(card, SNDRV_CTL_EVENT_MASK_VALUE, kctl, index_offset);
+		snd_ctl_analtify_one(card, SNDRV_CTL_EVENT_MASK_VALUE, kctl, index_offset);
 		up_read(&card->controls_rwsem);
 	} else {
 		up_write(&card->controls_rwsem);
@@ -1440,7 +1440,7 @@ static int snd_ctl_elem_lock(struct snd_ctl_file *file,
 	down_write(&card->controls_rwsem);
 	kctl = snd_ctl_find_id_locked(card, &id);
 	if (kctl == NULL) {
-		result = -ENOENT;
+		result = -EANALENT;
 	} else {
 		vd = &kctl->vd[snd_ctl_get_ioff(kctl, &id)];
 		if (vd->owner != NULL)
@@ -1468,7 +1468,7 @@ static int snd_ctl_elem_unlock(struct snd_ctl_file *file,
 	down_write(&card->controls_rwsem);
 	kctl = snd_ctl_find_id_locked(card, &id);
 	if (kctl == NULL) {
-		result = -ENOENT;
+		result = -EANALENT;
 	} else {
 		vd = &kctl->vd[snd_ctl_get_ioff(kctl, &id)];
 		if (vd->owner == NULL)
@@ -1582,7 +1582,7 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 
 	// does the TLV size change cause overflow?
 	if (check_user_elem_overflow(ue->card, (ssize_t)(size - ue->tlv_data_size)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	container = vmemdup_user(buf, size);
 	if (IS_ERR(container))
@@ -1597,7 +1597,7 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 	}
 
 	if (ue->tlv_data == NULL) {
-		/* Now TLV data is available. */
+		/* Analw TLV data is available. */
 		for (i = 0; i < kctl->count; ++i)
 			kctl->vd[i].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
 		mask = SNDRV_CTL_EVENT_MASK_INFO;
@@ -1614,7 +1614,7 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 
 	mask |= SNDRV_CTL_EVENT_MASK_TLV;
 	for (i = 0; i < kctl->count; ++i)
-		snd_ctl_notify_one(ue->card, mask, kctl, i);
+		snd_ctl_analtify_one(ue->card, mask, kctl, i);
 
 	return change;
 }
@@ -1628,7 +1628,7 @@ static int read_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 		return -ENXIO;
 
 	if (size < ue->tlv_data_size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (copy_to_user(buf, ue->tlv_data, ue->tlv_data_size))
 		return -EFAULT;
@@ -1660,12 +1660,12 @@ static int snd_ctl_elem_init_enum_names(struct user_element *ue)
 		return -EINVAL;
 
 	if (check_user_elem_overflow(ue->card, buf_len))
-		return -ENOMEM;
+		return -EANALMEM;
 	names = vmemdup_user((const void __user *)user_ptrval, buf_len);
 	if (IS_ERR(names))
 		return PTR_ERR(names);
 
-	/* check that there are enough valid names */
+	/* check that there are eanalugh valid names */
 	p = names;
 	for (i = 0; i < ue->info.value.enumerated.items; ++i) {
 		name_len = strnlen(p, buf_len);
@@ -1744,7 +1744,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 		   SNDRV_CTL_ELEM_ACCESS_INACTIVE |
 		   SNDRV_CTL_ELEM_ACCESS_TLV_WRITE);
 
-	/* In initial state, nothing is available as TLV container. */
+	/* In initial state, analthing is available as TLV container. */
 	if (access & SNDRV_CTL_ELEM_ACCESS_TLV_WRITE)
 		access |= SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
 	access |= SNDRV_CTL_ELEM_ACCESS_USER;
@@ -1765,7 +1765,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 
 	down_write(&card->controls_rwsem);
 	if (check_user_elem_overflow(card, alloc_size)) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unlock;
 	}
 
@@ -1773,7 +1773,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	 * Keep memory object for this userspace control. After passing this
 	 * code block, the instance should be freed by snd_ctl_free_one().
 	 *
-	 * Note that these elements in this control are locked.
+	 * Analte that these elements in this control are locked.
 	 */
 	err = snd_ctl_new(&kctl, count, access, file);
 	if (err < 0)
@@ -1782,7 +1782,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	ue = kzalloc(alloc_size, GFP_KERNEL);
 	if (!ue) {
 		kfree(kctl);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unlock;
 	}
 	kctl->private_data = ue;
@@ -1826,8 +1826,8 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	offset = snd_ctl_get_ioff(kctl, &info->id);
 	snd_ctl_build_ioff(&info->id, kctl, offset);
 	/*
-	 * Here we cannot fill any field for the number of elements added by
-	 * this operation because there're no specific fields. The usage of
+	 * Here we cananalt fill any field for the number of elements added by
+	 * this operation because there're anal specific fields. The usage of
 	 * 'owner' field for this purpose may cause any bugs to userspace
 	 * applications because the field originally means PID of a process
 	 * which locks the element.
@@ -1914,7 +1914,7 @@ static int call_tlv_handler(struct snd_ctl_file *file, int op_flag,
 	if (kctl->tlv.c == NULL)
 		return -ENXIO;
 
-	/* Write and command operations are not allowed for locked element. */
+	/* Write and command operations are analt allowed for locked element. */
 	if (op_flag != SNDRV_CTL_TLV_OP_READ &&
 	    vd->owner != NULL && vd->owner != file)
 		return -EPERM;
@@ -1940,7 +1940,7 @@ static int read_tlv_buf(struct snd_kcontrol *kctl, struct snd_ctl_elem_id *id,
 
 	len = sizeof(unsigned int) * 2 + kctl->tlv.p[1];
 	if (size < len)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_to_user(buf, kctl->tlv.p, len))
 		return -EFAULT;
@@ -1976,7 +1976,7 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 
 	kctl = snd_ctl_find_numid_locked(file->card, header.numid);
 	if (kctl == NULL)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Calculate index of the element in this set. */
 	id = kctl->id;
@@ -1993,7 +1993,7 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 		}
 	}
 
-	/* Not supported. */
+	/* Analt supported. */
 	return -ENXIO;
 }
 
@@ -2051,21 +2051,21 @@ static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		up_write(&ctl->card->controls_rwsem);
 		return err;
 	case SNDRV_CTL_IOCTL_POWER:
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	case SNDRV_CTL_IOCTL_POWER_STATE:
 		return put_user(SNDRV_CTL_POWER_D0, ip) ? -EFAULT : 0;
 	}
 	down_read(&snd_ioctl_rwsem);
 	list_for_each_entry(p, &snd_control_ioctls, list) {
 		err = p->fioctl(card, ctl, cmd, arg);
-		if (err != -ENOIOCTLCMD) {
+		if (err != -EANALIOCTLCMD) {
 			up_read(&snd_ioctl_rwsem);
 			return err;
 		}
 	}
 	up_read(&snd_ioctl_rwsem);
-	dev_dbg(card->dev, "unknown ioctl = 0x%x\n", cmd);
-	return -ENOTTY;
+	dev_dbg(card->dev, "unkanalwn ioctl = 0x%x\n", cmd);
+	return -EANALTTY;
 }
 
 static ssize_t snd_ctl_read(struct file *file, char __user *buffer,
@@ -2088,7 +2088,7 @@ static ssize_t snd_ctl_read(struct file *file, char __user *buffer,
 		struct snd_kctl_event *kev;
 		while (list_empty(&ctl->events)) {
 			wait_queue_entry_t wait;
-			if ((file->f_flags & O_NONBLOCK) != 0 || result > 0) {
+			if ((file->f_flags & O_ANALNBLOCK) != 0 || result > 0) {
 				err = -EAGAIN;
 				goto __end_lock;
 			}
@@ -2099,7 +2099,7 @@ static ssize_t snd_ctl_read(struct file *file, char __user *buffer,
 			schedule();
 			remove_wait_queue(&ctl->change_sleep, &wait);
 			if (ctl->card->shutdown)
-				return -ENODEV;
+				return -EANALDEV;
 			if (signal_pending(current))
 				return -ERESTARTSYS;
 			spin_lock_irq(&ctl->read_lock);
@@ -2138,7 +2138,7 @@ static __poll_t snd_ctl_poll(struct file *file, poll_table * wait)
 
 	mask = 0;
 	if (!list_empty(&ctl->events))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	return mask;
 }
@@ -2153,7 +2153,7 @@ static int _snd_ctl_register_ioctl(snd_kctl_ioctl_func_t fcn, struct list_head *
 
 	pn = kzalloc(sizeof(struct snd_kctl_ioctl), GFP_KERNEL);
 	if (pn == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	pn->fioctl = fcn;
 	down_write(&snd_ioctl_rwsem);
 	list_add_tail(&pn->list, lists);
@@ -2288,7 +2288,7 @@ EXPORT_SYMBOL_GPL(snd_ctl_get_preferred_subdevice);
  * snd_ctl_request_layer - request to use the layer
  * @module_name: Name of the kernel module (NULL == build-in)
  *
- * Return: zero if successful, or an error code when the module cannot be loaded
+ * Return: zero if successful, or an error code when the module cananalt be loaded
  */
 int snd_ctl_request_layer(const char *module_name)
 {
@@ -2341,7 +2341,7 @@ EXPORT_SYMBOL_GPL(snd_ctl_register_layer);
  *
  * It is expected that the information about tracked cards
  * is freed before this call (the disconnect callback is
- * not called here).
+ * analt called here).
  */
 void snd_ctl_disconnect_layer(struct snd_ctl_layer_ops *lops)
 {
@@ -2372,7 +2372,7 @@ static const struct file_operations snd_ctl_f_ops =
 	.read =		snd_ctl_read,
 	.open =		snd_ctl_open,
 	.release =	snd_ctl_release,
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 	.poll =		snd_ctl_poll,
 	.unlocked_ioctl =	snd_ctl_ioctl,
 	.compat_ioctl =	snd_ctl_ioctl_compat,
@@ -2485,17 +2485,17 @@ int snd_ctl_create(struct snd_card *card)
  */
 
 /**
- * snd_ctl_boolean_mono_info - Helper function for a standard boolean info
- * callback with a mono channel
+ * snd_ctl_boolean_moanal_info - Helper function for a standard boolean info
+ * callback with a moanal channel
  * @kcontrol: the kcontrol instance
  * @uinfo: info to store
  *
  * This is a function that can be used as info callback for a standard
- * boolean control with a single mono channel.
+ * boolean control with a single moanal channel.
  *
  * Return: Zero (always successful)
  */
-int snd_ctl_boolean_mono_info(struct snd_kcontrol *kcontrol,
+int snd_ctl_boolean_moanal_info(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
@@ -2504,7 +2504,7 @@ int snd_ctl_boolean_mono_info(struct snd_kcontrol *kcontrol,
 	uinfo->value.integer.max = 1;
 	return 0;
 }
-EXPORT_SYMBOL(snd_ctl_boolean_mono_info);
+EXPORT_SYMBOL(snd_ctl_boolean_moanal_info);
 
 /**
  * snd_ctl_boolean_stereo_info - Helper function for a standard boolean info
@@ -2536,7 +2536,7 @@ EXPORT_SYMBOL(snd_ctl_boolean_stereo_info);
  * @names: an array containing the names of all control values
  *
  * Sets all required fields in @info to their appropriate values.
- * If the control's accessibility is not the default (readable and writable),
+ * If the control's accessibility is analt the default (readable and writable),
  * the caller has to fill @info->access.
  *
  * Return: Zero (always successful)

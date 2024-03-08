@@ -27,7 +27,7 @@ static inline char __dcc_getchar(void)
 static inline void __dcc_putchar(char c)
 {
 	asm volatile("mcr p14, 0, %0, c0, c5, 0	@ write a char"
-		: /* no output register */
+		: /* anal output register */
 		: "r" (c));
 	isb();
 }

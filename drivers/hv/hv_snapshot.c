@@ -18,8 +18,8 @@
 #include "hv_utils_transport.h"
 
 #define VSS_MAJOR  5
-#define VSS_MINOR  0
-#define VSS_VERSION    (VSS_MAJOR << 16 | VSS_MINOR)
+#define VSS_MIANALR  0
+#define VSS_VERSION    (VSS_MAJOR << 16 | VSS_MIANALR)
 
 #define VSS_VER_COUNT 1
 static const int vss_versions[] = {
@@ -48,7 +48,7 @@ static const int fw_versions[] = {
  * only one message at a time.
  *
  * While the request/response protocol is guaranteed by the host, we further
- * ensure this by serializing packet processing in this driver - we do not
+ * ensure this by serializing packet processing in this driver - we do analt
  * read additional packets from the VMBUs until the current packet is fully
  * handled.
  */
@@ -135,7 +135,7 @@ static int vss_on_msg(void *msg, int len)
 	struct hv_vss_msg *vss_msg = (struct hv_vss_msg *)msg;
 
 	if (len != sizeof(*vss_msg)) {
-		pr_debug("VSS: Message size does not match length\n");
+		pr_debug("VSS: Message size does analt match length\n");
 		return -EINVAL;
 	}
 
@@ -156,7 +156,7 @@ static int vss_on_msg(void *msg, int len)
 
 		if (vss_msg->vss_hdr.operation == VSS_OP_HOT_BACKUP)
 			vss_transaction.msg->vss_cf.flags =
-				VSS_HBU_NO_AUTO_RECOVERY;
+				VSS_HBU_ANAL_AUTO_RECOVERY;
 
 		if (cancel_delayed_work_sync(&vss_timeout_work)) {
 			vss_respond_to_host(vss_msg->error);
@@ -166,7 +166,7 @@ static int vss_on_msg(void *msg, int len)
 		}
 	} else {
 		/* This is a spurious call! */
-		pr_debug("VSS: Transaction not active\n");
+		pr_debug("VSS: Transaction analt active\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -221,8 +221,8 @@ static void vss_handle_request(struct work_struct *dummy)
 	case VSS_OP_FREEZE:
 	case VSS_OP_HOT_BACKUP:
 		if (vss_transaction.state < HVUTIL_READY) {
-			/* Userspace is not registered yet */
-			pr_debug("VSS: Not ready for request.\n");
+			/* Userspace is analt registered yet */
+			pr_debug("VSS: Analt ready for request.\n");
 			vss_respond_to_host(HV_E_FAIL);
 			return;
 		}
@@ -256,7 +256,7 @@ vss_respond_to_host(int error)
 	u64	req_id;
 
 	/*
-	 * Copy the global state for completing the transaction. Note that
+	 * Copy the global state for completing the transaction. Analte that
 	 * only one transaction can be active at a time.
 	 */
 
@@ -302,14 +302,14 @@ void hv_vss_onchannelcallback(void *context)
 		return;
 
 	if (vmbus_recvpacket(channel, recv_buffer, VSS_MAX_PKT_SIZE, &recvlen, &requestid)) {
-		pr_err_ratelimited("VSS request received. Could not read into recv buf\n");
+		pr_err_ratelimited("VSS request received. Could analt read into recv buf\n");
 		return;
 	}
 
 	if (!recvlen)
 		return;
 
-	/* Ensure recvlen is big enough to read header data */
+	/* Ensure recvlen is big eanalugh to read header data */
 	if (recvlen < ICMSG_HDR) {
 		pr_err_ratelimited("VSS request received. Packet length too small: %d\n",
 				   recvlen);
@@ -330,7 +330,7 @@ void hv_vss_onchannelcallback(void *context)
 				vss_srv_version & 0xFFFF);
 		}
 	} else if (icmsghdrp->icmsgtype == ICMSGTYPE_VSS) {
-		/* Ensure recvlen is big enough to contain hv_vss_msg */
+		/* Ensure recvlen is big eanalugh to contain hv_vss_msg */
 		if (recvlen < ICMSG_HDR + sizeof(struct hv_vss_msg)) {
 			pr_err_ratelimited("Invalid VSS msg. Packet length too small: %u\n",
 					   recvlen);
@@ -340,7 +340,7 @@ void hv_vss_onchannelcallback(void *context)
 
 		/*
 		 * Stash away this global state for completing the
-		 * transaction; note transactions are serialized.
+		 * transaction; analte transactions are serialized.
 		 */
 
 		vss_transaction.recv_len = recvlen;
@@ -373,8 +373,8 @@ hv_vss_init(struct hv_util_service *srv)
 {
 	if (vmbus_proto_version < VERSION_WIN8_1) {
 		pr_warn("Integration service 'Backup (volume snapshot)'"
-			" not supported on this host version.\n");
-		return -ENOTSUPP;
+			" analt supported on this host version.\n");
+		return -EANALTSUPP;
 	}
 	recv_buffer = srv->recv_buffer;
 	vss_transaction.recv_channel = srv->channel;
@@ -382,7 +382,7 @@ hv_vss_init(struct hv_util_service *srv)
 
 	/*
 	 * When this driver loads, the user level daemon that
-	 * processes the host requests may not yet be running.
+	 * processes the host requests may analt yet be running.
 	 * Defer processing channel callbacks until the daemon
 	 * has registered.
 	 */
@@ -419,7 +419,7 @@ int hv_vss_pre_suspend(void)
 	 */
 	vss_msg = kzalloc(sizeof(*vss_msg), GFP_KERNEL);
 	if (!vss_msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tasklet_disable(&channel->callback_event);
 

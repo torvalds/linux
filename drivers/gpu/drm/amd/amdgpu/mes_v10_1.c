@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -78,12 +78,12 @@ static u64 mes_v10_1_ring_get_wptr(struct amdgpu_ring *ring)
 static const struct amdgpu_ring_funcs mes_v10_1_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_MES,
 	.align_mask = 1,
-	.nop = 0,
+	.analp = 0,
 	.support_64bit_ptrs = true,
 	.get_rptr = mes_v10_1_ring_get_rptr,
 	.get_wptr = mes_v10_1_ring_get_wptr,
 	.set_wptr = mes_v10_1_ring_set_wptr,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_analp = amdgpu_ring_insert_analp,
 };
 
 static int mes_v10_1_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
@@ -103,7 +103,7 @@ static int mes_v10_1_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	spin_lock_irqsave(&mes->ring_lock, flags);
 	if (amdgpu_ring_alloc(ring, ndw)) {
 		spin_unlock_irqrestore(&mes->ring_lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	api_status = (struct MES_API_STATUS *)((char *)pkt + api_status_off);
@@ -222,7 +222,7 @@ static int mes_v10_1_unmap_legacy_queue(struct amdgpu_mes *mes,
 	mes_remove_queue_pkt.pipe_id = input->pipe_id;
 	mes_remove_queue_pkt.queue_id = input->queue_id;
 
-	if (input->action == PREEMPT_QUEUES_NO_UNMAP) {
+	if (input->action == PREEMPT_QUEUES_ANAL_UNMAP) {
 		mes_remove_queue_pkt.preempt_legacy_gfx_queue = 1;
 		mes_remove_queue_pkt.tf_addr = input->trail_fence_addr;
 		mes_remove_queue_pkt.tf_data =
@@ -335,7 +335,7 @@ static void mes_v10_1_init_aggregated_doorbell(struct amdgpu_mes *mes)
 	data &= ~(CP_MES_DOORBELL_CONTROL2__DOORBELL_OFFSET_MASK |
 		  CP_MES_DOORBELL_CONTROL2__DOORBELL_EN_MASK |
 		  CP_MES_DOORBELL_CONTROL2__DOORBELL_HIT_MASK);
-	data |= mes->aggregated_doorbells[AMDGPU_MES_PRIORITY_LEVEL_NORMAL] <<
+	data |= mes->aggregated_doorbells[AMDGPU_MES_PRIORITY_LEVEL_ANALRMAL] <<
 		CP_MES_DOORBELL_CONTROL2__DOORBELL_OFFSET__SHIFT;
 	data |= 1 << CP_MES_DOORBELL_CONTROL2__DOORBELL_EN__SHIFT;
 	WREG32_SOC15(GC, 0, mmCP_MES_DOORBELL_CONTROL2, data);
@@ -673,7 +673,7 @@ static int mes_v10_1_mqd_init(struct amdgpu_ring *ring)
 	mqd->cp_hqd_pq_base_lo = lower_32_bits(hqd_gpu_addr);
 	mqd->cp_hqd_pq_base_hi = upper_32_bits(hqd_gpu_addr);
 
-	/* set the wb address whether it's enabled or not */
+	/* set the wb address whether it's enabled or analt */
 	wb_gpu_addr = ring->rptr_gpu_addr;
 	mqd->cp_hqd_pq_rptr_report_addr_lo = wb_gpu_addr & 0xfffffffc;
 	mqd->cp_hqd_pq_rptr_report_addr_hi =
@@ -693,11 +693,11 @@ static int mes_v10_1_mqd_init(struct amdgpu_ring *ring)
 #ifdef __BIG_ENDIAN
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, ENDIAN_SWAP, 1);
 #endif
-	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, UNORD_DISPATCH, 1);
+	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, UANALRD_DISPATCH, 1);
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, TUNNEL_DISPATCH, 0);
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, PRIV_STATE, 1);
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, KMD_QUEUE, 1);
-	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, NO_UPDATE_RPTR, 1);
+	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, ANAL_UPDATE_RPTR, 1);
 	mqd->cp_hqd_pq_control = tmp;
 
 	/* enable doorbell? */
@@ -849,7 +849,7 @@ static int mes_v10_1_ring_init(struct amdgpu_device *adev)
 	ring->use_doorbell = true;
 	ring->doorbell_index = adev->doorbell_index.mes_ring0 << 1;
 	ring->eop_gpu_addr = adev->mes.eop_gpu_addr[AMDGPU_MES_SCHED_PIPE];
-	ring->no_scheduler = true;
+	ring->anal_scheduler = true;
 	sprintf(ring->name, "mes_%d.%d.%d", ring->me, ring->pipe, ring->queue);
 
 	return amdgpu_ring_init(adev, ring, 1024, NULL, 0,
@@ -873,7 +873,7 @@ static int mes_v10_1_kiq_ring_init(struct amdgpu_device *adev)
 	ring->use_doorbell = true;
 	ring->doorbell_index = adev->doorbell_index.mes_ring1 << 1;
 	ring->eop_gpu_addr = adev->mes.eop_gpu_addr[AMDGPU_MES_KIQ_PIPE];
-	ring->no_scheduler = true;
+	ring->anal_scheduler = true;
 	sprintf(ring->name, "mes_kiq_%d.%d.%d",
 		ring->me, ring->pipe, ring->queue);
 
@@ -911,9 +911,9 @@ static int mes_v10_1_mqd_sw_init(struct amdgpu_device *adev,
 	adev->mes.mqd_backup[pipe] = kmalloc(mqd_size, GFP_KERNEL);
 	if (!adev->mes.mqd_backup[pipe]) {
 		dev_warn(adev->dev,
-			 "no memory to create MQD backup for ring %s\n",
+			 "anal memory to create MQD backup for ring %s\n",
 			 ring->name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1087,7 +1087,7 @@ static int mes_v10_1_hw_init(void *handle)
 
 	/*
 	 * Disable KIQ ring usage from the driver once MES is enabled.
-	 * MES uses KIQ ring exclusively so driver cannot access KIQ ring
+	 * MES uses KIQ ring exclusively so driver cananalt access KIQ ring
 	 * with MES enabled.
 	 */
 	adev->gfx.kiq[0].ring.sched.ready = false;
@@ -1181,7 +1181,7 @@ static const struct amd_ip_funcs mes_v10_1_ip_funcs = {
 const struct amdgpu_ip_block_version mes_v10_1_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_MES,
 	.major = 10,
-	.minor = 1,
+	.mianalr = 1,
 	.rev = 0,
 	.funcs = &mes_v10_1_ip_funcs,
 };

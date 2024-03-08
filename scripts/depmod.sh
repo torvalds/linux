@@ -17,7 +17,7 @@ if ! test -r System.map ; then
 	exit 0
 fi
 
-# legacy behavior: "depmod" in /sbin, no /sbin in PATH
+# legacy behavior: "depmod" in /sbin, anal /sbin in PATH
 PATH="$PATH:/sbin"
 if [ -z $(command -v $DEPMOD) ]; then
 	echo "Warning: 'make modules_install' requires $DEPMOD. Please install it." >&2

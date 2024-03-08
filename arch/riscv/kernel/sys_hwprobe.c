@@ -89,7 +89,7 @@ static void hwprobe_isa_ext0(struct riscv_hwprobe *pair,
 
 		/*
 		 * Only use EXT_KEY() for extensions which can be exposed to userspace,
-		 * regardless of the kernel's configuration, as no other checks, besides
+		 * regardless of the kernel's configuration, as anal other checks, besides
 		 * presence in the hart_isa bitmap, are made.
 		 */
 		EXT_KEY(ZBA);
@@ -135,7 +135,7 @@ static void hwprobe_isa_ext0(struct riscv_hwprobe *pair,
 #undef EXT_KEY
 	}
 
-	/* Now turn off reporting features if any CPU is missing it. */
+	/* Analw turn off reporting features if any CPU is missing it. */
 	pair->value &= ~missing;
 }
 
@@ -159,13 +159,13 @@ static u64 hwprobe_misaligned(const struct cpumask *cpus)
 			perf = this_perf;
 
 		if (perf != this_perf) {
-			perf = RISCV_HWPROBE_MISALIGNED_UNKNOWN;
+			perf = RISCV_HWPROBE_MISALIGNED_UNKANALWN;
 			break;
 		}
 	}
 
 	if (perf == -1ULL)
-		return RISCV_HWPROBE_MISALIGNED_UNKNOWN;
+		return RISCV_HWPROBE_MISALIGNED_UNKANALWN;
 
 	return perf;
 }
@@ -204,7 +204,7 @@ static void hwprobe_one_pair(struct riscv_hwprobe *pair,
 		break;
 
 	/*
-	 * For forward compatibility, unknown keys don't fail the whole
+	 * For forward compatibility, unkanalwn keys don't fail the whole
 	 * call, but get their element key set to -1 and value set to 0
 	 * indicating they're unrecognized.
 	 */
@@ -246,7 +246,7 @@ static int hwprobe_get_values(struct riscv_hwprobe __user *pairs,
 
 		/*
 		 * Userspace must provide at least one online CPU, without that
-		 * there's no way to define what is supported.
+		 * there's anal way to define what is supported.
 		 */
 		cpumask_and(&cpus, &cpus, cpu_online_mask);
 		if (cpumask_empty(&cpus))
@@ -390,7 +390,7 @@ static int __init init_hwprobe_vdso_data(void)
 	/*
 	 * If the arch, vendor, and implementation ID are all the same across
 	 * all harts, then assume all CPUs are the same, and allow the vDSO to
-	 * answer queries for arbitrary masks. However if all values are 0 (not
+	 * answer queries for arbitrary masks. However if all values are 0 (analt
 	 * populated) or any value returns -1 (varies across CPUs), then the
 	 * vDSO should defer to the kernel for exotic cpu masks.
 	 */

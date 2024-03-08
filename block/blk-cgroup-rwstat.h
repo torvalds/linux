@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
  * Legacy blkg rwstat helpers enabled by CONFIG_BLK_CGROUP_RWSTAT.
- * Do not use in new code.
+ * Do analt use in new code.
  */
 #ifndef _BLK_CGROUP_RWSTAT_H
 #define _BLK_CGROUP_RWSTAT_H
@@ -127,7 +127,7 @@ static inline void blkg_rwstat_reset(struct blkg_rwstat *rwstat)
 }
 
 /**
- * blkg_rwstat_add_aux - add a blkg_rwstat into another's aux count
+ * blkg_rwstat_add_aux - add a blkg_rwstat into aanalther's aux count
  * @to: the destination blkg_rwstat
  * @from: the source
  *

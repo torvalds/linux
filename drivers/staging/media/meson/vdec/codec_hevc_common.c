@@ -182,7 +182,7 @@ static int codec_hevc_alloc_fbc_buffers(struct amvdec_session *sess,
 						 GFP_KERNEL);
 		if (!vaddr) {
 			codec_hevc_free_fbc_buffers(sess, comm);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		comm->fbc_buffer_vaddr[idx] = vaddr;
@@ -226,7 +226,7 @@ static int codec_hevc_alloc_mmu_headers(struct amvdec_session *sess,
 						 &comm->mmu_map_paddr,
 						 GFP_KERNEL);
 	if (!comm->mmu_map_vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_m2m_for_each_dst_buf(sess->m2m_ctx, buf) {
 		u32 idx = buf->vb.vb2_buf.index;
@@ -235,7 +235,7 @@ static int codec_hevc_alloc_mmu_headers(struct amvdec_session *sess,
 						 &paddr, GFP_KERNEL);
 		if (!vaddr) {
 			codec_hevc_free_mmu_headers(sess, comm);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		comm->mmu_header_vaddr[idx] = vaddr;

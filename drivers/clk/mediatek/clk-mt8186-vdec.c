@@ -40,7 +40,7 @@ static const struct mtk_gate_regs vdec3_cg_regs = {
 	GATE_MTK(_id, _name, _parent, &vdec0_cg_regs, _shift, &mtk_clk_gate_ops_setclr_inv)
 
 #define GATE_VDEC1(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &vdec1_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &vdec1_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 #define GATE_VDEC2(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &vdec2_cg_regs, _shift, &mtk_clk_gate_ops_setclr_inv)

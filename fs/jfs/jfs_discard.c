@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   Copyright (C) Tino Reichardt, 2012
+ *   Copyright (C) Tianal Reichardt, 2012
  */
 
 #include <linux/fs.h>
@@ -20,29 +20,29 @@
  * FUNCTION:	TRIM the specified block range on device, if supported
  *
  * PARAMETERS:
- *	ip	- pointer to in-core inode
- *	blkno	- starting block number to be trimmed (0..N)
+ *	ip	- pointer to in-core ianalde
+ *	blkanal	- starting block number to be trimmed (0..N)
  *	nblocks	- number of blocks to be trimmed
  *
  * RETURN VALUES:
- *	none
+ *	analne
  *
  * serialization: IREAD_LOCK(ipbmap) held on entry/exit;
  */
-void jfs_issue_discard(struct inode *ip, u64 blkno, u64 nblocks)
+void jfs_issue_discard(struct ianalde *ip, u64 blkanal, u64 nblocks)
 {
 	struct super_block *sb = ip->i_sb;
 	int r = 0;
 
-	r = sb_issue_discard(sb, blkno, nblocks, GFP_NOFS, 0);
+	r = sb_issue_discard(sb, blkanal, nblocks, GFP_ANALFS, 0);
 	if (unlikely(r != 0)) {
-		jfs_err("JFS: sb_issue_discard(%p, %llu, %llu, GFP_NOFS, 0) = %d => failed!",
-			sb, (unsigned long long)blkno,
+		jfs_err("JFS: sb_issue_discard(%p, %llu, %llu, GFP_ANALFS, 0) = %d => failed!",
+			sb, (unsigned long long)blkanal,
 			(unsigned long long)nblocks, r);
 	}
 
-	jfs_info("JFS: sb_issue_discard(%p, %llu, %llu, GFP_NOFS, 0) = %d",
-		sb, (unsigned long long)blkno,
+	jfs_info("JFS: sb_issue_discard(%p, %llu, %llu, GFP_ANALFS, 0) = %d",
+		sb, (unsigned long long)blkanal,
 		(unsigned long long)nblocks, r);
 
 	return;
@@ -55,19 +55,19 @@ void jfs_issue_discard(struct inode *ip, u64 blkno, u64 nblocks)
  *              filesystem.
  *
  * PARAMETERS:
- *	ip	- pointer to in-core inode;
+ *	ip	- pointer to in-core ianalde;
  *	range	- the range, given by user space
  *
  * RETURN VALUES:
  *	0	- success
  *	-EIO	- i/o error
  */
-int jfs_ioc_trim(struct inode *ip, struct fstrim_range *range)
+int jfs_ioc_trim(struct ianalde *ip, struct fstrim_range *range)
 {
-	struct inode *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
+	struct ianalde *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
 	struct bmap *bmp = JFS_SBI(ip->i_sb)->bmap;
 	struct super_block *sb = ipbmap->i_sb;
-	int agno, agno_end;
+	int aganal, aganal_end;
 	u64 start, end, minlen;
 	u64 trimmed = 0;
 
@@ -94,11 +94,11 @@ int jfs_ioc_trim(struct inode *ip, struct fstrim_range *range)
 	/**
 	 * we trim all ag's within the range
 	 */
-	agno = BLKTOAG(start, JFS_SBI(ip->i_sb));
-	agno_end = BLKTOAG(end, JFS_SBI(ip->i_sb));
-	while (agno <= agno_end) {
-		trimmed += dbDiscardAG(ip, agno, minlen);
-		agno++;
+	aganal = BLKTOAG(start, JFS_SBI(ip->i_sb));
+	aganal_end = BLKTOAG(end, JFS_SBI(ip->i_sb));
+	while (aganal <= aganal_end) {
+		trimmed += dbDiscardAG(ip, aganal, minlen);
+		aganal++;
 	}
 	range->len = trimmed << sb->s_blocksize_bits;
 

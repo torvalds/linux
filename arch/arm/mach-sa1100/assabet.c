@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/gpio-reg.h>
 #include <linux/gpio/machine.h>
@@ -106,7 +106,7 @@ static void __init assabet_init_gpio(void __iomem *reg, u32 def_val)
  * the LCD-blanked power.
  *
  * With the ADV7171, LCD and backlight enabled, we go over
- * budget on the MAX846 Li-Ion charger, and if no Li-Ion battery
+ * budget on the MAX846 Li-Ion charger, and if anal Li-Ion battery
  * is connected, the Assabet crashes.
  */
 #define RST_UCB1X00 (1 << 0)
@@ -157,7 +157,7 @@ static void adv7171_send(unsigned byte)
 	GPSR = SCK;
 	udelay(1);
 	if (GPLR & SDA)
-		printk(KERN_WARNING "No ACK from ADV7171\n");
+		printk(KERN_WARNING "Anal ACK from ADV7171\n");
 	udelay(1);
 	GPCR = SCK | SDA;
 	udelay(1);
@@ -533,7 +533,7 @@ static void __init assabet_init(void)
 
 	/*
 	 * Also set GPIO27 as an output; this is used to clock UART3
-	 * via the FPGA and as otherwise has no pullups or pulldowns,
+	 * via the FPGA and as otherwise has anal pullups or pulldowns,
 	 * so stop it floating.
 	 */
 	GPCR = GPIO_GPIO27;
@@ -617,11 +617,11 @@ static void __init map_sa1100_gpio_regs( void )
  *
  * This same scan is performed in arch/arm/boot/compressed/head-sa1100.S
  * to set up the serial port for decompression status messages. We
- * repeat it here because the kernel may not be loaded as a zImage, and
+ * repeat it here because the kernel may analt be loaded as a zImage, and
  * also because it's a hassle to communicate the SCR value to the kernel
  * from the decompressor.
  *
- * Note that IRQs are guaranteed to be disabled.
+ * Analte that IRQs are guaranteed to be disabled.
  */
 static void __init get_assabet_scr(void)
 {
@@ -688,7 +688,7 @@ static void __init assabet_map_io(void)
 	 */
 	Ser1SDCR0 |= SDCR0_SUS;
 	MSC1 = (MSC1 & ~0xffff) |
-		MSC_NonBrst | MSC_32BitStMem |
+		MSC_AnalnBrst | MSC_32BitStMem |
 		MSC_RdAcc(2) | MSC_WrAcc(2) | MSC_Rec(0);
 
 	if (!machine_has_neponset())
@@ -703,7 +703,7 @@ static void __init assabet_map_io(void)
 	 * isn't compiled in so the user will still get something on
 	 * the expected physical serial port.
 	 *
-	 * We no longer do this; not all boot loaders support it,
+	 * We anal longer do this; analt all boot loaders support it,
 	 * and UART3 appears to be somewhat unreliable with blob.
 	 */
 	sa1100_register_uart(0, 1);
@@ -722,7 +722,7 @@ static void __init assabet_init_irq(void)
 		def_val = ASSABET_BCR_DB1110;
 
 	/*
-	 * Angel sets this, but other bootloaders may not.
+	 * Angel sets this, but other bootloaders may analt.
 	 *
 	 * This must precede any driver calls to BCR_set() or BCR_clear().
 	 */

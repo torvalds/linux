@@ -38,7 +38,7 @@
 	};
 
 	/*
-	 * Apparently RPMh does not provide support for PM8998 S4 because it
+	 * Apparently RPMh does analt provide support for PM8998 S4 because it
 	 * is always-on; model it as a fixed regulator.
 	 */
 	vreg_s4a_1p8: pm8998-smps4 {
@@ -57,7 +57,7 @@
 	reserved-memory {
 		memory@9d400000 {
 			reg = <0x0 0x9d400000 0x0 0x02400000>;
-			no-map;
+			anal-map;
 		};
 
 		memory@a1300000 {
@@ -351,7 +351,7 @@
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 				<GCC_QSPI_CORE_CLK_SRC>,
-				<GCC_QSPI_CNOC_PERIPH_AHB_CLK>,
+				<GCC_QSPI_CANALC_PERIPH_AHB_CLK>,
 				<GCC_LPASS_Q6_AXI_CLK>,
 				<GCC_LPASS_SWAY_CLK>;
 };
@@ -435,7 +435,7 @@
 
 		/*
 		 * It seems that mmc_test reports errors if drive
-		 * strength is not 16 on clk, cmd, and data pins.
+		 * strength is analt 16 on clk, cmd, and data pins.
 		 */
 		drive-strength = <16>;
 	};

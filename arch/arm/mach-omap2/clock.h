@@ -3,7 +3,7 @@
  *  linux/arch/arm/mach-omap2/clock.h
  *
  *  Copyright (C) 2005-2009 Texas Instruments, Inc.
- *  Copyright (C) 2004-2011 Nokia Corporation
+ *  Copyright (C) 2004-2011 Analkia Corporation
  *
  *  Contacts:
  *  Richard Woodruff <r-woodruff2@ti.com>

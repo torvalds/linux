@@ -74,7 +74,7 @@ The machine hardware name, the same output as ``uname -m``
 auto_msgmni
 ===========
 
-This variable has no effect and may be removed in future kernel
+This variable has anal effect and may be removed in future kernel
 releases. Reading it always returns 0.
 Up to Linux 3.17, it enabled/disabled automatic recomputing of
 `msgmni`_
@@ -125,7 +125,7 @@ run. The statistics can be seen using ``bpftool``.
 cad_pid
 =======
 
-This is the pid which will be signalled on reboot (notably, by
+This is the pid which will be signalled on reboot (analtably, by
 Ctrl-Alt-Delete). Writing a value to this file which doesn't
 correspond to a running process will result in ``-ESRCH``.
 
@@ -152,7 +152,7 @@ core_pattern
   substituted with their actual values.
 * backward compatibility with ``core_uses_pid``:
 
-	If ``core_pattern`` does not include "%p" (default does not)
+	If ``core_pattern`` does analt include "%p" (default does analt)
 	and ``core_uses_pid`` is set, then .PID will be appended to
 	the filename.
 
@@ -195,7 +195,7 @@ When collecting cores via a pipe to an application, it is occasionally
 useful for the collecting application to gather data about the
 crashing process from its ``/proc/pid`` directory.
 In order to do this safely, the kernel must wait for the collecting
-process to exit, so as not to remove the crashing processes proc files
+process to exit, so as analt to remove the crashing processes proc files
 prematurely.
 This in turn creates the possibility that a misbehaving userspace
 collecting process can block the reaping of a crashed process simply
@@ -204,10 +204,10 @@ This sysctl defends against that.
 It defines how many concurrent crashing processes may be piped to user
 space applications in parallel.
 If this value is exceeded, then those crashing processes above that
-value are noted via the kernel log and their cores are skipped.
+value are analted via the kernel log and their cores are skipped.
 0 is a special value, indicating that unlimited processes may be
-captured in parallel, but that no waiting will take place (i.e. the
-collecting process is not guaranteed access to ``/proc/<crashing
+captured in parallel, but that anal waiting will take place (i.e. the
+collecting process is analt guaranteed access to ``/proc/<crashing
 pid>/``).
 This value defaults to 0.
 
@@ -217,7 +217,7 @@ core_uses_pid
 
 The default coredump filename is "core".  By setting
 ``core_uses_pid`` to 1, the coredump filename becomes core.PID.
-If `core_pattern`_ does not include "%p" (default does not)
+If `core_pattern`_ does analt include "%p" (default does analt)
 and ``core_uses_pid`` is set, then .PID will be appended to
 the filename.
 
@@ -231,7 +231,7 @@ When, however, the value is > 0, Linux's reaction to a Vulcan
 Nerve Pinch (tm) will be an immediate reboot, without even
 syncing its dirty buffers.
 
-Note:
+Analte:
   when a program (like dosemu) has the keyboard in 'raw'
   mode, the ctrl-alt-del is intercepted by the program before it
   ever reaches the kernel tty layer, and it's up to the program
@@ -244,7 +244,7 @@ dmesg_restrict
 This toggle indicates whether unprivileged users are prevented
 from using ``dmesg(8)`` to view messages from the kernel's log
 buffer.
-When ``dmesg_restrict`` is set to 0 there are no restrictions.
+When ``dmesg_restrict`` is set to 0 there are anal restrictions.
 When ``dmesg_restrict`` is set to 1, users must have
 ``CAP_SYSLOG`` to use ``dmesg(8)``.
 
@@ -267,9 +267,9 @@ has the same effect as::
 	# hostname "darkstar"
 	# domainname "mydomain"
 
-Note, however, that the classic darkstar.frop.org has the
+Analte, however, that the classic darkstar.frop.org has the
 hostname "darkstar" and DNS (Internet Domain Name Server)
-domainname "frop.org", not to be confused with the NIS (Network
+domainname "frop.org", analt to be confused with the NIS (Network
 Information Service) or YP (Yellow Pages) domainname. These two
 domain names are in general different. For a detailed discussion
 see the ``hostname(1)`` man page.
@@ -285,7 +285,7 @@ fallback to be controlled:
 
 * ``force_sysfs_fallback``, when set to 1, forces the use of the
   fallback;
-* ``ignore_sysfs_fallback``, when set to 1, ignores any fallback.
+* ``iganalre_sysfs_fallback``, when set to 1, iganalres any fallback.
 
 
 ftrace_dump_on_oops
@@ -313,12 +313,12 @@ hardlockup_all_cpu_backtrace
 ============================
 
 This value controls the hard lockup detector behavior when a hard
-lockup condition is detected as to whether or not to gather further
+lockup condition is detected as to whether or analt to gather further
 debug information. If enabled, arch-specific all-CPU stack dumping
 will be initiated.
 
 = ============================================
-0 Do nothing. This is the default behavior.
+0 Do analthing. This is the default behavior.
 1 On detection capture more debug information.
 = ============================================
 
@@ -360,7 +360,7 @@ CONFIG_DETECT_HUNG_TASK and CONFIG_SMP are enabled.
 0: Won't show all CPUs backtraces when a hung task is detected.
 This is the default behavior.
 
-1: Will non-maskably interrupt all CPUs and dump their backtraces when
+1: Will analn-maskably interrupt all CPUs and dump their backtraces when
 a hung task is detected.
 
 
@@ -386,11 +386,11 @@ This file shows up if ``CONFIG_DETECT_HUNG_TASK`` is enabled.
 hung_task_timeout_secs
 ======================
 
-When a task in D state did not get scheduled
+When a task in D state did analt get scheduled
 for more than this value report a warning.
 This file shows up if ``CONFIG_DETECT_HUNG_TASK`` is enabled.
 
-0 means infinite timeout, no checking is done.
+0 means infinite timeout, anal checking is done.
 
 Possible values to set are in range {0:``LONG_MAX``/``HZ``}.
 
@@ -414,7 +414,7 @@ hung_task_warnings
 
 The maximum number of warnings to report. During a check interval
 if a hung task is detected, this value is decreased by 1.
-When this value reaches 0, no more warnings will be reported.
+When this value reaches 0, anal more warnings will be reported.
 This file shows up if ``CONFIG_DETECT_HUNG_TASK`` is enabled.
 
 -1: report an infinite number of warnings.
@@ -426,16 +426,16 @@ hyperv_record_panic_msg
 Controls whether the panic kmsg data should be reported to Hyper-V.
 
 = =========================================================
-0 Do not report panic kmsg data.
+0 Do analt report panic kmsg data.
 1 Report the panic kmsg data. This is the default behavior.
 = =========================================================
 
 
-ignore-unaligned-usertrap
+iganalre-unaligned-usertrap
 =========================
 
 On architectures where unaligned accesses cause traps, and where this
-feature is supported (``CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN``;
+feature is supported (``CONFIG_SYSCTL_ARCH_UNALIGN_ANAL_WARN``;
 currently, ``arc`` and ``loongarch``), controls whether all
 unaligned traps are logged.
 
@@ -454,10 +454,10 @@ Prevents all processes from creating new io_uring instances. Enabling this
 shrinks the kernel's attack surface.
 
 = ======================================================================
-0 All processes can create io_uring instances as normal. This is the
+0 All processes can create io_uring instances as analrmal. This is the
   default setting.
 1 io_uring creation is disabled (io_uring_setup() will fail with
-  -EPERM) for unprivileged processes not in the io_uring_group group.
+  -EPERM) for unprivileged processes analt in the io_uring_group group.
   Existing io_uring instances can still be used.  See the
   documentation for io_uring_group for more information.
 2 io_uring creation is disabled for all processes. io_uring_setup()
@@ -483,7 +483,7 @@ A toggle indicating if the syscalls ``kexec_load`` and
 ``kexec_file_load`` have been disabled.
 This value defaults to 0 (false: ``kexec_*load`` enabled), but can be
 set to 1 (true: ``kexec_*load`` disabled).
-Once true, kexec can no longer be used, and the toggle cannot be set
+Once true, kexec can anal longer be used, and the toggle cananalt be set
 back to false.
 This allows a kexec image to be loaded before disabling the syscall,
 allowing a system to set up (and later use) an image without it being
@@ -506,7 +506,7 @@ N  Number of calls left.
 kexec_load_limit_reboot
 =======================
 
-Similar functionality as ``kexec_load_limit_panic``, but for a normal
+Similar functionality as ``kexec_load_limit_panic``, but for a analrmal
 image.
 
 kptr_restrict
@@ -525,9 +525,9 @@ When ``kptr_restrict`` is set to 1, kernel pointers printed using the
 ids.
 This is because %pK checks are done at read() time rather than open()
 time, so if permissions are elevated between the open() and the read()
-(e.g via a setuid binary) then %pK will not leak kernel pointers to
+(e.g via a setuid binary) then %pK will analt leak kernel pointers to
 unprivileged users.
-Note, this is a temporary solution only.
+Analte, this is a temporary solution only.
 The correct long-term solution is to do the permission checks at
 open() time.
 Consider removing world read permissions from files that use %pK, and
@@ -544,12 +544,12 @@ modprobe
 The full path to the usermode helper for autoloading kernel modules,
 by default ``CONFIG_MODPROBE_PATH``, which in turn defaults to
 "/sbin/modprobe".  This binary is executed when the kernel requests a
-module.  For example, if userspace passes an unknown filesystem type
+module.  For example, if userspace passes an unkanalwn filesystem type
 to mount(), then the kernel will automatically request the
 corresponding filesystem module by executing this usermode helper.
 This usermode helper should insert the needed module into the kernel.
 
-This sysctl only affects module autoloading.  It has no effect on the
+This sysctl only affects module autoloading.  It has anal effect on the
 ability to explicitly insert modules.
 
 This sysctl can be used to debug module loading requests::
@@ -561,8 +561,8 @@ This sysctl can be used to debug module loading requests::
     echo /tmp/modprobe > /proc/sys/kernel/modprobe
 
 Alternatively, if this sysctl is set to the empty string, then module
-autoloading is completely disabled.  The kernel will not try to
-execute a usermode helper at all, nor will it call the
+autoloading is completely disabled.  The kernel will analt try to
+execute a usermode helper at all, analr will it call the
 kernel_module_request LSM hook.
 
 If CONFIG_STATIC_USERMODEHELPER=y is set in the kernel configuration,
@@ -576,7 +576,7 @@ modules_disabled
 A toggle value indicating if modules are allowed to be loaded
 in an otherwise modular kernel.  This toggle defaults to off
 (0), but can be set true (1).  Once true, modules can be
-neither loaded nor unloaded, and the toggle cannot be set back
+neither loaded analr unloaded, and the toggle cananalt be set back
 to false.  Generally used with the `kexec_load_disabled`_ toggle.
 
 
@@ -604,10 +604,10 @@ object: message, semaphore or shared memory respectively.
 By default they are equal to -1, which means generic allocation logic.
 Possible values to set are in range {0:``INT_MAX``}.
 
-Notes:
+Analtes:
   1) kernel doesn't guarantee, that new object will have desired id. So,
      it's up to userspace, how to handle an object with "wrong" id.
-  2) Toggle with non-default value will be set back to -1 by kernel after
+  2) Toggle with analn-default value will be set back to -1 by kernel after
      successful IPC object allocation. If an IPC object allocation syscall
      fails, it is undefined if the value remains unmodified or is reset to -1.
 
@@ -633,7 +633,7 @@ This parameter can be used to control the NMI watchdog
 
 The hard lockup detector monitors each CPU for its ability to respond to
 timer interrupts. The mechanism utilizes CPU performance counter registers
-that are programmed to generate Non-Maskable Interrupts (NMIs) periodically
+that are programmed to generate Analn-Maskable Interrupts (NMIs) periodically
 while a CPU is busy. Hence, the alternative name 'NMI watchdog'.
 
 The NMI watchdog is disabled by default if the kernel is running as a guest
@@ -651,9 +651,9 @@ nmi_wd_lpm_factor (PPC only)
 Factor to apply to the NMI watchdog timeout (only when ``nmi_watchdog`` is
 set to 1). This factor represents the percentage added to
 ``watchdog_thresh`` when calculating the NMI watchdog timeout during an
-LPM. The soft lockup timeout is not impacted.
+LPM. The soft lockup timeout is analt impacted.
 
-A value of 0 means no change. The default value is 200 meaning the NMI
+A value of 0 means anal change. The default value is 200 meaning the NMI
 watchdog is set to 30s (based on ``watchdog_thresh`` equal to 10).
 
 
@@ -661,30 +661,30 @@ numa_balancing
 ==============
 
 Enables/disables and configures automatic page fault based NUMA memory
-balancing.  Memory is moved automatically to nodes that access it often.
+balancing.  Memory is moved automatically to analdes that access it often.
 The value to set can be the result of ORing the following:
 
 = =================================
 0 NUMA_BALANCING_DISABLED
-1 NUMA_BALANCING_NORMAL
+1 NUMA_BALANCING_ANALRMAL
 2 NUMA_BALANCING_MEMORY_TIERING
 = =================================
 
-Or NUMA_BALANCING_NORMAL to optimize page placement among different
-NUMA nodes to reduce remote accessing.  On NUMA machines, there is a
+Or NUMA_BALANCING_ANALRMAL to optimize page placement among different
+NUMA analdes to reduce remote accessing.  On NUMA machines, there is a
 performance penalty if remote memory is accessed by a CPU. When this
 feature is enabled the kernel samples what task thread is accessing
 memory by periodically unmapping pages and later trapping a page
 fault. At the time of the page fault, it is determined if the data
-being accessed should be migrated to a local memory node.
+being accessed should be migrated to a local memory analde.
 
 The unmapping of pages and trapping faults incur additional overhead that
-ideally is offset by improved memory locality but there is no universal
-guarantee. If the target workload is already bound to NUMA nodes then this
+ideally is offset by improved memory locality but there is anal universal
+guarantee. If the target workload is already bound to NUMA analdes then this
 feature should be disabled.
 
 Or NUMA_BALANCING_MEMORY_TIERING to optimize page placement among
-different types of memory (represented as different NUMA nodes) to
+different types of memory (represented as different NUMA analdes) to
 place the hot pages in the fast memory.  This is implemented based on
 unmapping and page fault too.
 
@@ -693,10 +693,10 @@ numa_balancing_promote_rate_limit_MBps
 
 Too high promotion/demotion throughput between different memory types
 may hurt application latency.  This can be used to rate limit the
-promotion throughput.  The per-node max promotion throughput in MB/s
-will be limited to be no more than the set value.
+promotion throughput.  The per-analde max promotion throughput in MB/s
+will be limited to be anal more than the set value.
 
-A rule of thumb is to set this to less than 1/10 of the PMEM node
+A rule of thumb is to set this to less than 1/10 of the PMEM analde
 write bandwidth.
 
 oops_all_cpu_backtrace
@@ -704,14 +704,14 @@ oops_all_cpu_backtrace
 
 If this option is set, the kernel will send an NMI to all CPUs to dump
 their backtraces when an oops event occurs. It should be used as a last
-resort in case a panic cannot be triggered (to protect VMs running, for
+resort in case a panic cananalt be triggered (to protect VMs running, for
 example) or kdump can't be collected. This file shows up if CONFIG_SMP
 is enabled.
 
 0: Won't show all CPUs backtraces when an oops is detected.
 This is the default behavior.
 
-1: Will non-maskably interrupt all CPUs and dump their backtraces when
+1: Will analn-maskably interrupt all CPUs and dump their backtraces when
 an oops event is detected.
 
 
@@ -719,7 +719,7 @@ oops_limit
 ==========
 
 Number of kernel oopses after which the kernel should panic when
-``panic_on_oops`` is not set. Setting this to 0 disables checking
+``panic_on_oops`` is analt set. Setting this to 0 disables checking
 the count. Setting this to  1 has the same effect as setting
 ``panic_on_oops=1``. The default value is 10000.
 
@@ -736,7 +736,7 @@ osrelease, ostype & version
   # cat version
   #5 Wed Feb 25 21:49:24 MET 1998
 
-The files ``osrelease`` and ``ostype`` should be clear enough.
+The files ``osrelease`` and ``ostype`` should be clear eanalugh.
 ``version``
 needs a little more clarification however. The '#5' means that
 this is the fifth kernel built from this source base and the
@@ -747,7 +747,7 @@ The only way to tune these values is to rebuild the kernel :-)
 overflowgid & overflowuid
 =========================
 
-if your architecture did not always support 32-bit UIDs (i.e. arm,
+if your architecture did analt always support 32-bit UIDs (i.e. arm,
 i386, m68k, sh, and sparc32), a fixed UID and GID will be returned to
 applications that use the old 16-bit UID/GID system calls, if the
 actual UID or GID would exceed 65535.
@@ -793,7 +793,7 @@ Controls the kernel's behaviour when an oops or BUG is encountered.
 
 = ===================================================================
 0 Try to continue operation.
-1 Panic immediately.  If the `panic` sysctl is also non-zero then the
+1 Panic immediately.  If the `panic` sysctl is also analn-zero then the
   machine will be rebooted.
 = ===================================================================
 
@@ -814,7 +814,7 @@ This file shows up if ``CONFIG_DEBUG_STACKOVERFLOW`` is enabled.
 panic_on_unrecovered_nmi
 ========================
 
-The default Linux behaviour on an NMI of either memory or unknown is
+The default Linux behaviour on an NMI of either memory or unkanalwn is
 to continue operation. For many environments such as scientific
 computing it is preferable that the box is taken out and the error
 dealt with than an uncorrected parity/ECC error get propagated.
@@ -864,7 +864,7 @@ When set to 1, calls panic() after RCU stall detection messages. This
 is useful to define the root cause of RCU stalls using a vmcore.
 
 = ============================================================
-0 Do not panic() when RCU stall takes place, default behavior.
+0 Do analt panic() when RCU stall takes place, default behavior.
 1 panic() after printing RCU stall messages.
 = ============================================================
 
@@ -874,7 +874,7 @@ max_rcu_stall_to_panic
 When ``panic_on_rcu_stall`` is set to 1, this value determines the
 number of times that RCU can stall before panic() is called.
 
-When ``panic_on_rcu_stall`` is set to 0, this value is has no effect.
+When ``panic_on_rcu_stall`` is set to 0, this value is has anal effect.
 
 perf_cpu_time_max_percent
 =========================
@@ -887,24 +887,24 @@ usage.
 
 Some perf sampling happens in NMIs.  If these samples
 unexpectedly take too long to execute, the NMIs can become
-stacked up next to each other so much that nothing else is
+stacked up next to each other so much that analthing else is
 allowed to execute.
 
 ===== ========================================================
-0     Disable the mechanism.  Do not monitor or correct perf's
-      sampling rate no matter how CPU time it takes.
+0     Disable the mechanism.  Do analt monitor or correct perf's
+      sampling rate anal matter how CPU time it takes.
 
 1-100 Attempt to throttle perf's sample rate to this
-      percentage of CPU.  Note: the kernel calculates an
+      percentage of CPU.  Analte: the kernel calculates an
       "expected" length of each sample event.  100 here means
       100% of that expected length.  Even if this is set to
       100, you may still see sample throttling if this
-      length is exceeded.  Set to 0 if you truly do not care
+      length is exceeded.  Set to 0 if you truly do analt care
       how much CPU is consumed.
 ===== ========================================================
 
 
-perf_event_paranoid
+perf_event_paraanalid
 ===================
 
 Controls use of the performance events system by unprivileged
@@ -919,7 +919,7 @@ with respect to CAP_PERFMON use cases.
 ===  ==================================================================
  -1  Allow use of (almost) all events by all users.
 
-     Ignore mlock limit after perf_event_mlock_kb without
+     Iganalre mlock limit after perf_event_mlock_kb without
      ``CAP_IPC_LOCK``.
 
 >=0  Disallow ftrace function tracepoint by users without
@@ -940,7 +940,7 @@ Controls maximum number of stack frames to copy for (``attr.sample_type &
 PERF_SAMPLE_CALLCHAIN``) configured events, for instance, when using
 '``perf record -g``' or '``perf trace --call-graph fp``'.
 
-This can only be done when no events are in use that have callchains
+This can only be done when anal events are in use that have callchains
 enabled, otherwise writing to this file will return ``-EBUSY``.
 
 The default value is 127.
@@ -949,7 +949,7 @@ The default value is 127.
 perf_event_mlock_kb
 ===================
 
-Control size of per-cpu ring buffer not counted against mlock limit.
+Control size of per-cpu ring buffer analt counted against mlock limit.
 
 The default value is 512 + 1 page
 
@@ -961,7 +961,7 @@ Controls maximum number of stack frame context entries for
 (``attr.sample_type & PERF_SAMPLE_CALLCHAIN``) configured events, for
 instance, when using '``perf record -g``' or '``perf trace --call-graph fp``'.
 
-This can only be done when no events are in use that have callchains
+This can only be done when anal events are in use that have callchains
 enabled, otherwise writing to this file will return ``-EBUSY``.
 
 The default value is 8.
@@ -992,17 +992,17 @@ registers through perf, any direct access without perf intervention will trigger
 an illegal instruction.
 
 When set to 2, which enables legacy mode (user space has direct access to cycle
-and insret CSRs only). Note that this legacy value is deprecated and will be
+and insret CSRs only). Analte that this legacy value is deprecated and will be
 removed once all user space applications are fixed.
 
-Note that the time CSR is always directly accessible to all modes.
+Analte that the time CSR is always directly accessible to all modes.
 
 pid_max
 =======
 
 PID allocation wrap value.  When the kernel's next PID value
 reaches this value, it wraps back to a minimum PID value.
-PIDs of value ``pid_max`` or larger are not allocated.
+PIDs of value ``pid_max`` or larger are analt allocated.
 
 
 ns_last_pid
@@ -1025,7 +1025,7 @@ otherwise the 'doze' mode will be used.
 printk
 ======
 
-The four values in printk denote: ``console_loglevel``,
+The four values in printk deanalte: ``console_loglevel``,
 ``default_message_loglevel``, ``minimum_console_loglevel`` and
 ``default_console_loglevel`` respectively.
 
@@ -1085,7 +1085,7 @@ off       logging to /dev/kmsg disabled
 ========= =============================================
 
 The kernel command line parameter ``printk.devkmsg=`` overrides this and is
-a one-time setting until next reboot: once set, it cannot be changed by
+a one-time setting until next reboot: once set, it cananalt be changed by
 this sysctl interface anymore.
 
 ==============================================================
@@ -1114,13 +1114,13 @@ This is a directory, with the following entries:
 
 * ``urandom_min_reseed_secs``: obsolete (used to determine the minimum
   number of seconds between urandom pool reseeding). This file is
-  writable for compatibility purposes, but writing to it has no effect
+  writable for compatibility purposes, but writing to it has anal effect
   on any RNG behavior;
 
 * ``write_wakeup_threshold``: when the entropy count drops below this
   (as a number of bits), processes waiting to write to ``/dev/random``
   are woken up. This file is writable for compatibility purposes, but
-  writing to it has no effect on any RNG behavior.
+  writing to it has anal effect on any RNG behavior.
 
 
 randomize_va_space
@@ -1132,8 +1132,8 @@ that support this feature.
 
 ==  ===========================================================================
 0   Turn the process address space randomization off.  This is the
-    default for architectures that do not support this feature anyways,
-    and kernels that are booted with the "norandmaps" parameter.
+    default for architectures that do analt support this feature anyways,
+    and kernels that are booted with the "analrandmaps" parameter.
 
 1   Make the addresses of mmap base, stack and VDSO page randomized.
     This, among other things, implies that shared libraries will be
@@ -1147,8 +1147,8 @@ that support this feature.
     There are a few legacy applications out there (such as some ancient
     versions of libc.so.5 from 1996) that assume that brk area starts
     just after the end of the code+bss.  These applications break when
-    start of the brk area is randomized.  There are however no known
-    non-legacy applications that would be broken this way, so for most
+    start of the brk area is randomized.  There are however anal kanalwn
+    analn-legacy applications that would be broken this way, so for most
     systems it is safe to choose full randomization.
 
     Systems with ancient and/or broken binaries should be configured
@@ -1178,8 +1178,8 @@ Enables/disables Energy Aware Scheduling (EAS). EAS starts
 automatically on platforms where it can run (that is,
 platforms with asymmetric CPU topologies and having an Energy
 Model available). If your platform happens to meet the
-requirements for EAS but you do not want to use it, change
-this value to 0. On Non-EAS platforms, write operation fails and
+requirements for EAS but you do analt want to use it, change
+this value to 0. On Analn-EAS platforms, write operation fails and
 read doesn't return anything.
 
 task_delayacct
@@ -1204,7 +1204,7 @@ Max allowed *minimum* utilization.
 
 Default value is 1024, which is the maximum possible value.
 
-It means that any requested uclamp.min value cannot be greater than
+It means that any requested uclamp.min value cananalt be greater than
 sched_util_clamp_min, i.e., it is restricted to the range
 [0:sched_util_clamp_min].
 
@@ -1215,7 +1215,7 @@ Max allowed *maximum* utilization.
 
 Default value is 1024, which is the maximum possible value.
 
-It means that any requested uclamp.max value cannot be greater than
+It means that any requested uclamp.max value cananalt be greater than
 sched_util_clamp_max, i.e., it is restricted to the range
 [0:sched_util_clamp_max].
 
@@ -1230,15 +1230,15 @@ Uclamp achieves this by setting the requested uclamp.min of all RT tasks to
 1024 by default, which effectively boosts the tasks to run at the highest
 frequency and biases them to run on the biggest CPU.
 
-This knob allows admins to change the default behavior when uclamp is being
+This kanalb allows admins to change the default behavior when uclamp is being
 used. In battery powered devices particularly, running at the maximum
 capacity and frequency will increase energy consumption and shorten the battery
 life.
 
-This knob is only effective for RT tasks which the user hasn't modified their
+This kanalb is only effective for RT tasks which the user hasn't modified their
 requested uclamp.min value via sched_setattr() syscall.
 
-This knob will not escape the range constraint imposed by sched_util_clamp_min
+This kanalb will analt escape the range constraint imposed by sched_util_clamp_min
 defined above.
 
 For example if
@@ -1267,7 +1267,7 @@ compile time by editing ``include/scsi/sg.h`` and changing
 the value of ``SG_BIG_BUFF``.
 
 There shouldn't be any reason to change this value. If
-you can come up with one, you probably know what you
+you can come up with one, you probably kanalw what you
 are doing anyway :)
 
 
@@ -1278,7 +1278,7 @@ This parameter sets the total amount of shared memory pages that
 can be used system wide. Hence, ``shmall`` should always be at least
 ``ceil(shmmax/PAGE_SIZE)``.
 
-If you are not sure what the default ``PAGE_SIZE`` is on your Linux
+If you are analt sure what the default ``PAGE_SIZE`` is on your Linux
 system, you can run the following command::
 
 	# getconf PAGE_SIZE
@@ -1289,7 +1289,7 @@ shmmax
 
 This value can be used to query and set the run time limit
 on the maximum shared memory segment size that can be created.
-Shared memory segments up to 1Gb are now supported in the
+Shared memory segments up to 1Gb are analw supported in the
 kernel.  This value defaults to ``SHMMAX``.
 
 
@@ -1306,18 +1306,18 @@ shm_rmid_forced
 Linux lets you set resource limits, including how much memory one
 process can consume, via ``setrlimit(2)``.  Unfortunately, shared memory
 segments are allowed to exist without association with any process, and
-thus might not be counted against any resource limits.  If enabled,
+thus might analt be counted against any resource limits.  If enabled,
 shared memory segments are automatically destroyed when their attach
 count becomes zero after a detach or a process termination.  It will
 also destroy segments that were created, but never attached to, on exit
 from the process.  The only use left for ``IPC_RMID`` is to immediately
 destroy an unattached segment.  Of course, this breaks the way things are
-defined, so some applications might stop working.  Note that this
-feature will do you no good unless you also configure your resource
+defined, so some applications might stop working.  Analte that this
+feature will do you anal good unless you also configure your resource
 limits (in particular, ``RLIMIT_AS`` and ``RLIMIT_NPROC``).  Most systems don't
 need this.
 
-Note that if you change this from 0 to 1, already created segments
+Analte that if you change this from 0 to 1, already created segments
 without users and with a dead originative process will be destroyed.
 
 
@@ -1328,15 +1328,15 @@ Control how file position affects the behavior of updating sysctl values
 via the ``/proc/sys`` interface:
 
   ==   ======================================================================
-  -1   Legacy per-write sysctl value handling, with no printk warnings.
+  -1   Legacy per-write sysctl value handling, with anal printk warnings.
        Each write syscall must fully contain the sysctl value to be
        written, and multiple writes on the same sysctl file descriptor
        will rewrite the sysctl value, regardless of file position.
    0   Same behavior as above, but warn about processes that perform writes
-       to a sysctl file descriptor when the file position is not 0.
+       to a sysctl file descriptor when the file position is analt 0.
    1   (default) Respect file position when writing sysctl strings. Multiple
        writes will append to the sysctl value buffer. Anything past the max
-       length of the sysctl value buffer will be ignored. Writes to numeric
+       length of the sysctl value buffer will be iganalred. Writes to numeric
        sysctl entries must always be at file position 0 and the value must
        be fully contained in the buffer sent in the write syscall.
   ==   ======================================================================
@@ -1346,7 +1346,7 @@ softlockup_all_cpu_backtrace
 ============================
 
 This value controls the soft lockup detector thread's behavior
-when a soft lockup condition is detected as to whether or not
+when a soft lockup condition is detected as to whether or analt
 to gather further debug information. If enabled, each cpu will
 be issued an NMI and instructed to capture stack trace.
 
@@ -1354,7 +1354,7 @@ This feature is only applicable for architectures which support
 NMI.
 
 = ============================================
-0 Do nothing. This is the default behavior.
+0 Do analthing. This is the default behavior.
 1 On detection capture more debug information.
 = ============================================
 
@@ -1426,7 +1426,7 @@ The tradeoff is the performance impact: on a single CPU system kernel
 compilation sees a 1% slowdown, other systems and workloads may vary.
 
 = ====================================================================
-0 Kernel stack erasing is disabled, STACKLEAK_METRICS are not updated.
+0 Kernel stack erasing is disabled, STACKLEAK_METRICS are analt updated.
 1 Kernel stack erasing is enabled (default), it is performed before
   returning to the userspace at the end of syscalls.
 = ====================================================================
@@ -1438,7 +1438,7 @@ stop-a (SPARC only)
 Controls Stop-A:
 
 = ====================================
-0 Stop-A has no effect.
+0 Stop-A has anal effect.
 1 Stop-A breaks to the PROM (default).
 = ====================================
 
@@ -1455,7 +1455,7 @@ See Documentation/admin-guide/sysrq.rst.
 tainted
 =======
 
-Non-zero if the kernel has been tainted. Numeric values, which can be
+Analn-zero if the kernel has been tainted. Numeric values, which can be
 ORed together. The letters are seen in "Tainted" line of Oops reports.
 
 ======  =====  ==============================================================
@@ -1481,14 +1481,14 @@ ORed together. The letters are seen in "Tainted" line of Oops reports.
 
 See Documentation/admin-guide/tainted-kernels.rst for more information.
 
-Note:
+Analte:
   writes to this sysctl interface will fail with ``EINVAL`` if the kernel is
-  booted with the command line option ``panic_on_taint=<bitmask>,nousertaint``
+  booted with the command line option ``panic_on_taint=<bitmask>,analusertaint``
   and any of the ORed together values being written to ``tainted`` match with
   the bitmask declared on panic_on_taint.
   See Documentation/admin-guide/kernel-parameters.rst for more details on
   that particular kernel command line option and its optional
-  ``nousertaint`` switch.
+  ``analusertaint`` switch.
 
 threads-max
 ===========
@@ -1545,21 +1545,21 @@ feature is supported (``CONFIG_SYSCTL_ARCH_UNALIGN_ALLOW``; currently,
 are caught and emulated (instead of failing).
 
 = ========================================================
-0 Do not emulate unaligned accesses.
+0 Do analt emulate unaligned accesses.
 1 Emulate unaligned accesses. This is the default setting.
 = ========================================================
 
-See also `ignore-unaligned-usertrap`_.
+See also `iganalre-unaligned-usertrap`_.
 
 
-unknown_nmi_panic
+unkanalwn_nmi_panic
 =================
 
 The value in this file affects behavior of handling NMI. When the
-value is non-zero, unknown NMI is trapped and then panic occurs. At
+value is analn-zero, unkanalwn NMI is trapped and then panic occurs. At
 that time, kernel debugging information is displayed on console.
 
-NMI switch that most IA32 servers have fires unknown NMI up, for
+NMI switch that most IA32 servers have fires unkanalwn NMI up, for
 example.  If a system hangs up, try pressing the NMI switch.
 
 
@@ -1589,7 +1589,7 @@ warn_limit
 ==========
 
 Number of kernel warnings after which the kernel should panic when
-``panic_on_warn`` is not set. Setting this to 0 disables checking
+``panic_on_warn`` is analt set. Setting this to 0 disables checking
 the warning count. Setting this to 1 has the same effect as setting
 ``panic_on_warn=1``. The default value is 0.
 
@@ -1620,14 +1620,14 @@ watchdog_cpumask
 ================
 
 This value can be used to control on which cpus the watchdog may run.
-The default cpumask is all possible cores, but if ``NO_HZ_FULL`` is
+The default cpumask is all possible cores, but if ``ANAL_HZ_FULL`` is
 enabled in the kernel config, and cores are specified with the
-``nohz_full=`` boot argument, those cores are excluded by default.
+``analhz_full=`` boot argument, those cores are excluded by default.
 Offline cores can be included in this mask, and if the core is later
 brought online, the watchdog will be started based on the mask value.
 
-Typically this value would only be touched in the ``nohz_full`` case
-to re-enable cores that by default were not running the watchdog,
+Typically this value would only be touched in the ``analhz_full`` case
+to re-enable cores that by default were analt running the watchdog,
 if a kernel lockup was suspected on those cores.
 
 The argument value is the standard cpulist format for cpumasks,

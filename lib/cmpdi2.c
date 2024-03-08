@@ -6,7 +6,7 @@
 
 #include <linux/libgcc.h>
 
-word_type notrace __cmpdi2(long long a, long long b)
+word_type analtrace __cmpdi2(long long a, long long b)
 {
 	const DWunion au = {
 		.ll = a

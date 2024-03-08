@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
 ** asm/bootinfo-apollo.h -- Apollo-specific boot information definitions
 */
@@ -18,7 +18,7 @@
      *  Apollo models (BI_APOLLO_MODEL)
      */
 
-#define APOLLO_UNKNOWN		0
+#define APOLLO_UNKANALWN		0
 #define APOLLO_DN3000		1
 #define APOLLO_DN3010		2
 #define APOLLO_DN3500		3

@@ -18,13 +18,13 @@ static const struct acpi_device_id acer_wireless_acpi_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, acer_wireless_acpi_ids);
 
-static void acer_wireless_notify(struct acpi_device *adev, u32 event)
+static void acer_wireless_analtify(struct acpi_device *adev, u32 event)
 {
 	struct input_dev *idev = acpi_driver_data(adev);
 
 	dev_dbg(&adev->dev, "event=%#x\n", event);
 	if (event != 0x80) {
-		dev_notice(&adev->dev, "Unknown SMKB event: %#x\n", event);
+		dev_analtice(&adev->dev, "Unkanalwn SMKB event: %#x\n", event);
 		return;
 	}
 	input_report_key(idev, KEY_RFKILL, 1);
@@ -39,7 +39,7 @@ static int acer_wireless_add(struct acpi_device *adev)
 
 	idev = devm_input_allocate_device(&adev->dev);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adev->driver_data = idev;
 	idev->name = "Acer Wireless Radio Control";
@@ -59,7 +59,7 @@ static struct acpi_driver acer_wireless_driver = {
 	.ids = acer_wireless_acpi_ids,
 	.ops = {
 		.add = acer_wireless_add,
-		.notify = acer_wireless_notify,
+		.analtify = acer_wireless_analtify,
 	},
 };
 module_acpi_driver(acer_wireless_driver);

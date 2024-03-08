@@ -854,12 +854,12 @@ static irqreturn_t adxl367_irq_handler(int irq, void *private)
 
 	ret = adxl367_get_status(st, &status, &fifo_entries);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	handled = adxl367_push_event(indio_dev, status);
 	handled |= adxl367_push_fifo_data(indio_dev, status, fifo_entries);
 
-	return handled ? IRQ_HANDLED : IRQ_NONE;
+	return handled ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static int adxl367_reg_access(struct iio_dev *indio_dev,
@@ -891,7 +891,7 @@ static int adxl367_read_raw(struct iio_dev *indio_dev,
 			*val = adxl367_range_scale_tbl[st->range][0];
 			*val2 = adxl367_range_scale_tbl[st->range][1];
 			mutex_unlock(&st->lock);
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		case IIO_TEMP:
 			*val = 1000;
 			*val2 = ADXL367_TEMP_PER_C;
@@ -965,7 +965,7 @@ static int adxl367_write_raw_get_fmt(struct iio_dev *indio_dev,
 		if (chan->type != IIO_ACCEL)
 			return -EINVAL;
 
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return IIO_VAL_INT_PLUS_MICRO;
 	}
@@ -982,7 +982,7 @@ static int adxl367_read_avail(struct iio_dev *indio_dev,
 			return -EINVAL;
 
 		*vals = (int *)adxl367_range_scale_tbl;
-		*type = IIO_VAL_INT_PLUS_NANO;
+		*type = IIO_VAL_INT_PLUS_NAANAL;
 		*length = ARRAY_SIZE(adxl367_range_scale_tbl) * 2;
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -1432,7 +1432,7 @@ static int adxl367_verify_devid(struct adxl367_state *st)
 	ret = regmap_read_poll_timeout(st->regmap, ADXL367_REG_DEVID, val,
 				       val == ADXL367_DEVID_AD, 1000, 10000);
 	if (ret)
-		return dev_err_probe(st->dev, -ENODEV,
+		return dev_err_probe(st->dev, -EANALDEV,
 				     "Invalid dev id 0x%02X, expected 0x%02X\n",
 				     val, ADXL367_DEVID_AD);
 
@@ -1482,7 +1482,7 @@ int adxl367_probe(struct device *dev, const struct adxl367_ops *ops,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	st->dev = dev;

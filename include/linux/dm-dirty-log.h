@@ -52,7 +52,7 @@ struct dm_dirty_log_type {
 	uint32_t (*get_region_size)(struct dm_dirty_log *log);
 
 	/*
-	 * A predicate to say whether a region is clean or not.
+	 * A predicate to say whether a region is clean or analt.
 	 * May block.
 	 */
 	int (*is_clean)(struct dm_dirty_log *log, region_t region);
@@ -64,7 +64,7 @@ struct dm_dirty_log_type {
 	 * [sector, sector + len) is in sync.
 	 *
 	 * If -EWOULDBLOCK is returned the state of the region is
-	 * unknown, typically this will result in a read being
+	 * unkanalwn, typically this will result in a read being
 	 * passed to a daemon to deal with, since a daemon is
 	 * allowed to block.
 	 */
@@ -80,28 +80,28 @@ struct dm_dirty_log_type {
 	/*
 	 * Mark an area as clean or dirty.  These functions may
 	 * block, though for performance reasons blocking should
-	 * be extremely rare (eg, allocating another chunk of
+	 * be extremely rare (eg, allocating aanalther chunk of
 	 * memory for some reason).
 	 */
 	void (*mark_region)(struct dm_dirty_log *log, region_t region);
 	void (*clear_region)(struct dm_dirty_log *log, region_t region);
 
 	/*
-	 * Returns: <0 (error), 0 (no region), 1 (region)
+	 * Returns: <0 (error), 0 (anal region), 1 (region)
 	 *
 	 * The mirrord will need perform recovery on regions of
-	 * the mirror that are in the NOSYNC state.  This
+	 * the mirror that are in the ANALSYNC state.  This
 	 * function asks the log to tell the caller about the
 	 * next region that this machine should recover.
 	 *
-	 * Do not confuse this function with 'in_sync()', one
+	 * Do analt confuse this function with 'in_sync()', one
 	 * tells you if an area is synchronised, the other
 	 * assigns recovery work.
 	 */
 	int (*get_resync_work)(struct dm_dirty_log *log, region_t *region);
 
 	/*
-	 * This notifies the log that the resync status of a region
+	 * This analtifies the log that the resync status of a region
 	 * has changed.  It also clears the region from the recovering
 	 * list (if present).
 	 */
@@ -121,7 +121,7 @@ struct dm_dirty_log_type {
 
 	/*
 	 * is_remote_recovering is necessary for cluster mirroring. It provides
-	 * a way to detect recovery on another node, so we aren't writing
+	 * a way to detect recovery on aanalther analde, so we aren't writing
 	 * concurrently.  This function is likely to block (when a cluster log
 	 * is used).
 	 *

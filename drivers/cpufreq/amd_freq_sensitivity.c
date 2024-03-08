@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * amd_freq_sensitivity.c: AMD frequency sensitivity feedback powersave bias
- *                         for the ondemand governor.
+ *                         for the ondemand goveranalr.
  *
  * Copyright (C) 2013 Advanced Micro Devices, Inc.
  *
@@ -44,7 +44,7 @@ static unsigned int amd_powersave_bias_target(struct cpufreq_policy *policy,
 	long d_actual, d_reference;
 	struct msr actual, reference;
 	struct cpu_data_t *data = &per_cpu(cpu_data, policy->cpu);
-	struct policy_dbs_info *policy_dbs = policy->governor_data;
+	struct policy_dbs_info *policy_dbs = policy->goveranalr_data;
 	struct dbs_data *od_data = policy_dbs->dbs_data;
 	struct od_dbs_tuners *od_tuners = od_data->tuners;
 
@@ -78,7 +78,7 @@ static unsigned int amd_powersave_bias_target(struct cpufreq_policy *policy,
 
 	clamp(sensitivity, 0, POWERSAVE_BIAS_MAX);
 
-	/* this workload is not CPU bound, so choose a lower freq */
+	/* this workload is analt CPU bound, so choose a lower freq */
 	if (sensitivity < od_tuners->powersave_bias) {
 		if (data->freq_prev == policy->cur)
 			freq_next = policy->cur;
@@ -117,23 +117,23 @@ static int __init amd_freq_sensitivity_init(void)
 	else if (boot_cpu_data.x86_vendor == X86_VENDOR_HYGON)
 		pci_vendor = PCI_VENDOR_ID_HYGON;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	pcidev = pci_get_device(pci_vendor,
 			PCI_DEVICE_ID_AMD_KERNCZ_SMBUS, NULL);
 
 	if (!pcidev) {
 		if (!boot_cpu_has(X86_FEATURE_PROC_FEEDBACK))
-			return -ENODEV;
+			return -EANALDEV;
 	} else {
 		pci_dev_put(pcidev);
 	}
 
 	if (rdmsrl_safe(MSR_AMD64_FREQ_SENSITIVITY_ACTUAL, &val))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!(val >> CLASS_CODE_SHIFT))
-		return -ENODEV;
+		return -EANALDEV;
 
 	od_register_powersave_bias_handler(amd_powersave_bias_target,
 			POWERSAVE_BIAS_DEF);
@@ -155,5 +155,5 @@ MODULE_DEVICE_TABLE(x86cpu, amd_freq_sensitivity_ids);
 
 MODULE_AUTHOR("Jacob Shin <jacob.shin@amd.com>");
 MODULE_DESCRIPTION("AMD frequency sensitivity feedback powersave bias for "
-		"the ondemand governor.");
+		"the ondemand goveranalr.");
 MODULE_LICENSE("GPL");

@@ -109,7 +109,7 @@ out_token:
 }
 
 static struct sg_ops_info {
-	int opal_no;
+	int opal_anal;
 	const char *attr_name;
 	ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
 			const char *buf, size_t count);
@@ -134,7 +134,7 @@ static int __init add_attr_group(const __be32 *ops, int len, struct sensor_group
 
 	for (i = 0; i < len; i++)
 		for (j = 0; j < ARRAY_SIZE(ops_info); j++)
-			if (be32_to_cpu(ops[i]) == ops_info[j].opal_no) {
+			if (be32_to_cpu(ops[i]) == ops_info[j].opal_anal) {
 				add_attr(handle, &sg->sgattrs[count], j);
 				sg->sg.attrs[count] =
 					&sg->sgattrs[count].attr.attr;
@@ -151,7 +151,7 @@ static int __init get_nr_attrs(const __be32 *ops, int len)
 
 	for (i = 0; i < len; i++)
 		for (j = 0; j < ARRAY_SIZE(ops_info); j++)
-			if (be32_to_cpu(ops[i]) == ops_info[j].opal_no)
+			if (be32_to_cpu(ops[i]) == ops_info[j].opal_anal)
 				nr_attrs++;
 
 	return nr_attrs;
@@ -159,12 +159,12 @@ static int __init get_nr_attrs(const __be32 *ops, int len)
 
 void __init opal_sensor_groups_init(void)
 {
-	struct device_node *sg, *node;
+	struct device_analde *sg, *analde;
 	int i = 0;
 
-	sg = of_find_compatible_node(NULL, NULL, "ibm,opal-sensor-group");
+	sg = of_find_compatible_analde(NULL, NULL, "ibm,opal-sensor-group");
 	if (!sg) {
-		pr_devel("Sensor groups node not found\n");
+		pr_devel("Sensor groups analde analt found\n");
 		return;
 	}
 
@@ -178,11 +178,11 @@ void __init opal_sensor_groups_init(void)
 		goto out_sgs;
 	}
 
-	for_each_child_of_node(sg, node) {
+	for_each_child_of_analde(sg, analde) {
 		const __be32 *ops;
 		u32 sgid, len, nr_attrs, chipid;
 
-		ops = of_get_property(node, "ops", &len);
+		ops = of_get_property(analde, "ops", &len);
 		if (!ops)
 			continue;
 
@@ -204,15 +204,15 @@ void __init opal_sensor_groups_init(void)
 			goto out_sgs_sgattrs;
 		}
 
-		if (of_property_read_u32(node, "sensor-group-id", &sgid)) {
-			pr_warn("sensor-group-id property not found\n");
+		if (of_property_read_u32(analde, "sensor-group-id", &sgid)) {
+			pr_warn("sensor-group-id property analt found\n");
 			goto out_sgs_sgattrs;
 		}
 
-		if (!of_property_read_u32(node, "ibm,chip-id", &chipid))
-			sprintf(sgs[i].name, "%pOFn%d", node, chipid);
+		if (!of_property_read_u32(analde, "ibm,chip-id", &chipid))
+			sprintf(sgs[i].name, "%pOFn%d", analde, chipid);
 		else
-			sprintf(sgs[i].name, "%pOFn", node);
+			sprintf(sgs[i].name, "%pOFn", analde);
 
 		sgs[i].sg.name = sgs[i].name;
 		if (add_attr_group(ops, len, &sgs[i], sgid)) {
@@ -222,7 +222,7 @@ void __init opal_sensor_groups_init(void)
 		}
 		i++;
 	}
-	of_node_put(sg);
+	of_analde_put(sg);
 
 	return;
 
@@ -232,9 +232,9 @@ out_sgs_sgattrs:
 		kfree(sgs[i].sg.attrs);
 	}
 	kobject_put(sg_kobj);
-	of_node_put(node);
+	of_analde_put(analde);
 out_sgs:
 	kfree(sgs);
 out_sg_put:
-	of_node_put(sg);
+	of_analde_put(sg);
 }

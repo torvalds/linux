@@ -36,7 +36,7 @@ config PPC_IBM_CELL_BLADE
 config AXON_MSI
 	bool
 	depends on PPC_IBM_CELL_BLADE && PCI_MSI
-	select IRQ_DOMAIN_NOMAP
+	select IRQ_DOMAIN_ANALMAP
 	default y
 
 menu "Cell Broadband Engine options"
@@ -92,13 +92,13 @@ config PPC_PMI
 	  communicate with the BMC (Baseboard Management Controller).
 	  It is used in some IBM Cell blades.
 
-config CBE_CPUFREQ_SPU_GOVERNOR
+config CBE_CPUFREQ_SPU_GOVERANALR
 	tristate "CBE frequency scaling based on SPU usage"
 	depends on SPU_FS && CPU_FREQ
 	default m
 	help
-	  This governor checks for spu usage to adjust the cpu frequency.
-	  If no spu is running on a given cpu, that cpu will be throttled to
+	  This goveranalr checks for spu usage to adjust the cpu frequency.
+	  If anal spu is running on a given cpu, that cpu will be throttled to
 	  the minimal possible frequency.
 
 endmenu

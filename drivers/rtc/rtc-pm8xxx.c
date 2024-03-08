@@ -156,7 +156,7 @@ static int pm8xxx_rtc_update_offset(struct pm8xxx_rtc *rtc_dd, u32 secs)
 	int rc;
 
 	if (!rtc_dd->nvmem_cell)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = pm8xxx_rtc_read_raw(rtc_dd, &raw_secs);
 	if (rc)
@@ -387,13 +387,13 @@ static irqreturn_t pm8xxx_alarm_trigger(int irq, void *dev_id)
 	rc = regmap_update_bits(rtc_dd->regmap, regs->alarm_ctrl,
 				regs->alarm_en, 0);
 	if (rc)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Clear alarm status */
 	rc = regmap_update_bits(rtc_dd->regmap, regs->alarm_ctrl2,
 				PM8xxx_RTC_ALARM_CLEAR, 0);
 	if (rc)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	return IRQ_HANDLED;
 }
@@ -461,13 +461,13 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	struct pm8xxx_rtc *rtc_dd;
 	int rc;
 
-	match = of_match_node(pm8xxx_id_table, pdev->dev.of_node);
+	match = of_match_analde(pm8xxx_id_table, pdev->dev.of_analde);
 	if (!match)
 		return -ENXIO;
 
 	rtc_dd = devm_kzalloc(&pdev->dev, sizeof(*rtc_dd), GFP_KERNEL);
 	if (rtc_dd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc_dd->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!rtc_dd->regmap)
@@ -477,13 +477,13 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	if (rtc_dd->alarm_irq < 0)
 		return -ENXIO;
 
-	rtc_dd->allow_set_time = of_property_read_bool(pdev->dev.of_node,
+	rtc_dd->allow_set_time = of_property_read_bool(pdev->dev.of_analde,
 						      "allow-set-time");
 
 	rtc_dd->nvmem_cell = devm_nvmem_cell_get(&pdev->dev, "offset");
 	if (IS_ERR(rtc_dd->nvmem_cell)) {
 		rc = PTR_ERR(rtc_dd->nvmem_cell);
-		if (rc != -ENOENT)
+		if (rc != -EANALENT)
 			return rc;
 		rtc_dd->nvmem_cell = NULL;
 	}

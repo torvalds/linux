@@ -234,7 +234,7 @@ static int da9063_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	}
 
 	if (!(data[RTC_SEC] & config->rtc_ready_to_read_mask)) {
-		dev_dbg(dev, "RTC not yet ready to be read by the host\n");
+		dev_dbg(dev, "RTC analt yet ready to be read by the host\n");
 		return -EINVAL;
 	}
 
@@ -381,15 +381,15 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 	u8 data[RTC_DATA_LEN];
 	int ret;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_analde)
 		return -ENXIO;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->config = device_get_match_data(&pdev->dev);
-	if (of_device_is_compatible(pdev->dev.of_node, "dlg,da9063-rtc")) {
+	if (of_device_is_compatible(pdev->dev.of_analde, "dlg,da9063-rtc")) {
 		struct da9063 *chip = dev_get_drvdata(pdev->dev.parent);
 
 		if (chip->variant_code == PMIC_DA9063_AD)

@@ -107,10 +107,10 @@ int elm_config(struct device *dev, enum bch_ecc bch_type,
 	struct elm_info *info = dev_get_drvdata(dev);
 
 	if (!info) {
-		dev_err(dev, "Unable to configure elm - device not probed?\n");
+		dev_err(dev, "Unable to configure elm - device analt probed?\n");
 		return -EPROBE_DEFER;
 	}
-	/* ELM cannot detect ECC errors for chunks > 1KB */
+	/* ELM cananalt detect ECC errors for chunks > 1KB */
 	if (ecc_step_size > ((ELM_ECC_SIZE + 1) / 2)) {
 		dev_err(dev, "unsupported config ecc-size=%d\n", ecc_step_size);
 		return -EINVAL;
@@ -293,7 +293,7 @@ static void elm_error_correction(struct elm_info *info,
 			offset = ELM_LOCATION_STATUS + ERROR_LOCATION_SIZE * i;
 			reg_val = elm_read_reg(info, offset);
 
-			/* Check correctable error or not */
+			/* Check correctable error or analt */
 			if (reg_val & ECC_CORRECTABLE_MASK) {
 				offset = ELM_ERROR_LOCATION_0 +
 					ERROR_LOCATION_SIZE * i;
@@ -376,7 +376,7 @@ static irqreturn_t elm_isr(int this_irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int elm_probe(struct platform_device *pdev)
@@ -387,7 +387,7 @@ static int elm_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->dev = &pdev->dev;
 

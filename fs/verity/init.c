@@ -39,7 +39,7 @@ static inline void fsverity_init_sysctl(void)
 }
 #endif /* !CONFIG_SYSCTL */
 
-void fsverity_msg(const struct inode *inode, const char *level,
+void fsverity_msg(const struct ianalde *ianalde, const char *level,
 		  const char *fmt, ...)
 {
 	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
@@ -53,9 +53,9 @@ void fsverity_msg(const struct inode *inode, const char *level,
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	if (inode)
-		printk("%sfs-verity (%s, inode %lu): %pV\n",
-		       level, inode->i_sb->s_id, inode->i_ino, &vaf);
+	if (ianalde)
+		printk("%sfs-verity (%s, ianalde %lu): %pV\n",
+		       level, ianalde->i_sb->s_id, ianalde->i_ianal, &vaf);
 	else
 		printk("%sfs-verity: %pV\n", level, &vaf);
 	va_end(args);

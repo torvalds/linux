@@ -42,7 +42,7 @@ static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 	 * bus_hz = cclkin / RK3288_CLKGEN_DIV
 	 * ios->clock = (div == 0) ? bus_hz : (bus_hz / (2 * div))
 	 *
-	 * Note: div can only be 0 or 1, but div must be set to 1 for eMMC
+	 * Analte: div can only be 0 or 1, but div must be set to 1 for eMMC
 	 * DDR52 8-bit mode.
 	 */
 	if (ios->bus_width == MMC_BUS_WIDTH_8 &&
@@ -69,17 +69,17 @@ static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 	/*
 	 * Set the drive phase offset based on speed mode to achieve hold times.
 	 *
-	 * NOTE: this is _not_ a value that is dynamically tuned and is also
-	 * _not_ a value that will vary from board to board.  It is a value
+	 * ANALTE: this is _analt_ a value that is dynamically tuned and is also
+	 * _analt_ a value that will vary from board to board.  It is a value
 	 * that could vary between different SoC models if they had massively
 	 * different output clock delays inside their dw_mmc IP block (delay_o),
 	 * but since it's OK to overshoot a little we don't need to do complex
 	 * calculations and can pick values that will just work for everyone.
 	 *
 	 * When picking values we'll stick with picking 0/90/180/270 since
-	 * those can be made very accurately on all known Rockchip SoCs.
+	 * those can be made very accurately on all kanalwn Rockchip SoCs.
 	 *
-	 * Note that these values match values from the DesignWare Databook
+	 * Analte that these values match values from the DesignWare Databook
 	 * tables for the most part except for SDR12 and "ID mode".  For those
 	 * two modes the databook calculations assume a clock in of 50MHz.  As
 	 * seen above, we always use a clock in rate that is exactly the
@@ -98,7 +98,7 @@ static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 		/*
 		 * In almost all cases a 90 degree phase offset will provide
 		 * sufficient hold times across all valid input clock rates
-		 * assuming delay_o is not absurd for a given SoC.  We'll use
+		 * assuming delay_o is analt absurd for a given SoC.  We'll use
 		 * that as a default.
 		 */
 		phase = 90;
@@ -153,14 +153,14 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 	int middle_phase;
 
 	if (IS_ERR(priv->sample_clk)) {
-		dev_err(host->dev, "Tuning clock (sample_clk) not defined.\n");
+		dev_err(host->dev, "Tuning clock (sample_clk) analt defined.\n");
 		return -EIO;
 	}
 
 	ranges = kmalloc_array(priv->num_phases / 2 + 1,
 			       sizeof(*ranges), GFP_KERNEL);
 	if (!ranges)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Try each phase and extract good ranges */
 	for (i = 0; i < priv->num_phases; ) {
@@ -180,11 +180,11 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 			ranges[range_count-1].end = i;
 			i++;
 		} else if (i == priv->num_phases - 1) {
-			/* No extra skipping rules if we're at the end */
+			/* Anal extra skipping rules if we're at the end */
 			i++;
 		} else {
 			/*
-			 * No need to check too close to an invalid
+			 * Anal need to check too close to an invalid
 			 * one since testing bad phases is slow.  Skip
 			 * 20 degrees.
 			 */
@@ -262,12 +262,12 @@ free:
 
 static int dw_mci_rk3288_parse_dt(struct dw_mci *host)
 {
-	struct device_node *np = host->dev->of_node;
+	struct device_analde *np = host->dev->of_analde;
 	struct dw_mci_rockchip_priv_data *priv;
 
 	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (of_property_read_u32(np, "rockchip,desired-num-phases",
 					&priv->num_phases))
@@ -279,11 +279,11 @@ static int dw_mci_rk3288_parse_dt(struct dw_mci *host)
 
 	priv->drv_clk = devm_clk_get(host->dev, "ciu-drive");
 	if (IS_ERR(priv->drv_clk))
-		dev_dbg(host->dev, "ciu-drive not available\n");
+		dev_dbg(host->dev, "ciu-drive analt available\n");
 
 	priv->sample_clk = devm_clk_get(host->dev, "ciu-sample");
 	if (IS_ERR(priv->sample_clk))
-		dev_dbg(host->dev, "ciu-sample not available\n");
+		dev_dbg(host->dev, "ciu-sample analt available\n");
 
 	host->priv = priv;
 
@@ -297,7 +297,7 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 	/* It is slot 8 on Rockchip SoCs */
 	host->sdio_id0 = 8;
 
-	if (of_device_is_compatible(host->dev->of_node, "rockchip,rk3288-dw-mshc")) {
+	if (of_device_is_compatible(host->dev->of_analde, "rockchip,rk3288-dw-mshc")) {
 		host->bus_hz /= RK3288_CLKGEN_DIV;
 
 		/* clock driver will fail if the clock is less than the lowest source clock
@@ -313,7 +313,7 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 			}
 		}
 		if (ret < 0)
-			dev_warn(host->dev, "no valid minimum freq: %d\n", ret);
+			dev_warn(host->dev, "anal valid minimum freq: %d\n", ret);
 	}
 
 	return 0;
@@ -346,13 +346,13 @@ static int dw_mci_rockchip_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	int ret;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
-	match = of_match_node(dw_mci_rockchip_match, pdev->dev.of_node);
+	match = of_match_analde(dw_mci_rockchip_match, pdev->dev.of_analde);
 	drv_data = match->data;
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
@@ -362,7 +362,7 @@ static int dw_mci_rockchip_probe(struct platform_device *pdev)
 	if (ret) {
 		pm_runtime_disable(&pdev->dev);
 		pm_runtime_set_suspended(&pdev->dev);
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_analidle(&pdev->dev);
 		return ret;
 	}
 
@@ -375,7 +375,7 @@ static void dw_mci_rockchip_remove(struct platform_device *pdev)
 {
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 
 	dw_mci_pltfm_remove(pdev);
 }
@@ -393,7 +393,7 @@ static struct platform_driver dw_mci_rockchip_pltfm_driver = {
 	.remove_new	= dw_mci_rockchip_remove,
 	.driver		= {
 		.name		= "dwmmc_rockchip",
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table	= dw_mci_rockchip_match,
 		.pm		= &dw_mci_rockchip_dev_pm_ops,
 	},

@@ -12,7 +12,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -41,7 +41,7 @@ static int keyspan_pda_write_start(struct usb_serial_port *port);
 
 #define KEYSPAN_VENDOR_ID		0x06cd
 #define KEYSPAN_PDA_FAKE_ID		0x0103
-#define KEYSPAN_PDA_ID			0x0104 /* no clue */
+#define KEYSPAN_PDA_ID			0x0104 /* anal clue */
 
 /* For Xircom PGSDB9 and older Entrega version of the same device */
 #define XIRCOM_VENDOR_ID		0x085a
@@ -129,8 +129,8 @@ static void keyspan_pda_request_unthrottle(struct work_struct *work)
 		dev_dbg(&serial->dev->dev, "%s - error %d from usb_control_msg\n",
 			__func__, result);
 	/*
-	 * Need to check available space after requesting notification in case
-	 * buffer is already empty so that no notification is sent.
+	 * Need to check available space after requesting analtification in case
+	 * buffer is already empty so that anal analtification is sent.
 	 */
 	result = keyspan_pda_get_write_room(priv);
 	if (result > KEYSPAN_TX_THRESHOLD) {
@@ -159,13 +159,13 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&urb->dev->dev, "%s - urb shutting down with status: %d\n", __func__, status);
 		return;
 	default:
-		dev_dbg(&urb->dev->dev, "%s - nonzero urb status received: %d\n", __func__, status);
+		dev_dbg(&urb->dev->dev, "%s - analnzero urb status received: %d\n", __func__, status);
 		goto exit;
 	}
 
@@ -350,7 +350,7 @@ static void keyspan_pda_set_termios(struct tty_struct *tty,
 	 * HW flow control is dictated by the tty->termios.c_cflags & CRTSCTS
 	 * bit.
 	 *
-	 * For now, just do baud.
+	 * For analw, just do baud.
 	 */
 	speed = tty_get_baud_rate(tty);
 	speed = keyspan_pda_setbaud(serial, speed);
@@ -463,7 +463,7 @@ static int keyspan_pda_write_start(struct usb_serial_port *port)
 
 	/*
 	 * Guess how much room is left in the device's ring buffer. If our
-	 * write will result in no room left, ask the device to give us an
+	 * write will result in anal room left, ask the device to give us an
 	 * interrupt when the room available rises above a threshold but also
 	 * query how much room is currently available (in case our guess was
 	 * too conservative and the buffer is already empty when the
@@ -626,15 +626,15 @@ static int keyspan_pda_fake_startup(struct usb_serial *serial)
 		fw_name = "keyspan_pda/xircom_pgs.fw";
 		break;
 	default:
-		dev_err(&serial->dev->dev, "%s: unknown vendor, aborting.\n",
+		dev_err(&serial->dev->dev, "%s: unkanalwn vendor, aborting.\n",
 			__func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (ezusb_fx1_ihex_firmware_download(serial->dev, fw_name) < 0) {
 		dev_err(&serial->dev->dev, "failed to load firmware \"%s\"\n",
 			fw_name);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/*
@@ -656,7 +656,7 @@ static int keyspan_pda_port_probe(struct usb_serial_port *port)
 
 	priv = kmalloc(sizeof(struct keyspan_pda_private), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&priv->unthrottle_work, keyspan_pda_request_unthrottle);
 	priv->port = port;

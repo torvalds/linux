@@ -9,10 +9,10 @@
  *  mpu401
  *  opl3
  *
- *  NOTES
+ *  ANALTES
  *  The BLOCK_COUNTER registers for the ALS300(+) return a figure related to
- *  the position in the current period, NOT the whole buffer. It is important
- *  to know which period we are in so we can calculate the correct pointer.
+ *  the position in the current period, ANALT the whole buffer. It is important
+ *  to kanalw which period we are in so we can calculate the correct pointer.
  *  This is why we always use 2 periods. We can then use a flip-flop variable
  *  to keep track of what period we are in.
  */
@@ -67,8 +67,8 @@
 #define   DRAM_MODE_2			(1<<17)
 #define MISC_CONTROL		0x8C
 #define   IRQ_SET_BIT			(1<<15)
-#define   VMUTE_NORMAL			(1<<20)
-#define   MMUTE_NORMAL			(1<<21)
+#define   VMUTE_ANALRMAL			(1<<20)
+#define   MMUTE_ANALRMAL			(1<<21)
 #define MUS_VOC_VOL		0x8E
 #define PLAYBACK_BLOCK_COUNTER	0x9A
 #define RECORD_BLOCK_COUNTER	0x9B
@@ -178,7 +178,7 @@ static irqreturn_t snd_als300_interrupt(int irq, void *dev_id)
 
 	status = inb(chip->port+ALS300_IRQ_STATUS);
 	if (!status) /* shared IRQ, for different device?? Exit ASAP! */
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* ACK everything ASAP */
 	outb(status, chip->port+ALS300_IRQ_STATUS);
@@ -213,7 +213,7 @@ static irqreturn_t snd_als300plus_interrupt(int irq, void *dev_id)
 
 	/* shared IRQ, for different device?? Exit ASAP! */
 	if ((general == 0) && ((mpu & 0x80) == 0) && ((dram & 0x01) == 0))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (general & IRQ_PLAYBACK) {
 		if (chip->pcm && chip->playback_substream) {
@@ -233,7 +233,7 @@ static irqreturn_t snd_als300plus_interrupt(int irq, void *dev_id)
 			snd_als300_dbgplay("IRQ_CAPTURE\n");
 		}
 	}
-	/* FIXME: Ack other interrupt types. Not important right now as
+	/* FIXME: Ack other interrupt types. Analt important right analw as
 	 * those other devices aren't enabled. */
 	return IRQ_HANDLED;
 }
@@ -296,7 +296,7 @@ static int snd_als300_ac97(struct snd_als300 *chip)
 /* hardware definition
  *
  * In AC97 mode, we always use 48k/16bit/stereo.
- * Any request to change data type is ignored by
+ * Any request to change data type is iganalred by
  * the card when it is running outside of legacy
  * mode.
  */
@@ -346,7 +346,7 @@ static int snd_als300_playback_open(struct snd_pcm_substream *substream)
 								GFP_KERNEL);
 
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	chip->playback_substream = substream;
 	runtime->hw = snd_als300_playback_hw;
 	runtime->private_data = data;
@@ -374,7 +374,7 @@ static int snd_als300_capture_open(struct snd_pcm_substream *substream)
 								GFP_KERNEL);
 
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	chip->capture_substream = substream;
 	runtime->hw = snd_als300_capture_hw;
 	runtime->private_data = data;
@@ -582,7 +582,7 @@ static void snd_als300_init(struct snd_als300 *chip)
 	 * the onboard mixer */
 	tmp = snd_als300_gcr_read(chip->port, MISC_CONTROL);
 	snd_als300_gcr_write(chip->port, MISC_CONTROL,
-			tmp | VMUTE_NORMAL | MMUTE_NORMAL);
+			tmp | VMUTE_ANALRMAL | MMUTE_ANALRMAL);
 
 	/* Reset volumes */
 	snd_als300_gcr_write(chip->port, MUS_VOC_VOL, 0);
@@ -641,13 +641,13 @@ static int snd_als300_create(struct snd_card *card,
 
 	err = snd_als300_ac97(chip);
 	if (err < 0) {
-		dev_err(card->dev, "Could not create ac97\n");
+		dev_err(card->dev, "Could analt create ac97\n");
 		return err;
 	}
 
 	err = snd_als300_new_pcm(chip);
 	if (err < 0) {
-		dev_err(card->dev, "Could not create PCM\n");
+		dev_err(card->dev, "Could analt create PCM\n");
 		return err;
 	}
 
@@ -692,10 +692,10 @@ static int snd_als300_probe(struct pci_dev *pci,
 	int err, chip_type;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
@@ -712,8 +712,8 @@ static int snd_als300_probe(struct pci_dev *pci,
 
 	strcpy(card->driver, "ALS300");
 	if (chip->chip_type == DEVICE_ALS300_PLUS)
-		/* don't know much about ALS300+ yet
-		 * print revision number for now */
+		/* don't kanalw much about ALS300+ yet
+		 * print revision number for analw */
 		sprintf(card->shortname, "ALS300+ (Rev. %d)", chip->revision);
 	else
 		sprintf(card->shortname, "ALS300 (Rev. %c)", 'A' +

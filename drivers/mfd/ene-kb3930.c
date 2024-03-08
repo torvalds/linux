@@ -60,11 +60,11 @@ static void kb3930_off(struct kb3930 *ddata, int off_mode)
 	}
 }
 
-static int kb3930_restart(struct notifier_block *this,
+static int kb3930_restart(struct analtifier_block *this,
 			  unsigned long mode, void *cmd)
 {
 	kb3930_off(kb3930_power_off, EC_OFF_MODE_REBOOT);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static void kb3930_pm_power_off(void)
@@ -72,8 +72,8 @@ static void kb3930_pm_power_off(void)
 	kb3930_off(kb3930_power_off, EC_OFF_MODE_POWER);
 }
 
-static struct notifier_block kb3930_restart_nb = {
-	.notifier_call = kb3930_restart,
+static struct analtifier_block kb3930_restart_nb = {
+	.analtifier_call = kb3930_restart,
 };
 
 static const struct mfd_cell ariel_ec_cells[] = {
@@ -122,14 +122,14 @@ static const struct regmap_config kb3930_ram_regmap_config = {
 static int kb3930_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct kb3930 *ddata;
 	unsigned int model;
 	int ret;
 
 	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kb3930_power_off = ddata;
 	ddata->client = client;
@@ -146,8 +146,8 @@ static int kb3930_probe(struct i2c_client *client)
 
 	/* Currently we only support the cells present on Dell Ariel model. */
 	if (model != 'J') {
-		dev_err(dev, "unknown board model: %02x\n", model);
-		return -ENODEV;
+		dev_err(dev, "unkanalwn board model: %02x\n", model);
+		return -EANALDEV;
 	}
 
 	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO,

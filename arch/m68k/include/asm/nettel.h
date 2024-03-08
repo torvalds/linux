@@ -66,7 +66,7 @@ static __inline__ void mcf_setppdata(unsigned int mask, unsigned int bits)
 #elif defined(CONFIG_M5206e)
 /*
  *	NETtel/5206e based hardware has leds on latch on CS3.
- *	No support modem for lines??
+ *	Anal support modem for lines??
  */
 #define	NETtel_LEDADDR	0x50000000
 
@@ -76,9 +76,9 @@ static __inline__ void mcf_setppdata(unsigned int mask, unsigned int bits)
  *	NETtel/5272 based hardware. DTR/DCD lines are wired to GPB lines.
  */
 #define	MCFPP_DCD0	0x0080
-#define	MCFPP_DCD1	0x0000		/* Port 1 no DCD support */
+#define	MCFPP_DCD1	0x0000		/* Port 1 anal DCD support */
 #define	MCFPP_DTR0	0x0040
-#define	MCFPP_DTR1	0x0000		/* Port 1 no DTR support */
+#define	MCFPP_DTR1	0x0000		/* Port 1 anal DTR support */
 
 #ifndef __ASSEMBLY__
 /*

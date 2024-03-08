@@ -29,7 +29,7 @@ static const struct mac_stats_string g_gmac_stats_string[] = {
 	{"gmac_rx_long_errors", MAC_STATS_FIELD_OFF(rx_oversize)},
 	{"gmac_rx_jabber_errors", MAC_STATS_FIELD_OFF(rx_jabber_err)},
 	{"gmac_rx_pause_maccontrol", MAC_STATS_FIELD_OFF(rx_pfc_tc0)},
-	{"gmac_rx_unknown_maccontrol", MAC_STATS_FIELD_OFF(rx_unknown_ctrl)},
+	{"gmac_rx_unkanalwn_maccontrol", MAC_STATS_FIELD_OFF(rx_unkanalwn_ctrl)},
 	{"gmac_rx_very_long_err", MAC_STATS_FIELD_OFF(rx_long_err)},
 	{"gmac_rx_runt_err", MAC_STATS_FIELD_OFF(rx_minto64)},
 	{"gmac_rx_short_err", MAC_STATS_FIELD_OFF(rx_under_min)},
@@ -314,7 +314,7 @@ static int hns_gmac_wait_fifo_clean(void *mac_drv)
 	wait_cnt = 0;
 	while (wait_cnt++ < HNS_MAX_WAIT_CNT) {
 		val = dsaf_read_dev(drv, GMAC_FIFO_STATE_REG);
-		/* bit5~bit0 is not send complete pkts */
+		/* bit5~bit0 is analt send complete pkts */
 		if ((val & 0x3f) == 0)
 			break;
 		usleep_range(100, 200);
@@ -322,7 +322,7 @@ static int hns_gmac_wait_fifo_clean(void *mac_drv)
 
 	if (wait_cnt >= HNS_MAX_WAIT_CNT) {
 		dev_err(drv->dev,
-			"hns ge %d fifo was not idle.\n", drv->mac_id);
+			"hns ge %d fifo was analt idle.\n", drv->mac_id);
 		return -EBUSY;
 	}
 
@@ -399,8 +399,8 @@ static void hns_gmac_update_stats(void *mac_drv)
 		+= dsaf_read_dev(drv, GMAC_RX_JABBER_ERRORS_REG);
 	hw_stats->rx_pfc_tc0
 		+= dsaf_read_dev(drv, GMAC_RX_PAUSE_MACCTRL_FRAM_REG);
-	hw_stats->rx_unknown_ctrl
-		+= dsaf_read_dev(drv, GMAC_RX_UNKNOWN_MACCTRL_FRAM_REG);
+	hw_stats->rx_unkanalwn_ctrl
+		+= dsaf_read_dev(drv, GMAC_RX_UNKANALWN_MACCTRL_FRAM_REG);
 	hw_stats->rx_long_err
 		+= dsaf_read_dev(drv, GMAC_RX_VERY_LONG_ERR_CNT_REG);
 	hw_stats->rx_minto64
@@ -591,7 +591,7 @@ static void hns_gmac_get_regs(void *mac_drv, void *data)
 	regs[33] = dsaf_read_dev(drv, GMAC_RX_LONG_ERRORS_REG);
 	regs[34] = dsaf_read_dev(drv, GMAC_RX_JABBER_ERRORS_REG);
 	regs[35] = dsaf_read_dev(drv, GMAC_RX_PAUSE_MACCTRL_FRAM_REG);
-	regs[36] = dsaf_read_dev(drv, GMAC_RX_UNKNOWN_MACCTRL_FRAM_REG);
+	regs[36] = dsaf_read_dev(drv, GMAC_RX_UNKANALWN_MACCTRL_FRAM_REG);
 	regs[37] = dsaf_read_dev(drv, GMAC_RX_VERY_LONG_ERR_CNT_REG);
 	regs[38] = dsaf_read_dev(drv, GMAC_RX_RUNT_ERR_CNT_REG);
 	regs[39] = dsaf_read_dev(drv, GMAC_RX_SHORT_ERR_CNT_REG);

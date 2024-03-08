@@ -8,7 +8,7 @@ title: The TI AM654x/J721E Common Platform Time Sync (CPTS) module
 
 maintainers:
   - Grygorii Strashko <grygorii.strashko@ti.com>
-  - Sekhar Nori <nsekhar@ti.com>
+  - Sekhar Analri <nsekhar@ti.com>
 
 description: |+
   The TI AM654x/J721E CPTS module is used to facilitate host control of time
@@ -36,12 +36,12 @@ description: |+
   - PCIe subsystem CPTS for PTM support
 
   Depending on CPTS module integration and when CPTS is integral part of
-  another module (MCU CPSW for example) "compatible" and "reg" can
+  aanalther module (MCU CPSW for example) "compatible" and "reg" can
   be omitted - parent module is fully responsible for CPTS enabling and
   configuration.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^cpts@[0-9a-f]+$"
 
   compatible:

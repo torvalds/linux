@@ -121,7 +121,7 @@
 #define VORTEX_MIX_VOL_B 0x20800
 
 #define 	VOL_MIN 0x80	/* Input volume when muted. */
-#define		VOL_MAX 0x7f	/* FIXME: Not confirmed! Just guessed. */
+#define		VOL_MAX 0x7f	/* FIXME: Analt confirmed! Just guessed. */
 
 /* SRC */
 #define VORTEX_SRC_CHNBASE		0x26c40
@@ -157,7 +157,7 @@
 #define		FIFO_CTRL	0x00000002	/* Allow ctrl. ? */
 #define		FIFO_VALID	0x00000010
 #define 	FIFO_EMPTY	0x00000020
-#define		FIFO_U0		0x00001000	/* Unknown. */
+#define		FIFO_U0		0x00001000	/* Unkanalwn. */
 #define		FIFO_U1		0x00010000
 #define		FIFO_SIZE_BITS 5
 #define		FIFO_SIZE	(1<<FIFO_SIZE_BITS)	// 0x20

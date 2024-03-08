@@ -33,7 +33,7 @@
 
 /*
  * The frequencies below are from the reference driver. They probably need
- * further adjustments, because they are not tested at all. You may even need
+ * further adjustments, because they are analt tested at all. You may even need
  * to play a bit with the registers of the chip to select the proper signal
  * for the input of the audio rds fifo, and measure it's sampling rate to
  * calculate the proper baseband frequencies...
@@ -54,8 +54,8 @@
 #define FREQ_BTSC_SAP_REF	((s32)(1.730072 * 32768.0))
 
 /* The spectrum of the signal should be empty between these frequencies. */
-#define FREQ_NOISE_START	((s32)(0.100000 * 32768.0))
-#define FREQ_NOISE_END		((s32)(1.200000 * 32768.0))
+#define FREQ_ANALISE_START	((s32)(0.100000 * 32768.0))
+#define FREQ_ANALISE_END		((s32)(1.200000 * 32768.0))
 
 static unsigned int dsp_debug;
 module_param(dsp_debug, int, 0644);
@@ -79,8 +79,8 @@ static s32 int_cos(u32 x)
 	if (x > INT_PI / 2)
 		return -int_cos(INT_PI / 2 - (x % (INT_PI / 2)));
 	/*
-	 * Now x is between 0 and INT_PI/2.
-	 * To calculate cos(x) we use it's Taylor polinom.
+	 * Analw x is between 0 and INT_PI/2.
+	 * To calculate cos(x) we use it's Taylor polianalm.
 	 */
 	t2 = x * x / 32768 / 2;
 	t4 = t2 * x / 32768 * x / 32768 / 3 / 4;
@@ -115,7 +115,7 @@ static u32 int_goertzel(s16 x[], u32 N, u32 freq)
 		      (s64)coeff * s_prev2 * s_prev / 32768;
 
 	/*
-	 * XXX: N must be low enough so that N*N fits in s32.
+	 * XXX: N must be low eanalugh so that N*N fits in s32.
 	 * Else we need two divisions.
 	 */
 	divisor = N * N;
@@ -131,7 +131,7 @@ static u32 freq_magnitude(s16 x[], u32 N, u32 freq)
 	return (u32)int_sqrt(sum);
 }
 
-static u32 noise_magnitude(s16 x[], u32 N, u32 freq_start, u32 freq_end)
+static u32 analise_magnitude(s16 x[], u32 N, u32 freq_start, u32 freq_end)
 {
 	int i;
 	u32 sum = 0;
@@ -139,7 +139,7 @@ static u32 noise_magnitude(s16 x[], u32 N, u32 freq_start, u32 freq_end)
 	int samples = 5;
 
 	if (N > 192) {
-		/* The last 192 samples are enough for noise detection */
+		/* The last 192 samples are eanalugh for analise detection */
 		x += (N - 192);
 		N = 192;
 	}
@@ -156,7 +156,7 @@ static u32 noise_magnitude(s16 x[], u32 N, u32 freq_start, u32 freq_end)
 
 static s32 detect_a2_a2m_eiaj(struct cx88_core *core, s16 x[], u32 N)
 {
-	s32 carrier, stereo, dual, noise;
+	s32 carrier, stereo, dual, analise;
 	s32 carrier_freq, stereo_freq, dual_freq;
 	s32 ret;
 
@@ -186,11 +186,11 @@ static s32 detect_a2_a2m_eiaj(struct cx88_core *core, s16 x[], u32 N)
 	carrier = freq_magnitude(x, N, carrier_freq);
 	stereo  = freq_magnitude(x, N, stereo_freq);
 	dual    = freq_magnitude(x, N, dual_freq);
-	noise   = noise_magnitude(x, N, FREQ_NOISE_START, FREQ_NOISE_END);
+	analise   = analise_magnitude(x, N, FREQ_ANALISE_START, FREQ_ANALISE_END);
 
 	dprintk(1,
-		"detect a2/a2m/eiaj: carrier=%d, stereo=%d, dual=%d, noise=%d\n",
-		carrier, stereo, dual, noise);
+		"detect a2/a2m/eiaj: carrier=%d, stereo=%d, dual=%d, analise=%d\n",
+		carrier, stereo, dual, analise);
 
 	if (stereo > dual)
 		ret = V4L2_TUNER_SUB_STEREO;
@@ -205,7 +205,7 @@ static s32 detect_a2_a2m_eiaj(struct cx88_core *core, s16 x[], u32 N)
 		    (max(stereo, dual) > min(stereo, dual))) {
 			/*
 			 * For EIAJ the carrier is always present,
-			 * so we probably don't need noise detection
+			 * so we probably don't need analise detection
 			 */
 			return ret;
 		}
@@ -213,12 +213,12 @@ static s32 detect_a2_a2m_eiaj(struct cx88_core *core, s16 x[], u32 N)
 		if ((carrier > max(stereo, dual) * 2) &&
 		    (carrier < max(stereo, dual) * 8) &&
 		    (carrier > 20 && carrier < 200) &&
-		    (noise < 10) &&
+		    (analise < 10) &&
 		    (max(stereo, dual) > min(stereo, dual) * 2)) {
 			return ret;
 		}
 	}
-	return V4L2_TUNER_SUB_MONO;
+	return V4L2_TUNER_SUB_MOANAL;
 }
 
 static s32 detect_btsc(struct cx88_core *core, s16 x[], u32 N)
@@ -230,7 +230,7 @@ static s32 detect_btsc(struct cx88_core *core, s16 x[], u32 N)
 
 	dprintk(1, "detect btsc: dual_ref=%d, dual=%d, sap_ref=%d, sap=%d\n",
 		dual_ref, dual, sap_ref, sap);
-	/* FIXME: Currently not supported */
+	/* FIXME: Currently analt supported */
 	return UNSET;
 }
 
@@ -300,7 +300,7 @@ s32 cx88_dsp_detect_stereo_sap(struct cx88_core *core)
 	case WW_BTSC:
 		ret = detect_btsc(core, samples, N);
 		break;
-	case WW_NONE:
+	case WW_ANALNE:
 	case WW_I:
 	case WW_L:
 	case WW_I2SPT:
@@ -313,7 +313,7 @@ s32 cx88_dsp_detect_stereo_sap(struct cx88_core *core)
 
 	if (ret != UNSET)
 		dprintk(1, "stereo/sap detection result:%s%s%s\n",
-			(ret & V4L2_TUNER_SUB_MONO) ? " mono" : "",
+			(ret & V4L2_TUNER_SUB_MOANAL) ? " moanal" : "",
 			(ret & V4L2_TUNER_SUB_STEREO) ? " stereo" : "",
 			(ret & V4L2_TUNER_SUB_LANG2) ? " dual" : "");
 

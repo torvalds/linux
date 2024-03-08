@@ -12,7 +12,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -71,12 +71,12 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x0FCF, 0x1006) }, /* Dynastream ANT development board */
 	{ USB_DEVICE(0x0FDE, 0xCA05) }, /* OWL Wireless Electricity Monitor CM-160 */
 	{ USB_DEVICE(0x106F, 0x0003) },	/* CPI / Money Controls Bulk Coin Recycler */
-	{ USB_DEVICE(0x10A6, 0xAA26) }, /* Knock-off DCU-11 cable */
+	{ USB_DEVICE(0x10A6, 0xAA26) }, /* Kanalck-off DCU-11 cable */
 	{ USB_DEVICE(0x10AB, 0x10C5) }, /* Siemens MC60 Cable */
-	{ USB_DEVICE(0x10B5, 0xAC70) }, /* Nokia CA-42 USB */
+	{ USB_DEVICE(0x10B5, 0xAC70) }, /* Analkia CA-42 USB */
 	{ USB_DEVICE(0x10C4, 0x0F91) }, /* Vstabi */
-	{ USB_DEVICE(0x10C4, 0x1101) }, /* Arkham Technology DS101 Bus Monitor */
-	{ USB_DEVICE(0x10C4, 0x1601) }, /* Arkham Technology DS101 Adapter */
+	{ USB_DEVICE(0x10C4, 0x1101) }, /* Arkham Techanallogy DS101 Bus Monitor */
+	{ USB_DEVICE(0x10C4, 0x1601) }, /* Arkham Techanallogy DS101 Adapter */
 	{ USB_DEVICE(0x10C4, 0x800A) }, /* SPORTident BSM7-D-USB main station */
 	{ USB_DEVICE(0x10C4, 0x803B) }, /* Pololu USB-serial converter */
 	{ USB_DEVICE(0x10C4, 0x8044) }, /* Cygnal Debug Adapter */
@@ -118,7 +118,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x8218) }, /* Lipowsky Industrie Elektronik GmbH, HARP-1 */
 	{ USB_DEVICE(0x10C4, 0x822B) }, /* Modem EDGE(GSM) Comander 2 */
 	{ USB_DEVICE(0x10C4, 0x826B) }, /* Cygnal Integrated Products, Inc., Fasttrax GPS demonstration module */
-	{ USB_DEVICE(0x10C4, 0x8281) }, /* Nanotec Plug & Drive */
+	{ USB_DEVICE(0x10C4, 0x8281) }, /* Naanaltec Plug & Drive */
 	{ USB_DEVICE(0x10C4, 0x8293) }, /* Telegesis ETRX2USB */
 	{ USB_DEVICE(0x10C4, 0x82AA) }, /* Silicon Labs IFS-USB-DATACABLE used with Quint UPS */
 	{ USB_DEVICE(0x10C4, 0x82EF) }, /* CESINEL FALCO 6105 AC Power Supply */
@@ -150,14 +150,14 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x8856) },	/* CEL EM357 ZigBee USB Stick - LR */
 	{ USB_DEVICE(0x10C4, 0x8857) },	/* CEL EM357 ZigBee USB Stick */
 	{ USB_DEVICE(0x10C4, 0x88A4) }, /* MMB Networks ZigBee USB Device */
-	{ USB_DEVICE(0x10C4, 0x88A5) }, /* Planet Innovation Ingeni ZigBee USB Device */
+	{ USB_DEVICE(0x10C4, 0x88A5) }, /* Planet Inanalvation Ingeni ZigBee USB Device */
 	{ USB_DEVICE(0x10C4, 0x88D8) }, /* Acuity Brands nLight Air Adapter */
 	{ USB_DEVICE(0x10C4, 0x88FB) }, /* CESINEL MEDCAL STII Network Analyzer */
 	{ USB_DEVICE(0x10C4, 0x8938) }, /* CESINEL MEDCAL S II Network Analyzer */
 	{ USB_DEVICE(0x10C4, 0x8946) }, /* Ketra N1 Wireless Interface */
 	{ USB_DEVICE(0x10C4, 0x8962) }, /* Brim Brothers charging dock */
 	{ USB_DEVICE(0x10C4, 0x8977) },	/* CEL MeshWorks DevKit Device */
-	{ USB_DEVICE(0x10C4, 0x8998) }, /* KCF Technologies PRN */
+	{ USB_DEVICE(0x10C4, 0x8998) }, /* KCF Techanallogies PRN */
 	{ USB_DEVICE(0x10C4, 0x89A4) }, /* CESINEL FTBC Flexible Thyristor Bridge Controller */
 	{ USB_DEVICE(0x10C4, 0x89FB) }, /* Qivicon ZigBee USB Radio Stick */
 	{ USB_DEVICE(0x10C4, 0x8A2A) }, /* HubZ dual ZigBee and Z-Wave dongle */
@@ -168,7 +168,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0xEA61) }, /* Silicon Labs factory default */
 	{ USB_DEVICE(0x10C4, 0xEA63) }, /* Silicon Labs Windows Update (CP2101-4/CP2102N) */
 	{ USB_DEVICE(0x10C4, 0xEA70) }, /* Silicon Labs factory default */
-	{ USB_DEVICE(0x10C4, 0xEA71) }, /* Infinity GPS-MIC-1 Radio Monophone */
+	{ USB_DEVICE(0x10C4, 0xEA71) }, /* Infinity GPS-MIC-1 Radio Moanalphone */
 	{ USB_DEVICE(0x10C4, 0xEA7A) }, /* Silicon Labs Windows Update (CP2105) */
 	{ USB_DEVICE(0x10C4, 0xEA7B) }, /* Silicon Labs Windows Update (CP2108) */
 	{ USB_DEVICE(0x10C4, 0xF001) }, /* Elan Digital Systems USBscope50 */
@@ -268,8 +268,8 @@ struct cp210x_serial_private {
 	speed_t			min_speed;
 	speed_t			max_speed;
 	bool			use_actual_rate;
-	bool			no_flow_control;
-	bool			no_event_mode;
+	bool			anal_flow_control;
+	bool			anal_event_mode;
 };
 
 enum cp210x_event_state {
@@ -376,7 +376,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 #define BITS_DATA_9		0X0900
 
 #define BITS_PARITY_MASK	0x00f0
-#define BITS_PARITY_NONE	0x0000
+#define BITS_PARITY_ANALNE	0x0000
 #define BITS_PARITY_ODD		0x0010
 #define BITS_PARITY_EVEN	0x0020
 #define BITS_PARITY_MARK	0x0030
@@ -431,7 +431,7 @@ struct cp210x_special_chars {
 #define CP210X_PARTNUM_CP2102N_QFN28	0x20
 #define CP210X_PARTNUM_CP2102N_QFN24	0x21
 #define CP210X_PARTNUM_CP2102N_QFN20	0x22
-#define CP210X_PARTNUM_UNKNOWN	0xFF
+#define CP210X_PARTNUM_UNKANALWN	0xFF
 
 /* CP210X_GET_COMM_STATUS returns these 0x13 bytes */
 struct cp210x_comm_status {
@@ -446,9 +446,9 @@ struct cp210x_comm_status {
 
 /*
  * CP210X_PURGE - 16 bits passed in wValue of USB request.
- * SiLabs app note AN571 gives a strange description of the 4 bits:
+ * SiLabs app analte AN571 gives a strange description of the 4 bits:
  * bit 0 or bit 2 clears the transmit queue and 1 or 3 receive.
- * writing 1 to all, however, purges cp2108 well enough to avoid the hang.
+ * writing 1 to all, however, purges cp2108 well eanalugh to avoid the hang.
  */
 #define PURGE_ALL		0x000f
 
@@ -572,7 +572,7 @@ struct cp210x_quad_port_state {
  * CP210X_VENDOR_SPECIFIC, CP210X_GET_PORTCONFIG call reads these 0x49 bytes
  * on a CP2108 chip.
  *
- * See https://www.silabs.com/documents/public/application-notes/an978-cp210x-usb-to-uart-api-specification.pdf
+ * See https://www.silabs.com/documents/public/application-analtes/an978-cp210x-usb-to-uart-api-specification.pdf
  */
 struct cp210x_quad_port_config {
 	struct cp210x_quad_port_state reset_state;
@@ -902,7 +902,7 @@ static void cp210x_process_read_urb(struct urb *urb)
 
 	if (port_priv->event_mode) {
 		for (i = 0; i < urb->actual_length; i++, ch++) {
-			flag = TTY_NORMAL;
+			flag = TTY_ANALRMAL;
 
 			if (cp210x_process_char(port, ch, &flag))
 				continue;
@@ -1087,7 +1087,7 @@ static void cp210x_enable_event_mode(struct usb_serial_port *port)
 	if (port_priv->event_mode)
 		return;
 
-	if (priv->no_event_mode)
+	if (priv->anal_event_mode)
 		return;
 
 	port_priv->event_state = ES_DATA;
@@ -1143,9 +1143,9 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 
 	/*
 	 * Some CP2102N interpret ulXonLimit as ulFlowReplace (erratum
-	 * CP2102N_E104). Report back that flow control is not supported.
+	 * CP2102N_E104). Report back that flow control is analt supported.
 	 */
-	if (priv->no_flow_control) {
+	if (priv->anal_flow_control) {
 		tty->termios.c_cflag &= ~CRTSCTS;
 		tty->termios.c_iflag &= ~(IXON | IXOFF);
 	}
@@ -1263,7 +1263,7 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	if (!old_termios || tty->termios.c_ospeed != old_termios->c_ospeed)
 		cp210x_change_speed(tty, port, old_termios);
 
-	/* CP2101 only supports CS8, 1 stop bit and non-stick parity. */
+	/* CP2101 only supports CS8, 1 stop bit and analn-stick parity. */
 	if (priv->partnum == CP210X_PARTNUM_CP2101) {
 		tty->termios.c_cflag &= ~(CSIZE | CSTOPB | CMSPAR);
 		tty->termios.c_cflag |= CS8;
@@ -1314,7 +1314,7 @@ static void cp210x_set_termios(struct tty_struct *tty,
 
 	/*
 	 * Enable event-insertion mode only if input parity checking is
-	 * enabled for now.
+	 * enabled for analw.
 	 */
 	if (I_INPCK(tty))
 		cp210x_enable_event_mode(port);
@@ -1443,7 +1443,7 @@ static int cp210x_break_ctl(struct tty_struct *tty, int break_state)
 
 	if (priv->partnum == CP210X_PARTNUM_CP2105) {
 		if (cp210x_interface_num(port->serial) == 1)
-			return -ENOTTY;
+			return -EANALTTY;
 	}
 
 	if (break_state == 0)
@@ -1572,11 +1572,11 @@ static int cp210x_gpio_direction_input(struct gpio_chip *gc, unsigned int gpio)
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
 
 	if (priv->partnum == CP210X_PARTNUM_CP2105) {
-		/* hardware does not support an input mode */
-		return -ENOTSUPP;
+		/* hardware does analt support an input mode */
+		return -EANALTSUPP;
 	}
 
-	/* push-pull pins cannot be changed to be inputs */
+	/* push-pull pins cananalt be changed to be inputs */
 	if (priv->gpio_pushpull & BIT(gpio))
 		return -EINVAL;
 
@@ -1616,7 +1616,7 @@ static int cp210x_gpio_set_config(struct gpio_chip *gc, unsigned int gpio,
 	    !(priv->gpio_pushpull & BIT(gpio)))
 		return 0;
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int cp210x_gpio_init_valid_mask(struct gpio_chip *gc,
@@ -1630,7 +1630,7 @@ static int cp210x_gpio_init_valid_mask(struct gpio_chip *gc,
 	bitmap_complement(valid_mask, &altfunc_mask, ngpios);
 
 	if (bitmap_empty(valid_mask, ngpios))
-		dev_dbg(dev, "no pin configured for GPIO\n");
+		dev_dbg(dev, "anal pin configured for GPIO\n");
 	else
 		dev_dbg(dev, "GPIO.%*pbl configured for GPIO\n", ngpios,
 				valid_mask);
@@ -1641,7 +1641,7 @@ static int cp210x_gpio_init_valid_mask(struct gpio_chip *gc,
  * This function is for configuring GPIO using shared pins, where other signals
  * are made unavailable by configuring the use of GPIO. This is believed to be
  * only applicable to the cp2105 at this point, the other devices supported by
- * this driver that provide GPIO do so in a way that does not impact other
+ * this driver that provide GPIO do so in a way that does analt impact other
  * signals and are thus expected to have very different initialisation.
  */
 static int cp2105_gpioconf_init(struct usb_serial *serial)
@@ -1693,10 +1693,10 @@ static int cp2105_gpioconf_init(struct usb_serial *serial)
 						CP210X_SCI_GPIO_MODE_MASK) >>
 						CP210X_SCI_GPIO_MODE_OFFSET);
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	/* mark all pins which are not in GPIO mode */
+	/* mark all pins which are analt in GPIO mode */
 	if (iface_config & CP2105_GPIO0_TXLED_MODE)	/* GPIO 0 */
 		priv->gpio_altfunc |= BIT(0);
 	if (iface_config & (CP2105_GPIO1_RXLED_MODE |	/* GPIO 1 */
@@ -1734,7 +1734,7 @@ static int cp2104_gpioconf_init(struct usb_serial *serial)
 					CP210X_GPIO_MODE_MASK) >>
 					CP210X_GPIO_MODE_OFFSET);
 
-	/* mark all pins which are not in GPIO mode */
+	/* mark all pins which are analt in GPIO mode */
 	if (iface_config & CP2104_GPIO0_TXLED_MODE)	/* GPIO 0 */
 		priv->gpio_altfunc |= BIT(0);
 	if (iface_config & CP2104_GPIO1_RXLED_MODE)	/* GPIO 1 */
@@ -1743,7 +1743,7 @@ static int cp2104_gpioconf_init(struct usb_serial *serial)
 		priv->gpio_altfunc |= BIT(2);
 
 	/*
-	 * Like CP2102N, CP2104 has also no strict input and output pin
+	 * Like CP2102N, CP2104 has also anal strict input and output pin
 	 * modes.
 	 * Do the same input mode emulation as CP2102N.
 	 */
@@ -1778,7 +1778,7 @@ static int cp2108_gpio_init(struct usb_serial *serial)
 	gpio_latch = le16_to_cpu(config.reset_state.gpio_latch_pb1);
 
 	/*
-	 * Mark all pins which are not in GPIO mode.
+	 * Mark all pins which are analt in GPIO mode.
 	 *
 	 * Refer to table 9.1 "GPIO Mode alternate Functions" in the datasheet:
 	 * https://www.silabs.com/documents/public/data-sheets/cp2108-datasheet.pdf
@@ -1799,7 +1799,7 @@ static int cp2108_gpio_init(struct usb_serial *serial)
 	}
 
 	/*
-	 * Like CP2102N, CP2108 has also no strict input and output pin
+	 * Like CP2102N, CP2108 has also anal strict input and output pin
 	 * modes. Do the same input mode emulation as CP2102N.
 	 */
 	for (i = 0; i < priv->gc.ngpio; ++i) {
@@ -1832,11 +1832,11 @@ static int cp2102n_gpioconf_init(struct usb_serial *serial)
 	 * The array received contains all customization settings done at the
 	 * factory/manufacturer. Format of the array is documented at the
 	 * time of writing at:
-	 * https://www.silabs.com/community/interface/knowledge-base.entry.html/2017/03/31/cp2102n_setconfig-xsfa
+	 * https://www.silabs.com/community/interface/kanalwledge-base.entry.html/2017/03/31/cp2102n_setconfig-xsfa
 	 */
 	config_buf = kmalloc(config_size, GFP_KERNEL);
 	if (!config_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	result = cp210x_read_vendor_block(serial,
 					  REQTYPE_DEVICE_TO_HOST,
@@ -1857,7 +1857,7 @@ static int cp2102n_gpioconf_init(struct usb_serial *serial)
 
 	/* Make sure this is a config format we understand. */
 	if (config_version != 0x01)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	priv->gc.ngpio = 4;
 
@@ -1890,7 +1890,7 @@ static int cp2102n_gpioconf_init(struct usb_serial *serial)
 		 * For the QFN28 package, GPIO4-6 are controlled by
 		 * the low three bits of the mode/latch fields.
 		 * Contrary to the document linked above, the bits for
-		 * the SUSPEND pins are elsewhere.  No alternate
+		 * the SUSPEND pins are elsewhere.  Anal alternate
 		 * function is available for these pins.
 		 */
 		priv->gc.ngpio = 7;
@@ -1899,11 +1899,11 @@ static int cp2102n_gpioconf_init(struct usb_serial *serial)
 	}
 
 	/*
-	 * The CP2102N does not strictly has input and output pin modes,
-	 * it only knows open-drain and push-pull modes which is set at
+	 * The CP2102N does analt strictly has input and output pin modes,
+	 * it only kanalws open-drain and push-pull modes which is set at
 	 * factory. An open-drain pin can function both as an
 	 * input or an output. We emulate input mode for open-drain pins
-	 * by making sure they are not driven low, and we do not allow
+	 * by making sure they are analt driven low, and we do analt allow
 	 * push-pull pins to be set as an input.
 	 */
 	for (i = 0; i < priv->gc.ngpio; ++i) {
@@ -1932,7 +1932,7 @@ static int cp210x_gpio_init(struct usb_serial *serial)
 		break;
 	case CP210X_PARTNUM_CP2108:
 		/*
-		 * The GPIOs are not tied to any specific port so only register
+		 * The GPIOs are analt tied to any specific port so only register
 		 * once for interface 0.
 		 */
 		if (cp210x_interface_num(serial) != 0)
@@ -1990,7 +1990,7 @@ static int cp210x_gpio_init(struct usb_serial *serial)
 
 static void cp210x_gpio_remove(struct usb_serial *serial)
 {
-	/* Nothing to do */
+	/* Analthing to do */
 }
 
 #endif
@@ -2002,7 +2002,7 @@ static int cp210x_port_probe(struct usb_serial_port *port)
 
 	port_priv = kzalloc(sizeof(*port_priv), GFP_KERNEL);
 	if (!port_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port_priv->bInterfaceNumber = cp210x_interface_num(serial);
 	mutex_init(&port_priv->mutex);
@@ -2077,7 +2077,7 @@ static void cp2102_determine_quirks(struct usb_serial *serial)
 	if (!buf)
 		return;
 	/*
-	 * Some (possibly counterfeit) CP2102 do not support event-insertion
+	 * Some (possibly counterfeit) CP2102 do analt support event-insertion
 	 * mode and respond differently to malformed vendor requests.
 	 * Specifically, they return one instead of two bytes when sent a
 	 * two-byte part-number request.
@@ -2087,8 +2087,8 @@ static void cp2102_determine_quirks(struct usb_serial *serial)
 			CP210X_GET_PARTNUM, 0, buf, 2, USB_CTRL_GET_TIMEOUT);
 	if (ret == 1) {
 		dev_dbg(&serial->interface->dev,
-				"device does not support event-insertion mode\n");
-		priv->no_event_mode = true;
+				"device does analt support event-insertion mode\n");
+		priv->anal_event_mode = true;
 	}
 
 	kfree(buf);
@@ -2124,7 +2124,7 @@ static void cp210x_determine_type(struct usb_serial *serial)
 	if (ret < 0) {
 		dev_warn(&serial->interface->dev,
 				"querying part number failed\n");
-		priv->partnum = CP210X_PARTNUM_UNKNOWN;
+		priv->partnum = CP210X_PARTNUM_UNKANALWN;
 		return;
 	}
 
@@ -2145,7 +2145,7 @@ static void cp210x_determine_type(struct usb_serial *serial)
 		if (ret)
 			break;
 		if (priv->fw_version <= 0x10004)
-			priv->no_flow_control = true;
+			priv->anal_flow_control = true;
 		break;
 	default:
 		break;
@@ -2159,7 +2159,7 @@ static int cp210x_attach(struct usb_serial *serial)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_set_serial_data(serial, priv);
 

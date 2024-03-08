@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_CPU_CA53_CFG_MASKS_H_
@@ -168,8 +168,8 @@
 #define CPU_CA53_CFG_ARM_DBG_STATUS_COMMTX_MASK                      0x300
 #define CPU_CA53_CFG_ARM_DBG_STATUS_DBGRSTREQ_SHIFT                  12
 #define CPU_CA53_CFG_ARM_DBG_STATUS_DBGRSTREQ_MASK                   0x3000
-#define CPU_CA53_CFG_ARM_DBG_STATUS_DBGNOPWRDWN_SHIFT                16
-#define CPU_CA53_CFG_ARM_DBG_STATUS_DBGNOPWRDWN_MASK                 0x30000
+#define CPU_CA53_CFG_ARM_DBG_STATUS_DBGANALPWRDWN_SHIFT                16
+#define CPU_CA53_CFG_ARM_DBG_STATUS_DBGANALPWRDWN_MASK                 0x30000
 #define CPU_CA53_CFG_ARM_DBG_STATUS_DBGPWRUPREQ_SHIFT                20
 #define CPU_CA53_CFG_ARM_DBG_STATUS_DBGPWRUPREQ_MASK                 0x300000
 

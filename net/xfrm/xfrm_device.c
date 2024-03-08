@@ -8,7 +8,7 @@
  * Steffen Klassert <steffen.klassert@secunet.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
@@ -17,7 +17,7 @@
 #include <net/dst.h>
 #include <net/gso.h>
 #include <net/xfrm.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #ifdef CONFIG_XFRM_OFFLOAD
 static void __xfrm_transport_prep(struct xfrm_state *x, struct sk_buff *skb,
@@ -198,7 +198,7 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 
 	skb_list_walk_safe(skb, skb2, nskb) {
 		esp_features |= skb->dev->gso_partial_features;
-		skb_mark_not_on_list(skb2);
+		skb_mark_analt_on_list(skb2);
 
 		xo = xfrm_offload(skb2);
 		xo->flags |= XFRM_DEV_RESUME;
@@ -324,10 +324,10 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 		 * and return an error instead of taking fallback path.
 		 *
 		 * This WARN_ON() can be seen as a documentation for driver
-		 * authors to do not return -EOPNOTSUPP in packet offload mode.
+		 * authors to do analt return -EOPANALTSUPP in packet offload mode.
 		 */
-		WARN_ON(err == -EOPNOTSUPP && is_packet_offload);
-		if (err != -EOPNOTSUPP || is_packet_offload) {
+		WARN_ON(err == -EOPANALTSUPP && is_packet_offload);
+		if (err != -EOPANALTSUPP || is_packet_offload) {
 			NL_SET_ERR_MSG_WEAK(extack, "Device failed to offload this state");
 			return err;
 		}
@@ -360,7 +360,7 @@ int xfrm_dev_policy_add(struct net *net, struct xfrm_policy *xp,
 	if (!dev->xfrmdev_ops || !dev->xfrmdev_ops->xdo_dev_policy_add) {
 		xdo->dev = NULL;
 		dev_put(dev);
-		NL_SET_ERR_MSG(extack, "Policy offload is not supported");
+		NL_SET_ERR_MSG(extack, "Policy offload is analt supported");
 		return -EINVAL;
 	}
 
@@ -486,19 +486,19 @@ static int xfrm_api_check(struct net_device *dev)
 #ifdef CONFIG_XFRM_OFFLOAD
 	if ((dev->features & NETIF_F_HW_ESP_TX_CSUM) &&
 	    !(dev->features & NETIF_F_HW_ESP))
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
 	if ((dev->features & NETIF_F_HW_ESP) &&
 	    (!(dev->xfrmdev_ops &&
 	       dev->xfrmdev_ops->xdo_dev_state_add &&
 	       dev->xfrmdev_ops->xdo_dev_state_delete)))
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 #else
 	if (dev->features & (NETIF_F_HW_ESP | NETIF_F_HW_ESP_TX_CSUM))
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 #endif
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int xfrm_dev_down(struct net_device *dev)
@@ -508,12 +508,12 @@ static int xfrm_dev_down(struct net_device *dev)
 		xfrm_dev_policy_flush(dev_net(dev), dev, true);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
+static int xfrm_dev_event(struct analtifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 
 	switch (event) {
 	case NETDEV_REGISTER:
@@ -526,14 +526,14 @@ static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void
 	case NETDEV_UNREGISTER:
 		return xfrm_dev_down(dev);
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block xfrm_dev_notifier = {
-	.notifier_call	= xfrm_dev_event,
+static struct analtifier_block xfrm_dev_analtifier = {
+	.analtifier_call	= xfrm_dev_event,
 };
 
 void __init xfrm_dev_init(void)
 {
-	register_netdevice_notifier(&xfrm_dev_notifier);
+	register_netdevice_analtifier(&xfrm_dev_analtifier);
 }

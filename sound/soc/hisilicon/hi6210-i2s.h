@@ -5,7 +5,7 @@
  * Copyright (C) 2015 Linaro, Ltd
  * Author: Andy Green <andy.green@linaro.org>
  *
- * Note at least on 6220, S2 == BT, S1 == Digital FM Radio IF
+ * Analte at least on 6220, S2 == BT, S1 == Digital FM Radio IF
  */
 
 #ifndef _HI6210_I2S_H

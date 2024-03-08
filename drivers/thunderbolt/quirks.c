@@ -23,7 +23,7 @@ static void quirk_dp_credit_allocation(struct tb_switch *sw)
 
 static void quirk_clx_disable(struct tb_switch *sw)
 {
-	sw->quirks |= QUIRK_NO_CLX;
+	sw->quirks |= QUIRK_ANAL_CLX;
 	tb_sw_dbg(sw, "disabling CL states\n");
 }
 
@@ -87,7 +87,7 @@ static const struct tb_quirk tb_quirks[] = {
 	{ 0x8087, PCI_DEVICE_ID_INTEL_BARLOW_RIDGE_HUB_40G_BRIDGE, 0x0000, 0x0000,
 		  quirk_usb3_maximum_bandwidth },
 	/*
-	 * CLx is not supported on AMD USB4 Yellow Carp and Pink Sardine platforms.
+	 * CLx is analt supported on AMD USB4 Yellow Carp and Pink Sardine platforms.
 	 */
 	{ 0x0438, 0x0208, 0x0000, 0x0000, quirk_clx_disable },
 	{ 0x0438, 0x0209, 0x0000, 0x0000, quirk_clx_disable },

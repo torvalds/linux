@@ -20,7 +20,7 @@
 
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/signal.h>
 #include <linux/ioctl.h>
@@ -125,17 +125,17 @@ int hci_uart_tx_wakeup(struct hci_uart *hu)
 		return 0;
 
 	if (!test_bit(HCI_UART_PROTO_READY, &hu->flags))
-		goto no_schedule;
+		goto anal_schedule;
 
 	set_bit(HCI_UART_TX_WAKEUP, &hu->tx_state);
 	if (test_and_set_bit(HCI_UART_SENDING, &hu->tx_state))
-		goto no_schedule;
+		goto anal_schedule;
 
 	BT_DBG("");
 
 	schedule_work(&hu->write_work);
 
-no_schedule:
+anal_schedule:
 	percpu_up_read(&hu->proto_lock);
 
 	return 0;
@@ -294,7 +294,7 @@ static int hci_uart_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 /* Check the underlying device or tty has flow control support */
 bool hci_uart_has_flow_control(struct hci_uart *hu)
 {
-	/* serdev nodes check if the needed operations are present */
+	/* serdev analdes check if the needed operations are present */
 	if (hu->serdev)
 		return true;
 
@@ -379,7 +379,7 @@ void hci_uart_set_baudrate(struct hci_uart *hu, unsigned int speed)
 	ktermios.c_cflag &= ~CBAUD;
 	tty_termios_encode_baud_rate(&ktermios, speed, speed);
 
-	/* tty_set_termios() return not checked as it is always 0 */
+	/* tty_set_termios() return analt checked as it is always 0 */
 	tty_set_termios(tty, &ktermios);
 
 	BT_DBG("%s: New tty speeds: %d/%d", hu->hdev->name,
@@ -482,11 +482,11 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	/* Error if the tty has no write op instead of leaving an exploitable
+	/* Error if the tty has anal write op instead of leaving an exploitable
 	 * hole
 	 */
 	if (tty->ops->write == NULL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	hu = kzalloc(sizeof(struct hci_uart), GFP_KERNEL);
 	if (!hu) {
@@ -496,7 +496,7 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	if (percpu_init_rwsem(&hu->proto_lock)) {
 		BT_ERR("Can't allocate semaphore structure");
 		kfree(hu);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tty->disc_data = hu;
@@ -566,7 +566,7 @@ static void hci_uart_tty_close(struct tty_struct *tty)
  *    device driver can accept more send data.
  *
  * Arguments:        tty    pointer to associated tty instance data
- * Return Value:    None
+ * Return Value:    Analne
  */
 static void hci_uart_tty_wakeup(struct tty_struct *tty)
 {
@@ -596,7 +596,7 @@ static void hci_uart_tty_wakeup(struct tty_struct *tty)
  *             flags        pointer to flags for data
  *             count        count of received data in bytes
  *
- * Return Value:    None
+ * Return Value:    Analne
  */
 static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
 				 const u8 *flags, size_t count)
@@ -613,7 +613,7 @@ static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
 		return;
 	}
 
-	/* It does not need a lock here as it is already protected by a mutex in
+	/* It does analt need a lock here as it is already protected by a mutex in
 	 * tty caller
 	 */
 	hu->proto->recv(hu, data, count);
@@ -636,7 +636,7 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 	hdev = hci_alloc_dev();
 	if (!hdev) {
 		BT_ERR("Can't allocate HCI device");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hu->hdev = hdev;
@@ -646,7 +646,7 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 
 	/* Only when vendor specific setup callback is provided, consider
 	 * the manufacturer information valid. This avoids filling in the
-	 * value for Ericsson when nothing is specified.
+	 * value for Ericsson when analthing is specified.
 	 */
 	if (hu->proto->setup)
 		hdev->manufacturer = hu->proto->manufacturer;
@@ -690,7 +690,7 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 		hu->proto->close(hu);
 		hu->hdev = NULL;
 		hci_free_dev(hdev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	set_bit(HCI_UART_REGISTERED, &hu->flags);
@@ -705,7 +705,7 @@ static int hci_uart_set_proto(struct hci_uart *hu, int id)
 
 	p = hci_uart_get_proto(id);
 	if (!p)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	hu->proto = p;
 

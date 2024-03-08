@@ -301,7 +301,7 @@ static int snd_wm8766_add_control(struct snd_wm8766 *wm, int num)
 		if (wm->ctl[num].flags & WM8766_FLAG_STEREO)
 			cont.info = snd_ctl_boolean_stereo_info;
 		else
-			cont.info = snd_ctl_boolean_mono_info;
+			cont.info = snd_ctl_boolean_moanal_info;
 		break;
 	case SNDRV_CTL_ELEM_TYPE_ENUMERATED:
 		cont.info = snd_wm8766_enum_info;
@@ -311,7 +311,7 @@ static int snd_wm8766_add_control(struct snd_wm8766 *wm, int num)
 	}
 	ctl = snd_ctl_new1(&cont, wm);
 	if (!ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 	wm->ctl[num].kctl = ctl;
 
 	return snd_ctl_add(wm->card, ctl);

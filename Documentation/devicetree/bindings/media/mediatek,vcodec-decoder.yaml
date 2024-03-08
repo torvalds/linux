@@ -77,7 +77,7 @@ properties:
 
   mediatek,vdecsys:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: Phandle to the vdecsys syscon node.
+    description: Phandle to the vdecsys syscon analde.
 
 required:
   - compatible

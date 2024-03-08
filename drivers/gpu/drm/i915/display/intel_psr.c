@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -62,11 +62,11 @@
  * enters/exits self-refresh mode. The hardware takes care of sending the
  * required DP aux message and could even retrain the link (that part isn't
  * enabled yet though). The hardware also keeps track of any frontbuffer
- * changes to know when to exit self-refresh mode again. Unfortunately that
+ * changes to kanalw when to exit self-refresh mode again. Unfortunately that
  * part doesn't work too well, hence why the i915 PSR support uses the
  * software frontbuffer tracking to make sure it doesn't miss a screen
  * update. For this integration intel_psr_invalidate() and intel_psr_flush()
- * get called by the frontbuffer tracking code. Note that because of locking
+ * get called by the frontbuffer tracking code. Analte that because of locking
  * issues the self-refresh re-enable code is done from a work queue, which
  * must be correctly synchronized/cancelled when shutting down the pipe."
  *
@@ -80,10 +80,10 @@
  *
  * Every time a flips occurs PSR2 will get out of deep sleep state(if it was),
  * so DC3CO is enabled and tgl_dc3co_disable_work is schedule to run after 6
- * frames, if no other flip occurs and the function above is executed, DC3CO is
+ * frames, if anal other flip occurs and the function above is executed, DC3CO is
  * disabled and PSR2 is configured to enter deep sleep, resetting again in case
- * of another flip.
- * Front buffer modifications do not trigger DC3CO activation on purpose as it
+ * of aanalther flip.
+ * Front buffer modifications do analt trigger DC3CO activation on purpose as it
  * would bring a lot of complexity and most of the moderns systems will only
  * use page flips.
  */
@@ -96,7 +96,7 @@
  *  When unmasked (nearly) all display register writes (eg. even
  *  SWF) trigger a PSR exit. Some registers are excluded from this
  *  and they have a more specific mask (described below). On icl+
- *  this bit no longer exists and is effectively always set.
+ *  this bit anal longer exists and is effectively always set.
  *
  * PIPE_MISC[21]/PIPE_MISC_PSR_MASK_PIPE_REG_WRITE (skl+):
  *
@@ -109,7 +109,7 @@
  * EDP_PSR_DEBUG[23]/EDP_PSR_DEBUG_MASK_PRIMARY_FLIP (hsw):
  *
  *  When unmasked PRI_SURF/PLANE_SURF writes trigger a PSR exit.
- *  SPR_SURF/CURBASE are not included in this and instead are
+ *  SPR_SURF/CURBASE are analt included in this and instead are
  *  controlled by PIPE_MISC_PSR_MASK_PIPE_REG_WRITE (skl+) or
  *  EDP_PSR_DEBUG_MASK_DISP_REG_WRITE (hsw/bdw).
  *
@@ -117,8 +117,8 @@
  * EDP_PSR_DEBUG[21]/EDP_PSR_DEBUG_MASK_SPRITE_ENABLE (hsw):
  *
  *  When unmasked PSR is blocked as long as the sprite
- *  plane is enabled. skl+ with their universal planes no
- *  longer have a mask bit like this, and no plane being
+ *  plane is enabled. skl+ with their universal planes anal
+ *  longer have a mask bit like this, and anal plane being
  *  enabledb blocks PSR.
  *
  * PIPE_MISC[21]/PIPE_MISC_PSR_MASK_CURSOR_MOVE (bdw):
@@ -138,26 +138,26 @@
  * CHICKEN_PAR1_1[15]/HSW_MASK_VBL_TO_PIPE_IN_SRD (hsw/bdw):
  *
  *  Selectcs whether PSR exit generates an extra vblank before
- *  the first frame is transmitted. Also note the opposite polarity
+ *  the first frame is transmitted. Also analte the opposite polarity
  *  if the bit on hsw/bdw vs. skl+ (masked==generate the extra vblank,
- *  unmasked==do not generate the extra vblank).
+ *  unmasked==do analt generate the extra vblank).
  *
  *  With DC states enabled the extra vblank happens after link training,
  *  with DC states disabled it happens immediately upuon PSR exit trigger.
- *  No idea as of now why there is a difference. HSW/BDW (which don't
+ *  Anal idea as of analw why there is a difference. HSW/BDW (which don't
  *  even have DMC) always generate it after link training. Go figure.
  *
  *  Unfortunately CHICKEN_TRANS itself seems to be double buffered
  *  and thus won't latch until the first vblank. So with DC states
  *  enabled the register effctively uses the reset value during DC5
- *  exit+PSR exit sequence, and thus the bit does nothing until
+ *  exit+PSR exit sequence, and thus the bit does analthing until
  *  latched by the vblank that it was trying to prevent from being
  *  generated in the first place. So we should probably call this
  *  one a chicken/egg bit instead on skl+.
  *
- *  In standby mode (as opposed to link-off) this makes no difference
+ *  In standby mode (as opposed to link-off) this makes anal difference
  *  as the timing generator keeps running the whole time generating
- *  normal periodic vblanks.
+ *  analrmal periodic vblanks.
  *
  *  WaPsrDPAMaskVBlankInSRD asks us to set the bit on hsw/bdw,
  *  and doing so makes the behaviour match the skl+ reset value.
@@ -165,12 +165,12 @@
  * CHICKEN_PIPESL_1[0]/BDW_UNMASK_VBL_TO_REGS_IN_SRD (bdw):
  * CHICKEN_PIPESL_1[15]/HSW_UNMASK_VBL_TO_REGS_IN_SRD (hsw):
  *
- *  On BDW without this bit is no vblanks whatsoever are
- *  generated after PSR exit. On HSW this has no apparant effect.
+ *  On BDW without this bit is anal vblanks whatsoever are
+ *  generated after PSR exit. On HSW this has anal apparant effect.
  *  WaPsrDPRSUnmaskVBlankInSRD says to set this.
  *
  * The rest of the bits are more self-explanatory and/or
- * irrelevant for normal operation.
+ * irrelevant for analrmal operation.
  */
 
 bool intel_encoder_can_psr(struct intel_encoder *encoder)
@@ -406,7 +406,7 @@ void intel_psr_irq_handler(struct intel_dp *intel_dp, u32 psr_iir)
 		intel_dp->psr.irq_aux_error = true;
 
 		/*
-		 * If this interruption is not masked it will keep
+		 * If this interruption is analt masked it will keep
 		 * interrupting so fast that it prevents the scheduled
 		 * work to run.
 		 * Also after a PSR error, we don't want to arm PSR
@@ -416,7 +416,7 @@ void intel_psr_irq_handler(struct intel_dp *intel_dp, u32 psr_iir)
 		intel_de_rmw(dev_priv, psr_imr_reg(dev_priv, cpu_transcoder),
 			     0, psr_irq_psr_error_bit_get(intel_dp));
 
-		queue_work(dev_priv->unordered_wq, &intel_dp->psr.work);
+		queue_work(dev_priv->uanalrdered_wq, &intel_dp->psr.work);
 	}
 }
 
@@ -453,7 +453,7 @@ static void intel_dp_get_su_granularity(struct intel_dp *intel_dp)
 
 	/* If sink don't have specific granularity requirements set legacy ones */
 	if (!(intel_dp->psr_dpcd[1] & DP_PSR2_SU_GRANULARITY_REQUIRED)) {
-		/* As PSR2 HW sends full lines, we do not care about x granularity */
+		/* As PSR2 HW sends full lines, we do analt care about x granularity */
 		w = 4;
 		y = 4;
 		goto exit;
@@ -494,7 +494,7 @@ static void _panel_replay_init_dpcd(struct intel_dp *intel_dp)
 
 	if (!(pr_dpcd & DP_PANEL_REPLAY_SUPPORT)) {
 		drm_dbg_kms(&i915->drm,
-			    "Panel replay is not supported by panel\n");
+			    "Panel replay is analt supported by panel\n");
 		return;
 	}
 
@@ -511,15 +511,15 @@ static void _psr_init_dpcd(struct intel_dp *intel_dp)
 	drm_dbg_kms(&i915->drm, "eDP panel supports PSR version %x\n",
 		    intel_dp->psr_dpcd[0]);
 
-	if (drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_NO_PSR)) {
+	if (drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_ANAL_PSR)) {
 		drm_dbg_kms(&i915->drm,
-			    "PSR support not currently available for this panel\n");
+			    "PSR support analt currently available for this panel\n");
 		return;
 	}
 
 	if (!(intel_dp->edp_dpcd[1] & DP_EDP_SET_POWER_CAP)) {
 		drm_dbg_kms(&i915->drm,
-			    "Panel lacks power state control, PSR cannot be enabled\n");
+			    "Panel lacks power state control, PSR cananalt be enabled\n");
 		return;
 	}
 
@@ -546,7 +546,7 @@ static void _psr_init_dpcd(struct intel_dp *intel_dp)
 		 */
 		intel_dp->psr.sink_psr2_support = y_req && alpm;
 		drm_dbg_kms(&i915->drm, "PSR2 %ssupported\n",
-			    intel_dp->psr.sink_psr2_support ? "" : "not ");
+			    intel_dp->psr.sink_psr2_support ? "" : "analt ");
 	}
 }
 
@@ -673,7 +673,7 @@ static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
 
 	/*
 	 * WA 0479: hsw,bdw
-	 * "Do not skip both TP1 and TP2/TP3"
+	 * "Do analt skip both TP1 and TP2/TP3"
 	 */
 	if (DISPLAY_VER(dev_priv) < 9 &&
 	    connector->panel.vbt.psr.tp1_wakeup_time_us == 0 &&
@@ -696,7 +696,7 @@ static u8 psr_compute_idle_frames(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	int idle_frames;
 
-	/* Let's use 6 as the minimum to cover all known cases including the
+	/* Let's use 6 as the minimum to cover all kanalwn cases including the
 	 * off-by-one issue that HW has in some cases.
 	 */
 	idle_frames = max(6, connector->panel.vbt.psr.idle_frames);
@@ -933,7 +933,7 @@ static void tgl_dc3co_disable_work(struct work_struct *work)
 		container_of(work, typeof(*intel_dp), psr.dc3co_work.work);
 
 	mutex_lock(&intel_dp->psr.lock);
-	/* If delayed work is pending, it is not idle */
+	/* If delayed work is pending, it is analt idle */
 	if (delayed_work_pending(&intel_dp->psr.dc3co_work))
 		goto unlock;
 
@@ -1021,13 +1021,13 @@ static bool intel_psr2_sel_fetch_config_valid(struct intel_dp *intel_dp,
 	if (!dev_priv->display.params.enable_psr2_sel_fetch &&
 	    intel_dp->psr.debug != I915_PSR_DEBUG_ENABLE_SEL_FETCH) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 sel fetch not enabled, disabled by parameter\n");
+			    "PSR2 sel fetch analt enabled, disabled by parameter\n");
 		return false;
 	}
 
 	if (crtc_state->uapi.async_flip) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 sel fetch not enabled, async flip enabled\n");
+			    "PSR2 sel fetch analt enabled, async flip enabled\n");
 		return false;
 	}
 
@@ -1093,7 +1093,7 @@ static bool _compute_psr2_sdp_prior_scanline_indication(struct intel_dp *intel_d
 	if ((hblank_ns - req_ns) > 100)
 		return true;
 
-	/* Not supported <13 / Wa_22012279113:adl-p */
+	/* Analt supported <13 / Wa_22012279113:adl-p */
 	if (DISPLAY_VER(dev_priv) < 14 || intel_dp->edp_dpcd[0] < DP_EDP_14b)
 		return false;
 
@@ -1112,7 +1112,7 @@ static bool _compute_psr2_wake_times(struct intel_dp *intel_dp,
 		io_wake_time = 42;
 		/*
 		 * According to Bspec it's 42us, but based on testing
-		 * it is not enough -> use 45 us.
+		 * it is analt eanalugh -> use 45 us.
 		 */
 		fast_wake_time = 45;
 		max_wake_lines = 12;
@@ -1187,7 +1187,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 
 	/* JSL and EHL only supports eDP 1.3 */
 	if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) {
-		drm_dbg_kms(&dev_priv->drm, "PSR2 not supported by phy\n");
+		drm_dbg_kms(&dev_priv->drm, "PSR2 analt supported by phy\n");
 		return false;
 	}
 
@@ -1199,13 +1199,13 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	}
 
 	if (IS_ALDERLAKE_P(dev_priv) && IS_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0)) {
-		drm_dbg_kms(&dev_priv->drm, "PSR2 not completely functional in this stepping\n");
+		drm_dbg_kms(&dev_priv->drm, "PSR2 analt completely functional in this stepping\n");
 		return false;
 	}
 
 	if (!transcoder_has_psr2(dev_priv, crtc_state->cpu_transcoder)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not supported in transcoder %s\n",
+			    "PSR2 analt supported in transcoder %s\n",
 			    transcoder_name(crtc_state->cpu_transcoder));
 		return false;
 	}
@@ -1216,20 +1216,20 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	}
 
 	/*
-	 * DSC and PSR2 cannot be enabled simultaneously. If a requested
+	 * DSC and PSR2 cananalt be enabled simultaneously. If a requested
 	 * resolution requires DSC to be enabled, priority is given to DSC
 	 * over PSR2.
 	 */
 	if (crtc_state->dsc.compression_enable &&
 	    (DISPLAY_VER(dev_priv) < 14 && !IS_ALDERLAKE_P(dev_priv))) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 cannot be enabled since DSC is enabled\n");
+			    "PSR2 cananalt be enabled since DSC is enabled\n");
 		return false;
 	}
 
 	if (crtc_state->crc_enabled) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled because it would inhibit pipe CRC calculation\n");
+			    "PSR2 analt enabled because it would inhibit pipe CRC calculation\n");
 		return false;
 	}
 
@@ -1249,7 +1249,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 
 	if (crtc_state->pipe_bpp > max_bpp) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, pipe bpp %d > max supported %d\n",
+			    "PSR2 analt enabled, pipe bpp %d > max supported %d\n",
 			    crtc_state->pipe_bpp, max_bpp);
 		return false;
 	}
@@ -1258,19 +1258,19 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	if (crtc_state->vrr.enable &&
 	    IS_ALDERLAKE_P(dev_priv) && IS_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, not compatible with HW stepping + VRR\n");
+			    "PSR2 analt enabled, analt compatible with HW stepping + VRR\n");
 		return false;
 	}
 
 	if (!_compute_psr2_sdp_prior_scanline_indication(intel_dp, crtc_state)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, PSR2 SDP indication do not fit in hblank\n");
+			    "PSR2 analt enabled, PSR2 SDP indication do analt fit in hblank\n");
 		return false;
 	}
 
 	if (!_compute_psr2_wake_times(intel_dp, crtc_state)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, Unable to use long enough wake times\n");
+			    "PSR2 analt enabled, Unable to use long eanalugh wake times\n");
 		return false;
 	}
 
@@ -1279,7 +1279,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	    crtc_state->hw.adjusted_mode.crtc_vblank_start <
 	    psr2_block_count_lines(intel_dp)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, too short vblank time\n");
+			    "PSR2 analt enabled, too short vblank time\n");
 		return false;
 	}
 
@@ -1287,20 +1287,20 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		if (!intel_psr2_sel_fetch_config_valid(intel_dp, crtc_state) &&
 		    !HAS_PSR_HW_TRACKING(dev_priv)) {
 			drm_dbg_kms(&dev_priv->drm,
-				    "PSR2 not enabled, selective fetch not valid and no HW tracking available\n");
+				    "PSR2 analt enabled, selective fetch analt valid and anal HW tracking available\n");
 			return false;
 		}
 	}
 
 	if (!psr2_granularity_check(intel_dp, crtc_state)) {
-		drm_dbg_kms(&dev_priv->drm, "PSR2 not enabled, SU granularity not compatible\n");
+		drm_dbg_kms(&dev_priv->drm, "PSR2 analt enabled, SU granularity analt compatible\n");
 		goto unsupported;
 	}
 
 	if (!crtc_state->enable_psr2_sel_fetch &&
 	    (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v)) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
+			    "PSR2 analt enabled, resolution %dx%d > max supported %dx%d\n",
 			    crtc_hdisplay, crtc_vdisplay,
 			    psr_max_h, psr_max_v);
 		goto unsupported;
@@ -1323,7 +1323,7 @@ static bool _psr_compute_config(struct intel_dp *intel_dp,
 
 	/*
 	 * Current PSR panels don't work reliably with VRR enabled
-	 * So if VRR is enabled, do not enable PSR.
+	 * So if VRR is enabled, do analt enable PSR.
 	 */
 	if (crtc_state->vrr.enable)
 		return false;
@@ -1337,7 +1337,7 @@ static bool _psr_compute_config(struct intel_dp *intel_dp,
 		intel_dp->psr.entry_setup_frames = entry_setup_frames;
 	} else {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR condition failed: PSR setup timing not met\n");
+			    "PSR condition failed: PSR setup timing analt met\n");
 		return false;
 	}
 
@@ -1356,9 +1356,9 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 		return;
 	}
 
-	if (intel_dp->psr.sink_not_reliable) {
+	if (intel_dp->psr.sink_analt_reliable) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR sink implementation is not reliable\n");
+			    "PSR sink implementation is analt reliable\n");
 		return;
 	}
 
@@ -1407,7 +1407,7 @@ void intel_psr_get_config(struct intel_encoder *encoder,
 		pipe_config->has_panel_replay = true;
 	} else {
 		/*
-		 * Not possible to read EDP_PSR/PSR2_CTL registers as it is
+		 * Analt possible to read EDP_PSR/PSR2_CTL registers as it is
 		 * enabled/disabled because of frontbuffer tracking and others.
 		 */
 		pipe_config->has_psr = true;
@@ -1521,14 +1521,14 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	/*
 	 * Per Spec: Avoid continuous PSR exit by masking MEMUP and HPD also
 	 * mask LPSP to avoid dependency on other drivers that might block
-	 * runtime_pm besides preventing  other hw tracking issues now we
+	 * runtime_pm besides preventing  other hw tracking issues analw we
 	 * can rely on frontbuffer tracking.
 	 */
 	mask = EDP_PSR_DEBUG_MASK_MEMUP |
 	       EDP_PSR_DEBUG_MASK_HPD;
 
 	/*
-	 * For some unknown reason on HSW non-ULT (or at least on
+	 * For some unkanalwn reason on HSW analn-ULT (or at least on
 	 * Dell Latitude E6540) external displays start to flicker
 	 * when PSR is enabled on the eDP. SR/PC6 residency is much
 	 * higher than should be possible with an external display.
@@ -1542,7 +1542,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 		mask |= EDP_PSR_DEBUG_MASK_MAX_SLEEP;
 
 	/*
-	 * No separate pipe reg write mask on hsw/bdw, so have to unmask all
+	 * Anal separate pipe reg write mask on hsw/bdw, so have to unmask all
 	 * registers in order to keep the CURSURFLIVE tricks working :(
 	 */
 	if (IS_DISPLAY_VER(dev_priv, 9, 10))
@@ -1565,9 +1565,9 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 			     intel_dp->psr.dc3co_exitline << EXITLINE_SHIFT | EXITLINE_ENABLE);
 
 	if (HAS_PSR_HW_TRACKING(dev_priv) && HAS_PSR2_SEL_FETCH(dev_priv))
-		intel_de_rmw(dev_priv, CHICKEN_PAR1_1, IGNORE_PSR2_HW_TRACKING,
+		intel_de_rmw(dev_priv, CHICKEN_PAR1_1, IGANALRE_PSR2_HW_TRACKING,
 			     intel_dp->psr.psr2_sel_fetch_enabled ?
-			     IGNORE_PSR2_HW_TRACKING : 0);
+			     IGANALRE_PSR2_HW_TRACKING : 0);
 
 	/*
 	 * Wa_16013835468
@@ -1584,7 +1584,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 		/*
 		 * Wa_16014451276:adlp,mtl[a0,b0]
 		 * All supported adlp panels have 1-based X granularity, this may
-		 * cause issues if non-supported panels are used.
+		 * cause issues if analn-supported panels are used.
 		 */
 		if (IS_DISPLAY_IP_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0) ||
 		    IS_ALDERLAKE_P(dev_priv))
@@ -1619,9 +1619,9 @@ static bool psr_interrupt_error_check(struct intel_dp *intel_dp)
 	val = intel_de_read(dev_priv, psr_iir_reg(dev_priv, cpu_transcoder));
 	val &= psr_irq_psr_error_bit_get(intel_dp);
 	if (val) {
-		intel_dp->psr.sink_not_reliable = true;
+		intel_dp->psr.sink_analt_reliable = true;
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR interruption error set, not enabling PSR\n");
+			    "PSR interruption error set, analt enabling PSR\n");
 		return false;
 	}
 
@@ -1920,7 +1920,7 @@ static void psr_force_hw_tracking_exit(struct intel_dp *intel_dp)
 	 * but it makes more sense write to the current active
 	 * pipe.
 	 *
-	 * This workaround do not exist for platforms with display 10 or newer
+	 * This workaround do analt exist for platforms with display 10 or newer
 	 * but testing proved that it works for up display 13, for newer
 	 * than that testing will be needed.
 	 */
@@ -2022,11 +2022,11 @@ static void intel_psr2_sel_fetch_pipe_alignment(const struct intel_crtc_state *c
 }
 
 /*
- * TODO: Not clear how to handle planes with negative position,
- * also planes are not updated if they have a negative X
- * position so for now doing a full update in this cases
+ * TODO: Analt clear how to handle planes with negative position,
+ * also planes are analt updated if they have a negative X
+ * position so for analw doing a full update in this cases
  *
- * Plane scaling and rotation is not supported by selective fetch and both
+ * Plane scaling and rotation is analt supported by selective fetch and both
  * properties can change without a modeset, so need to be check at every
  * atomic commit.
  */
@@ -2042,10 +2042,10 @@ static bool psr2_sel_fetch_plane_state_supported(const struct intel_plane_state 
 }
 
 /*
- * Check for pipe properties that is not supported by selective fetch.
+ * Check for pipe properties that is analt supported by selective fetch.
  *
  * TODO: pipe scaling causes a modeset but skl_update_scaler_crtc() is executed
- * after intel_psr_compute_config(), so for now keeping PSR2 selective fetch
+ * after intel_psr_compute_config(), so for analw keeping PSR2 selective fetch
  * enabled and going to the full update path.
  */
 static bool psr2_sel_fetch_pipe_state_supported(const struct intel_crtc_state *crtc_state)
@@ -2145,7 +2145,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	}
 
 	/*
-	 * TODO: For now we are just using full update in case
+	 * TODO: For analw we are just using full update in case
 	 * selective fetch area calculation fails. To optimize this we
 	 * should identify cases where this happens and fix the area
 	 * calculation for those.
@@ -2173,7 +2173,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	intel_psr2_sel_fetch_pipe_alignment(crtc_state, &pipe_clip);
 
 	/*
-	 * Now that we have the pipe damaged area check if it intersect with
+	 * Analw that we have the pipe damaged area check if it intersect with
 	 * every plane, if it does set the plane selective fetch area.
 	 */
 	for_each_oldnew_intel_plane_in_state(state, plane, old_plane_state,
@@ -2300,7 +2300,7 @@ void intel_psr_post_plane_update(struct intel_atomic_state *state,
 
 		drm_WARN_ON(&dev_priv->drm, psr->enabled && !crtc_state->active_planes);
 
-		keep_disabled |= psr->sink_not_reliable;
+		keep_disabled |= psr->sink_analt_reliable;
 		keep_disabled |= !crtc_state->active_planes;
 
 		/* Display WA #1136: skl, bxt */
@@ -2333,7 +2333,7 @@ static int _psr2_ready_for_pipe_update_locked(struct intel_dp *intel_dp)
 	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
 
 	/*
-	 * Any state lower than EDP_PSR2_STATUS_STATE_DEEP_SLEEP is enough.
+	 * Any state lower than EDP_PSR2_STATUS_STATE_DEEP_SLEEP is eanalugh.
 	 * As all higher states has bit 4 of PSR2 state set we can just wait for
 	 * EDP_PSR2_STATUS_STATE_DEEP_SLEEP to be cleared.
 	 */
@@ -2351,7 +2351,7 @@ static int _psr1_ready_for_pipe_update_locked(struct intel_dp *intel_dp)
 	 * From bspec: Panel Self Refresh (BDW+)
 	 * Max. time for PSR to idle = Inverse of the refresh rate + 6 ms of
 	 * exit training time + 1.5 ms of aux channel handshake. 50 ms is
-	 * defensive enough to cover everything.
+	 * defensive eanalugh to cover everything.
 	 */
 	return intel_de_wait_for_clear(dev_priv,
 				       psr_status_reg(dev_priv, cpu_transcoder),
@@ -2363,7 +2363,7 @@ static int _psr1_ready_for_pipe_update_locked(struct intel_dp *intel_dp)
  * @new_crtc_state: new CRTC state
  *
  * This function is expected to be called from pipe_update_start() where it is
- * not expected to race with PSR enable or disable.
+ * analt expected to race with PSR enable or disable.
  */
 void intel_psr_wait_for_idle_locked(const struct intel_crtc_state *new_crtc_state)
 {
@@ -2434,7 +2434,7 @@ static int intel_psr_fastset_force(struct drm_i915_private *dev_priv)
 
 	state = drm_atomic_state_alloc(&dev_priv->drm);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
 
@@ -2527,7 +2527,7 @@ static void intel_psr_handle_irq(struct intel_dp *intel_dp)
 	struct intel_psr *psr = &intel_dp->psr;
 
 	intel_psr_disable_locked(intel_dp);
-	psr->sink_not_reliable = true;
+	psr->sink_analt_reliable = true;
 	/* let's make sure that sink is awaken */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
 }
@@ -2658,7 +2658,7 @@ tgl_dc3co_flush_locked(struct intel_dp *intel_dp, unsigned int frontbuffer_bits,
 		return;
 
 	tgl_psr2_enable_dc3co(intel_dp);
-	mod_delayed_work(i915->unordered_wq, &intel_dp->psr.dc3co_work,
+	mod_delayed_work(i915->uanalrdered_wq, &intel_dp->psr.dc3co_work,
 			 intel_dp->psr.dc3co_exit_delay);
 }
 
@@ -2698,7 +2698,7 @@ static void _psr_flush_handle(struct intel_dp *intel_dp)
 		psr_force_hw_tracking_exit(intel_dp);
 
 		if (!intel_dp->psr.active && !intel_dp->psr.busy_frontbuffer_bits)
-			queue_work(dev_priv->unordered_wq, &intel_dp->psr.work);
+			queue_work(dev_priv->uanalrdered_wq, &intel_dp->psr.work);
 	}
 }
 
@@ -2711,7 +2711,7 @@ static void _psr_flush_handle(struct intel_dp *intel_dp)
  * Since the hardware frontbuffer tracking has gaps we need to integrate
  * with the software frontbuffer tracking. This function gets called every
  * time frontbuffer rendering has completed and flushed out to memory. PSR
- * can be enabled again if no other frontbuffer relevant to PSR is dirty.
+ * can be enabled again if anal other frontbuffer relevant to PSR is dirty.
  *
  * Dirty frontbuffers relevant to PSR are tracked in busy_frontbuffer_bits.
  */
@@ -2736,7 +2736,7 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 
 		/*
 		 * If the PSR is paused by an explicit intel_psr_paused() call,
-		 * we have to ensure that the PSR is not activated until
+		 * we have to ensure that the PSR is analt activated until
 		 * intel_psr_resume() is called.
 		 */
 		if (intel_dp->psr.paused)
@@ -2782,15 +2782,15 @@ void intel_psr_init(struct intel_dp *intel_dp)
 	/*
 	 * HSW spec explicitly says PSR is tied to port A.
 	 * BDW+ platforms have a instance of PSR registers per transcoder but
-	 * BDW, GEN9 and GEN11 are not validated by HW team in other transcoder
+	 * BDW, GEN9 and GEN11 are analt validated by HW team in other transcoder
 	 * than eDP one.
-	 * For now it only supports one instance of PSR for BDW, GEN9 and GEN11.
+	 * For analw it only supports one instance of PSR for BDW, GEN9 and GEN11.
 	 * So lets keep it hardcoded to PORT_A for BDW, GEN9 and GEN11.
 	 * But GEN12 supports a instance of PSR registers per transcoder.
 	 */
 	if (DISPLAY_VER(dev_priv) < 12 && dig_port->base.port != PORT_A) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "PSR condition failed: Port not supported\n");
+			    "PSR condition failed: Port analt supported\n");
 		return;
 	}
 
@@ -2854,7 +2854,7 @@ static void psr_alpm_check(struct intel_dp *intel_dp)
 
 	if (val & DP_ALPM_LOCK_TIMEOUT_ERROR) {
 		intel_psr_disable_locked(intel_dp);
-		psr->sink_not_reliable = true;
+		psr->sink_analt_reliable = true;
 		drm_dbg_kms(&dev_priv->drm,
 			    "ALPM lock timeout error, disabling PSR\n");
 
@@ -2878,7 +2878,7 @@ static void psr_capability_changed_check(struct intel_dp *intel_dp)
 
 	if (val & DP_PSR_CAPS_CHANGE) {
 		intel_psr_disable_locked(intel_dp);
-		psr->sink_not_reliable = true;
+		psr->sink_analt_reliable = true;
 		drm_dbg_kms(&dev_priv->drm,
 			    "Sink PSR capability changed, disabling PSR\n");
 
@@ -2912,7 +2912,7 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 
 	if (status == DP_PSR_SINK_INTERNAL_ERROR || (error_status & errors)) {
 		intel_psr_disable_locked(intel_dp);
-		psr->sink_not_reliable = true;
+		psr->sink_analt_reliable = true;
 	}
 
 	if (status == DP_PSR_SINK_INTERNAL_ERROR && !error_status)
@@ -3009,7 +3009,7 @@ psr_source_status(struct intel_dp *intel_dp, struct seq_file *m)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
-	const char *status = "unknown";
+	const char *status = "unkanalwn";
 	u32 val, status_val;
 
 	if (intel_dp->psr.psr2_enabled) {
@@ -3061,11 +3061,11 @@ static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp)
 	u32 val;
 
 	seq_printf(m, "Sink support: PSR = %s",
-		   str_yes_no(psr->sink_support));
+		   str_anal_anal(psr->sink_support));
 
 	if (psr->sink_support)
 		seq_printf(m, " [0x%02x]", intel_dp->psr_dpcd[0]);
-	seq_printf(m, ", Panel Replay = %s\n", str_yes_no(psr->sink_panel_replay_support));
+	seq_printf(m, ", Panel Replay = %s\n", str_anal_anal(psr->sink_panel_replay_support));
 
 	if (!(psr->sink_support || psr->sink_panel_replay_support))
 		return 0;
@@ -3082,8 +3082,8 @@ static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp)
 	seq_printf(m, "PSR mode: %s\n", status);
 
 	if (!psr->enabled) {
-		seq_printf(m, "PSR sink not reliable: %s\n",
-			   str_yes_no(psr->sink_not_reliable));
+		seq_printf(m, "PSR sink analt reliable: %s\n",
+			   str_anal_anal(psr->sink_analt_reliable));
 
 		goto unlock;
 	}
@@ -3159,7 +3159,7 @@ static int i915_edp_psr_status_show(struct seq_file *m, void *data)
 	struct intel_encoder *encoder;
 
 	if (!HAS_PSR(dev_priv))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Find the first EDP which supports PSR */
 	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
@@ -3168,7 +3168,7 @@ static int i915_edp_psr_status_show(struct seq_file *m, void *data)
 	}
 
 	if (!intel_dp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return intel_psr_status(m, intel_dp);
 }
@@ -3180,7 +3180,7 @@ i915_edp_psr_debug_set(void *data, u64 val)
 	struct drm_i915_private *dev_priv = data;
 	struct intel_encoder *encoder;
 	intel_wakeref_t wakeref;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (!HAS_PSR(dev_priv))
 		return ret;
@@ -3208,7 +3208,7 @@ i915_edp_psr_debug_get(void *data, u64 *val)
 	struct intel_encoder *encoder;
 
 	if (!HAS_PSR(dev_priv))
-		return -ENODEV;
+		return -EANALDEV;
 
 	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -3218,7 +3218,7 @@ i915_edp_psr_debug_get(void *data, u64 *val)
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_edp_psr_debug_fops,
@@ -3227,12 +3227,12 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_edp_psr_debug_fops,
 
 void intel_psr_debugfs_register(struct drm_i915_private *i915)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	struct drm_mianalr *mianalr = i915->drm.primary;
 
-	debugfs_create_file("i915_edp_psr_debug", 0644, minor->debugfs_root,
+	debugfs_create_file("i915_edp_psr_debug", 0644, mianalr->debugfs_root,
 			    i915, &i915_edp_psr_debug_fops);
 
-	debugfs_create_file("i915_edp_psr_status", 0444, minor->debugfs_root,
+	debugfs_create_file("i915_edp_psr_status", 0444, mianalr->debugfs_root,
 			    i915, &i915_edp_psr_status_fops);
 }
 
@@ -3243,7 +3243,7 @@ static const char *psr_mode_str(struct intel_dp *intel_dp)
 	else if (intel_dp->psr.enabled)
 		return "PSR";
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 static int i915_psr_sink_status_show(struct seq_file *m, void *data)
@@ -3273,17 +3273,17 @@ static int i915_psr_sink_status_show(struct seq_file *m, void *data)
 
 	if (!(CAN_PSR(intel_dp) || CAN_PANEL_REPLAY(intel_dp))) {
 		seq_puts(m, "PSR/Panel-Replay Unsupported\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (connector->base.status != connector_status_connected)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = psr_get_status_and_error_status(intel_dp, &status, &error_status);
 	if (ret)
 		return ret;
 
-	str = "unknown";
+	str = "unkanalwn";
 	if (intel_dp->psr.panel_replay_enabled) {
 		idx = (status & DP_SINK_FRAME_LOCKED_MASK) >> DP_SINK_FRAME_LOCKED_SHIFT;
 		if (idx < ARRAY_SIZE(panel_replay_status))

@@ -46,12 +46,12 @@ static int gve_verify_driver_compatibility(struct gve_priv *priv)
 					 sizeof(struct gve_driver_info),
 					 &driver_info_bus, GFP_KERNEL);
 	if (!driver_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*driver_info = (struct gve_driver_info) {
 		.os_type = 1, /* Linux */
 		.os_version_major = cpu_to_be32(LINUX_VERSION_MAJOR),
-		.os_version_minor = cpu_to_be32(LINUX_VERSION_SUBLEVEL),
+		.os_version_mianalr = cpu_to_be32(LINUX_VERSION_SUBLEVEL),
 		.os_version_sub = cpu_to_be32(LINUX_VERSION_PATCHLEVEL),
 		.driver_capability_flags = {
 			cpu_to_be64(GVE_DRIVER_CAPABILITY_FLAGS1),
@@ -70,7 +70,7 @@ static int gve_verify_driver_compatibility(struct gve_priv *priv)
 						     driver_info_bus);
 
 	/* It's ok if the device doesn't support this */
-	if (err == -EOPNOTSUPP)
+	if (err == -EOPANALTSUPP)
 		err = 0;
 
 	dma_free_coherent(&priv->pdev->dev,
@@ -146,7 +146,7 @@ static int gve_alloc_counter_array(struct gve_priv *priv)
 				   sizeof(*priv->counter_array),
 				   &priv->counter_array_bus, GFP_KERNEL);
 	if (!priv->counter_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -207,7 +207,7 @@ static int gve_alloc_stats_report(struct gve_priv *priv)
 		dma_alloc_coherent(&priv->pdev->dev, priv->stats_report_len,
 				   &priv->stats_report_bus, GFP_KERNEL);
 	if (!priv->stats_report)
-		return -ENOMEM;
+		return -EANALMEM;
 	/* Set up timer for the report-stats task */
 	timer_setup(&priv->stats_report_timer, gve_stats_report_timer, 0);
 	priv->stats_report_timer_period = GVE_STATS_REPORT_TIMER_PERIOD;
@@ -235,7 +235,7 @@ static irqreturn_t gve_mgmnt_intr(int irq, void *arg)
 
 static irqreturn_t gve_intr(int irq, void *arg)
 {
-	struct gve_notify_block *block = arg;
+	struct gve_analtify_block *block = arg;
 	struct gve_priv *priv = block->priv;
 
 	iowrite32be(GVE_IRQ_MASK, gve_irq_doorbell(priv, block));
@@ -245,7 +245,7 @@ static irqreturn_t gve_intr(int irq, void *arg)
 
 static irqreturn_t gve_intr_dqo(int irq, void *arg)
 {
-	struct gve_notify_block *block = arg;
+	struct gve_analtify_block *block = arg;
 
 	/* Interrupts are automatically masked */
 	napi_schedule_irqoff(&block->napi);
@@ -254,13 +254,13 @@ static irqreturn_t gve_intr_dqo(int irq, void *arg)
 
 static int gve_napi_poll(struct napi_struct *napi, int budget)
 {
-	struct gve_notify_block *block;
+	struct gve_analtify_block *block;
 	__be32 __iomem *irq_doorbell;
 	bool reschedule = false;
 	struct gve_priv *priv;
 	int work_done = 0;
 
-	block = container_of(napi, struct gve_notify_block, napi);
+	block = container_of(napi, struct gve_analtify_block, napi);
 	priv = block->priv;
 
 	if (block->tx) {
@@ -304,8 +304,8 @@ static int gve_napi_poll(struct napi_struct *napi, int budget)
 
 static int gve_napi_poll_dqo(struct napi_struct *napi, int budget)
 {
-	struct gve_notify_block *block =
-		container_of(napi, struct gve_notify_block, napi);
+	struct gve_analtify_block *block =
+		container_of(napi, struct gve_analtify_block, napi);
 	struct gve_priv *priv = block->priv;
 	bool reschedule = false;
 	int work_done = 0;
@@ -330,17 +330,17 @@ static int gve_napi_poll_dqo(struct napi_struct *napi, int budget)
 		 * We don't need to repoll afterwards because HW supports the
 		 * PCI MSI-X PBA feature.
 		 *
-		 * Another interrupt would be triggered if a new event came in
+		 * Aanalther interrupt would be triggered if a new event came in
 		 * since the last one.
 		 */
 		gve_write_irq_doorbell_dqo(priv, block,
-					   GVE_ITR_NO_UPDATE_DQO | GVE_ITR_ENABLE_BIT_DQO);
+					   GVE_ITR_ANAL_UPDATE_DQO | GVE_ITR_ENABLE_BIT_DQO);
 	}
 
 	return work_done;
 }
 
-static int gve_alloc_notify_blocks(struct gve_priv *priv)
+static int gve_alloc_analtify_blocks(struct gve_priv *priv)
 {
 	int num_vecs_requested = priv->num_ntfy_blks + 1;
 	unsigned int active_cpus;
@@ -351,13 +351,13 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 	priv->msix_vectors = kvcalloc(num_vecs_requested,
 				      sizeof(*priv->msix_vectors), GFP_KERNEL);
 	if (!priv->msix_vectors)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < num_vecs_requested; i++)
 		priv->msix_vectors[i].entry = i;
 	vecs_enabled = pci_enable_msix_range(priv->pdev, priv->msix_vectors,
 					     GVE_MIN_MSIX, num_vecs_requested);
 	if (vecs_enabled < 0) {
-		dev_err(&priv->pdev->dev, "Could not enable min msix %d/%d\n",
+		dev_err(&priv->pdev->dev, "Could analt enable min msix %d/%d\n",
 			GVE_MIN_MSIX, vecs_enabled);
 		err = vecs_enabled;
 		goto abort_with_msix_vectors;
@@ -374,7 +374,7 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 		priv->rx_cfg.max_queues = min_t(int, priv->rx_cfg.max_queues,
 						vecs_per_type + vecs_left);
 		dev_err(&priv->pdev->dev,
-			"Could not enable desired msix, only enabled %d, adjusting tx max queues to %d, and rx max queues to %d\n",
+			"Could analt enable desired msix, only enabled %d, adjusting tx max queues to %d, and rx max queues to %d\n",
 			vecs_enabled, priv->tx_cfg.max_queues,
 			priv->rx_cfg.max_queues);
 		if (priv->tx_cfg.num_queues > priv->tx_cfg.max_queues)
@@ -382,7 +382,7 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 		if (priv->rx_cfg.num_queues > priv->rx_cfg.max_queues)
 			priv->rx_cfg.num_queues = priv->rx_cfg.max_queues;
 	}
-	/* Half the notification blocks go to TX and half to RX */
+	/* Half the analtification blocks go to TX and half to RX */
 	active_cpus = min_t(int, priv->num_ntfy_blks / 2, num_online_cpus());
 
 	/* Setup Management Vector  - the last vector */
@@ -391,7 +391,7 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 	err = request_irq(priv->msix_vectors[priv->mgmt_msix_idx].vector,
 			  gve_mgmnt_intr, 0, priv->mgmt_msix_name, priv);
 	if (err) {
-		dev_err(&priv->pdev->dev, "Did not receive management vector.\n");
+		dev_err(&priv->pdev->dev, "Did analt receive management vector.\n");
 		goto abort_with_msix_enabled;
 	}
 	priv->irq_db_indices =
@@ -400,20 +400,20 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 				   sizeof(*priv->irq_db_indices),
 				   &priv->irq_db_indices_bus, GFP_KERNEL);
 	if (!priv->irq_db_indices) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto abort_with_mgmt_vector;
 	}
 
 	priv->ntfy_blocks = kvzalloc(priv->num_ntfy_blks *
 				     sizeof(*priv->ntfy_blocks), GFP_KERNEL);
 	if (!priv->ntfy_blocks) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto abort_with_irq_db_indices;
 	}
 
 	/* Setup the other blocks - the first n-1 vectors */
 	for (i = 0; i < priv->num_ntfy_blks; i++) {
-		struct gve_notify_block *block = &priv->ntfy_blocks[i];
+		struct gve_analtify_block *block = &priv->ntfy_blocks[i];
 		int msix_idx = i;
 
 		snprintf(block->name, sizeof(block->name), "gve-ntfy-blk%d@pci:%s",
@@ -434,7 +434,7 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 	return 0;
 abort_with_some_ntfy_blocks:
 	for (j = 0; j < i; j++) {
-		struct gve_notify_block *block = &priv->ntfy_blocks[j];
+		struct gve_analtify_block *block = &priv->ntfy_blocks[j];
 		int msix_idx = j;
 
 		irq_set_affinity_hint(priv->msix_vectors[msix_idx].vector,
@@ -458,7 +458,7 @@ abort_with_msix_vectors:
 	return err;
 }
 
-static void gve_free_notify_blocks(struct gve_priv *priv)
+static void gve_free_analtify_blocks(struct gve_priv *priv)
 {
 	int i;
 
@@ -467,7 +467,7 @@ static void gve_free_notify_blocks(struct gve_priv *priv)
 
 	/* Free the irqs */
 	for (i = 0; i < priv->num_ntfy_blks; i++) {
-		struct gve_notify_block *block = &priv->ntfy_blocks[i];
+		struct gve_analtify_block *block = &priv->ntfy_blocks[i];
 		int msix_idx = i;
 
 		irq_set_affinity_hint(priv->msix_vectors[msix_idx].vector,
@@ -493,7 +493,7 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 	err = gve_alloc_counter_array(priv);
 	if (err)
 		return err;
-	err = gve_alloc_notify_blocks(priv);
+	err = gve_alloc_analtify_blocks(priv);
 	if (err)
 		goto abort_with_counter;
 	err = gve_alloc_stats_report(priv);
@@ -506,7 +506,7 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 						    priv->num_ntfy_blks);
 	if (unlikely(err)) {
 		dev_err(&priv->pdev->dev,
-			"could not setup device_resources: err=%d\n", err);
+			"could analt setup device_resources: err=%d\n", err);
 		err = -ENXIO;
 		goto abort_with_stats_report;
 	}
@@ -515,7 +515,7 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 		priv->ptype_lut_dqo = kvzalloc(sizeof(*priv->ptype_lut_dqo),
 					       GFP_KERNEL);
 		if (!priv->ptype_lut_dqo) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto abort_with_stats_report;
 		}
 		err = gve_adminq_get_ptype_map_dqo(priv, priv->ptype_lut_dqo);
@@ -541,7 +541,7 @@ abort_with_ptype_lut:
 abort_with_stats_report:
 	gve_free_stats_report(priv);
 abort_with_ntfy_blocks:
-	gve_free_notify_blocks(priv);
+	gve_free_analtify_blocks(priv);
 abort_with_counter:
 	gve_free_counter_array(priv);
 
@@ -566,7 +566,7 @@ static void gve_teardown_device_resources(struct gve_priv *priv)
 		err = gve_adminq_deconfigure_device_resources(priv);
 		if (err) {
 			dev_err(&priv->pdev->dev,
-				"Could not deconfigure device resources: err=%d\n",
+				"Could analt deconfigure device resources: err=%d\n",
 				err);
 			gve_trigger_reset(priv);
 		}
@@ -576,7 +576,7 @@ static void gve_teardown_device_resources(struct gve_priv *priv)
 	priv->ptype_lut_dqo = NULL;
 
 	gve_free_counter_array(priv);
-	gve_free_notify_blocks(priv);
+	gve_free_analtify_blocks(priv);
 	gve_free_stats_report(priv);
 	gve_clear_device_resources_ok(priv);
 }
@@ -584,14 +584,14 @@ static void gve_teardown_device_resources(struct gve_priv *priv)
 static void gve_add_napi(struct gve_priv *priv, int ntfy_idx,
 			 int (*gve_poll)(struct napi_struct *, int))
 {
-	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+	struct gve_analtify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 	netif_napi_add(priv->dev, &block->napi, gve_poll);
 }
 
 static void gve_remove_napi(struct gve_priv *priv, int ntfy_idx)
 {
-	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+	struct gve_analtify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 	netif_napi_del(&block->napi);
 }
@@ -609,7 +609,7 @@ static int gve_register_xdp_qpls(struct gve_priv *priv)
 			netif_err(priv, drv, priv->dev,
 				  "failed to register queue page list %d\n",
 				  priv->qpls[i].id);
-			/* This failure will trigger a reset - no need to clean
+			/* This failure will trigger a reset - anal need to clean
 			 * up
 			 */
 			return err;
@@ -631,7 +631,7 @@ static int gve_register_qpls(struct gve_priv *priv)
 			netif_err(priv, drv, priv->dev,
 				  "failed to register queue page list %d\n",
 				  priv->qpls[i].id);
-			/* This failure will trigger a reset - no need to clean
+			/* This failure will trigger a reset - anal need to clean
 			 * up
 			 */
 			return err;
@@ -645,7 +645,7 @@ static int gve_register_qpls(struct gve_priv *priv)
 			netif_err(priv, drv, priv->dev,
 				  "failed to register queue page list %d\n",
 				  priv->qpls[i].id);
-			/* This failure will trigger a reset - no need to clean
+			/* This failure will trigger a reset - anal need to clean
 			 * up
 			 */
 			return err;
@@ -663,7 +663,7 @@ static int gve_unregister_xdp_qpls(struct gve_priv *priv)
 	start_id = gve_tx_qpl_id(priv, gve_xdp_tx_start_queue_id(priv));
 	for (i = start_id; i < start_id + gve_num_xdp_qpls(priv); i++) {
 		err = gve_adminq_unregister_page_list(priv, priv->qpls[i].id);
-		/* This failure will trigger a reset - no need to clean up */
+		/* This failure will trigger a reset - anal need to clean up */
 		if (err) {
 			netif_err(priv, drv, priv->dev,
 				  "Failed to unregister queue page list %d\n",
@@ -683,7 +683,7 @@ static int gve_unregister_qpls(struct gve_priv *priv)
 	start_id = gve_tx_start_qpl_id(priv);
 	for (i = start_id; i < start_id + gve_num_tx_qpls(priv); i++) {
 		err = gve_adminq_unregister_page_list(priv, priv->qpls[i].id);
-		/* This failure will trigger a reset - no need to clean up */
+		/* This failure will trigger a reset - anal need to clean up */
 		if (err) {
 			netif_err(priv, drv, priv->dev,
 				  "Failed to unregister queue page list %d\n",
@@ -695,7 +695,7 @@ static int gve_unregister_qpls(struct gve_priv *priv)
 	start_id = gve_rx_start_qpl_id(priv);
 	for (i = start_id; i < start_id + gve_num_rx_qpls(priv); i++) {
 		err = gve_adminq_unregister_page_list(priv, priv->qpls[i].id);
-		/* This failure will trigger a reset - no need to clean up */
+		/* This failure will trigger a reset - anal need to clean up */
 		if (err) {
 			netif_err(priv, drv, priv->dev,
 				  "Failed to unregister queue page list %d\n",
@@ -716,7 +716,7 @@ static int gve_create_xdp_rings(struct gve_priv *priv)
 	if (err) {
 		netif_err(priv, drv, priv->dev, "failed to create %d XDP tx queues\n",
 			  priv->num_xdp_queues);
-		/* This failure will trigger a reset - no need to clean
+		/* This failure will trigger a reset - anal need to clean
 		 * up
 		 */
 		return err;
@@ -737,7 +737,7 @@ static int gve_create_rings(struct gve_priv *priv)
 	if (err) {
 		netif_err(priv, drv, priv->dev, "failed to create %d tx queues\n",
 			  num_tx_queues);
-		/* This failure will trigger a reset - no need to clean
+		/* This failure will trigger a reset - anal need to clean
 		 * up
 		 */
 		return err;
@@ -749,7 +749,7 @@ static int gve_create_rings(struct gve_priv *priv)
 	if (err) {
 		netif_err(priv, drv, priv->dev, "failed to create %d rx queues\n",
 			  priv->rx_cfg.num_queues);
-		/* This failure will trigger a reset - no need to clean
+		/* This failure will trigger a reset - anal need to clean
 		 * up
 		 */
 		return err;
@@ -851,7 +851,7 @@ static int gve_alloc_rings(struct gve_priv *priv)
 	priv->tx = kvcalloc(priv->tx_cfg.max_queues, sizeof(*priv->tx),
 			    GFP_KERNEL);
 	if (!priv->tx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (gve_is_gqi(priv))
 		err = gve_tx_alloc_rings(priv, 0, gve_num_tx_queues(priv));
@@ -864,7 +864,7 @@ static int gve_alloc_rings(struct gve_priv *priv)
 	priv->rx = kvcalloc(priv->rx_cfg.max_queues, sizeof(*priv->rx),
 			    GFP_KERNEL);
 	if (!priv->rx) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_tx_queue;
 	}
 
@@ -905,7 +905,7 @@ static int gve_destroy_xdp_rings(struct gve_priv *priv)
 	if (err) {
 		netif_err(priv, drv, priv->dev,
 			  "failed to destroy XDP queues\n");
-		/* This failure will trigger a reset - no need to clean up */
+		/* This failure will trigger a reset - anal need to clean up */
 		return err;
 	}
 	netif_dbg(priv, drv, priv->dev, "destroyed XDP queues\n");
@@ -922,7 +922,7 @@ static int gve_destroy_rings(struct gve_priv *priv)
 	if (err) {
 		netif_err(priv, drv, priv->dev,
 			  "failed to destroy tx queues\n");
-		/* This failure will trigger a reset - no need to clean up */
+		/* This failure will trigger a reset - anal need to clean up */
 		return err;
 	}
 	netif_dbg(priv, drv, priv->dev, "destroyed tx queues\n");
@@ -930,7 +930,7 @@ static int gve_destroy_rings(struct gve_priv *priv)
 	if (err) {
 		netif_err(priv, drv, priv->dev,
 			  "failed to destroy rx queues\n");
-		/* This failure will trigger a reset - no need to clean up */
+		/* This failure will trigger a reset - anal need to clean up */
 		return err;
 	}
 	netif_dbg(priv, drv, priv->dev, "destroyed rx queues\n");
@@ -993,13 +993,13 @@ int gve_alloc_page(struct gve_priv *priv, struct device *dev,
 	*page = alloc_page(gfp_flags);
 	if (!*page) {
 		priv->page_alloc_fail++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	*dma = dma_map_page(dev, *page, 0, PAGE_SIZE, dir);
 	if (dma_mapping_error(dev, *dma)) {
 		priv->dma_mapping_error++;
 		put_page(*page);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -1024,11 +1024,11 @@ static int gve_alloc_queue_page_list(struct gve_priv *priv, u32 id,
 	qpl->pages = kvcalloc(pages, sizeof(*qpl->pages), GFP_KERNEL);
 	/* caller handles clean up */
 	if (!qpl->pages)
-		return -ENOMEM;
+		return -EANALMEM;
 	qpl->page_buses = kvcalloc(pages, sizeof(*qpl->page_buses), GFP_KERNEL);
 	/* caller handles clean up */
 	if (!qpl->page_buses)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pages; i++) {
 		err = gve_alloc_page(priv, &priv->pdev->dev, &qpl->pages[i],
@@ -1036,7 +1036,7 @@ static int gve_alloc_queue_page_list(struct gve_priv *priv, u32 id,
 				     gve_qpl_dma_dir(priv, id), GFP_KERNEL);
 		/* caller handles clean up */
 		if (err)
-			return -ENOMEM;
+			return -EANALMEM;
 		qpl->num_entries++;
 	}
 	priv->num_registered_pages += pages;
@@ -1110,7 +1110,7 @@ static int gve_alloc_qpls(struct gve_priv *priv)
 
 	priv->qpls = kvcalloc(max_queues, sizeof(*priv->qpls), GFP_KERNEL);
 	if (!priv->qpls)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	start_id = gve_tx_start_qpl_id(priv);
 	page_count = priv->tx_pages_per_qpl;
@@ -1141,7 +1141,7 @@ static int gve_alloc_qpls(struct gve_priv *priv)
 	priv->qpl_cfg.qpl_id_map = kvcalloc(BITS_TO_LONGS(max_queues),
 					    sizeof(unsigned long), GFP_KERNEL);
 	if (!priv->qpl_cfg.qpl_id_map) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_qpls;
 	}
 
@@ -1184,7 +1184,7 @@ static void gve_free_qpls(struct gve_priv *priv)
 }
 
 /* Use this to schedule a reset when the device is capable of continuing
- * to handle other requests in its current state. If it is not, do a reset
+ * to handle other requests in its current state. If it is analt, do a reset
  * in thread instead.
  */
 void gve_schedule_reset(struct gve_priv *priv)
@@ -1325,7 +1325,7 @@ static int gve_open(struct net_device *dev)
 		goto reset;
 
 	if (!gve_is_gqi(priv)) {
-		/* Hard code this for now. This may be tuned in the future for
+		/* Hard code this for analw. This may be tuned in the future for
 		 * performance.
 		 */
 		priv->data_buffer_size_dqo = GVE_DEFAULT_RX_BUFFER_SIZE;
@@ -1360,7 +1360,7 @@ reset:
 		return err;
 	/* Otherwise reset before returning */
 	gve_reset_and_teardown(priv, true);
-	/* if this fails there is nothing we can do so just ignore the return */
+	/* if this fails there is analthing we can do so just iganalre the return */
 	gve_reset_recovery(priv, false);
 	/* return the original error */
 	return err;
@@ -1540,7 +1540,7 @@ static int gve_xsk_pool_enable(struct net_device *dev,
 	if (err)
 		return err;
 
-	/* If XDP prog is not installed, return */
+	/* If XDP prog is analt installed, return */
 	if (!priv->xdp_prog)
 		return 0;
 
@@ -1586,7 +1586,7 @@ static int gve_xsk_pool_disable(struct net_device *dev,
 	if (qid >= priv->rx_cfg.num_queues)
 		return -EINVAL;
 
-	/* If XDP prog is not installed, unmap DMA and return */
+	/* If XDP prog is analt installed, unmap DMA and return */
 	if (!priv->xdp_prog)
 		goto done;
 
@@ -1654,20 +1654,20 @@ static int verify_xdp_configuration(struct net_device *dev)
 	struct gve_priv *priv = netdev_priv(dev);
 
 	if (dev->features & NETIF_F_LRO) {
-		netdev_warn(dev, "XDP is not supported when LRO is on.\n");
-		return -EOPNOTSUPP;
+		netdev_warn(dev, "XDP is analt supported when LRO is on.\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (priv->queue_format != GVE_GQI_QPL_FORMAT) {
-		netdev_warn(dev, "XDP is not supported in mode %d.\n",
+		netdev_warn(dev, "XDP is analt supported in mode %d.\n",
 			    priv->queue_format);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (dev->mtu > GVE_DEFAULT_RX_BUFFER_SIZE - sizeof(struct ethhdr) - GVE_RX_PAD) {
-		netdev_warn(dev, "XDP is not supported for mtu %d.\n",
+		netdev_warn(dev, "XDP is analt supported for mtu %d.\n",
 			    dev->mtu);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (priv->rx_cfg.num_queues != priv->tx_cfg.num_queues ||
@@ -1753,13 +1753,13 @@ static void gve_turndown(struct gve_priv *priv)
 	/* Disable napi to prevent more work from coming in */
 	for (idx = 0; idx < gve_num_tx_queues(priv); idx++) {
 		int ntfy_idx = gve_tx_idx_to_ntfy(priv, idx);
-		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+		struct gve_analtify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 		napi_disable(&block->napi);
 	}
 	for (idx = 0; idx < priv->rx_cfg.num_queues; idx++) {
 		int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
-		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+		struct gve_analtify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 		napi_disable(&block->napi);
 	}
@@ -1781,7 +1781,7 @@ static void gve_turnup(struct gve_priv *priv)
 	/* Enable napi and unmask interrupts for all queues */
 	for (idx = 0; idx < gve_num_tx_queues(priv); idx++) {
 		int ntfy_idx = gve_tx_idx_to_ntfy(priv, idx);
-		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+		struct gve_analtify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 		napi_enable(&block->napi);
 		if (gve_is_gqi(priv)) {
@@ -1793,7 +1793,7 @@ static void gve_turnup(struct gve_priv *priv)
 	}
 	for (idx = 0; idx < priv->rx_cfg.num_queues; idx++) {
 		int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
-		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+		struct gve_analtify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
 		napi_enable(&block->napi);
 		if (gve_is_gqi(priv)) {
@@ -1809,7 +1809,7 @@ static void gve_turnup(struct gve_priv *priv)
 
 static void gve_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
-	struct gve_notify_block *block;
+	struct gve_analtify_block *block;
 	struct gve_tx_ring *tx = NULL;
 	struct gve_priv *priv;
 	u32 last_nic_done;
@@ -1994,7 +1994,7 @@ void gve_handle_report_stats(struct gve_priv *priv)
 		for (idx = 0; idx < priv->rx_cfg.num_queues; idx++) {
 			stats[stats_idx++] = (struct stats) {
 				.stat_name = cpu_to_be32(RX_NEXT_EXPECTED_SEQUENCE),
-				.value = cpu_to_be64(priv->rx[idx].desc.seqno),
+				.value = cpu_to_be64(priv->rx[idx].desc.seqanal),
 				.queue_id = cpu_to_be32(idx),
 			};
 			stats[stats_idx++] = (struct stats) {
@@ -2047,7 +2047,7 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 	err = gve_verify_driver_compatibility(priv);
 	if (err) {
 		dev_err(&priv->pdev->dev,
-			"Could not verify driver compatibility: err=%d\n", err);
+			"Could analt verify driver compatibility: err=%d\n", err);
 		goto err;
 	}
 
@@ -2059,14 +2059,14 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 	err = gve_adminq_describe_device(priv);
 	if (err) {
 		dev_err(&priv->pdev->dev,
-			"Could not get device information: err=%d\n", err);
+			"Could analt get device information: err=%d\n", err);
 		goto err;
 	}
 	priv->dev->mtu = priv->dev->max_mtu;
 	num_ntfy = pci_msix_vec_count(priv->pdev);
 	if (num_ntfy <= 0) {
 		dev_err(&priv->pdev->dev,
-			"could not count MSI-x vectors: err=%d\n", num_ntfy);
+			"could analt count MSI-x vectors: err=%d\n", num_ntfy);
 		err = num_ntfy;
 		goto err;
 	} else if (num_ntfy < GVE_MIN_MSIX) {
@@ -2082,7 +2082,7 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 
 	priv->num_registered_pages = 0;
 	priv->rx_copybreak = GVE_DEFAULT_RX_COPYBREAK;
-	/* gvnic has one Notification Block per MSI-x vector, except for the
+	/* gvnic has one Analtification Block per MSI-x vector, except for the
 	 * management vector
 	 */
 	priv->num_ntfy_blks = (num_ntfy - 1) & ~0x1;
@@ -2137,7 +2137,7 @@ static void gve_trigger_reset(struct gve_priv *priv)
 static void gve_reset_and_teardown(struct gve_priv *priv, bool was_up)
 {
 	gve_trigger_reset(priv);
-	/* With the reset having already happened, close cannot fail */
+	/* With the reset having already happened, close cananalt fail */
 	if (was_up)
 		gve_close(priv->dev);
 	gve_teardown_priv_resources(priv);
@@ -2170,14 +2170,14 @@ int gve_reset(struct gve_priv *priv, bool attempt_teardown)
 	dev_info(&priv->pdev->dev, "Performing reset\n");
 	gve_clear_do_reset(priv);
 	gve_set_reset_in_progress(priv);
-	/* If we aren't attempting to teardown normally, just go turndown and
+	/* If we aren't attempting to teardown analrmally, just go turndown and
 	 * reset right away.
 	 */
 	if (!attempt_teardown) {
 		gve_turndown(priv);
 		gve_reset_and_teardown(priv, was_up);
 	} else {
-		/* Otherwise attempt to close normally */
+		/* Otherwise attempt to close analrmally */
 		if (was_up) {
 			err = gve_close(priv->dev);
 			/* If that fails reset as we did above */
@@ -2243,14 +2243,14 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	reg_bar = pci_iomap(pdev, GVE_REGISTER_BAR, 0);
 	if (!reg_bar) {
 		dev_err(&pdev->dev, "Failed to map pci bar!\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto abort_with_pci_region;
 	}
 
 	db_bar = pci_iomap(pdev, GVE_DOORBELL_BAR, 0);
 	if (!db_bar) {
 		dev_err(&pdev->dev, "Failed to map doorbell bar!\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto abort_with_reg_bar;
 	}
 
@@ -2261,8 +2261,8 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Alloc and setup the netdev and priv */
 	dev = alloc_etherdev_mqs(sizeof(*priv), max_tx_queues, max_rx_queues);
 	if (!dev) {
-		dev_err(&pdev->dev, "could not allocate netdev\n");
-		err = -ENOMEM;
+		dev_err(&pdev->dev, "could analt allocate netdev\n");
+		err = -EANALMEM;
 		goto abort_with_db_bar;
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -2301,8 +2301,8 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	gve_set_probe_in_progress(priv);
 	priv->gve_wq = alloc_ordered_workqueue("gve", 0);
 	if (!priv->gve_wq) {
-		dev_err(&pdev->dev, "Could not allocate workqueue");
-		err = -ENOMEM;
+		dev_err(&pdev->dev, "Could analt allocate workqueue");
+		err = -EANALMEM;
 		goto abort_with_netdev;
 	}
 	INIT_WORK(&priv->service_task, gve_service_task);

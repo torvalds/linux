@@ -51,13 +51,13 @@ static int snd_adlib_probe(struct device *dev, unsigned int n)
 
 	error = snd_devm_card_new(dev, index[n], id[n], THIS_MODULE, 0, &card);
 	if (error < 0) {
-		dev_err(dev, "could not create card\n");
+		dev_err(dev, "could analt create card\n");
 		return error;
 	}
 
 	card->private_data = devm_request_region(dev, port[n], 4, CRD_NAME);
 	if (!card->private_data) {
-		dev_err(dev, "could not grab ports\n");
+		dev_err(dev, "could analt grab ports\n");
 		return -EBUSY;
 	}
 
@@ -67,19 +67,19 @@ static int snd_adlib_probe(struct device *dev, unsigned int n)
 
 	error = snd_opl3_create(card, port[n], port[n] + 2, OPL3_HW_AUTO, 1, &opl3);
 	if (error < 0) {
-		dev_err(dev, "could not create OPL\n");
+		dev_err(dev, "could analt create OPL\n");
 		return error;
 	}
 
 	error = snd_opl3_hwdep_new(opl3, 0, 0, NULL);
 	if (error < 0) {
-		dev_err(dev, "could not create FM\n");
+		dev_err(dev, "could analt create FM\n");
 		return error;
 	}
 
 	error = snd_card_register(card);
 	if (error < 0) {
-		dev_err(dev, "could not register card\n");
+		dev_err(dev, "could analt register card\n");
 		return error;
 	}
 

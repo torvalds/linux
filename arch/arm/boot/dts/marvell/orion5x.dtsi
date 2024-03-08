@@ -198,7 +198,7 @@
 				interrupts = <22>;
 				status = "disabled";
 
-				/* add phy nodes in board file */
+				/* add phy analdes in board file */
 			};
 
 			sata: sata@80000 {

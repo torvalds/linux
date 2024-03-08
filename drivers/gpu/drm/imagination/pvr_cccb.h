@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_CCCB_H
 #define PVR_CCCB_H
@@ -90,14 +90,14 @@ pvr_cccb_get_size_of_cmd_with_hdr(u32 cmd_size)
  * @size: Command sequence size.
  *
  * Returns:
- *  * true it the CCCB is big enough to contain a command sequence, or
+ *  * true it the CCCB is big eanalugh to contain a command sequence, or
  *  * false otherwise.
  */
 static __always_inline bool
 pvr_cccb_cmdseq_can_fit(struct pvr_cccb *pvr_cccb, size_t size)
 {
 	/* We divide the capacity by two to simplify our CCCB fencing logic:
-	 * we want to be sure that, no matter what we had queued before, we
+	 * we want to be sure that, anal matter what we had queued before, we
 	 * are able to either queue our command sequence at the end or add a
 	 * padding command and queue the command sequence at the beginning
 	 * of the CCCB. If the command sequence size is bigger than half the

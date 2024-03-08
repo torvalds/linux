@@ -48,7 +48,7 @@ static int bcm84881_config_init(struct phy_device *phydev)
 	case PHY_INTERFACE_MODE_10GBASER:
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -61,7 +61,7 @@ static int bcm84881_probe(struct phy_device *phydev)
 
 	if (!phydev->is_c45 ||
 	    (phydev->c45_ids.devices_in_package & mmd_mask) != mmd_mask)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -74,7 +74,7 @@ static int bcm84881_get_features(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	/* Although the PHY sets bit 1.11.8, it does not support 10M modes */
+	/* Although the PHY sets bit 1.11.8, it does analt support 10M modes */
 	linkmode_clear_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
 			   phydev->supported);
 	linkmode_clear_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
@@ -168,8 +168,8 @@ static int bcm84881_read_status(struct phy_device *phydev)
 		phydev->link = false;
 
 	linkmode_zero(phydev->lp_advertising);
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->speed = SPEED_UNKANALWN;
+	phydev->duplex = DUPLEX_UNKANALWN;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 	phydev->mdix = 0;
@@ -251,7 +251,7 @@ static struct phy_driver bcm84881_drivers[] = {
 
 module_phy_driver(bcm84881_drivers);
 
-/* FIXME: module auto-loading for Clause 45 PHYs seems non-functional */
+/* FIXME: module auto-loading for Clause 45 PHYs seems analn-functional */
 static struct mdio_device_id __maybe_unused bcm84881_tbl[] = {
 	{ 0xae025150, 0xfffffff0 },
 	{ },

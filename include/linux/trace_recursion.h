@@ -14,7 +14,7 @@
  *  The order of these bits are important.
  *
  *  When function tracing occurs, the following steps are made:
- *   If arch does not support a ftrace feature:
+ *   If arch does analt support a ftrace feature:
  *    call internal function (uses INTERNAL bits) which calls...
  *   The function callback, which can use the FTRACE bits to
  *    check for recursion.
@@ -58,7 +58,7 @@ enum {
 	 * tracing in the softirq, and depth can even be 3
 	 * if an NMI came in at the start of an interrupt function
 	 * that preempted a softirq start of a function that
-	 * preempted normal context!!!! Luckily, it can't be
+	 * preempted analrmal context!!!! Luckily, it can't be
 	 * greater than 3, so the next two bits are a mask
 	 * of what the depth is when we set TRACE_GRAPH_BIT
 	 */
@@ -67,11 +67,11 @@ enum {
 	TRACE_GRAPH_DEPTH_END_BIT,
 
 	/*
-	 * To implement set_graph_notrace, if this bit is set, we ignore
+	 * To implement set_graph_analtrace, if this bit is set, we iganalre
 	 * function graph tracing of called functions, until the return
 	 * function is called to clear it.
 	 */
-	TRACE_GRAPH_NOTRACE_BIT,
+	TRACE_GRAPH_ANALTRACE_BIT,
 
 	/* Used to prevent recursion recording from recursing. */
 	TRACE_RECORD_RECURSION_BIT,
@@ -104,13 +104,13 @@ enum {
  *  NMI     = 0
  *  IRQ     = 1
  *  SOFTIRQ = 2
- *  NORMAL  = 3
+ *  ANALRMAL  = 3
  */
 enum {
 	TRACE_CTX_NMI,
 	TRACE_CTX_IRQ,
 	TRACE_CTX_SOFTIRQ,
-	TRACE_CTX_NORMAL,
+	TRACE_CTX_ANALRMAL,
 	TRACE_CTX_TRANSITION,
 };
 
@@ -118,7 +118,7 @@ static __always_inline int trace_get_context_bit(void)
 {
 	unsigned char bit = interrupt_context_level();
 
-	return TRACE_CTX_NORMAL - bit;
+	return TRACE_CTX_ANALRMAL - bit;
 }
 
 #ifdef CONFIG_FTRACE_RECORD_RECURSION
@@ -135,19 +135,19 @@ extern void ftrace_record_recursion(unsigned long ip, unsigned long parent_ip);
 # define do_ftrace_record_recursion(ip, pip)	do { } while (0)
 #endif
 
-#ifdef CONFIG_ARCH_WANTS_NO_INSTR
-# define trace_warn_on_no_rcu(ip)					\
+#ifdef CONFIG_ARCH_WANTS_ANAL_INSTR
+# define trace_warn_on_anal_rcu(ip)					\
 	({								\
 		bool __ret = !rcu_is_watching();			\
 		if (__ret && !trace_recursion_test(TRACE_RECORD_RECURSION_BIT)) { \
 			trace_recursion_set(TRACE_RECORD_RECURSION_BIT); \
-			WARN_ONCE(true, "RCU not on for: %pS\n", (void *)ip); \
+			WARN_ONCE(true, "RCU analt on for: %pS\n", (void *)ip); \
 			trace_recursion_clear(TRACE_RECORD_RECURSION_BIT); \
 		}							\
 		__ret;							\
 	})
 #else
-# define trace_warn_on_no_rcu(ip)	false
+# define trace_warn_on_anal_rcu(ip)	false
 #endif
 
 /*
@@ -159,18 +159,18 @@ static __always_inline int trace_test_and_set_recursion(unsigned long ip, unsign
 	unsigned int val = READ_ONCE(current->trace_recursion);
 	int bit;
 
-	if (trace_warn_on_no_rcu(ip))
+	if (trace_warn_on_anal_rcu(ip))
 		return -1;
 
 	bit = trace_get_context_bit() + start;
 	if (unlikely(val & (1 << bit))) {
 		/*
-		 * If an interrupt occurs during a trace, and another trace
+		 * If an interrupt occurs during a trace, and aanalther trace
 		 * happens in that interrupt but before the preempt_count is
 		 * updated to reflect the new interrupt context, then this
 		 * will think a recursion occurred, and the event will be dropped.
 		 * Let a single instance happen via the TRANSITION_BIT to
-		 * not drop those events.
+		 * analt drop those events.
 		 */
 		bit = TRACE_CTX_TRANSITION + start;
 		if (val & (1 << bit)) {
@@ -183,7 +183,7 @@ static __always_inline int trace_test_and_set_recursion(unsigned long ip, unsign
 	current->trace_recursion = val;
 	barrier();
 
-	preempt_disable_notrace();
+	preempt_disable_analtrace();
 
 	return bit;
 }
@@ -193,7 +193,7 @@ static __always_inline int trace_test_and_set_recursion(unsigned long ip, unsign
  */
 static __always_inline void trace_clear_recursion(int bit)
 {
-	preempt_enable_notrace();
+	preempt_enable_analtrace();
 	barrier();
 	trace_recursion_clear(bit);
 }
@@ -202,10 +202,10 @@ static __always_inline void trace_clear_recursion(int bit)
  * ftrace_test_recursion_trylock - tests for recursion in same context
  *
  * Use this for ftrace callbacks. This will detect if the function
- * tracing recursed in the same context (normal vs interrupt),
+ * tracing recursed in the same context (analrmal vs interrupt),
  *
  * Returns: -1 if a recursion happened.
- *           >= 0 if no recursion.
+ *           >= 0 if anal recursion.
  */
 static __always_inline int ftrace_test_recursion_trylock(unsigned long ip,
 							 unsigned long parent_ip)

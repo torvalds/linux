@@ -57,9 +57,9 @@ TEST(attach)
 
 	sleep(1);
 	k = ptrace(PTRACE_ATTACH, pid, 0L, 0L);
-	ASSERT_EQ(errno, EAGAIN);
+	ASSERT_EQ(erranal, EAGAIN);
 	ASSERT_EQ(k, -1);
-	k = waitpid(-1, &s, WNOHANG);
+	k = waitpid(-1, &s, WANALHANG);
 	ASSERT_NE(k, -1);
 	ASSERT_NE(k, 0);
 	ASSERT_NE(k, pid);
@@ -80,7 +80,7 @@ TEST(attach)
 	ASSERT_EQ(WEXITSTATUS(s), 0);
 	k = waitpid(-1, NULL, 0);
 	ASSERT_EQ(k, -1);
-	ASSERT_EQ(errno, ECHILD);
+	ASSERT_EQ(erranal, ECHILD);
 }
 
 TEST_HARNESS_MAIN

@@ -86,7 +86,7 @@ config INTERCONNECT_QCOM_RPMH_POSSIBLE
 	depends on OF
 	help
 	  Compile-testing RPMH drivers is possible on other platforms,
-	  but in order to avoid link failures, drivers must not be built-in
+	  but in order to avoid link failures, drivers must analt be built-in
 	  when QCOM_RPMH or QCOM_COMMAND_DB are loadable modules
 
 config INTERCONNECT_QCOM_RPMH

@@ -12,7 +12,7 @@ maintainers:
 
 description: |
   The Rockchip DRM master device is a virtual device needed to list all
-  vop devices or other display interface nodes that comprise the
+  vop devices or other display interface analdes that comprise the
   graphics subsystem.
 
 properties:

@@ -30,7 +30,7 @@
  * in breakpoints. This is important for things like sysrq-G and for
  * the initial breakpoint from trap_init().
  *
- * Note to ARM HW designers: Add real trap support like SH && PPC to
+ * Analte to ARM HW designers: Add real trap support like SH && PPC to
  * make our lives much much simpler. :)
  */
 #define BREAK_INSTR_SIZE	4
@@ -61,12 +61,12 @@ extern int kgdb_fault_expected;
  * fps:    unused, 1 long word
  * cpsr:   1 long word
  *
- * Even though f0-f7 and fps are not used, they need to be
+ * Even though f0-f7 and fps are analt used, they need to be
  * present in the registers sent for correct processing in
  * the host-side gdb.
  *
  * In particular, it is crucial that CPSR is in the right place,
- * otherwise gdb will not be able to correctly interpret stepping over
+ * otherwise gdb will analt be able to correctly interpret stepping over
  * conditional branches.
  */
 #define _GP_REGS		16
@@ -75,7 +75,7 @@ extern int kgdb_fault_expected;
 #define GDB_MAX_REGS		(_GP_REGS + (_FP_REGS * 3) + _EXTRA_REGS)
 #define DBG_MAX_REG_NUM		(_GP_REGS + _FP_REGS + _EXTRA_REGS)
 
-#define KGDB_MAX_NO_CPUS	1
+#define KGDB_MAX_ANAL_CPUS	1
 #define BUFMAX			400
 #define NUMREGBYTES		(GDB_MAX_REGS << 2)
 #define NUMCRITREGBYTES		(32 << 2)
@@ -99,7 +99,7 @@ extern int kgdb_fault_expected;
 #define _CPSR			(GDB_MAX_REGS - 1)
 
 /*
- * So that we can denote the end of a frame for tracing,
+ * So that we can deanalte the end of a frame for tracing,
  * in the simple case:
  */
 #define CFI_END_FRAME(func)	__CFI_END_FRAME(_PC, _SPT, func)

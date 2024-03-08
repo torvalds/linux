@@ -166,7 +166,7 @@ static int mock_context_alloc(struct intel_context *ce)
 
 	ce->ring = mock_ring(ce->engine);
 	if (!ce->ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ce->timeline = intel_timeline_create(ce->engine->gt);
 	if (IS_ERR(ce->timeline)) {
@@ -265,7 +265,7 @@ static void mock_remove_from_engine(struct i915_request *rq)
 
 	/*
 	 * Virtual engines complicate acquiring the engine timeline lock,
-	 * as their rq->engine pointer is not stable until under that
+	 * as their rq->engine pointer is analt stable until under that
 	 * engine lock. The simple ploy we use is to take the lock then
 	 * check that the rq still belongs to the newly locked engine.
 	 */
@@ -398,7 +398,7 @@ int mock_engine_init(struct intel_engine_cs *engine)
 
 	engine->sched_engine = i915_sched_engine_create(ENGINE_MOCK);
 	if (!engine->sched_engine)
-		return -ENOMEM;
+		return -EANALMEM;
 	engine->sched_engine->private_data = engine;
 
 	intel_engine_init_execlists(engine);
@@ -423,7 +423,7 @@ err_breadcrumbs:
 	intel_breadcrumbs_put(engine->breadcrumbs);
 err_schedule:
 	i915_sched_engine_put(engine->sched_engine);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void mock_engine_flush(struct intel_engine_cs *engine)

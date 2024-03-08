@@ -104,7 +104,7 @@ patternProperties:
   '-pins$':
     type: object
     additionalProperties: false
-    $ref: /schemas/pinctrl/pinmux-node.yaml
+    $ref: /schemas/pinctrl/pinmux-analde.yaml
 
     properties:
       function:

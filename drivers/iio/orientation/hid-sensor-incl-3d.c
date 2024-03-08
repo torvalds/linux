@@ -119,7 +119,7 @@ static int incl_3d_read_raw(struct iio_dev *indio_dev,
 		if (report_id >= 0)
 			*val = sensor_hub_input_attr_get_raw_value(
 				incl_state->common_attributes.hsdev,
-				HID_USAGE_SENSOR_INCLINOMETER_3D, address,
+				HID_USAGE_SENSOR_INCLIANALMETER_3D, address,
 				report_id,
 				SENSOR_HUB_SYNC,
 				min < 0);
@@ -289,7 +289,7 @@ static int incl_3d_parse_report(struct platform_device *pdev,
 			st->incl[2].index, st->incl[2].report_id);
 
 	st->scale_precision = hid_sensor_format_scale(
-				HID_USAGE_SENSOR_INCLINOMETER_3D,
+				HID_USAGE_SENSOR_INCLIANALMETER_3D,
 				&st->incl[CHANNEL_SCAN_INDEX_X],
 				&st->scale_pre_decml, &st->scale_post_decml);
 
@@ -308,7 +308,7 @@ static int hid_incl_3d_probe(struct platform_device *pdev)
 	indio_dev = devm_iio_device_alloc(&pdev->dev,
 					  sizeof(struct incl_3d_state));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, indio_dev);
 
@@ -317,7 +317,7 @@ static int hid_incl_3d_probe(struct platform_device *pdev)
 	incl_state->common_attributes.pdev = pdev;
 
 	ret = hid_sensor_parse_common_attributes(hsdev,
-				HID_USAGE_SENSOR_INCLINOMETER_3D,
+				HID_USAGE_SENSOR_INCLIANALMETER_3D,
 				&incl_state->common_attributes,
 				incl_3d_sensitivity_addresses,
 				ARRAY_SIZE(incl_3d_sensitivity_addresses));
@@ -330,12 +330,12 @@ static int hid_incl_3d_probe(struct platform_device *pdev)
 					   sizeof(incl_3d_channels), GFP_KERNEL);
 	if (!indio_dev->channels) {
 		dev_err(&pdev->dev, "failed to duplicate channels\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = incl_3d_parse_report(pdev, hsdev,
 				   (struct iio_chan_spec *)indio_dev->channels,
-				   HID_USAGE_SENSOR_INCLINOMETER_3D,
+				   HID_USAGE_SENSOR_INCLIANALMETER_3D,
 				   incl_state);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup attributes\n");
@@ -366,7 +366,7 @@ static int hid_incl_3d_probe(struct platform_device *pdev)
 	incl_state->callbacks.capture_sample = incl_3d_capture_sample;
 	incl_state->callbacks.pdev = pdev;
 	ret = sensor_hub_register_callback(hsdev,
-					HID_USAGE_SENSOR_INCLINOMETER_3D,
+					HID_USAGE_SENSOR_INCLIANALMETER_3D,
 					&incl_state->callbacks);
 	if (ret) {
 		dev_err(&pdev->dev, "callback reg failed\n");
@@ -389,7 +389,7 @@ static void hid_incl_3d_remove(struct platform_device *pdev)
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct incl_3d_state *incl_state = iio_priv(indio_dev);
 
-	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_INCLINOMETER_3D);
+	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_INCLIANALMETER_3D);
 	iio_device_unregister(indio_dev);
 	hid_sensor_remove_trigger(indio_dev, &incl_state->common_attributes);
 }
@@ -414,7 +414,7 @@ static struct platform_driver hid_incl_3d_platform_driver = {
 };
 module_platform_driver(hid_incl_3d_platform_driver);
 
-MODULE_DESCRIPTION("HID Sensor Inclinometer 3D");
+MODULE_DESCRIPTION("HID Sensor Inclianalmeter 3D");
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(IIO_HID);

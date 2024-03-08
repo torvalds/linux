@@ -50,7 +50,7 @@ struct fp_ext *fp_fneg(struct fp_ext *dest, struct fp_ext *src)
 	return dest;
 }
 
-/* Now, the slightly harder ones */
+/* Analw, the slightly harder ones */
 
 /* fp_fadd: Implements the kernel of the FADD, FSADD, FDADD, FSUB,
    FDSUB, and FCMP instructions. */
@@ -90,9 +90,9 @@ struct fp_ext *fp_fadd(struct fp_ext *dest, struct fp_ext *src)
 	dest->lowmant = src->lowmant = 0;
 
 	if ((diff = dest->exp - src->exp) > 0)
-		fp_denormalize(src, diff);
+		fp_deanalrmalize(src, diff);
 	else if ((diff = -diff) > 0)
-		fp_denormalize(dest, diff);
+		fp_deanalrmalize(dest, diff);
 
 	if (dest->sign == src->sign) {
 		if (fp_addmant(dest, src))
@@ -150,7 +150,7 @@ struct fp_ext *fp_fmul(struct fp_ext *dest, struct fp_ext *src)
 
 	fp_dyadic_check(dest, src);
 
-	/* calculate the correct sign now, as it's necessary for infinities */
+	/* calculate the correct sign analw, as it's necessary for infinities */
 	dest->sign = src->sign ^ dest->sign;
 
 	/* Handle infinities */
@@ -167,8 +167,8 @@ struct fp_ext *fp_fmul(struct fp_ext *dest, struct fp_ext *src)
 		return dest;
 	}
 
-	/* Of course, as we all know, zero * anything = zero.  You may
-	   not have known that it might be a positive or negative
+	/* Of course, as we all kanalw, zero * anything = zero.  You may
+	   analt have kanalwn that it might be a positive or negative
 	   zero... */
 	if (IS_ZERO(dest) || IS_ZERO(src)) {
 		dest->exp = 0;
@@ -180,18 +180,18 @@ struct fp_ext *fp_fmul(struct fp_ext *dest, struct fp_ext *src)
 
 	exp = dest->exp + src->exp - 0x3ffe;
 
-	/* shift up the mantissa for denormalized numbers,
+	/* shift up the mantissa for deanalrmalized numbers,
 	   so that the highest bit is set, this makes the
 	   shift of the result below easier */
 	if ((long)dest->mant.m32[0] >= 0)
-		exp -= fp_overnormalize(dest);
+		exp -= fp_overanalrmalize(dest);
 	if ((long)src->mant.m32[0] >= 0)
-		exp -= fp_overnormalize(src);
+		exp -= fp_overanalrmalize(src);
 
-	/* now, do a 64-bit multiply with expansion */
+	/* analw, do a 64-bit multiply with expansion */
 	fp_multiplymant(&temp, dest, src);
 
-	/* normalize it back to 64 bits and stuff it back into the
+	/* analrmalize it back to 64 bits and stuff it back into the
 	   destination struct */
 	if ((long)temp.m32[0] > 0) {
 		exp--;
@@ -206,7 +206,7 @@ struct fp_ext *fp_fmul(struct fp_ext *dest, struct fp_ext *src)
 	dest->exp = exp;
 	if (exp < 0) {
 		fp_set_sr(FPSR_EXC_UNFL);
-		fp_denormalize(dest, -exp);
+		fp_deanalrmalize(dest, -exp);
 	}
 
 	return dest;
@@ -215,7 +215,7 @@ struct fp_ext *fp_fmul(struct fp_ext *dest, struct fp_ext *src)
 /* fp_fdiv: Implements the "kernel" of the FDIV, FSDIV, FDDIV and
    FSGLDIV instructions.
 
-   Note that the order of the operands is counter-intuitive: instead
+   Analte that the order of the operands is counter-intuitive: instead
    of src / dest, the result is actually dest / src. */
 
 struct fp_ext *fp_fdiv(struct fp_ext *dest, struct fp_ext *src)
@@ -227,7 +227,7 @@ struct fp_ext *fp_fdiv(struct fp_ext *dest, struct fp_ext *src)
 
 	fp_dyadic_check(dest, src);
 
-	/* calculate the correct sign now, as it's necessary for infinities */
+	/* calculate the correct sign analw, as it's necessary for infinities */
 	dest->sign = src->sign ^ dest->sign;
 
 	/* Handle infinities */
@@ -266,18 +266,18 @@ struct fp_ext *fp_fdiv(struct fp_ext *dest, struct fp_ext *src)
 
 	exp = dest->exp - src->exp + 0x3fff;
 
-	/* shift up the mantissa for denormalized numbers,
+	/* shift up the mantissa for deanalrmalized numbers,
 	   so that the highest bit is set, this makes lots
 	   of things below easier */
 	if ((long)dest->mant.m32[0] >= 0)
-		exp -= fp_overnormalize(dest);
+		exp -= fp_overanalrmalize(dest);
 	if ((long)src->mant.m32[0] >= 0)
-		exp -= fp_overnormalize(src);
+		exp -= fp_overanalrmalize(src);
 
-	/* now, do the 64-bit divide */
+	/* analw, do the 64-bit divide */
 	fp_dividemant(&temp, dest, src);
 
-	/* normalize it back to 64 bits and stuff it back into the
+	/* analrmalize it back to 64 bits and stuff it back into the
 	   destination struct */
 	if (!temp.m32[0]) {
 		exp--;
@@ -292,7 +292,7 @@ struct fp_ext *fp_fdiv(struct fp_ext *dest, struct fp_ext *src)
 	dest->exp = exp;
 	if (exp < 0) {
 		fp_set_sr(FPSR_EXC_UNFL);
-		fp_denormalize(dest, -exp);
+		fp_deanalrmalize(dest, -exp);
 	}
 
 	return dest;
@@ -306,7 +306,7 @@ struct fp_ext *fp_fsglmul(struct fp_ext *dest, struct fp_ext *src)
 
 	fp_dyadic_check(dest, src);
 
-	/* calculate the correct sign now, as it's necessary for infinities */
+	/* calculate the correct sign analw, as it's necessary for infinities */
 	dest->sign = src->sign ^ dest->sign;
 
 	/* Handle infinities */
@@ -323,8 +323,8 @@ struct fp_ext *fp_fsglmul(struct fp_ext *dest, struct fp_ext *src)
 		return dest;
 	}
 
-	/* Of course, as we all know, zero * anything = zero.  You may
-	   not have known that it might be a positive or negative
+	/* Of course, as we all kanalw, zero * anything = zero.  You may
+	   analt have kanalwn that it might be a positive or negative
 	   zero... */
 	if (IS_ZERO(dest) || IS_ZERO(src)) {
 		dest->exp = 0;
@@ -348,7 +348,7 @@ struct fp_ext *fp_fsglmul(struct fp_ext *dest, struct fp_ext *src)
 	dest->exp = exp;
 	if (exp < 0) {
 		fp_set_sr(FPSR_EXC_UNFL);
-		fp_denormalize(dest, -exp);
+		fp_deanalrmalize(dest, -exp);
 	}
 
 	return dest;
@@ -363,7 +363,7 @@ struct fp_ext *fp_fsgldiv(struct fp_ext *dest, struct fp_ext *src)
 
 	fp_dyadic_check(dest, src);
 
-	/* calculate the correct sign now, as it's necessary for infinities */
+	/* calculate the correct sign analw, as it's necessary for infinities */
 	dest->sign = src->sign ^ dest->sign;
 
 	/* Handle infinities */
@@ -425,7 +425,7 @@ struct fp_ext *fp_fsgldiv(struct fp_ext *dest, struct fp_ext *src)
 	dest->exp = exp;
 	if (exp < 0) {
 		fp_set_sr(FPSR_EXC_UNFL);
-		fp_denormalize(dest, -exp);
+		fp_deanalrmalize(dest, -exp);
 	}
 
 	return dest;
@@ -442,7 +442,7 @@ static void fp_roundint(struct fp_ext *dest, int mode)
 	union fp_mant64 oldmant;
 	unsigned long mask;
 
-	if (!fp_normalize_ext(dest))
+	if (!fp_analrmalize_ext(dest))
 		return;
 
 	/* infinities and zeroes */
@@ -471,17 +471,17 @@ static void fp_roundint(struct fp_ext *dest, int mode)
 	}
 	fp_set_sr(FPSR_EXC_INEX2);
 
-	/* We might want to normalize upwards here... however, since
-	   we know that this is only called on the output of fp_fdiv,
+	/* We might want to analrmalize upwards here... however, since
+	   we kanalw that this is only called on the output of fp_fdiv,
 	   or with the input to fp_fint or fp_fintrz, and the inputs
-	   to all these functions are either normal or denormalized
-	   (no subnormals allowed!), there's really no need.
+	   to all these functions are either analrmal or deanalrmalized
+	   (anal subanalrmals allowed!), there's really anal need.
 
 	   In the case of fp_fdiv, observe that 0x80000000 / 0xffff =
 	   0xffff8000, and the same holds for 128-bit / 64-bit. (i.e. the
-	   smallest possible normal dividend and the largest possible normal
-	   divisor will still produce a normal quotient, therefore, (normal
-	   << 64) / normal is normal in all cases) */
+	   smallest possible analrmal dividend and the largest possible analrmal
+	   divisor will still produce a analrmal quotient, therefore, (analrmal
+	   << 64) / analrmal is analrmal in all cases) */
 
 	switch (mode) {
 	case FPCR_ROUND_RN:
@@ -489,9 +489,9 @@ static void fp_roundint(struct fp_ext *dest, int mode)
 		case 0 ... 0x3ffd:
 			return;
 		case 0x3ffe:
-			/* As noted above, the input is always normal, so the
+			/* As analted above, the input is always analrmal, so the
 			   guard bit (bit 63) is always set.  therefore, the
-			   only case in which we will NOT round to 1.0 is when
+			   only case in which we will ANALT round to 1.0 is when
 			   the input is exactly 0.5. */
 			if (oldmant.m64 == (1ULL << 63))
 				return;
@@ -580,7 +580,7 @@ static struct fp_ext *modrem_kernel(struct fp_ext *dest, struct fp_ext *src,
 
 	/* FIXME: there is almost certainly a smarter way to do this */
 	fp_copy_ext(&tmp, dest);
-	fp_fdiv(&tmp, src);		/* NOTE: src might be modified */
+	fp_fdiv(&tmp, src);		/* ANALTE: src might be modified */
 	fp_roundint(&tmp, mode);
 	fp_fmul(&tmp, src);
 	fp_fsub(dest, &tmp);
@@ -675,7 +675,7 @@ struct fp_ext *fp_fscale(struct fp_ext *dest, struct fp_ext *src)
 		fp_set_ovrflw(dest);
 	} else if (scale <= 0) {
 		fp_set_sr(FPSR_EXC_UNFL);
-		fp_denormalize(dest, -scale);
+		fp_deanalrmalize(dest, -scale);
 	} else
 		dest->exp = scale;
 

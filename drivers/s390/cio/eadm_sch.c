@@ -78,8 +78,8 @@ static int eadm_subchannel_start(struct subchannel *sch, struct aob *aob)
 	case 1:		/* status pending */
 	case 2:		/* busy */
 		return -EBUSY;
-	case 3:		/* not operational */
-		return -ENODEV;
+	case 3:		/* analt operational */
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -90,7 +90,7 @@ static int eadm_subchannel_clear(struct subchannel *sch)
 
 	cc = csch(sch->schid);
 	if (cc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sch->schib.scsw.eadm.actl |= SCSW_ACTL_CLEAR_PEND;
 	return 0;
@@ -143,7 +143,7 @@ static void eadm_subchannel_irq(struct subchannel *sch)
 	if (private->state != EADM_BUSY) {
 		EADM_LOG(1, "irq unsol");
 		EADM_LOG_HEX(1, irb, sizeof(*irb));
-		private->state = EADM_NOT_OPER;
+		private->state = EADM_ANALT_OPER;
 		css_sched_sch_todo(sch, SCH_TODO_EVAL);
 		return;
 	}
@@ -199,7 +199,7 @@ int eadm_start_aob(struct aob *aob)
 	/* Handle start subchannel failure. */
 	eadm_subchannel_set_timeout(sch, 0);
 	private = get_eadm_private(sch);
-	private->state = EADM_NOT_OPER;
+	private->state = EADM_ANALT_OPER;
 	css_sched_sch_todo(sch, SCH_TODO_EVAL);
 
 out_unlock:
@@ -216,7 +216,7 @@ static int eadm_subchannel_probe(struct subchannel *sch)
 
 	private = kzalloc(sizeof(*private), GFP_KERNEL | GFP_DMA);
 	if (!private)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&private->head);
 	timer_setup(&private->timer, eadm_subchannel_timeout, 0);
@@ -297,7 +297,7 @@ static void eadm_subchannel_shutdown(struct subchannel *sch)
 /**
  * eadm_subchannel_sch_event - process subchannel event
  * @sch: subchannel
- * @process: non-zero if function is called in process context
+ * @process: analn-zero if function is called in process context
  *
  * An unspecified event occurred for this subchannel. Adjust data according
  * to the current operational state of the subchannel. Return zero when the
@@ -321,7 +321,7 @@ static int eadm_subchannel_sch_event(struct subchannel *sch, int process)
 		goto out_unlock;
 	}
 	private = get_eadm_private(sch);
-	if (private->state == EADM_NOT_OPER)
+	if (private->state == EADM_ANALT_OPER)
 		private->state = EADM_IDLE;
 
 out_unlock:
@@ -358,7 +358,7 @@ static int __init eadm_sch_init(void)
 
 	eadm_debug = debug_register("eadm_log", 16, 1, 16);
 	if (!eadm_debug)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	debug_register_view(eadm_debug, &debug_hex_ascii_view);
 	debug_set_level(eadm_debug, 2);

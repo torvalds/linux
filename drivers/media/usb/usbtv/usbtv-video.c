@@ -6,20 +6,20 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may analt be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
  * GNU General Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -38,7 +38,7 @@
  * Thanks go to Jonathan Corbet for providing this quality documentation.
  * He is awesome.
  *
- * No physical hardware was harmed running Windows during the
+ * Anal physical hardware was harmed running Windows during the
  * reverse-engineering activity
  */
 
@@ -47,27 +47,27 @@
 
 #include "usbtv.h"
 
-static const struct usbtv_norm_params norm_params[] = {
+static const struct usbtv_analrm_params analrm_params[] = {
 	{
-		.norm = V4L2_STD_525_60,
+		.analrm = V4L2_STD_525_60,
 		.cap_width = 720,
 		.cap_height = 480,
 	},
 	{
-		.norm = V4L2_STD_625_50,
+		.analrm = V4L2_STD_625_50,
 		.cap_width = 720,
 		.cap_height = 576,
 	}
 };
 
-static int usbtv_configure_for_norm(struct usbtv *usbtv, v4l2_std_id norm)
+static int usbtv_configure_for_analrm(struct usbtv *usbtv, v4l2_std_id analrm)
 {
 	int i, ret = 0;
-	const struct usbtv_norm_params *params = NULL;
+	const struct usbtv_analrm_params *params = NULL;
 
-	for (i = 0; i < ARRAY_SIZE(norm_params); i++) {
-		if (norm_params[i].norm & norm) {
-			params = &norm_params[i];
+	for (i = 0; i < ARRAY_SIZE(analrm_params); i++) {
+		if (analrm_params[i].analrm & analrm) {
+			params = &analrm_params[i];
 			break;
 		}
 	}
@@ -77,7 +77,7 @@ static int usbtv_configure_for_norm(struct usbtv *usbtv, v4l2_std_id norm)
 		usbtv->height = params->cap_height;
 		usbtv->n_chunks = usbtv->width * usbtv->height
 						/ 4 / USBTV_CHUNK;
-		usbtv->norm = norm;
+		usbtv->analrm = analrm;
 	} else
 		ret = -EINVAL;
 
@@ -121,28 +121,28 @@ static int usbtv_select_input(struct usbtv *usbtv, int input)
 	return ret;
 }
 
-static uint16_t usbtv_norm_to_16f_reg(v4l2_std_id norm)
+static uint16_t usbtv_analrm_to_16f_reg(v4l2_std_id analrm)
 {
 	/* NTSC M/M-JP/M-KR */
-	if (norm & V4L2_STD_NTSC)
+	if (analrm & V4L2_STD_NTSC)
 		return 0x00b8;
 	/* PAL BG/DK/H/I */
-	if (norm & V4L2_STD_PAL)
+	if (analrm & V4L2_STD_PAL)
 		return 0x00ee;
 	/* SECAM B/D/G/H/K/K1/L/Lc */
-	if (norm & V4L2_STD_SECAM)
+	if (analrm & V4L2_STD_SECAM)
 		return 0x00ff;
-	if (norm & V4L2_STD_NTSC_443)
+	if (analrm & V4L2_STD_NTSC_443)
 		return 0x00a8;
-	if (norm & (V4L2_STD_PAL_M | V4L2_STD_PAL_60))
+	if (analrm & (V4L2_STD_PAL_M | V4L2_STD_PAL_60))
 		return 0x00bc;
-	if (norm & V4L2_STD_PAL_Nc)
+	if (analrm & V4L2_STD_PAL_Nc)
 		return 0x00fe;
 	/* Fallback to automatic detection for other standards */
 	return 0x0000;
 }
 
-static int usbtv_select_norm(struct usbtv *usbtv, v4l2_std_id norm)
+static int usbtv_select_analrm(struct usbtv *usbtv, v4l2_std_id analrm)
 {
 	int ret;
 	/* These are the series of register values used to configure the
@@ -236,21 +236,21 @@ static int usbtv_select_norm(struct usbtv *usbtv, v4l2_std_id norm)
 		{ USBTV_BASE + 0x024f, 0x0002 },
 	};
 
-	ret = usbtv_configure_for_norm(usbtv, norm);
+	ret = usbtv_configure_for_analrm(usbtv, analrm);
 
 	if (!ret) {
-		/* Masks for norms using a NTSC or PAL color encoding. */
+		/* Masks for analrms using a NTSC or PAL color encoding. */
 		static const v4l2_std_id ntsc_mask =
 			V4L2_STD_NTSC | V4L2_STD_NTSC_443;
 		static const v4l2_std_id pal_mask =
 			V4L2_STD_PAL | V4L2_STD_PAL_60 | V4L2_STD_PAL_M |
 			V4L2_STD_PAL_Nc;
 
-		if (norm & ntsc_mask)
+		if (analrm & ntsc_mask)
 			ret = usbtv_set_regs(usbtv, ntsc, ARRAY_SIZE(ntsc));
-		else if (norm & pal_mask)
+		else if (analrm & pal_mask)
 			ret = usbtv_set_regs(usbtv, pal, ARRAY_SIZE(pal));
-		else if (norm & V4L2_STD_SECAM)
+		else if (analrm & V4L2_STD_SECAM)
 			ret = usbtv_set_regs(usbtv, secam, ARRAY_SIZE(secam));
 		else
 			ret = -EINVAL;
@@ -259,7 +259,7 @@ static int usbtv_select_norm(struct usbtv *usbtv, v4l2_std_id norm)
 	if (!ret) {
 		/* Configure the decoder for the color standard */
 		const u16 cfg[][2] = {
-			{ USBTV_BASE + 0x016f, usbtv_norm_to_16f_reg(norm) }
+			{ USBTV_BASE + 0x016f, usbtv_analrm_to_16f_reg(analrm) }
 		};
 		ret = usbtv_set_regs(usbtv, cfg, ARRAY_SIZE(cfg));
 	}
@@ -337,7 +337,7 @@ static int usbtv_setup_capture(struct usbtv *usbtv)
 	if (ret)
 		return ret;
 
-	ret = usbtv_select_norm(usbtv, usbtv->norm);
+	ret = usbtv_select_analrm(usbtv, usbtv->analrm);
 	if (ret)
 		return ret;
 
@@ -372,14 +372,14 @@ static int usbtv_setup_capture(struct usbtv *usbtv)
  * line 3: chunk[1][480..959] chunk[2][  0..479] chunk[2][480..959]
  * ...etc.
  */
-static void usbtv_chunk_to_vbuf(u32 *frame, __be32 *src, int chunk_no, int odd)
+static void usbtv_chunk_to_vbuf(u32 *frame, __be32 *src, int chunk_anal, int odd)
 {
 	int half;
 
 	for (half = 0; half < 2; half++) {
-		int part_no = chunk_no * 2 + half;
-		int line = part_no / 3;
-		int part_index = (line * 2 + !odd) * 3 + (part_no % 3);
+		int part_anal = chunk_anal * 2 + half;
+		int line = part_anal / 3;
+		int part_index = (line * 2 + !odd) * 3 + (part_anal % 3);
 
 		u32 *dst = &frame[part_index * USBTV_CHUNK/2];
 
@@ -393,22 +393,22 @@ static void usbtv_chunk_to_vbuf(u32 *frame, __be32 *src, int chunk_no, int odd)
  * data and padding. */
 static void usbtv_image_chunk(struct usbtv *usbtv, __be32 *chunk)
 {
-	int frame_id, odd, chunk_no;
+	int frame_id, odd, chunk_anal;
 	u32 *frame;
 	struct usbtv_buf *buf;
 	unsigned long flags;
 
-	/* Ignore corrupted lines. */
+	/* Iganalre corrupted lines. */
 	if (!USBTV_MAGIC_OK(chunk))
 		return;
 	frame_id = USBTV_FRAME_ID(chunk);
 	odd = USBTV_ODD(chunk);
-	chunk_no = USBTV_CHUNK_NO(chunk);
-	if (chunk_no >= usbtv->n_chunks)
+	chunk_anal = USBTV_CHUNK_ANAL(chunk);
+	if (chunk_anal >= usbtv->n_chunks)
 		return;
 
 	/* Beginning of a frame. */
-	if (chunk_no == 0) {
+	if (chunk_anal == 0) {
 		usbtv->frame_id = frame_id;
 		usbtv->chunks_done = 0;
 	}
@@ -418,7 +418,7 @@ static void usbtv_image_chunk(struct usbtv *usbtv, __be32 *chunk)
 
 	spin_lock_irqsave(&usbtv->buflock, flags);
 	if (list_empty(&usbtv->bufs)) {
-		/* No free buffers. Userspace likely too slow. */
+		/* Anal free buffers. Userspace likely too slow. */
 		spin_unlock_irqrestore(&usbtv->buflock, flags);
 		return;
 	}
@@ -428,11 +428,11 @@ static void usbtv_image_chunk(struct usbtv *usbtv, __be32 *chunk)
 	frame = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 
 	/* Copy the chunk data. */
-	usbtv_chunk_to_vbuf(frame, &chunk[1], chunk_no, odd);
+	usbtv_chunk_to_vbuf(frame, &chunk[1], chunk_anal, odd);
 	usbtv->chunks_done++;
 
 	/* Last chunk in a field */
-	if (chunk_no == usbtv->n_chunks-1) {
+	if (chunk_anal == usbtv->n_chunks-1) {
 		/* Last chunk in a frame, signalling an end */
 		if (odd && !usbtv->last_odd) {
 			int size = vb2_plane_size(&buf->vb.vb2_buf, 0);
@@ -467,12 +467,12 @@ static void usbtv_iso_cb(struct urb *ip)
 	case 0:
 		break;
 	/* Device disconnected or capture stopped? */
-	case -ENODEV:
-	case -ENOENT:
+	case -EANALDEV:
+	case -EANALENT:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		return;
-	/* Unknown error. Retry. */
+	/* Unkanalwn error. Retry. */
 	default:
 		dev_warn(usbtv->dev, "Bad response for ISO request.\n");
 		goto resubmit;
@@ -492,7 +492,7 @@ static void usbtv_iso_cb(struct urb *ip)
 resubmit:
 	ret = usb_submit_urb(ip, GFP_ATOMIC);
 	if (ret < 0)
-		dev_warn(usbtv->dev, "Could not resubmit ISO URB\n");
+		dev_warn(usbtv->dev, "Could analt resubmit ISO URB\n");
 }
 
 static struct urb *usbtv_setup_iso_transfer(struct usbtv *usbtv)
@@ -581,7 +581,7 @@ static int usbtv_start(struct usbtv *usbtv)
 
 		ip = usbtv_setup_iso_transfer(usbtv);
 		if (ip == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto start_fail;
 		}
 		usbtv->isoc_urbs[i] = ip;
@@ -626,7 +626,7 @@ static int usbtv_enum_input(struct file *file, void *priv,
 	}
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
-	i->std = dev->vdev.tvnorms;
+	i->std = dev->vdev.tvanalrms;
 	return 0;
 }
 
@@ -656,20 +656,20 @@ static int usbtv_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int usbtv_g_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int usbtv_g_std(struct file *file, void *priv, v4l2_std_id *analrm)
 {
 	struct usbtv *usbtv = video_drvdata(file);
-	*norm = usbtv->norm;
+	*analrm = usbtv->analrm;
 	return 0;
 }
 
-static int usbtv_s_std(struct file *file, void *priv, v4l2_std_id norm)
+static int usbtv_s_std(struct file *file, void *priv, v4l2_std_id analrm)
 {
 	int ret = -EINVAL;
 	struct usbtv *usbtv = video_drvdata(file);
 
-	if (norm & USBTV_TV_STD)
-		ret = usbtv_select_norm(usbtv, norm);
+	if (analrm & USBTV_TV_STD)
+		ret = usbtv_select_analrm(usbtv, analrm);
 
 	return ret;
 }
@@ -760,7 +760,7 @@ static int usbtv_start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct usbtv *usbtv = vb2_get_drv_priv(vq);
 
 	if (usbtv->udev == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	usbtv->last_odd = 1;
 	usbtv->sequence = 0;
@@ -794,7 +794,7 @@ static int usbtv_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	data = kmalloc(3, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Read in the current brightness/contrast registers. We need them
@@ -883,7 +883,7 @@ int usbtv_video_init(struct usbtv *usbtv)
 {
 	int ret;
 
-	(void)usbtv_configure_for_norm(usbtv, V4L2_STD_525_60);
+	(void)usbtv_configure_for_analrm(usbtv, V4L2_STD_525_60);
 
 	spin_lock_init(&usbtv->buflock);
 	mutex_init(&usbtv->v4l2_lock);
@@ -897,11 +897,11 @@ int usbtv_video_init(struct usbtv *usbtv)
 	usbtv->vb2q.buf_struct_size = sizeof(struct usbtv_buf);
 	usbtv->vb2q.ops = &usbtv_vb2_ops;
 	usbtv->vb2q.mem_ops = &vb2_vmalloc_memops;
-	usbtv->vb2q.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	usbtv->vb2q.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	usbtv->vb2q.lock = &usbtv->vb2q_lock;
 	ret = vb2_queue_init(&usbtv->vb2q);
 	if (ret < 0) {
-		dev_warn(usbtv->dev, "Could not initialize videobuf2 queue\n");
+		dev_warn(usbtv->dev, "Could analt initialize videobuf2 queue\n");
 		return ret;
 	}
 
@@ -919,7 +919,7 @@ int usbtv_video_init(struct usbtv *usbtv)
 			V4L2_CID_SHARPNESS, 0x0, 0xff, 1, 0x60);
 	ret = usbtv->ctrl.error;
 	if (ret < 0) {
-		dev_warn(usbtv->dev, "Could not initialize controls\n");
+		dev_warn(usbtv->dev, "Could analt initialize controls\n");
 		goto ctrl_fail;
 	}
 
@@ -928,7 +928,7 @@ int usbtv_video_init(struct usbtv *usbtv)
 	usbtv->v4l2_dev.release = usbtv_release;
 	ret = v4l2_device_register(usbtv->dev, &usbtv->v4l2_dev);
 	if (ret < 0) {
-		dev_warn(usbtv->dev, "Could not register v4l2 device\n");
+		dev_warn(usbtv->dev, "Could analt register v4l2 device\n");
 		goto v4l2_fail;
 	}
 
@@ -938,7 +938,7 @@ int usbtv_video_init(struct usbtv *usbtv)
 	usbtv->vdev.release = video_device_release_empty;
 	usbtv->vdev.fops = &usbtv_fops;
 	usbtv->vdev.ioctl_ops = &usbtv_ioctl_ops;
-	usbtv->vdev.tvnorms = USBTV_TV_STD;
+	usbtv->vdev.tvanalrms = USBTV_TV_STD;
 	usbtv->vdev.queue = &usbtv->vb2q;
 	usbtv->vdev.lock = &usbtv->v4l2_lock;
 	usbtv->vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
@@ -946,7 +946,7 @@ int usbtv_video_init(struct usbtv *usbtv)
 	video_set_drvdata(&usbtv->vdev, usbtv);
 	ret = video_register_device(&usbtv->vdev, VFL_TYPE_VIDEO, -1);
 	if (ret < 0) {
-		dev_warn(usbtv->dev, "Could not register video device\n");
+		dev_warn(usbtv->dev, "Could analt register video device\n");
 		goto vdev_fail;
 	}
 

@@ -54,12 +54,12 @@
   {
     "EventName": "INTERRUPT_ACK_COUNT",
     "EventCode": "0x00000023",
-    "BriefDescription": "acknowledged interrupt count"
+    "BriefDescription": "ackanalwledged interrupt count"
   },
   {
     "EventName": "INTERRUPT_OFF_CYCLE",
     "EventCode": "0x00000024",
-    "BriefDescription": "PLIC arbitration time when the interrupt is not responded",
+    "BriefDescription": "PLIC arbitration time when the interrupt is analt responded",
     "PublicDescription": "The arbitration time is recorded while meeting any of the following:\n- CPU is M-mode and MIE == 0\n- CPU is S-mode and delegation and SIE == 0\n"
   },
   {

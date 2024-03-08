@@ -26,7 +26,7 @@ static int thunderx_spi_probe(struct pci_dev *pdev,
 
 	host = spi_alloc_host(dev, sizeof(struct octeon_spi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = spi_controller_get_devdata(host);
 
@@ -67,7 +67,7 @@ static int thunderx_spi_probe(struct pci_dev *pdev,
 	host->transfer_one_message = octeon_spi_transfer_one_message;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
 	host->max_speed_hz = OCTEON_SPI_MAX_CLOCK_HZ;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 
 	pci_set_drvdata(pdev, host);
 
@@ -93,7 +93,7 @@ static void thunderx_spi_remove(struct pci_dev *pdev)
 		return;
 
 	pci_release_regions(pdev);
-	/* Put everything in a known state. */
+	/* Put everything in a kanalwn state. */
 	writeq(0, p->register_base + OCTEON_SPI_CFG(p));
 }
 

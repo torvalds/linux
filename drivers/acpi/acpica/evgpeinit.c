@@ -16,7 +16,7 @@
 ACPI_MODULE_NAME("evgpeinit")
 #if (!ACPI_REDUCED_HARDWARE)	/* Entire module */
 /*
- * Note: History of _PRW support in ACPICA
+ * Analte: History of _PRW support in ACPICA
  *
  * Originally (2000 - 2010), the GPE initialization code performed a walk of
  * the entire namespace to execute the _PRW methods and detect all GPEs
@@ -24,10 +24,10 @@ ACPI_MODULE_NAME("evgpeinit")
  *
  * As of 10/2010, the _PRW method execution has been removed since it is
  * actually unnecessary. The host OS must in fact execute all _PRW methods
- * in order to identify the device/power-resource dependencies. We now put
+ * in order to identify the device/power-resource dependencies. We analw put
  * the onus on the host OS to identify the wake GPEs as part of this process
  * and to inform ACPICA of these GPEs via the acpi_setup_gpe_for_wake interface. This
- * not only reduces the complexity of the ACPICA initialization code, but in
+ * analt only reduces the complexity of the ACPICA initialization code, but in
  * some cases (on systems with very large namespaces) it should reduce the
  * kernel boot time as well.
  */
@@ -46,7 +46,7 @@ ACPI_MODULE_NAME("evgpeinit")
  *
  * FUNCTION:    acpi_ev_gpe_initialize
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -81,20 +81,20 @@ acpi_status acpi_ev_gpe_initialize(void)
 	 *  GPEx_STS and GPEx_EN (where x is 0 or 1). The length of the
 	 *  GPE0_STS and GPE0_EN registers is equal to half the GPE0_LEN
 	 *  The length of the GPE1_STS and GPE1_EN registers is equal to
-	 *  half the GPE1_LEN. If a generic register block is not supported
+	 *  half the GPE1_LEN. If a generic register block is analt supported
 	 *  then its respective block pointer and block length values in the
-	 *  FADT table contain zeros. The GPE0_LEN and GPE1_LEN do not need
+	 *  FADT table contain zeros. The GPE0_LEN and GPE1_LEN do analt need
 	 *  to be the same size."
 	 */
 
 	/*
 	 * Determine the maximum GPE number for this machine.
 	 *
-	 * Note: both GPE0 and GPE1 are optional, and either can exist without
+	 * Analte: both GPE0 and GPE1 are optional, and either can exist without
 	 * the other.
 	 *
 	 * If EITHER the register length OR the block address are zero, then that
-	 * particular block is not supported.
+	 * particular block is analt supported.
 	 */
 	address = ACPI_FADT_GPE_BLOCK_ADDRESS(0);
 
@@ -117,7 +117,7 @@ acpi_status acpi_ev_gpe_initialize(void)
 
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not create GPE Block 0"));
+					"Could analt create GPE Block 0"));
 		}
 	}
 
@@ -135,13 +135,13 @@ acpi_status acpi_ev_gpe_initialize(void)
 		    (gpe_number_max >= acpi_gbl_FADT.gpe1_base)) {
 			ACPI_ERROR((AE_INFO,
 				    "GPE0 block (GPE 0 to %u) overlaps the GPE1 block "
-				    "(GPE %u to %u) - Ignoring GPE1",
+				    "(GPE %u to %u) - Iganalring GPE1",
 				    gpe_number_max, acpi_gbl_FADT.gpe1_base,
 				    acpi_gbl_FADT.gpe1_base +
 				    ((register_count1 *
 				      ACPI_GPE_REGISTER_WIDTH) - 1)));
 
-			/* Ignore GPE1 block by setting the register count to zero */
+			/* Iganalre GPE1 block by setting the register count to zero */
 
 			register_count1 = 0;
 		} else {
@@ -160,24 +160,24 @@ acpi_status acpi_ev_gpe_initialize(void)
 
 			if (ACPI_FAILURE(status)) {
 				ACPI_EXCEPTION((AE_INFO, status,
-						"Could not create GPE Block 1"));
+						"Could analt create GPE Block 1"));
 			}
 
 			/*
-			 * GPE0 and GPE1 do not have to be contiguous in the GPE number
+			 * GPE0 and GPE1 do analt have to be contiguous in the GPE number
 			 * space. However, GPE0 always starts at GPE number zero.
 			 */
 		}
 	}
 
-	/* Exit if there are no GPE registers */
+	/* Exit if there are anal GPE registers */
 
 	if ((register_count0 + register_count1) == 0) {
 
-		/* GPEs are not required by ACPI, this is OK */
+		/* GPEs are analt required by ACPI, this is OK */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
-				  "There are no GPE blocks defined in the FADT\n"));
+				  "There are anal GPE blocks defined in the FADT\n"));
 		goto cleanup;
 	}
 
@@ -192,7 +192,7 @@ cleanup:
  *
  * PARAMETERS:  table_owner_id      - ID of the newly-loaded ACPI table
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Check for new GPE methods (_Lxx/_Exx) made available as a
  *              result of a Load() or load_table() operation. If new GPE
@@ -235,12 +235,12 @@ void acpi_ev_update_gpes(acpi_owner_id table_owner_id)
 		gpe_block = gpe_xrupt_info->gpe_block_list_head;
 		while (gpe_block) {
 			walk_info.gpe_block = gpe_block;
-			walk_info.gpe_device = gpe_block->node;
+			walk_info.gpe_device = gpe_block->analde;
 
 			status = acpi_ns_walk_namespace(ACPI_TYPE_METHOD,
 							walk_info.gpe_device,
 							ACPI_UINT32_MAX,
-							ACPI_NS_WALK_NO_UNLOCK,
+							ACPI_NS_WALK_ANAL_UNLOCK,
 							acpi_ev_match_gpe_method,
 							NULL, &walk_info, NULL);
 			if (ACPI_FAILURE(status)) {
@@ -292,8 +292,8 @@ acpi_status
 acpi_ev_match_gpe_method(acpi_handle obj_handle,
 			 u32 level, void *context, void **return_value)
 {
-	struct acpi_namespace_node *method_node =
-	    ACPI_CAST_PTR(struct acpi_namespace_node, obj_handle);
+	struct acpi_namespace_analde *method_analde =
+	    ACPI_CAST_PTR(struct acpi_namespace_analde, obj_handle);
 	struct acpi_gpe_walk_info *walk_info =
 	    ACPI_CAST_PTR(struct acpi_gpe_walk_info, context);
 	struct acpi_gpe_event_info *gpe_event_info;
@@ -308,7 +308,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	/* Check if requested owner_id matches this owner_id */
 
 	if ((walk_info->execute_by_owner_id) &&
-	    (method_node->owner_id != walk_info->owner_id)) {
+	    (method_analde->owner_id != walk_info->owner_id)) {
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -317,13 +317,13 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	 *
 	 * 1) Extract the method name and null terminate it
 	 */
-	ACPI_MOVE_32_TO_32(name, &method_node->name.integer);
+	ACPI_MOVE_32_TO_32(name, &method_analde->name.integer);
 	name[ACPI_NAMESEG_SIZE] = 0;
 
 	/* 2) Name must begin with an underscore */
 
 	if (name[0] != '_') {
-		return_ACPI_STATUS(AE_OK);	/* Ignore this method */
+		return_ACPI_STATUS(AE_OK);	/* Iganalre this method */
 	}
 
 	/*
@@ -343,11 +343,11 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 
 	default:
 
-		/* Unknown method type, just ignore it */
+		/* Unkanalwn method type, just iganalre it */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
-				  "Ignoring unknown GPE method type: %s "
-				  "(name not of form _Lxx or _Exx)", name));
+				  "Iganalring unkanalwn GPE method type: %s "
+				  "(name analt of form _Lxx or _Exx)", name));
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -356,11 +356,11 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	status = acpi_ut_ascii_to_hex_byte(&name[2], &temp_gpe_number);
 	if (ACPI_FAILURE(status)) {
 
-		/* Conversion failed; invalid method, just ignore it */
+		/* Conversion failed; invalid method, just iganalre it */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
-				  "Could not extract GPE number from name: %s "
-				  "(name is not of form _Lxx or _Exx)", name));
+				  "Could analt extract GPE number from name: %s "
+				  "(name is analt of form _Lxx or _Exx)", name));
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -371,7 +371,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	    acpi_ev_low_get_gpe_info(gpe_number, walk_info->gpe_block);
 	if (!gpe_event_info) {
 		/*
-		 * This gpe_number is not valid for this GPE block, just ignore it.
+		 * This gpe_number is analt valid for this GPE block, just iganalre it.
 		 * However, it may be valid for a different GPE block, since GPE0
 		 * and GPE1 methods both appear under \_GPE.
 		 */
@@ -383,7 +383,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	    (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
 	     ACPI_GPE_DISPATCH_RAW_HANDLER)) {
 
-		/* If there is already a handler, ignore this GPE method */
+		/* If there is already a handler, iganalre this GPE method */
 
 		return_ACPI_STATUS(AE_OK);
 	}
@@ -391,7 +391,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
 	    ACPI_GPE_DISPATCH_METHOD) {
 		/*
-		 * If there is already a method, ignore this method. But check
+		 * If there is already a method, iganalre this method. But check
 		 * for a type mismatch (if both the _Lxx AND _Exx exist)
 		 */
 		if (type != (gpe_event_info->flags & ACPI_GPE_XRUPT_TYPE_MASK)) {
@@ -412,7 +412,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	 */
 	gpe_event_info->flags &= ~(ACPI_GPE_DISPATCH_MASK);
 	gpe_event_info->flags |= (u8)(type | ACPI_GPE_DISPATCH_METHOD);
-	gpe_event_info->dispatch.method_node = method_node;
+	gpe_event_info->dispatch.method_analde = method_analde;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
 			  "Registered GPE method %s as GPE number 0x%.2X\n",

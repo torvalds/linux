@@ -29,7 +29,7 @@ EXPORT_SYMBOL(caam_dpaa2);
 #endif
 
 /*
- * Descriptor to instantiate RNG State Handle 0 in normal mode and
+ * Descriptor to instantiate RNG State Handle 0 in analrmal mode and
  * load the JDKEK, TDKEK and TDSK registers
  */
 static void build_instantiation_desc(u32 *desc, int handle, int do_sk)
@@ -42,7 +42,7 @@ static void build_instantiation_desc(u32 *desc, int handle, int do_sk)
 			(handle << OP_ALG_AAI_SHIFT) | OP_ALG_AS_INIT |
 			OP_ALG_PR_ON;
 
-	/* INIT RNG in non-test mode */
+	/* INIT RNG in analn-test mode */
 	append_operation(desc, op_flags);
 
 	if (!handle && do_sk) {
@@ -91,12 +91,12 @@ static const struct of_device_id imx8m_machine_match[] = {
 
 /*
  * run_descriptor_deco0 - runs a descriptor on DECO0, under direct control of
- *			  the software (no JR/QI used).
+ *			  the software (anal JR/QI used).
  * @ctrldev - pointer to device
  * @status - descriptor status, after being run
  *
- * Return: - 0 if no error occurred
- *	   - -ENODEV if the DECO couldn't be acquired
+ * Return: - 0 if anal error occurred
+ *	   - -EANALDEV if the DECO couldn't be acquired
  *	   - -EAGAIN if an error occurred while executing the descriptor
  */
 static inline int run_descriptor_deco0(struct device *ctrldev, u32 *desc,
@@ -115,7 +115,7 @@ static inline int run_descriptor_deco0(struct device *ctrldev, u32 *desc,
 	     * Apparently on i.MX8M{Q,M,N,P} it doesn't matter if virt_en == 1
 	     * and the following steps should be performed regardless
 	     */
-	    of_match_node(imx8m_machine_match, of_root)) {
+	    of_match_analde(imx8m_machine_match, of_root)) {
 		clrsetbits_32(&ctrl->deco_rsr, 0, DECORSR_JR0);
 
 		while (!(rd_reg32(&ctrl->deco_rsr) & DECORSR_VALID) &&
@@ -134,7 +134,7 @@ static inline int run_descriptor_deco0(struct device *ctrldev, u32 *desc,
 	if (!timeout) {
 		dev_err(ctrldev, "failed to acquire DECO 0\n");
 		clrsetbits_32(&ctrl->deco_rq, DECORR_RQD0ENABLE, 0);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < desc_len(desc); i++)
@@ -196,9 +196,9 @@ static inline int run_descriptor_deco0(struct device *ctrldev, u32 *desc,
  *			for the RNG4 state handles which exist in
  *			the RNG4 block: 1 if it's been instantiated
  *
- * Return: - 0 if no error occurred
- *	   - -ENOMEM if there isn't enough memory to allocate the descriptor
- *	   - -ENODEV if DECO0 couldn't be acquired
+ * Return: - 0 if anal error occurred
+ *	   - -EANALMEM if there isn't eanalugh memory to allocate the descriptor
+ *	   - -EANALDEV if DECO0 couldn't be acquired
  *	   - -EAGAIN if an error occurred when executing the descriptor
  */
 static int deinstantiate_rng(struct device *ctrldev, int state_handle_mask)
@@ -208,7 +208,7 @@ static int deinstantiate_rng(struct device *ctrldev, int state_handle_mask)
 
 	desc = kmalloc(CAAM_CMD_SZ * 3, GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (sh_idx = 0; sh_idx < RNG4_MAX_HANDLES; sh_idx++) {
 		/*
@@ -267,11 +267,11 @@ static void devm_deinstantiate_rng(void *data)
  *	      Caution: this can be done only once; if the keys need to be
  *	      regenerated, a POR is required
  *
- * Return: - 0 if no error occurred
- *	   - -ENOMEM if there isn't enough memory to allocate the descriptor
- *	   - -ENODEV if DECO0 couldn't be acquired
+ * Return: - 0 if anal error occurred
+ *	   - -EANALMEM if there isn't eanalugh memory to allocate the descriptor
+ *	   - -EANALDEV if DECO0 couldn't be acquired
  *	   - -EAGAIN if an error occurred when executing the descriptor
- *	      f.i. there was a RNG hardware error due to not "good enough"
+ *	      f.i. there was a RNG hardware error due to analt "good eanalugh"
  *	      entropy being acquired.
  */
 static int instantiate_rng(struct device *ctrldev, int state_handle_mask,
@@ -285,7 +285,7 @@ static int instantiate_rng(struct device *ctrldev, int state_handle_mask,
 	ctrl = (struct caam_ctrl __iomem *)ctrlpriv->ctrl;
 	desc = kmalloc(CAAM_CMD_SZ * 7, GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (sh_idx = 0; sh_idx < RNG4_MAX_HANDLES; sh_idx++) {
 		const u32 rdsta_if = RDSTA_IF0 << sh_idx;
@@ -319,8 +319,8 @@ static int instantiate_rng(struct device *ctrldev, int state_handle_mask,
 		ret = run_descriptor_deco0(ctrldev, desc, &status);
 
 		/*
-		 * If ret is not 0, or descriptor status is not 0, then
-		 * something went wrong. No need to try the next state
+		 * If ret is analt 0, or descriptor status is analt 0, then
+		 * something went wrong. Anal need to try the next state
 		 * handle (if available), bail out here.
 		 * Also, if for some reason, the State Handle didn't get
 		 * instantiated although the descriptor has finished
@@ -372,7 +372,7 @@ static void kick_trng(struct device *dev, int ent_delay)
 	clrsetbits_32(&r4tst->rtmctl, 0, RTMCTL_PRGM | RTMCTL_ACC);
 
 	/*
-	 * Performance-wise, it does not make sense to
+	 * Performance-wise, it does analt make sense to
 	 * set the delay to a value that is lower
 	 * than the last one that worked (i.e. the state handles
 	 * were instantiated properly).
@@ -454,27 +454,27 @@ static int caam_get_era_from_hw(struct caam_perfmon __iomem *perfmon)
 		if (id[i].ip_id == ip_id && id[i].maj_rev == maj_rev)
 			return id[i].era;
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 /**
  * caam_get_era() - Return the ERA of the SEC on SoC, based
  * on "sec-era" optional property in the DTS. This property is updated
  * by u-boot.
- * In case this property is not passed an attempt to retrieve the CAAM
+ * In case this property is analt passed an attempt to retrieve the CAAM
  * era via register reads will be made.
  *
  * @perfmon:	Performance Monitor Registers
  */
 static int caam_get_era(struct caam_perfmon __iomem *perfmon)
 {
-	struct device_node *caam_node;
+	struct device_analde *caam_analde;
 	int ret;
 	u32 prop;
 
-	caam_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
-	ret = of_property_read_u32(caam_node, "fsl,sec-era", &prop);
-	of_node_put(caam_node);
+	caam_analde = of_find_compatible_analde(NULL, NULL, "fsl,sec-v4.0");
+	ret = of_property_read_u32(caam_analde, "fsl,sec-era", &prop);
+	of_analde_put(caam_analde);
 
 	if (!ret)
 		return prop;
@@ -484,7 +484,7 @@ static int caam_get_era(struct caam_perfmon __iomem *perfmon)
 
 /*
  * ERRATA: imx6 devices (imx6D, imx6Q, imx6DL, imx6S, imx6DP and imx6QP)
- * have an issue wherein AXI bus transactions may not occur in the correct
+ * have an issue wherein AXI bus transactions may analt occur in the correct
  * order. This isn't a problem running single descriptors, but can be if
  * running multiple concurrent descriptors. Reworking the driver to throttle
  * to single requests is impractical, thus the workaround is to limit the AXI
@@ -585,7 +585,7 @@ static int init_clocks(struct device *dev, const struct caam_imx_data *data)
 				      data->num_clks * sizeof(data->clks[0]),
 				      GFP_KERNEL);
 	if (!ctrlpriv->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_clk_bulk_get(dev, ctrlpriv->num_clks, ctrlpriv->clks);
 	if (ret) {
@@ -611,16 +611,16 @@ static void caam_remove_debugfs(void *root)
 
 #ifdef CONFIG_FSL_MC_BUS
 static bool check_version(struct fsl_mc_version *mc_version, u32 major,
-			  u32 minor, u32 revision)
+			  u32 mianalr, u32 revision)
 {
 	if (mc_version->major > major)
 		return true;
 
 	if (mc_version->major == major) {
-		if (mc_version->minor > minor)
+		if (mc_version->mianalr > mianalr)
 			return true;
 
-		if (mc_version->minor == minor &&
+		if (mc_version->mianalr == mianalr &&
 		    mc_version->revision > revision)
 			return true;
 	}
@@ -664,7 +664,7 @@ static int caam_ctrl_rng_init(struct device *dev)
 	}
 
 	/*
-	 * If SEC has RNG version >= 4 and RNG state handle has not been
+	 * If SEC has RNG version >= 4 and RNG state handle has analt been
 	 * already instantiated, do RNG instantiation
 	 * In case of SoCs with Management Complex, RNG is managed by MC f/w.
 	 */
@@ -687,7 +687,7 @@ static int caam_ctrl_rng_init(struct device *dev)
 			 * (e.g. u-boot) then it is assumed that the entropy
 			 * parameters are properly set and thus the function
 			 * setting these (kick_trng(...)) is skipped.
-			 * Also, if a handle was instantiated, do not change
+			 * Also, if a handle was instantiated, do analt change
 			 * the TRNG parameters.
 			 */
 			if (needs_entropy_delay_adjustment())
@@ -744,11 +744,11 @@ static int caam_ctrl_rng_init(struct device *dev)
 /* Indicate if the internal state of the CAAM is lost during PM */
 static int caam_off_during_pm(void)
 {
-	bool not_off_during_pm = of_machine_is_compatible("fsl,imx6q") ||
+	bool analt_off_during_pm = of_machine_is_compatible("fsl,imx6q") ||
 				 of_machine_is_compatible("fsl,imx6qp") ||
 				 of_machine_is_compatible("fsl,imx6dl");
 
-	return not_off_during_pm ? 0 : 1;
+	return analt_off_during_pm ? 0 : 1;
 }
 
 static void caam_state_save(struct device *dev)
@@ -851,7 +851,7 @@ static int caam_probe(struct platform_device *pdev)
 	u64 caam_id;
 	const struct soc_device_attribute *imx_soc_match;
 	struct device *dev;
-	struct device_node *nprop, *np;
+	struct device_analde *nprop, *np;
 	struct caam_ctrl __iomem *ctrl;
 	struct caam_drv_private *ctrlpriv;
 	struct caam_perfmon __iomem *perfmon;
@@ -863,14 +863,14 @@ static int caam_probe(struct platform_device *pdev)
 
 	ctrlpriv = devm_kzalloc(&pdev->dev, sizeof(*ctrlpriv), GFP_KERNEL);
 	if (!ctrlpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev = &pdev->dev;
 	dev_set_drvdata(dev, ctrlpriv);
-	nprop = pdev->dev.of_node;
+	nprop = pdev->dev.of_analde;
 
 	imx_soc_match = soc_device_match(caam_imx_soc_table);
-	if (!imx_soc_match && of_match_node(imx8m_machine_match, of_root))
+	if (!imx_soc_match && of_match_analde(imx8m_machine_match, of_root))
 		return -EPROBE_DEFER;
 
 	caam_imx = (bool)imx_soc_match;
@@ -883,14 +883,14 @@ static int caam_probe(struct platform_device *pdev)
 		 * only i.MX OP-TEE use cases disallow access to
 		 * caam page 0 (controller) registers.
 		 */
-		np = of_find_compatible_node(NULL, NULL, "linaro,optee-tz");
+		np = of_find_compatible_analde(NULL, NULL, "linaro,optee-tz");
 		ctrlpriv->optee_en = !!np;
-		of_node_put(np);
+		of_analde_put(np);
 
 		reg_access = !ctrlpriv->optee_en;
 
 		if (!imx_soc_match->data) {
-			dev_err(dev, "No clock data provided for i.MX SoC");
+			dev_err(dev, "Anal clock data provided for i.MX SoC");
 			return -EINVAL;
 		}
 
@@ -910,7 +910,7 @@ static int caam_probe(struct platform_device *pdev)
 	}
 
 	ring = 0;
-	for_each_available_child_of_node(nprop, np)
+	for_each_available_child_of_analde(nprop, np)
 		if (of_device_is_compatible(np, "fsl,sec-v4.0-job-ring") ||
 		    of_device_is_compatible(np, "fsl,sec4.0-job-ring")) {
 			u32 reg;
@@ -930,7 +930,7 @@ static int caam_probe(struct platform_device *pdev)
 
 	/*
 	 * Wherever possible, instead of accessing registers from the global page,
-	 * use the alias registers in the first (cf. DT nodes order)
+	 * use the alias registers in the first (cf. DT analdes order)
 	 * job ring's page.
 	 */
 	perfmon = ring ? (struct caam_perfmon __iomem *)&ctrlpriv->jr[0]->perfmon :
@@ -955,7 +955,7 @@ static int caam_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 		} else if (ret < 0) {
 			dev_err(dev, "failing probe due to qman probe error\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		ret = qman_portals_probed();
@@ -963,7 +963,7 @@ static int caam_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 		} else if (ret < 0) {
 			dev_err(dev, "failing probe due to qman portals probe error\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 #endif
@@ -989,9 +989,9 @@ static int caam_probe(struct platform_device *pdev)
 
 	/* Get the IRQ of the controller (for security violations only) */
 	ctrlpriv->secvio_irq = irq_of_parse_and_map(nprop, 0);
-	np = of_find_compatible_node(NULL, NULL, "fsl,qoriq-mc");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,qoriq-mc");
 	ctrlpriv->mc_en = !!np;
-	of_node_put(np);
+	of_analde_put(np);
 
 #ifdef CONFIG_FSL_MC_BUS
 	if (ctrlpriv->mc_en) {
@@ -1085,17 +1085,17 @@ set_dma_mask:
 #endif
 	}
 
-	/* If no QI and no rings specified, quit and go home */
+	/* If anal QI and anal rings specified, quit and go home */
 	if ((!ctrlpriv->qi_present) && (!ctrlpriv->total_jobrs)) {
-		dev_err(dev, "no queues configured, terminating\n");
-		return -ENOMEM;
+		dev_err(dev, "anal queues configured, terminating\n");
+		return -EANALMEM;
 	}
 
 	comp_params = rd_reg32(&perfmon->comp_parms_ls);
 	ctrlpriv->blob_present = !!(comp_params & CTPR_LS_BLOB);
 
 	/*
-	 * Some SoCs like the LS1028A (non-E) indicate CTPR_LS_BLOB support,
+	 * Some SoCs like the LS1028A (analn-E) indicate CTPR_LS_BLOB support,
 	 * but fail when actually using it due to missing AES support, so
 	 * check both here.
 	 */

@@ -157,8 +157,8 @@ struct bios_return {
 
 enum hp_return_value {
 	HPWMI_RET_WRONG_SIGNATURE	= 0x02,
-	HPWMI_RET_UNKNOWN_COMMAND	= 0x03,
-	HPWMI_RET_UNKNOWN_CMDTYPE	= 0x04,
+	HPWMI_RET_UNKANALWN_COMMAND	= 0x03,
+	HPWMI_RET_UNKANALWN_CMDTYPE	= 0x04,
 	HPWMI_RET_INVALID_PARAMETERS	= 0x05,
 };
 
@@ -207,14 +207,14 @@ struct bios_rfkill2_device_state {
 	u16 subsys_product_id;
 	u8 rfkill_id;
 	u8 power;
-	u8 unknown[4];
+	u8 unkanalwn[4];
 };
 
 /* 7 devices fit into the 128 byte buffer */
 #define HPWMI_MAX_RFKILL2_DEVICES	7
 
 struct bios_rfkill2_state {
-	u8 unknown[7];
+	u8 unkanalwn[7];
 	u8 count;
 	u8 pad[8];
 	struct bios_rfkill2_device_state device[HPWMI_MAX_RFKILL2_DEVICES];
@@ -230,8 +230,8 @@ static const struct key_entry hp_wmi_keymap[] = {
 	{ KE_KEY, 0x213b,  { KEY_INFO } },
 	{ KE_KEY, 0x2169,  { KEY_ROTATE_DISPLAY } },
 	{ KE_KEY, 0x216a,  { KEY_SETUP } },
-	{ KE_IGNORE, 0x21a4,  }, /* Win Lock On */
-	{ KE_IGNORE, 0x121a4, }, /* Win Lock Off */
+	{ KE_IGANALRE, 0x21a4,  }, /* Win Lock On */
+	{ KE_IGANALRE, 0x121a4, }, /* Win Lock Off */
 	{ KE_KEY, 0x21a5,  { KEY_PROG2 } }, /* HP Omen Key */
 	{ KE_KEY, 0x21a7,  { KEY_FN_ESC } },
 	{ KE_KEY, 0x21a8,  { KEY_PROG2 } }, /* HP Envy x360 programmable key */
@@ -301,10 +301,10 @@ static inline int encode_outsize_for_pvsz(int outsize)
  *
  * returns zero on success
  *         an HP WMI query specific error code (which is positive)
- *         -EINVAL if the query was not successful at all
+ *         -EINVAL if the query was analt successful at all
  *         -EINVAL if the output buffer size exceeds buffersize
  *
- * Note: The buffersize must at least be the maximum of the input and output
+ * Analte: The buffersize must at least be the maximum of the input and output
  *       size. E.g. Battery info query is defined to have 1 byte input
  *       and 128 byte output. The caller would do:
  *       buffer = kzalloc(128, GFP_KERNEL);
@@ -329,7 +329,7 @@ static int hp_wmi_perform_query(int query, enum hp_wmi_command command,
 	bios_args_size = struct_size(args, data, actual_insize);
 	args = kmalloc(bios_args_size, GFP_KERNEL);
 	if (!args)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input.length = bios_args_size;
 	input.pointer = args;
@@ -360,13 +360,13 @@ static int hp_wmi_perform_query(int query, enum hp_wmi_command command,
 	ret = bios_return->return_code;
 
 	if (ret) {
-		if (ret != HPWMI_RET_UNKNOWN_COMMAND &&
-		    ret != HPWMI_RET_UNKNOWN_CMDTYPE)
+		if (ret != HPWMI_RET_UNKANALWN_COMMAND &&
+		    ret != HPWMI_RET_UNKANALWN_CMDTYPE)
 			pr_warn("query 0x%x returned error 0x%x\n", query, ret);
 		goto out_free;
 	}
 
-	/* Ignore output data of zero size */
+	/* Iganalre output data of zero size */
 	if (!outsize)
 		goto out_free;
 
@@ -430,13 +430,13 @@ static int hp_wmi_get_tablet_mode(void)
 
 	chassis_type = dmi_get_system_info(DMI_CHASSIS_TYPE);
 	if (!chassis_type)
-		return -ENODEV;
+		return -EANALDEV;
 
 	tablet_found = match_string(tablet_chassis_types,
 				    ARRAY_SIZE(tablet_chassis_types),
 				    chassis_type) >= 0;
 	if (!tablet_found)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = hp_wmi_perform_query(HPWMI_SYSTEM_DEVICE_MODE, HPWMI_READ,
 				   system_device_mode, zero_if_sup(system_device_mode),
@@ -543,7 +543,7 @@ static int __init hp_wmi_bios_2008_later(void)
 	if (!ret)
 		return 1;
 
-	return (ret == HPWMI_RET_UNKNOWN_CMDTYPE) ? 0 : -ENXIO;
+	return (ret == HPWMI_RET_UNKANALWN_CMDTYPE) ? 0 : -ENXIO;
 }
 
 static int __init hp_wmi_bios_2009_later(void)
@@ -554,7 +554,7 @@ static int __init hp_wmi_bios_2009_later(void)
 	if (!ret)
 		return 1;
 
-	return (ret == HPWMI_RET_UNKNOWN_CMDTYPE) ? 0 : -ENXIO;
+	return (ret == HPWMI_RET_UNKANALWN_CMDTYPE) ? 0 : -ENXIO;
 }
 
 static int __init hp_wmi_enable_hotkeys(void)
@@ -760,7 +760,7 @@ static int camera_shutter_input_setup(void)
 
 	camera_shutter_input_dev = input_allocate_device();
 	if (!camera_shutter_input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	camera_shutter_input_dev->name = "HP WMI camera shutter";
 	camera_shutter_input_dev->phys = "wmi/input1";
@@ -799,7 +799,7 @@ static struct attribute *hp_wmi_attrs[] = {
 };
 ATTRIBUTE_GROUPS(hp_wmi);
 
-static void hp_wmi_notify(u32 value, void *context)
+static void hp_wmi_analtify(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	u32 event_id, event_data;
@@ -819,7 +819,7 @@ static void hp_wmi_notify(u32 value, void *context)
 	if (!obj)
 		return;
 	if (obj->type != ACPI_TYPE_BUFFER) {
-		pr_info("Unknown response received %d\n", obj->type);
+		pr_info("Unkanalwn response received %d\n", obj->type);
 		kfree(obj);
 		return;
 	}
@@ -836,7 +836,7 @@ static void hp_wmi_notify(u32 value, void *context)
 		event_id = *location;
 		event_data = *(location + 2);
 	} else {
-		pr_info("Unknown buffer length %d\n", obj->buffer.length);
+		pr_info("Unkanalwn buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return;
 	}
@@ -863,7 +863,7 @@ static void hp_wmi_notify(u32 value, void *context)
 
 		if (!sparse_keymap_report_event(hp_wmi_input_dev,
 						key_code, 1, true))
-			pr_info("Unknown key code - 0x%x\n", key_code);
+			pr_info("Unkanalwn key code - 0x%x\n", key_code);
 		break;
 	case HPWMI_OMEN_KEY:
 		if (event_data) /* Only should be true for HP Omen */
@@ -873,7 +873,7 @@ static void hp_wmi_notify(u32 value, void *context)
 
 		if (!sparse_keymap_report_event(hp_wmi_input_dev,
 						key_code, 1, true))
-			pr_info("Unknown key code - 0x%x\n", key_code);
+			pr_info("Unkanalwn key code - 0x%x\n", key_code);
 		break;
 	case HPWMI_WIRELESS:
 		if (rfkill2_count) {
@@ -928,13 +928,13 @@ static void hp_wmi_notify(u32 value, void *context)
 		else if (event_data == 0xfe)
 			input_report_switch(camera_shutter_input_dev, SW_CAMERA_LENS_COVER, 0);
 		else
-			pr_warn("Unknown camera shutter state - 0x%x\n", event_data);
+			pr_warn("Unkanalwn camera shutter state - 0x%x\n", event_data);
 		input_sync(camera_shutter_input_dev);
 		break;
 	case HPWMI_SMART_EXPERIENCE_APP:
 		break;
 	default:
-		pr_info("Unknown event_id - %d - 0x%x\n", event_id, event_data);
+		pr_info("Unkanalwn event_id - %d - 0x%x\n", event_id, event_data);
 		break;
 	}
 }
@@ -946,7 +946,7 @@ static int __init hp_wmi_input_setup(void)
 
 	hp_wmi_input_dev = input_allocate_device();
 	if (!hp_wmi_input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hp_wmi_input_dev->name = "HP WMI hotkeys";
 	hp_wmi_input_dev->phys = "wmi/input0";
@@ -978,7 +978,7 @@ static int __init hp_wmi_input_setup(void)
 	if (!hp_wmi_bios_2009_later() && hp_wmi_bios_2008_later())
 		hp_wmi_enable_hotkeys();
 
-	status = wmi_install_notify_handler(HPWMI_EVENT_GUID, hp_wmi_notify, NULL);
+	status = wmi_install_analtify_handler(HPWMI_EVENT_GUID, hp_wmi_analtify, NULL);
 	if (ACPI_FAILURE(status)) {
 		err = -EIO;
 		goto err_free_dev;
@@ -986,12 +986,12 @@ static int __init hp_wmi_input_setup(void)
 
 	err = input_register_device(hp_wmi_input_dev);
 	if (err)
-		goto err_uninstall_notifier;
+		goto err_uninstall_analtifier;
 
 	return 0;
 
- err_uninstall_notifier:
-	wmi_remove_notify_handler(HPWMI_EVENT_GUID);
+ err_uninstall_analtifier:
+	wmi_remove_analtify_handler(HPWMI_EVENT_GUID);
  err_free_dev:
 	input_free_device(hp_wmi_input_dev);
 	return err;
@@ -999,7 +999,7 @@ static int __init hp_wmi_input_setup(void)
 
 static void hp_wmi_input_destroy(void)
 {
-	wmi_remove_notify_handler(HPWMI_EVENT_GUID);
+	wmi_remove_analtify_handler(HPWMI_EVENT_GUID);
 	input_unregister_device(hp_wmi_input_dev);
 }
 
@@ -1022,7 +1022,7 @@ static int __init hp_wmi_rfkill_setup(struct platform_device *device)
 					   &hp_wmi_rfkill_ops,
 					   (void *) HPWMI_WIFI);
 		if (!wifi_rfkill)
-			return -ENOMEM;
+			return -EANALMEM;
 		rfkill_init_sw_state(wifi_rfkill,
 				     hp_wmi_get_sw_state(HPWMI_WIFI));
 		rfkill_set_hw_state(wifi_rfkill,
@@ -1038,7 +1038,7 @@ static int __init hp_wmi_rfkill_setup(struct platform_device *device)
 						&hp_wmi_rfkill_ops,
 						(void *) HPWMI_BLUETOOTH);
 		if (!bluetooth_rfkill) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto register_bluetooth_error;
 		}
 		rfkill_init_sw_state(bluetooth_rfkill,
@@ -1056,7 +1056,7 @@ static int __init hp_wmi_rfkill_setup(struct platform_device *device)
 					   &hp_wmi_rfkill_ops,
 					   (void *) HPWMI_WWAN);
 		if (!wwan_rfkill) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto register_wwan_error;
 		}
 		rfkill_init_sw_state(wwan_rfkill,
@@ -1124,7 +1124,7 @@ static int __init hp_wmi_rfkill2_setup(struct platform_device *device)
 			name = "hp-gps";
 			break;
 		default:
-			pr_warn("unknown device type 0x%x\n",
+			pr_warn("unkanalwn device type 0x%x\n",
 				state.device[i].radio_type);
 			continue;
 		}
@@ -1138,7 +1138,7 @@ static int __init hp_wmi_rfkill2_setup(struct platform_device *device)
 		rfkill = rfkill_alloc(name, &device->dev, type,
 				      &hp_wmi_rfkill2_ops, (void *)(long)i);
 		if (!rfkill) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail;
 		}
 
@@ -1209,7 +1209,7 @@ static int platform_profile_omen_set(struct platform_profile_handler *pprof,
 	tp_version = omen_get_thermal_policy_version();
 
 	if (tp_version < 0 || tp_version > 1)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (profile) {
 	case PLATFORM_PROFILE_PERFORMANCE:
@@ -1231,7 +1231,7 @@ static int platform_profile_omen_set(struct platform_profile_handler *pprof,
 			tp = HP_OMEN_V1_THERMAL_PROFILE_COOL;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = omen_thermal_profile_set(tp);
@@ -1300,7 +1300,7 @@ static int hp_wmi_platform_profile_set(struct platform_profile_handler *pprof,
 		tp = HP_THERMAL_PROFILE_QUIET;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = thermal_profile_set(tp);
@@ -1342,7 +1342,7 @@ static int platform_profile_victus_get(struct platform_profile_handler *pprof,
 		*profile = PLATFORM_PROFILE_QUIET;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1364,7 +1364,7 @@ static int platform_profile_victus_set(struct platform_profile_handler *pprof,
 		tp = HP_VICTUS_THERMAL_PROFILE_QUIET;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = omen_thermal_profile_set(tp);
@@ -1459,8 +1459,8 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 
 	/*
 	 * In pre-2009 BIOS, command 1Bh return 0x4 to indicate that
-	 * BIOS no longer controls the power for the wireless
-	 * devices. All features supported by this command will no
+	 * BIOS anal longer controls the power for the wireless
+	 * devices. All features supported by this command will anal
 	 * longer be supported.
 	 */
 	if (!hp_wmi_bios_2009_later()) {
@@ -1548,7 +1548,7 @@ static const struct dev_pm_ops hp_wmi_pm_ops = {
 
 /*
  * hp_wmi_bios_remove() lives in .exit.text. For drivers registered via
- * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * module_platform_driver_probe() this is ok because they cananalt get unbound at
  * runtime. So mark the driver struct with __refdata to prevent modpost
  * triggering a section mismatch warning.
  */
@@ -1600,13 +1600,13 @@ static int hp_wmi_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			return 0;
 		case 1:
 			/* 1 is max fan, which is 0
-			 * (no fan speed control) for hwmon
+			 * (anal fan speed control) for hwmon
 			 */
 			*val = 0;
 			return 0;
 		default:
 			/* shouldn't happen */
-			return -ENODATA;
+			return -EANALDATA;
 		}
 	default:
 		return -EINVAL;
@@ -1620,7 +1620,7 @@ static int hp_wmi_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_pwm:
 		switch (val) {
 		case 0:
-			/* 0 is no fan speed control (max), which is 1 for us */
+			/* 0 is anal fan speed control (max), which is 1 for us */
 			return hp_wmi_fan_speed_max_set(1);
 		case 2:
 			/* 2 is automatic speed control, which is 0 for us */
@@ -1630,7 +1630,7 @@ static int hp_wmi_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 			return -EINVAL;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1660,7 +1660,7 @@ static int hp_wmi_hwmon_init(void)
 						     &chip_info, NULL);
 
 	if (IS_ERR(hwmon)) {
-		dev_err(dev, "Could not register hp hwmon device\n");
+		dev_err(dev, "Could analt register hp hwmon device\n");
 		return PTR_ERR(hwmon);
 	}
 
@@ -1674,7 +1674,7 @@ static int __init hp_wmi_init(void)
 	int err, tmp = 0;
 
 	if (!bios_capable && !event_capable)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, HPWMI_READ, &tmp,
 				 sizeof(tmp), sizeof(tmp)) == HPWMI_RET_INVALID_PARAMETERS)
@@ -1688,7 +1688,7 @@ static int __init hp_wmi_init(void)
 
 	if (bios_capable) {
 		hp_wmi_platform_dev =
-			platform_device_register_simple("hp-wmi", PLATFORM_DEVID_NONE, NULL, 0);
+			platform_device_register_simple("hp-wmi", PLATFORM_DEVID_ANALNE, NULL, 0);
 		if (IS_ERR(hp_wmi_platform_dev)) {
 			err = PTR_ERR(hp_wmi_platform_dev);
 			goto err_destroy_input;

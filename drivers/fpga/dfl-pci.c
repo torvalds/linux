@@ -8,7 +8,7 @@
  *   Zhang Yi <Yi.Z.Zhang@intel.com>
  *   Xiao Guangrong <guangrong.xiao@linux.intel.com>
  *   Joseph Grecco <joe.grecco@intel.com>
- *   Enno Luebbers <enno.luebbers@intel.com>
+ *   Enanal Luebbers <enanal.luebbers@intel.com>
  *   Tim Whisonant <tim.whisonant@intel.com>
  *   Ananda Ravuri <ananda.ravuri@intel.com>
  *   Henry Mitchel <henry.mitchel@intel.com>
@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/stddef.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include "dfl.h"
 
@@ -52,7 +52,7 @@ static int cci_pci_alloc_irq(struct pci_dev *pcidev)
 	int ret, nvec = pci_msix_vec_count(pcidev);
 
 	if (nvec <= 0) {
-		dev_dbg(&pcidev->dev, "fpga interrupt not supported\n");
+		dev_dbg(&pcidev->dev, "fpga interrupt analt supported\n");
 		return 0;
 	}
 
@@ -123,7 +123,7 @@ static int cci_init_drvdata(struct pci_dev *pcidev)
 
 	drvdata = devm_kzalloc(&pcidev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pcidev, drvdata);
 
@@ -163,8 +163,8 @@ static int find_dfls_by_vsec(struct pci_dev *pcidev, struct dfl_fpga_enum_info *
 	voff = pci_find_vsec_capability(pcidev, PCI_VENDOR_ID_INTEL,
 					PCI_VSEC_ID_INTEL_DFLS);
 	if (!voff) {
-		dev_dbg(&pcidev->dev, "%s no DFL VSEC found\n", __func__);
-		return -ENODEV;
+		dev_dbg(&pcidev->dev, "%s anal DFL VSEC found\n", __func__);
+		return -EANALDEV;
 	}
 
 	dfl_cnt = 0;
@@ -234,7 +234,7 @@ static int find_dfls_by_default(struct pci_dev *pcidev,
 	/* start to find Device Feature List from Bar 0 */
 	base = cci_pci_ioremap_bar0(pcidev);
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * PF device has FME and Ports/AFUs, and VF device only has one
@@ -259,7 +259,7 @@ static int find_dfls_by_default(struct pci_dev *pcidev,
 		for (i = 0; i < port_num; i++) {
 			v = readq(base + FME_HDR_PORT_OFST(i));
 
-			/* skip ports which are not implemented. */
+			/* skip ports which are analt implemented. */
 			if (!(v & FME_PORT_OFST_IMP))
 				continue;
 
@@ -289,7 +289,7 @@ static int find_dfls_by_default(struct pci_dev *pcidev,
 
 		dfl_fpga_enum_info_add_dfl(info, start, len);
 	} else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	/* release I/O mappings for next step enumeration */
@@ -310,7 +310,7 @@ static int cci_enumerate_feature_devs(struct pci_dev *pcidev)
 	/* allocate enumeration info via pci_dev */
 	info = dfl_fpga_enum_info_alloc(&pcidev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* add irq info for enumeration if the device support irq */
 	nvec = cci_pci_alloc_irq(pcidev);
@@ -321,7 +321,7 @@ static int cci_enumerate_feature_devs(struct pci_dev *pcidev)
 	} else if (nvec) {
 		irq_table = cci_pci_create_irq_table(pcidev, nvec);
 		if (!irq_table) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto irq_free_exit;
 		}
 
@@ -332,7 +332,7 @@ static int cci_enumerate_feature_devs(struct pci_dev *pcidev)
 	}
 
 	ret = find_dfls_by_vsec(pcidev, info);
-	if (ret == -ENODEV)
+	if (ret == -EANALDEV)
 		ret = find_dfls_by_default(pcidev, info);
 
 	if (ret)
@@ -374,7 +374,7 @@ int cci_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *pcidevid)
 	if (ret)
 		ret = dma_set_mask_and_coherent(&pcidev->dev, DMA_BIT_MASK(32));
 	if (ret) {
-		dev_err(&pcidev->dev, "No suitable DMA support available.\n");
+		dev_err(&pcidev->dev, "Anal suitable DMA support available.\n");
 		return ret;
 	}
 

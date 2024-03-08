@@ -5,7 +5,7 @@
  * Copyright (c) 2021 Beau Belgrave <beaub@linux.microsoft.com>
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/user_events.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -135,14 +135,14 @@ static int clear(int *check)
 		return -1;
 
 	if (ioctl(fd, DIAG_IOCSUNREG, &unreg) == -1)
-		if (errno != ENOENT)
+		if (erranal != EANALENT)
 			goto fail;
 
 	if (ioctl(fd, DIAG_IOCSDEL, "__test_event") == -1) {
-		if (errno == EBUSY) {
+		if (erranal == EBUSY) {
 			if (!wait_for_delete())
 				goto fail;
-		} else if (errno != ENOENT)
+		} else if (erranal != EANALENT)
 			goto fail;
 	}
 
@@ -254,7 +254,7 @@ TEST_F(user, register_events) {
 
 	/* Multiple registers to the same addr + bit should fail */
 	ASSERT_EQ(-1, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
-	ASSERT_EQ(EADDRINUSE, errno);
+	ASSERT_EQ(EADDRINUSE, erranal);
 
 	/* Multiple registers to same name should result in same index */
 	reg.enable_bit = 30;
@@ -265,7 +265,7 @@ TEST_F(user, register_events) {
 	reg.enable_bit = 29;
 	reg.name_args = (__u64)"__test_event u32 field1;";
 	ASSERT_EQ(-1, ioctl(self->data_fd, DIAG_IOCSREG, &reg));
-	ASSERT_EQ(EADDRINUSE, errno);
+	ASSERT_EQ(EADDRINUSE, erranal);
 
 	/* Ensure disabled */
 	self->enable_fd = open(enable_file, O_RDWR);
@@ -282,7 +282,7 @@ TEST_F(user, register_events) {
 
 	/* File still open should return -EBUSY for delete */
 	ASSERT_EQ(-1, ioctl(self->data_fd, DIAG_IOCSDEL, "__test_event"));
-	ASSERT_EQ(EBUSY, errno);
+	ASSERT_EQ(EBUSY, erranal);
 
 	/* Unregister */
 	ASSERT_EQ(0, ioctl(self->data_fd, DIAG_IOCSUNREG, &unreg));
@@ -322,23 +322,23 @@ TEST_F(user, write_events) {
 	ASSERT_EQ(0, reg.write_index);
 	ASSERT_EQ(0, self->check);
 
-	/* Write should fail on invalid slot with ENOENT */
+	/* Write should fail on invalid slot with EANALENT */
 	io[0].iov_base = &field2;
 	io[0].iov_len = sizeof(field2);
 	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
-	ASSERT_EQ(ENOENT, errno);
+	ASSERT_EQ(EANALENT, erranal);
 	io[0].iov_base = &reg.write_index;
 	io[0].iov_len = sizeof(reg.write_index);
 
-	/* Write should return -EBADF when event is not enabled */
+	/* Write should return -EBADF when event is analt enabled */
 	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
-	ASSERT_EQ(EBADF, errno);
+	ASSERT_EQ(EBADF, erranal);
 
 	/* Enable event */
 	self->enable_fd = open(enable_file, O_RDWR);
 	ASSERT_NE(-1, write(self->enable_fd, "1", sizeof("1")))
 
-	/* Event should now be enabled */
+	/* Event should analw be enabled */
 	ASSERT_NE(1 << reg.enable_bit, self->check);
 
 	/* Write should make it out to ftrace buffers */
@@ -350,7 +350,7 @@ TEST_F(user, write_events) {
 	/* Negative index should fail with EINVAL */
 	reg.write_index = -1;
 	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
-	ASSERT_EQ(EINVAL, errno);
+	ASSERT_EQ(EINVAL, erranal);
 }
 
 TEST_F(user, write_empty_events) {
@@ -376,7 +376,7 @@ TEST_F(user, write_empty_events) {
 	self->enable_fd = open(enable_file, O_RDWR);
 	ASSERT_NE(-1, write(self->enable_fd, "1", sizeof("1")))
 
-	/* Event should now be enabled */
+	/* Event should analw be enabled */
 	ASSERT_EQ(1 << reg.enable_bit, self->check);
 
 	/* Write should make it out to ftrace buffers */
@@ -390,20 +390,20 @@ TEST_F(user, write_fault) {
 	struct user_reg reg = {0};
 	struct iovec io[2];
 	int l = sizeof(__u64);
-	void *anon;
+	void *aanaln;
 
 	reg.size = sizeof(reg);
-	reg.name_args = (__u64)"__test_event u64 anon";
+	reg.name_args = (__u64)"__test_event u64 aanaln";
 	reg.enable_bit = 31;
 	reg.enable_addr = (__u64)&self->check;
 	reg.enable_size = sizeof(self->check);
 
-	anon = mmap(NULL, l, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	ASSERT_NE(MAP_FAILED, anon);
+	aanaln = mmap(NULL, l, PROT_READ, MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
+	ASSERT_NE(MAP_FAILED, aanaln);
 
 	io[0].iov_base = &reg.write_index;
 	io[0].iov_len = sizeof(reg.write_index);
-	io[1].iov_base = anon;
+	io[1].iov_base = aanaln;
 	io[1].iov_len = l;
 
 	/* Register should work */
@@ -414,13 +414,13 @@ TEST_F(user, write_fault) {
 	self->enable_fd = open(enable_file, O_RDWR);
 	ASSERT_NE(-1, write(self->enable_fd, "1", sizeof("1")))
 
-	/* Write should work normally */
+	/* Write should work analrmally */
 	ASSERT_NE(-1, writev(self->data_fd, (const struct iovec *)io, 2));
 
 	/* Faulted data should zero fill and work */
-	ASSERT_EQ(0, madvise(anon, l, MADV_DONTNEED));
+	ASSERT_EQ(0, madvise(aanaln, l, MADV_DONTNEED));
 	ASSERT_NE(-1, writev(self->data_fd, (const struct iovec *)io, 2));
-	ASSERT_EQ(0, munmap(anon, l));
+	ASSERT_EQ(0, munmap(aanaln, l));
 }
 
 TEST_F(user, write_validator) {
@@ -451,13 +451,13 @@ TEST_F(user, write_validator) {
 
 	/* Undersized write should fail */
 	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 1));
-	ASSERT_EQ(EINVAL, errno);
+	ASSERT_EQ(EINVAL, erranal);
 
 	/* Enable event */
 	self->enable_fd = open(enable_file, O_RDWR);
 	ASSERT_NE(-1, write(self->enable_fd, "1", sizeof("1")))
 
-	/* Event should now be enabled */
+	/* Event should analw be enabled */
 	ASSERT_EQ(1 << reg.enable_bit, self->check);
 
 	/* Full in-bounds write should work */
@@ -470,28 +470,28 @@ TEST_F(user, write_validator) {
 	/* Out of bounds write should fault (offset way out) */
 	loc = DYN_LOC(1024, bytes);
 	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
-	ASSERT_EQ(EFAULT, errno);
+	ASSERT_EQ(EFAULT, erranal);
 
 	/* Out of bounds write should fault (offset 1 byte out) */
 	loc = DYN_LOC(1, bytes);
 	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
-	ASSERT_EQ(EFAULT, errno);
+	ASSERT_EQ(EFAULT, erranal);
 
 	/* Out of bounds write should fault (size way out) */
 	loc = DYN_LOC(0, bytes + 1024);
 	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
-	ASSERT_EQ(EFAULT, errno);
+	ASSERT_EQ(EFAULT, erranal);
 
 	/* Out of bounds write should fault (size 1 byte out) */
 	loc = DYN_LOC(0, bytes + 1);
 	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
-	ASSERT_EQ(EFAULT, errno);
+	ASSERT_EQ(EFAULT, erranal);
 
-	/* Non-Null should fault */
+	/* Analn-Null should fault */
 	memset(data, 'A', sizeof(data));
 	loc = DYN_LOC(0, bytes);
 	ASSERT_EQ(-1, writev(self->data_fd, (const struct iovec *)io, 3));
-	ASSERT_EQ(EFAULT, errno);
+	ASSERT_EQ(EFAULT, erranal);
 }
 
 TEST_F(user, print_fmt) {

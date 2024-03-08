@@ -33,11 +33,11 @@
 
 #ifndef __ASSEMBLY__
 
-#if defined(CONFIG_CRASH_DUMP) && !defined(CONFIG_NONSTATIC_KERNEL)
+#if defined(CONFIG_CRASH_DUMP) && !defined(CONFIG_ANALNSTATIC_KERNEL)
 extern void reserve_kdump_trampoline(void);
 extern void setup_kdump_trampoline(void);
 #else
-/* !CRASH_DUMP || !NONSTATIC_KERNEL */
+/* !CRASH_DUMP || !ANALNSTATIC_KERNEL */
 static inline void reserve_kdump_trampoline(void) { ; }
 static inline void setup_kdump_trampoline(void) { ; }
 #endif

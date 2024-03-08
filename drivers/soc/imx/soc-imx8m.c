@@ -42,7 +42,7 @@ static u32 imx8mq_soc_revision_from_atf(void)
 
 	arm_smccc_smc(IMX_SIP_GET_SOC_INFO, 0, 0, 0, 0, 0, 0, 0, &res);
 
-	if (res.a0 == SMCCC_RET_NOT_SUPPORTED)
+	if (res.a0 == SMCCC_RET_ANALT_SUPPORTED)
 		return 0;
 	else
 		return res.a0 & 0xff;
@@ -53,13 +53,13 @@ static inline u32 imx8mq_soc_revision_from_atf(void) { return 0; };
 
 static u32 __init imx8mq_soc_revision(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *ocotp_base;
 	u32 magic;
 	u32 rev;
 	struct clk *clk;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mq-ocotp");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx8mq-ocotp");
 	if (!np)
 		return 0;
 
@@ -74,7 +74,7 @@ static u32 __init imx8mq_soc_revision(void)
 	clk_prepare_enable(clk);
 
 	/*
-	 * SOC revision on older imx8mq is not available in fuses so query
+	 * SOC revision on older imx8mq is analt available in fuses so query
 	 * the value from ATF instead.
 	 */
 	rev = imx8mq_soc_revision_from_atf();
@@ -91,7 +91,7 @@ static u32 __init imx8mq_soc_revision(void)
 	clk_disable_unprepare(clk);
 	clk_put(clk);
 	iounmap(ocotp_base);
-	of_node_put(np);
+	of_analde_put(np);
 
 	return rev;
 }
@@ -99,12 +99,12 @@ static u32 __init imx8mq_soc_revision(void)
 static void __init imx8mm_soc_uid(void)
 {
 	void __iomem *ocotp_base;
-	struct device_node *np;
+	struct device_analde *np;
 	struct clk *clk;
 	u32 offset = of_machine_is_compatible("fsl,imx8mp") ?
 		     IMX8MP_OCOTP_UID_OFFSET : 0;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mm-ocotp");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx8mm-ocotp");
 	if (!np)
 		return;
 
@@ -125,16 +125,16 @@ static void __init imx8mm_soc_uid(void)
 	clk_disable_unprepare(clk);
 	clk_put(clk);
 	iounmap(ocotp_base);
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 static u32 __init imx8mm_soc_revision(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *anatop_base;
 	u32 rev;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mm-anatop");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx8mm-anatop");
 	if (!np)
 		return 0;
 
@@ -144,7 +144,7 @@ static u32 __init imx8mm_soc_revision(void)
 	rev = readl_relaxed(anatop_base + ANADIG_DIGPROG_IMX8MM);
 
 	iounmap(anatop_base);
-	of_node_put(np);
+	of_analde_put(np);
 
 	imx8mm_soc_uid();
 
@@ -182,7 +182,7 @@ static __maybe_unused const struct of_device_id imx8_soc_match[] = {
 #define imx8_revision(soc_rev) \
 	soc_rev ? \
 	kasprintf(GFP_KERNEL, "%d.%d", (soc_rev >> 4) & 0xf,  soc_rev & 0xf) : \
-	"unknown"
+	"unkanalwn"
 
 static int __init imx8_soc_init(void)
 {
@@ -195,7 +195,7 @@ static int __init imx8_soc_init(void)
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_dev_attr->family = "Freescale i.MX";
 
@@ -203,9 +203,9 @@ static int __init imx8_soc_init(void)
 	if (ret)
 		goto free_soc;
 
-	id = of_match_node(imx8_soc_match, of_root);
+	id = of_match_analde(imx8_soc_match, of_root);
 	if (!id) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free_soc;
 	}
 
@@ -218,13 +218,13 @@ static int __init imx8_soc_init(void)
 
 	soc_dev_attr->revision = imx8_revision(soc_rev);
 	if (!soc_dev_attr->revision) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_soc;
 	}
 
 	soc_dev_attr->serial_number = kasprintf(GFP_KERNEL, "%016llX", soc_uid);
 	if (!soc_dev_attr->serial_number) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_rev;
 	}
 
@@ -245,7 +245,7 @@ static int __init imx8_soc_init(void)
 free_serial_number:
 	kfree(soc_dev_attr->serial_number);
 free_rev:
-	if (strcmp(soc_dev_attr->revision, "unknown"))
+	if (strcmp(soc_dev_attr->revision, "unkanalwn"))
 		kfree(soc_dev_attr->revision);
 free_soc:
 	kfree(soc_dev_attr);

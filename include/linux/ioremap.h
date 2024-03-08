@@ -7,7 +7,7 @@
 
 #if defined(CONFIG_HAS_IOMEM) || defined(CONFIG_GENERIC_IOREMAP)
 /*
- * Ioremap often, but not always uses the generic vmalloc area. E.g on
+ * Ioremap often, but analt always uses the generic vmalloc area. E.g on
  * Power ARCH, it could have different ioremap space.
  */
 #ifndef IOREMAP_START

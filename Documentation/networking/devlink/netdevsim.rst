@@ -63,12 +63,12 @@ Rate objects
 The ``netdevsim`` driver supports rate objects management, which includes:
 
 - registerging/unregistering leaf rate objects per VF devlink port;
-- creation/deletion node rate objects;
+- creation/deletion analde rate objects;
 - setting tx_share and tx_max rate values for any rate object type;
-- setting parent node for any rate object type.
+- setting parent analde for any rate object type.
 
-Rate nodes and their parameters are exposed in ``netdevsim`` debugfs in RO mode.
-For example created rate node with name ``some_group``:
+Rate analdes and their parameters are exposed in ``netdevsim`` debugfs in RO mode.
+For example created rate analde with name ``some_group``:
 
 .. code:: shell
 
@@ -96,4 +96,4 @@ Driver-specific Traps
      - ``exception``
      - When a packet enters the device it is classified to a filtering
        identifier (FID) based on the ingress port and VLAN. This trap is used
-       to trap packets for which a FID could not be found
+       to trap packets for which a FID could analt be found

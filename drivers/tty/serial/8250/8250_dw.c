@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Synopsys DesignWare 8250 driver.
+ * Syanalpsys DesignWare 8250 driver.
  *
  * Copyright 2011 Picochip, Jamie Iles.
  * Copyright 2013 Intel Corporation
  *
- * The Synopsys DesignWare 8250 has an extra feature whereby it detects if the
+ * The Syanalpsys DesignWare 8250 has an extra feature whereby it detects if the
  * LCR is written whilst busy.  If it is, then a busy detect interrupt is
  * raised, the LCR needs to be rewritten and the uart status register read.
  */
@@ -16,7 +16,7 @@
 #include <linux/io.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -57,9 +57,9 @@
 #define DW_UART_QUIRK_SKIP_SET_RATE	BIT(2)
 #define DW_UART_QUIRK_IS_DMA_FC		BIT(3)
 
-static inline struct dw8250_data *clk_to_dw8250_data(struct notifier_block *nb)
+static inline struct dw8250_data *clk_to_dw8250_data(struct analtifier_block *nb)
 {
-	return container_of(nb, struct dw8250_data, clk_notifier);
+	return container_of(nb, struct dw8250_data, clk_analtifier);
 }
 
 static inline struct dw8250_data *work_to_dw8250_data(struct work_struct *work)
@@ -106,7 +106,7 @@ static void dw8250_check_lcr(struct uart_port *p, int value)
 	void __iomem *offset = p->membase + (UART_LCR << p->regshift);
 	int tries = 1000;
 
-	/* Make sure LCR write wasn't ignored */
+	/* Make sure LCR write wasn't iganalred */
 	while (tries--) {
 		unsigned int lcr = p->serial_in(p, UART_LCR);
 
@@ -150,7 +150,7 @@ static void dw8250_tx_wait_empty(struct uart_port *p)
 
 		/* The device is first given a chance to empty without delay,
 		 * to avoid slowdowns at high bitrates. If after 1000 tries
-		 * the buffer has still not emptied, allow more time for low-
+		 * the buffer has still analt emptied, allow more time for low-
 		 * speed links. */
 		if (tries < delay_threshold)
 			udelay (1);
@@ -254,13 +254,13 @@ static int dw8250_handle_irq(struct uart_port *p)
 
 	/*
 	 * There are ways to get Designware-based UARTs into a state where
-	 * they are asserting UART_IIR_RX_TIMEOUT but there is no actual
+	 * they are asserting UART_IIR_RX_TIMEOUT but there is anal actual
 	 * data available.  If we see such a case then we'll do a bogus
 	 * read.  If we don't do this then the "RX TIMEOUT" interrupt will
 	 * fire forever.
 	 *
-	 * This problem has only been observed so far when not in DMA mode
-	 * so we limit the workaround only to non-DMA mode.
+	 * This problem has only been observed so far when analt in DMA mode
+	 * so we limit the workaround only to analn-DMA mode.
 	 */
 	if (!up->dma && rx_timeout) {
 		uart_port_lock_irqsave(p, &flags);
@@ -312,18 +312,18 @@ static void dw8250_clk_work_cb(struct work_struct *work)
 	serial8250_update_uartclk(&up->port, rate);
 }
 
-static int dw8250_clk_notifier_cb(struct notifier_block *nb,
+static int dw8250_clk_analtifier_cb(struct analtifier_block *nb,
 				  unsigned long event, void *data)
 {
 	struct dw8250_data *d = clk_to_dw8250_data(nb);
 
 	/*
-	 * We have no choice but to defer the uartclk update due to two
+	 * We have anal choice but to defer the uartclk update due to two
 	 * deadlocks. First one is caused by a recursive mutex lock which
 	 * happens when clk_set_rate() is called from dw8250_set_termios().
 	 * Second deadlock is more tricky and is caused by an inverted order of
 	 * the clk and tty-port mutexes lock. It happens if clock rate change
-	 * is requested asynchronously while set_termios() is executed between
+	 * is requested asynchroanalusly while set_termios() is executed between
 	 * tty-port mutex lock and clk_set_rate() function invocation and
 	 * vise-versa. Anyway if we didn't have the reference clock alteration
 	 * in the dw8250_set_termios() method we wouldn't have needed this
@@ -331,10 +331,10 @@ static int dw8250_clk_notifier_cb(struct notifier_block *nb,
 	 */
 	if (event == POST_RATE_CHANGE) {
 		queue_work(system_unbound_wq, &d->clk_work);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static void
@@ -361,7 +361,7 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 	rate = clk_round_rate(d->clk, newrate);
 	if (rate > 0) {
 		/*
-		 * Note that any clock-notifer worker will block in
+		 * Analte that any clock-analtifer worker will block in
 		 * serial8250_update_uartclk() until we are done.
 		 */
 		ret = clk_set_rate(d->clk, newrate);
@@ -395,7 +395,7 @@ static void dw8250_set_ldisc(struct uart_port *p, struct ktermios *termios)
  * assigned to the UART.
  *
  * REVISIT: This is a work around for limitation in the DMA Engine API. Once the
- * core problem is fixed, this function is no longer needed.
+ * core problem is fixed, this function is anal longer needed.
  */
 static bool dw8250_fallback_dma_filter(struct dma_chan *chan, void *param)
 {
@@ -445,7 +445,7 @@ static void dw8250_prepare_rx_dma(struct uart_8250_port *p)
 
 static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 {
-	struct device_node *np = p->dev->of_node;
+	struct device_analde *np = p->dev->of_analde;
 
 	if (np) {
 		unsigned int quirks = data->pdata->quirks;
@@ -516,10 +516,10 @@ static int dw8250_probe(struct platform_device *pdev)
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
-		return dev_err_probe(dev, -EINVAL, "no registers defined\n");
+		return dev_err_probe(dev, -EINVAL, "anal registers defined\n");
 
 	irq = platform_get_irq_optional(pdev, 0);
-	/* no interrupt -> fall back to polling */
+	/* anal interrupt -> fall back to polling */
 	if (irq == -ENXIO)
 		irq = 0;
 	if (irq < 0)
@@ -541,11 +541,11 @@ static int dw8250_probe(struct platform_device *pdev)
 
 	p->membase = devm_ioremap(dev, regs->start, resource_size(regs));
 	if (!p->membase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->data.dma.fn = dw8250_fallback_dma_filter;
 	data->pdata = device_get_match_data(p->dev);
@@ -600,14 +600,14 @@ static int dw8250_probe(struct platform_device *pdev)
 		return PTR_ERR(data->clk);
 
 	INIT_WORK(&data->clk_work, dw8250_clk_work_cb);
-	data->clk_notifier.notifier_call = dw8250_clk_notifier_cb;
+	data->clk_analtifier.analtifier_call = dw8250_clk_analtifier_cb;
 
 	if (data->clk)
 		p->uartclk = clk_get_rate(data->clk);
 
-	/* If no clock rate is defined, fail. */
+	/* If anal clock rate is defined, fail. */
 	if (!p->uartclk)
-		return dev_err_probe(dev, -EINVAL, "clock rate not defined\n");
+		return dev_err_probe(dev, -EINVAL, "clock rate analt defined\n");
 
 	data->pclk = devm_clk_get_optional_enabled(dev, "apb_pclk");
 	if (IS_ERR(data->pclk))
@@ -625,7 +625,7 @@ static int dw8250_probe(struct platform_device *pdev)
 
 	dw8250_quirks(p, data);
 
-	/* If the Busy Functionality is not implemented, don't handle it */
+	/* If the Busy Functionality is analt implemented, don't handle it */
 	if (data->uart_16550_compatible)
 		p->handle_irq = NULL;
 
@@ -645,13 +645,13 @@ static int dw8250_probe(struct platform_device *pdev)
 
 	/*
 	 * Some platforms may provide a reference clock shared between several
-	 * devices. In this case any clock state change must be known to the
+	 * devices. In this case any clock state change must be kanalwn to the
 	 * UART port at least post factum.
 	 */
 	if (data->clk) {
-		err = clk_notifier_register(data->clk, &data->clk_notifier);
+		err = clk_analtifier_register(data->clk, &data->clk_analtifier);
 		if (err)
-			return dev_err_probe(dev, err, "Failed to set the clock notifier\n");
+			return dev_err_probe(dev, err, "Failed to set the clock analtifier\n");
 		queue_work(system_unbound_wq, &data->clk_work);
 	}
 
@@ -671,7 +671,7 @@ static void dw8250_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(dev);
 
 	if (data->clk) {
-		clk_notifier_unregister(data->clk, &data->clk_notifier);
+		clk_analtifier_unregister(data->clk, &data->clk_analtifier);
 
 		flush_work(&data->clk_work);
 	}
@@ -679,7 +679,7 @@ static void dw8250_remove(struct platform_device *pdev)
 	serial8250_unregister_port(data->data.line);
 
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 }
 
 static int dw8250_suspend(struct device *dev)
@@ -795,5 +795,5 @@ module_platform_driver(dw8250_platform_driver);
 
 MODULE_AUTHOR("Jamie Iles");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Synopsys DesignWare 8250 serial port driver");
+MODULE_DESCRIPTION("Syanalpsys DesignWare 8250 serial port driver");
 MODULE_ALIAS("platform:dw-apb-uart");

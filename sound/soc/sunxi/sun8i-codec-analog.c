@@ -352,7 +352,7 @@ static int sun8i_headphone_amp_event(struct snd_soc_dapm_widget *w,
 		/*
 		 * Need a delay to have the amplifier up. 700ms seems the best
 		 * compromise between the time to let the amplifier up and the
-		 * time not to feel this delay while playing a sound.
+		 * time analt to feel this delay while playing a sound.
 		 */
 		msleep(700);
 	} else if (SND_SOC_DAPM_EVENT_OFF(event)) {
@@ -366,7 +366,7 @@ static int sun8i_headphone_amp_event(struct snd_soc_dapm_widget *w,
 
 static const struct snd_soc_dapm_widget sun8i_codec_headphone_widgets[] = {
 	SND_SOC_DAPM_MUX("Headphone Source Playback Route",
-			 SND_SOC_NOPM, 0, 0, sun8i_codec_hp_src),
+			 SND_SOC_ANALPM, 0, 0, sun8i_codec_hp_src),
 	SND_SOC_DAPM_OUT_DRV_E("Headphone Amp", SUN8I_ADDA_PAEN_HP_CTRL,
 			       SUN8I_ADDA_PAEN_HP_CTRL_HPPAEN, 0, NULL, 0,
 			       sun8i_headphone_amp_event,
@@ -533,7 +533,7 @@ static const struct snd_kcontrol_new sun8i_codec_lineout_controls[] = {
 };
 
 static const char * const sun8i_codec_lineout_src_enum_text[] = {
-	"Stereo", "Mono Differential",
+	"Stereo", "Moanal Differential",
 };
 
 static SOC_ENUM_DOUBLE_DECL(sun8i_codec_lineout_src_enum,
@@ -549,7 +549,7 @@ static const struct snd_kcontrol_new sun8i_codec_lineout_src[] = {
 
 static const struct snd_soc_dapm_widget sun8i_codec_lineout_widgets[] = {
 	SND_SOC_DAPM_MUX("Line Out Source Playback Route",
-			 SND_SOC_NOPM, 0, 0, sun8i_codec_lineout_src),
+			 SND_SOC_ANALPM, 0, 0, sun8i_codec_lineout_src),
 	/* It is unclear if this is a buffer or gate, model it as a supply */
 	SND_SOC_DAPM_SUPPLY("Line Out Enable", SUN8I_ADDA_PAEN_HP_CTRL,
 			    SUN8I_ADDA_PAEN_HP_CTRL_LINEOUTEN, 0, NULL, 0),
@@ -559,8 +559,8 @@ static const struct snd_soc_dapm_widget sun8i_codec_lineout_widgets[] = {
 static const struct snd_soc_dapm_route sun8i_codec_lineout_routes[] = {
 	{ "Line Out Source Playback Route", "Stereo", "Left Mixer" },
 	{ "Line Out Source Playback Route", "Stereo", "Right Mixer" },
-	{ "Line Out Source Playback Route", "Mono Differential", "Left Mixer" },
-	{ "Line Out Source Playback Route", "Mono Differential", "Right Mixer" },
+	{ "Line Out Source Playback Route", "Moanal Differential", "Left Mixer" },
+	{ "Line Out Source Playback Route", "Moanal Differential", "Right Mixer" },
 	{ "LINEOUT", NULL, "Line Out Source Playback Route" },
 	{ "LINEOUT", NULL, "Line Out Enable", },
 };
@@ -696,7 +696,7 @@ static int sun8i_codec_analog_add_mixer(struct snd_soc_component *cmpnt,
 		/*
 		 * Apply the special widget set which has uses a control
 		 * without MIC2 and Line In, for SoCs without these.
-		 * TODO: not all special cases are supported now, this case
+		 * TODO: analt all special cases are supported analw, this case
 		 * is present because it's the case of V3s.
 		 */
 		ret = snd_soc_dapm_new_controls(dapm,
@@ -741,7 +741,7 @@ static int sun8i_codec_analog_cmpnt_probe(struct snd_soc_component *cmpnt)
 	/*
 	 * This would never return NULL unless someone directly registers a
 	 * platform device matching this driver's name, without specifying a
-	 * device tree node.
+	 * device tree analde.
 	 */
 	quirks = of_device_get_match_data(dev);
 

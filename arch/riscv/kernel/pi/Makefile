@@ -3,16 +3,16 @@
 
 KBUILD_CFLAGS	:= $(subst $(CC_FLAGS_FTRACE),,$(KBUILD_CFLAGS)) -fpie \
 		   -Os -DDISABLE_BRANCH_PROFILING $(DISABLE_STACKLEAK_PLUGIN) \
-		   $(call cc-option,-mbranch-protection=none) \
-		   -I$(srctree)/scripts/dtc/libfdt -fno-stack-protector \
+		   $(call cc-option,-mbranch-protection=analne) \
+		   -I$(srctree)/scripts/dtc/libfdt -fanal-stack-protector \
 		   -D__DISABLE_EXPORTS -ffreestanding \
-		   -fno-asynchronous-unwind-tables -fno-unwind-tables \
-		   $(call cc-option,-fno-addrsig)
+		   -fanal-asynchroanalus-unwind-tables -fanal-unwind-tables \
+		   $(call cc-option,-fanal-addrsig)
 
 KBUILD_CFLAGS	+= -mcmodel=medany
 
-CFLAGS_cmdline_early.o += -D__NO_FORTIFY
-CFLAGS_lib-fdt_ro.o += -D__NO_FORTIFY
+CFLAGS_cmdline_early.o += -D__ANAL_FORTIFY
+CFLAGS_lib-fdt_ro.o += -D__ANAL_FORTIFY
 
 GCOV_PROFILE	:= n
 KASAN_SANITIZE	:= n
@@ -21,7 +21,7 @@ UBSAN_SANITIZE	:= n
 KCOV_INSTRUMENT	:= n
 
 $(obj)/%.pi.o: OBJCOPYFLAGS := --prefix-symbols=__pi_ \
-			       --remove-section=.note.gnu.property \
+			       --remove-section=.analte.gnu.property \
 			       --prefix-alloc-sections=.init.pi
 $(obj)/%.pi.o: $(obj)/%.o FORCE
 	$(call if_changed,objcopy)

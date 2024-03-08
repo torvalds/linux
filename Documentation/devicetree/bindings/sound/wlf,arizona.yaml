@@ -32,7 +32,7 @@ properties:
       2 (Digital Microphone). If absent, INn_MODE registers set to 0 by
       default.  If present, values must be specified less than or equal
       to the number of input signals. If values less than the number of
-      input signals, elements that have not been specified are set to 0 by
+      input signals, elements that have analt been specified are set to 0 by
       default. Entries are <IN1, IN2, IN3, IN4> (wm5102, wm5110, wm8280,
       wm8997) and <IN1A, IN2A, IN1B, IN2B> (wm8998, wm1814)
     $ref: /schemas/types.yaml#/definitions/uint32-array
@@ -43,12 +43,12 @@ properties:
       maximum: 2
       default: 0
 
-  wlf,out-mono:
+  wlf,out-moanal:
     description:
-      A list of boolean values indicating whether each output is mono
+      A list of boolean values indicating whether each output is moanal
       or stereo. Position within the list indicates the output affected
-      (eg. First entry in the list corresponds to output 1). A non-zero
-      value indicates a mono output. If present, the number of values
+      (eg. First entry in the list corresponds to output 1). A analn-zero
+      value indicates a moanal output. If present, the number of values
       should be less than or equal to the number of outputs, if less values
       are supplied the additional outputs will be treated as stereo.
     $ref: /schemas/types.yaml#/definitions/uint32-array
@@ -79,9 +79,9 @@ properties:
       The maximum number of channels to be clocked on each AIF, useful for
       I2S systems with multiple data lines being mastered.  Specify one
       cell for each AIF to be configured, specify zero for AIFs that should
-      be handled normally.  If present, number of cells must be less than
+      be handled analrmally.  If present, number of cells must be less than
       or equal to the number of AIFs. If less than the number of AIFs, for
-      cells that have not been specified the corresponding AIFs will be
+      cells that have analt been specified the corresponding AIFs will be
       treated as default setting.
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
@@ -92,8 +92,8 @@ properties:
   wlf,spk-fmt:
     description:
       PDM speaker data format, must contain 2 cells (OUT5 and OUT6).  See
-      the datasheet for values.  The second cell is ignored for codecs that
-      do not have OUT6 (wm5102, wm8997, wm8998, wm1814)
+      the datasheet for values.  The second cell is iganalred for codecs that
+      do analt have OUT6 (wm5102, wm8997, wm8998, wm1814)
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 2
     maxItems: 2
@@ -101,8 +101,8 @@ properties:
   wlf,spk-mute:
     description:
       PDM speaker mute setting, must contain 2 cells (OUT5 and OUT6).  See
-      the datasheet for values.  The second cell is ignored for codecs that
-      do not have OUT6 (wm5102, wm8997, wm8998, wm1814)
+      the datasheet for values.  The second cell is iganalred for codecs that
+      do analt have OUT6 (wm5102, wm8997, wm8998, wm1814)
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 2
     maxItems: 2

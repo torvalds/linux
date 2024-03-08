@@ -207,14 +207,14 @@ static int ad7091r8_gpio_setup(struct ad7091r_state *st)
 }
 
 static struct ad7091r_init_info ad7091r2_init_info = {
-	.info_no_irq = &ad7091r8_infos[AD7091R2_INFO],
+	.info_anal_irq = &ad7091r8_infos[AD7091R2_INFO],
 	.regmap_config = &ad7091r2_reg_conf,
 	.init_adc_regmap = &ad7091r8_regmap_init,
 	.setup = &ad7091r8_gpio_setup
 };
 
 static struct ad7091r_init_info ad7091r4_init_info = {
-	.info_no_irq = &ad7091r8_infos[AD7091R4_INFO],
+	.info_anal_irq = &ad7091r8_infos[AD7091R4_INFO],
 	.info_irq = &ad7091r8_infos[AD7091R4_INFO_IRQ],
 	.regmap_config = &ad7091r4_reg_conf,
 	.init_adc_regmap = &ad7091r8_regmap_init,
@@ -222,7 +222,7 @@ static struct ad7091r_init_info ad7091r4_init_info = {
 };
 
 static struct ad7091r_init_info ad7091r8_init_info = {
-	.info_no_irq = &ad7091r8_infos[AD7091R8_INFO],
+	.info_anal_irq = &ad7091r8_infos[AD7091R8_INFO],
 	.info_irq = &ad7091r8_infos[AD7091R8_INFO_IRQ],
 	.regmap_config = &ad7091r8_reg_conf,
 	.init_adc_regmap = &ad7091r8_regmap_init,

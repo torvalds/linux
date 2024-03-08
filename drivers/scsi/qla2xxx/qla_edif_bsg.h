@@ -57,7 +57,7 @@ struct app_id {
 
 struct app_start_reply {
 	uint32_t	host_support_edif;
-	uint32_t	edif_enode_active;
+	uint32_t	edif_eanalde_active;
 	uint32_t	edif_edb_active;
 	uint8_t		version;
 	uint8_t		pad[VND_CMD_PAD_SIZE];
@@ -112,7 +112,7 @@ struct app_pinfo {
 	port_id_t remote_pid;
 	uint8_t	remote_wwpn[WWN_SIZE];
 	uint8_t	remote_type;
-#define	VND_CMD_RTYPE_UNKNOWN		0
+#define	VND_CMD_RTYPE_UNKANALWN		0
 #define	VND_CMD_RTYPE_TARGET		1
 #define	VND_CMD_RTYPE_INITIATOR		2
 	uint8_t	remote_state;
@@ -178,7 +178,7 @@ struct qla_sa_update_frame {
 	uint32_t	salt;
 	uint32_t	spi;
 	uint8_t		sa_key[32];
-	uint8_t		node_name[WWN_SIZE];
+	uint8_t		analde_name[WWN_SIZE];
 	uint8_t		port_name[WWN_SIZE];
 	port_id_t	port_id;
 	uint8_t		version;

@@ -35,7 +35,7 @@ static int tee_alloc_ring(struct psp_tee_device *tee, int ring_size)
 	 */
 	start_addr = (void *)__get_free_pages(GFP_KERNEL, get_order(ring_size));
 	if (!start_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(start_addr, 0x0, ring_size);
 	rb_mgr->ring_start = start_addr;
@@ -106,7 +106,7 @@ static int tee_init_ring(struct psp_tee_device *tee)
 	cmd = tee_alloc_cmd_buffer(tee);
 	if (!cmd) {
 		tee_free_ring(tee);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Send command buffer details to Trusted OS by writing to
@@ -165,7 +165,7 @@ int tee_dev_init(struct psp_device *psp)
 	struct psp_tee_device *tee;
 	int ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	tee = devm_kzalloc(dev, sizeof(*tee), GFP_KERNEL);
 	if (!tee)
 		goto e_err;
@@ -179,7 +179,7 @@ int tee_dev_init(struct psp_device *psp)
 
 	tee->vdata = (struct tee_vdata *)psp->vdata->tee;
 	if (!tee->vdata) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(dev, "tee: missing driver data\n");
 		goto e_err;
 	}
@@ -190,14 +190,14 @@ int tee_dev_init(struct psp_device *psp)
 		goto e_err;
 	}
 
-	dev_notice(dev, "tee enabled\n");
+	dev_analtice(dev, "tee enabled\n");
 
 	return 0;
 
 e_err:
 	psp->tee_data = NULL;
 
-	dev_notice(dev, "tee initialization failed\n");
+	dev_analtice(dev, "tee initialization failed\n");
 
 	return ret;
 }
@@ -257,8 +257,8 @@ static int tee_submit_cmd(struct psp_tee_device *tee, enum tee_cmd_id cmd_id,
 		goto unlock;
 	}
 
-	/* Do not submit command if PSP got disabled while processing any
-	 * command in another thread
+	/* Do analt submit command if PSP got disabled while processing any
+	 * command in aanalther thread
 	 */
 	if (psp_dead) {
 		ret = -EBUSY;
@@ -329,7 +329,7 @@ int psp_tee_process_cmd(enum tee_cmd_id cmd_id, void *buf, size_t len,
 	*status = 0;
 
 	if (!psp || !psp->tee_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (psp_dead)
 		return -EBUSY;
@@ -360,7 +360,7 @@ int psp_check_tee_status(void)
 	struct psp_device *psp = psp_get_master_device();
 
 	if (!psp || !psp->tee_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }

@@ -106,7 +106,7 @@ static const struct regulator_ops aw37503_regulator_ops = {
 	.set_active_discharge = regulator_set_active_discharge_regmap,
 };
 
-static int aw37503_of_parse_cb(struct device_node *np,
+static int aw37503_of_parse_cb(struct device_analde *np,
 				const struct regulator_desc *desc,
 				struct regulator_config *config)
 {
@@ -114,14 +114,14 @@ static int aw37503_of_parse_cb(struct device_node *np,
 	struct aw37503_reg_pdata *rpdata = &chip->reg_pdata[desc->id];
 	int ret;
 
-	rpdata->en_gpiod = devm_fwnode_gpiod_get(chip->dev, of_fwnode_handle(np),
+	rpdata->en_gpiod = devm_fwanalde_gpiod_get(chip->dev, of_fwanalde_handle(np),
 						 "enable", GPIOD_OUT_LOW,
 						 "enable");
 
 	if (IS_ERR(rpdata->en_gpiod)) {
 		ret = PTR_ERR(rpdata->en_gpiod);
 
-		/* Ignore the error other than probe defer */
+		/* Iganalre the error other than probe defer */
 		if (ret == -EPROBE_DEFER)
 			return ret;
 		return 0;
@@ -157,22 +157,22 @@ static const struct regulator_desc aw_regs_desc[AW37503_MAX_REGULATORS] = {
 	AW37503_REGULATOR_DESC(VNEG, outn),
 };
 
-static const struct regmap_range aw37503_no_reg_ranges[] = {
+static const struct regmap_range aw37503_anal_reg_ranges[] = {
 	regmap_reg_range(AW37503_REG_CONTROL + 1,
 			 AW37503_REG_WPRTEN - 1),
 };
 
-static const struct regmap_access_table aw37503_no_reg_table = {
-	.no_ranges = aw37503_no_reg_ranges,
-	.n_no_ranges = ARRAY_SIZE(aw37503_no_reg_ranges),
+static const struct regmap_access_table aw37503_anal_reg_table = {
+	.anal_ranges = aw37503_anal_reg_ranges,
+	.n_anal_ranges = ARRAY_SIZE(aw37503_anal_reg_ranges),
 };
 
 static const struct regmap_config aw37503_regmap_config = {
 	.reg_bits	= 8,
 	.val_bits	= 8,
 	.max_register	= AW37503_REG_WPRTEN,
-	.rd_table	= &aw37503_no_reg_table,
-	.wr_table	= &aw37503_no_reg_table,
+	.rd_table	= &aw37503_anal_reg_table,
+	.wr_table	= &aw37503_anal_reg_table,
 };
 
 static int aw37503_probe(struct i2c_client *client)
@@ -186,7 +186,7 @@ static int aw37503_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regmap = devm_regmap_init_i2c(client, &aw37503_regmap_config);
 	if (IS_ERR(regmap))

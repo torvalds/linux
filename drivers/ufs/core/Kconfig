@@ -9,7 +9,7 @@
 #	Vinayak Holikatti <h.vinayak@samsung.com>
 
 config SCSI_UFS_BSG
-	bool "Universal Flash Storage BSG device node"
+	bool "Universal Flash Storage BSG device analde"
 	select BLK_DEV_BSGLIB
 	help
 	  Universal Flash Storage (UFS) is SCSI transport specification for
@@ -17,13 +17,13 @@ config SCSI_UFS_BSG
 	  consumer electronic devices.
 	  A UFS controller communicates with a UFS device by exchanging
 	  UFS Protocol Information Units (UPIUs).
-	  UPIUs can not only be used as a transport layer for the SCSI protocol
+	  UPIUs can analt only be used as a transport layer for the SCSI protocol
 	  but are also used by the UFS native command set.
 	  This transport driver supports exchanging UFS protocol information units
 	  with a UFS device. See also the ufshcd driver, which is a SCSI driver
 	  that supports UFS devices.
 
-	  Select this if you need a bsg device node for your UFS controller.
+	  Select this if you need a bsg device analde for your UFS controller.
 	  If unsure, say N.
 
 config SCSI_UFS_CRYPTO
@@ -43,7 +43,7 @@ config SCSI_UFS_FAULT_INJECTION
 	  to test the UFS error handler and abort handler.
 
 config SCSI_UFS_HWMON
-	bool "UFS Temperature Notification"
+	bool "UFS Temperature Analtification"
 	depends on SCSI_UFSHCD=HWMON || HWMON=y
 	help
 	  This provides support for UFS hardware monitoring. If enabled,

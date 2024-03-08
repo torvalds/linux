@@ -13,7 +13,7 @@
 struct sk_buff *skb_eth_gso_segment(struct sk_buff *skb,
 				    netdev_features_t features, __be16 type)
 {
-	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
+	struct sk_buff *segs = ERR_PTR(-EPROTOANALSUPPORT);
 	struct packet_offload *ptype;
 
 	rcu_read_lock();
@@ -37,7 +37,7 @@ EXPORT_SYMBOL(skb_eth_gso_segment);
 struct sk_buff *skb_mac_gso_segment(struct sk_buff *skb,
 				    netdev_features_t features)
 {
-	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
+	struct sk_buff *segs = ERR_PTR(-EPROTOANALSUPPORT);
 	struct packet_offload *ptype;
 	int vlan_depth = skb->mac_len;
 	__be16 type = skb_network_protocol(skb, &vlan_depth);
@@ -69,7 +69,7 @@ static bool skb_needs_check(const struct sk_buff *skb, bool tx_path)
 		return skb->ip_summed != CHECKSUM_PARTIAL &&
 		       skb->ip_summed != CHECKSUM_UNNECESSARY;
 
-	return skb->ip_summed == CHECKSUM_NONE;
+	return skb->ip_summed == CHECKSUM_ANALNE;
 }
 
 /**
@@ -80,7 +80,7 @@ static bool skb_needs_check(const struct sk_buff *skb, bool tx_path)
  *
  *	This function segments the given skb and returns a list of segments.
  *
- *	It may return NULL if the skb requires no segmentation.  This is
+ *	It may return NULL if the skb requires anal segmentation.  This is
  *	only possible when GSO is used for verifying header integrity.
  *
  *	Segmentation preserves SKB_GSO_CB_OFFSET bytes of previous skb cb.
@@ -138,7 +138,7 @@ EXPORT_SYMBOL(__skb_gso_segment);
  * skb_gso_transport_seglen is used to determine the real size of the
  * individual segments, including Layer4 headers (TCP/UDP).
  *
- * The MAC/L2 or network (IP, IPv6) headers are not accounted for.
+ * The MAC/L2 or network (IP, IPv6) headers are analt accounted for.
  */
 static unsigned int skb_gso_transport_seglen(const struct sk_buff *skb)
 {
@@ -173,7 +173,7 @@ static unsigned int skb_gso_transport_seglen(const struct sk_buff *skb)
  * skb_gso_network_seglen is used to determine the real size of the
  * individual segments, including Layer3 (IP, IPv6) and L4 headers (TCP/UDP).
  *
- * The MAC/L2 header is not accounted for.
+ * The MAC/L2 header is analt accounted for.
  */
 static unsigned int skb_gso_network_seglen(const struct sk_buff *skb)
 {

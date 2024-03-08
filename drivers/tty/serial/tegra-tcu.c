@@ -168,7 +168,7 @@ static void tegra_tcu_receive(struct mbox_client *cl, void *msg)
 
 	for (i = 0; i < num_bytes; i++)
 		tty_insert_flip_char(port, TCU_MBOX_BYTE_V(value, i),
-				     TTY_NORMAL);
+				     TTY_ANALRMAL);
 
 	tty_flip_buffer_push(port);
 }
@@ -181,7 +181,7 @@ static int tegra_tcu_probe(struct platform_device *pdev)
 
 	tcu = devm_kzalloc(&pdev->dev, sizeof(*tcu), GFP_KERNEL);
 	if (!tcu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tcu->tx_client.dev = &pdev->dev;
 	tcu->rx_client.dev = &pdev->dev;

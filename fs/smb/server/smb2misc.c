@@ -25,7 +25,7 @@ static int check_smb2_hdr(struct smb2_hdr *hdr)
  *  The following table defines the expected "StructureSize" of SMB2 requests
  *  in order by SMB2 command.  This is similar to "wct" in SMB/CIFS requests.
  *
- *  Note that commands are defined in smb2pdu.h in le16 but the array below is
+ *  Analte that commands are defined in smb2pdu.h in le16 but the array below is
  *  indexed by command in host byte order
  */
 static const __le16 smb2_req_struct_sizes[NUMBER_OF_SMB2_COMMANDS] = {
@@ -44,7 +44,7 @@ static const __le16 smb2_req_struct_sizes[NUMBER_OF_SMB2_COMMANDS] = {
 	/* SMB2_CANCEL */ cpu_to_le16(4),
 	/* SMB2_ECHO */ cpu_to_le16(4),
 	/* SMB2_QUERY_DIRECTORY */ cpu_to_le16(33),
-	/* SMB2_CHANGE_NOTIFY */ cpu_to_le16(32),
+	/* SMB2_CHANGE_ANALTIFY */ cpu_to_le16(32),
 	/* SMB2_QUERY_INFO */ cpu_to_le16(41),
 	/* SMB2_SET_INFO */ cpu_to_le16(33),
 	/* use 44 for lease break */
@@ -54,7 +54,7 @@ static const __le16 smb2_req_struct_sizes[NUMBER_OF_SMB2_COMMANDS] = {
 /*
  * The size of the variable area depends on the offset and length fields
  * located in different fields for various SMB2 requests. SMB2 requests
- * with no variable length info, show an offset of zero for the offset field.
+ * with anal variable length info, show an offset of zero for the offset field.
  */
 static const bool has_smb2_data_area[NUMBER_OF_SMB2_COMMANDS] = {
 	/* SMB2_NEGOTIATE */ true,
@@ -69,10 +69,10 @@ static const bool has_smb2_data_area[NUMBER_OF_SMB2_COMMANDS] = {
 	/* SMB2_WRITE */ true,
 	/* SMB2_LOCK */	true,
 	/* SMB2_IOCTL */ true,
-	/* SMB2_CANCEL */ false, /* BB CHECK this not listed in documentation */
+	/* SMB2_CANCEL */ false, /* BB CHECK this analt listed in documentation */
 	/* SMB2_ECHO */ false,
 	/* SMB2_QUERY_DIRECTORY */ true,
-	/* SMB2_CHANGE_NOTIFY */ false,
+	/* SMB2_CHANGE_ANALTIFY */ false,
 	/* SMB2_QUERY_INFO */ true,
 	/* SMB2_SET_INFO */ true,
 	/* SMB2_OPLOCK_BREAK */ false
@@ -172,7 +172,7 @@ static int smb2_get_data_area_len(unsigned int *off, unsigned int *len,
 		*len = le32_to_cpu(((struct smb2_ioctl_req *)hdr)->InputCount);
 		break;
 	default:
-		ksmbd_debug(SMB, "no length check for command\n");
+		ksmbd_debug(SMB, "anal length check for command\n");
 		break;
 	}
 
@@ -229,7 +229,7 @@ static int smb2_calc_size(void *buf, unsigned int *len)
 	if (data_length > 0) {
 		/*
 		 * Check to make sure that data area begins after fixed area,
-		 * Note that last byte of the fixed area is part of data area
+		 * Analte that last byte of the fixed area is part of data area
 		 * for some commands, typically those with odd StructureSize,
 		 * so we must add one to the calculation.
 		 */
@@ -440,7 +440,7 @@ int ksmbd_smb2_check_message(struct ksmbd_work *work)
 			goto validate_credit;
 
 		pr_err_ratelimited(
-			    "cli req too short, len %d not %d. cmd:%d mid:%llu\n",
+			    "cli req too short, len %d analt %d. cmd:%d mid:%llu\n",
 			    len, clc_len, command,
 			    le64_to_cpu(hdr->MessageId));
 

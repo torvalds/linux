@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2019, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2019, Mellaanalx Techanallogies inc.  All rights reserved.
  */
 
 #include <linux/dim.h>
@@ -57,7 +57,7 @@ EXPORT_SYMBOL(dim_park_tired);
 bool dim_calc_stats(struct dim_sample *start, struct dim_sample *end,
 		    struct dim_stats *curr_stats)
 {
-	/* u32 holds up to 71 minutes, should be enough */
+	/* u32 holds up to 71 minutes, should be eanalugh */
 	u32 delta_us = ktime_us_delta(end->time, start->time);
 	u32 npkts = BIT_GAP(BITS_PER_TYPE(u32), end->pkt_ctr, start->pkt_ctr);
 	u32 nbytes = BIT_GAP(BITS_PER_TYPE(u32), end->byte_ctr,

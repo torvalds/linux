@@ -122,12 +122,12 @@ struct slibe {
 };
 
 /**
- * struct qaob - queue asynchronous operation block
+ * struct qaob - queue asynchroanalus operation block
  * @res0: reserved parameters
  * @res1: reserved parameter
  * @res2: reserved parameter
  * @res3: reserved parameter
- * @aorc: asynchronous operation return code
+ * @aorc: asynchroanalus operation return code
  * @flags: internal flags
  * @cbtbs: control block type
  * @sb_count: number of storage blocks
@@ -308,10 +308,10 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * @q_format: queue format
  * @qdr_ac: feature flags to set
  * @qib_param_field_format: format for qib_parm_field
- * @qib_param_field: pointer to 128 bytes or NULL, if no param field
+ * @qib_param_field: pointer to 128 bytes or NULL, if anal param field
  * @qib_rflags: rflags to set
- * @no_input_qs: number of input queues
- * @no_output_qs: number of output queues
+ * @anal_input_qs: number of input queues
+ * @anal_output_qs: number of output queues
  * @input_handler: handler to be called for input queues, and device-wide errors
  * @output_handler: handler to be called for output queues
  * @irq_poll: Data IRQ polling handler
@@ -326,8 +326,8 @@ struct qdio_initialize {
 	unsigned int qib_param_field_format;
 	unsigned char *qib_param_field;
 	unsigned char qib_rflags;
-	unsigned int no_input_qs;
-	unsigned int no_output_qs;
+	unsigned int anal_input_qs;
+	unsigned int anal_output_qs;
 	qdio_handler_t *input_handler;
 	qdio_handler_t *output_handler;
 	void (*irq_poll)(struct ccw_device *cdev, unsigned long data);
@@ -340,8 +340,8 @@ int qdio_alloc_buffers(struct qdio_buffer **buf, unsigned int count);
 void qdio_free_buffers(struct qdio_buffer **buf, unsigned int count);
 void qdio_reset_buffers(struct qdio_buffer **buf, unsigned int count);
 
-extern int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
-			 unsigned int no_output_qs);
+extern int qdio_allocate(struct ccw_device *cdev, unsigned int anal_input_qs,
+			 unsigned int anal_output_qs);
 extern int qdio_establish(struct ccw_device *cdev,
 			  struct qdio_initialize *init_data);
 extern int qdio_activate(struct ccw_device *);

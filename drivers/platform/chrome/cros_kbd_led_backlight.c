@@ -26,7 +26,7 @@ struct keyboard_led {
  * struct keyboard_led_drvdata - keyboard LED driver data.
  * @init:			Init function.
  * @brightness_get:		Get LED brightness level.
- * @brightness_set:		Set LED brightness level.  Must not sleep.
+ * @brightness_set:		Set LED brightness level.  Must analt sleep.
  * @brightness_set_blocking:	Set LED brightness level.  It can block the
  *				caller for the time required for accessing a
  *				LED device register
@@ -173,7 +173,7 @@ static int keyboard_led_init_ec_pwm(struct platform_device *pdev)
 
 	keyboard_led->ec = dev_get_drvdata(pdev->dev.parent);
 	if (!keyboard_led->ec) {
-		dev_err(&pdev->dev, "no parent EC device\n");
+		dev_err(&pdev->dev, "anal parent EC device\n");
 		return -EINVAL;
 	}
 
@@ -205,7 +205,7 @@ static int keyboard_led_probe(struct platform_device *pdev)
 
 	keyboard_led = devm_kzalloc(&pdev->dev, sizeof(*keyboard_led), GFP_KERNEL);
 	if (!keyboard_led)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, keyboard_led);
 
 	if (drvdata->init) {

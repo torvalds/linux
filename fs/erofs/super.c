@@ -15,7 +15,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/erofs.h>
 
-static struct kmem_cache *erofs_inode_cachep __read_mostly;
+static struct kmem_cache *erofs_ianalde_cachep __read_mostly;
 
 void _erofs_err(struct super_block *sb, const char *func, const char *fmt, ...)
 {
@@ -62,7 +62,7 @@ static int erofs_superblock_csum_verify(struct super_block *sb, void *sbdata)
 
 	dsb = kmemdup(sbdata + EROFS_SUPER_OFFSET, len, GFP_KERNEL);
 	if (!dsb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	expected_crc = le32_to_cpu(dsb->checksum);
 	dsb->checksum = 0;
@@ -78,34 +78,34 @@ static int erofs_superblock_csum_verify(struct super_block *sb, void *sbdata)
 	return 0;
 }
 
-static void erofs_inode_init_once(void *ptr)
+static void erofs_ianalde_init_once(void *ptr)
 {
-	struct erofs_inode *vi = ptr;
+	struct erofs_ianalde *vi = ptr;
 
-	inode_init_once(&vi->vfs_inode);
+	ianalde_init_once(&vi->vfs_ianalde);
 }
 
-static struct inode *erofs_alloc_inode(struct super_block *sb)
+static struct ianalde *erofs_alloc_ianalde(struct super_block *sb)
 {
-	struct erofs_inode *vi =
-		alloc_inode_sb(sb, erofs_inode_cachep, GFP_KERNEL);
+	struct erofs_ianalde *vi =
+		alloc_ianalde_sb(sb, erofs_ianalde_cachep, GFP_KERNEL);
 
 	if (!vi)
 		return NULL;
 
-	/* zero out everything except vfs_inode */
-	memset(vi, 0, offsetof(struct erofs_inode, vfs_inode));
-	return &vi->vfs_inode;
+	/* zero out everything except vfs_ianalde */
+	memset(vi, 0, offsetof(struct erofs_ianalde, vfs_ianalde));
+	return &vi->vfs_ianalde;
 }
 
-static void erofs_free_inode(struct inode *inode)
+static void erofs_free_ianalde(struct ianalde *ianalde)
 {
-	struct erofs_inode *vi = EROFS_I(inode);
+	struct erofs_ianalde *vi = EROFS_I(ianalde);
 
-	if (inode->i_op == &erofs_fast_symlink_iops)
-		kfree(inode->i_link);
+	if (ianalde->i_op == &erofs_fast_symlink_iops)
+		kfree(ianalde->i_link);
 	kfree(vi->xattr_shared_xattrs);
-	kmem_cache_free(erofs_inode_cachep, vi);
+	kmem_cache_free(erofs_ianalde_cachep, vi);
 }
 
 static bool check_layout_compatibility(struct super_block *sb,
@@ -141,7 +141,7 @@ void *erofs_read_metadata(struct super_block *sb, struct erofs_buf *buf,
 		len = U16_MAX + 1;
 	buffer = kmalloc(len, GFP_KERNEL);
 	if (!buffer)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	*offset += sizeof(__le16);
 	*lengthp = len;
 
@@ -167,7 +167,7 @@ static int z_erofs_parse_cfgs(struct super_block *sb,
 		return 0;
 
 	erofs_err(sb, "compression disabled, unable to mount compressed EROFS");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 
@@ -192,7 +192,7 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 		}
 		dif->path = kmemdup_nul(dis->tag, sizeof(dis->tag), GFP_KERNEL);
 		if (!dif->path)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (erofs_is_fscache_mode(sb)) {
@@ -258,7 +258,7 @@ static int erofs_scan_devices(struct super_block *sb,
 		for (id = 0; id < ondisk_extradevs; id++) {
 			dif = kzalloc(sizeof(*dif), GFP_KERNEL);
 			if (!dif) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				break;
 			}
 
@@ -289,7 +289,7 @@ static int erofs_read_superblock(struct super_block *sb)
 
 	data = erofs_read_metabuf(&buf, sb, 0, EROFS_KMAP);
 	if (IS_ERR(data)) {
-		erofs_err(sb, "cannot read erofs superblock");
+		erofs_err(sb, "cananalt read erofs superblock");
 		return PTR_ERR(data);
 	}
 
@@ -298,7 +298,7 @@ static int erofs_read_superblock(struct super_block *sb)
 
 	ret = -EINVAL;
 	if (le32_to_cpu(dsb->magic) != EROFS_SUPER_MAGIC_V1) {
-		erofs_err(sb, "cannot find valid erofs superblock");
+		erofs_err(sb, "cananalt find valid erofs superblock");
 		goto out;
 	}
 
@@ -337,10 +337,10 @@ static int erofs_read_superblock(struct super_block *sb)
 	sbi->xattr_prefix_count = dsb->xattr_prefix_count;
 	sbi->xattr_filter_reserved = dsb->xattr_filter_reserved;
 #endif
-	sbi->islotbits = ilog2(sizeof(struct erofs_inode_compact));
+	sbi->islotbits = ilog2(sizeof(struct erofs_ianalde_compact));
 	sbi->root_nid = le16_to_cpu(dsb->root_nid);
 	sbi->packed_nid = le64_to_cpu(dsb->packed_nid);
-	sbi->inos = le64_to_cpu(dsb->inos);
+	sbi->ianals = le64_to_cpu(dsb->ianals);
 
 	sbi->build_time = le64_to_cpu(dsb->build_time);
 	sbi->build_time_nsec = le32_to_cpu(dsb->build_time_nsec);
@@ -411,8 +411,8 @@ static const struct constant_table erofs_dax_param_enums[] = {
 };
 
 static const struct fs_parameter_spec erofs_fs_parameters[] = {
-	fsparam_flag_no("user_xattr",	Opt_user_xattr),
-	fsparam_flag_no("acl",		Opt_acl),
+	fsparam_flag_anal("user_xattr",	Opt_user_xattr),
+	fsparam_flag_anal("acl",		Opt_acl),
 	fsparam_enum("cache_strategy",	Opt_cache_strategy,
 		     erofs_param_cache_strategy),
 	fsparam_flag("dax",             Opt_dax),
@@ -443,7 +443,7 @@ static bool erofs_fc_set_dax_mode(struct fs_context *fc, unsigned int mode)
 		return false;
 	}
 #else
-	errorfc(fc, "dax options not supported");
+	errorfc(fc, "dax options analt supported");
 	return false;
 #endif
 }
@@ -468,7 +468,7 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 		else
 			clear_opt(&ctx->opt, XATTR_USER);
 #else
-		errorfc(fc, "{,no}user_xattr options not supported");
+		errorfc(fc, "{,anal}user_xattr options analt supported");
 #endif
 		break;
 	case Opt_acl:
@@ -478,14 +478,14 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 		else
 			clear_opt(&ctx->opt, POSIX_ACL);
 #else
-		errorfc(fc, "{,no}acl options not supported");
+		errorfc(fc, "{,anal}acl options analt supported");
 #endif
 		break;
 	case Opt_cache_strategy:
 #ifdef CONFIG_EROFS_FS_ZIP
 		ctx->opt.cache_strategy = result.uint_32;
 #else
-		errorfc(fc, "compression not supported, cache_strategy ignored");
+		errorfc(fc, "compression analt supported, cache_strategy iganalred");
 #endif
 		break;
 	case Opt_dax:
@@ -499,11 +499,11 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 	case Opt_device:
 		dif = kzalloc(sizeof(*dif), GFP_KERNEL);
 		if (!dif)
-			return -ENOMEM;
+			return -EANALMEM;
 		dif->path = kstrdup(param->string, GFP_KERNEL);
 		if (!dif->path) {
 			kfree(dif);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		down_write(&ctx->devs->rwsem);
 		ret = idr_alloc(&ctx->devs->tree, dif, 0, 0, GFP_KERNEL);
@@ -520,44 +520,44 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 		kfree(ctx->fsid);
 		ctx->fsid = kstrdup(param->string, GFP_KERNEL);
 		if (!ctx->fsid)
-			return -ENOMEM;
+			return -EANALMEM;
 		break;
 	case Opt_domain_id:
 		kfree(ctx->domain_id);
 		ctx->domain_id = kstrdup(param->string, GFP_KERNEL);
 		if (!ctx->domain_id)
-			return -ENOMEM;
+			return -EANALMEM;
 		break;
 #else
 	case Opt_fsid:
 	case Opt_domain_id:
-		errorfc(fc, "%s option not supported", erofs_fs_parameters[opt].name);
+		errorfc(fc, "%s option analt supported", erofs_fs_parameters[opt].name);
 		break;
 #endif
 	default:
-		return -ENOPARAM;
+		return -EANALPARAM;
 	}
 	return 0;
 }
 
-static struct inode *erofs_nfs_get_inode(struct super_block *sb,
-					 u64 ino, u32 generation)
+static struct ianalde *erofs_nfs_get_ianalde(struct super_block *sb,
+					 u64 ianal, u32 generation)
 {
-	return erofs_iget(sb, ino);
+	return erofs_iget(sb, ianal);
 }
 
 static struct dentry *erofs_fh_to_dentry(struct super_block *sb,
 		struct fid *fid, int fh_len, int fh_type)
 {
 	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
-				    erofs_nfs_get_inode);
+				    erofs_nfs_get_ianalde);
 }
 
 static struct dentry *erofs_fh_to_parent(struct super_block *sb,
 		struct fid *fid, int fh_len, int fh_type)
 {
 	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
-				    erofs_nfs_get_inode);
+				    erofs_nfs_get_ianalde);
 }
 
 static struct dentry *erofs_get_parent(struct dentry *child)
@@ -566,14 +566,14 @@ static struct dentry *erofs_get_parent(struct dentry *child)
 	unsigned int d_type;
 	int err;
 
-	err = erofs_namei(d_inode(child), &dotdot_name, &nid, &d_type);
+	err = erofs_namei(d_ianalde(child), &dotdot_name, &nid, &d_type);
 	if (err)
 		return ERR_PTR(err);
 	return d_obtain_alias(erofs_iget(child->d_sb, nid));
 }
 
 static const struct export_operations erofs_export_ops = {
-	.encode_fh = generic_encode_ino32_fh,
+	.encode_fh = generic_encode_ianal32_fh,
 	.fh_to_dentry = erofs_fh_to_dentry,
 	.fh_to_parent = erofs_fh_to_parent,
 	.get_parent = erofs_get_parent,
@@ -588,19 +588,19 @@ static int erofs_fc_fill_pseudo_super(struct super_block *sb, struct fs_context 
 
 static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct erofs_sb_info *sbi;
 	struct erofs_fs_context *ctx = fc->fs_private;
 	int err;
 
 	sb->s_magic = EROFS_SUPER_MAGIC;
-	sb->s_flags |= SB_RDONLY | SB_NOATIME;
+	sb->s_flags |= SB_RDONLY | SB_ANALATIME;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_op = &erofs_sops;
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sb->s_fs_info = sbi;
 	sbi->opt = ctx->opt;
@@ -672,27 +672,27 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 	xa_init(&sbi->managed_pslots);
 #endif
 
-	inode = erofs_iget(sb, sbi->root_nid);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	ianalde = erofs_iget(sb, sbi->root_nid);
+	if (IS_ERR(ianalde))
+		return PTR_ERR(ianalde);
 
-	if (!S_ISDIR(inode->i_mode)) {
-		erofs_err(sb, "rootino(nid %llu) is not a directory(i_mode %o)",
-			  sbi->root_nid, inode->i_mode);
-		iput(inode);
+	if (!S_ISDIR(ianalde->i_mode)) {
+		erofs_err(sb, "rootianal(nid %llu) is analt a directory(i_mode %o)",
+			  sbi->root_nid, ianalde->i_mode);
+		iput(ianalde);
 		return -EINVAL;
 	}
 
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_make_root(ianalde);
 	if (!sb->s_root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	erofs_shrinker_register(sb);
 	if (erofs_sb_has_fragments(sbi) && sbi->packed_nid) {
-		sbi->packed_inode = erofs_iget(sb, sbi->packed_nid);
-		if (IS_ERR(sbi->packed_inode)) {
-			err = PTR_ERR(sbi->packed_inode);
-			sbi->packed_inode = NULL;
+		sbi->packed_ianalde = erofs_iget(sb, sbi->packed_nid);
+		if (IS_ERR(sbi->packed_ianalde)) {
+			err = PTR_ERR(sbi->packed_ianalde);
+			sbi->packed_ianalde = NULL;
 			return err;
 		}
 	}
@@ -708,13 +708,13 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (err)
 		return err;
 
-	erofs_info(sb, "mounted with root inode @ nid %llu.", sbi->root_nid);
+	erofs_info(sb, "mounted with root ianalde @ nid %llu.", sbi->root_nid);
 	return 0;
 }
 
-static int erofs_fc_anon_get_tree(struct fs_context *fc)
+static int erofs_fc_aanaln_get_tree(struct fs_context *fc)
 {
-	return get_tree_nodev(fc, erofs_fc_fill_pseudo_super);
+	return get_tree_analdev(fc, erofs_fc_fill_pseudo_super);
 }
 
 static int erofs_fc_get_tree(struct fs_context *fc)
@@ -722,7 +722,7 @@ static int erofs_fc_get_tree(struct fs_context *fc)
 	struct erofs_fs_context *ctx = fc->fs_private;
 
 	if (IS_ENABLED(CONFIG_EROFS_FS_ONDEMAND) && ctx->fsid)
-		return get_tree_nodev(fc, erofs_fc_fill_super);
+		return get_tree_analdev(fc, erofs_fc_fill_super);
 
 	return get_tree_bdev(fc, erofs_fc_fill_super);
 }
@@ -736,7 +736,7 @@ static int erofs_fc_reconfigure(struct fs_context *fc)
 	DBG_BUGON(!sb_rdonly(sb));
 
 	if (ctx->fsid || ctx->domain_id)
-		erofs_info(sb, "ignoring reconfiguration for fsid|domain_id.");
+		erofs_info(sb, "iganalring reconfiguration for fsid|domain_id.");
 
 	if (test_opt(&ctx->opt, POSIX_ACL))
 		fc->sb_flags |= SB_POSIXACL;
@@ -789,27 +789,27 @@ static const struct fs_context_operations erofs_context_ops = {
 	.free		= erofs_fc_free,
 };
 
-static const struct fs_context_operations erofs_anon_context_ops = {
-	.get_tree       = erofs_fc_anon_get_tree,
+static const struct fs_context_operations erofs_aanaln_context_ops = {
+	.get_tree       = erofs_fc_aanaln_get_tree,
 };
 
 static int erofs_init_fs_context(struct fs_context *fc)
 {
 	struct erofs_fs_context *ctx;
 
-	/* pseudo mount for anon inodes */
+	/* pseudo mount for aanaln ianaldes */
 	if (fc->sb_flags & SB_KERNMOUNT) {
-		fc->ops = &erofs_anon_context_ops;
+		fc->ops = &erofs_aanaln_context_ops;
 		return 0;
 	}
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->devs = kzalloc(sizeof(struct erofs_dev_context), GFP_KERNEL);
 	if (!ctx->devs) {
 		kfree(ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	fc->fs_private = ctx;
 
@@ -824,14 +824,14 @@ static void erofs_kill_sb(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi;
 
-	/* pseudo mount for anon inodes */
+	/* pseudo mount for aanaln ianaldes */
 	if (sb->s_flags & SB_KERNMOUNT) {
-		kill_anon_super(sb);
+		kill_aanaln_super(sb);
 		return;
 	}
 
 	if (erofs_is_fscache_mode(sb))
-		kill_anon_super(sb);
+		kill_aanaln_super(sb);
 	else
 		kill_block_super(sb);
 
@@ -861,8 +861,8 @@ static void erofs_put_super(struct super_block *sb)
 	iput(sbi->managed_cache);
 	sbi->managed_cache = NULL;
 #endif
-	iput(sbi->packed_inode);
-	sbi->packed_inode = NULL;
+	iput(sbi->packed_ianalde);
+	sbi->packed_ianalde = NULL;
 	erofs_free_dev_context(sbi->devs);
 	sbi->devs = NULL;
 	erofs_fscache_unregister_fs(sb);
@@ -883,12 +883,12 @@ static int __init erofs_module_init(void)
 
 	erofs_check_ondisk_layout_definitions();
 
-	erofs_inode_cachep = kmem_cache_create("erofs_inode",
-			sizeof(struct erofs_inode), 0,
+	erofs_ianalde_cachep = kmem_cache_create("erofs_ianalde",
+			sizeof(struct erofs_ianalde), 0,
 			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD | SLAB_ACCOUNT,
-			erofs_inode_init_once);
-	if (!erofs_inode_cachep)
-		return -ENOMEM;
+			erofs_ianalde_init_once);
+	if (!erofs_ianalde_cachep)
+		return -EANALMEM;
 
 	err = erofs_init_shrinker();
 	if (err)
@@ -928,7 +928,7 @@ deflate_err:
 lzma_err:
 	erofs_exit_shrinker();
 shrinker_err:
-	kmem_cache_destroy(erofs_inode_cachep);
+	kmem_cache_destroy(erofs_ianalde_cachep);
 	return err;
 }
 
@@ -936,7 +936,7 @@ static void __exit erofs_module_exit(void)
 {
 	unregister_filesystem(&erofs_fs_type);
 
-	/* Ensure all RCU free inodes / pclusters are safe to be destroyed. */
+	/* Ensure all RCU free ianaldes / pclusters are safe to be destroyed. */
 	rcu_barrier();
 
 	erofs_exit_sysfs();
@@ -944,7 +944,7 @@ static void __exit erofs_module_exit(void)
 	z_erofs_deflate_exit();
 	z_erofs_lzma_exit();
 	erofs_exit_shrinker();
-	kmem_cache_destroy(erofs_inode_cachep);
+	kmem_cache_destroy(erofs_ianalde_cachep);
 	erofs_pcpubuf_exit();
 }
 
@@ -963,7 +963,7 @@ static int erofs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bfree = buf->f_bavail = 0;
 
 	buf->f_files = ULLONG_MAX;
-	buf->f_ffree = ULLONG_MAX - sbi->inos;
+	buf->f_ffree = ULLONG_MAX - sbi->ianals;
 
 	buf->f_namelen = EROFS_NAME_LEN;
 
@@ -980,13 +980,13 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 	if (test_opt(opt, XATTR_USER))
 		seq_puts(seq, ",user_xattr");
 	else
-		seq_puts(seq, ",nouser_xattr");
+		seq_puts(seq, ",analuser_xattr");
 #endif
 #ifdef CONFIG_EROFS_FS_POSIX_ACL
 	if (test_opt(opt, POSIX_ACL))
 		seq_puts(seq, ",acl");
 	else
-		seq_puts(seq, ",noacl");
+		seq_puts(seq, ",analacl");
 #endif
 #ifdef CONFIG_EROFS_FS_ZIP
 	if (opt->cache_strategy == EROFS_ZIP_CACHE_DISABLED)
@@ -1011,8 +1011,8 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 
 const struct super_operations erofs_sops = {
 	.put_super = erofs_put_super,
-	.alloc_inode = erofs_alloc_inode,
-	.free_inode = erofs_free_inode,
+	.alloc_ianalde = erofs_alloc_ianalde,
+	.free_ianalde = erofs_free_ianalde,
 	.statfs = erofs_statfs,
 	.show_options = erofs_show_options,
 };

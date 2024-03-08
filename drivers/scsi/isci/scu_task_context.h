@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -72,7 +72,7 @@
  *
  */
 typedef enum {
-	SCU_TASK_TYPE_IOREAD,           /* /< IO READ direction or no direction */
+	SCU_TASK_TYPE_IOREAD,           /* /< IO READ direction or anal direction */
 	SCU_TASK_TYPE_IOWRITE,          /* /< IO Write direction */
 	SCU_TASK_TYPE_SMP_REQUEST,      /* /< SMP Request type */
 	SCU_TASK_TYPE_RESPONSE,         /* /< Driver generated response frame (targt mode) */
@@ -136,16 +136,16 @@ typedef enum {
 /**
  *
  *
- * This priority is used when there is no priority request for this request.
+ * This priority is used when there is anal priority request for this request.
  */
-#define SCU_TASK_PRIORITY_NORMAL          0
+#define SCU_TASK_PRIORITY_ANALRMAL          0
 
 /**
  *
  *
  * This priority indicates that the task should be scheduled to the head of the
- * queue.  The task will NOT be executed if the TX is suspended for the remote
- * node.
+ * queue.  The task will ANALT be executed if the TX is suspended for the remote
+ * analde.
  */
 #define SCU_TASK_PRIORITY_HEAD_OF_Q       1
 
@@ -153,15 +153,15 @@ typedef enum {
  *
  *
  * This priority indicates that the task will be executed before all
- * SCU_TASK_PRIORITY_NORMAL and SCU_TASK_PRIORITY_HEAD_OF_Q tasks. The task
- * WILL be executed if the TX is suspended for the remote node.
+ * SCU_TASK_PRIORITY_ANALRMAL and SCU_TASK_PRIORITY_HEAD_OF_Q tasks. The task
+ * WILL be executed if the TX is suspended for the remote analde.
  */
 #define SCU_TASK_PRIORITY_HIGH            2
 
 /**
  *
  *
- * This task priority is reserved and should not be used.
+ * This task priority is reserved and should analt be used.
  */
 #define SCU_TASK_PRIORITY_RESERVED        3
 
@@ -287,7 +287,7 @@ typedef enum {
 #define SCU_TASK_CONTEXT_PROTOCOL_SMP    0x00
 #define SCU_TASK_CONTEXT_PROTOCOL_SSP    0x01
 #define SCU_TASK_CONTEXT_PROTOCOL_STP    0x02
-#define SCU_TASK_CONTEXT_PROTOCOL_NONE   0x07
+#define SCU_TASK_CONTEXT_PROTOCOL_ANALNE   0x07
 
 /**
  * struct ssp_task_context - This is the SCU hardware definition for an SSP
@@ -434,7 +434,7 @@ union protocol_context {
 /**
  * struct scu_sgl_element - This structure represents a single SCU defined SGL
  *    element. SCU SGLs contain a 64 bit address with the maximum data transfer
- *    being 24 bits in size.  The SGL can not cross a 4GB boundary.
+ *    being 24 bits in size.  The SGL can analt cross a 4GB boundary.
  *
  * struct scu_sgl_element
  */
@@ -538,7 +538,7 @@ struct scu_task_context {
 	/* OFFSET 0x00 ------ */
 	/**
 	 * This field must be encoded to one of the valid SCU task priority values
-	 *    - SCU_TASK_PRIORITY_NORMAL
+	 *    - SCU_TASK_PRIORITY_ANALRMAL
 	 *    - SCU_TASK_PRIORITY_HEAD_OF_Q
 	 *    - SCU_TASK_PRIORITY_HIGH
 	 */
@@ -572,7 +572,7 @@ struct scu_task_context {
 	 *    - SCU_TASK_CONTEXT_PROTOCOL_SMP
 	 *    - SCU_TASK_CONTEXT_PROTOCOL_SSP
 	 *    - SCU_TASK_CONTEXT_PROTOCOL_STP
-	 *    - SCU_TASK_CONTEXT_PROTOCOL_NONE
+	 *    - SCU_TASK_CONTEXT_PROTOCOL_ANALNE
 	 */
 	u32 protocol_type:3;
 
@@ -587,7 +587,7 @@ struct scu_task_context {
 	u32 reserved_00_0:1;
 
 	/**
-	 * For a normal task request this must be set to 0.  If this is an abort of
+	 * For a analrmal task request this must be set to 0.  If this is an abort of
 	 * this task request it must be set to 1.
 	 */
 	u32 abort:1;
@@ -606,13 +606,13 @@ struct scu_task_context {
 	/**
 	 * This field contains the RNi that is the target of this request.
 	 */
-	u32 remote_node_index:12;
+	u32 remote_analde_index:12;
 
 	/**
-	 * This field is programmed if this is a mirrored request, which we are not
+	 * This field is programmed if this is a mirrored request, which we are analt
 	 * using, in which case it is the RNi for the mirrored target.
 	 */
-	u32 mirrored_node_index:12;
+	u32 mirrored_analde_index:12;
 
 	/**
 	 * This field is programmed with the direction of the SATA reqeust
@@ -631,10 +631,10 @@ struct scu_task_context {
 	u32 command_code:2;
 
 	/**
-	 * This field is set to true if the remote node should be suspended.
+	 * This field is set to true if the remote analde should be suspended.
 	 * This bit is only valid for SSP & SMP target devices.
 	 */
-	u32 suspend_node:1;
+	u32 suspend_analde:1;
 
 	/**
 	 * This field is programmed with one of the following command type codes
@@ -679,7 +679,7 @@ struct scu_task_context {
 	 * This field indicates if the SCU should DMA the response frame to
 	 * host memory.
 	 */
-	u32 do_not_dma_ssp_good_response:1;
+	u32 do_analt_dma_ssp_good_response:1;
 
 	/**
 	 * This field is set to true when strict ordering is to be enabled
@@ -834,7 +834,7 @@ struct scu_task_context {
 	u32 previous_extended_tag:4;
 
 	/**
-	 * This field is set the maximum number of retries for a STP non-data FIS
+	 * This field is set the maximum number of retries for a STP analn-data FIS
 	 */
 	u32 stp_retry_count:2;
 

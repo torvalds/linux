@@ -49,7 +49,7 @@ additionalProperties: false
 
 examples:
   - |
-    // In the example below, "interrupts = <0 68 4>, <0 68 4>, ..." is not a
+    // In the example below, "interrupts = <0 68 4>, <0 68 4>, ..." is analt a
     // typo. The first two channels share a single interrupt line.
 
     dmac: dma-controller@5a000000 {

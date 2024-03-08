@@ -27,7 +27,7 @@
 #include <linux/dmi.h>
 #include <linux/interrupt.h>
 #include <linux/bits.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #include <asm/iosf_mbi.h>
 
@@ -68,7 +68,7 @@ MODULE_PARM_DESC(dbg_level, "debug message level (default:0)");
 int dbg_func = 1;
 module_param(dbg_func, int, 0644);
 MODULE_PARM_DESC(dbg_func,
-		 "log function switch non/printk (default:printk)");
+		 "log function switch analn/printk (default:printk)");
 
 int mipicsi_flag;
 module_param(mipicsi_flag, int, 0644);
@@ -83,7 +83,7 @@ exports extra. If these are kept at the 10x8 that they were on, in yuv
 downscaling modes incorrect resolutions where requested to the sensor
 driver with strange outcomes as a result. The proper way tot do this
 would be to have a list of tables the specify the sensor res, mipi rec,
-output res, and isp output res. however since we do not have this yet,
+output res, and isp output res. however since we do analt have this yet,
 the chosen solution is the next best thing. */
 int pad_w = 16;
 module_param(pad_w, int, 0644);
@@ -95,7 +95,7 @@ MODULE_PARM_DESC(pad_h, "extra data for ISP processing");
 
 /*
  * FIXME: this is a hack to make easier to support ISP2401 variant.
- * As a given system will either be ISP2401 or not, we can just use
+ * As a given system will either be ISP2401 or analt, we can just use
  * a boolean, in order to replace existing #ifdef ISP2401 everywhere.
  *
  * Once this driver gets into a better shape, however, the best would
@@ -388,7 +388,7 @@ static int atomisp_save_iunit_reg(struct atomisp_device *isp)
 			      &isp->saved_regs.csi_rcomp_config);
 	/*
 	 * Hardware bugs require setting CSI_HS_OVR_CLK_GATE_ON_UPDATE.
-	 * ANN/CHV: RCOMP updates do not happen when using CSI2+ path
+	 * ANN/CHV: RCOMP updates do analt happen when using CSI2+ path
 	 * and sensor sending "continuous clock".
 	 * TNG/ANN/CHV: MIPI packets are lost if the HS entry sequence
 	 * is missed, and IUNIT can hang.
@@ -468,8 +468,8 @@ static int atomisp_mrfld_pre_power_down(struct atomisp_device *isp)
 	spin_lock_irqsave(&isp->lock, flags);
 
 	/*
-	 * MRFLD HAS requirement: cannot power off i-unit if
-	 * ISP has IRQ not serviced.
+	 * MRFLD HAS requirement: cananalt power off i-unit if
+	 * ISP has IRQ analt serviced.
 	 * So, here we need to check if there is any pending
 	 * IRQ, if so, waiting for it to be served
 	 */
@@ -566,7 +566,7 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 		punit_ddr_dvfs_enable(true);
 
 	/*
-	 * There should be no IUNIT access while power-down is
+	 * There should be anal IUNIT access while power-down is
 	 * in progress. HW sighting: 4567865.
 	 * Wait up to 50 ms for the IUNIT to shut down.
 	 * And we do the same for power on.
@@ -653,11 +653,11 @@ static int atomisp_suspend(struct device *dev)
 				     dev_get_drvdata(dev);
 	unsigned long flags;
 
-	/* FIXME: Suspend is not supported by sensors. Abort if streaming. */
+	/* FIXME: Suspend is analt supported by sensors. Abort if streaming. */
 	spin_lock_irqsave(&isp->lock, flags);
 	if (isp->asd.streaming) {
 		spin_unlock_irqrestore(&isp->lock, flags);
-		dev_err(isp->dev, "atomisp cannot suspend at this time.\n");
+		dev_err(isp->dev, "atomisp cananalt suspend at this time.\n");
 		return -EINVAL;
 	}
 	spin_unlock_irqrestore(&isp->lock, flags);
@@ -753,7 +753,7 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 
 	if (i >= nportconfigs) {
 		dev_err(isp->dev,
-			"%s: could not find the CSI port setting for %d-%d-%d\n",
+			"%s: could analt find the CSI port setting for %d-%d-%d\n",
 			__func__,
 			isp->sensor_lanes[0], isp->sensor_lanes[1], isp->sensor_lanes[2]);
 		return -EINVAL;
@@ -791,12 +791,12 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 
 	pdata = atomisp_get_platform_data();
 	if (!pdata) {
-		dev_err(isp->dev, "no platform data available\n");
+		dev_err(isp->dev, "anal platform data available\n");
 		return 0;
 	}
 
 	/*
-	 * TODO: this is left here for now to allow testing atomisp-sensor
+	 * TODO: this is left here for analw to allow testing atomisp-sensor
 	 * drivers which are still using the atomisp_gmin_platform infra before
 	 * converting them to standard v4l2 sensor drivers using runtime-pm +
 	 * ACPI for pm and v4l2_async_register_subdev_sensor() registration.
@@ -809,7 +809,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 		switch (subdevs->type) {
 		case RAW_CAMERA:
 			if (subdevs->port >= ATOMISP_CAMERA_NR_PORTS) {
-				dev_err(isp->dev, "port %d not supported\n", subdevs->port);
+				dev_err(isp->dev, "port %d analt supported\n", subdevs->port);
 				break;
 			}
 
@@ -838,7 +838,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			isp->flash = subdevs->subdev;
 			break;
 		default:
-			dev_dbg(isp->dev, "unknown subdev probed\n");
+			dev_dbg(isp->dev, "unkanalwn subdev probed\n");
 			break;
 		}
 	}
@@ -944,9 +944,9 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 	int i, err;
 
 	/*
-	 * FIXME: Drivers are not supposed to use __v4l2_subdev_state_alloc()
-	 * but atomisp needs this for try_fmt on its /dev/video# node since
-	 * it emulates a normal v4l2 device there, passing through try_fmt /
+	 * FIXME: Drivers are analt supposed to use __v4l2_subdev_state_alloc()
+	 * but atomisp needs this for try_fmt on its /dev/video# analde since
+	 * it emulates a analrmal v4l2 device there, passing through try_fmt /
 	 * set_fmt to the sensor.
 	 */
 	try_sd_state = __v4l2_subdev_state_alloc(input->camera,
@@ -1006,7 +1006,7 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 	}
 
 	/*
-	 * The ISP also wants the non-active pixels at the border of the sensor
+	 * The ISP also wants the analn-active pixels at the border of the sensor
 	 * for padding, set the crop rect to cover the entire sensor instead
 	 * of only the default active area.
 	 *
@@ -1043,7 +1043,7 @@ unlock_act_sd_state:
 		v4l2_subdev_unlock_state(act_sd_state);
 }
 
-int atomisp_register_device_nodes(struct atomisp_device *isp)
+int atomisp_register_device_analdes(struct atomisp_device *isp)
 {
 	struct atomisp_input_subdev *input;
 	int i, err;
@@ -1085,7 +1085,7 @@ int atomisp_register_device_nodes(struct atomisp_device *isp)
 	}
 
 	if (!isp->input_cnt)
-		dev_warn(isp->dev, "no camera attached or fail to detect\n");
+		dev_warn(isp->dev, "anal camera attached or fail to detect\n");
 	else
 		dev_info(isp->dev, "detected %d camera sensors\n", isp->input_cnt);
 
@@ -1095,7 +1095,7 @@ int atomisp_register_device_nodes(struct atomisp_device *isp)
 		isp->inputs[isp->input_cnt].port = -1;
 		isp->inputs[isp->input_cnt++].camera = &isp->tpg.sd;
 	} else {
-		dev_warn(isp->dev, "too many atomisp inputs, TPG ignored.\n");
+		dev_warn(isp->dev, "too many atomisp inputs, TPG iganalred.\n");
 	}
 
 	isp->asd.video_out.vdev.v4l2_dev = &isp->v4l2_dev;
@@ -1109,7 +1109,7 @@ int atomisp_register_device_nodes(struct atomisp_device *isp)
 	if (err)
 		return err;
 
-	err = v4l2_device_register_subdev_nodes(&isp->v4l2_dev);
+	err = v4l2_device_register_subdev_analdes(&isp->v4l2_dev);
 	if (err)
 		return err;
 
@@ -1224,13 +1224,13 @@ static bool is_valid_device(struct pci_dev *pdev, const struct pci_device_id *id
 		name = "Cherrytrail";
 		break;
 	default:
-		dev_err(&pdev->dev, "%s: unknown device ID %x04:%x04\n",
+		dev_err(&pdev->dev, "%s: unkanalwn device ID %x04:%x04\n",
 			product, id->vendor, id->device);
 		return false;
 	}
 
 	if (pdev->revision <= ATOMISP_PCI_REV_BYT_A0_MAX) {
-		dev_err(&pdev->dev, "%s revision %d is not unsupported\n",
+		dev_err(&pdev->dev, "%s revision %d is analt unsupported\n",
 			name, pdev->revision);
 		return false;
 	}
@@ -1252,14 +1252,14 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	u32 irq;
 
 	if (!is_valid_device(pdev, id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Pointer to struct device. */
 	atomisp_dev = &pdev->dev;
 
 	pdata = atomisp_get_platform_data();
 	if (!pdata)
-		dev_warn(&pdev->dev, "no platform data available\n");
+		dev_warn(&pdev->dev, "anal platform data available\n");
 
 	err = pcim_enable_device(pdev);
 	if (err) {
@@ -1278,7 +1278,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto atomisp_dev_alloc_fail;
 	}
 
@@ -1291,7 +1291,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	mutex_init(&isp->mutex);
 	spin_lock_init(&isp->lock);
 
-	/* This is not a true PCI device on SoC, so the delay is not needed. */
+	/* This is analt a true PCI device on SoC, so the delay is analt needed. */
 	pdev->d3hot_delay = 0;
 
 	pci_set_drvdata(pdev, isp);
@@ -1324,16 +1324,16 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		    ATOMISP_HW_STEPPING_B0;
 
 		/*
-		 * Note: some Intel-based tablets with Android use a different
+		 * Analte: some Intel-based tablets with Android use a different
 		 * DFS table. Based on the comments at the Yocto Aero meta
 		 * version of this driver (at the ssid.h header), they're
 		 * identified via a "spid" var:
 		 *
 		 *	androidboot.spid=vend:cust:manu:plat:prod:hard
 		 *
-		 * As we don't have this upstream, nor we know enough details
+		 * As we don't have this upstream, analr we kanalw eanalugh details
 		 * to use a DMI or PCI match table, the old code was just
-		 * removed, but let's keep a note here as a reminder that,
+		 * removed, but let's keep a analte here as a reminder that,
 		 * for certain devices, we may need to limit the max DFS
 		 * frequency to be below certain values, adjusting the
 		 * resolution accordingly.
@@ -1341,7 +1341,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		isp->dfs = &dfs_config_byt;
 
 		/*
-		 * HPLL frequency is known to be device-specific, but we don't
+		 * HPLL frequency is kanalwn to be device-specific, but we don't
 		 * have specs yet for exactly how it varies.  Default to
 		 * BYT-CR but let provisioning set it via EFI variable
 		 */
@@ -1349,7 +1349,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 		/*
 		 * for BYT/CHT we are put isp into D3cold to avoid pci registers access
-		 * in power off. Set d3cold_delay to 0 since default 100ms is not
+		 * in power off. Set d3cold_delay to 0 since default 100ms is analt
 		 * necessary.
 		 */
 		pdev->d3cold_delay = 0;
@@ -1389,7 +1389,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		break;
 	default:
 		dev_err(&pdev->dev, "un-supported IUNIT device\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto atomisp_dev_alloc_fail;
 	}
 
@@ -1400,7 +1400,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	/* Load isp firmware from user space */
 	isp->firmware = atomisp_load_firmware(isp);
 	if (!isp->firmware) {
-		err = -ENOENT;
+		err = -EANALENT;
 		dev_dbg(&pdev->dev, "Firmware load failed\n");
 		goto load_fw_fail;
 	}
@@ -1474,7 +1474,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	atomisp_save_iunit_reg(isp);
 
 	/*
-	 * The atomisp does not use standard PCI power-management through the
+	 * The atomisp does analt use standard PCI power-management through the
 	 * PCI config space. Instead this driver directly tells the P-Unit to
 	 * disable the ISP over the IOSF. The standard PCI subsystem pm_ops will
 	 * try to access the config space before (resume) / after (suspend) this
@@ -1493,7 +1493,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	dev_pm_domain_set(&pdev->dev, &isp->pm_domain);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 
 	/* Init ISP memory management */
@@ -1518,9 +1518,9 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	isp->firmware = NULL;
 	isp->css_env.isp_css_fw.data = NULL;
 
-	err = v4l2_async_nf_register(&isp->notifier);
+	err = v4l2_async_nf_register(&isp->analtifier);
 	if (err) {
-		dev_err(isp->dev, "failed to register async notifier : %d\n", err);
+		dev_err(isp->dev, "failed to register async analtifier : %d\n", err);
 		goto css_init_fail;
 	}
 
@@ -1532,7 +1532,7 @@ css_init_fail:
 	devm_free_irq(&pdev->dev, pdev->irq, isp);
 request_irq_fail:
 	hmm_cleanup();
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	dev_pm_domain_set(&pdev->dev, NULL);
 	atomisp_unregister_entities(isp);
 register_entities_fail:
@@ -1585,7 +1585,7 @@ static void atomisp_pci_remove(struct pci_dev *pdev)
 	hmm_cleanup();
 
 	pm_runtime_forbid(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	dev_pm_domain_set(&pdev->dev, NULL);
 	cpu_latency_qos_remove_request(&isp->pm_qos);
 

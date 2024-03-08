@@ -3,7 +3,7 @@
  * Copyright 2022 Google LLC
  */
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,7 +17,7 @@
 #define MB(x) (x << 20)
 #define MAX_SIZE_MB 1024
 
-static int alloc_noexit(unsigned long nr_pages, int pipefd)
+static int alloc_analexit(unsigned long nr_pages, int pipefd)
 {
 	int ppid = getppid();
 	int timeout = 10; /* 10sec timeout to get killed */
@@ -25,7 +25,7 @@ static int alloc_noexit(unsigned long nr_pages, int pipefd)
 	char *buf;
 
 	buf = (char *)mmap(NULL, nr_pages * psize(), PROT_READ | PROT_WRITE,
-			   MAP_PRIVATE | MAP_ANON, 0, 0);
+			   MAP_PRIVATE | MAP_AANALN, 0, 0);
 	if (buf == MAP_FAILED) {
 		perror("mmap failed, halting the test");
 		return KSFT_FAIL;
@@ -57,17 +57,17 @@ static void run_negative_tests(int pidfd)
 	int res;
 	/* Test invalid flags. Expect to fail with EINVAL error code. */
 	if (!syscall(__NR_process_mrelease, pidfd, (unsigned int)-1) ||
-			errno != EINVAL) {
-		res = (errno == ENOSYS ? KSFT_SKIP : KSFT_FAIL);
+			erranal != EINVAL) {
+		res = (erranal == EANALSYS ? KSFT_SKIP : KSFT_FAIL);
 		perror("process_mrelease with wrong flags");
 		exit(res);
 	}
 	/*
-	 * Test reaping while process is alive with no pending SIGKILL.
+	 * Test reaping while process is alive with anal pending SIGKILL.
 	 * Expect to fail with EINVAL error code.
 	 */
-	if (!syscall(__NR_process_mrelease, pidfd, 0) || errno != EINVAL) {
-		res = (errno == ENOSYS ? KSFT_SKIP : KSFT_FAIL);
+	if (!syscall(__NR_process_mrelease, pidfd, 0) || erranal != EINVAL) {
+		res = (erranal == EANALSYS ? KSFT_SKIP : KSFT_FAIL);
 		perror("process_mrelease on a live process");
 		exit(res);
 	}
@@ -79,7 +79,7 @@ static int child_main(int pipefd[], size_t size)
 
 	/* Allocate and fault-in memory and wait to be killed */
 	close(pipefd[0]);
-	res = alloc_noexit(MB(size) / psize(), pipefd[1]);
+	res = alloc_analexit(MB(size) / psize(), pipefd[1]);
 	close(pipefd[1]);
 	return res;
 }
@@ -94,8 +94,8 @@ int main(void)
 	int res;
 
 	/* Test a wrong pidfd */
-	if (!syscall(__NR_process_mrelease, -1, 0) || errno != EBADF) {
-		res = (errno == ENOSYS ? KSFT_SKIP : KSFT_FAIL);
+	if (!syscall(__NR_process_mrelease, -1, 0) || erranal != EBADF) {
+		res = (erranal == EANALSYS ? KSFT_SKIP : KSFT_FAIL);
 		perror("process_mrelease with wrong pidfd");
 		exit(res);
 	}
@@ -152,7 +152,7 @@ retry:
 	run_negative_tests(pidfd);
 
 	if (kill(pid, SIGKILL)) {
-		res = (errno == ENOSYS ? KSFT_SKIP : KSFT_FAIL);
+		res = (erranal == EANALSYS ? KSFT_SKIP : KSFT_FAIL);
 		perror("kill");
 		exit(res);
 	}
@@ -166,10 +166,10 @@ retry:
 		 * our chances of reaping its memory before it exits.
 		 * Retry until we succeed or reach MAX_SIZE_MB.
 		 */
-		if (errno == ESRCH) {
+		if (erranal == ESRCH) {
 			retry = (size <= MAX_SIZE_MB);
 		} else {
-			res = (errno == ENOSYS ? KSFT_SKIP : KSFT_FAIL);
+			res = (erranal == EANALSYS ? KSFT_SKIP : KSFT_FAIL);
 			perror("process_mrelease");
 			waitpid(pid, NULL, 0);
 			exit(res);

@@ -75,7 +75,7 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 
 	event = (struct btmrvl_event *) skb->data;
 	if (event->ec != 0xff) {
-		BT_DBG("Not Marvell Event=%x", event->ec);
+		BT_DBG("Analt Marvell Event=%x", event->ec);
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -146,7 +146,7 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 		break;
 
 	default:
-		BT_DBG("Unknown Event=%d", event->data[0]);
+		BT_DBG("Unkanalwn Event=%d", event->data[0]);
 		ret = -EINVAL;
 		break;
 	}
@@ -172,8 +172,8 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 opcode,
 
 	skb = bt_skb_alloc(HCI_COMMAND_HDR_SIZE + len, GFP_KERNEL);
 	if (!skb) {
-		BT_ERR("No free skb");
-		return -ENOMEM;
+		BT_ERR("Anal free skb");
+		return -EANALMEM;
 	}
 
 	hdr = skb_put(skb, HCI_COMMAND_HDR_SIZE);
@@ -490,27 +490,27 @@ static int btmrvl_download_cal_data(struct btmrvl_private *priv,
 
 static int btmrvl_check_device_tree(struct btmrvl_private *priv)
 {
-	struct device_node *dt_node;
+	struct device_analde *dt_analde;
 	struct btmrvl_sdio_card *card = priv->btmrvl_dev.card;
 	u8 cal_data[BT_CAL_HDR_LEN + BT_CAL_DATA_SIZE];
 	int ret = 0;
 	u16 gpio, gap;
 
-	if (card->plt_of_node) {
-		dt_node = card->plt_of_node;
-		ret = of_property_read_u16(dt_node, "marvell,wakeup-pin",
+	if (card->plt_of_analde) {
+		dt_analde = card->plt_of_analde;
+		ret = of_property_read_u16(dt_analde, "marvell,wakeup-pin",
 					   &gpio);
 		if (ret)
 			gpio = (priv->btmrvl_dev.gpio_gap & 0xff00) >> 8;
 
-		ret = of_property_read_u16(dt_node, "marvell,wakeup-gap-ms",
+		ret = of_property_read_u16(dt_analde, "marvell,wakeup-gap-ms",
 					   &gap);
 		if (ret)
 			gap = (u8)(priv->btmrvl_dev.gpio_gap & 0x00ff);
 
 		priv->btmrvl_dev.gpio_gap = (gpio << 8) + gap;
 
-		ret = of_property_read_u8_array(dt_node, "marvell,cal-data",
+		ret = of_property_read_u8_array(dt_analde, "marvell,cal-data",
 						cal_data + BT_CAL_HDR_LEN,
 						BT_CAL_DATA_SIZE);
 		if (ret)
@@ -669,7 +669,7 @@ int btmrvl_register_hdev(struct btmrvl_private *priv)
 
 	hdev = hci_alloc_dev();
 	if (!hdev) {
-		BT_ERR("Can not allocate HCI device");
+		BT_ERR("Can analt allocate HCI device");
 		goto err_hdev;
 	}
 
@@ -690,7 +690,7 @@ int btmrvl_register_hdev(struct btmrvl_private *priv)
 
 	ret = hci_register_dev(hdev);
 	if (ret < 0) {
-		BT_ERR("Can not register HCI device");
+		BT_ERR("Can analt register HCI device");
 		goto err_hci_register_dev;
 	}
 
@@ -710,7 +710,7 @@ err_hdev:
 	btmrvl_free_adapter(priv);
 	kfree(priv);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 EXPORT_SYMBOL_GPL(btmrvl_register_hdev);
 
@@ -720,7 +720,7 @@ struct btmrvl_private *btmrvl_add_card(void *card)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		BT_ERR("Can not allocate priv");
+		BT_ERR("Can analt allocate priv");
 		goto err_priv;
 	}
 

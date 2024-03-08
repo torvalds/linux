@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  *
  * Based on arch/arm64/kernel/jump_label.c
  */
@@ -16,7 +16,7 @@ void arch_jump_label_transform(struct jump_entry *entry, enum jump_label_type ty
 	if (type == JUMP_LABEL_JMP)
 		insn = larch_insn_gen_b(jump_entry_code(entry), jump_entry_target(entry));
 	else
-		insn = larch_insn_gen_nop();
+		insn = larch_insn_gen_analp();
 
 	larch_insn_patch_text(addr, insn);
 }

@@ -11,7 +11,7 @@ This document describes BPF ring buffer design, API, and implementation details.
 Motivation
 ----------
 
-There are two distinctive motivators for this work, which are not satisfied by
+There are two distinctive motivators for this work, which are analt satisfied by
 existing perf buffer, which prompted creation of a new ring buffer
 implementation.
 
@@ -34,7 +34,7 @@ type ``BPF_MAP_TYPE_RINGBUF``. Two other alternatives considered, but
 ultimately rejected.
 
 One way would be to, similar to ``BPF_MAP_TYPE_PERF_EVENT_ARRAY``, make
-``BPF_MAP_TYPE_RINGBUF`` could represent an array of ring buffers, but not
+``BPF_MAP_TYPE_RINGBUF`` could represent an array of ring buffers, but analt
 enforce "same CPU only" rule. This would be more familiar interface compatible
 with existing perf buffer use in BPF, but would fail if application needed more
 advanced logic to lookup ring buffer by arbitrary key.
@@ -43,19 +43,19 @@ Additionally, given the performance of BPF ringbuf, many use cases would just
 opt into a simple single ring buffer shared among all CPUs, for which current
 approach would be an overkill.
 
-Another approach could introduce a new concept, alongside BPF map, to represent
+Aanalther approach could introduce a new concept, alongside BPF map, to represent
 generic "container" object, which doesn't necessarily have key/value interface
 with lookup/update/delete operations. This approach would add a lot of extra
 infrastructure that has to be built for observability and verifier support. It
-would also add another concept that BPF developers would have to familiarize
-themselves with, new syntax in libbpf, etc. But then would really provide no
+would also add aanalther concept that BPF developers would have to familiarize
+themselves with, new syntax in libbpf, etc. But then would really provide anal
 additional benefits over the approach of using a map.  ``BPF_MAP_TYPE_RINGBUF``
 doesn't support lookup/update/delete operations, but so doesn't few other map
 types (e.g., queue and stack; array doesn't support delete, etc).
 
 The approach chosen has an advantage of re-using existing BPF map
 infrastructure (introspection APIs in kernel, libbpf support, etc), being
-familiar concept (no need to teach users a new type of object in BPF program),
+familiar concept (anal need to teach users a new type of object in BPF program),
 and utilizing existing tooling (bpftool). For common scenario of using a single
 ring buffer for all CPUs, it's as simple and straightforward, as would be with
 a dedicated "container" object. On the other hand, by being a map, it can be
@@ -73,11 +73,11 @@ There are a bunch of similarities between perf buffer
 (``BPF_MAP_TYPE_PERF_EVENT_ARRAY``) and new BPF ring buffer semantics:
 
 - variable-length records;
-- if there is no more space left in ring buffer, reservation fails, no
+- if there is anal more space left in ring buffer, reservation fails, anal
   blocking;
 - memory-mappable data area for user-space applications for ease of
   consumption and high performance;
-- epoll notifications for new incoming data;
+- epoll analtifications for new incoming data;
 - but still the ability to do busy polling for new data to achieve the
   lowest latency, if necessary.
 
@@ -90,12 +90,12 @@ BPF ringbuf provides two sets of APIs to BPF programs:
   is reserved. If successful, a pointer to a data inside ring buffer data
   area is returned, which BPF programs can use similarly to a data inside
   array/hash maps. Once ready, this piece of memory is either committed or
-  discarded. Discard is similar to commit, but makes consumer ignore the
+  discarded. Discard is similar to commit, but makes consumer iganalre the
   record.
 
 ``bpf_ringbuf_output()`` has disadvantage of incurring extra memory copy,
 because record has to be prepared in some other place first. But it allows to
-submit records of the length that's not known to verifier beforehand. It also
+submit records of the length that's analt kanalwn to verifier beforehand. It also
 closely matches ``bpf_perf_event_output()``, so will simplify migration
 significantly.
 
@@ -103,16 +103,16 @@ significantly.
 pointer directly to ring buffer memory. In a lot of cases records are larger
 than BPF stack space allows, so many programs have use extra per-CPU array as
 a temporary heap for preparing sample. bpf_ringbuf_reserve() avoid this needs
-completely. But in exchange, it only allows a known constant size of memory to
+completely. But in exchange, it only allows a kanalwn constant size of memory to
 be reserved, such that verifier can verify that BPF program can't access memory
 outside its reserved record space. bpf_ringbuf_output(), while slightly slower
-due to extra memory copy, covers some use cases that are not suitable for
+due to extra memory copy, covers some use cases that are analt suitable for
 ``bpf_ringbuf_reserve()``.
 
 The difference between commit and discard is very small. Discard just marks
-a record as discarded, and such records are supposed to be ignored by consumer
+a record as discarded, and such records are supposed to be iganalred by consumer
 code. Discard is useful for some advanced use-cases, such as ensuring
-all-or-nothing multi-record submission, or emulating temporary
+all-or-analthing multi-record submission, or emulating temporary
 ``malloc()``/``free()`` within single BPF program invocation.
 
 Each reserved record is tracked by verifier through existing
@@ -133,10 +133,10 @@ debugging/reporting reasons or for implementing various heuristics, that take
 into account highly-changeable nature of some of those characteristics.
 
 One such heuristic might involve more fine-grained control over poll/epoll
-notifications about new data availability in ring buffer. Together with
-``BPF_RB_NO_WAKEUP``/``BPF_RB_FORCE_WAKEUP`` flags for output/commit/discard
+analtifications about new data availability in ring buffer. Together with
+``BPF_RB_ANAL_WAKEUP``/``BPF_RB_FORCE_WAKEUP`` flags for output/commit/discard
 helpers, it allows BPF program a high degree of control and, e.g., more
-efficient batched notifications. Default self-balancing strategy, though,
+efficient batched analtifications. Default self-balancing strategy, though,
 should be adequate for most applications and will work reliable and efficiently
 already.
 
@@ -146,25 +146,25 @@ Design and Implementation
 This reserve/commit schema allows a natural way for multiple producers, either
 on different CPUs or even on the same CPU/in the same BPF program, to reserve
 independent records and work with them without blocking other producers. This
-means that if BPF program was interrupted by another BPF program sharing the
+means that if BPF program was interrupted by aanalther BPF program sharing the
 same ring buffer, they will both get a record reserved (provided there is
-enough space left) and can work with it and submit it independently. This
+eanalugh space left) and can work with it and submit it independently. This
 applies to NMI context as well, except that due to using a spinlock during
 reservation, in NMI context, ``bpf_ringbuf_reserve()`` might fail to get
-a lock, in which case reservation will fail even if ring buffer is not full.
+a lock, in which case reservation will fail even if ring buffer is analt full.
 
 The ring buffer itself internally is implemented as a power-of-2 sized
 circular buffer, with two logical and ever-increasing counters (which might
-wrap around on 32-bit architectures, that's not a problem):
+wrap around on 32-bit architectures, that's analt a problem):
 
 - consumer counter shows up to which logical position consumer consumed the
   data;
-- producer counter denotes amount of data reserved by all producers.
+- producer counter deanaltes amount of data reserved by all producers.
 
 Each time a record is reserved, producer that "owns" the record will
-successfully advance producer counter. At that point, data is still not yet
+successfully advance producer counter. At that point, data is still analt yet
 ready to be consumed, though. Each record has 8 byte header, which contains the
-length of reserved record, as well as two extra bits: busy bit to denote that
+length of reserved record, as well as two extra bits: busy bit to deanalte that
 record is still being worked on, and discard bit, which might be set at commit
 time if record is discarded. In the latter case, consumer is supposed to skip
 the record and move on to the next one. Record header also encodes record's
@@ -185,22 +185,22 @@ off submitted records, that were reserved later.
 One interesting implementation bit, that significantly simplifies (and thus
 speeds up as well) implementation of both producers and consumers is how data
 area is mapped twice contiguously back-to-back in the virtual memory. This
-allows to not take any special measures for samples that have to wrap around
+allows to analt take any special measures for samples that have to wrap around
 at the end of the circular buffer data area, because the next page after the
 last data page would be first data page again, and thus the sample will still
 appear completely contiguous in virtual memory. See comment and a simple ASCII
 diagram showing this visually in ``bpf_ringbuf_area_alloc()``.
 
-Another feature that distinguishes BPF ringbuf from perf ring buffer is
-a self-pacing notifications of new data being availability.
-``bpf_ringbuf_commit()`` implementation will send a notification of new record
+Aanalther feature that distinguishes BPF ringbuf from perf ring buffer is
+a self-pacing analtifications of new data being availability.
+``bpf_ringbuf_commit()`` implementation will send a analtification of new record
 being available after commit only if consumer has already caught up right up to
-the record being committed. If not, consumer still has to catch up and thus
-will see new data anyways without needing an extra poll notification.
+the record being committed. If analt, consumer still has to catch up and thus
+will see new data anyways without needing an extra poll analtification.
 Benchmarks (see tools/testing/selftests/bpf/benchs/bench_ringbufs.c) show that
 this allows to achieve a very high throughput without having to resort to
-tricks like "notify only every Nth sample", which are necessary with perf
+tricks like "analtify only every Nth sample", which are necessary with perf
 buffer. For extreme cases, when BPF program wants more manual control of
-notifications, commit/discard/output helpers accept ``BPF_RB_NO_WAKEUP`` and
-``BPF_RB_FORCE_WAKEUP`` flags, which give full control over notifications of
+analtifications, commit/discard/output helpers accept ``BPF_RB_ANAL_WAKEUP`` and
+``BPF_RB_FORCE_WAKEUP`` flags, which give full control over analtifications of
 data availability, but require extra caution and diligence in using this API.

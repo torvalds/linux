@@ -40,17 +40,17 @@ mdfour(unsigned char *md4_hash, unsigned char *link_str, int link_len)
 
 	rc = cifs_md4_init(&mctx);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not init MD4\n", __func__);
+		cifs_dbg(VFS, "%s: Could analt init MD4\n", __func__);
 		goto mdfour_err;
 	}
 	rc = cifs_md4_update(&mctx, link_str, link_len);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not update MD4\n", __func__);
+		cifs_dbg(VFS, "%s: Could analt update MD4\n", __func__);
 		goto mdfour_err;
 	}
 	rc = cifs_md4_final(&mctx, md4_hash);
 	if (rc)
-		cifs_dbg(VFS, "%s: Could not finalize MD4\n", __func__);
+		cifs_dbg(VFS, "%s: Could analt finalize MD4\n", __func__);
 
 
 mdfour_err:
@@ -69,7 +69,7 @@ E_md4hash(const unsigned char *passwd, unsigned char *p16,
 	int len;
 	__le16 wpwd[129];
 
-	/* Password cannot be longer than 128 characters */
+	/* Password cananalt be longer than 128 characters */
 	if (passwd) /* Password must be converted to NT unicode */
 		len = cifs_strtoUTF16(wpwd, passwd, 128, codepage);
 	else {

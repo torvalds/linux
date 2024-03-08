@@ -19,144 +19,144 @@
 #include "common.h"
 #include "smc.h"
 
-#define EXYNOS_BOOT_ADDR	0x8
-#define EXYNOS_BOOT_FLAG	0xc
+#define EXYANALS_BOOT_ADDR	0x8
+#define EXYANALS_BOOT_FLAG	0xc
 
-static void exynos_save_cp15(void)
+static void exyanals_save_cp15(void)
 {
-	/* Save Power control and Diagnostic registers */
+	/* Save Power control and Diaganalstic registers */
 	asm ("mrc p15, 0, %0, c15, c0, 0\n"
 	     "mrc p15, 0, %1, c15, c0, 1\n"
 	     : "=r" (cp15_save_power), "=r" (cp15_save_diag)
 	     : : "cc");
 }
 
-static int exynos_do_idle(unsigned long mode)
+static int exyanals_do_idle(unsigned long mode)
 {
 	switch (mode) {
 	case FW_DO_IDLE_AFTR:
 		if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
-			exynos_save_cp15();
-		writel_relaxed(__pa_symbol(exynos_cpu_resume_ns),
+			exyanals_save_cp15();
+		writel_relaxed(__pa_symbol(exyanals_cpu_resume_ns),
 			       sysram_ns_base_addr + 0x24);
-		writel_relaxed(EXYNOS_AFTR_MAGIC, sysram_ns_base_addr + 0x20);
-		if (soc_is_exynos3250()) {
+		writel_relaxed(EXYANALS_AFTR_MAGIC, sysram_ns_base_addr + 0x20);
+		if (soc_is_exyanals3250()) {
 			flush_cache_all();
-			exynos_smc(SMC_CMD_SAVE, OP_TYPE_CORE,
+			exyanals_smc(SMC_CMD_SAVE, OP_TYPE_CORE,
 				   SMC_POWERSTATE_IDLE, 0);
-			exynos_smc(SMC_CMD_SHUTDOWN, OP_TYPE_CLUSTER,
+			exyanals_smc(SMC_CMD_SHUTDOWN, OP_TYPE_CLUSTER,
 				   SMC_POWERSTATE_IDLE, 0);
 		} else
-			exynos_smc(SMC_CMD_CPU0AFTR, 0, 0, 0);
+			exyanals_smc(SMC_CMD_CPU0AFTR, 0, 0, 0);
 		break;
 	case FW_DO_IDLE_SLEEP:
-		exynos_smc(SMC_CMD_SLEEP, 0, 0, 0);
+		exyanals_smc(SMC_CMD_SLEEP, 0, 0, 0);
 	}
 	return 0;
 }
 
-static int exynos_cpu_boot(int cpu)
+static int exyanals_cpu_boot(int cpu)
 {
 	/*
-	 * Exynos3250 doesn't need to send smc command for secondary CPU boot
-	 * because Exynos3250 removes WFE in secure mode.
+	 * Exyanals3250 doesn't need to send smc command for secondary CPU boot
+	 * because Exyanals3250 removes WFE in secure mode.
 	 *
-	 * On Exynos5 devices the call is ignored by trustzone firmware.
+	 * On Exyanals5 devices the call is iganalred by trustzone firmware.
 	 */
-	if (!soc_is_exynos4210() && !soc_is_exynos4212() &&
-	    !soc_is_exynos4412())
+	if (!soc_is_exyanals4210() && !soc_is_exyanals4212() &&
+	    !soc_is_exyanals4412())
 		return 0;
 
 	/*
 	 * The second parameter of SMC_CMD_CPU1BOOT command means CPU id.
-	 * But, Exynos4212 has only one secondary CPU so second parameter
+	 * But, Exyanals4212 has only one secondary CPU so second parameter
 	 * isn't used for informing secure firmware about CPU id.
 	 */
-	if (soc_is_exynos4212())
+	if (soc_is_exyanals4212())
 		cpu = 0;
 
-	exynos_smc(SMC_CMD_CPU1BOOT, cpu, 0, 0);
+	exyanals_smc(SMC_CMD_CPU1BOOT, cpu, 0, 0);
 	return 0;
 }
 
-static int exynos_set_cpu_boot_addr(int cpu, unsigned long boot_addr)
+static int exyanals_set_cpu_boot_addr(int cpu, unsigned long boot_addr)
 {
 	void __iomem *boot_reg;
 
 	if (!sysram_ns_base_addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	boot_reg = sysram_ns_base_addr + 0x1c;
 
 	/*
-	 * Almost all Exynos-series of SoCs that run in secure mode don't need
-	 * additional offset for every CPU, with Exynos4412 being the only
+	 * Almost all Exyanals-series of SoCs that run in secure mode don't need
+	 * additional offset for every CPU, with Exyanals4412 being the only
 	 * exception.
 	 */
-	if (soc_is_exynos4412())
+	if (soc_is_exyanals4412())
 		boot_reg += 4 * cpu;
 
 	writel_relaxed(boot_addr, boot_reg);
 	return 0;
 }
 
-static int exynos_get_cpu_boot_addr(int cpu, unsigned long *boot_addr)
+static int exyanals_get_cpu_boot_addr(int cpu, unsigned long *boot_addr)
 {
 	void __iomem *boot_reg;
 
 	if (!sysram_ns_base_addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	boot_reg = sysram_ns_base_addr + 0x1c;
 
-	if (soc_is_exynos4412())
+	if (soc_is_exyanals4412())
 		boot_reg += 4 * cpu;
 
 	*boot_addr = readl_relaxed(boot_reg);
 	return 0;
 }
 
-static int exynos_cpu_suspend(unsigned long arg)
+static int exyanals_cpu_suspend(unsigned long arg)
 {
 	flush_cache_all();
 	outer_flush_all();
 
-	exynos_smc(SMC_CMD_SLEEP, 0, 0, 0);
+	exyanals_smc(SMC_CMD_SLEEP, 0, 0, 0);
 
 	pr_info("Failed to suspend the system\n");
-	writel(0, sysram_ns_base_addr + EXYNOS_BOOT_FLAG);
+	writel(0, sysram_ns_base_addr + EXYANALS_BOOT_FLAG);
 	return 1;
 }
 
-static int exynos_suspend(void)
+static int exyanals_suspend(void)
 {
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
-		exynos_save_cp15();
+		exyanals_save_cp15();
 
-	writel(EXYNOS_SLEEP_MAGIC, sysram_ns_base_addr + EXYNOS_BOOT_FLAG);
-	writel(__pa_symbol(exynos_cpu_resume_ns),
-		sysram_ns_base_addr + EXYNOS_BOOT_ADDR);
+	writel(EXYANALS_SLEEP_MAGIC, sysram_ns_base_addr + EXYANALS_BOOT_FLAG);
+	writel(__pa_symbol(exyanals_cpu_resume_ns),
+		sysram_ns_base_addr + EXYANALS_BOOT_ADDR);
 
-	return cpu_suspend(0, exynos_cpu_suspend);
+	return cpu_suspend(0, exyanals_cpu_suspend);
 }
 
-static int exynos_resume(void)
+static int exyanals_resume(void)
 {
-	writel(0, sysram_ns_base_addr + EXYNOS_BOOT_FLAG);
+	writel(0, sysram_ns_base_addr + EXYANALS_BOOT_FLAG);
 
 	return 0;
 }
 
-static const struct firmware_ops exynos_firmware_ops = {
-	.do_idle		= IS_ENABLED(CONFIG_EXYNOS_CPU_SUSPEND) ? exynos_do_idle : NULL,
-	.set_cpu_boot_addr	= exynos_set_cpu_boot_addr,
-	.get_cpu_boot_addr	= exynos_get_cpu_boot_addr,
-	.cpu_boot		= exynos_cpu_boot,
-	.suspend		= IS_ENABLED(CONFIG_PM_SLEEP) ? exynos_suspend : NULL,
-	.resume			= IS_ENABLED(CONFIG_EXYNOS_CPU_SUSPEND) ? exynos_resume : NULL,
+static const struct firmware_ops exyanals_firmware_ops = {
+	.do_idle		= IS_ENABLED(CONFIG_EXYANALS_CPU_SUSPEND) ? exyanals_do_idle : NULL,
+	.set_cpu_boot_addr	= exyanals_set_cpu_boot_addr,
+	.get_cpu_boot_addr	= exyanals_get_cpu_boot_addr,
+	.cpu_boot		= exyanals_cpu_boot,
+	.suspend		= IS_ENABLED(CONFIG_PM_SLEEP) ? exyanals_suspend : NULL,
+	.resume			= IS_ENABLED(CONFIG_EXYANALS_CPU_SUSPEND) ? exyanals_resume : NULL,
 };
 
-static void exynos_l2_write_sec(unsigned long val, unsigned reg)
+static void exyanals_l2_write_sec(unsigned long val, unsigned reg)
 {
 	static int l2cache_enabled;
 
@@ -168,77 +168,77 @@ static void exynos_l2_write_sec(unsigned long val, unsigned reg)
 			 * design, SMC_CMD_L2X0INVALL must be called.
 			 */
 			if (!l2cache_enabled) {
-				exynos_smc(SMC_CMD_L2X0INVALL, 0, 0, 0);
+				exyanals_smc(SMC_CMD_L2X0INVALL, 0, 0, 0);
 				l2cache_enabled = 1;
 			}
 		} else {
 			l2cache_enabled = 0;
 		}
-		exynos_smc(SMC_CMD_L2X0CTRL, val, 0, 0);
+		exyanals_smc(SMC_CMD_L2X0CTRL, val, 0, 0);
 		break;
 
 	case L2X0_DEBUG_CTRL:
-		exynos_smc(SMC_CMD_L2X0DEBUG, val, 0, 0);
+		exyanals_smc(SMC_CMD_L2X0DEBUG, val, 0, 0);
 		break;
 
 	default:
-		WARN_ONCE(1, "%s: ignoring write to reg 0x%x\n", __func__, reg);
+		WARN_ONCE(1, "%s: iganalring write to reg 0x%x\n", __func__, reg);
 	}
 }
 
-static void exynos_l2_configure(const struct l2x0_regs *regs)
+static void exyanals_l2_configure(const struct l2x0_regs *regs)
 {
-	exynos_smc(SMC_CMD_L2X0SETUP1, regs->tag_latency, regs->data_latency,
+	exyanals_smc(SMC_CMD_L2X0SETUP1, regs->tag_latency, regs->data_latency,
 		   regs->prefetch_ctrl);
-	exynos_smc(SMC_CMD_L2X0SETUP2, regs->pwr_ctrl, regs->aux_ctrl, 0);
+	exyanals_smc(SMC_CMD_L2X0SETUP2, regs->pwr_ctrl, regs->aux_ctrl, 0);
 }
 
-bool __init exynos_secure_firmware_available(void)
+bool __init exyanals_secure_firmware_available(void)
 {
-	struct device_node *nd;
+	struct device_analde *nd;
 	const __be32 *addr;
 
-	nd = of_find_compatible_node(NULL, NULL,
+	nd = of_find_compatible_analde(NULL, NULL,
 					"samsung,secure-firmware");
 	if (!nd)
 		return false;
 
 	addr = of_get_address(nd, 0, NULL, NULL);
-	of_node_put(nd);
+	of_analde_put(nd);
 	if (!addr) {
-		pr_err("%s: No address specified.\n", __func__);
+		pr_err("%s: Anal address specified.\n", __func__);
 		return false;
 	}
 
 	return true;
 }
 
-void __init exynos_firmware_init(void)
+void __init exyanals_firmware_init(void)
 {
-	if (!exynos_secure_firmware_available())
+	if (!exyanals_secure_firmware_available())
 		return;
 
 	pr_info("Running under secure firmware.\n");
 
-	register_firmware_ops(&exynos_firmware_ops);
+	register_firmware_ops(&exyanals_firmware_ops);
 
 	/*
-	 * Exynos 4 SoCs (based on Cortex A9 and equipped with L2C-310),
+	 * Exyanals 4 SoCs (based on Cortex A9 and equipped with L2C-310),
 	 * running under secure firmware, require certain registers of L2
 	 * cache controller to be written in secure mode. Here .write_sec
 	 * callback is provided to perform necessary SMC calls.
 	 */
 	if (IS_ENABLED(CONFIG_CACHE_L2X0) &&
 	    read_cpuid_part() == ARM_CPU_PART_CORTEX_A9) {
-		outer_cache.write_sec = exynos_l2_write_sec;
-		outer_cache.configure = exynos_l2_configure;
+		outer_cache.write_sec = exyanals_l2_write_sec;
+		outer_cache.configure = exyanals_l2_configure;
 	}
 }
 
 #define REG_CPU_STATE_ADDR	(sysram_ns_base_addr + 0x28)
 #define BOOT_MODE_MASK		0x1f
 
-void exynos_set_boot_flag(unsigned int cpu, unsigned int mode)
+void exyanals_set_boot_flag(unsigned int cpu, unsigned int mode)
 {
 	unsigned int tmp;
 
@@ -251,7 +251,7 @@ void exynos_set_boot_flag(unsigned int cpu, unsigned int mode)
 	writel_relaxed(tmp, REG_CPU_STATE_ADDR + cpu * 4);
 }
 
-void exynos_clear_boot_flag(unsigned int cpu, unsigned int mode)
+void exyanals_clear_boot_flag(unsigned int cpu, unsigned int mode)
 {
 	unsigned int tmp;
 

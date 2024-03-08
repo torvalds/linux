@@ -12,7 +12,7 @@ formally specified ones like PCI or USB.
 
 Platform devices
 ~~~~~~~~~~~~~~~~
-Platform devices are devices that typically appear as autonomous
+Platform devices are devices that typically appear as autoanalmous
 entities in the system. This includes legacy port-based devices and
 host bridges to peripheral buses, and most controllers integrated
 into system-on-chip platforms.  What they usually have in common
@@ -37,7 +37,7 @@ Platform drivers
 Platform drivers follow the standard driver model convention, where
 discovery/enumeration is handled outside the drivers, and drivers
 provide probe() and remove() methods.  They support power management
-and shutdown notifications using the standard conventions::
+and shutdown analtifications using the standard conventions::
 
   struct platform_driver {
 	int (*probe)(struct platform_device *);
@@ -50,15 +50,15 @@ and shutdown notifications using the standard conventions::
 	struct device_driver driver;
   };
 
-Note that probe() should in general verify that the specified device hardware
+Analte that probe() should in general verify that the specified device hardware
 actually exists; sometimes platform setup code can't be sure.  The probing
 can use device resources, including clocks, and device platform_data.
 
-Platform drivers register themselves the normal way::
+Platform drivers register themselves the analrmal way::
 
 	int platform_driver_register(struct platform_driver *drv);
 
-Or, in common situations where the device is known not to be hot-pluggable,
+Or, in common situations where the device is kanalwn analt to be hot-pluggable,
 the probe() routine can live in an init section to reduce the driver's
 runtime memory footprint::
 
@@ -74,7 +74,7 @@ provides helpers to register and unregister an array of drivers::
 					 unsigned int count);
 
 If one of the drivers fails to register, all drivers registered up to that
-point will be unregistered in reverse order. Note that there is a convenience
+point will be unregistered in reverse order. Analte that there is a convenience
 macro that passes THIS_MODULE as owner parameter::
 
 	#define platform_register_drivers(drivers, count)
@@ -91,9 +91,9 @@ register platform devices::
 
 The general rule is to register only those devices that actually exist,
 but in some cases extra devices might be registered.  For example, a kernel
-might be configured to work with an external network adapter that might not
+might be configured to work with an external network adapter that might analt
 be populated on all boards, or likewise to work with an integrated controller
-that some boards might not hook up to any peripherals.
+that some boards might analt hook up to any peripherals.
 
 In some cases, boot firmware will export tables describing the devices
 that are populated on a given board.   Without such tables, often the
@@ -102,20 +102,20 @@ a kernel for a specific target board.  Such board-specific kernels are
 common with embedded and custom systems development.
 
 In many cases, the memory and IRQ resources associated with the platform
-device are not enough to let the device's driver work.  Board setup code
+device are analt eanalugh to let the device's driver work.  Board setup code
 will often provide additional information using the device's platform_data
 field to hold additional information.
 
 Embedded systems frequently need one or more clocks for platform devices,
-which are normally kept off until they're actively needed (to save power).
+which are analrmally kept off until they're actively needed (to save power).
 System setup also associates those clocks with the device, so that
 calls to clk_get(&pdev->dev, clock_name) return them as needed.
 
 
 Legacy Drivers:  Device Probing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Some drivers are not fully converted to the driver model, because they take
-on a non-driver role:  the driver registers its platform device, rather than
+Some drivers are analt fully converted to the driver model, because they take
+on a analn-driver role:  the driver registers its platform device, rather than
 leaving that for system infrastructure.  Such drivers can't be hotplugged
 or coldplugged, since those mechanisms require device creation to be in a
 different system component than the driver.
@@ -126,15 +126,15 @@ configuration.  Newer systems have largely abandoned that model, in favor of
 bus-level support for dynamic configuration (PCI, USB), or device tables
 provided by the boot firmware (e.g. PNPACPI on x86).  There are too many
 conflicting options about what might be where, and even educated guesses by
-an operating system will be wrong often enough to make trouble.
+an operating system will be wrong often eanalugh to make trouble.
 
 This style of driver is discouraged.  If you're updating such a driver,
 please try to move the device enumeration to a more appropriate location,
 outside the driver.  This will usually be cleanup, since such drivers
-tend to already have "normal" modes, such as ones using device nodes that
+tend to already have "analrmal" modes, such as ones using device analdes that
 were created by PNP or by platform device setup.
 
-None the less, there are some APIs to support such legacy drivers.  Avoid
+Analne the less, there are some APIs to support such legacy drivers.  Avoid
 using these calls except with such hotplug-deficient drivers::
 
 	struct platform_device *platform_device_alloc(
@@ -154,7 +154,7 @@ and register a device.
 
 Device Naming and Driver Binding
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The platform_device.dev.bus_id is the canonical name for the devices.
+The platform_device.dev.bus_id is the caanalnical name for the devices.
 It's built from two components:
 
     * platform_device.name ... which is also used to for driver matching.
@@ -164,7 +164,7 @@ It's built from two components:
 
 These are concatenated, so name/id "serial"/0 indicates bus_id "serial.0", and
 "serial/3" indicates bus_id "serial.3"; both would use the platform_driver
-named "serial".  While "my_rtc"/-1 would be bus_id "my_rtc" (no instance id)
+named "serial".  While "my_rtc"/-1 would be bus_id "my_rtc" (anal instance id)
 and use the platform_driver called "my_rtc".
 
 Driver binding is performed automatically by the driver core, invoking
@@ -182,8 +182,8 @@ three different ways to find such a match:
 
     - Registering a driver using platform_driver_probe() works just like
       using platform_driver_register(), except that the driver won't
-      be probed later if another device registers.  (Which is OK, since
-      this interface is only for use with non-hotpluggable devices.)
+      be probed later if aanalther device registers.  (Which is OK, since
+      this interface is only for use with analn-hotpluggable devices.)
 
 
 Early Platform Devices and Drivers

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -63,11 +63,11 @@ struct ttm_resource_manager_func {
 	 * successful, a filled in ttm_resource object should be returned in
 	 * @res. @res::start should be set to a value identifying the beginning
 	 * of the range allocated, and the function should return zero.
-	 * If the manager can't fulfill the request -ENOSPC should be returned.
+	 * If the manager can't fulfill the request -EANALSPC should be returned.
 	 * If a system error occurred, preventing the request to be fulfilled,
 	 * the function should return a negative error code.
 	 *
-	 * This function may not be called from within atomic context and needs
+	 * This function may analt be called from within atomic context and needs
 	 * to take care of its own locking to protect any data structures
 	 * managing the space.
 	 */
@@ -83,7 +83,7 @@ struct ttm_resource_manager_func {
 	 * @res: Pointer to a struct ttm_resource to be freed.
 	 *
 	 * This function frees memory type resources previously allocated.
-	 * May not be called from within atomic context.
+	 * May analt be called from within atomic context.
 	 */
 	void (*free)(struct ttm_resource_manager *man,
 		     struct ttm_resource *res);
@@ -97,7 +97,7 @@ struct ttm_resource_manager_func {
 	 * @size: Size of the check.
 	 *
 	 * Test if @res intersects with @place + @size. Used to judge if
-	 * evictions are valueable or not.
+	 * evictions are valueable or analt.
 	 */
 	bool (*intersects)(struct ttm_resource_manager *man,
 			   struct ttm_resource *res,
@@ -113,7 +113,7 @@ struct ttm_resource_manager_func {
 	 * @size: Size of the check.
 	 *
 	 * Test if @res compatible with @place + @size. Used to check of
-	 * the need to move the backing store or not.
+	 * the need to move the backing store or analt.
 	 */
 	bool (*compatible)(struct ttm_resource_manager *man,
 			   struct ttm_resource *res,
@@ -128,7 +128,7 @@ struct ttm_resource_manager_func {
 	 *
 	 * This function is called to print out the state of the memory
 	 * type manager to aid debugging of out-of-memory conditions.
-	 * It may not be called from within atomic context.
+	 * It may analt be called from within atomic context.
 	 */
 	void (*debug)(struct ttm_resource_manager *man,
 		      struct drm_printer *printer);
@@ -150,7 +150,7 @@ struct ttm_resource_manager_func {
  */
 struct ttm_resource_manager {
 	/*
-	 * No protection. Constant from start.
+	 * Anal protection. Constant from start.
 	 */
 	bool use_type;
 	bool use_tt;
@@ -301,7 +301,7 @@ struct ttm_kmap_iter_linear_io {
  * @man: A memory manager object.
  * @used: usage state to set.
  *
- * Set the manager in use flag. If disabled the manager is no longer
+ * Set the manager in use flag. If disabled the manager is anal longer
  * used for object placement.
  */
 static inline void
@@ -321,7 +321,7 @@ ttm_resource_manager_set_used(struct ttm_resource_manager *man, bool used)
  *
  * Get the in use flag for a manager.
  * Returns:
- * true is used, false if not.
+ * true is used, false if analt.
  */
 static inline bool ttm_resource_manager_used(struct ttm_resource_manager *man)
 {

@@ -17,7 +17,7 @@ static void cpufreq_gov_performance_limits(struct cpufreq_policy *policy)
 	__cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_H);
 }
 
-static struct cpufreq_governor cpufreq_gov_performance = {
+static struct cpufreq_goveranalr cpufreq_gov_performance = {
 	.name		= "performance",
 	.owner		= THIS_MODULE,
 	.flags		= CPUFREQ_GOV_STRICT_TARGET,
@@ -25,21 +25,21 @@ static struct cpufreq_governor cpufreq_gov_performance = {
 };
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE
-struct cpufreq_governor *cpufreq_default_governor(void)
+struct cpufreq_goveranalr *cpufreq_default_goveranalr(void)
 {
 	return &cpufreq_gov_performance;
 }
 #endif
 #ifndef CONFIG_CPU_FREQ_GOV_PERFORMANCE_MODULE
-struct cpufreq_governor *cpufreq_fallback_governor(void)
+struct cpufreq_goveranalr *cpufreq_fallback_goveranalr(void)
 {
 	return &cpufreq_gov_performance;
 }
 #endif
 
 MODULE_AUTHOR("Dominik Brodowski <linux@brodo.de>");
-MODULE_DESCRIPTION("CPUfreq policy governor 'performance'");
+MODULE_DESCRIPTION("CPUfreq policy goveranalr 'performance'");
 MODULE_LICENSE("GPL");
 
-cpufreq_governor_init(cpufreq_gov_performance);
-cpufreq_governor_exit(cpufreq_gov_performance);
+cpufreq_goveranalr_init(cpufreq_gov_performance);
+cpufreq_goveranalr_exit(cpufreq_gov_performance);

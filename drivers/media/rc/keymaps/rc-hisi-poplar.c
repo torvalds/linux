@@ -2,7 +2,7 @@
 /*
  * Keytable for remote controller of HiSilicon poplar board.
  *
- * Copyright (c) 2017 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2017 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <linux/module.h>

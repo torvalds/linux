@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Header File for FPGA DFL User API
  *
@@ -47,7 +47,7 @@
  * DFL_FPGA_CHECK_EXTENSION - _IO(DFL_FPGA_MAGIC, DFL_FPGA_BASE + 1)
  *
  * Check whether an extension is supported.
- * Return: 0 if not supported, otherwise the extension is supported.
+ * Return: 0 if analt supported, otherwise the extension is supported.
  */
 
 #define DFL_FPGA_CHECK_EXTENSION	_IO(DFL_FPGA_MAGIC, DFL_FPGA_BASE + 1)
@@ -57,11 +57,11 @@
 /**
  * DFL_FPGA_PORT_RESET - _IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 0)
  *
- * Reset the FPGA Port and its AFU. No parameters are supported.
+ * Reset the FPGA Port and its AFU. Anal parameters are supported.
  * Userspace can do Port reset at any time, e.g. during DMA or PR. But
  * it should never cause any system level issue, only functional failure
  * (e.g. DMA or PR operation failure) and be recoverable from the failure.
- * Return: 0 on success, -errno of failure
+ * Return: 0 on success, -erranal of failure
  */
 
 #define DFL_FPGA_PORT_RESET		_IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 0)
@@ -72,13 +72,13 @@
  *
  * Retrieve information about the fpga port.
  * Driver fills the info in provided struct dfl_fpga_port_info.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 struct dfl_fpga_port_info {
 	/* Input */
 	__u32 argsz;		/* Structure length */
 	/* Output */
-	__u32 flags;		/* Zero for now */
+	__u32 flags;		/* Zero for analw */
 	__u32 num_regions;	/* The number of supported regions */
 	__u32 num_umsgs;	/* The number of allocated umsgs */
 };
@@ -92,7 +92,7 @@ struct dfl_fpga_port_info {
  * Retrieve information about a device memory region.
  * Caller provides struct dfl_fpga_port_region_info with index value set.
  * Driver returns the region info in other fields.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 struct dfl_fpga_port_region_info {
 	/* input */
@@ -121,12 +121,12 @@ struct dfl_fpga_port_region_info {
  * Map the dma memory per user_addr and length which are provided by caller.
  * Driver fills the iova in provided struct afu_port_dma_map.
  * This interface only accepts page-size aligned user memory for dma mapping.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 struct dfl_fpga_port_dma_map {
 	/* Input */
 	__u32 argsz;		/* Structure length */
-	__u32 flags;		/* Zero for now */
+	__u32 flags;		/* Zero for analw */
 	__u64 user_addr;        /* Process virtual address */
 	__u64 length;           /* Length of mapping (bytes)*/
 	/* Output */
@@ -140,12 +140,12 @@ struct dfl_fpga_port_dma_map {
  *						struct dfl_fpga_port_dma_unmap)
  *
  * Unmap the dma memory per iova provided by caller.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 struct dfl_fpga_port_dma_unmap {
 	/* Input */
 	__u32 argsz;		/* Structure length */
-	__u32 flags;		/* Zero for now */
+	__u32 flags;		/* Zero for analw */
 	__u64 iova;		/* IO virtual address */
 };
 
@@ -170,7 +170,7 @@ struct dfl_fpga_irq_set {
  *
  * Get the number of irqs supported by the fpga port error reporting private
  * feature. Currently hardware supports up to 1 irq.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 #define DFL_FPGA_PORT_ERR_GET_IRQ_NUM	_IOR(DFL_FPGA_MAGIC,	\
 					     DFL_PORT_BASE + 5, __u32)
@@ -181,7 +181,7 @@ struct dfl_fpga_irq_set {
  *
  * Set fpga port error reporting interrupt trigger if evtfds[n] is valid.
  * Unset related interrupt trigger if evtfds[n] is a negative value.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 #define DFL_FPGA_PORT_ERR_SET_IRQ	_IOW(DFL_FPGA_MAGIC,	\
 					     DFL_PORT_BASE + 6,	\
@@ -193,7 +193,7 @@ struct dfl_fpga_irq_set {
  *
  * Get the number of irqs supported by the fpga AFU interrupt private
  * feature.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 #define DFL_FPGA_PORT_UINT_GET_IRQ_NUM	_IOR(DFL_FPGA_MAGIC,	\
 					     DFL_PORT_BASE + 7, __u32)
@@ -204,7 +204,7 @@ struct dfl_fpga_irq_set {
  *
  * Set fpga AFU interrupt trigger if evtfds[n] is valid.
  * Unset related interrupt trigger if evtfds[n] is a negative value.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 #define DFL_FPGA_PORT_UINT_SET_IRQ	_IOW(DFL_FPGA_MAGIC,	\
 					     DFL_PORT_BASE + 8,	\
@@ -218,7 +218,7 @@ struct dfl_fpga_irq_set {
  *
  * Driver does Partial Reconfiguration based on Port ID and Buffer (Image)
  * provided by caller.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  * If DFL_FPGA_FME_PORT_PR returns -EIO, that indicates the HW has detected
  * some errors during PR, under this case, the user can fetch HW error info
  * from the status of FME's fpga manager.
@@ -227,7 +227,7 @@ struct dfl_fpga_irq_set {
 struct dfl_fpga_fme_port_pr {
 	/* Input */
 	__u32 argsz;		/* Structure length */
-	__u32 flags;		/* Zero for now */
+	__u32 flags;		/* Zero for analw */
 	__u32 port_id;
 	__u32 buffer_size;
 	__u64 buffer_address;	/* Userspace address to the buffer for PR */
@@ -240,7 +240,7 @@ struct dfl_fpga_fme_port_pr {
  *						int port_id)
  *
  * Driver releases the port per Port ID provided by caller.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 #define DFL_FPGA_FME_PORT_RELEASE   _IOW(DFL_FPGA_MAGIC, DFL_FME_BASE + 1, int)
 
@@ -249,7 +249,7 @@ struct dfl_fpga_fme_port_pr {
  *						int port_id)
  *
  * Driver assigns the port back per Port ID provided by caller.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 #define DFL_FPGA_FME_PORT_ASSIGN     _IOW(DFL_FPGA_MAGIC, DFL_FME_BASE + 2, int)
 
@@ -259,7 +259,7 @@ struct dfl_fpga_fme_port_pr {
  *
  * Get the number of irqs supported by the fpga fme error reporting private
  * feature. Currently hardware supports up to 1 irq.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 #define DFL_FPGA_FME_ERR_GET_IRQ_NUM	_IOR(DFL_FPGA_MAGIC,	\
 					     DFL_FME_BASE + 3, __u32)
@@ -270,7 +270,7 @@ struct dfl_fpga_fme_port_pr {
  *
  * Set fpga fme error reporting interrupt trigger if evtfds[n] is valid.
  * Unset related interrupt trigger if evtfds[n] is a negative value.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erranal on failure.
  */
 #define DFL_FPGA_FME_ERR_SET_IRQ	_IOW(DFL_FPGA_MAGIC,	\
 					     DFL_FME_BASE + 4,	\

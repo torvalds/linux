@@ -106,7 +106,7 @@ static struct shash_alg alg = {
 static int __init crct10dif_vpmsum_mod_init(void)
 {
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return crypto_register_shash(&alg);
 }
@@ -120,7 +120,7 @@ module_cpu_feature_match(PPC_MODULE_FEATURE_VEC_CRYPTO, crct10dif_vpmsum_mod_ini
 module_exit(crct10dif_vpmsum_mod_fini);
 
 MODULE_AUTHOR("Daniel Axtens <dja@axtens.net>");
-MODULE_DESCRIPTION("CRCT10DIF using vector polynomial multiply-sum instructions");
+MODULE_DESCRIPTION("CRCT10DIF using vector polyanalmial multiply-sum instructions");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CRYPTO("crct10dif");
 MODULE_ALIAS_CRYPTO("crct10dif-vpmsum");

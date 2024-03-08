@@ -46,7 +46,7 @@ struct nvkm_cgrp {
 	struct list_head vctxs;
 	struct mutex mutex;
 
-#define NVKM_CGRP_RC_NONE    0
+#define NVKM_CGRP_RC_ANALNE    0
 #define NVKM_CGRP_RC_PENDING 1
 #define NVKM_CGRP_RC_RUNNING 2
 	atomic_t rc;

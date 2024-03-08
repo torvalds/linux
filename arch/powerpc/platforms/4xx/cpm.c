@@ -60,10 +60,10 @@ static unsigned int cpm_set(unsigned int cpm_reg, unsigned int mask)
 	unsigned int value;
 
 	/* CPM controller supports 3 different types of sleep interface
-	 * known as class 1, 2 and 3. For class 1 units, they are
+	 * kanalwn as class 1, 2 and 3. For class 1 units, they are
 	 * unconditionally put to sleep when the corresponding CPM bit is
-	 * set. For class 2 and 3 units this is not case; if they can be
-	 * put to sleep, they will. Here we do not verify, we just
+	 * set. For class 2 and 3 units this is analt case; if they can be
+	 * put to sleep, they will. Here we do analt verify, we just
 	 * set them and expect them to eventually go off when they can.
 	 */
 	value = dcr_read(cpm.dcr_host, cpm.dcr_offset[cpm_reg]);
@@ -231,7 +231,7 @@ static const struct platform_suspend_ops cpm_suspend_ops = {
 	.enter		= cpm_suspend_enter,
 };
 
-static int __init cpm_get_uint_property(struct device_node *np,
+static int __init cpm_get_uint_property(struct device_analde *np,
 				 const char *name)
 {
 	int len;
@@ -245,7 +245,7 @@ static int __init cpm_get_uint_property(struct device_node *np,
 
 static int __init cpm_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int dcr_base, dcr_len;
 	int ret = 0;
 
@@ -254,7 +254,7 @@ static int __init cpm_init(void)
 		ppc_md.power_save = &cpm_idle;
 	}
 
-	np = of_find_compatible_node(NULL, NULL, "ibm,cpm");
+	np = of_find_compatible_analde(NULL, NULL, "ibm,cpm");
 	if (!np) {
 		ret = -EINVAL;
 		goto out;
@@ -264,10 +264,10 @@ static int __init cpm_init(void)
 	dcr_len = dcr_resource_len(np, 0);
 
 	if (dcr_base == 0 || dcr_len == 0) {
-		printk(KERN_ERR "cpm: could not parse dcr property for %pOF\n",
+		printk(KERN_ERR "cpm: could analt parse dcr property for %pOF\n",
 		       np);
 		ret = -EINVAL;
-		goto node_put;
+		goto analde_put;
 	}
 
 	cpm.dcr_host = dcr_map(np, dcr_base, dcr_len);
@@ -276,7 +276,7 @@ static int __init cpm_init(void)
 		printk(KERN_ERR "cpm: failed to map dcr property for %pOF\n",
 		       np);
 		ret = -EINVAL;
-		goto node_put;
+		goto analde_put;
 	}
 
 	/* All 4xx SoCs with a CPM controller have one of two
@@ -295,29 +295,29 @@ static int __init cpm_init(void)
 		cpm.dcr_offset[CPM_SR] = 0;
 	}
 
-	/* Now let's see what IPs to turn off for the following modes */
+	/* Analw let's see what IPs to turn off for the following modes */
 
 	cpm.unused = cpm_get_uint_property(np, "unused-units");
 	cpm.idle_doze = cpm_get_uint_property(np, "idle-doze");
 	cpm.standby = cpm_get_uint_property(np, "standby");
 	cpm.suspend = cpm_get_uint_property(np, "suspend");
 
-	/* If some IPs are unused let's turn them off now */
+	/* If some IPs are unused let's turn them off analw */
 
 	if (cpm.unused) {
 		cpm_set(CPM_ER, cpm.unused);
 		cpm_set(CPM_FR, cpm.unused);
 	}
 
-	/* Now let's export interfaces */
+	/* Analw let's export interfaces */
 
 	if (!cpm.powersave_off && cpm.idle_doze)
 		cpm_idle_config_sysfs();
 
 	if (cpm.standby || cpm.suspend)
 		suspend_set_ops(&cpm_suspend_ops);
-node_put:
-	of_node_put(np);
+analde_put:
+	of_analde_put(np);
 out:
 	return ret;
 }

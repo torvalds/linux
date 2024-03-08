@@ -35,7 +35,7 @@ struct drm_dp_link_caps {
 	/**
 	 * @fast_training:
 	 *
-	 * AUX CH handshake not required for link training
+	 * AUX CH handshake analt required for link training
 	 */
 	bool fast_training;
 

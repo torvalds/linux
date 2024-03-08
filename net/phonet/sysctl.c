@@ -4,14 +4,14 @@
  *
  * Phonet /proc/sys/net/phonet interface implementation
  *
- * Copyright (C) 2008 Nokia Corporation.
+ * Copyright (C) 2008 Analkia Corporation.
  *
  * Author: Rémi Denis-Courmont
  */
 
 #include <linux/seqlock.h>
 #include <linux/sysctl.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 
 #include <net/sock.h>
@@ -87,7 +87,7 @@ static struct ctl_table phonet_table[] = {
 int __init phonet_sysctl_init(void)
 {
 	phonet_table_hrd = register_net_sysctl(&init_net, "net/phonet", phonet_table);
-	return phonet_table_hrd == NULL ? -ENOMEM : 0;
+	return phonet_table_hrd == NULL ? -EANALMEM : 0;
 }
 
 void phonet_sysctl_exit(void)

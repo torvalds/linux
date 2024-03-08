@@ -8,7 +8,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -225,7 +225,7 @@ int regmap_encx24j600_spi_write(void *context, u8 reg, const u8 *data,
 	if (reg < 0xc0)
 		return encx24j600_cmdn(ctx, reg, data, count);
 
-	/* SPI 1-byte command. Ignore data */
+	/* SPI 1-byte command. Iganalre data */
 	return spi_write(ctx->spi, &reg, 1);
 }
 EXPORT_SYMBOL_GPL(regmap_encx24j600_spi_write);

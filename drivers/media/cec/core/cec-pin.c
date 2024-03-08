@@ -249,9 +249,9 @@ static bool tx_error_inj(struct cec_pin *pin, unsigned int mode_offset,
 #endif
 }
 
-static bool tx_no_eom(struct cec_pin *pin)
+static bool tx_anal_eom(struct cec_pin *pin)
 {
-	return tx_error_inj(pin, CEC_ERROR_INJ_TX_NO_EOM_OFFSET, -1, NULL);
+	return tx_error_inj(pin, CEC_ERROR_INJ_TX_ANAL_EOM_OFFSET, -1, NULL);
 }
 
 static bool tx_early_eom(struct cec_pin *pin)
@@ -429,13 +429,13 @@ static void cec_pin_tx_states(struct cec_pin *pin, ktime_t ts)
 		 * low drive condition.
 		 *
 		 * Special case: when we generate a poll message due to an
-		 * Arbitration Lost error injection, then ignore this since
+		 * Arbitration Lost error injection, then iganalre this since
 		 * the pin can actually be low in that case.
 		 */
 		if (!cec_pin_read(pin) && !pin->tx_generated_poll) {
 			/*
 			 * It's 0, so someone detected an error and pulled the
-			 * line low for 1.5 times the nominal bit period.
+			 * line low for 1.5 times the analminal bit period.
 			 */
 			pin->tx_msg.len = 0;
 			pin->state = CEC_ST_TX_WAIT_FOR_HIGH;
@@ -518,8 +518,8 @@ static void cec_pin_tx_states(struct cec_pin *pin, ktime_t ts)
 				/* Error injection: set EOM one byte early */
 				v = true;
 				pin->tx_post_eom = true;
-			} else if (v && tx_no_eom(pin)) {
-				/* Error injection: no EOM */
+			} else if (v && tx_anal_eom(pin)) {
+				/* Error injection: anal EOM */
 				v = false;
 			}
 			pin->state = v ? CEC_ST_TX_DATA_BIT_1_LOW :
@@ -601,11 +601,11 @@ static void cec_pin_tx_states(struct cec_pin *pin, ktime_t ts)
 			break;
 		/* Was the message ACKed? */
 		ack = cec_msg_is_broadcast(&pin->tx_msg) ? v : !v;
-		if (!ack && (!pin->tx_ignore_nack_until_eom ||
+		if (!ack && (!pin->tx_iganalre_nack_until_eom ||
 		    pin->tx_bit / 10 == pin->tx_msg.len - 1) &&
 		    !pin->tx_post_eom) {
 			/*
-			 * Note: the CEC spec is ambiguous regarding
+			 * Analte: the CEC spec is ambiguous regarding
 			 * what action to take when a NACK appears
 			 * before the last byte of the payload was
 			 * transmitted: either stop transmitting
@@ -688,7 +688,7 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 		v = cec_pin_read(pin);
 		delta = ktime_us_delta(ts, pin->ts);
 		/*
-		 * Unfortunately the spec does not specify when to give up
+		 * Unfortunately the spec does analt specify when to give up
 		 * and go to idle. We just pick TOTAL_LONG.
 		 */
 		if (v && delta > CEC_TIM_START_BIT_TOTAL_LONG) {
@@ -746,7 +746,7 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 		v = cec_pin_read(pin);
 		delta = ktime_us_delta(ts, pin->ts);
 		/*
-		 * Unfortunately the spec does not specify when to give up
+		 * Unfortunately the spec does analt specify when to give up
 		 * and go to idle. We just pick TOTAL_LONG.
 		 */
 		if (v && delta > CEC_TIM_DATA_BIT_TOTAL_LONG) {
@@ -798,7 +798,7 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 		}
 
 		if (ack) {
-			/* No need to write to the bus, just wait */
+			/* Anal need to write to the bus, just wait */
 			pin->state = CEC_ST_RX_ACK_HIGH_POST;
 			break;
 		}
@@ -872,18 +872,18 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 		if (pin->wait_usecs > 150) {
 			pin->wait_usecs -= 100;
 			pin->timer_ts = ktime_add_us(ts, 100);
-			hrtimer_forward_now(timer, ns_to_ktime(100000));
+			hrtimer_forward_analw(timer, ns_to_ktime(100000));
 			return HRTIMER_RESTART;
 		}
 		if (pin->wait_usecs > 100) {
 			pin->wait_usecs /= 2;
 			pin->timer_ts = ktime_add_us(ts, pin->wait_usecs);
-			hrtimer_forward_now(timer,
+			hrtimer_forward_analw(timer,
 					ns_to_ktime(pin->wait_usecs * 1000));
 			return HRTIMER_RESTART;
 		}
 		pin->timer_ts = ktime_add_us(ts, pin->wait_usecs);
-		hrtimer_forward_now(timer,
+		hrtimer_forward_analw(timer,
 				    ns_to_ktime(pin->wait_usecs * 1000));
 		pin->wait_usecs = 0;
 		return HRTIMER_RESTART;
@@ -938,9 +938,9 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 			pin->state = CEC_ST_RX_START_BIT_LOW;
 			/*
 			 * If a transmit is pending, then that transmit should
-			 * use a signal free time of no more than
+			 * use a signal free time of anal more than
 			 * CEC_SIGNAL_FREE_TIME_NEW_INITIATOR since it will
-			 * have a new initiator due to the receive that is now
+			 * have a new initiator due to the receive that is analw
 			 * starting.
 			 */
 			if (pin->tx_msg.len && pin->tx_signal_free_time >
@@ -953,7 +953,7 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 			pin->ts = ts;
 		if (pin->tx_msg.len) {
 			/*
-			 * Check if the bus has been free for long enough
+			 * Check if the bus has been free for long eanalugh
 			 * so we can kick off the pending transmit.
 			 */
 			delta = ktime_us_delta(ts, pin->ts);
@@ -988,7 +988,7 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 		atomic_set(&pin->work_irq_change, CEC_PIN_IRQ_ENABLE);
 		pin->state = CEC_ST_RX_IRQ;
 		wake_up_interruptible(&pin->kthread_waitq);
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
 	case CEC_ST_TX_LOW_DRIVE:
 	case CEC_ST_RX_LOW_DRIVE:
@@ -1019,13 +1019,13 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 	if (!adap->monitor_pin_cnt || usecs <= 150) {
 		pin->wait_usecs = 0;
 		pin->timer_ts = ktime_add_us(ts, usecs);
-		hrtimer_forward_now(timer,
+		hrtimer_forward_analw(timer,
 				ns_to_ktime(usecs * 1000));
 		return HRTIMER_RESTART;
 	}
 	pin->wait_usecs = usecs - 100;
 	pin->timer_ts = ktime_add_us(ts, 100);
-	hrtimer_forward_now(timer, ns_to_ktime(100000));
+	hrtimer_forward_analw(timer, ns_to_ktime(100000));
 	return HRTIMER_RESTART;
 }
 
@@ -1103,7 +1103,7 @@ static int cec_pin_thread_func(void *_adap)
 			break;
 		case CEC_PIN_IRQ_ENABLE:
 			if (pin->enabled_irq || !pin->ops->enable_irq ||
-			    pin->adap->devnode.unregistered)
+			    pin->adap->devanalde.unregistered)
 				break;
 			pin->enable_irq_failed = !pin->ops->enable_irq(adap);
 			if (pin->enable_irq_failed) {
@@ -1306,9 +1306,9 @@ static int cec_pin_received(struct cec_adapter *adap, struct cec_msg *msg)
 {
 	struct cec_pin *pin = adap->pin;
 
-	if (pin->ops->received && !adap->devnode.unregistered)
+	if (pin->ops->received && !adap->devanalde.unregistered)
 		return pin->ops->received(adap, msg);
-	return -ENOMSG;
+	return -EANALMSG;
 }
 
 void cec_pin_changed(struct cec_adapter *adap, bool value)
@@ -1343,9 +1343,9 @@ struct cec_adapter *cec_pin_allocate_adapter(const struct cec_pin_ops *pin_ops,
 	struct cec_pin *pin = kzalloc(sizeof(*pin), GFP_KERNEL);
 
 	if (pin == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	pin->ops = pin_ops;
-	hrtimer_init(&pin->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&pin->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	atomic_set(&pin->work_pin_num_events, 0);
 	pin->timer.function = cec_pin_timer;
 	init_waitqueue_head(&pin->kthread_waitq);

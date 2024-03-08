@@ -16,19 +16,19 @@ DECLARE_EVENT_CLASS(lima_task,
 	TP_STRUCT__entry(
 		__field(uint64_t, task_id)
 		__field(unsigned int, context)
-		__field(unsigned int, seqno)
+		__field(unsigned int, seqanal)
 		__string(pipe, task->base.sched->name)
 		),
 
 	TP_fast_assign(
 		__entry->task_id = task->base.id;
 		__entry->context = task->base.s_fence->finished.context;
-		__entry->seqno = task->base.s_fence->finished.seqno;
+		__entry->seqanal = task->base.s_fence->finished.seqanal;
 		__assign_str(pipe, task->base.sched->name);
 		),
 
-	TP_printk("task=%llu, context=%u seqno=%u pipe=%s",
-		  __entry->task_id, __entry->context, __entry->seqno,
+	TP_printk("task=%llu, context=%u seqanal=%u pipe=%s",
+		  __entry->task_id, __entry->context, __entry->seqanal,
 		  __get_str(pipe))
 );
 

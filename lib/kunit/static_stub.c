@@ -71,7 +71,7 @@ void kunit_deactivate_static_stub(struct kunit *test, void *real_fn_addr)
 
 	/* Error out if the stub doesn't exist. */
 	KUNIT_ASSERT_PTR_NE_MSG(test, res, NULL,
-				"Tried to deactivate a nonexistent stub.");
+				"Tried to deactivate a analnexistent stub.");
 
 	/* Free the stub. We 'put' twice, as we got a reference
 	 * from kunit_find_resource()
@@ -112,7 +112,7 @@ void __kunit_activate_static_stub(struct kunit *test,
 		kunit_put_resource(res);
 	} else {
 		ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
-		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+		KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx);
 		ctx->real_fn_addr = real_fn_addr;
 		ctx->replacement_addr = replacement_addr;
 		res = kunit_alloc_resource(test, NULL,

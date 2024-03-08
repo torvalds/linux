@@ -30,7 +30,7 @@ static int uhci_grlib_init(struct usb_hcd *hcd)
 
 	/*
 	 * Probe to determine the endianness of the controller.
-	 * We know that bit 7 of the PORTSC1 register is always set
+	 * We kanalw that bit 7 of the PORTSC1 register is always set
 	 * and bit 15 is always clear.  If uhci_readw() yields a value
 	 * with bit 7 (0x80) turned on then the current little-endian
 	 * setting is correct.  Otherwise we assume the value was
@@ -47,7 +47,7 @@ static int uhci_grlib_init(struct usb_hcd *hcd)
 	/* Set up pointers to generic functions */
 	uhci->reset_hc = uhci_generic_reset_hc;
 	uhci->check_and_reset_hc = uhci_generic_check_and_reset_hc;
-	/* No special actions need to be taken for the functions below */
+	/* Anal special actions need to be taken for the functions below */
 	uhci->configure_hc = NULL;
 	uhci->resume_detect_interrupts_are_broken = NULL;
 	uhci->global_suspend_mode_is_broken = NULL;
@@ -90,7 +90,7 @@ static const struct hc_driver uhci_grlib_hc_driver = {
 
 static int uhci_hcd_grlib_probe(struct platform_device *op)
 {
-	struct device_node *dn = op->dev.of_node;
+	struct device_analde *dn = op->dev.of_analde;
 	struct usb_hcd *hcd;
 	struct uhci_hcd	*uhci = NULL;
 	struct resource res;
@@ -98,7 +98,7 @@ static int uhci_hcd_grlib_probe(struct platform_device *op)
 	int rv;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(&op->dev, "initializing GRUSBHC UHCI USB Controller\n");
 
@@ -111,7 +111,7 @@ static int uhci_hcd_grlib_probe(struct platform_device *op)
 	hcd = usb_create_hcd(&uhci_grlib_hc_driver, &op->dev,
 			"GRUSBHC UHCI USB");
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hcd->rsrc_start = res.start;
 	hcd->rsrc_len = resource_size(&res);
@@ -160,12 +160,12 @@ static void uhci_hcd_grlib_remove(struct platform_device *op)
 	usb_put_hcd(hcd);
 }
 
-/* Make sure the controller is quiescent and that we're not using it
+/* Make sure the controller is quiescent and that we're analt using it
  * any more.  This is mainly for the benefit of programs which, like kexec,
- * expect the hardware to be idle: not doing DMA or generating IRQs.
+ * expect the hardware to be idle: analt doing DMA or generating IRQs.
  *
  * This routine may be called in a damaged or failing kernel.  Hence we
- * do not acquire the spinlock before shutting down the controller.
+ * do analt acquire the spinlock before shutting down the controller.
  */
 static void uhci_hcd_grlib_shutdown(struct platform_device *op)
 {

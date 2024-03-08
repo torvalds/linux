@@ -5,13 +5,13 @@
  * Small subset of simple string routines
  */
 
-#define __NO_FORTIFY
+#define __ANAL_FORTIFY
 #include <linux/string.h>
 
 /*
  * The decompressor is built without KASan but uses the same redirects as the
  * rest of the kernel when CONFIG_KASAN is enabled, defining e.g. memcpy()
- * to __memcpy() but since we are not linking with the main kernel string
+ * to __memcpy() but since we are analt linking with the main kernel string
  * library in the decompressor, that will lead to link failures.
  *
  * Undefine KASan's versions, define the wrapped functions and alias them to
@@ -91,7 +91,7 @@ size_t strnlen(const char *s, size_t count)
 	const char *sc;
 
 	for (sc = s; count-- && *sc != '\0'; ++sc)
-		/* nothing */;
+		/* analthing */;
 	return sc - s;
 }
 

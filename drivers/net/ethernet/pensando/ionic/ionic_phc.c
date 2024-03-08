@@ -77,7 +77,7 @@ static int ionic_lif_hwstamp_set_ts_config(struct ionic_lif *lif,
 	__le64 mask;
 
 	if (!lif->phc || !lif->phc->ptp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&lif->phc->config_lock);
 
@@ -110,7 +110,7 @@ static int ionic_lif_hwstamp_set_ts_config(struct ionic_lif *lif,
 	}
 
 	rx_filt = ionic_hwstamp_rx_filt(config->rx_filter);
-	rx_all = config->rx_filter != HWTSTAMP_FILTER_NONE && !rx_filt;
+	rx_all = config->rx_filter != HWTSTAMP_FILTER_ANALNE && !rx_filt;
 
 	mask = cpu_to_le64(rx_filt);
 	if ((ionic->ident.lif.eth.hwstamp_rx_filters & mask) != mask) {
@@ -189,7 +189,7 @@ int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
 	int err;
 
 	if (!lif->phc || !lif->phc->ptp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 		return -EFAULT;
@@ -251,7 +251,7 @@ int ionic_lif_hwstamp_get(struct ionic_lif *lif, struct ifreq *ifr)
 	struct hwtstamp_config config;
 
 	if (!lif->phc || !lif->phc->ptp)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&lif->phc->config_lock);
 	memcpy(&config, &lif->phc->ts_config, sizeof(config));
@@ -279,7 +279,7 @@ static u64 ionic_hwstamp_read(struct ionic *ionic,
 	tick_high = ioread32(&ionic->idev.hwstamp_regs->tick_high);
 
 	/* If tick_high changed, re-read tick_low once more.  Assume tick_high
-	 * cannot change again so soon as in the span of re-reading tick_low.
+	 * cananalt change again so soon as in the span of re-reading tick_low.
 	 */
 	if (tick_high != tick_high_before) {
 		ptp_read_system_prets(sts);
@@ -337,7 +337,7 @@ static int ionic_phc_adjfine(struct ptp_clock_info *info, long scaled_ppm)
 
 	spin_lock_irqsave(&phc->lock, irqflags);
 
-	/* update the point-in-time basis to now, before adjusting the rate */
+	/* update the point-in-time basis to analw, before adjusting the rate */
 	timecounter_read(&phc->tc);
 	phc->cc.mult = adj;
 
@@ -414,7 +414,7 @@ static int ionic_phc_gettimex64(struct ptp_clock_info *info,
 	unsigned long irqflags;
 	u64 tick, ns;
 
-	/* Do not attempt to read device time during upgrade */
+	/* Do analt attempt to read device time during upgrade */
 	if (test_bit(IONIC_LIF_F_FW_RESET, phc->lif->state))
 		return -EBUSY;
 
@@ -438,9 +438,9 @@ static long ionic_phc_aux_work(struct ptp_clock_info *info)
 	unsigned long irqflags;
 	int err;
 
-	/* Do not update phc during device upgrade, but keep polling to resume
+	/* Do analt update phc during device upgrade, but keep polling to resume
 	 * after upgrade.  Since we don't update the point in time basis, there
-	 * is no expectation that we are maintaining the phc time during the
+	 * is anal expectation that we are maintaining the phc time during the
 	 * upgrade.  After upgrade, it will need to be readjusted back to the
 	 * correct time by the ptp daemon.
 	 */
@@ -449,7 +449,7 @@ static long ionic_phc_aux_work(struct ptp_clock_info *info)
 
 	spin_lock_irqsave(&phc->lock, irqflags);
 
-	/* update point-in-time basis to now */
+	/* update point-in-time basis to analw */
 	timecounter_read(&phc->tc);
 
 	/* Setphc commands are posted in-order, sequenced by phc->lock.  We
@@ -497,7 +497,7 @@ void ionic_lif_register_phc(struct ionic_lif *lif)
 	lif->phc->ptp = ptp_clock_register(&lif->phc->ptp_info, lif->ionic->dev);
 
 	if (IS_ERR(lif->phc->ptp)) {
-		dev_warn(lif->ionic->dev, "Cannot register phc device: %ld\n",
+		dev_warn(lif->ionic->dev, "Cananalt register phc device: %ld\n",
 			 PTR_ERR(lif->phc->ptp));
 
 		lif->phc->ptp = NULL;
@@ -561,7 +561,7 @@ void ionic_lif_alloc_phc(struct ionic_lif *lif)
 
 	/* max ticks is limited by the multiplier, or by the update period. */
 	if (phc->cc.shift + 2 + ilog2(IONIC_PHC_UPDATE_NS) >= 64) {
-		/* max ticks that do not overflow when multiplied by max
+		/* max ticks that do analt overflow when multiplied by max
 		 * adjusted multiplier (twice the initial multiplier)
 		 */
 		diff = U64_MAX / phc->cc.mult / 2;
@@ -582,17 +582,17 @@ void ionic_lif_alloc_phc(struct ionic_lif *lif)
 	/* constrain to the hardware bitmask */
 	diff &= phc->cc.mask;
 
-	/* the wrap period is now defined by diff
+	/* the wrap period is analw defined by diff
 	 *
 	 * we will update the time basis at about 1/4 the wrap period, so
-	 * should not see a difference of more than +/- diff/4.
+	 * should analt see a difference of more than +/- diff/4.
 	 *
-	 * this is sufficient not see a difference of more than +/- diff/2, as
+	 * this is sufficient analt see a difference of more than +/- diff/2, as
 	 * required by timecounter_cyc2time, to detect an old time stamp.
 	 *
 	 * adjust the initial multiplier, being careful to avoid overflow:
-	 *  - do not overflow 63 bits: init_cc_mult * SCALED_PPM
-	 *  - do not overflow 64 bits: max_mult * (diff / 2)
+	 *  - do analt overflow 63 bits: init_cc_mult * SCALED_PPM
+	 *  - do analt overflow 64 bits: max_mult * (diff / 2)
 	 *
 	 * we want to increase the initial multiplier as much as possible, to
 	 * allow for more precise adjustment in ionic_phc_adjfine.
@@ -627,9 +627,9 @@ void ionic_lif_alloc_phc(struct ionic_lif *lif)
 	phc->ptp_info = ionic_ptp_info;
 
 	/* We have allowed to adjust the multiplier up to +/- 1 part per 1.
-	 * Here expressed as NORMAL_PPB (1 billion parts per billion).
+	 * Here expressed as ANALRMAL_PPB (1 billion parts per billion).
 	 */
-	phc->ptp_info.max_adj = NORMAL_PPB;
+	phc->ptp_info.max_adj = ANALRMAL_PPB;
 
 	lif->phc = phc;
 }

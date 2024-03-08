@@ -8,14 +8,14 @@
 #define VERBOSE 0 /* Set to '1' for more logging of test cases */
 
 #ifdef CONFIG_THUMB2_KERNEL
-#define NORMAL_ISA "16"
+#define ANALRMAL_ISA "16"
 #else
-#define NORMAL_ISA "32"
+#define ANALRMAL_ISA "32"
 #endif
 
 
 /* Flags used in kprobe_test_flags */
-#define TEST_FLAG_NO_ITBLOCK	(1<<0)
+#define TEST_FLAG_ANAL_ITBLOCK	(1<<0)
 #define TEST_FLAG_FULL_ITBLOCK	(1<<1)
 #define TEST_FLAG_NARROW_INSTR	(1<<2)
 
@@ -98,7 +98,7 @@ struct test_arg_end {
 #if VERBOSE
 #define verbose(fmt, ...) pr_info(fmt, ##__VA_ARGS__)
 #else
-#define verbose(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
+#define verbose(fmt, ...) anal_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define TEST_GROUP(title)					\
@@ -153,19 +153,19 @@ struct test_arg_end {
 	"0:						\n\t"
 
 #define TEST_INSTRUCTION(instruction)				\
-	"50:	nop					\n\t"	\
+	"50:	analp					\n\t"	\
 	"1:	"instruction"				\n\t"	\
-	"	nop					\n\t"
+	"	analp					\n\t"
 
 #define TEST_BRANCH_F(instruction)				\
 	TEST_INSTRUCTION(instruction)				\
 	"	b	99f				\n\t"	\
-	"2:	nop					\n\t"
+	"2:	analp					\n\t"
 
 #define TEST_BRANCH_B(instruction)				\
 	"	b	50f				\n\t"	\
 	"	b	99f				\n\t"	\
-	"2:	nop					\n\t"	\
+	"2:	analp					\n\t"	\
 	"	b	99f				\n\t"	\
 	TEST_INSTRUCTION(instruction)
 
@@ -174,12 +174,12 @@ struct test_arg_end {
 	"	b	99f				\n\t"	\
 	codex"						\n\t"	\
 	"	b	99f				\n\t"	\
-	"2:	nop					\n\t"
+	"2:	analp					\n\t"
 
 #define TEST_BRANCH_BX(instruction, codex)			\
 	"	b	50f				\n\t"	\
 	"	b	99f				\n\t"	\
-	"2:	nop					\n\t"	\
+	"2:	analp					\n\t"	\
 	"	b	99f				\n\t"	\
 	codex"						\n\t"	\
 	TEST_INSTRUCTION(instruction)
@@ -188,7 +188,7 @@ struct test_arg_end {
 	"2:						\n\t"	\
 	"99:						\n\t"	\
 	"	bl __kprobes_test_case_end_"TEST_ISA"	\n\t"	\
-	".code "NORMAL_ISA"				\n\t"	\
+	".code "ANALRMAL_ISA"				\n\t"	\
 	: :							\
 	: "r0", "r1", "r2", "r3", "ip", "lr", "memory", "cc"	\
 	);
@@ -208,7 +208,7 @@ struct test_arg_end {
  * and TEST_BB_* for branching forwards and backwards.
  *
  * TEST_SUPPORTED and TEST_UNSUPPORTED don't cause the code to be executed,
- * the just verify that a kprobe is or is not allowed on the given instruction.
+ * the just verify that a kprobe is or is analt allowed on the given instruction.
  */
 
 #define TEST(code)				\
@@ -408,19 +408,19 @@ struct test_arg_end {
 	TESTCASE_END
 
 /*
- * We ignore the state of the imprecise abort disable flag (CPSR.A) because this
+ * We iganalre the state of the imprecise abort disable flag (CPSR.A) because this
  * can change randomly as the kernel doesn't take care to preserve or initialise
  * this across context switches. Also, with Security Extensions, the flag may
- * not be under control of the kernel; for this reason we ignore the state of
+ * analt be under control of the kernel; for this reason we iganalre the state of
  * the FIQ disable flag CPSR.F as well.
  */
-#define PSR_IGNORE_BITS (PSR_A_BIT | PSR_F_BIT)
+#define PSR_IGANALRE_BITS (PSR_A_BIT | PSR_F_BIT)
 
 
 /*
  * Macros for defining space directives spread over multiple lines.
  * These are required so the compiler guesses better the length of inline asm
- * code and will spill the literal pool early enough to avoid generating PC
+ * code and will spill the literal pool early eanalugh to avoid generating PC
  * relative loads with out of range offsets.
  */
 #define TWICE(x)	x x

@@ -95,7 +95,7 @@ static const struct clk_ops bcm53573_ilp_clk_ops = {
 	.recalc_rate = bcm53573_ilp_recalc_rate,
 };
 
-static void bcm53573_ilp_init(struct device_node *np)
+static void bcm53573_ilp_init(struct device_analde *np)
 {
 	struct bcm53573_ilp *ilp;
 	struct clk_init_data init = { };
@@ -108,11 +108,11 @@ static void bcm53573_ilp_init(struct device_node *np)
 
 	parent_name = of_clk_get_parent_name(np, 0);
 	if (!parent_name) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_free_ilp;
 	}
 
-	ilp->regmap = syscon_node_to_regmap(of_get_parent(np));
+	ilp->regmap = syscon_analde_to_regmap(of_get_parent(np));
 	if (IS_ERR(ilp->regmap)) {
 		err = PTR_ERR(ilp->regmap);
 		goto err_free_ilp;

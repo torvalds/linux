@@ -3,11 +3,11 @@
  * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#ifndef	__XFS_INODE_FORK_H__
-#define	__XFS_INODE_FORK_H__
+#ifndef	__XFS_IANALDE_FORK_H__
+#define	__XFS_IANALDE_FORK_H__
 
-struct xfs_inode_log_item;
-struct xfs_dinode;
+struct xfs_ianalde_log_item;
+struct xfs_dianalde;
 
 /*
  * File incore extent information, present for each of data & attr forks.
@@ -22,14 +22,14 @@ struct xfs_ifork {
 	xfs_extnum_t		if_nextents;	/* # of extents in this fork */
 	short			if_broot_bytes;	/* bytes allocated for root */
 	int8_t			if_format;	/* format of this fork */
-	uint8_t			if_needextents;	/* extents have not been read */
+	uint8_t			if_needextents;	/* extents have analt been read */
 };
 
 /*
  * Worst-case increase in the fork extent count when we're adding a single
- * extent to a fork and there's no possibility of splitting an existing mapping.
+ * extent to a fork and there's anal possibility of splitting an existing mapping.
  */
-#define XFS_IEXT_ADD_NOSPLIT_CNT	(1)
+#define XFS_IEXT_ADD_ANALSPLIT_CNT	(1)
 
 /*
  * Punching out an extent from the middle of an existing extent can cause the
@@ -39,14 +39,14 @@ struct xfs_ifork {
 #define XFS_IEXT_PUNCH_HOLE_CNT		(1)
 
 /*
- * Adding/removing an xattr can cause XFS_DA_NODE_MAXDEPTH extents to
+ * Adding/removing an xattr can cause XFS_DA_ANALDE_MAXDEPTH extents to
  * be added. One extra extent for dabtree in case a local attr is
- * large enough to cause a double split.  It can also cause extent
+ * large eanalugh to cause a double split.  It can also cause extent
  * count to increase proportional to the size of a remote xattr's
  * value.
  */
 #define XFS_IEXT_ATTR_MANIP_CNT(rmt_blks) \
-	(XFS_DA_NODE_MAXDEPTH + max(1, rmt_blks))
+	(XFS_DA_ANALDE_MAXDEPTH + max(1, rmt_blks))
 
 /*
  * A write to a sub-interval of an existing unwritten extent causes the original
@@ -67,8 +67,8 @@ struct xfs_ifork {
 #define XFS_IEXT_REFLINK_END_COW_CNT	(2)
 
 /*
- * Removing an initial range of source/donor file's extent and adding a new
- * extent (from donor/source file) in its place will cause extent count to
+ * Removing an initial range of source/doanalr file's extent and adding a new
+ * extent (from doanalr/source file) in its place will cause extent count to
  * increase by 1.
  */
 #define XFS_IEXT_SWAP_RMAP_CNT		(1)
@@ -77,12 +77,12 @@ struct xfs_ifork {
  * Fork handling.
  */
 #define XFS_IFORK_MAXEXT(ip, w) \
-	(xfs_inode_fork_size(ip, w) / sizeof(xfs_bmbt_rec_t))
+	(xfs_ianalde_fork_size(ip, w) / sizeof(xfs_bmbt_rec_t))
 
 static inline bool xfs_ifork_has_extents(struct xfs_ifork *ifp)
 {
-	return ifp->if_format == XFS_DINODE_FMT_EXTENTS ||
-		ifp->if_format == XFS_DINODE_FMT_BTREE;
+	return ifp->if_format == XFS_DIANALDE_FMT_EXTENTS ||
+		ifp->if_format == XFS_DIANALDE_FMT_BTREE;
 }
 
 static inline xfs_extnum_t xfs_ifork_nextents(struct xfs_ifork *ifp)
@@ -95,7 +95,7 @@ static inline xfs_extnum_t xfs_ifork_nextents(struct xfs_ifork *ifp)
 static inline int8_t xfs_ifork_format(struct xfs_ifork *ifp)
 {
 	if (!ifp)
-		return XFS_DINODE_FMT_EXTENTS;
+		return XFS_DIANALDE_FMT_EXTENTS;
 	return ifp->if_format;
 }
 
@@ -122,9 +122,9 @@ static inline xfs_extnum_t xfs_iext_max_nextents(bool has_large_extent_counts,
 
 static inline xfs_extnum_t
 xfs_dfork_data_extents(
-	struct xfs_dinode	*dip)
+	struct xfs_dianalde	*dip)
 {
-	if (xfs_dinode_has_large_extent_counts(dip))
+	if (xfs_dianalde_has_large_extent_counts(dip))
 		return be64_to_cpu(dip->di_big_nextents);
 
 	return be32_to_cpu(dip->di_nextents);
@@ -132,9 +132,9 @@ xfs_dfork_data_extents(
 
 static inline xfs_extnum_t
 xfs_dfork_attr_extents(
-	struct xfs_dinode	*dip)
+	struct xfs_dianalde	*dip)
 {
-	if (xfs_dinode_has_large_extent_counts(dip))
+	if (xfs_dianalde_has_large_extent_counts(dip))
 		return be32_to_cpu(dip->di_big_anextents);
 
 	return be16_to_cpu(dip->di_anextents);
@@ -142,7 +142,7 @@ xfs_dfork_attr_extents(
 
 static inline xfs_extnum_t
 xfs_dfork_nextents(
-	struct xfs_dinode	*dip,
+	struct xfs_dianalde	*dip,
 	int			whichfork)
 {
 	switch (whichfork) {
@@ -158,47 +158,47 @@ xfs_dfork_nextents(
 	return 0;
 }
 
-void xfs_ifork_zap_attr(struct xfs_inode *ip);
-void xfs_ifork_init_attr(struct xfs_inode *ip, enum xfs_dinode_fmt format,
+void xfs_ifork_zap_attr(struct xfs_ianalde *ip);
+void xfs_ifork_init_attr(struct xfs_ianalde *ip, enum xfs_dianalde_fmt format,
 		xfs_extnum_t nextents);
-struct xfs_ifork *xfs_iext_state_to_fork(struct xfs_inode *ip, int state);
+struct xfs_ifork *xfs_iext_state_to_fork(struct xfs_ianalde *ip, int state);
 
-int		xfs_iformat_data_fork(struct xfs_inode *, struct xfs_dinode *);
-int		xfs_iformat_attr_fork(struct xfs_inode *, struct xfs_dinode *);
-void		xfs_iflush_fork(struct xfs_inode *, struct xfs_dinode *,
-				struct xfs_inode_log_item *, int);
+int		xfs_iformat_data_fork(struct xfs_ianalde *, struct xfs_dianalde *);
+int		xfs_iformat_attr_fork(struct xfs_ianalde *, struct xfs_dianalde *);
+void		xfs_iflush_fork(struct xfs_ianalde *, struct xfs_dianalde *,
+				struct xfs_ianalde_log_item *, int);
 void		xfs_idestroy_fork(struct xfs_ifork *ifp);
-void *		xfs_idata_realloc(struct xfs_inode *ip, int64_t byte_diff,
+void *		xfs_idata_realloc(struct xfs_ianalde *ip, int64_t byte_diff,
 				int whichfork);
-void		xfs_iroot_realloc(struct xfs_inode *, int, int);
-int		xfs_iread_extents(struct xfs_trans *, struct xfs_inode *, int);
-int		xfs_iextents_copy(struct xfs_inode *, struct xfs_bmbt_rec *,
+void		xfs_iroot_realloc(struct xfs_ianalde *, int, int);
+int		xfs_iread_extents(struct xfs_trans *, struct xfs_ianalde *, int);
+int		xfs_iextents_copy(struct xfs_ianalde *, struct xfs_bmbt_rec *,
 				  int);
-void		xfs_init_local_fork(struct xfs_inode *ip, int whichfork,
+void		xfs_init_local_fork(struct xfs_ianalde *ip, int whichfork,
 				const void *data, int64_t size);
 
 xfs_extnum_t	xfs_iext_count(struct xfs_ifork *ifp);
 void		xfs_iext_insert_raw(struct xfs_ifork *ifp,
 			struct xfs_iext_cursor *cur,
 			struct xfs_bmbt_irec *irec);
-void		xfs_iext_insert(struct xfs_inode *, struct xfs_iext_cursor *cur,
+void		xfs_iext_insert(struct xfs_ianalde *, struct xfs_iext_cursor *cur,
 			struct xfs_bmbt_irec *, int);
-void		xfs_iext_remove(struct xfs_inode *, struct xfs_iext_cursor *,
+void		xfs_iext_remove(struct xfs_ianalde *, struct xfs_iext_cursor *,
 			int);
 void		xfs_iext_destroy(struct xfs_ifork *);
 
-bool		xfs_iext_lookup_extent(struct xfs_inode *ip,
-			struct xfs_ifork *ifp, xfs_fileoff_t bno,
+bool		xfs_iext_lookup_extent(struct xfs_ianalde *ip,
+			struct xfs_ifork *ifp, xfs_fileoff_t banal,
 			struct xfs_iext_cursor *cur,
 			struct xfs_bmbt_irec *gotp);
-bool		xfs_iext_lookup_extent_before(struct xfs_inode *ip,
+bool		xfs_iext_lookup_extent_before(struct xfs_ianalde *ip,
 			struct xfs_ifork *ifp, xfs_fileoff_t *end,
 			struct xfs_iext_cursor *cur,
 			struct xfs_bmbt_irec *gotp);
 bool		xfs_iext_get_extent(struct xfs_ifork *ifp,
 			struct xfs_iext_cursor *cur,
 			struct xfs_bmbt_irec *gotp);
-void		xfs_iext_update_extent(struct xfs_inode *ip, int state,
+void		xfs_iext_update_extent(struct xfs_ianalde *ip, int state,
 			struct xfs_iext_cursor *cur,
 			struct xfs_bmbt_irec *gotp);
 
@@ -252,20 +252,20 @@ static inline bool xfs_iext_peek_prev_extent(struct xfs_ifork *ifp,
 
 extern struct kmem_cache	*xfs_ifork_cache;
 
-extern void xfs_ifork_init_cow(struct xfs_inode *ip);
+extern void xfs_ifork_init_cow(struct xfs_ianalde *ip);
 
-int xfs_ifork_verify_local_data(struct xfs_inode *ip);
-int xfs_ifork_verify_local_attr(struct xfs_inode *ip);
-int xfs_iext_count_may_overflow(struct xfs_inode *ip, int whichfork,
+int xfs_ifork_verify_local_data(struct xfs_ianalde *ip);
+int xfs_ifork_verify_local_attr(struct xfs_ianalde *ip);
+int xfs_iext_count_may_overflow(struct xfs_ianalde *ip, int whichfork,
 		int nr_to_add);
-int xfs_iext_count_upgrade(struct xfs_trans *tp, struct xfs_inode *ip,
+int xfs_iext_count_upgrade(struct xfs_trans *tp, struct xfs_ianalde *ip,
 		uint nr_to_add);
 
-/* returns true if the fork has extents but they are not read in yet. */
+/* returns true if the fork has extents but they are analt read in yet. */
 static inline bool xfs_need_iread_extents(const struct xfs_ifork *ifp)
 {
 	/* see xfs_iformat_{data,attr}_fork() for needextents semantics */
 	return smp_load_acquire(&ifp->if_needextents) != 0;
 }
 
-#endif	/* __XFS_INODE_FORK_H__ */
+#endif	/* __XFS_IANALDE_FORK_H__ */

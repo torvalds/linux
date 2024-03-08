@@ -151,7 +151,7 @@ static struct tb_property *tb_property_parse(const u32 *block, size_t block_len,
 		break;
 
 	default:
-		property->type = TB_PROPERTY_TYPE_UNKNOWN;
+		property->type = TB_PROPERTY_TYPE_UNKANALWN;
 		break;
 	}
 
@@ -213,7 +213,7 @@ static struct tb_property_dir *__tb_property_parse_dir(const u32 *block,
  * can be traversed using the helper functions provided by this module.
  * Upon success returns the parsed directory. In case of error returns
  * %NULL. The resulting &struct tb_property_dir needs to be released by
- * calling tb_property_free_dir() when not needed anymore.
+ * calling tb_property_free_dir() when analt needed anymore.
  *
  * The @block is expected to be root directory.
  */
@@ -288,7 +288,7 @@ static void tb_property_free(struct tb_property *property)
  *
  * This will release all the memory the directory occupies including all
  * descendants. It is OK to pass %NULL @dir, then the function does
- * nothing.
+ * analthing.
  */
 void tb_property_free_dir(struct tb_property_dir *dir)
 {
@@ -482,7 +482,7 @@ static ssize_t __tb_property_format_dir(const struct tb_property_dir *dir,
  *
  * This function formats the directory to the packed format that can be
  * then send over the thunderbolt fabric to receiving host. Returns %0 in
- * case of success and negative errno on faulure. Passing %NULL in @block
+ * case of success and negative erranal on faulure. Passing %NULL in @block
  * returns number of entries the block takes.
  */
 ssize_t tb_property_format_dir(const struct tb_property_dir *dir, u32 *block,
@@ -588,7 +588,7 @@ int tb_property_add_immediate(struct tb_property_dir *parent, const char *key,
 
 	property = tb_property_alloc(key, TB_PROPERTY_TYPE_VALUE);
 	if (!property)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	property->length = 1;
 	property->value.immediate = value;
@@ -619,13 +619,13 @@ int tb_property_add_data(struct tb_property_dir *parent, const char *key,
 
 	property = tb_property_alloc(key, TB_PROPERTY_TYPE_DATA);
 	if (!property)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	property->length = size / 4;
 	property->value.data = kzalloc(size, GFP_KERNEL);
 	if (!property->value.data) {
 		kfree(property);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(property->value.data, buf, buflen);
@@ -655,13 +655,13 @@ int tb_property_add_text(struct tb_property_dir *parent, const char *key,
 
 	property = tb_property_alloc(key, TB_PROPERTY_TYPE_TEXT);
 	if (!property)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	property->length = size / 4;
 	property->value.text = kzalloc(size, GFP_KERNEL);
 	if (!property->value.text) {
 		kfree(property);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	strcpy(property->value.text, text);
@@ -687,7 +687,7 @@ int tb_property_add_dir(struct tb_property_dir *parent, const char *key,
 
 	property = tb_property_alloc(key, TB_PROPERTY_TYPE_DIRECTORY);
 	if (!property)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	property->value.dir = dir;
 
@@ -700,7 +700,7 @@ EXPORT_SYMBOL_GPL(tb_property_add_dir);
  * tb_property_remove() - Removes property from a parent directory
  * @property: Property to remove
  *
- * Note memory for @property is released as well so it is not allowed to
+ * Analte memory for @property is released as well so it is analt allowed to
  * touch the object after call to this function.
  */
 void tb_property_remove(struct tb_property *property)
@@ -716,8 +716,8 @@ EXPORT_SYMBOL_GPL(tb_property_remove);
  * @key: Key to look for
  * @type: Type of the property
  *
- * Finds and returns property from the given directory. Does not recurse
- * into sub-directories. Returns %NULL if the property was not found.
+ * Finds and returns property from the given directory. Does analt recurse
+ * into sub-directories. Returns %NULL if the property was analt found.
  */
 struct tb_property *tb_property_find(struct tb_property_dir *dir,
 	const char *key, enum tb_property_type type)

@@ -29,7 +29,7 @@ static void pvm_init_traps_aa64pfr0(struct kvm_vcpu *vcpu)
 	u64 cptr_set = 0;
 	u64 cptr_clear = 0;
 
-	/* Protected KVM does not support AArch32 guests. */
+	/* Protected KVM does analt support AArch32 guests. */
 	BUILD_BUG_ON(FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_EL0),
 		PVM_ID_AA64PFR0_RESTRICT_UNSIGNED) != ID_AA64PFR0_EL1_ELx_64BIT_ONLY);
 	BUILD_BUG_ON(FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_EL1),
@@ -37,7 +37,7 @@ static void pvm_init_traps_aa64pfr0(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Linux guests assume support for floating-point and Advanced SIMD. Do
-	 * not change the trapping behavior for these from the KVM default.
+	 * analt change the trapping behavior for these from the KVM default.
 	 */
 	BUILD_BUG_ON(!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_FP),
 				PVM_ID_AA64PFR0_ALLOW));
@@ -83,7 +83,7 @@ static void pvm_init_traps_aa64pfr1(struct kvm_vcpu *vcpu)
 	u64 hcr_set = 0;
 	u64 hcr_clear = 0;
 
-	/* Memory Tagging: Trap and Treat as Untagged if not supported. */
+	/* Memory Tagging: Trap and Treat as Untagged if analt supported. */
 	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_MTE), feature_ids)) {
 		hcr_set |= HCR_TID5;
 		hcr_clear |= HCR_DCT | HCR_ATA;
@@ -348,7 +348,7 @@ static int find_free_vm_table_entry(struct kvm *host_kvm)
 			return i;
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -404,7 +404,7 @@ static size_t pkvm_get_hyp_vm_size(unsigned int nr_vcpus)
 		size_mul(sizeof(struct pkvm_hyp_vcpu *), nr_vcpus));
 }
 
-static void *map_donated_memory_noclear(unsigned long host_va, size_t size)
+static void *map_donated_memory_analclear(unsigned long host_va, size_t size)
 {
 	void *va = (void *)kern_hyp_va(host_va);
 
@@ -420,7 +420,7 @@ static void *map_donated_memory_noclear(unsigned long host_va, size_t size)
 
 static void *map_donated_memory(unsigned long host_va, size_t size)
 {
-	void *va = map_donated_memory_noclear(host_va, size);
+	void *va = map_donated_memory_analclear(host_va, size);
 
 	if (va)
 		memset(va, 0, size);
@@ -443,7 +443,7 @@ static void unmap_donated_memory(void *va, size_t size)
 	__unmap_donated_memory(va, size);
 }
 
-static void unmap_donated_memory_noclear(void *va, size_t size)
+static void unmap_donated_memory_analclear(void *va, size_t size)
 {
 	if (!va)
 		return;
@@ -489,13 +489,13 @@ int __pkvm_init_vm(struct kvm *host_kvm, unsigned long vm_hva,
 	vm_size = pkvm_get_hyp_vm_size(nr_vcpus);
 	pgd_size = kvm_pgtable_stage2_pgd_size(host_mmu.arch.mmu.vtcr);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	hyp_vm = map_donated_memory(vm_hva, vm_size);
 	if (!hyp_vm)
 		goto err_remove_mappings;
 
-	pgd = map_donated_memory_noclear(pgd_hva, pgd_size);
+	pgd = map_donated_memory_analclear(pgd_hva, pgd_size);
 	if (!pgd)
 		goto err_remove_mappings;
 
@@ -546,13 +546,13 @@ int __pkvm_init_vcpu(pkvm_handle_t handle, struct kvm_vcpu *host_vcpu,
 
 	hyp_vcpu = map_donated_memory(vcpu_hva, sizeof(*hyp_vcpu));
 	if (!hyp_vcpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hyp_spin_lock(&vm_table_lock);
 
 	hyp_vm = get_vm_by_handle(handle);
 	if (!hyp_vm) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto unlock;
 	}
 
@@ -586,7 +586,7 @@ teardown_donated_memory(struct kvm_hyp_memcache *mc, void *addr, size_t size)
 	for (void *start = addr; start < addr + size; start += PAGE_SIZE)
 		push_hyp_memcache(mc, start, hyp_virt_to_phys);
 
-	unmap_donated_memory_noclear(addr, size);
+	unmap_donated_memory_analclear(addr, size);
 }
 
 int __pkvm_teardown_vm(pkvm_handle_t handle)
@@ -601,7 +601,7 @@ int __pkvm_teardown_vm(pkvm_handle_t handle)
 	hyp_spin_lock(&vm_table_lock);
 	hyp_vm = get_vm_by_handle(handle);
 	if (!hyp_vm) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_unlock;
 	}
 

@@ -4,7 +4,7 @@
 #include "cpu.h"
 
 /*
- * No special init required for Vortex processors.
+ * Anal special init required for Vortex processors.
  */
 
 static const struct cpu_dev vortex_cpu_dev = {
@@ -27,7 +27,7 @@ static const struct cpu_dev vortex_cpu_dev = {
 				 *
 				 * However, the -EX2 supports the product name
 				 * CPUID call, so this name will only be used
-				 * for the -EX, which does not.
+				 * for the -EX, which does analt.
 				 */
 				[0] = "Vortex86EX",
 			},

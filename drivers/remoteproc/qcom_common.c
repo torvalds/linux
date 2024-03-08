@@ -10,7 +10,7 @@
 #include <linux/firmware.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/remoteproc.h>
 #include <linux/remoteproc/qcom_rproc.h>
 #include <linux/rpmsg/qcom_glink.h>
@@ -54,7 +54,7 @@ struct minidump_region {
  * @status : Subsystem toc init status
  * @enabled : if set to 1, this region would be copied during coredump
  * @encryption_status: Encryption status for this subsystem
- * @encryption_required : Decides to encrypt the subsystem regions or not
+ * @encryption_required : Decides to encrypt the subsystem regions or analt
  * @region_count : Number of regions added in this subsystem toc
  * @regions_baseptr : regions base pointer of the subsystem
  */
@@ -83,7 +83,7 @@ struct minidump_global_toc {
 
 struct qcom_ssr_subsystem {
 	const char *name;
-	struct srcu_notifier_head notifier_list;
+	struct srcu_analtifier_head analtifier_list;
 	struct list_head list;
 };
 
@@ -94,8 +94,8 @@ static void qcom_minidump_cleanup(struct rproc *rproc)
 {
 	struct rproc_dump_segment *entry, *tmp;
 
-	list_for_each_entry_safe(entry, tmp, &rproc->dump_segments, node) {
-		list_del(&entry->node);
+	list_for_each_entry_safe(entry, tmp, &rproc->dump_segments, analde) {
+		list_del(&entry->analde);
 		kfree(entry->priv);
 		kfree(entry);
 	}
@@ -129,7 +129,7 @@ static int qcom_add_minidump_segments(struct rproc *rproc, struct minidump_subsy
 			name = kstrndup(region.name, MAX_REGION_NAME_LENGTH - 1, GFP_KERNEL);
 			if (!name) {
 				iounmap(ptr);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			da = le64_to_cpu(region.address);
 			size = le64_to_cpu(region.size);
@@ -155,7 +155,7 @@ void qcom_minidump(struct rproc *rproc, unsigned int minidump_id,
 
 	/* check if global table pointer exists and init is set */
 	if (IS_ERR(toc) || !toc->status) {
-		dev_err(&rproc->dev, "Minidump TOC not found in SMEM\n");
+		dev_err(&rproc->dev, "Minidump TOC analt found in SMEM\n");
 		return;
 	}
 
@@ -173,7 +173,7 @@ void qcom_minidump(struct rproc *rproc, unsigned int minidump_id,
 	}
 
 	if (le32_to_cpu(subsystem->encryption_status) != MINIDUMP_SS_ENCR_DONE) {
-		dev_err(&rproc->dev, "Minidump not ready, skipping\n");
+		dev_err(&rproc->dev, "Minidump analt ready, skipping\n");
 		return;
 	}
 
@@ -198,7 +198,7 @@ static int glink_subdev_start(struct rproc_subdev *subdev)
 {
 	struct qcom_rproc_glink *glink = to_glink_subdev(subdev);
 
-	glink->edge = qcom_glink_smem_register(glink->dev, glink->node);
+	glink->edge = qcom_glink_smem_register(glink->dev, glink->analde);
 
 	return PTR_ERR_OR_ZERO(glink->edge);
 }
@@ -215,22 +215,22 @@ static void glink_subdev_unprepare(struct rproc_subdev *subdev)
 {
 	struct qcom_rproc_glink *glink = to_glink_subdev(subdev);
 
-	qcom_glink_ssr_notify(glink->ssr_name);
+	qcom_glink_ssr_analtify(glink->ssr_name);
 }
 
 /**
  * qcom_add_glink_subdev() - try to add a GLINK subdevice to rproc
  * @rproc:	rproc handle to parent the subdevice
  * @glink:	reference to a GLINK subdev context
- * @ssr_name:	identifier of the associated remoteproc for ssr notifications
+ * @ssr_name:	identifier of the associated remoteproc for ssr analtifications
  */
 void qcom_add_glink_subdev(struct rproc *rproc, struct qcom_rproc_glink *glink,
 			   const char *ssr_name)
 {
 	struct device *dev = &rproc->dev;
 
-	glink->node = of_get_child_by_name(dev->parent->of_node, "glink-edge");
-	if (!glink->node)
+	glink->analde = of_get_child_by_name(dev->parent->of_analde, "glink-edge");
+	if (!glink->analde)
 		return;
 
 	glink->ssr_name = kstrdup_const(ssr_name, GFP_KERNEL);
@@ -253,12 +253,12 @@ EXPORT_SYMBOL_GPL(qcom_add_glink_subdev);
  */
 void qcom_remove_glink_subdev(struct rproc *rproc, struct qcom_rproc_glink *glink)
 {
-	if (!glink->node)
+	if (!glink->analde)
 		return;
 
 	rproc_remove_subdev(rproc, &glink->subdev);
 	kfree_const(glink->ssr_name);
-	of_node_put(glink->node);
+	of_analde_put(glink->analde);
 }
 EXPORT_SYMBOL_GPL(qcom_remove_glink_subdev);
 
@@ -269,7 +269,7 @@ EXPORT_SYMBOL_GPL(qcom_remove_glink_subdev);
  *
  * Register all segments of the ELF in the remoteproc coredump segment list
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 int qcom_register_dump_segments(struct rproc *rproc,
 				const struct firmware *fw)
@@ -309,7 +309,7 @@ static int smd_subdev_start(struct rproc_subdev *subdev)
 {
 	struct qcom_rproc_subdev *smd = to_smd_subdev(subdev);
 
-	smd->edge = qcom_smd_register_edge(smd->dev, smd->node);
+	smd->edge = qcom_smd_register_edge(smd->dev, smd->analde);
 
 	return PTR_ERR_OR_ZERO(smd->edge);
 }
@@ -331,8 +331,8 @@ void qcom_add_smd_subdev(struct rproc *rproc, struct qcom_rproc_subdev *smd)
 {
 	struct device *dev = &rproc->dev;
 
-	smd->node = of_get_child_by_name(dev->parent->of_node, "smd-edge");
-	if (!smd->node)
+	smd->analde = of_get_child_by_name(dev->parent->of_analde, "smd-edge");
+	if (!smd->analde)
 		return;
 
 	smd->dev = dev;
@@ -350,11 +350,11 @@ EXPORT_SYMBOL_GPL(qcom_add_smd_subdev);
  */
 void qcom_remove_smd_subdev(struct rproc *rproc, struct qcom_rproc_subdev *smd)
 {
-	if (!smd->node)
+	if (!smd->analde)
 		return;
 
 	rproc_remove_subdev(rproc, &smd->subdev);
-	of_node_put(smd->node);
+	of_analde_put(smd->analde);
 }
 EXPORT_SYMBOL_GPL(qcom_remove_smd_subdev);
 
@@ -370,13 +370,13 @@ static struct qcom_ssr_subsystem *qcom_ssr_get_subsys(const char *name)
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		info = ERR_PTR(-ENOMEM);
+		info = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 	info->name = kstrdup_const(name, GFP_KERNEL);
-	srcu_init_notifier_head(&info->notifier_list);
+	srcu_init_analtifier_head(&info->analtifier_list);
 
-	/* Add to global notification list */
+	/* Add to global analtification list */
 	list_add_tail(&info->list, &qcom_ssr_subsystem_list);
 
 out:
@@ -385,18 +385,18 @@ out:
 }
 
 /**
- * qcom_register_ssr_notifier() - register SSR notification handler
+ * qcom_register_ssr_analtifier() - register SSR analtification handler
  * @name:	Subsystem's SSR name
- * @nb:		notifier_block to be invoked upon subsystem's state change
+ * @nb:		analtifier_block to be invoked upon subsystem's state change
  *
- * This registers the @nb notifier block as part the notifier chain for a
- * remoteproc associated with @name. The notifier block's callback
+ * This registers the @nb analtifier block as part the analtifier chain for a
+ * remoteproc associated with @name. The analtifier block's callback
  * will be invoked when the remote processor's SSR events occur
  * (pre/post startup and pre/post shutdown).
  *
  * Return: a subsystem cookie on success, ERR_PTR on failure.
  */
-void *qcom_register_ssr_notifier(const char *name, struct notifier_block *nb)
+void *qcom_register_ssr_analtifier(const char *name, struct analtifier_block *nb)
 {
 	struct qcom_ssr_subsystem *info;
 
@@ -404,83 +404,83 @@ void *qcom_register_ssr_notifier(const char *name, struct notifier_block *nb)
 	if (IS_ERR(info))
 		return info;
 
-	srcu_notifier_chain_register(&info->notifier_list, nb);
+	srcu_analtifier_chain_register(&info->analtifier_list, nb);
 
-	return &info->notifier_list;
+	return &info->analtifier_list;
 }
-EXPORT_SYMBOL_GPL(qcom_register_ssr_notifier);
+EXPORT_SYMBOL_GPL(qcom_register_ssr_analtifier);
 
 /**
- * qcom_unregister_ssr_notifier() - unregister SSR notification handler
- * @notify:	subsystem cookie returned from qcom_register_ssr_notifier
- * @nb:		notifier_block to unregister
+ * qcom_unregister_ssr_analtifier() - unregister SSR analtification handler
+ * @analtify:	subsystem cookie returned from qcom_register_ssr_analtifier
+ * @nb:		analtifier_block to unregister
  *
- * This function will unregister the notifier from the particular notifier
+ * This function will unregister the analtifier from the particular analtifier
  * chain.
  *
- * Return: 0 on success, %ENOENT otherwise.
+ * Return: 0 on success, %EANALENT otherwise.
  */
-int qcom_unregister_ssr_notifier(void *notify, struct notifier_block *nb)
+int qcom_unregister_ssr_analtifier(void *analtify, struct analtifier_block *nb)
 {
-	return srcu_notifier_chain_unregister(notify, nb);
+	return srcu_analtifier_chain_unregister(analtify, nb);
 }
-EXPORT_SYMBOL_GPL(qcom_unregister_ssr_notifier);
+EXPORT_SYMBOL_GPL(qcom_unregister_ssr_analtifier);
 
-static int ssr_notify_prepare(struct rproc_subdev *subdev)
+static int ssr_analtify_prepare(struct rproc_subdev *subdev)
 {
 	struct qcom_rproc_ssr *ssr = to_ssr_subdev(subdev);
-	struct qcom_ssr_notify_data data = {
+	struct qcom_ssr_analtify_data data = {
 		.name = ssr->info->name,
 		.crashed = false,
 	};
 
-	srcu_notifier_call_chain(&ssr->info->notifier_list,
+	srcu_analtifier_call_chain(&ssr->info->analtifier_list,
 				 QCOM_SSR_BEFORE_POWERUP, &data);
 	return 0;
 }
 
-static int ssr_notify_start(struct rproc_subdev *subdev)
+static int ssr_analtify_start(struct rproc_subdev *subdev)
 {
 	struct qcom_rproc_ssr *ssr = to_ssr_subdev(subdev);
-	struct qcom_ssr_notify_data data = {
+	struct qcom_ssr_analtify_data data = {
 		.name = ssr->info->name,
 		.crashed = false,
 	};
 
-	srcu_notifier_call_chain(&ssr->info->notifier_list,
+	srcu_analtifier_call_chain(&ssr->info->analtifier_list,
 				 QCOM_SSR_AFTER_POWERUP, &data);
 	return 0;
 }
 
-static void ssr_notify_stop(struct rproc_subdev *subdev, bool crashed)
+static void ssr_analtify_stop(struct rproc_subdev *subdev, bool crashed)
 {
 	struct qcom_rproc_ssr *ssr = to_ssr_subdev(subdev);
-	struct qcom_ssr_notify_data data = {
+	struct qcom_ssr_analtify_data data = {
 		.name = ssr->info->name,
 		.crashed = crashed,
 	};
 
-	srcu_notifier_call_chain(&ssr->info->notifier_list,
+	srcu_analtifier_call_chain(&ssr->info->analtifier_list,
 				 QCOM_SSR_BEFORE_SHUTDOWN, &data);
 }
 
-static void ssr_notify_unprepare(struct rproc_subdev *subdev)
+static void ssr_analtify_unprepare(struct rproc_subdev *subdev)
 {
 	struct qcom_rproc_ssr *ssr = to_ssr_subdev(subdev);
-	struct qcom_ssr_notify_data data = {
+	struct qcom_ssr_analtify_data data = {
 		.name = ssr->info->name,
 		.crashed = false,
 	};
 
-	srcu_notifier_call_chain(&ssr->info->notifier_list,
+	srcu_analtifier_call_chain(&ssr->info->analtifier_list,
 				 QCOM_SSR_AFTER_SHUTDOWN, &data);
 }
 
 /**
- * qcom_add_ssr_subdev() - register subdevice as restart notification source
+ * qcom_add_ssr_subdev() - register subdevice as restart analtification source
  * @rproc:	rproc handle
  * @ssr:	SSR subdevice handle
- * @ssr_name:	identifier to use for notifications originating from @rproc
+ * @ssr_name:	identifier to use for analtifications originating from @rproc
  *
  * As the @ssr is registered with the @rproc SSR events will be sent to all
  * registered listeners for the remoteproc when it's SSR events occur
@@ -498,17 +498,17 @@ void qcom_add_ssr_subdev(struct rproc *rproc, struct qcom_rproc_ssr *ssr,
 	}
 
 	ssr->info = info;
-	ssr->subdev.prepare = ssr_notify_prepare;
-	ssr->subdev.start = ssr_notify_start;
-	ssr->subdev.stop = ssr_notify_stop;
-	ssr->subdev.unprepare = ssr_notify_unprepare;
+	ssr->subdev.prepare = ssr_analtify_prepare;
+	ssr->subdev.start = ssr_analtify_start;
+	ssr->subdev.stop = ssr_analtify_stop;
+	ssr->subdev.unprepare = ssr_analtify_unprepare;
 
 	rproc_add_subdev(rproc, &ssr->subdev);
 }
 EXPORT_SYMBOL_GPL(qcom_add_ssr_subdev);
 
 /**
- * qcom_remove_ssr_subdev() - remove subdevice as restart notification source
+ * qcom_remove_ssr_subdev() - remove subdevice as restart analtification source
  * @rproc:	rproc handle
  * @ssr:	SSR subdevice handle
  */

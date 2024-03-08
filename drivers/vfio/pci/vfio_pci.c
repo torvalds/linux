@@ -19,7 +19,7 @@
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -34,9 +34,9 @@ static char ids[1024] __initdata;
 module_param_string(ids, ids, sizeof(ids), 0);
 MODULE_PARM_DESC(ids, "Initial PCI IDs to add to the vfio driver, format is \"vendor:device[:subvendor[:subdevice[:class[:class_mask]]]]\" and multiple comma separated entries can be specified");
 
-static bool nointxmask;
-module_param_named(nointxmask, nointxmask, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(nointxmask,
+static bool analintxmask;
+module_param_named(analintxmask, analintxmask, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(analintxmask,
 		  "Disable support for PCI 2.3 style INTx masking.  If this resolves problems for specific devices, report lspci -vvvxxx to linux-pci@vger.kernel.org so the device can be fixed automatically via the broken_intx_masking flag.");
 
 #ifdef CONFIG_VFIO_PCI_VGA
@@ -53,12 +53,12 @@ MODULE_PARM_DESC(disable_idle_d3,
 static bool enable_sriov;
 #ifdef CONFIG_PCI_IOV
 module_param(enable_sriov, bool, 0644);
-MODULE_PARM_DESC(enable_sriov, "Enable support for SR-IOV configuration.  Enabling SR-IOV on a PF typically requires support of the userspace PF driver, enabling VFs without such support may result in non-functional VFs or PF.");
+MODULE_PARM_DESC(enable_sriov, "Enable support for SR-IOV configuration.  Enabling SR-IOV on a PF typically requires support of the userspace PF driver, enabling VFs without such support may result in analn-functional VFs or PF.");
 #endif
 
 static bool disable_denylist;
 module_param(disable_denylist, bool, 0444);
-MODULE_PARM_DESC(disable_denylist, "Disable use of device denylist. Disabling the denylist allows binding to devices with known errata that may lead to exploitable stability or security issues when accessed by untrusted users.");
+MODULE_PARM_DESC(disable_denylist, "Disable use of device denylist. Disabling the denylist allows binding to devices with kanalwn errata that may lead to exploitable stability or security issues when accessed by untrusted users.");
 
 static bool vfio_pci_dev_in_denylist(struct pci_dev *pdev)
 {
@@ -113,7 +113,7 @@ static int vfio_pci_open_device(struct vfio_device *core_vdev)
 	    pdev->vendor == PCI_VENDOR_ID_INTEL &&
 	    IS_ENABLED(CONFIG_VFIO_PCI_IGD)) {
 		ret = vfio_pci_igd_init(vdev);
-		if (ret && ret != -ENODEV) {
+		if (ret && ret != -EANALDEV) {
 			pci_warn(pdev, "Failed to setup Intel IGD regions\n");
 			vfio_pci_core_disable(vdev);
 			return ret;
@@ -181,7 +181,7 @@ static int vfio_pci_sriov_configure(struct pci_dev *pdev, int nr_virtfn)
 	struct vfio_pci_core_device *vdev = dev_get_drvdata(&pdev->dev);
 
 	if (!enable_sriov)
-		return -ENOENT;
+		return -EANALENT;
 
 	return vfio_pci_core_sriov_configure(vdev, nr_virtfn);
 }
@@ -208,7 +208,7 @@ static void __init vfio_pci_fill_ids(void)
 	char *p, *id;
 	int rc;
 
-	/* no ids passed actually */
+	/* anal ids passed actually */
 	if (ids[0] == '\0')
 		return;
 
@@ -253,7 +253,7 @@ static int __init vfio_pci_init(void)
 	is_disable_vga = disable_vga;
 #endif
 
-	vfio_pci_core_set_params(nointxmask, is_disable_vga, disable_idle_d3);
+	vfio_pci_core_set_params(analintxmask, is_disable_vga, disable_idle_d3);
 
 	/* Register and scan for devices */
 	ret = pci_register_driver(&vfio_pci_driver);

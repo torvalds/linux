@@ -4,7 +4,7 @@
  *
  *         "Test x86 instruction decoder - new instructions"
  *
- * Note that the 'Expecting' comment lines are consumed by the
+ * Analte that the 'Expecting' comment lines are consumed by the
  * gen-insn-x86-dat.awk script and have the format:
  *
  *         Expecting: <op> <branch> <rel>
@@ -17,7 +17,7 @@
 
 int main(void)
 {
-	/* Following line is a marker for the awk script - do not change */
+	/* Following line is a marker for the awk script - do analt change */
 	asm volatile("rdtsc"); /* Start here */
 
 	/* Test fix for vcvtph2ps in x86-opcode-map.txt */
@@ -28,16 +28,16 @@ int main(void)
 
 	/* AVX-512: Instructions with the same op codes as Mask Instructions  */
 
-	asm volatile("cmovno %rax,%rbx");
-	asm volatile("cmovno 0x12345678(%rax),%rcx");
-	asm volatile("cmovno 0x12345678(%rax),%cx");
+	asm volatile("cmovanal %rax,%rbx");
+	asm volatile("cmovanal 0x12345678(%rax),%rcx");
+	asm volatile("cmovanal 0x12345678(%rax),%cx");
 
 	asm volatile("cmove  %rax,%rbx");
 	asm volatile("cmove 0x12345678(%rax),%rcx");
 	asm volatile("cmove 0x12345678(%rax),%cx");
 
 	asm volatile("seto    0x12345678(%rax)");
-	asm volatile("setno   0x12345678(%rax)");
+	asm volatile("setanal   0x12345678(%rax)");
 	asm volatile("setb    0x12345678(%rax)");
 	asm volatile("setc    0x12345678(%rax)");
 	asm volatile("setnae  0x12345678(%rax)");
@@ -59,20 +59,20 @@ int main(void)
 	asm volatile("kandnb  %k7,%k6,%k5");
 	asm volatile("kandnd  %k7,%k6,%k5");
 
-	asm volatile("knotw  %k7,%k6");
-	asm volatile("knotq  %k7,%k6");
-	asm volatile("knotb  %k7,%k6");
-	asm volatile("knotd  %k7,%k6");
+	asm volatile("kanaltw  %k7,%k6");
+	asm volatile("kanaltq  %k7,%k6");
+	asm volatile("kanaltb  %k7,%k6");
+	asm volatile("kanaltd  %k7,%k6");
 
 	asm volatile("korw  %k7,%k6,%k5");
 	asm volatile("korq  %k7,%k6,%k5");
 	asm volatile("korb  %k7,%k6,%k5");
 	asm volatile("kord  %k7,%k6,%k5");
 
-	asm volatile("kxnorw  %k7,%k6,%k5");
-	asm volatile("kxnorq  %k7,%k6,%k5");
-	asm volatile("kxnorb  %k7,%k6,%k5");
-	asm volatile("kxnord  %k7,%k6,%k5");
+	asm volatile("kxanalrw  %k7,%k6,%k5");
+	asm volatile("kxanalrq  %k7,%k6,%k5");
+	asm volatile("kxanalrb  %k7,%k6,%k5");
+	asm volatile("kxanalrd  %k7,%k6,%k5");
 
 	asm volatile("kxorw  %k7,%k6,%k5");
 	asm volatile("kxorq  %k7,%k6,%k5");
@@ -1566,7 +1566,7 @@ int main(void)
 	asm volatile("sha1msg2 0x12345678(%rax,%rcx,8), %xmm15");
 
 	/* sha256rnds2 <XMM0>, xmm2/m128, xmm1 */
-	/* Note sha256rnds2 has an implicit operand 'xmm0' */
+	/* Analte sha256rnds2 has an implicit operand 'xmm0' */
 
 	asm volatile("sha256rnds2 %xmm4, %xmm1");
 	asm volatile("sha256rnds2 %xmm7, %xmm2");
@@ -1850,7 +1850,7 @@ int main(void)
 	asm volatile("endbr32");
 	asm volatile("endbr64");
 
-	/* call with/without notrack prefix */
+	/* call with/without analtrack prefix */
 
 	asm volatile("callq *%rax");				/* Expecting: call indirect 0 */
 	asm volatile("callq *(%rax)");				/* Expecting: call indirect 0 */
@@ -1866,21 +1866,21 @@ int main(void)
 	asm volatile("bnd callq *0x12345678(%rax,%rcx,8)");	/* Expecting: call indirect 0 */
 	asm volatile("bnd callq *0x12345678(%r8,%rcx,8)");	/* Expecting: call indirect 0 */
 
-	asm volatile("notrack callq *%rax");			/* Expecting: call indirect 0 */
-	asm volatile("notrack callq *(%rax)");			/* Expecting: call indirect 0 */
-	asm volatile("notrack callq *(%r8)");			/* Expecting: call indirect 0 */
-	asm volatile("notrack callq *(0x12345678)");		/* Expecting: call indirect 0 */
-	asm volatile("notrack callq *0x12345678(%rax,%rcx,8)");	/* Expecting: call indirect 0 */
-	asm volatile("notrack callq *0x12345678(%r8,%rcx,8)");	/* Expecting: call indirect 0 */
+	asm volatile("analtrack callq *%rax");			/* Expecting: call indirect 0 */
+	asm volatile("analtrack callq *(%rax)");			/* Expecting: call indirect 0 */
+	asm volatile("analtrack callq *(%r8)");			/* Expecting: call indirect 0 */
+	asm volatile("analtrack callq *(0x12345678)");		/* Expecting: call indirect 0 */
+	asm volatile("analtrack callq *0x12345678(%rax,%rcx,8)");	/* Expecting: call indirect 0 */
+	asm volatile("analtrack callq *0x12345678(%r8,%rcx,8)");	/* Expecting: call indirect 0 */
 
-	asm volatile("notrack bnd callq *%rax");		/* Expecting: call indirect 0 */
-	asm volatile("notrack bnd callq *(%rax)");		/* Expecting: call indirect 0 */
-	asm volatile("notrack bnd callq *(%r8)");		/* Expecting: call indirect 0 */
-	asm volatile("notrack bnd callq *(0x12345678)");	/* Expecting: call indirect 0 */
-	asm volatile("notrack bnd callq *0x12345678(%rax,%rcx,8)");	/* Expecting: call indirect 0 */
-	asm volatile("notrack bnd callq *0x12345678(%r8,%rcx,8)");	/* Expecting: call indirect 0 */
+	asm volatile("analtrack bnd callq *%rax");		/* Expecting: call indirect 0 */
+	asm volatile("analtrack bnd callq *(%rax)");		/* Expecting: call indirect 0 */
+	asm volatile("analtrack bnd callq *(%r8)");		/* Expecting: call indirect 0 */
+	asm volatile("analtrack bnd callq *(0x12345678)");	/* Expecting: call indirect 0 */
+	asm volatile("analtrack bnd callq *0x12345678(%rax,%rcx,8)");	/* Expecting: call indirect 0 */
+	asm volatile("analtrack bnd callq *0x12345678(%r8,%rcx,8)");	/* Expecting: call indirect 0 */
 
-	/* jmp with/without notrack prefix */
+	/* jmp with/without analtrack prefix */
 
 	asm volatile("jmpq *%rax");				/* Expecting: jmp indirect 0 */
 	asm volatile("jmpq *(%rax)");				/* Expecting: jmp indirect 0 */
@@ -1896,19 +1896,19 @@ int main(void)
 	asm volatile("bnd jmpq *0x12345678(%rax,%rcx,8)");	/* Expecting: jmp indirect 0 */
 	asm volatile("bnd jmpq *0x12345678(%r8,%rcx,8)");	/* Expecting: jmp indirect 0 */
 
-	asm volatile("notrack jmpq *%rax");			/* Expecting: jmp indirect 0 */
-	asm volatile("notrack jmpq *(%rax)");			/* Expecting: jmp indirect 0 */
-	asm volatile("notrack jmpq *(%r8)");			/* Expecting: jmp indirect 0 */
-	asm volatile("notrack jmpq *(0x12345678)");		/* Expecting: jmp indirect 0 */
-	asm volatile("notrack jmpq *0x12345678(%rax,%rcx,8)");	/* Expecting: jmp indirect 0 */
-	asm volatile("notrack jmpq *0x12345678(%r8,%rcx,8)");	/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack jmpq *%rax");			/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack jmpq *(%rax)");			/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack jmpq *(%r8)");			/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack jmpq *(0x12345678)");		/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack jmpq *0x12345678(%rax,%rcx,8)");	/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack jmpq *0x12345678(%r8,%rcx,8)");	/* Expecting: jmp indirect 0 */
 
-	asm volatile("notrack bnd jmpq *%rax");			/* Expecting: jmp indirect 0 */
-	asm volatile("notrack bnd jmpq *(%rax)");		/* Expecting: jmp indirect 0 */
-	asm volatile("notrack bnd jmpq *(%r8)");		/* Expecting: jmp indirect 0 */
-	asm volatile("notrack bnd jmpq *(0x12345678)");		/* Expecting: jmp indirect 0 */
-	asm volatile("notrack bnd jmpq *0x12345678(%rax,%rcx,8)");	/* Expecting: jmp indirect 0 */
-	asm volatile("notrack bnd jmpq *0x12345678(%r8,%rcx,8)");	/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack bnd jmpq *%rax");			/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack bnd jmpq *(%rax)");		/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack bnd jmpq *(%r8)");		/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack bnd jmpq *(0x12345678)");		/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack bnd jmpq *0x12345678(%rax,%rcx,8)");	/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack bnd jmpq *0x12345678(%r8,%rcx,8)");	/* Expecting: jmp indirect 0 */
 
 	/* AMX */
 
@@ -2690,16 +2690,16 @@ int main(void)
 
 	/* AVX-512: Instructions with the same op codes as Mask Instructions  */
 
-	asm volatile("cmovno %eax,%ebx");
-	asm volatile("cmovno 0x12345678(%eax),%ecx");
-	asm volatile("cmovno 0x12345678(%eax),%cx");
+	asm volatile("cmovanal %eax,%ebx");
+	asm volatile("cmovanal 0x12345678(%eax),%ecx");
+	asm volatile("cmovanal 0x12345678(%eax),%cx");
 
 	asm volatile("cmove  %eax,%ebx");
 	asm volatile("cmove 0x12345678(%eax),%ecx");
 	asm volatile("cmove 0x12345678(%eax),%cx");
 
 	asm volatile("seto    0x12345678(%eax)");
-	asm volatile("setno   0x12345678(%eax)");
+	asm volatile("setanal   0x12345678(%eax)");
 	asm volatile("setb    0x12345678(%eax)");
 	asm volatile("setc    0x12345678(%eax)");
 	asm volatile("setnae  0x12345678(%eax)");
@@ -2721,20 +2721,20 @@ int main(void)
 	asm volatile("kandnb  %k7,%k6,%k5");
 	asm volatile("kandnd  %k7,%k6,%k5");
 
-	asm volatile("knotw  %k7,%k6");
-	asm volatile("knotq  %k7,%k6");
-	asm volatile("knotb  %k7,%k6");
-	asm volatile("knotd  %k7,%k6");
+	asm volatile("kanaltw  %k7,%k6");
+	asm volatile("kanaltq  %k7,%k6");
+	asm volatile("kanaltb  %k7,%k6");
+	asm volatile("kanaltd  %k7,%k6");
 
 	asm volatile("korw  %k7,%k6,%k5");
 	asm volatile("korq  %k7,%k6,%k5");
 	asm volatile("korb  %k7,%k6,%k5");
 	asm volatile("kord  %k7,%k6,%k5");
 
-	asm volatile("kxnorw  %k7,%k6,%k5");
-	asm volatile("kxnorq  %k7,%k6,%k5");
-	asm volatile("kxnorb  %k7,%k6,%k5");
-	asm volatile("kxnord  %k7,%k6,%k5");
+	asm volatile("kxanalrw  %k7,%k6,%k5");
+	asm volatile("kxanalrq  %k7,%k6,%k5");
+	asm volatile("kxanalrb  %k7,%k6,%k5");
+	asm volatile("kxanalrd  %k7,%k6,%k5");
 
 	asm volatile("kxorw  %k7,%k6,%k5");
 	asm volatile("kxorq  %k7,%k6,%k5");
@@ -4128,7 +4128,7 @@ int main(void)
 	asm volatile("sha1msg2 0x12345678(%eax,%ecx,8), %xmm0");
 
 	/* sha256rnds2 <XMM0>, xmm2/m128, xmm1 */
-	/* Note sha256rnds2 has an implicit operand 'xmm0' */
+	/* Analte sha256rnds2 has an implicit operand 'xmm0' */
 
 	asm volatile("sha256rnds2 %xmm4, %xmm1");
 	asm volatile("sha256rnds2 %xmm7, %xmm2");
@@ -4344,7 +4344,7 @@ int main(void)
 	asm volatile("endbr32");
 	asm volatile("endbr64");
 
-	/* call with/without notrack prefix */
+	/* call with/without analtrack prefix */
 
 	asm volatile("call *%eax");				/* Expecting: call indirect 0 */
 	asm volatile("call *(%eax)");				/* Expecting: call indirect 0 */
@@ -4356,17 +4356,17 @@ int main(void)
 	asm volatile("bnd call *(0x12345678)");			/* Expecting: call indirect 0 */
 	asm volatile("bnd call *0x12345678(%eax,%ecx,8)");	/* Expecting: call indirect 0 */
 
-	asm volatile("notrack call *%eax");			/* Expecting: call indirect 0 */
-	asm volatile("notrack call *(%eax)");			/* Expecting: call indirect 0 */
-	asm volatile("notrack call *(0x12345678)");		/* Expecting: call indirect 0 */
-	asm volatile("notrack call *0x12345678(%eax,%ecx,8)");	/* Expecting: call indirect 0 */
+	asm volatile("analtrack call *%eax");			/* Expecting: call indirect 0 */
+	asm volatile("analtrack call *(%eax)");			/* Expecting: call indirect 0 */
+	asm volatile("analtrack call *(0x12345678)");		/* Expecting: call indirect 0 */
+	asm volatile("analtrack call *0x12345678(%eax,%ecx,8)");	/* Expecting: call indirect 0 */
 
-	asm volatile("notrack bnd call *%eax");			/* Expecting: call indirect 0 */
-	asm volatile("notrack bnd call *(%eax)");		/* Expecting: call indirect 0 */
-	asm volatile("notrack bnd call *(0x12345678)");		/* Expecting: call indirect 0 */
-	asm volatile("notrack bnd call *0x12345678(%eax,%ecx,8)"); /* Expecting: call indirect 0 */
+	asm volatile("analtrack bnd call *%eax");			/* Expecting: call indirect 0 */
+	asm volatile("analtrack bnd call *(%eax)");		/* Expecting: call indirect 0 */
+	asm volatile("analtrack bnd call *(0x12345678)");		/* Expecting: call indirect 0 */
+	asm volatile("analtrack bnd call *0x12345678(%eax,%ecx,8)"); /* Expecting: call indirect 0 */
 
-	/* jmp with/without notrack prefix */
+	/* jmp with/without analtrack prefix */
 
 	asm volatile("jmp *%eax");				/* Expecting: jmp indirect 0 */
 	asm volatile("jmp *(%eax)");				/* Expecting: jmp indirect 0 */
@@ -4378,15 +4378,15 @@ int main(void)
 	asm volatile("bnd jmp *(0x12345678)");			/* Expecting: jmp indirect 0 */
 	asm volatile("bnd jmp *0x12345678(%eax,%ecx,8)");	/* Expecting: jmp indirect 0 */
 
-	asm volatile("notrack jmp *%eax");			/* Expecting: jmp indirect 0 */
-	asm volatile("notrack jmp *(%eax)");			/* Expecting: jmp indirect 0 */
-	asm volatile("notrack jmp *(0x12345678)");		/* Expecting: jmp indirect 0 */
-	asm volatile("notrack jmp *0x12345678(%eax,%ecx,8)");	/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack jmp *%eax");			/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack jmp *(%eax)");			/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack jmp *(0x12345678)");		/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack jmp *0x12345678(%eax,%ecx,8)");	/* Expecting: jmp indirect 0 */
 
-	asm volatile("notrack bnd jmp *%eax");			/* Expecting: jmp indirect 0 */
-	asm volatile("notrack bnd jmp *(%eax)");		/* Expecting: jmp indirect 0 */
-	asm volatile("notrack bnd jmp *(0x12345678)");		/* Expecting: jmp indirect 0 */
-	asm volatile("notrack bnd jmp *0x12345678(%eax,%ecx,8)"); /* Expecting: jmp indirect 0 */
+	asm volatile("analtrack bnd jmp *%eax");			/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack bnd jmp *(%eax)");		/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack bnd jmp *(0x12345678)");		/* Expecting: jmp indirect 0 */
+	asm volatile("analtrack bnd jmp *0x12345678(%eax,%ecx,8)"); /* Expecting: jmp indirect 0 */
 
 	/* AVX512-FP16 */
 
@@ -4871,11 +4871,11 @@ int main(void)
 
 	asm volatile("pconfig");
 
-	/* wbnoinvd */
+	/* wbanalinvd */
 
-	asm volatile("wbnoinvd");
+	asm volatile("wbanalinvd");
 
-	/* Following line is a marker for the awk script - do not change */
+	/* Following line is a marker for the awk script - do analt change */
 	asm volatile("rdtsc"); /* Stop here */
 
 	return 0;

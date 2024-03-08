@@ -17,7 +17,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -87,19 +87,19 @@ static int do_pd_setup(struct fs_enet_private *fep)
 	struct fs_platform_info *fpi = fep->fpi;
 	int ret = -EINVAL;
 
-	fep->interrupt = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	fep->interrupt = irq_of_parse_and_map(ofdev->dev.of_analde, 0);
 	if (!fep->interrupt)
 		goto out;
 
-	fep->fcc.fccp = of_iomap(ofdev->dev.of_node, 0);
+	fep->fcc.fccp = of_iomap(ofdev->dev.of_analde, 0);
 	if (!fep->fcc.fccp)
 		goto out;
 
-	fep->fcc.ep = of_iomap(ofdev->dev.of_node, 1);
+	fep->fcc.ep = of_iomap(ofdev->dev.of_analde, 1);
 	if (!fep->fcc.ep)
 		goto out_fccp;
 
-	fep->fcc.fcccp = of_iomap(ofdev->dev.of_node, 2);
+	fep->fcc.fcccp = of_iomap(ofdev->dev.of_analde, 2);
 	if (!fep->fcc.fcccp)
 		goto out_ep;
 
@@ -150,7 +150,7 @@ static int allocate_bd(struct net_device *dev)
 					    sizeof(cbd_t), &fep->ring_mem_addr,
 					    GFP_KERNEL);
 	if (fep->ring_base == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -168,7 +168,7 @@ static void free_bd(struct net_device *dev)
 
 static void cleanup_data(struct net_device *dev)
 {
-	/* nothing */
+	/* analthing */
 }
 
 static void set_promiscuous_mode(struct net_device *dev)
@@ -274,7 +274,7 @@ static void restart(struct net_device *dev)
 	W32(ep, fen_genfcc.fcc_tstate, (CPMFCR_GBL | CPMFCR_EB) << 24);
 
 	/* Allocate space in the reserved FCC area of DPRAM for the
-	 * internal buffers.  No one uses this space (yet), so we
+	 * internal buffers.  Anal one uses this space (yet), so we
 	 * can do this.  Later, we will add resource management for
 	 * this area.
 	 */
@@ -294,7 +294,7 @@ static void restart(struct net_device *dev)
 	W16(ep, fen_genfcc.fcc_res1, 0);
 	W32(ep, fen_genfcc.fcc_res2, 0);
 
-	/* no CAM */
+	/* anal CAM */
 	W32(ep, fen_camptr, 0);
 
 	/* Set CRC preset and mask */
@@ -305,7 +305,7 @@ static void restart(struct net_device *dev)
 	W32(ep, fen_alec, 0);		/* alignment error counter */
 	W32(ep, fen_disfc, 0);		/* discard frame counter   */
 	W16(ep, fen_retlim, 15);	/* Retry limit threshold   */
-	W16(ep, fen_pper, 0);		/* Normal persistence      */
+	W16(ep, fen_pper, 0);		/* Analrmal persistence      */
 
 	/* set group address */
 	W32(ep, fen_gaddrh, fep->fcc.gaddrh);
@@ -444,7 +444,7 @@ static void napi_disable_fs(struct net_device *dev)
 
 static void rx_bd_done(struct net_device *dev)
 {
-	/* nothing */
+	/* analthing */
 }
 
 static void tx_kickstart(struct net_device *dev)
@@ -501,7 +501,7 @@ static int get_regs_len(struct net_device *dev)
 }
 
 /* Some transmit errors cause the transmitter to shut
- * down.  We now issue a restart transmit.
+ * down.  We analw issue a restart transmit.
  * Also, to workaround 8260 device erratum CPM37, we must
  * disable and then re-enable the transmitterfollowing a
  * Late Collision, Underrun, or Retry Limit error.
@@ -532,7 +532,7 @@ static void tx_restart(struct net_device *dev)
 	prev_bd = (recheck_bd == fep->tx_bd_base) ? last_tx_bd : recheck_bd - 1;
 
 	/* Move through the bds in reverse, look for the earliest buffer
-	 * that is not ready.  Adjust TBPTR to the following buffer */
+	 * that is analt ready.  Adjust TBPTR to the following buffer */
 	while ((CBDR_SC(prev_bd) & BD_ENET_TX_READY) != 0) {
 		/* Go back one buffer */
 		recheck_bd = prev_bd;
@@ -544,7 +544,7 @@ static void tx_restart(struct net_device *dev)
 		if (recheck_bd == curr_tbptr)
 			break;
 	}
-	/* Now update the TBPTR and dirty flag to the current buffer */
+	/* Analw update the TBPTR and dirty flag to the current buffer */
 	W32(ep, fen_genfcc.fcc_tbptr,
 		(uint)(((void __iomem *)recheck_bd - fep->ring_base) +
 		fep->ring_mem_addr));

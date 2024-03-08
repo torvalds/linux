@@ -61,7 +61,7 @@ static int iwl_set_temperature_offset_calib_v2(struct iwl_priv *priv)
 	cmd.radio_sensor_offset_high = priv->nvm_data->kelvin_temperature;
 	cmd.radio_sensor_offset_low = priv->nvm_data->raw_temperature;
 	if (!cmd.radio_sensor_offset_low) {
-		IWL_DEBUG_CALIB(priv, "no info in EEPROM, use default\n");
+		IWL_DEBUG_CALIB(priv, "anal info in EEPROM, use default\n");
 		cmd.radio_sensor_offset_low = DEFAULT_RADIO_SENSOR_OFFSET;
 		cmd.radio_sensor_offset_high = DEFAULT_RADIO_SENSOR_OFFSET;
 	}
@@ -105,7 +105,7 @@ int iwl_init_alive_start(struct iwl_priv *priv)
 		/*
 		 * Tell uCode we are ready to perform calibration
 		 * need to perform this before any calibration
-		 * no need to close the envlope since we are going
+		 * anal need to close the envlope since we are going
 		 * to load the runtime uCode later.
 		 */
 		ret = iwl_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
@@ -121,7 +121,7 @@ int iwl_init_alive_start(struct iwl_priv *priv)
 
 	/**
 	 * temperature offset calibration is only needed for runtime ucode,
-	 * so prepare the value now.
+	 * so prepare the value analw.
 	 */
 	if (priv->lib->need_temp_offset_calib) {
 		if (priv->lib->temp_offset_v2)
@@ -215,7 +215,7 @@ static const u8 iwlagn_ipan_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_AUX,
 };
 
-static int iwl_alive_notify(struct iwl_priv *priv)
+static int iwl_alive_analtify(struct iwl_priv *priv)
 {
 	const u8 *queue_to_txf;
 	u8 n_queues;
@@ -238,14 +238,14 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 			iwl_trans_ac_txq_enable(priv->trans, i,
 						queue_to_txf[i], 0);
 
-	priv->passive_no_rx = false;
+	priv->passive_anal_rx = false;
 	priv->transport_queue_stop = 0;
 
 	ret = iwl_send_wimax_coex(priv);
 	if (ret)
 		return ret;
 
-	if (!priv->lib->no_xtal_calib) {
+	if (!priv->lib->anal_xtal_calib) {
 		ret = iwl_set_Xtal_calib(priv);
 		if (ret)
 			return ret;
@@ -259,11 +259,11 @@ struct iwl_alive_data {
 	u8 subtype;
 };
 
-static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
+static bool iwl_alive_fn(struct iwl_analtif_wait_data *analtif_wait,
 			 struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_priv *priv =
-		container_of(notif_wait, struct iwl_priv, notif_wait);
+		container_of(analtif_wait, struct iwl_priv, analtif_wait);
 	struct iwl_alive_data *alive_data = data;
 	struct iwl_alive_resp *palive;
 
@@ -291,7 +291,7 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 				 enum iwl_ucode_type ucode_type)
 {
-	struct iwl_notification_wait alive_wait;
+	struct iwl_analtification_wait alive_wait;
 	struct iwl_alive_data alive_data;
 	const struct fw_img *fw;
 	int ret;
@@ -306,22 +306,22 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	priv->cur_ucode = ucode_type;
 	priv->ucode_loaded = false;
 
-	iwl_init_notification_wait(&priv->notif_wait, &alive_wait,
+	iwl_init_analtification_wait(&priv->analtif_wait, &alive_wait,
 				   alive_cmd, ARRAY_SIZE(alive_cmd),
 				   iwl_alive_fn, &alive_data);
 
 	ret = iwl_trans_start_fw(priv->trans, fw, false);
 	if (ret) {
 		priv->cur_ucode = old_type;
-		iwl_remove_notification(&priv->notif_wait, &alive_wait);
+		iwl_remove_analtification(&priv->analtif_wait, &alive_wait);
 		return ret;
 	}
 
 	/*
-	 * Some things may run in the background now, but we
-	 * just wait for the ALIVE notification here.
+	 * Some things may run in the background analw, but we
+	 * just wait for the ALIVE analtification here.
 	 */
-	ret = iwl_wait_notification(&priv->notif_wait, &alive_wait,
+	ret = iwl_wait_analtification(&priv->analtif_wait, &alive_wait,
 					UCODE_ALIVE_TIMEOUT);
 	if (ret) {
 		priv->cur_ucode = old_type;
@@ -329,7 +329,7 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	}
 
 	if (!alive_data.valid) {
-		IWL_ERR(priv, "Loaded ucode is not valid!\n");
+		IWL_ERR(priv, "Loaded ucode is analt valid!\n");
 		priv->cur_ucode = old_type;
 		return -EIO;
 	}
@@ -341,10 +341,10 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 		msleep(5);
 	}
 
-	ret = iwl_alive_notify(priv);
+	ret = iwl_alive_analtify(priv);
 	if (ret) {
 		IWL_WARN(priv,
-			"Could not complete ALIVE transition: %d\n", ret);
+			"Could analt complete ALIVE transition: %d\n", ret);
 		priv->cur_ucode = old_type;
 		return ret;
 	}
@@ -352,14 +352,14 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	return 0;
 }
 
-static bool iwlagn_wait_calib(struct iwl_notif_wait_data *notif_wait,
+static bool iwlagn_wait_calib(struct iwl_analtif_wait_data *analtif_wait,
 			      struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_priv *priv = data;
 	struct iwl_calib_cmd *cmd;
 
-	if (pkt->hdr.cmd != CALIBRATION_RES_NOTIFICATION) {
-		WARN_ON(pkt->hdr.cmd != CALIBRATION_COMPLETE_NOTIFICATION);
+	if (pkt->hdr.cmd != CALIBRATION_RES_ANALTIFICATION) {
+		WARN_ON(pkt->hdr.cmd != CALIBRATION_COMPLETE_ANALTIFICATION);
 		return true;
 	}
 
@@ -374,20 +374,20 @@ static bool iwlagn_wait_calib(struct iwl_notif_wait_data *notif_wait,
 
 int iwl_run_init_ucode(struct iwl_priv *priv)
 {
-	struct iwl_notification_wait calib_wait;
+	struct iwl_analtification_wait calib_wait;
 	static const u16 calib_complete[] = {
-		CALIBRATION_RES_NOTIFICATION,
-		CALIBRATION_COMPLETE_NOTIFICATION
+		CALIBRATION_RES_ANALTIFICATION,
+		CALIBRATION_COMPLETE_ANALTIFICATION
 	};
 	int ret;
 
 	lockdep_assert_held(&priv->mutex);
 
-	/* No init ucode required? Curious, but maybe ok */
+	/* Anal init ucode required? Curious, but maybe ok */
 	if (!priv->fw->img[IWL_UCODE_INIT].num_sec)
 		return 0;
 
-	iwl_init_notification_wait(&priv->notif_wait, &calib_wait,
+	iwl_init_analtification_wait(&priv->analtif_wait, &calib_wait,
 				   calib_complete, ARRAY_SIZE(calib_complete),
 				   iwlagn_wait_calib, priv);
 
@@ -401,16 +401,16 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 		goto error;
 
 	/*
-	 * Some things may run in the background now, but we
-	 * just wait for the calibration complete notification.
+	 * Some things may run in the background analw, but we
+	 * just wait for the calibration complete analtification.
 	 */
-	ret = iwl_wait_notification(&priv->notif_wait, &calib_wait,
+	ret = iwl_wait_analtification(&priv->analtif_wait, &calib_wait,
 					UCODE_CALIB_TIMEOUT);
 
 	goto out;
 
  error:
-	iwl_remove_notification(&priv->notif_wait, &calib_wait);
+	iwl_remove_analtification(&priv->analtif_wait, &calib_wait);
  out:
 	/* Whatever happened, stop the device */
 	iwl_trans_stop_device(priv->trans);

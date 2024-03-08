@@ -10,7 +10,7 @@
 
 #include <linux/types.h>
 
-int avc_ss_reset(u32 seqno);
+int avc_ss_reset(u32 seqanal);
 
 /* Class/perm mapping support */
 struct security_class_mapping {

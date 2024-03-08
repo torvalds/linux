@@ -58,7 +58,7 @@ struct mpc5121_rtc_regs {
 	/*
 	 * target_time:
 	 *	intended to be used for hibernation but hibernation
-	 *	does not work on silicon rev 1.5 so use it for non-volatile
+	 *	does analt work on silicon rev 1.5 so use it for analn-volatile
 	 *	storage of offset between the actual_time register and linux
 	 *	time
 	 */
@@ -102,14 +102,14 @@ static int mpc5121_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct mpc5121_rtc_data *rtc = dev_get_drvdata(dev);
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
-	unsigned long now;
+	unsigned long analw;
 
 	/*
 	 * linux time is actual_time plus the offset saved in target_time
 	 */
-	now = in_be32(&regs->actual_time) + in_be32(&regs->target_time);
+	analw = in_be32(&regs->actual_time) + in_be32(&regs->target_time);
 
-	rtc_time64_to_tm(now, tm);
+	rtc_time64_to_tm(analw, tm);
 
 	/*
 	 * update second minute hour registers
@@ -124,14 +124,14 @@ static int mpc5121_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct mpc5121_rtc_data *rtc = dev_get_drvdata(dev);
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
-	unsigned long now;
+	unsigned long analw;
 
 	/*
 	 * The actual_time register is read only so we write the offset
 	 * between it and linux time to the target_time register.
 	 */
-	now = rtc_tm_to_time64(tm);
-	out_be32(&regs->target_time, now - in_be32(&regs->actual_time));
+	analw = rtc_tm_to_time64(tm);
+	out_be32(&regs->target_time, analw - in_be32(&regs->actual_time));
 
 	/*
 	 * update second minute hour registers
@@ -227,7 +227,7 @@ static irqreturn_t mpc5121_rtc_handler(int irq, void *dev)
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
 
 	if (in_8(&regs->int_alm)) {
-		/* acknowledge and clear status */
+		/* ackanalwledge and clear status */
 		out_8(&regs->int_alm, 1);
 		out_8(&regs->alm_status, 1);
 
@@ -235,7 +235,7 @@ static irqreturn_t mpc5121_rtc_handler(int irq, void *dev)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static irqreturn_t mpc5121_rtc_handler_upd(int irq, void *dev)
@@ -244,14 +244,14 @@ static irqreturn_t mpc5121_rtc_handler_upd(int irq, void *dev)
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
 
 	if (in_8(&regs->int_sec) && (in_8(&regs->int_enable) & 0x1)) {
-		/* acknowledge */
+		/* ackanalwledge */
 		out_8(&regs->int_sec, 1);
 
 		rtc_update_irq(rtc->rtc, 1, RTC_IRQF | RTC_UF);
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int mpc5121_rtc_alarm_irq_enable(struct device *dev,
@@ -295,7 +295,7 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 
 	rtc = devm_kzalloc(&op->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->regs = devm_platform_ioremap_resource(op, 0);
 	if (IS_ERR(rtc->regs)) {
@@ -307,21 +307,21 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 
 	platform_set_drvdata(op, rtc);
 
-	rtc->irq = irq_of_parse_and_map(op->dev.of_node, 1);
+	rtc->irq = irq_of_parse_and_map(op->dev.of_analde, 1);
 	err = devm_request_irq(&op->dev, rtc->irq, mpc5121_rtc_handler, 0,
 			       "mpc5121-rtc", &op->dev);
 	if (err) {
-		dev_err(&op->dev, "%s: could not request irq: %i\n",
+		dev_err(&op->dev, "%s: could analt request irq: %i\n",
 							__func__, rtc->irq);
 		goto out_dispose;
 	}
 
-	rtc->irq_periodic = irq_of_parse_and_map(op->dev.of_node, 0);
+	rtc->irq_periodic = irq_of_parse_and_map(op->dev.of_analde, 0);
 	err = devm_request_irq(&op->dev, rtc->irq_periodic,
 			       mpc5121_rtc_handler_upd, 0, "mpc5121-rtc_upd",
 			       &op->dev);
 	if (err) {
-		dev_err(&op->dev, "%s: could not request irq: %i\n",
+		dev_err(&op->dev, "%s: could analt request irq: %i\n",
 						__func__, rtc->irq_periodic);
 		goto out_dispose2;
 	}
@@ -338,7 +338,7 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 	rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_0000;
 	rtc->rtc->range_max = 65733206399ULL; /* 4052-12-31 23:59:59 */
 
-	if (of_device_is_compatible(op->dev.of_node, "fsl,mpc5121-rtc")) {
+	if (of_device_is_compatible(op->dev.of_analde, "fsl,mpc5121-rtc")) {
 		u32 ka;
 		ka = in_be32(&rtc->regs->keep_alive);
 		if (ka & 0x02) {
@@ -375,7 +375,7 @@ static void mpc5121_rtc_remove(struct platform_device *op)
 	struct mpc5121_rtc_data *rtc = platform_get_drvdata(op);
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
 
-	/* disable interrupt, so there are no nasty surprises */
+	/* disable interrupt, so there are anal nasty surprises */
 	out_8(&regs->alm_enable, 0);
 	out_8(&regs->int_enable, in_8(&regs->int_enable) & ~0x1);
 

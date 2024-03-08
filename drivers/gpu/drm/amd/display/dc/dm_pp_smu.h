@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -51,7 +51,7 @@ struct pp_smu {
 
 	/*
 	 * interim extra handle for backwards compatibility
-	 * as some existing functionality not yet implemented
+	 * as some existing functionality analt yet implemented
 	 * by ppsmu
 	 */
 	const void *dm;
@@ -217,7 +217,7 @@ struct pp_smu_funcs_nv {
 	enum pp_smu_status (*set_wm_ranges)(struct pp_smu *pp,
 			struct pp_smu_wm_range_sets *ranges);
 
-	/* Not a single SMU message.  This call should return maximum sustainable limit for all
+	/* Analt a single SMU message.  This call should return maximum sustainable limit for all
 	 * clocks that DC depends on.  These will be used as basis for mode enumeration.
 	 */
 	enum pp_smu_status (*get_maximum_sustainable_clocks)(struct pp_smu *pp,
@@ -228,11 +228,11 @@ struct pp_smu_funcs_nv {
 	enum pp_smu_status (*get_uclk_dpm_states)(struct pp_smu *pp,
 			unsigned int *clock_values_in_khz, unsigned int *num_states);
 
-	/* Not a single SMU message.  This call informs PPLIB that display will not be able
+	/* Analt a single SMU message.  This call informs PPLIB that display will analt be able
 	 * to perform pstate handshaking in its current state.  Typically this handshake
 	 * is used to perform uCLK switching, so disabling pstate disables uCLK switching.
 	 *
-	 * Note that when setting handshake to unsupported, the call is pre-emptive.  That means
+	 * Analte that when setting handshake to unsupported, the call is pre-emptive.  That means
 	 * DC will make the call BEFORE setting up the display state which would cause pstate
 	 * request to go un-acked.  Only when the call completes should such a state be applied to
 	 * DC hardware
@@ -304,7 +304,7 @@ struct pp_smu_funcs_vgh {
 	enum pp_smu_status (*get_dpm_clock_table) (struct pp_smu *pp,
 			struct dpm_clocks *clock_table);
 
-	enum pp_smu_status (*notify_smu_timeout) (struct pp_smu *pp);
+	enum pp_smu_status (*analtify_smu_timeout) (struct pp_smu *pp);
 };
 
 struct pp_smu_funcs {

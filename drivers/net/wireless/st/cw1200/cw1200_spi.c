@@ -7,7 +7,7 @@
  *
  * Based on cw1200_sdio.c
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  */
 
 #include <linux/module.h>
@@ -45,7 +45,7 @@ struct hwbus_priv {
 #define SET_WRITE 0x7FFF /* usage: and operation */
 #define SET_READ 0x8000  /* usage: or operation */
 
-/* Notes on byte ordering:
+/* Analtes on byte ordering:
    LE:  B0 B1 B2 B3
    BE:  B3 B2 B1 B0
 
@@ -239,7 +239,7 @@ static irqreturn_t cw1200_spi_irq_handler(int irq, void *dev_id)
 		cw1200_spi_unlock(self);
 		return IRQ_HANDLED;
 	} else {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 }
 
@@ -394,7 +394,7 @@ static int cw1200_spi_probe(struct spi_device *func)
 	self = devm_kzalloc(&func->dev, sizeof(*self), GFP_KERNEL);
 	if (!self) {
 		pr_err("Can't allocate SPI hwbus_priv.");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	self->pdata = plat_data;
@@ -444,7 +444,7 @@ static int __maybe_unused cw1200_spi_suspend(struct device *dev)
 	if (!cw1200_can_suspend(self->core))
 		return -EAGAIN;
 
-	/* XXX notify host that we have to keep CW1200 powered on? */
+	/* XXX analtify host that we have to keep CW1200 powered on? */
 	return 0;
 }
 

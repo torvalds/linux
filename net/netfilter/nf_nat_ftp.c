@@ -106,7 +106,7 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 	return NF_ACCEPT;
 
 out:
-	nf_ct_helper_log(skb, ct, "cannot mangle packet");
+	nf_ct_helper_log(skb, ct, "cananalt mangle packet");
 	nf_ct_unexpect_related(exp);
 	return NF_DROP;
 }
@@ -126,7 +126,7 @@ static int __init nf_nat_ftp_init(void)
 	return 0;
 }
 
-/* Prior to 2.6.11, we had a ports param.  No longer, but don't break users. */
+/* Prior to 2.6.11, we had a ports param.  Anal longer, but don't break users. */
 static int warn_set(const char *val, const struct kernel_param *kp)
 {
 	pr_info("kernel >= 2.6.10 only uses 'ports' for conntrack modules\n");

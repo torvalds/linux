@@ -15,7 +15,7 @@
  * User space memory access functions
  */
 #ifdef CONFIG_MMU
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/compiler.h>
 #include <linux/thread_info.h>
 #include <asm/byteorder.h>
@@ -31,13 +31,13 @@
 /*
  * The exception table consists of pairs of addresses: the first is the
  * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
+ * the address at which the program should continue.  Anal registers are
  * modified, so it is entirely up to the continuation code to figure out
  * what to do.
  *
  * All the routines below use bits of fixup code that are out of line
  * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
+ * we don't even have to jump over them.  Further, they do analt intrude
  * on our cache or tlb entries.
  */
 
@@ -45,7 +45,7 @@
 #define __MSW	1
 
 /*
- * The "__xxx" versions of the user access functions do not verify the address
+ * The "__xxx" versions of the user access functions do analt verify the address
  * space - it must have been done previously with a separate "access_ok()"
  * call.
  */
@@ -88,7 +88,7 @@ do {								\
 } while (0)
 #endif /* CONFIG_64BIT */
 
-#define __get_user_nocheck(x, __gu_ptr, __gu_err)		\
+#define __get_user_analcheck(x, __gu_ptr, __gu_err)		\
 do {								\
 	switch (sizeof(*__gu_ptr)) {				\
 	case 1:							\
@@ -116,7 +116,7 @@ do {								\
  * Context: User context only.  This function may sleep.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -136,7 +136,7 @@ do {								\
 	__chk_user_ptr(__gu_ptr);				\
 								\
 	__enable_user_access();					\
-	__get_user_nocheck(x, __gu_ptr, __gu_err);		\
+	__get_user_analcheck(x, __gu_ptr, __gu_err);		\
 	__disable_user_access();				\
 								\
 	__gu_err;						\
@@ -150,7 +150,7 @@ do {								\
  * Context: User context only.  This function may sleep.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -203,7 +203,7 @@ do {								\
 } while (0)
 #endif /* CONFIG_64BIT */
 
-#define __put_user_nocheck(x, __gu_ptr, __pu_err)					\
+#define __put_user_analcheck(x, __gu_ptr, __pu_err)					\
 do {								\
 	switch (sizeof(*__gu_ptr)) {				\
 	case 1:							\
@@ -231,7 +231,7 @@ do {								\
  * Context: User context only.  This function may sleep.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable
@@ -253,7 +253,7 @@ do {								\
 	__chk_user_ptr(__gu_ptr);				\
 								\
 	__enable_user_access();					\
-	__put_user_nocheck(__val, __gu_ptr, __pu_err);		\
+	__put_user_analcheck(__val, __gu_ptr, __pu_err);		\
 	__disable_user_access();				\
 								\
 	__pu_err;						\
@@ -267,7 +267,7 @@ do {								\
  * Context: User context only.  This function may sleep.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but analt larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable
@@ -317,20 +317,20 @@ unsigned long __must_check clear_user(void __user *to, unsigned long n)
 		__clear_user(to, n) : n;
 }
 
-#define __get_kernel_nofault(dst, src, type, err_label)			\
+#define __get_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	long __kr_err;							\
 									\
-	__get_user_nocheck(*((type *)(dst)), (type *)(src), __kr_err);	\
+	__get_user_analcheck(*((type *)(dst)), (type *)(src), __kr_err);	\
 	if (unlikely(__kr_err))						\
 		goto err_label;						\
 } while (0)
 
-#define __put_kernel_nofault(dst, src, type, err_label)			\
+#define __put_kernel_analfault(dst, src, type, err_label)			\
 do {									\
 	long __kr_err;							\
 									\
-	__put_user_nocheck(*((type *)(src)), (type *)(dst), __kr_err);	\
+	__put_user_analcheck(*((type *)(src)), (type *)(dst), __kr_err);	\
 	if (unlikely(__kr_err))						\
 		goto err_label;						\
 } while (0)

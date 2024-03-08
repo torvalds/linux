@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
-// (C) 2017-2018 Synopsys, Inc. (www.synopsys.com)
+// (C) 2017-2018 Syanalpsys, Inc. (www.syanalpsys.com)
 
 /*
- * Synopsys DesignWare AXI DMA Controller driver.
+ * Syanalpsys DesignWare AXI DMA Controller driver.
  *
- * Author: Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+ * Author: Eugeniy Paltsev <Eugeniy.Paltsev@syanalpsys.com>
  */
 
 #include <linux/bitops.h>
@@ -17,7 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -163,7 +163,7 @@ static inline void axi_chan_irq_disable(struct axi_dma_chan *chan, u32 irq_mask)
 	u32 val;
 
 	if (likely(irq_mask == DWAXIDMAC_IRQ_ALL)) {
-		axi_chan_iowrite32(chan, CH_INTSTATUS_ENA, DWAXIDMAC_IRQ_NONE);
+		axi_chan_iowrite32(chan, CH_INTSTATUS_ENA, DWAXIDMAC_IRQ_ANALNE);
 	} else {
 		val = axi_chan_ioread32(chan, CH_INTSTATUS_ENA);
 		val &= ~irq_mask;
@@ -293,11 +293,11 @@ static struct axi_dma_desc *axi_desc_alloc(u32 num)
 {
 	struct axi_dma_desc *desc;
 
-	desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+	desc = kzalloc(sizeof(*desc), GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 
-	desc->hw_desc = kcalloc(num, sizeof(*desc->hw_desc), GFP_NOWAIT);
+	desc->hw_desc = kcalloc(num, sizeof(*desc->hw_desc), GFP_ANALWAIT);
 	if (!desc->hw_desc) {
 		kfree(desc);
 		return NULL;
@@ -312,9 +312,9 @@ static struct axi_dma_lli *axi_desc_get(struct axi_dma_chan *chan,
 	struct axi_dma_lli *lli;
 	dma_addr_t phys;
 
-	lli = dma_pool_zalloc(chan->desc_pool, GFP_NOWAIT, &phys);
+	lli = dma_pool_zalloc(chan->desc_pool, GFP_ANALWAIT, &phys);
 	if (unlikely(!lli)) {
-		dev_err(chan2dev(chan), "%s: not enough descriptors available\n",
+		dev_err(chan2dev(chan), "%s: analt eanalugh descriptors available\n",
 			axi_chan_name(chan));
 		return NULL;
 	}
@@ -401,7 +401,7 @@ static void dw_axi_dma_set_byte_halfword(struct axi_dma_chan *chan, bool set)
 	u32 reg_width, val;
 
 	if (!chan->chip->apb_regs) {
-		dev_dbg(chan->chip->dev, "apb_regs not initialized\n");
+		dev_dbg(chan->chip->dev, "apb_regs analt initialized\n");
 		return;
 	}
 
@@ -428,7 +428,7 @@ static void axi_chan_block_xfer_start(struct axi_dma_chan *chan,
 	u8 lms = 0; /* Select AXI0 master for LLI fetching */
 
 	if (unlikely(axi_chan_is_hw_enable(chan))) {
-		dev_err(chan2dev(chan), "%s is non-idle!\n",
+		dev_err(chan2dev(chan), "%s is analn-idle!\n",
 			axi_chan_name(chan));
 
 		return;
@@ -518,7 +518,7 @@ static int dma_chan_alloc_chan_resources(struct dma_chan *dchan)
 
 	/* ASSERT: channel is idle */
 	if (axi_chan_is_hw_enable(chan)) {
-		dev_err(chan2dev(chan), "%s is non-idle!\n",
+		dev_err(chan2dev(chan), "%s is analn-idle!\n",
 			axi_chan_name(chan));
 		return -EBUSY;
 	}
@@ -529,8 +529,8 @@ static int dma_chan_alloc_chan_resources(struct dma_chan *dchan)
 					  sizeof(struct axi_dma_lli),
 					  64, 0);
 	if (!chan->desc_pool) {
-		dev_err(chan2dev(chan), "No memory for descriptors\n");
-		return -ENOMEM;
+		dev_err(chan2dev(chan), "Anal memory for descriptors\n");
+		return -EANALMEM;
 	}
 	dev_vdbg(dchan2dev(dchan), "%s: allocating\n", axi_chan_name(chan));
 
@@ -545,7 +545,7 @@ static void dma_chan_free_chan_resources(struct dma_chan *dchan)
 
 	/* ASSERT: channel is idle */
 	if (axi_chan_is_hw_enable(chan))
-		dev_err(dchan2dev(dchan), "%s is non-idle!\n",
+		dev_err(dchan2dev(dchan), "%s is analn-idle!\n",
 			axi_chan_name(chan));
 
 	axi_chan_disable(chan);
@@ -568,7 +568,7 @@ static void dw_axi_dma_set_hw_channel(struct axi_dma_chan *chan, bool set)
 	unsigned long reg_value, val;
 
 	if (!chip->apb_regs) {
-		dev_err(chip->dev, "apb_regs not initialized\n");
+		dev_err(chip->dev, "apb_regs analt initialized\n");
 		return;
 	}
 
@@ -675,7 +675,7 @@ static int dw_axi_dma_set_hw_desc(struct axi_dma_chan *chan,
 		device_addr = chan->config.dst_addr;
 		ctllo = reg_width << CH_CTL_L_DST_WIDTH_POS |
 			mem_width << CH_CTL_L_SRC_WIDTH_POS |
-			DWAXIDMAC_CH_CTL_L_NOINC << CH_CTL_L_DST_INC_POS |
+			DWAXIDMAC_CH_CTL_L_ANALINC << CH_CTL_L_DST_INC_POS |
 			DWAXIDMAC_CH_CTL_L_INC << CH_CTL_L_SRC_INC_POS;
 		block_ts = len >> mem_width;
 		break;
@@ -685,7 +685,7 @@ static int dw_axi_dma_set_hw_desc(struct axi_dma_chan *chan,
 		ctllo = reg_width << CH_CTL_L_SRC_WIDTH_POS |
 			mem_width << CH_CTL_L_DST_WIDTH_POS |
 			DWAXIDMAC_CH_CTL_L_INC << CH_CTL_L_DST_INC_POS |
-			DWAXIDMAC_CH_CTL_L_NOINC << CH_CTL_L_SRC_INC_POS;
+			DWAXIDMAC_CH_CTL_L_ANALINC << CH_CTL_L_SRC_INC_POS;
 		block_ts = len >> reg_width;
 		break;
 	default:
@@ -697,7 +697,7 @@ static int dw_axi_dma_set_hw_desc(struct axi_dma_chan *chan,
 
 	hw_desc->lli = axi_desc_get(chan, &hw_desc->llp);
 	if (unlikely(!hw_desc->lli))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctlhi = CH_CTL_H_LLI_VALID;
 
@@ -1057,7 +1057,7 @@ static void axi_chan_list_dump_lli(struct axi_dma_chan *chan,
 		axi_chan_dump_lli(chan, &desc_head->hw_desc[i]);
 }
 
-static noinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
+static analinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
 {
 	struct virt_dma_desc *vd;
 	unsigned long flags;
@@ -1069,12 +1069,12 @@ static noinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
 	/* The bad descriptor currently is in the head of vc list */
 	vd = vchan_next_desc(&chan->vc);
 	if (!vd) {
-		dev_err(chan2dev(chan), "BUG: %s, IRQ with no descriptors\n",
+		dev_err(chan2dev(chan), "BUG: %s, IRQ with anal descriptors\n",
 			axi_chan_name(chan));
 		goto out;
 	}
 	/* Remove the completed descriptor from issued list */
-	list_del(&vd->node);
+	list_del(&vd->analde);
 
 	/* WARN about bad descriptor */
 	dev_err(chan2dev(chan),
@@ -1103,7 +1103,7 @@ static void axi_chan_block_xfer_complete(struct axi_dma_chan *chan)
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
 	if (unlikely(axi_chan_is_hw_enable(chan))) {
-		dev_err(chan2dev(chan), "BUG: %s caught DWAXIDMAC_IRQ_DMA_TRF, but channel not idle!\n",
+		dev_err(chan2dev(chan), "BUG: %s caught DWAXIDMAC_IRQ_DMA_TRF, but channel analt idle!\n",
 			axi_chan_name(chan));
 		axi_chan_disable(chan);
 	}
@@ -1111,7 +1111,7 @@ static void axi_chan_block_xfer_complete(struct axi_dma_chan *chan)
 	/* The completed descriptor currently is in the head of vc list */
 	vd = vchan_next_desc(&chan->vc);
 	if (!vd) {
-		dev_err(chan2dev(chan), "BUG: %s, IRQ with no descriptors\n",
+		dev_err(chan2dev(chan), "BUG: %s, IRQ with anal descriptors\n",
 			axi_chan_name(chan));
 		goto out;
 	}
@@ -1137,7 +1137,7 @@ static void axi_chan_block_xfer_complete(struct axi_dma_chan *chan)
 		}
 	} else {
 		/* Remove the completed descriptor from issued list before completing */
-		list_del(&vd->node);
+		list_del(&vd->analde);
 		vchan_cookie_complete(vd);
 
 		/* Submit queued descriptors after processing the completed ones */
@@ -1457,15 +1457,15 @@ static int dw_probe(struct platform_device *pdev)
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dw = devm_kzalloc(&pdev->dev, sizeof(*dw), GFP_KERNEL);
 	if (!dw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdata = devm_kzalloc(&pdev->dev, sizeof(*hdata), GFP_KERNEL);
 	if (!hdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dw = dw;
 	chip->dev = &pdev->dev;
@@ -1513,7 +1513,7 @@ static int dw_probe(struct platform_device *pdev)
 	dw->chan = devm_kcalloc(chip->dev, hdata->nr_channels,
 				sizeof(*dw->chan), GFP_KERNEL);
 	if (!dw->chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_request_irq(chip->dev, chip->irq, dw_axi_dma_interrupt,
 			       IRQF_SHARED, KBUILD_MODNAME, chip);
@@ -1563,7 +1563,7 @@ static int dw_probe(struct platform_device *pdev)
 	dw->dma.device_prep_dma_cyclic = dw_axi_dma_chan_prep_cyclic;
 
 	/*
-	 * Synopsis DesignWare AxiDMA datasheet mentioned Maximum
+	 * Syanalpsis DesignWare AxiDMA datasheet mentioned Maximum
 	 * supported blocks is 1024. Device register width is 4 bytes.
 	 * Therefore, set constraint to 1024 * 4.
 	 */
@@ -1575,10 +1575,10 @@ static int dw_probe(struct platform_device *pdev)
 
 	/*
 	 * We can't just call pm_runtime_get here instead of
-	 * pm_runtime_get_noresume + axi_dma_resume because we need
+	 * pm_runtime_get_analresume + axi_dma_resume because we need
 	 * driver to work also without Runtime PM.
 	 */
-	pm_runtime_get_noresume(chip->dev);
+	pm_runtime_get_analresume(chip->dev);
 	ret = axi_dma_resume(chip);
 	if (ret < 0)
 		goto err_pm_disable;
@@ -1592,7 +1592,7 @@ static int dw_probe(struct platform_device *pdev)
 		goto err_pm_disable;
 
 	/* Register with OF helpers for DMA lookups */
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_analde,
 					 dw_axi_dma_of_xlate, dw);
 	if (ret < 0)
 		dev_warn(&pdev->dev,
@@ -1631,11 +1631,11 @@ static void dw_remove(struct platform_device *pdev)
 
 	devm_free_irq(chip->dev, chip->irq, chip);
 
-	of_dma_controller_free(chip->dev->of_node);
+	of_dma_controller_free(chip->dev->of_analde);
 
 	list_for_each_entry_safe(chan, _chan, &dw->dma.channels,
-			vc.chan.device_node) {
-		list_del(&chan->vc.chan.device_node);
+			vc.chan.device_analde) {
+		list_del(&chan->vc.chan.device_analde);
 		tasklet_kill(&chan->vc.task);
 	}
 }
@@ -1670,5 +1670,5 @@ static struct platform_driver dw_driver = {
 module_platform_driver(dw_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Synopsys DesignWare AXI DMA Controller platform driver");
-MODULE_AUTHOR("Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>");
+MODULE_DESCRIPTION("Syanalpsys DesignWare AXI DMA Controller platform driver");
+MODULE_AUTHOR("Eugeniy Paltsev <Eugeniy.Paltsev@syanalpsys.com>");

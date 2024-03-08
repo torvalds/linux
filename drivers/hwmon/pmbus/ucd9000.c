@@ -78,7 +78,7 @@ struct ucd9000_debugfs_entry {
 
 /*
  * It has been observed that the UCD90320 randomly fails register access when
- * doing another access right on the back of a register write. To mitigate this
+ * doing aanalther access right on the back of a register write. To mitigate this
  * make sure that there is a minimum delay between a write access and the
  * following access. The 250us is based on experimental data. At a delay of
  * 200us the issue seems to go away. Add a bit of extra margin to allow for
@@ -193,7 +193,7 @@ static int ucd9000_read_byte_data(struct i2c_client *client, int page, int reg)
 		ret = fan_config;
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 	return ret;
@@ -250,7 +250,7 @@ static int ucd9000_gpio_read_config(struct i2c_client *client,
 {
 	int ret;
 
-	/* No page set required */
+	/* Anal page set required */
 	ret = i2c_smbus_write_byte_data(client, UCD9000_GPIO_SELECT, offset);
 	if (ret < 0)
 		return ret;
@@ -297,7 +297,7 @@ static void ucd9000_gpio_set(struct gpio_chip *gc, unsigned int offset,
 
 	ret |= UCD9000_GPIO_CONFIG_ENABLE;
 
-	/* Page set not required */
+	/* Page set analt required */
 	ret = i2c_smbus_write_byte_data(client, UCD9000_GPIO_CONFIG, ret);
 	if (ret < 0) {
 		dev_dbg(&client->dev, "Failed to write GPIO %d config: %d\n",
@@ -362,7 +362,7 @@ static int ucd9000_gpio_set_direction(struct gpio_chip *gc,
 	ret |= UCD9000_GPIO_CONFIG_ENABLE;
 	config = ret;
 
-	/* Page set not required */
+	/* Page set analt required */
 	ret = i2c_smbus_write_byte_data(client, UCD9000_GPIO_CONFIG, config);
 	if (ret < 0)
 		return ret;
@@ -411,7 +411,7 @@ static void ucd9000_probe_gpio(struct i2c_client *client,
 	}
 
 	/*
-	 * Pinmux support has not been added to the new gpio_chip.
+	 * Pinmux support has analt been added to the new gpio_chip.
 	 * This support should be added when possible given the mux
 	 * behavior of these IO devices.
 	 */
@@ -427,7 +427,7 @@ static void ucd9000_probe_gpio(struct i2c_client *client,
 
 	rc = devm_gpiochip_add_data(&client->dev, &data->gpio, client);
 	if (rc)
-		dev_warn(&client->dev, "Could not add gpiochip: %d\n", rc);
+		dev_warn(&client->dev, "Could analt add gpiochip: %d\n", rc);
 }
 #else
 static void ucd9000_probe_gpio(struct i2c_client *client,
@@ -493,7 +493,7 @@ static ssize_t ucd9000_debugfs_read_mfr_status(struct file *file,
 }
 
 static const struct file_operations ucd9000_debugfs_show_mfr_status_fops = {
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 	.read = ucd9000_debugfs_read_mfr_status,
 	.open = simple_open,
 };
@@ -509,7 +509,7 @@ static int ucd9000_init_debugfs(struct i2c_client *client,
 
 	debugfs = pmbus_get_debugfs_dir(client);
 	if (!debugfs)
-		return -ENOENT;
+		return -EANALENT;
 
 	data->debugfs = debugfs_create_dir(client->name, debugfs);
 
@@ -527,7 +527,7 @@ static int ucd9000_init_debugfs(struct i2c_client *client,
 				       gpi_count, sizeof(*entries),
 				       GFP_KERNEL);
 		if (!entries)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < gpi_count; i++) {
 			entries[i].client = client;
@@ -567,7 +567,7 @@ static int ucd9000_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = i2c_smbus_read_block_data(client, UCD9000_DEVICE_ID,
 					block_buffer);
@@ -584,23 +584,23 @@ static int ucd9000_probe(struct i2c_client *client)
 	}
 	if (!mid->name[0]) {
 		dev_err(&client->dev, "Unsupported device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		chip = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		chip = mid->driver_data;
 
 	if (chip != ucd9000 && strcmp(client->name, mid->name) != 0)
-		dev_notice(&client->dev,
+		dev_analtice(&client->dev,
 			   "Device mismatch: Configured %s, detected %s\n",
 			   client->name, mid->name);
 
 	data = devm_kzalloc(&client->dev, sizeof(struct ucd9000_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	info = &data->info;
 
 	ret = i2c_smbus_read_byte_data(client, UCD9000_NUM_PAGES);
@@ -611,8 +611,8 @@ static int ucd9000_probe(struct i2c_client *client)
 	}
 	info->pages = ret;
 	if (!info->pages) {
-		dev_err(&client->dev, "No pages configured\n");
-		return -ENODEV;
+		dev_err(&client->dev, "Anal pages configured\n");
+		return -EANALDEV;
 	}
 
 	/* The internal temperature sensor is always active */
@@ -623,7 +623,7 @@ static int ucd9000_probe(struct i2c_client *client)
 					block_buffer);
 	if (ret <= 0) {
 		dev_err(&client->dev, "Failed to read configuration data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	for (i = 0; i < ret; i++) {
 		int page = UCD9000_MON_PAGE(block_buffer[i]);

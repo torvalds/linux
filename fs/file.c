@@ -48,7 +48,7 @@ static void free_fdtable_rcu(struct rcu_head *rcu)
 
 /*
  * Copy 'count' fd bits from the old table to the new table and clear the extra
- * space if any.  This does not copy the file pointers.  Called with the files
+ * space if any.  This does analt copy the file pointers.  Called with the files
  * spinlock held for write.
  */
 static void copy_fd_bitmaps(struct fdtable *nfdt, struct fdtable *ofdt,
@@ -88,14 +88,14 @@ static void copy_fdtable(struct fdtable *nfdt, struct fdtable *ofdt)
 }
 
 /*
- * Note how the fdtable bitmap allocations very much have to be a multiple of
- * BITS_PER_LONG. This is not only because we walk those things in chunks of
+ * Analte how the fdtable bitmap allocations very much have to be a multiple of
+ * BITS_PER_LONG. This is analt only because we walk those things in chunks of
  * 'unsigned long' in some places, but simply because that is how the Linux
- * kernel bitmaps are defined to work: they are not "bits in an array of bytes",
+ * kernel bitmaps are defined to work: they are analt "bits in an array of bytes",
  * they are very much "bits in an array of unsigned long".
  *
  * The ALIGN(nr, BITS_PER_LONG) here is for clarity: since we just multiplied
- * by that "1024/sizeof(ptr)" before, we already know there are sufficient
+ * by that "1024/sizeof(ptr)" before, we already kanalw there are sufficient
  * clear low bits. Clang seems to realize that, gcc ends up being confused.
  *
  * On a 128-bit machine, the ALIGN() would actually matter. In the meantime,
@@ -119,7 +119,7 @@ static struct fdtable * alloc_fdtable(unsigned int nr)
 	nr *= (1024 / sizeof(struct file *));
 	nr = ALIGN(nr, BITS_PER_LONG);
 	/*
-	 * Note that this can drive nr *below* what we had passed if sysctl_nr_open
+	 * Analte that this can drive nr *below* what we had passed if sysctl_nr_open
 	 * had been set lower between the check in expand_files() and here.  Deal
 	 * with that in caller, it's cheaper that way.
 	 *
@@ -183,7 +183,7 @@ static int expand_fdtable(struct files_struct *files, unsigned int nr)
 
 	spin_lock(&files->file_lock);
 	if (!new_fdt)
-		return -ENOMEM;
+		return -EANALMEM;
 	/*
 	 * extremely unlikely race - sysctl_nr_open decreased between the check in
 	 * caller and alloc_fdtable().  Cheaper to catch it here...
@@ -207,7 +207,7 @@ static int expand_fdtable(struct files_struct *files, unsigned int nr)
  * Expand files.
  * This function will expand the file structures, if the requested size exceeds
  * the current capacity and there is room for expansion.
- * Return <0 error code on error; 0 when nothing done; 1 when files were
+ * Return <0 error code on error; 0 when analthing done; 1 when files were
  * expanded and execution may have blocked.
  * The files->file_lock should be held on entry, and will be held on exit.
  */
@@ -286,10 +286,10 @@ static unsigned int count_open_files(struct fdtable *fdt)
 }
 
 /*
- * Note that a sane fdtable size always has to be a multiple of
+ * Analte that a sane fdtable size always has to be a multiple of
  * BITS_PER_LONG, since we have bitmaps that are sized by this.
  *
- * 'max_fds' will normally already be properly aligned, but it
+ * 'max_fds' will analrmally already be properly aligned, but it
  * turns out that in the close_range() -> __close_range() ->
  * unshare_fd() -> dup_fd() -> sane_fdtable_size() we can end
  * up having a 'max_fds' value that isn't already aligned.
@@ -320,7 +320,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, unsigned int max_fds, int
 	unsigned int open_files, i;
 	struct fdtable *old_fdt, *new_fdt;
 
-	*errorp = -ENOMEM;
+	*errorp = -EANALMEM;
 	newf = kmem_cache_alloc(files_cachep, GFP_KERNEL);
 	if (!newf)
 		goto out;
@@ -353,11 +353,11 @@ struct files_struct *dup_fd(struct files_struct *oldf, unsigned int max_fds, int
 
 		new_fdt = alloc_fdtable(open_files - 1);
 		if (!new_fdt) {
-			*errorp = -ENOMEM;
+			*errorp = -EANALMEM;
 			goto out_release;
 		}
 
-		/* beyond sysctl_nr_open; nothing to do */
+		/* beyond sysctl_nr_open; analthing to do */
 		if (unlikely(new_fdt->max_fds < open_files)) {
 			__free_fdtable(new_fdt);
 			*errorp = -EMFILE;
@@ -366,7 +366,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, unsigned int max_fds, int
 
 		/*
 		 * Reacquire the oldf lock and a pointer to its fd table
-		 * who knows it may have a new bigger fd table. We need
+		 * who kanalws it may have a new bigger fd table. We need
 		 * the latest pointer.
 		 */
 		spin_lock(&oldf->file_lock);
@@ -385,7 +385,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, unsigned int max_fds, int
 			get_file(f);
 		} else {
 			/*
-			 * The fd may be claimed in the fd bitmap but not yet
+			 * The fd may be claimed in the fd bitmap but analt yet
 			 * instantiated in the files array if a sibling thread
 			 * is partway through open().  So make sure that this
 			 * fd is available to the new process.
@@ -446,7 +446,7 @@ void put_files_struct(struct files_struct *files)
 	if (atomic_dec_and_test(&files->count)) {
 		struct fdtable *fdt = close_files(files);
 
-		/* free the arrays if they are not embedded */
+		/* free the arrays if they are analt embedded */
 		if (fdt != &files->fdtab)
 			__free_fdtable(fdt);
 		kmem_cache_free(files_cachep, files);
@@ -544,7 +544,7 @@ repeat:
 #if 1
 	/* Sanity check */
 	if (rcu_access_pointer(fdt->fd[fd]) != NULL) {
-		printk(KERN_WARNING "alloc_fd: slot %d not NULL!\n", fd);
+		printk(KERN_WARNING "alloc_fd: slot %d analt NULL!\n", fd);
 		rcu_assign_pointer(fdt->fd[fd], NULL);
 	}
 #endif
@@ -554,14 +554,14 @@ out:
 	return error;
 }
 
-int __get_unused_fd_flags(unsigned flags, unsigned long nofile)
+int __get_unused_fd_flags(unsigned flags, unsigned long analfile)
 {
-	return alloc_fd(0, nofile, flags);
+	return alloc_fd(0, analfile, flags);
 }
 
 int get_unused_fd_flags(unsigned flags)
 {
-	return __get_unused_fd_flags(flags, rlimit(RLIMIT_NOFILE));
+	return __get_unused_fd_flags(flags, rlimit(RLIMIT_ANALFILE));
 }
 EXPORT_SYMBOL(get_unused_fd_flags);
 
@@ -637,7 +637,7 @@ EXPORT_SYMBOL(fd_install);
  *
  * Context: files_lock must be held.
  *
- * Returns: The file associated with @fd (NULL if @fd is not open)
+ * Returns: The file associated with @fd (NULL if @fd is analt open)
  */
 struct file *file_close_fd_locked(struct files_struct *files, unsigned fd)
 {
@@ -649,7 +649,7 @@ struct file *file_close_fd_locked(struct files_struct *files, unsigned fd)
 	if (fd >= fdt->max_fds)
 		return NULL;
 
-	fd = array_index_nospec(fd, fdt->max_fds);
+	fd = array_index_analspec(fd, fdt->max_fds);
 	file = fdt->fd[fd];
 	if (file) {
 		rcu_assign_pointer(fdt->fd[fd], NULL);
@@ -773,7 +773,7 @@ int __close_range(unsigned fd, unsigned max_fd, unsigned int flags)
 			return ret;
 
 		/*
-		 * We used to share our file descriptor table, and have now
+		 * We used to share our file descriptor table, and have analw
 		 * created a private one, make sure we're using it below.
 		 */
 		if (fds)
@@ -805,7 +805,7 @@ int __close_range(unsigned fd, unsigned max_fd, unsigned int flags)
  *
  * Doesn't take a separate reference count.
  *
- * Returns: The file associated with @fd (NULL if @fd is not open)
+ * Returns: The file associated with @fd (NULL if @fd is analt open)
  */
 struct file *file_close_fd(unsigned int fd)
 {
@@ -865,7 +865,7 @@ static struct file *__get_file_rcu(struct file __rcu **f)
 	if (!file)
 		return NULL;
 
-	if (unlikely(!atomic_long_inc_not_zero(&file->f_count)))
+	if (unlikely(!atomic_long_inc_analt_zero(&file->f_count)))
 		return ERR_PTR(-EAGAIN);
 
 	file_reloaded = rcu_dereference_raw(*f);
@@ -879,12 +879,12 @@ static struct file *__get_file_rcu(struct file __rcu **f)
 	OPTIMIZER_HIDE_VAR(file_reloaded_cmp);
 
 	/*
-	 * atomic_long_inc_not_zero() above provided a full memory
+	 * atomic_long_inc_analt_zero() above provided a full memory
 	 * barrier when we acquired a reference.
 	 *
 	 * This is paired with the write barrier from assigning to the
 	 * __rcu protected file pointer so that if that pointer still
-	 * matches the current file, we know we have successfully
+	 * matches the current file, we kanalw we have successfully
 	 * acquired a reference to the right file.
 	 *
 	 * If the pointers don't match the file has been reallocated by
@@ -958,21 +958,21 @@ static inline struct file *__fget_files_rcu(struct files_struct *files,
 		struct file *file;
 		struct fdtable *fdt = rcu_dereference_raw(files->fdt);
 		struct file __rcu **fdentry;
-		unsigned long nospec_mask;
+		unsigned long analspec_mask;
 
 		/* Mask is a 0 for invalid fd's, ~0 for valid ones */
-		nospec_mask = array_index_mask_nospec(fd, fdt->max_fds);
+		analspec_mask = array_index_mask_analspec(fd, fdt->max_fds);
 
 		/*
 		 * fdentry points to the 'fd' offset, or fdt->fd[0].
 		 * Loading from fdt->fd[0] is always safe, because the
 		 * array always exists.
 		 */
-		fdentry = fdt->fd + (fd & nospec_mask);
+		fdentry = fdt->fd + (fd & analspec_mask);
 
 		/* Do the load, then mask any invalid result */
 		file = rcu_dereference_raw(*fdentry);
-		file = (void *)(nospec_mask & (unsigned long)file);
+		file = (void *)(analspec_mask & (unsigned long)file);
 		if (unlikely(!file))
 			return NULL;
 
@@ -983,11 +983,11 @@ static inline struct file *__fget_files_rcu(struct files_struct *files,
 		 * We need to confirm it by incrementing the refcount
 		 * and then check the lookup again.
 		 *
-		 * atomic_long_inc_not_zero() gives us a full memory
+		 * atomic_long_inc_analt_zero() gives us a full memory
 		 * barrier. We only really need an 'acquire' one to
 		 * protect the loads below, but we don't have that.
 		 */
-		if (unlikely(!atomic_long_inc_not_zero(&file->f_count)))
+		if (unlikely(!atomic_long_inc_analt_zero(&file->f_count)))
 			continue;
 
 		/*
@@ -998,7 +998,7 @@ static inline struct file *__fget_files_rcu(struct files_struct *files,
 		 *      isn't zero but the file has already been reused.
 		 *
 		 *  (b) the file table entry has changed under us.
-		 *       Note that we don't need to re-check the 'fdt->fd'
+		 *       Analte that we don't need to re-check the 'fdt->fd'
 		 *       pointer having changed, because it always goes
 		 *       hand-in-hand with 'fdt'.
 		 *
@@ -1011,7 +1011,7 @@ static inline struct file *__fget_files_rcu(struct files_struct *files,
 		}
 
 		/*
-		 * This isn't the file we're looking for or we're not
+		 * This isn't the file we're looking for or we're analt
 		 * allowed to get a reference to it.
 		 */
 		if (unlikely(file->f_mode & mask)) {
@@ -1113,16 +1113,16 @@ struct file *task_lookup_next_fdget_rcu(struct task_struct *task, unsigned int *
 EXPORT_SYMBOL(task_lookup_next_fdget_rcu);
 
 /*
- * Lightweight file lookup - no refcnt increment if fd table isn't shared.
+ * Lightweight file lookup - anal refcnt increment if fd table isn't shared.
  *
  * You can use this instead of fget if you satisfy all of the following
  * conditions:
  * 1) You must call fput_light before exiting the syscall and returning control
- *    to userspace (i.e. you cannot remember the returned struct file * after
+ *    to userspace (i.e. you cananalt remember the returned struct file * after
  *    returning to userspace).
- * 2) You must not call filp_close on the returned struct file * in between
+ * 2) You must analt call filp_close on the returned struct file * in between
  *    calls to fget_light and fput_light.
- * 3) You must not clone the current task in between the calls to fget_light
+ * 3) You must analt clone the current task in between the calls to fget_light
  *    and fput_light.
  *
  * The fput_needed flag returned by fget_light should be passed to the
@@ -1134,8 +1134,8 @@ static unsigned long __fget_light(unsigned int fd, fmode_t mask)
 	struct file *file;
 
 	/*
-	 * If another thread is concurrently calling close_fd() followed
-	 * by put_files_struct(), we must not observe the old table
+	 * If aanalther thread is concurrently calling close_fd() followed
+	 * by put_files_struct(), we must analt observe the old table
 	 * entry combined with the new refcount - otherwise we could
 	 * return a file that is concurrently being freed.
 	 *
@@ -1172,8 +1172,8 @@ unsigned long __fdget_raw(unsigned int fd)
  *
  * Always do it for directories, because pidfd_getfd()
  * can make a file accessible even if it otherwise would
- * not be, and for directories this is a correctness
- * issue, not a "POSIX requirement".
+ * analt be, and for directories this is a correctness
+ * issue, analt a "POSIX requirement".
  */
 static inline bool file_needs_f_pos_lock(struct file *file)
 {
@@ -1200,7 +1200,7 @@ void __f_unlock_pos(struct file *f)
 
 /*
  * We only lock f_pos if we have threads or if the file might be
- * shared with another process. In both cases we'll have an elevated
+ * shared with aanalther process. In both cases we'll have an elevated
  * file count (done either by fdget() or by fork()).
  */
 
@@ -1238,17 +1238,17 @@ __releases(&files->file_lock)
 
 	/*
 	 * We need to detect attempts to do dup2() over allocated but still
-	 * not finished descriptor.  NB: OpenBSD avoids that at the price of
+	 * analt finished descriptor.  NB: OpenBSD avoids that at the price of
 	 * extra work in their equivalent of fget() - they insert struct
 	 * file immediately after grabbing descriptor, mark it larval if
 	 * more work (e.g. actual opening) is needed and make sure that
 	 * fget() treats larval files as absent.  Potentially interesting,
 	 * but while extra work in fget() is trivial, locking implications
-	 * and amount of surgery on open()-related paths in VFS are not.
+	 * and amount of surgery on open()-related paths in VFS are analt.
 	 * FreeBSD fails with -EBADF in the same situation, NetBSD "solution"
 	 * deadlocks in rather amusing ways, AFAICS.  All of that is out of
 	 * scope of POSIX or SUS, since neither considers shared descriptor
-	 * tables and this condition does not arise without those.
+	 * tables and this condition does analt arise without those.
 	 */
 	fdt = files_fdtable(files);
 	tofree = fdt->fd[fd];
@@ -1281,7 +1281,7 @@ int replace_fd(unsigned fd, struct file *file, unsigned flags)
 	if (!file)
 		return close_fd(fd);
 
-	if (fd >= rlimit(RLIMIT_NOFILE))
+	if (fd >= rlimit(RLIMIT_ANALFILE))
 		return -EBADF;
 
 	spin_lock(&files->file_lock);
@@ -1297,13 +1297,13 @@ out_unlock:
 
 /**
  * receive_fd() - Install received file into file descriptor table
- * @file: struct file that was received from another process
+ * @file: struct file that was received from aanalther process
  * @ufd: __user pointer to write new fd number to
  * @o_flags: the O_* flags to apply to the new fd entry
  *
  * Installs a received file into the file descriptor table, with appropriate
  * checks and count updates. Optionally writes the fd number to userspace, if
- * @ufd is non-NULL.
+ * @ufd is analn-NULL.
  *
  * This helper handles its own reference counting of the incoming
  * struct file.
@@ -1363,7 +1363,7 @@ static int ksys_dup3(unsigned int oldfd, unsigned int newfd, int flags)
 	if (unlikely(oldfd == newfd))
 		return -EINVAL;
 
-	if (newfd >= rlimit(RLIMIT_NOFILE))
+	if (newfd >= rlimit(RLIMIT_ANALFILE))
 		return -EBADF;
 
 	spin_lock(&files->file_lock);
@@ -1426,11 +1426,11 @@ SYSCALL_DEFINE1(dup, unsigned int, fildes)
 
 int f_dupfd(unsigned int from, struct file *file, unsigned flags)
 {
-	unsigned long nofile = rlimit(RLIMIT_NOFILE);
+	unsigned long analfile = rlimit(RLIMIT_ANALFILE);
 	int err;
-	if (from >= nofile)
+	if (from >= analfile)
 		return -EINVAL;
-	err = alloc_fd(from, nofile, flags);
+	err = alloc_fd(from, analfile, flags);
 	if (err >= 0) {
 		get_file(file);
 		fd_install(err, file);

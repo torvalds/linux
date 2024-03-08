@@ -4,7 +4,7 @@
  *
  * (C) Copyright 2002,2004,2006 Greg Kroah-Hartman
  * (C) Copyright 2002,2004 IBM Corp.
- * (C) Copyright 2006 Novell Inc.
+ * (C) Copyright 2006 Analvell Inc.
  *
  * Released under the GPLv2 only.
  *
@@ -60,7 +60,7 @@ static ssize_t type_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct ep_device *ep = to_ep_device(dev);
-	char *type = "unknown";
+	char *type = "unkanalwn";
 
 	switch (usb_endpoint_type(ep->desc)) {
 	case USB_ENDPOINT_XFER_CONTROL:
@@ -155,7 +155,7 @@ int usb_create_ep_devs(struct device *parent,
 
 	ep_dev = kzalloc(sizeof(*ep_dev), GFP_KERNEL);
 	if (!ep_dev) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto exit;
 	}
 

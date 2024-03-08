@@ -10,7 +10,7 @@ void vlan_proc_rem_dev(struct net_device *vlandev);
 int vlan_proc_add_dev(struct net_device *vlandev);
 void vlan_proc_cleanup(struct net *net);
 
-#else /* No CONFIG_PROC_FS */
+#else /* Anal CONFIG_PROC_FS */
 
 #define vlan_proc_init(net)	(0)
 #define vlan_proc_cleanup(net)	do {} while (0)

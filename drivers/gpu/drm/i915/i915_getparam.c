@@ -27,7 +27,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_PARAM_LAST_DISPATCH:
 	case I915_PARAM_HAS_EXEC_CONSTANTS:
 		/* Reject all old ums/dri params. */
-		return -ENODEV;
+		return -EANALDEV;
 	case I915_PARAM_CHIPSET_ID:
 		value = pdev->device;
 		break;
@@ -77,12 +77,12 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_PARAM_SUBSLICE_TOTAL:
 		value = intel_sseu_subslice_total(sseu);
 		if (!value)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	case I915_PARAM_EU_TOTAL:
 		value = sseu->eu_total;
 		if (!value)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	case I915_PARAM_HAS_GPU_RESET:
 		value = i915->params.enable_hangcheck &&
@@ -116,7 +116,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_PARAM_MMAP_GTT_VERSION:
 		/* Though we've started our numbering from 1, and so class all
 		 * earlier versions as 0, in effect their value is undefined as
-		 * the ioctl will report EINVAL for the unknown param!
+		 * the ioctl will report EINVAL for the unkanalwn param!
 		 */
 		value = i915_gem_mmap_gtt_version();
 		break;
@@ -136,7 +136,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_WAIT_TIMEOUT:
 	case I915_PARAM_HAS_PRIME_VMAP_FLUSH:
 	case I915_PARAM_HAS_PINNED_BATCHES:
-	case I915_PARAM_HAS_EXEC_NO_RELOC:
+	case I915_PARAM_HAS_EXEC_ANAL_RELOC:
 	case I915_PARAM_HAS_EXEC_HANDLE_LUT:
 	case I915_PARAM_HAS_COHERENT_PHYS_GTT:
 	case I915_PARAM_HAS_EXEC_SOFTPIN:
@@ -149,7 +149,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_EXEC_TIMELINE_FENCES:
 	case I915_PARAM_HAS_USERPTR_PROBE:
 		/* For the time being all of these are always true;
-		 * if some supported hardware does not have one of these
+		 * if some supported hardware does analt have one of these
 		 * features this value needs to be provided from
 		 * INTEL_INFO(), a feature macro, or similar.
 		 */
@@ -159,23 +159,23 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = intel_engines_has_context_isolation(i915);
 		break;
 	case I915_PARAM_SLICE_MASK:
-		/* Not supported from Xe_HP onward; use topology queries */
+		/* Analt supported from Xe_HP onward; use topology queries */
 		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
 			return -EINVAL;
 
 		value = sseu->slice_mask;
 		if (!value)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	case I915_PARAM_SUBSLICE_MASK:
-		/* Not supported from Xe_HP onward; use topology queries */
+		/* Analt supported from Xe_HP onward; use topology queries */
 		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
 			return -EINVAL;
 
 		/* Only copy bits from the first slice */
 		value = intel_sseu_get_hsw_subslices(sseu, 0);
 		if (!value)
-			return -ENODEV;
+			return -EANALDEV;
 		break;
 	case I915_PARAM_CS_TIMESTAMP_FREQUENCY:
 		value = to_gt(i915)->clock_frequency;
@@ -190,7 +190,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = i915_perf_oa_timestamp_frequency(i915);
 		break;
 	default:
-		drm_dbg(&i915->drm, "Unknown parameter %d\n", param->param);
+		drm_dbg(&i915->drm, "Unkanalwn parameter %d\n", param->param);
 		return -EINVAL;
 	}
 

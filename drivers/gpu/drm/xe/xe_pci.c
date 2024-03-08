@@ -71,13 +71,13 @@ struct xe_device_desc {
 };
 
 __diag_push();
-__diag_ignore_all("-Woverride-init", "Allow field overrides in table");
+__diag_iganalre_all("-Woverride-init", "Allow field overrides in table");
 
 #define PLATFORM(x)		\
 	.platform = (x),	\
 	.platform_name = #x
 
-#define NOP(x)	x
+#define ANALP(x)	x
 
 static const struct xe_graphics_desc graphics_xelp = {
 	.name = "Xe_LP",
@@ -230,7 +230,7 @@ static const struct xe_device_desc rkl_desc = {
 	.require_force_probe = true,
 };
 
-static const u16 adls_rpls_ids[] = { XE_RPLS_IDS(NOP), 0 };
+static const u16 adls_rpls_ids[] = { XE_RPLS_IDS(ANALP), 0 };
 
 static const struct xe_device_desc adl_s_desc = {
 	.graphics = &graphics_xelp,
@@ -245,7 +245,7 @@ static const struct xe_device_desc adl_s_desc = {
 	},
 };
 
-static const u16 adlp_rplu_ids[] = { XE_RPLU_IDS(NOP), 0 };
+static const u16 adlp_rplu_ids[] = { XE_RPLU_IDS(ANALP), 0 };
 
 static const struct xe_device_desc adl_p_desc = {
 	.graphics = &graphics_xelp,
@@ -282,9 +282,9 @@ static const struct xe_device_desc dg1_desc = {
 	.require_force_probe = true,
 };
 
-static const u16 dg2_g10_ids[] = { XE_DG2_G10_IDS(NOP), XE_ATS_M150_IDS(NOP), 0 };
-static const u16 dg2_g11_ids[] = { XE_DG2_G11_IDS(NOP), XE_ATS_M75_IDS(NOP), 0 };
-static const u16 dg2_g12_ids[] = { XE_DG2_G12_IDS(NOP), 0 };
+static const u16 dg2_g10_ids[] = { XE_DG2_G10_IDS(ANALP), XE_ATS_M150_IDS(ANALP), 0 };
+static const u16 dg2_g11_ids[] = { XE_DG2_G11_IDS(ANALP), XE_ATS_M75_IDS(ANALP), 0 };
+static const u16 dg2_g12_ids[] = { XE_DG2_G12_IDS(ANALP), 0 };
 
 #define DG2_FEATURES \
 	DGFX_FEATURES, \
@@ -507,13 +507,13 @@ static void handle_gmdid(struct xe_device *xe,
 	}
 
 	if (!xe->info.graphics_verx100) {
-		drm_err(&xe->drm, "Hardware reports unknown graphics version %u.%02u\n",
+		drm_err(&xe->drm, "Hardware reports unkanalwn graphics version %u.%02u\n",
 			ver / 100, ver % 100);
 	}
 
 	read_gmdid(xe, GMDID_MEDIA, &ver, media_revid);
 
-	/* Media may legitimately be fused off / not present */
+	/* Media may legitimately be fused off / analt present */
 	if (ver == 0)
 		return;
 
@@ -527,7 +527,7 @@ static void handle_gmdid(struct xe_device *xe,
 	}
 
 	if (!xe->info.media_verx100) {
-		drm_err(&xe->drm, "Hardware reports unknown media version %u.%02u\n",
+		drm_err(&xe->drm, "Hardware reports unkanalwn media version %u.%02u\n",
 			ver / 100, ver % 100);
 	}
 }
@@ -544,7 +544,7 @@ static int xe_info_init_early(struct xe_device *xe,
 
 	xe->info.platform = desc->platform;
 	xe->info.subplatform = subplatform_desc ?
-		subplatform_desc->subplatform : XE_SUBPLATFORM_NONE;
+		subplatform_desc->subplatform : XE_SUBPLATFORM_ANALNE;
 
 	xe->info.is_dgfx = desc->is_dgfx;
 	xe->info.has_heci_gscfi = desc->has_heci_gscfi;
@@ -567,7 +567,7 @@ static int xe_info_init_early(struct xe_device *xe,
 }
 
 /*
- * Initialize device info content that does require knowledge about
+ * Initialize device info content that does require kanalwledge about
  * graphics / media IP version.
  * Make sure that GT / tile structures allocated by the driver match the data
  * present in device info.
@@ -602,13 +602,13 @@ static int xe_info_init(struct xe_device *xe,
 	/*
 	 * If we couldn't detect the graphics IP, that's considered a fatal
 	 * error and we should abort driver load.  Failing to detect media
-	 * IP is non-fatal; we'll just proceed without enabling media support.
+	 * IP is analn-fatal; we'll just proceed without enabling media support.
 	 */
 	if (!graphics_desc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	xe->info.graphics_name = graphics_desc->name;
-	xe->info.media_name = media_desc ? media_desc->name : "none";
+	xe->info.media_name = media_desc ? media_desc->name : "analne";
 	xe->info.tile_mmio_ext_size = graphics_desc->tile_mmio_ext_size;
 
 	xe->info.dma_mask_size = graphics_desc->dma_mask_size;
@@ -682,7 +682,7 @@ static void xe_pci_remove(struct pci_dev *pdev)
 	struct xe_device *xe;
 
 	xe = pci_get_drvdata(pdev);
-	if (!xe) /* driver load aborted, nothing to cleanup */
+	if (!xe) /* driver load aborted, analthing to cleanup */
 		return;
 
 	xe_device_remove(xe);
@@ -699,20 +699,20 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (desc->require_force_probe && !id_forced(pdev->device)) {
 		dev_info(&pdev->dev,
-			 "Your graphics device %04x is not officially supported\n"
+			 "Your graphics device %04x is analt officially supported\n"
 			 "by xe driver in this kernel version. To force Xe probe,\n"
 			 "use xe.force_probe='%04x' and i915.force_probe='!%04x'\n"
 			 "module parameters or CONFIG_DRM_XE_FORCE_PROBE='%04x' and\n"
 			 "CONFIG_DRM_I915_FORCE_PROBE='!%04x' configuration options.\n",
 			 pdev->device, pdev->device, pdev->device,
 			 pdev->device, pdev->device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (id_blocked(pdev->device)) {
 		dev_info(&pdev->dev, "Probe blocked for device [%04x:%04x].\n",
 			 pdev->vendor, pdev->device);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (xe_display_driver_probe_defer(pdev))
@@ -760,7 +760,7 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		xe->info.media_name,
 		xe->info.media_verx100 / 100,
 		xe->info.media_verx100 % 100,
-		str_yes_no(xe->info.enable_display),
+		str_anal_anal(xe->info.enable_display),
 		xe->info.dma_mask_size, xe->info.tile_count,
 		xe->info.has_heci_gscfi);
 
@@ -771,7 +771,7 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		xe_step_name(xe->info.step.basedie));
 
 	drm_dbg(&xe->drm, "SR-IOV support: %s (mode: %s)\n",
-		str_yes_no(xe_device_has_sriov(xe)),
+		str_anal_anal(xe_device_has_sriov(xe)),
 		xe_sriov_mode_to_string(xe_device_sriov_mode(xe)));
 
 	err = xe_device_probe(xe);
@@ -781,7 +781,7 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	xe_pm_init(xe);
 
 	drm_dbg(&xe->drm, "d3cold: capable=%s\n",
-		str_yes_no(xe->d3cold.capable));
+		str_anal_anal(xe->d3cold.capable));
 
 	return 0;
 }
@@ -876,7 +876,7 @@ static int xe_pci_runtime_suspend(struct device *dev)
 	if (xe->d3cold.allowed) {
 		d3cold_toggle(pdev, D3COLD_ENABLE);
 		pci_disable_device(pdev);
-		pci_ignore_hotplug(pdev);
+		pci_iganalre_hotplug(pdev);
 		pci_set_power_state(pdev, PCI_D3cold);
 	} else {
 		d3cold_toggle(pdev, D3COLD_DISABLE);

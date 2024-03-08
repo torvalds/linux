@@ -1,17 +1,17 @@
 Kernel driver mlxreg-fan
 ========================
 
-Provides FAN control for the next Mellanox systems:
+Provides FAN control for the next Mellaanalx systems:
 
 - QMB700, equipped with 40x200GbE InfiniBand ports;
 - MSN3700, equipped with 32x200GbE or 16x400GbE Ethernet ports;
 - MSN3410, equipped with 6x400GbE plus 48x50GbE Ethernet ports;
 - MSN3800, equipped with 64x1000GbE Ethernet ports;
 
-Author: Vadim Pasternak <vadimp@mellanox.com>
+Author: Vadim Pasternak <vadimp@mellaanalx.com>
 
-These are the Top of the Rack systems, equipped with Mellanox switch
-board with Mellanox Quantum or Spectrume-2 devices.
+These are the Top of the Rack systems, equipped with Mellaanalx switch
+board with Mellaanalx Quantum or Spectrume-2 devices.
 FAN controller is implemented by the programmable device logic.
 
 The default registers offsets set within the programmable device is as

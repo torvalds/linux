@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __alpha_regdef_h__
 #define __alpha_regdef_h__
 
@@ -40,6 +40,6 @@
 #define AT	$at	/* assembler temporary */
 #define gp	$29	/* global pointer */
 #define sp	$30	/* stack pointer */
-#define zero	$31	/* reads as zero, writes are noops */
+#define zero	$31	/* reads as zero, writes are analops */
 
 #endif /* __alpha_regdef_h__ */

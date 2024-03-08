@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,7 +32,7 @@ struct nvkm_vram {
 	struct nvkm_memory memory;
 	struct nvkm_ram *ram;
 	u8 page;
-	struct nvkm_mm_node *mn;
+	struct nvkm_mm_analde *mn;
 };
 
 static int
@@ -86,15 +86,15 @@ static void *
 nvkm_vram_dtor(struct nvkm_memory *memory)
 {
 	struct nvkm_vram *vram = nvkm_vram(memory);
-	struct nvkm_mm_node *next = vram->mn;
-	struct nvkm_mm_node *node;
+	struct nvkm_mm_analde *next = vram->mn;
+	struct nvkm_mm_analde *analde;
 
 	if (next) {
 		if (likely(next->nl_entry.next)){
 			mutex_lock(&vram->ram->mutex);
-			while ((node = next)) {
-				next = node->next;
-				nvkm_mm_free(&vram->ram->vram, &node);
+			while ((analde = next)) {
+				next = analde->next;
+				nvkm_mm_free(&vram->ram->vram, &analde);
 			}
 			mutex_unlock(&vram->ram->mutex);
 		} else {
@@ -124,11 +124,11 @@ nvkm_ram_wrap(struct nvkm_device *device, u64 addr, u64 size,
 	struct nvkm_vram *vram;
 
 	if (!device->fb || !(ram = device->fb->ram))
-		return -ENODEV;
+		return -EANALDEV;
 	ram = device->fb->ram;
 
 	if (!(vram = kzalloc(sizeof(*vram), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvkm_memory_ctor(&nvkm_vram, &vram->memory);
 	vram->ram = ram;
@@ -137,7 +137,7 @@ nvkm_ram_wrap(struct nvkm_device *device, u64 addr, u64 size,
 
 	vram->mn = kzalloc(sizeof(*vram->mn), GFP_KERNEL);
 	if (!vram->mn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vram->mn->offset = addr >> NVKM_RAM_MM_SHIFT;
 	vram->mn->length = size >> NVKM_RAM_MM_SHIFT;
@@ -150,7 +150,7 @@ nvkm_ram_get(struct nvkm_device *device, u8 heap, u8 type, u8 rpage, u64 size,
 {
 	struct nvkm_ram *ram;
 	struct nvkm_mm *mm;
-	struct nvkm_mm_node **node, *r;
+	struct nvkm_mm_analde **analde, *r;
 	struct nvkm_vram *vram;
 	u8   page = max(rpage, (u8)NVKM_RAM_MM_SHIFT);
 	u32 align = (1 << page) >> NVKM_RAM_MM_SHIFT;
@@ -159,19 +159,19 @@ nvkm_ram_get(struct nvkm_device *device, u8 heap, u8 type, u8 rpage, u64 size,
 	int ret;
 
 	if (!device->fb || !(ram = device->fb->ram))
-		return -ENODEV;
+		return -EANALDEV;
 	ram = device->fb->ram;
 	mm = &ram->vram;
 
 	if (!(vram = kzalloc(sizeof(*vram), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_memory_ctor(&nvkm_vram, &vram->memory);
 	vram->ram = ram;
 	vram->page = page;
 	*pmemory = &vram->memory;
 
 	mutex_lock(&ram->mutex);
-	node = &vram->mn;
+	analde = &vram->mn;
 	do {
 		if (back)
 			ret = nvkm_mm_tail(mm, heap, type, max, min, align, &r);
@@ -183,8 +183,8 @@ nvkm_ram_get(struct nvkm_device *device, u8 heap, u8 type, u8 rpage, u64 size,
 			return ret;
 		}
 
-		*node = r;
-		node = &r->next;
+		*analde = r;
+		analde = &r->next;
 		max -= r->length;
 	} while (max);
 	mutex_unlock(&ram->mutex);
@@ -218,7 +218,7 @@ nvkm_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	      enum nvkm_ram_type type, u64 size, struct nvkm_ram *ram)
 {
 	static const char *name[] = {
-		[NVKM_RAM_TYPE_UNKNOWN] = "of unknown memory type",
+		[NVKM_RAM_TYPE_UNKANALWN] = "of unkanalwn memory type",
 		[NVKM_RAM_TYPE_STOLEN ] = "stolen system memory",
 		[NVKM_RAM_TYPE_SGRAM  ] = "SGRAM",
 		[NVKM_RAM_TYPE_SDRAM  ] = "SDRAM",
@@ -244,7 +244,7 @@ nvkm_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	mutex_init(&ram->mutex);
 
 	if (!nvkm_mm_initialised(&ram->vram)) {
-		ret = nvkm_mm_init(&ram->vram, NVKM_RAM_MM_NORMAL, 0,
+		ret = nvkm_mm_init(&ram->vram, NVKM_RAM_MM_ANALRMAL, 0,
 				   size >> NVKM_RAM_MM_SHIFT, 1);
 		if (ret)
 			return ret;
@@ -258,6 +258,6 @@ nvkm_ram_new_(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	      enum nvkm_ram_type type, u64 size, struct nvkm_ram **pram)
 {
 	if (!(*pram = kzalloc(sizeof(**pram), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return nvkm_ram_ctor(func, fb, type, size, *pram);
 }

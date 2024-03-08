@@ -47,7 +47,7 @@ MODULE_PARM_DESC(default_transtime, "default transaction time in ms");
 #define MAX_W 640
 #define MAX_H 480
 
-/* Pixel alignment for non-bayer formats */
+/* Pixel alignment for analn-bayer formats */
 #define WIDTH_ALIGN 2
 #define HEIGHT_ALIGN 1
 
@@ -568,7 +568,7 @@ static int job_ready(void *priv)
 
 	if (v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) < ctx->translen
 	    || v4l2_m2m_num_dst_bufs_ready(ctx->fh.m2m_ctx) < ctx->translen) {
-		dprintk(ctx->dev, 1, "Not enough buffers available\n");
+		dprintk(ctx->dev, 1, "Analt eanalugh buffers available\n");
 		return 0;
 	}
 
@@ -679,7 +679,7 @@ static int enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 		return 0;
 	}
 
-	/* Format not found */
+	/* Format analt found */
 	return -EINVAL;
 }
 
@@ -731,7 +731,7 @@ static int vidioc_g_fmt(struct vim2m_ctx *ctx, struct v4l2_format *f)
 
 	f->fmt.pix.width	= q_data->width;
 	f->fmt.pix.height	= q_data->height;
-	f->fmt.pix.field	= V4L2_FIELD_NONE;
+	f->fmt.pix.field	= V4L2_FIELD_ANALNE;
 	f->fmt.pix.pixelformat	= q_data->fmt->fourcc;
 	f->fmt.pix.bytesperline	= (q_data->width * q_data->fmt->depth) >> 3;
 	f->fmt.pix.sizeimage	= q_data->sizeimage;
@@ -777,7 +777,7 @@ static int vidioc_try_fmt(struct v4l2_format *f, struct vim2m_fmt *fmt)
 	f->fmt.pix.height &= ~(halign - 1);
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * fmt->depth) >> 3;
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -1011,8 +1011,8 @@ static int vim2m_buf_out_validate(struct vb2_buffer *vb)
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 
 	if (vbuf->field == V4L2_FIELD_ANY)
-		vbuf->field = V4L2_FIELD_NONE;
-	if (vbuf->field != V4L2_FIELD_NONE) {
+		vbuf->field = V4L2_FIELD_ANALNE;
+	if (vbuf->field != V4L2_FIELD_ANALNE) {
 		dprintk(ctx->dev, 1, "%s field isn't supported\n", __func__);
 		return -EINVAL;
 	}
@@ -1032,7 +1032,7 @@ static int vim2m_buf_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
 		dprintk(ctx->dev, 1,
-			"%s data will not fit into plane (%lu < %lu)\n",
+			"%s data will analt fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0),
 			(long)q_data->sizeimage);
 		return -EINVAL;
@@ -1172,7 +1172,7 @@ static int vim2m_open(struct file *file)
 		return -ERESTARTSYS;
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto open_unlock;
 	}
 
@@ -1277,7 +1277,7 @@ static const struct video_device vim2m_videodev = {
 	.vfl_dir	= VFL_DIR_M2M,
 	.fops		= &vim2m_fops,
 	.ioctl_ops	= &vim2m_ioctl_ops,
-	.minor		= -1,
+	.mianalr		= -1,
 	.release	= vim2m_device_release,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
 };
@@ -1301,7 +1301,7 @@ static int vim2m_probe(struct platform_device *pdev)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)

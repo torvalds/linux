@@ -164,7 +164,7 @@ static int si2168_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->cnr.stat[0].svalue = cmd.args[3] * 1000 / 4;
 	} else {
 		c->cnr.len = 1;
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	dev_dbg(&client->dev, "status=%02x args=%*ph\n",
@@ -197,8 +197,8 @@ static int si2168_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 		c->post_bit_count.stat[0].uvalue += utmp2;
 	} else {
-		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* UCB */
@@ -218,7 +218,7 @@ static int si2168_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->block_error.stat[0].scale = FE_SCALE_COUNTER;
 		c->block_error.stat[0].uvalue += utmp1;
 	} else {
-		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	return 0;
@@ -294,7 +294,7 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	/* that has no big effect */
+	/* that has anal big effect */
 	if (c->delivery_system == SYS_DVBT)
 		cmd_init(&cmd, "\x89\x21\x06\x11\xff\x98", 6, 3);
 	else if (c->delivery_system == SYS_DVBC_ANNEX_A)
@@ -309,7 +309,7 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 		/* select PLP */
 		cmd.args[0] = 0x52;
 		cmd.args[1] = c->stream_id & 0xff;
-		cmd.args[2] = c->stream_id == NO_STREAM_ID_FILTER ? 0 : 1;
+		cmd.args[2] = c->stream_id == ANAL_STREAM_ID_FILTER ? 0 : 1;
 		cmd.wlen = 3;
 		cmd.rlen = 1;
 		ret = si2168_cmd_execute(client, &cmd);
@@ -449,7 +449,7 @@ static int si2168_init(struct dvb_frontend *fe)
 	ret = request_firmware(&fw, dev->firmware_name, &client->dev);
 	if (ret) {
 		dev_err(&client->dev,
-			"firmware file '%s' not found\n",
+			"firmware file '%s' analt found\n",
 			dev->firmware_name);
 		goto err_release_firmware;
 	}
@@ -480,7 +480,7 @@ static int si2168_init(struct dvb_frontend *fe)
 				break;
 		}
 	} else {
-		/* bad or unknown firmware format */
+		/* bad or unkanalwn firmware format */
 		ret = -EINVAL;
 	}
 
@@ -518,13 +518,13 @@ static int si2168_init(struct dvb_frontend *fe)
 warm:
 	/* Init stats here to indicate which stats are supported */
 	c->cnr.len = 1;
-	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_error.len = 1;
-	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_count.len = 1;
-	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->block_error.len = 1;
-	c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	dev->active = true;
 
@@ -552,7 +552,7 @@ static int si2168_resume(struct dvb_frontend *fe)
 		dev_dbg(&client->dev, "previously initialized, call si2168_init()\n");
 		return si2168_init(fe);
 	}
-	dev_dbg(&client->dev, "not initialized yet, skipping init on resume\n");
+	dev_dbg(&client->dev, "analt initialized yet, skipping init on resume\n");
 	return 0;
 }
 
@@ -683,7 +683,7 @@ static int si2168_probe(struct i2c_client *client)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -726,9 +726,9 @@ static int si2168_probe(struct i2c_client *client)
 		dev->firmware_name = SI2168_D60_FIRMWARE;
 		break;
 	default:
-		dev_dbg(&client->dev, "unknown chip version Si21%d-%c%c%c\n",
+		dev_dbg(&client->dev, "unkanalwn chip version Si21%d-%c%c%c\n",
 			cmd.args[2], cmd.args[1], cmd.args[3], cmd.args[4]);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_kfree;
 	}
 
@@ -740,7 +740,7 @@ static int si2168_probe(struct i2c_client *client)
 				  1, 0, I2C_MUX_LOCKED,
 				  si2168_select, si2168_deselect);
 	if (!dev->muxc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_kfree;
 	}
 	dev->muxc->priv = client;

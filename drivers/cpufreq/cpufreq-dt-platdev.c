@@ -42,11 +42,11 @@ static const struct of_device_id allowlist[] __initconst = {
 	{ .compatible = "marvell,pxa250", },
 	{ .compatible = "marvell,pxa270", },
 
-	{ .compatible = "samsung,exynos3250", },
-	{ .compatible = "samsung,exynos4210", },
-	{ .compatible = "samsung,exynos5250", },
+	{ .compatible = "samsung,exyanals3250", },
+	{ .compatible = "samsung,exyanals4210", },
+	{ .compatible = "samsung,exyanals5250", },
 #ifndef CONFIG_BL_SWITCHER
-	{ .compatible = "samsung,exynos5800", },
+	{ .compatible = "samsung,exyanals5800", },
 #endif
 
 	{ .compatible = "renesas,emev2", },
@@ -78,7 +78,7 @@ static const struct of_device_id allowlist[] __initconst = {
 	{ .compatible = "rockchip,rk3368", },
 	{ .compatible = "rockchip,rk3399",
 	  .data = &(struct cpufreq_dt_platform_data)
-		{ .have_governor_per_policy = true, },
+		{ .have_goveranalr_per_policy = true, },
 	},
 
 	{ .compatible = "st-ericsson,u8500", },
@@ -99,7 +99,7 @@ static const struct of_device_id allowlist[] __initconst = {
 };
 
 /*
- * Machines for which the cpufreq device is *not* created, mostly used for
+ * Machines for which the cpufreq device is *analt* created, mostly used for
  * platforms using "operating-points-v2" property.
  */
 static const struct of_device_id blocklist[] __initconst = {
@@ -192,41 +192,41 @@ static const struct of_device_id blocklist[] __initconst = {
 	{ }
 };
 
-static bool __init cpu0_node_has_opp_v2_prop(void)
+static bool __init cpu0_analde_has_opp_v2_prop(void)
 {
-	struct device_node *np = of_cpu_device_node_get(0);
+	struct device_analde *np = of_cpu_device_analde_get(0);
 	bool ret = false;
 
 	if (of_property_present(np, "operating-points-v2"))
 		ret = true;
 
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 
 static int __init cpufreq_dt_platdev_init(void)
 {
-	struct device_node *np = of_find_node_by_path("/");
+	struct device_analde *np = of_find_analde_by_path("/");
 	const struct of_device_id *match;
 	const void *data = NULL;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
-	match = of_match_node(allowlist, np);
+	match = of_match_analde(allowlist, np);
 	if (match) {
 		data = match->data;
 		goto create_pdev;
 	}
 
-	if (cpu0_node_has_opp_v2_prop() && !of_match_node(blocklist, np))
+	if (cpu0_analde_has_opp_v2_prop() && !of_match_analde(blocklist, np))
 		goto create_pdev;
 
-	of_node_put(np);
-	return -ENODEV;
+	of_analde_put(np);
+	return -EANALDEV;
 
 create_pdev:
-	of_node_put(np);
+	of_analde_put(np);
 	return PTR_ERR_OR_ZERO(platform_device_register_data(NULL, "cpufreq-dt",
 			       -1, data,
 			       sizeof(struct cpufreq_dt_platform_data)));

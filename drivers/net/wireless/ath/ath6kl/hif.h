@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -90,18 +90,18 @@ struct bus_request {
 
 /*
  *     emode - This indicates the whether the command is to be executed in a
- *             blocking or non-blocking fashion (HIF_SYNCHRONOUS/
- *             HIF_ASYNCHRONOUS). The read/write data paths in HTC have been
- *             implemented using the asynchronous mode allowing the bus
+ *             blocking or analn-blocking fashion (HIF_SYNCHROANALUS/
+ *             HIF_ASYNCHROANALUS). The read/write data paths in HTC have been
+ *             implemented using the asynchroanalus mode allowing the bus
  *             driver to indicate the completion of operation through the
  *             registered callback routine. The requirement primarily comes
  *             from the contexts these operations get called from (a driver's
  *             transmit context or the ISR context in case of receive).
  *             Support for both of these modes is essential.
  */
-#define HIF_SYNCHRONOUS             0x00000010
-#define HIF_ASYNCHRONOUS            0x00000020
-#define HIF_EMODE_MASK              (HIF_SYNCHRONOUS | HIF_ASYNCHRONOUS)
+#define HIF_SYNCHROANALUS             0x00000010
+#define HIF_ASYNCHROANALUS            0x00000020
+#define HIF_EMODE_MASK              (HIF_SYNCHROANALUS | HIF_ASYNCHROANALUS)
 
 /*
  *     dmode - An interface may support different kinds of commands based on
@@ -127,39 +127,39 @@ struct bus_request {
 #define HIF_AMODE_MASK		  (HIF_FIXED_ADDRESS | HIF_INCREMENTAL_ADDRESS)
 
 #define HIF_WR_ASYNC_BYTE_INC					\
-	(HIF_WRITE | HIF_ASYNCHRONOUS |				\
+	(HIF_WRITE | HIF_ASYNCHROANALUS |				\
 	 HIF_BYTE_BASIS | HIF_INCREMENTAL_ADDRESS)
 
 #define HIF_WR_ASYNC_BLOCK_INC					\
-	(HIF_WRITE | HIF_ASYNCHRONOUS |				\
+	(HIF_WRITE | HIF_ASYNCHROANALUS |				\
 	 HIF_BLOCK_BASIS | HIF_INCREMENTAL_ADDRESS)
 
 #define HIF_WR_SYNC_BYTE_FIX					\
-	(HIF_WRITE | HIF_SYNCHRONOUS |				\
+	(HIF_WRITE | HIF_SYNCHROANALUS |				\
 	 HIF_BYTE_BASIS | HIF_FIXED_ADDRESS)
 
 #define HIF_WR_SYNC_BYTE_INC					\
-	(HIF_WRITE | HIF_SYNCHRONOUS |				\
+	(HIF_WRITE | HIF_SYNCHROANALUS |				\
 	 HIF_BYTE_BASIS | HIF_INCREMENTAL_ADDRESS)
 
 #define HIF_WR_SYNC_BLOCK_INC					\
-	(HIF_WRITE | HIF_SYNCHRONOUS |				\
+	(HIF_WRITE | HIF_SYNCHROANALUS |				\
 	 HIF_BLOCK_BASIS | HIF_INCREMENTAL_ADDRESS)
 
 #define HIF_RD_SYNC_BYTE_INC						\
-	(HIF_READ | HIF_SYNCHRONOUS |					\
+	(HIF_READ | HIF_SYNCHROANALUS |					\
 	 HIF_BYTE_BASIS | HIF_INCREMENTAL_ADDRESS)
 
 #define HIF_RD_SYNC_BYTE_FIX						\
-	(HIF_READ | HIF_SYNCHRONOUS |					\
+	(HIF_READ | HIF_SYNCHROANALUS |					\
 	 HIF_BYTE_BASIS | HIF_FIXED_ADDRESS)
 
 #define HIF_RD_ASYNC_BLOCK_FIX						\
-	(HIF_READ | HIF_ASYNCHRONOUS |					\
+	(HIF_READ | HIF_ASYNCHROANALUS |					\
 	 HIF_BLOCK_BASIS | HIF_FIXED_ADDRESS)
 
 #define HIF_RD_SYNC_BLOCK_FIX						\
-	(HIF_READ | HIF_SYNCHRONOUS |					\
+	(HIF_READ | HIF_SYNCHROANALUS |					\
 	 HIF_BLOCK_BASIS | HIF_FIXED_ADDRESS)
 
 struct hif_scatter_item {

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -193,11 +193,11 @@ void dcn32_hubp_pg_control(struct dce_hwseq *hws, unsigned int hubp_inst, bool p
 	}
 }
 
-static bool dcn32_check_no_memory_request_for_cab(struct dc *dc)
+static bool dcn32_check_anal_memory_request_for_cab(struct dc *dc)
 {
 	int i;
 
-    /* First, check no-memory-request case */
+    /* First, check anal-memory-request case */
 	for (i = 0; i < dc->current_state->stream_count; i++) {
 		if ((dc->current_state->stream_status[i].plane_count) &&
 			(dc->current_state->streams[i]->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED))
@@ -259,7 +259,7 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 		return false;
 
 	for (i = 0; i < dc->current_state->stream_count; i++) {
-		/* MALL SS messaging is not supported with PSR at this time */
+		/* MALL SS messaging is analt supported with PSR at this time */
 		if (dc->current_state->streams[i] != NULL &&
 				dc->current_state->streams[i]->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED)
 			return false;
@@ -268,17 +268,17 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	if (enable) {
 		if (dc->current_state) {
 
-			/* 1. Check no memory request case for CAB.
-			 * If no memory request case, send CAB_ACTION NO_DF_REQ DMUB message
+			/* 1. Check anal memory request case for CAB.
+			 * If anal memory request case, send CAB_ACTION ANAL_DF_REQ DMUB message
 			 */
-			if (dcn32_check_no_memory_request_for_cab(dc)) {
-				/* Enable no-memory-requests case */
+			if (dcn32_check_anal_memory_request_for_cab(dc)) {
+				/* Enable anal-memory-requests case */
 				memset(&cmd, 0, sizeof(cmd));
 				cmd.cab.header.type = DMUB_CMD__CAB_FOR_SS;
-				cmd.cab.header.sub_type = DMUB_CMD__CAB_NO_DCN_REQ;
+				cmd.cab.header.sub_type = DMUB_CMD__CAB_ANAL_DCN_REQ;
 				cmd.cab.header.payload_bytes = sizeof(cmd.cab) - sizeof(cmd.cab.header);
 
-				dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
+				dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_ANAL_WAIT);
 
 				return true;
 			}
@@ -289,7 +289,7 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 			 */
 			ways = dcn32_calculate_cab_allocation(dc, dc->current_state);
 
-			/* MALL not supported with Stereo3D or TMZ surface. If any plane is using stereo,
+			/* MALL analt supported with Stereo3D or TMZ surface. If any plane is using stereo,
 			 * or TMZ surface, don't try to enter MALL.
 			 */
 			for (i = 0; i < dc->current_state->stream_count; i++) {
@@ -312,7 +312,7 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 				cmd.cab.header.payload_bytes = sizeof(cmd.cab) - sizeof(cmd.cab.header);
 				cmd.cab.cab_alloc_ways = (uint8_t)ways;
 
-				dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
+				dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_ANAL_WAIT);
 
 				return true;
 			}
@@ -324,7 +324,7 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	/* Disable CAB */
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.cab.header.type = DMUB_CMD__CAB_FOR_SS;
-	cmd.cab.header.sub_type = DMUB_CMD__CAB_NO_IDLE_OPTIMIZATION;
+	cmd.cab.header.sub_type = DMUB_CMD__CAB_ANAL_IDLE_OPTIMIZATION;
 	cmd.cab.header.payload_bytes =
 			sizeof(cmd.cab) - sizeof(cmd.cab.header);
 
@@ -375,7 +375,7 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 	bool subvp_immediate_flip = false;
 	bool subvp_in_use = false;
 	struct pipe_ctx *pipe;
-	enum mall_stream_type pipe_mall_type = SUBVP_NONE;
+	enum mall_stream_type pipe_mall_type = SUBVP_ANALNE;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		pipe = &context->res_ctx.pipe_ctx[i];
@@ -578,7 +578,7 @@ bool dcn32_set_output_transfer_func(struct dc *dc,
 					stream->out_transfer_func,
 					&mpc->blender_params, false))
 				params = &mpc->blender_params;
-			/* there are no ROM LUTs in OUTGAM */
+			/* there are anal ROM LUTs in OUTGAM */
 			if (stream->out_transfer_func->type == TF_TYPE_PREDEFINED)
 				BREAK_TO_DEBUGGER();
 		}
@@ -588,7 +588,7 @@ bool dcn32_set_output_transfer_func(struct dc *dc,
 	return ret;
 }
 
-/* Program P-State force value according to if pipe is using SubVP / FPO or not:
+/* Program P-State force value according to if pipe is using SubVP / FPO or analt:
  * 1. Reset P-State force on all pipes first
  * 2. For each main pipe, force P-State disallow (P-State allow moderated by DMUB)
  */
@@ -596,7 +596,7 @@ void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context)
 {
 	int i;
 
-	/* Unforce p-state for each pipe if it is not FPO or SubVP.
+	/* Unforce p-state for each pipe if it is analt FPO or SubVP.
 	 * For FPO and SubVP, if it's already forced disallow, leave
 	 * it as disallow.
 	 */
@@ -647,7 +647,7 @@ void dcn32_update_mall_sel(struct dc *dc, struct dc_state *context)
 			int cursor_size = hubp->curs_attr.pitch * hubp->curs_attr.height;
 
 			switch (hubp->curs_attr.color_format) {
-			case CURSOR_MODE_MONO:
+			case CURSOR_MODE_MOANAL:
 				cursor_size /= 2;
 				break;
 			case CURSOR_MODE_COLOR_1BIT_AND:
@@ -669,7 +669,7 @@ void dcn32_update_mall_sel(struct dc *dc, struct dc_state *context)
 			if (dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM) {
 				hubp->funcs->hubp_update_mall_sel(hubp, 1, false);
 			} else {
-				// MALL not supported with Stereo3D
+				// MALL analt supported with Stereo3D
 				hubp->funcs->hubp_update_mall_sel(hubp,
 					num_ways <= dc->caps.cache_num_ways &&
 					pipe->stream->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED &&
@@ -731,7 +731,7 @@ static void dcn32_initialize_min_clocks(struct dc *dc)
 		clocks->dispclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dispclk_mhz * 1000;
 	} else {
 		/* Even though DPG_EN = 1 for the connected display, it still requires the
-		 * correct timing so we cannot set DISPCLK to min freq or it could cause
+		 * correct timing so we cananalt set DISPCLK to min freq or it could cause
 		 * audio corruption. Read current DISPCLK from DENTIST and request the same
 		 * freq to ensure that the timing is valid and unchanged.
 		 */
@@ -791,7 +791,7 @@ void dcn32_init_hw(struct dc *dc)
 					res_pool->ref_clocks.dccg_ref_clock_inKhz,
 					&res_pool->ref_clocks.dchub_ref_clock_inKhz);
 		} else {
-			// Not all ASICs have DCCG sw component
+			// Analt all ASICs have DCCG sw component
 			res_pool->ref_clocks.dccg_ref_clock_inKhz =
 					res_pool->ref_clocks.xtalin_clock_inKhz;
 			res_pool->ref_clocks.dchub_ref_clock_inKhz =
@@ -830,14 +830,14 @@ void dcn32_init_hw(struct dc *dc)
 	dc->link_srv->blank_all_dp_displays(dc);
 
 	/* If taking control over from VBIOS, we may want to optimize our first
-	 * mode set, so we need to skip powering down pipes until we know which
+	 * mode set, so we need to skip powering down pipes until we kanalw which
 	 * pipes we want to use.
-	 * Otherwise, if taking control is not possible, we need to power
+	 * Otherwise, if taking control is analt possible, we need to power
 	 * everything down.
 	 */
 	if (dcb->funcs->is_accelerated_mode(dcb) || !dc->config.seamless_boot_edp_requested) {
 		/* Disable boot optimizations means power down everything including PHY, DIG,
-		 * and OTG (i.e. the boot is not optimized because we do a full power down).
+		 * and OTG (i.e. the boot is analt optimized because we do a full power down).
 		 */
 		if (dc->hwss.enable_accelerated_mode && dc->debug.disable_boot_optimizations)
 			dc->hwss.enable_accelerated_mode(dc, dc->current_state);
@@ -853,7 +853,7 @@ void dcn32_init_hw(struct dc *dc)
 		/* On HW init, allow idle optimizations after pipes have been turned off.
 		 *
 		 * In certain D3 cases (i.e. BOCO / BOMACO) it's possible that hardware state
-		 * is reset (i.e. not in idle at the time hw init is called), but software state
+		 * is reset (i.e. analt in idle at the time hw init is called), but software state
 		 * still has idle_optimizations = true, so we must disable idle optimizations first
 		 * (i.e. set false), then re-enable (set true).
 		 */
@@ -864,7 +864,7 @@ void dcn32_init_hw(struct dc *dc)
 	/* In headless boot cases, DIG may be turned
 	 * on which causes HW/SW discrepancies.
 	 * To avoid this, power down hardware on boot
-	 * if DIG is turned on and seamless boot not enabled
+	 * if DIG is turned on and seamless boot analt enabled
 	 */
 	if (!dc->config.seamless_boot_edp_requested) {
 		struct dc_link *edp_links[MAX_NUM_EDP];
@@ -934,8 +934,8 @@ void dcn32_init_hw(struct dc *dc)
 	if (!dcb->funcs->is_accelerated_mode(dcb) && dc->res_pool->hubbub->funcs->init_watermarks)
 		dc->res_pool->hubbub->funcs->init_watermarks(dc->res_pool->hubbub);
 
-	if (dc->clk_mgr->funcs->notify_wm_ranges)
-		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
+	if (dc->clk_mgr->funcs->analtify_wm_ranges)
+		dc->clk_mgr->funcs->analtify_wm_ranges(dc->clk_mgr);
 
 	if (dc->clk_mgr->funcs->set_hard_max_memclk && !dc->clk_mgr->dc_mode_softmax_enabled)
 		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
@@ -1001,7 +1001,7 @@ static void update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 	 * register access hung. When DSCCLk is based on refclk, DSCCLk is always a
 	 * fixed value higher than 16Mhz so the issue doesn't occur. When DSCCLK is
 	 * generated by DTO, DSCCLK would be based on 1/3 dispclk. For small timings
-	 * with DSC such as 480p60Hz, the dispclk could be low enough to trigger
+	 * with DSC such as 480p60Hz, the dispclk could be low eanalugh to trigger
 	 * this problem. We are implementing a workaround here to keep using dscclk
 	 * based on fixed value refclk when timing is smaller than 3x16Mhz (i.e
 	 * 48Mhz) pixel clock to avoid hitting this problem.
@@ -1144,7 +1144,7 @@ void dcn32_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *
 
 		update_dsc_on_stream(pipe_ctx, pipe_ctx->stream->timing.flags.DSC);
 
-		/* Check if no longer using pipe for ODM, then need to disconnect DSC for that pipe */
+		/* Check if anal longer using pipe for ODM, then need to disconnect DSC for that pipe */
 		if (!pipe_ctx->next_odm_pipe && current_pipe_ctx->next_odm_pipe &&
 				current_pipe_ctx->next_odm_pipe->stream_res.dsc) {
 			struct display_stream_compressor *dsc = current_pipe_ctx->next_odm_pipe->stream_res.dsc;
@@ -1395,7 +1395,7 @@ void dcn32_update_phantom_vp_position(struct dc *dc,
 }
 
 /* Treat the phantom pipe as if it needs to be fully enabled.
- * If the pipe was previously in use but not phantom, it would
+ * If the pipe was previously in use but analt phantom, it would
  * have been disabled earlier in the sequence so we need to run
  * the full enable sequence.
  */
@@ -1517,7 +1517,7 @@ void dcn32_enable_phantom_streams(struct dc *dc, struct dc_state *context)
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
-		/* If an active, non-phantom pipe is being transitioned into a phantom
+		/* If an active, analn-phantom pipe is being transitioned into a phantom
 		 * pipe, wait for the double buffer update to complete first before we do
 		 * ANY phantom pipe programming.
 		 */

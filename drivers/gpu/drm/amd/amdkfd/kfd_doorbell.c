@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -75,7 +75,7 @@ int kfd_doorbell_init(struct kfd_dev *kfd)
 	kfd->doorbell_bitmap = bitmap_zalloc(size / sizeof(u32), GFP_KERNEL);
 	if (!kfd->doorbell_bitmap) {
 		DRM_ERROR("Failed to allocate kernel doorbell bitmap\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Alloc a doorbell page for KFD kernel usages */
@@ -103,7 +103,7 @@ void kfd_doorbell_fini(struct kfd_dev *kfd)
 			     (void **)&kfd->doorbell_kernel_ptr);
 }
 
-int kfd_doorbell_mmap(struct kfd_node *dev, struct kfd_process *process,
+int kfd_doorbell_mmap(struct kfd_analde *dev, struct kfd_process *process,
 		      struct vm_area_struct *vma)
 {
 	phys_addr_t address;
@@ -123,11 +123,11 @@ int kfd_doorbell_mmap(struct kfd_node *dev, struct kfd_process *process,
 	/* Calculate physical address of doorbell */
 	address = kfd_get_process_doorbells(pdd);
 	if (!address)
-		return -ENOMEM;
-	vm_flags_set(vma, VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE |
+		return -EANALMEM;
+	vm_flags_set(vma, VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_ANALRESERVE |
 				VM_DONTDUMP | VM_PFNMAP);
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 
 	pr_debug("Mapping doorbell page\n"
 		 "     target user address == 0x%08llX\n"
@@ -209,8 +209,8 @@ static int init_doorbell_bitmap(struct qcm_process_device *qpd,
 				struct kfd_dev *dev)
 {
 	unsigned int i;
-	int range_start = dev->shared_resources.non_cp_doorbells_start;
-	int range_end = dev->shared_resources.non_cp_doorbells_end;
+	int range_start = dev->shared_resources.analn_cp_doorbells_start;
+	int range_end = dev->shared_resources.analn_cp_doorbells_end;
 
 	if (!KFD_IS_SOC15(dev))
 		return 0;
@@ -260,13 +260,13 @@ int kfd_alloc_process_doorbells(struct kfd_dev *kfd, struct kfd_process_device *
 					     GFP_KERNEL);
 	if (!qpd->doorbell_bitmap) {
 		DRM_ERROR("Failed to allocate process doorbell bitmap\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	r = init_doorbell_bitmap(&pdd->qpd, kfd);
 	if (r) {
 		DRM_ERROR("Failed to initialize process doorbells\n");
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto err;
 	}
 

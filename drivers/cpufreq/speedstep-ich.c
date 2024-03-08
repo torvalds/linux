@@ -6,7 +6,7 @@
  *  Based upon reverse engineered information, and on Intel documentation
  *  for chipsets ICH2-M and ICH3-M.
  *
- *  Many thanks to Ducrot Bruno for finding and fixing the last
+ *  Many thanks to Ducrot Bruanal for finding and fixing the last
  *  "missing link" for ICH2-M/ICH3-M support, and to Thomas Winkler
  *  for extensive testing.
  *
@@ -33,7 +33,7 @@
 
 
 /* speedstep_chipset:
- *   It is necessary to know which chipset is used. As accesses to
+ *   It is necessary to kanalw which chipset is used. As accesses to
  * this device occur at various places in this module, we need a
  * static struct pci_dev * pointing to that device.
  */
@@ -60,24 +60,24 @@ static struct cpufreq_frequency_table speedstep_freqs[] = {
 /**
  * speedstep_find_register - read the PMBASE address
  *
- * Returns: -ENODEV if no register could be found
+ * Returns: -EANALDEV if anal register could be found
  */
 static int speedstep_find_register(void)
 {
 	if (!speedstep_chipset_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* get PMBASE */
 	pci_read_config_dword(speedstep_chipset_dev, 0x40, &pmbase);
 	if (!(pmbase & 0x01)) {
-		pr_err("could not find speedstep register\n");
-		return -ENODEV;
+		pr_err("could analt find speedstep register\n");
+		return -EANALDEV;
 	}
 
 	pmbase &= 0xFFFFFFFE;
 	if (!pmbase) {
-		pr_err("could not find speedstep register\n");
-		return -ENODEV;
+		pr_err("could analt find speedstep register\n");
+		return -EANALDEV;
 	}
 
 	pr_debug("pmbase is 0x%x\n", pmbase);
@@ -218,7 +218,7 @@ static unsigned int speedstep_detect_chipset(void)
 			return 2; /* 2-M */
 
 		if (hostbridge->revision < 5) {
-			pr_debug("hostbridge does not support speedstep\n");
+			pr_debug("hostbridge does analt support speedstep\n");
 			speedstep_chipset_dev = NULL;
 			pci_dev_put(hostbridge);
 			return 0;
@@ -328,28 +328,28 @@ static const struct x86_cpu_id ss_smi_ids[] = {
 /**
  * speedstep_init - initializes the SpeedStep CPUFreq driver
  *
- *   Initializes the SpeedStep support. Returns -ENODEV on unsupported
+ *   Initializes the SpeedStep support. Returns -EANALDEV on unsupported
  * devices, -EINVAL on problems during initiatization, and zero on
  * success.
  */
 static int __init speedstep_init(void)
 {
 	if (!x86_match_cpu(ss_smi_ids))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* detect processor */
 	speedstep_processor = speedstep_detect_processor();
 	if (!speedstep_processor) {
 		pr_debug("Intel(R) SpeedStep(TM) capable processor "
-				"not found\n");
-		return -ENODEV;
+				"analt found\n");
+		return -EANALDEV;
 	}
 
 	/* detect chipset */
 	if (!speedstep_detect_chipset()) {
-		pr_debug("Intel(R) SpeedStep(TM) for this chipset not "
+		pr_debug("Intel(R) SpeedStep(TM) for this chipset analt "
 				"(yet) available.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* activate speedstep support */
@@ -359,7 +359,7 @@ static int __init speedstep_init(void)
 	}
 
 	if (speedstep_find_register())
-		return -ENODEV;
+		return -EANALDEV;
 
 	return cpufreq_register_driver(&speedstep_driver);
 }

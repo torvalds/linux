@@ -16,8 +16,8 @@ Required properties:
  - memory-region = <phandle>;		: Reference to the reserved memory for
                                           the ColdFire. Must be 2M aligned on
 					  AST2400 and 1M aligned on AST2500
- - aspeed,sram = <phandle>;		: Reference to the SRAM node.
- - aspeed,cvic = <phandle>;		: Reference to the CVIC node.
+ - aspeed,sram = <phandle>;		: Reference to the SRAM analde.
+ - aspeed,cvic = <phandle>;		: Reference to the CVIC analde.
 
 Examples:
 

@@ -104,13 +104,13 @@ static int snd_bcm2835_playback_open_generic(struct snd_pcm_substream *substream
 		dev_err(chip->dev,
 			"substream(%d) device doesn't exist max(%d) substreams allowed\n",
 			idx, MAX_SUBSTREAMS);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
 	alsa_stream = kzalloc(sizeof(*alsa_stream), GFP_KERNEL);
 	if (!alsa_stream) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -129,7 +129,7 @@ static int snd_bcm2835_playback_open_generic(struct snd_pcm_substream *substream
 	if (spdif) {
 		runtime->hw = snd_bcm2835_playback_spdif_hw;
 	} else {
-		/* clear spdif status, as we are not in spdif mode */
+		/* clear spdif status, as we are analt in spdif mode */
 		chip->spdif_status = 0;
 		runtime->hw = snd_bcm2835_playback_hw;
 	}
@@ -181,7 +181,7 @@ static int snd_bcm2835_playback_close(struct snd_pcm_substream *substream)
 	bcm2835_audio_close(alsa_stream);
 	alsa_stream->chip->alsa_stream[alsa_stream->idx] = NULL;
 	/*
-	 * Do not free up alsa_stream here, it will be freed up by
+	 * Do analt free up alsa_stream here, it will be freed up by
 	 * runtime->private_free callback we registered in *_open above
 	 */
 
@@ -200,11 +200,11 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 	int channels;
 	int err;
 
-	/* notify the vchiq that it should enter spdif passthrough mode by
+	/* analtify the vchiq that it should enter spdif passthrough mode by
 	 * setting channels=0 (see
 	 * https://github.com/raspberrypi/linux/issues/528)
 	 */
-	if (chip->spdif_status & IEC958_AES0_NONAUDIO)
+	if (chip->spdif_status & IEC958_AES0_ANALNAUDIO)
 		channels = 0;
 	else
 		channels = runtime->channels;
@@ -276,17 +276,17 @@ snd_bcm2835_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
-	ktime_t now = ktime_get();
+	ktime_t analw = ktime_get();
 
 	/* Give userspace better delay reporting by interpolating between GPU
-	 * notifications, assuming audio speed is close enough to the clock
+	 * analtifications, assuming audio speed is close eanalugh to the clock
 	 * used for ktime
 	 */
 
 	if ((ktime_to_ns(alsa_stream->interpolate_start)) &&
-	    (ktime_compare(alsa_stream->interpolate_start, now) < 0)) {
+	    (ktime_compare(alsa_stream->interpolate_start, analw) < 0)) {
 		u64 interval =
-			(ktime_to_ns(ktime_sub(now,
+			(ktime_to_ns(ktime_sub(analw,
 				alsa_stream->interpolate_start)));
 		u64 frames_output_in_interval =
 			div_u64((interval * runtime->rate), 1000000000);
@@ -332,7 +332,7 @@ int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, const char *name,
 		return err;
 
 	pcm->private_data = chip;
-	pcm->nonatomic = true;
+	pcm->analnatomic = true;
 	strscpy(pcm->name, name, sizeof(pcm->name));
 	if (!spdif) {
 		chip->dest = route;

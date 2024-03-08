@@ -5,7 +5,7 @@
  * Copyright (C) 2006 Texas Instruments.
  * Copyright (C) 2007 MontaVista Software Inc.
  *
- * Updated by Vinod & Sudhakar Feb 2005
+ * Updated by Vianald & Sudhakar Feb 2005
  *
  * ----------------------------------------------------------------------------
  *
@@ -16,7 +16,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -130,12 +130,12 @@ struct davinci_i2c_dev {
 	u8			terminate;
 	struct i2c_adapter	adapter;
 #ifdef CONFIG_CPU_FREQ
-	struct notifier_block	freq_transition;
+	struct analtifier_block	freq_transition;
 #endif
 	struct davinci_i2c_platform_data *pdata;
 };
 
-/* default platform data to use if not supplied in the platform_device */
+/* default platform data to use if analt supplied in the platform_device */
 static struct davinci_i2c_platform_data davinci_i2c_platform_data_default = {
 	.bus_freq	= 100,
 	.bus_delay	= 0,
@@ -175,9 +175,9 @@ static void i2c_davinci_calc_clk_dividers(struct davinci_i2c_dev *dev)
 	u32 clkh;
 	u32 clkl;
 	u32 input_clock = clk_get_rate(dev->clk);
-	struct device_node *of_node = dev->dev->of_node;
+	struct device_analde *of_analde = dev->dev->of_analde;
 
-	/* NOTE: I2C Clock divider programming info
+	/* ANALTE: I2C Clock divider programming info
 	 * As per I2C specs the following formulas provide prescaler
 	 * and low/high divider values
 	 * input clk --> PSC Div -----------> ICCL/H Div --> output clock
@@ -192,14 +192,14 @@ static void i2c_davinci_calc_clk_dividers(struct davinci_i2c_dev *dev)
 	 *       if PSC == 1, d = 6
 	 *       if PSC > 1 , d = 5
 	 *
-	 * Note:
+	 * Analte:
 	 * d is always 6 on Keystone I2C controller
 	 */
 
 	/*
 	 * Both Davinci and current Keystone User Guides recommend a value
 	 * between 7MHz and 12MHz. In reality 7MHz module clock doesn't
-	 * always produce enough margin between SDA and SCL transitions.
+	 * always produce eanalugh margin between SDA and SCL transitions.
 	 * Measurements show that the higher the module clock is, the
 	 * bigger is the margin, providing more reliable communication.
 	 * So we better target for 12MHz.
@@ -209,7 +209,7 @@ static void i2c_davinci_calc_clk_dividers(struct davinci_i2c_dev *dev)
 		psc++;	/* better to run under spec than over */
 	d = (psc >= 2) ? 5 : 7 - psc;
 
-	if (of_node && of_device_is_compatible(of_node, "ti,keystone-i2c"))
+	if (of_analde && of_device_is_compatible(of_analde, "ti,keystone-i2c"))
 		d = 6;
 
 	clk = ((input_clock / (psc + 1)) / (pdata->bus_freq * 1000));
@@ -218,7 +218,7 @@ static void i2c_davinci_calc_clk_dividers(struct davinci_i2c_dev *dev)
 		clk++;
 	/*
 	 * According to I2C-BUS Spec 2.1, in FAST-MODE LOW period should be at
-	 * least 1.3uS, which is not the case with 50% duty cycle. Driving HIGH
+	 * least 1.3uS, which is analt the case with 50% duty cycle. Driving HIGH
 	 * to LOW ratio as 1 to 2 is more safe.
 	 */
 	if (pdata->bus_freq > 100)
@@ -226,11 +226,11 @@ static void i2c_davinci_calc_clk_dividers(struct davinci_i2c_dev *dev)
 	else
 		clkl = (clk >> 1);
 	/*
-	 * It's not always possible to have 1 to 2 ratio when d=7, so fall back
+	 * It's analt always possible to have 1 to 2 ratio when d=7, so fall back
 	 * to minimal possible clkh in this case.
 	 *
-	 * Note:
-	 * CLKH is not allowed to be 0, in this case I2C clock is not generated
+	 * Analte:
+	 * CLKH is analt allowed to be 0, in this case I2C clock is analt generated
 	 * at all
 	 */
 	if (clk > clkl + d) {
@@ -264,7 +264,7 @@ static int i2c_davinci_init(struct davinci_i2c_dev *dev)
 	i2c_davinci_calc_clk_dividers(dev);
 
 	/* Respond at reserved "SMBus Host" slave address" (and zero);
-	 * we seem to have no option to not respond...
+	 * we seem to have anal option to analt respond...
 	 */
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_OAR_REG, DAVINCI_I2C_OWN_ADDRESS);
 
@@ -381,9 +381,9 @@ static struct i2c_bus_recovery_info davinci_i2c_scl_recovery_info = {
 };
 
 /*
- * Waiting for bus not busy
+ * Waiting for bus analt busy
  */
-static int i2c_davinci_wait_bus_not_busy(struct davinci_i2c_dev *dev)
+static int i2c_davinci_wait_bus_analt_busy(struct davinci_i2c_dev *dev)
 {
 	unsigned long timeout = jiffies + dev->adapter.timeout;
 
@@ -421,7 +421,7 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 
 	if (msg->addr == DAVINCI_I2C_OWN_ADDRESS) {
 		dev_warn(dev->dev, "transfer to own address aborted\n");
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	}
 
 	/* Introduce a delay, required for some boards (e.g Davinci EVM) */
@@ -469,7 +469,7 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, flag);
 
 	/*
-	 * First byte should be set here, not after interrupt,
+	 * First byte should be set here, analt after interrupt,
 	 * because transmit-data-ready interrupt can come before
 	 * NACK-interrupt during sending of previous message and
 	 * ICDXR may have wrong data
@@ -480,7 +480,7 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 		dev->buf_len--;
 	}
 
-	/* Set STT to begin transmit now DXR is loaded */
+	/* Set STT to begin transmit analw DXR is loaded */
 	flag |= DAVINCI_I2C_MDR_STT;
 	if (stop && msg->len != 0)
 		flag |= DAVINCI_I2C_MDR_STP;
@@ -496,9 +496,9 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 	}
 	if (dev->buf_len) {
 		/* This should be 0 if all bytes were transferred
-		 * or dev->cmd_err denotes an error.
+		 * or dev->cmd_err deanaltes an error.
 		 */
-		dev_err(dev->dev, "abnormal termination buf_len=%zu\n",
+		dev_err(dev->dev, "abanalrmal termination buf_len=%zu\n",
 			dev->buf_len);
 		dev->terminate = 1;
 		wmb();
@@ -506,7 +506,7 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 		return -EREMOTEIO;
 	}
 
-	/* no error */
+	/* anal error */
 	if (likely(!dev->cmd_err))
 		return msg->len;
 
@@ -517,7 +517,7 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 	}
 
 	if (dev->cmd_err & DAVINCI_I2C_STR_NACK) {
-		if (msg->flags & I2C_M_IGNORE_NAK)
+		if (msg->flags & I2C_M_IGANALRE_NAK)
 			return msg->len;
 		w = davinci_i2c_read_reg(dev, DAVINCI_I2C_MDR_REG);
 		w |= DAVINCI_I2C_MDR_STP;
@@ -545,7 +545,7 @@ i2c_davinci_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 		return ret;
 	}
 
-	ret = i2c_davinci_wait_bus_not_busy(dev);
+	ret = i2c_davinci_wait_bus_analt_busy(dev);
 	if (ret < 0) {
 		dev_warn(dev->dev, "timeout waiting for bus ready\n");
 		goto out;
@@ -582,7 +582,7 @@ static void terminate_read(struct davinci_i2c_dev *dev)
 	/* Throw away data */
 	davinci_i2c_read_reg(dev, DAVINCI_I2C_DRR_REG);
 	if (!dev->terminate)
-		dev_err(dev->dev, "RDR IRQ while no data requested\n");
+		dev_err(dev->dev, "RDR IRQ while anal data requested\n");
 }
 static void terminate_write(struct davinci_i2c_dev *dev)
 {
@@ -591,7 +591,7 @@ static void terminate_write(struct davinci_i2c_dev *dev)
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, w);
 
 	if (!dev->terminate)
-		dev_dbg(dev->dev, "TDR IRQ while no data to send\n");
+		dev_dbg(dev->dev, "TDR IRQ while anal data to send\n");
 }
 
 /*
@@ -606,7 +606,7 @@ static irqreturn_t i2c_davinci_isr(int this_irq, void *dev_id)
 	u16 w;
 
 	if (pm_runtime_suspended(dev->dev))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	while ((stat = davinci_i2c_read_reg(dev, DAVINCI_I2C_IVR_REG))) {
 		dev_dbg(dev->dev, "%s: stat=0x%x\n", __func__, stat);
@@ -697,11 +697,11 @@ static irqreturn_t i2c_davinci_isr(int this_irq, void *dev_id)
 		}
 	}
 
-	return count ? IRQ_HANDLED : IRQ_NONE;
+	return count ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 #ifdef CONFIG_CPU_FREQ
-static int i2c_davinci_cpufreq_transition(struct notifier_block *nb,
+static int i2c_davinci_cpufreq_transition(struct analtifier_block *nb,
 				     unsigned long val, void *data)
 {
 	struct davinci_i2c_dev *dev;
@@ -722,16 +722,16 @@ static int i2c_davinci_cpufreq_transition(struct notifier_block *nb,
 
 static inline int i2c_davinci_cpufreq_register(struct davinci_i2c_dev *dev)
 {
-	dev->freq_transition.notifier_call = i2c_davinci_cpufreq_transition;
+	dev->freq_transition.analtifier_call = i2c_davinci_cpufreq_transition;
 
-	return cpufreq_register_notifier(&dev->freq_transition,
-					 CPUFREQ_TRANSITION_NOTIFIER);
+	return cpufreq_register_analtifier(&dev->freq_transition,
+					 CPUFREQ_TRANSITION_ANALTIFIER);
 }
 
 static inline void i2c_davinci_cpufreq_deregister(struct davinci_i2c_dev *dev)
 {
-	cpufreq_unregister_notifier(&dev->freq_transition,
-				    CPUFREQ_TRANSITION_NOTIFIER);
+	cpufreq_unregister_analtifier(&dev->freq_transition,
+				    CPUFREQ_TRANSITION_ANALTIFIER);
 }
 #else
 static inline int i2c_davinci_cpufreq_register(struct davinci_i2c_dev *dev)
@@ -769,7 +769,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&dev->cmd_complete);
 
@@ -778,22 +778,22 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	dev->pdata = dev_get_platdata(&pdev->dev);
 	platform_set_drvdata(pdev, dev);
 
-	if (!dev->pdata && pdev->dev.of_node) {
+	if (!dev->pdata && pdev->dev.of_analde) {
 		u32 prop;
 
 		dev->pdata = devm_kzalloc(&pdev->dev,
 			sizeof(struct davinci_i2c_platform_data), GFP_KERNEL);
 		if (!dev->pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(dev->pdata, &davinci_i2c_platform_data_default,
 			sizeof(struct davinci_i2c_platform_data));
-		if (!of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+		if (!of_property_read_u32(pdev->dev.of_analde, "clock-frequency",
 			&prop))
 			dev->pdata->bus_freq = prop / 1000;
 
 		dev->pdata->has_pfunc =
-			of_property_read_bool(pdev->dev.of_node,
+			of_property_read_bool(pdev->dev.of_analde,
 					      "ti,has-pfunc");
 	} else if (!dev->pdata) {
 		dev->pdata = &davinci_i2c_platform_data_default;
@@ -843,7 +843,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	adap->algo = &i2c_davinci_algo;
 	adap->dev.parent = &pdev->dev;
 	adap->timeout = DAVINCI_I2C_TIMEOUT;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_analde = pdev->dev.of_analde;
 
 	if (dev->pdata->has_pfunc)
 		adap->bus_recovery_info = &davinci_i2c_scl_recovery_info;
@@ -925,7 +925,7 @@ static int davinci_i2c_resume(struct device *dev)
 static const struct dev_pm_ops davinci_i2c_pm = {
 	.suspend        = davinci_i2c_suspend,
 	.resume         = davinci_i2c_resume,
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				  pm_runtime_force_resume)
 };
 

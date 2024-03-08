@@ -17,7 +17,7 @@
 static int __link_vmas(struct maple_tree *mt, struct vm_area_struct *vmas,
 			ssize_t nr_vmas)
 {
-	int i, ret = -ENOMEM;
+	int i, ret = -EANALMEM;
 	MA_STATE(mas, mt, 0, 0);
 
 	if (!nr_vmas)
@@ -42,8 +42,8 @@ failed:
  * In case of virtual memory address spaces monitoring, DAMON converts the
  * complex and dynamic memory mappings of each target task to three
  * discontiguous regions which cover every mapped areas.  However, the three
- * regions should not include the two biggest unmapped areas in the original
- * mapping, because the two biggest areas are normally the areas between 1)
+ * regions should analt include the two biggest unmapped areas in the original
+ * mapping, because the two biggest areas are analrmally the areas between 1)
  * heap and the mmap()-ed regions, and 2) the mmap()-ed regions and stack.
  * Because these two unmapped areas are very huge but obviously never accessed,
  * covering the region is just a waste.
@@ -111,7 +111,7 @@ static struct damon_region *__nth_region_of(struct damon_target *t, int idx)
  * regions		an array containing start/end addresses of current
  *			monitoring target regions
  * nr_regions		the number of the addresses in 'regions'
- * three_regions	The three regions that need to be applied now
+ * three_regions	The three regions that need to be applied analw
  * expected		start/end addresses of monitoring target regions that
  *			'three_regions' are applied
  * nr_expected		the number of addresses in 'expected'
@@ -156,7 +156,7 @@ static void damon_do_test_apply_three_regions(struct kunit *test,
  * This function test most common case where the three big regions are only
  * slightly changed.  Target regions should adjust their boundary (10-20-30,
  * 50-55, 70-80, 90-100) to fit with the new big regions or remove target
- * regions (57-79) that now out of the three regions.
+ * regions (57-79) that analw out of the three regions.
  */
 static void damon_test_apply_three_regions1(struct kunit *test)
 {
@@ -178,7 +178,7 @@ static void damon_test_apply_three_regions1(struct kunit *test)
 
 /*
  * Test slightly bigger change.  Similar to above, but the second big region
- * now require two target regions (50-55, 57-59) to be removed.
+ * analw require two target regions (50-55, 57-59) to be removed.
  */
 static void damon_test_apply_three_regions2(struct kunit *test)
 {
@@ -223,10 +223,10 @@ static void damon_test_apply_three_regions3(struct kunit *test)
 }
 
 /*
- * Test another big change.  Both of the second and third big regions (50-59
+ * Test aanalther big change.  Both of the second and third big regions (50-59
  * and 70-100) has totally freed and mapped to different area (30-32 and
  * 65-68).  The target regions which were in the old second and third big
- * regions should now be removed and new target regions covering the new second
+ * regions should analw be removed and new target regions covering the new second
  * and third big regions should be created.
  */
 static void damon_test_apply_three_regions4(struct kunit *test)

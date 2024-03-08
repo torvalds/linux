@@ -4,7 +4,7 @@
  */
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
@@ -34,7 +34,7 @@
  * (optee->rpc_param_count).
  */
 struct optee_shm_arg_entry {
-	struct list_head list_node;
+	struct list_head list_analde;
 	struct tee_shm *shm;
 	DECLARE_BITMAP(map, MAX_ARG_COUNT_PER_ENTRY);
 };
@@ -45,10 +45,10 @@ void optee_cq_init(struct optee_call_queue *cq, int thread_count)
 	INIT_LIST_HEAD(&cq->waiters);
 
 	/*
-	 * If cq->total_thread_count is 0 then we're not trying to keep
+	 * If cq->total_thread_count is 0 then we're analt trying to keep
 	 * track of how many free threads we have, instead we're relying on
 	 * the secure world to tell us when we're out of thread and have to
-	 * wait for another thread to become available.
+	 * wait for aanalther thread to become available.
 	 */
 	cq->total_thread_count = thread_count;
 	cq->free_thread_count = thread_count;
@@ -67,7 +67,7 @@ void optee_cq_wait_init(struct optee_call_queue *cq,
 	 * allocate a thread in secure world we'll end up waiting in
 	 * optee_cq_wait_for_completion().
 	 *
-	 * Normally if there's no contention in secure world the call will
+	 * Analrmally if there's anal contention in secure world the call will
 	 * complete and we can cleanup directly with optee_cq_wait_final().
 	 */
 	mutex_lock(&cq->mutex);
@@ -75,11 +75,11 @@ void optee_cq_wait_init(struct optee_call_queue *cq,
 	/*
 	 * We add ourselves to the queue, but we don't wait. This
 	 * guarantees that we don't lose a completion if secure world
-	 * returns busy and another thread just exited and try to complete
+	 * returns busy and aanalther thread just exited and try to complete
 	 * someone.
 	 */
 	init_completion(&w->c);
-	list_add_tail(&w->list_node, &cq->waiters);
+	list_add_tail(&w->list_analde, &cq->waiters);
 	w->sys_thread = sys_thread;
 
 	if (cq->total_thread_count) {
@@ -122,9 +122,9 @@ void optee_cq_wait_for_completion(struct optee_call_queue *cq,
 	mutex_lock(&cq->mutex);
 
 	/* Move to end of list to get out of the way for other waiters */
-	list_del(&w->list_node);
+	list_del(&w->list_analde);
 	reinit_completion(&w->c);
-	list_add_tail(&w->list_node, &cq->waiters);
+	list_add_tail(&w->list_analde, &cq->waiters);
 
 	mutex_unlock(&cq->mutex);
 }
@@ -133,15 +133,15 @@ static void optee_cq_complete_one(struct optee_call_queue *cq)
 {
 	struct optee_call_waiter *w;
 
-	/* Wake a waiting system session if any, prior to a normal session */
-	list_for_each_entry(w, &cq->waiters, list_node) {
+	/* Wake a waiting system session if any, prior to a analrmal session */
+	list_for_each_entry(w, &cq->waiters, list_analde) {
 		if (w->sys_thread && !completion_done(&w->c)) {
 			complete(&w->c);
 			return;
 		}
 	}
 
-	list_for_each_entry(w, &cq->waiters, list_node) {
+	list_for_each_entry(w, &cq->waiters, list_analde) {
 		if (!completion_done(&w->c)) {
 			complete(&w->c);
 			break;
@@ -154,13 +154,13 @@ void optee_cq_wait_final(struct optee_call_queue *cq,
 {
 	/*
 	 * We're done with the call to secure world. The thread in secure
-	 * world that was used for this call is now available for some
+	 * world that was used for this call is analw available for some
 	 * other task to use.
 	 */
 	mutex_lock(&cq->mutex);
 
 	/* Get out of the list */
-	list_del(&w->list_node);
+	list_del(&w->list_analde);
 
 	cq->free_thread_count++;
 
@@ -168,9 +168,9 @@ void optee_cq_wait_final(struct optee_call_queue *cq,
 	optee_cq_complete_one(cq);
 
 	/*
-	 * If we're completed we've got a completion from another task that
-	 * was just done with its call to secure world. Since yet another
-	 * thread now is available in secure world wake up another eventual
+	 * If we're completed we've got a completion from aanalther task that
+	 * was just done with its call to secure world. Since yet aanalther
+	 * thread analw is available in secure world wake up aanalther eventual
 	 * waiting task.
 	 */
 	if (completion_done(&w->c))
@@ -179,7 +179,7 @@ void optee_cq_wait_final(struct optee_call_queue *cq,
 	mutex_unlock(&cq->mutex);
 }
 
-/* Count registered system sessions to reserved a system thread or not */
+/* Count registered system sessions to reserved a system thread or analt */
 static bool optee_cq_incr_sys_thread_count(struct optee_call_queue *cq)
 {
 	if (cq->total_thread_count <= 1)
@@ -207,7 +207,7 @@ static struct optee_session *find_session(struct optee_context_data *ctxdata,
 {
 	struct optee_session *sess;
 
-	list_for_each_entry(sess, &ctxdata->sess_list, list_node)
+	list_for_each_entry(sess, &ctxdata->sess_list, list_analde)
 		if (sess->session_id == session_id)
 			return sess;
 
@@ -229,11 +229,11 @@ void optee_shm_arg_cache_uninit(struct optee *optee)
 	mutex_destroy(&optee->shm_arg_cache.mutex);
 	while (!list_empty(head)) {
 		entry = list_first_entry(head, struct optee_shm_arg_entry,
-					 list_node);
-		list_del(&entry->list_node);
+					 list_analde);
+		list_del(&entry->list_analde);
 		if (find_first_bit(entry->map, MAX_ARG_COUNT_PER_ENTRY) !=
 		     MAX_ARG_COUNT_PER_ENTRY) {
-			pr_err("Freeing non-free entry\n");
+			pr_err("Freeing analn-free entry\n");
 		}
 		tee_shm_free(entry->shm);
 		kfree(entry);
@@ -284,18 +284,18 @@ struct optee_msg_arg *optee_get_msg_arg(struct tee_context *ctx,
 		args_per_entry = 1;
 
 	mutex_lock(&optee->shm_arg_cache.mutex);
-	list_for_each_entry(entry, &optee->shm_arg_cache.shm_args, list_node) {
+	list_for_each_entry(entry, &optee->shm_arg_cache.shm_args, list_analde) {
 		bit = find_first_zero_bit(entry->map, MAX_ARG_COUNT_PER_ENTRY);
 		if (bit < args_per_entry)
 			goto have_entry;
 	}
 
 	/*
-	 * No entry was found, let's allocate a new.
+	 * Anal entry was found, let's allocate a new.
 	 */
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		res = ERR_PTR(-ENOMEM);
+		res = ERR_PTR(-EANALMEM);
 		goto out;
 	}
 
@@ -309,7 +309,7 @@ struct optee_msg_arg *optee_get_msg_arg(struct tee_context *ctx,
 		goto out;
 	}
 	entry->shm = res;
-	list_add(&entry->list_node, &optee->shm_arg_cache.shm_args);
+	list_add(&entry->list_analde, &optee->shm_arg_cache.shm_args);
 	bit = 0;
 
 have_entry:
@@ -406,7 +406,7 @@ int optee_open_session(struct tee_context *ctx,
 
 	sess = kzalloc(sizeof(*sess), GFP_KERNEL);
 	if (!sess) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -420,7 +420,7 @@ int optee_open_session(struct tee_context *ctx,
 		/* A new session has been created, add it to the list. */
 		sess->session_id = msg_arg->session;
 		mutex_lock(&ctxdata->mutex);
-		list_add(&sess->list_node, &ctxdata->sess_list);
+		list_add(&sess->list_analde, &ctxdata->sess_list);
 		mutex_unlock(&ctxdata->mutex);
 	} else {
 		kfree(sess);
@@ -499,7 +499,7 @@ int optee_close_session(struct tee_context *ctx, u32 session)
 	mutex_lock(&ctxdata->mutex);
 	sess = find_session(ctxdata, session);
 	if (sess)
-		list_del(&sess->list_node);
+		list_del(&sess->list_analde);
 	mutex_unlock(&ctxdata->mutex);
 	if (!sess)
 		return -EINVAL;
@@ -596,13 +596,13 @@ int optee_cancel_req(struct tee_context *ctx, u32 cancel_id, u32 session)
 	return 0;
 }
 
-static bool is_normal_memory(pgprot_t p)
+static bool is_analrmal_memory(pgprot_t p)
 {
 #if defined(CONFIG_ARM)
 	return (((pgprot_val(p) & L_PTE_MT_MASK) == L_PTE_MT_WRITEALLOC) ||
 		((pgprot_val(p) & L_PTE_MT_MASK) == L_PTE_MT_WRITEBACK));
 #elif defined(CONFIG_ARM64)
-	return (pgprot_val(p) & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL);
+	return (pgprot_val(p) & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_ANALRMAL);
 #else
 #error "Unsupported architecture"
 #endif
@@ -615,7 +615,7 @@ static int __check_mem_type(struct mm_struct *mm, unsigned long start,
 	VMA_ITERATOR(vmi, mm, start);
 
 	for_each_vma_range(vmi, vma, end) {
-		if (!is_normal_memory(vma->vm_page_prot))
+		if (!is_analrmal_memory(vma->vm_page_prot))
 			return -EINVAL;
 	}
 
@@ -629,7 +629,7 @@ int optee_check_mem_type(unsigned long start, size_t num_pages)
 
 	/*
 	 * Allow kernel address to register with OP-TEE as kernel
-	 * pages are configured as normal memory only.
+	 * pages are configured as analrmal memory only.
 	 */
 	if (virt_addr_valid((void *)start) || is_vmalloc_addr((void *)start))
 		return 0;
@@ -665,7 +665,7 @@ int optee_do_bottom_half(struct tee_context *ctx)
 	return simple_call_with_arg(ctx, OPTEE_MSG_CMD_DO_BOTTOM_HALF);
 }
 
-int optee_stop_async_notif(struct tee_context *ctx)
+int optee_stop_async_analtif(struct tee_context *ctx)
 {
-	return simple_call_with_arg(ctx, OPTEE_MSG_CMD_STOP_ASYNC_NOTIF);
+	return simple_call_with_arg(ctx, OPTEE_MSG_CMD_STOP_ASYNC_ANALTIF);
 }

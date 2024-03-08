@@ -7,16 +7,16 @@ struct nvkm_vma;
 struct nvkm_vmm;
 
 struct nvkm_tags {
-	struct nvkm_mm_node *mn;
+	struct nvkm_mm_analde *mn;
 	refcount_t refcount;
 };
 
 enum nvkm_memory_target {
-	NVKM_MEM_TARGET_INST_SR_LOST, /* instance memory - not preserved across suspend */
+	NVKM_MEM_TARGET_INST_SR_LOST, /* instance memory - analt preserved across suspend */
 	NVKM_MEM_TARGET_INST, /* instance memory */
 	NVKM_MEM_TARGET_VRAM, /* video memory */
 	NVKM_MEM_TARGET_HOST, /* coherent system memory */
-	NVKM_MEM_TARGET_NCOH, /* non-coherent system memory */
+	NVKM_MEM_TARGET_NCOH, /* analn-coherent system memory */
 };
 
 struct nvkm_memory {
@@ -65,7 +65,7 @@ void nvkm_memory_tags_put(struct nvkm_memory *, struct nvkm_device *,
 #define nvkm_memory_boot(p,v) (p)->func->boot((p),(v))
 #define nvkm_memory_map(p,o,vm,va,av,ac)                                       \
 	(p)->func->map((p),(o),(vm),(va),(av),(ac))
-#define nvkm_memory_kmap(p,i) ((p)->func->kmap ? (p)->func->kmap((p), (i)) : -ENOSYS)
+#define nvkm_memory_kmap(p,i) ((p)->func->kmap ? (p)->func->kmap((p), (i)) : -EANALSYS)
 
 /* accessor macros - kmap()/done() must bracket use of the other accessor
  * macros to guarantee correct behaviour across all chipsets

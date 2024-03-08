@@ -12,7 +12,7 @@ unique id: e.g. *kfree_rcu-0* or *sb-xfs:vda1-36*.
 
 Each shrinker directory contains **count** and **scan** files, which allow to
 trigger *count_objects()* and *scan_objects()* callbacks for each memcg and
-numa node (if applicable).
+numa analde (if applicable).
 
 Usage:
 ------
@@ -28,12 +28,12 @@ Usage:
     mm-zspool:zram0-34  sb-hugetlbfs-17  sb-pstore-31     sb-tmpfs-44
     rcu-kfree-0         sb-hugetlbfs-33  sb-rootfs-2      sb-tmpfs-49
     sb-aio-20           sb-iomem-12      sb-securityfs-6  sb-tracefs-13
-    sb-anon_inodefs-15  sb-mqueue-21     sb-selinuxfs-22  sb-xfs:vda1-36
+    sb-aanaln_ianaldefs-15  sb-mqueue-21     sb-selinuxfs-22  sb-xfs:vda1-36
     sb-bdev-3           sb-nsfs-4        sb-sockfs-8      sb-zsmalloc-19
     sb-bpf-32           sb-pipefs-14     sb-sysfs-26      thp-deferred_split-10
     sb-btrfs:vda2-24    sb-proc-25       sb-tmpfs-1       thp-zero-9
     sb-cgroup2-30       sb-proc-39       sb-tmpfs-27      xfs-buf:vda1-37
-    sb-configfs-23      sb-proc-41       sb-tmpfs-29      xfs-inodegc:vda1-38
+    sb-configfs-23      sb-proc-41       sb-tmpfs-29      xfs-ianaldegc:vda1-38
     sb-dax-11           sb-proc-45       sb-tmpfs-35
     sb-debugfs-7        sb-proc-46       sb-tmpfs-40
 
@@ -49,16 +49,16 @@ Usage:
 
   Each line in the output has the following format::
 
-    <cgroup inode id> <nr of objects on node 0> <nr of objects on node 1> ...
-    <cgroup inode id> <nr of objects on node 0> <nr of objects on node 1> ...
+    <cgroup ianalde id> <nr of objects on analde 0> <nr of objects on analde 1> ...
+    <cgroup ianalde id> <nr of objects on analde 0> <nr of objects on analde 1> ...
     ...
 
-  If there are no objects on all numa nodes, a line is omitted. If there
-  are no objects at all, the output might be empty.
+  If there are anal objects on all numa analdes, a line is omitted. If there
+  are anal objects at all, the output might be empty.
 
-  If the shrinker is not memcg-aware or CONFIG_MEMCG is off, 0 is printed
-  as cgroup inode id. If the shrinker is not numa-aware, 0's are printed
-  for all nodes except the first one.
+  If the shrinker is analt memcg-aware or CONFIG_MEMCG is off, 0 is printed
+  as cgroup ianalde id. If the shrinker is analt numa-aware, 0's are printed
+  for all analdes except the first one.
   ::
 
     $ cat count
@@ -107,9 +107,9 @@ Usage:
 
   The expected input format::
 
-    <cgroup inode id> <numa id> <number of objects to scan>
+    <cgroup ianalde id> <numa id> <number of objects to scan>
 
-  For a non-memcg-aware shrinker or on a system with no memory
+  For a analn-memcg-aware shrinker or on a system with anal memory
   cgrups **0** should be passed as cgroup id.
   ::
 

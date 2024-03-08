@@ -1,8 +1,8 @@
 Qualcomm IPQ806x SATA PHY Controller
 ------------------------------------
 
-SATA PHY nodes are defined to describe on-chip SATA Physical layer controllers.
-Each SATA PHY controller should have its own node.
+SATA PHY analdes are defined to describe on-chip SATA Physical layer controllers.
+Each SATA PHY controller should have its own analde.
 
 Required properties:
 - compatible: compatible list, contains "qcom,ipq806x-sata-phy"

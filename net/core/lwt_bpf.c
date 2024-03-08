@@ -32,7 +32,7 @@ static inline struct bpf_lwt *bpf_lwt_lwtunnel(struct lwtunnel_state *lwt)
 	return (struct bpf_lwt *)lwt->data;
 }
 
-#define NO_REDIRECT false
+#define ANAL_REDIRECT false
 #define CAN_REDIRECT true
 
 static int run_lwt_bpf(struct sk_buff *skb, struct bpf_lwt_prog *lwt,
@@ -56,7 +56,7 @@ static int run_lwt_bpf(struct sk_buff *skb, struct bpf_lwt_prog *lwt,
 	case BPF_REDIRECT:
 		if (unlikely(!can_redirect)) {
 			pr_warn_once("Illegal redirect return code in prog %s\n",
-				     lwt->name ? : "<unknown>");
+				     lwt->name ? : "<unkanalwn>");
 			ret = BPF_OK;
 		} else {
 			skb_reset_mac_header(skb);
@@ -93,14 +93,14 @@ static int bpf_lwt_input_reroute(struct sk_buff *skb)
 
 		dev_hold(dev);
 		skb_dst_drop(skb);
-		err = ip_route_input_noref(skb, iph->daddr, iph->saddr,
+		err = ip_route_input_analref(skb, iph->daddr, iph->saddr,
 					   iph->tos, dev);
 		dev_put(dev);
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
 		skb_dst_drop(skb);
 		err = ipv6_stub->ipv6_route_input(skb);
 	} else {
-		err = -EAFNOSUPPORT;
+		err = -EAFANALSUPPORT;
 	}
 
 	if (err)
@@ -120,7 +120,7 @@ static int bpf_input(struct sk_buff *skb)
 
 	bpf = bpf_lwt_lwtunnel(dst->lwtstate);
 	if (bpf->in.prog) {
-		ret = run_lwt_bpf(skb, &bpf->in, dst, NO_REDIRECT);
+		ret = run_lwt_bpf(skb, &bpf->in, dst, ANAL_REDIRECT);
 		if (ret < 0)
 			return ret;
 		if (ret == BPF_LWT_REROUTE)
@@ -143,13 +143,13 @@ static int bpf_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 	bpf = bpf_lwt_lwtunnel(dst->lwtstate);
 	if (bpf->out.prog) {
-		ret = run_lwt_bpf(skb, &bpf->out, dst, NO_REDIRECT);
+		ret = run_lwt_bpf(skb, &bpf->out, dst, ANAL_REDIRECT);
 		if (ret < 0)
 			return ret;
 	}
 
 	if (unlikely(!dst->lwtstate->orig_output)) {
-		pr_warn_once("orig_output not set on dst for prog %s\n",
+		pr_warn_once("orig_output analt set on dst for prog %s\n",
 			     bpf->out.name);
 		kfree_skb(skb);
 		return -EINVAL;
@@ -164,7 +164,7 @@ static int xmit_check_hhlen(struct sk_buff *skb, int hh_len)
 		int nhead = HH_DATA_ALIGN(hh_len - skb_headroom(skb));
 
 		if (pskb_expand_head(skb, nhead, 0, GFP_ATOMIC))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -175,7 +175,7 @@ static int bpf_lwt_xmit_reroute(struct sk_buff *skb)
 	struct net_device *l3mdev = l3mdev_master_dev_rcu(skb_dst(skb)->dev);
 	int oif = l3mdev ? l3mdev->ifindex : 0;
 	struct dst_entry *dst = NULL;
-	int err = -EAFNOSUPPORT;
+	int err = -EAFANALSUPPORT;
 	struct sock *sk;
 	struct net *net;
 	bool ipv4;
@@ -242,8 +242,8 @@ static int bpf_lwt_xmit_reroute(struct sk_buff *skb)
 
 	/* Although skb header was reserved in bpf_lwt_push_ip_encap(), it
 	 * was done for the previous dst, so we are doing it here again, in
-	 * case the new dst needs much more space. The call below is a noop
-	 * if there is enough header space in skb.
+	 * case the new dst needs much more space. The call below is a analop
+	 * if there is eanalugh header space in skb.
 	 */
 	err = skb_cow_head(skb, LL_RESERVED_SPACE(dst->dev));
 	if (unlikely(err))
@@ -254,7 +254,7 @@ static int bpf_lwt_xmit_reroute(struct sk_buff *skb)
 
 	err = dst_output(dev_net(skb_dst(skb)->dev), skb->sk, skb);
 	if (unlikely(err))
-		return net_xmit_errno(err);
+		return net_xmit_erranal(err);
 
 	/* ip[6]_finish_output2 understand LWTUNNEL_XMIT_DONE */
 	return LWTUNNEL_XMIT_DONE;
@@ -347,7 +347,7 @@ static int bpf_parse_prog(struct nlattr *attr, struct bpf_lwt_prog *prog,
 
 	prog->name = nla_memdup(tb[LWT_BPF_PROG_NAME], GFP_ATOMIC);
 	if (!prog->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fd = nla_get_u32(tb[LWT_BPF_PROG_FD]);
 	p = bpf_prog_get_type(fd, type);
@@ -377,7 +377,7 @@ static int bpf_build_state(struct net *net, struct nlattr *nla,
 	int ret;
 
 	if (family != AF_INET && family != AF_INET6)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	ret = nla_parse_nested_deprecated(tb, LWT_BPF_MAX, nla, bpf_nl_policy,
 					  extack);
@@ -389,7 +389,7 @@ static int bpf_build_state(struct net *net, struct nlattr *nla,
 
 	newts = lwtunnel_state_alloc(sizeof(*bpf));
 	if (!newts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	newts->type = LWTUNNEL_ENCAP_BPF;
 	bpf = bpf_lwt_lwtunnel(newts);
@@ -448,7 +448,7 @@ static int bpf_fill_lwt_prog(struct sk_buff *skb, int attr,
 	if (!prog->prog)
 		return 0;
 
-	nest = nla_nest_start_noflag(skb, attr);
+	nest = nla_nest_start_analflag(skb, attr);
 	if (!nest)
 		return -EMSGSIZE;
 
@@ -487,7 +487,7 @@ static int bpf_lwt_prog_cmp(struct bpf_lwt_prog *a, struct bpf_lwt_prog *b)
 {
 	/* FIXME:
 	 * The LWT state is currently rebuilt for delete requests which
-	 * results in a new bpf_prog instance. Comparing names for now.
+	 * results in a new bpf_prog instance. Comparing names for analw.
 	 */
 	if (!a->name && !b->name)
 		return 0;
@@ -539,11 +539,11 @@ static int handle_gso_encap(struct sk_buff *skb, bool ipv4, int encap_len)
 	__u8 protocol;
 
 	/* SCTP and UDP_L4 gso need more nuanced handling than what
-	 * handle_gso_type() does above: skb_decrease_gso_size() is not enough.
+	 * handle_gso_type() does above: skb_decrease_gso_size() is analt eanalugh.
 	 * So at the moment only TCP GSO packets are let through.
 	 */
 	if (!(skb_shinfo(skb)->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6)))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (ipv4) {
 		protocol = ip_hdr(skb)->protocol;
@@ -584,7 +584,7 @@ static int handle_gso_encap(struct sk_buff *skb, bool ipv4, int encap_len)
 			return handle_gso_type(skb, SKB_GSO_IPXIP6, encap_len);
 
 	default:
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 }
 
@@ -621,7 +621,7 @@ int bpf_lwt_push_ip_encap(struct sk_buff *skb, void *hdr, u32 len, bool ingress)
 
 	/* push the encap headers and fix pointers */
 	skb_reset_inner_headers(skb);
-	skb_reset_inner_mac_header(skb);  /* mac header is not yet set */
+	skb_reset_inner_mac_header(skb);  /* mac header is analt yet set */
 	skb_set_inner_protocol(skb, skb->protocol);
 	skb->encapsulation = 1;
 	skb_push(skb, len);

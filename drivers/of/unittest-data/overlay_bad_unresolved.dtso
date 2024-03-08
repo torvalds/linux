@@ -2,6 +2,6 @@
 /dts-v1/;
 /plugin/;
 
-&this_label_does_not_exist {
+&this_label_does_analt_exist {
 	status = "okay";
 };

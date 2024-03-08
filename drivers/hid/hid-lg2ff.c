@@ -55,8 +55,8 @@ int lg2ff_init(struct hid_device *hid)
 	int error;
 
 	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		return -ENODEV;
+		hid_err(hid, "anal inputs found\n");
+		return -EANALDEV;
 	}
 	hidinput = list_entry(hid->inputs.next, struct hid_input, list);
 	dev = hidinput->input;
@@ -64,11 +64,11 @@ int lg2ff_init(struct hid_device *hid)
 	/* Check that the report looks ok */
 	report = hid_validate_values(hid, HID_OUTPUT_REPORT, 0, 0, 7);
 	if (!report)
-		return -ENODEV;
+		return -EANALDEV;
 
 	lg2ff = kmalloc(sizeof(struct lg2ff_device), GFP_KERNEL);
 	if (!lg2ff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_bit(FF_RUMBLE, dev->ffbit);
 

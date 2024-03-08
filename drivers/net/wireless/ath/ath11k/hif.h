@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef _HIF_H_
@@ -105,7 +105,7 @@ static inline int ath11k_hif_read(struct ath11k_base *ab, void *buf,
 				  u32 start, u32 end)
 {
 	if (!ab->hif.ops->read)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ab->hif.ops->read(ab, buf, start, end);
 }
@@ -121,7 +121,7 @@ static inline int ath11k_get_user_msi_vector(struct ath11k_base *ab, char *user_
 					     u32 *base_vector)
 {
 	if (!ab->hif.ops->get_user_msi_vector)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ab->hif.ops->get_user_msi_vector(ab, user_name, num_vectors,
 						user_base_data,

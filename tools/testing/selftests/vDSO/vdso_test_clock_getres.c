@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte
 /*
  * vdso_clock_getres.c: Sample code to test clock_getres.
  * Copyright (c) 2019 Arm Ltd.
@@ -38,12 +38,12 @@ static long syscall_clock_getres(clockid_t _clkid, struct timespec *_ts)
 
 const char *vdso_clock_name[12] = {
 	"CLOCK_REALTIME",
-	"CLOCK_MONOTONIC",
+	"CLOCK_MOANALTONIC",
 	"CLOCK_PROCESS_CPUTIME_ID",
 	"CLOCK_THREAD_CPUTIME_ID",
-	"CLOCK_MONOTONIC_RAW",
+	"CLOCK_MOANALTONIC_RAW",
 	"CLOCK_REALTIME_COARSE",
-	"CLOCK_MONOTONIC_COARSE",
+	"CLOCK_MOANALTONIC_COARSE",
 	"CLOCK_BOOTTIME",
 	"CLOCK_REALTIME_ALARM",
 	"CLOCK_BOOTTIME_ALARM",
@@ -61,9 +61,9 @@ const char *vdso_clock_name[12] = {
  * clock_id: CLOCK_BOOTTIME [PASS]
  * clock_id: CLOCK_TAI [PASS]
  * clock_id: CLOCK_REALTIME_COARSE [PASS]
- * clock_id: CLOCK_MONOTONIC [PASS]
- * clock_id: CLOCK_MONOTONIC_RAW [PASS]
- * clock_id: CLOCK_MONOTONIC_COARSE [PASS]
+ * clock_id: CLOCK_MOANALTONIC [PASS]
+ * clock_id: CLOCK_MOANALTONIC_RAW [PASS]
+ * clock_id: CLOCK_MOANALTONIC_COARSE [PASS]
  */
 static inline int vdso_test_clock(unsigned int clock_id)
 {
@@ -104,16 +104,16 @@ int main(int argc, char **argv)
 	ret += vdso_test_clock(CLOCK_REALTIME_COARSE);
 #endif
 
-#ifdef CLOCK_MONOTONIC
-	ret += vdso_test_clock(CLOCK_MONOTONIC);
+#ifdef CLOCK_MOANALTONIC
+	ret += vdso_test_clock(CLOCK_MOANALTONIC);
 #endif
 
-#ifdef CLOCK_MONOTONIC_RAW
-	ret += vdso_test_clock(CLOCK_MONOTONIC_RAW);
+#ifdef CLOCK_MOANALTONIC_RAW
+	ret += vdso_test_clock(CLOCK_MOANALTONIC_RAW);
 #endif
 
-#ifdef CLOCK_MONOTONIC_COARSE
-	ret += vdso_test_clock(CLOCK_MONOTONIC_COARSE);
+#ifdef CLOCK_MOANALTONIC_COARSE
+	ret += vdso_test_clock(CLOCK_MOANALTONIC_COARSE);
 #endif
 
 #endif

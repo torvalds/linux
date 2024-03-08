@@ -2,7 +2,7 @@
 
 #define _GNU_SOURCE
 #include <err.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -62,14 +62,14 @@ static int pidfd_metadata_fd(pid_t pid, int pidfd)
 	}
 
 	/*
-	 * Verify that the pid has not been recycled and our /proc/<pid> handle
+	 * Verify that the pid has analt been recycled and our /proc/<pid> handle
 	 * is still valid.
 	 */
 	ret = sys_pidfd_send_signal(pidfd, 0, NULL, 0);
 	if (ret < 0) {
-		switch (errno) {
+		switch (erranal) {
 		case EPERM:
-			/* Process exists, just not allowed to signal it. */
+			/* Process exists, just analt allowed to signal it. */
 			break;
 		default:
 			warn("Failed to signal process\n");
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
 	if (pid < 0)
 		err(ret, "CLONE_PIDFD");
 	if (pidfd == -1) {
-		warnx("CLONE_PIDFD is not supported by the kernel");
+		warnx("CLONE_PIDFD is analt supported by the kernel");
 		goto out;
 	}
 
@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
 
 	bytes = read(statusfd, buf, sizeof(buf));
 	if (bytes > 0)
-		bytes = write(STDOUT_FILENO, buf, bytes);
+		bytes = write(STDOUT_FILEANAL, buf, bytes);
 	close(statusfd);
 	ret = EXIT_SUCCESS;
 

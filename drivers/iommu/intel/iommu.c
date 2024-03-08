@@ -68,8 +68,8 @@ static int rwbf_quirk;
  * (used when kernel is launched w/ TXT)
  */
 static int force_on = 0;
-static int intel_iommu_tboot_noforce;
-static int no_platform_optin;
+static int intel_iommu_tboot_analforce;
+static int anal_platform_optin;
 
 #define ROOT_ENTRY_NR (VTD_PAGE_SIZE/sizeof(struct root_entry))
 
@@ -188,7 +188,7 @@ static int __init intel_iommu_setup(char *str)
 			pr_info("IOMMU enabled\n");
 		} else if (!strncmp(str, "off", 3)) {
 			dmar_disabled = 1;
-			no_platform_optin = 1;
+			anal_platform_optin = 1;
 			pr_info("IOMMU disabled\n");
 		} else if (!strncmp(str, "igfx_off", 8)) {
 			dmar_map_gfx = 0;
@@ -208,11 +208,11 @@ static int __init intel_iommu_setup(char *str)
 		} else if (!strncmp(str, "sm_off", 6)) {
 			pr_info("Scalable mode is disallowed\n");
 			intel_iommu_sm = 0;
-		} else if (!strncmp(str, "tboot_noforce", 13)) {
-			pr_info("Intel-IOMMU: not forcing on after tboot. This could expose security risk for tboot\n");
-			intel_iommu_tboot_noforce = 1;
+		} else if (!strncmp(str, "tboot_analforce", 13)) {
+			pr_info("Intel-IOMMU: analt forcing on after tboot. This could expose security risk for tboot\n");
+			intel_iommu_tboot_analforce = 1;
 		} else {
-			pr_notice("Unknown option - '%s'\n", str);
+			pr_analtice("Unkanalwn option - '%s'\n", str);
 		}
 
 		str += strcspn(str, ",");
@@ -224,12 +224,12 @@ static int __init intel_iommu_setup(char *str)
 }
 __setup("intel_iommu=", intel_iommu_setup);
 
-void *alloc_pgtable_page(int node, gfp_t gfp)
+void *alloc_pgtable_page(int analde, gfp_t gfp)
 {
 	struct page *page;
 	void *vaddr = NULL;
 
-	page = alloc_pages_node(node, gfp | __GFP_ZERO, 0);
+	page = alloc_pages_analde(analde, gfp | __GFP_ZERO, 0);
 	if (page)
 		vaddr = page_address(page);
 	return vaddr;
@@ -332,7 +332,7 @@ static void domain_update_iommu_coherency(struct dmar_domain *domain)
 	if (found)
 		return;
 
-	/* No hardware attached; use lowest common denominator */
+	/* Anal hardware attached; use lowest common deanalminator */
 	rcu_read_lock();
 	for_each_active_iommu(iommu, drhd) {
 		if (!iommu_paging_structure_coherency(iommu)) {
@@ -353,7 +353,7 @@ static int domain_update_iommu_superpage(struct dmar_domain *domain,
 	if (!intel_iommu_superpage)
 		return 0;
 
-	/* set iommu_superpage to the smallest common denominator */
+	/* set iommu_superpage to the smallest common deanalminator */
 	rcu_read_lock();
 	for_each_active_iommu(iommu, drhd) {
 		if (iommu != skip) {
@@ -373,22 +373,22 @@ static int domain_update_iommu_superpage(struct dmar_domain *domain,
 	return fls(mask);
 }
 
-static int domain_update_device_node(struct dmar_domain *domain)
+static int domain_update_device_analde(struct dmar_domain *domain)
 {
 	struct device_domain_info *info;
-	int nid = NUMA_NO_NODE;
+	int nid = NUMA_ANAL_ANALDE;
 	unsigned long flags;
 
 	spin_lock_irqsave(&domain->lock, flags);
 	list_for_each_entry(info, &domain->devices, link) {
 		/*
-		 * There could possibly be multiple device numa nodes as devices
+		 * There could possibly be multiple device numa analdes as devices
 		 * within the same domain may sit behind different IOMMUs. There
 		 * isn't perfect answer in such situation, so we select first
 		 * come first served policy.
 		 */
-		nid = dev_to_node(info->dev);
-		if (nid != NUMA_NO_NODE)
+		nid = dev_to_analde(info->dev);
+		if (nid != NUMA_ANAL_ANALDE)
 			break;
 	}
 	spin_unlock_irqrestore(&domain->lock, flags);
@@ -423,12 +423,12 @@ void domain_update_iommu_cap(struct dmar_domain *domain)
 	 * If RHSA is missing, we should default to the device numa domain
 	 * as fall back.
 	 */
-	if (domain->nid == NUMA_NO_NODE)
-		domain->nid = domain_update_device_node(domain);
+	if (domain->nid == NUMA_ANAL_ANALDE)
+		domain->nid = domain_update_device_analde(domain);
 
 	/*
 	 * First-level translation restricts the input-address to a
-	 * canonical address (i.e., address bits 63:N have the same
+	 * caanalnical address (i.e., address bits 63:N have the same
 	 * value as address bit [N-1], where N is 48-bits with 4-level
 	 * paging and 57-bits with 5-level paging). Hence, skip bit
 	 * [N-1].
@@ -451,7 +451,7 @@ struct context_entry *iommu_context_addr(struct intel_iommu *iommu, u8 bus,
 
 	/*
 	 * Except that the caller requested to allocate a new entry,
-	 * returning a copied context entry makes no sense.
+	 * returning a copied context entry makes anal sense.
 	 */
 	if (!alloc && context_copied(iommu, bus, devfn))
 		return NULL;
@@ -471,7 +471,7 @@ struct context_entry *iommu_context_addr(struct intel_iommu *iommu, u8 bus,
 		if (!alloc)
 			return NULL;
 
-		context = alloc_pgtable_page(iommu->node, GFP_ATOMIC);
+		context = alloc_pgtable_page(iommu->analde, GFP_ATOMIC);
 		if (!context)
 			return NULL;
 
@@ -516,10 +516,10 @@ static bool quirk_ioat_snb_local_iommu(struct pci_dev *pdev)
 	u32 vtbar;
 	int rc;
 
-	/* We know that this device on this chipset has its own IOMMU.
+	/* We kanalw that this device on this chipset has its own IOMMU.
 	 * If we find it under a different IOMMU, then the BIOS is lying
 	 * to us. Hope that the IOMMU for this device is actually
-	 * disabled, and it needs no translation...
+	 * disabled, and it needs anal translation...
 	 */
 	rc = pci_bus_read_config_dword(pdev->bus, PCI_DEVFN(0, 0), 0xb0, &vtbar);
 	if (rc) {
@@ -529,10 +529,10 @@ static bool quirk_ioat_snb_local_iommu(struct pci_dev *pdev)
 	}
 	vtbar &= 0xffff0000;
 
-	/* we know that the this iommu should be at offset 0xa000 from vtbar */
+	/* we kanalw that the this iommu should be at offset 0xa000 from vtbar */
 	drhd = dmar_find_matched_drhd_unit(pdev);
 	if (!drhd || drhd->reg_base_addr - vtbar != 0xa000) {
-		pr_warn_once(FW_BUG "BIOS assigned incorrect VT-d unit for Intel(R) QuickData Technology device\n");
+		pr_warn_once(FW_BUG "BIOS assigned incorrect VT-d unit for Intel(R) QuickData Techanallogy device\n");
 		add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
 		return true;
 	}
@@ -542,7 +542,7 @@ static bool quirk_ioat_snb_local_iommu(struct pci_dev *pdev)
 
 static bool iommu_is_dummy(struct intel_iommu *iommu, struct device *dev)
 {
-	if (!iommu || iommu->drhd->ignored)
+	if (!iommu || iommu->drhd->iganalred)
 		return true;
 
 	if (dev_is_pci(dev)) {
@@ -590,7 +590,7 @@ static struct intel_iommu *device_lookup_iommu(struct device *dev, u8 *bus, u8 *
 		for_each_active_dev_scope(drhd->devices,
 					  drhd->devices_cnt, i, tmp) {
 			if (tmp == dev) {
-				/* For a VF use its original BDF# not that of the PF
+				/* For a VF use its original BDF# analt that of the PF
 				 * which we used for the IOMMU lookup. Strictly speaking
 				 * we could do this for all PCI devices; we only need to
 				 * get the BDF# from the scope table for ACPI matches. */
@@ -670,7 +670,7 @@ static void pgtable_walk(struct intel_iommu *iommu, unsigned long pfn,
 		offset = pfn_level_offset(pfn, level);
 		pte = &parent[offset];
 		if (!pte || (dma_pte_superpage(pte) || !dma_pte_present(pte))) {
-			pr_info("PTE not present at level %d\n", level);
+			pr_info("PTE analt present at level %d\n", level);
 			break;
 		}
 
@@ -701,7 +701,7 @@ void dmar_fault_dump_ptes(struct intel_iommu *iommu, u16 source_id,
 	/* root entry dump */
 	rt_entry = &iommu->root_entry[bus];
 	if (!rt_entry) {
-		pr_info("root table entry is not present\n");
+		pr_info("root table entry is analt present\n");
 		return;
 	}
 
@@ -714,14 +714,14 @@ void dmar_fault_dump_ptes(struct intel_iommu *iommu, u16 source_id,
 	/* context entry dump */
 	ctx_entry = iommu_context_addr(iommu, bus, devfn, 0);
 	if (!ctx_entry) {
-		pr_info("context table entry is not present\n");
+		pr_info("context table entry is analt present\n");
 		return;
 	}
 
 	pr_info("context entry: hi 0x%016llx, low 0x%016llx\n",
 		ctx_entry->hi, ctx_entry->lo);
 
-	/* legacy mode does not require PASID entries */
+	/* legacy mode does analt require PASID entries */
 	if (!sm_supported(iommu)) {
 		level = agaw_to_level(ctx_entry->hi & 7);
 		pgtable = phys_to_virt(ctx_entry->lo & VTD_PAGE_MASK);
@@ -731,12 +731,12 @@ void dmar_fault_dump_ptes(struct intel_iommu *iommu, u16 source_id,
 	/* get the pointer to pasid directory entry */
 	dir = phys_to_virt(ctx_entry->lo & VTD_PAGE_MASK);
 	if (!dir) {
-		pr_info("pasid directory entry is not present\n");
+		pr_info("pasid directory entry is analt present\n");
 		return;
 	}
 	/* For request-without-pasid, get the pasid from context entry */
 	if (intel_iommu_sm && pasid == IOMMU_PASID_INVALID)
-		pasid = IOMMU_NO_PASID;
+		pasid = IOMMU_ANAL_PASID;
 
 	dir_index = pasid >> PASID_PDE_SHIFT;
 	pde = &dir[dir_index];
@@ -745,7 +745,7 @@ void dmar_fault_dump_ptes(struct intel_iommu *iommu, u16 source_id,
 	/* get the pointer to the pasid table entry */
 	entries = get_pasid_table_from_pde(pde);
 	if (!entries) {
-		pr_info("pasid table entry is not present\n");
+		pr_info("pasid table entry is analt present\n");
 		return;
 	}
 	index = pasid & PASID_PTE_MASK;
@@ -866,7 +866,7 @@ static void dma_pte_clear_range(struct dmar_domain *domain,
 	    WARN_ON(start_pfn > last_pfn))
 		return;
 
-	/* we don't need lock here; nobody else touches the iova range */
+	/* we don't need lock here; analbody else touches the iova range */
 	do {
 		large_page = 1;
 		first_pte = pte = dma_pfn_level_pte(domain, start_pfn, 1, &large_page);
@@ -936,7 +936,7 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 {
 	dma_pte_clear_range(domain, start_pfn, last_pfn);
 
-	/* We don't need lock here; nobody else touches the iova range */
+	/* We don't need lock here; analbody else touches the iova range */
 	dma_pte_free_level(domain, agaw_to_level(domain->agaw), retain_level,
 			   domain->pgd, 0, start_pfn, last_pfn);
 
@@ -950,7 +950,7 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 /* When a page at a given level is being unlinked from its parent, we don't
    need to *modify* it at all. All we need to do is make a list of all the
    pages which can be freed just as soon as we've flushed the IOTLB and we
-   know the hardware page-walk will no longer touch them.
+   kanalw the hardware page-walk will anal longer touch them.
    The 'pte' argument is the *parent* PTE, pointing to the page that is to
    be freed. */
 static void dma_pte_list_pagetables(struct dmar_domain *domain,
@@ -1027,7 +1027,7 @@ static void domain_unmap(struct dmar_domain *domain, unsigned long start_pfn,
 	    WARN_ON(start_pfn > last_pfn))
 		return;
 
-	/* we don't need lock here; nobody else touches the iova range */
+	/* we don't need lock here; analbody else touches the iova range */
 	dma_pte_clear_level(domain, agaw_to_level(domain->agaw),
 			    domain->pgd, 0, start_pfn, last_pfn, freelist);
 
@@ -1044,11 +1044,11 @@ static int iommu_alloc_root_entry(struct intel_iommu *iommu)
 {
 	struct root_entry *root;
 
-	root = alloc_pgtable_page(iommu->node, GFP_ATOMIC);
+	root = alloc_pgtable_page(iommu->analde, GFP_ATOMIC);
 	if (!root) {
 		pr_err("Allocating root entry for %s failed\n",
 			iommu->name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	__iommu_flush_cache(iommu, root, ROOT_SIZE);
@@ -1176,7 +1176,7 @@ static void __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 		val |= DMA_TLB_WRITE_DRAIN;
 
 	raw_spin_lock_irqsave(&iommu->register_lock, flag);
-	/* Note: Only uses first TLB reg currently */
+	/* Analte: Only uses first TLB reg currently */
 	if (val_iva)
 		dmar_writeq(iommu->reg + tlb_offset, val_iva);
 	dmar_writeq(iommu->reg + tlb_offset + 8, val);
@@ -1272,7 +1272,7 @@ static void iommu_enable_pci_caps(struct device_domain_info *info)
 	/* The PCIe spec, in its wisdom, declares that the behaviour of
 	   the device if you enable PASID support after ATS support is
 	   undefined. So always enable PASID support on devices which
-	   have it, even if we can't yet know if we're ever going to
+	   have it, even if we can't yet kanalw if we're ever going to
 	   use it. */
 	if (info->pasid_supported && !pci_enable_pasid(pdev, info->pasid_supported & ~1))
 		info->pasid_enabled = 1;
@@ -1317,7 +1317,7 @@ static void __iommu_flush_dev_iotlb(struct device_domain_info *info,
 	qdep = info->ats_qdep;
 	qi_flush_dev_iotlb(info->iommu, sid, info->pfsid,
 			   qdep, addr, mask);
-	quirk_extra_dev_tlb_flush(info, addr, mask, IOMMU_NO_PASID, qdep);
+	quirk_extra_dev_tlb_flush(info, addr, mask, IOMMU_ANAL_PASID, qdep);
 }
 
 static void iommu_flush_dev_iotlb(struct dmar_domain *domain,
@@ -1362,7 +1362,7 @@ static void domain_flush_pasid_iotlb(struct intel_iommu *iommu,
 		qi_flush_piotlb(iommu, did, dev_pasid->pasid, addr, npages, ih);
 
 	if (!list_empty(&domain->devices))
-		qi_flush_piotlb(iommu, did, IOMMU_NO_PASID, addr, npages, ih);
+		qi_flush_piotlb(iommu, did, IOMMU_ANAL_PASID, addr, npages, ih);
 	spin_unlock_irqrestore(&domain->lock, flags);
 }
 
@@ -1395,7 +1395,7 @@ static void __iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 	}
 
 	/*
-	 * Fallback to domain selective flush if no PSI support or
+	 * Fallback to domain selective flush if anal PSI support or
 	 * the size is too big.
 	 */
 	if (!cap_pgsel_inv(iommu->cap) || mask > cap_max_amask_val(iommu->cap))
@@ -1428,19 +1428,19 @@ static void iommu_flush_iotlb_psi(struct intel_iommu *iommu,
 		__iommu_flush_iotlb_psi(iommu, did, pfn, pages, ih);
 
 	/*
-	 * In caching mode, changes of pages from non-present to present require
+	 * In caching mode, changes of pages from analn-present to present require
 	 * flush. However, device IOTLB doesn't need to be flushed in this case.
 	 */
 	if (!cap_caching_mode(iommu->cap) || !map)
 		iommu_flush_dev_iotlb(domain, addr, mask);
 }
 
-/* Notification for newly created mappings */
-static void __mapping_notify_one(struct intel_iommu *iommu, struct dmar_domain *domain,
+/* Analtification for newly created mappings */
+static void __mapping_analtify_one(struct intel_iommu *iommu, struct dmar_domain *domain,
 				 unsigned long pfn, unsigned int pages)
 {
 	/*
-	 * It's a non-present to present mapping. Only flush if caching mode
+	 * It's a analn-present to present mapping. Only flush if caching mode
 	 * and second level.
 	 */
 	if (cap_caching_mode(iommu->cap) && !domain->use_first_level)
@@ -1477,7 +1477,7 @@ static void parent_domain_flush(struct dmar_domain *domain,
 		list_for_each_entry(device_info, &s1_domain->devices, link)
 			/*
 			 * Address translation cache in device side caches the
-			 * result of nested translation. There is no easy way
+			 * result of nested translation. There is anal easy way
 			 * to identify the exact set of nested translations
 			 * affected by a change in S2. So just flush the entire
 			 * device cache.
@@ -1581,13 +1581,13 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 
 	iommu->domain_ids = bitmap_zalloc(ndomains, GFP_KERNEL);
 	if (!iommu->domain_ids)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * If Caching mode is set, then invalid translations are tagged
 	 * with domain-id 0, hence we need to pre-allocate it. We also
-	 * use domain-id 0 as a marker for non-allocated domain-id, so
-	 * make sure it is not used for a real domain.
+	 * use domain-id 0 as a marker for analn-allocated domain-id, so
+	 * make sure it is analt used for a real domain.
 	 */
 	set_bit(0, iommu->domain_ids);
 
@@ -1611,7 +1611,7 @@ static void disable_dmar_iommu(struct intel_iommu *iommu)
 
 	/*
 	 * All iommu domains must have been detached from the devices,
-	 * hence there should be no domain IDs in use.
+	 * hence there should be anal domain IDs in use.
 	 */
 	if (WARN_ON(bitmap_weight(iommu->domain_ids, cap_ndoms(iommu->cap))
 		    > NUM_RESERVED_DID))
@@ -1670,7 +1670,7 @@ static struct dmar_domain *alloc_domain(unsigned int type)
 	if (!domain)
 		return NULL;
 
-	domain->nid = NUMA_NO_NODE;
+	domain->nid = NUMA_ANAL_ANALDE;
 	if (first_level_by_default(type))
 		domain->use_first_level = true;
 	domain->has_iotlb_device = false;
@@ -1686,11 +1686,11 @@ int domain_attach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
 {
 	struct iommu_domain_info *info, *curr;
 	unsigned long ndomains;
-	int num, ret = -ENOSPC;
+	int num, ret = -EANALSPC;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock(&iommu->lock);
 	curr = xa_load(&domain->iommu_array, iommu->seq_id);
@@ -1704,7 +1704,7 @@ int domain_attach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
 	ndomains = cap_ndoms(iommu->cap);
 	num = find_first_zero_bit(iommu->domain_ids, ndomains);
 	if (num >= ndomains) {
-		pr_err("%s: No free domain ids\n", iommu->name);
+		pr_err("%s: Anal free domain ids\n", iommu->name);
 		goto err_unlock;
 	}
 
@@ -1740,7 +1740,7 @@ void domain_detach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
 	if (--info->refcnt == 0) {
 		clear_bit(info->did, iommu->domain_ids);
 		xa_erase(&domain->iommu_array, iommu->seq_id);
-		domain->nid = NUMA_NO_NODE;
+		domain->nid = NUMA_ANAL_ANALDE;
 		domain_update_iommu_cap(domain);
 		kfree(info);
 	}
@@ -1812,7 +1812,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 		bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
 	spin_lock(&iommu->lock);
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	context = iommu_context_addr(iommu, bus, devfn, 1);
 	if (!context)
 		goto out_unlock;
@@ -1823,10 +1823,10 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 
 	/*
 	 * For kdump cases, old valid entries may be cached due to the
-	 * in-flight DMA and copied pgtable, but there is no unmapping
+	 * in-flight DMA and copied pgtable, but there is anal unmapping
 	 * behaviour for them, thus we need an explicit cache flush for
 	 * the newly-mapped device. For kdump, at this point, the device
-	 * is supposed to finish reset at its driver probe stage, so no
+	 * is supposed to finish reset at its driver probe stage, so anal
 	 * in-flight DMA will exist, and we don't need to worry anymore
 	 * hereafter.
 	 */
@@ -1836,7 +1836,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 		if (did_old < cap_ndoms(iommu->cap)) {
 			iommu->flush.flush_context(iommu, did_old,
 						   (((u16)bus) << 8) | devfn,
-						   DMA_CCMD_MASK_NOBIT,
+						   DMA_CCMD_MASK_ANALBIT,
 						   DMA_CCMD_DEVICE_INVL);
 			iommu->flush.flush_iotlb(iommu, did_old, 0, 0,
 						 DMA_TLB_DSI_FLUSH);
@@ -1856,7 +1856,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 				context_pdts(pds);
 
 		/* Setup the RID_PASID field: */
-		context_set_sm_rid2pasid(context, IOMMU_NO_PASID);
+		context_set_sm_rid2pasid(context, IOMMU_ANAL_PASID);
 
 		/*
 		 * Setup the Device-TLB enable bit and Page request
@@ -1880,7 +1880,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 			 * less agaw than default. Unnecessary for PT mode.
 			 */
 			for (agaw = domain->agaw; agaw > iommu->agaw; agaw--) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				pgd = phys_to_virt(dma_pte_addr(pgd));
 				if (!dma_pte_present(pgd))
 					goto out_unlock;
@@ -1897,7 +1897,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 			/*
 			 * In pass through mode, AW must be programmed to
 			 * indicate the largest AGAW value supported by
-			 * hardware. And ASR is ignored by hardware.
+			 * hardware. And ASR is iganalred by hardware.
 			 */
 			context_set_address_width(context, iommu->msagaw);
 		}
@@ -1911,15 +1911,15 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 		clflush_cache_range(context, sizeof(*context));
 
 	/*
-	 * It's a non-present to present mapping. If hardware doesn't cache
-	 * non-present entry we only need to flush the write-buffer. If the
-	 * _does_ cache non-present entries, then it does so in the special
+	 * It's a analn-present to present mapping. If hardware doesn't cache
+	 * analn-present entry we only need to flush the write-buffer. If the
+	 * _does_ cache analn-present entries, then it does so in the special
 	 * domain #0, which we have to flush:
 	 */
 	if (cap_caching_mode(iommu->cap)) {
 		iommu->flush.flush_context(iommu, 0,
 					   (((u16)bus) << 8) | devfn,
-					   DMA_CCMD_MASK_NOBIT,
+					   DMA_CCMD_MASK_ANALBIT,
 					   DMA_CCMD_DEVICE_INVL);
 		iommu->flush.flush_iotlb(iommu, did, 0, 0, DMA_TLB_DSI_FLUSH);
 	} else {
@@ -2090,7 +2090,7 @@ __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 			pte = pfn_to_dma_pte(domain, iov_pfn, &largepage_lvl,
 					     gfp);
 			if (!pte)
-				return -ENOMEM;
+				return -EANALMEM;
 			first_pte = pte;
 
 			lvl_pages = lvl_to_nr_pages(largepage_lvl);
@@ -2110,13 +2110,13 @@ __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 			}
 
 		}
-		/* We don't need lock here, nobody else
+		/* We don't need lock here, analbody else
 		 * touches the iova range
 		 */
 		tmp = cmpxchg64_local(&pte->val, 0ULL, pteval);
 		if (tmp) {
 			static int dumps = 5;
-			pr_crit("ERROR: DMA PTE for vPFN 0x%lx already set (to %llx not %llx)\n",
+			pr_crit("ERROR: DMA PTE for vPFN 0x%lx already set (to %llx analt %llx)\n",
 				iov_pfn, tmp, (unsigned long long)pteval);
 			if (dumps) {
 				dumps--;
@@ -2139,8 +2139,8 @@ __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 		 *
 		 * Also if we've been setting superpages, we may need to
 		 * recalculate 'pte' and switch back to smaller pages for the
-		 * end of the mapping, if the trailing size is not enough to
-		 * use another superpage (i.e. nr_pages < lvl_pages).
+		 * end of the mapping, if the trailing size is analt eanalugh to
+		 * use aanalther superpage (i.e. nr_pages < lvl_pages).
 		 */
 		pte++;
 		if (!nr_pages || first_pte_in_page(pte) ||
@@ -2185,7 +2185,7 @@ static void domain_context_clear_one(struct device_domain_info *info, u8 bus, u8
 	iommu->flush.flush_context(iommu,
 				   did_old,
 				   (((u16)bus) << 8) | devfn,
-				   DMA_CCMD_MASK_NOBIT,
+				   DMA_CCMD_MASK_ANALBIT,
 				   DMA_CCMD_DEVICE_INVL);
 
 	if (sm_supported(iommu))
@@ -2216,7 +2216,7 @@ static int domain_setup_first_level(struct intel_iommu *iommu,
 	for (agaw = domain->agaw; agaw > iommu->agaw; agaw--) {
 		pgd = phys_to_virt(dma_pte_addr(pgd));
 		if (!dma_pte_present(pgd))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	level = agaw_to_level(agaw);
@@ -2226,8 +2226,8 @@ static int domain_setup_first_level(struct intel_iommu *iommu,
 	if (level == 5)
 		flags |= PASID_FLAG_FL5LP;
 
-	if (domain->force_snooping)
-		flags |= PASID_FLAG_PAGE_SNOOP;
+	if (domain->force_sanaloping)
+		flags |= PASID_FLAG_PAGE_SANALOP;
 
 	return intel_pasid_setup_first_level(iommu, dev, (pgd_t *)pgd, pasid,
 					     domain_id_iommu(domain, iommu),
@@ -2276,7 +2276,7 @@ static int __init si_domain_init(int hw)
 	if (hw)
 		return 0;
 
-	for_each_online_node(nid) {
+	for_each_online_analde(nid) {
 		unsigned long start_pfn, end_pfn;
 		int i;
 
@@ -2335,13 +2335,13 @@ static int dmar_domain_attach_device(struct dmar_domain *domain,
 		/* Setup the PASID entry for requests without PASID: */
 		if (hw_pass_through && domain_type_is_si(domain))
 			ret = intel_pasid_setup_pass_through(iommu,
-					dev, IOMMU_NO_PASID);
+					dev, IOMMU_ANAL_PASID);
 		else if (domain->use_first_level)
 			ret = domain_setup_first_level(iommu, domain, dev,
-					IOMMU_NO_PASID);
+					IOMMU_ANAL_PASID);
 		else
 			ret = intel_pasid_setup_second_level(iommu, domain,
-					dev, IOMMU_NO_PASID);
+					dev, IOMMU_ANAL_PASID);
 		if (ret) {
 			dev_err(dev, "Setup RID2PASID failed\n");
 			device_block_translation(dev);
@@ -2364,11 +2364,11 @@ static int dmar_domain_attach_device(struct dmar_domain *domain,
 
 /**
  * device_rmrr_is_relaxable - Test whether the RMRR of this device
- * is relaxable (ie. is allowed to be not enforced under some conditions)
+ * is relaxable (ie. is allowed to be analt enforced under some conditions)
  * @dev: device handle
  *
  * We assume that PCI USB devices with RMRRs have them largely
- * for historical reasons and that the RMRR space is not actively used post
+ * for historical reasons and that the RMRR space is analt actively used post
  * boot.  This exclusion may change if vendors begin to abuse it.
  *
  * The same exception is made for graphics devices, with the requirement that
@@ -2439,7 +2439,7 @@ static void intel_iommu_init_qi(struct intel_iommu *iommu)
 
 	if (dmar_enable_qi(iommu)) {
 		/*
-		 * Queued Invalidate not enabled, use Register Based Invalidate
+		 * Queued Invalidate analt enabled, use Register Based Invalidate
 		 */
 		iommu->flush.flush_context = __iommu_flush_context;
 		iommu->flush.flush_iotlb = __iommu_flush_iotlb;
@@ -2490,7 +2490,7 @@ static int copy_context_table(struct intel_iommu *iommu,
 
 			if (!old_ce_phys) {
 				if (ext && devfn == 0) {
-					/* No LCTP, try UCTP */
+					/* Anal LCTP, try UCTP */
 					devfn = 0x7f;
 					continue;
 				} else {
@@ -2498,20 +2498,20 @@ static int copy_context_table(struct intel_iommu *iommu,
 				}
 			}
 
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			old_ce = memremap(old_ce_phys, PAGE_SIZE,
 					MEMREMAP_WB);
 			if (!old_ce)
 				goto out;
 
-			new_ce = alloc_pgtable_page(iommu->node, GFP_KERNEL);
+			new_ce = alloc_pgtable_page(iommu->analde, GFP_KERNEL);
 			if (!new_ce)
 				goto out_unmap;
 
 			ret = 0;
 		}
 
-		/* Now copy the context entry */
+		/* Analw copy the context entry */
 		memcpy(&ce, old_ce + idx, sizeof(ce));
 
 		if (!context_present(&ce))
@@ -2561,7 +2561,7 @@ static int copy_translation_tables(struct intel_iommu *iommu)
 
 	iommu->copied_tables = bitmap_zalloc(BIT_ULL(16), GFP_KERNEL);
 	if (!iommu->copied_tables)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	old_rt_phys = rtaddr_reg & VTD_PAGE_MASK;
 	if (!old_rt_phys)
@@ -2569,11 +2569,11 @@ static int copy_translation_tables(struct intel_iommu *iommu)
 
 	old_rt = memremap(old_rt_phys, PAGE_SIZE, MEMREMAP_WB);
 	if (!old_rt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* This is too big for the stack - allocate it from slab */
 	ctxt_table_entries = ext ? 512 : 256;
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ctxt_tbls = kcalloc(ctxt_table_entries, sizeof(void *), GFP_KERNEL);
 	if (!ctxt_tbls)
 		goto out_unmap;
@@ -2590,7 +2590,7 @@ static int copy_translation_tables(struct intel_iommu *iommu)
 
 	spin_lock(&iommu->lock);
 
-	/* Context tables are copied, now write them to the root_entry table */
+	/* Context tables are copied, analw write them to the root_entry table */
 	for (bus = 0; bus < 256; bus++) {
 		int idx = ext ? bus * 2 : bus;
 		u64 val;
@@ -2632,14 +2632,14 @@ static int __init init_dmars(void)
 		goto free_iommu;
 
 	for_each_iommu(iommu, drhd) {
-		if (drhd->ignored) {
+		if (drhd->iganalred) {
 			iommu_disable_translation(iommu);
 			continue;
 		}
 
 		/*
 		 * Find the max pasid size of all IOMMU's in the system.
-		 * We need to ensure the system pasid table is no bigger
+		 * We need to ensure the system pasid table is anal bigger
 		 * than the smallest supported.
 		 */
 		if (pasid_supported(iommu)) {
@@ -2660,7 +2660,7 @@ static int __init init_dmars(void)
 		if (translation_pre_enabled(iommu) && !is_kdump_kernel()) {
 			iommu_disable_translation(iommu);
 			clear_translation_pre_enabled(iommu);
-			pr_warn("Translation was enabled for %s but we are not in kdump mode\n",
+			pr_warn("Translation was enabled for %s but we are analt in kdump mode\n",
 				iommu->name);
 		}
 
@@ -2682,7 +2682,7 @@ static int __init init_dmars(void)
 				 * We found the IOMMU with translation
 				 * enabled - but failed to copy over the
 				 * old root-entry table. Try to proceed
-				 * by disabling translation now and
+				 * by disabling translation analw and
 				 * allocating a clean root-entry table.
 				 * This might cause DMAR faults, but
 				 * probably the dump will still succeed.
@@ -2703,7 +2703,7 @@ static int __init init_dmars(void)
 	}
 
 	/*
-	 * Now that qi is enabled on all iommus, set the root entry and flush
+	 * Analw that qi is enabled on all iommus, set the root entry and flush
 	 * caches. This is required on some Intel X58 chipsets, otherwise the
 	 * flush_context function will loop forever and the boot hangs.
 	 */
@@ -2733,7 +2733,7 @@ static int __init init_dmars(void)
 	 *   enable translation
 	 */
 	for_each_iommu(iommu, drhd) {
-		if (drhd->ignored) {
+		if (drhd->iganalred) {
 			/*
 			 * we always have to disable PMRs or DMA may fail on
 			 * this device
@@ -2778,7 +2778,7 @@ free_iommu:
 	return ret;
 }
 
-static void __init init_no_remapping_devices(void)
+static void __init init_anal_remapping_devices(void)
 {
 	struct dmar_drhd_unit *drhd;
 	struct device *dev;
@@ -2789,9 +2789,9 @@ static void __init init_no_remapping_devices(void)
 			for_each_active_dev_scope(drhd->devices,
 						  drhd->devices_cnt, i, dev)
 				break;
-			/* ignore DMAR unit if no devices exist */
+			/* iganalre DMAR unit if anal devices exist */
 			if (i == drhd->devices_cnt)
-				drhd->ignored = 1;
+				drhd->iganalred = 1;
 		}
 	}
 
@@ -2810,7 +2810,7 @@ static void __init init_no_remapping_devices(void)
 		   set the gfx_mapped flag, as appropriate */
 		drhd->gfx_dedicated = 1;
 		if (!dmar_map_gfx)
-			drhd->ignored = 1;
+			drhd->iganalred = 1;
 	}
 }
 
@@ -2830,7 +2830,7 @@ static int init_iommu_hw(void)
 	}
 
 	for_each_iommu(iommu, drhd) {
-		if (drhd->ignored) {
+		if (drhd->iganalred) {
 			/*
 			 * we always have to disable PMRs or DMA may fail on
 			 * this device
@@ -2897,9 +2897,9 @@ static void iommu_resume(void)
 
 	if (init_iommu_hw()) {
 		if (force_on)
-			panic("tboot: IOMMU setup failed, DMAR can not resume!\n");
+			panic("tboot: IOMMU setup failed, DMAR can analt resume!\n");
 		else
-			WARN(1, "IOMMU setup failed, DMAR can not resume!\n");
+			WARN(1, "IOMMU setup failed, DMAR can analt resume!\n");
 		return;
 	}
 
@@ -2983,7 +2983,7 @@ int __init dmar_parse_one_rmrr(struct acpi_dmar_header *header, void *arg)
 free_rmrru:
 	kfree(rmrru);
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct dmar_atsr_unit *dmar_find_atsr(struct acpi_dmar_atsr *atsr)
@@ -3020,7 +3020,7 @@ int dmar_parse_one_atsr(struct acpi_dmar_header *hdr, void *arg)
 
 	atsru = kzalloc(sizeof(*atsru) + hdr->length, GFP_KERNEL);
 	if (!atsru)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * If memory is allocated from slab by ACPI _DSM method, we need to
@@ -3036,7 +3036,7 @@ int dmar_parse_one_atsr(struct acpi_dmar_header *hdr, void *arg)
 				&atsru->devices_cnt);
 		if (atsru->devices_cnt && atsru->devices == NULL) {
 			kfree(atsru);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -3122,7 +3122,7 @@ int dmar_parse_one_satc(struct acpi_dmar_header *hdr, void *arg)
 
 	satcu = kzalloc(sizeof(*satcu) + hdr->length, GFP_KERNEL);
 	if (!satcu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	satcu->hdr = (void *)(satcu + 1);
 	memcpy(satcu->hdr, hdr, hdr->length);
@@ -3132,7 +3132,7 @@ int dmar_parse_one_satc(struct acpi_dmar_header *hdr, void *arg)
 					      &satcu->devices_cnt);
 	if (satcu->devices_cnt && !satcu->devices) {
 		kfree(satcu);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	list_add_rcu(&satcu->list, &dmar_satc_units);
 
@@ -3175,7 +3175,7 @@ static int intel_iommu_add(struct dmar_drhd_unit *dmaru)
 
 	intel_svm_check(iommu);
 
-	if (dmaru->ignored) {
+	if (dmaru->iganalred) {
 		/*
 		 * we always have to disable PMRs or DMA may fail on this device
 		 */
@@ -3295,7 +3295,7 @@ static int dmar_ats_supported(struct pci_dev *dev, struct intel_iommu *iommu)
 		 * This device supports ATS as it is in SATC table.
 		 * When IOMMU is in legacy mode, enabling ATS is done
 		 * automatically by HW for the device that requires
-		 * ATS, hence OS should not enable this device ATS
+		 * ATS, hence OS should analt enable this device ATS
 		 * to avoid duplicated TLB invalidation.
 		 */
 		return !(satcu->atc_required && !sm_supported(iommu));
@@ -3305,7 +3305,7 @@ static int dmar_ats_supported(struct pci_dev *dev, struct intel_iommu *iommu)
 		/* If it's an integrated device, allow ATS */
 		if (!bridge)
 			return 1;
-		/* Connected via non-PCIe: no ATS */
+		/* Connected via analn-PCIe: anal ATS */
 		if (!pci_is_pcie(bridge) ||
 		    pci_pcie_type(bridge) == PCI_EXP_TYPE_PCI_BRIDGE)
 			return 0;
@@ -3334,7 +3334,7 @@ out:
 	return ret;
 }
 
-int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
+int dmar_iommu_analtify_scope_dev(struct dmar_pci_analtify_info *info)
 {
 	int ret;
 	struct dmar_rmrr_unit *rmrru;
@@ -3350,14 +3350,14 @@ int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 	list_for_each_entry(rmrru, &dmar_rmrr_units, list) {
 		rmrr = container_of(rmrru->hdr,
 				    struct acpi_dmar_reserved_memory, header);
-		if (info->event == BUS_NOTIFY_ADD_DEVICE) {
+		if (info->event == BUS_ANALTIFY_ADD_DEVICE) {
 			ret = dmar_insert_dev_scope(info, (void *)(rmrr + 1),
 				((void *)rmrr) + rmrr->header.length,
 				rmrr->segment, rmrru->devices,
 				rmrru->devices_cnt);
 			if (ret < 0)
 				return ret;
-		} else if (info->event == BUS_NOTIFY_REMOVED_DEVICE) {
+		} else if (info->event == BUS_ANALTIFY_REMOVED_DEVICE) {
 			dmar_remove_dev_scope(info, rmrr->segment,
 				rmrru->devices, rmrru->devices_cnt);
 		}
@@ -3368,7 +3368,7 @@ int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 			continue;
 
 		atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
-		if (info->event == BUS_NOTIFY_ADD_DEVICE) {
+		if (info->event == BUS_ANALTIFY_ADD_DEVICE) {
 			ret = dmar_insert_dev_scope(info, (void *)(atsr + 1),
 					(void *)atsr + atsr->header.length,
 					atsr->segment, atsru->devices,
@@ -3377,7 +3377,7 @@ int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 				break;
 			else if (ret < 0)
 				return ret;
-		} else if (info->event == BUS_NOTIFY_REMOVED_DEVICE) {
+		} else if (info->event == BUS_ANALTIFY_REMOVED_DEVICE) {
 			if (dmar_remove_dev_scope(info, atsr->segment,
 					atsru->devices, atsru->devices_cnt))
 				break;
@@ -3385,7 +3385,7 @@ int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 	}
 	list_for_each_entry(satcu, &dmar_satc_units, list) {
 		satc = container_of(satcu->hdr, struct acpi_dmar_satc, header);
-		if (info->event == BUS_NOTIFY_ADD_DEVICE) {
+		if (info->event == BUS_ANALTIFY_ADD_DEVICE) {
 			ret = dmar_insert_dev_scope(info, (void *)(satc + 1),
 					(void *)satc + satc->header.length,
 					satc->segment, satcu->devices,
@@ -3394,7 +3394,7 @@ int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 				break;
 			else if (ret < 0)
 				return ret;
-		} else if (info->event == BUS_NOTIFY_REMOVED_DEVICE) {
+		} else if (info->event == BUS_ANALTIFY_REMOVED_DEVICE) {
 			if (dmar_remove_dev_scope(info, satc->segment,
 					satcu->devices, satcu->devices_cnt))
 				break;
@@ -3404,10 +3404,10 @@ int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 	return 0;
 }
 
-static int intel_iommu_memory_notifier(struct notifier_block *nb,
+static int intel_iommu_memory_analtifier(struct analtifier_block *nb,
 				       unsigned long val, void *v)
 {
-	struct memory_notify *mhp = v;
+	struct memory_analtify *mhp = v;
 	unsigned long start_vpfn = mm_to_dma_pfn_start(mhp->start_pfn);
 	unsigned long last_vpfn = mm_to_dma_pfn_end(mhp->start_pfn +
 			mhp->nr_pages - 1);
@@ -3418,7 +3418,7 @@ static int intel_iommu_memory_notifier(struct notifier_block *nb,
 					      start_vpfn, last_vpfn)) {
 			pr_warn("Failed to build identity map for [%lx-%lx]\n",
 				start_vpfn, last_vpfn);
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 		}
 		break;
 
@@ -3442,11 +3442,11 @@ static int intel_iommu_memory_notifier(struct notifier_block *nb,
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block intel_iommu_memory_nb = {
-	.notifier_call = intel_iommu_memory_notifier,
+static struct analtifier_block intel_iommu_memory_nb = {
+	.analtifier_call = intel_iommu_memory_analtifier,
 	.priority = 0
 };
 
@@ -3464,7 +3464,7 @@ void intel_iommu_shutdown(void)
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu = NULL;
 
-	if (no_iommu || dmar_disabled)
+	if (anal_iommu || dmar_disabled)
 		return;
 
 	down_write(&dmar_global_lock);
@@ -3492,7 +3492,7 @@ static ssize_t version_show(struct device *dev,
 	struct intel_iommu *iommu = dev_to_intel_iommu(dev);
 	u32 ver = readl(iommu->reg + DMAR_VER_REG);
 	return sysfs_emit(buf, "%d:%d\n",
-			  DMAR_VER_MAJOR(ver), DMAR_VER_MINOR(ver));
+			  DMAR_VER_MAJOR(ver), DMAR_VER_MIANALR(ver));
 }
 static DEVICE_ATTR_RO(version);
 
@@ -3573,10 +3573,10 @@ static bool has_external_pci(void)
 
 static int __init platform_optin_force_iommu(void)
 {
-	if (!dmar_platform_optin() || no_platform_optin || !has_external_pci())
+	if (!dmar_platform_optin() || anal_platform_optin || !has_external_pci())
 		return 0;
 
-	if (no_iommu || dmar_disabled)
+	if (anal_iommu || dmar_disabled)
 		pr_info("Intel-IOMMU force enabled due to platform opt in\n");
 
 	/*
@@ -3587,7 +3587,7 @@ static int __init platform_optin_force_iommu(void)
 		iommu_set_default_passthrough(false);
 
 	dmar_disabled = 0;
-	no_iommu = 0;
+	anal_iommu = 0;
 
 	return 1;
 }
@@ -3603,21 +3603,21 @@ static int __init probe_acpi_namespace_devices(void)
 	for_each_active_iommu(iommu, drhd) {
 		for_each_active_dev_scope(drhd->devices,
 					  drhd->devices_cnt, i, dev) {
-			struct acpi_device_physical_node *pn;
+			struct acpi_device_physical_analde *pn;
 			struct acpi_device *adev;
 
 			if (dev->bus != &acpi_bus_type)
 				continue;
 
 			adev = to_acpi_device(dev);
-			mutex_lock(&adev->physical_node_lock);
+			mutex_lock(&adev->physical_analde_lock);
 			list_for_each_entry(pn,
-					    &adev->physical_node_list, node) {
+					    &adev->physical_analde_list, analde) {
 				ret = iommu_probe_device(pn->dev);
 				if (ret)
 					break;
 			}
-			mutex_unlock(&adev->physical_node_lock);
+			mutex_unlock(&adev->physical_analde_lock);
 
 			if (ret)
 				return ret;
@@ -3632,18 +3632,18 @@ static __init int tboot_force_iommu(void)
 	if (!tboot_enabled())
 		return 0;
 
-	if (no_iommu || dmar_disabled)
+	if (anal_iommu || dmar_disabled)
 		pr_warn("Forcing Intel-IOMMU to enabled\n");
 
 	dmar_disabled = 0;
-	no_iommu = 0;
+	anal_iommu = 0;
 
 	return 1;
 }
 
 int __init intel_iommu_init(void)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu;
 
@@ -3651,7 +3651,7 @@ int __init intel_iommu_init(void)
 	 * Intel IOMMU is required for a TXT/tboot launch or platform
 	 * opt in, so enforce that.
 	 */
-	force_on = (!intel_iommu_tboot_noforce && tboot_force_iommu()) ||
+	force_on = (!intel_iommu_tboot_analforce && tboot_force_iommu()) ||
 		    platform_optin_force_iommu();
 
 	down_write(&dmar_global_lock);
@@ -3670,17 +3670,17 @@ int __init intel_iommu_init(void)
 	up_write(&dmar_global_lock);
 
 	/*
-	 * The bus notifier takes the dmar_global_lock, so lockdep will
+	 * The bus analtifier takes the dmar_global_lock, so lockdep will
 	 * complain later when we register it under the lock.
 	 */
-	dmar_register_bus_notifier();
+	dmar_register_bus_analtifier();
 
 	down_write(&dmar_global_lock);
 
-	if (!no_iommu)
+	if (!anal_iommu)
 		intel_iommu_debugfs_init();
 
-	if (no_iommu || dmar_disabled) {
+	if (anal_iommu || dmar_disabled) {
 		/*
 		 * We exit the function here to ensure IOMMU's remapping and
 		 * mempool aren't setup, which means that the IOMMU's PMRs
@@ -3689,7 +3689,7 @@ int __init intel_iommu_init(void)
 		 * calling SENTER, but the kernel is expected to reset/tear
 		 * down the PMRs.
 		 */
-		if (intel_iommu_tboot_noforce) {
+		if (intel_iommu_tboot_analforce) {
 			for_each_iommu(iommu, drhd)
 				iommu_disable_protect_mem_regions(iommu);
 		}
@@ -3704,15 +3704,15 @@ int __init intel_iommu_init(void)
 	}
 
 	if (list_empty(&dmar_rmrr_units))
-		pr_info("No RMRR found\n");
+		pr_info("Anal RMRR found\n");
 
 	if (list_empty(&dmar_atsr_units))
-		pr_info("No ATSR found\n");
+		pr_info("Anal ATSR found\n");
 
 	if (list_empty(&dmar_satc_units))
-		pr_info("No SATC found\n");
+		pr_info("Anal SATC found\n");
 
-	init_no_remapping_devices();
+	init_anal_remapping_devices();
 
 	ret = init_dmars();
 	if (ret) {
@@ -3728,7 +3728,7 @@ int __init intel_iommu_init(void)
 	down_read(&dmar_global_lock);
 	for_each_active_iommu(iommu, drhd) {
 		/*
-		 * The flush queue implementation does not perform
+		 * The flush queue implementation does analt perform
 		 * page-selective invalidations that are required for efficient
 		 * TLB flushes in virtual environments.  The benefit of batching
 		 * is likely to be much lower than the overhead of synchronizing
@@ -3749,7 +3749,7 @@ int __init intel_iommu_init(void)
 	up_read(&dmar_global_lock);
 
 	if (si_domain && !hw_pass_through)
-		register_memory_notifier(&intel_iommu_memory_nb);
+		register_memory_analtifier(&intel_iommu_memory_nb);
 
 	down_read(&dmar_global_lock);
 	if (probe_acpi_namespace_devices())
@@ -3757,14 +3757,14 @@ int __init intel_iommu_init(void)
 
 	/* Finally, we enable the DMA remapping hardware. */
 	for_each_iommu(iommu, drhd) {
-		if (!drhd->ignored && !translation_pre_enabled(iommu))
+		if (!drhd->iganalred && !translation_pre_enabled(iommu))
 			iommu_enable_translation(iommu);
 
 		iommu_disable_protect_mem_regions(iommu);
 	}
 	up_read(&dmar_global_lock);
 
-	pr_info("Intel(R) Virtualization Technology for Directed I/O\n");
+	pr_info("Intel(R) Virtualization Techanallogy for Directed I/O\n");
 
 	intel_iommu_enabled = 1;
 
@@ -3809,7 +3809,7 @@ static void dmar_remove_one_dev_info(struct device *dev)
 	if (!dev_is_real_dma_subdevice(info->dev)) {
 		if (dev_is_pci(info->dev) && sm_supported(iommu))
 			intel_pasid_tear_down_entry(iommu, info->dev,
-					IOMMU_NO_PASID, false);
+					IOMMU_ANAL_PASID, false);
 
 		iommu_disable_pci_caps(info);
 		domain_context_clear(info);
@@ -3838,7 +3838,7 @@ void device_block_translation(struct device *dev)
 	if (!dev_is_real_dma_subdevice(dev)) {
 		if (sm_supported(iommu))
 			intel_pasid_tear_down_entry(iommu, dev,
-						    IOMMU_NO_PASID, false);
+						    IOMMU_ANAL_PASID, false);
 		else
 			domain_context_clear(info);
 	}
@@ -3870,7 +3870,7 @@ static int md_domain_init(struct dmar_domain *domain, int guest_width)
 	/* always allocate the top pgd */
 	domain->pgd = alloc_pgtable_page(domain->nid, GFP_ATOMIC);
 	if (!domain->pgd)
-		return -ENOMEM;
+		return -EANALMEM;
 	domain_flush_cache(domain, domain->pgd, PAGE_SIZE);
 	return 0;
 }
@@ -3941,17 +3941,17 @@ intel_iommu_domain_alloc_user(struct device *dev, u32 flags,
 	/* Must be NESTING domain */
 	if (parent) {
 		if (!nested_supported(iommu) || flags)
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
 		return intel_nested_domain_alloc(parent, user_data);
 	}
 
 	if (flags &
 	    (~(IOMMU_HWPT_ALLOC_NEST_PARENT | IOMMU_HWPT_ALLOC_DIRTY_TRACKING)))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	if (nested_parent && !nested_supported(iommu))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	if (user_data || (dirty_tracking && !ssads_supported(iommu)))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	/*
 	 * domain_alloc_user op needs to fully initialize a domain before
@@ -3959,7 +3959,7 @@ intel_iommu_domain_alloc_user(struct device *dev, u32 flags,
 	 */
 	domain = iommu_domain_alloc(dev->bus);
 	if (!domain)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dmar_domain = to_dmar_domain(domain);
 
@@ -3972,7 +3972,7 @@ intel_iommu_domain_alloc_user(struct device *dev, u32 flags,
 	if (dirty_tracking) {
 		if (dmar_domain->use_first_level) {
 			iommu_domain_free(domain);
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
 		}
 		domain->dirty_ops = &intel_dirty_ops;
 	}
@@ -3998,7 +3998,7 @@ int prepare_domain_attach_device(struct iommu_domain *domain,
 	struct intel_iommu *iommu = info->iommu;
 	int addr_width;
 
-	if (dmar_domain->force_snooping && !ecap_sc_support(iommu->ecap))
+	if (dmar_domain->force_sanaloping && !ecap_sc_support(iommu->ecap))
 		return -EINVAL;
 
 	if (domain->dirty_ops && !ssads_supported(iommu))
@@ -4014,7 +4014,7 @@ int prepare_domain_attach_device(struct iommu_domain *domain,
 	dmar_domain->gaw = addr_width;
 
 	/*
-	 * Knock out extra levels of page tables if necessary
+	 * Kanalck out extra levels of page tables if necessary
 	 */
 	while (iommu->agaw < dmar_domain->agaw) {
 		struct dma_pte *pte;
@@ -4068,7 +4068,7 @@ static int intel_iommu_map(struct iommu_domain *domain,
 		/* check if minimum agaw is sufficient for mapped address */
 		end = __DOMAIN_MAX_ADDR(dmar_domain->gaw) + 1;
 		if (end < max_addr) {
-			pr_err("%s: iommu width (%d) is not "
+			pr_err("%s: iommu width (%d) is analt "
 			       "sufficient for the mapped address (%llx)\n",
 			       __func__, dmar_domain->gaw, max_addr);
 			return -EFAULT;
@@ -4130,8 +4130,8 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
 		dmar_domain->max_addr = iova;
 
 	/*
-	 * We do not use page-selective IOTLB invalidation in flush queue,
-	 * so there is no need to track page and sync iotlb.
+	 * We do analt use page-selective IOTLB invalidation in flush queue,
+	 * so there is anal need to track page and sync iotlb.
 	 */
 	if (!iommu_iotlb_gather_queued(gather))
 		iommu_iotlb_gather_add_page(domain, gather, iova, size);
@@ -4193,7 +4193,7 @@ static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,
 	return phys;
 }
 
-static bool domain_support_force_snooping(struct dmar_domain *domain)
+static bool domain_support_force_sanaloping(struct dmar_domain *domain)
 {
 	struct device_domain_info *info;
 	bool support = true;
@@ -4209,13 +4209,13 @@ static bool domain_support_force_snooping(struct dmar_domain *domain)
 	return support;
 }
 
-static void domain_set_force_snooping(struct dmar_domain *domain)
+static void domain_set_force_sanaloping(struct dmar_domain *domain)
 {
 	struct device_domain_info *info;
 
 	assert_spin_locked(&domain->lock);
 	/*
-	 * Second level page table supports per-PTE snoop control. The
+	 * Second level page table supports per-PTE sanalop control. The
 	 * iommu_map() interface will handle this by setting SNP bit.
 	 */
 	if (!domain->use_first_level) {
@@ -4224,8 +4224,8 @@ static void domain_set_force_snooping(struct dmar_domain *domain)
 	}
 
 	list_for_each_entry(info, &domain->devices, link)
-		intel_pasid_setup_page_snoop_control(info->iommu, info->dev,
-						     IOMMU_NO_PASID);
+		intel_pasid_setup_page_sanalop_control(info->iommu, info->dev,
+						     IOMMU_ANAL_PASID);
 }
 
 static bool intel_iommu_enforce_cache_coherency(struct iommu_domain *domain)
@@ -4233,18 +4233,18 @@ static bool intel_iommu_enforce_cache_coherency(struct iommu_domain *domain)
 	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
 	unsigned long flags;
 
-	if (dmar_domain->force_snooping)
+	if (dmar_domain->force_sanaloping)
 		return true;
 
 	spin_lock_irqsave(&dmar_domain->lock, flags);
-	if (!domain_support_force_snooping(dmar_domain) ||
+	if (!domain_support_force_sanaloping(dmar_domain) ||
 	    (!dmar_domain->use_first_level && dmar_domain->has_mappings)) {
 		spin_unlock_irqrestore(&dmar_domain->lock, flags);
 		return false;
 	}
 
-	domain_set_force_snooping(dmar_domain);
-	dmar_domain->force_snooping = true;
+	domain_set_force_sanaloping(dmar_domain);
+	dmar_domain->force_sanaloping = true;
 	spin_unlock_irqrestore(&dmar_domain->lock, flags);
 
 	return true;
@@ -4279,11 +4279,11 @@ static struct iommu_device *intel_iommu_probe_device(struct device *dev)
 
 	iommu = device_lookup_iommu(dev, &bus, &devfn);
 	if (!iommu || !iommu->iommu.ops)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (dev_is_real_dma_subdevice(dev)) {
 		info->bus = pdev->bus->number;
@@ -4308,7 +4308,7 @@ static struct iommu_device *intel_iommu_probe_device(struct device *dev)
 			 * For IOMMU that supports device IOTLB throttling
 			 * (DIT), we assign PFSID to the invalidation desc
 			 * of a VF such that IOMMU HW can gauge queue depth
-			 * at PF level. If DIT is not set, PFSID will be
+			 * at PF level. If DIT is analt set, PFSID will be
 			 * treated as reserved, which should be set to 0.
 			 */
 			if (ecap_dit(iommu->ecap))
@@ -4441,16 +4441,16 @@ static int intel_iommu_enable_sva(struct device *dev)
 		return -EINVAL;
 
 	if (!(iommu->flags & VTD_FLAG_SVM_CAPABLE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!info->pasid_enabled || !info->ats_enabled)
 		return -EINVAL;
 
 	/*
-	 * Devices having device-specific I/O fault handling should not
-	 * support PCI/PRI. The IOMMU side has no means to check the
+	 * Devices having device-specific I/O fault handling should analt
+	 * support PCI/PRI. The IOMMU side has anal means to check the
 	 * capability of device-specific IOPF.  Therefore, IOMMU can only
-	 * default that if the device driver enables SVA on a non-PRI
+	 * default that if the device driver enables SVA on a analn-PRI
 	 * device, it will handle IOPF in its own way.
 	 */
 	if (!info->pri_supported)
@@ -4471,7 +4471,7 @@ static int intel_iommu_enable_iopf(struct device *dev)
 	int ret;
 
 	if (!pdev || !info || !info->ats_enabled || !info->pri_supported)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (info->pri_enabled)
 		return -EBUSY;
@@ -4521,7 +4521,7 @@ static int intel_iommu_disable_iopf(struct device *dev)
 
 	/*
 	 * PCIe spec states that by clearing PRI enable bit, the Page
-	 * Request Interface will not issue new page requests, but has
+	 * Request Interface will analt issue new page requests, but has
 	 * outstanding page requests that have been transmitted or are
 	 * queued for transmission. This is supposed to be called after
 	 * the device driver has stopped DMA, all PASIDs have been
@@ -4552,7 +4552,7 @@ intel_iommu_dev_enable_feat(struct device *dev, enum iommu_dev_features feat)
 		return intel_iommu_enable_sva(dev);
 
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 
@@ -4567,7 +4567,7 @@ intel_iommu_dev_disable_feat(struct device *dev, enum iommu_dev_features feat)
 		return 0;
 
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 
@@ -4579,9 +4579,9 @@ static bool intel_iommu_is_attach_deferred(struct device *dev)
 }
 
 /*
- * Check that the device does not live on an external facing PCI port that is
- * marked as untrusted. Such devices should not be able to apply quirks and
- * thus not be able to bypass the IOMMU restrictions.
+ * Check that the device does analt live on an external facing PCI port that is
+ * marked as untrusted. Such devices should analt be able to apply quirks and
+ * thus analt be able to bypass the IOMMU restrictions.
  */
 static bool risky_device(struct pci_dev *pdev)
 {
@@ -4605,7 +4605,7 @@ static int intel_iommu_iotlb_sync_map(struct iommu_domain *domain,
 	unsigned long i;
 
 	xa_for_each(&dmar_domain->iommu_array, i, info)
-		__mapping_notify_one(info->iommu, dmar_domain, pfn, pages);
+		__mapping_analtify_one(info->iommu, dmar_domain, pfn, pages);
 	return 0;
 }
 
@@ -4624,7 +4624,7 @@ static void intel_iommu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
 
 	/*
 	 * The SVA implementation needs to handle its own stuffs like the mm
-	 * notification. Before consolidating that code into iommu core, let
+	 * analtification. Before consolidating that code into iommu core, let
 	 * the intel sva code handle it.
 	 */
 	if (domain->type == IOMMU_DOMAIN_SVA) {
@@ -4663,7 +4663,7 @@ static int intel_iommu_set_dev_pasid(struct iommu_domain *domain,
 	int ret;
 
 	if (!pasid_supported(iommu) || dev_is_real_dma_subdevice(dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (domain->dirty_ops)
 		return -EINVAL;
@@ -4677,7 +4677,7 @@ static int intel_iommu_set_dev_pasid(struct iommu_domain *domain,
 
 	dev_pasid = kzalloc(sizeof(*dev_pasid), GFP_KERNEL);
 	if (!dev_pasid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = domain_attach_iommu(dmar_domain, iommu);
 	if (ret)
@@ -4719,7 +4719,7 @@ static void *intel_iommu_hw_info(struct device *dev, u32 *length, u32 *type)
 
 	vtd = kzalloc(sizeof(*vtd), GFP_KERNEL);
 	if (!vtd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vtd->flags = IOMMU_HW_INFO_VTD_ERRATA_772415_SPR17;
 	vtd->cap_reg = iommu->cap;
@@ -4740,7 +4740,7 @@ static int device_set_dirty_tracking(struct list_head *devices, bool enable)
 
 	list_for_each_entry(info, devices, link) {
 		ret = intel_pasid_setup_dirty_tracking(info->iommu, info->dev,
-						       IOMMU_NO_PASID, enable);
+						       IOMMU_ANAL_PASID, enable);
 		if (ret)
 			break;
 	}
@@ -4954,7 +4954,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2e90, quirk_iommu_rwbf);
 
 #define GGC 0x52
 #define GGC_MEMORY_SIZE_MASK	(0xf << 8)
-#define GGC_MEMORY_SIZE_NONE	(0x0 << 8)
+#define GGC_MEMORY_SIZE_ANALNE	(0x0 << 8)
 #define GGC_MEMORY_SIZE_1M	(0x1 << 8)
 #define GGC_MEMORY_SIZE_2M	(0x3 << 8)
 #define GGC_MEMORY_VT_ENABLED	(0x8 << 8)
@@ -4962,7 +4962,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2e90, quirk_iommu_rwbf);
 #define GGC_MEMORY_SIZE_3M_VT	(0xa << 8)
 #define GGC_MEMORY_SIZE_4M_VT	(0xb << 8)
 
-static void quirk_calpella_no_shadow_gtt(struct pci_dev *dev)
+static void quirk_calpella_anal_shadow_gtt(struct pci_dev *dev)
 {
 	unsigned short ggc;
 
@@ -4973,7 +4973,7 @@ static void quirk_calpella_no_shadow_gtt(struct pci_dev *dev)
 		return;
 
 	if (!(ggc & GGC_MEMORY_VT_ENABLED)) {
-		pci_info(dev, "BIOS has allocated no shadow GTT; disabling IOMMU for graphics\n");
+		pci_info(dev, "BIOS has allocated anal shadow GTT; disabling IOMMU for graphics\n");
 		dmar_map_gfx = 0;
 	} else if (dmar_map_gfx) {
 		/* we have to ensure the gfx device is idle before we flush */
@@ -4981,10 +4981,10 @@ static void quirk_calpella_no_shadow_gtt(struct pci_dev *dev)
 		iommu_set_dma_strict();
 	}
 }
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x0040, quirk_calpella_no_shadow_gtt);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x0044, quirk_calpella_no_shadow_gtt);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x0062, quirk_calpella_no_shadow_gtt);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x006a, quirk_calpella_no_shadow_gtt);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x0040, quirk_calpella_anal_shadow_gtt);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x0044, quirk_calpella_anal_shadow_gtt);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x0062, quirk_calpella_anal_shadow_gtt);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x006a, quirk_calpella_anal_shadow_gtt);
 
 static void quirk_igfx_skip_te_disable(struct pci_dev *dev)
 {
@@ -5007,11 +5007,11 @@ static void quirk_igfx_skip_te_disable(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_ANY_ID, quirk_igfx_skip_te_disable);
 
-/* On Tylersburg chipsets, some BIOSes have been known to enable the
-   ISOCH DMAR unit for the Azalia sound device, but not give it any
+/* On Tylersburg chipsets, some BIOSes have been kanalwn to enable the
+   ISOCH DMAR unit for the Azalia sound device, but analt give it any
    TLB entries, which causes it to deadlock. Check for that.  We do
    this in a function called from init_dmars(), instead of in a PCI
-   quirk, because we don't want to print the obnoxious "BIOS broken"
+   quirk, because we don't want to print the obanalxious "BIOS broken"
    message if VT-d is actually disabled.
 */
 static void __init check_tylersburg_isoch(void)
@@ -5019,7 +5019,7 @@ static void __init check_tylersburg_isoch(void)
 	struct pci_dev *pdev;
 	uint32_t vtisochctrl;
 
-	/* If there's no Azalia in the system anyway, forget it. */
+	/* If there's anal Azalia in the system anyway, forget it. */
 	pdev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x3a3e, NULL);
 	if (!pdev)
 		return;
@@ -5033,7 +5033,7 @@ static void __init check_tylersburg_isoch(void)
 
 	/* System Management Registers. Might be hidden, in which case
 	   we can't do the sanity check. But that's OK, because the
-	   known-broken BIOSes _don't_ actually hide it, so far. */
+	   kanalwn-broken BIOSes _don't_ actually hide it, so far. */
 	pdev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x342e, NULL);
 	if (!pdev)
 		return;
@@ -5050,7 +5050,7 @@ static void __init check_tylersburg_isoch(void)
 
 	pci_dev_put(pdev);
 
-	/* If Azalia DMA is routed to the non-isoch DMAR unit, fine. */
+	/* If Azalia DMA is routed to the analn-isoch DMAR unit, fine. */
 	if (vtisochctrl & 1)
 		return;
 
@@ -5063,7 +5063,7 @@ static void __init check_tylersburg_isoch(void)
 
 	/* Zero TLB entries? You get to ride the short bus to school. */
 	if (!vtisochctrl) {
-		WARN(1, "Your BIOS is broken; DMA routed to ISOCH DMAR unit but no TLB space.\n"
+		WARN(1, "Your BIOS is broken; DMA routed to ISOCH DMAR unit but anal TLB space.\n"
 		     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
 		     dmi_get_system_info(DMI_BIOS_VENDOR),
 		     dmi_get_system_info(DMI_BIOS_VERSION),
@@ -5081,8 +5081,8 @@ static void __init check_tylersburg_isoch(void)
  * invalidation completion before posted writes initiated with translated address
  * that utilized translations matching the invalidation address range, violating
  * the invalidation completion ordering.
- * Therefore, any use cases that cannot guarantee DMA is stopped before unmap is
- * vulnerable to this defect. In other words, any dTLB invalidation initiated not
+ * Therefore, any use cases that cananalt guarantee DMA is stopped before unmap is
+ * vulnerable to this defect. In other words, any dTLB invalidation initiated analt
  * under the control of the trusted/privileged host device driver must use this
  * quirk.
  * Device TLBs are invalidated under the following six conditions:
@@ -5090,15 +5090,15 @@ static void __init check_tylersburg_isoch(void)
  * 2. Device driver unbind a PASID from a process, sva_unbind_device()
  * 3. PASID is torn down, after PASID cache is flushed. e.g. process
  *    exit_mmap() due to crash
- * 4. Under SVA usage, called by mmu_notifier.invalidate_range() where
+ * 4. Under SVA usage, called by mmu_analtifier.invalidate_range() where
  *    VM has to free pages that were unmapped
  * 5. Userspace driver unmaps a DMA buffer
  * 6. Cache invalidation in vSVA usage (upcoming)
  *
  * For #1 and #2, device drivers are responsible for stopping DMA traffic
- * before unmap/unbind. For #3, iommu driver gets mmu_notifier to
- * invalidate TLB the same way as normal user unmap which will use this quirk.
- * The dTLB invalidation after PASID cache flush does not need this quirk.
+ * before unmap/unbind. For #3, iommu driver gets mmu_analtifier to
+ * invalidate TLB the same way as analrmal user unmap which will use this quirk.
+ * The dTLB invalidation after PASID cache flush does analt need this quirk.
  *
  * As a reminder, #6 will *NEED* this quirk as we enable nested translation.
  */
@@ -5112,7 +5112,7 @@ void quirk_extra_dev_tlb_flush(struct device_domain_info *info,
 		return;
 
 	sid = PCI_DEVID(info->bus, info->devfn);
-	if (pasid == IOMMU_NO_PASID) {
+	if (pasid == IOMMU_ANAL_PASID) {
 		qi_flush_dev_iotlb(info->iommu, sid, info->pfsid,
 				   qdep, address, mask);
 	} else {
@@ -5126,14 +5126,14 @@ void quirk_extra_dev_tlb_flush(struct device_domain_info *info,
 /*
  * Function to submit a command to the enhanced command interface. The
  * valid enhanced command descriptions are defined in Table 47 of the
- * VT-d spec. The VT-d hardware implementation may support some but not
+ * VT-d spec. The VT-d hardware implementation may support some but analt
  * all commands, which can be determined by checking the Enhanced
  * Command Capability Register.
  *
  * Return values:
  *  - 0: Command successful without any error;
  *  - Negative: software error value;
- *  - Nonzero positive: failure status code defined in Table 48.
+ *  - Analnzero positive: failure status code defined in Table 48.
  */
 int ecmd_submit_sync(struct intel_iommu *iommu, u8 ecmd, u64 oa, u64 ob)
 {
@@ -5142,7 +5142,7 @@ int ecmd_submit_sync(struct intel_iommu *iommu, u8 ecmd, u64 oa, u64 ob)
 	int ret;
 
 	if (!cap_ecmds(iommu->cap))
-		return -ENODEV;
+		return -EANALDEV;
 
 	raw_spin_lock_irqsave(&iommu->register_lock, flags);
 
@@ -5154,9 +5154,9 @@ int ecmd_submit_sync(struct intel_iommu *iommu, u8 ecmd, u64 oa, u64 ob)
 
 	/*
 	 * Unconditionally write the operand B, because
-	 * - There is no side effect if an ecmd doesn't require an
+	 * - There is anal side effect if an ecmd doesn't require an
 	 *   operand B, but we set the register to some value.
-	 * - It's not invoked in any critical path. The extra MMIO
+	 * - It's analt invoked in any critical path. The extra MMIO
 	 *   write doesn't bring any performance concerns.
 	 */
 	dmar_writeq(iommu->reg + DMAR_ECEO_REG, ob);

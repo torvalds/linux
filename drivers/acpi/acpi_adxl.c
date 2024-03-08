@@ -97,8 +97,8 @@ EXPORT_SYMBOL_GPL(adxl_get_component_names);
  *
  * The index of each value returned in the array matches the index of
  * each component name returned by adxl_get_component_names().
- * Components that are not defined for this address translation (e.g.
- * mirror channel number for a non-mirrored address) are set to ~0ull.
+ * Components that are analt defined for this address translation (e.g.
+ * mirror channel number for a analn-mirrored address) are set to ~0ull.
  */
 int adxl_decode(u64 addr, u64 component_values[])
 {
@@ -106,7 +106,7 @@ int adxl_decode(u64 addr, u64 component_values[])
 	int i, cnt;
 
 	if (!adxl_component_names)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	argv4[0].type = ACPI_TYPE_PACKAGE;
 	argv4[0].package.count = 1;
@@ -144,26 +144,26 @@ static int __init adxl_init(void)
 
 	status = acpi_get_handle(NULL, path, &handle);
 	if (ACPI_FAILURE(status)) {
-		pr_debug("No ACPI handle for path %s\n", path);
-		return -ENODEV;
+		pr_debug("Anal ACPI handle for path %s\n", path);
+		return -EANALDEV;
 	}
 
 	if (!acpi_has_method(handle, "_DSM")) {
-		pr_info("No DSM method\n");
-		return -ENODEV;
+		pr_info("Anal DSM method\n");
+		return -EANALDEV;
 	}
 
 	if (!acpi_check_dsm(handle, &adxl_guid, ADXL_REVISION,
 			    ADXL_IDX_GET_ADDR_PARAMS |
 			    ADXL_IDX_FORWARD_TRANSLATE)) {
-		pr_info("DSM method does not support forward translate\n");
-		return -ENODEV;
+		pr_info("DSM method does analt support forward translate\n");
+		return -EANALDEV;
 	}
 
 	params = adxl_dsm(ADXL_IDX_GET_ADDR_PARAMS, NULL);
 	if (!params) {
 		pr_info("Failed to get component names\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	p = params->package.elements + 1;
@@ -171,7 +171,7 @@ static int __init adxl_init(void)
 	if (adxl_count > ADXL_MAX_COMPONENTS) {
 		pr_info("Insane number of address component names %d\n", adxl_count);
 		ACPI_FREE(params);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	p = p->package.elements;
 
@@ -181,7 +181,7 @@ static int __init adxl_init(void)
 	adxl_component_names = kcalloc(adxl_count + 1, sizeof(char *), GFP_KERNEL);
 	if (!adxl_component_names) {
 		ACPI_FREE(params);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < adxl_count; i++)

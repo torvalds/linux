@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -43,7 +43,7 @@
 
 /**
  * apply_front_porch_workaround() - This is a workaround for a bug that has
- *                                  existed since R5xx and has not been fixed
+ *                                  existed since R5xx and has analt been fixed
  *                                  keep Front porch at minimum 2 for Interlaced
  *                                  mode or 1 for progressive.
  *
@@ -168,7 +168,7 @@ void optc1_program_timing(
 	uint32_t h_sync_polarity, v_sync_polarity;
 	uint32_t start_point = 0;
 	uint32_t field_num = 0;
-	enum h_timing_div_mode h_div = H_TIMING_NO_DIV;
+	enum h_timing_div_mode h_div = H_TIMING_ANAL_DIV;
 
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -328,7 +328,7 @@ void optc1_program_timing(
  *
  * @optc: timing_generator struct used to extract the optc parameters
  * @dc_crtc_timing: Timing parameters configured
- * @program_fp2: Boolean value indicating if FP2 will be programmed or not
+ * @program_fp2: Boolean value indicating if FP2 will be programmed or analt
  *
  * OTG is responsible for generating the global sync signals, including
  * vertical timing information for each HUBP in the dcfclk domain. Each VTG is
@@ -429,7 +429,7 @@ static void optc1_unblank_crtc(struct timing_generator *optc)
 	 * Automated testing will fail underflow test as there
 	 * sporadic underflows which occur during the optc blank
 	 * sequence.  As a w/a, clear underflow on unblank.
-	 * This prevents the failure, but will not mask actual
+	 * This prevents the failure, but will analt mask actual
 	 * underflow that affect real use cases.
 	 */
 	optc1_clear_optc_underflow(optc);
@@ -600,7 +600,7 @@ bool optc1_validate_timing(
 		timing->h_border_right -
 		timing->h_border_left);
 
-	if (timing->timing_3d_format != TIMING_3D_FORMAT_NONE &&
+	if (timing->timing_3d_format != TIMING_3D_FORMAT_ANALNE &&
 		timing->timing_3d_format != TIMING_3D_FORMAT_HW_FRAME_PACKING &&
 		timing->timing_3d_format != TIMING_3D_FORMAT_TOP_AND_BOTTOM &&
 		timing->timing_3d_format != TIMING_3D_FORMAT_SIDE_BY_SIDE &&
@@ -698,8 +698,8 @@ void optc1_get_position(struct timing_generator *optc,
 			OTG_HORZ_COUNT, &position->horizontal_count,
 			OTG_VERT_COUNT, &position->vertical_count);
 
-	REG_GET(OTG_NOM_VERT_POSITION,
-			OTG_VERT_COUNT_NOM, &position->nominal_vcount);
+	REG_GET(OTG_ANALM_VERT_POSITION,
+			OTG_VERT_COUNT_ANALM, &position->analminal_vcount);
 }
 
 bool optc1_is_counter_moving(struct timing_generator *optc)
@@ -722,8 +722,8 @@ bool optc1_did_triggered_reset_occur(
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 	uint32_t occurred_force, occurred_vsync;
 
-	REG_GET(OTG_FORCE_COUNT_NOW_CNTL,
-		OTG_FORCE_COUNT_NOW_OCCURRED, &occurred_force);
+	REG_GET(OTG_FORCE_COUNT_ANALW_CNTL,
+		OTG_FORCE_COUNT_ANALW_OCCURRED, &occurred_force);
 
 	REG_GET(OTG_VERT_SYNC_CONTROL,
 		OTG_FORCE_VSYNC_NEXT_LINE_OCCURRED, &occurred_vsync);
@@ -737,8 +737,8 @@ void optc1_disable_reset_trigger(struct timing_generator *optc)
 
 	REG_WRITE(OTG_TRIGA_CNTL, 0);
 
-	REG_SET(OTG_FORCE_COUNT_NOW_CNTL, 0,
-		OTG_FORCE_COUNT_NOW_CLEAR, 1);
+	REG_SET(OTG_FORCE_COUNT_ANALW_CNTL, 0,
+		OTG_FORCE_COUNT_ANALW_CLEAR, 1);
 
 	REG_SET(OTG_VERT_SYNC_CONTROL, 0,
 		OTG_FORCE_VSYNC_NEXT_LINE_CLEAR, 1);
@@ -771,11 +771,11 @@ void optc1_enable_reset_trigger(struct timing_generator *optc, int source_tg_ins
 				/* always detect rising edge */
 				OTG_TRIGA_RISING_EDGE_DETECT_CNTL, 1);
 
-	REG_SET(OTG_FORCE_COUNT_NOW_CNTL, 0,
+	REG_SET(OTG_FORCE_COUNT_ANALW_CNTL, 0,
 			/* force H count to H_TOTAL and V count to V_TOTAL in
 			 * progressive mode and V_TOTAL-1 in interlaced mode
 			 */
-			OTG_FORCE_COUNT_NOW_MODE, 2);
+			OTG_FORCE_COUNT_ANALW_MODE, 2);
 }
 
 void optc1_enable_crtc_reset(
@@ -814,11 +814,11 @@ void optc1_enable_crtc_reset(
 				OTG_AUTO_FORCE_VSYNC_MODE, 1);
 		break;
 	case TRIGGER_DELAY_NEXT_PIXEL:
-		REG_SET(OTG_FORCE_COUNT_NOW_CNTL, 0,
+		REG_SET(OTG_FORCE_COUNT_ANALW_CNTL, 0,
 			/* force H count to H_TOTAL and V count to V_TOTAL in
 			 * progressive mode and V_TOTAL-1 in interlaced mode
 			 */
-			OTG_FORCE_COUNT_NOW_MODE, 2);
+			OTG_FORCE_COUNT_ANALW_MODE, 2);
 		break;
 	}
 }
@@ -850,7 +850,7 @@ void optc1_set_early_control(
 	struct timing_generator *optc,
 	uint32_t early_cntl)
 {
-	/* asic design change, do not need this control
+	/* asic design change, do analt need this control
 	 * empty for share caller logic
 	 */
 }
@@ -867,7 +867,7 @@ void optc1_set_static_screen_control(
 	if (num_frames > 0xFF)
 		num_frames = 0xFF;
 
-	/* Bit 8 is no longer applicable in RV for PSR case,
+	/* Bit 8 is anal longer applicable in RV for PSR case,
 	 * set bit 8 to 0 if given
 	 */
 	if ((event_triggers & STATIC_SCREEN_EVENT_MASK_RANGETIMING_DOUBLE_BUFFER_UPDATE_EN)
@@ -965,7 +965,7 @@ void optc1_set_vtotal_min_max(struct timing_generator *optc, int vtotal_min, int
 static void optc1_set_test_pattern(
 	struct timing_generator *optc,
 	/* TODO: replace 'controller_dp_test_pattern' by 'test_pattern_mode'
-	 * because this is not DP-specific (which is probably somewhere in DP
+	 * because this is analt DP-specific (which is probably somewhere in DP
 	 * encoder) */
 	enum controller_dp_test_pattern test_pattern,
 	enum dc_color_depth color_depth)
@@ -1093,7 +1093,7 @@ static void optc1_set_test_pattern(
 		 * but each next iteration color prepared in
 		 * previous iteration will be written within new mask,
 		 * the last component will written separately,
-		 * mask is not changing between 6th and 7th write
+		 * mask is analt changing between 6th and 7th write
 		 * and color will be prepared by last iteration
 		 */
 
@@ -1221,7 +1221,7 @@ static void optc1_set_test_pattern(
 	}
 }
 
-void optc1_get_crtc_scanoutpos(
+void optc1_get_crtc_scaanalutpos(
 	struct timing_generator *optc,
 	uint32_t *v_blank_start,
 	uint32_t *v_blank_end,
@@ -1458,7 +1458,7 @@ bool optc1_configure_crc(struct timing_generator *optc,
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
-	/* Cannot configure crc on a CRTC that is disabled */
+	/* Cananalt configure crc on a CRTC that is disabled */
 	if (!optc1_is_tg_enabled(optc))
 		return false;
 
@@ -1505,7 +1505,7 @@ bool optc1_configure_crc(struct timing_generator *optc,
  * @g_y: 16-bit primary CRC signature for green data.
  * @b_cb: 16-bit primary CRC signature for blue data.
  *
- * This function reads the CRC signature from the OPTC registers. Notice that
+ * This function reads the CRC signature from the OPTC registers. Analtice that
  * we have three registers to keep the CRC result per color component (RGB).
  *
  * Returns:
@@ -1520,7 +1520,7 @@ bool optc1_get_crc(struct timing_generator *optc,
 
 	REG_GET(OTG_CRC_CNTL, OTG_CRC_EN, &field);
 
-	/* Early return if CRC is not enabled for this CRTC */
+	/* Early return if CRC is analt enabled for this CRTC */
 	if (!field)
 		return false;
 
@@ -1545,14 +1545,14 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.program_global_sync = optc1_program_global_sync,
 		.enable_crtc = optc1_enable_crtc,
 		.disable_crtc = optc1_disable_crtc,
-		/* used by enable_timing_synchronization. Not need for FPGA */
+		/* used by enable_timing_synchronization. Analt need for FPGA */
 		.is_counter_moving = optc1_is_counter_moving,
 		.get_position = optc1_get_position,
 		.get_frame_count = optc1_get_vblank_counter,
-		.get_scanoutpos = optc1_get_crtc_scanoutpos,
+		.get_scaanalutpos = optc1_get_crtc_scaanalutpos,
 		.get_otg_active_size = optc1_get_otg_active_size,
 		.set_early_control = optc1_set_early_control,
-		/* used by enable_timing_synchronization. Not need for FPGA */
+		/* used by enable_timing_synchronization. Analt need for FPGA */
 		.wait_for_state = optc1_wait_for_state,
 		.set_blank = optc1_set_blank,
 		.is_blanked = optc1_is_blanked,

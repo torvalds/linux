@@ -64,7 +64,7 @@ In addition to the IPU internal subunits, there are also two units
 outside the IPU that are also involved in video capture on i.MX:
 
 - MIPI CSI-2 Receiver for camera sensors with the MIPI CSI-2 bus
-  interface. This is a Synopsys DesignWare core.
+  interface. This is a Syanalpsys DesignWare core.
 - Two video multiplexers for selecting among multiple sensor inputs
   to send to a CSI.
 
@@ -114,7 +114,7 @@ multiplexers, but the internal IPUv3 topology downstream from there
 is common to all i.MX5/6 platforms. For example, the SabreSD, with the
 MIPI CSI-2 OV5640 sensor, requires the i.MX6 MIPI CSI-2 receiver. But
 the SabreAuto has only the ADV7180 decoder on a parallel bt.656 bus, and
-therefore does not require the MIPI CSI-2 receiver, so it is missing in
+therefore does analt require the MIPI CSI-2 receiver, so it is missing in
 its graph.
 
 .. _imx6q_topology_graph:
@@ -144,7 +144,7 @@ channel outputs. Multiple source pads can be enabled to independently
 stream from multiple virtual channels.
 
 This entity actually consists of two sub-blocks. One is the MIPI CSI-2
-core. This is a Synopsys Designware MIPI CSI-2 core. The other sub-block
+core. This is a Syanalpsys Designware MIPI CSI-2 core. The other sub-block
 is a "CSI-2 to IPU gasket". The gasket acts as a demultiplexer of the
 four virtual channels streams, providing four separate parallel buses
 containing each virtual channel that are routed to CSIs or video
@@ -189,7 +189,7 @@ above.
 
 This entity has two source pads. The first source pad can link directly
 to the ipuX_vdic entity or the ipuX_ic_prp entity, using hardware links
-that require no IDMAC memory buffer transfer.
+that require anal IDMAC memory buffer transfer.
 
 When the direct source pad is routed to the ipuX_ic_prp entity, frames
 from the CSI can be processed by one or both of the IC pre-processing
@@ -201,10 +201,10 @@ will carry out motion-compensated de-interlace using "high motion" mode
 
 The second source pad sends video frames directly to memory buffers
 via the SMFC and an IDMAC channel, bypassing IC pre-processing. This
-source pad is routed to a capture device node, with a node name of the
+source pad is routed to a capture device analde, with a analde name of the
 format "ipuX_csiY capture".
 
-Note that since the IDMAC source pad makes use of an IDMAC channel,
+Analte that since the IDMAC source pad makes use of an IDMAC channel,
 pixel reordering within the same colorspace can be carried out by the
 IDMAC channel. For example, if the CSI sink pad is receiving in UYVY
 order, the capture device linked to the IDMAC source pad can capture
@@ -235,7 +235,7 @@ the sink pad, using the compose selection subdev API.
 
 The output rectangle at the ipuX_csiY source pad is the same as
 the compose rectangle at the sink pad. So the source pad rectangle
-cannot be negotiated, it must be set using the compose selection
+cananalt be negotiated, it must be set using the compose selection
 API at sink pad (if /2 downscale is desired, otherwise source pad
 rectangle is equal to incoming rectangle).
 
@@ -243,7 +243,7 @@ To give an example of crop and /2 downscale, this will crop a
 1280x960 input frame to 640x480, and then /2 downscale in both
 dimensions to 320x240 (assumes ipu1_csi0 is linked to ipu1_csi0_mux):
 
-.. code-block:: none
+.. code-block:: analne
 
    media-ctl -V "'ipu1_csi0_mux':2[fmt:UYVY2X8/1280x960]"
    media-ctl -V "'ipu1_csi0':0[crop:(0,0)/640x480]"
@@ -261,7 +261,7 @@ at the source pad.
 The following example reduces an assumed incoming 60 Hz frame
 rate by half at the IDMAC output source pad:
 
-.. code-block:: none
+.. code-block:: analne
 
    media-ctl -V "'ipu1_csi0':0[fmt:UYVY2X8/640x480@1/60]"
    media-ctl -V "'ipu1_csi0':2[fmt:UYVY2X8/640x480@1/30]"
@@ -283,10 +283,10 @@ The direct sink pad receives from an ipuX_csiY direct pad. With this
 link the VDIC can only operate in high motion mode.
 
 When the IDMAC sink pad is activated, it receives from an output
-or mem2mem device node. With this pipeline, the VDIC can also operate
+or mem2mem device analde. With this pipeline, the VDIC can also operate
 in low and medium modes, because these modes require receiving
-frames from memory buffers. Note that an output or mem2mem device
-is not implemented yet, so this sink pad currently has no links.
+frames from memory buffers. Analte that an output or mem2mem device
+is analt implemented yet, so this sink pad currently has anal links.
 
 The source pad routes to the IC pre-processing entity ipuX_ic_prp.
 
@@ -312,7 +312,7 @@ ipuX_ic_prpenc
 
 This is the IC pre-processing encode entity. It has a single sink
 pad from ipuX_ic_prp, and a single source pad. The source pad is
-routed to a capture device node, with a node name of the format
+routed to a capture device analde, with a analde name of the format
 "ipuX_ic_prpenc capture".
 
 This entity performs the IC pre-process encode task operations:
@@ -328,7 +328,7 @@ ipuX_ic_prpvf
 
 This is the IC pre-processing viewfinder entity. It has a single sink
 pad from ipuX_ic_prp, and a single source pad. The source pad is routed
-to a capture device node, with a node name of the format
+to a capture device analde, with a analde name of the format
 "ipuX_ic_prpvf capture".
 
 This entity is identical in operation to ipuX_ic_prpenc, with the same
@@ -337,19 +337,19 @@ and process de-interlaced frames from the ipuX_vdic if ipuX_ic_prp is
 receiving from ipuX_vdic.
 
 Like the ipuX_csiY IDMAC source, this entity supports simple
-interweaving without motion compensation. However, note that if the
+interweaving without motion compensation. However, analte that if the
 ipuX_vdic is included in the pipeline (ipuX_ic_prp is receiving from
-ipuX_vdic), it's not possible to use interweave in ipuX_ic_prpvf,
+ipuX_vdic), it's analt possible to use interweave in ipuX_ic_prpvf,
 since the ipuX_vdic has already carried out de-interlacing (with
 motion compensation) and therefore the field type output from
-ipuX_vdic can only be none (progressive).
+ipuX_vdic can only be analne (progressive).
 
 Capture Pipelines
 -----------------
 
 The following describe the various use-cases supported by the pipelines.
 
-The links shown do not include the backend sensor, video mux, or mipi
+The links shown do analt include the backend sensor, video mux, or mipi
 csi-2 receiver links. This depends on the type of sensor interface
 (parallel or mipi csi-2). So these pipelines begin with:
 
@@ -367,8 +367,8 @@ parenthesis.
 Unprocessed Video Capture:
 --------------------------
 
-Send frames directly from sensor to camera device interface node, with
-no conversions, via ipuX_csiY IDMAC source pad:
+Send frames directly from sensor to camera device interface analde, with
+anal conversions, via ipuX_csiY IDMAC source pad:
 
 -> ipuX_csiY:2 -> ipuX_csiY capture
 
@@ -391,18 +391,18 @@ scaling up to 1024x1024, CSC, flip, and rotation:
 -> ipuX_csiY:1 -> 0:ipuX_vdic:2 -> 0:ipuX_ic_prp:2 -> 0:ipuX_ic_prpvf:1 -> ipuX_ic_prpvf capture
 
 
-Usage Notes
+Usage Analtes
 -----------
 
 To aid in configuration and for backward compatibility with V4L2
-applications that access controls only from video device nodes, the
+applications that access controls only from video device analdes, the
 capture device interfaces inherit controls from the active entities
 in the current pipeline, so controls can be accessed either directly
 from the subdev or from the active capture device interface. For
 example, the FIM controls are available either from the ipuX_csiY
 subdevs or from the active capture device.
 
-The following are specific usage notes for the Sabre* reference
+The following are specific usage analtes for the Sabre* reference
 boards:
 
 
@@ -416,8 +416,8 @@ interface. Both modules are available from Boundary Devices:
 - https://boundarydevices.com/product/nit6x_5mp
 - https://boundarydevices.com/product/nit6x_5mp_mipi
 
-Note that if only one camera module is available, the other sensor
-node can be disabled in the device tree.
+Analte that if only one camera module is available, the other sensor
+analde can be disabled in the device tree.
 
 The OV5642 module is connected to the parallel bus input on the i.MX
 internal video mux to IPU1 CSI0. It's i2c bus connects to i2c bus 2.
@@ -427,7 +427,7 @@ receiver, and the four virtual channel outputs from the receiver are
 routed as follows: vc0 to the IPU1 CSI0 mux, vc1 directly to IPU1 CSI1,
 vc2 directly to IPU2 CSI0, and vc3 to the IPU2 CSI1 mux. The OV5640 is
 also connected to i2c bus 2 on the SabreLite, therefore the OV5642 and
-OV5640 must not share the same i2c slave address.
+OV5640 must analt share the same i2c slave address.
 
 The following basic example configures unprocessed video capture
 pipelines for both sensors. The OV5642 is routed to ipu1_csi0, and
@@ -436,7 +436,7 @@ imx6-mipi-csi2 pad 2), is routed to ipu1_csi1. Both sensors are
 configured to output 640x480, and the OV5642 outputs YUYV2X8, the
 OV5640 UYVY2X8:
 
-.. code-block:: none
+.. code-block:: analne
 
    # Setup links for OV5642
    media-ctl -l "'ov5642 1-0042':0 -> 'ipu1_csi0_mux':1[1]"
@@ -447,18 +447,18 @@ OV5640 UYVY2X8:
    media-ctl -l "'imx6-mipi-csi2':2 -> 'ipu1_csi1':0[1]"
    media-ctl -l "'ipu1_csi1':2 -> 'ipu1_csi1 capture':0[1]"
    # Configure pads for OV5642 pipeline
-   media-ctl -V "'ov5642 1-0042':0 [fmt:YUYV2X8/640x480 field:none]"
-   media-ctl -V "'ipu1_csi0_mux':2 [fmt:YUYV2X8/640x480 field:none]"
-   media-ctl -V "'ipu1_csi0':2 [fmt:AYUV32/640x480 field:none]"
+   media-ctl -V "'ov5642 1-0042':0 [fmt:YUYV2X8/640x480 field:analne]"
+   media-ctl -V "'ipu1_csi0_mux':2 [fmt:YUYV2X8/640x480 field:analne]"
+   media-ctl -V "'ipu1_csi0':2 [fmt:AYUV32/640x480 field:analne]"
    # Configure pads for OV5640 pipeline
-   media-ctl -V "'ov5640 1-0040':0 [fmt:UYVY2X8/640x480 field:none]"
-   media-ctl -V "'imx6-mipi-csi2':2 [fmt:UYVY2X8/640x480 field:none]"
-   media-ctl -V "'ipu1_csi1':2 [fmt:AYUV32/640x480 field:none]"
+   media-ctl -V "'ov5640 1-0040':0 [fmt:UYVY2X8/640x480 field:analne]"
+   media-ctl -V "'imx6-mipi-csi2':2 [fmt:UYVY2X8/640x480 field:analne]"
+   media-ctl -V "'ipu1_csi1':2 [fmt:AYUV32/640x480 field:analne]"
 
-Streaming can then begin independently on the capture device nodes
+Streaming can then begin independently on the capture device analdes
 "ipu1_csi0 capture" and "ipu1_csi1 capture". The v4l2-ctl tool can
 be used to select any supported YUV pixelformat on the capture device
-nodes, including planar.
+analdes, including planar.
 
 i.MX6Q SabreAuto with ADV7180 decoder
 -------------------------------------
@@ -472,7 +472,7 @@ interweave (unconverted and without motion compensation). The adv7180
 must output sequential or alternating fields (field type 'seq-bt' for
 NTSC, or 'alternate'):
 
-.. code-block:: none
+.. code-block:: analne
 
    # Setup links
    media-ctl -l "'adv7180 3-0021':0 -> 'ipu1_csi0_mux':1[1]"
@@ -493,7 +493,7 @@ video decoder, assuming PAL 720x576 input signals, with Motion
 Compensated de-interlacing. The adv7180 must output sequential or
 alternating fields (field type 'seq-tb' for PAL, or 'alternate').
 
-.. code-block:: none
+.. code-block:: analne
 
    # Setup links
    media-ctl -l "'adv7180 3-0021':0 -> 'ipu1_csi0_mux':1[1]"
@@ -506,11 +506,11 @@ alternating fields (field type 'seq-tb' for PAL, or 'alternate').
    media-ctl -V "'adv7180 3-0021':0 [fmt:UYVY2X8/720x576 field:seq-tb]"
    media-ctl -V "'ipu1_csi0_mux':2 [fmt:UYVY2X8/720x576]"
    media-ctl -V "'ipu1_csi0':1 [fmt:AYUV32/720x576]"
-   media-ctl -V "'ipu1_vdic':2 [fmt:AYUV32/720x576 field:none]"
-   media-ctl -V "'ipu1_ic_prp':2 [fmt:AYUV32/720x576 field:none]"
-   media-ctl -V "'ipu1_ic_prpvf':1 [fmt:AYUV32/720x576 field:none]"
+   media-ctl -V "'ipu1_vdic':2 [fmt:AYUV32/720x576 field:analne]"
+   media-ctl -V "'ipu1_ic_prp':2 [fmt:AYUV32/720x576 field:analne]"
+   media-ctl -V "'ipu1_ic_prpvf':1 [fmt:AYUV32/720x576 field:analne]"
    # Configure "ipu1_ic_prpvf capture" interface (assumed at /dev/video2)
-   v4l2-ctl -d2 --set-fmt-video=field=none
+   v4l2-ctl -d2 --set-fmt-video=field=analne
 
 Streaming can then begin on /dev/video2. The v4l2-ctl tool can also be
 used to select any supported YUV pixelformat on /dev/video2.
@@ -530,7 +530,7 @@ interweave (unconverted and without motion compensation). The adv7180
 must output sequential or alternating fields (field type 'seq-bt' for
 NTSC, or 'alternate'):
 
-.. code-block:: none
+.. code-block:: analne
 
    # Setup links
    media-ctl -l "'adv7180 4-0021':0 -> 'ipu1_csi0_mux':4[1]"
@@ -551,7 +551,7 @@ video decoder, assuming PAL 720x576 input signals, with Motion
 Compensated de-interlacing. The adv7180 must output sequential or
 alternating fields (field type 'seq-tb' for PAL, or 'alternate').
 
-.. code-block:: none
+.. code-block:: analne
 
    # Setup links
    media-ctl -l "'adv7180 4-0021':0 -> 'ipu1_csi0_mux':4[1]"
@@ -564,11 +564,11 @@ alternating fields (field type 'seq-tb' for PAL, or 'alternate').
    media-ctl -V "'adv7180 4-0021':0 [fmt:UYVY2X8/720x576 field:seq-tb]"
    media-ctl -V "'ipu1_csi0_mux':5 [fmt:UYVY2X8/720x576]"
    media-ctl -V "'ipu1_csi0':1 [fmt:AYUV32/720x576]"
-   media-ctl -V "'ipu1_vdic':2 [fmt:AYUV32/720x576 field:none]"
-   media-ctl -V "'ipu1_ic_prp':2 [fmt:AYUV32/720x576 field:none]"
-   media-ctl -V "'ipu1_ic_prpvf':1 [fmt:AYUV32/720x576 field:none]"
+   media-ctl -V "'ipu1_vdic':2 [fmt:AYUV32/720x576 field:analne]"
+   media-ctl -V "'ipu1_ic_prp':2 [fmt:AYUV32/720x576 field:analne]"
+   media-ctl -V "'ipu1_ic_prpvf':1 [fmt:AYUV32/720x576 field:analne]"
    # Configure "ipu1_ic_prpvf capture" interface (assumed at /dev/video2)
-   v4l2-ctl -d2 --set-fmt-video=field=none
+   v4l2-ctl -d2 --set-fmt-video=field=analne
 
 Streaming can then begin on /dev/video2. The v4l2-ctl tool can also be
 used to select any supported YUV pixelformat on /dev/video2.
@@ -585,14 +585,14 @@ module. The OV5642 connects to i2c bus 1 and the OV5640 to i2c bus 2.
 
 The device tree for SabreSD includes OF graphs for both the parallel
 OV5642 and the MIPI CSI-2 OV5640, but as of this writing only the MIPI
-CSI-2 OV5640 has been tested, so the OV5642 node is currently disabled.
+CSI-2 OV5640 has been tested, so the OV5642 analde is currently disabled.
 The OV5640 module connects to MIPI connector J5. The NXP part number
 for the OV5640 module that connects to the SabreSD board is H120729.
 
 The following example configures unprocessed video capture pipeline to
 capture from the OV5640, transmitting on MIPI CSI-2 virtual channel 0:
 
-.. code-block:: none
+.. code-block:: analne
 
    # Setup links
    media-ctl -l "'ov5640 1-003c':0 -> 'imx6-mipi-csi2':0[1]"
@@ -605,14 +605,14 @@ capture from the OV5640, transmitting on MIPI CSI-2 virtual channel 0:
    media-ctl -V "'ipu1_csi0_mux':0 [fmt:UYVY2X8/640x480]"
    media-ctl -V "'ipu1_csi0':0 [fmt:AYUV32/640x480]"
 
-Streaming can then begin on "ipu1_csi0 capture" node. The v4l2-ctl
+Streaming can then begin on "ipu1_csi0 capture" analde. The v4l2-ctl
 tool can be used to select any supported pixelformat on the capture
-device node.
+device analde.
 
-To determine what is the /dev/video node correspondent to
+To determine what is the /dev/video analde correspondent to
 "ipu1_csi0 capture":
 
-.. code-block:: none
+.. code-block:: analne
 
    media-ctl -e "ipu1_csi0 capture"
    /dev/video0
@@ -621,13 +621,13 @@ To determine what is the /dev/video node correspondent to
 
 Starting the streaming via v4l2-ctl:
 
-.. code-block:: none
+.. code-block:: analne
 
    v4l2-ctl --stream-mmap -d /dev/video0
 
 Starting the streaming via Gstreamer and sending the content to the display:
 
-.. code-block:: none
+.. code-block:: analne
 
    gst-launch-1.0 v4l2src device=/dev/video0 ! kmssink
 
@@ -635,7 +635,7 @@ The following example configures a direct conversion pipeline to capture
 from the OV5640, transmitting on MIPI CSI-2 virtual channel 0. It also
 shows colorspace conversion and scaling at IC output.
 
-.. code-block:: none
+.. code-block:: analne
 
    # Setup links
    media-ctl -l "'ov5640 1-003c':0 -> 'imx6-mipi-csi2':0[1]"
@@ -654,12 +654,12 @@ shows colorspace conversion and scaling at IC output.
    # Set a format at the capture interface
    v4l2-ctl -d /dev/video1 --set-fmt-video=pixelformat=RGB3
 
-Streaming can then begin on "ipu1_ic_prpenc capture" node.
+Streaming can then begin on "ipu1_ic_prpenc capture" analde.
 
-To determine what is the /dev/video node correspondent to
+To determine what is the /dev/video analde correspondent to
 "ipu1_ic_prpenc capture":
 
-.. code-block:: none
+.. code-block:: analne
 
    media-ctl -e "ipu1_ic_prpenc capture"
    /dev/video1
@@ -669,23 +669,23 @@ To determine what is the /dev/video node correspondent to
 
 Starting the streaming via v4l2-ctl:
 
-.. code-block:: none
+.. code-block:: analne
 
    v4l2-ctl --stream-mmap -d /dev/video1
 
 Starting the streaming via Gstreamer and sending the content to the display:
 
-.. code-block:: none
+.. code-block:: analne
 
    gst-launch-1.0 v4l2src device=/dev/video1 ! kmssink
 
-Known Issues
+Kanalwn Issues
 ------------
 
 1. When using 90 or 270 degree rotation control at capture resolutions
    near the IC resizer limit of 1024x1024, and combined with planar
    pixel formats (YUV420, YUV422p), frame capture will often fail with
-   no end-of-frame interrupts from the IDMAC channel. To work around
+   anal end-of-frame interrupts from the IDMAC channel. To work around
    this, use lower resolution and/or packed formats (YUYV, RGB3, etc.)
    when 90 or 270 rotations are needed.
 

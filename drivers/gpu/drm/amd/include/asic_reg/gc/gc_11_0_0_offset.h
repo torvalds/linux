@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -245,8 +245,8 @@
 #define regSDMA0_QUEUE0_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA0_QUEUE0_RB_AQL_CNTL                                                                     0x00b4
 #define regSDMA0_QUEUE0_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA0_QUEUE0_MINOR_PTR_UPDATE                                                                0x00b5
-#define regSDMA0_QUEUE0_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA0_QUEUE0_MIANALR_PTR_UPDATE                                                                0x00b5
+#define regSDMA0_QUEUE0_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA0_QUEUE0_RB_PREEMPT                                                                      0x00b6
 #define regSDMA0_QUEUE0_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA0_QUEUE0_MIDCMD_DATA0                                                                    0x00c0
@@ -331,8 +331,8 @@
 #define regSDMA0_QUEUE1_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA0_QUEUE1_RB_AQL_CNTL                                                                     0x010c
 #define regSDMA0_QUEUE1_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA0_QUEUE1_MINOR_PTR_UPDATE                                                                0x010d
-#define regSDMA0_QUEUE1_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA0_QUEUE1_MIANALR_PTR_UPDATE                                                                0x010d
+#define regSDMA0_QUEUE1_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA0_QUEUE1_RB_PREEMPT                                                                      0x010e
 #define regSDMA0_QUEUE1_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA0_QUEUE1_MIDCMD_DATA0                                                                    0x0118
@@ -417,8 +417,8 @@
 #define regSDMA0_QUEUE2_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA0_QUEUE2_RB_AQL_CNTL                                                                     0x0164
 #define regSDMA0_QUEUE2_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA0_QUEUE2_MINOR_PTR_UPDATE                                                                0x0165
-#define regSDMA0_QUEUE2_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA0_QUEUE2_MIANALR_PTR_UPDATE                                                                0x0165
+#define regSDMA0_QUEUE2_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA0_QUEUE2_RB_PREEMPT                                                                      0x0166
 #define regSDMA0_QUEUE2_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA0_QUEUE2_MIDCMD_DATA0                                                                    0x0170
@@ -503,8 +503,8 @@
 #define regSDMA0_QUEUE3_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA0_QUEUE3_RB_AQL_CNTL                                                                     0x01bc
 #define regSDMA0_QUEUE3_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA0_QUEUE3_MINOR_PTR_UPDATE                                                                0x01bd
-#define regSDMA0_QUEUE3_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA0_QUEUE3_MIANALR_PTR_UPDATE                                                                0x01bd
+#define regSDMA0_QUEUE3_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA0_QUEUE3_RB_PREEMPT                                                                      0x01be
 #define regSDMA0_QUEUE3_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA0_QUEUE3_MIDCMD_DATA0                                                                    0x01c8
@@ -589,8 +589,8 @@
 #define regSDMA0_QUEUE4_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA0_QUEUE4_RB_AQL_CNTL                                                                     0x0214
 #define regSDMA0_QUEUE4_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA0_QUEUE4_MINOR_PTR_UPDATE                                                                0x0215
-#define regSDMA0_QUEUE4_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA0_QUEUE4_MIANALR_PTR_UPDATE                                                                0x0215
+#define regSDMA0_QUEUE4_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA0_QUEUE4_RB_PREEMPT                                                                      0x0216
 #define regSDMA0_QUEUE4_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA0_QUEUE4_MIDCMD_DATA0                                                                    0x0220
@@ -675,8 +675,8 @@
 #define regSDMA0_QUEUE5_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA0_QUEUE5_RB_AQL_CNTL                                                                     0x026c
 #define regSDMA0_QUEUE5_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA0_QUEUE5_MINOR_PTR_UPDATE                                                                0x026d
-#define regSDMA0_QUEUE5_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA0_QUEUE5_MIANALR_PTR_UPDATE                                                                0x026d
+#define regSDMA0_QUEUE5_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA0_QUEUE5_RB_PREEMPT                                                                      0x026e
 #define regSDMA0_QUEUE5_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA0_QUEUE5_MIDCMD_DATA0                                                                    0x0278
@@ -761,8 +761,8 @@
 #define regSDMA0_QUEUE6_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA0_QUEUE6_RB_AQL_CNTL                                                                     0x02c4
 #define regSDMA0_QUEUE6_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA0_QUEUE6_MINOR_PTR_UPDATE                                                                0x02c5
-#define regSDMA0_QUEUE6_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA0_QUEUE6_MIANALR_PTR_UPDATE                                                                0x02c5
+#define regSDMA0_QUEUE6_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA0_QUEUE6_RB_PREEMPT                                                                      0x02c6
 #define regSDMA0_QUEUE6_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA0_QUEUE6_MIDCMD_DATA0                                                                    0x02d0
@@ -847,8 +847,8 @@
 #define regSDMA0_QUEUE7_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA0_QUEUE7_RB_AQL_CNTL                                                                     0x031c
 #define regSDMA0_QUEUE7_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA0_QUEUE7_MINOR_PTR_UPDATE                                                                0x031d
-#define regSDMA0_QUEUE7_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA0_QUEUE7_MIANALR_PTR_UPDATE                                                                0x031d
+#define regSDMA0_QUEUE7_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA0_QUEUE7_RB_PREEMPT                                                                      0x031e
 #define regSDMA0_QUEUE7_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA0_QUEUE7_MIDCMD_DATA0                                                                    0x0328
@@ -1097,8 +1097,8 @@
 #define regSDMA1_QUEUE0_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA1_QUEUE0_RB_AQL_CNTL                                                                     0x06b4
 #define regSDMA1_QUEUE0_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA1_QUEUE0_MINOR_PTR_UPDATE                                                                0x06b5
-#define regSDMA1_QUEUE0_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA1_QUEUE0_MIANALR_PTR_UPDATE                                                                0x06b5
+#define regSDMA1_QUEUE0_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA1_QUEUE0_RB_PREEMPT                                                                      0x06b6
 #define regSDMA1_QUEUE0_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA1_QUEUE0_MIDCMD_DATA0                                                                    0x06c0
@@ -1183,8 +1183,8 @@
 #define regSDMA1_QUEUE1_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA1_QUEUE1_RB_AQL_CNTL                                                                     0x070c
 #define regSDMA1_QUEUE1_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA1_QUEUE1_MINOR_PTR_UPDATE                                                                0x070d
-#define regSDMA1_QUEUE1_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA1_QUEUE1_MIANALR_PTR_UPDATE                                                                0x070d
+#define regSDMA1_QUEUE1_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA1_QUEUE1_RB_PREEMPT                                                                      0x070e
 #define regSDMA1_QUEUE1_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA1_QUEUE1_MIDCMD_DATA0                                                                    0x0718
@@ -1269,8 +1269,8 @@
 #define regSDMA1_QUEUE2_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA1_QUEUE2_RB_AQL_CNTL                                                                     0x0764
 #define regSDMA1_QUEUE2_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA1_QUEUE2_MINOR_PTR_UPDATE                                                                0x0765
-#define regSDMA1_QUEUE2_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA1_QUEUE2_MIANALR_PTR_UPDATE                                                                0x0765
+#define regSDMA1_QUEUE2_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA1_QUEUE2_RB_PREEMPT                                                                      0x0766
 #define regSDMA1_QUEUE2_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA1_QUEUE2_MIDCMD_DATA0                                                                    0x0770
@@ -1355,8 +1355,8 @@
 #define regSDMA1_QUEUE3_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA1_QUEUE3_RB_AQL_CNTL                                                                     0x07bc
 #define regSDMA1_QUEUE3_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA1_QUEUE3_MINOR_PTR_UPDATE                                                                0x07bd
-#define regSDMA1_QUEUE3_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA1_QUEUE3_MIANALR_PTR_UPDATE                                                                0x07bd
+#define regSDMA1_QUEUE3_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA1_QUEUE3_RB_PREEMPT                                                                      0x07be
 #define regSDMA1_QUEUE3_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA1_QUEUE3_MIDCMD_DATA0                                                                    0x07c8
@@ -1441,8 +1441,8 @@
 #define regSDMA1_QUEUE4_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA1_QUEUE4_RB_AQL_CNTL                                                                     0x0814
 #define regSDMA1_QUEUE4_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA1_QUEUE4_MINOR_PTR_UPDATE                                                                0x0815
-#define regSDMA1_QUEUE4_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA1_QUEUE4_MIANALR_PTR_UPDATE                                                                0x0815
+#define regSDMA1_QUEUE4_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA1_QUEUE4_RB_PREEMPT                                                                      0x0816
 #define regSDMA1_QUEUE4_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA1_QUEUE4_MIDCMD_DATA0                                                                    0x0820
@@ -1527,8 +1527,8 @@
 #define regSDMA1_QUEUE5_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA1_QUEUE5_RB_AQL_CNTL                                                                     0x086c
 #define regSDMA1_QUEUE5_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA1_QUEUE5_MINOR_PTR_UPDATE                                                                0x086d
-#define regSDMA1_QUEUE5_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA1_QUEUE5_MIANALR_PTR_UPDATE                                                                0x086d
+#define regSDMA1_QUEUE5_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA1_QUEUE5_RB_PREEMPT                                                                      0x086e
 #define regSDMA1_QUEUE5_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA1_QUEUE5_MIDCMD_DATA0                                                                    0x0878
@@ -1613,8 +1613,8 @@
 #define regSDMA1_QUEUE6_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA1_QUEUE6_RB_AQL_CNTL                                                                     0x08c4
 #define regSDMA1_QUEUE6_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA1_QUEUE6_MINOR_PTR_UPDATE                                                                0x08c5
-#define regSDMA1_QUEUE6_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA1_QUEUE6_MIANALR_PTR_UPDATE                                                                0x08c5
+#define regSDMA1_QUEUE6_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA1_QUEUE6_RB_PREEMPT                                                                      0x08c6
 #define regSDMA1_QUEUE6_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA1_QUEUE6_MIDCMD_DATA0                                                                    0x08d0
@@ -1699,8 +1699,8 @@
 #define regSDMA1_QUEUE7_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regSDMA1_QUEUE7_RB_AQL_CNTL                                                                     0x091c
 #define regSDMA1_QUEUE7_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regSDMA1_QUEUE7_MINOR_PTR_UPDATE                                                                0x091d
-#define regSDMA1_QUEUE7_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regSDMA1_QUEUE7_MIANALR_PTR_UPDATE                                                                0x091d
+#define regSDMA1_QUEUE7_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regSDMA1_QUEUE7_RB_PREEMPT                                                                      0x091e
 #define regSDMA1_QUEUE7_RB_PREEMPT_BASE_IDX                                                             0
 #define regSDMA1_QUEUE7_MIDCMD_DATA0                                                                    0x0928
@@ -2717,8 +2717,8 @@
 #define regGCUTCL2_ICG_CTRL_BASE_IDX                                                                    0
 #define regGCUTCL2_CGTT_BUSY_CTRL                                                                       0x15b7
 #define regGCUTCL2_CGTT_BUSY_CTRL_BASE_IDX                                                              0
-#define regGCMC_VM_FB_NOALLOC_CNTL                                                                      0x15b8
-#define regGCMC_VM_FB_NOALLOC_CNTL_BASE_IDX                                                             0
+#define regGCMC_VM_FB_ANALALLOC_CNTL                                                                      0x15b8
+#define regGCMC_VM_FB_ANALALLOC_CNTL_BASE_IDX                                                             0
 #define regGCUTCL2_HARVEST_BYPASS_GROUPS                                                                0x15b9
 #define regGCUTCL2_HARVEST_BYPASS_GROUPS_BASE_IDX                                                       0
 #define regGCUTCL2_GROUP_RET_FAULT_STATUS                                                               0x15bb
@@ -2817,8 +2817,8 @@
 #define regGCUTCL2_CREDIT_SAFETY_GROUP_RET_CDC_BASE_IDX                                                 0
 #define regGCUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_CDC                                               0x15eb
 #define regGCUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_CDC_BASE_IDX                                      0
-#define regGCUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_NOCDC                                             0x15ec
-#define regGCUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_NOCDC_BASE_IDX                                    0
+#define regGCUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_ANALCDC                                             0x15ec
+#define regGCUTCL2_CREDIT_SAFETY_GROUP_CLIENTS_INVREQ_ANALCDC_BASE_IDX                                    0
 #define regGCVML2_CREDIT_SAFETY_IH_FAULT_INTERRUPT                                                      0x15ed
 #define regGCVML2_CREDIT_SAFETY_IH_FAULT_INTERRUPT_BASE_IDX                                             0
 #define regGCVML2_WALKER_CREDIT_SAFETY_FETCH_RDREQ                                                      0x15ee
@@ -4073,8 +4073,8 @@
 #define regCOMPUTE_DISPATCH_TUNNEL_BASE_IDX                                                             0
 #define regCOMPUTE_DISPATCH_END                                                                         0x1c1e
 #define regCOMPUTE_DISPATCH_END_BASE_IDX                                                                0
-#define regCOMPUTE_NOWHERE                                                                              0x1c1f
-#define regCOMPUTE_NOWHERE_BASE_IDX                                                                     0
+#define regCOMPUTE_ANALWHERE                                                                              0x1c1f
+#define regCOMPUTE_ANALWHERE_BASE_IDX                                                                     0
 #define regSH_RESERVED_REG0                                                                             0x1c20
 #define regSH_RESERVED_REG0_BASE_IDX                                                                    0
 #define regSH_RESERVED_REG1                                                                             0x1c21
@@ -6203,8 +6203,8 @@
 // base address: 0x2a400
 #define regGRBM_GFX_CNTL                                                                                0x0900
 #define regGRBM_GFX_CNTL_BASE_IDX                                                                       1
-#define regGRBM_NOWHERE                                                                                 0x0901
-#define regGRBM_NOWHERE_BASE_IDX                                                                        1
+#define regGRBM_ANALWHERE                                                                                 0x0901
+#define regGRBM_ANALWHERE_BASE_IDX                                                                        1
 
 
 // addressBlock: gc_pfvf_padec
@@ -7117,8 +7117,8 @@
 #define regCP_DB_CMD_BUFSZ_BASE_IDX                                                                     1
 #define regCP_PFP_COMPLETION_STATUS                                                                     0x20ec
 #define regCP_PFP_COMPLETION_STATUS_BASE_IDX                                                            1
-#define regCP_PRED_NOT_VISIBLE                                                                          0x20ee
-#define regCP_PRED_NOT_VISIBLE_BASE_IDX                                                                 1
+#define regCP_PRED_ANALT_VISIBLE                                                                          0x20ee
+#define regCP_PRED_ANALT_VISIBLE_BASE_IDX                                                                 1
 #define regCP_PFP_METADATA_BASE_ADDR                                                                    0x20f0
 #define regCP_PFP_METADATA_BASE_ADDR_BASE_IDX                                                           1
 #define regCP_PFP_METADATA_BASE_ADDR_HI                                                                 0x20f1

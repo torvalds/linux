@@ -214,7 +214,7 @@ vdec_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 		pixmp->height = ALIGN(pixmp->height, 32);
 
 	if (pixmp->field == V4L2_FIELD_ANY)
-		pixmp->field = V4L2_FIELD_NONE;
+		pixmp->field = V4L2_FIELD_ANALNE;
 	pixmp->num_planes = fmt->num_planes;
 	pixmp->flags = 0;
 
@@ -471,15 +471,15 @@ static int vdec_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 		return -EINVAL;
 
 	memset(cap->reserved, 0, sizeof(cap->reserved));
-	if (!timeperframe->denominator)
-		timeperframe->denominator = inst->timeperframe.denominator;
+	if (!timeperframe->deanalminator)
+		timeperframe->deanalminator = inst->timeperframe.deanalminator;
 	if (!timeperframe->numerator)
 		timeperframe->numerator = inst->timeperframe.numerator;
 	cap->readbuffers = 0;
 	cap->extendedmode = 0;
 	cap->capability = V4L2_CAP_TIMEPERFRAME;
 	us_per_frame = timeperframe->numerator * (u64)USEC_PER_SEC;
-	do_div(us_per_frame, timeperframe->denominator);
+	do_div(us_per_frame, timeperframe->deanalminator);
 
 	if (!us_per_frame)
 		return -EINVAL;
@@ -942,7 +942,7 @@ static int vdec_queue_setup(struct vb2_queue *q,
 	}
 
 	if (test_bit(0, &core->sys_error)) {
-		if (inst->nonblock)
+		if (inst->analnblock)
 			return -EAGAIN;
 
 		ret = wait_event_interruptible(core->sys_err_done,
@@ -1370,7 +1370,7 @@ static void vdec_vb2_buf_queue(struct vb2_buffer *vb)
 	    inst->codec_state == VENUS_DEC_STATE_DRC) {
 		vbuf->flags |= V4L2_BUF_FLAG_LAST;
 		vbuf->sequence = inst->sequence_cap++;
-		vbuf->field = V4L2_FIELD_NONE;
+		vbuf->field = V4L2_FIELD_ANALNE;
 		vb2_set_plane_payload(vb, 0, 0);
 		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
 		v4l2_event_queue_fh(&inst->fh, &eos);
@@ -1416,7 +1416,7 @@ static void vdec_buf_done(struct venus_inst *inst, unsigned int buf_type,
 	}
 
 	vbuf->flags = flags;
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	vb = &vbuf->vb2_buf;
 
 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
@@ -1480,7 +1480,7 @@ static void vdec_event_change(struct venus_inst *inst,
 	inst->width = format.fmt.pix_mp.width;
 	inst->height = format.fmt.pix_mp.height;
 	/*
-	 * Some versions of the firmware do not report crop information for
+	 * Some versions of the firmware do analt report crop information for
 	 * all codecs. For these cases, set the crop to the coded resolution.
 	 */
 	if (ev_data->input_crop.width > 0 && ev_data->input_crop.height > 0) {
@@ -1515,7 +1515,7 @@ static void vdec_event_change(struct venus_inst *inst,
 		inst->pic_struct = ev_data->pic_struct;
 
 	dev_dbg(dev, VDBGM "event %s sufficient resources (%ux%u)\n",
-		sufficient ? "" : "not", ev_data->width, ev_data->height);
+		sufficient ? "" : "analt", ev_data->width, ev_data->height);
 
 	switch (inst->codec_state) {
 	case VENUS_DEC_STATE_INIT:
@@ -1553,7 +1553,7 @@ static void vdec_event_change(struct venus_inst *inst,
 	mutex_unlock(&inst->lock);
 }
 
-static void vdec_event_notify(struct venus_inst *inst, u32 event,
+static void vdec_event_analtify(struct venus_inst *inst, u32 event,
 			      struct hfi_event_data *data)
 {
 	struct venus_core *core = inst->core;
@@ -1594,7 +1594,7 @@ static void vdec_flush_done(struct venus_inst *inst)
 
 static const struct hfi_inst_ops vdec_hfi_ops = {
 	.buf_done = vdec_buf_done,
-	.event_notify = vdec_event_notify,
+	.event_analtify = vdec_event_analtify,
 	.flush_done = vdec_flush_done,
 };
 
@@ -1614,7 +1614,7 @@ static void vdec_inst_init(struct venus_inst *inst)
 	inst->out_height = frame_height_min(inst);
 	inst->fps = 30;
 	inst->timeperframe.numerator = 1;
-	inst->timeperframe.denominator = 30;
+	inst->timeperframe.deanalminator = 30;
 	inst->opb_buftype = HFI_BUFFER_OUTPUT;
 }
 
@@ -1670,7 +1670,7 @@ static int vdec_open(struct file *file)
 
 	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&inst->dpbbufs);
 	INIT_LIST_HEAD(&inst->registeredbufs);
@@ -1689,7 +1689,7 @@ static int vdec_open(struct file *file)
 	inst->bit_depth = VIDC_BITDEPTH_8;
 	inst->pic_struct = HFI_INTERLACE_FRAME_PROGRESSIVE;
 	init_waitqueue_head(&inst->reconf_wait);
-	inst->nonblock = file->f_flags & O_NONBLOCK;
+	inst->analnblock = file->f_flags & O_ANALNBLOCK;
 
 	venus_helper_init_instance(inst);
 
@@ -1707,7 +1707,7 @@ static int vdec_open(struct file *file)
 
 	/*
 	 * create m2m device for every instance, the m2m context scheduling
-	 * is made by firmware side so we do not need to care about.
+	 * is made by firmware side so we do analt need to care about.
 	 */
 	inst->m2m_dev = v4l2_m2m_init(&vdec_m2m_ops);
 	if (IS_ERR(inst->m2m_dev)) {
@@ -1796,7 +1796,7 @@ static int vdec_probe(struct platform_device *pdev)
 
 	vdev = video_device_alloc();
 	if (!vdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strscpy(vdev->name, "qcom-venus-decoder", sizeof(vdev->name));
 	vdev->release = video_device_release;

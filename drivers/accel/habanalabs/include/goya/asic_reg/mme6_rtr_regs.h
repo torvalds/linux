@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_MME6_RTR_REGS_H_
@@ -325,6 +325,6 @@
 
 #define mmMME6_RTR_SCRAMB_EN                                         0x180600
 
-#define mmMME6_RTR_NON_LIN_SCRAMB                                    0x180604
+#define mmMME6_RTR_ANALN_LIN_SCRAMB                                    0x180604
 
 #endif /* ASIC_REG_MME6_RTR_REGS_H_ */

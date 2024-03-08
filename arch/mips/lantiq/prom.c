@@ -77,10 +77,10 @@ void __init plat_mem_setup(void)
 
 	dtb = get_fdt();
 	if (dtb == NULL)
-		panic("no dtb found");
+		panic("anal dtb found");
 
 	/*
-	 * Load the devicetree. This causes the chosen node to be
+	 * Load the devicetree. This causes the chosen analde to be
 	 * parsed resulting in our memory appearing
 	 */
 	__dt_setup_arch(dtb);

@@ -153,7 +153,7 @@ static int wm8958_dsp2_fw(struct snd_soc_component *component, const char *name,
 
 			break;
 		default:
-			dev_warn(component->dev, "%s: unknown block type %d\n",
+			dev_warn(component->dev, "%s: unkanalwn block type %d\n",
 				 name, (data32 >> 24) & 0xff);
 			break;
 		}
@@ -191,7 +191,7 @@ static void wm8958_dsp_start_mbc(struct snd_soc_component *component, int path)
 	struct wm8994 *control = wm8994->wm8994;
 	int i;
 
-	/* If the DSP is already running then noop */
+	/* If the DSP is already running then analop */
 	if (snd_soc_component_read(component, WM8958_DSP2_PROGRAM) & WM8958_DSP2_ENA)
 		return;
 
@@ -358,11 +358,11 @@ static void wm8958_dsp_apply(struct snd_soc_component *component, int path, int 
 		path, wm8994->dsp_active, start, pwr_reg, reg);
 
 	if (start && ena) {
-		/* If the DSP is already running then noop */
+		/* If the DSP is already running then analop */
 		if (reg & WM8958_DSP2_ENA)
 			return;
 
-		/* If either AIFnCLK is not yet enabled postpone */
+		/* If either AIFnCLK is analt yet enabled postpone */
 		if (!(snd_soc_component_read(component, WM8994_AIF1_CLOCKING_1)
 		      & WM8994_AIF1CLK_ENA_MASK) &&
 		    !(snd_soc_component_read(component, WM8994_AIF2_CLOCKING_1)
@@ -389,7 +389,7 @@ static void wm8958_dsp_apply(struct snd_soc_component *component, int path, int 
 	}
 
 	if (!start && wm8994->dsp_active == path) {
-		/* If the DSP is already stopped then noop */
+		/* If the DSP is already stopped then analop */
 		if (!(reg & WM8958_DSP2_ENA))
 			return;
 
@@ -434,7 +434,7 @@ int wm8958_aif_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-/* Check if DSP2 is in use on another AIF */
+/* Check if DSP2 is in use on aanalther AIF */
 static int wm8958_dsp2_busy(struct wm8994_priv *wm8994, int aif)
 {
 	int i;
@@ -642,7 +642,7 @@ static int wm8958_vss_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 
 	if (!wm8994->mbc_vss)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (wm8958_dsp2_busy(wm8994, vss)) {
 		dev_dbg(component->dev, "DSP2 active on %d already\n", vss);
@@ -713,7 +713,7 @@ static int wm8958_hpf_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 
 	if (!wm8994->mbc_vss)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (wm8958_dsp2_busy(wm8994, hpf % 3)) {
 		dev_dbg(component->dev, "DSP2 active on %d already\n", hpf);
@@ -809,7 +809,7 @@ static int wm8958_enh_eq_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 
 	if (!wm8994->enh_eq)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (wm8958_dsp2_busy(wm8994, eq)) {
 		dev_dbg(component->dev, "DSP2 active on %d already\n", eq);
@@ -912,13 +912,13 @@ void wm8958_dsp2_init(struct snd_soc_component *component)
 
 
 	/* We don't *require* firmware and don't want to delay boot */
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
+	request_firmware_analwait(THIS_MODULE, FW_ACTION_UEVENT,
 				"wm8958_mbc.wfw", component->dev, GFP_KERNEL,
 				component, wm8958_mbc_loaded);
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
+	request_firmware_analwait(THIS_MODULE, FW_ACTION_UEVENT,
 				"wm8958_mbc_vss.wfw", component->dev, GFP_KERNEL,
 				component, wm8958_mbc_vss_loaded);
-	request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
+	request_firmware_analwait(THIS_MODULE, FW_ACTION_UEVENT,
 				"wm8958_enh_eq.wfw", component->dev, GFP_KERNEL,
 				component, wm8958_enh_eq_loaded);
 

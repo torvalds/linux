@@ -56,7 +56,7 @@
  * bcm281xx_pin_type - types of pin register
  */
 enum bcm281xx_pin_type {
-	BCM281XX_PIN_TYPE_UNKNOWN = 0,
+	BCM281XX_PIN_TYPE_UNKANALWN = 0,
 	BCM281XX_PIN_TYPE_STD,
 	BCM281XX_PIN_TYPE_I2C,
 	BCM281XX_PIN_TYPE_HDMI,
@@ -946,7 +946,7 @@ static inline enum bcm281xx_pin_type pin_type_get(struct pinctrl_dev *pctldev,
 	struct bcm281xx_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 
 	if (pin >= pdata->npins)
-		return BCM281XX_PIN_TYPE_UNKNOWN;
+		return BCM281XX_PIN_TYPE_UNKANALWN;
 
 	return *(enum bcm281xx_pin_type *)(pdata->pins[pin].drv_data);
 }
@@ -959,7 +959,7 @@ static inline enum bcm281xx_pin_type pin_type_get(struct pinctrl_dev *pctldev,
 
 /*
  * This helper function is used to build up the value and mask used to write to
- * a pin register, but does not actually write to the register.
+ * a pin register, but does analt actually write to the register.
  */
 static inline void bcm281xx_pin_update(u32 *reg_val, u32 *reg_mask,
 				       u32 param_val, u32 param_shift,
@@ -1017,7 +1017,7 @@ static const struct pinctrl_ops bcm281xx_pinctrl_ops = {
 	.get_group_name = bcm281xx_pinctrl_get_group_name,
 	.get_group_pins = bcm281xx_pinctrl_get_group_pins,
 	.pin_dbg_show = bcm281xx_pinctrl_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -1085,7 +1085,7 @@ static int bcm281xx_pinctrl_pin_config_get(struct pinctrl_dev *pctldev,
 					   unsigned pin,
 					   unsigned long *config)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 
@@ -1115,9 +1115,9 @@ static int bcm281xx_std_pin_update(struct pinctrl_dev *pctldev,
 			break;
 		/*
 		 * The pin bias can only be one of pull-up, pull-down, or
-		 * disable.  The user does not need to specify a value for the
+		 * disable.  The user does analt need to specify a value for the
 		 * property, and the default value from pinconf-generic is
-		 * ignored.
+		 * iganalred.
 		 */
 		case PIN_CONFIG_BIAS_DISABLE:
 			bcm281xx_pin_update(val, mask, 0,
@@ -1191,7 +1191,7 @@ static int bcm281xx_std_pin_update(struct pinctrl_dev *pctldev,
 /*
  * The pull-up strength for an I2C pin is represented by bits 4-6 in the
  * register with the following mapping:
- *   0b000: No pull-up
+ *   0b000: Anal pull-up
  *   0b001: 1200 Ohm
  *   0b010: 1800 Ohm
  *   0b011: 720 Ohm
@@ -1353,7 +1353,7 @@ static int bcm281xx_pinctrl_pin_config_set(struct pinctrl_dev *pctldev,
 		break;
 
 	default:
-		dev_err(pctldev->dev, "Unknown pin type for pin %s (%d).\n",
+		dev_err(pctldev->dev, "Unkanalwn pin type for pin %s (%d).\n",
 			pdata->pins[pin].name, pin);
 		return -EINVAL;
 
@@ -1407,7 +1407,7 @@ static int __init bcm281xx_pinctrl_probe(struct platform_device *pdev)
 		&bcm281xx_pinctrl_regmap_config);
 	if (IS_ERR(pdata->regmap)) {
 		dev_err(&pdev->dev, "Regmap MMIO init failed.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	bcm281xx_pinctrl_desc.name = dev_name(&pdev->dev);

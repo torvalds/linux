@@ -41,7 +41,7 @@ static int ip6table_security_table_init(struct net *net)
 
 	repl = ip6t_alloc_initial_table(&security_table);
 	if (repl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = ip6t_register_table(net, &security_table, repl, sectbl_ops);
 	kfree(repl);
 	return ret;

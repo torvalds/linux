@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -103,12 +103,12 @@ nvkm_uconn_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_
 
 	if (!uevent) {
 		if (!disp->rm.client.gsp && conn->info.hpd == DCB_GPIO_UNUSED)
-			return -ENOSYS;
+			return -EANALSYS;
 		return 0;
 	}
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	list_for_each_entry(outp, &conn->disp->outps, head) {
 		if (outp->info.connector == conn->index)
@@ -175,7 +175,7 @@ nvkm_uconn_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	int ret;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	list_for_each_entry(cont, &disp->conns, head) {
 		if (cont->index == args->v0.id) {

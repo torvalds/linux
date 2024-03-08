@@ -20,7 +20,7 @@
  * DOC: overview
  *
  * ``/sys/kernel/debug/dma_buf/bufinfo`` provides an overview of every DMA-BUF
- * in the system. However, since debugfs is not safe to be mounted in
+ * in the system. However, since debugfs is analt safe to be mounted in
  * production, procfs and sysfs can be used to gather DMA-BUF statistics on
  * production systems.
  *
@@ -38,8 +38,8 @@
  *
  * The following stats are exposed by the interface:
  *
- * * ``/sys/kernel/dmabuf/buffers/<inode_number>/exporter_name``
- * * ``/sys/kernel/dmabuf/buffers/<inode_number>/size``
+ * * ``/sys/kernel/dmabuf/buffers/<ianalde_number>/exporter_name``
+ * * ``/sys/kernel/dmabuf/buffers/<ianalde_number>/size``
  *
  * The information in the interface can also be used to derive per-exporter
  * statistics. The data from the interface can be gathered on error conditions
@@ -131,13 +131,13 @@ void dma_buf_stats_teardown(struct dma_buf *dmabuf)
 }
 
 
-/* Statistics files do not need to send uevents. */
+/* Statistics files do analt need to send uevents. */
 static int dmabuf_sysfs_uevent_filter(const struct kobject *kobj)
 {
 	return 0;
 }
 
-static const struct kset_uevent_ops dmabuf_sysfs_no_uevent_ops = {
+static const struct kset_uevent_ops dmabuf_sysfs_anal_uevent_ops = {
 	.filter = dmabuf_sysfs_uevent_filter,
 };
 
@@ -146,17 +146,17 @@ static struct kset *dma_buf_per_buffer_stats_kset;
 int dma_buf_init_sysfs_statistics(void)
 {
 	dma_buf_stats_kset = kset_create_and_add("dmabuf",
-						 &dmabuf_sysfs_no_uevent_ops,
+						 &dmabuf_sysfs_anal_uevent_ops,
 						 kernel_kobj);
 	if (!dma_buf_stats_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_buf_per_buffer_stats_kset = kset_create_and_add("buffers",
-							    &dmabuf_sysfs_no_uevent_ops,
+							    &dmabuf_sysfs_anal_uevent_ops,
 							    &dma_buf_stats_kset->kobj);
 	if (!dma_buf_per_buffer_stats_kset) {
 		kset_unregister(dma_buf_stats_kset);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -174,13 +174,13 @@ int dma_buf_stats_setup(struct dma_buf *dmabuf, struct file *file)
 	int ret;
 
 	if (!dmabuf->exp_name) {
-		pr_err("exporter name must not be empty if stats needed\n");
+		pr_err("exporter name must analt be empty if stats needed\n");
 		return -EINVAL;
 	}
 
 	sysfs_entry = kzalloc(sizeof(struct dma_buf_sysfs_entry), GFP_KERNEL);
 	if (!sysfs_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sysfs_entry->kobj.kset = dma_buf_per_buffer_stats_kset;
 	sysfs_entry->dmabuf = dmabuf;
@@ -189,7 +189,7 @@ int dma_buf_stats_setup(struct dma_buf *dmabuf, struct file *file)
 
 	/* create the directory for buffer stats */
 	ret = kobject_init_and_add(&sysfs_entry->kobj, &dma_buf_ktype, NULL,
-				   "%lu", file_inode(file)->i_ino);
+				   "%lu", file_ianalde(file)->i_ianal);
 	if (ret)
 		goto err_sysfs_dmabuf;
 

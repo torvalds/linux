@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -86,11 +86,11 @@ static bool set_cache_memory_policy_cik(struct device_queue_manager *dqm,
 	uint32_t ape1_mtype;
 
 	default_mtype = (default_policy == cache_policy_coherent) ?
-			MTYPE_NONCACHED :
+			MTYPE_ANALNCACHED :
 			MTYPE_CACHED;
 
 	ape1_mtype = (alternate_policy == cache_policy_coherent) ?
-			MTYPE_NONCACHED :
+			MTYPE_ANALNCACHED :
 			MTYPE_CACHED;
 
 	qpd->sh_mem_config = (qpd->sh_mem_config & PTR32)
@@ -113,8 +113,8 @@ static int update_qpd_cik(struct device_queue_manager *dqm,
 	if (qpd->sh_mem_config == 0) {
 		qpd->sh_mem_config =
 			ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED) |
-			DEFAULT_MTYPE(MTYPE_NONCACHED) |
-			APE1_MTYPE(MTYPE_NONCACHED);
+			DEFAULT_MTYPE(MTYPE_ANALNCACHED) |
+			APE1_MTYPE(MTYPE_ANALNCACHED);
 		qpd->sh_mem_ape1_limit = 0;
 		qpd->sh_mem_ape1_base = 0;
 	}

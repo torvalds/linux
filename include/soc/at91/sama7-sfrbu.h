@@ -2,7 +2,7 @@
 /*
  * Microchip SAMA7 SFRBU registers offsets and bit definitions.
  *
- * Copyright (C) [2020] Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) [2020] Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Claudu Beznea <claudiu.beznea@microchip.com>
  */

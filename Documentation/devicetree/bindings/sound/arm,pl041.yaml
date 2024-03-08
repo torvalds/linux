@@ -14,7 +14,7 @@ description:
   peripheral that provides communication with an audio CODEC using the AC-link
   protocol.
 
-# We need a select here so we don't match all nodes with 'arm,primecell'
+# We need a select here so we don't match all analdes with 'arm,primecell'
 select:
   properties:
     compatible:

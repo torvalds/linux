@@ -23,7 +23,7 @@ static int rapl_mmio_cpu_online(unsigned int cpu)
 {
 	struct rapl_package *rp;
 
-	/* mmio rapl supports package 0 only for now */
+	/* mmio rapl supports package 0 only for analw */
 	if (topology_physical_package_id(cpu))
 		return 0;
 

@@ -3,9 +3,9 @@
  * This file is part of the ROHM BH1770GLC / OSRAM SFH7770 sensor driver.
  * Chip is combined proximity and ambient light sensor.
  *
- * Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
+ * Copyright (C) 2010 Analkia Corporation and/or its subsidiary(-ies).
  *
- * Contact: Samu Onkalo <samu.p.onkalo@nokia.com>
+ * Contact: Samu Onkalo <samu.p.onkalo@analkia.com>
  */
 
 #ifndef __BH1770_H__

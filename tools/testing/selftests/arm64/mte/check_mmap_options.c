@@ -3,7 +3,7 @@
 
 #define _GNU_SOURCE
 
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
@@ -57,13 +57,13 @@ static int check_mte_memory(char *ptr, int size, int mode, int tag_check)
 	return KSFT_PASS;
 }
 
-static int check_anonymous_memory_mapping(int mem_type, int mode, int mapping, int tag_check)
+static int check_aanalnymous_memory_mapping(int mem_type, int mode, int mapping, int tag_check)
 {
 	char *ptr, *map_ptr;
 	int run, result, map_size;
 	int item = ARRAY_SIZE(sizes);
 
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mode, MTE_ALLOW_ANALN_ZERO_TAG);
 	for (run = 0; run < item; run++) {
 		map_size = sizes[run] + OVERFLOW + UNDERFLOW;
 		map_ptr = (char *)mte_allocate_memory(map_size, mem_type, mapping, false);
@@ -75,7 +75,7 @@ static int check_anonymous_memory_mapping(int mem_type, int mode, int mapping, i
 		/* Only mte enabled memory will allow tag insertion */
 		ptr = mte_insert_tags((void *)ptr, sizes[run]);
 		if (!ptr || cur_mte_cxt.fault_valid == true) {
-			ksft_print_msg("FAIL: Insert tags on anonymous mmap memory\n");
+			ksft_print_msg("FAIL: Insert tags on aanalnymous mmap memory\n");
 			munmap((void *)map_ptr, map_size);
 			return KSFT_FAIL;
 		}
@@ -95,7 +95,7 @@ static int check_file_memory_mapping(int mem_type, int mode, int mapping, int ta
 	int total = ARRAY_SIZE(sizes);
 	int result = KSFT_PASS;
 
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mode, MTE_ALLOW_ANALN_ZERO_TAG);
 	for (run = 0; run < total; run++) {
 		fd = create_temp_file();
 		if (fd == -1)
@@ -134,7 +134,7 @@ static int check_clear_prot_mte_flag(int mem_type, int mode, int mapping)
 	int total = ARRAY_SIZE(sizes);
 
 	prot_flag = PROT_READ | PROT_WRITE;
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mode, MTE_ALLOW_ANALN_ZERO_TAG);
 	for (run = 0; run < total; run++) {
 		map_size = sizes[run] + OVERFLOW + UNDERFLOW;
 		ptr = (char *)mte_allocate_memory_tag_range(sizes[run], mem_type, mapping,
@@ -147,7 +147,7 @@ static int check_clear_prot_mte_flag(int mem_type, int mode, int mapping)
 		if (mprotect(map_ptr, map_size, prot_flag)) {
 			mte_free_memory_tag_range((void *)ptr, sizes[run], mem_type,
 						  UNDERFLOW, OVERFLOW);
-			ksft_print_msg("FAIL: mprotect not ignoring clear PROT_MTE property\n");
+			ksft_print_msg("FAIL: mprotect analt iganalring clear PROT_MTE property\n");
 			return KSFT_FAIL;
 		}
 		result = check_mte_memory(ptr, sizes[run], mode, TAG_CHECK_ON);
@@ -168,7 +168,7 @@ static int check_clear_prot_mte_flag(int mem_type, int mode, int mapping)
 		map_ptr = ptr - UNDERFLOW;
 		/* Try to clear PROT_MTE property and verify it by tag checking */
 		if (mprotect(map_ptr, map_size, prot_flag)) {
-			ksft_print_msg("FAIL: mprotect not ignoring clear PROT_MTE property\n");
+			ksft_print_msg("FAIL: mprotect analt iganalring clear PROT_MTE property\n");
 			mte_free_memory_tag_range((void *)ptr, sizes[run], mem_type,
 						  UNDERFLOW, OVERFLOW);
 			close(fd);
@@ -209,33 +209,33 @@ int main(int argc, char *argv[])
 
 	mte_enable_pstate_tco();
 
-	evaluate_test(check_anonymous_memory_mapping(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE, TAG_CHECK_OFF),
-	"Check anonymous memory with private mapping, sync error mode, mmap memory and tag check off\n");
+	evaluate_test(check_aanalnymous_memory_mapping(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE, TAG_CHECK_OFF),
+	"Check aanalnymous memory with private mapping, sync error mode, mmap memory and tag check off\n");
 	evaluate_test(check_file_memory_mapping(USE_MPROTECT, MTE_SYNC_ERR, MAP_PRIVATE, TAG_CHECK_OFF),
 	"Check file memory with private mapping, sync error mode, mmap/mprotect memory and tag check off\n");
 
 	mte_disable_pstate_tco();
-	evaluate_test(check_anonymous_memory_mapping(USE_MMAP, MTE_NONE_ERR, MAP_PRIVATE, TAG_CHECK_OFF),
-	"Check anonymous memory with private mapping, no error mode, mmap memory and tag check off\n");
-	evaluate_test(check_file_memory_mapping(USE_MPROTECT, MTE_NONE_ERR, MAP_PRIVATE, TAG_CHECK_OFF),
-	"Check file memory with private mapping, no error mode, mmap/mprotect memory and tag check off\n");
+	evaluate_test(check_aanalnymous_memory_mapping(USE_MMAP, MTE_ANALNE_ERR, MAP_PRIVATE, TAG_CHECK_OFF),
+	"Check aanalnymous memory with private mapping, anal error mode, mmap memory and tag check off\n");
+	evaluate_test(check_file_memory_mapping(USE_MPROTECT, MTE_ANALNE_ERR, MAP_PRIVATE, TAG_CHECK_OFF),
+	"Check file memory with private mapping, anal error mode, mmap/mprotect memory and tag check off\n");
 
-	evaluate_test(check_anonymous_memory_mapping(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE, TAG_CHECK_ON),
-	"Check anonymous memory with private mapping, sync error mode, mmap memory and tag check on\n");
-	evaluate_test(check_anonymous_memory_mapping(USE_MPROTECT, MTE_SYNC_ERR, MAP_PRIVATE, TAG_CHECK_ON),
-	"Check anonymous memory with private mapping, sync error mode, mmap/mprotect memory and tag check on\n");
-	evaluate_test(check_anonymous_memory_mapping(USE_MMAP, MTE_SYNC_ERR, MAP_SHARED, TAG_CHECK_ON),
-	"Check anonymous memory with shared mapping, sync error mode, mmap memory and tag check on\n");
-	evaluate_test(check_anonymous_memory_mapping(USE_MPROTECT, MTE_SYNC_ERR, MAP_SHARED, TAG_CHECK_ON),
-	"Check anonymous memory with shared mapping, sync error mode, mmap/mprotect memory and tag check on\n");
-	evaluate_test(check_anonymous_memory_mapping(USE_MMAP, MTE_ASYNC_ERR, MAP_PRIVATE, TAG_CHECK_ON),
-	"Check anonymous memory with private mapping, async error mode, mmap memory and tag check on\n");
-	evaluate_test(check_anonymous_memory_mapping(USE_MPROTECT, MTE_ASYNC_ERR, MAP_PRIVATE, TAG_CHECK_ON),
-	"Check anonymous memory with private mapping, async error mode, mmap/mprotect memory and tag check on\n");
-	evaluate_test(check_anonymous_memory_mapping(USE_MMAP, MTE_ASYNC_ERR, MAP_SHARED, TAG_CHECK_ON),
-	"Check anonymous memory with shared mapping, async error mode, mmap memory and tag check on\n");
-	evaluate_test(check_anonymous_memory_mapping(USE_MPROTECT, MTE_ASYNC_ERR, MAP_SHARED, TAG_CHECK_ON),
-	"Check anonymous memory with shared mapping, async error mode, mmap/mprotect memory and tag check on\n");
+	evaluate_test(check_aanalnymous_memory_mapping(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE, TAG_CHECK_ON),
+	"Check aanalnymous memory with private mapping, sync error mode, mmap memory and tag check on\n");
+	evaluate_test(check_aanalnymous_memory_mapping(USE_MPROTECT, MTE_SYNC_ERR, MAP_PRIVATE, TAG_CHECK_ON),
+	"Check aanalnymous memory with private mapping, sync error mode, mmap/mprotect memory and tag check on\n");
+	evaluate_test(check_aanalnymous_memory_mapping(USE_MMAP, MTE_SYNC_ERR, MAP_SHARED, TAG_CHECK_ON),
+	"Check aanalnymous memory with shared mapping, sync error mode, mmap memory and tag check on\n");
+	evaluate_test(check_aanalnymous_memory_mapping(USE_MPROTECT, MTE_SYNC_ERR, MAP_SHARED, TAG_CHECK_ON),
+	"Check aanalnymous memory with shared mapping, sync error mode, mmap/mprotect memory and tag check on\n");
+	evaluate_test(check_aanalnymous_memory_mapping(USE_MMAP, MTE_ASYNC_ERR, MAP_PRIVATE, TAG_CHECK_ON),
+	"Check aanalnymous memory with private mapping, async error mode, mmap memory and tag check on\n");
+	evaluate_test(check_aanalnymous_memory_mapping(USE_MPROTECT, MTE_ASYNC_ERR, MAP_PRIVATE, TAG_CHECK_ON),
+	"Check aanalnymous memory with private mapping, async error mode, mmap/mprotect memory and tag check on\n");
+	evaluate_test(check_aanalnymous_memory_mapping(USE_MMAP, MTE_ASYNC_ERR, MAP_SHARED, TAG_CHECK_ON),
+	"Check aanalnymous memory with shared mapping, async error mode, mmap memory and tag check on\n");
+	evaluate_test(check_aanalnymous_memory_mapping(USE_MPROTECT, MTE_ASYNC_ERR, MAP_SHARED, TAG_CHECK_ON),
+	"Check aanalnymous memory with shared mapping, async error mode, mmap/mprotect memory and tag check on\n");
 
 	evaluate_test(check_file_memory_mapping(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE, TAG_CHECK_ON),
 	"Check file memory with private mapping, sync error mode, mmap memory and tag check on\n");

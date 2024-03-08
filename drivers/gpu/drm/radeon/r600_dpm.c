@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -71,9 +71,9 @@ void r600_dpm_print_class_info(u32 class, u32 class2)
 	const char *s;
 
 	switch (class & ATOM_PPLIB_CLASSIFICATION_UI_MASK) {
-	case ATOM_PPLIB_CLASSIFICATION_UI_NONE:
+	case ATOM_PPLIB_CLASSIFICATION_UI_ANALNE:
 	default:
-		s = "none";
+		s = "analne";
 		break;
 	case ATOM_PPLIB_CLASSIFICATION_UI_BATTERY:
 		s = "battery";
@@ -90,7 +90,7 @@ void r600_dpm_print_class_info(u32 class, u32 class2)
 	printk("\tinternal class:");
 	if (((class & ~ATOM_PPLIB_CLASSIFICATION_UI_MASK) == 0) &&
 	    (class2 == 0))
-		pr_cont(" none");
+		pr_cont(" analne");
 	else {
 		if (class & ATOM_PPLIB_CLASSIFICATION_BOOT)
 			pr_cont(" boot");
@@ -136,7 +136,7 @@ void r600_dpm_print_cap_info(u32 caps)
 	if (caps & ATOM_PPLIB_SUPPORTS_VIDEO_PLAYBACK)
 		pr_cont(" video");
 	if (caps & ATOM_PPLIB_DISALLOW_ON_DC)
-		pr_cont(" no_dc");
+		pr_cont(" anal_dc");
 	pr_cont("\n");
 }
 
@@ -776,7 +776,7 @@ bool r600_is_internal_thermal_sensor(enum radeon_int_thermal_type sensor)
 	case THERMAL_TYPE_ADT7473_WITH_INTERNAL:
 	case THERMAL_TYPE_EMC2103_WITH_INTERNAL:
 		return false; /* need special handling */
-	case THERMAL_TYPE_NONE:
+	case THERMAL_TYPE_ANALNE:
 	case THERMAL_TYPE_EXTERNAL:
 	case THERMAL_TYPE_EXTERNAL_GPIO:
 	default:
@@ -827,7 +827,7 @@ static int r600_parse_clk_voltage_dep_table(struct radeon_clock_voltage_dependen
 					sizeof(struct radeon_clock_voltage_dependency_entry),
 					GFP_KERNEL);
 	if (!radeon_table->entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry = &atom_table->entries[0];
 	for (i = 0; i < atom_table->ucNumEntries; i++) {
@@ -995,7 +995,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 					GFP_KERNEL);
 			if (!rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries) {
 				r600_free_extended_power_table(rdev);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			entry = &psl->entries[0];
@@ -1039,7 +1039,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 			rdev->pm.dpm.dyn_state.cac_leakage_table.entries = kzalloc(size, GFP_KERNEL);
 			if (!rdev->pm.dpm.dyn_state.cac_leakage_table.entries) {
 				r600_free_extended_power_table(rdev);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			entry = &cac_table->entries[0];
 			for (i = 0; i < cac_table->ucNumEntries; i++) {
@@ -1094,7 +1094,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				kzalloc(size, GFP_KERNEL);
 			if (!rdev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table.entries) {
 				r600_free_extended_power_table(rdev);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			rdev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table.count =
 				limits->numEntries;
@@ -1148,7 +1148,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				kzalloc(size, GFP_KERNEL);
 			if (!rdev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.entries) {
 				r600_free_extended_power_table(rdev);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			rdev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.count =
 				limits->numEntries;
@@ -1180,7 +1180,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				kzalloc(size, GFP_KERNEL);
 			if (!rdev->pm.dpm.dyn_state.samu_clock_voltage_dependency_table.entries) {
 				r600_free_extended_power_table(rdev);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			rdev->pm.dpm.dyn_state.samu_clock_voltage_dependency_table.count =
 				limits->numEntries;
@@ -1203,7 +1203,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				kzalloc(sizeof(struct radeon_ppm_table), GFP_KERNEL);
 			if (!rdev->pm.dpm.dyn_state.ppm_table) {
 				r600_free_extended_power_table(rdev);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			rdev->pm.dpm.dyn_state.ppm_table->ppm_design = ppm->ucPpmDesign;
 			rdev->pm.dpm.dyn_state.ppm_table->cpu_core_number =
@@ -1238,7 +1238,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				kzalloc(size, GFP_KERNEL);
 			if (!rdev->pm.dpm.dyn_state.acp_clock_voltage_dependency_table.entries) {
 				r600_free_extended_power_table(rdev);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			rdev->pm.dpm.dyn_state.acp_clock_voltage_dependency_table.count =
 				limits->numEntries;
@@ -1261,7 +1261,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				kzalloc(sizeof(struct radeon_cac_tdp_table), GFP_KERNEL);
 			if (!rdev->pm.dpm.dyn_state.cac_tdp_table) {
 				r600_free_extended_power_table(rdev);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			if (rev > 0) {
 				ATOM_PPLIB_POWERTUNE_Table_V1 *ppt = (ATOM_PPLIB_POWERTUNE_Table_V1 *)

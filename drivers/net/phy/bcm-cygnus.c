@@ -26,7 +26,7 @@ static int bcm_cygnus_afe_config(struct phy_device *phydev)
 	if (rc < 0)
 		return rc;
 
-	/* AFE_VDAC_ICTRL_0 bit 7:4 Iq=1100 for 1g 10bt, normal modes */
+	/* AFE_VDAC_ICTRL_0 bit 7:4 Iq=1100 for 1g 10bt, analrmal modes */
 	rc = bcm_phy_write_misc(phydev, 0x39, 0x01, 0xA7C8);
 	if (rc < 0)
 		return rc;
@@ -136,7 +136,7 @@ static int bcm_omega_config_init(struct phy_device *phydev)
 		     phydev_name(phydev), phydev->drv->name, rev);
 
 	/* Dummy read to a register to workaround an issue upon reset where the
-	 * internal inverter may not allow the first MDIO transaction to pass
+	 * internal inverter may analt allow the first MDIO transaction to pass
 	 * the MDIO management controller and make us return 0xffff for such
 	 * reads.
 	 */
@@ -175,7 +175,7 @@ static int bcm_omega_resume(struct phy_device *phydev)
 		return ret;
 
 	/* 28nm Gigabit PHYs come out of reset without any half-duplex
-	 * or "hub" compliant advertised mode, fix that. This does not
+	 * or "hub" compliant advertised mode, fix that. This does analt
 	 * cause any problems with the PHY library since genphy_config_aneg()
 	 * gracefully handles auto-negotiated and forced modes.
 	 */
@@ -189,7 +189,7 @@ static int bcm_omega_get_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return bcm_phy_downshift_get(phydev, (u8 *)data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -205,7 +205,7 @@ static int bcm_omega_set_tunable(struct phy_device *phydev,
 		ret = bcm_phy_downshift_set(phydev, count);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (ret)
@@ -236,7 +236,7 @@ static int bcm_omega_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = priv;
 
@@ -244,7 +244,7 @@ static int bcm_omega_probe(struct phy_device *phydev)
 				   bcm_phy_get_sset_count(phydev), sizeof(u64),
 				   GFP_KERNEL);
 	if (!priv->stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

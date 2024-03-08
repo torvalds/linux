@@ -58,14 +58,14 @@ reg def meaning
 2b  01  ?
 2c  ea  ?
 2d  00  ?
-2e  00  ? not used?
-2f  00  ? not used?
+2e  00  ? analt used?
+2f  00  ? analt used?
 */
 
 #define QT1010_STEP         (125 * kHz) /*
 					 * used by Windows drivers,
 				         * hw could be more precise but we don't
-				         * know how to use
+				         * kanalw how to use
 					 */
 #define QT1010_MIN_FREQ   (48 * MHz)
 #define QT1010_MAX_FREQ  (860 * MHz)

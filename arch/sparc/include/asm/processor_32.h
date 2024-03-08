@@ -72,7 +72,7 @@ static inline void start_thread(struct pt_regs * regs, unsigned long pc,
 			     "std\t%%g0, [%0 + %3 + 0x30]\n\t"
 			     "st\t%1, [%0 + %3 + 0x38]\n\t"
 			     "st\t%%g0, [%0 + %3 + 0x3c]"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (regs),
 			       "r" (sp - sizeof(struct reg_window32)),
 			       "r" (zero),

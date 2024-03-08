@@ -25,7 +25,7 @@ static int regcache_maple_read(struct regmap *map,
 	entry = mas_walk(&mas);
 	if (!entry) {
 		rcu_read_unlock();
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	*value = entry[reg - mas.index];
@@ -76,7 +76,7 @@ static int regcache_maple_write(struct regmap *map, unsigned int reg,
 	entry = kmalloc((last - index + 1) * sizeof(unsigned long),
 			map->alloc_flags);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (lower)
 		memcpy(entry, lower, lower_sz);
@@ -136,7 +136,7 @@ static int regcache_maple_drop(struct regmap *map, unsigned int min,
 						sizeof(unsigned long)),
 					map->alloc_flags);
 			if (!lower) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out_unlocked;
 			}
 		}
@@ -150,7 +150,7 @@ static int regcache_maple_drop(struct regmap *map, unsigned int min,
 					 sizeof(unsigned long)),
 					map->alloc_flags);
 			if (!upper) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out_unlocked;
 			}
 		}
@@ -159,7 +159,7 @@ static int regcache_maple_drop(struct regmap *map, unsigned int min,
 		mas_lock(&mas);
 		mas_erase(&mas);
 
-		/* Insert new nodes with the saved data */
+		/* Insert new analdes with the saved data */
 		if (lower) {
 			mas_set_range(&mas, lower_index, lower_last);
 			ret = mas_store_gfp(&mas, lower, map->alloc_flags);
@@ -206,7 +206,7 @@ static int regcache_maple_sync_block(struct regmap *map, unsigned long *entry,
 	if (max - min > 1 && regmap_can_raw_write(map)) {
 		buf = kmalloc(val_bytes * (max - min), map->alloc_flags);
 		if (!buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -322,7 +322,7 @@ static int regcache_maple_insert_block(struct regmap *map, int first,
 
 	entry = kcalloc(last - first + 1, sizeof(unsigned long), map->alloc_flags);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < last - first + 1; i++)
 		entry[i] = map->reg_defaults[first + i].def;
@@ -350,7 +350,7 @@ static int regcache_maple_init(struct regmap *map)
 
 	mt = kmalloc(sizeof(*mt), GFP_KERNEL);
 	if (!mt)
-		return -ENOMEM;
+		return -EANALMEM;
 	map->cache = mt;
 
 	mt_init(mt);

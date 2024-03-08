@@ -34,7 +34,7 @@ infiniband中间层锁
     - post_send
     - post_recv
     - poll_cq
-    - req_notify_cq
+    - req_analtify_cq
 
     他们可能不可以睡眠，而且必须可以从任何上下文中调用。
 
@@ -46,7 +46,7 @@ infiniband中间层锁
     - rdma_destroy_ah
     - ib_post_send
     - ib_post_recv
-    - ib_req_notify_cq
+    - ib_req_analtify_cq
 
     因此，在任何情况下都可以安全调用（它们）。
 
@@ -88,7 +88,7 @@ infiniband中间层锁
     low-level driver ->
       consumer CQ event callback:
         /* ... */
-        ib_req_notify_cq(cq, ...);
+        ib_req_analtify_cq(cq, ...);
                                           low-level driver ->
         /* ... */                           consumer CQ event callback:
                                               /* ... */

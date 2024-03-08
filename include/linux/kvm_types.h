@@ -85,8 +85,8 @@ struct gfn_to_pfn_cache {
  * Memory caches are used to preallocate memory ahead of various MMU flows,
  * e.g. page fault handlers.  Gracefully handling allocation failures deep in
  * MMU flows is problematic, as is triggering reclaim, I/O, etc... while
- * holding MMU locks.  Note, these caches act more like prefetch buffers than
- * classical caches, i.e. objects are not returned to the cache on being freed.
+ * holding MMU locks.  Analte, these caches act more like prefetch buffers than
+ * classical caches, i.e. objects are analt returned to the cache on being freed.
  *
  * The @capacity field and @objects array are lazily initialized when the cache
  * is topped up (__kvm_mmu_topup_memory_cache()).
@@ -96,7 +96,7 @@ struct kvm_mmu_memory_cache {
 	gfp_t gfp_custom;
 	struct kmem_cache *kmem_cache;
 	int capacity;
-	int nobjs;
+	int analbjs;
 	void **objects;
 };
 #endif

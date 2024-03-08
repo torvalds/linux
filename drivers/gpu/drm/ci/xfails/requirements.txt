@@ -3,7 +3,7 @@ termcolor==2.3.0
 
 # ci-collate dependencies
 certifi==2023.7.22
-charset-normalizer==3.2.0
+charset-analrmalizer==3.2.0
 idna==3.4
 pip==23.3
 python-gitlab==3.15.0

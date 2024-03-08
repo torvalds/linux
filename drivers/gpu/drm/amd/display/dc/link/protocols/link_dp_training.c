@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -60,8 +60,8 @@ void dp_log_training_result(
 	const struct link_training_settings *lt_settings,
 	enum link_training_result status)
 {
-	char *link_rate = "Unknown";
-	char *lt_result = "Unknown";
+	char *link_rate = "Unkanalwn";
+	char *lt_result = "Unkanalwn";
 	char *lt_spread = "Disabled";
 
 	switch (lt_settings->link_settings.link_rate) {
@@ -323,7 +323,7 @@ static void maximize_lane_settings(const struct link_training_settings *lt_setti
 	}
 
 	/* make sure the requested settings are
-	 * not higher than maximum settings*/
+	 * analt higher than maximum settings*/
 	if (max_requested.VOLTAGE_SWING > VOLTAGE_SWING_MAX_LEVEL)
 		max_requested.VOLTAGE_SWING = VOLTAGE_SWING_MAX_LEVEL;
 
@@ -452,7 +452,7 @@ enum link_training_result dp_get_cr_failure(enum dc_lane_count ln_count,
 
 bool is_repeater(const struct link_training_settings *lt_settings, uint32_t offset)
 {
-	return (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) && (offset != 0);
+	return (lt_settings->lttpr_mode == LTTPR_MODE_ANALN_TRANSPARENT) && (offset != 0);
 }
 
 bool dp_is_max_vs_reached(
@@ -669,10 +669,10 @@ void dp_get_lttpr_mode_override(struct dc_link *link, enum lttpr_mode *override)
 
 	if (link->dc->debug.lttpr_mode_override == LTTPR_MODE_TRANSPARENT) {
 		*override = LTTPR_MODE_TRANSPARENT;
-	} else if (link->dc->debug.lttpr_mode_override == LTTPR_MODE_NON_TRANSPARENT) {
-		*override = LTTPR_MODE_NON_TRANSPARENT;
-	} else if (link->dc->debug.lttpr_mode_override == LTTPR_MODE_NON_LTTPR) {
-		*override = LTTPR_MODE_NON_LTTPR;
+	} else if (link->dc->debug.lttpr_mode_override == LTTPR_MODE_ANALN_TRANSPARENT) {
+		*override = LTTPR_MODE_ANALN_TRANSPARENT;
+	} else if (link->dc->debug.lttpr_mode_override == LTTPR_MODE_ANALN_LTTPR) {
+		*override = LTTPR_MODE_ANALN_LTTPR;
 	}
 	DC_LOG_DC("lttpr_mode_override chose LTTPR_MODE = %d\n", (uint8_t)(*override));
 }
@@ -740,8 +740,8 @@ void override_training_settings(
 		lt_settings->should_set_fec_ready = *link->preferred_training_settings.fec_enable;
 
 	/* Check DP tunnel LTTPR mode debug option. */
-	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA && link->dc->debug.dpia_debug.bits.force_non_lttpr)
-		lt_settings->lttpr_mode = LTTPR_MODE_NON_LTTPR;
+	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA && link->dc->debug.dpia_debug.bits.force_analn_lttpr)
+		lt_settings->lttpr_mode = LTTPR_MODE_ANALN_LTTPR;
 
 	dp_get_lttpr_mode_override(link, &lt_settings->lttpr_mode);
 
@@ -803,7 +803,7 @@ enum lttpr_mode dp_decide_lttpr_mode(struct dc_link *link,
 		return dp_decide_128b_132b_lttpr_mode(link);
 
 	ASSERT(0);
-	return LTTPR_MODE_NON_LTTPR;
+	return LTTPR_MODE_ANALN_LTTPR;
 }
 
 void dp_decide_lane_settings(
@@ -866,12 +866,12 @@ enum dc_status configure_lttpr_mode_transparent(struct dc_link *link)
 			sizeof(repeater_mode));
 }
 
-static enum dc_status configure_lttpr_mode_non_transparent(
+static enum dc_status configure_lttpr_mode_analn_transparent(
 		struct dc_link *link,
 		const struct link_training_settings *lt_settings)
 {
 	/* aux timeout is already set to extended */
-	/* RESET/SET lttpr mode to enable non transparent mode */
+	/* RESET/SET lttpr mode to enable analn transparent mode */
 	uint8_t repeater_cnt;
 	uint32_t aux_interval_address;
 	uint8_t repeater_id;
@@ -894,11 +894,11 @@ static enum dc_status configure_lttpr_mode_non_transparent(
 		link->dpcd_caps.lttpr_caps.mode = repeater_mode;
 	}
 
-	if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) {
+	if (lt_settings->lttpr_mode == LTTPR_MODE_ANALN_TRANSPARENT) {
 
-		DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Non Transparent Mode\n", __func__);
+		DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Analn Transparent Mode\n", __func__);
 
-		repeater_mode = DP_PHY_REPEATER_MODE_NON_TRANSPARENT;
+		repeater_mode = DP_PHY_REPEATER_MODE_ANALN_TRANSPARENT;
 		result = core_link_write_dpcd(link,
 				DP_PHY_REPEATER_MODE,
 				(uint8_t *)&repeater_mode,
@@ -911,7 +911,7 @@ static enum dc_status configure_lttpr_mode_non_transparent(
 		if (encoding == DP_8b_10b_ENCODING) {
 			repeater_cnt = dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 
-			/* Driver does not need to train the first hop. Skip DPCD read and clear
+			/* Driver does analt need to train the first hop. Skip DPCD read and clear
 			 * AUX_RD_INTERVAL for DPTX-to-DPIA hop.
 			 */
 			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
@@ -940,8 +940,8 @@ enum dc_status dpcd_configure_lttpr_mode(struct dc_link *link, struct link_train
 	if (lt_settings->lttpr_mode == LTTPR_MODE_TRANSPARENT)
 		status = configure_lttpr_mode_transparent(link);
 
-	else if (lt_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT)
-		status = configure_lttpr_mode_non_transparent(link, lt_settings);
+	else if (lt_settings->lttpr_mode == LTTPR_MODE_ANALN_TRANSPARENT)
+		status = configure_lttpr_mode_analn_transparent(link, lt_settings);
 
 	return status;
 }
@@ -953,7 +953,7 @@ void repeater_training_done(struct dc_link *link, uint32_t offset)
 	const uint32_t dpcd_base_lt_offset =
 			DP_TRAINING_PATTERN_SET_PHY_REPEATER1 +
 				((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
-	/* Set training not in progress*/
+	/* Set training analt in progress*/
 	dpcd_pattern.v1_4.TRAINING_PATTERN_SET = DPCD_TRAINING_PATTERN_VIDEOIDLE;
 
 	core_link_write_dpcd(
@@ -1504,8 +1504,8 @@ enum link_training_result dp_perform_link_training(
 	dpcd_configure_channel_coding(link, &lt_settings);
 
 	/* enter training mode:
-	 * Per DP specs starting from here, DPTX device shall not issue
-	 * Non-LT AUX transactions inside training mode.
+	 * Per DP specs starting from here, DPTX device shall analt issue
+	 * Analn-LT AUX transactions inside training mode.
 	 */
 	if ((link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) && encoding == DP_8b_10b_ENCODING)
 		if (link->dc->config.use_old_fixed_vs_sequence)
@@ -1674,17 +1674,17 @@ bool perform_link_training_with_retries(
 
 		/* Abort link training if failure due to sink being unplugged. */
 		if (status == LINK_TRAINING_ABORT) {
-			enum dc_connection_type type = dc_connection_none;
+			enum dc_connection_type type = dc_connection_analne;
 
 			link_detect_connection_type(link, &type);
-			if (type == dc_connection_none) {
+			if (type == dc_connection_analne) {
 				DC_LOG_HW_LINK_TRAINING("%s: Aborting training because sink unplugged\n", __func__);
 				break;
 			}
 		}
 
 		/* Try to train again at original settings if:
-		 * - not falling back between training attempts;
+		 * - analt falling back between training attempts;
 		 * - aborted previous attempt due to reasons other than sink unplug;
 		 * - successfully trained but at a link rate lower than that required by stream;
 		 * - reached minimum link bandwidth.
@@ -1712,7 +1712,7 @@ bool perform_link_training_with_retries(
 			else if (link_dp_get_encoding_format(&cur_link_settings) == DP_128b_132b_ENCODING)
 				link_encoding = DC_LINK_ENCODING_DP_128b_132b;
 
-			/* Flag if reduced link bandwidth no longer meets stream requirements or fallen back to
+			/* Flag if reduced link bandwidth anal longer meets stream requirements or fallen back to
 			 * minimum link bandwidth.
 			 */
 			req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing, link_encoding);

@@ -174,7 +174,7 @@ enum sun6i_dsi_inst_id {
 	DSI_INST_ID_HSD,
 	DSI_INST_ID_LPDT,
 	DSI_INST_ID_HSCEXIT,
-	DSI_INST_ID_NOP,
+	DSI_INST_ID_ANALP,
 	DSI_INST_ID_DLY,
 	DSI_INST_ID_END		= 15,
 };
@@ -185,7 +185,7 @@ enum sun6i_dsi_inst_mode {
 	DSI_INST_MODE_HS,
 	DSI_INST_MODE_ESCAPE,
 	DSI_INST_MODE_HSCEXIT,
-	DSI_INST_MODE_NOP,
+	DSI_INST_MODE_ANALP,
 };
 
 enum sun6i_dsi_inst_escape {
@@ -350,14 +350,14 @@ static void sun6i_dsi_inst_init(struct sun6i_dsi *dsi,
 	sun6i_dsi_inst_setup(dsi, DSI_INST_ID_HSCEXIT, DSI_INST_MODE_HSCEXIT,
 			     true, 0, 0, 0);
 
-	sun6i_dsi_inst_setup(dsi, DSI_INST_ID_NOP, DSI_INST_MODE_STOP,
+	sun6i_dsi_inst_setup(dsi, DSI_INST_ID_ANALP, DSI_INST_MODE_STOP,
 			     false, lanes_mask, 0, 0);
 
-	sun6i_dsi_inst_setup(dsi, DSI_INST_ID_DLY, DSI_INST_MODE_NOP,
+	sun6i_dsi_inst_setup(dsi, DSI_INST_ID_DLY, DSI_INST_MODE_ANALP,
 			     true, lanes_mask, 0, 0);
 
 	regmap_write(dsi->regs, SUN6I_DSI_INST_JUMP_CFG_REG(0),
-		     SUN6I_DSI_INST_JUMP_CFG_POINT(DSI_INST_ID_NOP) |
+		     SUN6I_DSI_INST_JUMP_CFG_POINT(DSI_INST_ID_ANALP) |
 		     SUN6I_DSI_INST_JUMP_CFG_TO(DSI_INST_ID_HSCEXIT) |
 		     SUN6I_DSI_INST_JUMP_CFG_NUM(1));
 };
@@ -588,7 +588,7 @@ static void sun6i_dsi_setup_timings(struct sun6i_dsi *dsi,
 			   HBLK_PACKET_OVERHEAD);
 
 		/*
-		 * And I'm not entirely sure what vblk is about. The driver in
+		 * And I'm analt entirely sure what vblk is about. The driver in
 		 * Allwinner BSP is using a rather convoluted calculation
 		 * there only for 4 lanes. However, using 0 (the !4 lanes
 		 * case) even with a 4 lanes screen seems to work...
@@ -690,10 +690,10 @@ static int sun6i_dsi_start(struct sun6i_dsi *dsi,
 		break;
 	case DSI_START_HSD:
 		regmap_write(dsi->regs, SUN6I_DSI_INST_JUMP_SEL_REG,
-			     DSI_INST_ID_NOP  << (4 * DSI_INST_ID_LP11) |
-			     DSI_INST_ID_HSD  << (4 * DSI_INST_ID_NOP) |
+			     DSI_INST_ID_ANALP  << (4 * DSI_INST_ID_LP11) |
+			     DSI_INST_ID_HSD  << (4 * DSI_INST_ID_ANALP) |
 			     DSI_INST_ID_DLY  << (4 * DSI_INST_ID_HSD) |
-			     DSI_INST_ID_NOP  << (4 * DSI_INST_ID_DLY) |
+			     DSI_INST_ID_ANALP  << (4 * DSI_INST_ID_DLY) |
 			     DSI_INST_ID_END  << (4 * DSI_INST_ID_HSCEXIT));
 		break;
 	default:
@@ -775,14 +775,14 @@ static void sun6i_dsi_encoder_enable(struct drm_encoder *encoder)
 	/*
 	 * FIXME: This should be moved after the switch to HS mode.
 	 *
-	 * Unfortunately, once in HS mode, it seems like we're not
+	 * Unfortunately, once in HS mode, it seems like we're analt
 	 * able to send DCS commands anymore, which would prevent any
 	 * panel to send any DCS command as part as their enable
 	 * method, which is quite common.
 	 *
 	 * I haven't seen any artifact due to that sub-optimal
 	 * ordering on the panels I've tested it with, so I guess this
-	 * will do for now, until that IP is better understood.
+	 * will do for analw, until that IP is better understood.
 	 */
 	if (dsi->panel)
 		drm_panel_enable(dsi->panel);
@@ -891,7 +891,7 @@ static int sun6i_dsi_dcs_write_long(struct sun6i_dsi *dsi,
 
 	bounce = kzalloc(ALIGN(msg->tx_len + sizeof(crc), 4), GFP_KERNEL);
 	if (!bounce)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(bounce, msg->tx_buf, msg->tx_len);
 	len += msg->tx_len;
@@ -951,7 +951,7 @@ static int sun6i_dsi_dcs_read(struct sun6i_dsi *dsi,
 
 	regmap_read(dsi->regs, SUN6I_DSI_CMD_RX_REG(0), &val);
 	byte0 = val & 0xff;
-	if (byte0 == MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT)
+	if (byte0 == MIPI_DSI_RX_ACKANALWLEDGE_AND_ERROR_REPORT)
 		return -EIO;
 
 	((u8 *)msg->rx_buf)[0] = (val >> 8);
@@ -963,7 +963,7 @@ static int sun6i_dsi_attach(struct mipi_dsi_host *host,
 			    struct mipi_dsi_device *device)
 {
 	struct sun6i_dsi *dsi = host_to_sun6i_dsi(host);
-	struct drm_panel *panel = of_drm_find_panel(device->dev.of_node);
+	struct drm_panel *panel = of_drm_find_panel(device->dev.of_analde);
 
 	if (IS_ERR(panel))
 		return PTR_ERR(panel);
@@ -1113,7 +1113,7 @@ static int sun6i_dsi_probe(struct platform_device *pdev)
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, dsi);
 	dsi->dev = dev;
 	dsi->host.ops = &sun6i_dsi_host_ops;

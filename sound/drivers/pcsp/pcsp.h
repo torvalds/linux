@@ -24,7 +24,7 @@
 #define CUR_DIV() CALC_DIV(chip->treble)
 #define PCSP_MAX_TREBLE 1
 
-/* unfortunately, with hrtimers 37KHz does not work very well :( */
+/* unfortunately, with hrtimers 37KHz does analt work very well :( */
 #define PCSP_DEFAULT_TREBLE 0
 #define MIN_DIV (MAX_DIV >> PCSP_MAX_TREBLE)
 
@@ -78,6 +78,6 @@ extern enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle);
 extern void pcsp_sync_stop(struct snd_pcsp *chip);
 
 extern int snd_pcsp_new_pcm(struct snd_pcsp *chip);
-extern int snd_pcsp_new_mixer(struct snd_pcsp *chip, int nopcm);
+extern int snd_pcsp_new_mixer(struct snd_pcsp *chip, int analpcm);
 
 #endif

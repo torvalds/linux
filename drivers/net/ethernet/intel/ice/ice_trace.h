@@ -15,7 +15,7 @@
 #define TRACE_SYSTEM ice
 
 /* See trace-events-sample.h for a detailed description of why this
- * guard clause is different from most normal include files.
+ * guard clause is different from most analrmal include files.
  */
 #if !defined(_ICE_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _ICE_TRACE_H_
@@ -335,7 +335,7 @@ DEFINE_EVENT(ice_esw_br_port_template,
 #endif /* _ICE_TRACE_H_ */
 /* This must be outside ifdef _ICE_TRACE_H */
 
-/* This trace include file is not located in the .../include/trace
+/* This trace include file is analt located in the .../include/trace
  * with the kernel tracepoint definitions, because we're a loadable
  * module.
  */

@@ -10,6 +10,6 @@ int bpf_nf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog);
 #else
 static inline int bpf_nf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif

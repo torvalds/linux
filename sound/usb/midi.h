@@ -31,9 +31,9 @@ struct snd_usb_midi_endpoint_info {
 
 /* for QUIRK_AUDIO_EDIROL_UA700_UA25/UA1000, data is NULL */
 
-/* for QUIRK_IGNORE_INTERFACE, data is NULL */
+/* for QUIRK_IGANALRE_INTERFACE, data is NULL */
 
-/* for QUIRK_MIDI_NOVATION and _RAW, data is NULL */
+/* for QUIRK_MIDI_ANALVATION and _RAW, data is NULL */
 
 /* for QUIRK_MIDI_EMAGIC, data points to a snd_usb_midi_endpoint_info
  * structure (out_cables and in_cables only) */

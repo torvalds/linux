@@ -13,7 +13,7 @@
 #define SSI_SCR_CLK_IST_SHIFT	9
 #define SSI_SCR_TCH_EN		(1 << 8)
 #define SSI_SCR_SYS_CLK_EN	(1 << 7)
-#define SSI_SCR_I2S_MODE_NORM	(0 << 5)
+#define SSI_SCR_I2S_MODE_ANALRM	(0 << 5)
 #define SSI_SCR_I2S_MODE_MSTR	(1 << 5)
 #define SSI_SCR_I2S_MODE_SLAVE	(2 << 5)
 #define SSI_I2S_MODE_MASK	(3 << 5)

@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 /*
  * nfp_net.h
- * Declarations for Netronome network device driver.
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
+ * Declarations for Netroanalme network device driver.
+ * Authors: Jakub Kicinski <jakub.kicinski@netroanalme.com>
+ *          Jason McMullan <jason.mcmullan@netroanalme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroanalme.com>
  */
 
 #ifndef _NFP_NET_H_
@@ -18,7 +18,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/dim.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 #include <linux/semaphore.h>
 #include <linux/workqueue.h>
 #include <net/xdp.h>
@@ -70,17 +70,17 @@
 #define NFP_NET_MAX_PREPEND		64
 
 /* Interrupt definitions */
-#define NFP_NET_NON_Q_VECTORS		2
+#define NFP_NET_ANALN_Q_VECTORS		2
 #define NFP_NET_IRQ_LSC_IDX		0
 #define NFP_NET_IRQ_EXN_IDX		1
-#define NFP_NET_MIN_VNIC_IRQS		(NFP_NET_NON_Q_VECTORS + 1)
+#define NFP_NET_MIN_VNIC_IRQS		(NFP_NET_ANALN_Q_VECTORS + 1)
 
 /* Queue/Ring definitions */
 #define NFP_NET_MAX_TX_RINGS	64	/* Max. # of Tx rings per device */
 #define NFP_NET_MAX_RX_RINGS	64	/* Max. # of Rx rings per device */
 #define NFP_NET_MAX_R_VECS	(NFP_NET_MAX_TX_RINGS > NFP_NET_MAX_RX_RINGS ? \
 				 NFP_NET_MAX_TX_RINGS : NFP_NET_MAX_RX_RINGS)
-#define NFP_NET_MAX_IRQS	(NFP_NET_NON_Q_VECTORS + NFP_NET_MAX_R_VECS)
+#define NFP_NET_MAX_IRQS	(NFP_NET_ANALN_Q_VECTORS + NFP_NET_MAX_R_VECS)
 
 #define NFP_NET_TX_DESCS_DEFAULT 4096	/* Default # of Tx descs per ring */
 #define NFP_NET_RX_DESCS_DEFAULT 4096	/* Default # of Rx descs per ring */
@@ -95,7 +95,7 @@
 #define NFP_NET_N_VXLAN_PORTS	(NFP_NET_CFG_VXLAN_SZ / sizeof(__be16))
 
 #define NFP_NET_RX_BUF_HEADROOM	(NET_SKB_PAD + NET_IP_ALIGN)
-#define NFP_NET_RX_BUF_NON_DATA	(NFP_NET_RX_BUF_HEADROOM +		\
+#define NFP_NET_RX_BUF_ANALN_DATA	(NFP_NET_RX_BUF_HEADROOM +		\
 				 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 /* Forward declarations */
@@ -369,10 +369,10 @@ struct nfp_net_rx_ring {
  * @hw_tls_tx:	    Counter of TLS packets sent with crypto offloaded to HW
  * @tls_tx_fallback:	Counter of TLS packets sent which had to be encrypted
  *			by the fallback path because packets came out of order
- * @tls_tx_no_fallback:	Counter of TLS packets not sent because the fallback
- *			path could not encrypt them
+ * @tls_tx_anal_fallback:	Counter of TLS packets analt sent because the fallback
+ *			path could analt encrypt them
  * @tx_errors:	    How many TX errors were encountered
- * @tx_busy:        How often was TX busy (no space)?
+ * @tx_busy:        How often was TX busy (anal space)?
  * @rx_replace_buf_alloc_fail:	Counter of RX buffer allocation failures
  * @irq_vector:     Interrupt vector number (use for talking to the OS)
  * @handler:        Interrupt handler for this ring vector
@@ -430,7 +430,7 @@ struct nfp_net_r_vector {
 	u64 hw_tls_tx;
 
 	u64 tls_tx_fallback;
-	u64 tls_tx_no_fallback;
+	u64 tls_tx_anal_fallback;
 	u64 tx_errors;
 	u64 tx_busy;
 
@@ -444,7 +444,7 @@ struct nfp_net_r_vector {
 
 /* Firmware version as it is written in the 32bit value in the BAR */
 struct nfp_net_fw_version {
-	u8 minor;
+	u8 mianalr;
 	u8 major;
 	u8 class;
 
@@ -455,12 +455,12 @@ struct nfp_net_fw_version {
 } __packed;
 
 static inline bool nfp_net_fw_ver_eq(struct nfp_net_fw_version *fw_ver,
-				     u8 extend, u8 class, u8 major, u8 minor)
+				     u8 extend, u8 class, u8 major, u8 mianalr)
 {
 	return fw_ver->extend == extend &&
 	       fw_ver->class == class &&
 	       fw_ver->major == major &&
-	       fw_ver->minor == minor;
+	       fw_ver->mianalr == mianalr;
 }
 
 struct nfp_stat_pair {
@@ -493,7 +493,7 @@ struct nfp_stat_pair {
  * @rxd_cnt:		Size of the RX ring in number of min size packets
  * @num_r_vecs:		Number of used ring vectors
  * @num_tx_rings:	Currently configured number of TX rings
- * @num_stack_tx_rings:	Number of TX rings used by the stack (not XDP)
+ * @num_stack_tx_rings:	Number of TX rings used by the stack (analt XDP)
  * @num_rx_rings:	Currently configured number of RX rings
  * @mtu:		Device MTU
  * @xsk_pools:		XSK buffer pools, @max_r_vecs in size (for AF_XDP).
@@ -577,9 +577,9 @@ struct nfp_net_dp {
  *			@bar_lock)
  * @reconfig_posted:	Pending reconfig bits coming from async sources
  * @reconfig_timer_active:  Timer for reading reconfiguration results is pending
- * @reconfig_sync_present:  Some thread is performing synchronous reconfig
+ * @reconfig_sync_present:  Some thread is performing synchroanalus reconfig
  * @reconfig_timer:	Timer for async reading of reconfig results
- * @reconfig_in_progress_update:	Update FW is processing now (debug only)
+ * @reconfig_in_progress_update:	Update FW is processing analw (debug only)
  * @bar_lock:		vNIC config BAR access lock, protects: update,
  *			mailbox area, crypto TLV
  * @link_up:            Is the link up?
@@ -590,7 +590,7 @@ struct nfp_net_dp {
  * @rx_coalesce_max_frames: RX interrupt moderation frame count parameter
  * @tx_coalesce_usecs:      TX interrupt moderation usecs delay parameter
  * @tx_coalesce_max_frames: TX interrupt moderation frame count parameter
- * @qcp_cfg:            Pointer to QCP queue used for configuration notification
+ * @qcp_cfg:            Pointer to QCP queue used for configuration analtification
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @xa_ipsec:           IPsec xarray SA data
@@ -598,10 +598,10 @@ struct nfp_net_dp {
  * @ktls_tx_conn_cnt:	Number of offloaded kTLS TX connections
  * @ktls_rx_conn_cnt:	Number of offloaded kTLS RX connections
  * @ktls_conn_id_gen:	Trivial generator for kTLS connection ids (for TX)
- * @ktls_no_space:	Counter of firmware rejecting kTLS connection due to
+ * @ktls_anal_space:	Counter of firmware rejecting kTLS connection due to
  *			lack of space
  * @ktls_rx_resync_req:	Counter of TLS RX resync requested
- * @ktls_rx_resync_ign:	Counter of TLS RX resync requests ignored
+ * @ktls_rx_resync_ign:	Counter of TLS RX resync requests iganalred
  * @ktls_rx_resync_sent:    Counter of TLS RX resync completed
  * @mbox_cmsg:		Common Control Message via vNIC mailbox state
  * @mbox_cmsg.queue:	CCM mbox queue of pending messages
@@ -614,13 +614,13 @@ struct nfp_net_dp {
  * @vnic_list:		Entry on device vNIC list
  * @pdev:		Backpointer to PCI device
  * @app:		APP handle if available
- * @vnic_no_name:	For non-port PF vNIC make ndo_get_phys_port_name return
- *			-EOPNOTSUPP to keep backwards compatibility (set by app)
+ * @vnic_anal_name:	For analn-port PF vNIC make ndo_get_phys_port_name return
+ *			-EOPANALTSUPP to keep backwards compatibility (set by app)
  * @port:		Pointer to nfp_port structure if vNIC is a port
- * @mbox_amsg:		Asynchronously processed message via mailbox
+ * @mbox_amsg:		Asynchroanalusly processed message via mailbox
  * @mbox_amsg.lock:	Protect message list
  * @mbox_amsg.list:	List of message to process
- * @mbox_amsg.work:	Work to process message asynchronously
+ * @mbox_amsg.work:	Work to process message asynchroanalusly
  * @fs:			Flow steering
  * @fs.count:		Flow count
  * @fs.list:		List of flows
@@ -700,7 +700,7 @@ struct nfp_net {
 
 	atomic64_t ktls_conn_id_gen;
 
-	atomic_t ktls_no_space;
+	atomic_t ktls_anal_space;
 	atomic_t ktls_rx_resync_req;
 	atomic_t ktls_rx_resync_ign;
 	atomic_t ktls_rx_resync_sent;
@@ -721,7 +721,7 @@ struct nfp_net {
 	struct pci_dev *pdev;
 	struct nfp_app *app;
 
-	bool vnic_no_name;
+	bool vnic_anal_name;
 
 	struct nfp_port *port;
 
@@ -740,7 +740,7 @@ struct nfp_net {
 };
 
 struct nfp_fs_entry {
-	struct list_head node;
+	struct list_head analde;
 	u32 flow_type;
 	u32 loc;
 	struct {

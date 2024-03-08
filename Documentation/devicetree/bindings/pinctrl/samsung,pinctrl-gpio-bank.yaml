@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pinctrl/samsung,pinctrl-gpio-bank.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung S3C/S5P/Exynos SoC pin controller - gpio bank
+title: Samsung S3C/S5P/Exyanals SoC pin controller - gpio bank
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -12,10 +12,10 @@ maintainers:
   - Tomasz Figa <tomasz.figa@gmail.com>
 
 description: |
-  This is a part of device tree bindings for Samsung S3C/S5P/Exynos SoC pin
+  This is a part of device tree bindings for Samsung S3C/S5P/Exyanals SoC pin
   controller.
 
-  GPIO bank description for Samsung S3C/S5P/Exynos SoC pin controller.
+  GPIO bank description for Samsung S3C/S5P/Exyanals SoC pin controller.
 
   See also Documentation/devicetree/bindings/pinctrl/samsung,pinctrl.yaml for
   additional information and example.

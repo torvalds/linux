@@ -2,7 +2,7 @@
 /*
  * This file is part of wl1251
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  */
 
 #ifndef __WL1251_INIT_H__
@@ -43,7 +43,7 @@ enum {
 #define AIFS_PIFS 1
 
 /*
- * slot number setting to start transmission at DIFS interval - normal DCF
+ * slot number setting to start transmission at DIFS interval - analrmal DCF
  * access
  */
 #define AIFS_DIFS 2

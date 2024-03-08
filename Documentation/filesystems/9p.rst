@@ -62,22 +62,22 @@ Options
 
 			========  ============================================
 			unix 	  specifying a named pipe mount point
-			tcp	  specifying a normal TCP/IP connection
+			tcp	  specifying a analrmal TCP/IP connection
 			fd   	  used passed file descriptors for connection
-                                  (see rfdno and wfdno)
+                                  (see rfdanal and wfdanal)
 			virtio	  connect to the next virtio channel available
 				  (from QEMU with trans_virtio module)
 			rdma	  connect to a specified RDMA channel
 			========  ============================================
 
   uname=name	user name to attempt mount as on the remote server.  The
-  		server may override or ignore this value.  Certain user
+  		server may override or iganalre this value.  Certain user
 		names may require authentication.
 
   aname=name	aname specifies the file tree to access when the server is
   		offering several exported file systems.
 
-  cache=mode	specifies a caching policy.  By default, no caches are used.
+  cache=mode	specifies a caching policy.  By default, anal caches are used.
 		The mode can be specified as a bitmask or by using one of the
 		preexisting common 'shortcuts'.
 		The bitmask is described below: (unspecified bits are reserved)
@@ -87,27 +87,27 @@ Options
 			0b00000001  file caches enabled
 			0b00000010  meta-data caches enabled
 			0b00000100  writeback behavior (as opposed to writethrough)
-			0b00001000  loose caches (no explicit consistency with server)
+			0b00001000  loose caches (anal explicit consistency with server)
 			0b10000000  fscache enabled for persistent caching
 			==========  ====================================================
 
 		The current shortcuts and their associated bitmask are:
 
 			=========   ====================================================
-			none        0b00000000 (no caching)
+			analne        0b00000000 (anal caching)
 			readahead   0b00000001 (only read-ahead file caching)
 			mmap        0b00000101 (read-ahead + writeback file cache)
-			loose       0b00001111 (non-coherent file and meta-data caches)
+			loose       0b00001111 (analn-coherent file and meta-data caches)
 			fscache     0b10001111 (persistent loose cache)
 			=========   ====================================================
 
-		NOTE: only these shortcuts are tested modes of operation at the
-		moment, so using other combinations of bit-patterns is not
-		known to work.  Work on better cache support is in progress.
+		ANALTE: only these shortcuts are tested modes of operation at the
+		moment, so using other combinations of bit-patterns is analt
+		kanalwn to work.  Work on better cache support is in progress.
 
 		IMPORTANT: loose caches (and by extension at the moment fscache)
-		do not necessarily validate cached values on the server.  In other
-		words changes on the server are not guaranteed to be reflected
+		do analt necessarily validate cached values on the server.  In other
+		words changes on the server are analt guaranteed to be reflected
 		on the client system.  Only use this mode of operation if you
 		have an exclusive mount and the server will modify the filesystem
 		underneath you.
@@ -129,20 +129,20 @@ Options
 			0x800   display fscache tracing debug
 			=====   ================================
 
-  rfdno=n	the file descriptor for reading with trans=fd
+  rfdanal=n	the file descriptor for reading with trans=fd
 
-  wfdno=n	the file descriptor for writing with trans=fd
+  wfdanal=n	the file descriptor for writing with trans=fd
 
   msize=n	the number of bytes to use for 9p packet payload
 
   port=n	port to connect to on the remote server
 
-  noextend	force legacy mode (no 9p2000.u or 9p2000.L semantics)
+  analextend	force legacy mode (anal 9p2000.u or 9p2000.L semantics)
 
   version=name	Select 9P protocol version. Valid options are:
 
 			========        ==============================
-			9p2000          Legacy mode (same as noextend)
+			9p2000          Legacy mode (same as analextend)
 			9p2000.u        Use 9P2000.u protocol
 			9p2000.L        Use 9P2000.L protocol
 			========        ==============================
@@ -153,15 +153,15 @@ Options
 
   afid		security channel - used by Plan 9 authentication protocols
 
-  nodevmap	do not map special files - represent them as normal files.
+  analdevmap	do analt map special files - represent them as analrmal files.
   		This can be used to share devices/named pipes/sockets between
 		hosts.  This functionality will be expanded in later versions.
 
   directio	bypass page cache on all read/write operations
 
-  ignoreqv	ignore qid.version==0 as a marker to ignore cache
+  iganalreqv	iganalre qid.version==0 as a marker to iganalre cache
 
-  noxattr	do not offer xattr functions on this mount.
+  analxattr	do analt offer xattr functions on this mount.
 
   access	there are four access modes.
 			user
@@ -190,7 +190,7 @@ Behavior
 This section aims at describing 9p 'quirks' that can be different
 from a local filesystem behaviors.
 
- - Setting O_NONBLOCK on a file will make client reads return as early
+ - Setting O_ANALNBLOCK on a file will make client reads return as early
    as the server returns some data instead of trying to fill the read
    buffer with the requested amount of bytes or end of file is reached.
 

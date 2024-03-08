@@ -143,7 +143,7 @@ bool tegra_bpmp_mrq_is_supported(struct tegra_bpmp *bpmp, unsigned int mrq);
 #else
 static inline struct tegra_bpmp *tegra_bpmp_get(struct device *dev)
 {
-	return ERR_PTR(-ENOTSUPP);
+	return ERR_PTR(-EANALTSUPP);
 }
 static inline void tegra_bpmp_put(struct tegra_bpmp *bpmp)
 {
@@ -151,12 +151,12 @@ static inline void tegra_bpmp_put(struct tegra_bpmp *bpmp)
 static inline int tegra_bpmp_transfer_atomic(struct tegra_bpmp *bpmp,
 					     struct tegra_bpmp_message *msg)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline int tegra_bpmp_transfer(struct tegra_bpmp *bpmp,
 				      struct tegra_bpmp_message *msg)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel,
 					 int code, const void *data,
@@ -169,7 +169,7 @@ static inline int tegra_bpmp_request_mrq(struct tegra_bpmp *bpmp,
 					 tegra_bpmp_mrq_handler_t handler,
 					 void *data)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 static inline void tegra_bpmp_free_mrq(struct tegra_bpmp *bpmp,
 				       unsigned int mrq, void *data)

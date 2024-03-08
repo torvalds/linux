@@ -172,15 +172,15 @@ ecn_decap_test()
 	devlink_trap_exception_test $trap_name
 
 	tc_check_packets "dev $swp1 egress" 101 0
-	check_err $? "Packets were not dropped"
+	check_err $? "Packets were analt dropped"
 
-	log_test "$desc: Inner ECN is not ECT and outer is $ecn_desc"
+	log_test "$desc: Inner ECN is analt ECT and outer is $ecn_desc"
 
 	kill $mz_pid && wait $mz_pid &> /dev/null
 	tc filter del dev $swp1 egress protocol ipv6 pref 1 handle 101 flower
 }
 
-no_matching_tunnel_test()
+anal_matching_tunnel_test()
 {
 	local trap_name="decap_error"
 	local desc=$1; shift
@@ -203,7 +203,7 @@ no_matching_tunnel_test()
 	devlink_trap_exception_test $trap_name
 
 	tc_check_packets "dev $swp1 egress" 101 0
-	check_err $? "Packets were not dropped"
+	check_err $? "Packets were analt dropped"
 
 	log_test "$desc"
 
@@ -220,10 +220,10 @@ decap_error_test()
 	ecn_decap_test "Decap error" "ECT(0)" 02
 	ecn_decap_test "Decap error" "CE" 03
 
-	no_matching_tunnel_test "Decap error: Source IP check failed" \
+	anal_matching_tunnel_test "Decap error: Source IP check failed" \
 		2001:db8:4::2 "0"
-	no_matching_tunnel_test \
-		"Decap error: Key exists but was not expected" $sip "2" \
+	anal_matching_tunnel_test \
+		"Decap error: Key exists but was analt expected" $sip "2" \
 		"00:00:00:E9:"
 
 	# Destroy the tunnel and create new one with key
@@ -234,9 +234,9 @@ decap_error_test()
 		ttl inherit key 233
 	__addr_add_del g1 add 2001:db8:3::1/128
 
-	no_matching_tunnel_test \
-		"Decap error: Key does not exist but was expected" $sip "0"
-	no_matching_tunnel_test \
+	anal_matching_tunnel_test \
+		"Decap error: Key does analt exist but was expected" $sip "0"
+	anal_matching_tunnel_test \
 		"Decap error: Packet has a wrong key field" $sip "2" \
 		"00:00:00:E8:"
 }

@@ -288,31 +288,31 @@ static const struct reg_default wm8998_reg_default[] = {
 	{ 0x00000409, 0x0022 },    /* R1033  - Output Volume Ramp */
 	{ 0x00000410, 0x2080 },    /* R1040  - Output Path Config 1L */
 	{ 0x00000411, 0x0180 },    /* R1041  - DAC Digital Volume 1L */
-	{ 0x00000413, 0x0001 },    /* R1043  - Noise Gate Select 1L */
+	{ 0x00000413, 0x0001 },    /* R1043  - Analise Gate Select 1L */
 	{ 0x00000414, 0x0080 },    /* R1044  - Output Path Config 1R */
 	{ 0x00000415, 0x0180 },    /* R1045  - DAC Digital Volume 1R */
-	{ 0x00000417, 0x0002 },    /* R1047  - Noise Gate Select 1R */
+	{ 0x00000417, 0x0002 },    /* R1047  - Analise Gate Select 1R */
 	{ 0x00000418, 0x2080 },    /* R1048  - Output Path Config 2L */
 	{ 0x00000419, 0x0180 },    /* R1049  - DAC Digital Volume 2L */
-	{ 0x0000041B, 0x0004 },    /* R1051  - Noise Gate Select 2L */
+	{ 0x0000041B, 0x0004 },    /* R1051  - Analise Gate Select 2L */
 	{ 0x0000041C, 0x0080 },    /* R1052  - Output Path Config 2R */
 	{ 0x0000041D, 0x0180 },    /* R1053  - DAC Digital Volume 2R */
-	{ 0x0000041F, 0x0008 },    /* R1055  - Noise Gate Select 2R */
+	{ 0x0000041F, 0x0008 },    /* R1055  - Analise Gate Select 2R */
 	{ 0x00000420, 0x2080 },    /* R1056  - Output Path Config 3L */
 	{ 0x00000421, 0x0180 },    /* R1057  - DAC Digital Volume 3L */
-	{ 0x00000423, 0x0010 },    /* R1059  - Noise Gate Select 3L */
+	{ 0x00000423, 0x0010 },    /* R1059  - Analise Gate Select 3L */
 	{ 0x00000428, 0x0000 },    /* R1064  - Output Path Config 4L */
 	{ 0x00000429, 0x0180 },    /* R1065  - DAC Digital Volume 4L */
-	{ 0x0000042B, 0x0040 },    /* R1067  - Noise Gate Select 4L */
+	{ 0x0000042B, 0x0040 },    /* R1067  - Analise Gate Select 4L */
 	{ 0x0000042C, 0x0000 },    /* R1068  - Output Path Config 4R */
 	{ 0x0000042D, 0x0180 },    /* R1069  - DAC Digital Volume 4R */
-	{ 0x0000042F, 0x0080 },    /* R1071  - Noise Gate Select 4R */
+	{ 0x0000042F, 0x0080 },    /* R1071  - Analise Gate Select 4R */
 	{ 0x00000430, 0x0000 },    /* R1072  - Output Path Config 5L */
 	{ 0x00000431, 0x0180 },    /* R1073  - DAC Digital Volume 5L */
-	{ 0x00000433, 0x0100 },    /* R1075  - Noise Gate Select 5L */
+	{ 0x00000433, 0x0100 },    /* R1075  - Analise Gate Select 5L */
 	{ 0x00000434, 0x0000 },    /* R1076  - Output Path Config 5R */
 	{ 0x00000435, 0x0180 },    /* R1077  - DAC Digital Volume 5R */
-	{ 0x00000437, 0x0200 },    /* R1079  - Noise Gate Select 5R */
+	{ 0x00000437, 0x0200 },    /* R1079  - Analise Gate Select 5R */
 	{ 0x00000440, 0x002F },    /* R1088  - DRE Enable */
 	{ 0x00000441, 0xC759 },    /* R1089  - DRE Control 1 */
 	{ 0x00000442, 0x2A08 },    /* R1089  - DRE Control 2 */
@@ -320,7 +320,7 @@ static const struct reg_default wm8998_reg_default[] = {
 	{ 0x00000448, 0x03EF },    /* R1096  - EDRE Enable */
 	{ 0x00000450, 0x0000 },    /* R1104  - DAC AEC Control 1 */
 	{ 0x00000451, 0x0000 },    /* R1105  - DAC AEC Control 2 */
-	{ 0x00000458, 0x0000 },    /* R1112  - Noise Gate Control */
+	{ 0x00000458, 0x0000 },    /* R1112  - Analise Gate Control */
 	{ 0x00000490, 0x0069 },    /* R1168  - PDM SPK1 CTRL 1 */
 	{ 0x00000491, 0x0000 },    /* R1169  - PDM SPK1 CTRL 2 */
 	{ 0x0000049A, 0x0000 },    /* R1178  - HP_TEST_CTRL_13 */
@@ -942,31 +942,31 @@ static bool wm8998_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_OUTPUT_VOLUME_RAMP:
 	case ARIZONA_OUTPUT_PATH_CONFIG_1L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_1L:
-	case ARIZONA_NOISE_GATE_SELECT_1L:
+	case ARIZONA_ANALISE_GATE_SELECT_1L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_1R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_1R:
-	case ARIZONA_NOISE_GATE_SELECT_1R:
+	case ARIZONA_ANALISE_GATE_SELECT_1R:
 	case ARIZONA_OUTPUT_PATH_CONFIG_2L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_2L:
-	case ARIZONA_NOISE_GATE_SELECT_2L:
+	case ARIZONA_ANALISE_GATE_SELECT_2L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_2R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_2R:
-	case ARIZONA_NOISE_GATE_SELECT_2R:
+	case ARIZONA_ANALISE_GATE_SELECT_2R:
 	case ARIZONA_OUTPUT_PATH_CONFIG_3L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_3L:
-	case ARIZONA_NOISE_GATE_SELECT_3L:
+	case ARIZONA_ANALISE_GATE_SELECT_3L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_4L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_4L:
-	case ARIZONA_NOISE_GATE_SELECT_4L:
+	case ARIZONA_ANALISE_GATE_SELECT_4L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_4R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_4R:
-	case ARIZONA_NOISE_GATE_SELECT_4R:
+	case ARIZONA_ANALISE_GATE_SELECT_4R:
 	case ARIZONA_OUTPUT_PATH_CONFIG_5L:
 	case ARIZONA_DAC_DIGITAL_VOLUME_5L:
-	case ARIZONA_NOISE_GATE_SELECT_5L:
+	case ARIZONA_ANALISE_GATE_SELECT_5L:
 	case ARIZONA_OUTPUT_PATH_CONFIG_5R:
 	case ARIZONA_DAC_DIGITAL_VOLUME_5R:
-	case ARIZONA_NOISE_GATE_SELECT_5R:
+	case ARIZONA_ANALISE_GATE_SELECT_5R:
 	case ARIZONA_DRE_ENABLE:
 	case ARIZONA_DRE_CONTROL_1:
 	case ARIZONA_DRE_CONTROL_2:
@@ -974,7 +974,7 @@ static bool wm8998_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_EDRE_ENABLE:
 	case ARIZONA_DAC_AEC_CONTROL_1:
 	case ARIZONA_DAC_AEC_CONTROL_2:
-	case ARIZONA_NOISE_GATE_CONTROL:
+	case ARIZONA_ANALISE_GATE_CONTROL:
 	case ARIZONA_PDM_SPK1_CTRL_1:
 	case ARIZONA_PDM_SPK1_CTRL_2:
 	case ARIZONA_HP_TEST_CTRL_13:

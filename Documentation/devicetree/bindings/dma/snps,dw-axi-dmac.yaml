@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/dma/snps,dw-axi-dmac.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Synopsys DesignWare AXI DMA Controller
+title: Syanalpsys DesignWare AXI DMA Controller
 
 maintainers:
-  - Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+  - Eugeniy Paltsev <Eugeniy.Paltsev@syanalpsys.com>
 
 description:
-  Synopsys DesignWare AXI DMA Controller DT Binding
+  Syanalpsys DesignWare AXI DMA Controller DT Binding
 
 allOf:
   - $ref: dma-controller.yaml#

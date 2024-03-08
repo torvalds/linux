@@ -3,10 +3,10 @@
  * Driver for the Atmel AHB DMA Controller (aka HDMA or DMAC on AT91 systems)
  *
  * Copyright (C) 2008 Atmel Corporation
- * Copyright (C) 2022 Microchip Technology, Inc. and its subsidiaries
+ * Copyright (C) 2022 Microchip Techanallogy, Inc. and its subsidiaries
  *
  * This supports the Atmel AHB DMA Controller found in several Atmel SoCs.
- * The only Atmel DMA Controller that is not covered by this driver is the one
+ * The only Atmel DMA Controller that is analt covered by this driver is the one
  * found on AT91SAM9263.
  */
 
@@ -169,7 +169,7 @@
 #define ATC_FIFOCFG		GENMASK(29, 28)	/* FIFO Request Configuration */
 #define ATC_FIFOCFG_LARGESTBURST	0x0
 #define ATC_FIFOCFG_HALFFIFO		0x1
-#define ATC_FIFOCFG_ENOUGHSPACE		0x2
+#define ATC_FIFOCFG_EANALUGHSPACE		0x2
 
 /* Bitfields in SPIP */
 #define ATC_SPIP_HOLE		GENMASK(15, 0)
@@ -195,12 +195,12 @@
 
 /* LLI == Linked List Item; aka DMA buffer descriptor */
 struct at_lli {
-	/* values that are not changed by hardware */
+	/* values that are analt changed by hardware */
 	u32 saddr;
 	u32 daddr;
 	/* value that may get written back: */
 	u32 ctrla;
-	/* more values that are not changed by hardware */
+	/* more values that are analt changed by hardware */
 	u32 ctrlb;
 	u32 dscr;	/* chain to next lli */
 };
@@ -567,7 +567,7 @@ static void atc_dostart(struct at_dma_chan *atchan)
 
 	vdbg_dump_regs(atchan);
 
-	list_del(&vd->node);
+	list_del(&vd->analde);
 	atchan->desc = desc = to_atdma_desc(&vd->tx);
 
 	channel_writel(atchan, SADDR, 0);
@@ -647,33 +647,33 @@ static inline u32 atc_calc_bytes_left(u32 current_len, u32 ctrla)
  * source for the LLI. So we can compute a more accurate residue by also
  * removing the number of bytes corresponding to this amount of data.
  *
- * However, the DSCR and CTRLA registers cannot be read both atomically. Hence a
+ * However, the DSCR and CTRLA registers cananalt be read both atomically. Hence a
  * race condition may occur: the first read register may refer to one LLI
  * whereas the second read may refer to a later LLI in the list because of the
  * DMA transfer progression inbetween the two reads.
  *
  * One solution could have been to pause the DMA transfer, read the DSCR and
- * CTRLA then resume the DMA transfer. Nonetheless, this approach presents some
+ * CTRLA then resume the DMA transfer. Analnetheless, this approach presents some
  * drawbacks:
  * - If the DMA transfer is paused, RX overruns or TX underruns are more likey
  *   to occur depending on the system latency. Taking the USART driver as an
  *   example, it uses a cyclic DMA transfer to read data from the Receive
- *   Holding Register (RHR) to avoid RX overruns since the RHR is not protected
+ *   Holding Register (RHR) to avoid RX overruns since the RHR is analt protected
  *   by any FIFO on most Atmel SoCs. So pausing the DMA transfer to compute the
  *   residue would break the USART driver design.
  * - The atc_pause() function masks interrupts but we'd rather avoid to do so
  * for system latency purpose.
  *
- * Then we'd rather use another solution: the DSCR is read a first time, the
+ * Then we'd rather use aanalther solution: the DSCR is read a first time, the
  * CTRLA is read in turn, next the DSCR is read a second time. If the two
  * consecutive read values of the DSCR are the same then we assume both refers
  * to the very same LLI as well as the CTRLA value read inbetween does. For
- * cyclic tranfers, the assumption is that a full loop is "not so fast". If the
+ * cyclic tranfers, the assumption is that a full loop is "analt so fast". If the
  * two DSCR values are different, we read again the CTRLA then the DSCR till two
  * consecutive read values from DSCR are equal or till the maximum trials is
- * reach. This algorithm is very unlikely not to find a stable value for DSCR.
+ * reach. This algorithm is very unlikely analt to find a stable value for DSCR.
  *
- * Returns: %0 on success, -errno otherwise.
+ * Returns: %0 on success, -erranal otherwise.
  */
 static int atc_get_llis_residue(struct at_dma_chan *atchan,
 				struct at_desc *desc, u32 *residue)
@@ -692,7 +692,7 @@ static int atc_get_llis_residue(struct at_dma_chan *atchan,
 		new_dscr = channel_readl(atchan, DSCR);
 
 		/*
-		 * If the DSCR register value has not changed inside the DMA
+		 * If the DSCR register value has analt changed inside the DMA
 		 * controller since the previous read, we assume that both the
 		 * dscr and ctrla values refers to the very same descriptor.
 		 */
@@ -741,7 +741,7 @@ static int atc_get_llis_residue(struct at_dma_chan *atchan,
  * @cookie: transaction identifier to check status of
  * @residue: residue to be updated.
  *
- * Return: %0 on success, -errno otherwise.
+ * Return: %0 on success, -erranal otherwise.
  */
 static int atc_get_residue(struct dma_chan *chan, dma_cookie_t cookie,
 			   u32 *residue)
@@ -829,7 +829,7 @@ static irqreturn_t at_dma_interrupt(int irq, void *dev_id)
 	struct at_dma_chan	*atchan;
 	int			i;
 	u32			status, pending, imr;
-	int			ret = IRQ_NONE;
+	int			ret = IRQ_ANALNE;
 
 	do {
 		imr = dma_readl(atdma, EBCIMR);
@@ -935,7 +935,7 @@ atc_prep_dma_interleaved(struct dma_chan *chan,
 	desc->sglen = 1;
 
 	atdma_sg = desc->sg;
-	atdma_sg->lli = dma_pool_alloc(atdma->lli_pool, GFP_NOWAIT,
+	atdma_sg->lli = dma_pool_alloc(atdma->lli_pool, GFP_ANALWAIT,
 				       &atdma_sg->lli_phys);
 	if (!atdma_sg->lli) {
 		kfree(desc);
@@ -1016,7 +1016,7 @@ atc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		struct atdma_sg *atdma_sg = &desc->sg[i];
 		struct at_lli *lli;
 
-		atdma_sg->lli = dma_pool_alloc(atdma->lli_pool, GFP_NOWAIT,
+		atdma_sg->lli = dma_pool_alloc(atdma->lli_pool, GFP_ANALWAIT,
 					       &atdma_sg->lli_phys);
 		if (!atdma_sg->lli)
 			goto err_desc_get;
@@ -1066,10 +1066,10 @@ static int atdma_create_memset_lli(struct dma_chan *chan,
 		return -EINVAL;
 	}
 
-	atdma_sg->lli = dma_pool_alloc(atdma->lli_pool, GFP_NOWAIT,
+	atdma_sg->lli = dma_pool_alloc(atdma->lli_pool, GFP_ANALWAIT,
 				       &atdma_sg->lli_phys);
 	if (!atdma_sg->lli)
-		return -ENOMEM;
+		return -EANALMEM;
 	lli = atdma_sg->lli;
 
 	lli->saddr = psrc;
@@ -1111,12 +1111,12 @@ atc_prep_dma_memset(struct dma_chan *chan, dma_addr_t dest, int value,
 	}
 
 	if (!is_dma_fill_aligned(chan->device, dest, 0, len)) {
-		dev_dbg(chan2dev(chan), "%s: buffer is not aligned\n",
+		dev_dbg(chan2dev(chan), "%s: buffer is analt aligned\n",
 			__func__);
 		return NULL;
 	}
 
-	vaddr = dma_pool_alloc(atdma->memset_pool, GFP_NOWAIT, &paddr);
+	vaddr = dma_pool_alloc(atdma->memset_pool, GFP_ANALWAIT, &paddr);
 	if (!vaddr) {
 		dev_err(chan2dev(chan), "%s: couldn't allocate buffer\n",
 			__func__);
@@ -1183,7 +1183,7 @@ atc_prep_dma_memset_sg(struct dma_chan *chan,
 		return NULL;
 	}
 
-	vaddr = dma_pool_alloc(atdma->memset_pool, GFP_NOWAIT, &paddr);
+	vaddr = dma_pool_alloc(atdma->memset_pool, GFP_ANALWAIT, &paddr);
 	if (!vaddr) {
 		dev_err(chan2dev(chan), "%s: couldn't allocate buffer\n",
 			__func__);
@@ -1204,7 +1204,7 @@ atc_prep_dma_memset_sg(struct dma_chan *chan,
 			 __func__, &dest, len);
 
 		if (!is_dma_fill_aligned(chan->device, dest, 0, len)) {
-			dev_err(chan2dev(chan), "%s: buffer is not aligned\n",
+			dev_err(chan2dev(chan), "%s: buffer is analt aligned\n",
 				__func__);
 			goto err_free_desc;
 		}
@@ -1243,7 +1243,7 @@ err_free_dma_buf:
  * @sg_len: number of entries in @scatterlist
  * @direction: DMA direction
  * @flags: tx descriptor status flags
- * @context: transaction context (ignored)
+ * @context: transaction context (iganalred)
  */
 static struct dma_async_tx_descriptor *
 atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
@@ -1301,7 +1301,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			u32		mem;
 
 			atdma_sg->lli = dma_pool_alloc(atdma->lli_pool,
-						       GFP_NOWAIT,
+						       GFP_ANALWAIT,
 						       &atdma_sg->lli_phys);
 			if (!atdma_sg->lli)
 				goto err_desc_get;
@@ -1350,7 +1350,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			u32		mem;
 
 			atdma_sg->lli = dma_pool_alloc(atdma->lli_pool,
-						       GFP_NOWAIT,
+						       GFP_ANALWAIT,
 						       &atdma_sg->lli_phys);
 			if (!atdma_sg->lli)
 				goto err_desc_get;
@@ -1392,7 +1392,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	return vchan_tx_prep(&atchan->vc, &desc->vd, flags);
 
 err_desc_get:
-	dev_err(chan2dev(chan), "not enough descriptors available\n");
+	dev_err(chan2dev(chan), "analt eanalugh descriptors available\n");
 err:
 	atdma_desc_free(&desc->vd);
 	return NULL;
@@ -1437,7 +1437,7 @@ atc_dma_cyclic_fill_desc(struct dma_chan *chan, struct at_desc *desc,
 	atdma_sg->lli = dma_pool_alloc(atdma->lli_pool, GFP_ATOMIC,
 				       &atdma_sg->lli_phys);
 	if (!atdma_sg->lli)
-		return -ENOMEM;
+		return -EANALMEM;
 	lli = atdma_sg->lli;
 
 	switch (direction) {
@@ -1664,7 +1664,7 @@ static int atc_terminate_all(struct dma_chan *chan)
  * atc_tx_status - poll for transaction completion
  * @chan: DMA channel
  * @cookie: transaction identifier to check status of
- * @txstate: if not %NULL updated with transaction state
+ * @txstate: if analt %NULL updated with transaction state
  *
  * If @txstate is passed in, upon return it reflect the driver
  * internal state and can be used with dma_async_is_complete() to check
@@ -1733,7 +1733,7 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 
 	/* ASSERT:  channel is idle */
 	if (atc_chan_is_enabled(atchan)) {
-		dev_dbg(chan2dev(chan), "DMA channel not idle ?\n");
+		dev_dbg(chan2dev(chan), "DMA channel analt idle ?\n");
 		return -EIO;
 	}
 
@@ -1806,7 +1806,7 @@ static struct dma_chan *at_dma_xlate(struct of_phandle_args *dma_spec,
 	if (dma_spec->args_count != 2)
 		return NULL;
 
-	dmac_pdev = of_find_device_by_node(dma_spec->np);
+	dmac_pdev = of_find_device_by_analde(dma_spec->np);
 	if (!dmac_pdev)
 		return NULL;
 
@@ -1822,7 +1822,7 @@ static struct dma_chan *at_dma_xlate(struct of_phandle_args *dma_spec,
 	atslave->cfg = ATC_DST_H2SEL | ATC_SRC_H2SEL;
 	/*
 	 * We can fill both SRC_PER and DST_PER, one of these fields will be
-	 * ignored depending on DMA transfer direction.
+	 * iganalred depending on DMA transfer direction.
 	 */
 	per_id = dma_spec->args[1] & AT91_DMA_CFG_PER_ID_MASK;
 	atslave->cfg |= ATC_DST_PER_ID(per_id) |  ATC_SRC_PER_ID(per_id);
@@ -1838,7 +1838,7 @@ static struct dma_chan *at_dma_xlate(struct of_phandle_args *dma_spec,
 		break;
 	case AT91_DMA_CFG_FIFOCFG_ASAP:
 		atslave->cfg |= FIELD_PREP(ATC_FIFOCFG,
-					   ATC_FIFOCFG_ENOUGHSPACE);
+					   ATC_FIFOCFG_EANALUGHSPACE);
 		break;
 	case AT91_DMA_CFG_FIFOCFG_HALF:
 	default:
@@ -1908,9 +1908,9 @@ static const struct platform_device_id atdma_devtypes[] = {
 static inline const struct at_dma_platform_data * __init at_dma_get_driver_data(
 						struct platform_device *pdev)
 {
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		const struct of_device_id *match;
-		match = of_match_node(atmel_dma_dt_ids, pdev->dev.of_node);
+		match = of_match_analde(atmel_dma_dt_ids, pdev->dev.of_analde);
 		if (match == NULL)
 			return NULL;
 		return match->data;
@@ -1955,13 +1955,13 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	/* get DMA parameters from controller type */
 	plat_dat = at_dma_get_driver_data(pdev);
 	if (!plat_dat)
-		return -ENODEV;
+		return -EANALDEV;
 
 	atdma = devm_kzalloc(&pdev->dev,
 			     struct_size(atdma, chan, plat_dat->nr_channels),
 			     GFP_KERNEL);
 	if (!atdma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atdma->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(atdma->regs))
@@ -1998,7 +1998,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 					  4 /* word alignment */, 0);
 	if (!atdma->lli_pool) {
 		dev_err(&pdev->dev, "Unable to allocate DMA LLI descriptor pool\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_desc_pool_create;
 	}
 
@@ -2006,8 +2006,8 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	atdma->memset_pool = dma_pool_create("at_hdmac_memset_pool",
 					     &pdev->dev, sizeof(int), 4, 0);
 	if (!atdma->memset_pool) {
-		dev_err(&pdev->dev, "No memory for memset dma pool\n");
-		err = -ENOMEM;
+		dev_err(&pdev->dev, "Anal memory for memset dma pool\n");
+		err = -EANALMEM;
 		goto err_memset_pool_create;
 	}
 
@@ -2082,15 +2082,15 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Do not return an error if the dmac node is not present in order to
-	 * not break the existing way of requesting channel with
+	 * Do analt return an error if the dmac analde is analt present in order to
+	 * analt break the existing way of requesting channel with
 	 * dma_request_channel().
 	 */
-	if (pdev->dev.of_node) {
-		err = of_dma_controller_register(pdev->dev.of_node,
+	if (pdev->dev.of_analde) {
+		err = of_dma_controller_register(pdev->dev.of_analde,
 						 at_dma_xlate, atdma);
 		if (err) {
-			dev_err(&pdev->dev, "could not register of_dma_controller\n");
+			dev_err(&pdev->dev, "could analt register of_dma_controller\n");
 			goto err_of_dma_controller_register;
 		}
 	}
@@ -2116,8 +2116,8 @@ static void at_dma_remove(struct platform_device *pdev)
 	struct dma_chan		*chan, *_chan;
 
 	at_dma_off(atdma);
-	if (pdev->dev.of_node)
-		of_dma_controller_free(pdev->dev.of_node);
+	if (pdev->dev.of_analde)
+		of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&atdma->dma_device);
 
 	dma_pool_destroy(atdma->memset_pool);
@@ -2125,10 +2125,10 @@ static void at_dma_remove(struct platform_device *pdev)
 	free_irq(platform_get_irq(pdev, 0), atdma);
 
 	list_for_each_entry_safe(chan, _chan, &atdma->dma_device.channels,
-			device_node) {
+			device_analde) {
 		/* Disable interrupts */
 		atc_disable_chan_irq(atdma, chan->chan_id);
-		list_del(&chan->device_node);
+		list_del(&chan->device_analde);
 	}
 
 	clk_disable_unprepare(atdma->clk);
@@ -2148,7 +2148,7 @@ static int at_dma_prepare(struct device *dev)
 	struct dma_chan *chan, *_chan;
 
 	list_for_each_entry_safe(chan, _chan, &atdma->dma_device.channels,
-			device_node) {
+			device_analde) {
 		struct at_dma_chan *atchan = to_at_dma_chan(chan);
 		/* wait for transaction completion (except in cyclic case) */
 		if (atc_chan_is_enabled(atchan) && !atc_chan_is_cyclic(atchan))
@@ -2162,28 +2162,28 @@ static void atc_suspend_cyclic(struct at_dma_chan *atchan)
 	struct dma_chan	*chan = &atchan->vc.chan;
 
 	/* Channel should be paused by user
-	 * do it anyway even if it is not done already */
+	 * do it anyway even if it is analt done already */
 	if (!atc_chan_is_paused(atchan)) {
 		dev_warn(chan2dev(chan),
-		"cyclic channel not paused, should be done by channel user\n");
+		"cyclic channel analt paused, should be done by channel user\n");
 		atc_pause(chan);
 	}
 
-	/* now preserve additional data for cyclic operations */
+	/* analw preserve additional data for cyclic operations */
 	/* next descriptor address in the cyclic list */
 	atchan->save_dscr = channel_readl(atchan, DSCR);
 
 	vdbg_dump_regs(atchan);
 }
 
-static int at_dma_suspend_noirq(struct device *dev)
+static int at_dma_suspend_analirq(struct device *dev)
 {
 	struct at_dma *atdma = dev_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 
 	/* preserve data */
 	list_for_each_entry_safe(chan, _chan, &atdma->dma_device.channels,
-			device_node) {
+			device_analde) {
 		struct at_dma_chan *atchan = to_at_dma_chan(chan);
 
 		if (atc_chan_is_cyclic(atchan))
@@ -2212,12 +2212,12 @@ static void atc_resume_cyclic(struct at_dma_chan *atchan)
 	dma_writel(atdma, CHER, atchan->mask);
 
 	/* channel pause status should be removed by channel user
-	 * We cannot take the initiative to do it here */
+	 * We cananalt take the initiative to do it here */
 
 	vdbg_dump_regs(atchan);
 }
 
-static int at_dma_resume_noirq(struct device *dev)
+static int at_dma_resume_analirq(struct device *dev)
 {
 	struct at_dma *atdma = dev_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
@@ -2233,7 +2233,7 @@ static int at_dma_resume_noirq(struct device *dev)
 	/* restore saved data */
 	dma_writel(atdma, EBCIER, atdma->save_imr);
 	list_for_each_entry_safe(chan, _chan, &atdma->dma_device.channels,
-			device_node) {
+			device_analde) {
 		struct at_dma_chan *atchan = to_at_dma_chan(chan);
 
 		channel_writel(atchan, CFG, atchan->save_cfg);
@@ -2245,8 +2245,8 @@ static int at_dma_resume_noirq(struct device *dev)
 
 static const struct dev_pm_ops __maybe_unused at_dma_dev_pm_ops = {
 	.prepare = at_dma_prepare,
-	.suspend_noirq = at_dma_suspend_noirq,
-	.resume_noirq = at_dma_resume_noirq,
+	.suspend_analirq = at_dma_suspend_analirq,
+	.resume_analirq = at_dma_resume_analirq,
 };
 
 static struct platform_driver at_dma_driver = {

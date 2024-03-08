@@ -2,7 +2,7 @@
 // Copyright IBM Corp 2019
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fsi-occ.h>
 #include <linux/i2c.h>
 #include <linux/jiffies.h>
@@ -213,7 +213,7 @@ static int p8_i2c_occ_probe(struct i2c_client *client)
 	struct p8_i2c_occ *ctx = devm_kzalloc(&client->dev, sizeof(*ctx),
 					      GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->client = client;
 	occ = &ctx->occ;

@@ -1,6 +1,6 @@
 /*
  * Copyright 2011, Siemens AG
- * written by Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * written by Alexander Smiranalv <alex.bluesman.smiranalv@gmail.com>
  */
 
 /* Based on patches from Jon Smirl <jonsmirl@gmail.com>
@@ -25,20 +25,20 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN ANAL EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -208,8 +208,8 @@ lowpan_iphc_ctx_get_by_addr(const struct net_device *dev,
 	int i;
 
 	for (i = 0; i < LOWPAN_IPHC_CTX_TABLE_SIZE; i++) {
-		/* Check if context is valid. A context that is not valid
-		 * MUST NOT be used for compression.
+		/* Check if context is valid. A context that is analt valid
+		 * MUST ANALT be used for compression.
 		 */
 		if (!lowpan_iphc_ctx_is_active(&table[i]) ||
 		    !lowpan_iphc_ctx_is_compression(&table[i]))
@@ -254,8 +254,8 @@ lowpan_iphc_ctx_get_by_mcast_addr(const struct net_device *dev,
 	memcpy(&addr_mcast, addr, sizeof(*addr));
 
 	for (i = 0; i < LOWPAN_IPHC_CTX_TABLE_SIZE; i++) {
-		/* Check if context is valid. A context that is not valid
-		 * MUST NOT be used for compression.
+		/* Check if context is valid. A context that is analt valid
+		 * MUST ANALT be used for compression.
 		 */
 		if (!lowpan_iphc_ctx_is_active(&table[i]) ||
 		    !lowpan_iphc_ctx_is_compression(&table[i]))
@@ -296,7 +296,7 @@ static void lowpan_iphc_uncompress_lladdr(const struct net_device *dev,
 }
 
 /* Uncompress address function for source and
- * destination address(non-multicast).
+ * destination address(analn-multicast).
  *
  * address_mode is the masked value for sam or dam value
  */
@@ -358,7 +358,7 @@ static int lowpan_iphc_uncompress_addr(struct sk_buff *skb,
 }
 
 /* Uncompress address function for source context
- * based address(non-multicast).
+ * based address(analn-multicast).
  */
 static int lowpan_iphc_uncompress_ctx_addr(struct sk_buff *skb,
 					   const struct net_device *dev,
@@ -373,7 +373,7 @@ static int lowpan_iphc_uncompress_ctx_addr(struct sk_buff *skb,
 	case LOWPAN_IPHC_DAM_00:
 		fail = false;
 		/* SAM_00 -> unspec address ::
-		 * Do nothing, address is already ::
+		 * Do analthing, address is already ::
 		 *
 		 * DAM 00 -> reserved should never occur.
 		 */
@@ -626,7 +626,7 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 
 	hdr.version = 6;
 
-	/* default CID = 0, another if the CID flag is set */
+	/* default CID = 0, aanalther if the CID flag is set */
 	if (iphc1 & LOWPAN_IPHC_CID) {
 		if (lowpan_fetch_skb(skb, &cid, sizeof(cid)))
 			return -EINVAL;
@@ -891,7 +891,7 @@ static u8 lowpan_compress_ctx_addr(u8 **hc_ptr, const struct net_device *dev,
 		goto out;
 	}
 
-	WARN_ONCE(1, "context found but no address mode matched\n");
+	WARN_ONCE(1, "context found but anal address mode matched\n");
 	return LOWPAN_IPHC_DAM_00;
 out:
 
@@ -974,7 +974,7 @@ static u8 lowpan_compress_addr_64(u8 **hc_ptr, const struct net_device *dev,
 		goto out;
 	}
 
-	/* do not compress IID => xxxx::IID */
+	/* do analt compress IID => xxxx::IID */
 	lowpan_push_hc_data(hc_ptr, &ipaddr->s6_addr16[4], 8);
 	raw_dump_inline(NULL, "Compressed ipv6 addr is (64 bits)",
 			*hc_ptr - 8, 8);
@@ -993,14 +993,14 @@ static inline u8 lowpan_iphc_get_tc(const struct ipv6hdr *hdr)
 	u8 dscp, ecn;
 
 	/* hdr->priority contains the higher bits of dscp, lower are part of
-	 * flow_lbl[0]. Note ECN, DCSP is swapped in ipv6 hdr.
+	 * flow_lbl[0]. Analte ECN, DCSP is swapped in ipv6 hdr.
 	 */
 	dscp = (hdr->priority << 2) | ((hdr->flow_lbl[0] & 0xc0) >> 6);
 	/* ECN is at the two lower bits from first nibble of flow_lbl[0] */
 	ecn = (hdr->flow_lbl[0] & 0x30);
 	/* for pretty debug output, also shift ecn to get the ecn value */
 	pr_debug("ecn 0x%02x dscp 0x%02x\n", ecn >> 4, dscp);
-	/* ECN is at 0x30 now, shift it to have ECN + DCSP */
+	/* ECN is at 0x30 analw, shift it to have ECN + DCSP */
 	return (ecn << 2) | dscp;
 }
 
@@ -1154,7 +1154,7 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 	/* As we copy some bit-length fields, in the IPHC encoding bytes,
 	 * we sometimes use |=
 	 * If the field is 0, and the current bit value in memory is 1,
-	 * this does not work. We therefore reset the IPHC encoding here
+	 * this does analt work. We therefore reset the IPHC encoding here
 	 */
 	iphc0 = LOWPAN_DISPATCH_IPHC;
 	iphc1 = 0;
@@ -1191,13 +1191,13 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 	/* Traffic Class, Flow Label compression */
 	iphc0 |= lowpan_iphc_tf_compress(&hc_ptr, hdr);
 
-	/* NOTE: payload length is always compressed */
+	/* ANALTE: payload length is always compressed */
 
 	/* Check if we provide the nhc format for nexthdr and compression
-	 * functionality. If not nexthdr is handled inline and not compressed.
+	 * functionality. If analt nexthdr is handled inline and analt compressed.
 	 */
 	ret = lowpan_nhc_check_compression(skb, hdr, &hc_ptr);
-	if (ret == -ENOENT)
+	if (ret == -EANALENT)
 		lowpan_push_hc_data(&hc_ptr, &hdr->nexthdr,
 				    sizeof(hdr->nexthdr));
 	else
@@ -1207,7 +1207,7 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 	 * if 1:   compress, encoding is 01
 	 * if 64:  compress, encoding is 10
 	 * if 255: compress, encoding is 11
-	 * else do not compress
+	 * else do analt compress
 	 */
 	switch (hdr->hop_limit) {
 	case 1:

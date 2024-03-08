@@ -422,14 +422,14 @@ void cdnsp_setup_analyze(struct cdnsp_device *pdev)
 	if (!pdev->gadget_driver)
 		goto out;
 
-	if (pdev->gadget.state == USB_STATE_NOTATTACHED) {
+	if (pdev->gadget.state == USB_STATE_ANALTATTACHED) {
 		dev_err(pdev->dev, "ERR: Setup detected in unattached state\n");
 		goto out;
 	}
 
 	/* Restore the ep0 to Stopped/Running state. */
 	if (pdev->eps[0].ep_state & EP_HALTED) {
-		trace_cdnsp_ep0_halted("Restore to normal state");
+		trace_cdnsp_ep0_halted("Restore to analrmal state");
 		cdnsp_halt_endpoint(pdev, &pdev->eps[0], 0);
 	}
 

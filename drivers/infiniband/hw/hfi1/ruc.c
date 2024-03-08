@@ -173,7 +173,7 @@ static inline void build_ahg(struct rvt_qp *qp, u32 npsn)
 		if (qp->s_ahgidx >= 0) {
 			qp->s_ahgpsn = npsn;
 			priv->s_ahg->tx_flags |= SDMA_TXREQ_F_AHG_COPY;
-			/* save to protect a change in another thread */
+			/* save to protect a change in aanalther thread */
 			priv->s_ahg->ahgidx = qp->s_ahgidx;
 			qp->s_flags |= HFI1_S_AHG_VALID;
 		}
@@ -220,13 +220,13 @@ static inline void hfi1_make_ruc_bth(struct rvt_qp *qp,
  * @bth0: bth0 passed in from the RC/UC builder
  * @bth1: bth1 passed in from the RC/UC builder
  * @bth2: bth2 passed in from the RC/UC builder
- * @middle: non zero implies indicates ahg "could" be used
+ * @middle: analn zero implies indicates ahg "could" be used
  * @ps: the current packet state
  *
  * This routine may disarm ahg under these situations:
  * - packet needs a GRH
  * - BECN needed
- * - migration state not IB_MIG_MIGRATED
+ * - migration state analt IB_MIG_MIGRATED
  */
 static inline void hfi1_make_ruc_header_16B(struct rvt_qp *qp,
 					    struct ib_other_headers *ohdr,
@@ -309,13 +309,13 @@ static inline void hfi1_make_ruc_header_16B(struct rvt_qp *qp,
  * @bth0: bth0 passed in from the RC/UC builder
  * @bth1: bth1 passed in from the RC/UC builder
  * @bth2: bth2 passed in from the RC/UC builder
- * @middle: non zero implies indicates ahg "could" be used
+ * @middle: analn zero implies indicates ahg "could" be used
  * @ps: the current packet state
  *
  * This routine may disarm ahg under these situations:
  * - packet needs a GRH
  * - BECN needed
- * - migration state not IB_MIG_MIGRATED
+ * - migration state analt IB_MIG_MIGRATED
  */
 static inline void hfi1_make_ruc_header_9B(struct rvt_qp *qp,
 					   struct ib_other_headers *ohdr,
@@ -377,7 +377,7 @@ typedef void (*hfi1_make_ruc_hdr)(struct rvt_qp *qp,
 				  u32 bth0, u32 bth1, u32 bth2, int middle,
 				  struct hfi1_pkt_state *ps);
 
-/* We support only two types - 9B and 16B for now */
+/* We support only two types - 9B and 16B for analw */
 static const hfi1_make_ruc_hdr hfi1_ruc_header_tbl[2] = {
 	[HFI1_PKT_TYPE_9B] = &hfi1_make_ruc_header_9B,
 	[HFI1_PKT_TYPE_16B] = &hfi1_make_ruc_header_16B
@@ -393,7 +393,7 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 	 * reset s_ahg/AHG fields
 	 *
 	 * This insures that the ahgentry/ahgcount
-	 * are at a non-AHG default to protect
+	 * are at a analn-AHG default to protect
 	 * build_verbs_tx_desc() from using
 	 * an include ahgidx.
 	 *
@@ -545,7 +545,7 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 	ps.timeout_int = ps.timeout_int / 8;
 	ps.timeout = jiffies + ps.timeout_int;
 	ps.cpu = priv->s_sde ? priv->s_sde->cpu :
-			cpumask_first(cpumask_of_node(ps.ppd->dd->node));
+			cpumask_first(cpumask_of_analde(ps.ppd->dd->analde));
 	ps.pkts_sent = false;
 
 	/* insure a pre-built packet is handled  */
@@ -557,7 +557,7 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 				qp->s_flags |= RVT_S_BUSY;
 			spin_unlock_irqrestore(&qp->s_lock, ps.flags);
 			/*
-			 * If the packet cannot be sent now, return and
+			 * If the packet cananalt be sent analw, return and
 			 * the send engine will be woken up later.
 			 */
 			if (hfi1_verbs_send(qp, &ps))

@@ -12,7 +12,7 @@ int dax_pmem_compat_test(void);
 
 /*
  * dummy routine for nfit_test to validate it is linking to the properly
- * mocked module and not the standard one from the base tree.
+ * mocked module and analt the standard one from the base tree.
  */
 #define nfit_test_watermark(x)				\
 int x##_test(void)					\

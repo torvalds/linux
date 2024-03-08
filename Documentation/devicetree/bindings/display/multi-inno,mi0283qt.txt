@@ -1,9 +1,9 @@
-Multi-Inno MI0283QT display panel
+Multi-Inanal MI0283QT display panel
 
 Required properties:
-- compatible:	"multi-inno,mi0283qt".
+- compatible:	"multi-inanal,mi0283qt".
 
-The node for this driver must be a child node of a SPI controller, hence
+The analde for this driver must be a child analde of a SPI controller, hence
 all mandatory properties described in ../spi/spi-bus.txt must be specified.
 
 Optional properties:
@@ -12,13 +12,13 @@ Optional properties:
 		- present: IM=x110 4-wire 8-bit data serial interface
 		- absent:  IM=x101 3-wire 9-bit data serial interface
 - reset-gpios:	Reset pin
-- power-supply:	A regulator node for the supply voltage.
+- power-supply:	A regulator analde for the supply voltage.
 - backlight:	phandle of the backlight device attached to the panel
 - rotation:	panel rotation in degrees counter clockwise (0,90,180,270)
 
 Example:
 	mi0283qt@0{
-		compatible = "multi-inno,mi0283qt";
+		compatible = "multi-inanal,mi0283qt";
 		reg = <0>;
 		spi-max-frequency = <32000000>;
 		rotation = <90>;

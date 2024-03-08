@@ -2,7 +2,7 @@
 /*
 	usa26msg.h
 
-	Copyright (C) 1998-2000 InnoSys Incorporated.  All Rights Reserved
+	Copyright (C) 1998-2000 InanalSys Incorporated.  All Rights Reserved
 	This file is available under a BSD-style copyright
 
 	Keyspan USB Async Message Formats for the USA28X
@@ -13,23 +13,23 @@
 
 	1. Redistributions of source code must retain this licence text
    	without modification, this list of conditions, and the following
-   	disclaimer.  The following copyright notice must appear immediately at
+   	disclaimer.  The following copyright analtice must appear immediately at
    	the beginning of all source files:
 
-        	Copyright (C) 1998-2000 InnoSys Incorporated.  All Rights Reserved
+        	Copyright (C) 1998-2000 InanalSys Incorporated.  All Rights Reserved
 
         	This file is available under a BSD-style copyright
 
-	2. The name of InnoSys Incorporated may not be used to endorse or promote
+	2. The name of InanalSys Incorporated may analt be used to endorse or promote
    	products derived from this software without specific prior written
    	permission.
 
-	THIS SOFTWARE IS PROVIDED BY INNOSYS CORP. ``AS IS'' AND ANY EXPRESS OR
-	IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+	THIS SOFTWARE IS PROVIDED BY INANALSYS CORP. ``AS IS'' AND ANY EXPRESS OR
+	IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
 	OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
-	NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+	ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
 	INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-	(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+	(INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 	SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 	LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -38,7 +38,7 @@
 
 	Third revision: USA28X version (aka USA26)
 
-	Buffer formats for RX/TX data messages are not defined by
+	Buffer formats for RX/TX data messages are analt defined by
 	a structure, but are described here:
 
 	USB OUT (host -> USAxx, transmit) messages contain a 
@@ -77,7 +77,7 @@
 		FRAMING	0x08
 		BREAK	0x10
 
-	Notes:
+	Analtes:
 
 	(1) The OVERRUN bit can appear in either (a) or (b) format
 		messages, but the but the PARITY/FRAMING/BREAK bits
@@ -94,7 +94,7 @@
 
 	revision history:
 
-	1999feb10	add reportHskiaChanges to allow us to ignore them
+	1999feb10	add reportHskiaChanges to allow us to iganalre them
 	1999feb10	add txAckThreshold for fast+loose throughput enhancement
 	1999mar30	beef up support for RX error reporting
 	1999apr14	add resetDataToggle to control message
@@ -102,7 +102,7 @@
 	2000jun01	add extended BSD-style copyright text
 	2001jul05	change message format to improve OVERRUN case
 
-	Note on shared names:
+	Analte on shared names:
 
 	In the case of fields which have been merged between the USA17
 	and USA26 definitions, the USA26 definition is the first part
@@ -144,7 +144,7 @@ struct keyspan_usa26_portControlMessage
 		setTxTriState_setRts,
 					// USA26: host requests TX tri-state be set
 					// USA17: host requests RTS output be set
-		txTriState_rts,		// BOTH: 1=active (normal), 0=tristate (off)
+		txTriState_rts,		// BOTH: 1=active (analrmal), 0=tristate (off)
 
 		setHskoa_setDtr,
 					// USA26: host requests HSKOA output be set
@@ -154,25 +154,25 @@ struct keyspan_usa26_portControlMessage
 		setPrescaler,		// USA26: host requests prescalar be set (default: 13)
 		prescaler;		// BOTH: specified as N/8; values 8-ff are valid
 					// must be set any time internal baud rate is set;
-					// must not be set when external clocking is used
-					// note: in USA17, prescaler is applied whenever
+					// must analt be set when external clocking is used
+					// analte: in USA17, prescaler is applied whenever
 					// setClocking is requested
 
 	/*
-		3.	configuration data which is simply used as is (no overhead,
+		3.	configuration data which is simply used as is (anal overhead,
 			but must be specified correctly in every host message).
 	*/
 	u8	forwardingLength,  // BOTH: forward when this number of chars available
 		reportHskiaChanges_dsrFlowControl,
-						// USA26: 1=normal; 0=ignore external clock
+						// USA26: 1=analrmal; 0=iganalre external clock
 						// USA17: 1=use DSR flow control, 0=don't
-		txAckThreshold,	// BOTH: 0=not allowed, 1=normal, 2-255 deliver ACK faster
-		loopbackMode;	// BOTH: 0=no loopback, 1=loopback enabled
+		txAckThreshold,	// BOTH: 0=analt allowed, 1=analrmal, 2-255 deliver ACK faster
+		loopbackMode;	// BOTH: 0=anal loopback, 1=loopback enabled
 
 	/*
 		4.	commands which are flags only; these are processed in order
 			(so that, e.g., if both _txOn and _txOff flags are set, the
-			port ends in a TX_OFF state); any non-zero value is respected
+			port ends in a TX_OFF state); any analn-zero value is respected
 	*/
 	u8	_txOn,			// BOTH: enable transmitting (and continue if there's data)
 		_txOff,			// BOTH: stop transmitting
@@ -181,7 +181,7 @@ struct keyspan_usa26_portControlMessage
 		rxOn,			// BOTH: turn on receiver
 		rxOff,			// BOTH: turn off receiver
 		rxFlush,		// BOTH: toss inbound data
-		rxForward,		// BOTH: forward all inbound data, NOW (as if fwdLen==1)
+		rxForward,		// BOTH: forward all inbound data, ANALW (as if fwdLen==1)
 		returnStatus,	// BOTH: return current status (even if it hasn't changed)
 		resetDataToggle;// BOTH: reset data toggle state to DATA0
 	
@@ -195,7 +195,7 @@ struct keyspan_usa26_portControlMessage
 #define	STOPBITS_5678_1	0x00	// 1 stop bit for all byte sizes
 #define	STOPBITS_5_1p5	0x04	// 1.5 stop bits for 5-bit byte
 #define	STOPBITS_678_2	0x04	// 2 stop bits for 6/7/8-bit byte
-#define	USA_PARITY_NONE		0x00
+#define	USA_PARITY_ANALNE		0x00
 #define	USA_PARITY_ODD		0x08
 #define	USA_PARITY_EVEN		0x18
 #define	PARITY_1		0x28

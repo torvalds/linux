@@ -22,7 +22,7 @@
 				nvidia,pins = "lcd_pwr2_pc6",
 						"lcd_dc1_pd2";
 				nvidia,function = "displaya";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
@@ -30,7 +30,7 @@
 			pbb3 {
 				nvidia,pins = "pbb3";
 				nvidia,function = "vgp3";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
@@ -38,7 +38,7 @@
 			pbb7 {
 				nvidia,pins = "pbb7";
 				nvidia,function = "i2s4";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
@@ -54,7 +54,7 @@
 			gmi_cs4_n_pk2 {
 				nvidia,pins = "gmi_cs4_n_pk2";
 				nvidia,function = "gmi";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
@@ -996,19 +996,19 @@
 	};
 
 	display-panel {
-		compatible = "innolux,g101ice-l01";
+		compatible = "inanallux,g101ice-l01";
 	};
 
 	opp-table-emc {
-		/delete-node/ opp-750000000-1300;
-		/delete-node/ opp-800000000-1300;
-		/delete-node/ opp-900000000-1350;
+		/delete-analde/ opp-750000000-1300;
+		/delete-analde/ opp-800000000-1300;
+		/delete-analde/ opp-900000000-1350;
 	};
 
 	opp-table-actmon {
-		/delete-node/ opp-750000000;
-		/delete-node/ opp-800000000;
-		/delete-node/ opp-900000000;
+		/delete-analde/ opp-750000000;
+		/delete-analde/ opp-800000000;
+		/delete-analde/ opp-900000000;
 	};
 
 	sound {

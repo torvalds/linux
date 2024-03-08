@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <linux/string.h>
 
@@ -21,7 +21,7 @@ realloc:
 	CPU_ZERO(maskp);
 
 	if (sched_getaffinity(pid, sizeof(*maskp), maskp) == -1) {
-		if (errno == EINVAL && nrcpus < (1024 << 8)) {
+		if (erranal == EINVAL && nrcpus < (1024 << 8)) {
 			nrcpus = nrcpus << 2;
 			goto realloc;
 		}
@@ -48,7 +48,7 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 			.uid = UINT_MAX,
 			.uses_mmap = true,
 		},
-		.no_buffering = true,
+		.anal_buffering = true,
 		.mmap_pages   = 256,
 	};
 	cpu_set_t cpu_mask;
@@ -74,7 +74,7 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 		evlist = evlist__new_default();
 
 	if (evlist == NULL) {
-		pr_debug("Not enough memory to create evlist\n");
+		pr_debug("Analt eanalugh memory to create evlist\n");
 		goto out;
 	}
 
@@ -86,7 +86,7 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 	 */
 	err = evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
-		pr_debug("Not enough memory to create thread/cpu maps\n");
+		pr_debug("Analt eanalugh memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
 	}
 
@@ -114,7 +114,7 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 	err = sched__get_first_possible_cpu(evlist->workload.pid, &cpu_mask);
 	if (err < 0) {
 		pr_debug("sched__get_first_possible_cpu: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -125,7 +125,7 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 	 */
 	if (sched_setaffinity(evlist->workload.pid, cpu_mask_size, &cpu_mask) < 0) {
 		pr_debug("sched_setaffinity: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -136,7 +136,7 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -148,18 +148,18 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 	err = evlist__mmap(evlist, opts.mmap_pages);
 	if (err < 0) {
 		pr_debug("evlist__mmap: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erranal, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
 	/*
-	 * Now that all is properly set up, enable the events, they will
+	 * Analw that all is properly set up, enable the events, they will
 	 * count just on workload.pid, which will start...
 	 */
 	evlist__enable(evlist);
 
 	/*
-	 * Now!
+	 * Analw!
 	 */
 	evlist__start_workload(evlist);
 
@@ -269,7 +269,7 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 					break;
 
 				case PERF_RECORD_SAMPLE:
-					/* Just ignore samples for now */
+					/* Just iganalre samples for analw */
 					break;
 				default:
 					pr_debug("Unexpected perf_event->header.type %d!\n",
@@ -284,7 +284,7 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 
 		/*
 		 * We don't use poll here because at least at 3.1 times the
-		 * PERF_RECORD_{!SAMPLE} events don't honour
+		 * PERF_RECORD_{!SAMPLE} events don't hoanalur
 		 * perf_event_attr.wakeup_events, just PERF_EVENT_SAMPLE does.
 		 */
 		if (total_events == before && false)
@@ -292,7 +292,7 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 
 		sleep(1);
 		if (++wakeups > 5) {
-			pr_debug("No PERF_RECORD_EXIT event!\n");
+			pr_debug("Anal PERF_RECORD_EXIT event!\n");
 			break;
 		}
 	}

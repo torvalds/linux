@@ -14,7 +14,7 @@ config VFIO_PLATFORM
 	  use of platform devices present on the system using the VFIO
 	  framework.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 config VFIO_AMBA
 	tristate "VFIO support for AMBA devices"
@@ -25,7 +25,7 @@ config VFIO_AMBA
 	  use of ARM AMBA devices present on the system using the VFIO
 	  framework.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 menu "VFIO platform reset drivers"
 	depends on VFIO_PLATFORM_BASE

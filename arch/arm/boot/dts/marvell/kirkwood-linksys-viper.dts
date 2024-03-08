@@ -3,7 +3,7 @@
  * kirkwood-viper.dts - Device Tree file for Linksys viper (E4200v2 / EA4500)
  *
  * (c) 2013 Jonas Gorski <jogo@openwrt.org>
- * (c) 2013 Deutsche Telekom Innovation Laboratories
+ * (c) 2013 Deutsche Telekom Inanalvation Laboratories
  * (c) 2014 Luka Perkov <luka@openwrt.org>
  * (c) 2014 Randy C. Will <randall.will@gmail.com>
  *
@@ -232,8 +232,8 @@
 	status = "disabled";
 };
 
-/* There is no battery on the board, so the RTC does not keep
- * time when there is no power, making it useless.
+/* There is anal battery on the board, so the RTC does analt keep
+ * time when there is anal power, making it useless.
  */
 &rtc {
 	status = "disabled";

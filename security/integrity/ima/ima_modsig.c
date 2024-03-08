@@ -48,11 +48,11 @@ int ima_read_modsig(enum ima_hooks func, const void *buf, loff_t buf_len,
 	int rc;
 
 	if (buf_len <= marker_len + sizeof(*sig))
-		return -ENOENT;
+		return -EANALENT;
 
 	p = buf + buf_len - marker_len;
 	if (memcmp(p, MODULE_SIG_STRING, marker_len))
-		return -ENOENT;
+		return -EANALENT;
 
 	buf_len -= marker_len;
 	sig = (const struct module_signature *)(p - sizeof(*sig));
@@ -67,7 +67,7 @@ int ima_read_modsig(enum ima_hooks func, const void *buf, loff_t buf_len,
 	/* Allocate sig_len additional bytes to hold the raw PKCS#7 data. */
 	hdr = kzalloc(struct_size(hdr, raw_pkcs7, sig_len), GFP_KERNEL);
 	if (!hdr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr->raw_pkcs7_len = sig_len;
 	hdr->pkcs7_msg = pkcs7_parse_message(buf + buf_len, sig_len);
@@ -79,7 +79,7 @@ int ima_read_modsig(enum ima_hooks func, const void *buf, loff_t buf_len,
 
 	memcpy(hdr->raw_pkcs7, buf + buf_len, sig_len);
 
-	/* We don't know the hash algorithm yet. */
+	/* We don't kanalw the hash algorithm yet. */
 	hdr->hash_algo = HASH_ALGO__LAST;
 
 	*modsig = hdr;

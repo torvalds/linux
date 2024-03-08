@@ -46,7 +46,7 @@
 
 enum scpsys_bus_prot_flags {
 	BUS_PROT_REG_UPDATE = BIT(1),
-	BUS_PROT_IGNORE_CLR_ACK = BIT(2),
+	BUS_PROT_IGANALRE_CLR_ACK = BIT(2),
 	BUS_PROT_INVERTED = BIT(3),
 	BUS_PROT_COMPONENT_INFRA = BIT(4),
 	BUS_PROT_COMPONENT_SMI = BIT(5),
@@ -67,7 +67,7 @@ enum scpsys_bus_prot_flags {
 
 #define BUS_PROT_WR_IGN(_hwip, _mask, _set, _clr, _sta) \
 		_BUS_PROT(_mask, _set, _clr, _mask, _sta, \
-			  BUS_PROT_COMPONENT_##_hwip | BUS_PROT_IGNORE_CLR_ACK)
+			  BUS_PROT_COMPONENT_##_hwip | BUS_PROT_IGANALRE_CLR_ACK)
 
 #define BUS_PROT_UPDATE(_hwip, _mask, _set, _clr, _sta) \
 		_BUS_PROT(_mask, _set, _clr, _mask, _sta, \

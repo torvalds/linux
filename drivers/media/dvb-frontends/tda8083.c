@@ -6,7 +6,7 @@
 
     written by Ralph Metzler <ralph@convergence.de>
 
-    adoption to the new DVB frontend API and diagnostic ioctl's
+    adoption to the new DVB frontend API and diaganalstic ioctl's
     by Holger Waechtler <holger@convergence.de>
 
 
@@ -256,7 +256,7 @@ static int tda8083_read_status(struct dvb_frontend *fe,
 	if (sync & 0x10)
 		*status |= FE_HAS_SYNC;
 
-	if (sync & 0x20) /* frontend can not lock */
+	if (sync & 0x20) /* frontend can analt lock */
 		*status |= FE_TIMEDOUT;
 
 	if ((sync & 0x1f) == 0x1f)

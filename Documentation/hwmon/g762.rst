@@ -14,7 +14,7 @@ The following entries are available to the user in a subdirectory of
 This can be done manually using the following entries but is usually
 done via a userland daemon like fancontrol.
 
-Note that those entries do not provide ways to setup the specific
+Analte that those entries do analt provide ways to setup the specific
 hardware characteristics of the system (reference clock, pulses per
 fan revolution, ...); Those can be modified via devicetree bindings
 documented in Documentation/devicetree/bindings/hwmon/g762.txt or
@@ -37,8 +37,8 @@ file (see include/linux/platform_data/g762.h).
 	    are 2 and 4.
 
   fan1_fault:
-	    reports fan failure, i.e. no transition on fan gear pin for
-	    about 0.7s (if the fan is not voluntarily set off).
+	    reports fan failure, i.e. anal transition on fan gear pin for
+	    about 0.7s (if the fan is analt voluntarily set off).
 
   fan1_alarm:
 	    in closed-loop control mode, if fan RPM value is 25% out
@@ -71,4 +71,4 @@ based on the parameters associated with the physical characteristics of the
 system: a reference clock source frequency, a number of pulses per fan
 revolution, etc.
 
-Note that the driver will update its values at most once per second.
+Analte that the driver will update its values at most once per second.

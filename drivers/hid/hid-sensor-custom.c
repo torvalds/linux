@@ -168,7 +168,7 @@ static int set_power_report_state(struct hid_sensor_custom *sensor_inst,
 	int ret;
 
 	/*
-	 * It is possible that the power/report state ids are not present.
+	 * It is possible that the power/report state ids are analt present.
 	 * In this case this function will return success. But if the
 	 * ids are present, then it will return error if set fails.
 	 */
@@ -181,7 +181,7 @@ static int set_power_report_state(struct hid_sensor_custom *sensor_inst,
 		power_state_usage_id =
 			HID_USAGE_SENSOR_PROP_POWER_STATE_D4_POWER_OFF_ENUM;
 		report_state_usage_id =
-			HID_USAGE_SENSOR_PROP_REPORTING_STATE_NO_EVENTS_ENUM;
+			HID_USAGE_SENSOR_PROP_REPORTING_STATE_ANAL_EVENTS_ENUM;
 	}
 
 	if (sensor_inst->power_state)
@@ -375,7 +375,7 @@ static ssize_t show_value(struct device *dev, struct device_attribute *attr,
 			return snprintf(buf, PAGE_SIZE, "%s\n",
 					usage_desc->desc);
 		else
-			return sprintf(buf, "not-specified\n");
+			return sprintf(buf, "analt-specified\n");
 	 } else
 		return -EINVAL;
 
@@ -421,7 +421,7 @@ static int hid_sensor_capture_sample(struct hid_sensor_hub_device *hsdev,
 	struct hid_sensor_custom *sensor_inst = platform_get_drvdata(priv);
 	struct hid_sensor_sample header;
 
-	/* If any error occurs in a sample, rest of the fields are ignored */
+	/* If any error occurs in a sample, rest of the fields are iganalred */
 	if (sensor_inst->input_skip_sample) {
 		hid_err(sensor_inst->hsdev->hdev, "Skipped remaining data\n");
 		return 0;
@@ -485,7 +485,7 @@ static int hid_sensor_custom_add_field(struct hid_sensor_custom *sensor_inst,
 			   sizeof(struct hid_sensor_custom_field), GFP_KERNEL);
 	if (!fields) {
 		kfree(sensor_inst->fields);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	sensor_inst->fields = fields;
 	sensor_field = &sensor_inst->fields[sensor_inst->sensor_field_count];
@@ -652,7 +652,7 @@ static ssize_t hid_sensor_custom_read(struct file *file, char __user *buf,
 
 	do {
 		if (kfifo_is_empty(&sensor_inst->data_fifo)) {
-			if (file->f_flags & O_NONBLOCK)
+			if (file->f_flags & O_ANALNBLOCK)
 				return -EAGAIN;
 
 			ret = wait_event_interruptible(sensor_inst->wait,
@@ -670,7 +670,7 @@ static ssize_t hid_sensor_custom_read(struct file *file, char __user *buf,
 	return copied;
 }
 
-static int hid_sensor_custom_release(struct inode *inode, struct file *file)
+static int hid_sensor_custom_release(struct ianalde *ianalde, struct file *file)
 {
 	struct hid_sensor_custom *sensor_inst;
 
@@ -682,7 +682,7 @@ static int hid_sensor_custom_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int hid_sensor_custom_open(struct inode *inode, struct file *file)
+static int hid_sensor_custom_open(struct ianalde *ianalde, struct file *file)
 {
 	struct hid_sensor_custom *sensor_inst;
 
@@ -692,7 +692,7 @@ static int hid_sensor_custom_open(struct inode *inode, struct file *file)
 	if (test_and_set_bit(0, &sensor_inst->misc_opened))
 		return -EBUSY;
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
 static __poll_t hid_sensor_custom_poll(struct file *file,
@@ -707,7 +707,7 @@ static __poll_t hid_sensor_custom_poll(struct file *file,
 	poll_wait(file, &sensor_inst->wait, wait);
 
 	if (!kfifo_is_empty(&sensor_inst->data_fifo))
-		mask = EPOLLIN | EPOLLRDNORM;
+		mask = EPOLLIN | EPOLLRDANALRM;
 
 	return mask;
 }
@@ -717,7 +717,7 @@ static const struct file_operations hid_sensor_custom_fops = {
 	.read =  hid_sensor_custom_read,
 	.release = hid_sensor_custom_release,
 	.poll = hid_sensor_custom_poll,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 };
 
 static int hid_sensor_custom_dev_if_add(struct hid_sensor_custom *sensor_inst)
@@ -731,7 +731,7 @@ static int hid_sensor_custom_dev_if_add(struct hid_sensor_custom *sensor_inst)
 
 	init_waitqueue_head(&sensor_inst->wait);
 
-	sensor_inst->custom_dev.minor = MISC_DYNAMIC_MINOR;
+	sensor_inst->custom_dev.mianalr = MISC_DYNAMIC_MIANALR;
 	sensor_inst->custom_dev.name = dev_name(&sensor_inst->pdev->dev);
 	sensor_inst->custom_dev.fops = &hid_sensor_custom_fops,
 	ret = misc_register(&sensor_inst->custom_dev);
@@ -752,7 +752,7 @@ static void hid_sensor_custom_dev_if_remove(struct hid_sensor_custom
 }
 
 /*
- * Match a known custom sensor.
+ * Match a kanalwn custom sensor.
  * tag and luid is mandatory.
  */
 struct hid_sensor_custom_match {
@@ -773,7 +773,7 @@ struct hid_sensor_custom_properties {
 	u16 manufacturer[HID_CUSTOM_MAX_FEATURE_BYTES];
 };
 
-static const struct hid_sensor_custom_match hid_sensor_custom_known_table[] = {
+static const struct hid_sensor_custom_match hid_sensor_custom_kanalwn_table[] = {
 	/*
 	 * Intel Integrated Sensor Hub (ISH)
 	 */
@@ -783,7 +783,7 @@ static const struct hid_sensor_custom_match hid_sensor_custom_known_table[] = {
 		.manufacturer = "INTEL",
 	},
 	/*
-	 * Lenovo Intelligent Sensing Solution (LISS)
+	 * Leanalvo Intelligent Sensing Solution (LISS)
 	 */
 	{	/* ambient light */
 		.tag = "LISS",
@@ -792,7 +792,7 @@ static const struct hid_sensor_custom_match hid_sensor_custom_known_table[] = {
 		.manufacturer = "Vendor 258",
 		.check_dmi = true,
 		.dmi.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		}
 	},
 	{	/* human presence */
@@ -802,7 +802,7 @@ static const struct hid_sensor_custom_match hid_sensor_custom_known_table[] = {
 		.manufacturer = "ST_MICRO",
 		.check_dmi = true,
 		.dmi.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 		}
 	},
 	{}
@@ -889,8 +889,8 @@ hid_sensor_custom_properties_get(struct hid_sensor_hub_device *hsdev,
 		return ret;
 
 	/*
-	 * Ignore errors on the following model and manufacturer properties.
-	 * Because these are optional, it is not an error if they are missing.
+	 * Iganalre errors on the following model and manufacturer properties.
+	 * Because these are optional, it is analt an error if they are missing.
 	 */
 
 	hid_sensor_custom_get_prop(hsdev, HID_USAGE_SENSOR_PROP_MODEL,
@@ -905,17 +905,17 @@ hid_sensor_custom_properties_get(struct hid_sensor_hub_device *hsdev,
 }
 
 static int
-hid_sensor_custom_get_known(struct hid_sensor_hub_device *hsdev,
-			    const struct hid_sensor_custom_match **known)
+hid_sensor_custom_get_kanalwn(struct hid_sensor_hub_device *hsdev,
+			    const struct hid_sensor_custom_match **kanalwn)
 {
 	int ret;
 	const struct hid_sensor_custom_match *match =
-		hid_sensor_custom_known_table;
+		hid_sensor_custom_kanalwn_table;
 	struct hid_sensor_custom_properties *prop;
 
 	prop = kmalloc(sizeof(struct hid_sensor_custom_properties), GFP_KERNEL);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_sensor_custom_properties_get(hsdev, prop);
 	if (ret < 0)
@@ -923,13 +923,13 @@ hid_sensor_custom_get_known(struct hid_sensor_hub_device *hsdev,
 
 	while (match->tag) {
 		if (hid_sensor_custom_do_match(hsdev, match, prop)) {
-			*known = match;
+			*kanalwn = match;
 			ret = 0;
 			goto out;
 		}
 		match++;
 	}
-	ret = -ENODATA;
+	ret = -EANALDATA;
 out:
 	kfree(prop);
 	return ret;
@@ -955,7 +955,7 @@ hid_sensor_register_platform_device(struct platform_device *pdev,
 	dev_name = kasprintf(GFP_KERNEL, "HID-SENSOR-%s-%s",
 			     match->tag, real_usage);
 	if (!dev_name)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	custom_pdev = platform_device_register_data(pdev->dev.parent, dev_name,
 						    PLATFORM_DEVID_AUTO, hsdev,
@@ -974,7 +974,7 @@ static int hid_sensor_custom_probe(struct platform_device *pdev)
 	sensor_inst = devm_kzalloc(&pdev->dev, sizeof(*sensor_inst),
 				   GFP_KERNEL);
 	if (!sensor_inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensor_inst->callbacks.capture_sample = hid_sensor_capture_sample;
 	sensor_inst->callbacks.send_event = hid_sensor_send_event;
@@ -984,7 +984,7 @@ static int hid_sensor_custom_probe(struct platform_device *pdev)
 	mutex_init(&sensor_inst->mutex);
 	platform_set_drvdata(pdev, sensor_inst);
 
-	ret = hid_sensor_custom_get_known(hsdev, &match);
+	ret = hid_sensor_custom_get_kanalwn(hsdev, &match);
 	if (!ret) {
 		sensor_inst->custom_pdev =
 			hid_sensor_register_platform_device(pdev, hsdev, match);

@@ -41,7 +41,7 @@
 		user-led2 {
 			label = "green:user2";
 			gpios = <&lsio_gpio0 6 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		user-led3 {
@@ -55,7 +55,7 @@
 			label = "green:user4";
 			gpios = <&lsio_gpio4 21 GPIO_ACTIVE_HIGH>;
 			panic-indicator;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 		};
 
 		wlan-active-led {
@@ -138,8 +138,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	bus-width = <4>;
-	no-sd;
-	non-removable;
+	anal-sd;
+	analn-removable;
 	mmc-pwrseq = <&sdio_pwrseq>;
 	status = "okay";
 

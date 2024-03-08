@@ -24,21 +24,21 @@ static int emac_arc_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	int err;
 
-	if (!dev->of_node)
-		return -ENODEV;
+	if (!dev->of_analde)
+		return -EANALDEV;
 
 	ndev = alloc_etherdev(sizeof(struct arc_emac_priv));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, ndev);
 	SET_NETDEV_DEV(ndev, dev);
 
 	priv = netdev_priv(ndev);
 	priv->drv_name = DRV_NAME;
 
-	err = of_get_phy_mode(dev->of_node, &interface);
+	err = of_get_phy_mode(dev->of_analde, &interface);
 	if (err) {
-		if (err == -ENODEV)
+		if (err == -EANALDEV)
 			interface = PHY_INTERFACE_MODE_MII;
 		else
 			goto out_netdev;

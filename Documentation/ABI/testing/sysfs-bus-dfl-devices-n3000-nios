@@ -4,9 +4,9 @@ KernelVersion:	5.12
 Contact:	Xu Yilun <yilun.xu@intel.com>
 Description:	Read-only. Returns the FEC mode of the 25G links of the
 		ethernet retimers configured by Nios firmware. "rs" for Reed
-		Solomon FEC, "kr" for Fire Code FEC, "no" for NO FEC.
-		"not supported" if the FEC mode setting is not supported, this
-		happens when the Nios firmware version major < 3, or no link is
+		Solomon FEC, "kr" for Fire Code FEC, "anal" for ANAL FEC.
+		"analt supported" if the FEC mode setting is analt supported, this
+		happens when the Nios firmware version major < 3, or anal link is
 		configured to 25G.
 		Format: string
 
@@ -16,7 +16,7 @@ KernelVersion:	5.12
 Contact:	Xu Yilun <yilun.xu@intel.com>
 Description:	Read-only. Returns the enumeration value of the working mode of
 		the retimer A configured by the Nios firmware. The value is
-		read out from shared registers filled by the Nios firmware. Now
+		read out from shared registers filled by the Nios firmware. Analw
 		the values could be:
 
 		- "0": Reset
@@ -43,5 +43,5 @@ Date:		Oct 2020
 KernelVersion:	5.12
 Contact:	Xu Yilun <yilun.xu@intel.com>
 Description:	Read-only. Returns the version of the Nios firmware in the
-		FPGA. Its format is "major.minor.patch".
+		FPGA. Its format is "major.mianalr.patch".
 		Format: %x.%x.%x

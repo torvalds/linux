@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <pthread.h>
@@ -36,7 +36,7 @@ static int ksyms__add_symbol(struct ksyms *ksyms, const char *name,
 
 	tmp = strdup(name);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 	ksyms->syms[ksyms->sym_cnt].addr = addr;
 	ksyms->syms[ksyms->sym_cnt].name = tmp;
 	ksyms->sym_cnt++;
@@ -123,7 +123,7 @@ struct ksym *ksym_search_local(struct ksyms *ksyms, long key)
 	int start = 0, end = ksyms->sym_cnt;
 	int result;
 
-	/* kallsyms not loaded. return NULL */
+	/* kallsyms analt loaded. return NULL */
 	if (ksyms->sym_cnt <= 0)
 		return NULL;
 
@@ -194,7 +194,7 @@ int kallsyms_find(const char *sym, unsigned long long *addr)
 			goto out;
 		}
 	}
-	err = -ENOENT;
+	err = -EANALENT;
 
 out:
 	fclose(f);
@@ -233,7 +233,7 @@ ssize_t get_uprobe_offset(const void *addr)
 
 	f = fopen("/proc/self/maps", "r");
 	if (!f)
-		return -errno;
+		return -erranal;
 
 	while (fscanf(f, "%zx-%zx %s %zx %*[^\n]\n", &start, &end, buf, &base) == 4) {
 		if (buf[2] == 'x' && (uintptr_t)addr >= start && (uintptr_t)addr < end) {
@@ -290,7 +290,7 @@ ssize_t get_rel_offset(uintptr_t addr)
 
 	f = fopen("/proc/self/maps", "r");
 	if (!f)
-		return -errno;
+		return -erranal;
 
 	while (fscanf(f, "%zx-%zx %s %zx %*[^\n]\n", &start, &end, buf, &offset) == 4) {
 		if (addr >= start && addr < end) {
@@ -304,27 +304,27 @@ ssize_t get_rel_offset(uintptr_t addr)
 }
 
 static int
-parse_build_id_buf(const void *note_start, Elf32_Word note_size, char *build_id)
+parse_build_id_buf(const void *analte_start, Elf32_Word analte_size, char *build_id)
 {
-	Elf32_Word note_offs = 0;
+	Elf32_Word analte_offs = 0;
 
-	while (note_offs + sizeof(Elf32_Nhdr) < note_size) {
-		Elf32_Nhdr *nhdr = (Elf32_Nhdr *)(note_start + note_offs);
+	while (analte_offs + sizeof(Elf32_Nhdr) < analte_size) {
+		Elf32_Nhdr *nhdr = (Elf32_Nhdr *)(analte_start + analte_offs);
 
 		if (nhdr->n_type == 3 && nhdr->n_namesz == sizeof("GNU") &&
 		    !strcmp((char *)(nhdr + 1), "GNU") && nhdr->n_descsz > 0 &&
 		    nhdr->n_descsz <= BPF_BUILD_ID_SIZE) {
-			memcpy(build_id, note_start + note_offs +
+			memcpy(build_id, analte_start + analte_offs +
 			       ALIGN(sizeof("GNU"), 4) + sizeof(Elf32_Nhdr), nhdr->n_descsz);
 			memset(build_id + nhdr->n_descsz, 0, BPF_BUILD_ID_SIZE - nhdr->n_descsz);
 			return (int) nhdr->n_descsz;
 		}
 
-		note_offs = note_offs + sizeof(Elf32_Nhdr) +
+		analte_offs = analte_offs + sizeof(Elf32_Nhdr) +
 			   ALIGN(nhdr->n_namesz, 4) + ALIGN(nhdr->n_descsz, 4);
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /* Reads binary from *path* file and returns it in the *build_id* buffer
@@ -344,7 +344,7 @@ int read_build_id(const char *path, char *build_id, size_t size)
 
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
-		return -errno;
+		return -erranal;
 
 	(void)elf_version(EV_CURRENT);
 
@@ -363,7 +363,7 @@ int read_build_id(const char *path, char *build_id, size_t size)
 		phdr = gelf_getphdr(elf, i, &mem);
 		if (!phdr)
 			goto out;
-		if (phdr->p_type != PT_NOTE)
+		if (phdr->p_type != PT_ANALTE)
 			continue;
 		data = elf_rawfile(elf, &max);
 		if (!data)

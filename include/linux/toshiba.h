@@ -3,7 +3,7 @@
  *
  * Copyright (c) 1996-2000  Jonathan A. Buzzard (jonathan@buzzard.org.uk)
  *
- * Thanks to Juergen Heinzl <juergen@monocerus.demon.co.uk> for the pointers
+ * Thanks to Juergen Heinzl <juergen@moanalcerus.demon.co.uk> for the pointers
  * on making sure the structure is aligned and packed.
  */
 #ifndef _LINUX_TOSHIBA_H

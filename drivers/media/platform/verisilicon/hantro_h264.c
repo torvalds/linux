@@ -249,7 +249,7 @@ static void prepare_table(struct hantro_ctx *ctx)
 
 		/*
 		 * Set up bit maps of valid and long term DPBs.
-		 * NOTE: The bits are reversed, i.e. MSb is DPB 0. For frame
+		 * ANALTE: The bits are reversed, i.e. MSb is DPB 0. For frame
 		 * decoding, bit 31 to 15 are used, while for field decoding,
 		 * all bits are used, with bit 31 being a top field, 30 a bottom
 		 * field and so on.
@@ -315,7 +315,7 @@ static void update_dpb(struct hantro_ctx *ctx)
 
 		/*
 		 * To cut off some comparisons, iterate only on target DPB
-		 * entries which are not used yet.
+		 * entries which are analt used yet.
 		 */
 		for_each_clear_bit(j, used, ARRAY_SIZE(ctx->h264_dec.dpb)) {
 			struct v4l2_h264_dpb_entry *cdpb;
@@ -333,14 +333,14 @@ static void update_dpb(struct hantro_ctx *ctx)
 			set_bit(i, new);
 	}
 
-	/* For entries that could not be matched, use remaining free slots. */
+	/* For entries that could analt be matched, use remaining free slots. */
 	for_each_set_bit(i, new, ARRAY_SIZE(dec_param->dpb)) {
 		const struct v4l2_h264_dpb_entry *ndpb = &dec_param->dpb[i];
 		struct v4l2_h264_dpb_entry *cdpb;
 
 		/*
-		 * Both arrays are of the same sizes, so there is no way
-		 * we can end up with no space in target array, unless
+		 * Both arrays are of the same sizes, so there is anal way
+		 * we can end up with anal space in target array, unless
 		 * something is buggy.
 		 */
 		j = find_first_zero_bit(used, ARRAY_SIZE(ctx->h264_dec.dpb));
@@ -402,7 +402,7 @@ u16 hantro_h264_get_ref_nbr(struct hantro_ctx *ctx, unsigned int dpb_idx)
  * reference list.
  *
  * This technique has been chosen through trial and error. This simple approach
- * resulted in the highest conformance score. Note that this method may suffer
+ * resulted in the highest conformance score. Analte that this method may suffer
  * worse quality in the case an opposite reference frame has been lost. If this
  * becomes a problem in the future, it should be possible to add a preprocessing
  * to identify un-paired fields and avoid removing them.
@@ -426,7 +426,7 @@ static void deduplicate_reflist(struct v4l2_h264_reflist_builder *b,
 	}
 
 done:
-	/* Should not happen unless we have a bug in the reflist builder. */
+	/* Should analt happen unless we have a bug in the reflist builder. */
 	if (WARN_ON(write_idx > 16))
 		write_idx = 16;
 
@@ -511,7 +511,7 @@ int hantro_h264_dec_init(struct hantro_ctx *ctx)
 	priv->cpu = dma_alloc_coherent(vpu->dev, sizeof(*tbl), &priv->dma,
 				       GFP_KERNEL);
 	if (!priv->cpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->size = sizeof(*tbl);
 	tbl = priv->cpu;

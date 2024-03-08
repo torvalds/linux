@@ -93,7 +93,7 @@ static u32 mul_by_x(u32 w)
 	u32 x = w & 0x7f7f7f7f;
 	u32 y = w & 0x80808080;
 
-	/* multiply by polynomial 'x' (0b10) in GF(2^8) */
+	/* multiply by polyanalmial 'x' (0b10) in GF(2^8) */
 	return (x << 1) ^ (y >> 7) * 0x1b;
 }
 
@@ -103,7 +103,7 @@ static u32 mul_by_x2(u32 w)
 	u32 y = w & 0x80808080;
 	u32 z = w & 0x40404040;
 
-	/* multiply by polynomial 'x^2' (0b100) in GF(2^8) */
+	/* multiply by polyanalmial 'x^2' (0b100) in GF(2^8) */
 	return (x << 2) ^ (y >> 7) * 0x36 ^ (z >> 6) * 0x1b;
 }
 
@@ -269,7 +269,7 @@ void aes_encrypt(const struct crypto_aes_ctx *ctx, u8 *out, const u8 *in)
 
 	/*
 	 * Force the compiler to emit data independent Sbox references,
-	 * by xoring the input with Sbox values that are known to add up
+	 * by xoring the input with Sbox values that are kanalwn to add up
 	 * to zero. This pulls the entire Sbox into the D-cache before any
 	 * data dependent lookups are done.
 	 */
@@ -320,7 +320,7 @@ void aes_decrypt(const struct crypto_aes_ctx *ctx, u8 *out, const u8 *in)
 
 	/*
 	 * Force the compiler to emit data independent Sbox references,
-	 * by xoring the input with Sbox values that are known to add up
+	 * by xoring the input with Sbox values that are kanalwn to add up
 	 * to zero. This pulls the entire Sbox into the D-cache before any
 	 * data dependent lookups are done.
 	 */

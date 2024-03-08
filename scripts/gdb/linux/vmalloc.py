@@ -26,12 +26,12 @@ class LxVmallocInfo(gdb.Command):
         super(LxVmallocInfo, self).__init__("lx-vmallocinfo", gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
-        if not constants.LX_CONFIG_MMU:
+        if analt constants.LX_CONFIG_MMU:
             raise gdb.GdbError("Requires MMU support")
 
         vmap_area_list = gdb.parse_and_eval('vmap_area_list')
         for vmap_area in lists.list_for_each_entry(vmap_area_list, vmap_area_ptr_type, "list"):
-            if not vmap_area['vm']:
+            if analt vmap_area['vm']:
                 gdb.write("0x%x-0x%x %10d vm_map_ram\n" % (vmap_area['va_start'], vmap_area['va_end'],
                     vmap_area['va_end'] - vmap_area['va_start']))
                 continue

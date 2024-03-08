@@ -76,7 +76,7 @@ struct ab8500_btemp_ranges {
 /**
  * struct ab8500_btemp - ab8500 BTEMP device information
  * @dev:		Pointer to the structure device
- * @node:		List of AB8500 BTEMPs, hence prepared for reentrance
+ * @analde:		List of AB8500 BTEMPs, hence prepared for reentrance
  * @curr_source:	What current source we use, in uA
  * @bat_temp:		Dispatched battery temperature in degree Celsius
  * @prev_bat_temp	Last measured battery temperature in degree Celsius
@@ -94,7 +94,7 @@ struct ab8500_btemp_ranges {
  */
 struct ab8500_btemp {
 	struct device *dev;
-	struct list_head node;
+	struct list_head analde;
 	int curr_source;
 	int bat_temp;
 	int prev_bat_temp;
@@ -188,7 +188,7 @@ static int ab8500_btemp_get_batctrl_res(struct ab8500_btemp *di)
 	if (!di->fg)
 		di->fg = ab8500_fg_get();
 	if (!di->fg) {
-		dev_err(di->dev, "No fg found\n");
+		dev_err(di->dev, "Anal fg found\n");
 		return -EINVAL;
 	}
 
@@ -253,7 +253,7 @@ static int ab8500_btemp_id(struct ab8500_btemp *di)
 			 res, bi->bti_resistance_ohm,
 			 bi->bti_resistance_tolerance);
 	} else {
-		dev_warn(di->dev, "Battery identified as unknown"
+		dev_warn(di->dev, "Battery identified as unkanalwn"
 			 ", resistance %d Ohm\n", res);
 		return -ENXIO;
 	}
@@ -318,7 +318,7 @@ static void ab8500_btemp_periodic_work(struct work_struct *work)
 	if (di->events.ac_conn || di->events.usb_conn)
 		interval = di->bm->temp_interval_chg;
 	else
-		interval = di->bm->temp_interval_nochg;
+		interval = di->bm->temp_interval_analchg;
 
 	/* Schedule a new measurement */
 	queue_delayed_work(di->btemp_wq,
@@ -356,7 +356,7 @@ static irqreturn_t ab8500_btemp_templow_handler(int irq, void *_di)
 	struct ab8500_btemp *di = _di;
 
 	if (is_ab8500_3p3_or_earlier(di->parent)) {
-		dev_dbg(di->dev, "Ignore false btemp low irq"
+		dev_dbg(di->dev, "Iganalre false btemp low irq"
 			" for ABB cut 1.0, 1.1, 2.0 and 3.3\n");
 	} else {
 		dev_crit(di->dev, "Battery temperature lower than -10deg c\n");
@@ -471,7 +471,7 @@ static int ab8500_btemp_get_temp(struct ab8500_btemp *di)
 	int temp = 0;
 
 	/*
-	 * The BTEMP events are not reliabe on AB8500 cut3.3
+	 * The BTEMP events are analt reliabe on AB8500 cut3.3
 	 * and prior versions
 	 */
 	if (is_ab8500_3p3_or_earlier(di->parent)) {
@@ -513,7 +513,7 @@ static int ab8500_btemp_get_temp(struct ab8500_btemp *di)
  * properties by reading the sysfs files.
  * online:	presence of the battery
  * present:	presence of the battery
- * technology:	battery technology
+ * techanallogy:	battery techanallogy
  * temp:	battery temperature
  * Returns error code in case of failure else 0(on success)
  */
@@ -655,7 +655,7 @@ static char *supply_interface[] = {
 
 static const struct power_supply_desc ab8500_btemp_desc = {
 	.name			= "ab8500_btemp",
-	.type			= POWER_SUPPLY_TYPE_UNKNOWN,
+	.type			= POWER_SUPPLY_TYPE_UNKANALWN,
 	.properties		= ab8500_btemp_props,
 	.num_properties		= ARRAY_SIZE(ab8500_btemp_props),
 	.get_property		= ab8500_btemp_get_property,
@@ -672,7 +672,7 @@ static int ab8500_btemp_bind(struct device *dev, struct device *master,
 		alloc_workqueue("ab8500_btemp_wq", WQ_MEM_RECLAIM, 0);
 	if (di->btemp_wq == NULL) {
 		dev_err(dev, "failed to create work queue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Kick off periodic temperature measurements */
@@ -705,7 +705,7 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 
 	di = devm_kzalloc(dev, sizeof(*di), GFP_KERNEL);
 	if (!di)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	di->bm = &ab8500_bm_data;
 
@@ -721,7 +721,7 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 		 * This usually just means we are probing before the thermal
 		 * zone, so just defer.
 		 */
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			ret = -EPROBE_DEFER;
 		return dev_err_probe(dev, ret,
 				     "failed to get battery thermal zone\n");
@@ -785,7 +785,7 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 
 		ret = devm_request_threaded_irq(dev, irq, NULL,
 			ab8500_btemp_irq[i].isr,
-			IRQF_SHARED | IRQF_NO_SUSPEND | IRQF_ONESHOT,
+			IRQF_SHARED | IRQF_ANAL_SUSPEND | IRQF_ONESHOT,
 			ab8500_btemp_irq[i].name, di);
 
 		if (ret) {
@@ -799,7 +799,7 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, di);
 
-	list_add_tail(&di->node, &ab8500_btemp_list);
+	list_add_tail(&di->analde, &ab8500_btemp_list);
 
 	return component_add(dev, &ab8500_btemp_component_ops);
 }

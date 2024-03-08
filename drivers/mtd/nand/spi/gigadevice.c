@@ -19,7 +19,7 @@
 #define GD5FXGQXXEXXG_REG_STATUS2		0xf0
 
 #define GD5FXGQ4UXFXXG_STATUS_ECC_MASK		(7 << 4)
-#define GD5FXGQ4UXFXXG_STATUS_ECC_NO_BITFLIPS	(0 << 4)
+#define GD5FXGQ4UXFXXG_STATUS_ECC_ANAL_BITFLIPS	(0 << 4)
 #define GD5FXGQ4UXFXXG_STATUS_ECC_1_3_BITFLIPS	(1 << 4)
 #define GD5FXGQ4UXFXXG_STATUS_ECC_UNCOR_ERROR	(7 << 4)
 
@@ -101,7 +101,7 @@ static int gd5fxgq4xa_ecc_get_status(struct spinand_device *spinand,
 					 u8 status)
 {
 	switch (status & STATUS_ECC_MASK) {
-	case STATUS_ECC_NO_BITFLIPS:
+	case STATUS_ECC_ANAL_BITFLIPS:
 		return 0;
 
 	case GD5FXGQ4XA_STATUS_ECC_1_7_BITFLIPS:
@@ -190,7 +190,7 @@ static int gd5fxgq4uexxg_ecc_get_status(struct spinand_device *spinand,
 	int ret;
 
 	switch (status & STATUS_ECC_MASK) {
-	case STATUS_ECC_NO_BITFLIPS:
+	case STATUS_ECC_ANAL_BITFLIPS:
 		return 0;
 
 	case GD5FXGQ4XA_STATUS_ECC_1_7_BITFLIPS:
@@ -233,7 +233,7 @@ static int gd5fxgq5xexxg_ecc_get_status(struct spinand_device *spinand,
 	int ret;
 
 	switch (status & STATUS_ECC_MASK) {
-	case STATUS_ECC_NO_BITFLIPS:
+	case STATUS_ECC_ANAL_BITFLIPS:
 		return 0;
 
 	case GD5FXGQ5XE_STATUS_ECC_1_4_BITFLIPS:
@@ -266,7 +266,7 @@ static int gd5fxgq4ufxxg_ecc_get_status(struct spinand_device *spinand,
 					u8 status)
 {
 	switch (status & GD5FXGQ4UXFXXG_STATUS_ECC_MASK) {
-	case GD5FXGQ4UXFXXG_STATUS_ECC_NO_BITFLIPS:
+	case GD5FXGQ4UXFXXG_STATUS_ECC_ANAL_BITFLIPS:
 		return 0;
 
 	case GD5FXGQ4UXFXXG_STATUS_ECC_1_3_BITFLIPS:

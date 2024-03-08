@@ -34,7 +34,7 @@ static int dvb_usbv2_download_firmware(struct dvb_usb_device *d,
 	ret = request_firmware(&fw, name, &d->udev->dev);
 	if (ret < 0) {
 		dev_err(&d->udev->dev,
-				"%s: Did not find the firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware\n",
+				"%s: Did analt find the firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware\n",
 				KBUILD_MODNAME, name, ret);
 		goto err;
 	}
@@ -130,13 +130,13 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	if (ret < 0)
 		goto err;
 
-	/* disable rc when there is no keymap defined */
+	/* disable rc when there is anal keymap defined */
 	if (!d->rc.map_name)
 		return 0;
 
 	dev = rc_allocate_device(d->rc.driver_type);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -247,7 +247,7 @@ static int dvb_usb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	dev_dbg(&d->udev->dev,
 			"%s: adap=%d active_fe=%d feed_type=%d setting pid [%s]: %04x (%04d) at index %d\n",
 			__func__, adap->id, adap->active_fe, dvbdmxfeed->type,
-			adap->pid_filtering ? "yes" : "no", dvbdmxfeed->pid,
+			adap->pid_filtering ? "anal" : "anal", dvbdmxfeed->pid,
 			dvbdmxfeed->pid, dvbdmxfeed->index);
 
 	/* wait init is done */
@@ -334,7 +334,7 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	dev_dbg(&d->udev->dev,
 			"%s: adap=%d active_fe=%d feed_type=%d setting pid [%s]: %04x (%04d) at index %d\n",
 			__func__, adap->id, adap->active_fe, dvbdmxfeed->type,
-			adap->pid_filtering ? "yes" : "no", dvbdmxfeed->pid,
+			adap->pid_filtering ? "anal" : "anal", dvbdmxfeed->pid,
 			dvbdmxfeed->pid, dvbdmxfeed->index);
 
 	if (adap->active_fe == -1)
@@ -349,7 +349,7 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 					KBUILD_MODNAME, ret);
 	}
 
-	/* we cannot stop streaming until last PID is removed */
+	/* we cananalt stop streaming until last PID is removed */
 	if (--adap->feed_count > 0)
 		goto skip_feed_stop;
 
@@ -394,7 +394,7 @@ static int dvb_usbv2_media_device_init(struct dvb_usb_adapter *adap)
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	media_device_usb_init(mdev, udev, d->name);
 
@@ -525,20 +525,20 @@ static int dvb_usbv2_adapter_dvb_exit(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int dvb_usbv2_device_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int dvb_usbv2_device_power_ctrl(struct dvb_usb_device *d, int oanalff)
 {
 	int ret;
 
-	if (onoff)
+	if (oanalff)
 		d->powered++;
 	else
 		d->powered--;
 
-	if (d->powered == 0 || (onoff && d->powered == 1)) {
+	if (d->powered == 0 || (oanalff && d->powered == 1)) {
 		/* when switching from 1 to 0 or from 0 to 1 */
-		dev_dbg(&d->udev->dev, "%s: power=%d\n", __func__, onoff);
+		dev_dbg(&d->udev->dev, "%s: power=%d\n", __func__, oanalff);
 		if (d->props->power_ctrl) {
-			ret = d->props->power_ctrl(d, onoff);
+			ret = d->props->power_ctrl(d, oanalff);
 			if (ret < 0)
 				goto err;
 		}
@@ -647,13 +647,13 @@ static int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 			goto err_dvb_frontend_detach;
 		}
 	} else {
-		dev_dbg(&d->udev->dev, "%s: frontend_attach() do not exists\n",
+		dev_dbg(&d->udev->dev, "%s: frontend_attach() do analt exists\n",
 				__func__);
 		ret = 0;
 		goto err;
 	}
 
-	for (i = 0; i < MAX_NO_OF_FE_PER_ADAP && adap->fe[i]; i++) {
+	for (i = 0; i < MAX_ANAL_OF_FE_PER_ADAP && adap->fe[i]; i++) {
 		adap->fe[i]->id = i;
 		/* re-assign sleep and wakeup functions */
 		adap->fe_init[i] = adap->fe[i]->ops.init;
@@ -694,7 +694,7 @@ err_dvb_unregister_frontend:
 		dvb_unregister_frontend(adap->fe[i]);
 
 err_dvb_frontend_detach:
-	for (i = MAX_NO_OF_FE_PER_ADAP - 1; i >= 0; i--) {
+	for (i = MAX_ANAL_OF_FE_PER_ADAP - 1; i >= 0; i--) {
 		if (adap->fe[i]) {
 			dvb_frontend_detach(adap->fe[i]);
 			adap->fe[i] = NULL;
@@ -713,7 +713,7 @@ static int dvb_usbv2_adapter_frontend_exit(struct dvb_usb_adapter *adap)
 
 	dev_dbg(&d->udev->dev, "%s: adap=%d\n", __func__, adap->id);
 
-	for (i = MAX_NO_OF_FE_PER_ADAP - 1; i >= 0; i--) {
+	for (i = MAX_ANAL_OF_FE_PER_ADAP - 1; i >= 0; i--) {
 		if (adap->fe[i]) {
 			dvb_unregister_frontend(adap->fe[i]);
 			dvb_frontend_detach(adap->fe[i]);
@@ -764,9 +764,9 @@ static int dvb_usbv2_adapter_init(struct dvb_usb_device *d)
 		if (d->udev->speed == USB_SPEED_FULL &&
 				!(adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER)) {
 			dev_err(&d->udev->dev,
-					"%s: this USB2.0 device cannot be run on a USB1.1 port (it lacks a hardware PID filter)\n",
+					"%s: this USB2.0 device cananalt be run on a USB1.1 port (it lacks a hardware PID filter)\n",
 					KBUILD_MODNAME);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err;
 		} else if ((d->udev->speed == USB_SPEED_FULL &&
 				adap->props->caps & DVB_USB_ADAP_HAS_PID_FILTER) ||
@@ -822,7 +822,7 @@ static int dvb_usbv2_adapter_exit(struct dvb_usb_device *d)
 	int i;
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
-	for (i = MAX_NO_OF_ADAPTER_PER_DEVICE - 1; i >= 0; i--) {
+	for (i = MAX_ANAL_OF_ADAPTER_PER_DEVICE - 1; i >= 0; i--) {
 		if (d->adapter[i].props) {
 			dvb_usbv2_adapter_dvb_exit(&d->adapter[i]);
 			dvb_usbv2_adapter_stream_exit(&d->adapter[i]);
@@ -900,14 +900,14 @@ int dvb_usbv2_probe(struct usb_interface *intf,
 
 	if (!id->driver_info) {
 		dev_err(&udev->dev, "%s: driver_info failed\n", KBUILD_MODNAME);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
 	d = kzalloc(sizeof(struct dvb_usb_device), GFP_KERNEL);
 	if (!d) {
 		dev_err(&udev->dev, "%s: kzalloc() failed\n", KBUILD_MODNAME);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -919,7 +919,7 @@ int dvb_usbv2_probe(struct usb_interface *intf,
 
 	if (intf->cur_altsetting->desc.bInterfaceNumber !=
 			d->props->bInterfaceNumber) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_kfree_d;
 	}
 
@@ -931,7 +931,7 @@ int dvb_usbv2_probe(struct usb_interface *intf,
 		if (!d->priv) {
 			dev_err(&d->udev->dev, "%s: kzalloc() failed\n",
 					KBUILD_MODNAME);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_kfree_d;
 		}
 	}
@@ -1040,7 +1040,7 @@ int dvb_usbv2_suspend(struct usb_interface *intf, pm_message_t msg)
 	if (d->rc_polling_active)
 		cancel_delayed_work_sync(&d->rc_query_work);
 
-	for (i = MAX_NO_OF_ADAPTER_PER_DEVICE - 1; i >= 0; i--) {
+	for (i = MAX_ANAL_OF_ADAPTER_PER_DEVICE - 1; i >= 0; i--) {
 		active_fe = d->adapter[i].active_fe;
 		if (d->adapter[i].dvb_adap.priv && active_fe != -1) {
 			fe = d->adapter[i].fe[active_fe];
@@ -1066,7 +1066,7 @@ static int dvb_usbv2_resume_common(struct dvb_usb_device *d)
 	struct dvb_frontend *fe;
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
-	for (i = 0; i < MAX_NO_OF_ADAPTER_PER_DEVICE; i++) {
+	for (i = 0; i < MAX_ANAL_OF_ADAPTER_PER_DEVICE; i++) {
 		active_fe = d->adapter[i].active_fe;
 		if (d->adapter[i].dvb_adap.priv && active_fe != -1) {
 			fe = d->adapter[i].fe[active_fe];

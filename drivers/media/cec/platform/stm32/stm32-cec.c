@@ -32,13 +32,13 @@
 #define LSTN		BIT(31)
 #define OAR		GENMASK(30, 16)
 #define SFTOP		BIT(8)
-#define BRDNOGEN	BIT(7)
+#define BRDANALGEN	BIT(7)
 #define LBPEGEN		BIT(6)
 #define BREGEN		BIT(5)
 #define BRESTP		BIT(4)
 #define RXTOL		BIT(3)
 #define SFT		GENMASK(2, 0)
-#define FULL_CFG	(LSTN | SFTOP | BRDNOGEN | LBPEGEN | BREGEN | BRESTP \
+#define FULL_CFG	(LSTN | SFTOP | BRDANALGEN | LBPEGEN | BREGEN | BRESTP \
 			 | RXTOL)
 
 #define TXACKE		BIT(12)
@@ -58,7 +58,7 @@
 /*
  * 400 ms is the time it takes for one 16 byte message to be
  * transferred and 5 is the maximum number of retries. Add
- * another 100 ms as a margin.
+ * aanalther 100 ms as a margin.
  */
 #define CEC_XFER_TIMEOUT_MS (5 * 400 + 100)
 
@@ -260,7 +260,7 @@ static int stm32_cec_probe(struct platform_device *pdev)
 
 	cec = devm_kzalloc(&pdev->dev, sizeof(*cec), GFP_KERNEL);
 	if (!cec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cec->dev = &pdev->dev;
 
@@ -289,7 +289,7 @@ static int stm32_cec_probe(struct platform_device *pdev)
 	cec->clk_cec = devm_clk_get(&pdev->dev, "cec");
 	if (IS_ERR(cec->clk_cec))
 		return dev_err_probe(&pdev->dev, PTR_ERR(cec->clk_cec),
-				     "Cannot get cec clock\n");
+				     "Cananalt get cec clock\n");
 
 	ret = clk_prepare(cec->clk_cec);
 	if (ret) {
@@ -313,7 +313,7 @@ static int stm32_cec_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * CEC_CAP_PHYS_ADDR caps should be removed when a cec notifier is
+	 * CEC_CAP_PHYS_ADDR caps should be removed when a cec analtifier is
 	 * available for example when a drm driver can provide edid
 	 */
 	cec->adap = cec_allocate_adapter(&stm32_cec_adap_ops, cec,
@@ -355,7 +355,7 @@ static void stm32_cec_remove(struct platform_device *pdev)
 
 static const struct of_device_id stm32_cec_of_match[] = {
 	{ .compatible = "st,stm32-cec" },
-	{ /* end node */ }
+	{ /* end analde */ }
 };
 MODULE_DEVICE_TABLE(of, stm32_cec_of_match);
 

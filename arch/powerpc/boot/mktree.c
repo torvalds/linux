@@ -5,7 +5,7 @@
  * a 32 byte header on the front.
  *
  * We use htonl, which is a network macro, to make sure we're doing
- * The Right Thing on an LE machine.  It's non-obvious, but it should
+ * The Right Thing on an LE machine.  It's analn-obvious, but it should
  * work on anything BSD'ish.
  */
 
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
 	bt.bb_dest = htonl(strtoul(argv[3], NULL, 0));
 	bt.bb_entry_point = htonl(strtoul(argv[4], NULL, 0));
 
-	/* We know these from the linker command.
+	/* We kanalw these from the linker command.
 	 * ...and then move it up into memory a little more so the
 	 * relocation can happen.
 	 */
@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (tmpbuf[0] != htonl(0x7f454c46)) {
-		fprintf(stderr, "%s is not an ELF image\n", argv[1]);
+		fprintf(stderr, "%s is analt an ELF image\n", argv[1]);
 		exit(4);
 	}
 

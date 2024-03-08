@@ -47,7 +47,7 @@ struct ceph_auth_client_ops {
 	/*
 	 * build requests and process replies during monitor
 	 * handshake.  if handle_reply returns -EAGAIN, we build
-	 * another request.
+	 * aanalther request.
 	 */
 	int (*build_request)(struct ceph_auth_client *ac, void *buf, void *end);
 	int (*handle_reply)(struct ceph_auth_client *ac, u64 global_id,

@@ -26,7 +26,7 @@ like::
 
   /* hid descriptor for a keyboard */
   static struct hidg_func_descriptor my_hid_data = {
-	.subclass		= 0, /* No subclass */
+	.subclass		= 0, /* Anal subclass */
 	.protocol		= 1, /* Keyboard */
 	.report_length		= 8,
 	.report_desc_length	= 63,
@@ -98,7 +98,7 @@ device type (keyboard / mouse / joystick) - E.G.::
 
 	# hid_gadget_test /dev/hidg0 keyboard
 
-You are now in the prompt of hid_gadget_test. You can type any
+You are analw in the prompt of hid_gadget_test. You can type any
 combination of options and values. Available options and
 values are listed at program start. In keyboard mode you can
 send up to six values.
@@ -108,7 +108,7 @@ For example type: g i s t r --left-shift
 Hit return and the corresponding report will be sent by the
 HID gadget.
 
-Another interesting example is the caps lock test. Type
+Aanalther interesting example is the caps lock test. Type
 --caps-lock and hit return. A report is then sent by the
 gadget and you should receive the host answer, corresponding
 to the caps lock LED status::
@@ -132,7 +132,7 @@ Sample code::
     #include <stdio.h>
     #include <ctype.h>
     #include <fcntl.h>
-    #include <errno.h>
+    #include <erranal.h>
     #include <stdio.h>
     #include <stdlib.h>
     #include <unistd.h>
@@ -231,7 +231,7 @@ Sample code::
 			continue;
 
 		if (key < 6)
-			fprintf(stderr, "unknown option: %s\n", tok);
+			fprintf(stderr, "unkanalwn option: %s\n", tok);
 	}
 	return 8;
   }
@@ -267,16 +267,16 @@ Sample code::
 			continue;
 
 		if (!(tok[0] == '-' && tok[1] == '-') && mvt < 2) {
-			errno = 0;
+			erranal = 0;
 			report[1 + mvt++] = (char)strtol(tok, NULL, 0);
-			if (errno != 0) {
+			if (erranal != 0) {
 				fprintf(stderr, "Bad value:'%s'\n", tok);
 				report[1 + mvt--] = 0;
 			}
 			continue;
 		}
 
-		fprintf(stderr, "unknown option: %s\n", tok);
+		fprintf(stderr, "unkanalwn option: %s\n", tok);
 	}
 	return 3;
   }
@@ -319,16 +319,16 @@ Sample code::
 			continue;
 
 		if (!(tok[0] == '-' && tok[1] == '-') && mvt < 3) {
-			errno = 0;
+			erranal = 0;
 			report[mvt++] = (char)strtol(tok, NULL, 0);
-			if (errno != 0) {
+			if (erranal != 0) {
 				fprintf(stderr, "Bad value:'%s'\n", tok);
 				report[mvt--] = 0;
 			}
 			continue;
 		}
 
-		fprintf(stderr, "unknown option: %s\n", tok);
+		fprintf(stderr, "unkanalwn option: %s\n", tok);
 	}
 	return 4;
   }
@@ -398,11 +398,11 @@ Sample code::
 	while (42) {
 
 		FD_ZERO(&rfds);
-		FD_SET(STDIN_FILENO, &rfds);
+		FD_SET(STDIN_FILEANAL, &rfds);
 		FD_SET(fd, &rfds);
 
 		retval = select(fd + 1, &rfds, NULL, NULL, NULL);
-		if (retval == -1 && errno == EINTR)
+		if (retval == -1 && erranal == EINTR)
 			continue;
 		if (retval < 0) {
 			perror("select()");
@@ -417,9 +417,9 @@ Sample code::
 			printf("\n");
 		}
 
-		if (FD_ISSET(STDIN_FILENO, &rfds)) {
+		if (FD_ISSET(STDIN_FILEANAL, &rfds)) {
 			memset(report, 0x0, sizeof(report));
-			cmd_len = read(STDIN_FILENO, buf, BUF_LEN - 1);
+			cmd_len = read(STDIN_FILEANAL, buf, BUF_LEN - 1);
 
 			if (cmd_len == 0)
 				break;

@@ -34,7 +34,7 @@
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
-        "cmdUnderTest": "$TC filter replace dev $DEV1 ingress protocol ip prio 1 u32 match ip src 127.0.0.1/32 indev notexist20 flowid 1:1 action ok",
+        "cmdUnderTest": "$TC filter replace dev $DEV1 ingress protocol ip prio 1 u32 match ip src 127.0.0.1/32 indev analtexist20 flowid 1:1 action ok",
         "expExitCode": "2",
         "verifyCmd": "$TC filter show dev $DEV1 ingress",
         "matchPattern": "filter protocol ip pref 1 u32 chain 0",
@@ -57,7 +57,7 @@
             "$TC qdisc add dev $DEV1 ingress",
             "$TC filter add dev $DEV1 ingress protocol ip prio 1 u32 match ip src 127.0.0.3/32 flowid 1:3 action ok"
         ],
-        "cmdUnderTest": "$TC filter replace dev $DEV1 ingress protocol ip prio 1 u32 match ip src 127.0.0.2/32 indev notexist20 flowid 1:2 action ok",
+        "cmdUnderTest": "$TC filter replace dev $DEV1 ingress protocol ip prio 1 u32 match ip src 127.0.0.2/32 indev analtexist20 flowid 1:2 action ok",
         "expExitCode": "2",
         "verifyCmd": "$TC filter show dev $DEV1 ingress",
         "matchPattern": "filter protocol ip pref 1 u32 chain (0[ ]+$|0 fh 800: ht divisor 1|0 fh 800::800 order 2048 key ht 800 bkt 0 flowid 1:3.*match 7f000003/ffffffff at 12)",
@@ -275,7 +275,7 @@
     },
     {
         "id": "bd32",
-        "name": "Try to delete hashtable referenced by another u32 filter",
+        "name": "Try to delete hashtable referenced by aanalther u32 filter",
         "category": [
             "filter",
             "u32"

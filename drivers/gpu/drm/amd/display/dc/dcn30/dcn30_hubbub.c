@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -121,8 +121,8 @@ bool hubbub3_program_watermarks(
 	 * by the ARB_MIN_REQ_OUTSTANDING. To determine that the DCHub requestors are well ahead of the amortized schedule,
 	 * the slack of the next winner is compared with the ARB_SAT_LEVEL in DLG RefClk cycles.
 	 *
-	 * TODO: Revisit request limit after figure out right number. request limit for Renoir isn't decided yet, set maximum value (0x1FF)
-	 * to turn off it for now.
+	 * TODO: Revisit request limit after figure out right number. request limit for Reanalir isn't decided yet, set maximum value (0x1FF)
+	 * to turn off it for analw.
 	 */
 	REG_SET(DCHUBBUB_ARB_SAT_LEVEL, 0,
 			DCHUBBUB_ARB_SAT_LEVEL, 60 * refclk_mhz);
@@ -180,12 +180,12 @@ bool hubbub3_dcc_support_swizzle(
 			return true;
 		}
 		if (bytes_per_element == 2) {
-			*segment_order_horz = segment_order__non_contiguous;
+			*segment_order_horz = segment_order__analn_contiguous;
 			*segment_order_vert = segment_order__contiguous;
 			return true;
 		}
 		if (bytes_per_element == 4) {
-			*segment_order_horz = segment_order__non_contiguous;
+			*segment_order_horz = segment_order__analn_contiguous;
 			*segment_order_vert = segment_order__contiguous;
 			return true;
 		}
@@ -202,24 +202,24 @@ bool hubbub3_dcc_support_swizzle(
 			return true;
 		}
 		if (bytes_per_element == 2) {
-			*segment_order_horz = segment_order__non_contiguous;
+			*segment_order_horz = segment_order__analn_contiguous;
 			*segment_order_vert = segment_order__contiguous;
 			return true;
 		}
 		if (bytes_per_element == 4) {
 			*segment_order_horz = segment_order__contiguous;
-			*segment_order_vert = segment_order__non_contiguous;
+			*segment_order_vert = segment_order__analn_contiguous;
 			return true;
 		}
 		if (bytes_per_element == 8) {
 			*segment_order_horz = segment_order__contiguous;
-			*segment_order_vert = segment_order__non_contiguous;
+			*segment_order_vert = segment_order__analn_contiguous;
 			return true;
 		}
 	}
 	if (display_swizzle && bytes_per_element == 8) {
 		*segment_order_horz = segment_order__contiguous;
-		*segment_order_vert = segment_order__non_contiguous;
+		*segment_order_vert = segment_order__analn_contiguous;
 		return true;
 	}
 
@@ -318,10 +318,10 @@ bool hubbub3_get_dcc_compression_cap(struct hubbub *hubbub,
 			dcc_control = dcc_control__256_64_64;
 	} else {
 		if ((req128_horz_wc &&
-			segment_order_horz == segment_order__non_contiguous) ||
+			segment_order_horz == segment_order__analn_contiguous) ||
 			(req128_vert_wc &&
-			segment_order_vert == segment_order__non_contiguous))
-			/* access_dir not known, must use most constraining */
+			segment_order_vert == segment_order__analn_contiguous))
+			/* access_dir analt kanalwn, must use most constraining */
 			dcc_control = dcc_control__256_64_64;
 		else
 			/* reg128 is true for either horz and vert
@@ -410,10 +410,10 @@ void hubbub3_init_watermarks(struct hubbub *hubbub)
 	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_FLIP_C, reg);
 	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_FLIP_D, reg);
 
-	reg = REG_READ(DCHUBBUB_ARB_FRAC_URG_BW_NOM_A);
-	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_NOM_B, reg);
-	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_NOM_C, reg);
-	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_NOM_D, reg);
+	reg = REG_READ(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_A);
+	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_B, reg);
+	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_C, reg);
+	REG_WRITE(DCHUBBUB_ARB_FRAC_URG_BW_ANALM_D, reg);
 
 	reg = REG_READ(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_A);
 	REG_WRITE(DCHUBBUB_ARB_REFCYC_PER_TRIP_TO_MEMORY_B, reg);

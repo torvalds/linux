@@ -23,13 +23,13 @@
 #include "wlan_bssdef.h"
 
 static const u8 WPA_OUI_TYPE[] = {0x00, 0x50, 0xf2, 1};
-static const u8 WPA_CIPHER_SUITE_NONE[] = {0x00, 0x50, 0xf2, 0};
+static const u8 WPA_CIPHER_SUITE_ANALNE[] = {0x00, 0x50, 0xf2, 0};
 static const u8 WPA_CIPHER_SUITE_WEP40[] = {0x00, 0x50, 0xf2, 1};
 static const u8 WPA_CIPHER_SUITE_TKIP[] = {0x00, 0x50, 0xf2, 2};
 static const u8 WPA_CIPHER_SUITE_CCMP[] = {0x00, 0x50, 0xf2, 4};
 static const u8 WPA_CIPHER_SUITE_WEP104[] = {0x00, 0x50, 0xf2, 5};
 
-static const u8 RSN_CIPHER_SUITE_NONE[] = {0x00, 0x0f, 0xac, 0};
+static const u8 RSN_CIPHER_SUITE_ANALNE[] = {0x00, 0x0f, 0xac, 0};
 static const u8 RSN_CIPHER_SUITE_WEP40[] = {0x00, 0x0f, 0xac, 1};
 static const u8 RSN_CIPHER_SUITE_TKIP[] = {0x00, 0x0f, 0xac, 2};
 static const u8 RSN_CIPHER_SUITE_CCMP[] = {0x00, 0x0f, 0xac, 4};
@@ -246,8 +246,8 @@ unsigned char *r8712_get_wpa2_ie(unsigned char *pie, uint *rsn_ie_len,
 
 static int r8712_get_wpa_cipher_suite(u8 *s)
 {
-	if (!memcmp(s, (void *)WPA_CIPHER_SUITE_NONE, WPA_SELECTOR_LEN))
-		return WPA_CIPHER_NONE;
+	if (!memcmp(s, (void *)WPA_CIPHER_SUITE_ANALNE, WPA_SELECTOR_LEN))
+		return WPA_CIPHER_ANALNE;
 	if (!memcmp(s, (void *)WPA_CIPHER_SUITE_WEP40, WPA_SELECTOR_LEN))
 		return WPA_CIPHER_WEP40;
 	if (!memcmp(s, (void *)WPA_CIPHER_SUITE_TKIP, WPA_SELECTOR_LEN))
@@ -261,8 +261,8 @@ static int r8712_get_wpa_cipher_suite(u8 *s)
 
 static int r8712_get_wpa2_cipher_suite(u8 *s)
 {
-	if (!memcmp(s, (void *)RSN_CIPHER_SUITE_NONE, RSN_SELECTOR_LEN))
-		return WPA_CIPHER_NONE;
+	if (!memcmp(s, (void *)RSN_CIPHER_SUITE_ANALNE, RSN_SELECTOR_LEN))
+		return WPA_CIPHER_ANALNE;
 	if (!memcmp(s, (void *)RSN_CIPHER_SUITE_WEP40, RSN_SELECTOR_LEN))
 		return WPA_CIPHER_WEP40;
 	if (!memcmp(s, (void *)RSN_CIPHER_SUITE_TKIP, RSN_SELECTOR_LEN))
@@ -282,7 +282,7 @@ int r8712_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher,
 	u8 *pos;
 
 	if (wpa_ie_len <= 0) {
-		/* No WPA IE - fail silently */
+		/* Anal WPA IE - fail silently */
 		return -EINVAL;
 	}
 	if ((*wpa_ie != _WPA_IE_ID_) ||
@@ -326,7 +326,7 @@ int r8712_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 	u8 *pos;
 
 	if (rsn_ie_len <= 0) {
-		/* No RSN IE - fail silently */
+		/* Anal RSN IE - fail silently */
 		return -EINVAL;
 	}
 	if ((*rsn_ie != _WPA2_IE_ID_) ||

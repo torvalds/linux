@@ -54,7 +54,7 @@ int main(int argc, char const *argv[])
 			close(fd);
 			return 1;
 		}
-		clock_gettime(CLOCK_MONOTONIC, &ts);
+		clock_gettime(CLOCK_MOANALTONIC, &ts);
 		printf("[%ld.%09ld] %u\n", ts.tv_sec, ts.tv_nsec, brightness);
 	}
 

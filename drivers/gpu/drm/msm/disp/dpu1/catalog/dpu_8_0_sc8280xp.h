@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022. Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
@@ -272,7 +272,7 @@ static const struct dpu_merge_3d_cfg sc8280xp_merge_3d[] = {
 };
 
 /*
- * NOTE: Each display compression engine (DCE) contains dual hard
+ * ANALTE: Each display compression engine (DCE) contains dual hard
  * slice DSC encoders so both share same base address but with
  * its own different sub block address.
  */
@@ -310,7 +310,7 @@ static const struct dpu_dsc_cfg sc8280xp_dsc[] = {
 	},
 };
 
-/* TODO: INTF 3, 8 and 7 are used for MST, marked as INTF_NONE for now */
+/* TODO: INTF 3, 8 and 7 are used for MST, marked as INTF_ANALNE for analw */
 static const struct dpu_intf_cfg sc8280xp_intf[] = {
 	{
 		.name = "intf_0", .id = INTF_0,
@@ -345,7 +345,7 @@ static const struct dpu_intf_cfg sc8280xp_intf[] = {
 		.name = "intf_3", .id = INTF_3,
 		.base = 0x37000, .len = 0x280,
 		.features = INTF_SC7280_MASK,
-		.type = INTF_NONE,
+		.type = INTF_ANALNE,
 		.controller_id = MSM_DP_CONTROLLER_0,
 		.prog_fetch_lines_worst_case = 24,
 		.intr_underrun = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR, 30),
@@ -381,7 +381,7 @@ static const struct dpu_intf_cfg sc8280xp_intf[] = {
 		.name = "intf_7", .id = INTF_7,
 		.base = 0x3b000, .len = 0x280,
 		.features = INTF_SC7280_MASK,
-		.type = INTF_NONE,
+		.type = INTF_ANALNE,
 		.controller_id = MSM_DP_CONTROLLER_2,
 		.prog_fetch_lines_worst_case = 24,
 		.intr_underrun = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR, 18),
@@ -390,7 +390,7 @@ static const struct dpu_intf_cfg sc8280xp_intf[] = {
 		.name = "intf_8", .id = INTF_8,
 		.base = 0x3c000, .len = 0x280,
 		.features = INTF_SC7280_MASK,
-		.type = INTF_NONE,
+		.type = INTF_ANALNE,
 		.controller_id = MSM_DP_CONTROLLER_1,
 		.prog_fetch_lines_worst_case = 24,
 		.intr_underrun = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR, 12),
@@ -428,7 +428,7 @@ static const struct dpu_perf_cfg sc8280xp_perf_data = {
 
 static const struct dpu_mdss_version sc8280xp_mdss_ver = {
 	.core_major_ver = 8,
-	.core_minor_ver = 0,
+	.core_mianalr_ver = 0,
 };
 
 const struct dpu_mdss_cfg dpu_sc8280xp_cfg = {

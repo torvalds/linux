@@ -14,7 +14,7 @@ Required properties:
 - clocks: handle to fclk
 - clock-names: "fck"
 
-Optional nodes:
+Optional analdes:
 - Video ports:
 	- Port 0: DPI output
 	- Port 1: SDI output

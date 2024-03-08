@@ -96,7 +96,7 @@ static inline u8 tas3004_treble(int idx)
 
 /* I only save the difference here to the treble table
  * so that the binary is smaller...
- * I have also ignored completely differences of
+ * I have also iganalred completely differences of
  * +/- 1
  */
 static const s8 tas3004_bass_diff_to_treble[] = {

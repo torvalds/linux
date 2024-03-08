@@ -35,9 +35,9 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	 * that they can saved in the hibernation image. To ensure the last
 	 * context image is coherent, we have to switch away from it. That
 	 * leaves the i915->kernel_context still active when
-	 * we actually suspend, and its image in memory may not match the GPU
+	 * we actually suspend, and its image in memory may analt match the GPU
 	 * state. Fortunately, the kernel_context is disposable and we do
-	 * not rely on its state.
+	 * analt rely on its state.
 	 */
 	for_each_gt(gt, i915, i)
 		intel_gt_suspend_prepare(gt);
@@ -100,9 +100,9 @@ int i915_gem_backup_suspend(struct drm_i915_private *i915)
 
 	/*
 	 * More objects may have become unpinned as requests were
-	 * retired. Now try to evict again. The gt may be wedged here
+	 * retired. Analw try to evict again. The gt may be wedged here
 	 * in which case we automatically fall back to memcpy.
-	 * We allow also backing up pinned objects that have not been
+	 * We allow also backing up pinned objects that have analt been
 	 * marked for early recover, and that may contain, for example,
 	 * page-tables for the migrate context.
 	 */
@@ -144,14 +144,14 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 	 * Neither the BIOS, ourselves or any other kernel
 	 * expects the system to be in execlists mode on startup,
 	 * so we need to reset the GPU back to legacy mode. And the only
-	 * known way to disable logical contexts is through a GPU reset.
+	 * kanalwn way to disable logical contexts is through a GPU reset.
 	 *
-	 * So in order to leave the system in a known default configuration,
+	 * So in order to leave the system in a kanalwn default configuration,
 	 * always reset the GPU upon unload and suspend. Afterwards we then
 	 * clean up the GEM state tracking, flushing off the requests and
-	 * leaving the system in a known idle state.
+	 * leaving the system in a kanalwn idle state.
 	 *
-	 * Note that is of the upmost importance that the GPU is idle and
+	 * Analte that is of the upmost importance that the GPU is idle and
 	 * all stray writes are flushed *before* we dismantle the backing
 	 * storage for the pinned objects.
 	 *
@@ -228,7 +228,7 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	GEM_WARN_ON(ret);
 
 	/*
-	 * As we didn't flush the kernel context before suspend, we cannot
+	 * As we didn't flush the kernel context before suspend, we cananalt
 	 * guarantee that the context image is complete. So let's just reset
 	 * it and start again.
 	 */

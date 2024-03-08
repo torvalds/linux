@@ -98,7 +98,7 @@
 #define BT_PS_DISABLE			0x03
 
 /* Bluetooth Host Wakeup Methods */
-#define BT_HOST_WAKEUP_METHOD_NONE      0x00
+#define BT_HOST_WAKEUP_METHOD_ANALNE      0x00
 #define BT_HOST_WAKEUP_METHOD_DTR       0x01
 #define BT_HOST_WAKEUP_METHOD_BREAK     0x02
 #define BT_HOST_WAKEUP_METHOD_GPIO      0x03
@@ -252,7 +252,7 @@ struct v3_start_ind {
 #define ICR		0x000000c7
 #define FCR		0x000000c7
 
-#define POLYNOMIAL8	0x07
+#define POLYANALMIAL8	0x07
 
 struct uart_reg {
 	__le32 address;
@@ -494,7 +494,7 @@ static void ps_init(struct hci_dev *hdev)
 	usleep_range(5000, 10000);
 
 	psdata->ps_state = PS_STATE_AWAKE;
-	psdata->c2h_wakeupmode = BT_HOST_WAKEUP_METHOD_NONE;
+	psdata->c2h_wakeupmode = BT_HOST_WAKEUP_METHOD_ANALNE;
 	psdata->c2h_wakeup_gpio = 0xff;
 
 	psdata->cur_h2c_wakeupmode = WAKEUP_METHOD_INVALID;
@@ -672,7 +672,7 @@ static int nxp_request_firmware(struct hci_dev *hdev, const char *fw_name)
 	int err = 0;
 
 	if (!fw_name)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!strlen(nxpdev->fw_name)) {
 		snprintf(nxpdev->fw_name, MAX_FW_FILE_NAME_LEN, "%s", fw_name);
@@ -680,7 +680,7 @@ static int nxp_request_firmware(struct hci_dev *hdev, const char *fw_name)
 		bt_dev_dbg(hdev, "Request Firmware: %s", nxpdev->fw_name);
 		err = request_firmware(&nxpdev->fw, nxpdev->fw_name, &hdev->dev);
 		if (err < 0) {
-			bt_dev_err(hdev, "Firmware file %s not found", nxpdev->fw_name);
+			bt_dev_err(hdev, "Firmware file %s analt found", nxpdev->fw_name);
 			clear_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
 		}
 	}
@@ -780,7 +780,7 @@ static int nxp_recv_fw_req_v1(struct hci_dev *hdev, struct sk_buff *skb)
 		goto free_skb;
 	}
 	if (len & 0x01) {
-		/* The CRC did not match at the other end.
+		/* The CRC did analt match at the other end.
 		 * Simply send the same bytes again.
 		 */
 		len = nxpdev->fw_v1_sent_bytes;
@@ -856,7 +856,7 @@ static char *nxp_get_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid,
 			bt_dev_err(hdev, "Illegal loader version %02x", loader_ver);
 		break;
 	default:
-		bt_dev_err(hdev, "Unknown chip signature %04x", chipid);
+		bt_dev_err(hdev, "Unkanalwn chip signature %04x", chipid);
 		break;
 	}
 	return fw_name;
@@ -1000,7 +1000,7 @@ static int nxp_set_ind_reset(struct hci_dev *hdev, void *data)
 
 	skb = bt_skb_alloc(3, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
 	skb_put_data(skb, ir_hw_err, 3);
@@ -1100,7 +1100,7 @@ static int nxp_enqueue(struct hci_dev *hdev, struct sk_buff *skb)
 
 	/* if vendor commands are received from user space (e.g. hcitool), update
 	 * driver flags accordingly and ask driver to re-send the command to FW.
-	 * In case the payload for any command does not match expected payload
+	 * In case the payload for any command does analt match expected payload
 	 * length, let the firmware and user space program handle it, or throw
 	 * an error.
 	 */
@@ -1275,7 +1275,7 @@ static ssize_t btnxpuart_receive_buf(struct serdev_device *serdev,
 				     nxp_recv_pkts, ARRAY_SIZE(nxp_recv_pkts));
 	if (IS_ERR(nxpdev->rx_skb)) {
 		int err = PTR_ERR(nxpdev->rx_skb);
-		/* Safe to ignore out-of-sync bootloader signatures */
+		/* Safe to iganalre out-of-sync bootloader signatures */
 		if (!is_fw_downloading(nxpdev))
 			bt_dev_err(nxpdev->hdev, "Frame reassembly failed (%d)", err);
 		return count;
@@ -1302,7 +1302,7 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 
 	nxpdev = devm_kzalloc(&serdev->dev, sizeof(*nxpdev), GFP_KERNEL);
 	if (!nxpdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nxpdev->nxp_data = (struct btnxpuart_data *)device_get_match_data(&serdev->dev);
 
@@ -1324,13 +1324,13 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 
 	set_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
 
-	crc8_populate_msb(crc8_table, POLYNOMIAL8);
+	crc8_populate_msb(crc8_table, POLYANALMIAL8);
 
 	/* Initialize and register HCI device */
 	hdev = hci_alloc_dev();
 	if (!hdev) {
 		dev_err(&serdev->dev, "Can't allocate HCI device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	nxpdev->hdev = hdev;
@@ -1351,7 +1351,7 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 	if (hci_register_dev(hdev) < 0) {
 		dev_err(&serdev->dev, "Can't register HCI device\n");
 		hci_free_dev(hdev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ps_setup(hdev);

@@ -120,7 +120,7 @@ static __inline__ long local_xchg(local_t *l, long n)
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @l, if @v was not already @u.
+ * Atomically adds @a to @l, if @v was analt already @u.
  * Returns true if the addition was done.
  */
 static __inline__ bool local_add_unless(local_t *l, long a, long u)
@@ -138,11 +138,11 @@ static __inline__ bool local_add_unless(local_t *l, long a, long u)
 	return ret;
 }
 
-#define local_inc_not_zero(l)		local_add_unless((l), 1, 0)
+#define local_inc_analt_zero(l)		local_add_unless((l), 1, 0)
 
 /* Use these for per-cpu local_t variables: on some archs they are
- * much more efficient than these naive implementations.  Note they take
- * a variable, not an address.
+ * much more efficient than these naive implementations.  Analte they take
+ * a variable, analt an address.
  */
 
 #define __local_inc(l)		((l)->v++)

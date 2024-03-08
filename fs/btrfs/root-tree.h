@@ -26,8 +26,8 @@ int btrfs_find_root(struct btrfs_root *root, const struct btrfs_key *search_key,
 		    struct btrfs_path *path, struct btrfs_root_item *root_item,
 		    struct btrfs_key *root_key);
 int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info);
-void btrfs_set_root_node(struct btrfs_root_item *item,
-			 struct extent_buffer *node);
+void btrfs_set_root_analde(struct btrfs_root_item *item,
+			 struct extent_buffer *analde);
 void btrfs_check_and_init_root_item(struct btrfs_root_item *item);
 void btrfs_update_root_times(struct btrfs_trans_handle *trans, struct btrfs_root *root);
 

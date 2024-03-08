@@ -8,7 +8,7 @@
  *
  * Copyright (c) 2004, 2005, 2006 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
- * Copyright (c) 2013-2014 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2014 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -21,18 +21,18 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright analtice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright analtice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -111,10 +111,10 @@
 #define ISER_DEF_CMD_PER_LUN		ISER_DEF_XMIT_CMDS_MAX
 
 /* QP settings */
-/* Maximal bounds on received asynchronous PDUs */
-#define ISER_MAX_RX_MISC_PDUS		4 /* NOOP_IN(2) , ASYNC_EVENT(2)   */
+/* Maximal bounds on received asynchroanalus PDUs */
+#define ISER_MAX_RX_MISC_PDUS		4 /* ANALOP_IN(2) , ASYNC_EVENT(2)   */
 
-#define ISER_MAX_TX_MISC_PDUS		6 /* NOOP_OUT(2), TEXT(1),         *
+#define ISER_MAX_TX_MISC_PDUS		6 /* ANALOP_OUT(2), TEXT(1),         *
 					   * SCSI_TMFUNC(2), LOGOUT(1) */
 
 #define ISER_QP_MAX_RECV_DTOS		(ISER_DEF_XMIT_CMDS_MAX)
@@ -135,7 +135,7 @@
 /* Max registration work requests per command */
 #define ISER_MAX_REG_WR_PER_CMD		5
 
-/* For Signature we don't support DATAOUTs so no need to make room for them */
+/* For Signature we don't support DATAOUTs so anal need to make room for them */
 #define ISER_QP_SIG_MAX_REQ_DTOS	(ISER_DEF_XMIT_CMDS_MAX	*       \
 					(1 + ISER_MAX_REG_WR_PER_CMD) + \
 					ISER_MAX_TX_MISC_PDUS         + \
@@ -157,7 +157,7 @@
 #define ISER_OBJECT_NAME_SIZE		    64
 
 enum iser_conn_state {
-	ISER_CONN_INIT,		   /* descriptor allocd, no conn          */
+	ISER_CONN_INIT,		   /* descriptor allocd, anal conn          */
 	ISER_CONN_PENDING,	   /* in the process of being established */
 	ISER_CONN_UP,		   /* up and running                      */
 	ISER_CONN_TERMINATING,	   /* in the process of being terminated  */
@@ -520,7 +520,7 @@ void iser_unreg_mem_fastreg(struct iscsi_iser_task *task,
 int  iser_connect(struct iser_conn *iser_conn,
 		  struct sockaddr *src_addr,
 		  struct sockaddr *dst_addr,
-		  int non_blocking);
+		  int analn_blocking);
 
 int  iser_post_recvl(struct iser_conn *iser_conn);
 int  iser_post_recvm(struct iser_conn *iser_conn,

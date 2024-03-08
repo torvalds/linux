@@ -21,7 +21,7 @@
 #define BUF_INCREMENT	65536
 
 /* Usage related data. */
-static const char usage_synopsis[] =
+static const char usage_syanalpsis[] =
 	"apply a number of overlays to a base blob\n"
 	"	fdtoverlay <options> [<overlay.dtbo> [<overlay.dtbo>]]\n"
 	"\n"
@@ -30,7 +30,7 @@ static const char usage_short_opts[] = "i:o:v" USAGE_COMMON_SHORT_OPTS;
 static struct option const usage_long_opts[] = {
 	{"input",            required_argument, NULL, 'i'},
 	{"output",	     required_argument, NULL, 'o'},
-	{"verbose",	           no_argument, NULL, 'v'},
+	{"verbose",	           anal_argument, NULL, 'v'},
 	USAGE_COMMON_LONG_OPTS,
 };
 static const char * const usage_opts_help[] = {
@@ -68,10 +68,10 @@ static void *apply_one(char *base, const char *overlay, size_t *buf_len,
 		memcpy(tmpo, overlay, fdt_totalsize(overlay));
 
 		ret = fdt_overlay_apply(tmp, tmpo);
-		if (ret == -FDT_ERR_NOSPACE) {
+		if (ret == -FDT_ERR_ANALSPACE) {
 			*buf_len += BUF_INCREMENT;
 		}
-	} while (ret == -FDT_ERR_NOSPACE);
+	} while (ret == -FDT_ERR_ANALSPACE);
 
 	if (ret) {
 		fprintf(stderr, "\nFailed to apply '%s': %s\n",

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-OBJECT_FILES_NON_STANDARD := y
+OBJECT_FILES_ANALN_STANDARD := y
 
 purgatory-y := head.o purgatory.o string.o sha256.o mem.o
 
@@ -10,7 +10,7 @@ PURGATORY_OBJS = $(addprefix $(obj)/,$(purgatory-y))
 $(obj)/sha256.o: $(srctree)/lib/crypto/sha256.c FORCE
 	$(call if_changed_rule,cc_o_c)
 
-CFLAGS_sha256.o := -D__DISABLE_EXPORTS -D__NO_FORTIFY
+CFLAGS_sha256.o := -D__DISABLE_EXPORTS -D__ANAL_FORTIFY
 
 $(obj)/mem.o: $(srctree)/arch/s390/lib/mem.S FORCE
 	$(call if_changed_rule,as_o_S)
@@ -21,19 +21,19 @@ UBSAN_SANITIZE := n
 KASAN_SANITIZE := n
 KCSAN_SANITIZE := n
 
-KBUILD_CFLAGS := -fno-strict-aliasing -Wall -Wstrict-prototypes
-KBUILD_CFLAGS += -Wno-pointer-sign -Wno-sign-compare
-KBUILD_CFLAGS += -fno-zero-initialized-in-bss -fno-builtin -ffreestanding
-KBUILD_CFLAGS += -Os -m64 -msoft-float -fno-common
-KBUILD_CFLAGS += -fno-stack-protector
+KBUILD_CFLAGS := -fanal-strict-aliasing -Wall -Wstrict-prototypes
+KBUILD_CFLAGS += -Wanal-pointer-sign -Wanal-sign-compare
+KBUILD_CFLAGS += -fanal-zero-initialized-in-bss -fanal-builtin -ffreestanding
+KBUILD_CFLAGS += -Os -m64 -msoft-float -fanal-common
+KBUILD_CFLAGS += -fanal-stack-protector
 KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
 KBUILD_CFLAGS += $(CLANG_FLAGS)
-KBUILD_CFLAGS += $(call cc-option,-fno-PIE)
+KBUILD_CFLAGS += $(call cc-option,-fanal-PIE)
 KBUILD_AFLAGS := $(filter-out -DCC_USING_EXPOLINE,$(KBUILD_AFLAGS))
 
-# Since we link purgatory with -r unresolved symbols are not checked, so we
+# Since we link purgatory with -r unresolved symbols are analt checked, so we
 # also link a purgatory.chk binary without -r to check for unresolved symbols.
-PURGATORY_LDFLAGS := -nostdlib -z nodefaultlib
+PURGATORY_LDFLAGS := -analstdlib -z analdefaultlib
 LDFLAGS_purgatory := -r $(PURGATORY_LDFLAGS) -T
 LDFLAGS_purgatory.chk := -e purgatory_start $(PURGATORY_LDFLAGS)
 $(obj)/purgatory: $(obj)/purgatory.lds $(PURGATORY_OBJS) FORCE
@@ -45,7 +45,7 @@ $(obj)/purgatory.chk: $(obj)/purgatory FORCE
 OBJCOPYFLAGS_purgatory.ro := -O elf64-s390
 OBJCOPYFLAGS_purgatory.ro += --remove-section='*debug*'
 OBJCOPYFLAGS_purgatory.ro += --remove-section='.comment'
-OBJCOPYFLAGS_purgatory.ro += --remove-section='.note.*'
+OBJCOPYFLAGS_purgatory.ro += --remove-section='.analte.*'
 $(obj)/purgatory.ro: $(obj)/purgatory $(obj)/purgatory.chk FORCE
 		$(call if_changed,objcopy)
 

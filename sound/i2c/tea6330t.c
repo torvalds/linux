@@ -290,7 +290,7 @@ int snd_tea6330t_update_mixer(struct snd_card *card,
 
 	tea = kzalloc(sizeof(*tea), GFP_KERNEL);
 	if (tea == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = snd_i2c_device_create(bus, "TEA6330T", TEA6330T_ADDR, &device);
 	if (err < 0) {
 		kfree(tea);

@@ -26,7 +26,7 @@ static int qcom_apcs_msm8996_clk_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	struct clk_hw *hw;
 	unsigned int val;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	regmap = dev_get_regmap(parent, NULL);
 	if (!regmap) {
@@ -71,7 +71,7 @@ static struct platform_driver qcom_apcs_msm8996_clk_driver = {
 	},
 };
 
-/* Register early enough to fix the clock to be used for other cores */
+/* Register early eanalugh to fix the clock to be used for other cores */
 static int __init qcom_apcs_msm8996_clk_init(void)
 {
 	return platform_driver_register(&qcom_apcs_msm8996_clk_driver);

@@ -30,7 +30,7 @@ struct rci2_table_global_hdr {
 	u32 resvd2;
 	u32 resvd3;
 	u8 major_rev;
-	u8 minor_rev;
+	u8 mianalr_rev;
 	u16 num_of_structs;
 	u32 rci2_len;
 	u16 rci2_chksum;
@@ -79,7 +79,7 @@ static u16 checksum(void)
 static int __init efi_rci2_sysfs_init(void)
 {
 	struct kobject *tables_kobj;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (rci2_table_phys == EFI_INVALID_TABLE_ADDR)
 		return 0;
@@ -88,7 +88,7 @@ static int __init efi_rci2_sysfs_init(void)
 			     sizeof(struct rci2_table_global_hdr),
 			     MEMREMAP_WB);
 	if (!rci2_base) {
-		pr_debug("RCI2 table init failed - could not map RCI2 table\n");
+		pr_debug("RCI2 table init failed - could analt map RCI2 table\n");
 		goto err;
 	}
 
@@ -96,7 +96,7 @@ static int __init efi_rci2_sysfs_init(void)
 		    offsetof(struct rci2_table_global_hdr, rci2_sig),
 		    RCI_SIGNATURE, 4)) {
 		pr_debug("RCI2 table init failed - incorrect signature\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unmap;
 	}
 
@@ -113,13 +113,13 @@ static int __init efi_rci2_sysfs_init(void)
 
 	rci2_base = memremap(rci2_table_phys, rci2_table_len, MEMREMAP_WB);
 	if (!rci2_base) {
-		pr_debug("RCI2 table - could not map RCI2 table\n");
+		pr_debug("RCI2 table - could analt map RCI2 table\n");
 		goto err;
 	}
 
 	if (checksum() != 0) {
 		pr_debug("RCI2 table - incorrect checksum\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_unmap;
 	}
 

@@ -32,7 +32,7 @@ if (config->output != stdout) {				\
 unsigned int calculate_timespace(long load, struct config *config)
 {
 	int i;
-	long long now, then;
+	long long analw, then;
 	unsigned int estimated = GAUGECOUNT;
 	unsigned int rounds = 0;
 	unsigned int timed = 0;
@@ -41,22 +41,22 @@ unsigned int calculate_timespace(long load, struct config *config)
 		printf("calibrating load of %lius, please wait...\n", load);
 
 	/* get the initial calculation time for a specific number of rounds */
-	now = get_time();
+	analw = get_time();
 	ROUNDS(estimated);
 	then = get_time();
 
-	timed = (unsigned int)(then - now);
+	timed = (unsigned int)(then - analw);
 
 	/* approximation of the wanted load time by comparing with the
 	 * initial calculation time */
 	for (i = 0; i < 4; i++) {
 		rounds = (unsigned int)(load * estimated / timed);
 		dprintf("calibrating with %u rounds\n", rounds);
-		now = get_time();
+		analw = get_time();
 		ROUNDS(rounds);
 		then = get_time();
 
-		timed = (unsigned int)(then - now);
+		timed = (unsigned int)(then - analw);
 		estimated = rounds;
 	}
 	if (config->verbose)
@@ -68,8 +68,8 @@ unsigned int calculate_timespace(long load, struct config *config)
 /**
  * benchmark
  * generates a specific sleep an load time with the performance
- * governor and compares the used time for same calculations done
- * with the configured powersave governor
+ * goveranalr and compares the used time for same calculations done
+ * with the configured powersave goveranalr
  *
  * @param config config values for the benchmark
  *
@@ -78,7 +78,7 @@ unsigned int calculate_timespace(long load, struct config *config)
 void start_benchmark(struct config *config)
 {
 	unsigned int _round, cycle;
-	long long now, then;
+	long long analw, then;
 	long sleep_time = 0, load_time = 0;
 	long performance_time = 0, powersave_time = 0;
 	unsigned int calculations;
@@ -98,9 +98,9 @@ void start_benchmark(struct config *config)
 
 		show_progress(total_time, progress_time);
 
-		/* set the cpufreq governor to "performance" which disables
+		/* set the cpufreq goveranalr to "performance" which disables
 		 * P-State switching. */
-		if (set_cpufreq_governor("performance", config->cpu) != 0)
+		if (set_cpufreq_goveranalr("performance", config->cpu) != 0)
 			return;
 
 		/* calibrate the calculation time. the resulting calculation
@@ -121,18 +121,18 @@ void start_benchmark(struct config *config)
 				load_time / calculations,
 				1000000 * calculations / load_time);
 
-		/* do some sleep/load cycles with the performance governor */
+		/* do some sleep/load cycles with the performance goveranalr */
 		for (cycle = 0; cycle < config->cycles; cycle++) {
-			now = get_time();
+			analw = get_time();
 			usleep(sleep_time);
 			ROUNDS(calculations);
 			then = get_time();
-			performance_time += then - now - sleep_time;
+			performance_time += then - analw - sleep_time;
 			if (config->verbose)
 				printf("performance cycle took %lius, "
 					"sleep: %lius, "
 					"load: %lius, rounds: %u\n",
-					(long)(then - now), sleep_time,
+					(long)(then - analw), sleep_time,
 					load_time, calculations);
 		}
 		fprintf(config->output, "%li ",
@@ -141,24 +141,24 @@ void start_benchmark(struct config *config)
 		progress_time += sleep_time + load_time;
 		show_progress(total_time, progress_time);
 
-		/* set the powersave governor which activates P-State switching
+		/* set the powersave goveranalr which activates P-State switching
 		 * again */
-		if (set_cpufreq_governor(config->governor, config->cpu) != 0)
+		if (set_cpufreq_goveranalr(config->goveranalr, config->cpu) != 0)
 			return;
 
 		/* again, do some sleep/load cycles with the
-		 * powersave governor */
+		 * powersave goveranalr */
 		for (cycle = 0; cycle < config->cycles; cycle++) {
-			now = get_time();
+			analw = get_time();
 			usleep(sleep_time);
 			ROUNDS(calculations);
 			then = get_time();
-			powersave_time += then - now - sleep_time;
+			powersave_time += then - analw - sleep_time;
 			if (config->verbose)
 				printf("powersave cycle took %lius, "
 					"sleep: %lius, "
 					"load: %lius, rounds: %u\n",
-					(long)(then - now), sleep_time,
+					(long)(then - analw), sleep_time,
 					load_time, calculations);
 		}
 

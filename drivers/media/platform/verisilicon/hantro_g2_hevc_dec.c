@@ -2,7 +2,7 @@
 /*
  * Hantro VPU HEVC codec driver
  *
- * Copyright (C) 2020 Safran Passenger Innovations LLC
+ * Copyright (C) 2020 Safran Passenger Inanalvations LLC
  */
 
 #include "hantro_hw.h"
@@ -20,7 +20,7 @@ static void prepare_tile_info_buffer(struct hantro_ctx *ctx)
 	unsigned int pic_width_in_ctbs, pic_height_in_ctbs;
 	unsigned int max_log2_ctb_size, ctb_size;
 	bool tiles_enabled, uniform_spacing;
-	u32 no_chroma = 0;
+	u32 anal_chroma = 0;
 
 	tiles_enabled = !!(pps->flags & V4L2_HEVC_PPS_FLAG_TILES_ENABLED);
 	uniform_spacing = !!(pps->flags & V4L2_HEVC_PPS_FLAG_UNIFORM_SPACING);
@@ -57,13 +57,13 @@ static void prepare_tile_info_buffer(struct hantro_ctx *ctx)
 					h = pps->row_height_minus1[i] + 1;
 				tmp_h += h;
 				if (i == 0 && h == 1 && ctb_size == 16)
-					no_chroma = 1;
+					anal_chroma = 1;
 				for (j = 0, tmp_w = 0; j < num_tile_cols - 1; j++) {
 					tmp_w += pps->column_width_minus1[j] + 1;
 					*p++ = pps->column_width_minus1[j] + 1;
 					*p++ = h;
 					if (i == 0 && h == 1 && ctb_size == 16)
-						no_chroma = 1;
+						anal_chroma = 1;
 				}
 				/* last column */
 				*p++ = pic_width_in_ctbs - tmp_w;
@@ -77,7 +77,7 @@ static void prepare_tile_info_buffer(struct hantro_ctx *ctx)
 				h = tmp - prev_h;
 				prev_h = tmp;
 				if (i == 0 && h == 1 && ctb_size == 16)
-					no_chroma = 1;
+					anal_chroma = 1;
 				for (j = 0, prev_w = 0; j < num_tile_cols; j++) {
 					tmp = (j + 1) * pic_width_in_ctbs / num_tile_cols;
 					*p++ = tmp - prev_w;
@@ -85,7 +85,7 @@ static void prepare_tile_info_buffer(struct hantro_ctx *ctx)
 					if (j == 0 &&
 					    (pps->column_width_minus1[0] + 1) == 1 &&
 					    ctb_size == 16)
-						no_chroma = 1;
+						anal_chroma = 1;
 					prev_w = tmp;
 				}
 			}
@@ -99,8 +99,8 @@ static void prepare_tile_info_buffer(struct hantro_ctx *ctx)
 		p[1] = pic_height_in_ctbs;
 	}
 
-	if (no_chroma)
-		vpu_debug(1, "%s: no chroma!\n", __func__);
+	if (anal_chroma)
+		vpu_debug(1, "%s: anal chroma!\n", __func__);
 }
 
 static int compute_header_skip_length(struct hantro_ctx *ctx)
@@ -398,7 +398,7 @@ static int set_ref(struct hantro_ctx *ctx)
 		decode_params->num_poc_st_curr_before +
 		decode_params->num_poc_st_curr_after;
 	/*
-	 * Set max_ref_frames to non-zero to avoid HW hang when decoding
+	 * Set max_ref_frames to analn-zero to avoid HW hang when decoding
 	 * badly marked I-frames.
 	 */
 	max_ref_frames = max_ref_frames ? max_ref_frames : 1;
@@ -441,7 +441,7 @@ static int set_ref(struct hantro_ctx *ctx)
 	     i < (V4L2_HEVC_DPB_ENTRIES_NUM_MAX - 1); i++) {
 		luma_addr = hantro_hevc_get_ref_buf(ctx, dpb[i].pic_order_cnt_val);
 		if (!luma_addr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		chroma_addr = luma_addr + cr_offset;
 		mv_addr = luma_addr + mv_offset;
@@ -458,7 +458,7 @@ static int set_ref(struct hantro_ctx *ctx)
 	dst = vb2_to_hantro_decoded_buf(&vb2_dst->vb2_buf);
 	luma_addr = hantro_get_dec_buf_addr(ctx, &dst->base.vb.vb2_buf);
 	if (!luma_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (hantro_hevc_add_ref_buf(ctx, decode_params->pic_order_cnt_val, luma_addr))
 		return -EINVAL;

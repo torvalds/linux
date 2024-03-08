@@ -18,7 +18,7 @@
 #include "error.h"
 #include "extents.h"
 #include "fsck.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "super.h"
 
 #include <linux/console.h>
@@ -33,8 +33,8 @@ static bool bch2_btree_verify_replica(struct bch_fs *c, struct btree *b,
 				      struct extent_ptr_decoded pick)
 {
 	struct btree *v = c->verify_data;
-	struct btree_node *n_ondisk = c->verify_ondisk;
-	struct btree_node *n_sorted = c->verify_data->data;
+	struct btree_analde *n_ondisk = c->verify_ondisk;
+	struct btree_analde *n_sorted = c->verify_data->data;
 	struct bset *sorted, *inmemory = &b->data->keys;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, pick.ptr.dev);
 	struct bio *bio;
@@ -46,7 +46,7 @@ static bool bch2_btree_verify_replica(struct bch_fs *c, struct btree *b,
 	bio = bio_alloc_bioset(ca->disk_sb.bdev,
 			       buf_pages(n_sorted, btree_buf_bytes(b)),
 			       REQ_OP_READ|REQ_META,
-			       GFP_NOFS,
+			       GFP_ANALFS,
 			       &c->btree_bio);
 	bio->bi_iter.bi_sector	= pick.ptr.offset;
 	bch2_bio_map(bio, n_sorted, btree_buf_bytes(b));
@@ -59,7 +59,7 @@ static bool bch2_btree_verify_replica(struct bch_fs *c, struct btree *b,
 	memcpy(n_ondisk, n_sorted, btree_buf_bytes(b));
 
 	v->written = 0;
-	if (bch2_btree_node_read_done(c, ca, v, false, &saw_error) || saw_error)
+	if (bch2_btree_analde_read_done(c, ca, v, false, &saw_error) || saw_error)
 		return false;
 
 	n_sorted = c->verify_data->data;
@@ -87,7 +87,7 @@ static bool bch2_btree_verify_replica(struct bch_fs *c, struct btree *b,
 				sectors = vstruct_blocks(n_ondisk, c->block_bits) <<
 					c->block_bits;
 			} else {
-				struct btree_node_entry *bne =
+				struct btree_analde_entry *bne =
 					(void *) n_ondisk + (offset << 9);
 				i = &bne->keys;
 
@@ -130,10 +130,10 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 	struct bkey_packed *k;
 	bool failed = false;
 
-	if (c->opts.nochanges)
+	if (c->opts.analchanges)
 		return;
 
-	bch2_btree_node_io_lock(b);
+	bch2_btree_analde_io_lock(b);
 	mutex_lock(&c->verify_lock);
 
 	if (!c->verify_ondisk) {
@@ -143,7 +143,7 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 	}
 
 	if (!c->verify_data) {
-		c->verify_data = __bch2_btree_node_mem_alloc(c);
+		c->verify_data = __bch2_btree_analde_mem_alloc(c);
 		if (!c->verify_data)
 			goto out;
 
@@ -170,18 +170,18 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 		struct printbuf buf = PRINTBUF;
 
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
-		bch2_fs_fatal_error(c, "btree node verify failed for : %s\n", buf.buf);
+		bch2_fs_fatal_error(c, "btree analde verify failed for : %s\n", buf.buf);
 		printbuf_exit(&buf);
 	}
 out:
 	mutex_unlock(&c->verify_lock);
-	bch2_btree_node_io_unlock(b);
+	bch2_btree_analde_io_unlock(b);
 }
 
-void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
+void bch2_btree_analde_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
 				    const struct btree *b)
 {
-	struct btree_node *n_ondisk = NULL;
+	struct btree_analde *n_ondisk = NULL;
 	struct extent_ptr_decoded pick;
 	struct bch_dev *ca;
 	struct bio *bio = NULL;
@@ -195,7 +195,7 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
 
 	ca = bch_dev_bkey_exists(c, pick.ptr.dev);
 	if (!bch2_dev_get_ioref(ca, READ)) {
-		prt_printf(out, "error getting device to read from: not online\n");
+		prt_printf(out, "error getting device to read from: analt online\n");
 		return;
 	}
 
@@ -208,20 +208,20 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
 	bio = bio_alloc_bioset(ca->disk_sb.bdev,
 			       buf_pages(n_ondisk, btree_buf_bytes(b)),
 			       REQ_OP_READ|REQ_META,
-			       GFP_NOFS,
+			       GFP_ANALFS,
 			       &c->btree_bio);
 	bio->bi_iter.bi_sector	= pick.ptr.offset;
 	bch2_bio_map(bio, n_ondisk, btree_buf_bytes(b));
 
 	ret = submit_bio_wait(bio);
 	if (ret) {
-		prt_printf(out, "IO error reading btree node: %s\n", bch2_err_str(ret));
+		prt_printf(out, "IO error reading btree analde: %s\n", bch2_err_str(ret));
 		goto out;
 	}
 
 	while (offset < btree_sectors(c)) {
 		struct bset *i;
-		struct nonce nonce;
+		struct analnce analnce;
 		struct bch_csum csum;
 		struct bkey_packed *k;
 		unsigned sectors;
@@ -230,13 +230,13 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
 			i = &n_ondisk->keys;
 
 			if (!bch2_checksum_type_valid(c, BSET_CSUM_TYPE(i))) {
-				prt_printf(out, "unknown checksum type at offset %u: %llu\n",
+				prt_printf(out, "unkanalwn checksum type at offset %u: %llu\n",
 					   offset, BSET_CSUM_TYPE(i));
 				goto out;
 			}
 
-			nonce = btree_nonce(i, offset << 9);
-			csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, n_ondisk);
+			analnce = btree_analnce(i, offset << 9);
+			csum = csum_vstruct(c, BSET_CSUM_TYPE(i), analnce, n_ondisk);
 
 			if (bch2_crc_cmp(csum, n_ondisk->csum)) {
 				prt_printf(out, "invalid checksum\n");
@@ -247,7 +247,7 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
 
 			sectors = vstruct_sectors(n_ondisk, c->block_bits);
 		} else {
-			struct btree_node_entry *bne = (void *) n_ondisk + (offset << 9);
+			struct btree_analde_entry *bne = (void *) n_ondisk + (offset << 9);
 
 			i = &bne->keys;
 
@@ -255,13 +255,13 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
 				break;
 
 			if (!bch2_checksum_type_valid(c, BSET_CSUM_TYPE(i))) {
-				prt_printf(out, "unknown checksum type at offset %u: %llu\n",
+				prt_printf(out, "unkanalwn checksum type at offset %u: %llu\n",
 					   offset, BSET_CSUM_TYPE(i));
 				goto out;
 			}
 
-			nonce = btree_nonce(i, offset << 9);
-			csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, bne);
+			analnce = btree_analnce(i, offset << 9);
+			csum = csum_vstruct(c, BSET_CSUM_TYPE(i), analnce, bne);
 
 			if (bch2_crc_cmp(csum, bne->csum)) {
 				prt_printf(out, "invalid checksum");
@@ -305,7 +305,7 @@ struct dump_iter {
 	struct bch_fs		*c;
 	enum btree_id		id;
 	struct bpos		from;
-	struct bpos		prev_node;
+	struct bpos		prev_analde;
 	u64			iter;
 
 	struct printbuf		buf;
@@ -334,14 +334,14 @@ static ssize_t flush_buf(struct dump_iter *i)
 	return i->size ? 0 : i->ret;
 }
 
-static int bch2_dump_open(struct inode *inode, struct file *file)
+static int bch2_dump_open(struct ianalde *ianalde, struct file *file)
 {
-	struct btree_debug *bd = inode->i_private;
+	struct btree_debug *bd = ianalde->i_private;
 	struct dump_iter *i;
 
 	i = kzalloc(sizeof(struct dump_iter), GFP_KERNEL);
 	if (!i)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	file->private_data = i;
 	i->from = POS_MIN;
@@ -353,7 +353,7 @@ static int bch2_dump_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int bch2_dump_release(struct inode *inode, struct file *file)
+static int bch2_dump_release(struct ianalde *ianalde, struct file *file)
 {
 	struct dump_iter *i = file->private_data;
 
@@ -416,8 +416,8 @@ static ssize_t bch2_read_btree_formats(struct file *file, char __user *buf,
 retry:
 	bch2_trans_begin(trans);
 
-	for_each_btree_node(trans, iter, i->id, i->from, 0, b, ret) {
-		bch2_btree_node_to_text(&i->buf, i->c, b);
+	for_each_btree_analde(trans, iter, i->id, i->from, 0, b, ret) {
+		bch2_btree_analde_to_text(&i->buf, i->c, b);
 		i->from = !bpos_eq(SPOS_MAX, b->key.k.p)
 			? bpos_successor(b->key.k.p)
 			: b->key.k.p;
@@ -463,11 +463,11 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 				struct btree_path_level *l =
 					&btree_iter_path(trans, &iter)->l[0];
 				struct bkey_packed *_k =
-					bch2_btree_node_iter_peek(&l->iter, l->b);
+					bch2_btree_analde_iter_peek(&l->iter, l->b);
 
-				if (bpos_gt(l->b->key.k.p, i->prev_node)) {
-					bch2_btree_node_to_text(&i->buf, i->c, l->b);
-					i->prev_node = l->b->key.k.p;
+				if (bpos_gt(l->b->key.k.p, i->prev_analde)) {
+					bch2_btree_analde_to_text(&i->buf, i->c, l->b);
+					i->prev_analde = l->b->key.k.p;
 				}
 
 				bch2_bfloat_to_text(&i->buf, l->b, _k);
@@ -485,7 +485,7 @@ static const struct file_operations bfloat_failed_debug_ops = {
 	.read		= bch2_read_bfloat_failed,
 };
 
-static void bch2_cached_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
+static void bch2_cached_btree_analde_to_text(struct printbuf *out, struct bch_fs *c,
 					   struct btree *b)
 {
 	if (!out->nr_tabstops)
@@ -504,7 +504,7 @@ static void bch2_cached_btree_node_to_text(struct printbuf *out, struct bch_fs *
 
 	prt_printf(out, "flags: ");
 	prt_tab(out);
-	prt_bitflags(out, bch2_btree_node_flags, b->flags);
+	prt_bitflags(out, bch2_btree_analde_flags, b->flags);
 	prt_newline(out);
 
 	prt_printf(out, "pcpu read locks: ");
@@ -540,7 +540,7 @@ static void bch2_cached_btree_node_to_text(struct printbuf *out, struct bch_fs *
 	printbuf_indent_sub(out, 2);
 }
 
-static ssize_t bch2_cached_btree_nodes_read(struct file *file, char __user *buf,
+static ssize_t bch2_cached_btree_analdes_read(struct file *file, char __user *buf,
 					    size_t size, loff_t *ppos)
 {
 	struct dump_iter *i = file->private_data;
@@ -567,7 +567,7 @@ static ssize_t bch2_cached_btree_nodes_read(struct file *file, char __user *buf,
 					  &c->btree_cache.table);
 		if (i->iter < tbl->size) {
 			rht_for_each_entry_rcu(b, pos, tbl, i->iter, hash)
-				bch2_cached_btree_node_to_text(&i->buf, c, b);
+				bch2_cached_btree_analde_to_text(&i->buf, c, b);
 			i->iter++;
 		} else {
 			done = true;
@@ -577,7 +577,7 @@ static ssize_t bch2_cached_btree_nodes_read(struct file *file, char __user *buf,
 	} while (!done);
 
 	if (i->buf.allocation_failure)
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 	if (!ret)
 		ret = flush_buf(i);
@@ -585,11 +585,11 @@ static ssize_t bch2_cached_btree_nodes_read(struct file *file, char __user *buf,
 	return ret ?: i->ret;
 }
 
-static const struct file_operations cached_btree_nodes_ops = {
+static const struct file_operations cached_btree_analdes_ops = {
 	.owner		= THIS_MODULE,
 	.open		= bch2_dump_open,
 	.release	= bch2_dump_release,
-	.read		= bch2_cached_btree_nodes_read,
+	.read		= bch2_cached_btree_analdes_read,
 };
 
 static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
@@ -641,7 +641,7 @@ restart:
 	seqmutex_unlock(&c->btree_trans_lock);
 unlocked:
 	if (i->buf.allocation_failure)
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 	if (!ret)
 		ret = flush_buf(i);
@@ -681,7 +681,7 @@ static ssize_t bch2_journal_pins_read(struct file *file, char __user *buf,
 	} while (!done);
 
 	if (i->buf.allocation_failure)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return i->ret;
 }
@@ -693,15 +693,15 @@ static const struct file_operations journal_pins_ops = {
 	.read		= bch2_journal_pins_read,
 };
 
-static int btree_transaction_stats_open(struct inode *inode, struct file *file)
+static int btree_transaction_stats_open(struct ianalde *ianalde, struct file *file)
 {
-	struct bch_fs *c = inode->i_private;
+	struct bch_fs *c = ianalde->i_private;
 	struct dump_iter *i;
 
 	i = kzalloc(sizeof(struct dump_iter), GFP_KERNEL);
 
 	if (!i)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i->iter = 1;
 	i->c    = c;
@@ -711,7 +711,7 @@ static int btree_transaction_stats_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int btree_transaction_stats_release(struct inode *inode, struct file *file)
+static int btree_transaction_stats_release(struct ianalde *ianalde, struct file *file)
 {
 	struct dump_iter *i = file->private_data;
 
@@ -788,7 +788,7 @@ static ssize_t btree_transaction_stats_read(struct file *file, char __user *buf,
 	}
 
 	if (i->buf.allocation_failure)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return i->ret;
 }
@@ -845,7 +845,7 @@ restart:
 	seqmutex_unlock(&c->btree_trans_lock);
 out:
 	if (i->buf.allocation_failure)
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 	if (!ret)
 		ret = flush_buf(i);
@@ -879,8 +879,8 @@ void bch2_fs_debug_init(struct bch_fs *c)
 	if (IS_ERR_OR_NULL(c->fs_debug_dir))
 		return;
 
-	debugfs_create_file("cached_btree_nodes", 0400, c->fs_debug_dir,
-			    c->btree_debug, &cached_btree_nodes_ops);
+	debugfs_create_file("cached_btree_analdes", 0400, c->fs_debug_dir,
+			    c->btree_debug, &cached_btree_analdes_ops);
 
 	debugfs_create_file("btree_transactions", 0400, c->fs_debug_dir,
 			    c->btree_debug, &btree_transactions_ops);

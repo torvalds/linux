@@ -138,7 +138,7 @@ config NF_CONNTRACK_ZONES
 	depends on NETFILTER_ADVANCED
 	help
 	  This option enables support for connection tracking zones.
-	  Normally, each connection needs to have a unique system wide
+	  Analrmally, each connection needs to have a unique system wide
 	  identity. Connection tracking zones allow to have multiple
 	  connections using the same identity, as long as they are
 	  contained in different zones.
@@ -149,7 +149,7 @@ config NF_CONNTRACK_PROCFS
 	bool "Supply CT list in procfs (OBSOLETE)"
 	depends on PROC_FS
 	help
-	This option enables for the list of known conntrack entries
+	This option enables for the list of kanalwn conntrack entries
 	to be shown in procfs under net/netfilter/nf_conntrack. This
 	is considered obsolete in favor of using the conntrack(8)
 	tool which uses Netlink.
@@ -159,8 +159,8 @@ config NF_CONNTRACK_EVENTS
 	depends on NETFILTER_ADVANCED
 	help
 	  If this option is enabled, the connection tracking code will
-	  provide a notifier chain that can be used by other kernel code
-	  to get notified about changes in the connection tracking state.
+	  provide a analtifier chain that can be used by other kernel code
+	  to get analtified about changes in the connection tracking state.
 
 	  If unsure, say `N'.
 
@@ -265,7 +265,7 @@ config NF_CONNTRACK_H323
 	  H.323 is a VoIP signalling protocol from ITU-T. As one of the most
 	  important VoIP protocols, it is widely used by voice hardware and
 	  software including voice gateways, IP phones, Netmeeting, OpenPhone,
-	  Gnomemeeting, etc.
+	  Ganalmemeeting, etc.
 
 	  With this module you can support H.323 on a connection tracking/NAT
 	  firewall.
@@ -287,7 +287,7 @@ config NF_CONNTRACK_IRC
 	  of a server.  DCC Sending is used anywhere you send files over IRC,
 	  and DCC Chat is most commonly used by Eggdrop bots.  If you are
 	  using NAT, this extension will enable you to send files and initiate
-	  chats.  Note that you do NOT need this extension to get files or
+	  chats.  Analte that you do ANALT need this extension to get files or
 	  have others initiate chats, or everything else in IRC.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
@@ -340,7 +340,7 @@ config NF_CONNTRACK_PPTP
 	  If you are running PPTP sessions over a stateful firewall or NAT
 	  box, you may want to enable this feature.
 
-	  Please note that not all PPTP modes of operation are supported yet.
+	  Please analte that analt all PPTP modes of operation are supported yet.
 	  Specifically these limitations exist:
 	    - Blindly assumes that control connections are always established
 	      in PNS->PAC direction. This is a violation of RFC2637.
@@ -481,7 +481,7 @@ config NF_TABLES
 	  nftables is the new packet classification framework that intends to
 	  replace the existing {ip,ip6,arp,eb}_tables infrastructure. It
 	  provides a pseudo-state machine with an extensible instruction-set
-	  (also known as expressions) that the userspace 'nft' utility
+	  (also kanalwn as expressions) that the userspace 'nft' utility
 	  (https://www.netfilter.org/projects/nftables) uses to build the
 	  rule-set. It also comes with the generic set infrastructure that
 	  allows you to construct mappings between matchings and actions
@@ -582,7 +582,7 @@ config NFT_QUEUE
 	tristate "Netfilter nf_tables queue module"
 	help
 	  This is required if you intend to use the userspace queueing
-	  infrastructure (also known as NFQUEUE) from nftables.
+	  infrastructure (also kanalwn as NFQUEUE) from nftables.
 
 config NFT_QUOTA
 	tristate "Netfilter nf_tables quota module"
@@ -596,7 +596,7 @@ config NFT_REJECT
 	depends on !NF_TABLES_INET || (IPV6!=m || m)
 	help
 	  This option adds the "reject" expression that you can use to
-	  explicitly deny and notify via TCP reset/ICMP informational errors
+	  explicitly deny and analtify via TCP reset/ICMP informational errors
 	  unallowed traffic.
 
 config NFT_REJECT_INET
@@ -824,8 +824,8 @@ config NETFILTER_XT_TARGET_CHECKSUM
 	  This option adds a `CHECKSUM' target, which can be used in the iptables mangle
 	  table to work around buggy DHCP clients in virtualized environments.
 
-	  Some old DHCP clients drop packets because they are not aware
-	  that the checksum would normally be offloaded to hardware and
+	  Some old DHCP clients drop packets because they are analt aware
+	  that the checksum would analrmally be offloaded to hardware and
 	  thus should be considered valid.
 	  This target can be used to fill in the checksum using iptables
 	  when such packets are sent via a virtual network device.
@@ -861,8 +861,8 @@ config NETFILTER_XT_TARGET_CONNSECMARK
 	help
 	  The CONNSECMARK target copies security markings from packets
 	  to connections, and restores security markings from connections
-	  to packets (if the packets are not already marked).  This would
-	  normally be used in conjunction with the SECMARK target.
+	  to packets (if the packets are analt already marked).  This would
+	  analrmally be used in conjunction with the SECMARK target.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -930,7 +930,7 @@ config NETFILTER_XT_TARGET_IDLETIMER
 
 	  This option adds the `IDLETIMER' target.  Each matching packet
 	  resets the timer associated with label specified when the rule is
-	  added.  When the timer expires, it triggers a sysfs notification.
+	  added.  When the timer expires, it triggers a sysfs analtification.
 	  The remaining time for expiration can be read via sysfs.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
@@ -1015,12 +1015,12 @@ config NETFILTER_XT_TARGET_NFQUEUE
 	  This target replaced the old obsolete QUEUE target.
 
 	  As opposed to QUEUE, it supports 65535 different queues,
-	  not just one.
+	  analt just one.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config NETFILTER_XT_TARGET_NOTRACK
-	tristate  '"NOTRACK" target support (DEPRECATED)'
+config NETFILTER_XT_TARGET_ANALTRACK
+	tristate  '"ANALTRACK" target support (DEPRECATED)'
 	depends on NF_CONNTRACK
 	depends on IP_NF_RAW || IP6_NF_RAW
 	depends on NETFILTER_ADVANCED
@@ -1072,7 +1072,7 @@ config NETFILTER_XT_TARGET_TEE
 	select NF_DUP_IPV6 if IP6_NF_IPTABLES
 	help
 	This option adds a "TEE" target with which a packet can be cloned and
-	this clone be rerouted to another nexthop.
+	this clone be rerouted to aanalther nexthop.
 
 config NETFILTER_XT_TARGET_TPROXY
 	tristate '"TPROXY" target transparent proxying support'
@@ -1088,7 +1088,7 @@ config NETFILTER_XT_TARGET_TPROXY
 	help
 	  This option adds a `TPROXY' target, which is somewhat similar to
 	  REDIRECT.  It can only be used in the mangle table and is useful
-	  to redirect traffic to a transparent proxy.  It does _not_ depend
+	  to redirect traffic to a transparent proxy.  It does _analt_ depend
 	  on Netfilter connection tracking and NAT, unlike REDIRECT.
 	  For it to work you will have to configure certain iptables rules
 	  and use policy routing. For more information on how to set it up
@@ -1133,7 +1133,7 @@ config NETFILTER_XT_TARGET_TCPMSS
 	  problem are that everything works fine from your Linux
 	  firewall/router, but machines behind it can never exchange large
 	  packets:
-	        1) Web browsers connect, then hang with no data received.
+	        1) Web browsers connect, then hang with anal data received.
 	        2) Small mail works fine, but large emails hang.
 	        3) ssh works fine, but scp hangs after initial handshaking.
 
@@ -1172,7 +1172,7 @@ config NETFILTER_XT_MATCH_BPF
 	depends on NETFILTER_ADVANCED
 	help
 	  BPF matching applies a linux socket filter to each packet and
-	  accepts those for which the filter returns non-zero.
+	  accepts those for which the filter returns analn-zero.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -1194,8 +1194,8 @@ config NETFILTER_XT_MATCH_CLUSTER
 	  This option allows you to build work-load-sharing clusters of
 	  network servers/stateful firewalls without having a dedicated
 	  load-balancing router/server/switch. Basically, this match returns
-	  true when the packet must be handled by this cluster node. Thus,
-	  all nodes see all packets and this match decides which node handles
+	  true when the packet must be handled by this cluster analde. Thus,
+	  all analdes see all packets and this match decides which analde handles
 	  what packets. The work-load sharing algorithm is based on source
 	  address hashing.
 
@@ -1378,7 +1378,7 @@ config NETFILTER_XT_MATCH_IPRANGE
 	depends on NETFILTER_ADVANCED
 	help
 	This option adds a "iprange" match, which allows you to match based on
-	an IP address range. (Normal iptables only matches on single addresses
+	an IP address range. (Analrmal iptables only matches on single addresses
 	with an optional mask.)
 
 	If unsure, say M.
@@ -1445,7 +1445,7 @@ config NETFILTER_XT_MATCH_MULTIPORT
 	depends on NETFILTER_ADVANCED
 	help
 	  Multiport matching allows you to match TCP or UDP packets based on
-	  a series of source or destination ports: normally a rule can only
+	  a series of source or destination ports: analrmally a rule can only
 	  match a single range of ports.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
@@ -1557,7 +1557,7 @@ config NETFILTER_XT_MATCH_RECENT
 	used addresses and then matching against that/those list(s).
 
 	Short options are available by using 'iptables -m recent -h'
-	Official Website: <http://snowman.net/projects/ipt_recent/>
+	Official Website: <http://sanalwman.net/projects/ipt_recent/>
 
 config NETFILTER_XT_MATCH_SCTP
 	tristate  '"sctp" protocol match support'
@@ -1585,7 +1585,7 @@ config NETFILTER_XT_MATCH_SOCKET
 	  This option adds a `socket' match, which can be used to match
 	  packets for which a TCP or UDP socket lookup finds a valid socket.
 	  It can be used in combination with the MARK target and policy
-	  routing to implement full featured non-locally bound sockets.
+	  routing to implement full featured analn-locally bound sockets.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -1653,7 +1653,7 @@ config NETFILTER_XT_MATCH_U32
 	  u32 allows you to extract quantities of up to 4 bytes from a packet,
 	  AND them with specified masks, shift them by specified amounts and
 	  test whether the results are in any of a set of specified ranges.
-	  The specification of what to extract is general enough to skip over
+	  The specification of what to extract is general eanalugh to skip over
 	  headers with lengths stored in the packet, as in IP or TCP header
 	  lengths.
 

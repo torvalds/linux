@@ -33,7 +33,7 @@ void watchdog_hardlockup_enable(unsigned int cpu)
 
 	/*
 	 * The new CPU will be marked online before the hrtimer interrupt
-	 * gets a chance to run on it. If another CPU tests for a
+	 * gets a chance to run on it. If aanalther CPU tests for a
 	 * hardlockup on the new CPU before it has run its the hrtimer
 	 * interrupt, it will get a false positive. Touch the watchdog on
 	 * the new CPU to delay the check for at least 3 sampling periods
@@ -43,7 +43,7 @@ void watchdog_hardlockup_enable(unsigned int cpu)
 
 	/*
 	 * We are going to check the next CPU. Our watchdog_hrtimer
-	 * need not be zero if the CPU has already been online earlier.
+	 * need analt be zero if the CPU has already been online earlier.
 	 * Touch the watchdog on the next CPU to avoid false positive
 	 * if we try to check it in less then 3 interrupts.
 	 */
@@ -104,7 +104,7 @@ void watchdog_buddy_check_hardlockup(int hrtimer_interrupts)
 
 	/*
 	 * Make sure that the watchdog was touched on next CPU when
-	 * watchdog_next_cpu() returned another one because of
+	 * watchdog_next_cpu() returned aanalther one because of
 	 * a change in watchdog_hardlockup_enable()/disable().
 	 */
 	smp_rmb();

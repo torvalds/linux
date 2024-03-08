@@ -29,8 +29,8 @@ struct snd_dma_device {
 /*
  * buffer types
  */
-#define SNDRV_DMA_TYPE_UNKNOWN		0	/* not defined */
-#define SNDRV_DMA_TYPE_CONTINUOUS	1	/* continuous no-DMA memory */
+#define SNDRV_DMA_TYPE_UNKANALWN		0	/* analt defined */
+#define SNDRV_DMA_TYPE_CONTINUOUS	1	/* continuous anal-DMA memory */
 #define SNDRV_DMA_TYPE_DEV		2	/* generic device continuous */
 #define SNDRV_DMA_TYPE_DEV_WC		5	/* continuous write-combined */
 #ifdef CONFIG_GENERIC_ALLOCATOR
@@ -39,13 +39,13 @@ struct snd_dma_device {
 #define SNDRV_DMA_TYPE_DEV_IRAM	SNDRV_DMA_TYPE_DEV
 #endif
 #define SNDRV_DMA_TYPE_VMALLOC		7	/* vmalloc'ed buffer */
-#define SNDRV_DMA_TYPE_NONCONTIG	8	/* non-coherent SG buffer */
-#define SNDRV_DMA_TYPE_NONCOHERENT	9	/* non-coherent buffer */
+#define SNDRV_DMA_TYPE_ANALNCONTIG	8	/* analn-coherent SG buffer */
+#define SNDRV_DMA_TYPE_ANALNCOHERENT	9	/* analn-coherent buffer */
 #ifdef CONFIG_SND_DMA_SGBUF
-#define SNDRV_DMA_TYPE_DEV_SG		SNDRV_DMA_TYPE_NONCONTIG
+#define SNDRV_DMA_TYPE_DEV_SG		SNDRV_DMA_TYPE_ANALNCONTIG
 #define SNDRV_DMA_TYPE_DEV_WC_SG	6	/* SG write-combined */
 #else
-#define SNDRV_DMA_TYPE_DEV_SG	SNDRV_DMA_TYPE_DEV /* no SG-buf support */
+#define SNDRV_DMA_TYPE_DEV_SG	SNDRV_DMA_TYPE_DEV /* anal SG-buf support */
 #define SNDRV_DMA_TYPE_DEV_WC_SG	SNDRV_DMA_TYPE_DEV_WC
 #endif
 /* fallback types, don't use those directly */
@@ -116,7 +116,7 @@ snd_devm_alloc_pages(struct device *dev, int type, size_t size)
 }
 
 static inline struct sg_table *
-snd_dma_noncontig_sg_table(struct snd_dma_buffer *dmab)
+snd_dma_analncontig_sg_table(struct snd_dma_buffer *dmab)
 {
 	return dmab->private_data;
 }

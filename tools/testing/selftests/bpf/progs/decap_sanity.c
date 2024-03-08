@@ -10,7 +10,7 @@
 
 void *bpf_cast_to_kern_ctx(void *) __ksym;
 bool init_csum_partial = false;
-bool final_csum_none = false;
+bool final_csum_analne = false;
 bool broken_csum_start = false;
 
 static unsigned int skb_headlen(const struct sk_buff *skb)
@@ -57,7 +57,7 @@ int decap_sanity(struct __sk_buff *skb)
 				  1, BPF_F_ADJ_ROOM_FIXED_GSO);
 	if (err)
 		return TC_ACT_SHOT;
-	final_csum_none = (kskb->ip_summed == CHECKSUM_NONE);
+	final_csum_analne = (kskb->ip_summed == CHECKSUM_ANALNE);
 	if (kskb->ip_summed == CHECKSUM_PARTIAL &&
 	    (unsigned int)skb_checksum_start_offset(kskb) >= skb_headlen(kskb))
 		broken_csum_start = true;

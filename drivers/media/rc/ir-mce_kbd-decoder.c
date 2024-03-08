@@ -40,7 +40,7 @@
 enum mce_kbd_mode {
 	MCIR2_MODE_KEYBOARD,
 	MCIR2_MODE_MOUSE,
-	MCIR2_MODE_UNKNOWN,
+	MCIR2_MODE_UNKANALWN,
 };
 
 enum mce_kbd_state {
@@ -141,7 +141,7 @@ static enum mce_kbd_mode mce_kbd_mode(struct mce_kbd_dec *data)
 	case MCIR2_MOUSE_HEADER:
 		return MCIR2_MODE_MOUSE;
 	default:
-		return MCIR2_MODE_UNKNOWN;
+		return MCIR2_MODE_UNKANALWN;
 	}
 }
 
@@ -242,7 +242,7 @@ again:
 		if (!ev.pulse)
 			break;
 
-		/* Note: larger margin on first pulse since each MCIR2_UNIT
+		/* Analte: larger margin on first pulse since each MCIR2_UNIT
 		   is quite short and some hardware takes some time to
 		   adjust to the signal */
 		if (!eq_margin(ev.duration, MCIR2_PREFIX_PULSE, MCIR2_UNIT))
@@ -280,7 +280,7 @@ again:
 			data->wanted_bits = MCIR2_MOUSE_NBITS;
 			break;
 		default:
-			dev_dbg(&dev->dev, "not keyboard or mouse data\n");
+			dev_dbg(&dev->dev, "analt keyboard or mouse data\n");
 			goto out;
 		}
 
@@ -339,7 +339,7 @@ again:
 			lsc.rc_proto = RC_PROTO_MCIR2_MSE;
 			break;
 		default:
-			dev_dbg(&dev->dev, "not keyboard or mouse data\n");
+			dev_dbg(&dev->dev, "analt keyboard or mouse data\n");
 			goto out;
 		}
 
@@ -393,7 +393,7 @@ static const struct ir_raw_timings_manchester ir_mce_kbd_timings = {
  * @max:        maximum size of @events
  *
  * Returns:     The number of events written.
- *              -ENOBUFS if there isn't enough space in the array to fit the
+ *              -EANALBUFS if there isn't eanalugh space in the array to fit the
  *              encoding. In this case all @max events will have been written.
  */
 static int ir_mce_kbd_encode(enum rc_proto protocol, u32 scancode,

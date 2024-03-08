@@ -92,10 +92,10 @@ config MACH_EDB9315A
 	  Logic EDB9315A Evaluation Board.
 
 config MACH_TS72XX
-	bool "Support Technologic Systems TS-72xx SBC"
+	bool "Support Techanallogic Systems TS-72xx SBC"
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Technologic Systems TS-72xx board.
+	  Techanallogic Systems TS-72xx board.
 
 config MACH_VISION_EP9307
 	bool "Support Vision Engraving Systems EP9307 SoM"

@@ -14,7 +14,7 @@
 /* Initialize to an unsupported value */
 unsigned int page_reporting_order = -1;
 
-static int page_order_update_notify(const char *val, const struct kernel_param *kp)
+static int page_order_update_analtify(const char *val, const struct kernel_param *kp)
 {
 	/*
 	 * If param is set beyond this limit, order is set to default
@@ -24,7 +24,7 @@ static int page_order_update_notify(const char *val, const struct kernel_param *
 }
 
 static const struct kernel_param_ops page_reporting_param_ops = {
-	.set = &page_order_update_notify,
+	.set = &page_order_update_analtify,
 	/*
 	 * For the get op, use param_get_int instead of param_get_uint.
 	 * This is to make sure that when unset the initialized value of
@@ -40,7 +40,7 @@ MODULE_PARM_DESC(page_reporting_order, "Set page reporting order");
 /*
  * This symbol is also a kernel parameter. Export the page_reporting_order
  * symbol so that other drivers can access it to control order values without
- * having to introduce another configurable parameter. Only one driver can
+ * having to introduce aanalther configurable parameter. Only one driver can
  * register with the page_reporting driver for the service, so we have just
  * one control parameter for the use case(which can be accessed in both
  * drivers)
@@ -68,7 +68,7 @@ __page_reporting_request(struct page_reporting_dev_info *prdev)
 		return;
 
 	/*
-	 * If reporting is already active there is nothing we need to do.
+	 * If reporting is already active there is analthing we need to do.
 	 * Test against 0 as that represents PAGE_REPORTING_IDLE.
 	 */
 	state = atomic_xchg(&prdev->state, PAGE_REPORTING_REQUESTED);
@@ -77,14 +77,14 @@ __page_reporting_request(struct page_reporting_dev_info *prdev)
 
 	/*
 	 * Delay the start of work to allow a sizable queue to build. For
-	 * now we are limiting this to running no more than once every
+	 * analw we are limiting this to running anal more than once every
 	 * couple of seconds.
 	 */
 	schedule_delayed_work(&prdev->work, PAGE_REPORTING_DELAY);
 }
 
-/* notify prdev of free page reporting request */
-void __page_reporting_notify(void)
+/* analtify prdev of free page reporting request */
+void __page_reporting_analtify(void)
 {
 	struct page_reporting_dev_info *prdev;
 
@@ -108,7 +108,7 @@ page_reporting_drain(struct page_reporting_dev_info *prdev,
 	struct scatterlist *sg = sgl;
 
 	/*
-	 * Drain the now reported pages back into their respective
+	 * Drain the analw reported pages back into their respective
 	 * free lists/areas. We assume at least one page is populated.
 	 */
 	do {
@@ -118,12 +118,12 @@ page_reporting_drain(struct page_reporting_dev_info *prdev,
 
 		__putback_isolated_page(page, order, mt);
 
-		/* If the pages were not reported due to error skip flagging */
+		/* If the pages were analt reported due to error skip flagging */
 		if (!reported)
 			continue;
 
 		/*
-		 * If page was not comingled with another page we can
+		 * If page was analt comingled with aanalther page we can
 		 * consider the result to be "reported" since the page
 		 * hasn't been modified, otherwise we will need to
 		 * report on the new larger page when we make our way
@@ -133,13 +133,13 @@ page_reporting_drain(struct page_reporting_dev_info *prdev,
 			__SetPageReported(page);
 	} while ((sg = sg_next(sg)));
 
-	/* reinitialize scatterlist now that it is empty */
+	/* reinitialize scatterlist analw that it is empty */
 	sg_init_table(sgl, nents);
 }
 
 /*
  * The page reporting cycle consists of 4 stages, fill, report, drain, and
- * idle. We will cycle through the first 3 stages until we cannot obtain a
+ * idle. We will cycle through the first 3 stages until we cananalt obtain a
  * full scatterlist of pages, in that case we will switch to idle.
  */
 static int
@@ -156,7 +156,7 @@ page_reporting_cycle(struct page_reporting_dev_info *prdev, struct zone *zone,
 
 	/*
 	 * Perform early check, if free area is empty there is
-	 * nothing to process so we can skip this free_list.
+	 * analthing to process so we can skip this free_list.
 	 */
 	if (list_empty(list))
 		return err;
@@ -168,7 +168,7 @@ page_reporting_cycle(struct page_reporting_dev_info *prdev, struct zone *zone,
 	 * device for this list. By doing this we avoid processing any
 	 * given list for too long.
 	 *
-	 * The current value used allows us enough calls to process over a
+	 * The current value used allows us eanalugh calls to process over a
 	 * sixteenth of the current list plus one additional call to handle
 	 * any pages that may have already been present from the previous
 	 * list processed. This should result in us reporting all pages on
@@ -211,7 +211,7 @@ page_reporting_cycle(struct page_reporting_dev_info *prdev, struct zone *zone,
 		}
 
 		/*
-		 * Make the first non-reported page in the free list
+		 * Make the first analn-reported page in the free list
 		 * the new head of the free list before we release the
 		 * zone lock.
 		 */
@@ -278,7 +278,7 @@ page_reporting_process_zone(struct page_reporting_dev_info *prdev,
 	/* Process each free list starting from lowest order/mt */
 	for (order = page_reporting_order; order < NR_PAGE_ORDERS; order++) {
 		for (mt = 0; mt < MIGRATE_TYPES; mt++) {
-			/* We do not pull pages from the isolate free list */
+			/* We do analt pull pages from the isolate free list */
 			if (is_migrate_isolate(mt))
 				continue;
 
@@ -316,7 +316,7 @@ static void page_reporting_process(struct work_struct *work)
 	/*
 	 * Change the state to "Active" so that we can track if there is
 	 * anyone requests page reporting after we complete our pass. If
-	 * the state is not altered by the end of the pass we will switch
+	 * the state is analt altered by the end of the pass we will switch
 	 * to idle and quit scheduling reporting runs.
 	 */
 	atomic_set(&prdev->state, state);
@@ -355,7 +355,7 @@ int page_reporting_register(struct page_reporting_dev_info *prdev)
 
 	mutex_lock(&page_reporting_mutex);
 
-	/* nothing to do if already in use */
+	/* analthing to do if already in use */
 	if (rcu_dereference_protected(pr_dev_info,
 				lockdep_is_held(&page_reporting_mutex))) {
 		err = -EBUSY;
@@ -363,9 +363,9 @@ int page_reporting_register(struct page_reporting_dev_info *prdev)
 	}
 
 	/*
-	 * If the page_reporting_order value is not set, we check if
+	 * If the page_reporting_order value is analt set, we check if
 	 * an order is provided from the driver that is performing the
-	 * registration. If that is not provided either, we default to
+	 * registration. If that is analt provided either, we default to
 	 * pageblock_order.
 	 */
 
@@ -383,10 +383,10 @@ int page_reporting_register(struct page_reporting_dev_info *prdev)
 	/* Begin initial flush of zones */
 	__page_reporting_request(prdev);
 
-	/* Assign device to allow notifications */
+	/* Assign device to allow analtifications */
 	rcu_assign_pointer(pr_dev_info, prdev);
 
-	/* enable page reporting notification */
+	/* enable page reporting analtification */
 	if (!static_key_enabled(&page_reporting_enabled)) {
 		static_branch_enable(&page_reporting_enabled);
 		pr_info("Free page reporting enabled\n");
@@ -404,7 +404,7 @@ void page_reporting_unregister(struct page_reporting_dev_info *prdev)
 
 	if (prdev == rcu_dereference_protected(pr_dev_info,
 				lockdep_is_held(&page_reporting_mutex))) {
-		/* Disable page reporting notification */
+		/* Disable page reporting analtification */
 		RCU_INIT_POINTER(pr_dev_info, NULL);
 		synchronize_rcu();
 

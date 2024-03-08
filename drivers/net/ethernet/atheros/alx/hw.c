@@ -12,20 +12,20 @@
  *  General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *
  * Copyright (c) 2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -67,7 +67,7 @@ static int alx_read_phy_core(struct alx_hw *hw, bool ext, u8 dev,
 	*phy_data = 0;
 
 	/* use slow clock when it's in hibernation status */
-	clk_sel = hw->link_speed != SPEED_UNKNOWN ?
+	clk_sel = hw->link_speed != SPEED_UNKANALWN ?
 			ALX_MDIO_CLK_SEL_25MD4 :
 			ALX_MDIO_CLK_SEL_25MD128;
 
@@ -101,7 +101,7 @@ static int alx_write_phy_core(struct alx_hw *hw, bool ext, u8 dev,
 	u32 val, clk_sel;
 
 	/* use slow clock when it's in hibernation status */
-	clk_sel = hw->link_speed != SPEED_UNKNOWN ?
+	clk_sel = hw->link_speed != SPEED_UNKANALWN ?
 			ALX_MDIO_CLK_SEL_25MD4 :
 			ALX_MDIO_CLK_SEL_25MD128;
 
@@ -242,18 +242,18 @@ static u16 alx_get_phy_config(struct alx_hw *hw)
 	val = alx_read_mem32(hw, ALX_PHY_CTRL);
 	/* phy in reset */
 	if ((val & ALX_PHY_CTRL_DSPRST_OUT) == 0)
-		return ALX_DRV_PHY_UNKNOWN;
+		return ALX_DRV_PHY_UNKANALWN;
 
 	val = alx_read_mem32(hw, ALX_DRV);
 	val = ALX_GET_FIELD(val, ALX_DRV_PHY);
-	if (ALX_DRV_PHY_UNKNOWN == val)
-		return ALX_DRV_PHY_UNKNOWN;
+	if (ALX_DRV_PHY_UNKANALWN == val)
+		return ALX_DRV_PHY_UNKANALWN;
 
 	alx_read_phy_reg(hw, ALX_MII_DBG_ADDR, &phy_val);
 	if (ALX_PHY_INITED == phy_val)
 		return val;
 
-	return ALX_DRV_PHY_UNKNOWN;
+	return ALX_DRV_PHY_UNKANALWN;
 }
 
 static bool alx_wait_reg(struct alx_hw *hw, u32 reg, u32 wait, u32 *val)
@@ -340,7 +340,7 @@ static void alx_reset_osc(struct alx_hw *hw, u8 rev)
 	val = alx_read_mem32(hw, ALX_MISC3);
 	alx_write_mem32(hw, ALX_MISC3,
 			(val & ~ALX_MISC3_25M_BY_SW) |
-			ALX_MISC3_25M_NOTO_INTNL);
+			ALX_MISC3_25M_ANALTO_INTNL);
 
 	/* 25M clk from chipset may be unstable 1s after de-assert of
 	 * PERST, driver need re-calibrate before enter Sleep for WoL
@@ -468,7 +468,7 @@ int alx_reset_mac(struct alx_hw *hw)
 	val = alx_read_mem32(hw, ALX_MISC3);
 	alx_write_mem32(hw, ALX_MISC3,
 			(val & ~ALX_MISC3_25M_BY_SW) |
-			ALX_MISC3_25M_NOTO_INTNL);
+			ALX_MISC3_25M_ANALTO_INTNL);
 	val = alx_read_mem32(hw, ALX_MISC);
 	val &= ~ALX_MISC_INTNLOSC_OPEN;
 	if (alx_is_rev_a(rev))
@@ -785,7 +785,7 @@ void alx_post_phy_link(struct alx_hw *hw)
 		return;
 
 	/* 1000BT/AZ, wrong cable length */
-	if (hw->link_speed != SPEED_UNKNOWN) {
+	if (hw->link_speed != SPEED_UNKANALWN) {
 		alx_read_phy_ext(hw, ALX_MIIEXT_PCS, ALX_MIIEXT_CLDCTRL6,
 				 &phy_val);
 		len = ALX_GET_FIELD(phy_val, ALX_CLDCTRL6_CAB_LEN);
@@ -821,7 +821,7 @@ void alx_post_phy_link(struct alx_hw *hw)
 			} else if (hw->link_speed == SPEED_1000) {
 				/*
 				 * Giga link threshold, raise the tolerance of
-				 * noise 50%
+				 * analise 50%
 				 */
 				alx_read_phy_dbg(hw, ALX_MIIDBG_MSE20DB,
 						 &phy_val);
@@ -856,7 +856,7 @@ bool alx_phy_configured(struct alx_hw *hw)
 	cfg = ALX_GET_FIELD(cfg, ALX_DRV_PHY);
 	hw_cfg = alx_get_phy_config(hw);
 
-	if (hw_cfg == ALX_DRV_PHY_UNKNOWN)
+	if (hw_cfg == ALX_DRV_PHY_UNKANALWN)
 		return false;
 
 	return cfg == hw_cfg;
@@ -877,8 +877,8 @@ int alx_read_phy_link(struct alx_hw *hw)
 		return err;
 
 	if (!(bmsr & BMSR_LSTATUS)) {
-		hw->link_speed = SPEED_UNKNOWN;
-		hw->duplex = DUPLEX_UNKNOWN;
+		hw->link_speed = SPEED_UNKANALWN;
+		hw->duplex = DUPLEX_UNKANALWN;
 		return 0;
 	}
 
@@ -1023,7 +1023,7 @@ void alx_configure_basic(struct alx_hw *hw)
 	alx_write_mem32(hw, ALX_DMA, val);
 
 	/* default multi-tx-q weights */
-	val = ALX_WRR_PRI_RESTRICT_NONE << ALX_WRR_PRI_SHIFT |
+	val = ALX_WRR_PRI_RESTRICT_ANALNE << ALX_WRR_PRI_SHIFT |
 	      4 << ALX_WRR_PRI0_SHIFT |
 	      4 << ALX_WRR_PRI1_SHIFT |
 	      4 << ALX_WRR_PRI2_SHIFT |

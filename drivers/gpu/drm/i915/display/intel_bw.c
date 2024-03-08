@@ -127,7 +127,7 @@ static u16 icl_qgv_points_mask(struct drm_i915_private *i915)
 	u16 qgv_points = 0, psf_points = 0;
 
 	/*
-	 * We can _not_ use the whole ADLS_QGV_PT_MASK here, as PCode rejects
+	 * We can _analt_ use the whole ADLS_QGV_PT_MASK here, as PCode rejects
 	 * it with failure if we try masking any unadvertised points.
 	 * So need to operate only with those returned from PCode.
 	 */
@@ -302,7 +302,7 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 	if (qi->num_psf_points > 0) {
 		ret = adls_pcode_read_psf_gv_point_info(dev_priv, qi->psf_points);
 		if (ret) {
-			drm_err(&dev_priv->drm, "Failed to read PSF point data; PSF points will not be considered in bandwidth calculations.\n");
+			drm_err(&dev_priv->drm, "Failed to read PSF point data; PSF points will analt be considered in bandwidth calculations.\n");
 			qi->num_psf_points = 0;
 		}
 
@@ -397,7 +397,7 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 	ret = icl_get_qgv_points(dev_priv, &qi, is_y_tile);
 	if (ret) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Failed to get memory subsystem information, ignoring bandwidth limits");
+			    "Failed to get memory subsystem information, iganalring bandwidth limits");
 		return ret;
 	}
 
@@ -445,7 +445,7 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 	 * as it will fail and pointless anyway.
 	 */
 	if (qi.num_points == 1)
-		dev_priv->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
+		dev_priv->display.sagv.status = I915_SAGV_ANALT_CONTROLLED;
 	else
 		dev_priv->display.sagv.status = I915_SAGV_ENABLED;
 
@@ -468,7 +468,7 @@ static int tgl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 	ret = icl_get_qgv_points(dev_priv, &qi, is_y_tile);
 	if (ret) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Failed to get memory subsystem information, ignoring bandwidth limits");
+			    "Failed to get memory subsystem information, iganalring bandwidth limits");
 		return ret;
 	}
 
@@ -562,7 +562,7 @@ static int tgl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 	 * as it will fail and pointless anyway.
 	 */
 	if (qi.num_points == 1)
-		dev_priv->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
+		dev_priv->display.sagv.status = I915_SAGV_ANALT_CONTROLLED;
 	else
 		dev_priv->display.sagv.status = I915_SAGV_ENABLED;
 
@@ -591,7 +591,7 @@ static void dg2_get_bw_info(struct drm_i915_private *i915)
 		bi->deratedbw[0] = deratedbw;
 	}
 
-	i915->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
+	i915->display.sagv.status = I915_SAGV_ANALT_CONTROLLED;
 }
 
 static unsigned int icl_max_bw_index(struct drm_i915_private *dev_priv,
@@ -609,7 +609,7 @@ static unsigned int icl_max_bw_index(struct drm_i915_private *dev_priv,
 			&dev_priv->display.bw.max[i];
 
 		/*
-		 * Pcode will not expose all QGV points when
+		 * Pcode will analt expose all QGV points when
 		 * SAGV is forced to off/min/med/max.
 		 */
 		if (qgv_point >= bi->num_qgv_points)
@@ -637,7 +637,7 @@ static unsigned int tgl_max_bw_index(struct drm_i915_private *dev_priv,
 			&dev_priv->display.bw.max[i];
 
 		/*
-		 * Pcode will not expose all QGV points when
+		 * Pcode will analt expose all QGV points when
 		 * SAGV is forced to off/min/med/max.
 		 */
 		if (qgv_point >= bi->num_qgv_points)
@@ -683,8 +683,8 @@ void intel_bw_init_hw(struct drm_i915_private *dev_priv)
 static unsigned int intel_bw_crtc_num_active_planes(const struct intel_crtc_state *crtc_state)
 {
 	/*
-	 * We assume cursors are small enough
-	 * to not not cause bandwidth problems.
+	 * We assume cursors are small eanalugh
+	 * to analt analt cause bandwidth problems.
 	 */
 	return hweight8(crtc_state->active_planes & ~BIT(PLANE_CURSOR));
 }
@@ -698,8 +698,8 @@ static unsigned int intel_bw_crtc_data_rate(const struct intel_crtc_state *crtc_
 
 	for_each_plane_id_on_crtc(crtc, plane_id) {
 		/*
-		 * We assume cursors are small enough
-		 * to not not cause bandwidth problems.
+		 * We assume cursors are small eanalugh
+		 * to analt analt cause bandwidth problems.
 		 */
 		if (plane_id == PLANE_CURSOR)
 			continue;
@@ -820,13 +820,13 @@ static int mtl_find_qgv_points(struct drm_i915_private *i915,
 		return ret;
 
 	/*
-	 * If SAGV cannot be enabled, disable the pcode SAGV by passing all 1's
+	 * If SAGV cananalt be enabled, disable the pcode SAGV by passing all 1's
 	 * for qgv peak bw in PM Demand request. So assign UINT_MAX if SAGV is
-	 * not enabled. PM Demand code will clamp the value for the register
+	 * analt enabled. PM Demand code will clamp the value for the register
 	 */
 	if (!intel_can_enable_sagv(i915, new_bw_state)) {
 		new_bw_state->qgv_point_peakbw = U16_MAX;
-		drm_dbg_kms(&i915->drm, "No SAGV, use UINT_MAX as peak bw.");
+		drm_dbg_kms(&i915->drm, "Anal SAGV, use UINT_MAX as peak bw.");
 		return 0;
 	}
 
@@ -860,11 +860,11 @@ static int mtl_find_qgv_points(struct drm_i915_private *i915,
 		    qgv_peak_bw, data_rate);
 
 	/*
-	 * The display configuration cannot be supported if no QGV point
+	 * The display configuration cananalt be supported if anal QGV point
 	 * satisfying the required data rate is found
 	 */
 	if (qgv_peak_bw == 0) {
-		drm_dbg_kms(&i915->drm, "No QGV points for bw %d for display configuration(%d active planes).\n",
+		drm_dbg_kms(&i915->drm, "Anal QGV points for bw %d for display configuration(%d active planes).\n",
 			    data_rate, num_active_planes);
 		return -EINVAL;
 	}
@@ -909,7 +909,7 @@ static int icl_find_qgv_points(struct drm_i915_private *i915,
 		max_data_rate = i915->display.bw.max[idx].deratedbw[i];
 
 		/*
-		 * We need to know which qgv point gives us
+		 * We need to kanalw which qgv point gives us
 		 * maximum bandwidth in order to disable SAGV
 		 * if we find that we exceed SAGV block time
 		 * with watermarks. By that moment we already
@@ -944,14 +944,14 @@ static int icl_find_qgv_points(struct drm_i915_private *i915,
 	 * reasons.
 	 */
 	if (qgv_points == 0) {
-		drm_dbg_kms(&i915->drm, "No QGV points provide sufficient memory"
+		drm_dbg_kms(&i915->drm, "Anal QGV points provide sufficient memory"
 			    " bandwidth %d for display configuration(%d active planes).\n",
 			    data_rate, num_active_planes);
 		return -EINVAL;
 	}
 
 	if (num_psf_gv_points > 0 && psf_points == 0) {
-		drm_dbg_kms(&i915->drm, "No PSF GV points provide sufficient memory"
+		drm_dbg_kms(&i915->drm, "Anal PSF GV points provide sufficient memory"
 			    " bandwidth %d for display configuration(%d active planes).\n",
 			    data_rate, num_active_planes);
 		return -EINVAL;
@@ -964,7 +964,7 @@ static int icl_find_qgv_points(struct drm_i915_private *i915,
 	 */
 	if (!intel_can_enable_sagv(i915, new_bw_state)) {
 		qgv_points = BIT(max_bw_point);
-		drm_dbg_kms(&i915->drm, "No SAGV, using single QGV point %d\n",
+		drm_dbg_kms(&i915->drm, "Anal SAGV, using single QGV point %d\n",
 			    max_bw_point);
 	}
 
@@ -979,7 +979,7 @@ static int icl_find_qgv_points(struct drm_i915_private *i915,
 
 	/*
 	 * If the actual mask had changed we need to make sure that
-	 * the commits are serialized(in case this is a nomodeset, nonblocking)
+	 * the commits are serialized(in case this is a analmodeset, analnblocking)
 	 */
 	if (new_bw_state->qgv_points_mask != old_bw_state->qgv_points_mask) {
 		ret = intel_atomic_serialize_global_state(&new_bw_state->base);
@@ -1070,8 +1070,8 @@ static void skl_crtc_calc_dbuf_bw(struct intel_bw_state *bw_state,
 
 	for_each_plane_id_on_crtc(crtc, plane_id) {
 		/*
-		 * We assume cursors are small enough
-		 * to not cause bandwidth problems.
+		 * We assume cursors are small eanalugh
+		 * to analt cause bandwidth problems.
 		 */
 		if (plane_id == PLANE_CURSOR)
 			continue;
@@ -1173,7 +1173,7 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 	new_min_cdclk = intel_bw_min_cdclk(dev_priv, new_bw_state);
 
 	/*
-	 * No need to check against the cdclk state if
+	 * Anal need to check against the cdclk state if
 	 * the min cdclk doesn't increase.
 	 *
 	 * Ie. we only ever increase the cdclk due to bandwidth
@@ -1188,7 +1188,7 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 		return PTR_ERR(cdclk_state);
 
 	/*
-	 * No need to recalculate the cdclk state if
+	 * Anal need to recalculate the cdclk state if
 	 * the min cdclk doesn't increase.
 	 *
 	 * Ie. we only ever increase the cdclk due to bandwidth
@@ -1227,7 +1227,7 @@ static int intel_bw_check_data_rate(struct intel_atomic_state *state, bool *chan
 
 		/*
 		 * Avoid locking the bw state when
-		 * nothing significant has changed.
+		 * analthing significant has changed.
 		 */
 		if (old_data_rate == new_data_rate &&
 		    old_active_planes == new_active_planes)
@@ -1277,8 +1277,8 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 		changed = true;
 
 	/*
-	 * If none of our inputs (data rates, number of active
-	 * planes, SAGV yes/no) changed then nothing to do here.
+	 * If analne of our inputs (data rates, number of active
+	 * planes, SAGV anal/anal) changed then analthing to do here.
 	 */
 	if (!changed)
 		return 0;
@@ -1319,7 +1319,7 @@ int intel_bw_init(struct drm_i915_private *dev_priv)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	intel_atomic_global_obj_init(dev_priv, &dev_priv->display.bw.obj,
 				     &state->base, &intel_bw_funcs);

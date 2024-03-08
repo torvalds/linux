@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) Iceanalwy Zheng <iceanalwy@aosc.io>
  *
  * Based on sun4i_layer.h, which is:
  *   Copyright (C) 2015 Free Electrons

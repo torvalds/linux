@@ -21,7 +21,7 @@ description: |
   [0] http://infocenter.arm.com/help/topic/com.arm.doc.dui0922b/index.html
 
 properties:
-  $nodename:
+  $analdename:
     const: scpi
 
   compatible:
@@ -57,7 +57,7 @@ properties:
   power-controller:
     type: object
     description:
-      This sub-node represents SCPI power domain controller.
+      This sub-analde represents SCPI power domain controller.
 
     properties:
       compatible:
@@ -83,7 +83,7 @@ properties:
   sensors:
     type: object
     description: |
-      This sub-node represents SCPI sensors controller.
+      This sub-analde represents SCPI sensors controller.
 
     properties:
       compatible:
@@ -106,7 +106,7 @@ properties:
   clocks:
     type: object
     description:
-      This is the container node. Each sub-node represents one of the types
+      This is the container analde. Each sub-analde represents one of the types
       of clock controller - indexed or full range.
 
     properties:
@@ -117,7 +117,7 @@ properties:
       "^clocks-[0-9a-f]+$":
         type: object
         description: |
-          This sub-node represents one of the types of clock controller
+          This sub-analde represents one of the types of clock controller
           - indexed or full range.
 
           "arm,scpi-dvfs-clocks" - all the clocks that are variable and index
@@ -145,8 +145,8 @@ properties:
           clock-indices:
             $ref: /schemas/types.yaml#/definitions/uint32-array
             description:
-              The identifying number for the clocks(i.e.clock_id) in the node.
-              It can be non linear and hence provide the mapping of identifiers
+              The identifying number for the clocks(i.e.clock_id) in the analde.
+              It can be analn linear and hence provide the mapping of identifiers
               into the clock-output-names array.
 
         required:
@@ -175,7 +175,7 @@ examples:
         scpi {
             compatible = "arm,scpi";
             mboxes = <&mhuA 1>;
-            shmem = <&cpu_scp_hpri>; /* HP-NonSecure */
+            shmem = <&cpu_scp_hpri>; /* HP-AnalnSecure */
 
             scpi_devpd: power-controller {
                 compatible = "arm,scpi-power-domains";

@@ -40,7 +40,7 @@ enum {
 	/*
 	 * host flags
 	 */
-	SIL_FLAG_NO_SATA_IRQ	= (1 << 28),
+	SIL_FLAG_ANAL_SATA_IRQ	= (1 << 28),
 	SIL_FLAG_RERR_ON_DMA_ACT = (1 << 29),
 	SIL_FLAG_MOD15WRITE	= (1 << 30),
 
@@ -50,7 +50,7 @@ enum {
 	 * Controller IDs
 	 */
 	sil_3112		= 0,
-	sil_3112_no_sata_irq	= 1,
+	sil_3112_anal_sata_irq	= 1,
 	sil_3512		= 2,
 	sil_3114		= 3,
 
@@ -117,8 +117,8 @@ static const struct pci_device_id sil_pci_tbl[] = {
 	{ PCI_VDEVICE(CMD, 0x3512), sil_3512 },
 	{ PCI_VDEVICE(CMD, 0x3114), sil_3114 },
 	{ PCI_VDEVICE(ATI, 0x436e), sil_3112 },
-	{ PCI_VDEVICE(ATI, 0x4379), sil_3112_no_sata_irq },
-	{ PCI_VDEVICE(ATI, 0x437a), sil_3112_no_sata_irq },
+	{ PCI_VDEVICE(ATI, 0x4379), sil_3112_anal_sata_irq },
+	{ PCI_VDEVICE(ATI, 0x437a), sil_3112_anal_sata_irq },
 
 	{ }	/* terminate list */
 };
@@ -188,10 +188,10 @@ static const struct ata_port_info sil_port_info[] = {
 		.udma_mask	= ATA_UDMA5,
 		.port_ops	= &sil_ops,
 	},
-	/* sil_3112_no_sata_irq */
+	/* sil_3112_anal_sata_irq */
 	{
 		.flags		= SIL_DFL_PORT_FLAGS | SIL_FLAG_MOD15WRITE |
-				  SIL_FLAG_NO_SATA_IRQ,
+				  SIL_FLAG_ANAL_SATA_IRQ,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -252,7 +252,7 @@ static void sil_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	void __iomem *mmio_base = ap->host->iomap[SIL_MMIO_BAR];
-	void __iomem *bmdma2 = mmio_base + sil_port[ap->port_no].bmdma2;
+	void __iomem *bmdma2 = mmio_base + sil_port[ap->port_anal].bmdma2;
 
 	/* clear start/stop bit - can safely always write 0 */
 	iowrite8(0, bmdma2);
@@ -278,11 +278,11 @@ static void sil_bmdma_start(struct ata_queued_cmd *qc)
 	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
 	struct ata_port *ap = qc->ap;
 	void __iomem *mmio_base = ap->host->iomap[SIL_MMIO_BAR];
-	void __iomem *bmdma2 = mmio_base + sil_port[ap->port_no].bmdma2;
+	void __iomem *bmdma2 = mmio_base + sil_port[ap->port_anal].bmdma2;
 	u8 dmactl = ATA_DMA_START;
 
 	/* set transfer direction, start host DMA transaction
-	   Note: For Large Block Transfer to work, the DMA must be started
+	   Analte: For Large Block Transfer to work, the DMA must be started
 	   using the bmdma2 register. */
 	if (!rw)
 		dmactl |= ATA_DMA_WR;
@@ -299,7 +299,7 @@ static void sil_fill_sg(struct ata_queued_cmd *qc)
 
 	prd = &ap->bmdma_prd[0];
 	for_each_sg(qc->sg, sg, qc->n_elem, si) {
-		/* Note h/w doesn't support 64-bit, so we unconditionally
+		/* Analte h/w doesn't support 64-bit, so we unconditionally
 		 * truncate dma_addr_t to u32.
 		 */
 		u32 addr = (u32) sg_dma_address(sg);
@@ -346,7 +346,7 @@ static int sil_set_mode(struct ata_link *link, struct ata_device **r_failed)
 {
 	struct ata_port *ap = link->ap;
 	void __iomem *mmio_base = ap->host->iomap[SIL_MMIO_BAR];
-	void __iomem *addr = mmio_base + sil_port[ap->port_no].xfer_mode;
+	void __iomem *addr = mmio_base + sil_port[ap->port_anal].xfer_mode;
 	struct ata_device *dev;
 	u32 tmp, dev_mode[2] = { };
 	int rc;
@@ -357,11 +357,11 @@ static int sil_set_mode(struct ata_link *link, struct ata_device **r_failed)
 
 	ata_for_each_dev(dev, link, ALL) {
 		if (!ata_dev_enabled(dev))
-			dev_mode[dev->devno] = 0;	/* PIO0/1/2 */
+			dev_mode[dev->devanal] = 0;	/* PIO0/1/2 */
 		else if (dev->flags & ATA_DFLAG_PIO)
-			dev_mode[dev->devno] = 1;	/* PIO3/4 */
+			dev_mode[dev->devanal] = 1;	/* PIO3/4 */
 		else
-			dev_mode[dev->devno] = 3;	/* UDMA */
+			dev_mode[dev->devanal] = 3;	/* UDMA */
 		/* value 2 indicates MDMA */
 	}
 
@@ -387,7 +387,7 @@ static inline void __iomem *sil_scr_addr(struct ata_port *ap,
 	case SCR_CONTROL:
 		return offset;
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 
@@ -457,8 +457,8 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 		 * at this state when ready to receive CDB.
 		 */
 
-		/* Check the ATA_DFLAG_CDB_INTR flag is enough here.
-		 * The flag was turned on only for atapi devices.  No
+		/* Check the ATA_DFLAG_CDB_INTR flag is eanalugh here.
+		 * The flag was turned on only for atapi devices.  Anal
 		 * need to check ata_is_atapi(qc->tf.protocol) again.
 		 */
 		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
@@ -514,10 +514,10 @@ static irqreturn_t sil_interrupt(int irq, void *dev_instance)
 
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
-		u32 bmdma2 = readl(mmio_base + sil_port[ap->port_no].bmdma2);
+		u32 bmdma2 = readl(mmio_base + sil_port[ap->port_anal].bmdma2);
 
-		/* turn off SATA_IRQ if not supported */
-		if (ap->flags & SIL_FLAG_NO_SATA_IRQ)
+		/* turn off SATA_IRQ if analt supported */
+		if (ap->flags & SIL_FLAG_ANAL_SATA_IRQ)
 			bmdma2 &= ~SIL_DMA_SATA_IRQ;
 
 		if (bmdma2 == 0xffffffff ||
@@ -539,17 +539,17 @@ static void sil_freeze(struct ata_port *ap)
 	u32 tmp;
 
 	/* global IRQ mask doesn't block SATA IRQ, turn off explicitly */
-	writel(0, mmio_base + sil_port[ap->port_no].sien);
+	writel(0, mmio_base + sil_port[ap->port_anal].sien);
 
 	/* plug IRQ */
 	tmp = readl(mmio_base + SIL_SYSCFG);
-	tmp |= SIL_MASK_IDE0_INT << ap->port_no;
+	tmp |= SIL_MASK_IDE0_INT << ap->port_anal;
 	writel(tmp, mmio_base + SIL_SYSCFG);
 	readl(mmio_base + SIL_SYSCFG);	/* flush */
 
 	/* Ensure DMA_ENABLE is off.
 	 *
-	 * This is because the controller will not give us access to the
+	 * This is because the controller will analt give us access to the
 	 * taskfile registers while a DMA is in progress
 	 */
 	iowrite8(ioread8(ap->ioaddr.bmdma_addr) & ~SIL_DMA_ENABLE,
@@ -571,12 +571,12 @@ static void sil_thaw(struct ata_port *ap)
 	ata_bmdma_irq_clear(ap);
 
 	/* turn on SATA IRQ if supported */
-	if (!(ap->flags & SIL_FLAG_NO_SATA_IRQ))
-		writel(SIL_SIEN_N, mmio_base + sil_port[ap->port_no].sien);
+	if (!(ap->flags & SIL_FLAG_ANAL_SATA_IRQ))
+		writel(SIL_SIEN_N, mmio_base + sil_port[ap->port_anal].sien);
 
 	/* turn on IRQ */
 	tmp = readl(mmio_base + SIL_SYSCFG);
-	tmp &= ~(SIL_MASK_IDE0_INT << ap->port_no);
+	tmp &= ~(SIL_MASK_IDE0_INT << ap->port_anal);
 	writel(tmp, mmio_base + SIL_SYSCFG);
 }
 
@@ -585,14 +585,14 @@ static void sil_thaw(struct ata_port *ap)
  *	@dev: Device to be examined
  *
  *	After the IDENTIFY [PACKET] DEVICE step is complete, and a
- *	device is known to be present, this function is called.
+ *	device is kanalwn to be present, this function is called.
  *	We apply two errata fixups which are specific to Silicon Image,
  *	a Seagate and a Maxtor fixup.
  *
  *	For certain Seagate devices, we must limit the maximum sectors
  *	to under 8K.
  *
- *	For certain Maxtor devices, we must not program the drive
+ *	For certain Maxtor devices, we must analt program the drive
  *	beyond udma5.
  *
  *	Both fixups are unfairly pessimistic.  As soon as I get more
@@ -616,7 +616,7 @@ static void sil_dev_config(struct ata_device *dev)
 	unsigned char model_num[ATA_ID_PROD_LEN + 1];
 
 	/* This controller doesn't support trim */
-	dev->horkage |= ATA_HORKAGE_NOTRIM;
+	dev->horkage |= ATA_HORKAGE_ANALTRIM;
 
 	ata_id_c_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 
@@ -665,7 +665,7 @@ static void sil_init_controller(struct ata_host *host)
 			       mmio_base + sil_port[i].fifo_cfg);
 	} else
 		dev_warn(&pdev->dev,
-			 "cache line size not set.  Driver may not function\n");
+			 "cache line size analt set.  Driver may analt function\n");
 
 	/* Apply R_ERR on DMA activate FIS errata workaround */
 	if (host->ports[0]->flags & SIL_FLAG_RERR_ON_DMA_ACT) {
@@ -736,15 +736,15 @@ static int sil_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		n_ports = 4;
 
 	if (sil_broken_system_poweroff(pdev)) {
-		pi.flags |= ATA_FLAG_NO_POWEROFF_SPINDOWN |
-					ATA_FLAG_NO_HIBERNATE_SPINDOWN;
+		pi.flags |= ATA_FLAG_ANAL_POWEROFF_SPINDOWN |
+					ATA_FLAG_ANAL_HIBERNATE_SPINDOWN;
 		dev_info(&pdev->dev, "quirky BIOS, skipping spindown "
 				"on poweroff and hibernation\n");
 	}
 
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* acquire resources and fill host */
 	rc = pcim_enable_device(pdev);

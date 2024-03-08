@@ -126,7 +126,7 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 			},
 			/*
 			 * The sensor has IHL (active low) and open
-			 * drain settings, but only for INT1 and not
+			 * drain settings, but only for INT1 and analt
 			 * for the DRDY line on INT2.
 			 */
 			.stat_drdy = {
@@ -204,7 +204,7 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 			},
 			/*
 			 * The sensor has IHL (active low) and open
-			 * drain settings, but only for INT1 and not
+			 * drain settings, but only for INT1 and analt
 			 * for the DRDY line on INT2.
 			 */
 			.stat_drdy = {
@@ -278,7 +278,7 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 			},
 			/*
 			 * The sensor has IHL (active low) and open
-			 * drain settings, but only for INT1 and not
+			 * drain settings, but only for INT1 and analt
 			 * for the DRDY line on INT2.
 			 */
 			.stat_drdy = {
@@ -352,7 +352,7 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 			},
 			/*
 			 * The sensor has IHL (active low) and open
-			 * drain settings, but only for INT1 and not
+			 * drain settings, but only for INT1 and analt
 			 * for the DRDY line on INT2.
 			 */
 			.stat_drdy = {

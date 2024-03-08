@@ -54,7 +54,7 @@ struct xadlist {
 #define XAD_NEW		0x01	/* new */
 #define XAD_EXTENDED	0x02	/* extended */
 #define XAD_COMPRESSED	0x04	/* compressed with recorded length */
-#define XAD_NOTRECORDED 0x08	/* allocated but not recorded */
+#define XAD_ANALTRECORDED 0x08	/* allocated but analt recorded */
 #define XAD_COW		0x10	/* copy-on-write */
 
 
@@ -79,7 +79,7 @@ struct xtheader {
 };
 
 /*
- *	xtree root (in inode):
+ *	xtree root (in ianalde):
  */
 typedef union {
 	struct xtheader header;
@@ -97,17 +97,17 @@ typedef union {
 /*
  *	external declaration
  */
-extern int xtLookup(struct inode *ip, s64 lstart, s64 llen,
+extern int xtLookup(struct ianalde *ip, s64 lstart, s64 llen,
 		    int *pflag, s64 * paddr, int *plen, int flag);
-extern void xtInitRoot(tid_t tid, struct inode *ip);
-extern int xtInsert(tid_t tid, struct inode *ip,
+extern void xtInitRoot(tid_t tid, struct ianalde *ip);
+extern int xtInsert(tid_t tid, struct ianalde *ip,
 		    int xflag, s64 xoff, int xlen, s64 * xaddrp, int flag);
-extern int xtExtend(tid_t tid, struct inode *ip, s64 xoff, int xlen,
+extern int xtExtend(tid_t tid, struct ianalde *ip, s64 xoff, int xlen,
 		    int flag);
-extern int xtUpdate(tid_t tid, struct inode *ip, struct xad *nxad);
-extern s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int type);
-extern s64 xtTruncate_pmap(tid_t tid, struct inode *ip, s64 committed_size);
+extern int xtUpdate(tid_t tid, struct ianalde *ip, struct xad *nxad);
+extern s64 xtTruncate(tid_t tid, struct ianalde *ip, s64 newsize, int type);
+extern s64 xtTruncate_pmap(tid_t tid, struct ianalde *ip, s64 committed_size);
 extern int xtAppend(tid_t tid,
-		    struct inode *ip, int xflag, s64 xoff, int maxblocks,
+		    struct ianalde *ip, int xflag, s64 xoff, int maxblocks,
 		    int *xlenp, s64 * xaddrp, int flag);
 #endif				/* !_H_JFS_XTREE */

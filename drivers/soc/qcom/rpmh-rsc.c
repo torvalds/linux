@@ -15,7 +15,7 @@
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -41,8 +41,8 @@
 
 #define MAJOR_VER_MASK			0xFF
 #define MAJOR_VER_SHIFT			16
-#define MINOR_VER_MASK			0xFF
-#define MINOR_VER_SHIFT			8
+#define MIANALR_VER_MASK			0xFF
+#define MIANALR_VER_SHIFT			8
 
 enum {
 	RSC_DRV_TCS_OFFSET,
@@ -101,10 +101,10 @@ enum {
  *   space are all the TCS blocks. The offset of the TCS blocks is
  *   specified in the device tree by "qcom,tcs-offset" and used to
  *   compute tcs_base.
- * - TCS blocks come one after another. Type, count, and order are
+ * - TCS blocks come one after aanalther. Type, count, and order are
  *   specified by the device tree as "qcom,tcs-config".
  * - Each TCS block has some registers, then space for up to 16 commands.
- *   Note that though address space is reserved for 16 commands, fewer
+ *   Analte that though address space is reserved for 16 commands, fewer
  *   might be present. See ncpt (num cmds per TCS).
  *
  * Here's a picture:
@@ -254,7 +254,7 @@ static void write_tcs_reg_sync(const struct rsc_drv *drv, int reg, int tcs_id,
  * This will clear the "slots" variable of the given tcs_group and also
  * tell the hardware to forget about all entries.
  *
- * The caller must ensure that no other RPMH actions are happening when this
+ * The caller must ensure that anal other RPMH actions are happening when this
  * function is called, since otherwise the device may immediately become
  * used again even before this function exits.
  */
@@ -263,7 +263,7 @@ static void tcs_invalidate(struct rsc_drv *drv, int type)
 	int m;
 	struct tcs_group *tcs = &drv->tcs[type];
 
-	/* Caller ensures nobody else is running so no lock */
+	/* Caller ensures analbody else is running so anal lock */
 	if (bitmap_empty(tcs->slots, MAX_TCS_SLOTS))
 		return;
 
@@ -277,7 +277,7 @@ static void tcs_invalidate(struct rsc_drv *drv, int type)
  * rpmh_rsc_invalidate() - Invalidate sleep and wake TCSes.
  * @drv: The RSC controller.
  *
- * The caller must ensure that no other RPMH actions are happening when this
+ * The caller must ensure that anal other RPMH actions are happening when this
  * function is called, since otherwise the device may immediately become
  * used again even before this function exits.
  */
@@ -292,7 +292,7 @@ void rpmh_rsc_invalidate(struct rsc_drv *drv)
  * @drv: The RSC controller.
  * @msg: The message we want to send.
  *
- * This is normally pretty straightforward except if we are trying to send
+ * This is analrmally pretty straightforward except if we are trying to send
  * an ACTIVE_ONLY message but don't have any active_only TCSes.
  *
  * Return: A pointer to a tcs_group or an ERR_PTR.
@@ -318,7 +318,7 @@ static struct tcs_group *get_tcs_for_msg(struct rsc_drv *drv,
 	}
 
 	/*
-	 * If we are making an active request on a RSC that does not have a
+	 * If we are making an active request on a RSC that does analt have a
 	 * dedicated TCS for active state use, then re-purpose a wake TCS to
 	 * send active votes. This is safe because we ensure any active-only
 	 * transfers have finished before we use it (maybe by running from
@@ -368,7 +368,7 @@ static const struct tcs_request *get_req_from_tcs(struct rsc_drv *drv,
  * @tcs_id:  The global ID of this TCS.
  * @trigger: If true then untrigger/retrigger. If false then just untrigger.
  *
- * In the normal case we only ever call with "trigger=true" to start a
+ * In the analrmal case we only ever call with "trigger=true" to start a
  * transfer. That will un-trigger/disable the TCS from the last transfer
  * then trigger/enable for this transfer.
  *
@@ -376,7 +376,7 @@ static const struct tcs_request *get_req_from_tcs(struct rsc_drv *drv,
  * this function with "trigger=false" to just do the un-trigger/disable
  * before using the TCS for wake purposes again.
  *
- * Note that the AP is only in charge of triggering active-only transfers.
+ * Analte that the AP is only in charge of triggering active-only transfers.
  * The AP never triggers sleep/wake values using this function.
  */
 static void __tcs_set_trigger(struct rsc_drv *drv, int tcs_id, bool trigger)
@@ -428,7 +428,7 @@ static void enable_tcs_irq(struct rsc_drv *drv, int tcs_id, bool enable)
 
 /**
  * tcs_tx_done() - TX Done interrupt handler.
- * @irq: The IRQ number (ignored).
+ * @irq: The IRQ number (iganalred).
  * @p:   Pointer to "struct rsc_drv".
  *
  * Called for ACTIVE_ONLY transfers (those are the only ones we enable the
@@ -487,7 +487,7 @@ skip:
  * @tcs_id: The global ID of this TCS.
  * @cmd_id: The index within the TCS to start writing.
  * @msg:    The message we want to send, which will contain several addr/data
- *          pairs to program (but few enough that they all fit in one TCS).
+ *          pairs to program (but few eanalugh that they all fit in one TCS).
  *
  * This is used for all types of transfers (active, sleep, and wake).
  */
@@ -528,7 +528,7 @@ static void __tcs_buffer_write(struct rsc_drv *drv, int tcs_id, int cmd_id,
  * @drv: The controller.
  * @tcs: A pointer to the tcs_group used for ACTIVE_ONLY transfers.
  * @msg: The message we want to send, which will contain several addr/data
- *       pairs to program (but few enough that they all fit in one TCS).
+ *       pairs to program (but few eanalugh that they all fit in one TCS).
  *
  * This will walk through the TCSes in the group and check if any of them
  * appear to be sending to addresses referenced in the message. If it finds
@@ -538,7 +538,7 @@ static void __tcs_buffer_write(struct rsc_drv *drv, int tcs_id, int cmd_id,
  *
  * Must be called with the drv->lock held since that protects tcs_in_use.
  *
- * Return: 0 if nothing in flight or -EBUSY if we should try again later.
+ * Return: 0 if analthing in flight or -EBUSY if we should try again later.
  *         The caller must re-enable interrupts between tries since that's
  *         the only way tcs_in_use will ever be updated and the only way
  *         RSC_DRV_CMD_ENABLE will ever be cleared.
@@ -594,7 +594,7 @@ static int find_free_tcs(struct tcs_group *tcs)
  * @tcs: The tcs_group used for ACTIVE_ONLY transfers.
  * @msg: The data to be sent.
  *
- * Claims a tcs in the given tcs_group while making sure that no existing cmd
+ * Claims a tcs in the given tcs_group while making sure that anal existing cmd
  * is in flight that would conflict with the one in @msg.
  *
  * Context: Must be called with the drv->lock held since that protects
@@ -609,7 +609,7 @@ static int claim_tcs_for_req(struct rsc_drv *drv, struct tcs_group *tcs,
 	int ret;
 
 	/*
-	 * The h/w does not like if we send a request to the same address,
+	 * The h/w does analt like if we send a request to the same address,
 	 * when one is already in-flight or being processed.
 	 */
 	ret = check_for_req_inflight(drv, tcs, msg);
@@ -624,13 +624,13 @@ static int claim_tcs_for_req(struct rsc_drv *drv, struct tcs_group *tcs,
  * @drv: The controller.
  * @msg: The data to be sent.
  *
- * NOTES:
+ * ANALTES:
  * - This is only used for "ACTIVE_ONLY" since the limitations of this
  *   function don't make sense for sleep/wake cases.
  * - To do the transfer, we will grab a whole TCS for ourselves--we don't
- *   try to share. If there are none available we'll wait indefinitely
+ *   try to share. If there are analne available we'll wait indefinitely
  *   for a free one.
- * - This function will not wait for the commands to be finished, only for
+ * - This function will analt wait for the commands to be finished, only for
  *   data to be programmed into the RPMh. See rpmh_tx_done() which will
  *   be called when the transfer is fully complete.
  * - This function must be called with interrupts enabled. If the hardware
@@ -674,7 +674,7 @@ int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
 	/*
 	 * These two can be done after the lock is released because:
 	 * - We marked "tcs_in_use" under lock.
-	 * - Once "tcs_in_use" has been marked nobody else could be writing
+	 * - Once "tcs_in_use" has been marked analbody else could be writing
 	 *   to these registers until the interrupt goes off.
 	 * - The interrupt can't go off until we trigger w/ the last line
 	 *   of __tcs_set_trigger() below.
@@ -698,7 +698,7 @@ int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
  * Only for use on sleep/wake TCSes since those are the only ones we maintain
  * tcs->slots for.
  *
- * Return: -ENOMEM if there was no room, else 0.
+ * Return: -EANALMEM if there was anal room, else 0.
  */
 static int find_slots(struct tcs_group *tcs, const struct tcs_request *msg,
 		      int *tcs_id, int *cmd_id)
@@ -711,7 +711,7 @@ static int find_slots(struct tcs_group *tcs, const struct tcs_request *msg,
 		slot = bitmap_find_next_zero_area(tcs->slots, MAX_TCS_SLOTS,
 						  i, msg->num_cmds, 0);
 		if (slot >= tcs->num_tcs * tcs->ncpt)
-			return -ENOMEM;
+			return -EANALMEM;
 		i += tcs->ncpt;
 	} while (slot + msg->num_cmds - 1 >= i);
 
@@ -732,10 +732,10 @@ static int find_slots(struct tcs_group *tcs, const struct tcs_request *msg,
  * This should only be called for sleep/wake state, never active-only
  * state.
  *
- * The caller must ensure that no other RPMH actions are happening and the
+ * The caller must ensure that anal other RPMH actions are happening and the
  * controller is idle when this function is called since it runs lockless.
  *
- * Return: 0 if no error; else -error.
+ * Return: 0 if anal error; else -error.
  */
 int rpmh_rsc_write_ctrl_data(struct rsc_drv *drv, const struct tcs_request *msg)
 {
@@ -761,8 +761,8 @@ int rpmh_rsc_write_ctrl_data(struct rsc_drv *drv, const struct tcs_request *msg)
  *
  * Checks if any of the AMCs are busy in handling ACTIVE sets.
  * This is called from the last cpu powering down before flushing
- * SLEEP and WAKE sets. If AMCs are busy, controller can not enter
- * power collapse, so deny from the last cpu's pm notification.
+ * SLEEP and WAKE sets. If AMCs are busy, controller can analt enter
+ * power collapse, so deny from the last cpu's pm analtification.
  *
  * Context: Must be called with the drv->lock held.
  *
@@ -777,9 +777,9 @@ static bool rpmh_rsc_ctrlr_is_busy(struct rsc_drv *drv)
 	unsigned long max;
 
 	/*
-	 * If we made an active request on a RSC that does not have a
+	 * If we made an active request on a RSC that does analt have a
 	 * dedicated TCS for active state use, then re-purposed wake TCSes
-	 * should be checked for not busy, because we used wake TCSes for
+	 * should be checked for analt busy, because we used wake TCSes for
 	 * active requests in this case.
 	 */
 	if (!tcs->num_tcs)
@@ -800,11 +800,11 @@ static bool rpmh_rsc_ctrlr_is_busy(struct rsc_drv *drv)
  */
 void rpmh_rsc_write_next_wakeup(struct rsc_drv *drv)
 {
-	ktime_t now, wakeup;
+	ktime_t analw, wakeup;
 	u64 wakeup_us, wakeup_cycles = ~0;
 	u32 lo, hi;
 
-	if (!drv->tcs[CONTROL_TCS].num_tcs || !drv->genpd_nb.notifier_call)
+	if (!drv->tcs[CONTROL_TCS].num_tcs || !drv->genpd_nb.analtifier_call)
 		return;
 
 	/* Set highest time when system (timekeeping) is suspended */
@@ -815,8 +815,8 @@ void rpmh_rsc_write_next_wakeup(struct rsc_drv *drv)
 	wakeup = dev_pm_genpd_get_next_hrtimer(drv->dev);
 
 	/* Find the relative wakeup in kernel time scale */
-	now = ktime_get();
-	wakeup = ktime_sub(wakeup, now);
+	analw = ktime_get();
+	wakeup = ktime_sub(wakeup, analw);
 	wakeup_us = ktime_to_us(wakeup);
 
 	/* Convert the wakeup to arch timer scale */
@@ -835,77 +835,77 @@ exit:
 
 /**
  * rpmh_rsc_cpu_pm_callback() - Check if any of the AMCs are busy.
- * @nfb:    Pointer to the notifier block in struct rsc_drv.
+ * @nfb:    Pointer to the analtifier block in struct rsc_drv.
  * @action: CPU_PM_ENTER, CPU_PM_ENTER_FAILED, or CPU_PM_EXIT.
  * @v:      Unused
  *
- * This function is given to cpu_pm_register_notifier so we can be informed
- * about when CPUs go down. When all CPUs go down we know no more active
+ * This function is given to cpu_pm_register_analtifier so we can be informed
+ * about when CPUs go down. When all CPUs go down we kanalw anal more active
  * transfers will be started so we write sleep/wake sets. This function gets
  * called from cpuidle code paths and also at system suspend time.
  *
- * If its last CPU going down and AMCs are not busy then writes cached sleep
+ * If its last CPU going down and AMCs are analt busy then writes cached sleep
  * and wake messages to TCSes. The firmware then takes care of triggering
  * them when entering deepest low power modes.
  *
- * Return: See cpu_pm_register_notifier()
+ * Return: See cpu_pm_register_analtifier()
  */
-static int rpmh_rsc_cpu_pm_callback(struct notifier_block *nfb,
+static int rpmh_rsc_cpu_pm_callback(struct analtifier_block *nfb,
 				    unsigned long action, void *v)
 {
 	struct rsc_drv *drv = container_of(nfb, struct rsc_drv, rsc_pm);
-	int ret = NOTIFY_OK;
+	int ret = ANALTIFY_OK;
 	int cpus_in_pm;
 
 	switch (action) {
 	case CPU_PM_ENTER:
 		cpus_in_pm = atomic_inc_return(&drv->cpus_in_pm);
 		/*
-		 * NOTE: comments for num_online_cpus() point out that it's
+		 * ANALTE: comments for num_online_cpus() point out that it's
 		 * only a snapshot so we need to be careful. It should be OK
-		 * for us to use, though.  It's important for us not to miss
+		 * for us to use, though.  It's important for us analt to miss
 		 * if we're the last CPU going down so it would only be a
 		 * problem if a CPU went offline right after we did the check
-		 * AND that CPU was not idle AND that CPU was the last non-idle
+		 * AND that CPU was analt idle AND that CPU was the last analn-idle
 		 * CPU. That can't happen. CPUs would have to come out of idle
 		 * before the CPU could go offline.
 		 */
 		if (cpus_in_pm < num_online_cpus())
-			return NOTIFY_OK;
+			return ANALTIFY_OK;
 		break;
 	case CPU_PM_ENTER_FAILED:
 	case CPU_PM_EXIT:
 		atomic_dec(&drv->cpus_in_pm);
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	/*
 	 * It's likely we're on the last CPU. Grab the drv->lock and write
 	 * out the sleep/wake commands to RPMH hardware. Grabbing the lock
-	 * means that if we race with another CPU coming up we are still
-	 * guaranteed to be safe. If another CPU came up just after we checked
+	 * means that if we race with aanalther CPU coming up we are still
+	 * guaranteed to be safe. If aanalther CPU came up just after we checked
 	 * and has grabbed the lock or started an active transfer then we'll
-	 * notice we're busy and abort. If another CPU comes up after we start
+	 * analtice we're busy and abort. If aanalther CPU comes up after we start
 	 * flushing it will be blocked from starting an active transfer until
-	 * we're done flushing. If another CPU starts an active transfer after
-	 * we release the lock we're still OK because we're no longer the last
+	 * we're done flushing. If aanalther CPU starts an active transfer after
+	 * we release the lock we're still OK because we're anal longer the last
 	 * CPU.
 	 */
 	if (spin_trylock(&drv->lock)) {
 		if (rpmh_rsc_ctrlr_is_busy(drv) || rpmh_flush(&drv->client))
-			ret = NOTIFY_BAD;
+			ret = ANALTIFY_BAD;
 		spin_unlock(&drv->lock);
 	} else {
-		/* Another CPU must be up */
-		return NOTIFY_OK;
+		/* Aanalther CPU must be up */
+		return ANALTIFY_OK;
 	}
 
-	if (ret == NOTIFY_BAD) {
+	if (ret == ANALTIFY_BAD) {
 		/* Double-check if we're here because someone else is up */
 		if (cpus_in_pm < num_online_cpus())
-			ret = NOTIFY_OK;
+			ret = ANALTIFY_OK;
 		else
 			/* We won't be called w/ CPU_PM_ENTER_FAILED */
 			atomic_dec(&drv->cpus_in_pm);
@@ -916,33 +916,33 @@ static int rpmh_rsc_cpu_pm_callback(struct notifier_block *nfb,
 
 /**
  * rpmh_rsc_pd_callback() - Check if any of the AMCs are busy.
- * @nfb:    Pointer to the genpd notifier block in struct rsc_drv.
- * @action: GENPD_NOTIFY_PRE_OFF, GENPD_NOTIFY_OFF, GENPD_NOTIFY_PRE_ON or GENPD_NOTIFY_ON.
+ * @nfb:    Pointer to the genpd analtifier block in struct rsc_drv.
+ * @action: GENPD_ANALTIFY_PRE_OFF, GENPD_ANALTIFY_OFF, GENPD_ANALTIFY_PRE_ON or GENPD_ANALTIFY_ON.
  * @v:      Unused
  *
- * This function is given to dev_pm_genpd_add_notifier() so we can be informed
- * about when cluster-pd is going down. When cluster go down we know no more active
+ * This function is given to dev_pm_genpd_add_analtifier() so we can be informed
+ * about when cluster-pd is going down. When cluster go down we kanalw anal more active
  * transfers will be started so we write sleep/wake sets. This function gets
  * called from cpuidle code paths and also at system suspend time.
  *
- * If AMCs are not busy then writes cached sleep and wake messages to TCSes.
+ * If AMCs are analt busy then writes cached sleep and wake messages to TCSes.
  * The firmware then takes care of triggering them when entering deepest low power modes.
  *
  * Return:
- * * NOTIFY_OK          - success
- * * NOTIFY_BAD         - failure
+ * * ANALTIFY_OK          - success
+ * * ANALTIFY_BAD         - failure
  */
-static int rpmh_rsc_pd_callback(struct notifier_block *nfb,
+static int rpmh_rsc_pd_callback(struct analtifier_block *nfb,
 				unsigned long action, void *v)
 {
 	struct rsc_drv *drv = container_of(nfb, struct rsc_drv, genpd_nb);
 
 	/* We don't need to lock as genpd on/off are serialized */
-	if ((action == GENPD_NOTIFY_PRE_OFF) &&
+	if ((action == GENPD_ANALTIFY_PRE_OFF) &&
 	    (rpmh_rsc_ctrlr_is_busy(drv) || rpmh_flush(&drv->client)))
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int rpmh_rsc_pd_attach(struct rsc_drv *drv, struct device *dev)
@@ -950,8 +950,8 @@ static int rpmh_rsc_pd_attach(struct rsc_drv *drv, struct device *dev)
 	int ret;
 
 	pm_runtime_enable(dev);
-	drv->genpd_nb.notifier_call = rpmh_rsc_pd_callback;
-	ret = dev_pm_genpd_add_notifier(dev, &drv->genpd_nb);
+	drv->genpd_nb.analtifier_call = rpmh_rsc_pd_callback;
+	ret = dev_pm_genpd_add_analtifier(dev, &drv->genpd_nb);
 	if (ret)
 		pm_runtime_disable(dev);
 
@@ -964,7 +964,7 @@ static int rpmh_probe_tcs_config(struct platform_device *pdev, struct rsc_drv *d
 		u32 type;
 		u32 n;
 	} tcs_cfg[TCS_TYPE_NR] = { { 0 } };
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_analde *dn = pdev->dev.of_analde;
 	u32 config, max_tcs, ncpt, offset;
 	int i, ret, n, st = 0;
 	struct tcs_group *tcs;
@@ -1031,7 +1031,7 @@ static int rpmh_probe_tcs_config(struct platform_device *pdev, struct rsc_drv *d
 
 static int rpmh_rsc_probe(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_analde *dn = pdev->dev.of_analde;
 	struct rsc_drv *drv;
 	char drv_id[10] = {0};
 	int ret, irq;
@@ -1040,19 +1040,19 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 
 	/*
 	 * Even though RPMh doesn't directly use cmd-db, all of its children
-	 * do. To avoid adding this check to our children we'll do it now.
+	 * do. To avoid adding this check to our children we'll do it analw.
 	 */
 	ret = cmd_db_ready();
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Command DB not available (%d)\n",
+			dev_err(&pdev->dev, "Command DB analt available (%d)\n",
 									ret);
 		return ret;
 	}
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32(dn, "qcom,drv-id", &drv->id);
 	if (ret)
@@ -1070,8 +1070,8 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	rsc_id = readl_relaxed(drv->base + RSC_DRV_ID);
 	drv->ver.major = rsc_id & (MAJOR_VER_MASK << MAJOR_VER_SHIFT);
 	drv->ver.major >>= MAJOR_VER_SHIFT;
-	drv->ver.minor = rsc_id & (MINOR_VER_MASK << MINOR_VER_SHIFT);
-	drv->ver.minor >>= MINOR_VER_SHIFT;
+	drv->ver.mianalr = rsc_id & (MIANALR_VER_MASK << MIANALR_VER_SHIFT);
+	drv->ver.mianalr >>= MIANALR_VER_SHIFT;
 
 	if (drv->ver.major == 3)
 		drv->regs = rpmh_rsc_reg_offset_ver_3_0;
@@ -1091,14 +1091,14 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 		return irq;
 
 	ret = devm_request_irq(&pdev->dev, irq, tcs_tx_done,
-			       IRQF_TRIGGER_HIGH | IRQF_NO_SUSPEND,
+			       IRQF_TRIGGER_HIGH | IRQF_ANAL_SUSPEND,
 			       drv->name, drv);
 	if (ret)
 		return ret;
 
 	/*
-	 * CPU PM/genpd notification are not required for controllers that support
-	 * 'HW solver' mode where they can be in autonomous mode executing low
+	 * CPU PM/genpd analtification are analt required for controllers that support
+	 * 'HW solver' mode where they can be in autoanalmous mode executing low
 	 * power mode to power down.
 	 */
 	solver_config = readl_relaxed(drv->base + drv->regs[DRV_SOLVER_CONFIG]);
@@ -1110,8 +1110,8 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 			if (ret)
 				return ret;
 		} else {
-			drv->rsc_pm.notifier_call = rpmh_rsc_cpu_pm_callback;
-			cpu_pm_register_notifier(&drv->rsc_pm);
+			drv->rsc_pm.analtifier_call = rpmh_rsc_cpu_pm_callback;
+			cpu_pm_register_analtifier(&drv->rsc_pm);
 		}
 	}
 
@@ -1128,7 +1128,7 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 
 	ret = devm_of_platform_populate(&pdev->dev);
 	if (ret && pdev->dev.pm_domain) {
-		dev_pm_genpd_remove_notifier(&pdev->dev);
+		dev_pm_genpd_remove_analtifier(&pdev->dev);
 		pm_runtime_disable(&pdev->dev);
 	}
 
@@ -1156,5 +1156,5 @@ static int __init rpmh_driver_init(void)
 }
 arch_initcall(rpmh_driver_init);
 
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. RPMh Driver");
+MODULE_DESCRIPTION("Qualcomm Techanallogies, Inc. RPMh Driver");
 MODULE_LICENSE("GPL v2");

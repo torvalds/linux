@@ -16,7 +16,7 @@ description:
   itself as a provider with the bindings described in this document.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^timestamp(@.*|-([0-9]|[1-9][0-9]+))?$"
 
   "#timestamp-cells":

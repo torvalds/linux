@@ -53,7 +53,7 @@ static ssize_t ccp5_debugfs_info_read(struct file *filp, char __user *ubuf,
 
 	obuf = kmalloc(OBUFLEN, GFP_KERNEL);
 	if (!obuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	oboff += OSCNPRINTF("Device name: %s\n", ccp->name);
 	oboff += OSCNPRINTF("   RNG name: %s\n", ccp->rngname);
@@ -126,7 +126,7 @@ static ssize_t ccp5_debugfs_stats_read(struct file *filp, char __user *ubuf,
 
 	obuf = kmalloc(OBUFLEN, GFP_KERNEL);
 	if (!obuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	oboff += OSCNPRINTF("Total Interrupts Handled: %ld\n",
 			    ccp->total_interrupts);
@@ -202,7 +202,7 @@ static ssize_t ccp5_debugfs_queue_read(struct file *filp, char __user *ubuf,
 
 	obuf = kmalloc(OBUFLEN, GFP_KERNEL);
 	if (!obuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	oboff += OSCNPRINTF("  Total Queue Operations: %ld\n",
 			    cmd_q->total_ops);

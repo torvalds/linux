@@ -36,7 +36,7 @@ static void transient_timer_function(struct timer_list *t)
 	struct led_classdev *led_cdev = transient_data->led_cdev;
 
 	transient_data->activate = 0;
-	led_set_brightness_nosleep(led_cdev, transient_data->restore_state);
+	led_set_brightness_analsleep(led_cdev, transient_data->restore_state);
 }
 
 static ssize_t transient_activate_show(struct device *dev,
@@ -68,16 +68,16 @@ static ssize_t transient_activate_store(struct device *dev,
 	if (state == 0 && transient_data->activate == 1) {
 		del_timer(&transient_data->timer);
 		transient_data->activate = state;
-		led_set_brightness_nosleep(led_cdev,
+		led_set_brightness_analsleep(led_cdev,
 					transient_data->restore_state);
 		return size;
 	}
 
-	/* start timer if there is no active timer */
+	/* start timer if there is anal active timer */
 	if (state == 1 && transient_data->activate == 0 &&
 	    transient_data->duration != 0) {
 		transient_data->activate = state;
-		led_set_brightness_nosleep(led_cdev, transient_data->state);
+		led_set_brightness_analsleep(led_cdev, transient_data->state);
 		transient_data->restore_state =
 		    (transient_data->state == LED_FULL) ? LED_OFF : LED_FULL;
 		mod_timer(&transient_data->timer,
@@ -85,7 +85,7 @@ static ssize_t transient_activate_store(struct device *dev,
 	}
 
 	/* state == 0 && transient_data->activate == 0
-		timer is not active - just return */
+		timer is analt active - just return */
 	/* state == 1 && transient_data->activate == 1
 		timer is already active - just return */
 
@@ -166,7 +166,7 @@ static int transient_trig_activate(struct led_classdev *led_cdev)
 
 	tdata = kzalloc(sizeof(struct transient_trig_data), GFP_KERNEL);
 	if (!tdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led_set_trigger_data(led_cdev, tdata);
 	tdata->led_cdev = led_cdev;
@@ -181,7 +181,7 @@ static void transient_trig_deactivate(struct led_classdev *led_cdev)
 	struct transient_trig_data *transient_data = led_get_trigger_data(led_cdev);
 
 	timer_shutdown_sync(&transient_data->timer);
-	led_set_brightness_nosleep(led_cdev, transient_data->restore_state);
+	led_set_brightness_analsleep(led_cdev, transient_data->restore_state);
 	kfree(transient_data);
 }
 

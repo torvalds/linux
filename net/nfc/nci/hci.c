@@ -38,11 +38,11 @@ struct nci_hci_create_pipe_resp {
 	u8 pipe;
 } __packed;
 
-struct nci_hci_delete_pipe_noti {
+struct nci_hci_delete_pipe_analti {
 	u8 pipe;
 } __packed;
 
-struct nci_hci_all_pipe_cleared_noti {
+struct nci_hci_all_pipe_cleared_analti {
 	u8 host;
 } __packed;
 
@@ -61,7 +61,7 @@ struct nci_hcp_packet {
 #define NCI_HCI_ANY_CLOSE_PIPE     0x04
 #define NCI_HCI_ADM_CLEAR_ALL_PIPE 0x14
 
-#define NCI_HFP_NO_CHAINING        0x80
+#define NCI_HFP_ANAL_CHAINING        0x80
 
 #define NCI_NFCEE_ID_HCI                0x80
 
@@ -81,9 +81,9 @@ struct nci_hcp_packet {
 #define NCI_HCI_HCP_EVENT          0x01
 #define NCI_HCI_HCP_RESPONSE       0x02
 
-#define NCI_HCI_ADM_NOTIFY_PIPE_CREATED     0x12
-#define NCI_HCI_ADM_NOTIFY_PIPE_DELETED     0x13
-#define NCI_HCI_ADM_NOTIFY_ALL_PIPE_CLEARED 0x15
+#define NCI_HCI_ADM_ANALTIFY_PIPE_CREATED     0x12
+#define NCI_HCI_ADM_ANALTIFY_PIPE_DELETED     0x13
+#define NCI_HCI_ADM_ANALTIFY_ALL_PIPE_CLEARED 0x15
 
 #define NCI_HCI_FRAGMENT           0x7f
 #define NCI_HCP_HEADER(type, instr) ((((type) & 0x03) << 6) |\
@@ -93,13 +93,13 @@ struct nci_hcp_packet {
 #define NCI_HCP_MSG_GET_CMD(header)  (header & 0x3f)
 #define NCI_HCP_MSG_GET_PIPE(header) (header & 0x7f)
 
-static int nci_hci_result_to_errno(u8 result)
+static int nci_hci_result_to_erranal(u8 result)
 {
 	switch (result) {
 	case NCI_HCI_ANY_OK:
 		return 0;
-	case NCI_HCI_ANY_E_REG_PAR_UNKNOWN:
-		return -EOPNOTSUPP;
+	case NCI_HCI_ANY_E_REG_PAR_UNKANALWN:
+		return -EOPANALTSUPP;
 	case NCI_HCI_ANY_E_TIMEOUT:
 		return -ETIME;
 	default:
@@ -135,7 +135,7 @@ static void nci_hci_reset_pipes_per_host(struct nci_dev *ndev, u8 host)
  * NFC Forum NCI 10.2.2 Data Exchange:
  * The payload of the Data Packets sent on the Logical Connection SHALL be
  * valid HCP packets, as defined within [ETSI_102622]. Each Data Packet SHALL
- * contain a single HCP packet. NCI Segmentation and Reassembly SHALL NOT be
+ * contain a single HCP packet. NCI Segmentation and Reassembly SHALL ANALT be
  * applied to Data Messages in either direction. The HCI fragmentation mechanism
  * is used if required.
  */
@@ -156,16 +156,16 @@ static int nci_hci_send_data(struct nci_dev *ndev, u8 pipe,
 	skb = nci_skb_alloc(ndev, conn_info->max_pkt_payload_len +
 			    NCI_DATA_HDR_SIZE, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_reserve(skb, NCI_DATA_HDR_SIZE + 2);
 	*(u8 *)skb_push(skb, 1) = data_type;
 
 	do {
-		/* If last packet add NCI_HFP_NO_CHAINING */
+		/* If last packet add NCI_HFP_ANAL_CHAINING */
 		if (i + conn_info->max_pkt_payload_len -
 		    (skb->len + 1) >= data_len) {
-			cb |= NCI_HFP_NO_CHAINING;
+			cb |= NCI_HFP_ANAL_CHAINING;
 			len = data_len - i;
 		} else {
 			len = conn_info->max_pkt_payload_len - skb->len - 1;
@@ -187,7 +187,7 @@ static int nci_hci_send_data(struct nci_dev *ndev, u8 pipe,
 					    conn_info->max_pkt_payload_len +
 					    NCI_DATA_HDR_SIZE, GFP_ATOMIC);
 			if (!skb)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			skb_reserve(skb, NCI_DATA_HDR_SIZE + 1);
 		}
@@ -210,7 +210,7 @@ int nci_hci_send_event(struct nci_dev *ndev, u8 gate, u8 event,
 	u8 pipe = ndev->hci_dev->gate2pipe[gate];
 
 	if (pipe == NCI_HCI_INVALID_PIPE)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	return nci_hci_send_data(ndev, pipe,
 			NCI_HCP_HEADER(NCI_HCI_HCP_EVENT, event),
@@ -229,7 +229,7 @@ int nci_hci_send_cmd(struct nci_dev *ndev, u8 gate, u8 cmd,
 	u8 pipe = ndev->hci_dev->gate2pipe[gate];
 
 	if (pipe == NCI_HCI_INVALID_PIPE)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	conn_info = ndev->hci_dev->conn_info;
 	if (!conn_info)
@@ -245,7 +245,7 @@ int nci_hci_send_cmd(struct nci_dev *ndev, u8 gate, u8 cmd,
 			msecs_to_jiffies(NCI_DATA_TIMEOUT));
 	if (r == NCI_STATUS_OK) {
 		message = (struct nci_hcp_message *)conn_info->rx_skb->data;
-		r = nci_hci_result_to_errno(
+		r = nci_hci_result_to_erranal(
 			NCI_HCP_MSG_GET_CMD(message->header));
 		skb_pull(conn_info->rx_skb, NCI_HCI_HCP_MESSAGE_HEADER_LEN);
 
@@ -285,22 +285,22 @@ static void nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe,
 	u8 status = NCI_HCI_ANY_OK | ~NCI_HCI_FRAGMENT;
 	u8 dest_gate, new_pipe;
 	struct nci_hci_create_pipe_resp *create_info;
-	struct nci_hci_delete_pipe_noti *delete_info;
-	struct nci_hci_all_pipe_cleared_noti *cleared_info;
+	struct nci_hci_delete_pipe_analti *delete_info;
+	struct nci_hci_all_pipe_cleared_analti *cleared_info;
 
 	pr_debug("from gate %x pipe %x cmd %x\n", gate, pipe, cmd);
 
 	switch (cmd) {
-	case NCI_HCI_ADM_NOTIFY_PIPE_CREATED:
+	case NCI_HCI_ADM_ANALTIFY_PIPE_CREATED:
 		if (skb->len != 5) {
-			status = NCI_HCI_ANY_E_NOK;
+			status = NCI_HCI_ANY_E_ANALK;
 			goto exit;
 		}
 		create_info = (struct nci_hci_create_pipe_resp *)skb->data;
 		dest_gate = create_info->dest_gate;
 		new_pipe = create_info->pipe;
 		if (new_pipe >= NCI_HCI_MAX_PIPES) {
-			status = NCI_HCI_ANY_E_NOK;
+			status = NCI_HCI_ANY_E_ANALK;
 			goto exit;
 		}
 
@@ -315,20 +315,20 @@ static void nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe,
 						create_info->src_host;
 		break;
 	case NCI_HCI_ANY_OPEN_PIPE:
-		/* If the pipe is not created report an error */
+		/* If the pipe is analt created report an error */
 		if (gate == NCI_HCI_INVALID_GATE) {
-			status = NCI_HCI_ANY_E_NOK;
+			status = NCI_HCI_ANY_E_ANALK;
 			goto exit;
 		}
 		break;
-	case NCI_HCI_ADM_NOTIFY_PIPE_DELETED:
+	case NCI_HCI_ADM_ANALTIFY_PIPE_DELETED:
 		if (skb->len != 1) {
-			status = NCI_HCI_ANY_E_NOK;
+			status = NCI_HCI_ANY_E_ANALK;
 			goto exit;
 		}
-		delete_info = (struct nci_hci_delete_pipe_noti *)skb->data;
+		delete_info = (struct nci_hci_delete_pipe_analti *)skb->data;
 		if (delete_info->pipe >= NCI_HCI_MAX_PIPES) {
-			status = NCI_HCI_ANY_E_NOK;
+			status = NCI_HCI_ANY_E_ANALK;
 			goto exit;
 		}
 
@@ -337,18 +337,18 @@ static void nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe,
 		ndev->hci_dev->pipes[delete_info->pipe].host =
 						NCI_HCI_INVALID_HOST;
 		break;
-	case NCI_HCI_ADM_NOTIFY_ALL_PIPE_CLEARED:
+	case NCI_HCI_ADM_ANALTIFY_ALL_PIPE_CLEARED:
 		if (skb->len != 1) {
-			status = NCI_HCI_ANY_E_NOK;
+			status = NCI_HCI_ANY_E_ANALK;
 			goto exit;
 		}
 
 		cleared_info =
-			(struct nci_hci_all_pipe_cleared_noti *)skb->data;
+			(struct nci_hci_all_pipe_cleared_analti *)skb->data;
 		nci_hci_reset_pipes_per_host(ndev, cleared_info->host);
 		break;
 	default:
-		pr_debug("Discarded unknown cmd %x to gate %x\n", cmd, gate);
+		pr_debug("Discarded unkanalwn cmd %x to gate %x\n", cmd, gate);
 		break;
 	}
 
@@ -393,7 +393,7 @@ static void nci_hci_hcp_message_rx(struct nci_dev *ndev, u8 pipe,
 		nci_hci_event_received(ndev, pipe, instruction, skb);
 		break;
 	default:
-		pr_err("UNKNOWN MSG Type %d, instruction=%d\n",
+		pr_err("UNKANALWN MSG Type %d, instruction=%d\n",
 		       type, instruction);
 		kfree_skb(skb);
 		break;
@@ -459,7 +459,7 @@ void nci_hci_data_received_cb(void *context,
 		hcp_skb = nfc_alloc_recv_skb(NCI_HCI_HCP_PACKET_HEADER_LEN +
 					     msg_len, GFP_KERNEL);
 		if (!hcp_skb) {
-			nci_req_complete(ndev, -ENOMEM);
+			nci_req_complete(ndev, -EANALMEM);
 			return;
 		}
 
@@ -564,7 +564,7 @@ int nci_hci_set_param(struct nci_dev *ndev, u8 gate, u8 idx,
 	pr_debug("idx=%d to gate %d\n", idx, gate);
 
 	if (pipe == NCI_HCI_INVALID_PIPE)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	conn_info = ndev->hci_dev->conn_info;
 	if (!conn_info)
@@ -572,7 +572,7 @@ int nci_hci_set_param(struct nci_dev *ndev, u8 gate, u8 idx,
 
 	tmp = kmalloc(1 + param_len, GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*tmp = idx;
 	memcpy(tmp + 1, param, param_len);
@@ -588,7 +588,7 @@ int nci_hci_set_param(struct nci_dev *ndev, u8 gate, u8 idx,
 			msecs_to_jiffies(NCI_DATA_TIMEOUT));
 	if (r == NCI_STATUS_OK) {
 		message = (struct nci_hcp_message *)conn_info->rx_skb->data;
-		r = nci_hci_result_to_errno(
+		r = nci_hci_result_to_erranal(
 			NCI_HCP_MSG_GET_CMD(message->header));
 		skb_pull(conn_info->rx_skb, NCI_HCI_HCP_MESSAGE_HEADER_LEN);
 	}
@@ -610,7 +610,7 @@ int nci_hci_get_param(struct nci_dev *ndev, u8 gate, u8 idx,
 	pr_debug("idx=%d to gate %d\n", idx, gate);
 
 	if (pipe == NCI_HCI_INVALID_PIPE)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	conn_info = ndev->hci_dev->conn_info;
 	if (!conn_info)
@@ -628,7 +628,7 @@ int nci_hci_get_param(struct nci_dev *ndev, u8 gate, u8 idx,
 
 	if (r == NCI_STATUS_OK) {
 		message = (struct nci_hcp_message *)conn_info->rx_skb->data;
-		r = nci_hci_result_to_errno(
+		r = nci_hci_result_to_erranal(
 			NCI_HCP_MSG_GET_CMD(message->header));
 		skb_pull(conn_info->rx_skb, NCI_HCI_HCP_MESSAGE_HEADER_LEN);
 
@@ -646,7 +646,7 @@ int nci_hci_connect_gate(struct nci_dev *ndev,
 	bool pipe_created = false;
 	int r;
 
-	if (pipe == NCI_HCI_DO_NOT_OPEN_PIPE)
+	if (pipe == NCI_HCI_DO_ANALT_OPEN_PIPE)
 		return 0;
 
 	if (ndev->hci_dev->gate2pipe[dest_gate] != NCI_HCI_INVALID_PIPE)
@@ -675,7 +675,7 @@ open_pipe:
 	if (r < 0) {
 		if (pipe_created) {
 			if (nci_hci_delete_pipe(ndev, pipe) < 0) {
-				/* TODO: Cannot clean by deleting pipe...
+				/* TODO: Cananalt clean by deleting pipe...
 				 * -> inconsistent state
 				 */
 			}

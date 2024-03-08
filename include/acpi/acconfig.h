@@ -32,7 +32,7 @@
  * but there is a large base of ASL/AML code in existing machines that check
  * for the string below.  The use of this string usually guarantees that
  * the ASL will execute down the most tested code path.  Also, there is some
- * code that will not execute the _OSI method unless _OS matches the string
+ * code that will analt execute the _OSI method unless _OS matches the string
  * below.  Therefore, change this string at your own risk.
  */
 #define ACPI_OS_NAME                    "Microsoft Windows NT"
@@ -58,9 +58,9 @@
  * Generate a version of ACPICA that only supports "reduced hardware"
  * platforms (as defined in ACPI 5.0). Set to TRUE to generate a specialized
  * version of ACPICA that ONLY supports the ACPI 5.0 "reduced hardware"
- * model. In other words, no ACPI hardware is supported.
+ * model. In other words, anal ACPI hardware is supported.
  *
- * If TRUE, this means no support for the following:
+ * If TRUE, this means anal support for the following:
  *      PM Event and Control registers
  *      SCI interrupt (and handler)
  *      Fixed Events
@@ -117,7 +117,7 @@
 
 /******************************************************************************
  *
- * ACPI Specification constants (Do not change unless the specification changes)
+ * ACPI Specification constants (Do analt change unless the specification changes)
  *
  *****************************************************************************/
 
@@ -130,7 +130,7 @@
 #define ACPI_METHOD_MAX_ARG             6
 
 /*
- * Operand Stack (in WALK_STATE), Must be large enough to contain METHOD_MAX_ARG
+ * Operand Stack (in WALK_STATE), Must be large eanalugh to contain METHOD_MAX_ARG
  */
 #define ACPI_OBJ_NUM_OPERANDS           8
 #define ACPI_OBJ_MAX_OPERAND            7
@@ -141,8 +141,8 @@
 
 /*
  * Maximal number of elements the Result Stack can contain,
- * it may be an arbitrary value not exceeding the types of
- * result_size and result_count (now u8).
+ * it may be an arbitrary value analt exceeding the types of
+ * result_size and result_count (analw u8).
  */
 #define ACPI_RESULTS_OBJ_NUM_MAX        255
 

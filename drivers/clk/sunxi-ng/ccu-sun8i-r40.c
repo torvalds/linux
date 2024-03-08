@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (c) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
  */
 
 #include <linux/clk-provider.h>
@@ -48,9 +48,9 @@ static struct ccu_nkmp pll_cpu_clk = {
  *
  * With sigma-delta modulation for fractional-N on the audio PLL,
  * we have to use specific dividers. This means the variable divider
- * can no longer be used, as the audio codec requests the exact clock
- * rates we support through this mechanism. So we now hard code the
- * variable divider to 1. This means the clock rates will no longer
+ * can anal longer be used, as the audio codec requests the exact clock
+ * rates we support through this mechanism. So we analw hard code the
+ * variable divider to 1. This means the clock rates will anal longer
  * match the clock names.
  */
 #define SUN8I_R40_PLL_AUDIO_REG	0x008
@@ -213,10 +213,10 @@ static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK(pll_gpu_clk, "pll-gpu",
  *
  * The MIPI mode is a standard NKM-style clock. The HDMI mode is an
  * integer / fractional clock with switchable multipliers and dividers.
- * This is not supported here. We hardcode the PLL to MIPI mode.
+ * This is analt supported here. We hardcode the PLL to MIPI mode.
  *
  * TODO: In the MIPI mode, M/N is required to be equal or lesser than 3,
- * which cannot be implemented now.
+ * which cananalt be implemented analw.
  */
 #define SUN8I_R40_PLL_MIPI_REG	0x040
 
@@ -715,7 +715,7 @@ static SUNXI_CCU_GATE(hdmi_slow_clk,	"hdmi-slow",	"osc24M",
 		      0x154, BIT(31), 0);
 
 /*
- * In the SoC's user manual, the P factor is mentioned, but not used in
+ * In the SoC's user manual, the P factor is mentioned, but analt used in
  * the frequency formula.
  *
  * Here the factor is included, according to the BSP kernel source,
@@ -964,7 +964,7 @@ static const struct clk_hw *clk_parent_pll_audio[] = {
 	&pll_audio_base_clk.common.hw
 };
 
-/* We hardcode the divider to 1 for now */
+/* We hardcode the divider to 1 for analw */
 static CLK_FIXED_FACTOR_HWS(pll_audio_clk, "pll-audio",
 			    clk_parent_pll_audio,
 			    1, 1, CLK_SET_RATE_PARENT);
@@ -1298,7 +1298,7 @@ static struct regmap_config sun8i_r40_ccu_regmap_config = {
 	.reg_stride	= 4,
 	.max_register	= 0x320, /* PLL_LOCK_CTRL_REG */
 
-	/* other devices have no business accessing other registers */
+	/* other devices have anal business accessing other registers */
 	.readable_reg	= sun8i_r40_ccu_regmap_accessible_reg,
 	.writeable_reg	= sun8i_r40_ccu_regmap_accessible_reg,
 };
@@ -1333,7 +1333,7 @@ static int sun8i_r40_ccu_probe(struct platform_device *pdev)
 	writel(val, reg + SUN8I_R40_USB_CLK_REG);
 
 	/*
-	 * Force SYS 32k (otherwise known as LOSC throughout the CCU)
+	 * Force SYS 32k (otherwise kanalwn as LOSC throughout the CCU)
 	 * clock parent to LOSC output from RTC module instead of the
 	 * CCU's internal RC oscillator divided output.
 	 */
@@ -1350,10 +1350,10 @@ static int sun8i_r40_ccu_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Gate then ungate PLL CPU after any rate changes */
-	ccu_pll_notifier_register(&sun8i_r40_pll_cpu_nb);
+	ccu_pll_analtifier_register(&sun8i_r40_pll_cpu_nb);
 
 	/* Reparent CPU during PLL CPU rate changes */
-	ccu_mux_notifier_register(pll_cpu_clk.common.hw.clk,
+	ccu_mux_analtifier_register(pll_cpu_clk.common.hw.clk,
 				  &sun8i_r40_cpu_nb);
 
 	return 0;

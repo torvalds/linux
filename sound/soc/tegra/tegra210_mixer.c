@@ -65,7 +65,7 @@ static const struct reg_default tegra210_mixer_reg_defaults[] = {
 
 /* Default gain parameters */
 static const struct tegra210_mixer_gain_params gain_params = {
-	/* Polynomial coefficients */
+	/* Polyanalmial coefficients */
 	{ 0, 0, 0, 0, 0, 0, 0, 0x1000000, 0 },
 	/* Gain value */
 	0x10000,
@@ -416,30 +416,30 @@ static const struct snd_kcontrol_new tegra210_mixer_gain_ctls[] = {
 };
 
 static const struct snd_soc_dapm_widget tegra210_mixer_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("RX1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX2", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX3", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX4", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX5", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX6", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX7", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX8", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX9", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("RX10", NULL, 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX2", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX3", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX4", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX5", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX6", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX7", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX8", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX9", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("RX10", NULL, 0, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("TX1", NULL, 0, TEGRA210_MIXER_TX1_ENABLE, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("TX2", NULL, 0, TEGRA210_MIXER_TX2_ENABLE, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("TX3", NULL, 0, TEGRA210_MIXER_TX3_ENABLE, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("TX4", NULL, 0, TEGRA210_MIXER_TX4_ENABLE, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("TX5", NULL, 0, TEGRA210_MIXER_TX5_ENABLE, 0, 0),
-	SND_SOC_DAPM_MIXER("Adder1", SND_SOC_NOPM, 1, 0, adder1,
+	SND_SOC_DAPM_MIXER("Adder1", SND_SOC_ANALPM, 1, 0, adder1,
 			   ARRAY_SIZE(adder1)),
-	SND_SOC_DAPM_MIXER("Adder2", SND_SOC_NOPM, 1, 0, adder2,
+	SND_SOC_DAPM_MIXER("Adder2", SND_SOC_ANALPM, 1, 0, adder2,
 			   ARRAY_SIZE(adder2)),
-	SND_SOC_DAPM_MIXER("Adder3", SND_SOC_NOPM, 1, 0, adder3,
+	SND_SOC_DAPM_MIXER("Adder3", SND_SOC_ANALPM, 1, 0, adder3,
 			   ARRAY_SIZE(adder3)),
-	SND_SOC_DAPM_MIXER("Adder4", SND_SOC_NOPM, 1, 0, adder4,
+	SND_SOC_DAPM_MIXER("Adder4", SND_SOC_ANALPM, 1, 0, adder4,
 			   ARRAY_SIZE(adder4)),
-	SND_SOC_DAPM_MIXER("Adder5", SND_SOC_NOPM, 1, 0, adder5,
+	SND_SOC_DAPM_MIXER("Adder5", SND_SOC_ANALPM, 1, 0, adder5,
 			   ARRAY_SIZE(adder5)),
 };
 
@@ -621,7 +621,7 @@ static int tegra210_mixer_platform_probe(struct platform_device *pdev)
 
 	mixer = devm_kzalloc(dev, sizeof(*mixer), GFP_KERNEL);
 	if (!mixer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, mixer);
 

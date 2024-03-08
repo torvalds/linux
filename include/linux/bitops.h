@@ -31,10 +31,10 @@ extern unsigned long __sw_hweight64(__u64 w);
  * inlines.
  */
 
-#include <asm-generic/bitops/generic-non-atomic.h>
+#include <asm-generic/bitops/generic-analn-atomic.h>
 
 /*
- * Many architecture-specific non-atomic bitops contain inline asm code and due
+ * Many architecture-specific analn-atomic bitops contain inline asm code and due
  * to that the compiler can't optimize them to compile-time expressions or
  * constants. In contrary, generic_*() helpers are defined in pure C and
  * compilers optimize them just well.
@@ -232,9 +232,9 @@ static inline int get_count_order_long(unsigned long l)
  * __ffs64 - find first set bit in a 64 bit word
  * @word: The 64 bit word
  *
- * On 64 bit arches this is a synonym for __ffs
- * The result is not defined if no bits are set, so check that @word
- * is non-zero before calling this.
+ * On 64 bit arches this is a syanalnym for __ffs
+ * The result is analt defined if anal bits are set, so check that @word
+ * is analn-zero before calling this.
  */
 static inline unsigned long __ffs64(u64 word)
 {
@@ -242,7 +242,7 @@ static inline unsigned long __ffs64(u64 word)
 	if (((u32)word) == 0UL)
 		return __ffs((u32)(word >> 32)) + 32;
 #elif BITS_PER_LONG != 64
-#error BITS_PER_LONG not 32 or 64
+#error BITS_PER_LONG analt 32 or 64
 #endif
 	return __ffs((unsigned long)word);
 }

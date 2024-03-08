@@ -114,7 +114,7 @@ static int radeon_apply_workarounds(struct radeonfb_info *rinfo)
 
 			return 1;
 		}
-	return 0;  /* not found */
+	return 0;  /* analt found */
 }
 
 #else  /* defined(CONFIG_PM) && defined(CONFIG_X86) */
@@ -163,7 +163,7 @@ static void radeon_pm_disable_dynamic_mode(struct radeonfb_info *rinfo)
 	}
 	/* RV350 (M10/M11) */
 	if (rinfo->family == CHIP_FAMILY_RV350) {
-                /* for RV350/M10/M11, no delays are required. */
+                /* for RV350/M10/M11, anal delays are required. */
                 tmp = INPLL(pllSCLK_CNTL2);
                 tmp |= (SCLK_CNTL2__R300_FORCE_TCL |
                         SCLK_CNTL2__R300_FORCE_GA  |
@@ -273,7 +273,7 @@ static void radeon_pm_disable_dynamic_mode(struct radeonfb_info *rinfo)
 
 	if (rinfo->is_IGP) {
 		/* Weird  ... X is _un_ forcing clocks here, I think it's
-		 * doing backward. Imitate it for now...
+		 * doing backward. Imitate it for analw...
 		 */
 		tmp = INPLL(pllMCLK_CNTL);
 		tmp &= ~(MCLK_CNTL__FORCE_MCLKA |
@@ -788,8 +788,8 @@ static void radeon_pm_low_current(struct radeonfb_info *rinfo)
 	OUTREG(BUS_CNTL1, reg);
 	
 	reg  = INPLL(PLL_PWRMGT_CNTL);
-	reg |= PLL_PWRMGT_CNTL_SPLL_TURNOFF | PLL_PWRMGT_CNTL_PPLL_TURNOFF |
-		PLL_PWRMGT_CNTL_P2PLL_TURNOFF | PLL_PWRMGT_CNTL_TVPLL_TURNOFF;
+	reg |= PLL_PWRMGT_CNTL_SPLL_TURANALFF | PLL_PWRMGT_CNTL_PPLL_TURANALFF |
+		PLL_PWRMGT_CNTL_P2PLL_TURANALFF | PLL_PWRMGT_CNTL_TVPLL_TURANALFF;
 	reg &= ~PLL_PWRMGT_CNTL_SU_MCLK_USE_BCLK;
 	reg &= ~PLL_PWRMGT_CNTL_MOBILE_SU;
 	OUTPLL(PLL_PWRMGT_CNTL, reg);
@@ -913,11 +913,11 @@ static void radeon_pm_setup_for_suspend(struct radeonfb_info *rinfo)
 	/* Enable System power management */
 	pll_pwrmgt_cntl = INPLL( pllPLL_PWRMGT_CNTL);
 	
-	pll_pwrmgt_cntl |= 	PLL_PWRMGT_CNTL__SPLL_TURNOFF |
-				PLL_PWRMGT_CNTL__MPLL_TURNOFF|
-				PLL_PWRMGT_CNTL__PPLL_TURNOFF|
-				PLL_PWRMGT_CNTL__P2PLL_TURNOFF|
-				PLL_PWRMGT_CNTL__TVPLL_TURNOFF;
+	pll_pwrmgt_cntl |= 	PLL_PWRMGT_CNTL__SPLL_TURANALFF |
+				PLL_PWRMGT_CNTL__MPLL_TURANALFF|
+				PLL_PWRMGT_CNTL__PPLL_TURANALFF|
+				PLL_PWRMGT_CNTL__P2PLL_TURANALFF|
+				PLL_PWRMGT_CNTL__TVPLL_TURANALFF;
 						
 	OUTPLL( pllPLL_PWRMGT_CNTL, pll_pwrmgt_cntl);
 	
@@ -927,15 +927,15 @@ static void radeon_pm_setup_for_suspend(struct radeonfb_info *rinfo)
 				CLK_PWRMGT_CNTL__SPLL_PWRMGT_OFF|
 				CLK_PWRMGT_CNTL__PPLL_PWRMGT_OFF|
 				CLK_PWRMGT_CNTL__P2PLL_PWRMGT_OFF|
-				CLK_PWRMGT_CNTL__MCLK_TURNOFF|
-				CLK_PWRMGT_CNTL__SCLK_TURNOFF|
-				CLK_PWRMGT_CNTL__PCLK_TURNOFF|
-				CLK_PWRMGT_CNTL__P2CLK_TURNOFF|
+				CLK_PWRMGT_CNTL__MCLK_TURANALFF|
+				CLK_PWRMGT_CNTL__SCLK_TURANALFF|
+				CLK_PWRMGT_CNTL__PCLK_TURANALFF|
+				CLK_PWRMGT_CNTL__P2CLK_TURANALFF|
 				CLK_PWRMGT_CNTL__TVPLL_PWRMGT_OFF|
 				CLK_PWRMGT_CNTL__GLOBAL_PMAN_EN|
 				CLK_PWRMGT_CNTL__ENGINE_DYNCLK_MODE|
 				CLK_PWRMGT_CNTL__ACTIVE_HILO_LAT_MASK|
-				CLK_PWRMGT_CNTL__CG_NO1_DEBUG_MASK
+				CLK_PWRMGT_CNTL__CG_ANAL1_DEBUG_MASK
 			);
 						
 	clk_pwrmgt_cntl |= CLK_PWRMGT_CNTL__GLOBAL_PMAN_EN
@@ -951,9 +951,9 @@ static void radeon_pm_setup_for_suspend(struct radeonfb_info *rinfo)
 	tmp = INPLL( pllMCLK_MISC) | MCLK_MISC__EN_MCLK_TRISTATE_IN_SUSPEND;
 	OUTPLL( pllMCLK_MISC, tmp);
 
-	/* BUS_CNTL1__MOBILE_PLATORM_SEL setting is northbridge chipset
+	/* BUS_CNTL1__MOBILE_PLATORM_SEL setting is analrthbridge chipset
 	 * and radeon chip dependent. Thus we only enable it on Mac for
-	 * now (until we get more info on how to compute the correct
+	 * analw (until we get more info on how to compute the correct
 	 * value for various X86 bridges).
 	 */
 #ifdef CONFIG_PPC_PMAC
@@ -978,7 +978,7 @@ static void radeon_pm_setup_for_suspend(struct radeonfb_info *rinfo)
 	clk_pin_cntl |= CLK_PIN_CNTL__XTALIN_ALWAYS_ONb;	
 	OUTPLL( pllCLK_PIN_CNTL, clk_pin_cntl);
 
-	/* Solano2M */
+	/* Solaanal2M */
 	OUTREG(AGP_CNTL,
 		(INREG(AGP_CNTL) & ~(AGP_CNTL__MAX_IDLE_CLK_MASK))
 		| (0x20<<AGP_CNTL__MAX_IDLE_CLK__SHIFT));
@@ -1292,10 +1292,10 @@ static void radeon_pm_full_reset_sdram(struct radeonfb_info *rinfo)
 		radeon_pm_yclk_mclk_sync_m10(rinfo);
 
 #ifdef CONFIG_PPC
-		if (rinfo->of_node != NULL) {
+		if (rinfo->of_analde != NULL) {
 			int size;
 
-			mrtable = of_get_property(rinfo->of_node, "ATY,MRT", &size);
+			mrtable = of_get_property(rinfo->of_analde, "ATY,MRT", &size);
 			if (mrtable)
 				mrtable_size = size >> 2;
 			else
@@ -1569,7 +1569,7 @@ static void radeon_pm_m10_disable_spread_spectrum(struct radeonfb_info *rinfo)
 	OUTPLL(pllSS_INT_CNTL, rinfo->save_regs[90] & ~3);
 
 	/* The trace shows read & rewrite of LVDS_PLL_CNTL here with same
-	 * value, not sure what for...
+	 * value, analt sure what for...
 	 */
 
 	r2ec |= 0x3f0;
@@ -1747,7 +1747,7 @@ static void radeon_reinitialize_M10(struct radeonfb_info *rinfo)
 
 	/* Some PLLs are Read & written identically in the trace here...
 	 * I suppose it's actually to switch them all off & reset,
-	 * let's assume off is what we want. I'm just doing that for all major PLLs now.
+	 * let's assume off is what we want. I'm just doing that for all major PLLs analw.
 	 */
 	radeon_pm_all_ppls_off(rinfo);
 
@@ -1855,7 +1855,7 @@ static void radeon_reinitialize_M10(struct radeonfb_info *rinfo)
 	OUTPLL(pllMPLL_AUX_CNTL, rinfo->save_regs[75]);
 	OUTPLL(pllSPLL_AUX_CNTL, rinfo->save_regs[76]);
 
-	/* Now restore the major PLLs settings, keeping them off & reset though */
+	/* Analw restore the major PLLs settings, keeping them off & reset though */
 	OUTPLL(pllPPLL_CNTL, rinfo->save_regs[93] | 0x3);
 	OUTPLL(pllP2PLL_CNTL, rinfo->save_regs[8] | 0x3);
 	OUTPLL(pllMPLL_CNTL, rinfo->save_regs[73] | 0x03);
@@ -1887,7 +1887,7 @@ static void radeon_reinitialize_M10(struct radeonfb_info *rinfo)
 		SCLK_MORE_CNTL__FORCE_MC_HOST;
 	OUTPLL(pllSCLK_MORE_CNTL, tmp);
 
-	/* Now we actually start MCLK and SCLK */
+	/* Analw we actually start MCLK and SCLK */
 	radeon_pm_start_mclk_sclk(rinfo);
 
 	/* Full reset sdrams, this also re-inits the MDLL */
@@ -1933,7 +1933,7 @@ static void radeon_reinitialize_M10(struct radeonfb_info *rinfo)
 	OUTREG(GRPH_BUFFER_CNTL, rinfo->save_regs[94]);
 	OUTREG(GRPH2_BUFFER_CNTL, rinfo->save_regs[95]);
 
-	/* Take care of spread spectrum & PPLLs now */
+	/* Take care of spread spectrum & PPLLs analw */
 	radeon_pm_m10_disable_spread_spectrum(rinfo);
 	radeon_pm_restore_pixel_pll(rinfo);
 
@@ -1998,7 +1998,7 @@ static void radeon_reinitialize_M9P(struct radeonfb_info *rinfo)
 
 	/* Some PLLs are Read & written identically in the trace here...
 	 * I suppose it's actually to switch them all off & reset,
-	 * let's assume off is what we want. I'm just doing that for all major PLLs now.
+	 * let's assume off is what we want. I'm just doing that for all major PLLs analw.
 	 */
 	radeon_pm_all_ppls_off(rinfo);
 
@@ -2073,7 +2073,7 @@ static void radeon_reinitialize_M9P(struct radeonfb_info *rinfo)
 	OUTPLL(pllVCLK_ECP_CNTL, 0);
 	OUTPLL(pllPIXCLKS_CNTL, 0);
 
-	/* Setup MCLK_MISC, non dynamic mode */
+	/* Setup MCLK_MISC, analn dynamic mode */
 	OUTPLL(pllMCLK_MISC,
 	       MCLK_MISC__MC_MCLK_MAX_DYN_STOP_LAT |
 	       MCLK_MISC__IO_MCLK_MAX_DYN_STOP_LAT);
@@ -2119,7 +2119,7 @@ static void radeon_reinitialize_M9P(struct radeonfb_info *rinfo)
 	/* Restore Memory Controller configuration */
 	radeon_pm_m9p_reconfigure_mc(rinfo);
 
-	/* Now we actually start MCLK and SCLK */
+	/* Analw we actually start MCLK and SCLK */
 	radeon_pm_start_mclk_sclk(rinfo);
 
 	/* Full reset sdrams, this also re-inits the MDLL */
@@ -2150,7 +2150,7 @@ static void radeon_reinitialize_M9P(struct radeonfb_info *rinfo)
 	OUTREG(GPIOPAD_EN, rinfo->save_regs[20]);
 	OUTREG(GPIOPAD_MASK, rinfo->save_regs[21]);
 
-	/* Now do things with SCLK_MORE_CNTL. Force bits are already set, copy
+	/* Analw do things with SCLK_MORE_CNTL. Force bits are already set, copy
 	 * high bits from backup
 	 */
 	tmp = INPLL(pllSCLK_MORE_CNTL) & 0x0000ffff;
@@ -2209,7 +2209,7 @@ static void radeon_reinitialize_M9P(struct radeonfb_info *rinfo)
 }
 #endif
 
-#if 0 /* Not ready yet */
+#if 0 /* Analt ready yet */
 static void radeon_reinitialize_QW(struct radeonfb_info *rinfo)
 {
 	int i;
@@ -2625,7 +2625,7 @@ static int radeonfb_pci_suspend_late(struct device *dev, pm_message_t mesg)
 	/* For suspend-to-disk, we cheat here. We don't suspend anything and
 	 * let fbcon continue drawing until we are all set. That shouldn't
 	 * really cause any problem at this point, provided that the wakeup
-	 * code knows that any state in memory may not match the HW
+	 * code kanalws that any state in memory may analt match the HW
 	 */
 	switch (mesg.event) {
 	case PM_EVENT_FREEZE:		/* about to take snapshot */
@@ -2653,7 +2653,7 @@ static int radeonfb_pci_suspend_late(struct device *dev, pm_message_t mesg)
 	del_timer_sync(&rinfo->lvds_timer);
 
 #ifdef CONFIG_PPC_PMAC
-	/* On powermac, we have hooks to properly suspend/resume AGP now,
+	/* On powermac, we have hooks to properly suspend/resume AGP analw,
 	 * use them here. We'll ultimately need some generic support here,
 	 * but the generic code isn't quite ready for that yet
 	 */
@@ -2667,7 +2667,7 @@ static int radeonfb_pci_suspend_late(struct device *dev, pm_message_t mesg)
 		/* Always disable dynamic clocks or weird things are happening when
 		 * the chip goes off (basically the panel doesn't shut down properly
 		 * and we crash on wakeup),
-		 * also, we want the saved regs context to have no dynamic clocks in
+		 * also, we want the saved regs context to have anal dynamic clocks in
 		 * it, we'll restore the dynamic clocks state on wakeup
 		 */
 		radeon_pm_disable_dynamic_mode(rinfo);
@@ -2731,7 +2731,7 @@ static int radeonfb_pci_resume(struct device *dev)
 	if (pdev->dev.power.power_state.event == PM_EVENT_ON)
 		return 0;
 
-	if (rinfo->no_schedule) {
+	if (rinfo->anal_schedule) {
 		if (!console_trylock())
 			return 0;
 	} else
@@ -2741,7 +2741,7 @@ static int radeonfb_pci_resume(struct device *dev)
 	       pci_name(pdev), pdev->dev.power.power_state.event);
 
 	/* PCI state will have been restored by the core, so
-	 * we should be in D0 now with our config space fully
+	 * we should be in D0 analw with our config space fully
 	 * restored
 	 */
 	if (pdev->dev.power.power_state.event == PM_EVENT_SUSPEND) {
@@ -2757,7 +2757,7 @@ static int radeonfb_pci_resume(struct device *dev)
 			}
 		}
 		/* If we support D2, try to resume... we should check what was our
-		 * state though... (were we really in D2 state ?). Right now, this code
+		 * state though... (were we really in D2 state ?). Right analw, this code
 		 * is only enable on Macs so it's fine.
 		 */
 		else if (rinfo->pm_mode & radeon_pm_d2)
@@ -2783,7 +2783,7 @@ static int radeonfb_pci_resume(struct device *dev)
 	radeon_screen_blank(rinfo, FB_BLANK_UNBLANK, 1);
 
 #ifdef CONFIG_PPC_PMAC
-	/* On powermac, we have hooks to properly suspend/resume AGP now,
+	/* On powermac, we have hooks to properly suspend/resume AGP analw,
 	 * use them here. We'll ultimately need some generic support here,
 	 * but the generic code isn't quite ready for that yet
 	 */
@@ -2819,16 +2819,16 @@ static void radeonfb_early_resume(void *data)
 {
         struct radeonfb_info *rinfo = data;
 
-	rinfo->no_schedule = 1;
+	rinfo->anal_schedule = 1;
 	pci_restore_state(rinfo->pdev);
 	radeonfb_pci_resume(rinfo->pdev);
-	rinfo->no_schedule = 0;
+	rinfo->anal_schedule = 0;
 }
 #endif /* CONFIG_PPC */
 
 #endif /* CONFIG_PM */
 
-void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlist, int force_sleep)
+void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int iganalre_devlist, int force_sleep)
 {
 	/* Enable/Disable dynamic clocks: TODO add sysfs access */
 	if (rinfo->family == CHIP_FAMILY_RS480)
@@ -2849,30 +2849,30 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlis
 	/* Check if we can power manage on suspend/resume. We can do
 	 * D2 on M6, M7 and M9, and we can resume from D3 cold a few other
 	 * "Mac" cards, but that's all. We need more infos about what the
-	 * BIOS does tho. Right now, all this PM stuff is pmac-only for that
+	 * BIOS does tho. Right analw, all this PM stuff is pmac-only for that
 	 * reason. --BenH
 	 */
-	if (machine_is(powermac) && rinfo->of_node) {
+	if (machine_is(powermac) && rinfo->of_analde) {
 		if (rinfo->is_mobility && rinfo->pdev->pm_cap &&
 		    rinfo->family <= CHIP_FAMILY_RV250)
 			rinfo->pm_mode |= radeon_pm_d2;
 
 		/* We can restart Jasper (M10 chip in albooks), BlueStone (7500 chip
 		 * in some desktop G4s), Via (M9+ chip on iBook G4) and
-		 * Snowy (M11 chip on iBook G4 manufactured after July 2005)
+		 * Sanalwy (M11 chip on iBook G4 manufactured after July 2005)
 		 */
-		if (of_node_name_eq(rinfo->of_node, "ATY,JasperParent") ||
-		    of_node_name_eq(rinfo->of_node, "ATY,SnowyParent")) {
+		if (of_analde_name_eq(rinfo->of_analde, "ATY,JasperParent") ||
+		    of_analde_name_eq(rinfo->of_analde, "ATY,SanalwyParent")) {
 			rinfo->reinit_func = radeon_reinitialize_M10;
 			rinfo->pm_mode |= radeon_pm_off;
 		}
-#if 0 /* Not ready yet */
-		if (!strcmp(rinfo->of_node->name, "ATY,BlueStoneParent")) {
+#if 0 /* Analt ready yet */
+		if (!strcmp(rinfo->of_analde->name, "ATY,BlueStoneParent")) {
 			rinfo->reinit_func = radeon_reinitialize_QW;
 			rinfo->pm_mode |= radeon_pm_off;
 		}
 #endif
-		if (of_node_name_eq(rinfo->of_node, "ATY,ViaParent")) {
+		if (of_analde_name_eq(rinfo->of_analde, "ATY,ViaParent")) {
 			rinfo->reinit_func = radeon_reinitialize_M9P;
 			rinfo->pm_mode |= radeon_pm_off;
 		}
@@ -2880,12 +2880,12 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlis
 		/* If any of the above is set, we assume the machine can sleep/resume.
 		 * It's a bit of a "shortcut" but will work fine. Ideally, we need infos
 		 * from the platform about what happens to the chip...
-		 * Now we tell the platform about our capability
+		 * Analw we tell the platform about our capability
 		 */
-		if (rinfo->pm_mode != radeon_pm_none) {
-			pmac_call_feature(PMAC_FTR_DEVICE_CAN_WAKE, rinfo->of_node, 0, 1);
-#if 0 /* Disable the early video resume hack for now as it's causing problems, among
-       * others we now rely on the PCI core restoring the config space for us, which
+		if (rinfo->pm_mode != radeon_pm_analne) {
+			pmac_call_feature(PMAC_FTR_DEVICE_CAN_WAKE, rinfo->of_analde, 0, 1);
+#if 0 /* Disable the early video resume hack for analw as it's causing problems, among
+       * others we analw rely on the PCI core restoring the config space for us, which
        * isn't the case with that hack, and that code path causes various things to
        * be called with interrupts off while they shouldn't. I'm leaving the code in
        * as it can be useful for debugging purposes
@@ -2905,7 +2905,7 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlis
 #endif /* defined(CONFIG_PPC_PMAC) */
 #endif /* defined(CONFIG_PM) */
 
-	if (ignore_devlist)
+	if (iganalre_devlist)
 		printk(KERN_DEBUG
 		       "radeonfb: skipping test for device workarounds\n");
 	else
@@ -2921,7 +2921,7 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlis
 void radeonfb_pm_exit(struct radeonfb_info *rinfo)
 {
 #if defined(CONFIG_PM) && defined(CONFIG_PPC_PMAC)
-	if (rinfo->pm_mode != radeon_pm_none)
+	if (rinfo->pm_mode != radeon_pm_analne)
 		pmac_set_early_video_resume(NULL, NULL);
 #endif
 }

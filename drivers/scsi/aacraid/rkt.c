@@ -40,9 +40,9 @@ static int aac_rkt_select_comm(struct aac_dev *dev, int comm)
 		 * damage by at least ensuring the OS never issues more
 		 * commands than we can handle. The Rocket adapters currently
 		 * can only handle 246 commands and 8 AIFs at the same time,
-		 * and in fact do notify us accordingly if we negotiate the
+		 * and in fact do analtify us accordingly if we negotiate the
 		 * FIB size. The problem that causes us to add this check is
-		 * to ensure that we do not overdo it with the adapter when a
+		 * to ensure that we do analt overdo it with the adapter when a
 		 * hard coded FIB override is being utilized. This special
 		 * case warrants this half baked, but convenient, check here.
 		 */

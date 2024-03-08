@@ -1,7 +1,7 @@
 Texas Instruments High End CAN Controller (HECC)
 ================================================
 
-This file provides information, what the device node
+This file provides information, what the device analde
 for the hecc interface contains.
 
 Required properties:

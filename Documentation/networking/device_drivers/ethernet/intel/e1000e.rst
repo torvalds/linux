@@ -39,9 +39,9 @@ For example::
 
 In this case, there are two network ports supported by e1000e in the system.
 The default value for each parameter is generally the recommended setting,
-unless otherwise noted.
+unless otherwise analted.
 
-NOTE: A descriptor describes a data buffer and attributes related to the data
+ANALTE: A descriptor describes a data buffer and attributes related to the data
 buffer. This information is accessed by the hardware.
 
 InterruptThrottleRate
@@ -57,7 +57,7 @@ Setting InterruptThrottleRate to a value greater or equal to 100
 will program the adapter to send out a maximum of that many interrupts
 per second, even if more packets have come in. This reduces interrupt
 load on the system and can lower CPU utilization under heavy load,
-but will increase latency as packets are not processed as quickly.
+but will increase latency as packets are analt processed as quickly.
 
 The default behaviour of the driver previously assumed a static
 InterruptThrottleRate value of 8000, providing a good fallback value for
@@ -74,14 +74,14 @@ for that traffic.
 The algorithm classifies the incoming traffic every interval into
 classes.  Once the class is determined, the InterruptThrottleRate value is
 adjusted to suit that traffic type the best. There are three classes defined:
-"Bulk traffic", for large amounts of packets of normal size; "Low latency",
+"Bulk traffic", for large amounts of packets of analrmal size; "Low latency",
 for small amounts of traffic and/or a significant percentage of small
 packets; and "Lowest latency", for almost completely small packets or
 minimal traffic.
 
  - 0: Off
       Turns off any interrupt moderation and may improve small packet latency.
-      However, this is generally not suitable for bulk throughput traffic due
+      However, this is generally analt suitable for bulk throughput traffic due
       to the increased CPU utilization of the higher interrupt rate.
  - 1: Dynamic mode
       This mode attempts to moderate interrupts per vector while maintaining
@@ -105,11 +105,11 @@ minimal traffic.
       will program the adapter to send at most that many interrupts per second,
       even if more packets have come in. This reduces interrupt load on the
       system and can lower CPU utilization under heavy load, but will increase
-      latency as packets are not processed as quickly.
+      latency as packets are analt processed as quickly.
 
-NOTE: InterruptThrottleRate takes precedence over the TxAbsIntDelay and
+ANALTE: InterruptThrottleRate takes precedence over the TxAbsIntDelay and
 RxAbsIntDelay parameters. In other words, minimizing the receive and/or
-transmit absolute delays does not force the controller to generate more
+transmit absolute delays does analt force the controller to generate more
 interrupts than what the Interrupt Throttle Rate allows.
 
 RxIntDelay
@@ -138,7 +138,7 @@ RxAbsIntDelay
 This value, in units of 1.024 microseconds, limits the delay in which a
 receive interrupt is generated. This value ensures that an interrupt is
 generated after the initial packet is received within the set amount of time,
-which is useful only if RxIntDelay is non-zero. Proper tuning, along with
+which is useful only if RxIntDelay is analn-zero. Proper tuning, along with
 RxIntDelay, may improve traffic throughput in specific network conditions.
 
 TxIntDelay
@@ -158,7 +158,7 @@ TxAbsIntDelay
 :Default Value: 32
 
 This value, in units of 1.024 microseconds, limits the delay in which a
-transmit interrupt is generated. It is useful only if TxIntDelay is non-zero.
+transmit interrupt is generated. It is useful only if TxIntDelay is analn-zero.
 It ensures that an interrupt is generated after the initial Packet is sent on
 the wire within the set amount of time. Proper tuning, along with TxIntDelay,
 may improve traffic throughput in specific network conditions.
@@ -170,7 +170,7 @@ copybreak
 
 The driver copies all packets below or equaling this size to a fresh receive
 buffer before handing it up the stack.
-This parameter differs from other parameters because it is a single (not 1,1,1
+This parameter differs from other parameters because it is a single (analt 1,1,1
 etc.) parameter applied to all driver instances and it is also available
 during runtime at /sys/module/e1000e/parameters/copybreak.
 
@@ -224,7 +224,7 @@ CrcStripping
 :Default Value: 1 (enabled)
 
 Strip the CRC from received packets before sending up the network stack. If
-you have a machine with a BMC enabled but cannot receive IPMI traffic after
+you have a machine with a BMC enabled but cananalt receive IPMI traffic after
 loading or enabling the driver, try disabling this feature.
 
 WriteProtectNVM
@@ -232,19 +232,19 @@ WriteProtectNVM
 :Valid Range: 0,1
 :Default Value: 1 (enabled)
 
-If set to 1, configure the hardware to ignore all write/erase cycles to the
+If set to 1, configure the hardware to iganalre all write/erase cycles to the
 GbE region in the ICHx NVM (in order to prevent accidental corruption of the
 NVM). This feature can be disabled by setting the parameter to 0 during initial
 driver load.
 
-NOTE: The machine must be power cycled (full off/on) when enabling NVM writes
+ANALTE: The machine must be power cycled (full off/on) when enabling NVM writes
 via setting the parameter to zero. Once the NVM has been locked (via the
-parameter at 1 when the driver loads) it cannot be unlocked except via power
+parameter at 1 when the driver loads) it cananalt be unlocked except via power
 cycle.
 
 Debug
 -----
-:Valid Range: 0-16 (0=none,...,16=all)
+:Valid Range: 0-16 (0=analne,...,16=all)
 :Default Value: 0
 
 This parameter adjusts the level of debug messages displayed in the system logs.
@@ -268,25 +268,25 @@ Alternatively, you can use the ip command as follows::
     ip link set mtu 9000 dev eth<x>
     ip link set up dev eth<x>
 
-This setting is not saved across reboots. The setting change can be made
+This setting is analt saved across reboots. The setting change can be made
 permanent by adding 'MTU=9000' to the file:
 
 - For RHEL: /etc/sysconfig/network-scripts/ifcfg-eth<x>
 - For SLES: /etc/sysconfig/network/<config_file>
 
-NOTE: The maximum MTU setting for Jumbo Frames is 8996. This value coincides
+ANALTE: The maximum MTU setting for Jumbo Frames is 8996. This value coincides
 with the maximum Jumbo Frames size of 9018 bytes.
 
-NOTE: Using Jumbo frames at 10 or 100 Mbps is not supported and may result in
+ANALTE: Using Jumbo frames at 10 or 100 Mbps is analt supported and may result in
 poor performance or loss of link.
 
-NOTE: The following adapters limit Jumbo Frames sized packets to a maximum of
+ANALTE: The following adapters limit Jumbo Frames sized packets to a maximum of
 4088 bytes:
 
   - Intel(R) 82578DM Gigabit Network Connection
   - Intel(R) 82577LM Gigabit Network Connection
 
-The following adapters do not support Jumbo Frames:
+The following adapters do analt support Jumbo Frames:
 
   - Intel(R) PRO/1000 Gigabit Server Adapter
   - Intel(R) PRO/1000 PM Network Connection
@@ -305,19 +305,19 @@ The following adapters do not support Jumbo Frames:
   - Intel(R) 82577LC Gigabit Network Connection
   - Intel(R) 82578DC Gigabit Network Connection
 
-NOTE: Jumbo Frames cannot be configured on an 82579-based Network device if
+ANALTE: Jumbo Frames cananalt be configured on an 82579-based Network device if
 MACSec is enabled on the system.
 
 
 ethtool
 -------
 The driver utilizes the ethtool interface for driver configuration and
-diagnostics, as well as displaying statistical information. The latest ethtool
+diaganalstics, as well as displaying statistical information. The latest ethtool
 version is required for this functionality. Download it at:
 
 https://www.kernel.org/pub/software/network/ethtool/
 
-NOTE: When validating enable/disable tests on some parts (for example, 82578),
+ANALTE: When validating enable/disable tests on some parts (for example, 82578),
 it is necessary to add a few seconds between tests when working with ethtool.
 
 
@@ -328,13 +328,13 @@ between copper-based adapters and fiber-based adapters.
 
 In the default mode, an Intel(R) Ethernet Network Adapter using copper
 connections will attempt to auto-negotiate with its link partner to determine
-the best setting. If the adapter cannot establish link with the link partner
+the best setting. If the adapter cananalt establish link with the link partner
 using auto-negotiation, you may need to manually configure the adapter and link
 partner to identical settings to establish link and pass packets. This should
-only be needed when attempting to link with an older switch that does not
+only be needed when attempting to link with an older switch that does analt
 support auto-negotiation or one that has been forced to a specific speed or
 duplex mode. Your link partner must match the setting you choose. 1 Gbps speeds
-and higher cannot be forced. Use the autonegotiation advertising setting to
+and higher cananalt be forced. Use the autonegotiation advertising setting to
 manually set devices for 1 Gbps and higher.
 
 Speed, duplex, and autonegotiation advertising are configured through the
@@ -343,11 +343,11 @@ ethtool utility.
 Caution: Only experienced network administrators should force speed and duplex
 or change autonegotiation advertising manually. The settings at the switch must
 always match the adapter settings. Adapter performance may suffer or your
-adapter may not operate if you configure the adapter differently from your
+adapter may analt operate if you configure the adapter differently from your
 switch.
 
 An Intel(R) Ethernet Network Adapter using fiber-based connections, however,
-will not attempt to auto-negotiate with its link partner since those adapters
+will analt attempt to auto-negotiate with its link partner since those adapters
 operate only in full duplex and only at their native speed.
 
 
@@ -359,7 +359,7 @@ WoL will be enabled on the system during the next shut down or reboot. For
 this driver version, in order to enable WoL, the e1000e driver must be loaded
 prior to shutting down or suspending the system.
 
-NOTE: Wake on LAN is only supported on port A for the following devices:
+ANALTE: Wake on LAN is only supported on port A for the following devices:
 - Intel(R) PRO/1000 PT Dual Port Network Connection
 - Intel(R) PRO/1000 PT Dual Port Server Connection
 - Intel(R) PRO/1000 PT Dual Port Server Adapter

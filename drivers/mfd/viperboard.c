@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Nano River Technologies viperboard driver
+ *  Naanal River Techanallogies viperboard driver
  *
  *  This is the core driver for the viperboard. There are cell drivers
- *  available for I2C, ADC and both GPIOs. SPI is not yet supported.
- *  The drivers do not support all features the board exposes. See user
+ *  available for I2C, ADC and both GPIOs. SPI is analt yet supported.
+ *  The drivers do analt support all features the board exposes. See user
  *  manual of the viperboard.
  *
  *  (C) 2012 by Lemonage GmbH
@@ -13,7 +13,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -26,7 +26,7 @@
 
 
 static const struct usb_device_id vprbrd_table[] = {
-	{ USB_DEVICE(0x2058, 0x1005) },   /* Nano River Technologies */
+	{ USB_DEVICE(0x2058, 0x1005) },   /* Naanal River Techanallogies */
 	{ }                               /* Terminating entry */
 };
 
@@ -55,7 +55,7 @@ static int vprbrd_probe(struct usb_interface *interface,
 	/* allocate memory for our device state and initialize it */
 	vb = kzalloc(sizeof(*vb), GFP_KERNEL);
 	if (!vb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&vb->lock);
 
@@ -65,7 +65,7 @@ static int vprbrd_probe(struct usb_interface *interface,
 	usb_set_intfdata(interface, vb);
 	dev_set_drvdata(&vb->pdev.dev, vb);
 
-	/* get version information, major first, minor then */
+	/* get version information, major first, mianalr then */
 	pipe = usb_rcvctrlpipe(vb->usb_dev, 0);
 	ret = usb_control_msg(vb->usb_dev, pipe, VPRBRD_USB_REQUEST_MAJOR,
 		VPRBRD_USB_TYPE_IN, 0x0000, 0x0000, vb->buf, 1,
@@ -73,7 +73,7 @@ static int vprbrd_probe(struct usb_interface *interface,
 	if (ret == 1)
 		version = vb->buf[0];
 
-	ret = usb_control_msg(vb->usb_dev, pipe, VPRBRD_USB_REQUEST_MINOR,
+	ret = usb_control_msg(vb->usb_dev, pipe, VPRBRD_USB_REQUEST_MIANALR,
 		VPRBRD_USB_TYPE_IN, 0x0000, 0x0000, vb->buf, 1,
 		VPRBRD_USB_TIMEOUT_MS);
 	if (ret == 1) {
@@ -125,6 +125,6 @@ static struct usb_driver vprbrd_driver = {
 
 module_usb_driver(vprbrd_driver);
 
-MODULE_DESCRIPTION("Nano River Technologies viperboard mfd core driver");
+MODULE_DESCRIPTION("Naanal River Techanallogies viperboard mfd core driver");
 MODULE_AUTHOR("Lars Poeschel <poeschel@lemonage.de>");
 MODULE_LICENSE("GPL");

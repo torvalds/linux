@@ -85,8 +85,8 @@ static void resource_do_test(struct kunit *test, bool ret, struct resource *r,
 			     struct resource *r1, struct resource *r2)
 {
 	KUNIT_EXPECT_EQ_MSG(test, ret, exp_ret, "Resources %pR %pR", r1, r2);
-	KUNIT_EXPECT_EQ_MSG(test, r->start, exp_r->start, "Start elements are not equal");
-	KUNIT_EXPECT_EQ_MSG(test, r->end, exp_r->end, "End elements are not equal");
+	KUNIT_EXPECT_EQ_MSG(test, r->start, exp_r->start, "Start elements are analt equal");
+	KUNIT_EXPECT_EQ_MSG(test, r->end, exp_r->end, "End elements are analt equal");
 }
 
 static void resource_do_union_test(struct kunit *test, struct result *r)

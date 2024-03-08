@@ -74,7 +74,7 @@ void hv_set_vpreg(u32 msr, u64 value)
 
 	/*
 	 * Something is fundamentally broken in the hypervisor if
-	 * setting a VP register fails. There's really no way to
+	 * setting a VP register fails. There's really anal way to
 	 * continue as a guest VM, so panic.
 	 */
 	BUG_ON(!hv_result_success(res.a0));
@@ -83,7 +83,7 @@ EXPORT_SYMBOL_GPL(hv_set_vpreg);
 
 /*
  * Get the value of a single VP register.  One version
- * returns just 64 bits and another returns the full 128 bits.
+ * returns just 64 bits and aanalther returns the full 128 bits.
  * The two versions are separate to avoid complicating the
  * calling sequence for the more frequently used 64 bit version.
  */
@@ -108,7 +108,7 @@ void hv_get_vpreg_128(u32 msr, struct hv_get_vp_registers_output *result)
 
 	/*
 	 * Something is fundamentally broken in the hypervisor if
-	 * getting a VP register fails. There's really no way to
+	 * getting a VP register fails. There's really anal way to
 	 * continue as a guest VM, so panic.
 	 */
 	BUG_ON(!hv_result_success(res.a0));
@@ -131,7 +131,7 @@ EXPORT_SYMBOL_GPL(hv_get_vpreg);
 /*
  * hyperv_report_panic - report a panic to Hyper-V.  This function uses
  * the older version of the Hyper-V interface that admittedly doesn't
- * pass enough information to be useful beyond just recording the
+ * pass eanalugh information to be useful beyond just recording the
  * occurrence of a panic. The parallel hv_kmsg_dump() uses the
  * new interface that allows reporting 4 Kbytes of data, which is much
  * more useful. Hyper-V on ARM64 always supports the newer interface, but
@@ -144,7 +144,7 @@ void hyperv_report_panic(struct pt_regs *regs, long err, bool in_die)
 	static bool	panic_reported;
 	u64		guest_id;
 
-	/* Don't report a panic to Hyper-V if we're not going to panic */
+	/* Don't report a panic to Hyper-V if we're analt going to panic */
 	if (in_die && !panic_on_oops)
 		return;
 
@@ -154,7 +154,7 @@ void hyperv_report_panic(struct pt_regs *regs, long err, bool in_die)
 	 * to report it on 'panic'.
 	 *
 	 * Calling code in the 'die' and 'panic' paths ensures that only
-	 * one CPU is running this code, so no atomicity is needed.
+	 * one CPU is running this code, so anal atomicity is needed.
 	 */
 	if (panic_reported)
 		return;
@@ -174,8 +174,8 @@ void hyperv_report_panic(struct pt_regs *regs, long err, bool in_die)
 	hv_set_vpreg(HV_REGISTER_CRASH_P4, 0);
 
 	/*
-	 * Let Hyper-V know there is crash data available
+	 * Let Hyper-V kanalw there is crash data available
 	 */
-	hv_set_vpreg(HV_REGISTER_CRASH_CTL, HV_CRASH_CTL_CRASH_NOTIFY);
+	hv_set_vpreg(HV_REGISTER_CRASH_CTL, HV_CRASH_CTL_CRASH_ANALTIFY);
 }
 EXPORT_SYMBOL_GPL(hyperv_report_panic);

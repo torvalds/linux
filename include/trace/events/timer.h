@@ -61,7 +61,7 @@ TRACE_EVENT(timer_start,
 		__field( void *,	function	)
 		__field( unsigned long,	expires		)
 		__field( unsigned long,	bucket_expiry	)
-		__field( unsigned long,	now		)
+		__field( unsigned long,	analw		)
 		__field( unsigned int,	flags		)
 	),
 
@@ -70,13 +70,13 @@ TRACE_EVENT(timer_start,
 		__entry->function	= timer->function;
 		__entry->expires	= timer->expires;
 		__entry->bucket_expiry	= bucket_expiry;
-		__entry->now		= jiffies;
+		__entry->analw		= jiffies;
 		__entry->flags		= timer->flags;
 	),
 
 	TP_printk("timer=%p function=%ps expires=%lu [timeout=%ld] bucket_expiry=%lu cpu=%u idx=%u flags=%s",
 		  __entry->timer, __entry->function, __entry->expires,
-		  (long)__entry->expires - __entry->now,
+		  (long)__entry->expires - __entry->analw,
 		  __entry->bucket_expiry, __entry->flags & TIMER_CPUMASK,
 		  __entry->flags >> TIMER_ARRAYSHIFT,
 		  decode_timer_flags(__entry->flags & TIMER_TRACE_FLAGMASK))
@@ -97,20 +97,20 @@ TRACE_EVENT(timer_expire_entry,
 
 	TP_STRUCT__entry(
 		__field( void *,	timer	)
-		__field( unsigned long,	now	)
+		__field( unsigned long,	analw	)
 		__field( void *,	function)
 		__field( unsigned long,	baseclk	)
 	),
 
 	TP_fast_assign(
 		__entry->timer		= timer;
-		__entry->now		= jiffies;
+		__entry->analw		= jiffies;
 		__entry->function	= timer->function;
 		__entry->baseclk	= baseclk;
 	),
 
-	TP_printk("timer=%p function=%ps now=%lu baseclk=%lu",
-		  __entry->timer, __entry->function, __entry->now,
+	TP_printk("timer=%p function=%ps analw=%lu baseclk=%lu",
+		  __entry->timer, __entry->function, __entry->analw,
 		  __entry->baseclk)
 );
 
@@ -121,7 +121,7 @@ TRACE_EVENT(timer_expire_entry,
  * When used in combination with the timer_expire_entry tracepoint we can
  * determine the runtime of the timer callback function.
  *
- * NOTE: Do NOT dereference timer in TP_fast_assign. The pointer might
+ * ANALTE: Do ANALT dereference timer in TP_fast_assign. The pointer might
  * be invalid. We solely track the pointer.
  */
 DEFINE_EVENT(timer_class, timer_expire_exit,
@@ -165,7 +165,7 @@ TRACE_EVENT(timer_base_idle,
 #define decode_clockid(type)						\
 	__print_symbolic(type,						\
 		{ CLOCK_REALTIME,	"CLOCK_REALTIME"	},	\
-		{ CLOCK_MONOTONIC,	"CLOCK_MONOTONIC"	},	\
+		{ CLOCK_MOANALTONIC,	"CLOCK_MOANALTONIC"	},	\
 		{ CLOCK_BOOTTIME,	"CLOCK_BOOTTIME"	},	\
 		{ CLOCK_TAI,		"CLOCK_TAI"		})
 
@@ -251,32 +251,32 @@ TRACE_EVENT(hrtimer_start,
 /**
  * hrtimer_expire_entry - called immediately before the hrtimer callback
  * @hrtimer:	pointer to struct hrtimer
- * @now:	pointer to variable which contains current time of the
+ * @analw:	pointer to variable which contains current time of the
  *		timers base.
  *
  * Allows to determine the timer latency.
  */
 TRACE_EVENT(hrtimer_expire_entry,
 
-	TP_PROTO(struct hrtimer *hrtimer, ktime_t *now),
+	TP_PROTO(struct hrtimer *hrtimer, ktime_t *analw),
 
-	TP_ARGS(hrtimer, now),
+	TP_ARGS(hrtimer, analw),
 
 	TP_STRUCT__entry(
 		__field( void *,	hrtimer	)
-		__field( s64,		now	)
+		__field( s64,		analw	)
 		__field( void *,	function)
 	),
 
 	TP_fast_assign(
 		__entry->hrtimer	= hrtimer;
-		__entry->now		= *now;
+		__entry->analw		= *analw;
 		__entry->function	= hrtimer->function;
 	),
 
-	TP_printk("hrtimer=%p function=%ps now=%llu",
+	TP_printk("hrtimer=%p function=%ps analw=%llu",
 		  __entry->hrtimer, __entry->function,
-		  (unsigned long long) __entry->now)
+		  (unsigned long long) __entry->analw)
 );
 
 DECLARE_EVENT_CLASS(hrtimer_class,
@@ -363,34 +363,34 @@ TRACE_EVENT(itimer_state,
  * itimer_expire - called when itimer expires
  * @which:	type of the interval timer
  * @pid:	pid of the process which owns the timer
- * @now:	current time, used to calculate the latency of itimer
+ * @analw:	current time, used to calculate the latency of itimer
  */
 TRACE_EVENT(itimer_expire,
 
-	TP_PROTO(int which, struct pid *pid, unsigned long long now),
+	TP_PROTO(int which, struct pid *pid, unsigned long long analw),
 
-	TP_ARGS(which, pid, now),
+	TP_ARGS(which, pid, analw),
 
 	TP_STRUCT__entry(
 		__field( int ,			which	)
 		__field( pid_t,			pid	)
-		__field( unsigned long long,	now	)
+		__field( unsigned long long,	analw	)
 	),
 
 	TP_fast_assign(
 		__entry->which	= which;
-		__entry->now	= now;
+		__entry->analw	= analw;
 		__entry->pid	= pid_nr(pid);
 	),
 
-	TP_printk("which=%d pid=%d now=%llu", __entry->which,
-		  (int) __entry->pid, __entry->now)
+	TP_printk("which=%d pid=%d analw=%llu", __entry->which,
+		  (int) __entry->pid, __entry->analw)
 );
 
-#ifdef CONFIG_NO_HZ_COMMON
+#ifdef CONFIG_ANAL_HZ_COMMON
 
 #define TICK_DEP_NAMES					\
-		tick_dep_mask_name(NONE)		\
+		tick_dep_mask_name(ANALNE)		\
 		tick_dep_name(POSIX_TIMER)		\
 		tick_dep_name(PERF_EVENTS)		\
 		tick_dep_name(SCHED)			\
@@ -407,7 +407,7 @@ TRACE_EVENT(itimer_expire,
 	TRACE_DEFINE_ENUM(TICK_DEP_MASK_##sdep);
 #define tick_dep_name_end(sdep)  TRACE_DEFINE_ENUM(TICK_DEP_BIT_##sdep); \
 	TRACE_DEFINE_ENUM(TICK_DEP_MASK_##sdep);
-/* NONE only has a mask defined for it */
+/* ANALNE only has a mask defined for it */
 #define tick_dep_mask_name(sdep) TRACE_DEFINE_ENUM(TICK_DEP_MASK_##sdep);
 
 TICK_DEP_NAMES

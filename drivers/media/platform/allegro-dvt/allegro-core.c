@@ -185,7 +185,7 @@ static struct regmap_config allegro_regmap_config = {
 	.val_bits = 32,
 	.reg_stride = 4,
 	.max_register = 0xfff,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static struct regmap_config allegro_sram_config = {
@@ -194,7 +194,7 @@ static struct regmap_config allegro_sram_config = {
 	.val_bits = 32,
 	.reg_stride = 4,
 	.max_register = 0x7fff,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 #define fh_to_channel(__fh) container_of(__fh, struct allegro_channel, fh)
@@ -283,7 +283,7 @@ struct allegro_channel {
 	struct v4l2_ctrl *encoder_buffer;
 
 	/* user_id is used to identify the channel during CREATE_CHANNEL */
-	/* not sure, what to set here and if this is actually required */
+	/* analt sure, what to set here and if this is actually required */
 	int user_id;
 	/* channel_id is set by the mcu and used by all later commands */
 	int mcu_channel_id;
@@ -406,7 +406,7 @@ static inline u32 to_codec_addr(struct allegro_dev *dev, dma_addr_t phys)
 {
 	if (upper_32_bits(phys))
 		v4l2_warn(&dev->v4l2_dev,
-			  "address %pad cannot be used by codec\n", &phys);
+			  "address %pad cananalt be used by codec\n", &phys);
 
 	return lower_32_bits(phys);
 }
@@ -461,17 +461,17 @@ static inline bool channel_exists(struct allegro_channel *channel)
 
 #define AL_ERROR			0x80
 #define AL_ERR_INIT_FAILED		0x81
-#define AL_ERR_NO_FRAME_DECODED		0x82
+#define AL_ERR_ANAL_FRAME_DECODED		0x82
 #define AL_ERR_RESOLUTION_CHANGE	0x85
-#define AL_ERR_NO_MEMORY		0x87
+#define AL_ERR_ANAL_MEMORY		0x87
 #define AL_ERR_STREAM_OVERFLOW		0x88
 #define AL_ERR_TOO_MANY_SLICES		0x89
-#define AL_ERR_BUF_NOT_READY		0x8c
-#define AL_ERR_NO_CHANNEL_AVAILABLE	0x8d
+#define AL_ERR_BUF_ANALT_READY		0x8c
+#define AL_ERR_ANAL_CHANNEL_AVAILABLE	0x8d
 #define AL_ERR_RESOURCE_UNAVAILABLE	0x8e
-#define AL_ERR_NOT_ENOUGH_CORES		0x8f
+#define AL_ERR_ANALT_EANALUGH_CORES		0x8f
 #define AL_ERR_REQUEST_MALFORMED	0x90
-#define AL_ERR_CMD_NOT_ALLOWED		0x91
+#define AL_ERR_CMD_ANALT_ALLOWED		0x91
 #define AL_ERR_INVALID_CMD_VALUE	0x92
 
 static inline const char *allegro_err_to_string(unsigned int err)
@@ -479,33 +479,33 @@ static inline const char *allegro_err_to_string(unsigned int err)
 	switch (err) {
 	case AL_ERR_INIT_FAILED:
 		return "initialization failed";
-	case AL_ERR_NO_FRAME_DECODED:
-		return "no frame decoded";
+	case AL_ERR_ANAL_FRAME_DECODED:
+		return "anal frame decoded";
 	case AL_ERR_RESOLUTION_CHANGE:
 		return "resolution change";
-	case AL_ERR_NO_MEMORY:
+	case AL_ERR_ANAL_MEMORY:
 		return "out of memory";
 	case AL_ERR_STREAM_OVERFLOW:
 		return "stream buffer overflow";
 	case AL_ERR_TOO_MANY_SLICES:
 		return "too many slices";
-	case AL_ERR_BUF_NOT_READY:
-		return "buffer not ready";
-	case AL_ERR_NO_CHANNEL_AVAILABLE:
-		return "no channel available";
+	case AL_ERR_BUF_ANALT_READY:
+		return "buffer analt ready";
+	case AL_ERR_ANAL_CHANNEL_AVAILABLE:
+		return "anal channel available";
 	case AL_ERR_RESOURCE_UNAVAILABLE:
 		return "resource unavailable";
-	case AL_ERR_NOT_ENOUGH_CORES:
-		return "not enough cores";
+	case AL_ERR_ANALT_EANALUGH_CORES:
+		return "analt eanalugh cores";
 	case AL_ERR_REQUEST_MALFORMED:
 		return "request malformed";
-	case AL_ERR_CMD_NOT_ALLOWED:
-		return "command not allowed";
+	case AL_ERR_CMD_ANALT_ALLOWED:
+		return "command analt allowed";
 	case AL_ERR_INVALID_CMD_VALUE:
 		return "invalid command value";
 	case AL_ERROR:
 	default:
-		return "unknown error";
+		return "unkanalwn error";
 	}
 }
 
@@ -745,7 +745,7 @@ static int allegro_alloc_buffer(struct allegro_dev *dev,
 	buffer->vaddr = dma_alloc_coherent(&dev->plat_dev->dev, size,
 					   &buffer->paddr, GFP_KERNEL);
 	if (!buffer->vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 	buffer->size = size;
 
 	return 0;
@@ -777,7 +777,7 @@ static struct allegro_mbox *allegro_mbox_init(struct allegro_dev *dev,
 
 	mbox = devm_kmalloc(&dev->plat_dev->dev, sizeof(*mbox), GFP_KERNEL);
 	if (!mbox)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mbox->dev = dev;
 
@@ -798,7 +798,7 @@ static int allegro_mbox_write(struct allegro_mbox *mbox,
 {
 	struct regmap *sram = mbox->dev->sram;
 	unsigned int tail;
-	size_t size_no_wrap;
+	size_t size_anal_wrap;
 	int err = 0;
 	int stride = regmap_get_reg_stride(sram);
 
@@ -814,12 +814,12 @@ static int allegro_mbox_write(struct allegro_mbox *mbox,
 		err = -EIO;
 		goto out;
 	}
-	size_no_wrap = min(size, mbox->size - (size_t)tail);
+	size_anal_wrap = min(size, mbox->size - (size_t)tail);
 	regmap_bulk_write(sram, mbox->data + tail,
-			  src, size_no_wrap / stride);
+			  src, size_anal_wrap / stride);
 	regmap_bulk_write(sram, mbox->data,
-			  src + (size_no_wrap / sizeof(*src)),
-			  (size - size_no_wrap) / stride);
+			  src + (size_anal_wrap / sizeof(*src)),
+			  (size - size_anal_wrap) / stride);
 	regmap_write(sram, mbox->tail, (tail + size) % mbox->size);
 
 out:
@@ -838,14 +838,14 @@ static ssize_t allegro_mbox_read(struct allegro_mbox *mbox,
 	struct regmap *sram = mbox->dev->sram;
 	unsigned int head;
 	ssize_t size;
-	size_t body_no_wrap;
+	size_t body_anal_wrap;
 	int stride = regmap_get_reg_stride(sram);
 
 	regmap_read(sram, mbox->head, &head);
 	if (head > mbox->size)
 		return -EIO;
 
-	/* Assume that the header does not wrap. */
+	/* Assume that the header does analt wrap. */
 	regmap_bulk_read(sram, mbox->data + head,
 			 dst, sizeof(*header) / stride);
 	header = (void *)dst;
@@ -856,7 +856,7 @@ static ssize_t allegro_mbox_read(struct allegro_mbox *mbox,
 		return -EINVAL;
 
 	/*
-	 * The message might wrap within the mailbox. If the message does not
+	 * The message might wrap within the mailbox. If the message does analt
 	 * wrap, the first read will read the entire message, otherwise the
 	 * first read will read message until the end of the mailbox and the
 	 * second read will read the remaining bytes from the beginning of the
@@ -864,14 +864,14 @@ static ssize_t allegro_mbox_read(struct allegro_mbox *mbox,
 	 *
 	 * Skip the header, as was already read to get the size of the body.
 	 */
-	body_no_wrap = min((size_t)header->length,
+	body_anal_wrap = min((size_t)header->length,
 			   (size_t)(mbox->size - (head + sizeof(*header))));
 	regmap_bulk_read(sram, mbox->data + head + sizeof(*header),
 			 dst + (sizeof(*header) / sizeof(*dst)),
-			 body_no_wrap / stride);
+			 body_anal_wrap / stride);
 	regmap_bulk_read(sram, mbox->data,
-			 dst + (sizeof(*header) + body_no_wrap) / sizeof(*dst),
-			 (header->length - body_no_wrap) / stride);
+			 dst + (sizeof(*header) + body_anal_wrap) / sizeof(*dst),
+			 (header->length - body_anal_wrap) / stride);
 
 	regmap_write(sram, mbox->head, (head + size) % mbox->size);
 
@@ -892,7 +892,7 @@ static int allegro_mbox_send(struct allegro_mbox *mbox, void *msg)
 
 	tmp = kzalloc(mbox->size, GFP_KERNEL);
 	if (!tmp) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -910,10 +910,10 @@ out:
 }
 
 /**
- * allegro_mbox_notify() - Notify the mailbox about a new message
- * @mbox: The allegro_mbox to notify
+ * allegro_mbox_analtify() - Analtify the mailbox about a new message
+ * @mbox: The allegro_mbox to analtify
  */
-static void allegro_mbox_notify(struct allegro_mbox *mbox)
+static void allegro_mbox_analtify(struct allegro_mbox *mbox)
 {
 	struct allegro_dev *dev = mbox->dev;
 	union mcu_msg_response *msg;
@@ -959,7 +959,7 @@ static int allegro_encoder_buffer_init(struct allegro_dev *dev,
 
 	/* We don't support the encoder buffer pre Firmware version 2019.2 */
 	if (dev->fw_info->mailbox_version < MCU_MSG_VERSION_2019_2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!settings)
 		return -EINVAL;
@@ -1043,7 +1043,7 @@ static u32 v4l2_colorspace_to_mcu_colorspace(enum v4l2_colorspace colorspace)
 	case V4L2_COLORSPACE_SRGB:
 		return 7;
 	default:
-		/* UNKNOWN */
+		/* UNKANALWN */
 		return 0;
 	}
 }
@@ -1272,8 +1272,8 @@ static int fill_create_channel_param(struct allegro_channel *channel,
 	/* Shall be ]0;cpb_size in 90 kHz units]. Use maximum value. */
 	param->initial_rem_delay = param->cpb_size;
 	param->framerate = DIV_ROUND_UP(channel->framerate.numerator,
-					channel->framerate.denominator);
-	param->clk_ratio = channel->framerate.denominator == 1001 ? 1001 : 1000;
+					channel->framerate.deanalminator);
+	param->clk_ratio = channel->framerate.deanalminator == 1001 ? 1001 : 1000;
 	param->target_bitrate = channel->bitrate;
 	param->max_bitrate = channel->bitrate_peak;
 	param->initial_qp = i_frame_qp;
@@ -1455,7 +1455,7 @@ static int allegro_mcu_push_buffer_internal(struct allegro_channel *channel,
 
 	msg = kmalloc(size, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->header.type = type;
 	msg->header.version = dev->fw_info->mailbox_version;
@@ -1503,7 +1503,7 @@ static int allocate_buffers_internal(struct allegro_channel *channel,
 	for (i = 0; i < n; i++) {
 		buffer = kmalloc(sizeof(*buffer), GFP_KERNEL);
 		if (!buffer) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err;
 		}
 		INIT_LIST_HEAD(&buffer->head);
@@ -1582,7 +1582,7 @@ static ssize_t allegro_h264_write_sps(struct allegro_channel *channel,
 
 	sps = kzalloc(sizeof(*sps), GFP_KERNEL);
 	if (!sps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	profile = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_profile);
 	level = v4l2_ctrl_g_ctrl(channel->mpeg_video_h264_level);
@@ -1635,7 +1635,7 @@ static ssize_t allegro_h264_write_sps(struct allegro_channel *channel,
 	sps->vui.chroma_sample_loc_type_bottom_field = 0;
 
 	sps->vui.timing_info_present_flag = 1;
-	sps->vui.num_units_in_tick = channel->framerate.denominator;
+	sps->vui.num_units_in_tick = channel->framerate.deanalminator;
 	sps->vui.time_scale = 2 * channel->framerate.numerator;
 
 	sps->vui.fixed_frame_rate_flag = 1;
@@ -1679,7 +1679,7 @@ static ssize_t allegro_h264_write_pps(struct allegro_channel *channel,
 
 	pps = kzalloc(sizeof(*pps), GFP_KERNEL);
 	if (!pps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pps->pic_parameter_set_id = 0;
 	pps->seq_parameter_set_id = 0;
@@ -1730,7 +1730,7 @@ static ssize_t allegro_hevc_write_vps(struct allegro_channel *channel,
 
 	vps = kzalloc(sizeof(*vps), GFP_KERNEL);
 	if (!vps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vps->base_layer_internal_flag = 1;
 	vps->base_layer_available_flag = 1;
@@ -1772,7 +1772,7 @@ static ssize_t allegro_hevc_write_sps(struct allegro_channel *channel,
 
 	sps = kzalloc(sizeof(*sps), GFP_KERNEL);
 	if (!sps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sps->temporal_id_nesting_flag = 1;
 
@@ -1834,7 +1834,7 @@ static ssize_t allegro_hevc_write_sps(struct allegro_channel *channel,
 	vui->chroma_sample_loc_type_bottom_field = 0;
 
 	vui->vui_timing_info_present_flag = 1;
-	vui->vui_num_units_in_tick = channel->framerate.denominator;
+	vui->vui_num_units_in_tick = channel->framerate.deanalminator;
 	vui->vui_time_scale = channel->framerate.numerator;
 
 	vui->bitstream_restriction_flag = 1;
@@ -1879,7 +1879,7 @@ static ssize_t allegro_hevc_write_pps(struct allegro_channel *channel,
 
 	pps = kzalloc(sizeof(*pps), GFP_KERNEL);
 	if (!pps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pps->pps_pic_parameter_set_id = 0;
 	pps->pps_seq_parameter_set_id = 0;
@@ -2043,7 +2043,7 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 		len = allegro_hevc_write_vps(channel, curr, free);
 		if (len < 0) {
 			v4l2_err(&dev->v4l2_dev,
-				 "not enough space for video parameter set: %zd left\n",
+				 "analt eanalugh space for video parameter set: %zd left\n",
 				 free);
 			goto err;
 		}
@@ -2061,7 +2061,7 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 			len = allegro_hevc_write_sps(channel, curr, free);
 		if (len < 0) {
 			v4l2_err(&dev->v4l2_dev,
-				 "not enough space for sequence parameter set: %zd left\n",
+				 "analt eanalugh space for sequence parameter set: %zd left\n",
 				 free);
 			goto err;
 		}
@@ -2079,7 +2079,7 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 			len = allegro_hevc_write_pps(channel, msg, curr, free);
 		if (len < 0) {
 			v4l2_err(&dev->v4l2_dev,
-				 "not enough space for picture parameter set: %zd left\n",
+				 "analt eanalugh space for picture parameter set: %zd left\n",
 				 free);
 			goto err;
 		}
@@ -2112,7 +2112,7 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 
 	if (free != 0) {
 		v4l2_err(&dev->v4l2_dev,
-			 "non-VCL NAL units do not fill space until VCL NAL unit: %zd bytes left\n",
+			 "analn-VCL NAL units do analt fill space until VCL NAL unit: %zd bytes left\n",
 			 free);
 		goto err;
 	}
@@ -2131,7 +2131,7 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 		 dst_buf->sequence,
 		 msg->is_idr ? "IDR, " : "",
 		 msg->slice_type == AL_ENC_SLICE_TYPE_I ? "I slice" :
-		 msg->slice_type == AL_ENC_SLICE_TYPE_P ? "P slice" : "unknown",
+		 msg->slice_type == AL_ENC_SLICE_TYPE_P ? "P slice" : "unkanalwn",
 		 msg->qp, partition->size);
 
 err:
@@ -2161,7 +2161,7 @@ allegro_handle_create_channel(struct allegro_dev *dev,
 	channel = allegro_find_channel_by_user_id(dev, msg->user_id);
 	if (IS_ERR(channel)) {
 		v4l2_warn(&dev->v4l2_dev,
-			  "received %s for unknown user %d\n",
+			  "received %s for unkanalwn user %d\n",
 			  msg_type_name(msg->header.type),
 			  msg->user_id);
 		return -EINVAL;
@@ -2239,7 +2239,7 @@ allegro_handle_destroy_channel(struct allegro_dev *dev,
 	channel = allegro_find_channel_by_channel_id(dev, msg->channel_id);
 	if (IS_ERR(channel)) {
 		v4l2_err(&dev->v4l2_dev,
-			 "received %s for unknown channel %d\n",
+			 "received %s for unkanalwn channel %d\n",
 			 msg_type_name(msg->header.type),
 			 msg->channel_id);
 		return -EINVAL;
@@ -2262,7 +2262,7 @@ allegro_handle_encode_frame(struct allegro_dev *dev,
 	channel = allegro_find_channel_by_channel_id(dev, msg->channel_id);
 	if (IS_ERR(channel)) {
 		v4l2_err(&dev->v4l2_dev,
-			 "received %s for unknown channel %d\n",
+			 "received %s for unkanalwn channel %d\n",
 			 msg_type_name(msg->header.type),
 			 msg->channel_id);
 		return -EINVAL;
@@ -2291,7 +2291,7 @@ static void allegro_handle_message(struct allegro_dev *dev,
 		break;
 	default:
 		v4l2_warn(&dev->v4l2_dev,
-			  "%s: unknown message %s\n",
+			  "%s: unkanalwn message %s\n",
 			  __func__, msg_type_name(msg->header.type));
 		break;
 	}
@@ -2304,7 +2304,7 @@ static irqreturn_t allegro_hardirq(int irq, void *data)
 
 	regmap_read(dev->regmap, AL5_ITC_CPU_IRQ_STA, &status);
 	if (!(status & AL5_ITC_CPU_IRQ_STA_TRIGGERED))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	regmap_write(dev->regmap, AL5_ITC_CPU_IRQ_CLR, status);
 
@@ -2318,13 +2318,13 @@ static irqreturn_t allegro_irq_thread(int irq, void *data)
 	/*
 	 * The firmware is initialized after the mailbox is setup. We further
 	 * check the AL5_ITC_CPU_IRQ_STA register, if the firmware actually
-	 * triggered the interrupt. Although this should not happen, make sure
-	 * that we ignore interrupts, if the mailbox is not initialized.
+	 * triggered the interrupt. Although this should analt happen, make sure
+	 * that we iganalre interrupts, if the mailbox is analt initialized.
 	 */
 	if (!dev->mbox_status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	allegro_mbox_notify(dev->mbox_status);
+	allegro_mbox_analtify(dev->mbox_status);
 
 	return IRQ_HANDLED;
 }
@@ -2351,8 +2351,8 @@ static void allegro_copy_fw_codec(struct allegro_dev *dev,
 	/*
 	 * The downstream allocates 600 KB for the codec firmware to have some
 	 * extra space for "possible extensions." My tests were fine with
-	 * allocating just enough memory for the actual firmware, but I am not
-	 * sure that the firmware really does not use the remaining space.
+	 * allocating just eanalugh memory for the actual firmware, but I am analt
+	 * sure that the firmware really does analt use the remaining space.
 	 */
 	err = allegro_alloc_buffer(dev, &dev->firmware, size);
 	if (err) {
@@ -2455,7 +2455,7 @@ static int allegro_mcu_reset(struct allegro_dev *dev)
 
 	/*
 	 * Ensure that the AL5_MCU_WAKEUP bit is set to 0 otherwise the mcu
-	 * does not go to sleep after the reset.
+	 * does analt go to sleep after the reset.
 	 */
 	err = regmap_write(dev->regmap, AL5_MCU_WAKEUP, 0);
 	if (err)
@@ -2535,7 +2535,7 @@ static void allegro_destroy_channel(struct allegro_channel *channel)
  * Create the MCU channel
  *
  * After the channel has been created, the picture size, format, colorspace
- * and framerate are fixed. Also the codec, profile, bitrate, etc. cannot be
+ * and framerate are fixed. Also the codec, profile, bitrate, etc. cananalt be
  * changed anymore.
  *
  * The channel can be created only once. The MCU will accept source buffers
@@ -2555,7 +2555,7 @@ static int allegro_create_channel(struct allegro_channel *channel)
 	channel->user_id = allegro_next_user_id(dev);
 	if (channel->user_id < 0) {
 		v4l2_err(&dev->v4l2_dev,
-			 "no free channels available\n");
+			 "anal free channels available\n");
 		return -EBUSY;
 	}
 	set_bit(channel->user_id, &dev->channel_user_ids);
@@ -2565,7 +2565,7 @@ static int allegro_create_channel(struct allegro_channel *channel)
 		 channel->user_id,
 		 (char *)&channel->codec, channel->width, channel->height,
 		 DIV_ROUND_UP(channel->framerate.numerator,
-			      channel->framerate.denominator));
+			      channel->framerate.deanalminator));
 
 	v4l2_ctrl_grab(channel->mpeg_video_h264_profile, true);
 	v4l2_ctrl_grab(channel->mpeg_video_h264_level, true);
@@ -2790,8 +2790,8 @@ static int allegro_buf_prepare(struct vb2_buffer *vb)
 
 	if (V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
 		if (vbuf->field == V4L2_FIELD_ANY)
-			vbuf->field = V4L2_FIELD_NONE;
-		if (vbuf->field != V4L2_FIELD_NONE) {
+			vbuf->field = V4L2_FIELD_ANALNE;
+		if (vbuf->field != V4L2_FIELD_ANALNE) {
 			v4l2_err(&dev->v4l2_dev,
 				 "channel %d: unsupported field\n",
 				 channel->mcu_channel_id);
@@ -2816,7 +2816,7 @@ static void allegro_buf_queue(struct vb2_buffer *vb)
 		for (i = 0; i < vb->num_planes; i++)
 			vb2_set_plane_payload(vb, i, 0);
 
-		vbuf->field = V4L2_FIELD_NONE;
+		vbuf->field = V4L2_FIELD_ANALNE;
 		vbuf->sequence = channel->csequence++;
 
 		v4l2_m2m_last_buffer_done(channel->fh.m2m_ctx, vbuf);
@@ -3045,7 +3045,7 @@ static int allegro_open(struct file *file)
 
 	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
 	if (!channel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_fh_init(&channel->fh, vdev);
 
@@ -3282,7 +3282,7 @@ static int allegro_g_fmt_vid_cap(struct file *file, void *fh,
 {
 	struct allegro_channel *channel = fh_to_channel(fh);
 
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix.width = channel->width;
 	f->fmt.pix.height = channel->height;
 
@@ -3301,7 +3301,7 @@ static int allegro_g_fmt_vid_cap(struct file *file, void *fh,
 static int allegro_try_fmt_vid_cap(struct file *file, void *fh,
 				   struct v4l2_format *f)
 {
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 
 	f->fmt.pix.width = clamp_t(__u32, f->fmt.pix.width,
 				   ALLEGRO_WIDTH_MIN, ALLEGRO_WIDTH_MAX);
@@ -3348,7 +3348,7 @@ static int allegro_g_fmt_vid_out(struct file *file, void *fh,
 {
 	struct allegro_channel *channel = fh_to_channel(fh);
 
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 
 	f->fmt.pix.width = channel->width;
 	f->fmt.pix.height = channel->height;
@@ -3368,13 +3368,13 @@ static int allegro_g_fmt_vid_out(struct file *file, void *fh,
 static int allegro_try_fmt_vid_out(struct file *file, void *fh,
 				   struct v4l2_format *f)
 {
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 
 	/*
 	 * The firmware of the Allegro codec handles the padding internally
 	 * and expects the visual frame size when configuring a channel.
-	 * Therefore, unlike other encoder drivers, this driver does not round
-	 * up the width and height to macroblock alignment and does not
+	 * Therefore, unlike other encoder drivers, this driver does analt round
+	 * up the width and height to macroblock alignment and does analt
 	 * implement the selection api.
 	 */
 	f->fmt.pix.width = clamp_t(__u32, f->fmt.pix.width,
@@ -3507,8 +3507,8 @@ static int allegro_g_parm(struct file *file, void *fh,
 
 	a->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
 	timeperframe = &a->parm.output.timeperframe;
-	timeperframe->numerator = channel->framerate.denominator;
-	timeperframe->denominator = channel->framerate.numerator;
+	timeperframe->numerator = channel->framerate.deanalminator;
+	timeperframe->deanalminator = channel->framerate.numerator;
 
 	return 0;
 }
@@ -3526,12 +3526,12 @@ static int allegro_s_parm(struct file *file, void *fh,
 	a->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
 	timeperframe = &a->parm.output.timeperframe;
 
-	if (timeperframe->numerator == 0 || timeperframe->denominator == 0)
+	if (timeperframe->numerator == 0 || timeperframe->deanalminator == 0)
 		return allegro_g_parm(file, fh, a);
 
-	div = gcd(timeperframe->denominator, timeperframe->numerator);
-	channel->framerate.numerator = timeperframe->denominator / div;
-	channel->framerate.denominator = timeperframe->numerator / div;
+	div = gcd(timeperframe->deanalminator, timeperframe->numerator);
+	channel->framerate.numerator = timeperframe->deanalminator / div;
+	channel->framerate.deanalminator = timeperframe->numerator / div;
 
 	return 0;
 }
@@ -3661,7 +3661,7 @@ static int allegro_mcu_hw_init(struct allegro_dev *dev,
 	err = allegro_encoder_buffer_init(dev, &dev->encoder_buffer);
 	dev->has_encoder_buffer = (err == 0);
 	if (!dev->has_encoder_buffer)
-		v4l2_info(&dev->v4l2_dev, "encoder buffer not available\n");
+		v4l2_info(&dev->v4l2_dev, "encoder buffer analt available\n");
 
 	allegro_mcu_enable_interrupts(dev);
 
@@ -3670,7 +3670,7 @@ static int allegro_mcu_hw_init(struct allegro_dev *dev,
 	err = allegro_mcu_wait_for_init_timeout(dev, 5000);
 	if (err < 0) {
 		v4l2_err(&dev->v4l2_dev,
-			 "mcu did not send INIT after reset\n");
+			 "mcu did analt send INIT after reset\n");
 		err = -EIO;
 		goto err_disable_interrupts;
 	}
@@ -3743,7 +3743,7 @@ static void allegro_fw_callback(const struct firmware *fw, void *context)
 
 	dev->fw_info = allegro_get_firmware_info(dev, fw, fw_codec);
 	if (!dev->fw_info) {
-		v4l2_err(&dev->v4l2_dev, "firmware is not supported\n");
+		v4l2_err(&dev->v4l2_dev, "firmware is analt supported\n");
 		goto err_release_firmware_codec;
 	}
 
@@ -3810,13 +3810,13 @@ err_release_firmware:
 	release_firmware(fw);
 }
 
-static int allegro_firmware_request_nowait(struct allegro_dev *dev)
+static int allegro_firmware_request_analwait(struct allegro_dev *dev)
 {
 	const char *fw = "al5e_b.fw";
 
 	v4l2_dbg(1, debug, &dev->v4l2_dev,
 		 "requesting firmware '%s'\n", fw);
-	return request_firmware_nowait(THIS_MODULE, true, fw,
+	return request_firmware_analwait(THIS_MODULE, true, fw,
 				       &dev->plat_dev->dev, GFP_KERNEL, dev,
 				       allegro_fw_callback);
 }
@@ -3831,7 +3831,7 @@ static int allegro_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->plat_dev = pdev;
 	init_completion(&dev->init_complete);
 	INIT_LIST_HEAD(&dev->channels);
@@ -3849,7 +3849,7 @@ static int allegro_probe(struct platform_device *pdev)
 	regs = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!regs) {
 		dev_err(&pdev->dev, "failed to map registers\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dev->regmap = devm_regmap_init_mmio(&pdev->dev, regs,
 					    &allegro_regmap_config);
@@ -3869,7 +3869,7 @@ static int allegro_probe(struct platform_device *pdev)
 				 resource_size(sram_res));
 	if (!sram_regs) {
 		dev_err(&pdev->dev, "failed to map sram\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	dev->sram = devm_regmap_init_mmio(&pdev->dev, sram_regs,
 					  &allegro_sram_config);
@@ -3908,7 +3908,7 @@ static int allegro_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dev);
 
-	ret = allegro_firmware_request_nowait(dev);
+	ret = allegro_firmware_request_analwait(dev);
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev,
 			 "failed to request firmware: %d\n", ret);

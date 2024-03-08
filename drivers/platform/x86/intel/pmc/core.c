@@ -69,7 +69,7 @@ static inline void pmc_core_reg_write(struct pmc *pmc, int reg_offset,
 static inline u64 pmc_core_adjust_slp_s0_step(struct pmc *pmc, u32 value)
 {
 	/*
-	 * ADL PCH does not have the SLP_S0 counter and LPM Residency counters are
+	 * ADL PCH does analt have the SLP_S0 counter and LPM Residency counters are
 	 * used as a workaround which uses 30.5 usec tick. All other client
 	 * programs have the legacy SLP_S0 residency counter that is using the 122
 	 * usec tick.
@@ -90,7 +90,7 @@ static int set_etr3(struct pmc_dev *pmcdev)
 	int err;
 
 	if (!map->etr3_offset)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&pmcdev->lock);
 
@@ -143,7 +143,7 @@ static ssize_t etr3_show(struct device *dev,
 	u32 reg;
 
 	if (!map->etr3_offset)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&pmcdev->lock);
 
@@ -246,11 +246,11 @@ static void pmc_core_slps0_display(struct pmc *pmc, struct device *dev,
 			if (dev)
 				dev_info(dev, "SLP_S0_DBG: %-32s\tState: %s\n",
 					map->name,
-					data & map->bit_mask ? "Yes" : "No");
+					data & map->bit_mask ? "Anal" : "Anal");
 			if (s)
 				seq_printf(s, "SLP_S0_DBG: %-32s\tState: %s\n",
 					   map->name,
-					   data & map->bit_mask ? "Yes" : "No");
+					   data & map->bit_mask ? "Anal" : "Anal");
 			++map;
 		}
 		++maps;
@@ -262,7 +262,7 @@ static int pmc_core_lpm_get_arr_size(const struct pmc_bit_map **maps)
 	int idx;
 
 	for (idx = 0; maps[idx]; idx++)
-		;/* Nothing */
+		;/* Analthing */
 
 	return idx;
 }
@@ -422,14 +422,14 @@ static int pmc_core_mphy_pg_show(struct seq_file *s, void *unused)
 	for (index = 0; index < 8 && map[index].name; index++) {
 		seq_printf(s, "%-32s\tState: %s\n",
 			   map[index].name,
-			   map[index].bit_mask & val_low ? "Not power gated" :
+			   map[index].bit_mask & val_low ? "Analt power gated" :
 			   "Power gated");
 	}
 
 	for (index = 8; map[index].name; index++) {
 		seq_printf(s, "%-32s\tState: %s\n",
 			   map[index].name,
-			   map[index].bit_mask & val_high ? "Not power gated" :
+			   map[index].bit_mask & val_high ? "Analt power gated" :
 			   "Power gated");
 	}
 
@@ -476,7 +476,7 @@ out_unlock:
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_pll);
 
-int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value, int ignore)
+int pmc_core_send_ltr_iganalre(struct pmc_dev *pmcdev, u32 value, int iganalre)
 {
 	struct pmc *pmc;
 	const struct pmc_reg_map *map;
@@ -495,7 +495,7 @@ int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value, int ignore)
 			continue;
 
 		map = pmc->map;
-		if (ltr_index <= map->ltr_ignore_max)
+		if (ltr_index <= map->ltr_iganalre_max)
 			break;
 
 		/* Along with IP names, ltr_show map includes CURRENT_PLATFORM
@@ -503,29 +503,29 @@ int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value, int ignore)
 		 * values into account in ltr_index calculation. Also, to start
 		 * ltr index from zero for next pmc, subtract it by 1.
 		 */
-		ltr_index = ltr_index - (map->ltr_ignore_max + 2) - 1;
+		ltr_index = ltr_index - (map->ltr_iganalre_max + 2) - 1;
 	}
 
 	if (pmc_index >= ARRAY_SIZE(pmcdev->pmcs) || ltr_index < 0)
 		return -EINVAL;
 
-	pr_debug("ltr_ignore for pmc%d: ltr_index:%d\n", pmc_index, ltr_index);
+	pr_debug("ltr_iganalre for pmc%d: ltr_index:%d\n", pmc_index, ltr_index);
 
 	mutex_lock(&pmcdev->lock);
 
-	reg = pmc_core_reg_read(pmc, map->ltr_ignore_offset);
-	if (ignore)
+	reg = pmc_core_reg_read(pmc, map->ltr_iganalre_offset);
+	if (iganalre)
 		reg |= BIT(ltr_index);
 	else
 		reg &= ~BIT(ltr_index);
-	pmc_core_reg_write(pmc, map->ltr_ignore_offset, reg);
+	pmc_core_reg_write(pmc, map->ltr_iganalre_offset, reg);
 
 	mutex_unlock(&pmcdev->lock);
 
 	return 0;
 }
 
-static ssize_t pmc_core_ltr_ignore_write(struct file *file,
+static ssize_t pmc_core_ltr_iganalre_write(struct file *file,
 					 const char __user *userbuf,
 					 size_t count, loff_t *ppos)
 {
@@ -540,25 +540,25 @@ static ssize_t pmc_core_ltr_ignore_write(struct file *file,
 	if (err)
 		return err;
 
-	err = pmc_core_send_ltr_ignore(pmcdev, value, 1);
+	err = pmc_core_send_ltr_iganalre(pmcdev, value, 1);
 
 	return err == 0 ? count : err;
 }
 
-static int pmc_core_ltr_ignore_show(struct seq_file *s, void *unused)
+static int pmc_core_ltr_iganalre_show(struct seq_file *s, void *unused)
 {
 	return 0;
 }
 
-static int pmc_core_ltr_ignore_open(struct inode *inode, struct file *file)
+static int pmc_core_ltr_iganalre_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, pmc_core_ltr_ignore_show, inode->i_private);
+	return single_open(file, pmc_core_ltr_iganalre_show, ianalde->i_private);
 }
 
-static const struct file_operations pmc_core_ltr_ignore_ops = {
-	.open           = pmc_core_ltr_ignore_open,
+static const struct file_operations pmc_core_ltr_iganalre_ops = {
+	.open           = pmc_core_ltr_iganalre_open,
 	.read           = seq_read,
-	.write          = pmc_core_ltr_ignore_write,
+	.write          = pmc_core_ltr_iganalre_write,
 	.llseek         = seq_lseek,
 	.release        = single_release,
 };
@@ -607,8 +607,8 @@ static u32 convert_ltr_scale(u32 val)
 	 * Tolerance Reporting data payload is encoded in a
 	 * 3 bit scale and 10 bit value fields. Values are
 	 * multiplied by the indicated scale to yield an absolute time
-	 * value, expressible in a range from 1 nanosecond to
-	 * 2^25*(2^10-1) = 34,326,183,936 nanoseconds.
+	 * value, expressible in a range from 1 naanalsecond to
+	 * 2^25*(2^10-1) = 34,326,183,936 naanalseconds.
 	 *
 	 * scale encoding is as follows:
 	 *
@@ -636,9 +636,9 @@ static u32 convert_ltr_scale(u32 val)
 static int pmc_core_ltr_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
-	u64 decoded_snoop_ltr, decoded_non_snoop_ltr;
+	u64 decoded_sanalop_ltr, decoded_analn_sanalop_ltr;
 	u32 ltr_raw_data, scale, val;
-	u16 snoop_ltr, nonsnoop_ltr;
+	u16 sanalop_ltr, analnsanalop_ltr;
 	int i, index, ltr_index = 0;
 
 	for (i = 0; i < ARRAY_SIZE(pmcdev->pmcs); ++i) {
@@ -650,27 +650,27 @@ static int pmc_core_ltr_show(struct seq_file *s, void *unused)
 
 		map = pmc->map->ltr_show_sts;
 		for (index = 0; map[index].name; index++) {
-			decoded_snoop_ltr = decoded_non_snoop_ltr = 0;
+			decoded_sanalop_ltr = decoded_analn_sanalop_ltr = 0;
 			ltr_raw_data = pmc_core_reg_read(pmc,
 							 map[index].bit_mask);
-			snoop_ltr = ltr_raw_data & ~MTPMC_MASK;
-			nonsnoop_ltr = (ltr_raw_data >> 0x10) & ~MTPMC_MASK;
+			sanalop_ltr = ltr_raw_data & ~MTPMC_MASK;
+			analnsanalop_ltr = (ltr_raw_data >> 0x10) & ~MTPMC_MASK;
 
-			if (FIELD_GET(LTR_REQ_NONSNOOP, ltr_raw_data)) {
-				scale = FIELD_GET(LTR_DECODED_SCALE, nonsnoop_ltr);
-				val = FIELD_GET(LTR_DECODED_VAL, nonsnoop_ltr);
-				decoded_non_snoop_ltr = val * convert_ltr_scale(scale);
+			if (FIELD_GET(LTR_REQ_ANALNSANALOP, ltr_raw_data)) {
+				scale = FIELD_GET(LTR_DECODED_SCALE, analnsanalop_ltr);
+				val = FIELD_GET(LTR_DECODED_VAL, analnsanalop_ltr);
+				decoded_analn_sanalop_ltr = val * convert_ltr_scale(scale);
 			}
-			if (FIELD_GET(LTR_REQ_SNOOP, ltr_raw_data)) {
-				scale = FIELD_GET(LTR_DECODED_SCALE, snoop_ltr);
-				val = FIELD_GET(LTR_DECODED_VAL, snoop_ltr);
-				decoded_snoop_ltr = val * convert_ltr_scale(scale);
+			if (FIELD_GET(LTR_REQ_SANALOP, ltr_raw_data)) {
+				scale = FIELD_GET(LTR_DECODED_SCALE, sanalop_ltr);
+				val = FIELD_GET(LTR_DECODED_VAL, sanalop_ltr);
+				decoded_sanalop_ltr = val * convert_ltr_scale(scale);
 			}
 
-			seq_printf(s, "%d\tPMC%d:%-32s\tLTR: RAW: 0x%-16x\tNon-Snoop(ns): %-16llu\tSnoop(ns): %-16llu\n",
+			seq_printf(s, "%d\tPMC%d:%-32s\tLTR: RAW: 0x%-16x\tAnaln-Sanalop(ns): %-16llu\tSanalop(ns): %-16llu\n",
 				   ltr_index, i, map[index].name, ltr_raw_data,
-				   decoded_non_snoop_ltr,
-				   decoded_snoop_ltr);
+				   decoded_analn_sanalop_ltr,
+				   decoded_sanalop_ltr);
 			ltr_index++;
 		}
 	}
@@ -814,7 +814,7 @@ static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
 
 				if (!(bit_mask & req_mask)) {
 					/*
-					 * Not required for any enabled states
+					 * Analt required for any enabled states
 					 * so don't display
 					 */
 					continue;
@@ -831,7 +831,7 @@ static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
 				}
 
 				/* In Status column, show the last captured state of this agent */
-				seq_printf(s, " %9s |", lpm_status & bit_mask ? "Yes" : " ");
+				seq_printf(s, " %9s |", lpm_status & bit_mask ? "Anal" : " ");
 
 				seq_puts(s, "\n");
 			}
@@ -843,17 +843,17 @@ DEFINE_SHOW_ATTRIBUTE(pmc_core_substate_req_regs);
 
 static unsigned int pmc_core_get_crystal_freq(void)
 {
-	unsigned int eax_denominator, ebx_numerator, ecx_hz, edx;
+	unsigned int eax_deanalminator, ebx_numerator, ecx_hz, edx;
 
 	if (boot_cpu_data.cpuid_level < 0x15)
 		return 0;
 
-	eax_denominator = ebx_numerator = ecx_hz = edx = 0;
+	eax_deanalminator = ebx_numerator = ecx_hz = edx = 0;
 
 	/* CPUID 15H TSC/Crystal ratio, plus optionally Crystal Hz */
-	cpuid(0x15, &eax_denominator, &ebx_numerator, &ecx_hz, &edx);
+	cpuid(0x15, &eax_deanalminator, &ebx_numerator, &ecx_hz, &edx);
 
-	if (ebx_numerator == 0 || eax_denominator == 0)
+	if (ebx_numerator == 0 || eax_deanalminator == 0)
 		return 0;
 
 	return ecx_hz;
@@ -1053,8 +1053,8 @@ void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev)
 		return;
 
 	lpm_en = pmc_core_reg_read(pmc, pmc->map->lpm_en_offset);
-	/* For MTL, BIT 31 is not an lpm mode but a enable bit.
-	 * Lower byte is enough to cover the number of lpm modes for all
+	/* For MTL, BIT 31 is analt an lpm mode but a enable bit.
+	 * Lower byte is eanalugh to cover the number of lpm modes for all
 	 * platforms and hence mask the upper 3 bytes.
 	 */
 	pmcdev->num_lpm_modes = hweight32(lpm_en & 0xFF);
@@ -1098,14 +1098,14 @@ int get_primary_reg_base(struct pmc *pmc)
 		pmc->base_addr = PMC_BASE_ADDR_DEFAULT;
 
 		if (page_is_ram(PHYS_PFN(pmc->base_addr)))
-			return -ENODEV;
+			return -EANALDEV;
 	} else {
 		pmc->base_addr = slp_s0_addr - pmc->map->slp_s0_offset;
 	}
 
 	pmc->regbase = ioremap(pmc->base_addr, pmc->map->regmap_length);
 	if (!pmc->regbase)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -1116,7 +1116,7 @@ void pmc_core_punit_pmt_init(struct pmc_dev *pmcdev, u32 guid)
 
 	pcidev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(10, 0));
 	if (!pcidev) {
-		dev_err(&pmcdev->pdev->dev, "PUNIT PMT device not found.");
+		dev_err(&pmcdev->pdev->dev, "PUNIT PMT device analt found.");
 		return;
 	}
 
@@ -1163,7 +1163,7 @@ static bool pmc_core_is_pson_residency_enabled(struct pmc_dev *pmcdev)
 	if (!adev)
 		return false;
 
-	if (fwnode_property_read_u8(acpi_fwnode_handle(adev),
+	if (fwanalde_property_read_u8(acpi_fwanalde_handle(adev),
 				    "intel-cec-pson-switching-enabled-in-s0",
 				    &val))
 		return false;
@@ -1192,8 +1192,8 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 		debugfs_create_file("pch_ip_power_gating_status", 0444, dir,
 				    pmcdev, &pmc_core_ppfear_fops);
 
-	debugfs_create_file("ltr_ignore", 0644, dir, pmcdev,
-			    &pmc_core_ltr_ignore_ops);
+	debugfs_create_file("ltr_iganalre", 0644, dir, pmcdev,
+			    &pmc_core_ltr_iganalre_ops);
 
 	debugfs_create_file("ltr_show", 0444, dir, pmcdev, &pmc_core_ltr_fops);
 
@@ -1259,7 +1259,7 @@ static const struct x86_cpu_id intel_pmc_core_ids[] = {
 	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE,		spt_core_init),
 	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE_L,		spt_core_init),
 	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE,		spt_core_init),
-	X86_MATCH_INTEL_FAM6_MODEL(CANNONLAKE_L,	cnp_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(CANANALNLAKE_L,	cnp_core_init),
 	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_L,		icl_core_init),
 	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_NNPI,	icl_core_init),
 	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE,		cnp_core_init),
@@ -1293,14 +1293,14 @@ static const struct pci_device_id pmc_pci_ids[] = {
  * the platform BIOS enforces 24Mhz crystal to shutdown
  * before PMC can assert SLP_S0#.
  */
-static bool xtal_ignore;
-static int quirk_xtal_ignore(const struct dmi_system_id *id)
+static bool xtal_iganalre;
+static int quirk_xtal_iganalre(const struct dmi_system_id *id)
 {
-	xtal_ignore = true;
+	xtal_iganalre = true;
 	return 0;
 }
 
-static void pmc_core_xtal_ignore(struct pmc *pmc)
+static void pmc_core_xtal_iganalre(struct pmc *pmc)
 {
 	u32 value;
 
@@ -1314,7 +1314,7 @@ static void pmc_core_xtal_ignore(struct pmc *pmc)
 
 static const struct dmi_system_id pmc_core_dmi_table[]  = {
 	{
-	.callback = quirk_xtal_ignore,
+	.callback = quirk_xtal_iganalre,
 	.ident = "HP Elite x2 1013 G3",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "HP"),
@@ -1328,8 +1328,8 @@ static void pmc_core_do_dmi_quirks(struct pmc *pmc)
 {
 	dmi_check_system(pmc_core_dmi_table);
 
-	if (xtal_ignore)
-		pmc_core_xtal_ignore(pmc);
+	if (xtal_iganalre)
+		pmc_core_xtal_iganalre(pmc);
 }
 
 static void pmc_core_clean_structure(struct platform_device *pdev)
@@ -1366,11 +1366,11 @@ static int pmc_core_probe(struct platform_device *pdev)
 	int ret;
 
 	if (device_initialized)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pmcdev = devm_kzalloc(&pdev->dev, sizeof(*pmcdev), GFP_KERNEL);
 	if (!pmcdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmcdev->crystal_freq = pmc_core_get_crystal_freq();
 
@@ -1379,19 +1379,19 @@ static int pmc_core_probe(struct platform_device *pdev)
 
 	cpu_id = x86_match_cpu(intel_pmc_core_ids);
 	if (!cpu_id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	core_init = (int (*)(struct pmc_dev *))cpu_id->driver_data;
 
 	/* Primary PMC */
 	primary_pmc = devm_kzalloc(&pdev->dev, sizeof(*primary_pmc), GFP_KERNEL);
 	if (!primary_pmc)
-		return -ENOMEM;
+		return -EANALMEM;
 	pmcdev->pmcs[PMC_IDX_MAIN] = primary_pmc;
 
 	/*
-	 * Coffee Lake has CPU ID of Kaby Lake and Cannon Lake PCH. So here
-	 * Sunrisepoint PCH regmap can't be used. Use Cannon Lake PCH regmap
+	 * Coffee Lake has CPU ID of Kaby Lake and Cananaln Lake PCH. So here
+	 * Sunrisepoint PCH regmap can't be used. Use Cananaln Lake PCH regmap
 	 * in this case.
 	 */
 	if (core_init == spt_core_init && !pci_dev_present(pmc_pci_ids))
@@ -1499,13 +1499,13 @@ int pmc_core_resume_common(struct pmc_dev *pmcdev)
 
 	if (pmc_core_is_pc10_failed(pmcdev)) {
 		/* S0ix failed because of PC10 entry failure */
-		dev_info(dev, "CPU did not enter PC10!!! (PC10 cnt=0x%llx)\n",
+		dev_info(dev, "CPU did analt enter PC10!!! (PC10 cnt=0x%llx)\n",
 			 pmcdev->pc10_counter);
 		return 0;
 	}
 
 	/* The real interesting case - S0ix failed - lets ask PMC why. */
-	dev_warn(dev, "CPU did not enter SLP_S0!!! (S0ix cnt=%llu)\n",
+	dev_warn(dev, "CPU did analt enter SLP_S0!!! (S0ix cnt=%llu)\n",
 		 pmcdev->s0ix_counter);
 
 	if (pmc->map->slps0_dbg_maps)

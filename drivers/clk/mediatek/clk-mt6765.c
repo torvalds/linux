@@ -486,13 +486,13 @@ static const struct mtk_gate_regs top2_cg_regs = {
 };
 
 #define GATE_TOP0(_id, _name, _parent, _shift)				\
-	GATE_MTK(_id, _name, _parent, &top0_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
+	GATE_MTK(_id, _name, _parent, &top0_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr)
 
 #define GATE_TOP1(_id, _name, _parent, _shift)				\
-	GATE_MTK(_id, _name, _parent, &top1_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &top1_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 #define GATE_TOP2(_id, _name, _parent, _shift)				\
-	GATE_MTK(_id, _name, _parent, &top2_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr)
+	GATE_MTK(_id, _name, _parent, &top2_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr)
 
 static const struct mtk_gate top_clks[] = {
 	/* TOP0 */
@@ -635,7 +635,7 @@ static const struct mtk_gate_regs apmixed_cg_regs = {
 };
 
 #define GATE_APMIXED(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &apmixed_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &apmixed_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate apmixed_clks[] = {
 	/* AUDIO0 */
@@ -729,7 +729,7 @@ static int clk_mt6765_apmixed_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
 	int r;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	void __iomem *base;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -738,16 +738,16 @@ static int clk_mt6765_apmixed_probe(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
+	mtk_clk_register_plls(analde, plls, ARRAY_SIZE(plls), clk_data);
 
-	mtk_clk_register_gates(&pdev->dev, node, apmixed_clks,
+	mtk_clk_register_gates(&pdev->dev, analde, apmixed_clks,
 			       ARRAY_SIZE(apmixed_clks), clk_data);
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 
 	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could analt register clock provider: %d\n",
 		       __func__, r);
 
 	apmixed_base = base;
@@ -762,7 +762,7 @@ static int clk_mt6765_apmixed_probe(struct platform_device *pdev)
 static int clk_mt6765_top_probe(struct platform_device *pdev)
 {
 	int r;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	void __iomem *base;
 	struct clk_hw_onecell_data *clk_data;
 
@@ -772,28 +772,28 @@ static int clk_mt6765_top_probe(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_TOP_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mtk_clk_register_fixed_clks(fixed_clks, ARRAY_SIZE(fixed_clks),
 				    clk_data);
 	mtk_clk_register_factors(top_divs, ARRAY_SIZE(top_divs),
 				 clk_data);
 	mtk_clk_register_muxes(&pdev->dev, top_muxes,
-			       ARRAY_SIZE(top_muxes), node,
+			       ARRAY_SIZE(top_muxes), analde,
 			       &mt6765_clk_lock, clk_data);
-	mtk_clk_register_gates(&pdev->dev, node, top_clks,
+	mtk_clk_register_gates(&pdev->dev, analde, top_clks,
 			       ARRAY_SIZE(top_clks), clk_data);
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 
 	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could analt register clock provider: %d\n",
 		       __func__, r);
 
 	cksys_base = base;
-	/* [4]:no need */
+	/* [4]:anal need */
 	writel(readl(CLK_SCP_CFG_0) | 0x3EF, CLK_SCP_CFG_0);
-	/*[1,2,3,8]: no need*/
+	/*[1,2,3,8]: anal need*/
 	writel(readl(CLK_SCP_CFG_1) | 0x1, CLK_SCP_CFG_1);
 
 	return r;
@@ -803,7 +803,7 @@ static int clk_mt6765_ifr_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
 	int r;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	void __iomem *base;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -812,14 +812,14 @@ static int clk_mt6765_ifr_probe(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_IFR_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	mtk_clk_register_gates(&pdev->dev, node, ifr_clks,
+	mtk_clk_register_gates(&pdev->dev, analde, ifr_clks,
 			       ARRAY_SIZE(ifr_clks), clk_data);
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 
 	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could analt register clock provider: %d\n",
 		       __func__, r);
 
 	return r;
@@ -853,7 +853,7 @@ static int clk_mt6765_probe(struct platform_device *pdev)
 	r = clk_probe(pdev);
 	if (r)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could analt register clock provider: %s: %d\n",
 			pdev->name, r);
 
 	return r;

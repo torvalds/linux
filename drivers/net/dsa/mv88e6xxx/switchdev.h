@@ -3,7 +3,7 @@
  * switchdev.h
  *
  *	Authors:
- *	Hans J. Schultz		<netdev@kapio-technology.com>
+ *	Hans J. Schultz		<netdev@kapio-techanallogy.com>
  *
  */
 

@@ -36,16 +36,16 @@
 #define PAPR_PMEM_SHUTDOWN_DIRTY            (1ULL << (63 - 1))
 /* SCM device contents are persisted from previous IPL */
 #define PAPR_PMEM_SHUTDOWN_CLEAN            (1ULL << (63 - 2))
-/* SCM device contents are not persisted from previous IPL */
+/* SCM device contents are analt persisted from previous IPL */
 #define PAPR_PMEM_EMPTY                     (1ULL << (63 - 3))
 /* SCM device memory life remaining is critically low */
 #define PAPR_PMEM_HEALTH_CRITICAL           (1ULL << (63 - 4))
 /* SCM device will be garded off next IPL due to failure */
 #define PAPR_PMEM_HEALTH_FATAL              (1ULL << (63 - 5))
-/* SCM contents cannot persist due to current platform health status */
+/* SCM contents cananalt persist due to current platform health status */
 #define PAPR_PMEM_HEALTH_UNHEALTHY          (1ULL << (63 - 6))
 /* SCM device is unable to persist memory contents in certain conditions */
-#define PAPR_PMEM_HEALTH_NON_CRITICAL       (1ULL << (63 - 7))
+#define PAPR_PMEM_HEALTH_ANALN_CRITICAL       (1ULL << (63 - 7))
 /* SCM device is encrypted */
 #define PAPR_PMEM_ENCRYPTED                 (1ULL << (63 - 8))
 /* SCM device has been scrubbed and locked */
@@ -61,7 +61,7 @@
 /* Bits status indicators for health bitmap indicating unrestored dimm */
 #define PAPR_PMEM_BAD_RESTORE_MASK  (PAPR_PMEM_EMPTY)
 
-/* Bit status indicators for smart event notification */
+/* Bit status indicators for smart event analtification */
 #define PAPR_PMEM_SMART_EVENT_MASK (PAPR_PMEM_HEALTH_CRITICAL | \
 				    PAPR_PMEM_HEALTH_FATAL |	\
 				    PAPR_PMEM_HEALTH_UNHEALTHY)
@@ -89,7 +89,7 @@ struct papr_scm_perf_stats {
 /* private struct associated with each region */
 struct papr_scm_priv {
 	struct platform_device *pdev;
-	struct device_node *dn;
+	struct device_analde *dn;
 	uint32_t drc_index;
 	uint64_t blocks;
 	uint64_t block_size;
@@ -116,7 +116,7 @@ struct papr_scm_priv {
 	/* Health information for the dimm */
 	u64 health_bitmap;
 
-	/* Holds the last known dirty shutdown counter value */
+	/* Holds the last kanalwn dirty shutdown counter value */
 	u64 dirty_shutdown_counter;
 
 	/* length of the stat buffer as expected by phyp */
@@ -169,7 +169,7 @@ static int drc_pmem_bind(struct papr_scm_priv *p)
 	int64_t rc;
 
 	/*
-	 * When the hypervisor cannot map all the requested memory in a single
+	 * When the hypervisor cananalt map all the requested memory in a single
 	 * hcall it returns H_BUSY and we call again with the token until
 	 * we get H_SUCCESS. Aborting the retry loop before getting H_SUCCESS
 	 * leave the system in an undefined state, so we wait.
@@ -270,8 +270,8 @@ err_out:
  * (num_stats + header) bytes.
  * - If buff_stats == NULL the return value is the size in bytes of the buffer
  * needed to hold all supported performance-statistics.
- * - If buff_stats != NULL and num_stats == 0 then we copy all known
- * performance-statistics to 'buff_stat' and expect to be large enough to
+ * - If buff_stats != NULL and num_stats == 0 then we copy all kanalwn
+ * performance-statistics to 'buff_stat' and expect to be large eanalugh to
  * hold them.
  * - if buff_stats != NULL and num_stats > 0 then copy the requested
  * performance-statistics to buff_stats.
@@ -304,7 +304,7 @@ static ssize_t drc_pmem_query_stats(struct papr_scm_priv *p,
 		else
 			size = p->stat_buffer_len;
 	} else {
-		/* In case of no out buffer ignore the size */
+		/* In case of anal out buffer iganalre the size */
 		size = 0;
 	}
 
@@ -313,18 +313,18 @@ static ssize_t drc_pmem_query_stats(struct papr_scm_priv *p,
 			 buff_stats ? virt_to_phys(buff_stats) : 0,
 			 size);
 
-	/* Check if the error was due to an unknown stat-id */
+	/* Check if the error was due to an unkanalwn stat-id */
 	if (rc == H_PARTIAL) {
 		dev_err(&p->pdev->dev,
-			"Unknown performance stats, Err:0x%016lX\n", ret[0]);
-		return -ENOENT;
+			"Unkanalwn performance stats, Err:0x%016lX\n", ret[0]);
+		return -EANALENT;
 	} else if (rc == H_AUTHORITY) {
 		dev_info(&p->pdev->dev,
 			 "Permission denied while accessing performance stats");
 		return -EPERM;
 	} else if (rc == H_UNSUPPORTED) {
 		dev_dbg(&p->pdev->dev, "Performance stats unsupported\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	} else if (rc != H_SUCCESS) {
 		dev_err(&p->pdev->dev,
 			"Failed to query performance stats, Err:%lld\n", rc);
@@ -377,7 +377,7 @@ static int papr_scm_pmu_get_value(struct perf_event *event, struct device *dev, 
 	if (event->attr.config == 0 || event->attr.config >= ARRAY_SIZE(nvdimm_events_map))
 		return -EINVAL;
 
-	/* Allocate request buffer enough to hold single performance stat */
+	/* Allocate request buffer eanalugh to hold single performance stat */
 	size = sizeof(struct papr_scm_perf_stats) +
 		sizeof(struct papr_scm_perf_stat);
 
@@ -386,7 +386,7 @@ static int papr_scm_pmu_get_value(struct perf_event *event, struct device *dev, 
 
 	stats = kzalloc(size, GFP_KERNEL);
 	if (!stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stat = &stats->scm_statistic[0];
 	memcpy(&stat->stat_id,
@@ -415,15 +415,15 @@ static int papr_scm_pmu_event_init(struct perf_event *event)
 
 	/* test the event attr type for PMU enumeration */
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
-	/* it does not support event sampling mode */
+	/* it does analt support event sampling mode */
 	if (is_sampling_event(event))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* no branch sampling */
+	/* anal branch sampling */
 	if (has_branch_stack(event))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	p = (struct papr_scm_priv *)nd_pmu->dev->driver_data;
 	if (!p)
@@ -458,19 +458,19 @@ static int papr_scm_pmu_add(struct perf_event *event, int flags)
 
 static void papr_scm_pmu_read(struct perf_event *event)
 {
-	u64 prev, now;
+	u64 prev, analw;
 	int rc;
 	struct nvdimm_pmu *nd_pmu = to_nvdimm_pmu(event->pmu);
 
 	if (!nd_pmu)
 		return;
 
-	rc = papr_scm_pmu_get_value(event, nd_pmu->dev, &now);
+	rc = papr_scm_pmu_get_value(event, nd_pmu->dev, &analw);
 	if (rc)
 		return;
 
-	prev = local64_xchg(&event->hw.prev_count, now);
-	local64_add(now - prev, &event->count);
+	prev = local64_xchg(&event->hw.prev_count, analw);
+	local64_add(analw - prev, &event->count);
 }
 
 static void papr_scm_pmu_del(struct perf_event *event, int flags)
@@ -481,16 +481,16 @@ static void papr_scm_pmu_del(struct perf_event *event, int flags)
 static void papr_scm_pmu_register(struct papr_scm_priv *p)
 {
 	struct nvdimm_pmu *nd_pmu;
-	int rc, nodeid;
+	int rc, analdeid;
 
 	nd_pmu = kzalloc(sizeof(*nd_pmu), GFP_KERNEL);
 	if (!nd_pmu) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto pmu_err_print;
 	}
 
 	if (!p->stat_buffer_len) {
-		rc = -ENOENT;
+		rc = -EANALENT;
 		goto pmu_check_events_err;
 	}
 
@@ -501,12 +501,12 @@ static void papr_scm_pmu_register(struct papr_scm_priv *p)
 	nd_pmu->pmu.add = papr_scm_pmu_add;
 	nd_pmu->pmu.del = papr_scm_pmu_del;
 
-	nd_pmu->pmu.capabilities = PERF_PMU_CAP_NO_INTERRUPT |
-				PERF_PMU_CAP_NO_EXCLUDE;
+	nd_pmu->pmu.capabilities = PERF_PMU_CAP_ANAL_INTERRUPT |
+				PERF_PMU_CAP_ANAL_EXCLUDE;
 
 	/*updating the cpumask variable */
-	nodeid = numa_map_to_online_node(dev_to_node(&p->pdev->dev));
-	nd_pmu->arch_cpumask = *cpumask_of_node(nodeid);
+	analdeid = numa_map_to_online_analde(dev_to_analde(&p->pdev->dev));
+	nd_pmu->arch_cpumask = *cpumask_of_analde(analdeid);
 
 	rc = register_nvdimm_pmu(nd_pmu, p->pdev);
 	if (rc)
@@ -545,7 +545,7 @@ static int __drc_pmem_query_health(struct papr_scm_priv *p)
 		bitmap = ret[0] & ret[1];
 	else if (rc == H_FUNCTION)
 		dev_info_once(&p->pdev->dev,
-			      "Hcall H_SCM_HEALTH not implemented, assuming empty health bitmap");
+			      "Hcall H_SCM_HEALTH analt implemented, assuming empty health bitmap");
 	else {
 
 		dev_err(&p->pdev->dev,
@@ -624,7 +624,7 @@ static int papr_scm_meta_get(struct papr_scm_priv *p,
 				  offset, read);
 
 		if (ret == H_PARAMETER) /* bad DRC index */
-			return -ENODEV;
+			return -EANALDEV;
 		if (ret)
 			return -EINVAL; /* other invalid parameter */
 
@@ -685,10 +685,10 @@ static int papr_scm_meta_set(struct papr_scm_priv *p,
 			wrote = 1;
 		}
 
-		ret = plpar_hcall_norets(H_SCM_WRITE_METADATA, p->drc_index,
+		ret = plpar_hcall_analrets(H_SCM_WRITE_METADATA, p->drc_index,
 					 offset, data_be, wrote);
 		if (ret == H_PARAMETER) /* bad DRC index */
-			return -ENODEV;
+			return -EANALDEV;
 		if (ret)
 			return -EINVAL; /* other invalid parameter */
 	}
@@ -749,7 +749,7 @@ static int is_cmd_valid(struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 			return -EINVAL;
 		}
 
-		/* Have enough space to hold returned 'nd_pkg_pdsm' header */
+		/* Have eanalugh space to hold returned 'nd_pkg_pdsm' header */
 		if (nd_cmd->nd_size_out < ND_PDSM_HDR_SIZE) {
 			dev_dbg(&p->pdev->dev, "PDSM[0x%x]: Invalid payload\n",
 				pdsm);
@@ -773,13 +773,13 @@ static int papr_pdsm_fuel_gauge(struct papr_scm_priv *p,
 	if (!p->stat_buffer_len)
 		return 0;
 
-	/* Allocate request buffer enough to hold single performance stat */
+	/* Allocate request buffer eanalugh to hold single performance stat */
 	size = sizeof(struct papr_scm_perf_stats) +
 		sizeof(struct papr_scm_perf_stat);
 
 	stats = kzalloc(size, GFP_KERNEL);
 	if (!stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stat = &stats->scm_statistic[0];
 	memcpy(&stat->stat_id, "MemLife ", sizeof(stat->stat_id));
@@ -827,7 +827,7 @@ static int papr_pdsm_health(struct papr_scm_priv *p,
 	if (rc)
 		goto out;
 
-	/* Always fetch upto date dimm health data ignoring cached values */
+	/* Always fetch upto date dimm health data iganalring cached values */
 	rc = __drc_pmem_query_health(p);
 	if (rc) {
 		mutex_unlock(&p->health_mutex);
@@ -854,7 +854,7 @@ static int papr_pdsm_health(struct papr_scm_priv *p,
 	else if (p->health_bitmap & PAPR_PMEM_HEALTH_UNHEALTHY)
 		payload->health.dimm_health = PAPR_PDSM_DIMM_UNHEALTHY;
 
-	/* struct populated hence can release the mutex now */
+	/* struct populated hence can release the mutex analw */
 	mutex_unlock(&p->health_mutex);
 
 	/* Populate the fuel gauge meter in the payload */
@@ -1032,7 +1032,7 @@ static int papr_scm_service_pdsm(struct papr_scm_priv *p,
 	} else {
 		dev_dbg(&p->pdev->dev, "PDSM[0x%x]: Unsupported PDSM request\n",
 			pdsm);
-		pdsm_pkg->cmd_status = -ENOENT;
+		pdsm_pkg->cmd_status = -EANALENT;
 		pkg->nd_fw_size = ND_PDSM_HDR_SIZE;
 	}
 
@@ -1084,7 +1084,7 @@ static int papr_scm_ndctl(struct nvdimm_bus_descriptor *nd_desc,
 		break;
 
 	default:
-		dev_dbg(&p->pdev->dev, "Unknown command = %d\n", cmd);
+		dev_dbg(&p->pdev->dev, "Unkanalwn command = %d\n", cmd);
 		return -EINVAL;
 	}
 
@@ -1118,12 +1118,12 @@ static ssize_t perf_stats_show(struct device *dev,
 	struct papr_scm_priv *p = nvdimm_provider_data(dimm);
 
 	if (!p->stat_buffer_len)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* Allocate the buffer for phyp where stats are written */
 	stats = kzalloc(p->stat_buffer_len, GFP_KERNEL);
 	if (!stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Ask phyp to return all dimm perf stats */
 	rc = drc_pmem_query_stats(p, stats, 0);
@@ -1167,7 +1167,7 @@ static ssize_t flags_show(struct device *dev,
 
 	seq_buf_init(&s, buf, PAGE_SIZE);
 	if (health & PAPR_PMEM_UNARMED_MASK)
-		seq_buf_printf(&s, "not_armed ");
+		seq_buf_printf(&s, "analt_armed ");
 
 	if (health & PAPR_PMEM_BAD_SHUTDOWN_MASK)
 		seq_buf_printf(&s, "flush_fail ");
@@ -1179,7 +1179,7 @@ static ssize_t flags_show(struct device *dev,
 		seq_buf_printf(&s, "encrypted ");
 
 	if (health & PAPR_PMEM_SMART_EVENT_MASK)
-		seq_buf_printf(&s, "smart_notify ");
+		seq_buf_printf(&s, "smart_analtify ");
 
 	if (health & PAPR_PMEM_SCRUBBED_AND_LOCKED)
 		seq_buf_printf(&s, "scrubbed locked ");
@@ -1208,7 +1208,7 @@ static umode_t papr_nd_attribute_visible(struct kobject *kobj,
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 	struct papr_scm_priv *p = nvdimm_provider_data(nvdimm);
 
-	/* For if perf-stats not available remove perf_stats sysfs */
+	/* For if perf-stats analt available remove perf_stats sysfs */
 	if (attr == &dev_attr_perf_stats.attr && p->stat_buffer_len == 0)
 		return 0;
 
@@ -1245,14 +1245,14 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 
 	p->bus_desc.ndctl = papr_scm_ndctl;
 	p->bus_desc.module = THIS_MODULE;
-	p->bus_desc.of_node = p->pdev->dev.of_node;
+	p->bus_desc.of_analde = p->pdev->dev.of_analde;
 	p->bus_desc.provider_name = kstrdup(p->pdev->name, GFP_KERNEL);
 
 	/* Set the dimm command family mask to accept PDSMs */
 	set_bit(NVDIMM_FAMILY_PAPR, &p->bus_desc.dimm_family_mask);
 
 	if (!p->bus_desc.provider_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->bus = nvdimm_bus_register(NULL, &p->bus_desc);
 	if (!p->bus) {
@@ -1265,8 +1265,8 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 	set_bit(NDD_LABELING, &dimm_flags);
 
 	/*
-	 * Check if the nvdimm is unarmed. No locking needed as we are still
-	 * initializing. Ignore error encountered if any.
+	 * Check if the nvdimm is unarmed. Anal locking needed as we are still
+	 * initializing. Iganalre error encountered if any.
 	 */
 	__drc_pmem_query_health(p);
 
@@ -1283,7 +1283,7 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 	if (nvdimm_bus_check_dimm_count(p->bus, 1))
 		goto err;
 
-	/* now add the region */
+	/* analw add the region */
 
 	memset(&mapping, 0, sizeof(mapping));
 	mapping.nvdimm = p->nvdimm;
@@ -1291,12 +1291,12 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 	mapping.size = p->blocks * p->block_size; // XXX: potential overflow?
 
 	memset(&ndr_desc, 0, sizeof(ndr_desc));
-	target_nid = dev_to_node(&p->pdev->dev);
-	online_nid = numa_map_to_online_node(target_nid);
-	ndr_desc.numa_node = online_nid;
-	ndr_desc.target_node = target_nid;
+	target_nid = dev_to_analde(&p->pdev->dev);
+	online_nid = numa_map_to_online_analde(target_nid);
+	ndr_desc.numa_analde = online_nid;
+	ndr_desc.target_analde = target_nid;
 	ndr_desc.res = &p->res;
-	ndr_desc.of_node = p->dn;
+	ndr_desc.of_analde = p->dn;
 	ndr_desc.provider_data = p;
 	ndr_desc.mapping = &mapping;
 	ndr_desc.num_mappings = 1;
@@ -1319,7 +1319,7 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 		goto err;
 	}
 	if (target_nid != online_nid)
-		dev_info(dev, "Region registered with target node %d and online node %d",
+		dev_info(dev, "Region registered with target analde %d and online analde %d",
 			 target_nid, online_nid);
 
 	mutex_lock(&papr_ndr_lock);
@@ -1346,10 +1346,10 @@ static void papr_scm_add_badblock(struct nd_region *region,
 	pr_debug("Add memory range (0x%llx - 0x%llx) as bad range\n",
 		 aligned_addr, aligned_addr + L1_CACHE_BYTES);
 
-	nvdimm_region_notify(region, NVDIMM_REVALIDATE_POISON);
+	nvdimm_region_analtify(region, NVDIMM_REVALIDATE_POISON);
 }
 
-static int handle_mce_ue(struct notifier_block *nb, unsigned long val,
+static int handle_mce_ue(struct analtifier_block *nb, unsigned long val,
 			 void *data)
 {
 	struct machine_check_event *evt = data;
@@ -1358,10 +1358,10 @@ static int handle_mce_ue(struct notifier_block *nb, unsigned long val,
 	bool found = false;
 
 	if (evt->error_type != MCE_ERROR_TYPE_UE)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (list_empty(&papr_nd_regions))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/*
 	 * The physical address obtained here is PAGE_SIZE aligned, so get the
@@ -1372,9 +1372,9 @@ static int handle_mce_ue(struct notifier_block *nb, unsigned long val,
 
 	if (!evt->u.ue_error.physical_address_provided ||
 	    !is_zone_device_page(pfn_to_page(phys_addr >> PAGE_SHIFT)))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
-	/* mce notifier is called from a process context, so mutex is safe */
+	/* mce analtifier is called from a process context, so mutex is safe */
 	mutex_lock(&papr_ndr_lock);
 	list_for_each_entry(p, &papr_nd_regions, region_list) {
 		if (phys_addr >= p->res.start && phys_addr <= p->res.end) {
@@ -1388,16 +1388,16 @@ static int handle_mce_ue(struct notifier_block *nb, unsigned long val,
 
 	mutex_unlock(&papr_ndr_lock);
 
-	return found ? NOTIFY_OK : NOTIFY_DONE;
+	return found ? ANALTIFY_OK : ANALTIFY_DONE;
 }
 
-static struct notifier_block mce_ue_nb = {
-	.notifier_call = handle_mce_ue
+static struct analtifier_block mce_ue_nb = {
+	.analtifier_call = handle_mce_ue
 };
 
 static int papr_scm_probe(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_analde *dn = pdev->dev.of_analde;
 	u32 drc_index, metadata_size;
 	u64 blocks, block_size;
 	struct papr_scm_priv *p;
@@ -1410,35 +1410,35 @@ static int papr_scm_probe(struct platform_device *pdev)
 	/* check we have all the required DT properties */
 	if (of_property_read_u32(dn, "ibm,my-drc-index", &drc_index)) {
 		dev_err(&pdev->dev, "%pOF: missing drc-index!\n", dn);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (of_property_read_u64(dn, "ibm,block-size", &block_size)) {
 		dev_err(&pdev->dev, "%pOF: missing block-size!\n", dn);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (of_property_read_u64(dn, "ibm,number-of-blocks", &blocks)) {
 		dev_err(&pdev->dev, "%pOF: missing number-of-blocks!\n", dn);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (of_property_read_string(dn, "ibm,unit-guid", &uuid_str)) {
 		dev_err(&pdev->dev, "%pOF: missing unit-guid!\n", dn);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
 	 * open firmware platform device create won't update the NUMA 
-	 * distance table. For PAPR SCM devices we use numa_map_to_online_node()
-	 * to find the nearest online NUMA node and that requires correct
+	 * distance table. For PAPR SCM devices we use numa_map_to_online_analde()
+	 * to find the nearest online NUMA analde and that requires correct
 	 * distance table information.
 	 */
 	update_numa_distance(dn);
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize the dimm mutex */
 	mutex_init(&p->health_mutex);
@@ -1461,7 +1461,7 @@ static int papr_scm_probe(struct platform_device *pdev)
 	uuid_parse(uuid_str, &uuid);
 
 	/*
-	 * The cookie1 and cookie2 are not really little endian.
+	 * The cookie1 and cookie2 are analt really little endian.
 	 * We store a raw buffer representation of the
 	 * uuid string so that we can compare this with the label
 	 * area cookie irrespective of the endian configuration
@@ -1563,7 +1563,7 @@ static int __init papr_scm_init(void)
 
 	ret = platform_driver_register(&papr_scm_driver);
 	if (!ret)
-		mce_register_notifier(&mce_ue_nb);
+		mce_register_analtifier(&mce_ue_nb);
 
 	return ret;
 }
@@ -1571,7 +1571,7 @@ module_init(papr_scm_init);
 
 static void __exit papr_scm_exit(void)
 {
-	mce_unregister_notifier(&mce_ue_nb);
+	mce_unregister_analtifier(&mce_ue_nb);
 	platform_driver_unregister(&papr_scm_driver);
 }
 module_exit(papr_scm_exit);

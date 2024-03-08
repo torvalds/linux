@@ -73,13 +73,13 @@ static inline void flush_dcache_page(struct page *page)
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
-#define ARCH_HAS_FLUSH_ANON_PAGE
-extern void __flush_anon_page(struct page *, unsigned long);
-static inline void flush_anon_page(struct vm_area_struct *vma,
+#define ARCH_HAS_FLUSH_AANALN_PAGE
+extern void __flush_aanaln_page(struct page *, unsigned long);
+static inline void flush_aanaln_page(struct vm_area_struct *vma,
 	struct page *page, unsigned long vmaddr)
 {
-	if (cpu_has_dc_aliases && PageAnon(page))
-		__flush_anon_page(page, vmaddr);
+	if (cpu_has_dc_aliases && PageAanaln(page))
+		__flush_aanaln_page(page, vmaddr);
 }
 
 extern void (*flush_icache_range)(unsigned long start, unsigned long end);
@@ -123,16 +123,16 @@ unsigned long run_uncached(void *func);
 
 extern void *kmap_coherent(struct page *page, unsigned long addr);
 extern void kunmap_coherent(void);
-extern void *kmap_noncoherent(struct page *page, unsigned long addr);
+extern void *kmap_analncoherent(struct page *page, unsigned long addr);
 
-static inline void kunmap_noncoherent(void)
+static inline void kunmap_analncoherent(void)
 {
 	kunmap_coherent();
 }
 
 #define ARCH_IMPLEMENTS_FLUSH_KERNEL_VMAP_RANGE 1
 /*
- * For now flush_kernel_vmap_range and invalidate_kernel_vmap_range both do a
+ * For analw flush_kernel_vmap_range and invalidate_kernel_vmap_range both do a
  * cache writeback and invalidate operation.
  */
 extern void (*__flush_kernel_vmap_range)(unsigned long vaddr, int size);

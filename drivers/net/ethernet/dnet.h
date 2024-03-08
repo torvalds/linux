@@ -104,7 +104,7 @@
 #define DNET_INTERNAL_RXTX_CONTROL_ENABLEHALFDUP	(1 << 5)
 
 /* SYSTEM CONTROL REGISTER FIELDS */
-#define DNET_SYS_CTL_IGNORENEXTPKT			(1 << 0)
+#define DNET_SYS_CTL_IGANALRENEXTPKT			(1 << 0)
 #define DNET_SYS_CTL_SENDPAUSE				(1 << 2)
 #define DNET_SYS_CTL_RXFIFOFLUSH			(1 << 3)
 #define DNET_SYS_CTL_TXFIFOFLUSH			(1 << 4)
@@ -143,15 +143,15 @@
 #define DNET_INTR_ENB_GLOBAL_ENABLE			(1 << 18)
 
 /* default values:
- * almost empty = less than one full sized ethernet frame (no jumbo) inside
+ * almost empty = less than one full sized ethernet frame (anal jumbo) inside
  * the fifo almost full = can write less than one full sized ethernet frame
- * (no jumbo) inside the fifo
+ * (anal jumbo) inside the fifo
  */
 #define DNET_CFG_TX_FIFO_FULL_THRES	25
 #define DNET_CFG_RX_FIFO_FULL_THRES	20
 
 /*
- * Capabilities. Used by the driver to know the capabilities that the ethernet
+ * Capabilities. Used by the driver to kanalw the capabilities that the ethernet
  * controller inside the FPGA have.
  */
 

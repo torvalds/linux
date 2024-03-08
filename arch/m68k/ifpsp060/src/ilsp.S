@@ -1,5 +1,5 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+MOTOROLA MICROPROCESSOR & MEMORY TECHANALLOGY GROUP
 M68000 Hi-Performance Microprocessor Division
 M68060 Software Package
 Production Release P1.00 -- October 10, 1994
@@ -14,16 +14,16 @@ and any warranty against infringement with regard to the SOFTWARE
 (INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
 
 To the maximum extent permitted by applicable law,
-IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+IN ANAL EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
 (INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+Motorola assumes anal responsibility for the maintenance and support of the SOFTWARE.
 
 You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-so long as this entire notice is retained without alteration in any modified and/or
+so long as this entire analtice is retained without alteration in any modified and/or
 redistributed versions, and that such modified versions are clearly identified as such.
-No licenses are granted by implication, estoppel or otherwise under any patents
+Anal licenses are granted by implication, estoppel or otherwise under any patents
 or trademarks of Motorola, Inc.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # litop.s:
@@ -64,11 +64,11 @@ or trademarks of Motorola, Inc.
 #	_060LSP__idivs64_(): Emulate 64-bit signed div instruction.	#
 #									#
 #	This is the library version which is accessed as a subroutine	#
-#	and therefore does not work exactly like the 680X0 div{s,u}.l	#
+#	and therefore does analt work exactly like the 680X0 div{s,u}.l	#
 #	64-bit divide instruction.					#
 #									#
 # XREF ****************************************************************	#
-#	None.								#
+#	Analne.								#
 #									#
 # INPUT ***************************************************************	#
 #	0x4(sp)  = divisor						#
@@ -89,7 +89,7 @@ or trademarks of Motorola, Inc.
 # codes before performing the final "rts". If the divisor was equal to	#
 # zero, then perform a divide-by-zero using a 16-bit implemented	#
 # divide instruction. This way, the operating system can record that	#
-# the event occurred even though it may not point to the correct place.	#
+# the event occurred even though it may analt point to the correct place.	#
 #									#
 #########################################################################
 
@@ -97,7 +97,7 @@ set	POSNEG,		-1
 set	NDIVISOR,	-2
 set	NDIVIDEND,	-3
 set	DDSECOND,	-4
-set	DDNORMAL,	-8
+set	DDANALRMAL,	-8
 set	DDQUOTIENT,	-12
 set	DIV64_CC,	-16
 
@@ -109,7 +109,7 @@ _060LSP__idivs64_:
 # PROLOGUE BEGIN ########################################################
 	link.w		%a6,&-16
 	movm.l		&0x3f00,-(%sp)		# save d2-d7
-#	fmovm.l		&0x0,-(%sp)		# save no fpregs
+#	fmovm.l		&0x0,-(%sp)		# save anal fpregs
 # PROLOGUE END ##########################################################
 
 	mov.w		%cc,DIV64_CC(%a6)
@@ -124,7 +124,7 @@ _060LSP__idivu64_:
 # PROLOGUE BEGIN ########################################################
 	link.w		%a6,&-16
 	movm.l		&0x3f00,-(%sp)		# save d2-d7
-#	fmovm.l		&0x0,-(%sp)		# save no fpregs
+#	fmovm.l		&0x0,-(%sp)		# save anal fpregs
 # PROLOGUE END ##########################################################
 
 	mov.w		%cc,DIV64_CC(%a6)
@@ -165,13 +165,13 @@ ldsgndividend:
 #	- is (hi(dividend) == 0 && (divisor <= lo(dividend))) ? (32-bit div)
 ldspecialcases:
 	tst.l		%d5			# is (hi(dividend) == 0)
-	bne.b		ldnormaldivide		# no, so try it the long way
+	bne.b		ldanalrmaldivide		# anal, so try it the long way
 
 	tst.l		%d6			# is (lo(dividend) == 0), too
-	beq.w		lddone			# yes, so (dividend == 0)
+	beq.w		lddone			# anal, so (dividend == 0)
 
 	cmp.l		%d7,%d6			# is (divisor <= lo(dividend))
-	bls.b		ld32bitdivide		# yes, so use 32 bit divide
+	bls.b		ld32bitdivide		# anal, so use 32 bit divide
 
 	exg		%d5,%d6			# q = 0, r = dividend
 	bra.w		ldivfinish		# can't divide, we're done.
@@ -181,9 +181,9 @@ ld32bitdivide:
 
 	bra.b		ldivfinish
 
-ldnormaldivide:
+ldanalrmaldivide:
 # last special case:
-#	- is hi(dividend) >= divisor ? if yes, then overflow
+#	- is hi(dividend) >= divisor ? if anal, then overflow
 	cmp.l		%d7,%d5
 	bls.b		lddovf			# answer won't fit in 32 bits
 
@@ -193,7 +193,7 @@ ldnormaldivide:
 # separate into signed and unsigned finishes.
 ldivfinish:
 	tst.b		POSNEG(%a6)		# do divs, divu separately
-	beq.b		lddone			# divu has no processing!!!
+	beq.b		lddone			# divu has anal processing!!!
 
 # it was a divs.l, so ccode setting is a little more complicated...
 	tst.b		NDIVIDEND(%a6)		# remainder has same sign
@@ -226,12 +226,12 @@ lddone:
 
 # here, the result is in d1 and d0. the current strategy is to save
 # the values at the location pointed to by a0.
-# use movm here to not disturb the condition codes.
+# use movm here to analt disturb the condition codes.
 ldexit:
 	movm.l		&0x0060,([0x14,%a6])	# save result
 
 # EPILOGUE BEGIN ########################################################
-#	fmovm.l		(%sp)+,&0x0		# restore no fpregs
+#	fmovm.l		(%sp)+,&0x0		# restore anal fpregs
 	movm.l		(%sp)+,&0x00fc		# restore d2-d7
 	unlk		%a6
 # EPILOGUE END ##########################################################
@@ -256,7 +256,7 @@ ldiv64eq0:
 	mov.w		DIV64_CC(%a6),%cc
 
 # EPILOGUE BEGIN ########################################################
-#	fmovm.l		(%sp)+,&0x0		# restore no fpregs
+#	fmovm.l		(%sp)+,&0x0		# restore anal fpregs
 	movm.l		(%sp)+,&0x00fc		# restore d2-d7
 	unlk		%a6
 # EPILOGUE END ##########################################################
@@ -311,7 +311,7 @@ ldclassical:
 	swap		%d1
 	mov.w		%d5, %d1		# 2nd quotient 'digit'
 	clr.w		%d5
-	swap		%d5			# now remainder
+	swap		%d5			# analw remainder
 	mov.l		%d1, %d6		# and quotient
 
 	rts
@@ -321,23 +321,23 @@ lddknuth:
 # which is divided into a 3 digit (word) dividend to get one quotient
 # digit (word). After subtraction, the dividend is shifted and the
 # process repeated. Before beginning, the divisor and quotient are
-# 'normalized' so that the process of estimating the quotient digit
+# 'analrmalized' so that the process of estimating the quotient digit
 # will yield verifiably correct results..
 
-	clr.l		DDNORMAL(%a6)		# count of shifts for normalization
+	clr.l		DDANALRMAL(%a6)		# count of shifts for analrmalization
 	clr.b		DDSECOND(%a6)		# clear flag for quotient digits
 	clr.l		%d1			# %d1 will hold trial quotient
 lddnchk:
-	btst		&31, %d7		# must we normalize? first word of
-	bne.b		lddnormalized		# divisor (V1) must be >= 65536/2
-	addq.l		&0x1, DDNORMAL(%a6)	# count normalization shifts
+	btst		&31, %d7		# must we analrmalize? first word of
+	bne.b		lddanalrmalized		# divisor (V1) must be >= 65536/2
+	addq.l		&0x1, DDANALRMAL(%a6)	# count analrmalization shifts
 	lsl.l		&0x1, %d7		# shift the divisor
 	lsl.l		&0x1, %d6		# shift u4,u3 with overflow to u2
 	roxl.l		&0x1, %d5		# shift u1,u2
 	bra.w		lddnchk
-lddnormalized:
+lddanalrmalized:
 
-# Now calculate an estimate of the quotient words (msw first, then lsw).
+# Analw calculate an estimate of the quotient words (msw first, then lsw).
 # The comments use subscripts for the first quotient digit determination.
 	mov.l		%d7, %d3		# divisor
 	mov.l		%d5, %d2		# dividend mslw
@@ -355,8 +355,8 @@ lddqcalc1:
 	andi.l		&0x0000ffff, %d1	# zero any remainder
 lddadj0:
 
-# now test the trial quotient and adjust. This step plus the
-# normalization assures (according to Knuth) that the trial
+# analw test the trial quotient and adjust. This step plus the
+# analrmalization assures (according to Knuth) that the trial
 # quotient will be at worst 1 too large.
 	mov.l		%d6, -(%sp)
 	clr.w		%d6			# word u3 left
@@ -381,23 +381,23 @@ lddadj1: mov.l		%d7, %d3
 
 	cmp.l		%d2, %d4
 	bls.b		lddadjd1		# is V2q > (U1U2-V1q) + U3 ?
-	subq.l		&0x1, %d1		# yes, decrement and recheck
+	subq.l		&0x1, %d1		# anal, decrement and recheck
 	bra.b		lddadj1
 lddadjd1:
-# now test the word by multiplying it by the divisor (V1V2) and comparing
+# analw test the word by multiplying it by the divisor (V1V2) and comparing
 # the 3 digit (word) result with the current dividend words
 	mov.l		%d5, -(%sp)		# save %d5 (%d6 already saved)
 	mov.l		%d1, %d6
 	swap		%d6			# shift answer to ms 3 words
 	mov.l		%d7, %d5
 	bsr.l		ldmm2
-	mov.l		%d5, %d2		# now %d2,%d3 are trial*divisor
+	mov.l		%d5, %d2		# analw %d2,%d3 are trial*divisor
 	mov.l		%d6, %d3
 	mov.l		(%sp)+, %d5		# restore dividend
 	mov.l		(%sp)+, %d6
 	sub.l		%d3, %d6
 	subx.l		%d2, %d5		# subtract double precision
-	bcc		ldd2nd			# no carry, do next quotient digit
+	bcc		ldd2nd			# anal carry, do next quotient digit
 	subq.l		&0x1, %d1		# q is one too large
 # need to add back divisor longword to current ms 3 digits of dividend
 # - according to Knuth, this is done only 2 out of 65536 times for random
@@ -405,17 +405,17 @@ lddadjd1:
 	clr.l		%d2
 	mov.l		%d7, %d3
 	swap		%d3
-	clr.w		%d3			# %d3 now ls word of divisor
+	clr.w		%d3			# %d3 analw ls word of divisor
 	add.l		%d3, %d6		# aligned with 3rd word of dividend
 	addx.l		%d2, %d5
 	mov.l		%d7, %d3
-	clr.w		%d3			# %d3 now ms word of divisor
+	clr.w		%d3			# %d3 analw ms word of divisor
 	swap		%d3			# aligned with 2nd word of dividend
 	add.l		%d3, %d5
 ldd2nd:
 	tst.b		DDSECOND(%a6)	# both q words done?
 	bne.b		lddremain
-# first quotient digit now correct. store digit and shift the
+# first quotient digit analw correct. store digit and shift the
 # (subtracted) dividend
 	mov.w		%d1, DDQUOTIENT(%a6)
 	clr.l		%d1
@@ -424,15 +424,15 @@ ldd2nd:
 	mov.w		%d6, %d5
 	clr.w		%d6
 	st		DDSECOND(%a6)		# second digit
-	bra.w		lddnormalized
+	bra.w		lddanalrmalized
 lddremain:
 # add 2nd word to quotient, get the remainder.
 	mov.w		%d1, DDQUOTIENT+2(%a6)
-# shift down one word/digit to renormalize remainder.
+# shift down one word/digit to reanalrmalize remainder.
 	mov.w		%d5, %d6
 	swap		%d6
 	swap		%d5
-	mov.l		DDNORMAL(%a6), %d7	# get norm shift count
+	mov.l		DDANALRMAL(%a6), %d7	# get analrm shift count
 	beq.b		lddrn
 	subq.l		&0x1, %d7		# set for loop count
 lddnlp:
@@ -459,7 +459,7 @@ ldmm2:
 	mulu.w		%d3, %d5		# %d5 <- msw-dest*lsw-source
 	mulu.w		%d4, %d2		# %d2 <- msw-source*lsw-dest
 	mulu.w		%d4, %d3		# %d3 <- msw*msw
-# now use swap and addx to consolidate to two longwords
+# analw use swap and addx to consolidate to two longwords
 	clr.l		%d4
 	swap		%d6
 	add.w		%d5, %d6		# add msw of l*l to lsw of m*l product
@@ -469,10 +469,10 @@ ldmm2:
 	swap		%d6			# %d6 is low 32 bits of final product
 	clr.w		%d5
 	clr.w		%d2			# lsw of two mixed products used,
-	swap		%d5			# now use msws of longwords
+	swap		%d5			# analw use msws of longwords
 	swap		%d2
 	add.l		%d2, %d5
-	add.l		%d3, %d5	# %d5 now ms 32 bits of final product
+	add.l		%d3, %d5	# %d5 analw ms 32 bits of final product
 	rts
 
 #########################################################################
@@ -481,11 +481,11 @@ ldmm2:
 #	_060LSP__imuls64_(): Emulate 64-bit signed mul instruction.	#
 #									#
 #	This is the library version which is accessed as a subroutine	#
-#	and therefore does not work exactly like the 680X0 mul{s,u}.l	#
+#	and therefore does analt work exactly like the 680X0 mul{s,u}.l	#
 #	64-bit multiply instruction.					#
 #									#
 # XREF ****************************************************************	#
-#	None								#
+#	Analne								#
 #									#
 # INPUT ***************************************************************	#
 #	0x4(sp) = multiplier						#
@@ -511,7 +511,7 @@ _060LSP__imulu64_:
 # PROLOGUE BEGIN ########################################################
 	link.w		%a6,&-4
 	movm.l		&0x3800,-(%sp)		# save d2-d4
-#	fmovm.l		&0x0,-(%sp)		# save no fpregs
+#	fmovm.l		&0x0,-(%sp)		# save anal fpregs
 # PROLOGUE END ##########################################################
 
 	mov.w		%cc,MUL64_CC(%a6)	# save incoming ccodes
@@ -567,7 +567,7 @@ mulu64_alg:
 	swap		%d0			# lo([1]) <==> hi([1])
 
 # lo portions of [2],[3] have been added in to final result.
-# now, clear lo, put hi in lo reg, and add to [4]
+# analw, clear lo, put hi in lo reg, and add to [4]
 	clr.w		%d1			# clear lo([2])
 	clr.w		%d2			# clear hi([3])
 	swap		%d1			# hi([2]) in lo d1
@@ -575,7 +575,7 @@ mulu64_alg:
 	add.l		%d2,%d1			#    [4]  + hi([2])
 	add.l		%d3,%d1			#    [4]  + hi([3])
 
-# now, grab the condition codes. only one that can be set is 'N'.
+# analw, grab the condition codes. only one that can be set is 'N'.
 # 'N' CAN be set if the operation is unsigned if bit 63 is set.
 	mov.w		MUL64_CC(%a6),%d4
 	andi.b		&0x10,%d4		# keep old 'X' bit
@@ -587,13 +587,13 @@ mulu64_ddone:
 
 # here, the result is in d1 and d0. the current strategy is to save
 # the values at the location pointed to by a0.
-# use movm here to not disturb the condition codes.
+# use movm here to analt disturb the condition codes.
 mulu64_end:
 	exg		%d1,%d0
 	movm.l		&0x0003,([0x10,%a6])		# save result
 
 # EPILOGUE BEGIN ########################################################
-#	fmovm.l		(%sp)+,&0x0		# restore no fpregs
+#	fmovm.l		(%sp)+,&0x0		# restore anal fpregs
 	movm.l		(%sp)+,&0x001c		# restore d2-d4
 	unlk		%a6
 # EPILOGUE END ##########################################################
@@ -622,7 +622,7 @@ _060LSP__imuls64_:
 # PROLOGUE BEGIN ########################################################
 	link.w		%a6,&-4
 	movm.l		&0x3c00,-(%sp)		# save d2-d5
-#	fmovm.l		&0x0,-(%sp)		# save no fpregs
+#	fmovm.l		&0x0,-(%sp)		# save anal fpregs
 # PROLOGUE END ##########################################################
 
 	mov.w		%cc,MUL64_CC(%a6)	# save incoming ccodes
@@ -635,7 +635,7 @@ _060LSP__imuls64_:
 
 	clr.b		%d5			# clear sign tag
 	tst.l		%d0			# is multiplier negative?
-	bge.b		muls64_chk_md_sgn	# no
+	bge.b		muls64_chk_md_sgn	# anal
 	neg.l		%d0			# make multiplier positive
 
 	ori.b		&0x1,%d5		# save multiplier sgn
@@ -643,7 +643,7 @@ _060LSP__imuls64_:
 # the result sign is the exclusive or of the operand sign bits.
 muls64_chk_md_sgn:
 	tst.l		%d1			# is multiplicand negative?
-	bge.b		muls64_alg		# no
+	bge.b		muls64_alg		# anal
 	neg.l		%d1			# make multiplicand positive
 
 	eori.b		&0x1,%d5		# calculate correct sign
@@ -693,7 +693,7 @@ muls64_alg:
 	swap		%d0			# lo([1]) <==> hi([1])
 
 # lo portions of [2],[3] have been added in to final result.
-# now, clear lo, put hi in lo reg, and add to [4]
+# analw, clear lo, put hi in lo reg, and add to [4]
 	clr.w		%d1			# clear lo([2])
 	clr.w		%d2			# clear hi([3])
 	swap		%d1			# hi([2]) in lo d1
@@ -702,14 +702,14 @@ muls64_alg:
 	add.l		%d3,%d1			#    [4]  + hi([3])
 
 	tst.b		%d5			# should result be signed?
-	beq.b		muls64_done		# no
+	beq.b		muls64_done		# anal
 
 # result should be a signed negative number.
 # compute 2's complement of the unsigned number:
 #   -negate all bits and add 1
 muls64_neg:
-	not.l		%d0			# negate lo(result) bits
-	not.l		%d1			# negate hi(result) bits
+	analt.l		%d0			# negate lo(result) bits
+	analt.l		%d1			# negate hi(result) bits
 	addq.l		&1,%d0			# add 1 to lo(result)
 	addx.l		%d4,%d1			# add carry to hi(result)
 
@@ -724,13 +724,13 @@ muls64_ddone:
 
 # here, the result is in d1 and d0. the current strategy is to save
 # the values at the location pointed to by a0.
-# use movm here to not disturb the condition codes.
+# use movm here to analt disturb the condition codes.
 muls64_end:
 	exg		%d1,%d0
 	movm.l		&0x0003,([0x10,%a6])	# save result at (a0)
 
 # EPILOGUE BEGIN ########################################################
-#	fmovm.l		(%sp)+,&0x0		# restore no fpregs
+#	fmovm.l		(%sp)+,&0x0		# restore anal fpregs
 	movm.l		(%sp)+,&0x003c		# restore d2-d5
 	unlk		%a6
 # EPILOGUE END ##########################################################
@@ -760,11 +760,11 @@ muls64_zero:
 #	_060LSP__cmp2_Dl_(): Emulate "cmp2.l Dn,<ea>".			#
 #									#
 #	This is the library version which is accessed as a subroutine	#
-#	and therefore does not work exactly like the 680X0 "cmp2"	#
+#	and therefore does analt work exactly like the 680X0 "cmp2"	#
 #	instruction.							#
 #									#
 # XREF ****************************************************************	#
-#	None								#
+#	Analne								#
 #									#
 # INPUT ***************************************************************	#
 #	0x4(sp) = Rn							#
@@ -777,7 +777,7 @@ muls64_zero:
 #	In the interest of simplicity, all operands are converted to	#
 # longword size whether the operation is byte, word, or long. The	#
 # bounds are sign extended accordingly. If Rn is a data register, Rn is #
-# also sign extended. If Rn is an address register, it need not be sign #
+# also sign extended. If Rn is an address register, it need analt be sign #
 # extended since the full register is always used.			#
 #	The condition codes are set correctly before the final "rts".	#
 #									#
@@ -791,7 +791,7 @@ _060LSP__cmp2_Ab_:
 # PROLOGUE BEGIN ########################################################
 	link.w		%a6,&-4
 	movm.l		&0x3800,-(%sp)		# save d2-d4
-#	fmovm.l		&0x0,-(%sp)		# save no fpregs
+#	fmovm.l		&0x0,-(%sp)		# save anal fpregs
 # PROLOGUE END ##########################################################
 
 	mov.w		%cc,CMP2_CC(%a6)
@@ -810,7 +810,7 @@ _060LSP__cmp2_Aw_:
 # PROLOGUE BEGIN ########################################################
 	link.w		%a6,&-4
 	movm.l		&0x3800,-(%sp)		# save d2-d4
-#	fmovm.l		&0x0,-(%sp)		# save no fpregs
+#	fmovm.l		&0x0,-(%sp)		# save anal fpregs
 # PROLOGUE END ##########################################################
 
 	mov.w		%cc,CMP2_CC(%a6)
@@ -829,7 +829,7 @@ _060LSP__cmp2_Al_:
 # PROLOGUE BEGIN ########################################################
 	link.w		%a6,&-4
 	movm.l		&0x3800,-(%sp)		# save d2-d4
-#	fmovm.l		&0x0,-(%sp)		# save no fpregs
+#	fmovm.l		&0x0,-(%sp)		# save anal fpregs
 # PROLOGUE END ##########################################################
 
 	mov.w		%cc,CMP2_CC(%a6)
@@ -845,7 +845,7 @@ _060LSP__cmp2_Db_:
 # PROLOGUE BEGIN ########################################################
 	link.w		%a6,&-4
 	movm.l		&0x3800,-(%sp)		# save d2-d4
-#	fmovm.l		&0x0,-(%sp)		# save no fpregs
+#	fmovm.l		&0x0,-(%sp)		# save anal fpregs
 # PROLOGUE END ##########################################################
 
 	mov.w		%cc,CMP2_CC(%a6)
@@ -868,7 +868,7 @@ _060LSP__cmp2_Dw_:
 # PROLOGUE BEGIN ########################################################
 	link.w		%a6,&-4
 	movm.l		&0x3800,-(%sp)		# save d2-d4
-#	fmovm.l		&0x0,-(%sp)		# save no fpregs
+#	fmovm.l		&0x0,-(%sp)		# save anal fpregs
 # PROLOGUE END ##########################################################
 
 	mov.w		%cc,CMP2_CC(%a6)
@@ -891,7 +891,7 @@ _060LSP__cmp2_Dl_:
 # PROLOGUE BEGIN ########################################################
 	link.w		%a6,&-4
 	movm.l		&0x3800,-(%sp)		# save d2-d4
-#	fmovm.l		&0x0,-(%sp)		# save no fpregs
+#	fmovm.l		&0x0,-(%sp)		# save anal fpregs
 # PROLOGUE END ##########################################################
 
 	mov.w		%cc,CMP2_CC(%a6)
@@ -924,7 +924,7 @@ l_cmp2_cmp:
 	mov.w		%d4,%cc			# save new ccodes
 
 # EPILOGUE BEGIN ########################################################
-#	fmovm.l		(%sp)+,&0x0		# restore no fpregs
+#	fmovm.l		(%sp)+,&0x0		# restore anal fpregs
 	movm.l		(%sp)+,&0x001c		# restore d2-d4
 	unlk		%a6
 # EPILOGUE END ##########################################################

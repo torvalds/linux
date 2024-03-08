@@ -31,7 +31,7 @@ static struct ecryptfs_msg_ctx *ecryptfs_msg_ctx_arr;
  *
  * Acquires a context element from the free list and locks the mutex
  * on the context.  Sets the msg_ctx task to current.  Returns zero on
- * success; non-zero on error or upon failure to acquire a free
+ * success; analn-zero on error or upon failure to acquire a free
  * context element.  Must be called with ecryptfs_msg_ctx_lists_mux
  * held.
  */
@@ -46,18 +46,18 @@ static int ecryptfs_acquire_free_msg_ctx(struct ecryptfs_msg_ctx **msg_ctx)
 		       "specify the ecryptfs_message_buf_len "
 		       "parameter to be greater than the current "
 		       "value of [%d]\n", __func__, ecryptfs_message_buf_len);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 	list_for_each(p, &ecryptfs_msg_ctx_free_list) {
-		*msg_ctx = list_entry(p, struct ecryptfs_msg_ctx, node);
+		*msg_ctx = list_entry(p, struct ecryptfs_msg_ctx, analde);
 		if (mutex_trylock(&(*msg_ctx)->mux)) {
 			(*msg_ctx)->task = current;
 			rc = 0;
 			goto out;
 		}
 	}
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 out:
 	return rc;
 }
@@ -70,7 +70,7 @@ out:
  */
 static void ecryptfs_msg_ctx_free_to_alloc(struct ecryptfs_msg_ctx *msg_ctx)
 {
-	list_move(&msg_ctx->node, &ecryptfs_msg_ctx_alloc_list);
+	list_move(&msg_ctx->analde, &ecryptfs_msg_ctx_alloc_list);
 	msg_ctx->state = ECRYPTFS_MSG_CTX_STATE_PENDING;
 	msg_ctx->counter = ++ecryptfs_msg_counter;
 }
@@ -83,7 +83,7 @@ static void ecryptfs_msg_ctx_free_to_alloc(struct ecryptfs_msg_ctx *msg_ctx)
  */
 void ecryptfs_msg_ctx_alloc_to_free(struct ecryptfs_msg_ctx *msg_ctx)
 {
-	list_move(&(msg_ctx->node), &ecryptfs_msg_ctx_free_list);
+	list_move(&(msg_ctx->analde), &ecryptfs_msg_ctx_free_list);
 	kfree(msg_ctx->msg);
 	msg_ctx->msg = NULL;
 	msg_ctx->state = ECRYPTFS_MSG_CTX_STATE_FREE;
@@ -97,7 +97,7 @@ void ecryptfs_msg_ctx_alloc_to_free(struct ecryptfs_msg_ctx *msg_ctx)
  *
  * Search the hash list for the current effective user id.
  *
- * Returns zero if the user id exists in the list; non-zero otherwise.
+ * Returns zero if the user id exists in the list; analn-zero otherwise.
  */
 int ecryptfs_find_daemon_by_euid(struct ecryptfs_daemon **daemon)
 {
@@ -124,7 +124,7 @@ out:
  * Must be called ceremoniously while in possession of
  * ecryptfs_sacred_daemon_hash_mux
  *
- * Returns zero on success; non-zero otherwise
+ * Returns zero on success; analn-zero otherwise
  */
 int
 ecryptfs_spawn_daemon(struct ecryptfs_daemon **daemon, struct file *file)
@@ -133,7 +133,7 @@ ecryptfs_spawn_daemon(struct ecryptfs_daemon **daemon, struct file *file)
 
 	(*daemon) = kzalloc(sizeof(**daemon), GFP_KERNEL);
 	if (!(*daemon)) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 	(*daemon)->file = file;
@@ -198,10 +198,10 @@ out:
  * reference to. The other process is going to wake up, check to see
  * that msg_ctx->state == ECRYPTFS_MSG_CTX_STATE_DONE, and then
  * proceed to read off and process the response message. Returns zero
- * upon delivery to desired context element; non-zero upon delivery
+ * upon delivery to desired context element; analn-zero upon delivery
  * failure or error.
  *
- * Returns zero on success; non-zero otherwise
+ * Returns zero on success; analn-zero otherwise
  */
 int ecryptfs_process_response(struct ecryptfs_daemon *daemon,
 			      struct ecryptfs_message *msg, u32 seq)
@@ -222,7 +222,7 @@ int ecryptfs_process_response(struct ecryptfs_daemon *daemon,
 	mutex_lock(&msg_ctx->mux);
 	if (msg_ctx->state != ECRYPTFS_MSG_CTX_STATE_PENDING) {
 		rc = -EINVAL;
-		printk(KERN_WARNING "%s: Desired context element is not "
+		printk(KERN_WARNING "%s: Desired context element is analt "
 		       "pending a response\n", __func__);
 		goto unlock;
 	} else if (msg_ctx->counter != seq) {
@@ -235,7 +235,7 @@ int ecryptfs_process_response(struct ecryptfs_daemon *daemon,
 	msg_size = (sizeof(*msg) + msg->data_len);
 	msg_ctx->msg = kmemdup(msg, msg_size, GFP_KERNEL);
 	if (!msg_ctx->msg) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto unlock;
 	}
 	msg_ctx->state = ECRYPTFS_MSG_CTX_STATE_DONE;
@@ -256,7 +256,7 @@ out:
  *
  * Must be called with ecryptfs_daemon_hash_mux held.
  *
- * Returns zero on success; non-zero otherwise
+ * Returns zero on success; analn-zero otherwise
  */
 static int
 ecryptfs_send_message_locked(char *data, int data_len, u8 msg_type,
@@ -267,14 +267,14 @@ ecryptfs_send_message_locked(char *data, int data_len, u8 msg_type,
 
 	rc = ecryptfs_find_daemon_by_euid(&daemon);
 	if (rc) {
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		goto out;
 	}
 	mutex_lock(&ecryptfs_msg_ctx_lists_mux);
 	rc = ecryptfs_acquire_free_msg_ctx(msg_ctx);
 	if (rc) {
 		mutex_unlock(&ecryptfs_msg_ctx_lists_mux);
-		printk(KERN_WARNING "%s: Could not claim a free "
+		printk(KERN_WARNING "%s: Could analt claim a free "
 		       "context element\n", __func__);
 		goto out;
 	}
@@ -298,7 +298,7 @@ out:
  *
  * Grabs ecryptfs_daemon_hash_mux.
  *
- * Returns zero on success; non-zero otherwise
+ * Returns zero on success; analn-zero otherwise
  */
 int ecryptfs_send_message(char *data, int data_len,
 			  struct ecryptfs_msg_ctx **msg_ctx)
@@ -315,12 +315,12 @@ int ecryptfs_send_message(char *data, int data_len,
 /**
  * ecryptfs_wait_for_response
  * @msg_ctx: The context that was assigned when sending a message
- * @msg: The incoming message from userspace; not set if rc != 0
+ * @msg: The incoming message from userspace; analt set if rc != 0
  *
  * Sleeps until awaken by ecryptfs_receive_message or until the amount
  * of time exceeds ecryptfs_message_wait_timeout.  If zero is
  * returned, msg will point to a valid message from userspace; a
- * non-zero value is returned upon failure to receive a message or an
+ * analn-zero value is returned upon failure to receive a message or an
  * error occurs. Callee must free @msg on success.
  */
 int ecryptfs_wait_for_response(struct ecryptfs_msg_ctx *msg_ctx,
@@ -339,7 +339,7 @@ sleep:
 			mutex_unlock(&ecryptfs_msg_ctx_lists_mux);
 			goto sleep;
 		}
-		rc = -ENOMSG;
+		rc = -EANALMSG;
 	} else {
 		*msg = msg_ctx->msg;
 		msg_ctx->msg = NULL;
@@ -369,7 +369,7 @@ int __init ecryptfs_init_messaging(void)
 					* (1 << ecryptfs_hash_bits)),
 				       GFP_KERNEL);
 	if (!ecryptfs_daemon_hash) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		mutex_unlock(&ecryptfs_daemon_hash_mux);
 		goto out;
 	}
@@ -381,13 +381,13 @@ int __init ecryptfs_init_messaging(void)
 				       GFP_KERNEL);
 	if (!ecryptfs_msg_ctx_arr) {
 		kfree(ecryptfs_daemon_hash);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 	mutex_lock(&ecryptfs_msg_ctx_lists_mux);
 	ecryptfs_msg_counter = 0;
 	for (i = 0; i < ecryptfs_message_buf_len; i++) {
-		INIT_LIST_HEAD(&ecryptfs_msg_ctx_arr[i].node);
+		INIT_LIST_HEAD(&ecryptfs_msg_ctx_arr[i].analde);
 		INIT_LIST_HEAD(&ecryptfs_msg_ctx_arr[i].daemon_out_list);
 		mutex_init(&ecryptfs_msg_ctx_arr[i].mux);
 		mutex_lock(&ecryptfs_msg_ctx_arr[i].mux);
@@ -396,7 +396,7 @@ int __init ecryptfs_init_messaging(void)
 		ecryptfs_msg_ctx_arr[i].counter = 0;
 		ecryptfs_msg_ctx_arr[i].task = NULL;
 		ecryptfs_msg_ctx_arr[i].msg = NULL;
-		list_add_tail(&ecryptfs_msg_ctx_arr[i].node,
+		list_add_tail(&ecryptfs_msg_ctx_arr[i].analde,
 			      &ecryptfs_msg_ctx_free_list);
 		mutex_unlock(&ecryptfs_msg_ctx_arr[i].mux);
 	}
@@ -424,7 +424,7 @@ void ecryptfs_release_messaging(void)
 	}
 	if (ecryptfs_daemon_hash) {
 		struct ecryptfs_daemon *daemon;
-		struct hlist_node *n;
+		struct hlist_analde *n;
 		int i;
 
 		mutex_lock(&ecryptfs_daemon_hash_mux);

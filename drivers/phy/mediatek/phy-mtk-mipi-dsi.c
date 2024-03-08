@@ -72,14 +72,14 @@ static void mtk_mipi_tx_get_calibration_datal(struct mtk_mipi_tx *mipi_tx)
 
 	cell = nvmem_cell_get(mipi_tx->dev, "calibration-data");
 	if (IS_ERR(cell)) {
-		dev_info(mipi_tx->dev, "can't get nvmem_cell_get, ignore it\n");
+		dev_info(mipi_tx->dev, "can't get nvmem_cell_get, iganalre it\n");
 		return;
 	}
 	buf = (u32 *)nvmem_cell_read(cell, &len);
 	nvmem_cell_put(cell);
 
 	if (IS_ERR(buf)) {
-		dev_info(mipi_tx->dev, "can't get data, ignore it\n");
+		dev_info(mipi_tx->dev, "can't get data, iganalre it\n");
 		return;
 	}
 
@@ -119,11 +119,11 @@ static int mtk_mipi_tx_probe(struct platform_device *pdev)
 
 	mipi_tx = devm_kzalloc(dev, sizeof(*mipi_tx), GFP_KERNEL);
 	if (!mipi_tx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_tx->driver_data = of_device_get_match_data(dev);
 	if (!mipi_tx->driver_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mipi_tx->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mipi_tx->regs))
@@ -134,7 +134,7 @@ static int mtk_mipi_tx_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(ref_clk),
 				     "Failed to get reference clock\n");
 
-	ret = of_property_read_u32(dev->of_node, "drive-strength-microamp",
+	ret = of_property_read_u32(dev->of_analde, "drive-strength-microamp",
 				   &mipi_tx->mipitx_drive);
 	/* If can't get the "mipi_tx->mipitx_drive", set it default 0x8 */
 	if (ret < 0)
@@ -142,7 +142,7 @@ static int mtk_mipi_tx_probe(struct platform_device *pdev)
 
 	/* check the mipitx_drive valid */
 	if (mipi_tx->mipitx_drive > 6000 || mipi_tx->mipitx_drive < 3000) {
-		dev_warn(dev, "drive-strength-microamp is invalid %d, not in 3000 ~ 6000\n",
+		dev_warn(dev, "drive-strength-microamp is invalid %d, analt in 3000 ~ 6000\n",
 			 mipi_tx->mipitx_drive);
 		mipi_tx->mipitx_drive = clamp_val(mipi_tx->mipitx_drive, 3000,
 						  6000);
@@ -150,7 +150,7 @@ static int mtk_mipi_tx_probe(struct platform_device *pdev)
 
 	ref_clk_name = __clk_get_name(ref_clk);
 
-	ret = of_property_read_string(dev->of_node, "clock-output-names",
+	ret = of_property_read_string(dev->of_analde, "clock-output-names",
 				      &clk_init.name);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to read clock-output-names\n");

@@ -45,7 +45,7 @@
  *
  * The Screen position of the top left corner of the displayed
  * cursor is specificed by CURS_HORZ_VERT_POSN. Care must be taken
- * when the cursor hot spot is not the top left corner and the
+ * when the cursor hot spot is analt the top left corner and the
  * physical cursor position becomes negative. It will be displayed
  * if either the horizontal or vertical cursor position is negative
  *
@@ -177,7 +177,7 @@ static int atyfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 			    break;
 			}
 			/*
-			 * If cursor size is not a multiple of 8 characters
+			 * If cursor size is analt a multiple of 8 characters
 			 * we must pad it with transparent pattern (0xaaaa).
 			 */
 			if ((j + 1) * 8 > cursor->image.width) {

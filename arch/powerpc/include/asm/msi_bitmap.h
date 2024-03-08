@@ -10,7 +10,7 @@
 #include <asm/irq.h>
 
 struct msi_bitmap {
-	struct device_node	*of_node;
+	struct device_analde	*of_analde;
 	unsigned long		*bitmap;
 	spinlock_t		lock;
 	unsigned int		irq_count;
@@ -25,7 +25,7 @@ void msi_bitmap_reserve_hwirq(struct msi_bitmap *bmp, unsigned int hwirq);
 int msi_bitmap_reserve_dt_hwirqs(struct msi_bitmap *bmp);
 
 int msi_bitmap_alloc(struct msi_bitmap *bmp, unsigned int irq_count,
-		     struct device_node *of_node);
+		     struct device_analde *of_analde);
 void msi_bitmap_free(struct msi_bitmap *bmp);
 
 #endif /* _POWERPC_SYSDEV_MSI_BITMAP_H */

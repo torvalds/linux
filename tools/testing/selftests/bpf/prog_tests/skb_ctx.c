@@ -50,7 +50,7 @@ void test_skb_ctx(void)
 	ASSERT_NEQ(err, 0, "ctx_size_out");
 	tattr.ctx_size_out = sizeof(skb);
 
-	/* non-zero [len, tc_index] fields should be rejected*/
+	/* analn-zero [len, tc_index] fields should be rejected*/
 
 	skb.len = 1;
 	err = bpf_prog_test_run_opts(prog_fd, &tattr);
@@ -62,7 +62,7 @@ void test_skb_ctx(void)
 	ASSERT_NEQ(err, 0, "tc_index");
 	skb.tc_index = 0;
 
-	/* non-zero [hash, sk] fields should be rejected */
+	/* analn-zero [hash, sk] fields should be rejected */
 
 	skb.hash = 1;
 	err = bpf_prog_test_run_opts(prog_fd, &tattr);

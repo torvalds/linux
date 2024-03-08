@@ -78,8 +78,8 @@ static const struct regmap_range pmic_status_range = {
 };
 
 static const struct regmap_access_table volatile_regs = {
-	.yes_ranges = &pmic_status_range,
-	.n_yes_ranges = 1,
+	.anal_ranges = &pmic_status_range,
+	.n_anal_ranges = 1,
 };
 
 static const struct regmap_config bd718xx_regmap_config = {
@@ -97,7 +97,7 @@ static int bd718xx_init_press_duration(struct regmap *regmap,
 	u32 short_press_value, long_press_value;
 	int ret;
 
-	ret = of_property_read_u32(dev->of_node, "rohm,short-press-ms",
+	ret = of_property_read_u32(dev->of_analde, "rohm,short-press-ms",
 				   &short_press_ms);
 	if (!ret) {
 		short_press_value = min(15u, (short_press_ms + 250) / 500);
@@ -110,7 +110,7 @@ static int bd718xx_init_press_duration(struct regmap *regmap,
 		}
 	}
 
-	ret = of_property_read_u32(dev->of_node, "rohm,long-press-ms",
+	ret = of_property_read_u32(dev->of_analde, "rohm,long-press-ms",
 				   &long_press_ms);
 	if (!ret) {
 		long_press_value = min(15u, (long_press_ms + 500) / 1000);
@@ -136,7 +136,7 @@ static int bd718xx_i2c_probe(struct i2c_client *i2c)
 	int cells;
 
 	if (!i2c->irq) {
-		dev_err(&i2c->dev, "No IRQ configured\n");
+		dev_err(&i2c->dev, "Anal IRQ configured\n");
 		return -EINVAL;
 	}
 	chip_type = (unsigned int)(uintptr_t)
@@ -151,7 +151,7 @@ static int bd718xx_i2c_probe(struct i2c_client *i2c)
 		cells = ARRAY_SIZE(bd71847_mfd_cells);
 		break;
 	default:
-		dev_err(&i2c->dev, "Unknown device type");
+		dev_err(&i2c->dev, "Unkanalwn device type");
 		return -EINVAL;
 	}
 

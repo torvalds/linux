@@ -47,7 +47,7 @@ struct vcc_port {
 #define VCC_REF_DELAY		100
 
 #define VCC_MAX_PORTS		1024
-#define VCC_MINOR_START		0	/* must be zero */
+#define VCC_MIANALR_START		0	/* must be zero */
 #define VCC_BUFF_LEN		VIO_VCC_MTU_SIZE
 
 #define VCC_CTL_BREAK		-1
@@ -91,7 +91,7 @@ module_param(vcc_dbg_vio, uint, 0664);
 		}						\
 	} while (0)						\
 
-/* Note: Be careful when adding flags to this line discipline.  Don't
+/* Analte: Be careful when adding flags to this line discipline.  Don't
  * add anything that will cause echoing or we'll go into recursive
  * loop echoing chars back and forth with the console drivers.
  */
@@ -117,7 +117,7 @@ static int vcc_table_add(struct vcc_port *port)
 	int i;
 
 	spin_lock_irqsave(&vcc_table_lock, flags);
-	for (i = VCC_MINOR_START; i < VCC_MAX_PORTS; i++) {
+	for (i = VCC_MIANALR_START; i < VCC_MAX_PORTS; i++) {
 		if (!vcc_table[i]) {
 			vcc_table[i] = port;
 			break;
@@ -153,7 +153,7 @@ static void vcc_table_remove(unsigned long index)
  * @excl: Indicates if an exclusive access is requested
  *
  * Return: reference to the VCC port, if found
- *	   NULL, if port not found
+ *	   NULL, if port analt found
  */
 static struct vcc_port *vcc_get(unsigned long index, bool excl)
 {
@@ -202,7 +202,7 @@ try_again:
  * @port: pointer to VCC port
  * @excl: Indicates if the returned reference is an exclusive reference
  *
- * Note: It's the caller's responsibility to ensure the correct value
+ * Analte: It's the caller's responsibility to ensure the correct value
  *	 for the excl flag
  */
 static void vcc_put(struct vcc_port *port, bool excl)
@@ -229,13 +229,13 @@ done:
 }
 
 /**
- * vcc_get_ne() - Get a non-exclusive reference to VCC port
+ * vcc_get_ne() - Get a analn-exclusive reference to VCC port
  * @index: Index into the VCC table
  *
- * Gets a non-exclusive reference to VCC port, if it's not removed
+ * Gets a analn-exclusive reference to VCC port, if it's analt removed
  *
  * Return: pointer to the VCC port, if found
- *	   NULL, if port not found
+ *	   NULL, if port analt found
  */
 static struct vcc_port *vcc_get_ne(unsigned long index)
 {
@@ -258,7 +258,7 @@ static void vcc_kick_rx(struct vcc_port *port)
 	assert_spin_locked(&port->lock);
 
 	if (!timer_pending(&port->rx_timer) && !port->removed) {
-		disable_irq_nosync(vio->vdev->rx_irq);
+		disable_irq_analsync(vio->vdev->rx_irq);
 		port->rx_timer.expires = (jiffies + 1);
 		add_timer(&port->rx_timer);
 	}
@@ -340,7 +340,7 @@ static int vcc_ldc_read(struct vcc_port *port)
 			/* vcc_rx_check ensures memory availability */
 			vcc_rx(tty, pkt.data, pkt.tag.stype);
 		} else {
-			pr_err("VCC: unknown msg [%02x:%02x:%04x:%08x]\n",
+			pr_err("VCC: unkanalwn msg [%02x:%02x:%04x:%08x]\n",
 			       pkt.tag.type, pkt.tag.stype,
 			       pkt.tag.stype_env, pkt.tag.sid);
 			rv = -ECONNRESET;
@@ -469,7 +469,7 @@ static struct ldc_channel_config vcc_ldc_cfg = {
 
 /* Ordered from largest major to lowest */
 static struct vio_version vcc_versions[] = {
-	{ .major = 1, .minor = 0 },
+	{ .major = 1, .mianalr = 0 },
 };
 
 static struct tty_port_operations vcc_port_ops = { 0 };
@@ -483,7 +483,7 @@ static ssize_t domain_show(struct device *dev,
 
 	port = dev_get_drvdata(dev);
 	if (!port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rv = scnprintf(buf, PAGE_SIZE, "%s\n", port->domain);
 
@@ -517,7 +517,7 @@ static ssize_t break_store(struct device *dev,
 
 	port = dev_get_drvdata(dev);
 	if (!port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -564,23 +564,23 @@ static int vcc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	struct device *dev;
 	const char *domain;
 	char *name;
-	u64 node;
+	u64 analde;
 	int rv;
 
 	vccdbg("VCC: name=%s\n", dev_name(&vdev->dev));
 
 	if (!vcc_tty_driver) {
-		pr_err("VCC: TTY driver not registered\n");
-		return -ENODEV;
+		pr_err("VCC: TTY driver analt registered\n");
+		return -EANALDEV;
 	}
 
 	port = kzalloc(sizeof(struct vcc_port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	name = kstrdup(dev_name(&vdev->dev), GFP_KERNEL);
 	if (!name) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto free_port;
 	}
 
@@ -600,8 +600,8 @@ static int vcc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	port->index = vcc_table_add(port);
 	if (port->index == -1) {
-		pr_err("VCC: no more TTY indices left for allocation\n");
-		rv = -ENOMEM;
+		pr_err("VCC: anal more TTY indices left for allocation\n");
+		rv = -EANALMEM;
 		goto free_ldc;
 	}
 
@@ -614,14 +614,14 @@ static int vcc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	hp = mdesc_grab();
 
-	node = vio_vdev_node(hp, vdev);
-	if (node == MDESC_NODE_NULL) {
+	analde = vio_vdev_analde(hp, vdev);
+	if (analde == MDESC_ANALDE_NULL) {
 		rv = -ENXIO;
 		mdesc_release(hp);
 		goto unreg_tty;
 	}
 
-	domain = mdesc_get_property(hp, node, "vcc-domain-name", NULL);
+	domain = mdesc_get_property(hp, analde, "vcc-domain-name", NULL);
 	if (!domain) {
 		rv = -ENXIO;
 		mdesc_release(hp);
@@ -629,7 +629,7 @@ static int vcc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	}
 	port->domain = kstrdup(domain, GFP_KERNEL);
 	if (!port->domain) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto unreg_tty;
 	}
 
@@ -648,7 +648,7 @@ static int vcc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	/* It's possible to receive IRQs in the middle of vio_port_up. Disable
 	 * IRQs until the port is up.
 	 */
-	disable_irq_nosync(vdev->rx_irq);
+	disable_irq_analsync(vdev->rx_irq);
 	vio_port_up(&port->vio);
 	enable_irq(vdev->rx_irq);
 
@@ -686,15 +686,15 @@ static void vcc_remove(struct vio_dev *vdev)
 	del_timer_sync(&port->rx_timer);
 	del_timer_sync(&port->tx_timer);
 
-	/* If there's a process with the device open, do a synchronous
+	/* If there's a process with the device open, do a synchroanalus
 	 * hangup of the TTY. This *may* cause the process to call close
-	 * asynchronously, but it's not guaranteed.
+	 * asynchroanalusly, but it's analt guaranteed.
 	 */
 	if (port->tty)
 		tty_vhangup(port->tty);
 
-	/* Get exclusive reference to VCC, ensures that there are no other
-	 * clients to this port. This cannot fail.
+	/* Get exclusive reference to VCC, ensures that there are anal other
+	 * clients to this port. This cananalt fail.
 	 */
 	vcc_get(port->index, true);
 
@@ -741,11 +741,11 @@ static int vcc_open(struct tty_struct *tty, struct file *vcc_file)
 	port = vcc_get_ne(tty->index);
 	if (unlikely(!port)) {
 		pr_err("VCC: open: Failed to find VCC port\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (unlikely(!port->vio.lp)) {
-		pr_err("VCC: open: LDC channel not configured\n");
+		pr_err("VCC: open: LDC channel analt configured\n");
 		vcc_put(port, false);
 		return -EPIPE;
 	}
@@ -754,12 +754,12 @@ static int vcc_open(struct tty_struct *tty, struct file *vcc_file)
 	vcc_put(port, false);
 
 	if (unlikely(!tty->port)) {
-		pr_err("VCC: open: TTY port not found\n");
+		pr_err("VCC: open: TTY port analt found\n");
 		return -ENXIO;
 	}
 
 	if (unlikely(!tty->port->ops)) {
-		pr_err("VCC: open: TTY ops not defined\n");
+		pr_err("VCC: open: TTY ops analt defined\n");
 		return -ENXIO;
 	}
 
@@ -772,7 +772,7 @@ static void vcc_close(struct tty_struct *tty, struct file *vcc_file)
 		return;
 
 	if (unlikely(!tty->port)) {
-		pr_err("VCC: close: TTY port not found\n");
+		pr_err("VCC: close: TTY port analt found\n");
 		return;
 	}
 
@@ -802,7 +802,7 @@ static void vcc_hangup(struct tty_struct *tty)
 	}
 
 	if (unlikely(!tty->port)) {
-		pr_err("VCC: hangup: TTY port not found\n");
+		pr_err("VCC: hangup: TTY port analt found\n");
 		vcc_put(port, false);
 		return;
 	}
@@ -826,7 +826,7 @@ static ssize_t vcc_write(struct tty_struct *tty, const u8 *buf, size_t count)
 	port = vcc_get_ne(tty->index);
 	if (unlikely(!port)) {
 		pr_err("VCC: write: Failed to find VCC port");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -852,7 +852,7 @@ static ssize_t vcc_write(struct tty_struct *tty, const u8 *buf, size_t count)
 		vccdbg("DATA [%s]\n", pkt->data);
 		vccdbgl(port->vio.lp);
 
-		/* Since we know we have enough room in VCC buffer for tosend
+		/* Since we kanalw we have eanalugh room in VCC buffer for tosend
 		 * we record that it was sent regardless of whether the
 		 * hypervisor actually took it because we have it buffered.
 		 */
@@ -923,7 +923,7 @@ static int vcc_break_ctl(struct tty_struct *tty, int state)
 	port = vcc_get_ne(tty->index);
 	if (unlikely(!port)) {
 		pr_err("VCC: break_ctl: Failed to find VCC port\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Turn off break */
@@ -959,14 +959,14 @@ static int vcc_install(struct tty_driver *driver, struct tty_struct *tty)
 
 	port_tty = kzalloc(sizeof(struct tty_port), GFP_KERNEL);
 	if (!port_tty)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port_vcc = vcc_get(tty->index, true);
 	if (!port_vcc) {
 		pr_err("VCC: install: Failed to find VCC port\n");
 		tty->port = NULL;
 		kfree(port_tty);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	tty_port_init(port_tty);
@@ -1030,7 +1030,7 @@ static int vcc_tty_init(void)
 	vcc_tty_driver->driver_name = "vcc";
 	vcc_tty_driver->name = "vcc";
 
-	vcc_tty_driver->minor_start = VCC_MINOR_START;
+	vcc_tty_driver->mianalr_start = VCC_MIANALR_START;
 	vcc_tty_driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	vcc_tty_driver->init_termios = vcc_tty_termios;
 

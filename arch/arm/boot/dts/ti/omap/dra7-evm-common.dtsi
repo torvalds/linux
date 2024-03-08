@@ -253,7 +253,7 @@
 	bus-width = <4>;
 	cap-power-off-card;
 	keep-power-in-suspend;
-	non-removable;
+	analn-removable;
 	#address-cells = <1>;
 	#size-cells = <0>;
 	wifi@2 {

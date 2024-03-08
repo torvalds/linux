@@ -37,7 +37,7 @@ static int ti_j721e_ufs_probe(struct platform_device *pdev)
 	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
-		dev_err(dev, "Cannot claim MPHY clock.\n");
+		dev_err(dev, "Cananalt claim MPHY clock.\n");
 		goto clk_err;
 	}
 	clk_rate = clk_get_rate(clk);
@@ -49,10 +49,10 @@ static int ti_j721e_ufs_probe(struct platform_device *pdev)
 	reg |= TI_UFS_SS_RST_N_PCS;
 	writel(reg, regbase + TI_UFS_SS_CTRL);
 
-	ret = of_platform_populate(pdev->dev.of_node, NULL, NULL,
+	ret = of_platform_populate(pdev->dev.of_analde, NULL, NULL,
 				   dev);
 	if (ret) {
-		dev_err(dev, "failed to populate child nodes %d\n", ret);
+		dev_err(dev, "failed to populate child analdes %d\n", ret);
 		goto clk_err;
 	}
 

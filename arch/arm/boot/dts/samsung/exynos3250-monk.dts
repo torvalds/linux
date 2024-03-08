@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos3250 based Monk board device tree source
+ * Samsung's Exyanals3250 based Monk board device tree source
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Device tree source file for Samsung's Monk board which is based on
- * Samsung Exynos3250 SoC.
+ * Samsung Exyanals3250 SoC.
  */
 
 /dts-v1/;
-#include "exynos3250.dtsi"
-#include "exynos4412-ppmu-common.dtsi"
+#include "exyanals3250.dtsi"
+#include "exyanals4412-ppmu-common.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clock/samsung,s2mps11.h>
 
 / {
 	model = "Samsung Monk board";
-	compatible = "samsung,monk", "samsung,exynos3250", "samsung,exynos3";
+	compatible = "samsung,monk", "samsung,exyanals3250", "samsung,exyanals3";
 
 	aliases {
 		i2c7 = &i2c_max77836;
@@ -66,7 +66,7 @@
 		max77836: pmic@25 {
 			compatible = "maxim,max77836";
 			interrupt-parent = <&gpx1>;
-			interrupts = <5 IRQ_TYPE_NONE>;
+			interrupts = <5 IRQ_TYPE_ANALNE>;
 			reg = <0x25>;
 			wakeup-source;
 
@@ -173,7 +173,7 @@
 	cpu0-supply = <&buck2_reg>;
 };
 
-&exynos_usbphy {
+&exyanals_usbphy {
 	vbus-supply = <&safeout_reg>;
 	status = "okay";
 };
@@ -437,7 +437,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	broken-cd;
-	non-removable;
+	analn-removable;
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
 	card-detect-delay = <200>;
@@ -500,10 +500,10 @@
 		PIN_SLP(gpa1-4, INPUT, DOWN);
 		PIN_SLP(gpa1-5, INPUT, DOWN);
 
-		PIN_SLP(gpb-0, PREV, NONE);
-		PIN_SLP(gpb-1, PREV, NONE);
-		PIN_SLP(gpb-2, PREV, NONE);
-		PIN_SLP(gpb-3, PREV, NONE);
+		PIN_SLP(gpb-0, PREV, ANALNE);
+		PIN_SLP(gpb-1, PREV, ANALNE);
+		PIN_SLP(gpb-2, PREV, ANALNE);
+		PIN_SLP(gpb-3, PREV, ANALNE);
 		PIN_SLP(gpb-4, INPUT, DOWN);
 		PIN_SLP(gpb-5, INPUT, DOWN);
 		PIN_SLP(gpb-6, INPUT, DOWN);
@@ -523,13 +523,13 @@
 
 		PIN_SLP(gpd0-0, INPUT, DOWN);
 		PIN_SLP(gpd0-1, INPUT, DOWN);
-		PIN_SLP(gpd0-2, INPUT, NONE);
-		PIN_SLP(gpd0-3, INPUT, NONE);
+		PIN_SLP(gpd0-2, INPUT, ANALNE);
+		PIN_SLP(gpd0-3, INPUT, ANALNE);
 
-		PIN_SLP(gpd1-0, INPUT, NONE);
-		PIN_SLP(gpd1-1, INPUT, NONE);
-		PIN_SLP(gpd1-2, INPUT, NONE);
-		PIN_SLP(gpd1-3, INPUT, NONE);
+		PIN_SLP(gpd1-0, INPUT, ANALNE);
+		PIN_SLP(gpd1-1, INPUT, ANALNE);
+		PIN_SLP(gpd1-2, INPUT, ANALNE);
+		PIN_SLP(gpd1-3, INPUT, ANALNE);
 	};
 };
 
@@ -548,44 +548,44 @@
 	};
 
 	sleep1: sleep-state {
-		PIN_SLP(gpe0-0, PREV, NONE);
-		PIN_SLP(gpe0-1, PREV, NONE);
+		PIN_SLP(gpe0-0, PREV, ANALNE);
+		PIN_SLP(gpe0-1, PREV, ANALNE);
 		PIN_SLP(gpe0-2, INPUT, DOWN);
 		PIN_SLP(gpe0-3, INPUT, DOWN);
-		PIN_SLP(gpe0-4, PREV, NONE);
+		PIN_SLP(gpe0-4, PREV, ANALNE);
 		PIN_SLP(gpe0-5, INPUT, DOWN);
 		PIN_SLP(gpe0-6, INPUT, DOWN);
 		PIN_SLP(gpe0-7, INPUT, DOWN);
 
 		PIN_SLP(gpe1-0, INPUT, DOWN);
-		PIN_SLP(gpe1-1, PREV, NONE);
+		PIN_SLP(gpe1-1, PREV, ANALNE);
 		PIN_SLP(gpe1-2, INPUT, DOWN);
 		PIN_SLP(gpe1-3, INPUT, DOWN);
 		PIN_SLP(gpe1-4, INPUT, DOWN);
 		PIN_SLP(gpe1-5, INPUT, DOWN);
 		PIN_SLP(gpe1-6, INPUT, DOWN);
-		PIN_SLP(gpe1-7, INPUT, NONE);
+		PIN_SLP(gpe1-7, INPUT, ANALNE);
 
-		PIN_SLP(gpe2-0, INPUT, NONE);
-		PIN_SLP(gpe2-1, INPUT, NONE);
-		PIN_SLP(gpe2-2, INPUT, NONE);
+		PIN_SLP(gpe2-0, INPUT, ANALNE);
+		PIN_SLP(gpe2-1, INPUT, ANALNE);
+		PIN_SLP(gpe2-2, INPUT, ANALNE);
 
 		PIN_SLP(gpk0-0, INPUT, DOWN);
 		PIN_SLP(gpk0-1, INPUT, DOWN);
-		PIN_SLP(gpk0-2, OUT0, NONE);
+		PIN_SLP(gpk0-2, OUT0, ANALNE);
 		PIN_SLP(gpk0-3, INPUT, DOWN);
 		PIN_SLP(gpk0-4, INPUT, DOWN);
 		PIN_SLP(gpk0-5, INPUT, DOWN);
 		PIN_SLP(gpk0-6, INPUT, DOWN);
 		PIN_SLP(gpk0-7, INPUT, DOWN);
 
-		PIN_SLP(gpk1-0, PREV, NONE);
-		PIN_SLP(gpk1-1, PREV, NONE);
+		PIN_SLP(gpk1-0, PREV, ANALNE);
+		PIN_SLP(gpk1-1, PREV, ANALNE);
 		PIN_SLP(gpk1-2, INPUT, DOWN);
-		PIN_SLP(gpk1-3, PREV, NONE);
-		PIN_SLP(gpk1-4, PREV, NONE);
-		PIN_SLP(gpk1-5, PREV, NONE);
-		PIN_SLP(gpk1-6, PREV, NONE);
+		PIN_SLP(gpk1-3, PREV, ANALNE);
+		PIN_SLP(gpk1-4, PREV, ANALNE);
+		PIN_SLP(gpk1-5, PREV, ANALNE);
+		PIN_SLP(gpk1-6, PREV, ANALNE);
 
 		PIN_SLP(gpk2-0, INPUT, DOWN);
 		PIN_SLP(gpk2-1, INPUT, DOWN);

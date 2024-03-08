@@ -8,7 +8,7 @@ title: Tegra210 SFC
 
 description: |
   The Sampling Frequency Converter (SFC) converts the sampling frequency
-  of the input signal from one frequency to another. It supports sampling
+  of the input signal from one frequency to aanalther. It supports sampling
   frequency conversions of streams of up to two channels (stereo).
 
 maintainers:
@@ -20,7 +20,7 @@ allOf:
   - $ref: dai-common.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^sfc@[0-9a-f]*$"
 
   compatible:

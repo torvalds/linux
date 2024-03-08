@@ -2,7 +2,7 @@
 /*
  * I2C bus driver for Amlogic Meson SoCs
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamianal Galvani <b.galvani@gmail.com>
  */
 
 #include <linux/bitfield.h>
@@ -30,7 +30,7 @@
 
 /* Control register fields */
 #define REG_CTRL_START			BIT(0)
-#define REG_CTRL_ACK_IGNORE		BIT(1)
+#define REG_CTRL_ACK_IGANALRE		BIT(1)
 #define REG_CTRL_STATUS			BIT(2)
 #define REG_CTRL_ERROR			BIT(3)
 #define REG_CTRL_CLKDIV_SHIFT		12
@@ -279,7 +279,7 @@ static void meson_i2c_transfer_complete(struct meson_i2c *i2c, u32 ctrl)
 {
 	if (ctrl & REG_CTRL_ERROR) {
 		/*
-		 * The bit is set when the IGNORE_NAK bit is cleared
+		 * The bit is set when the IGANALRE_NAK bit is cleared
 		 * and the device didn't respond. In this case, the
 		 * I2C controller automatically generates a STOP
 		 * condition.
@@ -299,7 +299,7 @@ static void meson_i2c_transfer_complete(struct meson_i2c *i2c, u32 ctrl)
 	}
 }
 
-static irqreturn_t meson_i2c_irq(int irqno, void *dev_id)
+static irqreturn_t meson_i2c_irq(int irqanal, void *dev_id)
 {
 	struct meson_i2c *i2c = dev_id;
 	unsigned int ctrl;
@@ -315,7 +315,7 @@ static irqreturn_t meson_i2c_irq(int irqno, void *dev_id)
 
 	if (i2c->state == STATE_IDLE) {
 		spin_unlock(&i2c->lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	meson_i2c_transfer_complete(i2c, ctrl);
@@ -364,10 +364,10 @@ static int meson_i2c_xfer_msg(struct meson_i2c *i2c, struct i2c_msg *msg,
 
 	meson_i2c_reset_tokens(i2c);
 
-	flags = (msg->flags & I2C_M_IGNORE_NAK) ? REG_CTRL_ACK_IGNORE : 0;
-	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_ACK_IGNORE, flags);
+	flags = (msg->flags & I2C_M_IGANALRE_NAK) ? REG_CTRL_ACK_IGANALRE : 0;
+	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_ACK_IGANALRE, flags);
 
-	if (!(msg->flags & I2C_M_NOSTART))
+	if (!(msg->flags & I2C_M_ANALSTART))
 		meson_i2c_do_start(i2c, msg);
 
 	i2c->state = (msg->flags & I2C_M_RD) ? STATE_READ : STATE_WRITE;
@@ -455,14 +455,14 @@ static const struct i2c_algorithm meson_i2c_algorithm = {
 
 static int meson_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct meson_i2c *i2c;
 	struct i2c_timings timings;
 	int irq, ret = 0;
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(struct meson_i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_parse_fw_timings(&pdev->dev, &timings, true);
 
@@ -506,7 +506,7 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	i2c->adap.owner = THIS_MODULE;
 	i2c->adap.algo = &meson_i2c_algorithm;
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.dev.of_node = np;
+	i2c->adap.dev.of_analde = np;
 	i2c->adap.algo_data = i2c;
 
 	/*
@@ -575,5 +575,5 @@ static struct platform_driver meson_i2c_driver = {
 module_platform_driver(meson_i2c_driver);
 
 MODULE_DESCRIPTION("Amlogic Meson I2C Bus driver");
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_AUTHOR("Beniamianal Galvani <b.galvani@gmail.com>");
 MODULE_LICENSE("GPL v2");

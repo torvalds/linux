@@ -39,7 +39,7 @@ properties:
 
   linux,keymap: true
 
-  linux,no-autorepeat:
+  linux,anal-autorepeat:
     type: boolean
     description: Disable keyrepeat
 

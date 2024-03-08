@@ -6,7 +6,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
@@ -18,13 +18,13 @@
 #include "sof_sdw_common.h"
 
 /*
- * Note this MUST be called before snd_soc_register_card(), so that the props
+ * Analte this MUST be called before snd_soc_register_card(), so that the props
  * are in place before the codec component driver's probe function parses them.
  */
 static int rt_sdca_jack_add_codec_device_props(struct device *sdw_dev)
 {
-	struct property_entry props[MAX_NO_PROPS] = {};
-	struct fwnode_handle *fwnode;
+	struct property_entry props[MAX_ANAL_PROPS] = {};
+	struct fwanalde_handle *fwanalde;
 	int ret;
 
 	if (!SOF_JACK_JDSRC(sof_sdw_quirk))
@@ -32,13 +32,13 @@ static int rt_sdca_jack_add_codec_device_props(struct device *sdw_dev)
 
 	props[0] = PROPERTY_ENTRY_U32("realtek,jd-src", SOF_JACK_JDSRC(sof_sdw_quirk));
 
-	fwnode = fwnode_create_software_node(props, NULL);
-	if (IS_ERR(fwnode))
-		return PTR_ERR(fwnode);
+	fwanalde = fwanalde_create_software_analde(props, NULL);
+	if (IS_ERR(fwanalde))
+		return PTR_ERR(fwanalde);
 
-	ret = device_add_software_node(sdw_dev, to_software_node(fwnode));
+	ret = device_add_software_analde(sdw_dev, to_software_analde(fwanalde));
 
-	fwnode_handle_put(fwnode);
+	fwanalde_handle_put(fwanalde);
 
 	return ret;
 }
@@ -97,7 +97,7 @@ static int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd)
 					  "%s hs:%s-sdca",
 					  card->components, component->name_prefix);
 	if (!card->components)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = snd_soc_add_card_controls(card, rt_sdca_jack_controls,
 					ARRAY_SIZE(rt_sdca_jack_controls));
@@ -126,7 +126,7 @@ static int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd)
 		ret = snd_soc_dapm_add_routes(&card->dapm, rt722_sdca_map,
 					      ARRAY_SIZE(rt722_sdca_map));
 	} else {
-		dev_err(card->dev, "%s is not supported\n", component->name_prefix);
+		dev_err(card->dev, "%s is analt supported\n", component->name_prefix);
 		return -EINVAL;
 	}
 
@@ -174,7 +174,7 @@ int sof_sdw_rt_sdca_jack_exit(struct snd_soc_card *card, struct snd_soc_dai_link
 	if (!SOF_JACK_JDSRC(sof_sdw_quirk))
 		return 0;
 
-	device_remove_software_node(ctx->headset_codec_dev);
+	device_remove_software_analde(ctx->headset_codec_dev);
 	put_device(ctx->headset_codec_dev);
 	ctx->headset_codec_dev = NULL;
 

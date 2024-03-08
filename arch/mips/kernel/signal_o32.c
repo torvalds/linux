@@ -6,10 +6,10 @@
  * Copyright (C) 1991, 1992  Linus Torvalds
  * Copyright (C) 1994 - 2000, 2006  Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2016, Imagination Technologies Ltd.
+ * Copyright (C) 2016, Imagination Techanallogies Ltd.
  */
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/signal.h>
 #include <linux/sched/signal.h>
 #include <linux/uaccess.h>
@@ -91,7 +91,7 @@ static int restore_sigcontext32(struct pt_regs *regs,
 	int i;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	err |= __get_user(regs->cp0_epc, &sc->sc_pc);
 	err |= __get_user(regs->hi, &sc->sc_mdhi);
@@ -183,7 +183,7 @@ asmlinkage void sys32_rt_sigreturn(void)
 	__asm__ __volatile__(
 		"move\t$29, %0\n\t"
 		"j\tsyscall_exit"
-		: /* no outputs */
+		: /* anal outputs */
 		: "r" (regs));
 	/* Unreached */
 
@@ -282,7 +282,7 @@ asmlinkage void sys32_sigreturn(void)
 	__asm__ __volatile__(
 		"move\t$29, %0\n\t"
 		"j\tsyscall_exit"
-		: /* no outputs */
+		: /* anal outputs */
 		: "r" (regs));
 	/* Unreached */
 

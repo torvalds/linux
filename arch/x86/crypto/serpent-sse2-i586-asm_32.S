@@ -5,7 +5,7 @@
  * Copyright (C) 2011 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
  *
  * Based on crypto/serpent.c by
- *  Copyright (C) 2002 Dag Arne Osvik <osvik@ii.uib.no>
+ *  Copyright (C) 2002 Dag Arne Osvik <osvik@ii.uib.anal>
  *                2003 Herbert Valerio Riedel <hvr@gnu.org>
  */
 
@@ -33,7 +33,7 @@
 #define RT0 %xmm5
 #define RT1 %xmm6
 
-#define RNOT %xmm7
+#define RANALT %xmm7
 
 #define get_key(i, j, t) \
 	movd (4*(i)+(j))*4(CTX), t; \
@@ -139,7 +139,7 @@
 	por x0,			x3; \
 	pxor x4,		x0; \
 	pxor x2,		x4; \
-	pxor RNOT,		x4; \
+	pxor RANALT,		x4; \
 	pxor x1,		x3; \
 	pand x0,		x1; \
 	pxor x4,		x1; \
@@ -149,7 +149,7 @@
 	pxor x2,		x0; \
 	pand x1,		x2; \
 	pxor x2,		x3; \
-	pxor RNOT,		x1; \
+	pxor RANALT,		x1; \
 	pxor x4,		x2; \
 	pxor x2,		x1;
 
@@ -157,7 +157,7 @@
 	movdqa x1,		x4; \
 	pxor x0,		x1; \
 	pxor x3,		x0; \
-	pxor RNOT,		x3; \
+	pxor RANALT,		x3; \
 	pand x1,		x4; \
 	por x1,			x0; \
 	pxor x2,		x3; \
@@ -169,12 +169,12 @@
 	pand x0,		x2; \
 	pxor x1,		x2; \
 	por x0,			x1; \
-	pxor RNOT,		x0; \
+	pxor RANALT,		x0; \
 	pxor x2,		x0; \
 	pxor x1,		x4;
 
 #define S2(x0, x1, x2, x3, x4) \
-	pxor RNOT,		x3; \
+	pxor RANALT,		x3; \
 	pxor x0,		x1; \
 	movdqa x0,		x4; \
 	pand x2,		x0; \
@@ -186,7 +186,7 @@
 	pxor x2,		x0; \
 	pand x3,		x2; \
 	por x1,			x3; \
-	pxor RNOT,		x0; \
+	pxor RANALT,		x0; \
 	pxor x0,		x3; \
 	pxor x0,		x4; \
 	pxor x2,		x0; \
@@ -229,14 +229,14 @@
 	pxor x3,		x2; \
 	pxor x0,		x4; \
 	por x1,			x3; \
-	pxor RNOT,		x1; \
+	pxor RANALT,		x1; \
 	pxor x0,		x3;
 
 #define S5(x0, x1, x2, x3, x4) \
 	movdqa x1,		x4; \
 	por x0,			x1; \
 	pxor x1,		x2; \
-	pxor RNOT,		x3; \
+	pxor RANALT,		x3; \
 	pxor x0,		x4; \
 	pxor x2,		x0; \
 	pand x4,		x1; \
@@ -258,7 +258,7 @@
 	pxor x0,		x2; \
 	pand x3,		x0; \
 	por x3,			x1; \
-	pxor RNOT,		x4; \
+	pxor RANALT,		x4; \
 	pxor x1,		x0; \
 	pxor x2,		x1; \
 	pxor x4,		x3; \
@@ -271,9 +271,9 @@
 	pxor x2,		x1;
 
 #define S7(x0, x1, x2, x3, x4) \
-	pxor RNOT,		x1; \
+	pxor RANALT,		x1; \
 	movdqa x1,		x4; \
-	pxor RNOT,		x0; \
+	pxor RANALT,		x0; \
 	pand x2,		x1; \
 	pxor x3,		x1; \
 	por x4,			x3; \
@@ -296,7 +296,7 @@
 	pxor x0,		x1; \
 	por x1,			x3; \
 	pxor x1,		x4; \
-	pxor RNOT,		x0; \
+	pxor RANALT,		x0; \
 	pxor x3,		x2; \
 	pxor x0,		x3; \
 	pand x1,		x0; \
@@ -314,7 +314,7 @@
 	pxor x3,		x1; \
 	movdqa x0,		x4; \
 	pxor x2,		x0; \
-	pxor RNOT,		x2; \
+	pxor RANALT,		x2; \
 	por x1,			x4; \
 	pxor x3,		x4; \
 	pand x1,		x3; \
@@ -332,7 +332,7 @@
 #define SI2(x0, x1, x2, x3, x4) \
 	pxor x1,		x2; \
 	movdqa x3,		x4; \
-	pxor RNOT,		x3; \
+	pxor RANALT,		x3; \
 	por x2,			x3; \
 	pxor x4,		x2; \
 	pxor x0,		x4; \
@@ -374,7 +374,7 @@
 	pand x1,		x0; \
 	pxor x2,		x0; \
 	por x3,			x2; \
-	pxor RNOT,		x4; \
+	pxor RANALT,		x4; \
 	pxor x0,		x1; \
 	pxor x2,		x0; \
 	pand x4,		x2; \
@@ -396,7 +396,7 @@
 	pand x4,		x3; \
 	pxor x3,		x2; \
 	por x0,			x3; \
-	pxor RNOT,		x0; \
+	pxor RANALT,		x0; \
 	pxor x2,		x3; \
 	por x0,			x2; \
 	pxor x1,		x4; \
@@ -420,7 +420,7 @@
 	por x4,			x2; \
 	pxor x3,		x2; \
 	pand x0,		x3; \
-	pxor RNOT,		x0; \
+	pxor RANALT,		x0; \
 	pxor x1,		x3; \
 	pand x2,		x1; \
 	pxor x0,		x4; \
@@ -435,7 +435,7 @@
 	pxor x2,		x0; \
 	por x4,			x2; \
 	pxor x1,		x4; \
-	pxor RNOT,		x0; \
+	pxor RANALT,		x0; \
 	por x3,			x1; \
 	pxor x0,		x4; \
 	pand x2,		x0; \
@@ -505,7 +505,7 @@ SYM_FUNC_START(__serpent_enc_blk_4way)
 	 *	arg_xor(%esp): bool, if true: xor output
 	 */
 
-	pcmpeqd RNOT, RNOT;
+	pcmpeqd RANALT, RANALT;
 
 	movl arg_ctx(%esp), CTX;
 
@@ -568,7 +568,7 @@ SYM_FUNC_START(serpent_dec_blk_4way)
 	 *	arg_src(%esp): src
 	 */
 
-	pcmpeqd RNOT, RNOT;
+	pcmpeqd RANALT, RANALT;
 
 	movl arg_ctx(%esp), CTX;
 

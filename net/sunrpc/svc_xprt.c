@@ -7,7 +7,7 @@
 
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/freezer.h>
 #include <linux/slab.h>
 #include <net/sock.h>
@@ -54,9 +54,9 @@ static LIST_HEAD(svc_xprt_class_list);
  *             and the ->sk_info_authunix cache.
  *
  *	The XPT_BUSY bit in xprt->xpt_flags prevents a transport being
- *	enqueued multiply. During normal transport processing this bit
+ *	enqueued multiply. During analrmal transport processing this bit
  *	is set by svc_xprt_enqueue and cleared by svc_xprt_received.
- *	Providers should not manipulate this bit directly.
+ *	Providers should analt manipulate this bit directly.
  *
  *	Some flags can be set to certain values at any time
  *	providing that certain rules are followed:
@@ -71,7 +71,7 @@ static LIST_HEAD(svc_xprt_class_list);
  *		- Can set at any time. It is never cleared.
  *      XPT_DEAD:
  *		- Can only be set while XPT_BUSY is held which ensures
- *		  that no other thread will be using the transport or will
+ *		  that anal other thread will be using the transport or will
  *		  try to set XPT_DEAD.
  */
 
@@ -79,7 +79,7 @@ static LIST_HEAD(svc_xprt_class_list);
  * svc_reg_xprt_class - Register a server-side RPC transport class
  * @xcl: New transport class to be registered
  *
- * Returns zero on success; otherwise a negative errno is returned.
+ * Returns zero on success; otherwise a negative erranal is returned.
  */
 int svc_reg_xprt_class(struct svc_xprt_class *xcl)
 {
@@ -246,7 +246,7 @@ static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
 		break;
 #endif
 	default:
-		return ERR_PTR(-EAFNOSUPPORT);
+		return ERR_PTR(-EAFANALSUPPORT);
 	}
 
 	xprt = xcl->xcl_ops->xpo_create(serv, net, sap, len, flags);
@@ -261,9 +261,9 @@ static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
  * @xprt: controlling transport
  *
  * The caller must hold the XPT_BUSY bit and must
- * not thereafter touch transport data.
+ * analt thereafter touch transport data.
  *
- * Note: XPT_DATA only gets cleared when a read-attempt finds no (or
+ * Analte: XPT_DATA only gets cleared when a read-attempt finds anal (or
  * insufficient) data.
  */
 void svc_xprt_received(struct svc_xprt *xprt)
@@ -324,9 +324,9 @@ static int _svc_xprt_create(struct svc_serv *serv, const char *xprt_name,
 	}
  err:
 	spin_unlock(&svc_xprt_class_lock);
-	/* This errno is exposed to user space.  Provide a reasonable
+	/* This erranal is exposed to user space.  Provide a reasonable
 	 * perror msg for a bad transport. */
-	return -EPROTONOSUPPORT;
+	return -EPROTOANALSUPPORT;
 }
 
 /**
@@ -341,7 +341,7 @@ static int _svc_xprt_create(struct svc_serv *serv, const char *xprt_name,
  *
  * Return values:
  *   %0: New listener added successfully
- *   %-EPROTONOSUPPORT: Requested transport type not supported
+ *   %-EPROTOANALSUPPORT: Requested transport type analt supported
  */
 int svc_xprt_create(struct svc_serv *serv, const char *xprt_name,
 		    struct net *net, const int family,
@@ -351,7 +351,7 @@ int svc_xprt_create(struct svc_serv *serv, const char *xprt_name,
 	int err;
 
 	err = _svc_xprt_create(serv, xprt_name, net, family, port, flags, cred);
-	if (err == -EPROTONOSUPPORT) {
+	if (err == -EPROTOANALSUPPORT) {
 		request_module("svc%s", xprt_name);
 		err = _svc_xprt_create(serv, xprt_name, net, family, port, flags, cred);
 	}
@@ -423,9 +423,9 @@ static bool svc_xprt_ready(struct svc_xprt *xprt)
 	unsigned long xpt_flags;
 
 	/*
-	 * If another cpu has recently updated xpt_flags,
+	 * If aanalther cpu has recently updated xpt_flags,
 	 * sk_sock->flags, xpt_reserved, or xpt_nr_rqsts, we need to
-	 * know about it; otherwise it's possible that both that cpu and
+	 * kanalw about it; otherwise it's possible that both that cpu and
 	 * this one could call svc_xprt_enqueue() without either
 	 * svc_xprt_enqueue() recognizing that the conditions below
 	 * are satisfied, and we could stall indefinitely:
@@ -442,7 +442,7 @@ static bool svc_xprt_ready(struct svc_xprt *xprt)
 		if (xprt->xpt_ops->xpo_has_wspace(xprt) &&
 		    svc_xprt_slots_in_range(xprt))
 			return true;
-		trace_svc_xprt_no_write_space(xprt);
+		trace_svc_xprt_anal_write_space(xprt);
 		return false;
 	}
 	return false;
@@ -540,7 +540,7 @@ static void svc_xprt_release(struct svc_rqst *rqstp)
 
 	/* Reset response buffer and release
 	 * the reservation.
-	 * But first, check that enough space was reserved
+	 * But first, check that eanalugh space was reserved
 	 * for the reply, otherwise we have a bug!
 	 */
 	if ((rqstp->rq_res.len) >  rqstp->rq_reserved)
@@ -556,12 +556,12 @@ static void svc_xprt_release(struct svc_rqst *rqstp)
 }
 
 /**
- * svc_wake_up - Wake up a service thread for non-transport work
+ * svc_wake_up - Wake up a service thread for analn-transport work
  * @serv: RPC service
  *
- * Some svc_serv's will have occasional work to do, even when a xprt is not
+ * Some svc_serv's will have occasional work to do, even when a xprt is analt
  * waiting to be serviced. This function is there to "kick" a task in one of
- * those services so that it can wake up and do that work. Note that we only
+ * those services so that it can wake up and do that work. Analte that we only
  * bother with pool 0 as we don't need to wake up more than one thread for
  * this purpose.
  */
@@ -590,16 +590,16 @@ int svc_port_is_privileged(struct sockaddr *sin)
 
 /*
  * Make sure that we don't have too many active connections. If we have,
- * something must be dropped. It's not clear what will happen if we allow
+ * something must be dropped. It's analt clear what will happen if we allow
  * "too many" connections, but when dealing with network-facing software,
  * we have to code defensively. Here we do that by imposing hard limits.
  *
- * There's no point in trying to do random drop here for DoS
+ * There's anal point in trying to do random drop here for DoS
  * prevention. The NFS clients does 1 reconnect in 15 seconds. An
  * attacker can easily beat that.
  *
  * The only somewhat efficient mechanism would be if drop old
- * connections from the same IP first. But right now we don't even
+ * connections from the same IP first. But right analw we don't even
  * record the client IP in svc_sock.
  *
  * single-threaded services that expect a lot of clients will probably
@@ -616,12 +616,12 @@ static void svc_check_conn_limits(struct svc_serv *serv)
 		spin_lock_bh(&serv->sv_lock);
 		if (!list_empty(&serv->sv_tempsocks)) {
 			/* Try to help the admin */
-			net_notice_ratelimited("%s: too many open connections, consider increasing the %s\n",
+			net_analtice_ratelimited("%s: too many open connections, consider increasing the %s\n",
 					       serv->sv_name, serv->sv_maxconn ?
 					       "max number of connections" :
 					       "number of threads");
 			/*
-			 * Always select the oldest connection. It's not fair,
+			 * Always select the oldest connection. It's analt fair,
 			 * but so is life
 			 */
 			xprt = list_entry(serv->sv_tempsocks.prev,
@@ -727,7 +727,7 @@ static void svc_thread_wait_for_work(struct svc_rqst *rqstp)
 			/* Work just became available.  This thread can only
 			 * handle it after removing rqstp from the idle
 			 * list. If that attempt failed, some other thread
-			 * must have queued itself after finding no
+			 * must have queued itself after finding anal
 			 * work to do, so that thread has taken responsibly
 			 * for this new work.  This thread can safely sleep
 			 * until woken again.
@@ -773,7 +773,7 @@ static void svc_handle_xprt(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 	if (test_bit(XPT_LISTENER, &xprt->xpt_flags)) {
 		struct svc_xprt *newxpt;
 		/*
-		 * We know this module_get will succeed because the
+		 * We kanalw this module_get will succeed because the
 		 * listener holds a reference too
 		 */
 		__module_get(xprt->xpt_class->xcl_owner);
@@ -825,7 +825,7 @@ static void svc_thread_wake_next(struct svc_rqst *rqstp)
 {
 	if (!svc_thread_should_sleep(rqstp))
 		/* More work pending after I dequeued some,
-		 * wake another worker
+		 * wake aanalther worker
 		 */
 		svc_pool_wake_idle_thread(rqstp->rq_pool);
 }
@@ -834,7 +834,7 @@ static void svc_thread_wake_next(struct svc_rqst *rqstp)
  * svc_recv - Receive and process the next request on any transport
  * @rqstp: an idle RPC service thread
  *
- * This code is carefully organised not to touch any cachelines in
+ * This code is carefully organised analt to touch any cachelines in
  * the shared svc_serv structure, only cachelines in the local
  * svc_pool.
  */
@@ -859,8 +859,8 @@ void svc_recv(struct svc_rqst *rqstp)
 		struct svc_xprt *xprt = rqstp->rq_xprt;
 
 		svc_thread_wake_next(rqstp);
-		/* Normally we will wait up to 5 seconds for any required
-		 * cache information to be provided.  When there are no
+		/* Analrmally we will wait up to 5 seconds for any required
+		 * cache information to be provided.  When there are anal
 		 * idle threads, we reduce the wait time.
 		 */
 		if (pool->sp_idle_threads.first)
@@ -967,10 +967,10 @@ static void svc_age_temp_xprts(struct timer_list *t)
 /* Close temporary transports whose xpt_local matches server_addr immediately
  * instead of waiting for them to be picked up by the timer.
  *
- * This is meant to be called from a notifier_block that runs when an ip
+ * This is meant to be called from a analtifier_block that runs when an ip
  * address is deleted.
  */
-void svc_age_temp_xprts_now(struct svc_serv *serv, struct sockaddr *server_addr)
+void svc_age_temp_xprts_analw(struct svc_serv *serv, struct sockaddr *server_addr)
 {
 	struct svc_xprt *xprt;
 	struct list_head *le, *next;
@@ -981,7 +981,7 @@ void svc_age_temp_xprts_now(struct svc_serv *serv, struct sockaddr *server_addr)
 		xprt = list_entry(le, struct svc_xprt, xpt_list);
 		if (rpc_cmp_addr(server_addr, (struct sockaddr *)
 				&xprt->xpt_local)) {
-			dprintk("svc_age_temp_xprts_now: found %p\n", xprt);
+			dprintk("svc_age_temp_xprts_analw: found %p\n", xprt);
 			list_move(le, &to_be_closed);
 		}
 	}
@@ -993,12 +993,12 @@ void svc_age_temp_xprts_now(struct svc_serv *serv, struct sockaddr *server_addr)
 		xprt = list_entry(le, struct svc_xprt, xpt_list);
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
 		set_bit(XPT_KILL_TEMP, &xprt->xpt_flags);
-		dprintk("svc_age_temp_xprts_now: queuing xprt %p for closing\n",
+		dprintk("svc_age_temp_xprts_analw: queuing xprt %p for closing\n",
 				xprt);
 		svc_xprt_enqueue(xprt);
 	}
 }
-EXPORT_SYMBOL_GPL(svc_age_temp_xprts_now);
+EXPORT_SYMBOL_GPL(svc_age_temp_xprts_analw);
 
 static void call_xpt_users(struct svc_xprt *xprt)
 {
@@ -1055,7 +1055,7 @@ void svc_xprt_close(struct svc_xprt *xprt)
 		/* someone else will have to effect the close */
 		return;
 	/*
-	 * We expect svc_close_xprt() to work even when no threads are
+	 * We expect svc_close_xprt() to work even when anal threads are
 	 * running (e.g., while configuring the server before starting
 	 * any threads), so if the transport isn't busy, we delete
 	 * it ourself:
@@ -1088,7 +1088,7 @@ static void svc_clean_up_xprts(struct svc_serv *serv, struct net *net)
 
 	for (i = 0; i < serv->sv_nrpools; i++) {
 		struct svc_pool *pool = &serv->sv_pools[i];
-		struct llist_node *q, **t1, *t2;
+		struct llist_analde *q, **t1, *t2;
 
 		q = lwq_dequeue_all(&pool->sp_xprts);
 		lwq_for_each_safe(xprt, t1, t2, &q, xpt_ready) {
@@ -1114,7 +1114,7 @@ static void svc_clean_up_xprts(struct svc_serv *serv, struct net *net)
  *
  * So we shut down sockets the same way we would on a running server, by
  * setting XPT_CLOSE, enqueuing, and letting a thread pick it up to do
- * the close.  In the case there are no such other threads,
+ * the close.  In the case there are anal such other threads,
  * threads running, svc_clean_up_xprts() does a simple version of a
  * server's main event loop, and in the case where there are other
  * threads, we may need to wait a little while and then check again to
@@ -1214,7 +1214,7 @@ static struct cache_deferred_req *svc_defer(struct cache_req *req)
 /*
  * recv data from a deferred request into an active one
  */
-static noinline int svc_deferred_recv(struct svc_rqst *rqstp)
+static analinline int svc_deferred_recv(struct svc_rqst *rqstp)
 {
 	struct svc_deferred_req *dr = rqstp->rq_deferred;
 
@@ -1222,7 +1222,7 @@ static noinline int svc_deferred_recv(struct svc_rqst *rqstp)
 
 	/* setup iov_base past transport header */
 	rqstp->rq_arg.head[0].iov_base = dr->args;
-	/* The iov_len does not include the transport header bytes */
+	/* The iov_len does analt include the transport header bytes */
 	rqstp->rq_arg.head[0].iov_len = dr->argslen << 2;
 	rqstp->rq_arg.page_len = 0;
 	/* The rq_arg.len includes the transport header bytes */
@@ -1328,7 +1328,7 @@ static int svc_one_xprt_name(const struct svc_xprt *xprt,
  * each name terminated with '\n'.
  *
  * Returns positive length of the filled-in string on success; otherwise
- * a negative errno value is returned if an error occurs.
+ * a negative erranal value is returned if an error occurs.
  */
 int svc_xprt_names(struct svc_serv *serv, char *buf, const int buflen)
 {

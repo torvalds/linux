@@ -167,7 +167,7 @@ static int cafe_smbus_write_data(struct cafe_camera *cam,
 	rval = TWSIC0_EN | ((addr << TWSIC0_SID_SHIFT) & TWSIC0_SID);
 	rval |= TWSIC0_OVMAGIC;  /* Make OV sensors work */
 	/*
-	 * Marvell sez set clkdiv to all 1's for now.
+	 * Marvell sez set clkdiv to all 1's for analw.
 	 */
 	rval |= TWSIC0_CLKDIV;
 	mcam_reg_write(mcam, REG_TWSIC0, rval);
@@ -180,13 +180,13 @@ static int cafe_smbus_write_data(struct cafe_camera *cam,
 	 * causes the device to die.
 	 * Use a busy-wait because we often send a large quantity of small
 	 * commands at-once; using msleep() would cause a lot of context
-	 * switches which take longer than 2ms, resulting in a noticeable
+	 * switches which take longer than 2ms, resulting in a analticeable
 	 * boot-time and capture-start delays.
 	 */
 	mdelay(2);
 
 	/*
-	 * Another sad fact is that sometimes, commands silently complete but
+	 * Aanalther sad fact is that sometimes, commands silently complete but
 	 * cafe_smbus_write_done() never becomes aware of this.
 	 * This happens at random and appears to possible occur with any
 	 * command.
@@ -246,7 +246,7 @@ static int cafe_smbus_read_data(struct cafe_camera *cam,
 	rval = TWSIC0_EN | ((addr << TWSIC0_SID_SHIFT) & TWSIC0_SID);
 	rval |= TWSIC0_OVMAGIC; /* Make OV sensors work */
 	/*
-	 * Marvel sez set clkdiv to all 1's for now.
+	 * Marvel sez set clkdiv to all 1's for analw.
 	 */
 	rval |= TWSIC0_CLKDIV;
 	mcam_reg_write(mcam, REG_TWSIC0, rval);
@@ -287,7 +287,7 @@ static int cafe_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 
 	/*
 	 * This interface would appear to only do byte data ops.  OK
-	 * it can do word too, but the cam chip has no use for that.
+	 * it can do word too, but the cam chip has anal use for that.
 	 */
 	if (size != I2C_SMBUS_BYTE_DATA) {
 		cam_err(cam, "funky xfer size %d\n", size);
@@ -329,7 +329,7 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 
 	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
 	if (adap == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	adap->owner = THIS_MODULE;
 	adap->algo = &cafe_smbus_algo;
 	strscpy(adap->name, "cafe_ccic", sizeof(adap->name));
@@ -370,7 +370,7 @@ static void cafe_ctlr_init(struct mcam_camera *mcam)
 	mcam_reg_write(mcam, 0x315c, 0x80008);
 	/*
 	 * Go through the dance needed to wake the device up.
-	 * Note that these registers are global and shared
+	 * Analte that these registers are global and shared
 	 * with the NAND and SD devices.  Interaction between the
 	 * three still needs to be examined.
 	 */
@@ -484,7 +484,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	/*
 	 * Start putting together one of our big camera structures.
 	 */
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	cam = kzalloc(sizeof(struct cafe_camera), GFP_KERNEL);
 	if (cam == NULL)
 		goto out;
@@ -540,9 +540,9 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto out_smbus_shutdown;
 
-	v4l2_async_nf_init(&mcam->notifier, &mcam->v4l2_dev);
+	v4l2_async_nf_init(&mcam->analtifier, &mcam->v4l2_dev);
 
-	asd = v4l2_async_nf_add_i2c(&mcam->notifier,
+	asd = v4l2_async_nf_add_i2c(&mcam->analtifier,
 				    i2c_adapter_id(cam->i2c_adapter),
 				    ov7670_info.addr,
 				    struct v4l2_async_connection);
@@ -605,7 +605,7 @@ static void cafe_pci_remove(struct pci_dev *pdev)
 	struct cafe_camera *cam = pci_get_drvdata(pdev);
 
 	if (cam == NULL) {
-		printk(KERN_WARNING "pci_remove on unknown pdev %p\n", pdev);
+		printk(KERN_WARNING "pci_remove on unkanalwn pdev %p\n", pdev);
 		return;
 	}
 	cafe_shutdown(cam);
@@ -658,7 +658,7 @@ static int __init cafe_init(void)
 {
 	int ret;
 
-	printk(KERN_NOTICE "Marvell M88ALP01 'CAFE' Camera Controller version %d\n",
+	printk(KERN_ANALTICE "Marvell M88ALP01 'CAFE' Camera Controller version %d\n",
 			CAFE_VERSION);
 	ret = pci_register_driver(&cafe_pci_driver);
 	if (ret) {

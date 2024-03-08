@@ -89,7 +89,7 @@ static int pm8058_led_probe(struct platform_device *pdev)
 	struct led_init_data init_data = {};
 	struct device *dev = &pdev->dev;
 	struct pm8058_led *led;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 	struct regmap *map;
 	enum led_brightness maxbright;
@@ -97,7 +97,7 @@ static int pm8058_led_probe(struct platform_device *pdev)
 
 	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led->ledtype = (u32)(unsigned long)of_device_get_match_data(dev);
 
@@ -108,11 +108,11 @@ static int pm8058_led_probe(struct platform_device *pdev)
 	}
 	led->map = map;
 
-	np = dev_of_node(dev);
+	np = dev_of_analde(dev);
 
 	ret = of_property_read_u32(np, "reg", &led->reg);
 	if (ret) {
-		dev_err(dev, "no register offset specified\n");
+		dev_err(dev, "anal register offset specified\n");
 		return -EINVAL;
 	}
 
@@ -124,9 +124,9 @@ static int pm8058_led_probe(struct platform_device *pdev)
 		maxbright = 15; /* 4 bits */
 	led->cdev.max_brightness = maxbright;
 
-	init_data.fwnode = of_fwnode_handle(np);
+	init_data.fwanalde = of_fwanalde_handle(np);
 
-	state = led_init_default_state_get(init_data.fwnode);
+	state = led_init_default_state_get(init_data.fwanalde);
 	switch (state) {
 	case LEDS_DEFSTATE_ON:
 		led->cdev.brightness = maxbright;

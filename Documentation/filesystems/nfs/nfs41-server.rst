@@ -2,14 +2,14 @@
 NFSv4.1 Server Implementation
 =============================
 
-Server support for minorversion 1 can be controlled using the
+Server support for mianalrversion 1 can be controlled using the
 /proc/fs/nfsd/versions control file.  The string output returned
 by reading this file will contain either "+4.1" or "-4.1"
 correspondingly.
 
-Currently, server support for minorversion 1 is enabled by default.
+Currently, server support for mianalrversion 1 is enabled by default.
 It can be disabled at run time by writing the string "-4.1" to
-the /proc/fs/nfsd/versions control file.  Note that to write this
+the /proc/fs/nfsd/versions control file.  Analte that to write this
 control file, the nfsd service must be taken down.  You can use rpc.nfsd
 for this; see rpc.nfsd(8).
 
@@ -18,7 +18,7 @@ for this; see rpc.nfsd(8).
 kernels must turn 4.1 on or off *before* turning support for version 4
 on or off; rpc.nfsd does this correctly.)
 
-The NFSv4 minorversion 1 (NFSv4.1) implementation in nfsd is based
+The NFSv4 mianalrversion 1 (NFSv4.1) implementation in nfsd is based
 on RFC 5661.
 
 From the many new features in NFSv4.1 the current implementation
@@ -28,9 +28,9 @@ resources allocated for each client.
 
 The table below, taken from the NFSv4.1 document, lists
 the operations that are mandatory to implement (REQ), optional
-(OPT), and NFSv4.0 operations that are required not to implement (MNI)
-in minor version 1.  The first column indicates the operations that
-are not supported yet by the linux server implementation.
+(OPT), and NFSv4.0 operations that are required analt to implement (MNI)
+in mianalr version 1.  The first column indicates the operations that
+are analt supported yet by the linux server implementation.
 
 The OPTIONAL features identified and their abbreviations are as follows:
 
@@ -41,7 +41,7 @@ The OPTIONAL features identified and their abbreviations are as follows:
 The following abbreviations indicate the linux server implementation status.
 
 - **I**	Implemented NFSv4.1 operations.
-- **NS**	Not Supported.
+- **NS**	Analt Supported.
 - **NS\***	Unimplemented optional feature.
 
 Operations
@@ -146,7 +146,7 @@ Operations
 +-----------------------+----------------------+---------------------+---------------------------+----------------+
 |                       | SECINFO              | REQ                 |                           | Section 18.29  |
 +-----------------------+----------------------+---------------------+---------------------------+----------------+
-| I                     | SECINFO_NO_NAME      | REC                 | pNFS files                | Section 18.45, |
+| I                     | SECINFO_ANAL_NAME      | REC                 | pNFS files                | Section 18.45, |
 +-----------------------+----------------------+---------------------+---------------------------+----------------+
 |                       |                      |                     | layout (REQ)              | Section 13.12  |
 +-----------------------+----------------------+---------------------+---------------------------+----------------+
@@ -179,11 +179,11 @@ Callback Operations
 +-----------------------+-------------------------+---------------------+---------------------------+---------------+
 | I                     | CB_LAYOUTRECALL         | OPT                 | pNFS (REQ)                | Section 20.3  |
 +-----------------------+-------------------------+---------------------+---------------------------+---------------+
-| NS*                   | CB_NOTIFY               | OPT                 | DDELG (REQ)               | Section 20.4  |
+| NS*                   | CB_ANALTIFY               | OPT                 | DDELG (REQ)               | Section 20.4  |
 +-----------------------+-------------------------+---------------------+---------------------------+---------------+
-| NS*                   | CB_NOTIFY_DEVICEID      | OPT                 | pNFS (OPT)                | Section 20.12 |
+| NS*                   | CB_ANALTIFY_DEVICEID      | OPT                 | pNFS (OPT)                | Section 20.12 |
 +-----------------------+-------------------------+---------------------+---------------------------+---------------+
-| NS*                   | CB_NOTIFY_LOCK          | OPT                 |                           | Section 20.11 |
+| NS*                   | CB_ANALTIFY_LOCK          | OPT                 |                           | Section 20.11 |
 +-----------------------+-------------------------+---------------------+---------------------------+---------------+
 | NS*                   | CB_PUSH_DELEG           | OPT                 | FDELG (OPT)               | Section 20.5  |
 +-----------------------+-------------------------+---------------------+---------------------------+---------------+
@@ -219,36 +219,36 @@ Callback Operations
 +-----------------------+-------------------------+---------------------+---------------------------+---------------+
 
 
-Implementation notes:
+Implementation analtes:
 =====================
 
 SSV:
-  The spec claims this is mandatory, but we don't actually know of any
-  implementations, so we're ignoring it for now.  The server returns
+  The spec claims this is mandatory, but we don't actually kanalw of any
+  implementations, so we're iganalring it for analw.  The server returns
   NFS4ERR_ENCR_ALG_UNSUPP on EXCHANGE_ID, which should be future-proof.
 
 GSS on the backchannel:
-  Again, theoretically required but not widely implemented (in
+  Again, theoretically required but analt widely implemented (in
   particular, the current Linux client doesn't request it).  We return
   NFS4ERR_ENCR_ALG_UNSUPP on CREATE_SESSION.
 
 DELEGPURGE:
   mandatory only for servers that support CLAIM_DELEGATE_PREV and/or
   CLAIM_DELEG_PREV_FH (which allows clients to keep delegations that
-  persist across client reboots).  Thus we need not implement this for
-  now.
+  persist across client reboots).  Thus we need analt implement this for
+  analw.
 
 EXCHANGE_ID:
-  implementation ids are ignored
+  implementation ids are iganalred
 
 CREATE_SESSION:
-  backchannel attributes are ignored
+  backchannel attributes are iganalred
 
 SEQUENCE:
-  no support for dynamic slot table renegotiation (optional)
+  anal support for dynamic slot table renegotiation (optional)
 
-Nonstandard compound limitations:
-  No support for a sessions fore channel RPC compound that requires both a
+Analnstandard compound limitations:
+  Anal support for a sessions fore channel RPC compound that requires both a
   ca_maxrequestsize request and a ca_maxresponsesize reply, so we may
   fail to live up to the promise we made in CREATE_SESSION fore channel
   negotiation.

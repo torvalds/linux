@@ -138,27 +138,27 @@ struct status_event_data {
 	int status_bit; /* bit masks... */
 	int event_bit;
 	int mask_bit;
-	unsigned long notification; /* Notification for status inception */
-	char *warn; /* if NULL, notify - otherwise dev_warn this string */
+	unsigned long analtification; /* Analtification for status inception */
+	char *warn; /* if NULL, analtify - otherwise dev_warn this string */
 };
 
-#define DA9121_STATUS(id, bank, name, notification, warning) \
+#define DA9121_STATUS(id, bank, name, analtification, warning) \
 	{ id, bank, \
 	DA9121_MASK_SYS_STATUS_##bank##_##name, \
 	DA9121_MASK_SYS_EVENT_##bank##_E_##name, \
 	DA9121_MASK_SYS_MASK_##bank##_M_##name, \
-	notification, warning }
+	analtification, warning }
 
 /* For second buck related event bits that are specific to DA9122, DA9220 variants */
-#define DA9xxx_STATUS(id, bank, name, notification, warning) \
+#define DA9xxx_STATUS(id, bank, name, analtification, warning) \
 	{ id, bank, \
 	DA9xxx_MASK_SYS_STATUS_##bank##_##name, \
 	DA9xxx_MASK_SYS_EVENT_##bank##_E_##name, \
 	DA9xxx_MASK_SYS_MASK_##bank##_M_##name, \
-	notification, warning }
+	analtification, warning }
 
 /* The status signals that may need servicing, depending on device variant.
- * After assertion, they persist; so event is notified, the IRQ disabled,
+ * After assertion, they persist; so event is analtified, the IRQ disabled,
  * and status polled until clear again and IRQ is reenabled.
  *
  * SG/PG1/PG2 should be set when device first powers up and should never
@@ -166,7 +166,7 @@ struct status_event_data {
  * self-cleared for when the IRQs are enabled, so these should never be seen.
  * If seen, the implication is that the device has reset.
  *
- * GPIO0/1/2 are not configured for use by default, so should not be seen.
+ * GPIO0/1/2 are analt configured for use by default, so should analt be seen.
  */
 static const struct status_event_data status_event_handling[] = {
 	DA9xxx_STATUS(0, 0, SG, 0, "Handled E_SG\n"),
@@ -196,7 +196,7 @@ static int da9121_get_current_limit(struct regulator_dev *rdev)
 
 	ret = regmap_read(chip->regmap, da9121_current_field[id].reg, &val);
 	if (ret < 0) {
-		dev_err(chip->dev, "Cannot read BUCK register: %d\n", ret);
+		dev_err(chip->dev, "Cananalt read BUCK register: %d\n", ret);
 		goto error;
 	}
 
@@ -285,7 +285,7 @@ static int da9121_set_current_limit(struct regulator_dev *rdev,
 				da9121_current_field[id].msk,
 				(unsigned int)sel);
 	if (ret < 0)
-		dev_err(chip->dev, "Cannot update BUCK current limit, err: %d\n", ret);
+		dev_err(chip->dev, "Cananalt update BUCK current limit, err: %d\n", ret);
 
 error:
 	return ret;
@@ -297,7 +297,7 @@ static unsigned int da9121_map_mode(unsigned int mode)
 	case DA9121_BUCK_MODE_FORCE_PWM:
 		return REGULATOR_MODE_FAST;
 	case DA9121_BUCK_MODE_FORCE_PWM_SHEDDING:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case DA9121_BUCK_MODE_AUTO:
 		return REGULATOR_MODE_IDLE;
 	case DA9121_BUCK_MODE_FORCE_PFM:
@@ -317,7 +317,7 @@ static int da9121_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	case REGULATOR_MODE_FAST:
 		val = DA9121_BUCK_MODE_FORCE_PWM;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = DA9121_BUCK_MODE_FORCE_PWM_SHEDDING;
 		break;
 	case REGULATOR_MODE_IDLE:
@@ -345,7 +345,7 @@ static unsigned int da9121_buck_get_mode(struct regulator_dev *rdev)
 
 	ret = regmap_read(chip->regmap, da9121_mode_field[id].reg, &val);
 	if (ret < 0) {
-		dev_err(chip->dev, "Cannot read BUCK register: %d\n", ret);
+		dev_err(chip->dev, "Cananalt read BUCK register: %d\n", ret);
 		return -EINVAL;
 	}
 
@@ -374,7 +374,7 @@ static struct of_regulator_match da9121_matches[] = {
 	[DA9121_IDX_BUCK2] = { .name = "buck2" },
 };
 
-static int da9121_of_parse_cb(struct device_node *np,
+static int da9121_of_parse_cb(struct device_analde *np,
 				const struct regulator_desc *desc,
 				struct regulator_config *config)
 {
@@ -385,7 +385,7 @@ static int da9121_of_parse_cb(struct device_node *np,
 	if (chip->pdata == NULL) {
 		pdata = devm_kzalloc(chip->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		pdata = chip->pdata;
 	}
@@ -394,12 +394,12 @@ static int da9121_of_parse_cb(struct device_node *np,
 
 	if (pdata->num_buck > variant_parameters[chip->variant_id].num_bucks) {
 		dev_err(chip->dev, "Error: excessive regulators for device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	ena_gpiod = fwnode_gpiod_get_index(of_fwnode_handle(np), "enable", 0,
+	ena_gpiod = fwanalde_gpiod_get_index(of_fwanalde_handle(np), "enable", 0,
 						GPIOD_OUT_HIGH |
-						GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+						GPIOD_FLAGS_BIT_ANALNEXCLUSIVE,
 						"da9121-enable");
 	if (!IS_ERR(ena_gpiod))
 		config->ena_gpiod = ena_gpiod;
@@ -409,7 +409,7 @@ static int da9121_of_parse_cb(struct device_node *np,
 		uint32_t ripple_reg;
 		int ret;
 
-		if (of_property_read_u32(da9121_matches[pdata->num_buck-1].of_node,
+		if (of_property_read_u32(da9121_matches[pdata->num_buck-1].of_analde,
 				"dlg,ripple-cancel", &ripple_cancel)) {
 			if (pdata->num_buck > 1)
 				ripple_reg = DA9xxx_REG_BUCK_BUCK2_7;
@@ -420,7 +420,7 @@ static int da9121_of_parse_cb(struct device_node *np,
 				DA9xxx_MASK_BUCK_BUCKx_7_CHx_RIPPLE_CANCEL,
 				ripple_cancel);
 			if (ret < 0)
-				dev_err(chip->dev, "Cannot set ripple mode, err: %d\n", ret);
+				dev_err(chip->dev, "Cananalt set ripple mode, err: %d\n", ret);
 		}
 	}
 
@@ -440,7 +440,7 @@ static const struct regulator_desc da9121_reg = {
 	.of_match = "buck1",
 	.of_parse_cb = da9121_of_parse_cb,
 	.owner = THIS_MODULE,
-	.regulators_node = "regulators",
+	.regulators_analde = "regulators",
 	.of_map_mode = da9121_map_mode,
 	.ops = &da9121_buck_ops,
 	.type = REGULATOR_VOLTAGE,
@@ -465,7 +465,7 @@ static const struct regulator_desc da9220_reg[2] = {
 		.of_match = "buck1",
 		.of_parse_cb = da9121_of_parse_cb,
 		.owner = THIS_MODULE,
-		.regulators_node = "regulators",
+		.regulators_analde = "regulators",
 		.of_map_mode = da9121_map_mode,
 		.ops = &da9121_buck_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -484,7 +484,7 @@ static const struct regulator_desc da9220_reg[2] = {
 		.of_match = "buck2",
 		.of_parse_cb = da9121_of_parse_cb,
 		.owner = THIS_MODULE,
-		.regulators_node = "regulators",
+		.regulators_analde = "regulators",
 		.of_map_mode = da9121_map_mode,
 		.ops = &da9121_buck_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -506,7 +506,7 @@ static const struct regulator_desc da9122_reg[2] = {
 		.of_match = "buck1",
 		.of_parse_cb = da9121_of_parse_cb,
 		.owner = THIS_MODULE,
-		.regulators_node = "regulators",
+		.regulators_analde = "regulators",
 		.of_map_mode = da9121_map_mode,
 		.ops = &da9121_buck_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -525,7 +525,7 @@ static const struct regulator_desc da9122_reg[2] = {
 		.of_match = "buck2",
 		.of_parse_cb = da9121_of_parse_cb,
 		.owner = THIS_MODULE,
-		.regulators_node = "regulators",
+		.regulators_analde = "regulators",
 		.of_map_mode = da9121_map_mode,
 		.ops = &da9121_buck_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -546,7 +546,7 @@ static const struct regulator_desc da9217_reg = {
 	.of_match = "buck1",
 	.of_parse_cb = da9121_of_parse_cb,
 	.owner = THIS_MODULE,
-	.regulators_node = "regulators",
+	.regulators_analde = "regulators",
 	.of_map_mode = da9121_map_mode,
 	.ops = &da9121_buck_ops,
 	.type = REGULATOR_VOLTAGE,
@@ -573,7 +573,7 @@ static const struct regulator_desc da9141_reg = {
 	.of_match = "buck1",
 	.of_parse_cb = da9121_of_parse_cb,
 	.owner = THIS_MODULE,
-	.regulators_node = "regulators",
+	.regulators_analde = "regulators",
 	.of_map_mode = da9121_map_mode,
 	.ops = &da9121_buck_ops,
 	.type = REGULATOR_VOLTAGE,
@@ -593,7 +593,7 @@ static const struct regulator_desc da9142_reg = {
 	.of_match = "buck1",
 	.of_parse_cb = da9121_of_parse_cb,
 	.owner = THIS_MODULE,
-	.regulators_node = "regulators",
+	.regulators_analde = "regulators",
 	.of_map_mode = da9121_map_mode,
 	.ops = &da9121_buck_ops,
 	.type = REGULATOR_VOLTAGE,
@@ -634,7 +634,7 @@ static void da9121_status_poll_on(struct work_struct *work)
 	}
 
 	/* Possible events are tested to be within range for the variant, potentially
-	 * masked by the IRQ handler (not just warned about), as having been masked,
+	 * masked by the IRQ handler (analt just warned about), as having been masked,
 	 * and the respective state cleared - then flagged to unmask for next IRQ.
 	 */
 	for (i = 0; i < ARRAY_SIZE(status_event_handling); i++) {
@@ -643,9 +643,9 @@ static void da9121_status_poll_on(struct work_struct *work)
 		bool relevant = (item->buck_id <= variant_parameters[chip->variant_id].num_bucks);
 		bool supported = (item->warn == NULL);
 		bool persisting = (chip->persistent[reg_idx] & item->event_bit);
-		bool now_cleared = !(status[reg_idx] & item->status_bit);
+		bool analw_cleared = !(status[reg_idx] & item->status_bit);
 
-		if (relevant && supported && persisting && now_cleared) {
+		if (relevant && supported && persisting && analw_cleared) {
 			clear[reg_idx] |= item->mask_bit;
 			chip->persistent[reg_idx] &= ~item->event_bit;
 		}
@@ -682,14 +682,14 @@ static irqreturn_t da9121_irq_handler(int irq, void *data)
 	int event[3] = {0};
 	int handled[3] = {0};
 	int mask[3] = {0};
-	int ret = IRQ_NONE;
+	int ret = IRQ_ANALNE;
 	int i;
 	int err;
 
 	err = regmap_bulk_read(chip->regmap, DA9121_REG_SYS_EVENT_0, event, 3);
 	if (err < 0) {
 		dev_err(chip->dev, "Failed to read EVENT registers %d\n", err);
-		ret = IRQ_NONE;
+		ret = IRQ_ANALNE;
 		goto error;
 	}
 
@@ -697,14 +697,14 @@ static irqreturn_t da9121_irq_handler(int irq, void *data)
 	if (err < 0) {
 		dev_err(chip->dev,
 			"Failed to read MASK registers: %d\n", ret);
-		ret = IRQ_NONE;
+		ret = IRQ_ANALNE;
 		goto error;
 	}
 
 	rdev = chip->rdev[DA9121_IDX_BUCK1];
 
 	/* Possible events are tested to be within range for the variant, currently
-	 * enabled, and having triggered this IRQ. The event may then be notified,
+	 * enabled, and having triggered this IRQ. The event may then be analtified,
 	 * or a warning given for unexpected events - those from device POR, and
 	 * currently unsupported GPIO configurations.
 	 */
@@ -714,12 +714,12 @@ static irqreturn_t da9121_irq_handler(int irq, void *data)
 		bool relevant = (item->buck_id <= variant_parameters[chip->variant_id].num_bucks);
 		bool enabled = !(mask[reg_idx] & item->mask_bit);
 		bool active = (event[reg_idx] & item->event_bit);
-		bool notify = (item->warn == NULL);
+		bool analtify = (item->warn == NULL);
 
 		if (relevant && enabled && active) {
-			if (notify) {
+			if (analtify) {
 				chip->persistent[reg_idx] |= item->event_bit;
-				regulator_notifier_call_chain(rdev, item->notification, NULL);
+				regulator_analtifier_call_chain(rdev, item->analtification, NULL);
 			} else {
 				dev_warn(chip->dev, item->warn);
 				handled[reg_idx] |= item->event_bit;
@@ -747,7 +747,7 @@ static irqreturn_t da9121_irq_handler(int irq, void *data)
 				dev_err(chip->dev,
 					"Failed to mask 0x%02x interrupt %d\n",
 					reg, err);
-				ret = IRQ_NONE;
+				ret = IRQ_ANALNE;
 				goto error;
 			}
 		}
@@ -758,7 +758,7 @@ static irqreturn_t da9121_irq_handler(int irq, void *data)
 		err = regmap_bulk_write(chip->regmap, DA9121_REG_SYS_EVENT_0, handled, 3);
 		if (err < 0) {
 			dev_err(chip->dev, "Fail to write EVENTs %d\n", err);
-			ret = IRQ_NONE;
+			ret = IRQ_ANALNE;
 			goto error;
 		}
 	}
@@ -807,8 +807,8 @@ static const struct regmap_range da9121_1ch_readable_ranges[] = {
 };
 
 static const struct regmap_access_table da9121_1ch_readable_table = {
-	.yes_ranges = da9121_1ch_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9121_1ch_readable_ranges),
+	.anal_ranges = da9121_1ch_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9121_1ch_readable_ranges),
 };
 
 static const struct regmap_range da9121_2ch_readable_ranges[] = {
@@ -821,8 +821,8 @@ static const struct regmap_range da9121_2ch_readable_ranges[] = {
 };
 
 static const struct regmap_access_table da9121_2ch_readable_table = {
-	.yes_ranges = da9121_2ch_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9121_2ch_readable_ranges),
+	.anal_ranges = da9121_2ch_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9121_2ch_readable_ranges),
 };
 
 static const struct regmap_range da9121_1ch_writeable_ranges[] = {
@@ -834,8 +834,8 @@ static const struct regmap_range da9121_1ch_writeable_ranges[] = {
 };
 
 static const struct regmap_access_table da9121_1ch_writeable_table = {
-	.yes_ranges = da9121_1ch_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9121_1ch_writeable_ranges),
+	.anal_ranges = da9121_1ch_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9121_1ch_writeable_ranges),
 };
 
 static const struct regmap_range da9121_2ch_writeable_ranges[] = {
@@ -849,8 +849,8 @@ static const struct regmap_range da9121_2ch_writeable_ranges[] = {
 };
 
 static const struct regmap_access_table da9121_2ch_writeable_table = {
-	.yes_ranges = da9121_2ch_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9121_2ch_writeable_ranges),
+	.anal_ranges = da9121_2ch_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9121_2ch_writeable_ranges),
 };
 
 
@@ -861,8 +861,8 @@ static const struct regmap_range da9121_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table da9121_volatile_table = {
-	.yes_ranges = da9121_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9121_volatile_ranges),
+	.anal_ranges = da9121_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9121_volatile_ranges),
 };
 
 /* DA9121 regmap config for 1 channel variants */
@@ -898,19 +898,19 @@ static int da9121_check_device_type(struct i2c_client *i2c, struct da9121 *chip)
 
 	ret = regmap_read(chip->regmap, DA9121_REG_OTP_DEVICE_ID, &device_id);
 	if (ret < 0) {
-		dev_err(chip->dev, "Cannot read device ID: %d\n", ret);
+		dev_err(chip->dev, "Cananalt read device ID: %d\n", ret);
 		goto error;
 	}
 
 	ret = regmap_read(chip->regmap, DA9121_REG_OTP_VARIANT_ID, &variant_id);
 	if (ret < 0) {
-		dev_err(chip->dev, "Cannot read variant ID: %d\n", ret);
+		dev_err(chip->dev, "Cananalt read variant ID: %d\n", ret);
 		goto error;
 	}
 
 	if ((device_id != DA9121_DEVICE_ID) && (device_id != DA914x_DEVICE_ID)) {
 		dev_err(chip->dev, "Invalid device ID: 0x%02x\n", device_id);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error;
 	}
 
@@ -946,7 +946,7 @@ static int da9121_check_device_type(struct i2c_client *i2c, struct da9121 *chip)
 		config_match = (variant_vrc == DA9217_VARIANT_VRC);
 		break;
 	default:
-		type = "Unknown";
+		type = "Unkanalwn";
 		break;
 	}
 
@@ -961,7 +961,7 @@ static int da9121_check_device_type(struct i2c_client *i2c, struct da9121 *chip)
 			config_match = (variant_vrc == DA9142_VARIANT_VRC);
 			break;
 		default:
-			type = "Unknown";
+			type = "Unkanalwn";
 			break;
 		}
 	}
@@ -971,7 +971,7 @@ static int da9121_check_device_type(struct i2c_client *i2c, struct da9121 *chip)
 		 device_id, variant_id, type);
 
 	if (!config_match) {
-		dev_err(chip->dev, "Device tree configuration does not match detected device.\n");
+		dev_err(chip->dev, "Device tree configuration does analt match detected device.\n");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -984,7 +984,7 @@ static int da9121_check_device_type(struct i2c_client *i2c, struct da9121 *chip)
 	    ((device_id == DA914x_DEVICE_ID) &&
 	     (variant_mrc != DA914x_VARIANT_MRC_BASE))) {
 		dev_err(chip->dev,
-			"Cannot support variant MRC: 0x%02X\n", variant_mrc);
+			"Cananalt support variant MRC: 0x%02X\n", variant_mrc);
 		ret = -EINVAL;
 	}
 error:
@@ -1061,7 +1061,7 @@ static int da9121_config_irq(struct i2c_client *i2c,
 	chip->chip_irq = i2c->irq;
 
 	if (chip->chip_irq != 0) {
-		if (!of_property_read_u32(chip->dev->of_node,
+		if (!of_property_read_u32(chip->dev->of_analde,
 					  "dlg,irq-polling-delay-passive-ms",
 					  &p_delay)) {
 			if (p_delay < DA9121_MIN_POLLING_PERIOD_MS ||
@@ -1125,7 +1125,7 @@ static int da9121_i2c_probe(struct i2c_client *i2c)
 
 	chip = devm_kzalloc(&i2c->dev, sizeof(struct da9121), GFP_KERNEL);
 	if (!chip) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -1183,7 +1183,7 @@ MODULE_DEVICE_TABLE(i2c, da9121_i2c_id);
 static struct i2c_driver da9121_regulator_driver = {
 	.driver = {
 		.name = "da9121",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = da9121_dt_ids,
 	},
 	.probe = da9121_i2c_probe,

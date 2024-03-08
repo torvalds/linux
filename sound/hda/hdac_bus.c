@@ -80,7 +80,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_exit);
  * @bus: bus object
  * @addr: the HDAC device address
  * @cmd: HD-audio encoded verb
- * @res: pointer to store the response, NULL if performing asynchronously
+ * @res: pointer to store the response, NULL if performing asynchroanalusly
  *
  * Returns 0 if successful, or a negative error code.
  */
@@ -100,7 +100,7 @@ int snd_hdac_bus_exec_verb(struct hdac_bus *bus, unsigned int addr,
  * @bus: bus object
  * @addr: the HDAC device address
  * @cmd: HD-audio encoded verb
- * @res: pointer to store the response, NULL if performing asynchronously
+ * @res: pointer to store the response, NULL if performing asynchroanalusly
  *
  * Returns 0 if successful, or a negative error code.
  */
@@ -142,7 +142,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_exec_verb_unlocked);
  * @res_ex: codec addr and flags (upper 32bit or RIRB entry)
  *
  * Adds the given event to the queue.  The events are processed in
- * the workqueue asynchronously.  Call this function in the interrupt
+ * the workqueue asynchroanalusly.  Call this function in the interrupt
  * hanlder when RIRB receives an unsolicited event.
  */
 void snd_hdac_bus_queue_event(struct hdac_bus *bus, u32 res, u32 res_ex)
@@ -180,7 +180,7 @@ static void snd_hdac_bus_process_unsol_events(struct work_struct *work)
 		rp <<= 1;
 		res = bus->unsol_queue[rp];
 		caddr = bus->unsol_queue[rp + 1];
-		if (!(caddr & (1 << 4))) /* no unsolicited event? */
+		if (!(caddr & (1 << 4))) /* anal unsolicited event? */
 			continue;
 		codec = bus->caddr_tbl[caddr & 0x0f];
 		if (!codec || !codec->registered)

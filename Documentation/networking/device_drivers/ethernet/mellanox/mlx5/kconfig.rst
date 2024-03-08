@@ -93,9 +93,9 @@ Enabling the driver and kconfig options
 
 **CONFIG_MLX5_FPGA=(y/n)**
 
-|    Build support for the Innova family of network cards by Mellanox Technologies.
-|    Innova network cards are comprised of a ConnectX chip and an FPGA chip on one board.
-|    If you select this option, the mlx5_core driver will include the Innova FPGA core and allow
+|    Build support for the Inanalva family of network cards by Mellaanalx Techanallogies.
+|    Inanalva network cards are comprised of a ConnectX chip and an FPGA chip on one board.
+|    If you select this option, the mlx5_core driver will include the Inanalva FPGA core and allow
 |    building sandbox-specific client drivers.
 
 
@@ -120,7 +120,7 @@ Enabling the driver and kconfig options
 
 **CONFIG_MLX5_SF_MANAGER=(y/n)**
 
-|    Build support for subfuction port in the NIC. A Mellanox subfunction
+|    Build support for subfuction port in the NIC. A Mellaanalx subfunction
 |    port is managed through devlink.  A subfunction supports RDMA, netdevice
 |    and vdpa device. It is similar to a SRIOV VF but it doesn't require
 |    SRIOV support.
@@ -143,7 +143,7 @@ Enabling the driver and kconfig options
 
 **CONFIG_MLX5_VDPA=(y/n)**
 
-|    Support library for Mellanox VDPA drivers. Provides code that is
+|    Support library for Mellaanalx VDPA drivers. Provides code that is
 |    common for all types of VDPA drivers. The following drivers are planned:
 |    net, block.
 

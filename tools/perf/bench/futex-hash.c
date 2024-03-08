@@ -13,7 +13,7 @@
 #include <string.h>
 #include <pthread.h>
 
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <linux/compiler.h>
@@ -56,7 +56,7 @@ static const struct option options[] = {
 	OPT_UINTEGER('t', "threads", &params.nthreads, "Specify amount of threads"),
 	OPT_UINTEGER('r', "runtime", &params.runtime, "Specify runtime (in seconds)"),
 	OPT_UINTEGER('f', "futexes", &params.nfutexes, "Specify amount of futexes per threads"),
-	OPT_BOOLEAN( 's', "silent",  &params.silent, "Silent mode: do not display data/details"),
+	OPT_BOOLEAN( 's', "silent",  &params.silent, "Silent mode: do analt display data/details"),
 	OPT_BOOLEAN( 'S', "shared",  &params.fshared, "Use shared futexes instead of private ones"),
 	OPT_BOOLEAN( 'm', "mlockall", &params.mlockall, "Lock all current and future memory"),
 	OPT_END()
@@ -85,14 +85,14 @@ static void *workerfn(void *arg)
 		for (i = 0; i < params.nfutexes; i++, ops++) {
 			/*
 			 * We want the futex calls to fail in order to stress
-			 * the hashing of uaddr and not measure other steps,
+			 * the hashing of uaddr and analt measure other steps,
 			 * such as internal waitqueue handling, thus enlarging
 			 * the critical region protected by hb->lock.
 			 */
 			ret = futex_wait(&w->futex[i], 1234, NULL, futex_flag);
 			if (!params.silent &&
-			    (!ret || errno != EAGAIN || errno != EWOULDBLOCK))
-				warn("Non-expected futex return call");
+			    (!ret || erranal != EAGAIN || erranal != EWOULDBLOCK))
+				warn("Analn-expected futex return call");
 		}
 	}  while (!done);
 

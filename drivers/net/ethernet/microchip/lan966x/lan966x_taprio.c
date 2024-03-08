@@ -5,10 +5,10 @@
 #define LAN966X_TAPRIO_TIMEOUT_MS		1000
 #define LAN966X_TAPRIO_ENTRIES_PER_PORT		2
 
-/* Minimum supported cycle time in nanoseconds */
+/* Minimum supported cycle time in naanalseconds */
 #define LAN966X_TAPRIO_MIN_CYCLE_TIME_NS	NSEC_PER_USEC
 
-/* Maximum supported cycle time in nanoseconds */
+/* Maximum supported cycle time in naanalseconds */
 #define LAN966X_TAPRIO_MAX_CYCLE_TIME_NS	(NSEC_PER_SEC - 1)
 
 /* Total number of TAS GCL entries */
@@ -16,7 +16,7 @@
 
 /* TAPRIO link speeds for calculation of guard band */
 enum lan966x_taprio_link_speed {
-	LAN966X_TAPRIO_SPEED_NO_GB,
+	LAN966X_TAPRIO_SPEED_ANAL_GB,
 	LAN966X_TAPRIO_SPEED_10,
 	LAN966X_TAPRIO_SPEED_100,
 	LAN966X_TAPRIO_SPEED_1000,
@@ -105,17 +105,17 @@ static int lan966x_taprio_list_shutdown(struct lan966x_port *port,
 			operating = true;
 		}
 
-		/* If the entry was in pending and now gets in admin, then there
-		 * is nothing else to do, so just bail out
+		/* If the entry was in pending and analw gets in admin, then there
+		 * is analthing else to do, so just bail out
 		 */
 		state = lan966x_taprio_list_state_get(port);
 		if (pending &&
 		    state == LAN966X_TAPRIO_STATE_ADMIN)
 			return 0;
 
-		/* If the list was in operating and now is in terminating or
+		/* If the list was in operating and analw is in terminating or
 		 * admin, then is OK to exit but it needs to wait until the list
-		 * will get in admin. It is not required to set the state
+		 * will get in admin. It is analt required to set the state
 		 * again.
 		 */
 		if (operating &&
@@ -213,7 +213,7 @@ static int lan966x_taprio_find_list(struct lan966x_port *port,
 		}
 	}
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static int lan966x_taprio_check(struct tc_taprio_qopt_offload *qopt)
@@ -221,9 +221,9 @@ static int lan966x_taprio_check(struct tc_taprio_qopt_offload *qopt)
 	u64 total_time = 0;
 	u32 i;
 
-	/* This is not supported by th HW */
+	/* This is analt supported by th HW */
 	if (qopt->cycle_time_extension)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* There is a limited number of gcl entries that can be used, they are
 	 * shared by all ports
@@ -277,7 +277,7 @@ static int lan966x_taprio_gcl_free_get(struct lan966x_port *port,
 	num_free = LAN966X_TAPRIO_NUM_GCL;
 
 	/* Iterate over all gcl entries and find out which are free. And mark
-	 * those that are not free.
+	 * those that are analt free.
 	 */
 	max_list = lan966x->num_phys_ports * LAN966X_TAPRIO_ENTRIES_PER_PORT;
 	for (list = 0; list < max_list; ++list) {
@@ -333,7 +333,7 @@ static int lan966x_taprio_gcl_setup(struct lan966x_port *port,
 	u32 i, base, next;
 
 	if (lan966x_taprio_gcl_free_get(port, free_list) < qopt->num_entries)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* Select list */
 	lan_rmw(QSYS_TAS_CFG_CTRL_LIST_NUM_SET(list),
@@ -382,7 +382,7 @@ static void lan966x_taprio_new_base_time(struct lan966x *lan966x,
 	current_time = timespec64_to_ktime(ts);
 	threshold_time = current_time + (2 * cycle_time);
 
-	/* If the org_base_time is in enough in future just use it */
+	/* If the org_base_time is in eanalugh in future just use it */
 	if (org_base_time >= threshold_time) {
 		*new_base_time = org_base_time;
 		return;
@@ -502,7 +502,7 @@ void lan966x_taprio_init(struct lan966x *lan966x)
 	num_taprio_lists = lan966x->num_phys_ports *
 			   LAN966X_TAPRIO_ENTRIES_PER_PORT;
 
-	/* For now we always use guard band on all queues */
+	/* For analw we always use guard band on all queues */
 	lan_rmw(QSYS_TAS_CFG_CTRL_LIST_NUM_MAX_SET(num_taprio_lists) |
 		QSYS_TAS_CFG_CTRL_ALWAYS_GB_SCH_Q_SET(1),
 		QSYS_TAS_CFG_CTRL_LIST_NUM_MAX |

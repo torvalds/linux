@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * UFS PHY driver data for Samsung EXYNOSAUTO v9 SoC
+ * UFS PHY driver data for Samsung EXYANALSAUTO v9 SoC
  *
  * Copyright (C) 2021 Samsung Electronics Co., Ltd.
  */
 
 #include "phy-samsung-ufs.h"
 
-#define EXYNOSAUTOV9_EMBEDDED_COMBO_PHY_CTRL		0x728
-#define EXYNOSAUTOV9_EMBEDDED_COMBO_PHY_CTRL_MASK	0x1
-#define EXYNOSAUTOV9_EMBEDDED_COMBO_PHY_CTRL_EN		BIT(0)
-#define EXYNOSAUTOV9_EMBEDDED_COMBO_PHY_CDR_LOCK_STATUS	0x5e
+#define EXYANALSAUTOV9_EMBEDDED_COMBO_PHY_CTRL		0x728
+#define EXYANALSAUTOV9_EMBEDDED_COMBO_PHY_CTRL_MASK	0x1
+#define EXYANALSAUTOV9_EMBEDDED_COMBO_PHY_CTRL_EN		BIT(0)
+#define EXYANALSAUTOV9_EMBEDDED_COMBO_PHY_CDR_LOCK_STATUS	0x5e
 
 #define PHY_TRSV_REG_CFG_AUTOV9(o, v, d) \
 	PHY_TRSV_REG_CFG_OFFSET(o, v, d, 0x50)
 
 /* Calibration for phy initialization */
-static const struct samsung_ufs_phy_cfg exynosautov9_pre_init_cfg[] = {
+static const struct samsung_ufs_phy_cfg exyanalsautov9_pre_init_cfg[] = {
 	PHY_COMN_REG_CFG(0x023, 0x80, PWR_MODE_ANY),
 	PHY_COMN_REG_CFG(0x01d, 0x10, PWR_MODE_ANY),
 
@@ -39,7 +39,7 @@ static const struct samsung_ufs_phy_cfg exynosautov9_pre_init_cfg[] = {
 };
 
 /* Calibration for HS mode series A/B */
-static const struct samsung_ufs_phy_cfg exynosautov9_pre_pwr_hs_cfg[] = {
+static const struct samsung_ufs_phy_cfg exyanalsautov9_pre_pwr_hs_cfg[] = {
 	PHY_TRSV_REG_CFG_AUTOV9(0x032, 0xbc, PWR_MODE_HS_ANY),
 	PHY_TRSV_REG_CFG_AUTOV9(0x03c, 0x7f, PWR_MODE_HS_ANY),
 	PHY_TRSV_REG_CFG_AUTOV9(0x048, 0xc0, PWR_MODE_HS_ANY),
@@ -52,23 +52,23 @@ static const struct samsung_ufs_phy_cfg exynosautov9_pre_pwr_hs_cfg[] = {
 	END_UFS_PHY_CFG,
 };
 
-static const struct samsung_ufs_phy_cfg *exynosautov9_ufs_phy_cfgs[CFG_TAG_MAX] = {
-	[CFG_PRE_INIT]		= exynosautov9_pre_init_cfg,
-	[CFG_PRE_PWR_HS]	= exynosautov9_pre_pwr_hs_cfg,
+static const struct samsung_ufs_phy_cfg *exyanalsautov9_ufs_phy_cfgs[CFG_TAG_MAX] = {
+	[CFG_PRE_INIT]		= exyanalsautov9_pre_init_cfg,
+	[CFG_PRE_PWR_HS]	= exyanalsautov9_pre_pwr_hs_cfg,
 };
 
-static const char * const exynosautov9_ufs_phy_clks[] = {
+static const char * const exyanalsautov9_ufs_phy_clks[] = {
 	"ref_clk",
 };
 
-const struct samsung_ufs_phy_drvdata exynosautov9_ufs_phy = {
-	.cfgs = exynosautov9_ufs_phy_cfgs,
+const struct samsung_ufs_phy_drvdata exyanalsautov9_ufs_phy = {
+	.cfgs = exyanalsautov9_ufs_phy_cfgs,
 	.isol = {
-		.offset = EXYNOSAUTOV9_EMBEDDED_COMBO_PHY_CTRL,
-		.mask = EXYNOSAUTOV9_EMBEDDED_COMBO_PHY_CTRL_MASK,
-		.en = EXYNOSAUTOV9_EMBEDDED_COMBO_PHY_CTRL_EN,
+		.offset = EXYANALSAUTOV9_EMBEDDED_COMBO_PHY_CTRL,
+		.mask = EXYANALSAUTOV9_EMBEDDED_COMBO_PHY_CTRL_MASK,
+		.en = EXYANALSAUTOV9_EMBEDDED_COMBO_PHY_CTRL_EN,
 	},
-	.clk_list = exynosautov9_ufs_phy_clks,
-	.num_clks = ARRAY_SIZE(exynosautov9_ufs_phy_clks),
-	.cdr_lock_status_offset = EXYNOSAUTOV9_EMBEDDED_COMBO_PHY_CDR_LOCK_STATUS,
+	.clk_list = exyanalsautov9_ufs_phy_clks,
+	.num_clks = ARRAY_SIZE(exyanalsautov9_ufs_phy_clks),
+	.cdr_lock_status_offset = EXYANALSAUTOV9_EMBEDDED_COMBO_PHY_CDR_LOCK_STATUS,
 };

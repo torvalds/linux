@@ -87,8 +87,8 @@ test_ip6gretap()
 
 test_gretap_stp()
 {
-	# Sometimes after mirror installation, the neighbor's state is not valid.
-	# The reason is that there is no SW datapath activity related to the
+	# Sometimes after mirror installation, the neighbor's state is analt valid.
+	# The reason is that there is anal SW datapath activity related to the
 	# neighbor for the remote GRE address. Therefore whether the corresponding
 	# neighbor will be valid is a matter of luck, and the test is thus racy.
 	# Set the neighbor's state to permanent, so it would be always valid.
@@ -124,7 +124,7 @@ tcflags="skip_hw"
 test_all
 
 if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
+	echo "WARN: Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	test_all

@@ -28,7 +28,7 @@
  */
 struct c67x00_ep_data {
 	struct list_head queue;
-	struct list_head node;
+	struct list_head analde;
 	struct usb_host_endpoint *hep;
 	struct usb_device *dev;
 	u16 next_frame;		/* For int/isoc transactions */
@@ -50,7 +50,7 @@ struct c67x00_td {
 	u8 retry_cnt;		/* Byte 8 */
 #define TT_OFFSET		2
 #define TT_CONTROL		0
-#define TT_ISOCHRONOUS		1
+#define TT_ISOCHROANALUS		1
 #define TT_BULK			2
 #define TT_INTERRUPT		3
 	u8 residue;		/* Byte 9 */
@@ -71,7 +71,7 @@ struct c67x00_td {
 };
 
 struct c67x00_urb_priv {
-	struct list_head hep_node;
+	struct list_head hep_analde;
 	struct urb *urb;
 	int port;
 	int cnt;		/* packet number for isoc */
@@ -204,13 +204,13 @@ static void c67x00_release_urb(struct c67x00_hcd *c67x00, struct urb *urb)
 
 	c67x00->urb_count--;
 
-	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
+	if (usb_pipetype(urb->pipe) == PIPE_ISOCHROANALUS) {
 		c67x00->urb_iso_count--;
 		if (c67x00->urb_iso_count == 0)
 			c67x00->max_frame_bw = MAX_FRAME_BW_STD;
 	}
 
-	/* TODO this might be not so efficient when we've got many urbs!
+	/* TODO this might be analt so efficient when we've got many urbs!
 	 * Alternatives:
 	 *   * only clear when needed
 	 *   * keep a list of tds with each urbp
@@ -221,7 +221,7 @@ static void c67x00_release_urb(struct c67x00_hcd *c67x00, struct urb *urb)
 
 	urbp = urb->hcpriv;
 	urb->hcpriv = NULL;
-	list_del(&urbp->hep_node);
+	list_del(&urbp->hep_analde);
 	kfree(urbp);
 }
 
@@ -251,7 +251,7 @@ c67x00_ep_data_alloc(struct c67x00_hcd *c67x00, struct urb *urb)
 		return NULL;
 
 	INIT_LIST_HEAD(&ep_data->queue);
-	INIT_LIST_HEAD(&ep_data->node);
+	INIT_LIST_HEAD(&ep_data->analde);
 	ep_data->hep = hep;
 
 	/* hold a reference to udev as long as this endpoint lives,
@@ -265,15 +265,15 @@ c67x00_ep_data_alloc(struct c67x00_hcd *c67x00, struct urb *urb)
 	/* Add the endpoint data to one of the pipe lists; must be added
 	   in order of endpoint address */
 	type = usb_pipetype(urb->pipe);
-	if (list_empty(&ep_data->node)) {
-		list_add(&ep_data->node, &c67x00->list[type]);
+	if (list_empty(&ep_data->analde)) {
+		list_add(&ep_data->analde, &c67x00->list[type]);
 	} else {
 		struct c67x00_ep_data *prev;
 
-		list_for_each_entry(prev, &c67x00->list[type], node) {
+		list_for_each_entry(prev, &c67x00->list[type], analde) {
 			if (prev->hep->desc.bEndpointAddress >
 			    hep->desc.bEndpointAddress) {
-				list_add(&ep_data->node, prev->node.prev);
+				list_add(&ep_data->analde, prev->analde.prev);
 				break;
 			}
 		}
@@ -294,7 +294,7 @@ static int c67x00_ep_data_free(struct usb_host_endpoint *hep)
 
 	usb_put_dev(ep_data->dev);
 	list_del(&ep_data->queue);
-	list_del(&ep_data->node);
+	list_del(&ep_data->analde);
 
 	kfree(ep_data);
 	hep->hcpriv = NULL;
@@ -308,7 +308,7 @@ void c67x00_endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 	unsigned long flags;
 
 	if (!list_empty(&ep->urb_list))
-		dev_warn(c67x00_hcd_dev(c67x00), "error: urb list not empty\n");
+		dev_warn(c67x00_hcd_dev(c67x00), "error: urb list analt empty\n");
 
 	spin_lock_irqsave(&c67x00->lock, flags);
 
@@ -351,7 +351,7 @@ int c67x00_urb_enqueue(struct usb_hcd *hcd,
 	/* Allocate and initialize urb private data */
 	urbp = kzalloc(sizeof(*urbp), mem_flags);
 	if (!urbp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_urbp;
 	}
 
@@ -359,22 +359,22 @@ int c67x00_urb_enqueue(struct usb_hcd *hcd,
 
 	/* Make sure host controller is running */
 	if (!HC_IS_RUNNING(hcd->state)) {
-		ret = -ENODEV;
-		goto err_not_linked;
+		ret = -EANALDEV;
+		goto err_analt_linked;
 	}
 
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (ret)
-		goto err_not_linked;
+		goto err_analt_linked;
 
-	INIT_LIST_HEAD(&urbp->hep_node);
+	INIT_LIST_HEAD(&urbp->hep_analde);
 	urbp->urb = urb;
 	urbp->port = port;
 
 	urbp->ep_data = c67x00_ep_data_alloc(c67x00, urb);
 
 	if (!urbp->ep_data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_epdata;
 	}
 
@@ -383,7 +383,7 @@ int c67x00_urb_enqueue(struct usb_hcd *hcd,
 
 	urb->hcpriv = urbp;
 
-	urb->actual_length = 0;	/* Nothing received/transmitted yet */
+	urb->actual_length = 0;	/* Analthing received/transmitted yet */
 
 	switch (usb_pipetype(urb->pipe)) {
 	case PIPE_CONTROL:
@@ -393,7 +393,7 @@ int c67x00_urb_enqueue(struct usb_hcd *hcd,
 		break;
 	case PIPE_BULK:
 		break;
-	case PIPE_ISOCHRONOUS:
+	case PIPE_ISOCHROANALUS:
 		if (c67x00->urb_iso_count == 0)
 			c67x00->max_frame_bw = MAX_FRAME_BW_ISO;
 		c67x00->urb_iso_count++;
@@ -406,7 +406,7 @@ int c67x00_urb_enqueue(struct usb_hcd *hcd,
 
 			last_urb = list_entry(urbp->ep_data->queue.prev,
 					      struct c67x00_urb_priv,
-					      hep_node)->urb;
+					      hep_analde)->urb;
 			urb->start_frame =
 			    frame_add(last_urb->start_frame,
 				      last_urb->number_of_packets *
@@ -417,7 +417,7 @@ int c67x00_urb_enqueue(struct usb_hcd *hcd,
 	}
 
 	/* Add the URB to the endpoint queue */
-	list_add_tail(&urbp->hep_node, &urbp->ep_data->queue);
+	list_add_tail(&urbp->hep_analde, &urbp->ep_data->queue);
 
 	/* If this is the only URB, kick start the controller */
 	if (!c67x00->urb_count++)
@@ -430,7 +430,7 @@ int c67x00_urb_enqueue(struct usb_hcd *hcd,
 
 err_epdata:
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
-err_not_linked:
+err_analt_linked:
 	spin_unlock_irqrestore(&c67x00->lock, flags);
 	kfree(urbp);
 err_urbp:
@@ -481,7 +481,7 @@ c67x00_giveback_urb(struct c67x00_hcd *c67x00, struct urb *urb, int status)
 	urbp = urb->hcpriv;
 	urbp->status = status;
 
-	list_del_init(&urbp->hep_node);
+	list_del_init(&urbp->hep_analde);
 
 	c67x00_release_urb(c67x00, urb);
 	usb_hcd_unlink_urb_from_ep(c67x00_hcd_to_hcd(c67x00), urb);
@@ -572,11 +572,11 @@ static int c67x00_create_td(struct c67x00_hcd *c67x00, struct urb *urb,
 
 	if (c67x00_claim_frame_bw(c67x00, urb, len, usb_pipeisoc(urb->pipe)
 				  || usb_pipeint(urb->pipe)))
-		return -EMSGSIZE;	/* Not really an error, but expected */
+		return -EMSGSIZE;	/* Analt really an error, but expected */
 
 	td = kzalloc(sizeof(*td), GFP_ATOMIC);
 	if (!td)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	td->pipe = urb->pipe;
 	td->ep_data = urbp->ep_data;
@@ -586,8 +586,8 @@ static int c67x00_create_td(struct c67x00_hcd *c67x00, struct urb *urb,
 		cmd |= PREAMBLE_EN;
 
 	switch (usb_pipetype(td->pipe)) {
-	case PIPE_ISOCHRONOUS:
-		tt = TT_ISOCHRONOUS;
+	case PIPE_ISOCHROANALUS:
+		tt = TT_ISOCHROANALUS;
 		cmd |= ISO_EN;
 		break;
 	case PIPE_CONTROL:
@@ -781,13 +781,13 @@ static void c67x00_fill_from_list(struct c67x00_hcd *c67x00, int type,
 	struct urb *urb;
 
 	/* traverse every endpoint on the list */
-	list_for_each_entry(ep_data, &c67x00->list[type], node) {
+	list_for_each_entry(ep_data, &c67x00->list[type], analde) {
 		if (!list_empty(&ep_data->queue)) {
 			/* and add the first urb */
-			/* isochronous transfer rely on this */
+			/* isochroanalus transfer rely on this */
 			urb = list_entry(ep_data->queue.next,
 					 struct c67x00_urb_priv,
-					 hep_node)->urb;
+					 hep_analde)->urb;
 			add(c67x00, urb);
 		}
 	}
@@ -800,7 +800,7 @@ static void c67x00_fill_frame(struct c67x00_hcd *c67x00)
 	/* Check if we can proceed */
 	if (!list_empty(&c67x00->td_list)) {
 		dev_warn(c67x00_hcd_dev(c67x00),
-			 "TD list not empty! This should not happen!\n");
+			 "TD list analt empty! This should analt happen!\n");
 		list_for_each_entry_safe(td, ttd, &c67x00->td_list, td_list) {
 			dbg_td(c67x00, td, "Unprocessed td");
 			c67x00_release_td(td);
@@ -815,7 +815,7 @@ static void c67x00_fill_frame(struct c67x00_hcd *c67x00)
 	c67x00->next_buf_addr = c67x00->buf_base_addr;
 
 	/* Fill the list */
-	c67x00_fill_from_list(c67x00, PIPE_ISOCHRONOUS, c67x00_add_iso_urb);
+	c67x00_fill_from_list(c67x00, PIPE_ISOCHROANALUS, c67x00_add_iso_urb);
 	c67x00_fill_from_list(c67x00, PIPE_INTERRUPT, c67x00_add_int_urb);
 	c67x00_fill_from_list(c67x00, PIPE_CONTROL, c67x00_add_ctrl_urb);
 	c67x00_fill_from_list(c67x00, PIPE_BULK, c67x00_add_data_urb);
@@ -915,14 +915,14 @@ static void c67x00_handle_successful_td(struct c67x00_hcd *c67x00,
 	urb->actual_length += td_actual_bytes(td);
 
 	switch (usb_pipetype(td->pipe)) {
-		/* isochronous tds are handled separately */
+		/* isochroanalus tds are handled separately */
 	case PIPE_CONTROL:
 		switch (td->privdata) {
 		case SETUP_STAGE:
 			urb->interval =
 			    urb->transfer_buffer_length ?
 			    DATA_STAGE : STATUS_STAGE;
-			/* Don't count setup_packet with normal data: */
+			/* Don't count setup_packet with analrmal data: */
 			urb->actual_length = 0;
 			break;
 
@@ -989,7 +989,7 @@ static inline void c67x00_check_td_list(struct c67x00_hcd *c67x00)
 		ack_ok = 0;
 		clear_endpoint = 1;
 
-		/* Handle isochronous transfers separately */
+		/* Handle isochroanalus transfers separately */
 		if (usb_pipeisoc(td->pipe)) {
 			clear_endpoint = 0;
 			c67x00_handle_isoc(c67x00, td);
@@ -998,7 +998,7 @@ static inline void c67x00_check_td_list(struct c67x00_hcd *c67x00)
 
 		/* When an error occurs, all td's for that pipe go into an
 		 * inactive state. This state matches successful transfers so
-		 * we must make sure not to service them. */
+		 * we must make sure analt to service them. */
 		if (td->status & TD_ERROR_MASK) {
 			c67x00_giveback_urb(c67x00, urb,
 					    c67x00_td_to_error(c67x00, td));
@@ -1067,7 +1067,7 @@ static void c67x00_send_frame(struct c67x00_hcd *c67x00)
 
 	if (list_empty(&c67x00->td_list))
 		dev_warn(c67x00_hcd_dev(c67x00),
-			 "%s: td list should not be empty here!\n",
+			 "%s: td list should analt be empty here!\n",
 			 __func__);
 
 	list_for_each_entry(td, &c67x00->td_list, td_list) {
@@ -1094,7 +1094,7 @@ static void c67x00_do_work(struct c67x00_hcd *c67x00)
 
 	c67x00_check_td_list(c67x00);
 
-	/* no td's are being processed (current == 0)
+	/* anal td's are being processed (current == 0)
 	 * and all have been "checked" */
 	complete(&c67x00->endpoint_disable);
 
@@ -1106,7 +1106,7 @@ static void c67x00_do_work(struct c67x00_hcd *c67x00)
 		goto out;	/* Don't send tds in same frame */
 	c67x00->last_frame = c67x00->current_frame;
 
-	/* If no urbs are scheduled, our work is done */
+	/* If anal urbs are scheduled, our work is done */
 	if (!c67x00->urb_count) {
 		c67x00_ll_hpi_disable_sofeop(c67x00->sie);
 		goto out;

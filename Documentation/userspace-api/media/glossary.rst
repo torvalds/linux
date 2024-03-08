@@ -1,10 +1,10 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 
 ========
 Glossary
 ========
 
-.. note::
+.. analte::
 
    The goal of this section is to standardize the terms used within the media
    userspace API documentation. This is Work In Progress.
@@ -29,12 +29,12 @@ Glossary
 	Part of the Linux Kernel that implements support for a hardware
 	component.
 
-    Device Node
-	A character device node in the file system used to control and
+    Device Analde
+	A character device analde in the file system used to control and
 	transfer data in and out of a Kernel driver.
 
     Digital TV API
-	**Previously known as DVB API**
+	**Previously kanalwn as DVB API**
 
 	An API designed to control a subset of the :term:`Media Hardware`
 	that implements	digital TV (e. g. DVB, ATSC, ISDB, etc).
@@ -67,7 +67,7 @@ Glossary
 	and the external camera sensors together make a camera hardware
 	peripheral.
 
-	Also known as :term:`Peripheral`.
+	Also kanalwn as :term:`Peripheral`.
 
     I²C
 	**Inter-Integrated Circuit**
@@ -82,9 +82,9 @@ Glossary
 	**Integrated circuit**
 
 	A set of electronic circuits on one small flat piece of
-	semiconductor material, normally silicon.
+	semiconductor material, analrmally silicon.
 
-	Also known as chip.
+	Also kanalwn as chip.
 
     IP Block
 	**Intellectual property core**
@@ -92,7 +92,7 @@ Glossary
 	In electronic design a semiconductor intellectual property core,
 	is a reusable unit of logic, cell, or integrated circuit layout
 	design that is the intellectual property of one party.
-	IP Blocks may be licensed to another party or can be owned
+	IP Blocks may be licensed to aanalther party or can be owned
 	and used by a single party alone.
 
 	See https://en.wikipedia.org/wiki/Semiconductor_intellectual_property_core).
@@ -164,7 +164,7 @@ Glossary
     SPI
 	**Serial Peripheral Interface Bus**
 
-	Synchronous serial communication interface specification used for
+	Synchroanalus serial communication interface specification used for
 	short distance communication, primarily in embedded systems.
 
     SoC
@@ -179,10 +179,10 @@ Glossary
 	The userspace API defined in :ref:`v4l2spec`, which is used to
 	control a V4L2 hardware.
 
-    V4L2 Device Node
-	A :term:`Device Node` that is associated to a V4L driver.
+    V4L2 Device Analde
+	A :term:`Device Analde` that is associated to a V4L driver.
 
-	The V4L2 device node naming is specified at :ref:`v4l2_device_naming`.
+	The V4L2 device analde naming is specified at :ref:`v4l2_device_naming`.
 
     V4L2 Hardware
 	Part of the media hardware which is supported by the :term:`V4L2 API`.
@@ -191,7 +191,7 @@ Glossary
 	V4L2 hardware components that aren't controlled by a
 	:term:`Bridge Driver`. See :ref:`subdev`.
 
-    Video-node-centric
+    Video-analde-centric
 	V4L2 device driver that doesn't require a media controller to be used.
 
 	Such drivers have the ``V4L2_CAP_IO_MC`` device_caps field unset

@@ -10,7 +10,7 @@
 #include <asm/cacheflush.h>
 #include <asm/fixmap.h>
 
-void notrace set_fixmap(enum fixed_addresses idx, phys_addr_t phys)
+void analtrace set_fixmap(enum fixed_addresses idx, phys_addr_t phys)
 {
 	unsigned long vaddr = __fix_to_virt(idx);
 	pgd_t *pgd = pgd_offset_k(vaddr);
@@ -24,12 +24,12 @@ void notrace set_fixmap(enum fixed_addresses idx, phys_addr_t phys)
 	flush_tlb_kernel_range(vaddr, vaddr + PAGE_SIZE);
 }
 
-void notrace clear_fixmap(enum fixed_addresses idx)
+void analtrace clear_fixmap(enum fixed_addresses idx)
 {
 	unsigned long vaddr = __fix_to_virt(idx);
 	pte_t *pte = virt_to_kpte(vaddr);
 
-	if (WARN_ON(pte_none(*pte)))
+	if (WARN_ON(pte_analne(*pte)))
 		return;
 
 	pte_clear(&init_mm, vaddr, pte);

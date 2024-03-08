@@ -29,7 +29,7 @@
 
 #define ZYNQMP_AES_GCM_TAG_MISMATCH_ERR		0x01
 #define ZYNQMP_AES_WRONG_KEY_SRC_ERR		0x13
-#define ZYNQMP_AES_PUF_NOT_PROGRAMMED		0xE300
+#define ZYNQMP_AES_PUF_ANALT_PROGRAMMED		0xE300
 
 enum zynqmp_aead_op {
 	ZYNQMP_AES_DECRYPT = 0,
@@ -97,13 +97,13 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 
 	kbuf = dma_alloc_coherent(dev, dma_size, &dma_addr_data, GFP_KERNEL);
 	if (!kbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwreq = dma_alloc_coherent(dev, sizeof(struct zynqmp_aead_hw_req),
 				   &dma_addr_hw_req, GFP_KERNEL);
 	if (!hwreq) {
 		dma_free_coherent(dev, dma_size, kbuf, dma_addr_data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data_size = req->cryptlen;
@@ -143,11 +143,11 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 		case ZYNQMP_AES_WRONG_KEY_SRC_ERR:
 			dev_err(dev, "ERROR: Wrong KeySrc, enable secure mode\n");
 			break;
-		case ZYNQMP_AES_PUF_NOT_PROGRAMMED:
-			dev_err(dev, "ERROR: PUF is not registered\n");
+		case ZYNQMP_AES_PUF_ANALT_PROGRAMMED:
+			dev_err(dev, "ERROR: PUF is analt registered\n");
 			break;
 		default:
-			dev_err(dev, "ERROR: Unknown error\n");
+			dev_err(dev, "ERROR: Unkanalwn error\n");
 			break;
 		}
 		err = -status;
@@ -383,24 +383,24 @@ static int zynqmp_aes_aead_probe(struct platform_device *pdev)
 	if (!aes_drv_ctx.dev)
 		aes_drv_ctx.dev = dev;
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(ZYNQMP_DMA_BIT_MASK));
 	if (err < 0) {
-		dev_err(dev, "No usable DMA configuration\n");
+		dev_err(dev, "Anal usable DMA configuration\n");
 		return err;
 	}
 
 	aes_drv_ctx.engine = crypto_engine_alloc_init(dev, 1);
 	if (!aes_drv_ctx.engine) {
-		dev_err(dev, "Cannot alloc AES engine\n");
-		err = -ENOMEM;
+		dev_err(dev, "Cananalt alloc AES engine\n");
+		err = -EANALMEM;
 		goto err_engine;
 	}
 
 	err = crypto_engine_start(aes_drv_ctx.engine);
 	if (err) {
-		dev_err(dev, "Cannot start AES engine\n");
+		dev_err(dev, "Cananalt start AES engine\n");
 		goto err_engine;
 	}
 
